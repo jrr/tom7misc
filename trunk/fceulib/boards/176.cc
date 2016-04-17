@@ -139,7 +139,7 @@ struct Mapper176 : public CartInterface {
     fc->fceu->GameStateRestore = StateRestore;
 
     wram176 = (uint8 *)FCEU_gmalloc(WRAM176SIZE);
-    fc->cart->SetupCartPRGMapping(0x10, wram176, WRAM176SIZE, 1);
+    fc->cart->SetupCartPRGMapping(0x10, wram176, WRAM176SIZE, true);
     fc->state->AddExState(wram176, WRAM176SIZE, 0, "WRAM");
     fc->state->AddExVec({
 	{prg, 4, "PRG0"}, {&chr, 1, "CHR0"}, {&sbw, 1, "SBW0"}});

@@ -297,7 +297,7 @@ struct Mapper83 : public YokoBase {
     fc->fceu->GameStateRestore = M83StateRestore;
 
     WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, 1);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
   }
 };

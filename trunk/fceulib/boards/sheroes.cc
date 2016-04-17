@@ -75,7 +75,7 @@ struct UNLSHeroes : public MMC3 {
     // original code didn't set size -tom7
     CHRRAMSize = 8192;
     CHRRAM = (uint8 *)FCEU_gmalloc(8192);
-    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, 8192, 1);
+    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, 8192, true);
     fc->state->AddExState(EXPREGS, 4, 0, "EXPR");
     fc->state->AddExState(&tekker, 1, 0, "DIPs");
   }

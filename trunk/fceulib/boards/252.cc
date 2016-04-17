@@ -127,11 +127,11 @@ struct Mapper252 : public CartInterface {
     };
 
     CHRRAM = (uint8 *)FCEU_gmalloc(CHRRAMSIZE);
-    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, CHRRAMSIZE, 1);
+    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, CHRRAMSIZE, true);
     fc->state->AddExState(CHRRAM, CHRRAMSIZE, 0, "CRAM");
 
     WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, 1);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
     if (info->battery) {
       info->SaveGame[0] = WRAM;

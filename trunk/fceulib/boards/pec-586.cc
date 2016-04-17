@@ -109,7 +109,7 @@ struct UNLPEC586 : public CartInterface {
     fc->fceu->GameStateRestore = StateRestore;
 
     WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, 1);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
 
     fc->state->AddExVec({{reg, 2, "REGS"}});

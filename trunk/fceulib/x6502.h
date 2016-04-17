@@ -46,7 +46,7 @@ struct X6502 {
 
   int32 count;
   /* Simulated IRQ pin held low(or is it high?).
-     And other junk hooked on for speed reasons.*/
+     And other junk hooked on for speed reasons. */
   uint32 IRQlow;
   /* Data bus "cache" for reads from certain areas */
   uint8 DB;

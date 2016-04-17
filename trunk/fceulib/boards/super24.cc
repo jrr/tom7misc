@@ -85,7 +85,7 @@ struct Super24 : public MMC3 {
 
   Super24(FC *fc, CartInfo *info) : MMC3(fc, info, 128, 256, 0, 0) {
     CHRRAM = (uint8 *)FCEU_gmalloc(8192);
-    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, 8192, 1);
+    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, 8192, true);
     fc->state->AddExState(CHRRAM, 8192, 0, "CHRR");
     fc->state->AddExState(EXPREGS, 3, 0, "BIG2");
   }

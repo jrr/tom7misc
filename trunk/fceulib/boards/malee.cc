@@ -36,7 +36,7 @@ struct MALEE : public CartInterface {
   }
 
   MALEE(FC *fc, CartInfo *info) : CartInterface(fc) {
-    fc->cart->SetupCartPRGMapping(0x10, WRAM, 2048, 1);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM, 2048, true);
     fc->state->AddExState(WRAM, 2048, 0, "WRAM");
   }
 };

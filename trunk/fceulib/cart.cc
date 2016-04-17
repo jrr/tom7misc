@@ -43,9 +43,11 @@ Cart::Cart(FC *fc) : fc(fc) {
   VPageR = VPage;
 }
 
-void Cart::setpageptr(int s, uint32 A, uint8 *p, int ram) {
+void Cart::SetPagePtr(int s, uint32 A, uint8 *p, bool ram) {
   const uint32 AB = A >> 11;
-
+  printf("setpageptr %d %04x %p %s %02x\n",
+	 s, A, p, ram ? "RAM" : "not RAM", AB);
+  
   if (p) {
     for (int x = (s >> 1) - 1; x >= 0; x--) {
       PRGIsRAM[AB + x] = ram;
@@ -80,7 +82,7 @@ void Cart::ResetCartMapping() {
   }
 }
 
-void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, int ram) {
+void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
   PRGptr[chip] = p;
   PRGsize[chip] = size;
 
@@ -90,10 +92,10 @@ void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, int ram) {
   PRGmask16[chip] = (size >> 14) - 1;
   PRGmask32[chip] = (size >> 15) - 1;
 
-  PRGram[chip] = ram ? 1 : 0;
+  PRGram[chip] = is_ram;
 }
 
-void Cart::SetupCartCHRMapping(int chip, uint8 *p, uint32 size, int ram) {
+void Cart::SetupCartCHRMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
   CHRptr[chip] = p;
   CHRsize[chip] = size;
 
@@ -102,7 +104,7 @@ void Cart::SetupCartCHRMapping(int chip, uint8 *p, uint32 size, int ram) {
   CHRmask4[chip] = (size >> 12) - 1;
   CHRmask8[chip] = (size >> 13) - 1;
 
-  CHRram[chip] = ram;
+  CHRram[chip] = is_ram;
 }
 
 // static
@@ -111,6 +113,9 @@ DECLFR_RET Cart::CartBR(DECLFR_ARGS) {
 }
 
 DECLFR_RET Cart::CartBR_Direct(DECLFR_ARGS) {
+  // XXX: A bit disturbing that CartBW and BROB check that Page is
+  // non-null, but here we just assume it's good? Maybe this is
+  // the point of using BROB?
   return Page[A >> 11][A];
 }
 
@@ -136,7 +141,7 @@ DECLFR_RET Cart::CartBROB_Direct(DECLFR_ARGS) {
 
 void Cart::setprg2r(int r, unsigned int A, unsigned int V) {
   V &= PRGmask2[r];
-  setpageptr(2, A, PRGptr[r] ? (&PRGptr[r][V << 11]) : 0, PRGram[r]);
+  SetPagePtr(2, A, PRGptr[r] ? (&PRGptr[r][V << 11]) : 0, PRGram[r]);
 }
 
 void Cart::setprg2(uint32 A, uint32 V) {
@@ -145,7 +150,7 @@ void Cart::setprg2(uint32 A, uint32 V) {
 
 void Cart::setprg4r(int r, unsigned int A, unsigned int V) {
   V &= PRGmask4[r];
-  setpageptr(4, A, PRGptr[r] ? (&PRGptr[r][V << 12]) : 0, PRGram[r]);
+  SetPagePtr(4, A, PRGptr[r] ? (&PRGptr[r][V << 12]) : 0, PRGram[r]);
 }
 
 void Cart::setprg4(uint32 A, uint32 V) {
@@ -155,11 +160,11 @@ void Cart::setprg4(uint32 A, uint32 V) {
 void Cart::setprg8r(int r, unsigned int A, unsigned int V) {
   if (PRGsize[r] >= 8192) {
     V &= PRGmask8[r];
-    setpageptr(8, A, PRGptr[r] ? (&PRGptr[r][V << 13]) : 0, PRGram[r]);
+    SetPagePtr(8, A, PRGptr[r] ? (&PRGptr[r][V << 13]) : 0, PRGram[r]);
   } else {
     const uint32 VA = V << 2;
     for (int x = 0; x < 4; x++)
-      setpageptr(2, A + (x << 11),
+      SetPagePtr(2, A + (x << 11),
                  PRGptr[r] ? (&PRGptr[r][((VA + x) & PRGmask2[r]) << 11]) : 0,
                  PRGram[r]);
   }
@@ -172,12 +177,12 @@ void Cart::setprg8(uint32 A, uint32 V) {
 void Cart::setprg16r(int r, unsigned int A, unsigned int V) {
   if (PRGsize[r] >= 16384) {
     V &= PRGmask16[r];
-    setpageptr(16, A, PRGptr[r] ? (&PRGptr[r][V << 14]) : 0, PRGram[r]);
+    SetPagePtr(16, A, PRGptr[r] ? (&PRGptr[r][V << 14]) : 0, PRGram[r]);
   } else {
     const uint32 VA = V << 3;
 
     for (int x = 0; x < 8; x++)
-      setpageptr(2, A + (x << 11),
+      SetPagePtr(2, A + (x << 11),
                  PRGptr[r] ? (&PRGptr[r][((VA + x) & PRGmask2[r]) << 11]) : 0,
                  PRGram[r]);
   }
@@ -190,12 +195,12 @@ void Cart::setprg16(uint32 A, uint32 V) {
 void Cart::setprg32r(int r, unsigned int A, unsigned int V) {
   if (PRGsize[r] >= 32768) {
     V &= PRGmask32[r];
-    setpageptr(32, A, PRGptr[r] ? (&PRGptr[r][V << 15]) : 0, PRGram[r]);
+    SetPagePtr(32, A, PRGptr[r] ? (&PRGptr[r][V << 15]) : 0, PRGram[r]);
   } else {
     uint32 VA = V << 4;
 
     for (int x = 0; x < 16; x++)
-      setpageptr(2, A + (x << 11),
+      SetPagePtr(2, A + (x << 11),
                  PRGptr[r] ? (&PRGptr[r][((VA + x) & PRGmask2[r]) << 11]) : 0,
                  PRGram[r]);
   }

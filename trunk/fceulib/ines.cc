@@ -894,10 +894,10 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   fc->cart->ResetCartMapping();
   fc->state->ResetExState(nullptr, nullptr);
 
-  fc->cart->SetupCartPRGMapping(0,ROM,ROM_size*0x4000,0);
+  fc->cart->SetupCartPRGMapping(0, ROM, ROM_size*0x4000, false);
   // SetupCartPRGMapping(1,WRAM,8192,1);
 
-  FCEU_fread(ROM,0x4000,(round) ? ROM_size : head.ROM_size,fp);
+  FCEU_fread(ROM,0x4000,(round) ? ROM_size : head.ROM_size, fp);
 
   if (VROM_size)
     FCEU_fread(VROM,0x2000,head.VROM_size,fp);
@@ -964,7 +964,7 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
      VROM_size and free(VROM).
   */
   if (VROM_size)
-    fc->cart->SetupCartCHRMapping(0,VROM,VROM_size*0x2000,0);
+    fc->cart->SetupCartCHRMapping(0, VROM, VROM_size*0x2000, false);
 
   if (iNESMirroring == 2)
     fc->cart->SetupCartMirroring(4,1,GMB_ExtraNTARAM(fc));
@@ -1528,7 +1528,7 @@ int INes::NewiNES_Init(int num) {
 	FCEU_InitMemory(VROM, CHRRAMSize);
 
 	fc->unif->UNIFchrrama = VROM;
-	fc->cart->SetupCartCHRMapping(0, VROM, CHRRAMSize, 1);
+	fc->cart->SetupCartCHRMapping(0, VROM, CHRRAMSize, true);
 	fc->state->AddExState(VROM, CHRRAMSize, 0, "CHRR");
       }
       if (head.ROM_type & 8)
