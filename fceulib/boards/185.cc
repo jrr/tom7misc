@@ -56,7 +56,7 @@ struct Mapper185Base : public CartInterface {
   Mapper185Base(FC *fc, CartInfo *info) : CartInterface(fc) {
     DummyCHR = (uint8 *)FCEU_gmalloc(8192);
     for (int x = 0; x < 8192; x++) DummyCHR[x] = 0xff;
-    fc->cart->SetupCartCHRMapping(0x10, DummyCHR, 8192, 0);
+    fc->cart->SetupCartCHRMapping(0x10, DummyCHR, 8192, false);
     fc->state->AddExVec({{&datareg, 1, "DREG"}});
   }
 };

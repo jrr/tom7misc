@@ -313,7 +313,7 @@ struct MMC1 : public CartInterface {
       memset(WRAM, 0, wram * 1024);
       mmc1opts |= 1;
       if (wram > 8) mmc1opts |= 4;
-      fc->cart->SetupCartPRGMapping(0x10, WRAM, wram * 1024, 1);
+      fc->cart->SetupCartPRGMapping(0x10, WRAM, wram * 1024, true);
       fc->state->AddExState(WRAM, wram * 1024, 0, "WRAM");
       if (battery) {
 	mmc1opts |= 2;
@@ -323,7 +323,7 @@ struct MMC1 : public CartInterface {
     }
     if (!chr) {
       CHRRAM = (uint8 *)FCEU_gmalloc(8192);
-      fc->cart->SetupCartCHRMapping(0, CHRRAM, 8192, 1);
+      fc->cart->SetupCartCHRMapping(0, CHRRAM, 8192, true);
       fc->state->AddExState(CHRRAM, 8192, 0, "CHRR");
     }
     fc->state->AddExState(DRegs, 4, 0, "DREG");

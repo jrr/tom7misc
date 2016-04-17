@@ -267,7 +267,7 @@ struct UNLOneBus : public CartInterface {
     memset(apu40xx, 0x00, sizeof(apu40xx));
 
     fc->cart->SetupCartCHRMapping(0, fc->cart->PRGptr[0],
-				  fc->cart->PRGsize[0], 0);
+				  fc->cart->PRGsize[0], false);
 
     for (uint32 i = 0; i < 64; i++) {
       defapuread[i] = fc->fceu->GetReadHandler(0x4000 | i);

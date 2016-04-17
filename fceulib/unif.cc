@@ -224,7 +224,7 @@ int Unif::LoadPRG(FceuFile *fp) {
     FCEU_printf("\n");
   }
 
-  fc->cart->SetupCartPRGMapping(z, malloced[z], t, 0);
+  fc->cart->SetupCartPRGMapping(z, malloced[z], t, false);
   return 1;
 }
 
@@ -258,7 +258,7 @@ int Unif::LoadCHR(FceuFile *fp) {
     FCEU_printf("\n");
   }
 
-  fc->cart->SetupCartCHRMapping(z, malloced[16 + z], t, 0);
+  fc->cart->SetupCartCHRMapping(z, malloced[16 + z], t, false);
   return 1;
 }
 
@@ -459,7 +459,7 @@ int Unif::InitializeBoard() {
         else
           CHRRAMSize = 8192;
         if ((UNIFchrrama = (uint8 *)FCEU_malloc(CHRRAMSize))) {
-          fc->cart->SetupCartCHRMapping(0, UNIFchrrama, CHRRAMSize, 1);
+          fc->cart->SetupCartCHRMapping(0, UNIFchrrama, CHRRAMSize, true);
           fc->state->AddExState(UNIFchrrama, CHRRAMSize, 0, "CHRR");
         } else {
           return -1;

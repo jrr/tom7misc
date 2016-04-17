@@ -85,7 +85,7 @@ struct Ghostbusters : public CartInterface {
 
   Ghostbusters(FC *fc, CartInfo *info) : CartInterface(fc) {
     CHRROM = (uint8 *)FCEU_gmalloc(CHRROMSIZE);
-    fc->cart->SetupCartPRGMapping(0x10, CHRROM, CHRROMSIZE, 0);
+    fc->cart->SetupCartPRGMapping(0x10, CHRROM, CHRROMSIZE, false);
     fc->state->AddExState(CHRROM, CHRROMSIZE, 0, "CROM");
 
     fc->fceu->GameStateRestore = StateRestore;

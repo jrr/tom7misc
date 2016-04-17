@@ -112,7 +112,7 @@ struct Mapper156 : public CartInterface {
 
   Mapper156(FC *fc, CartInfo *info) : CartInterface(fc) {
     WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, 1);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
 
     fc->fceu->GameStateRestore = StateRestore;

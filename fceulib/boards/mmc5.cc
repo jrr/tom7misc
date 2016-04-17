@@ -815,7 +815,7 @@ struct MMC5 : public CartInterface {
   MMC5(FC *fc, CartInfo *info, int wsize, int battery) : CartInterface(fc) {
     if (wsize) {
       WRAM = (uint8 *)FCEU_gmalloc(wsize * 1024);
-      fc->cart->SetupCartPRGMapping(0x10, WRAM, wsize * 1024, 1);
+      fc->cart->SetupCartPRGMapping(0x10, WRAM, wsize * 1024, true);
       // This was registered twice for some reason? (There's another
       // copy of this line unconditionally below.) -tom7
       // fc->state->AddExState(WRAM, wsize*1024, 0, "WRM5");

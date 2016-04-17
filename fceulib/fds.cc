@@ -728,10 +728,10 @@ int FDS::FDSLoad(const char *name, FceuFile *fp) {
   fc->state->AddExState(&DiskWritten,1,0,"DSKW");
 
   fc->cart->ResetCartMapping();
-  fc->cart->SetupCartCHRMapping(0,CHRRAM,8192,1);
-  fc->cart->SetupCartMirroring(0,0,0);
-  memset(CHRRAM,0,8192);
-  memset(FDSRAM,0,32768);
+  fc->cart->SetupCartCHRMapping(0, CHRRAM, 8192, true);
+  fc->cart->SetupCartMirroring(0, 0, 0);
+  memset(CHRRAM, 0, 8192);
+  memset(FDSRAM, 0, 32768);
 
   FCEU_printf(" Sides: %d\n\n",TotalSides);
 

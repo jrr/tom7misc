@@ -73,7 +73,7 @@ struct Mapper168 : public CartInterface {
     fc->state->AddExVec({{&reg, 1, "REGS"}});
 
     CHRRAM = (uint8 *)FCEU_gmalloc(CHRRAMSIZE);
-    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, CHRRAMSIZE, 1);
+    fc->cart->SetupCartCHRMapping(0x10, CHRRAM, CHRRAMSIZE, true);
     fc->state->AddExState(CHRRAM, CHRRAMSIZE, 0, "CRAM");
   }
 

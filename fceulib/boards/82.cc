@@ -81,7 +81,7 @@ struct Mapper82 : public CartInterface {
     // (Later of course these because virtual function overrides)
 
     WRAM82 = (uint8 *)FCEU_gmalloc(WRAM82SIZE);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM82, WRAM82SIZE, 1);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM82, WRAM82SIZE, true);
     fc->state->AddExState(WRAM82, WRAM82SIZE, 0, "WR82");
     if (info->battery) {
       info->SaveGame[0] = WRAM82;

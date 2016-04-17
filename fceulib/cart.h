@@ -72,19 +72,19 @@ struct Cart {
   void FCEU_LoadGameSave(CartInfo *LocalHWInfo);
   void FCEU_ClearGameSave(CartInfo *LocalHWInfo);
 
+  // Each page is a poiner to 2k of memory. 
   uint8 *Page[32] = {};
   uint8 *VPage[8] = {};
   uint8 *MMC5SPRVPage[8] = {};
   uint8 *MMC5BGVPage[8] = {};
 
   void ResetCartMapping();
-  void SetupCartPRGMapping(int chip, uint8 *p, uint32 size, int ram);
-  void SetupCartCHRMapping(int chip, uint8 *p, uint32 size, int ram);
+  void SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram);
+  void SetupCartCHRMapping(int chip, uint8 *p, uint32 size, bool is_ram);
   void SetupCartMirroring(int m, int hard, uint8 *extra);
   
-  // hack, movie.cpp has to communicate with this function somehow
   // Maybe should always be true? -tom7
-  int disableBatteryLoading = 0;
+  static constexpr bool disableBatteryLoading = false;
   
   uint8 *PRGptr[32] = {};
   uint8 *CHRptr[32] = {};
@@ -139,19 +139,20 @@ struct Cart {
 
   Cart(FC *fc);
   
-  // TODO: Kill these.
-  static DECLFW_RET CartBW(DECLFW_ARGS);
-  static DECLFR_RET CartBR(DECLFR_ARGS);
-  static DECLFR_RET CartBROB(DECLFR_ARGS);
-
-  // TODO: Indirect static hooks (which go through the global object)
-  // should instead get a local cart object and call these.
+  // Write to or read from the mapped address. The BROB version (OB is
+  // presumably "out of bounds") returns the current value of the data
+  // bus when reading from an unmapped page.
   DECLFR_RET CartBR_Direct(DECLFR_ARGS);
   DECLFR_RET CartBROB_Direct(DECLFR_ARGS);
   DECLFW_RET CartBW_Direct(DECLFW_ARGS);
 
+  // TODO: Kill these static versions.
+  static DECLFW_RET CartBW(DECLFW_ARGS);
+  static DECLFR_RET CartBR(DECLFR_ARGS);
+  static DECLFR_RET CartBROB(DECLFR_ARGS);
+
 private:
-  uint8 PRGIsRAM[32] = { };  /* This page is/is not PRG RAM. */
+  bool PRGIsRAM[32] = { };  /* This page is/is not PRG RAM. */
 
   // Aliases VPage, don't know why. Fix? -tom7
   uint8 **VPageR = nullptr;
@@ -162,12 +163,12 @@ private:
   uint8 nothing[8192] = { };
 
   /* 16 are (sort of) reserved for UNIF/iNES and 16 to map other stuff. */
-  int CHRram[32] = { };
-  int PRGram[32] = { };
+  bool CHRram[32] = { };
+  bool PRGram[32] = { };
 
   int mirrorhard = 0;
 
-  void setpageptr(int s, uint32 A, uint8 *p, int ram);
+  void SetPagePtr(int s, uint32 A, uint8 *p, bool ram);
 
   FC *fc;
 };

@@ -88,7 +88,7 @@ struct Mapper186 : public CartInterface {
   Mapper186(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = M186Restore;
     WRAM = (uint8 *)FCEU_gmalloc(32768);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM, 32768, 1);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM, 32768, true);
     fc->state->AddExState(WRAM, 32768, 0, "WRAM");
     fc->state->AddExVec({{regs, 4, "DREG"}, {SWRAM, 2816, "SWRM"}});
   }

@@ -1,8 +1,8 @@
 
 # Makefile made by tom7.
-default: emulator_test.exe difftrace.exe
+default: bench.exe difftrace.exe
 
-all: emulator_test.exe fm2tocc.exe difftrace.exe dumptrace.exe make-comprehensive-history.exe
+all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-comprehensive-history.exe
 
 # -fno-strict-aliasing
 # -Wstrict-overflow=3
@@ -115,6 +115,9 @@ dumptrace.exe : stringprintf.o trace.o dumptrace.o
 emulator_test.exe : $(OBJECTS) test-util.o emulator_test.o simplefm2.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+bench.exe : $(OBJECTS) test-util.o bench.o simplefm2.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
@@ -122,7 +125,7 @@ test : emulator_test.exe
 	time ./emulator_test.exe
 
 clean :
-	rm -f *_test.exe difftrace.exe *.o $(EMUOBJECTS) $(CCLIBOBJECTS) gmon.out
+	rm -f *_test.exe bench.exe difftrace.exe *.o $(EMUOBJECTS) $(CCLIBOBJECTS) gmon.out
 
 veryclean : clean
 	rm -f trace.bin
