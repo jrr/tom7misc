@@ -321,7 +321,6 @@ MMC3::MMC3(FC *fc, CartInfo *info, int prg, int chr, int wram, int battery)
 // ----------------------------------------------------------------------
 
 // ---------------------------- Mapper 4 --------------------------------
-
 namespace {
 struct Mapper4 : public MMC3 {
   /* For Karnov, maybe others.  BLAH.  Stupid iNES format.*/
@@ -497,7 +496,7 @@ CartInterface *Mapper44_Init(FC *fc, CartInfo *info) {
 }
 
 // ---------------------------- Mapper 45 -------------------------------
-
+namespace {
 struct Mapper45 : public MMC3 {
   uint8 EXPREGS[8] = {};
 
@@ -574,13 +573,14 @@ struct Mapper45 : public MMC3 {
     fc->state->AddExState(EXPREGS, 5, 0, "EXPR");
   }
 };
+}
 
 CartInterface *Mapper45_Init(FC *fc, CartInfo *info) {
   return new Mapper45(fc, info);
 }
 
 // ---------------------------- Mapper 47 -------------------------------
-
+namespace {
 struct Mapper47 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
@@ -616,13 +616,14 @@ struct Mapper47 : public MMC3 {
     fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
   }
 };
+}
 
 CartInterface *Mapper47_Init(FC *fc, CartInfo *info) {
   return new Mapper47(fc, info);
 }
 
 // ---------------------------- Mapper 49 -------------------------------
-
+namespace {
 struct Mapper49 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
@@ -669,13 +670,14 @@ struct Mapper49 : public MMC3 {
    fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
  }
 };
+}
 
 CartInterface *Mapper49_Init(FC *fc, CartInfo *info) {
    return new Mapper49(fc, info);
 }
 
 // ---------------------------- Mapper 52 -------------------------------
-
+namespace {
 struct Mapper52 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
@@ -725,13 +727,14 @@ struct Mapper52 : public MMC3 {
     fc->state->AddExState(EXPREGS, 2, 0, "EXPR");
   }
 };
+}
 
 CartInterface *Mapper52_Init(FC *fc, CartInfo *info) {
   return new Mapper52(fc, info);
 }
 
 // ---------------------------- Mapper 74 -------------------------------
-
+namespace {
 struct Mapper74 : public MMC3 {
   void CWrap(uint32 A, uint8 V) override {
     if ((V == 8) || (V == 9)) {
@@ -750,11 +753,14 @@ struct Mapper74 : public MMC3 {
     fc->state->AddExState(CHRRAM, CHRRAMSize, 0, "CHRR");
   }
 };
+}
+
 CartInterface *Mapper74_Init(FC *fc, CartInfo *info) {
   return new Mapper74(fc, info);
 }
 
 // ---------------------------- Mapper 114 ------------------------------
+namespace {
 static constexpr uint8 const m114_perm[8] = {0, 3, 1, 5, 6, 7, 2, 4};
 struct Mapper114 : public MMC3 {
   uint8 cmdin = 0;
@@ -820,6 +826,7 @@ struct Mapper114 : public MMC3 {
     fc->state->AddExState(&cmdin, 1, 0, "CMDI");
   }
 };
+}
 
 CartInterface *Mapper114_Init(FC *fc, CartInfo *info) {
   return new Mapper114(fc, info);
@@ -827,9 +834,8 @@ CartInterface *Mapper114_Init(FC *fc, CartInfo *info) {
 
 // ---------------------------- Mapper 115 KN-658 board
 // ------------------------------
-
+namespace {
 struct Mapper115 : public MMC3 {
-
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
     // zero 09-apr-2012 - #3515357 - changed to support Bao Qing Tian
@@ -872,8 +878,8 @@ struct Mapper115 : public MMC3 {
     : MMC3(fc, info, 128, 512, 0, 0) {
     fc->state->AddExState(EXPREGS, 2, 0, "EXPR");
   }
-
 };
+}
 
 CartInterface *Mapper115_Init(FC *fc, CartInfo *info) {
   return new Mapper115(fc, info);
@@ -884,8 +890,7 @@ CartInterface *Mapper115_Init(FC *fc, CartInfo *info) {
 // only used in UNIF at bottom -tom7
 
 // ---------------------------- Mapper 119 ------------------------------
-
-
+namespace {
 struct Mapper119 : public MMC3 {
   void CWrap(uint32 A, uint8 V) override {
     fc->cart->setchr1r((V & 0x40) >> 2, A, V & 0x3F);
@@ -898,13 +903,14 @@ struct Mapper119 : public MMC3 {
     fc->cart->SetupCartCHRMapping(0x10, CHRRAM, CHRRAMSize, true);
   }
 };
+}
 
 CartInterface *Mapper119_Init(FC *fc, CartInfo *info) {
   return new Mapper119(fc, info);
 }
 
 // ---------------------------- Mapper 134 ------------------------------
-
+namespace {
 struct Mapper134 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
@@ -939,12 +945,14 @@ struct Mapper134 : public MMC3 {
     fc->state->AddExState(EXPREGS, 4, 0, "EXPR");  
   }
 };
+}
+
 CartInterface *Mapper134_Init(FC *fc, CartInfo *info) {
   return new Mapper134(fc, info);
 }
 
 // ---------------------------- Mapper 165 ------------------------------
-
+namespace {
 struct Mapper165 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void CWrap(uint32 A, uint8 V) override {
@@ -1001,15 +1009,16 @@ struct Mapper165 : public MMC3 {
     fc->state->AddExState(CHRRAM, CHRRAMSize, 0, "CHRR");
     fc->state->AddExState(EXPREGS, 4, 0, "EXPR");
   }
-
 };
+}
+
 CartInterface *Mapper165_Init(FC *fc, CartInfo *info) {
   return new Mapper165(fc, info);
 }
 
 
 // ---------------------------- Mapper 191 ------------------------------
-
+namespace {
 struct Mapper191 : public MMC3 {
   void CWrap(uint32 A, uint8 V) override {
     fc->cart->setchr1r((V & 0x80) >> 3, A, V);
@@ -1024,13 +1033,14 @@ struct Mapper191 : public MMC3 {
   }
 
 };
+}
 
 CartInterface *Mapper191_Init(FC *fc, CartInfo *info) {
   return new Mapper191(fc, info);
 }
 
 // ---------------------------- Mapper 192 -------------------------------
-
+namespace {
 struct Mapper192 : public MMC3 {
   void CWrap(uint32 A, uint8 V) override {
     if ((V == 8) || (V == 9) || (V == 0xA) ||
@@ -1048,6 +1058,7 @@ struct Mapper192 : public MMC3 {
     fc->state->AddExState(CHRRAM, CHRRAMSize, 0, "CHRR");
   }
 };
+}
 
 CartInterface *Mapper192_Init(FC *fc, CartInfo *info) {
   return new Mapper192(fc, info);
@@ -1055,7 +1066,7 @@ CartInterface *Mapper192_Init(FC *fc, CartInfo *info) {
 
 
 // ---------------------------- Mapper 194 -------------------------------
-
+namespace {
 struct Mapper194 : public MMC3 {
   void CWrap(uint32 A, uint8 V) override {
     if (V <= 1)  // Dai-2-Ji - Super Robot Taisen (As).nes
@@ -1072,13 +1083,14 @@ struct Mapper194 : public MMC3 {
     fc->state->AddExState(CHRRAM, CHRRAMSize, 0, "CHRR");
   }
 };
+}
 
 CartInterface *Mapper194_Init(FC *fc, CartInfo *info) {
   return new Mapper194(fc, info);
 }
 
 // ---------------------------- Mapper 195 -------------------------------
-
+namespace {
 struct Mapper195 : public MMC3 {
   uint8 *wramtw = nullptr;
   uint16 wramsize = 0;
@@ -1116,6 +1128,7 @@ struct Mapper195 : public MMC3 {
     fc->state->AddExState(wramtw, wramsize, 0, "TRAM");
   }
 };
+}
 
 CartInterface *Mapper195_Init(FC *fc, CartInfo *info) {
   return new Mapper195(fc, info);
@@ -1126,7 +1139,7 @@ CartInterface *Mapper195_Init(FC *fc, CartInfo *info) {
 // make three-four different wirings to IRQ address lines and separately to
 // CMD address line, Mali Boss additionally check if wiring are correct for
 // game
-
+namespace {
 struct Mapper196 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
@@ -1179,12 +1192,14 @@ struct Mapper196 : public MMC3 {
     : MMC3(fc, info, 128, 128, 0, 0) {
   }
 };
+}
+
 CartInterface *Mapper196_Init(FC *fc, CartInfo *info) {
   return new Mapper196(fc, info);
 }
 
 // ---------------------------- Mapper 197 -------------------------------
-
+namespace {
 struct Mapper197 : public MMC3 {
   void CWrap(uint32 A, uint8 V) override {
     if (A == 0x0000)
@@ -1198,12 +1213,14 @@ struct Mapper197 : public MMC3 {
   Mapper197(FC *fc, CartInfo *info)
     : MMC3(fc, info, 128, 512, 8, 0) {}
 };
+}
+
 CartInterface *Mapper197_Init(FC *fc, CartInfo *info) {
   return new Mapper197(fc, info);
 }
 
 // ---------------------------- Mapper 198 -------------------------------
-
+namespace {
 struct Mapper198 : public MMC3 {
   uint8 *wramtw = nullptr;
   uint16 wramsize = 0;
@@ -1223,13 +1240,15 @@ struct Mapper198 : public MMC3 {
     fc->state->AddExState(wramtw, wramsize, 0, "TRAM");
   }
 };
+}
+
 CartInterface *Mapper198_Init(FC *fc, CartInfo *info) {
   return new Mapper198(fc, info);
 }
 
 // ---------------------------- Mapper 205 ------------------------------
 // GN-45 BOARD
-
+namespace {
 struct Mapper205 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
@@ -1270,12 +1289,14 @@ struct Mapper205 : public MMC3 {
     fc->state->AddExState(EXPREGS, 1, 0, "EXPR");  
   }
 };
+}
+
 CartInterface *Mapper205_Init(FC *fc, CartInfo *info) {
   return new Mapper205(fc, info);
 }
 
 // ---------------------------- Mapper 245 ------------------------------
-
+namespace {
 struct Mapper245 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void CWrap(uint32 A, uint8 V) override {
@@ -1302,13 +1323,14 @@ struct Mapper245 : public MMC3 {
     fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
   }
 };
+}
 
 CartInterface *Mapper245_Init(FC *fc, CartInfo *info) {
   return new Mapper245(fc, info);
 }
 
 // ---------------------------- Mapper 249 ------------------------------
-
+namespace {
 struct Mapper249 : public MMC3 {
   uint8 EXPREGS[8] = {};
   void PWrap(uint32 A, uint8 V) override {
@@ -1350,14 +1372,15 @@ struct Mapper249 : public MMC3 {
     : MMC3(fc, info, 512, 256, 8, info->battery) {
     fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
   }
-
 };
+}
+
 CartInterface *Mapper249_Init(FC *fc, CartInfo *info) {
   return new Mapper249(fc, info);
 }
 
 // ---------------------------- Mapper 250 ------------------------------
-
+namespace {
 struct Mapper250 : public MMC3 {
   void M250Write(DECLFW_ARGS) {
     MMC3_CMDWrite_Direct(fc, (A & 0xE000) | ((A & 0x400) >> 10), A & 0xFF);
@@ -1380,12 +1403,13 @@ struct Mapper250 : public MMC3 {
     : MMC3(fc, info, 512, 256, 8, info->battery) {
   }
 };
+}
+
 CartInterface *Mapper250_Init(FC *fc, CartInfo *info) {
   return new Mapper250(fc, info);
 }
 
 // ---------------------------- Mapper 254 ------------------------------
-
 namespace {
 struct Mapper254 : public MMC3 {
   uint8 EXPREGS[8] = {};
@@ -1456,6 +1480,7 @@ CartInterface *TSROM_Init(FC *fc, CartInfo *info) {
   return new MMC3(fc, info, 512, 256, 8, 0);
 }
 
+namespace {
 struct Nom : public MMC3 {
   void MWrap(uint8 V) override {
     A000B = V;
@@ -1487,6 +1512,7 @@ struct Tks : public Nom {
     fc->state->AddExState(&PPUCHRBus, 1, 0, "PPUC");
   }
 };
+}
 
 CartInterface *TLSROM_Init(FC *fc, CartInfo *info) {
   return new Tks(fc, info, 512, 256, 8, 0);

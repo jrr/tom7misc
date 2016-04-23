@@ -124,6 +124,7 @@ struct Mapper216 : public CartInterface {
   }
 };
 }
+
 CartInterface *Mapper216_Init(FC *fc, CartInfo *info) {
   return new Mapper216(fc, info);
 }
