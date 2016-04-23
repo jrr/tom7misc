@@ -169,7 +169,7 @@ struct MMC1 : public CartInterface {
 
     /* The MMC1 is busy so ignore the write. */
     /* As of version FCE Ultra 0.81, the timestamp is only
-       increased before each instruction is executed(in other words
+       increased before each instruction is executed (in other words
        precision isn't that great), but this should still work to
        deal with 2 writes in a row from a single RMW instruction. */
     if ((fc->fceu->timestampbase + fc->X->timestamp) < (lreset + 2))

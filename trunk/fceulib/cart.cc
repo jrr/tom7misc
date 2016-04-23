@@ -39,22 +39,20 @@
 
 #include "tracing.h"
 
-Cart::Cart(FC *fc) : fc(fc) {
-  VPageR = VPage;
-}
+Cart::Cart(FC *fc) : fc(fc) {}
 
 void Cart::SetPagePtr(int s, uint32 A, uint8 *p, bool ram) {
   const uint32 AB = A >> 11;
-  printf("setpageptr %d %04x %p %s %02x\n",
-	 s, A, p, ram ? "RAM" : "not RAM", AB);
+  if (0) printf("setpageptr %d %04x %p %s %02x\n",
+		s, A, p, ram ? "RAM" : "not RAM", AB);
   
-  if (p) {
-    for (int x = (s >> 1) - 1; x >= 0; x--) {
+  if (p != nullptr) {
+    for (int x = 0; x < (s >> 1); x++) {
       PRGIsRAM[AB + x] = ram;
       Page[AB + x] = p - A;
     }
   } else {
-    for (int x = (s >> 1) - 1; x >= 0; x--) {
+    for (int x = 0; x < (s >> 1); x++) {
       PRGIsRAM[AB + x] = 0;
       Page[AB + x] = 0;
     }
@@ -78,7 +76,7 @@ void Cart::ResetCartMapping() {
     PRGsize[x] = CHRsize[x] = 0;
   }
   for (int x = 0; x < 8; x++) {
-    MMC5SPRVPage[x] = MMC5BGVPage[x] = VPageR[x] = nothing - 0x400 * x;
+    MMC5SPRVPage[x] = MMC5BGVPage[x] = VPage[x] = nothing - 0x400 * x;
   }
 }
 
@@ -141,7 +139,7 @@ DECLFR_RET Cart::CartBROB_Direct(DECLFR_ARGS) {
 
 void Cart::setprg2r(int r, unsigned int A, unsigned int V) {
   V &= PRGmask2[r];
-  SetPagePtr(2, A, PRGptr[r] ? (&PRGptr[r][V << 11]) : 0, PRGram[r]);
+  SetPagePtr(2, A, PRGptr[r] ? &PRGptr[r][V << 11] : 0, PRGram[r]);
 }
 
 void Cart::setprg2(uint32 A, uint32 V) {
@@ -150,7 +148,7 @@ void Cart::setprg2(uint32 A, uint32 V) {
 
 void Cart::setprg4r(int r, unsigned int A, unsigned int V) {
   V &= PRGmask4[r];
-  SetPagePtr(4, A, PRGptr[r] ? (&PRGptr[r][V << 12]) : 0, PRGram[r]);
+  SetPagePtr(4, A, PRGptr[r] ? &PRGptr[r][V << 12] : 0, PRGram[r]);
 }
 
 void Cart::setprg4(uint32 A, uint32 V) {
@@ -160,7 +158,7 @@ void Cart::setprg4(uint32 A, uint32 V) {
 void Cart::setprg8r(int r, unsigned int A, unsigned int V) {
   if (PRGsize[r] >= 8192) {
     V &= PRGmask8[r];
-    SetPagePtr(8, A, PRGptr[r] ? (&PRGptr[r][V << 13]) : 0, PRGram[r]);
+    SetPagePtr(8, A, PRGptr[r] ? &PRGptr[r][V << 13] : 0, PRGram[r]);
   } else {
     const uint32 VA = V << 2;
     for (int x = 0; x < 4; x++)
@@ -197,7 +195,7 @@ void Cart::setprg32r(int r, unsigned int A, unsigned int V) {
     V &= PRGmask32[r];
     SetPagePtr(32, A, PRGptr[r] ? (&PRGptr[r][V << 15]) : 0, PRGram[r]);
   } else {
-    uint32 VA = V << 4;
+    const uint32 VA = V << 4;
 
     for (int x = 0; x < 16; x++)
       SetPagePtr(2, A + (x << 11),
@@ -218,14 +216,14 @@ void Cart::setchr1r(int r, unsigned int A, unsigned int V) {
     fc->ppu->PPUCHRRAM |= (1 << (A >> 10));
   else
     fc->ppu->PPUCHRRAM &= ~(1 << (A >> 10));
-  VPageR[(A) >> 10] = &CHRptr[r][(V) << 10] - (A);
+  VPage[A >> 10] = &CHRptr[r][V << 10] - A;
 }
 
 void Cart::setchr2r(int r, unsigned int A, unsigned int V) {
   if (!CHRptr[r]) return;
   fc->ppu->FCEUPPU_LineUpdate();
   V &= CHRmask2[r];
-  VPageR[(A) >> 10] = VPageR[((A) >> 10) + 1] = &CHRptr[r][(V) << 11] - (A);
+  VPage[A >> 10] = VPage[(A >> 10) + 1] = &CHRptr[r][V << 11] - A;
   if (CHRram[r])
     fc->ppu->PPUCHRRAM |= (3 << (A >> 10));
   else
@@ -236,8 +234,8 @@ void Cart::setchr4r(int r, unsigned int A, unsigned int V) {
   if (!CHRptr[r]) return;
   fc->ppu->FCEUPPU_LineUpdate();
   V &= CHRmask4[r];
-  VPageR[(A) >> 10] = VPageR[((A) >> 10) + 1] = VPageR[((A) >> 10) + 2] =
-      VPageR[((A) >> 10) + 3] = &CHRptr[r][(V) << 12] - (A);
+  VPage[A >> 10] = VPage[(A >> 10) + 1] = VPage[(A >> 10) + 2] =
+      VPage[(A >> 10) + 3] = &CHRptr[r][V << 12] - A;
   if (CHRram[r])
     fc->ppu->PPUCHRRAM |= (15 << (A >> 10));
   else
@@ -248,7 +246,7 @@ void Cart::setchr8r(int r, unsigned int V) {
   if (!CHRptr[r]) return;
   fc->ppu->FCEUPPU_LineUpdate();
   V &= CHRmask8[r];
-  for (int x = 7; x >= 0; x--) VPageR[x] = &CHRptr[r][V << 13];
+  for (int x = 7; x >= 0; x--) VPage[x] = &CHRptr[r][V << 13];
   if (CHRram[r])
     fc->ppu->PPUCHRRAM |= (255);
   else
@@ -272,36 +270,36 @@ void Cart::setchr8(unsigned int V) {
 }
 
 void Cart::setvram8(uint8 *p) {
-  for (int x = 7; x >= 0; x--) VPageR[x] = p;
+  for (int x = 7; x >= 0; x--) VPage[x] = p;
   fc->ppu->PPUCHRRAM |= 255;
 }
 
 void Cart::setvram4(uint32 A, uint8 *p) {
-  for (int x = 3; x >= 0; x--) VPageR[(A >> 10) + x] = p - A;
+  for (int x = 3; x >= 0; x--) VPage[(A >> 10) + x] = p - A;
   fc->ppu->PPUCHRRAM |= (15 << (A >> 10));
 }
 
 void Cart::setvramb1(uint8 *p, uint32 A, uint32 b) {
   fc->ppu->FCEUPPU_LineUpdate();
-  VPageR[A >> 10] = p - A + (b << 10);
+  VPage[A >> 10] = p - A + (b << 10);
   fc->ppu->PPUCHRRAM |= (1 << (A >> 10));
 }
 
 void Cart::setvramb2(uint8 *p, uint32 A, uint32 b) {
   fc->ppu->FCEUPPU_LineUpdate();
-  VPageR[(A >> 10)] = VPageR[(A >> 10) + 1] = p - A + (b << 11);
+  VPage[(A >> 10)] = VPage[(A >> 10) + 1] = p - A + (b << 11);
   fc->ppu->PPUCHRRAM |= (3 << (A >> 10));
 }
 
 void Cart::setvramb4(uint8 *p, uint32 A, uint32 b) {
   fc->ppu->FCEUPPU_LineUpdate();
-  for (int x = 3; x >= 0; x--) VPageR[(A >> 10) + x] = p - A + (b << 12);
+  for (int x = 3; x >= 0; x--) VPage[(A >> 10) + x] = p - A + (b << 12);
   fc->ppu->PPUCHRRAM |= (15 << (A >> 10));
 }
 
 void Cart::setvramb8(uint8 *p, uint32 b) {
   fc->ppu->FCEUPPU_LineUpdate();
-  for (int x = 7; x >= 0; x--) VPageR[x] = p + (b << 13);
+  for (int x = 7; x >= 0; x--) VPage[x] = p + (b << 13);
   fc->ppu->PPUCHRRAM |= 255;
 }
 
