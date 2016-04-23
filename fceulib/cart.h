@@ -72,7 +72,7 @@ struct Cart {
   void FCEU_LoadGameSave(CartInfo *LocalHWInfo);
   void FCEU_ClearGameSave(CartInfo *LocalHWInfo);
 
-  // Each page is a poiner to 2k of memory. 
+  // Each page is a pointer to 2k of memory. 
   uint8 *Page[32] = {};
   uint8 *VPage[8] = {};
   uint8 *MMC5SPRVPage[8] = {};
@@ -153,9 +153,6 @@ struct Cart {
 
 private:
   bool PRGIsRAM[32] = { };  /* This page is/is not PRG RAM. */
-
-  // Aliases VPage, don't know why. Fix? -tom7
-  uint8 **VPageR = nullptr;
   
   // See comment on ResetCartMapping where negative offsets of nothing
   // are used..? TODO: Sort this out.
