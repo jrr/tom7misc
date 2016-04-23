@@ -297,7 +297,6 @@ CartInterface *Mapper201_Init(FC *fc, CartInfo *info) {
 }
 
 //------------------ Map 202 ---------------------------
-
 namespace {
 struct M202 : public AddrLatch {
   using AddrLatch::AddrLatch;

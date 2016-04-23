@@ -21,9 +21,8 @@
 #include "mapinc.h"
 #include "mmc3.h"
 
-static constexpr uint8 m114_perm[8] = {0, 3, 1, 5, 6, 7, 2, 4};
-
 namespace {
+static constexpr uint8 const m114_perm[8] = {0, 3, 1, 5, 6, 7, 2, 4};
 struct H2288 : public MMC3 {
   uint8 EXPREGS[8] = {};
 
