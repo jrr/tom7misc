@@ -711,7 +711,7 @@ void X6502::Run(int32 cycles) {
     reg_PI = reg_P;
     // Get the next instruction.
     const uint8 b1 = RdMem(reg_PC);
-    printf("Read %x -> opcode %02x\n", reg_PC, b1);
+    // printf("Read %x -> opcode %02x\n", reg_PC, b1);
     
     ADDCYC(CycTable[b1]);
 

@@ -597,7 +597,7 @@ int main(int argc, char **argv) {
   // First, ensure that we have preserved the single-threaded
   // behavior.
 
-  #if 0
+  #if 1
   // Regression -- Tengen cart wasn't saving all its state.
   Game skull{
     "skull.nes",
@@ -820,6 +820,7 @@ int main(int argc, char **argv) {
 
   Collage collage("");
   auto RunGameToCollage = [&collage, write_collage](const Game &game) {
+    printf("Running %s to collage...\n", game.cart.c_str());
     SerialResult sr = RunGameSerially([](const string &s) {}, game);
     if (write_collage) {
       if (!sr.final_image.empty()) {
@@ -831,10 +832,9 @@ int main(int argc, char **argv) {
 
   TRACE_ENABLE();
 
-  #if 0
+  #if 1
   // Only run the intro tests for the first index in
   // sharded comprehensive mode.
-  if (false) // XXX
   if (!MAKE_COMPREHENSIVE) { 
     RunGameToCollage(dw4);
 
