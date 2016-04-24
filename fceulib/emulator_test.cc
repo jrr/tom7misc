@@ -20,13 +20,7 @@
 #include <mutex>
 #include <thread>
 
-struct MutexLock {
-  explicit MutexLock(std::mutex *m) : m(m) { m->lock(); }
-  ~MutexLock() { m->unlock(); }
-  std::mutex *m;
-};
-
-// #include "threadutil.h"
+#include "threadutil.h"
 
 #include "tracing.h"
 
@@ -936,15 +930,14 @@ int main(int argc, char **argv) {
 
       std::mutex status_m;
       vector<string> status(max_concurrency, " ** never updated ** ");
+
+      const int num_romlines = romlines.size();
       
-      // Thread applies f repeatedly until there are no more indices.
-      // PERF: Can just start each thread knowing its start index, and avoid
-      // the synchronization overhead at startup.
       auto th = [&OneLine, &romlines, &index_m, &next_index,
-		 &status_m, &status](int thread_id) {
+		 &status_m, &status, num_romlines](int thread_id) {
 	for (;;) {
 	  index_m.lock();
-	  if (next_index == romlines.size()) {
+	  if (next_index == num_romlines) {
 	    // All done. Don't increment counter so that other threads can
 	    // notice this too.
 	    index_m.unlock();
@@ -953,13 +946,21 @@ int main(int argc, char **argv) {
 	  int my_index = next_index++;
 	  index_m.unlock();
 
+	  // Update just redraws the whole status message.
 	  std::function<void(const string &)> Update =
-	  [&status_m, &status, thread_id, my_index](const string &s) {
+	  [&status_m, &status, thread_id, my_index,
+	   &index_m, &next_index, num_romlines](const string &s) {
+	    const int done = ReadWithLock(&index_m, &next_index);
 	    MutexLock ml(&status_m);
-	    status[thread_id] = StringPrintf("%3d: %s", my_index, s.c_str());
+	    status[thread_id] = StringPrintf(ANSI_CYAN "%3d"
+					     ANSI_RESET " : %s",
+					     my_index, s.c_str());
 	    // If ANSI is available, clear screen.
 	    printf("\n" ANSI_CLS
-		   "--------------------------------------------------\n");
+		   "--------------------------------------------------\n"
+		   "   Finished " ANSI_GREEN "%d" ANSI_RESET "/%d (%.2f%%)\n"
+		   "--------------------------------------------------\n",
+		   done, num_romlines, (done * 100.0) / num_romlines);
 	    for (int i = 0; i < status.size(); i++) {
 	      printf(ANSI_YELLOW "%2d. "
 		     ANSI_RESET " %s\n", i, status[i].c_str());

@@ -36,8 +36,8 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper01_222 : public CartInterface {
-  const bool is172, is173;
+template<bool is172, bool is173>
+struct Mapper01_222 final : public CartInterface {
   uint8 reg[4] = {}, cmd = 0;
   vector<SFORMAT> StateRegs;
 
@@ -48,45 +48,45 @@ struct Mapper01_222 : public CartInterface {
       // possible to rearrange CHR banks for normal UNIF board and
       // mapper 172 is unneccessary
       fc->cart->setchr8((((cmd ^ reg[2]) >> 3) & 2) |
-			      (((cmd ^ reg[2]) >> 5) & 1));
+                        (((cmd ^ reg[2]) >> 5) & 1));
     } else {
       fc->cart->setchr8(reg[2] & 3);
     }
   }
 
   void UNL22211WriteLo(DECLFW_ARGS) {
-    //	FCEU_printf("bs %04x %02x\n",A,V);
+    //  FCEU_printf("bs %04x %02x\n",A,V);
     reg[A & 3] = V;
   }
 
   void UNL22211WriteHi(DECLFW_ARGS) {
-    //	FCEU_printf("bs %04x %02x\n",A,V);
+    //  FCEU_printf("bs %04x %02x\n",A,V);
     cmd = V;
     Sync();
   }
 
   DECLFR_RET UNL22211ReadLo(DECLFR_ARGS) {
     return (reg[1] ^ reg[2]) | (is173 ? 0x01 : 0x40);
-    //	if(reg[3])
-    //		return reg[2];
-    //	else
-    //		return fc->X->DB;
+    //  if(reg[3])
+    //          return reg[2];
+    //  else
+    //          return fc->X->DB;
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x4100, 0x4100, [](DECLFR_ARGS) {
       return ((Mapper01_222*)fc->fceu->cartiface)->
-	UNL22211ReadLo(DECLFR_FORWARD);
+        UNL22211ReadLo(DECLFR_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x4100, 0x4103, [](DECLFW_ARGS) {
       return ((Mapper01_222*)fc->fceu->cartiface)->
-	UNL22211WriteLo(DECLFW_FORWARD);
+        UNL22211WriteLo(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       return ((Mapper01_222*)fc->fceu->cartiface)->
-	UNL22211WriteHi(DECLFW_FORWARD);
+        UNL22211WriteHi(DECLFW_FORWARD);
     });
   }
 
@@ -94,9 +94,7 @@ struct Mapper01_222 : public CartInterface {
     ((Mapper01_222*)fc->fceu->cartiface)->Sync();
   }
 
-  Mapper01_222(FC *fc, CartInfo *info,
-	       bool is172, bool is173) : CartInterface(fc),
-					 is172(is172), is173(is173) {
+  Mapper01_222(FC *fc, CartInfo *info) : CartInterface(fc) {
     // PERF probably doesn't need to stick around
     StateRegs = {{reg, 4, "REGS"}, {&cmd, 1, "CMD0"}};
     fc->fceu->GameStateRestore = StateRestore;
@@ -106,13 +104,13 @@ struct Mapper01_222 : public CartInterface {
 }
 
 CartInterface *UNL22211_Init(FC *fc, CartInfo *info) {
-  return new Mapper01_222(fc, info, 0, 0);
+  return new Mapper01_222<false, false>(fc, info);
 }
 
 CartInterface *Mapper172_Init(FC *fc, CartInfo *info) {
-  return new Mapper01_222(fc, info, 1, 0);
+  return new Mapper01_222<true, false>(fc, info);
 }
 
 CartInterface *Mapper173_Init(FC *fc, CartInfo *info) {
-  return new Mapper01_222(fc, info, 0, 1);
+  return new Mapper01_222<false, true>(fc, info);
 }

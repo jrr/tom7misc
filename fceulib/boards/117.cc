@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper117 : public CartInterface {
+struct Mapper117 final : public CartInterface {
   uint8 prgreg[4] = {}, chrreg[8] = {}, mirror = 0;
   uint8 IRQa = 0, IRQCount = 0, IRQLatch = 0;
 
@@ -59,7 +59,7 @@ struct Mapper117 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     prgreg[0] = ~3;
     prgreg[1] = ~2;
     prgreg[2] = ~1;

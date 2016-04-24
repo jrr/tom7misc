@@ -22,7 +22,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper112 : public CartInterface {
+struct Mapper112 final : public CartInterface {
   uint8 reg[8] = {};
   uint8 mirror = 0, cmd = 0, bank = 0;
   uint8 *WRAM = nullptr;
@@ -57,12 +57,12 @@ struct Mapper112 : public CartInterface {
     }
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }
 
-  void Power() override {
+  void Power() final override {
     bank = 0;
     fc->cart->setprg16(0xC000, ~0);
     fc->cart->setprg8r(0x10, 0x6000, 0);
@@ -93,7 +93,6 @@ struct Mapper112 : public CartInterface {
 };
 }
 
-  
 CartInterface *Mapper112_Init(FC *fc, CartInfo *info) {
   return new Mapper112(fc, info);
 }

@@ -21,8 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-
-struct Mapper108 : public CartInterface {
+struct Mapper108 final : public CartInterface {
  uint8 reg = 0;
 
   void Sync() {
@@ -36,7 +35,7 @@ struct Mapper108 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);

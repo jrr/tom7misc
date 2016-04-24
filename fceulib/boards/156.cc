@@ -23,7 +23,7 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct Mapper156 : public CartInterface {
+struct Mapper156 final : public CartInterface {
   uint8 chrlo[8] = {}, chrhi[8] = {}, prg = 0, mirr = 0, mirrisused = 0;
   uint8 *WRAM = nullptr;
 
@@ -81,7 +81,7 @@ struct Mapper156 : public CartInterface {
     }
   }
 
-  void Reset() override {
+  void Reset() final override {
     for (uint32 i = 0; i < 8; i++) {
       chrlo[i] = 0;
       chrhi[i] = 0;
@@ -91,7 +91,7 @@ struct Mapper156 : public CartInterface {
     mirrisused = 0;
   }
 
-  void Power() override {
+  void Power() final override {
     Reset();
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
@@ -101,7 +101,7 @@ struct Mapper156 : public CartInterface {
     });
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

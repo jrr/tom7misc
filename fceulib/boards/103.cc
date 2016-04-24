@@ -23,7 +23,7 @@
 static constexpr int WRAMSIZE = 16384;
 
 namespace {
-struct Mapper103 : public CartInterface {
+struct Mapper103 final : public CartInterface {
   uint8 reg0 = 0, reg1 = 0, reg2 = 0;
   uint8 *WRAM = nullptr;
 
@@ -71,7 +71,7 @@ struct Mapper103 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     reg0 = reg1 = 0;
     reg2 = 0;
     Sync();
@@ -99,7 +99,7 @@ struct Mapper103 : public CartInterface {
     });
   }
 
-  void Close() override {
+  void Close() final override {
     if (WRAM) free(WRAM);
     WRAM = nullptr;
   }
