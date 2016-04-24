@@ -46,6 +46,10 @@ Cleanup to do:
  - Somehow look through boards for member variables that are not
    initlized to 0 or {}.
  - Can ines::MasterRomInfoParams move to fk23? Are there other uses?
+ - Should use "final override" where possible in boards/mappers. Did
+   through 164.
+ - Probably some MMC3 stuff can be compile-time, by templating
+   MMC3 base class.
 
 Surprisingly necessary:
  - crc32 since ines.cc has a table of games and their CRCs.

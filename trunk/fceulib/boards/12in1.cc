@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct BMC12IN1 : public CartInterface {
+struct BMC12IN1 final : public CartInterface {
   uint8 reg[4] = {};
 
   void Sync() {
@@ -47,7 +47,7 @@ struct BMC12IN1 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     reg[0] = reg[1] = reg[2] = reg[3] = 0;
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);

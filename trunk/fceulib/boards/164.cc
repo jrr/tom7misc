@@ -65,7 +65,7 @@ struct Mapper164Base : public CartInterface {
     }
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }
@@ -86,8 +86,8 @@ struct Mapper164Base : public CartInterface {
   }
 };
 
-struct Mapper164 : public Mapper164Base {
-  void Power() override {
+struct Mapper164 final : public Mapper164Base {
+  void Power() final override {
     memset(reg, 0, 8);
     reg[1] = 0xFF;
     fc->fceu->SetWriteHandler(0x5000, 0x5FFF, [](DECLFW_ARGS) {
@@ -99,8 +99,8 @@ struct Mapper164 : public Mapper164Base {
   }
 };
 
-struct Mapper163 : public Mapper164Base {
-  void Power() override {
+struct Mapper163 final : public Mapper164Base {
+  void Power() final override {
     memset(reg, 0, 8);
     laststrobe = 1;
     fc->fceu->SetReadHandler(0x5000, 0x5FFF, [](DECLFR_ARGS) {
@@ -146,7 +146,7 @@ struct Mapper163 : public Mapper164Base {
       case 0x5000:
         reg[1] = V;
         WSync();
-        if (!(reg[1] & 0x80) && (fc->ppu->scanline < 128))
+        if (!(reg[1] & 0x80) && fc->ppu->scanline < 128)
           fc->cart->setchr8(0); /* fc->cart->setchr8(0); */
         break;
       case 0x5300: reg[2] = V; break;
@@ -187,10 +187,10 @@ struct Mapper163 : public Mapper164Base {
   }
 };
 
-struct UNLFS304 : public Mapper164Base {
+struct UNLFS304 final : public Mapper164Base {
   using Mapper164Base::Mapper164Base;
 
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr8(0);
     fc->cart->setprg8r(0x10, 0x6000, 0);
     switch (reg[3] & 7) {
@@ -222,7 +222,7 @@ struct UNLFS304 : public Mapper164Base {
     WSync();
   }
   
-  void Power() override {
+  void Power() final override {
     reg[0] = 3;
     reg[1] = 0;
     reg[2] = 0;

@@ -39,7 +39,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper116 : public CartInterface {
+struct Mapper116 final : public CartInterface {
   uint8 mode = 0;
   uint8 vrc2_chr[8] = {}, vrc2_prg[2] = {}, vrc2_mirr = 0;
   uint8 mmc3_regs[10] = {}, mmc3_ctrl = 0, mmc3_mirr = 0;
@@ -83,7 +83,7 @@ struct Mapper116 : public CartInterface {
   }
 
   void SyncCHR() {
-    uint32 base = (mode & 4) << 6;
+    const uint32 base = (mode & 4) << 6;
     switch (mode & 3) {
       case 0:
 	fc->cart->setchr1(0x0000, base | vrc2_chr[0]);
@@ -268,7 +268,7 @@ struct Mapper116 : public CartInterface {
     ((Mapper116*)fc->fceu->cartiface)->Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     mode = 0;
     vrc2_chr[0] = ~0;
     vrc2_chr[1] = ~0;

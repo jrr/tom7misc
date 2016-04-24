@@ -31,7 +31,7 @@
 static constexpr uint8 const prot_array[16] = {0x83, 0x83, 0x42, 0x00};
 
 namespace {
-struct Mapper121 : public MMC3 {
+struct Mapper121 final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
   void Sync() {
@@ -74,7 +74,7 @@ struct Mapper121 : public MMC3 {
     }
   }
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     // A9713 multigame extension hack!
     if (fc->cart->PRGsize[0] == fc->cart->CHRsize[0]) {
       fc->cart->setchr1(A, V | ((EXPREGS[3] & 0x80) << 1));
@@ -86,7 +86,7 @@ struct Mapper121 : public MMC3 {
     }
   }
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[5] & 0x3F) {
       //    FCEU_printf("prot banks: %02x %02x %02x
       //    %02x\n",V,EXPREGS[2],EXPREGS[1],EXPREGS[0]);
@@ -146,7 +146,7 @@ struct Mapper121 : public MMC3 {
     return EXPREGS[4];
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[3] = 0x80;
     EXPREGS[5] = 0;
     MMC3::Power();
