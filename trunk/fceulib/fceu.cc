@@ -57,9 +57,6 @@
 
 using namespace std;
 
-// TODO: Delete.
-static constexpr int RWWrap = 0;
-
 FCEU::FCEU(FC *fc) : fc(fc) {
   GameMemBlock = (uint8*)FCEU_gmalloc(GAME_MEM_BLOCK_SIZE);
   RAM = (uint8*)FCEU_gmalloc(0x800);
@@ -99,34 +96,19 @@ static DECLFR(ANull) {
 }
 
 readfunc FCEU::GetReadHandler(int32 a) {
-  if (a>=0x8000 && RWWrap)
-    return AReadG[a-0x8000];
-  else
-    return ARead[a];
+  return ARead[a];
 }
 
 writefunc FCEU::GetWriteHandler(int32 a) {
-  if (RWWrap && a >= 0x8000)
-    return BWriteG[a - 0x8000];
-  else
-    return BWrite[a];
+  return BWrite[a];
 }
 
 void FCEU::SetWriteHandler(int32 start, int32 end, writefunc func) {
   if (!func)
     func = BNull;
 
-  if (RWWrap) {
-    for (int32 x = end; x >= start; x--) {
-      if (x>=0x8000)
-        BWriteG[x-0x8000]=func;
-      else
-        BWrite[x]=func;
-    } 
-  } else {
-    for (int32 x = end; x >= start; x--) {
-      BWrite[x]=func;
-    }
+  for (int32 x = start; x < end; x++) {
+    BWrite[x] = func;
   }
 }
 
@@ -138,20 +120,20 @@ FCEU::~FCEU() {
 }
 
 
-static DECLFW(BRAML) {
-  fc->fceu->RAM[A]=V;
+static DECLFW(WriteRamNoMask) {
+  fc->fceu->RAM[A] = V;
 }
 
-static DECLFW(BRAMH) {
-  fc->fceu->RAM[A&0x7FF]=V;
+static DECLFW(WriteRamMask) {
+  fc->fceu->RAM[A & 0x7FF] = V;
 }
 
-static DECLFR(ARAML) {
+static DECLFR(ReadRamNoMask) {
   return fc->fceu->RAM[A];
 }
 
-static DECLFR(ARAMH) {
-  return fc->fceu->RAM[A&0x7FF];
+static DECLFR(ReadRamMask) {
+  return fc->fceu->RAM[A & 0x7FF];
 }
 
 void FCEU::ResetGameLoaded() {
@@ -163,7 +145,7 @@ void FCEU::ResetGameLoaded() {
   if (fc->sound->GameExpSound.Kill)
     fc->sound->GameExpSound.Kill(fc);
   memset(&fc->sound->GameExpSound, 0,
-         sizeof (fc->sound->GameExpSound));
+         sizeof fc->sound->GameExpSound);
 
   fc->X->MapIRQHook = nullptr;
   fc->ppu->MMC5Hack = 0;
@@ -237,8 +219,7 @@ endlseq:
 
 // Return: Flag that indicates whether the function was succesful or not.
 bool FCEU::FCEUI_Initialize() {
-  // XXX.
-  GameInterface = (void (*)(FC *, GI))0xDEADBEEF;
+  GameInterface = nullptr;
   
   fc->X->Init();
 
@@ -275,24 +256,23 @@ void FCEU::ResetNES() {
   fc->X->Reset();
 
   // clear back baffer
-  memset(XBackBuf,0,256*256);
-
-  // fprintf(stderr, "Reset\n");
+  memset(XBackBuf, 0, 256 * 256);
 }
 
 void FCEU::PowerNES() {
   if (GameInfo == nullptr) return;
 
-  FCEU_InitMemory(RAM,0x800);
+  FCEU_InitMemory(RAM, 0x800);
 
-  SetReadHandler(0x0000,0xFFFF,ANull);
-  SetWriteHandler(0x0000,0xFFFF,BNull);
+  SetReadHandler(0x0000, 0xFFFF, ANull);
+  SetWriteHandler(0x0000, 0xFFFF, BNull);
 
-  SetReadHandler(0,0x7FF,ARAML);
-  SetWriteHandler(0,0x7FF,BRAML);
-
-  SetReadHandler(0x800,0x1FFF,ARAMH); // Part of a little
-  SetWriteHandler(0x800,0x1FFF,BRAMH); //hack for a small speed boost.
+  // These reads wrap (mask into the 0x800 bytes of RAM), but we
+  // can avoid the mask when we know the read is already in range.
+  SetReadHandler(0, 0x7FF, ReadRamNoMask);
+  SetWriteHandler(0, 0x7FF, WriteRamNoMask);
+  SetReadHandler(0x800, 0x1FFF, ReadRamMask);
+  SetWriteHandler(0x800, 0x1FFF, WriteRamMask);
 
   fc->input->InitializeInput();
   fc->sound->FCEUSND_Power();
@@ -301,7 +281,7 @@ void FCEU::PowerNES() {
   // Have the external game hardware "powered" after the internal NES
   // stuff. Needed for the NSF code and VS System code.
   GameInterface(fc, GI_POWER);
-  if (GameInfo->type==GIT_VSUNI)
+  if (GameInfo->type == GIT_VSUNI)
     fc->vsuni->FCEU_VSUniPower();
 
   // if we are in a movie, then reset the saveram
@@ -312,7 +292,7 @@ void FCEU::PowerNES() {
   fc->X->Power();
 
   // clear back baffer
-  memset(XBackBuf,0,256*256);
+  memset(XBackBuf, 0, 256 * 256);
 
   // fprintf(stderr, "Power on\n");
 }
@@ -320,9 +300,9 @@ void FCEU::PowerNES() {
 void FCEU::FCEU_ResetVidSys() {
   int w;
 
-  if (GameInfo->vidsys==GIV_NTSC)
+  if (GameInfo->vidsys == GIV_NTSC)
     w = 0;
-  else if (GameInfo->vidsys==GIV_PAL)
+  else if (GameInfo->vidsys == GIV_PAL)
     w = 1;
   else
     w = fsettings_pal;
@@ -356,17 +336,8 @@ void FCEU::SetReadHandler(int32 start, int32 end, readfunc func) {
   if (!func)
     func = ANull;
 
-  if (RWWrap) {
-    for (int32 x = end; x >= start; x--) {
-      if (x >= 0x8000)
-        AReadG[x - 0x8000] = func;
-      else
-        ARead[x]=func;
-    }
-  } else {
-    for (int x = end; x >= start; x--) {
-      ARead[x] = func;
-    }
+  for (int x = start; x < end; x++) {
+    ARead[x] = func;
   }
 }
 
@@ -399,9 +370,9 @@ void FCEU_PrintError(const char *format, ...) {
 }
 
 void FCEU_InitMemory(uint8 *ptr, uint32 size) {
-  int x=0;
-  while(size) {
-    *ptr = (x&4) ? 0xFF : 0x00;
+  int x = 0;
+  while (size) {
+    *ptr = (x & 4) ? 0xFF : 0x00;
     x++;
     size--;
     ptr++;

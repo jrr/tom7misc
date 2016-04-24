@@ -61,12 +61,16 @@ int main(int argc, char **argv) {
   vector<uint8> movie = SimpleFM2::ReadInputs("mario-tom.fm2");
 
   Timer exec_timer;
-  for (const uint8 input : movie) {
-    emu->StepFull(input, 0);
+  // After the first execution of the movie, not clear that this will
+  // be doing anything interesting...
+  for (int i = 0; i < 5; i++) {
+    for (const uint8 input : movie) {
+      emu->StepFull(input, 0);
+    }
   }
   double exec_seconds = exec_timer.GetSeconds();
 
-  fprintf(stderr, "Finished."
+  fprintf(stderr, "Finished.\n"
 	  "Startup time: %.4fs\n"
 	  "Exec time:    %.4fs\n",
 	  startup_seconds, exec_seconds);

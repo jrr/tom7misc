@@ -56,11 +56,6 @@ struct MMC1 : public CartInterface {
   // simpler and avoids creating more subclasses. -tom7
   bool is_105 = false;
 
-  // These were only used by mapper 105.
-  // XXX tom7
-    // void (MMC1::*MMC1CHRHook4)(uint32 A, uint8 V) = nullptr;
-  // void (MMC1::*MMC1PRGHook16)(uint32 A, uint8 V) = nullptr;
-
   uint8 *WRAM = nullptr;
   uint8 *CHRRAM = nullptr;
   int is155 = 0, is171 = 0;
@@ -149,18 +144,23 @@ struct MMC1 : public CartInterface {
   }
 
   void MMC1MIRROR() {
-    if (!is171) switch (DRegs[0] & 3) {
-	case 2: fc->cart->setmirror(MI_V); break;
-	case 3: fc->cart->setmirror(MI_H); break;
-	case 0: fc->cart->setmirror(MI_0); break;
-	case 1: fc->cart->setmirror(MI_1); break;
+    if (!is171) {
+      switch (DRegs[0] & 3) {
+      case 2: fc->cart->setmirror(MI_V); break;
+      case 3: fc->cart->setmirror(MI_H); break;
+      case 0: fc->cart->setmirror(MI_0); break;
+      case 1: fc->cart->setmirror(MI_1); break;
       }
+    }
   }
 
   static DECLFW(MMC1_write) {
     return ((MMC1*)fc->fceu->cartiface)->MMC1_write_Direct(DECLFW_FORWARD);
   }
-    
+
+  // Any writes to 0x8000-0xFFFF (which is ROM) configure the MMC1 via
+  // a sort of weird "serial port." This is used for bank switching,
+  // for example. See http://wiki.nesdev.com/w/index.php/MMC1
   void MMC1_write_Direct(DECLFW_ARGS) {
     int n = (A >> 13) - 4;
     // FCEU_DispMessage("%016x",fc->fceu->timestampbase+fc->X->timestamp);

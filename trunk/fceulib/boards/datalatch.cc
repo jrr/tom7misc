@@ -24,10 +24,22 @@
 static constexpr uint32 WRAMSIZE = 8192;
 
 namespace {
+
+// Many mappers simply save a byte written to certain regions (e.g. ROM),
+// which is then used for some cart-specific purpose (e.g. to bank switch).
+// This byte is saved as the "latch" here, and the WSync virtual function
+// actually does the business.
 struct DataLatch : public CartInterface {
   using CartInterface::CartInterface;
+
+  // Sometimes a write to a ROM is also treated as a read
+  // simultaneously, which means the value written on the data bus by
+  // the CPU conflicts with the value that the ROM writes. This causes
+  // a "bus conflict." This flag indicates whether the mapper has this
+  // issue.
+  const bool has_bus_conflicts = false;
   
-  uint8 latch = 0, latchinit = 0, bus_conflict = 0;
+  uint8 latch = 0, latchinit = 0;
   uint16 addrreg0 = 0, addrreg1 = 0;
   uint8 *WRAM = nullptr;
 
@@ -39,8 +51,9 @@ struct DataLatch : public CartInterface {
   }
       
   DECLFW_RET LatchWrite_Direct(DECLFW_ARGS) {
-    //	FCEU_printf("bs %04x %02x\n",A,V);
-    if (bus_conflict)
+    // Since the bus seems to be implemented "pull-down" style, if
+    // either one writes a zero for a bit, it will be read as a zero.
+    if (has_bus_conflicts)
       latch = V & Cart::CartBR(fc, A);
     else
       latch = V;
@@ -70,9 +83,9 @@ struct DataLatch : public CartInterface {
   }
 
   DataLatch(FC *fc, CartInfo *info, uint8 init,
-	    uint16 adr0, uint16 adr1, uint8 wram_flag, uint8 busc)
-    : CartInterface(fc) {
-    bus_conflict = busc;
+	    uint16 adr0, uint16 adr1, uint8 wram_flag,
+	    bool bus_conflict)
+    : CartInterface(fc), has_bus_conflicts(bus_conflict) {
     latchinit = init;
     addrreg0 = adr0;
     addrreg1 = adr1;
@@ -87,7 +100,9 @@ struct DataLatch : public CartInterface {
       fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
     }
     fc->state->AddExState(&latch, 1, 0, "LATC");
-    fc->state->AddExState(&bus_conflict, 1, 0, "BUSC");
+    // XXX should be no reason to save this -- it's a property of
+    // the mapper itself, right?
+    // fc->state->AddExState(&bus_conflict, 1, 0, "BUSC");
   }
 };
 }
@@ -98,13 +113,12 @@ struct DataLatch : public CartInterface {
 // was simply confusing, not useful (it does not map any latched
 // write regions). -tom7
 namespace {
-struct NROM : public CartInterface {
+struct NROM final : public CartInterface {
   uint8 *WRAM = nullptr;
 
-  void Power() override {
-    fc->cart->setprg8r(
-	0x10, 0x6000,
-	0);  // Famili BASIC (v3.0) need it (uses only 4KB), FP-BASIC uses 8KB
+  void Power() final override {
+    // Famili BASIC (v3.0) need it (uses only 4KB), FP-BASIC uses 8KB
+    fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->cart->setprg16(0x8000, 0);
     fc->cart->setprg16(0xC000, ~0);
     fc->cart->setchr8(0);
@@ -114,7 +128,7 @@ struct NROM : public CartInterface {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }
@@ -138,10 +152,10 @@ CartInterface *NROM_Init(FC *fc, CartInfo *info) {
 //------------------ Map 2 ---------------------------
 
 namespace {
-struct UNROM : public DataLatch {
+struct UNROM final : public DataLatch {
   using DataLatch::DataLatch;
   uint32 mirror_in_use = 0;
-  void WSync() override {
+  void WSync() final override {
     if (fc->cart->PRGsize[0] <= 128 * 1024) {
       fc->cart->setprg16(0x8000, latch & 0x7);
       if (latch & 8) mirror_in_use = 1;
@@ -159,32 +173,36 @@ struct UNROM : public DataLatch {
 }
 
 CartInterface *UNROM_Init(FC *fc, CartInfo *info) {
-  return new UNROM(fc, info, 0, 0x8000, 0xFFFF, 0, 1);
+  return new UNROM(fc, info, 0, 0x8000, 0xFFFF, 0, true);
 }
 
 //------------------ Map 3 ---------------------------
-
+// Popular, simple mapper with bank switching and that's it.
+// http://wiki.nesdev.com/w/index.php/CNROM
 namespace {
-struct CNROM : public DataLatch {
+struct CNROM final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  // For CNROM, writing to rom (0x8000-0xFFFF) does a bank
+  // switch.
+  void WSync() final override {
     fc->cart->setchr8(latch);
     fc->cart->setprg32(0x8000, 0);
-    fc->cart->setprg8r(0x10, 0x6000, 0);  // Hayauchy IGO uses 2Kb or RAM
+    // Hayauchy IGO uses 2Kb or RAM
+    fc->cart->setprg8r(0x10, 0x6000, 0);
   }
 };
 }
 
 CartInterface *CNROM_Init(FC *fc, CartInfo *info) {
-  return new CNROM(fc, info, 0, 0x8000, 0xFFFF, 1, 1);
+  return new CNROM(fc, info, 0, 0x8000, 0xFFFF, 1, true);
 }
 
 //------------------ Map 7 ---------------------------
 
 namespace {
-struct ANROM : public DataLatch {
+struct ANROM final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, latch & 0xf);
     fc->cart->setmirror(MI_0 + ((latch >> 4) & 1));
     fc->cart->setchr8(0);
@@ -193,14 +211,14 @@ struct ANROM : public DataLatch {
 }
 
 CartInterface *ANROM_Init(FC *fc, CartInfo *info) {
-  return new ANROM(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new ANROM(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 8 ---------------------------
 namespace {
-struct Mapper8 : public DataLatch {
+struct Mapper8 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, latch >> 3);
     fc->cart->setprg16(0xc000, 1);
     fc->cart->setchr8(latch & 3);
@@ -209,14 +227,14 @@ struct Mapper8 : public DataLatch {
 }
 
 CartInterface *Mapper8_Init(FC *fc, CartInfo *info) {
-  return new Mapper8(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper8(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 11 ---------------------------
 namespace {
-struct Mapper11 : public DataLatch {
+struct Mapper11 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, latch & 0xf);
     fc->cart->setchr8(latch >> 4);
   }
@@ -224,18 +242,18 @@ struct Mapper11 : public DataLatch {
 }
 
 CartInterface *Mapper11_Init(FC *fc, CartInfo *info) {
-  return new Mapper11(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper11(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 CartInterface *Mapper144_Init(FC *fc, CartInfo *info) {
-  return new Mapper11(fc, info, 0, 0x8001, 0xFFFF, 0, 0);
+  return new Mapper11(fc, info, 0, 0x8001, 0xFFFF, 0, false);
 }
 
 //------------------ Map 13 ---------------------------
 namespace {
-struct CPROM : public DataLatch {
+struct CPROM final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr4(0x0000, 0);
     fc->cart->setchr4(0x1000, latch & 3);
     fc->cart->setprg32(0x8000, 0);
@@ -244,14 +262,14 @@ struct CPROM : public DataLatch {
 }
 
 CartInterface *CPROM_Init(FC *fc, CartInfo *info) {
-  return new CPROM(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new CPROM(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 36 ---------------------------
 namespace {
-struct Mapper36 : public DataLatch {
+struct Mapper36 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, latch >> 4);
     fc->cart->setchr8(latch & 0xF);
   }
@@ -259,14 +277,14 @@ struct Mapper36 : public DataLatch {
 }
 
 CartInterface *Mapper36_Init(FC *fc, CartInfo *info) {
-  return new Mapper36(fc, info, 0, 0x8400, 0xfffe, 0, 0);
+  return new Mapper36(fc, info, 0, 0x8400, 0xfffe, 0, false);
 }
 
 //------------------ Map 38 ---------------------------
 namespace {
-struct Mapper38 : public DataLatch {
+struct Mapper38 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, latch & 3);
     fc->cart->setchr8(latch >> 2);
   }
@@ -274,14 +292,14 @@ struct Mapper38 : public DataLatch {
 }
 
 CartInterface *Mapper38_Init(FC *fc, CartInfo *info) {
-  return new Mapper38(fc, info, 0, 0x7000, 0x7FFF, 0, 0);
+  return new Mapper38(fc, info, 0, 0x7000, 0x7FFF, 0, false);
 }
 
 //------------------ Map 66, 140 ---------------------------
 namespace {
-struct MHROM : public DataLatch {
+struct MHROM final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, latch >> 4);
     fc->cart->setchr8(latch & 0xf);
   }
@@ -289,18 +307,18 @@ struct MHROM : public DataLatch {
 }
 
 CartInterface *MHROM_Init(FC *fc, CartInfo *info) {
-  return new MHROM(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new MHROM(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 CartInterface *Mapper140_Init(FC *fc, CartInfo *info) {
-  return new MHROM(fc, info, 0, 0x6000, 0x7FFF, 0, 0);
+  return new MHROM(fc, info, 0, 0x6000, 0x7FFF, 0, false);
 }
 
 //------------------ Map 70 ---------------------------
 namespace {
-struct Mapper70 : public DataLatch {
+struct Mapper70 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, latch >> 4);
     fc->cart->setprg16(0xc000, ~0);
     fc->cart->setchr8(latch & 0xf);
@@ -309,16 +327,16 @@ struct Mapper70 : public DataLatch {
 }
 
 CartInterface *Mapper70_Init(FC *fc, CartInfo *info) {
-  return new Mapper70(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper70(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 78 ---------------------------
 /* Should be two separate emulation functions for this "mapper".  Sigh.
    URGE TO KILL RISING. */
 namespace {
-struct Mapper78 : public DataLatch {
+struct Mapper78 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, (latch & 7));
     fc->cart->setprg16(0xc000, ~0);
     fc->cart->setchr8(latch >> 4);
@@ -328,14 +346,14 @@ struct Mapper78 : public DataLatch {
 }
 
 CartInterface *Mapper78_Init(FC *fc, CartInfo *info) {
-  return new Mapper78(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper78(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 86 ---------------------------
 namespace {
-struct Mapper86 : public DataLatch {
+struct Mapper86 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, (latch >> 4) & 3);
     fc->cart->setchr8((latch & 3) | ((latch >> 4) & 4));
   }
@@ -343,14 +361,14 @@ struct Mapper86 : public DataLatch {
 }
 
 CartInterface *Mapper86_Init(FC *fc, CartInfo *info) {
-  return new Mapper86(fc, info, ~0, 0x6000, 0x6FFF, 0, 0);
+  return new Mapper86(fc, info, ~0, 0x6000, 0x6FFF, 0, false);
 }
 
 //------------------ Map 87 ---------------------------
 namespace {
-struct Mapper87 : public DataLatch {
+struct Mapper87 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, 0);
     fc->cart->setchr8(((latch >> 1) & 1) | ((latch << 1) & 2));
   }
@@ -358,14 +376,14 @@ struct Mapper87 : public DataLatch {
 }
 
 CartInterface *Mapper87_Init(FC *fc, CartInfo *info) {
-  return new Mapper87(fc, info, ~0, 0x6000, 0xFFFF, 0, 0);
+  return new Mapper87(fc, info, ~0, 0x6000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 89 ---------------------------
 namespace {
-struct Mapper89 : public DataLatch {
+struct Mapper89 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, (latch >> 4) & 7);
     fc->cart->setprg16(0xc000, ~0);
     fc->cart->setchr8((latch & 7) | ((latch >> 4) & 8));
@@ -375,14 +393,14 @@ struct Mapper89 : public DataLatch {
 }
 
 CartInterface *Mapper89_Init(FC *fc, CartInfo *info) {
-  return new Mapper89(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper89(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 93 ---------------------------
 namespace {
-struct SUNSOFTUNROM : public DataLatch {
+struct SUNSOFTUNROM final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, latch >> 4);
     fc->cart->setprg16(0xc000, ~0);
     fc->cart->setchr8(0);
@@ -391,14 +409,14 @@ struct SUNSOFTUNROM : public DataLatch {
 }
 
 CartInterface *SUNSOFT_UNROM_Init(FC *fc, CartInfo *info) {
-  return new SUNSOFTUNROM(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new SUNSOFTUNROM(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 94 ---------------------------
 namespace {
-struct Mapper94 : public DataLatch {
+struct Mapper94 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, latch >> 2);
     fc->cart->setprg16(0xc000, ~0);
     fc->cart->setchr8(0);
@@ -407,14 +425,14 @@ struct Mapper94 : public DataLatch {
 }
 
 CartInterface *Mapper94_Init(FC *fc, CartInfo *info) {
-  return new Mapper94(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper94(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 97 ---------------------------
 namespace {
-struct Mapper97 : public DataLatch {
+struct Mapper97 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr8(0);
     fc->cart->setprg16(0x8000, ~0);
     fc->cart->setprg16(0xc000, latch & 15);
@@ -430,14 +448,14 @@ struct Mapper97 : public DataLatch {
 }
 
 CartInterface *Mapper97_Init(FC *fc, CartInfo *info) {
-  return new Mapper97(fc, info, ~0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper97(fc, info, ~0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 101 ---------------------------
 namespace {
-struct Mapper101 : public DataLatch {
+struct Mapper101 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, 0);
     fc->cart->setchr8(latch);
   }
@@ -445,14 +463,14 @@ struct Mapper101 : public DataLatch {
 }
 
 CartInterface *Mapper101_Init(FC *fc, CartInfo *info) {
-  return new Mapper101(fc, info, ~0, 0x6000, 0x7FFF, 0, 0);
+  return new Mapper101(fc, info, ~0, 0x6000, 0x7FFF, 0, false);
 }
 
 //------------------ Map 107 ---------------------------
 namespace {
-struct Mapper107 : public DataLatch {
+struct Mapper107 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, (latch >> 1) & 3);
     fc->cart->setchr8(latch & 7);
   }
@@ -460,14 +478,14 @@ struct Mapper107 : public DataLatch {
 }
 
 CartInterface *Mapper107_Init(FC *fc, CartInfo *info) {
-  return new Mapper107(fc, info, ~0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper107(fc, info, ~0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 113 ---------------------------
 namespace {
-struct Mapper113 : public DataLatch {
+struct Mapper113 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, (latch >> 3) & 7);
     fc->cart->setchr8(((latch >> 3) & 8) | (latch & 7));
     //	fc->cart->setmirror(latch>>7); // only for HES 6in1
@@ -476,15 +494,15 @@ struct Mapper113 : public DataLatch {
 }
 
 CartInterface *Mapper113_Init(FC *fc, CartInfo *info) {
-  return new Mapper113(fc, info, 0, 0x4100, 0x7FFF, 0, 0);
+  return new Mapper113(fc, info, 0, 0x4100, 0x7FFF, 0, false);
 }
 
 
 //------------------ Map 152 ---------------------------
 namespace {
-struct Mapper152 : public DataLatch {
+struct Mapper152 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, (latch >> 4) & 7);
     fc->cart->setprg16(0xc000, ~0);
     fc->cart->setchr8(latch & 0xf);
@@ -495,14 +513,14 @@ struct Mapper152 : public DataLatch {
 }
 
 CartInterface *Mapper152_Init(FC *fc, CartInfo *info) {
-  return new Mapper152(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper152(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 180 ---------------------------
 namespace {
-struct Mapper180 : public DataLatch {
+struct Mapper180 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, 0);
     fc->cart->setprg16(0xc000, latch);
     fc->cart->setchr8(0);
@@ -511,14 +529,14 @@ struct Mapper180 : public DataLatch {
 }
 
 CartInterface *Mapper180_Init(FC *fc, CartInfo *info) {
-  return new Mapper180(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper180(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 184 ---------------------------
 namespace {
-struct Mapper184 : public DataLatch {
+struct Mapper184 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr4(0x0000, latch);
     fc->cart->setchr4(0x1000, latch >> 4);
     fc->cart->setprg32(0x8000, 0);
@@ -527,14 +545,14 @@ struct Mapper184 : public DataLatch {
 }
 
 CartInterface *Mapper184_Init(FC *fc, CartInfo *info) {
-  return new Mapper184(fc, info, 0, 0x6000, 0x7FFF, 0, 0);
+  return new Mapper184(fc, info, 0, 0x6000, 0x7FFF, 0, false);
 }
 
 //------------------ Map 203 ---------------------------
 namespace {
-struct Mapper203 : public DataLatch {
+struct Mapper203 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, (latch >> 2) & 3);
     fc->cart->setprg16(0xC000, (latch >> 2) & 3);
     fc->cart->setchr8(latch & 3);
@@ -543,14 +561,14 @@ struct Mapper203 : public DataLatch {
 }
 
 CartInterface *Mapper203_Init(FC *fc, CartInfo *info) {
-  return new Mapper203(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new Mapper203(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ Map 240 ---------------------------
 namespace {
-struct Mapper240 : public DataLatch {
+struct Mapper240 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->cart->setprg32(0x8000, latch >> 4);
     fc->cart->setchr8(latch & 0xf);
@@ -559,16 +577,16 @@ struct Mapper240 : public DataLatch {
 }
 
 CartInterface *Mapper240_Init(FC *fc, CartInfo *info) {
-  return new Mapper240(fc, info, 0, 0x4020, 0x5FFF, 1, 0);
+  return new Mapper240(fc, info, 0, 0x4020, 0x5FFF, 1, false);
 }
 
 //------------------ Map 241 ---------------------------
 // Mapper 7 mostly, but with SRAM or maybe prot circuit
 // figure out, which games do need 5xxx area reading
 namespace {
-struct Mapper241 : public DataLatch {
+struct Mapper241 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr8(0);
     fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->cart->setprg32(0x8000, latch);
@@ -577,7 +595,7 @@ struct Mapper241 : public DataLatch {
 }
 
 CartInterface *Mapper241_Init(FC *fc, CartInfo *info) {
-  return new Mapper241(fc, info, 0, 0x8000, 0xFFFF, 1, 0);
+  return new Mapper241(fc, info, 0, 0x8000, 0xFFFF, 1, false);
 }
 
 //------------------ A65AS ---------------------------
@@ -587,9 +605,9 @@ CartInterface *Mapper241_Init(FC *fc, CartInfo *info) {
 // 16 bankswitching mode and normal mirroring... But there is no any
 // correlations between modes and they can be used in one mapper code.
 namespace {
-struct BMCA65AS : public DataLatch {
+struct BMCA65AS final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     if (latch & 0x40) {
       fc->cart->setprg32(0x8000, (latch >> 1) & 0x0F);
     } else {
@@ -606,15 +624,15 @@ struct BMCA65AS : public DataLatch {
 }
 
 CartInterface *BMCA65AS_Init(FC *fc, CartInfo *info) {
-  return new BMCA65AS(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new BMCA65AS(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
 //------------------ BMC-11160 ---------------------------
 // Simple BMC discrete mapper by TXC
 namespace {
-struct BMC11160 : public DataLatch {
+struct BMC11160 final : public DataLatch {
   using DataLatch::DataLatch;
-  void WSync() override {
+  void WSync() final override {
     uint32 bank = (latch >> 4) & 7;
     fc->cart->setprg32(0x8000, bank);
     fc->cart->setchr8((bank << 2) | (latch & 3));
@@ -624,6 +642,6 @@ struct BMC11160 : public DataLatch {
 }
 
 CartInterface *BMC11160_Init(FC *fc, CartInfo *info) {
-  return new BMC11160(fc, info, 0, 0x8000, 0xFFFF, 0, 0);
+  return new BMC11160(fc, info, 0, 0x8000, 0xFFFF, 0, false);
 }
 
