@@ -109,6 +109,7 @@ static constexpr uint8 ZNTable[256] = {
 /* Some of these operations will only make sense if you know what the flag
    constants are. */
 
+
 #define X_ZN(zort)          \
   reg_P &= ~(Z_FLAG | N_FLAG); \
   reg_P |= ZNTable[zort]
@@ -142,57 +143,58 @@ static constexpr uint8 ZNTable[256] = {
   reg_Y = x;   \
   X_ZN(reg_Y)
 
-/*  All of the freaky arithmetic operations. */
-#define AND \
+/* All of the freaky arithmetic operations. */
+#define AND    \
   reg_A &= x;  \
   X_ZN(reg_A)
-#define BIT                          \
-  reg_P &= ~(Z_FLAG | V_FLAG | N_FLAG); \
+#define BIT                                \
+  reg_P &= ~(Z_FLAG | V_FLAG | N_FLAG);    \
   reg_P |= ZNTable[x & reg_A] & Z_FLAG;    \
   reg_P |= x & (V_FLAG | N_FLAG)
-#define EOR \
+#define EOR    \
   reg_A ^= x;  \
   X_ZN(reg_A)
-#define ORA \
+#define ORA    \
   reg_A |= x;  \
   X_ZN(reg_A)
 
-#define ADC                                                      \
-  {                                                              \
-    uint32 l = reg_A + x + (reg_P & 1);                                \
-    reg_P &= ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG);                  \
-    reg_P |= ((((reg_A ^ x) & 0x80) ^ 0x80) & ((reg_A ^ l) & 0x80)) >> 1; \
-    reg_P |= (l >> 8) & C_FLAG;                                     \
-    reg_A = l;                                                      \
-    X_ZNT(reg_A);                                                   \
+#define ADC                                                             \
+  {                                                                     \
+    uint32 l = reg_A + x + (reg_P & 1);                                 \
+    reg_P &= ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG);                      \
+    reg_P |= ((((reg_A ^ x) & 0x80) ^ 0x80) &                           \
+              ((reg_A ^ l) & 0x80)) >> 1;                               \
+    reg_P |= (l >> 8) & C_FLAG;                                         \
+    reg_A = l;                                                          \
+    X_ZNT(reg_A);                                                       \
   }
 
-#define SBC                                     \
-  {                                             \
-    uint32 l = reg_A - x - ((reg_P & 1) ^ 1);         \
-    reg_P &= ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG); \
+#define SBC                                              \
+  {                                                      \
+    uint32 l = reg_A - x - ((reg_P & 1) ^ 1);            \
+    reg_P &= ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG);       \
     reg_P |= ((reg_A ^ l) & (reg_A ^ x) & 0x80) >> 1;    \
-    reg_P |= ((l >> 8) & C_FLAG) ^ C_FLAG;         \
-    reg_A = l;                                     \
-    X_ZNT(reg_A);                                  \
+    reg_P |= ((l >> 8) & C_FLAG) ^ C_FLAG;               \
+    reg_A = l;                                           \
+    X_ZNT(reg_A);                                        \
   }
 
-#define CMPL(a1, a2)                    \
-  {                                     \
-    uint32 t = a1 - a2;                 \
-    X_ZN(t & 0xFF);                     \
+#define CMPL(a1, a2)                       \
+  {                                        \
+    uint32 t = a1 - a2;                    \
+    X_ZN(t & 0xFF);                        \
     reg_P &= ~C_FLAG;                      \
     reg_P |= ((t >> 8) & C_FLAG) ^ C_FLAG; \
   }
 
 /* Special undocumented operation.  Very similar to CMP. */
-#define AXS                             \
-  {                                     \
+#define AXS                                   \
+  {                                           \
     uint32 t = (reg_A & reg_X) - x;           \
-    X_ZN(t & 0xFF);                     \
-    reg_P &= ~C_FLAG;                      \
-    reg_P |= ((t >> 8) & C_FLAG) ^ C_FLAG; \
-    reg_X = t;                             \
+    X_ZN(t & 0xFF);                           \
+    reg_P &= ~C_FLAG;                         \
+    reg_P |= ((t >> 8) & C_FLAG) ^ C_FLAG;    \
+    reg_X = t;                                \
   }
 
 #define CMP CMPL(reg_A, x)
@@ -297,15 +299,15 @@ static constexpr uint8 ZNTable[256] = {
   }
 
 /* Indexed Indirect */
-#define GetIX(target)          \
-  {                            \
-    uint8 tmp;                 \
-    tmp = RdMem(reg_PC);       \
-    reg_PC++;                  \
+#define GetIX(target)             \
+  {                               \
+    uint8 tmp;                    \
+    tmp = RdMem(reg_PC);          \
+    reg_PC++;                     \
     tmp += reg_X;                 \
-    target = RdRAM(tmp);       \
-    tmp++;                     \
-    target |= RdRAM(tmp) << 8; \
+    target = RdRAM(tmp);          \
+    tmp++;                        \
+    target |= RdRAM(tmp) << 8;    \
   }
 
 /* Indirect Indexed(for reads) */
@@ -319,7 +321,7 @@ static constexpr uint8 ZNTable[256] = {
     tmp++;                       \
     rt |= RdRAM(tmp) << 8;       \
     target = rt;                 \
-    target += reg_Y;                \
+    target += reg_Y;             \
     if ((target ^ rt) & 0x100) { \
       target &= 0xFFFF;          \
       RdMem(target ^ 0x100);     \
@@ -338,7 +340,7 @@ static constexpr uint8 ZNTable[256] = {
     tmp++;                                    \
     rt |= RdRAM(tmp) << 8;                    \
     target = rt;                              \
-    target += reg_Y;                             \
+    target += reg_Y;                          \
     target &= 0xFFFF;                         \
     RdMem((target & 0x00FF) | (rt & 0xFF00)); \
   }
@@ -348,12 +350,12 @@ static constexpr uint8 ZNTable[256] = {
    will always operate(redundant redundant) on the variable "x".
 */
 
-#define RMW_A(op) \
-  {               \
+#define RMW_A(op)    \
+  {                  \
     uint8 x = reg_A; \
-    op;           \
+    op;              \
     reg_A = x;       \
-    break;        \
+    break;           \
   }
 #define RMW_AB(op)   \
   {                  \
@@ -411,15 +413,15 @@ static constexpr uint8 ZNTable[256] = {
     WrRAM(AA, x);  \
     break;         \
   }
-#define RMW_ZPX(op) \
-  {                 \
-    uint8 AA;       \
-    uint8 x;        \
+#define RMW_ZPX(op)    \
+  {                    \
+    uint8 AA;          \
+    uint8 x;           \
     GetZPI(AA, reg_X); \
-    x = RdRAM(AA);  \
-    op;             \
-    WrRAM(AA, x);   \
-    break;          \
+    x = RdRAM(AA);     \
+    op;                \
+    WrRAM(AA, x);      \
+    break;             \
   }
 
 #define LD_IM(op)      \
@@ -439,23 +441,23 @@ static constexpr uint8 ZNTable[256] = {
     op;            \
     break;         \
   }
-#define LD_ZPX(op)  \
-  {                 \
-    uint8 AA;       \
-    uint8 x;        \
-    GetZPI(AA, reg_X); \
-    x = RdRAM(AA);  \
-    op;             \
-    break;          \
+#define LD_ZPX(op)      \
+  {                     \
+    uint8 AA;           \
+    uint8 x;            \
+    GetZPI(AA, reg_X);  \
+    x = RdRAM(AA);      \
+    op;                 \
+    break;              \
   }
-#define LD_ZPY(op)  \
-  {                 \
-    uint8 AA;       \
-    uint8 x;        \
+#define LD_ZPY(op)     \
+  {                    \
+    uint8 AA;          \
+    uint8 x;           \
     GetZPI(AA, reg_Y); \
-    x = RdRAM(AA);  \
-    op;             \
-    break;          \
+    x = RdRAM(AA);     \
+    op;                \
+    break;             \
   }
 #define LD_AB(op)                     \
   {                                   \
@@ -507,19 +509,19 @@ static constexpr uint8 ZNTable[256] = {
     WrRAM(AA, r); \
     break;        \
   }
-#define ST_ZPX(r)   \
-  {                 \
-    uint8 AA;       \
+#define ST_ZPX(r)      \
+  {                    \
+    uint8 AA;          \
     GetZPI(AA, reg_X); \
-    WrRAM(AA, r);   \
-    break;          \
+    WrRAM(AA, r);      \
+    break;             \
   }
-#define ST_ZPY(r)   \
-  {                 \
-    uint8 AA;       \
+#define ST_ZPY(r)      \
+  {                    \
+    uint8 AA;          \
     GetZPI(AA, reg_Y); \
-    WrRAM(AA, r);   \
-    break;          \
+    WrRAM(AA, r);      \
+    break;             \
   }
 #define ST_AB(r)     \
   {                  \
@@ -596,9 +598,8 @@ void X6502::Reset() {
   IRQlow = FCEU_IQRESET;
 }
 
-/**
-* Initializes the 6502 CPU
-**/
+
+// Initializes the 6502 CPU.
 void X6502::Init() {
   // Initialize the CPU fields.
   // (Don't memset; we have non-CPU members now!)
@@ -708,8 +709,10 @@ void X6502::Run(int32 cycles) {
     }
 
     reg_PI = reg_P;
+    // Get the next instruction.
     const uint8 b1 = RdMem(reg_PC);
-
+    printf("Read %x -> opcode %02x\n", reg_PC, b1);
+    
     ADDCYC(CycTable[b1]);
 
     temp = tcount;
@@ -752,7 +755,7 @@ void X6502::Run(int32 cycles) {
         break;
       case 0x28: /* PLP */ reg_P = POP(); break;
       case 0x4C: {
-	/* JMP ABSOLUTE */
+        /* JMP ABSOLUTE */
         uint16 ptmp = reg_PC;
         unsigned int npc;
 
@@ -762,12 +765,12 @@ void X6502::Run(int32 cycles) {
         reg_PC = npc;
       } break; 
       case 0x6C: {
-	/* JMP INDIRECT */
+        /* JMP INDIRECT */
         uint32 tmp;
         GetAB(tmp);
         reg_PC = RdMem(tmp);
         reg_PC |= RdMem(((tmp + 1) & 0x00FF) | (tmp & 0xFF00)) << 8;
-	break;
+        break;
       }
       case 0x20: /* JSR */
       {
@@ -778,7 +781,7 @@ void X6502::Run(int32 cycles) {
         PUSH(reg_PC);
         reg_PC = RdMem(reg_PC) << 8;
         reg_PC |= npc;
-	break;
+        break;
       } 
       case 0xAA: /* TAX */
         reg_X = reg_A;
@@ -804,8 +807,8 @@ void X6502::Run(int32 cycles) {
         X_ZN(reg_X);
         break;
       case 0x9A: /* TXS */
-	reg_S = reg_X;
-	break;
+        reg_S = reg_X;
+        break;
 
       case 0xCA: /* DEX */
         reg_X--;
@@ -1016,7 +1019,7 @@ void X6502::Run(int32 cycles) {
 
       // default: printf("Bad %02x at $%04x\n",b1,X.PC);break;
       /* Here comes the undocumented instructions block.  Note that this
-	 implementation may be "wrong".  If so, please tell me.
+         implementation may be "wrong".  If so, please tell me.
       */
 
       /* AAC */
@@ -1029,7 +1032,7 @@ void X6502::Run(int32 cycles) {
       case 0x97: ST_ZPY(reg_A & reg_X);
       case 0x8F: ST_AB(reg_A & reg_X);
       case 0x83:
-	ST_IX(reg_A & reg_X);
+        ST_IX(reg_A & reg_X);
 
       /* ARR - ARGH, MATEY! */
       case 0x6B: {
@@ -1043,7 +1046,7 @@ void X6502::Run(int32 cycles) {
         LD_IM(AND; LSRA);
 
       /* ATX(OAL) Is this(OR with $EE) correct? Blargg did some test
-	 and found the constant to be OR with is $FF for NES */
+         and found the constant to be OR with is $FF for NES */
       case 0xAB:
         LD_IM(reg_A |= 0xFF; AND; reg_X = reg_A);
 
@@ -1181,7 +1184,7 @@ void X6502::Run(int32 cycles) {
 
       /* TOP */
       case 0x0C:
-	LD_AB(;);
+        LD_AB(;);
       case 0x1C:
       case 0x3C:
       case 0x5C:

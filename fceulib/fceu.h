@@ -74,8 +74,8 @@ struct FCEU {
   // Set video system a=0 NTSC, a=1 PAL
   void FCEUI_SetVidSystem(int a);
 
-  //name=path and file to load.  returns null if it failed
-  FCEUGI *FCEUI_LoadGame(const char *name, int OverwriteVidMode);
+  // returns null if it failed
+  FCEUGI *FCEUI_LoadGame(const char *filename, int OverwriteVidMode);
 
   // Used by some boards to do delayed memory writes, etc.
   uint64 timestampbase = 0ULL;
@@ -94,8 +94,8 @@ struct FCEU {
   uint8 *XBackBuf = nullptr;
 
   // TODO(tom7): Move these to the modules where they're defined.
-  // Hooks for reading and writing from memory locations. Each one
-  // is a function pointer.
+  // Hooks for reading and writing from memory locations (16-bit
+  // addresses). Each one is a function pointer.
   readfunc ARead[0x10000];
   writefunc BWrite[0x10000];
 

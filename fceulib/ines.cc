@@ -803,7 +803,7 @@ static constexpr BoardMapping const board_map[] = {
 // that are not in the power of 2 tends to come
 // in obscure mappers themselves which supports such
 // size
-static constexpr int const not_power2[] = {
+static constexpr std::initializer_list<int> not_power2 = {
   228
 };
 
@@ -856,25 +856,25 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   VROM_size = head.VROM_size;
 
   int round = true;
-  for (int i = 0; i != sizeof(not_power2)/sizeof(not_power2[0]); ++i) {
-    //for games not to the power of 2, so we just read enough
-    //prg rom from it, but we have to keep ROM_size to the power of 2
-    //since PRGCartMapping wants ROM_size to be to the power of 2
-    //so instead if not to power of 2, we just use head.ROM_size when
-    //we use FCEU_read
-    if (not_power2[i] == mapper_number) {
+  for (const int np2_mapper : not_power2) {
+    // for games not to the power of 2, so we just read enough
+    // prg rom from it, but we have to keep ROM_size to the power of 2
+    // since PRGCartMapping wants ROM_size to be to the power of 2
+    // so instead if not to power of 2, we just use head.ROM_size when
+    // we use FCEU_read
+    if (np2_mapper == mapper_number) {
       round = false;
       break;
     }
   }
 
   if (VROM_size)
-    VROM_size=uppow2(VROM_size);
+    VROM_size = uppow2(VROM_size);
 
   if (head.ROM_type&8) iNESMirroring = 2;
 
   if ((ROM = (uint8 *)FCEU_malloc(ROM_size << 14)) == nullptr) return 0;
-  memset(ROM,0xFF,ROM_size<<14);
+  memset(ROM, 0xFF, ROM_size << 14);
 
   if (VROM_size) {
     if ((VROM = (uint8 *)FCEU_malloc(VROM_size << 13)) == nullptr) {
@@ -894,34 +894,38 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   fc->cart->ResetCartMapping();
   fc->state->ResetExState(nullptr, nullptr);
 
-  fc->cart->SetupCartPRGMapping(0, ROM, ROM_size*0x4000, false);
+  // iNES is responsible for setting up the main ROM (chip 0).
+  fc->cart->SetupCartPRGMapping(0, ROM, ROM_size * 0x4000, false);
   // SetupCartPRGMapping(1,WRAM,8192,1);
 
-  FCEU_fread(ROM,0x4000,(round) ? ROM_size : head.ROM_size, fp);
+  FCEU_fread(ROM, 0x4000, round ? ROM_size : head.ROM_size, fp);
 
   if (VROM_size)
-    FCEU_fread(VROM,0x2000,head.VROM_size,fp);
+    FCEU_fread(VROM, 0x2000, head.VROM_size, fp);
 
   md5_starts(&md5);
-  md5_update(&md5,ROM,ROM_size<<14);
+  md5_update(&md5, ROM, ROM_size << 14);
 
-  iNESGameCRC32=CalcCRC32(0,ROM,ROM_size<<14);
+  iNESGameCRC32 = CalcCRC32(0, ROM, ROM_size << 14);
 
   if (VROM_size) {
-    iNESGameCRC32=CalcCRC32(iNESGameCRC32,VROM,VROM_size<<13);
-    md5_update(&md5,VROM,VROM_size<<13);
+    iNESGameCRC32 = CalcCRC32(iNESGameCRC32, VROM, VROM_size << 13);
+    md5_update(&md5, VROM, VROM_size << 13);
   }
-  md5_finish(&md5,iNESCart.MD5);
-  memcpy(&fc->fceu->GameInfo->MD5,&iNESCart.MD5,sizeof(iNESCart.MD5));
+  md5_finish(&md5, iNESCart.MD5);
+  memcpy(&fc->fceu->GameInfo->MD5, &iNESCart.MD5, sizeof (iNESCart.MD5));
 
   iNESCart.CRC32 = iNESGameCRC32;
 
+  // Debugging dump.
   // TODO: Make this part of the interface, like RomInfo() etc.
   #if 0
   FCEU_printf(" PRG ROM:  %3d x 16KiB\n"
 	      " CHR ROM:  %3d x  8KiB\n"
 	      " ROM CRC32:  0x%08lx\n",
-	      (round) ? ROM_size : head.ROM_size, head.VROM_size,iNESGameCRC32);
+	      round ? ROM_size : head.ROM_size,
+	      head.VROM_size,
+	      iNESGameCRC32);
 
   FCEU_printf(" ROM MD5:  0x");
   for (int x = 0; x < 16; x++)
@@ -931,7 +935,7 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   const char* mappername = "Not Listed";
 
   for (int mappertest = 0;
-       mappertest < (sizeof board_map / sizeof board_map[0]) - 1; 
+       mappertest < ARRAY_SIZE(board_map) - 1; 
        mappertest++) {
     if (board_map[mappertest].number == mapper_number) {
       mappername = board_map[mappertest].name;
@@ -955,7 +959,7 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
     uint64 partialmd5 = 0ULL;
 
     for (int x = 0; x < 8; x++) {
-      partialmd5 |= (uint64)iNESCart.MD5[7-x] << (x * 8);
+      partialmd5 |= (uint64)iNESCart.MD5[7 - x] << (x * 8);
     }
 
     fc->vsuni->FCEU_VSUniCheck(partialmd5, &mapper_number, &iNESMirroring);
@@ -969,12 +973,13 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   if (iNESMirroring == 2)
     fc->cart->SetupCartMirroring(4,1,GMB_ExtraNTARAM(fc));
   else if (iNESMirroring >= 0x10)
-    fc->cart->SetupCartMirroring(2+(iNESMirroring&1),1,0);
+    fc->cart->SetupCartMirroring(2 + (iNESMirroring & 1), 1, 0);
   else
-    fc->cart->SetupCartMirroring(iNESMirroring&1,(iNESMirroring&4)>>2,0);
+    fc->cart->SetupCartMirroring(iNESMirroring & 1,
+				 (iNESMirroring & 4) >> 2, 0);
 
-  iNESCart.battery=(head.ROM_type&2)?1:0;
-  iNESCart.mirror=iNESMirroring;
+  iNESCart.battery = !!(head.ROM_type & 2);
+  iNESCart.mirror = iNESMirroring;
 
   fc->fceu->GameInfo->mappernum = mapper_number;
   if (!MapperInit()) {
@@ -1380,11 +1385,11 @@ static constexpr MapInterface *(* const MapInitTab[256])(FC *fc) = {
 };
 
 static DECLFW(BWRAM) {
-  GMB_WRAM(fc)[A-0x6000]=V;
+  GMB_WRAM(fc)[A - 0x6000] = V;
 }
 
 static DECLFR(AWRAM) {
-  return GMB_WRAM(fc)[A-0x6000];
+  return GMB_WRAM(fc)[A - 0x6000];
 }
 
 // Wrapper for old-style mappers; expect mapiface to be set.
@@ -1435,7 +1440,7 @@ void INes::iNESPower() {
   TRACEF("iNESPower %d", mapper_number);
   int type = mapper_number;
 
-  fc->fceu->SetReadHandler(0x8000,0xFFFF,Cart::CartBR);
+  fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   fc->fceu->GameStateRestore = [](FC *fc, int v) {
     return fc->ines->iNESStateRestore(v);
   };
@@ -1444,10 +1449,10 @@ void INes::iNESPower() {
   // MapInterface? Already did MapStateRestore -tom7
   MapClose = nullptr;
 
-  fc->cart->setprg8r(1,0x6000,0);
+  fc->cart->setprg8r(1, 0x6000, 0);
 
-  fc->fceu->SetReadHandler(0x6000,0x7FFF,AWRAM);
-  fc->fceu->SetWriteHandler(0x6000,0x7FFF,BWRAM);
+  fc->fceu->SetReadHandler(0x6000, 0x7FFF, AWRAM);
+  fc->fceu->SetWriteHandler(0x6000, 0x7FFF, BWRAM);
 
   /* This statement represents atrocious code.  I need to rewrite
      all of the iNES mapper code... */

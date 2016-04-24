@@ -78,6 +78,10 @@ struct Cart {
   uint8 *MMC5SPRVPage[8] = {};
   uint8 *MMC5BGVPage[8] = {};
 
+  // A cartridge consists of a set of PRG and CHR (video) ROMs (or RAMs),
+  // each usually a chip on the board. These can be set up by the mapper
+  // or by the cart format itself (e.g., iNES always sets chip 0 to "the
+  // ROM" and the unif format describes the chips with metadata).
   void ResetCartMapping();
   void SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram);
   void SetupCartCHRMapping(int chip, uint8 *p, uint32 size, bool is_ram);

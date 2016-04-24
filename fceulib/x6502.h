@@ -40,12 +40,20 @@ struct X6502 {
      I'll need to AND PC after increments to 0xFFFF
      when I do, though.  Perhaps an IPC() macro? */
 
+  // Program counter.
   uint16 reg_PC;
+  // A is accumulator, X and Y other general purpose registes.
+  // S is the stack pointer. Stack grows "down" (push decrements).
+  // P is processor flags (from msb to lsb: NVUBDIZC).
+  // PI is another copy of the processor flags, maybe having
+  // to do with interrupt handling, which I don't understand.
   uint8 reg_A, reg_X, reg_Y, reg_S, reg_P, reg_PI;
+  // I think this is set for some instructions that halt the
+  // processor until an interrupt.
   uint8 jammed;
 
   int32 count;
-  /* Simulated IRQ pin held low(or is it high?).
+  /* Simulated IRQ pin held low (or is it high?).
      And other junk hooked on for speed reasons. */
   uint32 IRQlow;
   /* Data bus "cache" for reads from certain areas */
@@ -62,6 +70,8 @@ struct X6502 {
   void IRQBegin(int w);
   void IRQEnd(int w);
 
+  // DMA read and write, I think. Like normal memory read/write,
+  // but consumes a CPU cycle.
   uint8 DMR(uint32 A);
   void DMW(uint32 A, uint8 V);
 
