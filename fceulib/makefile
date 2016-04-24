@@ -1,6 +1,6 @@
 
 # Makefile made by tom7.
-default: bench.exe difftrace.exe
+default: bench.exe emulator_test.exe difftrace.exe
 
 all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-comprehensive-history.exe
 

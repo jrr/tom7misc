@@ -107,7 +107,7 @@ void FCEU::SetWriteHandler(int32 start, int32 end, writefunc func) {
   if (!func)
     func = BNull;
 
-  for (int32 x = start; x < end; x++) {
+  for (int32 x = start; x <= end; x++) {
     BWrite[x] = func;
   }
 }
@@ -219,7 +219,7 @@ endlseq:
 
 // Return: Flag that indicates whether the function was succesful or not.
 bool FCEU::FCEUI_Initialize() {
-  GameInterface = nullptr;
+  GameInterface = (void (*)(FC *, GI))0xDEADBEEF;
   
   fc->X->Init();
 
@@ -336,7 +336,7 @@ void FCEU::SetReadHandler(int32 start, int32 end, readfunc func) {
   if (!func)
     func = ANull;
 
-  for (int x = start; x < end; x++) {
+  for (int x = start; x <= end; x++) {
     ARead[x] = func;
   }
 }

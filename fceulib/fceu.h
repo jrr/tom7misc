@@ -50,10 +50,15 @@ struct MapInterface;
 struct FCEU {
   explicit FCEU(FC *fc);
   ~FCEU();
-  
-  void SetReadHandler(int32 start, int32 end, readfunc func);
 
+  // Essentially all reads and writes go through indirections.
+  // This sets the current mapping for the region of memory
+  // [start, end] to the given function pointer. Note that
+  // the end address is INCLUDED. start and end must be
+  // in the range [0, 0xFFFF].
+  void SetReadHandler(int32 start, int32 end, readfunc func);
   void SetWriteHandler(int32 start, int32 end, writefunc func);
+
   writefunc GetWriteHandler(int32 a);
   readfunc GetReadHandler(int32 a);
 

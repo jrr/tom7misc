@@ -43,7 +43,7 @@ Cart::Cart(FC *fc) : fc(fc) {}
 
 void Cart::SetPagePtr(int s, uint32 A, uint8 *p, bool ram) {
   const uint32 AB = A >> 11;
-  if (1) printf("setpageptr %d %04x %p %s %02x\n",
+  if (0) printf("setpageptr %d %04x %p %s %02x\n",
 		s, A, p, ram ? "RAM" : "not RAM", AB);
   
   if (p != nullptr) {
@@ -81,8 +81,8 @@ void Cart::ResetCartMapping() {
 }
 
 void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
-  printf("PRG chip %d -> %p (size %d, %s)\n", chip, p, size,
-	 is_ram ? "RAM" : "not RAM");
+  if (0) printf("PRG chip %d -> %p (size %d, %s)\n", chip, p, size,
+		is_ram ? "RAM" : "not RAM");
   PRGptr[chip] = p;
   PRGsize[chip] = size;
 
@@ -96,8 +96,8 @@ void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
 }
 
 void Cart::SetupCartCHRMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
-  printf("CHR chip %d -> %p (size %d, %s)\n", chip, p, size,
-	 is_ram ? "RAM" : "not RAM");
+  if (0) printf("CHR chip %d -> %p (size %d, %s)\n", chip, p, size,
+		is_ram ? "RAM" : "not RAM");
 
   CHRptr[chip] = p;
   CHRsize[chip] = size;
