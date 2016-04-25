@@ -144,7 +144,7 @@ struct YokoBase : public CartInterface {
   }
 };
 
-struct Mapper83 : public YokoBase {
+struct Mapper83 final : public YokoBase {
   void M83Write(DECLFW_ARGS) {
     switch (A) {
       case 0x8000: is2kbank = 1;
@@ -223,7 +223,7 @@ struct Mapper83 : public YokoBase {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     is2kbank = 0;
     isnot2kbank = 0;
     mode = bank = 0;
@@ -250,12 +250,12 @@ struct Mapper83 : public YokoBase {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     dip ^= 1;
     M83Sync();
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }
@@ -302,8 +302,8 @@ struct Mapper83 : public YokoBase {
   }
 };
 
-struct Yoko : public YokoBase {
-  void Power() override {
+struct Yoko final : public YokoBase {
+  void Power() final override {
     mode = bank = 0;
     dip = 3;
     UNLYOKOSync();
@@ -324,7 +324,7 @@ struct Yoko : public YokoBase {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     dip = (dip + 1) & 3;
     mode = bank = 0;
     UNLYOKOSync();
@@ -337,7 +337,6 @@ struct Yoko : public YokoBase {
   Yoko(FC *fc, CartInfo *info) : YokoBase(fc, info) {
     fc->fceu->GameStateRestore = UNLYOKOStateRestore;    
   }
-  
 };
 }
   

@@ -22,17 +22,19 @@
 #include "mmc3.h"
 
 namespace {
-struct Mapper187 : public MMC3 {
+static constexpr uint8 prot_data[4] = {0x83, 0x83, 0x42, 0x00};
+
+struct Mapper187 final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     if ((A & 0x1000) == ((MMC3_cmd & 0x80) << 5))
       fc->cart->setchr1(A, V | 0x100);
     else
       fc->cart->setchr1(A, V);
   }
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x80) {
       uint8 bank = EXPREGS[0] & 0x1F;
       if (EXPREGS[0] & 0x20) {
@@ -69,12 +71,11 @@ struct Mapper187 : public MMC3 {
     }
   }
 
-  uint8 prot_data[4] = {0x83, 0x83, 0x42, 0x00};
   DECLFR_RET M187Read(DECLFR_ARGS) {
     return prot_data[EXPREGS[1] & 3];
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = EXPREGS[1] = 0;
     MMC3::Power();
     fc->fceu->SetReadHandler(0x5000, 0x5FFF, [](DECLFR_ARGS) {

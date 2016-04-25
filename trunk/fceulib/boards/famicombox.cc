@@ -23,7 +23,7 @@
 static constexpr int WRAMSIZE = 16384;
 
 namespace {
-struct SSSNROM : public CartInterface {
+struct SSSNROM final : public CartInterface {
   uint8 regs[8] = {};
   uint8 *WRAM = nullptr;
 
@@ -64,7 +64,7 @@ struct SSSNROM : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     regs[0] = regs[1] = regs[2] = regs[3] = regs[4] = regs[5] = regs[6] = 0;
     regs[7] = 0xff;
     Sync();
@@ -83,11 +83,11 @@ struct SSSNROM : public CartInterface {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }
 
-  void Reset() override {
+  void Reset() final override {
     regs[1] = regs[2] = regs[3] = regs[4] = regs[5] = regs[6] = 0;
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

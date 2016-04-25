@@ -21,8 +21,9 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper225 : public CartInterface {
-  uint8 prot[4] = {}, prg = 0, mode = 0, chr = 0, mirr = 0;
+struct Mapper225 final : public CartInterface {
+  // Used to be 4 bytes of "prot", but unused? -tom7
+  uint8 prg = 0, mode = 0, chr = 0, mirr = 0;
 
   void Sync() {
     if (mode) {
@@ -50,7 +51,7 @@ struct Mapper225 : public CartInterface {
     return 0;
   }
 
-  void Power() override {
+  void Power() final override {
     prg = 0;
     mode = 0;
     Sync();
@@ -67,7 +68,7 @@ struct Mapper225 : public CartInterface {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     prg = 0;
     mode = 0;
     Sync();
@@ -79,7 +80,7 @@ struct Mapper225 : public CartInterface {
 
   Mapper225(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
-    fc->state->AddExVec({{prot, 4, "PROT"}, {&prg, 1, "PRG0"},
+    fc->state->AddExVec({{&prg, 1, "PRG0"},
 			 {&chr, 1, "CHR0"}, {&mode, 1, "MODE"},
 			 {&mirr, 1, "MIRR"}});
   }

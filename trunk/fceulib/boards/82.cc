@@ -20,12 +20,12 @@
 
 #include "mapinc.h"
 
-static constexpr int WRAM82SIZE = 8192;
+static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct Mapper82 : public CartInterface {
+struct Mapper82 final : public CartInterface {
   uint8 regs[9] = {}, ctrl = 0;
-  uint8 *WRAM82 = nullptr;
+  uint8 *WRAM = nullptr;
 
   void Sync() {
     uint32 swap = ((ctrl & 2) << 11);
@@ -56,19 +56,19 @@ struct Mapper82 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0xffff, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0x7fff, Cart::CartBW);
-    // external WRAM82 might end at $73FF
+    // external WRAM might end at $73FF
     fc->fceu->SetWriteHandler(0x7ef0, 0x7efc, [](DECLFW_ARGS) {
       ((Mapper82*)fc->fceu->cartiface)->M82Write(DECLFW_FORWARD);
     });
   }
 
-  void Close() override {
-    free(WRAM82);
-    WRAM82 = nullptr;
+  void Close() final override {
+    free(WRAM);
+    WRAM = nullptr;
   }
 
   static void StateRestore(FC *fc, int version) {
@@ -80,17 +80,16 @@ struct Mapper82 : public CartInterface {
     // a mistake. Changed to Close. -tom7
     // (Later of course these because virtual function overrides)
 
-    WRAM82 = (uint8 *)FCEU_gmalloc(WRAM82SIZE);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM82, WRAM82SIZE, true);
-    fc->state->AddExState(WRAM82, WRAM82SIZE, 0, "WR82");
+    WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
+    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
+    fc->state->AddExState(WRAM, WRAMSIZE, 0, "WR82");
     if (info->battery) {
-      info->SaveGame[0] = WRAM82;
-      info->SaveGameLen[0] = WRAM82SIZE;
+      info->SaveGame[0] = WRAM;
+      info->SaveGameLen[0] = WRAMSIZE;
     }
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{regs, 9, "REGS"}, {&ctrl, 1, "CTRL"}});
   }
-
 };
 }
 

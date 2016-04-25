@@ -24,7 +24,7 @@ static constexpr int CHRRAMSIZE = 2048;
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct Mapper253 : public CartInterface {
+struct Mapper253 final : public CartInterface {
   uint8 chrlo[8] = {}, chrhi[8] = {}, prg[2] = {}, mirr = 0, vlock = 0;
   int32 IRQa = 0, IRQCount = 0, IRQLatch = 0, IRQClock = 0;
   uint8 *WRAM = nullptr;
@@ -99,7 +99,7 @@ struct Mapper253 : public CartInterface {
       }
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0x7FFF, Cart::CartBW);
@@ -109,7 +109,7 @@ struct Mapper253 : public CartInterface {
     });
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     free(CHRRAM);
     WRAM = CHRRAM = nullptr;
@@ -158,7 +158,6 @@ struct Mapper253 : public CartInterface {
 			 {&vlock, 1, "VLCK"}, {&IRQa, 4, "IRQA"},
 			 {&IRQCount, 4, "IRQC"}, {&IRQLatch, 4, "IRQL"},
 			 {&IRQClock, 4, "IRQK"}});
-    
   }
 };
 }

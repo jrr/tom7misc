@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper170 : public CartInterface {
+struct Mapper170 final : public CartInterface {
   uint8 reg = 0;
 
   void Sync() {
@@ -38,7 +38,7 @@ struct Mapper170 : public CartInterface {
     return reg | (fc->X->DB & 0x7F);
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetWriteHandler(0x6502, 0x6502, [](DECLFW_ARGS) {
       ((Mapper170*)fc->fceu->cartiface)->M170ProtW(DECLFW_FORWARD);

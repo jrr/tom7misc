@@ -33,9 +33,8 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
+template<bool is153>
 struct Bandai : public CartInterface {
-  const bool is153 = false;
-  
   uint8 reg[16] = {};
   uint8 IRQa = 0;
   int16 IRQCount = 0, IRQLatch = 0;
@@ -108,8 +107,7 @@ struct Bandai : public CartInterface {
     ((Bandai *)fc->fceu->cartiface)->BandaiSync();
   }
 
-  Bandai(FC *fc, CartInfo *info, bool is153) : CartInterface(fc),
-					       is153(is153) {
+  Bandai(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->state->AddExVec({
       {reg, 16, "REGS"},
       {&IRQa, 1, "IRQA"},
@@ -119,8 +117,8 @@ struct Bandai : public CartInterface {
   }
 };
 
-struct Mapper16 : public Bandai {
-  Mapper16(FC *fc, CartInfo *info) : Bandai(fc, info, false) {
+struct Mapper16 final : public Bandai<false> {
+  Mapper16(FC *fc, CartInfo *info) : Bandai(fc, info) {
     fc->X->MapIRQHook = [](FC *fc, int a) {
       ((Mapper16 *)fc->fceu->cartiface)->BandaiIRQHook(a);
     };
@@ -128,8 +126,8 @@ struct Mapper16 : public Bandai {
   }
 };
 
-struct Mapper153 : public Bandai {
-  void Power() override {
+struct Mapper153 final : public Bandai<true> {
+  void Power() final override {
     BandaiSync();
     fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
@@ -140,13 +138,12 @@ struct Mapper153 : public Bandai {
     });
   }
 
-
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }
   
-  Mapper153(FC *fc, CartInfo *info) : Bandai(fc, info, true) {
+  Mapper153(FC *fc, CartInfo *info) : Bandai(fc, info) {
     fc->X->MapIRQHook = [](FC *fc, int a) {
       ((Mapper153 *)fc->fceu->cartiface)->BandaiIRQHook(a);
     };
@@ -165,7 +162,7 @@ struct Mapper153 : public Bandai {
 };
 
 // Datach Barcode Battler
-struct Barcode : public Bandai {
+struct Barcode final : public Bandai<false> {
   uint8 BarcodeData[256] = {};
   int BarcodeReadPos = 0;
   int BarcodeCycleCount = 0;
@@ -233,10 +230,11 @@ struct Barcode : public Bandai {
 	  for (j = 0; j < 7; j++) {
 	    BS(data_left_even[code[i + 1]][j]);
 	  }
-	} else
+	} else {
 	  for (j = 0; j < 7; j++) {
 	    BS(data_left_odd[code[i + 1]][j]);
 	  }
+	}
       }
 	
       /* Center guard bars */
@@ -264,10 +262,11 @@ struct Barcode : public Bandai {
 
       csum = (10 - (csum % 10)) % 10;
 
-      for (i = 0; i < 4; i++)
+      for (i = 0; i < 4; i++) {
 	for (j = 0; j < 7; j++) {
 	  BS(data_left_odd[code[i]][j]);
 	}
+      }
 
       /* Center guard bars */
       BS(0);
@@ -276,10 +275,11 @@ struct Barcode : public Bandai {
       BS(1);
       BS(0);
 
-      for (i = 4; i < 7; i++)
+      for (i = 4; i < 7; i++) {
 	for (j = 0; j < 7; j++) {
 	  BS(data_right[code[i]][j]);
 	}
+      }
 
       for (j = 0; j < 7; j++) {
 	BS(data_right[csum][j]);
@@ -325,7 +325,7 @@ struct Barcode : public Bandai {
     return BarcodeOut;
   }
 
-  void Power() override {
+  void Power() final override {
     BarcodeData[0] = 0xFF;
     BarcodeReadPos = 0;
     BarcodeOut = 0;
@@ -343,7 +343,7 @@ struct Barcode : public Bandai {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }
 
-  Barcode(FC *fc, CartInfo *info) : Bandai(fc, info, false) {
+  Barcode(FC *fc, CartInfo *info) : Bandai(fc, info) {
     fc->X->MapIRQHook = [](FC *fc, int a) {
       ((Barcode *)fc->fceu->cartiface)->BarcodeIRQHook(a);
     };

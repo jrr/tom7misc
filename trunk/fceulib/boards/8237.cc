@@ -26,25 +26,25 @@
 #include "mmc3.h"
 
 static constexpr uint8 regperm[8][8] = {
-    {0, 1, 2, 3, 4, 5, 6, 7},
-    {0, 2, 6, 1, 7, 3, 4, 5},
-    {0, 5, 4, 1, 7, 2, 6, 3},  // unused
-    {0, 6, 3, 7, 5, 2, 4, 1},
-    {0, 2, 5, 3, 6, 1, 7, 4},
-    {0, 1, 2, 3, 4, 5, 6, 7},  // empty
-    {0, 1, 2, 3, 4, 5, 6, 7},  // empty
-    {0, 1, 2, 3, 4, 5, 6, 7},  // empty
+  {0, 1, 2, 3, 4, 5, 6, 7},
+  {0, 2, 6, 1, 7, 3, 4, 5},
+  {0, 5, 4, 1, 7, 2, 6, 3},  // unused
+  {0, 6, 3, 7, 5, 2, 4, 1},
+  {0, 2, 5, 3, 6, 1, 7, 4},
+  {0, 1, 2, 3, 4, 5, 6, 7},  // empty
+  {0, 1, 2, 3, 4, 5, 6, 7},  // empty
+  {0, 1, 2, 3, 4, 5, 6, 7},  // empty
 };
 
 static constexpr uint8 adrperm[8][8] = {
-    {0, 1, 2, 3, 4, 5, 6, 7},
-    {3, 2, 0, 4, 1, 5, 6, 7},
-    {0, 1, 2, 3, 4, 5, 6, 7},  // unused
-    {5, 0, 1, 2, 3, 7, 6, 4},
-    {3, 1, 0, 5, 2, 4, 6, 7},
-    {0, 1, 2, 3, 4, 5, 6, 7},  // empty
-    {0, 1, 2, 3, 4, 5, 6, 7},  // empty
-    {0, 1, 2, 3, 4, 5, 6, 7},  // empty
+  {0, 1, 2, 3, 4, 5, 6, 7},
+  {3, 2, 0, 4, 1, 5, 6, 7},
+  {0, 1, 2, 3, 4, 5, 6, 7},  // unused
+  {5, 0, 1, 2, 3, 7, 6, 4},
+  {3, 1, 0, 5, 2, 4, 6, 7},
+  {0, 1, 2, 3, 4, 5, 6, 7},  // empty
+  {0, 1, 2, 3, 4, 5, 6, 7},  // empty
+  {0, 1, 2, 3, 4, 5, 6, 7},  // empty
 };
 
 namespace {
@@ -117,7 +117,7 @@ struct UNL8237 : public MMC3 {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = EXPREGS[2] = 0;
     EXPREGS[1] = 3;
     MMC3::Power();
@@ -135,10 +135,10 @@ struct UNL8237 : public MMC3 {
   }
 };
 
-struct UNL8237A : public UNL8237 {
+struct UNL8237A final : public UNL8237 {
   using UNL8237::UNL8237;
   
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40)
       fc->cart->setchr1(A,
 			((EXPREGS[1] & 0xE) << 7) |
@@ -148,7 +148,7 @@ struct UNL8237A : public UNL8237 {
       fc->cart->setchr1(A, ((EXPREGS[1] & 0xE) << 7) | V);
   }
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40) {
       uint8 sbank = (EXPREGS[1] & 0x10);
       if (EXPREGS[0] & 0x80) {

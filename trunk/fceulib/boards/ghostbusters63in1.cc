@@ -26,7 +26,7 @@ static constexpr uint8 banks[4] = {0, 0, 1, 2};
 static constexpr uint32 CHRROMSIZE = 8192;  // dummy CHRROM, VRAM disable
 
 namespace {
-struct Ghostbusters : public CartInterface {
+struct Ghostbusters final : public CartInterface {
   uint8 reg[2], bank;
   uint8 *CHRROM = nullptr;
 
@@ -58,7 +58,7 @@ struct Ghostbusters : public CartInterface {
       return Cart::CartBR(DECLFR_FORWARD);
   }
 
-  void Power() override {
+  void Power() final override {
     reg[0] = reg[1] = 0;
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, [](DECLFR_ARGS) {
@@ -70,7 +70,7 @@ struct Ghostbusters : public CartInterface {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     reg[0] = reg[1] = 0;
   }
 
@@ -78,7 +78,7 @@ struct Ghostbusters : public CartInterface {
     ((Ghostbusters *)fc->fceu->cartiface)->Sync();
   }
 
-  void Close() override {
+  void Close() final override {
     free(CHRROM);
     CHRROM = nullptr;
   }

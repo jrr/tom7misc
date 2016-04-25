@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper99 : public CartInterface {
+struct Mapper99 final : public CartInterface {
   uint8 latch = 0;
   writefunc old4016 = nullptr;
 
@@ -37,7 +37,7 @@ struct Mapper99 : public CartInterface {
     old4016(DECLFW_FORWARD);
   }
 
-  void Power() override {
+  void Power() final override {
     latch = 0;
     Sync();
     old4016 = fc->fceu->GetWriteHandler(0x4016);

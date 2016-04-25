@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNL8157 : public CartInterface {
+struct UNL8157 final : public CartInterface {
   uint16 cmdreg = 0;
   uint8 invalid_data = 0;
 
@@ -45,7 +45,7 @@ struct UNL8157 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setchr8(0);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       ((UNL8157*)fc->fceu->cartiface)->UNL8157Write(DECLFW_FORWARD);
@@ -58,7 +58,7 @@ struct UNL8157 : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     cmdreg = 0;
     invalid_data ^= 1;
     Sync();

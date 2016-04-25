@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct DreamTech01 : public CartInterface {
+struct DreamTech01 final : public CartInterface {
   uint8 latch = 0;
 
   void Sync() {
@@ -34,7 +34,7 @@ struct DreamTech01 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     latch = 0;
     Sync();
     fc->cart->setchr8(0);

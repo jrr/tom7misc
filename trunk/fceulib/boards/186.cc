@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper186 : public CartInterface {
+struct Mapper186 final : public CartInterface {
   uint8 SWRAM[2816] = {};
   uint8 *WRAM = nullptr;
   uint8 regs[4] = {};
@@ -56,7 +56,7 @@ struct Mapper186 : public CartInterface {
     SWRAM[A - 0x4400] = V;
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setchr8(0);
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0xFFFF, Cart::CartBW);
@@ -76,7 +76,7 @@ struct Mapper186 : public CartInterface {
     Sync();
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

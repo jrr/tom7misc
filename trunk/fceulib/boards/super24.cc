@@ -24,16 +24,16 @@
 static constexpr int masko8[8] = {63, 31, 15, 1, 3, 0, 0, 0};
 
 namespace {
-struct Super24 : public MMC3 {
+struct Super24 final : public MMC3 {
   uint8 EXPREGS[8] = {};
   
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     uint32 NV = V & masko8[EXPREGS[0] & 7];
     NV |= (EXPREGS[1] << 1);
     fc->cart->setprg8r((NV >> 6) & 0xF, A, NV);
   }
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x20) {
       fc->cart->setchr1r(0x10, A, V);
     } else {
@@ -60,7 +60,7 @@ struct Super24 : public MMC3 {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = 0x24;
     EXPREGS[1] = 159;
     EXPREGS[2] = 0;
@@ -71,14 +71,14 @@ struct Super24 : public MMC3 {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }
 
-  void Reset() override {
+  void Reset() final override {
     EXPREGS[0] = 0x24;
     EXPREGS[1] = 159;
     EXPREGS[2] = 0;
     MMC3::Reset();
   }
 
-  void Close() override {
+  void Close() final override {
     free(CHRRAM);
     CHRRAM = nullptr;
   }

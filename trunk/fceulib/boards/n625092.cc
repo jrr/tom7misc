@@ -22,7 +22,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLN625092 : public CartInterface {
+struct UNLN625092 final : public CartInterface {
   uint16 cmd = 0, bank = 0;
   uint16 ass = 0;
 
@@ -58,7 +58,7 @@ struct UNLN625092 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     cmd = 0;
     bank = 0;
     Sync();
@@ -73,7 +73,7 @@ struct UNLN625092 : public CartInterface {
       });
   }
 
-  void Reset() override {
+  void Reset() final override {
     cmd = 0;
     bank = 0;
     ass++;

@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper18 : public CartInterface {
+struct Mapper18 final : public CartInterface {
   uint8 preg[4] = {}, creg[8] = {};
   uint8 IRQa = 0, mirr = 0;
   int32 IRQCount = 0, IRQLatch = 0;
@@ -85,7 +85,7 @@ struct Mapper18 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     preg[0] = 0;
     preg[1] = 1;
     preg[2] = ~1;

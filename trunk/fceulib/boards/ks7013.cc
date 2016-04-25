@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct KS7013 : public CartInterface {
+struct KS7013 final : public CartInterface {
   uint8 reg = 0, mirr = 0;
 
   void Sync() {
@@ -41,7 +41,7 @@ struct KS7013 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     reg = 0;
     mirr = 0;
     Sync();
@@ -54,7 +54,7 @@ struct KS7013 : public CartInterface {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     reg = 0;
     Sync();
   }

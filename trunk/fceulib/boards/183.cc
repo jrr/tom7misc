@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper183 : public CartInterface {
+struct Mapper183 final : public CartInterface {
   uint8 prg[4] = {};
   uint8 chr[8] = {};
   uint8 IRQCount = 0;
@@ -99,7 +99,7 @@ struct Mapper183 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     IRQPre = IRQCount = IRQa = 0;
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {

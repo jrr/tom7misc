@@ -44,7 +44,7 @@ struct Mapper185Base : public CartInterface {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }
 
-  void Close() override {
+  void Close() final override {
     free(DummyCHR);
     DummyCHR = nullptr;
   }
@@ -70,9 +70,9 @@ struct Mapper185Base : public CartInterface {
 // 6  0x21, 0x13 - Spy vs Spy
 // 7  0x20, 0x21 - Seicross
 
-struct Mapper185 : public Mapper185Base {
+struct Mapper185 final : public Mapper185Base {
   using Mapper185Base::Mapper185Base;
-  void WSync() override {
+  void WSync() final override {
     // little dirty eh? ;_)
     if ((datareg & 3) && (datareg != 0x13))  // 1, 2, 3, 4, 5, 6
       fc->cart->setchr8(0);
@@ -81,9 +81,9 @@ struct Mapper185 : public Mapper185Base {
   }
 };
 
-struct Mapper181 : public Mapper185Base {
+struct Mapper181 final : public Mapper185Base {
   using Mapper185Base::Mapper185Base;
-  void WSync() override {
+  void WSync() final override {
     if (!(datareg & 1))  // 7
       fc->cart->setchr8(0);
     else

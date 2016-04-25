@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNL3D : public CartInterface {
+struct UNL3D final : public CartInterface {
   uint8 reg[4] = {}, IRQa = 0;
   int16 IRQCount = 0, IRQPause = 0;
 
@@ -53,7 +53,7 @@ struct UNL3D : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x4800, 0x4E00, [](DECLFW_ARGS) {
@@ -61,7 +61,7 @@ struct UNL3D : public CartInterface {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     Count += 0x10;
     // FCEU_printf("Count=%04x\n", Count);
   }

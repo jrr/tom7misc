@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct DEIROM : public CartInterface {
+struct DEIROM final : public CartInterface {
   uint8 cmd = 0;
   uint8 DRegs[8] = {};
 
@@ -53,7 +53,7 @@ struct DEIROM : public CartInterface {
     ((DEIROM *)fc->fceu->cartiface)->Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setprg8(0xc000, 0xE);
     fc->cart->setprg8(0xe000, 0xF);
     cmd = 0;

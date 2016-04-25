@@ -22,7 +22,7 @@
 #include "mmc3.h"
 
 namespace {
-struct KOF97 : public MMC3 {
+struct KOF97 final : public MMC3 {
 
   void UNLKOF97CMDWrite(DECLFW_ARGS) {
     // 76143502
@@ -42,7 +42,7 @@ struct KOF97 : public MMC3 {
     MMC3_IRQWrite(DECLFW_FORWARD);
   }
 
-  void Power() override {
+  void Power() final override {
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x8000, 0xA000, [](DECLFW_ARGS) {
       ((KOF97*)fc->fceu->cartiface)->UNLKOF97CMDWrite(DECLFW_FORWARD);

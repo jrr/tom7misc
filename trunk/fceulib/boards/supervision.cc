@@ -21,8 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Supervision16 : public CartInterface {
-
+struct Supervision16 final : public CartInterface {
   uint8 cmd0 = 0, cmd1 = 0;
 
   void DoSuper() {
@@ -52,7 +51,7 @@ struct Supervision16 : public CartInterface {
   }
 
   // was "SuperReset", but went in Power slot -tom7
-  void Power() override {
+  void Power() final override {
     fc->fceu->SetWriteHandler(0x6000, 0x7FFF, [](DECLFW_ARGS) {
       ((Supervision16*)fc->fceu->cartiface)->SuperWrite(DECLFW_FORWARD);
     });

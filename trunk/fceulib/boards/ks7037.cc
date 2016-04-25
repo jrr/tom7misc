@@ -40,7 +40,7 @@ struct KS7037Base : public CartInterface {
     }
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }
@@ -62,10 +62,10 @@ struct KS7037Base : public CartInterface {
   }
 };
 
-struct UNLKS7037 : public KS7037Base {
+struct UNLKS7037 final : public KS7037Base {
   using KS7037Base::KS7037Base;
 
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg4r(0x10, 0x6000, 0);
     fc->cart->setprg4(0x7000, 15);
     fc->cart->setprg8(0x8000, reg[6]);
@@ -77,7 +77,7 @@ struct UNLKS7037 : public KS7037Base {
     fc->cart->setmirrorw(reg[2] & 1, reg[4] & 1, reg[3] & 1, reg[5] & 1);
   }
   
-  void Power() override {
+  void Power() final override {
     reg[0] = reg[1] = reg[2] = reg[3] = reg[4] = reg[5] = reg[6] = reg[7] = 0;
     WSync();
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
@@ -90,13 +90,12 @@ struct UNLKS7037 : public KS7037Base {
       ((UNLKS7037*)fc->fceu->cartiface)->UNLKS7037Write(DECLFW_FORWARD);
     });
   }
-
 };
 
-struct LH10 : public KS7037Base {
+struct LH10 final : public KS7037Base {
   using KS7037Base::KS7037Base;
 
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg8(0x6000, ~1);
     fc->cart->setprg8(0x8000, reg[6]);
     fc->cart->setprg8(0xA000, reg[7]);
@@ -106,7 +105,7 @@ struct LH10 : public KS7037Base {
     fc->cart->setmirror(0);
   }
   
-  void Power() override {
+  void Power() final override {
     reg[0] = reg[1] = reg[2] = reg[3] = reg[4] = reg[5] = reg[6] = reg[7] = 0;
     WSync();
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
@@ -118,7 +117,6 @@ struct LH10 : public KS7037Base {
       ((LH10*)fc->fceu->cartiface)->UNLKS7037Write(DECLFW_FORWARD);
     });
   }
-
 };
 }
 

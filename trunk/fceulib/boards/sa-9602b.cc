@@ -22,10 +22,10 @@
 #include "mmc3.h"
 
 namespace {
-struct SA9602B : public MMC3 {
+struct SA9602B final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     fc->cart->setprg8r(EXPREGS[1], A, V & 0x3F);
     if (MMC3_cmd & 0x40)
       fc->cart->setprg8r(0, 0x8000, ~1);
@@ -47,7 +47,7 @@ struct SA9602B : public MMC3 {
     MMC3_CMDWrite(DECLFW_FORWARD);
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = EXPREGS[1] = 0;
     MMC3::Power();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);

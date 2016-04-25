@@ -44,7 +44,7 @@ struct AddrLatch : public CartInterface {
     WSync();
   }
 
-  void Power() override {
+  void Power() final override {
     latch = latchinit;
     WSync();
     if (WRAM) {
@@ -60,7 +60,7 @@ struct AddrLatch : public CartInterface {
       });
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }
@@ -71,13 +71,13 @@ struct AddrLatch : public CartInterface {
 
   // proc -> WSync, func -> DefRead
   AddrLatch(FC *fc, CartInfo *info, 
-	    uint16 linit, uint16 adr0, uint16 adr1, uint8 wram) :
+	    uint16 linit, uint16 adr0, uint16 adr1, bool has_wram) :
     CartInterface(fc) {
     latchinit = linit;
     addrreg0 = adr0;
     addrreg1 = adr1;
 
-    if (wram) {
+    if (has_wram) {
       WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
       fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
       if (info->battery) {
@@ -94,9 +94,9 @@ struct AddrLatch : public CartInterface {
 
 //------------------ UNLCC21 ---------------------------
 namespace {
-struct UNLCC21 : public AddrLatch {
+struct UNLCC21 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, 0);
     fc->cart->setchr8(latch & 1);
     fc->cart->setmirror(MI_0 + ((latch & 2) >> 1));
@@ -105,13 +105,13 @@ struct UNLCC21 : public AddrLatch {
 }
 
 CartInterface *UNLCC21_Init(FC *fc, CartInfo *info) {
-  return new UNLCC21(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new UNLCC21(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ BMCD1038 ---------------------------
 namespace {
-struct BMCD1038 : public AddrLatch {
-  void WSync() override {
+struct BMCD1038 final : public AddrLatch {
+  void WSync() final override {
     if (latch & 0x80) {
       fc->cart->setprg16(0x8000, (latch & 0x70) >> 4);
       fc->cart->setprg16(0xC000, (latch & 0x70) >> 4);
@@ -122,14 +122,14 @@ struct BMCD1038 : public AddrLatch {
     fc->cart->setmirror(((latch & 8) >> 3) ^ 1);
   }
 
-  DECLFR_RET DefRead(DECLFR_ARGS) override {
+  DECLFR_RET DefRead(DECLFR_ARGS) final override {
     if (latch & 0x100)
       return dipswitch;
     else
       return Cart::CartBR(DECLFR_FORWARD);
   }
 
-  void Reset() override {
+  void Reset() final override {
     dipswitch++;
     dipswitch &= 3;
   }
@@ -143,14 +143,14 @@ struct BMCD1038 : public AddrLatch {
 }
 
 CartInterface *BMCD1038_Init(FC *fc, CartInfo *info) {
-  return new BMCD1038(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new BMCD1038(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ UNL43272 ---------------------------
 // mapper much complex, including 16K bankswitching
 namespace {
-struct UNL43272 : public AddrLatch {
-  void WSync() override {
+struct UNL43272 final : public AddrLatch {
+  void WSync() final override {
     if ((latch & 0x81) == 0x81) {
       fc->cart->setprg32(0x8000, (latch & 0x38) >> 3);
     } else
@@ -159,14 +159,14 @@ struct UNL43272 : public AddrLatch {
     fc->cart->setmirror(0);
   }
 
-  DECLFR_RET DefRead(DECLFR_ARGS) override {
+  DECLFR_RET DefRead(DECLFR_ARGS) final override {
     if (latch & 0x400)
       return Cart::CartBR(fc, A & 0xFE);
     else
       return Cart::CartBR(DECLFR_FORWARD);
   }
 
-  void Reset() override {
+  void Reset() final override {
     latch = 0;
     WSync();
   }
@@ -180,14 +180,14 @@ struct UNL43272 : public AddrLatch {
 }
 
 CartInterface *UNL43272_Init(FC *fc, CartInfo *info) {
-  return new UNL43272(fc, info, 0x0081, 0x8000, 0xFFFF, 0);
+  return new UNL43272(fc, info, 0x0081, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 058 ---------------------------
 namespace {
-struct BMCGK192 : public AddrLatch {
+struct BMCGK192 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     if (latch & 0x40) {
       fc->cart->setprg16(0x8000, latch & 7);
       fc->cart->setprg16(0xC000, latch & 7);
@@ -201,21 +201,21 @@ struct BMCGK192 : public AddrLatch {
 }
 
 CartInterface *BMCGK192_Init(FC *fc, CartInfo *info) {
-  return new BMCGK192(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new BMCGK192(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 059 ---------------------------
 // One more forbidden mapper
 namespace {
-struct M59 : public AddrLatch {
+struct M59 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, (latch >> 4) & 7);
     fc->cart->setchr8(latch & 0x7);
     fc->cart->setmirror((latch >> 3) & 1);
   }
 
-  DECLFR_RET DefRead(DECLFR_ARGS) override {
+  DECLFR_RET DefRead(DECLFR_ARGS) final override {
     if (latch & 0x100)
       return 0;
     else
@@ -225,7 +225,7 @@ struct M59 : public AddrLatch {
 }
 
 CartInterface *Mapper59_Init(FC *fc, CartInfo *info) {
-  return new M59(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new M59(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 092 ---------------------------
@@ -235,9 +235,9 @@ CartInterface *Mapper59_Init(FC *fc, CartInfo *info) {
 // Additionally, PCB contains DSP extra sound chip, used for voice samples
 // (unemulated)
 namespace {
-struct M92 : public AddrLatch {
+struct M92 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     uint8 reg = latch & 0xF0;
     fc->cart->setprg16(0x8000, 0);
     if (latch >= 0x9000) {
@@ -256,14 +256,14 @@ struct M92 : public AddrLatch {
 }
 
 CartInterface *Mapper92_Init(FC* fc, CartInfo *info) {
-  return new M92(fc, info, 0x80B0, 0x8000, 0xFFFF, 0);
+  return new M92(fc, info, 0x80B0, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 200 ---------------------------
 namespace {
-struct M200 : public AddrLatch {
+struct M200 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, latch & 7);
     fc->cart->setprg16(0xC000, latch & 7);
     fc->cart->setchr8(latch & 7);
@@ -273,14 +273,14 @@ struct M200 : public AddrLatch {
 }
 
 CartInterface *Mapper200_Init(FC *fc, CartInfo *info) {
-  return new M200(fc, info, 0xFFFF, 0x8000, 0xFFFF, 0);
+  return new M200(fc, info, 0xFFFF, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 201 ---------------------------
 namespace {
-struct M201 : public AddrLatch {
+struct M201 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     if (latch & 8) {
       fc->cart->setprg32(0x8000, latch & 3);
       fc->cart->setchr8(latch & 3);
@@ -293,14 +293,14 @@ struct M201 : public AddrLatch {
 }
 
 CartInterface *Mapper201_Init(FC *fc, CartInfo *info) {
-  return new M201(fc, info, 0xFFFF, 0x8000, 0xFFFF, 0);
+  return new M201(fc, info, 0xFFFF, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 202 ---------------------------
 namespace {
-struct M202 : public AddrLatch {
+struct M202 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     // According to more careful hardware tests and PCB study
     int32 mirror = latch & 1;
     int32 bank = (latch >> 1) & 0x7;
@@ -314,14 +314,14 @@ struct M202 : public AddrLatch {
 }
 
 CartInterface *Mapper202_Init(FC *fc, CartInfo *info) {
-  return new M202(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new M202(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 204 ---------------------------
 namespace {
-struct M204 : public AddrLatch {
+struct M204 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     int32 tmp2 = latch & 0x6;
     int32 tmp1 = tmp2 + ((tmp2 == 0x6) ? 0 : (latch & 1));
     fc->cart->setprg16(0x8000, tmp1);
@@ -333,20 +333,20 @@ struct M204 : public AddrLatch {
 }
 
 CartInterface *Mapper204_Init(FC *fc, CartInfo *info) {
-  return new M204(fc, info, 0xFFFF, 0x8000, 0xFFFF, 0);
+  return new M204(fc, info, 0xFFFF, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 212 ---------------------------
 namespace {
-struct M212 : public AddrLatch {
+struct M212 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  DECLFR_RET DefRead(DECLFR_ARGS) override {
+  DECLFR_RET DefRead(DECLFR_ARGS) final override {
     uint8 ret = Cart::CartBROB(DECLFR_FORWARD);
     if ((A & 0xE010) == 0x6000) ret |= 0x80;
     return ret;
   }
 
-  void WSync() override {
+  void WSync() final override {
     if (latch & 0x4000) {
       fc->cart->setprg32(0x8000, (latch >> 1) & 3);
     } else {
@@ -360,14 +360,14 @@ struct M212 : public AddrLatch {
 }
 
 CartInterface *Mapper212_Init(FC *fc, CartInfo *info) {
-  return new M212(fc, info, 0xFFFF, 0x8000, 0xFFFF, 0);
+  return new M212(fc, info, 0xFFFF, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 213 ---------------------------
 namespace {
-struct M213 : public AddrLatch {
+struct M213 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, (latch >> 1) & 3);
     fc->cart->setchr8((latch >> 3) & 7);
   }
@@ -375,14 +375,14 @@ struct M213 : public AddrLatch {
 }
 
 CartInterface *Mapper213_Init(FC *fc, CartInfo *info) {
-  return new M213(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new M213(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 214 ---------------------------
 namespace {
-struct M214 : public AddrLatch {
+struct M214 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, (latch >> 2) & 3);
     fc->cart->setprg16(0xC000, (latch >> 2) & 3);
     fc->cart->setchr8(latch & 3);
@@ -391,14 +391,14 @@ struct M214 : public AddrLatch {
 }
 
 CartInterface *Mapper214_Init(FC *fc, CartInfo *info) {
-  return new M214(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new M214(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 217 ---------------------------
 namespace {
-struct M217 : public AddrLatch {
+struct M217 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, (latch >> 2) & 3);
     fc->cart->setchr8(latch & 7);
   }
@@ -406,15 +406,15 @@ struct M217 : public AddrLatch {
 }
 
 CartInterface *Mapper217_Init(FC *fc, CartInfo *info) {
-  return new M217(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new M217(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 227 ---------------------------
 
 namespace {
-struct M227 : public AddrLatch {
+struct M227 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     uint32 S = latch & 1;
     uint32 p = ((latch >> 2) & 0x1F) + ((latch & 0x100) >> 3);
     uint32 L = (latch >> 9) & 1;
@@ -454,14 +454,14 @@ struct M227 : public AddrLatch {
 }
 
 CartInterface *Mapper227_Init(FC *fc, CartInfo *info) {
-  return new M227(fc, info, 0x0000, 0x8000, 0xFFFF, 1);
+  return new M227(fc, info, 0x0000, 0x8000, 0xFFFF, true);
 }
 
 //------------------ Map 229 ---------------------------
 namespace {
-struct M229 : public AddrLatch {
+struct M229 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr8(latch);
     if (!(latch & 0x1e)) {
       fc->cart->setprg32(0x8000, 0);
@@ -475,14 +475,14 @@ struct M229 : public AddrLatch {
 }
 
 CartInterface *Mapper229_Init(FC *fc, CartInfo *info) {
-  return new M229(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new M229(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 231 ---------------------------
 namespace {
-struct M231 : public AddrLatch {
+struct M231 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr8(0);
     if (latch & 0x20) {
       fc->cart->setprg32(0x8000, (latch >> 1) & 0x0F);
@@ -496,15 +496,15 @@ struct M231 : public AddrLatch {
 }
 
 CartInterface *Mapper231_Init(FC *fc, CartInfo *info) {
-  return new M231(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new M231(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //------------------ Map 242 ---------------------------
 namespace {
-struct M242 : public AddrLatch {
+struct M242 final : public AddrLatch {
   using AddrLatch::AddrLatch;
 
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr8(0);
     fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->cart->setprg32(0x8000, (latch >> 3) & 0xf);
@@ -514,15 +514,15 @@ struct M242 : public AddrLatch {
 }
 
 CartInterface *Mapper242_Init(FC *fc, CartInfo *info) {
-  return new M242(fc, info, 0x0000, 0x8000, 0xFFFF, 1);
+  return new M242(fc, info, 0x0000, 0x8000, 0xFFFF, true);
 }
 
 //------------------ 190in1 ---------------------------
 
 namespace {
-struct BMC190 : public AddrLatch {
+struct BMC190 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg16(0x8000, (latch >> 2) & 7);
     fc->cart->setprg16(0xC000, (latch >> 2) & 7);
     fc->cart->setchr8((latch >> 2) & 7);
@@ -532,15 +532,15 @@ struct BMC190 : public AddrLatch {
 }
 
 CartInterface *BMC190in1_Init(FC *fc, CartInfo *info) {
-  return new BMC190(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new BMC190(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //-------------- BMC810544-C-A1 ------------------------
 
 namespace {
-struct BMC810544 : public AddrLatch {
+struct BMC810544 final : public AddrLatch {
   using AddrLatch::AddrLatch;
-  void WSync() override {
+  void WSync() final override {
     uint32 bank = latch >> 7;
     if (latch & 0x40) {
       fc->cart->setprg32(0x8000, bank);
@@ -555,15 +555,15 @@ struct BMC810544 : public AddrLatch {
 }
 
 CartInterface *BMC810544CA1_Init(FC *fc, CartInfo *info) {
-  return new BMC810544(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new BMC810544(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //-------------- BMCNTD-03 ------------------------
 namespace {
-struct BMCNTD : public AddrLatch {
+struct BMCNTD final : public AddrLatch {
   using AddrLatch::AddrLatch;
 
-  void WSync() override {
+  void WSync() final override {
     // 1PPP Pmcc spxx xccc
     // 1000 0000 0000 0000 v
     // 1001 1100 0000 0100 h
@@ -583,16 +583,16 @@ struct BMCNTD : public AddrLatch {
 }
 
 CartInterface *BMCNTD03_Init(FC *fc, CartInfo *info) {
-  return new BMCNTD(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new BMCNTD(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 
 //-------------- BMCG-146 ------------------------
 
 namespace {
-struct BMCG146 : public AddrLatch {
+struct BMCG146 final : public AddrLatch {
   using AddrLatch::AddrLatch;
 
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setchr8(0);
     if (latch & 0x800) {  // UNROM mode
       fc->cart->setprg16(0x8000,
@@ -612,6 +612,6 @@ struct BMCG146 : public AddrLatch {
 }
 
 CartInterface *BMCG146_Init(FC *fc, CartInfo *info) {
-  return new BMCG146(fc, info, 0x0000, 0x8000, 0xFFFF, 0);
+  return new BMCG146(fc, info, 0x0000, 0x8000, 0xFFFF, false);
 }
 

@@ -21,8 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Novel : public CartInterface {
-
+struct Novel final : public CartInterface {
   uint8 latch = 0;
 
   void DoNovel() {
@@ -36,7 +35,7 @@ struct Novel : public CartInterface {
   }
 
   // Used to be NovelReset, but assigned to Power.
-  void Power() override {
+  void Power() final override {
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
 	((Novel*)fc->fceu->cartiface)->NovelWrite(DECLFW_FORWARD);
       });

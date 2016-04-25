@@ -24,7 +24,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLKS7057 : public CartInterface {
+struct UNLKS7057 final : public CartInterface {
   uint8 reg[8] = {}, mirror = 0;
 
   void Sync() {
@@ -122,7 +122,7 @@ struct UNLKS7057 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
@@ -130,7 +130,7 @@ struct UNLKS7057 : public CartInterface {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     Sync();
   }
 

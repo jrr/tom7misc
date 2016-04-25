@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLVRC7 : public CartInterface {
+struct UNLVRC7 final : public CartInterface {
   uint8 prg[3] = {}, chr[8] = {}, mirr = 0;
   uint8 IRQLatch = 0, IRQa = 0, IRQd = 0;
   uint32 IRQCount = 0, CycleCount = 0;
@@ -111,7 +111,7 @@ struct UNLVRC7 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
@@ -149,6 +149,7 @@ struct UNLVRC7 : public CartInterface {
   }
 };
 }
+
 CartInterface *UNLVRC7_Init(FC *fc, CartInfo *info) {
   return new UNLVRC7(fc, info);
 }

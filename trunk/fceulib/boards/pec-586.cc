@@ -42,7 +42,7 @@ static constexpr uint8 br_tbl[16] = {
 };
 
 namespace {
-struct UNLPEC586 : public CartInterface {
+struct UNLPEC586 final : public CartInterface {
   uint8 reg[7] = {};
   uint8 *WRAM = nullptr;
 
@@ -67,7 +67,7 @@ struct UNLPEC586 : public CartInterface {
     return (fc->X->DB & 0xD8) | br_tbl[reg[4] >> 4];
   }
 
-  void Power() override {
+  void Power() final override {
     reg[0] = 0x0E;
     Sync();
     fc->cart->setchr8(0);
@@ -93,7 +93,7 @@ struct UNLPEC586 : public CartInterface {
     }
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

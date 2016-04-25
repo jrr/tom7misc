@@ -26,7 +26,7 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct LH53 : public CartInterface {
+struct LH53 final : public CartInterface {
   uint8 reg = 0, IRQa = 0;
   int32 IRQCount = 0;
   uint8 *WRAM = nullptr;
@@ -67,7 +67,7 @@ struct LH53 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0xB800, 0xD7FF, [](DECLFW_ARGS) {
@@ -81,7 +81,7 @@ struct LH53 : public CartInterface {
     });
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

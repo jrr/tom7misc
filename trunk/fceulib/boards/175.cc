@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper175 : public CartInterface {
+struct Mapper175 final : public CartInterface {
 
   uint8 reg = 0, delay = 0, mirr = 0;
 
@@ -55,7 +55,7 @@ struct Mapper175 : public CartInterface {
     return Cart::CartBR(DECLFR_FORWARD);
   }
 
-  void Power() override {
+  void Power() final override {
     reg = mirr = delay = 0;
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, [](DECLFR_ARGS) {
       return ((Mapper175*)fc->fceu->cartiface)->M175Read(DECLFR_FORWARD);

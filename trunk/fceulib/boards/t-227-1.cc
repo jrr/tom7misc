@@ -24,11 +24,11 @@
 #include "mmc3.h"
 
 namespace {
-struct BMCT2271 : public MMC3 {
+struct BMCT2271 final : public MMC3 {
   uint8 EXPREGS[8] = {};
   uint8 reset_flag = 0x07;
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     uint32 va = V;
     if (EXPREGS[0] & 0x20) {
       va |= 0x200;
@@ -40,7 +40,7 @@ struct BMCT2271 : public MMC3 {
     fc->cart->setchr1(A, va);
   }
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     uint32 va = V & 0x3F;
     if (EXPREGS[0] & 0x20) {
       va &= 0x1F;
@@ -79,14 +79,14 @@ struct BMCT2271 : public MMC3 {
     return Cart::CartBR(fc, av);
   }
 
-  void Reset() override {
+  void Reset() final override {
     EXPREGS[0] = 0x00;
     reset_flag++;
     reset_flag &= 0x0F;
     MMC3::Reset();
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = 0x00;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x6000, 0x7FFF, [](DECLFW_ARGS) {

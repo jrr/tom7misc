@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLBB : public CartInterface {
+struct UNLBB final : public CartInterface {
   uint8 reg = 0, chr = 0;
 
   void Sync() {
@@ -40,7 +40,7 @@ struct UNLBB : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     chr = 0;
     reg = ~0;
     Sync();

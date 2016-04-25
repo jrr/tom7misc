@@ -20,18 +20,17 @@
 
 #include "mapinc.h"
 namespace {
-struct Mapper16X : public CartInterface {
-  const uint8 mode = 0;
+template<bool is_167>
+struct Mapper16X final : public CartInterface {
   uint8 DRegs[4] = {};
 
   void Sync() {
-    int base, bank;
-    base = ((DRegs[0] ^ DRegs[1]) & 0x10) << 1;
-    bank = (DRegs[2] ^ DRegs[3]) & 0x1f;
+    int base = ((DRegs[0] ^ DRegs[1]) & 0x10) << 1;
+    int bank = (DRegs[2] ^ DRegs[3]) & 0x1f;
 
     if (DRegs[1] & 0x08) {
       bank &= 0xfe;
-      if (mode == 0) {
+      if (is_167) {
 	fc->cart->setprg16(0x8000, base + bank + 1);
 	fc->cart->setprg16(0xC000, base + bank + 0);
       } else {
@@ -44,7 +43,7 @@ struct Mapper16X : public CartInterface {
 	fc->cart->setprg16(0xC000, base + bank);
       } else {
 	fc->cart->setprg16(0x8000, base + bank);
-	if (mode == 0)
+	if (is_167)
 	  fc->cart->setprg16(0xC000, 0x20);
 	else
 	  fc->cart->setprg16(0xC000, 0x07);
@@ -61,8 +60,7 @@ struct Mapper16X : public CartInterface {
     ((Mapper16X *)fc->fceu->cartiface)->Sync();
   }
 
-  Mapper16X(FC *fc, CartInfo *info, int mode) : CartInterface(fc),
-						mode(mode) {
+  Mapper16X(FC *fc, CartInfo *info) : CartInterface(fc) {
     DRegs[0] = DRegs[1] = DRegs[2] = DRegs[3] = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
@@ -75,9 +73,9 @@ struct Mapper16X : public CartInterface {
 }
 
 CartInterface *Mapper166_Init(FC *fc, CartInfo *info) {
-  return new Mapper16X(fc, info, 1);
+  return new Mapper16X<false>(fc, info);
 }
 
 CartInterface *Mapper167_Init(FC *fc, CartInfo *info) {
-  return new Mapper16X(fc, info, 0);
+  return new Mapper16X<true>(fc, info);
 }

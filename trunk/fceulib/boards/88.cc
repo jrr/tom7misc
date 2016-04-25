@@ -21,9 +21,10 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper88 : public CartInterface {
+template<bool is154>
+struct Mapper88 final : public CartInterface {
   uint8 reg[8] = {};
-  uint8 mirror = 0, cmd = 0, is154 = false;
+  uint8 mirror = 0, cmd = 0;
 
   void Sync() {
     fc->cart->setchr2(0x0000, reg[0] >> 1);
@@ -54,7 +55,7 @@ struct Mapper88 : public CartInterface {
     }
   }
 
-  void Power() {
+  void Power() final override {
     fc->cart->setprg16(0xC000, ~0);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
@@ -68,8 +69,7 @@ struct Mapper88 : public CartInterface {
     me->MSync();
   }
 
-  Mapper88(FC *fc, CartInfo *info, bool is154) : CartInterface(fc),
-						 is154(is154) {
+  Mapper88(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
 	{&cmd, 1, "CMD0"}, {&mirror, 1, "MIRR"}, {reg, 8, "REGS"}});
@@ -78,9 +78,9 @@ struct Mapper88 : public CartInterface {
 }
 
 CartInterface *Mapper88_Init(FC *fc, CartInfo *info) {
-  return new Mapper88(fc, info, false);
+  return new Mapper88<false>(fc, info);
 }
 
 CartInterface *Mapper154_Init(FC *fc, CartInfo *info) {
-  return new Mapper88(fc, info, true);
+  return new Mapper88<true>(fc, info);
 }

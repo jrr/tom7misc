@@ -20,7 +20,7 @@
 // http://wiki.nesdev.com/w/index.php/INES_Mapper_028
 
 namespace {
-struct Mapper28 : public CartInterface {
+struct Mapper28 final : public CartInterface {
   // config
   int prg_mask_16k = 0;
 
@@ -153,13 +153,13 @@ struct Mapper28 : public CartInterface {
     }
   }
 
-  void Reset() override {
+  void Reset() final override {
     outer = 63;
     prg = 15;
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     prg_mask_16k = fc->cart->PRGsize[0] - 1;
 
     // EXP
@@ -180,7 +180,7 @@ struct Mapper28 : public CartInterface {
     Reset();
   }
 
-  void Close() override {}
+  void Close() final override {}
 
   static void StateRestore(FC *fc, int version) {
     ((Mapper28 *)fc->fceu->cartiface)->Sync();

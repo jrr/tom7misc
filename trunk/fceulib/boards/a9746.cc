@@ -23,8 +23,9 @@
 #include "mmc3.h"
 
 namespace {
-struct UNLA9746 : public MMC3 {
+struct UNLA9746 final : public MMC3 {
   uint8 EXPREGS[8] = {};
+
   void UNLA9746Write(DECLFW_ARGS) {
     //   FCEU_printf("write raw %04x:%02x\n",A,V);
     switch (A & 0xE003) {
@@ -99,7 +100,7 @@ struct UNLA9746 : public MMC3 {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x8000, 0xbfff, [](DECLFW_ARGS) {
 	((UNLA9746*)fc->fceu->cartiface)->UNLA9746Write(DECLFW_FORWARD);

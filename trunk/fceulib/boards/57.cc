@@ -22,7 +22,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper57 : public CartInterface {
+struct Mapper57 final : public CartInterface {
   uint8 prg_reg = 0;
   uint8 chr_reg = 0;
   uint8 hrd_flag = 0;
@@ -51,7 +51,7 @@ struct Mapper57 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     prg_reg = 0;
     chr_reg = 0;
     hrd_flag = 0;
@@ -65,7 +65,7 @@ struct Mapper57 : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     hrd_flag++;
     hrd_flag &= 3;
     FCEU_printf("Select Register = %02x\n", hrd_flag);

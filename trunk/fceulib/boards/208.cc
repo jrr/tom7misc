@@ -47,10 +47,10 @@ static constexpr uint8 lut[256] = {
 };
 
 namespace {
-struct Mapper208 : public MMC3 {
+struct Mapper208 final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     fc->cart->setprg32(0x8000, EXPREGS[5]);
   }
 
@@ -70,7 +70,7 @@ struct Mapper208 : public MMC3 {
     return EXPREGS[(A & 0x3)];
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[5] = 3;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4800, 0x4FFF, [](DECLFW_ARGS) {

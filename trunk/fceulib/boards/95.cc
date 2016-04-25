@@ -22,8 +22,7 @@
 #include "../ines.h"
 
 namespace {
-struct Mapper95 : public CartInterface {
-
+struct Mapper95 final : public CartInterface {
   uint8 lastA = 0;
   uint8 DRegs[8] = {};
   uint8 cmd = 0;
@@ -82,7 +81,7 @@ struct Mapper95 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     memset(DRegs, 0x3F, 8);
     DRegs[0] = DRegs[1] = 0x1F;
 

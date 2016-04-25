@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct BMCT262 : public CartInterface {
+struct BMCT262 final : public CartInterface {
   uint16 addrreg = 0;
   uint8 datareg = 0;
   uint8 busy = 0;
@@ -34,16 +34,16 @@ struct BMCT262 : public CartInterface {
   }
 
   void BMCT262Write(DECLFW_ARGS) {
-    if (busy || (A == 0x8000))
+    if (busy || A == 0x8000) {
       datareg = V;
-    else {
+    } else {
       addrreg = A;
       busy = 1;
     }
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setchr8(0);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       ((BMCT262*)fc->fceu->cartiface)->BMCT262Write(DECLFW_FORWARD);
@@ -55,7 +55,7 @@ struct BMCT262 : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     busy = 0;
     addrreg = 0;
     datareg = 0;

@@ -25,9 +25,9 @@
 #include "mapinc.h"
 
 namespace {
+template<bool isresetbased>
 struct Mapper226Base : public CartInterface {
-  const bool isresetbased = false;
-  uint8 latch[2] = {}, reset = {};
+  uint8 latch[2] = {}, reset = 0;
 
   void Sync() {
     uint8 bank;
@@ -53,7 +53,7 @@ struct Mapper226Base : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     latch[0] = latch[1] = reset = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
@@ -66,16 +66,15 @@ struct Mapper226Base : public CartInterface {
     ((Mapper226Base *)fc->fceu->cartiface)->Sync();
   }
 
-  Mapper226Base(FC *fc, CartInfo *info, bool resetbased)
-    : CartInterface(fc), isresetbased(resetbased) {
+  Mapper226Base(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->state->AddExVec({{&reset, 1, "RST0"}, {latch, 2, "LATC"}});
     fc->fceu->GameStateRestore = StateRestore;
   }
 };
 
-struct Mapper233 : public Mapper226Base {
+struct Mapper233 : public Mapper226Base<true> {
   using Mapper226Base::Mapper226Base;
-  void Reset() override {
+  void Reset() final override {
     reset ^= 1;
     Sync();
   }
@@ -83,8 +82,8 @@ struct Mapper233 : public Mapper226Base {
 }
 
 CartInterface *Mapper226_Init(FC *fc, CartInfo *info) {
-  return new Mapper226Base(fc, info, false);
+  return new Mapper226Base<false>(fc, info);
 }
 CartInterface *Mapper233_Init(FC *fc, CartInfo *info) {
-  return new Mapper233(fc, info, true);
+  return new Mapper233(fc, info);
 }

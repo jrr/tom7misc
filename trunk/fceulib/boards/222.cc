@@ -22,7 +22,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper222 : public CartInterface {
+struct Mapper222 final : public CartInterface {
   uint8 IRQCount = 0;
   uint8 IRQa = 0;
   uint8 prg_reg[2] = {};
@@ -82,7 +82,7 @@ struct Mapper222 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setprg16(0xC000, ~0);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
@@ -100,7 +100,7 @@ struct Mapper222 : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&IRQCount, 1, "IRQC"}, {&IRQa, 1, "IRQA"},
-			 {prg_reg, 2, "PRG0"},    {chr_reg, 8, "CHR0"},
+			 {prg_reg, 2, "PRG0"}, {chr_reg, 8, "CHR0"},
 			 {&mirr, 1, "MIRR"}});
   }
 };

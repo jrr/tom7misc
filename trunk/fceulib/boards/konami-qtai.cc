@@ -26,7 +26,7 @@ static constexpr int CHRSIZE = 8192;
 static constexpr int WRAMSIZE = 8192 + 4096;
 
 namespace {
-struct Mapper190 : public CartInterface {
+struct Mapper190 final : public CartInterface {
   uint8 QTAINTRAM[2048] = {};
   writefunc old2007wrap = nullptr;
 
@@ -147,7 +147,7 @@ struct Mapper190 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setprg4r(0x10, 0x7000, 2);
 
     old2007wrap = fc->fceu->GetWriteHandler(0x2007);
@@ -169,7 +169,7 @@ struct Mapper190 : public CartInterface {
     Sync();
   }
 
-  void Close() override {
+  void Close() final override {
     free(CHRRAM);
     CHRRAM = nullptr;
     free(WRAM);
