@@ -21,10 +21,10 @@
 #include "mapinc.h"
 
 namespace {
-struct MALEE : public CartInterface {
+struct MALEE final : public CartInterface {
   uint8 WRAM[2048] = {};
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setprg2r(0x10, 0x7000, 0);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x6000, 0x67FF, Cart::CartBR);

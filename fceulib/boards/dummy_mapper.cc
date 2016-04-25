@@ -29,7 +29,7 @@
 */
 
 namespace {
-struct MapperNNN : public CartInterface {
+struct MapperNNN final : public CartInterface {
   uint8 reg[8] = {};
   uint8 IRQa = 0;
   int16 IRQCount = 0, IRQLatch = 0;
@@ -42,7 +42,7 @@ struct MapperNNN : public CartInterface {
 
   void MNNNWrite(DECLFW_ARGS) {}
 
-  void Power() override {
+  void Power() final override {
     //	fc->fceu->SetReadHandler(0x6000,0x7fff,CartBR);
     //	fc->fceu->SetWriteHandler(0x6000,0x7fff,CartBW);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
@@ -51,10 +51,10 @@ struct MapperNNN : public CartInterface {
     });
   }
 
-  void Reset() override {}
+  void Reset() final override {}
 
   /*
-  static void Close() override {
+  static void Close() final override {
     free(WRAM);
     free(CHRRAM);
     WRAM = CHRRAM = nullptr;

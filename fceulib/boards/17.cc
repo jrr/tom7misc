@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper17 : public CartInterface {
+struct Mapper17 final : public CartInterface {
   uint8 preg[4] = {}, creg[8] = {};
   uint8 IRQa = 0, mirr = 0;
   int32 IRQCount = 0, IRQLatch = 0;
@@ -73,7 +73,7 @@ struct Mapper17 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     preg[3] = ~0;
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);

@@ -335,7 +335,7 @@ struct N106 : public CartInterface {
     CVBC = 0;
   }
 
-  void Power() override {
+  void Power() final override {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
       ((N106*)fc->fceu->cartiface)->Mapper19_write(DECLFW_FORWARD);
@@ -391,7 +391,7 @@ struct N106 : public CartInterface {
 };
 
 // XXX excise nsf code?
-struct NSFN106 : public N106 {
+struct NSFN106 final : public N106 {
   NSFN106(FC *fc, CartInfo *info) : N106(fc, info) {
     fc->fceu->SetWriteHandler(0xf800, 0xffff, [](DECLFW_ARGS) {
       ((NSFN106*)fc->fceu->cartiface)->Mapper19_write(DECLFW_FORWARD);
@@ -407,7 +407,7 @@ struct NSFN106 : public N106 {
   }
 };
 
-struct Mapper19 : public N106 {
+struct Mapper19 final : public N106 {
   void Mapper19_StateRestore() {
     SyncPRG();
     FixNTAR();
@@ -446,7 +446,7 @@ struct Mapper19 : public N106 {
   }
 };
 
-struct Mapper210 : public N106 {
+struct Mapper210 final : public N106 {
   void Mapper210_StateRestore() {
     SyncPRG();
     FixCRR();
@@ -461,7 +461,6 @@ struct Mapper210 : public N106 {
     fc->state->AddExVec(N106_StateRegs);
   }
 };
-
 }
 
 CartInterface *NSFN106_Init(FC *fc, CartInfo *info) {

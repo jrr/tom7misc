@@ -23,7 +23,7 @@
 #include "ines.h"
 
 namespace {
-struct Mapper188 : public CartInterface {
+struct Mapper188 final : public CartInterface {
   uint8 latch = 0;
 
   void Sync() {
@@ -42,7 +42,7 @@ struct Mapper188 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     latch = 0;
     Sync();
     fc->cart->setchr8(0);

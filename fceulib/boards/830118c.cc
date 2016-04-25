@@ -24,14 +24,14 @@
 #include "mmc3.h"
 
 namespace {
-struct BMC830118C : public MMC3 {
+struct BMC830118C final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     fc->cart->setchr1(A, (V & 0x7F) | ((EXPREGS[0] & 0x0c) << 5));
   }
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     if ((EXPREGS[0] & 0x0C) == 0x0C) {
       if (A == 0x8000) {
 	fc->cart->setprg8(A, (V & 0x0F) | ((EXPREGS[0] & 0x0c) << 2));
@@ -51,12 +51,12 @@ struct BMC830118C : public MMC3 {
     FixMMC3CHR(MMC3_cmd);
   }
 
-  void Reset() override {
+  void Reset() final override {
     EXPREGS[0] = 0;
     MMC3::Reset();
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = 0;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x6800, 0x68FF, [](DECLFW_ARGS) {

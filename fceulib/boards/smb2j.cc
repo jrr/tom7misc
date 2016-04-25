@@ -26,7 +26,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLSMB2J : public CartInterface {
+struct UNLSMB2J final : public CartInterface {
   uint8 prg = 0, IRQa = 0;
   uint16 IRQCount = 0;
 
@@ -49,7 +49,7 @@ struct UNLSMB2J : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     prg = ~0;
     Sync();
     fc->fceu->SetReadHandler(0x5000, 0x7FFF, Cart::CartBR);
@@ -59,7 +59,7 @@ struct UNLSMB2J : public CartInterface {
       });
   }
 
-  void Reset() override {
+  void Reset() final override {
     prg = ~0;
     Sync();
   }

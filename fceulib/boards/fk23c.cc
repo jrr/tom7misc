@@ -27,8 +27,8 @@
 static constexpr int CHRRAMSIZE = 8192;
 
 namespace {
+template<bool is_BMCFK23CA>
 struct BMCFK23C : public MMC3 {
-  const bool is_BMCFK23CA = false;
   uint8 EXPREGS[8] = {};
   uint8 unromchr = 0;
   uint32 dipswitch = 0;
@@ -65,7 +65,7 @@ struct BMCFK23C : public MMC3 {
   //[m176]三国忠烈传.wxn.nes
   //[m176]破釜沉舟.fix.nes
   
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40)
       fc->cart->setchr8(EXPREGS[2] | unromchr);
     else if (EXPREGS[0] & 0x20) {
@@ -87,7 +87,7 @@ struct BMCFK23C : public MMC3 {
 
 
   // PRG wrapper
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     // uint32 bank = (EXPREGS[1] & 0x1F);
     // uint32 hiblock = ((EXPREGS[0] & 8) << 4)|((EXPREGS[0] & 0x80) <<
     // 1)|(fc->unif->UNIFchrrama?((EXPREGS[2] & 0x40)<<3):0);
@@ -193,7 +193,7 @@ struct BMCFK23C : public MMC3 {
     // %02X\n",EXPREGS[0],EXPREGS[1],EXPREGS[2],EXPREGS[3]);
   }
 
-  void Reset() override {
+  void Reset() final override {
     // NOT NECESSARY ANYMORE
     // this little hack makes sure that we try all the dip switch settings
     // eventually, if we reset enough
@@ -225,8 +225,7 @@ struct BMCFK23C : public MMC3 {
     FixMMC3CHR(MMC3_cmd);
   }
 
-  BMCFK23C(FC *fc, CartInfo *info, bool is_ca) :
-    MMC3(fc, info, 512, 256, 8, 0), is_BMCFK23CA(is_ca) {
+  BMCFK23C(FC *fc, CartInfo *info) : MMC3(fc, info, 512, 256, 8, 0) {
     fc->state->AddExState(EXPREGS, 8, 0, "EXPR");
     fc->state->AddExState(&unromchr, 1, 0, "UCHR");
     fc->state->AddExState(&dipswitch, 1, 0, "DPSW");
@@ -240,15 +239,15 @@ struct BMCFK23C : public MMC3 {
   }
 };
 
-struct BMCFK23CA : public BMCFK23C {
+struct BMCFK23CA final : public BMCFK23C<true> {
   uint8 *CHRRAM = nullptr;
   
-  void Close() override {
+  void Close() final override {
     free(CHRRAM);
     CHRRAM = nullptr;
   }
 
-  void Power() override {
+  void Power() final override {
     MMC3::Power();
     dipswitch = 0;
     EXPREGS[0] = EXPREGS[1] = EXPREGS[2] = EXPREGS[3] = 0;
@@ -263,7 +262,7 @@ struct BMCFK23CA : public BMCFK23C {
     FixMMC3CHR(MMC3_cmd);
   }
 
-  BMCFK23CA(FC *fc, CartInfo *info) : BMCFK23C(fc, info, true) {
+  BMCFK23CA(FC *fc, CartInfo *info) : BMCFK23C(fc, info) {
     CHRRAM = (uint8 *)FCEU_gmalloc(CHRRAMSIZE);
     fc->cart->SetupCartCHRMapping(0x10, CHRRAM, CHRRAMSIZE, true);
     fc->state->AddExState(CHRRAM, CHRRAMSIZE, 0, "CRAM");
@@ -272,7 +271,7 @@ struct BMCFK23CA : public BMCFK23C {
 }
 
 CartInterface *BMCFK23C_Init(FC *fc, CartInfo *info) {
-  return new BMCFK23C(fc, info, false);
+  return new BMCFK23C<false>(fc, info);
 }
 
 CartInterface *BMCFK23CA_Init(FC *fc, CartInfo *info) {

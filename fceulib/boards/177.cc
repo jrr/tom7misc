@@ -23,7 +23,7 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct Mapper177 : public CartInterface {
+struct Mapper177 final : public CartInterface {
   uint8 reg = 0;
   uint8 *WRAM = nullptr;
 
@@ -39,7 +39,7 @@ struct Mapper177 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     reg = 0;
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7fff, Cart::CartBR);
@@ -50,7 +50,7 @@ struct Mapper177 : public CartInterface {
     });
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

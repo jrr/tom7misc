@@ -23,7 +23,7 @@
 #define CARD_EXTERNAL_INSERED 0x80
 
 namespace {
-struct Mapper216 : public CartInterface {
+struct Mapper216 final : public CartInterface {
   uint8 prg_reg = 0;
   uint8 chr_reg = 0;
 
@@ -100,7 +100,7 @@ struct Mapper216 : public CartInterface {
     return 0;
   }
 
-  void Power() override {
+  void Power() final override {
     prg_reg = 0;
     chr_reg = 0;
     Sync();

@@ -23,10 +23,10 @@
 
 namespace {
 static constexpr uint8 const m114_perm[8] = {0, 3, 1, 5, 6, 7, 2, 4};
-struct H2288 : public MMC3 {
+struct H2288 final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40) {
       uint8 bank =
 	  (EXPREGS[0] & 5) | ((EXPREGS[0] & 8) >> 2) |
@@ -63,7 +63,7 @@ struct H2288 : public MMC3 {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = EXPREGS[1] = 0;
     MMC3::Power();
     //  fc->fceu->SetReadHandler(0x5000,0x5FFF,H2288Read);
@@ -78,8 +78,7 @@ struct H2288 : public MMC3 {
     });
   }
 
-  H2288(FC *fc, CartInfo *info)
-    : MMC3(fc, info, 256, 256, 0, 0) {
+  H2288(FC *fc, CartInfo *info) : MMC3(fc, info, 256, 256, 0, 0) {
     fc->state->AddExState(EXPREGS, 2, 0, "EXPR");
   }
 };

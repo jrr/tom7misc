@@ -40,7 +40,10 @@ static int DetectMMC1WRAMSize(uint32 crc32) {
   }
 }
 
-struct MMC1 : public CartInterface {
+// This code used to play some tricks with function pointers; template
+// parameter is simpler/faster and avoids creating more subclasses. -tom7
+template<bool is_105, bool is_155, bool is_171>
+struct MMC1 final : public CartInterface {
   using CartInterface::CartInterface;
 
   void GenMMC1Power(FC *fc);
@@ -50,15 +53,12 @@ struct MMC1 : public CartInterface {
   uint8 DRegs[4] = {};
   uint8 Buffer = 0, BufferShift = 0;
 
+  // PERF: Some of this can be template parameter (but some of it is
+  // configurable by cart data).
   int mmc1opts = 0;
-
-  // Used to play some tricks with function pointers; this is
-  // simpler and avoids creating more subclasses. -tom7
-  bool is_105 = false;
 
   uint8 *WRAM = nullptr;
   uint8 *CHRRAM = nullptr;
-  int is155 = 0, is171 = 0;
 
   uint64 lreset = 0ULL;
   
@@ -67,7 +67,7 @@ struct MMC1 : public CartInterface {
   }
 
   void MBWRAM_Direct(DECLFW_ARGS) {
-    if (!(DRegs[3] & 0x10) || is155)
+    if (!(DRegs[3] & 0x10) || is_155)
       fc->cart->Page[A >> 11][A] = V;  // WRAM is enabled.
   }
 
@@ -76,7 +76,7 @@ struct MMC1 : public CartInterface {
   }
 
   DECLFR_RET MAWRAM_Direct(DECLFR_ARGS) {
-    if ((DRegs[3] & 0x10) && !is155)
+    if ((DRegs[3] & 0x10) && !is_155)
       return fc->X->DB;  // WRAM is disabled
     return fc->cart->Page[A >> 11][A];
   }
@@ -144,7 +144,7 @@ struct MMC1 : public CartInterface {
   }
 
   void MMC1MIRROR() {
-    if (!is171) {
+    if (!is_171) {
       switch (DRegs[0] & 3) {
       case 2: fc->cart->setmirror(MI_V); break;
       case 3: fc->cart->setmirror(MI_H); break;
@@ -262,7 +262,7 @@ struct MMC1 : public CartInterface {
       fc->cart->setprg32(0x8000, (NWCRec >> 1) & 3);
   }
 
-  void Power() override {
+  void Power() final override {
     lreset = 0;
     if (mmc1opts & 1) {
       // FCEU_CheatAddRAM(8,0x6000,WRAM);
@@ -288,14 +288,14 @@ struct MMC1 : public CartInterface {
     }
   }
 
-  void Close() override {
+  void Close() final override {
     free(CHRRAM);
     free(WRAM);
     CHRRAM = WRAM = nullptr;
   }
 
   MMC1(FC *fc, CartInfo *info, int prg, int chr, int wram,
-       int battery) : CartInterface(fc), is155(0) {
+       int battery) : CartInterface(fc) {
 
     mmc1opts = 0;
     fc->cart->PRGmask16[0] &= (prg >> 14) - 1;
@@ -337,63 +337,57 @@ struct MMC1 : public CartInterface {
 }
 
 CartInterface *Mapper105_Init(FC *fc, CartInfo *info) {
-  MMC1 *mmc = new MMC1(fc, info, 256, 256, 8, 0);
-  mmc->is_105 = true;
-  fc->X->MapIRQHook = MMC1::NWCIRQHook;
-  return mmc;
+  fc->X->MapIRQHook = MMC1<true, false, false>::NWCIRQHook;
+  return new MMC1<true, false, false>(fc, info, 256, 256, 8, 0);
 }
 
 
 CartInterface *Mapper1_Init(FC *fc, CartInfo *info) {
   int ws = DetectMMC1WRAMSize(info->CRC32);
-  return new MMC1(fc, info, 512, 256, ws, info->battery);
+  return new MMC1<false, false, false>(fc, info, 512, 256, ws, info->battery);
 }
 
 /* Same as mapper 1, without respect for WRAM enable bit. */
 CartInterface *Mapper155_Init(FC *fc, CartInfo *info) {
-  MMC1 *mmc1 = new MMC1(fc, info, 512, 256, 8, info->battery);
-  mmc1->is155 = 1;
-  return mmc1;
+  return new MMC1<false, true, false>(fc, info, 512, 256, 8, info->battery);
 }
 
 /* Same as mapper 1, with different (or without) mirroring control. */
 /* Kaiser KS7058 board, KS203 custom chip */
 CartInterface *Mapper171_Init(FC *fc, CartInfo *info) {
-  MMC1 *mmc1 = new MMC1(fc, info, 32, 32, 0, 0);
-  mmc1->is171 = 1;
-  return mmc1;
+  return new MMC1<false, false, true>(fc, info, 32, 32, 0, 0);
 }
 
 CartInterface *SAROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 128, 64, 8, info->battery);
+  return new MMC1<false, false, false>(fc, info, 128, 64, 8, info->battery);
 }
 
 CartInterface *SBROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 128, 64, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 128, 64, 0, 0);
 }
 
 CartInterface *SCROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 128, 128, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 128, 128, 0, 0);
 }
 
 CartInterface *SEROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 32, 64, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 32, 64, 0, 0);
 }
 
 CartInterface *SGROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 0, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 256, 0, 0, 0);
 }
 
 CartInterface *SKROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 64, 8, info->battery);
+  return new MMC1<false, false, false>(fc, info, 256, 64, 8, info->battery);
 }
 
 CartInterface *SLROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 128, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 256, 128, 0, 0);
 }
 
 CartInterface *SL1ROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 128, 128, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 128, 128, 0, 0);
 }
 
 /* Begin unknown - may be wrong - perhaps they use different MMC1s from the
@@ -401,15 +395,15 @@ CartInterface *SL1ROM_Init(FC *fc, CartInfo *info) {
 */
 
 CartInterface *SL2ROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 256, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 256, 256, 0, 0);
 }
 
 CartInterface *SFROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 256, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 256, 256, 0, 0);
 }
 
 CartInterface *SHROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 256, 0, 0);
+  return new MMC1<false, false, false>(fc, info, 256, 256, 0, 0);
 }
 
 /* End unknown  */
@@ -417,9 +411,9 @@ CartInterface *SHROM_Init(FC *fc, CartInfo *info) {
 /*              */
 
 CartInterface *SNROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 0, 8, info->battery);
+  return new MMC1<false, false, false>(fc, info, 256, 0, 8, info->battery);
 }
 
 CartInterface *SOROM_Init(FC *fc, CartInfo *info) {
-  return new MMC1(fc, info, 256, 0, 16, info->battery);
+  return new MMC1<false, false, false>(fc, info, 256, 0, 16, info->battery);
 }

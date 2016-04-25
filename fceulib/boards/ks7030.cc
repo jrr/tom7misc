@@ -30,7 +30,7 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct UNLKS7030 : public CartInterface {
+struct UNLKS7030 final : public CartInterface {
   uint8 reg0 = 0, reg1 = 0;
   uint8 *WRAM = nullptr;
 
@@ -101,7 +101,7 @@ struct UNLKS7030 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     reg0 = reg1 = ~0;
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, [](DECLFR_ARGS) {
@@ -127,7 +127,7 @@ struct UNLKS7030 : public CartInterface {
     });
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

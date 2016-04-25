@@ -21,8 +21,8 @@
 #include "mapinc.h"
 
 namespace {
-struct BMC70 : public CartInterface {
-  const bool is_large_banks = false;
+template<bool is_large_banks>
+struct BMC70 final : public CartInterface {
   uint8 hw_switch = 0;
   uint8 large_bank = 0;
   uint8 prg_bank = 0;
@@ -73,7 +73,7 @@ struct BMC70 : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     bank_mode = 0;
     large_bank = 0;
     Sync();
@@ -81,7 +81,7 @@ struct BMC70 : public CartInterface {
     hw_switch &= 0xf;
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setchr8(0);
     bank_mode = 0;
     large_bank = 0;
@@ -100,8 +100,8 @@ struct BMC70 : public CartInterface {
     ((BMC70 *)fc->fceu->cartiface)->Sync();
   }
 
-  BMC70(FC *fc, CartInfo *info, bool ilb, uint8 hw) :
-    CartInterface(fc), is_large_banks(ilb), hw_switch(hw) {
+  BMC70(FC *fc, CartInfo *info, uint8 hw_init) :
+    CartInterface(fc), hw_switch(hw_init) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&large_bank, 1, "LB00"},
 			 {&hw_switch, 1, "DPSW"},
@@ -114,9 +114,9 @@ struct BMC70 : public CartInterface {
 }
 
 CartInterface *BMC70in1_Init(FC *fc, CartInfo *info) {
-  return new BMC70(fc, info, false, 0xd);
+  return new BMC70<false>(fc, info, 0xd);
 }
 
 CartInterface *BMC70in1B_Init(FC *fc, CartInfo *info) {
-  return new BMC70(fc, info, true, 0x6);
+  return new BMC70<true>(fc, info, 0x6);
 }

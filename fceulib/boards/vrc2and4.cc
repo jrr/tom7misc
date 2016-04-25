@@ -23,10 +23,8 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
+template<bool is_pirate, bool is_22>
 struct VRC : public CartInterface {
-
-  const bool isPirate;
-  const bool is22;
   uint16 IRQCount = 0;
   uint8 IRQLatch = 0, IRQa = 0;
   uint8 prgreg[2] = {}, chrreg[8] = {};
@@ -51,10 +49,11 @@ struct VRC : public CartInterface {
       fc->cart->setchr8(0);
     else {
       uint8 i;
-      if (!weirdo)
+      if (!weirdo) {
 	for (i = 0; i < 8; i++)
-	  fc->cart->setchr1(i << 10, (chrhi[i] | chrreg[i]) >> is22);
-      else {
+	  fc->cart->setchr1(i << 10,
+			    (chrhi[i] | chrreg[i]) >> (is_22 ? 1 : 0));
+      } else {
 	fc->cart->setchr1(0x0000, 0xFC);
 	fc->cart->setchr1(0x0400, 0xFD);
 	fc->cart->setchr1(0x0800, 0xFF);
@@ -91,7 +90,7 @@ struct VRC : public CartInterface {
 	case 0x8001:
 	case 0x8002:
 	case 0x8003:
-	  if (!isPirate) {
+	  if (!is_pirate) {
 	    prgreg[0] = V & 0x1F;
 	    Sync();
 	  }
@@ -100,7 +99,7 @@ struct VRC : public CartInterface {
 	case 0xA001:
 	case 0xA002:
 	case 0xA003:
-	  if (!isPirate)
+	  if (!is_pirate)
 	    prgreg[1] = V & 0x1F;
 	  else {
 	    prgreg[0] = (V & 0x1F) << 1;
@@ -176,8 +175,7 @@ struct VRC : public CartInterface {
     ((VRC *)fc->fceu->cartiface)->Sync();
   }
 
-  VRC(FC *fc, CartInfo *info, bool isp, bool is22) :
-    CartInterface(fc), isPirate(isp), is22(is22) {
+  VRC(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->state->AddExVec({{prgreg, 2, "PREG"},
 			 {chrreg, 8, "CREG"},
 			 {chrhi, 16, "CRGH"},
@@ -192,7 +190,7 @@ struct VRC : public CartInterface {
   }
 };
 
-struct Mapper21 : public VRC {
+struct Mapper21 final : public VRC<false, false> {
   void M21Write(DECLFW_ARGS) {
     A = (A & 0xF000) | ((A >> 1) & 0x3);
     // Ganbare Goemon Gaiden 2 - Tenka no Zaihou (J) [!] isn't mapper 21
@@ -208,14 +206,14 @@ struct Mapper21 : public VRC {
     });
   }
 
-  Mapper21(FC *fc, CartInfo *info) : VRC(fc, info, false, false) {
+  Mapper21(FC *fc, CartInfo *info) : VRC(fc, info) {
     fc->X->MapIRQHook = [](FC *fc, int a) {
       ((Mapper21 *)fc->fceu->cartiface)->VRC24IRQHook(a);
     };
   }
 };
 
-struct Mapper22 : public VRC {
+struct Mapper22 final : public VRC<false, true> {
   void Power() override {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
@@ -224,62 +222,63 @@ struct Mapper22 : public VRC {
     });
   }
 
-  Mapper22(FC *fc, CartInfo *info) : VRC(fc, info, false, true) {}
+  Mapper22(FC *fc, CartInfo *info) : VRC(fc, info) {}
 };
 
-struct VRC24 : public VRC {
-  void Close() override {
-    free(WRAM);
-    WRAM = nullptr;
+template<bool is_pirate, bool is_22>
+struct VRC24 : public VRC<is_pirate, is_22> {
+  void Close() final override {
+    free(this->WRAM);
+    this->WRAM = nullptr;
   }
 
-  VRC24(FC *fc, CartInfo *info, bool isp, bool is22) :
-    VRC(fc, info, isp, is22) {
-    fc->X->MapIRQHook = [](FC *fc, int a) {
+  VRC24(FC *fc, CartInfo *info) : VRC<is_pirate, is_22>(fc, info) {
+    this->fc->X->MapIRQHook = [](FC *fc, int a) {
       ((VRC24 *)fc->fceu->cartiface)->VRC24IRQHook(a);
     };
 
-    WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
-    fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
-    fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
+    this->WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
+    this->fc->cart->SetupCartPRGMapping(0x10, this->WRAM, WRAMSIZE, true);
+    this->fc->state->AddExState(this->WRAM, WRAMSIZE, 0, "WRAM");
 
     if (info->battery) {
-      info->SaveGame[0] = WRAM;
+      info->SaveGame[0] = this->WRAM;
       info->SaveGameLen[0] = WRAMSIZE;
     }
   }
 };
 
-struct Mapper23 : public VRC24 {
-  using VRC24::VRC24;
+template<bool is_pirate, bool is_22>
+struct Mapper23 final : public VRC24<is_pirate, is_22> {
+  using VRC24<is_pirate, is_22>::VRC24;
   void M23Write(DECLFW_ARGS) {
     A |= ((A >> 2) & 0x3) | ((A >> 4) & 0x3) | ((A >> 6) & 0x3);
     // actually there is many-in-one mapper source, some pirate or
     // licensed games use various address bits for registers
-    VRC24Write(fc, A, V);
+    this->VRC24Write(fc, A, V);
   }
 
-  void Power() override {
-    big_bank = 0x20;
-    Sync();
+  void Power() final override {
+    this->big_bank = 0x20;
+    this->Sync();
     // Only two Goemon games are have
     // battery backed RAM, three more
     // shooters
-    fc->cart->setprg8r(0x10, 0x6000, 0);  
+    this->fc->cart->setprg8r(0x10, 0x6000, 0);  
     // (Parodius Da!, Gradius 2 and Crisis Force uses 2k or SRAM at
     // 6000-67FF only
-    fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
-    fc->fceu->SetWriteHandler(0x6000, 0x7FFF, Cart::CartBW);
-    fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
-    fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
+    this->fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
+    this->fc->fceu->SetWriteHandler(0x6000, 0x7FFF, Cart::CartBW);
+    this->fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
+    this->fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       ((Mapper23*)fc->fceu->cartiface)->M23Write(DECLFW_FORWARD);
     });
   }
 };
 
-struct Mapper25 : public VRC24 {
+struct Mapper25 final : public VRC24<false, false> {
   using VRC24::VRC24;
-  void Power() override {
+  void Power() final override {
     big_bank = 0x20;
     Sync();
     fc->cart->setprg8r(0x10, 0x6000, 0);
@@ -302,13 +301,13 @@ CartInterface *Mapper22_Init(FC *fc, CartInfo *info) {
 }
 
 CartInterface *Mapper23_Init(FC *fc, CartInfo *info) {
-  return new Mapper23(fc, info, false, false);
+  return new Mapper23<false, false>(fc, info);
 }
 
 CartInterface *Mapper25_Init(FC *fc, CartInfo *info) {
-  return new Mapper25(fc, info, false, false);
+  return new Mapper25(fc, info);
 }
 
 CartInterface *UNLT230_Init(FC *fc, CartInfo *info) {
-  return new Mapper23(fc, info, true, false);
+  return new Mapper23<true, false>(fc, info);
 }

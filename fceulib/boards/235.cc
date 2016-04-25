@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper235 : public CartInterface {
+struct Mapper235 final : public CartInterface {
   uint16 cmdreg = 0;
 
   void Sync() {
@@ -46,7 +46,7 @@ struct Mapper235 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setchr8(0);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       ((Mapper235*)fc->fceu->cartiface)->M235Write(DECLFW_FORWARD);

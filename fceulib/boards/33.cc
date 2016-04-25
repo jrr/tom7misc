@@ -21,8 +21,8 @@
 #include "mapinc.h"
 
 namespace {
+template<bool is48>
 struct Mapper33 : public CartInterface {
-  const bool is48;
   uint8 regs[8] = {}, mirr = 0;
   uint8 IRQa = 0;
   int16 IRQCount = 0, IRQLatch = 0;
@@ -96,7 +96,7 @@ struct Mapper33 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     if (is48) {
       Sync();
       fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
@@ -132,8 +132,7 @@ struct Mapper33 : public CartInterface {
     ((Mapper33*)fc->fceu->cartiface)->Sync();
   }
 
-  Mapper33(FC *fc, CartInfo *info, bool is48)
-    : CartInterface(fc), is48(is48) {
+  Mapper33(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
 	{regs, 8, "PREG"},
@@ -152,9 +151,9 @@ struct Mapper33 : public CartInterface {
 }
   
 CartInterface *Mapper33_Init(FC *fc, CartInfo *info) {
-  return new Mapper33(fc, info, false);
+  return new Mapper33<false>(fc, info);
 }
 
 CartInterface *Mapper48_Init(FC *fc, CartInfo *info) {
-  return new Mapper33(fc, info, true);
+  return new Mapper33<true>(fc, info);
 }

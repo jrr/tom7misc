@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct BMC64in1nr : public CartInterface {
+struct BMC64in1nr final : public CartInterface {
   uint8 regs[4] = {};
 
   void Sync() {
@@ -56,7 +56,7 @@ struct BMC64in1nr : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     regs[0] = 0x80;
     regs[1] = 0x43;
     regs[2] = regs[3] = 0;

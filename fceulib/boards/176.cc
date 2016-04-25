@@ -22,12 +22,12 @@
 #include "mapinc.h"
 #include "ines.h"
 
-static constexpr uint32 WRAM176SIZE = 8192;
+static constexpr uint32 WRAMSIZE = 8192;
 
 namespace {
-struct Mapper176 : public CartInterface {
+struct Mapper176 final : public CartInterface {
   uint8 prg[4] = {}, chr = 0, sbw = 0, we_sram = 0;
-  uint8 *wram176 = nullptr;
+  uint8 *wram = nullptr;
 
   void Sync() {
     fc->cart->setprg8r(0x10, 0x6000, 0);
@@ -92,7 +92,7 @@ struct Mapper176 : public CartInterface {
     Cart::CartBW(DECLFW_FORWARD);
   }
 
-  void Power() override {
+  void Power() final override {
     fc->fceu->SetReadHandler(0x6000, 0x7fff, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0x7fff, [](DECLFW_ARGS) {
       ((Mapper176*)fc->fceu->cartiface)->M176Write_WriteSRAM(DECLFW_FORWARD);
@@ -126,9 +126,9 @@ struct Mapper176 : public CartInterface {
     Sync();
   }
 
-  void Close() override {
-    free(wram176);
-    wram176 = nullptr;
+  void Close() final override {
+    free(wram);
+    wram = nullptr;
   }
 
   static void StateRestore(FC *fc, int version) {
@@ -138,9 +138,9 @@ struct Mapper176 : public CartInterface {
   Mapper176(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
 
-    wram176 = (uint8 *)FCEU_gmalloc(WRAM176SIZE);
-    fc->cart->SetupCartPRGMapping(0x10, wram176, WRAM176SIZE, true);
-    fc->state->AddExState(wram176, WRAM176SIZE, 0, "WRAM");
+    wram = (uint8 *)FCEU_gmalloc(WRAMSIZE);
+    fc->cart->SetupCartPRGMapping(0x10, wram, WRAMSIZE, true);
+    fc->state->AddExState(wram, WRAMSIZE, 0, "WRAM");
     fc->state->AddExVec({
 	{prg, 4, "PRG0"}, {&chr, 1, "CHR0"}, {&sbw, 1, "SBW0"}});
   }

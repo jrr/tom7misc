@@ -25,7 +25,7 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct UNLSC127 : public CartInterface {
+struct UNLSC127 final : public CartInterface {
   uint8 reg[8] = {}, chr[8] = {};
   uint8 *WRAM = nullptr;
   uint16 IRQCount = 0, IRQa = 0;
@@ -62,7 +62,7 @@ struct UNLSC127 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->cart->setprg8(0xE000, ~0);
@@ -84,9 +84,9 @@ struct UNLSC127 : public CartInterface {
     }
   }
 
-  void Reset() override {}
+  void Reset() final override {}
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

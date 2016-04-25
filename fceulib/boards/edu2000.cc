@@ -22,7 +22,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLEDU2000 : public CartInterface {
+struct UNLEDU2000 final : public CartInterface {
   uint8 *WRAM = nullptr;
   uint8 reg = 0;
 
@@ -39,7 +39,7 @@ struct UNLEDU2000 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setmirror(MI_0);
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0xFFFF, Cart::CartBW);
@@ -50,7 +50,7 @@ struct UNLEDU2000 : public CartInterface {
     Sync();
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

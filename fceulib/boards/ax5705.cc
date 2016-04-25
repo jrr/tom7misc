@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLAX5705 : public CartInterface {
+struct UNLAX5705 final : public CartInterface {
   uint8 IRQCount = 0;  //, IRQPre;
   uint8 IRQa = 0;
   uint8 prg_reg[2] = {};
@@ -137,7 +137,7 @@ struct UNLAX5705 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {

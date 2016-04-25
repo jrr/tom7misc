@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLCITYFIGHT : public CartInterface {
+struct UNLCITYFIGHT final : public CartInterface {
   int32 IRQCount = 0;
   uint8 IRQa = 0;
   uint8 prg_reg = 0, prg_mode = 0, mirr = 0;
@@ -97,7 +97,7 @@ struct UNLCITYFIGHT : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     prg_reg = 0;
     Sync();
     pcmwrite = fc->fceu->GetWriteHandler(0x4011);

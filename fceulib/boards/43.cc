@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper43 : public CartInterface {
+struct Mapper43 final : public CartInterface {
   uint8 reg = 0;
   uint32 IRQCount = 0, IRQa = 0;
 
@@ -56,7 +56,7 @@ struct Mapper43 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     reg = 0;
     Sync();
     fc->fceu->SetReadHandler(0x5000, 0xffff, Cart::CartBR);
@@ -65,7 +65,7 @@ struct Mapper43 : public CartInterface {
     });
   }
 
-  void Reset() override {}
+  void Reset() final override {}
 
   void M43IRQHook(int a) {
     IRQCount += a;

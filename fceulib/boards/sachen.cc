@@ -44,12 +44,10 @@ struct Sachen : public CartInterface {
     }
   }
 
-  Sachen(FC *fc, CartInfo *info) : CartInterface(fc) {
-    
-  }
+  Sachen(FC *fc, CartInfo *info) : CartInterface(fc) {}
 };
 
-struct S74LS374N : public Sachen {
+struct S74LS374N final : public Sachen {
   DECLFR_RET S74LS374NRead(DECLFR_ARGS) {
     uint8 ret;
     if ((A & 0x4100) == 0x4100)
@@ -79,13 +77,13 @@ struct S74LS374N : public Sachen {
     }
   }
   
-  void Reset() override {
+  void Reset() final override {
     dip ^= 1;
     latch[0] = latch[1] = latch[2] = latch[3] = latch[4] = 0;
     S74LS374NSynco();
   }
 
-  void Power() override {
+  void Power() final override {
     dip = 0;
     latch[0] = latch[1] = latch[2] = latch[3] = latch[4] = 0;
     S74LS374NSynco();
@@ -107,7 +105,7 @@ struct S74LS374N : public Sachen {
   }
 };
   
-struct S74LS374NA : public Sachen {
+struct S74LS374NA final : public Sachen {
   void S74LS374NASynco() {
     fc->cart->setprg32(0x8000, latch[0]);
     fc->cart->setchr8(latch[1]);
@@ -134,7 +132,7 @@ struct S74LS374NA : public Sachen {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     latch[0] = latch[2] = latch[3] = latch[4] = 0;
     latch[1] = 3;
     S74LS374NASynco();
@@ -154,7 +152,7 @@ struct S74LS374NA : public Sachen {
 };
   
 
-struct S8259 : public Sachen {
+struct S8259 final : public Sachen {
   const int type = 0;
   void S8259Synco() {
     fc->cart->setprg32(0x8000, latch[5] & 7);
@@ -209,7 +207,7 @@ struct S8259 : public Sachen {
   }
 
   // was 8259Reset, but assigned to Power
-  void Power() override {
+  void Power() final override {
     cmd = 0;
 
     for (int x = 0; x < 8; x++) latch[x] = 0;
@@ -233,9 +231,8 @@ struct S8259 : public Sachen {
   }
 };
 
+template<bool is_sad>
 struct SA : public Sachen {
-  const bool is_sad = false;
-  
   virtual void WSync() {}
 
   void SAWrite(DECLFW_ARGS) {
@@ -250,7 +247,7 @@ struct SA : public Sachen {
     WSync();
   }
 
-  void Power() override {
+  void Power() final override {
     if (is_sad) {
       latch[0] = 0;
       WSync();
@@ -272,39 +269,45 @@ struct SA : public Sachen {
     ((SA *)fc->fceu->cartiface)->WSync();
   }
 
-  SA(FC *fc, CartInfo *info, bool is_sad) : Sachen(fc, info), is_sad(is_sad) {
+  SA(FC *fc, CartInfo *info) : Sachen(fc, info) {
     fc->fceu->GameStateRestore = SARestore;
     fc->state->AddExState(&latch[0], 1, 0, "LATC");
   }
 };
-  
-struct SA0161M : public SA {
-  using SA::SA;
-  void WSync() override {
-    fc->cart->setprg32(0x8000, (latch[0] >> 3) & 1);
-    fc->cart->setchr8(latch[0] & 7);
+
+template<bool is_sad>
+struct SA0161M final : public SA<is_sad> {
+  using SA<is_sad>::SA;
+  void WSync() final override {
+    // Weirdly, fc is not in scope (it's inherited all the way from
+    // CartInterface) when inheriting via a template param like this,
+    // according to GCC (might be a compiler bug even?). So needs
+    // extra "this->" qualification.
+    this->fc->cart->setprg32(0x8000, (this->latch[0] >> 3) & 1);
+    this->fc->cart->setchr8(this->latch[0] & 7);
   }
 };
 
-struct SA72007 : public SA {
-  using SA::SA;
-  void WSync() override {
-    fc->cart->setprg32(0x8000, 0);
-    fc->cart->setchr8(latch[0] >> 7);
+template<bool is_sad>
+struct SA72007 final : public SA<is_sad> {
+  using SA<is_sad>::SA;
+  void WSync() final override {
+    this->fc->cart->setprg32(0x8000, 0);
+    this->fc->cart->setchr8(this->latch[0] >> 7);
   }
 };
 
-struct SA009 : public SA {
+struct SA009 final : public SA<false> {
   using SA::SA;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, 0);
     fc->cart->setchr8(latch[0] & 1);
   }
 };
 
-struct SA72008 : public SA {
+struct SA72008 final : public SA<false> {
   using SA::SA;
-  void WSync() override {
+  void WSync() final override {
     fc->cart->setprg32(0x8000, (latch[0] >> 2) & 1);
     fc->cart->setchr8(latch[0] & 3);
   }
@@ -312,7 +315,7 @@ struct SA72008 : public SA {
 
 // -----------------------------------------------
 
-struct TCU01 : public Sachen {
+struct TCU01 final : public Sachen {
   void TCU01Synco() {
     fc->cart->setprg32(0x8000,
 		       ((latch[0] & 0x80) >> 6) | ((latch[0] >> 2) & 1));
@@ -326,7 +329,7 @@ struct TCU01 : public Sachen {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     latch[0] = 0;
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x4100, 0xFFFF, [](DECLFW_ARGS) {
@@ -347,7 +350,7 @@ struct TCU01 : public Sachen {
 
 //-----------------------------------------------
 
-struct TCU02 : public Sachen {
+struct TCU02 final : public Sachen {
   void TCU02Synco() {
     fc->cart->setprg32(0x8000, 0);
     fc->cart->setchr8(latch[0] & 3);
@@ -364,7 +367,7 @@ struct TCU02 : public Sachen {
     return (latch[0] & 0x3F) | (fc->X->DB & 0xC0);
   }
 
-  void Power() override {
+  void Power() final override {
     latch[0] = 0;
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x4100, 0x4100, [](DECLFR_ARGS) {
@@ -388,7 +391,7 @@ struct TCU02 : public Sachen {
 
 // ---------------------------------------------
 
-struct TCA01 : public Sachen {
+struct TCA01 final : public Sachen {
   DECLFR_RET TCA01Read(DECLFR_ARGS) {
     uint8 ret;
     if ((A & 0x4100) == 0x4100)
@@ -398,7 +401,7 @@ struct TCA01 : public Sachen {
     return ret;
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setprg16(0x8000, 0);
     fc->cart->setprg16(0xC000, 1);
     fc->cart->setchr8(0);
@@ -411,7 +414,6 @@ struct TCA01 : public Sachen {
 
   using Sachen::Sachen;
 };
-
 }
 
 CartInterface *S74LS374N_Init(FC *fc, CartInfo *info) {
@@ -445,27 +447,27 @@ CartInterface *S8259D_Init(FC *fc, CartInfo *info) {
 
 
 CartInterface *SA0161M_Init(FC *fc, CartInfo *info) {
-  return new SA0161M(fc, info, false);
+  return new SA0161M<false>(fc, info);
 }
 
 CartInterface *SA72007_Init(FC *fc, CartInfo *info) {
-  return new SA72007(fc, info, false);
+  return new SA72007<false>(fc, info);
 }
 
 CartInterface *SA72008_Init(FC *fc, CartInfo *info) {
-  return new SA72008(fc, info, false);
+  return new SA72008(fc, info);
 }
 
 CartInterface *SA009_Init(FC *fc, CartInfo *info) {
-  return new SA009(fc, info, false);
+  return new SA009(fc, info);
 }
 
 CartInterface *SA0036_Init(FC *fc, CartInfo *info) {
-  return new SA72007(fc, info, true);
+  return new SA72007<true>(fc, info);
 }
 
 CartInterface *SA0037_Init(FC *fc, CartInfo *info) {
-  return new SA0161M(fc, info, true);
+  return new SA0161M<true>(fc, info);
 }
 
 

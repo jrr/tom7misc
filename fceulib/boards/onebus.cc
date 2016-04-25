@@ -28,7 +28,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLOneBus : public CartInterface {
+struct UNLOneBus final : public CartInterface {
   // General Purpose Registers
   uint8 cpu410x[16] = {}, ppu201x[16] = {}, apu40xx[64] = {};
 
@@ -259,7 +259,7 @@ struct UNLOneBus : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     IRQReload = IRQCount = IRQa = 0;
 
     memset(cpu410x, 0x00, sizeof(cpu410x));
@@ -299,7 +299,7 @@ struct UNLOneBus : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     IRQReload = IRQCount = IRQa = 0;
 
     memset(cpu410x, 0x00, sizeof(cpu410x));

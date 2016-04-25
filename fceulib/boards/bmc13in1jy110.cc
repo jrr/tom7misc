@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct BMC13in1JY110 : public CartInterface {
+struct BMC13in1JY110 final : public CartInterface {
   uint8 bank_mode = 0;
   uint8 bank_value = 0;
   uint8 prgb[4] = {};
@@ -69,7 +69,7 @@ struct BMC13in1JY110 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     prgb[0] = prgb[1] = prgb[2] = prgb[3] = 0;
     bank_mode = 0;
     bank_value = 0;

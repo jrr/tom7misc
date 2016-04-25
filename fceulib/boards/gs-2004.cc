@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct BMCGS2004 : public CartInterface {
+struct BMCGS2004 final : public CartInterface {
   uint8 reg = 0, mirr = 0;
 
   void Sync() {
@@ -35,7 +35,7 @@ struct BMCGS2004 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     reg = ~0;
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
@@ -45,7 +45,7 @@ struct BMCGS2004 : public CartInterface {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     reg = ~0;
   }
 

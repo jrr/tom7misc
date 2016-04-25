@@ -28,17 +28,17 @@
 
 static constexpr uint32 CHRRAMSIZE = 8192;
 namespace {
-struct Mapper199 : public MMC3 {
+struct Mapper199 final : public MMC3 {
   uint8 EXPREGS[8] = {};
   uint8 *CHRRAM = nullptr;
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     fc->cart->setprg8(A, V);
     fc->cart->setprg8(0xC000, EXPREGS[0]);
     fc->cart->setprg8(0xE000, EXPREGS[1]);
   }
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     fc->cart->setchr1r((V < 8) ? 0x10 : 0x00, A, V);
     fc->cart->setchr1r((DRegBuf[0] < 8) ? 0x10 : 0x00, 0x0000, DRegBuf[0]);
     fc->cart->setchr1r((EXPREGS[2] < 8) ? 0x10 : 0x00, 0x0400, EXPREGS[2]);
@@ -46,7 +46,7 @@ struct Mapper199 : public MMC3 {
     fc->cart->setchr1r((EXPREGS[3] < 8) ? 0x10 : 0x00, 0x0c00, EXPREGS[3]);
   }
 
-  void MWrap(uint8 V) override {
+  void MWrap(uint8 V) final override {
     //    FCEU_printf("%02x\n",V);
     switch (V & 3) {
       case 0: fc->cart->setmirror(MI_V); break;
@@ -69,7 +69,7 @@ struct Mapper199 : public MMC3 {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = ~1;
     EXPREGS[1] = ~0;
     EXPREGS[2] = 1;
@@ -80,7 +80,7 @@ struct Mapper199 : public MMC3 {
       });
   }
 
-  void Close() override {
+  void Close() final override {
     free(CHRRAM);
     CHRRAM = nullptr;
   }

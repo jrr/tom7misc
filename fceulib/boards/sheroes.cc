@@ -22,11 +22,11 @@
 #include "mmc3.h"
 
 namespace {
-struct UNLSHeroes : public MMC3 {
+struct UNLSHeroes final : public MMC3 {
   uint8 EXPREGS[8] = {};
   uint8 tekker = 0;
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40) {
       fc->cart->setchr8r(0x10, 0);
     } else {
@@ -50,12 +50,12 @@ struct UNLSHeroes : public MMC3 {
     return tekker;
   }
 
-  void Reset() override {
+  void Reset() final override {
     MMC3::Reset();
     tekker ^= 0xFF;
   }
 
-  void Power() override {
+  void Power() final override {
     tekker = 0x00;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4100, 0x4100, [](DECLFW_ARGS) {
@@ -66,7 +66,7 @@ struct UNLSHeroes : public MMC3 {
       });
   }
 
-  void Close() override {
+  void Close() final override {
     free(CHRRAM);
     CHRRAM = nullptr;
   }

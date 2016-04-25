@@ -22,7 +22,7 @@
 #include "mmc3.h"
 
 namespace {
-struct UNLSL1632 : public MMC3 {
+struct UNLSL1632 final : public MMC3 {
   // brk is a system call in *nix, and is an illegal variable name - soules
   // tom7 removed 'swap' which had the same problem but was dead
   uint8 chrcmd[8] = {}, prg0 = 0, prg1 = 0, bbrk = 0, mirr = 0;
@@ -36,7 +36,7 @@ struct UNLSL1632 : public MMC3 {
     fc->cart->setmirror(mirr ^ 1);
   }
 
-  void CWrap(uint32 A, uint8 V) override {
+  void CWrap(uint32 A, uint8 V) final override {
     int cbase = (MMC3_cmd & 0x80) << 5;
     int page0 = (bbrk & 0x08) << 5;
     int page1 = (bbrk & 0x20) << 3;
@@ -90,7 +90,7 @@ struct UNLSL1632 : public MMC3 {
     ((UNLSL1632 *)fc->fceu->cartiface)->SrSync();
   }
 
-  void Power() override {
+  void Power() final override {
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4100, 0xFFFF, [](DECLFW_ARGS) {
 	((UNLSL1632*)fc->fceu->cartiface)->UNLSL1632CMDWrite(DECLFW_FORWARD);

@@ -23,7 +23,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper96 : public CartInterface {
+struct Mapper96 final : public CartInterface {
   uint8 reg = 0, ppulatch = 0;
 
   void Sync() {
@@ -45,7 +45,7 @@ struct Mapper96 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     reg = ppulatch = 0;
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xffff, Cart::CartBR);

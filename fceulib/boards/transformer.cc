@@ -27,7 +27,7 @@ static constexpr uint32 WRAMSIZE = 8192;
 unsigned int *GetKeyboard();
 
 namespace {
-struct Transformer : public CartInterface {
+struct Transformer final : public CartInterface {
   uint8 *WRAM = nullptr;
 
   unsigned int *TransformerKeys = nullptr, oldkeys[256] = {};
@@ -36,11 +36,10 @@ struct Transformer : public CartInterface {
   void TransformerIRQHook(int a) {
     TransformerCycleCount += a;
     if (TransformerCycleCount >= 1000) {
-      uint32 i;
       TransformerCycleCount -= 1000;
       TransformerKeys = GetKeyboard();
 
-      for (i = 0; i < 256; i++) {
+      for (uint32 i = 0; i < 256; i++) {
 	if (oldkeys[i] != TransformerKeys[i]) {
 	  if (oldkeys[i] == 0)
 	    TransformerChar = i;
@@ -66,7 +65,7 @@ struct Transformer : public CartInterface {
     return ret;
   }
 
-  void Power() override {
+  void Power() final override {
     fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->cart->setprg16(0x8000, 0);
     fc->cart->setprg16(0xC000, ~0);
@@ -85,7 +84,7 @@ struct Transformer : public CartInterface {
     };
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

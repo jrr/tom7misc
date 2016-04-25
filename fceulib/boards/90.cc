@@ -29,10 +29,8 @@
 // Mapper 211 the same mapper 209 but with forced nametable control
 
 namespace {
-struct Mapper90 : public CartInterface {
-  const bool is211 = false;
-  const bool is209 = false;
-
+template<bool is211, bool is209>
+struct Mapper90 final : public CartInterface {
   uint8 IRQMode = 0;  // from $c001
   uint8 IRQPre = 0;  // from $c004
   uint8 IRQPreSize = 0;  // from $c007
@@ -199,12 +197,12 @@ struct Mapper90 : public CartInterface {
 
   DECLFR_RET M90TekRead(DECLFR_ARGS) {
     switch (A & 0x5C03) {
-      case 0x5800: return (mul[0] * mul[1]);
-      case 0x5801: return ((mul[0] * mul[1]) >> 8);
-      case 0x5803: return (regie);
+      case 0x5800: return mul[0] * mul[1];
+      case 0x5801: return (mul[0] * mul[1]) >> 8;
+      case 0x5803: return regie;
       default: return tekker;
     }
-    return (0xff);
+    return 0xff;
   }
 
   void M90PRGWrite(DECLFW_ARGS) {
@@ -414,7 +412,7 @@ struct Mapper90 : public CartInterface {
     }
   }
 
-  void Reset() override {
+  void Reset() final override {
     tekker += 0x40;
     tekker &= 0xC0;
     // FCEU_printf("tekker=%02x\n", tekker);
@@ -431,7 +429,7 @@ struct Mapper90 : public CartInterface {
     me->mira();
   }
 
-  void Power() override {
+  void Power() final override {
     fc->fceu->SetWriteHandler(0x5000, 0x5fff, [](DECLFW_ARGS) {
       ((Mapper90*)fc->fceu->cartiface)->M90TekWrite(DECLFW_FORWARD);
     });
@@ -479,8 +477,7 @@ struct Mapper90 : public CartInterface {
   }
 
 
-  Mapper90(FC *fc, CartInfo *info, bool is211, bool is209) :
-    CartInterface(fc), is211(is211), is209(is209) {
+  Mapper90(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->ppu->PPU_hook = [](FC *fc, uint32 a) {
       ((Mapper90*)fc->fceu->cartiface)->M90PPU(a);
     };
@@ -514,13 +511,13 @@ struct Mapper90 : public CartInterface {
 }
   
 CartInterface *Mapper90_Init(FC *fc, CartInfo *info) {
-  return new Mapper90(fc, info, false, false);
+  return new Mapper90<false, false>(fc, info);
 }
 
 CartInterface *Mapper209_Init(FC *fc, CartInfo *info) {
-  return new Mapper90(fc, info, false, true);
+  return new Mapper90<false, true>(fc, info);
 }
 
 CartInterface *Mapper211_Init(FC *fc, CartInfo *info) {
-  return new Mapper90(fc, info, true, false);
+  return new Mapper90<true, false>(fc, info);
 }

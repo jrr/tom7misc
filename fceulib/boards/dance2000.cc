@@ -23,7 +23,7 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct UNLD2000 : public CartInterface {
+struct UNLD2000 final : public CartInterface {
   uint8 prg = 0, mirr = 0, prgmode = 0;
   uint8 *WRAM = nullptr;
 
@@ -62,7 +62,7 @@ struct UNLD2000 : public CartInterface {
       return Cart::CartBR(DECLFR_FORWARD);
   }
 
-  void Power() override {
+  void Power() final override {
     prg = prgmode = 0;
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
@@ -82,7 +82,7 @@ struct UNLD2000 : public CartInterface {
       fc->cart->setchr4(0x0000, 0);
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

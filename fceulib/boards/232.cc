@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper232 : public CartInterface {
+struct Mapper232 final : public CartInterface {
   uint8 bank = 0, preg = 0;
 
   void Sync() {
@@ -48,7 +48,7 @@ struct Mapper232 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     bank = preg = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x8000, 0xBFFF, [](DECLFW_ARGS) {

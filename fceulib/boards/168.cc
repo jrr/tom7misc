@@ -23,7 +23,7 @@
 static constexpr int CHRRAMSIZE = 8192 * 8;
 
 namespace {
-struct Mapper168 : public CartInterface {
+struct Mapper168 final : public CartInterface {
   uint8 reg = 0;
   uint8 *CHRRAM = nullptr;
 
@@ -41,7 +41,7 @@ struct Mapper168 : public CartInterface {
 
   void M168Dummy(DECLFW_ARGS) {}
 
-  void Power() override {
+  void Power() final override {
     reg = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x4020, 0x7fff, [](DECLFW_ARGS) {
@@ -59,7 +59,7 @@ struct Mapper168 : public CartInterface {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }
 
-  void Close() override {
+  void Close() final override {
     free(CHRRAM);
     CHRRAM = nullptr;
   }

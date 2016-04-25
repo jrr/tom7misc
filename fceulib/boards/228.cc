@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper228 : public CartInterface {
+struct Mapper228 final : public CartInterface {
   uint8 mram[4] = {}, vreg = 0;
   uint16 areg = 0;
 
@@ -51,13 +51,13 @@ struct Mapper228 : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     areg = 0x8000;
     vreg = 0;
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     Reset();
     fc->fceu->SetReadHandler(0x5000, 0x5FFF, [](DECLFR_ARGS) {
       return ((Mapper228*)fc->fceu->cartiface)->M228RamRead(DECLFR_FORWARD);

@@ -24,7 +24,7 @@
 static constexpr uint8 lut[4] = {0x00, 0x02, 0x02, 0x03};
 
 namespace {
-struct UNL6035052 : public MMC3 {
+struct UNL6035052 final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
   void UNL6035052ProtWrite(DECLFW_ARGS) {
@@ -35,7 +35,7 @@ struct UNL6035052 : public MMC3 {
     return EXPREGS[0];
   }
 
-  void Power() override {
+  void Power() final override {
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4020, 0x7FFF, [](DECLFW_ARGS) {
       ((UNL6035052*)fc->fceu->cartiface)->UNL6035052ProtWrite(DECLFW_FORWARD);

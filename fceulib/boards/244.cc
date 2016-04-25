@@ -39,7 +39,7 @@ static constexpr uint8 chr_perm[8][8] = {
 };
 
 namespace {
-struct Mapper244 : public CartInterface {
+struct Mapper244 final : public CartInterface {
   uint8 preg = 0, creg = 0;
 
   void Sync() {
@@ -55,7 +55,7 @@ struct Mapper244 : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     preg = creg = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {

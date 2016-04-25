@@ -22,10 +22,10 @@
 #include "mmc3.h"
 
 namespace {
-struct Mapper189 : public MMC3 {
+struct Mapper189 final : public MMC3 {
   uint8 EXPREGS[8] = {};
 
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     fc->cart->setprg32(0x8000, EXPREGS[0] & 7);
   }
 
@@ -36,7 +36,7 @@ struct Mapper189 : public MMC3 {
     FixMMC3PRG(MMC3_cmd);
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = EXPREGS[1] = 0;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4120, 0x7FFF, [](DECLFW_ARGS) {

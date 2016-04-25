@@ -25,7 +25,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper230 : public CartInterface {
+struct Mapper230 final : public CartInterface {
   uint8 latch = 0, reset = 0;
 
   void Sync() {
@@ -51,12 +51,12 @@ struct Mapper230 : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     reset ^= 1;
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     latch = reset = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {

@@ -22,6 +22,8 @@
 
 #include "mapinc.h"
 
+#include <initializer_list>
+
 namespace {
 struct MMC5APU {
   uint16 wl[2] = {};
@@ -35,13 +37,12 @@ struct MMC5APU {
   int32 vcount[2] = {};
 };
 
-
 struct CartData {
   const uint32 crc32;
   const uint8 size;
 };
 
-static constexpr CartData const MMC5CartList[] = {
+static constexpr std::initializer_list<CartData> MMC5CartList = {
   {0x9c18762b, 2}, /* L'Empereur */
   {0x26533405, 2},
   {0x6396b988, 2},
@@ -60,16 +61,13 @@ static constexpr CartData const MMC5CartList[] = {
   {0xee8e6553, 4},
 };
 
-static constexpr int MMC5_NUM_CARTS =
-  sizeof (MMC5CartList) / sizeof (MMC5CartList[0]);
-
 static int DetectMMC5WRAMSize(uint32 crc32) {
-  for (int x = 0; x < MMC5_NUM_CARTS; x++) {
-    if (crc32 == MMC5CartList[x].crc32) {
+  for (const CartData &cd : MMC5CartList) {
+    if (crc32 == cd.crc32) {
       FCEU_printf(
 	  " >8KB external WRAM present.  Use UNIF if you hack the ROM "
 	  "image.\n");
-      return MMC5CartList[x].size * 8;
+      return cd.size * 8;
     }
   }
 
@@ -94,7 +92,7 @@ static int DetectMMC5WRAMSize(uint32 crc32) {
   return 64;
 }
 
-struct MMC5 : public CartInterface {
+struct MMC5 final : public CartInterface {
   MMC5APU MMC5Sound;
 
   uint8 PRGBanks[4] = {};
@@ -565,7 +563,7 @@ struct MMC5 : public CartInterface {
 
   // Rather than having the PPU directly call into MMC5 code, this is
   // exposed in the cart interface just for MMC5. Still gross...
-  void MMC5HackHB(int scanline) override {
+  void MMC5HackHB(int scanline) final override {
     TRACEF("MMC5_hb %d %02x %02x", scanline, MMC5LineCounter, MMC5IRQR);
     if (scanline == 240) {
       MMC5LineCounter = 0;
@@ -763,7 +761,7 @@ struct MMC5 : public CartInterface {
 
   // n.b. was called "Reset" in original code but installed
   // into the Power fn pointer. -tom7
-  void Power() override {
+  void Power() final override {
     for (int x = 0; x < 4; x++) PRGBanks[x] = ~0;
     for (int x = 0; x < 8; x++) CHRBanksA[x] = ~0;
     for (int x = 0; x < 4; x++) CHRBanksB[x] = ~0;

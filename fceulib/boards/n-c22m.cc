@@ -23,8 +23,10 @@
 // ?
 // #include "mmc3.h"
 
+// Dead? -tom7
+
 namespace {
-struct UNLCN22M : public CartInterface {
+struct UNLCN22M final : public CartInterface {
   uint8 reg[8] = {};
 
   void Sync() {
@@ -57,7 +59,7 @@ struct UNLCN22M : public CartInterface {
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     reg[0] = reg[1] = reg[2] = 0;
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);

@@ -23,7 +23,7 @@
 static constexpr int WRAMSIZE = 8192;
 
 namespace {
-struct KS7012 : public CartInterface {
+struct KS7012 final : public CartInterface {
   uint8 reg = 0;
   uint8 *WRAM = nullptr;
 
@@ -47,7 +47,7 @@ struct KS7012 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     reg = ~0;
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
@@ -58,7 +58,7 @@ struct KS7012 : public CartInterface {
     });
   }
 
-  void Reset() override {
+  void Reset() final override {
     reg = ~0;
     Sync();
   }
@@ -67,7 +67,7 @@ struct KS7012 : public CartInterface {
     ((KS7012*)fc->fceu->cartiface)->Sync();
   }
 
-  void Close() override {
+  void Close() final override {
     free(WRAM);
     WRAM = nullptr;
   }

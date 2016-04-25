@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct UNLKS7032 : public CartInterface {
+struct UNLKS7032 final : public CartInterface {
   uint8 reg[8] = {}, cmd = 0, IRQa = 0, isirqused = 0;
   int32 IRQCount = 0;
 
@@ -83,7 +83,7 @@ struct UNLKS7032 : public CartInterface {
     }
   }
 
-  void Power() override {
+  void Power() final override {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);

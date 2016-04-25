@@ -24,10 +24,10 @@
 // static uint8 m_perm[8] = {0, 1, 0, 3, 0, 5, 6, 7};
 
 namespace {
-struct UNLA9711 : public MMC3 {
+struct UNLA9711 final : public MMC3 {
   uint8 EXPREGS[8] = {};
   
-  void PWrap(uint32 A, uint8 V) override {
+  void PWrap(uint32 A, uint8 V) final override {
     if ((EXPREGS[0] & 0xFF) == 0x37) {
       fc->cart->setprg8(0x8000, 0x13);
       fc->cart->setprg8(0xA000, 0x13);
@@ -62,7 +62,7 @@ struct UNLA9711 : public MMC3 {
     FixMMC3PRG(MMC3_cmd);
   }
 
-  void Power() override {
+  void Power() final override {
     EXPREGS[0] = EXPREGS[1] = EXPREGS[2] = 0;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x5000, 0x5FFF, [](DECLFW_ARGS) {
@@ -74,7 +74,6 @@ struct UNLA9711 : public MMC3 {
   UNLA9711(FC *fc, CartInfo *info) : MMC3(fc, info, 256, 256, 0, 0) {
     fc->state->AddExState(EXPREGS, 3, 0, "EXPR");
   }
-
 };
 }
 

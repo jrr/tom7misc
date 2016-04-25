@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct BMCBS5 : public CartInterface {
+struct BMCBS5 final : public CartInterface {
   uint8 reg_prg[4] = {};
   uint8 reg_chr[4] = {};
   uint8 dip_switch = 0;
@@ -49,14 +49,14 @@ struct BMCBS5 : public CartInterface {
     Sync();
   }
 
-  void Reset() override {
+  void Reset() final override {
     dip_switch++;
     dip_switch &= 3;
     reg_prg[0] = reg_prg[1] = reg_prg[2] = reg_prg[3] = ~0;
     Sync();
   }
 
-  void Power() override {
+  void Power() final override {
     dip_switch = 0;
     reg_prg[0] = reg_prg[1] = reg_prg[2] = reg_prg[3] = ~0;
     Sync();
