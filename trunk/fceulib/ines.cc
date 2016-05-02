@@ -440,7 +440,7 @@ void INes::CheckHInfo() {
   int x = 0;
 
   do {
-    if (ines_correct[x].crc32==iNESGameCRC32) {
+    if (ines_correct[x].crc32 == iNESGameCRC32) {
       if (ines_correct[x].mapper>=0) {
 	if (ines_correct[x].mapper&0x800 && VROM_size) {
 	  VROM_size=0;
@@ -797,16 +797,6 @@ static constexpr BoardMapping const board_map[] = {
   {"", 0, nullptr},
 };
 
-// this is for games that is not the a power of 2
-// mapper based for now...
-// not really accurate but this works since games
-// that are not in the power of 2 tends to come
-// in obscure mappers themselves which supports such
-// size
-static constexpr std::initializer_list<int> not_power2 = {
-  228
-};
-
 // moved from utils/general -tom7
 static uint32 uppow2(uint32 n) {
   for (int x = 31; x >= 0; x--) {
@@ -818,6 +808,31 @@ static uint32 uppow2(uint32 n) {
     }
   }
   return n;
+}
+
+// Returns the number of 16k banks (always a power of two, even
+// for non-power-of-two mappers) and the number of 16k banks to
+// actually read from the cart file (might not be power of two).
+std::pair<uint32, uint32> INes::GetRoundedROMSize() const {
+  const uint32 romsize_pow2 =
+    head.ROM_size ? uppow2(head.ROM_size) : 256;
+
+  // Some weird games don't have a power-of-two rom size. From the
+  // FCEUX code: "not really accurate but this works since games that
+  // are not in the power of 2 tends to come in obscure mappers
+  // themselves which supports such size"
+  for (const int np2_mapper : { 228 }) {
+    // for games not to the power of 2, so we just read enough
+    // prg rom from it, but we have to keep ROM_size to the power of 2
+    // since PRGCartMapping wants ROM_size to be to the power of 2
+    // so instead if not to power of 2, we just use head.ROM_size when
+    // we use FCEU_read
+    if (np2_mapper == mapper_number) {
+      return {romsize_pow2, head.ROM_size};
+    }
+  }
+
+  return {romsize_pow2, romsize_pow2};
 }
 
 bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
@@ -842,47 +857,27 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   mapper_number |= (head.ROM_type2 & 0xF0);
   iNESMirroring = head.ROM_type & 1;
 
-  //  int ROM_size=0;
-  if (!head.ROM_size) {
-    //   FCEU_PrintError("No PRG ROM!");
-    //   return(0);
-    ROM_size = 256;
-    //head.ROM_size++;
-  } else {
-    ROM_size = uppow2(head.ROM_size);
-  }
-
-  //    ROM_size = head.ROM_size;
-  VROM_size = head.VROM_size;
-
-  int round = true;
-  for (const int np2_mapper : not_power2) {
-    // for games not to the power of 2, so we just read enough
-    // prg rom from it, but we have to keep ROM_size to the power of 2
-    // since PRGCartMapping wants ROM_size to be to the power of 2
-    // so instead if not to power of 2, we just use head.ROM_size when
-    // we use FCEU_read
-    if (np2_mapper == mapper_number) {
-      round = false;
-      break;
-    }
-  }
-
-  if (VROM_size)
-    VROM_size = uppow2(VROM_size);
-
-  if (head.ROM_type&8) iNESMirroring = 2;
-
-  if ((ROM = (uint8 *)FCEU_malloc(ROM_size << 14)) == nullptr) return 0;
+  if (head.ROM_type & 8) iNESMirroring = 2;
+  
+  uint32 rom_size_to_read;
+  std::tie(ROM_size, rom_size_to_read) = GetRoundedROMSize();
+  
+  ROM = (uint8 *)FCEU_malloc(ROM_size << 14);
+  if (ROM == nullptr) return false;
   memset(ROM, 0xFF, ROM_size << 14);
 
-  if (VROM_size) {
-    if ((VROM = (uint8 *)FCEU_malloc(VROM_size << 13)) == nullptr) {
+  if (head.VROM_size) {
+    VROM_size = uppow2(head.VROM_size);
+
+    VROM = (uint8 *)FCEU_malloc(VROM_size << 13);
+    if (VROM == nullptr) {
       free(ROM);
       ROM = nullptr;
       return false;
     }
     memset(VROM, 0xFF, VROM_size << 13);
+  } else {
+    VROM_size = 0;
   }
 
   /* Trainer */
@@ -895,10 +890,13 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   fc->state->ResetExState(nullptr, nullptr);
 
   // iNES is responsible for setting up the main ROM (chip 0).
-  fc->cart->SetupCartPRGMapping(0, ROM, ROM_size * 0x4000, false);
+  fc->cart->SetupCartPRGMapping(0, ROM, ROM_size << 14, false);
   // SetupCartPRGMapping(1,WRAM,8192,1);
 
-  FCEU_fread(ROM, 0x4000, round ? ROM_size : head.ROM_size, fp);
+  // Read the appropriate number of 16k chunks from the file into
+  // ROM. We may not fill all of ROM here, since it may have been
+  // rounded up.
+  FCEU_fread(ROM, 0x4000, rom_size_to_read, fp);
 
   if (VROM_size)
     FCEU_fread(VROM, 0x2000, head.VROM_size, fp);
@@ -913,7 +911,7 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
     md5_update(&md5, VROM, VROM_size << 13);
   }
   md5_finish(&md5, iNESCart.MD5);
-  memcpy(&fc->fceu->GameInfo->MD5, &iNESCart.MD5, sizeof (iNESCart.MD5));
+  memcpy(&fc->fceu->GameInfo->MD5, &iNESCart.MD5, sizeof iNESCart.MD5);
 
   iNESCart.CRC32 = iNESGameCRC32;
 
@@ -923,7 +921,7 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   FCEU_printf(" PRG ROM:  %3d x 16KiB\n"
 	      " CHR ROM:  %3d x  8KiB\n"
 	      " ROM CRC32:  0x%08lx\n",
-	      round ? ROM_size : head.ROM_size,
+	      rom_size_to_read,
 	      head.VROM_size,
 	      iNESGameCRC32);
 
@@ -964,11 +962,11 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
 
     fc->vsuni->FCEU_VSUniCheck(partialmd5, &mapper_number, &iNESMirroring);
   }
+
   /* Must remain here because above functions might change value of
-     VROM_size and free(VROM).
-  */
+     VROM_size and free(VROM). */
   if (VROM_size)
-    fc->cart->SetupCartCHRMapping(0, VROM, VROM_size*0x2000, false);
+    fc->cart->SetupCartCHRMapping(0, VROM, VROM_size << 13, false);
 
   if (iNESMirroring == 2)
     fc->cart->SetupCartMirroring(4,1,GMB_ExtraNTARAM(fc));
@@ -1449,6 +1447,9 @@ void INes::iNESPower() {
   // MapInterface? Already did MapStateRestore -tom7
   MapClose = nullptr;
 
+  // iNES implies 8k of PRG RAM at 0x6000-0x7FFF, though for
+  // many boards this region does not have RAM here. But
+  // non-old iNES mappers set this themselves.
   fc->cart->setprg8r(1, 0x6000, 0);
 
   fc->fceu->SetReadHandler(0x6000, 0x7FFF, AWRAM);
@@ -1513,13 +1514,13 @@ void INes::iNESPower() {
 int INes::NewiNES_Init(int num) {
   const BoardMapping *tmp = board_map;
   TRACEF("NewiNES_Init %d", num);
-
+  
   CHRRAMSize = -1;
 
   if (fc->fceu->GameInfo->type == GIT_VSUNI)
     fc->state->AddExState(fc->vsuni->FCEUVSUNI_STATEINFO(), ~0, 0, 0);
 
-  while (tmp->init) {
+  while (tmp->init != nullptr) {
     if (num == tmp->number) {
       // need here for compatibility with UNIF mapper code
       fc->unif->UNIFchrrama = 0;

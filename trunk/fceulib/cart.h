@@ -72,7 +72,9 @@ struct Cart {
   void FCEU_LoadGameSave(CartInfo *LocalHWInfo);
   void FCEU_ClearGameSave(CartInfo *LocalHWInfo);
 
-  // Each page is a pointer to 2k of memory. 
+  // Each page is a 2k chunk of memory, corresponding to the address
+  // (A >> 11), but located such that it is still indexed by A, not
+  // A & 2047. (TODO: verify, and maybe fix -tom7)
   uint8 *Page[32] = {};
   uint8 *VPage[8] = {};
   uint8 *MMC5SPRVPage[8] = {};
@@ -107,6 +109,18 @@ struct Cart {
   uint32 CHRmask4[32] = {};
   uint32 CHRmask8[32] = {};
 
+
+  // These functions perform bank switching. The versions without
+  // r just assume r=0. A is the base address that gets switched
+  // (this is basically always a constant at the call site). V
+  // is the value, which I think is like the bank number to
+  // select. (In UNROM, it's latch & 7. But note that in NROM
+  // it's a constant ~0! It gets anded with one of the PRGmasks,
+  // though.)
+  // 2, 4, 8, 16, 32 seem to refer to 2k, 4k, 8k, 16k and 32k banks.
+  //
+  // I haven't figured it out beyond that.
+  // -tom7
   void setprg2(uint32 A, uint32 V);
   void setprg4(uint32 A, uint32 V);
   void setprg8(uint32 A, uint32 V);

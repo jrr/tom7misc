@@ -26,6 +26,7 @@
 #include <string.h>
 #include <map>
 #include <string>
+#include <utility>
 #include "fceu.h"
 
 #include "fc.h"
@@ -76,8 +77,10 @@ struct INes {
   int32 iNESIRQLatch = 0;
   uint16 iNESCHRBankList[8] = {0};
   uint32 VROM_size = 0;
+  // Number of 16k blocks (0x4000 bytes). Rounds up 
   uint32 ROM_size = 0;
 
+  // 
   uint8 *ROM = nullptr;
   uint8 *VROM = nullptr;
 
@@ -105,7 +108,8 @@ struct INes {
   
   const INesTMasterRomInfo *MasterRomInfo = nullptr;
   std::map<std::string, std::string> MasterRomInfoParams;
-
+  std::pair<uint32, uint32> GetRoundedROMSize() const;
+  
   void (*MapClose)() = nullptr;
 
   void NONE_init();
