@@ -43,7 +43,7 @@ Cart::Cart(FC *fc) : fc(fc) {}
 
 void Cart::SetPagePtr(int s, uint32 A, uint8 *p, bool ram) {
   const uint32 AB = A >> 11;
-  if (0) printf("setpageptr %d %04x %p %s %02x\n",
+  if (0) printf("setpageptr %d %04x %p %s   AB: %d\n",
 		s, A, p, ram ? "RAM" : "not RAM", AB);
   
   if (p != nullptr) {
@@ -81,7 +81,7 @@ void Cart::ResetCartMapping() {
 }
 
 void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
-  if (0) printf("PRG chip %d -> %p (size %d, %s)\n", chip, p, size,
+  if (0) printf("Setup PRG chip %d -> %p (size %d, %s)\n", chip, p, size,
 		is_ram ? "RAM" : "not RAM");
   PRGptr[chip] = p;
   PRGsize[chip] = size;
@@ -116,7 +116,7 @@ DECLFR_RET Cart::CartBR(DECLFR_ARGS) {
 }
 
 DECLFR_RET Cart::CartBR_Direct(DECLFR_ARGS) {
-  // printf("Page ");
+  // printf("Read A=%x so Page %d = %p\n", A, A >> 11, Page[A >> 11]);
   // XXX: A bit disturbing that CartBW and BROB check that Page is
   // non-null, but here we just assume it's good? Maybe this is
   // the point of using BROB?
@@ -161,7 +161,15 @@ void Cart::setprg4(uint32 A, uint32 V) {
   setprg4r(0, A, V);
 }
 
+// Ah, these functions may be testing whether the chip is large
+// enough to be mapped directly. See how prg8r wants at least an 8k
+// chip, or otherwise breaks it into 2k chunks?
+// Similarly 16k and 32k for prg16 and prg32. -tom7
+// But why doesn't prg4 not need to do this? Because chips are
+// always at least 8k?
 void Cart::setprg8r(int r, unsigned int A, unsigned int V) {
+  if (0)printf("setprg8r r=%d A=%x V=%u %s\n", r, A, V,
+	       PRGsize[r] >= 8192 ? " (big)" : " (small)");
   if (PRGsize[r] >= 8192) {
     V &= PRGmask8[r];
     SetPagePtr(8, A, PRGptr[r] ? &PRGptr[r][V << 13] : 0, PRGram[r]);
@@ -179,6 +187,8 @@ void Cart::setprg8(uint32 A, uint32 V) {
 }
 
 void Cart::setprg16r(int r, unsigned int A, unsigned int V) {
+  if (0) printf("setprg16r r=%d A=%x V=%u %s\n", r, A, V,
+		PRGsize[r] >= 16384 ? " (big)" : " (small)");
   if (PRGsize[r] >= 16384) {
     V &= PRGmask16[r];
     SetPagePtr(16, A, PRGptr[r] ? (&PRGptr[r][V << 14]) : 0, PRGram[r]);

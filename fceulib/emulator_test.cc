@@ -58,14 +58,14 @@ struct Game {
   Game(const string &c, const vector<uint8> &i,
        uint64 al, uint64 ai, uint64 ar,
        uint64 iai, uint64 iar) :
-    cart(c), inputs(i), after_load(al), 
+    cart(c), inputs(i), after_load(al),
     after_inputs(ai), after_random(ar),
     image_after_inputs(iai), image_after_random(iar) {}
   Game(const string &c, const vector<uint8> &i,
        uint64 al, uint64 ai, uint64 ar,
        uint64 iai, uint64 iar,
        const string &seed) :
-    cart(c), inputs(i), after_load(al), 
+    cart(c), inputs(i), after_load(al),
     after_inputs(ai), after_random(ar),
     image_after_inputs(iai), image_after_random(iar),
     random_seed(seed) {}
@@ -160,7 +160,7 @@ struct Collage {
       cur.push_back(0xFF);
     }
   }
-  
+
   void Push(const vector<uint8> &screen) {
     CHECK(cur.size() == WIDTH * HEIGHT * 4);
     CHECK(screen.size() >= 256 * 240 * 4);
@@ -180,9 +180,9 @@ struct Collage {
     };
     for (int srcx = 0; srcx < 256; srcx++) {
       for (int srcy = 0; srcy < 240; srcy++) {
-	int dstx = nextx * 256 + srcx;
-	int dsty = nexty * 240 + srcy;
-	Write4(srcx, srcy, dstx, dsty);
+        int dstx = nextx * 256 + srcx;
+        int dsty = nexty * 240 + srcy;
+        Write4(srcx, srcy, dstx, dsty);
       }
     }
 
@@ -191,7 +191,7 @@ struct Collage {
       nextx = 0;
       nexty++;
       if (nexty >= NUMH) {
-	Flush();
+        Flush();
       }
     }
   }
@@ -199,13 +199,13 @@ struct Collage {
   // Only writes an image if there are any.
   void Flush() {
     if (nextx > 0 || nexty > 0) {
-      string filename = 
-	StringPrintf("%s-%d.png", filename_base.c_str(), file_number);
+      string filename =
+        StringPrintf("%s-%d.png", filename_base.c_str(), file_number);
       stbi_write_png(filename.c_str(), WIDTH, HEIGHT, 4, cur.data(),
-		     4 * WIDTH);
+                     4 * WIDTH);
       fprintf(stderr, "Flushed %d-image collage to %s.\n",
-	      nextx + nexty * NUMW,
-	      filename.c_str());
+              nextx + nexty * NUMW,
+              filename.c_str());
       file_number++;
     }
     nextx = 0;
@@ -226,17 +226,17 @@ struct SerialResult {
 
 #if 0
 template<class T> FreeInParallel(vector<T> *v) {
-  
+
 }
 #endif
 
 static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
-				    const Game &game) {
+                                    const Game &game) {
   // XXX
   auto Update = [](const string &s) {};
-  
+
   Update(StringPrintf("Running %s...", game.cart.c_str()));
-	 // printf("Testing %s...\n" , game.cart.c_str());
+         // printf("Testing %s...\n" , game.cart.c_str());
 # define CHECK_RAM(field) do {                       \
     const uint64 cx = emu->RamChecksum();            \
     CHECK_EQ(cx, (field))                            \
@@ -245,7 +245,7 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
   } while(0)
 
   TRACEF("Serially %s", game.cart.c_str());
-  
+
   // Once we've collected the states, we have not just the checksums
   // but the actual RAMs (in full mode), so we can print better
   // diagnostic messages. The argument i is the index into checksums
@@ -287,11 +287,11 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
       } else {                                                  \
         fprintf(stderr, "Run with --full to see details.\n");   \
       }                                                         \
-      TRACEF("(crashed)");					\
+      TRACEF("(crashed)");                                      \
       abort();                                                  \
     }                                                           \
   } while (0)
-  
+
   TRACEF("RunGameSerially %s.", game.cart.c_str());
 
   // Save files are being successfully written and loaded now. TODO(twm):
@@ -355,17 +355,17 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
     if (match) {
       fprintf(stderr, "Enabling tracing because of ram match %llu.\n", cx);
       TRACEF("RAM match %llu so tracing input [%s].",
-	     cx,
-	     SimpleFM2::InputToString(b).c_str());
+             cx,
+             SimpleFM2::InputToString(b).c_str());
     }
     emu->StepFull(b, 0);
   };
 
   int step_counter = 0;
   auto SaveAndStep = [&StepMaybeTraced, &step_counter,
-		      &game, &emu, &saves, &inputs, &checksums,
+                      &game, &emu, &saves, &inputs, &checksums,
                       &actual_rams, &images,
-		      &compressed_saves, &basis](uint8 b) {
+                      &compressed_saves, &basis](uint8 b) {
     TRACEF("Step %d: %s", step_counter, SimpleFM2::InputToString(b).c_str());
     step_counter++;
     vector<uint8> save;
@@ -405,7 +405,7 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
 
   for (uint8 b : InputStream("randoms", 10000)) SaveAndStep(b);
 
-	 
+
   // This is checked by the comprehensive driver, or should be.
   const uint64 ret2 = emu->RamChecksum();
   const uint64 iret2 = emu->ImageChecksum();
@@ -444,15 +444,15 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
     return b % max;
   };
 
-  auto DoSeekSpan = [&emu, &saves, &checksums, &inputs, 
-		     &actual_rams, &StepMaybeTraced](int seekto, int dist) {
+  auto DoSeekSpan = [&emu, &saves, &checksums, &inputs,
+                     &actual_rams, &StepMaybeTraced](int seekto, int dist) {
     // fprintf(stderr, "seekto %d dist %d\n", seekto, dist);
     emu->LoadUncompressed(saves[seekto]);
     CHECK_RAM(checksums[seekto]);
     for (int j = 0; j < dist; j++) {
       if (seekto + j + 1 < saves.size()) {
-	// fprintf(stderr, "  [ram %llu] Stepping to idx %d...\n", 
-	//         emu->RamChecksum(), seekto + j);
+        // fprintf(stderr, "  [ram %llu] Stepping to idx %d...\n",
+        //         emu->RamChecksum(), seekto + j);
         StepMaybeTraced(inputs[seekto + j]);
         CHECK_RAM(checksums[seekto + j + 1]);
       }
@@ -518,13 +518,13 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
 
   auto Progress = [&](const char *what) {
     Update(StringPrintf("delete vecs: %s %s %llu %s %s %llu %s",
-			VVSize(saves).c_str(),
-			VVSize(compressed_saves).c_str(),
-			8 * checksums.size(),
-			VVSize(actual_rams).c_str(),
-			VVSize(images).c_str(),
-			inputs.size(),
-			what));
+                        VVSize(saves).c_str(),
+                        VVSize(compressed_saves).c_str(),
+                        8 * checksums.size(),
+                        VVSize(actual_rams).c_str(),
+                        VVSize(images).c_str(),
+                        inputs.size(),
+                        what));
   };
 
   Progress("saves:");
@@ -539,7 +539,7 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
   VVClear(images);
   Progress("inputs:");
   inputs.clear();
-  
+
   Update("Return from RunGameSerially.");
   return sr;
 }
@@ -548,7 +548,7 @@ int main(int argc, char **argv) {
   string output_file;
   string romdir = "roms/";
   bool write_collage = true;
-  
+
   for (int i = 1; i < argc; i++) {
     string arg = argv[i];
     if (arg == "--full" || arg == "-full") {
@@ -561,7 +561,7 @@ int main(int argc, char **argv) {
       output_file = argv[i];
     } else if (arg == "--comprehensive" || arg == "-comprehensive") {
       CHECK(output_file.empty()) << "--output-file implies "
-	"make-comprehensive mode, which is not what --comprehensive does.";
+        "make-comprehensive mode, which is not what --comprehensive does.";
       FULL = true;
       COMPREHENSIVE = true;
       MAKE_COMPREHENSIVE = false;
@@ -575,10 +575,10 @@ int main(int argc, char **argv) {
       write_collage = false;
     }
   }
-  if (COMPREHENSIVE) { 
+  if (COMPREHENSIVE) {
     if (MAKE_COMPREHENSIVE) {
       fprintf(stderr, "Generating comprehensive file to %s!\n",
-	      output_file.c_str());
+              output_file.c_str());
     } else {
       fprintf(stderr, "Running COMPREHENSIVE tests!\n");
     }
@@ -648,7 +648,7 @@ int main(int argc, char **argv) {
   Game escape{
     "escape.nes",
     RLE::Decompress({
-      49, 0, 3, 8, 68, 0, 3, 8, 120, 0, 22, 128, 86, 0, 27, 128, 16, 129, 
+      49, 0, 3, 8, 68, 0, 3, 8, 120, 0, 22, 128, 86, 0, 27, 128, 16, 129,
       12, 128, 11, 130, 11, 128, 1, 0, 13, 64, 1, 0, 8, 128, 11, 129, 9,
       128, 9, 129, 14, 128, 2, 0, 8, 64, 0, 0, 2, 128, 2, 0, 12, 130, 128,
       0, 128, 0, 128, 0, 27, 0, 27, 128, 23, 130, 12, 128, 8, 0, 4, 128, 21,
@@ -664,7 +664,7 @@ int main(int argc, char **argv) {
   Game karate{
     "karate.nes",
     RLE::Decompress({
-      49, 0, 3, 8, 68, 0, 3, 8, 120, 0, 22, 128, 86, 0, 27, 128, 16, 129, 
+      49, 0, 3, 8, 68, 0, 3, 8, 120, 0, 22, 128, 86, 0, 27, 128, 16, 129,
       12, 128, 11, 130, 11, 128, 1, 0, 13, 64, 1, 0, 8, 128, 11, 129, 9,
       128, 9, 129, 14, 128, 2, 0, 8, 64, 0, 0, 2, 128, 2, 0, 12, 130, 128,
       0, 128, 0, 128, 0, 27, 0, 27, 128, 23, 130, 12, 128, 8, 0, 4, 128, 21,
@@ -807,7 +807,7 @@ int main(int argc, char **argv) {
       15120013139071261080ULL,
       };
   #endif
-  
+
   const int64 start_us = TimeUsec();
 
   TRACE_DISABLE();
@@ -818,7 +818,7 @@ int main(int argc, char **argv) {
     SerialResult sr = RunGameSerially([](const string &s) {}, game);
     if (write_collage) {
       if (!sr.final_image.empty()) {
-	collage.Push(sr.final_image);
+        collage.Push(sr.final_image);
       }
     }
     return sr;
@@ -829,7 +829,7 @@ int main(int argc, char **argv) {
   #if 1
   // Only run the intro tests for the first index in
   // sharded comprehensive mode.
-  if (!MAKE_COMPREHENSIVE) { 
+  if (!MAKE_COMPREHENSIVE) {
     RunGameToCollage(dw4);
 
     RunGameToCollage(karate);
@@ -845,7 +845,7 @@ int main(int argc, char **argv) {
     RunGameToCollage(kirby);
   }
   #endif
-  
+
   if (write_collage)
     collage.Flush();
 
@@ -861,7 +861,7 @@ int main(int argc, char **argv) {
     auto OneLine =
       [&romdir, &romlines, &results,
        &num_done, &done_mutex](std::function<void(const string &)> Update,
-			       int line_num, const string &orig_line) {
+                               int line_num, const string &orig_line) {
       string line = LoseWhiteL(orig_line);
       if (line.empty() || line[0] == '#') return;
       string a = Chop(line);
@@ -871,51 +871,51 @@ int main(int argc, char **argv) {
       string filename = LoseWhiteL(line);
 
       Update(StringPrintf("running %s", filename.c_str()));
-      
+
       if (!filename.empty()) {
         uint64 after_inputs, after_random,
-	  image_after_inputs, image_after_random;
+          image_after_inputs, image_after_random;
         stringstream(a) >> after_inputs;
         stringstream(b) >> after_random;
-	stringstream(c) >> image_after_inputs;
-	stringstream(d) >> image_after_random;
+        stringstream(c) >> image_after_inputs;
+        stringstream(d) >> image_after_random;
         Game game{
           romdir + filename,
             RLE::Decompress({ 101, 0, 4, 2, 3, 3, 2, 1, 50, 0, }),
             kEveryGameUponLoad,
             after_inputs,
             after_random,
-	    image_after_inputs,
-	    image_after_random,
+            image_after_inputs,
+            image_after_random,
             };
         const SerialResult sr = RunGameSerially(Update, game);
-	Update("About to grab done lock.");
-	{
-	  MutexLock ml(&done_mutex);
-	  
-	  // Easy enough to arrange for save parallel access to this
-	  // vector, but we're trying to exercise the emu code, not
-	  // the test harness.
-	  results[line_num] =
-	    StringPrintf("%llu %llu %llu %llu %s", 
-			 sr.after_inputs, sr.after_random,
-			 sr.image_after_inputs, sr.image_after_random,
-			 filename.c_str());
+        Update("About to grab done lock.");
+        {
+          MutexLock ml(&done_mutex);
 
-	  num_done++;
-	  fprintf(stderr, "Did %d/%d = %.1f%%.\n",
-		  num_done, (int)romlines.size(),
-		  num_done * 100. / romlines.size());
-	  // In this case we've already aborted (unless
-	  // MAKE_COMPREHENSIVE is set).
-	  if (sr.after_inputs != after_inputs ||
-	      sr.after_random != after_random ||
-	      sr.image_after_inputs != image_after_inputs ||
-	      sr.image_after_random != image_after_random) {
-	    fprintf(stderr, "(Note, didn't match last time: %s)\n",
-		    filename.c_str());
-	  }
-	}
+          // Easy enough to arrange for save parallel access to this
+          // vector, but we're trying to exercise the emu code, not
+          // the test harness.
+          results[line_num] =
+            StringPrintf("%llu %llu %llu %llu %s",
+                         sr.after_inputs, sr.after_random,
+                         sr.image_after_inputs, sr.image_after_random,
+                         filename.c_str());
+
+          num_done++;
+          fprintf(stderr, "Did %d/%d = %.1f%%.\n",
+                  num_done, (int)romlines.size(),
+                  num_done * 100. / romlines.size());
+          // In this case we've already aborted (unless
+          // MAKE_COMPREHENSIVE is set).
+          if (sr.after_inputs != after_inputs ||
+              sr.after_random != after_random ||
+              sr.image_after_inputs != image_after_inputs ||
+              sr.image_after_random != image_after_random) {
+            fprintf(stderr, "(Note, didn't match last time: %s)\n",
+                    filename.c_str());
+          }
+        }
       }
     };
 
@@ -932,70 +932,70 @@ int main(int argc, char **argv) {
       vector<string> status(max_concurrency, " ** never updated ** ");
 
       const int num_romlines = romlines.size();
-      
-      auto th = [&OneLine, &romlines, &index_m, &next_index,
-		 &status_m, &status, num_romlines](int thread_id) {
-	for (;;) {
-	  index_m.lock();
-	  if (next_index == num_romlines) {
-	    // All done. Don't increment counter so that other threads can
-	    // notice this too.
-	    index_m.unlock();
-	    return;
-	  }
-	  int my_index = next_index++;
-	  index_m.unlock();
 
-	  // Update just redraws the whole status message.
-	  std::function<void(const string &)> Update =
-	  [&status_m, &status, thread_id, my_index,
-	   &index_m, &next_index, num_romlines](const string &s) {
-	    const int done = ReadWithLock(&index_m, &next_index);
-	    MutexLock ml(&status_m);
-	    status[thread_id] = StringPrintf(ANSI_CYAN "%3d"
-					     ANSI_RESET " : %s",
-					     my_index, s.c_str());
-	    // If ANSI is available, clear screen.
-	    printf("\n" ANSI_CLS
-		   "--------------------------------------------------\n"
-		   "   Finished " ANSI_GREEN "%d" ANSI_RESET "/%d (%.2f%%)\n"
-		   "--------------------------------------------------\n",
-		   done, num_romlines, (done * 100.0) / num_romlines);
-	    for (int i = 0; i < status.size(); i++) {
-	      printf(ANSI_YELLOW "%2d. "
-		     ANSI_RESET " %s\n", i, status[i].c_str());
-	    }
-	  };
-	  
-	  // Do work, not holding mutex.
-	  OneLine(Update, my_index, romlines[my_index]);
-	}
+      auto th = [&OneLine, &romlines, &index_m, &next_index,
+                 &status_m, &status, num_romlines](int thread_id) {
+        for (;;) {
+          index_m.lock();
+          if (next_index == num_romlines) {
+            // All done. Don't increment counter so that other threads can
+            // notice this too.
+            index_m.unlock();
+            return;
+          }
+          int my_index = next_index++;
+          index_m.unlock();
+
+          // Update just redraws the whole status message.
+          std::function<void(const string &)> Update =
+          [&status_m, &status, thread_id, my_index,
+           &index_m, &next_index, num_romlines](const string &s) {
+            const int done = ReadWithLock(&index_m, &next_index);
+            MutexLock ml(&status_m);
+            status[thread_id] = StringPrintf(ANSI_CYAN "%3d"
+                                             ANSI_RESET " : %s",
+                                             my_index, s.c_str());
+            // If ANSI is available, clear screen.
+            printf("\n" ANSI_CLS
+                   "--------------------------------------------------\n"
+                   "   Finished " ANSI_GREEN "%d" ANSI_RESET "/%d (%.2f%%)\n"
+                   "--------------------------------------------------\n",
+                   done, num_romlines, (done * 100.0) / num_romlines);
+            for (int i = 0; i < status.size(); i++) {
+              printf(ANSI_YELLOW "%2d. "
+                     ANSI_RESET " %s\n", i, status[i].c_str());
+            }
+          };
+
+          // Do work, not holding mutex.
+          OneLine(Update, my_index, romlines[my_index]);
+        }
       };
 
       std::vector<std::thread> threads;
       threads.reserve(max_concurrency);
       for (int i = 0; i < max_concurrency; i++) {
-	threads.emplace_back([i, th](){ th(i); });
+        threads.emplace_back([i, th](){ th(i); });
       }
       // Now just wait for them all to finish.
       for (std::thread &t : threads) t.join();
     }
-    
+
     // ParallelAppi(romlines, OneLine, 10);
-    
+
     // We write this each time we run the comprehensive test because
     // it's so expensive anyway.
     if (output_file.empty())
       output_file = "comprehensive.txt";
 
     fprintf(stderr, "Writing %d results to %s...\n", (int)results.size(),
-	    output_file.c_str());
+            output_file.c_str());
     FILE *out = fopen(output_file.c_str(), "wb");
     CHECK(out != nullptr) << "Unable to open file " << output_file;
     for (const string &line : results) {
       fprintf(out, "%s\n", line.c_str());
     }
-    
+
     fclose(out);
     if (write_collage) {
       collage.Flush();

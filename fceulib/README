@@ -4,6 +4,9 @@ As of 7 Sep 2015, we have here:
 
  - The modernization I did for the Learnfun & Playfun project
    (../tasbot/) and major culling of unnecessary parts of FCEU.
+ - Some internal documention to explain how the emulator works.
+   Many parts are still mysterious to me, even after ~100 hours
+   with this code...!
  - Transformed all of the modules into objects so they don't read
    and write global variables. Gosh, this was a huge pain in the ass!
    If you use this you may owe me a beer!
@@ -20,7 +23,9 @@ have repeatable behavior. This may not matter for your application, so
 go to town!
 
 Note that this port requires C++11 and I have only tested 64-bit builds.
-I am using x86_64-w64-mingw32-g++, which is GCC 4.9.2.
+I am using the TDM version of GCC, at version 5.1.0.
+I previously used x86_64-w64-mingw32-g++ (GCC 4.9.2) but it lacked
+various C++11 support and I could not make it work with threads.
 
 All of the code in this directory is licensed under the terms of the
 GNU General Public License, which is contained in the file COPYING.
