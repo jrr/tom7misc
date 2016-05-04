@@ -16,8 +16,6 @@ $ "/c/Program Files (x86)/Microsoft Concurrency Visualizer Collection Tools/CVCo
       A little left over in:
       ines.cc  ..?
 
- - is "moo" defined? mappers/61.cc ifdefs it
-
 Can get rid of:
  - ines.cpp "trainerpoo"
  - file wrappers can be massively simplified

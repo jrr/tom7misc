@@ -80,10 +80,24 @@ struct INes {
   // Number of 16k blocks (0x4000 bytes). Rounds up 
   uint32 ROM_size = 0;
 
-  // 
+  // Actual ROM and video ROM read directly from file.
   uint8 *ROM = nullptr;
   uint8 *VROM = nullptr;
 
+  // These perform bank switching, but I'm not sure how they're related
+  // to the ones in Cart. Perhaps these are only for old-style mappers?
+  // TODO: Maybe should be members of INes.
+  void VRAM_BANK1(uint32 A, uint8 V);
+  void VRAM_BANK4(uint32 A, uint32 V);
+
+  void VROM_BANK1(uint32 A, uint32 V);
+  void VROM_BANK2(uint32 A, uint32 V);
+  void VROM_BANK4(uint32 A, uint32 V);
+  void VROM_BANK8(uint32 V);
+  void ROM_BANK8(uint32 A, uint32 V);
+  void ROM_BANK16(uint32 A, uint32 V);
+  void ROM_BANK32(uint32 V);
+  
  private:
   struct OldCartiface;
   
@@ -155,18 +169,6 @@ struct INes {
 #define GMB_mapbyte4(fc)       (GMB_mapbyte3(fc) + 8)
 
 #endif  // INESPRIV
-
-// TODO: Maybe should be members of INes.
-void VRAM_BANK1(FC *fc, uint32 A, uint8 V);
-void VRAM_BANK4(FC *fc, uint32 A, uint32 V);
-
-void VROM_BANK1(FC *fc, uint32 A, uint32 V);
-void VROM_BANK2(FC *fc, uint32 A, uint32 V);
-void VROM_BANK4(FC *fc, uint32 A, uint32 V);
-void VROM_BANK8(FC *fc, uint32 V);
-void ROM_BANK8(FC *fc, uint32 A, uint32 V);
-void ROM_BANK16(FC *fc, uint32 A, uint32 V);
-void ROM_BANK32(FC *fc, uint32 V);
 
 // This list is pretty weird, I guess part of some transition
 // to the capital-i Init methods. Many of these are not even

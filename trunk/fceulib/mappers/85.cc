@@ -24,7 +24,7 @@
 #define vrctemp GMB_mapbyte1(fc)[0]
 
 namespace {
-struct Mapper85 : public MapInterface {
+struct Mapper85 final : public MapInterface {
   using MapInterface::MapInterface;
   
   uint8 indox = 0;
@@ -149,7 +149,7 @@ struct Mapper85 : public MapInterface {
     }
   }
 
-  void StateRestore(int version) override {
+  void StateRestore(int version) final override {
     if (version < 7200) {
       for (int x = 0; x < 8; x++) {
 	GMB_mapbyte3(fc)[x] =

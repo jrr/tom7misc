@@ -21,8 +21,8 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper80Base : public MapInterface {
-  const bool isfu = false;
+template<bool isfu>
+struct Mapper80Base final : public MapInterface {
   uint32 lastA = 0;
   uint8 CCache[8] = {};
   int ppu_last = -1;
@@ -59,33 +59,33 @@ struct Mapper80Base : public MapInterface {
     switch (A) {
     case 0x7ef0:
       GMB_mapbyte2(fc)[0] = V;
-      VROM_BANK2(fc, 0x0000, (V >> 1) & 0x3F);
+      fc->ines->VROM_BANK2(0x0000, (V >> 1) & 0x3F);
       mira();
       break;
     case 0x7ef1:
       GMB_mapbyte2(fc)[1] = V;
-      VROM_BANK2(fc, 0x0800, (V >> 1) & 0x3f);
+      fc->ines->VROM_BANK2(0x0800, (V >> 1) & 0x3f);
       mira();
       break;
 
     case 0x7ef2:
       GMB_mapbyte2(fc)[2] = V;
-      VROM_BANK1(fc, 0x1000, V);
+      fc->ines->VROM_BANK1(0x1000, V);
       mira();
       break;
     case 0x7ef3:
       GMB_mapbyte2(fc)[3] = V;
-      VROM_BANK1(fc, 0x1400, V);
+      fc->ines->VROM_BANK1(0x1400, V);
       mira();
       break;
     case 0x7ef4:
       GMB_mapbyte2(fc)[4] = V;
-      VROM_BANK1(fc, 0x1800, V);
+      fc->ines->VROM_BANK1(0x1800, V);
       mira();
       break;
     case 0x7ef5:
       GMB_mapbyte2(fc)[5] = V;
-      VROM_BANK1(fc, 0x1c00, V);
+      fc->ines->VROM_BANK1(0x1c00, V);
       mira();
       break;
     case 0x7ef6:
@@ -93,11 +93,11 @@ struct Mapper80Base : public MapInterface {
       mira();
       break;
     case 0x7efa:
-    case 0x7efb: ROM_BANK8(fc, 0x8000, V); break;
+    case 0x7efb: fc->ines->ROM_BANK8(0x8000, V); break;
     case 0x7efd:
-    case 0x7efc: ROM_BANK8(fc, 0xA000, V); break;
+    case 0x7efc: fc->ines->ROM_BANK8(0xA000, V); break;
     case 0x7efe:
-    case 0x7eff: ROM_BANK8(fc, 0xC000, V); break;
+    case 0x7eff: fc->ines->ROM_BANK8(0xC000, V); break;
     }
   }
 
@@ -105,7 +105,7 @@ struct Mapper80Base : public MapInterface {
     mira();
   }
 
-  Mapper80Base(FC *fc, bool isfu) : MapInterface(fc), isfu(isfu) {
+  Mapper80Base(FC *fc) : MapInterface(fc) {
     // 7f00-7fff battery backed ram inside mapper chip,
     // controlled by 7ef8 register, A8 - enable, FF - disable (?)
     fc->fceu->SetWriteHandler(0x4020, 0x7eff, [](DECLFW_ARGS) {
@@ -116,12 +116,13 @@ struct Mapper80Base : public MapInterface {
 }
 
 MapInterface *Mapper80_init(FC *fc) {
-  return new Mapper80Base(fc, false);
+  return new Mapper80Base<false>(fc);
 }
 
 MapInterface *Mapper207_init(FC *fc) {
+  using C = Mapper80Base<true>;
   fc->ppu->PPU_hook = [](FC *fc, uint32 a) {
-    ((Mapper80Base *)fc->fceu->mapiface)->Fudou_PPU(a);
+    ((C *)fc->fceu->mapiface)->Fudou_PPU(a);
   };
-  return new Mapper80Base(fc, true);
+  return new C(fc);
 }

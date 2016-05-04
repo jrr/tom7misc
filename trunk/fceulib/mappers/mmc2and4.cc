@@ -25,7 +25,7 @@
 #define latcha2 GMB_mapbyte2(fc)[1]
 
 namespace {
-struct MMC2and4 : public MapInterface {
+struct MMC2and4 final : public MapInterface {
   using MapInterface::MapInterface;
   
   void latchcheck(uint32 VAddr) {
@@ -37,18 +37,18 @@ struct MMC2and4 : public MapInterface {
 
     if (h < 0x10) {
       if (l == 0xD0) {
-	VROM_BANK4(fc, 0x0000, MMC4reg[0]);
+	fc->ines->VROM_BANK4(0x0000, MMC4reg[0]);
 	latcha1 = 0xFD;
       } else if (l == 0xE0) {
-	VROM_BANK4(fc, 0x0000, MMC4reg[1]);
+	fc->ines->VROM_BANK4(0x0000, MMC4reg[1]);
 	latcha1 = 0xFE;
       }
     } else {
       if (l == 0xD0) {
-	VROM_BANK4(fc, 0x1000, MMC4reg[2]);
+	fc->ines->VROM_BANK4(0x1000, MMC4reg[2]);
 	latcha2 = 0xFD;
       } else if (l == 0xE0) {
-	VROM_BANK4(fc, 0x1000, MMC4reg[3]);
+	fc->ines->VROM_BANK4(0x1000, MMC4reg[3]);
 	latcha2 = 0xFE;
       }
     }
@@ -56,36 +56,36 @@ struct MMC2and4 : public MapInterface {
 
   // $Axxx
   void Mapper9_write(DECLFW_ARGS) {
-    ROM_BANK8(fc, 0x8000, V);
+    fc->ines->ROM_BANK8(0x8000, V);
   }
 
   void Mapper10_write(DECLFW_ARGS) {
-    ROM_BANK16(fc, 0x8000, V);
+    fc->ines->ROM_BANK16(0x8000, V);
   }
 
   void Mapper9and10_write(DECLFW_ARGS) {
     switch (A & 0xF000) {
     case 0xB000:
       if (latcha1 == 0xFD) {
-	VROM_BANK4(fc, 0x0000, V);
+	fc->ines->VROM_BANK4(0x0000, V);
       }
       MMC4reg[0] = V;
       break;
     case 0xC000:
       if (latcha1 == 0xFE) {
-	VROM_BANK4(fc, 0x0000, V);
+	fc->ines->VROM_BANK4(0x0000, V);
       }
       MMC4reg[1] = V;
       break;
     case 0xD000:
       if (latcha2 == 0xFD) {
-	VROM_BANK4(fc, 0x1000, V);
+	fc->ines->VROM_BANK4(0x1000, V);
       }
       MMC4reg[2] = V;
       break;
     case 0xE000:
       if (latcha2 == 0xFE) {
-	VROM_BANK4(fc, 0x1000, V);
+	fc->ines->VROM_BANK4(0x1000, V);
       }
       MMC4reg[3] = V;
       break;
@@ -102,8 +102,8 @@ MapInterface *Mapper9_init(FC *fc) {
   MMC2and4 *m = new MMC2and4(fc);
   latcha1 = 0xFE;
   latcha2 = 0xFE;
-  ROM_BANK8(fc, 0xA000, ~2);
-  ROM_BANK8(fc, 0x8000, 0);
+  fc->ines->ROM_BANK8(0xA000, ~2);
+  fc->ines->ROM_BANK8(0x8000, 0);
   fc->fceu->SetWriteHandler(0xA000, 0xAFFF, [](DECLFW_ARGS) {
     ((MMC2and4*)fc->fceu->mapiface)->Mapper9_write(DECLFW_FORWARD);
   });

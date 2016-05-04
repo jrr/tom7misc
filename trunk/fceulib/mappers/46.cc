@@ -25,19 +25,19 @@
 
 static DECLFW(Mapper46_writel) {
   A64reg = V;
-  ROM_BANK32(fc, (A64wr & 1) + ((A64reg & 0xF) << 1));
-  VROM_BANK8(fc, ((A64wr >> 4) & 7) + ((A64reg & 0xF0) >> 1));
+  fc->ines->ROM_BANK32((A64wr & 1) + ((A64reg & 0xF) << 1));
+  fc->ines->VROM_BANK8(((A64wr >> 4) & 7) + ((A64reg & 0xF0) >> 1));
 }
 
 static DECLFW(Mapper46_write) {
   A64wr = V;
-  ROM_BANK32(fc, (V & 1) + ((A64reg & 0xF) << 1));
-  VROM_BANK8(fc, ((V >> 4) & 7) + ((A64reg & 0xF0) >> 1));
+  fc->ines->ROM_BANK32((V & 1) + ((A64reg & 0xF) << 1));
+  fc->ines->VROM_BANK8(((V >> 4) & 7) + ((A64reg & 0xF0) >> 1));
 }
 
 MapInterface *Mapper46_init(FC *fc) {
   fc->ines->MIRROR_SET(0);
-  ROM_BANK32(fc, 0);
+  fc->ines->ROM_BANK32(0);
   fc->fceu->SetWriteHandler(0x8000, 0xffff, Mapper46_write);
   fc->fceu->SetWriteHandler(0x6000, 0x7fff, Mapper46_writel);
   return new MapInterface(fc);

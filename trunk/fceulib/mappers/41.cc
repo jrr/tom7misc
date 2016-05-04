@@ -24,21 +24,21 @@
 #define calchr GMB_mapbyte1(fc)[1]
 
 namespace {
-struct Mapper41 : public MapInterface {
+struct Mapper41 final : public MapInterface {
   using MapInterface::MapInterface;
   
   void Mapper41_write(DECLFW_ARGS) {
     if (A < 0x8000) {
-      ROM_BANK32(fc, A & 7);
+      fc->ines->ROM_BANK32(A & 7);
       fc->ines->MIRROR_SET((A >> 5) & 1);
       calreg = A;
       calchr &= 0x3;
       calchr |= (A >> 1) & 0xC;
-      VROM_BANK8(fc, calchr);
+      fc->ines->VROM_BANK8(calchr);
     } else if (calreg & 0x4) {
       calchr &= 0xC;
       calchr |= A & 3;
-      VROM_BANK8(fc, calchr);
+      fc->ines->VROM_BANK8(calchr);
     }
   }
 
@@ -49,7 +49,7 @@ struct Mapper41 : public MapInterface {
 }
 
 MapInterface *Mapper41_init(FC *fc) {
-  ROM_BANK32(fc, 0);
+  fc->ines->ROM_BANK32(0);
   fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
     ((Mapper41*)fc->fceu->mapiface)->Mapper41_write(DECLFW_FORWARD);
   });

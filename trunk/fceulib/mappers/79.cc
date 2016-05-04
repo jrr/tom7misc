@@ -23,13 +23,13 @@
 
 static DECLFW(Mapper79_write) {
   if (A < 0x8000 && ((A ^ 0x4100) == 0)) {
-    ROM_BANK32(fc, (V >> 3) & 1);
+    fc->ines->ROM_BANK32((V >> 3) & 1);
   }
-  VROM_BANK8(fc, V);
+  fc->ines->VROM_BANK8(V);
 }
 
 MapInterface *Mapper79_init(FC *fc) {
-  ROM_BANK32(fc, ~0);
+  fc->ines->ROM_BANK32(~0);
   fc->fceu->SetWriteHandler(0x8000, 0xffff, Mapper79_write);
   fc->fceu->SetWriteHandler(0x4020, 0x5fff, Mapper79_write);
   return new MapInterface(fc);

@@ -38,7 +38,7 @@ static DECLFW(Mapper65_write) {
     // default: printf("$%04x:$%02x\n",A,V);
     //        break;
   case 0x8000:
-    ROM_BANK8(fc, 0x8000, V);
+    fc->ines->ROM_BANK8(0x8000, V);
     break;
     // case
     // 0x9000:printf("$%04x:$%02x\n",A,V);fc->ines->MIRROR_SET2((V>>6)&1);break;
@@ -58,16 +58,16 @@ static DECLFW(Mapper65_write) {
     fc->ines->iNESIRQLatch &= 0xFF00;
     fc->ines->iNESIRQLatch |= V;
     break;
-  case 0xB000: VROM_BANK1(fc, 0x0000, V); break;
-  case 0xB001: VROM_BANK1(fc, 0x0400, V); break;
-  case 0xB002: VROM_BANK1(fc, 0x0800, V); break;
-  case 0xB003: VROM_BANK1(fc, 0x0C00, V); break;
-  case 0xB004: VROM_BANK1(fc, 0x1000, V); break;
-  case 0xB005: VROM_BANK1(fc, 0x1400, V); break;
-  case 0xB006: VROM_BANK1(fc, 0x1800, V); break;
-  case 0xB007: VROM_BANK1(fc, 0x1C00, V); break;
-  case 0xa000: ROM_BANK8(fc, 0xA000, V); break;
-  case 0xC000: ROM_BANK8(fc, 0xC000, V); break;
+  case 0xB000: fc->ines->VROM_BANK1(0x0000, V); break;
+  case 0xB001: fc->ines->VROM_BANK1(0x0400, V); break;
+  case 0xB002: fc->ines->VROM_BANK1(0x0800, V); break;
+  case 0xB003: fc->ines->VROM_BANK1(0x0C00, V); break;
+  case 0xB004: fc->ines->VROM_BANK1(0x1000, V); break;
+  case 0xB005: fc->ines->VROM_BANK1(0x1400, V); break;
+  case 0xB006: fc->ines->VROM_BANK1(0x1800, V); break;
+  case 0xB007: fc->ines->VROM_BANK1(0x1C00, V); break;
+  case 0xa000: fc->ines->ROM_BANK8(0xA000, V); break;
+  case 0xC000: fc->ines->ROM_BANK8(0xC000, V); break;
   }
   // fc->ines->MIRROR_SET2(1);
 }

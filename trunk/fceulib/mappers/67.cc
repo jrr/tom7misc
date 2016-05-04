@@ -25,7 +25,7 @@
 static DECLFW(Mapper67_write) {
   A &= 0xF800;
   if ((A & 0x800) && A <= 0xb800) {
-    VROM_BANK2(fc, (A - 0x8800) >> 1, V);
+    fc->ines->VROM_BANK2((A - 0x8800) >> 1, V);
   } else {
     switch (A) {
     case 0xc800:
@@ -53,7 +53,7 @@ static DECLFW(Mapper67_write) {
       case 3: fc->ines->onemir(1); break;
       }
       break;
-    case 0xf800: ROM_BANK16(fc, 0x8000, V); break;
+    case 0xf800: fc->ines->ROM_BANK16(0x8000, V); break;
     }
   }
 }

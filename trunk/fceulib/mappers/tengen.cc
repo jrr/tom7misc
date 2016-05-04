@@ -19,12 +19,9 @@
  */
 
 #include "mapinc.h"
-#include <vector>
-
-using namespace std;
 
 namespace {
-struct Tengen : public MapInterface {
+struct Tengen final : public MapInterface {
 
   uint8 cmd = 0, mir = 0, rmode = 0, IRQmode = 0;
   uint8 DRegs[11] = {};
@@ -121,7 +118,7 @@ struct Tengen : public MapInterface {
     }
   }
 
-  void StateRestore(int version) override {
+  void StateRestore(int version) final override {
     Synco();
     //  if (!nomirror)
     fc->cart->setmirror(mir ^ 1);
@@ -161,32 +158,3 @@ MapInterface *Mapper64_init(FC *fc) {
   //  nomirror=0;
   return new Tengen(fc);
 }
-
-/*
-int MirCache[8];
-unsigned int PPUCHRBus;
-
-static void MirWrap(unsigned int A, unsigned int V)
-{
-  MirCache[A>>10]=(V>>7)&1;
-  if (PPUCHRBus==(A>>10))
-    setmirror(MI_0+((V>>7)&1));
-  setchr1(A,V);
-}
-
-static void MirrorFear(uint32 A)
-{
-  A&=0x1FFF;
-  A>>=10;
-  PPUCHRBus=A;
-  setmirror(MI_0+MirCache[A]);
-}
-
-void Mapper158_init()
-{
-  setchr1wrap=MirWrap;
-  PPU_hook=MirrorFear;
-  nomirror=1;
-  RAMBO1_init();
-}
-*/
