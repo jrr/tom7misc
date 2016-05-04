@@ -21,8 +21,9 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper24and26 : public MapInterface {
-  const bool swaparoo;
+template<bool swaparoo>
+struct Mapper24and26 final : public MapInterface {
+  using MapInterface::MapInterface;
 
   void (Mapper24and26::*sfun[3])() = {nullptr, nullptr, nullptr};
 
@@ -76,7 +77,7 @@ struct Mapper24and26 : public MapInterface {
     //        if (A>=0xF000) printf("%d, %d,
     //        $%04x:$%02x\n",scanline,timestamp,A,V);
     switch (A & 0xF003) {
-    case 0x8000: ROM_BANK16(fc, 0x8000, V); break;
+    case 0x8000: fc->ines->ROM_BANK16(0x8000, V); break;
     case 0xB003:
       switch (V & 0xF) {
       case 0x0: fc->ines->MIRROR_SET2(1); break;
@@ -85,15 +86,15 @@ struct Mapper24and26 : public MapInterface {
       case 0xC: fc->ines->onemir(1); break;
       }
       break;
-    case 0xC000: ROM_BANK8(fc, 0xC000, V); break;
-    case 0xD000: VROM_BANK1(fc, 0x0000, V); break;
-    case 0xD001: VROM_BANK1(fc, 0x0400, V); break;
-    case 0xD002: VROM_BANK1(fc, 0x0800, V); break;
-    case 0xD003: VROM_BANK1(fc, 0x0c00, V); break;
-    case 0xE000: VROM_BANK1(fc, 0x1000, V); break;
-    case 0xE001: VROM_BANK1(fc, 0x1400, V); break;
-    case 0xE002: VROM_BANK1(fc, 0x1800, V); break;
-    case 0xE003: VROM_BANK1(fc, 0x1c00, V); break;
+    case 0xC000: fc->ines->ROM_BANK8(0xC000, V); break;
+    case 0xD000: fc->ines->VROM_BANK1(0x0000, V); break;
+    case 0xD001: fc->ines->VROM_BANK1(0x0400, V); break;
+    case 0xD002: fc->ines->VROM_BANK1(0x0800, V); break;
+    case 0xD003: fc->ines->VROM_BANK1(0x0c00, V); break;
+    case 0xE000: fc->ines->VROM_BANK1(0x1000, V); break;
+    case 0xE001: fc->ines->VROM_BANK1(0x1400, V); break;
+    case 0xE002: fc->ines->VROM_BANK1(0x1800, V); break;
+    case 0xE003: fc->ines->VROM_BANK1(0x1c00, V); break;
     case 0xF000:
       fc->ines->iNESIRQLatch = V;
       // acount=0;
@@ -130,9 +131,8 @@ struct Mapper24and26 : public MapInterface {
 	for (V = start; V < end; V++) fc->sound->Wave[V >> 4] += amp;
       } else {
 	int32 thresh = (VPSG(fc)[x << 2] >> 4) & 7;
-	int32 freq =
-	    ((VPSG(fc)[(x << 2) | 0x1] | ((VPSG(fc)[(x << 2) | 0x2] & 15) << 8)) + 1)
-	    << 17;
+	int32 freq = ((VPSG(fc)[(x << 2) | 0x1] |
+		       ((VPSG(fc)[(x << 2) | 0x2] & 15) << 8)) + 1) << 17;
 	for (V = start; V < end; V++) {
 	  /* Greater than, not >=.  Important. */
 	  if (dcount[x] > thresh) fc->sound->Wave[V >> 4] += amp;
@@ -298,31 +298,31 @@ struct Mapper24and26 : public MapInterface {
     }
   }
 
-  Mapper24and26(FC *fc, bool swaparoo) : MapInterface(fc), swaparoo(swaparoo) {
-  }
 };
 }
 
 MapInterface *Mapper24_init(FC *fc) {
-  Mapper24and26 *m = new Mapper24and26(fc, false);
+  using C = Mapper24and26<false>;
+  C *m = new C(fc);
   fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
-    ((Mapper24and26*)fc->fceu->mapiface)->Mapper24_write(DECLFW_FORWARD);
+    ((C*)fc->fceu->mapiface)->Mapper24_write(DECLFW_FORWARD);
   });
   m->VRC6_ESI();
   fc->X->MapIRQHook = [](FC *fc, int a) {
-    ((Mapper24and26 *)fc->fceu->mapiface)->KonamiIRQHook(a);
+    ((C *)fc->fceu->mapiface)->KonamiIRQHook(a);
   };
   return m;
 }
 
 MapInterface *Mapper26_init(FC *fc) {
-  Mapper24and26 *m = new Mapper24and26(fc, true);
+  using C = Mapper24and26<true>;
+  C *m = new C(fc);
   fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
-    ((Mapper24and26*)fc->fceu->mapiface)->Mapper24_write(DECLFW_FORWARD);
+    ((C*)fc->fceu->mapiface)->Mapper24_write(DECLFW_FORWARD);
   });
   m->VRC6_ESI();
   fc->X->MapIRQHook = [](FC *fc, int a) {
-    ((Mapper24and26 *)fc->fceu->mapiface)->KonamiIRQHook(a);
+    ((C *)fc->fceu->mapiface)->KonamiIRQHook(a);
   };
   return m;
 }
@@ -330,10 +330,11 @@ MapInterface *Mapper26_init(FC *fc) {
 #if 0
 // NSF disabled. -tom7
 MapInterface *NSFVRC6_Init(FC *fc) {
-  Mapper24and26 *m = new Mapper24and26(fc, false);
+  using C = Mapper24and26<false>;
+  C *m = new C(fc);
   m->VRC6_ESI();
   fc->fceu->SetWriteHandler(0x8000, 0xbfff, [](DECLFW_ARGS) {
-    ((Mapper24and26*)fc->fceu->mapinterface)->VRC6SW(DECLFW_FORWARD);
+    ((C*)fc->fceu->mapinterface)->VRC6SW(DECLFW_FORWARD);
   });
 }
 #endif

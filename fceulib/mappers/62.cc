@@ -21,17 +21,17 @@
 #include "mapinc.h"
 
 static DECLFW(Mapper62_write) {
-  VROM_BANK8(fc, ((A & 0x1F) << 2) | (V & 0x03));
+  fc->ines->VROM_BANK8(((A & 0x1F) << 2) | (V & 0x03));
   if (A & 0x20) {
-    ROM_BANK16(fc, 0x8000, (A & 0x40) | ((A >> 8) & 0x3F));
-    ROM_BANK16(fc, 0xc000, (A & 0x40) | ((A >> 8) & 0x3F));
+    fc->ines->ROM_BANK16(0x8000, (A & 0x40) | ((A >> 8) & 0x3F));
+    fc->ines->ROM_BANK16(0xc000, (A & 0x40) | ((A >> 8) & 0x3F));
   } else
-    ROM_BANK32(fc, ((A & 0x40) | ((A >> 8) & 0x3F)) >> 1);
+    fc->ines->ROM_BANK32(((A & 0x40) | ((A >> 8) & 0x3F)) >> 1);
   fc->ines->MIRROR_SET((A & 0x80) >> 7);
 }
 
 MapInterface *Mapper62_init(FC *fc) {
   fc->fceu->SetWriteHandler(0x8000, 0xffff, Mapper62_write);
-  ROM_BANK32(fc, 0);
+  fc->ines->ROM_BANK32(0);
   return new MapInterface(fc);
 }

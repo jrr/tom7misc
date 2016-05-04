@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper40 : public MapInterface {
+struct Mapper40 final : public MapInterface {
   using MapInterface::MapInterface;
 
   void Mapper40_write(DECLFW_ARGS) {
@@ -32,7 +32,7 @@ struct Mapper40 : public MapInterface {
       fc->X->IRQEnd(FCEU_IQEXT);
       break;
     case 0xa000: fc->ines->iNESIRQa = 1; break;
-    case 0xe000: ROM_BANK8(fc, 0xc000, V & 7); break;
+    case 0xe000: fc->ines->ROM_BANK8(0xc000, V & 7); break;
     }
   }
 
@@ -51,9 +51,9 @@ struct Mapper40 : public MapInterface {
   
 MapInterface *Mapper40_init(FC *fc) {
   Mapper40 *m = new Mapper40(fc);
-  ROM_BANK8(fc, 0x6000, (~0) - 1);
-  ROM_BANK8(fc, 0x8000, (~0) - 3);
-  ROM_BANK8(fc, 0xa000, (~0) - 2);
+  fc->ines->ROM_BANK8(0x6000, (~0) - 1);
+  fc->ines->ROM_BANK8(0x8000, (~0) - 3);
+  fc->ines->ROM_BANK8(0xa000, (~0) - 2);
   fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
     ((Mapper40*)fc->fceu->mapiface)->Mapper40_write(DECLFW_FORWARD);
   });

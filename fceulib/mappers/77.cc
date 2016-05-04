@@ -23,21 +23,21 @@
 /* Original code provided by LULU */
 
 namespace {
-struct Mapper77 : public MapInterface {
+struct Mapper77 final : public MapInterface {
   using MapInterface::MapInterface;
 
   void Mapper77_write(DECLFW_ARGS) {
     GMB_mapbyte1(fc)[0] = V;
-    ROM_BANK32(fc, V & 0x7);
-    VROM_BANK2(fc, 0x0000, (V & 0xf0) >> 4);
+    fc->ines->ROM_BANK32(V & 0x7);
+    fc->ines->VROM_BANK2(0x0000, (V & 0xf0) >> 4);
   }
 
-  void StateRestore(int version) override {
+  void StateRestore(int version) final override {
     if (version >= 7200) {
-      ROM_BANK32(fc, GMB_mapbyte1(fc)[0] & 0x7);
-      VROM_BANK2(fc, 0x0000, (GMB_mapbyte1(fc)[0] & 0xf0) >> 4);
+      fc->ines->ROM_BANK32(GMB_mapbyte1(fc)[0] & 0x7);
+      fc->ines->VROM_BANK2(0x0000, (GMB_mapbyte1(fc)[0] & 0xf0) >> 4);
     }
-    for (int x = 2; x < 8; x++) VRAM_BANK1(fc, x * 0x400, x);
+    for (int x = 2; x < 8; x++) fc->ines->VRAM_BANK1(x * 0x400, x);
   }
 };
 }
@@ -45,8 +45,8 @@ struct Mapper77 : public MapInterface {
 MapInterface *Mapper77_init(FC *fc) {
   Mapper77 *m = new Mapper77(fc);
 
-  ROM_BANK32(fc, 0);
-  for (int x = 2; x < 8; x++) VRAM_BANK1(fc, x * 0x400, x);
+  fc->ines->ROM_BANK32(0);
+  for (int x = 2; x < 8; x++) fc->ines->VRAM_BANK1(x * 0x400, x);
   fc->fceu->SetWriteHandler(0x6000, 0xffff, [](DECLFW_ARGS) {
     ((Mapper77*)fc->fceu->mapiface)->Mapper77_write(DECLFW_FORWARD);
   });

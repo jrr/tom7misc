@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper50 : public MapInterface {
+struct Mapper50 final : public MapInterface {
   using MapInterface::MapInterface;
   void Mapper50IRQ(int a) {
     if (fc->ines->iNESIRQa) {
@@ -34,7 +34,7 @@ struct Mapper50 : public MapInterface {
     }
   }
 
-  void StateRestore(int version) override {
+  void StateRestore(int version) final override {
     fc->cart->setprg8(0xc000, GMB_mapbyte1(fc)[0]);
   }
 

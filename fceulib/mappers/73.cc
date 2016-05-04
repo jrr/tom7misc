@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper73 : public MapInterface {
+struct Mapper73 final : public MapInterface {
   using MapInterface::MapInterface;
 
   uint8 IRQx = 0;  // autoenable
@@ -67,7 +67,7 @@ struct Mapper73 : public MapInterface {
       fc->ines->iNESIRQa = IRQx;
       break;
 
-    case 0xf000: ROM_BANK16(fc, 0x8000, V); break;
+    case 0xf000: fc->ines->ROM_BANK16(0x8000, V); break;
     }
   }
 

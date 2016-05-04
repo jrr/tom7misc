@@ -22,8 +22,8 @@
 
 static DECLFW(Mapper72_write) {
   GMB_mapbyte1(fc)[0] = V;
-  if (V & 0x80) ROM_BANK16(fc, 0x8000, V & 0xF);
-  if (V & 0x40) VROM_BANK8(fc, V & 0xF);
+  if (V & 0x80) fc->ines->ROM_BANK16(0x8000, V & 0xF);
+  if (V & 0x40) fc->ines->VROM_BANK8(V & 0xF);
 }
 
 MapInterface *Mapper72_init(FC *fc) {

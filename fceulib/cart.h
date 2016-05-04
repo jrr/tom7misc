@@ -75,6 +75,8 @@ struct Cart {
   // Each page is a 2k chunk of memory, corresponding to the address
   // (A >> 11), but located such that it is still indexed by A, not
   // A & 2047. (TODO: verify, and maybe fix -tom7)
+  // TODO: Make private and use accessors so that we can either keep
+  // the address offsetting trick internal, or even stamp it out
   uint8 *Page[32] = {};
   uint8 *VPage[8] = {};
   uint8 *MMC5SPRVPage[8] = {};

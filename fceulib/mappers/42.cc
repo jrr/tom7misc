@@ -21,16 +21,16 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper42 : public MapInterface {
+struct Mapper42 final : public MapInterface {
   using MapInterface::MapInterface;
   
   void Mapper42_write(DECLFW_ARGS) {
     // FCEU_printf("%04x:%04x\n",A,V);
     switch (A & 0xe003) {
-    case 0x8000: VROM_BANK8(fc, V); break;
+    case 0x8000: fc->ines->VROM_BANK8(V); break;
     case 0xe000:
       GMB_mapbyte1(fc)[0] = V;
-      ROM_BANK8(fc, 0x6000, V & 0xF);
+      fc->ines->ROM_BANK8(0x6000, V & 0xF);
       break;
     case 0xe001: fc->ines->MIRROR_SET((V >> 3) & 1); break;
     case 0xe002:
@@ -53,15 +53,15 @@ struct Mapper42 : public MapInterface {
     }
   }
 
-  void StateRestore(int version) override {
-    ROM_BANK8(fc, 0x6000, GMB_mapbyte1(fc)[0] & 0xF);
+  void StateRestore(int version) final override {
+    fc->ines->ROM_BANK8(0x6000, GMB_mapbyte1(fc)[0] & 0xF);
   }
 };
 }
   
 MapInterface *Mapper42_init(FC *fc) {
-  ROM_BANK8(fc, 0x6000, 0);
-  ROM_BANK32(fc, ~0);
+  fc->ines->ROM_BANK8(0x6000, 0);
+  fc->ines->ROM_BANK32(~0);
   fc->fceu->SetWriteHandler(0x6000, 0xffff, [](DECLFW_ARGS) {
     ((Mapper42*)fc->fceu->mapiface)->Mapper42_write(DECLFW_FORWARD);
   });

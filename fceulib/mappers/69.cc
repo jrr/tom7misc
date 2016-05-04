@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper69 : public MapInterface {
+struct Mapper69 final : public MapInterface {
   using MapInterface::MapInterface;
 
   uint8 sunindex = 0;
@@ -95,7 +95,7 @@ struct Mapper69 : public MapInterface {
     case 0xa000:
       sunselect &= 0xF;
       if (sunselect <= 7)
-	VROM_BANK1(fc, sunselect << 10, V);
+	fc->ines->VROM_BANK1(sunselect << 10, V);
       else
 	switch (sunselect & 0x0f) {
 	case 8:
@@ -109,9 +109,9 @@ struct Mapper69 : public MapInterface {
 	    fc->cart->setprg8(0x6000, V);
 	  }
 	  break;
-	case 9: ROM_BANK8(fc, 0x8000, V); break;
-	case 0xa: ROM_BANK8(fc, 0xa000, V); break;
-	case 0xb: ROM_BANK8(fc, 0xc000, V); break;
+	case 9: fc->ines->ROM_BANK8(0x8000, V); break;
+	case 0xa: fc->ines->ROM_BANK8(0xa000, V); break;
+	case 0xb: fc->ines->ROM_BANK8(0xc000, V); break;
 	case 0xc:
 	  switch (V & 3) {
 	  case 0: fc->ines->MIRROR_SET2(1); break;
@@ -140,17 +140,15 @@ struct Mapper69 : public MapInterface {
   }
 
   void DoAYSQ(int x) {
-    int32 freq =
-      ((GMB_MapperExRAM(fc)[x << 1] |
+    const int32 freq = ((GMB_MapperExRAM(fc)[x << 1] |
 	((GMB_MapperExRAM(fc)[(x << 1) + 1] & 15) << 8)) + 1)
       << (4 + 17);
     int32 amp = (GMB_MapperExRAM(fc)[0x8 + x] & 15) << 2;
-    int32 start, end;
 
     amp += amp >> 1;
 
-    start = CAYBC[x];
-    end = (fc->sound->SoundTS() << 16) / fc->sound->soundtsinc;
+    int32 start = CAYBC[x];
+    int32 end = (fc->sound->SoundTS() << 16) / fc->sound->soundtsinc;
     if (end <= start) return;
     CAYBC[x] = end;
 
@@ -167,7 +165,7 @@ struct Mapper69 : public MapInterface {
   }
 
   void DoAYSQHQ(int x) {
-    int32 freq =
+    const int32 freq =
       ((GMB_MapperExRAM(fc)[x << 1] |
 	((GMB_MapperExRAM(fc)[(x << 1) + 1] & 15) << 8)) + 1)
 	<< 4;
@@ -218,7 +216,7 @@ struct Mapper69 : public MapInterface {
     }
   }
 
-  void StateRestore(int version) override {
+  void StateRestore(int version) final override {
     if (GMB_mapbyte1(fc)[1] & 0x40) {
       if (GMB_mapbyte1(fc)[1] & 0x80) {
 	// Select WRAM

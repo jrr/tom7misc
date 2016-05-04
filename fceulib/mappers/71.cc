@@ -25,7 +25,7 @@ static DECLFW(Mapper71_write) {
   case 0xF000:
   case 0xE000:
   case 0xD000:
-  case 0xC000: ROM_BANK16(fc, 0x8000, V); break;
+  case 0xC000: fc->ines->ROM_BANK16(0x8000, V); break;
   case 0x9000: fc->ines->onemir((V >> 3) & 2); break;
   }
 }

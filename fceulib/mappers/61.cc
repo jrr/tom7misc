@@ -21,28 +21,20 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper61 : public MapInterface {
+struct Mapper61 final : public MapInterface {
   using MapInterface::MapInterface;
   
   void Mapper61_write(DECLFW_ARGS) {
     // printf("$%04x:$%02x\n",A,V);
     switch (A & 0x30) {
     case 0x00:
-    case 0x30: ROM_BANK32(fc, A & 0xF); break;
+    case 0x30: fc->ines->ROM_BANK32(A & 0xF); break;
     case 0x20:
     case 0x10:
-      ROM_BANK16(fc, 0x8000, ((A & 0xF) << 1) | (((A & 0x20) >> 4)));
-      ROM_BANK16(fc, 0xC000, ((A & 0xF) << 1) | (((A & 0x20) >> 4)));
+      fc->ines->ROM_BANK16(0x8000, ((A & 0xF) << 1) | (((A & 0x20) >> 4)));
+      fc->ines->ROM_BANK16(0xC000, ((A & 0xF) << 1) | (((A & 0x20) >> 4)));
       break;
     }
-  #ifdef moo
-    if (!(A & 0x10))
-      ROM_BANK32(fc, A & 0xF);
-    else {
-      ROM_BANK16(fc, 0x8000, ((A & 0xF) << 1) | (((A & 0x10) >> 4) ^ 1));
-      ROM_BANK16(fc, 0xC000, ((A & 0xF) << 1) | (((A & 0x10) >> 4) ^ 1));
-    }
-  #endif
     fc->ines->MIRROR_SET((A & 0x80) >> 7);
   }
 };

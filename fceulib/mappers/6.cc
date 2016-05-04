@@ -21,29 +21,28 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper6 : public MapInterface {
+struct Mapper6 final : public MapInterface {
   using MapInterface::MapInterface;
   uint8 FFEmode = 0;
 
   // Careful: Caller passes in a non-trivial expression, and
   // not all Vs are parenthesized. -tom7
-#define FVRAM_BANK8(fc, A, V)					      \
-  {                                                                   \
-    fc->cart->VPage[0] = fc->cart->VPage[1] =			      \
-      fc->cart->VPage[2] = fc->cart->VPage[3] =			      \
-      fc->cart->VPage[4] = fc->cart->VPage[5] =			      \
-      fc->cart->VPage[6] = fc->cart->VPage[7] =			      \
-      V ? &GMB_MapperExRAM(fc)[(V) << 13] - (A) :		      \
-      &GMB_CHRRAM(fc)[(V) << 13] - (A);				      \
-    fc->ines->iNESCHRBankList[0] = ((V) << 3);			      \
-    fc->ines->iNESCHRBankList[1] = ((V) << 3) + 1;		      \
-    fc->ines->iNESCHRBankList[2] = ((V) << 3) + 2;		      \
-    fc->ines->iNESCHRBankList[3] = ((V) << 3) + 3;		      \
-    fc->ines->iNESCHRBankList[4] = ((V) << 3) + 4;		      \
-    fc->ines->iNESCHRBankList[5] = ((V) << 3) + 5;		      \
-    fc->ines->iNESCHRBankList[6] = ((V) << 3) + 6;		      \
-    fc->ines->iNESCHRBankList[7] = ((V) << 3) + 7;		      \
-    fc->ppu->PPUCHRRAM = 0xFF;					      \
+  void FVRAM_BANK8(uint32 A, uint32 V) {
+    fc->cart->VPage[0] = fc->cart->VPage[1] =		
+      fc->cart->VPage[2] = fc->cart->VPage[3] =		
+      fc->cart->VPage[4] = fc->cart->VPage[5] =		
+      fc->cart->VPage[6] = fc->cart->VPage[7] =		
+      V ? &GMB_MapperExRAM(fc)[V << 13] - A :	
+      &GMB_CHRRAM(fc)[V << 13] - A;			
+    fc->ines->iNESCHRBankList[0] = (V << 3);		
+    fc->ines->iNESCHRBankList[1] = (V << 3) + 1;	
+    fc->ines->iNESCHRBankList[2] = (V << 3) + 2;	
+    fc->ines->iNESCHRBankList[3] = (V << 3) + 3;	
+    fc->ines->iNESCHRBankList[4] = (V << 3) + 4;	
+    fc->ines->iNESCHRBankList[5] = (V << 3) + 5;	
+    fc->ines->iNESCHRBankList[6] = (V << 3) + 6;	
+    fc->ines->iNESCHRBankList[7] = (V << 3) + 7;	
+    fc->ppu->PPUCHRRAM = 0xFF;				
   }
 
   void FFEIRQHook(int a) {
@@ -83,13 +82,13 @@ struct Mapper6 : public MapInterface {
       switch (FFEmode) {
       case 0x80: fc->cart->setchr8(V); break;
       default:
-	ROM_BANK16(fc, 0x8000, V >> 2);
-	FVRAM_BANK8(fc, 0x0000, V & 3);
+	fc->ines->ROM_BANK16(0x8000, V >> 2);
+	FVRAM_BANK8(0x0000, V & 3);
       }
     }
   }
 
-  void StateRestore(int version) override {
+  void StateRestore(int version) final override {
     for (int x = 0; x < 8; x++) {
       if (fc->ppu->PPUCHRRAM & (1 << x)) {
 	if (fc->ines->iNESCHRBankList[x] > 7) {
@@ -116,7 +115,7 @@ MapInterface *Mapper6_init(FC *fc) {
   // XXX Note that mapiface has not yet been installed, so if
   // calls like these try to make calls back into mapper code,
   // they will fail. I don't think they do. -tom7
-  ROM_BANK16(fc, 0xc000, 7);
+  fc->ines->ROM_BANK16(0xc000, 7);
 
   fc->fceu->SetWriteHandler(0x4020, 0x5fff, [](DECLFW_ARGS) {
     ((Mapper6*)fc->fceu->mapiface)->Mapper6_write(DECLFW_FORWARD);

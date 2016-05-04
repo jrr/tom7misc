@@ -21,7 +21,7 @@
 #include "mapinc.h"
 
 namespace {
-struct Mapper51 : public MapInterface {
+struct Mapper51 final : public MapInterface {
   using MapInterface::MapInterface;
   
   #define mode(fc) GMB_mapbyte1(fc)[0]
@@ -36,7 +36,7 @@ struct Mapper51 : public MapInterface {
       bank |= 2;
     else
       bank |= (A >> 13) & 2;
-    return (bank);
+    return bank;
   }
 
   void Synco() {
@@ -45,7 +45,7 @@ struct Mapper51 : public MapInterface {
     else
       fc->ines->MIRROR_SET2(0);
     for (uint32 x = 0x6000; x < 0x10000; x += 8192)
-      ROM_BANK8(fc, x, Get8K(x));
+      fc->ines->ROM_BANK8(x, Get8K(x));
   }
 
   void Write(DECLFW_ARGS) {

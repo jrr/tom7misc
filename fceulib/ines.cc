@@ -1022,43 +1022,43 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
   return true;
 }
 
-void VRAM_BANK1(FC *fc, uint32 A, uint8 V) {
+void INes::VRAM_BANK1(uint32 A, uint8 V) {
   V&=7;
   fc->ppu->PPUCHRRAM|=(1<<(A>>10));
-  fc->ines->iNESCHRBankList[(A)>>10]=V;
-  fc->cart->VPage[(A)>>10]=&GMB_CHRRAM(fc)[V<<10]-(A);
+  fc->ines->iNESCHRBankList[A>>10]=V;
+  fc->cart->VPage[A>>10]=&GMB_CHRRAM(fc)[V<<10]-A;
 }
 
-void VRAM_BANK4(FC *fc, uint32 A, uint32 V) {
+void INes::VRAM_BANK4(uint32 A, uint32 V) {
   V&=1;
   fc->ppu->PPUCHRRAM|=(0xF<<(A>>10));
-  fc->ines->iNESCHRBankList[(A)>>10]=(V<<2);
-  fc->ines->iNESCHRBankList[((A)>>10)+1]=(V<<2)+1;
-  fc->ines->iNESCHRBankList[((A)>>10)+2]=(V<<2)+2;
-  fc->ines->iNESCHRBankList[((A)>>10)+3]=(V<<2)+3;
-  fc->cart->VPage[(A)>>10]=&GMB_CHRRAM(fc)[V<<10]-(A);
+  fc->ines->iNESCHRBankList[A>>10]=(V<<2);
+  fc->ines->iNESCHRBankList[(A>>10)+1]=(V<<2)+1;
+  fc->ines->iNESCHRBankList[(A>>10)+2]=(V<<2)+2;
+  fc->ines->iNESCHRBankList[(A>>10)+3]=(V<<2)+3;
+  fc->cart->VPage[A>>10]=&GMB_CHRRAM(fc)[V<<10]-A;
 }
 
-void VROM_BANK1(FC *fc, uint32 A,uint32 V) {
+void INes::VROM_BANK1(uint32 A, uint32 V) {
   fc->cart->setchr1(A,V);
-  fc->ines->iNESCHRBankList[(A)>>10]=V;
+  fc->ines->iNESCHRBankList[A>>10]=V;
 }
 
-void VROM_BANK2(FC *fc, uint32 A,uint32 V) {
+void INes::VROM_BANK2(uint32 A, uint32 V) {
   fc->cart->setchr2(A,V);
-  fc->ines->iNESCHRBankList[(A)>>10]=(V<<1);
-  fc->ines->iNESCHRBankList[((A)>>10)+1]=(V<<1)+1;
+  fc->ines->iNESCHRBankList[A>>10]=(V<<1);
+  fc->ines->iNESCHRBankList[(A>>10)+1]=(V<<1)+1;
 }
 
-void VROM_BANK4(FC *fc, uint32 A, uint32 V) {
+void INes::VROM_BANK4(uint32 A, uint32 V) {
   fc->cart->setchr4(A,V);
-  fc->ines->iNESCHRBankList[(A)>>10]=(V<<2);
-  fc->ines->iNESCHRBankList[((A)>>10)+1]=(V<<2)+1;
-  fc->ines->iNESCHRBankList[((A)>>10)+2]=(V<<2)+2;
-  fc->ines->iNESCHRBankList[((A)>>10)+3]=(V<<2)+3;
+  fc->ines->iNESCHRBankList[A>>10]=(V<<2);
+  fc->ines->iNESCHRBankList[(A>>10)+1]=(V<<2)+1;
+  fc->ines->iNESCHRBankList[(A>>10)+2]=(V<<2)+2;
+  fc->ines->iNESCHRBankList[(A>>10)+3]=(V<<2)+3;
 }
 
-void VROM_BANK8(FC *fc, uint32 V) {
+void INes::VROM_BANK8(uint32 V) {
   fc->cart->setchr8(V);
   fc->ines->iNESCHRBankList[0]=(V<<3);
   fc->ines->iNESCHRBankList[1]=(V<<3)+1;
@@ -1070,13 +1070,13 @@ void VROM_BANK8(FC *fc, uint32 V) {
   fc->ines->iNESCHRBankList[7]=(V<<3)+7;
 }
 
-void ROM_BANK8(FC *fc, uint32 A, uint32 V) {
+void INes::ROM_BANK8(uint32 A, uint32 V) {
   fc->cart->setprg8(A,V);
   if (A>=0x8000)
     GMB_PRGBankList(fc)[((A-0x8000)>>13)]=V;
 }
 
-void ROM_BANK16(FC *fc, uint32 A, uint32 V) {
+void INes::ROM_BANK16(uint32 A, uint32 V) {
   fc->cart->setprg16(A,V);
   if (A>=0x8000) {
     GMB_PRGBankList(fc)[((A-0x8000)>>13)]=V<<1;
@@ -1084,7 +1084,7 @@ void ROM_BANK16(FC *fc, uint32 A, uint32 V) {
   }
 }
 
-void ROM_BANK32(FC *fc, uint32 V) {
+void INes::ROM_BANK32(uint32 V) {
   fc->cart->setprg32(0x8000,V);
   GMB_PRGBankList(fc)[0]=V<<2;
   GMB_PRGBankList(fc)[1]=(V<<2)+1;
@@ -1114,11 +1114,11 @@ void INes::MIRROR_SET(uint8 V) {
 }
 
 void INes::NONE_init() {
-  ROM_BANK16(fc, 0x8000,0);
-  ROM_BANK16(fc, 0xC000,~0);
+  ROM_BANK16(0x8000, 0);
+  ROM_BANK16(0xC000, ~0);
 
   if (VROM_size)
-    VROM_BANK8(fc, 0);
+    VROM_BANK8(0);
   else
     fc->cart->setvram8(GMB_CHRRAM(fc));
 }
