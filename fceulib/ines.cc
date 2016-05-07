@@ -1026,7 +1026,7 @@ void INes::VRAM_BANK1(uint32 A, uint8 V) {
   V&=7;
   fc->ppu->PPUCHRRAM|=(1<<(A>>10));
   fc->ines->iNESCHRBankList[A>>10]=V;
-  fc->cart->VPage[A>>10]=&GMB_CHRRAM(fc)[V<<10]-A;
+  fc->cart->SetVPage(A, &GMB_CHRRAM(fc)[V<<10]);
 }
 
 void INes::VRAM_BANK4(uint32 A, uint32 V) {
@@ -1036,7 +1036,7 @@ void INes::VRAM_BANK4(uint32 A, uint32 V) {
   fc->ines->iNESCHRBankList[(A>>10)+1]=(V<<2)+1;
   fc->ines->iNESCHRBankList[(A>>10)+2]=(V<<2)+2;
   fc->ines->iNESCHRBankList[(A>>10)+3]=(V<<2)+3;
-  fc->cart->VPage[A>>10]=&GMB_CHRRAM(fc)[V<<10]-A;
+  fc->cart->SetVPage(A, &GMB_CHRRAM(fc)[V<<10]);
 }
 
 void INes::VROM_BANK1(uint32 A, uint32 V) {

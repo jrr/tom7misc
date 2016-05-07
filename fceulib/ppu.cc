@@ -202,23 +202,23 @@ static constexpr uint32 ppulut3[128] = {
 0xcccccccc, 0xcccccccc, 0xcccccccc, 0xcccccccc, 0xcccccccc, 0xcccccccc,
 0xcccccccc, 0xcccccccc, };
 
-static inline uint8 *MMC5SPRVRAMADR(FC *fc, uint32 v) {
+static inline const uint8 *MMC5SPRVRAMADR(FC *fc, uint32 v) {
   return &fc->cart->MMC5SPRVPage[v >> 10][v];
 }
-static inline uint8 *VRAMADR(FC *fc, uint32 v) {
-  return &fc->cart->VPage[v >> 10][v];
+static inline const uint8 *VRAMADR(FC *fc, uint32 A) {
+  return fc->cart->VPagePointer(A);
 }
 
 // mbg 8/6/08 - fix a bug relating to
 // "When in 8x8 sprite mode, only one set is used for both BG and sprites."
 // in mmc5 docs
-uint8 *PPU::MMC5BGVRAMADR(uint32 V) {
+const uint8 *PPU::MMC5BGVRAMADR(uint32 V) {
   if (!Sprite16) {
     if (mmc5ABMode == 0)
       return MMC5SPRVRAMADR(fc, V);
     else
-      return &fc->cart->MMC5BGVPage[(V)>>10][(V)];
-  } else return &fc->cart->MMC5BGVPage[(V)>>10][(V)];
+      return &fc->cart->MMC5BGVPage[V >> 10][V];
+  } else return &fc->cart->MMC5BGVPage[V >> 10][V];
 }
 
 // static
@@ -271,14 +271,14 @@ DECLFR_RET PPU::A2007_Direct(DECLFR_ARGS) {
 
   FCEUPPU_LineUpdate();
 
-  uint8 ret=VRAMBuffer;
+  uint8 ret = VRAMBuffer;
 
   if (PPU_hook) PPU_hook(fc, tmp);
   PPUGenLatch=VRAMBuffer;
   if (tmp < 0x2000) {
-    VRAMBuffer=fc->cart->VPage[tmp>>10][tmp];
+    VRAMBuffer = fc->cart->ReadVPage(tmp);
   } else if (tmp < 0x3F00) {
-    VRAMBuffer=vnapage[(tmp>>10)&0x3][tmp&0x3FF];
+    VRAMBuffer = vnapage[(tmp>>10)&0x3][tmp&0x3FF];
   }
 
 
@@ -471,7 +471,7 @@ void PPU::B2007_Direct(DECLFW_ARGS) {
     else if (tmp&3) PALRAM[(tmp&0x1f)]=V&0x3f;
   } else if (tmp<0x2000) {
     if (PPUCHRRAM&(1<<(tmp>>10)))
-      fc->cart->VPage[tmp>>10][tmp]=V;
+      fc->cart->WriteVPage(tmp, V);
   } else {
     if (PPUNTARAM&(1<<((tmp&0xF00)>>10)))
       vnapage[((tmp&0xF00)>>10)][tmp&0x3FF]=V;
@@ -550,7 +550,7 @@ template<bool PPUT_MMC5, bool PPUT_MMC5SP, bool PPUT_HOOK, bool PPUT_MMC5CHR1>
 inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P,
                                                const uint32 vofs,
                                                uint32 refreshaddr_local) {
-  uint8 *C;
+  const uint8 *C;
   register uint8 cc;
   uint32 vadr;
   uint8 zz;
@@ -563,7 +563,7 @@ inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P,
   }
 
   if (X1 >= 2) {
-    uint8 *S = PALRAM;
+    const uint8 *S = PALRAM;
     uint32 pixdata;
 
     pixdata = ppulut1[(pshift[0]>>(8-XOffset))&0xFF] |

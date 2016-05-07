@@ -29,12 +29,11 @@ struct Mapper6 final : public MapInterface {
   uint8 FFEmode = 0;
 
   void FVRAM_BANK8(uint32 A, uint32 V) {
-    fc->cart->VPage[0] = fc->cart->VPage[1] =
-      fc->cart->VPage[2] = fc->cart->VPage[3] =
-      fc->cart->VPage[4] = fc->cart->VPage[5] =
-      fc->cart->VPage[6] = fc->cart->VPage[7] =
-      V ? &GMB_MapperExRAM(fc)[V << 13] - A :
-      &GMB_CHRRAM(fc)[V << 13] - A;
+    uint8 *addr =
+      V ? &GMB_MapperExRAM(fc)[V << 13] : &GMB_CHRRAM(fc)[V << 13];
+    for (int i = 0; i < 8; i++)
+      fc->cart->SetSpecificVPage(i, A, addr);
+
     fc->ines->iNESCHRBankList[0] = (V << 3);
     fc->ines->iNESCHRBankList[1] = (V << 3) + 1;
     fc->ines->iNESCHRBankList[2] = (V << 3) + 2;
@@ -93,13 +92,13 @@ struct Mapper6 final : public MapInterface {
     for (int x = 0; x < 8; x++) {
       if (fc->ppu->PPUCHRRAM & (1 << x)) {
         if (fc->ines->iNESCHRBankList[x] > 7) {
-          fc->cart->VPage[x] =
-            &GMB_MapperExRAM(fc)[(fc->ines->iNESCHRBankList[x] & 31) * 0x400] -
-            (x * 0x400);
+	  fc->cart->SetVPage(
+	      x << 10,
+	      &GMB_MapperExRAM(fc)[(fc->ines->iNESCHRBankList[x] & 31) << 10]);
         } else {
-          fc->cart->VPage[x] =
-            &GMB_CHRRAM(fc)[(fc->ines->iNESCHRBankList[x] & 7) * 0x400] -
-            (x * 0x400);
+	  fc->cart->SetVPage(
+	      x << 10,
+	      &GMB_CHRRAM(fc)[(fc->ines->iNESCHRBankList[x] & 7) << 10]);
         }
       }
     }

@@ -68,7 +68,7 @@ struct MMC1 final : public CartInterface {
 
   void MBWRAM_Direct(DECLFW_ARGS) {
     if (!(DRegs[3] & 0x10) || is_155)
-      fc->cart->Page[A >> 11][A] = V;  // WRAM is enabled.
+      fc->cart->WritePage(A, V);  // WRAM is enabled.
   }
 
   static DECLFR(MAWRAM) {
@@ -78,7 +78,7 @@ struct MMC1 final : public CartInterface {
   DECLFR_RET MAWRAM_Direct(DECLFR_ARGS) {
     if ((DRegs[3] & 0x10) && !is_155)
       return fc->X->DB;  // WRAM is disabled
-    return fc->cart->Page[A >> 11][A];
+    return fc->cart->ReadPage(A);
   }
 
   void MMC1CHR() {

@@ -72,13 +72,30 @@ struct Cart {
   void FCEU_LoadGameSave(CartInfo *LocalHWInfo);
   void FCEU_ClearGameSave(CartInfo *LocalHWInfo);
 
+  // Should use these accessors instead of modifying the pages
+  // directly.
+  void WritePage(uint32 A, uint8 V) { Page[A >> 11][A] = V; }
+  uint8 ReadPage(uint32 A) const { return Page[A >> 11][A]; }
+
+  void WriteVPage(uint32 A, uint8 V) { VPage[A >> 10][A] = V; }
+  uint8 ReadVPage(uint32 A) const { return VPage[A >> 10][A]; }
+  const uint8 *VPagePointer(uint32 A) const { return &VPage[A >> 10][A]; }
+  // TODO: Gross, but better than just modifying VPage from afar.
+  // Maybe can update callers to use setvramb*.
+  void SetVPage(uint32 A, uint8 *p) { VPage[A >> 10] = p - A; }
+  // Ugh, even worse!
+  void SetSpecificVPage(int num, uint32 A, uint8 *p) { VPage[num] = p - A; }
+  
   // Each page is a 2k chunk of memory, corresponding to the address
   // (A >> 11), but located such that it is still indexed by A, not
-  // A & 2047. (TODO: verify, and maybe fix -tom7)
+  // A & 2047. (TODO: verify, and maybe "fix" -tom7)
   // TODO: Make private and use accessors so that we can either keep
   // the address offsetting trick internal, or even stamp it out
+  // TODO: In the process of making these private. -tom7
+private:
   uint8 *Page[32] = {};
   uint8 *VPage[8] = {};
+public:
   uint8 *MMC5SPRVPage[8] = {};
   uint8 *MMC5BGVPage[8] = {};
 

@@ -1,17 +1,14 @@
 
 #include "emulator.h"
 
-#include <algorithm>
 #include <string>
 #include <vector>
 #include <zlib.h>
-#include <unordered_map>
 
 #include "driver.h"
 #include "fceu.h"
 #include "types.h"
 #include "utils/md5.h"
-#include "version.h"
 #include "state.h"
 #include "sound.h"
 #include "palette.h"

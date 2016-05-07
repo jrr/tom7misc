@@ -9,10 +9,6 @@ $ "/c/Program Files (x86)/Microsoft Concurrency Visualizer Collection Tools/CVCo
  - proper in-memory treatment of battery backed saves. lots of
    red herrings here! also, it leaks file descriptors.
 
-      Still to objectify:
-
-      emulator.cc
-
       A little left over in:
       ines.cc  ..?
 
