@@ -40,16 +40,16 @@ struct Mapper253 final : public CartInterface {
     for (i = 0; i < 8; i++) {
       uint32 chr = chrlo[i] | (chrhi[i] << 8);
       if (chrlo[i] == 0xc8) {
-	vlock = 0;
-	continue;
+        vlock = 0;
+        continue;
       } else if (chrlo[i] == 0x88) {
-	vlock = 1;
-	continue;
+        vlock = 1;
+        continue;
       }
       if (((chrlo[i] == 4) || (chrlo[i] == 5)) && !vlock)
-	fc->cart->setchr1r(0x10, i << 10, chr & 1);
+        fc->cart->setchr1r(0x10, i << 10, chr & 1);
       else
-	fc->cart->setchr1(i << 10, chr);
+        fc->cart->setchr1(i << 10, chr);
     }
     switch (mirr) {
       case 0: fc->cart->setmirror(MI_V); break;
@@ -68,34 +68,34 @@ struct Mapper253 final : public CartInterface {
       Sync();
     } else
       switch (A) {
-	case 0x8010:
-	  prg[0] = V;
-	  Sync();
-	  break;
-	case 0xA010:
-	  prg[1] = V;
-	  Sync();
-	  break;
-	case 0x9400:
-	  mirr = V & 3;
-	  Sync();
-	  break;
-	case 0xF000:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQLatch &= 0xF0;
-	  IRQLatch |= V & 0xF;
-	  break;
-	case 0xF004:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQLatch &= 0x0F;
-	  IRQLatch |= V << 4;
-	  break;
-	case 0xF008:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQClock = 0;
-	  IRQCount = IRQLatch;
-	  IRQa = V & 2;
-	  break;
+        case 0x8010:
+          prg[0] = V;
+          Sync();
+          break;
+        case 0xA010:
+          prg[1] = V;
+          Sync();
+          break;
+        case 0x9400:
+          mirr = V & 3;
+          Sync();
+          break;
+        case 0xF000:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQLatch &= 0xF0;
+          IRQLatch |= V & 0xF;
+          break;
+        case 0xF004:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQLatch &= 0x0F;
+          IRQLatch |= V << 4;
+          break;
+        case 0xF008:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQClock = 0;
+          IRQCount = IRQLatch;
+          IRQa = V & 2;
+          break;
       }
   }
 
@@ -120,14 +120,14 @@ struct Mapper253 final : public CartInterface {
     if (IRQa) {
       IRQClock += a * 3;
       if (IRQClock >= LCYCS) {
-	while (IRQClock >= LCYCS) {
-	  IRQClock -= LCYCS;
-	  IRQCount++;
-	  if (IRQCount & 0x100) {
-	    fc->X->IRQBegin(FCEU_IQEXT);
-	    IRQCount = IRQLatch;
-	  }
-	}
+        while (IRQClock >= LCYCS) {
+          IRQClock -= LCYCS;
+          IRQCount++;
+          if (IRQCount & 0x100) {
+            fc->X->IRQBegin(FCEU_IQEXT);
+            IRQCount = IRQLatch;
+          }
+        }
       }
     }
   }
@@ -154,10 +154,10 @@ struct Mapper253 final : public CartInterface {
     }
 
     fc->state->AddExVec({{chrlo, 8, "CHRL"}, {chrhi, 8, "CHRH"},
-			 {prg, 2, "PRGR"}, {&mirr, 1, "MIRR"},
-			 {&vlock, 1, "VLCK"}, {&IRQa, 4, "IRQA"},
-			 {&IRQCount, 4, "IRQC"}, {&IRQLatch, 4, "IRQL"},
-			 {&IRQClock, 4, "IRQK"}});
+                         {prg, 2, "PRGR"}, {&mirr, 1, "MIRR"},
+                         {&vlock, 1, "VLCK"}, {&IRQa, 4, "IRQA"},
+                         {&IRQCount, 4, "IRQC"}, {&IRQLatch, 4, "IRQL"},
+                         {&IRQClock, 4, "IRQK"}});
   }
 };
 }

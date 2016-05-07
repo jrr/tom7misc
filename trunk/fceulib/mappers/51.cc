@@ -23,7 +23,7 @@
 namespace {
 struct Mapper51 final : public MapInterface {
   using MapInterface::MapInterface;
-  
+
   #define mode(fc) GMB_mapbyte1(fc)[0]
   #define page(fc) GMB_mapbyte1(fc)[1]
 
@@ -60,7 +60,7 @@ struct Mapper51 final : public MapInterface {
   }
 };
 }
-  
+
 MapInterface *Mapper51_init(FC *fc) {
   Mapper51 *m = new Mapper51(fc);
   fc->fceu->SetWriteHandler(0x6000, 0xFFFF, [](DECLFW_ARGS) {

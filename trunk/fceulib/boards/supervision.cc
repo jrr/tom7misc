@@ -26,12 +26,12 @@ struct Supervision16 final : public CartInterface {
 
   void DoSuper() {
     fc->cart->setprg8r((cmd0 & 0xC) >> 2, 0x6000,
-		       ((cmd0 & 0x3) << 4) | 0xF);
+                       ((cmd0 & 0x3) << 4) | 0xF);
     if (cmd0 & 0x10) {
       fc->cart->setprg16r((cmd0 & 0xC) >> 2, 0x8000,
-			  ((cmd0 & 0x3) << 3) | (cmd1 & 7));
+                          ((cmd0 & 0x3) << 3) | (cmd1 & 7));
       fc->cart->setprg16r((cmd0 & 0xC) >> 2, 0xc000,
-			  ((cmd0 & 0x3) << 3) | 7);
+                          ((cmd0 & 0x3) << 3) | 7);
     } else {
       fc->cart->setprg32r(4, 0x8000, 0);
     }

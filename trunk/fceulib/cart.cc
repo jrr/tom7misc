@@ -44,8 +44,8 @@ Cart::Cart(FC *fc) : fc(fc) {}
 void Cart::SetPagePtr(int s, uint32 A, uint8 *p, bool ram) {
   const uint32 AB = A >> 11;
   if (0) printf("setpageptr %d %04x %p %s   AB: %d\n",
-		s, A, p, ram ? "RAM" : "not RAM", AB);
-  
+                s, A, p, ram ? "RAM" : "not RAM", AB);
+
   if (p != nullptr) {
     for (int x = 0; x < (s >> 1); x++) {
       PRGIsRAM[AB + x] = ram;
@@ -82,7 +82,7 @@ void Cart::ResetCartMapping() {
 
 void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
   if (0) printf("Setup PRG chip %d -> %p (size %d, %s)\n", chip, p, size,
-		is_ram ? "RAM" : "not RAM");
+                is_ram ? "RAM" : "not RAM");
   PRGptr[chip] = p;
   PRGsize[chip] = size;
 
@@ -97,7 +97,7 @@ void Cart::SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
 
 void Cart::SetupCartCHRMapping(int chip, uint8 *p, uint32 size, bool is_ram) {
   if (0) printf("CHR chip %d -> %p (size %d, %s)\n", chip, p, size,
-		is_ram ? "RAM" : "not RAM");
+                is_ram ? "RAM" : "not RAM");
 
   CHRptr[chip] = p;
   CHRsize[chip] = size;
@@ -169,7 +169,7 @@ void Cart::setprg4(uint32 A, uint32 V) {
 // always at least 8k?
 void Cart::setprg8r(int r, unsigned int A, unsigned int V) {
   if (0)printf("setprg8r r=%d A=%x V=%u %s\n", r, A, V,
-	       PRGsize[r] >= 8192 ? " (big)" : " (small)");
+               PRGsize[r] >= 8192 ? " (big)" : " (small)");
   if (PRGsize[r] >= 8192) {
     V &= PRGmask8[r];
     SetPagePtr(8, A, PRGptr[r] ? &PRGptr[r][V << 13] : 0, PRGram[r]);
@@ -188,7 +188,7 @@ void Cart::setprg8(uint32 A, uint32 V) {
 
 void Cart::setprg16r(int r, unsigned int A, unsigned int V) {
   if (0) printf("setprg16r r=%d A=%x V=%u %s\n", r, A, V,
-		PRGsize[r] >= 16384 ? " (big)" : " (small)");
+                PRGsize[r] >= 16384 ? " (big)" : " (small)");
   if (PRGsize[r] >= 16384) {
     V &= PRGmask16[r];
     SetPagePtr(16, A, PRGptr[r] ? (&PRGptr[r][V << 14]) : 0, PRGram[r]);
@@ -350,11 +350,11 @@ void Cart::setmirror(int t) {
       break;
     case MI_0:
       fc->ppu->vnapage[0] = fc->ppu->vnapage[1] = fc->ppu->vnapage[2] =
-	fc->ppu->vnapage[3] = fc->ppu->NTARAM;
+        fc->ppu->vnapage[3] = fc->ppu->NTARAM;
       break;
     case MI_1:
       fc->ppu->vnapage[0] = fc->ppu->vnapage[1] = fc->ppu->vnapage[2] =
-	fc->ppu->vnapage[3] = fc->ppu->NTARAM + 0x400;
+        fc->ppu->vnapage[3] = fc->ppu->NTARAM + 0x400;
       break;
     }
     fc->ppu->PPUNTARAM = 0xF;

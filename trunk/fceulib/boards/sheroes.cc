@@ -31,13 +31,13 @@ struct UNLSHeroes final : public MMC3 {
       fc->cart->setchr8r(0x10, 0);
     } else {
       if (A < 0x800)
-	fc->cart->setchr1(A, V | ((EXPREGS[0] & 8) << 5));
+        fc->cart->setchr1(A, V | ((EXPREGS[0] & 8) << 5));
       else if (A < 0x1000)
-	fc->cart->setchr1(A, V | ((EXPREGS[0] & 4) << 6));
+        fc->cart->setchr1(A, V | ((EXPREGS[0] & 4) << 6));
       else if (A < 0x1800)
-	fc->cart->setchr1(A, V | ((EXPREGS[0] & 1) << 8));
+        fc->cart->setchr1(A, V | ((EXPREGS[0] & 1) << 8));
       else
-	fc->cart->setchr1(A, V | ((EXPREGS[0] & 2) << 7));
+        fc->cart->setchr1(A, V | ((EXPREGS[0] & 2) << 7));
     }
   }
 
@@ -59,10 +59,10 @@ struct UNLSHeroes final : public MMC3 {
     tekker = 0x00;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4100, 0x4100, [](DECLFW_ARGS) {
-	((UNLSHeroes*)fc->fceu->cartiface)->MSHWrite(DECLFW_FORWARD);
+        ((UNLSHeroes*)fc->fceu->cartiface)->MSHWrite(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x4100, 0x4100, [](DECLFR_ARGS) {
-	return ((UNLSHeroes*)fc->fceu->cartiface)->MSHRead(DECLFR_FORWARD);
+        return ((UNLSHeroes*)fc->fceu->cartiface)->MSHRead(DECLFR_FORWARD);
       });
   }
 

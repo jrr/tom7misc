@@ -61,11 +61,11 @@ struct Mapper234 final : public CartInterface {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0xFF80, 0xFF9F, [](DECLFR_ARGS) {
       return ((Mapper234*)fc->fceu->cartiface)->
-	M234ReadBank(DECLFR_FORWARD);
+        M234ReadBank(DECLFR_FORWARD);
     });
     fc->fceu->SetReadHandler(0xFFE8, 0xFFF7, [](DECLFR_ARGS) {
       return ((Mapper234*)fc->fceu->cartiface)->
-	M234ReadPreg(DECLFR_FORWARD);
+        M234ReadPreg(DECLFR_FORWARD);
     });
   }
 

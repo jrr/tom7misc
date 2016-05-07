@@ -36,7 +36,7 @@ struct Mapper57 final : public CartInterface {
     }
     fc->cart->setmirror((prg_reg & 8) >> 3);
     fc->cart->setchr8((chr_reg & 3) | (prg_reg & 7) |
-		      ((prg_reg & 0x10) >> 1));
+                      ((prg_reg & 0x10) >> 1));
   }
 
   DECLFR_RET M57Read(DECLFR_ARGS) {
@@ -78,11 +78,11 @@ struct Mapper57 final : public CartInterface {
   Mapper57(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{&hrd_flag, 1, "DPSW"}, {&prg_reg, 1, "PRG0"}, {&chr_reg, 1, "CHR0"}});
+        {&hrd_flag, 1, "DPSW"}, {&prg_reg, 1, "PRG0"}, {&chr_reg, 1, "CHR0"}});
   }
 };
 }
-  
+
 CartInterface *Mapper57_Init(FC *fc, CartInfo *info) {
   return new Mapper57(fc, info);
 }

@@ -43,71 +43,71 @@ struct UNLVRC7 final : public CartInterface {
   void UNLVRC7Write(DECLFW_ARGS) {
     switch (A & 0xF008) {
       case 0x8000:
-	prg[0] = V;
-	Sync();
-	break;
+        prg[0] = V;
+        Sync();
+        break;
       case 0x8008:
-	prg[1] = V;
-	Sync();
-	break;
+        prg[1] = V;
+        Sync();
+        break;
       case 0x9000:
-	prg[2] = V;
-	Sync();
-	break;
+        prg[2] = V;
+        Sync();
+        break;
       case 0xa000:
-	chr[0] = V;
-	Sync();
-	break;
+        chr[0] = V;
+        Sync();
+        break;
       case 0xa008:
-	chr[1] = V;
-	Sync();
-	break;
+        chr[1] = V;
+        Sync();
+        break;
       case 0xb000:
-	chr[2] = V;
-	Sync();
-	break;
+        chr[2] = V;
+        Sync();
+        break;
       case 0xb008:
-	chr[3] = V;
-	Sync();
-	break;
+        chr[3] = V;
+        Sync();
+        break;
       case 0xc000:
-	chr[4] = V;
-	Sync();
-	break;
+        chr[4] = V;
+        Sync();
+        break;
       case 0xc008:
-	chr[5] = V;
-	Sync();
-	break;
+        chr[5] = V;
+        Sync();
+        break;
       case 0xd000:
-	chr[6] = V;
-	Sync();
-	break;
+        chr[6] = V;
+        Sync();
+        break;
       case 0xd008:
-	chr[7] = V;
-	Sync();
-	break;
+        chr[7] = V;
+        Sync();
+        break;
       case 0xe000:
-	mirr = V;
-	Sync();
-	break;
+        mirr = V;
+        Sync();
+        break;
       case 0xe008:
-	IRQLatch = V;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQLatch = V;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0xf000:
-	IRQa = V & 2;
-	IRQd = V & 1;
-	if (V & 2) IRQCount = IRQLatch;
-	CycleCount = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = V & 2;
+        IRQd = V & 1;
+        if (V & 2) IRQCount = IRQLatch;
+        CycleCount = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0xf008:
-	if (IRQd)
-	  IRQa = 1;
-	else
-	  IRQa = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        if (IRQd)
+          IRQa = 1;
+        else
+          IRQa = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
     }
   }
 
@@ -123,12 +123,12 @@ struct UNLVRC7 final : public CartInterface {
     if (IRQa) {
       CycleCount += a * 3;
       while (CycleCount >= 341) {
-	CycleCount -= 341;
-	IRQCount++;
-	if (IRQCount == 248) {
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	  IRQCount = IRQLatch;
-	}
+        CycleCount -= 341;
+        IRQCount++;
+        if (IRQCount == 248) {
+          fc->X->IRQBegin(FCEU_IQEXT);
+          IRQCount = IRQLatch;
+        }
       }
     }
   }
@@ -143,9 +143,9 @@ struct UNLVRC7 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{prg, 3, "PRG0"}, {chr, 8, "CHR0"}, {&mirr, 1, "MIRR"},
-	{&IRQa, 1, "IRQA"}, {&IRQd, 1, "IRQD"}, {&IRQLatch, 1, "IRQC"},
-	{&IRQCount, 4, "IRQC"}, {&CycleCount, 4, "CYCC"}});
+        {prg, 3, "PRG0"}, {chr, 8, "CHR0"}, {&mirr, 1, "MIRR"},
+        {&IRQa, 1, "IRQA"}, {&IRQd, 1, "IRQD"}, {&IRQLatch, 1, "IRQC"},
+        {&IRQCount, 4, "IRQC"}, {&CycleCount, 4, "CYCC"}});
   }
 };
 }

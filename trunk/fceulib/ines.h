@@ -77,7 +77,7 @@ struct INes {
   int32 iNESIRQLatch = 0;
   uint16 iNESCHRBankList[8] = {0};
   uint32 VROM_size = 0;
-  // Number of 16k blocks (0x4000 bytes). Rounds up 
+  // Number of 16k blocks (0x4000 bytes). Rounds up
   uint32 ROM_size = 0;
 
   // Actual ROM and video ROM read directly from file.
@@ -97,10 +97,10 @@ struct INes {
   void ROM_BANK8(uint32 A, uint32 V);
   void ROM_BANK16(uint32 A, uint32 V);
   void ROM_BANK32(uint32 V);
-  
+
  private:
   struct OldCartiface;
-  
+
   struct Header {
     char ID[4]; /*NES^Z*/
     uint8 ROM_size;
@@ -112,18 +112,18 @@ struct INes {
 
   Header head;
   void CleanupHeader(Header *h);
-  
+
   uint8 *trainerdata = nullptr;
 
   int mapper_number = 0;
   CartInfo iNESCart = {};
   int CHRRAMSize = -1;
   uint32 iNESGameCRC32 = 0;
-  
+
   const INesTMasterRomInfo *MasterRomInfo = nullptr;
   std::map<std::string, std::string> MasterRomInfoParams;
   std::pair<uint32, uint32> GetRoundedROMSize() const;
-  
+
   void (*MapClose)() = nullptr;
 
   void NONE_init();

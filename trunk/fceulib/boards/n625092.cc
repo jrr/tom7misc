@@ -31,11 +31,11 @@ struct UNLN625092 final : public CartInterface {
     fc->cart->setchr8(0);
     if (cmd & 2) {
       if (cmd & 0x100) {
-	fc->cart->setprg16(0x8000, ((cmd & 0xfc) >> 2) | bank);
-	fc->cart->setprg16(0xC000, ((cmd & 0xfc) >> 2) | 7);
+        fc->cart->setprg16(0x8000, ((cmd & 0xfc) >> 2) | bank);
+        fc->cart->setprg16(0xC000, ((cmd & 0xfc) >> 2) | 7);
       } else {
-	fc->cart->setprg16(0x8000, ((cmd & 0xfc) >> 2) | (bank & 6));
-	fc->cart->setprg16(0xC000, ((cmd & 0xfc) >> 2) | ((bank & 6) | 1));
+        fc->cart->setprg16(0x8000, ((cmd & 0xfc) >> 2) | (bank & 6));
+        fc->cart->setprg16(0xC000, ((cmd & 0xfc) >> 2) | ((bank & 6) | 1));
       }
     } else {
       fc->cart->setprg16(0x8000, ((cmd & 0xfc) >> 2) | bank);
@@ -64,12 +64,12 @@ struct UNLN625092 final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xBFFF, [](DECLFW_ARGS) {
-	((UNLN625092*)fc->fceu->cartiface)->
-	  UNLN625092WriteCommand(DECLFW_FORWARD);
+        ((UNLN625092*)fc->fceu->cartiface)->
+          UNLN625092WriteCommand(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0xC000, 0xFFFF, [](DECLFW_ARGS) {
-	((UNLN625092*)fc->fceu->cartiface)->
-	  UNLN625092WriteBank(DECLFW_FORWARD);
+        ((UNLN625092*)fc->fceu->cartiface)->
+          UNLN625092WriteBank(DECLFW_FORWARD);
       });
   }
 

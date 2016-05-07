@@ -43,8 +43,8 @@ struct MapperNNN final : public CartInterface {
   void MNNNWrite(DECLFW_ARGS) {}
 
   void Power() final override {
-    //	fc->fceu->SetReadHandler(0x6000,0x7fff,CartBR);
-    //	fc->fceu->SetWriteHandler(0x6000,0x7fff,CartBW);
+    //  fc->fceu->SetReadHandler(0x6000,0x7fff,CartBR);
+    //  fc->fceu->SetWriteHandler(0x6000,0x7fff,CartBW);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       ((MapperNNN*)fc->fceu->cartiface)->MNNNWrite(DECLFW_FORWARD);
@@ -85,14 +85,14 @@ struct MapperNNN final : public CartInterface {
       SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
       fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
       if (info->battery) {
-	info->SaveGame[0] = WRAM;
-	info->SaveGameLen[0] = WRAMSIZE;
+        info->SaveGame[0] = WRAM;
+        info->SaveGameLen[0] = WRAMSIZE;
       }
     */
     fc->state->AddExVec({{reg, 8, "REGS"},
-			 {&IRQa, 1, "IRQA"},
-			 {&IRQCount, 2, "IRQC"},
-			 {&IRQLatch, 2, "IRQL"}});
+                         {&IRQa, 1, "IRQA"},
+                         {&IRQCount, 2, "IRQC"},
+                         {&IRQLatch, 2, "IRQL"}});
   }
 
 };

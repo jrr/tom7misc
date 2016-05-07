@@ -33,24 +33,24 @@ struct Mapper15 final : public CartInterface {
     fc->cart->setmirror(((latchd >> 6) & 1) ^ 1);
     switch (latcha) {
       case 0x8000:
-	for (int i = 0; i < 4; i++)
-	  fc->cart->setprg8(0x8000 + (i << 13),
-			    (((latchd & 0x7F) << 1) + i) ^ (latchd >> 7));
-	break;
+        for (int i = 0; i < 4; i++)
+          fc->cart->setprg8(0x8000 + (i << 13),
+                            (((latchd & 0x7F) << 1) + i) ^ (latchd >> 7));
+        break;
       case 0x8002:
-	for (int i = 0; i < 4; i++)
-	  fc->cart->setprg8(0x8000 + (i << 13),
-			    ((latchd & 0x7F) << 1) + (latchd >> 7));
-	break;
+        for (int i = 0; i < 4; i++)
+          fc->cart->setprg8(0x8000 + (i << 13),
+                            ((latchd & 0x7F) << 1) + (latchd >> 7));
+        break;
       case 0x8001:
       case 0x8003:
-	for (int i = 0; i < 4; i++) {
-	  unsigned int b = latchd & 0x7F;
-	  if (i >= 2 && !(latcha & 0x2)) i = 0x7F;
-	  fc->cart->setprg8(0x8000 + (i << 13),
-			    (i & 1) + ((b << 1) ^ (latchd >> 7)));
-	}
-	break;
+        for (int i = 0; i < 4; i++) {
+          unsigned int b = latchd & 0x7F;
+          if (i >= 2 && !(latcha & 0x2)) i = 0x7F;
+          fc->cart->setprg8(0x8000 + (i << 13),
+                            (i & 1) + ((b << 1) ^ (latchd >> 7)));
+        }
+        break;
     }
   }
 

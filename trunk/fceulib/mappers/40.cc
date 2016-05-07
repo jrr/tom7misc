@@ -39,16 +39,16 @@ struct Mapper40 final : public MapInterface {
   void Mapper40IRQ(int a) {
     if (fc->ines->iNESIRQa) {
       if (fc->ines->iNESIRQCount < 4096) {
-	fc->ines->iNESIRQCount += a;
+        fc->ines->iNESIRQCount += a;
       } else {
-	fc->ines->iNESIRQa = 0;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->ines->iNESIRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
 };
 }
-  
+
 MapInterface *Mapper40_init(FC *fc) {
   Mapper40 *m = new Mapper40(fc);
   fc->ines->ROM_BANK8(0x6000, (~0) - 1);

@@ -95,10 +95,6 @@ class EMUFILE {
   void write8le(uint8 val);
   size_t read8le(uint8* val);
   uint8 read8le();
-  void writedouble(double* val);
-  void writedouble(double val);
-  double readdouble();
-  size_t readdouble(double* val);
 
   virtual int fseek(int offset, int origin) = 0;
 

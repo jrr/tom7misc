@@ -45,9 +45,9 @@ struct Bandai : public CartInterface {
     if (IRQa) {
       IRQCount -= a;
       if (IRQCount < 0) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	IRQa = 0;
-	IRQCount = -1;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
+        IRQCount = -1;
       }
     }
   }
@@ -78,20 +78,20 @@ struct Bandai : public CartInterface {
       BandaiSync();
     } else
       switch (A) {
-	case 0x0A:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQa = V & 1;
-	  IRQCount = IRQLatch;
-	  break;
-	case 0x0B:
-	  IRQLatch &= 0xFF00;
-	  IRQLatch |= V;
-	  break;
-	case 0x0C:
-	  IRQLatch &= 0xFF;
-	  IRQLatch |= V << 8;
-	  break;
-	case 0x0D: break;  // Serial EEPROM control port
+        case 0x0A:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQa = V & 1;
+          IRQCount = IRQLatch;
+          break;
+        case 0x0B:
+          IRQLatch &= 0xFF00;
+          IRQLatch |= V;
+          break;
+        case 0x0C:
+          IRQLatch &= 0xFF;
+          IRQLatch |= V << 8;
+          break;
+        case 0x0D: break;  // Serial EEPROM control port
       }
   }
 
@@ -142,7 +142,7 @@ struct Mapper153 final : public Bandai<true> {
     free(WRAM);
     WRAM = nullptr;
   }
-  
+
   Mapper153(FC *fc, CartInfo *info) : Bandai(fc, info) {
     fc->X->MapIRQHook = [](FC *fc, int a) {
       ((Mapper153 *)fc->fceu->cartiface)->BandaiIRQHook(a);
@@ -226,17 +226,17 @@ struct Barcode final : public Bandai<false> {
       uint32 csum;
 
       for (i = 0; i < 6; i++) {
-	if (prefix_parity_type[code[0]][i]) {
-	  for (j = 0; j < 7; j++) {
-	    BS(data_left_even[code[i + 1]][j]);
-	  }
-	} else {
-	  for (j = 0; j < 7; j++) {
-	    BS(data_left_odd[code[i + 1]][j]);
-	  }
-	}
+        if (prefix_parity_type[code[0]][i]) {
+          for (j = 0; j < 7; j++) {
+            BS(data_left_even[code[i + 1]][j]);
+          }
+        } else {
+          for (j = 0; j < 7; j++) {
+            BS(data_left_odd[code[i + 1]][j]);
+          }
+        }
       }
-	
+
       /* Center guard bars */
       BS(0);
       BS(1);
@@ -245,14 +245,14 @@ struct Barcode final : public Bandai<false> {
       BS(0);
 
       for (i = 7; i < 12; i++)
-	for (j = 0; j < 7; j++) {
-	  BS(data_right[code[i]][j]);
-	}
+        for (j = 0; j < 7; j++) {
+          BS(data_right[code[i]][j]);
+        }
       csum = 0;
       for (i = 0; i < 12; i++) csum += code[i] * ((i & 1) ? 3 : 1);
       csum = (10 - (csum % 10)) % 10;
       for (j = 0; j < 7; j++) {
-	BS(data_right[csum][j]);
+        BS(data_right[csum][j]);
       }
 
     } else if (len == 8 || len == 7) {
@@ -263,9 +263,9 @@ struct Barcode final : public Bandai<false> {
       csum = (10 - (csum % 10)) % 10;
 
       for (i = 0; i < 4; i++) {
-	for (j = 0; j < 7; j++) {
-	  BS(data_left_odd[code[i]][j]);
-	}
+        for (j = 0; j < 7; j++) {
+          BS(data_left_odd[code[i]][j]);
+        }
       }
 
       /* Center guard bars */
@@ -276,13 +276,13 @@ struct Barcode final : public Bandai<false> {
       BS(0);
 
       for (i = 4; i < 7; i++) {
-	for (j = 0; j < 7; j++) {
-	  BS(data_right[code[i]][j]);
-	}
+        for (j = 0; j < 7; j++) {
+          BS(data_right[code[i]][j]);
+        }
       }
 
       for (j = 0; j < 7; j++) {
-	BS(data_right[csum][j]);
+        BS(data_right[csum][j]);
       }
     }
 
@@ -313,10 +313,10 @@ struct Barcode final : public Bandai<false> {
     if (BarcodeCycleCount >= 1000) {
       BarcodeCycleCount -= 1000;
       if (BarcodeData[BarcodeReadPos] == 0xFF) {
-	BarcodeOut = 0;
+        BarcodeOut = 0;
       } else {
-	BarcodeOut = (BarcodeData[BarcodeReadPos] ^ 1) << 3;
-	BarcodeReadPos++;
+        BarcodeOut = (BarcodeData[BarcodeReadPos] ^ 1) << 3;
+        BarcodeReadPos++;
       }
     }
   }
@@ -338,7 +338,7 @@ struct Barcode final : public Bandai<false> {
     });
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, [](DECLFR_ARGS) {
       return ((Barcode*)fc->fceu->cartiface)->
-	BarcodeRead(DECLFR_FORWARD);
+        BarcodeRead(DECLFR_FORWARD);
     });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }

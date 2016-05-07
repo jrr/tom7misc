@@ -65,11 +65,11 @@ struct BMCT262 final : public CartInterface {
   static void BMCT262Restore(FC *fc, int version) {
     ((BMCT262 *)fc->fceu->cartiface)->Sync();
   }
-  
+
   BMCT262(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = BMCT262Restore;
     fc->state->AddExVec({
-	{&addrreg, 2, "AREG"}, {&datareg, 1, "DREG"}, {&busy, 1, "BUSY"}});
+        {&addrreg, 2, "AREG"}, {&datareg, 1, "DREG"}, {&busy, 1, "BUSY"}});
   }
 };
 }

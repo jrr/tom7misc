@@ -38,17 +38,17 @@ struct Mapper187 final : public MMC3 {
     if (EXPREGS[0] & 0x80) {
       uint8 bank = EXPREGS[0] & 0x1F;
       if (EXPREGS[0] & 0x20) {
-	if (EXPREGS[0] & 0x40) {
-	  fc->cart->setprg32(0x8000, bank >> 2);
-	} else {
-	  // hacky hacky! two
-	  // mappers in one! need
-	  // real hw carts to test
-	  fc->cart->setprg32(0x8000, bank >> 1);
-	}
+        if (EXPREGS[0] & 0x40) {
+          fc->cart->setprg32(0x8000, bank >> 2);
+        } else {
+          // hacky hacky! two
+          // mappers in one! need
+          // real hw carts to test
+          fc->cart->setprg32(0x8000, bank >> 1);
+        }
       } else {
-	fc->cart->setprg16(0x8000, bank);
-	fc->cart->setprg16(0xC000, bank);
+        fc->cart->setprg16(0x8000, bank);
+        fc->cart->setprg16(0xC000, bank);
       }
     } else {
       fc->cart->setprg8(A, V & 0x3F);
@@ -79,16 +79,16 @@ struct Mapper187 final : public MMC3 {
     EXPREGS[0] = EXPREGS[1] = 0;
     MMC3::Power();
     fc->fceu->SetReadHandler(0x5000, 0x5FFF, [](DECLFR_ARGS) {
-	return ((Mapper187*)fc->fceu->cartiface)->M187Read(DECLFR_FORWARD);
+        return ((Mapper187*)fc->fceu->cartiface)->M187Read(DECLFR_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x5000, 0x6FFF, [](DECLFW_ARGS) {
-	((Mapper187*)fc->fceu->cartiface)->M187WriteLo(DECLFW_FORWARD);
+        ((Mapper187*)fc->fceu->cartiface)->M187WriteLo(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x8000, 0x8000, [](DECLFW_ARGS) {
-	((Mapper187*)fc->fceu->cartiface)->M187Write8000(DECLFW_FORWARD);
+        ((Mapper187*)fc->fceu->cartiface)->M187Write8000(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x8001, 0x8001, [](DECLFW_ARGS) {
-	((Mapper187*)fc->fceu->cartiface)->M187Write8001(DECLFW_FORWARD);
+        ((Mapper187*)fc->fceu->cartiface)->M187Write8001(DECLFW_FORWARD);
       });
   }
 

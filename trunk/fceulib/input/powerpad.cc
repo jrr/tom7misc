@@ -41,24 +41,24 @@ struct PowerPad : public InputC {
     return ret;
   }
 
-  
+
   void Strobe(int w) override {
     pprsb = 0;
   }
 
   void Update(int w, void *data, int arg) override {
     static constexpr const char shifttableA[12] = {8, 9, 0,  1, 11, 7,
-						   4, 2, 10, 6, 5,  3};
+                                                   4, 2, 10, 6, 5,  3};
     static constexpr const char shifttableB[12] = {1, 0,  9, 8, 2, 4,
-						   7, 11, 3, 5, 6, 10};
+                                                   7, 11, 3, 5, 6, 10};
     pprdata = 0;
 
     if (side == 'A')
       for (int x = 0; x < 12; x++)
-	pprdata |= (((*(uint32 *)data) >> x) & 1) << shifttableA[x];
+        pprdata |= (((*(uint32 *)data) >> x) & 1) << shifttableA[x];
     else
       for (int x = 0; x < 12; x++)
-	pprdata |= (((*(uint32 *)data) >> x) & 1) << shifttableB[x];
+        pprdata |= (((*(uint32 *)data) >> x) & 1) << shifttableB[x];
   }
 
   int which;

@@ -31,11 +31,11 @@ struct Mapper235 final : public CartInterface {
       fc->cart->setmirror(((cmdreg >> 13) & 1) ^ 1);
     if (cmdreg & 0x800) {
       fc->cart->setprg16(0x8000, ((cmdreg & 0x300) >> 3) |
-			 ((cmdreg & 0x1F) << 1) |
-			 ((cmdreg >> 12) & 1));
+                         ((cmdreg & 0x1F) << 1) |
+                         ((cmdreg >> 12) & 1));
       fc->cart->setprg16(0xC000, ((cmdreg & 0x300) >> 3) |
-			 ((cmdreg & 0x1F) << 1) |
-			 ((cmdreg >> 12) & 1));
+                         ((cmdreg & 0x1F) << 1) |
+                         ((cmdreg >> 12) & 1));
     } else {
       fc->cart->setprg32(0x8000, ((cmdreg & 0x300) >> 4) | (cmdreg & 0x1F));
     }

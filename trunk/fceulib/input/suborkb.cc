@@ -149,9 +149,9 @@ struct SuborKB : public InputCFC {
       //  else
       //  {
       for (x = 0; x < 4; x++)
-	if (bufit[matrix[ksindex][ksmode & 1][x] & 0xFF] ||
-	    bufit[matrix[ksindex][ksmode & 1][x] >> 8])
-	  ret |= 1 << (x + 1);
+        if (bufit[matrix[ksindex][ksmode & 1][x] & 0xFF] ||
+            bufit[matrix[ksindex][ksmode & 1][x] >> 8])
+          ret |= 1 << (x + 1);
       //  }
       ret ^= 0x1E;
     }

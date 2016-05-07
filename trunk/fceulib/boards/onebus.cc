@@ -79,7 +79,7 @@ struct UNLOneBus final : public CartInterface {
   void CSync() {
     static constexpr uint8 midx[8] = {0, 1, 2, 0, 3, 4, 5, 0};
     uint8 mask = 0xff >> midx[ppu201x[0xa] & 7];
-    uint32 block = ((cpu410x[0x0] & 0x0f) << 11) + 
+    uint32 block = ((cpu410x[0x0] & 0x0f) << 11) +
                    ((ppu201x[0x8] & 0x70) << 4) +
                    (ppu201x[0xa] & (~mask));
     uint32 cswap = (mmc3cmd & 0x80) << 5;
@@ -267,33 +267,33 @@ struct UNLOneBus final : public CartInterface {
     memset(apu40xx, 0x00, sizeof(apu40xx));
 
     fc->cart->SetupCartCHRMapping(0, fc->cart->PRGptr[0],
-				  fc->cart->PRGsize[0], false);
+                                  fc->cart->PRGsize[0], false);
 
     for (uint32 i = 0; i < 64; i++) {
       defapuread[i] = fc->fceu->GetReadHandler(0x4000 | i);
       defapuwrite[i] = fc->fceu->GetWriteHandler(0x4000 | i);
     }
     fc->fceu->SetReadHandler(0x4000, 0x403f, [](DECLFR_ARGS) {
-	return ((UNLOneBus*)fc->fceu->cartiface)->
-	  UNLOneBusReadAPU40XX(DECLFR_FORWARD);
+        return ((UNLOneBus*)fc->fceu->cartiface)->
+          UNLOneBusReadAPU40XX(DECLFR_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x4000, 0x403f, [](DECLFW_ARGS) {
-	((UNLOneBus*)fc->fceu->cartiface)->
-	  UNLOneBusWriteAPU40XX(DECLFW_FORWARD);
+        ((UNLOneBus*)fc->fceu->cartiface)->
+          UNLOneBusWriteAPU40XX(DECLFW_FORWARD);
       });
 
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x2010, 0x201f, [](DECLFW_ARGS) {
-	((UNLOneBus*)fc->fceu->cartiface)->
-	  UNLOneBusWritePPU201X(DECLFW_FORWARD);
+        ((UNLOneBus*)fc->fceu->cartiface)->
+          UNLOneBusWritePPU201X(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x4100, 0x410f, [](DECLFW_ARGS) {
-	((UNLOneBus*)fc->fceu->cartiface)->
-	  UNLOneBusWriteCPU410X(DECLFW_FORWARD);
+        ((UNLOneBus*)fc->fceu->cartiface)->
+          UNLOneBusWriteCPU410X(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
-	((UNLOneBus*)fc->fceu->cartiface)->
-	  UNLOneBusWriteMMC3(DECLFW_FORWARD);
+        ((UNLOneBus*)fc->fceu->cartiface)->
+          UNLOneBusWriteMMC3(DECLFW_FORWARD);
       });
 
     Sync();

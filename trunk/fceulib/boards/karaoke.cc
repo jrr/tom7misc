@@ -29,9 +29,9 @@ struct Mapper188 final : public CartInterface {
   void Sync() {
     if (latch) {
       if (latch & 0x10)
-	fc->cart->setprg16(0x8000, (latch & 7));
+        fc->cart->setprg16(0x8000, (latch & 7));
       else
-	fc->cart->setprg16(0x8000, (latch & 7) | 8);
+        fc->cart->setprg16(0x8000, (latch & 7) | 8);
     } else {
       fc->cart->setprg16(0x8000, 7 + (fc->ines->ROM_size >> 4));
     }

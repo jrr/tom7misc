@@ -48,34 +48,34 @@ struct Mapper190 final : public CartInterface {
     //  if(regs[0xA]&0x10)
     //  {
     /*    setchr1r(0x10,0x0000,(((regs[5]&1))<<2)+0);
-	setchr1r(0x10,0x0400,(((regs[5]&1))<<2)+1);
-	setchr1r(0x10,0x0800,(((regs[5]&1))<<2)+2);
-	setchr1r(0x10,0x0c00,(((regs[5]&1))<<2)+3);
-	setchr1r(0x10,0x1000,0);
-	setchr1r(0x10,0x1400,1);
-	setchr1r(0x10,0x1800,2);
-	setchr1r(0x10,0x1c00,3);*/
+        setchr1r(0x10,0x0400,(((regs[5]&1))<<2)+1);
+        setchr1r(0x10,0x0800,(((regs[5]&1))<<2)+2);
+        setchr1r(0x10,0x0c00,(((regs[5]&1))<<2)+3);
+        setchr1r(0x10,0x1000,0);
+        setchr1r(0x10,0x1400,1);
+        setchr1r(0x10,0x1800,2);
+        setchr1r(0x10,0x1c00,3);*/
     /*    setchr1r(0x10,0x0000,(((regs[5]&1))<<2)+0);
-	setchr1r(0x10,0x0400,(((regs[5]&1))<<2)+1);
-	setchr1r(0x10,0x0800,(((regs[5]&1))<<2)+2);
-	setchr1r(0x10,0x0c00,(((regs[5]&1))<<2)+3);
-	setchr1r(0x10,0x1000,(((regs[5]&1)^1)<<2)+4);
-	setchr1r(0x10,0x1400,(((regs[5]&1)^1)<<2)+5);
-	setchr1r(0x10,0x1800,(((regs[5]&1)^1)<<2)+6);
-	setchr1r(0x10,0x1c00,(((regs[5]&1)^1)<<2)+7);
+        setchr1r(0x10,0x0400,(((regs[5]&1))<<2)+1);
+        setchr1r(0x10,0x0800,(((regs[5]&1))<<2)+2);
+        setchr1r(0x10,0x0c00,(((regs[5]&1))<<2)+3);
+        setchr1r(0x10,0x1000,(((regs[5]&1)^1)<<2)+4);
+        setchr1r(0x10,0x1400,(((regs[5]&1)^1)<<2)+5);
+        setchr1r(0x10,0x1800,(((regs[5]&1)^1)<<2)+6);
+        setchr1r(0x10,0x1c00,(((regs[5]&1)^1)<<2)+7);
     */
     //  }
     //  else
     //  {
     /*
-	setchr1r(0x10,0x0000,(((regs[5]&1)^1)<<2)+0);
-	setchr1r(0x10,0x0400,(((regs[5]&1)^1)<<2)+1);
-	setchr1r(0x10,0x0800,(((regs[5]&1)^1)<<2)+2);
-	setchr1r(0x10,0x0c00,(((regs[5]&1)^1)<<2)+3);
-	setchr1r(0x10,0x1000,(((regs[5]&1))<<2)+4);
-	setchr1r(0x10,0x1400,(((regs[5]&1))<<2)+5);
-	setchr1r(0x10,0x1800,(((regs[5]&1))<<2)+6);
-	setchr1r(0x10,0x1c00,(((regs[5]&1))<<2)+7);
+        setchr1r(0x10,0x0000,(((regs[5]&1)^1)<<2)+0);
+        setchr1r(0x10,0x0400,(((regs[5]&1)^1)<<2)+1);
+        setchr1r(0x10,0x0800,(((regs[5]&1)^1)<<2)+2);
+        setchr1r(0x10,0x0c00,(((regs[5]&1)^1)<<2)+3);
+        setchr1r(0x10,0x1000,(((regs[5]&1))<<2)+4);
+        setchr1r(0x10,0x1400,(((regs[5]&1))<<2)+5);
+        setchr1r(0x10,0x1800,(((regs[5]&1))<<2)+6);
+        setchr1r(0x10,0x1c00,(((regs[5]&1))<<2)+7);
     //  }
     //*/
     fc->cart->setprg4r(0x10, 0x6000, regs[0] & 1);
@@ -101,23 +101,23 @@ struct Mapper190 final : public CartInterface {
     regs[(A & 0x0F00) >> 8] = V;
     switch (A) {
       case 0xd600:
-	IRQLatch &= 0xFF00;
-	IRQLatch |= V;
-	break;
+        IRQLatch &= 0xFF00;
+        IRQLatch |= V;
+        break;
       case 0xd700:
-	IRQLatch &= 0x00FF;
-	IRQLatch |= V << 8;
-	break;
+        IRQLatch &= 0x00FF;
+        IRQLatch |= V << 8;
+        break;
       case 0xd900:
-	IRQCount = IRQLatch;
-	IRQa = V & 2;
-	K4IRQ = V & 1;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQCount = IRQLatch;
+        IRQa = V & 2;
+        K4IRQ = V & 1;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0xd800:
-	IRQa = K4IRQ;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = K4IRQ;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
     }
     Sync();
   }
@@ -127,13 +127,13 @@ struct Mapper190 final : public CartInterface {
     // %d\n",A,regs[(A&0x0F00)>>8],scanline,timestamp);
     return regs[(A & 0x0F00) >> 8] + regs[0x0B];
   }
-  
+
   void VRC5IRQ(int a) {
     if (IRQa) {
       IRQCount += a;
       if (IRQCount & 0x10000) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	//      IRQCount=IRQLatch;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        //      IRQCount=IRQLatch;
       }
     }
   }
@@ -141,9 +141,9 @@ struct Mapper190 final : public CartInterface {
   void M1902007Wrap(DECLFW_ARGS) {
     if (A >= 0x2000) {
       if (regs[0xA] & 1)
-	QTAINTRAM[A & 0x1FFF] = V;
+        QTAINTRAM[A & 0x1FFF] = V;
       else
-	old2007wrap(DECLFW_FORWARD);
+        old2007wrap(DECLFW_FORWARD);
     }
   }
 
@@ -202,7 +202,7 @@ struct Mapper190 final : public CartInterface {
     }
 
     fc->state->AddExVec({
-	{&IRQCount, 1, "IRQC"}, {&IRQLatch, 1, "IRQL"},
+        {&IRQCount, 1, "IRQC"}, {&IRQLatch, 1, "IRQL"},
         {&IRQa, 1, "IRQA"},     {&K4IRQ, 1, "KIRQ"},
         {regs, 16, "REGS"}});
   }

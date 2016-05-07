@@ -101,7 +101,7 @@ struct LH53 final : public CartInterface {
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
 
     fc->state->AddExVec({
-	{&reg, 1, "REGS"}, {&IRQa, 1, "IRQA"}, {&IRQCount, 4, "IRQC"}});
+        {&reg, 1, "REGS"}, {&IRQa, 1, "IRQA"}, {&IRQCount, 4, "IRQC"}});
   }
 
 };

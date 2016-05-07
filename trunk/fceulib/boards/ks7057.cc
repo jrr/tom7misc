@@ -52,73 +52,73 @@ struct UNLKS7057 final : public CartInterface {
       case 0x9001:
       case 0x9002:
       case 0x9003:
-	mirror = V & 1;
-	Sync();
-	break;
+        mirror = V & 1;
+        Sync();
+        break;
       case 0xB000:
-	reg[0] = (reg[0] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[0] = (reg[0] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xB001:
-	reg[0] = (reg[0] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[0] = (reg[0] & 0x0F) | (V << 4);
+        Sync();
+        break;
       case 0xB002:
-	reg[1] = (reg[1] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[1] = (reg[1] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xB003:
-	reg[1] = (reg[1] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[1] = (reg[1] & 0x0F) | (V << 4);
+        Sync();
+        break;
       case 0xC000:
-	reg[2] = (reg[2] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[2] = (reg[2] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xC001:
-	reg[2] = (reg[2] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[2] = (reg[2] & 0x0F) | (V << 4);
+        Sync();
+        break;
       case 0xC002:
-	reg[3] = (reg[3] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[3] = (reg[3] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xC003:
-	reg[3] = (reg[3] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[3] = (reg[3] & 0x0F) | (V << 4);
+        Sync();
+        break;
       case 0xD000:
-	reg[4] = (reg[4] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[4] = (reg[4] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xD001:
-	reg[4] = (reg[4] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[4] = (reg[4] & 0x0F) | (V << 4);
+        Sync();
+        break;
       case 0xD002:
-	reg[5] = (reg[5] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[5] = (reg[5] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xD003:
-	reg[5] = (reg[5] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[5] = (reg[5] & 0x0F) | (V << 4);
+        Sync();
+        break;
       case 0xE000:
-	reg[6] = (reg[6] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[6] = (reg[6] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xE001:
-	reg[6] = (reg[6] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[6] = (reg[6] & 0x0F) | (V << 4);
+        Sync();
+        break;
       case 0xE002:
-	reg[7] = (reg[7] & 0xF0) | (V & 0x0F);
-	Sync();
-	break;
+        reg[7] = (reg[7] & 0xF0) | (V & 0x0F);
+        Sync();
+        break;
       case 0xE003:
-	reg[7] = (reg[7] & 0x0F) | (V << 4);
-	Sync();
-	break;
+        reg[7] = (reg[7] & 0x0F) | (V << 4);
+        Sync();
+        break;
     }
   }
 

@@ -56,8 +56,8 @@ struct UNL8237 : public MMC3 {
   void CWrap(uint32 A, uint8 V) override {
     if (EXPREGS[0] & 0x40)
       fc->cart->setchr1(A,
-			((EXPREGS[1] & 0xc) << 6) | (V & 0x7F) |
-			((EXPREGS[1] & 0x20) << 2));
+                        ((EXPREGS[1] & 0xc) << 6) | (V & 0x7F) |
+                        ((EXPREGS[1] & 0x20) << 2));
     else
       fc->cart->setchr1(A, ((EXPREGS[1] & 0xc) << 6) | V);
   }
@@ -66,27 +66,27 @@ struct UNL8237 : public MMC3 {
     if (EXPREGS[0] & 0x40) {
       uint8 sbank = (EXPREGS[1] & 0x10);
       if (EXPREGS[0] & 0x80) {
-	uint8 bank = ((EXPREGS[1] & 3) << 4) |
-	  (EXPREGS[0] & 0x7) | (sbank >> 1);
-	if (EXPREGS[0] & 0x20)
-	  fc->cart->setprg32(0x8000, bank >> 1);
-	else {
-	  fc->cart->setprg16(0x8000, bank);
-	  fc->cart->setprg16(0xC000, bank);
-	}
+        uint8 bank = ((EXPREGS[1] & 3) << 4) |
+          (EXPREGS[0] & 0x7) | (sbank >> 1);
+        if (EXPREGS[0] & 0x20)
+          fc->cart->setprg32(0x8000, bank >> 1);
+        else {
+          fc->cart->setprg16(0x8000, bank);
+          fc->cart->setprg16(0xC000, bank);
+        }
       } else
-	fc->cart->setprg8(A, ((EXPREGS[1] & 3) << 5) | (V & 0x0F) | sbank);
+        fc->cart->setprg8(A, ((EXPREGS[1] & 3) << 5) | (V & 0x0F) | sbank);
     } else {
       if (EXPREGS[0] & 0x80) {
-	uint8 bank = ((EXPREGS[1] & 3) << 4) | (EXPREGS[0] & 0xF);
-	if (EXPREGS[0] & 0x20)
-	  fc->cart->setprg32(0x8000, bank >> 1);
-	else {
-	  fc->cart->setprg16(0x8000, bank);
-	  fc->cart->setprg16(0xC000, bank);
-	}
+        uint8 bank = ((EXPREGS[1] & 3) << 4) | (EXPREGS[0] & 0xF);
+        if (EXPREGS[0] & 0x20)
+          fc->cart->setprg32(0x8000, bank >> 1);
+        else {
+          fc->cart->setprg16(0x8000, bank);
+          fc->cart->setprg16(0xC000, bank);
+        }
       } else
-	fc->cart->setprg8(A, ((EXPREGS[1] & 3) << 5) | (V & 0x1F));
+        fc->cart->setprg8(A, ((EXPREGS[1] & 3) << 5) | (V & 0x1F));
     }
   }
 
@@ -105,14 +105,14 @@ struct UNL8237 : public MMC3 {
   void UNL8237ExWrite(DECLFW_ARGS) {
     switch (A) {
       case 0x5000:
-	EXPREGS[0] = V;
-	FixMMC3PRG(MMC3_cmd);
-	break;
+        EXPREGS[0] = V;
+        FixMMC3PRG(MMC3_cmd);
+        break;
       case 0x5001:
-	EXPREGS[1] = V;
-	FixMMC3PRG(MMC3_cmd);
-	FixMMC3CHR(MMC3_cmd);
-	break;
+        EXPREGS[1] = V;
+        FixMMC3PRG(MMC3_cmd);
+        FixMMC3CHR(MMC3_cmd);
+        break;
       case 0x5007: EXPREGS[2] = V; break;
     }
   }
@@ -137,13 +137,13 @@ struct UNL8237 : public MMC3 {
 
 struct UNL8237A final : public UNL8237 {
   using UNL8237::UNL8237;
-  
+
   void CWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40)
       fc->cart->setchr1(A,
-			((EXPREGS[1] & 0xE) << 7) |
-			(V & 0x7F) |
-			((EXPREGS[1] & 0x20) << 2));
+                        ((EXPREGS[1] & 0xE) << 7) |
+                        (V & 0x7F) |
+                        ((EXPREGS[1] & 0x20) << 2));
     else
       fc->cart->setchr1(A, ((EXPREGS[1] & 0xE) << 7) | V);
   }
@@ -152,32 +152,32 @@ struct UNL8237A final : public UNL8237 {
     if (EXPREGS[0] & 0x40) {
       uint8 sbank = (EXPREGS[1] & 0x10);
       if (EXPREGS[0] & 0x80) {
-	uint8 bank = ((EXPREGS[1] & 3) << 4) | ((EXPREGS[1] & 8) << 3) |
-	  (EXPREGS[0] & 0x7) | (sbank >> 1);
-	if (EXPREGS[0] & 0x20)
-	  fc->cart->setprg32(0x8000, bank >> 1);
-	else {
-	  fc->cart->setprg16(0x8000, bank);
-	  fc->cart->setprg16(0xC000, bank);
-	}
+        uint8 bank = ((EXPREGS[1] & 3) << 4) | ((EXPREGS[1] & 8) << 3) |
+          (EXPREGS[0] & 0x7) | (sbank >> 1);
+        if (EXPREGS[0] & 0x20)
+          fc->cart->setprg32(0x8000, bank >> 1);
+        else {
+          fc->cart->setprg16(0x8000, bank);
+          fc->cart->setprg16(0xC000, bank);
+        }
       } else
-	fc->cart->setprg8(A, ((EXPREGS[1] & 3) << 5) |
-			  ((EXPREGS[1] & 8) << 4) | (V & 0x0F) |
-			  sbank);
+        fc->cart->setprg8(A, ((EXPREGS[1] & 3) << 5) |
+                          ((EXPREGS[1] & 8) << 4) | (V & 0x0F) |
+                          sbank);
     } else {
       if (EXPREGS[0] & 0x80) {
-	uint8 bank = ((EXPREGS[1] & 3) << 4) | ((EXPREGS[1] & 8) << 3) |
-	  (EXPREGS[0] & 0xF);
-	if (EXPREGS[0] & 0x20)
-	  fc->cart->setprg32(0x8000, bank >> 1);
-	else {
-	  fc->cart->setprg16(0x8000, bank);
-	  fc->cart->setprg16(0xC000, bank);
-	}
+        uint8 bank = ((EXPREGS[1] & 3) << 4) | ((EXPREGS[1] & 8) << 3) |
+          (EXPREGS[0] & 0xF);
+        if (EXPREGS[0] & 0x20)
+          fc->cart->setprg32(0x8000, bank >> 1);
+        else {
+          fc->cart->setprg16(0x8000, bank);
+          fc->cart->setprg16(0xC000, bank);
+        }
       } else
-	fc->cart->setprg8(A,
-			  ((EXPREGS[1] & 3) << 5) |
-			  ((EXPREGS[1] & 8) << 4) | (V & 0x1F));
+        fc->cart->setprg8(A,
+                          ((EXPREGS[1] & 3) << 5) |
+                          ((EXPREGS[1] & 8) << 4) | (V & 0x1F));
     }
   }
 };

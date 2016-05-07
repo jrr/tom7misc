@@ -30,13 +30,13 @@ struct RLE {
   // anti-run of length 0 is strictly wasteful (of the next byte),
   // we treat every value as a run or anti-run of length value+1.
   static vector<uint8> CompressEx(const vector<uint8> &in,
-				  uint8 run_cutoff);
+                                  uint8 run_cutoff);
   // Returns true on success, clears and modifies out to contain the
   // decoded bytes. On failure, out will be in a valid but unspecified
   // state.
   static bool DecompressEx(const vector<uint8> &in,
-			   uint8 run_cutoff,
-			   vector<uint8> *out);
+                           uint8 run_cutoff,
+                           vector<uint8> *out);
 };
 
 // static
@@ -56,7 +56,7 @@ vector<uint8> RLE::Decompress(const vector<uint8> &in) {
 
 // static
 vector<uint8> RLE::CompressEx(const vector<uint8> &in,
-			      uint8 run_cutoff) {
+                              uint8 run_cutoff) {
   // No idea how big this needs to be until we compress...
   // (There are lower bounds like in.size() / 128 but it's
   // hard to imagine that being useful.
@@ -77,8 +77,8 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
     // that this is legal.
     int run_length = 1;
     while (run_length < max_run_length &&
-	   i + run_length < in.size() &&
-	   in[i + run_length] == target) {
+           i + run_length < in.size() &&
+           in[i + run_length] == target) {
       run_length++;
     }
 
@@ -98,25 +98,25 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
       // same.
       int anti_run_length = 1;
       while (anti_run_length < max_antirun_length &&
-	     i + anti_run_length + 1 < in.size() &&
-	     in[i + anti_run_length] != 
-	     in[i + anti_run_length + 1]) {
-	anti_run_length++;
+             i + anti_run_length + 1 < in.size() &&
+             in[i + anti_run_length] !=
+             in[i + anti_run_length + 1]) {
+        anti_run_length++;
       }
 
       if (anti_run_length == 1) {
-	const uint8 control = 0;
-	out.push_back(control);
-	out.push_back(target);
-	i++;
+        const uint8 control = 0;
+        out.push_back(control);
+        out.push_back(target);
+        i++;
       } else {
-	const uint8 control = (anti_run_length - 1) + run_cutoff;
-	out.reserve(out.size() + anti_run_length + 1);
-	out.push_back(control);
-	for (int a = 0; a < anti_run_length; a++) {
-	  out.push_back(in[i]);
-	  i++;
-	}
+        const uint8 control = (anti_run_length - 1) + run_cutoff;
+        out.reserve(out.size() + anti_run_length + 1);
+        out.push_back(control);
+        for (int a = 0; a < anti_run_length; a++) {
+          out.push_back(in[i]);
+          i++;
+        }
       }
     }
   }
@@ -124,26 +124,26 @@ vector<uint8> RLE::CompressEx(const vector<uint8> &in,
 }
 
 bool RLE::DecompressEx(const vector<uint8> &in,
-		       uint8 run_cutoff,
-		       vector<uint8> *out) {
+                       uint8 run_cutoff,
+                       vector<uint8> *out) {
   out->clear();
-  
+
   for (int i = 0; i < in.size(); /* in loop */) {
     const uint8 control = in[i];
     i++;
     if (control <= run_cutoff) {
       // If less than the run cutoff, we treat it as a run.
       const int run_length = control + 1;
-      
+
       if (i >= in.size()) {
-	return false;
+        return false;
       }
-      
+
       const uint8 b = in[i];
       i++;
       out->reserve(out->size() + run_length);
       for (int j = 0; j < run_length; j++)
-	out->push_back(b);
+        out->push_back(b);
 
     } else {
       // run_cutoff may be e.g. 100, but we know from the if that the
@@ -152,16 +152,16 @@ bool RLE::DecompressEx(const vector<uint8> &in,
       // anti-run of length 0 (pointless) or 1 (same as run of 1,
       // represented as 0) so we code starting at 2.
       const int antirun_length = control - run_cutoff + 1;
-      
+
       if (i + antirun_length >= in.size()) {
-	return false;
+        return false;
       }
 
       out->reserve(out->size() + antirun_length);
-      
+
       for (int j = 0; j < antirun_length; j++) {
-	out->push_back(in[i]);
-	i++;
+        out->push_back(in[i]);
+        i++;
       }
     }
   }
@@ -222,7 +222,7 @@ void Traces::SwitchTraceFile(const string &s) {
   fp = fopen(s.c_str(), "wb");
   if (fp == nullptr) {
     fprintf(stderr, "Unable to switch to trace file %s.\n",
-	    s.c_str());
+            s.c_str());
     abort();
   }
 }
@@ -254,52 +254,52 @@ string Traces::Difference(const Trace &l, const Trace &r) {
   if (Equal(l, r)) return "Equal.";
   if (l.type != r.type) {
     string s = StringPrintf("Types are different: %s vs %s",
-			    TypeString(l.type), TypeString(r.type));
+                            TypeString(l.type), TypeString(r.type));
     return s + ". Values:\n" + LineString(l) + "\n" + LineString(r);
   }
 
   switch (l.type) {
   case STRING:
-    return StringPrintf("%s\nvs.\n%s", 
-			l.data_string.c_str(),
-			r.data_string.c_str());
+    return StringPrintf("%s\nvs.\n%s",
+                        l.data_string.c_str(),
+                        r.data_string.c_str());
   case MEMORY: {
     string how =
-      l.data_memory.size() != r.data_memory.size() ? 
+      l.data_memory.size() != r.data_memory.size() ?
       StringPrintf("Memories (different sizes: %lld vs %lld): ",
-		   l.data_memory.size(),
-		   r.data_memory.size()) :
+                   l.data_memory.size(),
+                   r.data_memory.size()) :
       "Memories (same size): ";
 
     int num_differences = 0;
     int first_difference = -1;
     // Long version.
     for (int i = 0; i < min(l.data_memory.size(),
-			    r.data_memory.size()); i++) {
+                            r.data_memory.size()); i++) {
       if (!(i % 16)) how += "\n";
       uint8 ll = l.data_memory[i], rr = r.data_memory[i];
       if (ll != rr) {
-	num_differences++;
-	if (first_difference == -1)
-	  first_difference = i;
-	how += StringPrintf("%02x|%02x ", ll, rr);
+        num_differences++;
+        if (first_difference == -1)
+          first_difference = i;
+        how += StringPrintf("%02x|%02x ", ll, rr);
       } else {
-	how += StringPrintf("%02x ", ll);
+        how += StringPrintf("%02x ", ll);
       }
     }
 
     how += StringPrintf("\n%d difference(s), first at offset %d.\n",
-			num_differences, first_difference);
+                        num_differences, first_difference);
     return how;
 
     // Short version.
     for (int i = 0; i < min(l.data_memory.size(),
-			    r.data_memory.size()); i++) {
+                            r.data_memory.size()); i++) {
       uint8 ll = l.data_memory[i], rr = r.data_memory[i];
       if (ll != rr) {
-	if (how.length() > 70)
-	  return how + "...";
-	how += StringPrintf("@%d %02x != %02x  ", i, ll, rr);
+        if (how.length() > 70)
+          return how + "...";
+        how += StringPrintf("@%d %02x != %02x  ", i, ll, rr);
       }
     }
     return how + " (only)";
@@ -307,8 +307,8 @@ string Traces::Difference(const Trace &l, const Trace &r) {
   }
   case NUMBER:
     return StringPrintf("%llu vs. %llu",
-			l.data_number,
-			r.data_number);
+                        l.data_number,
+                        r.data_number);
   }
   return "Bad types!";
 }
@@ -318,7 +318,7 @@ string Traces::LineString(const Trace &t) {
  case STRING:
    if (t.data_string.size() > 75) {
      return StringPrintf("\"%s...\"",
-			 t.data_string.substr(0, 75).c_str());
+                         t.data_string.substr(0, 75).c_str());
    } else {
      return StringPrintf("\"%s\"", t.data_string.c_str());
    }
@@ -333,7 +333,7 @@ string Traces::LineString(const Trace &t) {
      return out + "]";
    } else {
      return StringPrintf("[MEMORY %d bytes (%s)]", t.data_memory.size(),
-			 any_nonzero ? "nonzero" : "all zero");
+                         any_nonzero ? "nonzero" : "all zero");
    }
  }
  case NUMBER:
@@ -353,7 +353,7 @@ void Traces::Write(const Trace &t) {
       w >>= 8;
     }
   };
-  
+
   auto Write64 = [this](uint64 w) {
     for (int i = 0; i < 8; i++) {
       fputc(w & 255, this->fp);
@@ -428,8 +428,8 @@ vector<Traces::Trace> Traces::ReadFromFile(const string &filename) {
     return true;
   };
 
-  static_assert(sizeof (char) == sizeof (uint8), 
-		"Assumed in this code.");
+  static_assert(sizeof (char) == sizeof (uint8),
+                "Assumed in this code.");
   uint8 tag;
   while (Read8(&tag)) {
     Trace t((TraceType)tag);
@@ -437,40 +437,40 @@ vector<Traces::Trace> Traces::ReadFromFile(const string &filename) {
     case STRING: {
       uint32 len;
       if (!Read32(&len)) {
-	fprintf(stderr, "Incomplete string record.\n");
-	abort();
+        fprintf(stderr, "Incomplete string record.\n");
+        abort();
       }
       // fprintf(stderr, "String of length %u.\n", len);
       t.data_string.resize(len);
       for (int i = 0; i < len; i++) {
-	if (!Read8((uint8*)&t.data_string[i])) {
-	  fprintf(stderr, "Incomplete string.\n");
-	  abort();
-	}
+        if (!Read8((uint8*)&t.data_string[i])) {
+          fprintf(stderr, "Incomplete string.\n");
+          abort();
+        }
       }
       break;
     }
     case MEMORY: {
       uint32 len;
       if (!Read32(&len)) {
-	fprintf(stderr, "Incomplete memory record.\n");
-	abort();
+        fprintf(stderr, "Incomplete memory record.\n");
+        abort();
       }
       vector<uint8> compressed;
       compressed.resize(len);
       for (int i = 0; i < len; i++) {
-	if (!Read8(&compressed[i])) {
-	  fprintf(stderr, "Incomplete memory.\n");
-	  abort();
-	}
+        if (!Read8(&compressed[i])) {
+          fprintf(stderr, "Incomplete memory.\n");
+          abort();
+        }
       }
       t.data_memory = RLE::Decompress(compressed);
       break;
     }
     case NUMBER:
       if (!Read64(&t.data_number)) {
-	fprintf(stderr, "Incomplete number.\n");
-	abort();
+        fprintf(stderr, "Incomplete number.\n");
+        abort();
       }
       break;
     }
@@ -483,6 +483,6 @@ vector<Traces::Trace> Traces::ReadFromFile(const string &filename) {
 
     out.push_back(std::move(t));
   }
-  
+
   return out;
 }

@@ -49,10 +49,10 @@ string Chop(string &line) {
     if (line[i] != ' ') {
       string acc;
       for(int j = i; j < line.length(); j ++) {
-	if (line[j] == ' ') {
-	  line = line.substr(j, line.length() - j);
-	  return acc;
-	} else acc += line[j];
+        if (line[j] == ' ') {
+          line = line.substr(j, line.length() - j);
+          return acc;
+        } else acc += line[j];
       }
       line = "";
       return acc;

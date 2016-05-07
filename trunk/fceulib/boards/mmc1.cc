@@ -32,8 +32,8 @@ static int DetectMMC1WRAMSize(uint32 crc32) {
   case 0xb8747abf: /* Best Play Pro Yakyuu Special (J) */
   case 0xc9556b36: /* Final Fantasy I & II (J) [!] */
     FCEU_printf(
-	" >8KB external WRAM present.  Use UNIF if you hack the ROM "
-	"image.\n");
+        " >8KB external WRAM present.  Use UNIF if you hack the ROM "
+        "image.\n");
     return 16;
     break;
   default: return 8;
@@ -48,7 +48,7 @@ struct MMC1 final : public CartInterface {
 
   void GenMMC1Power(FC *fc);
   void GenMMC1Init(CartInfo *info, int prg, int chr, int wram,
-		   int battery);
+                   int battery);
 
   uint8 DRegs[4] = {};
   uint8 Buffer = 0, BufferShift = 0;
@@ -61,7 +61,7 @@ struct MMC1 final : public CartInterface {
   uint8 *CHRRAM = nullptr;
 
   uint64 lreset = 0ULL;
-  
+
   static DECLFW(MBWRAM) {
     return ((MMC1*)fc->fceu->cartiface)->MBWRAM_Direct(DECLFW_FORWARD);
   }
@@ -84,25 +84,25 @@ struct MMC1 final : public CartInterface {
   void MMC1CHR() {
     if (mmc1opts & 4) {
       if (DRegs[0] & 0x10)
-	fc->cart->setprg8r(0x10, 0x6000, (DRegs[1] >> 4) & 1);
+        fc->cart->setprg8r(0x10, 0x6000, (DRegs[1] >> 4) & 1);
       else
-	fc->cart->setprg8r(0x10, 0x6000, (DRegs[1] >> 3) & 1);
+        fc->cart->setprg8r(0x10, 0x6000, (DRegs[1] >> 3) & 1);
     }
 
     if (is_105) {
       if (DRegs[0] & 0x10) {
-	NWCCHRHook(0x0000, DRegs[1]);
-	NWCCHRHook(0x1000, DRegs[2]);
+        NWCCHRHook(0x0000, DRegs[1]);
+        NWCCHRHook(0x1000, DRegs[2]);
       } else {
-	NWCCHRHook(0x0000, (DRegs[1] & 0xFE));
-	NWCCHRHook(0x1000, DRegs[1] | 1);
+        NWCCHRHook(0x0000, (DRegs[1] & 0xFE));
+        NWCCHRHook(0x1000, DRegs[1] | 1);
       }
     } else {
       if (DRegs[0] & 0x10) {
-	fc->cart->setchr4(0x0000, DRegs[1]);
-	fc->cart->setchr4(0x1000, DRegs[2]);
+        fc->cart->setchr4(0x0000, DRegs[1]);
+        fc->cart->setchr4(0x1000, DRegs[2]);
       } else
-	fc->cart->setchr8(DRegs[1] >> 1);
+        fc->cart->setchr8(DRegs[1] >> 1);
     }
   }
 
@@ -110,35 +110,35 @@ struct MMC1 final : public CartInterface {
     uint8 offs = DRegs[1] & 0x10;
     if (is_105) {
       switch (DRegs[0] & 0xC) {
-	case 0xC:
-	  NWCPRGHook(0x8000, (DRegs[3] + offs));
-	  NWCPRGHook(0xC000, 0xF + offs);
-	  break;
-	case 0x8:
-	  NWCPRGHook(0xC000, (DRegs[3] + offs));
-	  NWCPRGHook(0x8000, offs);
-	  break;
-	case 0x0:
-	case 0x4:
-	  NWCPRGHook(0x8000, ((DRegs[3] & ~1) + offs));
-	  NWCPRGHook(0xc000, ((DRegs[3] & ~1) + offs + 1));
-	  break;
+        case 0xC:
+          NWCPRGHook(0x8000, (DRegs[3] + offs));
+          NWCPRGHook(0xC000, 0xF + offs);
+          break;
+        case 0x8:
+          NWCPRGHook(0xC000, (DRegs[3] + offs));
+          NWCPRGHook(0x8000, offs);
+          break;
+        case 0x0:
+        case 0x4:
+          NWCPRGHook(0x8000, ((DRegs[3] & ~1) + offs));
+          NWCPRGHook(0xc000, ((DRegs[3] & ~1) + offs + 1));
+          break;
       }
     } else {
       switch (DRegs[0] & 0xC) {
-	case 0xC:
-	  fc->cart->setprg16(0x8000, (DRegs[3] + offs));
-	  fc->cart->setprg16(0xC000, 0xF + offs);
-	  break;
-	case 0x8:
-	  fc->cart->setprg16(0xC000, (DRegs[3] + offs));
-	  fc->cart->setprg16(0x8000, offs);
-	  break;
-	case 0x0:
-	case 0x4:
-	  fc->cart->setprg16(0x8000, ((DRegs[3] & ~1) + offs));
-	  fc->cart->setprg16(0xc000, ((DRegs[3] & ~1) + offs + 1));
-	  break;
+        case 0xC:
+          fc->cart->setprg16(0x8000, (DRegs[3] + offs));
+          fc->cart->setprg16(0xC000, 0xF + offs);
+          break;
+        case 0x8:
+          fc->cart->setprg16(0xC000, (DRegs[3] + offs));
+          fc->cart->setprg16(0x8000, offs);
+          break;
+        case 0x0:
+        case 0x4:
+          fc->cart->setprg16(0x8000, ((DRegs[3] & ~1) + offs));
+          fc->cart->setprg16(0xc000, ((DRegs[3] & ~1) + offs + 1));
+          break;
       }
     }
   }
@@ -236,8 +236,8 @@ struct MMC1 final : public CartInterface {
     if (!(me->NWCRec & 0x10)) {
       me->NWCIRQCount += a;
       if ((me->NWCIRQCount | (NWCDIP << 25)) >= 0x3e000000) {
-	me->NWCIRQCount = 0;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        me->NWCIRQCount = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -267,9 +267,9 @@ struct MMC1 final : public CartInterface {
     if (mmc1opts & 1) {
       // FCEU_CheatAddRAM(8,0x6000,WRAM);
       if (mmc1opts & 4) {
-	FCEU_dwmemset(WRAM, 0, 8192);
+        FCEU_dwmemset(WRAM, 0, 8192);
       } else if (!(mmc1opts & 2)) {
-	FCEU_dwmemset(WRAM, 0, 8192);
+        FCEU_dwmemset(WRAM, 0, 8192);
       }
     }
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, MMC1_write);
@@ -316,9 +316,9 @@ struct MMC1 final : public CartInterface {
       fc->cart->SetupCartPRGMapping(0x10, WRAM, wram * 1024, true);
       fc->state->AddExState(WRAM, wram * 1024, 0, "WRAM");
       if (battery) {
-	mmc1opts |= 2;
-	info->SaveGame[0] = WRAM + ((mmc1opts & 4) ? 8192 : 0);
-	info->SaveGameLen[0] = 8192;
+        mmc1opts |= 2;
+        info->SaveGame[0] = WRAM + ((mmc1opts & 4) ? 8192 : 0);
+        info->SaveGameLen[0] = 8192;
       }
     }
     if (!chr) {

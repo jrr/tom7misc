@@ -43,18 +43,18 @@ struct Mapper117 final : public CartInterface {
       Sync();
     } else {
       switch (A) {
-	case 0xc001: IRQLatch = V; break;
-	case 0xc003:
-	  IRQCount = IRQLatch;
-	  IRQa |= 2;
-	  break;
-	case 0xe000:
-	  IRQa &= ~1;
-	  IRQa |= V & 1;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0xc002: fc->X->IRQEnd(FCEU_IQEXT); break;
-	case 0xd000: mirror = V & 1;
+        case 0xc001: IRQLatch = V; break;
+        case 0xc003:
+          IRQCount = IRQLatch;
+          IRQa |= 2;
+          break;
+        case 0xe000:
+          IRQa &= ~1;
+          IRQa |= V & 1;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0xc002: fc->X->IRQEnd(FCEU_IQEXT); break;
+        case 0xd000: mirror = V & 1;
       }
     }
   }
@@ -75,8 +75,8 @@ struct Mapper117 final : public CartInterface {
     if (IRQa == 3 && IRQCount) {
       IRQCount--;
       if (!IRQCount) {
-	IRQa &= 1;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa &= 1;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -91,15 +91,15 @@ struct Mapper117 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&IRQa, 1, "IRQA"},
-	                 {&IRQCount, 1, "IRQC"},
-			 {&IRQLatch, 1, "IRQL"},
-			 {prgreg, 4, "PREG"},
-			 {chrreg, 8, "CREG"},
-			 {&mirror, 1, "MREG"}});
+                         {&IRQCount, 1, "IRQC"},
+                         {&IRQLatch, 1, "IRQL"},
+                         {prgreg, 4, "PREG"},
+                         {chrreg, 8, "CREG"},
+                         {&mirror, 1, "MREG"}});
   }
 };
 }
-  
+
 CartInterface *Mapper117_Init(FC *fc, CartInfo *info) {
   return new Mapper117(fc, info);
 }

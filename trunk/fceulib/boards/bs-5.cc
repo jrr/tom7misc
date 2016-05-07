@@ -43,8 +43,8 @@ struct BMCBS5 final : public CartInterface {
     switch (A & 0xF000) {
       case 0x8000: reg_chr[bank_sel] = A & 0x1F; break;
       case 0xA000:
-	if (A & (1 << (dip_switch + 4))) reg_prg[bank_sel] = A & 0x0F;
-	break;
+        if (A & (1 << (dip_switch + 4))) reg_prg[bank_sel] = A & 0x0F;
+        break;
     }
     Sync();
   }

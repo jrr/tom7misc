@@ -27,7 +27,7 @@
 namespace {
 struct MMC2and4 final : public MapInterface {
   using MapInterface::MapInterface;
-  
+
   void latchcheck(uint32 VAddr) {
     uint8 h = VAddr >> 8;
 
@@ -37,19 +37,19 @@ struct MMC2and4 final : public MapInterface {
 
     if (h < 0x10) {
       if (l == 0xD0) {
-	fc->ines->VROM_BANK4(0x0000, MMC4reg[0]);
-	latcha1 = 0xFD;
+        fc->ines->VROM_BANK4(0x0000, MMC4reg[0]);
+        latcha1 = 0xFD;
       } else if (l == 0xE0) {
-	fc->ines->VROM_BANK4(0x0000, MMC4reg[1]);
-	latcha1 = 0xFE;
+        fc->ines->VROM_BANK4(0x0000, MMC4reg[1]);
+        latcha1 = 0xFE;
       }
     } else {
       if (l == 0xD0) {
-	fc->ines->VROM_BANK4(0x1000, MMC4reg[2]);
-	latcha2 = 0xFD;
+        fc->ines->VROM_BANK4(0x1000, MMC4reg[2]);
+        latcha2 = 0xFD;
       } else if (l == 0xE0) {
-	fc->ines->VROM_BANK4(0x1000, MMC4reg[3]);
-	latcha2 = 0xFE;
+        fc->ines->VROM_BANK4(0x1000, MMC4reg[3]);
+        latcha2 = 0xFE;
       }
     }
   }
@@ -67,25 +67,25 @@ struct MMC2and4 final : public MapInterface {
     switch (A & 0xF000) {
     case 0xB000:
       if (latcha1 == 0xFD) {
-	fc->ines->VROM_BANK4(0x0000, V);
+        fc->ines->VROM_BANK4(0x0000, V);
       }
       MMC4reg[0] = V;
       break;
     case 0xC000:
       if (latcha1 == 0xFE) {
-	fc->ines->VROM_BANK4(0x0000, V);
+        fc->ines->VROM_BANK4(0x0000, V);
       }
       MMC4reg[1] = V;
       break;
     case 0xD000:
       if (latcha2 == 0xFD) {
-	fc->ines->VROM_BANK4(0x1000, V);
+        fc->ines->VROM_BANK4(0x1000, V);
       }
       MMC4reg[2] = V;
       break;
     case 0xE000:
       if (latcha2 == 0xFE) {
-	fc->ines->VROM_BANK4(0x1000, V);
+        fc->ines->VROM_BANK4(0x1000, V);
       }
       MMC4reg[3] = V;
       break;
@@ -94,10 +94,10 @@ struct MMC2and4 final : public MapInterface {
       break;
     }
   }
-  
+
 };
 }
-  
+
 MapInterface *Mapper9_init(FC *fc) {
   MMC2and4 *m = new MMC2and4(fc);
   latcha1 = 0xFE;

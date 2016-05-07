@@ -106,21 +106,21 @@ struct Mapper216 final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper216*)fc->fceu->cartiface)->M216WriteHi(DECLFW_FORWARD);
+        ((Mapper216*)fc->fceu->cartiface)->M216WriteHi(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x5000, 0x5000, [](DECLFW_ARGS) {
-	((Mapper216*)fc->fceu->cartiface)->M216Write5000(DECLFW_FORWARD);
+        ((Mapper216*)fc->fceu->cartiface)->M216Write5000(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x5000, 0x5000, [](DECLFR_ARGS) {
-	return ((Mapper216*)fc->fceu->cartiface)->
-	  M216Read5000(DECLFR_FORWARD);
+        return ((Mapper216*)fc->fceu->cartiface)->
+          M216Read5000(DECLFR_FORWARD);
       });
   }
 
   Mapper216(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{&prg_reg, 1, "PREG"}, {&chr_reg, 1, "CREG"}});
+        {&prg_reg, 1, "PREG"}, {&chr_reg, 1, "CREG"}});
   }
 };
 }

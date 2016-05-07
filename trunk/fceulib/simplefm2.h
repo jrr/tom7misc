@@ -25,17 +25,17 @@ using namespace std;
 struct SimpleFM2 {
   static vector<uint8> ReadInputs(const string &filename);
   static vector<pair<uint8, uint8>> ReadInputs2P(const string &filename);
-  
+
   static void WriteInputs(const string &outputfile,
                           const string &romfilename,
                           const string &romchecksum,
                           const vector<uint8> &inputs);
 
   static void WriteInputs2P(const string &outputfile,
-			    const string &romfilename,
-			    const string &romchecksum,
-			    const vector<pair<uint8, uint8>> &inputs);
-  
+                            const string &romfilename,
+                            const string &romchecksum,
+                            const vector<pair<uint8, uint8>> &inputs);
+
   static void WriteInputsWithSubtitles(
       const string &outputfile,
       const string &romfilename,
@@ -49,7 +49,7 @@ struct SimpleFM2 {
       const string &romchecksum,
       const vector<pair<uint8, uint8>> &inputs,
       const vector<string> &subtitles);
-  
+
   static string InputToString(uint8 input);
   static string InputToColorString(uint8 input);
 };

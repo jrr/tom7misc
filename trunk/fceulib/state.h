@@ -44,7 +44,7 @@ struct SFORMAT {
   // Also, if this is ~0, then that means that it's actually a link
   // to another SFORMAT structure. Gross.
   uint32 s;
-  
+
   // Four-byte description; should be printable ASCII or \0. No
   // terminating nul byte!
   SKEY desc;
@@ -109,7 +109,7 @@ struct State {
   // Here, the size should be the real size (no flags), and the flags
   // should be passed separately.
   void AddExStateReal(void *v, uint32 s, int flags,
-		      SKEY desc, const char *src);
+                      SKEY desc, const char *src);
   #define STRINGIFY_LINE_2(x) #x
   #define STRINGIFY_LINE(x) STRINGIFY_LINE_2(x)
   #define AddExState(v, s, t, d) \
@@ -121,10 +121,10 @@ struct State {
   int WriteStateChunk(EMUFILE* os, int type, const std::vector<SFORMAT> &sf);
 
   const SFORMAT *CheckS(const std::vector<SFORMAT> &sf,
-			uint32 tsize, SKEY desc);
+                        uint32 tsize, SKEY desc);
   bool ReadStateChunk(EMUFILE* is, const std::vector<SFORMAT> &sf, int size);
   bool ReadStateChunks(EMUFILE* is, int32 totalsize);
-  
+
   void (*SPreSave)(FC *) = nullptr;
   void (*SPostSave)(FC *) = nullptr;
 
@@ -139,7 +139,7 @@ struct State {
   // PERF: If all of the data were in a hash map, we could
   // avoid the linear time CheckS.
   std::unordered_set<SKEY, HashDesc, EqDesc> used_keys;
-  
+
   // XXX Can probably init in constructor?
   bool state_initialized = false;
   std::vector<SFORMAT> sfcpu, sfcpuc;
@@ -147,7 +147,7 @@ struct State {
 
   FC *fc = nullptr;
 };
-  
+
 // indicates that the value is a multibyte integer that needs to be
 // put in the correct byte order
 #define FCEUSTATE_RLSB            0x80000000

@@ -34,41 +34,41 @@ struct Mapper68 final : public CartInterface {
     if ((!fc->unif->UNIFchrrama) && (mirr & 0x10)) {
       fc->ppu->PPUNTARAM = 0;
       switch (mirr & 3) {
-	case 0:
-	  fc->ppu->vnapage[0] = fc->ppu->vnapage[2] =
-	      fc->cart->CHRptr[0] +
-	      (((nt1 | 128) & fc->cart->CHRmask1[0]) << 10);
-	  fc->ppu->vnapage[1] = fc->ppu->vnapage[3] =
-	      fc->cart->CHRptr[0] +
-	      (((nt2 | 128) & fc->cart->CHRmask1[0]) << 10);
-	  break;
-	case 1:
-	  fc->ppu->vnapage[0] = fc->ppu->vnapage[1] =
-	      fc->cart->CHRptr[0] +
-	      (((nt1 | 128) & fc->cart->CHRmask1[0]) << 10);
-	  fc->ppu->vnapage[2] = fc->ppu->vnapage[3] =
-	      fc->cart->CHRptr[0] +
-	      (((nt2 | 128) & fc->cart->CHRmask1[0]) << 10);
-	  break;
-	case 2:
-	  fc->ppu->vnapage[0] = fc->ppu->vnapage[1] =
-	      fc->ppu->vnapage[2] = fc->ppu->vnapage[3] =
-		  fc->cart->CHRptr[0] +
-		  (((nt1 | 128) & fc->cart->CHRmask1[0]) << 10);
-	  break;
-	case 3:
-	  fc->ppu->vnapage[0] = fc->ppu->vnapage[1] =
-	      fc->ppu->vnapage[2] = fc->ppu->vnapage[3] =
-		  fc->cart->CHRptr[0] +
-		  (((nt2 | 128) & fc->cart->CHRmask1[0]) << 10);
-	  break;
+        case 0:
+          fc->ppu->vnapage[0] = fc->ppu->vnapage[2] =
+              fc->cart->CHRptr[0] +
+              (((nt1 | 128) & fc->cart->CHRmask1[0]) << 10);
+          fc->ppu->vnapage[1] = fc->ppu->vnapage[3] =
+              fc->cart->CHRptr[0] +
+              (((nt2 | 128) & fc->cart->CHRmask1[0]) << 10);
+          break;
+        case 1:
+          fc->ppu->vnapage[0] = fc->ppu->vnapage[1] =
+              fc->cart->CHRptr[0] +
+              (((nt1 | 128) & fc->cart->CHRmask1[0]) << 10);
+          fc->ppu->vnapage[2] = fc->ppu->vnapage[3] =
+              fc->cart->CHRptr[0] +
+              (((nt2 | 128) & fc->cart->CHRmask1[0]) << 10);
+          break;
+        case 2:
+          fc->ppu->vnapage[0] = fc->ppu->vnapage[1] =
+              fc->ppu->vnapage[2] = fc->ppu->vnapage[3] =
+                  fc->cart->CHRptr[0] +
+                  (((nt1 | 128) & fc->cart->CHRmask1[0]) << 10);
+          break;
+        case 3:
+          fc->ppu->vnapage[0] = fc->ppu->vnapage[1] =
+              fc->ppu->vnapage[2] = fc->ppu->vnapage[3] =
+                  fc->cart->CHRptr[0] +
+                  (((nt2 | 128) & fc->cart->CHRmask1[0]) << 10);
+          break;
       }
     } else {
       switch (mirr & 3) {
-	case 0: fc->cart->setmirror(MI_V); break;
-	case 1: fc->cart->setmirror(MI_H); break;
-	case 2: fc->cart->setmirror(MI_0); break;
-	case 3: fc->cart->setmirror(MI_1); break;
+        case 0: fc->cart->setmirror(MI_V); break;
+        case 1: fc->cart->setmirror(MI_H); break;
+        case 2: fc->cart->setmirror(MI_0); break;
+        case 3: fc->cart->setmirror(MI_1); break;
       }
     }
   }
@@ -80,7 +80,7 @@ struct Mapper68 final : public CartInterface {
     fc->cart->setchr2(0x1800, chr_reg[3]);
     fc->cart->setprg8r(0x10, 0x6000, 0);
     fc->cart->setprg16r((fc->cart->PRGptr[1]) ? kogame : 0, 0x8000,
-			      prg_reg);
+                              prg_reg);
     fc->cart->setprg16(0xC000, ~0);
   }
 
@@ -96,7 +96,7 @@ struct Mapper68 final : public CartInterface {
     if (!V) {
       count = 0;
       fc->cart->setprg16r((fc->cart->PRGptr[1]) ? kogame : 0, 0x8000,
-				prg_reg);
+                                prg_reg);
     }
   }
 
@@ -177,12 +177,12 @@ struct Mapper68 final : public CartInterface {
     }
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
     fc->state->AddExVec({{&nt1, 1, "NT10"},
-	                 {&nt2, 1, "NT20"},
-			 {&mirr, 1, "MIRR"},
-			 {&prg_reg, 1, "PRG0"},
-			 {&kogame, 1, "KGME"},
-			 {&count, 4, "CNT0"},
-			 {chr_reg, 4, "CHR0"}});
+                         {&nt2, 1, "NT20"},
+                         {&mirr, 1, "MIRR"},
+                         {&prg_reg, 1, "PRG0"},
+                         {&kogame, 1, "KGME"},
+                         {&count, 4, "CNT0"},
+                         {chr_reg, 4, "CHR0"}});
   }
 };
 }

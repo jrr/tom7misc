@@ -36,7 +36,7 @@ struct VSUni {
   }
 
   struct VSUniEntry;
-  
+
   // Accessed directly in input.cc.
   uint8 coinon = 0;
   uint8 vsdip = 0;
@@ -51,9 +51,9 @@ struct VSUni {
 
   readfunc OldReadPPU = nullptr;
   writefunc OldWritePPU[2] = {nullptr, nullptr};
-  
+
   uint8 xevselect = 0;
-  
+
   std::vector<SFORMAT> stateinfo;
   FC *fc = nullptr;
 };

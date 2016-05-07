@@ -44,15 +44,15 @@ struct Mapper43 final : public CartInterface {
     static constexpr int transo[8] = {4, 3, 5, 3, 6, 3, 7, 3};
     switch (A & 0xf1ff) {
       case 0x4022:
-	reg = transo[V & 7];
-	Sync();
-	break;
+        reg = transo[V & 7];
+        Sync();
+        break;
       case 0x8122:  // hacked version
       case 0x4122:
-	IRQa = V & 1;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	IRQCount = 0;
-	break;  // original version
+        IRQa = V & 1;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        IRQCount = 0;
+        break;  // original version
     }
   }
 
@@ -71,8 +71,8 @@ struct Mapper43 final : public CartInterface {
     IRQCount += a;
     if (IRQa)
       if (IRQCount >= 4096) {
-	IRQa = 0;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
   }
 
@@ -86,11 +86,11 @@ struct Mapper43 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{&IRQCount, 4, "IRQC"}, {&IRQa, 1, "IRQA"}, {&reg, 1, "REGS"}});
+        {&IRQCount, 4, "IRQC"}, {&IRQa, 1, "IRQA"}, {&reg, 1, "REGS"}});
   }
 };
 }
-  
+
 CartInterface *Mapper43_Init(FC *fc, CartInfo *info) {
   return new Mapper43(fc, info);
 }

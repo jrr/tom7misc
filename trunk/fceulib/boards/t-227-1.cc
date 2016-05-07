@@ -53,17 +53,17 @@ struct BMCT2271 final : public MMC3 {
     switch (EXPREGS[0] & 3) {
       case 0x00: fc->cart->setprg8(A, va); break;
       case 0x02: {
-	va = (va & 0xFD) | ((EXPREGS[0] & 4) >> 1);
-	if (A < 0xC000) {
-	  fc->cart->setprg16(0x8000, va >> 1);
-	  fc->cart->setprg16(0xC000, va >> 1);
-	}
-	break;
+        va = (va & 0xFD) | ((EXPREGS[0] & 4) >> 1);
+        if (A < 0xC000) {
+          fc->cart->setprg16(0x8000, va >> 1);
+          fc->cart->setprg16(0xC000, va >> 1);
+        }
+        break;
       }
       case 0x01:
       case 0x03:
-	if (A < 0xC000) fc->cart->setprg32(0x8000, va >> 2);
-	break;
+        if (A < 0xC000) fc->cart->setprg32(0x8000, va >> 2);
+        break;
     }
   }
 
@@ -94,7 +94,7 @@ struct BMCT2271 final : public MMC3 {
     });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, [](DECLFR_ARGS) {
       return ((BMCT2271*)fc->fceu->cartiface)->
-	BMCT2271HiRead(DECLFR_FORWARD);
+        BMCT2271HiRead(DECLFR_FORWARD);
     });
   }
 

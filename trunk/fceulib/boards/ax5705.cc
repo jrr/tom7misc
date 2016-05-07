@@ -64,68 +64,68 @@ struct UNLAX5705 final : public CartInterface {
     //  else
     switch (A & 0xF00F) {
       case 0x8000:
-	// EPROM dump have mixed PRG and CHR banks, data lines to mapper
-	// seems to be mixed
+        // EPROM dump have mixed PRG and CHR banks, data lines to mapper
+        // seems to be mixed
         prg_reg[0] = ((V & 2) << 2) | ((V & 8) >> 2) | (V & 5);
         break;
       case 0x8008:
-	mirr = V & 1; 
-	break;
+        mirr = V & 1;
+        break;
       case 0xA000:
-	prg_reg[1] = ((V & 2) << 2) | ((V & 8) >> 2) | (V & 5); 
-	break;
+        prg_reg[1] = ((V & 2) << 2) | ((V & 8) >> 2) | (V & 5);
+        break;
       case 0xA008:
-	chr_reg[0] = (chr_reg[0] & 0xF0) | (V & 0x0F); 
-	break;
+        chr_reg[0] = (chr_reg[0] & 0xF0) | (V & 0x0F);
+        break;
       case 0xA009:
         chr_reg[0] = (chr_reg[0] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
         break;
       case 0xA00A:
-	chr_reg[1] = (chr_reg[1] & 0xF0) | (V & 0x0F); 
-	break;
+        chr_reg[1] = (chr_reg[1] & 0xF0) | (V & 0x0F);
+        break;
       case 0xA00B:
         chr_reg[1] = (chr_reg[1] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
         break;
       case 0xC000:
-	chr_reg[2] = (chr_reg[2] & 0xF0) | (V & 0x0F); 
-	break;
+        chr_reg[2] = (chr_reg[2] & 0xF0) | (V & 0x0F);
+        break;
       case 0xC001:
         chr_reg[2] = (chr_reg[2] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
         break;
       case 0xC002:
-	chr_reg[3] = (chr_reg[3] & 0xF0) | (V & 0x0F); 
-	break;
+        chr_reg[3] = (chr_reg[3] & 0xF0) | (V & 0x0F);
+        break;
       case 0xC003:
         chr_reg[3] = (chr_reg[3] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
         break;
       case 0xC008:
-	chr_reg[4] = (chr_reg[4] & 0xF0) | (V & 0x0F); 
-	break;
+        chr_reg[4] = (chr_reg[4] & 0xF0) | (V & 0x0F);
+        break;
       case 0xC009:
         chr_reg[4] = (chr_reg[4] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
         break;
       case 0xC00A:
-	chr_reg[5] = (chr_reg[5] & 0xF0) | (V & 0x0F); 
-	break;
+        chr_reg[5] = (chr_reg[5] & 0xF0) | (V & 0x0F);
+        break;
       case 0xC00B:
         chr_reg[5] = (chr_reg[5] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
         break;
-      case 0xE000: 
-	chr_reg[6] = (chr_reg[6] & 0xF0) | (V & 0x0F); 
-	break;
+      case 0xE000:
+        chr_reg[6] = (chr_reg[6] & 0xF0) | (V & 0x0F);
+        break;
       case 0xE001:
         chr_reg[6] = (chr_reg[6] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
         break;
       case 0xE002:
-	chr_reg[7] = (chr_reg[7] & 0xF0) | (V & 0x0F);
-	break;
+        chr_reg[7] = (chr_reg[7] & 0xF0) | (V & 0x0F);
+        break;
       case 0xE003:
         chr_reg[7] = (chr_reg[7] & 0x0F) |
                      ((((V & 4) >> 1) | ((V & 2) << 1) | (V & 0x09)) << 4);
@@ -141,7 +141,7 @@ struct UNLAX5705 final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((UNLAX5705*)fc->fceu->cartiface)->UNLAX5705Write(DECLFW_FORWARD);
+        ((UNLAX5705*)fc->fceu->cartiface)->UNLAX5705Write(DECLFW_FORWARD);
       });
   }
 

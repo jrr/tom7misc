@@ -19,10 +19,10 @@ struct CartInterface {
   // Not my fault! -tom7
   virtual void MMC5HackHB(int scanline) {
     fprintf(stderr, "MMC5Hack should not be called on "
-	    "anything but MMC5.\n");
+            "anything but MMC5.\n");
     abort();
   }
-  
+
  protected:
   FC *fc = nullptr;
  private:
@@ -40,7 +40,7 @@ struct MapInterface {
 protected:
   FC *fc = nullptr;
  private:
-  MapInterface() = delete; 
+  MapInterface() = delete;
 };
 
 struct CartInfo {
@@ -90,22 +90,22 @@ struct Cart {
   void SetupCartPRGMapping(int chip, uint8 *p, uint32 size, bool is_ram);
   void SetupCartCHRMapping(int chip, uint8 *p, uint32 size, bool is_ram);
   void SetupCartMirroring(int m, int hard, uint8 *extra);
-  
+
   // Maybe should always be true? -tom7
   static constexpr bool disableBatteryLoading = false;
-  
+
   uint8 *PRGptr[32] = {};
   uint8 *CHRptr[32] = {};
-  
+
   uint32 PRGsize[32] = {};
   uint32 CHRsize[32] = {};
-  
+
   uint32 PRGmask2[32] = {};
   uint32 PRGmask4[32] = {};
   uint32 PRGmask8[32] = {};
   uint32 PRGmask16[32] = {};
   uint32 PRGmask32[32] = {};
-  
+
   uint32 CHRmask1[32] = {};
   uint32 CHRmask2[32] = {};
   uint32 CHRmask4[32] = {};
@@ -158,7 +158,7 @@ struct Cart {
   void setntamem(uint8 *p, int ram, uint32 b);
 
   Cart(FC *fc);
-  
+
   // Write to or read from the mapped address. The BROB version (OB is
   // presumably "out of bounds") returns the current value of the data
   // bus when reading from an unmapped page.
@@ -173,7 +173,7 @@ struct Cart {
 
 private:
   bool PRGIsRAM[32] = { };  /* This page is/is not PRG RAM. */
-  
+
   // See comment on ResetCartMapping where negative offsets of nothing
   // are used..? TODO: Sort this out.
   uint8 nothing_safetynet[65536] = { };

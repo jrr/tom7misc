@@ -29,7 +29,7 @@ struct Mapper69 final : public MapInterface {
   int32 vcount[3] = {};
   int32 dcount[3] = {};
   int CAYBC[3] = {};
-  
+
   #define sunselect GMB_mapbyte1(fc)[0]
   #define sungah GMB_mapbyte1(fc)[1]
 
@@ -54,37 +54,37 @@ struct Mapper69 final : public MapInterface {
       ((Mapper69 *)fc->fceu->mapiface)->AYSoundHQ();
     };
     if (FCEUS_SNDRATE) switch (sunindex) {
-	case 0:
-	case 1:
-	case 8:
-	  if (FCEUS_SOUNDQ >= 1)
-	    DoAYSQHQ(0);
-	  else
-	    DoAYSQ(0);
-	  break;
-	case 2:
-	case 3:
-	case 9:
-	  if (FCEUS_SOUNDQ >= 1)
-	    DoAYSQHQ(1);
-	  else
-	    DoAYSQ(1);
-	  break;
-	case 4:
-	case 5:
-	case 10:
-	  if (FCEUS_SOUNDQ >= 1)
-	    DoAYSQHQ(2);
-	  else
-	    DoAYSQ(2);
-	  break;
-	case 7:
-	  for (int x = 0; x < 2; x++)
-	    if (FCEUS_SOUNDQ >= 1)
-	      DoAYSQHQ(x);
-	    else
-	      DoAYSQ(x);
-	  break;
+        case 0:
+        case 1:
+        case 8:
+          if (FCEUS_SOUNDQ >= 1)
+            DoAYSQHQ(0);
+          else
+            DoAYSQ(0);
+          break;
+        case 2:
+        case 3:
+        case 9:
+          if (FCEUS_SOUNDQ >= 1)
+            DoAYSQHQ(1);
+          else
+            DoAYSQ(1);
+          break;
+        case 4:
+        case 5:
+        case 10:
+          if (FCEUS_SOUNDQ >= 1)
+            DoAYSQHQ(2);
+          else
+            DoAYSQ(2);
+          break;
+        case 7:
+          for (int x = 0; x < 2; x++)
+            if (FCEUS_SOUNDQ >= 1)
+              DoAYSQHQ(x);
+            else
+              DoAYSQ(x);
+          break;
       }
     GMB_MapperExRAM(fc)[sunindex] = V;
   }
@@ -95,53 +95,53 @@ struct Mapper69 final : public MapInterface {
     case 0xa000:
       sunselect &= 0xF;
       if (sunselect <= 7)
-	fc->ines->VROM_BANK1(sunselect << 10, V);
+        fc->ines->VROM_BANK1(sunselect << 10, V);
       else
-	switch (sunselect & 0x0f) {
-	case 8:
-	  sungah = V;
-	  if (V & 0x40) {
-	    if (V & 0x80) {
-	      // Select WRAM
-	      fc->cart->setprg8r(0x10, 0x6000, 0);
-	    }
-	  } else {
-	    fc->cart->setprg8(0x6000, V);
-	  }
-	  break;
-	case 9: fc->ines->ROM_BANK8(0x8000, V); break;
-	case 0xa: fc->ines->ROM_BANK8(0xa000, V); break;
-	case 0xb: fc->ines->ROM_BANK8(0xc000, V); break;
-	case 0xc:
-	  switch (V & 3) {
-	  case 0: fc->ines->MIRROR_SET2(1); break;
-	  case 1: fc->ines->MIRROR_SET2(0); break;
-	  case 2: fc->ines->onemir(0); break;
-	  case 3: fc->ines->onemir(1); break;
-	  }
-	  break;
-	case 0xd:
-	  fc->ines->iNESIRQa = V;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0xe:
-	  fc->ines->iNESIRQCount &= 0xFF00;
-	  fc->ines->iNESIRQCount |= V;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0xf:
-	  fc->ines->iNESIRQCount &= 0x00FF;
-	  fc->ines->iNESIRQCount |= V << 8;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	}
+        switch (sunselect & 0x0f) {
+        case 8:
+          sungah = V;
+          if (V & 0x40) {
+            if (V & 0x80) {
+              // Select WRAM
+              fc->cart->setprg8r(0x10, 0x6000, 0);
+            }
+          } else {
+            fc->cart->setprg8(0x6000, V);
+          }
+          break;
+        case 9: fc->ines->ROM_BANK8(0x8000, V); break;
+        case 0xa: fc->ines->ROM_BANK8(0xa000, V); break;
+        case 0xb: fc->ines->ROM_BANK8(0xc000, V); break;
+        case 0xc:
+          switch (V & 3) {
+          case 0: fc->ines->MIRROR_SET2(1); break;
+          case 1: fc->ines->MIRROR_SET2(0); break;
+          case 2: fc->ines->onemir(0); break;
+          case 3: fc->ines->onemir(1); break;
+          }
+          break;
+        case 0xd:
+          fc->ines->iNESIRQa = V;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0xe:
+          fc->ines->iNESIRQCount &= 0xFF00;
+          fc->ines->iNESIRQCount |= V;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0xf:
+          fc->ines->iNESIRQCount &= 0x00FF;
+          fc->ines->iNESIRQCount |= V << 8;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        }
       break;
     }
   }
 
   void DoAYSQ(int x) {
     const int32 freq = ((GMB_MapperExRAM(fc)[x << 1] |
-	((GMB_MapperExRAM(fc)[(x << 1) + 1] & 15) << 8)) + 1)
+        ((GMB_MapperExRAM(fc)[(x << 1) + 1] & 15) << 8)) + 1)
       << (4 + 17);
     int32 amp = (GMB_MapperExRAM(fc)[0x8 + x] & 15) << 2;
 
@@ -154,12 +154,12 @@ struct Mapper69 final : public MapInterface {
 
     if (amp) {
       for (int V = start; V < end; V++) {
-	if (dcount[x]) fc->sound->Wave[V >> 4] += amp;
-	vcount[x] -= fc->sound->nesincsize;
-	while (vcount[x] <= 0) {
-	  dcount[x] ^= 1;
-	  vcount[x] += freq;
-	}
+        if (dcount[x]) fc->sound->Wave[V >> 4] += amp;
+        vcount[x] -= fc->sound->nesincsize;
+        while (vcount[x] <= 0) {
+          dcount[x] ^= 1;
+          vcount[x] += freq;
+        }
       }
     }
   }
@@ -167,20 +167,20 @@ struct Mapper69 final : public MapInterface {
   void DoAYSQHQ(int x) {
     const int32 freq =
       ((GMB_MapperExRAM(fc)[x << 1] |
-	((GMB_MapperExRAM(fc)[(x << 1) + 1] & 15) << 8)) + 1)
-	<< 4;
+        ((GMB_MapperExRAM(fc)[(x << 1) + 1] & 15) << 8)) + 1)
+        << 4;
     int32 amp = (GMB_MapperExRAM(fc)[0x8 + x] & 15) << 6;
 
     amp += amp >> 1;
 
     if (!(GMB_MapperExRAM(fc)[0x7] & (1 << x))) {
       for (uint32 V = CAYBC[x]; V < fc->sound->SoundTS(); V++) {
-	if (dcount[x]) fc->sound->WaveHi[V] += amp;
-	vcount[x]--;
-	if (vcount[x] <= 0) {
-	  dcount[x] ^= 1;
-	  vcount[x] = freq;
-	}
+        if (dcount[x]) fc->sound->WaveHi[V] += amp;
+        vcount[x]--;
+        if (vcount[x] <= 0) {
+          dcount[x] ^= 1;
+          vcount[x] = freq;
+        }
       }
     }
     CAYBC[x] = fc->sound->SoundTS();
@@ -209,9 +209,9 @@ struct Mapper69 final : public MapInterface {
     if (fc->ines->iNESIRQa) {
       fc->ines->iNESIRQCount -= a;
       if (fc->ines->iNESIRQCount <= 0) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	fc->ines->iNESIRQa = 0;
-	fc->ines->iNESIRQCount = 0xFFFF;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        fc->ines->iNESIRQa = 0;
+        fc->ines->iNESIRQCount = 0xFFFF;
       }
     }
   }
@@ -219,8 +219,8 @@ struct Mapper69 final : public MapInterface {
   void StateRestore(int version) final override {
     if (GMB_mapbyte1(fc)[1] & 0x40) {
       if (GMB_mapbyte1(fc)[1] & 0x80) {
-	// Select WRAM
-	fc->cart->setprg8r(0x10, 0x6000, 0);
+        // Select WRAM
+        fc->cart->setprg8r(0x10, 0x6000, 0);
       }
     } else {
       fc->cart->setprg8(0x6000, GMB_mapbyte1(fc)[1]);

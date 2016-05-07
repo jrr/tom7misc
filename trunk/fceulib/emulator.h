@@ -27,7 +27,7 @@ struct Emulator {
   static Emulator *Create(const string &romfile);
 
   ~Emulator();
-  
+
   // Serialize the state to the vector, allowing it to be restored
   // with Load. This version may use compression to minimize the
   // state size; for a much faster version, use SaveUncompressed.
@@ -62,7 +62,7 @@ struct Emulator {
   // Same, but Alpha, Red, Green, Blue.
   void GetImageARGB(vector<uint8> *abgr) const;
   vector<uint8> GetImageARGB() const;
-  
+
   // Get sound. StepFull must have been called to produce this wave.
   // The result is a vector of signed 16-bit samples, mono.
   void GetSound(vector<int16> *wav);
@@ -98,11 +98,11 @@ struct Emulator {
   // scrolling or that do something funny like change the scroll position
   // during scanlines.
   uint32 GetXScroll() const;
-  
+
   // XXXXX debugging only.
   FC *GetFC() { return fc; }
   const FC *GetFC() const { return fc; }
-  
+
  protected:
   // Use factory method.
   Emulator(FC *fc);
@@ -112,7 +112,7 @@ struct Emulator {
   bool LoadGame(const string &path);
 
   FC *fc = nullptr;
-  
+
   // Joystick data. I think used for both controller 0 and 1. Part of
   // the "API". TODO: Move into FCEU or input object?
   uint32 joydata = 0;

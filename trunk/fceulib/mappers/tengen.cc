@@ -41,7 +41,7 @@ struct Tengen final : public MapInterface {
       smallcount -= 4;
       IRQCount--;
       if (IRQCount == 0xFF)
-	if (IRQa) fc->X->IRQBegin(FCEU_IQEXT);
+        if (IRQa) fc->X->IRQBegin(FCEU_IQEXT);
     }
   }
 
@@ -53,8 +53,8 @@ struct Tengen final : public MapInterface {
     IRQCount--;
     if (IRQCount == 0xFF) {
       if (IRQa) {
-	rmode = 1;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        rmode = 1;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -84,37 +84,37 @@ struct Tengen final : public MapInterface {
   void RAMBO1_write(DECLFW_ARGS) {
     switch (A & 0xF001) {
       case 0xa000:
-	mir = V & 1;
-	//                 if (!nomirror)
-	fc->cart->setmirror(mir ^ 1);
-	break;
+        mir = V & 1;
+        //                 if (!nomirror)
+        fc->cart->setmirror(mir ^ 1);
+        break;
       case 0x8000: cmd = V; break;
       case 0x8001:
-	if ((cmd & 0xF) < 10) {
-	  DRegs[cmd & 0xF] = V;
-	} else if ((cmd & 0xF) == 0xF) {
-	  DRegs[10] = V;
-	}
-	Synco();
-	break;
+        if ((cmd & 0xF) < 10) {
+          DRegs[cmd & 0xF] = V;
+        } else if ((cmd & 0xF) == 0xF) {
+          DRegs[10] = V;
+        }
+        Synco();
+        break;
       case 0xc000:
-	IRQLatch = V;
-	if (rmode == 1) IRQCount = IRQLatch;
-	break;
+        IRQLatch = V;
+        if (rmode == 1) IRQCount = IRQLatch;
+        break;
       case 0xc001:
-	rmode = 1;
-	IRQCount = IRQLatch;
-	IRQmode = V & 1;
-	break;
+        rmode = 1;
+        IRQCount = IRQLatch;
+        IRQmode = V & 1;
+        break;
       case 0xE000:
-	IRQa = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	if (rmode == 1) IRQCount = IRQLatch;
-	break;
+        IRQa = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        if (rmode == 1) IRQCount = IRQLatch;
+        break;
       case 0xE001:
-	IRQa = 1;
-	if (rmode == 1) IRQCount = IRQLatch;
-	break;
+        IRQa = 1;
+        if (rmode == 1) IRQCount = IRQLatch;
+        break;
     }
   }
 
@@ -152,7 +152,7 @@ struct Tengen final : public MapInterface {
   }
 };
 }
-  
+
 MapInterface *Mapper64_init(FC *fc) {
   // setchr1wrap = CHRWrap;
   //  nomirror=0;

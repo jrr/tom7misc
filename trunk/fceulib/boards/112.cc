@@ -87,7 +87,7 @@ struct Mapper112 final : public CartInterface {
     fc->cart->SetupCartPRGMapping(0x10, WRAM, 8192, true);
     fc->state->AddExState(WRAM, 8192, 0, "WRAM");
     fc->state->AddExVec({
-	{&cmd, 1, "CMD0"}, {&mirror, 1, "MIRR"},
+        {&cmd, 1, "CMD0"}, {&mirror, 1, "MIRR"},
         {&bank, 1, "BANK"}, {reg, 8, "REGS"}});
   }
 };

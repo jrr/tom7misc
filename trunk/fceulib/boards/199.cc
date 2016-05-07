@@ -63,9 +63,9 @@ struct Mapper199 final : public MMC3 {
       FixMMC3CHR(MMC3_cmd);
     } else {
       if (A < 0xC000)
-	MMC3_CMDWrite(DECLFW_FORWARD);
+        MMC3_CMDWrite(DECLFW_FORWARD);
       else
-	MMC3_IRQWrite(DECLFW_FORWARD);
+        MMC3_IRQWrite(DECLFW_FORWARD);
     }
   }
 
@@ -76,7 +76,7 @@ struct Mapper199 final : public MMC3 {
     EXPREGS[3] = 3;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper199*)fc->fceu->cartiface)->M199Write(DECLFW_FORWARD);
+        ((Mapper199*)fc->fceu->cartiface)->M199Write(DECLFW_FORWARD);
       });
   }
 

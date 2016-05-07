@@ -39,7 +39,7 @@ struct Mapper185Base : public CartInterface {
     fc->cart->setprg16(0x8000, 0);
     fc->cart->setprg16(0xC000, ~0);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper185Base*)fc->fceu->cartiface)->MWrite(DECLFW_FORWARD);
+        ((Mapper185Base*)fc->fceu->cartiface)->MWrite(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }

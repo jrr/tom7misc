@@ -42,7 +42,7 @@ struct PPU {
   uint8 GetXOffset() const { return XOffset; }
 
   uint32 GetTempAddr() const { return TempAddr; }
-  
+
   // PPU values are:
   //  [0] 0x2000  PPU Control Register #1  (PPUCTRL)
   //  [1] 0x2001  PPU Control Register #2  (PPUMASK)
@@ -78,7 +78,7 @@ struct PPU {
   static DECLFR_RET A2004(DECLFR_ARGS);
   static DECLFR_RET A200x(DECLFR_ARGS);
   static DECLFR_RET A2007(DECLFR_ARGS);
-  
+
   // TODO: Indirect static hooks (which go through the global object)
   // should instead get a local ppu object and call these.
   DECLFR_RET A2002_Direct(DECLFR_ARGS);
@@ -86,7 +86,7 @@ struct PPU {
   DECLFR_RET A200x_Direct(DECLFR_ARGS);
   DECLFR_RET A2007_Direct(DECLFR_ARGS);
 
-  
+
   // Some static methods herein call these, but they should be
   // getting a local ppu object rather than using the global one.
   void B2000_Direct(DECLFW_ARGS);
@@ -121,9 +121,9 @@ struct PPU {
   uint8 *MMC5BGVRAMADR(uint32 V);
 
   template<bool PPUT_MMC5, bool PPUT_MMC5SP, bool PPUT_HOOK, bool PPUT_MMC5CHR1>
-  std::pair<uint32, uint8 *> PPUTile(const int X1, uint8 *P, 
-				     const uint32 vofs,
-				     uint32 refreshaddr_local);
+  std::pair<uint32, uint8 *> PPUTile(const int X1, uint8 *P,
+                                     const uint32 vofs,
+                                     uint32 refreshaddr_local);
 
   int ppudead = 1;
   int cycle_parity = 0;
@@ -145,7 +145,7 @@ struct PPU {
   // clients. This is not needed for emulation.
   // XXX note, also not saved in state.
   uint8 last_x_scroll = 0, last_y_scroll = 0;
-  
+
   // Current scroll position and PPU memory location for read/write.
   // See: http://wiki.nesdev.com/w/index.php/PPU_scrolling
   //
@@ -156,7 +156,7 @@ struct PPU {
   uint32 TempAddr = 0;
   uint32 RefreshAddr = 0;
   uint16 TempAddrT = 0, RefreshAddrT = 0;
-  
+
   // Perhaps should be compile-time constant.
   int maxsprites = 8;
 
@@ -166,7 +166,7 @@ struct PPU {
   uint8 sphitdata = 0;
 
   uint32 scanlines_per_frame = 0;
-  
+
   uint8 PPUSPL = 0;
 
   uint8 *Pline = nullptr, *Plinef = nullptr;
@@ -185,7 +185,7 @@ struct PPU {
   uint32 pshift[2] = {};
   // This was also static; why not save it too? -tom7
   uint32 atlatch = 0;
-  
+
   // Only used within RefreshLine, used to be static.
   int norecurse = 0;
 

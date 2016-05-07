@@ -66,19 +66,19 @@ struct Mapper32 final : public CartInterface {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0x8FFF, [](DECLFW_ARGS) {
       return ((Mapper32*)fc->fceu->cartiface)->
-	M32Write0(DECLFW_FORWARD);
+        M32Write0(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x9000, 0x9FFF, [](DECLFW_ARGS) {
       return ((Mapper32*)fc->fceu->cartiface)->
-	M32Write1(DECLFW_FORWARD);
+        M32Write1(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0xA000, 0xAFFF, [](DECLFW_ARGS) {
       return ((Mapper32*)fc->fceu->cartiface)->
-	M32Write2(DECLFW_FORWARD);
+        M32Write2(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0xB000, 0xBFFF, [](DECLFW_ARGS) {
       return ((Mapper32*)fc->fceu->cartiface)->
-	M32Write3(DECLFW_FORWARD);
+        M32Write3(DECLFW_FORWARD);
     });
   }
 
@@ -99,7 +99,7 @@ struct Mapper32 final : public CartInterface {
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
 
     fc->state->AddExVec({
-	{preg, 4, "PREG"}, {creg, 8, "CREG"}, {&mirr, 1, "MIRR"}});
+        {preg, 4, "PREG"}, {creg, 8, "CREG"}, {&mirr, 1, "MIRR"}});
   }
 };
 }

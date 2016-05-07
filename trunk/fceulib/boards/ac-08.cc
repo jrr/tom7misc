@@ -53,10 +53,10 @@ struct AC08 final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x4025, 0x4025, [](DECLFW_ARGS) {
-	((AC08*)fc->fceu->cartiface)->AC08Mirr(DECLFW_FORWARD);
+        ((AC08*)fc->fceu->cartiface)->AC08Mirr(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((AC08*)fc->fceu->cartiface)->AC08Write(DECLFW_FORWARD);
+        ((AC08*)fc->fceu->cartiface)->AC08Write(DECLFW_FORWARD);
       });
   }
 

@@ -31,22 +31,22 @@ struct Mapper16X final : public CartInterface {
     if (DRegs[1] & 0x08) {
       bank &= 0xfe;
       if (is_167) {
-	fc->cart->setprg16(0x8000, base + bank + 1);
-	fc->cart->setprg16(0xC000, base + bank + 0);
+        fc->cart->setprg16(0x8000, base + bank + 1);
+        fc->cart->setprg16(0xC000, base + bank + 0);
       } else {
-	fc->cart->setprg16(0x8000, base + bank + 0);
-	fc->cart->setprg16(0xC000, base + bank + 1);
+        fc->cart->setprg16(0x8000, base + bank + 0);
+        fc->cart->setprg16(0xC000, base + bank + 1);
       }
     } else {
       if (DRegs[1] & 0x04) {
-	fc->cart->setprg16(0x8000, 0x1f);
-	fc->cart->setprg16(0xC000, base + bank);
+        fc->cart->setprg16(0x8000, 0x1f);
+        fc->cart->setprg16(0xC000, base + bank);
       } else {
-	fc->cart->setprg16(0x8000, base + bank);
-	if (is_167)
-	  fc->cart->setprg16(0xC000, 0x20);
-	else
-	  fc->cart->setprg16(0xC000, 0x07);
+        fc->cart->setprg16(0x8000, base + bank);
+        if (is_167)
+          fc->cart->setprg16(0xC000, 0x20);
+        else
+          fc->cart->setprg16(0xC000, 0x07);
       }
     }
   }

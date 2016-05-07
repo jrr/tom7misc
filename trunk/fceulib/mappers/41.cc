@@ -26,7 +26,7 @@
 namespace {
 struct Mapper41 final : public MapInterface {
   using MapInterface::MapInterface;
-  
+
   void Mapper41_write(DECLFW_ARGS) {
     if (A < 0x8000) {
       fc->ines->ROM_BANK32(A & 7);

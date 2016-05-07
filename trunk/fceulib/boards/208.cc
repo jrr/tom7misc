@@ -74,14 +74,14 @@ struct Mapper208 final : public MMC3 {
     EXPREGS[5] = 3;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4800, 0x4FFF, [](DECLFW_ARGS) {
-	((Mapper208*)fc->fceu->cartiface)->M208Write(DECLFW_FORWARD);
+        ((Mapper208*)fc->fceu->cartiface)->M208Write(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x5000, 0x5fff, [](DECLFW_ARGS) {
-	((Mapper208*)fc->fceu->cartiface)->M208ProtWrite(DECLFW_FORWARD);
+        ((Mapper208*)fc->fceu->cartiface)->M208ProtWrite(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x5800, 0x5FFF, [](DECLFR_ARGS) {
-	return ((Mapper208*)fc->fceu->cartiface)->
-	  M208ProtRead(DECLFR_FORWARD);
+        return ((Mapper208*)fc->fceu->cartiface)->
+          M208ProtRead(DECLFR_FORWARD);
       });
     fc->fceu->SetReadHandler(0x8000, 0xffff, Cart::CartBR);
   }

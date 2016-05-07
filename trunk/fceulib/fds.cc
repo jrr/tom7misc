@@ -39,9 +39,9 @@
 #include "tracing.h"
 
 //  TODO:  Add code to put a delay in between the time a disk is inserted
-//	and the when it can be successfully read/written to.  This should
-//	prevent writes to wrong places OR add code to prevent disk ejects
-//	when the virtual motor is on.
+//      and the when it can be successfully read/written to.  This should
+//      prevent writes to wrong places OR add code to prevent disk ejects
+//      when the virtual motor is on.
 
 static DECLFR(FDSRead4030);
 static DECLFR(FDSRead4031);
@@ -76,7 +76,7 @@ void FDS::FDSStateRestore(int version) {
   if (version >= 9810) {
     for (int x=0;x<TotalSides;x++) {
       for (int b=0; b<65500; b++) {
-	diskdata[x][b] ^= diskdatao[x][b];
+        diskdata[x][b] ^= diskdatao[x][b];
       }
     }
   }
@@ -148,11 +148,11 @@ void FDS::FDSFix(int a) {
     IRQCount-=a;
     if (IRQCount<=0) {
       if (!(IRQa&1)) {
-	IRQa&=~2;
-	IRQCount=IRQLatch=0;
+        IRQa&=~2;
+        IRQCount=IRQLatch=0;
       }
       else {
-	IRQCount=IRQLatch;
+        IRQCount=IRQLatch;
       }
       //IRQCount=IRQLatch; //0xFFFF;
       fc->X->IRQBegin(FCEU_IQEXT);
@@ -164,7 +164,7 @@ void FDS::FDSFix(int a) {
     DiskSeekIRQ-=a;
     if (DiskSeekIRQ<=0) {
       if (FDSRegs[5]&0x80) {
-	fc->X->IRQBegin(FCEU_IQEXT2);
+        fc->X->IRQBegin(FCEU_IQEXT2);
       }
     }
   }
@@ -215,7 +215,7 @@ DECLFR_RET FDS::FDSRead4032_Direct(DECLFR_ARGS) {
 }
 
 static DECLFR(FDSRead4033) {
-	return 0x80; // battery
+        return 0x80; // battery
 }
 
 static DECLFW(FDSRAMWrite) {
@@ -331,18 +331,18 @@ void FDS::DoEnv() {
   for (int x=0;x<2;x++) {
     if (!(SPSG[x<<2]&0x80) && !(SPSG[0x3]&0x40)) {
       if (counto[x]<=0) {
-	if (!(SPSG[x<<2]&0x80)) {
-	  if (SPSG[x<<2]&0x40) {
-	    if (fdso.amplitude[x]<0x3F)
-	      fdso.amplitude[x]++;
-	  } else {
-	    if (fdso.amplitude[x]>0)
-	      fdso.amplitude[x]--;
-	  }
-	}
-	counto[x]=(SPSG[x<<2]&0x3F);
+        if (!(SPSG[x<<2]&0x80)) {
+          if (SPSG[x<<2]&0x40) {
+            if (fdso.amplitude[x]<0x3F)
+              fdso.amplitude[x]++;
+          } else {
+            if (fdso.amplitude[x]>0)
+              fdso.amplitude[x]--;
+          }
+        }
+        counto[x]=(SPSG[x<<2]&0x3F);
       } else {
-	counto[x]--;
+        counto[x]--;
       }
     }
   }
@@ -377,10 +377,10 @@ void FDS::ClockRise() {
       int adj = 0;
 
       if ((t&3)) {
-	if ((t&4))
-	  adj -= (t2 * ((4 - (t&3) ) ));
-	else
-	  adj += (t2 * ( (t&3) ));
+        if ((t&4))
+          adj -= (t2 * ((4 - (t&3) ) ));
+        else
+          adj += (t2 * ( (t&3) ));
       }
       adj *= 2;
       if (adj > 0x7F) adj = 0x7F;
@@ -539,11 +539,11 @@ void FDS::FDSWrite_Direct(DECLFW_ARGS) {
   case 0x4024:
     if (InDisk!=255 && !(FDSRegs[5]&0x4) && (FDSRegs[3]&0x1)) {
       if (DiskPtr>=0 && DiskPtr<65500) {
-	if (writeskip) writeskip--;
-	else if (DiskPtr>=2) {
-	  DiskWritten=1;
-	  diskdata[InDisk][DiskPtr-2]=V;
-	}
+        if (writeskip) writeskip--;
+        else if (DiskPtr>=2) {
+          DiskWritten=1;
+          diskdata[InDisk][DiskPtr-2]=V;
+        }
       }
     }
     break;
@@ -551,11 +551,11 @@ void FDS::FDSWrite_Direct(DECLFW_ARGS) {
     fc->X->IRQEnd(FCEU_IQEXT2);
     if (InDisk!=255) {
       if (!(V&0x40)) {
-	if (FDSRegs[5]&0x40 && !(V&0x10)) {
-	  DiskSeekIRQ=200;
-	  DiskPtr-=2;
-	}
-	if (DiskPtr<0) DiskPtr=0;
+        if (FDSRegs[5]&0x40 && !(V&0x10)) {
+          DiskSeekIRQ=200;
+          DiskPtr-=2;
+        }
+        if (DiskPtr<0) DiskPtr=0;
       }
       if (!(V&0x4)) writeskip=2;
       if (V&2) {DiskPtr=0;DiskSeekIRQ=200;}
@@ -587,7 +587,7 @@ int FDS::SubLoad(FceuFile *fp) {
       long t;
       t=FCEU_fgetsize(fp);
       if (t<65500)
-	t=65500;
+        t=65500;
       TotalSides=t/65500;
       FCEU_fseek(fp,0,SEEK_SET);
     } else {
@@ -607,7 +607,7 @@ int FDS::SubLoad(FceuFile *fp) {
     if (!diskdata[x]) {
       int zol;
       for (zol=0;zol<x;zol++)
-	free(diskdata[zol]);
+        free(diskdata[zol]);
       return 0;
     }
     FCEU_fread(diskdata[x],1,65500,fp);
@@ -656,8 +656,8 @@ int FDS::FDSLoad(const char *name, FceuFile *fp) {
   if (ftell( zp ) != 8192 ) {
     fclose(zp);
     FreeFDSMemory();
-    FCEU_PrintError("FDS BIOS ROM image incompatible: %s", 
-		    FCEU_MakeFDSROMFilename().c_str());
+    FCEU_PrintError("FDS BIOS ROM image incompatible: %s",
+                    FCEU_MakeFDSROMFilename().c_str());
     return 0;
   }
   fseek( zp, 0L, SEEK_SET );
@@ -683,8 +683,8 @@ int FDS::FDSLoad(const char *name, FceuFile *fp) {
     if ((tp = FCEU_fopen(fn2, "wb", 0))) {
       FreeFDSMemory();
       if (!SubLoad(tp)) {
-	FCEU_PrintError("Error reading auxillary FDS file.");
-	return(0);
+        FCEU_PrintError("Error reading auxillary FDS file.");
+        return(0);
       }
       FCEU_fclose(tp);
       DiskWritten=1;  /* For save state handling. */
@@ -699,8 +699,8 @@ int FDS::FDSLoad(const char *name, FceuFile *fp) {
   SelectDisk=0;
   InDisk=255;
 
-  fc->state->ResetExState([](FC *fc) { return fc->fds->PreSave(); }, 
-			  [](FC *fc) { return fc->fds->PostSave(); });
+  fc->state->ResetExState([](FC *fc) { return fc->fds->PreSave(); },
+                          [](FC *fc) { return fc->fds->PostSave(); });
   FDSSoundStateAdd();
 
   for (int x=0; x < TotalSides; x++) {

@@ -27,9 +27,9 @@ struct UNL8157 final : public CartInterface {
 
   void Sync() {
     fc->cart->setprg16r((cmdreg & 0x060) >> 5, 0x8000,
-			(cmdreg & 0x01C) >> 2);
+                        (cmdreg & 0x01C) >> 2);
     fc->cart->setprg16r((cmdreg & 0x060) >> 5, 0xC000,
-			(cmdreg & 0x200) ? (~0) : 0);
+                        (cmdreg & 0x200) ? (~0) : 0);
     fc->cart->setmirror(((cmdreg & 2) >> 1) ^ 1);
   }
 
@@ -71,7 +71,7 @@ struct UNL8157 final : public CartInterface {
   UNL8157(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = UNL8157Restore;
     fc->state->AddExVec({{&invalid_data, 1, "INVD"},
-	                 {&cmdreg, 2, "CREG"}});
+                         {&cmdreg, 2, "CREG"}});
   }
 
 };

@@ -133,10 +133,10 @@ struct FKB : public InputCFC {
 
       ret &= ~0x1E;
       for (x = 0; x < 4; x++)
-	if (bufit[matrix[ksindex][ksmode & 1][x] & 0xFF] ||
-	    bufit[matrix[ksindex][ksmode & 1][x] >> 8]) {
-	  ret |= 1 << (x + 1);
-	}
+        if (bufit[matrix[ksindex][ksmode & 1][x] & 0xFF] ||
+            bufit[matrix[ksindex][ksmode & 1][x] >> 8]) {
+          ret |= 1 << (x + 1);
+        }
       ret ^= 0x1E;
     }
     return ret;
@@ -151,7 +151,7 @@ struct FKB : public InputCFC {
   void Update(void *data, int arg) override {
     memcpy(bufit + 1, data, 0x48);
   }
-  
+
   uint8 bufit[0x49] = {};
   uint8 ksmode = 0;
   uint8 ksindex = 0;

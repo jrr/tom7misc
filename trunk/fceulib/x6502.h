@@ -32,7 +32,7 @@ struct X6502 {
   // Initialize with fc pointer, since memory reads/writes
   // trigger callbacks.
   explicit X6502(FC *fc);
-  
+
   /* Temporary cycle counter */
   int32 tcount;
 
@@ -102,7 +102,7 @@ private:
   inline void WrRAM(unsigned int A, uint8 V) {
     fc->fceu->RAM[A] = V;
   }
-  
+
   FC *fc = nullptr;
   DISALLOW_COPY_AND_ASSIGN(X6502);
 };

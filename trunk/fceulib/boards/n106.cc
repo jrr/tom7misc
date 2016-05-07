@@ -64,9 +64,9 @@ struct N106 : public CartInterface {
     if (IRQa) {
       IRQCount += a;
       if (IRQCount >= 0x7FFF) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	IRQa = 0;
-	IRQCount = 0x7FFF;  // 7FFF;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
+        IRQCount = 0x7FFF;  // 7FFF;
       }
     }
   }
@@ -125,18 +125,18 @@ struct N106 : public CartInterface {
     int w = (a >> 3) & 0x7;
     switch (a & 0x07) {
       case 0x00:
-	FreqCache[w] &= ~0x000000FF;
-	FreqCache[w] |= V;
-	break;
+        FreqCache[w] &= ~0x000000FF;
+        FreqCache[w] |= V;
+        break;
       case 0x02:
-	FreqCache[w] &= ~0x0000FF00;
-	FreqCache[w] |= V << 8;
-	break;
+        FreqCache[w] &= ~0x0000FF00;
+        FreqCache[w] |= V << 8;
+        break;
       case 0x04:
-	FreqCache[w] &= ~0x00030000;
-	FreqCache[w] |= (V & 3) << 16;
-	LengthCache[w] = (8 - ((V >> 2) & 7)) << 2;
-	break;
+        FreqCache[w] &= ~0x00030000;
+        FreqCache[w] |= (V & 3) << 16;
+        LengthCache[w] = (8 - ((V >> 2) & 7)) << 2;
+        break;
       case 0x07: EnvCache[w] = (double)(V & 0xF) * 576716; break;
     }
   }
@@ -147,52 +147,52 @@ struct N106 : public CartInterface {
       DoCHRRAMROM((A - 0x8000) >> 11, V);
     else
       switch (A) {
-	case 0x4800:
-	  if (dopol & 0x40) {
-	    if (FCEUS_SNDRATE) {
-	      NamcoSoundHack();
-	      fc->sound->GameExpSound.Fill = [](FC *fc, int c) {
-		((N106 *)fc->fceu->cartiface)->NamcoSound(c);
-	      };
-	      fc->sound->GameExpSound.HiFill = [](FC *fc) {
-		((N106 *)fc->fceu->cartiface)->DoNamcoSoundHQ();
-	      };
-	      fc->sound->GameExpSound.HiSync = [](FC *fc, int32 i) {
-		((N106 *)fc->fceu->cartiface)->SyncHQ(i);
-	      };
-	    }
-	    FixCache(dopol, V);
-	  }
-	  IRAM[dopol & 0x7f] = V;
-	  if (dopol & 0x80) dopol = (dopol & 0x80) | ((dopol + 1) & 0x7f);
-	  break;
-	case 0xf800: dopol = V; break;
-	case 0x5000:
-	  IRQCount &= 0xFF00;
-	  IRQCount |= V;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0x5800:
-	  IRQCount &= 0x00ff;
-	  IRQCount |= (V & 0x7F) << 8;
-	  IRQa = V & 0x80;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0xE000:
-	  gorko = V & 0xC0;
-	  PRG[0] = V & 0x3F;
-	  SyncPRG();
-	  break;
-	case 0xE800:
-	  gorfus = V & 0xC0;
-	  FixCRR();
-	  PRG[1] = V & 0x3F;
-	  SyncPRG();
-	  break;
-	case 0xF000:
-	  PRG[2] = V & 0x3F;
-	  SyncPRG();
-	  break;
+        case 0x4800:
+          if (dopol & 0x40) {
+            if (FCEUS_SNDRATE) {
+              NamcoSoundHack();
+              fc->sound->GameExpSound.Fill = [](FC *fc, int c) {
+                ((N106 *)fc->fceu->cartiface)->NamcoSound(c);
+              };
+              fc->sound->GameExpSound.HiFill = [](FC *fc) {
+                ((N106 *)fc->fceu->cartiface)->DoNamcoSoundHQ();
+              };
+              fc->sound->GameExpSound.HiSync = [](FC *fc, int32 i) {
+                ((N106 *)fc->fceu->cartiface)->SyncHQ(i);
+              };
+            }
+            FixCache(dopol, V);
+          }
+          IRAM[dopol & 0x7f] = V;
+          if (dopol & 0x80) dopol = (dopol & 0x80) | ((dopol + 1) & 0x7f);
+          break;
+        case 0xf800: dopol = V; break;
+        case 0x5000:
+          IRQCount &= 0xFF00;
+          IRQCount |= V;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0x5800:
+          IRQCount &= 0x00ff;
+          IRQCount |= (V & 0x7F) << 8;
+          IRQa = V & 0x80;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0xE000:
+          gorko = V & 0xC0;
+          PRG[0] = V & 0x3F;
+          SyncPRG();
+          break;
+        case 0xE800:
+          gorfus = V & 0xC0;
+          FixCRR();
+          PRG[1] = V & 0x3F;
+          SyncPRG();
+          break;
+        case 0xF000:
+          PRG[2] = V & 0x3F;
+          SyncPRG();
+          break;
       }
   }
 
@@ -228,15 +228,15 @@ struct N106 : public CartInterface {
   }
 
   /* Things to do:
-	  1        Read freq low
-	  2        Read freq mid
-	  3        Read freq high
-	  4        Read envelope
-	  ...?
+          1        Read freq low
+          2        Read freq mid
+          3        Read freq high
+          4        Read envelope
+          ...?
   */
 
   inline uint32 FetchDuff(uint32 P, uint32 envelope) {
-    uint32 duff = 
+    uint32 duff =
       IRAM[((IRAM[0x46 + (P << 3)] + (PlayIndex[P] >> TOINDEX)) & 0xFF) >> 1];
     if ((IRAM[0x46 + (P << 3)] + (PlayIndex[P] >> TOINDEX)) & 1) duff >>= 4;
     duff &= 0xF;
@@ -249,28 +249,28 @@ struct N106 : public CartInterface {
 
     for (int32 P = 7; P >= (7 - ((IRAM[0x7F] >> 4) & 7)); P--) {
       if ((IRAM[0x44 + (P << 3)] & 0xE0) && (IRAM[0x47 + (P << 3)] & 0xF)) {
-	uint32 freq;
-	int32 vco;
-	uint32 duff2, lengo, envelope;
+        uint32 freq;
+        int32 vco;
+        uint32 duff2, lengo, envelope;
 
-	vco = vcount[P];
-	freq = FreqCache[P];
-	envelope = EnvCache[P];
-	lengo = LengthCache[P];
+        vco = vcount[P];
+        freq = FreqCache[P];
+        envelope = EnvCache[P];
+        lengo = LengthCache[P];
 
-	duff2 = FetchDuff(P, envelope);
-	for (uint32 V = CVBC << 1; V < fc->sound->SoundTS() << 1; V++) {
-	  fc->sound->WaveHi[V >> 1] += duff2;
-	  if (!vco) {
-	    PlayIndex[P] += freq;
-	    while ((PlayIndex[P] >> TOINDEX) >= lengo)
-	      PlayIndex[P] -= lengo << TOINDEX;
-	    duff2 = FetchDuff(P, envelope);
-	    vco = cyclesuck;
-	  }
-	  vco--;
-	}
-	vcount[P] = vco;
+        duff2 = FetchDuff(P, envelope);
+        for (uint32 V = CVBC << 1; V < fc->sound->SoundTS() << 1; V++) {
+          fc->sound->WaveHi[V >> 1] += duff2;
+          if (!vco) {
+            PlayIndex[P] += freq;
+            while ((PlayIndex[P] >> TOINDEX) >= lengo)
+              PlayIndex[P] -= lengo << TOINDEX;
+            duff2 = FetchDuff(P, envelope);
+            vco = cyclesuck;
+          }
+          vco--;
+        }
+        vcount[P] = vco;
       }
     }
     CVBC = fc->sound->SoundTS();
@@ -279,49 +279,49 @@ struct N106 : public CartInterface {
   void DoNamcoSound(int32 *Wave, int Count) {
     for (int P = 7; P >= 7 - ((IRAM[0x7F] >> 4) & 7); P--) {
       if ((IRAM[0x44 + (P << 3)] & 0xE0) && (IRAM[0x47 + (P << 3)] & 0xF)) {
-	int32 inc;
-	uint32 freq;
-	int32 vco;
-	uint32 duff, duff2, lengo, envelope;
+        int32 inc;
+        uint32 freq;
+        int32 vco;
+        uint32 duff, duff2, lengo, envelope;
 
-	vco = vcount[P];
-	freq = FreqCache[P];
-	envelope = EnvCache[P];
-	lengo = LengthCache[P];
+        vco = vcount[P];
+        freq = FreqCache[P];
+        envelope = EnvCache[P];
+        lengo = LengthCache[P];
 
-	if (!freq) { /*printf("Ack");*/
-	  continue;
-	}
+        if (!freq) { /*printf("Ack");*/
+          continue;
+        }
 
-	{
-	  const int c = ((IRAM[0x7F] >> 4) & 7) + 1;
-	  inc = (long double)(FCEUS_SNDRATE << 15) /
-		((long double)freq * 21477272 /
-		 ((long double)0x400000 * c * 45));
-	}
+        {
+          const int c = ((IRAM[0x7F] >> 4) & 7) + 1;
+          inc = (long double)(FCEUS_SNDRATE << 15) /
+                ((long double)freq * 21477272 /
+                 ((long double)0x400000 * c * 45));
+        }
 
-	duff = IRAM[(((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 0xFF) >> 1)];
-	if ((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 1) duff >>= 4;
-	duff &= 0xF;
-	duff2 = (duff * envelope) >> 19;
-	for (int V = 0; V < Count * 16; V++) {
-	  if (vco >= inc) {
-	    PlayIndex[P]++;
-	    if (PlayIndex[P] >= lengo) PlayIndex[P] = 0;
-	    vco -= inc;
-	    duff = IRAM[(((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 0xFF) >> 1)];
-	    if ((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 1) duff >>= 4;
-	    duff &= 0xF;
-	    duff2 = (duff * envelope) >> 19;
-	  }
-	  Wave[V >> 4] += duff2;
-	  vco += 0x8000;
-	}
-	vcount[P] = vco;
+        duff = IRAM[(((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 0xFF) >> 1)];
+        if ((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 1) duff >>= 4;
+        duff &= 0xF;
+        duff2 = (duff * envelope) >> 19;
+        for (int V = 0; V < Count * 16; V++) {
+          if (vco >= inc) {
+            PlayIndex[P]++;
+            if (PlayIndex[P] >= lengo) PlayIndex[P] = 0;
+            vco -= inc;
+            duff = IRAM[(((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 0xFF) >> 1)];
+            if ((IRAM[0x46 + (P << 3)] + PlayIndex[P]) & 1) duff >>= 4;
+            duff &= 0xF;
+            duff2 = (duff * envelope) >> 19;
+          }
+          Wave[V >> 4] += duff2;
+          vco += 0x8000;
+        }
+        vcount[P] = vco;
       }
     }
   }
- 
+
   void M19SC() {
     if (FCEUS_SNDRATE) Mapper19_ESI();
   }
@@ -345,19 +345,19 @@ struct N106 : public CartInterface {
     });
     if (!is210) {
       fc->fceu->SetWriteHandler(0xc000, 0xdfff, [](DECLFW_ARGS) {
-	((N106*)fc->fceu->cartiface)->Mapper19C0D8_write(DECLFW_FORWARD);
+        ((N106*)fc->fceu->cartiface)->Mapper19C0D8_write(DECLFW_FORWARD);
       });
       fc->fceu->SetReadHandler(0x4800, 0x4fff, [](DECLFR_ARGS) {
-	return ((N106*)fc->fceu->cartiface)->
-	  Namco_Read4800(DECLFR_FORWARD);
+        return ((N106*)fc->fceu->cartiface)->
+          Namco_Read4800(DECLFR_FORWARD);
       });
       fc->fceu->SetReadHandler(0x5000, 0x57ff, [](DECLFR_ARGS) {
-	return ((N106*)fc->fceu->cartiface)->
-	  Namco_Read5000(DECLFR_FORWARD);
+        return ((N106*)fc->fceu->cartiface)->
+          Namco_Read5000(DECLFR_FORWARD);
       });
       fc->fceu->SetReadHandler(0x5800, 0x5fff, [](DECLFR_ARGS) {
-	return ((N106*)fc->fceu->cartiface)->
-	  Namco_Read5800(DECLFR_FORWARD);
+        return ((N106*)fc->fceu->cartiface)->
+          Namco_Read5800(DECLFR_FORWARD);
       });
       NTAPage[0] = NTAPage[1] = NTAPage[2] = NTAPage[3] = 0xFF;
       FixNTAR();
@@ -383,10 +383,10 @@ struct N106 : public CartInterface {
   }
 
   N106(FC *fc, CartInfo *info) : CartInterface(fc),
-				 N106_StateRegs{{PRG, 3, "PRG0"},
+                                 N106_StateRegs{{PRG, 3, "PRG0"},
                                                 {CHR, 8, "CHR0"},
-						{NTAPage, 4, "NTA0"}} {
-    
+                                                {NTAPage, 4, "NTA0"}} {
+
   }
 };
 
@@ -401,7 +401,7 @@ struct NSFN106 final : public N106 {
     });
     fc->fceu->SetReadHandler(0x4800, 0x4fff, [](DECLFR_ARGS) {
       return ((NSFN106*)fc->fceu->cartiface)->
-	Namco_Read4800(DECLFR_FORWARD);
+        Namco_Read4800(DECLFR_FORWARD);
     });
     Mapper19_ESI();
   }
@@ -451,7 +451,7 @@ struct Mapper210 final : public N106 {
     SyncPRG();
     FixCRR();
   }
-  
+
   Mapper210(FC *fc, CartInfo *info) : N106(fc, info) {
     is210 = 1;
     fc->fceu->GameStateRestore = [](FC *fc, int version) {

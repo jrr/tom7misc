@@ -31,11 +31,11 @@ static DECLFW(Mapper67_write) {
     case 0xc800:
     case 0xc000:
       if (!suntoggle) {
-	fc->ines->iNESIRQCount &= 0xFF;
-	fc->ines->iNESIRQCount |= V << 8;
+        fc->ines->iNESIRQCount &= 0xFF;
+        fc->ines->iNESIRQCount |= V << 8;
       } else {
-	fc->ines->iNESIRQCount &= 0xFF00;
-	fc->ines->iNESIRQCount |= V;
+        fc->ines->iNESIRQCount &= 0xFF00;
+        fc->ines->iNESIRQCount |= V;
       }
       suntoggle ^= 1;
       break;

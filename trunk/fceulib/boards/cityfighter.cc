@@ -46,17 +46,17 @@ struct UNLCITYFIGHT final : public CartInterface {
     // FCEU_printf("%04x %02x",A,V);
     switch (A & 0xF00C) {
       case 0x9000:
-	prg_reg = V & 0xC;
-	mirr = V & 3;
-	break;
+        prg_reg = V & 0xC;
+        mirr = V & 3;
+        break;
       case 0x9004:
       case 0x9008:
       case 0x900C:
-	if (A & 0x800)
-	  pcmwrite(fc, 0x4011, (V & 0xf) << 3);
-	else
-	  prg_reg = V & 0xC;
-	break;
+        if (A & 0x800)
+          pcmwrite(fc, 0x4011, (V & 0xf) << 3);
+        else
+          prg_reg = V & 0xC;
+        break;
       case 0xC000:
       case 0xC004:
       case 0xC008:
@@ -80,9 +80,9 @@ struct UNLCITYFIGHT final : public CartInterface {
       case 0xF000: IRQCount = ((IRQCount & 0x1E0) | ((V & 0xF) << 1)); break;
       case 0xF004: IRQCount = ((IRQCount & 0x1E) | ((V & 0xF) << 5)); break;
       case 0xF008:
-	IRQa = V & 2;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = V & 2;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       default: break;
     }
     Sync();
@@ -92,7 +92,7 @@ struct UNLCITYFIGHT final : public CartInterface {
     if (IRQa) {
       IRQCount -= a;
       if (IRQCount <= 0) {
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -117,11 +117,11 @@ struct UNLCITYFIGHT final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&IRQCount, 4, "IRQC"},
-			 {&IRQa, 1, "IRQA"},
-			 {&prg_reg, 1, "PREG"},
-			 {&prg_mode, 1, "PMOD"},
-			 {&mirr, 1, "MIRR"},
-			 {chr_reg, 8, "CREG"}});
+                         {&IRQa, 1, "IRQA"},
+                         {&prg_reg, 1, "PREG"},
+                         {&prg_mode, 1, "PMOD"},
+                         {&mirr, 1, "MIRR"},
+                         {chr_reg, 8, "CREG"}});
   }
 };
 }

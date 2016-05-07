@@ -25,14 +25,14 @@ struct Mapper232 final : public CartInterface {
   uint8 bank = 0, preg = 0;
 
   void Sync() {
-    //	uint32 bbank = (bank & 0x18) >> 1;
+    //  uint32 bbank = (bank & 0x18) >> 1;
     // some dumps have bbanks swapped, if swap commands,
     // then all roms can be played, but with some swapped
     // games in menu. if not, some dumps are unplayable
     // make hard dump for both cart types to check
     const uint32 bbank =
-	((bank & 0x10) >> 2) |
-	(bank & 8);
+        ((bank & 0x10) >> 2) |
+        (bank & 8);
     fc->cart->setprg16(0x8000, bbank | (preg & 3));
     fc->cart->setprg16(0xC000, bbank | 3);
     fc->cart->setchr8(0);

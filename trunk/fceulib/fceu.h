@@ -40,7 +40,7 @@ enum GI {
 };
 
 enum EFCEUI {
-  FCEUI_RESET, FCEUI_POWER, 
+  FCEUI_RESET, FCEUI_POWER,
   FCEUI_EJECT_DISK, FCEUI_SWITCH_DISK
 };
 
@@ -136,7 +136,7 @@ struct FCEU {
   // passages, so it's safer to just separate them. (The right cleanup
   // is to port all old-style mappers to new-style, anyway.)
   MapInterface *mapiface = nullptr;
-  
+
 private:
   readfunc *AReadG = nullptr;
   writefunc *BWriteG = nullptr;

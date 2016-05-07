@@ -221,7 +221,7 @@ uint8 *PPU::MMC5BGVRAMADR(uint32 V) {
   } else return &fc->cart->MMC5BGVPage[(V)>>10][(V)];
 }
 
-// static 
+// static
 DECLFR_RET PPU::A2002(DECLFR_ARGS) {
   return fc->ppu->A2002_Direct(DECLFR_FORWARD);
 }
@@ -391,7 +391,7 @@ void PPU::B2005_Direct(DECLFW_ARGS) {
   // http://wiki.nesdev.com/w/index.php/PPU_registers#PPUSCROLL
   // 2005 is 'PPUSCROLL', which controls the scrolling of the
   // background. There are two scroll bytes, x, and y, and two
-  // consecutive writes set them (first x, then y). 
+  // consecutive writes set them (first x, then y).
   // (vtoggle keeps track of this state).
   //
   // Note that both 2005 and 2006 modify the TempAddr; they
@@ -414,7 +414,7 @@ void PPU::B2005_Direct(DECLFW_ARGS) {
     tmp &= 0x8C1F;
     tmp |= (V & ~7) << 2;
     // Weirdly, the y position within a tile (0-7) is
-    // stored as the top bits 
+    // stored as the top bits
     tmp |= (V & 7) << 12;
     last_y_scroll = V;
   }
@@ -508,9 +508,9 @@ void PPU::ResetRL(uint8 *target) {
 
 void PPU::FCEUPPU_LineUpdate() {
   if (Pline) {
-    const int l = (fc->fceu->PAL ? 
-		   ((fc->X->timestamp*48-linestartts)/15) : 
-		   ((fc->X->timestamp*48-linestartts)>>4) );
+    const int l = (fc->fceu->PAL ?
+                   ((fc->X->timestamp*48-linestartts)/15) :
+                   ((fc->X->timestamp*48-linestartts)>>4) );
     RefreshLine(l);
   }
 }
@@ -547,13 +547,13 @@ void PPU::EndRL() {
 // Used to be an include hack, replaced with a templated function.
 // Returns {refreshaddr_local, P}, which are both modified.
 template<bool PPUT_MMC5, bool PPUT_MMC5SP, bool PPUT_HOOK, bool PPUT_MMC5CHR1>
-inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P, 
-					       const uint32 vofs,
-					       uint32 refreshaddr_local) {
+inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P,
+                                               const uint32 vofs,
+                                               uint32 refreshaddr_local) {
   uint8 *C;
   register uint8 cc;
   uint32 vadr;
-  uint8 zz;       
+  uint8 zz;
 
   uint8 xs, ys;
   if (PPUT_MMC5SP) {
@@ -561,12 +561,12 @@ inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P,
     ys = ((scanline>>3) + MMC5HackSPScroll) & 0x1F;
     if (ys >= 0x1E) ys -= 0x1E;
   }
-        
+
   if (X1 >= 2) {
     uint8 *S = PALRAM;
     uint32 pixdata;
 
-    pixdata = ppulut1[(pshift[0]>>(8-XOffset))&0xFF] | 
+    pixdata = ppulut1[(pshift[0]>>(8-XOffset))&0xFF] |
               ppulut2[(pshift[1]>>(8-XOffset))&0xFF];
 
     pixdata |= ppulut3[XOffset|(atlatch<<3)];
@@ -617,8 +617,8 @@ inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P,
   }
 
   atlatch >>= 2;
-  atlatch |= cc << 2;  
-       
+  atlatch |= cc << 2;
+
   pshift[0] <<= 8;
   pshift[1] <<= 8;
 
@@ -628,7 +628,7 @@ inline std::pair<uint32, uint8 *> PPU::PPUTile(const int X1, uint8 *P,
   } else {
     if (PPUT_MMC5CHR1) {
       C = MMC5HackVROMPTR;
-      C += (((MMC5HackExNTARAMPtr[refreshaddr_local & 0x3ff]) & 0x3f & 
+      C += (((MMC5HackExNTARAMPtr[refreshaddr_local & 0x3ff]) & 0x3f &
              MMC5HackVROMMask) << 12) + (vadr & 0xfff);
       //11-jun-2009 for kuja_killer
       C += (MMC50x5130 & 0x3) << 18;
@@ -713,7 +713,7 @@ void PPU::RefreshLine(int lastpixel) {
 
     if ((lastpixel-16)>=0) {
       fc->input->InputScanlineHook(Plinef,any_sprites_on_line?sprlinebuf:0,
-				   linestartts,lasttile*8-16);
+                                   linestartts,lasttile*8-16);
     }
     return;
   }
@@ -733,7 +733,7 @@ void PPU::RefreshLine(int lastpixel) {
       int tochange=MMC5HackSPMode&0x1F;
       tochange-=firsttile;
       for (int X1 = firsttile; X1 < lasttile; X1++) {
-        if ((tochange<=0 && MMC5HackSPMode&0x40) || 
+        if ((tochange<=0 && MMC5HackSPMode&0x40) ||
             (tochange>0 && !(MMC5HackSPMode&0x40))) {
           TRACELOC();
           // MMC5 and MMC5SP
@@ -837,7 +837,7 @@ void PPU::RefreshLine(int lastpixel) {
 
   if (lastpixel - 16 >= 0) {
     fc->input->InputScanlineHook(Plinef, any_sprites_on_line ? sprlinebuf : 0,
-				     linestartts, lasttile * 8 - 16);
+                                     linestartts, lasttile * 8 - 16);
   }
   Pline=P;
   firsttile=lasttile;
@@ -907,14 +907,14 @@ void PPU::DoLine() {
   }
   if ((PPU_values[1]>>5)==0x7) {
     for (int x = 63; x >= 0; x--)
-      *(uint32 *)&target[x<<2] = 
+      *(uint32 *)&target[x<<2] =
         ((*(uint32*)&target[x<<2])&0x3f3f3f3f)|0xc0c0c0c0;
   } else if (PPU_values[1]&0xE0) {
     for (int x = 63; x >= 0; x--)
       *(uint32 *)&target[x<<2] = (*(uint32*)&target[x<<2])|0x40404040;
   } else {
     for (int x = 63; x >= 0; x--)
-      *(uint32 *)&target[x<<2] = 
+      *(uint32 *)&target[x<<2] =
         ((*(uint32*)&target[x<<2])&0x3f3f3f3f)|0x80808080;
   }
 
@@ -1041,7 +1041,7 @@ void PPU::FetchSpriteData() {
           }
 
           const uint8 *C = (MMC5Hack) ?
-	    MMC5SPRVRAMADR(fc, vadr) : VRAMADR(fc, vadr);
+            MMC5SPRVRAMADR(fc, vadr) : VRAMADR(fc, vadr);
 
           dst.ca[0]=C[0];
           dst.ca[1]=C[8];
@@ -1074,7 +1074,7 @@ void PPU::FetchSpriteData() {
 
           const int t = (int)scanline-(spr->y);
 
-          unsigned int vadr = 
+          unsigned int vadr =
             Sprite16 ?
             ((spr->no&1)<<12) + ((spr->no&0xFE)<<4) :
             (spr->no<<4) + vofs;
@@ -1090,7 +1090,7 @@ void PPU::FetchSpriteData() {
           }
 
           const uint8 *C = MMC5Hack ?
-	    MMC5SPRVRAMADR(fc, vadr): VRAMADR(fc, vadr);
+            MMC5SPRVRAMADR(fc, vadr): VRAMADR(fc, vadr);
           dst.ca[0]=C[0];
           if (ns<8) {
             PPU_hook(fc, 0x2000);
@@ -1421,15 +1421,15 @@ int PPU::FCEUPPU_Loop(int skip) {
     TRACE_SCOPED_ENABLE_IF(true);
     TRACEFUN();
     TRACEF("%d %d %d | "
-	   "%d %d %d | "
-	   "%d %d %d | "
-	   "%d %d %d | "
-	   "%d",
-	   cycle_parity, ppudead, PPUSPL,
-	   RefreshAddrT, TempAddrT, VRAMBuffer,
-	   PPUGenLatch, pshift[0], pshift[1],
-	   XOffset, vtoggle, sphitx,
-	   sphitdata);
+           "%d %d %d | "
+           "%d %d %d | "
+           "%d %d %d | "
+           "%d",
+           cycle_parity, ppudead, PPUSPL,
+           RefreshAddrT, TempAddrT, VRAMBuffer,
+           PPUGenLatch, pshift[0], pshift[1],
+           XOffset, vtoggle, sphitx,
+           sphitdata);
   }
 
   // Needed for Knight Rider, possibly others.
@@ -1524,7 +1524,7 @@ int PPU::FCEUPPU_Loop(int skip) {
       }
 
       if (MMC5Hack && (ScreenON || SpriteON)) {
-	fc->fceu->cartiface->MMC5HackHB(scanline);
+        fc->fceu->cartiface->MMC5HackHB(scanline);
       }
       int max = 0, maxref = 0;
       for (int x = 0; x < 7; x++) {

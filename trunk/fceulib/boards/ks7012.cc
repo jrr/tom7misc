@@ -37,13 +37,13 @@ struct KS7012 final : public CartInterface {
     //  FCEU_printf("bs %04x %02x\n",A,V);
     switch (A) {
       case 0xE0A0:
-	reg = 0;
-	Sync();
-	break;
+        reg = 0;
+        Sync();
+        break;
       case 0xEE36:
-	reg = 1;
-	Sync();
-	break;
+        reg = 1;
+        Sync();
+        break;
     }
   }
 
@@ -82,7 +82,7 @@ struct KS7012 final : public CartInterface {
   }
 };
 }
-  
+
 CartInterface *UNLKS7012_Init(FC *fc, CartInfo *info) {
   return new KS7012(fc, info);
 }

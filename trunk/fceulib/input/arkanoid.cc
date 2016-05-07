@@ -88,14 +88,14 @@ struct ArkanoidFC : public InputCFC {
 
   uint8 Read(int w, uint8 ret) override {
     ret &= ~2;
-    
+
     if (w) {
       if (FCArk.readbit >= 8) {
-	ret |= 2;
+        ret |= 2;
       } else {
-	ret |= ((FCArk.mzx >> (7 - FCArk.readbit)) & 1) << 1;
-	
-	FCArk.readbit++;
+        ret |= ((FCArk.mzx >> (7 - FCArk.readbit)) & 1) << 1;
+
+        FCArk.readbit++;
       }
     } else {
       ret |= FCArk.mzb << 1;
@@ -106,7 +106,7 @@ struct ArkanoidFC : public InputCFC {
   ARK FCArk;
 };
 }
-  
+
 InputC *CreateArkanoid(FC *fc, int w) {
   return new Arkanoid(fc, w);
 }

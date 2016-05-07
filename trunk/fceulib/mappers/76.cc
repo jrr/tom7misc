@@ -29,26 +29,26 @@ struct Mapper76 final : public MapInterface {
     switch (A & 0xE001) {
       case 0x8000: MMC3_cmd = V; break;
       case 0x8001:
-	switch (MMC3_cmd & 0x07) {
-	  case 2: fc->ines->VROM_BANK2(0x000, V); break;
-	  case 3: fc->ines->VROM_BANK2(0x800, V); break;
-	  case 4: fc->ines->VROM_BANK2(0x1000, V); break;
-	  case 5: fc->ines->VROM_BANK2(0x1800, V); break;
-	  case 6:
-	    if (MMC3_cmd & 0x40)
-	      fc->ines->ROM_BANK8(0xC000, V);
-	    else
-	      fc->ines->ROM_BANK8(0x8000, V);
-	    break;
-	  case 7: fc->ines->ROM_BANK8(0xA000, V); break;
-	}
-	break;
+        switch (MMC3_cmd & 0x07) {
+          case 2: fc->ines->VROM_BANK2(0x000, V); break;
+          case 3: fc->ines->VROM_BANK2(0x800, V); break;
+          case 4: fc->ines->VROM_BANK2(0x1000, V); break;
+          case 5: fc->ines->VROM_BANK2(0x1800, V); break;
+          case 6:
+            if (MMC3_cmd & 0x40)
+              fc->ines->ROM_BANK8(0xC000, V);
+            else
+              fc->ines->ROM_BANK8(0x8000, V);
+            break;
+          case 7: fc->ines->ROM_BANK8(0xA000, V); break;
+        }
+        break;
       case 0xA000: fc->ines->MIRROR_SET(V & 1); break;
     }
   }
 };
 }
-  
+
 MapInterface *Mapper76_init(FC *fc) {
   fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
     ((Mapper76*)fc->fceu->mapiface)->Mapper76_write(DECLFW_FORWARD);

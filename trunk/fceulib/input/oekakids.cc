@@ -46,9 +46,9 @@ struct OekaKids : public InputCFC {
       if (OKB) OKData |= 1;
 
       if (OKY >= 48)
-	OKData |= 2;
+        OKData |= 2;
       else if (OKB)
-	OKData |= 3;
+        OKData |= 3;
 
       vx = OKX * 240 / 256 + 8;
       vy = OKY * 256 / 240 - 12;
@@ -61,12 +61,12 @@ struct OekaKids : public InputCFC {
       if ((~LastWR) & V & 0x02) OKData <<= 1;
 
       if (!(V & 0x2)) {
-	OKValR = 0x4;
+        OKValR = 0x4;
       } else {
-	if (OKData & 0x40000)
-	  OKValR = 0;
-	else
-	  OKValR = 0x8;
+        if (OKData & 0x40000)
+          OKValR = 0;
+        else
+          OKValR = 0x8;
       }
     }
     LastWR = V;
@@ -82,7 +82,7 @@ struct OekaKids : public InputCFC {
   void Draw(uint8 *buf, int arg) override {
     if (OKY < 44) FCEU_DrawCursor(buf, OKX, OKY);
   }
-  
+
   uint8 OKValR = 0, LastWR = 0;
   uint32 OKData = 0;
   uint32 OKX = 0, OKY = 0, OKB = 0;

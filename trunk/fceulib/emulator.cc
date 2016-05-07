@@ -92,7 +92,7 @@ bool Emulator::DriverInitialize(FCEUGI *gi) {
    initialized after the game is loaded, because the emulator code
    provides data necessary for the driver code (number of scanlines to
    render, what virtual input devices to use, etc.).
-   
+
    Returns true on success. */
 bool Emulator::LoadGame(const string &path) {
   fc->fceu->FCEU_CloseGame();
@@ -101,7 +101,7 @@ bool Emulator::LoadGame(const string &path) {
   if (!fc->fceu->FCEUI_LoadGame(path.c_str(), 1)) {
     return false;
   }
-  
+
   // Here we used to do ParseGIInput, which allows the gameinfo
   // to override our input config, or something like that. No
   // weird stuff. Skip it.
@@ -109,8 +109,8 @@ bool Emulator::LoadGame(const string &path) {
   if (!DriverInitialize(fc->fceu->GameInfo)) {
     return false;
   }
-  
-  
+
+
   // Set NTSC (1 = pal). Note that cartridges don't contain this information
   // and some parts of the code tried to figure it out from the presence of
   // (e) or (pal) in the ROM's *filename*. Maybe should be part of the external
@@ -132,7 +132,7 @@ Emulator::Emulator(FC *fc) : fc(fc) {}
 Emulator *Emulator::Create(const string &romfile) {
   // (Here's where SDL was initialized.)
   FC *fc = new FC;
-  
+
   // initialize the infrastructure
   int error = fc->fceu->FCEUI_Initialize();
   if (error != 1) {
@@ -155,7 +155,7 @@ Emulator *Emulator::Create(const string &romfile) {
   //   and FCEUI_SetInputFourscore ((eoptions & EO_FOURSCORE) != 0);
 
   fc->palette->ResetPalette();
-  
+
   // Set NTSC (1 = pal)
   fc->fceu->FCEUI_SetVidSystem(GIV_NTSC);
 
@@ -210,7 +210,7 @@ void Emulator::GetImage(vector<uint8> *rgba) const {
 
       // XBackBuf? or XBuf?
       fc->palette->FCEUD_GetPalette(fc->fceu->XBuf[(y * 256) + x],
-				    &r, &g, &b);
+                                    &r, &g, &b);
 
       (*rgba)[y * 256 * 4 + x * 4 + 0] = r;
       (*rgba)[y * 256 * 4 + x * 4 + 1] = g;
@@ -238,7 +238,7 @@ void Emulator::GetImageARGB(vector<uint8> *argb) const {
 
       // XBackBuf? or XBuf?
       fc->palette->FCEUD_GetPalette(fc->fceu->XBuf[(y * 256) + x],
-				    &r, &g, &b);
+                                    &r, &g, &b);
 
       (*argb)[y * 256 * 4 + x * 4 + 0] = b;
       (*argb)[y * 256 * 4 + x * 4 + 1] = g;
@@ -266,7 +266,7 @@ void Emulator::GetSound(vector<int16> *wav) {
     wav->clear();
     wav->resize(samples);
   }
-   
+
   for (int i = 0; i < samples; i++) {
     (*wav)[i] = (int16)buffer[i];
   }
@@ -307,7 +307,7 @@ uint32 Emulator::GetXScroll() const {
   const uint32 tmp = ppu->GetTempAddr();
   const uint8 xoffset = ppu->GetXOffset();
   const uint8 xtable_select = !!(ppu_ctrl & 1);
-    
+
   // Combine coarse and fine x scroll
   return (xtable_select << 8) | ((tmp & 31) << 3) | xoffset;
 }
@@ -347,8 +347,8 @@ void Emulator::SaveEx(const vector<uint8> *basis, vector<uint8> *state) {
   // Make sure there is contiguous space. Need room for header too.
   state->resize(4 + comprlen);
 
-  if (Z_OK != compress2(&(*state)[4], &comprlen, raw.data(), len, 
-			Z_DEFAULT_COMPRESSION)) {
+  if (Z_OK != compress2(&(*state)[4], &comprlen, raw.data(), len,
+                        Z_DEFAULT_COMPRESSION)) {
     fprintf(stderr, "Couldn't compress.\n");
     abort();
   }
@@ -366,13 +366,13 @@ void Emulator::LoadEx(const vector<uint8> *basis, const vector<uint8> &state) {
   vector<uint8> uncompressed;
   uncompressed.resize(uncomprlen);
   uLongf uncomprlenf = uncomprlen;
-  
+
   switch (uncompress(uncompressed.data(), &uncomprlenf,
-		     &state[4], state.size() - 4)) {
+                     &state[4], state.size() - 4)) {
   case Z_OK: break;
   case Z_BUF_ERROR:
     fprintf(stderr, "zlib: Not enough room in output. Uncompressed length\n"
-	    "is supposedly %d.\n", uncomprlen);
+            "is supposedly %d.\n", uncomprlen);
     abort();
     break;
   case Z_MEM_ERROR:
@@ -385,7 +385,7 @@ void Emulator::LoadEx(const vector<uint8> *basis, const vector<uint8> &state) {
     break;
   }
   // fprintf(stderr, "After uncompression: %d\n", uncomprlen);
-  
+
   // Why doesn't this equal the result from before?
   uncompressed.resize(uncomprlen);
 

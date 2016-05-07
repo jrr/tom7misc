@@ -50,7 +50,7 @@ struct DataLatch : public CartInterface {
   static DECLFW(LatchWrite) {
     return ((DataLatch*)fc->fceu->cartiface)->LatchWrite_Direct(DECLFW_FORWARD);
   }
-      
+
   DECLFW_RET LatchWrite_Direct(DECLFW_ARGS) {
     // Since the bus seems to be implemented "pull-down" style, if
     // either one writes a zero for a bit, it will be read as a zero.
@@ -84,15 +84,15 @@ struct DataLatch : public CartInterface {
   }
 
   DataLatch(FC *fc, CartInfo *info, uint8 init,
-	    uint16 adr0, uint16 adr1, uint8 wram_flag)
+            uint16 adr0, uint16 adr1, uint8 wram_flag)
     : CartInterface(fc), latch_init(init), addrreg0(adr0), addrreg1(adr1) {
     fc->fceu->GameStateRestore = StateRestore;
     if (wram_flag) {
       WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
       fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
       if (info->battery) {
-	info->SaveGame[0] = WRAM;
-	info->SaveGameLen[0] = WRAMSIZE;
+        info->SaveGame[0] = WRAM;
+        info->SaveGameLen[0] = WRAMSIZE;
       }
       fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
     }
@@ -126,7 +126,7 @@ struct NROM final : public CartInterface {
     free(WRAM);
     WRAM = nullptr;
   }
-  
+
   NROM(FC *fc, CartInfo *info) : CartInterface(fc) {
     WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
     fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
@@ -154,8 +154,8 @@ struct UNROM final : public DataLatch<true> {
       fc->cart->setprg16(0x8000, latch & 0x7);
       if (latch & 8) mirror_in_use = 1;
       if (mirror_in_use) {
-	// Higway Star Hacked mapper
-	fc->cart->setmirror(((latch >> 3) & 1) ^ 1);
+        // Higway Star Hacked mapper
+        fc->cart->setmirror(((latch >> 3) & 1) ^ 1);
       }
     } else {
       fc->cart->setprg16(0x8000, latch & 0xf);
@@ -482,7 +482,7 @@ struct Mapper113 final : public DataLatch<false> {
   void WSync() final override {
     fc->cart->setprg32(0x8000, (latch >> 3) & 7);
     fc->cart->setchr8(((latch >> 3) & 8) | (latch & 7));
-    //	fc->cart->setmirror(latch>>7); // only for HES 6in1
+    //  fc->cart->setmirror(latch>>7); // only for HES 6in1
   }
 };
 }
@@ -501,7 +501,7 @@ struct Mapper152 final : public DataLatch<false> {
     fc->cart->setprg16(0xc000, ~0);
     fc->cart->setchr8(latch & 0xf);
     fc->cart->setmirror(MI_0 +
-			((latch >> 7) & 1)); /* Saint Seiya...hmm. */
+                        ((latch >> 7) & 1)); /* Saint Seiya...hmm. */
   }
 };
 }

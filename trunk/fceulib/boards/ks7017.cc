@@ -66,8 +66,8 @@ struct UNLKS7017 final : public CartInterface {
     if (IRQa) {
       IRQCount -= a;
       if (IRQCount <= 0) {
-	IRQa = 0;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -107,8 +107,8 @@ struct UNLKS7017 final : public CartInterface {
 
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&mirr, 1, "MIRR"}, {&reg, 1, "REGS"},
-			 {&IRQa, 4, "IRQA"}, {&IRQCount, 4, "IRQC"},
-			 {&IRQLatch, 4, "IRQL"}});
+                         {&IRQa, 4, "IRQA"}, {&IRQCount, 4, "IRQC"},
+                         {&IRQLatch, 4, "IRQL"}});
   }
 
 };

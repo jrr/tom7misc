@@ -35,11 +35,11 @@ struct QuizKing : public InputCFC {
       QZValR = QZValR >> 3;
 
       if (FunkyMode) {
-	// ret=0x14;
-	// puts("Funky");
-	QZValR |= 0x28;
+        // ret=0x14;
+        // puts("Funky");
+        QZValR |= 0x28;
       } else {
-	QZValR |= 0x38;
+        QZValR |= 0x38;
       }
     }
     return (ret);
@@ -67,4 +67,4 @@ struct QuizKing : public InputCFC {
 InputCFC *CreateQuizKing(FC *fc) {
   return new QuizKing(fc);
 }
-  
+

@@ -69,7 +69,7 @@ struct UNLEDU2000 final : public CartInterface {
     }
     fc->state->AddExState(WRAM, 32768, 0, "WRAM");
     fc->state->AddExVec({{&reg, 1, "REGS"}});
-    
+
   }
 };
 }

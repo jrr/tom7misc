@@ -52,12 +52,12 @@ struct Timer {
 int main(int argc, char **argv) {
   string romdir = "roms/";
   double startup_seconds;
-  
+
   Timer startup_timer;
   // TODO: This is not really fair since it counts all the IO.
   std::unique_ptr<Emulator> emu(Emulator::Create("mario.nes"));
   startup_seconds = startup_timer.GetSeconds();
-  
+
   vector<uint8> movie = SimpleFM2::ReadInputs("mario-tom.fm2");
 
   Timer exec_timer;
@@ -71,9 +71,9 @@ int main(int argc, char **argv) {
   double exec_seconds = exec_timer.GetSeconds();
 
   fprintf(stderr, "Finished.\n"
-	  "Startup time: %.4fs\n"
-	  "Exec time:    %.4fs\n",
-	  startup_seconds, exec_seconds);
-  
+          "Startup time: %.4fs\n"
+          "Exec time:    %.4fs\n",
+          startup_seconds, exec_seconds);
+
   return 0;
 }

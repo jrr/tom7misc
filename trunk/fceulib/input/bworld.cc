@@ -29,29 +29,29 @@ struct BarcodeWorld : public InputCFC {
     if (w && have) {
       switch (seq) {
       case 0:
-	seq++;
-	ptr = 0;
-	ret |= 0x4;
-	break;
+        seq++;
+        ptr = 0;
+        ret |= 0x4;
+        break;
       case 1:
-	seq++;
-	bit = bdata[ptr];
-	cnt = 0;
-	ret |= 0x4;
-	break;
+        seq++;
+        bit = bdata[ptr];
+        cnt = 0;
+        ret |= 0x4;
+        break;
       case 2:
-	ret |= ((bit & 0x01) ^ 0x01) << 2;
-	bit >>= 1;
-	if (++cnt > 7) seq++;
-	break;
+        ret |= ((bit & 0x01) ^ 0x01) << 2;
+        bit >>= 1;
+        if (++cnt > 7) seq++;
+        break;
       case 3:
-	if (++ptr > 19) {
-	  seq = -1;
-	  have = 0;
-	} else {
-	  seq = 1;
-	}
-	break;
+        if (++ptr > 19) {
+          seq = -1;
+          have = 0;
+        } else {
+          seq = 1;
+        }
+        break;
       default: break;
       }
     }

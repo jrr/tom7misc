@@ -42,32 +42,32 @@ struct Mapper18 final : public CartInterface {
   void M18WriteIRQ(DECLFW_ARGS) {
     switch (A & 0xF003) {
       case 0xE000:
-	IRQLatch &= 0xFFF0;
-	IRQLatch |= (V & 0x0f) << 0x0;
-	break;
+        IRQLatch &= 0xFFF0;
+        IRQLatch |= (V & 0x0f) << 0x0;
+        break;
       case 0xE001:
-	IRQLatch &= 0xFF0F;
-	IRQLatch |= (V & 0x0f) << 0x4;
-	break;
+        IRQLatch &= 0xFF0F;
+        IRQLatch |= (V & 0x0f) << 0x4;
+        break;
       case 0xE002:
-	IRQLatch &= 0xF0FF;
-	IRQLatch |= (V & 0x0f) << 0x8;
-	break;
+        IRQLatch &= 0xF0FF;
+        IRQLatch |= (V & 0x0f) << 0x8;
+        break;
       case 0xE003:
-	IRQLatch &= 0x0FFF;
-	IRQLatch |= (V & 0x0f) << 0xC;
-	break;
+        IRQLatch &= 0x0FFF;
+        IRQLatch |= (V & 0x0f) << 0xC;
+        break;
       case 0xF000:
-	IRQCount = IRQLatch;
-	break;
+        IRQCount = IRQLatch;
+        break;
       case 0xF001:
-	IRQa = V & 1;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = V & 1;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0xF002:
-	mirr = V & 3;
-	Sync();
-	break;
+        mirr = V & 3;
+        Sync();
+        break;
     }
   }
 
@@ -93,13 +93,13 @@ struct Mapper18 final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0x9FFF, [](DECLFW_ARGS) {
-	((Mapper18*)fc->fceu->cartiface)->M18WritePrg(DECLFW_FORWARD);
+        ((Mapper18*)fc->fceu->cartiface)->M18WritePrg(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0xA000, 0xDFFF, [](DECLFW_ARGS) {
-	((Mapper18*)fc->fceu->cartiface)->M18WriteChr(DECLFW_FORWARD);
+        ((Mapper18*)fc->fceu->cartiface)->M18WriteChr(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0xE000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper18*)fc->fceu->cartiface)->M18WriteIRQ(DECLFW_FORWARD);
+        ((Mapper18*)fc->fceu->cartiface)->M18WriteIRQ(DECLFW_FORWARD);
       });
   }
 
@@ -107,9 +107,9 @@ struct Mapper18 final : public CartInterface {
     if (IRQa && IRQCount) {
       IRQCount -= a;
       if (IRQCount <= 0) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	IRQCount = 0;
-	IRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        IRQCount = 0;
+        IRQa = 0;
       }
     }
   }
@@ -125,11 +125,11 @@ struct Mapper18 final : public CartInterface {
     fc->fceu->GameStateRestore = StateRestore;
 
     fc->state->AddExVec({{preg, 4, "PREG"},
-	                 {creg, 8, "CREG"},
-			 {&mirr, 1, "MIRR"},
-			 {&IRQa, 1, "IRQA"},
-			 {&IRQCount, 4, "IRQC"},
-			 {&IRQLatch, 4, "IRQL"}});
+                         {creg, 8, "CREG"},
+                         {&mirr, 1, "MIRR"},
+                         {&IRQa, 1, "IRQA"},
+                         {&IRQCount, 4, "IRQC"},
+                         {&IRQLatch, 4, "IRQL"}});
   }
 };
 }

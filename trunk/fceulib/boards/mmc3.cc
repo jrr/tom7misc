@@ -171,7 +171,7 @@ void MMC3::PWrap(uint32 A, uint8 V) {
   // [NJ102] Mo Dao Jie (C) has 1024Mb
   // MMC3 BOARD, maybe something other
   // will be broken
-  fc->cart->setprg8(A, V & 0x7F);  
+  fc->cart->setprg8(A, V & 0x7F);
 }
 
 void MMC3::MWrap(uint8 V) {
@@ -202,21 +202,21 @@ void MMC3::Power() {
     if (wrams == 1024) {
       // FCEU_CheatAddRAM(1,0x7000,MMC3_WRAM);
       fc->fceu->SetReadHandler(0x7000, 0x7FFF,
-			       [](DECLFR_ARGS) -> DECLFR_RET {
-				 return ((MMC3 *)fc->fceu->cartiface)->
-				   MAWRAMMMC6(DECLFR_FORWARD);
-			       });
+                               [](DECLFR_ARGS) -> DECLFR_RET {
+                                 return ((MMC3 *)fc->fceu->cartiface)->
+                                   MAWRAMMMC6(DECLFR_FORWARD);
+                               });
       fc->fceu->SetWriteHandler(0x7000, 0x7FFF,
-				[](DECLFW_ARGS) {
-				  ((MMC3 *)fc->fceu->cartiface)->
-				    MBWRAMMMC6(DECLFW_FORWARD);
-				});
+                                [](DECLFW_ARGS) {
+                                  ((MMC3 *)fc->fceu->cartiface)->
+                                    MBWRAMMMC6(DECLFW_FORWARD);
+                                });
     } else {
       // FCEU_CheatAddRAM((wrams&0x1fff)>>10,0x6000,MMC3_WRAM);
       fc->fceu->SetWriteHandler(0x6000, 0x6000 + ((wrams - 1) & 0x1fff),
-				Cart::CartBW);
+                                Cart::CartBW);
       fc->fceu->SetReadHandler(0x6000, 0x6000 + ((wrams - 1) & 0x1fff),
-			       Cart::CartBR);
+                               Cart::CartBR);
       fc->cart->setprg8r(0x10, 0x6000, 0);
     }
     if (!(mmc3opts & 2)) FCEU_dwmemset(MMC3_WRAM, 0, wrams);
@@ -291,7 +291,7 @@ MMC3::MMC3(FC *fc, CartInfo *info, int prg, int chr, int wram, int battery)
       if (fc->ppu->scanline == 238) me->ClockMMC3Counter();
       me->ClockMMC3Counter();
     };
-    
+
   } else if (info->CRC32 == 0xfcd772eb) {
     // PAL Star Wars, similar problem as Kick Master.
     fc->ppu->GameHBIRQHook = [](FC *fc) {
@@ -311,7 +311,7 @@ MMC3::MMC3(FC *fc, CartInfo *info, int prg, int chr, int wram, int battery)
     MMC3 *me = (MMC3 *)fc->fceu->cartiface;
     me->GenMMC3Restore(fc, version);
   };
-  
+
   TRACEF("MMC3_WRAM is %d...", wrams);
   TRACEA(MMC3_WRAM, wrams);
 }
@@ -361,7 +361,7 @@ namespace {
 struct Mapper12 final : public MMC3 {
   // PERF can probably be 2? -tom7
   uint8 EXPREGS[8] = {};
-  
+
   void M12Write(DECLFW_ARGS) {
     EXPREGS[0] = V & 0x01;
     EXPREGS[1] = (V & 0x10) >> 4;
@@ -397,7 +397,7 @@ namespace {
 struct Mapper37 final : public MMC3 {
   // PERF 1? Just value?
   uint8 EXPREGS[8] = {};
-  
+
   void PWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] != 2)
       V &= 0x7;
@@ -435,7 +435,7 @@ struct Mapper37 final : public MMC3 {
 
   Mapper37(FC *fc, CartInfo *info) :
     MMC3(fc, info, 512, 256, 8, info->battery) {
-    fc->state->AddExState(EXPREGS, 1, 0, "EXPR");    
+    fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
   }
 };
 }
@@ -504,9 +504,9 @@ struct Mapper45 final : public MMC3 {
     if (!fc->unif->UNIFchrrama) {
       uint32 NV = V;
       if (EXPREGS[2] & 8)
-	NV &= (1 << ((EXPREGS[2] & 7) + 1)) - 1;
+        NV &= (1 << ((EXPREGS[2] & 7) + 1)) - 1;
       else if (EXPREGS[2])
-	NV &= 0;  // hack ;( don't know exactly how it should be
+        NV &= 0;  // hack ;( don't know exactly how it should be
       NV |= EXPREGS[0] | ((EXPREGS[2] & 0xF0) << 4);
       fc->cart->setchr1(A, NV);
     }
@@ -664,7 +664,7 @@ struct Mapper49 final : public MMC3 {
     });
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, nullptr);
   }
-  
+
  Mapper49(FC *fc, CartInfo *info)
    : MMC3(fc, info, 512, 256, 0, 0) {
    fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
@@ -693,8 +693,8 @@ struct Mapper52 final : public MMC3 {
     // (((EXPREGS[0]>>3)&4)|((EXPREGS[0]>>1)&2)|
     // ((EXPREGS[0]>>6)&(EXPREGS[0]>>4)&1))<<7;
     uint32 bank = (((EXPREGS[0] >> 4) & 2) | (EXPREGS[0] & 4) |
-		   ((EXPREGS[0] >> 6) & (EXPREGS[0] >> 4) & 1))
-		  << 7;  // actually 256K CHR banks index bits is inverted!
+                   ((EXPREGS[0] >> 6) & (EXPREGS[0] >> 4) & 1))
+                  << 7;  // actually 256K CHR banks index bits is inverted!
     fc->cart->setchr1(A, bank | (V & mask));
   }
 
@@ -779,20 +779,20 @@ struct Mapper114 final : public MMC3 {
     switch (A & 0xE001) {
       case 0x8001: MMC3_CMDWrite_Direct(fc, 0xA000, V); break;
       case 0xA000:
-	MMC3_CMDWrite_Direct(fc, 0x8000, (V & 0xC0) | (m114_perm[V & 7]));
-	cmdin = 1;
-	break;
+        MMC3_CMDWrite_Direct(fc, 0x8000, (V & 0xC0) | (m114_perm[V & 7]));
+        cmdin = 1;
+        break;
       case 0xC000:
-	if (!cmdin) break;
-	MMC3_CMDWrite_Direct(fc, 0x8001, V);
-	cmdin = 0;
-	break;
+        if (!cmdin) break;
+        MMC3_CMDWrite_Direct(fc, 0x8001, V);
+        cmdin = 0;
+        break;
       case 0xA001: irq_latch = V; break;
       case 0xC001: irq_reload = 1; break;
       case 0xE000:
-	fc->X->IRQEnd(FCEU_IQEXT);
-	irq_a = 0;
-	break;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        irq_a = 0;
+        break;
       case 0xE001: irq_a = 1; break;
     }
   }
@@ -818,10 +818,10 @@ struct Mapper114 final : public MMC3 {
     EXPREGS[0] = 0;
     MMC3::Reset();
   }
-  
+
   Mapper114(FC *fc, CartInfo *info)
     : MMC3(fc, info, 256, 256, 0, 0) {
-    isRevB = 0;  
+    isRevB = 0;
     fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
     fc->state->AddExState(&cmdin, 1, 0, "CMDI");
   }
@@ -942,7 +942,7 @@ struct Mapper134 final : public MMC3 {
 
   Mapper134(FC *fc, CartInfo *info)
     : MMC3(fc, info, 256, 256, 0, 0) {
-    fc->state->AddExState(EXPREGS, 4, 0, "EXPR");  
+    fc->state->AddExState(EXPREGS, 4, 0, "EXPR");
   }
 };
 }
@@ -999,7 +999,7 @@ struct Mapper165 final : public MMC3 {
     EXPREGS[0] = 0xFD;
     MMC3::Power();
   }
-  
+
   Mapper165(FC *fc, CartInfo *info)
     : MMC3(fc, info, 512, 128, 8, info->battery) {
     fc->ppu->PPU_hook = M165PPU;
@@ -1023,7 +1023,7 @@ struct Mapper191 final : public MMC3 {
   void CWrap(uint32 A, uint8 V) final override {
     fc->cart->setchr1r((V & 0x80) >> 3, A, V);
   }
-  
+
   Mapper191(FC *fc, CartInfo *info)
     : MMC3(fc, info, 256, 256, 8, info->battery) {
     CHRRAMSize = 2048;
@@ -1044,12 +1044,12 @@ namespace {
 struct Mapper192 final : public MMC3 {
   void CWrap(uint32 A, uint8 V) final override {
     if ((V == 8) || (V == 9) || (V == 0xA) ||
-	(V == 0xB))  // Ying Lie Qun Xia Zhuan (Chinese),
+        (V == 0xB))  // Ying Lie Qun Xia Zhuan (Chinese),
       fc->cart->setchr1r(0x10, A, V);
     else
       fc->cart->setchr1r(0, A, V);
   }
-  
+
   Mapper192(FC *fc, CartInfo *info)
     : MMC3(fc, info, 512, 256, 8, info->battery) {
     CHRRAMSize = 4096;
@@ -1115,7 +1115,7 @@ struct Mapper195 final : public MMC3 {
     free(wramtw);
     wramtw = nullptr;
   }
-  
+
   Mapper195(FC *fc, CartInfo *info)
     : MMC3(fc, info, 512, 256, 8, info->battery) {
     CHRRAMSize = 4096;
@@ -1180,14 +1180,14 @@ struct Mapper196 final : public MMC3 {
     EXPREGS[0] = EXPREGS[1] = 0;
     fc->fceu->SetWriteHandler(0x6000, 0x6FFF, [](DECLFW_ARGS) {
       return ((Mapper196*)fc->fceu->cartiface)->
-	Mapper196WriteLo(DECLFW_FORWARD);
+        Mapper196WriteLo(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       return ((Mapper196*)fc->fceu->cartiface)->
-	Mapper196Write(DECLFW_FORWARD);
+        Mapper196Write(DECLFW_FORWARD);
     });
   }
-  
+
   Mapper196(FC *fc, CartInfo *info)
     : MMC3(fc, info, 128, 128, 0, 0) {
   }
@@ -1231,7 +1231,7 @@ struct Mapper198 final : public MMC3 {
     else
       fc->cart->setprg8(A, V);
   }
-  
+
   Mapper198(FC *fc, CartInfo *info)
     : MMC3(fc, info, 1024, 256, 8, info->battery) {
     wramsize = 4096;
@@ -1283,10 +1283,10 @@ struct Mapper205 final : public MMC3 {
       return ((Mapper205*)fc->fceu->cartiface)->M205Write(DECLFW_FORWARD);
     });
   }
-  
+
   Mapper205(FC *fc, CartInfo *info)
       : MMC3(fc, info, 256, 256, 8, 0) {
-    fc->state->AddExState(EXPREGS, 1, 0, "EXPR");  
+    fc->state->AddExState(EXPREGS, 1, 0, "EXPR");
   }
 };
 }
@@ -1336,11 +1336,11 @@ struct Mapper249 final : public MMC3 {
   void PWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x2) {
       if (V < 0x20)
-	V = (V & 1) | ((V >> 3) & 2) | ((V >> 1) & 4) | ((V << 2) & 8) |
+        V = (V & 1) | ((V >> 3) & 2) | ((V >> 1) & 4) | ((V << 2) & 8) |
           ((V << 2) & 0x10);
       else {
-	V -= 0x20;
-	V = (V & 3) | ((V >> 1) & 4) | ((V >> 4) & 8) | ((V >> 2) & 0x10) |
+        V -= 0x20;
+        V = (V & 3) | ((V >> 1) & 4) | ((V >> 4) & 8) | ((V >> 2) & 0x10) |
           ((V << 3) & 0x20) | ((V << 2) & 0xC0);
       }
     }

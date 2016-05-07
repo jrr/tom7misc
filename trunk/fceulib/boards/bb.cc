@@ -47,14 +47,14 @@ struct UNLBB final : public CartInterface {
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((UNLBB*)fc->fceu->cartiface)->UNLBBWrite(DECLFW_FORWARD);
+        ((UNLBB*)fc->fceu->cartiface)->UNLBBWrite(DECLFW_FORWARD);
       });
   }
 
   static void StateRestore(FC *fc, int version) {
     ((UNLBB *)fc->fceu->cartiface)->Sync();
   }
-  
+
   UNLBB(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&reg, 1, "REGS"}, {&chr, 1, "CHR0"}});

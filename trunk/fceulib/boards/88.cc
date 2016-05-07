@@ -44,14 +44,14 @@ struct Mapper88 final : public CartInterface {
   void M88Write(DECLFW_ARGS) {
     switch (A & 0x8001) {
       case 0x8000:
-	cmd = V & 7;
-	mirror = V >> 6;
-	MSync();
-	break;
+        cmd = V & 7;
+        mirror = V >> 6;
+        MSync();
+        break;
       case 0x8001:
-	reg[cmd] = V;
-	Sync();
-	break;
+        reg[cmd] = V;
+        Sync();
+        break;
     }
   }
 
@@ -72,7 +72,7 @@ struct Mapper88 final : public CartInterface {
   Mapper88(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{&cmd, 1, "CMD0"}, {&mirror, 1, "MIRR"}, {reg, 8, "REGS"}});
+        {&cmd, 1, "CMD0"}, {&mirror, 1, "MIRR"}, {reg, 8, "REGS"}});
   }
 };
 }

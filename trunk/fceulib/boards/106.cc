@@ -49,19 +49,19 @@ struct Mapper106 final : public CartInterface {
     A &= 0xF;
     switch (A) {
       case 0xD:
-	IRQa = 0;
-	IRQCount = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = 0;
+        IRQCount = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0xE: IRQCount = (IRQCount & 0xFF00) | V; break;
       case 0xF:
-	IRQCount = (IRQCount & 0x00FF) | (V << 8);
-	IRQa = 1;
-	break;
+        IRQCount = (IRQCount & 0x00FF) | (V << 8);
+        IRQa = 1;
+        break;
       default:
-	reg[A] = V;
-	Sync();
-	break;
+        reg[A] = V;
+        Sync();
+        break;
     }
   }
 
@@ -87,8 +87,8 @@ struct Mapper106 final : public CartInterface {
     if (IRQa) {
       IRQCount += a;
       if (IRQCount > 0x10000) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	IRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
       }
     }
   }
@@ -108,11 +108,11 @@ struct Mapper106 final : public CartInterface {
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
 
     fc->state->AddExVec({
-	{&IRQa, 1, "IRQA"}, {&IRQCount, 4, "IRQC"}, {reg, 16, "REGS"}});
+        {&IRQa, 1, "IRQA"}, {&IRQCount, 4, "IRQC"}, {reg, 16, "REGS"}});
   }
 };
 }
- 
+
 CartInterface *Mapper106_Init(FC *fc, CartInfo *info) {
   return new Mapper106(fc, info);
 }

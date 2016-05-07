@@ -75,11 +75,11 @@ struct UNLPEC586 final : public CartInterface {
     fc->fceu->SetWriteHandler(0x6000, 0x7FFF, Cart::CartBW);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x5000, 0x5fff, [](DECLFW_ARGS) {
-	((UNLPEC586*)fc->fceu->cartiface)->UNLPEC586Write(DECLFW_FORWARD);
+        ((UNLPEC586*)fc->fceu->cartiface)->UNLPEC586Write(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x5000, 0x5fff, [](DECLFR_ARGS) {
-	return ((UNLPEC586*)fc->fceu->cartiface)->
-	  UNLPEC586Read(DECLFR_FORWARD);
+        return ((UNLPEC586*)fc->fceu->cartiface)->
+          UNLPEC586Read(DECLFR_FORWARD);
       });
   }
 

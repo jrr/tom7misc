@@ -34,9 +34,9 @@ struct KS7037Base : public CartInterface {
     switch (A & 0xE001) {
       case 0x8000: cmd = V & 7; break;
       case 0x8001:
-	reg[cmd] = V;
-	WSync();
-	break;
+        reg[cmd] = V;
+        WSync();
+        break;
     }
   }
 
@@ -46,7 +46,7 @@ struct KS7037Base : public CartInterface {
   }
 
   virtual void WSync() {}
-  
+
   static void StateRestore(FC *fc, int version) {
     ((KS7037Base*)fc->fceu->cartiface)->WSync();
   }
@@ -76,7 +76,7 @@ struct UNLKS7037 final : public KS7037Base {
     fc->cart->setchr8(0);
     fc->cart->setmirrorw(reg[2] & 1, reg[4] & 1, reg[3] & 1, reg[5] & 1);
   }
-  
+
   void Power() final override {
     reg[0] = reg[1] = reg[2] = reg[3] = reg[4] = reg[5] = reg[6] = reg[7] = 0;
     WSync();
@@ -104,7 +104,7 @@ struct LH10 final : public KS7037Base {
     fc->cart->setchr8(0);
     fc->cart->setmirror(0);
   }
-  
+
   void Power() final override {
     reg[0] = reg[1] = reg[2] = reg[3] = reg[4] = reg[5] = reg[6] = reg[7] = 0;
     WSync();

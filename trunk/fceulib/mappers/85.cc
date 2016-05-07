@@ -26,7 +26,7 @@
 namespace {
 struct Mapper85 final : public MapInterface {
   using MapInterface::MapInterface;
-  
+
   uint8 indox = 0;
   int acount = 0;
 
@@ -34,7 +34,7 @@ struct Mapper85 final : public MapInterface {
   int dwave = 0;
 
   EMU2413 emu2413;
-  
+
   void DoVRC7Sound() {
     if (FCEUS_SOUNDQ >= 1) return;
     int32 z = ((fc->sound->SoundTS() << 16) / fc->sound->soundtsinc) >> 4;
@@ -73,59 +73,59 @@ struct Mapper85 final : public MapInterface {
       // printf("$%04x, $%04x\n",fc->X->PC,A);
       A &= 0xF010;
       {
-	int x = ((A >> 4) & 1) | ((A - 0xA000) >> 11);
-	GMB_mapbyte3(fc)[x] = V;
-	fc->cart->setchr1(x << 10, V);
+        int x = ((A >> 4) & 1) | ((A - 0xA000) >> 11);
+        GMB_mapbyte3(fc)[x] = V;
+        fc->cart->setchr1(x << 10, V);
       }
     } else if (A == 0x9030) {
       if (FCEUS_SNDRATE) {
-	emu2413.OPLL_writeReg(VRC7Sound, indox, V);
-	fc->sound->GameExpSound.Fill = [](FC *fc, int c) {
-	  ((Mapper85 *)fc->fceu->mapiface)->UpdateOPL(c);
-	};
-	fc->sound->GameExpSound.NeoFill = [](FC *fc, int32 *Wave, int Count) {
-	  ((Mapper85 *)fc->fceu->mapiface)->UpdateOPLNEO(Wave, Count);
-	};
+        emu2413.OPLL_writeReg(VRC7Sound, indox, V);
+        fc->sound->GameExpSound.Fill = [](FC *fc, int c) {
+          ((Mapper85 *)fc->fceu->mapiface)->UpdateOPL(c);
+        };
+        fc->sound->GameExpSound.NeoFill = [](FC *fc, int32 *Wave, int Count) {
+          ((Mapper85 *)fc->fceu->mapiface)->UpdateOPLNEO(Wave, Count);
+        };
       }
     } else {
       switch (A & 0xF010) {
-	case 0x8000:
-	  GMB_mapbyte2(fc)[0] = V;
-	  fc->cart->setprg8(0x8000, V);
-	  break;
-	case 0x8010:
-	  GMB_mapbyte2(fc)[1] = V;
-	  fc->cart->setprg8(0xa000, V);
-	  break;
-	case 0x9000:
-	  GMB_mapbyte2(fc)[2] = V;
-	  fc->cart->setprg8(0xc000, V);
-	  break;
-	case 0x9010: indox = V; break;
-	case 0xe000:
-	  GMB_mapbyte2(fc)[3] = V;
-	  DaMirror(V);
-	  break;
-	case 0xE010:
-	  fc->ines->iNESIRQLatch = V;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0xF000:
-	  fc->ines->iNESIRQa = V & 2;
-	  vrctemp = V & 1;
-	  if (V & 2) {
-	    fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
-	  }
-	  acount = 0;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0xf010:
-	  if (vrctemp)
-	    fc->ines->iNESIRQa = 1;
-	  else
-	    fc->ines->iNESIRQa = 0;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
+        case 0x8000:
+          GMB_mapbyte2(fc)[0] = V;
+          fc->cart->setprg8(0x8000, V);
+          break;
+        case 0x8010:
+          GMB_mapbyte2(fc)[1] = V;
+          fc->cart->setprg8(0xa000, V);
+          break;
+        case 0x9000:
+          GMB_mapbyte2(fc)[2] = V;
+          fc->cart->setprg8(0xc000, V);
+          break;
+        case 0x9010: indox = V; break;
+        case 0xe000:
+          GMB_mapbyte2(fc)[3] = V;
+          DaMirror(V);
+          break;
+        case 0xE010:
+          fc->ines->iNESIRQLatch = V;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0xF000:
+          fc->ines->iNESIRQa = V & 2;
+          vrctemp = V & 1;
+          if (V & 2) {
+            fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
+          }
+          acount = 0;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0xf010:
+          if (vrctemp)
+            fc->ines->iNESIRQa = 1;
+          else
+            fc->ines->iNESIRQa = 0;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
       }
     }
   }
@@ -138,13 +138,13 @@ struct Mapper85 final : public MapInterface {
 
       if (acount >= ACBOO) {
       doagainbub:
-	acount -= ACBOO;
-	fc->ines->iNESIRQCount++;
-	if (fc->ines->iNESIRQCount & 0x100) {
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	  fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
-	}
-	if (acount >= ACBOO) goto doagainbub;
+        acount -= ACBOO;
+        fc->ines->iNESIRQCount++;
+        if (fc->ines->iNESIRQCount & 0x100) {
+          fc->X->IRQBegin(FCEU_IQEXT);
+          fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
+        }
+        if (acount >= ACBOO) goto doagainbub;
       }
     }
   }
@@ -152,15 +152,15 @@ struct Mapper85 final : public MapInterface {
   void StateRestore(int version) final override {
     if (version < 7200) {
       for (int x = 0; x < 8; x++) {
-	GMB_mapbyte3(fc)[x] =
-	  fc->ines->iNESCHRBankList[x];
+        GMB_mapbyte3(fc)[x] =
+          fc->ines->iNESCHRBankList[x];
       }
       for (int x = 0; x < 3; x++)
-	GMB_mapbyte2(fc)[x] = GMB_PRGBankList(fc)[x];
+        GMB_mapbyte2(fc)[x] = GMB_PRGBankList(fc)[x];
 
       GMB_mapbyte2(fc)[3] = (fc->ines->iNESMirroring < 0x10) ?
-			fc->ines->iNESMirroring :
-			fc->ines->iNESMirroring - 0xE;
+                        fc->ines->iNESMirroring :
+                        fc->ines->iNESMirroring - 0xE;
     }
 
     for (int x = 0; x < 8; x++)
@@ -197,7 +197,7 @@ struct Mapper85 final : public MapInterface {
 };
 }
 
-  
+
 MapInterface *Mapper85_init(FC *fc) {
   Mapper85 *m = new Mapper85(fc);
   fc->X->MapIRQHook = [](FC *fc, int a) {

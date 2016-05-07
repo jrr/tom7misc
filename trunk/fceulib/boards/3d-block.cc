@@ -44,12 +44,12 @@ struct UNL3D final : public CartInterface {
       case 0x4900: reg[1] = V; break;
       case 0x4a00: reg[2] = V; break;
       case 0x4e00:
-	reg[3] = V;
-	IRQCount = Count;
-	IRQPause = Pause;
-	IRQa = 1;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        reg[3] = V;
+        IRQCount = Count;
+        IRQPause = Pause;
+        IRQa = 1;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
     }
   }
 
@@ -69,16 +69,16 @@ struct UNL3D final : public CartInterface {
   void UNL3DBlockIRQHook(int a) {
     if (IRQa) {
       if (IRQCount > 0) {
-	IRQCount -= a;
+        IRQCount -= a;
       } else {
-	if (IRQPause > 0) {
-	  IRQPause -= a;
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	} else {
-	  IRQCount = Count;
-	  IRQPause = Pause;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	}
+        if (IRQPause > 0) {
+          IRQPause -= a;
+          fc->X->IRQBegin(FCEU_IQEXT);
+        } else {
+          IRQCount = Count;
+          IRQPause = Pause;
+          fc->X->IRQEnd(FCEU_IQEXT);
+        }
       }
     }
   }
@@ -93,11 +93,11 @@ struct UNL3D final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{reg, 4, "REGS"}, {&IRQa, 1, "IRQA"}, {&IRQCount, 2, "IRQC"}});
+        {reg, 4, "REGS"}, {&IRQa, 1, "IRQA"}, {&IRQCount, 2, "IRQC"}});
   }
 };
 }
-  
+
 CartInterface *UNL3DBlock_Init(FC *fc, CartInfo *info) {
   return new UNL3D(fc, info);
 }

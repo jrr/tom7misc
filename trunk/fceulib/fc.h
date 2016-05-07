@@ -36,7 +36,7 @@ struct FC {
   VSUni *vsuni;
   X6502 *X;
   State *state;
-  
+
   FC();
   ~FC();
 };

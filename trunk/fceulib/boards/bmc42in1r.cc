@@ -34,9 +34,9 @@ struct Mapper226Base : public CartInterface {
     if (isresetbased) {
       bank = (latch[0] & 0x1f) | (reset << 5) | ((latch[1] & 1) << 6);
     } else {
-      bank = (latch[0] & 0x1f) | 
-	((latch[0] & 0x80) >> 2) | 
-	((latch[1] & 1) << 6);
+      bank = (latch[0] & 0x1f) |
+        ((latch[0] & 0x80) >> 2) |
+        ((latch[1] & 1) << 6);
     }
     if (!(latch[0] & 0x20)) {
       fc->cart->setprg32(0x8000, bank >> 1);
@@ -57,7 +57,7 @@ struct Mapper226Base : public CartInterface {
     latch[0] = latch[1] = reset = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper226Base*)fc->fceu->cartiface)->M226Write(DECLFW_FORWARD);
+        ((Mapper226Base*)fc->fceu->cartiface)->M226Write(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }

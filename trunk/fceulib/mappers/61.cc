@@ -23,7 +23,7 @@
 namespace {
 struct Mapper61 final : public MapInterface {
   using MapInterface::MapInterface;
-  
+
   void Mapper61_write(DECLFW_ARGS) {
     // printf("$%04x:$%02x\n",A,V);
     switch (A & 0x30) {

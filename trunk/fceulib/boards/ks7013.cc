@@ -69,7 +69,7 @@ struct KS7013 final : public CartInterface {
   }
 };
 }
-  
+
 CartInterface *UNLKS7013B_Init(FC *fc, CartInfo *info) {
   return new KS7013(fc, info);
 }

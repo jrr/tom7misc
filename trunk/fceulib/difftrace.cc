@@ -13,9 +13,9 @@ static constexpr int MAX_HISTORY = 120;
 
 int main(int argc, char **argv) {
   if (argc != 3) {
-    fprintf(stderr, 
-	    "Compares two trace files, given on the command line, "
-	    "to show the first difference (if any).\n");
+    fprintf(stderr,
+            "Compares two trace files, given on the command line, "
+            "to show the first difference (if any).\n");
     return -1;
   }
 
@@ -28,12 +28,12 @@ int main(int argc, char **argv) {
   for (int i = 0; i < max(left.size(), right.size()); i++) {
     if (i >= left.size()) {
       printf("The right trace is longer (%lld vs. %lld) but they\n"
-	     "are the same up to that point.\n", left.size(), right.size());
+             "are the same up to that point.\n", left.size(), right.size());
       same = false;
       break;
     } else if (i >= right.size()) {
       printf("The left trace is longer (%lld vs. %lld) but they\n"
-	     "are the same up to that point.\n", left.size(), right.size());
+             "are the same up to that point.\n", left.size(), right.size());
       same = false;
       break;
     }
@@ -43,20 +43,20 @@ int main(int argc, char **argv) {
       list<string> recent;
       int countleft = MAX_HISTORY;
       for (int j = i - 1; j > 0 && countleft > 0; j--) {
-	recent.push_front(Traces::LineString(left[j]));
-	countleft--;
+        recent.push_front(Traces::LineString(left[j]));
+        countleft--;
       }
       printf("\n"
-	     "---------------------------------------------\n"
-	     "Recent:\n");
+             "---------------------------------------------\n"
+             "Recent:\n");
       for (const string &s : recent)
-	printf("%s\n", s.c_str());
+        printf("%s\n", s.c_str());
 
       printf("\n"
-	     "=============================================\n");
+             "=============================================\n");
       printf("At index %d, traces disagree.\n", i);
       printf("Diff:\n%s\n",
-	     Traces::Difference(l, r).c_str());
+             Traces::Difference(l, r).c_str());
       same = false;
       break;
     }

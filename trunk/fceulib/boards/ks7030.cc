@@ -106,7 +106,7 @@ struct UNLKS7030 final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, [](DECLFR_ARGS) {
       return ((UNLKS7030*)fc->fceu->cartiface)->
-	UNLKS7030RamRead0(DECLFR_FORWARD);
+        UNLKS7030RamRead0(DECLFR_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x6000, 0x7FFF, [](DECLFW_ARGS) {
       ((UNLKS7030*)fc->fceu->cartiface)->UNLKS7030RamWrite0(DECLFW_FORWARD);
@@ -120,7 +120,7 @@ struct UNLKS7030 final : public CartInterface {
     });
     fc->fceu->SetReadHandler(0xB800, 0xD7FF, [](DECLFR_ARGS) {
       return ((UNLKS7030*)fc->fceu->cartiface)->
-	UNLKS7030RamRead1(DECLFR_FORWARD);
+        UNLKS7030RamRead1(DECLFR_FORWARD);
     });
     fc->fceu->SetWriteHandler(0xB800, 0xD7FF, [](DECLFW_ARGS) {
       ((UNLKS7030*)fc->fceu->cartiface)->UNLKS7030RamWrite1(DECLFW_FORWARD);

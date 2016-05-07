@@ -40,7 +40,7 @@ struct Mapper189 final : public MMC3 {
     EXPREGS[0] = EXPREGS[1] = 0;
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4120, 0x7FFF, [](DECLFW_ARGS) {
-	((Mapper189*)fc->fceu->cartiface)->M189Write(DECLFW_FORWARD);
+        ((Mapper189*)fc->fceu->cartiface)->M189Write(DECLFW_FORWARD);
       });
   }
 

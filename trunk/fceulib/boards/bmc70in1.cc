@@ -34,16 +34,16 @@ struct BMC70 final : public CartInterface {
     switch (bank_mode) {
       case 0x00:
       case 0x10:
-	fc->cart->setprg16(0x8000, large_bank | prg_bank);
-	fc->cart->setprg16(0xC000, large_bank | 7);
-	break;
+        fc->cart->setprg16(0x8000, large_bank | prg_bank);
+        fc->cart->setprg16(0xC000, large_bank | 7);
+        break;
       case 0x20:
-	fc->cart->setprg32(0x8000, (large_bank | prg_bank) >> 1);
-	break;
+        fc->cart->setprg32(0x8000, (large_bank | prg_bank) >> 1);
+        break;
       case 0x30:
-	fc->cart->setprg16(0x8000, large_bank | prg_bank);
-	fc->cart->setprg16(0xC000, large_bank | prg_bank);
-	break;
+        fc->cart->setprg16(0x8000, large_bank | prg_bank);
+        fc->cart->setprg16(0xC000, large_bank | prg_bank);
+        break;
     }
     fc->cart->setmirror(mirroring);
     if (!is_large_banks) fc->cart->setchr8(chr_bank);
@@ -66,9 +66,9 @@ struct BMC70 final : public CartInterface {
     } else {
       mirroring = ((A & 0x20) >> 5) ^ 1;
       if (is_large_banks)
-	large_bank = (A & 3) << 3;
+        large_bank = (A & 3) << 3;
       else
-	chr_bank = A & 7;
+        chr_bank = A & 7;
     }
     Sync();
   }
@@ -87,12 +87,12 @@ struct BMC70 final : public CartInterface {
     large_bank = 0;
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, [](DECLFR_ARGS) {
-	return ((BMC70*)fc->fceu->cartiface)->
-	  BMC70in1Read(DECLFR_FORWARD);
+        return ((BMC70*)fc->fceu->cartiface)->
+          BMC70in1Read(DECLFR_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
-	((BMC70*)fc->fceu->cartiface)->
-	  BMC70in1Write(DECLFW_FORWARD);
+        ((BMC70*)fc->fceu->cartiface)->
+          BMC70in1Write(DECLFW_FORWARD);
       });
   }
 
@@ -104,11 +104,11 @@ struct BMC70 final : public CartInterface {
     CartInterface(fc), hw_switch(hw_init) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&large_bank, 1, "LB00"},
-			 {&hw_switch, 1, "DPSW"},
-			 {&prg_bank, 1, "PRG0"},
-			 {&chr_bank, 1, "CHR0"},
-			 {&bank_mode, 1, "BM00"},
-			 {&mirroring, 1, "MIRR"}});
+                         {&hw_switch, 1, "DPSW"},
+                         {&prg_bank, 1, "PRG0"},
+                         {&chr_bank, 1, "CHR0"},
+                         {&bank_mode, 1, "BM00"},
+                         {&mirroring, 1, "MIRR"}});
   }
 };
 }
