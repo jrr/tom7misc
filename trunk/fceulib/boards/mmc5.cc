@@ -473,7 +473,7 @@ struct MMC5 final : public CartInterface {
 
   DECLFR_RET MMC5_ReadROMRAM(DECLFR_ARGS) {
     if (MMC5MemIn[(A - 0x6000) >> 13])
-      return fc->cart->Page[A >> 11][A];
+      return fc->cart->ReadPage(A);
     else
       return fc->X->DB;
   }
@@ -483,7 +483,7 @@ struct MMC5 final : public CartInterface {
       if (MMC5ROMWrProtect[(A - 0x8000) >> 13]) return;
     if (MMC5MemIn[(A - 0x6000) >> 13])
       if (((WRAMMaskEnable[0] & 3) | ((WRAMMaskEnable[1] & 3) << 2)) == 6)
-        fc->cart->Page[A >> 11][A] = V;
+        fc->cart->WritePage(A, V);
   }
 
   void MMC5_ExRAMWr(DECLFW_ARGS) {

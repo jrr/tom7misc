@@ -208,7 +208,6 @@ endlseq:
 
   PowerNES();
   TRACEF("PowerNES done.");
-  // TRACEA(WRAM, sizeofWRAM);
 
   fc->palette->LoadGamePalette();
   fc->palette->ResetPalette();

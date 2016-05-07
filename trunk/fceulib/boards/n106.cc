@@ -38,7 +38,7 @@ struct N106 : public CartInterface {
     WRAM[A - 0x6000] = V;
   }
 
-  uint8 NTAPage[4] = {};
+  uint8 nta_page[4] = {};
 
   uint8 dopol = 0;
   uint8 gorfus = 0;
@@ -87,7 +87,7 @@ struct N106 : public CartInterface {
   }
 
   void DoNTARAMROM(int w, uint8 V) {
-    NTAPage[w] = V;
+    nta_page[w] = V;
     if (V >= 0xE0) {
       fc->cart->setntamem(fc->ppu->NTARAM + ((V & 1) << 10), 1, w);
     } else {
@@ -97,7 +97,7 @@ struct N106 : public CartInterface {
   }
 
   void FixNTAR() {
-    for (int x = 0; x < 4; x++) DoNTARAMROM(x, NTAPage[x]);
+    for (int x = 0; x < 4; x++) DoNTARAMROM(x, nta_page[x]);
   }
 
   void DoCHRRAMROM(int x, uint8 V) {
@@ -359,7 +359,7 @@ struct N106 : public CartInterface {
         return ((N106*)fc->fceu->cartiface)->
           Namco_Read5800(DECLFR_FORWARD);
       });
-      NTAPage[0] = NTAPage[1] = NTAPage[2] = NTAPage[3] = 0xFF;
+      nta_page[0] = nta_page[1] = nta_page[2] = nta_page[3] = 0xFF;
       FixNTAR();
     }
 
@@ -385,7 +385,7 @@ struct N106 : public CartInterface {
   N106(FC *fc, CartInfo *info) : CartInterface(fc),
                                  N106_StateRegs{{PRG, 3, "PRG0"},
                                                 {CHR, 8, "CHR0"},
-                                                {NTAPage, 4, "NTA0"}} {
+                                                {nta_page, 4, "NTA0"}} {
 
   }
 };

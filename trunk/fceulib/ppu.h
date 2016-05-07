@@ -118,7 +118,7 @@ struct PPU {
   void EndRL();
   void DoLine();
 
-  uint8 *MMC5BGVRAMADR(uint32 V);
+  const uint8 *MMC5BGVRAMADR(uint32 V);
 
   template<bool PPUT_MMC5, bool PPUT_MMC5SP, bool PPUT_HOOK, bool PPUT_MMC5CHR1>
   std::pair<uint32, uint8 *> PPUTile(const int X1, uint8 *P,

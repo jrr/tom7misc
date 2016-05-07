@@ -147,21 +147,23 @@ struct INes {
 // into its parts with macros. I made them take an FC object and
 // prefixed them all with GMB_. -tom7
 
+// TODO: These should probably be members of ines.
+
 /* This order is necessary */
 #define GMB_WRAM(fc)    ((fc)->fceu->GameMemBlock)
-#define sizeofWRAM    8192
+#define ines_internal_sizeofWRAM    8192
 
-#define GMB_MapperExRAM(fc)   ((fc)->fceu->GameMemBlock + sizeofWRAM)
-#define sizeofMapperExRAM  32768
+#define GMB_MapperExRAM(fc)   ((fc)->fceu->GameMemBlock + ines_internal_sizeofWRAM)
+#define ines_internal_sizeofMapperExRAM  32768
 /* for the MMC5 code to work properly.  It might be fixed later... */
 
-#define GMB_CHRRAM(fc)  ((fc)->fceu->GameMemBlock+sizeofWRAM+sizeofMapperExRAM)
-#define sizeofCHRRAM 8192
+#define GMB_CHRRAM(fc)  ((fc)->fceu->GameMemBlock + ines_internal_sizeofWRAM + ines_internal_sizeofMapperExRAM)
+#define ines_internal_sizeofCHRRAM 8192
 
-#define GMB_ExtraNTARAM(fc)   ((fc)->fceu->GameMemBlock+sizeofWRAM+sizeofMapperExRAM+sizeofCHRRAM)
-#define sizeofExtraNTARAM 2048
+#define GMB_ExtraNTARAM(fc)   ((fc)->fceu->GameMemBlock + ines_internal_sizeofWRAM + ines_internal_sizeofMapperExRAM + ines_internal_sizeofCHRRAM)
+#define ines_internal_sizeofExtraNTARAM 2048
 
-#define GMB_PRGBankList(fc)    (GMB_ExtraNTARAM(fc) + sizeofExtraNTARAM)
+#define GMB_PRGBankList(fc)    (GMB_ExtraNTARAM(fc) + ines_internal_sizeofExtraNTARAM)
 
 #define GMB_mapbyte1(fc)       (GMB_PRGBankList(fc) + 4)
 #define GMB_mapbyte2(fc)       (GMB_mapbyte1(fc) + 8)
