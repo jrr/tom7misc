@@ -33,24 +33,24 @@ struct BMC13in1JY110 final : public CartInterface {
     switch (bank_mode & 7) {
       case 0: fc->cart->setprg32(0x8000, bank_value & 7); break;
       case 1:
-	fc->cart->setprg16(0x8000, ((8 + (bank_value & 7)) >> 1) + prgb[1]);
-	fc->cart->setprg16(0xC000, (bank_value & 7) >> 1);
+        fc->cart->setprg16(0x8000, ((8 + (bank_value & 7)) >> 1) + prgb[1]);
+        fc->cart->setprg16(0xC000, (bank_value & 7) >> 1);
       case 4: fc->cart->setprg32(0x8000, 8 + (bank_value & 7)); break;
       case 5:
-	fc->cart->setprg16(0x8000, ((8 + (bank_value & 7)) >> 1) + prgb[1]);
-	fc->cart->setprg16(0xC000, ((8 + (bank_value & 7)) >> 1) + prgb[3]);
+        fc->cart->setprg16(0x8000, ((8 + (bank_value & 7)) >> 1) + prgb[1]);
+        fc->cart->setprg16(0xC000, ((8 + (bank_value & 7)) >> 1) + prgb[3]);
       case 2:
-	fc->cart->setprg8(0x8000, prgb[0] >> 2);
-	fc->cart->setprg8(0xa000, prgb[1]);
-	fc->cart->setprg8(0xc000, prgb[2]);
-	fc->cart->setprg8(0xe000, ~0);
-	break;
+        fc->cart->setprg8(0x8000, prgb[0] >> 2);
+        fc->cart->setprg8(0xa000, prgb[1]);
+        fc->cart->setprg8(0xc000, prgb[2]);
+        fc->cart->setprg8(0xe000, ~0);
+        break;
       case 3:
-	fc->cart->setprg8(0x8000, prgb[0]);
-	fc->cart->setprg8(0xa000, prgb[1]);
-	fc->cart->setprg8(0xc000, prgb[2]);
-	fc->cart->setprg8(0xe000, prgb[3]);
-	break;
+        fc->cart->setprg8(0x8000, prgb[0]);
+        fc->cart->setprg8(0xa000, prgb[1]);
+        fc->cart->setprg8(0xc000, prgb[2]);
+        fc->cart->setprg8(0xe000, prgb[3]);
+        break;
     }
   }
 
@@ -76,8 +76,8 @@ struct BMC13in1JY110 final : public CartInterface {
     fc->cart->setprg32(0x8000, 0);
     fc->cart->setchr8(0);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((BMC13in1JY110*)fc->fceu->cartiface)->
-	  BMC13in1JY110Write(DECLFW_FORWARD);
+        ((BMC13in1JY110*)fc->fceu->cartiface)->
+          BMC13in1JY110Write(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }

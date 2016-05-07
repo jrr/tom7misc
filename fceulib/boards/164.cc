@@ -40,7 +40,7 @@ struct Mapper164Base : public CartInterface {
     fc->cart->setprg32(0x8000, (reg[0] << 4) | (reg[1] & 0xF));
     fc->cart->setchr8(0);
   }
-  
+
   static void StateRestore(FC *fc, int version) {
     ((Mapper164Base*)fc->fceu->cartiface)->WSync();
   }
@@ -48,20 +48,20 @@ struct Mapper164Base : public CartInterface {
   void Write(DECLFW_ARGS) {
     switch (A & 0x7300) {
       case 0x5100:
-	reg[0] = V;
-	WSync();
-	break;
+        reg[0] = V;
+        WSync();
+        break;
       case 0x5000:
-	reg[1] = V;
-	WSync();
-	break;
+        reg[1] = V;
+        WSync();
+        break;
       case 0x5300:
-	reg[2] = V;
-	break;
+        reg[2] = V;
+        break;
       case 0x5200:
-	reg[3] = V;
-	WSync();
-	break;
+        reg[3] = V;
+        WSync();
+        break;
     }
   }
 
@@ -82,7 +82,7 @@ struct Mapper164Base : public CartInterface {
 
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{&laststrobe, 1, "STB0"}, {&trigger, 1, "TRG0"}, {reg, 8, "REGS"}});
+        {&laststrobe, 1, "STB0"}, {&trigger, 1, "TRG0"}, {reg, 8, "REGS"}});
   }
 };
 
@@ -117,19 +117,19 @@ struct Mapper163 final : public Mapper164Base {
   DECLFR_RET ReadLow(DECLFR_ARGS) {
     switch (A & 0x7700) {
       case 0x5100:
-	return reg[2] | reg[0] | reg[1] | (reg[3] ^ 0xff);
+        return reg[2] | reg[0] | reg[1] | (reg[3] ^ 0xff);
       case 0x5500:
-	if (trigger) {
-	  // Lei Dian Huang Bi Ka Qiu Chuan Shuo (NJ046)
-	  // may broke other games
-	  return reg[2] | reg[1];
-	} else {
-	  return 0;
-	}
+        if (trigger) {
+          // Lei Dian Huang Bi Ka Qiu Chuan Shuo (NJ046)
+          // may broke other games
+          return reg[2] | reg[1];
+        } else {
+          return 0;
+        }
     }
     return 4;
   }
-  
+
   void Write2(DECLFW_ARGS) {
     if (A == 0x5101) {
       if (laststrobe && !V) trigger ^= 1;
@@ -157,29 +157,29 @@ struct Mapper163 final : public Mapper164Base {
       }
     }
   }
-  
+
   void M163HB() {
     if (reg[1] & 0x80) {
       if (fc->ppu->scanline == 239) {
-	fc->cart->setchr4(0x0000, 0);
-	fc->cart->setchr4(0x1000, 0);
+        fc->cart->setchr4(0x0000, 0);
+        fc->cart->setchr4(0x1000, 0);
       } else if (fc->ppu->scanline == 127) {
-	fc->cart->setchr4(0x0000, 1);
-	fc->cart->setchr4(0x1000, 1);
+        fc->cart->setchr4(0x0000, 1);
+        fc->cart->setchr4(0x1000, 1);
       }
       /*
-	if(scanline>=127) {
-	  // Hu Lu Jin Gang (NJ039) (Ch) [!] don't like it
-	  setchr4(0x0000,1);
-	  setchr4(0x1000,1);
-	} else {
- 	  setchr4(0x0000,0);
-	  setchr4(0x1000,0);
-	}
+        if(scanline>=127) {
+          // Hu Lu Jin Gang (NJ039) (Ch) [!] don't like it
+          setchr4(0x0000,1);
+          setchr4(0x1000,1);
+        } else {
+          setchr4(0x0000,0);
+          setchr4(0x1000,0);
+        }
       */
     }
   }
-  
+
   Mapper163(FC *fc, CartInfo *info) : Mapper164Base(fc, info) {
     fc->ppu->GameHBIRQHook = [](FC *fc) {
       ((Mapper163*)fc->fceu->cartiface)->M163HB();
@@ -197,8 +197,8 @@ struct UNLFS304 final : public Mapper164Base {
     case 0:
     case 2:
       fc->cart->setprg32(0x8000,
-			 (reg[0] & 0xc) | (reg[1] & 2) |
-			 ((reg[2] & 0xf) << 4));
+                         (reg[0] & 0xc) | (reg[1] & 2) |
+                         ((reg[2] & 0xf) << 4));
       break;
     case 1:
     case 3:
@@ -207,8 +207,8 @@ struct UNLFS304 final : public Mapper164Base {
     case 4:
     case 6:
       fc->cart->setprg32(0x8000,
-			 (reg[0] & 0xe) | ((reg[1] >> 1) & 1) |
-			 ((reg[2] & 0xf) << 4));
+                         (reg[0] & 0xe) | ((reg[1] >> 1) & 1) |
+                         ((reg[2] & 0xf) << 4));
       break;
     case 5:
     case 7:
@@ -221,7 +221,7 @@ struct UNLFS304 final : public Mapper164Base {
     reg[(A >> 8) & 3] = V;
     WSync();
   }
-  
+
   void Power() final override {
     reg[0] = 3;
     reg[1] = 0;

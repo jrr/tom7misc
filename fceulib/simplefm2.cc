@@ -27,11 +27,11 @@ vector<pair<uint8, uint8>> SimpleFM2::ReadInputs2P(const string &filename) {
       fprintf(stderr, "Illegal line: [%s]\n", line.c_str());
       abort();
     }
-    
+
     if (!(line[1] == '0' ||
-	  (line[1] == '2' && out.empty()))) {
+          (line[1] == '2' && out.empty()))) {
       fprintf(stderr, "Command must be zero except hard "
-	      "reset in first input: [%s]\n", line.c_str());
+              "reset in first input: [%s]\n", line.c_str());
       abort();
     }
 
@@ -39,15 +39,15 @@ vector<pair<uint8, uint8>> SimpleFM2::ReadInputs2P(const string &filename) {
       |2|........|........||
       |0|....T...|........||
     */
-    
+
     const string player1 = line.substr(3, 8);
     const string player2 = line.substr(12, 8);
     auto Command = [](const string &s) -> uint8 {
       uint8 command = 0;
       for (int j = 0; j < 8; j++) {
-	if (s[j] != '.') {
-	  command |= (1 << (7 - j));
-	}
+        if (s[j] != '.') {
+          command |= (1 << (7 - j));
+        }
       }
       return command;
     };
@@ -67,28 +67,28 @@ static vector<pair<uint8, uint8>> Dummy2P(const vector<uint8> &inputs) {
 }
 
 void SimpleFM2::WriteInputs(const string &outputfile,
-			    const string &romfilename,
-			    const string &romchecksum,
-			    const vector<uint8> &inputs) {
+                            const string &romfilename,
+                            const string &romchecksum,
+                            const vector<uint8> &inputs) {
   WriteInputsWithSubtitles2P(outputfile, romfilename, romchecksum,
-			     Dummy2P(inputs), {});
+                             Dummy2P(inputs), {});
 }
 
 void SimpleFM2::WriteInputs2P(const string &outputfile,
-			      const string &romfilename,
-			      const string &romchecksum,
-			      const vector<pair<uint8, uint8>> &inputs) {
+                              const string &romfilename,
+                              const string &romchecksum,
+                              const vector<pair<uint8, uint8>> &inputs) {
   WriteInputsWithSubtitles2P(outputfile, romfilename, romchecksum,
-			     inputs, {});
+                             inputs, {});
 }
 
 void SimpleFM2::WriteInputsWithSubtitles(const string &outputfile,
-					 const string &romfilename,
-					 const string &romchecksum,
-					 const vector<uint8> &inputs,
-					 const vector<string> &subtitles) {
+                                         const string &romfilename,
+                                         const string &romchecksum,
+                                         const vector<uint8> &inputs,
+                                         const vector<string> &subtitles) {
   return WriteInputsWithSubtitles2P(outputfile, romfilename, romchecksum,
-				    Dummy2P(inputs), subtitles);
+                                    Dummy2P(inputs), subtitles);
 }
 
 void SimpleFM2::WriteInputsWithSubtitles2P(
@@ -101,25 +101,25 @@ void SimpleFM2::WriteInputsWithSubtitles2P(
   string fakeguid = "FDAEE33C-B32D-B38C-765C-FADEFACE0000";
   FILE *f = fopen(outputfile.c_str(), "wb");
   fprintf(f,
-	  "version 3\n"
-	  "emuversion 9815\n"
-	  "romFilename %s\n"
-	  "romChecksum %s\n"
-	  "guid %s\n"
-	  // Read from settings?
-	  "palFlag 0\n"
-	  "NewPPU 0\n"
-	  "fourscore 0\n"
-	  "microphone 0\n"
-	  "port0 1\n"
-	  "port1 1\n"
-	  "port2 0\n"
-	  // ?
-	  "FDS 1\n"
-	  "comment author tasbot-simplefm2\n",
-	  romfilename.c_str(),
-	  romchecksum.c_str(),
-	  fakeguid.c_str());
+          "version 3\n"
+          "emuversion 9815\n"
+          "romFilename %s\n"
+          "romChecksum %s\n"
+          "guid %s\n"
+          // Read from settings?
+          "palFlag 0\n"
+          "NewPPU 0\n"
+          "fourscore 0\n"
+          "microphone 0\n"
+          "port0 1\n"
+          "port1 1\n"
+          "port2 0\n"
+          // ?
+          "FDS 1\n"
+          "comment author tasbot-simplefm2\n",
+          romfilename.c_str(),
+          romchecksum.c_str(),
+          fakeguid.c_str());
 
   const string *last = nullptr;
   for (int i = 0; i < subtitles.size(); i++) {
@@ -134,11 +134,11 @@ void SimpleFM2::WriteInputsWithSubtitles2P(
     auto Controller = [f](uint8 input) {
       static constexpr char gamepad[] = "RLDUTSBA";
       for (int j = 0; j < 8; j++) {
-	fprintf(f, "%c",
-		(input & (1 << (7 - j))) ? gamepad[j] : '.');
+        fprintf(f, "%c",
+                (input & (1 << (7 - j))) ? gamepad[j] : '.');
       }
     };
-    
+
     // 1p
     Controller(inputs[i].first);
     fprintf(f, "|");

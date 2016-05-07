@@ -52,9 +52,9 @@ struct UNLSC127 final : public CartInterface {
       case 0x9006: chr[6] = V; break;
       case 0x9007: chr[7] = V; break;
       case 0xC002:
-	IRQa = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0xC005: IRQCount = V; break;
       case 0xC003: IRQa = 1; break;
       case 0xD001: reg[3] = V; break;
@@ -70,7 +70,7 @@ struct UNLSC127 final : public CartInterface {
     fc->fceu->SetWriteHandler(0x6000, 0x7fff, Cart::CartBW);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((UNLSC127*)fc->fceu->cartiface)->UNLSC127Write(DECLFW_FORWARD);
+        ((UNLSC127*)fc->fceu->cartiface)->UNLSC127Write(DECLFW_FORWARD);
       });
   }
 
@@ -78,8 +78,8 @@ struct UNLSC127 final : public CartInterface {
     if (IRQa) {
       IRQCount--;
       if (IRQCount == 0) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	IRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
       }
     }
   }
@@ -94,7 +94,7 @@ struct UNLSC127 final : public CartInterface {
   static void StateRestore(FC *fc, int version) {
     ((UNLSC127 *)fc->fceu->cartiface)->Sync();
   }
-  
+
   UNLSC127(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->ppu->GameHBIRQHook = [](FC *fc) {
       ((UNLSC127 *)fc->fceu->cartiface)->UNLSC127IRQ();
@@ -104,9 +104,9 @@ struct UNLSC127 final : public CartInterface {
     fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
     fc->state->AddExVec({{reg, 8, "REGS"},
-	                 {chr, 8, "CHRS"},
-			 {&IRQCount, 16, "IRQc"},
-			 {&IRQa, 16, "IRQa"}});
+                         {chr, 8, "CHRS"},
+                         {&IRQCount, 16, "IRQc"},
+                         {&IRQa, 16, "IRQa"}});
   }
 };
 }

@@ -208,23 +208,3 @@ uint8 EMUFILE::read8le() {
   fread(&temp, 1);
   return temp;
 }
-
-void EMUFILE::writedouble(double* val) {
-  write64le(double_to_u64(*val));
-}
-void EMUFILE::writedouble(double val) {
-  write64le(double_to_u64(val));
-}
-
-double EMUFILE::readdouble() {
-  double temp;
-  readdouble(&temp);
-  return temp;
-}
-
-size_t EMUFILE::readdouble(double* val) {
-  uint64 temp = 0;
-  size_t ret = read64le(&temp);
-  *val = u64_to_double(temp);
-  return ret;
-}

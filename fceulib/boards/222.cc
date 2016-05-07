@@ -33,8 +33,8 @@ struct Mapper222 final : public CartInterface {
     if (IRQa) {
       IRQCount++;
       if (IRQCount >= 238) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	//      IRQa=0;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        //      IRQa=0;
       }
     }
   }
@@ -59,8 +59,8 @@ struct Mapper222 final : public CartInterface {
       case 0xD002: chr_reg[5] = V; break;
       case 0xE000: chr_reg[6] = V; break;
       case 0xE002:
-	chr_reg[7] = V;
-	break;
+        chr_reg[7] = V;
+        break;
       //    case 0xF000: FCEU_printf("%04x:%02x %d\n",A,V,scanline); IRQa=V;
       //    if(!V)IRQPre=0; fc->X->IRQEnd(FCEU_IQEXT); break;
       //    case 0xF001: FCEU_printf("%04x:%02x %d\n",A,V,scanline); IRQCount=V;
@@ -71,13 +71,13 @@ struct Mapper222 final : public CartInterface {
       //    case 0xC001: IRQPre=16; FCEU_printf("%04x:%02x %d\n",A,V,scanline);
       //    break;
       case 0xF000:
-	IRQa = IRQCount = V;
-	if (fc->ppu->scanline < 240)
-	  IRQCount -= 8;
-	else
-	  IRQCount += 4;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = IRQCount = V;
+        if (fc->ppu->scanline < 240)
+          IRQCount -= 8;
+        else
+          IRQCount += 4;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
     }
     Sync();
   }
@@ -86,7 +86,7 @@ struct Mapper222 final : public CartInterface {
     fc->cart->setprg16(0xC000, ~0);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper222*)fc->fceu->cartiface)->M222Write(DECLFW_FORWARD);
+        ((Mapper222*)fc->fceu->cartiface)->M222Write(DECLFW_FORWARD);
       });
   }
 
@@ -100,8 +100,8 @@ struct Mapper222 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&IRQCount, 1, "IRQC"}, {&IRQa, 1, "IRQA"},
-			 {prg_reg, 2, "PRG0"}, {chr_reg, 8, "CHR0"},
-			 {&mirr, 1, "MIRR"}});
+                         {prg_reg, 2, "PRG0"}, {chr_reg, 8, "CHR0"},
+                         {&mirr, 1, "MIRR"}});
   }
 };
 }

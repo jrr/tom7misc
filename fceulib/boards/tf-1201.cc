@@ -61,30 +61,30 @@ struct UNLTF1201 final : public CartInterface {
       SyncChr();
     } else {
       switch (A & 0xF003) {
-	case 0x8000:
-	  prg0 = V;
-	  SyncPrg();
-	  break;
-	case 0xA000:
-	  prg1 = V;
-	  SyncPrg();
-	  break;
-	case 0x9000:
-	  mirr = V & 1;
-	  SyncChr();
-	  break;
-	case 0x9001:
-	  tfswap = V & 3;
-	  SyncPrg();
-	  break;
-	case 0xF000: IRQCount = ((IRQCount & 0xF0) | (V & 0xF)); break;
-	case 0xF002: IRQCount = ((IRQCount & 0x0F) | ((V & 0xF) << 4)); break;
-	case 0xF001:
-	case 0xF003:
-	  IRQa = V & 2;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  if (fc->ppu->scanline < 240) IRQCount -= 8;
-	  break;
+        case 0x8000:
+          prg0 = V;
+          SyncPrg();
+          break;
+        case 0xA000:
+          prg1 = V;
+          SyncPrg();
+          break;
+        case 0x9000:
+          mirr = V & 1;
+          SyncChr();
+          break;
+        case 0x9001:
+          tfswap = V & 3;
+          SyncPrg();
+          break;
+        case 0xF000: IRQCount = ((IRQCount & 0xF0) | (V & 0xF)); break;
+        case 0xF002: IRQCount = ((IRQCount & 0x0F) | ((V & 0xF) << 4)); break;
+        case 0xF001:
+        case 0xF003:
+          IRQa = V & 2;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          if (fc->ppu->scanline < 240) IRQCount -= 8;
+          break;
       }
     }
   }
@@ -93,7 +93,7 @@ struct UNLTF1201 final : public CartInterface {
     if (IRQa) {
       IRQCount++;
       if (IRQCount == 237) {
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }

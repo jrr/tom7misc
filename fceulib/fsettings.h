@@ -17,12 +17,12 @@
 #define FCEUS_PCMVOLUME 256
 
 // First and last rendered scanlines. Same for PAL as NTSC.
-// 
+//
 //   static constexpr int scanlinestart = 0, scanlineend = 239;
-// 
-//   FCEUI_SetRenderedLines(scanlinestart + 8, scanlineend - 8, 
-// 			 scanlinestart, scanlineend);
-// 
+//
+//   FCEUI_SetRenderedLines(scanlinestart + 8, scanlineend - 8,
+//                       scanlinestart, scanlineend);
+//
 // Note: These are not used anywhere. Maybe they are really for
 // clients.
 #define FCEUS_NTSC_FIRSTSLINE (0 + 8)

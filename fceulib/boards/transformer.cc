@@ -40,15 +40,15 @@ struct Transformer final : public CartInterface {
       TransformerKeys = GetKeyboard();
 
       for (uint32 i = 0; i < 256; i++) {
-	if (oldkeys[i] != TransformerKeys[i]) {
-	  if (oldkeys[i] == 0)
-	    TransformerChar = i;
-	  else
-	    TransformerChar = i | 0x80;
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	  memcpy((void *)&oldkeys[0], (void *)TransformerKeys, 256);
-	  break;
-	}
+        if (oldkeys[i] != TransformerKeys[i]) {
+          if (oldkeys[i] == 0)
+            TransformerChar = i;
+          else
+            TransformerChar = i | 0x80;
+          fc->X->IRQBegin(FCEU_IQEXT);
+          memcpy((void *)&oldkeys[0], (void *)TransformerKeys, 256);
+          break;
+        }
       }
     }
   }
@@ -73,7 +73,7 @@ struct Transformer final : public CartInterface {
 
     fc->fceu->SetReadHandler(0x5000, 0x5004, [](DECLFR_ARGS) {
       return ((Transformer*)fc->fceu->cartiface)->
-	TransformerRead(DECLFR_FORWARD);
+        TransformerRead(DECLFR_FORWARD);
     });
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0x7FFF, Cart::CartBW);

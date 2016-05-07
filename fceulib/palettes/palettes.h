@@ -14,16 +14,16 @@ static constexpr PaletteEntry rp2c05004[64] = {
 };
 
 static constexpr PaletteEntry unvpalette[7] = {
-  { 0x00<<2,0x00<<2,0x00<<2}, // Black
-  { 0x3F<<2,0x3F<<2,0x34<<2}, // White
-  { 0x00<<2,0x00<<2,0x00<<2}, // Black
-  { 0x1d<<2,0x1d<<2,0x24<<2}, // Greyish
-  { 190,0,0 }, // Redish
-  { 51,255,51}, // Bright green
-  { 49,14,200}, 
+  { 0x00<<2, 0x00<<2, 0x00<<2 }, // Black
+  { 0x3F<<2, 0x3F<<2, 0x34<<2 }, // White
+  { 0x00<<2, 0x00<<2, 0x00<<2 }, // Black
+  { 0x1d<<2, 0x1d<<2, 0x24<<2 }, // Greyish
+  { 190, 0, 0 }, // Redish
+  { 51, 255, 51}, // Bright green
+  { 49, 14, 200},
 };
 
-// Default palette 
+// Default palette
 static constexpr PaletteEntry default_palette[64] = {
   { 0x1D<<2, 0x1D<<2, 0x1D<<2 }, /* Value 0 */
   { 0x09<<2, 0x06<<2, 0x23<<2 }, /* Value 1 */

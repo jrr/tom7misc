@@ -37,38 +37,38 @@ struct Mapper121 final : public MMC3 {
   void Sync() {
     switch (EXPREGS[5] & 0x3F) {
       case 0x20:
-	EXPREGS[7] = 1;
-	EXPREGS[0] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 1;
+        EXPREGS[0] = EXPREGS[6];
+        break;
       case 0x29:
-	EXPREGS[7] = 1;
-	EXPREGS[0] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 1;
+        EXPREGS[0] = EXPREGS[6];
+        break;
       case 0x26:
-	EXPREGS[7] = 0;
-	EXPREGS[0] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 0;
+        EXPREGS[0] = EXPREGS[6];
+        break;
       case 0x2B:
-	EXPREGS[7] = 1;
-	EXPREGS[0] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 1;
+        EXPREGS[0] = EXPREGS[6];
+        break;
       case 0x2C:
-	EXPREGS[7] = 1;
-	if (EXPREGS[6]) EXPREGS[0] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 1;
+        if (EXPREGS[6]) EXPREGS[0] = EXPREGS[6];
+        break;
       case 0x3C:
       case 0x3F:
-	EXPREGS[7] = 1;
-	EXPREGS[0] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 1;
+        EXPREGS[0] = EXPREGS[6];
+        break;
       case 0x28:
-	EXPREGS[7] = 0;
-	EXPREGS[1] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 0;
+        EXPREGS[1] = EXPREGS[6];
+        break;
       case 0x2A:
-	EXPREGS[7] = 0;
-	EXPREGS[2] = EXPREGS[6];
-	break;
+        EXPREGS[7] = 0;
+        EXPREGS[2] = EXPREGS[6];
+        break;
       case 0x2F: break;
       default: EXPREGS[5] = 0; break;
     }
@@ -80,9 +80,9 @@ struct Mapper121 final : public MMC3 {
       fc->cart->setchr1(A, V | ((EXPREGS[3] & 0x80) << 1));
     } else {
       if ((A & 0x1000) == ((MMC3_cmd & 0x80) << 5))
-	fc->cart->setchr1(A, V | 0x100);
+        fc->cart->setchr1(A, V | 0x100);
       else
-	fc->cart->setchr1(A, V);
+        fc->cart->setchr1(A, V);
     }
   }
 
@@ -104,27 +104,27 @@ struct Mapper121 final : public MMC3 {
     //  FCEU_printf("write: %04x:%04x\n",A&0xE003,V);
     switch (A & 0xE003) {
       case 0x8000:
-	// EXPREGS[5] = 0;
-	// FCEU_printf("gen: %02x\n",V);
-	MMC3_CMDWrite(DECLFW_FORWARD);
-	FixMMC3PRG(MMC3_cmd);
-	break;
+        // EXPREGS[5] = 0;
+        // FCEU_printf("gen: %02x\n",V);
+        MMC3_CMDWrite(DECLFW_FORWARD);
+        FixMMC3PRG(MMC3_cmd);
+        break;
       case 0x8001:
-	EXPREGS[6] = ((V & 1) << 5) | ((V & 2) << 3) | ((V & 4) << 1) |
-		     ((V & 8) >> 1) | ((V & 0x10) >> 3) | ((V & 0x20) >> 5);
-	// FCEU_printf("bank: %02x (%02x)\n",V,EXPREGS[6]);
-	if (!EXPREGS[7]) Sync();
-	MMC3_CMDWrite(DECLFW_FORWARD);
-	FixMMC3PRG(MMC3_cmd);
-	break;
+        EXPREGS[6] = ((V & 1) << 5) | ((V & 2) << 3) | ((V & 4) << 1) |
+                     ((V & 8) >> 1) | ((V & 0x10) >> 3) | ((V & 0x20) >> 5);
+        // FCEU_printf("bank: %02x (%02x)\n",V,EXPREGS[6]);
+        if (!EXPREGS[7]) Sync();
+        MMC3_CMDWrite(DECLFW_FORWARD);
+        FixMMC3PRG(MMC3_cmd);
+        break;
       case 0x8003:
-	EXPREGS[5] = V;
-	// EXPREGS[7] = 0;
-	// FCEU_printf("prot: %02x\n",EXPREGS[5]);
-	Sync();
-	MMC3_CMDWrite(fc, 0x8000, V);
-	FixMMC3PRG(MMC3_cmd);
-	break;
+        EXPREGS[5] = V;
+        // EXPREGS[7] = 0;
+        // FCEU_printf("prot: %02x\n",EXPREGS[5]);
+        Sync();
+        MMC3_CMDWrite(fc, 0x8000, V);
+        FixMMC3PRG(MMC3_cmd);
+        break;
     }
   }
 

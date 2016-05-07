@@ -88,7 +88,7 @@ struct Mapper176 final : public CartInterface {
   }
 
   void M176Write_WriteSRAM(DECLFW_ARGS) {
-    //	if (we_sram)
+    //  if (we_sram)
     Cart::CartBW(DECLFW_FORWARD);
   }
 
@@ -142,7 +142,7 @@ struct Mapper176 final : public CartInterface {
     fc->cart->SetupCartPRGMapping(0x10, wram, WRAMSIZE, true);
     fc->state->AddExState(wram, WRAMSIZE, 0, "WRAM");
     fc->state->AddExVec({
-	{prg, 4, "PRG0"}, {&chr, 1, "CHR0"}, {&sbw, 1, "SBW0"}});
+        {prg, 4, "PRG0"}, {&chr, 1, "CHR0"}, {&sbw, 1, "SBW0"}});
   }
 
 };

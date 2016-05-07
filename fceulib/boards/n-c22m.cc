@@ -64,7 +64,7 @@ struct UNLCN22M final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((UNLCN22M*)fc->fceu->cartiface)->MCN22MWrite(DECLFW_FORWARD);
+        ((UNLCN22M*)fc->fceu->cartiface)->MCN22MWrite(DECLFW_FORWARD);
       });
   }
   /*

@@ -47,7 +47,7 @@ struct Ghostbusters final : public CartInterface {
   void BMCGhostbusters63in1Write(DECLFW_ARGS) {
     reg[A & 1] = V;
     bank = ((reg[0] & 0x80) >> 7) | ((reg[1] & 1) << 1);
-    //	FCEU_printf("reg[0]=%02x, reg[1]=%02x, bank=%02x\n",reg[0],reg[1],bank);
+    //  FCEU_printf("reg[0]=%02x, reg[1]=%02x, bank=%02x\n",reg[0],reg[1],bank);
     Sync();
   }
 
@@ -63,7 +63,7 @@ struct Ghostbusters final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, [](DECLFR_ARGS) {
       return ((Ghostbusters*)fc->fceu->cartiface)->
-	BMCGhostbusters63in1Read(DECLFR_FORWARD);
+        BMCGhostbusters63in1Read(DECLFR_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       ((Ghostbusters*)fc->fceu->cartiface)->BMCGhostbusters63in1Write(DECLFW_FORWARD);

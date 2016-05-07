@@ -57,7 +57,7 @@ struct Mapper225 final : public CartInterface {
     Sync();
     fc->fceu->SetReadHandler(0x5000, 0x5fff, [](DECLFR_ARGS) {
       return ((Mapper225*)fc->fceu->cartiface)->
-	M225LoRead(DECLFR_FORWARD);
+        M225LoRead(DECLFR_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x5000, 0x5fff, [](DECLFW_ARGS) {
       ((Mapper225*)fc->fceu->cartiface)->M225LoWrite(DECLFW_FORWARD);
@@ -81,8 +81,8 @@ struct Mapper225 final : public CartInterface {
   Mapper225(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&prg, 1, "PRG0"},
-			 {&chr, 1, "CHR0"}, {&mode, 1, "MODE"},
-			 {&mirr, 1, "MIRR"}});
+                         {&chr, 1, "CHR0"}, {&mode, 1, "MODE"},
+                         {&mirr, 1, "MIRR"}});
   }
 };
 }

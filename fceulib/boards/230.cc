@@ -36,10 +36,10 @@ struct Mapper230 final : public CartInterface {
     } else {
       uint32 bank = (latch & 0x1F) + 8;
       if (latch & 0x20) {
-	fc->cart->setprg16(0x8000, bank);
-	fc->cart->setprg16(0xC000, bank);
+        fc->cart->setprg16(0x8000, bank);
+        fc->cart->setprg16(0xC000, bank);
       } else {
-	fc->cart->setprg32(0x8000, bank >> 1);
+        fc->cart->setprg32(0x8000, bank >> 1);
       }
       fc->cart->setmirror((latch >> 6) & 1);
     }

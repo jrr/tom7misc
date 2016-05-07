@@ -33,13 +33,13 @@ struct MMC3 : public CartInterface {
 
   DECLFW_RET MMC3_CMDWrite_Direct(DECLFW_ARGS);
   DECLFW_RET MMC3_IRQWrite_Direct(DECLFW_ARGS);
-  
+
   int isRevB = 1;
-  
+
   uint8 *MMC3_WRAM = nullptr;
   uint8 *CHRRAM = nullptr;
   uint32 CHRRAMSize = 0;
-  
+
   uint8 irq_count = 0, irq_latch = 0, irq_a = 0;
   uint8 irq_reload = 0;
 

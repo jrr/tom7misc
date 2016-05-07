@@ -45,10 +45,10 @@ struct YokoBase : public CartInterface {
       fc->cart->setprg8(0xE000, 0x0f | base);
     } else {
       if (mode & 8) {
-	fc->cart->setprg32(0x8000, bank >> 1);
+        fc->cart->setprg32(0x8000, bank >> 1);
       } else {
-	fc->cart->setprg16(0x8000, bank);
-	fc->cart->setprg16(0xC000, ~0);
+        fc->cart->setprg16(0x8000, bank);
+        fc->cart->setprg16(0xC000, ~0);
       }
     }
   }
@@ -56,51 +56,51 @@ struct YokoBase : public CartInterface {
   void UNLYOKOWrite(DECLFW_ARGS) {
     switch (A & 0x8C17) {
       case 0x8000:
-	bank = V;
-	UNLYOKOSync();
-	break;
+        bank = V;
+        UNLYOKOSync();
+        break;
       case 0x8400:
-	mode = V;
-	UNLYOKOSync();
-	break;
+        mode = V;
+        UNLYOKOSync();
+        break;
       case 0x8800:
-	IRQCount &= 0xFF00;
-	IRQCount |= V;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQCount &= 0xFF00;
+        IRQCount |= V;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0x8801:
-	IRQa = mode & 0x80;
-	IRQCount &= 0xFF;
-	IRQCount |= V << 8;
-	break;
+        IRQa = mode & 0x80;
+        IRQCount &= 0xFF;
+        IRQCount |= V << 8;
+        break;
       case 0x8c00:
-	reg[0] = V;
-	UNLYOKOSync();
-	break;
+        reg[0] = V;
+        UNLYOKOSync();
+        break;
       case 0x8c01:
-	reg[1] = V;
-	UNLYOKOSync();
-	break;
+        reg[1] = V;
+        UNLYOKOSync();
+        break;
       case 0x8c02:
-	reg[2] = V;
-	UNLYOKOSync();
-	break;
+        reg[2] = V;
+        UNLYOKOSync();
+        break;
       case 0x8c10:
-	reg[3] = V;
-	UNLYOKOSync();
-	break;
+        reg[3] = V;
+        UNLYOKOSync();
+        break;
       case 0x8c11:
-	reg[4] = V;
-	UNLYOKOSync();
-	break;
+        reg[4] = V;
+        UNLYOKOSync();
+        break;
       case 0x8c16:
-	reg[5] = V;
-	UNLYOKOSync();
-	break;
+        reg[5] = V;
+        UNLYOKOSync();
+        break;
       case 0x8c17:
-	reg[6] = V;
-	UNLYOKOSync();
-	break;
+        reg[6] = V;
+        UNLYOKOSync();
+        break;
     }
   }
 
@@ -120,9 +120,9 @@ struct YokoBase : public CartInterface {
     if (IRQa) {
       IRQCount -= a;
       if (IRQCount < 0) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	IRQa = 0;
-	IRQCount = 0xFFFF;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
+        IRQCount = 0xFFFF;
       }
     }
   }
@@ -151,75 +151,75 @@ struct Mapper83 final : public YokoBase {
       case 0xB000:  // Dragon Ball Z Party [p1] BMC
       case 0xB0FF:  // Dragon Ball Z Party [p1] BMC
       case 0xB1FF:
-	bank = V;
-	mode |= 0x40;
-	M83Sync();
-	break;  // Dragon Ball Z Party [p1] BMC
+        bank = V;
+        mode |= 0x40;
+        M83Sync();
+        break;  // Dragon Ball Z Party [p1] BMC
       case 0x8100:
-	mode = V | (mode & 0x40);
-	M83Sync();
-	break;
+        mode = V | (mode & 0x40);
+        M83Sync();
+        break;
       case 0x8200:
-	IRQCount &= 0xFF00;
-	IRQCount |= V;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQCount &= 0xFF00;
+        IRQCount |= V;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 0x8201:
-	IRQa = mode & 0x80;
-	IRQCount &= 0xFF;
-	IRQCount |= V << 8;
-	break;
+        IRQa = mode & 0x80;
+        IRQCount &= 0xFF;
+        IRQCount |= V << 8;
+        break;
       case 0x8300:
-	reg[8] = V;
-	mode &= 0xBF;
-	M83Sync();
-	break;
+        reg[8] = V;
+        mode &= 0xBF;
+        M83Sync();
+        break;
       case 0x8301:
-	reg[9] = V;
-	mode &= 0xBF;
-	M83Sync();
-	break;
+        reg[9] = V;
+        mode &= 0xBF;
+        M83Sync();
+        break;
       case 0x8302:
-	reg[10] = V;
-	mode &= 0xBF;
-	M83Sync();
-	break;
+        reg[10] = V;
+        mode &= 0xBF;
+        M83Sync();
+        break;
       case 0x8310:
-	reg[0] = V;
-	M83Sync();
-	break;
+        reg[0] = V;
+        M83Sync();
+        break;
       case 0x8311:
-	reg[1] = V;
-	M83Sync();
-	break;
+        reg[1] = V;
+        M83Sync();
+        break;
       case 0x8312:
-	reg[2] = V;
-	isnot2kbank = 1;
-	M83Sync();
-	break;
+        reg[2] = V;
+        isnot2kbank = 1;
+        M83Sync();
+        break;
       case 0x8313:
-	reg[3] = V;
-	isnot2kbank = 1;
-	M83Sync();
-	break;
+        reg[3] = V;
+        isnot2kbank = 1;
+        M83Sync();
+        break;
       case 0x8314:
-	reg[4] = V;
-	isnot2kbank = 1;
-	M83Sync();
-	break;
+        reg[4] = V;
+        isnot2kbank = 1;
+        M83Sync();
+        break;
       case 0x8315:
-	reg[5] = V;
-	isnot2kbank = 1;
-	M83Sync();
-	break;
+        reg[5] = V;
+        isnot2kbank = 1;
+        M83Sync();
+        break;
       case 0x8316:
-	reg[6] = V;
-	M83Sync();
-	break;
+        reg[6] = V;
+        M83Sync();
+        break;
       case 0x8317:
-	reg[7] = V;
-	M83Sync();
-	break;
+        reg[7] = V;
+        M83Sync();
+        break;
     }
   }
 
@@ -231,11 +231,11 @@ struct Mapper83 final : public YokoBase {
     M83Sync();
     fc->fceu->SetReadHandler(0x5000, 0x5000, [](DECLFR_ARGS) {
       return ((Mapper83*)fc->fceu->cartiface)->
-	UNLYOKOReadDip(DECLFR_FORWARD);
+        UNLYOKOReadDip(DECLFR_FORWARD);
     });
     fc->fceu->SetReadHandler(0x5100, 0x5103, [](DECLFR_ARGS) {
       return ((Mapper83*)fc->fceu->cartiface)->
-	UNLYOKOReadLow(DECLFR_FORWARD);
+        UNLYOKOReadLow(DECLFR_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x5100, 0x5103, [](DECLFW_ARGS) {
       ((Mapper83*)fc->fceu->cartiface)->UNLYOKOWriteLow(DECLFW_FORWARD);
@@ -259,7 +259,7 @@ struct Mapper83 final : public YokoBase {
     free(WRAM);
     WRAM = nullptr;
   }
-  
+
   void M83Sync() {
     // check if it is truth
     switch (mode & 3) {
@@ -275,7 +275,7 @@ struct Mapper83 final : public YokoBase {
       fc->cart->setchr2(0x1800, reg[7]);
     } else {
       for (int x = 0; x < 8; x++)
-	fc->cart->setchr1(x << 10, reg[x] | ((bank & 0x30) << 4));
+        fc->cart->setchr1(x << 10, reg[x] | ((bank & 0x30) << 4));
     }
     fc->cart->setprg8r(0x10, 0x6000, 0);
     if (mode & 0x40) {
@@ -288,7 +288,7 @@ struct Mapper83 final : public YokoBase {
       fc->cart->setprg8(0xE000, ~0);
     }
   }
- 
+
   static void M83StateRestore(FC *fc, int version) {
     ((Mapper83 *)fc->fceu->cartiface)->M83Sync();
   }
@@ -309,11 +309,11 @@ struct Yoko final : public YokoBase {
     UNLYOKOSync();
     fc->fceu->SetReadHandler(0x5000, 0x53FF, [](DECLFR_ARGS) {
       return ((Yoko *)fc->fceu->cartiface)->
-	UNLYOKOReadDip(DECLFR_FORWARD);
+        UNLYOKOReadDip(DECLFR_FORWARD);
     });
     fc->fceu->SetReadHandler(0x5400, 0x5FFF, [](DECLFR_ARGS) {
       return ((Yoko*)fc->fceu->cartiface)->
-	UNLYOKOReadLow(DECLFR_FORWARD);
+        UNLYOKOReadLow(DECLFR_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x5400, 0x5FFF, [](DECLFW_ARGS) {
       ((Yoko*)fc->fceu->cartiface)->UNLYOKOWriteLow(DECLFW_FORWARD);
@@ -329,17 +329,17 @@ struct Yoko final : public YokoBase {
     mode = bank = 0;
     UNLYOKOSync();
   }
-  
+
   static void UNLYOKOStateRestore(FC *fc, int version) {
     ((Yoko *)fc->fceu->cartiface)->UNLYOKOSync();
   }
 
   Yoko(FC *fc, CartInfo *info) : YokoBase(fc, info) {
-    fc->fceu->GameStateRestore = UNLYOKOStateRestore;    
+    fc->fceu->GameStateRestore = UNLYOKOStateRestore;
   }
 };
 }
-  
+
 CartInterface *UNLYOKO_Init(FC *fc, CartInfo *info) {
   return new Yoko(fc, info);
 }

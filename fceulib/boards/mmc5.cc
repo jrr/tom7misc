@@ -65,8 +65,8 @@ static int DetectMMC5WRAMSize(uint32 crc32) {
   for (const CartData &cd : MMC5CartList) {
     if (crc32 == cd.crc32) {
       FCEU_printf(
-	  " >8KB external WRAM present.  Use UNIF if you hack the ROM "
-	  "image.\n");
+          " >8KB external WRAM present.  Use UNIF if you hack the ROM "
+          "image.\n");
       return cd.size * 8;
     }
   }
@@ -119,7 +119,7 @@ struct MMC5 final : public CartInterface {
 
   uint8 MMC5ROMWrProtect[4] = {};
   uint8 MMC5MemIn[5] = {};
-  
+
   void (MMC5::*sfun)(int P) = nullptr;
   void (MMC5::*psfun)() = nullptr;
 
@@ -127,7 +127,7 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask1[0];
       fc->cart->MMC5SPRVPage[(A) >> 10] =
-	  &fc->cart->CHRptr[0][(V) << 10] - (A);
+          &fc->cart->CHRptr[0][(V) << 10] - (A);
     }
   }
 
@@ -135,7 +135,7 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask1[0];
       fc->cart->MMC5BGVPage[(A) >> 10] =
-	  &fc->cart->CHRptr[0][(V) << 10] - (A);
+          &fc->cart->CHRptr[0][(V) << 10] - (A);
     }
   }
 
@@ -143,8 +143,8 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask2[0];
       fc->cart->MMC5SPRVPage[(A) >> 10] =
-	  fc->cart->MMC5SPRVPage[((A) >> 10) + 1] =
-	      &fc->cart->CHRptr[0][(V) << 11] - (A);
+          fc->cart->MMC5SPRVPage[((A) >> 10) + 1] =
+              &fc->cart->CHRptr[0][(V) << 11] - (A);
     }
   }
 
@@ -152,8 +152,8 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask2[0];
       fc->cart->MMC5BGVPage[(A) >> 10] =
-	  fc->cart->MMC5BGVPage[((A) >> 10) + 1] =
-	      &fc->cart->CHRptr[0][(V) << 11] - (A);
+          fc->cart->MMC5BGVPage[((A) >> 10) + 1] =
+              &fc->cart->CHRptr[0][(V) << 11] - (A);
     }
   }
 
@@ -161,10 +161,10 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask4[0];
       fc->cart->MMC5SPRVPage[(A) >> 10] =
-	  fc->cart->MMC5SPRVPage[((A) >> 10) + 1] =
-	      fc->cart->MMC5SPRVPage[((A) >> 10) + 2] =
-		  fc->cart->MMC5SPRVPage[((A) >> 10) + 3] =
-		      &fc->cart->CHRptr[0][(V) << 12] - (A);
+          fc->cart->MMC5SPRVPage[((A) >> 10) + 1] =
+              fc->cart->MMC5SPRVPage[((A) >> 10) + 2] =
+                  fc->cart->MMC5SPRVPage[((A) >> 10) + 3] =
+                      &fc->cart->CHRptr[0][(V) << 12] - (A);
     }
   }
 
@@ -172,10 +172,10 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask4[0];
       fc->cart->MMC5BGVPage[(A) >> 10] =
-	  fc->cart->MMC5BGVPage[((A) >> 10) + 1] =
-	      fc->cart->MMC5BGVPage[((A) >> 10) + 2] =
-		  fc->cart->MMC5BGVPage[((A) >> 10) + 3] =
-		      &fc->cart->CHRptr[0][(V) << 12] - (A);
+          fc->cart->MMC5BGVPage[((A) >> 10) + 1] =
+              fc->cart->MMC5BGVPage[((A) >> 10) + 2] =
+                  fc->cart->MMC5BGVPage[((A) >> 10) + 3] =
+                      &fc->cart->CHRptr[0][(V) << 12] - (A);
     }
   }
 
@@ -183,11 +183,11 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask8[0];
       fc->cart->MMC5SPRVPage[0] = fc->cart->MMC5SPRVPage[1] =
-	  fc->cart->MMC5SPRVPage[2] = fc->cart->MMC5SPRVPage[3] =
-	      fc->cart->MMC5SPRVPage[4] = fc->cart->MMC5SPRVPage[5] =
-		  fc->cart->MMC5SPRVPage[6] =
-		      fc->cart->MMC5SPRVPage[7] =
-			  &fc->cart->CHRptr[0][(V) << 13];
+          fc->cart->MMC5SPRVPage[2] = fc->cart->MMC5SPRVPage[3] =
+              fc->cart->MMC5SPRVPage[4] = fc->cart->MMC5SPRVPage[5] =
+                  fc->cart->MMC5SPRVPage[6] =
+                      fc->cart->MMC5SPRVPage[7] =
+                          &fc->cart->CHRptr[0][(V) << 13];
     }
   }
 
@@ -195,35 +195,35 @@ struct MMC5 final : public CartInterface {
     if (fc->cart->CHRptr[0]) {
       V &= fc->cart->CHRmask8[0];
       fc->cart->MMC5BGVPage[0] = fc->cart->MMC5BGVPage[1] =
-	  fc->cart->MMC5BGVPage[2] = fc->cart->MMC5BGVPage[3] =
-	      fc->cart->MMC5BGVPage[4] = fc->cart->MMC5BGVPage[5] =
-		  fc->cart->MMC5BGVPage[6] =
-		      fc->cart->MMC5BGVPage[7] =
-			  &fc->cart->CHRptr[0][(V) << 13];
+          fc->cart->MMC5BGVPage[2] = fc->cart->MMC5BGVPage[3] =
+              fc->cart->MMC5BGVPage[4] = fc->cart->MMC5BGVPage[5] =
+                  fc->cart->MMC5BGVPage[6] =
+                      fc->cart->MMC5BGVPage[7] =
+                          &fc->cart->CHRptr[0][(V) << 13];
     }
   }
 
   void BuildWRAMSizeTable() {
     for (int x = 0; x < 8; x++) {
       switch (MMC5WRAMsize) {
-	case 0: MMC5WRAMIndex[x] = 255; break;  // X,X,X,X,X,X,X,X
-	case 1: MMC5WRAMIndex[x] = (x > 3) ? 255 : 0; break;  // 0,0,0,0,X,X,X,X
-	case 2: MMC5WRAMIndex[x] = (x & 4) >> 2; break;  // 0,0,0,0,1,1,1,1
-	case 4:
-	  MMC5WRAMIndex[x] = (x > 3) ? 255 : (x & 3);
-	  break;  // 0,1,2,3,X,X,X,X
-	case 8:
-	  MMC5WRAMIndex[x] = x;
-	  break;  // 0,1,2,3,4,5,6,7,8
-	  // mbg 8/6/08 - i added this to support 64KB of wram
-	  // now, I have at least one example (laser invasion) which
-	  // actually uses size 1 but isnt in the crc list so, whereas
-	  // before my change on 8/4/08 we would have selected size 1, now
-	  // we select size 8 this means that we could have just introduced
-	  // an emulation bug, in case those games happened to address,
-	  // say, page 3. with size 1 that would resolve to [0] but in size
-	  // 8 it resolves to [3]. so, you know what to do if there are
-	  // problems.
+        case 0: MMC5WRAMIndex[x] = 255; break;  // X,X,X,X,X,X,X,X
+        case 1: MMC5WRAMIndex[x] = (x > 3) ? 255 : 0; break;  // 0,0,0,0,X,X,X,X
+        case 2: MMC5WRAMIndex[x] = (x & 4) >> 2; break;  // 0,0,0,0,1,1,1,1
+        case 4:
+          MMC5WRAMIndex[x] = (x > 3) ? 255 : (x & 3);
+          break;  // 0,1,2,3,X,X,X,X
+        case 8:
+          MMC5WRAMIndex[x] = x;
+          break;  // 0,1,2,3,4,5,6,7,8
+          // mbg 8/6/08 - i added this to support 64KB of wram
+          // now, I have at least one example (laser invasion) which
+          // actually uses size 1 but isnt in the crc list so, whereas
+          // before my change on 8/4/08 we would have selected size 1, now
+          // we select size 8 this means that we could have just introduced
+          // an emulation bug, in case those games happened to address,
+          // say, page 3. with size 1 that would resolve to [0] but in size
+          // 8 it resolves to [3]. so, you know what to do if there are
+          // problems.
       }
     }
   }
@@ -231,62 +231,62 @@ struct MMC5 final : public CartInterface {
   void MMC5CHRA() {
     switch (mmc5vsize & 3) {
       case 0:
-	fc->cart->setchr8(CHRBanksA[7]);
-	MMC5SPRVROM_BANK8(CHRBanksA[7]);
-	break;
+        fc->cart->setchr8(CHRBanksA[7]);
+        MMC5SPRVROM_BANK8(CHRBanksA[7]);
+        break;
       case 1:
-	fc->cart->setchr4(0x0000, CHRBanksA[3]);
-	fc->cart->setchr4(0x1000, CHRBanksA[7]);
-	MMC5SPRVROM_BANK4(0x0000, CHRBanksA[3]);
-	MMC5SPRVROM_BANK4(0x1000, CHRBanksA[7]);
-	break;
+        fc->cart->setchr4(0x0000, CHRBanksA[3]);
+        fc->cart->setchr4(0x1000, CHRBanksA[7]);
+        MMC5SPRVROM_BANK4(0x0000, CHRBanksA[3]);
+        MMC5SPRVROM_BANK4(0x1000, CHRBanksA[7]);
+        break;
       case 2:
-	fc->cart->setchr2(0x0000, CHRBanksA[1]);
-	fc->cart->setchr2(0x0800, CHRBanksA[3]);
-	fc->cart->setchr2(0x1000, CHRBanksA[5]);
-	fc->cart->setchr2(0x1800, CHRBanksA[7]);
-	MMC5SPRVROM_BANK2(0x0000, CHRBanksA[1]);
-	MMC5SPRVROM_BANK2(0x0800, CHRBanksA[3]);
-	MMC5SPRVROM_BANK2(0x1000, CHRBanksA[5]);
-	MMC5SPRVROM_BANK2(0x1800, CHRBanksA[7]);
-	break;
+        fc->cart->setchr2(0x0000, CHRBanksA[1]);
+        fc->cart->setchr2(0x0800, CHRBanksA[3]);
+        fc->cart->setchr2(0x1000, CHRBanksA[5]);
+        fc->cart->setchr2(0x1800, CHRBanksA[7]);
+        MMC5SPRVROM_BANK2(0x0000, CHRBanksA[1]);
+        MMC5SPRVROM_BANK2(0x0800, CHRBanksA[3]);
+        MMC5SPRVROM_BANK2(0x1000, CHRBanksA[5]);
+        MMC5SPRVROM_BANK2(0x1800, CHRBanksA[7]);
+        break;
       case 3:
-	for (int x = 0; x < 8; x++) {
-	  fc->cart->setchr1(x << 10, CHRBanksA[x]);
-	  MMC5SPRVROM_BANK1(x << 10, CHRBanksA[x]);
-	}
-	break;
+        for (int x = 0; x < 8; x++) {
+          fc->cart->setchr1(x << 10, CHRBanksA[x]);
+          MMC5SPRVROM_BANK1(x << 10, CHRBanksA[x]);
+        }
+        break;
     }
   }
 
   void MMC5CHRB() {
     switch (mmc5vsize & 3) {
       case 0:
-	fc->cart->setchr8(CHRBanksB[3]);
-	MMC5BGVROM_BANK8(CHRBanksB[3]);
-	break;
+        fc->cart->setchr8(CHRBanksB[3]);
+        MMC5BGVROM_BANK8(CHRBanksB[3]);
+        break;
       case 1:
-	fc->cart->setchr4(0x0000, CHRBanksB[3]);
-	fc->cart->setchr4(0x1000, CHRBanksB[3]);
-	MMC5BGVROM_BANK4(0x0000, CHRBanksB[3]);
-	MMC5BGVROM_BANK4(0x1000, CHRBanksB[3]);
-	break;
+        fc->cart->setchr4(0x0000, CHRBanksB[3]);
+        fc->cart->setchr4(0x1000, CHRBanksB[3]);
+        MMC5BGVROM_BANK4(0x0000, CHRBanksB[3]);
+        MMC5BGVROM_BANK4(0x1000, CHRBanksB[3]);
+        break;
       case 2:
-	fc->cart->setchr2(0x0000, CHRBanksB[1]);
-	fc->cart->setchr2(0x0800, CHRBanksB[3]);
-	fc->cart->setchr2(0x1000, CHRBanksB[1]);
-	fc->cart->setchr2(0x1800, CHRBanksB[3]);
-	MMC5BGVROM_BANK2(0x0000, CHRBanksB[1]);
-	MMC5BGVROM_BANK2(0x0800, CHRBanksB[3]);
-	MMC5BGVROM_BANK2(0x1000, CHRBanksB[1]);
-	MMC5BGVROM_BANK2(0x1800, CHRBanksB[3]);
-	break;
+        fc->cart->setchr2(0x0000, CHRBanksB[1]);
+        fc->cart->setchr2(0x0800, CHRBanksB[3]);
+        fc->cart->setchr2(0x1000, CHRBanksB[1]);
+        fc->cart->setchr2(0x1800, CHRBanksB[3]);
+        MMC5BGVROM_BANK2(0x0000, CHRBanksB[1]);
+        MMC5BGVROM_BANK2(0x0800, CHRBanksB[3]);
+        MMC5BGVROM_BANK2(0x1000, CHRBanksB[1]);
+        MMC5BGVROM_BANK2(0x1800, CHRBanksB[3]);
+        break;
       case 3:
-	for (int x = 0; x < 8; x++) {
-	  fc->cart->setchr1(x << 10, CHRBanksB[x & 3]);
-	  MMC5BGVROM_BANK1(x << 10, CHRBanksB[x & 3]);
-	}
-	break;
+        for (int x = 0; x < 8; x++) {
+          fc->cart->setchr1(x << 10, CHRBanksB[x & 3]);
+          MMC5BGVROM_BANK1(x << 10, CHRBanksB[x & 3]);
+        }
+        break;
     }
   }
 
@@ -304,62 +304,62 @@ struct MMC5 final : public CartInterface {
   void MMC5PRG() {
     switch (mmc5psize & 3) {
       case 0:
-	MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = MMC5ROMWrProtect[2] =
-	    MMC5ROMWrProtect[3] = 1;
-	fc->cart->setprg32(0x8000, ((PRGBanks[1] & 0x7F) >> 2));
-	for (int x = 0; x < 4; x++) MMC5MemIn[1 + x] = 1;
-	break;
+        MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = MMC5ROMWrProtect[2] =
+            MMC5ROMWrProtect[3] = 1;
+        fc->cart->setprg32(0x8000, ((PRGBanks[1] & 0x7F) >> 2));
+        for (int x = 0; x < 4; x++) MMC5MemIn[1 + x] = 1;
+        break;
       case 1:
-	if (PRGBanks[1] & 0x80) {
-	  MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 1;
-	  fc->cart->setprg16(0x8000, (PRGBanks[1] >> 1));
-	  MMC5MemIn[1] = MMC5MemIn[2] = 1;
-	} else {
-	  MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 0;
-	  MMC5WRAM(0x8000, PRGBanks[1] & 7 & 0xFE);
-	  MMC5WRAM(0xA000, (PRGBanks[1] & 7 & 0xFE) + 1);
-	}
-	MMC5MemIn[3] = MMC5MemIn[4] = 1;
-	MMC5ROMWrProtect[2] = MMC5ROMWrProtect[3] = 1;
-	fc->cart->setprg16(0xC000, (PRGBanks[3] & 0x7F) >> 1);
-	break;
+        if (PRGBanks[1] & 0x80) {
+          MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 1;
+          fc->cart->setprg16(0x8000, (PRGBanks[1] >> 1));
+          MMC5MemIn[1] = MMC5MemIn[2] = 1;
+        } else {
+          MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 0;
+          MMC5WRAM(0x8000, PRGBanks[1] & 7 & 0xFE);
+          MMC5WRAM(0xA000, (PRGBanks[1] & 7 & 0xFE) + 1);
+        }
+        MMC5MemIn[3] = MMC5MemIn[4] = 1;
+        MMC5ROMWrProtect[2] = MMC5ROMWrProtect[3] = 1;
+        fc->cart->setprg16(0xC000, (PRGBanks[3] & 0x7F) >> 1);
+        break;
       case 2:
-	if (PRGBanks[1] & 0x80) {
-	  MMC5MemIn[1] = MMC5MemIn[2] = 1;
-	  MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 1;
-	  fc->cart->setprg16(0x8000, (PRGBanks[1] & 0x7F) >> 1);
-	} else {
-	  MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 0;
-	  MMC5WRAM(0x8000, PRGBanks[1] & 7 & 0xFE);
-	  MMC5WRAM(0xA000, (PRGBanks[1] & 7 & 0xFE) + 1);
-	}
-	if (PRGBanks[2] & 0x80) {
-	  MMC5ROMWrProtect[2] = 1;
-	  MMC5MemIn[3] = 1;
-	  fc->cart->setprg8(0xC000, PRGBanks[2] & 0x7F);
-	} else {
-	  MMC5ROMWrProtect[2] = 0;
-	  MMC5WRAM(0xC000, PRGBanks[2] & 7);
-	}
-	MMC5MemIn[4] = 1;
-	MMC5ROMWrProtect[3] = 1;
-	fc->cart->setprg8(0xE000, PRGBanks[3] & 0x7F);
-	break;
+        if (PRGBanks[1] & 0x80) {
+          MMC5MemIn[1] = MMC5MemIn[2] = 1;
+          MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 1;
+          fc->cart->setprg16(0x8000, (PRGBanks[1] & 0x7F) >> 1);
+        } else {
+          MMC5ROMWrProtect[0] = MMC5ROMWrProtect[1] = 0;
+          MMC5WRAM(0x8000, PRGBanks[1] & 7 & 0xFE);
+          MMC5WRAM(0xA000, (PRGBanks[1] & 7 & 0xFE) + 1);
+        }
+        if (PRGBanks[2] & 0x80) {
+          MMC5ROMWrProtect[2] = 1;
+          MMC5MemIn[3] = 1;
+          fc->cart->setprg8(0xC000, PRGBanks[2] & 0x7F);
+        } else {
+          MMC5ROMWrProtect[2] = 0;
+          MMC5WRAM(0xC000, PRGBanks[2] & 7);
+        }
+        MMC5MemIn[4] = 1;
+        MMC5ROMWrProtect[3] = 1;
+        fc->cart->setprg8(0xE000, PRGBanks[3] & 0x7F);
+        break;
       case 3:
-	for (int x = 0; x < 3; x++) {
-	  if (PRGBanks[x] & 0x80) {
-	    MMC5ROMWrProtect[x] = 1;
-	    fc->cart->setprg8(0x8000 + (x << 13), PRGBanks[x] & 0x7F);
-	    MMC5MemIn[1 + x] = 1;
-	  } else {
-	    MMC5ROMWrProtect[x] = 0;
-	    MMC5WRAM(0x8000 + (x << 13), PRGBanks[x] & 7);
-	  }
-	}
-	MMC5MemIn[4] = 1;
-	MMC5ROMWrProtect[3] = 1;
-	fc->cart->setprg8(0xE000, PRGBanks[3] & 0x7F);
-	break;
+        for (int x = 0; x < 3; x++) {
+          if (PRGBanks[x] & 0x80) {
+            MMC5ROMWrProtect[x] = 1;
+            fc->cart->setprg8(0x8000 + (x << 13), PRGBanks[x] & 0x7F);
+            MMC5MemIn[1 + x] = 1;
+          } else {
+            MMC5ROMWrProtect[x] = 0;
+            MMC5WRAM(0x8000 + (x << 13), PRGBanks[x] & 7);
+          }
+        }
+        MMC5MemIn[4] = 1;
+        MMC5ROMWrProtect[3] = 1;
+        fc->cart->setprg8(0xE000, PRGBanks[3] & 0x7F);
+        break;
     }
   }
 
@@ -373,100 +373,100 @@ struct MMC5 final : public CartInterface {
       MMC5CHRA();
     } else {
       switch (A) {
-	case 0x5105: {
-	  for (int x = 0; x < 4; x++) {
-	    switch ((V >> (x << 1)) & 3) {
-	      case 0:
-		fc->ppu->PPUNTARAM |= 1 << x;
-		fc->ppu->vnapage[x] = fc->ppu->NTARAM;
-		break;
-	      case 1:
-		fc->ppu->PPUNTARAM |= 1 << x;
-		fc->ppu->vnapage[x] = fc->ppu->NTARAM + 0x400;
-		break;
-	      case 2:
-		fc->ppu->PPUNTARAM |= 1 << x;
-		fc->ppu->vnapage[x] = ExRAM;
-		break;
-	      case 3:
-		fc->ppu->PPUNTARAM &= ~(1 << x);
-		fc->ppu->vnapage[x] = MMC5fill;
-		break;
-	    }
-	  }
-	  NTAMirroring = V;
-	  break;
-	}
-	case 0x5113:
-	  WRAMPage = V;
-	  MMC5WRAM(0x6000, V & 7);
-	  break;
-	case 0x5100:
-	  mmc5psize = V;
-	  MMC5PRG();
-	  break;
-	case 0x5101:
-	  mmc5vsize = V;
-	  if (!fc->ppu->mmc5ABMode) {
-	    MMC5CHRB();
-	    MMC5CHRA();
-	  } else {
-	    MMC5CHRA();
-	    MMC5CHRB();
-	  }
-	  break;
-	case 0x5114:
-	case 0x5115:
-	case 0x5116:
-	case 0x5117:
-	  PRGBanks[A & 3] = V;
-	  MMC5PRG();
-	  break;
-	case 0x5128:
-	case 0x5129:
-	case 0x512a:
-	case 0x512b:
-	  fc->ppu->mmc5ABMode = 1;
-	  CHRBanksB[A & 3] = V;
-	  MMC5CHRB();
-	  break;
-	case 0x5102: WRAMMaskEnable[0] = V; break;
-	case 0x5103: WRAMMaskEnable[1] = V; break;
-	case 0x5104:
-	  CHRMode = V;
-	  fc->ppu->MMC5HackCHRMode = V & 3;
-	  break;
-	case 0x5106:
-	  if (V != NTFill) {
-	    uint32 t = V | (V << 8) | (V << 16) | (V << 24);
-	    FCEU_dwmemset(MMC5fill, t, 0x3c0);
-	  }
-	  NTFill = V;
-	  break;
-	case 0x5107:
-	  if (V != ATFill) {
-	    unsigned char moop;
-	    uint32 t;
-	    moop = V | (V << 2) | (V << 4) | (V << 6);
-	    t = moop | (moop << 8) | (moop << 16) | (moop << 24);
-	    FCEU_dwmemset(MMC5fill + 0x3c0, t, 0x40);
-	  }
-	  ATFill = V;
-	  break;
-	case 0x5130: fc->ppu->MMC50x5130 = V; break;
-	case 0x5200: fc->ppu->MMC5HackSPMode = V; break;
-	case 0x5201: fc->ppu->MMC5HackSPScroll = (V >> 3) & 0x1F; break;
-	case 0x5202: fc->ppu->MMC5HackSPPage = V & 0x3F; break;
-	case 0x5203:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQScanline = V;
-	  break;
-	case 0x5204:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQEnable = V & 0x80;
-	  break;
-	case 0x5205: mul[0] = V; break;
-	case 0x5206: mul[1] = V; break;
+        case 0x5105: {
+          for (int x = 0; x < 4; x++) {
+            switch ((V >> (x << 1)) & 3) {
+              case 0:
+                fc->ppu->PPUNTARAM |= 1 << x;
+                fc->ppu->vnapage[x] = fc->ppu->NTARAM;
+                break;
+              case 1:
+                fc->ppu->PPUNTARAM |= 1 << x;
+                fc->ppu->vnapage[x] = fc->ppu->NTARAM + 0x400;
+                break;
+              case 2:
+                fc->ppu->PPUNTARAM |= 1 << x;
+                fc->ppu->vnapage[x] = ExRAM;
+                break;
+              case 3:
+                fc->ppu->PPUNTARAM &= ~(1 << x);
+                fc->ppu->vnapage[x] = MMC5fill;
+                break;
+            }
+          }
+          NTAMirroring = V;
+          break;
+        }
+        case 0x5113:
+          WRAMPage = V;
+          MMC5WRAM(0x6000, V & 7);
+          break;
+        case 0x5100:
+          mmc5psize = V;
+          MMC5PRG();
+          break;
+        case 0x5101:
+          mmc5vsize = V;
+          if (!fc->ppu->mmc5ABMode) {
+            MMC5CHRB();
+            MMC5CHRA();
+          } else {
+            MMC5CHRA();
+            MMC5CHRB();
+          }
+          break;
+        case 0x5114:
+        case 0x5115:
+        case 0x5116:
+        case 0x5117:
+          PRGBanks[A & 3] = V;
+          MMC5PRG();
+          break;
+        case 0x5128:
+        case 0x5129:
+        case 0x512a:
+        case 0x512b:
+          fc->ppu->mmc5ABMode = 1;
+          CHRBanksB[A & 3] = V;
+          MMC5CHRB();
+          break;
+        case 0x5102: WRAMMaskEnable[0] = V; break;
+        case 0x5103: WRAMMaskEnable[1] = V; break;
+        case 0x5104:
+          CHRMode = V;
+          fc->ppu->MMC5HackCHRMode = V & 3;
+          break;
+        case 0x5106:
+          if (V != NTFill) {
+            uint32 t = V | (V << 8) | (V << 16) | (V << 24);
+            FCEU_dwmemset(MMC5fill, t, 0x3c0);
+          }
+          NTFill = V;
+          break;
+        case 0x5107:
+          if (V != ATFill) {
+            unsigned char moop;
+            uint32 t;
+            moop = V | (V << 2) | (V << 4) | (V << 6);
+            t = moop | (moop << 8) | (moop << 16) | (moop << 24);
+            FCEU_dwmemset(MMC5fill + 0x3c0, t, 0x40);
+          }
+          ATFill = V;
+          break;
+        case 0x5130: fc->ppu->MMC50x5130 = V; break;
+        case 0x5200: fc->ppu->MMC5HackSPMode = V; break;
+        case 0x5201: fc->ppu->MMC5HackSPScroll = (V >> 3) & 0x1F; break;
+        case 0x5202: fc->ppu->MMC5HackSPPage = V & 0x3F; break;
+        case 0x5203:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQScanline = V;
+          break;
+        case 0x5204:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQEnable = V & 0x80;
+          break;
+        case 0x5205: mul[0] = V; break;
+        case 0x5206: mul[1] = V; break;
       }
     }
   }
@@ -483,7 +483,7 @@ struct MMC5 final : public CartInterface {
       if (MMC5ROMWrProtect[(A - 0x8000) >> 13]) return;
     if (MMC5MemIn[(A - 0x6000) >> 13])
       if (((WRAMMaskEnable[0] & 3) | ((WRAMMaskEnable[1] & 3) << 2)) == 6)
-	fc->cart->Page[A >> 11][A] = V;
+        fc->cart->Page[A >> 11][A] = V;
   }
 
   void MMC5_ExRAMWr(DECLFW_ARGS) {
@@ -502,12 +502,12 @@ struct MMC5 final : public CartInterface {
     TRACEF("MMC5_read %d %02x %02x", A, mul[0], mul[1]);
     switch (A) {
       case 0x5204: {
-	fc->X->IRQEnd(FCEU_IQEXT);
+        fc->X->IRQEnd(FCEU_IQEXT);
 
-	uint8 x = MMC5IRQR;
+        uint8 x = MMC5IRQR;
 
-	MMC5IRQR &= 0x40;
-	return x;
+        MMC5IRQR &= 0x40;
+        return x;
       }
       case 0x5205: return (mul[0] * mul[1]);
       case 0x5206: return ((mul[0] * mul[1]) >> 8);
@@ -519,22 +519,22 @@ struct MMC5 final : public CartInterface {
     MMC5PRG();
     for (int x = 0; x < 4; x++) {
       switch ((NTAMirroring >> (x << 1)) & 3) {
-	case 0:
-	  fc->ppu->PPUNTARAM |= 1 << x;
-	  fc->ppu->vnapage[x] = fc->ppu->NTARAM;
-	  break;
-	case 1:
-	  fc->ppu->PPUNTARAM |= 1 << x;
-	  fc->ppu->vnapage[x] = fc->ppu->NTARAM + 0x400;
-	  break;
-	case 2:
-	  fc->ppu->PPUNTARAM |= 1 << x;
-	  fc->ppu->vnapage[x] = ExRAM;
-	  break;
-	case 3:
-	  fc->ppu->PPUNTARAM &= ~(1 << x);
-	  fc->ppu->vnapage[x] = MMC5fill;
-	  break;
+        case 0:
+          fc->ppu->PPUNTARAM |= 1 << x;
+          fc->ppu->vnapage[x] = fc->ppu->NTARAM;
+          break;
+        case 1:
+          fc->ppu->PPUNTARAM |= 1 << x;
+          fc->ppu->vnapage[x] = fc->ppu->NTARAM + 0x400;
+          break;
+        case 2:
+          fc->ppu->PPUNTARAM |= 1 << x;
+          fc->ppu->vnapage[x] = ExRAM;
+          break;
+        case 3:
+          fc->ppu->PPUNTARAM &= ~(1 << x);
+          fc->ppu->vnapage[x] = MMC5fill;
+          break;
       }
     }
     MMC5WRAM(0x6000, WRAMPage & 7);
@@ -553,7 +553,7 @@ struct MMC5 final : public CartInterface {
 
     {
       unsigned char moop =
-	ATFill | (ATFill << 2) | (ATFill << 4) | (ATFill << 6);
+        ATFill | (ATFill << 2) | (ATFill << 4) | (ATFill << 6);
       uint32 t = moop | (moop << 8) | (moop << 16) | (moop << 24);
       FCEU_dwmemset(MMC5fill + 0x3c0, t, 0x40);
     }
@@ -572,10 +572,10 @@ struct MMC5 final : public CartInterface {
     }
     if (MMC5LineCounter < 240) {
       if (MMC5LineCounter == IRQScanline) {
-	MMC5IRQR |= 0x80;
-	if (IRQEnable & 0x80) {
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	}
+        MMC5IRQR |= 0x80;
+        if (IRQEnable & 0x80) {
+          fc->X->IRQBegin(FCEU_IQEXT);
+        }
       }
       MMC5LineCounter++;
     }
@@ -599,14 +599,14 @@ struct MMC5 final : public CartInterface {
 
     if (!(MMC5Sound.rawcontrol & 0x40) && MMC5Sound.raw)
       for (V = start; V < end; V++)
-	fc->sound->Wave[V >> 4] += MMC5Sound.raw << 1;
+        fc->sound->Wave[V >> 4] += MMC5Sound.raw << 1;
   }
 
   void Do5PCMHQ() {
     uint32 V;  // mbg merge 7/17/06 made uint32
     if (!(MMC5Sound.rawcontrol & 0x40) && MMC5Sound.raw)
       for (V = MMC5Sound.BC[2]; V < fc->sound->SoundTS(); V++)
-	fc->sound->WaveHi[V] += MMC5Sound.raw << 5;
+        fc->sound->WaveHi[V] += MMC5Sound.raw << 5;
     MMC5Sound.BC[2] = fc->sound->SoundTS();
   }
 
@@ -622,42 +622,42 @@ struct MMC5 final : public CartInterface {
 
     switch (A) {
       case 0x10:
-	if (psfun != nullptr) (this->*psfun)();
-	MMC5Sound.rawcontrol = V;
-	break;
+        if (psfun != nullptr) (this->*psfun)();
+        MMC5Sound.rawcontrol = V;
+        break;
       case 0x11:
-	if (psfun != nullptr) (this->*psfun)();
-	MMC5Sound.raw = V;
-	break;
+        if (psfun != nullptr) (this->*psfun)();
+        MMC5Sound.raw = V;
+        break;
 
       case 0x0:
       case 0x4:
-	// printf("%04x:$%02x\n",A,V&0x30);
-	if (sfun != nullptr) (this->*sfun)(A >> 2);
-	MMC5Sound.env[A >> 2] = V;
-	break;
+        // printf("%04x:$%02x\n",A,V&0x30);
+        if (sfun != nullptr) (this->*sfun)(A >> 2);
+        MMC5Sound.env[A >> 2] = V;
+        break;
       case 0x2:
       case 0x6:
-	if (sfun != nullptr) (this->*sfun)(A >> 2);
-	MMC5Sound.wl[A >> 2] &= ~0x00FF;
-	MMC5Sound.wl[A >> 2] |= V & 0xFF;
-	break;
+        if (sfun != nullptr) (this->*sfun)(A >> 2);
+        MMC5Sound.wl[A >> 2] &= ~0x00FF;
+        MMC5Sound.wl[A >> 2] |= V & 0xFF;
+        break;
       case 0x3:
       case 0x7:
-	// printf("%04x:$%02x\n",A,V>>3);
-	MMC5Sound.wl[A >> 2] &= ~0x0700;
-	MMC5Sound.wl[A >> 2] |= (V & 0x07) << 8;
-	MMC5Sound.running |= 1 << (A >> 2);
-	break;
+        // printf("%04x:$%02x\n",A,V>>3);
+        MMC5Sound.wl[A >> 2] &= ~0x0700;
+        MMC5Sound.wl[A >> 2] |= (V & 0x07) << 8;
+        MMC5Sound.running |= 1 << (A >> 2);
+        break;
       case 0x15:
-	if (sfun != nullptr) {
-	  (this->*sfun)(0);
-	  (this->*sfun)(1);
-	}
-	MMC5Sound.running &= V;
-	MMC5Sound.enable = V;
-	// printf("%02x\n",V);
-	break;
+        if (sfun != nullptr) {
+          (this->*sfun)(0);
+          (this->*sfun)(1);
+        }
+        MMC5Sound.running &= V;
+        MMC5Sound.enable = V;
+        // printf("%02x\n",V);
+        break;
     }
   }
 
@@ -679,12 +679,12 @@ struct MMC5 final : public CartInterface {
       int vc = MMC5Sound.vcount[P];
 
       for (int32 V = start; V < end; V++) {
-	if (dc < rthresh) fc->sound->Wave[V >> 4] += amp;
-	vc -= fc->sound->nesincsize;
-	while (vc <= 0) {
-	  vc += wl;
-	  dc = (dc + 1) & 7;
-	}
+        if (dc < rthresh) fc->sound->Wave[V >> 4] += amp;
+        vc -= fc->sound->nesincsize;
+        while (vc <= 0) {
+          vc += wl;
+          dc = (dc + 1) & 7;
+        }
       }
       MMC5Sound.dcount[P] = dc;
       MMC5Sound.vcount[P] = vc;
@@ -704,13 +704,13 @@ struct MMC5 final : public CartInterface {
       int dc = MMC5Sound.dcount[P];
       int vc = MMC5Sound.vcount[P];
       for (uint32 V = MMC5Sound.BC[P]; V < fc->sound->SoundTS(); V++) {
-	if (dc < rthresh) fc->sound->WaveHi[V] += amp;
-	vc--;
-	if (vc <= 0) {
-	  // Less than zero when first started.
-	  vc = wl;
-	  dc = (dc + 1) & 7;
-	}
+        if (dc < rthresh) fc->sound->WaveHi[V] += amp;
+        vc--;
+        if (vc <= 0) {
+          // Less than zero when first started.
+          vc = wl;
+          dc = (dc + 1) & 7;
+        }
       }
       MMC5Sound.dcount[P] = dc;
       MMC5Sound.vcount[P] = vc;
@@ -742,11 +742,11 @@ struct MMC5 final : public CartInterface {
     };
     if (FCEUS_SNDRATE) {
       if (FCEUS_SOUNDQ >= 1) {
-	sfun = &MMC5::Do5SQHQ;
-	psfun = &MMC5::Do5PCMHQ;
+        sfun = &MMC5::Do5SQHQ;
+        psfun = &MMC5::Do5PCMHQ;
       } else {
-	sfun = &MMC5::Do5SQ;
-	psfun = &MMC5::Do5PCM;
+        sfun = &MMC5::Do5SQ;
+        psfun = &MMC5::Do5PCM;
       }
     } else {
       sfun = 0;
@@ -823,29 +823,29 @@ struct MMC5 final : public CartInterface {
     ExRAM = (uint8 *)FCEU_gmalloc(1024);
 
     fc->state->AddExVec({
-	{PRGBanks, 4, "PRGB"},
-	{CHRBanksA, 16, "CHRA"},
-	{CHRBanksB, 8, "CHRB"},
-	{&WRAMPage, 1, "WRMP"},
-	{WRAMMaskEnable, 2, "WRME"},
-	{&IRQScanline, 1, "IRQS"},
-	{&IRQEnable, 1, "IRQE"},
-	{&CHRMode, 1, "CHRM"},
-	{&NTAMirroring, 1, "NTAM"},
-	{&NTFill, 1, "NTFL"},
-	{&ATFill, 1, "ATFL"},
-	{&MMC5Sound.wl[0], 2 | FCEUSTATE_RLSB, "SDW0"},
-	{&MMC5Sound.wl[1], 2 | FCEUSTATE_RLSB, "SDW1"},
-	{MMC5Sound.env, 2, "SDEV"},
-	{&MMC5Sound.enable, 1, "SDEN"},
-	{&MMC5Sound.running, 1, "SDRU"},
-	{&MMC5Sound.raw, 1, "SDRW"},
-	{&MMC5Sound.rawcontrol, 1, "SDRC"},
+        {PRGBanks, 4, "PRGB"},
+        {CHRBanksA, 16, "CHRA"},
+        {CHRBanksB, 8, "CHRB"},
+        {&WRAMPage, 1, "WRMP"},
+        {WRAMMaskEnable, 2, "WRME"},
+        {&IRQScanline, 1, "IRQS"},
+        {&IRQEnable, 1, "IRQE"},
+        {&CHRMode, 1, "CHRM"},
+        {&NTAMirroring, 1, "NTAM"},
+        {&NTFill, 1, "NTFL"},
+        {&ATFill, 1, "ATFL"},
+        {&MMC5Sound.wl[0], 2 | FCEUSTATE_RLSB, "SDW0"},
+        {&MMC5Sound.wl[1], 2 | FCEUSTATE_RLSB, "SDW1"},
+        {MMC5Sound.env, 2, "SDEV"},
+        {&MMC5Sound.enable, 1, "SDEN"},
+        {&MMC5Sound.running, 1, "SDRU"},
+        {&MMC5Sound.raw, 1, "SDRW"},
+        {&MMC5Sound.rawcontrol, 1, "SDRC"},
         // Added by tom7 due to savestate divergence in Bandit Kings.
-	{&mul, 2, "5mul"},
-	// And Castlevania III.
-	{&MMC5LineCounter, 1, "5lic"},
-	{&MMC5IRQR, 1, "5irq"}});
+        {&mul, 2, "5mul"},
+        // And Castlevania III.
+        {&MMC5LineCounter, 1, "5lic"},
+        {&MMC5IRQR, 1, "5irq"}});
 
     fc->state->AddExState(WRAM, wsize * 1024, 0, "WRAM");
     fc->state->AddExState(ExRAM, 1024, 0, "ERAM");
@@ -863,9 +863,9 @@ struct MMC5 final : public CartInterface {
     if (battery) {
       info->SaveGame[0] = WRAM;
       if (wsize <= 16)
-	info->SaveGameLen[0] = 8192;
+        info->SaveGameLen[0] = 8192;
       else
-	info->SaveGameLen[0] = 32768;
+        info->SaveGameLen[0] = 32768;
     }
 
     fc->ppu->MMC5HackVROMMask = fc->cart->CHRmask4[0];

@@ -39,36 +39,36 @@ struct UNLKS7032 final : public CartInterface {
     switch (A & 0xF000) {
       //    case 0x8FFF: reg[4]=V; Sync(); break;
       case 0x8000:
-	fc->X->IRQEnd(FCEU_IQEXT);
-	IRQCount = (IRQCount & 0x000F) | (V & 0x0F);
-	isirqused = 1;
-	break;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        IRQCount = (IRQCount & 0x000F) | (V & 0x0F);
+        isirqused = 1;
+        break;
       case 0x9000:
-	fc->X->IRQEnd(FCEU_IQEXT);
-	IRQCount = (IRQCount & 0x00F0) | ((V & 0x0F) << 4);
-	isirqused = 1;
-	break;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        IRQCount = (IRQCount & 0x00F0) | ((V & 0x0F) << 4);
+        isirqused = 1;
+        break;
       case 0xA000:
-	fc->X->IRQEnd(FCEU_IQEXT);
-	IRQCount = (IRQCount & 0x0F00) | ((V & 0x0F) << 8);
-	isirqused = 1;
-	break;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        IRQCount = (IRQCount & 0x0F00) | ((V & 0x0F) << 8);
+        isirqused = 1;
+        break;
       case 0xB000:
-	fc->X->IRQEnd(FCEU_IQEXT);
-	IRQCount = (IRQCount & 0xF000) | (V << 12);
-	isirqused = 1;
-	break;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        IRQCount = (IRQCount & 0xF000) | (V << 12);
+        isirqused = 1;
+        break;
       case 0xC000:
-	if (isirqused) {
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQa = 1;
-	}
-	break;
+        if (isirqused) {
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQa = 1;
+        }
+        break;
       case 0xE000: cmd = V & 7; break;
       case 0xF000:
-	reg[cmd] = V;
-	Sync();
-	break;
+        reg[cmd] = V;
+        Sync();
+        break;
     }
   }
 
@@ -76,9 +76,9 @@ struct UNLKS7032 final : public CartInterface {
     if (IRQa) {
       IRQCount += a;
       if (IRQCount >= 0xFFFF) {
-	IRQa = 0;
-	IRQCount = 0;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
+        IRQCount = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -102,9 +102,9 @@ struct UNLKS7032 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&cmd, 1, "CMD0"},
-	                 {reg, 8, "REGS"},
-			 {&IRQa, 1, "IRQA"},
-			 {&IRQCount, 4, "IRQC"}});
+                         {reg, 8, "REGS"},
+                         {&IRQa, 1, "IRQA"},
+                         {&IRQCount, 4, "IRQC"}});
   }
 
 };

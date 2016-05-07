@@ -37,7 +37,7 @@ struct InputC {
   // your logical state from user input devices
   virtual void Update(int w, void *data, int arg) {}
   virtual void SLHook(int w, uint8 *bg, uint8 *spr,
-		      uint32 linets, int final) {}
+                      uint32 linets, int final) {}
   virtual void Draw(int w, uint8 *buf, int arg) {}
 
   // XXX Kill? -tom7
@@ -45,7 +45,7 @@ struct InputC {
   virtual void Load(int w, MovieRecord *mr) {}
 
   virtual ~InputC() {}
-  
+
  protected:
   FC *fc = nullptr;
 };
@@ -89,7 +89,7 @@ struct FCPORT {
 struct Input {
   Input(FC *fc);
   ~Input();
-  
+
   FCPORT portFC;
 
   void FCEUI_ResetNES();
@@ -152,7 +152,7 @@ struct Input {
   // HACK - should be static but movie needs it (still? -tom7)
   uint8 joy[4] = {0, 0, 0, 0};
   uint8 LastStrobe = 0;
- 
+
   // set to true if the fourscore is attached
   bool FSAttached = false;
 

@@ -36,9 +36,9 @@ struct FDS {
   uint8 FDSRegs[6] = {0};
   int32 IRQLatch = 0, IRQCount = 0;
   uint8 IRQa = 0;
-  
+
   void HQSync(int32 ts);
-    
+
   void FDSInit();
   void FDSClose();
   void FDSSound(int);
@@ -51,7 +51,7 @@ struct FDS {
   void FDSFix(int a);
   void FDSStateRestore(int version);
   void FDSGI(GI h);
-  
+
   int32 FDSDoSound();
   void ClockRise();
   void ClockFall();

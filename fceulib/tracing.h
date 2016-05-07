@@ -34,17 +34,17 @@ extern Traces fceulib__traces;
 // Note that this creates a decl, so it should not be used as a single
 // statement. After all, the whole point is to denote the scope of the
 // auto variable.
-#define TRACE_SCOPED_ENABLE_IF(cond)				\
-  struct FceuScopedTrace {					\
-    FceuScopedTrace() : old(fceulib__traces.IsEnabled()) { }	\
-    ~FceuScopedTrace() { fceulib__traces.SetEnabled(old); }	\
+#define TRACE_SCOPED_ENABLE_IF(cond)                            \
+  struct FceuScopedTrace {                                      \
+    FceuScopedTrace() : old(fceulib__traces.IsEnabled()) { }    \
+    ~FceuScopedTrace() { fceulib__traces.SetEnabled(old); }     \
   private: bool old; } fceu_scoped_trace_instance;              \
-  fceulib__traces.SetEnabled((cond))      
+  fceulib__traces.SetEnabled((cond))
 
-#define TRACECALL()							\
-  struct FceuScopedTraceCall {						\
+#define TRACECALL()                                                     \
+  struct FceuScopedTraceCall {                                          \
     FceuScopedTraceCall(const char *f) : f(f) { TRACEF("%s called", f); } \
-    ~FceuScopedTraceCall() { TRACEF("%s finished", f); }		\
+    ~FceuScopedTraceCall() { TRACEF("%s finished", f); }                \
     private: const char *f; } fceu_scoped_trace_call(__func__)
 
 #else
@@ -59,7 +59,7 @@ extern Traces fceulib__traces;
 #define TRACE_DISABLE() do { } while (0)
 #define TRACE_SWITCH(s) do { } while (0)
 #define TRACE_SCOPED_ENABLE_IF(cond) struct S { } fceu_scoped_trace_instance; \
-  (void)fceu_scoped_trace_instance;				   	      \
+  (void)fceu_scoped_trace_instance;                                           \
   do { } while (0)
 
 #define TRACECALL() struct SC { } fceu_scoped_trace_call; (void)fceu_scoped_trace_call

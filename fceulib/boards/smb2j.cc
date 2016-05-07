@@ -55,7 +55,7 @@ struct UNLSMB2J final : public CartInterface {
     fc->fceu->SetReadHandler(0x5000, 0x7FFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x4020, 0xffff, [](DECLFW_ARGS) {
-	((UNLSMB2J*)fc->fceu->cartiface)->UNLSMB2JWrite(DECLFW_FORWARD);
+        ((UNLSMB2J*)fc->fceu->cartiface)->UNLSMB2JWrite(DECLFW_FORWARD);
       });
   }
 
@@ -81,7 +81,7 @@ struct UNLSMB2J final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{&prg, 1, "PRG0"}, {&IRQa, 1, "IRQA"}, {&IRQCount, 2, "IRQC"}});
+        {&prg, 1, "PRG0"}, {&IRQa, 1, "IRQA"}, {&IRQCount, 2, "IRQC"}});
   }
 };
 }

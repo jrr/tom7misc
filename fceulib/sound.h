@@ -30,7 +30,7 @@
 
 struct EXPSOUND {
   void (*Fill)(FC *fc, int Count) = nullptr; /* Low quality ext sound. */
-  
+
   /* NeoFill is for sound devices that are emulated in a more
      high-level manner(VRC7) in HQ mode.  Interestingly,
      this device has slightly better sound quality(updated more
@@ -47,11 +47,11 @@ struct EXPSOUND {
 
 struct Sound {
   explicit Sound(FC *fc);
-  
+
   int32 Wave[2048+512] = {};
   int32 WaveHi[40000] = {};
   int32 WaveFinal[2048+512] = {};
-  
+
   EXPSOUND GameExpSound;
 
   int32 nesincsize = 0;
@@ -84,7 +84,7 @@ struct Sound {
   uint32 SoundTS() const {
     return fc->X->timestamp - soundtsoffs;
   }
-  
+
   // TODO: Indirect static hooks (which go through the global object)
   // should instead get a local sound object and call these.
   void Write_PSG_Direct(DECLFW_ARGS);
@@ -120,10 +120,10 @@ struct Sound {
   int32 wlcount[4] = {0,0,0,0};
 
   /* $4017 / xx000000 */
-  uint8 IRQFrameMode = 0;	
+  uint8 IRQFrameMode = 0;
   uint8 PSG[0x10];
   /* $4011 0xxxxxxx */
-  uint8 RawDALatch = 0;	
+  uint8 RawDALatch = 0;
 
   /* Byte written to $4015 */
   uint8 EnabledChannels = 0;

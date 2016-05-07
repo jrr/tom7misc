@@ -45,17 +45,17 @@ struct Mapper91 final : public CartInterface {
     switch (A & 3) {
       case 0:
       case 1:
-	pregs[A & 1] = V;
-	Sync();
-	break;
+        pregs[A & 1] = V;
+        Sync();
+        break;
       case 2:
-	IRQa = IRQCount = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = IRQCount = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 3:
-	IRQa = 1;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = 1;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
     }
   }
 
@@ -74,7 +74,7 @@ struct Mapper91 final : public CartInterface {
     if (IRQCount < 8 && IRQa) {
       IRQCount++;
       if (IRQCount >= 8) {
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -89,9 +89,9 @@ struct Mapper91 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{cregs, 4, "CREG"},
-	                 {pregs, 2, "PREG"},
-			 {&IRQa, 1, "IRQA"},
-			 {&IRQCount, 1, "IRQC"}});
+                         {pregs, 2, "PREG"},
+                         {&IRQa, 1, "IRQA"},
+                         {&IRQCount, 1, "IRQC"}});
   }
 
 };

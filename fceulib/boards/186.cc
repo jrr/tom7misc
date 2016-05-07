@@ -61,16 +61,16 @@ struct Mapper186 final : public CartInterface {
     fc->fceu->SetReadHandler(0x6000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0xFFFF, Cart::CartBW);
     fc->fceu->SetReadHandler(0x4200, 0x43FF, [](DECLFR_ARGS) {
-	return ((Mapper186*)fc->fceu->cartiface)->M186Read(DECLFR_FORWARD);
+        return ((Mapper186*)fc->fceu->cartiface)->M186Read(DECLFR_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x4200, 0x43FF, [](DECLFW_ARGS) {
-	((Mapper186*)fc->fceu->cartiface)->M186Write(DECLFW_FORWARD);
+        ((Mapper186*)fc->fceu->cartiface)->M186Write(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x4400, 0x4EFF, [](DECLFR_ARGS) {
-	return ((Mapper186*)fc->fceu->cartiface)->ASWRAM(DECLFR_FORWARD);
+        return ((Mapper186*)fc->fceu->cartiface)->ASWRAM(DECLFR_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x4400, 0x4EFF, [](DECLFW_ARGS) {
-	((Mapper186*)fc->fceu->cartiface)->BSWRAM(DECLFW_FORWARD);
+        ((Mapper186*)fc->fceu->cartiface)->BSWRAM(DECLFW_FORWARD);
       });
     regs[0] = regs[1] = regs[2] = regs[3];
     Sync();

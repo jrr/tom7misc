@@ -141,7 +141,7 @@ Input::~Input() {
 Input::Input(FC *fc)
     : stateinfo{
           {joy_readbit, 2, "JYRB"},
-	  {joy, 4, "JOYS"},
+          {joy, 4, "JOYS"},
           {&LastStrobe, 1, "LSTS"},
       }, fc(fc) {
   // TRACEF("Constructing input object..");

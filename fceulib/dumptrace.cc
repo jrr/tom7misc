@@ -13,8 +13,8 @@ static constexpr int MAX_HISTORY = 120;
 
 int main(int argc, char **argv) {
   if (argc != 2) {
-    fprintf(stderr, 
-	    "Dumps a trace file in ASCII format to stdout.\n");
+    fprintf(stderr,
+            "Dumps a trace file in ASCII format to stdout.\n");
     return -1;
   }
 

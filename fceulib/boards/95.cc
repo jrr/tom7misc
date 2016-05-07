@@ -52,17 +52,17 @@ struct Mapper95 final : public CartInterface {
     switch (A & 0xF001) {
       case 0x8000: cmd = V; break;
       case 0x8001:
-	switch (cmd & 0x07) {
-	  case 0: DRegs[0] = (V & 0x3F) >> 1; break;
-	  case 1: DRegs[1] = (V & 0x3F) >> 1; break;
-	  case 2: DRegs[2] = V & 0x3F; break;
-	  case 3: DRegs[3] = V & 0x3F; break;
-	  case 4: DRegs[4] = V & 0x3F; break;
-	  case 5: DRegs[5] = V & 0x3F; break;
-	  case 6: DRegs[6] = V & 0x3F; break;
-	  case 7: DRegs[7] = V & 0x3F; break;
-	}
-	Sync();
+        switch (cmd & 0x07) {
+          case 0: DRegs[0] = (V & 0x3F) >> 1; break;
+          case 1: DRegs[1] = (V & 0x3F) >> 1; break;
+          case 2: DRegs[2] = V & 0x3F; break;
+          case 3: DRegs[3] = V & 0x3F; break;
+          case 4: DRegs[4] = V & 0x3F; break;
+          case 5: DRegs[5] = V & 0x3F; break;
+          case 6: DRegs[6] = V & 0x3F; break;
+          case 7: DRegs[7] = V & 0x3F; break;
+        }
+        Sync();
     }
   }
 

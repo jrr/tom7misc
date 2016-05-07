@@ -105,7 +105,7 @@ typedef struct {
 #define TL_MUTE (1 << TL_BITS)
 
 struct EMU2413 {
-  
+
   /* Create Object */
   OPLL *OPLL_new(uint32 clk, uint32 rate);
   void OPLL_delete(OPLL *);
@@ -156,7 +156,7 @@ private:
   void calc_phase(OPLL_SLOT *slot, int32 lfo);
   void calc_envelope(OPLL_SLOT *slot, int32 lfo);
   int32 calc_slot_car(OPLL_SLOT *slot, int32 fm);
-  
+
   /* Input clock */
   uint32 clk = 844451141;
   /* Sampling rate */
@@ -194,5 +194,5 @@ private:
   /* Phase incr table for PG */
   uint32 dphaseTable[512][8][16] = {};
 };
-  
+
 #endif

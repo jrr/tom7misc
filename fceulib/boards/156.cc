@@ -45,39 +45,39 @@ struct Mapper156 final : public CartInterface {
       case 0xC001:
       case 0xC002:
       case 0xC003:
-	chrlo[A & 3] = V;
-	Sync();
-	break;
+        chrlo[A & 3] = V;
+        Sync();
+        break;
       case 0xC004:
       case 0xC005:
       case 0xC006:
       case 0xC007:
-	chrhi[A & 3] = V;
-	Sync();
-	break;
+        chrhi[A & 3] = V;
+        Sync();
+        break;
       case 0xC008:
       case 0xC009:
       case 0xC00A:
       case 0xC00B:
-	chrlo[4 + (A & 3)] = V;
-	Sync();
-	break;
+        chrlo[4 + (A & 3)] = V;
+        Sync();
+        break;
       case 0xC00C:
       case 0xC00D:
       case 0xC00E:
       case 0xC00F:
-	chrhi[4 + (A & 3)] = V;
-	Sync();
-	break;
+        chrhi[4 + (A & 3)] = V;
+        Sync();
+        break;
       case 0xC010:
-	prg = V;
-	Sync();
-	break;
+        prg = V;
+        Sync();
+        break;
       case 0xC014:
-	mirr = V;
-	mirrisused = 1;
-	Sync();
-	break;
+        mirr = V;
+        mirrisused = 1;
+        Sync();
+        break;
     }
   }
 
@@ -117,9 +117,9 @@ struct Mapper156 final : public CartInterface {
 
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&prg, 1, "PREG"},
-			 {chrlo, 8, "CRGL"},
-			 {chrhi, 8, "CRGH"},
-			 {&mirr, 1, "MIRR"}});
+                         {chrlo, 8, "CRGL"},
+                         {chrhi, 8, "CRGH"},
+                         {&mirr, 1, "MIRR"}});
   }
 
 };

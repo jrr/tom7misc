@@ -23,7 +23,7 @@
 namespace {
 struct Mapper42 final : public MapInterface {
   using MapInterface::MapInterface;
-  
+
   void Mapper42_write(DECLFW_ARGS) {
     // FCEU_printf("%04x:%04x\n",A,V);
     switch (A & 0xe003) {
@@ -45,11 +45,11 @@ struct Mapper42 final : public MapInterface {
     if (fc->ines->iNESIRQa) {
       fc->ines->iNESIRQCount += a;
       if (fc->ines->iNESIRQCount >= 32768)
-	fc->ines->iNESIRQCount -= 32768;
+        fc->ines->iNESIRQCount -= 32768;
       if (fc->ines->iNESIRQCount >= 24576)
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->X->IRQBegin(FCEU_IQEXT);
       else
-	fc->X->IRQEnd(FCEU_IQEXT);
+        fc->X->IRQEnd(FCEU_IQEXT);
     }
   }
 
@@ -58,7 +58,7 @@ struct Mapper42 final : public MapInterface {
   }
 };
 }
-  
+
 MapInterface *Mapper42_init(FC *fc) {
   fc->ines->ROM_BANK8(0x6000, 0);
   fc->ines->ROM_BANK32(~0);

@@ -27,7 +27,7 @@ struct Mapper80Base final : public MapInterface {
   uint8 CCache[8] = {};
   int ppu_last = -1;
   uint8 ppu_z = 0;
-  
+
   void Fudou_PPU(uint32 A) {
     if (A >= 0x2000) return;
 
@@ -47,7 +47,7 @@ struct Mapper80Base final : public MapInterface {
       CCache[2] = CCache[3] = GMB_mapbyte2(fc)[1] >> 7;
 
       for (int x = 0; x < 4; x++)
-	CCache[4 + x] = GMB_mapbyte2(fc)[2 + x] >> 7;
+        CCache[4 + x] = GMB_mapbyte2(fc)[2 + x] >> 7;
 
       fc->ines->onemir(CCache[lastA]);
     } else {

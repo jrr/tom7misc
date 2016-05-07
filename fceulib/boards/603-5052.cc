@@ -42,7 +42,7 @@ struct UNL6035052 final : public MMC3 {
     });
     fc->fceu->SetReadHandler(0x4020, 0x7FFF, [](DECLFR_ARGS) {
       return ((UNL6035052*)fc->fceu->cartiface)->
-	UNL6035052ProtRead(DECLFR_FORWARD);
+        UNL6035052ProtRead(DECLFR_FORWARD);
     });
   }
 

@@ -56,7 +56,7 @@ struct Mapper108 final : public CartInterface {
   Mapper108(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&reg, 1, "REGS"}});
-  }  
+  }
 };
 
 }

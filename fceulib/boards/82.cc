@@ -48,10 +48,10 @@ struct Mapper82 final : public CartInterface {
       regs[A & 7] = V;
     else
       switch (A) {
-	case 0x7ef6: ctrl = V & 3; break;
-	case 0x7efa: regs[6] = V >> 2; break;
-	case 0x7efb: regs[7] = V >> 2; break;
-	case 0x7efc: regs[8] = V >> 2; break;
+        case 0x7ef6: ctrl = V & 3; break;
+        case 0x7efa: regs[6] = V >> 2; break;
+        case 0x7efb: regs[7] = V >> 2; break;
+        case 0x7efc: regs[8] = V >> 2; break;
       }
     Sync();
   }

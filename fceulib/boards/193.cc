@@ -45,7 +45,7 @@ struct Mapper193 final : public CartInterface {
     bank = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x6000, 0x6003, [](DECLFW_ARGS) {
-	((Mapper193*)fc->fceu->cartiface)->M193Write(DECLFW_FORWARD);
+        ((Mapper193*)fc->fceu->cartiface)->M193Write(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, Cart::CartBW);
@@ -60,9 +60,9 @@ struct Mapper193 final : public CartInterface {
   Mapper193(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{&cmd, 1, "CMD0"},
-	                 {&mirror, 1, "MIRR"},
-			 {&bank, 1, "BANK"},
-			 {reg, 8, "REGS"}});
+                         {&mirror, 1, "MIRR"},
+                         {&bank, 1, "BANK"},
+                         {reg, 8, "REGS"}});
   }
 };
 }

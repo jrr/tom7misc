@@ -77,13 +77,13 @@ static EMUFILE_FILE *FCEUD_UTF8_fstream(const char *fn, const char *m) {
 
 // XXX: Get rid of "ext" param.
 FceuFile *FCEU_fopen(const std::string &path,
-		     const char *mode, const char *ext) {
+                     const char *mode, const char *ext) {
   // XXX simplify away; see below
   bool read = (string)mode == "rb";
   bool write = (string)mode == "wb";
   if (!read && !write) {
     FCEU_PrintError("invalid file open mode specified "
-		    "(only wb and rb are supported)");
+                    "(only wb and rb are supported)");
     return 0;
   }
 
@@ -94,7 +94,7 @@ FceuFile *FCEU_fopen(const std::string &path,
   if (!read) {
     return nullptr;
   }
-  
+
   // if the archive contained no files, try to open it the old fashioned way
   EMUFILE_FILE* fp = FCEUD_UTF8_fstream(path.c_str(), mode);
   if (!fp || fp->get_fp() == nullptr) {

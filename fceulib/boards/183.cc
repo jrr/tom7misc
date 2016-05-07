@@ -54,40 +54,40 @@ struct Mapper183 final : public CartInterface {
       SyncChr();
     } else {
       switch (A & 0xF80C) {
-	case 0x8800:
-	  prg[0] = V;
-	  SyncPrg();
-	  break;
-	case 0xA800:
-	  prg[1] = V;
-	  SyncPrg();
-	  break;
-	case 0xA000:
-	  prg[2] = V;
-	  SyncPrg();
-	  break;
-	case 0x9800:
-	  switch (V & 3) {
-	    case 0: fc->cart->setmirror(MI_V); break;
-	    case 1: fc->cart->setmirror(MI_H); break;
-	    case 2: fc->cart->setmirror(MI_0); break;
-	    case 3: fc->cart->setmirror(MI_1); break;
-	  }
-	  break;
-	case 0xF000:
-	  IRQCount = ((IRQCount & 0xF0) | (V & 0xF)); 
-	  break;
-	case 0xF004:
-	  IRQCount = ((IRQCount & 0x0F) | ((V & 0xF) << 4)); 
-	  break;
-	case 0xF008:
-	  IRQa = V;
-	  if (!V) IRQPre = 0;
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  break;
-	case 0xF00C:
-	  IRQPre = 16;
-	  break;
+        case 0x8800:
+          prg[0] = V;
+          SyncPrg();
+          break;
+        case 0xA800:
+          prg[1] = V;
+          SyncPrg();
+          break;
+        case 0xA000:
+          prg[2] = V;
+          SyncPrg();
+          break;
+        case 0x9800:
+          switch (V & 3) {
+            case 0: fc->cart->setmirror(MI_V); break;
+            case 1: fc->cart->setmirror(MI_H); break;
+            case 2: fc->cart->setmirror(MI_0); break;
+            case 3: fc->cart->setmirror(MI_1); break;
+          }
+          break;
+        case 0xF000:
+          IRQCount = ((IRQCount & 0xF0) | (V & 0xF));
+          break;
+        case 0xF004:
+          IRQCount = ((IRQCount & 0x0F) | ((V & 0xF) << 4));
+          break;
+        case 0xF008:
+          IRQa = V;
+          if (!V) IRQPre = 0;
+          fc->X->IRQEnd(FCEU_IQEXT);
+          break;
+        case 0xF00C:
+          IRQPre = 16;
+          break;
       }
     }
   }
@@ -103,7 +103,7 @@ struct Mapper183 final : public CartInterface {
     IRQPre = IRQCount = IRQa = 0;
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper183*)fc->fceu->cartiface)->M183Write(DECLFW_FORWARD);
+        ((Mapper183*)fc->fceu->cartiface)->M183Write(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
     SyncPrg();
@@ -116,8 +116,8 @@ struct Mapper183 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({{prg, 4, "PRG0"}, {chr, 8, "CHR0"},
-			 {&IRQCount, 1, "IRQC"}, {&IRQPre, 1, "IRQP"},
-			 {&IRQa, 1, "IRQA"}});
+                         {&IRQCount, 1, "IRQC"}, {&IRQPre, 1, "IRQP"},
+                         {&IRQa, 1, "IRQA"}});
   }
 };
 }

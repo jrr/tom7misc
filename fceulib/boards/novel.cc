@@ -37,7 +37,7 @@ struct Novel final : public CartInterface {
   // Used to be NovelReset, but assigned to Power.
   void Power() final override {
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Novel*)fc->fceu->cartiface)->NovelWrite(DECLFW_FORWARD);
+        ((Novel*)fc->fceu->cartiface)->NovelWrite(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->cart->setprg32(0x8000, 0);

@@ -56,31 +56,31 @@ struct Mapper90 final : public CartInterface {
   void mira() {
     if ((tkcom[0] & 0x20 && is209) || is211) {
       if (tkcom[0] & 0x40) {
-	// Name tables are ROM-only
-	for (int x = 0; x < 4; x++)
-	  fc->cart->setntamem(
-	      fc->cart->CHRptr[0] +
-		  (((names[x]) & fc->cart->CHRmask1[0]) << 10),
-	      0, x);
+        // Name tables are ROM-only
+        for (int x = 0; x < 4; x++)
+          fc->cart->setntamem(
+              fc->cart->CHRptr[0] +
+                  (((names[x]) & fc->cart->CHRmask1[0]) << 10),
+              0, x);
       } else {
-	// Name tables can be RAM or ROM.
-	for (int x = 0; x < 4; x++) {
-	  if ((tkcom[1] & 0x80) == (names[x] & 0x80))  // RAM selected.
-	    fc->cart->setntamem(
-		fc->ppu->NTARAM + ((names[x] & 0x1) << 10), 1, x);
-	  else
-	    fc->cart->setntamem(
-		fc->cart->CHRptr[0] +
-		    (((names[x]) & fc->cart->CHRmask1[0]) << 10),
-		0, x);
-	}
+        // Name tables can be RAM or ROM.
+        for (int x = 0; x < 4; x++) {
+          if ((tkcom[1] & 0x80) == (names[x] & 0x80))  // RAM selected.
+            fc->cart->setntamem(
+                fc->ppu->NTARAM + ((names[x] & 0x1) << 10), 1, x);
+          else
+            fc->cart->setntamem(
+                fc->cart->CHRptr[0] +
+                    (((names[x]) & fc->cart->CHRmask1[0]) << 10),
+                0, x);
+        }
       }
     } else {
       switch (tkcom[1] & 3) {
-	case 0: fc->cart->setmirror(MI_V); break;
-	case 1: fc->cart->setmirror(MI_H); break;
-	case 2: fc->cart->setmirror(MI_0); break;
-	case 3: fc->cart->setmirror(MI_1); break;
+        case 0: fc->cart->setmirror(MI_V); break;
+        case 1: fc->cart->setmirror(MI_H); break;
+        case 2: fc->cart->setmirror(MI_0); break;
+        case 3: fc->cart->setmirror(MI_1); break;
       }
     }
   }
@@ -89,53 +89,53 @@ struct Mapper90 final : public CartInterface {
     uint32 bankmode = ((tkcom[3] & 6) << 5);
     switch (tkcom[0] & 7) {
       case 00:
-	if (tkcom[0] & 0x80)
-	  fc->cart->setprg8(0x6000,
-			    (((prgb[3] << 2) + 3) & 0x3F) | bankmode);
-	fc->cart->setprg32(0x8000, 0x0F | ((tkcom[3] & 6) << 3));
-	break;
+        if (tkcom[0] & 0x80)
+          fc->cart->setprg8(0x6000,
+                            (((prgb[3] << 2) + 3) & 0x3F) | bankmode);
+        fc->cart->setprg32(0x8000, 0x0F | ((tkcom[3] & 6) << 3));
+        break;
       case 01:
-	if (tkcom[0] & 0x80)
-	  fc->cart->setprg8(0x6000,
-			    (((prgb[3] << 1) + 1) & 0x3F) | bankmode);
-	fc->cart->setprg16(0x8000,
-			   (prgb[1] & 0x1F) | ((tkcom[3] & 6) << 4));
-	fc->cart->setprg16(0xC000, 0x1F | ((tkcom[3] & 6) << 4));
-	break;
+        if (tkcom[0] & 0x80)
+          fc->cart->setprg8(0x6000,
+                            (((prgb[3] << 1) + 1) & 0x3F) | bankmode);
+        fc->cart->setprg16(0x8000,
+                           (prgb[1] & 0x1F) | ((tkcom[3] & 6) << 4));
+        fc->cart->setprg16(0xC000, 0x1F | ((tkcom[3] & 6) << 4));
+        break;
       case 03:  // bit reversion
       case 02:
-	if (tkcom[0] & 0x80)
-	  fc->cart->setprg8(0x6000, (prgb[3] & 0x3F) | bankmode);
-	fc->cart->setprg8(0x8000, (prgb[0] & 0x3F) | bankmode);
-	fc->cart->setprg8(0xa000, (prgb[1] & 0x3F) | bankmode);
-	fc->cart->setprg8(0xc000, (prgb[2] & 0x3F) | bankmode);
-	fc->cart->setprg8(0xe000, 0x3F | bankmode);
-	break;
+        if (tkcom[0] & 0x80)
+          fc->cart->setprg8(0x6000, (prgb[3] & 0x3F) | bankmode);
+        fc->cart->setprg8(0x8000, (prgb[0] & 0x3F) | bankmode);
+        fc->cart->setprg8(0xa000, (prgb[1] & 0x3F) | bankmode);
+        fc->cart->setprg8(0xc000, (prgb[2] & 0x3F) | bankmode);
+        fc->cart->setprg8(0xe000, 0x3F | bankmode);
+        break;
       case 04:
-	if (tkcom[0] & 0x80)
-	  fc->cart->setprg8(0x6000,
-			    (((prgb[3] << 2) + 3) & 0x3F) | bankmode);
-	fc->cart->setprg32(0x8000,
-			   (prgb[3] & 0x0F) | ((tkcom[3] & 6) << 3));
-	break;
+        if (tkcom[0] & 0x80)
+          fc->cart->setprg8(0x6000,
+                            (((prgb[3] << 2) + 3) & 0x3F) | bankmode);
+        fc->cart->setprg32(0x8000,
+                           (prgb[3] & 0x0F) | ((tkcom[3] & 6) << 3));
+        break;
       case 05:
-	if (tkcom[0] & 0x80)
-	  fc->cart->setprg8(0x6000,
-			    (((prgb[3] << 1) + 1) & 0x3F) | bankmode);
-	fc->cart->setprg16(0x8000,
-			   (prgb[1] & 0x1F) | ((tkcom[3] & 6) << 4));
-	fc->cart->setprg16(0xC000,
-			   (prgb[3] & 0x1F) | ((tkcom[3] & 6) << 4));
-	break;
+        if (tkcom[0] & 0x80)
+          fc->cart->setprg8(0x6000,
+                            (((prgb[3] << 1) + 1) & 0x3F) | bankmode);
+        fc->cart->setprg16(0x8000,
+                           (prgb[1] & 0x1F) | ((tkcom[3] & 6) << 4));
+        fc->cart->setprg16(0xC000,
+                           (prgb[3] & 0x1F) | ((tkcom[3] & 6) << 4));
+        break;
       case 07:  // bit reversion
       case 06:
-	if (tkcom[0] & 0x80)
-	  fc->cart->setprg8(0x6000, (prgb[3] & 0x3F) | bankmode);
-	fc->cart->setprg8(0x8000, (prgb[0] & 0x3F) | bankmode);
-	fc->cart->setprg8(0xa000, (prgb[1] & 0x3F) | bankmode);
-	fc->cart->setprg8(0xc000, (prgb[2] & 0x3F) | bankmode);
-	fc->cart->setprg8(0xe000, (prgb[3] & 0x3F) | bankmode);
-	break;
+        if (tkcom[0] & 0x80)
+          fc->cart->setprg8(0x6000, (prgb[3] & 0x3F) | bankmode);
+        fc->cart->setprg8(0x8000, (prgb[0] & 0x3F) | bankmode);
+        fc->cart->setprg8(0xa000, (prgb[1] & 0x3F) | bankmode);
+        fc->cart->setprg8(0xc000, (prgb[2] & 0x3F) | bankmode);
+        fc->cart->setprg8(0xe000, (prgb[3] & 0x3F) | bankmode);
+        break;
     }
   }
 
@@ -144,46 +144,46 @@ struct Mapper90 final : public CartInterface {
     if (!(tkcom[3] & 0x20)) {
       bank = (tkcom[3] & 1) | ((tkcom[3] & 0x18) >> 2);
       switch (tkcom[0] & 0x18) {
-	case 0x00:
-	  bank <<= 5;
-	  mask = 0x1F;
-	  break;
-	case 0x08:
-	  bank <<= 6;
-	  mask = 0x3F;
-	  break;
-	case 0x10:
-	  bank <<= 7;
-	  mask = 0x7F;
-	  break;
-	case 0x18:
-	  bank <<= 8;
-	  mask = 0xFF;
-	  break;
+        case 0x00:
+          bank <<= 5;
+          mask = 0x1F;
+          break;
+        case 0x08:
+          bank <<= 6;
+          mask = 0x3F;
+          break;
+        case 0x10:
+          bank <<= 7;
+          mask = 0x7F;
+          break;
+        case 0x18:
+          bank <<= 8;
+          mask = 0xFF;
+          break;
       }
     }
     switch (tkcom[0] & 0x18) {
       case 0x00:  // 8KB
-	fc->cart->setchr8(((chrlow[0] | (chrhigh[0] << 8)) & mask) | bank);
-	break;
+        fc->cart->setchr8(((chrlow[0] | (chrhigh[0] << 8)) & mask) | bank);
+        break;
       case 0x08:  // 4KB
-	// for(int x=0;x<8;x+=4)
-	//   fc->cart->setchr4(x<<10,((chrlow[x]|(chrhigh[x]<<8))&mask)|bank);
-	fc->cart->setchr4(
-	    0x0000, ((chrlow[chr[0]] | (chrhigh[chr[0]] << 8)) & mask) | bank);
-	fc->cart->setchr4(
-	    0x1000, ((chrlow[chr[1]] | (chrhigh[chr[1]] << 8)) & mask) | bank);
-	break;
+        // for(int x=0;x<8;x+=4)
+        //   fc->cart->setchr4(x<<10,((chrlow[x]|(chrhigh[x]<<8))&mask)|bank);
+        fc->cart->setchr4(
+            0x0000, ((chrlow[chr[0]] | (chrhigh[chr[0]] << 8)) & mask) | bank);
+        fc->cart->setchr4(
+            0x1000, ((chrlow[chr[1]] | (chrhigh[chr[1]] << 8)) & mask) | bank);
+        break;
       case 0x10:  // 2KB
-	for (int x = 0; x < 8; x += 2)
-	  fc->cart->setchr2(
-	      x << 10, ((chrlow[x] | (chrhigh[x] << 8)) & mask) | bank);
-	break;
+        for (int x = 0; x < 8; x += 2)
+          fc->cart->setchr2(
+              x << 10, ((chrlow[x] | (chrhigh[x] << 8)) & mask) | bank);
+        break;
       case 0x18:  // 1KB
-	for (int x = 0; x < 8; x++)
-	  fc->cart->setchr1(
-	      x << 10, ((chrlow[x] | (chrhigh[x] << 8)) & mask) | bank);
-	break;
+        for (int x = 0; x < 8; x++)
+          fc->cart->setchr1(
+              x << 10, ((chrlow[x] | (chrhigh[x] << 8)) & mask) | bank);
+        break;
     }
   }
 
@@ -239,51 +239,51 @@ struct Mapper90 final : public CartInterface {
     //  FCEU_printf("bs %04x %02x\n",A,V);
     switch (A & 7) {
       case 00:  // FCEU_printf("%s IRQ (C000)\n",V&1?"Enable":"Disable");
-	IRQa = V & 1;
-	if (!(V & 1)) fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = V & 1;
+        if (!(V & 1)) fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 02:  // FCEU_printf("Disable IRQ (C002) scanline=%d\n", scanline);
-	IRQa = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
-	break;
+        IRQa = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
+        break;
       case 03:  // FCEU_printf("Enable IRQ (C003) scanline=%d\n", scanline);
-	IRQa = 1;
-	break;
+        IRQa = 1;
+        break;
       case 01:
-	IRQMode = V;
-	//  FCEU_printf("IRQ Count method: ");
-	//  switch (IRQMode&3)
-	//  {
-	//    case 00: FCEU_printf("M2 cycles\n");break;
-	//    case 01: FCEU_printf("PPU A12 toggles\n");break;
-	//    case 02: FCEU_printf("PPU reads\n");break;
-	//    case 03: FCEU_printf("Writes to CPU space\n");break;
-	//  }
-	//  FCEU_printf("Counter prescaler size: %s\n",(IRQMode&4)?"3 bits":"8
-	//  bits");
-	//  FCEU_printf("Counter prescaler size adjust: %s\n",(IRQMode&8)?"Used
-	//  C007":"Normal Operation");
-	//  if((IRQMode>>6)==2) FCEU_printf("Counter Down\n");
-	//   else if((IRQMode>>6)==1) FCEU_printf("Counter Up\n");
-	//   else FCEU_printf("Counter Stopped\n");
-	break;
+        IRQMode = V;
+        //  FCEU_printf("IRQ Count method: ");
+        //  switch (IRQMode&3)
+        //  {
+        //    case 00: FCEU_printf("M2 cycles\n");break;
+        //    case 01: FCEU_printf("PPU A12 toggles\n");break;
+        //    case 02: FCEU_printf("PPU reads\n");break;
+        //    case 03: FCEU_printf("Writes to CPU space\n");break;
+        //  }
+        //  FCEU_printf("Counter prescaler size: %s\n",(IRQMode&4)?"3 bits":"8
+        //  bits");
+        //  FCEU_printf("Counter prescaler size adjust: %s\n",(IRQMode&8)?"Used
+        //  C007":"Normal Operation");
+        //  if((IRQMode>>6)==2) FCEU_printf("Counter Down\n");
+        //   else if((IRQMode>>6)==1) FCEU_printf("Counter Up\n");
+        //   else FCEU_printf("Counter Stopped\n");
+        break;
       case 04:  // FCEU_printf("Pre Counter Loaded and Xored wiht C006:
-		// %d\n",V^IRQXOR);
-	IRQPre = V ^ IRQXOR;
-	break;
+                // %d\n",V^IRQXOR);
+        IRQPre = V ^ IRQXOR;
+        break;
       case 05:  // FCEU_printf("Main Counter Loaded and Xored wiht C006:
-		// %d\n",V^IRQXOR);
-	IRQCount = V ^ IRQXOR;
-	break;
+                // %d\n",V^IRQXOR);
+        IRQCount = V ^ IRQXOR;
+        break;
       case 06:  // FCEU_printf("Xor Value: %d\n",V);
-	IRQXOR = V;
-	break;
+        IRQXOR = V;
+        break;
       case 07:  // if(!(IRQMode&8)) FCEU_printf("C001 is clear, no effect
-		// applied\n");
-	//     else if(V==0xFF) FCEU_printf("Prescaler is changed for 12bits\n");
-	//     else FCEU_printf("Counter Stopped\n");
-	IRQPreSize = V;
-	break;
+                // applied\n");
+        //     else if(V==0xFF) FCEU_printf("Prescaler is changed for 12bits\n");
+        //     else FCEU_printf("Counter Stopped\n");
+        IRQPreSize = V;
+        break;
     }
   }
 
@@ -297,40 +297,40 @@ struct Mapper90 final : public CartInterface {
   #ifdef DEBUG90
     switch (A & 3) {
       case 00:
-	FCEU_printf("Main Control Register:\n");
-	FCEU_printf("  PGR Banking mode: %d\n", V & 7);
-	FCEU_printf("  CHR Banking mode: %d\n", (V >> 3) & 3);
-	FCEU_printf("  6000-7FFF addresses mapping: %s\n",
-		    (V & 0x80) ? "Yes" : "No");
-	FCEU_printf("  Nametable control: %s\n",
-		    (V & 0x20) ? "Enabled" : "Disabled");
-	if (V & 0x20)
-	  FCEU_printf("  Nametable can be: %s\n",
-		      (V & 0x40) ? "ROM Only" : "RAM or ROM");
-	break;
+        FCEU_printf("Main Control Register:\n");
+        FCEU_printf("  PGR Banking mode: %d\n", V & 7);
+        FCEU_printf("  CHR Banking mode: %d\n", (V >> 3) & 3);
+        FCEU_printf("  6000-7FFF addresses mapping: %s\n",
+                    (V & 0x80) ? "Yes" : "No");
+        FCEU_printf("  Nametable control: %s\n",
+                    (V & 0x20) ? "Enabled" : "Disabled");
+        if (V & 0x20)
+          FCEU_printf("  Nametable can be: %s\n",
+                      (V & 0x40) ? "ROM Only" : "RAM or ROM");
+        break;
       case 01:
-	FCEU_printf("Mirroring mode: ");
-	switch (V & 3) {
-	  case 0: FCEU_printf("Vertical\n"); break;
-	  case 1: FCEU_printf("Horizontal\n"); break;
-	  case 2: FCEU_printf("Nametable 0 only\n"); break;
-	  case 3: FCEU_printf("Nametable 1 only\n"); break;
-	}
-	FCEU_printf("Mirroring flag: %s\n", (V & 0x80) ? "On" : "Off");
-	break;
+        FCEU_printf("Mirroring mode: ");
+        switch (V & 3) {
+          case 0: FCEU_printf("Vertical\n"); break;
+          case 1: FCEU_printf("Horizontal\n"); break;
+          case 2: FCEU_printf("Nametable 0 only\n"); break;
+          case 3: FCEU_printf("Nametable 1 only\n"); break;
+        }
+        FCEU_printf("Mirroring flag: %s\n", (V & 0x80) ? "On" : "Off");
+        break;
       case 02:
-	if ((((tkcom[0]) >> 5) & 3) == 1)
-	  FCEU_printf("Nametable ROM/RAM select mode: %d\n", V >> 7);
-	break;
+        if ((((tkcom[0]) >> 5) & 3) == 1)
+          FCEU_printf("Nametable ROM/RAM select mode: %d\n", V >> 7);
+        break;
       case 03:
-	FCEU_printf("CHR Banking mode: %s\n",
-		    (V & 0x20) ? "Entire CHR ROM" : "256Kb Switching mode");
-	if (!(V & 0x20))
-	  FCEU_printf("256K CHR bank number: %02x\n",
-		      (V & 1) | ((V & 0x18) >> 2));
-	FCEU_printf("512K PRG bank number: %d\n", (V & 6) >> 1);
-	FCEU_printf("CHR Bank mirroring: %s\n",
-		    (V & 0x80) ? "Swapped" : "Normal operate");
+        FCEU_printf("CHR Banking mode: %s\n",
+                    (V & 0x20) ? "Entire CHR ROM" : "256Kb Switching mode");
+        if (!(V & 0x20))
+          FCEU_printf("256K CHR bank number: %02x\n",
+                      (V & 1) | ((V & 0x18) >> 2));
+        FCEU_printf("512K PRG bank number: %d\n", (V & 6) >> 1);
+        FCEU_printf("CHR Bank mirroring: %s\n",
+                    (V & 0x80) ? "Swapped" : "Normal operate");
     }
   #endif
   }
@@ -344,13 +344,13 @@ struct Mapper90 final : public CartInterface {
       // Count Up
       IRQCount++;
       if ((IRQCount == 0) && IRQa) {
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     } else if ((IRQMode >> 6) == 2) {
       // Count down
       IRQCount--;
       if ((IRQCount == 0xFF) && IRQa) {
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -388,8 +388,8 @@ struct Mapper90 final : public CartInterface {
   void M90PPU(uint32 A) {
     if ((IRQMode & 3) == 2) {
       if (lastread != A) {
-	ClockCounter();
-	ClockCounter();
+        ClockCounter();
+        ClockCounter();
       }
       lastread = A;
     }
@@ -397,14 +397,14 @@ struct Mapper90 final : public CartInterface {
     if (is209) {
       uint8 h = A >> 8;
       if (h < 0x20 && ((h & 0x0F) == 0xF)) {
-	uint8 l = A & 0xF0;
-	if (l == 0xD0) {
-	  chr[(h & 0x10) >> 4] = ((h & 0x10) >> 2);
-	  tekvrom();
-	} else if (l == 0xE0) {
-	  chr[(h & 0x10) >> 4] = ((h & 0x10) >> 2) | 2;
-	  tekvrom();
-	}
+        uint8 l = A & 0xF0;
+        if (l == 0xD0) {
+          chr[(h & 0x10) >> 4] = ((h & 0x10) >> 2);
+          tekvrom();
+        } else if (l == 0xE0) {
+          chr[(h & 0x10) >> 4] = ((h & 0x10) >> 2) | 2;
+          tekvrom();
+        }
       }
     } else {
       chr[0] = 0;
@@ -489,27 +489,27 @@ struct Mapper90 final : public CartInterface {
     };
     fc->fceu->GameStateRestore = M90Restore;
     fc->state->AddExVec({{&IRQMode, 1, "IRQM"},
-	{&IRQPre, 1, "IRQP"},
-	{&IRQPreSize, 1, "IRQR"},
-	{&IRQCount, 1, "IRQC"},
-	{&IRQXOR, 1, "IRQX"},
-	{&IRQa, 1, "IRQA"},
-	{mul, 2, "MUL0"},
-	{&regie, 1, "REGI"},
-	{tkcom, 4, "TKCO"},
-	{prgb, 4, "PRGB"},
-	{chr, 2, "CLTC"},
-	{chrlow, 4, "CHRL"},
-	{chrhigh, 8, "CHRH"},
-	{&names[0], 2 | FCEUSTATE_RLSB, "NMS0"},
-	{&names[1], 2 | FCEUSTATE_RLSB, "NMS1"},
-	{&names[2], 2 | FCEUSTATE_RLSB, "NMS2"},
-	{&names[3], 2 | FCEUSTATE_RLSB, "NMS3"},
-	{&tekker, 1, "TEKR"}});
+        {&IRQPre, 1, "IRQP"},
+        {&IRQPreSize, 1, "IRQR"},
+        {&IRQCount, 1, "IRQC"},
+        {&IRQXOR, 1, "IRQX"},
+        {&IRQa, 1, "IRQA"},
+        {mul, 2, "MUL0"},
+        {&regie, 1, "REGI"},
+        {tkcom, 4, "TKCO"},
+        {prgb, 4, "PRGB"},
+        {chr, 2, "CLTC"},
+        {chrlow, 4, "CHRL"},
+        {chrhigh, 8, "CHRH"},
+        {&names[0], 2 | FCEUSTATE_RLSB, "NMS0"},
+        {&names[1], 2 | FCEUSTATE_RLSB, "NMS1"},
+        {&names[2], 2 | FCEUSTATE_RLSB, "NMS2"},
+        {&names[3], 2 | FCEUSTATE_RLSB, "NMS3"},
+        {&tekker, 1, "TEKR"}});
   }
 };
 }
-  
+
 CartInterface *Mapper90_Init(FC *fc, CartInfo *info) {
   return new Mapper90<false, false>(fc, info);
 }

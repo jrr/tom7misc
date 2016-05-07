@@ -53,16 +53,16 @@ struct ZapperBase : public InputC {
     fc->ppu->FCEUPPU_LineUpdate();
 
     if ((ZD.zaphit + 100) >=
-	(fc->fceu->timestampbase + fc->X->timestamp)) {
+        (fc->fceu->timestampbase + fc->X->timestamp)) {
       return 0;
     }
 
     return 1;
   }
-  
+
   void Update(int w, void *data, int arg) override {
     CHECK(w == which);
-    
+
     uint32 *ptr = (uint32 *)data;
 
     bool newclicked = (ptr[2] & 3) != 0;
@@ -85,7 +85,7 @@ struct ZapperBase : public InputC {
 
   // Was once "ZapperFrapper".
   void SLHook(int w, uint8 *bg, uint8 *spr, uint32 linets,
-	      int final) override {
+              int final) override {
     CHECK(w == which);
 
     int xs, xe;
@@ -105,33 +105,33 @@ struct ZapperBase : public InputC {
     if (xe > 256) xe = 256;
 
     if (fc->ppu->scanline >= (zy - 4) &&
-	fc->ppu->scanline <= (zy + 4)) {
+        fc->ppu->scanline <= (zy + 4)) {
       while (xs < xe) {
-	uint8 a1, a2;
-	uint32 sum;
-	if (xs <= (zx + 4) && xs >= (zx - 4)) {
-	  a1 = bg[xs];
-	  if (spr) {
-	    a2 = spr[xs];
+        uint8 a1, a2;
+        uint32 sum;
+        if (xs <= (zx + 4) && xs >= (zx - 4)) {
+          a1 = bg[xs];
+          if (spr) {
+            a2 = spr[xs];
 
-	    if (!(a2 & 0x80))
-	      if (!(a2 & 0x40) || (a1 & 64)) a1 = a2;
-	  }
-	  a1 &= 63;
+            if (!(a2 & 0x80))
+              if (!(a2 & 0x40) || (a1 & 64)) a1 = a2;
+          }
+          a1 &= 63;
 
-	  sum =
-	    fc->palette->palo[a1].r +
-	    fc->palette->palo[a1].g +
-	    fc->palette->palo[a1].b;
-	  if (sum >= 100 * 3) {
-	    ZD.zaphit =
+          sum =
+            fc->palette->palo[a1].r +
+            fc->palette->palo[a1].g +
+            fc->palette->palo[a1].b;
+          if (sum >= 100 * 3) {
+            ZD.zaphit =
               ((uint64)linets + (xs + 16) * (fc->fceu->PAL ? 15 : 16)) /
-	      48 +
+              48 +
               fc->fceu->timestampbase;
-	    goto endo;
-	  }
-	}
-	xs++;
+            goto endo;
+          }
+        }
+        xs++;
       }
     }
   endo:
@@ -148,7 +148,7 @@ struct ZapperBase : public InputC {
 
   void Log(int w, MovieRecord *mr) override {
     CHECK(w == which);
-    
+
     mr->zappers[w].x = ZD.mzx;
     mr->zappers[w].y = ZD.mzy;
     mr->zappers[w].b = ZD.mzb;
@@ -158,7 +158,7 @@ struct ZapperBase : public InputC {
 
   void Load(int w, MovieRecord *mr) override {
     CHECK(w == which);
-    
+
     ZD.mzx = mr->zappers[w].x;
     ZD.mzy = mr->zappers[w].y;
     ZD.mzb = mr->zappers[w].b;
@@ -172,10 +172,10 @@ struct ZapperBase : public InputC {
 
 struct ZapperC : public ZapperBase {
   ZapperC(FC *fc, int w) : ZapperBase(fc, w) {}
-  
+
   uint8 Read(int w) override {
     CHECK(w == which);
-    
+
     uint8 ret = 0;
     if (ZD.bogo) ret |= 0x10;
     if (CheckColor(w)) ret |= 0x8;
@@ -185,7 +185,7 @@ struct ZapperC : public ZapperBase {
 
 struct ZapperVSC : public ZapperBase {
   ZapperVSC(FC *fc, int w) : ZapperBase(fc, w) {}
-  
+
   uint8 Read(int w) override {
     CHECK(which == w);
     uint8 ret = 0;

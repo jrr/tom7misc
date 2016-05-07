@@ -29,13 +29,13 @@ struct H2288 final : public MMC3 {
   void PWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40) {
       uint8 bank =
-	  (EXPREGS[0] & 5) | ((EXPREGS[0] & 8) >> 2) |
-	((EXPREGS[0] & 0x20) >> 2);
+          (EXPREGS[0] & 5) | ((EXPREGS[0] & 8) >> 2) |
+        ((EXPREGS[0] & 0x20) >> 2);
       if (EXPREGS[0] & 2) {
-	fc->cart->setprg32(0x8000, bank >> 1);
+        fc->cart->setprg32(0x8000, bank >> 1);
       } else {
-	fc->cart->setprg16(0x8000, bank);
-	fc->cart->setprg16(0xC000, bank);
+        fc->cart->setprg16(0x8000, bank);
+        fc->cart->setprg16(0xC000, bank);
       }
     } else {
       fc->cart->setprg8(A, V & 0x3F);
@@ -45,20 +45,20 @@ struct H2288 final : public MMC3 {
   void H2288WriteHi(DECLFW_ARGS) {
     switch (A & 0x8001) {
       case 0x8000:
-	MMC3_CMDWrite(fc, 0x8000, (V & 0xC0) | (m114_perm[V & 7]));
-	break;
+        MMC3_CMDWrite(fc, 0x8000, (V & 0xC0) | (m114_perm[V & 7]));
+        break;
       case 0x8001:
-	MMC3_CMDWrite(fc, 0x8001, V);
-	break;
+        MMC3_CMDWrite(fc, 0x8001, V);
+        break;
     }
   }
 
   void H2288WriteLo(DECLFW_ARGS) {
     if (A & 0x800) {
       if (A & 1)
-	EXPREGS[1] = V;
+        EXPREGS[1] = V;
       else
-	EXPREGS[0] = V;
+        EXPREGS[0] = V;
       FixMMC3PRG(MMC3_cmd);
     }
   }
@@ -70,11 +70,11 @@ struct H2288 final : public MMC3 {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x5000, 0x5FFF, [](DECLFW_ARGS) {
       return ((H2288*)fc->fceu->cartiface)->
-	H2288WriteLo(DECLFW_FORWARD);
+        H2288WriteLo(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x8000, 0x9FFF, [](DECLFW_ARGS) {
       return ((H2288*)fc->fceu->cartiface)->
-	H2288WriteHi(DECLFW_FORWARD);
+        H2288WriteHi(DECLFW_FORWARD);
     });
   }
 
@@ -83,7 +83,7 @@ struct H2288 final : public MMC3 {
   }
 };
 }
-  
+
 CartInterface *UNLH2288_Init(FC *fc, CartInfo *info) {
   return new H2288(fc, info);
 }

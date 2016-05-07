@@ -34,7 +34,7 @@ struct Sachen : public CartInterface {
   static void S74LS374NRestore(FC *fc, int version) {
     ((Sachen *)fc->fceu->cartiface)->S74LS374NSynco();
   }
-  
+
   void S74LS374MSync(uint8 mirr) {
     switch (mirr & 3) {
       case 0: fc->cart->setmirror(MI_V); break;
@@ -51,7 +51,7 @@ struct S74LS374N final : public Sachen {
   DECLFR_RET S74LS374NRead(DECLFR_ARGS) {
     uint8 ret;
     if ((A & 0x4100) == 0x4100)
-      //	  ret=(fc->X->DB&0xC0)|((~cmd)&0x3F);
+      //          ret=(fc->X->DB&0xC0)|((~cmd)&0x3F);
       ret = ((~cmd) & 0x3F) ^ dip;
     else
       ret = fc->X->DB;
@@ -64,19 +64,19 @@ struct S74LS374N final : public Sachen {
       cmd = V & 7;
     else {
       switch (cmd) {
-	case 2:
-	  latch[0] = V & 1;
-	  latch[3] = (V & 1) << 3;
-	  break;
-	case 4: latch[4] = (V & 1) << 2; break;
-	case 5: latch[0] = V & 7; break;
-	case 6: latch[1] = V & 3; break;
-	case 7: latch[2] = V >> 1; break;
+        case 2:
+          latch[0] = V & 1;
+          latch[3] = (V & 1) << 3;
+          break;
+        case 4: latch[4] = (V & 1) << 2; break;
+        case 5: latch[0] = V & 7; break;
+        case 6: latch[1] = V & 3; break;
+        case 7: latch[2] = V >> 1; break;
       }
       S74LS374NSynco();
     }
   }
-  
+
   void Reset() final override {
     dip ^= 1;
     latch[0] = latch[1] = latch[2] = latch[3] = latch[4] = 0;
@@ -93,10 +93,10 @@ struct S74LS374N final : public Sachen {
     });
     fc->fceu->SetReadHandler(0x4100, 0x5fff, [](DECLFR_ARGS) {
       return ((S74LS374N*)fc->fceu->cartiface)->
-	S74LS374NRead(DECLFR_FORWARD);
+        S74LS374NRead(DECLFR_FORWARD);
     });
   }
-  
+
   S74LS374N(FC *fc, CartInfo *info) : Sachen(fc, info) {
     fc->fceu->GameStateRestore = S74LS374NRestore;
     fc->state->AddExState(latch, 5, 0, "LATC");
@@ -104,7 +104,7 @@ struct S74LS374N final : public Sachen {
     fc->state->AddExState(&dip, 1, 0, "DIP0");
   }
 };
-  
+
 struct S74LS374NA final : public Sachen {
   void S74LS374NASynco() {
     fc->cart->setprg32(0x8000, latch[0]);
@@ -118,15 +118,15 @@ struct S74LS374NA final : public Sachen {
       cmd = V & 7;
     else {
       switch (cmd) {
-	case 0:
-	  latch[0] = 0;
-	  latch[1] = 3;
-	  break;
-	case 2: latch[3] = (V & 1) << 3; break;
-	case 4: latch[1] = (latch[1] & 6) | (V & 3); break;
-	case 5: latch[0] = V & 1; break;
-	case 6: latch[1] = (latch[1] & 1) | latch[3] | ((V & 3) << 1); break;
-	case 7: latch[2] = V & 1; break;
+        case 0:
+          latch[0] = 0;
+          latch[1] = 3;
+          break;
+        case 2: latch[3] = (V & 1) << 3; break;
+        case 4: latch[1] = (latch[1] & 6) | (V & 3); break;
+        case 5: latch[0] = V & 1; break;
+        case 6: latch[1] = (latch[1] & 1) | latch[3] | ((V & 3) << 1); break;
+        case 7: latch[2] = V & 1; break;
       }
       S74LS374NASynco();
     }
@@ -150,7 +150,7 @@ struct S74LS374NA final : public Sachen {
     fc->state->AddExState(&cmd, 1, 0, "CMD0");
   }
 };
-  
+
 
 struct S8259 final : public Sachen {
   const int type = 0;
@@ -160,34 +160,34 @@ struct S8259 final : public Sachen {
     if (!fc->unif->UNIFchrrama) {
       // No CHR RAM?  Then BS'ing is ok.
       for (int x = 0; x < 4; x++) {
-	int bank;
-	if (latch[7] & 1)
-	  bank = (latch[0] & 0x7) | ((latch[4] & 7) << 3);
-	else
-	  bank = (latch[x] & 0x7) | ((latch[4] & 7) << 3);
-	switch (type) {
-	  case 00:
-	    bank = (bank << 1) | (x & 1);
-	    fc->cart->setchr2(0x800 * x, bank);
-	    break;
-	  case 01: fc->cart->setchr2(0x800 * x, bank); break;
-	  case 02:
-	    bank = (bank << 2) | (x & 3);
-	    fc->cart->setchr2(0x800 * x, bank);
-	    break;
-	  case 03:
-	    bank = latch[x] & 7;
-	    switch (x & 3) {
-	      case 01: bank |= (latch[4] & 1) << 4; break;
-	      case 02: bank |= (latch[4] & 2) << 3; break;
-	      case 03:
-		bank |= ((latch[4] & 4) << 2) | ((latch[6] & 1) << 3);
-		break;
-	    }
-	    fc->cart->setchr1(0x400 * x, bank);
-	    fc->cart->setchr4(0x1000, ~0);
-	    break;
-	}
+        int bank;
+        if (latch[7] & 1)
+          bank = (latch[0] & 0x7) | ((latch[4] & 7) << 3);
+        else
+          bank = (latch[x] & 0x7) | ((latch[4] & 7) << 3);
+        switch (type) {
+          case 00:
+            bank = (bank << 1) | (x & 1);
+            fc->cart->setchr2(0x800 * x, bank);
+            break;
+          case 01: fc->cart->setchr2(0x800 * x, bank); break;
+          case 02:
+            bank = (bank << 2) | (x & 3);
+            fc->cart->setchr2(0x800 * x, bank);
+            break;
+          case 03:
+            bank = latch[x] & 7;
+            switch (x & 3) {
+              case 01: bank |= (latch[4] & 1) << 4; break;
+              case 02: bank |= (latch[4] & 2) << 3; break;
+              case 03:
+                bank |= ((latch[4] & 4) << 2) | ((latch[6] & 1) << 3);
+                break;
+            }
+            fc->cart->setchr1(0x400 * x, bank);
+            fc->cart->setchr4(0x1000, ~0);
+            break;
+        }
       }
     }
     if (!(latch[7] & 1))
@@ -223,7 +223,7 @@ struct S8259 final : public Sachen {
   static void S8259Restore(FC *fc, int version) {
     ((S8259 *)fc->fceu->cartiface)->S8259Synco();
   }
-  
+
   S8259(FC *fc, CartInfo *info, int type) : Sachen(fc, info), type(type) {
     fc->fceu->GameStateRestore = S8259Restore;
     fc->state->AddExState(latch, 8, 0, "LATC");
@@ -241,7 +241,7 @@ struct SA : public Sachen {
       WSync();
     }
   }
-  
+
   void SADWrite(DECLFW_ARGS) {
     latch[0] = V;
     WSync();
@@ -253,14 +253,14 @@ struct SA : public Sachen {
       WSync();
       fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
       fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((SA*)fc->fceu->cartiface)->SADWrite(DECLFW_FORWARD);
+        ((SA*)fc->fceu->cartiface)->SADWrite(DECLFW_FORWARD);
       });
     } else {
       latch[0] = 0;
       WSync();
       fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
       fc->fceu->SetWriteHandler(0x4100, 0x5FFF, [](DECLFW_ARGS) {
-	((SA*)fc->fceu->cartiface)->SAWrite(DECLFW_FORWARD);
+        ((SA*)fc->fceu->cartiface)->SAWrite(DECLFW_FORWARD);
       });
     }
   }
@@ -318,7 +318,7 @@ struct SA72008 final : public SA<false> {
 struct TCU01 final : public Sachen {
   void TCU01Synco() {
     fc->cart->setprg32(0x8000,
-		       ((latch[0] & 0x80) >> 6) | ((latch[0] >> 2) & 1));
+                       ((latch[0] & 0x80) >> 6) | ((latch[0] >> 2) & 1));
     fc->cart->setchr8((latch[0] >> 3) & 0xF);
   }
 
@@ -408,7 +408,7 @@ struct TCA01 final : public Sachen {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetReadHandler(0x4100, 0x5FFF, [](DECLFR_ARGS) {
       return ((TCA01*)fc->fceu->cartiface)->
-	TCA01Read(DECLFR_FORWARD);
+        TCA01Read(DECLFR_FORWARD);
     });
   }
 

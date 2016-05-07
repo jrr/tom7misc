@@ -50,14 +50,14 @@ struct VRC : public CartInterface {
     else {
       uint8 i;
       if (!weirdo) {
-	for (i = 0; i < 8; i++)
-	  fc->cart->setchr1(i << 10,
-			    (chrhi[i] | chrreg[i]) >> (is_22 ? 1 : 0));
+        for (i = 0; i < 8; i++)
+          fc->cart->setchr1(i << 10,
+                            (chrhi[i] | chrreg[i]) >> (is_22 ? 1 : 0));
       } else {
-	fc->cart->setchr1(0x0000, 0xFC);
-	fc->cart->setchr1(0x0400, 0xFD);
-	fc->cart->setchr1(0x0800, 0xFF);
-	weirdo--;
+        fc->cart->setchr1(0x0000, 0xFC);
+        fc->cart->setchr1(0x0400, 0xFD);
+        fc->cart->setchr1(0x0800, 0xFF);
+        weirdo--;
       }
     }
     switch (mirr & 0x3) {
@@ -72,72 +72,72 @@ struct VRC : public CartInterface {
     A &= 0xF003;
     if ((A >= 0xB000) && (A <= 0xE003)) {
       if (fc->unif->UNIFchrrama) {
-	// my personally many-in-one feature ;) just for support pirate cart
-	// 2-in-1
-	big_bank = (V & 8) << 2;
+        // my personally many-in-one feature ;) just for support pirate cart
+        // 2-in-1
+        big_bank = (V & 8) << 2;
       } else {
-	uint16 i = ((A >> 1) & 1) | ((A - 0xB000) >> 11);
-	uint16 nibble = ((A & 1) << 2);
-	chrreg[i] &= (0xF0) >> nibble;
-	chrreg[i] |= (V & 0xF) << nibble;
-	// another one many in one feature from pirate carts
-	if (nibble) chrhi[i] = (V & 0x10) << 4;
+        uint16 i = ((A >> 1) & 1) | ((A - 0xB000) >> 11);
+        uint16 nibble = ((A & 1) << 2);
+        chrreg[i] &= (0xF0) >> nibble;
+        chrreg[i] |= (V & 0xF) << nibble;
+        // another one many in one feature from pirate carts
+        if (nibble) chrhi[i] = (V & 0x10) << 4;
       }
       Sync();
     } else {
       switch (A & 0xF003) {
-	case 0x8000:
-	case 0x8001:
-	case 0x8002:
-	case 0x8003:
-	  if (!is_pirate) {
-	    prgreg[0] = V & 0x1F;
-	    Sync();
-	  }
-	  break;
-	case 0xA000:
-	case 0xA001:
-	case 0xA002:
-	case 0xA003:
-	  if (!is_pirate)
-	    prgreg[1] = V & 0x1F;
-	  else {
-	    prgreg[0] = (V & 0x1F) << 1;
-	    prgreg[1] = ((V & 0x1F) << 1) | 1;
-	  }
-	  Sync();
-	  break;
-	case 0x9000:
-	case 0x9001:
-	  if (V != 0xFF) mirr = V;
-	  Sync();
-	  break;
-	case 0x9002:
-	case 0x9003:
-	  regcmd = V;
-	  Sync();
-	  break;
-	case 0xF000:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQLatch &= 0xF0;
-	  IRQLatch |= V & 0xF;
-	  break;
-	case 0xF001:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQLatch &= 0x0F;
-	  IRQLatch |= V << 4;
-	  break;
-	case 0xF002:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  acount = 0;
-	  IRQCount = IRQLatch;
-	  IRQa = V & 2;
-	  irqcmd = V & 1;
-	  break;
-	case 0xF003:
-	  fc->X->IRQEnd(FCEU_IQEXT);
-	  IRQa = irqcmd;
-	  break;
+        case 0x8000:
+        case 0x8001:
+        case 0x8002:
+        case 0x8003:
+          if (!is_pirate) {
+            prgreg[0] = V & 0x1F;
+            Sync();
+          }
+          break;
+        case 0xA000:
+        case 0xA001:
+        case 0xA002:
+        case 0xA003:
+          if (!is_pirate)
+            prgreg[1] = V & 0x1F;
+          else {
+            prgreg[0] = (V & 0x1F) << 1;
+            prgreg[1] = ((V & 0x1F) << 1) | 1;
+          }
+          Sync();
+          break;
+        case 0x9000:
+        case 0x9001:
+          if (V != 0xFF) mirr = V;
+          Sync();
+          break;
+        case 0x9002:
+        case 0x9003:
+          regcmd = V;
+          Sync();
+          break;
+        case 0xF000:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQLatch &= 0xF0;
+          IRQLatch |= V & 0xF;
+          break;
+        case 0xF001:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQLatch &= 0x0F;
+          IRQLatch |= V << 4;
+          break;
+        case 0xF002:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          acount = 0;
+          IRQCount = IRQLatch;
+          IRQa = V & 2;
+          irqcmd = V & 1;
+          break;
+        case 0xF003:
+          fc->X->IRQEnd(FCEU_IQEXT);
+          IRQa = irqcmd;
+          break;
       }
     }
   }
@@ -153,20 +153,20 @@ struct VRC : public CartInterface {
     // It's just swapped lines from 21 mapper
     VRC24Write(fc, (A & 0xF000) | ((A >> 1) & 1) | ((A << 1) & 2), V);
   }
-  
+
   void VRC24IRQHook(int a) {
     static constexpr int LCYCS = 341;
     if (IRQa) {
       acount += a * 3;
       if (acount >= LCYCS) {
-	while (acount >= LCYCS) {
-	  acount -= LCYCS;
-	  IRQCount++;
-	  if (IRQCount & 0x100) {
-	    fc->X->IRQBegin(FCEU_IQEXT);
-	    IRQCount = IRQLatch;
-	  }
-	}
+        while (acount >= LCYCS) {
+          acount -= LCYCS;
+          IRQCount++;
+          if (IRQCount & 0x100) {
+            fc->X->IRQBegin(FCEU_IQEXT);
+            IRQCount = IRQLatch;
+          }
+        }
       }
     }
   }
@@ -177,15 +177,15 @@ struct VRC : public CartInterface {
 
   VRC(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->state->AddExVec({{prgreg, 2, "PREG"},
-			 {chrreg, 8, "CREG"},
-			 {chrhi, 16, "CRGH"},
-			 {&regcmd, 1, "CMDR"},
-			 {&irqcmd, 1, "CMDI"},
-			 {&mirr, 1, "MIRR"},
-			 {&big_bank, 1, "BIGB"},
-			 {&IRQCount, 2, "IRQC"},
-			 {&IRQLatch, 1, "IRQL"},
-			 {&IRQa, 1, "IRQA"}});
+                         {chrreg, 8, "CREG"},
+                         {chrhi, 16, "CRGH"},
+                         {&regcmd, 1, "CMDR"},
+                         {&irqcmd, 1, "CMDI"},
+                         {&mirr, 1, "MIRR"},
+                         {&big_bank, 1, "BIGB"},
+                         {&IRQCount, 2, "IRQC"},
+                         {&IRQLatch, 1, "IRQL"},
+                         {&IRQa, 1, "IRQA"}});
     fc->fceu->GameStateRestore = StateRestore;
   }
 };
@@ -197,7 +197,7 @@ struct Mapper21 final : public VRC<false, false> {
     // actually, it's mapper 23 by wirings
     VRC24Write(fc, A, V);
   }
-  
+
   void Power() override {
     Sync();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
@@ -264,7 +264,7 @@ struct Mapper23 final : public VRC24<is_pirate, is_22> {
     // Only two Goemon games are have
     // battery backed RAM, three more
     // shooters
-    this->fc->cart->setprg8r(0x10, 0x6000, 0);  
+    this->fc->cart->setprg8r(0x10, 0x6000, 0);
     // (Parodius Da!, Gradius 2 and Crisis Force uses 2k or SRAM at
     // 6000-67FF only
     this->fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);

@@ -39,7 +39,7 @@ struct UNLA9746 final : public MMC3 {
       break;
     case 0x8001: {
       uint8 bits_rev = ((V & 0x20) >> 5) | ((V & 0x10) >> 3) |
-	((V & 0x08) >> 1) | ((V & 0x04) << 1);
+        ((V & 0x08) >> 1) | ((V & 0x04) << 1);
       switch (EXPREGS[0]) {
       case 0x26: fc->cart->setprg8(0x8000, bits_rev); break;
       case 0x25: fc->cart->setprg8(0xA000, bits_rev); break;
@@ -49,52 +49,52 @@ struct UNLA9746 final : public MMC3 {
       switch (EXPREGS[1]) {
       case 0x0a:
       case 0x08:
-	EXPREGS[2] = (V << 4);
-	break;
+        EXPREGS[2] = (V << 4);
+        break;
       case 0x09:
-	fc->cart->setchr1(0x0000, EXPREGS[2] | (V >> 1));
-	break;
+        fc->cart->setchr1(0x0000, EXPREGS[2] | (V >> 1));
+        break;
       case 0x0b:
-	fc->cart->setchr1(0x0400, EXPREGS[2] | (V >> 1) | 1);
-	break;
+        fc->cart->setchr1(0x0400, EXPREGS[2] | (V >> 1) | 1);
+        break;
       case 0x0c:
       case 0x0e:
-	EXPREGS[2] = (V << 4);
-	break;
+        EXPREGS[2] = (V << 4);
+        break;
       case 0x0d:
-	fc->cart->setchr1(0x0800, EXPREGS[2] | (V >> 1));
-	break;
+        fc->cart->setchr1(0x0800, EXPREGS[2] | (V >> 1));
+        break;
       case 0x0f:
-	fc->cart->setchr1(0x0c00, EXPREGS[2] | (V >> 1) | 1);
-	break;
+        fc->cart->setchr1(0x0c00, EXPREGS[2] | (V >> 1) | 1);
+        break;
       case 0x10:
       case 0x12:
-	EXPREGS[2] = (V << 4);
-	break;
+        EXPREGS[2] = (V << 4);
+        break;
       case 0x11:
-	fc->cart->setchr1(0x1000, EXPREGS[2] | (V >> 1));
-	break;
+        fc->cart->setchr1(0x1000, EXPREGS[2] | (V >> 1));
+        break;
       case 0x14:
       case 0x16:
-	EXPREGS[2] = (V << 4); 
-	break;
+        EXPREGS[2] = (V << 4);
+        break;
       case 0x15:
-	fc->cart->setchr1(0x1400, EXPREGS[2] | (V >> 1));
-	break;
+        fc->cart->setchr1(0x1400, EXPREGS[2] | (V >> 1));
+        break;
       case 0x18:
       case 0x1a:
-	EXPREGS[2] = (V << 4); 
-	break;
+        EXPREGS[2] = (V << 4);
+        break;
       case 0x19:
-	fc->cart->setchr1(0x1800, EXPREGS[2] | (V >> 1));
-	break;
+        fc->cart->setchr1(0x1800, EXPREGS[2] | (V >> 1));
+        break;
       case 0x1c:
       case 0x1e:
-	EXPREGS[2] = (V << 4); 
-	break;
+        EXPREGS[2] = (V << 4);
+        break;
       case 0x1d:
-	fc->cart->setchr1(0x1c00, EXPREGS[2] | (V >> 1));
-	break;
+        fc->cart->setchr1(0x1c00, EXPREGS[2] | (V >> 1));
+        break;
       }
     } break;
     }
@@ -103,7 +103,7 @@ struct UNLA9746 final : public MMC3 {
   void Power() final override {
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x8000, 0xbfff, [](DECLFW_ARGS) {
-	((UNLA9746*)fc->fceu->cartiface)->UNLA9746Write(DECLFW_FORWARD);
+        ((UNLA9746*)fc->fceu->cartiface)->UNLA9746Write(DECLFW_FORWARD);
       });
   }
 

@@ -190,7 +190,7 @@ FCEUGI *FCEU::FCEUI_LoadGame(const char *name, int OverwriteVidMode) {
     goto endlseq;
   if (fc->fds->FDSLoad(name, fp))
     goto endlseq;
-  
+
   FCEU_PrintError("An error occurred while loading the file.");
   FCEU_fclose(fp);
 
@@ -220,7 +220,7 @@ endlseq:
 // Return: Flag that indicates whether the function was succesful or not.
 bool FCEU::FCEUI_Initialize() {
   GameInterface = (void (*)(FC *, GI))0xDEADBEEF;
-  
+
   fc->X->Init();
 
   return true;

@@ -101,7 +101,7 @@ int State::SubWrite(EMUFILE *os, const vector<SFORMAT> &sf) {
       continue;
     }
     #endif
-    
+
     // 8 bytes for tag + size
     acc += 8;
     acc += f.s & (~FCEUSTATE_FLAGS);
@@ -137,7 +137,7 @@ int State::SubWrite(EMUFILE *os, const vector<SFORMAT> &sf) {
 
 // Write all the sformats to the output file.
 int State::WriteStateChunk(EMUFILE *os, int type,
-			   const vector<SFORMAT> &sf) {
+                           const vector<SFORMAT> &sf) {
   os->fputc(type);
   int bsize = SubWrite(nullptr, sf);
   write32le(bsize, os);
@@ -151,7 +151,7 @@ int State::WriteStateChunk(EMUFILE *os, int type,
 
 // Find the SFORMAT structure with the name 'desc', if any.
 const SFORMAT *State::CheckS(const vector<SFORMAT> &sf,
-			     uint32 tsize, SKEY desc) {
+                             uint32 tsize, SKEY desc) {
   for (const SFORMAT &f : sf) {
     CHECK(f.s != ~0);
     if (f.desc == desc) {
@@ -163,9 +163,9 @@ const SFORMAT *State::CheckS(const vector<SFORMAT> &sf,
 }
 
 bool State::ReadStateChunk(EMUFILE *is,
-			   const vector<SFORMAT> &sf, int size) {
+                           const vector<SFORMAT> &sf, int size) {
   int temp = is->ftell();
-  
+
   while (is->ftell() < temp + size) {
     uint32 tsize;
     SKEY toa;
@@ -323,7 +323,7 @@ void State::ResetExState(void (*PreSave)(FC *), void (*PostSave)(FC *)) {
   // If this needs to happen, it's a bug in the way the savestate
   // system is being used. Fix it! It's not even really possible to
   // do this hack in the reimplementation.
-  #if 0 
+  #if 0
   // adelikat, 3/14/09: had to add this to clear out the size
   // parameter. NROM(mapper 0) games were having savestate
   // crashes if loaded after a non NROM game because the size
@@ -331,7 +331,7 @@ void State::ResetExState(void (*PreSave)(FC *), void (*PostSave)(FC *)) {
   // too much data
   SFMDATA[0].s = 0;
   #endif
-  
+
   SPreSave = PreSave;
   SPostSave = PostSave;
   sfmdata.clear();
@@ -341,7 +341,7 @@ void State::AddExVec(const vector<SFORMAT> &vec) {
   for (const SFORMAT &sf : vec) {
     int flags = sf.s & FCEUSTATE_FLAGS;
     AddExStateReal(sf.v, sf.s & ~FCEUSTATE_FLAGS, flags, sf.desc,
-		   "via AddExVec");
+                   "via AddExVec");
   }
 }
 
@@ -351,13 +351,13 @@ void State::AddExStateReal(void *v, uint32 s, int type, SKEY desc,
   for (const SFORMAT &sf : sfmdata) {
     if (sf.desc == desc) {
       fprintf(stderr, "SFORMAT with duplicate key: %c%c%c%c\n"
-	      "Second called from %s\n",
-	      desc[0], desc[1], desc[2], desc[3],
-	      src);
+              "Second called from %s\n",
+              desc[0], desc[1], desc[2], desc[3],
+              src);
       abort();
     }
   }
-  
+
   CHECK(s != ~0);
   #if 0
   if (s == ~0) {
@@ -379,7 +379,7 @@ void State::AddExStateReal(void *v, uint32 s, int type, SKEY desc,
 
   // impossible now
   // CHECK(desc != nullptr);
-  
+
   #if 0
   if (desc != nullptr) {
     // PERF: n^2 paranoia. Should rewrite this to keep a regular
@@ -398,7 +398,7 @@ void State::AddExStateReal(void *v, uint32 s, int type, SKEY desc,
     }
   }
   #endif
-    
+
   SFORMAT sf{v, s, desc};
   if (type) sf.s |= FCEUSTATE_RLSB;
   sfmdata.push_back(sf);

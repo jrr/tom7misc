@@ -43,15 +43,15 @@ struct UNLD2000 final : public CartInterface {
     //  FCEU_printf("write %04x:%04x\n",A,V);
     switch (A) {
       case 0x5000:
-	prg = V;
-	Sync();
-	break;
+        prg = V;
+        Sync();
+        break;
       case 0x5200:
-	mirr = (V & 1) ^ 1;
-	prgmode = V & 4;
-	Sync();
-	break;
-	//    default: FCEU_printf("write %04x:%04x\n",A,V);
+        mirr = (V & 1) ^ 1;
+        prgmode = V & 4;
+        Sync();
+        break;
+        //    default: FCEU_printf("write %04x:%04x\n",A,V);
     }
   }
 

@@ -38,14 +38,14 @@ struct DEIROM final : public CartInterface {
     switch (A & 0x8001) {
       case 0x8000: cmd = V & 0x07; break;
       case 0x8001:
-	if (cmd <= 0x05)
-	  V &= 0x3F;
-	else
-	  V &= 0x0F;
-	if (cmd <= 0x01) V >>= 1;
-	DRegs[cmd & 0x07] = V;
-	Sync();
-	break;
+        if (cmd <= 0x05)
+          V &= 0x3F;
+        else
+          V &= 0x0F;
+        if (cmd <= 0x01) V >>= 1;
+        DRegs[cmd & 0x07] = V;
+        Sync();
+        break;
     }
   }
 

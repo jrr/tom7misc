@@ -26,7 +26,7 @@ static constexpr int masko8[8] = {63, 31, 15, 1, 3, 0, 0, 0};
 namespace {
 struct Super24 final : public MMC3 {
   uint8 EXPREGS[8] = {};
-  
+
   void PWrap(uint32 A, uint8 V) final override {
     uint32 NV = V & masko8[EXPREGS[0] & 7];
     NV |= (EXPREGS[1] << 1);
@@ -45,18 +45,18 @@ struct Super24 final : public MMC3 {
   void Super24Write(DECLFW_ARGS) {
     switch (A) {
       case 0x5FF0:
-	EXPREGS[0] = V;
-	FixMMC3PRG(MMC3_cmd);
-	FixMMC3CHR(MMC3_cmd);
-	break;
+        EXPREGS[0] = V;
+        FixMMC3PRG(MMC3_cmd);
+        FixMMC3CHR(MMC3_cmd);
+        break;
       case 0x5FF1:
-	EXPREGS[1] = V;
-	FixMMC3PRG(MMC3_cmd);
-	break;
+        EXPREGS[1] = V;
+        FixMMC3PRG(MMC3_cmd);
+        break;
       case 0x5FF2:
-	EXPREGS[2] = V;
-	FixMMC3CHR(MMC3_cmd);
-	break;
+        EXPREGS[2] = V;
+        FixMMC3CHR(MMC3_cmd);
+        break;
     }
   }
 

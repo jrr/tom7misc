@@ -24,7 +24,7 @@
 namespace {
 struct HyperShot : public InputCFC {
   using InputCFC::InputCFC;
-  
+
   uint8 Read(int w, uint8 ret) override {
     if (w) ret |= HSValR;
     return ret;

@@ -26,10 +26,10 @@ struct Mapper50 final : public MapInterface {
   void Mapper50IRQ(int a) {
     if (fc->ines->iNESIRQa) {
       if (fc->ines->iNESIRQCount < 4096) {
-	fc->ines->iNESIRQCount += a;
+        fc->ines->iNESIRQCount += a;
       } else {
-	fc->ines->iNESIRQa = 0;
-	fc->X->IRQBegin(FCEU_IQEXT);
+        fc->ines->iNESIRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
       }
     }
   }
@@ -41,19 +41,19 @@ struct Mapper50 final : public MapInterface {
   void M50W(DECLFW_ARGS) {
     if ((A & 0xD060) == 0x4020) {
       if (A & 0x100) {
-	fc->ines->iNESIRQa = V & 1;
-	if (!fc->ines->iNESIRQa) fc->ines->iNESIRQCount = 0;
-	fc->X->IRQEnd(FCEU_IQEXT);
+        fc->ines->iNESIRQa = V & 1;
+        if (!fc->ines->iNESIRQa) fc->ines->iNESIRQCount = 0;
+        fc->X->IRQEnd(FCEU_IQEXT);
       } else {
-	V = ((V & 1) << 2) | ((V & 2) >> 1) | ((V & 4) >> 1) | (V & 8);
-	GMB_mapbyte1(fc)[0] = V;
-	fc->cart->setprg8(0xc000, V);
+        V = ((V & 1) << 2) | ((V & 2) >> 1) | ((V & 4) >> 1) | (V & 8);
+        GMB_mapbyte1(fc)[0] = V;
+        fc->cart->setprg8(0xc000, V);
       }
     }
   }
 };
 }
-  
+
 MapInterface *Mapper50_init(FC *fc) {
   fc->fceu->SetWriteHandler(0x4020, 0x5fff, [](DECLFW_ARGS) {
     ((Mapper50*)fc->fceu->mapiface)->M50W(DECLFW_FORWARD);

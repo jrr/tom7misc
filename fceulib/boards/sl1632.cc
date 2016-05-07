@@ -59,20 +59,20 @@ struct UNLSL1632 final : public MMC3 {
       FixMMC3PRG(MMC3_cmd);
       FixMMC3CHR(MMC3_cmd);
       if (A < 0xC000)
-	MMC3_CMDWrite(DECLFW_FORWARD);
+        MMC3_CMDWrite(DECLFW_FORWARD);
       else
-	MMC3_IRQWrite(DECLFW_FORWARD);
+        MMC3_IRQWrite(DECLFW_FORWARD);
     } else {
       if ((A >= 0xB000) && (A <= 0xE003)) {
-	int ind = ((((A & 2) | (A >> 10)) >> 1) + 2) & 7;
-	int sar = ((A & 1) << 2);
-	chrcmd[ind] = (chrcmd[ind] & (0xF0 >> sar)) | ((V & 0x0F) << sar);
+        int ind = ((((A & 2) | (A >> 10)) >> 1) + 2) & 7;
+        int sar = ((A & 1) << 2);
+        chrcmd[ind] = (chrcmd[ind] & (0xF0 >> sar)) | ((V & 0x0F) << sar);
       } else
-	switch (A & 0xF003) {
-	  case 0x8000: prg0 = V; break;
-	  case 0xA000: prg1 = V; break;
-	  case 0x9000: mirr = V & 1; break;
-	}
+        switch (A & 0xF003) {
+          case 0x8000: prg0 = V; break;
+          case 0xA000: prg1 = V; break;
+          case 0x9000: mirr = V & 1; break;
+        }
       Sync();
     }
   }
@@ -93,18 +93,18 @@ struct UNLSL1632 final : public MMC3 {
   void Power() final override {
     MMC3::Power();
     fc->fceu->SetWriteHandler(0x4100, 0xFFFF, [](DECLFW_ARGS) {
-	((UNLSL1632*)fc->fceu->cartiface)->UNLSL1632CMDWrite(DECLFW_FORWARD);
+        ((UNLSL1632*)fc->fceu->cartiface)->UNLSL1632CMDWrite(DECLFW_FORWARD);
       });
   }
 
   UNLSL1632(FC *fc, CartInfo *info) : MMC3(fc, info, 256, 512, 0, 0) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{chrcmd, 8, "CHRC"},
-	{&prg0, 1, "PRG0"},
-	{&prg1, 1, "PRG1"},
-	{&bbrk, 1, "BRK0"},
-	{&mirr, 1, "MIRR"}
+        {chrcmd, 8, "CHRC"},
+        {&prg0, 1, "PRG0"},
+        {&prg1, 1, "PRG1"},
+        {&bbrk, 1, "BRK0"},
+        {&mirr, 1, "MIRR"}
       });
   }
 };

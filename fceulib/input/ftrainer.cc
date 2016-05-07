@@ -24,7 +24,7 @@
 namespace {
 struct FamilyTrainer : public InputCFC {
   FamilyTrainer(FC *fc, char side) : InputCFC(fc), side(side) {}
-  
+
   uint8 Read(int w, uint8 ret) override {
     if (w) {
       ret |= FTValR;
@@ -46,7 +46,7 @@ struct FamilyTrainer : public InputCFC {
     FTValR = (~FTValR) & 0xF;
     if (side == 'B')
       FTValR = ((FTValR & 0x8) >> 3) | ((FTValR & 0x4) >> 1) |
-	       ((FTValR & 0x2) << 1) | ((FTValR & 0x1) << 3);
+               ((FTValR & 0x2) << 1) | ((FTValR & 0x1) << 3);
     FTValR <<= 1;
   }
 

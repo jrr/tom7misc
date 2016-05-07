@@ -62,58 +62,58 @@ struct Mapper28 final : public CartInterface {
       // 32K modes
       case 0x00:
       case 0x04:
-	prglo = outb;
-	prghi = outb | 1;
-	break;
+        prglo = outb;
+        prghi = outb | 1;
+        break;
       case 0x10:
       case 0x14:
-	prglo = (outb & ~2) | (prg << 1 & 2);
-	prghi = (outb & ~2) | (prg << 1 & 2) | 1;
-	break;
+        prglo = (outb & ~2) | (prg << 1 & 2);
+        prghi = (outb & ~2) | (prg << 1 & 2) | 1;
+        break;
       case 0x20:
       case 0x24:
-	prglo = (outb & ~6) | (prg << 1 & 6);
-	prghi = (outb & ~6) | (prg << 1 & 6) | 1;
-	break;
+        prglo = (outb & ~6) | (prg << 1 & 6);
+        prghi = (outb & ~6) | (prg << 1 & 6) | 1;
+        break;
       case 0x30:
       case 0x34:
-	prglo = (outb & ~14) | (prg << 1 & 14);
-	prghi = (outb & ~14) | (prg << 1 & 14) | 1;
-	break;
+        prglo = (outb & ~14) | (prg << 1 & 14);
+        prghi = (outb & ~14) | (prg << 1 & 14) | 1;
+        break;
       // bottom fixed modes
       case 0x08:
-	prglo = outb;
-	prghi = outb | (prg & 1);
-	break;
+        prglo = outb;
+        prghi = outb | (prg & 1);
+        break;
       case 0x18:
-	prglo = outb;
-	prghi = (outb & ~2) | (prg & 3);
-	break;
+        prglo = outb;
+        prghi = (outb & ~2) | (prg & 3);
+        break;
       case 0x28:
-	prglo = outb;
-	prghi = (outb & ~6) | (prg & 7);
-	break;
+        prglo = outb;
+        prghi = (outb & ~6) | (prg & 7);
+        break;
       case 0x38:
-	prglo = outb;
-	prghi = (outb & ~14) | (prg & 15);
-	break;
+        prglo = outb;
+        prghi = (outb & ~14) | (prg & 15);
+        break;
       // top fixed modes
       case 0x0c:
-	prglo = outb | (prg & 1);
-	prghi = outb | 1;
-	break;
+        prglo = outb | (prg & 1);
+        prghi = outb | 1;
+        break;
       case 0x1c:
-	prglo = (outb & ~2) | (prg & 3);
-	prghi = outb | 1;
-	break;
+        prglo = (outb & ~2) | (prg & 3);
+        prghi = outb | 1;
+        break;
       case 0x2c:
-	prglo = (outb & ~6) | (prg & 7);
-	prghi = outb | 1;
-	break;
+        prglo = (outb & ~6) | (prg & 7);
+        prghi = outb | 1;
+        break;
       case 0x3c:
-	prglo = (outb & ~14) | (prg & 15);
-	prghi = outb | 1;
-	break;
+        prglo = (outb & ~14) | (prg & 15);
+        prghi = outb | 1;
+        break;
     }
     prglo &= prg_mask_16k;
     prghi &= prg_mask_16k;
@@ -133,23 +133,23 @@ struct Mapper28 final : public CartInterface {
     uint8 value = V;
     switch (reg) {
       case 0x00:
-	chr = value & 3;
-	Mirror(value);
-	break;
+        chr = value & 3;
+        Mirror(value);
+        break;
       case 0x01:
-	prg = value & 15;
-	Mirror(value);
-	Sync();
-	break;
+        prg = value & 15;
+        Mirror(value);
+        Sync();
+        break;
       case 0x80:
-	mode = value & 63;
-	SyncMirror();
-	Sync();
-	break;
+        mode = value & 63;
+        SyncMirror();
+        Sync();
+        break;
       case 0x81:
-	outer = value & 63;
-	Sync();
-	break;
+        outer = value & 63;
+        Sync();
+        break;
     }
   }
 
@@ -189,11 +189,11 @@ struct Mapper28 final : public CartInterface {
   Mapper28(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{&reg, 1, "REGS"},
-	{&chr, 1, "CHR0"},
-	{&prg, 1, "PRG0"},
-	{&mode, 1, "MODE"},
-	{&outer, 1, "OUTR"}});
+        {&reg, 1, "REGS"},
+        {&chr, 1, "CHR0"},
+        {&prg, 1, "PRG0"},
+        {&mode, 1, "MODE"},
+        {&outer, 1, "OUTR"}});
   }
 };
 }

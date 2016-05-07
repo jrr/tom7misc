@@ -63,7 +63,7 @@ struct Mahjong : public InputCFC {
     // printf("%08x\n",MReal>>13);
     // HSVal=*(uint8*)data;
   }
-  
+
   uint32 MReal = 0, MRet = 0;
 };
 }  // namespace

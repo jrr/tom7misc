@@ -48,13 +48,13 @@ struct Mapper179 final : public CartInterface {
     reg[0] = reg[1] = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x4020, 0x5fff, [](DECLFW_ARGS) {
-	((Mapper179*)fc->fceu->cartiface)->M179WriteLo(DECLFW_FORWARD);
+        ((Mapper179*)fc->fceu->cartiface)->M179WriteLo(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x6000, 0x7fff, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0x7fff, Cart::CartBW);
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((Mapper179*)fc->fceu->cartiface)->M179Write(DECLFW_FORWARD);
+        ((Mapper179*)fc->fceu->cartiface)->M179Write(DECLFW_FORWARD);
       });
   }
 

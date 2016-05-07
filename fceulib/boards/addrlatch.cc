@@ -52,11 +52,11 @@ struct AddrLatch : public CartInterface {
       fc->fceu->SetWriteHandler(0x6000, 0x7FFF, Cart::CartBW);
     } else {
       fc->fceu->SetReadHandler(0x6000, 0xFFFF, [](DECLFR_ARGS) {
-	  return ((AddrLatch*)fc->fceu->cartiface)->DefRead(DECLFR_FORWARD);
-	});
+          return ((AddrLatch*)fc->fceu->cartiface)->DefRead(DECLFR_FORWARD);
+        });
     }
     fc->fceu->SetWriteHandler(addrreg0, addrreg1, [](DECLFW_ARGS) {
-	((AddrLatch*)fc->fceu->cartiface)->LatchWrite(DECLFW_FORWARD);
+        ((AddrLatch*)fc->fceu->cartiface)->LatchWrite(DECLFW_FORWARD);
       });
   }
 
@@ -70,8 +70,8 @@ struct AddrLatch : public CartInterface {
   }
 
   // proc -> WSync, func -> DefRead
-  AddrLatch(FC *fc, CartInfo *info, 
-	    uint16 linit, uint16 adr0, uint16 adr1, bool has_wram) :
+  AddrLatch(FC *fc, CartInfo *info,
+            uint16 linit, uint16 adr0, uint16 adr1, bool has_wram) :
     CartInterface(fc) {
     latchinit = linit;
     addrreg0 = adr0;
@@ -81,8 +81,8 @@ struct AddrLatch : public CartInterface {
       WRAM = (uint8 *)FCEU_gmalloc(WRAMSIZE);
       fc->cart->SetupCartPRGMapping(0x10, WRAM, WRAMSIZE, true);
       if (info->battery) {
-	info->SaveGame[0] = WRAM;
-	info->SaveGameLen[0] = WRAMSIZE;
+        info->SaveGame[0] = WRAM;
+        info->SaveGameLen[0] = WRAMSIZE;
       }
       fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
     }
@@ -134,8 +134,8 @@ struct BMCD1038 final : public AddrLatch {
     dipswitch &= 3;
   }
 
-  BMCD1038(FC *fc, CartInfo *info, 
-	   uint16 linit, uint16 adr0, uint16 adr1, uint8 wram) :
+  BMCD1038(FC *fc, CartInfo *info,
+           uint16 linit, uint16 adr0, uint16 adr1, uint8 wram) :
     AddrLatch(fc, info, linit, adr0, adr1, wram) {
     fc->state->AddExState(&dipswitch, 1, 0, "DIPs");
   }
@@ -171,8 +171,8 @@ struct UNL43272 final : public AddrLatch {
     WSync();
   }
 
-  UNL43272(FC *fc, CartInfo *info, 
-	   uint16 linit, uint16 adr0, uint16 adr1, uint8 wram) :
+  UNL43272(FC *fc, CartInfo *info,
+           uint16 linit, uint16 adr0, uint16 adr1, uint8 wram) :
     AddrLatch(fc, info, linit, adr0, adr1, wram) {
     fc->state->AddExState(&dipswitch, 1, 0, "DIPs");
   }
@@ -421,28 +421,28 @@ struct M227 final : public AddrLatch {
 
     if ((latch >> 7) & 1) {
       if (S) {
-	fc->cart->setprg32(0x8000, p >> 1);
+        fc->cart->setprg32(0x8000, p >> 1);
       } else {
-	fc->cart->setprg16(0x8000, p);
-	fc->cart->setprg16(0xC000, p);
+        fc->cart->setprg16(0x8000, p);
+        fc->cart->setprg16(0xC000, p);
       }
     } else {
       if (S) {
-	if (L) {
-	  fc->cart->setprg16(0x8000, p & 0x3E);
-	  fc->cart->setprg16(0xC000, p | 7);
-	} else {
-	  fc->cart->setprg16(0x8000, p & 0x3E);
-	  fc->cart->setprg16(0xC000, p & 0x38);
-	}
+        if (L) {
+          fc->cart->setprg16(0x8000, p & 0x3E);
+          fc->cart->setprg16(0xC000, p | 7);
+        } else {
+          fc->cart->setprg16(0x8000, p & 0x3E);
+          fc->cart->setprg16(0xC000, p & 0x38);
+        }
       } else {
-	if (L) {
-	  fc->cart->setprg16(0x8000, p);
-	  fc->cart->setprg16(0xC000, p | 7);
-	} else {
-	  fc->cart->setprg16(0x8000, p);
-	  fc->cart->setprg16(0xC000, p & 0x38);
-	}
+        if (L) {
+          fc->cart->setprg16(0x8000, p);
+          fc->cart->setprg16(0xC000, p | 7);
+        } else {
+          fc->cart->setprg16(0x8000, p);
+          fc->cart->setprg16(0xC000, p & 0x38);
+        }
       }
     }
 
@@ -596,14 +596,14 @@ struct BMCG146 final : public AddrLatch {
     fc->cart->setchr8(0);
     if (latch & 0x800) {  // UNROM mode
       fc->cart->setprg16(0x8000,
-			 (latch & 0x1F) | (latch & ((latch & 0x40) >> 6)));
+                         (latch & 0x1F) | (latch & ((latch & 0x40) >> 6)));
       fc->cart->setprg16(0xC000, (latch & 0x18) | 7);
     } else {
       if (latch & 0x40) {  // 16K mode
-	fc->cart->setprg16(0x8000, latch & 0x1F);
-	fc->cart->setprg16(0xC000, latch & 0x1F);
+        fc->cart->setprg16(0x8000, latch & 0x1F);
+        fc->cart->setprg16(0xC000, latch & 0x1F);
       } else {
-	fc->cart->setprg32(0x8000, (latch >> 1) & 0x0F);
+        fc->cart->setprg32(0x8000, (latch >> 1) & 0x0F);
       }
     }
     fc->cart->setmirror(((latch & 0x80) >> 7) ^ 1);

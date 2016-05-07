@@ -42,7 +42,7 @@ struct MapperGS2013 final : public CartInterface {
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
       return ((MapperGS2013*)fc->fceu->cartiface)->
-	BMCGS2013Write(DECLFW_FORWARD);
+        BMCGS2013Write(DECLFW_FORWARD);
     });
   }
 

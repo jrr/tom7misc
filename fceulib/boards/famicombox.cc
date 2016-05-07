@@ -53,7 +53,7 @@ struct SSSNROM final : public CartInterface {
       case 0: return regs[0] = 0xff;  // clear all exceptions
       case 2: return 0xc0;  // DIP selftest + freeplay
       case 3:
-	return 0x00;  // 0, 1 - attract
+        return 0x00;  // 0, 1 - attract
       // 2
       // 4    - menu
       // 8    - self check and game casette check

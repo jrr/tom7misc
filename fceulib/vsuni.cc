@@ -177,7 +177,7 @@ void VSUni::FCEU_VSUniPower() {
     OldReadPPU = fc->fceu->GetReadHandler(0x2002);
     fc->fceu->SetReadHandler(0x2002, 0x2002, A2002_MBJ);
   }
-  if (curppu == RC2C05_04 || curppu == RC2C05_01 || 
+  if (curppu == RC2C05_04 || curppu == RC2C05_01 ||
       curppu == RC2C05_03 || curppu == RC2C05_02) {
     OldWritePPU[0] = fc->fceu->GetWriteHandler(0x2000);
     OldWritePPU[1] = fc->fceu->GetWriteHandler(0x2001);
@@ -321,24 +321,24 @@ void VSUni::FCEU_VSUniCheck(uint64 md5partial, int *mapper_no, uint8 *Mirroring)
       secptr = nullptr;
 
       {
-	static constexpr uint64 tko = 0x6e1ee06171d8ce3aULL;
-	static constexpr uint64 rbi = 0x6a02d345812938afULL;
-	if (md5partial == tko)
-	  secptr = secdata[0];
-	if (md5partial == rbi)
-	  secptr = secdata[1];
+        static constexpr uint64 tko = 0x6e1ee06171d8ce3aULL;
+        static constexpr uint64 rbi = 0x6a02d345812938afULL;
+        if (md5partial == tko)
+          secptr = secdata[0];
+        if (md5partial == rbi)
+          secptr = secdata[1];
       }
 
       vsdip = 0x0;
       if (vs->ioption & IOPTION_PREDIP) {
-	vsdip= vs->predip;
+        vsdip= vs->predip;
       }
       if (vs->ioption & IOPTION_GUN) {
-	fc->fceu->GameInfo->input[0] = SI_ZAPPER;
-	fc->fceu->GameInfo->input[1] = SI_NONE;
+        fc->fceu->GameInfo->input[0] = SI_ZAPPER;
+        fc->fceu->GameInfo->input[1] = SI_NONE;
       } else {
-	fc->fceu->GameInfo->input[0] =
-	  fc->fceu->GameInfo->input[1] = SI_GAMEPAD;
+        fc->fceu->GameInfo->input[0] =
+          fc->fceu->GameInfo->input[1] = SI_GAMEPAD;
       }
       curvs = vs;
       return;

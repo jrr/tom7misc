@@ -19,20 +19,20 @@
  */
 
 /*        Various macros for faster memory stuff
-		(at least that's the idea) 
+                (at least that's the idea)
 */
 
 #include <stdlib.h>
 
 // #define FCEU_dwmemset(d,c,n) {int _x; for(_x=n-4;_x>=0;_x-=4) *(uint32 *)&(d)[_x]=c;}
 // Looks like memset but for 32-bit quantities, though n is still in bytes. -tom7
-#define FCEU_dwmemset(d, c, n)			\
-  do {						\
-    int _nn = (n) >> 2;				\
-    uint32 *_dest = (uint32 *)(d);		\
-    for(int _x = _nn - 1; _x >= 0; _x--) {	\
-      _dest[_x] = (c);				\
-    }						\
+#define FCEU_dwmemset(d, c, n)                  \
+  do {                                          \
+    int _nn = (n) >> 2;                         \
+    uint32 *_dest = (uint32 *)(d);              \
+    for(int _x = _nn - 1; _x >= 0; _x--) {      \
+      _dest[_x] = (c);                          \
+    }                                           \
   } while(0)
 
 void *FCEU_malloc(uint32 size);

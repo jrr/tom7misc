@@ -64,7 +64,7 @@ struct BMCFK23C : public MMC3 {
   // needs other tweaks
   //[m176]三国忠烈传.wxn.nes
   //[m176]破釜沉舟.fix.nes
-  
+
   void CWrap(uint32 A, uint8 V) final override {
     if (EXPREGS[0] & 0x40)
       fc->cart->setchr8(EXPREGS[2] | unromchr);
@@ -73,14 +73,14 @@ struct BMCFK23C : public MMC3 {
     } else {
       uint16 base = (EXPREGS[2] & 0x7F) << 3;
       if (EXPREGS[3] & 2) {
-	int cbase = (MMC3_cmd & 0x80) << 5;
-	fc->cart->setchr1(A, V | base);
-	fc->cart->setchr1(0x0000 ^ cbase, DRegBuf[0] | base);
-	fc->cart->setchr1(0x0400 ^ cbase, EXPREGS[6] | base);
-	fc->cart->setchr1(0x0800 ^ cbase, DRegBuf[1] | base);
-	fc->cart->setchr1(0x0c00 ^ cbase, EXPREGS[7] | base);
+        int cbase = (MMC3_cmd & 0x80) << 5;
+        fc->cart->setchr1(A, V | base);
+        fc->cart->setchr1(0x0000 ^ cbase, DRegBuf[0] | base);
+        fc->cart->setchr1(0x0400 ^ cbase, EXPREGS[6] | base);
+        fc->cart->setchr1(0x0800 ^ cbase, DRegBuf[1] | base);
+        fc->cart->setchr1(0x0c00 ^ cbase, EXPREGS[7] | base);
       } else {
-	fc->cart->setchr1(A, V | base);
+        fc->cart->setchr1(A, V | base);
       }
     }
   }
@@ -101,19 +101,19 @@ struct BMCFK23C : public MMC3 {
       fc->cart->setprg16(0xC000, EXPREGS[1]);
     } else {
       if (EXPREGS[0] & 3) {
-	uint32 blocksize = (6) - (EXPREGS[0] & 3);
-	uint32 mask = (1 << blocksize) - 1;
-	V &= mask;
-	// V &= 63; //? is this a good idea?
-	V |= (EXPREGS[1] << 1);
-	fc->cart->setprg8(A, V);
+        uint32 blocksize = (6) - (EXPREGS[0] & 3);
+        uint32 mask = (1 << blocksize) - 1;
+        V &= mask;
+        // V &= 63; //? is this a good idea?
+        V |= (EXPREGS[1] << 1);
+        fc->cart->setprg8(A, V);
       } else {
-	fc->cart->setprg8(A, V & prg_mask);
+        fc->cart->setprg8(A, V & prg_mask);
       }
 
       if (EXPREGS[3] & 2) {
-	fc->cart->setprg8(0xC000, EXPREGS[4]);
-	fc->cart->setprg8(0xE000, EXPREGS[5]);
+        fc->cart->setprg8(0xC000, EXPREGS[4]);
+        fc->cart->setprg8(0xE000, EXPREGS[5]);
       }
     }
     fc->cart->setprg8r(0x10, 0x6000, A001B & 3);
@@ -123,31 +123,31 @@ struct BMCFK23C : public MMC3 {
   void BMCFK23CHiWrite(DECLFW_ARGS) {
     if (EXPREGS[0] & 0x40) {
       if (EXPREGS[0] & 0x30) {
-	unromchr = 0;
+        unromchr = 0;
       } else {
-	unromchr = V & 3;
-	FixMMC3CHR(MMC3_cmd);
+        unromchr = V & 3;
+        FixMMC3CHR(MMC3_cmd);
       }
     } else {
       if ((A == 0x8001) && (EXPREGS[3] & 2 && MMC3_cmd & 8)) {
-	EXPREGS[4 | (MMC3_cmd & 3)] = V;
-	FixMMC3PRG(MMC3_cmd);
-	FixMMC3CHR(MMC3_cmd);
+        EXPREGS[4 | (MMC3_cmd & 3)] = V;
+        FixMMC3PRG(MMC3_cmd);
+        FixMMC3CHR(MMC3_cmd);
       } else if (A < 0xC000) {
-	if (fc->unif->UNIFchrrama) {
-	  // hacky... strange behaviour, must be
-	  // bit scramble due to pcb layout
-	  // restrictions
-	  // check if it not interfere with other dumps
-	  if ((A == 0x8000) && (V == 0x46))
-	    V = 0x47;
-	  else if ((A == 0x8000) && (V == 0x47))
-	    V = 0x46;
-	}
-	MMC3_CMDWrite(DECLFW_FORWARD);
-	FixMMC3PRG(MMC3_cmd);
+        if (fc->unif->UNIFchrrama) {
+          // hacky... strange behaviour, must be
+          // bit scramble due to pcb layout
+          // restrictions
+          // check if it not interfere with other dumps
+          if ((A == 0x8000) && (V == 0x46))
+            V = 0x47;
+          else if ((A == 0x8000) && (V == 0x47))
+            V = 0x46;
+        }
+        MMC3_CMDWrite(DECLFW_FORWARD);
+        FixMMC3PRG(MMC3_cmd);
       } else {
-	MMC3_IRQWrite(DECLFW_FORWARD);
+        MMC3_IRQWrite(DECLFW_FORWARD);
       }
     }
   }
@@ -174,17 +174,17 @@ struct BMCFK23C : public MMC3 {
       remap |= (A & 3) == 2;
 
       if (remap) {
-	FixMMC3PRG(MMC3_cmd);
-	FixMMC3CHR(MMC3_cmd);
+        FixMMC3PRG(MMC3_cmd);
+        FixMMC3CHR(MMC3_cmd);
       }
     }
 
     if (is_BMCFK23CA) {
       if (EXPREGS[3] & 2) {
-	// hacky hacky! if someone wants extra banking, then
-	// for sure doesn't want mode 4 for it! (allow to run A
-	// version boards on normal mapper)
-	EXPREGS[0] &= ~7;
+        // hacky hacky! if someone wants extra banking, then
+        // for sure doesn't want mode 4 for it! (allow to run A
+        // version boards on normal mapper)
+        EXPREGS[0] &= ~7;
       }
     }
 
@@ -241,7 +241,7 @@ struct BMCFK23C : public MMC3 {
 
 struct BMCFK23CA final : public BMCFK23C<true> {
   uint8 *CHRRAM = nullptr;
-  
+
   void Close() final override {
     free(CHRRAM);
     CHRRAM = nullptr;

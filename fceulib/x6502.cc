@@ -712,7 +712,7 @@ void X6502::Run(int32 cycles) {
     // Get the next instruction.
     const uint8 b1 = RdMem(reg_PC);
     // printf("Read %x -> opcode %02x\n", reg_PC, b1);
-    
+
     ADDCYC(CycTable[b1]);
 
     temp = tcount;
@@ -763,7 +763,7 @@ void X6502::Run(int32 cycles) {
         ptmp++;
         npc |= RdMem(ptmp) << 8;
         reg_PC = npc;
-      } break; 
+      } break;
       case 0x6C: {
         /* JMP INDIRECT */
         uint32 tmp;
@@ -782,7 +782,7 @@ void X6502::Run(int32 cycles) {
         reg_PC = RdMem(reg_PC) << 8;
         reg_PC |= npc;
         break;
-      } 
+      }
       case 0xAA: /* TAX */
         reg_X = reg_A;
         X_ZN(reg_A);

@@ -34,11 +34,11 @@ struct BMC830118C final : public MMC3 {
   void PWrap(uint32 A, uint8 V) final override {
     if ((EXPREGS[0] & 0x0C) == 0x0C) {
       if (A == 0x8000) {
-	fc->cart->setprg8(A, (V & 0x0F) | ((EXPREGS[0] & 0x0c) << 2));
-	fc->cart->setprg8(0xC000, (V & 0x0F) | 0x32);
+        fc->cart->setprg8(A, (V & 0x0F) | ((EXPREGS[0] & 0x0c) << 2));
+        fc->cart->setprg8(0xC000, (V & 0x0F) | 0x32);
       } else if (A == 0xA000) {
-	fc->cart->setprg8(A, (V & 0x0F) | ((EXPREGS[0] & 0x0c) << 2));
-	fc->cart->setprg8(0xE000, (V & 0x0F) | 0x32);
+        fc->cart->setprg8(A, (V & 0x0F) | ((EXPREGS[0] & 0x0c) << 2));
+        fc->cart->setprg8(0xE000, (V & 0x0F) | 0x32);
       }
     } else {
       fc->cart->setprg8(A, (V & 0x0F) | ((EXPREGS[0] & 0x0c) << 2));

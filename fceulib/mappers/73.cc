@@ -53,12 +53,12 @@ struct Mapper73 final : public MapInterface {
       IRQx = V & 1;
       fc->ines->iNESIRQa = V & 2;
       if (fc->ines->iNESIRQa) {
-	if (IRQm) {
-	  fc->ines->iNESIRQCount &= 0xFFFF;
-	  fc->ines->iNESIRQCount |= (IRQr & 0xFF);
-	} else {
-	  fc->ines->iNESIRQCount = IRQr;
-	}
+        if (IRQm) {
+          fc->ines->iNESIRQCount &= 0xFFFF;
+          fc->ines->iNESIRQCount |= (IRQr & 0xFF);
+        } else {
+          fc->ines->iNESIRQCount = IRQr;
+        }
       }
       fc->X->IRQEnd(FCEU_IQEXT);
       break;
@@ -75,31 +75,31 @@ struct Mapper73 final : public MapInterface {
     for (int i = 0; i < a; i++) {
       if (!fc->ines->iNESIRQa) return;
       if (IRQm) {
-	uint16 temp = fc->ines->iNESIRQCount;
-	temp &= 0xFF;
-	fc->ines->iNESIRQCount &= 0xFF00;
-	if (temp == 0xFF) {
-	  fc->ines->iNESIRQCount = IRQr;
-	  fc->ines->iNESIRQCount |= (uint16)(IRQr & 0xFF);
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	} else {
-	  temp++;
-	  fc->ines->iNESIRQCount |= temp;
-	}
+        uint16 temp = fc->ines->iNESIRQCount;
+        temp &= 0xFF;
+        fc->ines->iNESIRQCount &= 0xFF00;
+        if (temp == 0xFF) {
+          fc->ines->iNESIRQCount = IRQr;
+          fc->ines->iNESIRQCount |= (uint16)(IRQr & 0xFF);
+          fc->X->IRQBegin(FCEU_IQEXT);
+        } else {
+          temp++;
+          fc->ines->iNESIRQCount |= temp;
+        }
       } else {
-	// 16 bit mode
-	if (fc->ines->iNESIRQCount == 0xFFFF) {
-	  fc->ines->iNESIRQCount = IRQr;
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	} else {
-	  fc->ines->iNESIRQCount++;
-	}
+        // 16 bit mode
+        if (fc->ines->iNESIRQCount == 0xFFFF) {
+          fc->ines->iNESIRQCount = IRQr;
+          fc->X->IRQBegin(FCEU_IQEXT);
+        } else {
+          fc->ines->iNESIRQCount++;
+        }
       }
     }
   }
 };
 }
-  
+
 MapInterface *Mapper73_init(FC *fc) {
   fc->fceu->SetWriteHandler(0x8000, 0xffff, [](DECLFW_ARGS) {
     ((Mapper73 *)fc->fceu->mapiface)->Mapper73_write(DECLFW_FORWARD);

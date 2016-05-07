@@ -38,11 +38,11 @@ struct SA9602B final : public MMC3 {
     switch (A & 0xe001) {
       case 0x8000: EXPREGS[0] = V; break;
       case 0x8001:
-	if ((EXPREGS[0] & 7) < 6) {
-	  EXPREGS[1] = V >> 6;
-	  FixMMC3PRG(MMC3_cmd);
-	}
-	break;
+        if ((EXPREGS[0] & 7) < 6) {
+          EXPREGS[1] = V >> 6;
+          FixMMC3PRG(MMC3_cmd);
+        }
+        break;
     }
     MMC3_CMDWrite(DECLFW_FORWARD);
   }
@@ -52,7 +52,7 @@ struct SA9602B final : public MMC3 {
     MMC3::Power();
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x8000, 0xBFFF, [](DECLFW_ARGS) {
-	((SA9602B*)fc->fceu->cartiface)->SA9602BWrite(DECLFW_FORWARD);
+        ((SA9602B*)fc->fceu->cartiface)->SA9602BWrite(DECLFW_FORWARD);
       });
   }
 

@@ -64,7 +64,7 @@ struct BMC411120C final : public MMC3 {
   }
 };
 }
-  
+
 CartInterface *BMC411120C_Init(FC *fc, CartInfo *info) {
   return new BMC411120C(fc, info);
 }

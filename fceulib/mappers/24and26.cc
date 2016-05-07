@@ -36,19 +36,19 @@ struct Mapper24and26 final : public MapInterface {
   int32 CVBC[3] = {};
   int32 vcount[3] = {};
   int32 dcount[2] = {};
-  
+
   void KonamiIRQHook(int a) {
     static constexpr int LCYCS = 341;
     //  #define LCYCS ((227*2)+1)
     if (fc->ines->iNESIRQa) {
       acount += a * 3;
       while (acount >= LCYCS) {
-	acount -= LCYCS;
-	fc->ines->iNESIRQCount++;
-	if (fc->ines->iNESIRQCount == 0x100) {
-	  fc->X->IRQBegin(FCEU_IQEXT);
-	  fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
-	}
+        acount -= LCYCS;
+        fc->ines->iNESIRQCount++;
+        if (fc->ines->iNESIRQCount == 0x100) {
+          fc->X->IRQBegin(FCEU_IQEXT);
+          fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
+        }
       }
     }
   }
@@ -103,8 +103,8 @@ struct Mapper24and26 final : public MapInterface {
       fc->ines->iNESIRQa = V & 2;
       vrctemp(fc) = V & 1;
       if (V & 2) {
-	fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
-	acount = 0;
+        fc->ines->iNESIRQCount = fc->ines->iNESIRQLatch;
+        acount = 0;
       }
       fc->X->IRQEnd(FCEU_IQEXT);
       break;
@@ -128,21 +128,21 @@ struct Mapper24and26 final : public MapInterface {
 
     if (VPSG(fc)[(x << 2) | 0x2] & 0x80) {
       if (VPSG(fc)[x << 2] & 0x80) {
-	for (V = start; V < end; V++) fc->sound->Wave[V >> 4] += amp;
+        for (V = start; V < end; V++) fc->sound->Wave[V >> 4] += amp;
       } else {
-	int32 thresh = (VPSG(fc)[x << 2] >> 4) & 7;
-	int32 freq = ((VPSG(fc)[(x << 2) | 0x1] |
-		       ((VPSG(fc)[(x << 2) | 0x2] & 15) << 8)) + 1) << 17;
-	for (V = start; V < end; V++) {
-	  /* Greater than, not >=.  Important. */
-	  if (dcount[x] > thresh) fc->sound->Wave[V >> 4] += amp;
-	  vcount[x] -= fc->sound->nesincsize;
-	  /* Should only be <0 in a few circumstances. */
-	  while (vcount[x] <= 0) {
-	    vcount[x] += freq;
-	    dcount[x] = (dcount[x] + 1) & 15;
-	  }
-	}
+        int32 thresh = (VPSG(fc)[x << 2] >> 4) & 7;
+        int32 freq = ((VPSG(fc)[(x << 2) | 0x1] |
+                       ((VPSG(fc)[(x << 2) | 0x2] & 15) << 8)) + 1) << 17;
+        for (V = start; V < end; V++) {
+          /* Greater than, not >=.  Important. */
+          if (dcount[x] > thresh) fc->sound->Wave[V >> 4] += amp;
+          vcount[x] -= fc->sound->nesincsize;
+          /* Should only be <0 in a few circumstances. */
+          while (vcount[x] <= 0) {
+            vcount[x] += freq;
+            dcount[x] = (dcount[x] + 1) & 15;
+          }
+        }
       }
     }
   }
@@ -171,24 +171,24 @@ struct Mapper24and26 final : public MapInterface {
       freq3 = (VPSG2(fc)[1] + ((VPSG2(fc)[2] & 15) << 8) + 1);
 
       for (int V = start; V < end; V++) {
-	sawv_saw1phaseacc -= fc->sound->nesincsize;
-	if (sawv_saw1phaseacc <= 0) {
-	  int32 t;
-	  do {
-	    t = freq3;
-	    t <<= 18;
-	    sawv_saw1phaseacc += t;
-	    sawv_phaseacc += VPSG2(fc)[0] & 0x3f;
-	    sawv_b3++;
-	    if (sawv_b3 == 7) {
-	      sawv_b3 = 0;
-	      sawv_phaseacc = 0;
-	    }
-	  } while (sawv_saw1phaseacc <= 0);
+        sawv_saw1phaseacc -= fc->sound->nesincsize;
+        if (sawv_saw1phaseacc <= 0) {
+          int32 t;
+          do {
+            t = freq3;
+            t <<= 18;
+            sawv_saw1phaseacc += t;
+            sawv_phaseacc += VPSG2(fc)[0] & 0x3f;
+            sawv_b3++;
+            if (sawv_b3 == 7) {
+              sawv_b3 = 0;
+              sawv_phaseacc = 0;
+            }
+          } while (sawv_saw1phaseacc <= 0);
 
-	  sawv_duff = (((sawv_phaseacc >> 3) & 0x1f) << 4) * 6 / 8;
-	}
-	fc->sound->Wave[V >> 4] += sawv_duff;
+          sawv_duff = (((sawv_phaseacc >> 3) & 0x1f) << 4) * 6 / 8;
+        }
+        fc->sound->Wave[V >> 4] += sawv_duff;
       }
     }
   }
@@ -198,21 +198,21 @@ struct Mapper24and26 final : public MapInterface {
 
     if (VPSG(fc)[(x << 2) | 0x2] & 0x80) {
       if (VPSG(fc)[x << 2] & 0x80) {
-	for (uint32 V = CVBC[x]; V < fc->sound->SoundTS(); V++)
-	  fc->sound->WaveHi[V] += amp;
+        for (uint32 V = CVBC[x]; V < fc->sound->SoundTS(); V++)
+          fc->sound->WaveHi[V] += amp;
       } else {
-	const int32 thresh = (VPSG(fc)[x << 2] >> 4) & 7;
-	for (uint32 V = CVBC[x]; V < fc->sound->SoundTS(); V++) {
-	  if (dcount[x] > thresh) /* Greater than, not >=.  Important. */
-	    fc->sound->WaveHi[V] += amp;
-	  vcount[x]--;
-	  /* Should only be <0 in a few circumstances. */
-	  if (vcount[x] <= 0) {
-	    vcount[x] = (VPSG(fc)[(x << 2) | 0x1] |
-			 ((VPSG(fc)[(x << 2) | 0x2] & 15) << 8)) + 1;
-	    dcount[x] = (dcount[x] + 1) & 15;
-	  }
-	}
+        const int32 thresh = (VPSG(fc)[x << 2] >> 4) & 7;
+        for (uint32 V = CVBC[x]; V < fc->sound->SoundTS(); V++) {
+          if (dcount[x] > thresh) /* Greater than, not >=.  Important. */
+            fc->sound->WaveHi[V] += amp;
+          vcount[x]--;
+          /* Should only be <0 in a few circumstances. */
+          if (vcount[x] <= 0) {
+            vcount[x] = (VPSG(fc)[(x << 2) | 0x1] |
+                         ((VPSG(fc)[(x << 2) | 0x2] & 15) << 8)) + 1;
+            dcount[x] = (dcount[x] + 1) & 15;
+          }
+        }
       }
     }
     CVBC[x] = fc->sound->SoundTS();
@@ -231,17 +231,17 @@ struct Mapper24and26 final : public MapInterface {
   void DoSawVHQ() {
     if (VPSG2(fc)[2] & 0x80) {
       for (uint32 V = CVBC[2]; V < fc->sound->SoundTS(); V++) {
-	fc->sound->WaveHi[V] += (((sawvhq_phaseacc >> 3) & 0x1f) << 8) * 6 / 8;
-	vcount[2]--;
-	if (vcount[2] <= 0) {
-	  vcount[2] = (VPSG2(fc)[1] + ((VPSG2(fc)[2] & 15) << 8) + 1) << 1;
-	  sawvhq_phaseacc += VPSG2(fc)[0] & 0x3f;
-	  sawvhq_b3++;
-	  if (sawvhq_b3 == 7) {
-	    sawvhq_b3 = 0;
-	    sawvhq_phaseacc = 0;
-	  }
-	}
+        fc->sound->WaveHi[V] += (((sawvhq_phaseacc >> 3) & 0x1f) << 8) * 6 / 8;
+        vcount[2]--;
+        if (vcount[2] <= 0) {
+          vcount[2] = (VPSG2(fc)[1] + ((VPSG2(fc)[2] & 15) << 8) + 1) << 1;
+          sawvhq_phaseacc += VPSG2(fc)[0] & 0x3f;
+          sawvhq_b3++;
+          if (sawvhq_b3 == 7) {
+            sawvhq_b3 = 0;
+            sawvhq_phaseacc = 0;
+          }
+        }
       }
     }
     CVBC[2] = fc->sound->SoundTS();
@@ -283,13 +283,13 @@ struct Mapper24and26 final : public MapInterface {
     memset(dcount, 0, sizeof(dcount));
     if (FCEUS_SNDRATE) {
       if (FCEUS_SOUNDQ >= 1) {
-	sfun[0] = &Mapper24and26::DoSQV1HQ;
-	sfun[1] = &Mapper24and26::DoSQV2HQ;
-	sfun[2] = &Mapper24and26::DoSawVHQ;
+        sfun[0] = &Mapper24and26::DoSQV1HQ;
+        sfun[1] = &Mapper24and26::DoSQV2HQ;
+        sfun[2] = &Mapper24and26::DoSawVHQ;
       } else {
-	sfun[0] = &Mapper24and26::DoSQV1;
-	sfun[1] = &Mapper24and26::DoSQV2;
-	sfun[2] = &Mapper24and26::DoSawV;
+        sfun[0] = &Mapper24and26::DoSQV1;
+        sfun[1] = &Mapper24and26::DoSQV2;
+        sfun[2] = &Mapper24and26::DoSawV;
       }
     } else {
       sfun[0] = nullptr;

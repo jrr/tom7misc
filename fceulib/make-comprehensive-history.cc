@@ -16,14 +16,14 @@ using namespace std;
 //  - a makefile can be used to generate many result files in parallel
 
 void System(const string &commandline) {
-  CHECK(0 == system(commandline.c_str())) << commandline;  
+  CHECK(0 == system(commandline.c_str())) << commandline;
 }
 
 int main(int argc, char **argv) {
   int rev = 0;
 
   string additional_files;
-  
+
   for (int i = 1; i < argc; i++) {
     string arg = argv[i];
     if (arg == "--rev") {
@@ -37,12 +37,12 @@ int main(int argc, char **argv) {
   }
 
   CHECK(rev > 0) << "A --rev must be specified.";
-  
+
   {
     string commandline =
       StringPrintf("svn checkout -r %d "
-		   "svn://svn.code.sf.net/p/tom7misc/svn/trunk/fceulib "
-		   "clean_%d", rev, rev);
+                   "svn://svn.code.sf.net/p/tom7misc/svn/trunk/fceulib "
+                   "clean_%d", rev, rev);
     // This seems to work fine if it's already there.
     System(commandline);
   }
@@ -54,8 +54,8 @@ int main(int argc, char **argv) {
   {
     string commandline =
       StringPrintf("cp emulator_test.cc *.nes %s clean_%d/",
-		   additional_files.c_str(),
-		   rev);
+                   additional_files.c_str(),
+                   rev);
     System(commandline);
   }
 
@@ -71,11 +71,11 @@ int main(int argc, char **argv) {
     // Merely specifying --output-file enables comprehensive mode.
     string commandline =
       StringPrintf("cd clean_%d && emulator_test.exe "
-		   "--romdir ../roms/ "
-		   "--output-file ../results-%d.txt", rev, rev);
+                   "--romdir ../roms/ "
+                   "--output-file ../results-%d.txt", rev, rev);
     System(commandline);
   }
-  
+
   // Clean up the source after.
   {
     string commandline =
@@ -88,11 +88,11 @@ int main(int argc, char **argv) {
       StringPrintf("rm -f clean_%d/*.nes", rev);
     System(commandline);
   }
-  
+
   // And delete the source tree?
   printf("\n\n\n"
-	 "*********************************\n"
-	 "Done generating results-%d.txt.\n"
-	 "*********************************\n\n", rev);
+         "*********************************\n"
+         "Done generating results-%d.txt.\n"
+         "*********************************\n\n", rev);
   return 0;
 }

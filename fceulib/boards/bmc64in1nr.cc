@@ -29,11 +29,11 @@ struct BMC64in1nr final : public CartInterface {
   void Sync() {
     if (regs[0] & 0x80) {
       if (regs[1] & 0x80) {
-	fc->cart->setprg32(0x8000, regs[1] & 0x1F);
+        fc->cart->setprg32(0x8000, regs[1] & 0x1F);
       } else {
-	int bank = ((regs[1] & 0x1f) << 1) | ((regs[1] >> 6) & 1);
-	fc->cart->setprg16(0x8000, bank);
-	fc->cart->setprg16(0xC000, bank);
+        int bank = ((regs[1] & 0x1f) << 1) | ((regs[1] >> 6) & 1);
+        fc->cart->setprg16(0x8000, bank);
+        fc->cart->setprg16(0xC000, bank);
       }
     } else {
       int bank = ((regs[1] & 0x1f) << 1) | ((regs[1] >> 6) & 1);
@@ -62,10 +62,10 @@ struct BMC64in1nr final : public CartInterface {
     regs[2] = regs[3] = 0;
     Sync();
     fc->fceu->SetWriteHandler(0x5000, 0x5003, [](DECLFW_ARGS) {
-	((BMC64in1nr*)fc->fceu->cartiface)->BMC64in1nrWriteLo(DECLFW_FORWARD);
+        ((BMC64in1nr*)fc->fceu->cartiface)->BMC64in1nrWriteLo(DECLFW_FORWARD);
       });
     fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	((BMC64in1nr*)fc->fceu->cartiface)->BMC64in1nrWriteHi(DECLFW_FORWARD);
+        ((BMC64in1nr*)fc->fceu->cartiface)->BMC64in1nrWriteHi(DECLFW_FORWARD);
       });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
   }

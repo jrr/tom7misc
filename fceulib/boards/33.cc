@@ -45,38 +45,38 @@ struct Mapper33 : public CartInterface {
     A &= 0xF003;
     switch (A) {
       case 0x8000:
-	regs[0] = V & 0x3F;
-	if (!is48) mirr = ((V >> 6) & 1) ^ 1;
-	Sync();
-	break;
+        regs[0] = V & 0x3F;
+        if (!is48) mirr = ((V >> 6) & 1) ^ 1;
+        Sync();
+        break;
       case 0x8001:
-	regs[1] = V & 0x3F;
-	Sync();
-	break;
+        regs[1] = V & 0x3F;
+        Sync();
+        break;
       case 0x8002:
-	regs[2] = V;
-	Sync();
-	break;
+        regs[2] = V;
+        Sync();
+        break;
       case 0x8003:
-	regs[3] = V;
-	Sync();
-	break;
+        regs[3] = V;
+        Sync();
+        break;
       case 0xA000:
-	regs[4] = V;
-	Sync();
-	break;
+        regs[4] = V;
+        Sync();
+        break;
       case 0xA001:
-	regs[5] = V;
-	Sync();
-	break;
+        regs[5] = V;
+        Sync();
+        break;
       case 0xA002:
-	regs[6] = V;
-	Sync();
-	break;
+        regs[6] = V;
+        Sync();
+        break;
       case 0xA003:
-	regs[7] = V;
-	Sync();
-	break;
+        regs[7] = V;
+        Sync();
+        break;
     }
   }
 
@@ -101,19 +101,19 @@ struct Mapper33 : public CartInterface {
       Sync();
       fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
       fc->fceu->SetWriteHandler(0x8000, 0xBFFF, [](DECLFW_ARGS) {
-	return ((Mapper33*)fc->fceu->cartiface)->
-	  M33Write(DECLFW_FORWARD);
+        return ((Mapper33*)fc->fceu->cartiface)->
+          M33Write(DECLFW_FORWARD);
       });
       fc->fceu->SetWriteHandler(0xC000, 0xFFFF, [](DECLFW_ARGS) {
-	return ((Mapper33*)fc->fceu->cartiface)->
-	  M48Write(DECLFW_FORWARD);
+        return ((Mapper33*)fc->fceu->cartiface)->
+          M48Write(DECLFW_FORWARD);
       });
     } else {
       Sync();
       fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
       fc->fceu->SetWriteHandler(0x8000, 0xFFFF, [](DECLFW_ARGS) {
-	return ((Mapper33*)fc->fceu->cartiface)->
-	  M33Write(DECLFW_FORWARD);
+        return ((Mapper33*)fc->fceu->cartiface)->
+          M33Write(DECLFW_FORWARD);
       });
     }
   }
@@ -122,8 +122,8 @@ struct Mapper33 : public CartInterface {
     if (IRQa) {
       IRQCount++;
       if (IRQCount == 0x100) {
-	fc->X->IRQBegin(FCEU_IQEXT);
-	IRQa = 0;
+        fc->X->IRQBegin(FCEU_IQEXT);
+        IRQa = 0;
       }
     }
   }
@@ -135,21 +135,21 @@ struct Mapper33 : public CartInterface {
   Mapper33(FC *fc, CartInfo *info) : CartInterface(fc) {
     fc->fceu->GameStateRestore = StateRestore;
     fc->state->AddExVec({
-	{regs, 8, "PREG"},
-	{&mirr, 1, "MIRR"},
-	{&IRQa, 1, "IRQA"},
-	{&IRQCount, 2, "IRQC"},
-	{&IRQLatch, 2, "IRQL"}});
+        {regs, 8, "PREG"},
+        {&mirr, 1, "MIRR"},
+        {&IRQa, 1, "IRQA"},
+        {&IRQCount, 2, "IRQC"},
+        {&IRQLatch, 2, "IRQL"}});
     if (is48) {
       fc->ppu->GameHBIRQHook = [](FC *fc) {
-	((Mapper33*)fc->fceu->cartiface)->M48IRQ();
+        ((Mapper33*)fc->fceu->cartiface)->M48IRQ();
       };
     }
   }
 
 };
 }
-  
+
 CartInterface *Mapper33_Init(FC *fc, CartInfo *info) {
   return new Mapper33<false>(fc, info);
 }

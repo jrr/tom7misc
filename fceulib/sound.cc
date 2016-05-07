@@ -183,10 +183,10 @@ void Sound::Write_DMCRegs_Direct(DECLFW_ARGS) {
 
     if (SIRQStat & 0x80) {
       if (!(V & 0x80)) {
-	fc->X->IRQEnd(FCEU_IQDPCM);
-	SIRQStat &= ~0x80;
+        fc->X->IRQEnd(FCEU_IQDPCM);
+        SIRQStat &= ~0x80;
       } else {
-	fc->X->IRQBegin(FCEU_IQDPCM);
+        fc->X->IRQBegin(FCEU_IQDPCM);
       }
     }
     DMCFormat = V;
@@ -534,7 +534,7 @@ void Sound::RDoSQLQ() {
   }
 
   totalout =
-	 wlookup1[ttable[0][RectDutyCount[0]] + ttable[1][RectDutyCount[1]]];
+         wlookup1[ttable[0][RectDutyCount[0]] + ttable[1][RectDutyCount[1]]];
 
   if (!inie[0] && !inie[1]) {
     for (V = start; V < end; V++) Wave[V >> 4] += totalout;
@@ -990,7 +990,7 @@ void Sound::SetSoundVariables() {
 
   soundtsinc =
       (uint32)((uint64)(fc->fceu->PAL ? (long double)PAL_CPU * 65536 :
-			                (long double)NTSC_CPU * 65536) /
+                                        (long double)NTSC_CPU * 65536) /
                (FCEUS_SNDRATE * 16));
 }
 
@@ -1048,7 +1048,7 @@ Sound::Sound(FC *fc)
                 {&DMCAddressLatch, 1, "5ADL"},
                 {&DMCFormat, 1, "5FMT"},
                 {&RawDALatch, 1, "RWDA"},
-	  },
+          },
       fc(fc) {
           // Constructor, empty.
       };

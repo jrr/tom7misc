@@ -78,24 +78,24 @@ struct Mapper103 final : public CartInterface {
     fc->fceu->SetReadHandler(0x6000, 0x7FFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0x6000, 0x7FFF, [](DECLFW_ARGS) {
       return ((Mapper103*)fc->fceu->cartiface)->
-	M103RamWrite0(DECLFW_FORWARD);
+        M103RamWrite0(DECLFW_FORWARD);
     });
     fc->fceu->SetReadHandler(0x8000, 0xFFFF, Cart::CartBR);
     fc->fceu->SetWriteHandler(0xB800, 0xD7FF, [](DECLFW_ARGS) {
       return ((Mapper103*)fc->fceu->cartiface)->
-	M103RamWrite1(DECLFW_FORWARD);
+        M103RamWrite1(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0x8000, 0x8FFF, [](DECLFW_ARGS) {
       return ((Mapper103*)fc->fceu->cartiface)->
-	M103Write0(DECLFW_FORWARD);
+        M103Write0(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0xE000, 0xEFFF, [](DECLFW_ARGS) {
       return ((Mapper103*)fc->fceu->cartiface)->
-	M103Write1(DECLFW_FORWARD);
+        M103Write1(DECLFW_FORWARD);
     });
     fc->fceu->SetWriteHandler(0xF000, 0xFFFF, [](DECLFW_ARGS) {
       return ((Mapper103*)fc->fceu->cartiface)->
-	M103Write2(DECLFW_FORWARD);
+        M103Write2(DECLFW_FORWARD);
     });
   }
 
@@ -116,7 +116,7 @@ struct Mapper103 final : public CartInterface {
     fc->state->AddExState(WRAM, WRAMSIZE, 0, "WRAM");
 
     fc->state->AddExVec({
-	{&reg0, 1, "REG0"}, {&reg1, 1, "REG1"}, {&reg2, 1, "REG2"}});
+        {&reg0, 1, "REG0"}, {&reg1, 1, "REG1"}, {&reg2, 1, "REG2"}});
   }
 };
 }
