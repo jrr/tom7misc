@@ -31,6 +31,7 @@
 #include <utility>
 #include <string>
 #include <typeinfo>  // Only necessary for CHECKs
+#include <typeindex> // Ditto.
 
 #include "types.h"
 #include "x6502.h"
@@ -205,8 +206,10 @@ static constexpr uint32 ppulut3[128] = {
 0xcccccccc, 0xcccccccc, };
 
 static inline const uint8 *MMC5SPRVRAMADR(FC *fc, uint32 v) {
-  /// XXX HERE get from mmc5
-  CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+  CHECK(std::type_index(typeid(*fc->fceu->cartiface)) ==
+	std::type_index(typeid(MMC5))) << "\n" <<
+    typeid(fc->fceu->cartiface).name() << "\n vs \n" <<
+    typeid(MMC5).name();
   MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
   return &mmc5->MMC5SPRVPage[v >> 10][v];
 }
@@ -218,9 +221,11 @@ static inline const uint8 *VRAMADR(FC *fc, uint32 A) {
 // "When in 8x8 sprite mode, only one set is used for both BG and sprites."
 // in mmc5 docs
 const uint8 *PPU::MMC5BGVRAMADR(uint32 V) {
-  CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+  CHECK(std::type_index(typeid(*fc->fceu->cartiface)) ==
+	std::type_index(typeid(MMC5))) << "\n" <<
+    typeid(fc->fceu->cartiface).name() << "\n vs \n" <<
+    typeid(MMC5).name();
   MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
-
   if (!Sprite16) {
     if (mmc5ABMode == 0)
       return MMC5SPRVRAMADR(fc, V);
@@ -885,7 +890,10 @@ void PPU::DoLine() {
   uint8 *target = fc->fceu->XBuf + (scanline << 8);
 
   if (MMC5Hack && (ScreenON || SpriteON)) {
-    CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+    CHECK(std::type_index(typeid(*fc->fceu->cartiface)) ==
+	  std::type_index(typeid(MMC5))) << "\n" <<
+      typeid(fc->fceu->cartiface).name() << "\n vs \n" <<
+      typeid(MMC5).name();
     MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
     mmc5->MMC5HackHB(scanline);
   }
@@ -1534,7 +1542,10 @@ int PPU::FCEUPPU_Loop(int skip) {
       }
 
       if (MMC5Hack && (ScreenON || SpriteON)) {
-	CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+	CHECK(std::type_index(typeid(*fc->fceu->cartiface)) ==
+	      std::type_index(typeid(MMC5))) << "\n" <<
+	  typeid(fc->fceu->cartiface).name() << "\n vs \n" <<
+	  typeid(MMC5).name();
 	MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
         mmc5->MMC5HackHB(scanline);
       }
