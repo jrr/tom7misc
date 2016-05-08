@@ -14,15 +14,6 @@ struct CartInterface {
   virtual void Reset() {}
   virtual void Close() {}
 
-  // This is a codification of an awful hack whereby the PPU calls
-  // MMC5 code (if that is the active mapper) for each scanline.
-  // Not my fault! -tom7
-  virtual void MMC5HackHB(int scanline) {
-    fprintf(stderr, "MMC5Hack should not be called on "
-            "anything but MMC5.\n");
-    abort();
-  }
-
  protected:
   FC *fc = nullptr;
  private:
@@ -37,7 +28,7 @@ struct MapInterface {
   virtual void StateRestore(int version) {}
   virtual void MapperReset() {}
   virtual void MapperClose() {}
-protected:
+ protected:
   FC *fc = nullptr;
  private:
   MapInterface() = delete;
@@ -96,8 +87,6 @@ private:
   uint8 *Page[32] = {};
   uint8 *VPage[8] = {};
 public:
-  uint8 *MMC5SPRVPage[8] = {};
-  uint8 *MMC5BGVPage[8] = {};
 
   // A cartridge consists of a set of PRG and CHR (video) ROMs (or RAMs),
   // each usually a chip on the board. These can be set up by the mapper

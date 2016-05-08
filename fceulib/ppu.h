@@ -60,7 +60,7 @@ struct PPU {
   uint8 MMC50x5130 = 0;
   uint8 MMC5HackSPScroll = 0;
   uint8 MMC5HackSPPage = 0;
-
+  
   /* For cart.c and banksw.h, mostly */
   uint8 *vnapage[4] = { nullptr, nullptr, nullptr, nullptr };
   uint8 PPUNTARAM = 0;
