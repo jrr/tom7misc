@@ -30,6 +30,7 @@
 #include <tuple>
 #include <utility>
 #include <string>
+#include <typeinfo>  // Only necessary for CHECKs
 
 #include "types.h"
 #include "x6502.h"
@@ -39,6 +40,7 @@
 #include "file.h"
 #include "utils/endian.h"
 #include "utils/memory.h"
+#include "boards/mmc5.h"
 
 #include "cart.h"
 #include "palette.h"
@@ -203,7 +205,10 @@ static constexpr uint32 ppulut3[128] = {
 0xcccccccc, 0xcccccccc, };
 
 static inline const uint8 *MMC5SPRVRAMADR(FC *fc, uint32 v) {
-  return &fc->cart->MMC5SPRVPage[v >> 10][v];
+  /// XXX HERE get from mmc5
+  CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+  MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
+  return &mmc5->MMC5SPRVPage[v >> 10][v];
 }
 static inline const uint8 *VRAMADR(FC *fc, uint32 A) {
   return fc->cart->VPagePointer(A);
@@ -213,12 +218,15 @@ static inline const uint8 *VRAMADR(FC *fc, uint32 A) {
 // "When in 8x8 sprite mode, only one set is used for both BG and sprites."
 // in mmc5 docs
 const uint8 *PPU::MMC5BGVRAMADR(uint32 V) {
+  CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+  MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
+
   if (!Sprite16) {
     if (mmc5ABMode == 0)
       return MMC5SPRVRAMADR(fc, V);
     else
-      return &fc->cart->MMC5BGVPage[V >> 10][V];
-  } else return &fc->cart->MMC5BGVPage[V >> 10][V];
+      return &mmc5->MMC5BGVPage[V >> 10][V];
+  } else return &mmc5->MMC5BGVPage[V >> 10][V];
 }
 
 // static
@@ -686,14 +694,14 @@ void PPU::RefreshLine(int lastpixel) {
     }
   }
 
-  if (lasttile>34) lasttile=34;
-  int numtiles=lasttile-firsttile;
+  if (lasttile > 34) lasttile = 34;
+  int numtiles = lasttile - firsttile;
 
-  if (numtiles<=0) return;
+  if (numtiles <= 0) return;
 
   P = Pline;
 
-  uint32 vofs=((PPU_values[0]&0x10)<<8) | ((refreshaddr_local>>12)&7);
+  uint32 vofs = ((PPU_values[0]&0x10)<<8) | ((refreshaddr_local>>12)&7);
 
   static constexpr int TOFIXNUM = 272 - 0x4;
   if (!ScreenON && !SpriteON) {
@@ -877,7 +885,9 @@ void PPU::DoLine() {
   uint8 *target = fc->fceu->XBuf + (scanline << 8);
 
   if (MMC5Hack && (ScreenON || SpriteON)) {
-    fc->fceu->cartiface->MMC5HackHB(scanline);
+    CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+    MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
+    mmc5->MMC5HackHB(scanline);
   }
 
   fc->X->Run(256);
@@ -1008,7 +1018,7 @@ void PPU::FetchSpriteData() {
 
   uint8 ns = 0, sb = 0;
 
-  int vofs = (unsigned int)(P0&0x8&(((P0&0x20)^0x20)>>2))<<9;
+  const int vofs = (unsigned int)(P0&0x8&(((P0&0x20)^0x20)>>2))<<9;
 
   DEBUGF(stderr, "FetchSprites @%d\n", scanline);
   if (!PPU_hook) {
@@ -1040,7 +1050,7 @@ void PPU::FetchSpriteData() {
             vadr += t&8;
           }
 
-          const uint8 *C = (MMC5Hack) ?
+          const uint8 *C = MMC5Hack ?
             MMC5SPRVRAMADR(fc, vadr) : VRAMADR(fc, vadr);
 
           dst.ca[0]=C[0];
@@ -1524,12 +1534,14 @@ int PPU::FCEUPPU_Loop(int skip) {
       }
 
       if (MMC5Hack && (ScreenON || SpriteON)) {
-        fc->fceu->cartiface->MMC5HackHB(scanline);
+	CHECK(typeid(fc->fceu->cartiface) == typeid(MMC5));
+	MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
+        mmc5->MMC5HackHB(scanline);
       }
+
       int max = 0, maxref = 0;
       for (int x = 0; x < 7; x++) {
-
-        if (deempcnt[x]>max) {
+        if (deempcnt[x] > max) {
           max = deempcnt[x];
           maxref = x;
         }

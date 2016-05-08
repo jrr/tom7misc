@@ -76,7 +76,7 @@ void Cart::ResetCartMapping() {
     PRGsize[x] = CHRsize[x] = 0;
   }
   for (int x = 0; x < 8; x++) {
-    MMC5SPRVPage[x] = MMC5BGVPage[x] = VPage[x] = nothing - 0x400 * x;
+    VPage[x] = nothing - x * 0x400;
   }
 }
 

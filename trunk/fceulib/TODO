@@ -46,6 +46,8 @@ Cleanup to do:
    constructor args in mappers/. Did all of boards/ (except MMC3).
  - Probably some MMC3 stuff can be compile-time, by templating
    MMC3 base class.
+ - Move MMC5 hack variables (e.g. from PPU) into MMC5 struct as much as
+   possible
 
 Surprisingly necessary:
  - crc32 since ines.cc has a table of games and their CRCs.
@@ -69,6 +71,8 @@ Possible performance improvements:
    (inlined into x6502) per mapper configuration.
 
  - JIT or AOT compile x6502 code to x86 and optimize.
+
+ - Is uint8 nothing[8192] = {}; necessary in MMC5? Can it be smaller?
 
 Notes:
 "CDLogger" is "code data logger", and I have deemed it unnecessary
