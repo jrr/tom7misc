@@ -11,6 +11,15 @@ struct MMC5 final : public CartInterface {
   // PPU.
   void MMC5HackHB(int scanline);
 
+  const uint8 *SPRVPagePtr(uint32 v) { return &MMC5SPRVPage[v >> 10][v]; }
+  const uint8 *BGVPagePtr(uint32 v) { return &MMC5BGVPage[v >> 10][v]; }
+  
+  void Power() final override;
+
+  // Should just be used by internal mapper creators.
+  MMC5(FC *fc, CartInfo *info, int wsize, int battery);
+
+ private:
 
   // XXXX make private
   // This used to be in Cart and referenced from PPU, but I moved it
@@ -20,14 +29,7 @@ struct MMC5 final : public CartInterface {
   // subtracting A when initializing them). -tom7
   uint8 *MMC5SPRVPage[8] = {};
   uint8 *MMC5BGVPage[8] = {};
-
-  void Power() final override;
-
-  // Should just be used by internal mapper creators.
-  MMC5(FC *fc, CartInfo *info, int wsize, int battery);
-
- private:
-
+  
   struct MMC5APU {
     uint16 wl[2] = {};
     uint8 env[2] = {};

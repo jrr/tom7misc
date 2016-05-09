@@ -25,9 +25,6 @@
 
 #include <initializer_list>
 
-// XXXX
-#define MMC5Impl MMC5
-
 namespace {
 struct CartData {
   const uint32 crc32;
@@ -466,7 +463,7 @@ void MMC5::MMC5HackHB(int scanline) {
 
 // static
 void MMC5::MMC5_StateRestore(FC *fc, int version) {
-  ((MMC5Impl*)fc->fceu->cartiface)->MMC5Synco();
+  ((MMC5*)fc->fceu->cartiface)->MMC5Synco();
 }
 
 void MMC5::Do5PCM() {
@@ -491,10 +488,10 @@ void MMC5::Mapper5_SW(DECLFW_ARGS) {
   A &= 0x1F;
 
   fc->sound->GameExpSound.Fill = [](FC *fc, int count) {
-    ((MMC5Impl*)fc->fceu->cartiface)->MMC5RunSound(count);
+    ((MMC5*)fc->fceu->cartiface)->MMC5RunSound(count);
   };
   fc->sound->GameExpSound.HiFill = [](FC *fc) {
-    ((MMC5Impl*)fc->fceu->cartiface)->MMC5RunSoundHQ();
+    ((MMC5*)fc->fceu->cartiface)->MMC5RunSoundHQ();
   };
 
   switch (A) {
@@ -615,15 +612,15 @@ void MMC5::MMC5RunSound(int count) {
 void MMC5::Mapper5_ESI() {
   // It's weird that this reinstalls itself as a handler... -tom7
   fc->sound->GameExpSound.RChange = [](FC *fc) {
-    ((MMC5Impl*)fc->fceu->cartiface)->Mapper5_ESI();
+    ((MMC5*)fc->fceu->cartiface)->Mapper5_ESI();
   };
   if (FCEUS_SNDRATE) {
     if (FCEUS_SOUNDQ >= 1) {
-      sfun = &MMC5Impl::Do5SQHQ;
-      psfun = &MMC5Impl::Do5PCMHQ;
+      sfun = &MMC5::Do5SQHQ;
+      psfun = &MMC5::Do5PCMHQ;
     } else {
-      sfun = &MMC5Impl::Do5SQ;
-      psfun = &MMC5Impl::Do5PCM;
+      sfun = &MMC5::Do5SQ;
+      psfun = &MMC5::Do5PCM;
     }
   } else {
     sfun = 0;
@@ -632,7 +629,7 @@ void MMC5::Mapper5_ESI() {
   memset(MMC5Sound.BC, 0, sizeof(MMC5Sound.BC));
   memset(MMC5Sound.vcount, 0, sizeof(MMC5Sound.vcount));
   fc->sound->GameExpSound.HiSync = [](FC *fc, int32 ts) {
-    ((MMC5Impl*)fc->fceu->cartiface)->MMC5HiSync(ts);
+    ((MMC5*)fc->fceu->cartiface)->MMC5HiSync(ts);
   };
 }
 
@@ -658,34 +655,34 @@ void MMC5::Power() {
   MMC5Synco();
 
   fc->fceu->SetWriteHandler(0x4020, 0x5bff, [](DECLFW_ARGS) {
-    ((MMC5Impl*)fc->fceu->cartiface)->Mapper5_write(DECLFW_FORWARD);
+    ((MMC5*)fc->fceu->cartiface)->Mapper5_write(DECLFW_FORWARD);
   });
   fc->fceu->SetReadHandler(0x4020, 0x5bff, [](DECLFR_ARGS) {
-    return ((MMC5Impl*)fc->fceu->cartiface)->MMC5_read(DECLFR_FORWARD);
+    return ((MMC5*)fc->fceu->cartiface)->MMC5_read(DECLFR_FORWARD);
   });
 
   fc->fceu->SetWriteHandler(0x5c00, 0x5fff, [](DECLFW_ARGS) {
-    ((MMC5Impl*)fc->fceu->cartiface)->MMC5_ExRAMWr(DECLFW_FORWARD);
+    ((MMC5*)fc->fceu->cartiface)->MMC5_ExRAMWr(DECLFW_FORWARD);
   });
   fc->fceu->SetReadHandler(0x5c00, 0x5fff, [](DECLFR_ARGS) {
-    return ((MMC5Impl*)fc->fceu->cartiface)->MMC5_ExRAMRd(DECLFR_FORWARD);
+    return ((MMC5*)fc->fceu->cartiface)->MMC5_ExRAMRd(DECLFR_FORWARD);
   });
 
   fc->fceu->SetWriteHandler(0x6000, 0xFFFF, [](DECLFW_ARGS) {
-    ((MMC5Impl*)fc->fceu->cartiface)->MMC5_WriteROMRAM(DECLFW_FORWARD);
+    ((MMC5*)fc->fceu->cartiface)->MMC5_WriteROMRAM(DECLFW_FORWARD);
   });
   fc->fceu->SetReadHandler(0x6000, 0xFFFF, [](DECLFR_ARGS) {
-    return ((MMC5Impl*)fc->fceu->cartiface)->MMC5_ReadROMRAM(DECLFR_FORWARD);
+    return ((MMC5*)fc->fceu->cartiface)->MMC5_ReadROMRAM(DECLFR_FORWARD);
   });
 
   fc->fceu->SetWriteHandler(0x5000, 0x5015, [](DECLFW_ARGS) {
-    ((MMC5Impl*)fc->fceu->cartiface)->Mapper5_SW(DECLFW_FORWARD);
+    ((MMC5*)fc->fceu->cartiface)->Mapper5_SW(DECLFW_FORWARD);
   });
   fc->fceu->SetWriteHandler(0x5205, 0x5206, [](DECLFW_ARGS) {
-    ((MMC5Impl*)fc->fceu->cartiface)->Mapper5_write(DECLFW_FORWARD);
+    ((MMC5*)fc->fceu->cartiface)->Mapper5_write(DECLFW_FORWARD);
   });
   fc->fceu->SetReadHandler(0x5205, 0x5206, [](DECLFR_ARGS) {
-    return ((MMC5Impl*)fc->fceu->cartiface)->MMC5_read(DECLFR_FORWARD);
+    return ((MMC5*)fc->fceu->cartiface)->MMC5_read(DECLFR_FORWARD);
   });
 
   // GameHBIRQHook=MMC5_hb;
@@ -765,7 +762,7 @@ MMC5::MMC5(FC *fc, CartInfo *info, int wsize, int battery) :
 }
 
 CartInterface *Mapper5_Init(FC *fc, CartInfo *info) {
-  return new MMC5Impl(fc, info, DetectMMC5WRAMSize(info->CRC32), info->battery);
+  return new MMC5(fc, info, DetectMMC5WRAMSize(info->CRC32), info->battery);
 }
 
 // Here are some contradictory comments I found. -tom7
@@ -782,17 +779,17 @@ CartInterface *Mapper5_Init(FC *fc, CartInfo *info) {
 // ETROM and EWROM are battery-backed, EKROM isn't.
 
 CartInterface *ETROM_Init(FC *fc, CartInfo *info) {
-  return new MMC5Impl(fc, info, 16, info->battery);
+  return new MMC5(fc, info, 16, info->battery);
 }
 
 CartInterface *ELROM_Init(FC *fc, CartInfo *info) {
-  return new MMC5Impl(fc, info, 0, 0);
+  return new MMC5(fc, info, 0, 0);
 }
 
 CartInterface *EWROM_Init(FC *fc, CartInfo *info) {
-  return new MMC5Impl(fc, info, 32, info->battery);
+  return new MMC5(fc, info, 32, info->battery);
 }
 
 CartInterface *EKROM_Init(FC *fc, CartInfo *info) {
-  return new MMC5Impl(fc, info, 8, info->battery);
+  return new MMC5(fc, info, 8, info->battery);
 }

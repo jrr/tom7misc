@@ -17,6 +17,8 @@
 #include "base/stringprintf.h"
 #include "stb_image_write.h"
 
+#include "x6502.h"
+
 #include <mutex>
 #include <thread>
 
@@ -69,6 +71,21 @@ int main(int argc, char **argv) {
     }
   }
   double exec_seconds = exec_timer.GetSeconds();
+
+  X6502 *x6502 = emu->GetFC()->X;
+  for (int i = 0; i < 0xFFFF; i++) {
+    int64 exec = x6502->pc_histo[i];
+    if (exec > 0) {
+      printf("%4x: %lld\n", i, exec);
+    }
+  }
+
+  for (int i = 0; i < 1024; i++) {
+    int64 exec = x6502->cycles_histo[i];
+    if (exec > 0) {
+      printf("Run(%d%s): %lld\n", i, i == 1023 ? "+" : "", exec);
+    }
+  }
 
   fprintf(stderr, "Finished.\n"
           "Startup time: %.4fs\n"
