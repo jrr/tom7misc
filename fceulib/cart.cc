@@ -39,7 +39,7 @@
 
 #include "tracing.h"
 
-#define DEBUG_BANKSWITCH true
+#define DEBUG_BANKSWITCH false
 
 Cart::Cart(FC *fc) : fc(fc) {}
 
