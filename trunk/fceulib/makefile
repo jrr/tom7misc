@@ -127,7 +127,7 @@ make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o
 mario.cc : aot.exe
 	./aot.exe
 
-mario.o : mario.cc
+mario.o : mario.cc aot-prelude.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -g -c -o mario.o
 
 test : emulator_test.exe
