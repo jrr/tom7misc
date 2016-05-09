@@ -651,6 +651,8 @@ void X6502::Run(int32 cycles) {
   TRACEA(fc->fceu->RAM, 0x800);
   // TRACEA(fc->ppu->PPU_values, 4);
 
+  cycles_histo[std::max(0, std::min(cycles, 1023))]++;
+  
   if (fc->fceu->PAL) {
     cycles *= 15;  // 15*4=60
   } else {
@@ -659,9 +661,11 @@ void X6502::Run(int32 cycles) {
 
   count += cycles;
 
-  while (count > 0) {
-    int32 temp;
+  RunLoop();
+}
 
+void X6502::RunLoop() {
+  while (count > 0) {
     TRACE_SCOPED_STAY_ENABLED_IF(false);
     TRACEF("while " TRACE_MACHINEFMT, TRACE_MACHINEARGS);
     TRACEA(fc->fceu->RAM, 0x800);
@@ -710,12 +714,15 @@ void X6502::Run(int32 cycles) {
 
     reg_PI = reg_P;
     // Get the next instruction.
+
+    pc_histo[reg_PC]++;
+    
     const uint8 b1 = RdMem(reg_PC);
     // printf("Read %x -> opcode %02x\n", reg_PC, b1);
 
     ADDCYC(CycTable[b1]);
 
-    temp = tcount;
+    int32 temp = tcount;
     tcount = 0;
     if (MapIRQHook) MapIRQHook(fc, temp);
     fc->sound->FCEU_SoundCPUHook(temp);

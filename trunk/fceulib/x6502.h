@@ -33,6 +33,10 @@ struct X6502 {
   // trigger callbacks.
   explicit X6502(FC *fc);
 
+  // PERF NO.
+  int64 pc_histo[0xFFFF] = {};
+  int64 cycles_histo[1024] = {};
+
   /* Temporary cycle counter */
   int32 tcount;
 
@@ -60,6 +64,8 @@ struct X6502 {
   uint8 DB;
 
   void Run(int32 cycles);
+  void RunLoop();
+
   void Init();
   void Reset();
   void Power();

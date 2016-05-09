@@ -1,6 +1,6 @@
 
 # Makefile made by tom7.
-default: bench.exe emulator_test.exe difftrace.exe
+default: bench.exe emulator_test.exe difftrace.exe aot.exe
 
 all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-comprehensive-history.exe
 
@@ -118,8 +118,17 @@ emulator_test.exe : $(OBJECTS) test-util.o emulator_test.o simplefm2.o
 bench.exe : $(OBJECTS) test-util.o bench.o simplefm2.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+aot.exe : $(OBJECTS) aot.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o
 	$(CXX) $^ -o $@ $(LFLAGS)
+
+mario.cc : aot.exe
+	./aot.exe
+
+mario.o : mario.cc
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -g -c -o mario.o
 
 test : emulator_test.exe
 	time ./emulator_test.exe
