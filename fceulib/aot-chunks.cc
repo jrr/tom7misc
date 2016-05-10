@@ -1,19 +1,6 @@
 
-// New idea:
-// Treat each address as a potential entry point. Generate a function
-// (or whatever) for the straight-line code beginning there. If it does
-// a branch that we can't predict (i.e., a RET or computed goto) then
-// we return to the driver and let it dispatch again. Otherwise, can
-// do an internal goto.
-//
-// The idea behind this is that fewer entry points makes the code
-// much easier to optimize (because for example you may know the value
-// of registers, etc.)
-//
-// Consider establishing conditions for sound (e.g. not in the middle
-// of a DMA, certain hooks are guaranteed to not modify x6502 state) that
-// allow us to skip the SoundHook?
-
+// This version was a dead end where I tried generating chunks of code
+// with switch statements. Probably can be deleted.    9 May 2016
 
 #include "emulator.h"
 
@@ -104,21 +91,12 @@ static constexpr int CHUNK_SIZE = 10;
 
 // One of these per compiled file. It does the per-Run setup and
 // coordinates control transfer between the chunks.
-static void GenerateDispatcher(const CodeConfig &config,
-			       uint32 addr_start,
-			       uint32 addr_past_end,
-			       const string &symbol,
-			       FILE *f) {
-  fprintf(f, "static void (*entries[0x10000])(FC *fc) = {\n");
-  for (int i = 0; i < 0x10000; i++) {
-    if (i < addr_start || i >= addr_past_end)
-      fprintf(f, "  &%s_any,\n", symbol.c_str());
-    else
-      fprintf(f, "  &%s_entry_%04x,\n", symbol.c_str(), i);
-  }
-  fprintf(f, "};  // entries array\n\n");
-
-  fprintf(f, "// Dispatcher.\n"
+static void GenerateOuter(const CodeConfig &config,
+			  uint32 addr_start,
+			  uint32 addr_past_end,
+			  const string &symbol,
+			  FILE *f) {
+  fprintf(f, "// Outer.\n"
 	  "void %s_Run(FC *fc, int32 cycles) {\n",
 	  symbol.c_str());
 
@@ -137,46 +115,33 @@ static void GenerateDispatcher(const CodeConfig &config,
     else if (rhs > 0xFFFF) return StringPrintf("true /* < %x */", rhs);
     else return StringPrintf("%s < 0x%04x", lhs.c_str(), rhs);
   };
-  (void)LT16;
   
+  // Now, which chunk to call?
+  // PERF
   fprintf(f, "  const uint16 pc = X->reg_PC;\n");
-  fprintf(f, "  void (*const entry)(FC *) = entries[pc];\n");
-  fprintf(f, "  (*entry)(fc);\n");
-	  
-  fprintf(f, "}  // Dispatcher.\n\n\n");
+  fprintf(f, "  if (%s) { X->RunLoop(); return; }\n",
+	  LT16("pc", addr_start).c_str());
+  for (uint32 i = addr_start; i < addr_past_end; i += (1 << CHUNK_SIZE)) {
+    fprintf(f, "  else if (%s) { %s_chunk_%04x(fc); }\n",
+	    LT16("pc", i + (1 << CHUNK_SIZE)).c_str(),
+	    symbol.c_str(), i);
+  }
+  fprintf(f, "  else { X->RunLoop(); return; }\n");
+  
+  fprintf(f, "}  // Outer.\n\n\n");
 }
 
 static bool CanGenInstruction(uint8 b1) {
   switch (b1) {
   case 0xAA: return true;
-  case 0x8A: return true;
-
-  case 0x18: return true;
-  case 0xD8: return true;
-  case 0x58: return true;
-  case 0xB8: return true;
-
-  case 0x38: return true;
-  case 0xF8: return true;
-  case 0x78: return true;
-
-  case 0xEA: return true;
 
   default: return false;
   }
 }
 
-#define I "  "
+#define I "      "
 
-// XXX: Needs to take ROM and PC so that it can read multi-byte
-// instructions.
 static void GenInstruction(uint8 b1, FILE *f) {
-
-  auto X_ZN = [f](const string &reg) {
-    fprintf(f, I "X->reg_P &= ~(Z_FLAG | N_FLAG);\n"
-	    I "X->reg_P |= ZNTable[%s];\n", reg.c_str());
-  };
-  
   switch (b1) {
 #if 0
   case 0x00: /* BRK */
@@ -243,17 +208,18 @@ static void GenInstruction(uint8 b1, FILE *f) {
 #endif
     
   case 0xAA: /* TAX */
-    fprintf(f, I "X->reg_X = X->reg_A;\n");
-    X_ZN("X->reg_A");
-    break;
-
-  case 0x8A: /* TXA */
-    fprintf(f, I "X->reg_A = X->reg_X;\n");
-    X_ZN("X->reg_A");
+    fprintf(f,
+	    I "X->reg_X = x->reg_A;\n"
+	    I "X->reg_P &= ~(Z_FLAG | N_FLAG);\n"
+	    I "X->reg_P |= ZNTable[X->reg_A];\n");
     break;
 
 #if 0
-    
+  case 0x8A: /* TXA */
+    reg_A = reg_X;
+    X_ZN(reg_A);
+    break;
+
   case 0xA8: /* TAY */
     reg_Y = reg_A;
     X_ZN(reg_A);
@@ -289,36 +255,17 @@ static void GenInstruction(uint8 b1, FILE *f) {
     X_ZN(reg_Y);
     break;
 
-#endif    
-  case 0x18:
-    fprintf(f, I "X->reg_P &= ~C_FLAG;\n");
-    break;
-  case 0xD8:
-    fprintf(f, I "X->reg_P &= ~D_FLAG;\n");
-    break;
-  case 0x58:
-    fprintf(f, I "X->reg_P &= ~I_FLAG;\n");
-    break;
-  case 0xB8:
-    fprintf(f, I "X->reg_P &= ~V_FLAG;\n");
-    break;
-    
-  case 0x38:
-    fprintf(f, I "X->reg_P |= C_FLAG;\n");
-    break;
-  case 0xF8:
-    fprintf(f, I "X->reg_P |= D_FLAG;\n");
-    break;
-  case 0x78:
-    fprintf(f, I "X->reg_P |= I_FLAG;\n");
-    break;
+  case 0x18: /* CLC */ reg_P &= ~C_FLAG; break;
+  case 0xD8: /* CLD */ reg_P &= ~D_FLAG; break;
+  case 0x58: /* CLI */ reg_P &= ~I_FLAG; break;
+  case 0xB8: /* CLV */ reg_P &= ~V_FLAG; break;
 
-  case 0xEA:
-    // Nop.
-    break;
+  case 0x38: /* SEC */ reg_P |= C_FLAG; break;
+  case 0xF8: /* SED */ reg_P |= D_FLAG; break;
+  case 0x78: /* SEI */ reg_P |= I_FLAG; break;
 
-#if 0
-    
+  case 0xEA: /* NOP */ break;
+
   case 0x0A: RMW_A(ASL);
   case 0x06: RMW_ZP(ASL);
   case 0x16: RMW_ZPX(ASL);
@@ -685,48 +632,39 @@ static void GenInstruction(uint8 b1, FILE *f) {
   }
 }
 
-// XXX need to be checking count and returning when
-// out of time!
-//
-// need to be able to jump to relative addresses, I guess
-// by updating PC and returning?
-static void GenerateEntry(const CodeConfig &config,
-			  const vector<uint8> &code,
-			  uint32 entry_addr,
+static void GenerateChunk(const CodeConfig &config,
+			  const vector<uint8> code,
+			  uint32 code_base,
+			  uint32 addr_start,
 			  uint32 addr_past_end,
 			  const string &symbol,
 			  FILE *f) {
-  fprintf(f,
-	  "static void %s_entry_%04x(FC *fc) {\n",
-	  symbol.c_str(), entry_addr);
   
+  fprintf(f,
+	  "// From $%04x--$%04x. (Chunk size %d)\n"
+	  "static void %s_chunk_%04x(FC *fc) {\n",
+	  addr_start, addr_past_end, 1 << CHUNK_SIZE,
+	  symbol.c_str(), addr_start);
+
   // Copies of FC objects, used locally.
   fprintf(f,
-	  "  X6502 *X = fc->X; (void)X;\n"
+	  "  X6502 *X = fc->X;\n"
 	  // "  const FCEU *fceu = fc->fceu;\n"  // const?
-	  "  Sound *sound = fc->sound; (void)sound;\n"
+	  "  Sound *sound = fc->sound;\n"
 	  );
 
-  uint32 pc_addr = entry_addr;
-  for (;;) {
-    // This also happens if the PC overflows. We don't want
-    // to try reading outside the mapped region, of course.
-    if (pc_addr >= addr_past_end) {
-      fprintf(f, I "// PC $%04x exits code region.\n"
-	      I "%s_any(fc);\n"
-	      I "return;", pc_addr, symbol.c_str());
-      break;
-    }
+  fprintf(f, "  switch (X->reg_PC) {\n");
+
+  for (int32 pc_addr = addr_start; pc_addr < addr_past_end; /* in loop */) {
+    fprintf(f, "    case 0x%04x: {", pc_addr);
+    const int code_idx = pc_addr - addr_start;
+    CHECK(code_idx >= 0 && code_idx < code.size()) << code_idx;
+    const uint8 b1 = code[code_idx];
+
+    if (CanGenInstruction(b1)) {
     
-    const uint8 b1 = code[pc_addr];
-    if (!CanGenInstruction(b1)) {
-      fprintf(f, I "// Unimplemented instruction $%02x\n"
-	      I "%s_any(fc);\n"
-	      I "return;\n", b1, symbol.c_str());
-      break;
-    } else {
       // XXX include disassembly here
-      fprintf(f, I "// %04x = %2x\n", pc_addr, b1);
+      fprintf(f, " // %2x\n", b1);
 
       fprintf(f, I "// XXX check interrupt!;\n");
       fprintf(f, I "X->reg_PI = X->reg_P;\n");
@@ -753,10 +691,23 @@ static void GenerateEntry(const CodeConfig &config,
       fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr & 0xFFFF);
 
       GenInstruction(b1, f);
+
+      fprintf(f, "    } // ends pc=0x%4x\n", pc_addr);
+    } else {
+      fprintf(f, " // %2x unimplemented\n", b1);
+      // XXX doesn't make sense to call runloop from here..?
+      fprintf(f, I "X->RunLoop(); return;\n"
+	      "  }\n");
     }
   }
 
-  fprintf(f, "}  // %s_entry_%04x\n\n", symbol.c_str(), entry_addr);
+  fprintf(f, "    default: X->RunLoop(); return;\n"
+	  "  }  // switch(reg_PC)\n");
+  
+  
+  fprintf(f, "  CHECK(false) << \"Should not be reachable.\";\n");
+  
+  fprintf(f, "}  // %s_chunk_%04x\n\n", symbol.c_str(), addr_start);
 }
 
 static void GenerateCode(const CodeConfig &config,
@@ -770,9 +721,6 @@ static void GenerateCode(const CodeConfig &config,
     "Chunk size must divide code block size. This can be relaxed "
     "reasonably easily...";
 
-  CHECK(addr_start <= 0xFFFF);
-  CHECK(addr_past_end <= 0x10000);
-  
   // We generate a routine just like X6502::Run. This routine only
   // works if the address is in the mapped range [addr_start,
   // addr_past_end). It assumes that reads within the mapped range are
@@ -800,21 +748,27 @@ static void GenerateCode(const CodeConfig &config,
 
   fprintf(f, "/* aot-prelude.inc */\n%s\n/* aot-prelude.inc */\n",
 	  ReadFileToString("aot-prelude.inc").c_str());
- 
-  fprintf(f, "\n\n");
-
-  // First, a function to call when we don't have a compiled
-  // version.
-  fprintf(f, "static void %s_any(FC *fc) { fc->X->RunLoop(); }\n\n",
-	  symbol.c_str());
   
-  // Then, a function for each address entry point.
-  for (uint32 i = addr_start; i < addr_past_end; i++) {
-    GenerateEntry(config, code, i, addr_past_end, symbol, f);
+  for (uint32 i = addr_start; i < addr_past_end; i += (1 << CHUNK_SIZE)) {
+    fprintf(f, "static void %s_chunk_%04x(FC *);\n",
+	    symbol.c_str(), i);
   }
+  fprintf(f, "\n\n");
+  
+  // First we need to create the outer function header. This function
+  // is capable of executing at any PC value.
+  GenerateOuter(config, addr_start, addr_past_end, symbol, f);
 
-  // Finally, a dispatcher, capable of executing at any PC value.
-  GenerateDispatcher(config, addr_start, addr_past_end, symbol, f);
+  // Now generate a function for each chunk.
+  for (uint32 i = addr_start; i < addr_past_end; i += (1 << CHUNK_SIZE)) {
+    GenerateChunk(
+	config,
+	code,
+	addr_start,
+	i, min(addr_past_end, i + (1 << CHUNK_SIZE)),
+	symbol,
+	f);
+  }
   
   fclose(f);
 }
@@ -838,9 +792,10 @@ int main(int argc, char **argv) {
   // read (this is usually predictable statically, but definitely
   // complicates things). For mapper 0, all of 0x8000-0x7fff is mapped
   // to cart rom (CartBR).
-  vector<uint8> code(0x10000, 0);
+  vector<uint8> code;
+  code.reserve(0x10000 - 0x8000);
   for (uint32 addr = 0x8000; addr < 0x10000; addr++) {
-    code[addr] = fc->fceu->ARead[addr](fc, addr);
+    code.push_back(fc->fceu->ARead[addr](fc, addr));
   }
 
   CodeConfig config;
