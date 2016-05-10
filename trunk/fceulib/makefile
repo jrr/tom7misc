@@ -44,8 +44,12 @@ endif
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
 # otherwise treats -n literally.)
 %.o : %.cc
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DENABLE_AOT=1 -c -o $@ $<
 	@bash -c "echo -n '.'"
+
+%-noaot.o : %.cc
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@bash -c "echo -n ':'"
 
 # If you don't have SDL, you can leave these out, and maybe it still works.
 LINKSDL= -mno-cygwin -lm -luser32 -lgdi32 -lwinmm -ldxguid
@@ -80,7 +84,10 @@ BOARDSOBJECTS=boards/mmc1.o boards/mmc5.o boards/datalatch.o boards/mmc3.o board
 
 INPUTOBJECTS=input/arkanoid.o input/ftrainer.o input/oekakids.o input/suborkb.o input/bworld.o input/hypershot.o input/powerpad.o input/toprider.o input/cursor.o input/mahjong.o input/quiz.o input/zapper.o input/fkb.o input/shadow.o
 
-FCEUOBJECTS=cart.o version.o emufile.o fceu.o fds.o file.o filter.o ines.o input.o palette.o ppu.o sound.o state.o unif.o vsuni.o x6502.o git.o fc.o
+FCEUOBJECTS=cart.o version.o emufile.o fceu.o fds.o file.o filter.o ines.o input.o palette.o sound.o state.o unif.o vsuni.o x6502.o git.o fc.o
+# ugh.
+AOT_OBJECTS=aot.o
+NO_AOT_OBJECTS=ppu-noaot.o
 
 #  $(DRIVERS_COMMON_OBJECTS)
 EMUOBJECTS=$(FCEUOBJECTS) $(MAPPEROBJECTS) $(UTILSOBJECTS) $(PALLETESOBJECTS) $(BOARDSOBJECTS) $(INPUTOBJECTS)
@@ -91,7 +98,11 @@ BASEOBJECTS=$(CCLIBOBJECTS)
 FCEULIB_OBJECTS=emulator.o headless-driver.o stringprintf.o trace.o tracing.o
 # simplefm2.o emulator.o util.o
 
-OBJECTS=$(BASEOBJECTS) $(EMUOBJECTS) $(FCEULIB_OBJECTS)
+# experimental!
+GAME_OBJECTS=mario.o
+
+OBJECTS_NO_GAMES=$(BASEOBJECTS) $(EMUOBJECTS) $(FCEULIB_OBJECTS)
+OBJECTS=$(OBJECTS_NO_GAMES) $(GAME_OBJECTS) $(AOT_OBJECTS)
 
 LFLAGS= $(ARCH) $(PLATFORMLINK) $(LINKNETWORKING) -lz $(OPT) $(FLTO) $(PROFILE) # -Wl,--subsystem,console
 # -static -Wl,--subsystem,console
@@ -118,7 +129,7 @@ emulator_test.exe : $(OBJECTS) test-util.o emulator_test.o simplefm2.o
 bench.exe : $(OBJECTS) test-util.o bench.o simplefm2.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-aot.exe : $(OBJECTS) aot.o
+aot.exe : $(OBJECTS_NO_GAMES) ppu-noaot.o aot.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o
