@@ -7,6 +7,9 @@
 #define Z_FLAG 0x02
 #define C_FLAG 0x01
 
+using uint16 = uint16_t;
+using uint8 = uint8_t;
+
 static constexpr uint8 ZNTable[256] = {
     Z_FLAG, 0,      0,      0,      0,      0,      0,      0,      0,
     0,      0,      0,      0,      0,      0,      0,      0,      0,
