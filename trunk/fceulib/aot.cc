@@ -97,6 +97,23 @@ struct CodeConfig {
   bool is_pal = false;
   bool has_map_irq_hook = false;
 };
+
+struct Code {
+  Code() : known(0x10000, false), code(0x10000, 0) {}
+
+  // Both map entire 16-bit address space.
+  vector<bool> known;
+  vector<uint8> code;
+
+  uint8 Get(int addr) const {
+    CHECK(addr >= 0 && addr < code.size() && known[addr]) << "Unmapped "
+      "read from code: " << addr;
+    return code[addr];
+  }
+
+private:
+  DISALLOW_COPY_AND_ASSIGN(Code);
+};
 }
 
 // 2^10 addresses per chunk.
@@ -138,11 +155,11 @@ static void GenerateDispatcher(const CodeConfig &config,
     else return StringPrintf("%s < 0x%04x", lhs.c_str(), rhs);
   };
   (void)LT16;
-  
+
   fprintf(f, "  const uint16 pc = X->reg_PC;\n");
   fprintf(f, "  void (*const entry)(FC *) = entries[pc];\n");
   fprintf(f, "  (*entry)(fc);\n");
-	  
+
   fprintf(f, "}  // Dispatcher.\n\n\n");
 }
 
@@ -150,6 +167,10 @@ static bool CanGenInstruction(uint8 b1) {
   switch (b1) {
   case 0xAA: return true;
   case 0x8A: return true;
+  case 0xA8: return true;
+  case 0x98: return true;
+  case 0xBA: return true;
+  case 0x9A: return true;
 
   case 0x18: return true;
   case 0xD8: return true;
@@ -162,21 +183,218 @@ static bool CanGenInstruction(uint8 b1) {
 
   case 0xEA: return true;
 
+  case 0x8C: return true;
+  case 0x8D: return true;
+  case 0x8E: return true;
+  case 0x8F: return true;
+
+  case 0xA0: return true;
+  case 0xA2: return true;
+
+  case 0xA9: return true;
+
+  case 0xAD: return true;
+  case 0xAC: return true;
+  case 0xAE: return true;
+
+  case 0x1A: return true;
+  case 0x3A: return true;
+  case 0x5A: return true;
+  case 0x7A: return true;
+  case 0xDA: return true;
+  case 0xFA: return true;
+
+  case 0x0C: return true;
+
+  case 0x09: return true;
+  case 0x0D: return true;
+    
   default: return false;
   }
 }
 
 #define I "  "
 
-// XXX: Needs to take ROM and PC so that it can read multi-byte
-// instructions.
-static void GenInstruction(uint8 b1, FILE *f) {
+// An expression (without side-effects) that may be a known constant
+// of the type T. T must be integral. Value semantics.
+template<class T>
+struct Exp {
+  T value = 0;
+  string expr = "/* XXX uninitialized */";
+  bool known = false;
+  explicit Exp(T val) : value(val), known(true) {}
+  explicit Exp(const string &s) : expr(s), known(false) {}
+
+  bool Known() const { return known; }
+  string StringInternal() const;
+  string String() const {
+    if (known) return StringInternal();
+    else return expr;
+  }
+  T Value() {
+    CHECK(Known());
+    return value;
+  }
+};
+
+// Specializations for various types.
+template<>
+string Exp<uint8>::StringInternal() const {
+  return StringPrintf("0x%02x", value);
+}
+template<>
+string Exp<uint16>::StringInternal() const {
+  return StringPrintf("0x%04x", value);
+}
+
+struct AOT {
+  // XXX: Needs to take ROM and PC so that it can read multi-byte
+  // instructions.
+  //
+  // Takes the known code values. XXX also pass mapped addresses.
+  // Takes the instruction byte, b1, and the pc value after reading
+  // that byte. For some instructions, we advance the pc further.
+  //
+  // Returns new value of PC after this instruction (assuming it does
+  // not branch). If the branch is unconditional, returns 0xFFFFFFFF so
+  // we don't bother to continue emitting code.
+  uint32 GenInstruction(const Code &code,
+			uint8 b1, uint32 pc_addr, FILE *f) {
+
+  // XXX use ReadMem
+  auto ReadAddr = [&code](uint32 addr) -> string {
+    CHECK(addr <= 0xFFFF) << addr;
+    if (code.known[addr]) {
+      return StringPrintf("(0x%02x)", code.code[addr]);
+    } else {
+      // PERF! With high-level information about the mapper, we can
+      // avoid an indirection here (e.g., read directly from RAM).
+      return StringPrintf("(fceu->ARead[0x%04x](fc, 0x%04x))",
+			  addr, addr);
+    }
+  };
+  // XXX use ReadMem
+  auto ReadAddrDB = [&ReadAddr](uint32 addr) -> string {
+    return StringPrintf("(X->DB = %s)", ReadAddr(addr).c_str());
+  };
+
+  auto ReadMem = [this, &code, f](Exp<uint16> addr) -> Exp<uint8> {
+    Exp<uint8> res{0};
+
+    if (addr.Known() && code.known[addr.Value()]) {
+      res = Exp<uint8>(code.code[addr.Value()]);
+    } else if (addr.Known()) {
+      // Could fall through to the next case, but it's nice to avoid
+      // generating variables we don't need.
+      // PERF: Also, here we know the address, so we can also avoid
+      // dynamically dispatcing to the read handler (and e.g., read
+      // directly from RAM). This also helps the C compiler optimize
+      // this block since external read handlers could do anything
+      // (and some do).
+      const string val_sym = GenSym("v");
+      fprintf(f, 
+	      I "const uint8 %s = fceu->ARead[0x%04x](fc, 0x%04x);\n",
+	      val_sym.c_str(), addr.Value(), addr.Value());
+      res = Exp<uint8>(val_sym);
+    } else {
+      // Need to serialize addr and val.
+      const string addr_sym = GenSym("a");
+      const string val_sym = GenSym("v");
+      fprintf(f,
+	      I "const uint16 %s = %s;\n", addr_sym.c_str(),
+	      addr.String().c_str());
+      fprintf(f, 
+	      I "const uint8 %s = fceu->ARead[%s](fc, %s);\n",
+	      val_sym.c_str(), addr_sym.c_str(), addr_sym.c_str());
+      res = Exp<uint8>(val_sym);
+    }
+
+    // res is a value now. Write to data bus.
+    fprintf(f, I "X->DB = %s;\n", res.String().c_str());
+    return res;
+  };
+  
+  auto WriteMem = [f](const Exp<uint16> &addr_exp, const Exp<uint8> &val_exp) {
+    // PERF! Same deal; when the address is known, avoid indirection.
+    fprintf(f, I "fceu->BWrite[%s](fc, %s, %s);\n",
+	    addr_exp.String().c_str(), addr_exp.String().c_str(),
+	    val_exp.String().c_str());
+  };
 
   auto X_ZN = [f](const string &reg) {
+    // From disassembly, GCC can do the right thing for immediates
+    // (that were previously set to the register) here, getting a
+    // constant value from ZNTable and avoiding setting/clearing bits.
     fprintf(f, I "X->reg_P &= ~(Z_FLAG | N_FLAG);\n"
 	    I "X->reg_P |= ZNTable[%s];\n", reg.c_str());
   };
+
+  auto LD_IM = [&code, &pc_addr, f, &ReadMem](
+      std::function<void(Exp<uint8>)> op) {
+    Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
+    pc_addr++; pc_addr &= 0xFFFF;
+    fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+    op(x);
+  };
+
+  auto GetAB = [this, &code, f, &pc_addr, &ReadAddrDB]() {
+    if (code.known[pc_addr & 0xFFFF] && code.known[(pc_addr + 1) & 0xFFFF]) {
+      const uint16 val = (uint16)code.code[pc_addr & 0xFFFF] |
+                        ((uint16)(code.code[(pc_addr + 1) & 0xFFFF]) << 8);
+      fprintf(f, I "// Known GetAB from $%04x = $%04x\n", pc_addr, val);
+      pc_addr += 2; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      return Exp<uint16>(val);
+    } else {
+      // XXX use Exp only
+      string sym = GenSym("ab");
+      fprintf(f, I "uint16 %s = %s;  // GetAB\n",
+	      sym.c_str(), ReadAddrDB(pc_addr).c_str());
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I "%s |= (uint16)%s << 8;\n",
+	      sym.c_str(), ReadAddrDB(pc_addr).c_str());
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      return Exp<uint16>(sym);
+    }
+  };
+
+  auto LD_AB = [&code, &pc_addr, f, &ReadMem, &GetAB](
+      std::function<void(Exp<uint8>)> op) {
+    Exp<uint16> aa = GetAB();
+    Exp<uint8> x = ReadMem(aa);
+    op(x);
+  };
+
+  auto LDA = [&code, f, &X_ZN](Exp<uint8> val) {
+    // PERF: Could get constant for X_ZN in case that value is known,
+    // but gcc seems able to do this optimization just fine.
+    fprintf(f, I "X->reg_A = %s;\n", val.String().c_str());
+    X_ZN("X->reg_A");
+  };
+
+  auto LDX = [&code, f, &X_ZN](Exp<uint8> val) {
+    fprintf(f, I "X->reg_X = %s;\n", val.String().c_str());
+    X_ZN("X->reg_X");
+  };
+
+  auto LDY = [&code, f, &X_ZN](Exp<uint8> val) {
+    fprintf(f, I "X->reg_Y = %s;\n", val.String().c_str());
+    X_ZN("X->reg_Y");
+  };
+
+  auto ORA = [&code, f, &X_ZN](Exp<uint8> val) {
+    fprintf(f, I "X->reg_A |= %s;\n", val.String().c_str());
+    X_ZN("X->reg_A");
+  };
   
+  auto ST_AB = [&code, f, &WriteMem, &GetAB](Exp<uint8> exp) {
+    Exp<uint16> aa = GetAB();
+    WriteMem(aa, exp);
+  };
+
+
   switch (b1) {
 #if 0
   case 0x00: /* BRK */
@@ -241,36 +459,37 @@ static void GenInstruction(uint8 b1, FILE *f) {
       break;
     }
 #endif
-    
+
   case 0xAA: /* TAX */
     fprintf(f, I "X->reg_X = X->reg_A;\n");
     X_ZN("X->reg_A");
-    break;
+    return pc_addr;
 
   case 0x8A: /* TXA */
     fprintf(f, I "X->reg_A = X->reg_X;\n");
     X_ZN("X->reg_A");
-    break;
+    return pc_addr;
 
-#if 0
-    
   case 0xA8: /* TAY */
-    reg_Y = reg_A;
-    X_ZN(reg_A);
-    break;
+    fprintf(f, I "X->reg_Y = X->reg_A;\n");
+    X_ZN("X->reg_A");
+    return pc_addr;
   case 0x98: /* TYA */
-    reg_A = reg_Y;
-    X_ZN(reg_A);
-    break;
+    fprintf(f, I "X->reg_A = X->reg_Y;\n");
+    X_ZN("X->reg_A");
+    return pc_addr;
 
   case 0xBA: /* TSX */
-    reg_X = reg_S;
-    X_ZN(reg_X);
-    break;
+    fprintf(f, I "X->reg_X = X->reg_S;\n");
+    X_ZN("X->reg_X");
+    return pc_addr;
   case 0x9A: /* TXS */
-    reg_S = reg_X;
-    break;
+    fprintf(f, I "X->reg_S = X->reg_X;\n");
+    // n.b. no X_ZN in original code. Looks like
+    // 6502 docs corroborate. -tom7
+    return pc_addr;
 
+#if 0
   case 0xCA: /* DEX */
     reg_X--;
     X_ZN(reg_X);
@@ -289,36 +508,36 @@ static void GenInstruction(uint8 b1, FILE *f) {
     X_ZN(reg_Y);
     break;
 
-#endif    
+#endif
   case 0x18:
     fprintf(f, I "X->reg_P &= ~C_FLAG;\n");
-    break;
+    return pc_addr;
   case 0xD8:
     fprintf(f, I "X->reg_P &= ~D_FLAG;\n");
-    break;
+    return pc_addr;
   case 0x58:
     fprintf(f, I "X->reg_P &= ~I_FLAG;\n");
-    break;
+    return pc_addr;
   case 0xB8:
     fprintf(f, I "X->reg_P &= ~V_FLAG;\n");
-    break;
-    
+    return pc_addr;
+
   case 0x38:
     fprintf(f, I "X->reg_P |= C_FLAG;\n");
-    break;
+    return pc_addr;
   case 0xF8:
     fprintf(f, I "X->reg_P |= D_FLAG;\n");
-    break;
+    return pc_addr;
   case 0x78:
     fprintf(f, I "X->reg_P |= I_FLAG;\n");
-    break;
+    return pc_addr;
 
   case 0xEA:
     // Nop.
-    break;
+    return pc_addr;
 
 #if 0
-    
+
   case 0x0A: RMW_A(ASL);
   case 0x06: RMW_ZP(ASL);
   case 0x16: RMW_ZPX(ASL);
@@ -400,31 +619,62 @@ static void GenInstruction(uint8 b1, FILE *f) {
   case 0x41: LD_IX(EOR);
   case 0x51: LD_IY(EOR);
 
-  case 0xA9: LD_IM(LDA);
+#endif
+  case 0xA9:
+    LD_IM(LDA);
+    return pc_addr;
+
+#if 0
   case 0xA5: LD_ZP(LDA);
   case 0xB5: LD_ZPX(LDA);
-  case 0xAD: LD_AB(LDA);
+#endif
+  case 0xAD:
+    LD_AB(LDA);
+    return pc_addr;
+#if 0
   case 0xBD: LD_ABX(LDA);
   case 0xB9: LD_ABY(LDA);
   case 0xA1: LD_IX(LDA);
   case 0xB1: LD_IY(LDA);
 
-  case 0xA2: LD_IM(LDX);
+#endif
+  case 0xA2:
+    LD_IM(LDX);
+    return pc_addr;
+#if 0
   case 0xA6: LD_ZP(LDX);
   case 0xB6: LD_ZPY(LDX);
-  case 0xAE: LD_AB(LDX);
+#endif
+  case 0xAE:
+    LD_AB(LDX);
+    return pc_addr;
+#if 0
   case 0xBE: LD_ABY(LDX);
-
-  case 0xA0: LD_IM(LDY);
+#endif
+  case 0xA0:
+    LD_IM(LDY);
+    return pc_addr;
+#if 0
   case 0xA4: LD_ZP(LDY);
   case 0xB4: LD_ZPX(LDY);
-  case 0xAC: LD_AB(LDY);
+#endif
+  case 0xAC:
+    LD_AB(LDY);
+    return pc_addr;
+#if 0
   case 0xBC: LD_ABX(LDY);
-
-  case 0x09: LD_IM(ORA);
+#endif
+  case 0x09:
+    LD_IM(ORA);
+    return pc_addr;
+#if 0
   case 0x05: LD_ZP(ORA);
   case 0x15: LD_ZPX(ORA);
-  case 0x0D: LD_AB(ORA);
+#endif
+  case 0x0D:
+    LD_AB(ORA);
+    return pc_addr;
+#if 0
   case 0x1D: LD_ABX(ORA);
   case 0x19: LD_ABY(ORA);
   case 0x01: LD_IX(ORA);
@@ -442,7 +692,11 @@ static void GenInstruction(uint8 b1, FILE *f) {
 
   case 0x85: ST_ZP(reg_A);
   case 0x95: ST_ZPX(reg_A);
-  case 0x8D: ST_AB(reg_A);
+#endif
+  case 0x8D:
+    ST_AB(Exp<uint8>("X->reg_A"));
+    return pc_addr;
+#if 0
   case 0x9D: ST_ABX(reg_A);
   case 0x99: ST_ABY(reg_A);
   case 0x81: ST_IX(reg_A);
@@ -450,13 +704,18 @@ static void GenInstruction(uint8 b1, FILE *f) {
 
   case 0x86: ST_ZP(reg_X);
   case 0x96: ST_ZPY(reg_X);
-  case 0x8E: ST_AB(reg_X);
-
+#endif
+  case 0x8E:
+    ST_AB(Exp<uint8>("X->reg_X"));
+    return pc_addr;
+#if 0
   case 0x84: ST_ZP(reg_Y);
   case 0x94: ST_ZPX(reg_Y);
+#endif
   case 0x8C:
-    ST_AB(reg_Y);
-
+    ST_AB(Exp<uint8>("X->reg_Y"));
+    return pc_addr;
+#if 0
     /* BCC */
   case 0x90:
     JR(!(reg_P & C_FLAG));
@@ -510,7 +769,11 @@ static void GenInstruction(uint8 b1, FILE *f) {
     /* AAX */
   case 0x87: ST_ZP(reg_A & reg_X);
   case 0x97: ST_ZPY(reg_A & reg_X);
-  case 0x8F: ST_AB(reg_A & reg_X);
+#endif
+  case 0x8F:
+    ST_AB(Exp<uint8>("(X->reg_A & X->reg_X)"));
+    return pc_addr;
+#if 0
   case 0x83:
     ST_IX(reg_A & reg_X);
 
@@ -599,7 +862,8 @@ static void GenInstruction(uint8 b1, FILE *f) {
   case 0xBF: LD_ABY(LDA; LDX);
   case 0xA3: LD_IX(LDA; LDX);
   case 0xB3: LD_IY(LDA; LDX);
-
+#endif
+    
     /* NOP */
   case 0x1A:
   case 0x3A:
@@ -607,8 +871,10 @@ static void GenInstruction(uint8 b1, FILE *f) {
   case 0x7A:
   case 0xDA:
   case 0xFA:
-    break;
+    fprintf(f, I "// NOP %02x\n", b1);
+    return pc_addr;
 
+#if 0
     /* RLA */
   case 0x27: RMW_ZP(ROL; AND);
   case 0x37: RMW_ZPX(ROL; AND);
@@ -662,9 +928,15 @@ static void GenInstruction(uint8 b1, FILE *f) {
     reg_S = reg_A & reg_X;
     ST_ABY(reg_S & (((AA - reg_Y) >> 8) + 1));
 
+#endif
     /* TOP */
   case 0x0C:
-    LD_AB(;);
+    LD_AB([f](Exp<uint8> x) {
+      fprintf(f, I "(void) %s;  // TOP\n", x.String().c_str());
+    });
+    return pc_addr;
+
+#if 0
   case 0x1C:
   case 0x3C:
   case 0x5C:
@@ -680,9 +952,11 @@ static void GenInstruction(uint8 b1, FILE *f) {
     LD_IM(AND);
 #endif
 
-  default:
-    LOG(FATAL) << "Unimplemented inst " << b1;
+  default:;
   }
+  LOG(FATAL) << "Unimplemented inst " << StringPrintf("0x%02x", b1) << "\n"
+    "(or forgot to return pc_addr, fell through or did break).";
+  return 0xFFFFFFFF;
 }
 
 // XXX need to be checking count and returning when
@@ -690,8 +964,8 @@ static void GenInstruction(uint8 b1, FILE *f) {
 //
 // need to be able to jump to relative addresses, I guess
 // by updating PC and returning?
-static void GenerateEntry(const CodeConfig &config,
-			  const vector<uint8> &code,
+void GenerateEntry(const CodeConfig &config,
+			  const Code &code,
 			  uint32 entry_addr,
 			  uint32 addr_past_end,
 			  const string &symbol,
@@ -699,12 +973,13 @@ static void GenerateEntry(const CodeConfig &config,
   fprintf(f,
 	  "static void %s_entry_%04x(FC *fc) {\n",
 	  symbol.c_str(), entry_addr);
-  
+
   // Copies of FC objects, used locally.
   fprintf(f,
 	  "  X6502 *X = fc->X; (void)X;\n"
 	  // "  const FCEU *fceu = fc->fceu;\n"  // const?
 	  "  Sound *sound = fc->sound; (void)sound;\n"
+	  "  FCEU *fceu = fc->fceu; (void)fceu;\n"  // const?
 	  );
 
   uint32 pc_addr = entry_addr;
@@ -717,8 +992,8 @@ static void GenerateEntry(const CodeConfig &config,
 	      I "return;", pc_addr, symbol.c_str());
       break;
     }
-    
-    const uint8 b1 = code[pc_addr];
+
+    const uint8 b1 = code.Get(pc_addr);
     if (!CanGenInstruction(b1)) {
       fprintf(f, I "// Unimplemented instruction $%02x\n"
 	      I "%s_any(fc);\n"
@@ -726,7 +1001,7 @@ static void GenerateEntry(const CodeConfig &config,
       break;
     } else {
       // XXX include disassembly here
-      fprintf(f, I "// %04x = %2x\n", pc_addr, b1);
+      fprintf(f, I "// %04x = %02x\n", pc_addr, b1);
 
       fprintf(f, I "// XXX check interrupt!;\n");
       fprintf(f, I "X->reg_PI = X->reg_P;\n");
@@ -752,27 +1027,44 @@ static void GenerateEntry(const CodeConfig &config,
       pc_addr++;
       fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr & 0xFFFF);
 
-      GenInstruction(b1, f);
+      pc_addr = GenInstruction(code, b1, pc_addr, f);
+      if (pc_addr == 0xFFFFFFFF) {
+	fprintf(f, I "// Branch was unconditional.\n"
+		I "return;\n");
+	break;
+      }
     }
   }
 
   fprintf(f, "}  // %s_entry_%04x\n\n", symbol.c_str(), entry_addr);
 }
 
+  string GenSym(const string &base) {
+    next_symbol++;
+    return StringPrintf("_%s_%lld", base.c_str(), next_symbol);
+  }
+
+  string GenSym() { return GenSym("sym"); }
+  
+  int64 next_symbol = 0;
+};
+  
 static void GenerateCode(const CodeConfig &config,
-			 const vector<uint8> code,
+			 const Code &code,
 			 uint32 addr_start,
 			 uint32 addr_past_end,
 			 const string &symbol,
 			 const string &filename,
 			 const string &cart_name) {
+  AOT aot;
+
   CHECK(0 == ((addr_past_end - addr_start) % (1 << CHUNK_SIZE))) <<
     "Chunk size must divide code block size. This can be relaxed "
     "reasonably easily...";
 
   CHECK(addr_start <= 0xFFFF);
   CHECK(addr_past_end <= 0x10000);
-  
+
   // We generate a routine just like X6502::Run. This routine only
   // works if the address is in the mapped range [addr_start,
   // addr_past_end). It assumes that reads within the mapped range are
@@ -792,30 +1084,32 @@ static void GenerateCode(const CodeConfig &config,
 	  "// Generated code! Do not edit.\n"
 	  "// Generated from %s on [DATE].\n"
 	  "\n"
+	  "#include <cstdint>\n"
+	  "\n"
 	  "#include \"fc.h\"\n"
 	  "#include \"x6502.h\"\n"
 	  "#include \"sound.h\"\n"
 	  "#include \"fceu.h\"\n",
 	  cart_name.c_str());
 
-  fprintf(f, "/* aot-prelude.inc */\n%s\n/* aot-prelude.inc */\n",
+  fprintf(f, "\n/* aot-prelude.inc */\n%s\n/* aot-prelude.inc */\n",
 	  ReadFileToString("aot-prelude.inc").c_str());
- 
+
   fprintf(f, "\n\n");
 
   // First, a function to call when we don't have a compiled
   // version.
   fprintf(f, "static void %s_any(FC *fc) { fc->X->RunLoop(); }\n\n",
 	  symbol.c_str());
-  
+
   // Then, a function for each address entry point.
   for (uint32 i = addr_start; i < addr_past_end; i++) {
-    GenerateEntry(config, code, i, addr_past_end, symbol, f);
+    aot.GenerateEntry(config, code, i, addr_past_end, symbol, f);
   }
 
   // Finally, a dispatcher, capable of executing at any PC value.
   GenerateDispatcher(config, addr_start, addr_past_end, symbol, f);
-  
+
   fclose(f);
 }
 
@@ -827,7 +1121,7 @@ int main(int argc, char **argv) {
   Timer compile_timer;
 
   FC *fc = emu->GetFC();
-  
+
   // Grab a specific block of RAM. I know this is where the
   // code resides in mario.nes, that it never gets remapped
   // (mapper 0 cannot remap), and that it is not writable
@@ -838,21 +1132,22 @@ int main(int argc, char **argv) {
   // read (this is usually predictable statically, but definitely
   // complicates things). For mapper 0, all of 0x8000-0x7fff is mapped
   // to cart rom (CartBR).
-  vector<uint8> code(0x10000, 0);
+  Code code;
   for (uint32 addr = 0x8000; addr < 0x10000; addr++) {
-    code[addr] = fc->fceu->ARead[addr](fc, addr);
+    code.known[addr] = true;
+    code.code[addr] = fc->fceu->ARead[addr](fc, addr);
   }
 
   CodeConfig config;
   config.is_pal = !!fc->fceu->PAL;
   config.has_map_irq_hook = fc->X->MapIRQHook != nullptr;
-  
+
   GenerateCode(config,
 	       code, 0x8000, 0x10000,
 	       "mario", "mario.cc", "mario.nes");
 
   double compile_seconds = compile_timer.GetSeconds();
-  
+
   fprintf(stderr, "Finished.\n"
           "Compile time: %.4fs\n",
           compile_seconds);

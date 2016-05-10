@@ -79,6 +79,12 @@ Notes:
 
 Helper snippets:
 
+To view assembly, best so far is
+compile with -g
+gdb mario.o
+disassemble /m mario_entry_8000
+
+
 ## good for finding exported symbols (e.g. classes in boards/ that
 ## should be in anonymous namespace):
 
