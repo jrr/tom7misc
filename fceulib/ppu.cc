@@ -50,6 +50,14 @@
 #include "driver.h"
 #include "fsettings.h"
 
+#ifdef ENABLE_AOT
+// XXX get from some generated header...
+extern void mario_Run(FC *fc);
+#define Run6502(c) mario_Run(fc, c)
+#else
+#define Run6502(c) fc->X->Run(c)
+#endif
+
 #define DEBUGF if (0) fprintf
 // #define DCHECK if (0)
 
