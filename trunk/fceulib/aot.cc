@@ -310,6 +310,17 @@ static bool CanGenInstruction(uint8 b1) {
   case 0xB4: return true;
   case 0x15: return true;
   case 0xF5: return true;
+
+  case 0x0E: return true;
+  case 0xCE: return true;
+  case 0xEE: return true;
+  case 0x4E: return true;
+  case 0x2E: return true;
+  case 0x6E: return true;
+  case 0xCF: return true;
+  case 0xEF: return true;
+  case 0x2F: return true;
+  case 0x6F: return true;
     
   default: return false;
   }
@@ -543,6 +554,17 @@ struct AOT {
     auto RMW_A = [f](std::function<Exp<uint8>(Exp<uint8>)> op) {
       Exp<uint8> x = op(Exp<uint8>("X->reg_A"));
       fprintf(f, I "X->reg_A = %s;\n", x.String().c_str());
+    };
+
+    auto RMW_AB = [f, &ReadMem, &WriteMem, &GetAB](
+	std::function<Exp<uint8>(Exp<uint8>)> op) {
+      Exp<uint16> aa = GetAB();
+      Exp<uint8> x = ReadMem(aa);
+      // x6502 does this write of the value right back, presumably
+      // to trigger write handlers...
+      WriteMem(aa, x);
+      Exp<uint8> y = op(x);
+      WriteMem(aa, y);
     };
     
     auto LD_IX = [&GetIX, &ReadMem](std::function<void(Exp<uint8>)> op) {
@@ -815,7 +837,8 @@ struct AOT {
       const string sym = GenSym("asl");
       fprintf(f, I "X->reg_P = (X->reg_P & ~C_FLAG) | ((%s) >> 7);\n",
 	      x.String().c_str());
-      fprintf(f, I "uint8 %s = %s << 1;\n", sym.c_str(), x.String().c_str());
+      fprintf(f, I "uint8 %s = (uint8)(%s << 1);\n",
+	      sym.c_str(), x.String().c_str());
       X_ZN(sym);
       return Exp<uint8>(sym);
     };
@@ -831,6 +854,37 @@ struct AOT {
 	      sym.c_str(), x.String().c_str());
       X_ZNT(sym);
       return Exp<uint8>(sym);
+    };
+
+    auto ROL = [this, f, &X_ZNT](Exp<uint8> x) {
+      const string sym = GenSym("rol");
+      const string xx = GenSym("xx");
+      fprintf(f,
+	      I "const uint8 %s = (%s) >> 7;\n"
+	      I "const uint8 %s = ((%s) << 1) | (X->reg_P & C_FLAG);\n",
+	      sym.c_str(), x.String().c_str(),
+	      xx.c_str(), x.String().c_str());
+      fprintf(f,
+	      I "X->reg_P = (X->reg_P & ~(Z_FLAG | N_FLAG | C_FLAG)) | %s;\n",
+	      sym.c_str());
+      X_ZNT(xx);
+      return Exp<uint8>(xx);
+    };
+
+    auto ROR = [this, f, &X_ZNT](Exp<uint8> x) {
+      const string sym = GenSym("ror");
+      const string xx = GenSym("xx");
+      fprintf(f,
+	      I "const uint8 %s = (%s) & 1;\n"
+	      I "const uint8 %s = ((uint8)(%s) >> 1) |\n"
+	      I "  ((X->reg_P & C_FLAG) << 7);\n",
+	      sym.c_str(), x.String().c_str(),
+	      xx.c_str(), x.String().c_str());
+      fprintf(f,
+	      I "X->reg_P = (X->reg_P & ~(Z_FLAG | N_FLAG | C_FLAG)) | %s;\n",
+	      sym.c_str());
+      X_ZNT(xx);
+      return Exp<uint8>(xx);
     };
     
     switch (b1) {
@@ -1058,17 +1112,29 @@ struct AOT {
 #if 0
     case 0x06: RMW_ZP(ASL);
     case 0x16: RMW_ZPX(ASL);
-    case 0x0E: RMW_AB(ASL);
+#endif
+    case 0x0E:
+      RMW_AB(ASL);
+      return pc_addr;
+#if 0
     case 0x1E: RMW_ABX(ASL);
 
     case 0xC6: RMW_ZP(DEC);
     case 0xD6: RMW_ZPX(DEC);
-    case 0xCE: RMW_AB(DEC);
+#endif
+    case 0xCE:
+      RMW_AB(DEC);
+      return pc_addr;
+#if 0
     case 0xDE: RMW_ABX(DEC);
 
     case 0xE6: RMW_ZP(INC);
     case 0xF6: RMW_ZPX(INC);
-    case 0xEE: RMW_AB(INC);
+#endif
+    case 0xEE:
+      RMW_AB(INC);
+      return pc_addr;
+#if 0
     case 0xFE: RMW_ABX(INC);
 #endif
 
@@ -1078,22 +1144,34 @@ struct AOT {
 #if 0
     case 0x46: RMW_ZP(LSR);
     case 0x56: RMW_ZPX(LSR);
-    case 0x4E: RMW_AB(LSR);
+#endif
+    case 0x4E:
+      RMW_AB(LSR);
+      return pc_addr;
+#if 0
     case 0x5E: RMW_ABX(LSR);
 
     case 0x2A: RMW_A(ROL);
     case 0x26: RMW_ZP(ROL);
     case 0x36: RMW_ZPX(ROL);
-    case 0x2E: RMW_AB(ROL);
+#endif
+    case 0x2E:
+      RMW_AB(ROL);
+      return pc_addr;
+#if 0
     case 0x3E: RMW_ABX(ROL);
 
     case 0x6A: RMW_A(ROR);
     case 0x66: RMW_ZP(ROR);
     case 0x76: RMW_ZPX(ROR);
-    case 0x6E: RMW_AB(ROR);
-    case 0x7E: RMW_ABX(ROR);
-
 #endif
+    case 0x6E:
+      RMW_AB(ROR);
+      return pc_addr;
+#if 0
+    case 0x7E: RMW_ABX(ROR);
+#endif
+
     case 0x69:
       LD_IM(ADC);
       return pc_addr;
@@ -1497,7 +1575,15 @@ struct AOT {
       /* DCP */
     case 0xC7: RMW_ZP(DEC; CMP);
     case 0xD7: RMW_ZPX(DEC; CMP);
-    case 0xCF: RMW_AB(DEC; CMP);
+#endif
+    case 0xCF:
+      RMW_AB([&](Exp<uint8> x) {
+	Exp<uint8> y = DEC(x);
+	CMP(y);
+	return y;
+      });
+      return pc_addr;
+#if 0
     case 0xDF: RMW_ABX(DEC; CMP);
     case 0xDB: RMW_ABY(DEC; CMP);
     case 0xC3: RMW_IX(DEC; CMP);
@@ -1506,7 +1592,15 @@ struct AOT {
       /* ISB */
     case 0xE7: RMW_ZP(INC; SBC);
     case 0xF7: RMW_ZPX(INC; SBC);
-    case 0xEF: RMW_AB(INC; SBC);
+#endif
+    case 0xEF:
+      RMW_AB([&](Exp<uint8> x) {
+	Exp<uint8> y = INC(x);
+	SBC(y);
+	return y;
+      });
+      return pc_addr;
+#if 0
     case 0xFF: RMW_ABX(INC; SBC);
     case 0xFB: RMW_ABY(INC; SBC);
     case 0xE3: RMW_IX(INC; SBC);
@@ -1606,7 +1700,15 @@ struct AOT {
       /* RLA */
     case 0x27: RMW_ZP(ROL; AND);
     case 0x37: RMW_ZPX(ROL; AND);
-    case 0x2F: RMW_AB(ROL; AND);
+#endif
+    case 0x2F:
+      RMW_AB([&](Exp<uint8> x) {
+	Exp<uint8> y = ROL(x);
+	AND(y);
+	return y;
+      });
+      return pc_addr;
+#if 0
     case 0x3F: RMW_ABX(ROL; AND);
     case 0x3B: RMW_ABY(ROL; AND);
     case 0x23: RMW_IX(ROL; AND);
@@ -1615,7 +1717,15 @@ struct AOT {
       /* RRA */
     case 0x67: RMW_ZP(ROR; ADC);
     case 0x77: RMW_ZPX(ROR; ADC);
-    case 0x6F: RMW_AB(ROR; ADC);
+#endif
+    case 0x6F:
+      RMW_AB([&](Exp<uint8> x) {
+	Exp<uint8> y = ROR(x);
+	ADC(y);
+	return y;
+      });
+      return pc_addr;
+#if 0
     case 0x7F: RMW_ABX(ROR; ADC);
     case 0x7B: RMW_ABY(ROR; ADC);
     case 0x63: RMW_IX(ROR; ADC);
