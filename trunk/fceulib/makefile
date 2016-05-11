@@ -44,12 +44,12 @@ endif
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
 # otherwise treats -n literally.)
 %.o : %.cc
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DENABLE_AOT=1 -c -o $@ $<
-	@bash -c "echo -n '.'"
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DENABLE_AOT=1 -c -o $@ $<
+	# @bash -c "echo -n '.'"
 
 %-noaot.o : %.cc
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
-	@bash -c "echo -n ':'"
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	# @bash -c "echo -n ':'"
 
 # If you don't have SDL, you can leave these out, and maybe it still works.
 LINKSDL= -mno-cygwin -lm -luser32 -lgdi32 -lwinmm -ldxguid
@@ -86,7 +86,7 @@ INPUTOBJECTS=input/arkanoid.o input/ftrainer.o input/oekakids.o input/suborkb.o 
 
 FCEUOBJECTS=cart.o version.o emufile.o fceu.o fds.o file.o filter.o ines.o input.o palette.o sound.o state.o unif.o vsuni.o x6502.o git.o fc.o
 # ugh.
-AOT_OBJECTS=aot.o
+AOT_OBJECTS=ppu.o
 NO_AOT_OBJECTS=ppu-noaot.o
 
 #  $(DRIVERS_COMMON_OBJECTS)
@@ -98,8 +98,9 @@ BASEOBJECTS=$(CCLIBOBJECTS)
 FCEULIB_OBJECTS=emulator.o headless-driver.o stringprintf.o trace.o tracing.o
 # simplefm2.o emulator.o util.o
 
-# experimental!
-GAME_OBJECTS=mario.o
+# experimental! Need a much better way to do this...
+GAME_OBJECTS=mario_32768.o mario_33792.o mario_34816.o mario_35840.o mario_36864.o mario_37888.o mario_38912.o mario_39936.o mario_40960.o mario_41984.o mario_43008.o mario_44032.o mario_45056.o mario_46080.o mario_47104.o mario_48128.o mario_49152.o mario_50176.o mario_51200.o mario_52224.o mario_53248.o mario_54272.o mario_55296.o mario_56320.o mario_57344.o mario_58368.o mario_59392.o mario_60416.o mario_61440.o mario_62464.o mario_63488.o mario_64512.o mario.o
+
 
 OBJECTS_NO_GAMES=$(BASEOBJECTS) $(EMUOBJECTS) $(FCEULIB_OBJECTS)
 OBJECTS=$(OBJECTS_NO_GAMES) $(GAME_OBJECTS) $(AOT_OBJECTS)
@@ -135,11 +136,12 @@ aot.exe : $(OBJECTS_NO_GAMES) ppu-noaot.o aot.o
 make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-mario.cc : aot.exe
+# also mario_*.cc, but make suxxxx
+mario.cc : aot.exe aot-prelude.inc
 	./aot.exe
 
-mario.o : mario.cc aot-prelude.inc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< -g -c -o mario.o
+# mario.o : mario.cc
+# 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< -g -c -o mario.o
 
 test : emulator_test.exe
 	time ./emulator_test.exe
