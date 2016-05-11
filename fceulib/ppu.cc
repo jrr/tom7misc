@@ -52,7 +52,7 @@
 
 #ifdef ENABLE_AOT
 // XXX get from some generated header...
-extern void mario_Run(FC *fc);
+extern void mario_Run(FC *fc, int32 cycles);
 #define Run6502(c) mario_Run(fc, c)
 #else
 #define Run6502(c) fc->X->Run(c)
@@ -907,7 +907,7 @@ void PPU::DoLine() {
     mmc5->MMC5HackHB(scanline);
   }
 
-  fc->X->Run(256);
+  Run6502(256);
   EndRL();
 
   if (!renderbg) {
@@ -951,15 +951,15 @@ void PPU::DoLine() {
     FetchSpriteData();
 
   if (GameHBIRQHook && (ScreenON || SpriteON) && ((PPU_values[0]&0x38)!=0x18)) {
-    fc->X->Run(6);
+    Run6502(6);
     Fixit2();
-    fc->X->Run(4);
+    Run6502(4);
     GameHBIRQHook(fc);
-    fc->X->Run(85-16-10);
+    Run6502(85-16-10);
   } else {
-    fc->X->Run(6);  // Tried 65, caused problems with Slalom(maybe others)
+    Run6502(6);  // Tried 65, caused problems with Slalom(maybe others)
     Fixit2();
-    fc->X->Run(85-6-16);
+    Run6502(85-6-16);
 
     // A semi-hack for Star Trek: 25th Anniversary
     if (GameHBIRQHook && (ScreenON || SpriteON) && ((PPU_values[0]&0x38)!=0x18))
@@ -974,7 +974,7 @@ void PPU::DoLine() {
   if (scanline<240) {
     ResetRL(fc->fceu->XBuf+(scanline<<8));
   }
-  fc->X->Run(16);
+  Run6502(16);
 }
 
 #define V_FLIP  0x80
@@ -1462,11 +1462,11 @@ int PPU::FCEUPPU_Loop(int skip) {
   // Needed for Knight Rider, possibly others.
   if (ppudead) {
     memset(fc->fceu->XBuf, 0x80, 256*240);
-    fc->X->Run(scanlines_per_frame*(256+85));
+    Run6502(scanlines_per_frame*(256+85));
     ppudead--;
   } else {
     TRACELOC();
-    fc->X->Run(256+85);
+    Run6502(256+85);
     TRACEA(fc->fceu->RAM, 0x800);
 
     PPU_status |= 0x80;
@@ -1478,14 +1478,14 @@ int PPU::FCEUPPU_Loop(int skip) {
     PPU_values[3]=PPUSPL=0;
 
     // I need to figure out the true nature and length of this delay.
-    fc->X->Run(12);
+    Run6502(12);
 
     if (VBlankON)
       fc->X->TriggerNMI();
 
-    fc->X->Run((scanlines_per_frame-242)*(256+85)-12);
+    Run6502((scanlines_per_frame-242)*(256+85)-12);
     PPU_status&=0x1f;
-    fc->X->Run(256);
+    Run6502(256);
 
     if (ScreenON || SpriteON) {
       if (GameHBIRQHook && ((PPU_values[0]&0x38)!=0x18))
@@ -1495,7 +1495,7 @@ int PPU::FCEUPPU_Loop(int skip) {
       if (GameHBIRQHook2)
         GameHBIRQHook2(fc);
     }
-    fc->X->Run(85-16);
+    Run6502(85-16);
     if (ScreenON || SpriteON) {
       RefreshAddr=TempAddr;
       if (PPU_hook) PPU_hook(fc, RefreshAddr & 0x3fff);
@@ -1505,7 +1505,7 @@ int PPU::FCEUPPU_Loop(int skip) {
     any_sprites_on_line = numsprites = 0;
     ResetRL(fc->fceu->XBuf);
 
-    fc->X->Run(16 - cycle_parity);
+    Run6502(16 - cycle_parity);
     cycle_parity ^= 1;
 
     // n.b. FRAMESKIP results in different behavior in memory, so don't do it.
@@ -1520,7 +1520,7 @@ int PPU::FCEUPPU_Loop(int skip) {
       TRACELOC();
       PPU_status|=0x20;       // Fixes "Bee 52".  Does it break anything?
       if (GameHBIRQHook) {
-        fc->X->Run(256);
+        Run6502(256);
         for (scanline=0;scanline<240;scanline++) {
           if (ScreenON || SpriteON)
             GameHBIRQHook(fc);
@@ -1528,17 +1528,17 @@ int PPU::FCEUPPU_Loop(int skip) {
             TRACELOC();
             PPU_status|=0x40;
           }
-          fc->X->Run((scanline==239)?85:(256+85));
+          Run6502((scanline==239)?85:(256+85));
         }
       } else if (y<240) {
-        fc->X->Run((256+85)*y);
+        Run6502((256+85)*y);
         if (SpriteON) {
           TRACELOC();
           PPU_status|=0x40; // Quick and very dirty hack.
         }
-        fc->X->Run((256+85)*(240-y));
+        Run6502((256+85)*(240-y));
       } else {
-        fc->X->Run((256+85)*240);
+        Run6502((256+85)*240);
       }
     }
 #endif

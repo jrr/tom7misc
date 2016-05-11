@@ -1,3 +1,20 @@
+
+--------------------------------------------------
+aot
+--------------------------------------------------
+
+very first test (only generating a handful of
+instructions):
+
+plain x6502:
+Mem checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+Startup time: 0.0010s
+Exec time:    7.8114s
+
+incomplete aot:
+
+
 --------------------------------------------------
 threads
 --------------------------------------------------

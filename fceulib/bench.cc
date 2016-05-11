@@ -93,12 +93,33 @@ int main(int argc, char **argv) {
       printf("Run(%d%s): %lld\n", i, i == 1023 ? "+" : "", exec);
     }
   }
- 
+
+  uint64 ram_checksum = emu->RamChecksum();
+  uint64 img_checksum = emu->ImageChecksum();
+  fprintf(stderr,
+	  "RAM checksum: %llx\n"
+	  "Img checksum: %llx\n\n",
+	  ram_checksum,
+	  img_checksum);
   
   fprintf(stderr, "Finished.\n"
           "Startup time: %.4fs\n"
           "Exec time:    %.4fs\n",
           startup_seconds, exec_seconds);
 
-  return 0;
+  static constexpr uint64 expected_ram = 0xaf57274ece679455ULL;
+  static constexpr uint64 expected_img = 0xc3e8723a5a0d4020ULL;
+  int status = 0;
+  if (ram_checksum != expected_ram) {
+    fprintf(stderr, "*** Ram checksum mismatch. Wanted %llx!\n",
+	    expected_ram);
+    status = -1;
+  }
+  if (img_checksum != expected_img) {
+    fprintf(stderr, "*** Img checksum mismatch. Wanted %llx!\n",
+	    expected_img);
+    status = -1;
+  }
+  
+  return status;
 }
