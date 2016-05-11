@@ -137,6 +137,18 @@ AOT entries: 137655153
 Startup time: 0.0010s
 Exec time:    7.1904s
 
+LD_ZPX LD_ZPY:
+Old cycles: 31269067
+AOT entries: 139154007
+Startup time: 0.0010s
+Exec time:    7.1254s
+
+RMW_AB ROL ROR:
+Old cycles: 31020115
+AOT entries: 139213403
+Startup time: 0.0010s
+Exec time:    7.0494s
+
 --------------------------------------------------
 threads
 --------------------------------------------------
