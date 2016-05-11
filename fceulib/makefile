@@ -45,11 +45,11 @@ endif
 # otherwise treats -n literally.)
 %.o : %.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DENABLE_AOT=1 -c -o $@ $<
-	# @bash -c "echo -n '.'"
+#	@bash -c "echo -n '.'"
 
 %-noaot.o : %.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
-	# @bash -c "echo -n ':'"
+#	@bash -c "echo -n ':'"
 
 # If you don't have SDL, you can leave these out, and maybe it still works.
 LINKSDL= -mno-cygwin -lm -luser32 -lgdi32 -lwinmm -ldxguid

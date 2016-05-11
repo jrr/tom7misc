@@ -13,6 +13,64 @@ Startup time: 0.0010s
 Exec time:    7.8114s
 
 incomplete aot:
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+Startup time: 0.0010s
+Exec time:    7.9715s
+
+hmm :/
+
+Old cycles: 197132539
+AOT entries: 19793951
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+
+Finished.
+Startup time: 0.0010s
+Exec time:    7.9395s
+
+implement 0x48, 0x08:
+
+Old cycles: 196943380
+AOT entries: 19810796
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+
+Finished.
+Startup time: 0.0010s
+Exec time:    7.9495s
+
+Old cycles: 196818657
+AOT entries: 19820519
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+
+RTS 0x60:
+
+Old cycles: 196339610
+AOT entries: 20062556
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+
+Finished.
+Startup time: 0.0010s
+Exec time:    7.9505s
+
+JMP absolute 0x4c:
+
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+Old cycles: 60282877
+AOT entries: 134660087
+Startup time: 0.0010s
+Exec time:    6.8974s
+
+ST_ZP instructions:
+
+Old cycles: 59095030
+AOT entries: 134743968
+Startup time: 0.0230s
+Exec time:    6.9234s
 
 
 --------------------------------------------------

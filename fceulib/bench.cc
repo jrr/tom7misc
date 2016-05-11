@@ -73,6 +73,17 @@ int main(int argc, char **argv) {
   double exec_seconds = exec_timer.GetSeconds();
 
   X6502 *x6502 = emu->GetFC()->X;
+  int64 old_cycles = 0LL;
+  for (int i = 0; i <= 0xFFFF; i++) {
+    old_cycles += x6502->pc_histo[i];
+  }
+
+  int64 aot_entries = 0LL;
+  for (int i = 0; i < 0xFFFF; i++) {
+    aot_entries += x6502->entered_aot[i];
+  }
+  
+  #if 0
   for (int i = 0; i <= 0xFFFF; i++) {
     int64 exec = x6502->pc_histo[i];
     if (exec > 0) {
@@ -93,16 +104,27 @@ int main(int argc, char **argv) {
       printf("Run(%d%s): %lld\n", i, i == 1023 ? "+" : "", exec);
     }
   }
+  #endif
 
+  for (int i = 0; i < 256; i++) {
+    if (x6502->unimpl_inst[i] > 0) {
+      printf("Inst 0x%02x: %lld\n", i, x6502->unimpl_inst[i]);
+    }
+  }
+  
+ 
   uint64 ram_checksum = emu->RamChecksum();
   uint64 img_checksum = emu->ImageChecksum();
   fprintf(stderr,
 	  "RAM checksum: %llx\n"
-	  "Img checksum: %llx\n\n",
+	  "Img checksum: %llx\n",
 	  ram_checksum,
 	  img_checksum);
-  
-  fprintf(stderr, "Finished.\n"
+
+  fprintf(stderr,
+	  "Old cycles: %lld\n"
+	  "AOT entries: %lld\n", old_cycles, aot_entries);
+  fprintf(stderr,
           "Startup time: %.4fs\n"
           "Exec time:    %.4fs\n",
           startup_seconds, exec_seconds);
