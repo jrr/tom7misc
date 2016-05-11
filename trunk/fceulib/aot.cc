@@ -19,6 +19,10 @@
 // a flag and wait for the next cycle). Could keep PC in a local variable
 // and only set it when we exit generated code.
 
+// TODO: Should not be passing X->reg_A and so on in Exp<>. These
+// should contain *values*, but an intermediate write to a register
+// changes its value, duh.
+
 #include "emulator.h"
 
 #include <string>
@@ -272,6 +276,41 @@ static bool CanGenInstruction(uint8 b1) {
   case 0x05: return true;
   case 0xE5: return true;
   case 0xA7: return true;
+
+  case 0x24: return true;
+  case 0x2C: return true;
+  case 0x49: return true;
+  case 0x45: return true;
+  case 0x4D: return true;
+  case 0x5D: return true;
+  case 0x59: return true;
+  case 0x41: return true;
+
+  case 0x71: return true;
+  case 0x31: return true;
+  case 0xD1: return true;
+  case 0x51: return true;
+  case 0xB1: return true;
+  case 0x11: return true;
+  case 0xF1: return true;
+  case 0xB3: return true;
+
+  case 0x40: return true;
+  case 0x00: return true;
+
+  case 0x0A: return true;
+  case 0x4A: return true;
+
+  case 0x75: return true;
+  case 0x35: return true;
+  case 0xD5: return true;
+  case 0x55: return true;
+  case 0xB5: return true;
+  case 0xB6: return true;
+  case 0xB4: return true;
+  case 0x15: return true;
+  case 0xF5: return true;
+    
   default: return false;
   }
 }
@@ -442,7 +481,9 @@ struct AOT {
 	      sym.c_str(), ab.String().c_str(), idx.String().c_str());
       fprintf(f, I "if ((%s ^ %s) & 0x100) {\n",
 	      sym.c_str(), ab.String().c_str());
-
+      // There was an & 0xFFFF in x6502's code, but I don't see how
+      // that can do anything.
+      
       Exp<uint8> unused = ReadMem(
 	  Exp<uint16>(StringPrintf("(%s ^ 0x100)", sym.c_str())));
       fprintf(f, I "  (void) %s;  // Unused GetABIRD\n",
@@ -471,18 +512,71 @@ struct AOT {
       return Exp<uint16>(sym);
     };
 
+    // Indirect Indexed for reads
+    auto GetIYRD = [this, f, &pc_addr, &ReadMem]() {
+      const string sym = GenSym("iyrd");
+      const string rt = GenSym("rt");
+      Exp<uint8> loc = ReadMem(Exp<uint16>(pc_addr));
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f,
+	      I "const uint16 %s = (uint16)fceu->RAM[%s] |\n"
+	      I "  ((uint16)fceu->RAM[0xFF & (%s + 1)] << 8);\n",
+	      rt.c_str(), loc.String().c_str(), loc.String().c_str());
+      fprintf(f,
+	      I "const uint16 %s = %s + (uint16)X->reg_Y;\n",
+	      sym.c_str(), rt.c_str());
+      fprintf(f,
+	      I "if ((%s ^ %s) & 0x100) {\n",
+	      sym.c_str(), rt.c_str());
+      // Also anded with 0xFFFF, but I left it out because I think
+      // sym can just be 16 bits.
+      Exp<uint8> unused = ReadMem(
+	  Exp<uint16>(StringPrintf("(%s ^ 0x100)", sym.c_str())));
+      fprintf(f, I "(void) %s;  // Unused GetIYRD\n", unused.String().c_str());
+      ADDCYC(f, 1);
+      fprintf(f, "}\n");
+      
+      return Exp<uint16>(sym);
+    };
+
+    auto RMW_A = [f](std::function<Exp<uint8>(Exp<uint8>)> op) {
+      Exp<uint8> x = op(Exp<uint8>("X->reg_A"));
+      fprintf(f, I "X->reg_A = %s;\n", x.String().c_str());
+    };
+    
     auto LD_IX = [&GetIX, &ReadMem](std::function<void(Exp<uint8>)> op) {
       Exp<uint16> aa = GetIX();
       Exp<uint8> x = ReadMem(aa);
       op(x);
     };
-    
+
+    auto LD_IY = [&GetIYRD, &ReadMem](std::function<void(Exp<uint8>)> op) {
+      Exp<uint16> aa = GetIYRD();
+      Exp<uint8> x = ReadMem(aa);
+      op(x);
+    };
+
     // Same as LD_IM?
     auto GetZP = [&ReadMem, f, &pc_addr]() {
       Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
       fprintf(f, I "X->reg_PC = 0x%04x; // GetZP\n", pc_addr);
       return x;
+    };
+
+    // Zero Page Indexed
+    auto GetZPI = [this, &ReadMem, f, &pc_addr](Exp<uint8> idx) {
+      // Currently, index is always a register.
+      Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x; // GetZPI\n", pc_addr);
+      string sym = GenSym("zpi");
+      fprintf(f, I "const uint8 %s = (%s) + (%s);\n",
+	      sym.c_str(),
+	      idx.String().c_str(),
+	      x.String().c_str());
+      return Exp<uint8>(sym);
     };
     
     auto LD_AB = [&code, &pc_addr, f, &ReadMem, &GetAB](
@@ -515,7 +609,24 @@ struct AOT {
       op(Exp<uint8>(sym));
     };
 
-    
+    auto LD_ZPX = [this, &code, f, &GetZPI](
+	std::function<void(Exp<uint8>)> op) {
+      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_X"));
+      const string sym = GenSym("x");
+      fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
+	      sym.c_str(), aa.String().c_str());
+      op(Exp<uint8>(sym));
+    };
+
+    auto LD_ZPY = [this, &code, f, &GetZPI](
+	std::function<void(Exp<uint8>)> op) {
+      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_Y"));
+      const string sym = GenSym("x");
+      fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
+	      sym.c_str(), aa.String().c_str());
+      op(Exp<uint8>(sym));
+    };
+
     auto LDA = [&code, f, &X_ZN](Exp<uint8> val) {
       // PERF: Could get constant for X_ZN in case that value is known,
       // but gcc seems able to do this optimization just fine.
@@ -543,6 +654,19 @@ struct AOT {
       X_ZN("X->reg_A");
     };
 
+    auto BIT = [f](Exp<uint8> val) {
+      fprintf(f,
+	      I "X->reg_P = (X->reg_P & ~(Z_FLAG | V_FLAG | N_FLAG)) |\n"
+	      I "  (ZNTable[%s & X->reg_A] & Z_FLAG) |\n"
+	      I "  (%s & (V_FLAG | N_FLAG));\n",
+	      val.String().c_str(), val.String().c_str());
+    };
+
+    auto EOR = [f, &X_ZN](Exp<uint8> val) {
+      fprintf(f, I "X->reg_A ^= %s;\n", val.String().c_str());
+      X_ZN("X->reg_A");
+    };
+    
     auto ADC = [this, &code, f, &X_ZNT](Exp<uint8> val) {
       const string sym = GenSym("adc");
       fprintf(f, I "const uint32 %s = "
@@ -668,28 +792,87 @@ struct AOT {
     auto CMP = [CMPL](Exp<uint8> a2) { CMPL(Exp<uint8>("X->reg_A"), a2); };
     auto CPX = [CMPL](Exp<uint8> a2) { CMPL(Exp<uint8>("X->reg_X"), a2); };
     auto CPY = [CMPL](Exp<uint8> a2) { CMPL(Exp<uint8>("X->reg_Y"), a2); };
+
+    // PERF many of these operations can have known results if the
+    // arguments are known. But currently they are always a register
+    // source.
+    auto DEC = [this, f, &X_ZN](Exp<uint8> x) {
+      const string sym = GenSym("dec");
+      fprintf(f, I "uint8 %s = %s - 1;\n", sym.c_str(), x.String().c_str());
+      X_ZN(sym);
+      return Exp<uint8>(sym);
+    };
+
+    auto INC = [this, f, &X_ZN](Exp<uint8> x) {
+      const string sym = GenSym("inc");
+      fprintf(f, I "uint8 %s = %s + 1;\n", sym.c_str(), x.String().c_str());
+      X_ZN(sym);
+      return Exp<uint8>(sym);
+    };
+
+    // Probably "Arithmetic shift left"
+    auto ASL = [this, f, &X_ZN](Exp<uint8> x) {
+      const string sym = GenSym("asl");
+      fprintf(f, I "X->reg_P = (X->reg_P & ~C_FLAG) | ((%s) >> 7);\n",
+	      x.String().c_str());
+      fprintf(f, I "uint8 %s = %s << 1;\n", sym.c_str(), x.String().c_str());
+      X_ZN(sym);
+      return Exp<uint8>(sym);
+    };
+
+    // Probably "Logical shift right" (but note it does modify flags?)
+    auto LSR = [this, f, &X_ZNT](Exp<uint8> x) {
+      const string sym = GenSym("asl");
+      fprintf(f,
+	      I "X->reg_P = (X->reg_P & ~(C_FLAG | N_FLAG | Z_FLAG)) |\n"
+	      I "  ((%s) & 1);\n",
+	      x.String().c_str());
+      fprintf(f, I "uint8 %s = ((uint8)%s) >> 1;\n",
+	      sym.c_str(), x.String().c_str());
+      X_ZNT(sym);
+      return Exp<uint8>(sym);
+    };
     
     switch (b1) {
-#if 0
-    case 0x00: /* BRK */
-      reg_PC++;
-      PUSH(reg_PC >> 8);
-      PUSH(reg_PC);
-      PUSH(reg_P | U_FLAG | B_FLAG);
-      reg_P |= I_FLAG;
-      reg_PI |= I_FLAG;
-      reg_PC = RdMem(0xFFFE);
-      reg_PC |= RdMem(0xFFFF) << 8;
-      break;
+    case 0x00: { /* BRK */
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      PUSH(Exp<uint8>(pc_addr >> 8));
+      PUSH(Exp<uint8>(pc_addr & 0xFF));
+      PUSH(Exp<uint8>("(X->reg_P | U_FLAG | B_FLAG)"));
+      fprintf(f,
+	      I "X->reg_P |= I_FLAG;\n"
+	      I "X->reg_PI |= I_FLAG;\n");
+      Exp<uint8> pc_low = ReadMem(Exp<uint16>(0xFFFE));
+      Exp<uint8> pc_high = ReadMem(Exp<uint16>(0xFFFF));
+      // PERF sometimes can know this address statically. But we don't
+      // do anythign with such information yet.
+      pc_addr = 0xFFFFFFFF;
+      fprintf(f,
+	      I "X->reg_PC = ((uint16)%s) | ((uint16)(%s) << 8);\n",
+	      pc_low.String().c_str(),
+	      pc_high.String().c_str());
 
+      return 0xFFFFFFFF;
+    }
+      
     case 0x40: /* RTI */
-      reg_P = POP();
-      /* reg_PI=reg_P; This is probably incorrect, so it's commented out. */
-      reg_PI = reg_P;
-      reg_PC = POP();
-      reg_PC |= POP() << 8;
-      break;
-#endif
+      POP([&](Exp<uint8> flags) {
+	fprintf(f, "X->reg_P = %s;\n", flags.String().c_str());
+	// In x6502, "This is probably incorrect, so it's commented out."
+	// (then of course followed by the statement not commented out...)
+	fprintf(f, "X->reg_PI = X->reg_P;\n");
+	POP([&](Exp<uint8> pc_low) {
+	  POP([&](Exp<uint8> pc_high) {
+	    fprintf(f, "X->reg_PC = ((uint16)%s) | ((uint16)(%s) << 8);\n",
+		    pc_low.String().c_str(),
+		    pc_high.String().c_str());
+	    pc_addr = 0xFFFFFFFF;
+	  });
+	});
+      });
+      // Address from RAM.
+      return pc_addr;
       
     case 0x60: /* RTS */
       POP([&](Exp<uint8> pc_low) {
@@ -868,9 +1051,11 @@ struct AOT {
       // Nop.
       return pc_addr;
 
-#if 0
 
-    case 0x0A: RMW_A(ASL);
+    case 0x0A:
+      RMW_A(ASL);
+      return pc_addr;
+#if 0
     case 0x06: RMW_ZP(ASL);
     case 0x16: RMW_ZPX(ASL);
     case 0x0E: RMW_AB(ASL);
@@ -885,8 +1070,12 @@ struct AOT {
     case 0xF6: RMW_ZPX(INC);
     case 0xEE: RMW_AB(INC);
     case 0xFE: RMW_ABX(INC);
+#endif
 
-    case 0x4A: RMW_A(LSR);
+    case 0x4A:
+      RMW_A(LSR);
+      return pc_addr;
+#if 0
     case 0x46: RMW_ZP(LSR);
     case 0x56: RMW_ZPX(LSR);
     case 0x4E: RMW_AB(LSR);
@@ -912,9 +1101,10 @@ struct AOT {
       LD_ZP(ADC);
       return pc_addr;
       
-#if 0
-    case 0x75: LD_ZPX(ADC);
-#endif
+    case 0x75:
+      LD_ZPX(ADC);
+      return pc_addr;
+
     case 0x6D:
       LD_AB(ADC);
       return pc_addr;
@@ -928,9 +1118,10 @@ struct AOT {
     case 0x61:
       LD_IX(ADC);
       return pc_addr;
-#if 0
-    case 0x71: LD_IY(ADC);
-#endif
+
+    case 0x71:
+      LD_IY(ADC);
+      return pc_addr;
       
     case 0x29:
       LD_IM(AND);
@@ -939,9 +1130,11 @@ struct AOT {
     case 0x25:
       LD_ZP(AND);
       return pc_addr;
-#if 0
-    case 0x35: LD_ZPX(AND);
-#endif
+
+    case 0x35:
+      LD_ZPX(AND);
+      return pc_addr;
+
     case 0x2D:
       LD_AB(AND);
       return pc_addr;
@@ -956,24 +1149,30 @@ struct AOT {
     case 0x21:
       LD_IX(AND);
       return pc_addr;
-#if 0
-    case 0x31: LD_IY(AND);
 
-    case 0x24: LD_ZP(BIT);
-    case 0x2C: LD_AB(BIT);
-#endif
+    case 0x31:
+      LD_IY(AND);
+      return pc_addr;
+
+    case 0x24:
+      LD_ZP(BIT);
+      return pc_addr;
+    case 0x2C:
+      LD_AB(BIT);
+      return pc_addr;
 
     case 0xC9:
       LD_IM(CMP);
       return pc_addr;
 
-
     case 0xC5:
       LD_ZP(CMP);
       return pc_addr;
-#if 0
-    case 0xD5: LD_ZPX(CMP);
-#endif
+
+    case 0xD5:
+      LD_ZPX(CMP);
+      return pc_addr;
+
     case 0xCD:
       LD_AB(CMP);
       return pc_addr;
@@ -987,9 +1186,11 @@ struct AOT {
     case 0xC1:
       LD_IX(CMP);
       return pc_addr;
-#if 0
-    case 0xD1: LD_IY(CMP);
-#endif
+
+    case 0xD1:
+      LD_IY(CMP);
+      return pc_addr;
+
     case 0xE0:
       LD_IM(CPX);
       return pc_addr;
@@ -1013,16 +1214,32 @@ struct AOT {
       LD_AB(CPY);
       return pc_addr;
 
-#if 0
-    case 0x49: LD_IM(EOR);
-    case 0x45: LD_ZP(EOR);
-    case 0x55: LD_ZPX(EOR);
-    case 0x4D: LD_AB(EOR);
-    case 0x5D: LD_ABX(EOR);
-    case 0x59: LD_ABY(EOR);
-    case 0x41: LD_IX(EOR);
-    case 0x51: LD_IY(EOR);
-#endif
+    case 0x49:
+      LD_IM(EOR);
+      return pc_addr;
+    case 0x45:
+      LD_ZP(EOR);
+      return pc_addr;
+
+    case 0x55:
+      LD_ZPX(EOR);
+      return pc_addr;
+
+    case 0x4D:
+      LD_AB(EOR);
+      return pc_addr;
+    case 0x5D:
+      LD_ABX(EOR);
+      return pc_addr;
+    case 0x59:
+      LD_ABY(EOR);
+      return pc_addr;
+    case 0x41:
+      LD_IX(EOR);
+      return pc_addr;
+    case 0x51:
+      LD_IY(EOR);
+      return pc_addr;
 
     case 0xA9:
       LD_IM(LDA);
@@ -1031,9 +1248,11 @@ struct AOT {
     case 0xA5:
       LD_ZP(LDA);
       return pc_addr;
-#if 0
-    case 0xB5: LD_ZPX(LDA);
-#endif
+
+    case 0xB5:
+      LD_ZPX(LDA);
+      return pc_addr;
+
     case 0xAD:
       LD_AB(LDA);
       return pc_addr;
@@ -1047,9 +1266,9 @@ struct AOT {
     case 0xA1:
       LD_IX(LDA);
       return pc_addr;
-#if 0
-    case 0xB1: LD_IY(LDA);
-#endif
+    case 0xB1:
+      LD_IY(LDA);
+      return pc_addr;
 
     case 0xA2:
       LD_IM(LDX);
@@ -1058,9 +1277,11 @@ struct AOT {
     case 0xA6:
       LD_ZP(LDX);
       return pc_addr;
-#if 0
-    case 0xB6: LD_ZPY(LDX);
-#endif
+
+    case 0xB6:
+      LD_ZPY(LDX);
+      return pc_addr;
+
     case 0xAE:
       LD_AB(LDX);
       return pc_addr;
@@ -1076,9 +1297,11 @@ struct AOT {
     case 0xA4:
       LD_ZP(LDY);
       return pc_addr;
-#if 0
-    case 0xB4: LD_ZPX(LDY);
-#endif
+
+    case 0xB4:
+      LD_ZPX(LDY);
+      return pc_addr;
+
     case 0xAC:
       LD_AB(LDY);
       return pc_addr;
@@ -1094,9 +1317,11 @@ struct AOT {
     case 0x05:
       LD_ZP(ORA);
       return pc_addr;
-#if 0
-    case 0x15: LD_ZPX(ORA);
-#endif
+
+    case 0x15:
+      LD_ZPX(ORA);
+      return pc_addr;
+      
     case 0x0D:
       LD_AB(ORA);
       return pc_addr;
@@ -1110,9 +1335,11 @@ struct AOT {
     case 0x01:
       LD_IX(ORA);
       return pc_addr;
-#if 0
-    case 0x11: LD_IY(ORA);
-#endif
+
+    case 0x11:
+      LD_IY(ORA);
+      return pc_addr;
+
     case 0xEB: /* (undocumented) */
     case 0xE9:
       LD_IM(SBC);
@@ -1121,9 +1348,10 @@ struct AOT {
     case 0xE5:
       LD_ZP(SBC);
       return pc_addr;
-#if 0
-    case 0xF5: LD_ZPX(SBC);
-#endif
+
+    case 0xF5:
+      LD_ZPX(SBC);
+      return pc_addr;
 
     case 0xED:
       LD_AB(SBC);
@@ -1134,13 +1362,12 @@ struct AOT {
     case 0xF9:
       LD_ABY(SBC);
       return pc_addr;
-
     case 0xE1:
       LD_IX(SBC);
       return pc_addr;
-#if 0
-    case 0xF1: LD_IY(SBC);
-#endif
+    case 0xF1:
+      LD_IY(SBC);
+      return pc_addr;
 
     case 0x85:
       ST_ZP(Exp<uint8>("X->reg_A"));
@@ -1357,9 +1584,13 @@ struct AOT {
 	LDX(x);
       });
     return pc_addr;
-#if 0
-    case 0xB3: LD_IY(LDA; LDX);
-#endif
+
+    case 0xB3:
+      LD_IY([&](Exp<uint8> x) {
+	LDA(x);
+	LDX(x);
+      });
+    return pc_addr;
 
       /* NOP */
     case 0x1A:

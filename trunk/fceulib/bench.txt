@@ -113,6 +113,30 @@ AOT entries: 136682093
 Startup time: 0.0000s
 Exec time:    6.8250s
 
+BIT, EOR:
+Old cycles: 47707429
+AOT entries: 136702904
+Startup time: 0.0010s
+Exec time:    7.2034s
+
+LD_IY:
+Old cycles: 46050684
+AOT entries: 136947357
+Startup time: 0.0010s
+Exec time:    7.0754s
+
+RTI:
+Old cycles: 45869975
+AOT entries: 137112213
+Startup time: 0.0010s
+Exec time:    7.1304s
+
+RMW_A LSR ASL:
+Old cycles: 41326184
+AOT entries: 137655153
+Startup time: 0.0010s
+Exec time:    7.1904s
+
 --------------------------------------------------
 threads
 --------------------------------------------------
