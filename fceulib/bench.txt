@@ -72,6 +72,35 @@ AOT entries: 134743968
 Startup time: 0.0230s
 Exec time:    6.9234s
 
+CMP instructions:
+
+Old cycles: 57168145
+AOT entries: 135207647
+Startup time: 0.0190s
+Exec time:    7.0774s
+
+LD_ABI instructions:
+Old cycles: 55470224
+AOT entries: 135493299
+Startup time: 0.0770s
+Exec time:    6.9604s
+
+ADC instructions:
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+Old cycles: 54167955
+AOT entries: 135640914
+Startup time: 0.0010s
+Exec time:    6.9634s
+
+SBC instructions:
+RAM checksum: af57274ece679455
+Img checksum: c3e8723a5a0d4020
+Old cycles: 53831944
+AOT entries: 135685298
+Startup time: 0.0010s
+Exec time:    7.0034s
+
 
 --------------------------------------------------
 threads
