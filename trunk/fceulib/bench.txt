@@ -101,6 +101,7 @@ AOT entries: 135685298
 Startup time: 0.0010s
 Exec time:    7.0034s
 
+LD_IX instructions:
 
 --------------------------------------------------
 threads

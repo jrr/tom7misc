@@ -246,6 +246,14 @@ static bool CanGenInstruction(uint8 b1) {
 
   case 0xEB: return true;
   case 0xE9: return true;
+
+  case 0x61: return true;
+  case 0x21: return true;
+  case 0xC1: return true;
+  case 0xA1: return true;
+
+  case 0xA3: return true;
+  case 0xAF: return true;
     
   default: return false;
   }
@@ -425,6 +433,31 @@ struct AOT {
       ADDCYC(f, 1);
       fprintf(f, I "}\n");
       return Exp<uint16>(sym);
+    };
+    
+    // Indexed Indirect.
+    auto GetIX = [this, &code, &pc_addr, f, &ReadMem]() {
+      Exp<uint8> tmp = ReadMem(Exp<uint16>(pc_addr));
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      // PERF another place where tracking reg_X might allow
+      // simplification. Here at least we know they are RAM
+      // reads.
+      const string sym = GenSym("x");
+      fprintf(f,
+	      I "const uint16 %s = \n"
+	      I "  (uint16)fceu->RAM[0xFF & (%s + X->reg_X)] |\n"
+	      I "  ((uint16)(fceu->RAM[0xFF & (%s + 1 + X->reg_X)]) << 8);\n",
+	      sym.c_str(),
+	      tmp.String().c_str(),
+	      tmp.String().c_str());
+      return Exp<uint16>(sym);
+    };
+
+    auto LD_IX = [&GetIX, &ReadMem](std::function<void(Exp<uint8>)> op) {
+      Exp<uint16> aa = GetIX();
+      Exp<uint8> x = ReadMem(aa);
+      op(x);
     };
     
     // As far as I can tell this is exactly identical.
@@ -842,10 +875,14 @@ struct AOT {
     case 0x79:
       LD_ABY(ADC);
       return pc_addr;
+
+    case 0x61:
+      LD_IX(ADC);
+      return pc_addr;
 #if 0
-    case 0x61: LD_IX(ADC);
     case 0x71: LD_IY(ADC);
 #endif
+      
     case 0x29:
       LD_IM(AND);
       return pc_addr;
@@ -863,14 +900,17 @@ struct AOT {
     case 0x39:
       LD_ABY(AND);
       return pc_addr;
+
+    case 0x21:
+      LD_IX(AND);
+      return pc_addr;
 #if 0
-    case 0x21: LD_IX(AND);
     case 0x31: LD_IY(AND);
 
     case 0x24: LD_ZP(BIT);
     case 0x2C: LD_AB(BIT);
-
 #endif
+
     case 0xC9:
       LD_IM(CMP);
       return pc_addr;
@@ -890,8 +930,11 @@ struct AOT {
     case 0xD9:
       LD_ABY(CMP);
       return pc_addr;
+
+    case 0xC1:
+      LD_IX(CMP);
+      return pc_addr;
 #if 0
-    case 0xC1: LD_IX(CMP);
     case 0xD1: LD_IY(CMP);
 #endif
     case 0xE0:
@@ -941,8 +984,11 @@ struct AOT {
     case 0xB9:
       LD_ABY(LDA);
       return pc_addr;
+
+    case 0xA1:
+      LD_IX(LDA);
+      return pc_addr;
 #if 0
-    case 0xA1: LD_IX(LDA);
     case 0xB1: LD_IY(LDA);
 #endif
 
@@ -993,8 +1039,10 @@ struct AOT {
       LD_ABY(ORA);
       return pc_addr;
 
+    case 0x01:
+      LD_IX(ORA);
+      return pc_addr;
 #if 0
-    case 0x01: LD_IX(ORA);
     case 0x11: LD_IY(ORA);
 #endif
     case 0xEB: /* (undocumented) */
@@ -1017,8 +1065,10 @@ struct AOT {
       LD_ABY(SBC);
       return pc_addr;
 
+    case 0xE1:
+      LD_IX(SBC);
+      return pc_addr;
 #if 0
-    case 0xE1: LD_IX(SBC);
     case 0xF1: LD_IY(SBC);
 #endif
 
@@ -1214,9 +1264,23 @@ struct AOT {
       /* LAX */
     case 0xA7: LD_ZP(LDA; LDX);
     case 0xB7: LD_ZPY(LDA; LDX);
-    case 0xAF: LD_AB(LDA; LDX);
+#endif
+    case 0xAF:
+      LD_AB([&](Exp<uint8> x) {
+	LDA(x);
+	LDX(x);
+      });
+      return pc_addr;
+#if 0
     case 0xBF: LD_ABY(LDA; LDX);
-    case 0xA3: LD_IX(LDA; LDX);
+#endif
+    case 0xA3:
+      LD_IX([&](Exp<uint8> x) {
+	LDA(x);
+	LDX(x);
+      });
+    return pc_addr;
+#if 0
     case 0xB3: LD_IY(LDA; LDX);
 #endif
 
