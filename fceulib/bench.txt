@@ -101,7 +101,17 @@ AOT entries: 135685298
 Startup time: 0.0010s
 Exec time:    7.0034s
 
-LD_IX instructions:
+LD_IX instructions, jmp 6c:
+Old cycles: 53770499
+AOT entries: 135717803
+Startup time: 0.0000s
+Exec time:    6.7820s
+
+LD_ZP instructions:
+Old cycles: 47967458
+AOT entries: 136682093
+Startup time: 0.0000s
+Exec time:    6.8250s
 
 --------------------------------------------------
 threads

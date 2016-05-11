@@ -14,6 +14,10 @@
 // of a DMA, certain hooks are guaranteed to not modify x6502 state) that
 // allow us to skip the SoundHook?
 
+// TODO: reg_PC is only accessed through x6502; I think it's impossible
+// for any other code to modify it (even the interrupt calls just set
+// a flag and wait for the next cycle). Could keep PC in a local variable
+// and only set it when we exit generated code.
 
 #include "emulator.h"
 
@@ -254,7 +258,20 @@ static bool CanGenInstruction(uint8 b1) {
 
   case 0xA3: return true;
   case 0xAF: return true;
-    
+
+  case 0x6C: return true;
+
+  case 0x65: return true;
+  case 0x25: return true;
+  case 0xC5: return true;
+  case 0xC4: return true;
+  case 0xE4: return true;
+  case 0xA5: return true;
+  case 0xA6: return true;
+  case 0xA4: return true;
+  case 0x05: return true;
+  case 0xE5: return true;
+  case 0xA7: return true;
   default: return false;
   }
 }
@@ -460,7 +477,7 @@ struct AOT {
       op(x);
     };
     
-    // As far as I can tell this is exactly identical.
+    // Same as LD_IM?
     auto GetZP = [&ReadMem, f, &pc_addr]() {
       Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
@@ -489,6 +506,15 @@ struct AOT {
     auto LD_ABY = [&LD_ABI](std::function<void(Exp<uint8>)> op) {
       LD_ABI(Exp<uint8>("X->reg_Y"), op);
     };
+
+    auto LD_ZP = [this, &code, f, &GetZP](std::function<void(Exp<uint8>)> op) {
+      Exp<uint8> aa = GetZP();
+      const string sym = GenSym("x");
+      fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
+	      sym.c_str(), aa.String().c_str());
+      op(Exp<uint8>(sym));
+    };
+
     
     auto LDA = [&code, f, &X_ZN](Exp<uint8> val) {
       // PERF: Could get constant for X_ZN in case that value is known,
@@ -720,16 +746,36 @@ struct AOT {
       // could jump to it directly...
       return pc_addr;
     } 
-#if 0
+
     case 0x6C: {
-      /* JMP INDIRECT */
-      uint32 tmp;
-      GetAB(tmp);
-      reg_PC = RdMem(tmp);
-      reg_PC |= RdMem(((tmp + 1) & 0x00FF) | (tmp & 0xFF00)) << 8;
-      break;
+      Exp<uint16> tmp = GetAB();
+      Exp<uint8> pc_low = ReadMem(tmp);
+      Exp<uint16> tmp_plus_1 =
+	tmp.Known() ?
+	Exp<uint16>(((tmp.Value() + 1) & 0x00FF) | (tmp.Value() & 0xFF00)) :
+	Exp<uint16>(StringPrintf("((((%s) + 1) & 0x00FF) | ((%s) & 0xFF00))",
+				 tmp.String().c_str(), tmp.String().c_str()));
+      Exp<uint8> pc_high = ReadMem(tmp_plus_1);
+      
+      if (pc_low.Known() && pc_high.Known()) {
+	const uint16 new_pc = (uint16)pc_low.Value() |
+	  ((uint16)pc_high.Value() << 8);
+	pc_addr = new_pc;
+	fprintf(f, I "X->reg_PC = 0x%04x;  // Known jmp 6c\n", pc_addr);
+	
+      } else {
+	// n.b. this does reorder the write to reg_PC with the RdMem calls.
+	// Note that nothing accesses the PC except x6502.
+	fprintf(f, I "X->reg_PC = (uint16)(%s) | ((uint16)(%s) << 8); "
+		" // Unknown jmp 6c\n",
+		pc_low.String().c_str(), pc_high.String().c_str());
+	pc_addr = 0xFFFFFFFF;
+      }
+
+      // We would know the destination in the true branch above.
+      return 0xFFFFFFFF;
     }
-#endif
+
     case 0x20: /* JSR */
       // n.b. original code was akin to LD_IM.
       LD_IM([&](Exp<uint8> pc_low) {
@@ -862,8 +908,11 @@ struct AOT {
     case 0x69:
       LD_IM(ADC);
       return pc_addr;
+    case 0x65:
+      LD_ZP(ADC);
+      return pc_addr;
+      
 #if 0
-    case 0x65: LD_ZP(ADC);
     case 0x75: LD_ZPX(ADC);
 #endif
     case 0x6D:
@@ -886,8 +935,11 @@ struct AOT {
     case 0x29:
       LD_IM(AND);
       return pc_addr;
+
+    case 0x25:
+      LD_ZP(AND);
+      return pc_addr;
 #if 0
-    case 0x25: LD_ZP(AND);
     case 0x35: LD_ZPX(AND);
 #endif
     case 0x2D:
@@ -915,10 +967,11 @@ struct AOT {
       LD_IM(CMP);
       return pc_addr;
 
-#if 0
+
     case 0xC5:
       LD_ZP(CMP);
       return pc_addr;
+#if 0
     case 0xD5: LD_ZPX(CMP);
 #endif
     case 0xCD:
@@ -940,18 +993,22 @@ struct AOT {
     case 0xE0:
       LD_IM(CPX);
       return pc_addr;
-#if 0
-    case 0xE4: LD_ZP(CPX);
-#endif
+
+    case 0xE4:
+      LD_ZP(CPX);
+      return pc_addr;
+
     case 0xEC:
       LD_AB(CPX);
       return pc_addr;
     case 0xC0:
       LD_IM(CPY);
       return pc_addr;
-#if 0
-    case 0xC4: LD_ZP(CPY);
-#endif
+
+    case 0xC4:
+      LD_ZP(CPY);
+      return pc_addr;
+
     case 0xCC:
       LD_AB(CPY);
       return pc_addr;
@@ -971,8 +1028,10 @@ struct AOT {
       LD_IM(LDA);
       return pc_addr;
 
+    case 0xA5:
+      LD_ZP(LDA);
+      return pc_addr;
 #if 0
-    case 0xA5: LD_ZP(LDA);
     case 0xB5: LD_ZPX(LDA);
 #endif
     case 0xAD:
@@ -995,8 +1054,11 @@ struct AOT {
     case 0xA2:
       LD_IM(LDX);
       return pc_addr;
+
+    case 0xA6:
+      LD_ZP(LDX);
+      return pc_addr;
 #if 0
-    case 0xA6: LD_ZP(LDX);
     case 0xB6: LD_ZPY(LDX);
 #endif
     case 0xAE:
@@ -1010,8 +1072,11 @@ struct AOT {
     case 0xA0:
       LD_IM(LDY);
       return pc_addr;
+
+    case 0xA4:
+      LD_ZP(LDY);
+      return pc_addr;
 #if 0
-    case 0xA4: LD_ZP(LDY);
     case 0xB4: LD_ZPX(LDY);
 #endif
     case 0xAC:
@@ -1025,8 +1090,11 @@ struct AOT {
     case 0x09:
       LD_IM(ORA);
       return pc_addr;
+
+    case 0x05:
+      LD_ZP(ORA);
+      return pc_addr;
 #if 0
-    case 0x05: LD_ZP(ORA);
     case 0x15: LD_ZPX(ORA);
 #endif
     case 0x0D:
@@ -1050,8 +1118,10 @@ struct AOT {
       LD_IM(SBC);
       return pc_addr;
       
+    case 0xE5:
+      LD_ZP(SBC);
+      return pc_addr;
 #if 0
-    case 0xE5: LD_ZP(SBC);
     case 0xF5: LD_ZPX(SBC);
 #endif
 
@@ -1261,8 +1331,15 @@ struct AOT {
     case 0xBB:
       RMW_ABY(reg_S &= x; reg_A = reg_X = reg_S; X_ZN(reg_X));
 
+#endif
       /* LAX */
-    case 0xA7: LD_ZP(LDA; LDX);
+    case 0xA7:
+      LD_ZP([&](Exp<uint8> x) {
+	LDA(x);
+	LDX(x);
+      });
+      return pc_addr;
+#if 0
     case 0xB7: LD_ZPY(LDA; LDX);
 #endif
     case 0xAF:
@@ -1518,11 +1595,16 @@ static void GenerateCode(const CodeConfig &config,
 
   // PERF can even do these in parallel.
   static constexpr int ENTRYPOINTS_PER_FILE = 1024;
+  vector<int> start_addrs;
   for (int i = addr_start; i < addr_past_end; i += ENTRYPOINTS_PER_FILE) {
+    start_addrs.push_back(i);
+  }
+
+  auto F = [&config, &code, addr_start, addr_past_end, &symbol, &cart_name](
+      int i) {
     AOT aot;
     string filename = StringPrintf("%s_%d.cc", symbol.c_str(), i);
     FILE *f = fopen(filename.c_str(), "w");
-
 
     // Prelude.
     fprintf(f,
@@ -1549,12 +1631,14 @@ static void GenerateCode(const CodeConfig &config,
 
     // Then, a function for each address entry point.
     for (uint32 j = i; j < addr_past_end && j < i + ENTRYPOINTS_PER_FILE; j++) {
-      aot.GenerateEntry(config, code, j, addr_past_end, symbol, f);
+      aot.GenerateEntry(config, code, j, addr_past_end, symbol, f);      
     }
 
     fprintf(stderr, "Wrote %s.\n", filename.c_str());
     fclose(f);
-  }
+  };
+  
+  ParallelApp(start_addrs, F, 6);
 }
 
 // One of these per compiled file. It does the per-Run setup and
