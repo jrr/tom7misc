@@ -149,6 +149,18 @@ AOT entries: 139213403
 Startup time: 0.0010s
 Exec time:    7.0494s
 
+missed 2A, 6A:
+Old cycles: 29233897
+AOT entries: 139341915
+Startup time: 0.0010s
+Exec time:    7.2494s
+
+RMW_ABX and RMW_ABY, some missing RMB_AB:
+Old cycles: 29027115
+AOT entries: 139382964
+Startup time: 0.0010s
+Exec time:    7.0464s
+
 --------------------------------------------------
 threads
 --------------------------------------------------
