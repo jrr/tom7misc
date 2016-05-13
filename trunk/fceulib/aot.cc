@@ -408,6 +408,26 @@ static bool CanGenInstruction(uint8 b1) {
   case 0x67: return true;
   case 0x07: return true;
   case 0x47: return true;
+
+  case 0x95: return true;
+  case 0x96: return true;
+  case 0x94: return true;
+  case 0x97: return true;
+
+  case 0x16: return true;
+  case 0xD6: return true;
+  case 0xF6: return true;
+  case 0x56: return true;
+  case 0x36: return true;
+  case 0x76: return true;
+  case 0xD7: return true;
+  case 0xF7: return true;
+  case 0x37: return true;
+  case 0x77: return true;
+  case 0x17: return true;
+  case 0x57: return true;
+
+  case 0xE1: return true;
     
   default: return false;
   }
@@ -507,6 +527,8 @@ struct AOT {
       return res;
     };
   
+    // PERF: Look for places where I call this with an 8 bit argument
+    // (there are some); those can just access RAM directly.
     auto WriteMem = [f](const Exp<uint16> &addr_exp,
 			const Exp<uint8> &val_exp) {
       // PERF! Same deal; when the address is known, avoid indirection.
@@ -758,6 +780,17 @@ struct AOT {
       fprintf(f, I "fceu->RAM[%s] = %s;\n",
 	      aa.String().c_str(), y.String().c_str());
     };
+
+    auto RMW_ZPX = [this, f, &GetZPI](
+	std::function<Exp<uint8>(Exp<uint8>)> op) {
+      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_X"));
+      string sym = GenSym("x");
+      fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
+	      sym.c_str(), aa.String().c_str());
+      Exp<uint8> y = op(Exp<uint8>(sym));
+      fprintf(f, I "fceu->RAM[%s] = %s;\n",
+	      aa.String().c_str(), y.String().c_str());
+    };
     
     auto LD_IX = [&GetIX, &ReadMem](std::function<void(Exp<uint8>)> op) {
       Exp<uint16> aa = GetIX();
@@ -928,6 +961,18 @@ struct AOT {
     auto ST_ZP = [&code, f, &WriteMem, &GetZP](Exp<uint8> exp) {
       Exp<uint8> aa = GetZP();
       WriteMem(Extend8to16(aa), exp);
+    };
+
+    auto ST_ZPX = [&code, f, &GetZPI](Exp<uint8> exp) {
+      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_X"));
+      fprintf(f, I "fceu->RAM[%s] = %s;\n",
+	      aa.String().c_str(), exp.String().c_str());
+    };
+
+    auto ST_ZPY = [&code, f, &GetZPI](Exp<uint8> exp) {
+      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_Y"));
+      fprintf(f, I "fceu->RAM[%s] = %s;\n",
+	      aa.String().c_str(), exp.String().c_str());
     };
     
     auto PUSH = [&code, f](Exp<uint8> v) {
@@ -1322,9 +1367,11 @@ struct AOT {
     case 0x06:
       RMW_ZP(ASL);
       return pc_addr;
-#if 0
-    case 0x16: RMW_ZPX(ASL);
-#endif
+
+    case 0x16:
+      RMW_ZPX(ASL);
+      return pc_addr;
+
     case 0x0E:
       RMW_AB(ASL);
       return pc_addr;
@@ -1336,9 +1383,11 @@ struct AOT {
     case 0xC6:
       RMW_ZP(DEC);
       return pc_addr;
-#if 0
-    case 0xD6: RMW_ZPX(DEC);
-#endif
+
+    case 0xD6:
+      RMW_ZPX(DEC);
+      return pc_addr;
+
     case 0xCE:
       RMW_AB(DEC);
       return pc_addr;
@@ -1350,9 +1399,11 @@ struct AOT {
     case 0xE6:
       RMW_ZP(INC);
       return pc_addr;
-#if 0
-    case 0xF6: RMW_ZPX(INC);
-#endif
+
+    case 0xF6:
+      RMW_ZPX(INC);
+      return pc_addr;
+      
     case 0xEE:
       RMW_AB(INC);
       return pc_addr;
@@ -1368,9 +1419,11 @@ struct AOT {
     case 0x46:
       RMW_ZP(LSR);
       return pc_addr;
-#if 0
-    case 0x56: RMW_ZPX(LSR);
-#endif
+
+    case 0x56:
+      RMW_ZPX(LSR);
+      return pc_addr;
+
     case 0x4E:
       RMW_AB(LSR);
       return pc_addr;
@@ -1386,9 +1439,11 @@ struct AOT {
     case 0x26:
       RMW_ZP(ROL);
       return pc_addr;
-#if 0
-    case 0x36: RMW_ZPX(ROL);
-#endif
+
+    case 0x36:
+      RMW_ZPX(ROL);
+      return pc_addr;
+
     case 0x2E:
       RMW_AB(ROL);
       return pc_addr;
@@ -1404,9 +1459,11 @@ struct AOT {
     case 0x66:
       RMW_ZP(ROR);
       return pc_addr;
-#if 0
-    case 0x76: RMW_ZPX(ROR);
-#endif
+
+    case 0x76:
+      RMW_ZPX(ROR);
+      return pc_addr;
+
     case 0x6E:
       RMW_AB(ROR);
       return pc_addr;
@@ -1693,9 +1750,11 @@ struct AOT {
     case 0x85:
       ST_ZP(Exp<uint8>("X->reg_A"));
       return pc_addr;
-#if 0
-    case 0x95: ST_ZPX(reg_A);
-#endif
+
+    case 0x95:
+      ST_ZPX(Exp<uint8>("X->reg_A"));
+      return pc_addr;
+
     case 0x8D:
       ST_AB(Exp<uint8>("X->reg_A"));
       return pc_addr;
@@ -1717,9 +1776,11 @@ struct AOT {
     case 0x86:
       ST_ZP(Exp<uint8>("X->reg_X"));
       return pc_addr;
-#if 0
-    case 0x96: ST_ZPY(reg_X);
-#endif
+
+    case 0x96:
+      ST_ZPY(Exp<uint8>("X->reg_X"));
+      return pc_addr;
+      
     case 0x8E:
       ST_AB(Exp<uint8>("X->reg_X"));
       return pc_addr;
@@ -1728,9 +1789,11 @@ struct AOT {
       ST_ZP(Exp<uint8>("X->reg_Y"));
       return pc_addr;
       
-#if 0
-    case 0x94: ST_ZPX(reg_Y);
-#endif
+
+    case 0x94:
+      ST_ZPX(Exp<uint8>("X->reg_Y"));
+      return pc_addr;
+
     case 0x8C:
       ST_AB(Exp<uint8>("X->reg_Y"));
       return pc_addr;
@@ -1793,9 +1856,10 @@ struct AOT {
       ST_ZP(Exp<uint8>("X->reg_A & X->reg_X"));
       return pc_addr;
       
-#if 0
-    case 0x97: ST_ZPY(reg_A & reg_X);
-#endif
+    case 0x97:
+      ST_ZPY(Exp<uint8>("(X->reg_A & X->reg_X)"));
+      return pc_addr;
+
     case 0x8F:
       ST_AB(Exp<uint8>("(X->reg_A & X->reg_X)"));
       return pc_addr;
@@ -1844,9 +1908,15 @@ struct AOT {
 	return y;
       });
       return pc_addr;
-#if 0
-    case 0xD7: RMW_ZPX(DEC; CMP);
-#endif
+
+    case 0xD7:
+      RMW_ZPX([&](Exp<uint8> x) {
+	Exp<uint8> y = DEC(x);
+	CMP(y);
+	return y;
+      });
+      return pc_addr;
+
     case 0xCF:
       RMW_AB([&](Exp<uint8> x) {
 	Exp<uint8> y = DEC(x);
@@ -1895,9 +1965,14 @@ struct AOT {
       });
       return pc_addr;
 
-#if 0
-    case 0xF7: RMW_ZPX(INC; SBC);
-#endif
+    case 0xF7:
+      RMW_ZPX([&](Exp<uint8> x) {
+	Exp<uint8> y = INC(x);
+	SBC(y);
+	return y;
+      });
+      return pc_addr;
+
     case 0xEF:
       RMW_AB([&](Exp<uint8> x) {
 	Exp<uint8> y = INC(x);
@@ -2048,9 +2123,15 @@ struct AOT {
       });
       return pc_addr;
 
-#if 0
-    case 0x37: RMW_ZPX(ROL; AND);
-#endif
+
+    case 0x37:
+      RMW_ZPX([&](Exp<uint8> x) {
+	Exp<uint8> y = ROL(x);
+	AND(y);
+	return y;
+      });
+      return pc_addr;
+
     case 0x2F:
       RMW_AB([&](Exp<uint8> x) {
 	Exp<uint8> y = ROL(x);
@@ -2100,9 +2181,15 @@ struct AOT {
 	return y;
       });
       return pc_addr;
-#if 0
-    case 0x77: RMW_ZPX(ROR; ADC);
-#endif
+
+    case 0x77:
+      RMW_ZPX([&](Exp<uint8> x) {
+	Exp<uint8> y = ROR(x);
+	ADC(y);
+	return y;
+      });
+      return pc_addr;
+
     case 0x6F:
       RMW_AB([&](Exp<uint8> x) {
 	Exp<uint8> y = ROR(x);
@@ -2152,9 +2239,15 @@ struct AOT {
 	return y;
       });
       return pc_addr;
-#if 0
-    case 0x17: RMW_ZPX(ASL; ORA);
-#endif
+
+    case 0x17:
+      RMW_ZPX([&](Exp<uint8> x) {
+	Exp<uint8> y = ASL(x);
+	ORA(y);
+	return y;
+      });
+      return pc_addr;
+
     case 0x0F:
       RMW_AB([&](Exp<uint8> x) {
 	Exp<uint8> y = ASL(x);
@@ -2202,9 +2295,15 @@ struct AOT {
 	EOR(y);
 	return y;
       });
-#if 0
-    case 0x57: RMW_ZPX(LSR; EOR);
-#endif
+
+    case 0x57:
+      RMW_ZPX([&](Exp<uint8> x) {
+	Exp<uint8> y = LSR(x);
+	EOR(y);
+	return y;
+      });
+      return pc_addr;
+
     case 0x4F:
       RMW_AB([&](Exp<uint8> x) {
 	Exp<uint8> y = LSR(x);
@@ -2463,7 +2562,7 @@ static void GenerateCode(const CodeConfig &config,
   // to find cases that are very common and optimize those.
 
   // PERF can even do these in parallel.
-  static constexpr int ENTRYPOINTS_PER_FILE = 1024;
+  static constexpr int ENTRYPOINTS_PER_FILE = 512;
   vector<int> start_addrs;
   for (int i = addr_start; i < addr_past_end; i += ENTRYPOINTS_PER_FILE) {
     start_addrs.push_back(i);
