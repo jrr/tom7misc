@@ -191,7 +191,17 @@ AOT entries: 140928989
 Startup time: 0.0010s
 Exec time:    7.1294s
 
+ST_IX, ST_IY:
+Old cycles: 16254586
+AOT entries: 140988549
+Startup time: 0.0010s
+Exec time:    7.1044s
 
+RMW_ZP:
+Old cycles: 13976932
+AOT entries: 141346250
+Startup time: 0.0250s
+Exec time:    6.9291s
 
 --------------------------------------------------
 threads
