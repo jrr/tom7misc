@@ -428,6 +428,12 @@ static bool CanGenInstruction(uint8 b1) {
   case 0x57: return true;
 
   case 0xE1: return true;
+  case 0x01: return true;
+  case 0x8B: return true;
+  case 0xB7: return true;
+  case 0xFD: return true;
+  case 0x0B: return true;
+  case 0x2B: return true;
     
   default: return false;
   }
@@ -1839,8 +1845,7 @@ struct AOT {
       JR(Exp<uint8>("(X->reg_P & V_FLAG)"));
       return pc_addr;
 
-#if 0
-      // default: printf("Bad %02x at $%04x\n",b1,X.PC);break;
+
       /* Here comes the undocumented instructions block.  Note that this
 	 implementation may be "wrong".  If so, please tell me.
       */
@@ -1848,10 +1853,11 @@ struct AOT {
       /* AAC */
     case 0x2B:
     case 0x0B:
-      LD_IM(AND; reg_P &= ~C_FLAG; reg_P |= reg_A >> 7);
-
+      LD_IM(AND);
+      fprintf(f, I "X->reg_P = (X->reg_P & ~C_FLAG) | (X->reg_A >> 7);\n");
+      return pc_addr;
+      
       /* AAX */
-#endif
     case 0x87:
       ST_ZP(Exp<uint8>("X->reg_A & X->reg_X"));
       return pc_addr;
@@ -2073,9 +2079,14 @@ struct AOT {
 	LDX(x);
       });
       return pc_addr;
-#if 0
-    case 0xB7: LD_ZPY(LDA; LDX);
-#endif
+
+    case 0xB7:
+      LD_ZPY([&](Exp<uint8> x) {
+	LDA(x);
+	LDX(x);
+      });
+      return pc_addr;
+
     case 0xAF:
       LD_AB([&](Exp<uint8> x) {
 	LDA(x);
@@ -2561,7 +2572,6 @@ static void GenerateCode(const CodeConfig &config,
   // (RunLoop), which is of course fully general. So our goal here is
   // to find cases that are very common and optimize those.
 
-  // PERF can even do these in parallel.
   static constexpr int ENTRYPOINTS_PER_FILE = 512;
   vector<int> start_addrs;
   for (int i = addr_start; i < addr_past_end; i += ENTRYPOINTS_PER_FILE) {
@@ -2606,7 +2616,7 @@ static void GenerateCode(const CodeConfig &config,
     fclose(f);
   };
   
-  ParallelApp(start_addrs, F, 6);
+  ParallelApp(start_addrs, F, 12);
 }
 
 // One of these per compiled file. It does the per-Run setup and
@@ -2690,6 +2700,9 @@ int main(int argc, char **argv) {
   for (uint32 addr = 0x8000; addr < 0x10000; addr++) {
     code.known[addr] = true;
     code.code[addr] = fc->fceu->ARead[addr](fc, addr);
+    // Can do this to generate all instructions to make sure they
+    // compile! (Though it does not exercise all cases in the code...)
+    // code.code[addr] = addr & 0xFF;
   }
 
   CodeConfig config;
