@@ -390,6 +390,24 @@ static bool CanGenInstruction(uint8 b1) {
 
   case 0x9E: return true;
   case 0x9B: return true;
+
+  case 0x81: return true;
+  case 0x91: return true;
+  case 0x83: return true;
+  case 0x93: return true;
+
+  case 0x06: return true;
+  case 0xC6: return true;
+  case 0xE6: return true;
+  case 0x46: return true;
+  case 0x26: return true;
+  case 0x66: return true;
+  case 0xC7: return true;
+  case 0xE7: return true;
+  case 0x27: return true;
+  case 0x67: return true;
+  case 0x07: return true;
+  case 0x47: return true;
     
   default: return false;
   }
@@ -655,6 +673,28 @@ struct AOT {
       return Exp<uint16>(sym);
     };
     
+    // Same as LD_IM?
+    auto GetZP = [&ReadMem, f, &pc_addr]() {
+      Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x; // GetZP\n", pc_addr);
+      return x;
+    };
+
+    // Zero Page Indexed
+    auto GetZPI = [this, &ReadMem, f, &pc_addr](Exp<uint8> idx) {
+      // Currently, index is always a register.
+      Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
+      pc_addr++; pc_addr &= 0xFFFF;
+      fprintf(f, I "X->reg_PC = 0x%04x; // GetZPI\n", pc_addr);
+      string sym = GenSym("zpi");
+      fprintf(f, I "const uint8 %s = (%s) + (%s);\n",
+	      sym.c_str(),
+	      idx.String().c_str(),
+	      x.String().c_str());
+      return Exp<uint8>(sym);
+    };
+
     // RMW is presumably "read-modify-write"
     auto RMW_A = [f](std::function<Exp<uint8>(Exp<uint8>)> op) {
       Exp<uint8> x = op(Exp<uint8>("X->reg_A"));
@@ -709,6 +749,16 @@ struct AOT {
       WriteMem(aa, y);
     };
 
+    auto RMW_ZP = [this, f, &GetZP](std::function<Exp<uint8>(Exp<uint8>)> op) {
+      Exp<uint8> aa = GetZP();
+      string sym = GenSym("x");
+      fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
+	      sym.c_str(), aa.String().c_str());
+      Exp<uint8> y = op(Exp<uint8>(sym));
+      fprintf(f, I "fceu->RAM[%s] = %s;\n",
+	      aa.String().c_str(), y.String().c_str());
+    };
+    
     auto LD_IX = [&GetIX, &ReadMem](std::function<void(Exp<uint8>)> op) {
       Exp<uint16> aa = GetIX();
       Exp<uint8> x = ReadMem(aa);
@@ -719,28 +769,6 @@ struct AOT {
       Exp<uint16> aa = GetIYRD();
       Exp<uint8> x = ReadMem(aa);
       op(x);
-    };
-
-    // Same as LD_IM?
-    auto GetZP = [&ReadMem, f, &pc_addr]() {
-      Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
-      pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x; // GetZP\n", pc_addr);
-      return x;
-    };
-
-    // Zero Page Indexed
-    auto GetZPI = [this, &ReadMem, f, &pc_addr](Exp<uint8> idx) {
-      // Currently, index is always a register.
-      Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
-      pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x; // GetZPI\n", pc_addr);
-      string sym = GenSym("zpi");
-      fprintf(f, I "const uint8 %s = (%s) + (%s);\n",
-	      sym.c_str(),
-	      idx.String().c_str(),
-	      x.String().c_str());
-      return Exp<uint8>(sym);
     };
     
     auto LD_AB = [&code, &pc_addr, f, &ReadMem, &GetAB](
@@ -884,6 +912,17 @@ struct AOT {
     };
     auto ST_ABY = [&ST_ABI](std::function<Exp<uint8>(Exp<uint16>)> op) {
       ST_ABI(Exp<uint8>("X->reg_Y"), op);
+    };
+
+    auto ST_IX = [&GetIX, &WriteMem](Exp<uint8> r) {
+      Exp<uint16> aa = GetIX();
+      WriteMem(aa, r);
+    };
+
+    auto ST_IY = [&GetIYWR, &WriteMem](
+	std::function<Exp<uint8>(Exp<uint16>)> r) {
+      Exp<uint16> aa = GetIYWR();
+      WriteMem(aa, r(aa));
     };
     
     auto ST_ZP = [&code, f, &WriteMem, &GetZP](Exp<uint8> exp) {
@@ -1279,8 +1318,11 @@ struct AOT {
     case 0x0A:
       RMW_A(ASL);
       return pc_addr;
+
+    case 0x06:
+      RMW_ZP(ASL);
+      return pc_addr;
 #if 0
-    case 0x06: RMW_ZP(ASL);
     case 0x16: RMW_ZPX(ASL);
 #endif
     case 0x0E:
@@ -1290,8 +1332,11 @@ struct AOT {
     case 0x1E:
       RMW_ABX(ASL);
       return pc_addr;
+
+    case 0xC6:
+      RMW_ZP(DEC);
+      return pc_addr;
 #if 0
-    case 0xC6: RMW_ZP(DEC);
     case 0xD6: RMW_ZPX(DEC);
 #endif
     case 0xCE:
@@ -1302,8 +1347,10 @@ struct AOT {
       RMW_ABX(DEC);
       return pc_addr;
       
+    case 0xE6:
+      RMW_ZP(INC);
+      return pc_addr;
 #if 0
-    case 0xE6: RMW_ZP(INC);
     case 0xF6: RMW_ZPX(INC);
 #endif
     case 0xEE:
@@ -1317,8 +1364,11 @@ struct AOT {
     case 0x4A:
       RMW_A(LSR);
       return pc_addr;
+
+    case 0x46:
+      RMW_ZP(LSR);
+      return pc_addr;
 #if 0
-    case 0x46: RMW_ZP(LSR);
     case 0x56: RMW_ZPX(LSR);
 #endif
     case 0x4E:
@@ -1332,8 +1382,11 @@ struct AOT {
     case 0x2A:
       RMW_A(ROL);
       return pc_addr;
+
+    case 0x26:
+      RMW_ZP(ROL);
+      return pc_addr;
 #if 0
-    case 0x26: RMW_ZP(ROL);
     case 0x36: RMW_ZPX(ROL);
 #endif
     case 0x2E:
@@ -1347,8 +1400,11 @@ struct AOT {
     case 0x6A:
       RMW_A(ROR);
       return pc_addr;
+
+    case 0x66:
+      RMW_ZP(ROR);
+      return pc_addr;
 #if 0
-    case 0x66: RMW_ZP(ROR);
     case 0x76: RMW_ZPX(ROR);
 #endif
     case 0x6E:
@@ -1651,10 +1707,12 @@ struct AOT {
       ST_ABY([](Exp<uint16> unused) { return Exp<uint8>("X->reg_A"); });
       return pc_addr;
 
-#if 0
-    case 0x81: ST_IX(reg_A);
-    case 0x91: ST_IY(reg_A);
-#endif
+    case 0x81:
+      ST_IX(Exp<uint8>("X->reg_A"));
+      return pc_addr;
+    case 0x91:
+      ST_IY([](Exp<uint16> aa) { return Exp<uint8>("X->reg_A"); });
+      return pc_addr;
 
     case 0x86:
       ST_ZP(Exp<uint8>("X->reg_X"));
@@ -1741,10 +1799,12 @@ struct AOT {
     case 0x8F:
       ST_AB(Exp<uint8>("(X->reg_A & X->reg_X)"));
       return pc_addr;
-#if 0
-    case 0x83:
-      ST_IX(reg_A & reg_X);
 
+    case 0x83:
+      ST_IX(Exp<uint8>("(X->reg_A & X->reg_X)"));
+      return pc_addr;
+
+#if 0
       /* ARR - ARGH, MATEY! */
     case 0x6B: {
       uint8 arrtmp;
@@ -1775,9 +1835,16 @@ struct AOT {
     case 0xCB:
       LD_IM(AXS);
       return pc_addr;
-#if 0
+
       /* DCP */
-    case 0xC7: RMW_ZP(DEC; CMP);
+    case 0xC7:
+      RMW_ZP([&](Exp<uint8> x) {
+	Exp<uint8> y = DEC(x);
+	CMP(y);
+	return y;
+      });
+      return pc_addr;
+#if 0
     case 0xD7: RMW_ZPX(DEC; CMP);
 #endif
     case 0xCF:
@@ -1818,9 +1885,17 @@ struct AOT {
 	return y;
       });
       return pc_addr;
-#if 0
+
       /* ISB */
-    case 0xE7: RMW_ZP(INC; SBC);
+    case 0xE7:
+      RMW_ZP([&](Exp<uint8> x) {
+	Exp<uint8> y = INC(x);
+	SBC(y);
+	return y;
+      });
+      return pc_addr;
+
+#if 0
     case 0xF7: RMW_ZPX(INC; SBC);
 #endif
     case 0xEF:
@@ -1964,9 +2039,16 @@ struct AOT {
       fprintf(f, I "// NOP %02x\n", b1);
       return pc_addr;
 
-#if 0
       /* RLA */
-    case 0x27: RMW_ZP(ROL; AND);
+    case 0x27:
+      RMW_ZP([&](Exp<uint8> x) {
+	Exp<uint8> y = ROL(x);
+	AND(y);
+	return y;
+      });
+      return pc_addr;
+
+#if 0
     case 0x37: RMW_ZPX(ROL; AND);
 #endif
     case 0x2F:
@@ -2009,9 +2091,16 @@ struct AOT {
       return pc_addr;
 
       
-#if 0
+
       /* RRA */
-    case 0x67: RMW_ZP(ROR; ADC);
+    case 0x67:
+      RMW_ZP([&](Exp<uint8> x) {
+	Exp<uint8> y = ROR(x);
+	ADC(y);
+	return y;
+      });
+      return pc_addr;
+#if 0
     case 0x77: RMW_ZPX(ROR; ADC);
 #endif
     case 0x6F:
@@ -2054,9 +2143,16 @@ struct AOT {
       });
       return pc_addr;
 
-#if 0
+
       /* SLO */
-    case 0x07: RMW_ZP(ASL; ORA);
+    case 0x07:
+      RMW_ZP([&](Exp<uint8> x) {
+	Exp<uint8> y = ASL(x);
+	ORA(y);
+	return y;
+      });
+      return pc_addr;
+#if 0
     case 0x17: RMW_ZPX(ASL; ORA);
 #endif
     case 0x0F:
@@ -2099,9 +2195,14 @@ struct AOT {
       });
       return pc_addr;
 
-#if 0
       /* SRE */
-    case 0x47: RMW_ZP(LSR; EOR);
+    case 0x47:
+      RMW_ZP([&](Exp<uint8> x) {
+	Exp<uint8> y = LSR(x);
+	EOR(y);
+	return y;
+      });
+#if 0
     case 0x57: RMW_ZPX(LSR; EOR);
 #endif
     case 0x4F:
@@ -2144,10 +2245,15 @@ struct AOT {
       });
       return pc_addr;
 
-#if 0
       /* AXA - SHA */
-    case 0x93: ST_IY(reg_A & reg_X & (((AA - reg_Y) >> 8) + 1));
-#endif
+    case 0x93:
+      ST_IY([](Exp<uint16> aa) {
+	return Exp<uint8>(
+	    StringPrintf("(X->reg_A & X->reg_X & "
+			 "((((uint16)(%s) - X->reg_Y) >> 8) + 1))",
+			 aa.String().c_str()));
+      });
+      return pc_addr;
       
     case 0x9F:
       ST_ABY([](Exp<uint16> aa) {
