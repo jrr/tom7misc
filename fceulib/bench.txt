@@ -161,6 +161,38 @@ AOT entries: 139382964
 Startup time: 0.0010s
 Exec time:    7.0464s
 
+RMW_IX:
+Old cycles: 29027115
+AOT entries: 139382964
+Startup time: 0.0180s
+Exec time:    7.0704s
+
+RMW_IY:
+Old cycles: 29027115
+AOT entries: 139382964
+Startup time: 0.0010s
+Exec time:    7.1004s
+
+0xBB, 0xBF:
+Old cycles: 29027115
+AOT entries: 139382964
+Startup time: 0.0010s
+Exec time:    7.1624s
+
+Undocumented AXS:
+Old cycles: 29027115
+AOT entries: 139382964
+Startup time: 0.0010s
+Exec time:    7.0554s
+
+missing 0xED, a few ST_ABX,ST_ABY
+Old cycles: 16563300
+AOT entries: 140928989
+Startup time: 0.0010s
+Exec time:    7.1294s
+
+
+
 --------------------------------------------------
 threads
 --------------------------------------------------
