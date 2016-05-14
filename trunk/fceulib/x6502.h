@@ -38,7 +38,7 @@ struct X6502 {
   int64 cycles_histo[1024] = {};
   int64 entered_aot[0x10000] = {};
 
-  int64 unimpl_inst[0x100] = {};
+  int64 inst_histo[0x100] = {};
   
   /* Temporary cycle counter */
   int32 tcount;

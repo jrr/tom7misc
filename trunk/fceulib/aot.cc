@@ -121,7 +121,57 @@ private:
 };
 }
 
+struct Reg {
+  const char *local_name;
+  int id;
+  const char *ctype;
+  const char *xfield;
+};
+
+#define LOCAL_PC "local_pc"
+#define LOCAL_A "local_a"
+#define LOCAL_X "local_x"
+#define LOCAL_Y "local_y"
+#define LOCAL_S "local_s"
+#define LOCAL_P "local_p"
+#define LOCAL_PI "local_pi"
+#define LOCAL_JAMMED "local_jammed"
+#define LOCAL_COUNT "local_count"
+#define LOCAL_IRQLOW "local_irqlow"
+#define LOCAL_DB "local_db"
+
+#define NUM_REGS 11
+static Reg regs[] = {
+  {LOCAL_PC, 1, "uint16", "X->reg_PC"},
+  {LOCAL_A, 2, "uint8", "X->reg_A"},
+  {LOCAL_X, 4, "uint8", "X->reg_X"},
+  {LOCAL_Y, 8, "uint8", "X->reg_Y"},  
+  {LOCAL_S, 16, "uint8", "X->reg_S"},
+  {LOCAL_P, 32, "uint8", "X->reg_P"},
+  {LOCAL_PI, 64, "uint8", "X->reg_PI"},
+  {LOCAL_JAMMED, 128, "uint8", "X->jammed"},
+  {LOCAL_COUNT, 256, "int32", "X->count"},
+  {LOCAL_IRQLOW, 512, "uint32", "X->IRQlow"},
+  {LOCAL_DB, 1024, "uint8", "X->DB"},
+};
+static_assert(sizeof regs / sizeof (Reg) == NUM_REGS, "");
+
+#define REG_PC regs[0]
+#define REG_A regs[1]
+#define REG_X regs[2]
+#define REG_Y regs[3]
+#define REG_S regs[4]
+#define REG_P regs[5]
+#define REG_PI regs[6]
+#define REG_JAMMED regs[7]
+#define REG_COUNT regs[8]
+#define REG_IRQLOW regs[9]
+#define REG_DB regs[10]
+
 static bool CanGenInstruction(uint8 b1) {
+  // Note that this is now equivalent to just "return true;", since
+  // all 6502 instructions are implemented. But it is very useful to
+  // be able to turn off instructions to binary search for bugs.
   switch (b1) {
   case 0xAA: return true;
   case 0x8A: return true;
@@ -199,8 +249,6 @@ static bool CanGenInstruction(uint8 b1) {
   case 0xC8: return true;    
 
   case 0x20: return true;
-
-    // Above instructions were good in mario benchmark.
 
   case 0x48: return true;
   case 0x08: return true;
@@ -434,6 +482,9 @@ static bool CanGenInstruction(uint8 b1) {
   case 0xFD: return true;
   case 0x0B: return true;
   case 0x2B: return true;
+
+  case 0x4B: return true;
+  case 0x6B: return true;
     
   default: return false;
   }
@@ -457,7 +508,7 @@ struct Exp {
     if (known) return StringInternal();
     else return expr;
   }
-  T Value() {
+  T Value() const {
     CHECK(Known());
     return value;
   }
@@ -505,15 +556,25 @@ struct AOT {
       } else if (addr.Known()) {
 	// Could fall through to the next case, but it's nice to avoid
 	// generating variables we don't need.
-	// PERF: Also, here we know the address, so we can also avoid
-	// dynamically dispatcing to the read handler (and e.g., read
-	// directly from RAM). This also helps the C compiler optimize
-	// this block since external read handlers could do anything
-	// (and some do).
 	const string val_sym = GenSym("v");
-	fprintf(f, 
-		I "const uint8 %s = fceu->ARead[0x%04x](fc, 0x%04x);\n",
-		val_sym.c_str(), addr.Value(), addr.Value());
+	if (addr.Value() < 0x800) {
+	  // Addresses 0-2047 are always mapped to RAM. (Jeesh, I hope!)
+	  fprintf(f,
+		  I "const uint8 %s = fceu->RAM[0x%04x];\n",
+		  val_sym.c_str(), addr.Value());
+	} else {
+	  // PERF: Also, here we know the address, so we can also avoid
+	  // dynamically dispatching to the read handler. Add some metadata
+	  // to mappers that lets us call the appropriate handler directly.
+	  //
+	  // This also helps the C compiler optimize this block since
+	  // external read handlers could do anything (and some do). It
+	  // would also be useful if handler metadata told us that some
+	  // registers are untouched.
+	  fprintf(f, 
+		  I "const uint8 %s = fceu->ARead[0x%04x](fc, 0x%04x);\n",
+		  val_sym.c_str(), addr.Value(), addr.Value());
+	}
 	res = Exp<uint8>(val_sym);
       } else {
 	// Need to serialize addr and val.
@@ -537,10 +598,22 @@ struct AOT {
     // (there are some); those can just access RAM directly.
     auto WriteMem = [f](const Exp<uint16> &addr_exp,
 			const Exp<uint8> &val_exp) {
-      // PERF! Same deal; when the address is known, avoid indirection.
-      fprintf(f, I "fceu->BWrite[%s](fc, %s, %s);\n",
-	      addr_exp.String().c_str(), addr_exp.String().c_str(),
-	      val_exp.String().c_str());
+      if (addr_exp.Known()) {
+	if (addr_exp.Value() < 0x800) {
+	  fprintf(f,
+		  I "fceu->RAM[0x%04x] = %s;\n",
+		  addr_exp.Value(), val_exp.String().c_str());
+	} else {
+	  // PERF! Same deal; when the address is known, avoid indirection.
+	  fprintf(f, I "fceu->BWrite[0x%04x](fc, 0x%04x, %s);\n",
+		  addr_exp.Value(), addr_exp.Value(),
+		  val_exp.String().c_str());
+	}
+      } else {
+	fprintf(f, I "fceu->BWrite[%s](fc, %s, %s);\n",
+		addr_exp.String().c_str(), addr_exp.String().c_str(),
+		val_exp.String().c_str());
+      }
     };
 
     auto X_ZN = [f](const string &reg) {
@@ -1117,6 +1190,15 @@ struct AOT {
       return Exp<uint8>(sym);
     };
 
+    // Maybe "Arithmetic shift right?" Undocumented inst 0x4b.
+    auto LSRA = [this, f, X_ZNT]() {
+      fprintf(f,
+	      I "X->reg_P = (X->reg_P & ~(C_FLAG | N_FLAG | Z_FLAG)) |\n"
+	      I "  (X->reg_A & 1);\n"
+	      I "X->reg_A >>= 1;\n");
+      X_ZNT("X->reg_A");
+    };
+    
     auto ROL = [this, f, &X_ZNT](Exp<uint8> x) {
       const string sym = GenSym("rol");
       const string xx = GenSym("xx");
@@ -1197,7 +1279,7 @@ struct AOT {
 	// But not really, since pops are supposed to be directly
 	// from RAM.
 	POP([&](Exp<uint8> pc_high) {
-	  fprintf(f, "X->reg_PC = 1 + (((uint16)(%s) << 8) | %s);\n",
+	  fprintf(f, I "X->reg_PC = 1 + (((uint16)(%s) << 8) | %s);\n",
 		  pc_high.String().c_str(), pc_low.String().c_str());
 	});
       });
@@ -1874,21 +1956,30 @@ struct AOT {
       ST_IX(Exp<uint8>("(X->reg_A & X->reg_X)"));
       return pc_addr;
 
-#if 0
       /* ARR - ARGH, MATEY! */
-    case 0x6B: {
-      uint8 arrtmp;
-      LD_IM(AND; reg_P &= ~V_FLAG; reg_P |= (reg_A ^ (reg_A >> 1)) & 0x40;
-	    arrtmp = reg_A >> 7; reg_A >>= 1; reg_A |= (reg_P & C_FLAG) << 7;
-	    reg_P &= ~C_FLAG; reg_P |= arrtmp; X_ZN(reg_A));
-    }
-
+    case 0x6B:
+      LD_IM([&](Exp<uint8> x) {
+	AND(x);
+	string sym = GenSym("arr");
+	fprintf(f,
+		I "X->reg_P = (X->reg_P & ~V_FLAG) |\n"
+		I "  ((X->reg_A ^ (X->reg_A >> 1)) & 0x40);\n");
+	fprintf(f, I "const uint8 %s = X->reg_A >> 7;\n", sym.c_str());
+	fprintf(f,
+		I "X->reg_A >>= 1;\n"
+		I "X->reg_A |= (X->reg_P & C_FLAG) << 7;\n"
+		I "X->reg_P = (X->reg_P & ~C_FLAG) | %s;\n", sym.c_str());
+	X_ZN("X->reg_A");
+      });
+      return pc_addr;
+      
       /* ASR */
     case 0x4B:
-      LD_IM(AND; LSRA);
-#endif
-      /* ATX(OAL) Is this(OR with $EE) correct? Blargg did some test
-	 and found the constant to be OR with is $FF for NES */
+      LD_IM(AND);
+      LSRA();
+      return pc_addr;
+      
+      /* ATX(OAL) */
     case 0xAB:
       // Hmm, this instruction really doesn't make sense. At some
       // point, the comment indicates that A gets ORed with 0xEE, but
@@ -2467,8 +2558,8 @@ struct AOT {
 	    "  FCEU *fceu = fc->fceu; (void)fceu;\n"  // const?
 	    );
 
-    // XXX
-    fprintf(f, "  X->entered_aot[0x%04x]++;\n", entry_addr);
+    // PERF
+    // fprintf(f, "  X->entered_aot[0x%04x]++;\n", entry_addr);
 
     uint32 pc_addr = entry_addr;
     for (;;) {
@@ -2525,11 +2616,19 @@ struct AOT {
 	fprintf(f, I "  sound->FCEU_SoundCPUHook(temp);\n");
 	fprintf(f, I "}\n");
 
+	// PERF!
+	// fprintf(f, I "X->inst_histo[0x%02x]++;\n", b1);
+	
 	// was reg_PC++
 	pc_addr++;
 	fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr & 0xFFFF);
 
+	// Instructions may introduce local variables (e.g. a temporary
+	// containing the result of calling a read handler), but they
+	// only need to be in scope for the instruction body.
+	fprintf(f, I "{\n");
 	pc_addr = GenInstruction(code, b1, pc_addr, f);
+	fprintf(f, I "}\n");
 	if (pc_addr == 0xFFFFFFFF) {
 	  fprintf(f, I "// Branch was unconditional.\n"
 		  I "return;\n");
@@ -2717,20 +2816,6 @@ int main(int argc, char **argv) {
   fprintf(stderr, "Finished.\n"
           "Compile time: %.4fs\n",
           compile_seconds);
-
-  int implemented = 0;
-  for (int i = 0; i < 0xFF; i++) {
-    if (!CanGenInstruction(i)) {
-      fprintf(stderr, "%02x, ", i);
-    } else {
-      implemented++;
-    }
-  } 
-
-  fprintf(stderr,
-    " are left.\n%d/255 instructions implemented.\n", implemented);
-    
-    
   
   return 0;
 }

@@ -51,6 +51,21 @@ struct Timer {
   }
 };
 
+static constexpr uint64 expected_ram = 0xb9ea3297351afa03ULL;
+static constexpr uint64 expected_img = 0x9c8975828c9578a7ULL;
+
+std::tuple<uint64, uint64, double> RunBenchmark(Emulator *emu,
+						const vector<uint8> &start,
+						const vector<uint8> &movie) {
+  emu->LoadUncompressed(start);
+  Timer exec_timer;
+  for (const uint8 input : movie) {
+    emu->StepFull(input, 0);
+  }
+  const double exec_seconds = exec_timer.GetSeconds();
+  return make_tuple(emu->RamChecksum(), emu->ImageChecksum(), exec_seconds);
+}
+
 int main(int argc, char **argv) {
   string romdir = "roms/";
   double startup_seconds;
@@ -59,60 +74,41 @@ int main(int argc, char **argv) {
   // TODO: This is not really fair since it counts all the IO.
   std::unique_ptr<Emulator> emu(Emulator::Create("mario.nes"));
   startup_seconds = startup_timer.GetSeconds();
+  vector<uint8> start = emu->SaveUncompressed();
+  
+  vector<uint8> movie = SimpleFM2::ReadInputs("mario-long.fm2");
 
-  vector<uint8> movie = SimpleFM2::ReadInputs("mario-tom.fm2");
-
-  Timer exec_timer;
-  // After the first execution of the movie, not clear that this will
-  // be doing anything interesting...
-  for (int i = 0; i < 5; i++) {
-    for (const uint8 input : movie) {
-      emu->StepFull(input, 0);
+  double exec_seconds = -1.0;
+  
+  int executions = 0;
+  double total_time = 0.0;
+  vector<int> last_means;
+  for (int i = 0; /* exit upon convergence */; i++) {
+    uint64 ram, img;
+    double sec;
+    std::tie(ram, img, sec) = RunBenchmark(emu.get(), start, movie);
+    executions++;
+    total_time += sec;
+    double mean = total_time / (double)executions;
+    int mtrunc = (int)(mean * 10);
+    if (last_means.size() >= 5) {
+      if ([&]() {
+	for (int lm : last_means) {
+	  if (lm != mtrunc) return false;
+	}
+	return true;
+      }()) {
+	// Convergence!
+	exec_seconds = mean;
+	break;
+      }
+      // Discard oldest to keep 5 means.
+      last_means.erase(last_means.begin());
     }
-  }
-  double exec_seconds = exec_timer.GetSeconds();
-
-  X6502 *x6502 = emu->GetFC()->X;
-  int64 old_cycles = 0LL;
-  for (int i = 0; i <= 0xFFFF; i++) {
-    old_cycles += x6502->pc_histo[i];
-  }
-
-  int64 aot_entries = 0LL;
-  for (int i = 0; i < 0xFFFF; i++) {
-    aot_entries += x6502->entered_aot[i];
+    last_means.push_back(mtrunc);
+    printf("Round %4d in %.4f, mean %.4f\n", executions, sec, mean);
   }
   
-  #if 0
-  for (int i = 0; i <= 0xFFFF; i++) {
-    int64 exec = x6502->pc_histo[i];
-    if (exec > 0) {
-      printf("%4x: %lld\n", i, exec);
-    }
-  }
-
-  for (int i = 0; i < 0xFFFF; i++) {
-    int64 exec = x6502->entered_aot[i];
-    if (exec > 0) {
-      printf("AOT(%d%s): %lld\n", i, i == 1023 ? "+" : "", exec);
-    }
-  }
-  
-  for (int i = 0; i < 1024; i++) {
-    int64 exec = x6502->cycles_histo[i];
-    if (exec > 0) {
-      printf("Run(%d%s): %lld\n", i, i == 1023 ? "+" : "", exec);
-    }
-  }
-  #endif
-
-  for (int i = 0; i < 256; i++) {
-    if (x6502->unimpl_inst[i] > 0) {
-      printf("Inst 0x%02x: %lld\n", i, x6502->unimpl_inst[i]);
-    }
-  }
-  
- 
   uint64 ram_checksum = emu->RamChecksum();
   uint64 img_checksum = emu->ImageChecksum();
   fprintf(stderr,
@@ -122,15 +118,16 @@ int main(int argc, char **argv) {
 	  img_checksum);
 
   fprintf(stderr,
-	  "Old cycles: %lld\n"
-	  "AOT entries: %lld\n", old_cycles, aot_entries);
-  fprintf(stderr,
           "Startup time: %.4fs\n"
           "Exec time:    %.4fs\n",
           startup_seconds, exec_seconds);
 
-  static constexpr uint64 expected_ram = 0xaf57274ece679455ULL;
-  static constexpr uint64 expected_img = 0xc3e8723a5a0d4020ULL;
+  // mario-tom
+  // static constexpr uint64 expected_ram = 0xaf57274ece679455ULL;
+  // static constexpr uint64 expected_img = 0xc3e8723a5a0d4020ULL;
+  // mario-long
+
+  
   int status = 0;
   if (ram_checksum != expected_ram) {
     fprintf(stderr, "*** Ram checksum mismatch. Wanted %llx!\n",
