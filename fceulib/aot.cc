@@ -122,6 +122,7 @@ private:
 }
 
 struct Reg {
+  const char *short_name;
   const char *local_name;
   int id;
   const char *ctype;
@@ -139,20 +140,22 @@ struct Reg {
 #define LOCAL_COUNT "local_count"
 #define LOCAL_IRQLOW "local_irqlow"
 #define LOCAL_DB "local_db"
+#define LOCAL_TCOUNT "local_tcount"
 
-#define NUM_REGS 11
+#define NUM_REGS 12
 static Reg regs[] = {
-  {LOCAL_PC, 1, "uint16", "X->reg_PC"},
-  {LOCAL_A, 2, "uint8", "X->reg_A"},
-  {LOCAL_X, 4, "uint8", "X->reg_X"},
-  {LOCAL_Y, 8, "uint8", "X->reg_Y"},  
-  {LOCAL_S, 16, "uint8", "X->reg_S"},
-  {LOCAL_P, 32, "uint8", "X->reg_P"},
-  {LOCAL_PI, 64, "uint8", "X->reg_PI"},
-  {LOCAL_JAMMED, 128, "uint8", "X->jammed"},
-  {LOCAL_COUNT, 256, "int32", "X->count"},
-  {LOCAL_IRQLOW, 512, "uint32", "X->IRQlow"},
-  {LOCAL_DB, 1024, "uint8", "X->DB"},
+  {"pc", LOCAL_PC, 1, "uint16", "X->reg_PC"},
+  {"a", LOCAL_A, 2, "uint8", "X->reg_A"},
+  {"x", LOCAL_X, 4, "uint8", "X->reg_X"},
+  {"y", LOCAL_Y, 8, "uint8", "X->reg_Y"},  
+  {"s", LOCAL_S, 16, "uint8", "X->reg_S"},
+  {"p", LOCAL_P, 32, "uint8", "X->reg_P"},
+  {"pi", LOCAL_PI, 64, "uint8", "X->reg_PI"},
+  {"jam", LOCAL_JAMMED, 128, "uint8", "X->jammed"},
+  {"cnt", LOCAL_COUNT, 256, "int32", "X->count"},
+  {"irq", LOCAL_IRQLOW, 512, "uint32", "X->IRQlow"},
+  {"db", LOCAL_DB, 1024, "uint8", "X->DB"},
+  {"tcnt", LOCAL_TCOUNT, 2048, "int32", "X->tcount"},
 };
 static_assert(sizeof regs / sizeof (Reg) == NUM_REGS, "");
 
@@ -167,6 +170,7 @@ static_assert(sizeof regs / sizeof (Reg) == NUM_REGS, "");
 #define REG_COUNT regs[8]
 #define REG_IRQLOW regs[9]
 #define REG_DB regs[10]
+#define REG_TCOUNT regs[11]
 
 static bool CanGenInstruction(uint8 b1) {
   // Note that this is now equivalent to just "return true;", since
@@ -533,9 +537,41 @@ static Exp<uint16> Extend8to16(Exp<uint8> v) {
 }
 
 struct AOT {
-  // XXX: Needs to take ROM and PC so that it can read multi-byte
-  // instructions.
-  //
+  // At the header of a function, declare all the locals for the
+  // "registers". PERF Actually reading these from X is often
+  // not necessary (especially for ones that are rarely read, or
+  // whose values are overwritten immediately). Hopefully the C
+  // compiler handles most of this for us.
+  void DeclLocals(FILE *f) {
+    for (int i = 0; i < NUM_REGS; i++) {
+      fprintf(f, I "%s %s = %s;\n",
+	      regs[i].ctype, regs[i].local_name, regs[i].xfield);
+    }
+  }
+
+  // Flush the locals in the set to the X object. We do this before
+  // entering code that we don't understand, or exiting the AOT
+  // compiled routines (so that their values are reflected in the rest
+  // of the emulator!)
+  void FlushLocals(FILE *f, uint32 mask) {
+    fprintf(f, I);
+    for (int i = 0; i < NUM_REGS; i++) {
+      fprintf(f, " %s=%s;", regs[i].xfield, regs[i].local_name);
+    }
+    fprintf(f, "\n");
+  }
+
+  // Read the locals in the set from the X object. We do this after
+  // calling code that we don't understand. (Upon startup we also
+  // read the locals, but via DeclLocals.)
+  void LoadLocals(FILE *f, uint32 mask) {
+    fprintf(f, I);
+    for (int i = 0; i < NUM_REGS; i++) {
+      fprintf(f, " %s=%s;", regs[i].local_name, regs[i].xfield);
+    }
+    fprintf(f, "\n");
+  }
+
   // Takes the known code values.
   // Takes the instruction byte, b1, and the pc value after reading
   // that byte. For some instructions, we advance the pc further.
@@ -545,6 +581,13 @@ struct AOT {
   // otherwise don't want to continue generating code); this causes
   // the entry point generator ..  XXX HERE
 
+  Exp<uint8> Read(FILE *f, const Reg &r) {
+    CHECK(0 == strcmp(r.ctype, "uint8")) << r.local_name;
+    string s = GenSym(r.short_name);
+    fprintf(f, I "const uint8 %s = %s;\n", s.c_str(), r.local_name);
+    return Exp<uint8>(s);
+  }
+  
   uint32 GenInstruction(const Code &code,
 			uint8 b1, uint32 pc_addr, FILE *f) {
 
@@ -571,9 +614,12 @@ struct AOT {
 	  // external read handlers could do anything (and some do). It
 	  // would also be useful if handler metadata told us that some
 	  // registers are untouched.
+	  // PERF pc is impossible, at least
+	  FlushLocals(f, ~0);
 	  fprintf(f, 
 		  I "const uint8 %s = fceu->ARead[0x%04x](fc, 0x%04x);\n",
 		  val_sym.c_str(), addr.Value(), addr.Value());
+	  LoadLocals(f, ~0);
 	}
 	res = Exp<uint8>(val_sym);
       } else {
@@ -583,21 +629,24 @@ struct AOT {
 	fprintf(f,
 		I "const uint16 %s = %s;\n", addr_sym.c_str(),
 		addr.String().c_str());
+	// PERF pc is impossible, at least
+	FlushLocals(f, ~0);
 	fprintf(f, 
 		I "const uint8 %s = fceu->ARead[%s](fc, %s);\n",
 		val_sym.c_str(), addr_sym.c_str(), addr_sym.c_str());
+	LoadLocals(f, ~0);
 	res = Exp<uint8>(val_sym);
       }
 
       // res is a value now. Write to data bus.
-      fprintf(f, I "X->DB = %s;\n", res.String().c_str());
+      fprintf(f, I LOCAL_DB " = %s;\n", res.String().c_str());
       return res;
     };
   
     // PERF: Look for places where I call this with an 8 bit argument
     // (there are some); those can just access RAM directly.
-    auto WriteMem = [f](const Exp<uint16> &addr_exp,
-			const Exp<uint8> &val_exp) {
+    auto WriteMem = [this, f](const Exp<uint16> &addr_exp,
+			      const Exp<uint8> &val_exp) {
       if (addr_exp.Known()) {
 	if (addr_exp.Value() < 0x800) {
 	  fprintf(f,
@@ -605,14 +654,18 @@ struct AOT {
 		  addr_exp.Value(), val_exp.String().c_str());
 	} else {
 	  // PERF! Same deal; when the address is known, avoid indirection.
+	  FlushLocals(f, ~0);
 	  fprintf(f, I "fceu->BWrite[0x%04x](fc, 0x%04x, %s);\n",
 		  addr_exp.Value(), addr_exp.Value(),
 		  val_exp.String().c_str());
+	  LoadLocals(f, ~0);
 	}
       } else {
+	FlushLocals(f, ~0);
 	fprintf(f, I "fceu->BWrite[%s](fc, %s, %s);\n",
 		addr_exp.String().c_str(), addr_exp.String().c_str(),
 		val_exp.String().c_str());
+	LoadLocals(f, ~0);
       }
     };
 
@@ -620,19 +673,19 @@ struct AOT {
       // From disassembly, GCC can do the right thing for immediates
       // (that were previously set to the register) here, getting a
       // constant value from ZNTable and avoiding setting/clearing bits.
-      fprintf(f, I "X->reg_P &= ~(Z_FLAG | N_FLAG);\n"
-	      I "X->reg_P |= ZNTable[%s];\n", reg.c_str());
+      fprintf(f, I LOCAL_P " = (" LOCAL_P " & ~(Z_FLAG | N_FLAG)) | "
+	      "ZNTable[%s];\n", reg.c_str());
     };
 
     auto X_ZNT = [f](const string &reg) {
-      fprintf(f, I "X->reg_P |= ZNTable[%s];\n", reg.c_str());
+      fprintf(f, I LOCAL_P " |= ZNTable[%s];\n", reg.c_str());
     };
     
     auto LD_IM = [&code, &pc_addr, f, &ReadMem](
 	std::function<void(Exp<uint8>)> op) {
       Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       op(x);
     };
 
@@ -640,10 +693,10 @@ struct AOT {
       const uint16 src_addr = pc_addr;
       Exp<uint8> value_low = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       Exp<uint8> value_high = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
 
       if (value_low.Known() && value_high.Known()) {
 	uint16 value = ((uint16)value_low.Value()) |
@@ -696,18 +749,19 @@ struct AOT {
     auto GetIX = [this, &code, &pc_addr, f, &ReadMem]() {
       Exp<uint8> tmp = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       // PERF another place where tracking reg_X might allow
       // simplification. Here at least we know they are RAM
       // reads.
       const string sym = GenSym("x");
-      fprintf(f,
-	      I "const uint16 %s = \n"
-	      I "  (uint16)fceu->RAM[0xFF & (%s + X->reg_X)] |\n"
-	      I "  ((uint16)(fceu->RAM[0xFF & (%s + 1 + X->reg_X)]) << 8);\n",
-	      sym.c_str(),
-	      tmp.String().c_str(),
-	      tmp.String().c_str());
+      fprintf(
+	  f,
+	  I "const uint16 %s = \n"
+	  I "  (uint16)fceu->RAM[0xFF & (%s + " LOCAL_X ")] |\n"
+	  I "  ((uint16)(fceu->RAM[0xFF & (%s + 1 + " LOCAL_X ")]) << 8);\n",
+	  sym.c_str(),
+	  tmp.String().c_str(),
+	  tmp.String().c_str());
       return Exp<uint16>(sym);
     };
 
@@ -717,13 +771,13 @@ struct AOT {
       const string rt = GenSym("rt");
       Exp<uint8> loc = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       fprintf(f,
 	      I "const uint16 %s = (uint16)fceu->RAM[%s] |\n"
 	      I "  ((uint16)fceu->RAM[0xFF & (%s + 1)] << 8);\n",
 	      rt.c_str(), loc.String().c_str(), loc.String().c_str());
       fprintf(f,
-	      I "const uint16 %s = %s + (uint16)X->reg_Y;\n",
+	      I "const uint16 %s = %s + (uint16)" LOCAL_Y ";\n",
 	      sym.c_str(), rt.c_str());
       fprintf(f,
 	      I "if ((%s ^ %s) & 0x100) {\n",
@@ -745,13 +799,13 @@ struct AOT {
       const string rt = GenSym("rt");
       Exp<uint8> loc = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       fprintf(f,
 	      I "const uint16 %s = (uint16)fceu->RAM[%s] |\n"
 	      I "  ((uint16)fceu->RAM[0xFF & (%s + 1)] << 8);\n",
 	      rt.c_str(), loc.String().c_str(), loc.String().c_str());
       fprintf(f,
-	      I "const uint16 %s = %s + (uint16)X->reg_Y;\n",
+	      I "const uint16 %s = %s + (uint16)" LOCAL_Y ";\n",
 	      sym.c_str(), rt.c_str());
       Exp<uint8> unused = ReadMem(
 	  Exp<uint16>(StringPrintf("((%s & 0x00FF) | (%s & 0xFF00))",
@@ -778,7 +832,7 @@ struct AOT {
     auto GetZP = [&ReadMem, f, &pc_addr]() {
       Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x; // GetZP\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x; // GetZP\n", pc_addr);
       return x;
     };
 
@@ -787,7 +841,7 @@ struct AOT {
       // Currently, index is always a register.
       Exp<uint8> x = ReadMem(Exp<uint16>(pc_addr));
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x; // GetZPI\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x; // GetZPI\n", pc_addr);
       string sym = GenSym("zpi");
       fprintf(f, I "const uint8 %s = (%s) + (%s);\n",
 	      sym.c_str(),
@@ -797,9 +851,11 @@ struct AOT {
     };
 
     // RMW is presumably "read-modify-write"
-    auto RMW_A = [f](std::function<Exp<uint8>(Exp<uint8>)> op) {
-      Exp<uint8> x = op(Exp<uint8>("X->reg_A"));
-      fprintf(f, I "X->reg_A = %s;\n", x.String().c_str());
+    auto RMW_A = [this, f](std::function<Exp<uint8>(Exp<uint8>)> op) {
+      string sym = GenSym("rmw");
+      fprintf(f, I "const uint8 %s = " LOCAL_A ";\n", sym.c_str());
+      Exp<uint8> x = op(Exp<uint8>(sym));
+      fprintf(f, I LOCAL_A " = %s;\n", x.String().c_str());
     };
 
     auto RMW_AB = [f, &ReadMem, &WriteMem, &GetAB](
@@ -825,11 +881,17 @@ struct AOT {
       WriteMem(aa, y);
     };
 
-    auto RMW_ABX = [&RMW_ABI](std::function<Exp<uint8>(Exp<uint8>)> op) {
-      return RMW_ABI(Exp<uint8>("X->reg_X"), op);
+    auto RMW_ABX = [this, f, &RMW_ABI](
+	std::function<Exp<uint8>(Exp<uint8>)> op) {
+      string sym = GenSym("rmwabx");
+      fprintf(f, I "const uint8 %s = " LOCAL_X ";\n", sym.c_str());
+      return RMW_ABI(Exp<uint8>(sym), op);
     };
-    auto RMW_ABY = [&RMW_ABI](std::function<Exp<uint8>(Exp<uint8>)> op) {
-      return RMW_ABI(Exp<uint8>("X->reg_Y"), op);
+    auto RMW_ABY = [this, f, &RMW_ABI](
+	std::function<Exp<uint8>(Exp<uint8>)> op) {
+      string sym = GenSym("rmwaby");
+      fprintf(f, I "const uint8 %s = " LOCAL_Y ";\n", sym.c_str());
+      return RMW_ABI(Exp<uint8>(sym), op);
     };
 
     auto RMW_IX = [&GetIX, &ReadMem, &WriteMem](
@@ -862,7 +924,9 @@ struct AOT {
 
     auto RMW_ZPX = [this, f, &GetZPI](
 	std::function<Exp<uint8>(Exp<uint8>)> op) {
-      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_X"));
+      string regx = GenSym("rmwzpx");
+      fprintf(f, I "const uint8 %s = " LOCAL_X ";\n", regx.c_str());
+      Exp<uint8> aa = GetZPI(Exp<uint8>(regx));
       string sym = GenSym("x");
       fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
 	      sym.c_str(), aa.String().c_str());
@@ -898,11 +962,15 @@ struct AOT {
       op(x);
     };
 
-    auto LD_ABX = [&LD_ABI](std::function<void(Exp<uint8>)> op) {
-      LD_ABI(Exp<uint8>("X->reg_X"), op);
+    auto LD_ABX = [this, f, &LD_ABI](std::function<void(Exp<uint8>)> op) {
+      string sym = GenSym("ldabx");
+      fprintf(f, I "const uint8 %s = " LOCAL_X ";\n", sym.c_str());
+      LD_ABI(Exp<uint8>(sym), op);
     };
-    auto LD_ABY = [&LD_ABI](std::function<void(Exp<uint8>)> op) {
-      LD_ABI(Exp<uint8>("X->reg_Y"), op);
+    auto LD_ABY = [this, f, &LD_ABI](std::function<void(Exp<uint8>)> op) {
+      string sym = GenSym("ldaby");
+      fprintf(f, I "const uint8 %s = " LOCAL_Y ";\n", sym.c_str());
+      LD_ABI(Exp<uint8>(sym), op);
     };
 
     auto LD_ZP = [this, &code, f, &GetZP](std::function<void(Exp<uint8>)> op) {
@@ -915,7 +983,9 @@ struct AOT {
 
     auto LD_ZPX = [this, &code, f, &GetZPI](
 	std::function<void(Exp<uint8>)> op) {
-      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_X"));
+      const string regx = GenSym("ldzpx");
+      fprintf(f, I "const uint8 %s = " LOCAL_X ";\n", regx.c_str());
+      Exp<uint8> aa = GetZPI(Exp<uint8>(regx));
       const string sym = GenSym("x");
       fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
 	      sym.c_str(), aa.String().c_str());
@@ -924,7 +994,9 @@ struct AOT {
 
     auto LD_ZPY = [this, &code, f, &GetZPI](
 	std::function<void(Exp<uint8>)> op) {
-      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_Y"));
+      const string regy = GenSym("ldzpy");
+      fprintf(f, I "const uint8 %s = " LOCAL_Y ";\n", regy.c_str());
+      Exp<uint8> aa = GetZPI(Exp<uint8>(regy));
       const string sym = GenSym("x");
       fprintf(f, I "const uint8 %s = fceu->RAM[%s];\n",
 	      sym.c_str(), aa.String().c_str());
@@ -934,75 +1006,75 @@ struct AOT {
     auto LDA = [&code, f, &X_ZN](Exp<uint8> val) {
       // PERF: Could get constant for X_ZN in case that value is known,
       // but gcc seems able to do this optimization just fine.
-      fprintf(f, I "X->reg_A = %s;\n", val.String().c_str());
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_A " = %s;\n", val.String().c_str());
+      X_ZN(LOCAL_A);
     };
 
     auto LDX = [&code, f, &X_ZN](Exp<uint8> val) {
-      fprintf(f, I "X->reg_X = %s;\n", val.String().c_str());
-      X_ZN("X->reg_X");
+      fprintf(f, I LOCAL_X " = %s;\n", val.String().c_str());
+      X_ZN(LOCAL_X);
     };
 
     auto LDY = [&code, f, &X_ZN](Exp<uint8> val) {
-      fprintf(f, I "X->reg_Y = %s;\n", val.String().c_str());
-      X_ZN("X->reg_Y");
+      fprintf(f, I LOCAL_Y " = %s;\n", val.String().c_str());
+      X_ZN(LOCAL_Y);
     };
 
     auto ORA = [&code, f, &X_ZN](Exp<uint8> val) {
-      fprintf(f, I "X->reg_A |= %s;\n", val.String().c_str());
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_A " |= %s;\n", val.String().c_str());
+      X_ZN(LOCAL_A);
     };
 
     auto AND = [&code, f, &X_ZN](Exp<uint8> val) {
-      fprintf(f, I "X->reg_A &= %s;\n", val.String().c_str());
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_A " &= %s;\n", val.String().c_str());
+      X_ZN(LOCAL_A);
     };
 
     auto BIT = [f](Exp<uint8> val) {
       fprintf(f,
-	      I "X->reg_P = (X->reg_P & ~(Z_FLAG | V_FLAG | N_FLAG)) |\n"
-	      I "  (ZNTable[%s & X->reg_A] & Z_FLAG) |\n"
+	      I LOCAL_P " = (" LOCAL_P " & ~(Z_FLAG | V_FLAG | N_FLAG)) |\n"
+	      I "  (ZNTable[%s & " LOCAL_A "] & Z_FLAG) |\n"
 	      I "  (%s & (V_FLAG | N_FLAG));\n",
 	      val.String().c_str(), val.String().c_str());
     };
 
     auto EOR = [f, &X_ZN](Exp<uint8> val) {
-      fprintf(f, I "X->reg_A ^= %s;\n", val.String().c_str());
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_A " ^= %s;\n", val.String().c_str());
+      X_ZN(LOCAL_A);
     };
     
     auto ADC = [this, &code, f, &X_ZNT](Exp<uint8> val) {
       const string sym = GenSym("adc");
       fprintf(f, I "const uint32 %s = "
-	      "(uint32)(%s) + X->reg_A + (X->reg_P & 1);\n",
+	      "(uint32)(%s) + " LOCAL_A " + (" LOCAL_P " & 1);\n",
 	      sym.c_str(), val.String().c_str());
       fprintf(f,
-	      I "X->reg_P =\n"
-	      I "  (X->reg_P & ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG)) |\n"
-	      I "  (((((X->reg_A ^ %s) & 0x80) ^ 0x80) &\n"
-              I "    ((X->reg_A ^ %s) & 0x80)) >> 1) |\n"
+	      I LOCAL_P " =\n"
+	      I "  (" LOCAL_P " & ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG)) |\n"
+	      I "  (((((" LOCAL_A " ^ %s) & 0x80) ^ 0x80) &\n"
+              I "    ((" LOCAL_A " ^ %s) & 0x80)) >> 1) |\n"
 	      I "  ((%s >> 8) & C_FLAG);\n",
 	      val.String().c_str(),
 	      sym.c_str(),
 	      sym.c_str());
-      fprintf(f, I "X->reg_A = %s;\n", sym.c_str());
-      X_ZNT("X->reg_A");
+      fprintf(f, I LOCAL_A " = %s;\n", sym.c_str());
+      X_ZNT(LOCAL_A);
     };
 
     auto SBC = [this, &code, f, &X_ZNT](Exp<uint8> val) {
       const string sym = GenSym("sbc");
       fprintf(f, I "const uint32 %s = "
-	      "(uint32)X->reg_A - %s - ((X->reg_P & 1) ^ 1);\n",
+	      "(uint32)" LOCAL_A " - %s - ((" LOCAL_P " & 1) ^ 1);\n",
 	      sym.c_str(), val.String().c_str());
       fprintf(f,
-	      I "X->reg_P =\n"
-	      I "  (X->reg_P & ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG)) |\n"
-	      I "  (((X->reg_A ^ %s) & (X->reg_A ^ %s) & 0x80) >> 1) |\n"
+	      I LOCAL_P " =\n"
+	      I "  (" LOCAL_P " & ~(Z_FLAG | C_FLAG | N_FLAG | V_FLAG)) |\n"
+	      I "  (((" LOCAL_A " ^ %s) & (" LOCAL_A " ^ %s) & 0x80) >> 1) |\n"
 	      I "  (((%s >> 8) & C_FLAG) ^ C_FLAG);\n",
 	      sym.c_str(), val.String().c_str(), 
 	      sym.c_str());
-      fprintf(f, I "X->reg_A = %s;\n", sym.c_str());
-      X_ZNT("X->reg_A");
+      fprintf(f, I LOCAL_A " = %s;\n", sym.c_str());
+      X_ZNT(LOCAL_A);
     };
     
     auto ST_AB = [&code, f, &WriteMem, &GetAB](Exp<uint8> exp) {
@@ -1019,11 +1091,17 @@ struct AOT {
       WriteMem(aa, op(aa));
     };
 
-    auto ST_ABX = [&ST_ABI](std::function<Exp<uint8>(Exp<uint16>)> op) {
-      ST_ABI(Exp<uint8>("X->reg_X"), op);
+    auto ST_ABX = [this, f, &ST_ABI](
+	std::function<Exp<uint8>(Exp<uint16>)> op) {
+      const string sym = GenSym("stabx");
+      fprintf(f, "const uint8 %s = " LOCAL_X ";\n", sym.c_str());
+      ST_ABI(Exp<uint8>(sym), op);
     };
-    auto ST_ABY = [&ST_ABI](std::function<Exp<uint8>(Exp<uint16>)> op) {
-      ST_ABI(Exp<uint8>("X->reg_Y"), op);
+    auto ST_ABY = [this, f, &ST_ABI](
+	std::function<Exp<uint8>(Exp<uint16>)> op) {
+      const string sym = GenSym("staby");
+      fprintf(f, "const uint8 %s = " LOCAL_Y ";\n", sym.c_str());
+      ST_ABI(Exp<uint8>(sym), op);
     };
 
     auto ST_IX = [&GetIX, &WriteMem](Exp<uint8> r) {
@@ -1042,28 +1120,34 @@ struct AOT {
       WriteMem(Extend8to16(aa), exp);
     };
 
-    auto ST_ZPX = [&code, f, &GetZPI](Exp<uint8> exp) {
-      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_X"));
+    auto ST_ZPX = [this, f, &GetZPI](Exp<uint8> exp) {
+      const string sym = GenSym("stabx");
+      fprintf(f, "const uint8 %s = " LOCAL_X ";\n", sym.c_str());
+      Exp<uint8> aa = GetZPI(Exp<uint8>(sym));
       fprintf(f, I "fceu->RAM[%s] = %s;\n",
 	      aa.String().c_str(), exp.String().c_str());
     };
 
-    auto ST_ZPY = [&code, f, &GetZPI](Exp<uint8> exp) {
-      Exp<uint8> aa = GetZPI(Exp<uint8>("X->reg_Y"));
+    auto ST_ZPY = [this, f, &GetZPI](Exp<uint8> exp) {
+      const string sym = GenSym("staby");
+      fprintf(f, "const uint8 %s = " LOCAL_Y ";\n", sym.c_str());
+      Exp<uint8> aa = GetZPI(Exp<uint8>(sym));
       fprintf(f, I "fceu->RAM[%s] = %s;\n",
 	      aa.String().c_str(), exp.String().c_str());
     };
     
     auto PUSH = [&code, f](Exp<uint8> v) {
-      fprintf(f, I "fceu->RAM[0x100 + X->reg_S] = %s;\n", v.String().c_str());
-      fprintf(f, I "X->reg_S--;\n");
+      fprintf(f, I "fceu->RAM[0x100 + " LOCAL_S "] = %s;\n",
+	      v.String().c_str());
+      fprintf(f, I LOCAL_S "--;\n");
     };
 
     auto POP = [this, &code, f](std::function<void(Exp<uint8>)> op) {
-      fprintf(f, I "X->reg_S++;\n");
+      fprintf(f, I LOCAL_S "++;\n");
       const string sym = GenSym("v");
       fprintf(f,
-	      I "const uint8 %s = (X->DB = fceu->RAM[0x100 + X->reg_S]);\n",
+	      I "const uint8 %s = "
+	      "(" LOCAL_DB " = fceu->RAM[0x100 + " LOCAL_S "]);\n",
 	      sym.c_str());
       op(Exp<uint8>(sym));
     };
@@ -1099,13 +1183,14 @@ struct AOT {
 	  // Note: Starting at this point we don't know the PC!
 	  // (in the true branch..)
 	  pc_addr = 0xFFFFFFFF;
-	  fprintf(f, I "X->reg_PC += %s;\n", disp_sym.c_str());
-	  fprintf(f, I "if ((0x%04x ^ X->reg_PC) & 0x100) {\n", tmp);
+	  fprintf(f, I LOCAL_PC " += %s;\n", disp_sym.c_str());
+	  fprintf(f, I "if ((0x%04x ^ " LOCAL_PC ") & 0x100) {\n", tmp);
 	  // Penalty for crossing page boundary.
 	  ADDCYC(f, 1);
 	  fprintf(f, I "}\n");
 	  // Since the program counter is unknown, we have to
 	  // return to the driver.
+	  FlushLocals(f, ~0);
 	  fprintf(f, I "return; // Unknown JR\n");
 	}
       });
@@ -1117,36 +1202,36 @@ struct AOT {
       fprintf(f, I "} else {\n");
       // False branch.
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "  X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I "  " LOCAL_PC " = 0x%04x;\n", pc_addr);
       fprintf(f, I "} // JR\n");
     };
 
-    auto CMPL = [this, &code, f, &X_ZN](Exp<uint8> a1, Exp<uint8> a2) {
+    auto CMPL = [this, &code, f, &X_ZN](string reg, Exp<uint8> a2) {
       const string sym = GenSym("c");
       fprintf(f, I "uint32 %s = (uint32)(%s) - (uint32)(%s);\n",
 	      sym.c_str(),
-	      a1.String().c_str(), a2.String().c_str());
+	      reg.c_str(), a2.String().c_str());
       X_ZN(StringPrintf("%s & 0xFF", sym.c_str()));
-      fprintf(f, I "X->reg_P &= ~C_FLAG;\n");
-      fprintf(f, I "X->reg_P |= ((%s >> 8) & C_FLAG) ^ C_FLAG;\n",
+      fprintf(f, I LOCAL_P " = (" LOCAL_P " & ~C_FLAG) |\n");
+      fprintf(f, I "  (((%s >> 8) & C_FLAG) ^ C_FLAG);\n",
 	      sym.c_str());
     };
 
-    auto CMP = [CMPL](Exp<uint8> a2) { CMPL(Exp<uint8>("X->reg_A"), a2); };
-    auto CPX = [CMPL](Exp<uint8> a2) { CMPL(Exp<uint8>("X->reg_X"), a2); };
-    auto CPY = [CMPL](Exp<uint8> a2) { CMPL(Exp<uint8>("X->reg_Y"), a2); };
+    auto CMP = [CMPL](Exp<uint8> a2) { CMPL(LOCAL_A, a2); };
+    auto CPX = [CMPL](Exp<uint8> a2) { CMPL(LOCAL_X, a2); };
+    auto CPY = [CMPL](Exp<uint8> a2) { CMPL(LOCAL_Y, a2); };
 
     // Undocumented, similar to CMP.
     auto AXS = [this, f, X_ZN](Exp<uint8> x) {
       string sym = GenSym("t");
       fprintf(f, I "const uint16 %s =\n"
-	      I "  (uint16)(X->reg_A & X->reg_X) - (uint16)(%s);\n",
+	      I "  (uint16)(" LOCAL_A " & " LOCAL_X ") - (uint16)(%s);\n",
 	      sym.c_str(), x.String().c_str());
       X_ZN(StringPrintf("(%s & 0xFF)", sym.c_str()));
       fprintf(f,
-	      I "X->reg_P = (X->reg_P & ~C_FLAG) |\n"
+	      I LOCAL_P " = (" LOCAL_P " & ~C_FLAG) |\n"
 	      I "  (((%s >> 8) & C_FLAG) ^ C_FLAG);\n", sym.c_str());
-      fprintf(f, "X->reg_X = %s;\n", sym.c_str());
+      fprintf(f, LOCAL_X " = %s;\n", sym.c_str());
     };
     
     // PERF many of these operations can have known results if the
@@ -1169,7 +1254,7 @@ struct AOT {
     // Probably "Arithmetic shift left"
     auto ASL = [this, f, &X_ZN](Exp<uint8> x) {
       const string sym = GenSym("asl");
-      fprintf(f, I "X->reg_P = (X->reg_P & ~C_FLAG) | ((%s) >> 7);\n",
+      fprintf(f, I LOCAL_P " = (" LOCAL_P " & ~C_FLAG) | ((%s) >> 7);\n",
 	      x.String().c_str());
       fprintf(f, I "uint8 %s = (uint8)(%s << 1);\n",
 	      sym.c_str(), x.String().c_str());
@@ -1181,7 +1266,7 @@ struct AOT {
     auto LSR = [this, f, &X_ZNT](Exp<uint8> x) {
       const string sym = GenSym("asl");
       fprintf(f,
-	      I "X->reg_P = (X->reg_P & ~(C_FLAG | N_FLAG | Z_FLAG)) |\n"
+	      I LOCAL_P " = (" LOCAL_P " & ~(C_FLAG | N_FLAG | Z_FLAG)) |\n"
 	      I "  ((%s) & 1);\n",
 	      x.String().c_str());
       fprintf(f, I "uint8 %s = ((uint8)%s) >> 1;\n",
@@ -1193,10 +1278,10 @@ struct AOT {
     // Maybe "Arithmetic shift right?" Undocumented inst 0x4b.
     auto LSRA = [this, f, X_ZNT]() {
       fprintf(f,
-	      I "X->reg_P = (X->reg_P & ~(C_FLAG | N_FLAG | Z_FLAG)) |\n"
-	      I "  (X->reg_A & 1);\n"
-	      I "X->reg_A >>= 1;\n");
-      X_ZNT("X->reg_A");
+	      I LOCAL_P " = (" LOCAL_P " & ~(C_FLAG | N_FLAG | Z_FLAG)) |\n"
+	      I "  (" LOCAL_A " & 1);\n"
+	      I LOCAL_A " >>= 1;\n");
+      X_ZNT(LOCAL_A);
     };
     
     auto ROL = [this, f, &X_ZNT](Exp<uint8> x) {
@@ -1204,12 +1289,13 @@ struct AOT {
       const string xx = GenSym("xx");
       fprintf(f,
 	      I "const uint8 %s = (%s) >> 7;\n"
-	      I "const uint8 %s = ((%s) << 1) | (X->reg_P & C_FLAG);\n",
+	      I "const uint8 %s = ((%s) << 1) | (" LOCAL_P " & C_FLAG);\n",
 	      sym.c_str(), x.String().c_str(),
 	      xx.c_str(), x.String().c_str());
-      fprintf(f,
-	      I "X->reg_P = (X->reg_P & ~(Z_FLAG | N_FLAG | C_FLAG)) | %s;\n",
-	      sym.c_str());
+      fprintf(
+	  f,
+	  I LOCAL_P " = (" LOCAL_P " & ~(Z_FLAG | N_FLAG | C_FLAG)) | %s;\n",
+	  sym.c_str());
       X_ZNT(xx);
       return Exp<uint8>(xx);
     };
@@ -1220,12 +1306,13 @@ struct AOT {
       fprintf(f,
 	      I "const uint8 %s = (%s) & 1;\n"
 	      I "const uint8 %s = ((uint8)(%s) >> 1) |\n"
-	      I "  ((X->reg_P & C_FLAG) << 7);\n",
+	      I "  ((" LOCAL_P " & C_FLAG) << 7);\n",
 	      sym.c_str(), x.String().c_str(),
 	      xx.c_str(), x.String().c_str());
-      fprintf(f,
-	      I "X->reg_P = (X->reg_P & ~(Z_FLAG | N_FLAG | C_FLAG)) | %s;\n",
-	      sym.c_str());
+      fprintf(
+	  f,
+	  I LOCAL_P " = (" LOCAL_P " & ~(Z_FLAG | N_FLAG | C_FLAG)) | %s;\n",
+	  sym.c_str());
       X_ZNT(xx);
       return Exp<uint8>(xx);
     };
@@ -1233,20 +1320,23 @@ struct AOT {
     switch (b1) {
     case 0x00: { /* BRK */
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       PUSH(Exp<uint8>(pc_addr >> 8));
       PUSH(Exp<uint8>(pc_addr & 0xFF));
-      PUSH(Exp<uint8>("(X->reg_P | U_FLAG | B_FLAG)"));
+      const string psym = GenSym("brk");
+      fprintf(f, "const uint8 %s = " LOCAL_P " | U_FLAG | B_FLAG;\n",
+	      psym.c_str());
+      PUSH(Exp<uint8>(psym));
       fprintf(f,
-	      I "X->reg_P |= I_FLAG;\n"
-	      I "X->reg_PI |= I_FLAG;\n");
+	      I LOCAL_P " |= I_FLAG;\n"
+	      I LOCAL_PI " |= I_FLAG;\n");
       Exp<uint8> pc_low = ReadMem(Exp<uint16>(0xFFFE));
       Exp<uint8> pc_high = ReadMem(Exp<uint16>(0xFFFF));
       // PERF sometimes can know this address statically. But we don't
-      // do anythign with such information yet.
+      // do anything with such information yet.
       pc_addr = 0xFFFFFFFF;
       fprintf(f,
-	      I "X->reg_PC = ((uint16)%s) | ((uint16)(%s) << 8);\n",
+	      I LOCAL_PC " = ((uint16)%s) | ((uint16)(%s) << 8);\n",
 	      pc_low.String().c_str(),
 	      pc_high.String().c_str());
 
@@ -1255,13 +1345,13 @@ struct AOT {
       
     case 0x40: /* RTI */
       POP([&](Exp<uint8> flags) {
-	fprintf(f, "X->reg_P = %s;\n", flags.String().c_str());
+	fprintf(f, LOCAL_P " = %s;\n", flags.String().c_str());
 	// In x6502, "This is probably incorrect, so it's commented out."
 	// (then of course followed by the statement not commented out...)
-	fprintf(f, "X->reg_PI = X->reg_P;\n");
+	fprintf(f, LOCAL_PI " = " LOCAL_P ";\n");
 	POP([&](Exp<uint8> pc_low) {
 	  POP([&](Exp<uint8> pc_high) {
-	    fprintf(f, "X->reg_PC = ((uint16)%s) | ((uint16)(%s) << 8);\n",
+	    fprintf(f, LOCAL_PC " = ((uint16)%s) | ((uint16)(%s) << 8);\n",
 		    pc_low.String().c_str(),
 		    pc_high.String().c_str());
 	    pc_addr = 0xFFFFFFFF;
@@ -1279,30 +1369,37 @@ struct AOT {
 	// But not really, since pops are supposed to be directly
 	// from RAM.
 	POP([&](Exp<uint8> pc_high) {
-	  fprintf(f, I "X->reg_PC = 1 + (((uint16)(%s) << 8) | %s);\n",
+	  fprintf(f, I LOCAL_PC " = 1 + (((uint16)(%s) << 8) | %s);\n",
 		  pc_high.String().c_str(), pc_low.String().c_str());
 	});
       });
       // Address from RAM.
       return 0xFFFFFFFF;
 
-    case 0x48: /* PHA */
-      PUSH(Exp<uint8>("X->reg_A"));
+    case 0x48: { /* PHA */
+      const string sym = GenSym("pha");
+      fprintf(f, "const uint8 %s = " LOCAL_A ";\n", sym.c_str());
+      PUSH(Exp<uint8>(sym));
       return pc_addr;
-    case 0x08: /* PHP */
-      PUSH(Exp<uint8>("X->reg_P | U_FLAG | B_FLAG"));
+    }
+    case 0x08: { /* PHP */
+      const string sym = GenSym("php");
+      fprintf(f, "const uint8 %s = " LOCAL_P " | U_FLAG | B_FLAG;\n",
+	      sym.c_str());
+      PUSH(Exp<uint8>(sym));
       return pc_addr;
-
+    }
+      
     case 0x68: /* PLA */
       POP([&](Exp<uint8> v) {
-	fprintf(f, I "X->reg_A = %s;\n", v.String().c_str());
-	X_ZN("X->reg_A");
+	fprintf(f, I LOCAL_A " = %s;\n", v.String().c_str());
+	X_ZN(LOCAL_A);
       });
       return pc_addr;
 
     case 0x28: /* PLP */
       POP([&](Exp<uint8> v) {
-	fprintf(f, I "X->reg_P = %s;\n", v.String().c_str());
+	fprintf(f, I LOCAL_P " = %s;\n", v.String().c_str());
       });
       return pc_addr;
       
@@ -1317,7 +1414,7 @@ struct AOT {
       const uint32 start_pc = pc_addr;
       Exp<uint8> pc_low = ReadMem(Exp<uint16>(start_pc));
       Exp<uint8> pc_high = ReadMem(Exp<uint16>(start_pc + 1));
-      fprintf(f, I "X->reg_PC = ((uint16)(%s) << 8) | %s;\n",
+      fprintf(f, I LOCAL_PC " = ((uint16)(%s) << 8) | %s;\n",
 	      pc_high.String().c_str(),
 	      pc_low.String().c_str());
       pc_addr = 0xFFFFFFFF;
@@ -1341,12 +1438,12 @@ struct AOT {
 	const uint16 new_pc = (uint16)pc_low.Value() |
 	  ((uint16)pc_high.Value() << 8);
 	pc_addr = new_pc;
-	fprintf(f, I "X->reg_PC = 0x%04x;  // Known jmp 6c\n", pc_addr);
+	fprintf(f, I LOCAL_PC " = 0x%04x;  // Known jmp 6c\n", pc_addr);
 	
       } else {
 	// n.b. this does reorder the write to reg_PC with the RdMem calls.
 	// Note that nothing accesses the PC except x6502.
-	fprintf(f, I "X->reg_PC = (uint16)(%s) | ((uint16)(%s) << 8); "
+	fprintf(f, I LOCAL_PC " = (uint16)(%s) | ((uint16)(%s) << 8); "
 		" // Unknown jmp 6c\n",
 		pc_low.String().c_str(), pc_high.String().c_str());
 	pc_addr = 0xFFFFFFFF;
@@ -1365,7 +1462,7 @@ struct AOT {
 	// This load increments PC, but it gets immediately overwritten
 	// unconditionally here, so should be easy to optimize out.
 	LD_IM([&](Exp<uint8> pc_high) {
-	  fprintf(f, I "X->reg_PC = ((uint16)(%s) << 8) | %s;\n",
+	  fprintf(f, I LOCAL_PC " = ((uint16)(%s) << 8) | %s;\n",
 		  pc_high.String().c_str(), pc_low.String().c_str());
 	});
       });
@@ -1374,74 +1471,74 @@ struct AOT {
       return 0xFFFFFFFF;
 
     case 0xAA: /* TAX */
-      fprintf(f, I "X->reg_X = X->reg_A;\n");
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_X " = " LOCAL_A ";\n");
+      X_ZN(LOCAL_A);
       return pc_addr;
 
     case 0x8A: /* TXA */
-      fprintf(f, I "X->reg_A = X->reg_X;\n");
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_A " = " LOCAL_X ";\n");
+      X_ZN(LOCAL_A);
       return pc_addr;
 
     case 0xA8: /* TAY */
-      fprintf(f, I "X->reg_Y = X->reg_A;\n");
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_Y " = " LOCAL_A ";\n");
+      X_ZN(LOCAL_A);
       return pc_addr;
     case 0x98: /* TYA */
-      fprintf(f, I "X->reg_A = X->reg_Y;\n");
-      X_ZN("X->reg_A");
+      fprintf(f, I LOCAL_A " = " LOCAL_Y ";\n");
+      X_ZN(LOCAL_A);
       return pc_addr;
 
     case 0xBA: /* TSX */
-      fprintf(f, I "X->reg_X = X->reg_S;\n");
-      X_ZN("X->reg_X");
+      fprintf(f, I LOCAL_X " = " LOCAL_S ";\n");
+      X_ZN(LOCAL_X);
       return pc_addr;
     case 0x9A: /* TXS */
-      fprintf(f, I "X->reg_S = X->reg_X;\n");
+      fprintf(f, I LOCAL_S " = " LOCAL_X ";\n");
       // n.b. no X_ZN in original code. Looks like
       // 6502 docs corroborate. -tom7
       return pc_addr;
 
 
     case 0xCA: /* DEX */
-      fprintf(f, I "X->reg_X--;\n");
-      X_ZN("X->reg_X");
+      fprintf(f, I LOCAL_X "--;\n");
+      X_ZN(LOCAL_X);
       return pc_addr;
     case 0x88: /* DEY */
-      fprintf(f, I "X->reg_Y--;\n");
-      X_ZN("X->reg_Y");
+      fprintf(f, I LOCAL_Y "--;\n");
+      X_ZN(LOCAL_Y);
       return pc_addr;
 
     case 0xE8: /* INX */
-      fprintf(f, I "X->reg_X++;\n");
-      X_ZN("X->reg_X");
+      fprintf(f, I LOCAL_X "++;\n");
+      X_ZN(LOCAL_X);
       return pc_addr;
     case 0xC8: /* INY */
-      fprintf(f, I "X->reg_Y++;\n");
-      X_ZN("X->reg_Y");
+      fprintf(f, I LOCAL_Y "++;\n");
+      X_ZN(LOCAL_Y);
       return pc_addr;
 
     case 0x18:
-      fprintf(f, I "X->reg_P &= ~C_FLAG;\n");
+      fprintf(f, I LOCAL_P " &= ~C_FLAG;\n");
       return pc_addr;
     case 0xD8:
-      fprintf(f, I "X->reg_P &= ~D_FLAG;\n");
+      fprintf(f, I LOCAL_P " &= ~D_FLAG;\n");
       return pc_addr;
     case 0x58:
-      fprintf(f, I "X->reg_P &= ~I_FLAG;\n");
+      fprintf(f, I LOCAL_P " &= ~I_FLAG;\n");
       return pc_addr;
     case 0xB8:
-      fprintf(f, I "X->reg_P &= ~V_FLAG;\n");
+      fprintf(f, I LOCAL_P " &= ~V_FLAG;\n");
       return pc_addr;
 
     case 0x38:
-      fprintf(f, I "X->reg_P |= C_FLAG;\n");
+      fprintf(f, I LOCAL_P " |= C_FLAG;\n");
       return pc_addr;
     case 0xF8:
-      fprintf(f, I "X->reg_P |= D_FLAG;\n");
+      fprintf(f, I LOCAL_P " |= D_FLAG;\n");
       return pc_addr;
     case 0x78:
-      fprintf(f, I "X->reg_P |= I_FLAG;\n");
+      fprintf(f, I LOCAL_P " |= I_FLAG;\n");
       return pc_addr;
 
     case 0xEA:
@@ -1835,98 +1932,119 @@ struct AOT {
       LD_IY(SBC);
       return pc_addr;
 
-    case 0x85:
-      ST_ZP(Exp<uint8>("X->reg_A"));
+    case 0x85: {
+      Exp<uint8> x = Read(f, REG_A);
+      ST_ZP(x);
       return pc_addr;
-
-    case 0x95:
-      ST_ZPX(Exp<uint8>("X->reg_A"));
+    }
+    case 0x95: {
+      Exp<uint8> x = Read(f, REG_A);
+      ST_ZPX(x);
       return pc_addr;
-
-    case 0x8D:
-      ST_AB(Exp<uint8>("X->reg_A"));
+    }
+    case 0x8D: {
+      Exp<uint8> x = Read(f, REG_A);
+      ST_AB(x);
       return pc_addr;
-
+    }
     case 0x9D:
-      ST_ABX([](Exp<uint16> unused) { return Exp<uint8>("X->reg_A"); });
+      ST_ABX([this, f](Exp<uint16> unused) { return Read(f, REG_A); });
       return pc_addr;
     case 0x99:
-      ST_ABY([](Exp<uint16> unused) { return Exp<uint8>("X->reg_A"); });
+      ST_ABY([this, f](Exp<uint16> unused) { return Read(f, REG_A); });
       return pc_addr;
 
-    case 0x81:
-      ST_IX(Exp<uint8>("X->reg_A"));
+    case 0x81: {
+      Exp<uint8> x = Read(f, REG_A);
+      ST_IX(x);
       return pc_addr;
+    }
     case 0x91:
-      ST_IY([](Exp<uint16> aa) { return Exp<uint8>("X->reg_A"); });
+      ST_IY([this, f](Exp<uint16> aa_unused) { return Read(f, REG_A); });
       return pc_addr;
 
-    case 0x86:
-      ST_ZP(Exp<uint8>("X->reg_X"));
+    case 0x86: {
+      Exp<uint8> x = Read(f, REG_X);
+      ST_ZP(Exp<uint8>(x));
       return pc_addr;
-
-    case 0x96:
-      ST_ZPY(Exp<uint8>("X->reg_X"));
-      return pc_addr;
+    }
       
-    case 0x8E:
-      ST_AB(Exp<uint8>("X->reg_X"));
+    case 0x96: {
+      Exp<uint8> x = Read(f, REG_X);
+      ST_ZPY(x);
       return pc_addr;
-
-    case 0x84:
-      ST_ZP(Exp<uint8>("X->reg_Y"));
-      return pc_addr;
+    }
       
-
-    case 0x94:
-      ST_ZPX(Exp<uint8>("X->reg_Y"));
+    case 0x8E: {
+      Exp<uint8> x = Read(f, REG_X);
+      ST_AB(x);
       return pc_addr;
-
-    case 0x8C:
-      ST_AB(Exp<uint8>("X->reg_Y"));
+    }
+    case 0x84: {
+      Exp<uint8> x = Read(f, REG_Y);
+      ST_ZP(Exp<uint8>(x));
       return pc_addr;
+    }
 
+    case 0x94: {
+      Exp<uint8> x = Read(f, REG_Y);
+      ST_ZPX(x);
+      return pc_addr;
+    }
+    case 0x8C: {
+      Exp<uint8> x = Read(f, REG_Y);
+      ST_AB(x);
+      return pc_addr;
+    }
       /* BCC */
-    case 0x90:
-      JR(Exp<uint8>("!(X->reg_P & C_FLAG)"));
+    case 0x90: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(!(%s & C_FLAG))", p.String().c_str())));
       return pc_addr;
-
+    }
       /* BCS */
-    case 0xB0:
-      JR(Exp<uint8>("X->reg_P & C_FLAG"));
+    case 0xB0: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(%s & C_FLAG)", p.String().c_str())));
       return pc_addr;
-
+    }
       /* BEQ */
-    case 0xF0:
-      JR(Exp<uint8>("X->reg_P & Z_FLAG"));
+    case 0xF0: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(%s & Z_FLAG)", p.String().c_str())));
       return pc_addr;
-
+    }
       /* BNE */
-    case 0xD0:
-      JR(Exp<uint8>("!(X->reg_P & Z_FLAG)"));
+    case 0xD0: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(!(%s & Z_FLAG))", p.String().c_str())));
       return pc_addr;
-
+    }
       /* BMI */
-    case 0x30:
-      JR(Exp<uint8>("(X->reg_P & N_FLAG)"));
+    case 0x30: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(%s & N_FLAG)", p.String().c_str())));
       return pc_addr;
-
+    }
 
       /* BPL */
-    case 0x10:
-      JR(Exp<uint8>("!(X->reg_P & N_FLAG)"));
+    case 0x10: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(!(%s & N_FLAG))", p.String().c_str())));
       return pc_addr;
-
+    }
       /* BVC */
-    case 0x50:
-      JR(Exp<uint8>("!(X->reg_P & V_FLAG)"));
+    case 0x50: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(!(%s & V_FLAG))", p.String().c_str())));
       return pc_addr;
-
+    }
       /* BVS */
-    case 0x70:
-      JR(Exp<uint8>("(X->reg_P & V_FLAG)"));
+    case 0x70: {
+      Exp<uint8> p = Read(f, REG_P);
+      JR(Exp<uint8>(StringPrintf("(%s & V_FLAG)", p.String().c_str())));
       return pc_addr;
-
+    }
 
       /* Here comes the undocumented instructions block.  Note that this
 	 implementation may be "wrong".  If so, please tell me.
@@ -1936,40 +2054,56 @@ struct AOT {
     case 0x2B:
     case 0x0B:
       LD_IM(AND);
-      fprintf(f, I "X->reg_P = (X->reg_P & ~C_FLAG) | (X->reg_A >> 7);\n");
+      fprintf(f, I LOCAL_P " = (" LOCAL_P " & ~C_FLAG) | "
+	      "(" LOCAL_A " >> 7);\n");
       return pc_addr;
       
       /* AAX */
-    case 0x87:
-      ST_ZP(Exp<uint8>("X->reg_A & X->reg_X"));
+    case 0x87: {
+      Exp<uint8> a = Read(f, REG_A);
+      Exp<uint8> x = Read(f, REG_X);
+      ST_ZP(Exp<uint8>(StringPrintf("(%s & %s)",
+				    a.String().c_str(), x.String().c_str())));
       return pc_addr;
+    }
       
-    case 0x97:
-      ST_ZPY(Exp<uint8>("(X->reg_A & X->reg_X)"));
+    case 0x97: {
+      Exp<uint8> a = Read(f, REG_A);
+      Exp<uint8> x = Read(f, REG_X);
+      ST_ZPY(Exp<uint8>(StringPrintf("(%s & %s)",
+				    a.String().c_str(), x.String().c_str())));
       return pc_addr;
-
-    case 0x8F:
-      ST_AB(Exp<uint8>("(X->reg_A & X->reg_X)"));
+    }
+      
+    case 0x8F: {
+      Exp<uint8> a = Read(f, REG_A);
+      Exp<uint8> x = Read(f, REG_X);
+      ST_AB(Exp<uint8>(StringPrintf("(%s & %s)",
+				    a.String().c_str(), x.String().c_str())));
       return pc_addr;
-
-    case 0x83:
-      ST_IX(Exp<uint8>("(X->reg_A & X->reg_X)"));
+    }
+      
+    case 0x83: {
+      Exp<uint8> a = Read(f, REG_A);
+      Exp<uint8> x = Read(f, REG_X);
+      ST_IX(Exp<uint8>(StringPrintf("(%s & %s)",
+				    a.String().c_str(), x.String().c_str())));
       return pc_addr;
-
+    }
       /* ARR - ARGH, MATEY! */
     case 0x6B:
       LD_IM([&](Exp<uint8> x) {
 	AND(x);
 	string sym = GenSym("arr");
 	fprintf(f,
-		I "X->reg_P = (X->reg_P & ~V_FLAG) |\n"
-		I "  ((X->reg_A ^ (X->reg_A >> 1)) & 0x40);\n");
-	fprintf(f, I "const uint8 %s = X->reg_A >> 7;\n", sym.c_str());
+		I LOCAL_P " = (" LOCAL_P " & ~V_FLAG) |\n"
+		I "  ((" LOCAL_A " ^ (" LOCAL_A " >> 1)) & 0x40);\n");
+	fprintf(f, I "const uint8 %s = " LOCAL_A " >> 7;\n", sym.c_str());
 	fprintf(f,
-		I "X->reg_A >>= 1;\n"
-		I "X->reg_A |= (X->reg_P & C_FLAG) << 7;\n"
-		I "X->reg_P = (X->reg_P & ~C_FLAG) | %s;\n", sym.c_str());
-	X_ZN("X->reg_A");
+		I LOCAL_A " >>= 1;\n"
+		I LOCAL_A " |= (" LOCAL_P " & C_FLAG) << 7;\n"
+		I LOCAL_P " = (" LOCAL_P " & ~C_FLAG) | %s;\n", sym.c_str());
+	X_ZN(LOCAL_A);
       });
       return pc_addr;
       
@@ -2126,7 +2260,7 @@ struct AOT {
     case 0xE2: 
     case 0xF4:
       pc_addr++; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       return pc_addr;
 
     /* KIL */
@@ -2148,17 +2282,17 @@ struct AOT {
       // them (seems to freeze the processor and only allow
       // a reset).
       ADDCYC(f, 0xFF);
-      fprintf(f, I "X->jammed = 1;\n  // KIL = %02x\n", b1);
+      fprintf(f, I LOCAL_JAMMED " = 1;\n  // KIL = %02x\n", b1);
       pc_addr--; pc_addr &= 0xFFFF;
-      fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr);
+      fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr);
       return 0xFFFFFFFF;
 
       /* LAR */
     case 0xBB:
       RMW_ABY([&](Exp<uint8> x) {
-	fprintf(f, I "X->reg_S &= %s;\n", x.String().c_str());
-	fprintf(f, I "X->reg_A = X->reg_X = X->reg_S;\n");
-	X_ZN("X->reg_X");
+	fprintf(f, I LOCAL_S " &= %s;\n", x.String().c_str());
+	fprintf(f, I LOCAL_A " = " LOCAL_X " = " LOCAL_S ";\n");
+	X_ZN(LOCAL_X);
 	return x;
       });
       return pc_addr;
@@ -2225,7 +2359,6 @@ struct AOT {
       });
       return pc_addr;
 
-
     case 0x37:
       RMW_ZPX([&](Exp<uint8> x) {
 	Exp<uint8> y = ROL(x);
@@ -2272,8 +2405,6 @@ struct AOT {
 	return y;
       });
       return pc_addr;
-
-      
 
       /* RRA */
     case 0x67:
@@ -2331,7 +2462,6 @@ struct AOT {
 	return y;
       });
       return pc_addr;
-
 
       /* SLO */
     case 0x07:
@@ -2448,52 +2578,74 @@ struct AOT {
 
       /* AXA - SHA */
     case 0x93:
-      ST_IY([](Exp<uint16> aa) {
+      ST_IY([this, f](Exp<uint16> aa) {
+	Exp<uint8> a = Read(f, REG_A);
+	Exp<uint8> x = Read(f, REG_X);
+	Exp<uint8> y = Read(f, REG_Y);
 	return Exp<uint8>(
-	    StringPrintf("(X->reg_A & X->reg_X & "
-			 "((((uint16)(%s) - X->reg_Y) >> 8) + 1))",
-			 aa.String().c_str()));
+	    StringPrintf("(%s & %s & "
+			 "((((uint16)(%s) - %s) >> 8) + 1))",
+			 a.String().c_str(), x.String().c_str(),
+			 aa.String().c_str(),
+			 y.String().c_str()));
       });
       return pc_addr;
       
     case 0x9F:
-      ST_ABY([](Exp<uint16> aa) {
+      ST_ABY([this, f](Exp<uint16> aa) {
+	Exp<uint8> a = Read(f, REG_A);
+	Exp<uint8> x = Read(f, REG_X);
+	Exp<uint8> y = Read(f, REG_Y);
 	return Exp<uint8>(
 	    StringPrintf(
-		"(X->reg_A & X->reg_X & "
-		"((((uint16)(%s) - X->reg_Y) >> 8) + 1))",
-		aa.String().c_str()));
+		"(%s & %s & "
+		"((((uint16)(%s) - %s) >> 8) + 1))",
+		a.String().c_str(), x.String().c_str(),
+		aa.String().c_str(),
+		y.String().c_str()));
       });
       return pc_addr;
 
     /* SYA */
     case 0x9C:
-      ST_ABX([](Exp<uint16> aa) {
+      ST_ABX([this, f](Exp<uint16> aa) {
+	Exp<uint8> x = Read(f, REG_X);
+	Exp<uint8> y = Read(f, REG_Y);
 	return Exp<uint8>(
 	    StringPrintf(
-		"(X->reg_Y & ((((uint16)(%s) - X->reg_X) >> 8) + 1))",
-		aa.String().c_str()));
+		"(%s & ((((uint16)(%s) - %s) >> 8) + 1))",
+		y.String().c_str(),
+		aa.String().c_str(),
+		x.String().c_str()));
       });
       return pc_addr;
 
       /* SXA */
     case 0x9E:
-      ST_ABY([](Exp<uint16> aa) {
+      ST_ABY([this, f](Exp<uint16> aa) {
+	Exp<uint8> x = Read(f, REG_X);
+	Exp<uint8> y = Read(f, REG_Y);
 	return Exp<uint8>(
 	    StringPrintf(
-		"(X->reg_X & ((((uint16)(%s) - X->reg_Y) >> 8) + 1))",
-		aa.String().c_str()));
+		"(%s & ((((uint16)(%s) - %s) >> 8) + 1))",
+		x.String().c_str(), 
+		aa.String().c_str(),
+		y.String().c_str()));
       });
       return pc_addr;
 
       /* XAS */
     case 0x9B:
-      fprintf(f, I "X->reg_S = X->reg_A & X->reg_X;\n");
-      ST_ABY([](Exp<uint16> aa) {
+      fprintf(f, I LOCAL_S " = " LOCAL_A " & " LOCAL_X ";\n");
+      ST_ABY([this, f](Exp<uint16> aa) {
+	Exp<uint8> s = Read(f, REG_S);
+	Exp<uint8> y = Read(f, REG_Y);
 	return Exp<uint8>(
 	    StringPrintf(
-		"(X->reg_S & ((((uint16)(%s) - X->reg_Y) >> 8) + 1))",
-		aa.String().c_str()));
+		"(%s & ((((uint16)(%s) - %s) >> 8) + 1))",
+		s.String().c_str(),
+		aa.String().c_str(),
+		y.String().c_str()));
       });
       return pc_addr;
 
@@ -2503,7 +2655,6 @@ struct AOT {
 	fprintf(f, I "(void) %s;  // TOP\n", x.String().c_str());
       });
       return pc_addr;
-
 
     case 0x1C:
     case 0x3C:
@@ -2518,7 +2669,7 @@ struct AOT {
 
       /* XAA - BIG QUESTION MARK HERE */
     case 0x8B: {
-      fprintf(f, I "X->reg_A = (0xEE | X->reg_A) & X->reg_X;\n");
+      fprintf(f, I LOCAL_A " = (0xEE | " LOCAL_A ") & " LOCAL_X ";\n");
       LD_IM(AND);
       return pc_addr;
     }
@@ -2531,7 +2682,10 @@ struct AOT {
   }
 
   void ADDCYC(FILE *f, int cycles) {
-    fprintf(f, I "X->tcount += %d; X->count -= %d; X->timestamp += %d;\n",
+    // XXX local timestamp...?
+    fprintf(f, I LOCAL_TCOUNT " += %d; "
+	    LOCAL_COUNT " -= %d; "
+	    "X->timestamp += %d;\n",
 	    cycles, cycles * 48, cycles);
   }
 
@@ -2558,30 +2712,33 @@ struct AOT {
 	    "  FCEU *fceu = fc->fceu; (void)fceu;\n"  // const?
 	    );
 
-    // PERF
-    // fprintf(f, "  X->entered_aot[0x%04x]++;\n", entry_addr);
-
+    DeclLocals(f);
+    
     uint32 pc_addr = entry_addr;
     for (;;) {
       // We don't want to try reading outside the mapped region, of
       // course.
       // Note that we don't really have any effective protection
-      // against an infinite codegen loop if 0000-FFFF is all mapped.
+      // against an infinite codegen loop if 0000-FFFF is all mapped,
+      // but this should never be the case since 0-0x7ff is
+      // architectually RAM.
       // XXX isn't this just like code.Known()?
       if (pc_addr < entry_addr || pc_addr >= addr_past_end) {
-	fprintf(f, I "// PC $%04x exits code region.\n"
+	fprintf(f, I "// PC $%04x exits code region.\n", pc_addr);
+	FlushLocals(f, ~0);
+	fprintf(f,
 		I "%s_any(fc);\n"
-		I "return;\n", pc_addr, symbol.c_str());
+		I "return;\n", symbol.c_str());
 	break;
       }
 
       const uint8 b1 = code.Get(pc_addr);
       if (!CanGenInstruction(b1)) {
-	fprintf(f, I "// Unimplemented instruction $%02x\n"
-		// PERF
-		I "X->unimpl_inst[0x%02x]++;\n"
+	fprintf(f, I "// Unimplemented instruction $%02x\n", b1);
+	FlushLocals(f, ~0);
+	fprintf(f,
 		I "%s_any(fc);\n"
-		I "return;\n", b1, b1, symbol.c_str());
+		I "return;\n", symbol.c_str());
 	break;
       } else {
 	// PERF: Would be nice to avoid testing this over and over,
@@ -2589,39 +2746,47 @@ struct AOT {
 	// straight-line code at the top of the entry point, and just
 	// running the slow interpreter if we don't have enough cycles
 	// left.
-	fprintf(f, I "if (X->count <= 0) return;\n");
+	fprintf(f, I "if (" LOCAL_COUNT " <= 0) {\n");
+	FlushLocals(f, ~0);
+	fprintf(f, I "  return;\n"
+		I "}");
 
 	fprintf(f, I "// %04x = %02x\n", pc_addr, b1);
 
 	// PERF: Similarly, good to avoid testing this over and over.
 	// Mappers can trigger interrupt, as can sound.
-	fprintf(f, I "if (X->IRQlow) { %s_any(fc); return; }\n",
-		symbol.c_str());
+	fprintf(f, I "if (" LOCAL_IRQLOW ") {\n");
+	FlushLocals(f, ~0);
+	fprintf (f, I "%s_any(fc); return; }\n",
+		 symbol.c_str());
 
-	fprintf(f, I "X->reg_PI = X->reg_P;\n");
+	fprintf(f, I LOCAL_PI " = " LOCAL_P ";\n");
 
 	const int cycles = CycTable[b1];
 	// ADDCYC() macro.
 	ADDCYC(f, cycles);
 
+	// XXX sort out whether we need to be modifying tcount now
+	// that we have locals.
 	// "temp" only used for the calls to irq and sound hooks, I guess
 	// in case they try to read tcount?
 	fprintf(f, I "{\n"
-		I "  int32 temp = X->tcount;\n"
-		I "  X->tcount = 0;\n");
+		I "  int32 temp = " LOCAL_TCOUNT ";\n"
+		I "  " LOCAL_TCOUNT " = 0;\n");
 
+	// PERF here we can reduce the set of writable locals!
+	FlushLocals(f, ~0);
+	
 	CHECK(!config.has_map_irq_hook) << "Not supported (yet)?";
 
 	// PERF Can remove/simplify calls to sound hook?
 	fprintf(f, I "  sound->FCEU_SoundCPUHook(temp);\n");
-	fprintf(f, I "}\n");
 
-	// PERF!
-	// fprintf(f, I "X->inst_histo[0x%02x]++;\n", b1);
+	LoadLocals(f, ~0);
+	fprintf(f, I "}\n");
 	
-	// was reg_PC++
 	pc_addr++;
-	fprintf(f, I "X->reg_PC = 0x%04x;\n", pc_addr & 0xFFFF);
+	fprintf(f, I LOCAL_PC " = 0x%04x;\n", pc_addr & 0xFFFF);
 
 	// Instructions may introduce local variables (e.g. a temporary
 	// containing the result of calling a read handler), but they
@@ -2630,8 +2795,9 @@ struct AOT {
 	pc_addr = GenInstruction(code, b1, pc_addr, f);
 	fprintf(f, I "}\n");
 	if (pc_addr == 0xFFFFFFFF) {
-	  fprintf(f, I "// Branch was unconditional.\n"
-		  I "return;\n");
+	  fprintf(f, I "// Branch was unconditional.\n");
+	  FlushLocals(f, ~0);
+	  fprintf(f, I "return;\n");
 	  break;
 	}
       }
@@ -2762,6 +2928,8 @@ static void GenerateDispatcher(const CodeConfig &config,
   if (config.is_pal) fprintf(f, "  cycles *= 15;  // is pal\n");
   else fprintf(f, "  cycles *= 16;  // is ntsc\n");
 
+  // PERF could pass this rather than loading it, though note
+  // the different calling conventions between AOT and _any code.
   fprintf(f, "  X->count += cycles;\n");
 
   fprintf(f, "  while (X->count > 0) {\n");
