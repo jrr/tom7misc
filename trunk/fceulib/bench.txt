@@ -13,6 +13,34 @@ Treat low reads/writes as being directly to RAM:
 Startup time: 0.0010s
 Exec time:    16.9698s      nice :)
 
+Don't histo instructions:
+Startup time: 0.0010s
+Exec time:    16.8800s
+
+Use locals (inefficiently), make reads from registers
+explicit. Code size before:
+3694148 mario_65024.o
+292292006       total
+2435165 mario_65024.cc
+213401671       total
+stripped:
+685035  mario_65024.o
+59466287        total
+
+C++ size:
+8189102 mario_65024.cc
+673499571       total   ~3x (!)
+
+object size (unstripped):
+12520976        mario_65024.o
+993807194       total  (3.4x) :(
+
+object size (stripped):
+1118035 mario_65024.o
+95204979        total  1.6x!  :/
+
+Startup time: 0.0010s
+Exec time:    17.3008s   ... oof
 
 --------------------------------------------------
 aot
