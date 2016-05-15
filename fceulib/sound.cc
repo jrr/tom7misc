@@ -353,9 +353,11 @@ void Sound::Tester() {
 
 void Sound::DMCDMA() {
   if (DMCSize && !DMCHaveDMA) {
-    fc->X->DMR(0x8000 + DMCAddress);
-    fc->X->DMR(0x8000 + DMCAddress);
-    fc->X->DMR(0x8000 + DMCAddress);
+    // Note: If DMCAddress >= 0x8000, this will crash, since
+    // DMR does not do any checking and the argument type is uint32.
+    (void)fc->X->DMR(0x8000 + DMCAddress);
+    (void)fc->X->DMR(0x8000 + DMCAddress);
+    (void)fc->X->DMR(0x8000 + DMCAddress);
     DMCDMABuf = fc->X->DMR(0x8000 + DMCAddress);
     DMCHaveDMA = 1;
     DMCAddress = (DMCAddress + 1) & 0x7fff;
@@ -378,6 +380,7 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
     fhcnt += fhinc;
   }
 
+  // Only runs if DMCSize is nonzero.
   DMCDMA();
   DMCacc -= cycles;
 

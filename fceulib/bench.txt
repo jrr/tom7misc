@@ -42,6 +42,55 @@ object size (stripped):
 Startup time: 0.0010s
 Exec time:    17.3008s   ... oof
 
+(Hmm, it's obvious why this produces more C++ code, but I thought it
+would optimize better because gcc would see that a lot of the stores
+are dead. I wonder why..?)
+
+Don't flush/load jammed or pc when calling a function and then returning,
+since only x6502 reads and sets these:
+
+Startup time: 0.0000s
+Exec time:    17.1048s  (ok, already some improvement...)
+C++:
+7580230 mario_65024.cc
+629425035       total
+unstripped:
+12372506        mario_65024.o
+973005804       total
+stripped:
+
+1123687 mario_65024.o
+95956515        total
+
+For calls to FCEU_SoundHook, only save the necessary locals:
+
+unstripped:
+11721796        mario_65024.o   output code size is smaller as expected..
+896117674       total           
+
+6701130 mario_65024.cc   and c++, obv
+547069531       total
+
+Startup time: 0.0050s
+Exec time:    17.7448s
+Startup time: 0.0000s
+Exec time:    17.7359s
+... wtf? Shouldn't this be STRICTLY BETTER? So weird.
+Maybe it is failing at register allocation because some variables
+are live for much longer? Or was merging the FlushLocals for all of
+those conditionals?
+
+Now with -O3:
+Startup time: 0.0000s
+Exec time:    17.8229s
+Wow ugh. Maybe we are making code too big for cache (?), or exceeding
+some optimization code size/time limit?
+
+Just to check, turn off locals again:
+
+16.3s -- yeah.
+
+
 --------------------------------------------------
 aot
 --------------------------------------------------
