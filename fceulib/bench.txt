@@ -90,6 +90,14 @@ Just to check, turn off locals again:
 
 16.3s -- yeah.
 
+Inline "Tester" in sound hook -- huge improvement!
+Startup time: 0.0010s
+Exec time:    15.6327s
+
+And simplify DMA output loop (which messes up sound, but preserves
+behavior) -- wow!
+Exec time:    14.5242s
+
 
 --------------------------------------------------
 aot

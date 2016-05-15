@@ -18,6 +18,8 @@ Can get rid of:
  - file archive support
  - auto-fire
  - NSF code in mapper.h and the uncalled functions therein?
+ - use of 'char' instead of uint8 for single-byte flags, etc. There were
+   some in sound.cc and I didn't scrub the rest.
 
 Memory todo:
  - Need to check that various objects are actually having their Free or Kill

@@ -630,7 +630,9 @@ struct AOT {
   // Returns new value of PC after this instruction (if it does not
   // branch). Returns 0xFFFFFFFF if the PC is not known (or if we
   // otherwise don't want to continue generating code); this causes
-  // the entry point generator ..  XXX HERE
+  // the entry point generator to return to the driver loop, which
+  // jumps to the code for the new PC (which may mean calling the
+  // interpreter).
 
   Exp<uint8> Read(FILE *f, const Reg &r) {
     CHECK(0 == strcmp(r.ctype, "uint8")) << r.local_name;
