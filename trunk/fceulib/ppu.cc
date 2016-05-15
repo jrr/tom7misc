@@ -393,13 +393,13 @@ static DECLFW(B2004) {
 // static
 void PPU::B2004_Direct(DECLFW_ARGS) {
   //printf("Wr: %04x:$%02x\n",A,V);
-  PPUGenLatch=V;
-  if (PPUSPL>=8) {
-    if (PPU_values[3]>=8)
+  PPUGenLatch = V;
+  if (PPUSPL >= 8) {
+    if (PPU_values[3] >= 8)
       SPRAM[PPU_values[3]]=V;
   } else {
     //printf("$%02x:$%02x\n",PPUSPL,V);
-    SPRAM[PPUSPL]=V;
+    SPRAM[PPUSPL] = V;
   }
   PPU_values[3]++;
   PPUSPL++;
@@ -510,7 +510,10 @@ static DECLFW(B4014) {
 // static
 void PPU::B4014_Direct(DECLFW_ARGS) {
   const uint32 t = V << 8;
-
+  // n.b. according to NESDEV, there is one or two (if we are on an
+  // odd cpu cycle) idle cycles (so we should do ADDCYC or the
+  // equivalent) before this DMA loop. -tom7
+  // http://wiki.nesdev.com/w/index.php/PPU_OAM#DMA
   for (int x = 0; x < 256; x++) {
     fc->X->DMW(0x2004,fc->X->DMR(t+x));
   }
@@ -826,26 +829,26 @@ void PPU::RefreshLine(int lastpixel) {
 
   RefreshAddr=refreshaddr_local;
   if (firsttile<=2 && 2<lasttile && !(PPU_values[1]&2)) {
-    uint32 tem;
-    tem=PALRAM[0]|(PALRAM[0]<<8)|(PALRAM[0]<<16)|(PALRAM[0]<<24);
-    tem|=0x40404040;
+    const uint32 tem = 
+      PALRAM[0] | (PALRAM[0] << 8) | (PALRAM[0] << 16) | (PALRAM[0] << 24) |
+      0x40404040;
     *(uint32 *)Plinef=*(uint32 *)(Plinef+4)=tem;
   }
 
   if (!ScreenON) {
-    uint32 tem;
-    int tstart,tcount;
-    tem=PALRAM[0]|(PALRAM[0]<<8)|(PALRAM[0]<<16)|(PALRAM[0]<<24);
-    tem|=0x40404040;
-
-    tcount=lasttile-firsttile;
-    tstart=firsttile-2;
-    if (tstart<0) {
-      tcount+=tstart;
-      tstart=0;
+    const uint32 tem =
+      PALRAM[0] | (PALRAM[0] << 8) | (PALRAM[0] << 16) | (PALRAM[0] << 24) |
+      0x40404040;
+    
+    int t_start = firsttile - 2;
+    int t_count = lasttile - firsttile;
+    if (t_start < 0) {
+      t_count += t_start;
+      t_start = 0;
     }
-    if (tcount>0)
-      FCEU_dwmemset(Plinef+tstart*8,tem,tcount*8);
+    if (t_count > 0) {
+      FCEU_dwmemset(Plinef + t_start * 8, tem, t_count * 8);
+    }
   }
 
   if (lastpixel>=TOFIXNUM && tofix) {

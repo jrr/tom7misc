@@ -152,6 +152,7 @@ struct Sound {
   /* Write to $4010 */
   uint8 DMCFormat = 0;
 
+  // Source address for DMC. Must be in 0-7fff.
   uint32 DMCAddress = 0;
   int32 DMCSize = 0;
   uint8 DMCShift = 0;

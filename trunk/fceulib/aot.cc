@@ -21,7 +21,7 @@
 
 // TODO: Should not be passing X->reg_A and so on in Exp<>. These
 // should contain *values*, but an intermediate write to a register
-// changes its value, duh.
+// changes its value, duh. (This is mostly, or completely, done now.)
 
 #include "emulator.h"
 
@@ -43,6 +43,10 @@
 
 #include <mutex>
 #include <thread>
+
+#define USE_LOCALS 0
+
+// TODO: Mapper metadata.
 
 static int64 TimeUsec() {
   timeval tv;
@@ -101,6 +105,10 @@ namespace {
 struct CodeConfig {
   bool is_pal = false;
   bool has_map_irq_hook = false;
+  // True if reads from this region can be discarded or duplicated
+  // without any effect (e.g. on registers), not counting the write
+  // to DB. XXX Generalize!
+  bool effectless_read_8000_ffff = false;
 };
 
 struct Code {
@@ -129,6 +137,7 @@ struct Reg {
   const char *xfield;
 };
 
+#if USE_LOCALS
 #define LOCAL_PC "local_pc"
 #define LOCAL_A "local_a"
 #define LOCAL_X "local_x"
@@ -141,21 +150,48 @@ struct Reg {
 #define LOCAL_IRQLOW "local_irqlow"
 #define LOCAL_DB "local_db"
 #define LOCAL_TCOUNT "local_tcount"
+#else
+#define LOCAL_PC "X->reg_PC"
+#define LOCAL_A "X->reg_A"
+#define LOCAL_X "X->reg_X"
+#define LOCAL_Y "X->reg_Y"
+#define LOCAL_S "X->reg_S"
+#define LOCAL_P "X->reg_P"
+#define LOCAL_PI "X->reg_PI"
+#define LOCAL_JAMMED "X->jammed"
+#define LOCAL_COUNT "X->count"
+#define LOCAL_IRQLOW "X->IRQlow"
+#define LOCAL_DB "X->DB"
+#define LOCAL_TCOUNT "X->tcount"
+#endif
+
+#define ID_PC 1
+#define ID_A 2
+#define ID_X 4
+#define ID_Y 8
+#define ID_S 16
+#define ID_P 32
+#define ID_PI 64
+#define ID_JAMMED 128
+#define ID_COUNT 256
+#define ID_IRQLOW 512
+#define ID_DB 1024
+#define ID_TCOUNT 2048
 
 #define NUM_REGS 12
 static Reg regs[] = {
-  {"pc", LOCAL_PC, 1, "uint16", "X->reg_PC"},
-  {"a", LOCAL_A, 2, "uint8", "X->reg_A"},
-  {"x", LOCAL_X, 4, "uint8", "X->reg_X"},
-  {"y", LOCAL_Y, 8, "uint8", "X->reg_Y"},  
-  {"s", LOCAL_S, 16, "uint8", "X->reg_S"},
-  {"p", LOCAL_P, 32, "uint8", "X->reg_P"},
-  {"pi", LOCAL_PI, 64, "uint8", "X->reg_PI"},
-  {"jam", LOCAL_JAMMED, 128, "uint8", "X->jammed"},
-  {"cnt", LOCAL_COUNT, 256, "int32", "X->count"},
-  {"irq", LOCAL_IRQLOW, 512, "uint32", "X->IRQlow"},
-  {"db", LOCAL_DB, 1024, "uint8", "X->DB"},
-  {"tcnt", LOCAL_TCOUNT, 2048, "int32", "X->tcount"},
+  {"pc", LOCAL_PC, ID_PC, "uint16", "X->reg_PC"},
+  {"a", LOCAL_A, ID_A, "uint8", "X->reg_A"},
+  {"x", LOCAL_X, ID_X, "uint8", "X->reg_X"},
+  {"y", LOCAL_Y, ID_Y, "uint8", "X->reg_Y"},  
+  {"s", LOCAL_S, ID_S, "uint8", "X->reg_S"},
+  {"p", LOCAL_P, ID_P, "uint8", "X->reg_P"},
+  {"pi", LOCAL_PI, ID_PI, "uint8", "X->reg_PI"},
+  {"jam", LOCAL_JAMMED, ID_JAMMED, "uint8", "X->jammed"},
+  {"cnt", LOCAL_COUNT, ID_COUNT, "int32", "X->count"},
+  {"irq", LOCAL_IRQLOW, ID_IRQLOW, "uint32", "X->IRQlow"},
+  {"db", LOCAL_DB, ID_DB, "uint8", "X->DB"},
+  {"tcnt", LOCAL_TCOUNT, ID_TCOUNT, "int32", "X->tcount"},
 };
 static_assert(sizeof regs / sizeof (Reg) == NUM_REGS, "");
 
@@ -171,6 +207,11 @@ static_assert(sizeof regs / sizeof (Reg) == NUM_REGS, "");
 #define REG_IRQLOW regs[9]
 #define REG_DB regs[10]
 #define REG_TCOUNT regs[11]
+
+// These are only read and written in 6502 itself (savestate is ok).
+// That means that we never need to save or restore their values
+// when making an external function call.
+static constexpr uint32 PRIVATE_TO_X6502 = ID_JAMMED | ID_PC;
 
 static bool CanGenInstruction(uint8 b1) {
   // Note that this is now equivalent to just "return true;", since
@@ -543,10 +584,12 @@ struct AOT {
   // whose values are overwritten immediately). Hopefully the C
   // compiler handles most of this for us.
   void DeclLocals(FILE *f) {
+    #if USE_LOCALS
     for (int i = 0; i < NUM_REGS; i++) {
       fprintf(f, I "%s %s = %s;\n",
 	      regs[i].ctype, regs[i].local_name, regs[i].xfield);
     }
+    #endif
   }
 
   // Flush the locals in the set to the X object. We do this before
@@ -554,22 +597,30 @@ struct AOT {
   // compiled routines (so that their values are reflected in the rest
   // of the emulator!)
   void FlushLocals(FILE *f, uint32 mask) {
+    #if USE_LOCALS
     fprintf(f, I);
     for (int i = 0; i < NUM_REGS; i++) {
-      fprintf(f, " %s=%s;", regs[i].xfield, regs[i].local_name);
+      if (mask & regs[i].id) {
+	fprintf(f, " %s=%s;", regs[i].xfield, regs[i].local_name);
+      }
     }
     fprintf(f, "\n");
+    #endif
   }
 
   // Read the locals in the set from the X object. We do this after
   // calling code that we don't understand. (Upon startup we also
   // read the locals, but via DeclLocals.)
   void LoadLocals(FILE *f, uint32 mask) {
+    #if USE_LOCALS
     fprintf(f, I);
     for (int i = 0; i < NUM_REGS; i++) {
-      fprintf(f, " %s=%s;", regs[i].local_name, regs[i].xfield);
+      if (mask & regs[i].id) {
+	fprintf(f, " %s=%s;", regs[i].local_name, regs[i].xfield);
+      }
     }
     fprintf(f, "\n");
+    #endif
   }
 
   // Takes the known code values.
@@ -584,9 +635,33 @@ struct AOT {
   Exp<uint8> Read(FILE *f, const Reg &r) {
     CHECK(0 == strcmp(r.ctype, "uint8")) << r.local_name;
     string s = GenSym(r.short_name);
+    // n.b. if USE_LOCALS is false, local_name is actually X->reg_Z.
     fprintf(f, I "const uint8 %s = %s;\n", s.c_str(), r.local_name);
     return Exp<uint8>(s);
   }
+
+  #if 0
+  int MaxCycles(const Code &code, uint8 b1, uint32 pc_addr) {
+    // Maximum cycles that an instruction can take.
+    // This is in whatever units ADDCYC takes, which is not the
+    // same as the "count" register.
+
+    // This puts an upper bound on the execution of the code, assuming
+    // no interrupts or DMA.
+
+    // It's easy to assume no interrupts, because we exit anyway once
+    // the interrupt flag is set.
+    // 
+    // DMA only happens when sound does DMC (through soundhook, so we
+    // have some visibility into when that might happen, but in any
+    // case only 4 per call) or upon write to $4014, which does the
+    // PPU DMA. Unfortunately this takes 512 cycles! We have to assume
+    // that a write is to this address if it's either known to be 4014,
+    // or if it's a dynamically computed address that we can't somehow
+    // bound. Hmm. :/
+    
+  }
+  #endif
   
   uint32 GenInstruction(const Code &code,
 			uint8 b1, uint32 pc_addr, FILE *f) {
@@ -615,11 +690,11 @@ struct AOT {
 	  // would also be useful if handler metadata told us that some
 	  // registers are untouched.
 	  // PERF pc is impossible, at least
-	  FlushLocals(f, ~0);
+	  FlushLocals(f, ~PRIVATE_TO_X6502);
 	  fprintf(f, 
 		  I "const uint8 %s = fceu->ARead[0x%04x](fc, 0x%04x);\n",
 		  val_sym.c_str(), addr.Value(), addr.Value());
-	  LoadLocals(f, ~0);
+	  LoadLocals(f, ~PRIVATE_TO_X6502);
 	}
 	res = Exp<uint8>(val_sym);
       } else {
@@ -630,11 +705,11 @@ struct AOT {
 		I "const uint16 %s = %s;\n", addr_sym.c_str(),
 		addr.String().c_str());
 	// PERF pc is impossible, at least
-	FlushLocals(f, ~0);
+	FlushLocals(f, ~PRIVATE_TO_X6502);
 	fprintf(f, 
 		I "const uint8 %s = fceu->ARead[%s](fc, %s);\n",
 		val_sym.c_str(), addr_sym.c_str(), addr_sym.c_str());
-	LoadLocals(f, ~0);
+	LoadLocals(f, ~PRIVATE_TO_X6502);
 	res = Exp<uint8>(val_sym);
       }
 
@@ -654,18 +729,18 @@ struct AOT {
 		  addr_exp.Value(), val_exp.String().c_str());
 	} else {
 	  // PERF! Same deal; when the address is known, avoid indirection.
-	  FlushLocals(f, ~0);
+	  FlushLocals(f, ~PRIVATE_TO_X6502);
 	  fprintf(f, I "fceu->BWrite[0x%04x](fc, 0x%04x, %s);\n",
 		  addr_exp.Value(), addr_exp.Value(),
 		  val_exp.String().c_str());
-	  LoadLocals(f, ~0);
+	  LoadLocals(f, ~PRIVATE_TO_X6502);
 	}
       } else {
-	FlushLocals(f, ~0);
+	FlushLocals(f, ~PRIVATE_TO_X6502);
 	fprintf(f, I "fceu->BWrite[%s](fc, %s, %s);\n",
 		addr_exp.String().c_str(), addr_exp.String().c_str(),
 		val_exp.String().c_str());
-	LoadLocals(f, ~0);
+	LoadLocals(f, ~PRIVATE_TO_X6502);
       }
     };
 
@@ -2774,15 +2849,52 @@ struct AOT {
 		I "  int32 temp = " LOCAL_TCOUNT ";\n"
 		I "  " LOCAL_TCOUNT " = 0;\n");
 
-	// PERF here we can reduce the set of writable locals!
-	FlushLocals(f, ~0);
-	
-	CHECK(!config.has_map_irq_hook) << "Not supported (yet)?";
+	// Known effects of sound:
+	//  - Sound can trigger an interrupt (so read/write irqlow)
+	//  - Sound calls DMR, which does ADDCYC, overwrites DB,
+	//    and calls read handlers.
+	//    (maybe never reads from db though?)
+	//    HOWEVER, the address it does DMR from are guaranteed
+	//    to be >= 0x8000. So if we know something about the
+	//    mapper for this region, we can limit the collateral
+	//    to just DB/ADDCYC?
+	//
+	// FlushEmulateSound uses timestamp, but that is only called
+	// externally, not from SoundCPUHook.
+	//
+	// Other than this, the sound code is pretty self contained.
+	// So basically, if we know that DMC is not active, then
+	// we just have to worry about the interrupt. If we know that
+	// reads from 0x8000-0xFFFF don't have an effect, then we
+	// only need to flush:
+	//   - ADDCYC stuff
+	//   - interrupt flag
+	// and only need to read
+	//   - ADDCYC stuff,
+	//   - interrupt flag
+	//   - DB
+	// Since this is true for mario (and probably many games),
+	// let's do that latter case first. 
 
+	if (config.effectless_read_8000_ffff) {
+	  FlushLocals(f, ID_TCOUNT | ID_COUNT | ID_IRQLOW);
+	} else {
+	  // Slow case. In this case, could build a mask of all the
+	  // possibly-read regs for all the read mappers in 8000-ffff.
+	  FlushLocals(f, ~PRIVATE_TO_X6502);
+	}
+
+	CHECK(!config.has_map_irq_hook) << "Not supported (yet)?";
 	// PERF Can remove/simplify calls to sound hook?
 	fprintf(f, I "  sound->FCEU_SoundCPUHook(temp);\n");
 
-	LoadLocals(f, ~0);
+	if (config.effectless_read_8000_ffff) {
+	  // See above, except DB may be written, so restore that.
+	  LoadLocals(f, ID_TCOUNT | ID_COUNT | ID_IRQLOW | ID_DB);
+	} else {
+	  LoadLocals(f, ~PRIVATE_TO_X6502);
+	}
+
 	fprintf(f, I "}\n");
 	
 	pc_addr++;
@@ -2975,7 +3087,8 @@ int main(int argc, char **argv) {
   CodeConfig config;
   config.is_pal = !!fc->fceu->PAL;
   config.has_map_irq_hook = fc->X->MapIRQHook != nullptr;
-
+  config.effectless_read_8000_ffff = true;
+  
   GenerateCode(config, code, 0x8000, 0x10000, "mario", "mario.nes");
   GenerateDispatcher(config, 0x8000, 0x10000, "mario", "mario.cc");
   
