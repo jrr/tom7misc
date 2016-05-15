@@ -136,6 +136,9 @@ aot.exe : $(OBJECTS_NO_GAMES) ppu-noaot.o aot.o
 make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+sound_dmc_test.exe : $(CCLIBOBJECTS) sound_dmc_test.o test-util.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 # also mario_*.cc, but make suxxxx
 mario.cc : aot.exe aot-prelude.inc
 	./aot.exe

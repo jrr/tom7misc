@@ -75,8 +75,14 @@ struct Sound {
   // Initialize sound constants. Sampling rate comes from fsettings.h.
   void FCEUI_InitSound();
 
+  // Called every CPU frame to update sound.
   void FCEU_SoundCPUHook(int);
 
+  // This block for experimental AOT support. If it doesn't stay, can
+  // be made private / deleted.
+  void FCEU_SoundCPUHookNoDMA(int);
+  void DMCDMA();
+  
   const std::vector<SFORMAT> &FCEUSND_STATEINFO() {
     return stateinfo;
   }
@@ -143,8 +149,12 @@ struct Sound {
 
   int32 lengthcount[4] = {};
 
+  // Representation invariant: positive.
   int32 DMCacc = 1;
-  int32 DMCPeriod = 0;
+
+  // tom7 made uint32 from int32. The value is always
+  // positive.
+  uint32 DMCPeriod = 0;
   uint8 DMCBitCount = 0;
 
   /* writes to 4012 and 4013 */
@@ -158,9 +168,9 @@ struct Sound {
   uint8 DMCShift = 0;
   uint8 SIRQStat = 0;
 
-  char DMCHaveDMA = 0;
+  uint8 DMCHaveDMA = 0;
   uint8 DMCDMABuf = 0;
-  char DMCHaveSample = 0;
+  uint8 DMCHaveSample = 0;
 
   // State for RDoTriangleNoisePCMLQ
   uint32 triangle_noise_tcout = 0;
@@ -182,11 +192,8 @@ struct Sound {
   void SQReload(int x, uint8 V);
   int CheckFreq(uint32 cf, uint8 sr);
 
-
   void FrameSoundStuff(int V);
   void FrameSoundUpdate();
-  void Tester();
-  void DMCDMA();
   void RDoPCM();
 
   void RDoSQ(int x);

@@ -339,18 +339,6 @@ void Sound::FrameSoundUpdate() {
   fcnt = (fcnt + 1) & 3;
 }
 
-void Sound::Tester() {
-  if (DMCBitCount == 0) {
-    if (!DMCHaveDMA) {
-      DMCHaveSample = 0;
-    } else {
-      DMCHaveSample = 1;
-      DMCShift = DMCDMABuf;
-      DMCHaveDMA = 0;
-    }
-  }
-}
-
 void Sound::DMCDMA() {
   if (DMCSize && !DMCHaveDMA) {
     // Note: If DMCAddress >= 0x8000, this will crash, since
@@ -373,6 +361,14 @@ void Sound::DMCDMA() {
   }
 }
 
+void Sound::FCEU_SoundCPUHookNoDMA(int cycles) {
+  fhcnt -= cycles * 48;
+  if (fhcnt <= 0) {
+    FrameSoundUpdate();
+    fhcnt += fhinc;
+  }
+}
+
 void Sound::FCEU_SoundCPUHook(int cycles) {
   fhcnt -= cycles * 48;
   if (fhcnt <= 0) {
@@ -380,14 +376,42 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
     fhcnt += fhinc;
   }
 
-  // Only runs if DMCSize is nonzero.
   DMCDMA();
+  
+#if 0   // XXX tom is trying to disable this loop and make sure
+        // it doesn't affect any benchmarks
   DMCacc -= cycles;
 
+  // This block always runs, at a minimum changing DMCacc for a future
+  // moment where DMC is turned on. But, it doesn't appear to affect
+  // the behavior of the CPU, just the sound state. Specifically, it
+  // reads or writes:
+  //    - DMCacc (just this function)
+  //    - DMCHaveSample (just this function)
+  //    - RawDALatch (can be written through a CPU write to DMCRegs, hmm)
+  //    - soundtsoffs (used for sound output only, I think)
+  //    - Everything in DoPCM:
+  //        - ChannelBC, X->timestamp (read only), WaveHi
+  //    - DMCPeriod (read only; controls how often the loop runs)
+  //    - DMCBitCount (just this function)
+  //    - DMCShift (just this function)
+  //    - DMCDMABuf (read only; this is where the bytes read via DMA
+  //      go, but control flow doesn't even depend on them -- it just
+  //      affects the value of RawDAlatch, which is basically just part
+  //      of the wave output sum.)
+  //    - But also, this can set DMCHaveDMA to 0, which sets 
+  //
+  // So, put another way: If we are not generating sound at all (or
+  // don't care about the output wave being accurate), then we still
+  // need to run DMCDMA, but can skip everything in this loop except
+  // for clearing DMCHaveDMA.
+  //
+  // XXX do we fail to update timestamp in ChannelBC[4] (this looks to
+  // be the starting time for sound update or something)? Does that matter?
   while (DMCacc <= 0) {
     if (DMCHaveSample) {
-      uint8 bah = RawDALatch;
-      int t = ((DMCShift & 1) << 2) - 2;
+      const uint8 bah = RawDALatch;
+      const int t = ((DMCShift & 1) << 2) - 2;
 
       /* Unbelievably ugly hack */
       if (FCEUS_SNDRATE) {
@@ -402,8 +426,41 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
     DMCacc += DMCPeriod;
     DMCBitCount = (DMCBitCount + 1) & 7;
     DMCShift >>= 1;
-    Tester();
+
+    // Was formerly "Tester", but only called here.
+    if (DMCBitCount == 0) {
+      if (!DMCHaveDMA) {
+	DMCHaveSample = 0;
+      } else {
+	DMCHaveSample = 1;
+	DMCShift = DMCDMABuf;
+	DMCHaveDMA = 0;
+      }
+    }
   }
+#else
+  // I verified that this simpler version produces the same results,
+  // sound output notwithstanding.
+  DMCacc -= cycles;
+  
+  while (DMCacc <= 0) {
+    DMCacc += DMCPeriod;
+    DMCBitCount = (DMCBitCount + 1) & 7;
+
+    // Was formerly "Tester", but only called here.
+    if (DMCBitCount == 0) {
+      DMCHaveDMA = 0;
+    }
+  }
+
+  // Even simpler, we just want DMCacc to take on the right value,
+  // and set DMCHaveDMA to zero if DMCBitCount is ever 0 mod 8
+  // during the "loop".
+  //
+  // 
+
+#endif
+
 }
 
 void Sound::RDoPCM() {
@@ -986,8 +1043,8 @@ void Sound::SetSoundVariables() {
   nesincsize = (int64)(((int64)1 << 17) *
                        (double)(fc->fceu->PAL ? PAL_CPU : NTSC_CPU) /
                        (FCEUS_SNDRATE * 16));
-  memset(sqacc, 0, sizeof(sqacc));
-  memset(ChannelBC, 0, sizeof(ChannelBC));
+  memset(sqacc, 0, sizeof sqacc);
+  memset(ChannelBC, 0, sizeof ChannelBC);
 
   LoadDMCPeriod(DMCFormat & 0xF);  // For changing from PAL to NTSC
 
