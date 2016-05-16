@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <utility>
 #include <tuple>
+#include <sys/time.h>
 
 #include "base/stringprintf.h"
 #include "base/logging.h"
@@ -15,6 +16,21 @@
 using int32 = int32_t;
 using uint8 = uint8_t;
 
+static int64 TimeUsec() {
+  timeval tv;
+  gettimeofday(&tv, nullptr);
+  return tv.tv_sec * 1000000LL + tv.tv_usec;
+}
+
+struct Timer {
+  Timer() : start_time(TimeUsec()) {}
+  const int64 start_time;
+  int64 GetUsec() const { return TimeUsec() - start_time; }
+  double GetSeconds() const {
+    return (TimeUsec() - start_time) / 1000000.0;
+  }
+};
+
 namespace {
 struct State {
   int32 acc = 1;
@@ -22,6 +38,13 @@ struct State {
   uint8 bitcount = 0;
   uint8 havedma = 0;
 };
+}
+
+static bool SameState(const State &a, const State &b) {
+  return a.acc == b.acc &&
+    a.period == b.period &&
+    (a.bitcount & 7) == (b.bitcount & 7) &&
+    !!a.havedma == !!b.havedma;
 }
 
 static string PrintState(const State &a) {
@@ -45,50 +68,36 @@ static State Original(State s, int cycles) {
 }
 
 static State Simplified(State s, int cycles) {
-  int32 tmp = s.acc - cycles;
-  
-  while (tmp <= 0) {
-    tmp += s.period;
-    s.bitcount = (s.bitcount + 1) & 7;
-
-    if (s.bitcount == 0) {
-      s.havedma = 0;
-    }
-  }
-
-  // a = (a/b)*b + a%b
-  //
-  // let u = (acc - cycles)
-  // then u + k * period  =  f   (where 0 < f <= period)
-  // k is the number of executions of the loop   (k >= 0)
-  // f is the final accumulator we want.
-  //
-  // integer division by some k,
-
-  // ok so -2 % 54       ... (want 52)
-  // and we know   (-2 div 54) * 54 + -2 % 54  == -2.
-  // this is                0 * 54 + -2 % 54 == -2
-  // so that means                   -2 % 54 == -2?
-  
   int32 t = s.acc - cycles;
-  // printf("t: %d - %d = %d\n", s.acc, cycles, t);
   if (t <= 0) {
     // be careful about signedness here!
     int32 u = t % (int)s.period;
-    // printf("u: %d %% %d = %d\n", t, (int)s.period, u);
 
     // Now u is a negative number (or zero). This is great
     // because we want a result strictly greater than 0.
     s.acc = u + (int)s.period;
-    // s.acc = ((s.acc - cycles) + (s.period << 9)) % s.period;
-    // if (s.acc == 0) s.acc = (int)s.period;
+
+    // Now, how many loops did I do?
+    int num_loops = 1 + -(t / (int)s.period);
+    #if 1
+    int loops_until_clear = 8 - (s.bitcount & 7);
+    s.bitcount += num_loops;
+
+    if (num_loops >= loops_until_clear)
+      s.havedma = 0;
+    #else
+
+    s.bitcount = (s.bitcount & 7) + num_loops;
+    if (s.bitcount >> 3) s.havedma = 0;
+    // s.havedma = s.havedma & ~(s.bitcount >> 3);
+    #endif
+    
   } else {
     s.acc = t;
   }
 
   return s;
 }
-
 
 // From x6502.
 static constexpr uint8 CycTable[256] = {
@@ -110,7 +119,7 @@ static constexpr uint8 CycTable[256] = {
     /*0xF0*/ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
 };
 
-// from sound.cc, mergint the ntsc and pal dma period tables
+// from sound.cc, merging the ntsc and pal dma period tables
 static constexpr uint32 NTSCandPALtables[0x20] = {
     428, 380, 340, 320, 286, 254, 226, 214,
     190, 160, 142, 128, 106, 84,  72,  54,
@@ -165,7 +174,7 @@ int main() {
     State expected = Original(example, cycles);
     State actual = Simplified(example, cycles);
 
-    CHECK(PrintState(expected) == PrintState(actual)) <<
+    CHECK(SameState(expected, actual)) <<
       "On this example:\n" << 
       PrintState(example) << "  for " << cycles << " cycles\n"
       "\nNot equal: \n" <<
@@ -178,4 +187,31 @@ int main() {
     }
   }
   printf("OK.\n");
+
+  printf("Benchmark...\n");
+
+  ArcFour rc1{"bench"};
+  Timer original_timer;
+  for (int i = 0; i < COUNT * 100; i++) {
+    State example;
+    int32 cycles;
+    std::tie(example, cycles) = RandomExample(&rc);
+
+    (void)Original(example, cycles);
+  }
+  double original_seconds = original_timer.GetSeconds();
+
+  printf("Original in   %.2f sec.\n", original_seconds);
+  
+  ArcFour rc2{"bench"};
+  Timer simplified_timer;
+  for (int i = 0; i < COUNT * 100; i++) {
+    State example;
+    int32 cycles;
+    std::tie(example, cycles) = RandomExample(&rc);
+
+    (void)Simplified(example, cycles);
+  }
+  double simplified_seconds = simplified_timer.GetSeconds();
+  printf("Simplified in %.2f sec.\n", simplified_seconds);
 }

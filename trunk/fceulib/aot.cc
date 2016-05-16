@@ -2846,7 +2846,9 @@ struct AOT {
 	// XXX sort out whether we need to be modifying tcount now
 	// that we have locals.
 	// "temp" only used for the calls to irq and sound hooks, I guess
-	// in case they try to read tcount?
+	// in case they try to read tcount? (Actually, these calls can
+	// trigger DMA calls that call ADDCYC, so we need to make sure
+	// that we don't set to 0 after the call.)
 	fprintf(f, I "{\n"
 		I "  int32 temp = " LOCAL_TCOUNT ";\n"
 		I "  " LOCAL_TCOUNT " = 0;\n");
