@@ -441,6 +441,7 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
 #else
   // I verified that this simpler version produces the same results,
   // sound output notwithstanding.
+#if 0
   DMCacc -= cycles;
   
   while (DMCacc <= 0) {
@@ -452,13 +453,35 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
       DMCHaveDMA = 0;
     }
   }
+#else
 
   // Even simpler, we just want DMCacc to take on the right value,
   // and set DMCHaveDMA to zero if DMCBitCount is ever 0 mod 8
-  // during the "loop".
-  //
-  // 
+  // during the "loop". Can do this with one div(rem) instruction,
+  // no loops.
+  
+  int32 t = DMCacc - cycles;
+  if (t <= 0) {
+    // be careful about signedness here!
+    int32 u = t % (int)DMCPeriod;
 
+    // Now u is a negative number (or zero). This is great
+    // because we want a result strictly greater than 0.
+    DMCacc = u + (int)DMCPeriod;
+
+    // Now, how many loops did I do?
+    int num_loops = 1 + -(t / (int)DMCPeriod);
+    int loops_until_clear = 8 - (DMCBitCount & 7);
+    DMCBitCount += num_loops;
+
+    if (num_loops >= loops_until_clear) {
+      DMCHaveDMA = 0;
+    }
+  } else {
+    DMCacc = t;
+  }
+#endif
+  
 #endif
 
 }
