@@ -30,10 +30,10 @@ struct PPU {
   void (*GameHBIRQHook)(FC *) = nullptr;
   void (*GameHBIRQHook2)(FC *) = nullptr;
 
-  // This is probably nametable ram, palette ram,
-  // sprite ram, and sprite buffer. -tom7
+  // This is nametable ram, palette ram,
+  // and sprite ram.
   uint8 NTARAM[0x800] = {}, PALRAM[0x20] = {};
-  uint8 SPRAM[0x100] = {}, SPRBUF[0x100] = {};
+  uint8 SPRAM[0x100] = {};
   // for 0x4/0x8/0xC addresses in palette, the ones in
   // 0x20 are 0 to not break fceu rendering.
   uint8 UPALRAM[0x03] = {};
@@ -125,6 +125,22 @@ struct PPU {
                                      const uint32 vofs,
                                      uint32 refreshaddr_local);
 
+  // Sprite buffer, used internally (it's the sprites on the current
+  // scanline). This contains numsprites SPRB structs. XXX Should be
+  // structs, not uint8.
+  // Most of this stuff is transient data for communicating during an
+  // internal scanline render, not really state. It can probably be
+  // cleaned up, or at least consolidated to make its lifetime clear.
+  uint8 SPRBUF[0x100] = {};
+  // Number of sprites on this scanline.
+  uint8 numsprites = 0;
+  // True if sprite 0 is on this scanline. It will be sprite index 0
+  // in SPRBUF in that case.
+  bool sprite_0_in_sprbuf = 0;
+  // Information for the sprite 0 hit test.
+  int32 sprite_hit_x = 0;
+  uint8 sprite_hit_mask = 0;
+  
   int ppudead = 1;
   int cycle_parity = 0;
 
@@ -160,11 +176,6 @@ struct PPU {
   // Perhaps should be compile-time constant.
   int maxsprites = 8;
 
-  // These two used to not be saved in stateinfo, but that caused execution
-  // to diverge in 'Ultimate Basketball'.
-  int32 sprite_hit_x = 0;
-  uint8 sprite_hit_mask = 0;
-
   uint32 scanlines_per_frame = 0;
 
   uint8 PPUSPL = 0;
@@ -192,10 +203,6 @@ struct PPU {
   // Only used within RefreshLine. Prevents reentrant calls (through
   // mappers making PPU calls).
   int norecurse = 0;
-
-  uint8 numsprites = 0;
-  // TODO: Figure out what this is and give it a better name.
-  uint8 SpriteBlurp = 0;
 
   FC *fc = nullptr;
 };
