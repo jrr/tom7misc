@@ -7,7 +7,8 @@ all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-co
 # -fno-strict-aliasing
 # -Wstrict-overflow=3
 # -std=c++11
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include 
+# XXXXXXX disable sound should not be on by default.
+CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -DDISABLE_SOUND=1
 # XXX -O2
 OPT=-g -O2  # -O3 -fno-strict-aliasing
 # try -flto!
@@ -99,7 +100,7 @@ FCEULIB_OBJECTS=emulator.o headless-driver.o stringprintf.o trace.o tracing.o
 # simplefm2.o emulator.o util.o
 
 # experimental! Need a much better way to do this...
-GAME_OBJECTS= mario_33280.o mario_34304.o mario_33792.o mario_32768.o mario_36352.o mario_34816.o mario_35328.o mario_35840.o mario_37376.o mario_36864.o mario_38400.o mario_38912.o mario_39424.o mario_41472.o mario_41984.o mario_40960.o mario_37888.o mario_40448.o mario_42496.o mario_43008.o mario_43520.o mario_44032.o mario_44544.o mario_39936.o mario_45056.o mario_45568.o mario_46080.o mario_47616.o mario_46592.o mario_47104.o mario_48128.o mario_48640.o mario_49664.o mario_51200.o mario_50176.o mario_51712.o mario_50688.o mario_49152.o mario_52224.o mario_54272.o mario_53760.o mario_53248.o mario_54784.o mario_55296.o mario_52736.o mario_56320.o mario_55808.o mario_57344.o mario_57856.o mario_56832.o mario_60928.o mario_58368.o mario_60416.o mario_61440.o mario_58880.o mario_59904.o mario_61952.o mario_59392.o mario_64000.o mario_63488.o mario_62464.o mario_64512.o mario_65024.o mario_62976.o  mario.o
+GAME_OBJECTS= # mario_33280.o mario_34304.o mario_33792.o mario_32768.o mario_36352.o mario_34816.o mario_35328.o mario_35840.o mario_37376.o mario_36864.o mario_38400.o mario_38912.o mario_39424.o mario_41472.o mario_41984.o mario_40960.o mario_37888.o mario_40448.o mario_42496.o mario_43008.o mario_43520.o mario_44032.o mario_44544.o mario_39936.o mario_45056.o mario_45568.o mario_46080.o mario_47616.o mario_46592.o mario_47104.o mario_48128.o mario_48640.o mario_49664.o mario_51200.o mario_50176.o mario_51712.o mario_50688.o mario_49152.o mario_52224.o mario_54272.o mario_53760.o mario_53248.o mario_54784.o mario_55296.o mario_52736.o mario_56320.o mario_55808.o mario_57344.o mario_57856.o mario_56832.o mario_60928.o mario_58368.o mario_60416.o mario_61440.o mario_58880.o mario_59904.o mario_61952.o mario_59392.o mario_64000.o mario_63488.o mario_62464.o mario_64512.o mario_65024.o mario_62976.o  mario.o
 
 
 OBJECTS_NO_GAMES=$(BASEOBJECTS) $(EMUOBJECTS) $(FCEULIB_OBJECTS)

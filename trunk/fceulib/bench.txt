@@ -111,6 +111,10 @@ so current best is ultrasimplified:
 Startup time: 0.0010s
 Exec time:    15.3032s
 
+commenting out the "Do*" function calls:
+(but this causes many memory diffs.!)
+Startup time: 0.1150s
+Exec time:    14.9005s
 
 --------------------------------------------------
 aot

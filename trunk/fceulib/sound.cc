@@ -239,12 +239,19 @@ DECLFR_RET Sound::StatusRead_Direct(DECLFR_ARGS) {
   return ret;
 }
 
+// Some of this can be read by the CPU. For example, StatusRead
+// returns a bitmask of whether the lengthcounts are nonzero (plus
+// other stuff).
 void Sound::FrameSoundStuff(int V) {
+  // n.b. there is at least something in here that's important for
+  // cpu state. It might even mean that the outcomes depend on
+  // whether we are in high quality or low quality sound mode,
+  // which is disturbing -tom7
   (this->*DoSQ1)();
   (this->*DoSQ2)();
   (this->*DoNoise)();
   (this->*DoTriangle)();
-
+  
   /* Envelope decay, linear counter, length counter, freq sweep */
   if (!(V & 1)) {
     if (!(PSG[8] & 0x80))
@@ -378,8 +385,7 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
 
   DMCDMA();
   
-#if 0   // XXX tom is trying to disable this loop and make sure
-        // it doesn't affect any benchmarks
+#if !DISABLE_SOUND
   DMCacc -= cycles;
 
   // This block always runs, at a minimum changing DMCacc for a future
@@ -439,27 +445,19 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
     }
   }
 #else
-  // I verified that this simpler version produces the same results,
-  // sound output notwithstanding.
-#if 0
-  DMCacc -= cycles;
-  
-  while (DMCacc <= 0) {
-    DMCacc += DMCPeriod;
-    DMCBitCount = (DMCBitCount + 1) & 7;
 
-    // Was formerly "Tester", but only called here.
-    if (DMCBitCount == 0) {
-      DMCHaveDMA = 0;
-    }
-  }
-#else
-
-  // Even simpler, we just want DMCacc to take on the right value,
-  // and set DMCHaveDMA to zero if DMCBitCount is ever 0 mod 8
-  // during the "loop". Can do this with one div(rem) instruction,
-  // no loops.
-  
+  // This version doesn't output the sound, but I verified that
+  // it produces exactly the same cpu behavior. 
+  //
+  // The call to DoPCM is not needed, and then a bunch of variables
+  // become dead. We need to make sure that DMCacc and DMCHaveDMA are
+  // set to the correct value at the correct time, since this
+  // determines whether calls to DMCDMA do DMA (which adds cpu
+  // cycles). We just need DMCacc to have the right value after the
+  // "loop" (is essentially a modulus, though awkward since it is
+  // negative) and set DMCHaveDMA to zero if DMCBitCount would ever be
+  // 0 mod 8 during the "loop". Can do this with one div(rem)
+  // instruction, no loops.
   int32 t = DMCacc - cycles;
   if (t <= 0) {
     // be careful about signedness here!
@@ -481,16 +479,16 @@ void Sound::FCEU_SoundCPUHook(int cycles) {
     DMCacc = t;
   }
 #endif
-  
-#endif
 
 }
 
 void Sound::RDoPCM() {
+#if !DISABLE_SOUND
   for (uint32 V = ChannelBC[4]; V < SoundTS(); V++) {
     // TODO get rid of floating calculations to binary. set log volume scaling.
     WaveHi[V] += (((RawDALatch << 16) / 256) * FCEUS_PCMVOLUME) & (~0xFFFF);
   }
+#endif
   ChannelBC[4] = SoundTS();
 }
 
@@ -498,62 +496,56 @@ void Sound::RDoPCM() {
 /* This has the correct phase.  Don't mess with it. */
 // Int x decides if this is Square Wave 1 or 2
 void Sound::RDoSQ(int x) {
-  int32 V;
-  int32 amp, ampx;
-  int32 rthresh;
-  int32 *D;
-  int32 currdc;
-  int32 cf;
-  int32 rc;
+  if (curfreq[x] >= 8 && curfreq[x] <= 0x7ff &&
+      CheckFreq(curfreq[x], PSG[(x << 2) | 0x1]) &&
+      lengthcount[x]) {
 
-  if (curfreq[x] < 8 || curfreq[x] > 0x7ff) goto endit;
-  if (!CheckFreq(curfreq[x], PSG[(x << 2) | 0x1])) goto endit;
-  if (!lengthcount[x]) goto endit;
+    int32 amp = 
+      (EnvUnits[x].Mode & 0x1) ? EnvUnits[x].Speed : EnvUnits[x].decvolume;
 
-  if (EnvUnits[x].Mode & 0x1) {
-    amp = EnvUnits[x].Speed;
-  } else {
-    // Set the volume of the Square Wave.
-    amp = EnvUnits[x].decvolume;
-  }
+    // Modify Square wave volume based on channel volume modifiers
+    // adelikat: Note: the formula x = x * y /100 does not yield exact
+    // results, but is "close enough" and avoids the need for using
+    // double vales or implicit cohersion which are slower (we need
+    // speed here)
+    // TODO OPTIMIZE ME!
+    const int32 ampx = x ? FCEUS_SQUARE2VOLUME : FCEUS_SQUARE1VOLUME;
+    // CaH4e3: fixed - setting up maximum volume for square2 caused
+    // complete mute square2 channel
+    if (ampx != 256) amp = (amp * ampx) / 256;
 
-  // Modify Square wave volume based on channel volume modifiers
-  // adelikat: Note: the formula x = x * y /100 does not yield exact
-  // results, but is "close enough" and avoids the need for using
-  // double vales or implicit cohersion which are slower (we need
-  // speed here)
-  // TODO OPTIMIZE ME!
-  ampx = x ? FCEUS_SQUARE2VOLUME : FCEUS_SQUARE1VOLUME;
-  // CaH4e3: fixed - setting up maximum volume for square2 caused
-  // complete mute square2 channel
-  if (ampx != 256) amp = (amp * ampx) / 256;
+    amp <<= 24;
 
-  amp <<= 24;
+    const int32 rthresh = RectDuties[(PSG[(x << 2)] & 0xC0) >> 6];
+    (void)rthresh;
+    
+    int32 *D = &WaveHi[ChannelBC[x]];
+    int32 V = SoundTS() - ChannelBC[x];
 
-  rthresh = RectDuties[(PSG[(x << 2)] & 0xC0) >> 6];
+    int32 currdc = RectDutyCount[x];
+    const int32 cf = (curfreq[x] + 1) * 2;
+    int32 rc = wlcount[x];
 
-  D = &WaveHi[ChannelBC[x]];
-  V = SoundTS() - ChannelBC[x];
-
-  currdc = RectDutyCount[x];
-  cf = (curfreq[x] + 1) * 2;
-  rc = wlcount[x];
-
-  while (V > 0) {
-    if (currdc < rthresh) *D += amp;
-    rc--;
-    if (!rc) {
-      rc = cf;
-      currdc = (currdc + 1) & 7;
+    // PERF: This can be simplified if we're not writing amplitudes.
+    // Look like we just need the cycle counts to be accurate at the end.
+    // -tom7
+    while (V > 0) {
+#if true || !DISABLE_SOUND
+      if (currdc < rthresh) *D += amp;
+#endif
+      rc--;
+      if (!rc) {
+	rc = cf;
+	currdc = (currdc + 1) & 7;
+      }
+      V--;
+      D++;
     }
-    V--;
-    D++;
+
+    RectDutyCount[x] = currdc;
+    wlcount[x] = rc;
+
   }
-
-  RectDutyCount[x] = currdc;
-  wlcount[x] = rc;
-
-endit:
   ChannelBC[x] = SoundTS();
 }
 
@@ -567,14 +559,12 @@ void Sound::RDoSQ2() {
 
 void Sound::RDoSQLQ() {
   int32 start, end;
-  int32 V;
   int32 amp[2], ampx;
   int32 rthresh[2];
   int32 freq[2];
   int32 inie[2];
 
   int32 ttable[2][8];
-  int32 totalout;
 
   start = ChannelBC[0];
   end = (SoundTS() << 16) / soundtsinc;
@@ -616,16 +606,21 @@ void Sound::RDoSQLQ() {
     freq[x] <<= 17;
   }
 
-  totalout =
+  int32 totalout =
          wlookup1[ttable[0][RectDutyCount[0]] + ttable[1][RectDutyCount[1]]];
-
+  (void)totalout;
+  
   if (!inie[0] && !inie[1]) {
-    for (V = start; V < end; V++) Wave[V >> 4] += totalout;
+#if !DISABLE_SOUND
+    for (int32 V = start; V < end; V++) Wave[V >> 4] += totalout;
+#endif
   } else {
-    for (V = start; V < end; V++) {
+    for (int32 V = start; V < end; V++) {
 
+#if !DISABLE_SOUND
       Wave[V >> 4] += totalout;  // tmpamp;
-
+#endif
+      
       sqacc[0] -= inie[0];
       sqacc[1] -= inie[1];
 
@@ -651,27 +646,32 @@ void Sound::RDoSQLQ() {
 }
 
 void Sound::RDoTriangle() {
-  int32 tcout;
-
-  tcout = (tristep & 0xF);
-  if (!(tristep & 0x10)) tcout ^= 0xF;
-  tcout = (tcout * 3) << 16;
+  int32 tcamp = (tristep & 0xF);
+  if (!(tristep & 0x10)) tcamp ^= 0xF;
+  tcamp = (tcamp * 3) << 16;
 
   if (!lengthcount[2] || !TriCount) {
-    int32 cout = (tcout / 256 * FCEUS_TRIANGLEVOLUME) & (~0xFFFF);
-    for (uint32 V = ChannelBC[2]; V < SoundTS(); V++) WaveHi[V] += cout;
+    int32 camp = (tcamp / 256 * FCEUS_TRIANGLEVOLUME) & (~0xFFFF);
+    (void)camp;
+    for (uint32 V = ChannelBC[2]; V < SoundTS(); V++) {
+      #if !DISABLE_SOUND
+      WaveHi[V] += camp;
+      #endif
+    }
   } else {
     for (uint32 V = ChannelBC[2]; V < SoundTS(); V++) {
       // Modify volume based on channel volume modifiers
-      WaveHi[V] += (tcout / 256 * FCEUS_TRIANGLEVOLUME) &
+      #if !DISABLE_SOUND
+      WaveHi[V] += (tcamp / 256 * FCEUS_TRIANGLEVOLUME) &
                    (~0xFFFF);  // TODO OPTIMIZE ME!
+      #endif
       wlcount[2]--;
       if (!wlcount[2]) {
         wlcount[2] = (PSG[0xa] | ((PSG[0xb] & 7) << 8)) + 1;
         tristep++;
-        tcout = (tristep & 0xF);
-        if (!(tristep & 0x10)) tcout ^= 0xF;
-        tcout = (tcout * 3) << 16;
+        tcamp = (tristep & 0xF);
+        if (!(tristep & 0x10)) tcamp ^= 0xF;
+        tcamp = (tcamp * 3) << 16;
       }
     }
   }
@@ -680,17 +680,12 @@ void Sound::RDoTriangle() {
 }
 
 void Sound::RDoTriangleNoisePCMLQ() {
-  int32 start, end;
   int32 freq[2];
   int32 inie[2];
   uint32 amptab[2];
-  uint32 noiseout;
-  int nshift;
 
-  int32 totalout;
-
-  start = ChannelBC[2];
-  end = (SoundTS() << 16) / soundtsinc;
+  int32 start = ChannelBC[2];
+  int32 end = (SoundTS() << 16) / soundtsinc;
   if (end <= start) return;
   ChannelBC[2] = end;
 
@@ -721,19 +716,19 @@ void Sound::RDoTriangleNoisePCMLQ() {
   if (!lengthcount[3])
     amptab[0] = inie[1] = 0; /* Quick hack speedup, set inie[1] to 0 */
 
-  noiseout = amptab[(nreg >> 0xe) & 1];
+  uint32 noiseout = amptab[(nreg >> 0xe) & 1];
 
-  if (PSG[0xE] & 0x80)
-    nshift = 8;
-  else
-    nshift = 13;
+  const int nshift = (PSG[0xE] & 0x80) ? 8 : 13;
 
-  totalout = wlookup2[triangle_noise_tcout + noiseout + RawDALatch];
-
+  int32 totalout = wlookup2[triangle_noise_tcout + noiseout + RawDALatch];
+  (void)totalout;
+  
   if (inie[0] && inie[1]) {
     for (int32 V = start; V < end; V++) {
+      #if !DISABLE_SOUND
       Wave[V >> 4] += totalout;
-
+      #endif
+      
       triangle_noise_triacc -= inie[0];
       triangle_noise_noiseacc -= inie[1];
 
@@ -767,8 +762,10 @@ void Sound::RDoTriangleNoisePCMLQ() {
     } /* for (V=... */
   } else if (inie[0]) {
     for (int32 V = start; V < end; V++) {
+      #if !DISABLE_SOUND
       Wave[V >> 4] += totalout;
-
+      #endif
+      
       triangle_noise_triacc -= inie[0];
 
       if (triangle_noise_triacc <= 0) {
@@ -784,7 +781,9 @@ void Sound::RDoTriangleNoisePCMLQ() {
     }
   } else if (inie[1]) {
     for (int32 V = start; V < end; V++) {
+      #if !DISABLE_SOUND
       Wave[V >> 4] += totalout;
+      #endif
       triangle_noise_noiseacc -= inie[1];
       if (triangle_noise_noiseacc <= 0) {
         do {
@@ -804,14 +803,13 @@ void Sound::RDoTriangleNoisePCMLQ() {
       } /* triangle_noise_noiseacc<=0 */
     }
   } else {
-    for (int32 V = start; V < end; V++) {
-      Wave[V >> 4] += totalout;
-    }
+    #if !DISABLE_SOUND
+    for (int32 V = start; V < end; V++) Wave[V >> 4] += totalout;
+    #endif
   }
 }
 
 void Sound::RDoNoise() {
-  int32 outo;
   uint32 amptab[2];
 
   if (EnvUnits[2].Mode & 0x1)
@@ -832,8 +830,9 @@ void Sound::RDoNoise() {
 
   amptab[0] <<= 1;
 
-  outo = amptab[(nreg >> 0xe) & 1];
-
+  int32 outo = amptab[(nreg >> 0xe) & 1];
+  (void)outo;
+  
   if (!lengthcount[3]) {
     outo = amptab[0] = 0;
   }
@@ -841,15 +840,16 @@ void Sound::RDoNoise() {
   if (PSG[0xE] & 0x80) {
     // "short" noise
     for (uint32 V = ChannelBC[3]; V < SoundTS(); V++) {
+      #if !DISABLE_SOUND
       WaveHi[V] += outo;
+      #endif
       wlcount[3]--;
       if (!wlcount[3]) {
-        uint8 feedback;
         if (fc->fceu->PAL)
           wlcount[3] = NoiseFreqTablePAL[PSG[0xE] & 0xF];
         else
           wlcount[3] = NoiseFreqTableNTSC[PSG[0xE] & 0xF];
-        feedback = ((nreg >> 8) & 1) ^ ((nreg >> 14) & 1);
+        uint8 feedback = ((nreg >> 8) & 1) ^ ((nreg >> 14) & 1);
         nreg = (nreg << 1) + feedback;
         nreg &= 0x7fff;
         outo = amptab[(nreg >> 0xe) & 1];
@@ -857,15 +857,16 @@ void Sound::RDoNoise() {
     }
   } else {
     for (uint32 V = ChannelBC[3]; V < SoundTS(); V++) {
+      #if !DISABLE_SOUND
       WaveHi[V] += outo;
+      #endif
       wlcount[3]--;
       if (!wlcount[3]) {
-        uint8 feedback;
         if (fc->fceu->PAL)
           wlcount[3] = NoiseFreqTablePAL[PSG[0xE] & 0xF];
         else
           wlcount[3] = NoiseFreqTableNTSC[PSG[0xE] & 0xF];
-        feedback = ((nreg >> 13) & 1) ^ ((nreg >> 14) & 1);
+        uint8 feedback = ((nreg >> 13) & 1) ^ ((nreg >> 14) & 1);
         nreg = (nreg << 1) + feedback;
         nreg &= 0x7fff;
         outo = amptab[(nreg >> 0xe) & 1];
@@ -916,6 +917,8 @@ int Sound::FlushEmulateSound() {
   (this->*DoNoise)();
   (this->*DoPCM)();
 
+  // PERF -- if sound is disabled, don't run filters, don't output.
+  // This function is called once per frame.
   if (FCEUS_SOUNDQ >= 1) {
     int32 *tmpo = &WaveHi[soundtsoffs];
 
@@ -1041,6 +1044,8 @@ void Sound::SetSoundVariables() {
           (double)16 * 16 * 16 * 4 * 163.67 / ((double)24329 / (double)x + 100);
       if (!FCEUS_SOUNDQ) wlookup2[x] >>= 4;
     }
+    // PERF -- SOUNDQ is a compile time constant, so at a minimum,
+    // don't use function pointers in these inner loops.
     if (FCEUS_SOUNDQ >= 1) {
       DoNoise = &Sound::RDoNoise;
       DoTriangle = &Sound::RDoTriangle;

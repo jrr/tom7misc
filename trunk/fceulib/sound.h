@@ -132,6 +132,7 @@ struct Sound {
   uint8 RawDALatch = 0;
 
   /* Byte written to $4015 */
+  // Influences lengthcount, which influences CPU (WritePSG)
   uint8 EnabledChannels = 0;
 
   ENVUNIT EnvUnits[3];
@@ -141,12 +142,15 @@ struct Sound {
   int32 curfreq[2] = {};
   uint8 SweepCount[2] = {};
 
+  // For noise generation. Seems to only affect wave output, not
+  // cpu state.
   uint16 nreg = 0;
 
   uint8 fcnt = 0;
   int32 fhcnt = 0;
   int32 fhinc = 0;
 
+  // Influences CPU (StatusRead)
   int32 lengthcount[4] = {};
 
   // Representation invariant: positive.
