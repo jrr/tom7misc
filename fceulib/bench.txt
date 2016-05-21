@@ -116,6 +116,14 @@ commenting out the "Do*" function calls:
 Startup time: 0.1150s
 Exec time:    14.9005s
 
+Momentarily comparing back to interpreted (but disabled sound):
+Startup time: 0.0020s
+Exec time:    16.7197s
+
+AOT, with disabled sound (including writes to waves):
+Startup time: 0.0010s
+Exec time:    14.9766s    (11% improvement over interpreted)
+
 --------------------------------------------------
 aot
 --------------------------------------------------

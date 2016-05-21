@@ -1,6 +1,11 @@
 
 #include "emulator.h"
 
+#ifdef __MINGW32__
+// For setting priority.
+#include <windows.h>
+#endif
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -545,10 +550,16 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
 }
 
 int main(int argc, char **argv) {
+
+  #ifdef __MINGW32__
+  CHECK(SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS));
+  #endif
+
   string output_file;
   string romdir = "roms/";
   bool write_collage = true;
 
+  
   for (int i = 1; i < argc; i++) {
     string arg = argv[i];
     if (arg == "--full" || arg == "-full") {

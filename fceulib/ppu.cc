@@ -290,7 +290,7 @@ DECLFR_RET PPU::A2007(DECLFR_ARGS) {
 }
 // static
 DECLFR_RET PPU::A2007_Direct(DECLFR_ARGS) {
-  uint32 tmp = RefreshAddr&0x3FFF;
+  uint32 tmp = RefreshAddr & 0x3FFF;
 
   FCEUPPU_LineUpdate();
 
@@ -476,7 +476,7 @@ void PPU::B2006_Direct(DECLFW_ARGS) {
     // printf("%d, %04x\n",scanline,RefreshAddr);
   }
 
-  vtoggle^=1;
+  vtoggle ^= 1;
 }
 
 static DECLFW(B2007) {
@@ -516,18 +516,18 @@ void PPU::B4014_Direct(DECLFW_ARGS) {
   // equivalent) before this DMA loop. -tom7
   // http://wiki.nesdev.com/w/index.php/PPU_OAM#DMA
   for (int x = 0; x < 256; x++) {
-    fc->X->DMW(0x2004,fc->X->DMR(t+x));
+    fc->X->DMW(0x2004, fc->X->DMR(t + x));
   }
 }
 
 void PPU::ResetRL(uint8 *target) {
-  memset(target,0xFF,256);
-  fc->input->InputScanlineHook(0,0,0,0);
-  Plinef=target;
-  Pline=target;
+  memset(target, 0xFF, 256);
+  fc->input->InputScanlineHook(0, 0, 0, 0);
+  Plinef = target;
+  Pline = target;
   firsttile=0;
-  linestartts=fc->X->timestamp*48+fc->X->count;
-  tofix=0;
+  linestartts = fc->X->timestamp * 48 + fc->X->count;
+  tofix = 0;
   FCEUPPU_LineUpdate();
   tofix=1;
 }
@@ -542,13 +542,21 @@ void PPU::FCEUPPU_LineUpdate() {
 }
 
 void PPU::CheckSpriteHit(int p) {
-  TRACEF("CheckSpriteHit %d %d %02x", p, sphitx, sphitdata);
-  const int l = p - 16;
+  TRACEF("CheckSpriteHit %d %d %02x", p, sprite_hit_x, sprite_hit_mask);
+  if (sprite_hit_x == 0x100) return;
 
-  if (sphitx == 0x100) return;
-
-  for (int x=sphitx;x<(sphitx+8) && x<l;x++) {
-    if ((sphitdata&(0x80>>(x-sphitx))) && !(Plinef[x]&64) && x < 255) {
+  // Port note: This used to check x < 255 in the loop, but why loop
+  // beyond that? The loop only does anything if the condition is
+  // true. -tom7 PERF: A similar trick may apply to x < sprite_hit_x + 8.
+  const int l = std::min(p - 16, 255);
+  
+  for (int x = sprite_hit_x; x < sprite_hit_x + 8 && x < l; x++) {
+    // Basically, check whether the sprite pixel is not background
+    // (sprite_hit_mask is a bitmask where 0 means palette entry 0,
+    // background) and the pixel in the scanline (Pline) does not have
+    // bit 6 set. (Now, who is setting this bit? -tom7)
+    if ((sprite_hit_mask & (0x80 >> (x - sprite_hit_x))) &&
+	!(Plinef[x] & 64)) {
       TRACELOC();
       PPU_status |= 0x40;
       //printf("Ha:  %d, %d, Hita: %d, %d, %d, %d, %d\n",
@@ -556,7 +564,7 @@ void PPU::CheckSpriteHit(int p) {
       //printf("%d\n",GETLASTPIXEL-16);
       //if (Plinef[x] == 0xFF)
       //printf("PL: %d, %02x\n",scanline, Plinef[x]);
-      sphitx=0x100;
+      sprite_hit_x = 0x100;
       break;
     }
   }
@@ -691,7 +699,7 @@ void PPU::RefreshLine(int lastpixel) {
   // hooks don't see the updated version until we're done. Modified
   // wihin PPUTile. (However note that RefreshAddr is only mentioned
   // inside ppu.cc.)
-  uint32 refreshaddr_local=RefreshAddr;
+  uint32 refreshaddr_local = RefreshAddr;
 
   /* Yeah, recursion would be bad. PPU_hook() functions can call
      mirroring/chr bank switching functions, which call
@@ -702,11 +710,10 @@ void PPU::RefreshLine(int lastpixel) {
          lastpixel, pshift[0], pshift[1], atlatch, refreshaddr_local,
          norecurse);
 
-  register uint8 *P=Pline;
-  int lasttile=lastpixel>>3;
+  int lasttile = lastpixel >> 3;
 
-  if (sphitx != 0x100 && !(PPU_status&0x40)) {
-    if ((sphitx < (lastpixel-16)) && !(sphitx < ((lasttile - 2)*8))) {
+  if (sprite_hit_x != 0x100 && !(PPU_status & 0x40)) {
+    if ((sprite_hit_x < (lastpixel-16)) && !(sprite_hit_x < ((lasttile - 2)*8))) {
       //printf("OK: %d\n",scanline);
       lasttile++;
     }
@@ -717,29 +724,31 @@ void PPU::RefreshLine(int lastpixel) {
 
   if (numtiles <= 0) return;
 
-  P = Pline;
+  uint8 *P = Pline;
 
   uint32 vofs = ((PPU_values[0]&0x10)<<8) | ((refreshaddr_local>>12)&7);
 
   static constexpr int TOFIXNUM = 272 - 0x4;
   if (!ScreenON && !SpriteON) {
-    uint32 tem;
-    tem=PALRAM[0]|(PALRAM[0]<<8)|(PALRAM[0]<<16)|(PALRAM[0]<<24);
-    tem|=0x40404040;
-    FCEU_dwmemset(Pline,tem,numtiles*8);
+    const uint32 tmp =
+      PALRAM[0] | (PALRAM[0] << 8) | (PALRAM[0] << 16) | (PALRAM[0] << 24) |
+      0x40404040;
+    FCEU_dwmemset(Pline, tmp, numtiles * 8);
     P+=numtiles*8;
     Pline=P;
 
     firsttile=lasttile;
 
-    if (lastpixel>=TOFIXNUM && tofix) {
+    if (lastpixel >= TOFIXNUM && tofix) {
       Fixit1();
       tofix=0;
     }
 
-    if ((lastpixel-16)>=0) {
-      fc->input->InputScanlineHook(Plinef,any_sprites_on_line?sprlinebuf:0,
-                                   linestartts,lasttile*8-16);
+    if (lastpixel - 16 >= 0) {
+      fc->input->InputScanlineHook(Plinef,
+				   any_sprites_on_line ? sprlinebuf : 0,
+                                   linestartts,
+				   lasttile * 8 - 16);
     }
     return;
   }
@@ -823,21 +832,21 @@ void PPU::RefreshLine(int lastpixel) {
   TRACEA(PPU_values, 4);
 
   // Reverse changes made before.
-  PALRAM[0]&=63;
-  PALRAM[4]&=63;
-  PALRAM[8]&=63;
-  PALRAM[0xC]&=63;
+  PALRAM[0] &= 63;
+  PALRAM[4] &= 63;
+  PALRAM[8] &= 63;
+  PALRAM[0xC] &= 63;
 
-  RefreshAddr=refreshaddr_local;
-  if (firsttile<=2 && 2<lasttile && !(PPU_values[1]&2)) {
-    const uint32 tem = 
+  RefreshAddr = refreshaddr_local;
+  if (firsttile <= 2 && 2 < lasttile && !(PPU_values[1] & 2)) {
+    const uint32 tmp = 
       PALRAM[0] | (PALRAM[0] << 8) | (PALRAM[0] << 16) | (PALRAM[0] << 24) |
       0x40404040;
-    *(uint32 *)Plinef=*(uint32 *)(Plinef+4)=tem;
+    *(uint32 *)Plinef = *(uint32 *)(Plinef + 4) = tmp;
   }
 
   if (!ScreenON) {
-    const uint32 tem =
+    const uint32 tmp =
       PALRAM[0] | (PALRAM[0] << 8) | (PALRAM[0] << 16) | (PALRAM[0] << 24) |
       0x40404040;
     
@@ -848,11 +857,11 @@ void PPU::RefreshLine(int lastpixel) {
       t_start = 0;
     }
     if (t_count > 0) {
-      FCEU_dwmemset(Plinef + t_start * 8, tem, t_count * 8);
+      FCEU_dwmemset(Plinef + t_start * 8, tmp, t_count * 8);
     }
   }
 
-  if (lastpixel>=TOFIXNUM && tofix) {
+  if (lastpixel >= TOFIXNUM && tofix) {
     //puts("Fixed");
     Fixit1();
     tofix=0;
@@ -863,10 +872,10 @@ void PPU::RefreshLine(int lastpixel) {
 
   if (lastpixel - 16 >= 0) {
     fc->input->InputScanlineHook(Plinef, any_sprites_on_line ? sprlinebuf : 0,
-                                     linestartts, lasttile * 8 - 16);
+				 linestartts, lasttile * 8 - 16);
   }
-  Pline=P;
-  firsttile=lasttile;
+  Pline = P;
+  firsttile = lasttile;
 }
 
 void PPU::Fixit2() {
@@ -917,9 +926,9 @@ void PPU::DoLine() {
   if (!renderbg) {
     // User asked to not display background data.
     uint8 col = (gNoBGFillColor == 0xFF) ? PALRAM[0] : gNoBGFillColor;
-    uint32 tem = col|(col<<8)|(col<<16)|(col<<24);
-    tem |= 0x40404040;
-    FCEU_dwmemset(target,tem,256);
+    uint32 tmp = col | (col << 8) | (col << 16) | (col << 24);
+    tmp |= 0x40404040;
+    FCEU_dwmemset(target, tmp, 256);
   }
 
   if (SpriteON)
@@ -931,43 +940,46 @@ void PPU::DoLine() {
 
   if (ScreenON || SpriteON) {
     // Yes, very el-cheapo.
-    if (PPU_values[1]&0x01) {
+    if (PPU_values[1] & 0x01) {
       for (int x = 63; x >= 0; x--)
-        *(uint32 *)&target[x<<2]=(*(uint32*)&target[x<<2])&0x30303030;
+        *(uint32 *)&target[x << 2] = (*(uint32*)&target[x << 2]) & 0x30303030;
     }
   }
-  if ((PPU_values[1]>>5)==0x7) {
+  if ((PPU_values[1] >> 5) == 0x7) {
     for (int x = 63; x >= 0; x--)
-      *(uint32 *)&target[x<<2] =
-        ((*(uint32*)&target[x<<2])&0x3f3f3f3f)|0xc0c0c0c0;
-  } else if (PPU_values[1]&0xE0) {
+      *(uint32 *)&target[x << 2] =
+        ((*(uint32*)&target[x << 2]) & 0x3f3f3f3f) | 0xc0c0c0c0;
+  } else if (PPU_values[1] & 0xE0) {
     for (int x = 63; x >= 0; x--)
-      *(uint32 *)&target[x<<2] = (*(uint32*)&target[x<<2])|0x40404040;
+      *(uint32 *)&target[x << 2] = (*(uint32*)&target[x << 2]) | 0x40404040;
   } else {
     for (int x = 63; x >= 0; x--)
-      *(uint32 *)&target[x<<2] =
-        ((*(uint32*)&target[x<<2])&0x3f3f3f3f)|0x80808080;
+      *(uint32 *)&target[x << 2] =
+        ((*(uint32*)&target[x << 2]) & 0x3f3f3f3f) | 0x80808080;
   }
 
-  sphitx = 0x100;
+  sprite_hit_x = 0x100;
 
   if (ScreenON || SpriteON)
     FetchSpriteData();
 
-  if (GameHBIRQHook && (ScreenON || SpriteON) && ((PPU_values[0]&0x38)!=0x18)) {
+  if (GameHBIRQHook && (ScreenON || SpriteON) &&
+      ((PPU_values[0] & 0x38) != 0x18)) {
     Run6502(6);
     Fixit2();
     Run6502(4);
     GameHBIRQHook(fc);
-    Run6502(85-16-10);
+    Run6502(85 - 16 - 10);
   } else {
     Run6502(6);  // Tried 65, caused problems with Slalom(maybe others)
     Fixit2();
-    Run6502(85-6-16);
+    Run6502(85 - 6 - 16);
 
     // A semi-hack for Star Trek: 25th Anniversary
-    if (GameHBIRQHook && (ScreenON || SpriteON) && ((PPU_values[0]&0x38)!=0x18))
+    if (GameHBIRQHook && (ScreenON || SpriteON) &&
+	((PPU_values[0] & 0x38) != 0x18)) {
       GameHBIRQHook(fc);
+    }
   }
 
   if (SpriteON)
@@ -975,8 +987,8 @@ void PPU::DoLine() {
   if (GameHBIRQHook2 && (ScreenON || SpriteON))
     GameHBIRQHook2(fc);
   scanline++;
-  if (scanline<240) {
-    ResetRL(fc->fceu->XBuf+(scanline<<8));
+  if (scanline < 240) {
+    ResetRL(fc->fceu->XBuf + (scanline << 8));
   }
   Run6502(16);
 }
@@ -1019,9 +1031,9 @@ struct SPRB {
 #define STATIC_ASSERT( condition, name ) \
   static_assert( condition, #condition " " #name)
 
-STATIC_ASSERT( sizeof (SPR) == 4, spr_size );
-STATIC_ASSERT( sizeof (SPRB) == 4, sprb_size );
-STATIC_ASSERT( sizeof (uint32) == 4, uint32_size );
+STATIC_ASSERT(sizeof (SPR) == 4, spr_size);
+STATIC_ASSERT(sizeof (SPRB) == 4, sprb_size);
+STATIC_ASSERT(sizeof (uint32) == 4, uint32_size);
 
 void PPU::FCEUI_DisableSpriteLimitation(int a) {
   maxsprites = a ? 64 : 8;
@@ -1034,16 +1046,26 @@ void PPU::FetchSpriteData() {
   const uint8 P0 = PPU_values[0];
 
   SPR *spr = (SPR *)SPRAM;
-  // Sprite height -tom7
+  // Sprite height; either 8 or 16. -tom7
   const uint8 H = 8 + ((P0 & 0x20) >> 2);
 
-  uint8 ns = 0, sb = 0;
+  // Number of sprites on this line (so far).
+  uint8 ns = 0;
+  // This will be used to set "SpriteBlurp"; who knows what that is
+  // supposed to mean. It's set to 1 if we enter the loop with n ==
+  // 63. Since at that point ns will always be less than maxsprites
+  // (in fact, 0), this is testing whether sprite #63 is on the
+  // scanline.
+  uint8 sb = 0;
 
   const int vofs = (unsigned int)(P0&0x8&(((P0&0x20)^0x20)>>2))<<9;
 
   DEBUGF(stderr, "FetchSprites @%d\n", scanline);
   if (!PPU_hook) {
     for (int n = 63; n >= 0; n--, spr++) {
+      // This tests whether the sprite is on the scanline, being a
+      // bit sneaky and using unsigned ints to capture the case where
+      // sprite y > scanline.
       if ((unsigned int)(scanline - spr->y) >= H) continue;
       //printf("%d, %u\n",scanline,(unsigned int)(scanline-spr->y));
       if (ns < maxsprites) {
@@ -1057,7 +1079,7 @@ void PPU::FetchSpriteData() {
           const int t = (int)scanline - spr->y;
           // made uint32 from uint -tom7
           uint32 vadr =
-            (Sprite16) ?
+            Sprite16 ?
             ((spr->no&1)<<12) + ((spr->no&0xFE)<<4) :
             (spr->no<<4)+vofs;
 
@@ -1074,10 +1096,10 @@ void PPU::FetchSpriteData() {
           const uint8 *C = MMC5Hack ?
             MMC5SPRVRAMADR(fc, vadr) : VRAMADR(fc, vadr);
 
-          dst.ca[0]=C[0];
-          dst.ca[1]=C[8];
-          dst.x=spr->x;
-          dst.atr=spr->atr;
+          dst.ca[0] = C[0];
+          dst.ca[1] = C[8];
+          dst.x = spr->x;
+          dst.atr = spr->atr;
 
           {
             uint32 *dest32 = (uint32 *)&dst;
@@ -1094,11 +1116,11 @@ void PPU::FetchSpriteData() {
       }
     }
   } else {
-    for (int n=63;n>=0;n--,spr++) {
-      if ((unsigned int)(scanline-spr->y)>=H) continue;
+    for (int n = 63; n >= 0; n--,spr++) {
+      if ((unsigned int)(scanline - spr->y) >= H) continue;
 
-      if (ns<maxsprites) {
-        if (n==63) sb=1;
+      if (ns < maxsprites) {
+        if (n == 63) sb = 1;
 
         {
           SPRB dst;
@@ -1152,9 +1174,9 @@ void PPU::FetchSpriteData() {
   //Handle case when >8 sprites per scanline option is enabled.
   if (ns > 8) {
     TRACELOC();
-    PPU_status|=0x20;
+    PPU_status |= 0x20;
   } else if (PPU_hook) {
-    for (int n=0;n<(8-ns);n++) {
+    for (int n = 0;n < (8 - ns); n++) {
       PPU_hook(fc, 0x2000);
       PPU_hook(fc, vofs);
     }
@@ -1163,139 +1185,153 @@ void PPU::FetchSpriteData() {
   SpriteBlurp = sb;
 }
 
+// As I understand, this takes the sprites on this line (there are
+// numsprites of them, which have already been prepared and put into
+// SPRBUF) and writes actual pixel data (plus some flags) to
+// sprlinebuf. It also sets up for the sprite 0 hit test. 
 void PPU::RefreshSprites() {
-  any_sprites_on_line=0;
+  any_sprites_on_line = 0;
   if (!numsprites) return;
 
   // Initialize the line buffer to 0x80, meaning "no pixel here."
-  FCEU_dwmemset(sprlinebuf,0x80808080,256);
+  FCEU_dwmemset(sprlinebuf, 0x80808080, 256);
+  // XXX It's weird to modify numsprites here; can we just use
+  // numsprites - 1 in the expressions below? -tom7
   numsprites--;
   SPRB *spr = (SPRB*)SPRBUF + numsprites;
 
   DEBUGF(stderr, "RefreshSprites @%d with numsprites = %d\n",
          scanline, numsprites);
-  for (int n = numsprites; n>=0; n--,spr--) {
-    int x = spr->x;
-    uint8 *C;
-    uint8 *VB;
+  for (int n = numsprites; n >= 0; n--,spr--) {
+    const int x = spr->x;
 
-    // I think the lookup table basically gets the 4 bytes
-    // of sprite data for this scanline. Since ppulut2 is
-    // ppulut1 shifted up a bit, I think we're getting
-    // 2-bit color data from the two planes ca[0] and
-    // ca[1], and that's why this is an OR. I don't
-    // understand why ca[0] and ca[1] are (can be)
-    // different though. 32 bits is 16 pixels, as expected.
-
+    // I think the lookup table basically gets the 4 bytes of sprite
+    // data for this scanline. Since ppulut2 is ppulut1 shifted up a
+    // bit, I think we're getting 2-bit color data from the two bytes
+    // ca[0] and ca[1], and that's why this is an OR. 32 bits is 16
+    // pixels, as expected. -tom7
     uint32 pixdata = ppulut1[spr->ca[0]] | ppulut2[spr->ca[1]];
 
     // So then J is like the 1-bit mask of non-zero pixels.
-    uint8 J = spr->ca[0] | spr->ca[1];
+    // This is for three things: If this line of the sprite is just background,
+    // there's nothing to do. We also save this mask as sprite_hit_mask
+    // (reversed if the sprite is horizontally flipped) to do the sprite
+    // zero hit test, if applicable. Finally, we use the bitmask to
+    // guard whether we draw the individual pixels, since background
+    // must actually be transparent.
+      
+    const uint8 J = spr->ca[0] | spr->ca[1];
 
-    uint8 atr = spr->atr;
+    const uint8 atr = spr->atr;
 
     DEBUGF(stderr, "   sp %2d: x=%d ca[%d,%d] attr %s\n",
            n, spr->x, spr->ca[0], spr->ca[1], attrbits(spr->atr).c_str());
 
     if (J) {
-      if (n==0 && SpriteBlurp && !(PPU_status&0x40)) {
-        sphitx=x;
-        sphitdata=J;
-        // reverses the mask
-        if (atr & H_FLIP)
-          sphitdata = ((J<<7)&0x80) |
-            ((J<<5)&0x40) |
-            ((J<<3)&0x20) |
-            ((J<<1)&0x10) |
-            ((J>>1)&0x08) |
-            ((J>>3)&0x04) |
-            ((J>>5)&0x02) |
-            ((J>>7)&0x01);
+      // We only check sprite hit for sprite 0.
+      if (n == 0 && SpriteBlurp && !(PPU_status & 0x40)) {
+        sprite_hit_x = x;
+        sprite_hit_mask =
+	  // bitmask J, maybe reversed if the sprite is horizontally flipped.
+	  (atr & H_FLIP) ?
+	  ((J << 7) & 0x80) |
+	  ((J << 5) & 0x40) |
+	  ((J << 3) & 0x20) |
+	  ((J << 1) & 0x10) |
+	  ((J >> 1) & 0x08) |
+	  ((J >> 3) & 0x04) |
+	  ((J >> 5) & 0x02) |
+	  ((J >> 7) & 0x01) :
+	  J;
       }
 
+      // PERF If we are in DISABLE_VIDEO we can probably skip
+      // drawing the sprite pixels themselves, since we already
+      // have enough info for the sprite 0 hit test.
+      
       // C is destination for the 8 pixels we'll write
       // on this scanline.
       // C is an array of bytes, each corresponding to
       // a pixel. The bit 0x40 is set if the pixel should
       // show behind the background. The rest of the pixels
       // come from VB (probably just the lowest two?)
-      C = sprlinebuf + x;
+      uint8 *C = sprlinebuf + x;
       // pixdata is abstract color values 0,1,2,3.
       // VB gives us an index into the palette data
       // based on the palette selector in this sprite's
       // attributes.
-      VB = (PALRAM+0x10)+((atr&3)<<2);
+      const uint8 *VB = (PALRAM + 0x10) + ((atr&3)<<2);
 
       // In back or in front of background?
       if (atr & SP_BACK) {
         // back...
 
-        if (atr&H_FLIP) {
-          if (J&0x80) C[7]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x40) C[6]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x20) C[5]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x10) C[4]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x08) C[3]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x04) C[2]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x02) C[1]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x01) C[0]=VB[pixdata]|0x40;
+        if (atr & H_FLIP) {
+          if (J & 0x80) C[7] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x40) C[6] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x20) C[5] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x10) C[4] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x08) C[3] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x04) C[2] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x02) C[1] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x01) C[0] = VB[pixdata] | 0x40;
         } else {
-          if (J&0x80) C[0]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x40) C[1]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x20) C[2]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x10) C[3]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x08) C[4]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x04) C[5]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x02) C[6]=VB[pixdata&3]|0x40;
-          pixdata>>=4;
-          if (J&0x01) C[7]=VB[pixdata]|0x40;
+          if (J & 0x80) C[0] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x40) C[1] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x20) C[2] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x10) C[3] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x08) C[4] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x04) C[5] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x02) C[6] = VB[pixdata & 3] | 0x40;
+          pixdata >>= 4;
+          if (J & 0x01) C[7] = VB[pixdata] | 0x40;
         }
       } else {
-        if (atr&H_FLIP) {
-          if (J&0x80) C[7]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x40) C[6]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x20) C[5]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x10) C[4]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x08) C[3]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x04) C[2]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x02) C[1]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x01) C[0]=VB[pixdata];
+        if (atr & H_FLIP) {
+          if (J & 0x80) C[7] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x40) C[6] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x20) C[5] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x10) C[4] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x08) C[3] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x04) C[2] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x02) C[1] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x01) C[0] = VB[pixdata];
         } else {
-          if (J&0x80) C[0]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x40) C[1]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x20) C[2]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x10) C[3]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x08) C[4]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x04) C[5]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x02) C[6]=VB[pixdata&3];
-          pixdata>>=4;
-          if (J&0x01) C[7]=VB[pixdata];
+          if (J & 0x80) C[0] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x40) C[1] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x20) C[2] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x10) C[3] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x08) C[4] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x04) C[5] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x02) C[6] = VB[pixdata & 3];
+          pixdata >>= 4;
+          if (J & 0x01) C[7] = VB[pixdata];
         }
       }
     }
@@ -1410,8 +1446,8 @@ void PPU::FCEUPPU_Reset() {
   cycle_parity = 0;
   // Used to not be saved. -tom7.
   RefreshAddrT = TempAddrT = 0;
-  sphitx = 0;
-  sphitdata = 0;
+  sprite_hit_x = 0;
+  sprite_hit_mask = 0;
   // Used to not be reset. Should be handled at initialization time now,
   // but want to prevent divergence from the object version, which
   // always initializes to 0 at creation time. -tom7
@@ -1459,14 +1495,14 @@ int PPU::FCEUPPU_Loop(int skip) {
            cycle_parity, ppudead, PPUSPL,
            RefreshAddrT, TempAddrT, VRAMBuffer,
            PPUGenLatch, pshift[0], pshift[1],
-           XOffset, vtoggle, sphitx,
-           sphitdata);
+           XOffset, vtoggle, sprite_hit_x,
+           sprite_hit_mask);
   }
 
   // Needed for Knight Rider, possibly others.
   if (ppudead) {
-    memset(fc->fceu->XBuf, 0x80, 256*240);
-    Run6502(scanlines_per_frame*(256+85));
+    memset(fc->fceu->XBuf, 0x80, 256 * 240);
+    Run6502(scanlines_per_frame * (256 + 85));
     ppudead--;
   } else {
     TRACELOC();
@@ -1505,7 +1541,7 @@ int PPU::FCEUPPU_Loop(int skip) {
       if (PPU_hook) PPU_hook(fc, RefreshAddr & 0x3fff);
     }
 
-    //Clean this stuff up later.
+    // Clean this stuff up later.
     any_sprites_on_line = numsprites = 0;
     ResetRL(fc->fceu->XBuf);
 
@@ -1611,8 +1647,8 @@ PPU::PPU(FC *fc) :
     { &PPUGenLatch, 1, "PGEN" },
     { &pshift[0], 4|FCEUSTATE_RLSB, "PSH1" },
     { &pshift[1], 4|FCEUSTATE_RLSB, "PSH2" },
-    { &sphitx, 4|FCEUSTATE_RLSB, "Psph" },
-    { &sphitdata, 1, "Pspd" },
+    { &sprite_hit_x, 4|FCEUSTATE_RLSB, "Psph" },
+    { &sprite_hit_mask, 1, "Pspd" },
   }, fc(fc) {
   // Constructor, empty.
 }

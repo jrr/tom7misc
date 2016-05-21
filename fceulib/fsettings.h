@@ -36,6 +36,8 @@
 #define FCEUS_SNDRATE 44100
 
 // Change sound quality. Looks like this can be 0, 1, or 2.
+// As of revision 2812 or so (and probably much earlier), it seems
+// to just get into an infinite loop with values > 0.
 #define FCEUS_SOUNDQ 0
 
 // Enable lowpass filter, presumably?

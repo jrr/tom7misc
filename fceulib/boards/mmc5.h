@@ -21,7 +21,6 @@ struct MMC5 final : public CartInterface {
 
  private:
 
-  // XXXX make private
   // This used to be in Cart and referenced from PPU, but I moved it
   // here in an attempt to keep MMC5 hacks in MMC5 as much as
   // possible. These are video pages (presumably sprite and bg)
