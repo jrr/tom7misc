@@ -162,17 +162,20 @@ struct PPU {
 
   // These two used to not be saved in stateinfo, but that caused execution
   // to diverge in 'Ultimate Basketball'.
-  int32 sphitx = 0;
-  uint8 sphitdata = 0;
+  int32 sprite_hit_x = 0;
+  uint8 sprite_hit_mask = 0;
 
   uint32 scanlines_per_frame = 0;
 
   uint8 PPUSPL = 0;
 
+  // These alias XBuf. Note that there is at least one meaningful read
+  // from these, to check sprite collision.
   uint8 *Pline = nullptr, *Plinef = nullptr;
   int firsttile = 0;
   int linestartts = 0;
   int tofix = 0;
+  // Temporary sprite data 
   uint8 sprlinebuf[256 + 8] = {};
 
   // Any sprites on this line? Then this will be set to 1.
@@ -186,10 +189,13 @@ struct PPU {
   // This was also static; why not save it too? -tom7
   uint32 atlatch = 0;
 
-  // Only used within RefreshLine, used to be static.
+  // Only used within RefreshLine. Prevents reentrant calls (through
+  // mappers making PPU calls).
   int norecurse = 0;
 
-  uint8 numsprites = 0, SpriteBlurp = 0;
+  uint8 numsprites = 0;
+  // TODO: Figure out what this is and give it a better name.
+  uint8 SpriteBlurp = 0;
 
   FC *fc = nullptr;
 };

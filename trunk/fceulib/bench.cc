@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
     executions++;
     total_time += sec;
     double mean = total_time / (double)executions;
-    int mtrunc = (int)(mean * 10);
+    int mtrunc = (int)(round(mean * 10.0));
     if (last_means.size() >= 5) {
       if ([&]() {
 	for (int lm : last_means) {
