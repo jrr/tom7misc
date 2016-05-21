@@ -50,6 +50,7 @@ Cleanup to do:
    MMC3 base class.
  - Move MMC5 hack variables (e.g. from PPU) into MMC5 struct as much as
    possible
+ - FRAMESKIP doesn't work. Delete.
 
 Surprisingly necessary:
  - crc32 since ines.cc has a table of games and their CRCs.

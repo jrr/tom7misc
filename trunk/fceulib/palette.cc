@@ -46,8 +46,8 @@ static constexpr PaletteEntry const *palpoint[] = {
 
 Palette::Palette(FC *fc) : fc(fc) {}
 
-void Palette::FCEUD_GetPalette(uint8 index, uint8 *r, uint8 *g,
-                               uint8 *b) const {
+void Palette::FCEUD_GetPalette(uint8 index,
+			       uint8 *r, uint8 *g, uint8 *b) const {
   *r = s_psdl[index].r;
   *g = s_psdl[index].g;
   *b = s_psdl[index].b;

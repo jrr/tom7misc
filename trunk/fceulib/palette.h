@@ -19,6 +19,9 @@ struct Palette {
   void SetNESDeemph(uint8 d, int force);
 
   // Gets the color for a particular index in the palette.
+  // Note that the index appears to take into account flags stuffed
+  // into the high bits by the PPU emulator; it is not the native
+  // NES palette. (TODO: examine what these are and document!) -tom7
   void FCEUD_GetPalette(uint8 index, uint8 *r, uint8 *g, uint8 *b) const;
 
  private:
