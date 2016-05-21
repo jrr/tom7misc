@@ -123,7 +123,10 @@ struct Sound {
   int32 tristep = 0;
 
   /* Wave length counters. */
-  int32 wlcount[4] = {0,0,0,0};
+  // Not clear whether this actually affects CPU -- might just be for
+  // wave output? But it does certainly affect the number of loops.
+  // TODO: Good one to investiate.
+  int32 wlcount[4] = {0, 0, 0, 0};
 
   /* $4017 / xx000000 */
   uint8 IRQFrameMode = 0;

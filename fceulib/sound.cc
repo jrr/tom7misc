@@ -500,6 +500,28 @@ void Sound::RDoSQ(int x) {
       CheckFreq(curfreq[x], PSG[(x << 2) | 0x1]) &&
       lengthcount[x]) {
 
+#if DISABLE_SOUND
+    int32 V = SoundTS() - ChannelBC[x];
+
+    const int32 cf = (curfreq[x] + 1) * 2;
+    int32 rc = wlcount[x];
+
+    // PERF: This can be simplified further with mod, or by jumping the
+    // whole rc each time.
+    // Look like we just need the cycle counts to be accurate at the end.
+    // -tom7
+    while (V > 0) {
+      rc--;
+      if (!rc) {
+	rc = cf;
+      }
+      V--;
+    }
+
+    RectDutyCount[x] = (RectDutyCount[x] + V) & 7;
+    wlcount[x] = rc;
+
+#else
     int32 amp = 
       (EnvUnits[x].Mode & 0x1) ? EnvUnits[x].Speed : EnvUnits[x].decvolume;
 
@@ -530,9 +552,7 @@ void Sound::RDoSQ(int x) {
     // Look like we just need the cycle counts to be accurate at the end.
     // -tom7
     while (V > 0) {
-#if true || !DISABLE_SOUND
       if (currdc < rthresh) *D += amp;
-#endif
       rc--;
       if (!rc) {
 	rc = cf;
@@ -544,7 +564,7 @@ void Sound::RDoSQ(int x) {
 
     RectDutyCount[x] = currdc;
     wlcount[x] = rc;
-
+#endif
   }
   ChannelBC[x] = SoundTS();
 }
