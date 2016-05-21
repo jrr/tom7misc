@@ -50,7 +50,8 @@
 #include "driver.h"
 #include "fsettings.h"
 
-#if ENABLE_AOT
+// Disabled so that I can run comprehensive tests.
+#if false && ENABLE_AOT
 // XXX get from some generated header...
 extern void mario_Run(FC *fc, int32 cycles);
 #define Run6502(c) mario_Run(fc, c)
