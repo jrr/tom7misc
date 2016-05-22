@@ -226,15 +226,15 @@ bool FCEU::FCEUI_Initialize() {
 }
 
 // Emulates a single frame.
-// Skip may be passed in, if FRAMESKIP is #defined, to cause this to
-// emulate more than one frame
-// skip initiates frame skip if 1, or frame skip and sound skip if 2
+// "skip" no longer does anything for PPU; I'm trying to accomplish this
+// with compile-time flags instead. Probably should remove it entirely.
+//  -tom7
 void FCEU::FCEUI_Emulate(int skip) {
   fc->input->FCEU_UpdateInput();
 
   // fprintf(stderr, "ppu loop..\n");
 
-  (void)fc->ppu->FCEUPPU_Loop(skip);
+  fc->ppu->FrameLoop();
 
   // fprintf(stderr, "sound thing loop skip=%d..\n", skip);
 
@@ -307,11 +307,11 @@ void FCEU::FCEU_ResetVidSys() {
     w = fsettings_pal;
 
   PAL = !!w;
-  fc->ppu->FCEUPPU_SetVideoSystem(w);
+  fc->ppu->SetVideoSystem(w);
   fc->sound->SetSoundVariables();
 }
 
-void FCEU::FCEUI_SetVidSystem(int a) {
+void FCEU::SetVidSystem(int a) {
   fsettings_pal = a ? 1 : 0;
   if (GameInfo) {
     FCEU_ResetVidSys();

@@ -230,7 +230,7 @@ void Cart::setprg32(uint32 A, uint32 V) {
 
 void Cart::setchr1r(int r, unsigned int A, unsigned int V) {
   if (!CHRptr[r]) return;
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   V &= CHRmask1[r];
   if (CHRram[r])
     fc->ppu->PPUCHRRAM |= (1 << (A >> 10));
@@ -241,7 +241,7 @@ void Cart::setchr1r(int r, unsigned int A, unsigned int V) {
 
 void Cart::setchr2r(int r, unsigned int A, unsigned int V) {
   if (!CHRptr[r]) return;
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   V &= CHRmask2[r];
   VPage[A >> 10] = VPage[(A >> 10) + 1] = &CHRptr[r][V << 11] - A;
   if (CHRram[r])
@@ -252,7 +252,7 @@ void Cart::setchr2r(int r, unsigned int A, unsigned int V) {
 
 void Cart::setchr4r(int r, unsigned int A, unsigned int V) {
   if (!CHRptr[r]) return;
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   V &= CHRmask4[r];
   VPage[A >> 10] = VPage[(A >> 10) + 1] = VPage[(A >> 10) + 2] =
       VPage[(A >> 10) + 3] = &CHRptr[r][V << 12] - A;
@@ -264,7 +264,7 @@ void Cart::setchr4r(int r, unsigned int A, unsigned int V) {
 
 void Cart::setchr8r(int r, unsigned int V) {
   if (!CHRptr[r]) return;
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   V &= CHRmask8[r];
   for (int x = 7; x >= 0; x--) VPage[x] = &CHRptr[r][V << 13];
   if (CHRram[r])
@@ -300,25 +300,25 @@ void Cart::setvram4(uint32 A, uint8 *p) {
 }
 
 void Cart::setvramb1(uint8 *p, uint32 A, uint32 b) {
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   VPage[A >> 10] = p - A + (b << 10);
   fc->ppu->PPUCHRRAM |= (1 << (A >> 10));
 }
 
 void Cart::setvramb2(uint8 *p, uint32 A, uint32 b) {
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   VPage[(A >> 10)] = VPage[(A >> 10) + 1] = p - A + (b << 11);
   fc->ppu->PPUCHRRAM |= (3 << (A >> 10));
 }
 
 void Cart::setvramb4(uint8 *p, uint32 A, uint32 b) {
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   for (int x = 3; x >= 0; x--) VPage[(A >> 10) + x] = p - A + (b << 12);
   fc->ppu->PPUCHRRAM |= (15 << (A >> 10));
 }
 
 void Cart::setvramb8(uint8 *p, uint32 b) {
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   for (int x = 7; x >= 0; x--) VPage[x] = p + (b << 13);
   fc->ppu->PPUCHRRAM |= 255;
 }
@@ -326,14 +326,14 @@ void Cart::setvramb8(uint8 *p, uint32 b) {
 /* This function can be called without calling SetupCartMirroring(). */
 
 void Cart::setntamem(uint8 *p, int ram, uint32 b) {
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   fc->ppu->vnapage[b] = p;
   fc->ppu->PPUNTARAM &= ~(1 << b);
   if (ram) fc->ppu->PPUNTARAM |= 1 << b;
 }
 
 void Cart::setmirrorw(int a, int b, int c, int d) {
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   fc->ppu->vnapage[0] = fc->ppu->NTARAM + a * 0x400;
   fc->ppu->vnapage[1] = fc->ppu->NTARAM + b * 0x400;
   fc->ppu->vnapage[2] = fc->ppu->NTARAM + c * 0x400;
@@ -341,7 +341,7 @@ void Cart::setmirrorw(int a, int b, int c, int d) {
 }
 
 void Cart::setmirror(int t) {
-  fc->ppu->FCEUPPU_LineUpdate();
+  fc->ppu->LineUpdate();
   if (!mirrorhard) {
     switch (t) {
     case MI_H:

@@ -14,16 +14,20 @@ struct PPU {
 
   void FCEUPPU_Reset();
   void FCEUPPU_Power();
-  int FCEUPPU_Loop(int skip);
+  // Runs one frame. The CPU is driven by the PPU timing.
+  void FrameLoop();
 
-  void FCEUPPU_LineUpdate();
-  void FCEUPPU_SetVideoSystem(int w);
+  void LineUpdate();
+  void SetVideoSystem(int w);
 
   void FCEUPPU_SaveState();
   void FCEUPPU_LoadState(int version);
 
-  // 0 to keep 8-sprites limitation, 1 to remove it
-  void FCEUI_DisableSpriteLimitation(int a);
+  // 0 to keep 8-sprites limitation, 1 to remove it.
+  // Note that this does appear to affect the CPU behavior
+  // (calling hooks, especially MMC5), not just remove
+  // graphical glitches. -tom7
+  void DisableSpriteLimitation(int a);
 
 
   void (*PPU_hook)(FC *, uint32 A) = nullptr;
@@ -36,6 +40,7 @@ struct PPU {
   uint8 SPRAM[0x100] = {};
   // for 0x4/0x8/0xC addresses in palette, the ones in
   // 0x20 are 0 to not break fceu rendering.
+  // XXX dead?
   uint8 UPALRAM[0x03] = {};
 
   // X scroll offset within the first tile (0-7)

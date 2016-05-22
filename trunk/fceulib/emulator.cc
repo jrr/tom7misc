@@ -60,6 +60,41 @@ uint64 Emulator::ImageChecksum() {
   return MD5ToChecksum(digest);
 }
 
+uint64 Emulator::CPUStateChecksum() {
+  md5_context ctx;
+  md5_starts(&ctx);
+  // Be insensitive to endianness here.
+  uint8 pc_high = fc->X->reg_PC >> 8;
+  uint8 pc_low = fc->X->reg_PC & 0xFF;
+  md5_update(&ctx, &pc_high, 1);
+  md5_update(&ctx, &pc_low, 1);
+  md5_update(&ctx, &fc->X->reg_A, 1);
+  md5_update(&ctx, &fc->X->reg_X, 1);
+  md5_update(&ctx, &fc->X->reg_Y, 1);
+  md5_update(&ctx, &fc->X->reg_S, 1);
+  md5_update(&ctx, &fc->X->reg_P, 1);
+  // Not including PI, which I think is an implementation detail.
+  // counts are also excluded.
+  md5_update(&ctx, &fc->X->DB, 1);
+
+  // Status registers
+  md5_update(&ctx, fc->ppu->PPU_values, 4);
+  // Nametable and palette. I think that these can just be read
+  // directly, but for sure the nametable can be tested using
+  // sprite 0 hit.
+  md5_update(&ctx, fc->ppu->NTARAM, 0x800);
+  md5_update(&ctx, fc->ppu->PALRAM, 0x20);
+  //
+  // This is observable through roundabout means (sprite 0 hit,
+  // putting 8+ sprites on a scanline), but also can be read using
+  // OAMDATA.
+  md5_update(&ctx, fc->ppu->SPRAM, 0x100);
+  
+  uint8 digest[16];
+  md5_finish(&ctx, digest);
+  return MD5ToChecksum(digest);
+}
+
 /**
  * Initialize all of the subsystem drivers: video, audio, and joystick.
  */
@@ -75,7 +110,7 @@ bool Emulator::DriverInitialize(FCEUGI *gi) {
   // No fourscore support.
   // eoptions &= ~EO_FOURSCORE;
 
-  fc->sound->FCEUI_InitSound();
+  fc->sound->InitSound();
 
   // Why do both point to the same joydata? -tom
   fc->input->FCEUI_SetInput(0, SI_GAMEPAD, &joydata, 0);
@@ -107,12 +142,11 @@ bool Emulator::LoadGame(const string &path) {
     return false;
   }
 
-
   // Set NTSC (1 = pal). Note that cartridges don't contain this information
   // and some parts of the code tried to figure it out from the presence of
   // (e) or (pal) in the ROM's *filename*. Maybe should be part of the external
   // intface.
-  fc->fceu->FCEUI_SetVidSystem(GIV_NTSC);
+  fc->fceu->SetVidSystem(GIV_NTSC);
 
   return true;
 }
@@ -154,10 +188,11 @@ Emulator *Emulator::Create(const string &romfile) {
   fc->palette->ResetPalette();
 
   // Set NTSC (1 = pal)
-  fc->fceu->FCEUI_SetVidSystem(GIV_NTSC);
+  fc->fceu->SetVidSystem(GIV_NTSC);
 
-  // Default.
-  fc->ppu->FCEUI_DisableSpriteLimitation(1);
+  // Default. Maybe this should be off, though, as it does appear to
+  // affect the CPU (and anyway makes things slower). -tom7  22 May 2016
+  fc->ppu->DisableSpriteLimitation(1);
 
   Emulator *emu = new Emulator(fc);
   // Load the game.

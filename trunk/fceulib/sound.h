@@ -48,15 +48,20 @@ struct EXPSOUND {
 struct Sound {
   explicit Sound(FC *fc);
 
-  int32 Wave[2048+512] = {};
+  int32 Wave[2048 + 512] = {};
   int32 WaveHi[40000] = {};
-  int32 WaveFinal[2048+512] = {};
+  int32 WaveFinal[2048 + 512] = {};
 
   EXPSOUND GameExpSound;
 
   int32 nesincsize = 0;
 
+  // Initialize sound constants. Sampling rate comes from fsettings.h.
+  // These two do the same thing and probably can be merged, but are
+  // we calling it twice for no reason? -tom7
+  void InitSound();
   void SetSoundVariables();
+
   int GetSoundBuffer(int32 **bufptr);
   int FlushEmulateSound();
 
@@ -72,15 +77,12 @@ struct Sound {
   void FCEUSND_SaveState();
   void FCEUSND_LoadState(int version);
 
-  // Initialize sound constants. Sampling rate comes from fsettings.h.
-  void FCEUI_InitSound();
-
   // Called every CPU frame to update sound.
-  void FCEU_SoundCPUHook(int);
+  void SoundCPUHook(int);
 
   // This block for experimental AOT support. If it doesn't stay, can
   // be made private / deleted.
-  void FCEU_SoundCPUHookNoDMA(int);
+  void SoundCPUHookNoDMA(int);
   void DMCDMA();
   
   const std::vector<SFORMAT> &FCEUSND_STATEINFO() {

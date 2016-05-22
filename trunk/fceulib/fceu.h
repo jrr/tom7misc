@@ -77,7 +77,7 @@ struct FCEU {
   void PowerNES();
 
   // Set video system a=0 NTSC, a=1 PAL
-  void FCEUI_SetVidSystem(int a);
+  void SetVidSystem(int a);
 
   // returns null if it failed
   FCEUGI *FCEUI_LoadGame(const char *filename, int OverwriteVidMode);

@@ -368,7 +368,7 @@ void Sound::DMCDMA() {
   }
 }
 
-void Sound::FCEU_SoundCPUHookNoDMA(int cycles) {
+void Sound::SoundCPUHookNoDMA(int cycles) {
   fhcnt -= cycles * 48;
   if (fhcnt <= 0) {
     FrameSoundUpdate();
@@ -376,7 +376,7 @@ void Sound::FCEU_SoundCPUHookNoDMA(int cycles) {
   }
 }
 
-void Sound::FCEU_SoundCPUHook(int cycles) {
+void Sound::SoundCPUHook(int cycles) {
   fhcnt -= cycles * 48;
   if (fhcnt <= 0) {
     FrameSoundUpdate();
@@ -889,7 +889,7 @@ void Sound::RDoNoise() {
         uint8 feedback = ((nreg >> 13) & 1) ^ ((nreg >> 14) & 1);
         nreg = (nreg << 1) + feedback;
         nreg &= 0x7fff;
-        outo = amptab[(nreg >> 0xe) & 1];
+        outo = amptab[(nreg >> 0xE) & 1];
       }
     }
   }
@@ -937,13 +937,17 @@ int Sound::FlushEmulateSound() {
   (this->*DoNoise)();
   (this->*DoPCM)();
 
-  // PERF -- if sound is disabled, don't run filters, don't output.
-  // This function is called once per frame.
+  // If sound is disabled, we won't bother filling in the wave, but
+  // we do call any GameExpSound (since those could definitely
+  // affect the CPU).
+  
   if (FCEUS_SOUNDQ >= 1) {
     int32 *tmpo = &WaveHi[soundtsoffs];
-
+    (void)tmpo;
+    
     if (GameExpSound.HiFill) GameExpSound.HiFill(fc);
 
+#if !DISABLE_SOUND
     for (int x = fc->X->timestamp; x; x--) {
       uint32 b = *tmpo;
       *tmpo = (b & 65535) + wlookup2[(b >> 16) & 255] + wlookup1[b >> 24];
@@ -953,19 +957,21 @@ int Sound::FlushEmulateSound() {
 
     memmove(WaveHi, WaveHi + SoundTS() - left, left * sizeof(uint32));
     memset(WaveHi + left, 0, sizeof(WaveHi) - left * sizeof(uint32));
-
+#endif
+    
     if (GameExpSound.HiSync) GameExpSound.HiSync(fc, left);
     for (int x = 0; x < 5; x++) ChannelBC[x] = left;
   } else {
     end = (SoundTS() << 16) / soundtsinc;
     if (GameExpSound.Fill) GameExpSound.Fill(fc, end & 0xF);
-
+#if !DISABLE_SOUND
     fc->filter->SexyFilter(Wave, WaveFinal, end >> 4);
 
     // if (FCEUS_LOWPASS)
     // SexyFilter2(WaveFinal,end>>4);
     if (end & 0xF) Wave[0] = Wave[(end >> 4)];
     Wave[end >> 4] = 0;
+#endif
   }
 nosoundo:
 
@@ -1102,7 +1108,7 @@ void Sound::SetSoundVariables() {
                (FCEUS_SNDRATE * 16));
 }
 
-void Sound::FCEUI_InitSound() {
+void Sound::InitSound() {
   SetSoundVariables();
 }
 

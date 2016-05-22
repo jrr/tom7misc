@@ -1013,9 +1013,9 @@ bool INes::iNESLoad(const char *name, FceuFile *fp, int OverwriteVidMode) {
         || strstr(name,"(F)") || strstr(name,"(f)")
         || strstr(name,"(G)") || strstr(name,"(g)")
         || strstr(name,"(I)") || strstr(name,"(i)")) {
-      fc->fceu->FCEUI_SetVidSystem(1);
+      fc->fceu->SetVidSystem(1);
     } else {
-      fc->fceu->FCEUI_SetVidSystem(0);
+      fc->fceu->SetVidSystem(0);
     }
   }
 

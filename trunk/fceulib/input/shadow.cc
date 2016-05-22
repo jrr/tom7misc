@@ -87,7 +87,7 @@ struct SpaceShadow : public InputCFC {
   }
 
   inline int CheckColor() {
-    fc->ppu->FCEUPPU_LineUpdate();
+    fc->ppu->LineUpdate();
     return !((ZD.zaphit + 10) >= (fc->fceu->timestampbase + fc->X->timestamp));
   }
 

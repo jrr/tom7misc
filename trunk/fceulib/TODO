@@ -12,6 +12,10 @@ $ "/c/Program Files (x86)/Microsoft Concurrency Visualizer Collection Tools/CVCo
       A little left over in:
       ines.cc  ..?
 
+ - Port smeight post-facto approximate PPU to emulator.cc. This allows
+   rendering an approximate video frame even when DISABLE_VIDEO is
+   true, which is pretty much what we want for stuff like pftwo.
+
 Can get rid of:
  - ines.cpp "trainerpoo"
  - file wrappers can be massively simplified
@@ -20,6 +24,7 @@ Can get rid of:
  - NSF code in mapper.h and the uncalled functions therein?
  - use of 'char' instead of uint8 for single-byte flags, etc. There were
    some in sound.cc and I didn't scrub the rest.
+ - PPU::UPALRAM is dead?
 
 Memory todo:
  - Need to check that various objects are actually having their Free or Kill
@@ -50,7 +55,8 @@ Cleanup to do:
    MMC3 base class.
  - Move MMC5 hack variables (e.g. from PPU) into MMC5 struct as much as
    possible
- - FRAMESKIP doesn't work. Delete.
+ - Remove FCEUSND_ and related prefixes where obvious (because everything
+   is FCEU, and SND_ is already evident from the class name).
 
 Surprisingly necessary:
  - crc32 since ines.cc has a table of games and their CRCs.
@@ -61,6 +67,13 @@ Surprisingly necessary:
 
 
 Possible performance improvements:
+ - Some notion of save state that affects CPU behavior and state that
+   does not (e.g. XBuf). Might just be through defines, but it would
+   be neat if these could coexist.
+
+ - DISABLE_VIDEO
+ - DISABLE_SOUND in FlushEmulateSound
+ 
  - Can the ZNTable be replaced with a computation on the value itself?
    See my comment in x6502.cc.
 
@@ -74,6 +87,9 @@ Possible performance improvements:
    (inlined into x6502) per mapper configuration.
 
  - JIT or AOT compile x6502 code to x86 and optimize.
+   - lots of improvements to do in AOT.
+
+ - nothing_safetynet in cart can probably go. I think I figured it out.
 
  - Is uint8 nothing[8192] = {}; necessary in MMC5? Can it be smaller?
 
