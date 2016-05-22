@@ -2890,7 +2890,7 @@ struct AOT {
 
 	CHECK(!config.has_map_irq_hook) << "Not supported (yet)?";
 	// PERF Can remove/simplify calls to sound hook?
-	fprintf(f, I "  sound->FCEU_SoundCPUHook(temp);\n");
+	fprintf(f, I "  sound->SoundCPUHook(temp);\n");
 
 	if (config.effectless_read_8000_ffff) {
 	  // See above, except DB may be written, so restore that.

@@ -735,7 +735,7 @@ int FDS::FDSLoad(const char *name, FceuFile *fp) {
 
   FCEU_printf(" Sides: %d\n\n",TotalSides);
 
-  fc->fceu->FCEUI_SetVidSystem(0);
+  fc->fceu->SetVidSystem(0);
 
   return 1;
 }

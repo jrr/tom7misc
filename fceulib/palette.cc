@@ -73,8 +73,6 @@ void Palette::SetNESDeemph(uint8 d, int force) {
       (uint16)(32768 * 1.277), (uint16)(32768 * .979), (uint16)(32768 * .101),
       (uint16)(32768 * .75)};
 
-  uint32 r, g, b;
-
   /* If it's not forced (only forced when the palette changes), don't
      waste cpu time if the same deemphasis bits are set as the last
      call. */
@@ -84,9 +82,9 @@ void Palette::SetNESDeemph(uint8 d, int force) {
     }
   } else {
     /* Only set this when palette has changed. */
-    r = rtmul[6];
-    g = rtmul[6];
-    b = rtmul[6];
+    uint32 r = rtmul[6];
+    uint32 g = rtmul[6];
+    uint32 b = rtmul[6];
 
     for (int x = 0; x < 0x40; x++) {
       uint32 m = palo[x].r;
@@ -103,9 +101,9 @@ void Palette::SetNESDeemph(uint8 d, int force) {
   }
   if (!d) return; /* No deemphasis, so return. */
 
-  r = rtmul[d - 1];
-  g = gtmul[d - 1];
-  b = btmul[d - 1];
+  uint32 r = rtmul[d - 1];
+  uint32 g = gtmul[d - 1];
+  uint32 b = btmul[d - 1];
 
   for (int x = 0; x < 0x40; x++) {
     uint32 m = palo[x].r;
@@ -121,6 +119,8 @@ void Palette::SetNESDeemph(uint8 d, int force) {
     FCEUD_SetPalette(x | 0x40, m, n, o);
   }
 
+  // PERF: Maybe should update lastd always? If d is 0, we already
+  // exited. -tom7
   lastd = d;
 }
 

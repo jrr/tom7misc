@@ -190,10 +190,10 @@ int Unif::TVCI(FceuFile *fp) {
                                                     "NTSC and PAL"};
     if (t == 0) {
       fc->fceu->GameInfo->vidsys = GIV_NTSC;
-      fc->fceu->FCEUI_SetVidSystem(0);
+      fc->fceu->SetVidSystem(0);
     } else if (t == 1) {
       fc->fceu->GameInfo->vidsys = GIV_PAL;
-      fc->fceu->FCEUI_SetVidSystem(1);
+      fc->fceu->SetVidSystem(1);
     }
     FCEU_printf(" TV Standard Compatibility: %s\n", stuffo[t]);
   }

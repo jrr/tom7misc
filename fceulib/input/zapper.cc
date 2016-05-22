@@ -50,7 +50,7 @@ struct ZapperBase : public InputC {
 
   inline int CheckColor(int w) {
     CHECK(w == which);
-    fc->ppu->FCEUPPU_LineUpdate();
+    fc->ppu->LineUpdate();
 
     if ((ZD.zaphit + 100) >=
         (fc->fceu->timestampbase + fc->X->timestamp)) {

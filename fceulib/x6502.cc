@@ -725,7 +725,7 @@ void X6502::RunLoop() {
     int32 temp = tcount;
     tcount = 0;
     if (MapIRQHook) MapIRQHook(fc, temp);
-    fc->sound->FCEU_SoundCPUHook(temp);
+    fc->sound->SoundCPUHook(temp);
     reg_PC++;
     TRACEN(b1);
     switch (b1) {

@@ -71,7 +71,16 @@ struct Emulator {
   // of RAM (only). Note there are other important bits of state.
   uint64 RamChecksum();
   // Same, of the RGBA image. We only look at 240 scanlines here.
+  // Note that the image checksum can only be computed if compiling
+  // without DISABLE_VIDEO and after calling StepFull.
   uint64 ImageChecksum();
+  // Checksum for CPU (and PPU) state. This includes real state like
+  // the registers, but not internal emulation state like timing
+  // counters (to facilitate testing changes to the way emulation
+  // works) or video state that cannot be inspected (to facilitate
+  // excising code paths that don't affect CPU execution). Should
+  // usually be paired with RamChecksum.
+  uint64 CPUStateChecksum();
 
   // States often only differ by a small amount, so a way to reduce
   // their entropy is to diff them against a representative savestate.

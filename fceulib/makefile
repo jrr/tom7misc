@@ -8,7 +8,7 @@ all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-co
 # -Wstrict-overflow=3
 # -std=c++11
 # XXXXXXX disable sound should not be on by default.
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -DDISABLE_SOUND=1
+CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include # -DDISABLE_SOUND=1 -DDISABLE_VIDEO=1
 # XXX -O2
 OPT=-g -O2  # -O3 -fno-strict-aliasing
 # try -flto!
@@ -45,12 +45,12 @@ endif
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
 # otherwise treats -n literally.)
 %.o : %.cc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DENABLE_AOT=1 -c -o $@ $<
-#	@bash -c "echo -n '.'"
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DENABLE_AOT=1 -c -o $@ $<
+	@bash -c "echo -n '.'"
 
 %-noaot.o : %.cc
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
-#	@bash -c "echo -n ':'"
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@bash -c "echo -n ':'"
 
 # If you don't have SDL, you can leave these out, and maybe it still works.
 LINKSDL= -mno-cygwin -lm -luser32 -lgdi32 -lwinmm -ldxguid

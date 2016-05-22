@@ -59,20 +59,27 @@ struct Game {
   uint64 after_random;
   uint64 image_after_inputs;
   uint64 image_after_random;
+  uint64 cpu_after_inputs;
+  uint64 cpu_after_random;
+  
   string random_seed = "randoms";
   Game(const string &c, const vector<uint8> &i,
        uint64 al, uint64 ai, uint64 ar,
-       uint64 iai, uint64 iar) :
+       uint64 iai, uint64 iar,
+       uint64 cai, uint64 car) :
     cart(c), inputs(i), after_load(al),
     after_inputs(ai), after_random(ar),
-    image_after_inputs(iai), image_after_random(iar) {}
+    image_after_inputs(iai), image_after_random(iar),
+    cpu_after_inputs(cai), cpu_after_random(car) {}
   Game(const string &c, const vector<uint8> &i,
        uint64 al, uint64 ai, uint64 ar,
        uint64 iai, uint64 iar,
+       uint64 cai, uint64 car,
        const string &seed) :
     cart(c), inputs(i), after_load(al),
     after_inputs(ai), after_random(ar),
     image_after_inputs(iai), image_after_random(iar),
+    cpu_after_inputs(cai), cpu_after_random(car),
     random_seed(seed) {}
 };
 
@@ -224,17 +231,13 @@ struct SerialResult {
   uint64 after_random = 0ULL;
   uint64 image_after_inputs = 0ULL;
   uint64 image_after_random = 0ULL;
+  uint64 cpu_after_inputs = 0ULL;
+  uint64 cpu_after_random = 0ULL;
   // Only in FULL+ mode.
   vector<uint8> final_image;
 };
 
-
-#if 0
-template<class T> FreeInParallel(vector<T> *v) {
-
-}
-#endif
-
+// TODO: Add running checksums of ram, cpu.
 static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
                                     const Game &game) {
   // XXX
@@ -398,9 +401,11 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
   for (uint8 b : game.inputs) SaveAndStep(b);
   const uint64 ret1 = emu->RamChecksum();
   const uint64 iret1 = emu->ImageChecksum();
+  const uint64 cret1 = emu->CPUStateChecksum();
   if (!MAKE_COMPREHENSIVE) {
     CHECK_RAM(game.after_inputs);
     CHECK_EQ(game.image_after_inputs, iret1) << iret1;
+    // XXX check cpu state
   }
   TRACEF("after_inputs %llu.", emu->RamChecksum());
 
@@ -414,9 +419,11 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
   // This is checked by the comprehensive driver, or should be.
   const uint64 ret2 = emu->RamChecksum();
   const uint64 iret2 = emu->ImageChecksum();
+  const uint64 cret2 = emu->CPUStateChecksum();
   if (!MAKE_COMPREHENSIVE) {
     CHECK_RAM(game.after_random);
     CHECK_EQ(game.image_after_random, iret2) << iret2;
+    // XXX check cpu state
   }
   // TRACEF("after_random %llu.", emu->RamChecksum());
 
@@ -500,7 +507,9 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
   sr.after_random = ret2;
   sr.image_after_inputs = iret1;
   sr.image_after_random = iret2;
-
+  sr.cpu_after_inputs = cret1;
+  sr.cpu_after_random = cret2;
+  
   if (false)
   if (FULL && images.size() > 0) {
     sr.final_image = std::move(images[images.size() - 1]);
@@ -602,7 +611,8 @@ int main(int argc, char **argv) {
   // First, ensure that we have preserved the single-threaded
   // behavior.
 
-  #if 1
+  // XXX Need to add CPU checksums to these.
+  #if 0
   // Regression -- Tengen cart wasn't saving all its state.
   Game skull{
     "skull.nes",
@@ -837,7 +847,7 @@ int main(int argc, char **argv) {
 
   TRACE_ENABLE();
 
-  #if 1
+  #if 0
   // Only run the intro tests for the first index in
   // sharded comprehensive mode.
   if (!MAKE_COMPREHENSIVE) {
@@ -898,6 +908,8 @@ int main(int argc, char **argv) {
             after_random,
             image_after_inputs,
             image_after_random,
+	    // XXX!!
+	    0ULL, 0ULL,
             };
         const SerialResult sr = RunGameSerially(Update, game);
         Update("About to grab done lock.");

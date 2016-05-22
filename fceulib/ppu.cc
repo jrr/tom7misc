@@ -252,7 +252,7 @@ DECLFR_RET PPU::A2002(DECLFR_ARGS) {
 DECLFR_RET PPU::A2002_Direct(DECLFR_ARGS) {
   TRACEF("A2002 %d", PPU_status);
 
-  FCEUPPU_LineUpdate();
+  LineUpdate();
   uint8 ret = PPU_status;
   TRACEN(ret);
 
@@ -271,7 +271,7 @@ DECLFR_RET PPU::A2004(DECLFR_ARGS) {
 }
 // static
 DECLFR_RET PPU::A2004_Direct(DECLFR_ARGS) {
-  FCEUPPU_LineUpdate();
+  LineUpdate();
   return PPUGenLatch;
 }
 
@@ -281,7 +281,7 @@ DECLFR_RET PPU::A200x(DECLFR_ARGS) {
 }
 // static
 DECLFR_RET PPU::A200x_Direct(DECLFR_ARGS) {
-  FCEUPPU_LineUpdate();
+  LineUpdate();
   return PPUGenLatch;
 }
 
@@ -292,7 +292,7 @@ DECLFR_RET PPU::A2007(DECLFR_ARGS) {
 DECLFR_RET PPU::A2007_Direct(DECLFR_ARGS) {
   uint32 tmp = RefreshAddr & 0x3FFF;
 
-  FCEUPPU_LineUpdate();
+  LineUpdate();
 
   uint8 ret = VRAMBuffer;
 
@@ -345,7 +345,7 @@ static DECLFW(B2000) {
 void PPU::B2000_Direct(DECLFW_ARGS) {
   //    FCEU_printf("%04x:%02x, (%d) %02x, %02x\n",A,V,scanline,PPU_values[0],PPU_status);
 
-  FCEUPPU_LineUpdate();
+  LineUpdate();
   PPUGenLatch=V;
   if (!(PPU_values[0]&0x80) && (V&0x80) && (PPU_status&0x80)) {
     //     FCEU_printf("Trigger NMI, %d, %d\n",timestamp,ppudead);
@@ -362,7 +362,7 @@ static DECLFW(B2001) {
 // static
 void PPU::B2001_Direct(DECLFW_ARGS) {
   //printf("%04x:$%02x, %d\n",A,V,scanline);
-  FCEUPPU_LineUpdate();
+  LineUpdate();
   PPUGenLatch=V;
   PPU_values[1]=V;
   if (V&0xE0)
@@ -423,7 +423,7 @@ void PPU::B2005_Direct(DECLFW_ARGS) {
   // This page is great for understanding all this weird stuff:
   // http://wiki.nesdev.com/w/index.php/PPU_scrolling
   uint32 tmp = TempAddr;
-  FCEUPPU_LineUpdate();
+  LineUpdate();
   PPUGenLatch = V;
   if (!vtoggle) {
     // x scroll offset
@@ -460,7 +460,7 @@ void PPU::B2006_Direct(DECLFW_ARGS) {
   //
   // Note that both 2005 and 2006 modify the TempAddr; they
   // just map the inputs differently.
-  FCEUPPU_LineUpdate();
+  LineUpdate();
 
   PPUGenLatch=V;
   if (!vtoggle) {
@@ -528,11 +528,11 @@ void PPU::ResetRL(uint8 *target) {
   firsttile=0;
   linestartts = fc->X->timestamp * 48 + fc->X->count;
   tofix = 0;
-  FCEUPPU_LineUpdate();
+  LineUpdate();
   tofix=1;
 }
 
-void PPU::FCEUPPU_LineUpdate() {
+void PPU::LineUpdate() {
   if (Pline) {
     const int l = (fc->fceu->PAL ?
                    ((fc->X->timestamp*48-linestartts)/15) :
@@ -703,7 +703,7 @@ void PPU::RefreshLine(int lastpixel) {
 
   /* Yeah, recursion would be bad. PPU_hook() functions can call
      mirroring/chr bank switching functions, which call
-     FCEUPPU_LineUpdate, which call this function. */
+     LineUpdate, which call this function. */
   if (norecurse) return;
 
   TRACEF("RefreshLine %d %u %u %u %u %d",
@@ -755,6 +755,15 @@ void PPU::RefreshLine(int lastpixel) {
   }
 
   // Priority bits, needed for sprite emulation.
+  //
+  // I think these are the 0 entries for each palette, so this is a
+  // trick to make sure we set bit 0x40 in XBuf when we've rendered
+  // background, which is used for the sprite 0 hit, among other
+  // things. Note that we OR PALRAM[0] with 0x40 anyway in several
+  // places. Could maybe move this up and take advantage. I'd prefer
+  // not temporarily modifying this array, though. (It may also work
+  // to just keep these bits always set as a representation
+  // invariant? 6502 CPU may be able to read from PALRAM, though.) -tom7
   PALRAM[0]|=64;
   PALRAM[4]|=64;
   PALRAM[8]|=64;
@@ -833,6 +842,7 @@ void PPU::RefreshLine(int lastpixel) {
   TRACEA(PPU_values, 4);
 
   // Reverse changes made before.
+  // (Note this also clears 7th bit -tom7)
   PALRAM[0] &= 63;
   PALRAM[4] &= 63;
   PALRAM[8] &= 63;
@@ -1038,7 +1048,7 @@ STATIC_ASSERT(sizeof (SPR) == 4, spr_size);
 STATIC_ASSERT(sizeof (SPRB) == 4, sprb_size);
 STATIC_ASSERT(sizeof (uint32) == 4, uint32_size);
 
-void PPU::FCEUI_DisableSpriteLimitation(int a) {
+void PPU::DisableSpriteLimitation(int a) {
   maxsprites = a ? 64 : 8;
 }
 
@@ -1142,7 +1152,7 @@ void PPU::FetchSpriteData() {
 	}
 
 	const uint8 *C = MMC5Hack ?
-	  MMC5SPRVRAMADR(fc, vadr): VRAMADR(fc, vadr);
+	  MMC5SPRVRAMADR(fc, vadr) : VRAMADR(fc, vadr);
 	dst.ca[0] = C[0];
 	if (ns < 8) {
 	  PPU_hook(fc, 0x2000);
@@ -1430,12 +1440,8 @@ void PPU::CopySprites(uint8 *target) {
   } while (n);
 }
 
-void PPU::FCEUPPU_SetVideoSystem(int is_pal) {
-  if (is_pal) {
-    scanlines_per_frame = 312;
-  } else {
-    scanlines_per_frame = 262;
-  }
+void PPU::SetVideoSystem(int is_pal) {
+  scanlines_per_frame = is_pal ? 312 : 262;
 }
 
 
@@ -1486,7 +1492,7 @@ void PPU::FCEUPPU_Power() {
   fc->fceu->BWrite[0x4014] = B4014;
 }
 
-int PPU::FCEUPPU_Loop(int skip) {
+void PPU::FrameLoop() {
   if (true) {
     TRACE_SCOPED_ENABLE_IF(true);
     TRACEFUN();
@@ -1509,7 +1515,7 @@ int PPU::FCEUPPU_Loop(int skip) {
     ppudead--;
   } else {
     TRACELOC();
-    Run6502(256+85);
+    Run6502(256 + 85);
     TRACEA(fc->fceu->RAM, 0x800);
 
     PPU_status |= 0x80;
@@ -1518,7 +1524,7 @@ int PPU::FCEUPPU_Loop(int skip) {
     // According to Matt Conte and my own tests, it is.
     // Timing is probably off, though.
     // NOTE:  Not having this here breaks a Super Donkey Kong game.
-    PPU_values[3]=PPUSPL=0;
+    PPU_values[3] = PPUSPL = 0;
 
     // I need to figure out the true nature and length of this delay.
     Run6502(12);
@@ -1526,21 +1532,25 @@ int PPU::FCEUPPU_Loop(int skip) {
     if (VBlankON)
       fc->X->TriggerNMI();
 
-    Run6502((scanlines_per_frame-242)*(256+85)-12);
-    PPU_status&=0x1f;
+    Run6502((scanlines_per_frame - 242) * (256 + 85) - 12);
+    PPU_status &= 0x1f;
     Run6502(256);
 
     if (ScreenON || SpriteON) {
-      if (GameHBIRQHook && ((PPU_values[0]&0x38)!=0x18))
+      if (GameHBIRQHook && (PPU_values[0] & 0x38) != 0x18)
         GameHBIRQHook(fc);
-      if (PPU_hook)
-        for (int x=0;x<42;x++) {PPU_hook(fc, 0x2000); PPU_hook(fc, 0);}
+      if (PPU_hook) {
+        for (int x = 0; x < 42; x++) {
+	  PPU_hook(fc, 0x2000);
+	  PPU_hook(fc, 0);
+	}
+      }
       if (GameHBIRQHook2)
         GameHBIRQHook2(fc);
     }
-    Run6502(85-16);
+    Run6502(85 - 16);
     if (ScreenON || SpriteON) {
-      RefreshAddr=TempAddr;
+      RefreshAddr = TempAddr;
       if (PPU_hook) PPU_hook(fc, RefreshAddr & 0x3fff);
     }
 
@@ -1551,81 +1561,38 @@ int PPU::FCEUPPU_Loop(int skip) {
     Run6502(16 - cycle_parity);
     cycle_parity ^= 1;
 
-    // n.b. FRAMESKIP results in different behavior in memory, so don't do it.
-    if (0) { /* used to be nsf playing code here -tom7 */ }
-#ifdef FRAMESKIP
-    else if (skip) {
-      // I believe this is an attempt to replicate the PPU without 
-      // actually drawing. But it doesn't work correctly. Note that there
-      // is no attempt to do the sprite 0 hit test, for example.
-      // TODO: Delete. -tom7
-      
-      int y = SPRAM[0] + 1;
-
-      TRACELOC();
-      PPU_status|=0x20;       // Fixes "Bee 52".  Does it break anything?
-      if (GameHBIRQHook) {
-        Run6502(256);
-        for (scanline=0;scanline<240;scanline++) {
-          if (ScreenON || SpriteON)
-            GameHBIRQHook(fc);
-          if (scanline==y && SpriteON) {
-            TRACELOC();
-            PPU_status|=0x40;
-          }
-          Run6502((scanline==239)?85:(256+85));
-        }
-      } else if (y<240) {
-        Run6502((256+85)*y);
-        if (SpriteON) {
-          TRACELOC();
-          PPU_status|=0x40; // Quick and very dirty hack.
-        }
-        Run6502((256+85)*(240-y));
-      } else {
-        Run6502((256+85)*240);
-      }
+    deemp = PPU_values[1] >> 5;
+    for (scanline = 0; scanline < 240; ) {
+      // scanline is incremented in DoLine.  Evil. :/
+      deempcnt[deemp]++;
+      DoLine();
     }
-#endif
-    else {
-      deemp = PPU_values[1]>>5;
-      for (scanline = 0; scanline < 240; ) {
-        // scanline is incremented in DoLine.  Evil. :/
-        deempcnt[deemp]++;
-        DoLine();
-      }
 
-      if (MMC5Hack && (ScreenON || SpriteON)) {
-	DCHECK(std::type_index(typeid(*fc->fceu->cartiface)) ==
-	      std::type_index(typeid(MMC5))) << "\n" <<
-	  typeid(fc->fceu->cartiface).name() << "\n vs \n" <<
-	  typeid(MMC5).name();
-	MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
-        mmc5->MMC5HackHB(scanline);
-      }
-
-      int max = 0, maxref = 0;
-      for (int x = 0; x < 7; x++) {
-        if (deempcnt[x] > max) {
-          max = deempcnt[x];
-          maxref = x;
-        }
-        deempcnt[x]=0;
-      }
-      // FCEU_DispMessage("%2x:%2x:%2x:%2x:%2x:%2x:%2x:%2x %d",
-      //                  0,deempcnt[0],deempcnt[1],deempcnt[2],
-      //                  deempcnt[3],deempcnt[4],deempcnt[5],
-      //                  deempcnt[6],deempcnt[7],maxref);
-      // memset(deempcnt,0,sizeof(deempcnt));
-      fc->palette->SetNESDeemph(maxref,0);
+    // Triggers MMC5-specific interrupts, etc.
+    if (MMC5Hack && (ScreenON || SpriteON)) {
+      DCHECK(std::type_index(typeid(*fc->fceu->cartiface)) ==
+	    std::type_index(typeid(MMC5))) << "\n" <<
+	typeid(fc->fceu->cartiface).name() << "\n vs \n" <<
+	typeid(MMC5).name();
+      MMC5 *mmc5 = static_cast<MMC5*>(fc->fceu->cartiface);
+      mmc5->MMC5HackHB(scanline);
     }
+
+    int max = 0, maxref = 0;
+    for (int x = 0; x < 7; x++) {
+      if (deempcnt[x] > max) {
+	max = deempcnt[x];
+	maxref = x;
+      }
+      deempcnt[x]=0;
+    }
+    // FCEU_DispMessage("%2x:%2x:%2x:%2x:%2x:%2x:%2x:%2x %d",
+    //                  0,deempcnt[0],deempcnt[1],deempcnt[2],
+    //                  deempcnt[3],deempcnt[4],deempcnt[5],
+    //                  deempcnt[6],deempcnt[7],maxref);
+    // memset(deempcnt,0,sizeof(deempcnt));
+    fc->palette->SetNESDeemph(maxref, 0);
   } //else... to if (ppudead)
-
-#ifdef FRAMESKIP
-  return !skip;
-#else
-  return 1;
-#endif
 }
 
 // Why do we need to do this? -tom7
