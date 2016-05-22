@@ -185,9 +185,14 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 //
 // Starting with Visual C++ 2005, WinNT.h includes ARRAYSIZE.
 #if !defined(COMPILER_MSVC) || (defined(_MSC_VER) && _MSC_VER < 1400)
+// This can also be present when using MINGW, but it's not the
+// case that every MINGW program includes windows.h. Check for
+// the actual define in winnt.h. -tom7  22 May 2016
+#if !defined(__MINGW32__) || !defined(_WINNT_)
 #define ARRAYSIZE(a) \
   ((sizeof(a) / sizeof(*(a))) / \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))
+#endif
 #endif
 
 // A macro to turn a symbol into a string
