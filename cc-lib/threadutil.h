@@ -213,9 +213,7 @@ struct Asynchronously {
       threads_active++;
       m.unlock();
       std::thread t{[this, f]() {
-	  printf("(running asynchronously)\n");
 	  f();
-	  printf("(done running asynchronously)\n");
 	  MutexLock ml(&this->m);
 	  threads_active--;
 	}};
@@ -224,19 +222,15 @@ struct Asynchronously {
     } else {
       m.unlock();
       // Run synchronously.
-      printf("%d threads already active, so running synchronously.\n",
-	     max_threads);
       f();
     }
   }
 
   // Wait until all threads have finished.
   ~Asynchronously() {
-    printf("Spin-wait until all threads have finished...\n");
     for (;;) {
       MutexLock ml(&m);
       if (threads_active == 0) {
-	printf("... done.\n");
 	return;
       }
     }
