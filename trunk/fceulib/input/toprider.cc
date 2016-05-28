@@ -24,7 +24,7 @@
 #include "toprider.h"
 
 namespace {
-struct TopRider : public InputCFC {
+struct TopRider final : public InputCFC {
   using InputCFC::InputCFC;
 
   uint8 Read(int w, uint8 ret) override {

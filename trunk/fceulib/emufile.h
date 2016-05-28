@@ -39,14 +39,14 @@ THE SOFTWARE.
 
 #include "types.h"
 
-class EMUFILE {
+class EmuFile {
  protected:
   bool failbit = false;
 
  public:
-  EMUFILE() {}
+  EmuFile() {}
 
-  virtual ~EMUFILE() {}
+  virtual ~EmuFile() {}
 
   bool fail(bool unset = false) {
     bool ret = failbit;
@@ -101,11 +101,9 @@ class EMUFILE {
   virtual int ftell() = 0;
   virtual int size() = 0;
   virtual void fflush() = 0;
-
-  virtual void truncate(int32 length) = 0;
 };
 
-class EMUFILE_MEMORY : public EMUFILE {
+class EmuFile_MEMORY : public EmuFile {
  protected:
   std::vector<uint8>* vec;
   bool ownvec;
@@ -116,35 +114,29 @@ class EMUFILE_MEMORY : public EMUFILE {
   }
 
  public:
-  EMUFILE_MEMORY(std::vector<uint8>* underlying)
+  EmuFile_MEMORY(std::vector<uint8>* underlying)
       : vec(underlying),
         ownvec(false),
         pos(0),
         len((int32)underlying->size()) {}
-  explicit EMUFILE_MEMORY(uint32 preallocate)
+  explicit EmuFile_MEMORY(uint32 preallocate)
       : vec(new std::vector<uint8>()), ownvec(true), pos(0), len(0) {
     vec->resize(preallocate);
     len = preallocate;
   }
-  EMUFILE_MEMORY()
+  EmuFile_MEMORY()
       : vec(new std::vector<uint8>()), ownvec(true), pos(0), len(0) {
     vec->reserve(1024);
   }
 
-  EMUFILE_MEMORY(void* buf, int32 size)
+  EmuFile_MEMORY(void* buf, int32 size)
       : vec(new std::vector<uint8>()), ownvec(true), pos(0), len(size) {
     vec->resize(size);
     if (size != 0) memcpy(&vec->front(), buf, size);
   }
 
-  ~EMUFILE_MEMORY() override {
+  ~EmuFile_MEMORY() override {
     if (ownvec) delete vec;
-  }
-
-  void truncate(int32 length) override {
-    vec->resize(length);
-    len = length;
-    if (pos > length) pos = length;
   }
 
   uint8* buf() {
@@ -241,16 +233,14 @@ class EMUFILE_MEMORY : public EMUFILE {
   int size() override { return (int)len; }
 };
 
-class EMUFILE_MEMORY_READONLY : public EMUFILE {
- protected:
+class EmuFile_MEMORY_READONLY final : public EmuFile {
+ private:
   const std::vector<uint8>* vec;
   int32 pos, len;
 
  public:
-  EMUFILE_MEMORY_READONLY(const std::vector<uint8>& underlying)
+  EmuFile_MEMORY_READONLY(const std::vector<uint8>& underlying)
       : vec(&underlying), pos(0), len((int32)underlying.size()) {}
-
-  void truncate(int32 length) override { abort(); }
 
   const uint8* buf() { return vec->data(); }
 
@@ -302,30 +292,21 @@ class EMUFILE_MEMORY_READONLY : public EMUFILE {
   int size() override { return (int)len; }
 };
 
-class EMUFILE_FILE : public EMUFILE {
- protected:
-  FILE* fp;
-  std::string fname;
-  char mode[16];
-
+class EmuFile_FILE final : public EmuFile {
  private:
-  void open(const char* fname, const char* mode);
+  FILE *fp;
+  std::string fname;
+  std::string mode;
 
  public:
-  EMUFILE_FILE(const std::string& fname, const char* mode) {
-    open(fname.c_str(), mode);
-  }
-  EMUFILE_FILE(const char* fname, const char* mode) { open(fname, mode); }
-
-  ~EMUFILE_FILE() override {
+  EmuFile_FILE(const std::string &name, const std::string &mode);
+  ~EmuFile_FILE() override {
     if (nullptr != fp) fclose(fp);
   }
 
   FILE* get_fp() override { return fp; }
 
   bool is_open() { return fp != nullptr; }
-
-  void truncate(int32 length) override;
 
   int fprintf(const char* format, ...) override {
     va_list argptr;
@@ -338,7 +319,7 @@ class EMUFILE_FILE : public EMUFILE {
   int fgetc() override { return ::fgetc(fp); }
   int fputc(int c) override { return ::fputc(c, fp); }
 
-  size_t _fread(void* ptr, size_t bytes) override {
+  size_t _fread(void *ptr, size_t bytes) override {
     size_t ret = ::fread((void*)ptr, 1, bytes, fp);
     if (ret < bytes) failbit = true;
     return ret;
@@ -348,7 +329,7 @@ class EMUFILE_FILE : public EMUFILE {
   // might be using them and make sure they handle the return values
   // correctly
 
-  void fwrite(const void* ptr, size_t bytes) override {
+  void fwrite(const void *ptr, size_t bytes) override {
     size_t ret = ::fwrite((void*)ptr, 1, bytes, fp);
     if (ret < bytes) failbit = true;
   }

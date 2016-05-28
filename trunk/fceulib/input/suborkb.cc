@@ -125,8 +125,8 @@ static constexpr uint16 const matrix[13][2][4] = {
 };
 
 namespace {
-struct SuborKB : public InputCFC {
-  SuborKB(FC *fc) : InputCFC(fc) {}
+struct SuborKB final : public InputCFC {
+  using InputCFC::InputCFC;
 
   void Write(uint8 v) override {
     v >>= 1;
@@ -138,8 +138,6 @@ struct SuborKB : public InputCFC {
 
   uint8 Read(int w, uint8 ret) override {
     if (w) {
-      int x;
-
       ret &= ~0x1E;
       //  if(ksindex==9)
       //  {
@@ -148,7 +146,7 @@ struct SuborKB : public InputCFC {
       //  }
       //  else
       //  {
-      for (x = 0; x < 4; x++)
+      for (int x = 0; x < 4; x++)
         if (bufit[matrix[ksindex][ksmode & 1][x] & 0xFF] ||
             bufit[matrix[ksindex][ksmode & 1][x] >> 8])
           ret |= 1 << (x + 1);

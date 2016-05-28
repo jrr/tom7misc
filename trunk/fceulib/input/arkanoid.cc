@@ -37,7 +37,7 @@ static uint32 FixX(uint32 x) {
   return x;
 }
 
-struct Arkanoid : public InputC {
+struct Arkanoid final : public InputC {
   Arkanoid(FC *fc, int w) : InputC(fc) {
     NESArk[w].mzx = 98;
     NESArk[w].mzb = 0;
@@ -70,7 +70,7 @@ struct Arkanoid : public InputC {
   ARK NESArk[2];
 };
 
-struct ArkanoidFC : public InputCFC {
+struct ArkanoidFC final : public InputCFC {
   ArkanoidFC(FC *fc) : InputCFC(fc) {
     FCArk.mzx = 98;
     FCArk.mzb = 0;

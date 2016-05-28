@@ -184,13 +184,21 @@ FCEUGI *FCEU::FCEUI_LoadGame(const char *name, int OverwriteVidMode) {
   GameInfo->cspecial = SIS_NONE;
 
   // Try to load each different format
-  if (fc->ines->iNESLoad(name, fp, OverwriteVidMode))
-    goto endlseq;
-  if (fc->unif->UNIFLoad(name, fp))
-    goto endlseq;
-  if (fc->fds->FDSLoad(name, fp))
-    goto endlseq;
+  if (fc->ines->iNESLoad(name, fp, OverwriteVidMode) ||
+      fc->unif->UNIFLoad(name, fp) ||
+      fc->fds->FDSLoad(name, fp)) {
 
+    FCEU_fclose(fp);
+    FCEU_ResetVidSys();
+
+    PowerNES();
+    TRACEF("PowerNES done.");
+
+    fc->palette->ResetPalette();
+
+    return GameInfo;
+  }
+    
   FCEU_PrintError("An error occurred while loading the file.");
   FCEU_fclose(fp);
 
@@ -198,21 +206,6 @@ FCEUGI *FCEU::FCEUI_LoadGame(const char *name, int OverwriteVidMode) {
   GameInfo = nullptr;
 
   return nullptr;
-
-endlseq:
-
-  FCEU_fclose(fp);
-
-  FCEU_ResetVidSys();
-
-
-  PowerNES();
-  TRACEF("PowerNES done.");
-
-  fc->palette->LoadGamePalette();
-  fc->palette->ResetPalette();
-
-  return GameInfo;
 }
 
 

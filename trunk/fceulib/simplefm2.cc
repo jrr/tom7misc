@@ -151,7 +151,7 @@ void SimpleFM2::WriteInputsWithSubtitles2P(
 
 string SimpleFM2::InputToString(uint8 input) {
   char f[9] = {0};
-  static const char gamepad[] = "RLDUTSBA";
+  static constexpr char gamepad[] = "RLDUTSBA";
   for (int j = 0; j < 8; j++) {
     f[j] = (input & (1 << (7 - j))) ? gamepad[j] : '.';
   }
@@ -162,9 +162,9 @@ string SimpleFM2::InputToString(uint8 input) {
 string SimpleFM2::InputToColorString(uint8 input) {
   string color = "";
   string out;
-  static const char DOTCOLOR[] = "#999";
-  static const char gamepad[] = "RLDUTSBA";
-  static const char *colors[] = {
+  static constexpr char DOTCOLOR[] = "#999";
+  static constexpr char gamepad[] = "RLDUTSBA";
+  static constexpr char const *colors[] = {
     "#000",
     "#000",
     "#000",

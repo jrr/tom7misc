@@ -19,10 +19,12 @@
  */
 
 #include <string.h>
-#include "share.h"
+
+#include "../input.h"
+#include "../types.h"
 
 namespace {
-struct Mahjong : public InputCFC {
+struct Mahjong final : public InputCFC {
   using InputCFC::InputCFC;
 
   uint8 Read(int w, uint8 ret) override {

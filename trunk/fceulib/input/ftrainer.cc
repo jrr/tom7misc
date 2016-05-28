@@ -19,17 +19,20 @@
  */
 
 #include <string.h>
-#include "share.h"
+
+#include "../input.h"
+#include "../types.h"
 
 namespace {
-struct FamilyTrainer : public InputCFC {
-  FamilyTrainer(FC *fc, char side) : InputCFC(fc), side(side) {}
+template<bool is_side_a>
+struct FamilyTrainer final : public InputCFC {
+  using InputCFC::InputCFC;
 
   uint8 Read(int w, uint8 ret) override {
     if (w) {
       ret |= FTValR;
     }
-    return (ret);
+    return ret;
   }
 
   void Write(uint8 V) override {
@@ -44,7 +47,7 @@ struct FamilyTrainer : public InputCFC {
       FTValR = FTVal;
 
     FTValR = (~FTValR) & 0xF;
-    if (side == 'B')
+    if (!is_side_a)
       FTValR = ((FTValR & 0x8) >> 3) | ((FTValR & 0x4) >> 1) |
                ((FTValR & 0x2) << 1) | ((FTValR & 0x1) << 3);
     FTValR <<= 1;
@@ -55,14 +58,13 @@ struct FamilyTrainer : public InputCFC {
   }
 
   uint32 FTVal = 0, FTValR = 0;
-  char side = '?';
 };
 }  // namespace
 
 InputCFC *CreateFamilyTrainerA(FC *fc) {
-  return new FamilyTrainer(fc, 'A');
+  return new FamilyTrainer<true>(fc);
 }
 
 InputCFC *CreateFamilyTrainerB(FC *fc) {
-  return new FamilyTrainer(fc, 'B');
+  return new FamilyTrainer<false>(fc);
 }

@@ -19,13 +19,17 @@
  */
 
 #include <string.h>
-#include "share.h"
+
+#include "cursor.h"
+#include "../types.h"
+#include "../input.h"
+#include "../fceu.h"
 
 #include "oekakids.h"
 
 namespace {
-struct OekaKids : public InputCFC {
-  OekaKids(FC *fc) : InputCFC(fc) {
+struct OekaKids final : public InputCFC {
+  explicit OekaKids(FC *fc) : InputCFC(fc) {
     OKValR = 0;
   }
 
@@ -38,8 +42,6 @@ struct OekaKids : public InputCFC {
 
   void Write(uint8 V) override {
     if (!(V & 0x1)) {
-      int32 vx, vy;
-
       // puts("Redo");
       OKValR = OKData = 0;
 
@@ -50,8 +52,8 @@ struct OekaKids : public InputCFC {
       else if (OKB)
         OKData |= 3;
 
-      vx = OKX * 240 / 256 + 8;
-      vy = OKY * 256 / 240 - 12;
+      int32 vx = OKX * 240 / 256 + 8;
+      int32 vy = OKY * 256 / 240 - 12;
       if (vy < 0) vy = 0;
       if (vy > 255) vy = 255;
       if (vx < 0) vx = 0;

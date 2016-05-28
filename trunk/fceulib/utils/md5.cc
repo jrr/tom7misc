@@ -4,34 +4,27 @@
 /// by Christophe Devine <devine@cr0.net>;
 /// this program is licensed under the GPL.
 
-//Modified October 3, 2003, to remove testing code, and add include of "types.h".
-//Added simple MD5 to ASCII string conversion function.
-// -Xodnizel
-
 #include <string>
 
 #include <string.h>
 #include "../types.h"
 #include "md5.h"
 
-#define GET_UINT32(n,b,i)           \
-{                 \
+#define GET_UINT32(n,b,i) {                 \
     (n) = ( (uint32) (b)[(i) + 3] << 24 )       \
         | ( (uint32) (b)[(i) + 2] << 16 )       \
         | ( (uint32) (b)[(i) + 1] <<  8 )       \
         | ( (uint32) (b)[(i)    ]       );      \
 }
 
-#define PUT_UINT32(n,b,i)           \
-{                 \
+#define PUT_UINT32(n,b,i) {                 \
     (b)[(i)    ] = (uint8) ( (n)       );       \
     (b)[(i) + 1] = (uint8) ( (n) >>  8 );       \
     (b)[(i) + 2] = (uint8) ( (n) >> 16 );       \
     (b)[(i) + 3] = (uint8) ( (n) >> 24 );       \
 }
 
-void md5_starts( struct md5_context *ctx )
-{
+void md5_starts( struct md5_context *ctx ) {
     ctx->total[0] = 0;
     ctx->total[1] = 0;
     ctx->state[0] = 0x67452301;
@@ -40,8 +33,7 @@ void md5_starts( struct md5_context *ctx )
     ctx->state[3] = 0x10325476;
 }
 
-void md5_process( struct md5_context *ctx, uint8 data[64] )
-{
+void md5_process( struct md5_context *ctx, const uint8 *data ) {
     uint32 A, B, C, D, X[16];
 
     GET_UINT32( X[0],  data,  0 );
@@ -63,8 +55,7 @@ void md5_process( struct md5_context *ctx, uint8 data[64] )
 
 #define S(x,n) ((x << n) | ((x & 0xFFFFFFFF) >> (32 - n)))
 
-#define P(a,b,c,d,k,s,t)        \
-{                   \
+#define P(a,b,c,d,k,s,t) {                    \
     a += F(b,c,d) + X[k] + t; a = S(a,s) + b;     \
 }
 
@@ -163,8 +154,7 @@ void md5_process( struct md5_context *ctx, uint8 data[64] )
     ctx->state[3] += D;
 }
 
-void md5_update( struct md5_context *ctx, uint8 *input, uint32 length )
-{
+void md5_update( struct md5_context *ctx, const uint8 *input, uint32 length ) {
     uint32 left, fill;
 
     if( ! length ) return;
@@ -178,8 +168,7 @@ void md5_update( struct md5_context *ctx, uint8 *input, uint32 length )
     ctx->total[0] &= 0xFFFFFFFF;
     ctx->total[1] += ctx->total[0] < ( length << 3 );
 
-    if( left && length >= fill )
-    {
+    if( left && length >= fill ) {
         memcpy( (void *) (ctx->buffer + left), (void *) input, fill );
         md5_process( ctx, ctx->buffer );
         length -= fill;
@@ -187,29 +176,25 @@ void md5_update( struct md5_context *ctx, uint8 *input, uint32 length )
         left = 0;
     }
 
-    while( length >= 64 )
-    {
+    while( length >= 64 ) {
         md5_process( ctx, input );
         length -= 64;
         input  += 64;
     }
 
-    if( length )
-    {
+    if( length ) {
         memcpy( (void *) (ctx->buffer + left), (void *) input, length );
     }
 }
 
-static uint8 md5_padding[64] =
-{
+static constexpr uint8 md5_padding[64] = {
  0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-void md5_finish( struct md5_context *ctx, uint8 digest[16] )
-{
+void md5_finish( struct md5_context *ctx, uint8 digest[16] ) {
     uint32 last, padn;
     uint8 msglen[8];
 

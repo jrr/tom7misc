@@ -21,7 +21,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "share.h"
+#include "cursor.h"
+#include "../types.h"
+#include "../input.h"
+#include "../fceu.h"
+#include "../ppu.h"
+#include "../x6502.h"
+#include "../palette.h"
 
 namespace {
 struct ZAPPER {
@@ -32,11 +38,11 @@ struct ZAPPER {
   uint64 zaphit = 0;
 };
 
-struct SpaceShadow : public InputCFC {
-  SpaceShadow(FC *fc) : InputCFC(fc) {}
+struct SpaceShadow final : public InputCFC {
+  using InputCFC::InputCFC;
 
   // nee "ZapperFrapper"
-  void SLHook(uint8 *bg, uint8 *spr, uint32 linets, int final) override {
+  void SLHook(uint8 *bg, uint8 *spr, uint32 linets, int last) override {
     int xs, xe;
     int zx, zy;
 
@@ -46,7 +52,7 @@ struct SpaceShadow : public InputCFC {
       return;
     }
     xs = ZD.zappo;
-    xe = final;
+    xe = last;
 
     zx = ZD.mzx;
     zy = ZD.mzy;
@@ -83,7 +89,7 @@ struct SpaceShadow : public InputCFC {
       }
     }
   endo:
-    ZD.zappo = final;
+    ZD.zappo = last;
   }
 
   inline int CheckColor() {
