@@ -8,7 +8,7 @@ all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-co
 # -Wstrict-overflow=3
 # -std=c++11
 # XXXXXXX disable sound should not be on by default.
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include # -DDISABLE_SOUND=1 -DDISABLE_VIDEO=1
+CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -DDISABLE_SOUND=1 -DDISABLE_VIDEO=1
 # XXX -O2
 OPT=-g -O2  # -O3 -fno-strict-aliasing
 # try -flto!
@@ -69,8 +69,6 @@ MAPPEROBJECTS=mappers/6.o mappers/61.o mappers/24and26.o mappers/51.o mappers/69
 # XXX: Probably a bunch of this can go?
 UTILSOBJECTS= utils/memory.o utils/crc32.o utils/endian.o utils/md5.o utils/xstring.o
 
-# This should be renamed to example_mapper; it's also not used.
-# boards/dummy_mapper.o
 # unused - 
 # boards/a9711.o
 # boards/n-c22m.o

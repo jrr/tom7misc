@@ -1,5 +1,5 @@
-#ifndef _FCEUH
-#define _FCEUH
+#ifndef _FCEU_H_
+#define _FCEU_H_
 
 #include "types.h"
 #include "git.h"

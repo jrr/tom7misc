@@ -83,7 +83,7 @@ void State::InitState() {
 
 // Write the vector to the output file. If the file pointer is
 // null, just return the size.
-int State::SubWrite(EMUFILE *os, const vector<SFORMAT> &sf) {
+int State::SubWrite(EmuFile *os, const vector<SFORMAT> &sf) {
   uint32 acc = 0;
 
   TRACE_SCOPED_STAY_ENABLED_IF(false);
@@ -136,7 +136,7 @@ int State::SubWrite(EMUFILE *os, const vector<SFORMAT> &sf) {
 }
 
 // Write all the sformats to the output file.
-int State::WriteStateChunk(EMUFILE *os, int type,
+int State::WriteStateChunk(EmuFile *os, int type,
                            const vector<SFORMAT> &sf) {
   os->fputc(type);
   int bsize = SubWrite(nullptr, sf);
@@ -162,7 +162,7 @@ const SFORMAT *State::CheckS(const vector<SFORMAT> &sf,
   return nullptr;
 }
 
-bool State::ReadStateChunk(EMUFILE *is,
+bool State::ReadStateChunk(EmuFile *is,
                            const vector<SFORMAT> &sf, int size) {
   int temp = is->ftell();
 
@@ -187,7 +187,7 @@ bool State::ReadStateChunk(EMUFILE *is,
   return true;
 }
 
-bool State::ReadStateChunks(EMUFILE *is, int32 totalsize) {
+bool State::ReadStateChunks(EmuFile *is, int32 totalsize) {
   InitState();
   uint32 size;
   bool ret = true;
@@ -257,7 +257,7 @@ bool State::ReadStateChunks(EMUFILE *is, int32 totalsize) {
 // Simplified save that does not compress.
 bool State::FCEUSS_SaveRAW(std::vector<uint8> *out) {
   InitState();
-  EMUFILE_MEMORY os(out);
+  EmuFile_MEMORY os(out);
 
   uint32 totalsize = 0;
 
@@ -297,7 +297,7 @@ bool State::FCEUSS_SaveRAW(std::vector<uint8> *out) {
 }
 
 bool State::FCEUSS_LoadRAW(const std::vector<uint8> &in) {
-  EMUFILE_MEMORY_READONLY is{in};
+  EmuFile_MEMORY_READONLY is{in};
 
   int totalsize = is.size();
   // Assume current version; memory only.
@@ -359,45 +359,6 @@ void State::AddExStateReal(void *v, uint32 s, int type, SKEY desc,
   }
 
   CHECK(s != ~0);
-  #if 0
-  if (s == ~0) {
-    const SFORMAT *sf = (const SFORMAT *)v;
-    map<string, bool> names;
-    while (sf->v) {
-      char tmp[5] = {0};
-      memcpy(tmp, sf->desc, 4);
-      std::string descr = tmp;
-      if (names.find(descr) != names.end()) {
-        fprintf(stderr, "SFORMAT with duplicate key: %s\n", descr.c_str());
-        abort();
-      }
-      names[descr] = true;
-      sf++;
-    }
-  }
-  #endif
-
-  // impossible now
-  // CHECK(desc != nullptr);
-
-  #if 0
-  if (desc != nullptr) {
-    // PERF: n^2 paranoia. Should rewrite this to keep a regular
-    // std::map or something.
-    for (int i = 0; i < SFEXINDEX; i++) {
-      if (SFMDATA[i].desc != nullptr &&
-          // TODO: Sometimes we use strcmp and sometimes memcmp, but
-          // these strings also have 0s in them...
-          0 == strcmp(SFMDATA[i].desc, desc)) {
-        fprintf(stderr,
-                "AddExState: The key '%s' was registered twice.\n"
-                "Second was from %s.\n",
-                desc, src);
-        abort();
-      }
-    }
-  }
-  #endif
 
   SFORMAT sf{v, s, desc};
   if (type) sf.s |= FCEUSTATE_RLSB;

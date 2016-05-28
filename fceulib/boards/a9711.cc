@@ -21,7 +21,7 @@
 #include "mapinc.h"
 #include "mmc3.h"
 
-// static uint8 m_perm[8] = {0, 1, 0, 3, 0, 5, 6, 7};
+// static constexpr uint8 m_perm[8] = {0, 1, 0, 3, 0, 5, 6, 7};
 
 namespace {
 struct UNLA9711 final : public MMC3 {

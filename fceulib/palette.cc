@@ -171,27 +171,6 @@ void Palette::CalculatePalette() {
   WritePalette();
 }
 
-void Palette::LoadGamePalette() {
-  uint8 ptmp[192];
-  FILE *fp;
-
-  ipalette = 0;
-
-  char *fn = strdup(FCEU_MakePaletteFilename().c_str());
-
-  if ((fp = FCEUD_UTF8fopen(fn, "rb"))) {
-    fread(ptmp, 1, 192, fp);
-    fclose(fp);
-    for (int x = 0; x < 64; x++) {
-      palettei[x].r = ptmp[x + x + x];
-      palettei[x].g = ptmp[x + x + x + 1];
-      palettei[x].b = ptmp[x + x + x + 2];
-    }
-    ipalette = 1;
-  }
-  free(fn);
-}
-
 void Palette::ResetPalette() {
   if (fc->fceu->GameInfo != nullptr) {
     ChoosePalette();
@@ -200,10 +179,8 @@ void Palette::ResetPalette() {
 }
 
 void Palette::ChoosePalette() {
-  if (ipalette) {
-    palo = palettei;
-  } else if (NTSCCOL && !fc->fceu->PAL &&
-             fc->fceu->GameInfo->type != GIT_VSUNI) {
+  if (NTSCCOL && !fc->fceu->PAL &&
+      fc->fceu->GameInfo->type != GIT_VSUNI) {
     palo = paletten;
     CalculatePalette();
   } else {

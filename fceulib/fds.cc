@@ -703,10 +703,11 @@ int FDS::FDSLoad(const char *name, FceuFile *fp) {
                           [](FC *fc) { return fc->fds->PostSave(); });
   FDSSoundStateAdd();
 
+  CHECK(TotalSides <= 8);
   for (int x=0; x < TotalSides; x++) {
-    char temp[5];
-    sprintf(temp,"DDT%d",x);
-    fc->state->AddExState(diskdata[x],65500,0,temp);
+    char temp[5] = "DDT_";
+    temp[3] = "01234567"[x];
+    fc->state->AddExState(diskdata[x], 65500, 0, temp);
   }
 
   fc->state->AddExState(FDSRAM,32768,0,"FDSR");

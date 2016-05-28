@@ -115,7 +115,7 @@ static constexpr uint16 const matrix[9][2][4] = {
 };
 
 namespace {
-struct FKB : public InputCFC {
+struct FKB final : public InputCFC {
   FKB(FC *fc) : InputCFC(fc) {}
 
   void Write(uint8 v) override {

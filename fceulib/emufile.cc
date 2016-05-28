@@ -21,10 +21,16 @@ THE SOFTWARE.
 */
 
 #include <vector>
+#include <string>
+
 #include "emufile.h"
 #include "utils/xstring.h"
 
-size_t EMUFILE_MEMORY::_fread(void *ptr, size_t bytes) {
+// EMUFILE
+
+using namespace std;
+
+size_t EmuFile_MEMORY::_fread(void *ptr, size_t bytes) {
   uint32 remain = len - pos;
   uint32 todo = std::min<uint32>(remain, (uint32)bytes);
   if (len == 0) {
@@ -43,7 +49,7 @@ size_t EMUFILE_MEMORY::_fread(void *ptr, size_t bytes) {
   return todo;
 }
 
-size_t EMUFILE_MEMORY_READONLY::_fread(void *ptr, size_t bytes) {
+size_t EmuFile_MEMORY_READONLY::_fread(void *ptr, size_t bytes) {
   uint32 remain = len - pos;
   uint32 todo = std::min<uint32>(remain, (uint32)bytes);
   if (len == 0) {
@@ -62,26 +68,17 @@ size_t EMUFILE_MEMORY_READONLY::_fread(void *ptr, size_t bytes) {
   return todo;
 }
 
-void EMUFILE_FILE::open(const char* fname, const char* mode) {
-  fp = fopen(fname, mode);
+EmuFile_FILE::EmuFile_FILE(const string &fname, const string &mode)
+  : fname(fname), mode(mode) {
+  fp = fopen(fname.c_str(), mode.c_str());
   if (!fp) failbit = true;
-  this->fname = fname;
-  strcpy(this->mode, mode);
 }
 
-void EMUFILE_FILE::truncate(int32 length) {
-  ::fflush(fp);
-  ftruncate(fileno(fp), length);
-  fclose(fp);
-  fp = nullptr;
-  open(fname.c_str(), mode);
-}
-
-void EMUFILE::write64le(uint64* val) {
+void EmuFile::write64le(uint64* val) {
   write64le(*val);
 }
 
-void EMUFILE::write64le(uint64 val) {
+void EmuFile::write64le(uint64 val) {
 #ifdef LOCAL_BE
   uint8 s[8];
   s[0] = (uint8)b;
@@ -99,7 +96,7 @@ void EMUFILE::write64le(uint64 val) {
 #endif
 }
 
-size_t EMUFILE::read64le(uint64* Bufo) {
+size_t EmuFile::read64le(uint64* Bufo) {
   uint64 buf;
   if (fread((char*)&buf, 8) != 8) return 0;
 #ifndef LOCAL_BE
@@ -110,17 +107,17 @@ size_t EMUFILE::read64le(uint64* Bufo) {
   return 1;
 }
 
-uint64 EMUFILE::read64le() {
+uint64 EmuFile::read64le() {
   uint64 temp = 0ULL;
   read64le(&temp);
   return temp;
 }
 
-void EMUFILE::write32le(uint32* val) {
+void EmuFile::write32le(uint32* val) {
   write32le(*val);
 }
 
-void EMUFILE::write32le(uint32 val) {
+void EmuFile::write32le(uint32 val) {
 #ifdef LOCAL_BE
   uint8 s[4];
   s[0] = (uint8)val;
@@ -133,11 +130,11 @@ void EMUFILE::write32le(uint32 val) {
 #endif
 }
 
-size_t EMUFILE::read32le(int32* Bufo) {
+size_t EmuFile::read32le(int32* Bufo) {
   return read32le((uint32*)Bufo);
 }
 
-size_t EMUFILE::read32le(uint32* Bufo) {
+size_t EmuFile::read32le(uint32* Bufo) {
   uint32 buf;
   if (fread(&buf, 4) < 4) return 0;
 #ifndef LOCAL_BE
@@ -149,17 +146,17 @@ size_t EMUFILE::read32le(uint32* Bufo) {
   return 1;
 }
 
-uint32 EMUFILE::read32le() {
+uint32 EmuFile::read32le() {
   uint32 ret = 0;
   read32le(&ret);
   return ret;
 }
 
-void EMUFILE::write16le(uint16* val) {
+void EmuFile::write16le(uint16* val) {
   write16le(*val);
 }
 
-void EMUFILE::write16le(uint16 val) {
+void EmuFile::write16le(uint16 val) {
 #ifdef LOCAL_BE
   uint8 s[2];
   s[0] = (uint8)val;
@@ -170,11 +167,11 @@ void EMUFILE::write16le(uint16 val) {
 #endif
 }
 
-size_t EMUFILE::read16le(int16* Bufo) {
+size_t EmuFile::read16le(int16* Bufo) {
   return read16le((uint16*)Bufo);
 }
 
-size_t EMUFILE::read16le(uint16* Bufo) {
+size_t EmuFile::read16le(uint16* Bufo) {
   uint32 buf;
   if (fread(&buf, 2) < 2) return 0;
 #ifndef LOCAL_BE
@@ -185,25 +182,25 @@ size_t EMUFILE::read16le(uint16* Bufo) {
   return 1;
 }
 
-uint16 EMUFILE::read16le() {
+uint16 EmuFile::read16le() {
   uint16 ret = 0;
   read16le(&ret);
   return ret;
 }
 
-void EMUFILE::write8le(uint8* val) {
+void EmuFile::write8le(uint8* val) {
   write8le(*val);
 }
 
-void EMUFILE::write8le(uint8 val) {
+void EmuFile::write8le(uint8 val) {
   fwrite(&val, 1);
 }
 
-size_t EMUFILE::read8le(uint8* val) {
+size_t EmuFile::read8le(uint8* val) {
   return fread(val, 1);
 }
 
-uint8 EMUFILE::read8le() {
+uint8 EmuFile::read8le() {
   uint8 temp;
   fread(&temp, 1);
   return temp;

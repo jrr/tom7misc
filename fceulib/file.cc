@@ -57,7 +57,7 @@ FILE *FCEUD_UTF8fopen(const char *fn, const char *mode) {
 }
 
 // Opens a file to be read a byte at a time.
-static EMUFILE_FILE *FCEUD_UTF8_fstream(const char *fn, const char *m) {
+static EmuFile_FILE *FCEUD_UTF8_fstream(const char *fn, const char *m) {
   std::ios_base::openmode mode = std::ios_base::binary;
   if(!strcmp(m,"r") || !strcmp(m,"rb"))
     mode |= std::ios_base::in;
@@ -71,7 +71,7 @@ static EMUFILE_FILE *FCEUD_UTF8_fstream(const char *fn, const char *m) {
     mode |= std::ios_base::in | std::ios_base::out | std::ios_base::trunc;
   else if(!strcmp(m,"a+") || !strcmp(m,"a+b"))
     mode |= std::ios_base::in | std::ios_base::out | std::ios_base::app;
-  return new EMUFILE_FILE(fn, m);
+  return new EmuFile_FILE(fn, m);
   //return new std::fstream(fn,mode);
 }
 
@@ -96,7 +96,7 @@ FceuFile *FCEU_fopen(const std::string &path,
   }
 
   // if the archive contained no files, try to open it the old fashioned way
-  EMUFILE_FILE* fp = FCEUD_UTF8_fstream(path.c_str(), mode);
+  EmuFile_FILE* fp = FCEUD_UTF8_fstream(path.c_str(), mode);
   if (!fp || fp->get_fp() == nullptr) {
     return 0;
   }
@@ -155,8 +155,4 @@ string FCEU_MakeFDSFilename() {
 
 string FCEU_MakeFDSROMFilename() {
   return "disksys.rom";
-}
-
-string FCEU_MakePaletteFilename() {
-  return ".pal";
 }

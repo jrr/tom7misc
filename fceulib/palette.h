@@ -11,6 +11,8 @@ struct Palette {
  public:
   explicit Palette(FC *fc);
 
+  // Aliases the current palette. Read by zapper, which kind of makes
+  // sense, but maybe should be abstracted. -tom7
   const PaletteEntry *palo = nullptr;
   uint8 pale = 0;
 
@@ -27,11 +29,9 @@ struct Palette {
  private:
   uint8 lastd = 0;
 
-  int ipalette = 0;
-
-  /* These are dynamically filled/generated palettes: */
-  PaletteEntry palettei[64];       // Custom palette for an individual game.
-  PaletteEntry paletten[64];       // Mathematically generated palette.
+  // It used to be possible to have a custom palette for a game;
+  // I removed this but there may be further simplifications. -tom7
+  PaletteEntry paletten[64]; // Mathematically generated palette.
 
   void CalculatePalette();
   void ChoosePalette();

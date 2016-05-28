@@ -38,10 +38,6 @@ struct PPU {
   // and sprite ram.
   uint8 NTARAM[0x800] = {}, PALRAM[0x20] = {};
   uint8 SPRAM[0x100] = {};
-  // for 0x4/0x8/0xC addresses in palette, the ones in
-  // 0x20 are 0 to not break fceu rendering.
-  // XXX dead?
-  uint8 UPALRAM[0x03] = {};
 
   // X scroll offset within the first tile (0-7)
   uint8 GetXOffset() const { return XOffset; }

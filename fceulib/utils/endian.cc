@@ -199,14 +199,14 @@ int read16le(char *d, FILE *fp)
 }
 
 //well. just for the sake of consistency
-int write8le(uint8 b, EMUFILE*os)
+int write8le(uint8 b, EmuFile*os)
 {
         os->fwrite((char*)&b,1);
         return 1;
 }
 
 //well. just for the sake of consistency
-int read8le(uint8 *Bufo, EMUFILE*is)
+int read8le(uint8 *Bufo, EmuFile*is)
 {
         if (is->_fread((char*)Bufo,1) != 1)
                 return 0;
@@ -214,7 +214,7 @@ int read8le(uint8 *Bufo, EMUFILE*is)
 }
 
 ///writes a little endian 16bit value to the specified file
-int write16le(uint16 b, EMUFILE *fp)
+int write16le(uint16 b, EmuFile *fp)
 {
         uint8 s[2];
         s[0]=(uint8)b;
@@ -225,7 +225,7 @@ int write16le(uint16 b, EMUFILE *fp)
 
 
 ///writes a little endian 32bit value to the specified file
-int write32le(uint32 b, EMUFILE *fp)
+int write32le(uint32 b, EmuFile *fp)
 {
         uint8 s[4];
         s[0]=(uint8)b;
@@ -236,9 +236,9 @@ int write32le(uint32 b, EMUFILE *fp)
         return 4;
 }
 
-void writebool(bool b, EMUFILE* os) { write32le(b?1:0,os); }
+void writebool(bool b, EmuFile* os) { write32le(b?1:0,os); }
 
-int write64le(uint64 b, EMUFILE* os)
+int write64le(uint64 b, EmuFile* os)
 {
         uint8 s[8];
         s[0]=(uint8)b;
@@ -254,7 +254,7 @@ int write64le(uint64 b, EMUFILE* os)
 }
 
 
-int read32le(uint32 *Bufo, EMUFILE *fp)
+int read32le(uint32 *Bufo, EmuFile *fp)
 {
         uint32 buf;
         if (fp->_fread(&buf,4)<4)
@@ -267,7 +267,7 @@ int read32le(uint32 *Bufo, EMUFILE *fp)
         return 1;
 }
 
-int read16le(uint16 *Bufo, EMUFILE *is)
+int read16le(uint16 *Bufo, EmuFile *is)
 {
         uint16 buf;
         if (is->_fread((char*)&buf,2) != 2)
@@ -280,7 +280,7 @@ int read16le(uint16 *Bufo, EMUFILE *is)
         return 1;
 }
 
-int read64le(uint64 *Bufo, EMUFILE *is)
+int read64le(uint64 *Bufo, EmuFile *is)
 {
         uint64 buf;
         if (is->_fread((char*)&buf,8) != 8)

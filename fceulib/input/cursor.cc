@@ -1,5 +1,4 @@
-#include "share.h"
-
+#include "cursor.h"
 
 static constexpr uint8 GunSight[] = {
   0,0,0,0,0,0,1,0,0,0,0,0,0,

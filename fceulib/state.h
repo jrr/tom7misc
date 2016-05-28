@@ -116,14 +116,14 @@ struct State {
     AddExStateReal(v, s, t, MakeSKEY(d), __FILE__ ":" STRINGIFY_LINE(__LINE__) )
  private:
 
-  int SubWrite(EMUFILE *os, const std::vector<SFORMAT> &sf);
+  int SubWrite(EmuFile *os, const std::vector<SFORMAT> &sf);
 
-  int WriteStateChunk(EMUFILE* os, int type, const std::vector<SFORMAT> &sf);
+  int WriteStateChunk(EmuFile *os, int type, const std::vector<SFORMAT> &sf);
 
   const SFORMAT *CheckS(const std::vector<SFORMAT> &sf,
                         uint32 tsize, SKEY desc);
-  bool ReadStateChunk(EMUFILE* is, const std::vector<SFORMAT> &sf, int size);
-  bool ReadStateChunks(EMUFILE* is, int32 totalsize);
+  bool ReadStateChunk(EmuFile *is, const std::vector<SFORMAT> &sf, int size);
+  bool ReadStateChunks(EmuFile *is, int32 totalsize);
 
   void (*SPreSave)(FC *) = nullptr;
   void (*SPostSave)(FC *) = nullptr;

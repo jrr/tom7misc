@@ -12,7 +12,7 @@ struct FceuFile {
 
   // the stream you can use to access the data
   // std::iostream *stream;
-  EMUFILE *stream = nullptr;
+  EmuFile *stream = nullptr;
 
   // the name of the file, or the logical name of the file within the archive
   std::string filename;
@@ -41,6 +41,5 @@ FILE *FCEUD_UTF8fopen(const char *fn, const char *mode);
 std::string FCEU_MakeSaveFilename();
 std::string FCEU_MakeFDSFilename();
 std::string FCEU_MakeFDSROMFilename();
-std::string FCEU_MakePaletteFilename();
 
 #endif

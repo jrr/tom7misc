@@ -21,9 +21,15 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "share.h"
-#include "zapper.h"
+#include "cursor.h"
+#include "../types.h"
 #include "../input.h"
+#include "../fceu.h"
+#include "../ppu.h"
+#include "../x6502.h"
+#include "../palette.h"
+
+#include "zapper.h"
 
 namespace {
 struct ZAPPER {
@@ -45,7 +51,7 @@ struct ZapperBase : public InputC {
     // {&ZD[1].bogo, 1, "ZBG1"},
 
     CHECK(w == 0 || w == 1);
-    fc->state->AddExState(&ZD, sizeof(ZAPPER), 0, (w ? "ZBG1" : "ZBG0"));
+    fc->state->AddExState(&ZD, sizeof(ZAPPER), 0, w ? "ZBG1" : "ZBG0");
   }
 
   inline int CheckColor(int w) {
@@ -85,7 +91,7 @@ struct ZapperBase : public InputC {
 
   // Was once "ZapperFrapper".
   void SLHook(int w, uint8 *bg, uint8 *spr, uint32 linets,
-              int final) override {
+              int last) override {
     CHECK(w == which);
 
     int xs, xe;
@@ -97,7 +103,7 @@ struct ZapperBase : public InputC {
       return;
     }
     xs = ZD.zappo;
-    xe = final;
+    xe = last;
 
     zx = ZD.mzx;
     zy = ZD.mzy;
@@ -107,19 +113,17 @@ struct ZapperBase : public InputC {
     if (fc->ppu->scanline >= (zy - 4) &&
         fc->ppu->scanline <= (zy + 4)) {
       while (xs < xe) {
-        uint8 a1, a2;
-        uint32 sum;
         if (xs <= (zx + 4) && xs >= (zx - 4)) {
-          a1 = bg[xs];
+          uint8 a1 = bg[xs];
           if (spr) {
-            a2 = spr[xs];
+            uint8 a2 = spr[xs];
 
             if (!(a2 & 0x80))
               if (!(a2 & 0x40) || (a1 & 64)) a1 = a2;
           }
           a1 &= 63;
 
-          sum =
+          const uint32 sum =
             fc->palette->palo[a1].r +
             fc->palette->palo[a1].g +
             fc->palette->palo[a1].b;
@@ -135,7 +139,7 @@ struct ZapperBase : public InputC {
       }
     }
   endo:
-    ZD.zappo = final;
+    ZD.zappo = last;
 
     // if this was a miss, clear out the hit
     if (ZD.mzb & 2) ZD.zaphit = 0;
@@ -170,7 +174,7 @@ struct ZapperBase : public InputC {
   ZAPPER ZD;
 };
 
-struct ZapperC : public ZapperBase {
+struct ZapperC final : public ZapperBase {
   ZapperC(FC *fc, int w) : ZapperBase(fc, w) {}
 
   uint8 Read(int w) override {
@@ -183,7 +187,7 @@ struct ZapperC : public ZapperBase {
   }
 };
 
-struct ZapperVSC : public ZapperBase {
+struct ZapperVSC final : public ZapperBase {
   ZapperVSC(FC *fc, int w) : ZapperBase(fc, w) {}
 
   uint8 Read(int w) override {

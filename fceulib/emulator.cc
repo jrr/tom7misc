@@ -50,6 +50,9 @@ uint64 Emulator::RamChecksum() {
 }
 
 uint64 Emulator::ImageChecksum() {
+#if DISABLE_VIDEO
+  return 0ULL;
+#else
   md5_context ctx;
   md5_starts(&ctx);
   vector<uint8> img = GetImage();
@@ -58,6 +61,7 @@ uint64 Emulator::ImageChecksum() {
   uint8 digest[16];
   md5_finish(&ctx, digest);
   return MD5ToChecksum(digest);
+#endif
 }
 
 uint64 Emulator::CPUStateChecksum() {

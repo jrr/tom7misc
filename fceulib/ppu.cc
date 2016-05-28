@@ -984,7 +984,7 @@ void PPU::DoLine() {
     GameHBIRQHook(fc);
     Run6502(85 - 16 - 10);
   } else {
-    Run6502(6);  // Tried 65, caused problems with Slalom(maybe others)
+    Run6502(6);  // Tried 65, caused problems with Slalom (maybe others)
     Fixit2();
     Run6502(85 - 6 - 16);
 
@@ -1467,7 +1467,6 @@ void PPU::FCEUPPU_Reset() {
 void PPU::FCEUPPU_Power() {
   memset(NTARAM,0x00,0x800);
   memset(PALRAM,0x00,0x20);
-  memset(UPALRAM,0x00,0x03);
   memset(SPRAM,0x00,0x100);
   FCEUPPU_Reset();
 

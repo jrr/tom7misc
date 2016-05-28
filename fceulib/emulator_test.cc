@@ -337,7 +337,8 @@ static SerialResult RunGameSerially(std::function<void(const string &)> Update_,
   // Only populated in FULL mode.
   vector<vector<uint8>> images;
   images.reserve(num_inputs);
-
+  // XXX should internally do cpu state checksums too.
+  
   Update("Create emulator.");
   std::unique_ptr<Emulator> emu{Emulator::Create(game.cart)};
 
@@ -889,17 +890,22 @@ int main(int argc, char **argv) {
       string b = Chop(line);
       string c = Chop(line);
       string d = Chop(line);
+      string e = Chop(line);
+      string f = Chop(line);
       string filename = LoseWhiteL(line);
 
       Update(StringPrintf("running %s", filename.c_str()));
 
       if (!filename.empty()) {
         uint64 after_inputs, after_random,
-          image_after_inputs, image_after_random;
+          image_after_inputs, image_after_random,
+	  cpu_after_inputs, cpu_after_random;
         stringstream(a) >> after_inputs;
         stringstream(b) >> after_random;
         stringstream(c) >> image_after_inputs;
         stringstream(d) >> image_after_random;
+        stringstream(e) >> cpu_after_inputs;
+        stringstream(f) >> cpu_after_random;
         Game game{
           romdir + filename,
             RLE::Decompress({ 101, 0, 4, 2, 3, 3, 2, 1, 50, 0, }),
@@ -908,8 +914,8 @@ int main(int argc, char **argv) {
             after_random,
             image_after_inputs,
             image_after_random,
-	    // XXX!!
-	    0ULL, 0ULL,
+	    cpu_after_inputs,
+	    cpu_after_random,
             };
         const SerialResult sr = RunGameSerially(Update, game);
         Update("About to grab done lock.");
@@ -920,9 +926,10 @@ int main(int argc, char **argv) {
           // vector, but we're trying to exercise the emu code, not
           // the test harness.
           results[line_num] =
-            StringPrintf("%llu %llu %llu %llu %s",
+            StringPrintf("%llu %llu %llu %llu %llu %llu %s",
                          sr.after_inputs, sr.after_random,
                          sr.image_after_inputs, sr.image_after_random,
+			 sr.cpu_after_inputs, sr.cpu_after_random,
                          filename.c_str());
 
           num_done++;
@@ -934,7 +941,9 @@ int main(int argc, char **argv) {
           if (sr.after_inputs != after_inputs ||
               sr.after_random != after_random ||
               sr.image_after_inputs != image_after_inputs ||
-              sr.image_after_random != image_after_random) {
+              sr.image_after_random != image_after_random ||
+	      sr.cpu_after_inputs != cpu_after_inputs ||
+	      sr.cpu_after_random != cpu_after_random) {
             fprintf(stderr, "(Note, didn't match last time: %s)\n",
                     filename.c_str());
           }
@@ -945,8 +954,6 @@ int main(int argc, char **argv) {
 
     {
       int max_concurrency = 12;
-      // TODO: XXX This cast may really be unsafe, since these vectors
-      // could exceed 32 bit ints in practice.
       max_concurrency = std::min((int)romlines.size(), max_concurrency);
       std::mutex index_m;
       int next_index = 0;

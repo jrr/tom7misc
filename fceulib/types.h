@@ -36,6 +36,14 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
+#ifndef DISABLE_SOUND
+#define DISABLE_SOUND 0
+#endif
+
+#ifndef DISABLE_VIDEO
+#define DISABLE_VIDEO 0
+#endif
+
 #if PSS_STYLE==2
 
 #define PSS "\\"

@@ -22,16 +22,12 @@ Can get rid of:
  - file archive support
  - auto-fire
  - NSF code in mapper.h and the uncalled functions therein?
- - use of 'char' instead of uint8 for single-byte flags, etc. There were
-   some in sound.cc and I didn't scrub the rest.
- - PPU::UPALRAM is dead?
 
 Memory todo:
  - Need to check that various objects are actually having their Free or Kill
    methods called, or roll those into the destructors, etc.
 
 Cleanup to do:
- - Search everywhere for static variables hiding
  - There are some symbols that are both #defined (e.g. ines.h) and
    declared, maybe with #undef before like in mmc3.cc. So confusing!
  - clang format on the worst offenders
@@ -48,7 +44,7 @@ Cleanup to do:
    initlized to 0 or {}.
  - Can ines::MasterRomInfoParams move to fk23? Are there other uses?
  - Should use "final override" where possible in mappers/. Did
-   all the boards/.
+   all the boards/ and inputs/.
  - Should use template parameters instead of "is_123" type
    constructor args in mappers/. Did all of boards/ (except MMC3).
  - Probably some MMC3 stuff can be compile-time, by templating

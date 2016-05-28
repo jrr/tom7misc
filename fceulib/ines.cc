@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <string>
+
 #include "types.h"
 #include "x6502.h"
 #include "fceu.h"
@@ -501,24 +503,26 @@ void INes::CheckHInfo() {
     iNESMirroring = 2;
 
   if (tofix) {
-    char gigastr[768];
-    strcpy(gigastr,"The iNES header contains incorrect information.  "
-           "For now, the information will be corrected in RAM.  ");
-    if (tofix & 1)
-      sprintf(gigastr+strlen(gigastr),
-              "The mapper number should be set to %d.  ",mapper_number);
+    std::string err = 
+      "The iNES header contains incorrect information.  "
+      "For now, the information will be corrected in RAM.  ";
+    if (tofix & 1) {
+      err += "The mapper number should be set to ";
+      err += mapper_number;
+      err += ".  ";
+    }
     if (tofix & 2) {
       static constexpr const char *const mstr[3] =
         {"Horizontal", "Vertical", "Four-screen"};
-      sprintf(gigastr+strlen(gigastr),
-              "Mirroring should be set to \"%s\".  ",mstr[iNESMirroring&3]);
+      err += "Mirroring should be set to \"";
+      err += mstr[iNESMirroring & 3];
+      err += "\".";
     }
-    if (tofix&4)
-      strcat(gigastr, "The battery-backed bit should be set.  ");
-    if (tofix&8)
-      strcat(gigastr, "This game should not have any CHR ROM.  ");
-    strcat(gigastr,"\n");
-    FCEU_printf("%s", gigastr);
+    if (tofix & 4)
+      err += "The battery-backed bit should be set.  ";
+    if (tofix & 8)
+      err += "This game should not have any CHR ROM.  ";
+    FCEU_printf("%s\n", err.c_str());
   }
 }
 
@@ -1497,9 +1501,9 @@ void INes::iNESPower() {
     fc->state->AddExState(&iNESIRQa, 1, 0, "iRQA");
     fc->state->AddExState(GMB_PRGBankList(fc), 4, 0, "PBL0");
     for (int x = 0; x < 8; x++) {
-      char tak[8];
-      sprintf(tak,"CBL%d",x);
-      fc->state->AddExState(&iNESCHRBankList[x], 2, 1,tak);
+      char tak[5] = "CBL_";
+      tak[3] = "01234567"[x];
+      fc->state->AddExState(&iNESCHRBankList[x], 2, 1, tak);
     }
   }
 
