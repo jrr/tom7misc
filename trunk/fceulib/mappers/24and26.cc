@@ -326,15 +326,3 @@ MapInterface *Mapper26_init(FC *fc) {
   };
   return m;
 }
-
-#if 0
-// NSF disabled. -tom7
-MapInterface *NSFVRC6_Init(FC *fc) {
-  using C = Mapper24and26<false>;
-  C *m = new C(fc);
-  m->VRC6_ESI();
-  fc->fceu->SetWriteHandler(0x8000, 0xbfff, [](DECLFW_ARGS) {
-    ((C*)fc->fceu->mapinterface)->VRC6SW(DECLFW_FORWARD);
-  });
-}
-#endif

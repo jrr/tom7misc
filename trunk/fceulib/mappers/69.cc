@@ -268,13 +268,3 @@ MapInterface *Mapper69_init(FC *fc) {
 
   return m;
 }
-
-#if 0
-// deleted nsf -tom7
-void NSFAY_Init() {
-  sunindex = 0;
-  fc->fceu->SetWriteHandler(0xc000, 0xdfff, Mapper69_SWL);
-  fc->fceu->SetWriteHandler(0xe000, 0xffff, Mapper69_SWH);
-  Mapper69_ESI(fc);
-}
-#endif

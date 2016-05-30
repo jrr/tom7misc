@@ -223,7 +223,7 @@ bool FCEU::FCEUI_Initialize() {
 // with compile-time flags instead. Probably should remove it entirely.
 //  -tom7
 void FCEU::FCEUI_Emulate(int skip) {
-  fc->input->FCEU_UpdateInput();
+  fc->input->UpdateInput();
 
   // fprintf(stderr, "ppu loop..\n");
 

@@ -937,9 +937,9 @@ int Sound::FlushEmulateSound() {
   (this->*DoNoise)();
   (this->*DoPCM)();
 
-  // If sound is disabled, we won't bother filling in the wave, but
-  // we do call any GameExpSound (since those could definitely
-  // affect the CPU).
+  // If sound is disabled, we won't bother filling in the wave, but we
+  // do call any GameExpSound (since those could definitely affect the
+  // CPU).
   
   if (FCEUS_SOUNDQ >= 1) {
     int32 *tmpo = &WaveHi[soundtsoffs];
