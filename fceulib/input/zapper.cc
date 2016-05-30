@@ -150,6 +150,10 @@ struct ZapperBase : public InputC {
     FCEU_DrawGunSight(buf, ZD.mzx, ZD.mzy);
   }
 
+  // Just for reference, here's how the zapper logged
+  // and loaded its state with the old MovieRecord interface.
+  // There's no way 
+#if 0
   void Log(int w, MovieRecord *mr) override {
     CHECK(w == which);
 
@@ -169,7 +173,8 @@ struct ZapperBase : public InputC {
     ZD.bogo = mr->zappers[w].bogo;
     ZD.zaphit = mr->zappers[w].zaphit;
   }
-
+#endif
+  
   int which;
   ZAPPER ZD;
 };

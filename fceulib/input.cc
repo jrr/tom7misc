@@ -59,16 +59,11 @@
 #define FCEUNPCMD_POWER 0x02
 
 #define FCEUNPCMD_VSUNICOIN 0x07
+// And the 7 that follow.
 #define FCEUNPCMD_VSUNIDIP0 0x08
 #define FCEUNPCMD_FDSINSERTx 0x10
 #define FCEUNPCMD_FDSINSERT 0x18
 #define FCEUNPCMD_FDSSELECT 0x1A
-
-#define FCEUNPCMD_LOADSTATE 0x80
-
-#define FCEUNPCMD_SAVESTATE 0x81 /* Sent from server to client. */
-#define FCEUNPCMD_LOADCHEATS 0x82
-#define FCEUNPCMD_TEXT 0x90
 
 //--------------- FKB_LEFT  FCEU_InitMouse
 
@@ -77,7 +72,7 @@ static constexpr bool replaceP2StartWithMicrophone = false;
 InputC::InputC(FC *fc) : fc(fc) {}
 InputCFC::InputCFC(FC *fc) : fc(fc) {}
 
-struct Input::GPC : public InputC {
+struct Input::GPC final : public InputC {
   using InputC::InputC;
 
   uint8 Read(int i) override {
@@ -90,17 +85,9 @@ struct Input::GPC : public InputC {
   void Update(int i, void *data, int arg) override {
     return fc->input->UpdateGP(i, data, arg);
   }
-
-  void Log(int i, MovieRecord *mr) override {
-    return fc->input->LogGP(i, mr);
-  }
-
-  void Load(int i, MovieRecord *mr) override {
-    return fc->input->LoadGP(i, mr);
-  }
 };
 
-struct Input::GPCVS : public InputC {
+struct Input::GPCVS final : public InputC {
   using InputC::InputC;
 
   uint8 Read(int i) override {
@@ -113,17 +100,9 @@ struct Input::GPCVS : public InputC {
   void Update(int i, void *data, int arg) override {
     return fc->input->UpdateGP(i, data, arg);
   }
-
-  void Log(int i, MovieRecord *mr) override {
-    return fc->input->LogGP(i, mr);
-  }
-
-  void Load(int i, MovieRecord *mr) override {
-    return fc->input->LoadGP(i, mr);
-  }
 };
 
-struct Input::Fami4C : public InputCFC {
+struct Input::Fami4C final : public InputCFC {
   using InputCFC::InputCFC;
 
   uint8 Read(int i, uint8 ret) override {
@@ -148,14 +127,8 @@ Input::Input(FC *fc)
   // Constructor body.
 }
 
-static DECLFR(JPRead) {
-  return fc->input->JPRead_Direct(DECLFR_FORWARD);
-}
-
 DECLFR_RET Input::JPRead_Direct(DECLFR_ARGS) {
-  uint8 ret = 0;
-
-  ret |= joyports[A & 1].driver->Read(A & 1);
+  uint8 ret = joyports[A & 1].driver->Read(A & 1);
 
   // Test if the port 2 start button is being pressed.
   // On a famicom, port 2 start shouldn't exist, so this removes it.
@@ -180,13 +153,11 @@ DECLFR_RET Input::JPRead_Direct(DECLFR_ARGS) {
     }
   }
 
+  // The top bits are not wired up, so we preserve what's on the data
+  // bus for those. -tom7
   ret |= fc->X->DB & 0xC0;
 
   return ret;
-}
-
-static DECLFW(B4016) {
-  return fc->input->B4016_Direct(DECLFW_FORWARD);
 }
 
 void Input::B4016_Direct(DECLFW_ARGS) {
@@ -194,6 +165,9 @@ void Input::B4016_Direct(DECLFW_ARGS) {
 
   for (int i = 0; i < 2; i++) joyports[i].driver->Write(V & 1);
 
+  // Strobe is related to the sequence for reading controller values
+  // (it basically means, "set the latch") -- NOT autofire. -tom7
+  // http://wiki.nesdev.com/w/index.php/Standard_controller
   if ((LastStrobe & 1) && !(V & 1)) {
     // old comment:
     // This strobe code is just for convenience.  If it were
@@ -223,7 +197,7 @@ void Input::StrobeFami4() {
 uint8 Input::ReadFami4(int w, uint8 ret) {
   ret &= 1;
 
-  ret |= ((fc->input->joy[2 + w] >> (F4ReadBit[w])) & 1) << 1;
+  ret |= ((fc->input->joy[2 + w] >> F4ReadBit[w]) & 1) << 1;
   if (F4ReadBit[w] >= 8)
     ret |= 2;
   else
@@ -237,15 +211,13 @@ uint8 Input::ReadFami4(int w, uint8 ret) {
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 uint8 Input::ReadGPVS(int w) {
-  uint8 ret = 0;
-
   if (joy_readbit[w] >= 8) {
-    ret = 1;
+    return 1;
   } else {
-    ret = (joy[w] >> joy_readbit[w]) & 1;
+    uint8 ret = (joy[w] >> joy_readbit[w]) & 1;
     joy_readbit[w]++;
+    return ret;
   }
-  return ret;
 }
 
 void Input::UpdateGP(int w, void *data, int arg) {
@@ -255,26 +227,6 @@ void Input::UpdateGP(int w, void *data, int arg) {
   } else {
     joy[1] = *(uint32 *)joyports[1].ptr >> 8;
     joy[3] = *(uint32 *)joyports[1].ptr >> 24;
-  }
-}
-
-void Input::LogGP(int w, MovieRecord *mr) {
-  if (w == 0) {
-    mr->joysticks[0] = joy[0];
-    mr->joysticks[2] = joy[2];
-  } else {
-    mr->joysticks[1] = joy[1];
-    mr->joysticks[3] = joy[3];
-  }
-}
-
-void Input::LoadGP(int w, MovieRecord *mr) {
-  if (w == 0) {
-    joy[0] = mr->joysticks[0];
-    if (FSAttached) joy[2] = mr->joysticks[2];
-  } else {
-    joy[1] = mr->joysticks[1];
-    if (FSAttached) joy[3] = mr->joysticks[3];
   }
 }
 
@@ -309,7 +261,7 @@ void Input::FCEU_DrawInput(uint8 *buf) {
   if (portFC.driver) portFC.driver->Draw(buf, portFC.attrib);
 }
 
-void Input::FCEU_UpdateInput() {
+void Input::UpdateInput() {
   TRACECALL();
   // tell all drivers to poll input and set up their logical states
   for (int port = 0; port < 2; port++) {
@@ -332,39 +284,27 @@ void Input::FCEU_UpdateInput() {
     fc->vsuni->FCEU_VSUniSwap(&joy[0], &joy[1]);
 }
 
-static DECLFR(VSUNIRead0) {
-  return fc->input->VSUNIRead0_Direct(DECLFR_FORWARD);
-}
-
 DECLFR_RET Input::VSUNIRead0_Direct(DECLFR_ARGS) {
-  uint8 ret = 0;
-
-  ret |= joyports[0].driver->Read(0) & 1;
+  uint8 ret = joyports[0].driver->Read(0) & 1;
 
   ret |= (fc->vsuni->vsdip & 3) << 3;
   if (fc->vsuni->coinon) ret |= 0x4;
   return ret;
 }
 
-static DECLFR(VSUNIRead1) {
-  return fc->input->VSUNIRead1_Direct(DECLFR_FORWARD);
-}
-
 DECLFR_RET Input::VSUNIRead1_Direct(DECLFR_ARGS) {
-  uint8 ret = 0;
-
-  ret |= joyports[1].driver->Read(1) & 1;
+  uint8 ret = joyports[1].driver->Read(1) & 1;
   ret |= fc->vsuni->vsdip & 0xFC;
   return ret;
 }
 
 // calls from the ppu;
 // calls the SLHook for any driver that needs it
-void Input::InputScanlineHook(uint8 *bg, uint8 *spr, uint32 linets, int final) {
+void Input::InputScanlineHook(uint8 *bg, uint8 *spr, uint32 linets, int last) {
   TRACECALL();
   for (int port = 0; port < 2; port++)
-    joyports[port].driver->SLHook(port, bg, spr, linets, final);
-  portFC.driver->SLHook(bg, spr, linets, final);
+    joyports[port].driver->SLHook(port, bg, spr, linets, last);
+  portFC.driver->SLHook(bg, spr, linets, last);
 }
 
 // binds JPorts[pad] to the driver specified in JPType[pad] (allocating
@@ -432,13 +372,22 @@ void Input::InitializeInput() {
   LastStrobe = 0;
 
   if (fc->fceu->GameInfo->type == GIT_VSUNI) {
-    fc->fceu->SetReadHandler(0x4016, 0x4016, VSUNIRead0);
-    fc->fceu->SetReadHandler(0x4017, 0x4017, VSUNIRead1);
+    fc->fceu->SetReadHandler(0x4016, 0x4016, [](DECLFR_ARGS) {
+      return fc->input->VSUNIRead0_Direct(DECLFR_FORWARD);
+    });
+    fc->fceu->SetReadHandler(0x4017, 0x4017, [](DECLFR_ARGS) {
+      return fc->input->VSUNIRead1_Direct(DECLFR_FORWARD);
+    });
   } else {
-    fc->fceu->SetReadHandler(0x4016, 0x4017, JPRead);
+    fc->fceu->SetReadHandler(0x4016, 0x4017, [](DECLFR_ARGS) {
+      return fc->input->JPRead_Direct(DECLFR_FORWARD);
+    });
   }
 
-  fc->fceu->SetWriteHandler(0x4016, 0x4016, B4016);
+  fc->fceu->SetWriteHandler(0x4016, 0x4016,
+			    [](DECLFW_ARGS) {
+			      return fc->input->B4016_Direct(DECLFW_FORWARD);
+			    });
 
   // force the port drivers to be setup
   SetInputStuff(0);

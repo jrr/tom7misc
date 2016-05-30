@@ -20,7 +20,6 @@ Can get rid of:
  - ines.cpp "trainerpoo"
  - file wrappers can be massively simplified
  - file archive support
- - auto-fire
  - NSF code in mapper.h and the uncalled functions therein?
 
 Memory todo:
@@ -43,8 +42,6 @@ Cleanup to do:
  - Somehow look through boards for member variables that are not
    initlized to 0 or {}.
  - Can ines::MasterRomInfoParams move to fk23? Are there other uses?
- - Should use "final override" where possible in mappers/. Did
-   all the boards/ and inputs/.
  - Should use template parameters instead of "is_123" type
    constructor args in mappers/. Did all of boards/ (except MMC3).
  - Probably some MMC3 stuff can be compile-time, by templating
@@ -68,7 +65,6 @@ Possible performance improvements:
    be neat if these could coexist.
 
  - DISABLE_VIDEO
- - DISABLE_SOUND in FlushEmulateSound
  
  - Can the ZNTable be replaced with a computation on the value itself?
    See my comment in x6502.cc.

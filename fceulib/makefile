@@ -8,7 +8,8 @@ all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-co
 # -Wstrict-overflow=3
 # -std=c++11
 # XXXXXXX disable sound should not be on by default.
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -DDISABLE_SOUND=1 -DDISABLE_VIDEO=1
+# -DDISABLE_SOUND=1 -DDISABLE_VIDEO=1
+CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include 
 # XXX -O2
 OPT=-g -O2  # -O3 -fno-strict-aliasing
 # try -flto!

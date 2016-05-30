@@ -1,15 +1,14 @@
-#ifndef _EMU2413_H_
-#define _EMU2413_H_
+#ifndef __EMU2413_H
+#define __EMU2413_H
 
 #include "../types.h"
 
 /* voice data */
-typedef struct {
+struct OPLL_PATCH {
   uint32 TL, FB, EG, ML, AR, DR, SL, RR, KR, KL, AM, PM, WF;
-} OPLL_PATCH;
+};
 
-/* slot */
-typedef struct {
+struct OPLL_SLOT {
   OPLL_PATCH patch;
 
   int32 type; /* 0 : modulator 1 : carrier */
@@ -35,10 +34,9 @@ typedef struct {
   uint32 eg_phase; /* Phase */
   uint32 eg_dphase; /* Phase increment amount */
   uint32 egout; /* output */
-} OPLL_SLOT;
+};
 
-/* opll */
-typedef struct {
+struct OPLL {
   uint32 adr;
   int32 out;
 
@@ -74,7 +72,7 @@ typedef struct {
   OPLL_SLOT slot[6 * 2];
 
   uint32 mask;
-} OPLL;
+};
 
 /* Size of Sintable ( 8 -- 18 can be used. 9 recommended.)*/
 #define PG_BITS 9
