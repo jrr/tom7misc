@@ -68,8 +68,8 @@ using uint64 = uint64_t;
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
 static Font *font = nullptr;
-#define SCREENW 1920
-#define SCREENH 1280
+#define SCREENW 640 // 1920
+#define SCREENH 480 // 1280
 static SDL_Surface *screen = nullptr;
 
 // Thread-safe, so shared between train and ui threads.
@@ -221,7 +221,7 @@ struct NetworkConfiguration {
   // 2^30 = 1GB        = 1073741824
   //   / 4-byte floats = 268435456
   //   / 256 / 256     = 4396
-  const vector<int> indices_per_node = { 2048, 2048, 2048, 2048 };
+  const vector<int> indices_per_node = { 128, 128, 128, 128 };
   vector<int> num_nodes;
   NetworkConfiguration() {
     CHECK_EQ(widths.size(), heights.size());
@@ -244,6 +244,7 @@ struct Network {
     for (int i = 0; i < num_layers; i++) {
       Layer &layer = layers[i];
       layer.indices_per_node = indices_per_node[i];
+      layer.indices.resize(indices_per_node[i] * num_nodes[i + 1], 0);
       layer.weights.resize(indices_per_node[i] * num_nodes[i + 1], 0.0);
       layer.biases.resize(num_nodes[i + 1], 0.0);
     }
@@ -461,13 +462,22 @@ static Network *ReadNetworkBinary(const string &filename) {
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
+  printf("%s: %d layers.\n", filename.c_str(), file_num_layers);
   vector<int> num_nodes(file_num_layers + 1, 0);
-  for (int i = 0; i < file_num_layers + 1; i++)
+  printf("%s: num nodes: ", filename.c_str());
+  for (int i = 0; i < file_num_layers + 1; i++) {
     num_nodes[i] = Read32();
+    printf("%d ", num_nodes[i]);
+  }
+  printf("\n%s: indices per node: ", filename.c_str());
+  
   vector<int> indices_per_node(file_num_layers, 0);
-  for (int i = 0; i < file_num_layers; i++)
+  for (int i = 0; i < file_num_layers; i++) {
     indices_per_node[i] = Read32();
-
+    printf("%d ", indices_per_node[i]);
+  }
+  printf("\n");
+  
   std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node}};
 
   // Read Layer structs.
@@ -489,7 +499,7 @@ static Network *ReadNetworkBinary(const string &filename) {
   printf("Check it:\n");
   CheckInvertedIndices(*net);
 
-  return net.get();
+  return net.release();
 }
 
 static void SaveNetworkBinary(const Network &net, const string &filename) {
@@ -1134,7 +1144,9 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
   // static constexpr int NEIGHBORHOOD = 5;
 
   static_assert(NEIGHBORHOOD >= 0, "must include the pixel itself.");
-  auto OneNode = [](RandomGaussian *gauss, int indices_per_node,
+  auto OneNode = [](RandomGaussian *gauss,
+		    int64 *rejected, int64 *duplicate,
+		    int indices_per_node,
 		    int src_width, int src_height,
 		    int dst_width, int dst_height, int idx) -> vector<uint32> {
 
@@ -1151,12 +1163,17 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
     // Use set for deduplication; we re-sort for locality of access later.
     unordered_set<int> indices;
     // clips xx,yy if they are out of the image.
-    auto AddNodeByCoordinates = [src_width, src_height, &indices](int xx, int yy) {
-      if (xx < 0 || yy < 0 || xx >= src_width || yy >= src_height) return;
+    auto AddNodeByCoordinates = [src_width, src_height, &indices,
+				 rejected, duplicate](int xx, int yy) {
+      if (xx < 0 || yy < 0 || xx >= src_width || yy >= src_height) {
+	++*rejected;
+	return;
+      }
       int idx = (yy * src_width) + xx;
       ECHECK_GE(idx, 0);
       ECHECK_LT(idx, src_width * src_height);
-      indices.insert(idx);
+      auto p = indices.insert(idx);
+      if (!p.second) ++*duplicate;
     };
 
     // Find the closest corresponding pixel in the src layer.
@@ -1199,15 +1216,19 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
     Printf("Intializing indices for layer %d...\n", layer);
     const int indices_per_node = net->layers[layer].indices_per_node;
     vector<uint32> *layer_indices = &net->layers[layer].indices;
-    int src_width = widths[layer];
+    CHECK_LT(layer + 1, widths.size());
+    CHECK_LT(layer + 1, net->num_nodes.size());
+    const int src_width = widths[layer];
     CHECK_EQ(0, net->num_nodes[layer] % src_width);
-    int src_height = net->num_nodes[layer] / src_width;
-    int dst_width = widths[layer + 1];
+    const int src_height = net->num_nodes[layer] / src_width;
+    const int dst_width = widths[layer + 1];
     CHECK_EQ(0, net->num_nodes[layer + 1] % dst_width);
-    int dst_height = net->num_nodes[layer + 1] / dst_width;
+    const int dst_height = net->num_nodes[layer + 1] / dst_width;
     RandomGaussian gauss{rcs[layer]};
+    int64 rejected = 0LL, duplicate = 0LL;
     for (int node_idx = 0; node_idx < dst_height * dst_width; node_idx++) {
-      vector<uint32> indices = OneNode(&gauss, indices_per_node,
+      vector<uint32> indices = OneNode(&gauss, &rejected, &duplicate,
+				       indices_per_node,
 				       src_width, src_height,
 				       dst_width, dst_height, node_idx);
       // Sort them, for better locality of access later.
@@ -1215,11 +1236,19 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
       CHECK_EQ(indices_per_node, indices.size());
       const int start_idx = node_idx * indices_per_node;
       for (int i = 0; i < indices_per_node; i++) {
+	ECHECK_LT(i, indices.size());
+	ECHECK_LT(start_idx + i, layer_indices->size()) << "start " << start_idx
+							<< " i " << i
+							<< " indices size " << layer_indices->size()
+							<< " indices per node "
+							<< indices_per_node;
 	(*layer_indices)[start_idx + i] = indices[i];
       }
       if (node_idx % 100 == 0) {
-	Printf("  [%d/%d] %.1f%%\n", node_idx, dst_height * dst_width,
-	       (100.0 * node_idx) / (dst_height * dst_width));
+	Printf("  [%d/%d] %.1f%% (%lld rejected %lld dupe)\n",
+	       node_idx, dst_height * dst_width,
+	       (100.0 * node_idx) / (dst_height * dst_width),
+	       rejected, duplicate);
       }
     }
   }, 12);
@@ -1240,11 +1269,11 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
 
   // But now we can do all layers in parallel.
-  ParallelComp(net->num_layers, [&rcs, &RandomizeFloats, &net](int layer) {
+  ParallelComp(net->num_layers, [rcs, &RandomizeFloats, &net](int layer) {
     RandomizeFloats(rcs[layer], &net->layers[layer].biases);
     RandomizeFloats(rcs[layer], &net->layers[layer].weights);
   }, 12);
-
+  
   DeleteElements(&rcs);
 }
 
@@ -1341,7 +1370,6 @@ static void UIThread() {
   }
 }
 
-#if 0
 static void TrainThread() {
   Timer setup_timer;
   
@@ -1356,8 +1384,8 @@ static void TrainThread() {
   UpdateWeightsCL updateweights{global_cl};
 
   // Replacing these functions; don't warn.
-  (void)BackwardsError;
-  (void)UpdateWeights;
+  // (void)BackwardsError;
+  // (void)UpdateWeights;
 
   // Load the existing network from disk or create the initial one.
   Timer initialize_network_timer;
@@ -1365,19 +1393,27 @@ static void TrainThread() {
 
   if (net.get() == nullptr) {
     printf("Initializing new network...\n");
+    NetworkConfiguration nc;
+    net.reset(new Network(nc.num_nodes, nc.indices_per_node));
+    printf("Randomize weights:\n");
     RandomizeNetwork(&rc, net.get());
-    MakeIndices(&rc, net.get());
+    printf("Gen indices:\n");
+    MakeIndices(nc.widths, &rc, net.get());
+    printf("Invert indices:\n");
     ComputeInvertedIndices(net.get());
     CheckInvertedIndices(*net);
+
+    printf("Writing network so we don't have to do that again...\n");
+    SaveNetworkBinary(*net, "net.val");
   }
 
   printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
   
   printf("Network uses %.2fMB of storage (without overhead).\n", 
-	 net.Bytes() / (1024.0 * 1024.0));
+	 net->Bytes() / (1024.0 * 1024.0));
 
   {
-    Stimulation stim{NUM_LAYERS};
+    Stimulation stim{*net};
     printf("A stimulation uses %.2fMB.\n", stim.Bytes() / (1024.0 * 1024.0));
   }
 
@@ -1386,13 +1422,14 @@ static void TrainThread() {
     if (should_die) {
       Printf("Train thread signaled death.\n");
       Printf("Saving...\n");
-      SaveNetworkBinary(net, "network-onexit.bin");
+      SaveNetworkBinary(*net, "network-onexit.bin");
     }
     return should_die;
   };
 
-
+  // Prepare corpus.
   
+  #if 0
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
@@ -1665,8 +1702,9 @@ static void TrainThread() {
   Printf(" ** Done. **");
 
   WriteWithLock(&train_done_m, &train_done, true);
-}
 #endif
+}
+
 
 int SDL_main(int argc, char* argv[]) {
 
