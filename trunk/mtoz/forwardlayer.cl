@@ -7,30 +7,33 @@
 //
 // We have to know how many indices each node uses, as a constant.
 
-__kernel void ForwardLayer(// Size NUM_NODES, if each layer is the same
-                           // size.
+// We don't actually need to know the number of nodes within the kernel;
+// the global id just tells us which node we work on. But the number
+// of indices per node is needed to compute offsets.
+__kernel void ForwardLayer(int indices_per_node,
+                           // size num_nodes[layer]
                            __global const float *previous_layer_outputs,
-                           // Size NUM_NODES * INDICES_PER_NODE.
+                           // size num_nodes[layer + 1] * indices_per_node.
                            __global const int *indices,
-                           // Size NUM_NODES * INDICES_PER_NODE; parallel
+                           // size num_nodes[layer + 1] * indices_per_node; parallel
                            // to the previous.
                            __global const float *weights,
-                           // Size NUM_NODES (this layer).
+                           // size num_nodes[layer + 1] (this layer).
                            __global const float *bias,
-                           // Size NUM_NODES.
+                           // size num_nodes[layer + 1].
                            __global float *output_values) {
-  const int node_id = get_global_id(0);
+  const int node_idx = get_global_id(0);
 
   // Start with bias.
-  double potential = bias[node_id];
-  const __global float *my_weights = weights + (node_id * INDICES_PER_NODE);
-  const __global int *my_indices = indices + (node_id * INDICES_PER_NODE);
+  double potential = bias[node_idx];
+  const __global float *my_weights = weights + (node_idx * indices_per_node);
+  const __global int *my_indices = indices + (node_idx * indices_per_node);
 
   // Could itself be a kernel? Not sure what the right granularity of these is.
-  for (int i = 0; i < INDICES_PER_NODE; i++) {
+  for (int i = 0; i < indices_per_node; i++) {
     const float w = my_weights[i];
     const float v = previous_layer_outputs[my_indices[i]];
     potential += w * v;
   }
-  output_values[node_id] = 1.0 / (1.0 + exp(-potential));
+  output_values[node_idx] = 1.0 / (1.0 + exp(-potential));
 }

@@ -46,15 +46,22 @@ using uchar = uint8_t;
 using uint32 = uint32_t;
 using uint64 = uint64_t;
 
-#if 1
-#define ECHECK(a)
-#define ECHECK_EQ(a, b)
-#define ECHECK_LT(a, b)
-#define ECHECK_GT(a, b)
-#define ECHECK_LE(a, b)
-#define ECHECK_GE(a, b)
+// For checks in performance-critical code that should be skipped when
+// we're confident the code is working and want speed.
+#if 0
+# define ECHECK(a)
+# define ECHECK_EQ(a, b)
+# define ECHECK_LT(a, b)
+# define ECHECK_GT(a, b)
+# define ECHECK_LE(a, b)
+# define ECHECK_GE(a, b)
 #else
-#error implement these
+# define ECHECK(a) CHECK(a)
+# define ECHECK_EQ(a, b) CHECK_EQ(a, b)
+# define ECHECK_LT(a, b) CHECK_LT(a, b)
+# define ECHECK_GT(a, b) CHECK_GT(a, b)
+# define ECHECK_LE(a, b) CHECK_LE(a, b)
+# define ECHECK_GE(a, b) CHECK_GE(a, b)
 #endif
 
 // Graphics.
@@ -68,13 +75,8 @@ static SDL_Surface *screen = nullptr;
 // Thread-safe, so shared between train and ui threads.
 static CL *global_cl = nullptr;
 
+// XXX no.
 static constexpr int NUM_LAYERS = 3;
-
-static_assert((NPP >= 3), "Must have at least R, G, B pixels.");
-// static_assert((NEIGHBORHOOD & 1) == 1, "neighborhood must be odd.");
-// static_assert((NUM_NODES % CHUNK_SIZE) == 0, "chunk size must divide input.");
-
-// static_assert(RANDOM == 0, "random not yet supported.");
 
 std::mutex print_mutex;
 #define Printf(fmt, ...) do {		\
@@ -590,8 +592,6 @@ struct Errors {
   vector<vector<float>> error;
 };
 
-#if 0
-
 // Set the error values; this is almost just a memcpy so don't bother doing it
 // on GPU.
 static void SetOutputError(const Stimulation &stim, const vector<float> &expected, Errors *err) {
@@ -600,12 +600,12 @@ static void SetOutputError(const Stimulation &stim, const vector<float> &expecte
   ECHECK(stim.values.size() == num_layers + 1);
   const vector<float> &output = stim.values[num_layers];
 
-  ECHECK_EQ(NUM_NODES, expected.size());
-  ECHECK_EQ(NUM_NODES, output.size()); 
+  const int num_output_nodes = output.size();
+  ECHECK_EQ(num_output_nodes, expected.size());
   ECHECK(err->error.size() == num_layers);
   vector<float> *output_error = &err->error[num_layers - 1];
-  ECHECK_EQ(NUM_NODES, output_error->size());
-  for (int k = 0; k < NUM_NODES; k++) {
+  ECHECK_EQ(num_output_nodes, output_error->size());
+  for (int k = 0; k < num_output_nodes; k++) {
     // Here we want to multiply by the derivative, sigma'(input),
     // which is sigma(input) * (1.0 - sigma(input)), and we already have
     // sigma(input) -- it's the output.
@@ -614,6 +614,9 @@ static void SetOutputError(const Stimulation &stim, const vector<float> &expecte
     (*output_error)[k] = out_k * (1.0 - out_k) * (expected[k] - out_k);
   }
 }
+
+#if 0
+// XXX should update this C++ code or just delete it.
 
 // Propagate the error backwards from the dest_layer to the src_layer.
 // (Note that the error terms go FROM the destination TO the source;
@@ -758,6 +761,8 @@ static void UpdateWeights(const float learning_rate,
 	       }, 12);
 }
 
+#endif
+
 struct ForwardLayerCL {
   explicit ForwardLayerCL(CL *cl) : cl(cl) {
     const string kernel_src = 
@@ -771,9 +776,9 @@ struct ForwardLayerCL {
     ForwardContext(ForwardLayerCL *parent, const Network &net, int layer) :
       parent(parent), net(net), layer(layer) {
       CL *cl = parent->cl;
-      indices = MoveMemoryToGPUConst(cl->context, cl->queue, net.indices[layer]);
-      weights = MoveMemoryToGPUConst(cl->context, cl->queue, net.weights[layer]);
-      biases = MoveMemoryToGPUConst(cl->context, cl->queue, net.biases[layer]);
+      indices = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].indices);
+      weights = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].weights);
+      biases = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].biases);
     }
 
     // TODO: Do we really want to share the same command queue across threads?
@@ -787,23 +792,24 @@ struct ForwardLayerCL {
       // Technically these are thread-safe, but we should avoid moving lots of memory
       // onto the GPU before we can use it, because our working set for one kernel call
       // is pretty sizable compared to total gpu memory!
-      cl_mem src_values = MoveMemoryToGPUConst(cl->context, cl->queue,
-					       stim->values[layer]);
+      cl_mem src_values = MoveMemoryToGPUConst(cl->context, cl->queue, stim->values[layer]);
       cl_mem dst_values = CreateUninitializedGPUMemory<float>(cl->context,
-							      SIZE * SIZE * NPP);
+							      stim->values[layer + 1].size());
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
 	MutexLock ml(&parent->m);
 
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_mem), (void *)&src_values));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&indices));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&weights));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&biases));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&dst_values));
+	cl_int indices_per_node = net.layers[layer].indices_per_node;
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_int), (void *)&indices_per_node));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&src_values));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&indices));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&weights));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&biases));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&dst_values));
 
 	size_t global_work_offset[] = { 0 };
-	size_t global_work_size[] = { (size_t)(SIZE * SIZE * NPP) };
+        size_t global_work_size[] = { (size_t)(stim->values[layer + 1].size()) };
 	Timer kernel_timer;
 	CHECK(CL_SUCCESS == clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
 						   // work dimensions
@@ -859,6 +865,8 @@ struct ForwardLayerCL {
   std::mutex m;
 };
 
+#if 0
+  
 struct BackwardLayerCL {
   explicit BackwardLayerCL(CL *cl) : cl(cl) {
     const string kernel_src = 
