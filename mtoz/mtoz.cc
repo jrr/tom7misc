@@ -1,3 +1,6 @@
+// This code was forked from ../redi, so read there for some
+// development history / thoughts.
+
 #include "../cc-lib/sdl/sdlutil.h"
 #include "SDL.h"
 #include "SDL_main.h"
@@ -65,9 +68,6 @@ static SDL_Surface *screen = nullptr;
 // Thread-safe, so shared between train and ui threads.
 static CL *global_cl = nullptr;
 
-// You can read the previous versions (redi-random.cc) to see some of
-// the history / thoughts.
-
 static constexpr int NUM_LAYERS = 3;
 
 static_assert((NPP >= 3), "Must have at least R, G, B pixels.");
@@ -89,6 +89,12 @@ static void DeleteElements(C *cont) {
   }
   cont->clear();
 }
+
+// Communication between threads.
+static bool train_should_die = false;
+std::mutex train_should_die_m;
+static bool train_done = false;
+std::mutex train_done_m;
 
 struct ImageRGBA {
   static ImageRGBA *Load(const string &filename) {
@@ -134,6 +140,7 @@ static constexpr float ByteFloat(uint8 b) {
   return (b / 255.0);
 }
 
+#if 0
 static void WriteLayerAsImage(const string &filename, const vector<float> &values) {
   vector<uint8> rgba;
   // TODO: Write other channels as separate transparent images?
@@ -160,8 +167,8 @@ static void WriteLayerAsImage(const string &filename, const vector<float> &value
     fclose(ftxt);
     Printf("And %s.\n", tf.c_str());
   }
-
 }
+#endif
 
 // Single-channel bitmap.
 struct ImageA {
@@ -172,38 +179,6 @@ struct ImageA {
   const int width, height;
   vector<uint8> alpha;
 };
-
-// Pretty much only useful for this application since it loads the whole font each time.
-static ImageA *FontChar(const string &filename, char c, int size) {
-  fflush(stdout);
-
-  FILE *file = fopen(filename.c_str(), "rb");
-  if (file == nullptr) {
-    fprintf(stderr, "Failed to fopen %s\n", filename.c_str());
-    return nullptr;
-  }
-  // XXX check read size
-  uint8 *ttf_buffer = (uint8*)malloc(1<<25);
-  fread(ttf_buffer, 1, 1 << 25, file);
-  fclose(file);
-
-  stbtt_fontinfo font;
-  stbtt_InitFont(&font, ttf_buffer, stbtt_GetFontOffsetForIndex(ttf_buffer, 0));
-  int width, height;
-  uint8 *bitmap = stbtt_GetCodepointBitmap(&font, 0, stbtt_ScaleForPixelHeight(&font, size),
-					   c, &width, &height, 0, 0);
-  if (bitmap == nullptr) {
-    fprintf(stderr, "Failed to getcodepoint\n");
-    free(ttf_buffer);
-    return nullptr;
-  }
-  const int bytes = width * height;
-  vector<uint8> ret;
-  ret.resize(bytes);
-  memcpy(ret.data(), bitmap, bytes);
-  free(ttf_buffer);
-  return new ImageA(ret, width, height);
-}
 
 static void BlitChannel(uint8 r, uint8 g, uint8 b, const ImageA &channel, 
 			int xpos, int ypos,
@@ -235,116 +210,210 @@ static void BlitChannel(uint8 r, uint8 g, uint8 b, const ImageA &channel,
   }
 }
 
-// This doesn't blend; it assumes we have 0 in every slot to start.
-// (This is only used to draw into the unused image channel in the
-// training data to try to coax it to recognize the position of the 'i').
-static void BlitNodeChannel(int ch_offset, const ImageA &channel,
-			    int xpos, int ypos,
-			    vector<float> *dest) {
-  CHECK_LT(ch_offset, NPP);
-  CHECK_GE(ch_offset, 0);
-  CHECK_EQ(dest->size(), SIZE * SIZE * NPP);
-  for (int y = 0; y < channel.height; y++) {
-    int dsty = ypos + y;
-    if (dsty >= 0 && dsty < SIZE) {
-      for (int x = 0; x < channel.width; x++) {
-	int dstx = xpos + x;
-	if (dstx >= 0 && dstx <= SIZE) {
-	  int sidx = x + channel.width * y;
-	  uint8 value = channel.alpha[sidx];
+struct Network {
+  // Creates arrays of the appropriate size, but all zeroes. Note that this uninitialized
+  // network is invalid, since the inverted indices are not correct.
+  Network(vector<int> num_nodes, vector<int> indices_per_node) : num_layers(num_nodes.size() - 1),
+								 num_nodes(num_nodes) {
+    CHECK(num_nodes.size() >= 1) << "Must include input layer.";
+    CHECK_EQ(num_layers, indices_per_node.size());
+    layers.resize(num_layers);
+    for (int i = 0; i < num_layers; i++) {
+      Layer &layer = layers[i];
+      layer.indices_per_node = indices_per_node[i];
+      layer.weights.resize(indices_per_node[i] * num_nodes[i + 1], 0.0);
+      layer.biases.resize(num_nodes[i + 1], 0.0);
+    }
+    
+    inverted_indices.resize(num_layers);
+    for (int i = 0; i < num_layers; i++) {
+      InvertedIndices &ii = inverted_indices[i];
+      ii.start.resize(num_nodes[i], 0);
+      ii.length.resize(num_nodes[i], 0);
+      ii.output_indices.resize(indices_per_node[i] * num_nodes[i + 1], 0);
+    }
+  }
 
-	  int didx = (dsty * SIZE + dstx) * NPP + ch_offset;
-	  (*dest)[didx] = ByteFloat(value);
-	}
+  int64 Bytes() const {
+    int64 ret = sizeof *this;
+    ret += sizeof num_nodes[0] * num_nodes.size();
+    // Layer structs.
+    for (int i = 0; i < num_layers; i++) {
+      ret += sizeof layers[i] + sizeof layers[i].indices[0] * layers[i].indices.size() +
+	sizeof layers[i].weights[0] * layers[i].weights.size() +
+	sizeof layers[i].biases[0] * layers[i].biases.size();
+    }
+    // Inverted index structs.
+    for (int i = 0; i < num_layers; i++) {
+      ret += sizeof inverted_indices[i] +
+	sizeof inverted_indices[i].start[0] * inverted_indices[i].start.size() +
+	sizeof inverted_indices[i].length[0] * inverted_indices[i].length.size() +
+	sizeof inverted_indices[i].output_indices[0] * inverted_indices[i].output_indices.size();
+    }
+    
+    return ret;
+  }
+
+  void CopyFrom(const Network &other) {
+    CHECK_EQ(this->num_layers, other.num_layers);
+    this->num_nodes = other.num_nodes;
+    this->layers = other.layers;
+    this->inverted_indices = other.inverted_indices;
+  }
+
+  // Just used for serialization. Whenever changing the interpretation
+  // of the data in an incomplete way, please change.
+  static constexpr uint32 FORMAT_ID = 0x2700072AU;
+  
+  // The number of "real" layers, that is, not counting the input.
+  const int num_layers;
+
+  // num_layers + 1. num_nodes[0] is the size of the input layer.
+  vector<int> num_nodes;
+  
+  struct Layer {
+    int indices_per_node;
+    // indices_per_node * num_nodes[l + 1], flat, node-major
+    vector<uint32> indices;
+    // indices_per_node * num_nodes[l + 1]; Parallel to indices.
+    vector<float> weights;
+    // num_nodes[l + 1]. One per node.
+    vector<float> biases;
+  };
+
+  struct InvertedIndices {
+    // For a given node, where do I output to in the next layer?
+    // Note that nodes don't all have the same number of outputs.
+    // This is a packed structure to facilitate GPU operations.
+    //
+    // For a given node, where do my output indices start in
+    // the indices array, and how many are there?
+    // num_nodes[i]
+    vector<uint32> start;
+    vector<uint32> length;
+
+    // Packed array of indices. Since every node on the next layer has
+    // exactly layers[l].indices_per_node inputs, this will be of size
+    // layers[l].indices_per_node * num_nodes[l + 1]. However, any
+    // given node on this layer may be used more or fewer times.
+    //
+    // The value here gives the index into the indices/weights vectors
+    // for the next layer. If for each index i within the span (defined
+    // by inverted_indices[layer].start[z]) for node id z
+    // let gidx = inverted_indices[layer].output_indices[i]
+    // and then layers[layer].indices[gidx] == z. (The same for the weight
+    // vector gives us the weight, which is the point, and dividing
+    // by INDICES_PER_NODE gives us the output node.) As such, this is
+    // a permutation of 0..(num_nodes[ii] * layers[ii].indices_per_node - 1).
+    vector<uint32> output_indices;
+  };
+
+  // num_layers
+  vector<Layer> layers;
+  // There are also num_layers of these, but be careful about the
+  // offset. The 0th inverted index is about the gap between the input
+  // layer (otherwise not represented in the network, except for its
+  // size in num_nodes[0]) and the first hidden layer. The last one is
+  // about the last gap, not the output layer, since the output layer
+  // is not indexed by anything.
+  vector<InvertedIndices> inverted_indices;
+};
+
+static void CheckInvertedIndices(const Network &net) {
+  for (int layer = 0; layer < net.num_layers; layer++) {
+    const vector<uint32> &indices = net.layers[layer].indices;
+    const Network::InvertedIndices &inv = net.inverted_indices[layer];
+    CHECK_EQ(net.num_nodes[layer + 1] * net.layers[layer].indices_per_node,
+	     indices.size());
+    // Need one start/length pair for every node in the source layer.
+    CHECK_EQ(net.num_nodes[layer], inv.start.size());
+    CHECK_EQ(net.num_nodes[layer], inv.length.size());
+    // But the output size is determined by the next layer.
+    CHECK_EQ(net.num_nodes[layer + 1] * net.layers[layer].indices_per_node,
+	     inv.output_indices.size());
+    // z is a node id from the src layer.
+    for (int z = 0; z < inv.start.size(); z++) {
+      // i is the index within the compacted inverted index.
+      for (int i = inv.start[z]; i < inv.start[z] + inv.length[z]; i++) {
+	// Global index into 'indices'.
+	CHECK(i >= 0);
+	CHECK(i < inv.output_indices.size());
+	const int gidx = inv.output_indices[i];
+	CHECK(gidx >= 0);
+	CHECK(gidx < indices.size());
+	// This should map back to our current node id.
+	CHECK_EQ(indices[gidx], z);
       }
     }
   }
 }
 
-struct Network {
-  // Creates arrays of the appropriate size, but all zeroes.
-  Network(int num_layers) : 
-    num_layers(num_layers),
-    indices(num_layers, vector<uint32>(INDICES_PER_NODE * NUM_NODES, 0)),
-    weights(num_layers, vector<float>(INDICES_PER_NODE * NUM_NODES, 0.0f)),
-    biases(num_layers, vector<float>(NUM_NODES, 0.0f)),
-    inverted_indices_start(num_layers, vector<uint32>(NUM_NODES, 0U)),
-    inverted_indices_length(num_layers, vector<uint32>(NUM_NODES, 0U)),
-    inverted_indices(num_layers, vector<uint32>(INDICES_PER_NODE * NUM_NODES, 0)) {}
-  int64 Bytes() const {
-    return 
-      // indices
-      (INDICES_PER_NODE * NUM_NODES * sizeof (uint32) * num_layers) +
-      // weights
-      (INDICES_PER_NODE * NUM_NODES * sizeof (float) * num_layers) +
-      // biases
-      (NUM_NODES * sizeof (float) * num_layers) +
-      // inverted_indices_start
-      (NUM_NODES * sizeof (uint32) * num_layers) +
-      // inverted_indices_length
-      (NUM_NODES * sizeof (uint32) * num_layers) +
-      // inverted_indices
-      (INDICES_PER_NODE * NUM_NODES * sizeof (uint32) * num_layers);
-  }
+static void ComputeInvertedIndices(Network *net) {
+  // Computes the values for inverted_indices[layer]. Note that
+  // although we use the [layer] offset throughout, this is really
+  // talking about the gap between layers, with the 0th element's
+  // index being the way the first hidden layer uses the inputs, and
+  // the 0th element's inverted index being about the way the inputs map
+  // to the first hidden layer.
+  auto OneLayer = [net](int layer) {
+    const int src_num_nodes = net->num_nodes[layer];
+    const int dst_num_nodes = net->num_nodes[layer + 1];
+    CHECK_LT(layer, net->num_layers);
+    CHECK_LT(layer, net->inverted_indices.size());
+    vector<uint32> *start = &net->inverted_indices[layer].start;
+    vector<uint32> *length = &net->inverted_indices[layer].length;
+    // Number of nodes depends on size of source layer.
+    CHECK_EQ(src_num_nodes, start->size());
+    CHECK_EQ(src_num_nodes, length->size());
+    vector<uint32> *inverted = &net->inverted_indices[layer].output_indices;
+    // But this has to account for all the nodes on the destination layer.
+    CHECK_EQ(net->layers[layer].indices_per_node * dst_num_nodes, inverted->size());
+    
+    // Indexed by node id in the source layer.
+    vector<vector<uint32>> occurrences;
+    occurrences.resize(net->num_nodes[layer]);
+    for (int dest_indices_idx = 0;
+	 dest_indices_idx < net->layers[layer].indices_per_node * dst_num_nodes;
+	 dest_indices_idx++) {
+      // This index gets put into exactly one place in occurrences.
+      const int src_nodes_idx = net->layers[layer].indices[dest_indices_idx];
+      occurrences[src_nodes_idx].push_back(dest_indices_idx);
+    }
 
-  void CopyFrom(const Network &other) {
-    CHECK_EQ(this->num_layers, other.num_layers);
-    this->indices = other.indices;
-    this->weights = other.weights;
-    this->biases = other.biases;
-    this->inverted_indices_start = other.inverted_indices_start;
-    this->inverted_indices_length = other.inverted_indices_length;
-    this->inverted_indices = other.indices;
-  }
+    // These can be in arbitrary order, but sort each subvector, for
+    // locality of access and better compression.
+    for (vector<uint32> &v : occurrences) {
+      std::sort(v.begin(), v.end());
+    }
 
-  // The number of "real" layers, that is, not counting the input.
-  const int num_layers;
+    // Now flatten.
+    int flat_size = 0;
+    for (int src_nodes_idx = 0;
+	 src_nodes_idx < src_num_nodes;
+	 src_nodes_idx++) {
+      (*start)[src_nodes_idx] = flat_size;
+      (*length)[src_nodes_idx] = occurrences[src_nodes_idx].size();
 
-  // For all of the fields in this struct, the outer vector has size num_layers.
-  // (It might even be a good idea to make this into a Layer struct.)
-  // INDICES_PER_NODE * NUM_NODES
-  vector<vector<uint32>> indices;
-  // INDICES_PER_NODE * NUM_NODES
-  vector<vector<float>> weights;
-  // NUM_NODES
-  vector<vector<float>> biases;
+      for (const int val : occurrences[src_nodes_idx]) {
+	(*inverted)[flat_size] = val;
+	flat_size++;
+      }
+    }
+    CHECK_EQ(dst_num_nodes * net->layers[layer].indices_per_node, flat_size);
+  };
 
-  // For a given node, where do I output to in the next layer?
-  // Note that nodes don't all have the same number of outputs.
-  // This is a packed structure to facilitate GPU operations.
-  //
-  // For a given node, where do my output indices start in
-  // the inverted_indices array, and how many are there?
-  // NUM_NODES
-  vector<vector<uint32>> inverted_indices_start;
-  vector<vector<uint32>> inverted_indices_length;
-  // Packed array of indices. Since every node on the next layer
-  // has exactly INDICES_PER_NODE inputs, this will be of
-  // size INDICES_PER_NODE * NUM_NODES. However, any given node
-  // on this layer may be used more or fewer times.
-  //
-  // There are num_layers of these, but be careful about the offset.
-  // The 0th inverted index is about the gap between the input layer
-  // (otherwise not represented in the network) and the first hidden
-  // layer. The last one is about the last gap, not the output layer,
-  // since the output layer is not indexed by anything.
-  //
-  // The value here gives the index into the indices/weights vectors
-  // for the next layer. If for each index i within the span (defined
-  // by inverted_indices_start[layer][z]) for node id z
-  // let gidx = inverted_indices[layer][i]
-  // and then indices[layer][gidx] == z. (The same for the weight
-  // vector gives us the weight, which is the point, and dividing
-  // by INDICES_PER_NODE gives us the output node.) As such, this is
-  // a permutation of 0..(NUM_NODES * INDICES_PER_NODE - 1).
-  vector<vector<uint32>> inverted_indices;
-};
+  ParallelComp(net->num_layers, OneLayer, 12);
+}
 
-void ReadNetworkBinary(const string &filename, Network *net) {
+// Caller owns new-ly allocated Network object.
+static Network *ReadNetworkBinary(const string &filename) {
   Printf("Reading [%s]\n", filename.c_str());
   FILE *file = fopen(filename.c_str(), "rb");
-  CHECK(file != nullptr) << "If this fails but is present, you may "
-    "have a permissions problem.";
+  if (file == nullptr) {
+    printf("  ... failed. If it's present, there may be a "
+	   "permissions problem?\n");
+    return nullptr;
+  }
 
   auto Read32 = [file]() {
     int32_t i;
@@ -364,28 +433,40 @@ void ReadNetworkBinary(const string &filename, Network *net) {
     }
   };
 
-  CHECK(Read32() == 0x27000700) << "Wrong magic number!";
-  CHECK_EQ(Read32(), NPP);
-  CHECK_EQ(Read32(), SIZE);
-  // This one we could probably increase, though.
-  CHECK_EQ(Read32(), INDICES_PER_NODE);
-  // And adding more layers would be totally reasonable.
+  CHECK(Read32() == Network::FORMAT_ID) << "Wrong magic number!";
+
+  // These values determine the size of the network vectors.
   int file_num_layers = Read32();
-  CHECK_EQ(file_num_layers, net->num_layers);
+  CHECK_GE(file_num_layers, 0);
+  vector<int> num_nodes(file_num_layers + 1, 0);
+  for (int i = 0; i < file_num_layers + 1; i++)
+    num_nodes[i] = Read32();
+  vector<int> indices_per_node(file_num_layers, 0);
+  for (int i = 0; i < file_num_layers; i++)
+    indices_per_node[i] = Read32();
+
+  std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node}};
+
+  // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
-    for (int j = 0; j < INDICES_PER_NODE * NUM_NODES; j++) {
-      net->indices[i][j] = Read32();
+    for (int j = 0; j < net->layers[i].indices.size(); j++) {
+      net->layers[i].indices[j] = Read32();
     }
+    ReadFloats(&net->layers[i].weights);
+    ReadFloats(&net->layers[i].biases);
   }
 
-  for (int i = 0; i < file_num_layers; i++)
-    ReadFloats(&net->weights[i]);
-
-  for (int i = 0; i < file_num_layers; i++)
-    ReadFloats(&net->biases[i]);
-  
   fclose(file);
   Printf("Read from %s.\n", filename.c_str());
+
+  // Now, fill in the inverted indices. These are not stored in the file.
+  
+  printf("Invert index:\n");
+  ComputeInvertedIndices(net.get());
+  printf("Check it:\n");
+  CheckInvertedIndices(*net);
+
+  return net.get();
 }
 
 static void SaveNetworkBinary(const Network &net, const string &filename) {
@@ -402,32 +483,25 @@ static void SaveNetworkBinary(const Network &net, const string &filename) {
       WriteFloat(f);
   };
 
-  Write32(0x27000700);
-  Write32(NPP);
-  Write32(SIZE);
-  Write32(INDICES_PER_NODE);
+  Write32(Network::FORMAT_ID);
   Write32(net.num_layers);
+  for (const int i : net.num_nodes) Write32(i);
+  for (const Network::Layer &layer : net.layers) Write32(layer.indices_per_node);
 
-  for (int i = 0; i < net.num_layers; i++) {
-    for (uint32 idx : net.indices[i]) {
-      Write32(idx);
-    }
+  for (const Network::Layer &layer : net.layers) {
+    for (const uint32 idx : layer.indices) Write32(idx);
+    WriteFloats(layer.weights);
+    WriteFloats(layer.biases);
   }
 
-  for (int i = 0; i < net.num_layers; i++)
-    WriteFloats(net.weights[i]);
-
-  for (int i = 0; i < net.num_layers; i++)
-    WriteFloats(net.biases[i]);
-
+  // Inverted indices are not written.
   Printf("Wrote %s.\n", filename.c_str());
   fclose(file);
 }
 
-static void WriteNetwork(const Network &net, const string &filename) {
-  bool truncate = false;
-  if (net.Bytes() > 20000000LL) {
-    truncate = true;
+static void WriteNetworkText(const Network &net, const string &filename) {
+  const bool truncate = net.Bytes() > 20000000LL;
+  if (truncate) {
     Printf("Writing trucated network because it's too big.\n");
   }
   FILE *f = fopen(filename.c_str(), "wb");
@@ -437,13 +511,14 @@ static void WriteNetwork(const Network &net, const string &filename) {
 	    "Layer %d:\n"
 	    "===================\n", layer);
 
-    const int max_nodes = truncate ? 8 : NUM_NODES;
+    const int max_nodes = truncate ? min(net.num_nodes[layer + 1], 8) : net.num_nodes[layer + 1];
     for (int node_idx = 0; node_idx < max_nodes; node_idx++) {
-      fprintf(f, "n %d: % f ", node_idx, net.biases[layer][node_idx]);
-      for (int i = 0; i < INDICES_PER_NODE; i++) {
+      fprintf(f, "n %d: % f ", node_idx, net.layers[layer].biases[node_idx]);
+      int indices_per_node = net.layers[layer].indices_per_node;
+      for (int i = 0; i < indices_per_node; i++) {
 	fprintf(f, " + %f*n%d",
-		net.weights[layer][node_idx * INDICES_PER_NODE + i],
-		net.indices[layer][node_idx * INDICES_PER_NODE + i]);
+		net.layers[layer].weights[node_idx * indices_per_node + i],
+		net.layers[layer].indices[node_idx * indices_per_node + i]);
       }
       fprintf(f, "\n");
     }
@@ -451,117 +526,62 @@ static void WriteNetwork(const Network &net, const string &filename) {
   fclose(f);
 }
 
-static void CheckInvertedIndices(const Network &net) {
-  for (int layer = 0; layer < net.num_layers; layer++) {
-    const vector<uint32> &indices = net.indices[layer];
-    const vector<uint32> &inv = net.inverted_indices[layer];
-    const vector<uint32> &starts = net.inverted_indices_start[layer];
-    const vector<uint32> &lengths = net.inverted_indices_length[layer];
-    CHECK_EQ(NUM_NODES * INDICES_PER_NODE, indices.size());
-    CHECK_EQ(NUM_NODES, starts.size());
-    CHECK_EQ(NUM_NODES, lengths.size());
-    CHECK_EQ(NUM_NODES * INDICES_PER_NODE, inv.size());
-    // z is a node id from the src layer.
-    for (int z = 0; z < starts.size(); z++) {
-      // i is the index within the compacted inverted index.
-      for (int i = starts[z]; i < starts[z] + lengths[z]; i++) {
-	// Global index into 'indices'.
-	const int gidx = inv[i];
-	// This should map back to our current node id.
-	CHECK_EQ(indices[gidx], z);
-      }
-    }
-  }
-}
 
-static void ComputeInvertedIndices(Network *net) {
-  // Computes the values for inverted_indices[layer] and
-  // inverted_indices_span[layer]. Note that although we use the
-  // [layer] offset throughout, both are really talking about the gap
-  // between layers, with the 0th element's index being the way the
-  // first hidden layer uses the inputs, and the 0th element's invert
-  // index being about the way the inputs map to the first hidden
-  // layer.
-  auto OneLayer = [net](int layer) {
-    CHECK_LT(layer, net->inverted_indices.size());
-    CHECK_LT(layer, net->inverted_indices_start.size());
-    CHECK_LT(layer, net->inverted_indices_length.size());
-    vector<uint32> *starts = &net->inverted_indices_start[layer];
-    vector<uint32> *lengths = &net->inverted_indices_length[layer];
-    CHECK_EQ(NUM_NODES, starts->size());
-    CHECK_EQ(NUM_NODES, lengths->size());
-    vector<uint32> *inverted = &net->inverted_indices[layer];
-    CHECK_EQ(INDICES_PER_NODE * NUM_NODES, inverted->size());
-    
-    // Indexed by node id in the source layer.
-    vector<vector<uint32>> occurrences;
-    occurrences.resize(NUM_NODES);
-    for (int dest_indices_idx = 0;
-	 dest_indices_idx < NUM_NODES * INDICES_PER_NODE;
-	 dest_indices_idx++) {
-      // This index gets put into exactly one place in occurrences.
-      const int src_nodes_idx = net->indices[layer][dest_indices_idx];
-      occurrences[src_nodes_idx].push_back(dest_indices_idx);
-    }
-
-    // Sort each subvector, for locality of access.
-    for (vector<uint32> &v : occurrences) {
-      std::sort(v.begin(), v.end());
-    }
-
-    // Now flatten.
-    int flat_size = 0;
-    for (int src_nodes_idx = 0;
-	 src_nodes_idx < NUM_NODES;
-	 src_nodes_idx++) {
-      (*starts)[src_nodes_idx] = flat_size;
-      (*lengths)[src_nodes_idx] = occurrences[src_nodes_idx].size();
-
-      for (int val : occurrences[src_nodes_idx]) {
-	(*inverted)[flat_size] = val;
-	flat_size++;
-      }
-    }
-    CHECK_EQ(NUM_NODES * INDICES_PER_NODE, flat_size);
-  };
-
-  ParallelComp(net->num_layers, OneLayer, 12);
-}
-
+// A stimulation is an evaluation (perhaps an in-progress one) of a
+// network on a particular input; when it's complete we have the
+// activation value of each node on each layer, plus the input itself.
 struct Stimulation {
-  // PERF is this really the fastest way? It seems to involve a bunch
-  // of vector copies.
-  Stimulation(int num_layers) :
-    num_layers(num_layers),
-    values(num_layers + 1, vector<float>(NUM_NODES, 0.0f)) {
+  explicit Stimulation(const Network &net) : num_layers(net.num_layers),
+					     num_nodes(net.num_nodes) {
+    values.resize(num_layers + 1);
+    for (int i = 0; i < values.size(); i++)
+      values[i].resize(num_nodes[i], 0.0f);
   }
   int64 Bytes() const {
-    return (num_layers + 1) * NUM_NODES * sizeof (float);
+    int64 ret = sizeof *this;
+    for (int i = 0; i < values.size(); i++) {
+      ret += sizeof values[i] + sizeof values[i][0] * values[i].size();
+    }
+    return ret;
   }
 
   // Same as in Network.
   const int num_layers;
-
+  // num_layers + 1
+  const vector<int> num_nodes;
+  
   // Keep track of what's actually been computed?
 
   // Here the outer vector has size num_layers + 1; first is the input.
-  // Inner vector is size NUM_NODES, and just contains their output values.
+  // Inner vector has size num_nodes[i], and just contains their output values.
   vector<vector<float>> values;
 
   void CopyFrom(const Stimulation &other) {
     CHECK_EQ(this->num_layers, other.num_layers);
+    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
+    for (int i = 0; i < this->num_nodes.size(); i++) {
+      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
+    }
     this->values = other.values;
   }
 };
 
 struct Errors {
-  Errors(int num_layers) : 
-    num_layers(num_layers),
-    error(num_layers, vector<float>(NUM_NODES, 0.0f)) {
+  explicit Errors(const Network &net) : num_layers(net.num_layers), num_nodes(net.num_nodes) {
+    error.resize(num_layers);
+    for (int i = 0; i < error.size(); i++) {
+      error[i].resize(num_nodes[i + 1], 0.0f);
+    }
   }
   const int num_layers;
+  // The first entry here is unused (it's the size of the input layer, which doesn't
+  // get errors), but we keep it like this to be consistent with Network and Stimulation.
+  const vector<int> num_nodes;
   int64 Bytes() const {
-    return num_layers * NUM_NODES * sizeof (float);
+    int64 ret = sizeof *this;
+    for (int i = 0; i < error.size(); i++)
+      ret += sizeof error[i] + sizeof error[i][0] * error[i].size();
+    return ret;
   }
 
   // These are the delta terms in Mitchell. We have num_layers of them, where
@@ -569,6 +589,8 @@ struct Errors {
   // and error[num_layers] is the error for the output.
   vector<vector<float>> error;
 };
+
+#if 0
 
 // Set the error values; this is almost just a memcpy so don't bother doing it
 // on GPU.
@@ -587,7 +609,7 @@ static void SetOutputError(const Stimulation &stim, const vector<float> &expecte
     // Here we want to multiply by the derivative, sigma'(input),
     // which is sigma(input) * (1.0 - sigma(input)), and we already have
     // sigma(input) -- it's the output.
-    float out_k = output[k];
+    const float out_k = output[k];
     // Note in some presentations this is out_k - expected_k.
     (*output_error)[k] = out_k * (1.0 - out_k) * (expected[k] - out_k);
   }
@@ -1125,8 +1147,7 @@ static void MakeIndices(ArcFour *rc, Network *net) {
 	double dx = gauss.Next() * STDDEV;
 	double dy = gauss.Next() * STDDEV;
 
-	// XXX tiny bias if NPP doesn't divide 2^32. Make RandTo function.
-	int ch = Rand32(rc) % NPP;
+	int ch = RandTo(rc, NPP);
 	// Insert symmetrically...
 	AddNodeByCoordinates((int)(x + dx), (int)(y + dy), ch);
 	if (SYMMETRIC_GAUSSIAN) {
@@ -1140,11 +1161,9 @@ static void MakeIndices(ArcFour *rc, Network *net) {
       }
     } else {
       while (indices.size() < INDICES_PER_NODE) {
-	// Assuming power of two...
-	int dx = Rand32(rc) % SIZE;
-	int dy = Rand32(rc) % SIZE;
-	// XXX tiny bias if NPP doesn't divide 2^32. Make RandTo function.
-	int ch = Rand32(rc) % NPP;
+	int dx = RandTo(rc, SIZE);
+	int dy = RandTo(rc, SIZE);
+	int ch = RandTo(rc, NPP);
 
 	AddNodeByCoordinates(dx, dy, ch);
       }
@@ -1213,6 +1232,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
   DeleteElements(&rcs);
 }
+#endif
 
 template<class A, class F>
 static auto Map(const vector<A> &vec, const F &f) -> vector<decltype(f(vec[0]))> {
@@ -1230,6 +1250,7 @@ static void App(const vector<A> &vec, const F &f) {
   for (const auto &elt : vec) f(elt);
 }
 
+#if 0
 static constexpr int NUM_VIDEO_STIMULATIONS = 7;
 std::mutex video_export_m;
 int current_round = 0;
@@ -1260,269 +1281,19 @@ void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
   }
 }
 
-
-vector<ImageRGBA *> LoadImagesFromDirectory(const string &dir) {
-  vector<string> filenames = 
-    Map(Util::ListFiles(dir),
-	[dir](const string &s) -> string { return dir + s; });
-
-  Printf("Loading %d files from %s...\n", (int)filenames.size(), dir.c_str());
-  vector<ImageRGBA *> result =
-    ParallelMap(filenames,
-		[](const string &s) { return ImageRGBA::Load(s); },
-		16);
-  CHECK(result.size() > 0);
-  return result;
-}
-
-// Communication between threads.
-static bool train_should_die = false;
-std::mutex train_should_die_m;
-static bool train_done = false;
-std::mutex train_done_m;
-
-void UIThread() {
-  enum Mode {
-    MODE_STIMULUS,
-    MODE_NETWORK,
-    MODE_EVALUATE,
-  };
-  Mode mode = MODE_STIMULUS;
-  struct ModeDescriptor {
-    char key;
-    const char *desc;
-    Mode mode;
-  };
-  auto all_modes = {
-    ModeDescriptor{'s', "Stimulus mode", MODE_STIMULUS},
-    {'n', "Network mode", MODE_NETWORK},
-    {'e', "Evaluate mode", MODE_EVALUATE},
-  };
-
-  static constexpr int I_SIZE = 80;
-  vector<string> font_filenames = Util::ListFiles("fonts/");
-  vector<ImageA *> fonts =
-    ParallelMap(font_filenames,
-		[](const string &s) { 
-		  ImageA *f = FontChar((string)"fonts/" + s, 'i', I_SIZE);
-		  CHECK(f != nullptr) << s;
-		  return f;
-		},
-		16);
-  CHECK(fonts.size() > 0);
-
-  // Just used in eval mode.
-  // XXX leaked.
-  vector<ImageRGBA *> heldout_corpus = 
-    // LoadImagesFromDirectory("corpus256/");
-    LoadImagesFromDirectory("eval256/");
-  CHECK(heldout_corpus.size() > 0);
-  ForwardLayerCL forwardlayer{global_cl};
-
-  int offset = 0;
+static void UIThread() {
   int mousex = 0, mousey = 0;
-
+  (void)mousex; (void)mousey;
   for (;;) {
     int round = ReadWithLock(&video_export_m, &current_round);
     sdlutil::clearsurface(screen, 0x0);
 
-    string menu = "";
-    for (const ModeDescriptor &md : all_modes) {
-      if (md.mode == mode) {
-	menu += StringPrintf("[^3%c: %s^<]   ", md.key, md.desc);
-      } else {
-	menu += StringPrintf("^0%c^<^1: %s^<   ", md.key, md.desc);
-      }
-    }
-    
-    if (allow_updates) {
-      menu += "^0(space to pause)^<";
-    } else {
-      menu += "^3[space to unpause]^<";
-    }
-
-    menu += StringPrintf("  round %d", round);
+    string menu = StringPrintf("  round %d", round);
 
     font->draw(2, 2, menu);
 
-    static constexpr int MARGIN = 24;
-    static constexpr int GAP = 10;
-
-    auto DrawStimulus = [](int column, const Stimulation &stim) {
-	int sx = MARGIN + column * (SIZE + GAP);
-	for (int layer = 0; layer < NUM_LAYERS + 1; layer++) {
-	  int sy = MARGIN + layer * (SIZE + GAP);
-	  const vector<float> &values = stim.values[layer];
-	  for (int y = 0; y < SIZE; y++) {
-	    for (int x = 0; x < SIZE; x++) {
-	      int pixel_id = y * SIZE + x;
-	      const uint8 r = FloatByte(values[pixel_id * NPP + 0]);
-	      const uint8 g = FloatByte(values[pixel_id * NPP + 1]);
-	      const uint8 b = FloatByte(values[pixel_id * NPP + 2]);
-	      sdlutil::drawpixel(screen, sx + x, sy + y, r, g, b);
-	    }
-	  }
-	}
-    };
-
-    if (mode == MODE_STIMULUS) {
-      MutexLock ml(&video_export_m);
-      for (int i = 0; i < current_stimulations.size(); i++) {
-	DrawStimulus(i, current_stimulations[i]);
-      }
-    } else if (mode == MODE_NETWORK) {
-      MutexLock ml(&video_export_m);
-      // In this mode, draw the different nodes per pixel as separate rectangles.
-      // We just show one example at a time.
-      const int ex = offset % current_stimulations.size();
-      int show_channels = std::min(NPP, 7);
-      for (int ch = 0; ch < show_channels; ch++) {
-	int sx = MARGIN + ch * (SIZE + GAP);
-	for (int layer = 0; layer < NUM_LAYERS + 1; layer++) {
-	  const vector<float> &values = current_stimulations[ex].values[layer];
-	  int sy = MARGIN + layer * (SIZE + GAP);
-
-	  for (int y = 0; y < SIZE; y++) {
-	    for (int x = 0; x < SIZE; x++) {
-	      int pixel_id = y * SIZE + x;
-	      const uint8 v = FloatByte(values[pixel_id * NPP + ch]);
-
-	      if (ch == 0) {
-		sdlutil::drawpixel(screen, sx + x, sy + y, v, 0, 0);
-	      } else if (ch == 1) {
-		sdlutil::drawpixel(screen, sx + x, sy + y, 0, v, 0);
-	      } else if (ch == 2) {
-		sdlutil::drawpixel(screen, sx + x, sy + y, 0, 0, v);
-	      } else {
-		sdlutil::drawpixel(screen, sx + x, sy + y, v, v, v);
-	      }
-	    }
-	  }
-	}
-
-	// Is the mouse in one of the layers?
-	int mx = (mousex - MARGIN) / (SIZE + GAP);
-	int my = (mousey - MARGIN) / (SIZE + GAP);
-	if (mx >= 0 && mx < show_channels &&
-	    my >= 0 && my < NUM_LAYERS + 1) {
-	  int ox = (mousex - MARGIN) % (SIZE + GAP);
-	  int oy = (mousey - MARGIN) % (SIZE + GAP);
-	  if (ox >= 0 && oy >= 0 && ox < SIZE && oy < SIZE) {
-	    // Okay, we are actually pointing at a layer then.
-	    const int channel = mx;
-	    const int layer = my;
-	    int node_id = (oy * SIZE + ox) * NPP + channel;
-	    
-	    CHECK_GE(node_id, 0) << node_id << " " << oy << " " << ox << " " << channel;
-	    CHECK_GE(channel, 0);
-	    CHECK_GE(ox, 0);
-	    CHECK_GE(oy, 0);
-	    CHECK_LT(node_id, NUM_NODES);
-	    CHECK_LE(layer, NUM_LAYERS);
-	    CHECK_GE(node_id, 0);
-	    float value = current_stimulations[ex].values[layer][node_id];
-
-	    font->draw(2, SCREENH - FONTHEIGHT - 2,
-		       StringPrintf("layer %d channel %d x %d y %d node %d (val ^2%f^<)",
-				    layer, channel, ox, oy, node_id, value));
-	    // And draw its source indices.
-	    if (layer > 0) {
-	      int sy = MARGIN + (layer - 1) * (GAP + SIZE);
-	      for (int i = 0; i < INDICES_PER_NODE; i++) {
-		int src_idx = current_network.indices[layer - 1][node_id * INDICES_PER_NODE + i];
-		float weight = current_network.indices[layer - 1][node_id * INDICES_PER_NODE + i];
-		// Decompose source index:
-		int src_ch = src_idx % NPP;
-		int src_pixel = src_idx / NPP;
-		int src_y = src_pixel / SIZE;
-		int src_x = src_pixel % SIZE;
-
-		int sx = MARGIN + src_ch * (GAP + SIZE);
-		if (weight > 0) {
-		  sdlutil::drawpixel(screen, sx + src_x, sy + src_y, 0xFF, 0xFF, 0);
-		} else {
-		  sdlutil::drawpixel(screen, sx + src_x, sy + src_y, 0, 0xFF, 0xFF);
-		}
-	      }
-	    }
-	  }
-	}
-      }
-    } else if (mode == MODE_EVALUATE) {
-      {
-	MutexLock ml(&video_export_m);
-
-	// XXX allow mouse-over
-
-	vector<Stimulation> stims;
-	stims.reserve(NUM_VIDEO_STIMULATIONS);
-	for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) stims.emplace_back(NUM_LAYERS);
-
-	for (int src = 0; src < NUM_LAYERS; src++) {
-	  ForwardLayerCL::ForwardContext fc(&forwardlayer, current_network, src);
-	  ParallelComp(NUM_VIDEO_STIMULATIONS,
-		       [&DrawStimulus, &heldout_corpus, &stims, &fc, 
-			&fonts,
-			mousex, mousey,
-			src, offset](int column) {
-			 Stimulation *stim = &stims[column];
-			 int example = (offset + column) % heldout_corpus.size();
-			 if (src == 0) {
-			   // PERF we only really need the copy if we are mousing
-			   // over it...
-			   ImageRGBA *img = heldout_corpus[example]->Copy();
-
-			   // Is the mouse in one of the layers?
-			   int mx = (mousex - MARGIN) / (SIZE + GAP);
-			   int my = (mousey - MARGIN) / (SIZE + GAP);
-			   if (mx == column &&
-			       // TODO: Would be interesting to draw into arbitrary
-			       // layer though?
-			       my == 0
-			       /* my >= 0 && my < NUM_LAYERS + 1 */ ) {
-			     int ox = (mousex - MARGIN) % (SIZE + GAP);
-			     int oy = (mousey - MARGIN) % (SIZE + GAP);
-			     if (ox >= 0 && oy >= 0 && ox < SIZE && oy < SIZE) {
-			       // Okay, we are actually pointing at the image. Draw
-			       // a red i to evaluate.
-
-			       // XXX uhhhh -- to match buggy logic in training data
-			       uint8 x_dice = ox & 0x255;
-			       uint8 y_dice = oy & 0x255;
-
-			       if (x_dice < 12) x_dice += 12;
-			       if (y_dice < 12) y_dice += 12;
-			       if (x_dice > 255 - I_SIZE) x_dice -= I_SIZE;
-			       if (y_dice > 255 - I_SIZE) y_dice -= I_SIZE;
-
-
-			       BlitChannel(0xFF, 0x0, 0x0, *fonts[0],
-					   x_dice, y_dice,
-					   img);
-			     }
-			   }
-
-			   InitializeLayerFromImage(img, &stim->values[0]);
-			   // And done with the temporary image.
-			   delete img;
-			 }
-			 fc.Forward(stim);
-
-			 if (src == NUM_LAYERS - 1) {
-			   DrawStimulus(column, *stim);
-			 }
-		       }, 
-		       // Try to not starve training thread.
-		       6);
-	}
-      }
-      Printf("(drew eval)\n");
-
-      // SDL_Delay(1000);
-    }
-
     SDL_Flip(screen);
-
+    
     if (ReadWithLock(&train_done_m, &train_done)) {
       Printf("UI thread saw that training finished.\n");
       return;
@@ -1543,55 +1314,21 @@ void UIThread() {
 
       } else if (event.type == SDL_KEYDOWN) {
 	switch (event.key.keysym.sym) {
-	case SDLK_KP_PLUS:
-	case SDLK_PLUS:
-	case SDLK_EQUALS:
-	case SDLK_PAGEDOWN:
-	  if (mode == MODE_EVALUATE) {
-	    offset += NUM_VIDEO_STIMULATIONS;
-	  } else {
-	    offset++;
-	  }
-	  break;
-
-	case SDLK_KP_MINUS:
-	case SDLK_MINUS:
-	case SDLK_PAGEUP:
-	  offset--;
-	  // Don't be negative or modulus goes negative :-(
-	  if (offset < 0) offset = 0;
-	  break;
-
 	case SDLK_ESCAPE:
 	  Printf("ESCAPE.\n");
 	  return;
-	case SDLK_s:
-	  Printf("Stimulus mode.\n");
-	  mode = MODE_STIMULUS;
-	  break;
-	case SDLK_n:
-	  Printf("Network mode.\n");
-	  mode = MODE_NETWORK;
-	  break;
-	case SDLK_e:
-	  Printf("Evaluate mode.\n");
-	  mode = MODE_EVALUATE;
-	  break;
-	case SDLK_SPACE: {
-	  MutexLock ml(&video_export_m);
-	  allow_updates = !allow_updates;
-	}
 	default:;
 	}
       }
     } else {
-      // PERF
       SDL_Delay(1000);
     }
   }
 }
+#endif
 
-void TrainThread() {
+#if 0
+static void TrainThread() {
   Timer setup_timer;
   
   string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(NULL));
@@ -1608,44 +1345,26 @@ void TrainThread() {
   (void)BackwardsError;
   (void)UpdateWeights;
 
-  // Create the initial network.
-  // TODO: Serialize and load from disk if we have one.
+  // Load the existing network from disk or create the initial one.
   Timer initialize_network_timer;
-  Network net{NUM_LAYERS};
-  printf("Network uses %.2fMB of storage (without overhead).\n", 
-	 net.Bytes() / (1000.0 * 1000.0));
+  std::unique_ptr<Network> net{ReadNetworkBinary("net.val")};
 
-  // printf("Network init:\n");
-  // RandomizeNetwork(&rc, &net);
-  // printf("Make indices:\n");
-  // MakeIndices(&rc, &net);
-  (void)RandomizeNetwork;
-  (void)MakeIndices;
-  ReadNetworkBinary("net.val", &net);
+  if (net.get() == nullptr) {
+    printf("Initializing new network...\n");
+    RandomizeNetwork(&rc, net.get());
+    MakeIndices(&rc, net.get());
+    ComputeInvertedIndices(net.get());
+    CheckInvertedIndices(*net);
+  }
 
-  printf("Invert index:\n");
-  ComputeInvertedIndices(&net);
-  printf("Check it:\n");
-  CheckInvertedIndices(net);
   printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
-
-  vector<ImageRGBA *> corpus = LoadImagesFromDirectory("corpus256/");
-
-  static constexpr int I_SIZE = 80;
-  vector<string> font_filenames = Util::ListFiles("fonts/");
-  vector<ImageA *> fonts =
-    ParallelMap(font_filenames,
-		[](const string &s) { 
-		  ImageA *f = FontChar((string)"fonts/" + s, 'i', I_SIZE);
-		  CHECK(f != nullptr) << s;
-		  return f;
-		},
-		16);
-  CHECK(fonts.size() > 0);
+  
+  printf("Network uses %.2fMB of storage (without overhead).\n", 
+	 net.Bytes() / (1024.0 * 1024.0));
 
   {
     Stimulation stim{NUM_LAYERS};
-    printf("A stimulation uses %.2fMB.\n", stim.Bytes() / (1000.0 * 1000.0));
+    printf("A stimulation uses %.2fMB.\n", stim.Bytes() / (1024.0 * 1024.0));
   }
 
   auto ShouldDie = [&net]() {
@@ -1658,8 +1377,8 @@ void TrainThread() {
     return should_die;
   };
 
-  printf("The corpus is of size %d.\n", (int)corpus.size());
 
+  
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
@@ -1683,7 +1402,7 @@ void TrainThread() {
     bool is_verbose_round = 0 == ((round_number /* + 1 */) % VERBOSE_ROUND_EVERY);
     if (is_verbose_round) {
       Printf("Writing network:\n");
-      WriteNetwork(net, StringPrintf("network-%d.txt", round_number));
+      WriteNetworkText(net, StringPrintf("network-%d.txt", round_number));
       SaveNetworkBinary(net, "network-checkpoint.bin");
     }
 
@@ -1851,7 +1570,7 @@ void TrainThread() {
     Printf("Backwards:\n");
     // Also serial, but in reverse.
     Timer backward_timer;
-    // We do NOT propagate errors to the input layer, so dst is strictly greater than 1.
+    // We do NOT propagate errors to the input layer, so dst is strictly greater than 0.
     for (int dst = NUM_LAYERS - 1; dst > 0; dst--) {
       Printf("BWD Layer %d: ", dst);
 
@@ -1933,6 +1652,7 @@ void TrainThread() {
 
   WriteWithLock(&train_done_m, &train_done, true);
 }
+#endif
 
 int SDL_main(int argc, char* argv[]) {
 
@@ -1959,7 +1679,7 @@ int SDL_main(int argc, char* argv[]) {
 		      FONTCHARS,
 		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
   CHECK(font != nullptr) << "Couldn't load font.";
-
+  
   global_cl = new CL;
 
   std::thread train_thread(&TrainThread);
@@ -1986,4 +1706,3 @@ int SDL_main(int argc, char* argv[]) {
   SDL_Quit();
   return 0;
 }
-
