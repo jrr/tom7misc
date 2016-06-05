@@ -4,7 +4,7 @@
 
 // Size of of image in pixels (width/height). Note that there are
 // three nodes per pixel (RGB).
-#define SIZE 256
+// #define SIZE 256
 
 // Target 1 gigabyte layer sizes.
 // 2^30 = 1GB        = 1073741824
@@ -21,7 +21,7 @@
 
 // #define INDICES_PER_NODE 1024
 // #define NEIGHBORHOOD 5
-#define INDICES_PER_NODE 64
+// #define INDICES_PER_NODE 64
 #define NEIGHBORHOOD 1
 
-#define NUM_NODES (SIZE * SIZE * NPP)
+// #define NUM_NODES (SIZE * SIZE * NPP)
