@@ -374,12 +374,12 @@ static void ComputeInvertedIndices(Network *net) {
     // Indexed by node id in the source layer.
     vector<vector<uint32>> occurrences;
     occurrences.resize(net->num_nodes[layer]);
-    for (int dest_indices_idx = 0;
-	 dest_indices_idx < net->layers[layer].indices_per_node * dst_num_nodes;
-	 dest_indices_idx++) {
+    for (int dst_indices_idx = 0;
+	 dst_indices_idx < net->layers[layer].indices_per_node * dst_num_nodes;
+	 dst_indices_idx++) {
       // This index gets put into exactly one place in occurrences.
-      const int src_nodes_idx = net->layers[layer].indices[dest_indices_idx];
-      occurrences[src_nodes_idx].push_back(dest_indices_idx);
+      const int src_nodes_idx = net->layers[layer].indices[dst_indices_idx];
+      occurrences[src_nodes_idx].push_back(dst_indices_idx);
     }
 
     // These can be in arbitrary order, but sort each subvector, for
@@ -618,7 +618,7 @@ static void SetOutputError(const Stimulation &stim, const vector<float> &expecte
 #if 0
 // XXX should update this C++ code or just delete it.
 
-// Propagate the error backwards from the dest_layer to the src_layer.
+// Propagate the error backwards from the dst_layer to the src_layer.
 // (Note that the error terms go FROM the destination TO the source;
 // here I'm keeping the same terminology about "source" and
 // "destination" based on how data flows in the normal forward
@@ -627,7 +627,7 @@ static void SetOutputError(const Stimulation &stim, const vector<float> &expecte
 // This is now a kernel, so this function is uncalled. But it should
 // still work.
 static void BackwardsError(const Network &net, const Stimulation &stim,
-			   int dest_layer, Errors *err) {
+			   int dst_layer, Errors *err) {
   // If we have
   //
   //   inputs     h        h'    outputs
@@ -640,13 +640,13 @@ static void BackwardsError(const Network &net, const Stimulation &stim,
   //   vals 0   vals 1   vals 2   vals 3
   //
   // We also have error deltas for each real layer. We are propagating the error
-  // from layer dest_layer to layer dest_layer-1, which is the gap dest_layer.
+  // from layer dst_layer to layer dst_layer-1, which is the gap dst_layer.
   //
   // Errors only go to real layers, so the dest layer is 1 at minimum.
-  ECHECK_GT(dest_layer, 0);
-  const int gap = dest_layer;
+  ECHECK_GT(dst_layer, 0);
+  const int gap = dst_layer;
 
-  const int src_layer = dest_layer - 1;
+  const int src_layer = dst_layer - 1;
   ECHECK_GE(src_layer, 0);
 
   // Note that stim has an extra data layer in it because it does
@@ -660,13 +660,13 @@ static void BackwardsError(const Network &net, const Stimulation &stim,
   const vector<uint32> &starts = net.inverted_indices_start[gap];
   const vector<uint32> &lengths = net.inverted_indices_length[gap];
   const vector<uint32> &inverted_index = net.inverted_indices[gap];
-  const vector<uint32> &dest_indices = net.indices[dest_layer];
-  (void)dest_indices;  // Suppress lint -- only used for debug check.
-  const vector<float> &dest_weights = net.weights[dest_layer];
+  const vector<uint32> &dst_indices = net.indices[dst_layer];
+  (void)dst_indices;  // Suppress lint -- only used for debug check.
+  const vector<float> &dst_weights = net.weights[dst_layer];
 
   // One error layer for each real layer (not the input).
-  ECHECK_LT(dest_layer, err->error.size());
-  const vector<float> &dest_error = err->error[dest_layer];
+  ECHECK_LT(dst_layer, err->error.size());
+  const vector<float> &dst_error = err->error[dst_layer];
   vector<float> *src_error = &err->error[src_layer];
   // Loop over every node in the previous layer, index h.
   for (int h = 0; h < NUM_NODES; h++) {
@@ -683,10 +683,10 @@ static void BackwardsError(const Network &net, const Stimulation &stim,
       const int gidx = inverted_index[i];
       // gidx is an index into the index and weights vectors on the
       // destination layer.
-      ECHECK_EQ(dest_indices[gidx], h);
+      ECHECK_EQ(dst_indices[gidx], h);
       // Compute from the index which destination node it belongs to.
-      const int dest_node_idx = gidx / INDICES_PER_NODE;
-      weighted_error_sum += dest_weights[gidx] * dest_error[dest_node_idx];
+      const int dst_node_idx = gidx / INDICES_PER_NODE;
+      weighted_error_sum += dst_weights[gidx] * dst_error[dst_node_idx];
     }
     
     (*src_error)[h] = out_h * (1.0f - out_h) * weighted_error_sum;
@@ -865,8 +865,6 @@ struct ForwardLayerCL {
   std::mutex m;
 };
 
-#if 0
-  
 struct BackwardLayerCL {
   explicit BackwardLayerCL(CL *cl) : cl(cl) {
     const string kernel_src = 
@@ -877,58 +875,62 @@ struct BackwardLayerCL {
   }
 
   struct BackwardContext {
-    BackwardContext(BackwardLayerCL *parent, const Network &net, int dest_layer) :
-      parent(parent), net(net), dest_layer(dest_layer) {
+    BackwardContext(BackwardLayerCL *parent, const Network &net, int dst_layer) :
+      parent(parent), net(net), dst_layer(dst_layer) {
       CL *cl = parent->cl;
 
-      const int gap = dest_layer;
-      // const int src_layer = dest_layer - 1;
+      const int gap = dst_layer;
+      // const int src_layer = dst_layer - 1;
 
       starts = MoveMemoryToGPUConst(cl->context, cl->queue,
-				    net.inverted_indices_start[gap]);
+				    net.inverted_indices[gap].start);
       lengths = MoveMemoryToGPUConst(cl->context, cl->queue,
-				    net.inverted_indices_length[gap]);
+				    net.inverted_indices[gap].length);
 
       inverted_index = MoveMemoryToGPUConst(cl->context, cl->queue,
-					    net.inverted_indices[gap]);
+					    net.inverted_indices[gap].output_indices);
 
-      dest_weights = MoveMemoryToGPUConst(cl->context, cl->queue,
-					  net.weights[dest_layer]);
+      dst_weights = MoveMemoryToGPUConst(cl->context, cl->queue,
+					  net.layers[dst_layer].weights);
     }
 
-    // TODO: Do we really want to share the same command queue across threads?
-    // Presumably clFinish can't tell "this thread's commands" apart from others,
-    // so we may be prematurely waiting/running other thread's work.
     void Backward(const Stimulation &stim, Errors *err) {
       CL *cl = parent->cl;
 
-      // const int gap = dest_layer;
-      const int src_layer = dest_layer - 1;
+      const int gap = dst_layer;
+      const int src_layer = dst_layer - 1;
 
-      //  const vector<float> &dest_error = err->error[dest_layer];
+      //  const vector<float> &dst_error = err->error[dst_layer];
       //  vector<float> *src_error = &err->error[src_layer];
 
       cl_mem src_output = MoveMemoryToGPUConst(cl->context, cl->queue,
 					       stim.values[src_layer + 1]);
-      cl_mem dest_error = MoveMemoryToGPUConst(cl->context, cl->queue,
-					       err->error[dest_layer]);
+      cl_mem dst_error = MoveMemoryToGPUConst(cl->context, cl->queue,
+					       err->error[dst_layer]);
 
-      cl_mem src_error = CreateUninitializedGPUMemory<float>(cl->context, NUM_NODES);
-
+      // This is the source layer, but num_nodes is offset by one since it includes
+      // the size of the input layer as element 0.
+      int src_num_nodes = net.num_nodes[src_layer + 1];
+      cl_mem src_error = CreateUninitializedGPUMemory<float>(cl->context, src_num_nodes);
+      CHECK_EQ(src_num_nodes, net.inverted_indices[gap].start.size());
+      
       // Can't have multiple threads setting a kernel's argument at one time.
       {
 	MutexLock ml(&parent->m);
 
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_mem), (void *)&starts));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&lengths));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&inverted_index));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&dest_weights));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&src_output));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&dest_error));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof(cl_mem), (void *)&src_error));
+	cl_int dst_indices_per_node = net.layers[dst_layer].indices_per_node;
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_int),
+				     (void *)&dst_indices_per_node));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&starts));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&lengths));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&inverted_index));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&dst_weights));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&src_output));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof(cl_mem), (void *)&dst_error));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 7, sizeof(cl_mem), (void *)&src_error));
 
 	size_t global_work_offset[] = { 0 };
-	size_t global_work_size[] = { (size_t)NUM_NODES };
+	size_t global_work_size[] = { (size_t)src_num_nodes };
 	Timer kernel_timer;
 	CHECK(CL_SUCCESS == clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
 						   // work dimensions
@@ -950,7 +952,7 @@ struct BackwardLayerCL {
       // Immediately release stuff we don't need any more; other threads may be trying
       // to get GPU resources in parallel.
       CHECK_SUCCESS(clReleaseMemObject(src_output));
-      CHECK_SUCCESS(clReleaseMemObject(dest_error));
+      CHECK_SUCCESS(clReleaseMemObject(dst_error));
 
       CopyBufferFromGPUTo<float>(cl->queue, src_error, &err->error[src_layer]);
 
@@ -961,13 +963,13 @@ struct BackwardLayerCL {
       CHECK_SUCCESS(clReleaseMemObject(starts));
       CHECK_SUCCESS(clReleaseMemObject(lengths));
       CHECK_SUCCESS(clReleaseMemObject(inverted_index));
-      CHECK_SUCCESS(clReleaseMemObject(dest_weights));
+      CHECK_SUCCESS(clReleaseMemObject(dst_weights));
     }
 
-    cl_mem starts, lengths, inverted_index, dest_weights;
+    cl_mem starts, lengths, inverted_index, dst_weights;
     BackwardLayerCL *parent = nullptr;
     const Network &net;
-    const int dest_layer;
+    const int dst_layer;
     double kernel_ms = 0.0;
   };
 
@@ -984,6 +986,8 @@ struct BackwardLayerCL {
   std::mutex m;
 };
 
+#if 0
+  
 struct UpdateWeightsCL {
   explicit UpdateWeightsCL(CL *cl) : cl(cl) {
     const string kernel_src = 

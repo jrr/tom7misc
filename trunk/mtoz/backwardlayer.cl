@@ -1,19 +1,20 @@
 
 // Port of BackwardsError in C++ code.
 
-__kernel void BackwardLayer(// Size NUM_NODES.
-			    __global const uint *inverted_indices_start,
-			    __global const uint *inverted_indices_length,
-			    // Size NUM_NODES * INDICES_PER_NODE.
-			    __global const int *inverted_indices,
-			    // Size NUM_NODES * INDICES_PER_NODE.
-			    __global const float *dest_weights,
-			    // Size NUM_NODES.
-			    __global const float *src_output,
-			    // Size NUM_NODES.
-			    __global const float *dest_error,
-			    // Size NUM_NODES; finally where we write:
-			    __global float *src_error) {
+__kernel void BackwardLayer(int dst_indices_per_node,
+                            // Size src_num_nodes.
+                            __global const uint *inverted_indices_start,
+                            __global const uint *inverted_indices_length,
+                            // Size dst_num_nodes * dst_indices_per_node.
+                            __global const int *inverted_indices,
+                            // Size dst_num_nodes * dst_indices_per_node.
+                            __global const float *dst_weights,
+                            // Size src_num_nodes.
+                            __global const float *src_output,
+                            // Size dst_num_nodes.
+                            __global const float *dst_error,
+                            // Size src_num_nodes; finally where we write:
+                            __global float *src_error) {
   const int h = get_global_id(0);
   const float out_h = src_output[h];
   // Unpack inverted index for this node, so that we can loop over all of
@@ -27,8 +28,8 @@ __kernel void BackwardLayer(// Size NUM_NODES.
   for (int i = start; i < start + length; i++) {
     const int gidx = inverted_indices[i];
     // Compute from the index which destination node it belongs to.
-    const int dest_node_idx = gidx / INDICES_PER_NODE;
-    weighted_error_sum += dest_weights[gidx] * dest_error[dest_node_idx];
+    const int dst_node_idx = gidx / dst_indices_per_node;
+    weighted_error_sum += dst_weights[gidx] * dst_error[dst_node_idx];
   }
 
   src_error[h] = out_h * (1.0f - out_h) * weighted_error_sum;
