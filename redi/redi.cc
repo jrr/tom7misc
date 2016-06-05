@@ -294,7 +294,10 @@ struct Network {
     this->biases = other.biases;
     this->inverted_indices_start = other.inverted_indices_start;
     this->inverted_indices_length = other.inverted_indices_length;
-    this->inverted_indices = other.indices;
+    // Note: There was a bug here where it was copying from plain indices,
+    // not inverted indices. I fixed it 5 Jun 2016, well after I was
+    // first running this, and didn't check any further.
+    this->inverted_indices = other.inverted_indices;
   }
 
   // The number of "real" layers, that is, not counting the input.
