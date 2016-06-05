@@ -212,6 +212,27 @@ static void BlitChannel(uint8 r, uint8 g, uint8 b, const ImageA &channel,
   }
 }
 
+struct NetworkConfiguration {
+  const int num_layers = 4;
+  // Note that these must have num_layers + 1 entries.
+  const vector<int> widths = { 256, 256, 256, 256, 256, };
+  const vector<int> heights = { 240, 240, 240, 240, 240, };
+  // For 1 gigabyte layer sizes:
+  // 2^30 = 1GB        = 1073741824
+  //   / 4-byte floats = 268435456
+  //   / 256 / 256     = 4396
+  const vector<int> indices_per_node = { 2048, 2048, 2048, 2048 };
+  vector<int> num_nodes;
+  NetworkConfiguration() {
+    CHECK_EQ(widths.size(), heights.size());
+    CHECK_EQ(num_layers + 1, heights.size());
+    CHECK_EQ(num_layers, indices_per_node.size());
+    for (int i = 0; i < num_layers + 1; i++) {
+      num_nodes.push_back(widths[i] * heights[i]);
+    }
+  }
+};
+
 struct Network {
   // Creates arrays of the appropriate size, but all zeroes. Note that this uninitialized
   // network is invalid, since the inverted indices are not correct.
@@ -1081,7 +1102,6 @@ struct UpdateWeightsCL {
 };
 
 #if 0
-
 static void InitializeLayerFromImage(const ImageRGBA *rgba, vector<float> *values) {
   CHECK_EQ(SIZE, rgba->width);
   CHECK_EQ(SIZE, rgba->height);
@@ -1097,6 +1117,7 @@ static void InitializeLayerFromImage(const ImageRGBA *rgba, vector<float> *value
   }
   CHECK_EQ(dst, NUM_NODES);
 }
+#endif
 
 // Make indices. This assumes that nodes are 2D pixel data where we have
 // SIZE * SIZE pixels, NPP nodes per pixel, in row-major order.
@@ -1108,88 +1129,63 @@ static void InitializeLayerFromImage(const ImageRGBA *rgba, vector<float> *value
 //  - we require that a small neighborhood around the pixel is mapped
 //      directly (especially the pixel itself; this preserves spatial
 //      locality and makes sure we don't have any statically dead nodes).
-static void MakeIndices(ArcFour *rc, Network *net) {
-  static constexpr double STDDEV = SIZE / 16.0;
+static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
+  CHECK_EQ(widths.size(), net->num_layers + 1);
   // static constexpr int NEIGHBORHOOD = 5;
 
-  // For best results, use false, true:
-  static constexpr bool SYMMETRIC_GAUSSIAN = false;
-  static constexpr bool GAUSSIAN = true;
-
-  // Fastest initialization, worse quality
-  // static constexpr bool SYMMETRIC_GAUSSIAN = true;
-  // static constexpr bool GAUSSIAN = false;
-
-  static_assert(STDDEV > 1.0, "surprisingly small stddev");
   static_assert(NEIGHBORHOOD >= 0, "must include the pixel itself.");
-  static_assert((NEIGHBORHOOD * 2 + 1) * (NEIGHBORHOOD * 2 + 1) * NPP <= INDICES_PER_NODE,
-		"neighborhood doesn't fit in indices!");
-  auto OneNode = [](ArcFour *rc, int x, int y, int channel) -> vector<uint32> {
-    // PERF if not parallel, this can be outside and waste fewer tails...
-    RandomGaussian gauss{rc};
-    // (Note that channel is unused: The neighborhood is the same for each
-    // channel because we insert all NPP nodes for each source. Random sources
-    // are separate but don't depend on channel.)
-    // Use set for deduplication, and so that we output them with maximum
-    // locality.
+  auto OneNode = [](RandomGaussian *gauss, int indices_per_node,
+		    int src_width, int src_height,
+		    int dst_width, int dst_height, int idx) -> vector<uint32> {
+
+    CHECK((NEIGHBORHOOD * 2 + 1) * (NEIGHBORHOOD * 2 + 1) * NPP <= indices_per_node) <<
+        "neighborhood doesn't fit in indices!";
+    const int x = idx % dst_width;
+    const int y = idx / dst_width;
+
+    const double xf = x / dst_width;
+    const double yf = y / dst_height;
+    
+    static constexpr double stddev = 1 / 16.0;
+    
+    // Use set for deduplication; we re-sort for locality of access later.
     unordered_set<int> indices;
-    // clips xx,yy if they are out of the image, but cc must be a valid
-    // channel in [0, NPP).
-    auto AddNodeByCoordinates = [&indices](int xx, int yy, int cc) {
-      ECHECK_GE(cc, 0);
-      ECHECK_LT(cc, NPP);
-      if (xx < 0 || yy < 0 || xx >= SIZE || yy >= SIZE) return;
-      int idx = (yy * SIZE * NPP) + (xx * NPP) + cc;
+    // clips xx,yy if they are out of the image.
+    auto AddNodeByCoordinates = [src_width, src_height, &indices](int xx, int yy) {
+      if (xx < 0 || yy < 0 || xx >= src_width || yy >= src_height) return;
+      int idx = (yy * src_width) + xx;
       ECHECK_GE(idx, 0);
-      ECHECK_LT(idx, NUM_NODES);
+      ECHECK_LT(idx, src_width * src_height);
       indices.insert(idx);
     };
-    
+
+    // Find the closest corresponding pixel in the src layer.
+    const int cx = round(xf * src_width);
+    const int cy = round(yf * src_height);
     for (int ny = -NEIGHBORHOOD; ny <= NEIGHBORHOOD; ny++) {
       for (int nx = -NEIGHBORHOOD; nx <= NEIGHBORHOOD; nx++) {
-	for (int c = 0; c < NPP; c++) {
-	  // We take all three (or NPP) channels. Note that the pixel
-	  // may be clipped.
-	  AddNodeByCoordinates(x + nx, y + ny, c);
-	}
+	// Note that the pixel may be clipped.
+	AddNodeByCoordinates(cx + nx, cy + ny);
       }
     }
 
-    CHECK_LE(indices.size(), INDICES_PER_NODE);
+    CHECK_LE(indices.size(), indices_per_node);
 
-    if (GAUSSIAN) {
-      while (indices.size() < INDICES_PER_NODE) {
-	double dx = gauss.Next() * STDDEV;
-	double dy = gauss.Next() * STDDEV;
+    // Sample gaussian pixels.
+    while (indices.size() < indices_per_node) {
+      double dx = gauss->Next() * stddev;
+      double dy = gauss->Next() * stddev;
 
-	int ch = RandTo(rc, NPP);
-	// Insert symmetrically...
-	AddNodeByCoordinates((int)(x + dx), (int)(y + dy), ch);
-	if (SYMMETRIC_GAUSSIAN) {
-	  if (indices.size() < INDICES_PER_NODE)
-	    AddNodeByCoordinates((int)(x - dx), (int)(y + dy), ch);
-	  if (indices.size() < INDICES_PER_NODE)
-	    AddNodeByCoordinates((int)(x - dx), (int)(y - dy), ch);
-	  if (indices.size() < INDICES_PER_NODE)
-	    AddNodeByCoordinates((int)(x + dx), (int)(y - dy), ch);
-	}
-      }
-    } else {
-      while (indices.size() < INDICES_PER_NODE) {
-	int dx = RandTo(rc, SIZE);
-	int dy = RandTo(rc, SIZE);
-	int ch = RandTo(rc, NPP);
-
-	AddNodeByCoordinates(dx, dy, ch);
-      }
+      AddNodeByCoordinates((int)round((xf + dx) * src_width),
+			   (int)round((yf + dy) * src_height));
     }
 
-    CHECK_EQ(INDICES_PER_NODE, indices.size());
+    CHECK_EQ(indices_per_node, indices.size());
     vector<uint32> ret;
-    ret.reserve(INDICES_PER_NODE);
+    ret.reserve(indices_per_node);
     for (int idx : indices) {
       CHECK_GE(idx, 0);
-      CHECK_LT(idx, NUM_NODES);
+      CHECK_LT(idx, src_width * src_height);
       ret.push_back(idx);
     }
     return ret;
@@ -1199,27 +1195,31 @@ static void MakeIndices(ArcFour *rc, Network *net) {
   vector<ArcFour *> rcs;
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
 
-  // Just for printf.
-  ParallelComp(net->num_layers, [&rcs, &OneNode, &net](int layer) {
+  ParallelComp(net->num_layers, [&widths, &rcs, &OneNode, &net](int layer) {
     Printf("Intializing indices for layer %d...\n", layer);
-    int node_idx = 0;
-    vector<uint32> *layer_indices = &net->indices[layer];
-    for (int y = 0; y < SIZE; y++) {
-      for (int x = 0; x < SIZE; x++) {
-	for (int c = 0; c < NPP; c++) {
-	  vector<uint32> indices = OneNode(rcs[layer], x, y, c);
-	  // Sort them, for better locality of access later.
-	  std::sort(indices.begin(), indices.end());
-	  CHECK_EQ(INDICES_PER_NODE, indices.size());
-	  const int start_idx = node_idx * INDICES_PER_NODE;
-	  for (int i = 0; i < INDICES_PER_NODE; i++) {
-	    (*layer_indices)[start_idx + i] = indices[i];
-	  }
-	  node_idx++;
-	}
+    const int indices_per_node = net->layers[layer].indices_per_node;
+    vector<uint32> *layer_indices = &net->layers[layer].indices;
+    int src_width = widths[layer];
+    CHECK_EQ(0, net->num_nodes[layer] % src_width);
+    int src_height = net->num_nodes[layer] / src_width;
+    int dst_width = widths[layer + 1];
+    CHECK_EQ(0, net->num_nodes[layer + 1] % dst_width);
+    int dst_height = net->num_nodes[layer + 1] / dst_width;
+    RandomGaussian gauss{rcs[layer]};
+    for (int node_idx = 0; node_idx < dst_height * dst_width; node_idx++) {
+      vector<uint32> indices = OneNode(&gauss, indices_per_node,
+				       src_width, src_height,
+				       dst_width, dst_height, node_idx);
+      // Sort them, for better locality of access later.
+      std::sort(indices.begin(), indices.end());
+      CHECK_EQ(indices_per_node, indices.size());
+      const int start_idx = node_idx * indices_per_node;
+      for (int i = 0; i < indices_per_node; i++) {
+	(*layer_indices)[start_idx + i] = indices[i];
       }
-      if (y % 10 == 0) {
-	Printf("  [%d/%d] %.1f%%\n", y, SIZE, (100.0 * y) / SIZE);
+      if (node_idx % 100 == 0) {
+	Printf("  [%d/%d] %.1f%%\n", node_idx, dst_height * dst_width,
+	       (100.0 * node_idx) / (dst_height * dst_width));
       }
     }
   }, 12);
@@ -1240,14 +1240,13 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
 
   // But now we can do all layers in parallel.
-  ParallelComp(net->num_layers, [&rcs, &RandomizeFloats, &net](int i) {
-    RandomizeFloats(rcs[i], &net->biases[i]);
-    RandomizeFloats(rcs[i], &net->weights[i]);
+  ParallelComp(net->num_layers, [&rcs, &RandomizeFloats, &net](int layer) {
+    RandomizeFloats(rcs[layer], &net->layers[layer].biases);
+    RandomizeFloats(rcs[layer], &net->layers[layer].weights);
   }, 12);
 
   DeleteElements(&rcs);
 }
-#endif
 
 template<class A, class F>
 static auto Map(const vector<A> &vec, const F &f) -> vector<decltype(f(vec[0]))> {
@@ -1265,29 +1264,30 @@ static void App(const vector<A> &vec, const F &f) {
   for (const auto &elt : vec) f(elt);
 }
 
-#if 0
+// These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 7;
 std::mutex video_export_m;
 int current_round = 0;
-vector<Stimulation> current_stimulations(7, Stimulation(NUM_LAYERS));
-Network current_network(NUM_LAYERS);
+vector<Stimulation> current_stimulations;
+Network *current_network = nullptr;
 static bool allow_updates = true;
 
-void ExportRound(int r) {
+static void ExportRound(int r) {
   MutexLock ml(&video_export_m);
   if (allow_updates) {
     current_round = r;
   }
 }
 
-void ExportNetworkToVideo(const Network &net) {
+static void ExportNetworkToVideo(const Network &net) {
   MutexLock ml(&video_export_m);
   if (allow_updates) {
-    current_network.CopyFrom(net);
+    CHECK(current_network != nullptr);
+    current_network->CopyFrom(net);
   }
 }
 
-void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
+static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
   MutexLock ml(&video_export_m);
   if (allow_updates) {
     CHECK_GE(example_id, 0);
@@ -1340,7 +1340,6 @@ static void UIThread() {
     }
   }
 }
-#endif
 
 #if 0
 static void TrainThread() {
@@ -1697,6 +1696,17 @@ int SDL_main(int argc, char* argv[]) {
   
   global_cl = new CL;
 
+  {
+    printf("Allocating video network/stimulations...");
+    MutexLock ml(&video_export_m);
+    NetworkConfiguration nc;
+    current_network = new Network{nc.num_nodes, nc.indices_per_node};
+    for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
+      current_stimulations.emplace_back(*current_network);
+    }
+    printf("OK.\n");
+  }
+  
   std::thread train_thread(&TrainThread);
 
   UIThread();
