@@ -986,8 +986,6 @@ struct BackwardLayerCL {
   std::mutex m;
 };
 
-#if 0
-  
 struct UpdateWeightsCL {
   explicit UpdateWeightsCL(CL *cl) : cl(cl) {
     const string kernel_src = 
@@ -1002,9 +1000,9 @@ struct UpdateWeightsCL {
       parent(parent), net(net), layer(layer) {
       CL *cl = parent->cl;
 
-      layer_indices = MoveMemoryToGPUConst(cl->context, cl->queue, net->indices[layer]);
-      layer_weights = MoveMemoryToGPU(cl->context, cl->queue, false, &net->weights[layer]);
-      layer_biases = MoveMemoryToGPU(cl->context, cl->queue, false, &net->biases[layer]);
+      layer_indices = MoveMemoryToGPUConst(cl->context, cl->queue, net->layers[layer].indices);
+      layer_weights = MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].weights);
+      layer_biases = MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].biases);
     }
 
     void Update(float learning_rate, const Stimulation &stim, const Errors &err, int layer) {
@@ -1018,7 +1016,11 @@ struct UpdateWeightsCL {
       cl_mem layer_values = MoveMemoryToGPUConst(cl->context, cl->queue,
 						 stim.values[layer]);
 
+      const int num_nodes = net->num_nodes[layer + 1];
+      cl_int indices_per_node = net->layers[layer].indices_per_node;
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_float), (void *)&learning_rate));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_int),
+				   (void *)&indices_per_node));      
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&layer_error));
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&layer_indices));
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&layer_values));
@@ -1026,7 +1028,7 @@ struct UpdateWeightsCL {
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&layer_biases));
 
       size_t global_work_offset[] = { 0 };
-      size_t global_work_size[] = { (size_t)NUM_NODES };
+      size_t global_work_size[] = { (size_t)num_nodes };
       CHECK(CL_SUCCESS == clEnqueueNDRangeKernel(cl->queue, parent->kernel,
 						 // work dimensions
 						 1, 
@@ -1047,8 +1049,8 @@ struct UpdateWeightsCL {
 
     void Finish() {
       CL *cl = parent->cl;
-      CopyBufferFromGPUTo(cl->queue, layer_weights, &net->weights[layer]);
-      CopyBufferFromGPUTo(cl->queue, layer_biases, &net->biases[layer]);
+      CopyBufferFromGPUTo(cl->queue, layer_weights, &net->layers[layer].weights);
+      CopyBufferFromGPUTo(cl->queue, layer_biases, &net->layers[layer].biases);
       clFinish(cl->queue);
     }
 
@@ -1078,6 +1080,7 @@ struct UpdateWeightsCL {
   std::mutex m;
 };
 
+#if 0
 
 static void InitializeLayerFromImage(const ImageRGBA *rgba, vector<float> *values) {
   CHECK_EQ(SIZE, rgba->width);
