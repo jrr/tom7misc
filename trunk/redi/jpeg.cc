@@ -747,6 +747,33 @@ static void UpdateWeights(const float learning_rate,
 	       }, 12);
 }
 
+struct RoundOnGPU {
+  explicit RoundOnGPU(CL *cl) : cl(cl) {}
+
+  void SetupForward(Network *net) {
+    indices.resize(net->num_layers);
+    weights.resize(net->num_layers);
+    biases.resize(net->num_layers);
+
+    for (int layer = 0; layer < net->num_layers; layer++) {
+      indices[layer] = MoveMemoryToGPUConst(cl->context, cl->queue, net->indices[layer]);
+      weights[layer] = MoveMemoryToGPU(cl->context, cl->queue, false, &net->weights[layer]);
+      biases[layer] = MoveMemoryToGPU(cl->context, cl->queue, false, &net->biases[layer]);
+    }
+  }
+
+  ~RoundOnGPU() {
+    for (int i = 0; i < indices.size(); i++) {
+      CHECK_SUCCESS(clReleaseMemObject(indices[i]));
+      CHECK_SUCCESS(clReleaseMemObject(weights[i]));
+      CHECK_SUCCESS(clReleaseMemObject(biases[i]));
+    }
+  }
+
+  CL *cl;
+  vector<cl_mem> indices, weights, biases;
+};
+
 struct ForwardLayerCL {
   explicit ForwardLayerCL(CL *cl) : cl(cl) {
     const string kernel_src = 
@@ -757,12 +784,8 @@ struct ForwardLayerCL {
   }
 
   struct ForwardContext {
-    ForwardContext(ForwardLayerCL *parent, const Network &net, int layer) :
-      parent(parent), net(net), layer(layer) {
-      CL *cl = parent->cl;
-      indices = MoveMemoryToGPUConst(cl->context, cl->queue, net.indices[layer]);
-      weights = MoveMemoryToGPUConst(cl->context, cl->queue, net.weights[layer]);
-      biases = MoveMemoryToGPUConst(cl->context, cl->queue, net.biases[layer]);
+    ForwardContext(ForwardLayerCL *parent, RoundOnGPU *round, int layer) :
+      parent(parent), round(round), layer(layer) {
     }
 
     // TODO: Do we really want to share the same command queue across threads?
@@ -786,9 +809,12 @@ struct ForwardLayerCL {
 	MutexLock ml(&parent->m);
 
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_mem), (void *)&src_values));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&indices));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&weights));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&biases));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), 
+				     (void *)&round->indices[layer]));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem),
+				     (void *)&round->weights[layer]));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), 
+				     (void *)&round->biases[layer]));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&dst_values));
 
 	size_t global_work_offset[] = { 0 };
@@ -821,16 +847,10 @@ struct ForwardLayerCL {
     }
     
     ~ForwardContext() {
-      CHECK_SUCCESS(clReleaseMemObject(indices));
-      CHECK_SUCCESS(clReleaseMemObject(weights));
-      CHECK_SUCCESS(clReleaseMemObject(biases));
     }
 
-    cl_mem indices;
-    cl_mem weights;
-    cl_mem biases;
     ForwardLayerCL *parent = nullptr;
-    const Network &net;
+    RoundOnGPU *round = nullptr;
     const int layer;
     double kernel_ms = 0.0;
   };
@@ -858,12 +878,11 @@ struct BackwardLayerCL {
   }
 
   struct BackwardContext {
-    BackwardContext(BackwardLayerCL *parent, const Network &net, int dest_layer) :
-      parent(parent), net(net), dest_layer(dest_layer) {
+    BackwardContext(BackwardLayerCL *parent, RoundOnGPU *round, const Network &net, int dest_layer) :
+      parent(parent), round(round), net(net), dest_layer(dest_layer) {
       CL *cl = parent->cl;
 
       const int gap = dest_layer;
-      // const int src_layer = dest_layer - 1;
 
       starts = MoveMemoryToGPUConst(cl->context, cl->queue,
 				    net.inverted_indices_start[gap]);
@@ -872,9 +891,6 @@ struct BackwardLayerCL {
 
       inverted_index = MoveMemoryToGPUConst(cl->context, cl->queue,
 					    net.inverted_indices[gap]);
-
-      dest_weights = MoveMemoryToGPUConst(cl->context, cl->queue,
-					  net.weights[dest_layer]);
     }
 
     // TODO: Do we really want to share the same command queue across threads?
@@ -903,7 +919,8 @@ struct BackwardLayerCL {
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_mem), (void *)&starts));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&lengths));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&inverted_index));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&dest_weights));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem),
+				     (void *)&round->weights[dest_layer]));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&src_output));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&dest_error));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof(cl_mem), (void *)&src_error));
@@ -942,11 +959,11 @@ struct BackwardLayerCL {
       CHECK_SUCCESS(clReleaseMemObject(starts));
       CHECK_SUCCESS(clReleaseMemObject(lengths));
       CHECK_SUCCESS(clReleaseMemObject(inverted_index));
-      CHECK_SUCCESS(clReleaseMemObject(dest_weights));
     }
 
-    cl_mem starts, lengths, inverted_index, dest_weights;
+    cl_mem starts, lengths, inverted_index;
     BackwardLayerCL *parent = nullptr;
+    RoundOnGPU *round = nullptr;
     const Network &net;
     const int dest_layer;
     double kernel_ms = 0.0;
@@ -975,13 +992,12 @@ struct UpdateWeightsCL {
   }
 
   struct UpdateContext {
-    UpdateContext(UpdateWeightsCL *parent, Network *net, int layer) :
-      parent(parent), net(net), layer(layer) {
-      CL *cl = parent->cl;
+    UpdateContext(UpdateWeightsCL *parent, RoundOnGPU *round, Network *net, int layer) :
+      parent(parent), round(round), net(net), layer(layer) {
 
-      layer_indices = MoveMemoryToGPUConst(cl->context, cl->queue, net->indices[layer]);
-      layer_weights = MoveMemoryToGPU(cl->context, cl->queue, false, &net->weights[layer]);
-      layer_biases = MoveMemoryToGPU(cl->context, cl->queue, false, &net->biases[layer]);
+      // layer_indices = MoveMemoryToGPUConst(cl->context, cl->queue, net->indices[layer]);
+      // layer_weights = MoveMemoryToGPU(cl->context, cl->queue, false, &net->weights[layer]);
+      // layer_biases = MoveMemoryToGPU(cl->context, cl->queue, false, &net->biases[layer]);
     }
 
     void Update(float learning_rate, const Stimulation &stim, const Errors &err, int layer) {
@@ -997,10 +1013,13 @@ struct UpdateWeightsCL {
 
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_float), (void *)&learning_rate));
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&layer_error));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&layer_indices));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), 
+				   (void *)&round->indices[layer]));
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&layer_values));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&layer_weights));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&layer_biases));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem),
+				   (void *)&round->weights[layer]));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem),
+				   (void *)&round->biases[layer]));
 
       size_t global_work_offset[] = { 0 };
       size_t global_work_size[] = { (size_t)NUM_NODES };
@@ -1024,19 +1043,20 @@ struct UpdateWeightsCL {
 
     void Finish() {
       CL *cl = parent->cl;
-      CopyBufferFromGPUTo(cl->queue, layer_weights, &net->weights[layer]);
-      CopyBufferFromGPUTo(cl->queue, layer_biases, &net->biases[layer]);
+      CopyBufferFromGPUTo(cl->queue, round->weights[layer], &net->weights[layer]);
+      CopyBufferFromGPUTo(cl->queue, round->biases[layer], &net->biases[layer]);
       clFinish(cl->queue);
     }
 
     ~UpdateContext() {
-      CHECK_SUCCESS(clReleaseMemObject(layer_indices));
-      CHECK_SUCCESS(clReleaseMemObject(layer_weights));
-      CHECK_SUCCESS(clReleaseMemObject(layer_biases));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_indices));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_weights));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_biases));
     }
 
-    cl_mem layer_indices, layer_weights, layer_biases;
+    // cl_mem layer_indices, layer_weights, layer_biases;
     UpdateWeightsCL *parent = nullptr;
+    RoundOnGPU *round;
     Network *net;
     const int layer;
     double kernel_ms = 0.0;
@@ -1241,7 +1261,7 @@ static void App(const vector<A> &vec, const F &f) {
   for (const auto &elt : vec) f(elt);
 }
 
-static constexpr int NUM_VIDEO_STIMULATIONS = 4;
+static constexpr int NUM_VIDEO_STIMULATIONS = 7;
 std::mutex video_export_m;
 int current_round = 0;
 vector<Stimulation> current_stimulations(NUM_VIDEO_STIMULATIONS, Stimulation(NUM_LAYERS));
@@ -1376,6 +1396,7 @@ void UIThread() {
 	}
     };
 
+    if (ReadWithLock(&video_export_m, &allow_updates)) {
     if (mode == MODE_STIMULUS) {
       MutexLock ml(&video_export_m);
       for (int i = 0; i < current_stimulations.size(); i++) {
@@ -1469,8 +1490,11 @@ void UIThread() {
 	stims.reserve(NUM_VIDEO_STIMULATIONS);
 	for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) stims.emplace_back(NUM_LAYERS);
 
+	RoundOnGPU round_gpu{global_cl};
+	round_gpu.SetupForward(&current_network);
+
 	for (int src = 0; src < NUM_LAYERS; src++) {
-	  ForwardLayerCL::ForwardContext fc(&forwardlayer, current_network, src);
+	  ForwardLayerCL::ForwardContext fc(&forwardlayer, &round_gpu, src);
 	  ParallelComp(NUM_VIDEO_STIMULATIONS,
 		       [&DrawStimulus, &heldout_corpus, &stims, &fc, 
 			&fonts,
@@ -1527,8 +1551,8 @@ void UIThread() {
 		       6);
 	}
       }
-      Printf("(drew eval)\n");
 
+    }
       // SDL_Delay(1000);
     }
 
@@ -1597,7 +1621,7 @@ void UIThread() {
       }
     } else {
       // PERF
-      SDL_Delay(10);
+      SDL_Delay(1000);
     }
   }
 }
@@ -1640,7 +1664,7 @@ void TrainThread() {
   CheckInvertedIndices(net);
   printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
 
-  vector<ImageRGBA *> corpus = LoadImagesFromDirectory("jpegs256/");
+  vector<ImageRGBA *> corpus = LoadImagesFromDirectory("corpus256/");
 
   static constexpr int I_SIZE = 80;
   vector<string> font_filenames = Util::ListFiles("fonts/");
@@ -1676,7 +1700,7 @@ void TrainThread() {
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
     update_ms = 0.0, writing_ms = 0.0;
   static constexpr int MAX_ROUNDS = 50000; // 10000;
-  static constexpr int EXAMPLES_PER_ROUND = 4;
+  static constexpr int EXAMPLES_PER_ROUND = 48;
   static constexpr int VERBOSE_ROUND_EVERY = 250;
 
   Timer total_timer;
@@ -1684,13 +1708,18 @@ void TrainThread() {
     Printf("\n\n ** ROUND %d **\n", round_number);
 
     // When starting from a fresh network, consider this:
+
     const float round_learning_rate = 
       0.05;
-    /*
-      std::max(0.000001, std::min(0.9,
+      /*
+      std::max(0.05, std::min(0.9,
 				  exp(-0.2275 * (round_number + 1)/200.0)));
-    */
+      */
   // const float round_learning_rate = 0.0025;
+
+    // Get this queued up ASAP.
+    RoundOnGPU round_gpu{global_cl};
+    round_gpu.SetupForward(&net);
 
     Printf("Learning rate: %.4f\n", round_learning_rate);
 
@@ -1745,7 +1774,6 @@ void TrainThread() {
 		   InitializeLayerFromImage(examples[i], &stims[i].values[0]);
 		 }, 12);
 
-    // XXX Apply some effect to the example or expected!
     setup_ms += setup_timer.MS();
     stimulation_init_ms += stimulation_init_timer.MS();
 
@@ -1754,11 +1782,9 @@ void TrainThread() {
     for (int src = 0; src < NUM_LAYERS; src++) {
       Printf("FWD Layer %d: ", src);
       Timer fc_init_timer;
-      ForwardLayerCL::ForwardContext fc(&forwardlayer, net, src);
+      ForwardLayerCL::ForwardContext fc(&forwardlayer, &round_gpu, src);
       fc_init_ms += fc_init_timer.MS();
 
-      // PERF could be parallel, but watch out about loading the GPU with
-      // too many simultaneous value src/dst buffers.
       Timer forward_timer;
       ParallelComp(examples.size(),
 		   [&examples, &fc, &stims](int example) {
@@ -1819,7 +1845,7 @@ void TrainThread() {
       Printf("BWD Layer %d: ", dst);
 
       Timer bc_init_timer;
-      BackwardLayerCL::BackwardContext bc{&backwardlayer, net, dst};
+      BackwardLayerCL::BackwardContext bc{&backwardlayer, &round_gpu, net, dst};
       bc_init_ms += bc_init_timer.MS();
 
       ParallelComp(examples.size(),
@@ -1846,7 +1872,7 @@ void TrainThread() {
     // }
 
     for (int layer = 0; layer < NUM_LAYERS; layer++) {
-      UpdateWeightsCL::UpdateContext uc(&updateweights, &net, layer);
+      UpdateWeightsCL::UpdateContext uc(&updateweights, &round_gpu, &net, layer);
 
       // PERF Faster to try to run these in parallel (maybe parallelizing memory traffic
       // with kernel execution -- but we can't run the kernels at the same time).
@@ -1889,9 +1915,6 @@ void TrainThread() {
 	   output_error_ms / denom, Pct(output_error_ms),
 	   update_ms / denom, Pct(update_ms),
 	   writing_ms / denom, Pct(writing_ms));
-
-    SDL_Delay(100000);
-
 
   }
 
