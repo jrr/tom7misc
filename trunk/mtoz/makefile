@@ -52,7 +52,7 @@ OBJECTS=$(UTILOBJECTS) $(FCEULIBOBJECTS)
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
 
-mtoz.exe : $(OBJECTS) $(SDLOBJECTS) mtoz.o
+mtoz.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o mtoz.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :
