@@ -188,6 +188,15 @@ auto UnParallelMap(const std::vector<T> &vec,
   return result;
 }
 
+// When going out of scope, wait for the given thread.
+struct ThreadJoiner {
+  explicit ThreadJoiner(std::thread *t) : t(t) {}
+  ~ThreadJoiner() {
+    t->join();
+  }
+  std::thread *t;
+};
+
 // Manages running up to X asynchronous tasks in separate threads. This
 // is intended for use in situations like compressing and writing a
 // bunch of frames of a movie out to disk. There's substantial parallelism,
