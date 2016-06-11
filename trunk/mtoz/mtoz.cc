@@ -146,36 +146,6 @@ static constexpr float ByteFloat(uint8 b) {
   return (b / 255.0);
 }
 
-#if 0
-static void WriteLayerAsImage(const string &filename, const vector<float> &values) {
-  vector<uint8> rgba;
-  // TODO: Write other channels as separate transparent images?
-  for (int i = 0; i < NUM_NODES / NPP; i++) {
-    for (int j = 0; j < 3; j++) {
-      const float f = values[i * NPP + j];
-      rgba.push_back(FloatByte(f));
-    }
-    rgba.push_back(0xFF);
-  }
-  CHECK_EQ(rgba.size(), SIZE * SIZE * 4);
-  ImageRGBA img(rgba, SIZE, SIZE);
-  img.Save(filename);
-  Printf("Wrote %s...\n", filename.c_str());
- 
-  // XXX PERF and as text file.
-  if (false) {
-    string tf = (string)"text-" + filename + (string)".txt";
-    FILE *ftxt = fopen(tf.c_str(), "wb");
-    for (int i = 0; i < values.size(); i++) {
-      if (i % 8 == 0) fprintf(ftxt, "\n");
-      fprintf(ftxt, "% f ", values[i]);
-    }
-    fclose(ftxt);
-    Printf("And %s.\n", tf.c_str());
-  }
-}
-#endif
-
 // Single-channel bitmap.
 struct ImageA {
   ImageA(const vector<uint8> &alpha, int width, int height)
@@ -185,36 +155,6 @@ struct ImageA {
   const int width, height;
   vector<uint8> alpha;
 };
-
-static void BlitChannel(uint8 r, uint8 g, uint8 b, const ImageA &channel, 
-			int xpos, int ypos,
-			ImageRGBA *dest) {
-  for (int y = 0; y < channel.height; y++) {
-    int dsty = ypos + y;
-    if (dsty >= 0 && dsty < dest->height) {
-      for (int x = 0; x < channel.width; x++) {
-	int dstx = xpos + x;
-	if (dstx >= 0 && dstx <= dest->width) {
-	  int sidx = x + channel.width * y;
-	  int ch = channel.alpha[sidx];
-
-	  auto Blend = [&dest](int idx, uint8 val, uint8 a) {
-	    uint8 old = dest->rgba[idx];
-	    uint8 oma = 0xFF - a;
-	    uint8 replacement = ((oma * (int)old) + (a * (int)val)) >> 8;
-	    dest->rgba[idx] = replacement;
-	  };
-
-	  int didx = dstx * 4 + (dsty * dest->width) * 4;
-	  Blend(didx + 0, r, ch);
-	  Blend(didx + 1, g, ch);
-	  Blend(didx + 2, b, ch);
-	  dest->rgba[didx + 3] = 0xFF;
-	}
-      }
-    }
-  }
-}
 
 // #define NEIGHBORHOOD 15
 // #define NEIGHBORHOOD 1
@@ -673,12 +613,6 @@ struct ForwardLayerCL {
     ForwardContext(ForwardLayerCL *parent, const Network &net, int layer) :
       parent(parent), net(net), layer(layer) {
       CL *cl = parent->cl;
-      /*
-      Printf("layer %d sizes: %d %d %d\n", layer,
-	     net.layers[layer].indices.size(),
-	     net.layers[layer].weights.size(),
-	     net.layers[layer].biases.size());
-      */
       indices = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].indices);
       weights = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].weights);
       biases = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].biases);
@@ -690,18 +624,9 @@ struct ForwardLayerCL {
     // so we may be prematurely waiting/running other thread's work.
     void Forward(Stimulation *stim) {
       ECHECK_LT(layer + 1, stim->values.size());
-
-      /*
-      for (const int idx : net.layers[layer].indices) {
-	CHECK_GE(idx, 0);
-	CHECK_LT(idx, stim->values[layer].size());
-      }
-      Printf("Checked Indices.\n");
-      */
       
       CL *cl = parent->cl;
 
-      // Printf("Copy src/dst values..\n");
       // Technically these are thread-safe, but we should avoid moving lots of memory
       // onto the GPU before we can use it, because our working set for one kernel call
       // is pretty sizable compared to total gpu memory!
@@ -817,9 +742,6 @@ struct BackwardLayerCL {
 
       const int gap = dst_layer;
       const int src_layer = dst_layer - 1;
-
-      //  const vector<float> &dst_error = err->error[dst_layer];
-      //  vector<float> *src_error = &err->error[src_layer];
 
       cl_mem src_output = MoveMemoryToGPUConst(cl->context, cl->queue,
 					       stim.values[src_layer + 1]);
@@ -998,24 +920,6 @@ struct UpdateWeightsCL {
   std::mutex m;
 };
 
-#if 0
-static void InitializeLayerFromImage(const ImageRGBA *rgba, vector<float> *values) {
-  CHECK_EQ(SIZE, rgba->width);
-  CHECK_EQ(SIZE, rgba->height);
-  CHECK_EQ(values->size(), NUM_NODES);
-  int dst = 0;
-  for (int i = 0; i < SIZE * SIZE; i++) {
-    (*values)[dst++] = ByteFloat(rgba->rgba[4 * i + 0]);
-    (*values)[dst++] = ByteFloat(rgba->rgba[4 * i + 1]);
-    (*values)[dst++] = ByteFloat(rgba->rgba[4 * i + 2]);
-    for (int j = 0; j < NPP - 3; j++) {
-      (*values)[dst++] = 0.0f;
-    }
-  }
-  CHECK_EQ(dst, NUM_NODES);
-}
-#endif
-
 // Make indices. This assumes that nodes are 2D pixel data where we have
 // SIZE * SIZE pixels, NPP nodes per pixel, in row-major order.
 //
@@ -1044,9 +948,7 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
 
     const double xf = x / (double)dst_width;
     const double yf = y / (double)dst_height;
-    
-    static constexpr double stddev = 1 / 16.0;
-    
+       
     // Use set for deduplication; we re-sort for locality of access later.
     unordered_set<int> indices;
     // clips xx,yy if they are out of the image.
@@ -1078,6 +980,8 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
     // XXX Select this dynamically based on how many unused nodes
     // are even left?
     #if 0
+    static constexpr double stddev = 1 / 16.0;
+    
     // Sample gaussian pixels.
     while (indices.size() < indices_per_node) {
       double dx = gauss->Next() * stddev;
@@ -1209,11 +1113,6 @@ struct ErrorHistory {
   double Sample(int depth, int layer) const {
     return total_error[total_error.size() - (depth + 1)][layer];
   }
-
-  /*
-  decltype(auto) begin() const { return total_error.begin(); }
-  decltype(auto) end() const { return total_error.end(); }
-  */
   
 private:
   // outer: num_samples, inner: num_layers
@@ -1368,14 +1267,10 @@ static void TrainThread() {
   ArcFour rc(start_seed);
   rc.Discard(2000);
 
-  // Create kernels right away so that we get compilation errors early.
+  // Create kernels right away so that we get any compilation errors early.
   ForwardLayerCL forwardlayer{global_cl};
   BackwardLayerCL backwardlayer{global_cl};
   UpdateWeightsCL updateweights{global_cl};
-
-  // Replacing these functions; don't warn.
-  // (void)BackwardsError;
-  // (void)UpdateWeights;
 
   // Load the existing network from disk or create the initial one.
   Timer initialize_network_timer;
@@ -1432,36 +1327,35 @@ static void TrainThread() {
 
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
-  const string romfile = "mario.nes";
-  std::unique_ptr<Emulator> emu{Emulator::Create(romfile)};
-  // std::unique_ptr<Emulator> emu{Emulator::Create("zelda.nes")};
-  CHECK(emu.get() != nullptr);
-  vector<uint8> movie = SimpleFM2::ReadInputs("mario-long-three.fm2");
-  // vector<uint8> movie = SimpleFM2::ReadInputs("zeldalong.fm2");
+  const string train_romfile = "mario.nes";
+  vector<uint8> train_movie = SimpleFM2::ReadInputs("mario-long-three.fm2");
   struct Snapshot {
     int movie_idx;
     vector<uint8> save;
   };
-
+ 
   static constexpr int SNAPSHOT_EVERY = 20;
   vector<Snapshot> snapshots;
-  snapshots.reserve(1 + movie.size() / SNAPSHOT_EVERY);
-  vector<uint8> start_save = emu->SaveUncompressed();
+  snapshots.reserve(1 + train_movie.size() / SNAPSHOT_EVERY);
 
   Printf("Populating snapshots every %d frames...\n", SNAPSHOT_EVERY);
-  uint64 snapshot_bytes = 0ULL;
-  for (int i = 0; i < movie.size(); i++) {
-    if (i % SNAPSHOT_EVERY == 0) {
-      snapshots.resize(snapshots.size() + 1);
-      Snapshot *snapshot = &snapshots.back();
-      snapshot->movie_idx = i;
-      snapshot->save = emu->SaveUncompressed();
-      snapshot_bytes += snapshot->save.size();
+  {
+    std::unique_ptr<Emulator> emu{Emulator::Create(train_romfile)};
+    CHECK(emu.get() != nullptr);
+    uint64 snapshot_bytes = 0ULL;
+    for (int i = 0; i < train_movie.size(); i++) {
+      if (i % SNAPSHOT_EVERY == 0) {
+	snapshots.resize(snapshots.size() + 1);
+	Snapshot *snapshot = &snapshots.back();
+	snapshot->movie_idx = i;
+	snapshot->save = emu->SaveUncompressed();
+	snapshot_bytes += snapshot->save.size();
+      }
+      emu->StepFull(train_movie[i], 0);
     }
-    emu->StepFull(movie[i], 0);
+    Printf("Using %.2fMB for snapshots (save states).\n",
+	   snapshot_bytes / (1024.0 * 1024.0));
   }
-  Printf("Using %.2fMB for snapshots (save states).\n",
-	 snapshot_bytes / (1024.0 * 1024.0));
   
   if (ShouldDie()) return;
 
@@ -1476,11 +1370,11 @@ static void TrainThread() {
   // XXX could just be vector, actually?
   deque<TrainingExample> training_examples;
   
-  auto MakeTrainingExamplesThread = [romfile, movie, &snapshots,
+  auto MakeTrainingExamplesThread = [train_romfile, &train_movie, &snapshots,
 				     &training_examples_m, &training_examples](int idx) {
     Printf("Training thread %d startup.\n", idx);
     ArcFour rc{StringPrintf("make_examples %d", idx)};
-    std::unique_ptr<Emulator> emu{Emulator::Create(romfile)};
+    std::unique_ptr<Emulator> emu{Emulator::Create(train_romfile)};
     
     for (;;) {
       if (ReadWithLock(&train_should_die_m, &train_should_die)) {
@@ -1495,23 +1389,23 @@ static void TrainThread() {
 	// Choose a movie frame to seek to. We have to emulate one frame in order
 	// to see an image, so here we're actually picking the frame before the
 	// one that will be the training example. Therefore it can't be the last one.
-	const int frame_num = RandTo(&rc, movie.size() - 1);
+	const int frame_num = RandTo(&rc, train_movie.size() - 1);
 	const int snapshot_num = frame_num / SNAPSHOT_EVERY;
 	const Snapshot &snapshot = snapshots[snapshot_num];
 	emu->LoadUncompressed(snapshot.save);
 	// Run until we reach the chosen frame, and then one more.
 	CHECK_EQ(snapshot.movie_idx, snapshot_num * SNAPSHOT_EVERY);
 	const int runframes = 1 + (frame_num % SNAPSHOT_EVERY);
-	CHECK_LT(snapshot.movie_idx + runframes, movie.size());
+	CHECK_LT(snapshot.movie_idx + runframes, train_movie.size());
 	for (int j = snapshot.movie_idx; j < snapshot.movie_idx + runframes; j++) {
-	  emu->StepFull(movie[j], 0);
+	  emu->StepFull(train_movie[j], 0);
 	}
 
 	// To get a bit more entropy in the training set, maybe run a few random buttons
 	// from the movie, which may perturb the state a little without producing unrealistic
 	// inputs.
 	for (int randomactions = RandTo(&rc, 3) * 2; randomactions--;) {
-	  const uint8 input = movie[RandTo(&rc, movie.size())];
+	  const uint8 input = train_movie[RandTo(&rc, train_movie.size())];
 	  for (int steps = 1 + RandTo(&rc, 12); steps--;) {
 	    emu->StepFull(input, 0);
 	  }
@@ -1526,7 +1420,7 @@ static void TrainThread() {
 	  const uint8 g = example.rgba[i * 4 + 1];
 	  const uint8 b = example.rgba[i * 4 + 2];
 	  // uint8 a = example.rgba[i * 4 + 3];
-	  // CHECK_LT(i, vals.size());
+	  ECHECK_LT(i, vals.size());
 	  vals[i] = ((float)r + (float)g + (float)b) / (255.0f * 3.0f);
 	}
 	example.vals = std::move(vals);
@@ -1543,7 +1437,6 @@ static void TrainThread() {
     Printf("Training example generator exiting.\n");
   };
 
-  // FIXME SPAWN THE THREADS.
   std::thread emu_thread_1{MakeTrainingExamplesThread, 1};
   std::thread emu_thread_2{MakeTrainingExamplesThread, 2};
   ThreadJoiner join_emu_thread_1{&emu_thread_1};
@@ -1572,7 +1465,7 @@ static void TrainThread() {
     bool is_verbose_round = 0 == ((round_number /* + 1 */) % VERBOSE_ROUND_EVERY);
     if (is_verbose_round) {
       Printf("Writing network:\n");
-      WriteNetworkText(*net, StringPrintf("network-%d.txt", round_number));
+      // WriteNetworkText(*net, StringPrintf("network-%d.txt", round_number));
       SaveNetworkBinary(*net, "network-checkpoint.bin");
     }
 
@@ -1662,27 +1555,6 @@ static void TrainThread() {
     }
     // TODO PERF: Can kill transformed input eagerly, if having memory pressure issues.
 
-    // Write layer as image doesn't work on these
-    #if 0
-    if (is_verbose_round) {
-      if (ShouldDie()) return;
-      // Write outputs as graphics.
-      Timer writing_timer;
-      ParallelComp(min((int)examples.size(), 10),
-		   [&stims, round_number](int example) {
-		     const Stimulation &stim = stims[example];
-		     for (int i = 0; i < stim.values.size(); i++) {
-		       string filename = StringPrintf("round-%d-ex-%d-layer-%d.png",
-						      round_number,
-						      example,
-						      i);
-		       WriteLayerAsImage(filename, stim.values[i]);
-		     }
-		   }, 16);
-      writing_ms += writing_timer.MS();
-    }
-    #endif
-
     const int num_examples = examples.size();
     // But, don't need to keep this allocated.
     examples.clear();
@@ -1699,8 +1571,6 @@ static void TrainThread() {
     CHECK_EQ(num_examples, errs.size());
     CHECK_EQ(num_examples, stims.size());
 
-    if (ShouldDie()) return;
-        
     if (ShouldDie()) return;
     Printf("Backwards:\n");
     // Also serial, but in reverse.
@@ -1752,13 +1622,9 @@ static void TrainThread() {
     if (ShouldDie()) return;
     Printf("Update weights:\n");
     Timer update_timer;
+
     // Don't parallelize! These are all writing to the same network weights. Each
     // call is parallelized, though.
-
-    // for (int example = 0; example < num_examples; example++) {
-    //   UpdateWeights(round_learning_rate, &net, stims[example], errs[example]);
-    // }
-
     for (int layer = 0; layer < net->num_layers; layer++) {
       UpdateWeightsCL::UpdateContext uc(&updateweights, net.get(), layer);
 
@@ -1821,8 +1687,7 @@ static void TrainThread() {
 }
 
 
-int SDL_main(int argc, char* argv[]) {
-
+int SDL_main(int argc, char **argv) {
   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
   }
@@ -1871,17 +1736,6 @@ int SDL_main(int argc, char* argv[]) {
   train_thread.join();
 
   Printf("Train is dead; now UI exiting.\n");
-  /*
-    BlitChannel(0xFF, 0x0, 0x0, *font, 
-		30, 30,
-		corpus[0]);
-
-    printf("Save it..\n");
-    corpus[0]->Save("testi.png");
-
-    printf("Done.\n");
-  */
-  // ui_thread.join();
 
   SDL_Quit();
   return 0;
