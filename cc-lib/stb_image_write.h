@@ -9,6 +9,7 @@
      - Make it more likely to be threadsafe (no non-const static buffers)
      - Break into header and CC file separately.
      - Clean up warnings from unused variables
+     - Made unexported functions static linkage
 
    Sean notes:
    Will probably not work correctly with strict-aliasing optimizations.
@@ -27,7 +28,8 @@ USAGE:
 
    There are four functions, one for each image file format:
 
-     int stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
+     int stbi_write_png(char const *filename, int w, int h, int comp, const void *data, 
+                        int stride_in_bytes);
      int stbi_write_bmp(char const *filename, int w, int h, int comp, const void *data);
      int stbi_write_tga(char const *filename, int w, int h, int comp, const void *data);
      int stbi_write_hdr(char const *filename, int w, int h, int comp, const void *data);
@@ -74,7 +76,8 @@ CREDITS:
 #ifndef INCLUDE_STB_IMAGE_WRITE_H
 #define INCLUDE_STB_IMAGE_WRITE_H
 
-extern int stbi_write_png(char const *filename, int w, int h, int comp, const void  *data, int stride_in_bytes);
+extern int stbi_write_png(char const *filename, int w, int h, int comp, const void  *data,
+			  int stride_in_bytes);
 extern int stbi_write_bmp(char const *filename, int w, int h, int comp, const void  *data);
 extern int stbi_write_tga(char const *filename, int w, int h, int comp, const void  *data);
 extern int stbi_write_hdr(char const *filename, int w, int h, int comp, const float *data);

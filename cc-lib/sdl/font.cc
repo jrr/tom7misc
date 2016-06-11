@@ -172,7 +172,7 @@ FontReal *FontReal::create(SDL_Surface *screen,
 			   int styles,
 			   int overlap,
 			   int ndim) {
-  SDL_Surface *fon = sdlutil::LoadImage(file.c_str());
+  SDL_Surface *fon = sdlutil::LoadImage(file);
   if (fon == nullptr) return nullptr;
   return create_from_surface(screen, fon, charmap, 
 			     width, height, styles, overlap, ndim);
