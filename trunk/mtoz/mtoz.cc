@@ -1223,6 +1223,7 @@ private:
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 7;
+static constexpr int EXPORT_EVERY = 10;
 std::mutex video_export_m;
 int current_round = 0;
 double rounds_per_second = 0.0;
@@ -1404,11 +1405,21 @@ static void TrainThread() {
   Printf("Network uses %.2fMB of storage (without overhead).\n", 
 	 net->Bytes() / (1024.0 * 1024.0));
 
+  static constexpr int MAX_ROUNDS = 50000; // 10000;
+  static constexpr int EXAMPLES_PER_ROUND = 48;
+  static constexpr int VERBOSE_ROUND_EVERY = 250;
+  
   {
     Stimulation stim{*net};
-    Printf("A stimulation uses %.2fMB.\n", stim.Bytes() / (1024.0 * 1024.0));
+    Errors err{*net};
+    Printf("A Stimulation uses %.2fMB, and an Errors uses %.2fMB.\n",
+	   stim.Bytes() / (1024.0 * 1024.0),
+	   err.Bytes() / (1024.0 * 1024.0));
+    Printf("This is %.2fMB + %.2fMB total across a round of examples.\n",
+	   (stim.Bytes() * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0),
+	   (err.Bytes() * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0));
   }
-
+  
   auto ShouldDie = [&net]() {
     bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
     if (should_die) {
@@ -1431,28 +1442,27 @@ static void TrainThread() {
     int movie_idx;
     vector<uint8> save;
   };
+
+  static constexpr int SNAPSHOT_EVERY = 20;
   vector<Snapshot> snapshots;
-  snapshots.reserve(2000);
+  snapshots.reserve(1 + movie.size() / SNAPSHOT_EVERY);
   vector<uint8> start_save = emu->SaveUncompressed();
 
-  static constexpr int MAX_ROUNDS = 50000; // 10000;
-  static constexpr int EXAMPLES_PER_ROUND = 48;
-  static constexpr int VERBOSE_ROUND_EVERY = 250;
-  
-  while (snapshots.size() < 2000) {
-    Printf("Populating snapshots from beginning (%d)...\n", snapshots.size());
-    emu->LoadUncompressed(start_save);
-    for (int i = 0; i < movie.size(); i++) {
-      if (i > 100 && i < movie.size() - 100 && rc.Byte() < 0x9) {
-	snapshots.resize(snapshots.size() + 1);
-	Snapshot *snapshot = &snapshots.back();
-	snapshot->movie_idx = i;
-	snapshot->save = emu->SaveUncompressed();
-      }
-      emu->StepFull(movie[i], 0);
+  Printf("Populating snapshots every %d frames...\n", SNAPSHOT_EVERY);
+  uint64 snapshot_bytes = 0ULL;
+  for (int i = 0; i < movie.size(); i++) {
+    if (i % SNAPSHOT_EVERY == 0) {
+      snapshots.resize(snapshots.size() + 1);
+      Snapshot *snapshot = &snapshots.back();
+      snapshot->movie_idx = i;
+      snapshot->save = emu->SaveUncompressed();
+      snapshot_bytes += snapshot->save.size();
     }
+    emu->StepFull(movie[i], 0);
   }
-
+  Printf("Using %.2fMB for snapshots (save states).\n",
+	 snapshot_bytes / (1024.0 * 1024.0));
+  
   if (ShouldDie()) return;
 
   struct TrainingExample {
@@ -1482,14 +1492,24 @@ static void TrainThread() {
       if (training_examples.size() < EXAMPLES_PER_ROUND * 2) {
 	training_examples_m.unlock();
 
-	// Generate one example in this thread.
-	const Snapshot &snapshot = snapshots[RandTo(&rc, snapshots.size())];
-	const int frames = RandTo(&rc, 60);
+	// Choose a movie frame to seek to. We have to emulate one frame in order
+	// to see an image, so here we're actually picking the frame before the
+	// one that will be the training example. Therefore it can't be the last one.
+	const int frame_num = RandTo(&rc, movie.size() - 1);
+	const int snapshot_num = frame_num / SNAPSHOT_EVERY;
+	const Snapshot &snapshot = snapshots[snapshot_num];
 	emu->LoadUncompressed(snapshot.save);
-	for (int j = snapshot.movie_idx; j < snapshot.movie_idx + frames && j < movie.size(); j++) {
+	// Run until we reach the chosen frame, and then one more.
+	CHECK_EQ(snapshot.movie_idx, snapshot_num * SNAPSHOT_EVERY);
+	const int runframes = 1 + (frame_num % SNAPSHOT_EVERY);
+	CHECK_LT(snapshot.movie_idx + runframes, movie.size());
+	for (int j = snapshot.movie_idx; j < snapshot.movie_idx + runframes; j++) {
 	  emu->StepFull(movie[j], 0);
 	}
 
+	// To get a bit more entropy in the training set, maybe run a few random buttons
+	// from the movie, which may perturb the state a little without producing unrealistic
+	// inputs.
 	for (int randomactions = RandTo(&rc, 3) * 2; randomactions--;) {
 	  const uint8 input = movie[RandTo(&rc, movie.size())];
 	  for (int steps = 1 + RandTo(&rc, 12); steps--;) {
@@ -1514,8 +1534,6 @@ static void TrainThread() {
 	{
 	  MutexLock ml(&training_examples_m);
 	  training_examples.push_back(std::move(example));
-	  Printf("Train thread %d added an example, bringing total to %d.\n", idx,
-		 training_examples.size());
 	}
       } else {
 	training_examples_m.unlock();
@@ -1543,10 +1561,11 @@ static void TrainThread() {
     Printf("\n\n ** ROUND %d **\n", round_number);
     
     // When starting from a fresh network, consider this:
-    const float round_learning_rate =
-      // std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (round_number + 1)/3.0)));
-      std::min(0.125, std::max(0.05, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
-    // const float round_learning_rate = 0.0025;
+    //   // std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (round_number + 1)/3.0)));
+    
+    // const float round_learning_rate =
+    //     std::min(0.125, std::max(0.05, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
+    const float round_learning_rate = 0.0025;
 
     Printf("Learning rate: %.4f\n", round_learning_rate);
 
@@ -1559,7 +1578,8 @@ static void TrainThread() {
 
     Printf("Export network:\n");
     ExportRound(round_number);
-    ExportNetworkToVideo(*net);
+    if (round_number % EXPORT_EVERY == 0)
+      ExportNetworkToVideo(*net);
 
     Timer setup_timer;
     Printf("Setting up batch:\n");
@@ -1567,7 +1587,10 @@ static void TrainThread() {
     vector<TrainingExample> examples;
     examples.reserve(EXAMPLES_PER_ROUND);
     do {
-      Printf("Grabbing some examples (have %d)...\n", examples.size());
+      if (!examples.empty()) {
+	Printf("Blocked grabbing examples (still need %d)...\n",
+	       EXAMPLES_PER_ROUND - examples.size());
+      }
       MutexLock ml{&training_examples_m};
       while (examples.size() < EXAMPLES_PER_ROUND &&
 	     !training_examples.empty()) {
@@ -1597,18 +1620,6 @@ static void TrainThread() {
     errs.reserve(examples.size());
     for (int i = 0; i < examples.size(); i++) errs.emplace_back(*net);
 
-    {
-      // Diagnostic only.
-      int64 stim_bytes = 0ll, err_bytes = 0ll;
-      for (int i = 0; i < examples.size(); i++) {
-	stim_bytes += stims[i].Bytes();
-	err_bytes += errs[i].Bytes();
-      }
-      Printf("Size for all stimulations: %.1fMB, errors: %.1fMB\n",
-	     stim_bytes / (1000.0 * 1000.0),
-	     err_bytes / (1000.0 * 1000.0));
-    }
-
     Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
     CHECK_EQ(examples.size(), stims.size());
@@ -1632,14 +1643,15 @@ static void TrainThread() {
       Timer forward_timer;
       Printf("Parallelcomp...\n");
       ParallelComp(examples.size(),
-		   [&examples, &fc, &stims](int example_idx) {
+		   [round_number, &examples, &fc, &stims](int example_idx) {
 		     fc.Forward(&stims[example_idx]);
 		     if (example_idx % 10 == 0) {
 		       Printf("[%d/%d] (%.2f%%) ", example_idx, (int)examples.size(),
 			      100.0 * example_idx / examples.size());
 		     }
-		     
-		     if (example_idx < NUM_VIDEO_STIMULATIONS) {
+
+		     if (round_number % EXPORT_EVERY == 0 &&
+			 example_idx < NUM_VIDEO_STIMULATIONS) {
 		       // Copy to screen.
 		       ExportStimulusToVideo(example_idx, stims[example_idx]);
 		     }
@@ -1790,15 +1802,15 @@ static void TrainThread() {
 	   "%.1fms in writing images (%.1f%%),\n",
 	   total_ms / 1000.0,
 	   (total_ms / 1000.0) / denom,
-	   setup_ms, Pct(setup_ms),
-	   stimulation_init_ms, Pct(stimulation_init_ms),
+	   setup_ms / denom, Pct(setup_ms),
+	   stimulation_init_ms / denom, Pct(stimulation_init_ms),
 	   forward_ms / denom, Pct(forward_ms),
 	   fc_init_ms / denom, Pct(fc_init_ms),
 	   kernel_ms / denom, Pct(kernel_ms),
 	   bc_init_ms / denom, Pct(bc_init_ms),
 	   backward_ms / denom, Pct(backward_ms),
 	   output_error_ms / denom, Pct(output_error_ms),
-	   error_history_ms, Pct(error_history_ms),
+	   error_history_ms / denom, Pct(error_history_ms),
 	   update_ms / denom, Pct(update_ms),
 	   writing_ms / denom, Pct(writing_ms));
   }
