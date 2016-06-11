@@ -2,7 +2,7 @@
 #ifndef __MMC3_H
 #define __MMC3_H
 
-#include "cart.h"
+#include "../cart.h"
 
 struct MMC3 : public CartInterface {
 
