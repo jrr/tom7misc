@@ -8,6 +8,7 @@
 #include "../cc-lib/sdl/font.h"
 
 #include <CL/cl.h>
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,18 +22,19 @@
 #include <map>
 #include <unordered_set>
 
-#include "base/stringprintf.h"
-#include "base/logging.h"
-#include "arcfour.h"
-#include "util.h"
-#include "timer.h"
-#include "stb_image.h"
-#include "stb_image_write.h"
-#include "stb_truetype.h"
+#include "../cc-lib/base/stringprintf.h"
+#include "../cc-lib/base/logging.h"
+#include "../cc-lib/arcfour.h"
+#include "../cc-lib/util.h"
+#include "../cc-lib/stb_image.h"
+#include "../cc-lib/stb_image_write.h"
+#include "../cc-lib/stb_truetype.h"
+#include "../cc-lib/vector-util.h"
+#include "../cc-lib/threadutil.h"
+#include "../cc-lib/randutil.h"
 
-#include "threadutil.h"
 #include "clutil.h"
-#include "randutil.h"
+#include "timer.h"
 
 #include "constants.h"
 
@@ -214,17 +216,19 @@ static void BlitChannel(uint8 r, uint8 g, uint8 b, const ImageA &channel,
 
 // #define NEIGHBORHOOD 15
 // #define NEIGHBORHOOD 1
-#define NEIGHBORHOOD 10
+// #define NEIGHBORHOOD 10
+#define NEIGHBORHOOD 1
 struct NetworkConfiguration {
-  const int num_layers = 4;
+  const int num_layers = 5;
   // Note that these must have num_layers + 1 entries.
-  const vector<int> widths = { 256, 128, 64, 128, 256, };
-  const vector<int> heights = { 240, 120, 60, 120, 240 };
+  const vector<int> widths = { 256, 128, 64, 128, 256, 256, };
+  const vector<int> heights = { 240, 120, 60, 120, 240, 240, };
   // For 1 gigabyte layer sizes:
   // 2^30 = 1GB        = 1073741824
   //   / 4-byte floats = 268435456
   //   / 256 / 256     = 4396
-  const vector<int> indices_per_node = { 1024, 1024, 1024, 1024, };
+  // const vector<int> indices_per_node = { 1024, 1024, 1024, 1024, };
+  const vector<int> indices_per_node = { 16, 16, 16, 16, 32, };
   vector<int> num_nodes;
   NetworkConfiguration() {
     CHECK_EQ(widths.size(), heights.size());
@@ -603,15 +607,17 @@ struct Stimulation {
 };
 
 struct Errors {
-  explicit Errors(const Network &net) : num_layers(net.num_layers), num_nodes(net.num_nodes) {
+  explicit Errors(const Network &net) : num_layers(net.num_layers),
+					num_nodes(net.num_nodes) {
     error.resize(num_layers);
     for (int i = 0; i < error.size(); i++) {
       error[i].resize(num_nodes[i + 1], 0.0f);
     }
   }
   const int num_layers;
-  // The first entry here is unused (it's the size of the input layer, which doesn't
-  // get errors), but we keep it like this to be consistent with Network and Stimulation.
+  // The first entry here is unused (it's the size of the input layer,
+  // which doesn't get errors), but we keep it like this to be
+  // consistent with Network and Stimulation.
   const vector<int> num_nodes;
   int64 Bytes() const {
     int64 ret = sizeof *this;
@@ -620,16 +626,19 @@ struct Errors {
     return ret;
   }
 
-  // These are the delta terms in Mitchell. We have num_layers of them, where
-  // the error[0] is the first real layer (we don't compute errors for the input)
-  // and error[num_layers] is the error for the output.
+  // These are the delta terms in Mitchell. We have num_layers of
+  // them, where the error[0] is the first real layer (we don't
+  // compute errors for the input) and error[num_layers] is the error
+  // for the output.
   vector<vector<float>> error;
 };
 
 // Set the error values; this is almost just a memcpy so don't bother doing it
 // on GPU.
-static void SetOutputError(const Stimulation &stim, const vector<float> &expected, Errors *err) {
-  // One more value vector than layers, since we have values for the input "layer" too.
+static void SetOutputError(const Stimulation &stim,
+			   const vector<float> &expected, Errors *err) {
+  // One more value vector than layers, since we have values for the
+  // input "layer" too.
   const int num_layers = stim.num_layers;
   ECHECK(stim.values.size() == num_layers + 1);
   const vector<float> &output = stim.values[num_layers];
@@ -648,154 +657,6 @@ static void SetOutputError(const Stimulation &stim, const vector<float> &expecte
     (*output_error)[k] = out_k * (1.0 - out_k) * (expected[k] - out_k);
   }
 }
-
-#if 0
-// XXX should update this C++ code or just delete it.
-
-// Propagate the error backwards from the dst_layer to the src_layer.
-// (Note that the error terms go FROM the destination TO the source;
-// here I'm keeping the same terminology about "source" and
-// "destination" based on how data flows in the normal forward
-// direction.)
-//
-// This is now a kernel, so this function is uncalled. But it should
-// still work.
-static void BackwardsError(const Network &net, const Stimulation &stim,
-			   int dst_layer, Errors *err) {
-  // If we have
-  //
-  //   inputs     h        h'    outputs
-  //     o ------ o ------ o ------ o 
-  //     o ------ o ------ o ------ o
-  //     o ------ o ------ o ------ o
-  //         layer 0   layer 1   layer 2
-  //         error 0   error 1   error 2
-  //       gap 0    gap 1     gap 2
-  //   vals 0   vals 1   vals 2   vals 3
-  //
-  // We also have error deltas for each real layer. We are propagating the error
-  // from layer dst_layer to layer dst_layer-1, which is the gap dst_layer.
-  //
-  // Errors only go to real layers, so the dest layer is 1 at minimum.
-  ECHECK_GT(dst_layer, 0);
-  const int gap = dst_layer;
-
-  const int src_layer = dst_layer - 1;
-  ECHECK_GE(src_layer, 0);
-
-  // Note that stim has an extra data layer in it because it does
-  // represent the values of the input layer, thus the +1 here.
-  ECHECK_LT(src_layer + 1, stim.values.size());
-  const vector<float> &src_output = stim.values[src_layer + 1];
-
-  // The inverted index is really in the gap.
-  ECHECK_LT(gap, net.inverted_indices_start.size());
-  ECHECK_LT(gap, net.inverted_indices_length.size());
-  const vector<uint32> &starts = net.inverted_indices_start[gap];
-  const vector<uint32> &lengths = net.inverted_indices_length[gap];
-  const vector<uint32> &inverted_index = net.inverted_indices[gap];
-  const vector<uint32> &dst_indices = net.indices[dst_layer];
-  (void)dst_indices;  // Suppress lint -- only used for debug check.
-  const vector<float> &dst_weights = net.weights[dst_layer];
-
-  // One error layer for each real layer (not the input).
-  ECHECK_LT(dst_layer, err->error.size());
-  const vector<float> &dst_error = err->error[dst_layer];
-  vector<float> *src_error = &err->error[src_layer];
-  // Loop over every node in the previous layer, index h.
-  for (int h = 0; h < NUM_NODES; h++) {
-    const float out_h = src_output[h];
-    // Unpack inverted index for this node, so that we can loop over all of
-    // the places its output is sent.
-    const uint32 start = starts[h];
-    const uint32 length = lengths[h];
-    
-    // The error for a hidden node is the sum of all the errors for
-    // the next layer, but modulated by the weight of the edge.
-    double weighted_error_sum = 0.0;
-    for (int i = start; i < start + length; i++) {
-      const int gidx = inverted_index[i];
-      // gidx is an index into the index and weights vectors on the
-      // destination layer.
-      ECHECK_EQ(dst_indices[gidx], h);
-      // Compute from the index which destination node it belongs to.
-      const int dst_node_idx = gidx / INDICES_PER_NODE;
-      weighted_error_sum += dst_weights[gidx] * dst_error[dst_node_idx];
-    }
-    
-    (*src_error)[h] = out_h * (1.0f - out_h) * weighted_error_sum;
-  }
-}
-
-// In some presentations, this is positive, and others, negative. It
-// all comes down to the signs of the error; whether we compute
-// (expected - actual) or (actual - expected). Either way, we want to be DECREASING
-// error, not INCREASING it. For this setup, positive.
-// static constexpr float LEARNING_RATE = +0.05f;
-// static constexpr float LEARNING_RATE = +0.05f;
-// Learning rate should be a small positive constant (0 < lr < 1) constant, probably
-// around 0.05, and decreasing as we run more rounds.
-static void UpdateWeights(const float learning_rate,
-			  Network *net, const Stimulation &stim, const Errors &err) {
-  // This one is doing a simple thing with a lot of parallelism, but unfortunately
-  // writes would collide if we tried to add in all the weight updates in parallel.
-  // Not clear what the best approach is here. Parallelizing over layers is easy,
-  // at least.
-  
-  // Here we parallelize over all nodes in all layers; updating the weights and
-  // bias for that node in a chunk.
-  const int num_layers = net->num_layers;
-  ParallelComp(num_layers * NUM_NODES,
-	       [learning_rate, &net, &stim, &err, num_layers](int work_id) {
-		 // Update the weights for this node.
-		 const int layer = work_id % num_layers;
-		 const int node_idx = work_id / num_layers;
-
-		 // Error term is for this node.
-		 // Since error is not represented for the input layer, 'layer' is
-		 // the correct index. (That is, the 0th layer is the earliest one
-		 // that has weights.)
-		 ECHECK_LT(layer, err.error.size());
-		 ECHECK_LT(node_idx, err.error[layer].size());
-		 const float delta_j = err.error[layer][node_idx];
-		 const float learning_rate_times_delta_j = learning_rate * delta_j;
-
-		 vector<float> *layer_weights = &net->weights[layer];
-		 const vector<uint32> &layer_indices = net->indices[layer];
-
-		 // Note since stim has an additional layer for the input, layer
-		 // here is referring to the output values of the previous layer,
-		 // which is what we want. (The 0th layer is the earliest one
-		 // that we read: the input layer.)
-		 ECHECK_LT(layer, stim.values.size());
-		 const vector<float> &layer_values = stim.values[layer];
-
-		 // There is one weight for each input index.
-		 for (int input_idx = 0; input_idx < INDICES_PER_NODE; input_idx++) {
-		   const int gidx = INDICES_PER_NODE * node_idx + input_idx;
-		   ECHECK_GE(gidx, 0);
-		   ECHECK_LT(gidx, layer_indices.size());
-
-		   // Offset of the node, which we use to get its output.
-		   const int src_idx = layer_indices[gidx];
-		   ECHECK_GE(src_idx, 0);
-		   ECHECK_LT(src_idx, NUM_NODES);
-
-		   ECHECK_LT(src_idx, layer_values.size());
-		   const float x_ji = layer_values[src_idx];
-
-		   (*layer_weights)[gidx] += learning_rate_times_delta_j * x_ji;
-		 }
-
-		 // The bias terms are basically the same, but the output of that
-		 // node is 1. There's just one per node.
-		 ECHECK_LT(layer, net->biases.size());
-		 ECHECK_LT(node_idx, net->biases[layer].size());
-		 net->biases[layer][node_idx] += learning_rate_times_delta_j;
-	       }, 12);
-}
-
-#endif
 
 struct ForwardLayerCL {
   explicit ForwardLayerCL(CL *cl) : cl(cl) {
@@ -1289,7 +1150,7 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
 							<< indices_per_node;
 	(*layer_indices)[start_idx + i] = indices[i];
       }
-      if (node_idx % 100 == 0) {
+      if (node_idx % 1000 == 0) {
 	Printf("  %d. [%d/%d] %.1f%% (%lld rejected %lld dupe)\n",
 	       layer,
 	       node_idx, dst_height * dst_width,
@@ -1328,21 +1189,35 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
   DeleteElements(&rcs);
 }
 
-template<class A, class F>
-static auto Map(const vector<A> &vec, const F &f) -> vector<decltype(f(vec[0]))> {
-  using B = decltype(f(vec[0]));
-  vector<B> ret;
-  ret.resize(vec.size());
-  for (int i = 0; i < vec.size(); i++) {
-    ret[i] = f(vec[i]);
+static constexpr int NUM_ERROR_HISTORY_SAMPLES = 1000;
+struct ErrorHistory {
+  void AddSample(vector<double> v) {
+    if (total_error.size() > NUM_ERROR_HISTORY_SAMPLES) {
+      // PERF: Use circular buffer.
+      static_assert(NUM_ERROR_HISTORY_SAMPLES > 10, "precondition");
+      total_error.erase(total_error.begin(), total_error.begin() + 10);
+    }
+    total_error.push_back(std::move(v));
   }
-  return ret;
-}
 
-template<class A, class F>
-static void App(const vector<A> &vec, const F &f) {
-  for (const auto &elt : vec) f(elt);
-}
+  int Depth() const {
+    return total_error.size();
+  }
+  // depth = 0 means most recent sample.
+  double Sample(int depth, int layer) const {
+    return total_error[total_error.size() - (depth + 1)][layer];
+  }
+
+  /*
+  decltype(auto) begin() const { return total_error.begin(); }
+  decltype(auto) end() const { return total_error.end(); }
+  */
+  
+private:
+  // outer: num_samples, inner: num_layers
+  vector<vector<double>> total_error;
+};
+
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 7;
@@ -1350,6 +1225,7 @@ std::mutex video_export_m;
 int current_round = 0;
 vector<Stimulation> current_stimulations;
 Network *current_network = nullptr;
+ErrorHistory *error_history = nullptr;
 static bool allow_updates = true;
 static bool dirty = true;
 
@@ -1378,6 +1254,12 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
     current_stimulations[example_id].CopyFrom(stim);
     dirty = true;
   }
+}
+
+static void ExportErrorHistorySample(vector<double> v) {
+  MutexLock ml(&video_export_m);
+  error_history->AddSample(std::move(v));
+  dirty = true;
 }
 
 static void UIThread() {
@@ -1411,6 +1293,20 @@ static void UIThread() {
 	  }
 	}
 
+	// Error history.
+	if (error_history->Depth() > 0) {
+	  int yy = 12;
+	  for (int layer = 0; layer < config.num_layers; layer++) {
+	    for (int i = 0; i < std::min(error_history->Depth(), 9); i++) {
+	      font->draw(12, yy, StringPrintf("^%c%.8f",
+					      i == 0 ? '3' : '1',
+					      error_history->Sample(i, layer)));
+	      yy += font->height;
+	    }
+	    yy += 6;
+	  }
+	}
+	
 	font->draw(2, 2, menu);
 	SDL_Flip(screen);
 	dirty = false;
@@ -1448,6 +1344,7 @@ static void UIThread() {
     }
   }
 }
+
 
 static void TrainThread() {
   Timer setup_timer;
@@ -1487,6 +1384,9 @@ static void TrainThread() {
   }
 
   Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
+
+  if (ReadWithLock(&train_should_die_m, &train_should_die))
+    return;
   
   Printf("Network uses %.2fMB of storage (without overhead).\n", 
 	 net->Bytes() / (1024.0 * 1024.0));
@@ -1520,6 +1420,8 @@ static void TrainThread() {
   vector<Snapshot> snapshots;
   snapshots.reserve(2000);
   vector<uint8> start_save = emu->SaveUncompressed();
+
+  if (ShouldDie()) return;
   
   while (snapshots.size() < 2000) {
     Printf("Populating snapshots from beginning (%d)...\n", snapshots.size());
@@ -1538,7 +1440,7 @@ static void TrainThread() {
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
-    update_ms = 0.0, writing_ms = 0.0, emulation_ms = 0.0;
+    update_ms = 0.0, writing_ms = 0.0, emulation_ms = 0.0, error_history_ms = 0.0;
   static constexpr int MAX_ROUNDS = 50000; // 10000;
   static constexpr int EXAMPLES_PER_ROUND = 48;
   static constexpr int VERBOSE_ROUND_EVERY = 250;
@@ -1551,7 +1453,7 @@ static void TrainThread() {
     // When starting from a fresh network, consider this:
     const float round_learning_rate =
       // std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (round_number + 1)/3.0)));
-      std::min(0.15, std::max(0.05, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
+      std::min(0.125, std::max(0.05, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
     // const float round_learning_rate = 0.0025;
 
     Printf("Learning rate: %.4f\n", round_learning_rate);
@@ -1722,6 +1624,8 @@ static void TrainThread() {
     CHECK_EQ(num_examples, stims.size());
 
     if (ShouldDie()) return;
+        
+    if (ShouldDie()) return;
     Printf("Backwards:\n");
     // Also serial, but in reverse.
     Timer backward_timer;
@@ -1737,7 +1641,7 @@ static void TrainThread() {
 		   [num_examples, &stims, &errs, &bc](int example) {
 		     bc.Backward(stims[example], &errs[example]);
 		     // BackwardsError(net, stims[example], dst, &errs[example]);
-		     if (example % 5 == 0) {
+		     if (example % 10 == 0) {
 		       Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
 			      100.0 * example / num_examples);
 		     }
@@ -1745,6 +1649,28 @@ static void TrainThread() {
       Printf("\n");
     }
     backward_ms += backward_timer.MS();
+
+    // Compute error history; diagnostic only.
+    Timer error_history_timer;
+    {
+      vector<double> error_total(net->num_layers, 0.0);
+      App(errs, [&net, &error_total](const Errors &err) {
+	for (int layer = 0; layer < net->num_layers; layer++)
+	  for (float f : err.error[layer])
+	    error_total[layer] += f;
+      });
+
+      ExportErrorHistorySample(error_total);
+      FILE *f = fopen("error-history.txt", "a");
+      CHECK(f);
+      fprintf(f, "%d. ", round_number);
+      for (int i = 0; i < error_total.size(); i++) {
+	fprintf(f, " %.8f", error_total[i]);
+      }
+      fprintf(f, "\n");
+      fclose(f);
+    }
+    error_history_ms += error_history_timer.MS();
 
 
     if (ShouldDie()) return;
@@ -1795,6 +1721,7 @@ static void TrainThread() {
 	   "%.1fms in bc init (%.1f%%),\n"
 	   "%.1fms in backwards pass (%.1f%%),\n"
 	   "%.1fms in error for output layer (%.1f%%),\n"
+	   "%.1fms in error history diagnostics (%.1f%%),\n"
 	   "%.1fms in updating weights (%.1f%%),\n"
 	   "%.1fms in writing images (%.1f%%),\n",
 	   total_ms / 1000.0,
@@ -1808,6 +1735,7 @@ static void TrainThread() {
 	   bc_init_ms / denom, Pct(bc_init_ms),
 	   backward_ms / denom, Pct(backward_ms),
 	   output_error_ms / denom, Pct(output_error_ms),
+	   error_history_ms, Pct(error_history_ms),
 	   update_ms / denom, Pct(update_ms),
 	   writing_ms / denom, Pct(writing_ms));
   }
@@ -1847,13 +1775,15 @@ int SDL_main(int argc, char* argv[]) {
   global_cl = new CL;
 
   {
-    printf("Allocating video network/stimulations...");
+    // XXX Maybe UIThread should be an object, then...
+    printf("Allocating video network/stimulations/data...");
     MutexLock ml(&video_export_m);
     NetworkConfiguration nc;
     current_network = new Network{nc.num_nodes, nc.indices_per_node};
     for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
       current_stimulations.emplace_back(*current_network);
     }
+    error_history = new ErrorHistory;
     printf("OK.\n");
   }
   
