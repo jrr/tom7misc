@@ -22,6 +22,6 @@
 // #define INDICES_PER_NODE 1024
 // #define NEIGHBORHOOD 5
 // #define INDICES_PER_NODE 64
-#define NEIGHBORHOOD 15
+
 
 // #define NUM_NODES (SIZE * SIZE * NPP)
