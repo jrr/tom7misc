@@ -376,6 +376,8 @@ void Sound::SoundCPUHookNoDMA(int cycles) {
   }
 }
 
+// Note: This function is run after every CPU instruction, and is a
+// major hotspot.
 void Sound::SoundCPUHook(int cycles) {
   fhcnt -= cycles * 48;
   if (fhcnt <= 0) {
@@ -454,7 +456,7 @@ void Sound::SoundCPUHook(int cycles) {
   // set to the correct value at the correct time, since this
   // determines whether calls to DMCDMA do DMA (which adds cpu
   // cycles). We just need DMCacc to have the right value after the
-  // "loop" (is essentially a modulus, though awkward since it is
+  // "loop" (it's essentially a modulus, though awkward since it is
   // negative) and set DMCHaveDMA to zero if DMCBitCount would ever be
   // 0 mod 8 during the "loop". Can do this with one div(rem)
   // instruction, no loops.

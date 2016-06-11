@@ -20,7 +20,7 @@
 
 #include "mapinc.h"
 
-#include "ines.h"
+#include "../ines.h"
 
 namespace {
 struct Mapper188 final : public CartInterface {

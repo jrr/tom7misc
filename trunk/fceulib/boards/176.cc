@@ -20,7 +20,7 @@
  */
 
 #include "mapinc.h"
-#include "ines.h"
+#include "../ines.h"
 
 static constexpr uint32 WRAMSIZE = 8192;
 
