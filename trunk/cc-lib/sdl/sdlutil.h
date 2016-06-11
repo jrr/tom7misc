@@ -1,18 +1,15 @@
 
-// XXX "lite" copy that doesn't need SDL_Image
 //////////////////////////////////////////////////////////////////////
-// Where did imgload go? I stopped using SDL_Image in favor of
-// stb_image, which doesn't need to link stuff like libpng, zlib,
-// libjpeg, etc. etc. etc. which is a nightmare. The only use was
-// in this library. It is easy to replicate the functionality of
-// imgload using stb_image; and I should probably do that in this
-// package since both are part of cc-lib.
+// I stopped using SDL_Image in favor of stb_image, which doesn't need
+// to link nightmare factories like libpng, zlib, libjpeg, etc. etc.
+// You can still probably use LoadImage to do what you want.
 //////////////////////////////////////////////////////////////////////
 
 #ifndef __SDLUTIL_H
 #define __SDLUTIL_H
 
 #include "SDL.h"
+#include <string>
 
 struct sdlutil {
   static SDL_Surface *makescreen(int w, int h);
@@ -32,8 +29,10 @@ struct sdlutil {
                          Uint32 color);
 
   // Load supported files using stb_image.
-  static SDL_Surface *LoadImage(const char *filename);
-
+  static SDL_Surface *LoadImage(const std::string &filename);
+  // Save using stb_image_write. Might only work for 32-bit RGBA.
+  static bool SavePNG(const std::string &filename, SDL_Surface *surf);
+  
   static SDL_Surface *duplicate(SDL_Surface *surf);
 
   // Unchecked--don't draw outside the surface!

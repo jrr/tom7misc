@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "../stb_image.h"
+#include "../stb_image_write.h"
 
 using namespace std;
 
@@ -115,8 +116,8 @@ SDL_Surface *sdlutil::resize_canvas(SDL_Surface *s,
   SDL_Surface *m = makesurface(w, h);
   if (!m) return 0;
 
-  for(int y = 0; y < h; y ++)
-    for(int x = 0; x < w; x ++) {
+  for(int y = 0; y < h; y++)
+    for(int x = 0; x < w; x++) {
       Uint32 c = color;
       if (y < s->h && x < s->w)
 	c = getpixel(s, x, y);
@@ -151,9 +152,9 @@ static void CopyRGBA(const vector<Uint8> &rgba, SDL_Surface *surface) {
   }
 }
 
-SDL_Surface *sdlutil::LoadImage(const char *filename) {
+SDL_Surface *sdlutil::LoadImage(const string &filename) {
   int width, height, bpp;
-  Uint8 *stb_rgba = stbi_load(filename,
+  Uint8 *stb_rgba = stbi_load(filename.c_str(),
 			      &width, &height, &bpp, 4);
   if (!stb_rgba) return 0;
   
@@ -173,27 +174,32 @@ SDL_Surface *sdlutil::LoadImage(const char *filename) {
   return surf;
 }
 
+bool sdlutil::SavePNG(const string &filename, SDL_Surface *surf) {
+  // This could be implemented for other formats, of course.
+  if (surf->format->BytesPerPixel != 4) return false;
+  return !!stbi_write_png(filename.c_str(),
+			  surf->w, surf->h, 4, surf->pixels, surf->pitch);
+}
+
 SDL_Surface *sdlutil::duplicate(SDL_Surface *surf) {
   return SDL_ConvertSurface(surf, surf->format, surf->flags);
 }
 
 void sdlutil::eatevents(int ticks, Uint32 mask) {
-  int now = SDL_GetTicks ();
-  int destiny = now + ticks;
+  int now = SDL_GetTicks();
+  const int destiny = now + ticks;
 
   SDL_Event e;
   while (now < destiny) {
-
-    SDL_PumpEvents ();
+    SDL_PumpEvents();
     while (1 == SDL_PeepEvents(&e, 1, SDL_GETEVENT, mask)) { }
 
-    now = SDL_GetTicks ();
+    now = SDL_GetTicks();
   }
-
 }
 
 /* recursive; nmips can't reasonably be very large */
-bool sdlutil::make_mipmaps(SDL_Surface ** s, int nmips) {
+bool sdlutil::make_mipmaps(SDL_Surface **s, int nmips) {
   if (nmips <= 1) return true;
 
   s[1] = shrink50(s[0]);
@@ -297,7 +303,6 @@ Uint32 sdlutil::mixfrac(Uint32 a, Uint32 b, float f) {
 
 
 Uint32 sdlutil::hsv(SDL_Surface *sur, float h, float s, float v, float a) {
-  /* XXX equality for floating point? this can't be right. */
   int r, g, b;
   if (s == 0.0f) {
     r = (int)(v * 255);
@@ -343,8 +348,8 @@ SDL_Surface *sdlutil::alphadim(SDL_Surface *src) {
   slock(ret);
   slock(src);
 
-  for(int y = 0; y < hh; y ++) {
-    for(int x = 0; x < ww; x ++) {
+  for(int y = 0; y < hh; y++) {
+    for(int x = 0; x < ww; x++) {
       Uint32 color = *((Uint32 *)src->pixels + y*src->pitch/4 + x);
       
       /* divide alpha channel by 2 */
@@ -386,8 +391,8 @@ SDL_Surface *sdlutil::shrink50(SDL_Surface *src) {
   slock(ret);
   slock(src);
 
-  for(int y = 0; y < ret->h; y ++)
-    for(int x = 0; x < ret->w; x ++) {
+  for(int y = 0; y < ret->h; y++) {
+    for(int x = 0; x < ret->w; x++) {
       /* get and mix four src pixels for each dst pixel */
       Uint32 c1 = *((Uint32 *)src->pixels + (y*2)*src->pitch/4 + (x*2));
       Uint32 c2 = *((Uint32 *)src->pixels + (1+y*2)*src->pitch/4 + (1+x*2));
@@ -397,8 +402,8 @@ SDL_Surface *sdlutil::shrink50(SDL_Surface *src) {
       Uint32 color = mix4(c1, c2, c3, c4);
   
       *((Uint32 *)ret->pixels + y*ret->pitch/4 + x) = color;
-
     }
+  }
 
   sulock(src);
   sulock(ret);
@@ -423,8 +428,8 @@ SDL_Surface *sdlutil::grow2x(SDL_Surface *src) {
   Uint8 *pdest = (Uint8*)ret->pixels;
 
   int ww2 = ww << 1;
-  for(int y = 0; y < hh; y ++) {
-    for(int x = 0; x < ww; x ++) {
+  for(int y = 0; y < hh; y++) {
+    for(int x = 0; x < ww; x++) {
       Uint32 rgba = *(Uint32*)(p + 4 * (y * ww + x));
       
       // Write four pixels.
@@ -500,7 +505,7 @@ SDL_Surface *sdlutil::makealpharectgrad(int w, int h,
   if (!ret) return 0;
 
   /* draws each line as a separate rectangle. */
-  for(int i = 0; i < h; i ++) {
+  for(int i = 0; i < h; i++) {
     /* no bias yet */
     float frac = 1.0f - ((float)i / (float)h);
     int r = (int) ((r1 * frac) + (r2 * (1.0 - frac)));
@@ -686,14 +691,14 @@ void sdlutil::setpixel(SDL_Surface *surface, int x, int y, Uint32 px) {
       /* XX never tested */
       if (SDL_BYTEORDER == SDL_BIG_ENDIAN) {
 	p += 2;
-	for (int i = 0; i < 3; i ++) {
+	for (int i = 0; i < 3; i++) {
 	  *p = px & 255;
 	  px >>= 8;
 	  p--;
 	}
       }
       else {
-	for (int i = 0; i < 3; i ++) {
+	for (int i = 0; i < 3; i++) {
 	  *p = px & 255;
 	  px >>= 8;
 	  p++;
@@ -928,8 +933,8 @@ SDL_Surface *sdlutil::fliphoriz(SDL_Surface *src) {
   slock(src);
   slock(dst);
   
-  for(int y = 0; y < src->h; y ++) {
-    for(int x = 0; x < src->w; x ++) {
+  for(int y = 0; y < src->h; y++) {
+    for(int x = 0; x < src->w; x++) {
       Uint32 px = getpixel(src, x, y);
       setpixel(dst, (src->w - x) - 1, y, px);
     }
