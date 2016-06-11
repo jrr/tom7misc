@@ -199,7 +199,7 @@ struct ThreadJoiner {
 
 // Manages running up to X asynchronous tasks in separate threads. This
 // is intended for use in situations like compressing and writing a
-// bunch of frames of a movie out to disk. There's substantial parallelism,
+// bunch of frames of a movie out to disk. There's substantial parallelism
 // opportunity, but it can bad if we eaglery generate the frames because
 // they might fill the entire memory. This automatically throttles once
 // the specified level of parallelism is reached, by running further calls
