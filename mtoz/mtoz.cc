@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <chrono>
 #include <algorithm>
 #include <tuple>
 #include <utility>
@@ -21,6 +22,7 @@
 #include <vector>
 #include <map>
 #include <unordered_set>
+#include <deque>
 
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/base/logging.h"
@@ -1223,6 +1225,7 @@ private:
 static constexpr int NUM_VIDEO_STIMULATIONS = 7;
 std::mutex video_export_m;
 int current_round = 0;
+double rounds_per_second = 0.0;
 vector<Stimulation> current_stimulations;
 Network *current_network = nullptr;
 ErrorHistory *error_history = nullptr;
@@ -1233,6 +1236,14 @@ static void ExportRound(int r) {
   MutexLock ml(&video_export_m);
   if (allow_updates) {
     current_round = r;
+    dirty = true;
+  }
+}
+
+static void ExportRoundsPerSec(double rps) {
+  MutexLock ml(&video_export_m);
+  if (allow_updates) {
+    rounds_per_second = rps;
     dirty = true;
   }
 }
@@ -1272,7 +1283,9 @@ static void UIThread() {
       MutexLock ml(&video_export_m);
       if (dirty) {
 	sdlutil::clearsurface(screen, 0x0);
-	string menu = StringPrintf("  round %d", current_round);
+	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 rps",
+				   current_round,
+				   rounds_per_second);
 
 	for (int s = 0; s < NUM_VIDEO_STIMULATIONS; s++) {
 	  const Stimulation &stim = current_stimulations[s];
@@ -1408,7 +1421,8 @@ static void TrainThread() {
 
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
-  std::unique_ptr<Emulator> emu{Emulator::Create("mario.nes")};
+  const string romfile = "mario.nes";
+  std::unique_ptr<Emulator> emu{Emulator::Create(romfile)};
   // std::unique_ptr<Emulator> emu{Emulator::Create("zelda.nes")};
   CHECK(emu.get() != nullptr);
   vector<uint8> movie = SimpleFM2::ReadInputs("mario-long-three.fm2");
@@ -1421,7 +1435,9 @@ static void TrainThread() {
   snapshots.reserve(2000);
   vector<uint8> start_save = emu->SaveUncompressed();
 
-  if (ShouldDie()) return;
+  static constexpr int MAX_ROUNDS = 50000; // 10000;
+  static constexpr int EXAMPLES_PER_ROUND = 48;
+  static constexpr int VERBOSE_ROUND_EVERY = 250;
   
   while (snapshots.size() < 2000) {
     Printf("Populating snapshots from beginning (%d)...\n", snapshots.size());
@@ -1436,15 +1452,91 @@ static void TrainThread() {
       emu->StepFull(movie[i], 0);
     }
   }
+
+  if (ShouldDie()) return;
+
+  struct TrainingExample {
+    // XXX memory, etc.
+    vector<uint8> rgba;
+    vector<float> vals;
+  };
+  // Training examples don't depend on the learning process, so are produced
+  // in a separate thread. This mutex protects the deque (only).
+  std::mutex training_examples_m;
+  // XXX could just be vector, actually?
+  deque<TrainingExample> training_examples;
   
+  auto MakeTrainingExamplesThread = [romfile, movie, &snapshots,
+				     &training_examples_m, &training_examples](int idx) {
+    Printf("Training thread %d startup.\n", idx);
+    ArcFour rc{StringPrintf("make_examples %d", idx)};
+    std::unique_ptr<Emulator> emu{Emulator::Create(romfile)};
+    
+    for (;;) {
+      if (ReadWithLock(&train_should_die_m, &train_should_die)) {
+	return;
+      }
+
+      training_examples_m.lock();
+      // Make sure we have plenty of examples so that learning doesn't stall.
+      if (training_examples.size() < EXAMPLES_PER_ROUND * 2) {
+	training_examples_m.unlock();
+
+	// Generate one example in this thread.
+	const Snapshot &snapshot = snapshots[RandTo(&rc, snapshots.size())];
+	const int frames = RandTo(&rc, 60);
+	emu->LoadUncompressed(snapshot.save);
+	for (int j = snapshot.movie_idx; j < snapshot.movie_idx + frames && j < movie.size(); j++) {
+	  emu->StepFull(movie[j], 0);
+	}
+
+	for (int randomactions = RandTo(&rc, 3) * 2; randomactions--;) {
+	  const uint8 input = movie[RandTo(&rc, movie.size())];
+	  for (int steps = 1 + RandTo(&rc, 12); steps--;) {
+	    emu->StepFull(input, 0);
+	  }
+	}
+
+	TrainingExample example;
+	// XXX memory, etc.
+	example.rgba = emu->GetImage();
+	vector<float> vals(256 * 240, 0.0f);
+	for (int i = 0; i < 256 * 240; i++) {
+	  const uint8 r = example.rgba[i * 4];
+	  const uint8 g = example.rgba[i * 4 + 1];
+	  const uint8 b = example.rgba[i * 4 + 2];
+	  // uint8 a = example.rgba[i * 4 + 3];
+	  // CHECK_LT(i, vals.size());
+	  vals[i] = ((float)r + (float)g + (float)b) / (255.0f * 3.0f);
+	}
+	example.vals = std::move(vals);
+
+	{
+	  MutexLock ml(&training_examples_m);
+	  training_examples.push_back(std::move(example));
+	  Printf("Train thread %d added an example, bringing total to %d.\n", idx,
+		 training_examples.size());
+	}
+      } else {
+	training_examples_m.unlock();
+	std::this_thread::sleep_for(10ms);
+      }
+    }
+    Printf("Training example generator exiting.\n");
+  };
+
+  // FIXME SPAWN THE THREADS.
+  std::thread emu_thread_1{MakeTrainingExamplesThread, 1};
+  std::thread emu_thread_2{MakeTrainingExamplesThread, 2};
+  ThreadJoiner join_emu_thread_1{&emu_thread_1};
+  ThreadJoiner join_emu_thread_2{&emu_thread_2};
+  
+  if (ShouldDie()) return;
+    
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
-    update_ms = 0.0, writing_ms = 0.0, emulation_ms = 0.0, error_history_ms = 0.0;
-  static constexpr int MAX_ROUNDS = 50000; // 10000;
-  static constexpr int EXAMPLES_PER_ROUND = 48;
-  static constexpr int VERBOSE_ROUND_EVERY = 250;
-
+    update_ms = 0.0, writing_ms = 0.0, error_history_ms = 0.0;
   Timer total_timer;
   for (int round_number = 0; round_number < MAX_ROUNDS; round_number++) {
     if (ShouldDie()) return;
@@ -1472,45 +1564,17 @@ static void TrainThread() {
     Timer setup_timer;
     Printf("Setting up batch:\n");
 
-    struct TrainingExample {
-      // XXX memory, etc.
-      vector<uint8> rgba;
-      vector<float> vals;
-    };
     vector<TrainingExample> examples;
     examples.reserve(EXAMPLES_PER_ROUND);
-    for (int i = 0; i < EXAMPLES_PER_ROUND; i++) {
-      const Snapshot &snapshot = snapshots[RandTo(&rc, snapshots.size())];
-      const int frames = RandTo(&rc, 60);
-      emu->LoadUncompressed(snapshot.save);
-      Timer emulation_timer;
-      for (int j = snapshot.movie_idx; j < snapshot.movie_idx + frames && j < movie.size(); j++) {
-	emu->StepFull(movie[j], 0);
+    do {
+      Printf("Grabbing some examples (have %d)...\n", examples.size());
+      MutexLock ml{&training_examples_m};
+      while (examples.size() < EXAMPLES_PER_ROUND &&
+	     !training_examples.empty()) {
+	examples.push_back(std::move(training_examples.front()));
+	training_examples.pop_front();
       }
-
-      for (int randomactions = RandTo(&rc, 3) * 2; randomactions--;) {
-	const uint8 input = movie[RandTo(&rc, movie.size())];
-	for (int steps = 1 + RandTo(&rc, 12); steps--;) {
-	  emu->StepFull(input, 0);
-	}
-      }
-      emulation_ms += emulation_timer.MS();
-
-      examples.resize(examples.size() + 1);
-      TrainingExample *example = &examples.back();
-      // XXX memory, etc.
-      example->rgba = emu->GetImage();
-      vector<float> vals(256 * 240, 0.0f);
-      for (int i = 0; i < 256 * 240; i++) {
-	uint8 r = example->rgba[i * 4];
-	uint8 g = example->rgba[i * 4 + 1];
-	uint8 b = example->rgba[i * 4 + 2];
-	// uint8 a = example->rgba[i * 4 + 3];
-	CHECK_LT(i, vals.size());
-	vals[i] = ((float)r + (float)g + (float)b) / (255.0f * 3.0f);
-      }
-      example->vals = std::move(vals);
-    }
+    } while (examples.size() < EXAMPLES_PER_ROUND);
 
     Printf("Setting up expected:\n");
     vector<vector<float>> expected = Map(examples, [](const TrainingExample &te) {
@@ -1710,10 +1774,10 @@ static void TrainThread() {
     double total_ms = total_timer.MS();
     auto Pct = [total_ms](double d) { return (100.0 * d) / total_ms; };
     double denom = round_number + 1;
+    ExportRoundsPerSec(denom / (total_ms / 1000.0));
     Printf("Total so far %.1fs.\n"
 	   "Time per round: %.1fs.\n"
 	   "We spent %.1fms in setup (%.1f%%),\n"
-	   "%.1fms in emulation (%.1f%%),\n"
 	   "%.1fms in stimulation init (%.1f%%),\n"
 	   "%.1fms in forward layer (%.1f%%),\n"
 	   "%.1fms in fc init (%.1f%%),\n"
@@ -1727,7 +1791,6 @@ static void TrainThread() {
 	   total_ms / 1000.0,
 	   (total_ms / 1000.0) / denom,
 	   setup_ms, Pct(setup_ms),
-	   emulation_ms, Pct(emulation_ms),
 	   stimulation_init_ms, Pct(stimulation_init_ms),
 	   forward_ms / denom, Pct(forward_ms),
 	   fc_init_ms / denom, Pct(fc_init_ms),
