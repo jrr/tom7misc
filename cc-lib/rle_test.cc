@@ -9,6 +9,7 @@
 #include "base/stringprintf.h"
 #include "base/logging.h"
 #include "arcfour.h"
+#include "randutil.h"
 
 typedef uint8_t uint8;
 
@@ -76,19 +77,6 @@ int main() {
   DecoderTests();
   EncoderTests();
 
-  // Biased when m is not a power of two, as we know; fine for testing.
-  auto RandTo = [&rc](int m) {
-    CHECK_GT(m, 0);
-    uint32_t x = rc.Byte();
-    x <<= 8; x |= rc.Byte();
-    x <<= 8; x |= rc.Byte();
-    x <<= 8; x |= rc.Byte();
-
-    int res = x % m;
-    CHECK_GE(res, 0);
-    return res;
-  };
-
   int64_t compressed_bytes = 0, uncompressed_bytes = 0;
   #define NUM_TESTS 2000
   const uint64 start_time = time(nullptr);
@@ -99,7 +87,7 @@ int main() {
 
     const uint8 run_cutoff = cutoff;
     for (int test_num = 0; test_num < NUM_TESTS; test_num++) {
-      int len = RandTo(2048);
+      int len = RandTo(&rc, 2048);
       CHECK_LT(len, 2048);
       vector<uint8> bytes;
       bytes.reserve(len);

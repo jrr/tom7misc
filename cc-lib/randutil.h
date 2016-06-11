@@ -7,6 +7,7 @@
 #include <vector>
 
 using uint8 = uint8_t;
+using uint16 = uint16_t;
 using uint64 = uint64_t;
 using uint32 = uint32_t;
 
@@ -82,9 +83,16 @@ inline uint32 Rand32(ArcFour *rc) {
   return uu;
 };
 
+inline uint16 Rand16(ArcFour *rc) {
+  uint16 uu = 0ULL;
+  uu = rc->Byte() | (uu << 8);
+  uu = rc->Byte() | (uu << 8);
+  return uu;
+};
+
 // Generate uniformly distributed numbers in [0, n - 1].
 // n must be greater than or equal to 2.
-inline uint32 RandTo(ArcFour *rc, uint32 n) {
+inline uint64 RandTo(ArcFour *rc, uint64 n) {
   // We use rejection sampling, as is standard, but with
   // a modulus that's the next largest power of two. This
   // means that we succeed half the time (worst case).
@@ -93,11 +101,40 @@ inline uint32 RandTo(ArcFour *rc, uint32 n) {
   // and so 2^k-1 is 011...11. This is the mask we're looking
   // for. The input may not be a power of two, however. Make
   // sure any 1 bit is propagated to every position less
-  // significant than it. (For 64-bit constants, we'd need
-  // another shift for 32.)
+  // significant than it.
   // 
   // This ought to reduce to a constant if the argument is
   // a compile-time constant.
+  uint64 mask = n - 1;
+  mask |= mask >> 1;
+  mask |= mask >> 2;
+  mask |= mask >> 4;
+  mask |= mask >> 8;
+  mask |= mask >> 16;
+  mask |= mask >> 32;
+
+  // Now, repeatedly generate random numbers, modulo that
+  // power of two.
+
+  // Depending on how big n is, we may not need to generate 8 random
+  // bytes! PERF: I only do one test here, but we could try to
+  // distinguish all 8 if we wanted, or just use a loop. Benchmark.
+  if (mask & ~0xFFFF) {
+    for (;;) {
+      const uint64 x = Rand64(rc) & mask;
+      if (x < n) return x;
+    }
+  } else {
+    // 16-bit
+    for (;;) {
+      const uint64 x = Rand16(rc) & mask;
+      if (x < n) return x;
+    }
+  }
+}
+
+// As above, but for 32-bit ints.
+inline uint32 RandTo32(ArcFour *rc, uint32 n) {
   uint32 mask = n - 1;
   mask |= mask >> 1;
   mask |= mask >> 2;
@@ -117,15 +154,8 @@ inline uint32 RandTo(ArcFour *rc, uint32 n) {
 
 template<class T>
 static void Shuffle(ArcFour *rc, std::vector<T> *v) {
-  for (int i = 0; i < v->size(); i++) {
-    uint32 h = 0;
-    h = (h << 8) | rc->Byte();
-    h = (h << 8) | rc->Byte();
-    h = (h << 8) | rc->Byte();
-    h = (h << 8) | rc->Byte();
-
-    // XXX only works for 4 billion elements or fewer!
-    int j = RandTo(rc, v->size());
+  for (uint64 i = 0; i < v->size(); i++) {
+    uint64 j = RandTo(rc, v->size());
     if (i != j) {
       swap((*v)[i], (*v)[j]);
     }
