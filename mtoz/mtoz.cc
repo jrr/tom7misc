@@ -212,11 +212,14 @@ static void BlitChannel(uint8 r, uint8 g, uint8 b, const ImageA &channel,
   }
 }
 
+// #define NEIGHBORHOOD 15
+// #define NEIGHBORHOOD 1
+#define NEIGHBORHOOD 10
 struct NetworkConfiguration {
   const int num_layers = 4;
   // Note that these must have num_layers + 1 entries.
-  const vector<int> widths = { 256, 256, 256, 256, 256, };
-  const vector<int> heights = { 240, 240, 240, 240, 240 };
+  const vector<int> widths = { 256, 128, 64, 128, 256, };
+  const vector<int> heights = { 240, 120, 60, 120, 240 };
   // For 1 gigabyte layer sizes:
   // 2^30 = 1GB        = 1073741824
   //   / 4-byte floats = 268435456
@@ -1209,7 +1212,9 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
 
     CHECK_LE(indices.size(), indices_per_node);
 
-    #if 1
+    // XXX Select this dynamically based on how many unused nodes
+    // are even left?
+    #if 0
     // Sample gaussian pixels.
     while (indices.size() < indices_per_node) {
       double dx = gauss->Next() * stddev;
@@ -1253,8 +1258,8 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
 
   ParallelComp(net->num_layers, [&widths, &rcs, &OneNode, &net](int layer) {
-    Printf("Intializing indices for layer %d...\n", layer);
     const int indices_per_node = net->layers[layer].indices_per_node;
+    Printf("Intializing %d indices for layer %d...\n", indices_per_node, layer);
     vector<uint32> *layer_indices = &net->layers[layer].indices;
     CHECK_LT(layer + 1, widths.size());
     CHECK_LT(layer + 1, net->num_nodes.size());
@@ -1285,22 +1290,26 @@ static void MakeIndices(const vector<int> &widths, ArcFour *rc, Network *net) {
 	(*layer_indices)[start_idx + i] = indices[i];
       }
       if (node_idx % 100 == 0) {
-	Printf("  [%d/%d] %.1f%% (%lld rejected %lld dupe)\n",
+	Printf("  %d. [%d/%d] %.1f%% (%lld rejected %lld dupe)\n",
+	       layer,
 	       node_idx, dst_height * dst_width,
 	       (100.0 * node_idx) / (dst_height * dst_width),
 	       rejected, duplicate);
       }
     }
+    Printf("... done with layer %d.\n", layer);
   }, 12);
 
+  Printf("DeleteElements:\n");
   DeleteElements(&rcs);
+  Printf("Exiting MakeIndices.\n");
 }
 
 // Randomize the weights in a network. Doesn't do anything to indices.
 static void RandomizeNetwork(ArcFour *rc, Network *net) {
-  auto RandomizeFloats = [](ArcFour *rc, vector<float> *vec) {
+  auto RandomizeFloats = [](float mag, ArcFour *rc, vector<float> *vec) {
     for (int i = 0; i < vec->size(); i++) {
-      (*vec)[i] = RandFloat(rc) * 0.1f - 0.05f;
+      (*vec)[i] = mag * (RandFloat(rc) - 0.5f);
     }
   };
 
@@ -1310,8 +1319,10 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
   // But now we can do all layers in parallel.
   ParallelComp(net->num_layers, [rcs, &RandomizeFloats, &net](int layer) {
-    RandomizeFloats(rcs[layer], &net->layers[layer].biases);
-    RandomizeFloats(rcs[layer], &net->layers[layer].weights);
+    // XXX such hacks. How to best initialize?
+    RandomizeFloats(powf(0.025f, layer + 1.0), rcs[layer], &net->layers[layer].biases);
+    RandomizeFloats(1.0f / (net->layers[layer].indices_per_node * (layer + 5)),
+		    rcs[layer], &net->layers[layer].weights);
   }, 12);
   
   DeleteElements(&rcs);
@@ -1370,6 +1381,7 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
 }
 
 static void UIThread() {
+  const NetworkConfiguration config;
   int mousex = 0, mousey = 0;
   (void)mousex; (void)mousey;
   for (;;) {
@@ -1382,16 +1394,20 @@ static void UIThread() {
 
 	for (int s = 0; s < NUM_VIDEO_STIMULATIONS; s++) {
 	  const Stimulation &stim = current_stimulations[s];
+	  CHECK(stim.values.size() == config.num_layers + 1);
+	  int ystart = 4;
 	  for (int l = 0; l < stim.values.size(); l++) {
 	    // XXX allow other sizes!
-	    for (int y = 0; y < 240; y++) {
-	      for (int x = 0; x < 256; x++) {
-		int yy = 4 + l * 246 + y;
+	    for (int y = 0; y < config.heights[l]; y++) {
+	      for (int x = 0; x < config.widths[l]; x++) {
+		int yy = ystart + y;
 		int xx = 4 + s * 260 + x;
-		uint8 v = FloatByte(stim.values[l][y * 256 + x]);
+		uint8 v = FloatByte(stim.values[l][y * config.widths[l] + x]);
 		sdlutil::drawpixel(screen, xx, yy, v, v, v);
 	      }
 	    }
+	    ystart += config.heights[l];
+	    ystart += 4;
 	  }
 	}
 
@@ -1493,8 +1509,10 @@ static void TrainThread() {
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
   std::unique_ptr<Emulator> emu{Emulator::Create("mario.nes")};
+  // std::unique_ptr<Emulator> emu{Emulator::Create("zelda.nes")};
   CHECK(emu.get() != nullptr);
   vector<uint8> movie = SimpleFM2::ReadInputs("mario-long-three.fm2");
+  // vector<uint8> movie = SimpleFM2::ReadInputs("zeldalong.fm2");
   struct Snapshot {
     int movie_idx;
     vector<uint8> save;
@@ -1531,8 +1549,9 @@ static void TrainThread() {
     Printf("\n\n ** ROUND %d **\n", round_number);
     
     // When starting from a fresh network, consider this:
-    const float round_learning_rate = 
-      std::min(0.9, std::max(0.05, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
+    const float round_learning_rate =
+      // std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (round_number + 1)/3.0)));
+      std::min(0.15, std::max(0.05, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
     // const float round_learning_rate = 0.0025;
 
     Printf("Learning rate: %.4f\n", round_learning_rate);
@@ -1741,6 +1760,12 @@ static void TrainThread() {
     for (int layer = 0; layer < net->num_layers; layer++) {
       UpdateWeightsCL::UpdateContext uc(&updateweights, net.get(), layer);
 
+      // XXX trying making this dynamic -- more nodes means slower learning?
+      // (never actually ran this)
+      // Maybe an off by one error here on the indices_per_node to use?
+      // float layer_learning_rate = (round_learning_rate * 20f) /
+      // net->layer[layer].indices_per_node;
+      
       // PERF Faster to try to run these in parallel (maybe parallelizing memory traffic
       // with kernel execution -- but we can't run the kernels at the same time).
       for (int example = 0; example < num_examples; example++) {
