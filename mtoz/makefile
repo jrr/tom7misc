@@ -43,7 +43,7 @@ UTILOBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/stringprintf.o .
 
 CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-strings -m64 $(OPT) -D__MINGW32__ -DHAVE_ALLOCA -DNOWINSTUFF $(SDLINCLUDES) $(PROFILE) $(FLTO) $(CLINCLUDES) -I ../cc-lib/ --std=c++14
 
-%.o : %.cc clutil.h threadutil.h randutil.h constants.h makefile
+%.o : %.cc clutil.h constants.h makefile
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
@@ -53,7 +53,8 @@ OBJECTS=$(UTILOBJECTS) $(FCEULIBOBJECTS)
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
 
 mtoz.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o mtoz.o
-	$(CXX) $^ -o $@ $(LFLAGS)
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
 
 clean :
 	rm -f *.o $(UTILOBJECTS) $(FCEULIBOBJECTS) *.exe
