@@ -170,7 +170,7 @@ struct NetworkConfiguration {
   //   / 4-byte floats = 268435456
   //   / 256 / 256     = 4396
   // const vector<int> indices_per_node = { 1024, 1024, 1024, 1024, };
-  const vector<int> indices_per_node = { 16, 16, 16, 16, 32, };
+  const vector<int> indices_per_node = { 16, 16, 16, 32, 64, };
   vector<int> num_nodes;
   NetworkConfiguration() {
     CHECK_EQ(widths.size(), heights.size());
@@ -1192,10 +1192,10 @@ static void UIThread() {
 	  CHECK(stim.values.size() == config.num_layers + 1);
 	  int ystart = 4;
 	  for (int l = 0; l < stim.values.size(); l++) {
-	    // XXX allow other sizes!
 	    for (int y = 0; y < config.heights[l]; y++) {
 	      for (int x = 0; x < config.widths[l]; x++) {
 		int yy = ystart + y;
+		// XXX allow other sizes -- find the max width!
 		int xx = 4 + s * 260 + x;
 		uint8 v = FloatByte(stim.values[l][y * config.widths[l] + x]);
 		sdlutil::drawpixel(screen, xx, yy, v, v, v);
@@ -1328,7 +1328,7 @@ static void TrainThread() {
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
   const string train_romfile = "mario.nes";
-  vector<uint8> train_movie = SimpleFM2::ReadInputs("mario-long-three.fm2");
+  const vector<uint8> train_movie = SimpleFM2::ReadInputs("mario-long-three.fm2");
   struct Snapshot {
     int movie_idx;
     vector<uint8> save;
@@ -1356,11 +1356,34 @@ static void TrainThread() {
     Printf("Using %.2fMB for snapshots (save states).\n",
 	   snapshot_bytes / (1024.0 * 1024.0));
   }
+
+  // "Eval" here means generating frames of a movie to make a video.
+  const string eval_romfile = "mario.nes";
+  std::unique_ptr<Emulator> eval_emu{Emulator::Create(eval_romfile)};
+  const vector<uint8> eval_movie = SimpleFM2::ReadInputs("mario-long-again.fm2");
+  const vector<uint8> eval_start_state = eval_emu->SaveUncompressed();
+  int eval_movie_idx = 0;
+  int eval_frame_num = 0;
+  auto ShouldEmitEvalFrame = [](int round_num) {
+    if (round_num < 2000) return true;
+    else if (round_num < 4000) return (round_num % 10) == 0;
+    else if (round_num < 8000) return (round_num % 100) == 0;
+    else return (round_num % 200) == 0;
+  };
+  // Allow up to 8 asynchronous frame writes.
+  Asynchronously write_frames{8};
+
+  // XXX from checkpoint file or something.
+  eval_movie_idx = eval_frame_num = 2217;
+  if (eval_movie_idx > 0) Printf("Fast forwarding eval movie...\n");
+  for (int i = 0; i < eval_movie_idx; i++) eval_emu->StepFull(eval_movie[i], 0);
+  static constexpr int START_ROUND_NUM = 5701;
   
   if (ShouldDie()) return;
 
   struct TrainingExample {
     // XXX memory, etc.
+    // PERF: We don't actually use rgba.
     vector<uint8> rgba;
     vector<float> vals;
   };
@@ -1369,9 +1392,25 @@ static void TrainThread() {
   std::mutex training_examples_m;
   // XXX could just be vector, actually?
   deque<TrainingExample> training_examples;
+
+  auto PopulateExampleFromEmu = [](const Emulator &emu, TrainingExample *example) {
+    // XXX memory, etc.
+    example->rgba = emu.GetImage();
+    vector<float> vals(256 * 240, 0.0f);
+    for (int i = 0; i < 256 * 240; i++) {
+      const uint8 r = example->rgba[i * 4];
+      const uint8 g = example->rgba[i * 4 + 1];
+      const uint8 b = example->rgba[i * 4 + 2];
+      // uint8 a = example.rgba[i * 4 + 3];
+      ECHECK_LT(i, vals.size());
+      vals[i] = ((float)r + (float)g + (float)b) / (255.0f * 3.0f);
+    }
+    example->vals = std::move(vals);
+  };
   
   auto MakeTrainingExamplesThread = [train_romfile, &train_movie, &snapshots,
-				     &training_examples_m, &training_examples](int idx) {
+				     &training_examples_m, &training_examples,
+				     &PopulateExampleFromEmu](int idx) {
     Printf("Training thread %d startup.\n", idx);
     ArcFour rc{StringPrintf("make_examples %d", idx)};
     std::unique_ptr<Emulator> emu{Emulator::Create(train_romfile)};
@@ -1412,18 +1451,7 @@ static void TrainThread() {
 	}
 
 	TrainingExample example;
-	// XXX memory, etc.
-	example.rgba = emu->GetImage();
-	vector<float> vals(256 * 240, 0.0f);
-	for (int i = 0; i < 256 * 240; i++) {
-	  const uint8 r = example.rgba[i * 4];
-	  const uint8 g = example.rgba[i * 4 + 1];
-	  const uint8 b = example.rgba[i * 4 + 2];
-	  // uint8 a = example.rgba[i * 4 + 3];
-	  ECHECK_LT(i, vals.size());
-	  vals[i] = ((float)r + (float)g + (float)b) / (255.0f * 3.0f);
-	}
-	example.vals = std::move(vals);
+	PopulateExampleFromEmu(*emu, &example);
 
 	{
 	  MutexLock ml(&training_examples_m);
@@ -1447,18 +1475,18 @@ static void TrainThread() {
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
-    update_ms = 0.0, writing_ms = 0.0, error_history_ms = 0.0;
+    update_ms = 0.0, writing_ms = 0.0, error_history_ms = 0.0, eval_ms = 0.0;
   Timer total_timer;
-  for (int round_number = 0; round_number < MAX_ROUNDS; round_number++) {
+  for (int round_number = START_ROUND_NUM; round_number < MAX_ROUNDS; round_number++) {
     if (ShouldDie()) return;
     Printf("\n\n ** ROUND %d **\n", round_number);
     
     // When starting from a fresh network, consider this:
     //   // std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (round_number + 1)/3.0)));
     
-    // const float round_learning_rate =
-    //     std::min(0.125, std::max(0.05, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
-    const float round_learning_rate = 0.0025;
+    const float round_learning_rate =
+      std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
+    // const float round_learning_rate = 0.0025;
 
     Printf("Learning rate: %.4f\n", round_learning_rate);
 
@@ -1500,6 +1528,72 @@ static void TrainThread() {
     setup_ms += setup_timer.MS();
 
     CHECK_EQ(examples.size(), expected.size());
+
+    // This is pretty slow, but starts running less and less
+    // frequently as the round increase.
+    if (ShouldEmitEvalFrame(round_number)) {
+      Timer eval_timer;
+      Printf("Generating eval frame.\n");
+      // Loop if we need to.
+      if (eval_movie_idx == eval_movie.size()) {
+	eval_movie_idx = 0;
+	eval_emu->LoadUncompressed(eval_start_state);
+      }
+      // HERE
+      eval_emu->StepFull(eval_movie[eval_movie_idx++], 0);
+      TrainingExample example;
+      PopulateExampleFromEmu(*eval_emu, &example);
+      // Allocate on heap so it can be deleted asynchronously.
+      Stimulation *stim = new Stimulation{*net};
+      CHECK_EQ(example.vals.size(), stim->values[0].size());
+      // Initialize input layer of stimulation.
+      stim->values[0] = example.vals;
+      for (int src = 0; src < net->num_layers; src++) {
+	ForwardLayerCL::ForwardContext fc(&forwardlayer, *net, src);
+	fc.Forward(stim);
+      }
+      // Now write to image:
+      write_frames.Run([stim, round_number, eval_frame_num, round_learning_rate]() {
+	// Figure out how big the graphic needs to be.
+	NetworkConfiguration config;
+	CHECK_EQ(config.widths.size(), stim->values.size());
+	int width = 64;
+	int height = font->height + 2;
+	for (int i = 0; i < stim->values.size(); i++) {
+	  height += config.heights[i] + 4;
+	  width = max(width, config.widths[i] + 8);
+	}
+
+	// Hmm, can I safely do this outside the UI thread?
+	SDL_Surface *surf = sdlutil::makesurface(width, height, true);
+	sdlutil::clearsurface(surf, 0xFF000000);
+	// Draw each stimulation into it...
+	int ystart = font->height + 2;
+	for (int l = 0; l < stim->values.size(); l++) {
+	  for (int y = 0; y < config.heights[l]; y++) {
+	    for (int x = 0; x < config.widths[l]; x++) {
+	      int yy = ystart + y;
+	      int xx = 4 + x;
+	      // XXX maybe would be appropriate to normalize intermediate layers?
+	      uint8 v = FloatByte(stim->values[l][y * config.widths[l] + x]);
+	      sdlutil::drawpixel(surf, xx, yy, v, v, v);
+	    }
+	  }
+	  ystart += config.heights[l];
+	  ystart += 4;
+	}
+	font->drawto(surf, 4, 0,
+		     // XXX training time, etc.
+		     StringPrintf("Round ^3%d^<, rate ^3%.3f^<",
+				  round_number, round_learning_rate));
+	delete stim;
+	CHECK(sdlutil::SavePNG(StringPrintf("eval/eval-%d.png", eval_frame_num), surf));
+	SDL_FreeSurface(surf);
+      });
+      eval_frame_num++;
+      eval_ms += eval_timer.MS();
+    }
+
     // TODO: may make sense to parallelize this loop somehow, so that we can parallelize
     // CPU/GPU duties?
 
@@ -1657,6 +1751,7 @@ static void TrainThread() {
 	   "Time per round: %.1fs.\n"
 	   "We spent %.1fms in setup (%.1f%%),\n"
 	   "%.1fms in stimulation init (%.1f%%),\n"
+	   "%.1fms in eval (main thread; amortized) (%.1f%%),\n"
 	   "%.1fms in forward layer (%.1f%%),\n"
 	   "%.1fms in fc init (%.1f%%),\n"
 	   "%.1fms in forward layer kernel (at most; %.1f%%).\n"
@@ -1670,6 +1765,7 @@ static void TrainThread() {
 	   (total_ms / 1000.0) / denom,
 	   setup_ms / denom, Pct(setup_ms),
 	   stimulation_init_ms / denom, Pct(stimulation_init_ms),
+	   eval_ms / denom, Pct(eval_ms),
 	   forward_ms / denom, Pct(forward_ms),
 	   fc_init_ms / denom, Pct(fc_init_ms),
 	   kernel_ms / denom, Pct(kernel_ms),
