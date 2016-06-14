@@ -236,7 +236,7 @@ struct Network {
 
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
-  static constexpr uint32 FORMAT_ID = 0x2700072AU;
+  static constexpr uint32 FORMAT_ID = 0x2700072BU;
   
   // The number of "real" layers, that is, not counting the input.
   const int num_layers;
@@ -290,6 +290,10 @@ struct Network {
   // about the last gap, not the output layer, since the output layer
   // is not indexed by anything.
   vector<InvertedIndices> inverted_indices;
+
+  // Rounds trained. This matters when restarting from disk, because
+  // for example the learning rate depends on the round.
+  int64 rounds = 0;
 };
 
 static void CheckInvertedIndices(const Network &net) {
@@ -388,6 +392,12 @@ static Network *ReadNetworkBinary(const string &filename) {
     return nullptr;
   }
 
+  auto Read64 = [file]() {
+    int64_t i;
+    CHECK(!feof(file));
+    CHECK(1 == fread(&i, 8, 1, file));
+    return i;
+  };
   auto Read32 = [file]() {
     int32_t i;
     CHECK(!feof(file));
@@ -407,7 +417,7 @@ static Network *ReadNetworkBinary(const string &filename) {
   };
 
   CHECK(Read32() == Network::FORMAT_ID) << "Wrong magic number!";
-
+  int64 round = Read64();
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
@@ -428,7 +438,8 @@ static Network *ReadNetworkBinary(const string &filename) {
   printf("\n");
   
   std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node}};
-
+  net->rounds = round;
+  
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
     for (int j = 0; j < net->layers[i].indices.size(); j++) {
@@ -454,6 +465,9 @@ static Network *ReadNetworkBinary(const string &filename) {
 static void SaveNetworkBinary(const Network &net, const string &filename) {
   // Not portable, obviously.
   FILE *file = fopen(filename.c_str(), "wb");
+  auto Write64 = [file](int64_t i) {
+    CHECK(1 == fwrite(&i, 8, 1, file));
+  };
   auto Write32 = [file](int32_t i) {
     CHECK(1 == fwrite(&i, 4, 1, file));
   };
@@ -466,6 +480,7 @@ static void SaveNetworkBinary(const Network &net, const string &filename) {
   };
 
   Write32(Network::FORMAT_ID);
+  Write64(net.rounds);
   Write32(net.num_layers);
   for (const int i : net.num_nodes) Write32(i);
   for (const Network::Layer &layer : net.layers) Write32(layer.indices_per_node);
@@ -600,6 +615,114 @@ static void SetOutputError(const Stimulation &stim,
   }
 }
 
+// Network that lives entirely on the GPU, but can be copied back to
+// the Network object.
+struct NetworkGPU {
+  // XXX DESTRUCTOR.
+  NetworkGPU(CL *cl, Network *net) : cl(cl), net(net) {
+
+    layers.resize(net->layers.size());
+    for (int layer = 0; layer < net->layers.size(); layer++) {
+      layers[layer].indices =
+	MoveMemoryToGPU(cl->context, cl->queue, true, &net->layers[layer].indices);
+      layers[layer].weights =
+	MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].weights);
+      layers[layer].biases =
+	MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].biases);
+    }
+    
+    inverted_indices.resize(net->inverted_indices.size());
+    for (int layer = 0; layer < net->layers.size(); layer++) {
+      inverted_indices[layer].start =
+	MoveMemoryToGPUConst(cl->context, cl->queue, net->inverted_indices[layer].start);
+      inverted_indices[layer].length =
+	MoveMemoryToGPUConst(cl->context, cl->queue, net->inverted_indices[layer].length);
+      inverted_indices[layer].output_indices =
+	MoveMemoryToGPUConst(cl->context, cl->queue, net->inverted_indices[layer].output_indices);
+    }
+
+    clFinish(cl->queue);
+  }
+
+  // Read the weights and biases (which is the only thing that can change) from
+  // GPU back to the Network object. Not thread safe!
+  void ReadFromGPU() {
+    for (int layer = 0; layer < net->layers.size(); layer++) {
+      ReadTo(layers[layer].weights, &net->layers[layer].weights);
+      ReadTo(layers[layer].biases, &net->layers[layer].biases);
+    }
+    clFinish(cl->queue);
+  }
+
+  // Like CopyBufferFromGPUTo, but don't wait for the command to finish.
+  template<class T>
+  void ReadTo(cl_mem buf, vector<T> *vec) {
+    CHECK_SUCCESS(clEnqueueReadBuffer(cl->queue, buf, CL_TRUE, 0, sizeof (T) * vec->size(),
+				      vec->data(),
+				      // No wait-list or event.
+				      0, nullptr,
+				      nullptr));
+  }
+  
+  struct Layer {
+    // Const
+    cl_mem indices;
+    cl_mem weights;
+    cl_mem biases;
+  };
+
+  struct InvertedIndices {
+    // Const
+    cl_mem start;
+    // Const
+    cl_mem length;
+    // Const
+    cl_mem output_indices;
+  };
+  
+  vector<Layer> layers;
+  vector<InvertedIndices> inverted_indices;
+  
+  CL *cl;
+  Network *net;
+};
+
+// Data on the GPU for a single example in a single training round. Can
+// be reused across rounds.
+struct TrainingRoundGPU {
+  TrainingRoundGPU(CL *cl, const Network &net) : cl(cl), net(&net) {
+    for (int i = 0; i < net.num_layers + 1; i++) {
+      stimulations.push_back(
+	  CreateUninitializedGPUMemory<float>(cl->context, net.num_nodes[i]));
+    }
+
+    for (int i = 0; i < net.num_layers; i++) {
+      errors.push_back(
+	  CreateUninitializedGPUMemory<float>(cl->context, net.num_nodes[i + 1]));
+    }
+  }
+
+  void LoadInput(const vector<float> &inputs) {
+    CopyBufferToGPU(cl->queue, inputs, stimulations[0]);
+  }
+
+  // Way to export Errors?
+  void ExportStimulation(Stimulation *stim) {
+    CHECK_EQ(stim->values.size(), stimulations.size());
+    for (int i = 0; i < stim->values.size(); i++) {
+      CopyBufferFromGPUTo(cl->queue, stimulations[i], &stim->values[i]);
+    }
+  }
+  
+  // num_nodes + 1 layers. 0th is input, final is the output.
+  vector<cl_mem> stimulations;
+  // num_nodes layers.
+  vector<cl_mem> errors;
+    
+  CL *cl;
+  const Network *net;
+};
+
 struct ForwardLayerCL {
   explicit ForwardLayerCL(CL *cl) : cl(cl) {
     const string kernel_src = 
@@ -610,12 +733,15 @@ struct ForwardLayerCL {
   }
 
   struct ForwardContext {
-    ForwardContext(ForwardLayerCL *parent, const Network &net, int layer) :
-      parent(parent), net(net), layer(layer) {
-      CL *cl = parent->cl;
-      indices = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].indices);
-      weights = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].weights);
-      biases = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].biases);
+    ForwardContext(ForwardLayerCL *parent, NetworkGPU *net_gpu, int layer) :
+      parent(parent), net_gpu(net_gpu), layer(layer) {
+      // CL *cl = parent->cl;
+      // indices = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].indices);
+      // weights = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].weights);
+      // biases = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].biases);
+      indices = net_gpu->layers[layer].indices;
+      weights = net_gpu->layers[layer].weights;
+      biases = net_gpu->layers[layer].biases;
       // Printf("Created ForwardContext.\n");
     }
 
@@ -642,7 +768,7 @@ struct ForwardLayerCL {
       {
 	MutexLock ml(&parent->m);
 
-	cl_int indices_per_node = net.layers[layer].indices_per_node;
+	cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_int), (void *)&indices_per_node));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&src_values));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&indices));
@@ -654,19 +780,19 @@ struct ForwardLayerCL {
         size_t global_work_size[] = { (size_t)(stim->values[layer + 1].size()) };
 	// Printf("Run FL Kernel.\n");
 	Timer kernel_timer;
-	CHECK(CL_SUCCESS == clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
-						   // work dimensions
-						   1, 
-						   // global work offset
-						   global_work_offset,
-						   // global work size
-						   global_work_size, 
-						   // local work size
-						   nullptr, 
-						   // no wait list
-						   0, nullptr, 
-						   // no event
-						   nullptr));
+	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
+					     // work dimensions
+					     1, 
+					     // global work offset
+					     global_work_offset,
+					     // global work size
+					     global_work_size, 
+					     // local work size
+					     nullptr, 
+					     // no wait list
+					     0, nullptr, 
+					     // no event
+					     nullptr));
 	clFinish(cl->queue);
 	kernel_ms += kernel_timer.MS();
       }
@@ -681,16 +807,17 @@ struct ForwardLayerCL {
     }
     
     ~ForwardContext() {
-      CHECK_SUCCESS(clReleaseMemObject(indices));
-      CHECK_SUCCESS(clReleaseMemObject(weights));
-      CHECK_SUCCESS(clReleaseMemObject(biases));
+      // CHECK_SUCCESS(clReleaseMemObject(indices));
+      // CHECK_SUCCESS(clReleaseMemObject(weights));
+      // CHECK_SUCCESS(clReleaseMemObject(biases));
     }
 
     cl_mem indices;
     cl_mem weights;
     cl_mem biases;
     ForwardLayerCL *parent = nullptr;
-    const Network &net;
+    // const Network &net;
+    NetworkGPU *net_gpu = nullptr;
     const int layer;
     double kernel_ms = 0.0;
   };
@@ -718,23 +845,27 @@ struct BackwardLayerCL {
   }
 
   struct BackwardContext {
-    BackwardContext(BackwardLayerCL *parent, const Network &net, int dst_layer) :
-      parent(parent), net(net), dst_layer(dst_layer) {
-      CL *cl = parent->cl;
+    BackwardContext(BackwardLayerCL *parent, NetworkGPU *net_gpu, int dst_layer) :
+      parent(parent), net_gpu(net_gpu), dst_layer(dst_layer) {
+      // CL *cl = parent->cl;
 
       const int gap = dst_layer;
       // const int src_layer = dst_layer - 1;
 
-      starts = MoveMemoryToGPUConst(cl->context, cl->queue,
-				    net.inverted_indices[gap].start);
-      lengths = MoveMemoryToGPUConst(cl->context, cl->queue,
-				    net.inverted_indices[gap].length);
+      starts = net_gpu->inverted_indices[gap].start;
+      lengths = net_gpu->inverted_indices[gap].length;
+      inverted_index = net_gpu->inverted_indices[gap].output_indices;
+      dst_weights = net_gpu->layers[dst_layer].weights;
+      // starts = MoveMemoryToGPUConst(cl->context, cl->queue,
+      // net.inverted_indices[gap].start);
+      // lengths = MoveMemoryToGPUConst(cl->context, cl->queue,
+      // net.inverted_indices[gap].length);
 
-      inverted_index = MoveMemoryToGPUConst(cl->context, cl->queue,
-					    net.inverted_indices[gap].output_indices);
+      // inverted_index = MoveMemoryToGPUConst(cl->context, cl->queue,
+      // net.inverted_indices[gap].output_indices);
 
-      dst_weights = MoveMemoryToGPUConst(cl->context, cl->queue,
-					  net.layers[dst_layer].weights);
+      // dst_weights = MoveMemoryToGPUConst(cl->context, cl->queue,
+      // net.layers[dst_layer].weights);
     }
 
     void Backward(const Stimulation &stim, Errors *err) {
@@ -746,19 +877,19 @@ struct BackwardLayerCL {
       cl_mem src_output = MoveMemoryToGPUConst(cl->context, cl->queue,
 					       stim.values[src_layer + 1]);
       cl_mem dst_error = MoveMemoryToGPUConst(cl->context, cl->queue,
-					       err->error[dst_layer]);
+					      err->error[dst_layer]);
 
       // This is the source layer, but num_nodes is offset by one since it includes
       // the size of the input layer as element 0.
-      int src_num_nodes = net.num_nodes[src_layer + 1];
+      int src_num_nodes = net_gpu->net->num_nodes[src_layer + 1];
       cl_mem src_error = CreateUninitializedGPUMemory<float>(cl->context, src_num_nodes);
-      CHECK_EQ(src_num_nodes, net.inverted_indices[gap].start.size());
+      CHECK_EQ(src_num_nodes, net_gpu->net->inverted_indices[gap].start.size());
       
       // Can't have multiple threads setting a kernel's argument at one time.
       {
 	MutexLock ml(&parent->m);
 
-	cl_int dst_indices_per_node = net.layers[dst_layer].indices_per_node;
+	cl_int dst_indices_per_node = net_gpu->net->layers[dst_layer].indices_per_node;
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_int),
 				     (void *)&dst_indices_per_node));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&starts));
@@ -772,19 +903,19 @@ struct BackwardLayerCL {
 	size_t global_work_offset[] = { 0 };
 	size_t global_work_size[] = { (size_t)src_num_nodes };
 	Timer kernel_timer;
-	CHECK(CL_SUCCESS == clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
-						   // work dimensions
-						   1, 
-						   // global work offset
-						   global_work_offset,
-						   // global work size
-						   global_work_size, 
-						   // local work size
-						   nullptr, 
-						   // no wait list
-						   0, nullptr, 
-						   // no event
-						   nullptr));
+	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
+					     // work dimensions
+					     1, 
+					     // global work offset
+					     global_work_offset,
+					     // global work size
+					     global_work_size, 
+					     // local work size
+					     nullptr, 
+					     // no wait list
+					     0, nullptr, 
+					     // no event
+					     nullptr));
 	clFinish(cl->queue);
 	kernel_ms += kernel_timer.MS();
       }
@@ -800,15 +931,15 @@ struct BackwardLayerCL {
     }
     
     ~BackwardContext() {
-      CHECK_SUCCESS(clReleaseMemObject(starts));
-      CHECK_SUCCESS(clReleaseMemObject(lengths));
-      CHECK_SUCCESS(clReleaseMemObject(inverted_index));
-      CHECK_SUCCESS(clReleaseMemObject(dst_weights));
+      // CHECK_SUCCESS(clReleaseMemObject(starts));
+      // CHECK_SUCCESS(clReleaseMemObject(lengths));
+      // CHECK_SUCCESS(clReleaseMemObject(inverted_index));
+      // CHECK_SUCCESS(clReleaseMemObject(dst_weights));
     }
 
     cl_mem starts, lengths, inverted_index, dst_weights;
     BackwardLayerCL *parent = nullptr;
-    const Network &net;
+    NetworkGPU *net_gpu = nullptr;
     const int dst_layer;
     double kernel_ms = 0.0;
   };
@@ -836,13 +967,16 @@ struct UpdateWeightsCL {
   }
 
   struct UpdateContext {
-    UpdateContext(UpdateWeightsCL *parent, Network *net, int layer) :
-      parent(parent), net(net), layer(layer) {
-      CL *cl = parent->cl;
+    UpdateContext(UpdateWeightsCL *parent, NetworkGPU *net_gpu, int layer) :
+      parent(parent), net_gpu(net_gpu), layer(layer) {
+      // CL *cl = parent->cl;
 
-      layer_indices = MoveMemoryToGPUConst(cl->context, cl->queue, net->layers[layer].indices);
-      layer_weights = MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].weights);
-      layer_biases = MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].biases);
+      // layer_indices = MoveMemoryToGPUConst(cl->context, cl->queue, net->layers[layer].indices);
+      // layer_weights = MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].weights);
+      // layer_biases = MoveMemoryToGPU(cl->context, cl->queue, false, &net->layers[layer].biases);
+      layer_indices = net_gpu->layers[layer].indices;
+      layer_weights = net_gpu->layers[layer].weights;
+      layer_biases = net_gpu->layers[layer].biases;
     }
 
     void Update(float learning_rate, const Stimulation &stim, const Errors &err, int layer) {
@@ -856,8 +990,8 @@ struct UpdateWeightsCL {
       cl_mem layer_values = MoveMemoryToGPUConst(cl->context, cl->queue,
 						 stim.values[layer]);
 
-      const int num_nodes = net->num_nodes[layer + 1];
-      cl_int indices_per_node = net->layers[layer].indices_per_node;
+      const int num_nodes = net_gpu->net->num_nodes[layer + 1];
+      cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_float), (void *)&learning_rate));
       CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_int),
 				   (void *)&indices_per_node));      
@@ -869,19 +1003,19 @@ struct UpdateWeightsCL {
 
       size_t global_work_offset[] = { 0 };
       size_t global_work_size[] = { (size_t)num_nodes };
-      CHECK(CL_SUCCESS == clEnqueueNDRangeKernel(cl->queue, parent->kernel,
-						 // work dimensions
-						 1, 
-						 // global work offset
-						 global_work_offset,
-						 // global work size
-						 global_work_size, 
-						 // local work size
-						 nullptr, 
-						 // no wait list
-						 0, nullptr, 
-						 // no event
-						 nullptr));
+      CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel,
+					   // work dimensions
+					   1, 
+					   // global work offset
+					   global_work_offset,
+					   // global work size
+					   global_work_size, 
+					   // local work size
+					   nullptr, 
+					   // no wait list
+					   0, nullptr, 
+					   // no event
+					   nullptr));
       clFinish(cl->queue);
       CHECK_SUCCESS(clReleaseMemObject(layer_error));
       CHECK_SUCCESS(clReleaseMemObject(layer_values));
@@ -889,20 +1023,20 @@ struct UpdateWeightsCL {
 
     void Finish() {
       CL *cl = parent->cl;
-      CopyBufferFromGPUTo(cl->queue, layer_weights, &net->layers[layer].weights);
-      CopyBufferFromGPUTo(cl->queue, layer_biases, &net->layers[layer].biases);
+      // CopyBufferFromGPUTo(cl->queue, layer_weights, &net->layers[layer].weights);
+      // CopyBufferFromGPUTo(cl->queue, layer_biases, &net->layers[layer].biases);
       clFinish(cl->queue);
     }
 
     ~UpdateContext() {
-      CHECK_SUCCESS(clReleaseMemObject(layer_indices));
-      CHECK_SUCCESS(clReleaseMemObject(layer_weights));
-      CHECK_SUCCESS(clReleaseMemObject(layer_biases));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_indices));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_weights));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_biases));
     }
 
     cl_mem layer_indices, layer_weights, layer_biases;
     UpdateWeightsCL *parent = nullptr;
-    Network *net;
+    NetworkGPU *net_gpu;
     const int layer;
     double kernel_ms = 0.0;
   };
@@ -1095,7 +1229,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
   DeleteElements(&rcs);
 }
 
-static constexpr int NUM_ERROR_HISTORY_SAMPLES = 1000;
+static constexpr int NUM_ERROR_HISTORY_SAMPLES = 26;
 struct ErrorHistory {
   void AddSample(vector<double> v) {
     if (total_error.size() > NUM_ERROR_HISTORY_SAMPLES) {
@@ -1136,7 +1270,7 @@ static void ExportRound(int r) {
   MutexLock ml(&video_export_m);
   if (allow_updates) {
     current_round = r;
-    dirty = true;
+    // dirty = true;
   }
 }
 
@@ -1144,7 +1278,7 @@ static void ExportRoundsPerSec(double rps) {
   MutexLock ml(&video_export_m);
   if (allow_updates) {
     rounds_per_second = rps;
-    dirty = true;
+    // dirty = true;
   }
 }
 
@@ -1170,7 +1304,7 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
 static void ExportErrorHistorySample(vector<double> v) {
   MutexLock ml(&video_export_m);
   error_history->AddSample(std::move(v));
-  dirty = true;
+  // dirty = true;
 }
 
 static void UIThread() {
@@ -1294,13 +1428,14 @@ static void TrainThread() {
 
   Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
 
+  NetworkGPU net_gpu{global_cl, net.get()};
+  
   if (ReadWithLock(&train_should_die_m, &train_should_die))
     return;
   
   Printf("Network uses %.2fMB of storage (without overhead).\n", 
 	 net->Bytes() / (1024.0 * 1024.0));
 
-  static constexpr int MAX_ROUNDS = 50000; // 10000;
   static constexpr int EXAMPLES_PER_ROUND = 48;
   static constexpr int VERBOSE_ROUND_EVERY = 250;
   
@@ -1374,17 +1509,14 @@ static void TrainThread() {
   Asynchronously write_frames{8};
 
   // XXX from checkpoint file or something.
-  eval_movie_idx = eval_frame_num = 2217;
+  eval_movie_idx = eval_frame_num = 2384;
   if (eval_movie_idx > 0) Printf("Fast forwarding eval movie...\n");
   for (int i = 0; i < eval_movie_idx; i++) eval_emu->StepFull(eval_movie[i], 0);
-  static constexpr int START_ROUND_NUM = 5701;
   
   if (ShouldDie()) return;
 
   struct TrainingExample {
     // XXX memory, etc.
-    // PERF: We don't actually use rgba.
-    vector<uint8> rgba;
     vector<float> vals;
   };
   // Training examples don't depend on the learning process, so are produced
@@ -1393,19 +1525,20 @@ static void TrainThread() {
   // XXX could just be vector, actually?
   deque<TrainingExample> training_examples;
 
-  auto PopulateExampleFromEmu = [](const Emulator &emu, TrainingExample *example) {
+  auto PopulateExampleFromEmu = [](const Emulator &emu,
+				   TrainingExample *example) {
     // XXX memory, etc.
-    example->rgba = emu.GetImage();
-    vector<float> vals(256 * 240, 0.0f);
+    vector<uint8> rgba = emu.GetImage();
+    example->vals.resize(256 * 240);
     for (int i = 0; i < 256 * 240; i++) {
-      const uint8 r = example->rgba[i * 4];
-      const uint8 g = example->rgba[i * 4 + 1];
-      const uint8 b = example->rgba[i * 4 + 2];
+      static constexpr float denom = 1.0f / (255.0f * 3.0f);
+      const int r = rgba[i * 4];
+      const int g = rgba[i * 4 + 1];
+      const int b = rgba[i * 4 + 2];
       // uint8 a = example.rgba[i * 4 + 3];
-      ECHECK_LT(i, vals.size());
-      vals[i] = ((float)r + (float)g + (float)b) / (255.0f * 3.0f);
+      ECHECK_LT(i, example->vals.size());
+      example->vals[i] = (float)(r + g + b) * denom;
     }
-    example->vals = std::move(vals);
   };
   
   auto MakeTrainingExamplesThread = [train_romfile, &train_movie, &snapshots,
@@ -1440,9 +1573,9 @@ static void TrainThread() {
 	  emu->StepFull(train_movie[j], 0);
 	}
 
-	// To get a bit more entropy in the training set, maybe run a few random buttons
-	// from the movie, which may perturb the state a little without producing unrealistic
-	// inputs.
+	// To get a bit more entropy in the training set, maybe run a
+	// few random buttons from the movie, which may perturb the
+	// state a little without producing unrealistic inputs.
 	for (int randomactions = RandTo(&rc, 3) * 2; randomactions--;) {
 	  const uint8 input = train_movie[RandTo(&rc, train_movie.size())];
 	  for (int steps = 1 + RandTo(&rc, 12); steps--;) {
@@ -1477,30 +1610,33 @@ static void TrainThread() {
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
     update_ms = 0.0, writing_ms = 0.0, error_history_ms = 0.0, eval_ms = 0.0;
   Timer total_timer;
-  for (int round_number = START_ROUND_NUM; round_number < MAX_ROUNDS; round_number++) {
+  for (int rounds_executed = 0;; rounds_executed++) {
     if (ShouldDie()) return;
-    Printf("\n\n ** ROUND %d **\n", round_number);
+    Printf("\n\n ** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
     
     // When starting from a fresh network, consider this:
     //   // std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (round_number + 1)/3.0)));
     
     const float round_learning_rate =
-      std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (round_number + 1)/3.0)));
+      std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
     // const float round_learning_rate = 0.0025;
 
     Printf("Learning rate: %.4f\n", round_learning_rate);
 
-    bool is_verbose_round = 0 == ((round_number /* + 1 */) % VERBOSE_ROUND_EVERY);
+    bool is_verbose_round = 0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
     if (is_verbose_round) {
       Printf("Writing network:\n");
+      net_gpu.ReadFromGPU();
       // WriteNetworkText(*net, StringPrintf("network-%d.txt", round_number));
       SaveNetworkBinary(*net, "network-checkpoint.bin");
     }
 
     Printf("Export network:\n");
-    ExportRound(round_number);
-    if (round_number % EXPORT_EVERY == 0)
+    ExportRound(net->rounds);
+    if (rounds_executed % EXPORT_EVERY == 0) {
+      net_gpu.ReadFromGPU();
       ExportNetworkToVideo(*net);
+    }
 
     Timer setup_timer;
     Printf("Setting up batch:\n");
@@ -1530,8 +1666,8 @@ static void TrainThread() {
     CHECK_EQ(examples.size(), expected.size());
 
     // This is pretty slow, but starts running less and less
-    // frequently as the round increase.
-    if (ShouldEmitEvalFrame(round_number)) {
+    // frequently as the round increases.
+    if (ShouldEmitEvalFrame(net->rounds)) {
       Timer eval_timer;
       Printf("Generating eval frame.\n");
       // Loop if we need to.
@@ -1539,7 +1675,7 @@ static void TrainThread() {
 	eval_movie_idx = 0;
 	eval_emu->LoadUncompressed(eval_start_state);
       }
-      // HERE
+
       eval_emu->StepFull(eval_movie[eval_movie_idx++], 0);
       TrainingExample example;
       PopulateExampleFromEmu(*eval_emu, &example);
@@ -1549,11 +1685,11 @@ static void TrainThread() {
       // Initialize input layer of stimulation.
       stim->values[0] = example.vals;
       for (int src = 0; src < net->num_layers; src++) {
-	ForwardLayerCL::ForwardContext fc(&forwardlayer, *net, src);
+	ForwardLayerCL::ForwardContext fc(&forwardlayer, &net_gpu, src);
 	fc.Forward(stim);
       }
       // Now write to image:
-      write_frames.Run([stim, round_number, eval_frame_num, round_learning_rate]() {
+      write_frames.Run([stim, round_number = net->rounds, eval_frame_num, round_learning_rate]() {
 	// Figure out how big the graphic needs to be.
 	NetworkConfiguration config;
 	CHECK_EQ(config.widths.size(), stim->values.size());
@@ -1610,7 +1746,7 @@ static void TrainThread() {
     Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
     CHECK_EQ(examples.size(), stims.size());
-    ParallelComp(examples.size(),
+    UnParallelComp(examples.size(),
 		 [&examples, &stims](int i) {
 		   CHECK_EQ(examples[i].vals.size(), stims[i].values[0].size());
 		   stims[i].values[0] = examples[i].vals;
@@ -1622,22 +1758,22 @@ static void TrainThread() {
     for (int src = 0; src < net->num_layers; src++) {
       Printf("FWD Layer %d: ", src);
       Timer fc_init_timer;
-      ForwardLayerCL::ForwardContext fc(&forwardlayer, *net, src);
+      ForwardLayerCL::ForwardContext fc(&forwardlayer, &net_gpu, src);
       fc_init_ms += fc_init_timer.MS();
 
       // PERF could be parallel, but watch out about loading the GPU with
       // too many simultaneous value src/dst buffers.
       Timer forward_timer;
       Printf("Parallelcomp...\n");
-      ParallelComp(examples.size(),
-		   [round_number, &examples, &fc, &stims](int example_idx) {
+      UnParallelComp(examples.size(),
+		   [rounds_executed, &examples, &fc, &stims](int example_idx) {
 		     fc.Forward(&stims[example_idx]);
 		     if (example_idx % 10 == 0) {
 		       Printf("[%d/%d] (%.2f%%) ", example_idx, (int)examples.size(),
 			      100.0 * example_idx / examples.size());
 		     }
 
-		     if (round_number % EXPORT_EVERY == 0 &&
+		     if (rounds_executed % EXPORT_EVERY == 0 &&
 			 example_idx < NUM_VIDEO_STIMULATIONS) {
 		       // Copy to screen.
 		       ExportStimulusToVideo(example_idx, stims[example_idx]);
@@ -1647,7 +1783,6 @@ static void TrainThread() {
       kernel_ms += fc.kernel_ms;
       Printf("\n");
     }
-    // TODO PERF: Can kill transformed input eagerly, if having memory pressure issues.
 
     const int num_examples = examples.size();
     // But, don't need to keep this allocated.
@@ -1656,7 +1791,7 @@ static void TrainThread() {
     if (ShouldDie()) return;
     Printf("Error calc.\n");
     Timer output_error_timer;
-    ParallelComp(num_examples,
+    UnParallelComp(num_examples,
 		 [num_examples, &expected, &stims, &errs](int example) {
 		   SetOutputError(stims[example], expected[example], &errs[example]);
 		 }, 12);
@@ -1674,13 +1809,12 @@ static void TrainThread() {
       Printf("BWD Layer %d: ", dst);
 
       Timer bc_init_timer;
-      BackwardLayerCL::BackwardContext bc{&backwardlayer, *net, dst};
+      BackwardLayerCL::BackwardContext bc{&backwardlayer, &net_gpu, dst};
       bc_init_ms += bc_init_timer.MS();
 
-      ParallelComp(num_examples,
+      UnParallelComp(num_examples,
 		   [num_examples, &stims, &errs, &bc](int example) {
 		     bc.Backward(stims[example], &errs[example]);
-		     // BackwardsError(net, stims[example], dst, &errs[example]);
 		     if (example % 10 == 0) {
 		       Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
 			      100.0 * example / num_examples);
@@ -1691,6 +1825,7 @@ static void TrainThread() {
     backward_ms += backward_timer.MS();
 
     // Compute error history; diagnostic only.
+    #if 0
     Timer error_history_timer;
     {
       vector<double> error_total(net->num_layers, 0.0);
@@ -1703,7 +1838,7 @@ static void TrainThread() {
       ExportErrorHistorySample(error_total);
       FILE *f = fopen("error-history.txt", "a");
       CHECK(f);
-      fprintf(f, "%d. ", round_number);
+      fprintf(f, "%d. ", net->rounds);
       for (int i = 0; i < error_total.size(); i++) {
 	fprintf(f, " %.8f", error_total[i]);
       }
@@ -1711,7 +1846,8 @@ static void TrainThread() {
       fclose(f);
     }
     error_history_ms += error_history_timer.MS();
-
+    #endif
+    
 
     if (ShouldDie()) return;
     Printf("Update weights:\n");
@@ -1720,7 +1856,7 @@ static void TrainThread() {
     // Don't parallelize! These are all writing to the same network weights. Each
     // call is parallelized, though.
     for (int layer = 0; layer < net->num_layers; layer++) {
-      UpdateWeightsCL::UpdateContext uc(&updateweights, net.get(), layer);
+      UpdateWeightsCL::UpdateContext uc(&updateweights, &net_gpu, layer);
 
       // XXX trying making this dynamic -- more nodes means slower learning?
       // (never actually ran this)
@@ -1734,7 +1870,9 @@ static void TrainThread() {
 	uc.Update(round_learning_rate, stims[example], errs[example], layer);
       }
       
-      // Must call this to copy weights back!
+      // Now we leave the network on the GPU, and the version in the Network object will
+      // be out of date. But flush the command queue. (why? I guess make sure that we're
+      // totally done writing since other parts of the code assume concurrent reads are ok?)
       uc.Finish();
       Printf("[%d/%d] = (%.2f%%) ", layer, net->num_layers, layer * 100.0 / net->num_layers);
     }
@@ -1743,9 +1881,11 @@ static void TrainThread() {
       
     if (ShouldDie()) return;
 
+    net->rounds++;
+    
     double total_ms = total_timer.MS();
     auto Pct = [total_ms](double d) { return (100.0 * d) / total_ms; };
-    double denom = round_number + 1;
+    double denom = rounds_executed + 1;
     ExportRoundsPerSec(denom / (total_ms / 1000.0));
     Printf("Total so far %.1fs.\n"
 	   "Time per round: %.1fs.\n"

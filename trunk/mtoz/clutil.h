@@ -24,9 +24,9 @@ struct CL {
   CL();
 
   static const char *ErrorString(cl_int err);
-  
+
   cl_command_queue NewCommandQueue(bool out_of_order = true) {
-    return clCreateCommandQueue(context, devices[0], 
+    return clCreateCommandQueue(context, devices[0],
 				out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0,
 				nullptr);
   }
@@ -52,13 +52,16 @@ struct CL {
 // quite inefficient.
 template<class T>
 static cl_mem BufferFromVector(cl_context context, bool readonly, vector<T> *v) {
-  return clCreateBuffer(context, 
-			(readonly ? CL_MEM_READ_ONLY : 0) | 
+  return clCreateBuffer(context,
+			(readonly ? CL_MEM_READ_ONLY : 0) |
 			CL_MEM_USE_HOST_PTR,
 			sizeof (T) * v->size(),
 			(void *) v->data(),
 			nullptr);
 }
+
+// PERF: These are blocking copies; applications may be able to get much better throughput
+// by batching...
 
 // Creates a new buffer on the GPU and copies the memory there. They do not alias.
 // Note that the command queue is not flushed, so you should not touch the source
@@ -66,13 +69,13 @@ static cl_mem BufferFromVector(cl_context context, bool readonly, vector<T> *v) 
 template<class T>
 static cl_mem MoveMemoryToGPU(cl_context context, cl_command_queue cmd,
 			      bool readonly, vector<T> *v) {
-  cl_mem buf = clCreateBuffer(context, 
+  cl_mem buf = clCreateBuffer(context,
 			      (readonly ? CL_MEM_READ_ONLY : 0),
 			      sizeof (T) * v->size(),
 			      nullptr,
 			      nullptr);
-  clEnqueueWriteBuffer(cmd, buf, CL_TRUE, 0, 
-		       sizeof (T) * v->size(), v->data(), 0, nullptr, nullptr);
+  CHECK_SUCCESS(clEnqueueWriteBuffer(cmd, buf, CL_TRUE, 0,
+				     sizeof (T) * v->size(), v->data(), 0, nullptr, nullptr));
   return buf;
 }
 
@@ -80,19 +83,19 @@ static cl_mem MoveMemoryToGPU(cl_context context, cl_command_queue cmd,
 template<class T>
 static cl_mem MoveMemoryToGPUConst(cl_context context, cl_command_queue cmd,
 				   const vector<T> &v) {
-  cl_mem buf = clCreateBuffer(context, 
+  cl_mem buf = clCreateBuffer(context,
 			      CL_MEM_READ_ONLY,
 			      sizeof (T) * v.size(),
 			      nullptr,
 			      nullptr);
-  clEnqueueWriteBuffer(cmd, buf, CL_TRUE, 0, 
-		       sizeof (T) * v.size(), v.data(), 0, nullptr, nullptr);
+  CHECK_SUCCESS(clEnqueueWriteBuffer(cmd, buf, CL_TRUE, 0,
+				     sizeof (T) * v.size(), v.data(), 0, nullptr, nullptr));
   return buf;
 }
 
 template<class T>
-static cl_mem CreateUninitializedGPUMemory(cl_context context, int n) {
-  return clCreateBuffer(context, 0, sizeof (T) * n, nullptr, nullptr);
+static cl_mem CreateUninitializedGPUMemory(cl_context context, int n_items) {
+  return clCreateBuffer(context, 0, sizeof (T) * n_items, nullptr, nullptr);
 }
 
 template<class T>
@@ -116,6 +119,14 @@ static void CopyBufferFromGPUTo(cl_command_queue cmd, cl_mem buf, vector<T> *vec
 				    // No wait-list or event.
 				    0, nullptr,
 				    nullptr));
+  clFinish(cmd);
+}
+
+template<class T>
+static void CopyBufferToGPU(cl_command_queue cmd, const vector<T> &vec, cl_mem buf) {
+  CHECK_SUCCESS(clEnqueueWriteBuffer(cmd, buf, CL_TRUE, 0,
+				     sizeof (T) * vec.size(), vec.data(), 0,
+				     nullptr, nullptr));
   clFinish(cmd);
 }
 
