@@ -98,8 +98,8 @@ struct CompileAssert {
 // semantically, one should either use disallow both or neither. Try to
 // avoid these in new code.
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);               \
-  void operator=(const TypeName&)
+  TypeName(const TypeName&) = delete;      \
+  void operator=(const TypeName&) = delete;
 
 // An older, politically incorrect name for the above.
 // Prefer DISALLOW_COPY_AND_ASSIGN for new code.
@@ -112,7 +112,7 @@ struct CompileAssert {
 // that wants to prevent anyone from instantiating it. This is
 // especially useful for classes containing only static methods.
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
-  TypeName();                                    \
+  TypeName() = delete;                           \
   DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // The arraysize(arr) macro returns the # of elements in an array arr.

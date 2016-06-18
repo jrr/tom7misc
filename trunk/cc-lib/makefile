@@ -32,5 +32,8 @@ interval-tree_test.exe : interval-tree_test.o $(BASE) arcfour.o
 threadutil_test.exe : threadutil.h threadutil_test.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@ -lpthread
 
+color-util_test.exe : color-util.cc color-util.o color-util_test.o stb_image_write.o arcfour.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
 clean :
 	rm -f *.o *.exe
