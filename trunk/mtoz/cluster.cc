@@ -273,12 +273,15 @@ static void UIThread() {
 	  // Unit vector giving error offset.
 	  int edx, int edy) -> float {
 	float err = 0.0f;
-	while (len--) {
+	for (int z = 0; z < len; z++) {
 	  const Pixel &p = pixels[py * WIDTH + px];
-	  err += PenaltyWrt(p, ex + edx, ey + edy);
-	  // But also perpendicular.
-	  err += PenaltyWrt(p, ex + edx - edy, ey + edy - edx);
-	  err += PenaltyWrt(p, ex + edx + edy, ey + edy + edx);
+
+	  for (int e = 1; e < /* len + */ 1; e++) {
+	    err += PenaltyWrt(p, ex + edx * e, ey + edy * e);
+	    // But also perpendicular.
+	    err += PenaltyWrt(p, ex + edx * e - edy, ey + edy * e - edx);
+	    err += PenaltyWrt(p, ex + edx * e + edy, ey + edy * e + edx);
+	  }
 	    
 	  px += dpx;
 	  py += dpy;
@@ -370,56 +373,6 @@ static void UIThread() {
 	}
       }
       break;
-    case 2: {
-      // Swap entire rows.
-      for (int ay = 0; ay < HEIGHT; ay++) {
-	if (RandTo(&rc, 10) != 0) break;
-	int by = RandTo(&rc, HEIGHT);
-	if (ay == by) break;
-      
-	float now = 0.0, then = 0.0;
-	for (int x = 0; x < WIDTH; x++) {
-	  now += PenaltyUD(pixels[ay * WIDTH + x], x, ay) +
-	    PenaltyUD(pixels[by * WIDTH + x], x, by);
-	  then += PenaltyUD(pixels[by * WIDTH + x], x, ay) +
-	    PenaltyUD(pixels[ay * WIDTH + x], x, by);
-	}
-
-	if (then < now) {
-	  error_by_strategy[STRATEGY_ROWS] += (now - then);
-	  for (int x = 0; x < WIDTH; x++) {
-	    SwapPixels(x, ay, x, by);
-	  }
-	  break;
-	}
-      }
-      break;
-    }
-    case 3: {
-      // Columns...
-      for (int ax = 0; ax < WIDTH; ax++) {
-	if (RandTo(&rc, 10) != 0) break;
-	int bx = RandTo(&rc, WIDTH);
-	if (ax == bx) break;
-      
-	float now = 0.0, then = 0.0;
-	for (int y = 0; y < HEIGHT; y++) {
-	  now += PenaltyLR(pixels[y * WIDTH + ax], ax, y) +
-	    PenaltyLR(pixels[y * WIDTH + bx], bx, y);
-	  then += PenaltyLR(pixels[y * WIDTH + bx], ax, y) +
-	    PenaltyLR(pixels[y * WIDTH + ax], bx, y);
-	}
-
-	if (then < now) {
-	  error_by_strategy[STRATEGY_COLUMNS] += (now - then);
-	  for (int y = 0; y < HEIGHT; y++) {
-	    SwapPixels(ax, y, bx, y);
-	  }
-	  break;
-	}
-      }
-      break;
-    }
     case 7:
       // Swap only with nearby pixels.
       for (int ay = 1; ay < HEIGHT - 1; ay++) {
