@@ -7,7 +7,11 @@
 struct SDL_Surface;
 
 /* XXX move some of this to fontutil */
+// Everything here is thread-safe, though concurrent draws to the same
+// surface are potentially dangerous.
+// TODO: Label const.
 struct Font {
+  // TODO: make these const.
   int width, height, styles, overlap;
 
   static Font *create(SDL_Surface *screen,
