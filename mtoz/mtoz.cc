@@ -30,10 +30,10 @@
 #include "../cc-lib/util.h"
 #include "../cc-lib/stb_image.h"
 #include "../cc-lib/stb_image_write.h"
-#include "../cc-lib/stb_truetype.h"
 #include "../cc-lib/vector-util.h"
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/randutil.h"
+#include "../cc-lib/base/macros.h"
 
 #include "clutil.h"
 #include "timer.h"
@@ -45,7 +45,6 @@
 
 using namespace std;
 
-// Little byte machine.
 using uint8 = uint8_t;
 // Better compatibility with CL.
 using uchar = uint8_t;
@@ -590,6 +589,8 @@ struct Errors {
   vector<vector<float>> error;
 };
 
+#if 0
+// XXX now done on GPU. Delete.
 // Set the error values; this is almost just a memcpy so don't bother doing it
 // on GPU.
 static void SetOutputError(const Stimulation &stim,
@@ -614,6 +615,7 @@ static void SetOutputError(const Stimulation &stim,
     (*output_error)[k] = out_k * (1.0 - out_k) * (expected[k] - out_k);
   }
 }
+#endif
 
 // Network that lives entirely on the GPU, but can be copied back to
 // the Network object.
@@ -685,6 +687,8 @@ struct NetworkGPU {
   
   CL *cl;
   Network *net;
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NetworkGPU);
 };
 
 // Data on the GPU for a single example in a single training round. Can
@@ -700,12 +704,19 @@ struct TrainingRoundGPU {
       errors.push_back(
 	  CreateUninitializedGPUMemory<float>(cl->context, net.num_nodes[i + 1]));
     }
+
+    expected = CreateUninitializedGPUMemory<float>(cl->context, net.num_nodes[net.num_layers]);
   }
 
   void LoadInput(const vector<float> &inputs) {
     CopyBufferToGPU(cl->queue, inputs, stimulations[0]);
   }
 
+  void LoadExpected(const vector<float> &values) {
+    CHECK_EQ(values.size(), net->num_nodes[net->num_layers]);
+    CopyBufferToGPU(cl->queue, values, expected);
+  }
+  
   // Way to export Errors?
   void ExportStimulation(Stimulation *stim) {
     CHECK_EQ(stim->values.size(), stimulations.size());
@@ -718,9 +729,23 @@ struct TrainingRoundGPU {
   vector<cl_mem> stimulations;
   // num_nodes layers.
   vector<cl_mem> errors;
-    
+  // Size of final stimulation.
+  cl_mem expected;
+  
+  ~TrainingRoundGPU() {
+    for (cl_mem m : stimulations) {
+      CHECK_SUCCESS(clReleaseMemObject(m));
+    }
+    for (cl_mem m : errors) {
+      CHECK_SUCCESS(clReleaseMemObject(m));
+    }
+    CHECK_SUCCESS(clReleaseMemObject(expected));
+  }
+  
   CL *cl;
   const Network *net;
+private:
+  DISALLOW_COPY_AND_ASSIGN(TrainingRoundGPU);
 };
 
 struct ForwardLayerCL {
@@ -748,8 +773,8 @@ struct ForwardLayerCL {
     // TODO: Do we really want to share the same command queue across threads?
     // Presumably clFinish can't tell "this thread's commands" apart from others,
     // so we may be prematurely waiting/running other thread's work.
-    void Forward(Stimulation *stim) {
-      ECHECK_LT(layer + 1, stim->values.size());
+    void Forward(TrainingRoundGPU *train) {
+      ECHECK_LT(layer + 1, train->stimulations.size());
       
       CL *cl = parent->cl;
 
@@ -758,10 +783,12 @@ struct ForwardLayerCL {
       // is pretty sizable compared to total gpu memory!
       // Printf("stim value sizes %d -> %d\n",
       // stim->values[layer].size(), stim->values[layer + 1].size());
-      cl_mem src_values = MoveMemoryToGPUConst(cl->context, cl->queue, stim->values[layer]);
-      cl_mem dst_values = CreateUninitializedGPUMemory<float>(cl->context,
-							      stim->values[layer + 1].size());
-
+      // cl_mem src_values = MoveMemoryToGPUConst(cl->context, cl->queue, stim->values[layer]);
+      // cl_mem dst_values = CreateUninitializedGPUMemory<float>(cl->context,
+      // stim->values[layer + 1].size());
+      cl_mem src_values = train->stimulations[layer];
+      cl_mem dst_values = train->stimulations[layer + 1];
+      
       // Printf("Setup kernel..\n");
       
       // Can't have multiple threads setting a kernel's argument at one time.
@@ -769,15 +796,15 @@ struct ForwardLayerCL {
 	MutexLock ml(&parent->m);
 
 	cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_int), (void *)&indices_per_node));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&src_values));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&indices));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&weights));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&biases));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&dst_values));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_int), (void *)&indices_per_node));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&src_values));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&indices));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&weights));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&biases));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&dst_values));
 
 	size_t global_work_offset[] = { 0 };
-        size_t global_work_size[] = { (size_t)(stim->values[layer + 1].size()) };
+        size_t global_work_size[] = { (size_t)(net_gpu->net->num_nodes[layer + 1]) };
 	// Printf("Run FL Kernel.\n");
 	Timer kernel_timer;
 	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
@@ -799,11 +826,9 @@ struct ForwardLayerCL {
 
       // Immediately release stuff we don't need any more; other threads may be trying
       // to get GPU resources in parallel.
-      CHECK_SUCCESS(clReleaseMemObject(src_values));
-
-      CopyBufferFromGPUTo<float>(cl->queue, dst_values, &stim->values[layer + 1]);
-
-      CHECK_SUCCESS(clReleaseMemObject(dst_values));
+      // CHECK_SUCCESS(clReleaseMemObject(src_values));
+      // CopyBufferFromGPUTo<float>(cl->queue, dst_values, &stim->values[layer + 1]);
+      // CHECK_SUCCESS(clReleaseMemObject(dst_values));
     }
     
     ~ForwardContext() {
@@ -835,6 +860,75 @@ struct ForwardLayerCL {
   std::mutex m;
 };
 
+// Set the error values; this is almost just a memcpy so don't bother doing it
+// on GPU.
+struct SetOutputErrorCL {
+  explicit SetOutputErrorCL(CL *cl) : cl(cl) {
+    const string kernel_src =
+      Util::ReadFile("constants.h") + "\n" +
+      Util::ReadFile("setoutputerror.cl");
+    std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "SetOutputError");
+  }
+
+  struct Context {
+    Context(SetOutputErrorCL *parent, NetworkGPU *net_gpu) :
+      parent(parent), net_gpu(net_gpu) {}
+
+    void SetOutputError(TrainingRoundGPU *train) {
+      CL *cl = parent->cl;
+
+      // All three memories here have num_nodes floats.
+      int num_nodes = net_gpu->net->num_nodes[net_gpu->net->num_layers];
+      cl_mem actual_outputs = train->stimulations.back();
+      cl_mem expected = train->expected;
+      cl_mem output_error = train->errors.back();
+      
+      // Can't have multiple threads setting a kernel's argument at one time.
+      {
+	MutexLock ml(&parent->m);
+
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_mem), (void *)&actual_outputs));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&expected));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&output_error));
+
+	size_t global_work_offset[] = { 0 };
+        size_t global_work_size[] = { (size_t)(num_nodes) };
+
+	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel, 
+					     // work dimensions
+					     1, 
+					     // global work offset
+					     global_work_offset,
+					     // global work size
+					     global_work_size, 
+					     // local work size
+					     nullptr, 
+					     // no wait list
+					     0, nullptr, 
+					     // no event
+					     nullptr));
+	clFinish(cl->queue);
+      }
+    }
+
+   private:
+    SetOutputErrorCL *parent = nullptr;
+    NetworkGPU *net_gpu = nullptr;
+  };
+
+
+ private:
+  CL *cl = nullptr;
+  // Owned:
+  cl_program program;
+  cl_kernel kernel;
+
+  std::mutex m;
+
+  DISALLOW_COPY_AND_ASSIGN(SetOutputErrorCL);
+};
+ 
+    
 struct BackwardLayerCL {
   explicit BackwardLayerCL(CL *cl) : cl(cl) {
     const string kernel_src = 
@@ -844,8 +938,8 @@ struct BackwardLayerCL {
     std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "BackwardLayer");
   }
 
-  struct BackwardContext {
-    BackwardContext(BackwardLayerCL *parent, NetworkGPU *net_gpu, int dst_layer) :
+  struct Context {
+    Context(BackwardLayerCL *parent, NetworkGPU *net_gpu, int dst_layer) :
       parent(parent), net_gpu(net_gpu), dst_layer(dst_layer) {
       // CL *cl = parent->cl;
 
@@ -868,21 +962,20 @@ struct BackwardLayerCL {
       // net.layers[dst_layer].weights);
     }
 
-    void Backward(const Stimulation &stim, Errors *err) {
+    void Backward(TrainingRoundGPU *train) {
       CL *cl = parent->cl;
 
       const int gap = dst_layer;
       const int src_layer = dst_layer - 1;
 
-      cl_mem src_output = MoveMemoryToGPUConst(cl->context, cl->queue,
-					       stim.values[src_layer + 1]);
-      cl_mem dst_error = MoveMemoryToGPUConst(cl->context, cl->queue,
-					      err->error[dst_layer]);
+      cl_mem src_output = train->stimulations[src_layer + 1];
+      cl_mem dst_error = train->errors[dst_layer];
 
       // This is the source layer, but num_nodes is offset by one since it includes
       // the size of the input layer as element 0.
       int src_num_nodes = net_gpu->net->num_nodes[src_layer + 1];
-      cl_mem src_error = CreateUninitializedGPUMemory<float>(cl->context, src_num_nodes);
+      cl_mem src_error = train->errors[src_layer];
+
       CHECK_EQ(src_num_nodes, net_gpu->net->inverted_indices[gap].start.size());
       
       // Can't have multiple threads setting a kernel's argument at one time.
@@ -890,15 +983,15 @@ struct BackwardLayerCL {
 	MutexLock ml(&parent->m);
 
 	cl_int dst_indices_per_node = net_gpu->net->layers[dst_layer].indices_per_node;
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_int),
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_int),
 				     (void *)&dst_indices_per_node));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_mem), (void *)&starts));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&lengths));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&inverted_index));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&dst_weights));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&src_output));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof(cl_mem), (void *)&dst_error));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 7, sizeof(cl_mem), (void *)&src_error));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&starts));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&lengths));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&inverted_index));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&dst_weights));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&src_output));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof (cl_mem), (void *)&dst_error));
+	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 7, sizeof (cl_mem), (void *)&src_error));
 
 	size_t global_work_offset[] = { 0 };
 	size_t global_work_size[] = { (size_t)src_num_nodes };
@@ -919,18 +1012,9 @@ struct BackwardLayerCL {
 	clFinish(cl->queue);
 	kernel_ms += kernel_timer.MS();
       }
-
-      // Immediately release stuff we don't need any more; other threads may be trying
-      // to get GPU resources in parallel.
-      CHECK_SUCCESS(clReleaseMemObject(src_output));
-      CHECK_SUCCESS(clReleaseMemObject(dst_error));
-
-      CopyBufferFromGPUTo<float>(cl->queue, src_error, &err->error[src_layer]);
-
-      CHECK_SUCCESS(clReleaseMemObject(src_error));
     }
     
-    ~BackwardContext() {
+    ~Context() {
       // CHECK_SUCCESS(clReleaseMemObject(starts));
       // CHECK_SUCCESS(clReleaseMemObject(lengths));
       // CHECK_SUCCESS(clReleaseMemObject(inverted_index));
@@ -966,8 +1050,8 @@ struct UpdateWeightsCL {
     std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "UpdateWeights");
   }
 
-  struct UpdateContext {
-    UpdateContext(UpdateWeightsCL *parent, NetworkGPU *net_gpu, int layer) :
+  struct Context {
+    Context(UpdateWeightsCL *parent, NetworkGPU *net_gpu, int layer) :
       parent(parent), net_gpu(net_gpu), layer(layer) {
       // CL *cl = parent->cl;
 
@@ -979,27 +1063,25 @@ struct UpdateWeightsCL {
       layer_biases = net_gpu->layers[layer].biases;
     }
 
-    void Update(float learning_rate, const Stimulation &stim, const Errors &err, int layer) {
+    void Update(float learning_rate, TrainingRoundGPU *train, int layer) {
       CL *cl = parent->cl;
 
       // Really can't run these in parallel because of concurrent writes to net.
       MutexLock ml(&parent->m);
 
-      cl_mem layer_error = MoveMemoryToGPUConst(cl->context, cl->queue,
-						err.error[layer]);
-      cl_mem layer_values = MoveMemoryToGPUConst(cl->context, cl->queue,
-						 stim.values[layer]);
+      cl_mem layer_error = train->errors[layer];
+      cl_mem layer_values = train->stimulations[layer];
 
       const int num_nodes = net_gpu->net->num_nodes[layer + 1];
       cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof(cl_float), (void *)&learning_rate));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof(cl_int),
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_float), (void *)&learning_rate));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_int),
 				   (void *)&indices_per_node));      
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof(cl_mem), (void *)&layer_error));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof(cl_mem), (void *)&layer_indices));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof(cl_mem), (void *)&layer_values));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof(cl_mem), (void *)&layer_weights));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof(cl_mem), (void *)&layer_biases));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&layer_error));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&layer_indices));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&layer_values));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&layer_weights));
+      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof (cl_mem), (void *)&layer_biases));
 
       size_t global_work_offset[] = { 0 };
       size_t global_work_size[] = { (size_t)num_nodes };
@@ -1017,8 +1099,8 @@ struct UpdateWeightsCL {
 					   // no event
 					   nullptr));
       clFinish(cl->queue);
-      CHECK_SUCCESS(clReleaseMemObject(layer_error));
-      CHECK_SUCCESS(clReleaseMemObject(layer_values));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_error));
+      // CHECK_SUCCESS(clReleaseMemObject(layer_values));
     }
 
     void Finish() {
@@ -1028,7 +1110,7 @@ struct UpdateWeightsCL {
       clFinish(cl->queue);
     }
 
-    ~UpdateContext() {
+    ~Context() {
       // CHECK_SUCCESS(clReleaseMemObject(layer_indices));
       // CHECK_SUCCESS(clReleaseMemObject(layer_weights));
       // CHECK_SUCCESS(clReleaseMemObject(layer_biases));
@@ -1403,6 +1485,7 @@ static void TrainThread() {
 
   // Create kernels right away so that we get any compilation errors early.
   ForwardLayerCL forwardlayer{global_cl};
+  SetOutputErrorCL setoutputerror{global_cl};
   BackwardLayerCL backwardlayer{global_cl};
   UpdateWeightsCL updateweights{global_cl};
 
@@ -1438,7 +1521,14 @@ static void TrainThread() {
 
   static constexpr int EXAMPLES_PER_ROUND = 48;
   static constexpr int VERBOSE_ROUND_EVERY = 250;
-  
+
+  // We use the same structures to hold all the stimulations and errors
+  // now, on the GPU.
+  vector<TrainingRoundGPU *> training;
+  for (int i = 0; i < EXAMPLES_PER_ROUND; i++)
+    training.push_back(new TrainingRoundGPU{global_cl, *net});
+
+  // XXX keep?
   {
     Stimulation stim{*net};
     Errors err{*net};
@@ -1509,7 +1599,9 @@ static void TrainThread() {
   Asynchronously write_frames{8};
 
   // XXX from checkpoint file or something.
-  eval_movie_idx = eval_frame_num = 2384;
+  eval_frame_num = 0;
+  // Second movie: starts at the end of 1-1.
+  eval_movie_idx = eval_frame_num + 3533;
   if (eval_movie_idx > 0) Printf("Fast forwarding eval movie...\n");
   for (int i = 0; i < eval_movie_idx; i++) eval_emu->StepFull(eval_movie[i], 0);
   
@@ -1680,22 +1772,25 @@ static void TrainThread() {
       TrainingExample example;
       PopulateExampleFromEmu(*eval_emu, &example);
       // Allocate on heap so it can be deleted asynchronously.
-      Stimulation *stim = new Stimulation{*net};
-      CHECK_EQ(example.vals.size(), stim->values[0].size());
+      TrainingRoundGPU *train = new TrainingRoundGPU{global_cl, *net};
       // Initialize input layer of stimulation.
-      stim->values[0] = example.vals;
+      train->LoadInput(example.vals);
       for (int src = 0; src < net->num_layers; src++) {
 	ForwardLayerCL::ForwardContext fc(&forwardlayer, &net_gpu, src);
-	fc.Forward(stim);
+	fc.Forward(train);
       }
       // Now write to image:
-      write_frames.Run([stim, round_number = net->rounds, eval_frame_num, round_learning_rate]() {
+      write_frames.Run([&net, train, round_number = net->rounds,
+                        eval_frame_num, round_learning_rate]() {
+	Stimulation stim{*net};
+	train->ExportStimulation(&stim);
+	delete train;
 	// Figure out how big the graphic needs to be.
 	NetworkConfiguration config;
-	CHECK_EQ(config.widths.size(), stim->values.size());
+	CHECK_EQ(config.widths.size(), stim.values.size());
 	int width = 64;
 	int height = font->height + 2;
-	for (int i = 0; i < stim->values.size(); i++) {
+	for (int i = 0; i < stim.values.size(); i++) {
 	  height += config.heights[i] + 4;
 	  width = max(width, config.widths[i] + 8);
 	}
@@ -1705,13 +1800,13 @@ static void TrainThread() {
 	sdlutil::clearsurface(surf, 0xFF000000);
 	// Draw each stimulation into it...
 	int ystart = font->height + 2;
-	for (int l = 0; l < stim->values.size(); l++) {
+	for (int l = 0; l < stim.values.size(); l++) {
 	  for (int y = 0; y < config.heights[l]; y++) {
 	    for (int x = 0; x < config.widths[l]; x++) {
 	      int yy = ystart + y;
 	      int xx = 4 + x;
 	      // XXX maybe would be appropriate to normalize intermediate layers?
-	      uint8 v = FloatByte(stim->values[l][y * config.widths[l] + x]);
+	      uint8 v = FloatByte(stim.values[l][y * config.widths[l] + x]);
 	      sdlutil::drawpixel(surf, xx, yy, v, v, v);
 	    }
 	  }
@@ -1722,7 +1817,6 @@ static void TrainThread() {
 		     // XXX training time, etc.
 		     StringPrintf("Round ^3%d^<, rate ^3%.3f^<",
 				  round_number, round_learning_rate));
-	delete stim;
 	CHECK(sdlutil::SavePNG(StringPrintf("eval/eval-%d.png", eval_frame_num), surf));
 	SDL_FreeSurface(surf);
       });
@@ -1736,21 +1830,22 @@ static void TrainThread() {
     // Run a batch of images all the way through. (Each layer requires significant setup.)
     Printf("Creating stimulations...\n");
     Timer stimulation_init_timer;
+    #if 0
     vector<Stimulation> stims;
     stims.reserve(examples.size());
     for (int i = 0; i < examples.size(); i++) stims.emplace_back(*net);
     vector<Errors> errs;
     errs.reserve(examples.size());
     for (int i = 0; i < examples.size(); i++) errs.emplace_back(*net);
-
+    #endif
+    
     Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
-    CHECK_EQ(examples.size(), stims.size());
+    CHECK_EQ(examples.size(), training.size());
     UnParallelComp(examples.size(),
-		 [&examples, &stims](int i) {
-		   CHECK_EQ(examples[i].vals.size(), stims[i].values[0].size());
-		   stims[i].values[0] = examples[i].vals;
-		 }, 16);
+		   [&examples, &training](int i) {
+		     training[i]->LoadInput(examples[i].vals);
+		   }, 16);
     stimulation_init_ms += stimulation_init_timer.MS();
 
     if (ShouldDie()) return;
@@ -1766,17 +1861,21 @@ static void TrainThread() {
       Timer forward_timer;
       Printf("Parallelcomp...\n");
       UnParallelComp(examples.size(),
-		   [rounds_executed, &examples, &fc, &stims](int example_idx) {
-		     fc.Forward(&stims[example_idx]);
+		     [&net, rounds_executed, num_examples = examples.size(),
+		      &fc, &training](int example_idx) {
+		     fc.Forward(training[example_idx]);
 		     if (example_idx % 10 == 0) {
-		       Printf("[%d/%d] (%.2f%%) ", example_idx, (int)examples.size(),
-			      100.0 * example_idx / examples.size());
+		       Printf("[%d/%d] (%.2f%%) ", example_idx, num_examples,
+			      100.0 * example_idx / num_examples);
 		     }
 
 		     if (rounds_executed % EXPORT_EVERY == 0 &&
 			 example_idx < NUM_VIDEO_STIMULATIONS) {
+		       // XXX this uses unintialized/stale memory btw
+		       Stimulation stim{*net};
+		       training[example_idx]->ExportStimulation(&stim);
 		       // Copy to screen.
-		       ExportStimulusToVideo(example_idx, stims[example_idx]);
+		       ExportStimulusToVideo(example_idx, stim);
 		     }
 		   }, 12);
       forward_ms += forward_timer.MS();
@@ -1792,14 +1891,15 @@ static void TrainThread() {
     Printf("Error calc.\n");
     Timer output_error_timer;
     UnParallelComp(num_examples,
-		 [num_examples, &expected, &stims, &errs](int example) {
-		   SetOutputError(stims[example], expected[example], &errs[example]);
-		 }, 12);
+		   [&setoutputerror, &net_gpu, &training, &expected](int example) {
+		     training[example]->LoadExpected(expected[example]);
+		     SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
+		     sc.SetOutputError(training[example]);
+		     Printf(".");
+		   }, 12);
     output_error_ms += output_error_timer.MS();
-   
-    CHECK_EQ(num_examples, errs.size());
-    CHECK_EQ(num_examples, stims.size());
-
+    Printf("\n");
+    
     if (ShouldDie()) return;
     Printf("Backwards:\n");
     // Also serial, but in reverse.
@@ -1809,17 +1909,17 @@ static void TrainThread() {
       Printf("BWD Layer %d: ", dst);
 
       Timer bc_init_timer;
-      BackwardLayerCL::BackwardContext bc{&backwardlayer, &net_gpu, dst};
+      BackwardLayerCL::Context bc{&backwardlayer, &net_gpu, dst};
       bc_init_ms += bc_init_timer.MS();
 
       UnParallelComp(num_examples,
-		   [num_examples, &stims, &errs, &bc](int example) {
-		     bc.Backward(stims[example], &errs[example]);
-		     if (example % 10 == 0) {
-		       Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
-			      100.0 * example / num_examples);
-		     }
-		   }, 12);
+		     [num_examples, &training, &bc](int example) {
+		       bc.Backward(training[example]);
+		       if (example % 10 == 0) {
+			 Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
+				100.0 * example / num_examples);
+		       }
+		     }, 12);
       Printf("\n");
     }
     backward_ms += backward_timer.MS();
@@ -1856,7 +1956,7 @@ static void TrainThread() {
     // Don't parallelize! These are all writing to the same network weights. Each
     // call is parallelized, though.
     for (int layer = 0; layer < net->num_layers; layer++) {
-      UpdateWeightsCL::UpdateContext uc(&updateweights, &net_gpu, layer);
+      UpdateWeightsCL::Context uc{&updateweights, &net_gpu, layer};
 
       // XXX trying making this dynamic -- more nodes means slower learning?
       // (never actually ran this)
@@ -1867,7 +1967,7 @@ static void TrainThread() {
       // PERF Faster to try to run these in parallel (maybe parallelizing memory traffic
       // with kernel execution -- but we can't run the kernels at the same time).
       for (int example = 0; example < num_examples; example++) {
-	uc.Update(round_learning_rate, stims[example], errs[example], layer);
+	uc.Update(round_learning_rate, training[example], layer);
       }
       
       // Now we leave the network on the GPU, and the version in the Network object will

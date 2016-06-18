@@ -8,3 +8,6 @@ After:
 
 unparallelcomp in training:
 0.9476
+
+... very long term training (100k+ rounds): 0.9018
+
