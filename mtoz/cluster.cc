@@ -117,11 +117,18 @@ vector<Pixel> pixels{WIDTH * HEIGHT, Pixel{0,0,0}};
 
 // Give "pixel" coordinates; scales up into a chunky pixel.
 inline void DrawChunk(int x, int y, uint8 r, uint8 g, uint8 b) {
+  #if SCALE < 2
   for (int yy = 0; yy < (1 << SCALE); yy++) {
     for (int xx = 0; xx < (1 << SCALE); xx++) {
       sdlutil::drawpixel(screen, (x << SCALE) + xx, (y << SCALE) + yy, r, g, b);
     }
   }
+  #else
+  sdlutil::FillRectRGB(screen,
+		       x << SCALE, y << SCALE,
+		       1 << SCALE, 1 << SCALE,
+		       r, g, b);
+  #endif
 }
 
 static inline float PenaltyWrt(const Pixel &p, int x, int y) {

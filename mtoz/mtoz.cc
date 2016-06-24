@@ -1477,6 +1477,40 @@ static void UIThread() {
 
 static void TrainThread() {
   Timer setup_timer;
+
+  // "Eval" here means generating frames of a movie to make a video.
+  // If EVAL_ONLY is true, we skip training, and write a frame on every round
+  // (since that's all that the round does).
+  static constexpr bool EVAL_ONLY = true;
+  // Should be the index of the next eval-%d.png to write, for
+  // multi-session training (XXX get this from a checkpoint file or something).
+  static constexpr int FRAMES_ALREADY_DONE = 0;
+  // Should be the movie index (can be anything within bounds) that this segment
+  // of the movie starts at, for example to show two different models consecutively
+  // without having to show the same eval gameplay over and over.
+  // static constexpr int EVAL_MOVIE_START = 3533;  // For mario, End of world 1-1.
+  // const string eval_romfile = "mario.nes";
+  // const string eval_moviefile = "mario-long-again.fm2";
+
+  static constexpr int EVAL_MOVIE_START = 0;
+  const string eval_romfile = "mario3.nes";
+  const string eval_moviefile = "mario3tom.fm2";
+  
+  // Source game for training.
+  const string train_romfile = "mario.nes";
+  const string train_moviefile = "mario-long-three.fm2";
+  
+  // To generate training examples, we sample randomly from the input movie and
+  // then perturb the state a little. Snapshots every few frames allow us to
+  // quickly seek within the movie, but use more RAM and make startup slower.
+  static constexpr int SNAPSHOT_EVERY = 20;
+
+  // Number of training examples per round of training.
+  static constexpr int EXAMPLES_PER_ROUND = 48;
+  // On a verbose round, we write a network checkpoint and maybe some
+  // other stuff to disk.
+  static constexpr int VERBOSE_ROUND_EVERY = 250;
+
   
   string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(NULL));
   Printf("Start seed: [%s]\n", start_seed.c_str());
@@ -1519,9 +1553,6 @@ static void TrainThread() {
   Printf("Network uses %.2fMB of storage (without overhead).\n", 
 	 net->Bytes() / (1024.0 * 1024.0));
 
-  static constexpr int EXAMPLES_PER_ROUND = 48;
-  static constexpr int VERBOSE_ROUND_EVERY = 250;
-
   // We use the same structures to hold all the stimulations and errors
   // now, on the GPU.
   vector<TrainingRoundGPU *> training;
@@ -1552,14 +1583,14 @@ static void TrainThread() {
 
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
-  const string train_romfile = "mario.nes";
-  const vector<uint8> train_movie = SimpleFM2::ReadInputs("mario-long-three.fm2");
+  vector<uint8> train_movie = SimpleFM2::ReadInputs(train_moviefile);
+  // If unused, truncate training data to make startup faster.
+  if (EVAL_ONLY) train_movie.resize(std::min((size_t)100, train_movie.size()));
   struct Snapshot {
     int movie_idx;
     vector<uint8> save;
   };
  
-  static constexpr int SNAPSHOT_EVERY = 20;
   vector<Snapshot> snapshots;
   snapshots.reserve(1 + train_movie.size() / SNAPSHOT_EVERY);
 
@@ -1582,26 +1613,22 @@ static void TrainThread() {
 	   snapshot_bytes / (1024.0 * 1024.0));
   }
 
-  // "Eval" here means generating frames of a movie to make a video.
-  const string eval_romfile = "mario.nes";
   std::unique_ptr<Emulator> eval_emu{Emulator::Create(eval_romfile)};
-  const vector<uint8> eval_movie = SimpleFM2::ReadInputs("mario-long-again.fm2");
+  const vector<uint8> eval_movie = SimpleFM2::ReadInputs(eval_moviefile);
   const vector<uint8> eval_start_state = eval_emu->SaveUncompressed();
-  int eval_movie_idx = 0;
-  int eval_frame_num = 0;
+  int eval_frame_num = FRAMES_ALREADY_DONE;
+  int eval_movie_idx = eval_frame_num + EVAL_MOVIE_START;
   auto ShouldEmitEvalFrame = [](int round_num) {
+    if (EVAL_ONLY) return true;
     if (round_num < 2000) return true;
     else if (round_num < 4000) return (round_num % 10) == 0;
     else if (round_num < 8000) return (round_num % 100) == 0;
     else return (round_num % 200) == 0;
   };
-  // Allow up to 8 asynchronous frame writes.
-  Asynchronously write_frames{8};
 
-  // XXX from checkpoint file or something.
-  eval_frame_num = 0;
-  // Second movie: starts at the end of 1-1.
-  eval_movie_idx = eval_frame_num + 3533;
+  // Number of threads to allow for simultaneousl writing of frames.
+  Asynchronously write_frames{EVAL_ONLY ? 2 : 8};
+
   if (eval_movie_idx > 0) Printf("Fast forwarding eval movie...\n");
   for (int i = 0; i < eval_movie_idx; i++) eval_emu->StepFull(eval_movie[i], 0);
   
@@ -1690,6 +1717,7 @@ static void TrainThread() {
     Printf("Training example generator exiting.\n");
   };
 
+  // PERF could skip in eval_only mode, but it's harmless
   std::thread emu_thread_1{MakeTrainingExamplesThread, 1};
   std::thread emu_thread_2{MakeTrainingExamplesThread, 2};
   ThreadJoiner join_emu_thread_1{&emu_thread_1};
@@ -1714,48 +1742,6 @@ static void TrainThread() {
     // const float round_learning_rate = 0.0025;
 
     Printf("Learning rate: %.4f\n", round_learning_rate);
-
-    bool is_verbose_round = 0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
-    if (is_verbose_round) {
-      Printf("Writing network:\n");
-      net_gpu.ReadFromGPU();
-      // WriteNetworkText(*net, StringPrintf("network-%d.txt", round_number));
-      SaveNetworkBinary(*net, "network-checkpoint.bin");
-    }
-
-    Printf("Export network:\n");
-    ExportRound(net->rounds);
-    if (rounds_executed % EXPORT_EVERY == 0) {
-      net_gpu.ReadFromGPU();
-      ExportNetworkToVideo(*net);
-    }
-
-    Timer setup_timer;
-    Printf("Setting up batch:\n");
-
-    vector<TrainingExample> examples;
-    examples.reserve(EXAMPLES_PER_ROUND);
-    do {
-      if (!examples.empty()) {
-	Printf("Blocked grabbing examples (still need %d)...\n",
-	       EXAMPLES_PER_ROUND - examples.size());
-      }
-      MutexLock ml{&training_examples_m};
-      while (examples.size() < EXAMPLES_PER_ROUND &&
-	     !training_examples.empty()) {
-	examples.push_back(std::move(training_examples.front()));
-	training_examples.pop_front();
-      }
-    } while (examples.size() < EXAMPLES_PER_ROUND);
-
-    Printf("Setting up expected:\n");
-    vector<vector<float>> expected = Map(examples, [](const TrainingExample &te) {
-      return te.vals;
-    });
-    
-    setup_ms += setup_timer.MS();
-
-    CHECK_EQ(examples.size(), expected.size());
 
     // This is pretty slow, but starts running less and less
     // frequently as the round increases.
@@ -1823,6 +1809,53 @@ static void TrainThread() {
       eval_frame_num++;
       eval_ms += eval_timer.MS();
     }
+
+    if (ShouldDie()) return;
+    // Everything after this is training, so skip.
+    if (EVAL_ONLY) continue;
+
+    
+    bool is_verbose_round = 0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
+    if (is_verbose_round) {
+      Printf("Writing network:\n");
+      net_gpu.ReadFromGPU();
+      // WriteNetworkText(*net, StringPrintf("network-%d.txt", round_number));
+      SaveNetworkBinary(*net, "network-checkpoint.bin");
+    }
+
+    Printf("Export network:\n");
+    ExportRound(net->rounds);
+    if (rounds_executed % EXPORT_EVERY == 0) {
+      net_gpu.ReadFromGPU();
+      ExportNetworkToVideo(*net);
+    }
+    
+    Timer setup_timer;
+    Printf("Setting up batch:\n");
+
+    vector<TrainingExample> examples;
+    examples.reserve(EXAMPLES_PER_ROUND);
+    do {
+      if (!examples.empty()) {
+	Printf("Blocked grabbing examples (still need %d)...\n",
+	       EXAMPLES_PER_ROUND - examples.size());
+      }
+      MutexLock ml{&training_examples_m};
+      while (examples.size() < EXAMPLES_PER_ROUND &&
+	     !training_examples.empty()) {
+	examples.push_back(std::move(training_examples.front()));
+	training_examples.pop_front();
+      }
+    } while (examples.size() < EXAMPLES_PER_ROUND);
+
+    Printf("Setting up expected:\n");
+    vector<vector<float>> expected = Map(examples, [](const TrainingExample &te) {
+      return te.vals;
+    });
+    
+    setup_ms += setup_timer.MS();
+
+    CHECK_EQ(examples.size(), expected.size());
 
     // TODO: may make sense to parallelize this loop somehow, so that we can parallelize
     // CPU/GPU duties?
