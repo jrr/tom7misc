@@ -1,7 +1,7 @@
 
-default: all
+default: mtoz.exe
 
-all: mtoz.exe 
+all: mtoz.exe cluster.exe cluster1d.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -std=c++14
@@ -57,6 +57,10 @@ mtoz.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o mtoz.o
 	@echo -n "!"
 
 cluster.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+cluster1d.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster1d.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
