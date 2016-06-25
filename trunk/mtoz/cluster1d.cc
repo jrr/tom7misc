@@ -61,6 +61,15 @@ static constexpr uint8 ntsc_palette[64 * 3] = {
   0x99,0xFF,0xFC, 0xDD,0xDD,0xDD, 0x11,0x11,0x11, 0x11,0x11,0x11,
 };
 
+static constexpr uint8 best_permutation[] = {
+  0x0b, 0x1b, 0x1a, 0x19, 0x0a, 0x09, 0x08, 0x07, 0x06, 0x05, 0x04,
+  0x35, 0x25, 0x15, 0x16, 0x17, 0x18, 0x26, 0x27, 0x28, 0x38, 0x37,
+  0x39, 0x3b, 0x3a, 0x2b, 0x2a, 0x29, 0x36, 0x10, 0x3d, 0x20, 0x30,
+  0x32, 0x31, 0x3c, 0x2c, 0x21, 0x1c, 0x22, 0x33, 0x34, 0x23, 0x24,
+  0x14, 0x13, 0x03, 0x02, 0x01, 0x12, 0x11, 0x00, 0x2d, 0x0c, 0x3e,
+  0x2e, 0x1f, 0x0e, 0x0d, 0x0f, 0x1e, 0x2f, 0x3f, 0x1d,
+};
+
 // Graphics.
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
@@ -199,7 +208,7 @@ static float Error() {
 
 static void UIThread() {
   ArcFour rc("ui");
-  
+
   Printf("Init NES palette.\n");
   for (int i = 0; i < 64; i++) {
     pixels[i] = Pixel{(uint8)i,
@@ -224,7 +233,8 @@ static void UIThread() {
       delta_e[i * 64 + j] = ColorUtil::DeltaE(il, ia, ib, jl, ja, jb);
     }
   }
-  
+
+ 
   Printf("Initial draw:\n");
   Redraw();
 
@@ -238,50 +248,84 @@ static void UIThread() {
     UpdatePixel(bx, by);
   };
 
-  int frame_num = 0;
-
   float current_error = Error();
+  vector<Pixel> best = pixels;
+  float best_error = current_error;
+
+  auto Save = [&best_error, &best]() {
+    printf("Best error: %.4f\n", best_error);
+    for (const Pixel &p : pixels)
+      printf("0x%02x, ", p.idx);
+    printf("\n");
+  };
+
+  auto Swap2 = [&swaps, &current_error](int i, int j) {
+    if (i != j) {
+      // Try swapping.
+      const float before = current_error;
+      const Pixel tmp = pixels[i];
+      pixels[i] = pixels[j];
+      pixels[j] = tmp;
+      const float after = Error();
+      if (after < before) {
+	current_error = after;
+	swaps++;
+      } else {
+	// swap back.
+	const Pixel tmp = pixels[i];
+	pixels[i] = pixels[j];
+	pixels[j] = tmp;
+      }
+    }
+  };
+
+  auto SwapSeg = [&swaps, &current_error, &segments](int a, int b, int c) {
+    // Try moving a single segment. wlog the swap can be
+    // defined by three points 0 <= A <= B <= C <= pixels.size
+    //
+    //     A          B         C  
+    //  +-------------------------------------------+
+    //  |  |##########|         |                   |
+    //  +-------------------------------------------+
+    //
+    //     AB         C           
+    //  +-------------------------------------------+
+    //  |  ||         |##########                   |
+    //  +-------------------------------------------+
+
+    const int w = b - a;
+    if (w > 0) {
+      vector<Pixel> newpixels;
+      newpixels.reserve(pixels.size());
+      for (int i = 0; i < a; i++) newpixels.push_back(pixels[i]);
+      for (int i = b; i < c; i++) newpixels.push_back(pixels[i]);
+      for (int i = a; i < b; i++) newpixels.push_back(pixels[i]);
+      for (int i = c; i < pixels.size(); i++) newpixels.push_back(pixels[i]);
+
+      pixels.swap(newpixels);
+      const float after = Error();
+      if (after < current_error) {
+	swaps += w;
+	segments++;
+	current_error = after;
+      } else {
+	// undo
+	newpixels.swap(pixels);
+      }
+    }
+  };
+
+  int swap_src = 0, seg_a = 0;
+  int successive_failures = 0;
   for (int round = 0; ; round++) {
     int old_swaps = swaps;
     if (round & 1) {
-      for (int s = 0; s < 100; s++) {
-	int i = RandTo(&rc, WIDTH * HEIGHT);
-	int j = RandTo(&rc, WIDTH * HEIGHT);
-	if (i != j) {
-	  // Try swapping.
-	  const float before = current_error;
-	  const Pixel tmp = pixels[i];
-	  pixels[i] = pixels[j];
-	  pixels[j] = tmp;
-	  const float after = Error();
-	  if (after < before) {
-	    current_error = after;
-	    swaps++;
-	  } else {
-	    // swap back.
-	    const Pixel tmp = pixels[i];
-	    pixels[i] = pixels[j];
-	    pixels[j] = tmp;
-	  }
-	}
-      }
+      Swap2(RandTo(&rc, WIDTH * HEIGHT), RandTo(&rc, WIDTH * HEIGHT));
     } else {
-      // Try moving a single segment. wlog the swap can be
-      // defined by three points A <= B <= C
-      //
-      //     A          B         C  
-      //  +-------------------------------------------+
-      //  |  |##########|         |                   |
-      //  +-------------------------------------------+
-      //
-      //     AB         C           
-      //  +-------------------------------------------+
-      //  |  ||         |##########                   |
-      //  +-------------------------------------------+
-
-      int a = RandTo(&rc, WIDTH);
-      int b = RandTo(&rc, WIDTH);
-      int c = RandTo(&rc, WIDTH);
+      // Note that any of these can actually be past the end of the array.
+      int a = RandTo(&rc, WIDTH * HEIGHT + 1);
+      int b = RandTo(&rc, WIDTH * HEIGHT + 1);
+      int c = RandTo(&rc, WIDTH * HEIGHT + 1);
 
       // TODO: Would be nice to have a library for sorting fixed-size
       // "arrays" like this, though obviously this is not the bottleneck
@@ -291,34 +335,54 @@ static void UIThread() {
       // now a <= b and a <= c
       if (c < b) std::swap(b, c);
       // Now a <= b <= c
-      CHECK_LE(a, b);
-      CHECK_LE(b, c);
-      CHECK_LE(a, c);
-      
-      int w = b - a;
-      if (w > 0) {
-	vector<Pixel> newpixels;
-	newpixels.reserve(pixels.size());
-	for (int i = 0; i < a; i++) newpixels.push_back(pixels[i]);
-	for (int i = b; i < c; i++) newpixels.push_back(pixels[i]);
-	for (int i = a; i < b; i++) newpixels.push_back(pixels[i]);
-	for (int i = c; i < pixels.size(); i++) newpixels.push_back(pixels[i]);
+      SwapSeg(a, b, c);
+    }
 
-	pixels.swap(newpixels);
-	const float after = Error();
-	if (after < current_error) {
-	  swaps += w;
-	  segments++;
-	  current_error = after;
-	} else {
-	  // undo
-	  newpixels.swap(pixels);
+    if (swaps == old_swaps) {
+      if (round & 1) {
+	for (int swap_dst = swap_src + 1; swap_dst < (WIDTH * HEIGHT); swap_dst++) {
+	  Swap2(swap_src, swap_dst);
 	}
+	swap_src = (swap_src + 1) % (WIDTH * HEIGHT);
+      } else {
+	// printf("All segs.\n");
+	for (int seg_b = seg_a + 1; seg_b < WIDTH * HEIGHT; seg_b++) {
+	  for (int seg_c = seg_b + 1; seg_c < WIDTH * HEIGHT + 1; seg_c++) {
+	    SwapSeg(seg_a, seg_b, seg_c);
+	  }
+	}
+	seg_a = (seg_a + 1) % (WIDTH * HEIGHT);
       }
     }
 
-    if (old_swaps != swaps) {
-      printf("%.4f error. %d swaps. %d segs.\n", current_error, swaps, segments);
+    if (swaps == old_swaps) {
+      // Still no successes...
+      successive_failures++;
+      if (successive_failures > 128) {
+	if (current_error < best_error) {
+	  best = pixels;
+	  best_error = current_error;
+	}
+	printf("Randomize!");
+	for (int i = 0; i < WIDTH * HEIGHT; i++) {
+	  int j = RandTo(&rc, WIDTH * HEIGHT);
+	  if (j != i) {
+	    Pixel tmp = pixels[i];
+	    pixels[i] = pixels[j];
+	    pixels[j] = tmp;
+	  }
+	}
+	current_error = Error();
+	swaps = 0;
+	segments = 0;
+	successive_failures = 0;
+	// seg_a = 0;
+	// swap_src = 0;
+      }
+    } else {
+      successive_failures = 0;
+      printf("%.4f error (best %.4f). %d swaps. %d segs.\n", current_error,
+	     best_error, swaps, segments);
       Redraw();
       SDL_Flip(screen);
     }
@@ -326,12 +390,14 @@ static void UIThread() {
     SDL_Event event;
     if (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT) {
+	Save();
 	Printf("QUIT.\n");
 	return;
 
       } else if (event.type == SDL_KEYDOWN) {
 	switch (event.key.keysym.sym) {
 	case SDLK_ESCAPE:
+	  Save();
 	  Printf("ESCAPE.\n");
 	  return;
 	default:;
@@ -343,9 +409,9 @@ static void UIThread() {
 
 int SDL_main(int argc, char **argv) {
   /*
-  if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
+    if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
-  }
+    }
   */
   
   /* Initialize SDL and network, if we're using it. */
@@ -355,7 +421,7 @@ int SDL_main(int argc, char **argv) {
   fprintf(stderr, "SDL initialized OK.\n");
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
-                      SDL_DEFAULT_REPEAT_INTERVAL);
+		      SDL_DEFAULT_REPEAT_INTERVAL);
 
   SDL_EnableUNICODE(1);
 
