@@ -64,5 +64,9 @@ cluster1d.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster1d.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
+cluster2d.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster2d.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
 clean :
 	rm -f *.o $(UTILOBJECTS) $(FCEULIBOBJECTS) *.exe
