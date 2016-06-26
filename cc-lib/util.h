@@ -186,7 +186,9 @@ struct Util {
   static int HexDigitValue(char c);
 };
 
-/* drawing lines with Bresenham's algorithm */
+/* drawing lines with Bresenham's algorithm.
+   deprecated; please use lines.h
+*/
 struct line {
   static line * create(int x0, int y0, int x1, int y1);
   virtual void destroy() = 0;

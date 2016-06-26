@@ -55,3 +55,4 @@ threadutil    - Utilities for threaded programming. These are mostly convenience
 interval-tree - Stores intervals on a 1D number line, with an efficient query
                 for intervals that contain a given point.
 color-util    - Does that one thing you always need to do: Convert HSV to RGB.
+lines         - Draw lines using Bresenham's algorithm.
