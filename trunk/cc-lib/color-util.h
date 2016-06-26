@@ -10,7 +10,9 @@ struct ColorUtil {
 		       float *ll, float *aa, float *bb);
 
   // CIE1994 distance between sample color Lab2 and reference Lab1.
-  // Careful: This may not even be symmetric!
+  // ** Careful: This may not even be symmetric! **
+  // Note: This has been superseded by an even more complicated function
+  // (CIEDE2000) if you are doing something very sensitive.
   static float DeltaE(float l1, float a1, float b1,
 		      float l2, float a2, float b2);
 };

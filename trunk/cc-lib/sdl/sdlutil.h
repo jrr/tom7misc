@@ -67,6 +67,10 @@ struct sdlutil {
   static void fillrect(SDL_Surface *, Uint32 color,
                        int x, int y, int w, int h);
 
+  static void FillRectRGB(SDL_Surface *,
+			  int x, int y, int w, int h,
+			  Uint8 r, Uint8 g, Uint8 b);
+
   /* create a rectangle of the specified size, filled with a color
      at a certain alpha value. This can then be blit to the screen. */
   static SDL_Surface *makealpharect(int w, int h, int r,

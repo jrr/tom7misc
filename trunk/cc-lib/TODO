@@ -1,0 +1,7 @@
+
+- be consistent about color-util vs colorutil
+- rename stb_image_write vs stb-image-write etc.
+- non-SDL RGBA array library. fonts can draw to it
+- thread-util with progress feedback (e.g. ansi console, sdl)
+- thread pools
+- clean up style (use uppercase function and class names, like in sdlutil?)

@@ -534,6 +534,17 @@ void sdlutil::fillrect(SDL_Surface *s, Uint32 color,
   SDL_FillRect(s, &dst, color);
 }
 
+void sdlutil::FillRectRGB(SDL_Surface *s,
+			  int x, int y, int w, int h,
+			  Uint8 r, Uint8 g, Uint8 b) {
+  SDL_Rect dst;
+  dst.x = x;
+  dst.y = y;
+  dst.w = w;
+  dst.h = h;
+  SDL_FillRect(s, &dst, SDL_MapRGB(s->format, r, g, b));
+}
+
 void sdlutil::blitall(SDL_Surface *src, SDL_Surface *dst, int x, int y) {
   SDL_Rect rec;
   rec.x = x;
