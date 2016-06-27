@@ -177,8 +177,18 @@ SDL_Surface *sdlutil::LoadImage(const string &filename) {
 bool sdlutil::SavePNG(const string &filename, SDL_Surface *surf) {
   // This could be implemented for other formats, of course.
   if (surf->format->BytesPerPixel != 4) return false;
+  vector<Uint8> rgba;
+  rgba.reserve(surf->w * surf->h * 4);
+  for (int i = 0; i < surf->w * surf->h; i++) {
+    Uint8 r, g, b, a;
+    SDL_GetRGBA(((Uint32*)surf->pixels)[i], surf->format, &r, &g, &b, &a);
+    rgba.push_back(r);
+    rgba.push_back(g);
+    rgba.push_back(b);
+    rgba.push_back(a);
+  }
   return !!stbi_write_png(filename.c_str(),
-			  surf->w, surf->h, 4, surf->pixels, surf->pitch);
+			  surf->w, surf->h, 4, rgba.data(), 4 * surf->w);
 }
 
 SDL_Surface *sdlutil::duplicate(SDL_Surface *surf) {
