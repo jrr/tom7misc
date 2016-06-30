@@ -1,5 +1,4 @@
 #include <string.h>
-#include "share.h"
 #include "suborkb.h"
 
 #define FKB_ESCAPE 0x01
