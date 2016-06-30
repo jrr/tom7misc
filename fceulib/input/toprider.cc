@@ -19,7 +19,6 @@
  */
 
 #include <string.h>
-#include "share.h"
 
 #include "toprider.h"
 

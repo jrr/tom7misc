@@ -20,7 +20,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include "share.h"
 
 #include "arkanoid.h"
 

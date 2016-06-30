@@ -19,7 +19,6 @@
  */
 
 #include <string.h>
-#include "share.h"
 #include "fkb.h"
 
 #define FKB_F1 0x01
