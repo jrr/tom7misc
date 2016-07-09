@@ -1,5 +1,5 @@
 
-default : heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe
+default : heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe
 
 TESTCOMPILE=stb_image_write.o stb_image.o
 
@@ -36,6 +36,9 @@ color-util_test.exe : color-util.o color-util_test.o stb_image_write.o arcfour.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 lines_test.exe : lines_test.o arcfour.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+image_test.exe : image_test.o arcfour.o image.o stb_image.o stb_image_write.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean :
