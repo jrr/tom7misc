@@ -234,6 +234,18 @@ void Emulator::StepFull(uint8 controller1, uint8 controller2) {
   fc->fceu->FCEUI_Emulate(DO_VIDEO_AND_SOUND);
 }
 
+const uint8 *Emulator::RawIndexedImage() const {
+  return fc->fceu->XBuf;
+}
+
+vector<uint8> Emulator::IndexedImage() const {
+  vector<uint8> ret;
+  ret.resize(256 * 240);
+  for (int i = 0; i < 256 * 240; i++)
+    ret[i] = fc->fceu->XBuf[i] & INDEX_MASK;
+  return ret;
+}
+
 void Emulator::GetImage(vector<uint8> *rgba) const {
   if (rgba->size() != IMAGE_BYTE_SIZE) {
     rgba->clear();
