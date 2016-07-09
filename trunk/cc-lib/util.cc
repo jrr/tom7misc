@@ -385,7 +385,7 @@ unsigned int Util::hash(string s) {
   return h;
 }
 
-string Util::lcase(string in) {
+string Util::lcase(const string &in) {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'A' &&
@@ -396,7 +396,7 @@ string Util::lcase(string in) {
   return out;
 }
 
-string Util::ucase(string in) {
+string Util::ucase(const string &in) {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'a' &&
@@ -407,7 +407,7 @@ string Util::ucase(string in) {
   return out;
 }
 
-string Util::fileof(string s) {
+string Util::fileof(const string &s) {
   for (long long int i = s.length() - 1; i >= 0; i --) {
     if (s[i] == DIRSEPC) {
       return s.substr(i + 1, s.length() - (i + 1));
@@ -416,7 +416,7 @@ string Util::fileof(string s) {
   return s;
 }
 
-string Util::pathof(string s) {
+string Util::pathof(const string &s) {
   if (s == "") return ".";
   for (long long int i = s.length() - 1; i >= 0; i --) {
     if (s[i] == DIRSEPC) {
@@ -457,7 +457,7 @@ int Util::getpid() {
   return ::getpid();
 }
 
-int stoi(string s) {
+int stoi(const string &s) {
   return atoi(s.c_str());
 }
 
@@ -839,7 +839,7 @@ string Util::dirplus(const string &dir_, const string &file) {
   return dir + file;
 }
 
-string Util::cdup(const string & dir) {
+string Util::cdup(const string &dir) {
   /* XXX right second argument to rfind? I want to find the last / */
   size_t idx = dir.rfind(DIRSEP, dir.length() - 1);
   if (idx != (signed)string::npos) {
@@ -848,7 +848,7 @@ string Util::cdup(const string & dir) {
   } else return ".";
 }
 
-void Util::createpathfor (string f) {
+void Util::createpathfor(string f) {
   string s;
   for (unsigned int i = 0; i < f.length();  i++) {
     if (f[i] == DIRSEPC) {
@@ -860,8 +860,8 @@ void Util::createpathfor (string f) {
   }
 }
 
-FILE * Util::fopenp(string f, string m) {
-  createpathfor (f);
+FILE * Util::fopenp(const string &f, const string &m) {
+  createpathfor(f);
   return fopen(f.c_str(), m.c_str());
 }
 
@@ -905,7 +905,7 @@ int bitbuffer::ceil(int bits) {
 }
 
 
-bool bitbuffer::nbits(string s, int n, int & idx, unsigned int & out) {
+bool bitbuffer::nbits(const string &s, int n, int & idx, unsigned int & out) {
 # define NTHBIT(x) !! (s[(x) >> 3] & (1 << (7 - ((x) & 7))))
 
   out = 0;
