@@ -1591,20 +1591,25 @@ static void TrainThread() {
   // "Eval" here means generating frames of a movie to make a video.
   // If EVAL_ONLY is true, we skip training, and write a frame on every round
   // (since that's all that the round does).
-  static constexpr bool EVAL_ONLY = false;
+  static constexpr bool EVAL_ONLY = true;
   // Should be the index of the next eval-%d.png to write, for
   // multi-session training (XXX get this from a checkpoint file or something).
-  static constexpr int FRAMES_ALREADY_DONE = 0;
+  const int FRAMES_ALREADY_DONE = []() {
+    string nextframe = Util::ReadFile("eval/nextframe.txt");
+    return atoi(nextframe.c_str());
+  }();
+  printf("Next eval frame: %d\n", FRAMES_ALREADY_DONE);
+  
   // Should be the movie index (can be anything within bounds) that this segment
   // of the movie starts at, for example to show two different models consecutively
   // without having to show the same eval gameplay over and over. FRAMES_ALREADY_DONE
   // will be taken into account.
-  static constexpr int EVAL_MOVIE_START = 3533;  // For mario, End of world 1-1.
-  const string eval_romfile = "mario.nes";
-  const string eval_moviefile = "mario-long-again.fm2";
+  static constexpr int EVAL_MOVIE_START = 0; // = 3533;  // For mario, End of world 1-1.
+  // const string eval_romfile = "mario.nes";
+  // const string eval_moviefile = "mario-long-again.fm2";
   // static constexpr int EVAL_MOVIE_START = 0;
-  // const string eval_romfile = "mario3.nes";
-  // const string eval_moviefile = "mario3tom.fm2";
+  const string eval_romfile = "metroid.nes";
+  const string eval_moviefile = "metroid2.fm2";
 
   // Source game for training.
   const string train_romfile = "mario.nes";
@@ -1620,6 +1625,9 @@ static void TrainThread() {
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk.
   static constexpr int VERBOSE_ROUND_EVERY = 250;
+
+  int eval_frame_num = FRAMES_ALREADY_DONE;
+  int eval_movie_idx = eval_frame_num + EVAL_MOVIE_START;
 
 
   string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(NULL));
@@ -1650,7 +1658,7 @@ static void TrainThread() {
     CheckInvertedIndices(*net);
 
     Printf("Writing network so we don't have to do that again...\n");
-    SaveNetworkBinary(*net, "net.val");
+    if (!EVAL_ONLY) SaveNetworkBinary(*net, "net.val");
   }
 
   Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
@@ -1681,12 +1689,13 @@ static void TrainThread() {
 	   (err.Bytes() * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0));
   }
 
-  auto ShouldDie = [&net]() {
+  auto ShouldDie = [&net, &eval_frame_num]() {
     bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
     if (should_die) {
       Printf("Train thread signaled death.\n");
-      Printf("Saving...\n");
-      SaveNetworkBinary(*net, "network-onexit.bin");
+      Printf("Saving to net.val...\n");
+      if (!EVAL_ONLY) SaveNetworkBinary(*net, "net.val");
+      Util::WriteFile("eval/nextframe.txt", StringPrintf("%d\n", eval_frame_num));
     }
     return should_die;
   };
@@ -1724,10 +1733,10 @@ static void TrainThread() {
   }
 
   std::unique_ptr<Emulator> eval_emu{Emulator::Create(eval_romfile)};
+  CHECK(eval_emu.get() != nullptr) << eval_romfile;
   const vector<uint8> eval_movie = SimpleFM2::ReadInputs(eval_moviefile);
+  CHECK(!eval_movie.empty()) << eval_moviefile;
   const vector<uint8> eval_start_state = eval_emu->SaveUncompressed();
-  int eval_frame_num = FRAMES_ALREADY_DONE;
-  int eval_movie_idx = eval_frame_num + EVAL_MOVIE_START;
   auto ShouldEmitEvalFrame = [](int round_num) {
     if (EVAL_ONLY) return true;
     if (round_num < 2000) return true;
@@ -1864,6 +1873,10 @@ static void TrainThread() {
       Printf("Generating eval frame.\n");
       // Loop if we need to.
       if (eval_movie_idx == eval_movie.size()) {
+	if (EVAL_ONLY) {
+	  Printf("Exhausted movie in eval-only mode.\n");
+	  return;
+	}
 	eval_movie_idx = 0;
 	eval_emu->LoadUncompressed(eval_start_state);
       }
