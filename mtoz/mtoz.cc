@@ -35,6 +35,7 @@
 #include "../cc-lib/randutil.h"
 #include "../cc-lib/base/macros.h"
 #include "../cc-lib/color-util.h"
+#include "../cc-lib/image.h"
 
 #include "clutil.h"
 #include "timer.h"
@@ -190,40 +191,6 @@ std::mutex train_should_die_m;
 static bool train_done = false;
 std::mutex train_done_m;
 
-struct ImageRGBA {
-  static ImageRGBA *Load(const string &filename) {
-    vector<uint8> ret;
-    int width, height, bpp_unused;
-    uint8 *stb_rgba = stbi_load(filename.c_str(),
-				&width, &height, &bpp_unused, 4);
-    const int bytes = width * height * 4;
-    ret.resize(bytes);
-    if (stb_rgba == nullptr) return nullptr;
-    memcpy(ret.data(), stb_rgba, bytes);
-    // Does this move image data all the way in, or do we need to
-    // write a move constructor manually? Better way?
-    return new ImageRGBA(std::move(ret), width, height);
-  }
-
-  ImageRGBA(const vector<uint8> &rgba, int width, int height)
-    : width(width), height(height), rgba(rgba) {
-    CHECK(rgba.size() == width * height * 4);
-  }
-
-  void Save(const string &filename) {
-    CHECK(rgba.size() == width * height * 4);
-    stbi_write_png(filename.c_str(), width, height, 4, rgba.data(), 4 * width);
-  }
-
-  ImageRGBA *Copy() const {
-    return new ImageRGBA(rgba, width, height);
-  }
-
-  // TODO:: Save a vector of images of the same size in a grid.
-  const int width, height;
-  vector<uint8> rgba;
-};
-
 static uint8 FloatByte(float f) {
   if (f <= 0.0f) return 0;
   if (f >= 1.0f) return 255;
@@ -234,19 +201,6 @@ static constexpr float ByteFloat(uint8 b) {
   return (b / 255.0);
 }
 
-// Single-channel bitmap.
-struct ImageA {
-  ImageA(const vector<uint8> &alpha, int width, int height)
-    : width(width), height(height), alpha(alpha) {
-    CHECK(alpha.size() == width * height);
-  }
-  const int width, height;
-  vector<uint8> alpha;
-};
-
-// #define NEIGHBORHOOD 15
-// #define NEIGHBORHOOD 1
-// #define NEIGHBORHOOD 10
 #define NEIGHBORHOOD 1
 struct NetworkConfiguration {
   const int num_layers = 5;
@@ -284,13 +238,12 @@ struct NetworkConfiguration {
   }
 };
 
-/// XXX HERE. Update to take channels into account!
-
 struct Network {
   // Creates arrays of the appropriate size, but all zeroes. Note that this uninitialized
   // network is invalid, since the inverted indices are not correct.
-  Network(vector<int> num_nodes, vector<int> indices_per_node) : num_layers(num_nodes.size() - 1),
-								 num_nodes(num_nodes) {
+  Network(vector<int> num_nodes, vector<int> indices_per_node) :
+      num_layers(num_nodes.size() - 1),
+      num_nodes(num_nodes) {
     CHECK(num_nodes.size() >= 1) << "Must include input layer.";
     CHECK_EQ(num_layers, indices_per_node.size());
     layers.resize(num_layers);
@@ -325,7 +278,8 @@ struct Network {
       ret += sizeof inverted_indices[i] +
 	sizeof inverted_indices[i].start[0] * inverted_indices[i].start.size() +
 	sizeof inverted_indices[i].length[0] * inverted_indices[i].length.size() +
-	sizeof inverted_indices[i].output_indices[0] * inverted_indices[i].output_indices.size();
+	sizeof inverted_indices[i].output_indices[0] *
+	    inverted_indices[i].output_indices.size();
     }
 
     return ret;
@@ -666,34 +620,6 @@ struct Errors {
   vector<vector<float>> error;
 };
 
-#if 0
-// XXX now done on GPU. Delete.
-// Set the error values; this is almost just a memcpy so don't bother doing it
-// on GPU.
-static void SetOutputError(const Stimulation &stim,
-			   const vector<float> &expected, Errors *err) {
-  // One more value vector than layers, since we have values for the
-  // input "layer" too.
-  const int num_layers = stim.num_layers;
-  ECHECK(stim.values.size() == num_layers + 1);
-  const vector<float> &output = stim.values[num_layers];
-
-  const int num_output_nodes = output.size();
-  ECHECK_EQ(num_output_nodes, expected.size());
-  ECHECK(err->error.size() == num_layers);
-  vector<float> *output_error = &err->error[num_layers - 1];
-  ECHECK_EQ(num_output_nodes, output_error->size());
-  for (int k = 0; k < num_output_nodes; k++) {
-    // Here we want to multiply by the derivative, sigma'(input),
-    // which is sigma(input) * (1.0 - sigma(input)), and we already have
-    // sigma(input) -- it's the output.
-    const float out_k = output[k];
-    // Note in some presentations this is out_k - expected_k.
-    (*output_error)[k] = out_k * (1.0 - out_k) * (expected[k] - out_k);
-  }
-}
-#endif
-
 // Network that lives entirely on the GPU, but can be copied back to
 // the Network object.
 struct NetworkGPU {
@@ -717,7 +643,8 @@ struct NetworkGPU {
       inverted_indices[layer].length =
 	MoveMemoryToGPUConst(cl->context, cl->queue, net->inverted_indices[layer].length);
       inverted_indices[layer].output_indices =
-	MoveMemoryToGPUConst(cl->context, cl->queue, net->inverted_indices[layer].output_indices);
+	MoveMemoryToGPUConst(cl->context, cl->queue,
+			     net->inverted_indices[layer].output_indices);
     }
 
     clFinish(cl->queue);
@@ -782,7 +709,8 @@ struct TrainingRoundGPU {
 	  CreateUninitializedGPUMemory<float>(cl->context, net.num_nodes[i + 1]));
     }
 
-    expected = CreateUninitializedGPUMemory<float>(cl->context, net.num_nodes[net.num_layers]);
+    expected = CreateUninitializedGPUMemory<float>(cl->context,
+						   net.num_nodes[net.num_layers]);
   }
 
   void LoadInput(const vector<float> &inputs) {
@@ -838,14 +766,9 @@ struct ForwardLayerCL {
   struct ForwardContext {
     ForwardContext(ForwardLayerCL *parent, NetworkGPU *net_gpu, int layer) :
       parent(parent), net_gpu(net_gpu), layer(layer) {
-      // CL *cl = parent->cl;
-      // indices = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].indices);
-      // weights = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].weights);
-      // biases = MoveMemoryToGPUConst(cl->context, cl->queue, net.layers[layer].biases);
       indices = net_gpu->layers[layer].indices;
       weights = net_gpu->layers[layer].weights;
       biases = net_gpu->layers[layer].biases;
-      // Printf("Created ForwardContext.\n");
     }
 
     // TODO: Do we really want to share the same command queue across threads?
@@ -856,14 +779,6 @@ struct ForwardLayerCL {
 
       CL *cl = parent->cl;
 
-      // Technically these are thread-safe, but we should avoid moving lots of memory
-      // onto the GPU before we can use it, because our working set for one kernel call
-      // is pretty sizable compared to total gpu memory!
-      // Printf("stim value sizes %d -> %d\n",
-      // stim->values[layer].size(), stim->values[layer + 1].size());
-      // cl_mem src_values = MoveMemoryToGPUConst(cl->context, cl->queue, stim->values[layer]);
-      // cl_mem dst_values = CreateUninitializedGPUMemory<float>(cl->context,
-      // stim->values[layer + 1].size());
       cl_mem src_values = train->stimulations[layer];
       cl_mem dst_values = train->stimulations[layer + 1];
 
@@ -874,12 +789,18 @@ struct ForwardLayerCL {
 	MutexLock ml(&parent->m);
 
 	cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_int), (void *)&indices_per_node));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&src_values));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&indices));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&weights));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&biases));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&dst_values));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 0, sizeof (cl_int), (void *)&indices_per_node));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&src_values));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&indices));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&weights));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&biases));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&dst_values));
 
 	size_t global_work_offset[] = { 0 };
         size_t global_work_size[] = { (size_t)(net_gpu->net->num_nodes[layer + 1]) };
@@ -901,25 +822,15 @@ struct ForwardLayerCL {
 	clFinish(cl->queue);
 	kernel_ms += kernel_timer.MS();
       }
-
-      // Immediately release stuff we don't need any more; other threads may be trying
-      // to get GPU resources in parallel.
-      // CHECK_SUCCESS(clReleaseMemObject(src_values));
-      // CopyBufferFromGPUTo<float>(cl->queue, dst_values, &stim->values[layer + 1]);
-      // CHECK_SUCCESS(clReleaseMemObject(dst_values));
     }
 
     ~ForwardContext() {
-      // CHECK_SUCCESS(clReleaseMemObject(indices));
-      // CHECK_SUCCESS(clReleaseMemObject(weights));
-      // CHECK_SUCCESS(clReleaseMemObject(biases));
     }
 
     cl_mem indices;
     cl_mem weights;
     cl_mem biases;
     ForwardLayerCL *parent = nullptr;
-    // const Network &net;
     NetworkGPU *net_gpu = nullptr;
     const int layer;
     double kernel_ms = 0.0;
@@ -965,9 +876,12 @@ struct SetOutputErrorCL {
       {
 	MutexLock ml(&parent->m);
 
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_mem), (void *)&actual_outputs));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&expected));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&output_error));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 0, sizeof (cl_mem), (void *)&actual_outputs));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&expected));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&output_error));
 
 	size_t global_work_offset[] = { 0 };
         size_t global_work_size[] = { (size_t)(num_nodes) };
@@ -1028,16 +942,6 @@ struct BackwardLayerCL {
       lengths = net_gpu->inverted_indices[gap].length;
       inverted_index = net_gpu->inverted_indices[gap].output_indices;
       dst_weights = net_gpu->layers[dst_layer].weights;
-      // starts = MoveMemoryToGPUConst(cl->context, cl->queue,
-      // net.inverted_indices[gap].start);
-      // lengths = MoveMemoryToGPUConst(cl->context, cl->queue,
-      // net.inverted_indices[gap].length);
-
-      // inverted_index = MoveMemoryToGPUConst(cl->context, cl->queue,
-      // net.inverted_indices[gap].output_indices);
-
-      // dst_weights = MoveMemoryToGPUConst(cl->context, cl->queue,
-      // net.layers[dst_layer].weights);
     }
 
     void Backward(TrainingRoundGPU *train) {
@@ -1065,9 +969,12 @@ struct BackwardLayerCL {
 				     (void *)&dst_indices_per_node));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&starts));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&lengths));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&inverted_index));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&dst_weights));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&src_output));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&inverted_index));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&dst_weights));
+	CHECK_SUCCESS(
+	    clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&src_output));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof (cl_mem), (void *)&dst_error));
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 7, sizeof (cl_mem), (void *)&src_error));
 
@@ -1092,12 +999,7 @@ struct BackwardLayerCL {
       }
     }
 
-    ~Context() {
-      // CHECK_SUCCESS(clReleaseMemObject(starts));
-      // CHECK_SUCCESS(clReleaseMemObject(lengths));
-      // CHECK_SUCCESS(clReleaseMemObject(inverted_index));
-      // CHECK_SUCCESS(clReleaseMemObject(dst_weights));
-    }
+    ~Context() {}
 
     cl_mem starts, lengths, inverted_index, dst_weights;
     BackwardLayerCL *parent = nullptr;
@@ -1148,14 +1050,20 @@ struct UpdateWeightsCL {
 
       const int num_nodes = net_gpu->net->num_nodes[layer + 1];
       cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_float), (void *)&learning_rate));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_int),
-				   (void *)&indices_per_node));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&layer_error));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&layer_indices));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&layer_values));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&layer_weights));
-      CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof (cl_mem), (void *)&layer_biases));
+      CHECK_SUCCESS(
+	  clSetKernelArg(parent->kernel, 0, sizeof (cl_float), (void *)&learning_rate));
+      CHECK_SUCCESS(
+	  clSetKernelArg(parent->kernel, 1, sizeof (cl_int), (void *)&indices_per_node));
+      CHECK_SUCCESS(
+	  clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&layer_error));
+      CHECK_SUCCESS(
+	  clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&layer_indices));
+      CHECK_SUCCESS(
+	  clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&layer_values));
+      CHECK_SUCCESS(
+	  clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&layer_weights));
+      CHECK_SUCCESS(
+	  clSetKernelArg(parent->kernel, 6, sizeof (cl_mem), (void *)&layer_biases));
 
       size_t global_work_offset[] = { 0 };
       size_t global_work_size[] = { (size_t)num_nodes };
@@ -1223,11 +1131,12 @@ static void MakeIndices(const vector<int> &width,
 		    int64 *rejected, int64 *duplicate,
 		    int indices_per_node,
 		    int src_width, int src_height, int src_channels,
-		    int dst_width, int dst_height, int dst_channels, int idx) -> vector<uint32> {
+		    int dst_width, int dst_height, int dst_channels,
+		    int idx) -> vector<uint32> {
 
     // Whenever we read the neighborhood, we include all source channels.
-    CHECK((NEIGHBORHOOD * 2 + 1) * (NEIGHBORHOOD * 2 + 1) * src_channels <= indices_per_node) <<
-        "neighborhood doesn't fit in indices!";
+    CHECK((NEIGHBORHOOD * 2 + 1) * (NEIGHBORHOOD * 2 + 1) *
+	  src_channels <= indices_per_node) << "neighborhood doesn't fit in indices!";
     // Which pixel is this?
     const int dst_nodes_per_row = dst_width * dst_channels;
     const int c = idx % dst_channels;
@@ -1351,11 +1260,12 @@ static void MakeIndices(const vector<int> &width,
       const int start_idx = node_idx * indices_per_node;
       for (int i = 0; i < indices_per_node; i++) {
 	ECHECK_LT(i, indices.size());
-	ECHECK_LT(start_idx + i, layer_indices->size()) << "start " << start_idx
-							<< " i " << i
-							<< " indices size " << layer_indices->size()
-							<< " indices per node "
-							<< indices_per_node;
+	ECHECK_LT(start_idx + i, layer_indices->size())
+	  << "start " << start_idx
+	  << " i " << i
+	  << " indices size " << layer_indices->size()
+	  << " indices per node "
+	  << indices_per_node;
 	(*layer_indices)[start_idx + i] = indices[i];
       }
       if (node_idx % 1000 == 0) {
@@ -1397,30 +1307,6 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
   DeleteElements(&rcs);
 }
 
-static constexpr int NUM_ERROR_HISTORY_SAMPLES = 26;
-struct ErrorHistory {
-  void AddSample(vector<double> v) {
-    if (total_error.size() > NUM_ERROR_HISTORY_SAMPLES) {
-      // PERF: Use circular buffer.
-      static_assert(NUM_ERROR_HISTORY_SAMPLES > 10, "precondition");
-      total_error.erase(total_error.begin(), total_error.begin() + 10);
-    }
-    total_error.push_back(std::move(v));
-  }
-
-  int Depth() const {
-    return total_error.size();
-  }
-  // depth = 0 means most recent sample.
-  double Sample(int depth, int layer) const {
-    return total_error[total_error.size() - (depth + 1)][layer];
-  }
-
-private:
-  // outer: num_samples, inner: num_layers
-  vector<vector<double>> total_error;
-};
-
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 7;
@@ -1430,7 +1316,6 @@ int current_round = 0;
 double rounds_per_second = 0.0;
 vector<Stimulation> current_stimulations;
 Network *current_network = nullptr;
-ErrorHistory *error_history = nullptr;
 static bool allow_updates = true;
 static bool dirty = true;
 
@@ -1467,12 +1352,6 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
     current_stimulations[example_id].CopyFrom(stim);
     dirty = true;
   }
-}
-
-static void ExportErrorHistorySample(vector<double> v) {
-  MutexLock ml(&video_export_m);
-  error_history->AddSample(std::move(v));
-  // dirty = true;
 }
 
 static void UIThread() {
@@ -1529,20 +1408,6 @@ static void UIThread() {
 	    }
 	    ystart += config.height[l];
 	    ystart += 4;
-	  }
-	}
-
-	// Error history.
-	if (error_history->Depth() > 0) {
-	  int yy = 12;
-	  for (int layer = 0; layer < config.num_layers; layer++) {
-	    for (int i = 0; i < std::min(error_history->Depth(), 9); i++) {
-	      font->draw(12, yy, StringPrintf("^%c%.8f",
-					      i == 0 ? '3' : '1',
-					      error_history->Sample(i, layer)));
-	      yy += font->height;
-	    }
-	    yy += 6;
 	  }
 	}
 
@@ -1676,18 +1541,6 @@ static void TrainThread() {
   vector<TrainingRoundGPU *> training;
   for (int i = 0; i < EXAMPLES_PER_ROUND; i++)
     training.push_back(new TrainingRoundGPU{global_cl, *net});
-
-  // XXX keep?
-  {
-    Stimulation stim{*net};
-    Errors err{*net};
-    Printf("A Stimulation uses %.2fMB, and an Errors uses %.2fMB.\n",
-	   stim.Bytes() / (1024.0 * 1024.0),
-	   err.Bytes() / (1024.0 * 1024.0));
-    Printf("This is %.2fMB + %.2fMB total across a round of examples.\n",
-	   (stim.Bytes() * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0),
-	   (err.Bytes() * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0));
-  }
 
   auto ShouldDie = [&net, &eval_frame_num]() {
     bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
@@ -1850,8 +1703,9 @@ static void TrainThread() {
 
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
-    fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0, output_error_ms = 0.0,
-    update_ms = 0.0, writing_ms = 0.0, error_history_ms = 0.0, eval_ms = 0.0;
+    fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
+    output_error_ms = 0.0, update_ms = 0.0, writing_ms = 0.0, error_history_ms = 0.0,
+    eval_ms = 0.0;
   Timer total_timer;
   for (int rounds_executed = 0; ; rounds_executed++) {
     if (ShouldDie()) return;
@@ -2012,14 +1866,6 @@ static void TrainThread() {
     // Run a batch of images all the way through. (Each layer requires significant setup.)
     Printf("Creating stimulations...\n");
     Timer stimulation_init_timer;
-    #if 0
-    vector<Stimulation> stims;
-    stims.reserve(examples.size());
-    for (int i = 0; i < examples.size(); i++) stims.emplace_back(*net);
-    vector<Errors> errs;
-    errs.reserve(examples.size());
-    for (int i = 0; i < examples.size(); i++) errs.emplace_back(*net);
-    #endif
 
     Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
@@ -2105,30 +1951,6 @@ static void TrainThread() {
       Printf("\n");
     }
     backward_ms += backward_timer.MS();
-
-    // Compute error history; diagnostic only.
-    #if 0
-    Timer error_history_timer;
-    {
-      vector<double> error_total(net->num_layers, 0.0);
-      App(errs, [&net, &error_total](const Errors &err) {
-	for (int layer = 0; layer < net->num_layers; layer++)
-	  for (float f : err.error[layer])
-	    error_total[layer] += f;
-      });
-
-      ExportErrorHistorySample(error_total);
-      FILE *f = fopen("error-history.txt", "a");
-      CHECK(f);
-      fprintf(f, "%d. ", net->rounds);
-      for (int i = 0; i < error_total.size(); i++) {
-	fprintf(f, " %.8f", error_total[i]);
-      }
-      fprintf(f, "\n");
-      fclose(f);
-    }
-    error_history_ms += error_history_timer.MS();
-    #endif
 
 
     if (ShouldDie()) return;
@@ -2245,7 +2067,6 @@ int SDL_main(int argc, char **argv) {
     for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
       current_stimulations.emplace_back(*current_network);
     }
-    error_history = new ErrorHistory;
     printf("OK.\n");
   }
 

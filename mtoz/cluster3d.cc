@@ -32,6 +32,7 @@
 #include "../cc-lib/color-util.h"
 #include "../cc-lib/base/macros.h"
 #include "../cc-lib/lines.h"
+#include "../cc-lib/image.h"
 
 #include "clutil.h"
 #include "timer.h"
@@ -102,40 +103,6 @@ std::mutex print_mutex;
   MutexLock Printf_ml(&print_mutex);		\
   printf(fmt, ##__VA_ARGS__);			\
   } while (0);
-
-struct ImageRGBA {
-  static ImageRGBA *Load(const string &filename) {
-    vector<uint8> ret;
-    int width, height, bpp_unused;
-    uint8 *stb_rgba = stbi_load(filename.c_str(), 
-				&width, &height, &bpp_unused, 4);
-    const int bytes = width * height * 4;
-    ret.resize(bytes);
-    if (stb_rgba == nullptr) return nullptr;
-    memcpy(ret.data(), stb_rgba, bytes);
-    // Does this move image data all the way in, or do we need to
-    // write a move constructor manually? Better way?
-    return new ImageRGBA(std::move(ret), width, height);
-  }
-
-  ImageRGBA(const vector<uint8> &rgba, int width, int height) 
-    : width(width), height(height), rgba(rgba) {
-    CHECK(rgba.size() == width * height * 4);
-  }
-
-  void Save(const string &filename) {
-    CHECK(rgba.size() == width * height * 4);
-    stbi_write_png(filename.c_str(), width, height, 4, rgba.data(), 4 * width);
-  }
-
-  ImageRGBA *Copy() const {
-    return new ImageRGBA(rgba, width, height);
-  }
-
-  // TODO:: Save a vector of images of the same size in a grid.
-  const int width, height;
-  vector<uint8> rgba;
-};
 
 static uint8 FloatByte(float f) {
   if (f <= 0.0f) return 0;
