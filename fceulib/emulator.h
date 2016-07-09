@@ -103,11 +103,23 @@ struct Emulator {
   void LoadEx(const vector<uint8> *basis, const vector<uint8> &in);
 
   // Get the X Scroll offset from the PPU.
-  // This may be confused by games that are not actuall horizontally
+  // This may be confused by games that are not actually horizontally
   // scrolling or that do something funny like change the scroll position
   // during scanlines.
   uint32 GetXScroll() const;
 
+  // Access a 256*256 (row-major) array containing the current color
+  // indices. For performance sake, this does not copy, so the caller
+  // should make a copy before calling any other Emulator functions.
+  // Additionally, each entry has control bits with unspecified
+  // meaning, and should be bitwise-anded with INDEX_MASK in order to
+  // get a NES palette index in [0, 63].
+  static constexpr uint8 INDEX_MASK = 63;
+  const uint8 *RawIndexedImage() const;
+  // Creates a new 256x240 (row-major) vector containing pre-masked
+  // NES palette indices in [0, 63].
+  vector<uint8> IndexedImage() const;
+  
   // XXXXX debugging only.
   FC *GetFC() { return fc; }
   const FC *GetFC() const { return fc; }

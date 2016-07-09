@@ -62,8 +62,8 @@ INCLUDES=-I "../cc-lib" -I "../cc-lib/city" -I "."
 # tom7 added -mthreads on 9/7!
 CPPFLAGS=-DPSS_STYLE=1 -DDUMMY_UI $(ARCH) $(OPT) $(PLATFORMCFLAGS) -DHAVE_ALLOCA -DNOWINSTUFF $(INCLUDES) $(PROFILE) $(FLTO) --std=c++11
 
-# Should just be used for testing.
-CCLIBOBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o ../cc-lib/city/city.o ../cc-lib/rle.o ../cc-lib/stb_image_write.o
+# Should just be used for testing/utilities.
+CCLIBOBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o ../cc-lib/city/city.o ../cc-lib/rle.o ../cc-lib/stb_image_write.o ../cc-lib/wavesave.o
 
 MAPPEROBJECTS=mappers/6.o mappers/61.o mappers/24and26.o mappers/51.o mappers/69.o mappers/77.o mappers/40.o mappers/mmc2and4.o mappers/71.o mappers/79.o mappers/41.o mappers/72.o mappers/80.o mappers/42.o mappers/62.o mappers/73.o mappers/85.o mappers/emu2413.o mappers/46.o mappers/65.o mappers/75.o mappers/50.o mappers/67.o mappers/76.o mappers/tengen.o
 
@@ -125,6 +125,9 @@ dumptrace.exe : stringprintf.o trace.o dumptrace.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 emulator_test.exe : $(OBJECTS) test-util.o emulator_test.o simplefm2.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+fm2wav.exe : $(OBJECTS) $(CCLIBOBJECTS) fm2wav.o simplefm2.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 bench.exe : $(OBJECTS) test-util.o bench.o simplefm2.o
