@@ -22,13 +22,12 @@ using namespace std;
 #define UTIL_PI 3.141592653589f
 
 string itos(int i);
-int stoi(string s);
+int stoi(const string &s);
 string dtos(double d);
 
 struct Util {
-
-  static string ReadFile(const string &f);
-  static bool WriteFile(const string &f, const string &s);
+  static string ReadFile(const string &filename);
+  static bool WriteFile(const string &filename, const string &contents);
 
   // Reads the lines in the file to the vector. Ignores all
   // carriage returns, including ones not followed by newline.
@@ -59,12 +58,12 @@ struct Util {
   static string ptos(void *);
   static unsigned int hash(string s);
   /* give /home/tom/ of /home/tom/.bashrc */
-  static string pathof(string s);
-  static string fileof(string s);
+  static string pathof(const string &s);
+  static string fileof(const string &s);
 
   static string ensureext(string f, string ext);
-  static string lcase(string in);
-  static string ucase(string in);
+  static string lcase(const string &in);
+  static string ucase(const string &in);
 
   static bool ExistsFile(string);
 
@@ -90,8 +89,8 @@ struct Util {
   /* Is string s alphabetized under char k? */
   static bool library_matches(char k, const string & s);
 
-  /* open a new file. if it exists, return 0 */
-  static FILE * open_new(string s);
+  /* open a new file. if it exists, return null */
+  static FILE *open_new(string s);
   /* 0 on failure */
   static int changedir(string s);
   static int random();
@@ -161,7 +160,7 @@ struct Util {
   static void createpathfor(string f);
 
   /* open, creating directories if necessary */
-  static FILE * fopenp(string f, string mode);
+  static FILE *fopenp(const string &f, const string &mode);
 
   /* replace all occurrences of 'findme' with 'replacewith' in 'src' */
   static string replace(string src, string findme, string replacewith);
@@ -190,20 +189,20 @@ struct Util {
    deprecated; please use lines.h
 */
 struct line {
-  static line * create(int x0, int y0, int x1, int y1);
+  static line *create(int x0, int y0, int x1, int y1);
   virtual void destroy() = 0;
-  virtual bool next(int & x, int & y) = 0;
+  virtual bool next(int &x, int &y) = 0;
   virtual ~line() {};
 };
 
 /* union find structure, n.b. union is a keyword */
 struct onionfind {
-  int * arr;
+  int *arr;
 
   int find(int);
-  void onion(int,int);
+  void onion(int, int);
 
-  onionfind(int);
+  explicit onionfind(int);
   ~onionfind () { delete [] arr; }
 
   private:
@@ -218,7 +217,7 @@ struct bitbuffer {
      write that to output and return true.
      if an error occurs (such as going beyond the end of the string),
      then return false, perhaps destroying idx and output */
-  static bool nbits(string s, int n, int & idx, unsigned int & output);
+  static bool nbits(const string &s, int n, int &idx, unsigned int &output);
 
   /* create a new empty bit buffer */
   bitbuffer() : data(0), size(0), bits(0) { }

@@ -7,13 +7,15 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <cstdint>
 
 using namespace std;
 
 // Definitely would be useful to be able to write 24-bit or 32-bit waves..
 #define BITS_PER_SAMPLE 16
 
-typedef unsigned char uint8;
+using uint8 = uint8_t;
+using uint16 = uint16_t;
 
 namespace {
 struct Info {
@@ -41,6 +43,11 @@ static Format GetFormat(const T &samples);
 template<>
 Format GetFormat(const vector<pair<float, float>> &samples) {
   return Format(BITS_PER_SAMPLE, 2, samples.size());
+}
+
+template<>
+Format GetFormat(const vector<uint16> &samples) {
+  return Format(16, 1, samples.size());
 }
 
 static Info GetInfo(const Format &f, int samplespersec) {
@@ -149,9 +156,23 @@ void WriteData(const vector<pair<float, float>> &samples,
   }
 }
 
-bool WaveSave::SaveStereo(const string &filename,
-			  const vector<pair<float, float>> &samples,
-			  int samplerate) {
+template<>
+void WriteData(const vector<uint16> &samples,
+	       vector<uint8> *bytes) {
+  auto w16 = [&bytes](int i) {
+    bytes->push_back((uint8)(i & 255));
+    bytes->push_back((uint8)((i >> 8) & 255));
+  };
+
+  for (uint16 sample : samples) {
+    w16(sample);
+  }
+}
+
+template<class T>
+static SaveGeneric(const string &filename,
+		   const vector<T> &samples,
+		   int samplerate) {
   Format format = GetFormat(samples);
   vector<uint8> bytes;
   bytes.reserve(BytesNeeded(format, samplerate));
@@ -160,4 +181,16 @@ bool WaveSave::SaveStereo(const string &filename,
   WriteData(samples, &bytes);
 
   return util_WriteFileBytes(filename, bytes);
+}
+
+bool WaveSave::SaveStereo(const string &filename,
+			  const vector<pair<float, float>> &samples,
+			  int samplerate) {
+  return SaveGeneric(filename, samples, samplerate);
+}
+
+bool WaveSave::SaveMono16(const string &filename,
+			  const vector<uint16> &samples,
+			  int samplerate) {
+  return SaveGeneric(filename, samples, samplerate);
 }
