@@ -128,6 +128,11 @@ SDL_Surface *sdlutil::resize_canvas(SDL_Surface *s,
 }
 
 // XXX determine this somehow. Works on win64 with SWAB set.
+// It's not right for OSX, neither set nor cleared.
+// I think that there are two confusing issues overlapping here:
+// whether the host is big- or little-endian (shouldn't matter
+// now that everything ix x86_64) and whether the video implementation
+// is like RGBA or BGRA or etc.
 #define SWAB 1
 static void CopyRGBA(const vector<Uint8> &rgba, SDL_Surface *surface) {
   // int bpp = surface->format->BytesPerPixel;
@@ -394,7 +399,7 @@ SDL_Surface *sdlutil::shrink50(SDL_Surface *src) {
   if (ww <= 0) return 0;
   if (hh <= 0) return 0;
 
-  SDL_Surface *ret = makesurface(ww/2, hh/2);
+  SDL_Surface *ret = makesurface(ww / 2, hh / 2);
 
   if (!ret) return 0;
 
