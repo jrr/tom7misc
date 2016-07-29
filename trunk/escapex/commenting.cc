@@ -92,7 +92,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
     return;
   }
   
-  extent<http> eh(hh);
+  Extent<http> eh(hh);
 
   {
     string res;
@@ -167,7 +167,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
   ptrlist<menuitem>::push(l, &body);
 
   menu * mm = menu::create(&cs, cookmode?"Explain your cook":"Leave a comment", l, false);
-  extent<menu> em(mm);
+  Extent<menu> em(mm);
   ptrlist<menuitem>::diminish(l);
 
   mm->yoffset = fon->height + 4;

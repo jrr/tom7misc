@@ -119,12 +119,12 @@ dirindex * dirindex::fromfile(string f) {
     return dr;
   } else {
 
-    extent<di_real> de(dr);
+    Extent<di_real> de(dr);
     checkfile * cf = checkfile::create(f);
     
     if (!cf) return 0;
     
-    extent<checkfile> fe(cf);
+    Extent<checkfile> fe(cf);
 
     /* check that it starts with v2 magic */
     string s;
@@ -143,18 +143,18 @@ dirindex * dirindex::fromfile(string f) {
     
     while(cf->getline(s)) {
       ra_entry * rr = new ra_entry;
-      extent<ra_entry> re(rr);
+      Extent<ra_entry> re(rr);
 
       rr->filename = util::chop(s);
-      rr->v.nvotes = stoi(util::chop(s));
-      rr->v.difficulty = stoi(util::chop(s));
-      rr->v.style = stoi(util::chop(s));
-      rr->v.rigidity = stoi(util::chop(s));
-      rr->v.cooked = stoi(util::chop(s));
-      rr->v.solved = stoi(util::chop(s));
-      rr->date = stoi(util::chop(s));
-      rr->speedrecord = stoi(util::chop(s));
-      rr->owner = stoi(util::chop(s));
+      rr->v.nvotes = util::stoi(util::chop(s));
+      rr->v.difficulty = util::stoi(util::chop(s));
+      rr->v.style = util::stoi(util::chop(s));
+      rr->v.rigidity = util::stoi(util::chop(s));
+      rr->v.cooked = util::stoi(util::chop(s));
+      rr->v.solved = util::stoi(util::chop(s));
+      rr->date = util::stoi(util::chop(s));
+      rr->speedrecord = util::stoi(util::chop(s));
+      rr->owner = util::stoi(util::chop(s));
 
       re.release ();
       dr->tab->insert(rr);

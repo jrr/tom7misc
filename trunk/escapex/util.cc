@@ -357,7 +357,7 @@ int util::getpid() {
   return ::getpid();
 }
 
-int stoi(string s) {
+int util::stoi(string s) {
   return atoi(s.c_str());
 }
 
@@ -461,7 +461,7 @@ string util::tempfile(string suffix) {
   static int tries = 0;
 
   char * fname = new char[suffix.length() + 128];
-  extentda<char> ef(fname);
+  Extentda<char> ef(fname);
 
   do {
     sprintf(fname, 

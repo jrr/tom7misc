@@ -2,9 +2,7 @@
 #ifndef __DRAW_H
 #define __DRAW_H
 
-
 #include "SDL.h"
-#include "SDL_image.h"
 #include "level.h"
 #include "font.h"
 #include <math.h>

@@ -5,7 +5,7 @@
 
 #include "escapex.h"
 #include "leveldb.h"
-#include "dirent.h"
+#include "directories.h"
 #include "md5.h"
 #include "SDL.h"
 #include "extent.h"
@@ -121,7 +121,7 @@ void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
 
       if (!lw) abort();
 
-      extentd<levelwait> lw_d(lw);
+      Extentd<levelwait> lw_d(lw);
       res_level * entry = util::findorinsertnew(all_levels, lw->md5);
 
       if (!entry || lw->md5.empty()) abort();

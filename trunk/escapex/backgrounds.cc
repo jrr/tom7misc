@@ -4,6 +4,7 @@
 #include "extent.h"
 #include "util.h"
 #include "chars.h"
+#include "../cc-lib/sdl/sdlutil.h"
 
 const float backgrounds::blueish = 178.0f;
 const float backgrounds::purpleish = 260.0f; // 247.0f;

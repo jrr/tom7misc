@@ -282,7 +282,7 @@ void smanage::promptupload(drawable * below,
 	return;
       }
     
-      extent<http> eh(hh);
+      Extent<http> eh(hh);
 
       string res;
 
@@ -336,14 +336,14 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
     return;
   }
 
-  extent<http> eh(hh);
+  Extent<http> eh(hh);
   /* XXX register callback.. */
 
 
   httpresult hr = hh->get(ALLSOLS_URL + md5::ascii(lmd5), s);
   if (hr == HT_OK) {
     /* parse result. see protocol.txt */
-    int nsols = stoi(util::getline(s));
+    int nsols = util::stoi(util::getline(s));
 
     td.say("OK. Solutions on server: " GREEN + itos(nsols) + POP);
 
@@ -354,8 +354,8 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
       string moves = base64::decode(util::getline(s));
       
       /* this is the solution id, which we don't need */
-      (void) stoi(util::chop(line1));
-      int date = stoi(util::chop(line1));
+      (void) util::stoi(util::chop(line1));
+      int date = util::stoi(util::chop(line1));
       string name = util::losewhitel(line1);
 
       solution * s = solution::fromstring(moves);
@@ -364,7 +364,7 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
 	return;
       }
 
-      extent<solution> es(s);
+      Extent<solution> es(s);
 
       /* now check if we've got it */
       /* PERF each of the following things is O(n)
@@ -421,7 +421,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
     return;
   }
 
-  extent<smreal> es(sm);
+  Extent<smreal> es(sm);
 
   sm->sel->redraw ();
 
@@ -694,15 +694,15 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
   pb p;
 
   p.dr.lev = lev->clone ();
-  extent<level> el(p.dr.lev);
+  Extent<level> el(p.dr.lev);
 
   solution * sol = ns->sol->clone();
-  extent<solution> es(sol);
+  Extent<solution> es(sol);
   p.soli = 0;
 
 
   disamb * ctx = disamb::create(lev);
-  extent<disamb> edc(ctx);
+  Extent<disamb> edc(ctx);
 
   p.state = PB_PLAYING;
   p.screenresize ();

@@ -1,5 +1,4 @@
 #include "animation.h"
-#include <SDL_image.h>
 #include "util.h"
 #include "chars.h"
 #include "font.h"
@@ -2052,10 +2051,13 @@ void animation::clearent(drawing & dr, int entx, int enty, int overlap) {
   int sx, sy;
 
   int ta1 = dr.lev->tileat(entx, enty);
-  if (dr.onscreen(entx, enty, sx, sy))
+  if (dr.onscreen(entx, enty, sx, sy)) {
     if (ta1 == T_EXIT) {
       drawing::drawtileu(sx, sy, TU_EXITOPEN);
-    } else drawing::drawtile(sx, sy, ta1);
+    } else {
+      drawing::drawtile(sx, sy, ta1);
+    }
+  }
 
   if (enty > 0 && dr.onscreen(entx, enty - 1, sx, sy)) {
     int ta2 = dr.lev->tileat(entx, enty - 1);

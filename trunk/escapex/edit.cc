@@ -1,10 +1,9 @@
 
 #include "SDL.h"
-#include "SDL_image.h"
 #include <math.h>
 #include <time.h>
 #include "edit.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 
 #include "escapex.h"
@@ -460,7 +459,7 @@ void editor::firstbot() {
     int i;
     if (dr.lev->botat(x, y, i)) {
       level * l = dr.lev->clone ();
-      extent<level> el(l);
+      Extent<level> el(l);
       
       dr.lev->bott[0] = l->bott[i];
       dr.lev->botd[0] = l->botd[i];
@@ -729,7 +728,7 @@ void editor::playlev() {
   fixup();
   
   play * pla = play::create();
-  extent<play> ep(pla);
+  Extent<play> ep(pla);
   
   /* grab md5 in case player makes bookmarks */
   string md5 = md5::hash(dr.lev->tostring());
@@ -898,7 +897,7 @@ void editor::edit(level * origlev) {
 	      oty != nty) {
 	    /* draw line. */
 	    line * sl = line::create(otx, oty, ntx, nty);
-	    extent<line> el(sl);
+	    Extent<line> el(sl);
 	    
 	    int cx = otx, cy = oty;
 	    
@@ -1501,7 +1500,7 @@ void editor::edit(level * origlev) {
 			       tx, ty)) {
 	      /* easier if we clone. */
 	      level * cl = dr.lev->clone();
-	      extent<level> ecl(cl);
+	      Extent<level> ecl(cl);
 
 	      /* then blank out the region */
 	      {
@@ -1947,7 +1946,7 @@ editor * editor::create(player * p) {
 
   ee->randtype = RT_MAZE;
   ee->plr = p;
-  extent<editor> exe(ee);
+  Extent<editor> exe(ee);
 
   ee->current = T_BLUE;
   ee->layer = 0;

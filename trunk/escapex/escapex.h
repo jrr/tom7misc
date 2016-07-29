@@ -3,16 +3,18 @@
 #define __ESCAPEX_H
 
 #include "SDL.h"
-#include "SDL_image.h"
 #include "SDL_net.h"
 #include "SDL_thread.h"
 #include <math.h>
 
 #include <string>
+#include <memory>
+
 #include "level.h"
 #include "font.h"
-#include "sdlutil.h"
 #include "drawable.h"
+
+#include "../cc-lib/sdl/sdlutil.h"
 
 using namespace std;
 

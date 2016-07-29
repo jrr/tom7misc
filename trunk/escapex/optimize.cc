@@ -134,7 +134,7 @@ static void inval_above(lstate * ls, int cutoff) {
 solution * optimize::opt(level * orig, solution * s) {
 
   level * l = orig->clone ();
-  extent<level> el(l);
+  Extent<level> el(l);
 
   if (!level::verify(l, s)) {
     message::bug(0, "optimizer: solution is not valid to start!");
@@ -159,7 +159,7 @@ solution * optimize::opt(level * orig, solution * s) {
   
   solution::iter i(s);
   hashtable<lstate, Uint64> * ht = hashtable<lstate, Uint64>::create(1023);
-  extent<hashtable<lstate, Uint64> > eh(ht);
+  Extent<hashtable<lstate, Uint64> > eh(ht);
 
   /* insert initial state */
   ht->insert (new lstate(0, l, true));
@@ -240,7 +240,7 @@ solution * optimize::trycomplete(level * start, solution * prefix,
   int moves_unused;
   /* Assume this works.. */
   wprefix->play(prefix, moves_unused);
-  extent<level> ewp(wprefix);
+  Extent<level> ewp(wprefix);
 
   /* find the longest solution. */
   int max_slen = 0;
@@ -257,7 +257,7 @@ solution * optimize::trycomplete(level * start, solution * prefix,
       if (tmp->head->sol->length >= slen) {
 	/* do it! */
 	level * trysuf = wprefix->clone();
-	extent<level> ets(trysuf);
+	Extent<level> ets(trysuf);
 
 	solution * trysol = tmp->head->sol;
 

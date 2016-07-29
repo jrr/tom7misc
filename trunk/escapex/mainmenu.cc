@@ -203,7 +203,7 @@ void mmreal::compute_tutorial () {
     tutorial_text = "(" RED "Tutorial missing!" POP ")";
     return ;
   }
-  extent<loadlevel> el(ll);
+  Extent<loadlevel> el(ll);
 
   /* search through loader for first unsolved level */
   tutorial_left = ll->first_unsolved(tutorial_nextlev, tutorial_text);
@@ -461,9 +461,9 @@ mmreal * mmreal::create(player * plr) {
   mm->titlegraphic = 0;
   mm->background = 0;
 
-  extent<mmreal> em(mm);
+  Extent<mmreal> em(mm);
 
-  mm->titlegraphic = sdlutil::imgload(TITLE_FILE);
+  mm->titlegraphic = sdlutil::LoadImage(TITLE_FILE);
 
   if (!mm->titlegraphic) return 0;
 

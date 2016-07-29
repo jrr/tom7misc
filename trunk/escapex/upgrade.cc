@@ -432,10 +432,10 @@ curesult upgradereal::checkupgrade(http * hh,
   httpresult hr = hh->get(UPGRADEURL, s);
   if (hr == HT_OK) {
     /* parse result. see protocol.txt */
-    int nfiles     =    stoi(util::getline(s));
-    int oldest     =    stoi(util::getline(s));
-    int recom      =    stoi(util::getline(s));
-    int current    =    stoi(util::getline(s));
+    int nfiles     =    util::stoi(util::getline(s));
+    int oldest     =    util::stoi(util::getline(s));
+    int recom      =    util::stoi(util::getline(s));
+    int current    =    util::stoi(util::getline(s));
     string name    =         util::getline(s);
     /* then, nfiles files */
 
@@ -574,7 +574,7 @@ upgraderesult upgradereal::upgrade(string & msg) {
     return UP_FAIL;
   }
 
-  extent<http> eh(hh);
+  Extent<http> eh(hh);
 
   /* install upgrader */
   ugcallback cb;

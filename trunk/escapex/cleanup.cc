@@ -4,7 +4,7 @@
 #include "cleanup.h"
 
 #include <sys/stat.h>
-#include "dirent.h"
+#include "directories.h"
 #include "edit.h"
 #include "dircache.h"
 

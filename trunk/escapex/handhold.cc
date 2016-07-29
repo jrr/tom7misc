@@ -1,5 +1,12 @@
-
 #include "handhold.h"
+
+#include "level.h"
+#include "../cc-lib/sdl/sdlutil.h"
+
+#include "util.h"
+#include "escapex.h"
+#include "font.h"
+
 #include "time.h"
 #include "message.h"
 
@@ -44,7 +51,7 @@ void handhold::init() {
 }
 
 void handhold::firsttime() {
-  
+  printf("firsttime. msg...\n");
   message::quick(0,
 		 GREEN "Welcome to Escape!\n"
 		 "\n"
@@ -67,11 +74,11 @@ void handhold::firsttime() {
 		 "Play the game!",
 		 "", PICS EXCICON POP);
 
+  printf("message done...\n");
   /* XXX could use build date here */
   hh_lastupdate = 0;
   hh_lastupgrade = 0;
   if (hh_write ()) hh_ok = true;
-
 }
 
 

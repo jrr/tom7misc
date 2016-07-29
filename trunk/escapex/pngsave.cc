@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <png.h>
 #include "pngsave.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 
 /* set this to 0 if mysterious crashes in
    libpng (VC version > 6.0) */

@@ -1,4 +1,6 @@
 
+// XXX: Merge this with cc-lib's Util class.
+
 #ifndef __UTIL_H
 #define __UTIL_H
 
@@ -26,7 +28,6 @@ string readfile(string);
 bool writefile(string fn, string s);
 
 string itos(int i);
-int stoi(string s);
 
 int shout(int, string, unsigned int &);
 string shint(int b, int i);
@@ -265,6 +266,7 @@ struct util {
   static bool hasmagic(string, const string &magic);
   static string readfilemagic(string, const string &magic);
 
+  static int stoi(string s);
 
   static string ptos(void *);
   static unsigned int hash(string s);

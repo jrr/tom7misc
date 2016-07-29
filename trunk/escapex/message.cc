@@ -1,21 +1,21 @@
 
 #include "message.h"
 #include "font.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 #include "util.h"
 #include "chars.h"
 
 struct message_ : public message {
   static message_ * create();
-  virtual void destroy();
+  void destroy() override;
 
   /*  enter: true
      escape: false */
-  virtual bool ask(char * actualchar = 0, string charspec = "");
+  bool ask(char * actualchar = 0, string charspec = "") override;
 
-  virtual void draw();
-  virtual void screenresize();
+  void draw() override;
+  void screenresize() override;
 
   SDL_Surface * alpharect;
   bool loop (char * actualchar, string charspec);
@@ -52,15 +52,15 @@ void message_::destroy() {
 }
 
 message::~message() {}
-message_ * message_::create() {
-  message_ * pp = new message_();
+message_ *message_::create() {
+  message_ *pp = new message_{};
   pp->below = 0;
   pp->alpharect = 0;
   pp->posx = 0;
   pp->nlines = 0;
   return pp;
 }
-message * message::create() {
+message *message::create() {
   return message_::create();
 }
 
@@ -112,7 +112,7 @@ void message_::init() {
 }
 
 bool message_::ask(char * actualchar, string charspec) {
-  init ();
+  init();
   return loop(actualchar, charspec);
 }
 
@@ -147,11 +147,9 @@ void message_::draw() {
 }
 
 bool message_::loop(char * actualchar, string charspec) {
-
   redraw();
 
   SDL_Event e;
-
   while (SDL_WaitEvent(&e) >= 0) {
     if (handle_video_event(this, e)) continue;
     int key;

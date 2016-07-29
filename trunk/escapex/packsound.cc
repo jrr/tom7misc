@@ -1,6 +1,6 @@
 #include "escapex.h"
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 
 #include "util.h"
 #include "font.h"
@@ -100,7 +100,7 @@ int main (int argc, char ** argv) {
       fprintf(enums, "     %s,\n", name.c_str());
       
       /* use 'DIRSEP' instead of / */
-      string f = util::replace(file, "/", "\"DIRSEP\"");
+      string f = util::replace(file, "/", "\" DIRSEP \"");
 
       /* XXX specialize to platform */
       fprintf(load,

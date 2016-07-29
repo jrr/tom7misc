@@ -6,7 +6,7 @@
 #include "chars.h"
 #include "message.h"
 #include "prefs.h"
-#include "dirent.h"
+#include "directories.h"
 
 #include "draw.h"
 
@@ -62,22 +62,20 @@ struct pdbentry {
 };
 
 struct playerdb_ : public playerdb {
-
   /* make db with one player, 'Default' */
-  static playerdb_ * create();
-
-  virtual void destroy();
+  static playerdb_ *create();
 
   bool first;
-  virtual bool firsttime() { return first; }
+  bool firsttime() override { return first; }
 
-  virtual player * chooseplayer();
+  player *chooseplayer() override;
 
-  virtual ~playerdb_() {}
+  ~playerdb_() override {
+    sel->destroy();
+  }
 
-  private:
-
-  selector<pdbentry, player *> * sel;
+ private:
+  selector<pdbentry, player *> *sel;
   void addplayer(string);
   void delplayer(int);
   void insertmenu(int);
@@ -86,7 +84,6 @@ struct playerdb_ : public playerdb {
 
   static string makefilename(string name);
   static string safeify(string name);
-
 };
 
 /* assumes there's enough room! */
@@ -167,18 +164,12 @@ bool pdbentry::matches(char k) {
   else return false;
 }
 
-void playerdb_::destroy() {
-  sel->destroy();
-  delete this;
-}
-
 /* Read current directory, inserting any player file that's found.
    If there are none found, then create a "default" player and
    start over. */
 playerdb_ * playerdb_::create() {
   
-  playerdb_ * pdb = new playerdb_();
-  extent<playerdb_> ep(pdb);
+  std::unique_ptr<playerdb_> pdb{new playerdb_{}};
 
   /* need at least enough for the menuitems, and for the
      default player. */
@@ -234,8 +225,7 @@ playerdb_ * playerdb_::create() {
     pdb->first = false;
   }
 
-  ep.release();
-  return pdb;
+  return pdb.release();
 }
 
 string playerdb_::safeify(string name) {
@@ -352,10 +342,9 @@ void playerdb_::delplayer(int i) {
 }
 
 
-typedef selector<pdbentry, player *> selor;
+using selor = selector<pdbentry, player *>;
 
-player * playerdb_::chooseplayer() {
-
+player *playerdb_::chooseplayer() {
   sel->sort(pdbentry::cmp_bysolved);
 
   sel->redraw();
@@ -464,7 +453,7 @@ void playerdb_::promptnew() {
 void playerdb_::promptimport() {
 #if 0
   prompt * pp = prompt::create();
-  extent<prompt> ep(pp);
+  Extent<prompt> ep(pp);
 
   pp->title = "Enter filename (" BLUE "*.esp" POP "): ";
   pp->posx = 30;

@@ -2,6 +2,10 @@
 # Try to detect OS. Assumes windows if nothing works, so you 
 # may need to "export LINUX" or "export OSX" before you type make.
 
+# XXX can remove sdl_image on other platforms too.
+# XXX need to use cc-lib version of sdlutil.o
+# XXX also remove libpng!
+
 ifndef MINGW
 ifndef LINUX
 ifndef OSX
@@ -130,7 +134,7 @@ sdlutil-console.obj : sdlutil.cc
 escape.res : escape.rc escape.ico
 	rc /r /fo escape.res escape.rc
 
-escape.exe : main.obj level.obj sdlutil.obj play.obj font.obj dirent.obj load.obj util.obj md5.obj player.obj playerdb.obj prompt.obj draw.obj drawable.obj edit.obj editai.obj editprefab.obj mainmenu.obj upgrade.obj http.obj textscroll.obj message.obj update.obj dircache.obj upper.obj registration.obj upload.obj rating.obj menu.obj prefs.obj escape.res chunks.obj dirindex.obj textbox.obj analysis.obj generator.obj prime.obj commenting.obj cleanup.obj mainshow.obj handhold.obj animation.obj dirt.obj sound.obj base64.obj winmain.obj optimize.obj smanage.obj client.obj progress.obj leveldb.obj startup.obj backgrounds.obj escapex.obj
+escape.exe : main.obj level.obj sdlutil.obj play.obj font.obj directories.obj load.obj util.obj md5.obj player.obj playerdb.obj prompt.obj draw.obj drawable.obj edit.obj editai.obj editprefab.obj mainmenu.obj upgrade.obj http.obj textscroll.obj message.obj update.obj dircache.obj upper.obj registration.obj upload.obj rating.obj menu.obj prefs.obj escape.res chunks.obj dirindex.obj textbox.obj analysis.obj generator.obj prime.obj commenting.obj cleanup.obj mainshow.obj handhold.obj animation.obj dirt.obj sound.obj base64.obj winmain.obj optimize.obj smanage.obj client.obj progress.obj leveldb.obj startup.obj backgrounds.obj escapex.obj
 	${LINK} /out:"escape.exe" $^
 
 # other executables that need to be built:
@@ -174,7 +178,7 @@ endif
 ifdef LINUX
 # makefile for linux
 
-OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o
+OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o
 
 default : escape.exe
 
@@ -277,8 +281,6 @@ zipup : escape-beta.tar.gz
 
 source : escape-src.tar.bz2
 
-# 	cd /usr/src/escape-src && find . -name CVS > /usr/src/escape-src/.tarignore
-#       this includes binaries for OSX...
 escape-src.tar.bz2 :
 	cd /usr/src/escape-src && svn up
 	rm -rf /usr/src/escape-src/web
@@ -308,6 +310,8 @@ endif
 ifdef OSX
 # makefile for OSX
 
+# XXX reinstate sdl_mixer before doing another release!
+
 # XXX sourceforge compile farm is discontinued,
 # so vestiges of that might as well be trimmed from here for simplicity
 
@@ -321,7 +325,9 @@ FRAMEWORKS=OSX_build/Frameworks
 # Shouldn't be any need to change this,
 # unless you are using version 10.0
 # like some kind of caveman
-VERSION_TARGET=10.1
+VERSION_TARGET=10.10
+# From t7eshero. Maybe should be fixed.
+RPATH=-rpath @executable_path/../Frameworks
 
 # sound is disabled to give people time to upgrade the upgrader
 # to add it, remove -DNOSOUND and add
@@ -330,17 +336,26 @@ VERSION_TARGET=10.1
 #  -framework SDL_mixer
 # to the g++ line linking below
 
-# don't want to compile with sourceforge's SDL
+# used to have -arch i386 and -arch ppc, but x86_64 is the way now (2016)
+CXXFLAGS=-std=c++14
+# -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers 
 
-CPPFLAGS = -arch i386 -arch ppc -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_image.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
+# XXX: I added -I. here and made a symlink to the SDL include
+# directory called "SDL", since some frameworks want to include like
+# <SDL/sdl.h>. Don't know what the right fix is.
+CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX -DNOSOUND=1
 
-# good for 10.4 MacBook
+# good for 10.11 MacBook
 # used to use /usr/local/lib
 LIBS=-L/usr/lib
 
-escape.exe : main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o
+
+escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
 	export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	g++ -arch i386 -arch ppc -F${FRAMEWORKS} -framework SDL_net -framework SDL_image ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa -framework SDL_mixer $^ -o escape.exe
+	# -arch ppc retired
+	#  -framework SDL_mixer
+	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
 .dummy :
 
@@ -357,9 +372,9 @@ mkupgrade.exe : mkupgrade.cc md5.cc
 
 releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx
-	echo OSX_build/Frameworks/SDL_mixer.framework/SDL_mixer >> releasefiles.osx
-	echo OSX_build/Frameworks/SDL_mixer.framework/Resources/Info.plist >> releasefiles.osx
-	echo OSX_build/Frameworks/SDL_mixer.framework/Resources/pbdevelopment.plist >> releasefiles.osx
+	# echo OSX_build/Frameworks/SDL_mixer.framework/SDL_mixer >> releasefiles.osx
+	# echo OSX_build/Frameworks/SDL_mixer.framework/Resources/Info.plist >> releasefiles.osx
+	# echo OSX_build/Frameworks/SDL_mixer.framework/Resources/pbdevelopment.plist >> releasefiles.osx
 
 UPGRADE : .dummy mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx
 	strip escape.exe
@@ -370,9 +385,9 @@ release : UPGRADE
 	rm -rf ../release
 	mkdir ../release
 	cp ${RELEASEFILES} CURRENT UPGRADE ../release/
-	cp OSX_build/Frameworks/SDL_mixer.framework/SDL_mixer ../release/OSX_build_Frameworks_SDL_mixer.framework_SDL_mixer
-	cp OSX_build/Frameworks/SDL_mixer.framework/Resources/Info.plist ../release/OSX_build_Frameworks_SDL_mixer.framework_Resources_Info.plist
-	cp OSX_build/Frameworks/SDL_mixer.framework/Resources/pbdevelopment.plist ../release/OSX_build_Frameworks_SDL_mixer.framework_Resources_pbdevelopment.plist
+	# cp OSX_build/Frameworks/SDL_mixer.framework/SDL_mixer ../release/OSX_build_Frameworks_SDL_mixer.framework_SDL_mixer
+	# cp OSX_build/Frameworks/SDL_mixer.framework/Resources/Info.plist ../release/OSX_build_Frameworks_SDL_mixer.framework_Resources_Info.plist
+	# cp OSX_build/Frameworks/SDL_mixer.framework/Resources/pbdevelopment.plist ../release/OSX_build_Frameworks_SDL_mixer.framework_Resources_pbdevelopment.plist
 	rm -f UPGRADE CURRENT mkupgrade.executables
 
 releaseup : release
@@ -393,14 +408,14 @@ framelinks :
 	-mkdir OSX_build/Frameworks/SDL.framework/Versions/A
 	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions
 	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions/A
-	-mkdir OSX_build/Frameworks/SDL_image.framework/Versions
-	-mkdir OSX_build/Frameworks/SDL_image.framework/Versions/A
-	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions
-	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions/A
+	# -mkdir OSX_build/Frameworks/SDL_image.framework/Versions
+	# -mkdir OSX_build/Frameworks/SDL_image.framework/Versions/A
+	# -mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions
+	# -mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions/A
 	cd OSX_build/Frameworks/SDL.framework/Versions/A && ln -s ../../SDL SDL && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
 	cd OSX_build/Frameworks/SDL_net.framework/Versions/A && ln -s ../../SDL_net SDL_net && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
-	cd OSX_build/Frameworks/SDL_image.framework/Versions/A && ln -s ../../SDL_image SDL_image && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
-	cd OSX_build/Frameworks/SDL_mixer.framework/Versions/A && ln -s ../../SDL_mixer SDL_mixer && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
+	# cd OSX_build/Frameworks/SDL_image.framework/Versions/A && ln -s ../../SDL_image SDL_image && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
+	# cd OSX_build/Frameworks/SDL_mixer.framework/Versions/A && ln -s ../../SDL_mixer SDL_mixer && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
 
 app : escape.exe
 	rm -rf /tmp/Escape.app
@@ -417,13 +432,13 @@ app : escape.exe
 	cp mylevels/index.esi /tmp/Escape.app/Contents/MacOS/mylevels/
 	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build
 	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks
-	rm -rf /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
-	ln -s ../MacOS/OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
-	cp -R OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks/
+	# rm -rf /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
+	# ln -s ../MacOS/OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
+	# cp -R OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks/
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL.framework/Headers/*.h
-	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_image.framework/Headers/*.h
+	# rm -f /tmp/Escape.app/Contents/Frameworks/SDL_image.framework/Headers/*.h
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_net.framework/Headers/*.h
-	rm -f /tmp/Escape.app/Contents/MacOS/OSX_build/SDL_mixer.framework/Headers/*.h
+	# rm -f /tmp/Escape.app/Contents/MacOS/OSX_build/SDL_mixer.framework/Headers/*.h
 	rm -rf `find /tmp/Escape.app -name CVS`
 	rm -rf `find /tmp/Escape.app -name .svn`
 	rm -rf `find /tmp/Escape.app -name .DS_Store`
@@ -445,7 +460,7 @@ wc :
 	wc -l *.cc *.h
 
 clean :
-	rm -f *.o escape.exe core core.[0-9]* .DS_Store
+	rm -f *.o escape.exe core core.[0-9]* .DS_Store ${CCLIBOBJECTS}
 
 
 # end OSX makefile

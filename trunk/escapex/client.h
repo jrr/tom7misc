@@ -42,7 +42,7 @@ struct client {
       return 0;
     }
 
-    extent<http> eh(hh);
+    ::Extent<http> eh(hh);
 
     string ua = "Escape (" VERSION "; " PLATFORM ")";
     if (tx) tx->say((string)"This is: " + ua);
@@ -51,7 +51,7 @@ struct client {
 
     if (tx) tx->say((string)
 		    "Connecting to " YELLOW + serveraddress + 
-		    WHITE":"POP + itos(serverport) + POP "...");
+		    WHITE ":" POP + itos(serverport) + POP "...");
 
     if (that) {
       that->draw();

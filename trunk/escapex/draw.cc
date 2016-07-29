@@ -2,7 +2,7 @@
 /* drawing a level */
 
 #include "draw.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "chars.h"
 #include "util.h"
 #include "animation.h"
@@ -33,10 +33,10 @@ SDL_Surface ** drawing::tileutil = 0;
 bool drawing::loadimages() {
   /* PERF could be alpha=false. but the alphadim and shrink50
      routines rely on this being a 32 bit graphic. */
-  SDL_Surface * tt = sdlutil::imgload(TILES_FILE);
+  SDL_Surface * tt = sdlutil::LoadImage(TILES_FILE);
   if (!tt) return 0;
   
-  SDL_Surface * uu = sdlutil::imgload(TILEUTIL_FILE);
+  SDL_Surface * uu = sdlutil::LoadImage(TILEUTIL_FILE);
   if (!uu) return 0;
 
   /* XXX make dim levels for font too (pass in argument) */
@@ -571,7 +571,7 @@ void drawing::drawdests(SDL_Surface * surf, bool shuffle) {
 	    /* draw line: dark bg first */
 	    {
 	      line * l = line::create(sx, sy, px, py);
-	      extent<line> el(l);
+	      Extent<line> el(l);
 		
 	      int xx, yy;
 	      while (l->next(xx, yy)) {
@@ -594,7 +594,7 @@ void drawing::drawdests(SDL_Surface * surf, bool shuffle) {
 	    /* then inside */
 	    {
 	      line * l = line::create(sx, sy, px, py);
-	      extent<line> el(l);
+	      Extent<line> el(l);
 		
 	      int xx, yy;
 	      while (l->next(xx, yy)) {
@@ -736,7 +736,7 @@ void drawing::drawsmall(int y,
 	    (string)YELLOW "Size:   " + ((l->iscorrupted())?RED:GREEN) +
 	    itos(l->w) + (string)GREY "x" POP +
 	    itos(l->h) + POP POP +
-	    (string)((l->iscorrupted())?RED" corrupted!"POP:""));
+	    (string)((l->iscorrupted()) ? RED " corrupted!" POP : ""));
 
   texty += fon->height + 2;
 

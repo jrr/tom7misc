@@ -1,7 +1,7 @@
 
 #include "prompt.h"
 #include "font.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 #include "chars.h"
 #include "extent.h"
@@ -20,7 +20,7 @@ prompt::~prompt() {}
 
 string prompt::ask(drawable * b, string t, string d) {
   prompt * pp = prompt::create();
-  extentd<prompt> ep(pp);
+  Extentd<prompt> ep(pp);
   pp->title = t;
   pp->below = b;
   pp->input = d;

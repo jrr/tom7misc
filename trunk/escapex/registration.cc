@@ -49,7 +49,7 @@ void registration_::registrate() {
     return;
   }
 
-  extent<http> eh(hh);
+  Extent<http> eh(hh);
 
   /* XXX again, need a better way to detect this */
   if (plr->name == "Default") {
@@ -78,7 +78,7 @@ void registration_::registrate() {
 		    (string)"&name=" + httputil::urlencode(plr->name),
 		    res)) {
       
-      int id = stoi(res);
+      int id = util::stoi(res);
       if (id) {
 	plr->webid = id;
 	plr->webseql = seql;

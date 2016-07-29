@@ -1,7 +1,7 @@
 
 #include "upper.h"
 #include "util.h"
-#include "dirent.h"
+#include "directories.h"
 #include "md5.h"
 #include "chars.h"
 #include "dirindex.h"

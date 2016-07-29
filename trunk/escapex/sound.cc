@@ -35,6 +35,7 @@ void sound::init() {
     /* XXX fall back to mono if stereo fails */
 
     /* uses 16 bit at system byte order */
+    // XXX 22KHz, really??
     if (-1 == Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, 2, 1024)) {
       printf("Can't open audio. (%s)\n", Mix_GetError());
       return;

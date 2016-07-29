@@ -199,7 +199,7 @@ bool level::triggers(int tile, int panel) {
 disamb * disamb::create(level * l) {
   disamb * d = new disamb();
   if (!d) return 0;
-  extent<disamb> ed(d);
+  Extent<disamb> ed(d);
   d->w = l->w;
   d->h = l->h;
   d->map = (unsigned int *)malloc(d->w * d->h * sizeof(unsigned int));
@@ -732,7 +732,7 @@ int * level::rledecode(string s, unsigned int & idx_bytes, int n) {
   int idx = idx_bytes * 8;
 
   if (!out) return 0;
-  extentf<int> eo(out);
+  Extentf<int> eo(out);
 
   /* number of bytes used to represent one integer. */
   unsigned int bytecount;
@@ -1268,10 +1268,10 @@ level * level::defboard(int w, int h) {
 
 bool level::verify_prefix(const level * lev, const solution * s, solution *& out) {
   level * l = lev->clone();
-  extent<level> el(l);
+  Extent<level> el(l);
 
   out = solution::empty();
-  extent<solution> eo(out);
+  Extent<solution> eo(out);
 
   for(solution::iter i = solution::iter(s);
       i.hasnext();
