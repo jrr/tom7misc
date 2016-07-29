@@ -5,61 +5,64 @@
 /* provides 'auto'-style deallocation
    for pointers with 'destroy' method. */
 
+// TODO: Delete this class. Use std::unique ptr and use destructors
+// instead of destroy.
+
 template <class P>
-struct extent {
+struct Extent {
   
   P * ptr;
 
-  extent(P * p) : ptr(p) {}
+  Extent(P * p) : ptr(p) {}
 
   void release() { ptr = 0; }
 
   void replace(P * p) { ptr = p; }
 
-  ~extent() { if (ptr) ptr->destroy(); }
+  ~Extent() { if (ptr) ptr->destroy(); }
 
 };
 
 /* for destructor */
 template <class P>
-struct extentd {
+struct Extentd {
   
   P * ptr;
 
-  extentd(P * p) : ptr(p) {}
+  Extentd(P * p) : ptr(p) {}
 
   void release() { ptr = 0; }
 
   void replace(P * p) { ptr = p; }
 
-  ~extentd() { if (ptr) delete ptr; }
+  ~Extentd() { if (ptr) delete ptr; }
 
 };
 
 /* for destructor, array of */
 template <class P>
-struct extentda {
+struct Extentda {
   
   P * ptr;
 
-  extentda(P * p) : ptr(p) {}
+  Extentda(P * p) : ptr(p) {}
 
   void release() { ptr = 0; }
 
   void replace(P * p) { ptr = p; }
 
-  ~extentda() { if (ptr) delete [] ptr; }
+  ~Extentda() { if (ptr) delete [] ptr; }
 
 };
 
 /* for call to 'free' */
 template <class P>
-struct extentf {
+struct Extentf {
   P * ptr;
-  extentf(P * p) : ptr(p) {}
+  Extentf(P * p) : ptr(p) {}
   void release () { ptr = 0; }
   void replace(P * p) { ptr = p; }
-  ~extentf() { if (ptr) free(ptr); }
+  ~Extentf() { if (ptr) free(ptr); }
 };
 
 #endif

@@ -1,14 +1,14 @@
 
 
 #include "escapex.h"
-#include"level.h"
-#include "sdlutil.h"
+#include "level.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "load.h"
 #include "md5.h"
 
 #include <sys/stat.h>
 
-#include "dirent.h"
+#include "directories.h"
 
 #include "extent.h"
 #include "util.h"
@@ -49,7 +49,7 @@ struct dcreal : public dircache {
   static dcreal * create(player * p) {
     dcreal * dc = new dcreal();
     if (!dc) return 0;
-    extent<dcreal> e(dc);
+    Extent<dcreal> e(dc);
   
     dc->plr = p;
 

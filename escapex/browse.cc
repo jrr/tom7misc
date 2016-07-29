@@ -4,7 +4,7 @@
 // separate files.
 #include "escapex.h"
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "browse.h"
 #include "md5.h"
 #include "backgrounds.h"
@@ -13,7 +13,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "dirent.h"
+#include "directories.h"
 
 #include "extent.h"
 #include "dircache.h"

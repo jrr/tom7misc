@@ -291,7 +291,7 @@ void rsreal::rate() {
 
     if (success) {
 
-      int record = stoi(res);
+      int record = util::stoi(res);
       solution * ours = plr->getsol(levmd5);
       if (plr->webid && ours && ours->length < record) {
 	/* beat the record! prompt to upload. */

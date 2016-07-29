@@ -1,10 +1,9 @@
 
 #include "SDL.h"
-#include "SDL_image.h"
 #include <math.h>
 #include "time.h"
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 
 #include "escapex.h"
@@ -83,19 +82,19 @@ struct preal : public play {
 
   /* hand closure-converted, ugh */
   bool redo();
-  void undo(level *& start, extent<level> & ec, int nmoves);
-  void restart(level *& start, extent<level> & ec);
+  void undo(level *& start, Extent<level> & ec, int nmoves);
+  void restart(level *& start, Extent<level> & ec);
   void checkpoint(solution *& saved_sol,
-		  extent<solution> & ess);
-  void restore(extent<level> & ec,
+		  Extent<solution> & ess);
+  void restore(Extent<level> & ec,
 	       level * start,
 	       solution * saved_sol,
-	       extent<solution> & eso);
+	       Extent<solution> & eso);
   void bookmarks(level * start, 
-		 extent<level> & ec,
+		 Extent<level> & ec,
 		 player * plr, string md5, 
 		 solution *& sol,
-		 extent<solution> & eso);
+		 Extent<solution> & eso);
   void bookmark_download(player * plr, string lmd5, level * lev);
 
 
@@ -541,7 +540,7 @@ bool preal::redo() {
 }
 
 /* oh how I yearn for nested functions */
-void preal::undo(level *& start, extent<level> & ec, int nm) {
+void preal::undo(level *& start, Extent<level> & ec, int nm) {
   if (solpos > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -558,7 +557,7 @@ void preal::undo(level *& start, extent<level> & ec, int nm) {
   }
 }
 
-void preal::restart(level *& start, extent<level> & ec) {
+void preal::restart(level *& start, Extent<level> & ec) {
   dr.lev->destroy();
   solpos = 0;
   dr.lev = start->clone();
@@ -585,10 +584,10 @@ void preal::setsolseta(player * plr, string md5,
 }
 
 void preal::bookmarks(level * start, 
-		      extent<level> & ec,
+		      Extent<level> & ec,
 		      player * plr, string md5, 
 		      solution *& sol,
-		      extent<solution> & eso) {
+		      Extent<solution> & eso) {
 
   enum okaywhat_t { OKAYWHAT_HUH, OKAYWHAT_NEW=10, OKAYWHAT_DOWNLOAD, };
 
@@ -684,7 +683,7 @@ void preal::bookmarks(level * start,
     }
 
     menu * mm = menu::create(this, "Bookmarks", l, false);
-    extent<menu> em(mm);
+    Extent<menu> em(mm);
     ptrlist<menuitem>::diminish(l);
 
     mm->yoffset = fon->height + 4;
@@ -867,14 +866,14 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
     return;
   }
 
-  extent<http> eh(hh);
+  Extent<http> eh(hh);
   /* XXX register callback.. */
 
   httpresult hr = hh->get(ALLSOLS_URL + md5::ascii(lmd5), s);
 
   if (hr == HT_OK) {
     /* parse result. see protocol.txt */
-    int nsols = stoi(util::getline(s));
+    int nsols = util::stoi(util::getline(s));
 
     td.say("OK. Solutions on server: " GREEN + itos(nsols) + POP);
 
@@ -885,8 +884,8 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
       string moves = base64::decode(util::getline(s));
 
       /* this is the solution id, which we don't need */
-      (void) stoi(util::chop(line1));
-      int date = stoi(util::chop(line1));
+      (void) util::stoi(util::chop(line1));
+      int date = util::stoi(util::chop(line1));
       string name = util::losewhitel(line1);
 
       solution * s = solution::fromstring(moves);
@@ -895,7 +894,7 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
 	return;
       }
 
-      extent<solution> es(s);
+      Extent<solution> es(s);
 
       namedsolution ns;
       ns.sol = s;
@@ -921,7 +920,7 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
 
 
 void preal::checkpoint(solution *& saved_sol,
-		       extent<solution> & ess) {
+		       Extent<solution> & ess) {
   saved_sol->destroy();
   saved_sol = sol->clone();
   /* shouldn't save redos */
@@ -934,10 +933,10 @@ void preal::checkpoint(solution *& saved_sol,
   watching = false;
 }
 
-void preal::restore(extent<level> & ec,
+void preal::restore(Extent<level> & ec,
 		    level * start,
 		    solution * saved_sol,
-		    extent<solution> & eso) {
+		    Extent<solution> & eso) {
   if (saved_sol->length > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -1007,10 +1006,10 @@ playresult preal::doplay_save(player * plr, level * start,
 			      solution *& saved, string md5) {
   /* we never modify 'start' */
   dr.lev = start->clone();
-  extent<level> ec(dr.lev);
+  Extent<level> ec(dr.lev);
   
   disamb * ctx = disamb::create(start);
-  extent<disamb> edc(ctx);
+  Extent<disamb> edc(ctx);
 
   sol = solution::empty();
   solpos = 0;
@@ -1023,8 +1022,8 @@ playresult preal::doplay_save(player * plr, level * start,
     saved_sol = saved->clone ();
   }
 
-  extent<solution> ess(saved_sol);
-  extent<solution> eso(sol); 
+  Extent<solution> ess(saved_sol);
+  Extent<solution> eso(sol); 
 
   dr.scrollx = 0;
   dr.scrolly = 0;
@@ -1043,7 +1042,7 @@ playresult preal::doplay_save(player * plr, level * start,
 
   /* XX avoid creating if animation is off? */
   dirt * dirty = dirt::create();
-  extent<dirt> edi(dirty);
+  Extent<dirt> edi(dirty);
 
   bool pref_animate = 
     prefs::getbool(plr, PREF_ANIMATION_ENABLED);
@@ -1430,7 +1429,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
   if (lev) { 
 
     play * pla = play::create();
-    extent<play> ep(pla);
+    Extent<play> ep(pla);
 
     playresult res = pla->doplay(plr, lev, md5);
 
@@ -1527,7 +1526,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
 
 	ratescreen * rs = ratescreen::create(plr, lev, md5);
 	if (rs) {
-	  extent<ratescreen> re(rs);
+	  Extent<ratescreen> re(rs);
 	  rs->setmessage(YELLOW
 			 "Please rate this level." POP
 			 GREY " (You can turn off this "
@@ -1697,7 +1696,7 @@ bool play::animatemove(drawing & dr, disamb *& ctx, dirt *& dirty, dir d) {
 	// printf("** doing serial %d\n", s);
 	while (events && events->head->serial == s) {
 	  aevent * ee = elist::pop(events);
-	  extentd<aevent> eh(ee);
+	  Extentd<aevent> eh(ee);
 	  animation::start(dr, anims, sprites, ee);
 	}
 

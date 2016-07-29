@@ -11,7 +11,6 @@
    and then searched for inside levels. This is
    mainly used within the random level generators
    in editai.
-
 */
 
 struct match {
@@ -43,7 +42,7 @@ struct match {
   struct stream {
     /* returns 0 when the stream is empty */
     virtual match * next () = 0;
-    virtual void destroy () = 0;
+    virtual ~stream() {}
   };
 
 
@@ -78,16 +77,10 @@ template <class Info>
 struct pattern {
 
   static pattern * create (string s) {
-    pattern * p = new pattern();
-    if (!p) return 0;
+    std::unique_ptr<pattern> p{new pattern{}};
 
-    extent<pattern> ep(p);
-
-    {
-      for(int i = 0; i < 256; i ++)
-        p->tab[i].t = H_ERROR;
-    }
-
+    for(int i = 0; i < 256; i ++)
+      p->tab[i].t = H_ERROR;
 
     /* ignore whitespace */
     s = util::replace(s, " ", "");
@@ -147,8 +140,7 @@ struct pattern {
     if (p->w <= 0) return 0;
     if (p->h <= 0) return 0;
     
-    ep.release();
-    return p;
+    return p.release();
   }
 
   private: int w, h; int * regs; int nregs; char * chars;
@@ -189,11 +181,6 @@ struct pattern {
 
       dirsleft = 4;
       this_dir = 1 + (util::random() & 3);
-
-    }
-
-    virtual void destroy () {
-      delete this;
     }
 
     /* PERF: this should detect symmetric patterns and only look
@@ -201,7 +188,7 @@ struct pattern {
     virtual match * next () {
       /* if there are more dirs in the current
          position, then */
-      for(;;)
+      for (;;)
         if (g.anyleft() && dirsleft) {
           this_dir = 1 + (this_dir % 4);
           dirsleft --;
@@ -239,7 +226,7 @@ struct pattern {
           int rdxx = 0, rdxy = 0,
             rdyx = 0, rdyy = 0;
 	  
-          switch(sd) {
+          switch (sd) {
           case DIR_UP:
             rdxx = rdyy = 1; 
             break;
@@ -280,7 +267,7 @@ struct pattern {
 	  
           int * r = new int[pat->nregs];
           for(int z = 0; z < pat->nregs; z ++) r[z] = 0;
-          extentda<int> re(r);
+          Extentda<int> re(r);
 	
           for(int vi = 0; vi < (pat->w * pat->h); vi ++) {
             int vx = vi % pat->w;

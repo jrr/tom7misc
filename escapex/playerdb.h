@@ -16,15 +16,12 @@ struct playerdb {
      if there are none, create a default. */
   static playerdb * create();
 
-  virtual void destroy() = 0;
-
   virtual player * chooseplayer() = 0;
 
   /* was this the first launch? (no default player found) */
   virtual bool firsttime() = 0;
 
   virtual ~playerdb () {}
-
 };
 
 #endif

@@ -5,7 +5,7 @@
 #include <SDL.h>
 #include "escapex.h"
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "font.h"
 #include "draw.h"
 
@@ -86,7 +86,7 @@ struct selector : public drawable {
      left < right     ->    -1
      left = right     ->     0
      left > right     ->     1 */
-  void sort( int (*compare)(const Item & left, const Item & right) ) {
+  void sort(int (*compare)(const Item & left, const Item & right)) {
     quicks(compare, 0, number - 1);
   }
 
@@ -212,7 +212,6 @@ struct selector : public drawable {
   }
 
   virtual void draw () {
-
     if (below) {
       below->draw();
     } else {

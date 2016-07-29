@@ -1,6 +1,6 @@
 #include "escapex.h"
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 
 #include "util.h"
 #include "font.h"

@@ -1,4 +1,6 @@
 
+// XXX I think can be merged with cc-lib's
+
 #ifndef __FONT_H
 #define __FONT_H
 

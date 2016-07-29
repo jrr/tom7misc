@@ -1,9 +1,8 @@
 
 #include "SDL.h"
-#include "SDL_image.h"
 #include <math.h>
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 
 #include "escapex.h"
@@ -552,7 +551,7 @@ bool editor::retract_gold() {
   pattern<void> * bgold = pattern<void>::create("\\0 \\1GS\n");
 
   if (bgold) {
-    extent<pattern<void> > ep(bgold);
+    Extent<pattern<void> > ep(bgold);
 
     /* XX could include panels */
     bgold->settile(' ', T_FLOOR);
@@ -560,15 +559,14 @@ bool editor::retract_gold() {
     bgold->setpredicate('S', pred_stops_gold);
     
     onionfind * reach = analysis::reachable(lev);
-    extentd<onionfind> ed(reach);
+    Extentd<onionfind> ed(reach);
   
-    match::stream * matches = 
-      bgold->findall(dr.lev, 0);
-    extent<match::stream> es(matches);
+    std::unique_ptr<match::stream> matches{
+      bgold->findall(dr.lev, 0)};
 
-    match * m;
-    while ((m = matches -> next ())) {
-      extent<match> em(m);
+    // XXX upgradint extent; this can be done a better way
+    while (match *mtmp = matches->next()) {
+      std::unique_ptr<match> m{mtmp};
 
       int x, y;
       m->getindex(1, x, y);
@@ -818,7 +816,7 @@ void editor::retract1() {
   without dying) */
 
   onionfind * rr = analysis::reachable(dr.lev);
-  extentd<onionfind> re(rr);
+  Extentd<onionfind> re(rr);
 
 # if 0
   {

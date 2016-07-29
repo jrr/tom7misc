@@ -46,7 +46,7 @@ upload * upload::create() {
 ulreal * ulreal::create() {
   ulreal * ur = new ulreal();
   if (!ur) return 0;
-  extent<ulreal> eu(ur);
+  Extent<ulreal> eu(ur);
 
   ur->tx = textscroll::create(fon);
   if (!ur->tx) return 0;
@@ -70,7 +70,7 @@ upresult ulreal::up (player * p, string f, string text) {
   level * lev = level::fromstring(levcont);
   if (!lev) return UL_FAIL;
 
-  extent<level> el(lev);
+  Extent<level> el(lev);
   
   string md5c = md5::hash(levcont);
 
@@ -89,7 +89,7 @@ upresult ulreal::up (player * p, string f, string text) {
     say(RED "optimization failed" POP);
     return UL_FAIL;
   }
-  extent<solution> es(opt);
+  Extent<solution> es(opt);
 
   say(YELLOW + itos(slong->length) + GREY " " LRARROW " " POP +
       itos(opt->length) + POP);

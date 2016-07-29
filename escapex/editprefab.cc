@@ -1,9 +1,8 @@
 
 #include "SDL.h"
-#include "SDL_image.h"
 #include <math.h>
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 
 #include "escapex.h"
@@ -182,8 +181,8 @@ void editor::pffile() {
   mm->destroy ();
 	      
   if (res == MR_OK) {
-    int xo = stoi(xoff.input);
-    int yo = stoi(yoff.input);
+    int xo = util::stoi(xoff.input);
+    int yo = util::stoi(yoff.input);
     if (xo < 0 || yo < 0) {
       message::no(this, "bad offsets");
       return;
@@ -327,7 +326,7 @@ void editor::pftimer() {
   mm->destroy ();
 	      
   if (res == MR_OK) {
-    int n = stoi(nmoves.input);
+    int n = util::stoi(nmoves.input);
     if (n <= 0) {
       message::no(this, "bad number of moves");
       return;

@@ -182,7 +182,7 @@ ccresult updatereal::checkcolls(http * hh,
 
   if (hr == HT_OK) {
     /* parse result. see protocol.txt */
-    int ncolls = stoi(util::getline(s));
+    int ncolls = util::stoi(util::getline(s));
 
     say((string)BLUE + itos(ncolls) + (string)" collection" +
 	(string)((ncolls==1)?"":"s") + (string)":" POP);
@@ -192,19 +192,19 @@ ccresult updatereal::checkcolls(http * hh,
       string line = util::getline(s);
       
       string fname = util::chop(line);
-      int minv  = stoi(util::chop(line));
+      int minv  = util::stoi(util::chop(line));
       string showname = line;
 
-      int usable = stoi(VERSION) >= minv;
+      int usable = util::stoi(VERSION) >= minv;
 
       if (fname == "") {
 	say(RED "  collections file corrupt!!" POP);
 	return CC_FAIL;
       }
 
-      say((string)"  "YELLOW + fname + POP +
-	  (string)(usable?" "GREEN:" "RED) +
-	  itos(minv) + (string)POP" "BLUE + showname + POP);
+      say((string)"  " YELLOW + fname + POP +
+	  (string)(usable? " " GREEN : " " RED) +
+	  itos(minv) + (string)POP " " BLUE + showname + POP);
 
       if (usable) {
 	stringlist::push(fnames, fname);
@@ -328,12 +328,12 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
     /* parse result. see protocol.txt */
 
     string showname = util::getline(s);
-    int minv = stoi(util::getline(s));
-    int ndirs = stoi(util::getline(s));
-    int nfiles = stoi(util::getline(s));
+    int minv = util::stoi(util::getline(s));
+    int ndirs = util::stoi(util::getline(s));
+    int nfiles = util::stoi(util::getline(s));
     string version = util::getline(s);    
 
-    if (stoi(VERSION) < minv) {
+    if (util::stoi(VERSION) < minv) {
       say(RED "?? Server inconsistent: This escape version is too old!" POP);
       /* fail */
       return;
@@ -347,7 +347,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
       return;
     }
 
-    extent<upper> eu(up);
+    Extent<upper> eu(up);
 
     /* always save the root dir */
     up->savedir("", showname);
@@ -403,16 +403,16 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 
       ratestatus votes;
 
-      votes.nvotes = stoi(util::chop(line));
-      votes.difficulty = stoi(util::chop(line));
-      votes.style = stoi(util::chop(line));
-      votes.rigidity = stoi(util::chop(line));
-      votes.cooked = stoi(util::chop(line));
-      votes.solved = stoi(util::chop(line));
+      votes.nvotes = util::stoi(util::chop(line));
+      votes.difficulty = util::stoi(util::chop(line));
+      votes.style = util::stoi(util::chop(line));
+      votes.rigidity = util::stoi(util::chop(line));
+      votes.cooked = util::stoi(util::chop(line));
+      votes.solved = util::stoi(util::chop(line));
 
-      int date = stoi(util::chop(line));
-      int speedrecord = stoi(util::chop(line));
-      int owner = stoi(util::chop(line));
+      int date = util::stoi(util::chop(line));
+      int speedrecord = util::stoi(util::chop(line));
+      int owner = util::stoi(util::chop(line));
 
       /* require file and md5, but not any of the voting stuff
 	 (they will default to 0) */
@@ -427,7 +427,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 	
 	message::quick(this, (string)
 		       RED "Unable to complete update of " BLUE + fname +
-		       (string)POP"."POP, "Next", "", PICS XICON POP);
+		       (string)POP "." POP, "Next", "", PICS XICON POP);
 
 	return;
 
@@ -470,7 +470,7 @@ updateresult updatereal::update(string & msg) {
     return UD_FAIL;
   }
 
-  extent<http> eh(hh);
+  Extent<http> eh(hh);
 
   stringlist * fnames = 0;
   stringlist * shownames = 0;

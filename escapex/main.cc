@@ -1,5 +1,8 @@
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
+
+// XXX temporary for "sleep" 
+#include <unistd.h>
 
 #include "util.h"
 #include "escapex.h"
@@ -79,9 +82,7 @@ int main (int argc, char ** argv) {
     audio = 1;
   }
   
-
-
-  if(SDLNet_Init() == -1) {
+  if (SDLNet_Init() == -1) {
     network = 0;
     printf("(debug) SDLNet_Init: %s\n", SDLNet_GetError());
   } else {
@@ -99,7 +100,7 @@ int main (int argc, char ** argv) {
   {
     printf("Welcome to escape " VERSION ".\n");
     SDL_WM_SetCaption("escape " VERSION, "");
-    SDL_Surface * icon = IMG_Load(ICON_FILE);
+    SDL_Surface * icon = sdlutil::LoadImage(ICON_FILE);
     if (icon) SDL_WM_SetIcon(icon, 0);
     /* XXX free icon? It's not clear where we
        can safely do this. */
@@ -116,7 +117,7 @@ int main (int argc, char ** argv) {
      takes some time! */
 
   {
-    SDL_Surface * splash = sdlutil::imgload(SPLASH_FILE);
+    SDL_Surface * splash = sdlutil::LoadImage(SPLASH_FILE);
     if (splash) {
       SDL_Rect dst;
       dst.x = 2;
@@ -164,26 +165,26 @@ int main (int argc, char ** argv) {
   /* The "real" main loop. */
   /* XXX should put the following in some other function. */
   {
-    player * plr = 0;
+    player * plr = nullptr;
     {
-      playerdb * pdb = playerdb::create();
-      extent<playerdb> epdb(pdb);
-      
-      if (!pdb) {
+      std::unique_ptr<playerdb> pdb{playerdb::create()};
+      if (pdb.get() == nullptr) {
 	message::bug(0, "Error in playerdb?");
 	goto oops;
       }
       
       /* If there are no players, assume this is the
 	 first launch. */
-      if (pdb->firsttime()) handhold::firsttime();
+      if (pdb->firsttime()) {
+	handhold::firsttime();
+      }
 
       plr = pdb->chooseplayer();
     }
 
     if (!plr) goto oops;
 
-    extent<player> ep(plr);
+    ::Extent<player> ep(plr);
 
     /* selected player. now begin the game. */
 
@@ -193,7 +194,7 @@ int main (int argc, char ** argv) {
       goto oops;
     }
 
-    extent<mainmenu> em(mm);
+    ::Extent<mainmenu> em(mm);
 
     // XXX here?
     leveldb::setplayer(plr);
@@ -201,8 +202,7 @@ int main (int argc, char ** argv) {
     leveldb::addsourcedir("mylevels");
     leveldb::addsourcedir("official");
 
-    while(1) {
-
+    for (;;) {
       mainmenu::result r = mm->show();
 
       if (r == mainmenu::LOAD) {
@@ -231,7 +231,7 @@ int main (int argc, char ** argv) {
 #if 1
 	for(;;) // XXX loop in browser instead.
 	  if (browse * bb = browse::create()) {
-	    extent<browse> bb_d(bb);
+	    ::Extent<browse> bb_d(bb);
 	    // XXX: Instead, have a version of the browser
 	    // that invokes playrecord on the stack, and a
 	    // separate bb->selectfile() for editing.
@@ -267,7 +267,7 @@ int main (int argc, char ** argv) {
           message::bug(0, "Error creating editor");
           goto oops;
         }
-        extent<editor> exe(ee);
+        ::Extent<editor> exe(ee);
         
         ee->edit();
 
@@ -280,11 +280,11 @@ int main (int argc, char ** argv) {
           message::bug(0, "Error creating upgrader");
           goto oops;
         }
-        extent<upgrader> exu(uu);
+        ::Extent<upgrader> exu(uu);
 
         string msg;
 
-        switch(uu->upgrade (msg)) {
+        switch (uu->upgrade (msg)) {
         case UP_EXIT:
           /* force quit */
           goto done;
@@ -301,7 +301,7 @@ int main (int argc, char ** argv) {
           message::bug(0, "Error creating updater");
           goto oops;
         }
-        extent<updater> exu(uu);
+        ::Extent<updater> exu(uu);
 
         string msg;
 
@@ -316,7 +316,7 @@ int main (int argc, char ** argv) {
           goto oops;
         }
         
-        extent<registration> exr(rr);
+        ::Extent<registration> exr(rr);
 
         rr->registrate();
 

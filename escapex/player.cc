@@ -5,7 +5,7 @@
 #include "chunks.h"
 #include "checkfile.h"
 #include "prefs.h"
-#include "dirent.h"
+#include "directories.h"
 
 #include "base64.h"
 #include "md5.h"
@@ -237,7 +237,7 @@ player * player::create(string n) {
 playerreal * playerreal::create(string n) {
   playerreal * p = new playerreal();
   if (!p) return 0;
-  extent<playerreal> e(p);
+  Extent<playerreal> e(p);
   
   p->name = n;
   
@@ -534,16 +534,16 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
   playerreal * p = playerreal::create("");
   if (!p) FF_FAIL("out of memory?");
   p->fname = fname;
-  extent<playerreal> ep(p);
+  Extent<playerreal> ep(p);
 
   string s;
 
   /* strip newline after magic */
   if (!(cf->getline(s) && s == "")) FF_FAIL("newline after magic");
 
-  if (!cf->getline(s)) FF_FAIL("no webid"); p->webid = stoi(s);
-  if (!cf->getline(s)) FF_FAIL("no seqh");  p->webseqh = stoi(s);
-  if (!cf->getline(s)) FF_FAIL("no seql");  p->webseql = stoi(s);
+  if (!cf->getline(s)) FF_FAIL("no webid"); p->webid = util::stoi(s);
+  if (!cf->getline(s)) FF_FAIL("no seqh");  p->webseqh = util::stoi(s);
+  if (!cf->getline(s)) FF_FAIL("no seql");  p->webseql = util::stoi(s);
 
   /* ignored fields for now */
   for(int z = 0; z < IGNORED_FIELDS; z++) {
@@ -645,7 +645,7 @@ playerreal * playerreal::fromfile(string file) {
 
   checkfile * cf = checkfile::create(file);
   if (!cf) return 0;
-  extent<checkfile> ecf(cf);
+  Extent<checkfile> ecf(cf);
 
   string s;
   if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return 0;
@@ -662,7 +662,7 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
   playerreal * p = playerreal::create("");
   if (!p) return 0;
   p->fname = fname;
-  extent<playerreal> ep(p);
+  Extent<playerreal> ep(p);
 
   string s;
   int i;

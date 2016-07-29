@@ -40,7 +40,7 @@ onionfind * analysis::reachable (level * lev) {
 
       if (isempty(lev->tileat(x, y))) {
 	level * cl = lev->clone ();
-	extent<level> el(cl);
+	Extent<level> el(cl);
 
 	cl->warp(cl->guyx, cl->guyy, x, y);
 
@@ -50,7 +50,7 @@ onionfind * analysis::reachable (level * lev) {
 
 	for(dir d = FIRST_DIR; d <= LAST_DIR; d ++) {
 	  level * cc = cl->clone ();
-	  extent<level> ec(cc);
+	  Extent<level> ec(cc);
 
 	  
 	  /* we can't be walking off the map! */
@@ -63,7 +63,7 @@ onionfind * analysis::reachable (level * lev) {
 	      cc->move(d) && !cc->isdead(dummy, dummy, unused)) {
 	    /* good. now just check the opposite... */
 	    level * co = cl->clone ();
-	    extent<level> eec(co);
+	    Extent<level> eec(co);
 
 	    co->warp(cl->guyx, cl->guyy, destx, desty);
 	    
@@ -122,18 +122,18 @@ static bool separator(level * lev, int x, int y,
   if (!search && (x == x2 && y == y2)) return false;
 
   onionfind * orig = analysis::reachable(lev);
-  extentd<onionfind> oe(orig);
+  Extentd<onionfind> oe(orig);
 
   /* original equivalence class that we're in. */
   int oclass = orig->find(lev->index(x1, y1));
 
   level * nlev = lev->clone ();
-  extent<level> le(nlev);
+  Extent<level> le(nlev);
   
   nlev->settile(x, y, tile);
 
   onionfind * fresh = analysis::reachable(nlev);
-  extentd<onionfind> oo(fresh);
+  Extentd<onionfind> oo(fresh);
 
 # if 0
   {

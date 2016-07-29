@@ -105,7 +105,7 @@ fontreal * fontreal::create (string file,
 
   fontreal * f = new fontreal();
   if (!f) return 0;
-  extent<fontreal> fe(f);
+  Extent<fontreal> fe(f);
   f->width = width;
   f->height = height;
   f->styles = styles;
@@ -119,7 +119,7 @@ fontreal * fontreal::create (string file,
   if (!f->data) return 0;
   for(int z = 0; z < ndim; z++) f->data[z] = 0;
 
-  f->data[0] = sdlutil::imgload(file.c_str());
+  f->data[0] = sdlutil::LoadImage(file.c_str());
   if (!f->data[0]) return 0;
 
   int last = 0;

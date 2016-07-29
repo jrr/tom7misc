@@ -1,3 +1,7 @@
+2016-07-29  Tom 7  <tom7@...>
+
+        * Getting this to compile on modern OS X.
+
 2014-01-01  Tom 7  <Tom@WARPZONE>
 
         * edit.cc: Using ctrl-middle-click in the editor should mark

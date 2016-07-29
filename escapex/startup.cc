@@ -1,7 +1,7 @@
 
 #include "escapex.h"
 #include "startup.h"
-#include "dirent.h"
+#include "directories.h"
 
 #ifndef WIN32
 /* for symlink */

@@ -5,10 +5,10 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleExecutable</key>
-	<string>Escape.exe</string>
+	<string>t7eshero.exe</string>
 	<key>CFBundleIconFile</key>
-	<string>Escape.icns</string>
+	<string>T7ESHero.icns</string>
 	<key>CFBundleName</key>
-	<string>Escape</string>
+	<string>T7ESHero</string>
 </dict>
 </plist>

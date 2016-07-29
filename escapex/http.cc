@@ -446,7 +446,7 @@ string httpreal::readrest() {
 
 string httpreal::readn(int n) {
   char * buf = new char[n];
-  extentda<char> eb(buf);
+  Extentda<char> eb(buf);
 
   DMSG("reading " + itos(n) + "...\n");
 

@@ -1,7 +1,7 @@
 
 #include "escapex.h"
 #include "level.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "load.h"
 #include "md5.h"
 
@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "dirent.h"
+#include "directories.h"
 
 #include "extent.h"
 #include "dircache.h"
@@ -993,7 +993,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
     return;
   }
 
-  extent<player> erp(rp);
+  Extent<player> erp(rp);
 
   int nsolved = 0;
 
@@ -1431,7 +1431,7 @@ string loadlevelreal::loop() {
 				   
 		ratescreen * rs = ratescreen::create(plr, l, md);
 		if (rs) {
-		  extent<ratescreen> re(rs);
+		  Extent<ratescreen> re(rs);
 
 		  rs->rate();
 		} else {
@@ -1614,7 +1614,7 @@ string loadlevelreal::loop() {
 		  sel->redraw();
 		  continue;
 		}
-		extent<upload> eu(uu);
+		Extent<upload> eu(uu);
 
 		/* save spot */
 		lastfile = sel->items[sel->selected].fname;

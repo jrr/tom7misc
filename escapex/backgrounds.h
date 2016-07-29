@@ -3,7 +3,6 @@
 
 #include "escapex.h"
 #include "draw.h"
-#include "sdlutil.h"
 #include "drawable.h"
 
 struct backgrounds {

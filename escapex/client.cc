@@ -1,7 +1,7 @@
 
 #include "client.h"
 #include "escapex.h"
-#include "sdlutil.h"
+#include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 
 bool client::quick_rpc(player * plr, string path, string query, string & ret) {
@@ -18,7 +18,7 @@ bool client::quick_rpc(player * plr, string path, string query, string & ret) {
     return false;
   }
   
-  extent<http> eh(hh);
+  Extent<http> eh(hh);
 
   td.say("Sending command..");
   td.draw();
