@@ -6,7 +6,7 @@
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "menu.h"
 
 #include "client.h"
@@ -30,7 +30,7 @@ struct cscreen : public drawable {
 		       margin,
 		       color,
 		       lev, nsolved, 
-		       md5::ascii(levmd5), 0, 0);
+		       MD5::Ascii(levmd5), 0, 0);
 
     if (tx) tx->draw ();
   }
@@ -106,7 +106,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
 		  (string)"&seqh=" +
 		  itos(p->webseqh) +
 		  (string)"&md=" +
-		  md5::ascii(md5),
+		  MD5::Ascii(md5),
 		  res);
 
     if (!success) {
@@ -185,7 +185,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
 		  (string)"id=" + itos(p->webid) + 
 		  (string)"&seql=" + itos(p->webseql) +
 		  (string)"&seqh=" + itos(p->webseqh) +
-		  (string)"&md=" + md5::ascii(md5) +
+		  (string)"&md=" + MD5::Ascii(md5) +
 		  (string)"&comment=" + httputil::urlencode(com) +
 		  (string)"&spoiler=" + itos(!!spoiler.checked),
 		  res);

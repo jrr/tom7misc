@@ -14,7 +14,7 @@
 #include "chars.h"
 #include "util.h"
 #include "dirindex.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "prefs.h"
 #include "prompt.h"
 
@@ -26,7 +26,7 @@
 #include "menu.h"
 #include "smanage.h"
 #include "client.h"
-#include "base64.h"
+#include "../cc-lib/base64.h"
 
 #define POSTDRAW ;
 
@@ -869,7 +869,7 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
   Extent<http> eh(hh);
   /* XXX register callback.. */
 
-  httpresult hr = hh->get(ALLSOLS_URL + md5::ascii(lmd5), s);
+  httpresult hr = hh->get(ALLSOLS_URL + MD5::Ascii(lmd5), s);
 
   if (hr == HT_OK) {
     /* parse result. see protocol.txt */
@@ -881,7 +881,7 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
     for(int i = 0; i < nsols; i ++) {
       string line1 = util::getline(s);
       string author = util::getline(s);
-      string moves = base64::decode(util::getline(s));
+      string moves = Base64::Decode(util::getline(s));
 
       /* this is the solution id, which we don't need */
       (void) util::stoi(util::chop(line1));
@@ -1185,7 +1185,7 @@ playresult preal::doplay_save(player * plr, level * start,
 
 	  if (answer != "") {
 	    string md;
-	    if (md5::unascii(answer, md)) {
+	    if (MD5::UnAscii(answer, md)) {
 	      solution * that;
 	      if ( (that = plr->getsol(md)) ) {
 
@@ -1419,7 +1419,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
 
   string ss = readfile(res);
 
-  string md5 = md5::hash(ss);
+  string md5 = MD5::Hash(ss);
 
   /* load canceled */
   if (ss == "") return;

@@ -9,8 +9,8 @@
 #include "textscroll.h"
 #include "client.h"
 #include "http.h"
-#include "md5.h"
-#include "base64.h"
+#include "../cc-lib/md5.h"
+#include "../cc-lib/base64.h"
 #include "menu.h"
 #include "optimize.h"
 #include "play.h"
@@ -167,7 +167,7 @@ struct smreal : public drawable {
 
 
     /* now initialize the nsentries  */
-    for(int i = 0; i < len; i ++) {
+    for (int i = 0; i < len; i ++) {
       solution * s = solset->head->sol->clone();
       sm->sel->items[i].def = (i == 0);
       sm->sel->items[i].ns.name = solset->head->name;
@@ -295,7 +295,7 @@ void smanage::promptupload(drawable * below,
       formalist::pusharg(fl, "id", itos(plr->webid));
       formalist::pusharg(fl, "seql", itos(plr->webseql));
       formalist::pusharg(fl, "seqh", itos(plr->webseqh));
-      formalist::pusharg(fl, "md", md5::ascii(lmd5));
+      formalist::pusharg(fl, "md", MD5::Ascii(lmd5));
       formalist::pusharg(fl, "name", name.input);
       formalist::pusharg(fl, "speedonly", speed.checked?"1":"0");
       formalist::pusharg(fl, "desc", desc.get_text());
@@ -340,7 +340,7 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
   /* XXX register callback.. */
 
 
-  httpresult hr = hh->get(ALLSOLS_URL + md5::ascii(lmd5), s);
+  httpresult hr = hh->get(ALLSOLS_URL + MD5::Ascii(lmd5), s);
   if (hr == HT_OK) {
     /* parse result. see protocol.txt */
     int nsols = util::stoi(util::getline(s));
@@ -348,10 +348,10 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
     td.say("OK. Solutions on server: " GREEN + itos(nsols) + POP);
 
     /* get them! */
-    for(int i = 0; i < nsols; i ++) {
+    for (int i = 0; i < nsols; i ++) {
       string line1 = util::getline(s);
       string author = util::getline(s);
-      string moves = base64::decode(util::getline(s));
+      string moves = Base64::Decode(util::getline(s));
       
       /* this is the solution id, which we don't need */
       (void) util::stoi(util::chop(line1));
@@ -370,7 +370,7 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
       /* PERF each of the following things is O(n)
 	 with bad constants, but we don't expect 
 	 many solutions */
-      for(int n = 0; n < sm->sel->number; n ++) {
+      for (int n = 0; n < sm->sel->number; n ++) {
 	/* use string equality.
 	   could be wrong since the rle-encoded
 	   string for a solution is not unique.
@@ -427,14 +427,13 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 
   SDL_Event event;
   
-  while ( SDL_WaitEvent(&event) >= 0 ) {
-    int key;
+  while (SDL_WaitEvent(&event) >= 0) {
 
-    switch(event.type) {
+    switch (event.type) {
     case SDL_KEYDOWN: {
-      key = event.key.keysym.sym;
+      int key = event.key.keysym.sym;
       
-      switch(key) {
+      switch (key) {
       case SDLK_o: {
 	if (!(event.key.keysym.mod & KMOD_CTRL)) break;
 	int i = sm->sel->selected;
@@ -553,7 +552,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
     }
     
     /* key wasn't handled above */
-    switch(sm->sel->doevent(event).type) {
+    switch (sm->sel->doevent(event).type) {
     case nsel::PE_SELECTED:
       /* show it */
       playback(plr, lev, &sm->sel->items[sm->sel->selected].ns);
@@ -564,7 +563,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
       /* done. write changes back into player file */
       /* create solset list, preserving order */
       nslist * solset = 0;
-      for(int i = sm->sel->number - 1;
+      for (int i = sm->sel->number - 1;
 	  i >= 0; 
 	  i --) {
 	solset = new nslist(new namedsolution(sm->sel->items[i].ns.sol,
@@ -627,7 +626,7 @@ struct pb : public drawable {
       r.h = TILEH + 4;
       r.y = y - 2;
       r.x = 0;
-      switch(state) {
+      switch (state) {
       case PB_PAUSED: r.x = x - 2 + (skip * 3); break;
       case PB_PLAYING: r.x = x - 2 + (skip * 2); break;
       case PB_PLAYONEMOVE: r.x = x - 2 + (skip * 4); break;
@@ -663,13 +662,13 @@ struct pb : public drawable {
     #if 0
     /* good for seeing where two versions diverge */
     fon->draw(screen->w - (fon->width * 64), 2,
-	      md5::ascii(md5::hash(dr.lev->tostring())));
+	      MD5::Ascii(MD5::Hash(dr.lev->tostring())));
     #endif
 
     drawvcr();
   }
 
-  virtual void screenresize () {
+  virtual void screenresize() {
     dr.margin = 12;
     dr.posx = 0;
     dr.posy = fon->height * 2;
@@ -708,10 +707,10 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
   p.screenresize ();
   p.draw ();
 
-  for(;;) {
+  for (;;) {
 
     /* act according to the state */
-    switch(p.state) {
+    switch (p.state) {
     case PB_PLAYONEMOVE:
     case PB_PLAYING:
       /* get move, execute it. */
@@ -749,13 +748,13 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
       
       if (handle_video_event(&p, event)) continue;
 
-      switch(event.type) {
+      switch (event.type) {
       case SDL_KEYDOWN: {
 	int key = event.key.keysym.sym;
 	/* breaking from here will allow the key to be
 	   treated as a search */
 
-	switch(key) {
+	switch (key) {
 	case SDLK_u:
 	case SDLK_LEFT: {
 	  bool fast = (event.key.keysym.mod & KMOD_CTRL);
@@ -821,7 +820,7 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
 	  break;
 	case SDLK_SPACE: {
 	  /* XXX start over if paused and done */
-	  switch(p.state) {
+	  switch (p.state) {
 	  case PB_PAUSED: p.state = PB_PLAYING; break;
 	  case PB_PLAYING: p.state = PB_PAUSED; break;
 	  }

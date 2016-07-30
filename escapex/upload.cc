@@ -4,15 +4,14 @@
 #include "http.h"
 #include "message.h"
 #include "draw.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "optimize.h"
 
 struct ulreal : public upload {
   static ulreal * create ();
-  virtual ~ulreal() {}
+  ~ulreal() override {}
 
-
-  virtual upresult up(player * p, string file, string);
+  upresult up(player * p, string file, string) override;
 
   void redraw() {
     draw ();
@@ -26,7 +25,7 @@ struct ulreal : public upload {
     }
   }
 
-  virtual void destroy() {
+  void destroy() override {
     if (tx) tx->destroy();
     delete this;
   }
@@ -34,8 +33,8 @@ struct ulreal : public upload {
   textscroll * tx;
   player * plr;
 
-  virtual void draw();
-  virtual void screenresize();
+  void draw() override;
+  void screenresize() override;
 
 };
 
@@ -72,7 +71,7 @@ upresult ulreal::up (player * p, string f, string text) {
 
   Extent<level> el(lev);
   
-  string md5c = md5::hash(levcont);
+  string md5c = MD5::Hash(levcont);
 
 
   /* don't free soln */

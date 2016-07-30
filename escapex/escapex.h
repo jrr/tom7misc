@@ -9,6 +9,7 @@
 
 #include <string>
 #include <memory>
+#include <cstdint>
 
 #include "level.h"
 #include "font.h"
@@ -17,6 +18,11 @@
 #include "../cc-lib/sdl/sdlutil.h"
 
 using namespace std;
+
+using uint8 = uint8_t;
+using int32 = int32_t;
+using uint32 = uint32_t;
+using uint64 = uint64_t;
 
 #include "version.h"
 
@@ -77,6 +83,8 @@ extern SDL_Surface * screen;
 #   pragma warning(disable: 4800)
 #endif
 
+// XXX Should just be using ULL in the source code; this is
+// standard!
 #ifndef _MSC_VER
 /* new g++ needs ULL suffix for 64-bit constants, ugh */
 #  define L64(i) (i ## ULL)

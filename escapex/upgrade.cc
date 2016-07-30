@@ -1,7 +1,7 @@
 
 #include "upgrade.h"
 #include "extent.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "util.h"
 #include "textscroll.h"
 #include "prompt.h"
@@ -137,7 +137,7 @@ bool md5file(string f, string & md5) {
   FILE * ff = fopen(f.c_str(), "rb");
   if (!ff) return false;
   else {
-    md5 = md5::hashf(ff);
+    md5 = MD5::Hashf(ff);
     fclose(ff);
     return true;
   }
@@ -518,7 +518,7 @@ curesult upgradereal::checkupgrade(http * hh,
       } else {
 	string nowmd;
 	if (md5file(lfi, nowmd) &&
-	    md == md5::ascii(nowmd)) {
+	    md == MD5::Ascii(nowmd)) {
 	  stringlist::push(ok, fi);
 	  say(font::pad(fi, 16) + (string)GREY " " + md + 
 	      (string) GREEN " ok");
@@ -529,7 +529,7 @@ curesult upgradereal::checkupgrade(http * hh,
 	  ulist::push(download, uu);
 
 	  say(font::pad(fi, 16) + (string)WHITE " " + md + 
-	      (string) RED " wrong: " POP GREY + md5::ascii(nowmd));
+	      (string) RED " wrong: " POP GREY + MD5::Ascii(nowmd));
 	}
       }
 

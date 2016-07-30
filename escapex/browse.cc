@@ -6,7 +6,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "browse.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "backgrounds.h"
 
 #include <string.h>
@@ -663,10 +663,9 @@ int loadlevelreal::changedir(string what, bool remember) {
       level * l = level::fromstring(contents, allow_corrupted);
 
       if (l) {
-	string md5c = md5::hash(contents);
+	string md5c = MD5::Hash(contents);
 
-
-	typedef ptrlist<namedsolution> solset;
+	using solset = ptrlist<namedsolution>;
 	
 	/* owned by player */
 	solset * sols = plr->solutionset(md5c);

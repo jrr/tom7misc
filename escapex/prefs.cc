@@ -195,22 +195,22 @@ void prefs::defaults(player * plr) {
 
 }
 
-void prefs::putstring(player * plr, unsigned int key, string s) {
+void prefs::putstring(player * plr, uint32 key, string s) {
   plr->getchunks()->insert(new chunk(key, s));
 }
 
-void prefs::putbool(player * plr, unsigned int key, bool b) {
+void prefs::putbool(player * plr, uint32 key, bool b) {
   plr->getchunks()->insert(new chunk(key, b));
 }
 
-void prefs::putint(player * plr, unsigned int key, int i) {
+void prefs::putint(player * plr, uint32 key, int32 i) {
   plr->getchunks()->insert(new chunk(key, i));
 }
 
-int prefs::getint(player * plr, unsigned int k) {
+int32 prefs::getint(player * plr, uint32 k) {
   chunk * c = plr->getchunks()->get(k);
 
-  if (c && c->type == CT_INT) {
+  if (c && c->type == CT_INT32) {
     return c->i;
   } else {
     printf("c: %p\n", c);
@@ -220,7 +220,7 @@ int prefs::getint(player * plr, unsigned int k) {
   }
 }
 
-bool prefs::getbool(player * plr, unsigned int k) {
+bool prefs::getbool(player * plr, uint32 k) {
   chunk * c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_BOOL) {
@@ -231,7 +231,7 @@ bool prefs::getbool(player * plr, unsigned int k) {
   }
 }
 
-string prefs::getstring(player * plr, unsigned int k) {
+string prefs::getstring(player * plr, uint32 k) {
   chunk * c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_STRING) {

@@ -7,19 +7,17 @@
 
 /* associative chunk database. */
 
-typedef unsigned int uint;
-
 /* contents of database */
-enum chunktype { CT_INT, CT_BOOL, CT_STRING, };
+enum chunktype : uint32 { CT_INT32, CT_BOOL, CT_STRING, };
 struct chunk {
   chunktype type;
-  uint key;
+  uint32 key;
 
   string tostring();
   static chunk * fromstring(string);
-  chunk(uint, int);
-  chunk(uint, bool);
-  chunk(uint, string);
+  chunk(uint32, int32);
+  chunk(uint32, bool);
+  chunk(uint32, string);
   virtual ~chunk() {}
 
   /* only one will make sense, depending on type */
@@ -51,9 +49,7 @@ struct chunks {
 
   private:
   ptrlist<chunk> * data;
-  static int sort(chunk * l, chunk * r);
-  
-
+  static int compare(chunk * l, chunk * r);
 };
 
 

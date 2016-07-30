@@ -2,7 +2,7 @@
 #include "upper.h"
 #include "util.h"
 #include "directories.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "chars.h"
 #include "dirindex.h"
 
@@ -48,25 +48,26 @@ struct contententry {
   void destroy () { delete this; }
 
   contententry(string con) : content(con) {
-    md5 = md5::ascii(md5::hash(con));
+    md5 = MD5::Ascii(MD5::Hash(con));
   }
 
 };
 
-typedef hashtable<oldentry, string> oldtable;
-typedef hashtable<contententry, string> contable;
+using oldtable = hashtable<oldentry, string>;
+using contable = hashtable<contententry, string>;
 
 struct upreal : public upper {
 
   static upreal * create(http *, textscroll *, drawable *, string);
 
-  virtual ~upreal () {}
+  ~upreal() override {}
 
-  virtual void destroy();
-  virtual bool setfile(string f, string md, ratestatus votes, int, int, int o);
-  virtual bool commit();
+  void destroy() override;
+  bool setfile(string f, string md, ratestatus votes, 
+	       int, int, int o) override;
+  bool commit() override;
 
-  virtual void savedir(string d, string index);
+  void savedir(string d, string index) override;
 
   void redraw() {
     if (below) {
@@ -113,7 +114,6 @@ struct upreal : public upper {
 
   void init ();
   void insertdir(string d);
-
 };
 
 upper * upper::create(http * h, textscroll * t,
@@ -153,11 +153,9 @@ void upreal::init () {
   /* loop over every file in dirname */
 
   insertdir(dirname);
-
 }
 
 void upreal::savedir(string d, string i) {
-
   /* XXX: could fail if d is a file. In this
      case we're sort of in trouble, since we
      can't move d without invalidating our own
@@ -169,7 +167,6 @@ void upreal::savedir(string d, string i) {
   dirindex * di = dirindex::create();
   di->title = i;
   ptrlist<dirindex>::push(dirlisti, di);
-
 }
 
 void upreal::insertdir(string src) {
@@ -211,9 +208,7 @@ void upreal::insertdir(string src) {
   closedir(d);
 }
 
-
 void upreal::destroy () {
-
   stringlist::diminish(newlistf);
   stringlist::diminish(newlistm);
 
@@ -225,7 +220,6 @@ void upreal::destroy () {
 
 bool upreal::setfile(string f, string md, ratestatus votes,
 		     int date, int speedrecord, int owner) {
-
   say((string)"setfile(" + f + (string)", " 
       GREY + md + (string)POP ")", true);
 
@@ -337,7 +331,6 @@ static void deleteif(oldentry * oe, int dummy_param) {
 }
 
 bool upreal::commit() {
-
   say(YELLOW " ======= " WHITE " commit phase " POP " ======= " POP);
 
   /* overwrite anything in newlist. */
@@ -351,7 +344,7 @@ bool upreal::commit() {
   string nlf;
   string nlm;
 
-  for(;;) {
+  for (;;) {
     nlf = stringpop(newlistf);
     nlm = stringpop(newlistm);
     
@@ -425,4 +418,3 @@ bool upreal::commit() {
 
   return true;
 }
-

@@ -14,7 +14,6 @@
 #include "edit.h"
 
 #include "load.h"
-#include "md5.h"
 
 #include "message.h"
 #include "menu.h"

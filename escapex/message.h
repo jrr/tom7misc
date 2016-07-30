@@ -38,16 +38,13 @@ struct message : public drawable {
 		    char * actualchar = 0,
 		    string charspec = "") {
     message * m = message::create();
-    printf("Created message: %p\n", m);
     m->below = bbelow;
     m->posy = -1;
     m->title = icon + WHITE " " + ttitle;
     m->ok = ook;
     m->cancel = ccancel;
    
-    printf("Ask...\n");
-    bool x = m->ask(actualchar, charspec);
-    printf("Asked.\n");
+    const bool x = m->ask(actualchar, charspec);
     m->destroy();
     return x;
   }

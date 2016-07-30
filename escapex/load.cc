@@ -3,7 +3,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "load.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 
 #include <string.h>
 #include <sys/stat.h>
@@ -792,7 +792,7 @@ int loadlevelreal::changedir(string what, bool remember) {
       level * l = level::fromstring(contents, allow_corrupted);
 
       if (l) {
-	string md5c = md5::hash(contents);
+	string md5c = MD5::Hash(contents);
 
 
 	typedef ptrlist<namedsolution> solset;
@@ -1061,7 +1061,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 	    sel->redraw ();
 	    continue;
 	  }
-	  string md5 = md5::hashf(f);
+	  string md5 = MD5::Hashf(f);
 
 	  fclose(f);
 
@@ -1221,7 +1221,7 @@ string loadlevelreal::loop() {
 				      (string)"&seqh=" +
 				      itos(plr->webseqh) +
 				      (string)"&md=" +
-				      md5::ascii(md5) +
+				      MD5::Ascii(md5) +
 				      (string)"&text=" +
 				      httputil::urlencode(desc.get_text()),
 				      res)) {
@@ -1385,7 +1385,7 @@ string loadlevelreal::loop() {
 	    
 	      } else {
 
-		string md = md5::hashf(f);
+		string md = MD5::Hashf(f);
 		fclose(f);
 	    
 		/* This does its own error reporting */
@@ -1426,7 +1426,7 @@ string loadlevelreal::loop() {
 		   invalidated */
 		sel->items[sel->selected].myrating = 0;
 	    
-		string md = md5::hashf(f);
+		string md = MD5::Hashf(f);
 		fclose(f);
 				   
 		ratescreen * rs = ratescreen::create(plr, l, md);

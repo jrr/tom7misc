@@ -178,6 +178,7 @@ endif
 ifdef LINUX
 # makefile for linux
 
+# XXX some of these have moved to cc-lib
 OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o
 
 default : escape.exe
@@ -329,6 +330,13 @@ VERSION_TARGET=10.10
 # From t7eshero. Maybe should be fixed.
 RPATH=-rpath @executable_path/../Frameworks
 
+# Suppress compilation commands, but show some indication of progress.
+# (Explicitly invoke bash to get shell builtin, since on OS X echo
+# otherwise treats -n literally.)
+%.o : %.cc
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@bash -c "echo -n '.'"
+
 # sound is disabled to give people time to upgrade the upgrader
 # to add it, remove -DNOSOUND and add
 # -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers
@@ -336,7 +344,6 @@ RPATH=-rpath @executable_path/../Frameworks
 #  -framework SDL_mixer
 # to the g++ line linking below
 
-# used to have -arch i386 and -arch ppc, but x86_64 is the way now (2016)
 CXXFLAGS=-std=c++14
 # -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers 
 
@@ -349,12 +356,10 @@ CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Ve
 # used to use /usr/local/lib
 LIBS=-L/usr/lib
 
-CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
 
-escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
-	export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	# -arch ppc retired
-	#  -framework SDL_mixer
+escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
+	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
 .dummy :
@@ -367,8 +372,8 @@ version : .dummy
 
 RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
 
-mkupgrade.exe : mkupgrade.cc md5.cc
-	g++ -DOSX mkupgrade.cc md5.cc -o mkupgrade.exe
+mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
+	g++ -DOSX mkupgrade.cc ../cc-lib/md5.cc -o mkupgrade.exe
 
 releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx
@@ -469,6 +474,7 @@ endif
 # mingw makefile (alternative to Visual C++ on win32; becoming default soon)
 ifdef MINGW
 
+# XXX some of these have moved to cc-lib
 OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 default : escape.exe

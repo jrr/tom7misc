@@ -4,10 +4,11 @@
 
 Make this work again on OSX 10.10+!
  - Add mixer framework in for next release
- - Fix endianness issue with ImageLoad
- - Move MD5 code to cc-lib.
+ - Fix endianness/channel order issue with ImageLoad
  - dos2unix on all source files again
  - replace pngsave with stb_image_write and eliminate libpng
+
+Use specific-width integer types instead of 'unsigned'.
 
 Use mingw to compile instead of CL on windows.
 
@@ -18,6 +19,11 @@ Use font from cc-lib.
 get rid of extent; use unique_ptr
 
 c++11isms
+ - nullptr instead of 0
+ - override/final
+
+style
+ - if(, switch(, while(, for(
 
 Should be easy:
 "Please consider writing and installing an AppData file with the
@@ -31,6 +37,7 @@ I think I introduced a regression in the behavior of wires from Radiant's "Globa
 
 put optipng on all build machines
 http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipng-0.5.4-exe.zip&use_mirror=umn
+(or ideally, add this as a library in cc-lib, compatible with stb_image_write)
 
 * Binary linux distribution apparently includes uncleaned mylevels directory, which is weird
 
@@ -227,11 +234,12 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
      been unsent -- or could do this rating by rating)
 
 ** Code cleanup and modernization
-*** gcc 4.0 warnings
+*** clang warnings
 *** vc++ warnings
 *** triage xxx/fixme/perf
 *** split up deeply nested code
 *** move.h bad tabification
+*** make move.h into C++ template?
 **** main.cc
 ***** this shouldn't all be in main, anyway
 **** load.cc !!
