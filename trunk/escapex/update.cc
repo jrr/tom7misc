@@ -1,7 +1,6 @@
 
 #include "update.h"
 #include "extent.h"
-#include "md5.h"
 #include "util.h"
 #include "textscroll.h"
 #include "prompt.h"

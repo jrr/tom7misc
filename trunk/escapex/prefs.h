@@ -7,7 +7,7 @@
 
 #define DEFAULT_SERVER "escape.spacebar.org"
 
-enum { PREF_ALTCONNECT=0x100,
+enum { PREF_ALTCONNECT = 0x100,
        PREF_SERVER,
        PREF_ASKRATE,
        PREF_SHOWTUT,
@@ -20,7 +20,6 @@ enum { PREF_ALTCONNECT=0x100,
 
 
 struct prefs {
-
   /* show preferences menu for plr */
   static void show (player * plr);
 
@@ -30,15 +29,13 @@ struct prefs {
      key. */
   static void defaults (player * plr);
 
-  static bool   getbool   (player * plr, unsigned int key);
-  static string getstring (player * plr, unsigned int key);
-  static int    getint    (player * plr, unsigned int key);
+  static bool   getbool   (player * plr, uint32 key);
+  static string getstring (player * plr, uint32 key);
+  static int32  getint    (player * plr, uint32 key);
 
-  static void putbool   (player * plr, unsigned int key, bool);
-  static void putstring (player * plr, unsigned int key, string);
-  static void putint    (player * plr, unsigned int key, int);
-
+  static void putbool   (player * plr, uint32 key, bool);
+  static void putstring (player * plr, uint32 key, string);
+  static void putint    (player * plr, uint32 key, int32);
 };
-
 
 #endif

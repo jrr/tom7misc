@@ -15,7 +15,7 @@
 #include "edit.h"
 
 #include "load.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 
 #include "message.h"
 #include "menu.h"
@@ -624,9 +624,9 @@ void editor::save() {
 	 candidate md5s. We get these whenever
 	 we play or save. */
 
-      string omd5 = md5::hash(old);
+      string omd5 = MD5::Hash(old);
 
-      string nmd5 = md5::hash(nstr);
+      string nmd5 = MD5::Hash(nstr);
       /* only try if level changed */
       if (omd5 != nmd5) {
 
@@ -672,7 +672,7 @@ void editor::save() {
 	}
 
       } else {
-	dr.message += (string)" again " ALPHA50 GREY "(" + md5::ascii(nmd5) + ")" POP POP;
+	dr.message += (string)" again " ALPHA50 GREY "(" + MD5::Ascii(nmd5) + ")" POP POP;
       }
     }     
     
@@ -731,7 +731,7 @@ void editor::playlev() {
   Extent<play> ep(pla);
   
   /* grab md5 in case player makes bookmarks */
-  string md5 = md5::hash(dr.lev->tostring());
+  string md5 = MD5::Hash(dr.lev->tostring());
 
   /* playresult res = */ pla->doplay_save(plr, dr.lev, saved, md5);
   

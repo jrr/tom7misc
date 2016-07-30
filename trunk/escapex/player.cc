@@ -7,8 +7,8 @@
 #include "prefs.h"
 #include "directories.h"
 
-#include "base64.h"
-#include "md5.h"
+#include "../cc-lib/base64.h"
+#include "../cc-lib/md5.h"
 
 #ifdef WIN32
 # include <time.h>
@@ -188,7 +188,7 @@ bool playerreal::hassolution(string md5, solution * what) {
   string whats = what->tostring();
 
   for (nslist * l = solutionset(md5); l; l = l -> next) {
-    // printf(" %s == %s ?\n", base64::encode(whats).c_str(), (base64::encode(l->head->sol->tostring())).c_str());
+    // printf(" %s == %s ?\n", Base64::Encode(whats).c_str(), (Base64::Encode(l->head->sol->tostring())).c_str());
     if (l->head->sol->tostring () == whats) return true;
   }
 
@@ -473,9 +473,9 @@ bool playerreal::writef_text(string file) {
     for(ptrlist<hashsolsetentry> * tmp = sotable->data[i]; 
 	tmp; 
 	tmp = tmp -> next) {
-      fprintf(f, "%s * %s\n", md5::ascii(tmp->head->md5).c_str(),
+      fprintf(f, "%s * %s\n", MD5::Ascii(tmp->head->md5).c_str(),
 	      /* assume at least one solution */
-	      base64::encode(tmp->head->solset->head->tostring()).c_str());
+	      Base64::Encode(tmp->head->solset->head->tostring()).c_str());
       /* followed by perhaps more solutions marked with @ */
       /* sort them first, in place */
       nslist::sort(namedsolution::compare, tmp->head->solset->next);
@@ -484,7 +484,7 @@ bool playerreal::writef_text(string file) {
 	  rest;
 	  rest = rest -> next) {
 	fprintf(f, "  %s\n", 
-		base64::encode(rest->head->tostring()).c_str());
+		Base64::Encode(rest->head->tostring()).c_str());
       }
       /* end it (makes parsing easier) */
       fprintf(f, "!\n");
@@ -504,8 +504,8 @@ bool playerreal::writef_text(string file) {
 	tmp; 
 	tmp = tmp -> next) {
       fprintf(f, "%s %s\n",
-	      md5::ascii(tmp->head->md5).c_str(),
-	      base64::encode(tmp->head->rat->tostring()).c_str());
+	      MD5::Ascii(tmp->head->md5).c_str(),
+	      Base64::Encode(tmp->head->rat->tostring()).c_str());
     }
   }
   }
@@ -513,7 +513,7 @@ bool playerreal::writef_text(string file) {
 
   /* write chunks */
   /* ch->tostring() */
-  fprintf(f, "%s\n", base64::encode(ch->tostring()).c_str());
+  fprintf(f, "%s\n", Base64::Encode(ch->tostring()).c_str());
 
 
   fclose(f);
@@ -566,13 +566,13 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
     
     string mda = util::chop(l);
     string md;
-    if (!md5::unascii(mda, md)) FF_FAIL (((string)"bad md5 " + mda).c_str());
+    if (!MD5::UnAscii(mda, md)) FF_FAIL (((string)"bad md5 " + mda).c_str());
 
     string next = util::chop(l);
     
     if (next == "*") {
       /* default first */
-      string solstring = base64::decode(util::chop(l));
+      string solstring = Base64::Decode(util::chop(l));
       namedsolution * ns = namedsolution::fromstring(solstring);
       if (!ns) FF_FAIL ("bad namedsolution");
 
@@ -585,7 +585,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 	string tok = util::chop(l);
 	if (tok == "!") break;
 	else {
-	  namedsolution * ns = namedsolution::fromstring(base64::decode(tok));
+	  namedsolution * ns = namedsolution::fromstring(Base64::Decode(tok));
 	  if (!ns) FF_FAIL ("additional solution was bad");
 	  /* and append it */
 	  *etail = new nslist(ns, 0);
@@ -598,7 +598,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 
     } else {
       /* old style singleton solutions */
-      string solstring = base64::decode(next);
+      string solstring = Base64::Decode(next);
       solution * sol = solution::fromstring(solstring);
       if (!sol) FF_FAIL ("bad oldstyle solution");
       namedsolution ns(sol, "Untitled", p->name, 0);
@@ -616,9 +616,9 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
     if (l == PREFMARKER) break;
 
     string md = util::chop(l);
-    if (!md5::unascii(md, md)) FF_FAIL ("bad rating md5");
+    if (!MD5::UnAscii(md, md)) FF_FAIL ("bad rating md5");
 
-    string ratstring = base64::decode(util::chop(l));
+    string ratstring = Base64::Decode(util::chop(l));
     rating * rat = rating::fromstring(ratstring);
 
     if (!rat) FF_FAIL ("bad rating");
@@ -631,7 +631,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 
   string cs; 
   if (!cf->getline(cs)) FF_FAIL ("expected prefs");
-  p->ch = chunks::fromstring(base64::decode(cs));
+  p->ch = chunks::fromstring(Base64::Decode(cs));
 
   if (!p->ch) FF_FAIL ("bad prefs");
 

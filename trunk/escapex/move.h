@@ -456,21 +456,21 @@ static void postanimate(level * l, disamb * ctx,
       settile(bx, by, T_FLOOR);
       /* clear flags */
       setflag(bx, by, flagat(bx, by) & ~(TF_HASPANEL |
-                         TF_RPANELL  |
-                                             TF_RPANELH));
+                                         TF_RPANELL  |
+                                         TF_RPANELH));
     }
 
     {
       int z = index(bx, by);
-          for(int bdie = 0; bdie < nbots; bdie ++) {
+      for(int bdie = 0; bdie < nbots; bdie ++) {
         if (boti[bdie] == z) {
           PREAFFECTENTEX(bdie);
           // AFFECTI(boti[b]);
           POSTAFFECTENTEX(bdie);
 
           bot bd = bott[bdie];
-              if (bd == B_DELETED ||
-                  bd == B_BOMB_X) /* ignore */ continue;
+          if (bd == B_DELETED ||
+              bd == B_BOMB_X) /* ignore */ continue;
 
           if (level::isbomb(bd)) {
         /* chain reaction */

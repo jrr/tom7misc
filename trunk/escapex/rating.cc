@@ -6,7 +6,7 @@
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "menu.h"
 
 #include "client.h"
@@ -136,15 +136,15 @@ void rsreal::draw() {
 
   /* draw level thumbnail... */
 
-  Uint32 color = 
+  const Uint32 color = 
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
-  int margin = drawing::smallheight() + 16;
-  int y = (screen->h - margin) + 4 ;
+  const int margin = drawing::smallheight() + 16;
+  const int y = (screen->h - margin) + 4;
   drawing::drawsmall(y,
 		     margin,
 		     color,
 		     lev, nsolved, 
-		     md5::ascii(levmd5),
+		     MD5::Ascii(levmd5),
 		     /* XX pass in current rating? */
 		     0, 0);
 
@@ -153,7 +153,6 @@ void rsreal::draw() {
 }
 
 void rsreal::rate() {
-
   /* XXX check that the player has registered */
 
   /* rat is the existing rating or 0 */
@@ -279,7 +278,7 @@ void rsreal::rate() {
 		  (string)"&seqh=" +
 		  itos(plr->webseqh) +
 		  /* rating */
-		  (string)"&md=" + md5::ascii(levmd5) +
+		  (string)"&md=" + MD5::Ascii(levmd5) +
 		  (string)"&diff=" + itos(nr->difficulty) +
 		  (string)"&style=" + itos(nr->style) +
 		  (string)"&rigid=" + itos(nr->rigidity) +

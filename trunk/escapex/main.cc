@@ -10,7 +10,7 @@
 #include "load.h"
 #include "extent.h"
 #include "player.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "prompt.h"
 #include "draw.h"
 #include "playerdb.h"
@@ -53,8 +53,8 @@ int main (int argc, char ** argv) {
 
   // util::setclipboard("hello escapists");
 
-  /* set up md5 early */
-  md5::init();
+  /* set up md5 early, before any threads */
+  MD5::Init();
 
   drawable::init();
 

@@ -11,7 +11,6 @@
 #include "message.h"
 #include "play.h"
 #include "handhold.h"
-#include "md5.h"
 #include "backgrounds.h"
 
 /* testing */
@@ -52,21 +51,6 @@ struct mmentry {
 };
 
 typedef selector<mmentry, mmetype> msel;
-
-#if 0
-/* FIXME testing only! */
-static char threadmsg[256] = "";
-static int threadtest(void * unused) {
-  threadmsg[255] = 0;
-  sprintf(threadmsg, "start..");
-  string f = readfile("animation.png");
-  f = f + f + f + f + f + f;
-  f = f + f + f + f;
-  string s = md5::ascii(md5::hash(f + f + f + f + f));
-  sprintf(threadmsg, s.c_str());
-  return 0;
-}
-#endif
 
 struct mmreal : public mainmenu, public drawable {
 
@@ -211,11 +195,7 @@ void mmreal::compute_tutorial () {
 }
 
 void mmreal::draw() {
-
   SDL_BlitSurface(background, 0, screen, 0);
-
-  /* XXX */
-  // fon->draw(0, 0, threadmsg);
 
   /* draw status info at the bottom */
   int y = screen->h - (int)(fon->height * 3.2f);
@@ -286,13 +266,6 @@ mainmenu::result mmreal::show() {
       case SDL_KEYDOWN:
 	key = e.key.keysym.sym;
 	switch(key) {
-
-#if 0
-	case SDLK_z:
-	  SDL_CreateThread(threadtest, (void*)0);
-	  redraw();
-	  continue;
-#endif
 
 	case SDLK_ESCAPE:
 	case SDLK_x:

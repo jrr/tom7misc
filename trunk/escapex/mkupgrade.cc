@@ -4,9 +4,7 @@
 #include "version.h"
 #include "oldest.h"
 #include "recommend.h"
-// #include "util.h"
-#include "md5.h"
-
+#include "../cc-lib/md5.h"
 
 #include <iostream>
 #include <fstream>
@@ -37,9 +35,8 @@ struct fentry {
   string dest; /* for symlinks */
 };
 
-int main (int argc, char ** argv) {
-
-  md5::init();
+int main(int argc, char ** argv) {
+  MD5::Init();
 
   if (!strcmp(argv[1], "-mkbat")) {
 
@@ -130,7 +127,7 @@ int main (int argc, char ** argv) {
 	    fprintf(stderr, "Couldn't open %s\n", fi.c_str());
 	    return -1;
 	  }
-	  string s = md5::ascii(md5::hashf(ff));
+	  string s = MD5::Ascii(MD5::Hashf(ff));
 	  printf("%s u %s\n", fi.c_str(), s.c_str());
 	  fclose(ff);
 	  break;

@@ -6,7 +6,7 @@
 #include "escapex.h"
 #include "leveldb.h"
 #include "directories.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 #include "SDL.h"
 #include "extent.h"
 #include "player.h"
@@ -168,7 +168,7 @@ void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
       if (util::hasmagic(s, LEVELMAGIC)) {
 	string c = readfile(s);
 	if (level * l = level::fromstring(c, true)) {
-	  string m = md5::hash(c);
+	  string m = MD5::Hash(c);
 	  /* put on the level queue now */
 	  levelqueue = new ptrlist<levelwait>(new levelwait(l, s, m), levelqueue);
 	  levelqueue_size++;

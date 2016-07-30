@@ -4,7 +4,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "load.h"
-#include "md5.h"
+#include "../cc-lib/md5.h"
 
 #include <sys/stat.h>
 
@@ -177,7 +177,7 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
         level * l = level::fromstring(contents);
 
         if (l) {
-          string md5c = md5::hash(contents);
+          string md5c = MD5::Hash(contents);
 
           ttt ++;
 
