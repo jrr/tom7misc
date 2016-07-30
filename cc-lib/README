@@ -27,6 +27,10 @@ Some of the numerical routines in randutil are based on Numpy. If you
 believe that this is a "copy" or "substantial portion", then please
 abide by Numpy's permissive license; see NUMPY.LICENSE.
 
+The base64 and md5 code originally came from the public domain utilities;
+I've only made light changes there, and let's call those public domain
+as well.
+
 Currently, everything else is licensed under the GPL, which can be
 found in COPYING.
 
@@ -46,8 +50,10 @@ textsvg       - Pretty trivial support for generating SVG files manually.
 arcfour       - Implementation of the ARCFOUR (alleged RC4) algorithm, which
                 is a fast and simple cryptographic-ish random stream generator.
 timer         - Utterly trivial timer, in need of further development.
-randutil      - Random number utilities, using arcfour for random byte generation.
-vector-util   - Some basic utilities on vectors that only depend on portable stl.
+randutil      - Random number utilities, using arcfour for random byte
+                generation.
+vector-util   - Some basic utilities on vectors that only depend on portable
+                stl.
 rle           - (Custom) run-length encoding and decoding.
 threadutil    - Utilities for threaded programming. These are mostly convenience
                 methods; if you want to do anything fancy you'll probably want
@@ -56,3 +62,7 @@ interval-tree - Stores intervals on a 1D number line, with an efficient query
                 for intervals that contain a given point.
 color-util    - Does that one thing you always need to do: Convert HSV to RGB.
 lines         - Draw lines using Bresenham's algorithm.
+base64        - Very simple base64 encoding and decoding.
+md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
+                no longer be considered safe for cryptography, so you should
+                probably avoid it for new applications.
