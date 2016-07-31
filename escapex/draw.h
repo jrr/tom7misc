@@ -108,7 +108,7 @@ struct drawing {
   string message;
 
   /* must set at least width, height, lev */
-  drawing () : margin(0),
+  drawing() : margin(0),
                scrollx(0), scrolly(0), posx(0), 
                posy(0), zoomfactor(0), lev(0) {}
 

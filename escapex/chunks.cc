@@ -51,14 +51,14 @@ chunks * chunks::create() {
 }
 
 void chunks::destroy() {
-  while(data) {
+  while (data) {
     delete(ptrlist<chunk>::pop(data));
   }
   delete this;
 }
 
 chunk * chunks::get(uint32 k) {
-  for(ptrlist<chunk> * tmp = data; tmp; tmp = tmp -> next) {
+  for (ptrlist<chunk> * tmp = data; tmp; tmp = tmp->next) {
     if (tmp->head->key == k) return tmp->head;
   }
   return nullptr;
@@ -77,8 +77,8 @@ string chunks::tostring() {
   /*
   {
   printf ("prepass\n");
-  for(ptrlist<chunk> * tmp = data; tmp; tmp = tmp -> next) {
-    printf("    tmp is %p next is %p key: ", tmp, tmp -> next);
+  for (ptrlist<chunk> * tmp = data; tmp; tmp = tmp->next) {
+    printf("    tmp is %p next is %p key: ", tmp, tmp->next);
     printf("    .. %d\n", tmp->head->key);
   }
   }
@@ -87,9 +87,9 @@ string chunks::tostring() {
   /* 
   printf("chunk tostring:\n");
   printf("data: %p\n", data); */
-  for(ptrlist<chunk> * tmp = data; tmp; tmp = tmp -> next) {
+  for (ptrlist<chunk> * tmp = data; tmp; tmp = tmp->next) {
     /*
-      printf("    tmp is %p next is %p key: ", tmp, tmp -> next);
+      printf("    tmp is %p next is %p key: ", tmp, tmp->next);
       printf("    .. %d\n", tmp->head->key);
     */
     string it = tmp->head->tostring();
@@ -130,8 +130,8 @@ chunks * chunks::fromstring(string s) {
 }
 
 void chunks::insert(chunk * insme) {
-  for(ptrlist<chunk> * tmp = data;
-      tmp; tmp = tmp -> next) {
+  for (ptrlist<chunk> * tmp = data;
+      tmp; tmp = tmp->next) {
 
     if (insme->key == tmp->head->key) {
       delete tmp->head;

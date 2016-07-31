@@ -130,14 +130,14 @@ void subtoggle::docheck() {
 }
 
 inputresult subtoggle::click(int, int) {
-  docheck ();
+  docheck();
   return inputresult (MR_UPDATED);
 }
 
 inputresult subtoggle::key(SDL_Event e) {
   int kk = e.key.keysym.sym;
 
-  switch(kk) {
+  switch (kk) {
   case SDLK_RETURN:
   case SDLK_SPACE:
     docheck();
@@ -264,10 +264,10 @@ selresult updatereal::selectcolls(stringlist * fnames,
     }
 
     ptrlist<menuitem>::push(boxes, b);
-    n_entries ++;
+    n_entries++;
 
-    fnt = fnt -> next;
-    snt = snt -> next;
+    fnt = fnt->next;
+    snt = snt->next;
   }
   
   ptrlist<menuitem>::push(boxes, &v);
@@ -282,7 +282,7 @@ selresult updatereal::selectcolls(stringlist * fnames,
 
   resultkind res = mm->menuize();
 
-  mm->destroy ();
+  mm->destroy();
 
   if (res == MR_OK) {
     /* process selections from 'boxes' list */
@@ -291,11 +291,11 @@ selresult updatereal::selectcolls(stringlist * fnames,
     subss = 0;
 
     /* skip first three, the buttons */
-    for (int z = 0; z < 3; z ++) {
+    for (int z = 0; z < 3; z++) {
       ptrlist<menuitem>::pop(boxes);
     }
 
-    for(int i = 0; i < n_entries; i ++) {
+    for (int i = 0; i < n_entries; i++) {
       subtoggle * st = (subtoggle*)ptrlist<menuitem>::pop(boxes);
       if (st->checked) {
 	stringlist::push(subsf, st->fname);
@@ -353,14 +353,14 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 
     say("ndirs: " + itos(ndirs));
 
-    while(ndirs--) {
+    while (ndirs--) {
       string line = util::getline(s);
       
       string d = util::chop(line);
       string name = util::losewhitel(line);
 
       /* sanity check d. */
-      if (d.length () < 1 || d[0] == '/' ||
+      if (d.length() < 1 || d[0] == '/' ||
 	  d.find("..") != string::npos ||
 	  d.find("//") != string::npos ||
 	  /* yes, I mean one backslash */
@@ -377,7 +377,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 
     say("nfiles: " + itos(nfiles));
 
-    int epoch = SDL_GetTicks ();
+    int epoch = SDL_GetTicks();
 
     /* then, ncolls collections */
     while (nfiles--) {
@@ -391,7 +391,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
       /* sanity check f. This may be relative
 	 to the current directory, so it is the
 	 same condition as above */
-      if (f.length () < 1 || f[0] == '/' ||
+      if (f.length() < 1 || f[0] == '/' ||
 	  f.find("..") != string::npos ||
 	  f.find("//") != string::npos ||
 	  f.find("\\") != string::npos) {
@@ -433,7 +433,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
       }
 
       if (SDL_GetTicks() - epoch > SHOWRATE) {
-	epoch = SDL_GetTicks ();
+	epoch = SDL_GetTicks();
 	redraw();
       }
 

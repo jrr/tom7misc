@@ -11,7 +11,7 @@
 #include "dirindex.h"
 
 struct upper {
-  virtual void destroy () = 0;
+  virtual void destroy() = 0;
   virtual ~upper() {};
 
   /* create an upper, using the http connection hh,

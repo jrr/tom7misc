@@ -17,11 +17,11 @@ void slider::size(int & w, int & h) {
 inputresult slider::key(SDL_Event e) {
   int key = e.key.keysym.sym;
 
-  switch(key) {
+  switch (key) {
   case SDLK_RIGHT:
-    pos ++; break;
+    pos++; break;
   case SDLK_LEFT: 
-    pos --; break;
+    pos--; break;
   default: return menuitem::key(e);
   }
 
@@ -85,7 +85,7 @@ slider::slider(int lows, int highs, int segs)
 
   pos = lowest + ((highest - lowest) / 2);
   scrollbar = PICS SLIDELEFT;
-  for(int i = 0; i < (nsegs - 2); i ++) {
+  for (int i = 0; i < (nsegs - 2); i++) {
     scrollbar += SLIDE;
   }
   scrollbar += SLIDERIGHT POP;
@@ -115,7 +115,7 @@ void toggle::draw(int xpos, int ypos, int f) {
 inputresult toggle::key(SDL_Event e) {
   int kk = e.key.keysym.sym;
 
-  switch(kk) {
+  switch (kk) {
   case SDLK_RETURN:
   case SDLK_SPACE:
     checked = !checked;
@@ -148,7 +148,7 @@ void textinput::draw_ch(int xpos, int ypos, int f, char c) {
   string i = input;
   
   if (c) {
-    for(unsigned int x = 0; x < i.length(); x ++) i[x] = c;
+    for (int x = 0; x < i.length(); x++) i[x] = c;
   }
 
   /* allow string to end with ^ */
@@ -187,11 +187,11 @@ inputresult textinput::key(SDL_Event e) {
       accept_on_enter) return inputresult(MR_OK);
 
   inputresult def = menuitem::key(e);
-  switch(def.kind()) {
+  switch (def.kind()) {
   default: return def;
   case MR_NOTHING:
 
-    switch(key) {
+    switch (key) {
     case SDLK_BACKSPACE:
       input = input.substr(0, input.length() - 1);
       return inputresult(MR_UPDATED);
@@ -222,7 +222,7 @@ inputresult okay::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
-  switch(key) {
+  switch (key) {
   case SDLK_RETURN:
     activate();
     return inputresult(MR_OK);
@@ -266,7 +266,7 @@ static void drawbutton(int x, int y, int w, int h, int f) {
   
   /* right */
   r.x += w + 5;
-  r.h ++;
+  r.h++;
   SDL_FillRect(screen, &r,
 	       SDL_MapRGBA(screen->format,
 			   0x20, 0x20, 0x20, 0xFF));
@@ -296,7 +296,7 @@ inputresult cancel::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
-  switch(key) {
+  switch (key) {
   case SDLK_RETURN:
     return inputresult(MR_CANCEL);
   default: return menuitem::key(e);
@@ -329,7 +329,7 @@ inputresult menuitem::key(SDL_Event e) {
   int key = e.key.keysym.sym;
 
   if (!(e.key.keysym.mod & (KMOD_CTRL | KMOD_ALT))) {
-    switch(key) {
+    switch (key) {
     case SDLK_UP:
       return inputresult(MR_PREV);
 
@@ -381,10 +381,10 @@ menu * menu::create(drawable * be,
   }
 
   ptrlist<menuitem> * tmp = its;
-  for(int i = 0; i < m->nitems; i ++) {
+  for (int i = 0; i < m->nitems; i++) {
     m->items[i] = tmp->head;
     m->items[i]->container = m;
-    tmp = tmp -> next;
+    tmp = tmp->next;
   }
 
   return m;
@@ -517,7 +517,7 @@ bool menu::skip_ok(int vspace) {
      skip and z. We always have a title
      and separator */
   int ch = 0;
-  for(int z = skip; z < nitems;) {
+  for (int z = skip; z < nitems;) {
     int ww, hh;
     items[z]->size(ww, hh);
 
@@ -527,7 +527,7 @@ bool menu::skip_ok(int vspace) {
       /* this control fits. If it's our
 	 selected control then we're done. */
       if (z == selected) return true;
-      z ++;
+      z++;
     } else 
       /* ran out of space; fail */
       return false;
@@ -563,7 +563,7 @@ void menu::fixup(int vspace) {
      thousands of controls?!
   */
 
-  for(skip = 0; skip < nitems; skip ++)
+  for (skip = 0; skip < nitems; skip++)
     if (skip_ok(vspace)) return;
 }
 
@@ -596,7 +596,7 @@ void menu::screenresize() {
      any explanation */
   int maxl = 0;
 
-  for(int i = 0; i < nitems; i ++) {
+  for (int i = 0; i < nitems; i++) {
     int tw, th;
     items[i]->size(tw, th); tw += items[i]->indent;
     toth += th;
@@ -614,7 +614,7 @@ void menu::screenresize() {
       string hi = util::chopto('\n', ex);
       maxw =
 	util::maximum(maxw, fon->sizex(hi));
-      thisl ++;
+      thisl++;
     }
 
     maxl =
@@ -743,7 +743,7 @@ void menu::screenresize() {
 
 /* XXX loops forever if no focusable */
 void menu::nextfocus(int d) {
-  for(;;) {
+  for (;;) {
     if (items[selected]->focusable()) return;
     selected += d;
     if (selected < 0) selected = nitems - 1;
@@ -791,7 +791,7 @@ inputresult menu::clickselect(int xc, int yc) {
 }
 
 #define PROCESSRESULT(res)              \
-  switch(res.kind()) {                  \
+  switch (res.kind()) {                  \
   case MR_OK:                           \
   case MR_CANCEL:                       \
   case MR_QUIT: return res.kind();      \
@@ -804,7 +804,7 @@ inputresult menu::clickselect(int xc, int yc) {
     break;                              \
                                         \
   case MR_NEXT:                         \
-    selected ++;                        \
+    selected++;                        \
     selected %= nitems;                 \
     nextfocus(1);                       \
     redraw();                           \
@@ -813,7 +813,7 @@ inputresult menu::clickselect(int xc, int yc) {
   case MR_PREV:                         \
     if (!selected) {                    \
       selected = nitems - 1;            \
-    } else --selected;                  \
+    } else--selected;                  \
     nextfocus(-1);                      \
     redraw();                           \
     break;                              \
@@ -837,7 +837,7 @@ resultkind menu::menuize() {
   while (SDL_WaitEvent(&e) >= 0) {
     if (handle_video_event(this, e)) continue;
 
-    switch(e.type) {
+    switch (e.type) {
     case SDL_MOUSEBUTTONDOWN: {
       SDL_MouseButtonEvent * em = (SDL_MouseButtonEvent*)&e;
 
@@ -871,7 +871,7 @@ resultkind menu::menuize() {
 
 	    for (;;) while ( SDL_PollEvent(&event) ) {
 	      
-	      switch(event.type) {
+	      switch (event.type) {
 	      case SDL_MOUSEMOTION: {
 		SDL_MouseMotionEvent * e = (SDL_MouseMotionEvent*)&event;
 

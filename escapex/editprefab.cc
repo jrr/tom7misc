@@ -26,8 +26,8 @@ bool editor::moveplayersafe() {
       dr.lev->guyy >= selection.y &&
       dr.lev->guyx < (selection.x + selection.w) &&
       dr.lev->guyy < (selection.y + selection.h)) {
-    for(int y = 0; y < dr.lev->h; y++)
-      for(int x = 0; x < dr.lev->w; x++) {
+    for (int y = 0; y < dr.lev->h; y++)
+      for (int x = 0; x < dr.lev->w; x++) {
 	if (x >= selection.x &&
 	    y >= selection.y &&
 	    x < (selection.x + selection.w) &&
@@ -82,7 +82,7 @@ void editor::prefab() {
     menu * mm = menu::create(this, "Which prefab?", l, false);
     resultkind res = mm->menuize();
     ptrlist<menuitem>::diminish(l);
-    mm->destroy ();
+    mm->destroy();
 	      
     if (res == MR_OK) {
       switch (what) {
@@ -116,12 +116,12 @@ void editor::pffile() {
     if (!ll) {
       message::quick(this, "Can't open load screen!", 
 		     "Ut oh.", "", PICS XICON POP);
-      redraw ();
+      redraw();
       return ;
     }
     string res = ll->selectlevel();
     string ss = readfile(res);
-    ll->destroy ();
+    ll->destroy();
     
     /* allow corrupted files */
     small = level::fromstring(ss, true);
@@ -177,7 +177,7 @@ void editor::pffile() {
   menu * mm = menu::create(this, "Inserting file", l, false);
   resultkind res = mm->menuize();
   ptrlist<menuitem>::diminish(l);
-  mm->destroy ();
+  mm->destroy();
 	      
   if (res == MR_OK) {
     int xo = util::stoi(xoff.input);
@@ -190,15 +190,15 @@ void editor::pffile() {
     /* remove existing bots/player in selection */
     {
       moveplayersafe();
-      for(int x = selection.x; x < selection.x + selection.w; x++)
-	for(int y = selection.y; y < selection.y + selection.h; y ++)
+      for (int x = selection.x; x < selection.x + selection.w; x++)
+	for (int y = selection.y; y < selection.y + selection.h; y++)
 	  clearbot(x, y);
     }
 
 
     /* tiles and dests */
-    for(int y = 0; y < small->h; y ++)
-      for(int x = 0; x < small->w; x ++) {
+    for (int y = 0; y < small->h; y++)
+      for (int x = 0; x < small->w; x++) {
 	
 	int srcx = x + xo;
 	int srcy = y + yo;
@@ -242,7 +242,7 @@ void editor::pffile() {
       }
 
     /* bots */
-    for(int i = 0; i < small->nbots; i ++) {
+    for (int i = 0; i < small->nbots; i++) {
       int xx, yy;
       small->where(small->boti[i], xx, yy);
 
@@ -267,7 +267,7 @@ void editor::pffile() {
 
 /* checks the condition at time t, for pftimer below */
 static bool timer_check(int * M, int * A, int i, int t) {
-  for(int z = 0; z < i; z ++) {
+  for (int z = 0; z < i; z++) {
     if (((A[z] + t) % M[z]) != 0) return false;
   }
   return true;
@@ -322,7 +322,7 @@ void editor::pftimer() {
   menu * mm = menu::create(this, "Inserting timer", l, false);
   resultkind res = mm->menuize();
   ptrlist<menuitem>::diminish(l);
-  mm->destroy ();
+  mm->destroy();
 	      
   if (res == MR_OK) {
     int n = util::stoi(nmoves.input);
@@ -369,7 +369,7 @@ void editor::pftimer() {
     int M[LEVEL_MAX_WIDTH];
     int A[LEVEL_MAX_WIDTH];
 
-    for(int i = 1; (i < LEVEL_MAX_ROBOTS - dr.lev->nbots) && 
+    for (int i = 1; (i < LEVEL_MAX_ROBOTS - dr.lev->nbots) && 
 	            i < (selection.w - 2) &&
 	            i < (selection.h - 2); i++) {
       if (timer_try(M, A, 0, i, n, reverse.checked)) return;
@@ -395,8 +395,8 @@ bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
        M_i of 0 ill-defined, and 1 pointless, 
        so start at 2. */
     
-    for(M[j] = 2; M[j] < (j?M[j-1]:selection.w); M[j]++) {
-      for(A[j] = 0; A[j] < M[j]; A[j]++) {
+    for (M[j] = 2; M[j] < (j?M[j-1]:selection.w); M[j]++) {
+      for (A[j] = 0; A[j] < M[j]; A[j]++) {
 	if (timer_try(M, A, j + 1, i, n, rev)) return true;
       }
     }
@@ -409,7 +409,7 @@ bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
 
     /* also must not be satisfied for any smaller t */
     {
-      for(int u = 0; u < n; u++) {
+      for (int u = 0; u < n; u++) {
 	if (timer_check(M, A, i, u)) return false;
       }
     }
@@ -418,7 +418,7 @@ bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
     #if 0
     printf("okay: i=%d\n", i);
     {
-      for(int z = 0; z < i; z ++) {
+      for (int z = 0; z < i; z++) {
 	printf("  M[%d] = %d, A[%d] = %d\n",
 	       z, M[z], z, A[z]);
       }
@@ -428,8 +428,8 @@ bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
 
     /* black out selection */
     {
-      for(int x = selection.x; x < selection.x + selection.w; x++) {
-	for(int y = selection.y; y < selection.y + selection.h; y ++) {
+      for (int x = selection.x; x < selection.x + selection.w; x++) {
+	for (int y = selection.y; y < selection.y + selection.h; y++) {
 	  dr.lev->settile(x, y, T_BLACK);
 	  clearbot(x, y);
 	}
@@ -457,7 +457,7 @@ bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
       dr.lev->setdest(trigx + dx * (i + 1), trigy, 
 		      trigx + dx * (i + 1), trigy);
 
-      for(int z = 0; z < i; z ++) {
+      for (int z = 0; z < i; z++) {
 	int home = (rootx + dx * (selection.w - 1)) - (dx * M[z]);
 
 	#if 0
@@ -469,7 +469,7 @@ bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
 	int y = selection.y + z;
 
 	/* clear a path */
-	for(int x = home; x != rootx + dx * selection.w; x += dx) {
+	for (int x = home; x != rootx + dx * selection.w; x += dx) {
 	  dr.lev->settile(x, y, T_ROUGH);
 	}
 

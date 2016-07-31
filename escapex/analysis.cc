@@ -35,11 +35,11 @@ onionfind * analysis::reachable (level * lev) {
      is 'down'
   */
 
-  for(int y = 0; y < lev->h; y ++) {
-    for(int x = 0; x < lev->w; x ++) {
+  for (int y = 0; y < lev->h; y++) {
+    for (int x = 0; x < lev->w; x++) {
 
       if (isempty(lev->tileat(x, y))) {
-	level * cl = lev->clone ();
+	level * cl = lev->clone();
 	Extent<level> el(cl);
 
 	cl->warp(cl->guyx, cl->guyy, x, y);
@@ -48,8 +48,8 @@ onionfind * analysis::reachable (level * lev) {
 	int dummy; dir unused;
 	if (cl->isdead(dummy, dummy, unused)) continue;
 
-	for(dir d = FIRST_DIR; d <= LAST_DIR; d ++) {
-	  level * cc = cl->clone ();
+	for (dir d = FIRST_DIR; d <= LAST_DIR; d++) {
+	  level * cc = cl->clone();
 	  Extent<level> ec(cc);
 
 	  
@@ -62,7 +62,7 @@ onionfind * analysis::reachable (level * lev) {
 	  if (isempty(lev->tileat(destx, desty)) &&
 	      cc->move(d) && !cc->isdead(dummy, dummy, unused)) {
 	    /* good. now just check the opposite... */
-	    level * co = cl->clone ();
+	    level * co = cl->clone();
 	    Extent<level> eec(co);
 
 	    co->warp(cl->guyx, cl->guyy, destx, desty);
@@ -127,7 +127,7 @@ static bool separator(level * lev, int x, int y,
   /* original equivalence class that we're in. */
   int oclass = orig->find(lev->index(x1, y1));
 
-  level * nlev = lev->clone ();
+  level * nlev = lev->clone();
   Extent<level> le(nlev);
   
   nlev->settile(x, y, tile);
@@ -138,8 +138,8 @@ static bool separator(level * lev, int x, int y,
 # if 0
   {
     printf("\nseparate at %d/%d?? after:\n", x, y);
-    for(int y = 0; y < lev->h; y ++) {
-      for(int x = 0; x < lev->w; x ++) {
+    for (int y = 0; y < lev->h; y++) {
+      for (int x = 0; x < lev->w; x++) {
 	printf("%4d ", fresh->find(nlev->index(x, y)));
       }
       printf("\n");
@@ -152,13 +152,13 @@ static bool separator(level * lev, int x, int y,
   /* now see if there are any newly separated regions. */
 
   if (search) {
-    for(y2 = 0; y2 < lev->h; y2 ++)
-      for(x2 = 0; x2 < lev->w; x2 ++) {
+    for (y2 = 0; y2 < lev->h; y2 ++)
+      for (x2 = 0; x2 < lev->w; x2 ++) {
 	/* check that they used to be the same */
 	if (orig->find(lev->index(x2, y2)) == oclass) {
 
 	  /* but now different! */
-	  if(fresh->find(nlev->index(x2, y2)) != expect) {
+	  if (fresh->find(nlev->index(x2, y2)) != expect) {
 
 	    /*
 	      printf("may separate: oclass=%d, expect=%d, actual=%d\n",

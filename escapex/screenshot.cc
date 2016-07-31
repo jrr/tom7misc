@@ -72,7 +72,7 @@ int main (int argc, char ** argv) {
   d.lev = level::fromstring(readfile(inlev));
   if (!d.lev) {
     fprintf(stderr, "Can't open %s\n", inlev.c_str());
-    SDL_Quit ();
+    SDL_Quit();
     return -2;
   }
 
@@ -81,7 +81,7 @@ int main (int argc, char ** argv) {
   while (((d.lev->w * (TILEW >> zf)) > 300 ||
 	  (d.lev->h * (TILEH >> zf)) > 300) &&
 	 zf < (DRAW_NSIZES - 1)) {
-    zf ++;
+    zf++;
   }
 
   d.margin = 1;
@@ -93,7 +93,7 @@ int main (int argc, char ** argv) {
 
   if (!shot) {
     fprintf(stderr, "Can't make surface\n");
-    SDL_Quit ();
+    SDL_Quit();
     return -4;
   }
 

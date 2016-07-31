@@ -37,7 +37,7 @@ struct editor : public drawable {
 
   private:
 
-  void redraw () {
+  void redraw() {
     draw();
     SDL_Flip(screen);
   }
@@ -80,8 +80,8 @@ struct editor : public drawable {
 
   /* stuff for ai */
   void retract1();
-  bool retract_grey ();
-  bool retract_hole ();
+  bool retract_grey();
+  bool retract_hole();
   bool retract_gold();
 
   string ainame (int a);

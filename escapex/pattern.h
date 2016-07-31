@@ -23,10 +23,10 @@ struct match {
      up/down/left/right directions. (Ie, if the
      pattern is matched upside down, then up()
      returns DIR_DOWN */
-  dir up () { return up_dir; }
-  dir down () { return dir_reverse(up_dir); }
-  dir right () { return right_dir; }
-  dir left () { return dir_reverse(right_dir); }
+  dir up() { return up_dir; }
+  dir down() { return dir_reverse(up_dir); }
+  dir right() { return right_dir; }
+  dir left() { return dir_reverse(right_dir); }
 
   /* any 'register' set in the original pattern
      can be fetched here. false if no such
@@ -41,14 +41,14 @@ struct match {
 
   struct stream {
     /* returns 0 when the stream is empty */
-    virtual match * next () = 0;
+    virtual match * next() = 0;
     virtual ~stream() {}
   };
 
 
-  void destroy () {
+  void destroy() {
     delete [] regs;
-    lev->destroy ();
+    lev->destroy();
     delete this;
   }
 
@@ -56,7 +56,7 @@ struct match {
   match(int idx, int udir, int rdir, int nr, int * rgs, level * l) :
     topleft(idx), up_dir(udir), right_dir(rdir), nregs(nr), regs(rgs) {
     
-    lev = l->clone ();
+    lev = l->clone();
     
   }
 
@@ -79,7 +79,7 @@ struct pattern {
   static pattern * create (string s) {
     std::unique_ptr<pattern> p{new pattern{}};
 
-    for(int i = 0; i < 256; i ++)
+    for (int i = 0; i < 256; i++)
       p->tab[i].t = H_ERROR;
 
     /* ignore whitespace */
@@ -90,13 +90,13 @@ struct pattern {
     p->h = 0;
 
     /* conservative estimate */
-    p->chars = (char *) malloc(sizeof (char) * s.length ());
-    p->regs  = (int *)  malloc(sizeof (int)  * s.length ());
+    p->chars = (char *) malloc(sizeof (char) * s.length());
+    p->regs  = (int *)  malloc(sizeof (int)  * s.length());
 
     {
       int thisline = 0;
       int idx = 0;
-      for(unsigned int i = 0; i < s.length (); i ++) {
+      for (unsigned int i = 0; i < s.length(); i++) {
 	
         /* maybe we reached eol? */
         if (s[i] == '\n') {
@@ -109,7 +109,7 @@ struct pattern {
             }
           }
           thisline = 0;
-          p->h ++;
+          p->h++;
           continue;
         }
 
@@ -118,12 +118,12 @@ struct pattern {
         /* look at register naming prefix */
         if (s[i] == '\\') {
           reg = 0;
-          i ++;
+          i++;
           if (!(i < s.length())) return 0;
           while (s[i] >= '0' && s[i] <= '9') {
             reg *= 10;
             reg += s[i] - '0';
-            i ++;
+            i++;
             if (!(i < s.length())) return 0;
           }
           p->nregs = util::maximum(p->nregs, reg + 1);
@@ -132,8 +132,8 @@ struct pattern {
 
         p->regs[idx]  = reg;
         p->chars[idx] = s[i];
-        idx ++;
-        thisline ++;
+        idx++;
+        thisline++;
       }
     }
 
@@ -166,14 +166,14 @@ struct pattern {
     match::stream * i = findall(l, inf);
     match * m = 0;
     if (i) {
-      m = i->next ();
+      m = i->next();
     }
     delete i;
     return m;
   }
 
 
-  struct mystream : public match :: stream {
+  struct mystream : public match::stream {
     mystream(level * l, Info * i, pattern<Info> * p) 
       /* to get a deterministic sequential generator here
 	 add ",0" in the initializer of g */
@@ -185,18 +185,18 @@ struct pattern {
 
     /* PERF: this should detect symmetric patterns and only look
        for them in the directions in which they are different! */
-    virtual match * next () {
+    virtual match * next() {
       /* if there are more dirs in the current
          position, then */
       for (;;)
         if (g.anyleft() && dirsleft) {
           this_dir = 1 + (this_dir % 4);
-          dirsleft --;
+          dirsleft--;
 
           /* printf("now dirsleft %d, thisdir %s\n", dirsleft, dirstring(this_dir).c_str()); */
 	  
           int x, y;
-          lev->where(g.item (), x, y);
+          lev->where(g.item(), x, y);
 
           int sd = this_dir;
 
@@ -266,10 +266,10 @@ struct pattern {
              create our register file */
 	  
           int * r = new int[pat->nregs];
-          for(int z = 0; z < pat->nregs; z ++) r[z] = 0;
+          for (int z = 0; z < pat->nregs; z++) r[z] = 0;
           Extentda<int> re(r);
 	
-          for(int vi = 0; vi < (pat->w * pat->h); vi ++) {
+          for (int vi = 0; vi < (pat->w * pat->h); vi++) {
             int vx = vi % pat->w;
             int vy = vi / pat->w;
 	    
@@ -279,7 +279,7 @@ struct pattern {
             /* now test: */
 	    
             unsigned char code = pat->chars[vi];
-            switch(pat->tab[code].t) {
+            switch (pat->tab[code].t) {
             case H_MATCHTILE:
               if (pat->tab[code].u.tile != lev->tileat(rx, ry)) goto no_match;
               break;
@@ -293,7 +293,7 @@ struct pattern {
             if (pat->regs[vi] >= 0) r[pat->regs[vi]] = lev->index(rx, ry);
           }	      
           /* successful match */
-          re.release ();
+          re.release();
 
           {
             /* XXX this should be derived from rdxx, etc.
@@ -302,7 +302,7 @@ struct pattern {
 
 	    /*
 	      printf("regs are:\n");
-	      for(int zz=0; zz < pat->nregs; zz++) {
+	      for (int zz=0; zz < pat->nregs; zz++) {
 	      printf ("  %d=%d ", zz, r[zz]);
 	      }
 	      printf("\n");
@@ -316,8 +316,8 @@ struct pattern {
 
         } else {
 
-          if (g.anyleft ()) {
-            g.next ();
+          if (g.anyleft()) {
+            g.next();
             dirsleft = 4;
             this_dir = 1 + (3 & (unsigned)util::random());
             /* go again */
@@ -325,7 +325,7 @@ struct pattern {
 
         } /* dirsleft */
 
-    } /* mystream :: next */
+    } /* mystream::next */
     
     private:
     
@@ -346,7 +346,7 @@ struct pattern {
     return new mystream(lev, inf, this);
   }
 
-  void destroy () {
+  void destroy() {
     free(regs);
     free(chars);
     delete this;

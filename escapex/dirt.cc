@@ -2,11 +2,12 @@
 #include "escapex.h"
 #include "dirt.h"
 
-typedef ptrlist<SDL_Rect> rlist;
+using rlist = ptrlist<SDL_Rect>;
 
-struct dreal : public dirt {
+namespace {
+struct Dreal : public Dirt {
   
-  virtual void mirror();
+  void mirror() override;
   
   /* PERF could offer mirror_region, which
      allows us to do more local dirtyrect stuff
@@ -15,24 +16,22 @@ struct dreal : public dirt {
   
   /* enqueue a rectangle to be drawn from the
      mirror. */
-  virtual void setdirty(int x, int y, int w, int h);
+  void setdirty(int x, int y, int w, int h) override;
 
   /* draw all enqueued dirty rectangles. */
-  virtual void clean();
+  void clean() override;
 
-  virtual void destroy() {
+  ~Dreal() override {
     if (surf) SDL_FreeSurface(surf);
     SDL_Rect * tmp;
     while (( tmp = rlist::pop(dirts) )) delete tmp;
   }
 
-  dreal() {
-    surf = 0;
+  Dreal() {
     matchscreen();
-    dirts = 0;
   }
 
-  void matchscreen() {
+  void matchscreen() override {
     if (!surf || surf->w != screen->w || surf->h != screen->h) {
       if (surf) SDL_FreeSurface(surf);
       surf = sdlutil::makesurface(screen->w, screen->h, false);
@@ -40,18 +39,12 @@ struct dreal : public dirt {
   }
 
 private:
-  SDL_Surface * surf;
-
-  rlist * dirts;
-
+  SDL_Surface * surf = nullptr;
+  rlist * dirts = nullptr;
 };
 
-dirt * dirt::create() {
-  return new dreal();
-}
-
 /* assumes surf is the correct size by invariant */
-void dreal::mirror() {
+void Dreal::mirror() {
   SDL_BlitSurface(screen, 0, surf, 0);
 }
 
@@ -60,7 +53,7 @@ void dreal::mirror() {
    overlapping rectangles, we can take their union. If
    there is more dirty area than the screen, we can just
    redraw the whole screen. */
-void dreal::setdirty(int x, int y, int w, int h) {
+void Dreal::setdirty(int x, int y, int w, int h) {
   SDL_Rect * r = (SDL_Rect*)malloc(sizeof (SDL_Rect));
   r->x = x;
   r->y = y;
@@ -69,7 +62,7 @@ void dreal::setdirty(int x, int y, int w, int h) {
   rlist::push(dirts, r);
 }
 
-void dreal::clean() {
+void Dreal::clean() {
   SDL_Rect * r;
   while ( (r = rlist::pop(dirts)) ) {
     SDL_BlitSurface(surf, r, screen, r);
@@ -78,3 +71,10 @@ void dreal::clean() {
     free(r);
   }
 }
+}
+
+Dirt *Dirt::create() {
+  return new Dreal();
+}
+
+Dirt::~Dirt() {}

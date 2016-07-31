@@ -8,7 +8,7 @@
    some expected game dirs actually exist,
    such as 'mylevels'*/
 struct cleanup {
-  static void clean ();
+  static void clean();
 };
 
 #endif

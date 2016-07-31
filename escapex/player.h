@@ -47,7 +47,7 @@ struct player {
   int webseqh;
   int webseql;
 
-  virtual void destroy () = 0;
+  virtual void destroy() = 0;
 
   static player * create(string n);
   static player * fromfile(string file);

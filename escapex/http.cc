@@ -6,9 +6,9 @@
 #define DMSG if (log_message) (*log_message)
 
 struct httpreal : public http {
-  httpreal ();
+  httpreal();
   virtual ~httpreal();
-  virtual void destroy ();
+  virtual void destroy();
   virtual void setua(string);
   virtual bool connect(string host, int port = 80);
   virtual httpresult get(string path, string & out);
@@ -62,7 +62,7 @@ httpresult httpreal::gettempfile(string path, string & out_) {
   return get_general(path, out_, true);
 }
 
-httpreal::httpreal () {
+httpreal::httpreal() {
   callback = 0;
   conn = 0;
   remote.host = 0;
@@ -70,9 +70,9 @@ httpreal::httpreal () {
   log_message = 0;
 }
 
-httpreal::~httpreal () { }
+httpreal::~httpreal() { }
 
-void httpreal::destroy () {
+void httpreal::destroy() {
   /* ? */
   if (conn) {
     DMSG (util::ptos(this) + " destroy\n");
@@ -89,7 +89,7 @@ bool httpreal::connect(string chost, int port) {
   DMSG (util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
   
   /* should work for "snoot.org" or "128.2.194.11" */
-  if(SDLNet_ResolveHost(&remote, (char *)chost.c_str(), port)) {
+  if (SDLNet_ResolveHost(&remote, (char *)chost.c_str(), port)) {
     DMSG (util::ptos(this) + " can't resolve: " + (string)(SDLNet_GetError()) + "\n");
     return false;
   }
@@ -102,15 +102,15 @@ bool httpreal::connect(string chost, int port) {
 }
 
 void append(string & s, char * vec, unsigned int l) {
-  unsigned int slen = s.length ();
+  unsigned int slen = s.length();
   unsigned int nlen = l + slen;
   string ret(nlen, '*');
 
-  for(unsigned int u = 0; u < slen; u ++) {
+  for (unsigned int u = 0; u < slen; u++) {
     ret[u] = s[u];
 
   }
-  for(unsigned int v = 0; v < l; v ++) {
+  for (unsigned int v = 0; v < l; v++) {
     ret[v + slen] = vec[v];
   }
 
@@ -136,7 +136,7 @@ httpresult httpreal::put(string path,
   string body = "--" + boundary;
 
   /* in loop, body ends with boundary ( no \r\n ) */
-  while(items) {
+  while (items) {
     switch (items->ty) {
     case FT_ARG:
       body += "\r\nContent-Disposition: form-data; name=\"" + 
@@ -153,7 +153,7 @@ httpresult httpreal::put(string path,
       break;
     }
     body += "\r\n--" + boundary;
-    items = items -> next;
+    items = items->next;
   }
 
   body += "--\r\n";
@@ -237,7 +237,7 @@ httpresult httpreal::req_general(string req, string & res, bool tofile) {
      unfortunately we must read single bytes at this point
      so that we don't accidentally move into the data area.
   */
-  for(;;) {
+  for (;;) {
     if (SDLNet_TCP_Recv(conn, &c, 1) != 1) {
       DMSG (util::ptos(this) + " can't recv: " + (string)(SDLNet_GetError()) + "\n");
       printf("Error in recv.\n");
@@ -375,10 +375,10 @@ httpresult httpreal::req_general(string req, string & res, bool tofile) {
 /* XXX use util::tempfile */
 FILE * httpreal::tempfile(string & f) {
   static int call = 0;
-  int pid = util::getpid ();
+  int pid = util::getpid();
   int tries = 256;
   call++;
-  while(tries--) {
+  while (tries--) {
     char fname[256];
     sprintf(fname, "dl%d%04X%04X.deleteme", call, pid, 
 	    (int)(0xFFFF & util::random()));
@@ -407,7 +407,7 @@ string httpreal::readresttofile() {
   int n = 0;
 
   int x;
-  while((x = SDLNet_TCP_Recv(conn, buf, BUFLEN)) > 0) {
+  while ((x = SDLNet_TCP_Recv(conn, buf, BUFLEN)) > 0) {
     fwrite(buf, 1, x, ff);
     if (callback) callback->progress(n += x, -1);
   }
@@ -431,7 +431,7 @@ string httpreal::readrest() {
 
   DMSG("reading rest...\n");
 
-  while((x = SDLNet_TCP_Recv(conn, buf, BUFLEN)) > 0) {
+  while ((x = SDLNet_TCP_Recv(conn, buf, BUFLEN)) > 0) {
     append(acc, buf, x);
     if (callback) callback->progress(n += x, -1);
   }

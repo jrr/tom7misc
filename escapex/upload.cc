@@ -8,13 +8,13 @@
 #include "optimize.h"
 
 struct ulreal : public upload {
-  static ulreal * create ();
+  static ulreal * create();
   ~ulreal() override {}
 
   upresult up(player * p, string file, string) override;
 
   void redraw() {
-    draw ();
+    draw();
     SDL_Flip (screen);
   }
 
@@ -83,7 +83,7 @@ upresult ulreal::up (player * p, string f, string text) {
   say(GREEN "Level and solution ok." POP);
   say("Optimizing...");
 
-  solution * opt = optimize::opt(lev, slong);
+  solution * opt = Optimize::opt(lev, slong);
   if (!opt) {
     say(RED "optimization failed" POP);
     return UL_FAIL;

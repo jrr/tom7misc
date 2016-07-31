@@ -7,7 +7,7 @@
 bool sound::enabled() { return false; }
 void sound::mute(bool b) { }
 void sound::init() { }
-void sound::shutdown () { }
+void sound::shutdown() { }
 void sound::play(sound_t s) { }
 
 #else
@@ -62,7 +62,7 @@ void sound::play (sound_t s) {
   }
 }
 
-void sound::shutdown () {
+void sound::shutdown() {
   if (sound_available) {
     Mix_CloseAudio();
   }

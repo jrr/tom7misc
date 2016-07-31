@@ -279,14 +279,14 @@ typedef selector<llentry, string> selor;
 
 struct loadlevelreal : public loadlevel {
 
-  virtual void draw ();
+  virtual void draw();
   virtual void screenresize() {}
 
   virtual void destroy() {
     if (showlev) showlev->destroy();
-    sel->destroy ();
+    sel->destroy();
     if (cache) cache->destroy();
-    while(path) stringpop(path);
+    while (path) stringpop(path);
     delete this;
   }
 
@@ -325,7 +325,7 @@ struct loadlevelreal : public loadlevel {
      syntax for this is ridiculous */
   static int (*getsort(sortstyle s)) (const llentry & l,
 				      const llentry & r) {
-    switch(s) {
+    switch (s) {
     default:
     case SORT_DATE: return llentry::cmp_bydate;
     case SORT_ALPHA: return llentry::cmp_byname;
@@ -382,7 +382,7 @@ struct loadlevelreal : public loadlevel {
      a solution if one exists. */
   void step();
   void fix_show(bool force = false);
-  void drawsmall ();
+  void drawsmall();
 
 };
 
@@ -394,10 +394,10 @@ loadlevel * loadlevel::create(player * p, string dir, bool td, bool ac) {
   return loadlevelreal::create (p, dir, td, ac);
 }
 
-loadlevel::~loadlevel () {}
+loadlevel::~loadlevel() {}
 
 void loadlevelreal::select_lastfile() {
-  for(int i = 0; i < sel->number; i ++) {
+  for (int i = 0; i < sel->number; i++) {
     if (sel->items[i].fname == lastfile) sel->selected = i;
   }
 }
@@ -445,7 +445,7 @@ void loadlevelreal::fix_show(bool force) {
 
 void loadlevelreal::step() {
 
-  fix_show ();
+  fix_show();
 
   /* now, if we have a lev, maybe make a move */
   if (showlev && showsol) {
@@ -454,10 +454,10 @@ void loadlevelreal::step() {
       if (solstep < showsol->length) {
 	dir d = showsol->dirs[solstep];
 	showlev->move(d);
-	solstep ++;
+	solstep++;
       }
 
-    } else showstart --;
+    } else showstart--;
   }
 }
 
@@ -535,7 +535,7 @@ string llentry::display(bool selected) {
 
 bool llentry::matches(char k) {
   if (name.length() > 0) return util::library_matches(k, name);
-  else return (fname.length () > 0 && (fname[0] | 32) == k);
+  else return (fname.length() > 0 && (fname[0] | 32) == k);
 }
 
 bool loadlevelreal::first_unsolved(string & file, string & title) {
@@ -543,7 +543,7 @@ bool loadlevelreal::first_unsolved(string & file, string & title) {
      tutorials */
   sel->sort(getsort(SORT_ALPHA));
 
-  for(int i = 0; i < sel->number; i ++) {
+  for (int i = 0; i < sel->number; i++) {
     if ((!sel->items[i].isdir) &&
 	(!sel->items[i].solved)) {
       file = sel->items[i].actualfile(path);
@@ -624,7 +624,7 @@ loadlevelreal * loadlevelreal::create(player * p, string default_dir,
 }
 
 
-string loadlevelreal::selectlevel () {
+string loadlevelreal::selectlevel() {
   return loop();
 }
 
@@ -635,10 +635,10 @@ string loadlevelreal::locate(string filename) {
   stringlist * pp = path;
   
   string out = filename;
-  while(pp) {
+  while (pp) {
     if (out == "") out = pp->head;
     else out = pp->head + string(DIRSEP) + out;
-    pp = pp -> next;
+    pp = pp->next;
   }
 
   if (out == "") return ".";
@@ -654,7 +654,7 @@ int loadlevelreal::changedir(string what, bool remember) {
     stringlist * pp = path;
     while (pp) {
       /* printf("  '%s'\n", pp->head.c_str()); */
-      pp = pp -> next;
+      pp = pp->next;
     }
   }
 
@@ -730,7 +730,7 @@ int loadlevelreal::changedir(string what, bool remember) {
   dirent * de;
 
   int i;
-  for(i = 0; i < n;) {
+  for (i = 0; i < n;) {
     de = readdir(d);
     if (!de) break;
 
@@ -827,20 +827,20 @@ int loadlevelreal::changedir(string what, bool remember) {
 		ver->sol->verified = true;
 
 		/* get tail */
-		sols = sols -> next;
+		sols = sols->next;
 
 		solset * yes = 0;
 		
 		/* put the current tail there, cloning */
 		while (sols) {
 		  solset::push(yes, sols->head->clone());
-		  sols = sols -> next;
+		  sols = sols->next;
 		}
 
 		/* god this is annoying in C++ */
 		while (no) {
 		  solset::push(yes, no->head->clone());
-		  no = no -> next;
+		  no = no->next;
 		}
 
 		solset::push(yes, ver);
@@ -853,7 +853,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
 	      } else {
 		solset::push(no, sols->head);
-		sols = sols -> next;
+		sols = sols->next;
 	      }
 	    }
 
@@ -938,7 +938,7 @@ void loadlevelreal::draw() {
 
   sdlutil::clearsurface(screen, BGCOLOR);
 
-  drawsmall ();
+  drawsmall();
 }
 
 void loadlevelreal::drawsmall() {
@@ -1002,10 +1002,10 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 
   int total = 0;
   {
-    for(int i = 0; i < sel->number; i ++) {
+    for (int i = 0; i < sel->number; i++) {
       if ((!sel->items[i].isdir) &&
 	  (!sel->items[i].solved)) {
-	total ++;
+	total++;
       }
     }
   }
@@ -1014,7 +1014,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
   int done = 0;
   string solveds;
   // XXX honor wholedir
-  for(int i = 0; i < sel->number; i ++) {
+  for (int i = 0; i < sel->number; i++) {
     if ((wholedir || i == sel->selected) &&
 	!sel->items[i].isdir &&
 	!sel->items[i].solved) {
@@ -1045,7 +1045,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 			  ALPHA100 GREEN +
 			  solveds);
 
-	snn ++;
+	snn++;
 
 	/* printf("try %p on %p\n", s, l); */
 	if (level::verify_prefix(l, s, out)) {
@@ -1058,7 +1058,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 	  FILE * f = fopen(af.c_str(), "rb");
 	  if (!f) {
 	    message::bug(this, "couldn't open in recovery");
-	    sel->redraw ();
+	    sel->redraw();
 	    continue;
 	  }
 	  string md5 = MD5::Hashf(f);
@@ -1085,7 +1085,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 			     time(0), false);
 	    plr->addsolution(md5, &ns);
 	  }
-	  nsolved ++;
+	  nsolved++;
 	  out->destroy();
 
 	  /* then don't bother looking at the tail */
@@ -1117,16 +1117,16 @@ string loadlevelreal::loop() {
   /* last recovery file */
   string lastrecover;
 
-  for(;;) {
+  for (;;) {
     SDL_Delay(1);
 
     Uint32 now = SDL_GetTicks();
   
     if (now > nextframe) {
-      step (); 
+      step(); 
       nextframe = now + LOADFRAME_TICKS;
       /* only draw the part that changed */
-      drawsmall ();
+      drawsmall();
       SDL_Flip(screen);
     }
   
@@ -1137,7 +1137,7 @@ string loadlevelreal::loop() {
 	/* breaking from here will allow the key to be
 	   treated as a search */
 
-	switch(key) {
+	switch (key) {
 	case SDLK_DELETE: {
 	  string file = 
 	    sel->items[sel->selected].actualfile(path);
@@ -1205,7 +1205,7 @@ string loadlevelreal::loop() {
 	      menu * mm = menu::create(0, "Really delete?", l, false);
 	      resultkind res = mm->menuize();
 	      ptrlist<menuitem>::diminish(l);
-	      mm->destroy ();
+	      mm->destroy();
 	      
 	      if (res == MR_OK) {
 		
@@ -1230,12 +1230,12 @@ string loadlevelreal::loop() {
 
 		} else {
 		  message::no(this, "Couldn't delete: " + res);
-		  sel->redraw ();
+		  sel->redraw();
 		  continue;
 		}
 	      } else {
 		/* menu: cancel */
-		sel->redraw ();
+		sel->redraw();
 		continue;
 	      }
 
@@ -1244,7 +1244,7 @@ string loadlevelreal::loop() {
 			  "In web collections, you can only delete\n"
 			  "   a level that you uploaded. "
 			  "(marked " PICS KEYPIC POP ")\n");
-	      sel->redraw ();
+	      sel->redraw();
 	      continue;
 	    }
 
@@ -1255,14 +1255,14 @@ string loadlevelreal::loop() {
 				file + POP "?",
 				"Yes",
 				"Cancel", PICS QICON POP)) {
-	      sel->redraw ();
+	      sel->redraw();
 	      continue;
 	    }
 	  }
 
 	  if (!util::remove(file)) {
 	    message::no(this, "Error deleting file!");
-	    sel->redraw ();
+	    sel->redraw();
 	    continue;
 	  }
 
@@ -1278,7 +1278,7 @@ string loadlevelreal::loop() {
 	  
 	  select_lastfile();
 	  fix_show(true);
-	  sel->redraw ();
+	  sel->redraw();
 	  break;
 	}
 
@@ -1340,10 +1340,10 @@ string loadlevelreal::loop() {
 	case SDLK_KP_PLUS:
 	case SDLK_SLASH:
 	case SDLK_QUESTION:
-	  helppos ++;
+	  helppos++;
 	  helppos %= numhelp;
 	  sel->title = helptexts(helppos);
-	  sel->redraw ();
+	  sel->redraw();
 	  continue;
 
 	case SDLK_m:
@@ -1596,7 +1596,7 @@ string loadlevelreal::loop() {
 		menu * mm = menu::create(0, "Really upload?", l, false);
 		resultkind res = mm->menuize();
 		ptrlist<menuitem>::diminish(l);
-		mm->destroy ();
+		mm->destroy();
 	      
 		if (res != MR_OK) {
 		  sel->redraw();
@@ -1623,7 +1623,7 @@ string loadlevelreal::loop() {
 		  sel->items[sel->selected].actualfile(path);
 
 		/* don't bother with message; upload does it */
-		switch(uu->up(plr, file, desc.get_text())) {
+		switch (uu->up(plr, file, desc.get_text())) {
 		case UL_OK:
 		  break;
 		default:
@@ -1649,7 +1649,7 @@ string loadlevelreal::loop() {
       }
     
       selor::peres pr = sel->doevent(event);
-      switch(pr.type) {
+      switch (pr.type) {
       case selor::PE_SELECTED:
 	if (sel->items[pr.u.i].isdir) {
 	  /* XXX test if changedir failed, if so,
@@ -1691,7 +1691,7 @@ string loadlevelreal::loop() {
    still. */
 const int loadlevelreal::numhelp = 2;
 string loadlevelreal::helptexts(int i) {
-  switch(i) {
+  switch (i) {
   case 0:
     return 
       WHITE

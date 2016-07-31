@@ -47,13 +47,13 @@ enum playstate {
 struct preal : public play {
 
   bool waitenter();
-  virtual void draw ();
+  virtual void draw();
   virtual void screenresize();
 
   virtual playresult doplay_save(player *, level *, 
 				 solution *& saved, string md5 = "");
 
-  virtual ~preal ();
+  virtual ~preal();
 
   /* debugging */
   int layer;
@@ -72,7 +72,7 @@ struct preal : public play {
   int solpos;
 
   static preal * create();
-  void redraw ();
+  void redraw();
 
   void videoresize(SDL_ResizeEvent * eventp);
 
@@ -112,10 +112,10 @@ private:
 			 int n);
 };
 
-play::~play () {}
-preal::~preal () {}
+play::~play() {}
+preal::~preal() {}
 
-play * play::create () {
+play * play::create() {
   return preal::create();
 }
 
@@ -364,7 +364,7 @@ struct bookmarkitem : public menuitem {
     ns = n->clone();
     int unused = 0;
     lev->play(n->sol, unused);
-    solved = lev->iswon () && n->sol->length;
+    solved = lev->iswon() && n->sol->length;
     action.a = BMA_NONE;
     plr = p;
     levmd5 = md;
@@ -383,7 +383,7 @@ void preal::drawmenu() {
   int showw = (screen->w / TILEW) - 1;
 
   /* could be showw + 1 */
-  for(int j = 0; j < (showw + 1) && j < NUM_PLAYMENUITEMS; j++) {
+  for (int j = 0; j < (showw + 1) && j < NUM_PLAYMENUITEMS; j++) {
     if (j == POS_MOVECOUNTER) {
       string count;
       if (solpos != sol->length) {
@@ -423,23 +423,6 @@ void preal::drawmenu() {
     drawing::drawtileu(POS_FREDO * TILEW, 2, TU_DISABLED, 0);
     drawing::drawtileu(POS_PLAYPAUSE * TILEW, 2, TU_DISABLED, 0);
   }
-
-#if 0 // can't do it because saved_sol not in scope...
-  if (saved_sol->length == 0) {
-    drawing::drawtileu(POS_RESTORESTATE * TILEW, 2, TU_DISABLED, 0);
-  }
-#endif
-
-#if 0
-  if (watching) {
-    fon->draw(0, 8, GREEN "WATCHING" POP);
-  }
-#endif
-
-  // if (filename == "") {
-  //     drawing::drawtileu(POS_SAVE * TILEW, 0, TU_DISABLED, 0);
-  //  }
-  
 }
 
 void preal::draw() {
@@ -473,7 +456,7 @@ void preal::draw() {
 	      dr.lev->title + (string)" " GREY "by " POP BLUE + 
 	      dr.lev->author + POP);
 
-  switch(curstate()) {
+  switch (curstate()) {
   case STATE_OKAY: break;
   case STATE_DEAD:
     message::drawonlyv(screen->h - fon->height*8,
@@ -529,7 +512,7 @@ bool preal::redo() {
   if (curstate() == STATE_OKAY &&
       solpos < sol->length) {
     if (dr.lev->move(sol->dirs[solpos])) {
-      solpos ++;
+      solpos++;
       return true;
     } else {
       message::no(this,
@@ -575,7 +558,7 @@ void preal::setsolseta(player * plr, string md5,
 
   ptrlist<namedsolution> * solset = 0;
   
-  for(int i = n - 1; i >= 0; i --) {
+  for (int i = n - 1; i >= 0; i--) {
     solset = new ptrlist<namedsolution>(books[i]->ns->clone(), solset);
   }
 
@@ -649,9 +632,9 @@ void preal::bookmarks(level * start,
       bmnum = ss->length();
       books = (bookmarkitem**) malloc(sizeof (bookmarkitem*) * bmnum);
       
-      for(int i = 0; i < bmnum ; i ++) {
+      for (int i = 0; i < bmnum ; i++) {
 	if (!ss->head->bookmark) didsolve = true;
-	bookmarkitem * tmp = new bookmarkitem(start, ss -> head, plr, md5, this);
+	bookmarkitem * tmp = new bookmarkitem(start, ss->head, plr, md5, this);
 
 	tmp->explanation = 
 	  "Selecting this bookmark will load it,\n"
@@ -660,7 +643,7 @@ void preal::bookmarks(level * start,
 	ptrlist<menuitem>::push(l, tmp);
 	books[i] = tmp;
 
-	ss = ss -> next;
+	ss = ss->next;
       }
 
     }
@@ -692,13 +675,16 @@ void preal::bookmarks(level * start,
 
     resultkind k = mm->menuize();
 
-    switch(k) {
+    switch (k) {
+    case MR_NEXT: case MR_PREV:
+    case MR_REJECT: case MR_UPDATED:
+    case MR_NOTHING: break;
     case MR_OK: {
       /* MR_OK could come from hitting the OK button,
 	 or hitting one of the bookmarks. so look
 	 to see if it was a bookmark first. */
 
-      for(int i = 0; i < bmnum; i ++) {
+      for (int i = 0; i < bmnum; i++) {
 	bmaction a = books[i]->action.a;
 	switch (a) {
 	case BMA_NONE: break;
@@ -727,7 +713,7 @@ void preal::bookmarks(level * start,
 	  books[i] = tmp;
 	  
 	  /* remove last item */
-	  bmnum --;
+	  bmnum--;
 
 	  setsolseta(plr, md5, books, bmnum);
 	  show_menu_again = true;
@@ -736,7 +722,7 @@ void preal::bookmarks(level * start,
 	case BMA_OPTIMIZE: {
 
 	  solution * s = books[i]->ns->sol;
-	  solution * so = optimize::opt(start, s);
+	  solution * so = Optimize::opt(start, s);
 	  if (so->length < s->length) {
 	    s->destroy();
 	    s = so;
@@ -771,7 +757,7 @@ void preal::bookmarks(level * start,
 	  ec.replace(dr.lev);
 
 	  sol->destroy();
-	  sol = books[i]->ns->sol->clone ();
+	  sol = books[i]->ns->sol->clone();
 	  eso.replace(sol);
 
 	  if (a == BMA_WATCH) {
@@ -793,7 +779,7 @@ void preal::bookmarks(level * start,
       /* didn't click on a bookmark. Could be one of the
 	 other buttons... */
 
-      switch(okay_what) {
+      switch (okay_what) {
 
       case OKAYWHAT_NEW: {
 	/* bookmark new */
@@ -841,7 +827,7 @@ void preal::bookmarks(level * start,
 
     /* now erase the bookmark menuitems */
     {
-      for(int i = 0; i < bmnum; i ++) {
+      for (int i = 0; i < bmnum; i++) {
 	books[i]->destroy();
       }
       free(books);
@@ -878,7 +864,7 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
     td.say("OK. Solutions on server: " GREEN + itos(nsols) + POP);
 
     /* get them! */
-    for(int i = 0; i < nsols; i ++) {
+    for (int i = 0; i < nsols; i++) {
       string line1 = util::getline(s);
       string author = util::getline(s);
       string moves = Base64::Decode(util::getline(s));
@@ -943,7 +929,7 @@ void preal::restore(Extent<level> & ec,
     ec.replace(dr.lev);
     
     sol->destroy();
-    sol = saved_sol->clone ();
+    sol = saved_sol->clone();
     eso.replace(sol);
     solpos = sol->length;
 
@@ -992,7 +978,7 @@ bool preal::getevent(SDL_Event * e, bool & fake) {
     e->type = SDL_KEYDOWN;
     e->key.keysym.mod = (SDLMod) 0;
     e->key.keysym.unicode = 0;
-    switch(sol->dirs[solpos]) {
+    switch (sol->dirs[solpos]) {
     case DIR_UP:    e->key.keysym.sym = SDLK_UP;    break;
     case DIR_DOWN:  e->key.keysym.sym = SDLK_DOWN;  break;
     case DIR_LEFT:  e->key.keysym.sym = SDLK_LEFT;  break;
@@ -1019,7 +1005,7 @@ playresult preal::doplay_save(player * plr, level * start,
   if (!saved) {
     saved_sol = solution::empty();
   } else {
-    saved_sol = saved->clone ();
+    saved_sol = saved->clone();
   }
 
   Extent<solution> ess(saved_sol);
@@ -1041,14 +1027,12 @@ playresult preal::doplay_save(player * plr, level * start,
   dr.message = "";
 
   /* XX avoid creating if animation is off? */
-  dirt * dirty = dirt::create();
-  Extent<dirt> edi(dirty);
+  std::unique_ptr<Dirt> dirty{Dirt::create()};
 
-  bool pref_animate = 
+  const bool pref_animate = 
     prefs::getbool(plr, PREF_ANIMATION_ENABLED);
 
-
-  for(;;) {
+  for (;;) {
     //  while ( SDL_WaitEvent(&event) >= 0 ) {
     SDL_Delay(1);
     
@@ -1057,7 +1041,7 @@ playresult preal::doplay_save(player * plr, level * start,
     /* XXX shut off keyrepeat? */
     while ( getevent(&event, fake) ) {
 
-      switch(event.type) {
+      switch (event.type) {
       case SDL_QUIT: goto play_quit;
       case SDL_MOUSEBUTTONDOWN: {
 	SDL_MouseButtonEvent * e = (SDL_MouseButtonEvent*)&event;
@@ -1069,7 +1053,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	    unsigned int targ = (e->x - 2) / TILEW;
 	    
 	    if (targ < NUM_PLAYMENUITEMS) {
-	      switch(play_menuitem[targ]) {
+	      switch (play_menuitem[targ]) {
 	      case TU_BOOKMARKS:
 		bookmarks(start, ec, plr, md5, sol, eso);
 		break;
@@ -1092,7 +1076,7 @@ playresult preal::doplay_save(player * plr, level * start,
 		undo(start, ec, 10);
 		break;
 	      case TU_FREDO:
-		{ for(int i = 0; i < 10; i ++) redo(); }
+		{ for (int i = 0; i < 10; i++) redo(); }
 		redraw();
 		break;
 
@@ -1111,10 +1095,10 @@ playresult preal::doplay_save(player * plr, level * start,
       }
       case SDL_KEYDOWN:
 
-	switch(event.key.keysym.unicode) {
+	switch (event.key.keysym.unicode) {
 	  
 	case SDLK_ESCAPE:
-	  switch(curstate()) {
+	  switch (curstate()) {
 	  case STATE_WON:
 	    /* XXX duplicated below. */
 	    sol->length = solpos;
@@ -1158,7 +1142,7 @@ playresult preal::doplay_save(player * plr, level * start,
 
 	  /* fix scrolls */
 	  dr.makescrollreasonable();
-	  redraw ();
+	  redraw();
 	  break;
 
 	case SDLK_y:
@@ -1228,7 +1212,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	  watching = !watching;
 	  nextframe = 0;
 	  // printf("Watching: %d\n", (int)watching);
-	  redraw ();
+	  redraw();
 	  break;
 	}
 
@@ -1241,7 +1225,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	default:
 	  /* no unicode match; try sym */
       
-	switch(event.key.keysym.sym) {
+	switch (event.key.keysym.sym) {
 
 	case SDLK_d:
 	  if (event.key.keysym.mod & KMOD_CTRL) {
@@ -1253,7 +1237,7 @@ playresult preal::doplay_save(player * plr, level * start,
 
 	case SDLK_o:
 	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    for(int i = 0; i < 10; i ++) redo();
+	    for (int i = 0; i < 10; i++) redo();
 	    redraw();
 	  }
 	  break;
@@ -1275,7 +1259,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	    printf("Trying to complete..\n");
 	    sol->length = solpos;
 	    solution * ss = 
-	      optimize::trycomplete(start, sol,
+	      Optimize::trycomplete(start, sol,
 				    plr->solutionset(md5));
 	    if (ss) {
 	      message::quick(this, "Completed from bookmarks: " GREEN
@@ -1317,11 +1301,11 @@ playresult preal::doplay_save(player * plr, level * start,
 	case SDLK_LEFT: {
 
 	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    switch(event.key.keysym.sym) {
-	    case SDLK_DOWN: dr.scrolly ++; break;
-	    case SDLK_UP: dr.scrolly --; break;
-	    case SDLK_RIGHT: dr.scrollx ++; break;
-	    case SDLK_LEFT: dr.scrollx --; break;
+	    switch (event.key.keysym.sym) {
+	    case SDLK_DOWN: dr.scrolly++; break;
+	    case SDLK_UP: dr.scrolly--; break;
+	    case SDLK_RIGHT: dr.scrollx++; break;
+	    case SDLK_LEFT: dr.scrollx--; break;
 	    default: ; /* impossible */
 	    }
 
@@ -1330,14 +1314,14 @@ playresult preal::doplay_save(player * plr, level * start,
 	  }
 
 	  /* can't move when dead or won... */
-	  if (curstate () != STATE_OKAY) break;
+	  if (curstate() != STATE_OKAY) break;
 
 	  /* if it's real, then cancel watching */
 	  if (!fake) watching = false;
 
 	  /* move */
 	  dir d = DIR_UP;
-	  switch(event.key.keysym.sym) {
+	  switch (event.key.keysym.sym) {
 	  case SDLK_DOWN: d = DIR_DOWN; break;
 	  case SDLK_UP: d = DIR_UP; break;
 	  case SDLK_RIGHT: d = DIR_RIGHT; break;
@@ -1348,7 +1332,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	  bool moved;
 
 	  if (pref_animate && !dr.zoomfactor) {
-	    moved = animatemove(dr, ctx, dirty, d);
+	    moved = animatemove(dr, ctx, dirty.get(), d);
 	  } else {
 	    moved = dr.lev->move(d);
 	  }
@@ -1364,7 +1348,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	      sol->append(d);
 	    }
 	    /* and either way, the solution position increases */
-	    solpos ++;
+	    solpos++;
 
 	    dr.message = "";
 	  }
@@ -1413,7 +1397,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
     string idx = 
       util::pathof(res) + (string)DIRSEP WEBINDEXNAME;
     dirindex * di = dirindex::fromfile(idx);
-    iscollection = di?(di->webcollection ()):false;
+    iscollection = di?(di->webcollection()):false;
     if (di) di->destroy();
   }
 
@@ -1487,7 +1471,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
 	      ptrlist<namedsolution>::push(newsols,
 					   ns->clone());
 	    }
-	    check->destroy ();
+	    check->destroy();
 	  }
 	}
 
@@ -1498,13 +1482,13 @@ void play::playrecord(string res, player * plr, bool allowrate) {
       if (prefs::getbool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
 	level * check = level::fromstring(ss);
 	if (check) {
-	  opt = optimize::opt(check, sol);
-	  check->destroy ();
-	} else opt = sol->clone ();
+	  opt = Optimize::opt(check, sol);
+	  check->destroy();
+	} else opt = sol->clone();
       } else {
-	opt = sol->clone ();
+	opt = sol->clone();
       }
-      sol->destroy ();
+      sol->destroy();
       
       
       {
@@ -1550,7 +1534,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
   } else return;
 }
 
-bool play::animatemove(drawing & dr, disamb *& ctx, dirt *& dirty, dir d) {
+bool play::animatemove(drawing & dr, disamb *& ctx, Dirt *dirty, dir d) {
   /* events waiting to be turned into animations */
   elist * events = 0;
   /* current phase of animation */
@@ -1573,7 +1557,7 @@ bool play::animatemove(drawing & dr, disamb *& ctx, dirt *& dirty, dir d) {
   bool success = dr.lev->move_animate(d, ctx, events);
 
   /* loop playing animations. */
-  while(sprites || anims || events) {
+  while (sprites || anims || events) {
     unsigned int now = SDL_GetTicks();
 
     /* are we animating? if so, trigger 
@@ -1604,8 +1588,8 @@ bool play::animatemove(drawing & dr, disamb *& ctx, dirt *& dirty, dir d) {
 	bool only_finales = true;
 
 	{
-	  for(alist * atmp = anims; atmp && !ready; 
-	      atmp = atmp -> next) {
+	  for (alist * atmp = anims; atmp && !ready; 
+	      atmp = atmp->next) {
 	    if (!atmp->head->finale) only_finales = false;
 	    if (atmp->head->nexttick < now) {
 	      ready = true;
@@ -1614,8 +1598,8 @@ bool play::animatemove(drawing & dr, disamb *& ctx, dirt *& dirty, dir d) {
 	}
 
 	{
-	  for(alist * atmp = sprites; atmp && !ready; 
-	      atmp = atmp -> next) {
+	  for (alist * atmp = sprites; atmp && !ready; 
+	      atmp = atmp->next) {
 	    if (!atmp->head->finale) only_finales = false;
 	    if (atmp->head->nexttick < now) {
 	      ready = true;
@@ -1632,7 +1616,7 @@ bool play::animatemove(drawing & dr, disamb *& ctx, dirt *& dirty, dir d) {
 	/* if nothing is ready, then don't chew CPU */
 	/* XXX PERF ever delay when animations are going? */
 	if (!ready) SDL_Delay(0);
-	now = SDL_GetTicks ();
+	now = SDL_GetTicks();
       } while (!ready);
 
       /* 

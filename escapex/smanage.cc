@@ -72,7 +72,7 @@ struct nsentry {
   int convert() { return 0; }
 
   bool matches(char k) {
-    return (ns.name.length () > 0 &&
+    return (ns.name.length() > 0 &&
 	    (ns.name[0]|32) == (k|32));
   }
 
@@ -111,23 +111,23 @@ struct smreal : public drawable {
 
   virtual ~smreal() {}
   void destroy() {
-    sel->destroy ();
+    sel->destroy();
     delete this;
   }
 
   /* drawable */
-  virtual void draw () {
+  virtual void draw() {
     sdlutil::clearsurface(screen, BGCOLOR);
     /* XXX should drawsmall like load.
        need to move that stuff to some separate class
        so I can reuse it (also when rating, commenting) */
   }
 
-  void resort () {
+  void resort() {
     sel->sort(nsentry::cmp_default);
   }
 
-  virtual void screenresize () {}
+  virtual void screenresize() {}
 
   static smreal * create(player * p, string lmd5, level * lev) {
     /* get the solution set */
@@ -140,7 +140,7 @@ struct smreal : public drawable {
 
     smreal * sm = new smreal;
     if (!sm) return 0;
-    int len = solset->length ();
+    int len = solset->length();
     
     sm->sel = nsel::create(len);
 
@@ -167,7 +167,7 @@ struct smreal : public drawable {
 
 
     /* now initialize the nsentries  */
-    for (int i = 0; i < len; i ++) {
+    for (int i = 0; i < len; i++) {
       solution * s = solset->head->sol->clone();
       sm->sel->items[i].def = (i == 0);
       sm->sel->items[i].ns.name = solset->head->name;
@@ -177,10 +177,10 @@ struct smreal : public drawable {
       sm->sel->items[i].ns.sol = s;
       sm->sel->items[i].verifies = level::verify(lev, s);
 
-      solset = solset -> next;
+      solset = solset->next;
     }
 
-    sm->resort ();
+    sm->resort();
 
     return sm;
   }
@@ -259,7 +259,7 @@ void smanage::promptupload(drawable * below,
   menu * mm = menu::create(below, "Upload solution?", l, false);
   resultkind res = mm->menuize();
   ptrlist<menuitem>::diminish(l);
-  mm->destroy ();
+  mm->destroy();
 
   if (res == MR_OK) {
 
@@ -348,7 +348,7 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
     td.say("OK. Solutions on server: " GREEN + itos(nsols) + POP);
 
     /* get them! */
-    for (int i = 0; i < nsols; i ++) {
+    for (int i = 0; i < nsols; i++) {
       string line1 = util::getline(s);
       string author = util::getline(s);
       string moves = Base64::Decode(util::getline(s));
@@ -370,7 +370,7 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
       /* PERF each of the following things is O(n)
 	 with bad constants, but we don't expect 
 	 many solutions */
-      for (int n = 0; n < sm->sel->number; n ++) {
+      for (int n = 0; n < sm->sel->number; n++) {
 	/* use string equality.
 	   could be wrong since the rle-encoded
 	   string for a solution is not unique.
@@ -423,7 +423,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 
   Extent<smreal> es(sm);
 
-  sm->sel->redraw ();
+  sm->sel->redraw();
 
   SDL_Event event;
   
@@ -440,7 +440,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 
 	/* one of these two will survive */
 	solution * sol = sm->sel->items[i].ns.sol;
-	solution * tmp = optimize::opt(lev, sol);
+	solution * tmp = Optimize::opt(lev, sol);
 
 	if (tmp->length < sol->length) {
 	  printf("putting sol!\n");
@@ -449,7 +449,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 			 itos (sol->length) + POP " " LRARROW " "
 			 GREEN + itos(tmp->length) + POP ".",
 			 "OK", "", PICS THUMBICON POP);
-	  sol->destroy ();
+	  sol->destroy();
 	} else {
 	  message::no(sm, "No optimization possible.");
 	  tmp->destroy();
@@ -499,7 +499,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 	sm->sel->items[sm->sel->selected].ns.name = sn;
 
 	/* XX resort? would have to track cursor */
-	sm->sel->redraw ();
+	sm->sel->redraw();
 	continue;
       }
       case SDLK_DELETE: ;
@@ -528,7 +528,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 	    sm->sel->items[i].verifies = 
 	      sm->sel->items[sm->sel->number - 1].verifies;
 	      
-	    sm->sel->number --;
+	    sm->sel->number--;
 	    sm->sel->selected = 0;
 	  }
 	} else message::no(sm, "Can't delete last solution!");
@@ -544,8 +544,8 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 	sm->sel->items[0].def = false;
 	sm->sel->items[sm->sel->selected].def = true;
 	sm->sel->selected = 0;
-	sm->resort ();
-	sm->sel->redraw ();
+	sm->resort();
+	sm->sel->redraw();
 	continue;
       }
     }
@@ -556,7 +556,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
     case nsel::PE_SELECTED:
       /* show it */
       playback(plr, lev, &sm->sel->items[sm->sel->selected].ns);
-      sm->sel->redraw ();
+      sm->sel->redraw();
       break;
     case nsel::PE_EXIT:
     case nsel::PE_CANCEL: {
@@ -565,7 +565,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
       nslist * solset = 0;
       for (int i = sm->sel->number - 1;
 	  i >= 0; 
-	  i --) {
+	  i--) {
 	solset = new nslist(new namedsolution(sm->sel->items[i].ns.sol,
 					      sm->sel->items[i].ns.name,
 					      sm->sel->items[i].ns.author,
@@ -598,12 +598,9 @@ enum pbstate {
 
 struct pb : public drawable {
 
-  virtual ~pb () {
-    dirty->destroy();
-  }
+  virtual ~pb() {}
  
   void drawvcr() {
-
     int y = screen->h - VCRHEIGHT;
     int yf = y + TILEH + 4;
     int x = dr.margin; /* center? */
@@ -650,9 +647,9 @@ struct pb : public drawable {
   }
 
   /* drawable */
-  virtual void draw () {
+  void draw() override {
     sdlutil::clearsurface(screen, BGCOLOR);
-    dr.setscroll ();
+    dr.setscroll();
     dr.drawlev();
     dr.drawextra();
 
@@ -668,23 +665,22 @@ struct pb : public drawable {
     drawvcr();
   }
 
-  virtual void screenresize() {
+  void screenresize() override {
     dr.margin = 12;
     dr.posx = 0;
     dr.posy = fon->height * 2;
     dr.width = screen->w - dr.posx;
     dr.height = (screen->h - dr.posy) - VCRHEIGHT;
-    dr.setscroll ();
+    dr.setscroll();
     dirty->matchscreen();
   }
 
-  pb() {
-    dirty = dirt::create();
+  pb() : dirty(Dirt::create()) {
   }
 
   pbstate state;
   drawing dr;
-  dirt * dirty;
+  std::unique_ptr<Dirt> dirty;
   /* index into solution */
   int soli;
 };
@@ -692,7 +688,7 @@ struct pb : public drawable {
 void smanage::playback(player * plr, level * lev, namedsolution * ns) {
   pb p;
 
-  p.dr.lev = lev->clone ();
+  p.dr.lev = lev->clone();
   Extent<level> el(p.dr.lev);
 
   solution * sol = ns->sol->clone();
@@ -704,8 +700,8 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
   Extent<disamb> edc(ctx);
 
   p.state = PB_PLAYING;
-  p.screenresize ();
-  p.draw ();
+  p.screenresize();
+  p.draw();
 
   for (;;) {
 
@@ -716,10 +712,10 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
       /* get move, execute it. */
       if (p.soli < sol->length) {
 	dir move = sol->dirs[p.soli];
-	p.soli ++;
+	p.soli++;
 
 	/* and execute it, waiting for the animation to play. */
-	play::animatemove(p.dr, ctx, p.dirty, move);
+	play::animatemove(p.dr, ctx, p.dirty.get(), move);
 	/* track player */
 	p.dr.setscroll();
 	p.draw();
@@ -732,7 +728,7 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
       /* pause if advancing just one. */
       if (p.state == PB_PLAYONEMOVE) {
 	p.state = PB_PAUSED;
-	p.drawvcr ();
+	p.drawvcr();
       }
       break;
     case PB_PAUSED:
@@ -770,7 +766,7 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
 	    
 	    /* play back solutions up to this point */
 	    p.soli -= n;
-	    for (int i = 0; i < p.soli; i ++) {
+	    for (int i = 0; i < p.soli; i++) {
 	      p.dr.lev->move(sol->dirs[i]);
 	    }
 	  }
@@ -804,7 +800,7 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
 	    
 	      /* play back solutions up to this point */
 	      p.soli += n;
-	      for (int i = 0; i < p.soli; i ++) {
+	      for (int i = 0; i < p.soli; i++) {
 		p.dr.lev->move(sol->dirs[i]);
 	      }
 	    }
@@ -823,6 +819,7 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
 	  switch (p.state) {
 	  case PB_PAUSED: p.state = PB_PLAYING; break;
 	  case PB_PLAYING: p.state = PB_PAUSED; break;
+	  case PB_PLAYONEMOVE: break;
 	  }
 	  p.drawvcr();
 	  break;

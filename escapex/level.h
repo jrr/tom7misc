@@ -27,7 +27,7 @@ enum {
 #define LAST_DIR DIR_RIGHT
 
 inline dir turnleft(dir d) {
-  switch(d) {
+  switch (d) {
   case DIR_UP: return DIR_LEFT;
   case DIR_DOWN: return DIR_RIGHT;
   case DIR_RIGHT: return DIR_UP;
@@ -38,7 +38,7 @@ inline dir turnleft(dir d) {
 }
 
 inline dir turnright(dir d) {
-  switch(d) {
+  switch (d) {
   case DIR_UP: return DIR_RIGHT;
   case DIR_DOWN: return DIR_LEFT;
   case DIR_RIGHT: return DIR_DOWN;
@@ -49,7 +49,7 @@ inline dir turnright(dir d) {
 }
 
 inline void dirchange(dir d, int & dx, int & dy) {
-  switch(d) {
+  switch (d) {
   case DIR_UP:
     dx = 0;
     dy = -1;
@@ -70,7 +70,7 @@ inline void dirchange(dir d, int & dx, int & dy) {
 }
 
 inline string dirstring(dir d) {
-  switch(d) {
+  switch (d) {
   case DIR_UP: return "up";
   case DIR_LEFT: return "left";
   case DIR_RIGHT: return "right";
@@ -82,7 +82,7 @@ inline string dirstring(dir d) {
 }
 
 inline dir dir_reverse(dir d) {
-  switch(d) {
+  switch (d) {
   case DIR_UP: return DIR_DOWN;
   case DIR_LEFT: return DIR_RIGHT;
   case DIR_DOWN: return DIR_UP;
@@ -217,7 +217,7 @@ struct solution {
     s->dirs = (dir*) malloc(allocated * sizeof (dir));
     s->verified = verified;
     /* PERF memcpy */
-    for(int i = 0; i < length; i ++) {
+    for (int i = 0; i < length; i++) {
       s->dirs[i] = dirs[i];
     }
     return s;
@@ -259,8 +259,8 @@ struct solution {
   
     iter(const solution * s) : pos(0), sol(s) {}
     bool hasnext() { return pos < sol->length; }
-    void next() { pos ++; }
-    dir item () { return sol->dirs[pos]; }
+    void next() { pos++; }
+    dir item() { return sol->dirs[pos]; }
 
   };
 
@@ -380,7 +380,7 @@ struct level {
     entx = targx;
     enty = targy;
 
-    switch(target) {
+    switch (target) {
     case T_PANEL:
       swapo(destat(targx,targy));
       break;
@@ -442,7 +442,7 @@ struct level {
   }
 
   bool travel(int x, int y, dir d, int & nx, int & ny) {
-    switch(d) {
+    switch (d) {
       /* sometimes useful, for instance looping over all 
 	 affected tiles when bombing */
     case DIR_NONE:
@@ -555,7 +555,7 @@ struct level {
      as not bots. */
   bool botat(int x, int y, int & i) {
     int z = index(x, y);
-    for(int m = 0; m < nbots; m ++) {
+    for (int m = 0; m < nbots; m++) {
       if (boti[m] == z &&
 	  bott[m] != B_DELETED && 
 	  bott[m] != B_BOMB_X) {
@@ -609,14 +609,14 @@ struct level {
   static int newtile(int old);
   void swaptiles(int t1, int t2);
   void clearflag(int fl) {
-    for(int i = 0; i < w * h; i++) {
+    for (int i = 0; i < w * h; i++) {
       flags[i] &= ~fl;
     }
   }
 
   /* is the tile bombable? */
   static bool bombable(int t) {
-    switch(t) {
+    switch (t) {
       /* some level of danger */
     case T_EXIT:
     case T_SLEEPINGDOOR:
@@ -725,7 +725,7 @@ struct level {
   }
 
   bool hasframers() {
-    for(int i = 0; i < w * h; i++) {
+    for (int i = 0; i < w * h; i++) {
       if (tiles[i] == T_HEARTFRAMER) return true;
     }
     return false;

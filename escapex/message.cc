@@ -20,7 +20,7 @@ struct message_ : public message {
   SDL_Surface * alpharect;
   bool loop (char * actualchar, string charspec);
 
-  void init ();
+  void init();
   void redraw() {
     draw();
     SDL_Flip(screen);
@@ -41,7 +41,7 @@ void message::drawonlyv(int posy,
   m->ok = ook;
   m->cancel = ccancel;
     
-  m->init ();
+  m->init();
   m->draw();
   m->destroy();
 }
@@ -71,7 +71,7 @@ void message_::init() {
   { 
     string titlen = title + "\n";
     int cl = 0;
-    for(unsigned int i = 0; i < titlen.length(); i ++) {
+    for (unsigned int i = 0; i < titlen.length(); i++) {
       if (titlen[i] == '\n') {
 	ll = util::maximum(fon->sizex(titlen.substr(cl, i - cl)), ll);
 	cl = i;
@@ -154,7 +154,7 @@ bool message_::loop(char * actualchar, string charspec) {
     if (handle_video_event(this, e)) continue;
     int key;
 
-    switch(e.type) {
+    switch (e.type) {
     case SDL_QUIT:
       return false; /* XXX ? */
     case SDL_MOUSEBUTTONDOWN: {
@@ -199,7 +199,7 @@ bool message_::loop(char * actualchar, string charspec) {
 	    /* non-ascii */
 	  } else *actualchar = 0;
       }
-      switch(key) {
+      switch (key) {
       case SDLK_ESCAPE:
 	return false;
       case SDLK_RETURN:

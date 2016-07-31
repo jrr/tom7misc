@@ -83,13 +83,4 @@ extern SDL_Surface * screen;
 #   pragma warning(disable: 4800)
 #endif
 
-// XXX Should just be using ULL in the source code; this is
-// standard!
-#ifndef _MSC_VER
-/* new g++ needs ULL suffix for 64-bit constants, ugh */
-#  define L64(i) (i ## ULL)
-#else
-#  define L64(i) i
-#endif
-
 #endif

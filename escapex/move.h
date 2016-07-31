@@ -266,18 +266,18 @@
 # define AFFECT(a, b) false
 # define AFFECTI(a) false
 # define PREAFFECTENT /* nuthin' */
-# define PREAFFECTENTEX(a) do { ; } while(0)
+# define PREAFFECTENTEX(a) do { ; } while (0)
 # define POSTAFFECTENT /* nuthin' */
-# define POSTAFFECTENTEX(a) do { ; } while(0)
-# define BOTEXPLODE(a) do { ; } while(0)
-# define WAKEUPDOOR(a, b) do { ; } while(0)
-# define WAKEUP(a, b) do { ; } while(0)
-# define STANDBOT(i) do { ; } while(0)
-# define GETHEARTFRAMER(a, b) do { ; } while(0)
-# define TRANSPONDERBEAM(xx, yy, destx, desty, fr, delay) do { ; } while(0)
-# define BOMBSPLOSION(xx, yy) do { ; } while(0)
-# define TELEPORTOUT(ei, xx, yy) do { ; } while(0)
-# define TELEPORTIN(ei, xx, yy) do { ; } while(0)
+# define POSTAFFECTENTEX(a) do { ; } while (0)
+# define BOTEXPLODE(a) do { ; } while (0)
+# define WAKEUPDOOR(a, b) do { ; } while (0)
+# define WAKEUP(a, b) do { ; } while (0)
+# define STANDBOT(i) do { ; } while (0)
+# define GETHEARTFRAMER(a, b) do { ; } while (0)
+# define TRANSPONDERBEAM(xx, yy, destx, desty, fr, delay) do { ; } while (0)
+# define BOMBSPLOSION(xx, yy) do { ; } while (0)
+# define TELEPORTOUT(ei, xx, yy) do { ; } while (0)
+# define TELEPORTIN(ei, xx, yy) do { ; } while (0)
 #endif
 
 /* helper functions */
@@ -289,7 +289,7 @@
     AFFECTI(destat(xx, yy));          \
     SWAPO(destat(xx, yy));            \
   }                                   \
-} while(0)
+} while (0)
 
 #define CHECKTRAP(xx, yy) do {             \
   if (tileat(xx, yy) == T_TRAP1) {         \
@@ -301,7 +301,7 @@
     settile(xx, yy, T_TRAP1);              \
     TRAP(xx, yy, T_TRAP2);                 \
   }                                        \
-} while(0)
+} while (0)
 
 /* actions on the player stepping off of a tile */
 /* generally, you should only call this once per
@@ -311,11 +311,11 @@
 #define CHECKSTEPOFF(xx, yy) do {          \
   CHECKTRAP(xx, yy);                       \
   CHECKLEAVEPANEL(xx, yy);                 \
-} while(0)
+} while (0)
 
 #define SWAPTILES(t1, t2, d) do { \
-  for(int y = 0; y < h; y ++) {   \
-  for(int x = 0; x < w; x ++) {   \
+  for (int y = 0; y < h; y++) {   \
+  for (int x = 0; x < w; x++) {   \
    int t = tileat(x, y);          \
    if (t == t1) {                 \
      AFFECT(x, y);                \
@@ -340,7 +340,7 @@
    do {                                                 \
    if (me != -1) { /* checked at end of turn */         \
      int mei = index(xx, yy);                           \
-     for(int b = 0; b < nbots; b ++) {                  \
+     for (int b = 0; b < nbots; b++) {                  \
         if (me != b && bott[b] != B_DELETED             \
             && bott[b] != B_BOMB_X                      \
             && mei == boti[b]) {                        \
@@ -437,7 +437,7 @@ static void postanimate(level * l, disamb * ctx,
 
   /* animate first */
   {
-    for(dir dd = FIRST_DIR_SELF; dd < LAST_DIR; dd ++) {
+    for (dir dd = FIRST_DIR_SELF; dd < LAST_DIR; dd++) {
       int bx, by;
       if (travel(x, y, dd, bx, by)) {
     AFFECT(bx, by);
@@ -448,7 +448,7 @@ static void postanimate(level * l, disamb * ctx,
   }
 
   {
-    for(dir dd = FIRST_DIR_SELF; dd <= LAST_DIR; dd ++) {
+    for (dir dd = FIRST_DIR_SELF; dd <= LAST_DIR; dd++) {
       int bx, by;
       if (travel(x, y, dd, bx, by)) {
     if (bombable(tileat(bx, by))) {
@@ -462,7 +462,7 @@ static void postanimate(level * l, disamb * ctx,
 
     {
       int z = index(bx, by);
-      for(int bdie = 0; bdie < nbots; bdie ++) {
+      for (int bdie = 0; bdie < nbots; bdie++) {
         if (boti[bdie] == z) {
           PREAFFECTENTEX(bdie);
           // AFFECTI(boti[b]);
@@ -538,7 +538,7 @@ static void postanimate(level * l, disamb * ctx,
 
     if (m) {
 
-      for(int b = 0; b < nbots; b ++) {
+      for (int b = 0; b < nbots; b++) {
 
         int x, y;
         where(boti[b], x, y);
@@ -569,7 +569,7 @@ static void postanimate(level * l, disamb * ctx,
           continue;
 
     } else
-        switch(bott[b]) {        
+        switch (bott[b]) {        
           /* nb, not isbomb */
           case B_BOMB_X:
              /* disappear */
@@ -599,7 +599,7 @@ static void postanimate(level * l, disamb * ctx,
               else if (y > guyy) bd2 = DIR_UP;
             }
 
-            switch(bott[b]) {
+            switch (bott[b]) {
             default: /* impossible */
             case B_DALEK: bc = DALEKCAP; break;
             case B_HUGBOT: bc = HUGBOTCAP; break;
@@ -706,7 +706,7 @@ static void postanimate(level * l, disamb * ctx,
         int farx, fary;
         if (travel(newx, newy, d, farx, fary)) {
            int ftarget = tileat(farx, fary);
-           switch(ftarget) {
+           switch (ftarget) {
              case T_ELECTRIC: 
                 /* only bots pushed into electric */
                 if (pushent == -1) return false; 
@@ -868,8 +868,8 @@ static void postanimate(level * l, disamb * ctx,
       if (playerat(newx, newy) ||
           botat(newx, newy)) return false;
 
-      for(int y = 0; y < h; y ++)
-        for(int x = 0; x < w; x ++) {
+      for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) {
           if (tileat(x, y) == T_ELECTRIC) {
             AFFECT(x, y);
             TOGGLE(x, y, T_ELECTRIC, abs(x - newx) + abs(y - newy));
@@ -940,7 +940,7 @@ static void postanimate(level * l, disamb * ctx,
       if (firstx != newx || firsty != newy) {
 
         /* affect whole row */
-        for(int ix = firstx, iy = firsty;
+        for (int ix = firstx, iy = firsty;
             (firstx != newx && firsty != newy);
             travel(ix, iy, d, ix, iy)) AFFECT(ix, iy);
 
@@ -965,7 +965,7 @@ static void postanimate(level * l, disamb * ctx,
 
       int tgoldx, tgoldy;
 
-      while(travel(goldx, goldy, d, tgoldx, tgoldy)) {
+      while (travel(goldx, goldy, d, tgoldx, tgoldy)) {
 
         int next = tileat(tgoldx, tgoldy);
         if (!(next == T_ELECTRIC ||
@@ -1104,7 +1104,7 @@ static void postanimate(level * l, disamb * ctx,
          SETENTDIR(DIR_DOWN);
          TELEPORTIN(enti, targx, targy);
 
-         switch(targ) {
+         switch (targ) {
          case T_PANEL:
            AFFECTI(destat(targx, targy));
            SWAPO(destat(targx, targy));
@@ -1156,7 +1156,7 @@ static void postanimate(level * l, disamb * ctx,
       AFFECT(newx, newy);
       BUTTON(newx, newy, T_BUTTON);
 
-      for(dir dd = FIRST_DIR; dd <= LAST_DIR; dd ++) {
+      for (dir dd = FIRST_DIR; dd <= LAST_DIR; dd++) {
       if (
 #ifndef AM
           /* if animation is off, then don't pre-scan */
@@ -1170,7 +1170,7 @@ static void postanimate(level * l, disamb * ctx,
 
       int dist = 0;
 
-      while(pd != DIR_NONE &&
+      while (pd != DIR_NONE &&
                 travel(pulsex, pulsey, pd, pulsex, pulsey)) {
         int targ = tileat(pulsex, pulsey);
 
@@ -1178,7 +1178,7 @@ static void postanimate(level * l, disamb * ctx,
            would lite up any tile (floor, exit, etc.) except
            that those are avoided by the pre-scan above. */
         #ifdef AM
-        switch(targ) {
+        switch (targ) {
            case T_BLIGHT:
            case T_RLIGHT:
            case T_GLIGHT:
@@ -1200,9 +1200,9 @@ static void postanimate(level * l, disamb * ctx,
         }
         #endif
 
-        dist ++;
+        dist++;
 
-        switch(targ) {
+        switch (targ) {
         case T_REMOTE:
           #ifdef AM
         AFFECT(pulsex, pulsey);
@@ -1237,9 +1237,9 @@ static void postanimate(level * l, disamb * ctx,
          e->delay = dist;
           }
           #endif
-              if (targ == T_BLIGHT) bswaps ++;
-              if (targ == T_RLIGHT) rswaps ++;
-              if (targ == T_GLIGHT) gswaps ++;
+              if (targ == T_BLIGHT) bswaps++;
+              if (targ == T_RLIGHT) rswaps++;
+              if (targ == T_GLIGHT) gswaps++;
               pd = DIR_NONE;
               break;
 
@@ -1338,21 +1338,21 @@ static void postanimate(level * l, disamb * ctx,
       /* XXX for better results, delay according
          to the time (push times onto a stack or
          something) */
-      while(bswaps--) {
+      while (bswaps--) {
         SWAPTILES(T_BUP, T_BDOWN, 0);
       }
 
-      while(rswaps--) {
+      while (rswaps--) {
         SWAPTILES(T_RUP, T_RDOWN, 0);
       }
 
-      while(gswaps--) {
+      while (gswaps--) {
         SWAPTILES(T_GUP, T_GDOWN, 0);
       }
 
       while (remotes) {
         swaplist * t = remotes;
-        remotes = remotes -> next;
+        remotes = remotes->next;
 #ifdef AM
     { int x, y; where(t->target, x, y);
       printf("(was %d %d) ",
@@ -1448,7 +1448,7 @@ static void postanimate(level * l, disamb * ctx,
     /* what did we hit? */
     int hittile;
     bool zap = false;
-    switch(hittile = tileat(destx, desty)) {
+    switch (hittile = tileat(destx, desty)) {
     /* nb if we "hit" steel, then it's steel to the edge of the
        level, so no push. */
     case T_PANEL:
@@ -1678,7 +1678,7 @@ static void postanimate(level * l, disamb * ctx,
         int destt = tileat(destx, desty);
         if (playerat(destx, desty) || botat(destx, desty)) 
            return false;
-        switch(destt) {
+        switch (destt) {
         case T_FLOOR:
           /* easy */
           settile(destx, desty, target);
@@ -1756,8 +1756,8 @@ static void postanimate(level * l, disamb * ctx,
       /* any heart framers left? */
       
       if (!hasframers()) {
-        for(int y = 0; y < h; y ++) {
-          for(int x = 0; x < w; x ++) {
+        for (int y = 0; y < h; y++) {
+          for (int x = 0; x < w; x++) {
            int t = tileat(x, y);
            if (t == T_SLEEPINGDOOR) {
              AFFECT(x, y);
@@ -1770,8 +1770,8 @@ static void postanimate(level * l, disamb * ctx,
         }
 
         /* also bots */
-        for(int i = 0; i < nbots; i ++) {
-          switch(bott[i]) {
+        for (int i = 0; i < nbots; i++) {
+          switch (bott[i]) {
           case B_DALEK_ASLEEP:
             PREAFFECTENTEX(i);
             AFFECTI(boti[i]);

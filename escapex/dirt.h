@@ -1,8 +1,7 @@
-
 #ifndef __DIRT_H
 #define __DIRT_H
 
-struct dirt {
+struct Dirt {
   
   /* bring up-to-date with the screen.
      (expensive). Should be called whenever
@@ -26,12 +25,9 @@ struct dirt {
   /* draw all enqueued dirty rectangles. */
   virtual void clean() = 0;
 
-  virtual void destroy() = 0;
+  static Dirt *create();
 
-  static dirt * create();
-
-  virtual ~dirt () {}
-
+  virtual ~Dirt();
 };
 
 #endif

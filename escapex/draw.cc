@@ -54,7 +54,7 @@ bool drawing::loadimages() {
 
   if (!(tiles && tilesdim && tileutil)) return false;
 
-  for(int z = 0; z < DRAW_NSIZES; z++) {
+  for (int z = 0; z < DRAW_NSIZES; z++) {
     tiles[z] = 0;
     tilesdim[z] = 0;
     tileutil[z] = 0;
@@ -68,8 +68,8 @@ bool drawing::loadimages() {
 
   /* XXX call sdlutil::make_mipmaps */
   int last = 0;
-  while(last < (DRAW_NSIZES - 1)) {
-    last ++;
+  while (last < (DRAW_NSIZES - 1)) {
+    last++;
     tiles[last] = sdlutil::shrink50(tiles[last - 1]);
     if (!tiles[last]) return false;
     tilesdim[last] = sdlutil::alphadim(tiles[last]);
@@ -84,7 +84,7 @@ bool drawing::loadimages() {
 
 void drawing::destroyimages() {
 
-  for(int i = 0; i < DRAW_NSIZES; i ++) {
+  for (int i = 0; i < DRAW_NSIZES; i++) {
     if (tiles && tiles[i]) SDL_FreeSurface(tiles[i]);
     if (tilesdim && tilesdim[i]) SDL_FreeSurface(tilesdim[i]);
     if (tileutil && tileutil[i]) SDL_FreeSurface(tileutil[i]);
@@ -95,7 +95,7 @@ void drawing::destroyimages() {
   free(tileutil);
 
   if (fon) fon->destroy();
-  if (fonsmall) fonsmall->destroy ();
+  if (fonsmall) fonsmall->destroy();
 
 }
 
@@ -113,7 +113,7 @@ void drawing::drawguy(dir d,
     /* just one dead frame */
     s = animation::lasered2;
   } else {
-    switch(d) {
+    switch (d) {
     default:
     case DIR_UP: s = animation::pic_guy_up[zoomfactor]; break;
     case DIR_DOWN: s = animation::pic_guy_down[zoomfactor]; break;
@@ -140,11 +140,11 @@ void drawing::drawbot(bot b, dir d,
   SDL_Surface * s = 0;
   int overlapy = 0;
 
-  switch(b) {
+  switch (b) {
   default:
     if (level::isbomb(b)) {
       
-      switch(data) {
+      switch (data) {
 	/* XXX draw fuse in these cases */
 	/* fuse high */
       default:
@@ -182,7 +182,7 @@ void drawing::drawbot(bot b, dir d,
 
   case B_HUGBOT:
     overlapy = HUGBOT_OVERLAPY;
-    switch(d) {
+    switch (d) {
     default:
     case DIR_UP: s = animation::pic_hugbot_up[zoomfactor]; break;
     case DIR_DOWN: s = animation::pic_hugbot_down[zoomfactor]; break;
@@ -193,7 +193,7 @@ void drawing::drawbot(bot b, dir d,
 
   case B_DALEK:
     overlapy = DALEK_OVERLAPY;
-    switch(d) {
+    switch (d) {
     default:
     case DIR_UP: s = animation::pic_dalek_up[zoomfactor]; break;
     case DIR_DOWN: s = animation::pic_dalek_down[zoomfactor]; break;
@@ -356,12 +356,12 @@ void drawing::drawlev(int layer, /* dir facing, */
     }
   }
 
-  for(int xx = scrollx;
-      xx < (showw + scrollx);
-      xx++)
-    for(int yy = scrolly;
-	yy < (showh + scrolly);
-	yy++) {
+  for (int xx = scrollx;
+       xx < (showw + scrollx);
+       xx++)
+    for (int yy = scrolly;
+	 yy < (showh + scrolly);
+	 yy++) {
 
       if (xx < lev->w &&
 	  yy < lev->h) {
@@ -426,7 +426,7 @@ void drawing::drawlev(int layer, /* dir facing, */
 
     sdlutil::slock(surf);
     
-    while(px != gx || py != gy) {
+    while (px != gx || py != gy) {
 
       /* make sure it's in surf */
       if (!(px < 0 || py < 0 ||
@@ -464,7 +464,7 @@ void drawing::drawlev(int layer, /* dir facing, */
     bb * bots = (bb*) malloc((lev->nbots + 1) * sizeof(bb));
 
     {
-      for(int i = 0; i < lev->nbots; i ++) {
+      for (int i = 0; i < lev->nbots; i++) {
 	bots[i].i = lev->boti[i];
 	bots[i].e = lev->bott[i];
 	bots[i].d = lev->botd[i];
@@ -481,7 +481,7 @@ void drawing::drawlev(int layer, /* dir facing, */
     qsort(bots, lev->nbots, sizeof (bb), ydepth_compare);
 
     /* now draw from bots array (guy is included) */
-    for(int i = 0; i <= lev->nbots; i ++) {
+    for (int i = 0; i <= lev->nbots; i++) {
       int bsx, bsy;
       int bx, by;
       lev->where(bots[i].i, bx, by);
@@ -519,7 +519,7 @@ void drawing::drawbotnums(SDL_Surface * surf) {
   if (!surf) surf = screen;
 
   if (!zoomfactor) {
-    for(int b = 0; b < lev->nbots; b++) {
+    for (int b = 0; b < lev->nbots; b++) {
       int bx, by;
       lev->where(lev->boti[b], bx, by);
       int bsx, bsy;
@@ -538,8 +538,8 @@ void drawing::drawdests(SDL_Surface * surf, bool shuffle) {
   if (!surf) surf = screen;
 
   sdlutil::slock(surf);
-  for(int wx = 0; wx < lev->w; wx++)
-    for(int wy = 0; wy < lev->h; wy++) {
+  for (int wx = 0; wx < lev->w; wx++)
+    for (int wy = 0; wy < lev->h; wy++) {
       int sy, sx;
       if (onscreen(wx, wy, sx, sy)) {
 	  
@@ -706,7 +706,7 @@ void drawing::drawsmall(int y,
   dr.height = PREVIEWHEIGHT;
   dr.zoomfactor = zf;
 
-  dr.setscroll ();
+  dr.setscroll();
 
   /* (let scroll be determined automatically) */
   dr.drawlev(0, screen);

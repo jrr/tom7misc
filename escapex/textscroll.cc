@@ -18,7 +18,7 @@ struct textscroll_ : public textscroll {
 
   virtual void drawto(SDL_Surface * surf = 0);
 
-  virtual ~textscroll_ ();
+  virtual ~textscroll_();
   
   string log[BACKLOG];
   int pwrite;
@@ -31,11 +31,11 @@ textscroll * textscroll::create(font * f) {
   return textscroll_::create(f);
 }
 
-textscroll_::~textscroll_ () {}
-textscroll::~textscroll () {}
+textscroll_::~textscroll_() {}
+textscroll::~textscroll() {}
 
-void textscroll_::destroy () { delete this; }
-void textscroll_::screenresize () {}
+void textscroll_::destroy() { delete this; }
+void textscroll_::screenresize() {}
 
 textscroll_ * textscroll_::create (font * f) {
   textscroll_ * ts = new textscroll_();
@@ -52,7 +52,7 @@ textscroll_ * textscroll_::create (font * f) {
 void textscroll_::say(string s) {
   /* write new entry */
   log[pwrite] = s;
-  pwrite ++;
+  pwrite++;
   pwrite %= BACKLOG;
 }
 
@@ -60,7 +60,7 @@ void textscroll_::say(string s) {
    an empty buffer */
 void textscroll_::unsay() {
   if (pwrite) {
-    pwrite --;
+    pwrite--;
     log[pwrite] = "";
   } else {
     pwrite = BACKLOG - 1;
@@ -79,16 +79,16 @@ void textscroll_::drawto (SDL_Surface * surf) {
   int y = (posy + height) - (ft->height + vskip);
   int l = pwrite?(pwrite-1):(BACKLOG-1);
 
-  while(y > posy) {
+  while (y > posy) {
     ft->drawto(surf, posx, y, log[l]);
 
-    l --;
+    l--;
     if (l < 0) l = BACKLOG - 1;
     y -= (ft->height + vskip);
   }
 }
 
-void textscroll_::draw () { 
+void textscroll_::draw() { 
   drawto(screen); 
 }
 

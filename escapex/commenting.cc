@@ -14,7 +14,7 @@
 #include "httputil.h"
 
 struct cscreen : public drawable {
-  virtual void draw () {
+  virtual void draw() {
     sdlutil::clearsurface(screen, BGCOLOR);
 
     fon->draw(2, 2, (string)(BLUE "Commenting on: " POP YELLOW) +
@@ -32,10 +32,10 @@ struct cscreen : public drawable {
 		       lev, nsolved, 
 		       MD5::Ascii(levmd5), 0, 0);
 
-    if (tx) tx->draw ();
+    if (tx) tx->draw();
   }
 
-  virtual void screenresize () {
+  virtual void screenresize() {
     /* XXX */
   }
 
@@ -44,8 +44,8 @@ struct cscreen : public drawable {
     tx = 0;
   }
 
-  void redraw () {
-    draw ();
+  void redraw() {
+    draw();
     SDL_Flip(screen);
   }
 
@@ -55,7 +55,7 @@ struct cscreen : public drawable {
 
   textscroll * tx;
 
-  cscreen () {
+  cscreen() {
     tx = textscroll::create (fon);
     tx->posx = 2;
     tx->posy = fon->height + 2;
@@ -84,7 +84,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
      a comment that we compose if it can't be posted. */
 
   cs.tx->say (GREY "Making sure we're connected...");
-  cs.redraw ();
+  cs.redraw();
   http * hh = client::connect(p, cs.tx, &cs);
   if (!hh) {
     message::quick(&cs, "Can't connect to internet!",
@@ -120,7 +120,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
   }
 
   cs.tx->say(GREY "ok.");
-  cs.redraw ();
+  cs.redraw();
 
   label levname;
   levname.text = lev->title;

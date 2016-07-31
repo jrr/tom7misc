@@ -24,17 +24,17 @@ generator::generator(unsigned int s, void * ignored)
   left = (int)size;
 }
 
-void generator::next () {
+void generator::next() {
   x = (a * x + c) % size;
-  left --;
+  left--;
   if (left < 0) left = 0;
   /* printf("next item is %d\n", x); */
 }
 
-unsigned int generator::item () {
+unsigned int generator::item() {
   return x;
 }
 
-bool generator::anyleft () {
+bool generator::anyleft() {
   return !!left;
 }

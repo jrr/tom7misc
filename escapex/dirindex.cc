@@ -19,7 +19,7 @@ struct ra_entry {
     return hash_string(k);
   }
 
-  string key () {
+  string key() {
     return filename;
   }
   string filename;
@@ -39,12 +39,12 @@ struct ra_entry {
 
 struct di_real : public dirindex {
   
-  static di_real * create ();
+  static di_real * create();
 
   virtual void writefile(string);
 
-  virtual void destroy ();
-  virtual ~di_real () {}
+  virtual void destroy();
+  virtual ~di_real() {}
   virtual void addentry(string filename, ratestatus v, 
 			int date, int speedrecord, int owner);
 
@@ -137,11 +137,11 @@ dirindex * dirindex::fromfile(string f) {
     if (!(cf->getline(dr->title))) return 0;
 
     { 
-      for(int i = 0; i < INDEX_IGNORED_FIELDS; i ++)
+      for (int i = 0; i < INDEX_IGNORED_FIELDS; i++)
 	if (!cf->getline(s)) return 0; 
     }
     
-    while(cf->getline(s)) {
+    while (cf->getline(s)) {
       ra_entry * rr = new ra_entry;
       Extent<ra_entry> re(rr);
 
@@ -156,12 +156,12 @@ dirindex * dirindex::fromfile(string f) {
       rr->speedrecord = util::stoi(util::chop(s));
       rr->owner = util::stoi(util::chop(s));
 
-      re.release ();
+      re.release();
       dr->tab->insert(rr);
     }
 
     dr->isweb = 1;
-    de.release ();
+    de.release();
     return dr;
   }
 
@@ -197,7 +197,7 @@ void di_real::writefile(string fname) {
   fprintf(f, "%s\n", title.c_str());
 
   /* a few ignored lines */
-  for(int i = 0; i < INDEX_IGNORED_FIELDS; i ++) fprintf(f, "\n");
+  for (int i = 0; i < INDEX_IGNORED_FIELDS; i++) fprintf(f, "\n");
   
   /* XXX sort first */
   

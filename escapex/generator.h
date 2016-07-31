@@ -23,14 +23,14 @@ struct generator {
   generator(unsigned int size, void *);
 
   /* use as
-     for (generator g(x); g.anyleft(); g.next ()) {
-      ... g.item () ...
+     for (generator g(x); g.anyleft(); g.next()) {
+      ... g.item() ...
      }
   */
   
-  bool anyleft ();
+  bool anyleft();
   unsigned int item();
-  void next ();
+  void next();
 
 
   private:

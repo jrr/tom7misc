@@ -19,7 +19,7 @@ enum upgraderesult {
 struct upgrader : public drawable {
   static upgrader * create(player * p);
   virtual upgraderesult upgrade(string & msg) = 0;
-  virtual void destroy () = 0;
+  virtual void destroy() = 0;
   virtual ~upgrader() {};
 
   virtual void draw() = 0;

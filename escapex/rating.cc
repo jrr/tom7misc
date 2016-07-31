@@ -17,11 +17,11 @@ void rating::destroy() {
   delete this;
 }
 
-rating * rating::create () {
-  return new rating ();
+rating * rating::create() {
+  return new rating();
 }
 
-string rating::tostring () {
+string rating::tostring() {
   /* just use one hex digit for each. */
 
   string r = "aa    ";
@@ -65,7 +65,7 @@ struct rsreal : public ratescreen {
 
   virtual void destroy() {
     /* we don't own rating, player, or level */
-    tx->destroy ();
+    tx->destroy();
     delete this;
   }
   
@@ -324,7 +324,7 @@ void rsreal::rate() {
   } /* otherwise do nothing */
 
   ptrlist<menuitem>::diminish(l);
-  mm->destroy ();
+  mm->destroy();
 
 }
 

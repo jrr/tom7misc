@@ -77,7 +77,7 @@ dircache * dircache::create(player * p) {
   return dcreal::create(p);
 }
 
-void dcreal::destroy () {
+void dcreal::destroy() {
   table->destroy();
   delete this;
 }
@@ -143,9 +143,9 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
     int ttt = 0, sss = 0;
     int num = 0;
 
-    while( (dire = readdir(d)) ) {
+    while ( (dire = readdir(d)) ) {
 
-      num ++;
+      num++;
       if (prog) prog(pd, num, total, dir, PROGRESS_TICKS);
 
       string dn = dire->d_name;
@@ -179,15 +179,15 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
         if (l) {
           string md5c = MD5::Hash(contents);
 
-          ttt ++;
+          ttt++;
 
           solution * s;
           if ((s = plr->getsol(md5c)) && (s->verified || level::verify(l,s))) {
             s->verified = true;
-            sss ++;
+            sss++;
           }
 
-          l->destroy ();
+          l->destroy();
         }
       }
     }

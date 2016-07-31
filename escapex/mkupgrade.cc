@@ -41,7 +41,7 @@ int main(int argc, char ** argv) {
   if (!strcmp(argv[1], "-mkbat")) {
 
     /* XXX unused now */
-    for(int i = 3; i < argc; i ++) {
+    for (int i = 3; i < argc; i++) {
       printf("copy %s %s\n",
 	     argv[i], argv[2]);
     }
@@ -90,7 +90,7 @@ int main(int argc, char ** argv) {
       while (rel >> f) {
 	entries[n].t = T_FILE;
 	entries[n].filename = f;
-	n ++;
+	n++;
       }
 
       string d;
@@ -98,13 +98,13 @@ int main(int argc, char ** argv) {
 	entries[n].t = T_SYMLINK;
 	entries[n].filename = f;
 	entries[n].dest = d;
-	n ++;
+	n++;
       }
 
       while (del >> f) {
 	entries[n].t = T_DELETE;
 	entries[n].filename = f;
-	n ++;
+	n++;
       }
 
       /* now output. */
@@ -118,8 +118,8 @@ int main(int argc, char ** argv) {
       printf ("%s %s\n", PLATFORM, VERSION);
 
       /* output entries. */
-      for(int i = 0; i < n; i ++) {
-	switch(entries[i].t) {
+      for (int i = 0; i < n; i++) {
+	switch (entries[i].t) {
 	case T_FILE: {
 	  string fi = entries[i].filename;
 	  FILE * ff = fopen(fi.c_str(), "rb");

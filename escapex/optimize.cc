@@ -29,26 +29,26 @@ inline void PERMUTE1(Uint64 & h) {
      but be dependent on the value of h */
   h = ROR64(h, (h & 31) + 1);
 
-  h = (((h & L64(0xF0F0F0F0F0F0F0F0)) >> 4) |
-       ((h & L64(0x0F0F0F0F0F0F0F0F)) << 4));
+  h = (((h & 0xF0F0F0F0F0F0F0F0ULL) >> 4) |
+       ((h & 0x0F0F0F0F0F0F0F0FULL) << 4));
   
-  h =  (h &  L64(0xFFFFFFFF00000000)) |
-      ((h &  L64(0x00000000FFFF0000)) >> 16) |
-      ((h &  L64(0x000000000000FFFF)) << 16);
+  h =  (h &  0xFFFFFFFF00000000ULL) |
+      ((h &  0x00000000FFFF0000ULL) >> 16) |
+      ((h &  0x000000000000FFFFULL) << 16);
 }
 
 /* linear */
 inline void PERMUTE2(Uint64 & h) {
-  h = ((h >> 32) * L64(0x12345678)) |
-      ((h & L64(0xFFFFFFFF)) * L64(0x09ABCDEF));
-  h ^= L64(0x112233FFEEDDCC);
+  h = ((h >> 32) * 0x12345678ULL) |
+      ((h & 0xFFFFFFFFULL) * 0x09ABCDEFULL);
+  h ^= 0x112233FFEEDDCCULL;
 }
  
 /* linear */
 inline void PERMUTE3(Uint64 & h) {
-  h ^= L64(0x1F1F2E2E3D3D4C4C);
-  h = ((h >> 32) * L64(0x19283746)) |
-      ((h & L64(0xFFFFFFFF)) * L64(0xF9E8D7C6));
+  h ^= 0x1F1F2E2E3D3D4C4CULL;
+  h = ((h >> 32) * 0x19283746ULL) |
+      ((h & 0xFFFFFFFFULL) * 0xF9E8D7C6ULL);
 }
   
 
@@ -57,7 +57,7 @@ static Uint64 hashlevel(level * l) {
      since these don't change.
      also ignore botd and guyd, which are presentational. */
 
-  Uint64 h = L64(0x3333333333333333);
+  Uint64 h = 0x3333333333333333ULL;
   
   /* start with position of guy */
   h ^= ((Uint64)l->guyx << 31);
@@ -67,7 +67,7 @@ static Uint64 hashlevel(level * l) {
 
   /* hash up tiles */
   {
-    for(int i = 0; i < l->w * l->h; i++) {
+    for (int i = 0; i < l->w * l->h; i++) {
       h ^= (Uint64)l->tiles[i];
       PERMUTE1(h);
       h += (Uint64)l->otiles[i];
@@ -77,7 +77,7 @@ static Uint64 hashlevel(level * l) {
 
   /* then bots */
   {
-    for(int j = 0; j < l->nbots; j ++) {
+    for (int j = 0; j < l->nbots; j++) {
       h = ROR64(h, j);
       h ^= (Uint64)l->bott[j];
       PERMUTE3(h);
@@ -115,7 +115,7 @@ struct lstate {
        the level "impossible" (and ones like it) get
        optimized to a zero-length solution, which won't
        verify */
-    if (ll->iswon() && initial) thiskey ^= L64(0xFFFF0000FFFF0000);
+    if (ll->iswon() && initial) thiskey ^= 0xFFFF0000FFFF0000ULL;
 
     /* 0 is used for something special */
     if (!thiskey) thiskey++;
@@ -131,9 +131,9 @@ static void inval_above(lstate * ls, int cutoff) {
   if (ls->pos > cutoff) ls->thiskey = 0l;
 }
 
-solution * optimize::opt(level * orig, solution * s) {
+solution * Optimize::opt(level * orig, solution * s) {
 
-  level * l = orig->clone ();
+  level * l = orig->clone();
   Extent<level> el(l);
 
   if (!level::verify(l, s)) {
@@ -164,7 +164,7 @@ solution * optimize::opt(level * orig, solution * s) {
   /* insert initial state */
   ht->insert (new lstate(0, l, true));
 
-  for (; i.hasnext (); i.next()) {
+  for (; i.hasnext(); i.next()) {
   
     dir d = i.item();
     
@@ -219,20 +219,20 @@ solution * optimize::opt(level * orig, solution * s) {
 
   if (level::verify(orig, cf)) {
     /*
-    printf("Correct result: %d moves -> %d moves\n",
+    printf("Correct result: %d moves->%d moves\n",
 	   s->length, cf->length);
     */
     return cf;
   } else {
     printf("Result didn't verify!!\n");
     cf->destroy();
-    return s->clone ();
+    return s->clone();
   }
 }
 
 
 typedef ptrlist<namedsolution> solset ;
-solution * optimize::trycomplete(level * start, solution * prefix,
+solution * Optimize::trycomplete(level * start, solution * prefix,
 				 solset * sources) {
   /* do breadth first search by suffix length. */
   
@@ -245,15 +245,15 @@ solution * optimize::trycomplete(level * start, solution * prefix,
   /* find the longest solution. */
   int max_slen = 0;
   {
-    for(solset * tmp = sources; tmp; tmp = tmp -> next) {
+    for (solset * tmp = sources; tmp; tmp = tmp->next) {
       max_slen = util::maximum(tmp->head->sol->length, max_slen);
     }
   }
 
-  for(int slen = 0; slen < max_slen; slen ++) {
+  for (int slen = 0; slen < max_slen; slen++) {
     /* for each solution that is at least this many moves,
        try its suffix */
-    for(solset * tmp = sources; tmp; tmp = tmp -> next) {
+    for (solset * tmp = sources; tmp; tmp = tmp->next) {
       if (tmp->head->sol->length >= slen) {
 	/* do it! */
 	level * trysuf = wprefix->clone();
@@ -274,8 +274,8 @@ solution * optimize::trycomplete(level * start, solution * prefix,
 		 prefix->length + moves);
 #endif
 
-	  solution * ret = prefix->clone ();
-	  for(int j = 0; j < moves; j ++) {
+	  solution * ret = prefix->clone();
+	  for (int j = 0; j < moves; j++) {
 	    ret->append(trysol->dirs[j + trysol->length - slen]);
 	  }
 

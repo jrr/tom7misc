@@ -31,8 +31,8 @@ struct httpcallback {
 /* interface only */
 struct http {
   
-  static http * create ();
-  virtual void destroy () = 0;
+  static http * create();
+  virtual void destroy() = 0;
 
   /* set user-agent */
   virtual void setua(string) = 0;

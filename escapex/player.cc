@@ -47,8 +47,8 @@ namedsolution::namedsolution(solution * s, string na,
   bookmark = bm;
 }
 
-string namedsolution::tostring () {
-  string solstring = sol->tostring ();
+string namedsolution::tostring() {
+  string solstring = sol->tostring();
 
   return
     sizes(date) +
@@ -91,8 +91,8 @@ namedsolution * namedsolution::fromstring (string s) {
   return new namedsolution(so, na, de, d, bm);
 }
 
-void namedsolution::destroy () {
-  sol->destroy ();
+void namedsolution::destroy() {
+  sol->destroy();
 }
 
 int namedsolution::compare(namedsolution * l, namedsolution * r) {
@@ -132,7 +132,7 @@ struct hashratentry {
 
 struct playerreal : public player {
 
-  void destroy ();
+  void destroy();
 
   static playerreal * create(string n);
 
@@ -187,9 +187,9 @@ struct playerreal : public player {
 bool playerreal::hassolution(string md5, solution * what) {
   string whats = what->tostring();
 
-  for (nslist * l = solutionset(md5); l; l = l -> next) {
+  for (nslist * l = solutionset(md5); l; l = l->next) {
     // printf(" %s == %s ?\n", Base64::Encode(whats).c_str(), (Base64::Encode(l->head->sol->tostring())).c_str());
-    if (l->head->sol->tostring () == whats) return true;
+    if (l->head->sol->tostring() == whats) return true;
   }
 
   return false;
@@ -199,15 +199,15 @@ bool playerreal::hassolution(string md5, solution * what) {
 ptrlist<solution> * playerreal::all_solutions() {
   ptrlist<solution> * l = 0;
 
-  for(int i = 0; i < sotable->allocated; i ++) {
+  for (int i = 0; i < sotable->allocated; i++) {
     ptrlist<hashsolsetentry> * col = sotable->data[i];
-    while(col) {
+    while (col) {
       nslist * these = col->head->solset;
       while (these) {
 	l = new ptrlist<solution>(these->head->sol, l);
-	these = these -> next;
+	these = these->next;
       }
-      col = col -> next;
+      col = col->next;
     }
   }
   return l;
@@ -264,7 +264,7 @@ playerreal * playerreal::create(string n) {
 solution * playerreal::getsol(string md5) {
   nslist * l = solutionset(md5);
   /* first try to find a non-bookmark solution */
-  for(nslist * tmp = l; tmp; tmp = tmp -> next) {
+  for (nslist * tmp = l; tmp; tmp = tmp->next) {
     if (!tmp->head->bookmark) return tmp->head->sol;
   }
   /* otherwise just return the first bookmark */
@@ -319,7 +319,7 @@ void playerreal::addsolution(string md5, namedsolution * ns, bool def_candidate)
       /* only if it doesn't already exist..? */
 #     if 0
       for (ptrlist<namedsolution> * tmp = he->solset;
-	   tmp; tmp = tmp -> next) {
+	   tmp; tmp = tmp->next) {
 
       }
 #     endif
@@ -333,7 +333,7 @@ void playerreal::addsolution(string md5, namedsolution * ns, bool def_candidate)
     /* only added if it's better than the default, or
        if the default is a bookmark */
     } else if (ns->sol->length < headsol->sol->length ||
-	       (!ns->bookmark) && headsol->bookmark) {
+	       (!ns->bookmark && headsol->bookmark)) {
       /* replace */
       he->solset->head = ns->clone();
       headsol->destroy();
@@ -405,7 +405,7 @@ void playerreal::deleteoldbackups() {
 	  /* check that it's a valid number ... */
 	  if (age && sage == itos(age)) {
 	    /* printf ("saw '%s' with age %d\n", f.c_str(), age); */
-	    n ++;
+	    n++;
 	    if (age < oldest) oldest = age;
 	  }
 	}
@@ -460,7 +460,7 @@ bool playerreal::writef_text(string file) {
 	  "%d\n", webid, webseqh, webseql);
 
   /* write ignored fields; for later expansion... */
-  for(int u = 0 ; u < IGNORED_FIELDS; u ++) fprintf(f, "0\n");
+  for (int u = 0 ; u < IGNORED_FIELDS; u++) fprintf(f, "0\n");
   
   fprintf(f, "%s\n", name.c_str());
 
@@ -468,11 +468,11 @@ bool playerreal::writef_text(string file) {
   /* fprintf(f, "%d\n", sotable->items); */
 
   {
-  for(int i = 0; i < sotable->allocated; i ++) {
+  for (int i = 0; i < sotable->allocated; i++) {
     ptrlist<hashsolsetentry>::sort(hashsolsetentry::compare, sotable->data[i]);
-    for(ptrlist<hashsolsetentry> * tmp = sotable->data[i]; 
+    for (ptrlist<hashsolsetentry> * tmp = sotable->data[i]; 
 	tmp; 
-	tmp = tmp -> next) {
+	tmp = tmp->next) {
       fprintf(f, "%s * %s\n", MD5::Ascii(tmp->head->md5).c_str(),
 	      /* assume at least one solution */
 	      Base64::Encode(tmp->head->solset->head->tostring()).c_str());
@@ -480,9 +480,9 @@ bool playerreal::writef_text(string file) {
       /* sort them first, in place */
       nslist::sort(namedsolution::compare, tmp->head->solset->next);
 
-      for(nslist * rest = tmp->head->solset->next;
+      for (nslist * rest = tmp->head->solset->next;
 	  rest;
-	  rest = rest -> next) {
+	  rest = rest->next) {
 	fprintf(f, "  %s\n", 
 		Base64::Encode(rest->head->tostring()).c_str());
       }
@@ -498,11 +498,11 @@ bool playerreal::writef_text(string file) {
   /* ditto... */
 
   {
-  for(int ii = 0; ii < ratable->allocated; ii ++) {
+  for (int ii = 0; ii < ratable->allocated; ii++) {
     ptrlist<hashratentry>::sort(hashratentry::compare, ratable->data[ii]);
-    for(ptrlist<hashratentry> * tmp = ratable->data[ii]; 
+    for (ptrlist<hashratentry> * tmp = ratable->data[ii]; 
 	tmp; 
-	tmp = tmp -> next) {
+	tmp = tmp->next) {
       fprintf(f, "%s %s\n",
 	      MD5::Ascii(tmp->head->md5).c_str(),
 	      Base64::Encode(tmp->head->rat->tostring()).c_str());
@@ -526,7 +526,7 @@ player * player::fromfile(string file) {
 
 #define FF_FAIL(s) do { printf("Bad player: %s: %s\n", \
 			       fname.c_str(), s);      \
-		        return 0; } while(0)
+		        return 0; } while (0)
 // #define FF_FAIL(s) return 0;
 
 playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
@@ -546,7 +546,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
   if (!cf->getline(s)) FF_FAIL("no seql");  p->webseql = util::stoi(s);
 
   /* ignored fields for now */
-  for(int z = 0; z < IGNORED_FIELDS; z++) {
+  for (int z = 0; z < IGNORED_FIELDS; z++) {
     if (!cf->getline(s)) FF_FAIL("ignored fields");
   }
 
@@ -557,7 +557,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 
   /* now read solutions until -- ratings */
 
-  for( ;; ) {
+  for ( ;; ) {
     string l;
     if (!cf->getline(l)) FF_FAIL ("expected solution");
     
@@ -580,7 +580,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
       nslist ** etail = &solset->next;
       
       /* now, any number of other solutions */
-      for(;;) {
+      for (;;) {
 	if (!cf->getline(l)) FF_FAIL ("expected more solutions");
 	string tok = util::chop(l);
 	if (tok == "!") break;
@@ -609,7 +609,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 
   /* already read rating marker */
 
-  for( ;; ) {
+  for ( ;; ) {
     string l;
     if (!cf->getline(l)) FF_FAIL ("expected rating");
 
@@ -672,7 +672,7 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
   if (!cf->readint(p->webseql)) return 0;
 
   /* ignored fields for now */
-  for(int z = 0; z < IGNORED_FIELDS; z++) {
+  for (int z = 0; z < IGNORED_FIELDS; z++) {
     if (!cf->readint(i)) return 0;
   }
   
@@ -682,7 +682,7 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
 
 
   /* i holds number of solutions */
-  while(i--) {
+  while (i--) {
     string md5;
     int sollen;
     string solstring;
@@ -709,7 +709,7 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
   }
 
   /* otherwise; new format: i is number of ratings */
-  while(i--) {
+  while (i--) {
     string md5;
     string rastring;
     if (!cf->read(16, md5)) return 0;

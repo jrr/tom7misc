@@ -19,7 +19,7 @@
 /* abstract interface */
 struct dircache {
   
-  virtual void destroy () = 0;
+  virtual void destroy() = 0;
   static dircache * create(player * p);
   virtual ~dircache();
 

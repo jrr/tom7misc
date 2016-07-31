@@ -161,7 +161,7 @@ static bool hasmagicf(FILE * f, const string & mag) {
     return false;
   }
 
-  for(unsigned int i = 0; i < mag.length(); i++) {
+  for (unsigned int i = 0; i < mag.length(); i++) {
     if (hdr[i] != mag[i]) {
       free(hdr);
       return false;
@@ -267,7 +267,7 @@ string shint(int b, int i) {
    from idx ... */
 int shout(int b, string s, unsigned int & idx) {
   int r = 0;
-  while(b--) {
+  while (b--) {
     r = ((unsigned char)s[idx++]) + (r<<8);
   }
   return r;
@@ -275,7 +275,7 @@ int shout(int b, string s, unsigned int & idx) {
 
 unsigned int util::hash(string s) {
   unsigned int h = 0x714FA5DD;
-  for(unsigned int i = 0; i < s.length(); i ++) {
+  for (unsigned int i = 0; i < s.length(); i++) {
     h = (h << 11) | (h >> (32 - 11));
     h *= 3113;
     h ^= (unsigned char)s[i];
@@ -285,7 +285,7 @@ unsigned int util::hash(string s) {
 
 string util::lcase(string in) {
   string out;
-  for(unsigned int i = 0; i < in.length(); i++) {
+  for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'A' &&
 	in[i] <= 'Z') out += in[i]|32;
     
@@ -296,7 +296,7 @@ string util::lcase(string in) {
 
 string util::ucase(string in) {
   string out;
-  for(unsigned int i = 0; i < in.length(); i++) {
+  for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'a' &&
 	in[i] <= 'z') out += (in[i] & (~ 32));
     
@@ -306,10 +306,9 @@ string util::ucase(string in) {
 }
 
 string util::fileof(string s) {
-  int i = s.length () - 1;
-  for(; i >= 0; i --) {
+  for (int i = s.length() - 1; i >= 0; i--) {
     if (s[i] == DIRSEPC) {
-      return s.substr(i + 1, s.length () - (i + 1));
+      return s.substr(i + 1, s.length() - (i + 1));
     }
   }
   return s;
@@ -317,8 +316,7 @@ string util::fileof(string s) {
 
 string util::pathof(string s) {
   if (s == "") return ".";
-  int i = s.length () - 1;
-  for(; i >= 0; i --) {
+  for (int i = s.length() - 1; i >= 0; i--) {
     if (s[i] == DIRSEPC) {
       return s.substr(0, i);
     }
@@ -328,10 +326,10 @@ string util::pathof(string s) {
 
 /* XX can use endswith below */
 string util::ensureext(string f, string ext) {
-  if (f.length () < ext.length())
+  if (f.length() < ext.length())
     return f + ext;
   else {
-    if (f.substr(f.length () - ext.length(),
+    if (f.substr(f.length() - ext.length(),
 		 ext.length()) != ext)
       return f + ext;
     else return f;
@@ -340,12 +338,12 @@ string util::ensureext(string f, string ext) {
 
 bool util::endswith (string big, string small_) {
   if (small_.length() > big.length()) return false;
-  return big.substr(big.length() - small_.length (),
+  return big.substr(big.length() - small_.length(),
 		    small_.length()) == small_;
 }
 
 bool util::startswith (string big, string small_) {
-  if (small_.length () > big.length()) return false;
+  if (small_.length() > big.length()) return false;
   return big.substr(0, small_.length()) == small_;
 }
 
@@ -371,7 +369,7 @@ FILE * util::open_new(string fname) {
 
 string util::getline(string & chunk) {
   string ret;
-  for(unsigned int i = 0; i < chunk.length(); i ++) {
+  for (unsigned int i = 0; i < chunk.length(); i++) {
     if (chunk[i] == '\r') continue;
     else if (chunk[i] == '\n') {
       chunk = chunk.substr(i + 1, chunk.length() - (i + 1));
@@ -400,10 +398,10 @@ string util::fgetline(FILE * f) {
    frequently in the net stuff */
 /* return first token in line, removing it from 'line' */
 string util::chop(string & line) {
-  for (unsigned int i = 0; i < line.length(); i ++) {
+  for (unsigned int i = 0; i < line.length(); i++) {
     if (line[i] != ' ') {
       string acc;
-      for(unsigned int j = i; j < line.length (); j ++) {
+      for (unsigned int j = i; j < line.length(); j++) {
 	if (line[j] == ' ') {
 	  line = line.substr(j, line.length() - j);
 	  return acc;
@@ -421,7 +419,7 @@ string util::chop(string & line) {
 /* PERF same */
 string util::chopto(char c, string & line) {
   string acc;
-  for (unsigned int i = 0; i < line.length(); i ++) {
+  for (unsigned int i = 0; i < line.length(); i++) {
     if (line[i] != c) {
       acc += line[i];
     } else {
@@ -441,8 +439,8 @@ string util::chopto(char c, string & line) {
 }
 
 string util::losewhitel(const string & s) {
-  for(unsigned int i = 0; i < s.length(); i ++) {
-    switch(s[i]) {
+  for (unsigned int i = 0; i < s.length(); i++) {
+    switch (s[i]) {
     case ' ':
     case '\n':
     case '\r':
@@ -450,7 +448,7 @@ string util::losewhitel(const string & s) {
       /* keep going ... */
       break;
     default:
-      return s.substr(i, s.length () - i);
+      return s.substr(i, s.length() - i);
     }
   }
   /* all whitespace */
@@ -469,7 +467,7 @@ string util::tempfile(string suffix) {
 	    tries, getpid(), random(),
 	    suffix.c_str());
     tries++;
-  } while(existsfile(fname));
+  } while (existsfile(fname));
 
   return fname;
 
@@ -497,13 +495,11 @@ string util::tempfile(string suffix) {
    as we go is better
 */
 int util::natural_compare(const string & l, const string & r) {
-
-  for(int caseless = 0; caseless < 2; caseless ++) {
-    
+  for (int caseless = 0; caseless < 2; caseless++) {
     unsigned int il = 0;
     unsigned int ir = 0;
     
-    while(il < l.length() || ir < r.length()) {
+    while (il < l.length() || ir < r.length()) {
       /* if out of tokens in either string, it comes first. */
       if (il >= l.length()) return -1;
       if (ir >= r.length()) return 1;
@@ -520,21 +516,21 @@ int util::natural_compare(const string & l, const string & r) {
 	  while (il < l.length() && l[il] >= '0' && l[il] <= '9') {
 	    ll *= 10;
 	    ll += (l[il] - '0');
-	    il ++;
+	    il++;
 	  }
 
 	  while (ir < r.length() && r[ir] >= '0' && r[ir] <= '9') {
 	    rr *= 10;
 	    rr += (r[ir] - '0');
-	    ir ++;
+	    ir++;
 	  }
 
 	  if (ll < rr) return -1;
 	  if (ll > rr) return 1;
 	  /* otherwise continue... */
 	
-	  il ++;
-	  ir ++;
+	  il++;
+	  ir++;
 	} else {
 	  /* treat numbers larger than any char. */
 	  return 1;
@@ -558,8 +554,8 @@ int util::natural_compare(const string & l, const string & r) {
 	
 	  /* same so far. continue... */
 	
-	  il ++;
-	  ir ++;
+	  il++;
+	  ir++;
 	}
       }
     
@@ -605,8 +601,8 @@ int util::library_compare(const string & l, const string & r) {
     else idxr += 4;
   }
 
-  return natural_compare (l.substr(idxl, l.length () - idxl),
-			  r.substr(idxr, r.length () - idxr));
+  return natural_compare (l.substr(idxl, l.length() - idxl),
+			  r.substr(idxr, r.length() - idxr));
 }
 
 /* XXX impossible to specify a spec for just ^ */
@@ -616,7 +612,7 @@ bool util::matchspec(string spec, char c) {
   return !matchspec(spec.substr(1, spec.length() - 1), c);
 
   /* now loop looking for c in string, or ranges */
-  for(unsigned int i = 0; i < spec.length(); i ++) {
+  for (unsigned int i = 0; i < spec.length(); i++) {
     /* ok if starts range, since they are inclusive */
     if (spec[i] == c) return true;
 
@@ -627,7 +623,7 @@ bool util::matchspec(string spec, char c) {
 	if (spec[i - 1] <= c &&
 	    spec[i + 1] >= c) return true;
 	/* skip dash and next char */
-	i ++;
+	i++;
       }
     }
   }
@@ -646,7 +642,7 @@ bool util::library_matches(char k, const string & s) {
       (s[idx + 1]|32) == 'h' &&
       (s[idx + 2]|32) == 'e' &&
       (s[idx + 3])    == ' ') return (s[idx + 4]|32) == (k|32);
-  else return (s.length () > 0 && (s[idx]|32) == (k|32));
+  else return (s.length() > 0 && (s[idx]|32) == (k|32));
 }
 
 /* try a few methods to remove a file.
@@ -744,12 +740,12 @@ void util::toattic(string f) {
   // printf("TOATTIC %s...\n", f.c_str());
   /* in case it doesn't exist... */
   makedir(ATTIC_DIR);
-  for(unsigned int i = 0; i < nf.length() ; i ++) {
+  for (unsigned int i = 0; i < nf.length() ; i++) {
     if (nf[i] == DIRSEPC) nf[i] = '_';
   }
   /* XXX race */
   int tries = 12;
-  while(tries--) {
+  while (tries--) {
     string dest = (string)ATTIC_DIR + DIRSEP + 
                   itos(random()) + (string)"_" + nf;
     if (!existsfile(dest)) {
@@ -762,7 +758,7 @@ void util::toattic(string f) {
 
 string util::cdup(const string & dir) {
   /* XXX right second argument to rfind? I want to find the last / */
-  int idx = dir.rfind(DIRSEP, dir.length () - 1);
+  int idx = dir.rfind(DIRSEP, dir.length() - 1);
   if (idx != (signed)string::npos) {
     if (idx) return dir.substr(0, idx);
     else return ".";
@@ -771,7 +767,7 @@ string util::cdup(const string & dir) {
 
 void util::createpathfor(string f) {
   string s;
-  for(unsigned int i = 0; i < f.length();  i++) {
+  for (unsigned int i = 0; i < f.length();  i++) {
     if (f[i] == DIRSEPC) {
       /* initial / will cause s == "" for first
 	 appearance */
@@ -789,7 +785,7 @@ FILE * util::fopenp(string f, string m) {
 string util::replace(string src, string findme, string rep) {
   int idx = src.length() - 1;
 
-  if (findme.length () < 1) return src;
+  if (findme.length() < 1) return src;
 
   /* idx represents the position in src which, for all chars greater
      than it, there begins no match of findme */
@@ -831,12 +827,12 @@ bool bitbuffer::nbits(string s, int n, int & idx, unsigned int & out) {
 
   out = 0;
 
-  while(n--) {
+  while (n--) {
     out <<= 1;
     /* check bounds */
     if ((unsigned)(idx >> 3) >= s.length()) return false;
     out |= NTHBIT(idx);
-    idx ++;
+    idx++;
   }
   return true;
 
@@ -855,14 +851,14 @@ void bitbuffer::writebits(int n, unsigned int b) {
 
   /* printf("writebits(%d, %d)\n", n, b); */
 
-  for(int i = 0; i < n; i ++) {
+  for (int i = 0; i < n; i++) {
     int bytes_needed = ceil(bits + 1);
 
     /* allocate more */
     if (bytes_needed > size) {
       int nsize = (size + 1) * 2;
       unsigned char * tmp = (unsigned char *) malloc(nsize * sizeof (unsigned char));
-      if (!tmp) abort ();
+      if (!tmp) abort();
       memset(tmp, 0, nsize);
       memcpy(tmp, data, size);
       free(data);
@@ -942,7 +938,7 @@ bool util::setclipboard(string as) {
    web sequence numbers are chosen randomly, now, so we
    actually do. 
 */
-int util::random () {
+int util::random() {
 # ifdef WIN32
   return ::rand();
 # else
@@ -959,7 +955,7 @@ struct randomseed {
     srandom(time(0) ^ getpid());
 # endif
     /* run it a bit */
-    for(int i = 0; i < 256; i ++)
+    for (int i = 0; i < 256; i++)
       (void)util::random();
   }
 };

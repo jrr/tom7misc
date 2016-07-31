@@ -103,14 +103,14 @@ void mainshow::trymove() {
   }
 
   /* if we can't make any move, reset faster */
-  if (guytime > 1) guytime --;
+  if (guytime > 1) guytime--;
 
 }
 
 void mainshow::randomspot(int & x, int & y) {
 
   int idx = 
-    util::random () % ((dr.lev->w - 2) * (dr.lev->h - 2));
+    util::random() % ((dr.lev->w - 2) * (dr.lev->h - 2));
 
   x = 1 + idx % (dr.lev->w - 2);
   y = 1 + idx / (dr.lev->w - 2);
@@ -136,7 +136,7 @@ void mainshow::newguy() {
   guytime = 8 + (util::random() % GUY_FREQ);
 }
 
-void mainshow::newlevel () {
+void mainshow::newlevel() {
 
   /* XXX make a more interesting random level!! 
      (we had better improve the AI, then)
@@ -146,8 +146,8 @@ void mainshow::newlevel () {
      so even if we just pulled random levels from
      the triage collection (at 18x10 or smaller),
      we'd probably win eventually. */ 
-  for(int y = 0; y < dr.lev->h; y++) {
-    for(int x = 0; x < dr.lev->w; x++) {
+  for (int y = 0; y < dr.lev->h; y++) {
+    for (int x = 0; x < dr.lev->w; x++) {
       dr.lev->settile(x, y, T_FLOOR);
       
       /* sometimes put something other than floor */

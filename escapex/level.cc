@@ -12,7 +12,7 @@ string solution::tostring() const {
 solution * solution::fromstring(string s) {
 
   unsigned int idx = 0;
-  if (s.length () < 4) return 0;
+  if (s.length() < 4) return 0;
   int len = shout(4, s, idx);
 
   dir * dd = level::rledecode(s, idx, len);
@@ -64,7 +64,7 @@ bool level::isdead(int & tilex, int & tiley, dir & d) {
 
   /* is there an exploded bomb adjacent to us, or on us? 
      then die. */
-  for(dir db = FIRST_DIR_SELF; db <= LAST_DIR; db ++) {
+  for (dir db = FIRST_DIR_SELF; db <= LAST_DIR; db++) {
     int xx, yy;
     if (travel(guyx, guyy, db, xx, yy)) {
 
@@ -72,7 +72,7 @@ bool level::isdead(int & tilex, int & tiley, dir & d) {
 	 returns the lowest bot; so just loop
 	 manually: */
       int z = index(xx, yy);
-      for(int m = 0; m < nbots; m ++) {
+      for (int m = 0; m < nbots; m++) {
 	// printf("Bot %d type %d @ %d\n", m, bott[m], boti[m]);
 	if (boti[m] == z && bott[m] == B_BOMB_X) {
 	  /* ?? */
@@ -89,7 +89,7 @@ bool level::isdead(int & tilex, int & tiley, dir & d) {
   /* no? look for lasers. the easiest way is to look 
      for lasers from the current dude outward. */
   
-  for(dir dd = FIRST_DIR; dd <= LAST_DIR; dd ++) {
+  for (dir dd = FIRST_DIR; dd <= LAST_DIR; dd++) {
     int lx = guyx, ly = guyy;
 
     while (travel(lx, ly, dd, lx, ly)) {
@@ -216,17 +216,13 @@ void disamb::destroy() {
 
 void disamb::clear() {
   serial = 1;
-  player = 0; /* or 0? */
-  {
-    for(int i = 0; i < LEVEL_MAX_ROBOTS; i++) {
-      bots[i] = 0; /* 0? */
-    }
+  player = 0;
+  for (int i = 0; i < LEVEL_MAX_ROBOTS; i++) {
+    bots[i] = 0;
   }
   
-  {
-    for(int i = 0; i < (w * h); i ++) {
-      map[i] = 0;
-    }
+  for (int i = 0; i < (w * h); i++) {
+    map[i] = 0;
   }
 }
 
@@ -278,7 +274,7 @@ void disamb::serialup(level * l, ptrlist<aevent> **& etail) {
     player = serial;
   }
 
-  for(int i = 0; i < l->nbots; i ++) {
+  for (int i = 0; i < l->nbots; i++) {
     if (l->bott[i] != B_DELETED &&
 	l->bott[i] != B_BOMB_X &&
 	bots[i] != serial) {
@@ -296,7 +292,7 @@ void disamb::serialup(level * l, ptrlist<aevent> **& etail) {
   }
 
   /* now we can increment the serial */
-  serial ++;
+  serial++;
 }
 
 /* XXX should these also do the same check that affecti does? */
@@ -335,7 +331,7 @@ bool level::sanitize() {
   /* XXX what to do with zero height and width levels? */
   
   {
-  for (int i = 0; i < len; i ++) {
+  for (int i = 0; i < len; i++) {
     
     /* a destination outside the level */
     if (dests[i] < 0 || dests[i] >= len) {
@@ -406,7 +402,7 @@ bool level::sanitize() {
     
     /* First, make sure that all bots are within reason, not worrying
        about them overlapping. */
-    for(int i = 0; i < nbots; i++) {
+    for (int i = 0; i < nbots; i++) {
       int x, y;
       where(boti[i], x, y);
 
@@ -482,22 +478,22 @@ void level::fixup_botorder() {
     int j = 0;
     /* first put in non-bombs */
     {
-      for(int i = 0; i < nbots; i ++) {
+      for (int i = 0; i < nbots; i++) {
 	if (!isbomb(bott[i])) {
 	  bots[j].t = bott[i];
 	  bots[j].i = boti[i];
-	  j ++;
+	  j++;
 	}
       }
     }
 
     /* then bombs */
     {
-      for(int i = 0; i < nbots; i ++) {
+      for (int i = 0; i < nbots; i++) {
 	if (isbomb(bott[i])) {
 	  bots[j].t = bott[i];
 	  bots[j].i = boti[i];
-	  j ++;
+	  j++;
 	}
       }
     }
@@ -505,7 +501,7 @@ void level::fixup_botorder() {
 
   /* now put them back. */
   {
-    for(int i = 0; i < nbots; i ++) {
+    for (int i = 0; i < nbots; i++) {
       bott[i] = bots[i].t;
       boti[i] = bots[i].i;
       botd[i] = DIR_DOWN;
@@ -623,7 +619,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
     /* initialized */
     l->bota = (int*)malloc(l->nbots * sizeof(int));
     
-    for(int i = 0; i < l->nbots; i++) {
+    for (int i = 0; i < l->nbots; i++) {
       l->botd[i] = DIR_DOWN;
       l->bota[i] = -1;
     }
@@ -669,7 +665,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
       return l;
     } else {
       /* out of memory? */
-      l->destroy ();
+      l->destroy();
       return 0;
     }
 
@@ -770,7 +766,7 @@ int * level::rledecode(string s, unsigned int & idx_bytes, int n) {
 
       /* printf("  .. [%d] anti %d\n", idx, run); */
       if (run == 0) return 0; /* illegal */
-      for(unsigned int m = 0; m < run; m ++) {
+      for (unsigned int m = 0; m < run; m++) {
 	unsigned int ch;
 	if (!bitbuffer::nbits(s, bits, idx, ch)) return 0;
 	if (oi >= n) return 0;
@@ -780,13 +776,13 @@ int * level::rledecode(string s, unsigned int & idx_bytes, int n) {
       unsigned int ch;
       if (!bitbuffer::nbits(s, bits, idx, ch)) return 0;
 
-      for (unsigned int m = 0; m < run; m ++) {
+      for (unsigned int m = 0; m < run; m++) {
 	if (oi >= n) return 0;
 	out[oi++] = ch;
       }
     }
   }
-  eo.release ();
+  eo.release();
   idx_bytes = bitbuffer::ceil(idx);
   return out;
 }
@@ -801,7 +797,7 @@ int * level::rledecode(string s, unsigned int & idx_bytes, int n) {
 */
 string level::rleencode(int n, int a[]) {
   int max = 0;
-  for(int j = 0; j < n; j ++) {
+  for (int j = 0; j < n; j++) {
     if (a[j] > max) max = a[j];
   }
 
@@ -820,7 +816,7 @@ string level::rleencode(int n, int a[]) {
 
   {
     unsigned int shift = max;
-    for(int i = 0; i <= 32; i ++) {
+    for (int i = 0; i <= 32; i++) {
       if (shift & 1) bits = i + 1;
       shift >>= 1;
     }
@@ -849,9 +845,9 @@ string level::rleencode(int n, int a[]) {
   int mode = NOTHING;
   int back = 0, front = 0;
 
-  while(mode != EXIT) {
+  while (mode != EXIT) {
     
-    switch(mode) {
+    switch (mode) {
     case NOTHING:
       assert(back == front);
 
@@ -873,11 +869,11 @@ string level::rleencode(int n, int a[]) {
 	if (a[front] == a[back]) {
 	  /* start run */
 	  mode = RUN;
-	  front ++;
+	  front++;
 	} else {
 	  /* start antirun */
 	  mode = ANTIRUN;
-	  front ++;
+	  front++;
 	}
       }
       break;
@@ -943,7 +939,7 @@ string level::rleencode(int n, int a[]) {
 	    ou.writebits(8, 0);
 	    ou.writebits(8, x);
 	    
-	    while(x--) {
+	    while (x--) {
 	      ou.writebits(bits, a[back]);
 	      back++;
 	    }
@@ -989,7 +985,7 @@ string level::tostring() {
 
 /* deprecated */
 int level::newtile(int old) {
-  switch(old) {
+  switch (old) {
   case 0x0b: return T_STOP;
   case 0x0c: return T_RIGHT;
   case 0x0d: return T_LEFT;
@@ -1039,10 +1035,10 @@ int level::newtile(int old) {
    direction d? (For instance, is there a light
    in direction d?) */
 bool level::isconnected(int pulsex, int pulsey, dir pd) {
-  while(travel(pulsex, pulsey, pd, pulsex, pulsey)) {
+  while (travel(pulsex, pulsey, pd, pulsex, pulsey)) {
     int targ = tileat(pulsex, pulsey);
 
-    switch(targ) {
+    switch (targ) {
     case T_REMOTE: return true; /* (and the pulse continues...) */
     case T_BLIGHT: return true;
     case T_RLIGHT: return true;
@@ -1122,7 +1118,7 @@ level * level::fromoldstring(string s) {
 
   level * n = level::blank(18, 10);
 
-  for(int i = 0; i < 180; i ++) {
+  for (int i = 0; i < 180; i++) {
     n->tiles[i] = level::newtile(s[i]);
     /* only regular panels */
     if (n->tiles[i] == T_PANEL)
@@ -1132,7 +1128,7 @@ level * level::fromoldstring(string s) {
 
   /* otiles always floor */
 
-  for(int j = 0; j < 180; j ++) {
+  for (int j = 0; j < 180; j++) {
     n->dests[j] = 18 * (-1 + (int)s[j + 180 + 180]) + 
       (-1 + (int)s[j + 180]);
   }
@@ -1145,7 +1141,7 @@ level * level::fromoldstring(string s) {
 
   /* chop trailing spaces from author */
   int v;
-  for(v = n->title.length() - 1; v >= 0; v --) {
+  for (v = n->title.length() - 1; v >= 0; v--) {
     if (n->title[v] != ' ') break;
   }
   n->title = n->title.substr(0, v + 1);
@@ -1236,7 +1232,7 @@ level * level::blank(int w, int h) {
   n->botd   = 0;
   n->bota   = 0;
 
-  for(int i = 0; i < w * h; i ++) {
+  for (int i = 0; i < w * h; i++) {
     n->tiles[i]  = T_FLOOR;
     n->otiles[i] = T_FLOOR;
     n->dests[i]  = 0; /* 0, 0 */
@@ -1252,13 +1248,13 @@ level * level::defboard(int w, int h) {
   /* just draw blue around it. */
 
   /* top, bottom */
-  for(int i = 0; i < w; i++) {
+  for (int i = 0; i < w; i++) {
     n->tiles[i] = T_BLUE;
     n->tiles[(h - 1) * w + i] = T_BLUE;
   }
 
   /* left, right */
-  for(int j = 0; j < h; j++) {
+  for (int j = 0; j < h; j++) {
     n->tiles[j * w] = T_BLUE;
     n->tiles[j * w + (w - 1)] = T_BLUE;
   }
@@ -1273,11 +1269,11 @@ bool level::verify_prefix(const level * lev, const solution * s, solution *& out
   out = solution::empty();
   Extent<solution> eo(out);
 
-  for(solution::iter i = solution::iter(s);
+  for (solution::iter i = solution::iter(s);
       i.hasnext();
       i.next()) {
     
-    dir d = i.item ();
+    dir d = i.item();
 
     if (l->move(d)) {
       /* include it */
@@ -1309,11 +1305,11 @@ bool level::verify(const level * lev, const solution * s) {
 
 bool level::play_subsol(const solution * s, int & moves, int start, int len) {
   moves = 0;
-  for(int z = 0; z < len; z ++) {
+  for (int z = 0; z < len; z++) {
     
     dir d = s->dirs[start + z];
 
-    moves ++;    
+    moves++;    
     if (move(d)) {
       /* potentially fail *after* each move */
       int dummy; dir dumb;
@@ -1344,8 +1340,8 @@ void level::resize(int neww, int newh) {
   nd = (int *)malloc(bytes);
   nf = (int *)malloc(bytes);
 
-  for(int x = 0; x < neww; x ++)
-    for(int y = 0; y < newh; y ++) {
+  for (int x = 0; x < neww; x++)
+    for (int y = 0; y < newh; y++) {
 
       if (x < w && y < h) {
 	nt[y * neww + x] = tiles[y * w + x];
@@ -1374,7 +1370,7 @@ void level::resize(int neww, int newh) {
   /* put bots back in level  */
   {
     int bi = 0;
-    for(int b = 0; b < nbots; b++) {
+    for (int b = 0; b < nbots; b++) {
       int bx, by;
       where(boti[b], bx, by);
       if (bx < neww && bx >= 0 &&
@@ -1384,7 +1380,7 @@ void level::resize(int neww, int newh) {
 	bott[bi] = bott[b];
 	botd[bi] = botd[b];
 	bota[bi] = bota[b];
-	bi ++;
+	bi++;
       }
     }
     nbots = bi;

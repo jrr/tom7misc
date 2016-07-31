@@ -11,7 +11,7 @@
 
 #define SELCOLOR 0xFF224422
 
-#define DPRINTF if(0) printf
+#define DPRINTF if (0) printf
 
 /* try to avoid startup events. ?? but how
    can we base this on time? */
@@ -77,7 +77,7 @@ struct selector : public drawable {
 
   Item * items;
 
-  void destroy () {
+  void destroy() {
     delete [] items;
     delete this;
   }
@@ -114,14 +114,14 @@ struct selector : public drawable {
     while (i != j) {
       if (compare(items[i], items[first]) != 1) { /* <= */
 	/* [i] belongs in less-eq set */
-	i ++;
+	i++;
 	continue;
       } else {
 	/* [i] belongs on the other side */
 
 	if (compare(items[j], items[first]) == 1) { /* > */
 	  /* [j] belongs in greater set */
-	  j --;
+	  j--;
 	  /* XXX could be more efficient by avoiding re-test
 	     for i; favor simplicity now */
 	  continue;
@@ -179,7 +179,7 @@ struct selector : public drawable {
     
     items = new Item[newsize];
   
-    for(int i = 0; i < number; i ++) {
+    for (int i = 0; i < number; i++) {
       items[i] = olditems[i];
     }
     
@@ -199,19 +199,19 @@ struct selector : public drawable {
 
     s->title = "Select using the arrow keys and press enter.";
 
-    s->reset ();
+    s->reset();
 
     /* XXX check for fail of new Item[] */
 
     return s;
   }
 
-  virtual void redraw () {
+  virtual void redraw() {
     draw();
     SDL_Flip(screen);
   }
 
-  virtual void draw () {
+  virtual void draw() {
     if (below) {
       below->draw();
     } else {
@@ -228,7 +228,7 @@ struct selector : public drawable {
     if (skip > (number - yfit)) skip = (number - yfit);
     if (skip < 0) skip = 0;
 
-    for(int i = skip; i < number && i < (skip+yfit); i++) {
+    for (int i = skip; i < number && i < (skip+yfit); i++) {
 
       if (i == selected) {
 	/* draw bar */
@@ -294,7 +294,7 @@ struct selector : public drawable {
 
     if (handle_video_event(this, e)) return peres(PE_NONE);
 
-    switch(e.type) {
+    switch (e.type) {
     /* new! mouse stuff */
     case SDL_MOUSEBUTTONDOWN: {
       DPRINTF("  ... mbd\n");
@@ -333,7 +333,7 @@ struct selector : public drawable {
 
       /* don't allow bucky */
       if (!(e.key.keysym.mod & (KMOD_CTRL | KMOD_ALT)))
-	switch(key) {
+	switch (key) {
 	case SDLK_ESCAPE:
 	  return peres(PE_CANCEL);
 
@@ -348,9 +348,9 @@ struct selector : public drawable {
 	case SDLK_DOWN:
 	case SDLK_UP: {
 
-	  switch(e.key.keysym.sym) {
-	  case SDLK_DOWN: selected ++; break;
-	  case SDLK_UP: selected --; break;
+	  switch (e.key.keysym.sym) {
+	  case SDLK_DOWN: selected++; break;
+	  case SDLK_UP: selected--; break;
 	  case SDLK_PAGEUP: selected -= yfit; break; 
 	  case SDLK_PAGEDOWN: selected += yfit; break;
 	  case SDLK_HOME: selected = 0; break;
@@ -373,14 +373,14 @@ struct selector : public drawable {
 	    /* use lowercase */
 	    char k = 'a' + (key - SDLK_a);
 	    
-	    for(int i = 1; i < number; i ++) {
+	    for (int i = 1; i < number; i++) {
 	      if (items[(selected + i) % number].matches(k)){
 		selected = (selected + i) % number;
 		break;
 	      }
 	    }
 
-	    redraw ();
+	    redraw();
 	  }
 	}
       break;
@@ -391,7 +391,7 @@ struct selector : public drawable {
     return peres(PE_NONE);
   }
 
-  void reset () {
+  void reset() {
     deadtime = SDL_GetTicks() + SELECTOR_DEADTIME;
   }
 
@@ -400,12 +400,12 @@ struct selector : public drawable {
 
     SDL_Event event;
 
-    reset ();
+    reset();
 
     while ( SDL_WaitEvent(&event) >= 0 ) {
 
       peres pr = doevent(event);
-      switch(pr.type) {
+      switch (pr.type) {
       case PE_SELECTED:
 	return items[pr.u.i].convert();
       case PE_EXIT: /* XXX */

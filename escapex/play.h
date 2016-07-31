@@ -44,7 +44,7 @@ struct playresult {
 #undef stat
 
 struct play : public drawable {
-  static play * create ();
+  static play * create();
   virtual playresult doplay_save(player *, level *, solution *& saved, string md5) = 0;
   virtual playresult doplay(player * plr, level * lev, string md5) {
     solution * unused = 0;
@@ -56,7 +56,7 @@ struct play : public drawable {
   static void playrecord(string file, player * plr, bool allowrate = true);
   virtual void draw() = 0;
   virtual void screenresize() = 0;
-  virtual void destroy () = 0;
+  virtual void destroy() = 0;
   virtual ~play();
 
   /* makes move d (returning true if successful and false if not),
@@ -64,7 +64,7 @@ struct play : public drawable {
 
      assumes a non-invalidated recent "draw()",
      caller should draw() after, too. */
-  static bool animatemove(drawing & dr, disamb *&, dirt *&, dir d);
+  static bool animatemove(drawing &dr, disamb *&da, Dirt *dirty, dir d);
 };
 
 #endif

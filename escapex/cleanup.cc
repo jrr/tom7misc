@@ -14,7 +14,7 @@ void cleanup::clean() {
   if (!d) return;
   dirent * dire;
 
-  while( (dire = readdir(d)) ) {
+  while ( (dire = readdir(d)) ) {
 
     string dn = dire->d_name;
     string ldn = "." + (string)DIRSEP + dn;

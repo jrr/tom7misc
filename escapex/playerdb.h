@@ -21,7 +21,7 @@ struct playerdb {
   /* was this the first launch? (no default player found) */
   virtual bool firsttime() = 0;
 
-  virtual ~playerdb () {}
+  virtual ~playerdb() {}
 };
 
 #endif

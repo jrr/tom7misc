@@ -39,7 +39,7 @@ int main(int argc, char ** argv) {
   printf("this is replace.exe\n\n");
   fflush(stdout);
 
-  for(int aa = 0; aa < argc; aa++) {
+  for (int aa = 0; aa < argc; aa++) {
     printf("argv[%d] = '%s'\n", aa, argv[aa]);
   }
 # endif
@@ -49,7 +49,7 @@ int main(int argc, char ** argv) {
     string execafter = argv[1];
 
     /* ignores odd argument */
-    for(int i = 2; i < (argc - 1); ) {
+    for (int i = 2; i < (argc - 1); ) {
       int tries = 3;
       
       while (tries--) {
@@ -70,7 +70,7 @@ int main(int argc, char ** argv) {
       i += 2;
     }
 
-    for(int tries = 0; tries < 3; tries ++) {
+    for (int tries = 0; tries < 3; tries++) {
 
       spawnl(_P_OVERLAY, execafter.c_str(), execafter.c_str(),
 	     "-upgraded", 0);
