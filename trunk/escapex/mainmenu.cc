@@ -68,8 +68,8 @@ struct mmreal : public mainmenu, public drawable {
  private:
   friend struct mmentry;
 
-  void redraw () {
-    sel->draw ();
+  void redraw() {
+    sel->draw();
     SDL_Flip(screen);
   }
 
@@ -81,8 +81,8 @@ struct mmreal : public mainmenu, public drawable {
 
   mainshow * mshow;
 
-  void makebackground ();
-  void compute_tutorial ();
+  void makebackground();
+  void compute_tutorial();
   bool tutorial_left;
   string tutorial_text;
   string tutorial_nextlev;
@@ -93,7 +93,7 @@ struct mmreal : public mainmenu, public drawable {
 	tutorial_nextlev != "") {
 	  
       play::playrecord(tutorial_nextlev, pp, false);
-      compute_tutorial ();
+      compute_tutorial();
 	    
     } else {
       message::quick(this, "Tutorial completed or unavailable!",
@@ -119,7 +119,7 @@ void mmentry::draw(int x, int y, bool sel) {
   y -= 4;
   int ctry = y + ((height() >> 1) - (fon->height >> 1)) + 4;
 
-  switch(t) {
+  switch (t) {
   case MM_TUTORIAL:
     /* figure out what the next unsolved tutorial level is */
     drawing::drawtileu(sxi, y, TU_T, 0, screen);
@@ -177,7 +177,7 @@ void mmentry::draw(int x, int y, bool sel) {
 }
 
 
-void mmreal::compute_tutorial () {
+void mmreal::compute_tutorial() {
   // XXX use leveldb for this.
 
   loadlevel * ll = loadlevel::create(pp, TUTORIAL_DIR, false, false);
@@ -234,24 +234,24 @@ void mmreal::draw() {
 
 #define FRAME_TICKS 500
 mainmenu::result mmreal::show() {
-  compute_tutorial ();
+  compute_tutorial();
 
-  makebackground ();
+  makebackground();
   redraw();
 
   SDL_Event e;
 
   Uint32 nextframe = SDL_GetTicks() + FRAME_TICKS;
-  for( ;; ) {
+  for ( ;; ) {
     SDL_Delay(1);
 
     /* turn on animation? */
     Uint32 now = SDL_GetTicks();
 
     if (now > nextframe) {
-      mshow->step ();
+      mshow->step();
       nextframe = now + FRAME_TICKS;
-      redraw ();
+      redraw();
     }
 
     while (SDL_PollEvent(&e)) {
@@ -259,13 +259,13 @@ mainmenu::result mmreal::show() {
 
       if (handle_video_event(this, e)) continue;
 
-      switch(e.type) {
+      switch (e.type) {
       case SDL_QUIT:
 	return QUIT;
 
       case SDL_KEYDOWN:
 	key = e.key.keysym.sym;
-	switch(key) {
+	switch (key) {
 
 	case SDLK_ESCAPE:
 	case SDLK_x:
@@ -321,9 +321,9 @@ mainmenu::result mmreal::show() {
       /* if we got here, then we don't know how to
 	 preempt the event, so use the selector. */
       msel::peres pr = sel->doevent(e);
-      switch(pr.type) {
+      switch (pr.type) {
       case msel::PE_SELECTED:
-	switch(sel->items[sel->selected].t) {
+	switch (sel->items[sel->selected].t) {
 	case MM_TUTORIAL:
 	  playtutorial();
 	  redraw();
@@ -452,7 +452,7 @@ mmreal * mmreal::create(player * plr) {
   /* XXX should be a better way to do this. 
      (should really get it from titlegraphic, for one) */
   mm->sel->title = "\n\n\n\n\n\n\n\n\n\n";
-  for(int j = 0; j < MM_N_ITEMS; j++) {
+  for (int j = 0; j < MM_N_ITEMS; j++) {
     mm->sel->items[j].parent = mm;
   }
   
@@ -491,7 +491,7 @@ mmreal * mmreal::create(player * plr) {
   return mm;
 }
 
-void mmreal::destroy () {
+void mmreal::destroy() {
   if (titlegraphic) SDL_FreeSurface(titlegraphic);
   if (background) SDL_FreeSurface(background);
   if (mshow) delete mshow;

@@ -22,8 +22,8 @@ struct loadlevel : public drawable {
   virtual bool first_unsolved(string & file, string & title) = 0;
   
   /* drawable */
-  virtual void draw () = 0;
-  virtual void screenresize () = 0;
+  virtual void draw() = 0;
+  virtual void screenresize() = 0;
 };
 
 #endif

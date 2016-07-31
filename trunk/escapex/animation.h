@@ -55,23 +55,23 @@ struct animation {
      If this has changed the state of the screen,
      then return true, so that they dirty mirror
      can be updated. */
-  virtual bool init (unsigned int now) {
+  virtual bool init(unsigned int now) {
     nexttick = now;
     return false;
   }
 
   /* the graphic from its current position,
      by invoking dirty->setdirty */
-  virtual void erase (dirt * dirty) { }
+  virtual void erase(Dirt *dirty) { }
   
   /* think as a result of the timer passing
      the point set by nexttick. this can
      change the internal state, etc. return
      true if the animation has died. */
-  virtual bool think (unsigned int now) = 0;
+  virtual bool think(unsigned int now) = 0;
 
   /* draw at current location. */
-  virtual void draw () { }
+  virtual void draw() { }
 
   /* next animation in the chain,
      if applicable. To replace this one
@@ -159,7 +159,7 @@ struct animation {
   static void clearsprites(drawing & dr);
   static void clearent(drawing & dr, int ex, int ey, int olap);
 
-  static void erase_anims(ptrlist<animation> * a, dirt * d);
+  static void erase_anims(ptrlist<animation> * a, Dirt *d);
 
   /* Think all of the animations in 'as' that are ready.
      If an animation has finished, remove it from the
@@ -216,7 +216,7 @@ struct aninplace : public animation {
   virtual bool think(unsigned int);
   virtual void draw();
   virtual bool init(unsigned int now);
-  virtual void erase(dirt *);
+  virtual void erase(Dirt *d);
 
   virtual ~aninplace() { }
 };
@@ -317,11 +317,11 @@ struct anflying : public animation {
     /* not above! */
   }
 
-  virtual void draw ();
+  virtual void draw();
   virtual bool init(unsigned int now);
   virtual bool think(unsigned int now);
 
-  virtual void erase(dirt * dirty) {
+  virtual void erase(Dirt * dirty) {
     int xx, yy, ww, hh;
     size(xx, yy, ww, hh);
     dirty->setdirty(px, py, ww, hh);
@@ -397,7 +397,7 @@ struct anfinale : public animation {
     SDL_BlitSurface(s, 0, screen, &r);
   }
 
-  virtual void erase(dirt * dirty) {
+  virtual void erase(Dirt * dirty) {
     dirty->setdirty(x, y, s->w, s->h);
   }
 
@@ -451,12 +451,12 @@ struct anlaser : public animation {
     return false;
   }
 
-  virtual void erase (dirt * dirty) { 
+  virtual void erase (Dirt * dirty) { 
     if (!isfinal) {
       int px, py, ww, hh;
       /* PERF don't need to draw the whole
 	 tile here, just laser width */
-      switch(d) {
+      switch (d) {
       default: return;
       case DIR_RIGHT:
 	px = sx;
@@ -489,7 +489,7 @@ struct anlaser : public animation {
   
   virtual bool think (unsigned int now);
 
-  virtual void draw ();
+  virtual void draw();
 
   /* XXX do we really want to use the starting position of the laser? */
   virtual int yorder() { return sy; }
@@ -537,7 +537,7 @@ struct ancombo : public animation {
     return false;
   }
 
-  virtual void erase (dirt * dirty) {
+  virtual void erase (Dirt * dirty) {
     if (first)  first ->erase(dirty);
     if (second) second->erase(dirty);
   }
@@ -558,7 +558,7 @@ struct ancombo : public animation {
     }
 
     if (first || second) {
-      settick ();
+      settick();
       return false;
     } else return true;
   }
@@ -571,7 +571,7 @@ struct ancombo : public animation {
   }
 
   /* draw at current location. */
-  virtual void draw () { 
+  virtual void draw() { 
     if (first) first->draw();
     if (second) second->draw();
   }

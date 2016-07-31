@@ -17,7 +17,7 @@ struct checkfile {
     char * r = new char[bytes];
     string ss(bytes, '*');
     if (fread(r, bytes, 1, ff) == 1) {
-      for(unsigned int i = 0; i < bytes; i ++) ss[i] = r[i];
+      for (unsigned int i = 0; i < bytes; i++) ss[i] = r[i];
       s = ss;
       delete [] r;
       return 1;

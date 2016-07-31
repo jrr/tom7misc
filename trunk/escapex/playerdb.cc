@@ -210,7 +210,7 @@ playerdb_ * playerdb_::create() {
 	pdb->sel->items[n].solved = -1;
       }
 
-      n ++;
+      n++;
     }
   }
 
@@ -233,10 +233,9 @@ string playerdb_::safeify(string name) {
 
   string ou;
   
-  for(unsigned int i = 0;
-      i < name.length() &&
-      ou.length () < 32;
-      i++) {
+  for (unsigned int i = 0;
+       i < name.length() && ou.length() < 32;
+       i++) {
     
     if ((name[i] >= 'A' &&
 	 name[i] <= 'Z') ||
@@ -263,7 +262,7 @@ string playerdb_::makefilename(string name) {
 
   string ou;
   
-  for(unsigned int i = 0;
+  for (unsigned int i = 0;
       i < name.length() && ou.length() <= 8;
       i++) {
     
@@ -292,7 +291,7 @@ string playerdb_::makefilename(string name) {
 
 void playerdb_::addplayer(string name) {
   player * plr = player::create(name);
-  if(plr) {
+  if (plr) {
 
     /* can fail, for example, if the file exists */
     string fname = makefilename(name);
@@ -330,7 +329,7 @@ void playerdb_::delplayer(int i) {
     util::toattic(sel->items[i].fname);
 
     int n = 0;
-    for(int m = 0; m < sel->number; m ++) {
+    for (int m = 0; m < sel->number; m++) {
       if (m != i) {
 	sel->items[n++] = sel->items[m];
       } 
@@ -358,7 +357,7 @@ player *playerdb_::chooseplayer() {
 
     if (event.type == SDL_KEYDOWN &&
 	(event.key.keysym.mod & KMOD_CTRL))
-      switch(event.key.keysym.sym) {
+      switch (event.key.keysym.sym) {
 
       default:
 	break;
@@ -394,7 +393,7 @@ player *playerdb_::chooseplayer() {
       }
 	/* create new */
       case SDLK_n: {
-	promptnew ();
+	promptnew();
 	continue;
       }
       }
@@ -402,9 +401,9 @@ player *playerdb_::chooseplayer() {
 
     /* otherwise, handle via default selector */
     selor::peres pr = sel->doevent(event);
-    switch(pr.type) {
+    switch (pr.type) {
     case selor::PE_SELECTED:
-      switch(sel->items[sel->selected].kind) {
+      switch (sel->items[sel->selected].kind) {
       case K_PLAYER:
 	return sel->items[sel->selected].convert();
       case K_QUIT:
@@ -476,7 +475,7 @@ void playerdb_::promptimport() {
     sel->items[sel->number - 1].name = pa->name;
     sel->items[sel->number - 1].fname = pa->fname;
     
-    pa->destroy ();
+    pa->destroy();
 
     sel->sort(pdbentry::cmp_bysolved);
   } else if (ss != "") {

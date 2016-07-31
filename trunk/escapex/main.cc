@@ -59,7 +59,7 @@ int main (int argc, char ** argv) {
   drawable::init();
 
   /* clean up any stray files */
-  cleanup::clean ();
+  cleanup::clean();
 
   audio = 0;
   network = 0;
@@ -89,7 +89,7 @@ int main (int argc, char ** argv) {
     network = 1;
   }
 
-  sound::init ();
+  sound::init();
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, 
                       SDL_DEFAULT_REPEAT_INTERVAL);
@@ -210,14 +210,14 @@ int main (int argc, char ** argv) {
 
         /* we stay in 'load' mode until
            the user hits escape on the load screen. */
-        for(;;) {
+        for (;;) {
 	  if (loadlevel * ll = 
 	      loadlevel::create(plr, DEFAULT_DIR, true, false)) {
-	    string res = ll->selectlevel ();
+	    string res = ll->selectlevel();
 	    
 	    play::playrecord(res, plr);
 	    
-	    ll->destroy ();
+	    ll->destroy();
 	    
 	    if (res == "") break;
 	  } else {
@@ -229,7 +229,7 @@ int main (int argc, char ** argv) {
       } else if (r == mainmenu::LOAD_NEW) {
 
 #if 1
-	for(;;) // XXX loop in browser instead.
+	for (;;) // XXX loop in browser instead.
 	  if (browse * bb = browse::create()) {
 	    ::Extent<browse> bb_d(bb);
 	    // XXX: Instead, have a version of the browser

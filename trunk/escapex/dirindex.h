@@ -35,10 +35,10 @@ struct ratestatus {
 struct dirindex {
   
   /* make an empty index, suitable for later writing to disk */
-  static dirindex * create ();
+  static dirindex * create();
 
-  virtual void destroy () = 0;
-  virtual ~dirindex () {}
+  virtual void destroy() = 0;
+  virtual ~dirindex() {}
 
   /* read from disk */
   static dirindex * fromfile(string f);

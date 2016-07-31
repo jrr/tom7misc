@@ -42,8 +42,8 @@ struct usedmap {
     memset(na, 0, ww * hh * sizeof (char));
 
     /* copy old used */
-    for(int xx = 0; xx < w; xx ++)
-      for(int yy = 0; yy < h; yy ++) {
+    for (int xx = 0; xx < w; xx++)
+      for (int yy = 0; yy < h; yy++) {
 	
 	if (used(xx, yy) && xx < ww && yy < hh) 
 	  na[yy * ww + xx] = 1;
@@ -61,8 +61,8 @@ struct usedmap {
   }
 
   bool usedrange(int x, int y, int ww, int hh) {
-    for(int yy = 0; yy < hh; yy++)
-      for(int xx = 0; xx < ww; xx++) {
+    for (int yy = 0; yy < hh; yy++)
+      for (int xx = 0; xx < ww; xx++) {
 	if (used(x + xx, y + yy)) return true;
       }
     return false;
@@ -73,8 +73,8 @@ struct usedmap {
   }
 
   void userange(int x, int y, int ww, int hh) {
-    for(int yy = 0; yy < hh; yy++)
-      for(int xx = 0; xx < ww; xx++) {
+    for (int yy = 0; yy < hh; yy++)
+      for (int xx = 0; xx < ww; xx++) {
 	use(x + xx, y + yy);
       }
   }
@@ -89,9 +89,9 @@ static void fit_image(SDL_Surface *& packed, usedmap * um,
 		      int w, int h,
 		      int & x, int & y) {
 
-  while(1) {
-    for(int yy = 0; yy <= um->h - h; yy ++)
-      for(int xx = 0; xx <= um->w - w; xx ++) {
+  while (1) {
+    for (int yy = 0; yy <= um->h - h; yy++)
+      for (int xx = 0; xx <= um->w - w; xx++) {
 	if (!um->usedrange(xx, yy, w, h)) {
 	  um->userange(xx, yy, w, h);
 	  x = xx;

@@ -60,7 +60,7 @@ template <class P>
 struct Extentf {
   P * ptr;
   Extentf(P * p) : ptr(p) {}
-  void release () { ptr = 0; }
+  void release() { ptr = 0; }
   void replace(P * p) { ptr = p; }
   ~Extentf() { if (ptr) free(ptr); }
 };

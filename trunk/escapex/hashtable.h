@@ -1,13 +1,15 @@
-
+// XXX see if we can use unordered_map instead; I'm sure it's
+// much better!
 #ifndef __HASHTABLE_H
 #define __HASHTABLE_H
 
 #include "util.h"
+#include <cstdint>
 
 /* The hashtable template takes two classes as arguments:
 
    I, the items in the hash table, must have these methods:
-      K key ();
+      K key();
         - return the key for this entry
 
       static unsigned int hash(K k);
@@ -22,12 +24,12 @@
 */
 
 /* mediocre but fast hash function on std::string */
-inline unsigned int hash_string(string s) {
-  unsigned int output = 0x3710EAFF;
-  unsigned int len = s.length();
-  for(unsigned int idx = 0; idx < len; idx ++) {
+inline uint32_t hash_string(string s) {
+  uint32_t output = 0x3710EAFF;
+  uint32_t len = (uint32_t)s.length();
+  for (int idx = 0; idx < len; idx++) {
     output = (output << 13) | (output >> (32 - 13));
-    output ^= (unsigned)s[idx];
+    output ^= (uint32_t)s[idx];
   }
   return output;
 }
@@ -52,9 +54,9 @@ struct hashtable {
   ptrlist<I> ** data;
 
   void destroy() {
-    for(int i = 0; i < allocated; i ++) {
-      for(ptrlist<I>*tmp = data[i]; tmp; ) {
-	while(tmp) (ptrlist<I>::pop(tmp))->destroy();
+    for (int i = 0; i < allocated; i++) {
+      for (ptrlist<I>*tmp = data[i]; tmp; ) {
+	while (tmp) (ptrlist<I>::pop(tmp))->destroy();
       }
 
     }
@@ -74,7 +76,7 @@ struct hashtable {
       return 0;
     }
 
-    for(int m = 0; m < i; m ++) {
+    for (int m = 0; m < i; m++) {
       h->data[m] = 0;
     }
 
@@ -95,7 +97,7 @@ struct hashtable {
   I * lookup(K key) {
     unsigned int loc = I::hash(key) % allocated;
 
-    for(ptrlist<I> * tmp = data[loc]; tmp; tmp = tmp -> next) {
+    for (ptrlist<I> * tmp = data[loc]; tmp; tmp = tmp->next) {
       if (key == tmp->head->key()) return tmp->head;
     }
 
@@ -132,11 +134,11 @@ template<class I, class K, class T>
 inline void hashtable_app( hashtable<I, K> * tab,
 			   void (*f)(I *, T), 
 			   T d ) {
-  for(int i = 0 ; i < tab->allocated; i ++ ) {
+  for (int i = 0 ; i < tab->allocated; i++ ) {
     ptrlist<I> * l = tab->data[i];
     while (l) {
       f(l->head, d);
-      l = l -> next;
+      l = l->next;
     }
   }
 }

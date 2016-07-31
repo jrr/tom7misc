@@ -147,7 +147,7 @@ void prefs::show(player * plr) {
   resultkind res = mm->menuize();
 
   ptrlist<menuitem>::diminish(l);
-  mm->destroy ();
+  mm->destroy();
 
   /* XXX check MR_QUIT */
   if (res == MR_OK) {

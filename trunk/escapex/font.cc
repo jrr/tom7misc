@@ -19,8 +19,8 @@ struct font_attrlist {
     a = 0;
     bool gotc = false, gota = false;
 
-    while(cs && !(gotc && gota)) {
-      switch(cs->what) {
+    while (cs && !(gotc && gota)) {
+      switch (cs->what) {
       case COLOR: 
 	if (!gotc) { c = cs->value; gotc = true; }
 	break;
@@ -28,7 +28,7 @@ struct font_attrlist {
 	if (!gota) { a = cs->value; gota = true; }
 	break;
       }
-      cs = cs -> next;
+      cs = cs->next;
     }      
   }
 
@@ -72,7 +72,7 @@ struct fontreal : public font {
 
   virtual void destroy() {
     if (data) {
-      for(int i = 0; i < ndim; i ++) {
+      for (int i = 0; i < ndim; i++) {
 	if (data[i]) SDL_FreeSurface(data[i]);
       }
       free (data);
@@ -117,28 +117,28 @@ fontreal * fontreal::create (string file,
 
   f->data = (SDL_Surface **)malloc(sizeof (SDL_Surface *) * ndim);
   if (!f->data) return 0;
-  for(int z = 0; z < ndim; z++) f->data[z] = 0;
+  for (int z = 0; z < ndim; z++) f->data[z] = 0;
 
   f->data[0] = sdlutil::LoadImage(file.c_str());
   if (!f->data[0]) return 0;
 
   int last = 0;
-  while(last < (ndim - 1)) {
-    last ++;
+  while (last < (ndim - 1)) {
+    last++;
     f->data[last] = sdlutil::alphadim(f->data[last - 1]);
     if (!f->data[last]) return 0;
   }
 
-  for(int j = 0; j < 255; j ++) {
+  for (int j = 0; j < 255; j++) {
     f->chars[j] = 0;
   }
 
-  for(unsigned int i = 0; i < charmap.length (); i ++) {
+  for (unsigned int i = 0; i < charmap.length(); i++) {
     int idx = (unsigned char)charmap[i];
     f->chars[idx] = i;
   }
 
-  fe.release ();
+  fe.release();
   return f;
 }
 
@@ -160,7 +160,7 @@ void fontreal::drawto_plain(SDL_Surface * surf, int x, int y, string s) {
   src.w = width;
   src.h = height;
 
-  for(unsigned int i = 0; i < s.length(); i ++) {
+  for (unsigned int i = 0; i < s.length(); i++) {
 
     int idx = (unsigned char)s[i];
     src.x = chars[idx] * width;
@@ -188,12 +188,12 @@ void fontreal::drawto(SDL_Surface * surf, int x, int y, string s) {
   int color, alpha;
   font_attrlist::set(cstack, color, alpha);
 
-  for(unsigned int i = 0; i < s.length(); i ++) {
+  for (unsigned int i = 0; i < s.length(); i++) {
 
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
 	i++;
-	switch((unsigned char)s[i]) {
+	switch ((unsigned char)s[i]) {
 	case '^': break; /* quoted... keep going */
 	case '<': /* pop */
 	  if (cstack) font_attrlist::pop(cstack);
@@ -233,12 +233,12 @@ void fontreal::drawto(SDL_Surface * surf, int x, int y, string s) {
   }
 
   /* empty list */
-  while(cstack) font_attrlist::pop(cstack);
+  while (cstack) font_attrlist::pop(cstack);
 
 }
 
 int fontreal::sizex_plain(const string & s) {
-  return s.length () * (width - overlap);
+  return s.length() * (width - overlap);
 }
 
 int fontreal::sizex(const string & s) {
@@ -262,7 +262,7 @@ int fontreal::drawlinesc(int x, int y, string s, bool center) {
   /* draw every non-empty string delimited by \n */
   int offset = 0;
   int wroteany = 0;
-  for(;;idx ++) {
+  for (;;idx++) {
   again:;
     /* reached end of string? */
     if (idx >= s.length()) {
@@ -310,9 +310,9 @@ int font::lines(const string & s) {
 
   mode m = M_FINDANY;
 
-  for(;;idx++) {
+  for (;;idx++) {
     if (idx >= s.length()) return sofar;
-    switch(m) {
+    switch (m) {
     case M_FINDANY:
       if (s[idx] == '\n') {
 	sofar++;
@@ -337,14 +337,14 @@ string font::substr(const string & s, unsigned int start, unsigned int len) {
   unsigned int i = 0; /* pos in fontstring */
   unsigned int j = 0; /* number of actual chars seen */
 
-  for(; i < s.length() && j < start; i ++) {
+  for (; i < s.length() && j < start; i++) {
 
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
 	i++;
 	if ((unsigned char)s[i] == '^') j++;
-      } else j ++; /* ??? */
-    } else j ++;
+      } else j++; /* ??? */
+    } else j++;
 
   }
 
@@ -355,14 +355,14 @@ string font::substr(const string & s, unsigned int start, unsigned int len) {
   unsigned int k = 0;
   /* XXX should also add any trailing
      control codes */
-  for(; i < s.length() && k < len; i ++) {
+  for (; i < s.length() && k < len; i++) {
 
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
 	i++;
 	if ((unsigned char)s[i] == '^') j++;
-      } else k ++; /* ??? */
-    } else k ++;
+      } else k++; /* ??? */
+    } else k++;
 
   }
 
@@ -381,13 +381,13 @@ string font::suffix(const string & s, unsigned int n) {
 
 unsigned int font::length(string s) {
   unsigned int i, n=0;
-  for(i = 0; i < s.length(); i ++) {
+  for (i = 0; i < s.length(); i++) {
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
 	i++;
 	if ((unsigned char)s[i] == '^') n++;
-      } else n ++; /* ??? */
-    } else n ++;
+      } else n++; /* ??? */
+    } else n++;
   }
   return n;
 }
@@ -405,7 +405,7 @@ string font::pad(const string & s, int ns) {
   } else {
     string ou;
     /* PERF there's definitely a faster way to do this */
-    for(unsigned int j = 0; j < (n - l); j ++) ou += " ";
+    for (unsigned int j = 0; j < (n - l); j++) ou += " ";
     if (ns > 0) {
       return s + ou;
     } else {

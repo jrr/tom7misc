@@ -79,7 +79,7 @@ struct client {
     
     if (hr == HT_OK) {
       
-      if (m.length () >= 2 &&
+      if (m.length() >= 2 &&
           m[0] == 'o' &&
           m[1] == 'k') {
 
@@ -104,7 +104,7 @@ struct client {
     
     if (hr == HT_OK) {
       
-      if (m.length () >= 2 &&
+      if (m.length() >= 2 &&
           m[0] == 'o' &&
           m[1] == 'k') {
 

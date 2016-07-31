@@ -76,18 +76,18 @@ void handhold::firsttime() {
   /* XXX could use build date here */
   hh_lastupdate = 0;
   hh_lastupgrade = 0;
-  if (hh_write ()) hh_ok = true;
+  if (hh_write()) hh_ok = true;
 }
 
 
 void handhold::did_update() {
   hh_lastupdate = time(0);
-  hh_write ();
+  hh_write();
 }
 
 void handhold::did_upgrade() {
   hh_lastupgrade = time(0);
-  hh_write ();
+  hh_write();
 }
 
 

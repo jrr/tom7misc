@@ -22,8 +22,8 @@
    but should be documented */
 string textbox::get_text() {
   /* go home (to avoid virtual line breaks) */
-  while(before) left(false);
-  int len = after->length ();
+  while (before) left(false);
+  int len = after->length();
 
   char * out = (char*)malloc(sizeof(char) * (len + 1));
 
@@ -33,9 +33,9 @@ string textbox::get_text() {
   {
     vallist<char> * aa = after;
     int i = 0;
-    while(aa) {
+    while (aa) {
       out[i] = aa->head;
-      aa = aa -> next;
+      aa = aa->next;
       i++;
     }
   }
@@ -57,7 +57,7 @@ void textbox::set_text(string s) {
   int sl = s.length();
 
   /* push in reverse order yields in-order list */
-  for(int i = sl - 1; i >= 0; i --) {
+  for (int i = sl - 1; i >= 0; i--) {
     after = new vallist<char>(s[i], after);
   }
 
@@ -143,7 +143,7 @@ void textbox::draw(int posx, int posy, int f) {
   vallist<char> * tmp = before;
   stringlist * blines = 0;
 
-  while(tmp) {
+  while (tmp) {
     if (count >= drawlines) break;
     
     stringlist::push(blines, prevline(tmp));
@@ -171,23 +171,22 @@ void textbox::draw(int posx, int posy, int f) {
 
   /* invariant: count = length(blines) */
   string lastline;
-  for(int i = 0; i < count; i ++) {
+  for (int i = 0; i < count; i++) {
     lastline = stringpop(blines);
     fon->draw_plain(posx, posy + y * fon->height, lastline);
 
     /* printf("drew [%s] at %d\n", lastline.c_str(), y); */
-    y ++;
+    y++;
   }
   
-  if (count) y --;
+  if (count) y--;
 
   /* now y is on the final line, which
      is equal to lastline. Draw the cursor. */
 
   {
-
-    if (f) color = SDL_MapRGBA(screen->format, 255, 255, 100, 255);
-    else color   = SDL_MapRGBA(screen->format, 120, 120, 145, 255);
+    color = f ? SDL_MapRGBA(screen->format, 255, 255, 100, 255) :
+      SDL_MapRGBA(screen->format, 120, 120, 145, 255);
     SDL_Rect dst;
 
     /* left side */
@@ -198,17 +197,17 @@ void textbox::draw(int posx, int posy, int f) {
     SDL_FillRect(screen, &dst, color);
   }
 
-  int x = lastline.length ();
+  int x = lastline.length();
   
   vallist<char> * rest = after;
   /* write characters */
-  while(rest && y < charsh) {
+  while (rest && y < charsh) {
     /* see if we can fit this word on the line */
     string w = nextword(rest);
 
-    while (w.length () > 0) {
+    while (w.length() > 0) {
 
-      if (w.length () + x > (unsigned)charsw) {
+      if (w.length() + x > (unsigned)charsw) {
         /* wrap! */
           
         if (x == 0) {
@@ -216,13 +215,13 @@ void textbox::draw(int posx, int posy, int f) {
 	  fon->draw_plain(posx + (x * (fon->width - fon->overlap)),
 			  posy + (y * fon->height), w.substr(0, charsw));
 	  x = 0;
-	  y ++;
+	  y++;
 	  if (y >= charsh) break;
-	  w = w.substr(charsw, w.length () - charsw);
+	  w = w.substr(charsw, w.length() - charsw);
 	  continue;
         } else {
 	  x = 0;
-	  y ++;
+	  y++;
 	  if (y >= charsh) break;
         }
       } else {
@@ -230,7 +229,7 @@ void textbox::draw(int posx, int posy, int f) {
 	fon->draw_plain(posx + (x * (fon->width - fon->overlap)),
 			posy + (y * fon->height),
 			w);
-	x += w.length ();
+	x += w.length();
 	w = "";
       }
       
@@ -241,10 +240,10 @@ void textbox::draw(int posx, int posy, int f) {
       if (rest->head == '\n') {
 	/* carriage return */
 	x = 0;
-	y ++;
-      } else x ++;
+	y++;
+      } else x++;
       /* skip it */
-      rest = rest -> next;
+      rest = rest->next;
     }
   }
 }
@@ -254,9 +253,9 @@ string textbox::prevline(vallist<char> *& bb) {
   string theline;
 
   /* printf("prevline :"); */
-  while(bb) {
+  while (bb) {
     /* printf("%c/%d ", bb->head);*/
-    switch(bb->head) {
+    switch (bb->head) {
     case '\n':
     case '\x00':
     case '\x01':
@@ -280,7 +279,7 @@ string textbox::nextword(vallist<char> *& aa) {
   string theword;
 
   while (aa) {
-    switch(aa->head) {
+    switch (aa->head) {
     case '\x00':
     case '\x01':
       theword += RED "X" "X" "X" POP;
@@ -292,7 +291,7 @@ string textbox::nextword(vallist<char> *& aa) {
       theword += aa->head;
       break;
     }
-    aa = aa -> next;
+    aa = aa->next;
   }
   return theword;
 }
@@ -304,7 +303,7 @@ string textbox::popword(vallist<char> *& bb, char & p) {
   string out;
   while (bb) {
     char k = vallist<char>::pop(bb, ' ');
-    switch(k) {
+    switch (k) {
     case ' ':
     case '\n':
     case '\x00':
@@ -320,11 +319,11 @@ string textbox::popword(vallist<char> *& bb, char & p) {
 }
 
 void textbox::goto_beginning() {
-  while(before) left(false);
+  while (before) left(false);
 }
 
 void textbox::goto_end() {
-  while(after) right(false);
+  while (after) right(false);
 }
 
 inputresult textbox::key(SDL_Event e) {
@@ -332,13 +331,13 @@ inputresult textbox::key(SDL_Event e) {
   int key = e.key.keysym.sym;
 
   if (!(e.key.keysym.mod & (KMOD_CTRL | KMOD_ALT))) {
-    switch(key) {
+    switch (key) {
     case SDLK_TAB:
     case SDLK_ESCAPE:
       return menuitem::key(e);
       
     case SDLK_DOWN:
-      down ();
+      down();
       return inputresult(MR_UPDATED);
 
     case SDLK_UP:
@@ -461,7 +460,7 @@ void textbox::down() {
 /* PERF doesn't need to build string */
 int textbox::countprevline(vallist<char> *& bb) {
   string pl = prevline(bb);
-  return pl.length ();
+  return pl.length();
 }
 
 /* insert a key at the cursor. tricky because
@@ -490,7 +489,7 @@ void textbox::type(char k) {
 
   /* XXX check if we're typing a newline char. 
      it can always fit */
-  if (thisline.length() + nword.length () < (unsigned)charsw) {
+  if (thisline.length() + nword.length() < (unsigned)charsw) {
     /* printf("  ..fits\n"); */
     vallist<char>::push(before, k);
   } else if (k == ' ') {
@@ -512,7 +511,7 @@ void textbox::type(char k) {
       if (p == ' ') {
 	/* no -- move to the next line, and recurse! */
 	vallist<char>::push(before, '\x00');
-	for(unsigned int i = 0; i < ww.length(); i ++) {
+	for (unsigned int i = 0; i < ww.length(); i++) {
 	  type(ww[i]);
 	}
       } else {
@@ -546,7 +545,7 @@ void textbox::type(char k) {
 
 /* push a whole string onto before */
 void textbox::addstring(string s) {
-  for(unsigned int i = 0; i < s.length(); i ++) {
+  for (unsigned int i = 0; i < s.length(); i++) {
     vallist<char>::push(before, s[i]);
   }
 }

@@ -54,7 +54,7 @@ string prompt::select() {
   menu * mm = menu::create(below, GREY "Input Required", l, false);
   resultkind res = mm->menuize();
   ptrlist<menuitem>::diminish(l);
-  mm->destroy ();
+  mm->destroy();
   
   if (res == MR_OK) {
     return inp.input;

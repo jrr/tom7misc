@@ -222,7 +222,7 @@ string browse_::selectlevel() {
   Uint32 nextframe = SDL_GetTicks() + LOADFRAME_TICKS;
   redraw();
 
-  for(;;) {
+  for (;;) {
     SDL_Delay(1);
 
     Uint32 now = SDL_GetTicks();
@@ -236,7 +236,7 @@ string browse_::selectlevel() {
 	/* breaking from here will allow the key to be
 	   treated as a search */
 
-	switch(key) {
+	switch (key) {
 	  // Handle special keys...
 	default:;
 	} 
@@ -266,14 +266,14 @@ browse * browse::create(bool allow_corrupted) {
 
 #if 0
 
-loadlevelreal::sortstyle loadlevelreal :: sortby = loadlevelreal::SORT_DATE;
-string loadlevelreal :: lastdir;
-string loadlevelreal :: lastfile;
+loadlevelreal::sortstyle loadlevelreal::sortby = loadlevelreal::SORT_DATE;
+string loadlevelreal::lastdir;
+string loadlevelreal::lastfile;
 
-loadlevel :: ~loadlevel () {}
+loadlevel::~loadlevel() {}
 
 void loadlevelreal::select_lastfile() {
-  for(int i = 0; i < sel->number; i ++) {
+  for (int i = 0; i < sel->number; i++) {
     if (sel->items[i].fname == lastfile) sel->selected = i;
   }
 }
@@ -321,7 +321,7 @@ void loadlevelreal::fix_show(bool force) {
 
 void loadlevelreal::step() {
 
-  fix_show ();
+  fix_show();
 
   /* now, if we have a lev, maybe make a move */
   if (showlev && showsol) {
@@ -330,10 +330,10 @@ void loadlevelreal::step() {
       if (solstep < showsol->length) {
 	dir d = showsol->dirs[solstep];
 	showlev->move(d);
-	solstep ++;
+	solstep++;
       }
 
-    } else showstart --;
+    } else showstart--;
   }
 }
 
@@ -411,7 +411,7 @@ string llentry::display(bool selected) {
 
 bool llentry::matches(char k) {
   if (name.length() > 0) return util::library_matches(k, name);
-  else return (fname.length () > 0 && (fname[0] | 32) == k);
+  else return (fname.length() > 0 && (fname[0] | 32) == k);
 }
 
 bool loadlevelreal::first_unsolved(string & file, string & title) {
@@ -419,7 +419,7 @@ bool loadlevelreal::first_unsolved(string & file, string & title) {
      tutorials */
   sel->sort(getsort(SORT_ALPHA));
 
-  for(int i = 0; i < sel->number; i ++) {
+  for (int i = 0; i < sel->number; i++) {
     if ((!sel->items[i].isdir) &&
 	(!sel->items[i].solved)) {
       file = sel->items[i].actualfile(path);
@@ -506,10 +506,10 @@ string loadlevelreal::locate(string filename) {
   stringlist * pp = path;
   
   string out = filename;
-  while(pp) {
+  while (pp) {
     if (out == "") out = pp->head;
     else out = pp->head + string(DIRSEP) + out;
-    pp = pp -> next;
+    pp = pp->next;
   }
 
   if (out == "") return ".";
@@ -525,7 +525,7 @@ int loadlevelreal::changedir(string what, bool remember) {
     stringlist * pp = path;
     while (pp) {
       /* printf("  '%s'\n", pp->head.c_str()); */
-      pp = pp -> next;
+      pp = pp->next;
     }
   }
 
@@ -601,7 +601,7 @@ int loadlevelreal::changedir(string what, bool remember) {
   dirent * de;
 
   int i;
-  for(i = 0; i < n;) {
+  for (i = 0; i < n;) {
     de = readdir(d);
     if (!de) break;
 
@@ -697,20 +697,20 @@ int loadlevelreal::changedir(string what, bool remember) {
 		ver->sol->verified = true;
 
 		/* get tail */
-		sols = sols -> next;
+		sols = sols->next;
 
 		solset * yes = 0;
 		
 		/* put the current tail there, cloning */
 		while (sols) {
 		  solset::push(yes, sols->head->clone());
-		  sols = sols -> next;
+		  sols = sols->next;
 		}
 
 		/* god this is annoying in C++ */
 		while (no) {
 		  solset::push(yes, no->head->clone());
-		  no = no -> next;
+		  no = no->next;
 		}
 
 		solset::push(yes, ver);
@@ -723,7 +723,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
 	      } else {
 		solset::push(no, sols->head);
-		sols = sols -> next;
+		sols = sols->next;
 	      }
 	    }
 
@@ -808,7 +808,7 @@ void loadlevelreal::draw() {
 
   sdlutil::clearsurface(screen, BGCOLOR);
 
-  drawsmall ();
+  drawsmall();
 }
 
 void loadlevelreal::drawsmall() {
@@ -857,7 +857,7 @@ void loadlevelreal::drawsmall() {
    still. */
 const int loadlevelreal::numhelp = 2;
 string loadlevelreal::helptexts(int i) {
-  switch(i) {
+  switch (i) {
   case 0:
     return 
       WHITE

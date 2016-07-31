@@ -2,6 +2,7 @@
 #include "util.h"
 #include "chars.h"
 #include "font.h"
+#include "dirt.h"
 
 #include "progress.h"
 
@@ -118,12 +119,12 @@ bool animation::ainit_fast() {
 					sizeof (SDL_Surface **));
 
   {
-    for(int i = 0; i <= LEVEL_BOMB_MAX_TIMER; i ++) {
+    for (int i = 0; i <= LEVEL_BOMB_MAX_TIMER; i++) {
       pic_bomb_lit[i] = (SDL_Surface**)malloc(DRAW_NSIZES * 
 					      sizeof(SDL_Surface *));
 
       /* going to draw on these, so duplicate */
-      switch(i) {
+      switch (i) {
       default: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_3); break;
       case 2: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_2); break;
       case 1: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_1); break;
@@ -763,7 +764,7 @@ static aframe frames_dalek_teleport_in[] =
 typedef ptrlist<animation> alist;
 
 static inline SDL_Surface * FACING_FRAME(dir d, bot entt, int data) {
-  switch(entt) {
+  switch (entt) {
   default:
     if (level::isbomb(entt)) {
       if (data < 0) return animation::pic_bomb_still[0];
@@ -775,7 +776,7 @@ static inline SDL_Surface * FACING_FRAME(dir d, bot entt, int data) {
     return animation::error;
 
   case B_PLAYER:
-    switch(d) {
+    switch (d) {
     default:
     case DIR_UP: return animation::pic_guy_up[0]; 
     case DIR_DOWN: return animation::pic_guy_down[0]; 
@@ -791,7 +792,7 @@ static inline SDL_Surface * FACING_FRAME(dir d, bot entt, int data) {
 }
 
 static inline int OVERLAP(bot entt) {
-  switch(entt) {
+  switch (entt) {
   case B_BROKEN: return BROKEN_OVERLAPY;
   case B_HUGBOT_ASLEEP:
   case B_HUGBOT: return HUGBOT_OVERLAPY;
@@ -814,12 +815,16 @@ void animation::start(drawing & dr,
 		      ptrlist<animation> *& sprites,
 		      aevent * ae) {
   
-  switch(ae->t) {
+  switch (ae->t) {
+  case tag_winner:
+    // XXX implement this
+    break;
+
   case tag_teleportout: {
     teleportout_t * at = &(ae->u.teleportout);
 
     aframe * frames_ent;
-    switch(at->entt) {
+    switch (at->entt) {
     case B_PLAYER:
       frames_ent = frames_guy_teleport_out;
       break;
@@ -846,7 +851,7 @@ void animation::start(drawing & dr,
     aframe * frames_ent;
     SDL_Surface * finale;
     int overlapy;
-    switch(at->entt) {
+    switch (at->entt) {
     case B_PLAYER:
       frames_ent = frames_guy_teleport_in;
       finale = animation::pic_guy_down[0];
@@ -928,13 +933,13 @@ void animation::start(drawing & dr,
       int nt = 0;
       dir dd = al->from;
       int dummy;
-      for(int wx = al->x, wy = al->y; 
+      for (int wx = al->x, wy = al->y; 
 	  /* haven't gotten there */
 	  !(wx == al->lx && wy == al->ly)
 	    && /* still on screen */
 	    dr.onscreen(wx, wy, dummy, dummy);
 	  dr.lev->travel(wx, wy, dd, wx, wy)) {
-	nt ++;
+	nt++;
       }
 
       if (al->from != DIR_NONE) {
@@ -977,13 +982,13 @@ void animation::start(drawing & dr,
       int nt = 0;
       dir dd = at->from;
       int dummy;
-      for(int wx = at->x, wy = at->y; 
+      for (int wx = at->x, wy = at->y; 
 	  /* haven't gotten there */
 	  !(wx == at->lx && wy == at->ly)
 	    && /* still on screen */
 	    dr.onscreen(wx, wy, dummy, dummy);
 	  dr.lev->travel(wx, wy, dd, wx, wy)) {
-	nt ++;
+	nt++;
       }
 
       if (at->from != DIR_NONE) {
@@ -1022,7 +1027,7 @@ void animation::start(drawing & dr,
 
     aframe * frames = 0;
     sound_t s = S_ERROR;
-    switch(al->what) {
+    switch (al->what) {
     default: frames = frames_error; break;
     case T_BLIGHT: frames = frames_bliteup; s = S_BLUELIGHT; break;
     case T_RLIGHT: frames = frames_rliteup; s = S_REDLIGHT; break;
@@ -1050,7 +1055,7 @@ void animation::start(drawing & dr,
 
     if (dr.onscreen(aj->x, aj->y, xx, yy)) {
       aframe * frames = 0;
-      switch(aj->what) {
+      switch (aj->what) {
 #define JUICEFRAME(DD, dd) \
           case T_ ## DD: frames = frames_juice_ ## dd; break;
       default:
@@ -1092,7 +1097,7 @@ void animation::start(drawing & dr,
 
       aframe * frames;
 
-      switch(ag->d) {
+      switch (ag->d) {
       default: /* impossible */
       case DIR_RIGHT:
 	frames = frames_green_pushright;
@@ -1133,7 +1138,7 @@ void animation::start(drawing & dr,
 
       /* first paint the affected tiles, then the explosion atop that */
 
-      for(dir dd = FIRST_DIR_SELF; dd <= LAST_DIR; dd ++) {
+      for (dir dd = FIRST_DIR_SELF; dd <= LAST_DIR; dd++) {
 	int bx, by;
 	int bbx, bby;
 	if (dr.lev->travel(ab->x, ab->y, dd, bx, by)
@@ -1157,7 +1162,7 @@ void animation::start(drawing & dr,
 
       int destt;
       aframe * frames_fall;
-      switch(at->whatold) {
+      switch (at->whatold) {
       case T_TRAP1:
 	destt = T_HOLE;
 	frames_fall = frames_trap1_falls;
@@ -1193,7 +1198,7 @@ void animation::start(drawing & dr,
     int destt;
     aframe * frames_pressing;
     sound_t s = S_ERROR;
-    switch(ab->whatold) {
+    switch (ab->whatold) {
     case T_1:
     case T_0:
       /* XXX sound!! */
@@ -1232,7 +1237,7 @@ void animation::start(drawing & dr,
 
       int destt;
       aframe * frames_rotating;
-      switch(at->whatold) {
+      switch (at->whatold) {
 	/* could maybe go other direction for one */
       case T_UD: 
 	destt = T_LR;
@@ -1330,7 +1335,7 @@ void animation::start(drawing & dr,
 	new anplacetile(as->now, sx, sy);
 
       ap->next = aout;
-      aout -> next = ain;
+      aout->next = ain;
       ain->next = ad;
 
       alist::push(anims, ap);
@@ -1350,7 +1355,7 @@ void animation::start(drawing & dr,
     int waitn = 0;
     int dist = aj->num;
 
-    while(dist-- && dr.onscreen(cx, cy, sx, sy)) {
+    while (dist-- && dr.onscreen(cx, cy, sx, sy)) {
 
       /* XXX this is wrong. the sphere may have been
 	 the target of a panel and be gone now. 
@@ -1364,7 +1369,7 @@ void animation::start(drawing & dr,
 
       aframe * frames_jiggle;
 
-      switch(what) {
+      switch (what) {
       default: frames_jiggle = 0; break;
       case T_BSPHERE:
 	if (LR(aj->d)) frames_jiggle = frames_bsp_jiggle_lr;
@@ -1421,7 +1426,7 @@ void animation::start(drawing & dr,
     if (!dr.onscreen(x, y, startx, starty)) return;
 
     /* compute the amount that is on screen, in pixels */
-    while(dleft-- &&
+    while (dleft-- &&
 	  dr.lev->travel(x, y, af->d, x, y) &&
 	  dr.onscreen(x, y, destx, desty)) {
       dist += TILESIZE(af->d);
@@ -1432,11 +1437,11 @@ void animation::start(drawing & dr,
     /* perhaps the graphic should be an argument, making this a
        general-purpose flying static image animation */
     SDL_Surface * fly;
-    switch(af->d) {
+    switch (af->d) {
     default:
     case DIR_UP:
     case DIR_DOWN:
-      switch(af->what) {
+      switch (af->what) {
       default:
       case T_GOLD: fly = animation::yellow_slide_ud; break;
       case T_BSPHERE: fly = animation::bsphere_slide_ud2; break;
@@ -1450,7 +1455,7 @@ void animation::start(drawing & dr,
 
     case DIR_LEFT:
     case DIR_RIGHT:
-      switch(af->what) {
+      switch (af->what) {
       default:
       case T_GOLD: fly = animation::yellow_slide_lr; break;
       case T_BSPHERE: fly = animation::bsphere_slide_lr2; break;
@@ -1496,7 +1501,7 @@ void animation::start(drawing & dr,
       switch (af->what) {
       default:
       case T_GOLD:
-	switch(af->d) {
+	switch (af->d) {
 	default:
 	case DIR_LEFT:  sanim = frames_yellow_smush_hitleft; break;
 	case DIR_RIGHT: sanim = frames_yellow_smush_hitright; break;
@@ -1506,7 +1511,7 @@ void animation::start(drawing & dr,
 	break;
 #define PICKFRAMES(C, c)                                               \
       case T_ ## C ## PHERE:                                           \
-	switch(af->d) {                                                \
+	switch (af->d) {                                                \
 	default:                                                       \
 	case DIR_LEFT:  sanim = frames_ ## c ## phere_smush_l;  break; \
 	case DIR_RIGHT: sanim = frames_ ## c ## phere_smush_r;  break; \
@@ -1651,13 +1656,13 @@ void animation::start(drawing & dr,
 
       animation * af = 0;
 
-      switch(aw->entt) {
+      switch (aw->entt) {
 
 #     define INPLACE(entcase, olap, basename)            \
       case entcase: {                                    \
 	overlapy = olap;                                 \
         aframe * wa = 0;                                 \
-	switch(aw->d) {                                  \
+	switch (aw->d) {                                  \
 	 default:                                        \
 	 case DIR_UP: wa = basename ## backward; break;  \
 	 case DIR_DOWN: wa = basename ## forward; break; \
@@ -1769,7 +1774,7 @@ bool anflying::think (unsigned int now) {
   return false;
 }
 
-void anflying::draw () {
+void anflying::draw() {
   /* we save position, so this is easy */
   blit(px, py);
 }
@@ -1813,7 +1818,7 @@ bool animation::init_flips() {
 
   
   int pe = SDL_GetTicks() + (PROGRESS_TICKS * 2);
-  for(int t = 0; t < NUM_TILES; t ++) {
+  for (int t = 0; t < NUM_TILES; t++) {
     progress::drawbar((void*)&pe, t, NUM_TILES, "");
 
     /* space for frames */
@@ -1839,7 +1844,7 @@ bool animation::init_flips() {
     SDL_Surface * tsrcr = sdlutil::fliphoriz(tsrc);
 
     /* flip_out is normal */
-    for(int f = 0; f < NUM_FLIPFRAMES; f ++) {
+    for (int f = 0; f < NUM_FLIPFRAMES; f++) {
 
       float dist = ((float)f / NUM_FLIPFRAMES) * (UTIL_PI * 0.5f);
       
@@ -1941,7 +1946,7 @@ SDL_Surface * animation::pitched_rect(int w, int h, int ph,
   */
 
   /* go a column at a time. */
-  for(int col = 0; col < w; col ++) {
+  for (int col = 0; col < w; col++) {
     /* we don't worry about anti-aliasing here.
        this is handled by down-sampling later. */
 
@@ -1950,7 +1955,7 @@ SDL_Surface * animation::pitched_rect(int w, int h, int ph,
 
     int x = (int)(((float)col / w) * src->w);
 
-    for(int i = 0; i < n; i ++) {
+    for (int i = 0; i < n; i++) {
 
       int y = (int)(((float)i / n) * src->h);
 
@@ -1974,7 +1979,7 @@ SDL_Surface * animation::pitched_rect(int w, int h, int ph,
   return dst;
 }
 
-void aninplace::erase(dirt * dirty) {
+void aninplace::erase(Dirt *dirty) {
   dirty->setdirty(bx, by, bw, bh);
 }
 
@@ -1987,7 +1992,7 @@ bool aninplace::think(unsigned int now) {
       cframe = 0;
     } else return true;
   } else {
-    cframe ++;
+    cframe++;
   }
 
   nexttick = now + AN_SLOW + frames[cframe + 1].wait;
@@ -2035,7 +2040,7 @@ bool aninplace::init(unsigned int now) {
    later too */
 void animation::clearsprites(drawing & dr) {
   clearent(dr, dr.lev->guyx, dr.lev->guyy, GUY_OVERLAPY);
-  for(int i = 0; i < dr.lev->nbots; i ++) {
+  for (int i = 0; i < dr.lev->nbots; i++) {
     int x, y;
     if (dr.lev->bott[i] != B_DELETED &&
 	dr.lev->bott[i] != B_BOMB_X) {
@@ -2131,16 +2136,15 @@ void animation::think_anims(alist ** as, unsigned int now,
 
 void animation::draw_anims(alist * anims) {
   // printf("-- draw list %p\n", anims);
-  for(alist * atmp = anims; atmp; 
-      atmp = atmp -> next) {
+  for (alist * atmp = anims; atmp; 
+      atmp = atmp->next) {
     // printf(" drawing %p (%s)\n", atmp->head, atmp->head->finale?"finale":"");
     atmp->head->draw();
   }
 }
 
-void animation::erase_anims(alist * anims, dirt * dirty) {
-  for(alist * atmp = anims; atmp; 
-      atmp = atmp -> next) {
+void animation::erase_anims(alist * anims, Dirt *dirty) {
+  for (alist * atmp = anims; atmp; atmp = atmp->next) {
     atmp->head->erase(dirty);
   }
 }	
@@ -2148,7 +2152,7 @@ void animation::erase_anims(alist * anims, dirt * dirty) {
 bool animation::init_anims(alist * anims, unsigned int now) {
   /* initialize the animations */
   bool yes = false;
-  for(alist * tmp = anims; tmp; tmp = tmp -> next) {
+  for (alist * tmp = anims; tmp; tmp = tmp->next) {
     yes = tmp->head->init(now) || yes;
   }
   return yes;
@@ -2195,7 +2199,7 @@ void anlaser::draw() {
       bo = blo;
     }
 
-    while(npix --) {
+    while (npix--) {
 
       sdlutil::drawpixel(screen, px, py, ri, gi, bi);
       if (d == DIR_UP || d == DIR_DOWN) {
@@ -2219,7 +2223,7 @@ void anlaser::draw() {
 bool anlaser::think(unsigned int now) {
   if (!cyclesleft) return true;
 
-  cyclesleft --;
+  cyclesleft--;
 
   nexttick = now + LASER_TIME;
   return false;

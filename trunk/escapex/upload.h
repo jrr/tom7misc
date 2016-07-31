@@ -10,9 +10,9 @@
 enum upresult { UL_OK, UL_FAIL, };
 
 struct upload : public drawable {
-  static upload * create ();
+  static upload * create();
   virtual ~upload();
-  virtual void destroy () = 0;
+  virtual void destroy() = 0;
 
   virtual upresult up(player * p, string file, string desc) = 0;
 

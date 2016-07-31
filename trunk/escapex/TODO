@@ -5,7 +5,7 @@
 Make this work again on OSX 10.10+!
  - Add mixer framework in for next release
  - Fix endianness/channel order issue with ImageLoad
- - dos2unix on all source files again
+ - dos2unix on all source files again: leveldb-query.h
  - replace pngsave with stb_image_write and eliminate libpng
 
 Use specific-width integer types instead of 'unsigned'.
@@ -18,12 +18,12 @@ Use font from cc-lib.
 
 get rid of extent; use unique_ptr
 
+When using the virtual implementation idiom, the "real" class
+can be defined in an anonymous namespace.
+
 c++11isms
  - nullptr instead of 0
  - override/final
-
-style
- - if(, switch(, while(, for(
 
 Should be easy:
 "Please consider writing and installing an AppData file with the

@@ -45,7 +45,7 @@ struct contententry {
     return *((unsigned int*) k.c_str());
   }
 
-  void destroy () { delete this; }
+  void destroy() { delete this; }
 
   contententry(string con) : content(con) {
     md5 = MD5::Ascii(MD5::Hash(con));
@@ -112,7 +112,7 @@ struct upreal : public upper {
   stringlist * dirlistd;
   ptrlist<dirindex> * dirlisti;
 
-  void init ();
+  void init();
   void insertdir(string d);
 };
 
@@ -134,7 +134,7 @@ upreal * upreal::create(http * h, textscroll * t,
   return ur;
 }
 
-void upreal::init () {
+void upreal::init() {
   /* initialize 'olds' and 'contents' */
 
   olds = oldtable::create(HASHSIZE);
@@ -175,7 +175,7 @@ void upreal::insertdir(string src) {
   say((string)YELLOW"insertdir " + src + POP);
 
   struct dirent * de;
-  while( (de = readdir(d)) ) {
+  while ( (de = readdir(d)) ) {
 
     string basef = (string)de->d_name;
     string f = src + (string)DIRSEP + basef;
@@ -189,7 +189,7 @@ void upreal::insertdir(string src) {
 	basef == ".svn" ||
 	basef == "CVS") continue;
 
-    if(util::isdir(f)) {
+    if (util::isdir(f)) {
       insertdir(f);
     } else {
       olds->insert(new oldentry(f));
@@ -208,7 +208,7 @@ void upreal::insertdir(string src) {
   closedir(d);
 }
 
-void upreal::destroy () {
+void upreal::destroy() {
   stringlist::diminish(newlistf);
   stringlist::diminish(newlistm);
 
@@ -231,7 +231,7 @@ bool upreal::setfile(string f, string md, ratestatus votes,
 # ifdef WIN32
   /* XXX should just replace / with dirsep, unconditionally */
   /* on windows, replace / with \ */
-  for(unsigned int j = 0; j < f.length(); j ++) {
+  for (unsigned int j = 0; j < f.length(); j++) {
     if (f[j] == '/') f[j] = '\\';
   }
 # endif
@@ -251,7 +251,7 @@ bool upreal::setfile(string f, string md, ratestatus votes,
 	      (string)"/" + first +
 	      (string)"/" + last, mm);
 
-    switch(hr) {
+    switch (hr) {
     case HT_OK: {
       contententry * nce = new contententry(mm);
       sayover((string)"(setfile) downloaded : " + nce->md5, true);
@@ -307,8 +307,8 @@ bool upreal::setfile(string f, string md, ratestatus votes,
 	return true;
       }
 
-      dt = dt -> next;
-      it = it -> next;
+      dt = dt->next;
+      it = it->next;
     }
     /* XXX should fail if directory not found? */  
   }

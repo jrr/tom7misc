@@ -125,12 +125,13 @@ Here are some quirks to my C++ style, that might be good to know:
 
 I don't use exceptions, because they are typically unportable, affect
 performance throughout the code, and their semantics are inscrutible.
-Therefore I usually don't use constructors and destructors, because
-there is no way for a constructor to "fail" in C++ aside from
-exceptions.
+Therefore I sometimes avoid constructors, because there is no way for
+a constructor to "fail" in C++ aside from exceptions. Instead, a static
+"create" method returns a new-ly allocated pointer or nullptr on failure.
 
-Instead, there are create() and destroy() methods for every class.
-create() is static and will return 0 on failure.
+I used to have explicit destroy() methods instead of destructors, but
+there's no real reason to do this, so I should replace those with standard
+C++ destructors.
 
 "auto" scope is sometimes useful when there are many exits from a
 block. However, it is inflexible because you cannot return the address
@@ -139,7 +140,9 @@ will destroy some other object (by calling its destroy method) when it
 goes out of scope. However, the target object can be "released" so
 that its address may be returned. In extent.h there are also templates
 for extents on objects that use destructors and arrays of objects that
-use destructors.
+use destructors. Since Escape was first written, the STL has added a
+unique_ptr<T> class which does basically the same thing. I should replace
+all the Extent instances with this.
 
 Because what I really want are SML's signatures and structures, I
 treat header files like signatures and cc files like structures. For

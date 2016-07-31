@@ -46,7 +46,7 @@ inline int dirsize (const char * dir) {
   if (!d) return 0;
   int i = 0;
   dirent * de;
-  for(;;i++) {
+  for (;;i++) {
     de = readdir(d);
     if (!de) break;
   }

@@ -194,7 +194,7 @@ void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
    Maybe this belongs in leveldb-query.cc? */
 #if 0
 static lval getfield(const lentry * l, const lfield f) {
-  switch(f) {
+  switch (f) {
   case LF_TITLE: return lval(l->lev->title);
   case LF_AUTHOR: return lval(l->lev->author);
   case LF_WIDTH: return lval(l->lev->w);
@@ -207,7 +207,7 @@ static lval getfield(const lentry * l, const lfield f) {
 }
 
 lval lexp::eval(const lentry * l) {
-  switch(tag) {
+  switch (tag) {
   case LE_VALUE: return v;
   case LE_FIELD: return getfield(l, f);
 

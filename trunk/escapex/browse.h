@@ -29,8 +29,8 @@ struct browse : public drawable {
   virtual string selectlevel() = 0;
 
   /* drawable */
-  virtual void draw () = 0;
-  virtual void screenresize () = 0;
+  virtual void draw() = 0;
+  virtual void screenresize() = 0;
 };
 
 #endif

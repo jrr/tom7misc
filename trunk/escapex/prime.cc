@@ -182,10 +182,10 @@ int prime::relativeto(int x) {
   int tries = nprimes;
   int idx = util::random() % nprimes;
   
-  while(tries--) {
+  while (tries--) {
     int p = primetable[idx];
     if (p > x || (p % x != 0)) return p;
-    idx ++;
+    idx++;
     idx %= nprimes;
   }
 

@@ -57,7 +57,7 @@ void editor::dorandom() {
     }
   } 
   
-  switch(randtype) {
+  switch (randtype) {
 
   case RT_MAZE: 
   case RT_MAZE2: {
@@ -100,8 +100,8 @@ void editor::dorandom() {
       int randx = abs(util::random());
       int randy = abs(util::random());
 
-      for(int iy = 0; iy < innerh; iy ++) {
-	for(int ix = 0; ix < innerw; ix ++) {
+      for (int iy = 0; iy < innerh; iy++) {
+	for (int ix = 0; ix < innerw; ix++) {
 	  
 	  int y = 1 + ((iy + randy) % innerh);
 	  int x = 1 + ((ix + randx) % innerw);
@@ -176,8 +176,8 @@ void editor::dorandom() {
 
       hadchange = 0;
       
-      for(int y = 0; y < (dr.lev->h - 1); y ++) {
-	for(int x = 0; x < (dr.lev->w - 1); x ++) {
+      for (int y = 0; y < (dr.lev->h - 1); y++) {
+	for (int x = 0; x < (dr.lev->w - 1); x++) {
 
 	  /* pick a number 0..3 */
 	  int which = util::random() & 3;
@@ -257,8 +257,8 @@ void editor::dorandom() {
 
       hadchange = 0;
       
-      for(int y = 0; y < (dr.lev->h - 1); y ++) {
-	for(int x = 0; x < (dr.lev->w - 1); x ++) {
+      for (int y = 0; y < (dr.lev->h - 1); y++) {
+	for (int x = 0; x < (dr.lev->w - 1); x++) {
 	  /* XXX: valgrind reports invalid read here */
 	  if (dr.lev->tileat(x, y) == T_BLUE &&
 	      dr.lev->tileat(x + 1, y) == T_BLUE &&
@@ -344,8 +344,8 @@ void editor::dorandom() {
 
       hadchange = 0;
       
-      for(int y = 0; y < (dr.lev->h - 1); y ++) {
-	for(int x = 0; x < (dr.lev->w - 1); x ++) {
+      for (int y = 0; y < (dr.lev->h - 1); y++) {
+	for (int x = 0; x < (dr.lev->w - 1); x++) {
 	  if (dr.lev->tileat(x, y) == T_BLUE &&
 	      dr.lev->tileat(x + 1, y) == T_BLUE &&
 	      dr.lev->tileat(x + y, y + 1) == T_BLUE &&
@@ -414,7 +414,7 @@ void editor::dorandom() {
 
     int nl = 12;
 
-    while(nl --) {
+    while (nl--) {
       /* pick random x, y, */
       int x = util::random() % dr.lev->w;
       int y = util::random() % dr.lev->h;
@@ -424,7 +424,7 @@ void editor::dorandom() {
 
       /* draw until we hit something. */
       dr.lev->settile(x, y, current);
-      while(dr.lev->travel(x, y, d, x, y)) {
+      while (dr.lev->travel(x, y, d, x, y)) {
 	if (dr.lev->tileat(x, y) != current)
 	  dr.lev->settile(x, y, current);
 	else break;
@@ -448,7 +448,7 @@ void editor::dorandom() {
 	pat_test->findall(dr.lev, 0);
       
       match * m;
-      while ((m = ms_test -> next ())) {
+      while ((m = ms_test->next())) {
 	int x, y;
 	m->getindex (0, x, y);
 	dr.lev->settile(x, y, T_FLOOR);
@@ -467,7 +467,7 @@ void editor::dorandom() {
   }
 
   case RT_RETRACTGOLD: {
-    if (!retract_gold ()) {
+    if (!retract_gold()) {
       dr.message = RED "Unable to retract.";
     }
     break;
@@ -577,7 +577,7 @@ bool editor::retract_gold() {
       /* now try going left as far as possible 
 	 from the gold block */
 
-      const int left = m->left ();
+      const int left = m->left();
 
       /*
       printf ("match at %d/%d, left: %s\n",
@@ -737,7 +737,7 @@ bool editor::retract_hole() {
       findsep->findall(dr.lev, 0);
 
     match * m;
-    while ((m = matches -> next ())) {
+    while ((m = matches->next())) {
 
       int x, y;
       m->getindex(2, x, y);
@@ -792,8 +792,8 @@ void editor::retract1() {
      randomly. */
 
   /* choose a random path through our retraction operations */
-  for(generator g(2); g.anyleft(); g.next ()) {
-    switch(g.item()) {
+  for (generator g(2); g.anyleft(); g.next()) {
+    switch (g.item()) {
     default:
     case 0: if (retract_gold()) goto done; else break;
     case 1: if (retract_hole()) goto done; else break;
@@ -819,8 +819,8 @@ void editor::retract1() {
 
 # if 0
   {
-    for(int y = 0; y < dr.lev->h; y ++) {
-      for(int x = 0; x < dr.lev->w; x ++) {
+    for (int y = 0; y < dr.lev->h; y++) {
+      for (int x = 0; x < dr.lev->w; x++) {
 	printf("%4d ", rr->find(dr.lev->index(x, y)));
       }
       printf("\n");
@@ -836,9 +836,9 @@ void editor::retract1() {
 
   for (generator g(dr.lev->w * dr.lev->h); 
        g.anyleft(); 
-       g.next ()) {
+       g.next()) {
     int xx, yy;
-    dr.lev->where(g.item (), xx, yy);
+    dr.lev->where(g.item(), xx, yy);
 
     int ox, oy;
     if (analysis::issep(dr.lev, xx, yy,
@@ -871,9 +871,9 @@ void editor::retract1() {
       pat_test->findall(dr.lev, 0);
 
     match * m;
-    while ((m = ms_test -> next ())) {
+    while ((m = ms_test->next())) {
       int x, y;
-      dr.lev->where(m->top_left (), x, y);
+      dr.lev->where(m->top_left(), x, y);
       /*
       printf("match! at %d/%d up: %s right: %s\n", x, y,
 	     dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
@@ -886,7 +886,7 @@ void editor::retract1() {
 }
 
 string editor::ainame(int i) {
-  switch(i) {
+  switch (i) {
   case RT_MAZE: return YELLOW "Maze" POP BLUE ": Creates a maze using the foreground tile." POP;
   case RT_MAZE2: return YELLOW "Maze 2" POP BLUE ": Like maze, but passages may cross." POP;
   case RT_CORRIDORS: return YELLOW "Corridors" POP BLUE ": Makes unconnected width-1 corridors." POP;

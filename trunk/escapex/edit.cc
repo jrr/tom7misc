@@ -108,8 +108,8 @@ void editor::screenresize() {
 }
 
 void editor::fullclear(tile t) {
-  for(int x = 0; x < dr.lev->w; x ++) {
-    for(int y = 0; y < dr.lev->h; y ++) {
+  for (int x = 0; x < dr.lev->w; x++) {
+    for (int y = 0; y < dr.lev->h; y++) {
       dr.lev->settile(x, y, t);
     }
   }
@@ -132,11 +132,11 @@ void editor::clear(tile bg, tile fg) {
   if (needsdest(fg)) fg = T_BLUE;
 
   fullclear(bg);
-  for(int x = 0; x < dr.lev->w; x ++) {
+  for (int x = 0; x < dr.lev->w; x++) {
     dr.lev->settile(x, 0, fg);
     dr.lev->settile(x, dr.lev->h - 1, fg);
   }
-  for(int y = 0; y < dr.lev->h; y ++) {
+  for (int y = 0; y < dr.lev->h; y++) {
     dr.lev->settile(0, y, fg);
     dr.lev->settile(dr.lev->w - 1, y, fg);
   }
@@ -187,7 +187,7 @@ void editor::draw() {
   /* draw menu */
 
   /* could be showw + 1 */
-  for(int j = 0; j < showw; j++) {
+  for (int j = 0; j < showw; j++) {
 
     if (j == POS_CURRENT) {
       dr.drawtile(j * TILEW, 0, current, 0);
@@ -226,7 +226,7 @@ void editor::draw() {
 
   /* draw tile menu */
   int i;
-  for(i = 0; i < showw; i++) {
+  for (i = 0; i < showw; i++) {
     int tt = i + (showw * tmenuscroll);
     if (tt < NTILEORDER)
       dr.drawtile(i * TILEW, TILEH, tileorder[tt], 0);
@@ -244,7 +244,7 @@ void editor::draw() {
 
   /* draw bomb timers */
   if (!dr.zoomfactor) {
-    for(int b = 0; b < dr.lev->nbots; b++) {
+    for (int b = 0; b < dr.lev->nbots; b++) {
       if (level::isbomb(dr.lev->bott[b])) {
 	int bx, by;
 	dr.lev->where(dr.lev->boti[b], bx, by);
@@ -343,7 +343,7 @@ void editor::tmenurotate(int n) {
   if (tmenuscroll < 0) { 
     int tt = 0;
     while ((tt * showw) < NTILEORDER) {
-      tt ++;
+      tt++;
     }
     tmenuscroll = tt - 1;
   }
@@ -361,7 +361,7 @@ void editor::settitle() {
 
 
   changed = 1;
-  redraw ();
+  redraw();
 }
 
 void editor::setauthor() {
@@ -431,7 +431,7 @@ void editor::erasebot() {
   }
 
   dr.lev->fixup_botorder();
-  redraw ();
+  redraw();
 }
 
 bool editor::clearbot(int x, int y) {
@@ -440,8 +440,8 @@ bool editor::clearbot(int x, int y) {
     if (dr.lev->botat(x, y, i)) {
       /* reduce number of bots and shift every one bigger
 	 than this one down */
-      dr.lev->nbots --;
-      for(int m = i; m < dr.lev->nbots; m ++) {
+      dr.lev->nbots--;
+      for (int m = i; m < dr.lev->nbots; m++) {
 	dr.lev->bott[m] = dr.lev->bott[m + 1];
 	dr.lev->boti[m] = dr.lev->boti[m + 1];
 	dr.lev->botd[m] = dr.lev->botd[m + 1];
@@ -458,7 +458,7 @@ void editor::firstbot() {
 
     int i;
     if (dr.lev->botat(x, y, i)) {
-      level * l = dr.lev->clone ();
+      level * l = dr.lev->clone();
       Extent<level> el(l);
       
       dr.lev->bott[0] = l->bott[i];
@@ -468,18 +468,18 @@ void editor::firstbot() {
 
       /* now copy rest */
       int r = 1;
-      for(int b = 0; b < l->nbots; b++) {
+      for (int b = 0; b < l->nbots; b++) {
 	if (b != i) {
 	  dr.lev->bott[r] = l->bott[b];
 	  dr.lev->botd[r] = l->botd[b];
 	  dr.lev->boti[r] = l->boti[b];
 	  dr.lev->bota[r] = l->bota[b];
-	  r ++;
+	  r++;
 	}
       }
     } else dr.message = "No bot there!";
   }
-  redraw ();
+  redraw();
 }
 
 void editor::sleepwake() {
@@ -491,7 +491,7 @@ void editor::sleepwake() {
 
       bot old = dr.lev->bott[i];
       bot dest = B_BROKEN;
-      switch(old) {
+      switch (old) {
       default:
 	if (level::isbomb(old)) {
 	  dr.message = RED "Can't sleep/wake bombs\n";
@@ -518,11 +518,11 @@ void editor::sleepwake() {
   }
 
   dr.lev->fixup_botorder();
-  redraw ();
+  redraw();
 }
 
 void editor::placebot(bot b) {
-  clearselection ();
+  clearselection();
 
   int x, y;
   
@@ -566,7 +566,7 @@ void editor::addbot(int x, int y, bot b) {
   int * ni = (int*)malloc(sizeof(int) * n);
   bot * nt = (bot*)malloc(sizeof(bot) * n);
 	
-  for(int i = 0; i < dr.lev->nbots; i ++) {
+  for (int i = 0; i < dr.lev->nbots; i++) {
     ni[i] = dr.lev->boti[i];
     nt[i] = dr.lev->bott[i];
   }
@@ -582,21 +582,20 @@ void editor::addbot(int x, int y, bot b) {
   /* need to update directions, too */
   free(dr.lev->botd);
   dr.lev->botd = (dir*)malloc(sizeof (dir) * n);
-  { for(int z = 0; z < n; z ++) dr.lev->botd[z] = DIR_DOWN; }
+  for (int z = 0; z < n; z++) dr.lev->botd[z] = DIR_DOWN;
 
 
   /* attribs always -1 except when playing */
   free(dr.lev->bota);
   dr.lev->bota = (int*)malloc(sizeof (int) * n);
-  { for(int z = 0; z < n; z ++) dr.lev->bota[z] = -1; }
-
+  for (int z = 0; z < n; z++) dr.lev->bota[z] = -1;
 
   dr.lev->fixup_botorder();
   changed = 1;
 }
 
 void editor::save() {
-  clearselection ();
+  clearselection();
 
   fixup();
 
@@ -634,7 +633,7 @@ void editor::save() {
 	ptrlist<namedsolution> * sols = plr->solutionset(omd5);
 
 	int rs = 0, rb = 0;
-	for(; sols; sols = sols -> next) {
+	for (; sols; sols = sols->next) {
 	  namedsolution * ns = sols->head;
 
 	  if (ns && ns->sol && !ns->bookmark && 
@@ -648,12 +647,12 @@ void editor::save() {
 	    // XXX that parameter's description is nonsensical
 	    plr->addsolution(nmd5, &ns2, true);
 	    
-	    rs ++;
+	    rs++;
 	  } else if (ns && ns->sol && ns->bookmark) {
 	    // setting def_candidate to true so we always add.
 	    // XXX that parameter's description is nonsensical
 	    plr->addsolution(nmd5, ns->clone(), true);
-	    rb ++;
+	    rb++;
 	  }
 	  
 	}
@@ -701,7 +700,7 @@ void editor::load() {
   }
   string res = ll->selectlevel();
   string ss = readfile(res);
-  ll->destroy ();
+  ll->destroy();
 
   /* allow corrupted files */
   level * l = level::fromstring(ss, true);
@@ -826,15 +825,15 @@ void editor::edit(level * origlev) {
 
   saved = solution::empty();
 
-  fixup ();
+  fixup();
 
-  redraw ();
+  redraw();
 
-  for(;;) {
+  for (;;) {
     while (SDL_PollEvent(&event)) {
       if (handle_video_event(this, event)) continue;
 
-      switch(event.type) {
+      switch (event.type) {
 
       case SDL_MOUSEMOTION: {
 	/* some more efficient way to do this?? */
@@ -880,7 +879,7 @@ void editor::edit(level * origlev) {
 
 	    selection.w = nw;
 	    selection.h = nh;
-	    redraw ();
+	    redraw();
 	  }
 
 	  /* left mouse button ... */
@@ -966,7 +965,7 @@ void editor::edit(level * origlev) {
 	    if (dr.inmap(e->x, e->y, tx, ty)) {
 	      dr.lev->swapo(dr.lev->index(tx, ty));
 	      changed = 1;
-	      redraw ();
+	      redraw();
 	    }
 	  } else {
 	    /* eyedropper */
@@ -990,7 +989,7 @@ void editor::edit(level * origlev) {
 	    selection.w = 1;
 	    selection.h = 1;
 	  } else selection.w = 0;
-	  redraw ();
+	  redraw();
 
 	} else if (e->button == SDL_BUTTON_LEFT) {
 
@@ -1041,8 +1040,8 @@ void editor::edit(level * origlev) {
 
 	      if (n == POS_LAYER) {
 		layer = !layer;
-		redraw ();
-	      } else switch(edit_menuitem[n]) {
+		redraw();
+	      } else switch (edit_menuitem[n]) {
 
 	      case TU_SIZE:
 		resize();
@@ -1093,7 +1092,7 @@ void editor::edit(level * origlev) {
 		break;
 		
 	      case TU_RANDTYPE:
-		randtype ++;
+		randtype++;
 		randtype %= NUM_RANDTYPES;
 		dr.message = ainame(randtype);
 		redraw();
@@ -1179,7 +1178,7 @@ void editor::edit(level * origlev) {
 
       case SDL_QUIT: goto edit_quit;
       case SDL_KEYDOWN:
-	switch(event.key.keysym.sym) {
+	switch (event.key.keysym.sym) {
 	  
 	case SDLK_F2:
 	  settitle();
@@ -1204,7 +1203,7 @@ void editor::edit(level * origlev) {
 	case SDLK_LEFT: {
 
 	  dir d = DIR_NONE;
-	  switch(event.key.keysym.sym) {
+	  switch (event.key.keysym.sym) {
 	  case SDLK_DOWN: d = DIR_DOWN; break;
 	  case SDLK_UP: d = DIR_UP; break;
 	  case SDLK_RIGHT: d = DIR_RIGHT; break;
@@ -1270,7 +1269,7 @@ void editor::edit(level * origlev) {
 	    dir right = d;
 	    dir down;
 	    /* could use level::turnright? */
-	    switch(right) {
+	    switch (right) {
 	    default:
 	    case DIR_RIGHT: down = DIR_DOWN; break;
 	    case DIR_LEFT: down = DIR_UP; break;
@@ -1279,7 +1278,7 @@ void editor::edit(level * origlev) {
 	    }
 
 	    int width, height;
-	    switch(right) {
+	    switch (right) {
 	    default:
 	    case DIR_LEFT:
 	    case DIR_RIGHT: width = selection.w; height = selection.h; break;
@@ -1289,7 +1288,7 @@ void editor::edit(level * origlev) {
 
 	    /* the "top-left" according to the coordinate system */
 	    int startx, starty;
-	    switch(right) {
+	    switch (right) {
 	    default:
 	    case DIR_UP:
 	      startx = selection.x;
@@ -1331,7 +1330,7 @@ void editor::edit(level * origlev) {
 	       (must be at least 1, since selection is
 	       non-empty) */
 	    int plen = 1;
-	    for (; plen <= width; plen ++) {
+	    for (; plen <= width; plen++) {
 	      /* check that this is a legal pattern. if so,
 		 it is the shortest, since we are checking
 		 in order */
@@ -1343,7 +1342,7 @@ void editor::edit(level * origlev) {
 		 there are width/plen of them. But if there
 		 is any partial pattern, we add that in. */
 	      int max = (width / plen) + !!(width % plen);
-	      for(int n = 0; n < max; n ++) {
+	      for (int n = 0; n < max; n++) {
 		/* first column of pattern occurrence to check */
 		int checkx = startx + (drightx * plen * n);
 		int checky = starty + (drighty * plen * n);
@@ -1358,8 +1357,8 @@ void editor::edit(level * origlev) {
 		   to "maxcol": */
 		int maxcol = util::minimum(plen, width - (n * plen));
 		/* printf("  ... maxcol = %d\n", maxcol); */
-		for(int col = 0; col < maxcol; col ++) {
-		  for(int row = 0; row < height; row ++) {
+		for (int col = 0; col < maxcol; col++) {
+		  for (int row = 0; row < height; row++) {
 		    int offx = 
 		      (col * drightx) +
 		      (row * ddownx);
@@ -1411,7 +1410,7 @@ void editor::edit(level * origlev) {
 	    {
 	      /* column offset within pattern */
 	      int col = width % plen;
-	      for(int row = 0; row < height; row ++) {
+	      for (int row = 0; row < height; row++) {
 		int offx = (row * ddownx);
 		int offy = (row * ddowny);
 
@@ -1470,12 +1469,12 @@ void editor::edit(level * origlev) {
 	    }
 
 	    /* and extend pattern */
-	    switch(d) {
+	    switch (d) {
 	    default: break;
-	    case DIR_RIGHT: selection.w ++; break;
-	    case DIR_DOWN: selection.h ++; break;
-	    case DIR_UP: selection.y --; selection.h ++; break;
-	    case DIR_LEFT: selection.x --; selection.w ++; break;
+	    case DIR_RIGHT: selection.w++; break;
+	    case DIR_DOWN: selection.h++; break;
+	    case DIR_UP: selection.y--; selection.h++; break;
+	    case DIR_LEFT: selection.x--; selection.w++; break;
 	    }
 
 	    redraw();
@@ -1504,8 +1503,8 @@ void editor::edit(level * origlev) {
 
 	      /* then blank out the region */
 	      {
-		for(int y = selection.y; y < selection.y + selection.h; y++) {
-		  for(int x = selection.x; x < selection.x + selection.w; x++) {
+		for (int y = selection.y; y < selection.y + selection.h; y++) {
+		  for (int x = selection.x; x < selection.x + selection.w; x++) {
 		    dr.lev->settile(x, y, T_FLOOR);
 		    dr.lev->osettile(x, y, T_FLOOR);
 		    dr.lev->setdest(x, y, 0, 0);
@@ -1514,8 +1513,8 @@ void editor::edit(level * origlev) {
 		}
 	      }
 
-	      for(int y = selection.y; y < selection.y + selection.h; y++)
-		for(int x = selection.x; x < selection.x + selection.w; x++) {
+	      for (int y = selection.y; y < selection.y + selection.h; y++)
+		for (int x = selection.x; x < selection.x + selection.w; x++) {
 
 		  /* copy all the parts */
 		  dr.lev->settile(x + dx, y + dy,
@@ -1574,7 +1573,7 @@ void editor::edit(level * origlev) {
 	      }
 
 	      {
-		for(int i = 0; i < dr.lev->nbots; i ++) {
+		for (int i = 0; i < dr.lev->nbots; i++) {
 
 		  int bx, by;
 		  dr.lev->where(dr.lev->boti[i], bx, by);
@@ -1639,7 +1638,7 @@ void editor::edit(level * origlev) {
 	default: ;
 	  /* no match; try unicode */
 	
-	switch(event.key.keysym.unicode) {
+	switch (event.key.keysym.unicode) {
 
 	case SDLK_ESCAPE:
 	  if (changed) {
@@ -1722,7 +1721,7 @@ void editor::edit(level * origlev) {
 	    redraw();
 	  } else {
 	    showdests = !showdests;
-	    redraw ();
+	    redraw();
 	  }
 	  break;
 
@@ -1799,7 +1798,7 @@ void editor::next_bombtimer() {
 }
 
 bool editor::getdest(int & x, int & y, string msg) {
-  clearselection ();
+  clearselection();
 
   SDL_Event event;
 
@@ -1807,11 +1806,11 @@ bool editor::getdest(int & x, int & y, string msg) {
 
   redraw();
 
-  for(;;) {
+  for (;;) {
     while (SDL_PollEvent(&event)) {
       if (handle_video_event(this, event)) continue;
 
-      switch(event.type) {
+      switch (event.type) {
 
       case SDL_MOUSEBUTTONDOWN: {
 	SDL_MouseButtonEvent * e = (SDL_MouseButtonEvent*)&event;
@@ -1842,11 +1841,11 @@ bool editor::getdest(int & x, int & y, string msg) {
 
       case SDL_QUIT: return 0;
       case SDL_KEYDOWN:
-	switch(event.key.keysym.sym) {
-	case SDLK_UP: dr.scrolly --; break;
-	case SDLK_DOWN: dr.scrolly ++; break;
-	case SDLK_LEFT: dr.scrollx --; break;
-	case SDLK_RIGHT: dr.scrollx ++; break;
+	switch (event.key.keysym.sym) {
+	case SDLK_UP: dr.scrolly--; break;
+	case SDLK_DOWN: dr.scrolly++; break;
+	case SDLK_LEFT: dr.scrollx--; break;
+	case SDLK_RIGHT: dr.scrollx++; break;
 	case SDLK_ESCAPE:
 	  dr.message = "";
 	  return 0;
@@ -1867,7 +1866,7 @@ bool editor::getdest(int & x, int & y, string msg) {
 }
 
 /* fix various things before playing or saving. */
-void editor::fixup () {
+void editor::fixup() {
 
   /* XXX should fon->parens the texts */
 
@@ -1877,7 +1876,7 @@ void editor::fixup () {
   if (l->author == "") l->author = plr->name;
   if (l->author == "") l->author = "Anonymous";
 
-  for(int i = 0; i < l->w * l->h; i ++) {
+  for (int i = 0; i < l->w * l->h; i++) {
 
     /* always clear 'temp' flag. */
     l->flags[i] &= ~(TF_TEMP);
@@ -1917,7 +1916,7 @@ void editor::fixup () {
      direction and attributes */
   {
     int bdi = 0;
-    for(int bi = 0; bi < dr.lev->nbots; bi++) {
+    for (int bi = 0; bi < dr.lev->nbots; bi++) {
       if (dr.lev->bott[bi] >= 0 &&
 	  dr.lev->bott[bi] < NUM_ROBOTS) {
 	/* save bot */
@@ -1926,7 +1925,7 @@ void editor::fixup () {
 	dr.lev->botd[bdi] = DIR_DOWN;
 	/* always -1 */
 	dr.lev->bota[bdi] = -1;
-	bdi ++;
+	bdi++;
       }
     }
     

@@ -171,12 +171,8 @@ struct ugcallback : public httpcallback {
    upthese. */
 upresult upgradereal::doupgrade(http * hh, string & msg,
 				ulist * upthese) {
-
-  for(ulist * hd = upthese;
-      hd;
-      hd = hd -> next) {
-
-    switch(hd->head.t) {
+  for (ulist * hd = upthese; hd; hd = hd->next) {
+    switch (hd->head.t) {
     case UT_FILE: {
 
       string fnodotdot = util::replace(hd->head.filename, "..", "@");
@@ -234,9 +230,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
   stringlist * faildst = 0;
   bool incomplete = false;
 
-  for(ulist * h = upthese;
-      h;
-      h = h -> next) {
+  for (ulist * h = upthese; h; h = h->next) {
 
     string tf = h->head.tempfile;
 
@@ -281,9 +275,9 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
   /* do symlinks if supported. 
      we already caught them and errored on win32 */
 # ifndef WIN32 /* posix */
-  for(ulist * hs = upthese;
+  for (ulist * hs = upthese;
       hs;
-      hs = hs -> next) {
+      hs = hs->next) {
 
     /* not replacing slash char here, because posix */
     string src = hs->head.filename;
@@ -301,7 +295,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 	say((string) RED "Can't unlink " YELLOW + src + 
 	    POP " for symlink." POP);
         /* XXX ought try several prefixes in case this has happened before */
-	if (!rename(src.c_str(), (src + ".deleteme").c_str ())) {
+	if (!rename(src.c_str(), (src + ".deleteme").c_str())) {
 	  say((string) RED "Can't rename it either!");
 	  incomplete = true;
 	} else {
@@ -317,9 +311,9 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
   }
 # endif
 
-  for(ulist * hr = upthese;
+  for (ulist * hr = upthese;
       hr;
-      hr = hr -> next) {
+      hr = hr->next) {
 
     string todel = 
       util::replace(hr->head.filename, "/", DIRSEP);
@@ -373,7 +367,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
     spawnargs[1] = startup::self.c_str();
 
     int ii = 2;
-    while(failsrc) {
+    while (failsrc) {
       string ss = stringpop(failsrc);
       string dd = stringpop(faildst);
       spawnargs[ii++] = strdup(ss.c_str());
@@ -386,7 +380,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 
     spawnargs[ii++] = 0;
 
-    for(int z = 0; z < ii; z++) {
+    for (int z = 0; z < ii; z++) {
       say((string)"[" YELLOW + itos(z) + (string)POP"] " +
 	  (string)(spawnargs[z]?spawnargs[z]:"(null)"));
     }
@@ -449,7 +443,7 @@ curesult upgradereal::checkupgrade(http * hh,
     ok = 0;
 
     /* XXX distinguish different types of upgrade lines */
-    for(int j = 0; j < nfiles; j ++) {
+    for (int j = 0; j < nfiles; j++) {
       string fl = util::getline(s);
       /* filename */
       string fi = util::chop(fl);
@@ -565,7 +559,7 @@ curesult upgradereal::checkupgrade(http * hh,
 upgraderesult upgradereal::upgrade(string & msg) {
 
   /* no matter what, cancel the hint to upgrade */
-  handhold::did_upgrade ();
+  handhold::did_upgrade();
 
   http * hh = client::connect(plr, tx, this);
 
@@ -606,9 +600,9 @@ upgraderesult upgradereal::upgrade(string & msg) {
   case CU_RECOMMEND: {
 
     say("Upgrade: " BLUE "The following files are not up-to-date:" POP);
-    for(ulist * tmp = download;
+    for (ulist * tmp = download;
 	tmp;
-	tmp = tmp -> next) {
+	tmp = tmp->next) {
       /* XXX print delete, symlink, etc */
       say((string)"  " YELLOW + tmp->head.filename + POP);
     }
@@ -623,7 +617,7 @@ upgraderesult upgradereal::upgrade(string & msg) {
       up = doupgrade(hh, upmsg, download);
       stringlist::diminish(ok);
       ulist::diminish(download);
-      switch(up) {
+      switch (up) {
 
       case UR_CORRUPT:
 	message::quick(this, YELLOW "Oops! " POP 

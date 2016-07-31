@@ -12,7 +12,7 @@ struct registration_ : public registration {
   virtual void screenresize();
   virtual void draw();
   void redraw() {
-    draw ();
+    draw();
     SDL_Flip (screen);
   }
 

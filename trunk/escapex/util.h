@@ -67,8 +67,8 @@ struct vallist {
     int res = 0;
     vallist<T> * tmp = this;
     while (tmp) {
-      tmp = tmp -> next;
-      res ++;
+      tmp = tmp->next;
+      res++;
     }
     return res;
   }
@@ -119,20 +119,20 @@ struct ptrlist {
     int res = 0;
     ptrlist<P> * tmp = this;
     while (tmp) {
-      tmp = tmp -> next;
-      res ++;
+      tmp = tmp->next;
+      res++;
     }
     return res;
   }
 
   void toarray(P **& aout, int & numout) {
-    numout = length ();
+    numout = length();
     
     aout = (P**) malloc(sizeof (P*) * numout);
     ptrlist<P> * tmp = this;
-    for(int i = 0; i < numout; i ++) {
+    for (int i = 0; i < numout; i++) {
       aout[i] = tmp->head;
-      tmp = tmp -> next;
+      tmp = tmp->next;
     }
   }
 
@@ -163,14 +163,14 @@ struct ptrlist {
     diminish(pl);
 
     /* copy floor(n/2) items into left, removing them from right */
-    while(num--) push(left, pop(right));
+    while (num--) push(left, pop(right));
 
     sort(compare, left);
     sort(compare, right);
 
     ptrlist<P> * out = 0;
 
-    while(left || right) {
+    while (left || right) {
       if (left) {
 
 	if (right) {
@@ -201,7 +201,7 @@ struct ptrlist {
 
   static void rev(ptrlist<P> *& pl) {
     ptrlist<P> * out = 0;
-    while(pl) push(out, pop(pl));
+    while (pl) push(out, pop(pl));
     pl = out;
   }
 
@@ -223,11 +223,11 @@ struct onionfind {
   void onion(int,int);
 
   onionfind(int);
-  ~onionfind () { delete [] arr; }
+  ~onionfind() { delete [] arr; }
 
   private:
   
-  onionfind(const onionfind &) { abort (); }
+  onionfind(const onionfind &) { abort(); }
 };
 
 /* treats strings as buffers of bits */
@@ -440,14 +440,14 @@ void util::sortarray(T * items,
   while (i != j) {
     if (compare(items[i], items[first]) != 1) { /* <= */
       /* [i] belongs in less-eq set */
-      i ++;
+      i++;
       continue;
     } else {
       /* [i] belongs on the other side */
 
       if (compare(items[j], items[first]) == 1) { /* > */
 	/* [j] belongs in greater set */
-	j --;
+	j--;
 	/* XXX could be more efficient by avoiding re-test
 	   for i; favor simplicity now */
 	continue;

@@ -6,13 +6,12 @@
 
 /* solution optimization. */
 
-struct optimize {
+struct Optimize {
 
   /* starting with a (legal) solution, try to optimize it to a shorter
      solution, and return that. Neither argument is destroyed (and the
      return will be newly allocated, even if it no different from the
      input s). */
-
   static solution * opt(level * l, solution * s);
 
   /* starting with a partial solution 'prefix', try to
@@ -20,7 +19,6 @@ struct optimize {
      that solves l. If successful, return l. */
   static solution * trycomplete(level * l, solution * prefix,
 				ptrlist<namedsolution> * sources);
-
 };
 
 #endif

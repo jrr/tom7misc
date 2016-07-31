@@ -77,16 +77,16 @@ struct menuitem {
   virtual inputresult key(SDL_Event e);
 
   menuitem() : indent(0), disabled(false) {}
-  virtual ~menuitem () {}
+  virtual ~menuitem() {}
 };
 
 struct textbox : public menuitem {
-  virtual string helptext () {
+  virtual string helptext() {
     return "Use like a normal simple editor. " BLUE "Tab" POP " exits.";
   }
   virtual void draw(int x, int y, int f);
   virtual void size(int & w, int & h);
-  virtual ~textbox () { empty (); }
+  virtual ~textbox() { empty(); }
 
   string get_text();
   /* puts cursor at the beginning, 0 scroll.
@@ -113,7 +113,7 @@ struct textbox : public menuitem {
   int charsw, charsh;
 
   /* destroys before, after */
-  void empty ();
+  void empty();
 
   string prevline(vallist<char> *& bb);
   string nextword(vallist<char> *& aa);
@@ -131,8 +131,8 @@ struct textbox : public menuitem {
 /* unselectable labels */
 struct label : public menuitem {
   string text;
-  virtual bool focusable () { return false; }
-  virtual string helptext () { return ""; }
+  virtual bool focusable() { return false; }
+  virtual string helptext() { return ""; }
   virtual void draw(int x, int y, int f);
   virtual void size(int & w, int & h);
   virtual ~label() {}
@@ -142,8 +142,8 @@ struct label : public menuitem {
 struct vspace : public menuitem {
   int height;
   vspace(int n) : height(n) {}
-  virtual bool focusable () { return false; }
-  virtual string helptext () { return ""; }
+  virtual bool focusable() { return false; }
+  virtual string helptext() { return ""; }
   virtual void draw(int x, int y, int f) { }
   virtual void size(int & w, int & h) { 
     w = 1;
@@ -158,7 +158,7 @@ struct textinput : public menuitem {
   /* immediately accept when pressing 'enter'? */
   bool accept_on_enter;
 
-  virtual string helptext () { 
+  virtual string helptext() { 
     return "Enter a single line of text.";
   }
   virtual void draw(int x, int y, int);
@@ -166,7 +166,7 @@ struct textinput : public menuitem {
   virtual void size(int & w, int & h);
   virtual inputresult key(SDL_Event e);
 
-  textinput () : accept_on_enter(false) {}
+  textinput() : accept_on_enter(false) {}
 
   virtual ~textinput() {}
 
@@ -179,20 +179,20 @@ struct textinput : public menuitem {
 };
 
 struct textpassword : public textinput {
-  virtual string helptext () {
+  virtual string helptext() {
     return "Enter a password.";
   }
   virtual void draw(int x, int y, int i) {
     draw_ch(x, y, i, '*');
   }
-  virtual ~textpassword () {}
+  virtual ~textpassword() {}
 };
 
 struct toggle : public menuitem {
   string question;
   bool checked;
 
-  virtual string helptext () { 
+  virtual string helptext() { 
     return "Press " BLUE "enter" POP " or " 
       BLUE "space" POP " to toggle.";
   }
