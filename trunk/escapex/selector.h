@@ -31,11 +31,11 @@
      bool matches (char k);
       - return true if the text can be said to 'match' the char k
         (when a key is pressed that doesn't do anything else, it
- 	 jumps to the next matching entry).
+         jumps to the next matching entry).
 
      static Ret none();
       - when the user presses escape, this is returned. A typical
-        value would be 0 when Ret is a pointer type. 
+        value would be 0 when Ret is a pointer type.
 
      static int height();
       - return the height of each item in pixels
@@ -43,7 +43,7 @@
      void draw(int x, int y, bool sel);
       - draw the option at the location x,y. If it is currently selected,
         the boolean 'sel' will be true.
-     
+
      Ret convert();
       - convert this item into a returnable Ret, upon its selection.
 
@@ -68,7 +68,7 @@ struct selector : public drawable {
 
   /* SDL sends mousemotion events
      when there is no motion, sometimes--
-     (like when the window is first opened). 
+     (like when the window is first opened).
      This lets us ignore those.
   */
   int deadtime;
@@ -81,6 +81,8 @@ struct selector : public drawable {
     delete [] items;
     delete this;
   }
+
+  virtual ~selector() {}
 
   /* sorts the selector using the compare function.
      left < right     ->    -1
@@ -95,8 +97,8 @@ struct selector : public drawable {
      several tries I just wrote my own: */
 
   /* sort items between first and last (inclusive) in the array. */
-  void quicks(int (*compare)(const Item &, const Item &), 
-	      int first, int last) {
+  void quicks(int (*compare)(const Item &, const Item &),
+              int first, int last) {
     /* done for zero, negative, or one-sized arrays. */
     if ((last - first) <= 0) return;
 
@@ -109,31 +111,31 @@ struct selector : public drawable {
     /* invariant in while loop:
        everything from first+1 .. i-1 is less-eq than [first]
        everything from j + 1 .. last is greater than [first]. */
-    
+
     /* move fingers together, preserving the invariant */
     while (i != j) {
       if (compare(items[i], items[first]) != 1) { /* <= */
-	/* [i] belongs in less-eq set */
-	i++;
-	continue;
+        /* [i] belongs in less-eq set */
+        i++;
+        continue;
       } else {
-	/* [i] belongs on the other side */
+        /* [i] belongs on the other side */
 
-	if (compare(items[j], items[first]) == 1) { /* > */
-	  /* [j] belongs in greater set */
-	  j--;
-	  /* XXX could be more efficient by avoiding re-test
-	     for i; favor simplicity now */
-	  continue;
-	} else {
-	  /* [j] belongs on the other side */
-	  Item::swap(&items[i], &items[j]);
-	  
-	  /* the invariant still holds, and we have
-	     made progress towards sorting, so we
-	     can continue */
-	  continue;
-	}
+        if (compare(items[j], items[first]) == 1) { /* > */
+          /* [j] belongs in greater set */
+          j--;
+          /* XXX could be more efficient by avoiding re-test
+             for i; favor simplicity now */
+          continue;
+        } else {
+          /* [j] belongs on the other side */
+          Item::swap(&items[i], &items[j]);
+
+          /* the invariant still holds, and we have
+             made progress towards sorting, so we
+             can continue */
+          continue;
+        }
 
       }
 
@@ -142,7 +144,7 @@ struct selector : public drawable {
     /* [piv] ... less-eq ... [i,j] ... greater ... */
     if (compare(items[i], items[first]) != 1) { /* <= */
       /* [i] <= [pivot]. if we swap them,
-	 we'll be all set. */
+         we'll be all set. */
 
       /* pivot is bigger than gap. swap them. */
       Item::swap(&items[first], &items[i]);
@@ -151,21 +153,21 @@ struct selector : public drawable {
       quicks(compare, i + 1, last);
     } else { /* [i] > [pivot] */
       /* [i] needs to be in the greater set.
-	 however, we know [i - 1] is in the
-	 smaller set. swap it with the pivot.
-	 i - 1 is always at least as big as 
-	 first because i starts at first + 1 
-	 and only increases.
+         however, we know [i - 1] is in the
+         smaller set. swap it with the pivot.
+         i - 1 is always at least as big as
+         first because i starts at first + 1
+         and only increases.
       */
       if (first != (i - 1)) Item::swap(&items[first], &items[i - 1]);
-      
+
       /* adjust subslices. i isn't necessarily
-	 the smallest thing in the greater set.
-	 but the new pivot is bigger than anything
+         the smallest thing in the greater set.
+         but the new pivot is bigger than anything
          in the lesseq set. */
       quicks(compare, first, i - 2);
       quicks(compare, i, last);
-    } 
+    }
   }
 
   /* resize the items array. if growing, this
@@ -176,13 +178,13 @@ struct selector : public drawable {
   */
   void resize (int newsize) {
     Item * olditems = items;
-    
+
     items = new Item[newsize];
-  
+
     for (int i = 0; i < number; i++) {
       items[i] = olditems[i];
     }
-    
+
     delete [] olditems;
     number = newsize;
   }
@@ -231,17 +233,17 @@ struct selector : public drawable {
     for (int i = skip; i < number && i < (skip+yfit); i++) {
 
       if (i == selected) {
-	/* draw bar */
-	SDL_Rect dst;
-	dst.x = 6;
-	dst.w = screen->w - 12;
-	dst.y = 2 + topsize + (i - skip) * Item::height() - 1;
-	dst.h = Item::height() + 2;
-	SDL_FillRect(screen, &dst, SELCOLOR);
+        /* draw bar */
+        SDL_Rect dst;
+        dst.x = 6;
+        dst.w = screen->w - 12;
+        dst.y = 2 + topsize + (i - skip) * Item::height() - 1;
+        dst.h = Item::height() + 2;
+        SDL_FillRect(screen, &dst, SELCOLOR);
       }
 
       items[i].draw(8, 2 + topsize +
-		    (i - skip) * Item::height(), (i==selected));
+                    (i - skip) * Item::height(), (i==selected));
     }
 
 
@@ -301,9 +303,9 @@ struct selector : public drawable {
       SDL_MouseButtonEvent * em = (SDL_MouseButtonEvent*)&e;
 
       if (em->button == SDL_BUTTON_LEFT) {
-	/* check that we are in zone */
-	int x;
-	if (pointitem(em->y, x)) return peres(x);
+        /* check that we are in zone */
+        int x;
+        if (pointitem(em->y, x)) return peres(x);
       }
       break;
     }
@@ -315,12 +317,12 @@ struct selector : public drawable {
       int now = SDL_GetTicks();
 
       if (now > deadtime) {
-	/* in range! */
-	if (pointitem(em->y, nth) && selected != nth) {
-	  /* new selection! */
-	  selected = nth;
-	  redraw();
-	}
+        /* in range! */
+        if (pointitem(em->y, nth) && selected != nth) {
+          /* new selection! */
+          selected = nth;
+          redraw();
+        }
       }
 
       break;
@@ -333,58 +335,58 @@ struct selector : public drawable {
 
       /* don't allow bucky */
       if (!(e.key.keysym.mod & (KMOD_CTRL | KMOD_ALT)))
-	switch (key) {
-	case SDLK_ESCAPE:
-	  return peres(PE_CANCEL);
+        switch (key) {
+        case SDLK_ESCAPE:
+          return peres(PE_CANCEL);
 
-	case SDLK_RETURN:
-	  //	printf("Here: %s\n", -thisdir[selected].fname);
-	  return peres(selected);
+        case SDLK_RETURN:
+          //    printf("Here: %s\n", -thisdir[selected].fname);
+          return peres(selected);
 
-	case SDLK_HOME:
-	case SDLK_END:
-	case SDLK_PAGEDOWN:
-	case SDLK_PAGEUP:
-	case SDLK_DOWN:
-	case SDLK_UP: {
+        case SDLK_HOME:
+        case SDLK_END:
+        case SDLK_PAGEDOWN:
+        case SDLK_PAGEUP:
+        case SDLK_DOWN:
+        case SDLK_UP: {
 
-	  switch (e.key.keysym.sym) {
-	  case SDLK_DOWN: selected++; break;
-	  case SDLK_UP: selected--; break;
-	  case SDLK_PAGEUP: selected -= yfit; break; 
-	  case SDLK_PAGEDOWN: selected += yfit; break;
-	  case SDLK_HOME: selected = 0; break;
-	  case SDLK_END: selected = number - 1; break;
-	  default: ; /* lint - impossible */
-	  }
-      
-	  /* XXX wrap around? (pref?) */
-	  if (selected >= number) selected = number - 1;
-	  if (selected < 0) selected = 0;
+          switch (e.key.keysym.sym) {
+          case SDLK_DOWN: selected++; break;
+          case SDLK_UP: selected--; break;
+          case SDLK_PAGEUP: selected -= yfit; break;
+          case SDLK_PAGEDOWN: selected += yfit; break;
+          case SDLK_HOME: selected = 0; break;
+          case SDLK_END: selected = number - 1; break;
+          default: ; /* lint - impossible */
+          }
 
-	  redraw();
+          /* XXX wrap around? (pref?) */
+          if (selected >= number) selected = number - 1;
+          if (selected < 0) selected = 0;
 
-	  break;
-	}
-	default:
-	  if (key >= SDLK_a &&
-	      key <= SDLK_z) {
+          redraw();
 
-	    /* use lowercase */
-	    char k = 'a' + (key - SDLK_a);
-	    
-	    for (int i = 1; i < number; i++) {
-	      if (items[(selected + i) % number].matches(k)){
-		selected = (selected + i) % number;
-		break;
-	      }
-	    }
+          break;
+        }
+        default:
+          if (key >= SDLK_a &&
+              key <= SDLK_z) {
 
-	    redraw();
-	  }
-	}
+            /* use lowercase */
+            char k = 'a' + (key - SDLK_a);
+
+            for (int i = 1; i < number; i++) {
+              if (items[(selected + i) % number].matches(k)){
+                selected = (selected + i) % number;
+                break;
+              }
+            }
+
+            redraw();
+          }
+        }
       break;
-    default: 
+    default:
       DPRINTF(" other!\n");
       break;
     }
@@ -407,13 +409,13 @@ struct selector : public drawable {
       peres pr = doevent(event);
       switch (pr.type) {
       case PE_SELECTED:
-	return items[pr.u.i].convert();
+        return items[pr.u.i].convert();
       case PE_EXIT: /* XXX */
       case PE_CANCEL:
-	return Item::none();
+        return Item::none();
       default:
       case PE_NONE:
-	;
+        ;
       }
     }
 
