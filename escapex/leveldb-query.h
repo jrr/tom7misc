@@ -1,4 +1,3 @@
-
 #ifndef __LEVELDB_QUERY_H
 #define __LEVELDB_QUERY_H
 
@@ -148,7 +147,5 @@ struct lquery {
      deterministic order. */
   vector<lsort> sortby;
 };
-
-
 
 #endif
