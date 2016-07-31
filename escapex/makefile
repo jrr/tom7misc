@@ -178,8 +178,9 @@ endif
 ifdef LINUX
 # makefile for linux
 
-# XXX some of these have moved to cc-lib
-OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o
+CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
+
+OFILES = main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
 
 default : escape.exe
 
@@ -192,13 +193,13 @@ PROF =
 
 LDFLAGS = -Wl,-rpath=.
 
-LDLIBS = -lSDL_image -lSDL_net -lSDL_mixer `sdl-config --libs` -ltiff -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg
+LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs` -ltiff -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg
 #  LDLIBS = -lefence
 
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
 # with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
 CPPFLAGS = `sdl-config --cflags` 
-CXXFLAGS = -g -Wall -O ${PROF} -Wno-non-virtual-dtor
+CXXFLAGS = --std=c++11 -g -Wall -O ${PROF} -Wno-non-virtual-dtor
 
 escape.exe : ${OFILES}
 	g++ ${PROF} -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
@@ -207,7 +208,7 @@ escape.exe : ${OFILES}
 default : escape.exe
 
 packsound.exe : util-console.o packsound-console.o
-	g++ -o $@ $^ -lSDL_image `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg
+	g++ -o $@ $^ `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg
 	strip packsound.exe
 
 sound.o : sound.cc sound_load.h
@@ -226,7 +227,7 @@ sound_load.h : sound.pack packsound.cc
 
 # but this should be static
 screenshot.exe : draw-console.o pngsave-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
-	g++ -g -o screenshot.exe $^ -lSDL_image `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz
+	g++ -g -o screenshot.exe $^ `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz
 
 .dummy :
 
