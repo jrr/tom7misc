@@ -128,6 +128,13 @@ struct sdlutil {
      with the supplied surface) */
   static Uint32 hsv(SDL_Surface *surf, float h, float s, float v, float a);
 
+  // This is like format.format in SDL 2.0.
+  // Only works for 32 BPP pixel formats.
+  // Note that this is independent of the host byte order (little- or
+  // big-endian), so if you have uint8 pixel data, you also need to
+  // tend to that.
+  enum class ByteOrder { ARGB, RGBA, ABGR, BGRA, };
+  static ByteOrder GetByteOrder(SDL_Surface *surf);
 };
 
 #endif

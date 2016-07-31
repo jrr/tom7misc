@@ -127,33 +127,84 @@ SDL_Surface *sdlutil::resize_canvas(SDL_Surface *s,
   return m;
 }
 
-// XXX determine this somehow. Works on win64 with SWAB set.
-// It's not right for OSX, neither set nor cleared.
-// I think that there are two confusing issues overlapping here:
-// whether the host is big- or little-endian (shouldn't matter
-// now that everything ix x86_64) and whether the video implementation
-// is like RGBA or BGRA or etc.
-#define SWAB 1
+// static 
+sdlutil::ByteOrder sdlutil::GetByteOrder(SDL_Surface *surf) {
+  // PERF: Actually the R channel determines it completely.
+  // But maybe nice to have the additional sanity check on A
+  // until we know this works.
+  switch (surf->format->Ashift) {
+  case 0:
+    // Could be RGBA or BGRA
+    switch (surf->format->Rshift) {
+    case 24: return ByteOrder::RGBA;
+    case 8: return ByteOrder::BGRA;
+    }
+    break;
+  case 24:
+    // Could be ARGB or ABGR
+    switch (surf->format->Rshift) {
+    case 16: return ByteOrder::ARGB;
+    case 0: return ByteOrder::ABGR;
+    }
+    break;
+  }
+  fprintf(stderr,
+	  "GetByteOrder: Surface not 32BPP or something else is wrong. %d %d",
+	  surf->format->Ashift, surf->format->Rshift);
+  abort();
+}
+
 static void CopyRGBA(const vector<Uint8> &rgba, SDL_Surface *surface) {
-  // int bpp = surface->format->BytesPerPixel;
-  Uint8 *p = (Uint8 *)surface->pixels;
+  using ByteOrder = sdlutil::ByteOrder;
+  // Uint8 *p = (Uint8 *)surface->pixels;
+  Uint32 *p = (Uint32 *)surface->pixels;
   int width = surface->w;
   int height = surface->h;
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      int idx = (y * width + x) * 4;
-      #if SWAB
-      p[idx + 0] = rgba[idx + 2];
-      p[idx + 1] = rgba[idx + 1];
-      p[idx + 2] = rgba[idx + 0];
-      p[idx + 3] = rgba[idx + 3];
-      #else
-      p[idx + 0] = rgba[idx + 0];
-      p[idx + 1] = rgba[idx + 1];
-      p[idx + 2] = rgba[idx + 2];
-      p[idx + 3] = rgba[idx + 3];
-      #endif
+  switch (sdlutil::GetByteOrder(surface)) {
+  case ByteOrder::ARGB:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+	const int pidx = (y * width + x);
+	const int idx = pidx * 4;
+	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+	  b = rgba[idx + 2], a = rgba[idx + 3];
+	p[pidx] = (a << 24) | (r << 16) | (g << 8) | b;
+      }
     }
+    break;
+  case ByteOrder::RGBA:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+	const int pidx = (y * width + x);
+	const int idx = pidx * 4;
+	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+	  b = rgba[idx + 2], a = rgba[idx + 3];
+	p[pidx] = (r << 24) | (g << 16) | (b << 8) | a;
+      }
+    }
+    break;
+  case ByteOrder::ABGR:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+	const int pidx = (y * width + x);
+	const int idx = pidx * 4;
+	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+	  b = rgba[idx + 2], a = rgba[idx + 3];
+	p[pidx] = (a << 24) | (b << 16) | (g << 8) | r;
+      }
+    }
+    break;
+  case ByteOrder::BGRA:
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+	const int pidx = (y * width + x);
+	const int idx = pidx * 4;
+	const Uint32 r = rgba[idx + 0], g = rgba[idx + 1],
+	  b = rgba[idx + 2], a = rgba[idx + 3];
+	p[pidx] = (b << 24) | (g << 16) | (r << 8) | a;
+      }
+    }
+    break;
   }
 }
 
