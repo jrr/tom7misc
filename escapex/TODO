@@ -6,7 +6,6 @@ Make this work again on OSX 10.10+!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
  - dos2unix on all source files again: leveldb-query.h
- - Oops, revert Escape.icns to be escape block, not t7eshero star
 
 Use specific-width integer types instead of 'unsigned'.
 
