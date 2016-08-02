@@ -193,7 +193,8 @@ PROF =
 
 LDFLAGS = -Wl,-rpath=.
 
-LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs` -lvorbisfile -lvorbis -logg
+# -lvorbisfile -lvorbis -logg
+LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs`
 
 #  LDLIBS = -lefence
 
@@ -208,8 +209,9 @@ escape.exe : ${OFILES}
 
 default : escape.exe
 
+#  -lvorbisfile -lvorbis -logg
 packsound.exe : util-console.o packsound-console.o
-	g++ -o $@ $^ `sdl-config --static-libs` -lvorbisfile -lvorbis -logg
+	g++ -o $@ $^ `sdl-config --static-libs`
 	strip packsound.exe
 
 sound.o : sound.cc sound_load.h
