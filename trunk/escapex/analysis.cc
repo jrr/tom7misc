@@ -2,8 +2,10 @@
 #include "analysis.h"
 #include "extent.h"
 
+#include <memory>
+
 /* could include traps. preference? */
-bool analysis::isempty(int t) {
+bool Analysis::isempty(int t) {
   switch (t) {
   case T_FLOOR:
   case T_ROUGH:
@@ -20,7 +22,7 @@ bool analysis::isempty(int t) {
   }
 }
 
-onionfind * analysis::reachable (level * lev) {
+onionfind * Analysis::reachable (level * lev) {
   int size = lev->w * lev->h;
   onionfind * of = new onionfind(size);
 
@@ -92,12 +94,12 @@ static bool separator(level * lev, int x, int y,
 		      int tile, bool search);
 
 
-bool analysis::doessep(level * lev, int x, int y, 
+bool Analysis::doessep(level * lev, int x, int y, 
 		       int x1, int y1, int x2, int y2, int tile) {
   return separator(lev, x, y, x1, y1, x2, y2, tile, false);
 }
 
-bool analysis::issep(level * lev, int x, int y, 
+bool Analysis::issep(level * lev, int x, int y, 
 		     int x1, int y1, int & x2, int & y2, int tile) {
   return separator(lev, x, y, x1, y1, x2, y2, tile, true);
 }
@@ -114,15 +116,14 @@ static bool separator(level * lev, int x, int y,
   /* must be currently empty.
      this could be relaxed to blocks
      that allow lasers through... */
-  if (!analysis::isempty(lev->tileat(x, y))) return false;
+  if (!Analysis::isempty(lev->tileat(x, y))) return false;
 
   /* don't include degenerate cases */
   if (x == x1 && y == y1) return false;
   if (!search && (x1 == x2 && y1 == y2)) return false;
   if (!search && (x == x2 && y == y2)) return false;
 
-  onionfind * orig = analysis::reachable(lev);
-  Extentd<onionfind> oe(orig);
+  std::unique_ptr<onionfind> orig{Analysis::reachable(lev)};
 
   /* original equivalence class that we're in. */
   int oclass = orig->find(lev->index(x1, y1));
@@ -132,8 +133,7 @@ static bool separator(level * lev, int x, int y,
   
   nlev->settile(x, y, tile);
 
-  onionfind * fresh = analysis::reachable(nlev);
-  Extentd<onionfind> oo(fresh);
+  std::unique_ptr<onionfind> fresh{Analysis::reachable(nlev)};
 
 # if 0
   {

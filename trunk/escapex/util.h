@@ -355,6 +355,7 @@ struct util {
   /* make a copy by reading/writing */
   static bool copy(string src, string dst);
 
+  // Not thread safe!
   static string tempfile(string suffix);
   
   /* does this file exist and is it a directory? */

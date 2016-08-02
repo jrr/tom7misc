@@ -1,4 +1,3 @@
-
 #ifndef __PROMPT_H
 #define __PROMPT_H
 
@@ -6,7 +5,6 @@
 #include "drawable.h"
 
 struct prompt {
-  
   string title;
   string input;
   string explanation;
@@ -22,7 +20,6 @@ struct prompt {
   string select();
 
   virtual ~prompt();
-
 };
 
 #endif

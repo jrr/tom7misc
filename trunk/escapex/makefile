@@ -63,7 +63,7 @@ version : .dummy
 wc :
 	wc -l *.cc *.h
 
-RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt SDL.dll SDL_image.dll SDL_net.dll jpeg.dll libpng13.dll zlib1.dll COPYING changelog animation.png SDL_mixer.dll splash.png
+RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt SDL.dll SDL_net.dll zlib1.dll COPYING changelog animation.png SDL_mixer.dll splash.png
 
 zip : .dummy ${RELEASEFILES}
 	rm -rf escape-beta
@@ -134,7 +134,7 @@ sdlutil-console.obj : sdlutil.cc
 escape.res : escape.rc escape.ico
 	rc /r /fo escape.res escape.rc
 
-escape.exe : main.obj level.obj sdlutil.obj play.obj font.obj directories.obj load.obj util.obj md5.obj player.obj playerdb.obj prompt.obj draw.obj drawable.obj edit.obj editai.obj editprefab.obj mainmenu.obj upgrade.obj http.obj textscroll.obj message.obj update.obj dircache.obj upper.obj registration.obj upload.obj rating.obj menu.obj prefs.obj escape.res chunks.obj dirindex.obj textbox.obj analysis.obj generator.obj prime.obj commenting.obj cleanup.obj mainshow.obj handhold.obj animation.obj dirt.obj sound.obj base64.obj winmain.obj optimize.obj smanage.obj client.obj progress.obj leveldb.obj startup.obj backgrounds.obj escapex.obj
+escape.exe : main.obj level.obj sdlutil.obj play.obj font.obj directories.obj load.obj util.obj md5.obj player.obj playerdb.obj prompt.obj draw.obj drawable.obj edit.obj editai.obj editprefab.obj mainmenu.obj upgrade.obj http.obj httputil.obj textscroll.obj message.obj update.obj dircache.obj upper.obj registration.obj upload.obj rating.obj menu.obj prefs.obj escape.res chunks.obj dirindex.obj textbox.obj analysis.obj generator.obj prime.obj commenting.obj cleanup.obj mainshow.obj handhold.obj animation.obj dirt.obj sound.obj base64.obj winmain.obj optimize.obj smanage.obj client.obj progress.obj leveldb.obj startup.obj backgrounds.obj escapex.obj
 	${LINK} /out:"escape.exe" $^
 
 # other executables that need to be built:
@@ -142,7 +142,7 @@ escape.exe : main.obj level.obj sdlutil.obj play.obj font.obj directories.obj lo
 replace.exe : replace-console.obj util-console.obj
 	${LINKCMDLINE} /out:$@ $^ user32.lib
 
-packpng.exe : util-console.obj font-console.obj level-console.obj sdlutil-console.obj packpng-console.obj pngsave-console.obj winmain-console.obj
+packpng.exe : util-console.obj font-console.obj level-console.obj sdlutil-console.obj packpng-console.obj winmain-console.obj
 	${LINKCMDLINE} /out:$@ $^ libpng13.lib
 
 packsound.exe : util-console.obj packsound-console.obj winmain-console.obj
@@ -180,7 +180,7 @@ ifdef LINUX
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
 
-OFILES = main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
+OFILES = main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
 
 default : escape.exe
 
@@ -193,7 +193,8 @@ PROF =
 
 LDFLAGS = -Wl,-rpath=.
 
-LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs` -ltiff -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg
+LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs` -lvorbisfile -lvorbis -logg
+
 #  LDLIBS = -lefence
 
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
@@ -208,7 +209,7 @@ escape.exe : ${OFILES}
 default : escape.exe
 
 packsound.exe : util-console.o packsound-console.o
-	g++ -o $@ $^ `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz -lvorbisfile -lvorbis -logg
+	g++ -o $@ $^ `sdl-config --static-libs` -lvorbisfile -lvorbis -logg
 	strip packsound.exe
 
 sound.o : sound.cc sound_load.h
@@ -226,8 +227,9 @@ sound_load.h : sound.pack packsound.cc
 	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
 # but this should be static
-screenshot.exe : draw-console.o pngsave-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
-	g++ -g -o screenshot.exe $^ `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz
+# XXX how to get sdlutil-console from cc-lib?
+screenshot.exe : draw-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
+	g++ -g -o screenshot.exe $^ `sdl-config --static-libs`
 
 .dummy :
 
@@ -237,7 +239,7 @@ version : .dummy
 	make clean
 	make escape.exe
 
-LIBFILES=libjpeg.so.62 libogg.so.0 libpng.so.2 libSDL-1.2.so.0 libSDL_net-1.2.so.0 libtiff.so.3 libvorbisfile.so.3 libvorbis.so.0 libz.so.1 libartsc.so.0 libesd.so.0
+LIBFILES=libogg.so.0 libSDL-1.2.so.0 libSDL_net-1.2.so.0 libvorbisfile.so.3 libvorbis.so.0 libartsc.so.0 libesd.so.0
 
 # XXX Unfortunately, no machine on which to build linux binaries in 2010.
 RELEASEFILES=
@@ -314,21 +316,13 @@ ifdef OSX
 
 # XXX reinstate sdl_mixer before doing another release!
 
-# XXX sourceforge compile farm is discontinued,
-# so vestiges of that might as well be trimmed from here for simplicity
-
 default : escape.exe
 
-# Change this to wherever you put Frameworks directory.
-# Frameworks are just glorified shared libraries--they include headers,
-# documentation, graphics resources, whatever else programs want to share.
 FRAMEWORKS=OSX_build/Frameworks
 
-# Shouldn't be any need to change this,
-# unless you are using version 10.0
-# like some kind of caveman
+# No longer cavemen, we target a recent release of OS X.
 VERSION_TARGET=10.10
-# From t7eshero. Maybe should be fixed.
+# Hack from t7eshero. Maybe should be fixed.
 RPATH=-rpath @executable_path/../Frameworks
 
 # Suppress compilation commands, but show some indication of progress.
@@ -338,7 +332,8 @@ RPATH=-rpath @executable_path/../Frameworks
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
-# sound is disabled to give people time to upgrade the upgrader
+# sound is disabled, but it's time to make it available on the OS X
+# release. Do this!
 # to add it, remove -DNOSOUND and add
 # -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers
 # to CPPFLAGS and add
@@ -346,11 +341,11 @@ RPATH=-rpath @executable_path/../Frameworks
 # to the g++ line linking below
 
 CXXFLAGS=-std=c++14
-# -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers 
 
 # XXX: I added -I. here and made a symlink to the SDL include
 # directory called "SDL", since some frameworks want to include like
-# <SDL/sdl.h>. Don't know what the right fix is.
+# <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
+# know what the right fix is.
 CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX -DNOSOUND=1
 
 # good for 10.11 MacBook
@@ -359,9 +354,15 @@ LIBS=-L/usr/lib
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
 
-escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
+escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
+
+# XXX this would allow us to build "Screenshot.app", but we should
+# figure out some other approach for command-line tools.
+screenshot.exe : sdlmain.o draw.o screenshot.o escapex.o level.o util.o animation.o message.o progress.o sound.o font.o drawable.o ${CCLIBOBJECTS}
+	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
+	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o $@
 
 .dummy :
 
@@ -414,14 +415,10 @@ framelinks :
 	-mkdir OSX_build/Frameworks/SDL.framework/Versions/A
 	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions
 	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions/A
-	# -mkdir OSX_build/Frameworks/SDL_image.framework/Versions
-	# -mkdir OSX_build/Frameworks/SDL_image.framework/Versions/A
 	# -mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions
 	# -mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions/A
 	cd OSX_build/Frameworks/SDL.framework/Versions/A && ln -s ../../SDL SDL && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
 	cd OSX_build/Frameworks/SDL_net.framework/Versions/A && ln -s ../../SDL_net SDL_net && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
-	# cd OSX_build/Frameworks/SDL_image.framework/Versions/A && ln -s ../../SDL_image SDL_image && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
-	# cd OSX_build/Frameworks/SDL_mixer.framework/Versions/A && ln -s ../../SDL_mixer SDL_mixer && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
 
 app : escape.exe
 	rm -rf /tmp/Escape.app
@@ -442,7 +439,6 @@ app : escape.exe
 	# ln -s ../MacOS/OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
 	# cp -R OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks/
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL.framework/Headers/*.h
-	# rm -f /tmp/Escape.app/Contents/Frameworks/SDL_image.framework/Headers/*.h
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_net.framework/Headers/*.h
 	# rm -f /tmp/Escape.app/Contents/MacOS/OSX_build/SDL_mixer.framework/Headers/*.h
 	rm -rf `find /tmp/Escape.app -name CVS`
@@ -476,7 +472,7 @@ endif
 ifdef MINGW
 
 # XXX some of these have moved to cc-lib
-OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
+OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 default : escape.exe
 
@@ -491,7 +487,7 @@ LDFLAGS = -Wl,-rpath=.
 
 # -lSDL_mixer
 # at end  -lvorbisfile -lvorbis -logg
-LDLIBS = -lSDL_image -lSDL_net  `sdl-config --libs` -ltiff -lpng -ljpeg -lz
+LDLIBS = -lSDL_net  `sdl-config --libs` -lz
 #  LDLIBS = -lefence
 
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
@@ -509,7 +505,7 @@ escape.exe : ${OFILES}
 default : escape.exe
 
 packsound.exe : util-console.o packsound-console.o
-	g++ -o $@ $^ -lSDL_image `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz
+	g++ -o $@ $^ `sdl-config --static-libs`
 	strip packsound.exe
 
 sound.o : sound.cc sound_load.h
@@ -537,18 +533,19 @@ animation_load.h animation.png animation_decs.h animation_defs.h : animation.pac
 	rm -f animation.png
 	mv animation.better animation.png
 
+# XXX unnecessary now?
 PNGHEADERS = -I /usr/local/include
-# -I ../libpng-1.2.21
 
 %-console.o : %.cc
 	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 ${PNGHEADERS} $^ -c -o $@
 
-packpng.exe : util-console.o font-console.o level-console.o sdlutil-console.o packpng-console.o pngsave-console.o winmain-console.o
+# XXX sdlutil needs to come from cc-lib
+packpng.exe : util-console.o font-console.o level-console.o sdlutil-console.o packpng-console.o winmain-console.o
 	g++ -o $@ ${LDFLAGS} $^ ${LDLIBS}
 
 # but this should be static
-screenshot.exe : draw-console.o pngsave-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
-	g++ -g -o screenshot.exe $^ -lSDL_image `sdl-config --static-libs` -ltiff -lpng -ljpeg -lz
+screenshot.exe : draw-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
+	g++ -g -o screenshot.exe $^ `sdl-config --static-libs`
 
 .dummy :
 
@@ -558,7 +555,7 @@ version : .dummy
 	make clean
 	make escape.exe
 
-RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt SDL.dll SDL_image.dll SDL_net.dll jpeg.dll libpng13.dll zlib1.dll COPYING changelog animation.png SDL_mixer.dll splash.png
+RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt SDL.dll SDL_net.dll zlib1.dll COPYING changelog animation.png SDL_mixer.dll splash.png
 
 releasefiles.win32 : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.win32

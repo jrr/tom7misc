@@ -1679,13 +1679,11 @@ bool play::animatemove(drawing & dr, disamb *& ctx, Dirt *dirty, dir d) {
 	/* push all events with the same serial */
 	// printf("** doing serial %d\n", s);
 	while (events && events->head->serial == s) {
-	  aevent * ee = elist::pop(events);
-	  Extentd<aevent> eh(ee);
-	  animation::start(dr, anims, sprites, ee);
+	  std::unique_ptr<aevent> ee{elist::pop(events)};
+	  animation::start(dr, anims, sprites, ee.get());
 	}
 
 	if (anims || sprites) {
-
 	  bool domirror = false;
 	  domirror = animation::init_anims(anims, now) || domirror;
 	  domirror = animation::init_anims(sprites, now) || domirror;

@@ -3,8 +3,12 @@
 #include "extent.h"
 #include "util.h"
 
+// XXX this can be improved by using vectors..
+#include <vector>
+
 #define DMSG if (log_message) (*log_message)
 
+namespace {
 struct httpreal : public http {
   httpreal();
   virtual ~httpreal();
@@ -21,7 +25,7 @@ struct httpreal : public http {
     callback = cb;
   }
 
-private:
+ private:
 
   virtual FILE * tempfile(string & f);
 
@@ -49,16 +53,15 @@ private:
 
   /* for virtual servers */
   string host;
-
 };
 
 httpresult httpreal::get(string path, string & out_) {
-  DMSG (util::ptos(this) + " get(" + path + ")\n");
+  DMSG(util::ptos(this) + " get(" + path + ")\n");
   return get_general(path, out_, false);
 }
 
 httpresult httpreal::gettempfile(string path, string & out_) {
-  DMSG (util::ptos(this) + " gettempfile(" + path + ")\n");
+  DMSG(util::ptos(this) + " gettempfile(" + path + ")\n");
   return get_general(path, out_, true);
 }
 
@@ -75,7 +78,7 @@ httpreal::~httpreal() { }
 void httpreal::destroy() {
   /* ? */
   if (conn) {
-    DMSG (util::ptos(this) + " destroy\n");
+    DMSG(util::ptos(this) + " destroy\n");
     SDLNet_TCP_Close(conn);
     conn = 0;
   }
@@ -86,17 +89,17 @@ void httpreal::setua(string s) { ua = s; }
 
 bool httpreal::connect(string chost, int port) {
 
-  DMSG (util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
+  DMSG(util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
   
   /* should work for "snoot.org" or "128.2.194.11" */
   if (SDLNet_ResolveHost(&remote, (char *)chost.c_str(), port)) {
-    DMSG (util::ptos(this) + " can't resolve: " + (string)(SDLNet_GetError()) + "\n");
+    DMSG(util::ptos(this) + " can't resolve: " + (string)(SDLNet_GetError()) + "\n");
     return false;
   }
 
   host = chost;
 
-  DMSG (util::ptos(this) + " ok\n");
+  DMSG(util::ptos(this) + " ok\n");
 
   return true;
 }
@@ -108,7 +111,6 @@ void append(string & s, char * vec, unsigned int l) {
 
   for (unsigned int u = 0; u < slen; u++) {
     ret[u] = s[u];
-
   }
   for (unsigned int v = 0; v < l; v++) {
     ret[v + slen] = vec[v];
@@ -173,7 +175,6 @@ httpresult httpreal::put(string path,
     "\r\n";
 
   return req_general(hdr + body, out, false);
-
 }
 
 
@@ -193,32 +194,32 @@ httpresult httpreal::get_general(string path, string & res, bool tofile) {
     "\r\n";
     
   return req_general(req, res, tofile);
-
 }
 
 httpresult httpreal::req_general(string req, string & res, bool tofile) {
-
-  DMSG (util::ptos(this) + " conn@" + util::ptos(conn) + " req_general: \n[" + req + "]\n");
+  DMSG(util::ptos(this) + " conn@" + util::ptos(conn) + 
+	" req_general: \n[" + req + "]\n");
 
   /* we don't use keep-alive now. each request is a new
      connection. */
   bye();
   if (! (conn = SDLNet_TCP_Open(&remote))) {
-    DMSG (util::ptos(this) + " can't connect: " + (string)(SDLNet_GetError()) + "\n");
+    DMSG(util::ptos(this) + " can't connect: " + 
+	  (string)(SDLNet_GetError()) + "\n");
     return HT_ERROR;
   }
 
-  DMSG (util::ptos(this) + " connected.\n");
+  DMSG(util::ptos(this) + " connected.\n");
  
   if (!sendall(conn, req)) {
     /* error. try again? */
-    DMSG (util::ptos(this) + " can't send: " + (string)(SDLNet_GetError()) + "\n");
+    DMSG(util::ptos(this) + " can't send: " + (string)(SDLNet_GetError()) + "\n");
     SDLNet_TCP_Close(conn);
     conn = 0;
     return HT_ERROR;
   }
 
-  DMSG (util::ptos(this) + " sent request.\n");
+  DMSG(util::ptos(this) + " sent request.\n");
 
   /* read headers. */
   string cline;
@@ -239,7 +240,7 @@ httpresult httpreal::req_general(string req, string & res, bool tofile) {
   */
   for (;;) {
     if (SDLNet_TCP_Recv(conn, &c, 1) != 1) {
-      DMSG (util::ptos(this) + " can't recv: " + (string)(SDLNet_GetError()) + "\n");
+      DMSG(util::ptos(this) + " can't recv: " + (string)(SDLNet_GetError()) + "\n");
       printf("Error in recv.\n");
       bye();
       return HT_ERROR;
@@ -266,7 +267,7 @@ httpresult httpreal::req_general(string req, string & res, bool tofile) {
 	    
 	if (status != "200") {
 	  /* XXX or whatever ... */
-	  DMSG (util::ptos(this) + " got status code " + status + "\n");
+	  DMSG(util::ptos(this) + " got status code " + status + "\n");
 	  /* close connection, since we don't want to read
 	     anything. */
 	  bye();
@@ -367,7 +368,6 @@ httpresult httpreal::req_general(string req, string & res, bool tofile) {
     
   /* XXX unreachable */
   return HT_ERROR;
-
 }
 
 #define BUFLEN 1024
@@ -423,7 +423,7 @@ string httpreal::readresttofile() {
 string httpreal::readrest() {
   string acc;
 
-  char buf [BUFLEN];
+  char buf[BUFLEN];
 
   int x;
 
@@ -445,8 +445,8 @@ string httpreal::readrest() {
 }
 
 string httpreal::readn(int n) {
-  char * buf = new char[n];
-  Extentda<char> eb(buf);
+  vector<char> buf;
+  buf.resize(n);
 
   DMSG("reading " + itos(n) + "...\n");
 
@@ -455,7 +455,7 @@ string httpreal::readn(int n) {
   int done = 0;
   int x;
   while (rem > 0) {
-    x = SDLNet_TCP_Recv(conn, buf + done, rem);
+    x = SDLNet_TCP_Recv(conn, buf.data() + done, rem);
     if (x <= 0) return "";
 
     done += x;
@@ -464,7 +464,7 @@ string httpreal::readn(int n) {
   }
   
   string ret = "";
-  append(ret, buf, n);
+  append(ret, buf.data(), n);
 
   DMSG("contents\n[" + ret + "]\n");
 
@@ -504,29 +504,9 @@ string httpreal::readntofile(int n) {
   fclose(ff);
   return fname;
 }
-
-/* export through http interface */
-http * http::create() {
-  return new httpreal();
 }
 
-/* XXX move to its own file? */
-string httputil::urlencode(string s) {
-
-  string out;
-  for (unsigned x = 0; x < s.length(); x++) {
-    if (s[x] == ' ')
-      out += '+';
-    else if ((s[x] >= 'a' && s[x] <= 'z')
-         ||  (s[x] >= 'A' && s[x] <= 'Z') || s[x] == '.'
-         ||  (s[x] >= '0' && s[x] <= '9')) {
-      out += s[x];
-    } else {
-      out += '%';
-      out += "0123456789ABCDEF"[15&(s[x]>>4)];
-      out += "0123456789ABCDEF"[s[x]&15];
-    }
-  }
-  return out;
-
+/* export through http interface */
+http *http::create() {
+  return new httpreal();
 }

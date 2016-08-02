@@ -116,12 +116,12 @@ void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
 
       fprintf(stderr, "Do verify.\n");
       verifies_left--;
-      levelwait *lw = ptrlist<levelwait>::pop(levelqueue);
+      
+      std::unique_ptr<levelwait> lw {ptrlist<levelwait>::pop(levelqueue)};
       levelqueue_size--;
 
-      if (!lw) abort();
+      if (lw.get() == nullptr) abort();
 
-      Extentd<levelwait> lw_d(lw);
       res_level * entry = util::findorinsertnew(all_levels, lw->md5);
 
       if (!entry || lw->md5.empty()) abort();

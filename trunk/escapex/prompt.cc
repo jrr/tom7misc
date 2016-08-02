@@ -19,8 +19,7 @@ prompt * prompt::create() {
 prompt::~prompt() {}
 
 string prompt::ask(drawable * b, string t, string d) {
-  prompt * pp = prompt::create();
-  Extentd<prompt> ep(pp);
+  std::unique_ptr<prompt> pp{prompt::create()};
   pp->title = t;
   pp->below = b;
   pp->input = d;
@@ -29,7 +28,6 @@ string prompt::ask(drawable * b, string t, string d) {
 }
 
 string prompt::select() {
-
   textinput inp;
   inp.question = title;
   inp.input = input;

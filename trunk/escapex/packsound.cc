@@ -6,7 +6,6 @@
 #include "font.h"
 #include "extent.h"
 #include "draw.h"
-#include "pngsave.h"
 
 #include <iostream>
 #include <fstream>

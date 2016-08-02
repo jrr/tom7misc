@@ -6,10 +6,10 @@
 #include "font.h"
 #include "extent.h"
 #include "draw.h"
-#include "pngsave.h"
 
 #include <iostream>
 #include <fstream>
+#include <memory>
 
 /* XXX necessary? */
 SDL_Surface * screen;
@@ -21,15 +21,14 @@ string self;
    with substantially worse performance */
 #define GROWRATE 4
 
-struct usedmap {
-  
+struct UsedMap {
   /* PERF could use less memory with a bit mask,
      but this program is run off-line, so that
      seems pretty pointless */
   char * arr;
   int w, h;
 
-  usedmap (int ww, int hh) : w(ww), h(hh) {
+  UsedMap(int ww, int hh) : w(ww), h(hh) {
     arr = (char*)malloc(ww * hh * sizeof(char));
     memset(arr, 0, ww * hh * sizeof (char));
   }
@@ -42,13 +41,13 @@ struct usedmap {
     memset(na, 0, ww * hh * sizeof (char));
 
     /* copy old used */
-    for (int xx = 0; xx < w; xx++)
+    for (int xx = 0; xx < w; xx++) {
       for (int yy = 0; yy < h; yy++) {
-	
-	if (used(xx, yy) && xx < ww && yy < hh) 
+	if (used(xx, yy) && xx < ww && yy < hh) {
 	  na[yy * ww + xx] = 1;
-
+	}
       }
+    }
 
     free(arr);
     arr = na;
@@ -79,24 +78,22 @@ struct usedmap {
       }
   }
 
-  void destroy() {
-    free (arr);
-    delete this;
+  ~UsedMap() {
+    free(arr);
   }
 };
 
-static void fit_image(SDL_Surface *& packed, usedmap * um, 
+static void fit_image(SDL_Surface *& packed, UsedMap * um, 
 		      int w, int h,
 		      int & x, int & y) {
-
-  while (1) {
+  for (;;) {
     for (int yy = 0; yy <= um->h - h; yy++)
       for (int xx = 0; xx <= um->w - w; xx++) {
 	if (!um->usedrange(xx, yy, w, h)) {
 	  um->userange(xx, yy, w, h);
 	  x = xx;
 	  y = yy;
-	  return ;
+	  return;
 	}
       }
 
@@ -184,8 +181,7 @@ int main (int argc, char ** argv) {
 
   SDL_Surface * packed = sdlutil::makesurface(1, 1);
   sdlutil::clearsurface(packed, BACKCOLOR);
-  usedmap * um = new usedmap(1, 1);
-  Extent<usedmap> em(um);
+  std::unique_ptr<UsedMap> um(new UsedMap{1, 1});
 
   if (!packed) {
     printf("Can't make initial surface\n");
@@ -290,8 +286,9 @@ int main (int argc, char ** argv) {
   printf("Saving...\n");
   fflush(stdout);
 
-  if (!pngsave::save(basename + ".png", packed, true)) {
-    printf("Couldn't write output PNG.\n");
+  const string pngfile = basename + ".png";
+  if (!sdlutil::SavePNG(pngfile, packed)) {
+    printf("Couldn't write output PNG to %s.\n", pngfile.c_str());
     return -1;
   }
 

@@ -458,19 +458,17 @@ string util::losewhitel(const string & s) {
 string util::tempfile(string suffix) {
   static int tries = 0;
 
-  char * fname = new char[suffix.length() + 128];
-  Extentda<char> ef(fname);
-
+  string fname;
   do {
-    sprintf(fname, 
-	    "%d_%d_%d%s", 
-	    tries, getpid(), random(),
-	    suffix.c_str());
+    char c[128];
+    sprintf(c,
+	    "%d_%d_%d",
+	    tries, getpid(), random());
     tries++;
+    fname = (string)c + suffix;
   } while (existsfile(fname));
 
   return fname;
-
 }
 
 /* break up the strings into tokens. A token is either

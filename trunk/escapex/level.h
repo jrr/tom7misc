@@ -180,7 +180,6 @@ enum bot {
 
   /* exploded bomb; becomes deleted next turn */
   B_BOMB_X = -3,
-
 };
 
 /* optional, since the Escape server wants to be able to
@@ -327,7 +326,6 @@ struct disamb {
 
 
 struct level {
-  
   string title;
   string author;
 
@@ -539,7 +537,6 @@ struct level {
   /* only 'length' moves of the solution, starting from move 'start' */
   bool play_subsol(const solution *, int & moves, int start, int length);
 
-  static int * rledecode(string s, unsigned int & idx, int n);
   static string rleencode(int n, int * a);
 
   void resize(int neww, int newh);
