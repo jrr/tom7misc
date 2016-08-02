@@ -5,23 +5,310 @@
 
 /* This code is non-SDL, so it should be portable! */
 
+namespace {
+// Consider moving this to its own file? Level is pretty
+// massive.
+struct RLE {
+  /* RLE compression of integer arrays.
+
+     The first byte says how many bits are used to represent
+     integers.
+
+     We can use any number of bits (0..32), with the following
+     encoding:
+
+     high bit 1: byte & 0b00111111 gives the bit count, which
+		 must be <= 32.
+
+     high bit 0: then bit count is byte * 8.
+       (this is for backwards compatibility with
+	the old byte-based scheme)
+
+     If the bit count is zero, then only the integer zero can
+     be represented, and it is represented by the empty bit
+     string.
+
+     If the first and second highest bits are set, then the first byte
+     is followed by 5 bits, which is the value called 'framebits'.
+     (Otherwise, framebits is assumed to be 8.) This value gives the
+     bit length of frame headers. It must be at least 1.
+
+     Then, we have repeating frames to generate the expected
+     number of ints.
+
+     A frame is:
+
+	framebits bits representing a run count 1-255, followed by an
+	integer (written with some number of bits, depending on the
+	count above) which means 'count' copies of the integer. The
+	idea is that we can compress runs of equal values.
+
+	or
+
+	framebits of 0, followed by framebits bits giving an anti-run
+	count 1-255, then 'count' integers each encoded as above. The
+	idea here is to avoid counts of '1' when the values are
+	continually different.
+
+  */
+
+  /* idx a starting position (measured in bytes) in 'string' for the
+     rle-encoded data, which is modified to point to the next byte after
+     the data if the call is successful. n is the number of integers we
+     sould expect out.
+
+     Returns a malloc-allocated array, which becomes owned by the caller.
+  */
+  static int *Decode(const string &s, unsigned int &idx_bytes, int n) {
+    int *out = (int*)malloc(n * sizeof (int));
+    int idx = idx_bytes * 8;
+
+    if (!out) return nullptr;
+    Extentf<int> eo(out);
+
+    /* number of bytes used to represent one integer. */
+    unsigned int bytecount;
+    if (!bitbuffer::nbits(s, 8, idx, bytecount)) return nullptr;
+    int bits;
+
+    unsigned int framebits = 8;
+    if (bytecount & 128) {
+      if (bytecount & 64) {
+	if (!bitbuffer::nbits(s, 5, idx, framebits)) return nullptr;
+	// Framebits of leads to only invalid frames (anti-runs of
+	// length 0), and so is illegal.
+	if (!(framebits > 0 && framebits <= 32)) return nullptr;
+      }
+      bits = bytecount & 63;
+    } else {
+      if (bytecount > 4) {
+	printf ("Bad file bytecount %d\n", bytecount);
+	return nullptr;
+      }
+      bits = bytecount * 8;
+    }
+
+    /* printf("bit count: %d\n", bits); */
+
+    unsigned int run;
+
+    /* out index */
+    int oi = 0;
+
+    while (oi < n) {
+      if (!bitbuffer::nbits(s, framebits, idx, run)) return nullptr;
+
+      /* printf("[%d] run: %d\n", idx, run); */
+      if (run == 0) {
+	/* anti-run */
+	if (!bitbuffer::nbits(s, framebits, idx, run)) return nullptr;
+
+	/* printf("  .. [%d] anti %d\n", idx, run); */
+	if (run == 0) return nullptr; /* illegal */
+	for (unsigned int m = 0; m < run; m++) {
+	  unsigned int ch;
+	  if (!bitbuffer::nbits(s, bits, idx, ch)) return nullptr;
+	  if (oi >= n) return nullptr;
+	  out[oi++] = ch;
+	}
+      } else {
+	unsigned int ch;
+	if (!bitbuffer::nbits(s, bits, idx, ch)) return nullptr;
+
+	for (unsigned int m = 0; m < run; m++) {
+	  if (oi >= n) return nullptr;
+	  out[oi++] = ch;
+	}
+      }
+    }
+    eo.release();
+    idx_bytes = bitbuffer::ceil(idx);
+    return out;
+  }
+
+  /* encode n ints in 'a', and return it as a string.
+     This uses a greedy strategy that is probably not
+     optimal.
+
+     XXX this can be more efficient by using a reduced
+     number of bits to write frame headers. There is
+     already support for this in Decode
+  */
+  static string Encode(int n, int a[]) {
+    int max = 0;
+    for (int j = 0; j < n; j++) {
+      if (a[j] > max) max = a[j];
+    }
+
+    /* how many bytes to write a single item?
+       (see the discussion at RLE::Encode)
+
+       We avoid using "real" compression schemes
+       (such as Huffman encoding) because the
+       overhead of dictionaries can often dwarf
+       the size of what we're encoding (ie,
+       200 move solutions).
+
+    */
+
+    int bits = 0;
+
+    {
+      unsigned int shift = max;
+      for (int i = 0; i <= 32; i++) {
+	if (shift & 1) bits = i + 1;
+	shift >>= 1;
+      }
+    }
+
+    /* printf("bits needed: %d\n", bits); */
+
+    bitbuffer ou;
+
+    /* new format has high bit set (see RLE::Decode) */
+    ou.writebits(8, bits | 128);
+
+    enum {
+      /* back == front */
+      NOTHING,
+      /* back points to beginning of run */
+      RUN,
+      /* back points to beginning of antirun */
+      ANTIRUN,
+      /* back points to char, front to next... */
+      CHAR,
+      /* done, exit on next loop */
+      EXIT,
+    };
+
+    int mode = NOTHING;
+    int back = 0, front = 0;
+
+    while (mode != EXIT) {
+
+      switch (mode) {
+      case NOTHING:
+	assert(back == front);
+
+	if (front >= n) mode = EXIT; /* done, no backlog */
+	else {
+	  mode = CHAR;
+	  front++;
+	}
+	break;
+      case CHAR:
+	assert(back == (front - 1));
+
+	if (front >= n) {
+	  /* write a single character */
+	  ou.writebits(8, 1);
+	  ou.writebits(bits, a[back]);
+	  mode = EXIT;
+	} else {
+	  if (a[front] == a[back]) {
+	    /* start run */
+	    mode = RUN;
+	    front++;
+	  } else {
+	    /* start antirun */
+	    mode = ANTIRUN;
+	    front++;
+	  }
+	}
+	break;
+      case RUN:
+
+	assert((front - back) >= 2);
+	/* from back to front should be same char */
+
+	if (front >= n || a[front] != a[back]) {
+	  /* write run. */
+	  while ((front - back) > 0) {
+	    int x = front - back;
+	    if (x > 255) x = 255;
+
+	    ou.writebits(8, x);
+	    ou.writebits(bits, a[back]);
+
+	    back += x;
+	  }
+	  if (front >= n) mode = EXIT;
+	  else mode = NOTHING;
+	} else front++;
+
+	break;
+      case ANTIRUN:
+	assert((front - back) >= 2);
+
+	if (front >= n ||
+	    ((front - back) >= 3 &&
+	     (a[front] ==
+	      a[front - 1]) &&
+	     (a[front] ==
+	      a[front - 2]))) {
+
+	  if (front >= n) {
+	    /* will write tail anti-run below */
+	    mode = EXIT;
+	  } else {
+	    /* must be here because we saw a run of 3.
+	       we don't want to include this
+	       run in the anti-run */
+	    front -= 2;
+	    /* after writing anti-run, we will
+	       be with back = front and in
+	       NOTHING state, but we will
+	       detect a run. */
+	    mode = NOTHING;
+	  }
+
+	  /* write anti-run, unless
+	     there's just one character */
+	  while ((front - back) > 0) {
+	    int x = front - back;
+	    if (x > 255) x = 255;
+
+	    if (x == 1) {
+	      ou.writebits(8, 1);
+	      ou.writebits(bits, a[back]);
+
+	      back++;
+	    } else {
+	      ou.writebits(8, 0);
+	      ou.writebits(8, x);
+
+	      while (x--) {
+		ou.writebits(bits, a[back]);
+		back++;
+	      }
+	    }
+	  }
+	  break;
+	} else front++;
+      }
+    }
+
+    return ou.getstring();
+  }
+};
+}
+
 string solution::tostring() const {
-  return sizes(length) + level::rleencode(length, (int*)dirs);
+  return sizes(length) + RLE::Encode(length, (int*)dirs);
 }
 
 solution * solution::fromstring(string s) {
-
   unsigned int idx = 0;
-  if (s.length() < 4) return 0;
+  if (s.length() < 4) return nullptr;
   int len = shout(4, s, idx);
 
-  dir * dd = level::rledecode(s, idx, len);
+  dir * dd = RLE::Decode(s, idx, len);
 
-  if (!dd) return 0;
+  if (!dd) return nullptr;
 
   solution * sol = new solution();
 
-  sol->allocated = 
+  sol->allocated =
     sol->length = len;
 
   sol->dirs = dd;
@@ -31,20 +318,25 @@ solution * solution::fromstring(string s) {
 }
 
 bool level::allowbeam(int tt) {
-  return (tt == T_FLOOR ||
-	  tt == T_ELECTRIC ||
-	  tt == T_ROUGH ||
-	  tt == T_RDOWN ||
-	  tt == T_GDOWN ||
-	  tt == T_BDOWN ||
-	  tt == T_TRAP2 ||
-	  tt == T_TRAP1 ||
-	  tt == T_PANEL ||
-	  tt == T_BPANEL ||
-	  tt == T_GPANEL ||
-	  tt == T_RPANEL ||
-	  tt == T_BLACK ||
-	  tt == T_HOLE);
+  switch (tt) {
+  case T_FLOOR:
+  case T_ELECTRIC:
+  case T_ROUGH:
+  case T_RDOWN:
+  case T_GDOWN:
+  case T_BDOWN:
+  case T_TRAP2:
+  case T_TRAP1:
+  case T_PANEL:
+  case T_BPANEL:
+  case T_GPANEL:
+  case T_RPANEL:
+  case T_BLACK:
+  case T_HOLE:
+    return true;
+  default:
+    return false;
+  }
 }
 
 /* Return true if a laser can 'see' the player.
@@ -53,7 +345,7 @@ bool level::allowbeam(int tt) {
 /* also now checks for cohabitation with bots, which
    is deadly */
 bool level::isdead(int & tilex, int & tiley, dir & d) {
-  
+
   /* are we in the same square as a bot? Then we die. */
   if (botat(guyx, guyy)) {
     tilex = guyx;
@@ -62,7 +354,7 @@ bool level::isdead(int & tilex, int & tiley, dir & d) {
     return true;
   }
 
-  /* is there an exploded bomb adjacent to us, or on us? 
+  /* is there an exploded bomb adjacent to us, or on us?
      then die. */
   for (dir db = FIRST_DIR_SELF; db <= LAST_DIR; db++) {
     int xx, yy;
@@ -86,9 +378,9 @@ bool level::isdead(int & tilex, int & tiley, dir & d) {
     }
   }
 
-  /* no? look for lasers. the easiest way is to look 
+  /* no? look for lasers. the easiest way is to look
      for lasers from the current dude outward. */
-  
+
   for (dir dd = FIRST_DIR; dd <= LAST_DIR; dd++) {
     int lx = guyx, ly = guyy;
 
@@ -116,8 +408,8 @@ void level::swapo(int idx) {
   otiles[idx] = tmp;
 
   /* swap haspanel/opanel and their refinements as well */
-  flags[idx] = 
-    
+  flags[idx] =
+
     /* panel bits */
     ((flags[idx] & TF_HASPANEL) ? TF_OPANEL : TF_NONE) |
     ((flags[idx] & TF_OPANEL) ? TF_HASPANEL : TF_NONE) |
@@ -220,7 +512,7 @@ void disamb::clear() {
   for (int i = 0; i < LEVEL_MAX_ROBOTS; i++) {
     bots[i] = 0;
   }
-  
+
   for (int i = 0; i < (w * h); i++) {
     map[i] = 0;
   }
@@ -263,7 +555,7 @@ void disamb::serialup(level * l, ptrlist<aevent> **& etail) {
 
   if (serial != player) {
     // printf("  %d (stand player @ %d/%d)\n", player, l->guyx, l->guyy);
-    { 
+    {
       DIS_PUSHEVENT(stand, e);
       e->x = l->guyx;
       e->y = l->guyy;
@@ -278,7 +570,7 @@ void disamb::serialup(level * l, ptrlist<aevent> **& etail) {
     if (l->bott[i] != B_DELETED &&
 	l->bott[i] != B_BOMB_X &&
 	bots[i] != serial) {
-      { 
+      {
 	DIS_PUSHEVENT(stand, e);
 	l->where(l->boti[i], e->x, e->y);
 	// printf("  %d stand bot %d (@ %d/%d)\n", bots[i], i, e->x, e->y);
@@ -325,14 +617,14 @@ void disamb::postaffectbot(int i) {
 */
 bool level::sanitize() {
   bool was_sane = true;
-  
+
   int len = w * h;
-  
+
   /* XXX what to do with zero height and width levels? */
-  
+
   {
   for (int i = 0; i < len; i++) {
-    
+
     /* a destination outside the level */
     if (dests[i] < 0 || dests[i] >= len) {
       FSDEBUG printf("insane: dest out of range: %d\n", dests[i]);
@@ -373,7 +665,7 @@ bool level::sanitize() {
     }
 
     if (flags[i] != expected_flags) {
-      FSDEBUG printf("insane: expected flags at %d: %d but got %d\n", 
+      FSDEBUG printf("insane: expected flags at %d: %d but got %d\n",
 		     i, expected_flags, flags[i]);
       was_sane = false;
       flags[i] = expected_flags;
@@ -399,7 +691,7 @@ bool level::sanitize() {
       boti = 0;
       bott = 0;
     }
-    
+
     /* First, make sure that all bots are within reason, not worrying
        about them overlapping. */
     for (int i = 0; i < nbots; i++) {
@@ -408,14 +700,14 @@ bool level::sanitize() {
 
       /* This might put bad bots on top of one another at position 0,
 	 but we delete them later. */
-      if (x >= w || x < 0 || y >= h || y < 0) { 
+      if (x >= w || x < 0 || y >= h || y < 0) {
 	FSDEBUG printf("insane: bot out of level\n");
-	was_sane = false; boti[i] = 0; 
+	was_sane = false; boti[i] = 0;
       }
-      
+
       if (bott[i] >= NUM_ROBOTS || bott[i] < 0) {
 	FSDEBUG printf("insane: too many bots, or bot index bad\n");
-	was_sane = false; bott[i] = B_DALEK; 
+	was_sane = false; bott[i] = B_DALEK;
       }
     }
 
@@ -449,7 +741,7 @@ bool level::sanitize() {
       }
     }
 
-    /* Now, are the bots in noncanonical order? 
+    /* Now, are the bots in noncanonical order?
        If there is a global inconsistency then there must
        be a local one, so do that fast existence check.
      */
@@ -519,7 +811,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
   /* check magic! */
   if (s.substr(0, ((string)LEVELMAGIC).length()) != LEVELMAGIC) return 0;
 
-  
+
   FSDEBUG printf("magic ok...");
 
   unsigned int idx = ((string)LEVELMAGIC).length();
@@ -572,16 +864,16 @@ level * level::fromstring(string s, bool allow_corrupted) {
   l->guyx = gx;
   l->guyy = gy;
   l->guyd = DIR_DOWN;
-  
-  FSDEBUG printf("tiles = rledecode(s, %d, %d)\n", idx, sw * sh);
 
-  l->tiles  = rledecode(s, idx, sw * sh);
+  FSDEBUG printf("tiles = RLE::Decode(s, %d, %d)\n", idx, sw * sh);
+
+  l->tiles  = RLE::Decode(s, idx, sw * sh);
 
   FSDEBUG printf("result %p. now idx is %d\n", l->tiles, idx);
 
-  l->otiles = rledecode(s, idx, sw * sh);
-  l->dests  = rledecode(s, idx, sw * sh);
-  l->flags  = rledecode(s, idx, sw * sh);
+  l->otiles = RLE::Decode(s, idx, sw * sh);
+  l->dests  = RLE::Decode(s, idx, sw * sh);
+  l->flags  = RLE::Decode(s, idx, sw * sh);
 
   if (idx + 4 > s.length()) {
     l->nbots = 0;
@@ -600,8 +892,8 @@ level * level::fromstring(string s, bool allow_corrupted) {
 	 a ridiculous file? */
     }
 
-    l->boti = rledecode(s, idx, l->nbots);
-    l->bott = (bot*)rledecode(s, idx, l->nbots);
+    l->boti = RLE::Decode(s, idx, l->nbots);
+    l->bott = (bot*)RLE::Decode(s, idx, l->nbots);
 
     /* if there are any bots, then we better have
        succeeded in finding some! */
@@ -618,7 +910,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
     l->botd = (dir*)malloc(l->nbots * sizeof(dir));
     /* initialized */
     l->bota = (int*)malloc(l->nbots * sizeof(int));
-    
+
     for (int i = 0; i < l->nbots; i++) {
       l->botd[i] = DIR_DOWN;
       l->bota[i] = -1;
@@ -630,7 +922,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
 
 
   if (l->tiles && l->otiles && l->dests && l->flags) {
-    
+
     /* check level's sanity, one last time */
     l->corrupted = (!l->sanitize()) || l->corrupted;
 
@@ -648,7 +940,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
       l->otiles = (int*)malloc(sw * sh * sizeof (int));
       if (l->otiles) memset(l->otiles, 0, sw * sh * sizeof (int));
     }
-  
+
     if (!l->dests) {
       l->dests = (int*)malloc(sw * sh * sizeof (int));
       if (l->dests) memset(l->dests, 0, sw * sh * sizeof (int));
@@ -675,284 +967,6 @@ level * level::fromstring(string s, bool allow_corrupted) {
   }
 }
 
-
-
-/* RLE compression of integer arrays.
-
-   The first byte says how many bits are used to represent
-   integers. 
-
-   We can use any number of bits (0..32), with the following
-   encoding:
-   
-   high bit 1: byte & 0b00111111 gives the bit count, which
-               must be <= 32.
-
-   high bit 0: then bit count is byte * 8.	       
-     (this is for backwards compatibility with
-      the old byte-based scheme)
-
-   If the bit count is zero, then only the integer zero can
-   be represented, and it is represented by the empty bit
-   string.
-
-   If the first and second highest bits are set, then the next 5 bits
-   give us the number of bits we use to read frame headers (called
-   'framebits' below). Otherwise, this value is assumed to be 8.
-
-   Then, we have repeating frames to generate the expected
-   number of ints.
-
-   A frame is:
-
-      framebits bits representing a run count 1-255, followed by an
-      integer (written with some number of bits, depending on the
-      count above) which means 'count' copies of the integer. The idea
-      is that we can compress runs of equal values.
-
-      or
-
-      framebits of 0, followed by framebits bits giving an anti-run
-      count 1-255, then 'count' integers each encoded as above. The
-      idea here is to avoid counts of '1' when the values are
-      continually different.
-   
-*/
-
-/* idx a starting position (measured in bytes) in 'string' for the
-   rle-encoded data, which is modified to point to the next byte after
-   the data if the call is successful. n is the number of integers we
-   sould expect out. */
-int * level::rledecode(string s, unsigned int & idx_bytes, int n) {
-  int * out = (int*)malloc(n * sizeof (int));
-  int idx = idx_bytes * 8;
-
-  if (!out) return 0;
-  Extentf<int> eo(out);
-
-  /* number of bytes used to represent one integer. */
-  unsigned int bytecount;
-  if (!bitbuffer::nbits(s, 8, idx, bytecount)) return 0;
-  int bits;
-  
-  unsigned int framebits = 8;
-  if (bytecount & 128) {
-    if (bytecount & 64) {
-      if (!bitbuffer::nbits(s, 5, idx, framebits)) return 0;
-    }
-    bits = bytecount & 63;
-  } else {
-    if (bytecount > 4) { 
-      printf ("Bad file bytecount %d\n", bytecount);
-      return 0;
-    }
-    bits = bytecount * 8;
-  }
-
-  /* printf("bit count: %d\n", bits); */
-
-  unsigned int run;
- 
-  /* out index */
-  int oi = 0; 
-
-  while (oi < n) {
-    if (!bitbuffer::nbits(s, framebits, idx, run)) return 0;
-
-    /* printf("[%d] run: %d\n", idx, run); */
-    if (run == 0) {
-      /* anti-run */
-      if (!bitbuffer::nbits(s, framebits, idx, run)) return 0;
-
-      /* printf("  .. [%d] anti %d\n", idx, run); */
-      if (run == 0) return 0; /* illegal */
-      for (unsigned int m = 0; m < run; m++) {
-	unsigned int ch;
-	if (!bitbuffer::nbits(s, bits, idx, ch)) return 0;
-	if (oi >= n) return 0;
-	out[oi++] = ch;
-      }
-    } else {
-      unsigned int ch;
-      if (!bitbuffer::nbits(s, bits, idx, ch)) return 0;
-
-      for (unsigned int m = 0; m < run; m++) {
-	if (oi >= n) return 0;
-	out[oi++] = ch;
-      }
-    }
-  }
-  eo.release();
-  idx_bytes = bitbuffer::ceil(idx);
-  return out;
-}
-
-/* encode n ints in 'a', and return it as a string.
-   This uses a greedy strategy that is probably not
-   optimal.
-
-   XXX this can be more efficient by using a reduced
-   number of bits to write frame headers. There is
-   already support for this in rledecode
-*/
-string level::rleencode(int n, int a[]) {
-  int max = 0;
-  for (int j = 0; j < n; j++) {
-    if (a[j] > max) max = a[j];
-  }
-
-  /* how many bytes to write a single item? 
-     (see the discussion at rleencode)
-
-     We avoid using "real" compression schemes
-     (such as Huffman encoding) because the 
-     overhead of dictionaries can often dwarf
-     the size of what we're encoding (ie,
-     200 move solutions).
-
-  */
-
-  int bits = 0;
-
-  {
-    unsigned int shift = max;
-    for (int i = 0; i <= 32; i++) {
-      if (shift & 1) bits = i + 1;
-      shift >>= 1;
-    }
-  }
-
-  /* printf("bits needed: %d\n", bits); */
-
-  bitbuffer ou;
-  
-  /* new format has high bit set (see rledecode) */
-  ou.writebits(8, bits | 128);
-
-  enum { 
-    /* back == front */
-    NOTHING,
-    /* back points to beginning of run */
-    RUN,
-    /* back points to beginning of antirun */
-    ANTIRUN,
-    /* back points to char, front to next... */
-    CHAR,
-    /* done, exit on next loop */
-    EXIT,
-  };
-
-  int mode = NOTHING;
-  int back = 0, front = 0;
-
-  while (mode != EXIT) {
-    
-    switch (mode) {
-    case NOTHING:
-      assert(back == front);
-
-      if (front >= n) mode = EXIT; /* done, no backlog */
-      else {
-	mode = CHAR;
-	front++;
-      }
-      break;
-    case CHAR:
-      assert(back == (front-1));
-
-      if (front >= n) {
-	/* write a single character */
-	ou.writebits(8, 1);
-	ou.writebits(bits, a[back]);
-	mode = EXIT;
-      } else {
-	if (a[front] == a[back]) {
-	  /* start run */
-	  mode = RUN;
-	  front++;
-	} else {
-	  /* start antirun */
-	  mode = ANTIRUN;
-	  front++;
-	}
-      }
-      break;
-    case RUN:
-      
-      assert((front - back) >= 2);
-      /* from back to front should be same char */
-
-      if (front >= n || a[front] != a[back]) {
-	/* write run. */
-	while ((front - back) > 0) {
-	  int x = front - back;
-	  if (x > 255) x = 255;
-
-	  ou.writebits(8, x);
-	  ou.writebits(bits, a[back]);
-
-	  back += x;
-	}
-	if (front >= n) mode = EXIT;
-	else mode = NOTHING;
-      } else front++;
-
-      break;
-    case ANTIRUN:
-      assert((front - back) >= 2);
-
-      if (front >= n ||
-	  ((front - back) >= 3 &&
-	   (a[front] ==
-	    a[front - 1]) &&
-	   (a[front] == 
-	    a[front - 2]))) {
-
-
-	if (front >= n) {
-	  /* will write tail anti-run below */
-	  mode = EXIT;
-	} else {
-	  /* must be here because we saw a run of 3.
-	     we don't want to include this
-	     run in the anti-run */
-	  front -= 2;
-	  /* after writing anti-run, we will
-	     be with back = front and in 
-	     NOTHING state, but we will
-	     detect a run. */
-	  mode = NOTHING;
-	}
-
-	/* write anti-run, unless
-	   there's just one character */
-	while ((front - back) > 0) {
-	  int x = front - back;
-	  if (x > 255) x = 255;
-	  
-	  if (x == 1) {
-	    ou.writebits(8, 1);
-	    ou.writebits(bits, a[back]);
-
-	    back++;
-	  } else {
-	    ou.writebits(8, 0);
-	    ou.writebits(8, x);
-	    
-	    while (x--) {
-	      ou.writebits(bits, a[back]);
-	      back++;
-	    }
-	  }
-	}
-	break;
-      } else front++;
-    }
-  }
-
-  return ou.getstring();
-}
-
 string level::tostring() {
 
   string ou;
@@ -972,14 +986,14 @@ string level::tostring() {
   ou += sizes(guyx);
   ou += sizes(guyy);
 
-  ou += rleencode(w * h, tiles);
-  ou += rleencode(w * h, otiles);
-  ou += rleencode(w * h, dests);
-  ou += rleencode(w * h, flags);
+  ou += RLE::Encode(w * h, tiles);
+  ou += RLE::Encode(w * h, otiles);
+  ou += RLE::Encode(w * h, dests);
+  ou += RLE::Encode(w * h, flags);
 
   ou += sizes(nbots);
-  ou += rleencode(nbots, boti);
-  ou += rleencode(nbots, (int*)bott);
+  ou += RLE::Encode(nbots, boti);
+  ou += RLE::Encode(nbots, (int*)bott);
   return ou;
 }
 
@@ -1050,8 +1064,8 @@ bool level::isconnected(int pulsex, int pulsey, dir pd) {
 	/* keep going until we hit another transponder. */
 	do {
 	  int ta = tileat(pulsex, pulsey);
-	  if (!allowbeam(ta) || 
-	      botat(pulsex, pulsey) || 
+	  if (!allowbeam(ta) ||
+	      botat(pulsex, pulsey) ||
 	      playerat(pulsex, pulsey)) {
 	    /* hit something. is it a transponder? */
 	    if (ta == T_TRANSPONDER) {
@@ -1075,36 +1089,36 @@ bool level::isconnected(int pulsex, int pulsey, dir pd) {
       if (pd == DIR_UP || pd == DIR_DOWN) continue;
       else return false;
       break;
-      
+
     case T_WE:
       if (pd == DIR_LEFT || pd == DIR_RIGHT) continue;
       else return false;
       break;
-      
+
     case T_NW:
       if (pd == DIR_DOWN) pd = DIR_LEFT;
       else if (pd == DIR_RIGHT) pd = DIR_UP;
       else return false;
       break;
-      
+
     case T_SW:
       if (pd == DIR_UP) pd = DIR_LEFT;
       else if (pd == DIR_RIGHT) pd = DIR_DOWN;
       else return false;
       break;
-      
+
     case T_NE:
       if (pd == DIR_DOWN) pd = DIR_RIGHT;
       else if (pd == DIR_LEFT) pd = DIR_UP;
       else return false;
       break;
-      
+
     case T_SE:
       if (pd == DIR_UP) pd = DIR_RIGHT;
       else if (pd == DIR_LEFT) pd = DIR_DOWN;
       else return false;
       break;
-      
+
     default: return false; /* not a wire */
     }
   }
@@ -1129,7 +1143,7 @@ level * level::fromoldstring(string s) {
   /* otiles always floor */
 
   for (int j = 0; j < 180; j++) {
-    n->dests[j] = 18 * (-1 + (int)s[j + 180 + 180]) + 
+    n->dests[j] = 18 * (-1 + (int)s[j + 180 + 180]) +
       (-1 + (int)s[j + 180]);
   }
 
@@ -1199,7 +1213,7 @@ level * level::clone() const {
   n->bott = (bot*)malloc(bbytes);
   n->botd = (dir*)malloc(nbots * sizeof(dir));
   n->bota = (int*)malloc(bbytes);
-  
+
   memcpy(n->boti, boti, bbytes);
   memcpy(n->bott, bott, bbytes);
   memcpy(n->botd, botd, nbots * sizeof(dir));
@@ -1238,7 +1252,7 @@ level * level::blank(int w, int h) {
     n->dests[i]  = 0; /* 0, 0 */
     n->flags[i]  = 0;
   }
-  
+
   return n;
 }
 
@@ -1272,7 +1286,7 @@ bool level::verify_prefix(const level * lev, const solution * s, solution *& out
   for (solution::iter i = solution::iter(s);
       i.hasnext();
       i.next()) {
-    
+
     dir d = i.item();
 
     if (l->move(d)) {
@@ -1299,17 +1313,17 @@ bool level::verify(const level * lev, const solution * s) {
   bool won = l->play(s, moves);
 
   l->destroy();
-  
+
   return won && moves == s->length;
 }
 
 bool level::play_subsol(const solution * s, int & moves, int start, int len) {
   moves = 0;
   for (int z = 0; z < len; z++) {
-    
+
     dir d = s->dirs[start + z];
 
-    moves++;    
+    moves++;
     if (move(d)) {
       /* potentially fail *after* each move */
       int dummy; dir dumb;

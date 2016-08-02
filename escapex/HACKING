@@ -1,6 +1,14 @@
 
  ** Compiling Escape **
 
+Note 1 Aug 2016: I'm in the process of refreshing the build process
+to use all free tools and modern C++. Some of the instructions below
+are super out-of-date. The good news is that all of the annoying
+libraries needed by sdl_image are now unnecessary, so you may just
+be able to pick your platform and run 'make' now, provided you have
+SDL installed.
+
+
 Note: If you don't want to install the sound libraries, you can
 compile with -DNOSOUND to disable it. There's no sound yet, so
 this might be a good idea.

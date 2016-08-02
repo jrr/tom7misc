@@ -5,19 +5,19 @@
 #include <string>
 
 struct httputil {
-  static string urlencode(string);
+  static std::string urlencode(const std::string &);
 };
 
 enum formtype { FT_ARG, FT_FILE, };
 
 struct formalist {
   formtype ty;
-  string name;
-  string filename;
-  string content;
+  std::string name;
+  std::string filename;
+  std::string content;
   formalist * next;
 
-  static void pusharg(formalist *& l, string name, string arg) {
+  static void pusharg(formalist *& l, std::string name, std::string arg) {
     formalist * x = new formalist;
     x->next = l;
     x->ty = FT_ARG;
@@ -27,8 +27,8 @@ struct formalist {
     l = x;
   }
 
-  static void pushfile(formalist *& l, string name, 
-		       string filename, string contents) {
+  static void pushfile(formalist *& l, std::string name, 
+		       std::string filename, std::string contents) {
     formalist * x = new formalist;
     x->next = l;
     x->ty = FT_FILE;

@@ -6,12 +6,11 @@
 #include "font.h"
 #include "extent.h"
 #include "draw.h"
-#include "pngsave.h"
 #include "animation.h"
 
 string self;
 
-int main (int argc, char ** argv) {
+int main(int argc, char **argv) {
 
   /* change to location of binary, so that we can find the
      images needed. */
@@ -45,18 +44,18 @@ int main (int argc, char ** argv) {
   }
 
   /* we don't really need any SDL modules */
-  if (SDL_Init (SDL_INIT_NOPARACHUTE) < 0) {
-
+  if (SDL_Init(SDL_INIT_NOPARACHUTE) < 0) {
     fprintf(stderr, "Unable to initialize SDL. (%s)\n", SDL_GetError());
-
     return 1;
   }
-  
-  int x = 0;
-  if (!(drawing::loadimages() && 
-	(x = 1) &&
-	animation::ainit_fast())) {
-    fprintf(stderr, "%d Failed to load graphics.\n", x);
+
+  if (!drawing::loadimages()) {
+    fprintf(stderr, "drawing::loadimages failed\n");
+    SDL_Quit();
+    return 1;
+  }
+  if (!animation::ainit_fast()) {
+    fprintf(stderr, "animation::ainit_fast failed\n");
     SDL_Quit();
     return 1;
   }
@@ -89,7 +88,7 @@ int main (int argc, char ** argv) {
   d.height = (d.lev->h * (TILEH >> zf)) + (2 * d.margin);
   d.zoomfactor = zf;
 
-  SDL_Surface * shot = sdlutil::makesurface(d.width, d.height);
+  SDL_Surface *shot = sdlutil::makesurface(d.width, d.height);
 
   if (!shot) {
     fprintf(stderr, "Can't make surface\n");
@@ -99,8 +98,11 @@ int main (int argc, char ** argv) {
 
   d.drawlev(0, shot);
 
-  pngsave::save(outpng, shot);
-
+  if (!sdlutil::SavePNG(outpng, shot)) {
+    fprintf(stderr, "Unable to save to %s..\n", outpng.c_str());
+    SDL_Quit();
+    return -5;
+  }
 
   /* clean up and exit */
 

@@ -6,7 +6,7 @@ Make this work again on OSX 10.10+!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
  - dos2unix on all source files again: leveldb-query.h
- - replace pngsave with stb_image_write and eliminate libpng
+ - Oops, revert Escape.icns to be escape block, not t7eshero star
 
 Use specific-width integer types instead of 'unsigned'.
 
@@ -20,6 +20,8 @@ get rid of extent; use unique_ptr
 
 When using the virtual implementation idiom, the "real" class
 can be defined in an anonymous namespace.
+
+ - delete trailing whitespace
 
 c++11isms
  - nullptr instead of 0

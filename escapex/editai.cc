@@ -444,15 +444,15 @@ void editor::dorandom() {
       pat_test->settile('B', T_BLUE);
       pat_test->setpredicate('.', pred_any);
 
-      match::stream * ms_test = 
+      Match::stream * ms_test = 
 	pat_test->findall(dr.lev, 0);
       
-      match * m;
+      Match *m;
       while ((m = ms_test->next())) {
 	int x, y;
 	m->getindex (0, x, y);
 	dr.lev->settile(x, y, T_FLOOR);
-	m->destroy();
+	delete m;
       }
     }
 
@@ -557,15 +557,14 @@ bool editor::retract_gold() {
     bgold->setpredicate('G', pred_gold_or_sphere);
     bgold->setpredicate('S', pred_stops_gold);
     
-    onionfind * reach = analysis::reachable(lev);
-    Extentd<onionfind> ed(reach);
+    std::unique_ptr<onionfind> reach{Analysis::reachable(lev)};
   
-    std::unique_ptr<match::stream> matches{
+    std::unique_ptr<Match::stream> matches{
       bgold->findall(dr.lev, 0)};
 
-    // XXX upgradint extent; this can be done a better way
-    while (match *mtmp = matches->next()) {
-      std::unique_ptr<match> m{mtmp};
+    // XXX upgrading extent; this can be done a better way
+    while (Match *mtmp = matches->next()) {
+      std::unique_ptr<Match> m{mtmp};
 
       int x, y;
       m->getindex(1, x, y);
@@ -733,11 +732,12 @@ bool editor::retract_hole() {
   if (findsep) {
     findsep->settile(' ', T_FLOOR);
 
-    match::stream * matches = 
+    Match::stream * matches = 
       findsep->findall(dr.lev, 0);
 
-    match * m;
-    while ((m = matches->next())) {
+    Match *mtmp;
+    while ((mtmp = matches->next())) {
+      std::unique_ptr<Match> m{mtmp};
 
       int x, y;
       m->getindex(2, x, y);
@@ -751,10 +751,10 @@ bool editor::retract_hole() {
 	dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
       */
 
-      if (analysis::doessep(dr.lev, x, y,
+      if (Analysis::doessep(dr.lev, x, y,
 			    dr.lev->guyx, 
 			    dr.lev->guyy, x0, y0, T_HOLE) &&
-	  analysis::doessep(dr.lev, x, y,
+	  Analysis::doessep(dr.lev, x, y,
 			    dr.lev->guyx,
 			    dr.lev->guyy, x1, y1, T_HOLE)) {
 
@@ -774,8 +774,6 @@ bool editor::retract_hole() {
 	/* FIXME cleanup */
 	return true;
       }
-
-      m->destroy();
     }
   }
   return false;
@@ -814,8 +812,7 @@ void editor::retract1() {
   (representing direct reachability via walking
   without dying) */
 
-  onionfind * rr = analysis::reachable(dr.lev);
-  Extentd<onionfind> re(rr);
+  std::unique_ptr<onionfind> rr{Analysis::reachable(dr.lev)};
 
 # if 0
   {
@@ -841,7 +838,7 @@ void editor::retract1() {
     dr.lev->where(g.item(), xx, yy);
 
     int ox, oy;
-    if (analysis::issep(dr.lev, xx, yy,
+    if (Analysis::issep(dr.lev, xx, yy,
 			dr.lev->guyx, 
 			dr.lev->guyy, ox, oy)) {
 
@@ -867,10 +864,10 @@ void editor::retract1() {
     pat_test->settile('B', T_BLUE);
     pat_test->setpredicate('.', pred_any);
 
-    match::stream * ms_test = 
+    Match::stream *ms_test = 
       pat_test->findall(dr.lev, 0);
 
-    match * m;
+    Match *m;
     while ((m = ms_test->next())) {
       int x, y;
       dr.lev->where(m->top_left(), x, y);

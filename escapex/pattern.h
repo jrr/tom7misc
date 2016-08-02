@@ -4,6 +4,11 @@
 
 #include "level.h"
 
+#include <memory>
+#include <utility>
+#include <vector>
+
+
 /* The pattern matcher is to escape levels what
    emacs's regular expression matcher is to text.
 
@@ -13,8 +18,7 @@
    in editai.
 */
 
-struct match {
-
+struct Match {
   /* index that matched the (relative) top left */
   int top_left() { return topleft; }
 
@@ -41,34 +45,29 @@ struct match {
 
   struct stream {
     /* returns 0 when the stream is empty */
-    virtual match * next() = 0;
+    virtual Match *next() = 0;
     virtual ~stream() {}
   };
 
-
-  void destroy() {
-    delete [] regs;
+  ~Match() {
     lev->destroy();
-    delete this;
   }
 
   /* takes ownership of register array, but not level */
-  match(int idx, int udir, int rdir, int nr, int * rgs, level * l) :
-    topleft(idx), up_dir(udir), right_dir(rdir), nregs(nr), regs(rgs) {
+  Match(int idx, int udir, int rdir, int nr, vector<int> regs, level * l) :
+    topleft(idx), up_dir(udir), right_dir(rdir), nregs(nr), 
+    regs(std::move(regs)) {
     
     lev = l->clone();
-    
   }
 
-  private:
-  
-  int topleft;
-  int up_dir;
-  int right_dir;
-  int nregs;
-  int * regs;
+ private:
+  const int topleft;
+  const int up_dir;
+  const int right_dir;
+  const int nregs;
+  const vector<int> regs;
   level * lev;
-
 };
 
 /* unfortunately we have to put the implementation
@@ -162,9 +161,9 @@ struct pattern {
   }
 
   /* find any arbitrary match */
-  match * find(level * l, Info * inf) {
-    match::stream * i = findall(l, inf);
-    match * m = 0;
+  Match *find(level *l, Info *inf) {
+    Match::stream *i = findall(l, inf);
+    Match *m = nullptr;
     if (i) {
       m = i->next();
     }
@@ -173,7 +172,7 @@ struct pattern {
   }
 
 
-  struct mystream : public match::stream {
+  struct mystream : public Match::stream {
     mystream(level * l, Info * i, pattern<Info> * p) 
       /* to get a deterministic sequential generator here
 	 add ",0" in the initializer of g */
@@ -185,7 +184,7 @@ struct pattern {
 
     /* PERF: this should detect symmetric patterns and only look
        for them in the directions in which they are different! */
-    virtual match * next() {
+    virtual Match *next() {
       /* if there are more dirs in the current
          position, then */
       for (;;)
@@ -265,9 +264,9 @@ struct pattern {
 	     
              create our register file */
 	  
-          int * r = new int[pat->nregs];
+	  vector<int> r;
+	  r.resize(pat->nregs);
           for (int z = 0; z < pat->nregs; z++) r[z] = 0;
-          Extentda<int> re(r);
 	
           for (int vi = 0; vi < (pat->w * pat->h); vi++) {
             int vx = vi % pat->w;
@@ -292,13 +291,13 @@ struct pattern {
             /* set reg, if any */
             if (pat->regs[vi] >= 0) r[pat->regs[vi]] = lev->index(rx, ry);
           }	      
+
           /* successful match */
-          re.release();
 
           {
             /* XXX this should be derived from rdxx, etc.
 	       (so that we can support flips) */
-            int rd = turnright(sd);
+            const int rd = turnright(sd);
 
 	    /*
 	      printf("regs are:\n");
@@ -308,8 +307,8 @@ struct pattern {
 	      printf("\n");
 	    */
 
-            return new match(lev->index(x, y), sd, rd,
-                             pat->nregs, r, lev);
+            return new Match(lev->index(x, y), sd, rd,
+                             pat->nregs, std::move(r), lev);
           }
           /* unsuccessful */
         no_match:;
@@ -342,7 +341,7 @@ struct pattern {
 
   /* find all matches. the stream is only valid
      while this pattern is still around */
-  match::stream * findall(level * lev, Info * inf) {
+  Match::stream *findall(level * lev, Info * inf) {
     return new mystream(lev, inf, this);
   }
 

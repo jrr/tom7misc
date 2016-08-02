@@ -1,4 +1,3 @@
-
 #ifndef __ANALYSIS_H
 #define __ANALYSIS_H
 
@@ -8,7 +7,7 @@
 /* analysis of levels. used for editai,
    maybe for solution analysis, etc */
 
-struct analysis {
+struct Analysis {
   /* get the set of equivalence classes */
   static onionfind * reachable (level *);
 
