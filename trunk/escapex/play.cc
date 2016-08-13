@@ -789,7 +789,7 @@ void preal::bookmarks(level * start,
 	  int oldlen = sol->length;
 	  sol->length = solpos;
 	  namedsolution ns(sol, 
-			   (defname.input=="")?"Bookmark":defname.input,
+			   (defname.input == "") ? "Bookmark" : defname.input,
 			   /* no author */
 			   "",
 			   time(0),
@@ -1136,9 +1136,15 @@ playresult preal::doplay_save(player * plr, level * start,
 	  /* debugging "cheats" */
 	case SDLK_LEFTBRACKET:
 	case SDLK_RIGHTBRACKET:
-	  dr.zoomfactor += (event.key.keysym.unicode == SDLK_LEFTBRACKET)? +1 : -1;
+	  dr.zoomfactor += (event.key.keysym.unicode == SDLK_LEFTBRACKET) ? +1 : -1;
 	  if (dr.zoomfactor < 0) dr.zoomfactor = 0;
 	  if (dr.zoomfactor >= DRAW_NSIZES) dr.zoomfactor = DRAW_NSIZES - 1;
+
+	  /* reset animations, since this is a standard trick to disable
+	     animation temporarily */
+	  if (dr.zoomfactor == 0)
+	    pref_animate =
+	      prefs::getbool(plr, PREF_ANIMATION_ENABLED);
 
 	  /* fix scrolls */
 	  dr.makescrollreasonable();
@@ -1159,36 +1165,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	case SDLK_s:
 	  checkpoint(saved_sol, ess);
 	  break;
-	case SDLK_i: {
-	  /* import moves for solution
-	     to different puzzle */
-	  watching = false;
-	  string answer = prompt::ask(this,
-				      PICS QICON POP 
-				      " What solution? (give md5 of level)");
 
-	  if (answer != "") {
-	    string md;
-	    if (MD5::UnAscii(answer, md)) {
-	      solution * that;
-	      if ( (that = plr->getsol(md)) ) {
-
-		/* We now just append this solution but
-		   don't "redo" it. The player can do
-		   that himself with the VCR. */
-		sol->length = solpos;
-		sol->appends(that);
-
-		redraw();
-
-	      } else message::no(this, "Sorry, not solved!");
-	    } else message::no(this, "Bad MD5");
-	  }
-
-	  redraw();
-
-	  break;
-	}
 	case SDLK_r:
 	  restore(ec, start, saved_sol, eso);
 	  break;
@@ -1227,6 +1204,13 @@ playresult preal::doplay_save(player * plr, level * start,
       
 	switch (event.key.keysym.sym) {
 
+	case SDLK_a:
+	  // Temporarily toggle animation preference.
+	  if (event.key.keysym.mod & KMOD_CTRL) {
+	    pref_animate = !pref_animate;
+	  }
+	  break;
+
 	case SDLK_d:
 	  if (event.key.keysym.mod & KMOD_CTRL) {
 	    showdests = true;
@@ -1248,6 +1232,39 @@ playresult preal::doplay_save(player * plr, level * start,
 	    redraw();
 	  }
 	  break;
+
+	case SDLK_i: {
+	  if (event.key.keysym.mod & KMOD_CTRL) {
+	    /* import moves for solution to different puzzle */
+	    /* XXX: It's extremely annoying to type in a whole
+	       MD5 string here. Better would be to use loader, or
+	       at least require only a unique prefix of the md5. */
+	    watching = false;
+	    string answer = prompt::ask(this,
+					PICS QICON POP 
+					" What solution? (give md5 of level)");
+	    
+	    if (answer != "") {
+	      string md;
+	      if (MD5::UnAscii(answer, md)) {
+		if (solution * that = plr->getsol(md)) {
+
+		  /* We now just append this solution but
+		     don't "redo" it. The player can do
+		     that himself with the VCR. */
+		  sol->length = solpos;
+		  sol->appends(that);
+
+		  redraw();
+
+		} else message::no(this, "Sorry, not solved!");
+	      } else message::no(this, "Bad MD5");
+	    }
+
+	    redraw();
+	  }
+	  break;
+	}
 
 	/* ctrl-0 in play mode tries to recreate the solution,
 	   starting from the current position, and using suffixes
