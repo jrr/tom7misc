@@ -31,8 +31,10 @@ struct sdlutil {
   // Load supported files using stb_image.
   static SDL_Surface *LoadImage(const std::string &filename);
   // Save using stb_image_write. Might only work for 32-bit RGBA.
+  // Note that the output image is only lightly compressed; pngcrush
+  // or a similar tool can usually improve it quite a bit.
   static bool SavePNG(const std::string &filename, SDL_Surface *surf);
-  
+
   static SDL_Surface *duplicate(SDL_Surface *surf);
 
   // Unchecked--don't draw outside the surface!
