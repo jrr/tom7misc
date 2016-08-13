@@ -1083,7 +1083,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 	  {
 	    namedsolution ns(out, "Recovered", plr->name, 
 			     time(0), false);
-	    plr->addsolution(md5, &ns);
+	    plr->addsolution(md5, &ns, false);
 	  }
 	  nsolved++;
 	  out->destroy();
