@@ -313,6 +313,10 @@ void playerreal::addsolution(string md5, namedsolution * ns, bool def_candidate)
 
     namedsolution * headsol = he->solset->head;
 
+    // Reasons we might add the solution.
+    bool is_bookmark = sol->bookmark;
+    
+
     /* always add, even if it's worse */
     if (def_candidate) {
 
