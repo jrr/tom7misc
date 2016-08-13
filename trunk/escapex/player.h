@@ -23,8 +23,8 @@ struct namedsolution {
   int date;
   bool bookmark;
   namedsolution(solution * s, string na = "Untitled", 
-		string au = "Unknown", int da = 0, 
-		bool bm = false);
+                string au = "Unknown", int da = 0, 
+                bool bm = false);
   string tostring();
   static namedsolution * fromstring(string);
   void destroy();
@@ -90,11 +90,11 @@ struct player {
   virtual void setsolutionset(string md5, ptrlist<namedsolution> *) = 0;
 
   /* simply add a new solution to the set. copies ns, so it remains
-     owned by the caller. If def_candidate is true, this might be
-     made the default solution if it is not a bookmark, and it is
-     better than the current default. */
+     owned by the caller. If def_candidate is true, this might be made
+     the default solution if it is not a bookmark, and it is better
+     than the current default. */
   virtual void addsolution(string md5, namedsolution * ns, 
-			   bool def_candidate = false) = 0;
+                           bool def_candidate = false) = 0;
 
   /* is this solution already in the solution set? */
   virtual bool hassolution(string md5, solution * what) = 0;
