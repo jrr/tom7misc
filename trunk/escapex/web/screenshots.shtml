@@ -6,10 +6,6 @@
 <meta name=description content="Screenshots of Escape (a puzzle game for Windows / Mac OS X / Linux).">
 <link rel=stylesheet type="text/css" href="escape.css" title="escape" />
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-<!-- try to fix pngs on ie -->
-<!--[if gte IE 5.5000]>
-<script type="text/javascript" src="pngfix.js"></script>
-<![endif]-->
 </head><body background="images/barsbg.png" leftmargin=0 topmargin=0 marginwidth=0 marginheight=0>
 
 <table width="704" style="margin-left : auto; margin-right : auto" cellspacing=0 border=0 cellpadding=0><tr>
@@ -83,20 +79,10 @@ browser's <b>back</b> button to return to this page.</p>
     <br><a href="images/outof.png"><b>Level: Out of&#133; and into&#133;</b></a>
     </center></td>
   <td><center>
-    <a href="images/splitsville.gif"><img src="images/splitsville-thumb.gif" border=0 width=200 height=119></a>
-    <br><a href="images/splitsville.gif"><b>Level: Splitsville</b></a>
+    <a href="images/splitsville.png"><img src="images/splitsville-thumb.png" border=0 width=200 height=119></a>
+    <br><a href="images/splitsville.png"><b>Level: Splitsville</b></a>
     </center></td>
 </tr>
-
-<!--
-  old screenshots...
-
-  <td><center>
-    <a href="images/goal.png"><img src="images/goal-thumb.gif" border=0 width=200 height=114></a>
-    <br><a href="images/goal.png"><b>Level: Game-Winning Goal</b></a>
-    </center></td>
-
--->
 
 </table>
 
@@ -106,8 +92,8 @@ The top is the main menu, the middle is a screenshot of playing the
 game, and the bottom is the level editor.</p>
 
 <center>
-<a href="images/dos-screenshots.gif"><img src="images/dos-screenshots-thumb.gif" border=0 /></a>
-<br/><a href="images/dos-screenshots.gif"><b>DOS title, gameplay, editor</b></a>
+<a href="images/dos-screenshots.png"><img src="images/dos-screenshots-thumb.png" border=0 /></a>
+<br/><a href="images/dos-screenshots.png"><b>DOS title, gameplay, editor</b></a>
 </center>
 
 <p>The following screenshots are from the <b><a
