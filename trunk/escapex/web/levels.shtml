@@ -24,7 +24,7 @@
 <!-- main content -->
 <td style="background : #FFFFFF;" bgcolor="#FFFFFF">
 <table cellpadding=4><tr><td>
-<center><img src="images/levelstitle.gif" width=494 height=87></center>
+<center><img src="images/levelstitle.png" width=494 height=87></center>
 
 <p><b><a href="index.shtml">Escape</a></b> has a built-in level editor and allows you to
 easily share your creations with other players through this server. This page allows
@@ -38,14 +38,12 @@ href="/f/a/escape/comments?spoilers=1">including spoilers</a></b>)</p>
 <p>The list of new levels is also available as an RSS feed
 (<a href="/f/a/escape/recentrss">every
 level</a> <a href="/f/a/escape/recentrss"><img align=bottom
-src="images/rss_button.gif" border=0 alt="rss all" width=31
+src="images/rss_button.png" border=0 alt="rss all" width=31
 height=12></a> or <a href="/f/a/escape/summaryrss">weekly
 summary</a> <a href="/f/a/escape/summaryrss"><img align="bottom"
-src="images/rss_button.gif" border=0 alt="rss weekly" width=31
+src="images/rss_button.png" border=0 alt="rss weekly" width=31
 height=12></a>), which you can subscribe to with an RSS-enabled
-newsreader. There is even a livejournal
-user <b><a href="http://www.livejournal.com/users/escape_feed/">escape_feed</a></b>
-to befriend. You can also become a fan of
+newsreader. You can also become a fan of
 the <b><a href="http://www.facebook.com/pages/Escape/295413065073">Escape
 Facebook page</a></b>.</p>
 

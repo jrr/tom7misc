@@ -24,7 +24,7 @@
 <!-- main content -->
 <td style="background : #FFFFFF;" bgcolor="#FFFFFF">
 <table cellpadding="4"><tr><td>
-<center><img src="images/webtitle.gif" width="494" height="87" alt="Escape"/></center>
+<center><img src="images/webtitle.png" width="494" height="87" alt="Escape"/></center>
 
 <p align=justify><b>Escape</b> is a fun puzzle game in the tradition of
 Adventures of Lolo or Chip's Challenge (see the screenshots below).
@@ -38,7 +38,7 @@ reflexes&mdash;it's all about your brain.</p>
 <tr><td colspan="3" valign="top"><a href="download.shtml"><img src="images/choose-platform.png" border="0" alt="Choose a platform or get help / more options..." width="578" height="29" /></a></td></tr>
 <tr>
 <td>
-  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.gif) ; cellpadding : 2px">
+  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.png) ; cellpadding : 2px">
   <tr><td>
       <center><a href="escapesetup.exe"><img border="0" src="images/win32-logo.png" alt="Windows" width="120" height="120" /></a></center>
        <center><b>Windows (any version)</b>
@@ -50,7 +50,7 @@ reflexes&mdash;it's all about your brain.</p>
 </td>
 
 <td>
-  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.gif) ; cellpadding : 2px">
+  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.png) ; cellpadding : 2px">
   <tr><td>
       <center><a href="escape-beta-osx.zip"><img border="0" src="images/osx-logo.png" alt="Mac OS X" width="120" height="120" /></a></center>
        <center><b>Mac OS X (any version)</b>
@@ -61,7 +61,7 @@ reflexes&mdash;it's all about your brain.</p>
 </td>
 
 <td>
-  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.gif) ; cellpadding : 2px">
+  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.png) ; cellpadding : 2px">
   <tr><td>
       <center><a href="escape-beta.tar.gz"><img border="0" src="images/linux-logo.png" alt="x86 Linux" width="120" height="120" /></a></center>
        <center><b>Linux (x86 static binary)</b>
@@ -86,7 +86,7 @@ href="http://radar.spacebar.org/f/a/weblog/comment/1/1038">feedback</a></b>.</p>
 href="/f/a/escape/comments">most recent comments</a></b> (<b><a
 href="/f/a/escape/comments?spoilers=1">including spoilers</a></b>)</p>
 
-<p><b>Most recent levels (<a href="levels.shtml">more</a>)</b> &nbsp; <a href="/f/a/escape/recentrss"><img align="bottom" src="images/rss_button.gif" border="0" alt="rss" width="31" height="12" /></a>
+<p><b>Most recent levels (<a href="levels.shtml">more</a>)</b> &nbsp; <a href="/f/a/escape/recentrss"><img align="bottom" src="images/rss_button.png" border="0" alt="rss" width="31" height="12" /></a>
 <br /><!--#include virtual="/f/a/escape/recent/5"--></p>
 
 <p><b>Screenshots (<a href="screenshots.shtml">more</a>)</b></p>
