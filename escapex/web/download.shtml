@@ -1,5 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!doctype html>
 <html><head>
 <title>Escape Puzzle Game: Download for Windows XP, Mac OS X, Linux</title>
 <meta name=keywords content="escape, puzzle game, lolo, chip's challenge, windows, macintosh, mac, win, linux, games, SDL, free, freeware, shareware, GPL, open source, puzzle, tiles, grid, sokoban, boxes, push, level editor, internet, download, zip, instructions, help, source code, tutorial, SDL, SDL_net, SDL_image">
@@ -22,7 +21,7 @@
 <!-- main content -->
 <td style="background : #FFFFFF;" bgcolor="#FFFFFF">
 <table cellpadding=4><tr><td>
-<center><img src="images/downtitle.gif" width=494 height=87></center>
+<center><img src="images/downtitle.png" width=494 height=87></center>
 
 <p><b><a href="index.shtml">Escape</a></b> is available for
 <b>Windows</b>, <b>Mac OS X</b>, and <b>x86 Linux</b>. Detailed
@@ -161,7 +160,7 @@ He also includes some sound effects!</p>
 <a name="DOS"></a>
 <table width="100%">
 <tr>
-<td rowspan=2 valign=top><div style="width:120px;"><center><a href="/escape-dos.zip"><img border=0 src="/images/dos.gif" width=90 height=96></a></center></div></td>
+<td rowspan=2 valign=top><div style="width:120px;"><center><a href="/escape-dos.zip"><img border=0 src="/images/dos.png" width=90 height=96></a></center></div></td>
 <td width="100%" valign=top><div class="platformname">MS-DOS</div></td>
 <td valign=top><div class="downloadlink"><a href="/escape-dos.zip">escape-dos.zip</a></div></td></tr>
 <tr><td colspan=2 valign="top">

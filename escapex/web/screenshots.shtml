@@ -23,7 +23,7 @@
 <!-- main content -->
 <td style="background : #FFFFFF;" bgcolor="#FFFFFF">
 <table cellpadding=4><tr><td>
-<center><img src="images/screentitle.gif" width=494 height=87></center>
+<center><img src="images/screentitle.png" width=494 height=87></center>
 
 <p>Here you will find screenshots of <b><a
 href="index.shtml">Escape</a></b> in action. The game looks essentially
@@ -49,11 +49,11 @@ browser's <b>back</b> button to return to this page.</p>
 
 <tr>
   <td><center>
-    <a href="images/mainmenu-screenshot.png"><img src="images/mainmenu-thumb.gif" border=0 width=200 height=150></a>
+    <a href="images/mainmenu-screenshot.png"><img src="images/mainmenu-thumb.png" border=0 width=200 height=150></a>
     <br><a href="images/mainmenu-screenshot.png"><b>Main Menu</b></a>
     </center></td>
   <td><center>
-    <a href="images/editor-screenshot.png"><img src="images/editor-thumb.gif" border=0 width=200 height=150></a>
+    <a href="images/editor-screenshot.png"><img src="images/editor-thumb.png" border=0 width=200 height=150></a>
     <br><a href="images/editor-screenshot.png"><b>Level Editor</b></a>
     </center></td>
 </tr>
@@ -62,11 +62,11 @@ browser's <b>back</b> button to return to this page.</p>
 
 <tr>
   <td><center>
-    <a href="images/load-screenshot.png"><img src="images/load-thumb.gif" border=0 width=200 height=150></a>
+    <a href="images/load-screenshot.png"><img src="images/load-thumb.png" border=0 width=200 height=150></a>
     <br><a href="images/load-screenshot.png"><b>Level Browser</b></a>
     </center></td>
   <td><center>
-    <a href="images/laserdeath-screenshot.png"><img src="images/laserdeath-thumb.gif" border=0 width=200 height=150></a>
+    <a href="images/laserdeath-screenshot.png"><img src="images/laserdeath-thumb.png" border=0 width=200 height=150></a>
     <br><a href="images/laserdeath-screenshot.png"><b>Death by Laser</b></a>
     </center></td>
 </tr>
@@ -75,7 +75,7 @@ browser's <b>back</b> button to return to this page.</p>
 
 <tr>
   <td><center>
-    <a href="images/outof.png"><img src="images/outof-thumb.gif" border=0 width=200 height=114></a>
+    <a href="images/outof.png"><img src="images/outof-thumb.png" border=0 width=200 height=114></a>
     <br><a href="images/outof.png"><b>Level: Out of&#133; and into&#133;</b></a>
     </center></td>
   <td><center>
@@ -104,17 +104,17 @@ above.
 <table width="100%">
 <tr>
   <td><center>
-     <a href="images/nes-screenshot.gif"><img src="images/nes-thumb.gif" border=0></a>
-     <br><a href="images/nes-screenshot.gif"><b>NES Gameplay</b></a>
+     <a href="images/nes-screenshot.png"><img src="images/nes-thumb.png" border=0></a>
+     <br><a href="images/nes-screenshot.png"><b>NES Gameplay</b></a>
      </center></td>
 
   <td><center>
-     <a href="images/frontcover-small.png"><img src="images/frontcover-thumb.gif" border=0></a>
+     <a href="images/frontcover-small.png"><img src="images/frontcover-thumb.png" border=0></a>
      <br><a href="images/frontcover-small.png"><b>Front Cover</b></a>
      </center></td>
 
   <td><center>
-     <a href="images/backcover-small.png"><img src="images/backcover-thumb.gif" border=0></a>
+     <a href="images/backcover-small.png"><img src="images/backcover-thumb.png" border=0></a>
      <br><a href="images/backcover-small.png"><b>Back Cover</b></a>
      </center></td>
 </tr>
