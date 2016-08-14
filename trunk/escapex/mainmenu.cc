@@ -27,7 +27,7 @@
 #define RECOMMENDED_TEXT YELLOW "Recommended " POP PICS ARROWR POP " "
 
 // Note: It doesn't work at all yet; don't bother :)
-#define ENABLE_NEW_LEVEL_BROWSER 1
+#define ENABLE_NEW_LEVEL_BROWSER 0
 
 enum mmetype {
   MM_TUTORIAL,
