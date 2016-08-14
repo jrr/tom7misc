@@ -535,7 +535,6 @@ bool disamb::affecti(int i, level * l, ptrlist<aevent> **& etail) {
     map[i] = serial;
     return false;
   }
-
 }
 
 # define DIS_PUSHEVENT(type, var)     \

@@ -286,18 +286,18 @@
 /* nb: only for regular panels */
 #define CHECKLEAVEPANEL(xx, yy) do {  \
   if (tileat(xx, yy) == T_PANEL) {    \
-    AFFECTI(destat(xx, yy));          \
+    (void)AFFECTI(destat(xx, yy));    \
     SWAPO(destat(xx, yy));            \
   }                                   \
 } while (0)
 
 #define CHECKTRAP(xx, yy) do {             \
   if (tileat(xx, yy) == T_TRAP1) {         \
-    AFFECT(xx, yy);                        \
+    (void)AFFECT(xx, yy);                  \
     settile(xx, yy, T_HOLE);               \
     TRAP(xx, yy, T_TRAP1);                 \
   } else if (tileat(xx, yy) == T_TRAP2) {  \
-    AFFECT(xx, yy);                        \
+    (void)AFFECT(xx, yy);                  \
     settile(xx, yy, T_TRAP1);              \
     TRAP(xx, yy, T_TRAP2);                 \
   }                                        \
@@ -318,11 +318,11 @@
   for (int x = 0; x < w; x++) {   \
    int t = tileat(x, y);          \
    if (t == t1) {                 \
-     AFFECT(x, y);                \
+     (void)AFFECT(x, y);          \
      TOGGLE(x, y, t, d);          \
      settile(x, y, t2);           \
    } else if (t == t2) {          \
-     AFFECT(x, y);                \
+     (void)AFFECT(x, y);          \
      TOGGLE(x, y, t, d);          \
      settile(x, y, t1);           \
    }                              \
@@ -346,7 +346,7 @@
             && mei == boti[b]) {                        \
             /* yes! delete other bot and make me */     \
             /* broken. */                               \
-            AFFECTI(mei);                               \
+            (void)AFFECTI(mei);                         \
             bott[b] = B_DELETED;                        \
             bott[me] = B_BROKEN;                        \
             /* AFFECTENT;  */                           \
@@ -440,7 +440,7 @@ static void postanimate(level * l, disamb * ctx,
     for (dir dd = FIRST_DIR_SELF; dd < LAST_DIR; dd++) {
       int bx, by;
       if (travel(x, y, dd, bx, by)) {
-    AFFECT(bx, by);
+        (void)AFFECT(bx, by);
       }
     }
 
@@ -735,8 +735,8 @@ static void postanimate(level * l, disamb * ctx,
 
            PREAFFECTENT;
            PREAFFECTENTEX(pushent);
-           AFFECT(farx, fary);
-           AFFECT(newx, newy);
+           (void)AFFECT(farx, fary);
+           (void)AFFECT(newx, newy);
 
            /* if a bomb, light and reset fuse */
            /* XXX animate? */
@@ -780,7 +780,7 @@ static void postanimate(level * l, disamb * ctx,
                pushent != -1) {
               /* can't be player: kill bot */
               bott[pushent] = B_DELETED;
-              AFFECT(farx, fary);
+              (void)AFFECT(farx, fary);
               BOTEXPLODE(pushent);
            }
 
@@ -797,13 +797,13 @@ static void postanimate(level * l, disamb * ctx,
 
            /* first, if pusher stepped off a panel, it swaps */
            if (swapsrc) {
-              AFFECTI(destat(srcx, srcy));
+              (void)AFFECTI(destat(srcx, srcy));
               SWAPO(destat(srcx, srcy));
            }  
 
            /* pushed ent is stepping onto new panel, perhaps */
            if (ftarget == T_PANEL) {
-              AFFECTI(destat(farx, fary));
+              (void)AFFECTI(destat(farx, fary));
               SWAPO(destat(farx, fary));
            }
 
@@ -814,7 +814,7 @@ static void postanimate(level * l, disamb * ctx,
       } else {
         /* XXX also affect source? */
         PREAFFECTENT;
-        AFFECT(newx, newy);
+        (void)AFFECT(newx, newy);
         POSTAFFECTENT;
         WALKED(d, false);
 
@@ -834,7 +834,7 @@ static void postanimate(level * l, disamb * ctx,
 
         if (target == T_PANEL) {
           // printf (" %d   step on panel...\n", enti);   
-          AFFECTI(destat(newx, newy));
+          (void)AFFECTI(destat(newx, newy));
           SWAPO(destat(newx, newy));
         }
 
@@ -858,7 +858,7 @@ static void postanimate(level * l, disamb * ctx,
       SETENTPOS(newx, newy);
 
       /* open door */
-      AFFECT(newx, newy);
+      (void)AFFECT(newx, newy);
       OPENDOOR(newx, newy);
 
       return(true);
@@ -871,13 +871,13 @@ static void postanimate(level * l, disamb * ctx,
       for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) {
           if (tileat(x, y) == T_ELECTRIC) {
-            AFFECT(x, y);
+            (void)AFFECT(x, y);
             TOGGLE(x, y, T_ELECTRIC, abs(x - newx) + abs(y - newy));
             settile(x, y, T_FLOOR);
           }
         }
 
-      AFFECT(newx, newy);
+      (void)AFFECT(newx, newy);
       settile(newx, newy, T_OFF);
       /* XXX animate pushing, but not moving */
       BUTTON(newx, newy, T_ON);
@@ -895,7 +895,7 @@ static void postanimate(level * l, disamb * ctx,
 
       SWAPTILES(T_UD, T_LR, 0);
      
-      AFFECT(newx, newy);
+      (void)AFFECT(newx, newy);
       settile(newx, newy, opp);
       BUTTON(newx, newy, target);
 
@@ -942,7 +942,7 @@ static void postanimate(level * l, disamb * ctx,
         /* affect whole row */
         for (int ix = firstx, iy = firsty;
             (firstx != newx && firsty != newy);
-            travel(ix, iy, d, ix, iy)) AFFECT(ix, iy);
+            travel(ix, iy, d, ix, iy)) (void)AFFECT(ix, iy);
 
         PUSHMOVE(jiggle, e)
           e->startx = firstx;
@@ -956,7 +956,7 @@ static void postanimate(level * l, disamb * ctx,
       int goldx = newx, goldy = newy;      
 
       /* remove gold block */
-      AFFECT(goldx, goldy);
+      (void)AFFECT(goldx, goldy);
       int replacement = (flagat(goldx, goldy) & TF_HASPANEL)?
                            realpanel(flagat(goldx, goldy)):
                            T_FLOOR;
@@ -1024,7 +1024,7 @@ static void postanimate(level * l, disamb * ctx,
 
         /* XXX may have already affected this
            if the gold block didn't move at all */
-        AFFECT(goldx, goldy);
+        (void)AFFECT(goldx, goldy);
         settile(goldx, goldy, target);
 
         bool zapped = false;
@@ -1053,12 +1053,12 @@ static void postanimate(level * l, disamb * ctx,
         #endif
 
         if (doswapt) {
-          AFFECTI(destat(goldx, goldy));
+          (void)AFFECTI(destat(goldx, goldy));
           SWAPO(destat(goldx, goldy));
         }
 
         if (doswap) {
-          AFFECTI(destat(newx, newy));
+          (void)AFFECTI(destat(newx, newy));
           SWAPO(destat(newx, newy));
         }
 
@@ -1079,7 +1079,7 @@ static void postanimate(level * l, disamb * ctx,
           botat(newx, newy)) return false;
 
       if (cap & (CAP_CANTELEPORT | CAP_ISPLAYER)) {
-         AFFECT(newx, newy);
+         (void)AFFECT(newx, newy);
          PREAFFECTENT;
          POSTAFFECTENT;
          WALKED(d, true);
@@ -1096,7 +1096,7 @@ static void postanimate(level * l, disamb * ctx,
          CHECKSTEPOFF(entx, enty);
          SETENTPOS(targx, targy);
 
-         AFFECT(targx, targy);
+         (void)AFFECT(targx, targy);
          PREAFFECTENT;
          POSTAFFECTENT;
          /* teleporting always faces the player down;
@@ -1106,7 +1106,7 @@ static void postanimate(level * l, disamb * ctx,
 
          switch (targ) {
          case T_PANEL:
-           AFFECTI(destat(targx, targy));
+           (void)AFFECTI(destat(targx, targy));
            SWAPO(destat(targx, targy));
            break;
          default:;
@@ -1153,7 +1153,7 @@ static void postanimate(level * l, disamb * ctx,
           botat(newx, newy)) return false;
 
       /* but always push a button pressing anim */
-      AFFECT(newx, newy);
+      (void)AFFECT(newx, newy);
       BUTTON(newx, newy, T_BUTTON);
 
       for (dir dd = FIRST_DIR; dd <= LAST_DIR; dd++) {
@@ -1205,13 +1205,13 @@ static void postanimate(level * l, disamb * ctx,
         switch (targ) {
         case T_REMOTE:
           #ifdef AM
-        AFFECT(pulsex, pulsey);
-        PUSHMOVE(liteup, e)
-           e->x = pulsex;
-           e->y = pulsey;
-           e->what = targ;
-           e->delay = dist;
-        }
+            (void)AFFECT(pulsex, pulsey);
+            PUSHMOVE(liteup, e)
+              e->x = pulsex;
+              e->y = pulsey;
+              e->what = targ;
+              e->delay = dist;
+            }
           #endif
           remotes = new swaplist(destat(pulsex, pulsey), remotes);
 
@@ -1229,29 +1229,29 @@ static void postanimate(level * l, disamb * ctx,
         case T_RLIGHT:
         case T_GLIGHT:
           #ifdef AM
-          AFFECT(pulsex, pulsey);
+          (void)AFFECT(pulsex, pulsey);
           PUSHMOVE(liteup, e)
-         e->x = pulsex;
-         e->y = pulsey;
-         e->what = targ;
-         e->delay = dist;
+            e->x = pulsex;
+            e->y = pulsey;
+            e->what = targ;
+            e->delay = dist;
           }
           #endif
-              if (targ == T_BLIGHT) bswaps++;
-              if (targ == T_RLIGHT) rswaps++;
-              if (targ == T_GLIGHT) gswaps++;
-              pd = DIR_NONE;
-              break;
+          if (targ == T_BLIGHT) bswaps++;
+          if (targ == T_RLIGHT) rswaps++;
+          if (targ == T_GLIGHT) gswaps++;
+          pd = DIR_NONE;
+          break;
 
         case T_TRANSPONDER: {
               // printf("transponder at %d/%d\n", pulsex, pulsey);
           #ifdef AM
-        int transx = pulsex;
-        int transy = pulsey;
+            int transx = pulsex;
+            int transy = pulsey;
           #endif
-              if (!travel(pulsex, pulsey, pd, pulsex, pulsey)) 
-                pd = DIR_NONE;
-          else {
+          if (!travel(pulsex, pulsey, pd, pulsex, pulsey)) {
+            pd = DIR_NONE;
+          } else {
         /* keep going until we hit another transponder. */
         do {
            int ta = tileat(pulsex, pulsey);
@@ -1276,10 +1276,10 @@ static void postanimate(level * l, disamb * ctx,
               }
               break;
            } else {
-                      /* in preparation for beam across these squares... */
-                      #ifdef AM
-                        AFFECT(pulsex, pulsey);
-                      #endif
+              /* in preparation for beam across these squares... */
+              #ifdef AM
+                (void)AFFECT(pulsex, pulsey);
+              #endif
            }
            /* otherwise keep going... */
         } while (travel(pulsex, pulsey, pd, pulsex, pulsey));
@@ -1377,7 +1377,7 @@ static void postanimate(level * l, disamb * ctx,
       if (playerat(newx, newy) ||
           botat(newx, newy)) return false;
 
-      AFFECT(newx, newy);
+      (void)AFFECT(newx, newy);
       settile(newx, newy, T_FLOOR);
 
       #ifdef AM
@@ -1400,8 +1400,8 @@ static void postanimate(level * l, disamb * ctx,
           settile(destx, desty, T_BLUE);
           settile(newx, newy, T_FLOOR);
 
-          AFFECT(destx, desty);
-          AFFECT(newx, newy);
+          (void)AFFECT(destx, desty);
+          (void)AFFECT(newx, newy);
           PREAFFECTENT;
           POSTAFFECTENT;
           PUSHGREEN(newx, newy, d);
@@ -1481,9 +1481,9 @@ static void postanimate(level * l, disamb * ctx,
     { int xx = destx, yy = desty;
       do {
         travel(xx, yy, revd, xx, yy);
-        AFFECT(xx, yy);
+        (void)AFFECT(xx, yy);
       } while (! (xx == newx && yy == newy));
-      AFFECT(newx, newy);
+      (void)AFFECT(newx, newy);
     }
 
     { int xx = destx, yy = desty;
@@ -1601,7 +1601,7 @@ static void postanimate(level * l, disamb * ctx,
        only one destination per location */
 
     if (swapnew) {
-      AFFECTI(destat(newx, newy));
+      (void)AFFECTI(destat(newx, newy));
       SWAPO(destat(newx, newy));
     }
 
@@ -1609,7 +1609,7 @@ static void postanimate(level * l, disamb * ctx,
       while (! (lookx == newx && looky == newy)) {
 
         if (flagat(lookx, looky) & TF_TEMP) {
-          AFFECTI(destat(lookx, looky));
+          (void)AFFECTI(destat(lookx, looky));
           SWAPO(destat(lookx, looky));
           setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
         }
@@ -1718,8 +1718,8 @@ static void postanimate(level * l, disamb * ctx,
 
       /* Success! */
 
-    AFFECT(newx, newy);
-    AFFECT(destx, desty);
+    (void)AFFECT(newx, newy);
+    (void)AFFECT(destx, desty);
     PREAFFECTENT;
     POSTAFFECTENT;
 
@@ -1731,7 +1731,7 @@ static void postanimate(level * l, disamb * ctx,
     SETENTPOS(newx, newy);
 
     if (doswap) {
-      AFFECTI(destat(destx, desty));
+      (void)AFFECTI(destat(destx, desty));
       SWAPO(destat(destx, desty));
     }
 
@@ -1744,7 +1744,7 @@ static void postanimate(level * l, disamb * ctx,
     if (botat(newx, newy) || 
         playerat(newx, newy)) return false;
     if (cap & CAP_HEARTFRAMERS) {
-      AFFECT(newx, newy);
+      (void)AFFECT(newx, newy);
       PREAFFECTENT;
       POSTAFFECTENT;
       WALKED(d, true);
@@ -1760,7 +1760,7 @@ static void postanimate(level * l, disamb * ctx,
           for (int x = 0; x < w; x++) {
            int t = tileat(x, y);
            if (t == T_SLEEPINGDOOR) {
-             AFFECT(x, y);
+             (void)AFFECT(x, y);
              /* better anim, like exclamation mark */
              // TOGGLE(x, y, T_SLEEPINGDOOR, T_EXIT);
              WAKEUPDOOR(x, y);
@@ -1774,7 +1774,7 @@ static void postanimate(level * l, disamb * ctx,
           switch (bott[i]) {
           case B_DALEK_ASLEEP:
             PREAFFECTENTEX(i);
-            AFFECTI(boti[i]);
+            (void)AFFECTI(boti[i]);
             POSTAFFECTENTEX(i);
 
             bott[i] = B_DALEK;
@@ -1787,7 +1787,7 @@ static void postanimate(level * l, disamb * ctx,
             break;
           case B_HUGBOT_ASLEEP:
             PREAFFECTENTEX(i);
-            AFFECTI(boti[i]);
+            (void)AFFECTI(boti[i]);
             POSTAFFECTENTEX(i);
 
             bott[i] = B_HUGBOT;
@@ -1822,7 +1822,7 @@ static void postanimate(level * l, disamb * ctx,
       if (enti != -1 && 
           (cap & CAP_ZAPSELF)) {
         
-        AFFECT(newx, newy);
+        (void)AFFECT(newx, newy);
         PREAFFECTENT;
         POSTAFFECTENT;
         WALKED(d, false);

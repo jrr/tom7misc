@@ -56,7 +56,7 @@ struct vallist {
   /* ie, destroy */
   static void diminish(vallist<T> *& sl) {
     T dummy;
-    while (sl) pop(sl, dummy);
+    while (sl != nullptr) pop(sl, dummy);
   }
 
   void destroy() {
@@ -79,7 +79,6 @@ struct vallist {
 			    copy(sl->next));
     } else return 0;
   }
-
 };
 
 typedef vallist<string> stringlist;

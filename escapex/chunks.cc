@@ -23,7 +23,7 @@ string chunk::tostring() {
   abort();
 }
 
-chunk * chunk::fromstring(string s) {
+chunk *chunk::fromstring(const string &s) {
   /* no type field */
   if (s.length() < 8) return nullptr;
   uint32 idx = 0;
@@ -100,7 +100,7 @@ string chunks::tostring() {
 }
 
 /* exhausts the input string */
-chunks * chunks::fromstring(string s) {
+chunks * chunks::fromstring(const string &s) {
   uint32 idx = 0;
   ptrlist<chunk> * dat = nullptr;
 

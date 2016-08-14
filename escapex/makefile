@@ -1,176 +1,15 @@
 
-# Try to detect OS. Assumes windows if nothing works, so you 
-# may need to "export LINUX" or "export OSX" before you type make.
+# This makefile relies on environment variables to select the
+# correct platform. You need to do one of
+#   export LINUX=true
+#   export OSX=true
+#   export MINGW=true
+# before you run make, or nothing will happen.
 
 # XXX can remove sdl_image on other platforms too.
 # XXX need to use cc-lib version of sdlutil.o
 # XXX also remove libpng!
 
-ifndef MINGW
-ifndef LINUX
-ifndef OSX
-# makefile for windows. Windows is weird.
-
-# On windows I have switched to mingw (export MINGW=true; see below),
-# so Visual C++ may stop working as it drifts out of date, sorry.
-# I will delete it soon.
-
-SDLVERSION=1.2.11
-
-# normally use these
-ZLIBDIR = ..\SDL_image_1.2.4\lib
-ZINCDIR = ..\SDL_image_1.2.4\include
-PLIBDIR = ZLIBDIR
-PINCDIR = ZINCDIR
-
-# Or maybe these if you compile zlib and libpng yourself
-# ZLIBDIR = ..\zlib
-# ZINCDIR = ..\zlib
-# PLIBDIR = ..\libpng
-# PINCDIR = ..\libpng
-
-# not sure what fd does
-DEBUGFLAGS = /Od /GZ /MDd /FD /D "_DEBUG"
-FASTFLAGS = /MD /Gf /G6 /O2 /Og /Oi /Oy /Ob2 /GL
-
-WHICHFLAGS = ${DEBUGFLAGS}
-
-default : escape.exe replace.exe
-
-COMPILE=cl /nologo ${WHICHFLAGS} /W3 /GX /I "..\SDL-${SDLVERSION}\include" /I "..\SDL_image-1.2.4\include" /I "..\SDL_net-1.2.5\include" /I "..\SDL_mixer-1.2.6\include" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /c /I ${ZINCDIR} /I ${PINCDIR}
-
-COMPILECMDLINE=cl /nologo /MDd /W3 /GX /Od /I "..\SDL-${SDLVERSION}\include" /I "..\SDL_image-1.2.4\include" /I "..\SDL_net-1.2.5\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FD /GZ /c /I "..\libpng" /D "_CONSOLE"  /I ${ZINCDIR} /I ${PINCDIR}
-
-
-# don't need?
-# most recently..
-# odbc32.lib odbccp32.lib
-# probably could remove more, haven't tried... (does it even matter?)
-
-LINK=link oldnames.lib "..\SDL-${SDLVERSION}\lib\SDL.lib" "..\SDL_image-1.2.4\lib\SDL_image.lib" "..\SDL_net-1.2.5\lib\SDL_net.lib" "..\SDL_mixer-1.2.6\lib\SDL_mixer.lib" libcpmt.lib msvcrt.lib msvcprt.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib /nologo /subsystem:windows /pdb:none /debug /machine:I386 /nodefaultlib /libpath:"..\SDL-${SDLVERSION}\lib" /libpath:"..\SDL_net-1.2.5\lib" /libpath:"..\SDL_mixer-1.2.6\lib"  /libpath:"..\SDL_image-1.2.4\lib" /libpath:${ZLIBDIR} /libpath:${PLIBDIR}
-
-# for command line apps. no need for net or mixer.
-LINKCMDLINE=link oldnames.lib "..\SDL-${SDLVERSION}\lib\SDL.lib" "..\SDL_image-1.2.4\lib\SDL_image.lib" libcpmt.lib msvcrt.lib msvcprt.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib /nologo /subsystem:console /pdb:none /debug /machine:I386 /nodefaultlib /libpath:"..\SDL-${SDLVERSION}\lib" /libpath:"..\SDL_image-1.2.4\lib"  /libpath:${ZLIBDIR} /libpath:${PLIBDIR}
-
-.dummy :
-
-version : .dummy
-	cl /nologo /D "WIN32" /GX version.cc
-	./version.exe
-	make clean
-	make default
-
-wc :
-	wc -l *.cc *.h
-
-RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt SDL.dll SDL_net.dll zlib1.dll COPYING changelog animation.png SDL_mixer.dll splash.png
-
-zip : .dummy ${RELEASEFILES}
-	rm -rf escape-beta
-	mkdir escape-beta
-	cp -a triage escape-beta
-	cp -a ${RELEASEFILES} escape-beta
-	mkdir escape-beta/mylevels
-	cp -a official escape-beta
-	rm -rf escape-beta/official/CVS escape-beta/triage/CVS
-	rm -rf escape-beta/official/.svn escape-beta/triage/.svn
-	cp mylevels/index.esi escape-beta/mylevels/
-	rm -f escape-beta.zip
-	echo "=============================="
-	echo "now zip escape-beta to release"
-	echo "escape-beta.zip is already gone"
-	echo "then do make zipup"
-	echo "=============================="
-
-releasefiles.win32 : makefile
-	echo ${RELEASEFILES} > releasefiles.win32
-
-zipup : escape-beta.zip
-	pscp escape-beta.zip root@spacebar.org:/var/www/escape/
-
-escapesetup.exe : .dummy ${RELEASEFILES} escape.nsi
-	makensis escape.nsi
-
-installer : escapesetup.exe
-
-installerup : escapesetup.exe
-	pscp escapesetup.exe root@spacebar.org:/var/www/escape/
-
-# some rules for making objects, etc.
-
-# how to compile object files
-%.obj : %.cc selector.h extent.h
-	${COMPILE} $<
-
-animation_load.h animation.png animation_decs.h animation_defs.h : animation.pack
-	rm -f animation_load.h animation.png animation_decs.h animation_defs.h
-	make packpng.exe
-	packpng.exe animation.pack animation
-	rm -f animation.better
-	pngcrush -e .better animation.png
-	rm -f animation.png
-	mv animation.better animation.png
-
-sound_load.h : sound.pack packsound.cc
-	make packsound.exe
-	packsound.exe sound.pack sound
-
-sound.obj : sound.cc sound_load.h sound.h
-	${COMPILE} $<
-
-level.obj : level.cc move.h
-	${COMPILE} $<
-
-animation.obj : animation.cc animation.h animation_load.h animation_decs.h animation_defs.h sound_load.h
-	${COMPILE} $<
-
-# it has to be different for the console =(
-%-console.obj : %.cc
-	${COMPILECMDLINE} $^ /Fo$@
-
-sdlutil-console.obj : sdlutil.cc
-	${COMPILECMDLINE} -DUSE_DISPLAY_FORMAT=0 $^ /Fo$@
-
-escape.res : escape.rc escape.ico
-	rc /r /fo escape.res escape.rc
-
-escape.exe : main.obj level.obj sdlutil.obj play.obj font.obj directories.obj load.obj util.obj md5.obj player.obj playerdb.obj prompt.obj draw.obj drawable.obj edit.obj editai.obj editprefab.obj mainmenu.obj upgrade.obj http.obj httputil.obj textscroll.obj message.obj update.obj dircache.obj upper.obj registration.obj upload.obj rating.obj menu.obj prefs.obj escape.res chunks.obj dirindex.obj textbox.obj analysis.obj generator.obj prime.obj commenting.obj cleanup.obj mainshow.obj handhold.obj animation.obj dirt.obj sound.obj base64.obj winmain.obj optimize.obj smanage.obj client.obj progress.obj leveldb.obj startup.obj backgrounds.obj escapex.obj
-	${LINK} /out:"escape.exe" $^
-
-# other executables that need to be built:
-
-replace.exe : replace-console.obj util-console.obj
-	${LINKCMDLINE} /out:$@ $^ user32.lib
-
-packpng.exe : util-console.obj font-console.obj level-console.obj sdlutil-console.obj packpng-console.obj winmain-console.obj
-	${LINKCMDLINE} /out:$@ $^ libpng13.lib
-
-packsound.exe : util-console.obj packsound-console.obj winmain-console.obj
-	${LINKCMDLINE} /out:$@ $^
-
-mkupgrade.exe : mkupgrade-console.obj md5-console.obj
-	${LINKCMDLINE} /out:$@ $^
-
-UPGRADE : .dummy mkupgrade.exe releasefiles.win32 deletefiles.win32 symlinks.win32
-	./mkupgrade.exe releasefiles.win32 symlinks.win32 deletefiles.win32 > UPGRADE
-
-CURRENT : .dummy mkupgrade.exe
-	./mkupgrade.exe -v > CURRENT
-
-release : UPGRADE CURRENT
-	pscp -C ${RELEASEFILES} UPGRADE CURRENT root@spacebar.org:/var/www/escape/win32/
-	rm -f UPGRADE CURRENT mkupgrade.exe
-
-clean :
-	rm -f *.obj escape.exe *.tmp *.delme *.pdb *.ilk *.o *.idb *.plg *.opt replace.exe *.ncb *.aps packpng.exe screenshot.exe replace.exe mkupgrade.exe version.exe
-	touch mv_is_dumb~
-	touch .\#mv_is_dumb
-	mv -f *~ .\#* attic
-
-# end windows makefile
-endif
-endif
-endif
 
 
 # -------------------------------------------------------------------
@@ -183,9 +22,6 @@ CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdl
 OFILES = main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
 
 default : escape.exe
-
-PROF =
-# PROF = -pg
 
 # to distribute dynamic: sdl-config --prefix=.
 # then ldd escape.exe
@@ -201,10 +37,10 @@ LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs`
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
 # with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
 CPPFLAGS = `sdl-config --cflags` 
-CXXFLAGS = --std=c++11 -g -Wall -O ${PROF} -Wno-non-virtual-dtor
+CXXFLAGS = --std=c++11 -g -Wall -O -Wno-non-virtual-dtor
 
 escape.exe : ${OFILES}
-	g++ ${PROF} -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
+	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
 
 
 default : escape.exe
@@ -331,7 +167,7 @@ RPATH=-rpath @executable_path/../Frameworks
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
 # otherwise treats -n literally.)
 %.o : %.cc
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
 	@bash -c "echo -n '.'"
 
 # sound is disabled, but it's time to make it available on the OS X
@@ -470,57 +306,73 @@ clean :
 # end OSX makefile
 endif
 
-# mingw makefile (alternative to Visual C++ on win32; becoming default soon)
+# mingw makefile, using TDM-GCC. This is the new way to compile on Windows.
 ifdef MINGW
-
-# XXX some of these have moved to cc-lib
-OFILES = main.o level.o sdlutil.o load.o font.o play.o util.o md5.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o base64.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 default : escape.exe
 
-PROF =
-# PROF = -pg
+# Tom, you may need to do this:
+# export PATH=/c/TDM-GCC-64/bin:${PATH}
 
-# to distribute dynamic: sdl-config --prefix=.
-# then ldd escape.exe
-# and upload the .so files with the thingy
+CXX=g++
+CC=gcc
 
-LDFLAGS = -Wl,-rpath=.
+SDLARCH=x64
+SDLINCLUDES=-ISDL/include
+SDLOPATH=SDL/build
+SDLOBJECTS=${SDLOPATH}/SDL.o ${SDLOPATH}/SDL_error.o ${SDLOPATH}/SDL_fatal.o ${SDLOPATH}/SDL_audio.o ${SDLOPATH}/SDL_audiocvt.o ${SDLOPATH}/SDL_audiodev.o ${SDLOPATH}/SDL_mixer.o ${SDLOPATH}/SDL_mixer_MMX.o ${SDLOPATH}/SDL_mixer_MMX_VC.o ${SDLOPATH}/SDL_mixer_m68k.o ${SDLOPATH}/SDL_wave.o ${SDLOPATH}/SDL_cdrom.o ${SDLOPATH}/SDL_cpuinfo.o ${SDLOPATH}/SDL_active.o ${SDLOPATH}/SDL_events.o ${SDLOPATH}/SDL_expose.o ${SDLOPATH}/SDL_keyboard.o ${SDLOPATH}/SDL_mouse.o ${SDLOPATH}/SDL_quit.o ${SDLOPATH}/SDL_resize.o ${SDLOPATH}/SDL_rwops.o ${SDLOPATH}/SDL_getenv.o ${SDLOPATH}/SDL_iconv.o ${SDLOPATH}/SDL_malloc.o ${SDLOPATH}/SDL_qsort.o ${SDLOPATH}/SDL_stdlib.o ${SDLOPATH}/SDL_string.o ${SDLOPATH}/SDL_thread.o ${SDLOPATH}/SDL_timer.o ${SDLOPATH}/SDL_RLEaccel.o ${SDLOPATH}/SDL_blit.o ${SDLOPATH}/SDL_blit_0.o ${SDLOPATH}/SDL_blit_1.o ${SDLOPATH}/SDL_blit_A.o ${SDLOPATH}/SDL_blit_N.o ${SDLOPATH}/SDL_bmp.o ${SDLOPATH}/SDL_cursor.o ${SDLOPATH}/SDL_gamma.o ${SDLOPATH}/SDL_pixels.o ${SDLOPATH}/SDL_stretch.o ${SDLOPATH}/SDL_surface.o ${SDLOPATH}/SDL_video.o ${SDLOPATH}/SDL_yuv.o ${SDLOPATH}/SDL_yuv_mmx.o ${SDLOPATH}/SDL_yuv_sw.o ${SDLOPATH}/SDL_joystick.o ${SDLOPATH}/SDL_nullevents.o ${SDLOPATH}/SDL_nullmouse.o ${SDLOPATH}/SDL_nullvideo.o ${SDLOPATH}/SDL_diskaudio.o ${SDLOPATH}/SDL_dummyaudio.o ${SDLOPATH}/SDL_sysevents.o ${SDLOPATH}/SDL_sysmouse.o ${SDLOPATH}/SDL_syswm.o ${SDLOPATH}/SDL_wingl.o ${SDLOPATH}/SDL_dibevents.o ${SDLOPATH}/SDL_dibvideo.o ${SDLOPATH}/SDL_dx5events.o ${SDLOPATH}/SDL_dx5video.o ${SDLOPATH}/SDL_dx5yuv.o ${SDLOPATH}/SDL_dibaudio.o ${SDLOPATH}/SDL_dx5audio.o ${SDLOPATH}/SDL_mmjoystick.o ${SDLOPATH}/SDL_syscdrom.o ${SDLOPATH}/SDL_sysmutex.o ${SDLOPATH}/SDL_syssem.o ${SDLOPATH}/SDL_systhread.o ${SDLOPATH}/SDL_syscond.o ${SDLOPATH}/SDL_systimer.o ${SDLOPATH}/SDL_sysloadso.o sdl-win32-main.o
+
+SDLNETINCLUDES=-ISDL_net
+SDLNETOBJECTS=SDL_net/SDLnet.o SDL_net/SDLnetselect.o SDL_net/SDLnetTCP.o SDL_net/SDLnetUDP.o
+
+LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
+LINKSDLNET= -lws2_32 -liphlpapi
+
+# XXX some of these have moved to cc-lib
+ESCOBJECTS= main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
+
+# XXX
+CCLIBOBJECTS= ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/md5.o ../cc-lib/base64.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o
+
+
+# XXX reenable sound
+OPT=-O2
+CPPFLAGS=-DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include  -I. ${SDLINCLUDES} ${SDLNETINCLUDES}
+CXXFLAGS= -std=c++14 ${OPT}
+
+# -Wl,-rpath=. 
+LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,console ${OPT}  -static
 
 # -lSDL_mixer
 # at end  -lvorbisfile -lvorbis -logg
-LDLIBS = -lSDL_net  `sdl-config --libs` -lz
+# LDLIBS = -lSDL_net  `sdl-config --libs` -lz
 #  LDLIBS = -lefence
 
-# for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
-# with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
-CPPFLAGS = -DNOSOUND=1 `sdl-config --cflags` 
-CXXFLAGS = -g -Wall -O ${PROF} 
-# -Wno-non-virtual-dtor
+# XXX need to specify sdl flags presumably
+# CPPFLAGS = -DNOSOUND=1 `sdl-config --cflags` 
 
+# windres is part of TDM distribution
 icon.o : escape.ico escape.rc
 	windres -i escape.rc -o $@
 
-escape.exe : ${OFILES}
-	g++ -g ${PROF} -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
+escape.exe : ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+	${CXX} -g -o escape.exe $^ ${LDFLAGS}
 
-default : escape.exe
-
-packsound.exe : util-console.o packsound-console.o
-	g++ -o $@ $^ `sdl-config --static-libs`
+packsound.exe : util-console.o packsound-console.o ${SDLOBJECTS}
+	${CXX} -o $@ $^ ${LDFLAGS}
 	strip packsound.exe
 
 sound.o : sound.cc sound_load.h
-	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
 level.o : level.cc move.h
-	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
 animation.o : animation.cc animation.h animation_load.h
-	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
 leveldb.o : leveldb.cc leveldb.h leveldb-query.h
-	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
 sound_load.h : sound.pack packsound.cc
 	make packsound.exe
@@ -535,24 +387,22 @@ animation_load.h animation.png animation_decs.h animation_defs.h : animation.pac
 	rm -f animation.png
 	mv animation.better animation.png
 
-# XXX unnecessary now?
-PNGHEADERS = -I /usr/local/include
-
+# XXX better way to do this? 
 %-console.o : %.cc
-	g++ ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 ${PNGHEADERS} $^ -c -o $@
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
 # XXX sdlutil needs to come from cc-lib
-packpng.exe : util-console.o font-console.o level-console.o sdlutil-console.o packpng-console.o winmain-console.o
-	g++ -o $@ ${LDFLAGS} $^ ${LDLIBS}
+packpng.exe : util-console.o font-console.o level-console.o ../cc-lib/sdl/sdlutil-console.o packpng-console.o winmain-console.o
+	${CXX} -o $@ ${LDFLAGS} $^ ${LDLIBS}
 
 # but this should be static
 screenshot.exe : draw-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
-	g++ -g -o screenshot.exe $^ `sdl-config --static-libs`
+	${CXX} -g -o screenshot.exe $^ `sdl-config --static-libs`
 
 .dummy :
 
 version : .dummy
-	g++ version.cc -o version.exe
+	${CXX} version.cc -o version.exe
 	./version.exe
 	make clean
 	make escape.exe
@@ -563,7 +413,7 @@ releasefiles.win32 : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.win32
 
 mkupgrade.exe : mkupgrade.cc md5.cc
-	g++ -DWIN32 mkupgrade.cc md5.cc -o mkupgrade.exe
+	${CXX} -DWIN32 mkupgrade.cc md5.cc -o mkupgrade.exe
 
 CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 mkupgrade.exe
 	strip escape.exe
