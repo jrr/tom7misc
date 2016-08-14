@@ -7,10 +7,6 @@
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
 <meta name=keywords content="escape, puzzle game, lolo, chip's challenge, windows, macintosh, mac, win, linux, games, SDL, free, freeware, shareware, GPL, open source, puzzle, tiles, grid, sokoban, boxes, push, level editor, internet, sharing, online, levels, .esx, browser, png, screenshot">
 <meta name=description content="Browse levels for Escape online.">
-<!-- try to fix pngs on ie -->
-<!--[if gte IE 5.5000]>
-<script type="text/javascript" src="pngfix.js"></script>
-<![endif]-->
 </head><body background="images/barsbg.png" leftmargin=0 topmargin=0 marginwidth=0 marginheight=0>
 
 <table width="704" style="margin-left : auto; margin-right : auto" cellspacing=0 border=0 cellpadding=0><tr>

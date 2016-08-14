@@ -7,10 +7,6 @@
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
 <meta name="keywords" content="escape, puzzle game, lolo, chip's challenge, windows, macintosh, mac, osx, os x, win, linux, games, SDL, free, freeware, shareware, GPL, open source, puzzle, tiles, grid, sokoban, boxes, push, level editor, internet, sharing, online, download, tom7" />
 <meta name="description" content="Escape is a deep tile-based puzzle game with internet features." />
-<!-- try to fix pngs on ie -->
-<!--[if gte IE 5.5000]>
-<script type="text/javascript" src="pngfix.js"></script>
-<![endif]-->
 </head><body background="images/barsbg.png" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
 
 <table width="704" style="margin-left : auto; margin-right : auto" cellspacing="0" border="0" cellpadding="0"><tr>
@@ -95,7 +91,7 @@ href="/f/a/escape/comments?spoilers=1">including spoilers</a></b>)</p>
 
 <p><b>Screenshots (<a href="screenshots.shtml">more</a>)</b></p>
 <center>
-<p><img src="images/splitsville.gif" width="583" height="347" alt="Screenshot" /></p>
+<p><img src="images/splitsville.png" width="583" height="347" alt="Screenshot" /></p>
 <p><img src="images/sfo.png" width="488" height="540" alt="Screenshot" /></p>
 </center>
 
