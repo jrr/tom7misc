@@ -1,6 +1,7 @@
 
 #include <sys/stat.h>
 #include <cstring>
+#include <cstdint>
 #include <string.h>
 
 #include "util.h"
@@ -25,6 +26,8 @@
    /* isalnum */
 #  include <ctype.h>
 #endif
+
+using namespace std;
 
 struct linereal : public line {
   int x0, y0, x1, y1;
@@ -898,8 +901,13 @@ bool util::launchurl(const string & url) {
 #endif
 
 #if WIN32
-  return ((int)ShellExecute(NULL, "open", url.c_str(), 
-			    NULL, NULL, SW_SHOWNORMAL)) > 32;
+  // ShellExecute returns an HINSTANCE, but it's really an int. I
+  // guess this function call is so old that they needed some 16-bit
+  // compatibility. Can't just cast to "int" per Microsoft's
+  // documentation because that triggers a loss of precision warning.
+  // Fortunately C++11 has a good integral type for this.
+  return ((intptr_t)ShellExecute(NULL, "open", url.c_str(), 
+				 NULL, NULL, SW_SHOWNORMAL)) > 32;
 #endif
 
   /* otherwise.. */

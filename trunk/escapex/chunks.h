@@ -14,7 +14,7 @@ struct chunk {
   uint32 key;
 
   string tostring();
-  static chunk * fromstring(string);
+  static chunk *fromstring(const string &s);
   chunk(uint32, int32);
   chunk(uint32, bool);
   chunk(uint32, string);
@@ -29,20 +29,20 @@ struct chunk {
 struct chunks {
 
   /* create a blank db with no chunks */
-  static chunks * create();
+  static chunks *create();
 
   /* revive marshalled chunks */
-  static chunks * fromstring(string s);
+  static chunks *fromstring(const string &s);
 
   /* marshall to string */
   virtual string tostring();
 
   /* returns 0 if not present */
-  virtual chunk * get(uint key);
+  virtual chunk *get(uint32 key);
 
   /* replace existing chunk, if present.
      takes ownership of chunk in any case */
-  virtual void insert(chunk * data);
+  virtual void insert(chunk *data);
 
   virtual ~chunks() {}
   virtual void destroy();

@@ -357,14 +357,21 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 
     int nmoves = failsrc->length();
 
-    const char ** spawnargs = 
-      (const char **) malloc(sizeof (char *) *
+    // XXX: This leaks the malloc and the two strdups. Something
+    // is pretty messed up here; spawnv() wants a char *const *,
+    // which is difficult to arrange without declaring and
+    // initializing the args at once (?). But this approach
+    // requires that we assign non-const strings into the array,
+    // which can't be done for string literals or string::c_str.
+    // Maybe I'm just confused.
+    char **spawnargs = 
+      (char **) malloc(sizeof (char *) *
 			     ((nmoves * 2) + 1 /* argv[0] */ 
 			      + 1 /* execafter */
 			      + 1 /* terminating 0 */));
     
-    spawnargs[0] = REPLACE_EXE;
-    spawnargs[1] = startup::self.c_str();
+    spawnargs[0] = strdup(REPLACE_EXE);
+    spawnargs[1] = strdup(startup::self.c_str());
 
     int ii = 2;
     while (failsrc) {
@@ -378,11 +385,11 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 
     }
 
-    spawnargs[ii++] = 0;
+    spawnargs[ii++] = nullptr;
 
     for (int z = 0; z < ii; z++) {
       say((string)"[" YELLOW + itos(z) + (string)POP"] " +
-	  (string)(spawnargs[z]?spawnargs[z]:"(null)"));
+	  (string)(spawnargs[z] ? spawnargs[z] : "(null)"));
     }
 
     message::quick(this, "Escape will now restart.",

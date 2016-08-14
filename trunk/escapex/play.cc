@@ -1029,7 +1029,7 @@ playresult preal::doplay_save(player * plr, level * start,
   /* XX avoid creating if animation is off? */
   std::unique_ptr<Dirt> dirty{Dirt::create()};
 
-  const bool pref_animate = 
+  bool do_animate = 
     prefs::getbool(plr, PREF_ANIMATION_ENABLED);
 
   for (;;) {
@@ -1143,7 +1143,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	  /* reset animations, since this is a standard trick to disable
 	     animation temporarily */
 	  if (dr.zoomfactor == 0)
-	    pref_animate =
+	    do_animate =
 	      prefs::getbool(plr, PREF_ANIMATION_ENABLED);
 
 	  /* fix scrolls */
@@ -1207,7 +1207,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	case SDLK_a:
 	  // Temporarily toggle animation preference.
 	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    pref_animate = !pref_animate;
+	    do_animate = !do_animate;
 	  }
 	  break;
 
@@ -1348,7 +1348,7 @@ playresult preal::doplay_save(player * plr, level * start,
 
 	  bool moved;
 
-	  if (pref_animate && !dr.zoomfactor) {
+	  if (do_animate && !dr.zoomfactor) {
 	    moved = animatemove(dr, ctx, dirty.get(), d);
 	  } else {
 	    moved = dr.lev->move(d);

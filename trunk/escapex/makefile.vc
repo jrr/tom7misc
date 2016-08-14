@@ -1,0 +1,172 @@
+
+# Deprecated old makefile for visual studio command-line tools on windows.
+# This doesn't work, and it's hateful to try. It's here for reference
+# in case there are some commands I need for reference.  - Tom 7, 13 Aug 2016
+
+ifndef MINGW
+ifndef LINUX
+ifndef OSX
+# makefile for windows. Windows is weird.
+
+# On windows I have switched to mingw (export MINGW=true; see below),
+# so Visual C++ may stop working as it drifts out of date, sorry.
+# I will delete it soon.
+
+FAIL ERROR  "NO"
+
+SDLVERSION=1.2.11
+
+# normally use these
+ZLIBDIR = ..\SDL_image_1.2.4\lib
+ZINCDIR = ..\SDL_image_1.2.4\include
+PLIBDIR = ZLIBDIR
+PINCDIR = ZINCDIR
+
+# Or maybe these if you compile zlib and libpng yourself
+# ZLIBDIR = ..\zlib
+# ZINCDIR = ..\zlib
+# PLIBDIR = ..\libpng
+# PINCDIR = ..\libpng
+
+# not sure what fd does
+DEBUGFLAGS = /Od /GZ /MDd /FD /D "_DEBUG"
+FASTFLAGS = /MD /Gf /G6 /O2 /Og /Oi /Oy /Ob2 /GL
+
+WHICHFLAGS = ${DEBUGFLAGS}
+
+default : escape.exe replace.exe
+
+COMPILE=cl /nologo ${WHICHFLAGS} /W3 /GX /I "..\SDL-${SDLVERSION}\include" /I "..\SDL_image-1.2.4\include" /I "..\SDL_net-1.2.5\include" /I "..\SDL_mixer-1.2.6\include" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /c /I ${ZINCDIR} /I ${PINCDIR}
+
+COMPILECMDLINE=cl /nologo /MDd /W3 /GX /Od /I "..\SDL-${SDLVERSION}\include" /I "..\SDL_image-1.2.4\include" /I "..\SDL_net-1.2.5\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FD /GZ /c /I "..\libpng" /D "_CONSOLE"  /I ${ZINCDIR} /I ${PINCDIR}
+
+
+# don't need?
+# most recently..
+# odbc32.lib odbccp32.lib
+# probably could remove more, haven't tried... (does it even matter?)
+
+LINK=link oldnames.lib "..\SDL-${SDLVERSION}\lib\SDL.lib" "..\SDL_image-1.2.4\lib\SDL_image.lib" "..\SDL_net-1.2.5\lib\SDL_net.lib" "..\SDL_mixer-1.2.6\lib\SDL_mixer.lib" libcpmt.lib msvcrt.lib msvcprt.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib /nologo /subsystem:windows /pdb:none /debug /machine:I386 /nodefaultlib /libpath:"..\SDL-${SDLVERSION}\lib" /libpath:"..\SDL_net-1.2.5\lib" /libpath:"..\SDL_mixer-1.2.6\lib"  /libpath:"..\SDL_image-1.2.4\lib" /libpath:${ZLIBDIR} /libpath:${PLIBDIR}
+
+# for command line apps. no need for net or mixer.
+LINKCMDLINE=link oldnames.lib "..\SDL-${SDLVERSION}\lib\SDL.lib" "..\SDL_image-1.2.4\lib\SDL_image.lib" libcpmt.lib msvcrt.lib msvcprt.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib uuid.lib /nologo /subsystem:console /pdb:none /debug /machine:I386 /nodefaultlib /libpath:"..\SDL-${SDLVERSION}\lib" /libpath:"..\SDL_image-1.2.4\lib"  /libpath:${ZLIBDIR} /libpath:${PLIBDIR}
+
+.dummy :
+
+version : .dummy
+	cl /nologo /D "WIN32" /GX version.cc
+	./version.exe
+	make clean
+	make default
+
+wc :
+	wc -l *.cc *.h
+
+RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt SDL.dll SDL_net.dll zlib1.dll COPYING changelog animation.png SDL_mixer.dll splash.png
+
+zip : .dummy ${RELEASEFILES}
+	rm -rf escape-beta
+	mkdir escape-beta
+	cp -a triage escape-beta
+	cp -a ${RELEASEFILES} escape-beta
+	mkdir escape-beta/mylevels
+	cp -a official escape-beta
+	rm -rf escape-beta/official/CVS escape-beta/triage/CVS
+	rm -rf escape-beta/official/.svn escape-beta/triage/.svn
+	cp mylevels/index.esi escape-beta/mylevels/
+	rm -f escape-beta.zip
+	echo "=============================="
+	echo "now zip escape-beta to release"
+	echo "escape-beta.zip is already gone"
+	echo "then do make zipup"
+	echo "=============================="
+
+releasefiles.win32 : makefile
+	echo ${RELEASEFILES} > releasefiles.win32
+
+zipup : escape-beta.zip
+	pscp escape-beta.zip root@spacebar.org:/var/www/escape/
+
+escapesetup.exe : .dummy ${RELEASEFILES} escape.nsi
+	makensis escape.nsi
+
+installer : escapesetup.exe
+
+installerup : escapesetup.exe
+	pscp escapesetup.exe root@spacebar.org:/var/www/escape/
+
+# some rules for making objects, etc.
+
+# how to compile object files
+%.obj : %.cc selector.h extent.h
+	${COMPILE} $<
+
+animation_load.h animation.png animation_decs.h animation_defs.h : animation.pack
+	rm -f animation_load.h animation.png animation_decs.h animation_defs.h
+	make packpng.exe
+	packpng.exe animation.pack animation
+	rm -f animation.better
+	pngcrush -e .better animation.png
+	rm -f animation.png
+	mv animation.better animation.png
+
+sound_load.h : sound.pack packsound.cc
+	make packsound.exe
+	packsound.exe sound.pack sound
+
+sound.obj : sound.cc sound_load.h sound.h
+	${COMPILE} $<
+
+level.obj : level.cc move.h
+	${COMPILE} $<
+
+animation.obj : animation.cc animation.h animation_load.h animation_decs.h animation_defs.h sound_load.h
+	${COMPILE} $<
+
+# it has to be different for the console =(
+%-console.obj : %.cc
+	${COMPILECMDLINE} $^ /Fo$@
+
+sdlutil-console.obj : sdlutil.cc
+	${COMPILECMDLINE} -DUSE_DISPLAY_FORMAT=0 $^ /Fo$@
+
+escape.res : escape.rc escape.ico
+	rc /r /fo escape.res escape.rc
+
+escape.exe : main.obj level.obj sdlutil.obj play.obj font.obj directories.obj load.obj util.obj md5.obj player.obj playerdb.obj prompt.obj draw.obj drawable.obj edit.obj editai.obj editprefab.obj mainmenu.obj upgrade.obj http.obj httputil.obj textscroll.obj message.obj update.obj dircache.obj upper.obj registration.obj upload.obj rating.obj menu.obj prefs.obj escape.res chunks.obj dirindex.obj textbox.obj analysis.obj generator.obj prime.obj commenting.obj cleanup.obj mainshow.obj handhold.obj animation.obj dirt.obj sound.obj base64.obj winmain.obj optimize.obj smanage.obj client.obj progress.obj leveldb.obj startup.obj backgrounds.obj escapex.obj
+	${LINK} /out:"escape.exe" $^
+
+# other executables that need to be built:
+
+replace.exe : replace-console.obj util-console.obj
+	${LINKCMDLINE} /out:$@ $^ user32.lib
+
+packpng.exe : util-console.obj font-console.obj level-console.obj sdlutil-console.obj packpng-console.obj winmain-console.obj
+	${LINKCMDLINE} /out:$@ $^ libpng13.lib
+
+packsound.exe : util-console.obj packsound-console.obj winmain-console.obj
+	${LINKCMDLINE} /out:$@ $^
+
+mkupgrade.exe : mkupgrade-console.obj md5-console.obj
+	${LINKCMDLINE} /out:$@ $^
+
+UPGRADE : .dummy mkupgrade.exe releasefiles.win32 deletefiles.win32 symlinks.win32
+	./mkupgrade.exe releasefiles.win32 symlinks.win32 deletefiles.win32 > UPGRADE
+
+CURRENT : .dummy mkupgrade.exe
+	./mkupgrade.exe -v > CURRENT
+
+release : UPGRADE CURRENT
+	pscp -C ${RELEASEFILES} UPGRADE CURRENT root@spacebar.org:/var/www/escape/win32/
+	rm -f UPGRADE CURRENT mkupgrade.exe
+
+clean :
+	rm -f *.obj escape.exe *.tmp *.delme *.pdb *.ilk *.o *.idb *.plg *.opt replace.exe *.ncb *.aps packpng.exe screenshot.exe replace.exe mkupgrade.exe version.exe
+	touch mv_is_dumb~
+	touch .\#mv_is_dumb
+	mv -f *~ .\#* attic
+
+# end windows makefile
+endif
+endif
+endif
