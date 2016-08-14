@@ -26,6 +26,9 @@
 #define TEXTX ((screen->w - titlegraphic->w) >> 1)
 #define RECOMMENDED_TEXT YELLOW "Recommended " POP PICS ARROWR POP " "
 
+// Note: It doesn't work at all yet; don't bother :)
+#define ENABLE_NEW_LEVEL_BROWSER 1
+
 enum mmetype {
   MM_TUTORIAL,
   MM_LOAD,
@@ -132,11 +135,12 @@ void mmentry::draw(int x, int y, bool sel) {
     drawing::drawtileu(sxi, y, TU_1, 0, screen);
     fon->draw(sx, ctry, YELLOW "Load a level.");
     break;
+
   case MM_LOAD_NEW:
     drawing::drawtileu(sxi, y, TU_LOAD, 0, screen);
     fon->draw(sx, ctry, YELLOW "New level browser!");
     break;
-
+    
   case MM_EDIT:
     drawing::drawtileu(sxi, y, TU_2, 0, screen);
     fon->draw(sx, ctry, "Edit a level.");
@@ -469,7 +473,9 @@ mmreal * mmreal::create(player * plr) {
   }
 
   mm->sel->items[i++].t = MM_LOAD;
-  mm->sel->items[i++].t = MM_LOAD_NEW;
+  if (ENABLE_NEW_LEVEL_BROWSER) {
+    mm->sel->items[i++].t = MM_LOAD_NEW;
+  }
   mm->sel->items[i++].t = MM_EDIT;
   if (network) {
 #   ifndef MULTIUSER

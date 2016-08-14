@@ -1,10 +1,10 @@
-%.o
 # This makefile relies on environment variables to select the
 # correct platform. You need to do one of
 #   export LINUX=true
 #   export OSX=true
 #   export MINGW=true
-# before you run make, or nothing will happen.
+# before you run make, or nothing will happen. See HACKING for
+# more information on compiling escape.
 
 # XXX can remove sdl_image on other platforms too.
 # XXX need to use cc-lib version of sdlutil.o
