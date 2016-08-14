@@ -1759,7 +1759,7 @@ bool anflying::think (unsigned int now) {
   int go = util::minimum(speed, pleft);
 
   {
-    int dx, dy;
+    int dx = 0, dy = 0;
     dirchange(d, dx, dy);
     px += dx * go;
     py += dy * go;
@@ -2159,7 +2159,7 @@ bool animation::init_anims(alist * anims, unsigned int now) {
 }
 
 void anlaser::draw() {
-  int chx, chy;
+  int chx = 0, chy = 0;
   dirchange(d, chx, chy);
 
   int px = sx;

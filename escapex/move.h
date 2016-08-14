@@ -1353,19 +1353,19 @@ static void postanimate(level * l, disamb * ctx,
       while (remotes) {
         swaplist * t = remotes;
         remotes = remotes->next;
-#ifdef AM
-    { int x, y; where(t->target, x, y);
-      printf("(was %d %d) ",
-         ctx->serialat(x, y),
-         ctx->serial);
-      bool did = AFFECTI(t->target);
-      printf("%d=%d,%d: %s %d %d\n", 
-         t->target, x, y, did?"did":"not", 
-         ctx->serialat(x, y), 
-         ctx->serial);
-      // AFFECTI(t->target);
-    }
-#endif
+        #ifdef AM
+        { int x, y; where(t->target, x, y);
+          if (0) printf("(was %d %d) ",
+                        ctx->serialat(x, y),
+                        ctx->serial);
+          bool did = AFFECTI(t->target);
+          if (0) printf("%d=%d,%d: %s %d %d\n", 
+                        t->target, x, y, did?"did":"not", 
+                        ctx->serialat(x, y), 
+                        ctx->serial);
+          // AFFECTI(t->target);
+        }
+        #endif
         SWAPO(t->target);
         delete t;
       }
