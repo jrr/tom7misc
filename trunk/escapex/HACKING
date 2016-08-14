@@ -1,122 +1,100 @@
 
  ** Compiling Escape **
 
-Note 1 Aug 2016: I'm in the process of refreshing the build process
-to use all free tools and modern C++. Some of the instructions below
-are super out-of-date. The good news is that all of the annoying
-libraries needed by sdl_image are now unnecessary, so you may just
-be able to pick your platform and run 'make' now, provided you have
-SDL installed.
+In August 2016 I rewrote the build process to use all free tools and
+modern C++, and committed to 64 bits on OS X, Linux, and Windows.
+If you want to compile with an old compiler, Visual Studio, Mac OS
+10.2, or for a 32-bit platform, you can take a look at svn revision
+2869 and good luck!
 
 
-Note: If you don't want to install the sound libraries, you can
-compile with -DNOSOUND to disable it. There's no sound yet, so
-this might be a good idea.
+The basic approach to compiling is to set an environment variable
+selecting your platform, i.e., one of:
+  export OSX=true
+  export WIN32=true
+  export LINUX=true
+and then just type
+  make
+
+You need "cc-lib", which is just a directory of library code used by
+this and other projects. It just needs to sit in a directory next to
+the one with the escape source code; escape's makefile manages to
+compile the .cc files in there.
+
+Beware that Escape has been around forever, so it may predate
+"obvious" better ways to do things. For example, it uses the venerable
+SDL 1.2 rather than the 2.0 series.
+
+Executables have ".exe" suffix even on linux and OS X, even though
+I know this is unusual for these platforms. But think about it.
+
+Note that not all platforms have makefiles for the "meta" tools that
+generate packed animations, etc. But the generated files are part of
+the source distribution, and it shouldn't be too hard to get these
+tools to build.
+
+If you don't want to install the sound libraries, you can compile with
+-DNOSOUND to disable it. There's no sound yet, so this might be a good
+idea. (Some platforms currently force this.)
 
 
-To compile on Windows:
+Platform specific notes:
 
-Although there are project files for Visual Studio, these often get
-out of date. The main way to compile is using GNU 'make'.
+ ** OS X **
 
-Get the development library for SDL (libsdl.org), the VC6 one. I am
-using version 1.2.6. Put that in a directory parallel to this one,
-called "SDL-1.2.6". Right inside that directory should be the "lib",
-"include" dirs, etc.
+On OS X, the required Frameworks are part of the source distribution.
+You may need to:
+  - Install XCode command-line tools, so that the makefile can run
+    compilers (indeed, to run make itself)
+  - Type "make framelinks" to make some symlinks inside of the
+    Frameworks dir
+  - Make a symlink from SDL OSX_build/Frameworks/SDL.framework/Versions/A/Headers
+    because some other SDL libraries expect to be able to include
+    SDL headers as "SDL/SDL_endian.h" etc.
 
-Get SDL_image from libsdl.org as well, I use
-SDL_image-devel-1.2.4-VC6. Unzip this in another parallel directory
-called "SDL_image-1.2.4" (so that "lib", "include", etc. are in that
-dir.) For image, you also need to download the source zip
-(SDL_image-1.2.4.zip). Inside that there is a VisualC.zip, which, in
-its graphics subdirectory, contains an include and lib dir. Put the
-contents of those in the SDL_image include and lib dirs. (We need the
-png headers and libraries so that we can save pngs).
+The command "make desktop" makes Escape.app and puts it on the desktop;
+this is how I usually develop there.
 
-Do the same for SDL_net and SDL_mixer. I use versions
-SDL_net-devel-1.2.5-VC6 and SDL_mixer-devel-1.2.6-VC6.
+ ** Linux **
 
+Linux is very easy. If you don't have 'make' and GCC already, god help you.
+Otherwise, you may need to install SDL, SDL_net, and SDL_mixer; on Ubuntu:
+  - sudo apt-get install libsdl1.2-dev
+  - sudo apt-get install libsdl-net1.2-dev
+  - sudo apt-get install libsdl-mixer1.2-dev
+  
+SDL is working if the command "sdl-config" is in your path.
 
-Copy all of the DLL files (jpeg.dll libpng13.dll zlib1.dll
-SDL_image.dll from sdl_image, SDL_net.dll from sdl_net, sdl.dll from
-SDL, **XXX MIXER ONES**) into the escapex dir.
+After this, "export LINUX=true" and "make" should just work.
 
-If you don't have the same versions as me, you'll need to change the
-names in the makefile.
+ ** Windows **
 
-You probably also need cygwin installed, or some other unix clone
-that provides make, rm, and cp.
+Visual Studio is no longer supported. You can try at revision 2869, but
+why? I use mingw, and specifically the TDM-GCC compiler, producing
+native 64-bit with free tools.
 
-Run vcvars32.bat, which is your VC98 binaries dir. This puts the
-compiler tools in your path.
+Managing libraries like SDL on win32 is a nightmare because there are
+multiple different standards for where they should go, what object file
+formats should be used, compilers, and so on. I finally gave up on trying
+to build these as shared libraries, and am having a much better experience
+just linking against .o files that I compile from source. You don't even
+need to deal with nor distribute dlls this way, saving your users some
+pain, too.
 
-Type make. 
+Get SDL, SDL_net, and SDL_mixer from libsdl.org. You want the 1.2 versions,
+and the source code (NOT "runtime libraries" nor "development libraries";
+there will be no libraries because the source code just gets compiled into
+Escape). These contain directories like "SDL-1.2.15". Put these in the
+escape source directory but rename them to SDL, SDL_net, and SDL_mixer (no
+version numbers).
 
-
-
-To compile on Linux (RedHat):
-
-Get SDL, SDL_image, SDL_net, and SDL_mixer (versions from above) as
-RPMs (both libs and devel), and install. You may need to install
-libogg and libvorbis (http://www.vorbis.com/download_unix.psp) for
-SDL_mixer and libpng for SDL_image.
-
-Since it's such a pain, I started collecting the names of packages
-that you need to fetch for a Debian/Ubuntu system, but good luck:
-
-apt-get install libvorbis-dev
-apt-get install libsdl-mixer1.2-dev libsdl-mixer1.2
-
-
-
-Type (if you are using bash):
-
-export LINUX=true
-make
-
-This same procedure should work on other linux distributions as well.
-Note that there are two modes of building: static and dynamic. If you
-have difficulty at link time, then try:
-
-export DYNAMIC=true
-make clean
-make
-
-
-
-
-To compile on OSX:
-
-You should be able to just type (in bash):
-
-export OSX=true
-make framelinks
-make
-
-.. since the library binaries ("Frameworks") are checked into the
-repository and included in the source distribution. However, some
-people have reported problems, which I can't debug due to a lack of
-access to Macs (I build on Sourceforge's OSX 10.2 shell server). If
-you have any ideas, please let me know.
-
-
-
-Escape should run on any platform where SDL, SDL_net, SDL_image, and
-SDL_mixer work. I am interested in ports to other architectures and
-operating systems, so let me know if you can assist.
-
- ** Outstanding Issues **
-
-To build the generated animation headers, you must use the packpng
-program. This is only part of the makefile for windows, but it should
-be straightforward to make it work on other platforms, provided that
-the png headers are available. However, the headers and packed animation
-graphic are checked into the repository, so it is not necessary to build
-them unless you modify the animations.
-
-I have had difficulty running packpng when compiled with VS.NET, perhaps
-because of the incompatibilities with libpng's setjmp use. I would love
-to debug this, but I have made no progress. Tips?
+If all is well, you should be able to just "export WIN32=true" and
+"make". It's possible that I'm skipping an important step about how to
+install mingw itself, but I don't remember how to do this. I think I
+am using one of (?!) the 64-bit versions offered within 64-bit cygwin,
+and then running a 64-bit cygwin bash shell, but I'm not sure. Be very
+cautious about buying into anything you see on the net; there are so
+many traps.
 
 
  ** Understanding the code **
@@ -172,12 +150,19 @@ Because what I really want is Java's interfaces, I may use multiple
 inheritance. But at most one (and probably none) of the parent classes
 will be ever be concrete.
 
+
  ** Code history **
 
 On 18 Dec 2009 I moved all of the source code and data from CVS at
 Sourceforge to SVN at Sourceforge, still in the tom7misc project. I
 did not preserve history, so if you want to do an archaeological diff,
 you'll have to look there.
+
+In August 2016 (>= r2870), I deleted a bunch of old build stuff and
+commited to modern C++, 64-bit compiles, and removed external
+dependencies like libpng. If you want to compile some old way, this
+is where to look. But why?
+
 
  ** Things to know **
 
