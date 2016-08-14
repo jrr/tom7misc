@@ -59,12 +59,12 @@
 template <class Item, class Ret>
 struct selector : public drawable {
 
-  int botmargin;
-  int yfit;
-  int selected, skip;
+  int botmargin = 80;
+  int yfit = 0;
+  int selected = 0, skip = 0;
   int number;
 
-  drawable * below;
+  drawable *below = nullptr;
 
   /* SDL sends mousemotion events
      when there is no motion, sometimes--
@@ -193,17 +193,10 @@ struct selector : public drawable {
     selector * s = new selector();
     s->number = n;
     s->items = new Item[n];
-    s->skip = 0;
-    s->selected = 0;
-
-    s->botmargin = 80;
-    s->below = 0;
 
     s->title = "Select using the arrow keys and press enter.";
 
     s->reset();
-
-    /* XXX check for fail of new Item[] */
 
     return s;
   }
@@ -245,16 +238,13 @@ struct selector : public drawable {
       items[i].draw(8, 2 + topsize +
                     (i - skip) * Item::height(), (i==selected));
     }
-
-
-
   }
 
   /* Don't have to do anything because our size is specified in
      terms of the screen size. (Though maybe that's not ideal.)
      But give the parent a chance to rejigger. */
   virtual void screenresize() {
-    below->screenresize();
+    if (below) below->screenresize();
   }
 
   bool pointitem(int y, int & n) {

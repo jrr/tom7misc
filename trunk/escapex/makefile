@@ -1,4 +1,4 @@
-
+%.o
 # This makefile relies on environment variables to select the
 # correct platform. You need to do one of
 #   export LINUX=true
@@ -314,6 +314,10 @@ default : escape.exe
 # Tom, you may need to do this:
 # export PATH=/c/TDM-GCC-64/bin:${PATH}
 
+%.o : %.cc
+	@${CXX} ${CPPFLAGS} ${CXXFLAGS} -c -o $@ $<
+	@bash -c "echo -n '.'"
+
 CXX=g++
 CC=gcc
 
@@ -336,8 +340,9 @@ CCLIBOBJECTS= ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/md5.o ../cc
 
 
 # XXX reenable sound
+DEBUG=-g
 OPT=-O2
-CPPFLAGS=-DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include  -I. ${SDLINCLUDES} ${SDLNETINCLUDES}
+CPPFLAGS=${DEBUG} -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include  -I. ${SDLINCLUDES} ${SDLNETINCLUDES}
 CXXFLAGS= -std=c++14 ${OPT}
 
 # -Wl,-rpath=. 
@@ -472,7 +477,7 @@ wc :
 	wc -l *.cc *.h
 
 clean :
-	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.*
+	rm -f *.o escape.exe core core.[0-9]* gmon.out escape-src.tar.bz2 escape-beta.tar.gz vgcore.* SDL_net/*.o
 
 # end mingw makefile
 endif
