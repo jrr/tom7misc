@@ -90,13 +90,6 @@ Section "" ; No components page, so name is not important
   File splash.png
   File icon.png
   File escape.txt
-  File SDL.dll
-  File SDL_image.dll 
-  File SDL_net.dll
-  File jpeg.dll
-  File libpng13.dll
-  File zlib1.dll
-  File SDL_mixer.dll
   File COPYING
   File changelog
 

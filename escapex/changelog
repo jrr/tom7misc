@@ -54,7 +54,7 @@
 
 2008-11-09  Tom 7  <Tom@WARPZONE>
 
-        * move.h: Fixed a bug when animating wires. 
+        * move.h: Fixed a bug when animating wires.
 
 2007-04-28  Tom 7  <Tom@METROID>
 
@@ -72,7 +72,7 @@
           wire animation rewrite.
 
         * makefile: The OSX version is now a universal binary
-          (Intel/PPC) and uses symlinks instead of copies 
+          (Intel/PPC) and uses symlinks instead of copies
           internally (smaller zip).
 
 2007-04-08  Tom 7  <Tom@LOLO>
@@ -148,7 +148,7 @@
 2006-11-26  Tom 7  <Tom@METROID>
 
         ### NEW TILE ###
-        
+
         * level.h: Added remotes. These are panels that are
           activated (only) by wires. Like panels, they have
           a single destination and swap that destination's
@@ -205,7 +205,7 @@
           a solution in 'play' mode, but then diverge to create
           a different solution. Added <home> (same as 'r') and
           <end> keys to go to the beginning and end of the solution.
-        
+
 2006-10-15  Tom 7  <Tom@METROID>
 
         * play.cpp: Added the ability to optimize solutions from
@@ -236,7 +236,7 @@
         * edit.cpp: Fixed a minor bug where canceling a panel
           or teleporter destination while editing the bizarro
           world would undo to the contents of the regular world.
-        
+
 2006-06-19  Tom 7  <tom7@...>
 
         * server/autothin.aa: Added a new collection, "minor
@@ -294,13 +294,13 @@
         * menu.cpp: Draw checkboxes using checks instead of the
           letter x.
 
-        * menu.cpp: Made it possible to move menus by clicking on 
+        * menu.cpp: Made it possible to move menus by clicking on
           and dragging the bar at the top.
 
 2006-03-10  Tom 7  <Tom@METROID>
 
         * play.cpp: There is a new key in the ongoing battle against
-          hidden information. While playing, 'n' now toggles display 
+          hidden information. While playing, 'n' now toggles display
           of bot numbers.
 
 2006-03-09  Tom 7  <Tom@METROID>
@@ -313,7 +313,7 @@
         * winmain.cpp: Saving from the editor can now sometimes
           recover bookmarks in addition to solutions from old versions
           of the level. The circumstances under which this can happen
-          should be expanded, however. 
+          should be expanded, however.
 
 2006-02-24  Tom 7  <tom7@...>
 
@@ -414,7 +414,7 @@
           dies.
 
         * level.h: Increased the maximum number of bots to 15. I hope
-          you guys have learned enough restraint to not just make 
+          you guys have learned enough restraint to not just make
           hugbot pushfests with this.
 
 2005-09-26  Tom 7  <Tom@METROID>
@@ -539,7 +539,7 @@
 2005-07-15  Tom 7  <tom7@...>
 
         * animation.cpp: Fixed a bug where if a bot died on a tile, then
-          any exit that ever appeared at that tile would appear open 
+          any exit that ever appeared at that tile would appear open
           during animation forever.
 
 2005-07-02  Tom 7  <Tom@METROID>
@@ -551,7 +551,7 @@
           whole selection is the repeating pattern) and then adds another
           row or column onto the side that is being extended, in order to
           continue the pattern.
-         
+
           This tool can also be used to make rows of panels with the same,
           or linearly changing destinations. To do this, you must have at
           least 2 occurrences of your pattern in the selection, since it
@@ -573,7 +573,7 @@
 2005-06-27  Tom 7  <Tom@LOLO>
 
         * edit.cpp: Added a secret key in the editor (d) to toggle display
-          of all panel and teleport destinations. 
+          of all panel and teleport destinations.
 
 2005-06-21  Tom 7  <Tom@METROID>
 
@@ -617,7 +617,7 @@
           of a motion. Without bots, this could only happen if the panel
           targeted itself, and so I don't think this situation occurs in
           any levels.
-        
+
 2005-06-14  Tom 7  <tom7@...>
 
         * edit.cpp: You can no longer scroll off the left and top edges
@@ -676,7 +676,7 @@
 
         * edit.cpp: Now, the 'w' key toggles sleeping/awake for bots
           instead of switching the (rarely used) random style.
-        
+
         * load.cpp: Use a nice key icon to indicate that you own a
           level.
 
@@ -709,7 +709,7 @@
 
         * draw.cpp: Improved drawing in a few subtle ways. Now bots
           and animations are always drawn from the top of the screen
-          to the bottom, so their antennae always draw on "top" of 
+          to the bottom, so their antennae always draw on "top" of
           the bot behind them. Exit doors also stay open when a bot
           is on them.
 
@@ -743,7 +743,7 @@
           when solutions are being played back. (Thanks again Stephan!)
           Moving the mouse too much while a solution is being played could
           cause a crash. I will fix this soon.
-        
+
 2005-04-26  Tom 7  <Tom@METROID>
 
         * move.h: Fixed a bug with heart framers, similar to the problem
@@ -768,7 +768,7 @@
 
         * move.h: Corrected a small bug where a Dalek could erroneously
           step onto an electric tile that was already occupied.
-          
+
         * move.h: Added heart framers and sleeping exits. These need
           animation badly. Sleeping bots soon, too.
 
@@ -776,8 +776,8 @@
 
         * smanage.cpp: Hooked up fwd/rev/frev in solution playback.
           You can also use 'f' and 'u' as replacements for the arrow
-          keys if you are bothered by the cognitive dissonance of 
-          pressing one direction and having the player potentially 
+          keys if you are bothered by the cognitive dissonance of
+          pressing one direction and having the player potentially
           move in some other. Fast forward is coming soon.
 
 2005-04-22  Tom 7  <Tom@METROID>
@@ -786,7 +786,7 @@
           won (can be useful for speedrunning) by pressing 'u' when
           the message box pops up.
 
-        * move.h: Fixed hugbot redraw bug (see level) when pushing. 
+        * move.h: Fixed hugbot redraw bug (see level) when pushing.
           There's still at least one alarming hugbot drawing issue,
           but I think I might know how to fix it.
 
@@ -892,7 +892,7 @@
           there will be a preference to do this automatically
           when you solve a level, and perhaps a bit more
           intelligence in the optimizer. (ie., It could find
-          shorter paths between points on the map, even if 
+          shorter paths between points on the map, even if
           you don't have loops in your solution.)
 
 2005-03-18  Tom 7  <Tom@METROID>
@@ -905,7 +905,7 @@
 
         * play.cpp: Added (provisional) move counter while
           playing.
-        
+
 2005-03-15  Tom 7  <tom7@...>
 
         * edit.cpp: Added selection rectangle. Drag from
@@ -928,7 +928,7 @@
         * move.h: Fixing up bot animation, and finishing
           the implementation of the initial three robots:
           Daleks, Hugbots, and Broken bots.
-          
+
         * Added tutorials for each of the three new robot
           types.
 
@@ -1031,7 +1031,7 @@
 
         * animation.cpp: Resolved long standing issue
           with the player drawing and multi-phase
-          animation. There are no known corner cases 
+          animation. There are no known corner cases
           with this any longer. (Please report player
           duplication bugs or alpha darkening!)
 
@@ -1039,11 +1039,11 @@
 
         * animation.cpp: Fixed zoomed out pictures of
           player.
-          
+
         * animation.cpp: Added animation for walking
           upward.
 
-        * main.cpp: Fixed (I think) mouse warping when 
+        * main.cpp: Fixed (I think) mouse warping when
           the program is launched, causing something
           other than the appropriate default to be
           selected on the player selector.
@@ -1083,7 +1083,7 @@
 
 2005-01-22  Tom 7  <Tom@LOLO>
 
-        * sdlutil.cpp: Vastly improved graphics performance, 
+        * sdlutil.cpp: Vastly improved graphics performance,
           especially on Linux. (Thanks Adam for the patch!)
 
 2005-01-21  Tom 7  <Tom@METROID>
@@ -1182,7 +1182,7 @@
 
         * mainmenu.cpp: Now using the selector (with mouse
           action) for the main menu as well.
-          
+
         * mainmenu.cpp: Added icons to the main menu,
           like the player database has.
 
@@ -1230,7 +1230,7 @@
 
         * textbox.cpp: Fixed crash in text box when using
           long words. (Thanks bpotetz!) Also fixed word wrap
-          a little, though it still acts strange for long words. 
+          a little, though it still acts strange for long words.
 
         * animation.cpp: Kicking a gold block or sphere now
           animates its trip and hit. Most of the work was in
@@ -1276,7 +1276,7 @@
         * draw.cpp: Now show full rating information in details on
           load (etc.) screen. This needs to be a little bit less
           prominent to avoid information overload.
-        
+
 2004-09-20  Tom 7  <tom7@...>
 
         * edit.cpp: Added text warning to accompany graphical one with
@@ -1321,7 +1321,7 @@
           you what to do when you first play. It also reminds you to
           upgrade or update every month or so.
 
-        * util.cpp: Got rid of all debugging printouts to the 
+        * util.cpp: Got rid of all debugging printouts to the
           console, in preparation for Beta.
 
 2004-08-23  Tom 7  <tom7@...>
@@ -1351,7 +1351,7 @@
 
         * update.cpp: Use a smaller font for update. Now do sanity
           checking of the file and directory names.
-        
+
 2004-08-17  Tom 7  <Tom@METROID>
 
         * mainmenu.cpp: Made another attempt at making the main menu
@@ -1412,7 +1412,7 @@
 2004-07-30  Tom 7  <tom7@...>
 
         * load.cpp: Made the load progress indicator graphical.
-        
+
         * escape.txt: Updated the documentation for the impending
           Beta release.
 
@@ -1429,7 +1429,7 @@
           this gets rid of quirky results when (for instance) sorting
           several times in a row by 'solved' or deleting a file when
           the sort was anything but alphabetical.
-        
+
         * upper.cpp: Index files are no longer stuck in the attic
           when updating.
 
@@ -1469,7 +1469,7 @@
 
         * load.cpp: The load screen should be a bit faster, since
           we only verify solutions once per launch of escape.
-          
+
         * load.cpp: Made sorts "natural" so that "Tutorial 10"
           comes after "Tutorial 9" instead of "Tutorial 1".
 
@@ -1491,7 +1491,7 @@
           escape won't be able to read files saved with versions
           from today on. Therefore, the level database has been
           set as requiring today's version or later.
-          
+
           The next planned change to this encoding should be
           backwards compatible, unless I've made a mistake.
 
@@ -1519,11 +1519,11 @@
         * load.cpp: Sort by author with ctrl-t.
 
         * edit.cpp: Implemented zooming in and out using brackets [ ],
-          doubled the maximum area of a level to 2048. 
+          doubled the maximum area of a level to 2048.
 
         * update.cpp: Index names of subdirectories now leave out
           an unsightly leading space.
-        
+
 2004-05-22  Tom 7  <Tom@METROID>
 
         * Found a whole bunch of crappy old levels, and imported some
@@ -1548,7 +1548,7 @@
           ctrl-0 on the load screen (for a directory where there are
           levels with missing solutions) and type the name of your
           player file, such as myname.esp.
-        
+
         * Added view of ratings. These are updated from the
           server at level update time. The server is itself only
           intermittently updated. Personal ratings are not shown yet.
@@ -1556,7 +1556,7 @@
 2004-05-13  Tom 7  <tom7@...>
 
         * Finally fixed sorting of directories in load.
-        
+
         * Added 'impure' subdirectory to triage collection.
           Broken/joke/invalid levels go here.
 

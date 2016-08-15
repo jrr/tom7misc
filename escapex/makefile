@@ -336,7 +336,8 @@ LINKSDLNET= -lws2_32 -liphlpapi
 ESCOBJECTS= main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 # XXX
-CCLIBOBJECTS= ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o ../cc-lib/md5.o ../cc-lib/base64.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o
+SDLUTILOBJECTS= ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o
+CCLIBOBJECTS= ../cc-lib/md5.o ../cc-lib/base64.o ../cc-lib/stb_image_write.o ../cc-lib/stb_image.o
 
 
 # XXX reenable sound
@@ -360,8 +361,11 @@ LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,console ${OPT}  -st
 icon.o : escape.ico escape.rc
 	windres -i escape.rc -o $@
 
-escape.exe : ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
-	${CXX} -g -o escape.exe $^ ${LDFLAGS}
+escape.exe : ${ESCOBJECTS} ${CCLIBOBJECTS} ${SDLUTILOBJECTS} ${SDLOBJECTS} ${SDLNETOBJECTS}
+	${CXX} -g -o $@ $^ ${LDFLAGS}
+
+replace.exe : replace.o util.o
+	${CXX} -g -o $@ $^ ${LDFLAGS}
 
 packsound.exe : util-console.o packsound-console.o ${SDLOBJECTS}
 	${CXX} -o $@ $^ ${LDFLAGS}
@@ -383,25 +387,39 @@ sound_load.h : sound.pack packsound.cc
 	make packsound.exe
 	./packsound.exe sound.pack sound
 
+ZOPFLI=./zopflipng.exe --splitting=3 --filters=01234mepb --lossy_8bit --lossy_transparent
+
 animation_load.h animation.png animation_decs.h animation_defs.h : animation.pack
 	rm -f animation_load.h animation.png animation_decs.h animation_defs.h
 	make packpng.exe
 	packpng.exe animation.pack animation
-	rm -f animation.better
-	pngcrush/pngcrush -e .better animation.png
+	rm -f animation-zop.png
+	${ZOPFLI} animation.png animation-zop.png
 	rm -f animation.png
-	mv animation.better animation.png
+	mv animation-zop.png animation.png
+
+optimize-png : animation.png .dummy
+	rm -f zop-*.png
+	${ZOPFLI} --prefix=zop- font.png fontsmall.png icon.png splash.png tiles.png tileutil.png title.png animation.png
+	cp zop-font.png font.png
+	cp zop-fontsmall.png fontsmall.png
+	cp zop-icon.png icon.png
+	cp zop-splash.png splash.png
+	cp zop-tiles.png tiles.png
+	cp zop-tileutil.png tileutil.png
+	cp zop-title.png title.png
+	cp zop-animation.png animation.png
+	rm -f zop-*.png
 
 # XXX better way to do this? 
 %-console.o : %.cc
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -DNOSOUND=1 -DUSE_DISPLAY_FORMAT=0 $^ -c -o $@
 
-# XXX sdlutil needs to come from cc-lib
 packpng.exe : util-console.o font-console.o level-console.o ../cc-lib/sdl/sdlutil-console.o packpng-console.o winmain-console.o
 	${CXX} -o $@ ${LDFLAGS} $^ ${LDLIBS}
 
 # but this should be static
-screenshot.exe : draw-console.o level-console.o font-console.o util-console.o sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
+screenshot.exe : draw-console.o level-console.o ../cc-lib/sdl/font-console.o util-console.o ../cc-lib/sdl/sdlutil-console.o screenshot-console.o animation-console.o sound-console.o message-console.o drawable-console.o progress-console.o escapex-console.o
 	${CXX} -g -o screenshot.exe $^ `sdl-config --static-libs`
 
 .dummy :
@@ -410,15 +428,16 @@ version : .dummy
 	${CXX} version.cc -o version.exe
 	./version.exe
 	make clean
-	make escape.exe
+	make -j 8 escape.exe
 
-RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt SDL.dll SDL_net.dll zlib1.dll COPYING changelog animation.png SDL_mixer.dll splash.png
+# SDL.dll SDL_net.dll zlib1.dll SDL_mixer.dll
+RELEASEFILES=escape.exe replace.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
 
 releasefiles.win32 : ${RELEASEFILES}
 	echo ${RELEASEFILES} > releasefiles.win32
 
-mkupgrade.exe : mkupgrade.cc md5.cc
-	${CXX} -DWIN32 mkupgrade.cc md5.cc -o mkupgrade.exe
+mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
+	${CXX} ${CPPFLAGS} ${CXXFLAGS} -DWIN32 mkupgrade.cc ../cc-lib/md5.cc -o mkupgrade.exe
 
 CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 mkupgrade.exe
 	strip escape.exe
@@ -441,7 +460,7 @@ zipup : escape-beta.tar.gz
 	pscp escape-beta.tar.gz root@spacebar.org:/var/www/escape/
 
 # default location
-MAKENSIS="c:\program files\nsis\makensis.exe"
+MAKENSIS='c:\program files (x86)\nsis\makensis.exe'
 
 escapesetup.exe : .dummy ${RELEASEFILES} escape.nsi
 	${MAKENSIS} escape.nsi
