@@ -117,7 +117,7 @@ int main (int argc, char ** argv) {
      takes some time! */
 
   {
-    SDL_Surface * splash = sdlutil::LoadImage(SPLASH_FILE);
+    SDL_Surface *splash = sdlutil::LoadImage(SPLASH_FILE);
     if (splash) {
       SDL_Rect dst;
       dst.x = 2;

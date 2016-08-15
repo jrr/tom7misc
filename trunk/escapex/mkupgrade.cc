@@ -1,14 +1,16 @@
 
 #include <string>
-#include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <cstdio>
+#include <string.h>
+
 #include "version.h"
 #include "oldest.h"
 #include "recommend.h"
 #include "../cc-lib/md5.h"
 
-#include <iostream>
-#include <fstream>
-
+using namespace std;
 
 /* generate the UPGRADE file for a platform. 
    see protocol.txt.
