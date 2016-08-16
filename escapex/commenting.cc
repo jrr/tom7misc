@@ -13,7 +13,7 @@
 #include "commenting.h"
 #include "httputil.h"
 
-struct cscreen : public drawable {
+struct cscreen : public Drawable {
   virtual void draw() {
     sdlutil::clearsurface(screen, BGCOLOR);
 
@@ -49,14 +49,14 @@ struct cscreen : public drawable {
     SDL_Flip(screen);
   }
 
-  level * lev;
+  Level *lev;
   int nsolved;
   string levmd5;
 
-  textscroll * tx;
+  TextScroll *tx;
 
   cscreen() {
-    tx = textscroll::create (fon);
+    tx = TextScroll::create(fon);
     tx->posx = 2;
     tx->posy = fon->height + 2;
     tx->width = screen->w - 4;
@@ -66,13 +66,13 @@ struct cscreen : public drawable {
 
 };
 
-void commentscreen::comment(player * p, level * lev, string md5,
+void CommentScreen::comment(Player *p, Level *lev, string md5,
 			    bool cookmode) {
   cscreen cs;
   cs.lev = lev;
   cs.levmd5 = md5;
   
-  solution * sol = p->getsol(md5);
+  Solution *sol = p->getsol(md5);
   cs.nsolved = sol?sol->length:0;
 
 
@@ -83,11 +83,11 @@ void commentscreen::comment(player * p, level * lev, string md5,
   /* make sure that we can access the server, since we will lose
      a comment that we compose if it can't be posted. */
 
-  cs.tx->say (GREY "Making sure we're connected...");
+  cs.tx->say(GREY "Making sure we're connected...");
   cs.redraw();
-  http * hh = client::connect(p, cs.tx, &cs);
+  http * hh = Client::connect(p, cs.tx, &cs);
   if (!hh) {
-    message::quick(&cs, "Can't connect to internet!",
+    Message::quick(&cs, "Can't connect to internet!",
 		   "OK", "", PICS XICON POP);
     return;
   }
@@ -97,7 +97,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
   {
     string res;
     bool success = 
-      client::rpc(hh, PING_RPC,
+      Client::rpc(hh, PING_RPC,
 		  /* credentials */
 		  (string)"id=" +
 		  itos(p->webid) + 
@@ -110,7 +110,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
 		  res);
 
     if (!success) {
-      message::quick(&cs, 
+      Message::quick(&cs, 
 		     "Ping to server failed! "
 		     "Perhaps this level is not uploaded.",
 		     "OK", "", PICS XICON POP);
@@ -159,16 +159,16 @@ void commentscreen::comment(player * p, level * lev, string md5,
   cancel can;
   can.text = "Cancel";
   
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 
-  ptrlist<menuitem>::push(l, &can);
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &spoiler);
-  ptrlist<menuitem>::push(l, &body);
+  PtrList<MenuItem>::push(l, &can);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &spoiler);
+  PtrList<MenuItem>::push(l, &body);
 
   menu * mm = menu::create(&cs, cookmode?"Explain your cook":"Leave a comment", l, false);
   Extent<menu> em(mm);
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
 
   mm->yoffset = fon->height + 4;
   mm->alpha = 230;
@@ -180,7 +180,7 @@ void commentscreen::comment(player * p, level * lev, string md5,
 
     string res;
     bool success = 
-      client::rpc(hh, COMMENT_RPC,
+      Client::rpc(hh, COMMENT_RPC,
 		  /* credentials */
 		  (string)"id=" + itos(p->webid) + 
 		  (string)"&seql=" + itos(p->webseql) +
@@ -191,11 +191,11 @@ void commentscreen::comment(player * p, level * lev, string md5,
 		  res);
 
     if (success) {
-      message::quick(&cs, "posted: " + font::truncate(res, 60), 
+      Message::quick(&cs, "posted: " + font::truncate(res, 60), 
 		     "OK", "", PICS THUMBICON POP);
     } else {
       /* XXX copy to clipboard? */
-      message::quick(&cs, "failed: " + font::truncate(res, 60), 
+      Message::quick(&cs, "failed: " + font::truncate(res, 60), 
 		     "comment lost =(", "", PICS XICON POP);
     }
    

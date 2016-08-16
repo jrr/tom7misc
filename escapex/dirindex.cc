@@ -95,8 +95,8 @@ di_real * di_real::create() {
 
 
 bool dirindex::isindex(string f) {
-  return (util::hasmagic(f, INDEXMAGIC) ||
-	  util::hasmagic(f, INDEX3MAGIC));
+  return util::hasmagic(f, INDEXMAGIC) ||
+         util::hasmagic(f, INDEX3MAGIC);
 }
 
 dirindex * dirindex::fromfile(string f) {
@@ -120,11 +120,11 @@ dirindex * dirindex::fromfile(string f) {
   } else {
 
     Extent<di_real> de(dr);
-    checkfile * cf = checkfile::create(f);
+    CheckFile * cf = CheckFile::create(f);
     
     if (!cf) return 0;
     
-    Extent<checkfile> fe(cf);
+    Extent<CheckFile> fe(cf);
 
     /* check that it starts with v2 magic */
     string s;

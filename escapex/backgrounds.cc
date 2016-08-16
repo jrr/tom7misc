@@ -6,8 +6,8 @@
 #include "chars.h"
 #include "../cc-lib/sdl/sdlutil.h"
 
-const float backgrounds::blueish = 178.0f;
-const float backgrounds::purpleish = 260.0f; // 247.0f;
+const float Backgrounds::blueish = 178.0f;
+const float Backgrounds::purpleish = 260.0f; // 247.0f;
 
 static Uint32 hueish(SDL_Surface * surf, float base_hue) {
   float h = base_hue + (util::randfrac() * (233.0f - 178.0f));
@@ -17,7 +17,7 @@ static Uint32 hueish(SDL_Surface * surf, float base_hue) {
   return sdlutil::hsv(surf, h / 360.0f, s, v, a);
 }
 
-void backgrounds::gradientblocks(SDL_Surface *& surf,
+void Backgrounds::gradientblocks(SDL_Surface *& surf,
 				 int tile_white,
 				 int tile_black,
 				 float gradient_hue) {

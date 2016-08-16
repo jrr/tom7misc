@@ -5,7 +5,7 @@
 #include "draw.h"
 #include "drawable.h"
 
-struct backgrounds {
+struct Backgrounds {
 
   /* Creates a checkerboard pattern of blocks with
      a random vertical gradient atop it. Modifies
@@ -21,7 +21,7 @@ struct backgrounds {
   static const float purpleish;
 
  private:
-  backgrounds();
+  Backgrounds();
 };
 
 #endif

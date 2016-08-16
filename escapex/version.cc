@@ -19,7 +19,7 @@ static string itos(int i) {
   return (string)s;
 }
 
-int main (int argc, char ** argv) {
+int main(int argc, char ** argv) {
 
   char buf[256];
 
@@ -40,7 +40,7 @@ int main (int argc, char ** argv) {
   FILE * vh = fopen(VERSION_H, "w");
   
   if (!vh) { 
-    printf ("Can't open " VERSION_H " \n");
+    printf("Can't open " VERSION_H " \n");
     exit(-1);
   }
 

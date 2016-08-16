@@ -51,12 +51,12 @@ struct hashtable {
 
   int items;
 
-  ptrlist<I> ** data;
+  PtrList<I> ** data;
 
   void destroy() {
     for (int i = 0; i < allocated; i++) {
-      for (ptrlist<I>*tmp = data[i]; tmp; ) {
-	while (tmp) (ptrlist<I>::pop(tmp))->destroy();
+      for (PtrList<I>*tmp = data[i]; tmp; ) {
+	while (tmp) (PtrList<I>::pop(tmp))->destroy();
       }
 
     }
@@ -68,7 +68,7 @@ struct hashtable {
     hashtable * h = new hashtable();
 
     h->allocated = i;
-    h->data = (ptrlist<I>**)malloc(i * sizeof (ptrlist<I>*));
+    h->data = (PtrList<I>**)malloc(i * sizeof (PtrList<I>*));
     h->items = 0;
     
     if (!h->data) {
@@ -90,14 +90,14 @@ struct hashtable {
   void insert(I * item) {
     unsigned int loc = I::hash(item->key()) % allocated;
     
-    data[loc] = new ptrlist<I>(item, data[loc]);
+    data[loc] = new PtrList<I>(item, data[loc]);
     items++;
   }
 
   I * lookup(K key) {
     unsigned int loc = I::hash(key) % allocated;
 
-    for (ptrlist<I> * tmp = data[loc]; tmp; tmp = tmp->next) {
+    for (PtrList<I> * tmp = data[loc]; tmp; tmp = tmp->next) {
       if (key == tmp->head->key()) return tmp->head;
     }
 
@@ -108,11 +108,11 @@ struct hashtable {
   I * remove(K key) {
     unsigned int loc = I::hash(key) % allocated;
     
-    ptrlist<I> ** tmp = &data[loc];
+    PtrList<I> ** tmp = &data[loc];
     while (*tmp) {
       if (key == (*tmp)->head->key()) {
 	/* Remove it. */
-	ptrlist<I> * node = *tmp;
+	PtrList<I> * node = *tmp;
 	*tmp = (*tmp)->next;
 	I * data = node->head;
 	node->next = 0;
@@ -135,7 +135,7 @@ inline void hashtable_app( hashtable<I, K> * tab,
 			   void (*f)(I *, T), 
 			   T d ) {
   for (int i = 0 ; i < tab->allocated; i++ ) {
-    ptrlist<I> * l = tab->data[i];
+    PtrList<I> * l = tab->data[i];
     while (l) {
       f(l->head, d);
       l = l->next;

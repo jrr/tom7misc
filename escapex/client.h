@@ -25,8 +25,8 @@
 
 #define HTTP_DEBUGFILE "netdebug.txt"
 
-struct client {
-  static http * connect(player * plr, textscroll * tx, drawable * that) {
+struct Client {
+  static http * connect(Player *plr, TextScroll *tx, Drawable *that) {
     http * hh = http::create();
 
     if (prefs::getbool(plr, PREF_DEBUG_NET)) 
@@ -38,7 +38,7 @@ struct client {
 
     if (!hh) { 
       if (tx) tx->say(YELLOW "Couldn't create http object.");
-      message::quick(that, "Upgrade failed!", "Cancel", "");
+      Message::quick(that, "Upgrade failed!", "Cancel", "");
       return 0;
     }
 
@@ -61,7 +61,7 @@ struct client {
     if (!hh->connect(serveraddress, serverport)) {
       if (tx) tx->say((string)RED "Couldn't connect to " 
 		      YELLOW + serveraddress + POP ".");
-      message::quick(that, "Can't connect!", "Cancel", "");
+      Message::quick(that, "Can't connect!", "Cancel", "");
       return 0;
     }
 
@@ -70,7 +70,7 @@ struct client {
   }
 
   /* XX add bool quiet=true; when false show progress */
-  static bool quick_rpc(player *, string path, string query, string & ret);
+  static bool quick_rpc(Player *, string path, string query, string & ret);
 
   /* true on success */
   static bool rpc(http * hh, string path, string query, string & ret) {
@@ -137,10 +137,10 @@ struct client {
   }
 
   /* need the drawable to draw background, too */
-  /* static */ struct quick_txdraw : public drawable {
-    textscroll * tx;
+  /* static */ struct quick_txdraw : public Drawable {
+    TextScroll *tx;
     quick_txdraw() {
-      tx = textscroll::create(fon);
+      tx = TextScroll::create(fon);
       tx->posx = 5;
       tx->posy = 5;
       tx->width = screen->w - 10;

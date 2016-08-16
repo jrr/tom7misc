@@ -16,7 +16,7 @@
 #include "util.h"
 #include "chars.h"
 
-#include "message.h"
+#include "Message.h"
 #include "upload.h"
 #include "prompt.h"
 
@@ -79,7 +79,7 @@ struct llentry {
      (part of a web collection) */
   bool managed;
 
-  level * lev;
+  Level *lev;
 
   static int height() { return fon->height; }
   string display(bool selected);
@@ -90,25 +90,25 @@ struct llentry {
   ~llentry() { if (lev) lev->destroy(); }
   llentry() { lev = 0; }
   
-  static void swap(llentry * l, llentry * r) {
-#   define SWAP(t,f) {t f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
-    SWAP(string, md5);
-    SWAP(string, fname);
-    SWAP(string, name);
-    SWAP(int, date);
-    SWAP(int, speedrecord);
-    SWAP(bool, owned);
-    SWAP(bool, managed);
-    SWAP(int, isdir);
-    SWAP(string, author);
-    SWAP(bool, corrupted);
-    SWAP(int, sizex);
-    SWAP(int, sizey);
-    SWAP(int, solved);
-    SWAP(int, total);
-    SWAP(level *, lev);
-    SWAP(rating *, myrating);
-    SWAP(ratestatus, votes);
+  static void swap(llentry *l, llentry *r) {
+#   define SWAP(f) {const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
+    SWAP(md5);
+    SWAP(fname);
+    SWAP(name);
+    SWAP(date);
+    SWAP(speedrecord);
+    SWAP(owned);
+    SWAP(managed);
+    SWAP(isdir);
+    SWAP(author);
+    SWAP(corrupted);
+    SWAP(sizex);
+    SWAP(sizey);
+    SWAP(solved);
+    SWAP(total);
+    SWAP(lev);
+    SWAP(myrating);
+    SWAP(votes);
 #   undef SWAP
   }
 
@@ -275,7 +275,7 @@ struct llentry {
   static string none() { return ""; }
 };
 
-typedef selector<llentry, string> selor;
+typedef Selector<llentry, string> selor;
 
 struct loadlevelreal : public loadlevel {
 
@@ -298,7 +298,7 @@ struct loadlevelreal : public loadlevel {
   
   loadlevelreal() : helppos(0) {}
 
-  static loadlevelreal * create(player * p, string dir, 
+  static loadlevelreal * create(Player *p, string dir, 
 				bool inexact, bool ac);
 
 
@@ -349,7 +349,7 @@ struct loadlevelreal : public loadlevel {
 
   struct dircache * cache;
 
-  player * plr;
+  Player *plr;
   bool allow_corrupted;
 
   /* save last dir we entered */
@@ -365,9 +365,9 @@ struct loadlevelreal : public loadlevel {
 
   /* this for solution preview */
   Uint32 showstart;
-  level * showlev;
+  Level *showlev;
   int solstep;
-  solution * showsol;
+  Solution *showsol;
   /* if this isn't the same as sel->selected,
      then we are out of sync. */
   int showidx;
@@ -390,8 +390,8 @@ loadlevelreal::sortstyle loadlevelreal::sortby = loadlevelreal::SORT_DATE;
 string loadlevelreal::lastdir;
 string loadlevelreal::lastfile;
 
-loadlevel * loadlevel::create(player * p, string dir, bool td, bool ac) {
-  return loadlevelreal::create (p, dir, td, ac);
+loadlevel *loadlevel::create(Player *p, string dir, bool td, bool ac) {
+  return loadlevelreal::create(p, dir, td, ac);
 }
 
 loadlevel::~loadlevel() {}
@@ -463,7 +463,7 @@ void loadlevelreal::step() {
 
 
 /* PERF could precompute most of this */
-void llentry::draw (int x, int y, bool selected) {
+void llentry::draw(int x, int y, bool selected) {
   fon->draw(x, y, display(selected));
 }
 
@@ -564,7 +564,7 @@ bool loadlevelreal::first_unsolved(string & file, string & title) {
 #  define DBTIME(s) ;
 #endif
 
-loadlevelreal * loadlevelreal::create(player * p, string default_dir,
+loadlevelreal * loadlevelreal::create(Player *p, string default_dir,
 				      bool inexact,
 				      bool allow_corrupted_) {
   DBTIME_INIT;
@@ -789,13 +789,13 @@ int loadlevelreal::changedir(string what, bool remember) {
       string contents = util::readfilemagic(ldn, LEVELMAGIC);
 
       /* try to read it, passing along corruption flag */
-      level * l = level::fromstring(contents, allow_corrupted);
+      Level *l = Level::fromstring(contents, allow_corrupted);
 
       if (l) {
 	string md5c = MD5::Hash(contents);
 
 
-	typedef ptrlist<namedsolution> solset;
+	typedef PtrList<NamedSolution> solset;
 	
 	/* owned by player */
 	solset * sols = plr->solutionset(md5c);
@@ -807,7 +807,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	   and sanity sake */
 	if (sols) {
 	  if (sols->head->sol->verified ||
-	      level::verify(l, sols->head->sol)) {
+	      Level::verify(l, sols->head->sol)) {
 	    sols->head->sol->verified = true;
 	    nsel->items[i].solved = sols->head->sol->length;
 	  } else if (sols->next) { 
@@ -819,11 +819,11 @@ int loadlevelreal::changedir(string what, bool remember) {
 	    while (sols) {
 	      /* not trying bookmarks */
 	      if (!sols->head->bookmark &&
-		  level::verify(l, sols->head->sol)) {
+		  Level::verify(l, sols->head->sol)) {
 		/* ok! create the new list with this
 		   at the head. */
 
-		namedsolution * ver = sols->head->clone();
+		NamedSolution *ver = sols->head->clone();
 		ver->sol->verified = true;
 
 		/* get tail */
@@ -912,7 +912,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
 #if 0
   if (!nsel->number) {
-    message::no(0, "There are no levels at all!!");
+    Message::no(0, "There are no levels at all!!");
     return 0;
   }
 #endif
@@ -921,7 +921,7 @@ int loadlevelreal::changedir(string what, bool remember) {
   sel = nsel;
 
   if (!sel->number) {
-    message::no(0, "There are no levels at all!!");
+    Message::no(0, "There are no levels at all!!");
 
     /* FIXME crash if we continue  */
     exit(-1);
@@ -984,16 +984,16 @@ void loadlevelreal::drawsmall() {
 
 void loadlevelreal::solvefrombookmarks(const string &filename,
 				       bool wholedir) {
-  player * rp = player::fromfile(filename);
+  Player *rp = Player::fromfile(filename);
   if (!rp) {
-    message::quick(this, 
+    Message::quick(this, 
 		   "Couldn't open/understand that player file.",
 		   "OK", "", PICS XICON POP);
     sel->redraw();
     return;
   }
 
-  Extent<player> erp(rp);
+  Extent<Player> erp(rp);
 
   int nsolved = 0;
 
@@ -1022,19 +1022,19 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
       done++;
 
       /* check every solution in rp. */
-      ptrlist<solution> * all = rp->all_solutions();
+      PtrList<Solution> * all = rp->all_solutions();
 
       /* we don't need to delete these solutions */
       int snn = 0;
 
       // XXX check for esc keypress
       while (all) {
-	solution * s = ptrlist<solution>::pop(all);
+	Solution *s = PtrList<Solution>::pop(all);
 
 	/* PERF verify does its own cloning */
-	level * l = sel->items[i].lev->clone();
+	Level *l = sel->items[i].lev->clone();
 
-	solution * out;
+	Solution *out;
 
 	progress::drawbar((void*)&pe,
 			  done, total, 
@@ -1048,7 +1048,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 	snn++;
 
 	/* printf("try %p on %p\n", s, l); */
-	if (level::verify_prefix(l, s, out)) {
+	if (Level::verify_prefix(l, s, out)) {
 
 	  /* XX should be length of prefix that solves */
 	  sel->items[i].solved = 1;
@@ -1057,7 +1057,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 	  /* XXX PERF md5s are stored */
 	  FILE * f = fopen(af.c_str(), "rb");
 	  if (!f) {
-	    message::bug(this, "couldn't open in recovery");
+	    Message::bug(this, "couldn't open in recovery");
 	    sel->redraw();
 	    continue;
 	  }
@@ -1081,7 +1081,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 
 	  /* save solution now */
 	  {
-	    namedsolution ns(out, "Recovered", plr->name, 
+	    NamedSolution ns(out, "Recovered", plr->name, 
 			     time(0), false);
 	    plr->addsolution(md5, &ns, false);
 	  }
@@ -1089,7 +1089,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 	  out->destroy();
 
 	  /* then don't bother looking at the tail */
-	  ptrlist<solution>::diminish(all);
+	  PtrList<Solution>::diminish(all);
 	}
 
 	l->destroy();
@@ -1100,7 +1100,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
   if (nsolved > 0) {
     plr->writefile();
   } else {
-    message::quick(this,
+    Message::quick(this,
 		   "Couldn't recover any new solutions.",
 		   "OK", "", PICS EXCICON POP);
   }
@@ -1186,32 +1186,32 @@ string loadlevelreal::loop() {
 	      cancel can;
 	      can.text = "Cancel";
 	      
-	      ptrlist<menuitem> * l = 0;
+	      PtrList<MenuItem> * l = 0;
 	      
-	      ptrlist<menuitem>::push(l, &can);
-	      ptrlist<menuitem>::push(l, &ok);
-	      ptrlist<menuitem>::push(l, &spacer);
+	      PtrList<MenuItem>::push(l, &can);
+	      PtrList<MenuItem>::push(l, &ok);
+	      PtrList<MenuItem>::push(l, &spacer);
 
 	      if (!sel->items[sel->selected].owned)
-		ptrlist<menuitem>::push(l, &pass);
+		PtrList<MenuItem>::push(l, &pass);
 
-	      ptrlist<menuitem>::push(l, &desc);
-	      ptrlist<menuitem>::push(l, &spacer2);
-	      ptrlist<menuitem>::push(l, &message2);
-	      ptrlist<menuitem>::push(l, &message);
+	      PtrList<MenuItem>::push(l, &desc);
+	      PtrList<MenuItem>::push(l, &spacer2);
+	      PtrList<MenuItem>::push(l, &message2);
+	      PtrList<MenuItem>::push(l, &message);
 
 	      
 	      /* display menu */
 	      menu * mm = menu::create(0, "Really delete?", l, false);
 	      resultkind res = mm->menuize();
-	      ptrlist<menuitem>::diminish(l);
+	      PtrList<MenuItem>::diminish(l);
 	      mm->destroy();
 	      
 	      if (res == MR_OK) {
 		
 		/* ask server */
 		string res;
-		if (client::quick_rpc(plr, DELETE_RPC,
+		if (Client::quick_rpc(plr, DELETE_RPC,
 				      (string)"pass=" +
 				      httputil::urlencode(pass.input) +
 				      (string)"&id=" +
@@ -1226,10 +1226,10 @@ string loadlevelreal::loop() {
 				      httputil::urlencode(desc.get_text()),
 				      res)) {
 		
-		  message::quick(this, "Success!", "OK", "", PICS THUMBICON POP);
+		  Message::quick(this, "Success!", "OK", "", PICS THUMBICON POP);
 
 		} else {
-		  message::no(this, "Couldn't delete: " + res);
+		  Message::no(this, "Couldn't delete: " + res);
 		  sel->redraw();
 		  continue;
 		}
@@ -1240,7 +1240,7 @@ string loadlevelreal::loop() {
 	      }
 
 	    } else {
-	      message::no(this, 
+	      Message::no(this, 
 			  "In web collections, you can only delete\n"
 			  "   a level that you uploaded. "
 			  "(marked " PICS KEYPIC POP ")\n");
@@ -1250,7 +1250,7 @@ string loadlevelreal::loop() {
 
 	  } else {
 	    /* just a file on disk */
-	    if (!message::quick(this,
+	    if (!Message::quick(this,
 				PICS TRASHCAN POP " Really delete " BLUE +
 				file + POP "?",
 				"Yes",
@@ -1261,7 +1261,7 @@ string loadlevelreal::loop() {
 	  }
 
 	  if (!util::remove(file)) {
-	    message::no(this, "Error deleting file!");
+	    Message::no(this, "Error deleting file!");
 	    sel->redraw();
 	    continue;
 	  }
@@ -1356,10 +1356,10 @@ string loadlevelreal::loop() {
 	      smanage::manage(plr, sel->items[sel->selected].md5, 
 			      sel->items[sel->selected].lev);
 
-	    } else message::no(this, "You must solve this level first.");
+	    } else Message::no(this, "You must solve this level first.");
 
 	    /* we probably messed this up */
-	    fix_show (true);
+	    fix_show(true);
 	    sel->redraw();
 	    continue;
 	  } else break;
@@ -1371,8 +1371,7 @@ string loadlevelreal::loop() {
 	    /* ctrl-c: comment on a level */
 	  
 	    if (plr->webid) {
-
-	      level * l = sel->items[sel->selected].lev;
+	      Level *l = sel->items[sel->selected].lev;
 
 	      lastfile = sel->items[sel->selected].fname;
 
@@ -1381,7 +1380,7 @@ string loadlevelreal::loop() {
 	  
 	      FILE * f = fopen(file.c_str(), "rb");
 	      if (!f) {
-		message::bug(this, "Couldn't open file to comment on");
+		Message::bug(this, "Couldn't open file to comment on");
 	    
 	      } else {
 
@@ -1389,11 +1388,11 @@ string loadlevelreal::loop() {
 		fclose(f);
 	    
 		/* This does its own error reporting */
-		commentscreen::comment(plr, l, md);
+		CommentScreen::comment(plr, l, md);
 
 	      }
 	    } else {
-	      message::no(this, "You must register with the server to comment.\n"
+	      Message::no(this, "You must register with the server to comment.\n"
 			  "   (Press " BLUE "R" POP " on the main menu.)");
 	    }
 	    sel->redraw();
@@ -1408,7 +1407,7 @@ string loadlevelreal::loop() {
 
 	    if (plr->webid) {
 	  
-	      level * l = sel->items[sel->selected].lev;
+	      Level *l = sel->items[sel->selected].lev;
 
 	      lastfile = sel->items[sel->selected].fname;
 
@@ -1418,7 +1417,7 @@ string loadlevelreal::loop() {
 	      /* XXX now in llentry, also comment */
 	      FILE * f = fopen(file.c_str(), "rb");
 	      if (!f) {
-		message::bug(this, "Couldn't open file to rate");
+		Message::bug(this, "Couldn't open file to rate");
 	    
 	      } else {
 
@@ -1435,7 +1434,7 @@ string loadlevelreal::loop() {
 
 		  rs->rate();
 		} else {
-		  message::bug(this, "Couldn't create rate object!");
+		  Message::bug(this, "Couldn't create rate object!");
 		}
 
 		/* now restore the rating */
@@ -1445,7 +1444,7 @@ string loadlevelreal::loop() {
 	      }
 
 	    } else {
-	      message::no(this, 
+	      Message::no(this, 
 			  "You must register with the server to rate levels.\n"
 			  "   (Press " BLUE "R" POP " on the main menu.)");
 
@@ -1490,20 +1489,20 @@ string loadlevelreal::loop() {
 	    cancel can;
 	    can.text = "Cancel";
 
-	    ptrlist<menuitem> * l = 0;
+	    PtrList<MenuItem> * l = 0;
 
-	    ptrlist<menuitem>::push(l, &can);
-	    ptrlist<menuitem>::push(l, &spacer);
+	    PtrList<MenuItem>::push(l, &can);
+	    PtrList<MenuItem>::push(l, &spacer);
 
-	    ptrlist<menuitem>::push(l, &solve);
-	    ptrlist<menuitem>::push(l, &everything);
-	    ptrlist<menuitem>::push(l, &filename);
+	    PtrList<MenuItem>::push(l, &solve);
+	    PtrList<MenuItem>::push(l, &everything);
+	    PtrList<MenuItem>::push(l, &filename);
 
-	    ptrlist<menuitem>::push(l, &spacer);
-	    ptrlist<menuitem>::push(l, &message4);
-	    ptrlist<menuitem>::push(l, &message3);
-	    ptrlist<menuitem>::push(l, &message2);
-	    ptrlist<menuitem>::push(l, &message1);
+	    PtrList<MenuItem>::push(l, &spacer);
+	    PtrList<MenuItem>::push(l, &message4);
+	    PtrList<MenuItem>::push(l, &message3);
+	    PtrList<MenuItem>::push(l, &message2);
+	    PtrList<MenuItem>::push(l, &message1);
 
 	    /* display menu */
 	    menu * mm = menu::create(this, "Solve from bookmarks?", l, false);
@@ -1513,7 +1512,7 @@ string loadlevelreal::loop() {
 	      solvefrombookmarks(filename.input, everything.checked);
 	    }
 
-	    ptrlist<menuitem>::diminish(l);
+	    PtrList<MenuItem>::diminish(l);
 	    mm->destroy();
 
 	    fix_show();
@@ -1571,31 +1570,31 @@ string loadlevelreal::loop() {
 		cancel can;
 		can.text = "Cancel";
 	      
-		ptrlist<menuitem> * l = 0;
+		PtrList<MenuItem> * l = 0;
 	      
-		ptrlist<menuitem>::push(l, &can);
-		ptrlist<menuitem>::push(l, &ok);
-		ptrlist<menuitem>::push(l, &spacer);
+		PtrList<MenuItem>::push(l, &can);
+		PtrList<MenuItem>::push(l, &ok);
+		PtrList<MenuItem>::push(l, &spacer);
 	      
-		ptrlist<menuitem>::push(l, &desc);
-		ptrlist<menuitem>::push(l, &spacer);
+		PtrList<MenuItem>::push(l, &desc);
+		PtrList<MenuItem>::push(l, &spacer);
 
-		ptrlist<menuitem>::push(l, &message6);
-		ptrlist<menuitem>::push(l, &message5);
-		ptrlist<menuitem>::push(l, &spacer);
+		PtrList<MenuItem>::push(l, &message6);
+		PtrList<MenuItem>::push(l, &message5);
+		PtrList<MenuItem>::push(l, &spacer);
 
-		ptrlist<menuitem>::push(l, &message4);
-		ptrlist<menuitem>::push(l, &message3);
-		ptrlist<menuitem>::push(l, &spacer);
+		PtrList<MenuItem>::push(l, &message4);
+		PtrList<MenuItem>::push(l, &message3);
+		PtrList<MenuItem>::push(l, &spacer);
 
-		ptrlist<menuitem>::push(l, &message2);
-		ptrlist<menuitem>::push(l, &message);
+		PtrList<MenuItem>::push(l, &message2);
+		PtrList<MenuItem>::push(l, &message);
 
 	      
 		/* display menu */
 		menu * mm = menu::create(0, "Really upload?", l, false);
 		resultkind res = mm->menuize();
-		ptrlist<menuitem>::diminish(l);
+		PtrList<MenuItem>::diminish(l);
 		mm->destroy();
 	      
 		if (res != MR_OK) {
@@ -1609,7 +1608,7 @@ string loadlevelreal::loop() {
 		upload * uu = upload::create();
 
 		if (!uu) {
-		  message::bug(this,
+		  Message::bug(this,
 			       "Can't create upload object!");
 		  sel->redraw();
 		  continue;
@@ -1630,11 +1629,11 @@ string loadlevelreal::loop() {
 		  break;
 		}
 	      } else {
-		message::no(this, 
+		Message::no(this, 
 			    "Can't upload dirs or unsolved levels.");
 	      }
 	    } else {
-	      message::no
+	      Message::no
 		(this, 
 		 "You must register with the server to upload levels.\n"
 		 "(Press " BLUE "R" POP " on the main menu.)");
@@ -1657,7 +1656,7 @@ string loadlevelreal::loop() {
 	     fail? */
 	  /* printf("chdir '%s'\n", sel->items[pr.u.i].fname.c_str()); */
 	  if (!changedir(sel->items[pr.u.i].fname)) {
-	    message::quick(0, "Couldn't change to " BLUE +
+	    Message::quick(0, "Couldn't change to " BLUE +
 			   sel->items[pr.u.i].fname,
 			   "Sorry", "", PICS XICON POP);
 	  }

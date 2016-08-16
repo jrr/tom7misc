@@ -16,8 +16,8 @@ enum updateresult {
 };
 
 /* update */
-struct updater : public drawable {
-  static updater * create(player * p);
+struct updater : public Drawable {
+  static updater * create(Player *p);
   virtual updateresult update(string & msg) = 0;
   virtual void destroy() = 0;
   virtual ~updater() {};

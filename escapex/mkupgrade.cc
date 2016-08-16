@@ -112,12 +112,12 @@ int main(int argc, char ** argv) {
       /* now output. */
 
       /* number of files */
-      printf ("%d\n", n);
-      printf ("%s\n", OLDEST);
-      printf ("%s\n", RECOMMEND);
-      printf ("%s\n", VERSION);
+      printf("%d\n", n);
+      printf("%s\n", OLDEST);
+      printf("%s\n", RECOMMEND);
+      printf("%s\n", VERSION);
       /* arbitrary date string -- could make nicer */
-      printf ("%s %s\n", PLATFORM, VERSION);
+      printf("%s %s\n", PLATFORM, VERSION);
 
       /* output entries. */
       for (int i = 0; i < n; i++) {

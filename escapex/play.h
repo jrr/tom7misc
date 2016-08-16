@@ -26,13 +26,13 @@ struct playresult {
   prtype type;
 
   union u {
-    solution * sol;
+    Solution *sol;
   } u;
 
   stat(quit, QUIT);
   stat(error, ERROR);
 
-  static playresult solved(solution * s) {
+  static playresult solved(Solution *s) {
     playresult p;
     p.type = PR_SOLVED;
     p.u.sol = s;
@@ -43,17 +43,17 @@ struct playresult {
 
 #undef stat
 
-struct play : public drawable {
+struct play : public Drawable {
   static play * create();
-  virtual playresult doplay_save(player *, level *, solution *& saved, string md5) = 0;
-  virtual playresult doplay(player * plr, level * lev, string md5) {
-    solution * unused = 0;
+  virtual playresult doplay_save(Player *, Level *, Solution *& saved, string md5) = 0;
+  virtual playresult doplay(Player *plr, Level *lev, string md5) {
+    Solution *unused = 0;
     playresult res = doplay_save(plr, lev, unused, md5);
     unused->destroy();
     return res;
   }
   /* play, recording the game in the player's solution file */
-  static void playrecord(string file, player * plr, bool allowrate = true);
+  static void playrecord(string file, Player *plr, bool allowrate = true);
   virtual void draw() = 0;
   virtual void screenresize() = 0;
   virtual void destroy() = 0;

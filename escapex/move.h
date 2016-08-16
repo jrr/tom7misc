@@ -110,7 +110,7 @@
 #ifdef ANIMATING_MOVE
 # include "util.h"
 # include "aevent.h"
-  typedef ptrlist<aevent> alist;
+  typedef PtrList<aevent> alist;
 
 # define AM
 
@@ -357,22 +357,22 @@
 
 #ifndef ANIMATING_MOVE
 /* generate callable versions of the macros */
-void level::checkstepoff(int x, int y) {
+void Level::checkstepoff(int x, int y) {
   CHECKSTEPOFF(x, y);
 }
 
-void level::checkleavepanel(int x, int y) {
+void Level::checkleavepanel(int x, int y) {
   CHECKSTEPOFF(x, y);
 }
 
-void level::swaptiles(int t1, int t2) {
+void Level::swaptiles(int t1, int t2) {
   SWAPTILES(t1, t2, 0);
 }
 #endif
 
 #ifdef ANIMATING_MOVE
 
-static void postanimate(level * l, disamb * ctx,
+static void postanimate(Level *l, disamb * ctx,
                         alist *& events, alist **& etail) {
 
   /* make sure there is animation for everything */
@@ -424,11 +424,11 @@ static void postanimate(level * l, disamb * ctx,
 #endif
 
 #ifdef ANIMATING_MOVE
- void level::bombsplode_animate(int now, 
+ void Level::bombsplode_animate(int now, 
                 int b, disamb * ctx, alist *& events,
                 alist **& etail) {
 #else
- void level::bombsplode(int now, int b) {
+ void Level::bombsplode(int now, int b) {
 #endif
 
   bott[b] = B_BOMB_X;
@@ -472,7 +472,7 @@ static void postanimate(level * l, disamb * ctx,
           if (bd == B_DELETED ||
               bd == B_BOMB_X) /* ignore */ continue;
 
-          if (level::isbomb(bd)) {
+          if (Level::isbomb(bd)) {
         /* chain reaction */
         if (bdie < now) {
           #ifdef ANIMATING_MOVE
@@ -512,14 +512,14 @@ static void postanimate(level * l, disamb * ctx,
 
 
 #ifdef ANIMATING_MOVE
-  bool level::move_animate(dir d, disamb * ctx, alist *& events) {
+  bool Level::move_animate(dir d, disamb * ctx, alist *& events) {
   events = 0;
   alist ** etail = &events;
   ctx->clear();
 
-  //  printf ("----start move----\n");
+  //  printf("----start move----\n");
 #else
-  bool level::move(dir d) {
+  bool Level::move(dir d) {
 #endif
 
     /* change our orientation, even if we don't move.
@@ -547,7 +547,7 @@ static void postanimate(level * l, disamb * ctx,
         dir bd2 = DIR_NONE; /* second choice */
         unsigned int bc = 0; /* its capabilities */
 
-    if (level::isbomb(bott[b])) {
+    if (Level::isbomb(bott[b])) {
       /* bombs never move */
       bd = DIR_NONE;
 
@@ -639,13 +639,13 @@ static void postanimate(level * l, disamb * ctx,
 
 
 #ifdef ANIMATING_MOVE
-  bool level::moveent_animate(dir d, int enti,
+  bool Level::moveent_animate(dir d, int enti,
                               unsigned int cap, int entx, int enty, 
                               alist *& events, disamb * ctx, 
                               alist **& etail) {
   //  printf("==== entity %d's turn\n", enti);
 #else
-  bool level::moveent(dir d, int enti,
+  bool Level::moveent(dir d, int enti,
                       unsigned int cap, int entx, int enty) {
   //  #define printf if (0) printf
 #endif
@@ -824,7 +824,7 @@ static void postanimate(level * l, disamb * ctx,
         CHECKBOTDEATH(newx, newy, enti);        
 
         /* panel actions */
-        //        printf (" %d   Checkstepoff...\n", enti);
+        //        printf(" %d   Checkstepoff...\n", enti);
         CHECKSTEPOFF(entx, enty);
 
         SETENTPOS(newx, newy);
@@ -833,7 +833,7 @@ static void postanimate(level * l, disamb * ctx,
 
 
         if (target == T_PANEL) {
-          // printf (" %d   step on panel...\n", enti);   
+          // printf(" %d   step on panel...\n", enti);   
           (void)AFFECTI(destat(newx, newy));
           SWAPO(destat(newx, newy));
         }
@@ -1018,7 +1018,7 @@ static void postanimate(level * l, disamb * ctx,
         /* only the correct color sphere can trigger
            the colored panels */
         bool doswapt = false;
-        if (level::triggers(target, landon)) {
+        if (Level::triggers(target, landon)) {
           doswapt = true;
         }  
 

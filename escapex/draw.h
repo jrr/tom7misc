@@ -103,7 +103,7 @@ struct drawing {
   /* must be in range 0..(DRAW_NSIZES - 1) */
   int zoomfactor;
 
-  level * lev;
+  Level *lev;
 
   string message;
 
@@ -169,7 +169,7 @@ struct drawing {
   /* draw a small version of the level, with some info.
      used for the load screen and rating */
   static void drawsmall(int y, int botmargin, Uint32 color,
-			level * l, int solvemoves, string fname,
+			Level *l, int solvemoves, string fname,
 			ratestatus * votes,
 			rating * myrating, int date = 0,
 			int speedrecord = 0);

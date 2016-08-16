@@ -6,8 +6,8 @@
 #include "util.h"
 #include "chars.h"
 
-struct message_ : public message {
-  static message_ * create();
+struct Message_ : public Message {
+  static Message_ * create();
   void destroy() override;
 
   /*  enter: true
@@ -18,7 +18,7 @@ struct message_ : public message {
   void screenresize() override;
 
   SDL_Surface * alpharect;
-  bool loop (char * actualchar, string charspec);
+  bool loop(char * actualchar, string charspec);
 
   void init();
   void redraw() {
@@ -30,11 +30,11 @@ struct message_ : public message {
   int posx;
 };
 
-void message::drawonlyv(int posy, 
+void Message::drawonlyv(int posy, 
 			string ttitle,
 			string ook, string ccancel, 
 			string icon) {
-  message_ * m = message_::create();
+  Message_ * m = Message_::create();
   m->below = nodraw;
   m->posy = posy;
   m->title = icon + WHITE " " + ttitle;
@@ -46,25 +46,25 @@ void message::drawonlyv(int posy,
   m->destroy();
 }
 
-void message_::destroy() {
+void Message_::destroy() {
   if (alpharect) SDL_FreeSurface(alpharect);
   delete this;
 }
 
-message::~message() {}
-message_ *message_::create() {
-  message_ *pp = new message_{};
+Message::~Message() {}
+Message_ *Message_::create() {
+  Message_ *pp = new Message_{};
   pp->below = 0;
   pp->alpharect = 0;
   pp->posx = 0;
   pp->nlines = 0;
   return pp;
 }
-message *message::create() {
-  return message_::create();
+Message *Message::create() {
+  return Message_::create();
 }
 
-void message_::init() {
+void Message_::init() {
 
   /* find longest line */
   int ll = 0;
@@ -111,16 +111,16 @@ void message_::init() {
 
 }
 
-bool message_::ask(char * actualchar, string charspec) {
+bool Message_::ask(char * actualchar, string charspec) {
   init();
   return loop(actualchar, charspec);
 }
 
-void message_::screenresize() {
+void Message_::screenresize() {
   if (below) below->screenresize();
 }
 
-void message_::draw() {
+void Message_::draw() {
 
   /* clear back */
   if (!below) {
@@ -146,7 +146,7 @@ void message_::draw() {
 	      (string)YELLOW "ESCAPE" POP ": " + cancel);
 }
 
-bool message_::loop(char * actualchar, string charspec) {
+bool Message_::loop(char * actualchar, string charspec) {
   redraw();
 
   SDL_Event e;

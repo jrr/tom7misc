@@ -9,7 +9,7 @@ int network;
 int audio;
 
 
-bool handle_video_event(drawable *parent, const SDL_Event &event) {
+bool handle_video_event(Drawable *parent, const SDL_Event &event) {
   switch (event.type) {
   case SDL_VIDEORESIZE: {
     SDL_ResizeEvent * re = (SDL_ResizeEvent*)&event;

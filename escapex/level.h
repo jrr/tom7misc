@@ -192,7 +192,7 @@ enum bot {
 
 
 /* a solution is just a list of moves */
-struct solution {
+struct Solution {
   int length;
   int allocated;
 
@@ -207,10 +207,10 @@ struct solution {
 
   string tostring() const;
 
-  static solution * fromstring(string s);
+  static Solution *fromstring(string s);
 
-  solution * clone() const {
-    solution * s = new solution();
+  Solution *clone() const {
+    Solution *s = new Solution();
     s->length = length;
     s->allocated = allocated;
     s->dirs = (dir*) malloc(allocated * sizeof (dir));
@@ -227,8 +227,8 @@ struct solution {
     delete this;
   }
 
-  static solution * empty() {
-    solution * s = new solution();
+  static Solution *empty() {
+    Solution *s = new Solution();
     s->length = 0;
     s->allocated = 32;
     s->dirs = (dir*) malloc(32 * sizeof (dir));
@@ -254,16 +254,16 @@ struct solution {
 
   struct iter {
     int pos;
-    const solution * sol;
+    const Solution *sol;
   
-    iter(const solution * s) : pos(0), sol(s) {}
+    iter(const Solution *s) : pos(0), sol(s) {}
     bool hasnext() { return pos < sol->length; }
     void next() { pos++; }
     dir item() { return sol->dirs[pos]; }
 
   };
 
-  void appends(solution * s) {
+  void appends(Solution *s) {
     for (iter i(s); i.hasnext(); i.next()) {
       append(i.item());
     }
@@ -295,7 +295,7 @@ struct disamb {
   /* keep track of current serial */
   unsigned int serial;
 
-  static disamb * create(struct level *);
+  static disamb * create(struct Level *);
   void destroy();
 
   /* sets everything to serial 0 */
@@ -305,19 +305,19 @@ struct disamb {
      cause the serial to increase. Call this
      before creating the associated animation. Returns true if
      the serial did increase. */
-  bool affect(int x, int y, level * l, ptrlist<aevent> **& etail);
-  bool affecti(int idx, level * l, ptrlist<aevent> **& etail);
+  bool affect(int x, int y, Level *l, PtrList<aevent> **& etail);
+  bool affecti(int idx, Level *l, PtrList<aevent> **& etail);
 
   /* should be paired with calls to 'affect' 
      for the squares that these things live in */
-  void preaffectplayer(level * l, ptrlist<aevent> **& etail);
-  void preaffectbot(int i, level * l, ptrlist<aevent> **& etail);
+  void preaffectplayer(Level *l, PtrList<aevent> **& etail);
+  void preaffectbot(int i, Level *l, PtrList<aevent> **& etail);
 
   void postaffectplayer();
   void postaffectbot(int i);
   
 
-  void serialup(level * l, ptrlist<aevent> **& etail);
+  void serialup(Level *l, PtrList<aevent> **& etail);
 
   // For debugging
   int serialat(int x, int y) { return map[y * w + x]; }
@@ -325,7 +325,7 @@ struct disamb {
 #endif
 
 
-struct level {
+struct Level {
   string title;
   string author;
 
@@ -483,19 +483,19 @@ struct level {
 
 # ifndef NOANIMATION
   /* see animation.h for documentation */
-  bool move_animate(dir, disamb * ctx, ptrlist<aevent> *& events);
+  bool move_animate(dir, disamb * ctx, PtrList<aevent> *& events);
   bool moveent_animate(dir, int enti, unsigned int, int, int, 
-		       ptrlist<aevent> *&,
-                       disamb * ctx, ptrlist<aevent> **&);
+		       PtrList<aevent> *&,
+                       disamb * ctx, PtrList<aevent> **&);
   void bombsplode_animate(int now,
-			  int bombi, disamb * ctx, ptrlist<aevent> *& events,
-			  ptrlist<aevent> **& etail);
+			  int bombi, disamb * ctx, PtrList<aevent> *& events,
+			  PtrList<aevent> **& etail);
 # endif
 
   void bombsplode(int now, int bombi);
 
   /* create clone of current state. */
-  level * clone() const;
+  Level *clone() const;
 
   /* writes current state into a string */
   string tostring();
@@ -503,13 +503,13 @@ struct level {
   /* 0 on error. if allow_corrupted is true, it returns a
      valid level with as much data from the original as
      possible (but may still return 0) */
-  static level * fromstring(string s, bool allow_corrupted = false);
+  static Level *fromstring(string s, bool allow_corrupted = false);
   
   /* 0 on error */
-  static level * fromoldstring(string s);
+  static Level *fromoldstring(string s);
 
-  static level * blank(int w, int h);
-  static level * defboard(int w, int h);
+  static Level *blank(int w, int h);
+  static Level *defboard(int w, int h);
 
   /* correct a level (bad tiles, bad destinations, overlapping
      bots, etc.) for saving or loading. In-progress levels
@@ -525,17 +525,17 @@ struct level {
   void destroy();
 
   /* play to see if it wins, does not modify level or sol */
-  static bool verify(const level * lev, const solution * s);
+  static bool verify(const Level *lev, const Solution *s);
   /* returns a simplified solution, if s solves lev somewhere
      along the way. if the return is false, then out is garbage */
-  static bool verify_prefix(const level * lev, const solution * s, solution *& out);
+  static bool verify_prefix(const Level *lev, const Solution *s, Solution *& out);
 
   /* execute solution. returns early (# moves set in moves)
      if we die (return false) or win (return true). false upon
      completing without winning or dying. */
-  bool play(const solution *, int & moves);
+  bool play(const Solution *, int & moves);
   /* only 'length' moves of the solution, starting from move 'start' */
-  bool play_subsol(const solution *, int & moves, int start, int length);
+  bool play_subsol(const Solution *, int & moves, int start, int length);
 
   static string rleencode(int n, int * a);
 
@@ -599,7 +599,7 @@ struct level {
 
   private:
   /* solution wants access to rleencoding and decoding */
-  friend struct solution;
+  friend struct Solution;
 
   void checkstepoff(int, int);
   void checkleavepanel(int, int);

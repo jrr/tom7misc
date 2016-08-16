@@ -55,7 +55,7 @@ void sound::init() {
 
 }
 
-void sound::play (sound_t s) {
+void sound::play(sound_t s) {
   //  printf(" avail: %d muted: %d\n", sound_available?1:0, sound_muted?1:0);
   if (sound_available && !sound_muted) {
     Mix_PlayChannel(-1, sound_data[s], 0);

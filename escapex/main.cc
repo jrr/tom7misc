@@ -42,13 +42,13 @@
 // #define DEBUG_PARACHUTE 0
 #define DEBUG_PARACHUTE SDL_INIT_NOPARACHUTE
 
-int main (int argc, char ** argv) {
+int main(int argc, char **argv) {
 
   /* change to correct location, initializing it
      if we are in MULTIUSER mode and this is the
      first launch */
-  if (!startup::setdir(argc, argv)) {
-    exit (-1);
+  if (!StartUp::setdir(argc, argv)) {
+    exit(-1);
   }
 
   // util::setclipboard("hello escapists");
@@ -56,10 +56,10 @@ int main (int argc, char ** argv) {
   /* set up md5 early, before any threads */
   MD5::Init();
 
-  drawable::init();
+  Drawable::init();
 
   /* clean up any stray files */
-  cleanup::clean();
+  Cleanup::clean();
 
   audio = 0;
   network = 0;
@@ -132,8 +132,8 @@ int main (int argc, char ** argv) {
   }
 
   /* XXX callback progress for ainit */
-  if (!drawing::loadimages() || !animation::ainit()) {
-    if (fon) message::bug(0, "Error loading graphics!");
+  if (!drawing::loadimages() || !Animation::ainit()) {
+    if (fon) Message::bug(0, "Error loading graphics!");
     printf("Failed to load graphics.\n");
     goto no_drawings;
   }
@@ -148,7 +148,7 @@ int main (int argc, char ** argv) {
   if (argc == 2 &&
       !strcmp(argv[1], "-upgraded")) {
 
-    message::quick(0, "Upgrade to version " VERSION " successful!",
+    Message::quick(0, "Upgrade to version " VERSION " successful!",
                    "OK", "", PICS THUMBICON POP);
 
   }
@@ -165,11 +165,11 @@ int main (int argc, char ** argv) {
   /* The "real" main loop. */
   /* XXX should put the following in some other function. */
   {
-    player * plr = nullptr;
+    Player *plr = nullptr;
     {
-      std::unique_ptr<playerdb> pdb{playerdb::create()};
+      std::unique_ptr<PlayerDB> pdb{PlayerDB::create()};
       if (pdb.get() == nullptr) {
-	message::bug(0, "Error in playerdb?");
+	Message::bug(0, "Error in playerdb?");
 	goto oops;
       }
       
@@ -184,23 +184,23 @@ int main (int argc, char ** argv) {
 
     if (!plr) goto oops;
 
-    ::Extent<player> ep(plr);
+    ::Extent<Player> ep(plr);
 
     /* selected player. now begin the game. */
 
     mainmenu * mm = mainmenu::create(plr);
     if (!mm) {
-      message::bug(0, "Error creating main menu");
+      Message::bug(0, "Error creating main menu");
       goto oops;
     }
 
     ::Extent<mainmenu> em(mm);
 
     // XXX here?
-    leveldb::setplayer(plr);
-    leveldb::addsourcedir("triage");
-    leveldb::addsourcedir("mylevels");
-    leveldb::addsourcedir("official");
+    LevelDB::setplayer(plr);
+    LevelDB::addsourcedir("triage");
+    LevelDB::addsourcedir("mylevels");
+    LevelDB::addsourcedir("official");
 
     for (;;) {
       mainmenu::result r = mm->show();
@@ -211,7 +211,7 @@ int main (int argc, char ** argv) {
         /* we stay in 'load' mode until
            the user hits escape on the load screen. */
         for (;;) {
-	  if (loadlevel * ll = 
+	  if (loadlevel *ll = 
 	      loadlevel::create(plr, DEFAULT_DIR, true, false)) {
 	    string res = ll->selectlevel();
 	    
@@ -221,7 +221,7 @@ int main (int argc, char ** argv) {
 	    
 	    if (res == "") break;
 	  } else {
-	    message::bug(0, "Error creating load screen");
+	    Message::bug(0, "Error creating load screen");
 	    break;
 	  }
         }
@@ -230,8 +230,8 @@ int main (int argc, char ** argv) {
 
 #if 1
 	for (;;) // XXX loop in browser instead.
-	  if (browse * bb = browse::create()) {
-	    ::Extent<browse> bb_d(bb);
+	  if (Browse * bb = Browse::create()) {
+	    ::Extent<Browse> bb_d(bb);
 	    // XXX: Instead, have a version of the browser
 	    // that invokes playrecord on the stack, and a
 	    // separate bb->selectfile() for editing.
@@ -241,22 +241,22 @@ int main (int argc, char ** argv) {
 	    play::playrecord(res, plr);
 
 	  } else {
-	    message::bug(0, "Error creating browser");
+	    Message::bug(0, "Error creating browser");
 	    break;
 	  }
 #else
 
 	float disk, lev;
 	Uint32 epoch = 0;
-	while (!leveldb::uptodate(&disk, &lev)) {
+	while (!LevelDB::uptodate(&disk, &lev)) {
 	  char msg[512];
 	  sprintf(msg, "Still working %.2f%% disk %.2f%% lev\n",
 		  disk * 100.0, lev * 100.0);
 	  progress::drawbar(&epoch, lev * 1000, 1000, msg, 200);
-	  leveldb::donate(0, 0, 10);
+	  LevelDB::donate(0, 0, 10);
 	}
 
-	message::bug(0, "Sorry, browser not hooked up yet");
+	Message::bug(0, "Sorry, browser not hooked up yet");
 #endif
 
       } else if (r == mainmenu::EDIT) {
@@ -264,7 +264,7 @@ int main (int argc, char ** argv) {
 
         editor * ee = editor::create(plr);
         if (!ee) {
-          message::bug(0, "Error creating editor");
+          Message::bug(0, "Error creating editor");
           goto oops;
         }
         ::Extent<editor> exe(ee);
@@ -277,7 +277,7 @@ int main (int argc, char ** argv) {
 
         upgrader * uu = upgrader::create(plr);
         if (!uu) {
-          message::bug(0, "Error creating upgrader");
+          Message::bug(0, "Error creating upgrader");
           goto oops;
         }
         ::Extent<upgrader> exu(uu);
@@ -298,21 +298,21 @@ int main (int argc, char ** argv) {
 
         updater * uu = updater::create(plr);
         if (!uu) {
-          message::bug(0, "Error creating updater");
+          Message::bug(0, "Error creating updater");
           goto oops;
         }
         ::Extent<updater> exu(uu);
 
         string msg;
 
-        uu->update (msg);
+        uu->update(msg);
 
       } else if (r == mainmenu::REGISTER) {
         /* register player online */
 
         registration * rr = registration::create(plr);
         if (!rr) {
-          message::bug(0, "Couldn't create registration object");
+          Message::bug(0, "Couldn't create registration object");
           goto oops;
         }
         

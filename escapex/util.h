@@ -89,18 +89,18 @@ inline string stringpop(stringlist *& sl) {
 /* might this be merged with vallist above? pointers
    are values */
 template <class P>
-struct ptrlist {
+struct PtrList {
   P * head;
-  ptrlist<P> * next;
-  ptrlist<P>(P * h, ptrlist<P> * n) : head(h), next(n) {}
+  PtrList<P> * next;
+  PtrList<P>(P * h, PtrList<P> * n) : head(h), next(n) {}
 
-  static void push(ptrlist<P> *& sl, P * h) {
-    sl = new ptrlist<P>(h, sl);
+  static void push(PtrList<P> *& sl, P * h) {
+    sl = new PtrList<P>(h, sl);
   }
 
-  static P * pop(ptrlist<P> *& sl) {
+  static P * pop(PtrList<P> *& sl) {
     if (sl) {
-      ptrlist<P> * tmp = sl;
+      PtrList<P> * tmp = sl;
       P * t = tmp->head;
       sl = sl->next;
       delete tmp;
@@ -110,13 +110,13 @@ struct ptrlist {
 
   /* ie, destroy. does not destroy the
      heads! */
-  static void diminish(ptrlist<P> *& pl) {
+  static void diminish(PtrList<P> *& pl) {
     while (pl) pop(pl);
   }
 
   int length() {
     int res = 0;
-    ptrlist<P> * tmp = this;
+    PtrList<P> * tmp = this;
     while (tmp) {
       tmp = tmp->next;
       res++;
@@ -128,35 +128,35 @@ struct ptrlist {
     numout = length();
     
     aout = (P**) malloc(sizeof (P*) * numout);
-    ptrlist<P> * tmp = this;
+    PtrList<P> * tmp = this;
     for (int i = 0; i < numout; i++) {
       aout[i] = tmp->head;
       tmp = tmp->next;
     }
   }
 
-  static ptrlist<P> * copy(ptrlist<P> * sl) {
+  static PtrList<P> * copy(PtrList<P> * sl) {
     if (sl) {
-      return new ptrlist<P>(sl->head, 
+      return new PtrList<P>(sl->head, 
 			    copy(sl->next));
     } else return 0;
   }
 
   /* PERF linear stack usage */
-  static void push_tail(ptrlist<P> *& sl, P * h) {
-    if (!sl) sl = new ptrlist<P>(h, 0);
+  static void push_tail(PtrList<P> *& sl, P * h) {
+    if (!sl) sl = new PtrList<P>(h, 0);
     else push_tail(sl->next, h);
   }
   
   /* merge sort the list in place. 
      PERF! not tuned for speed, but still worst case O(n lg n) */
-  static void sort(int compare(P * a, P * b), ptrlist <P> *& pl) {
+  static void sort(int compare(P * a, P * b), PtrList <P> *& pl) {
     /* if empty or a singleton, we're done. */
     if (!pl || !pl->next) return;
 
     int num = pl->length() >> 1;
-    ptrlist<P> * left = 0;
-    ptrlist<P> * right = copy(pl);
+    PtrList<P> * left = 0;
+    PtrList<P> * right = copy(pl);
 
     /* empty out pl */
     diminish(pl);
@@ -167,7 +167,7 @@ struct ptrlist {
     sort(compare, left);
     sort(compare, right);
 
-    ptrlist<P> * out = 0;
+    PtrList<P> * out = 0;
 
     while (left || right) {
       if (left) {
@@ -198,8 +198,8 @@ struct ptrlist {
 
   }
 
-  static void rev(ptrlist<P> *& pl) {
-    ptrlist<P> * out = 0;
+  static void rev(PtrList<P> *& pl) {
+    PtrList<P> * out = 0;
     while (pl) push(out, pop(pl));
     pl = out;
   }

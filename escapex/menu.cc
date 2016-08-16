@@ -22,7 +22,7 @@ inputresult slider::key(SDL_Event e) {
     pos++; break;
   case SDLK_LEFT: 
     pos--; break;
-  default: return menuitem::key(e);
+  default: return MenuItem::key(e);
   }
 
   if (pos < lowest) pos = lowest;
@@ -120,7 +120,7 @@ inputresult toggle::key(SDL_Event e) {
   case SDLK_SPACE:
     checked = !checked;
     return inputresult(MR_UPDATED);
-  default: return menuitem::key(e);
+  default: return MenuItem::key(e);
   }
 
 }
@@ -186,7 +186,7 @@ inputresult textinput::key(SDL_Event e) {
        e.key.keysym.sym == SDLK_RETURN) &&
       accept_on_enter) return inputresult(MR_OK);
 
-  inputresult def = menuitem::key(e);
+  inputresult def = MenuItem::key(e);
   switch (def.kind()) {
   default: return def;
   case MR_NOTHING:
@@ -226,7 +226,7 @@ inputresult okay::key(SDL_Event e) {
   case SDLK_RETURN:
     activate();
     return inputresult(MR_OK);
-  default: return menuitem::key(e);
+  default: return MenuItem::key(e);
   }
 
 }
@@ -299,7 +299,7 @@ inputresult cancel::key(SDL_Event e) {
   switch (key) {
   case SDLK_RETURN:
     return inputresult(MR_CANCEL);
-  default: return menuitem::key(e);
+  default: return MenuItem::key(e);
   }
 
 }
@@ -324,7 +324,7 @@ void cancel::size(int & w, int & h) {
 /* default keys for menuitems:
    up, tab, down, return, escape
 */
-inputresult menuitem::key(SDL_Event e) {
+inputresult MenuItem::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
@@ -355,9 +355,9 @@ void menu::destroy() {
   delete this;
 }
 
-menu * menu::create(drawable * be,
+menu * menu::create(Drawable *be,
 		    string ti,
-		    ptrlist<menuitem> * its,
+		    PtrList<MenuItem> * its,
 		    bool fs) {
   menu * m = new menu();
   if (!m) return m;
@@ -372,15 +372,15 @@ menu * menu::create(drawable * be,
     delete m;
     return 0;
   }
-  m->items = (menuitem**)malloc(m->nitems *
-				sizeof(menuitem *));
+  m->items = (MenuItem**)malloc(m->nitems *
+				sizeof(MenuItem *));
   
   if (!m->items) {
     delete m;
     return 0;
   }
 
-  ptrlist<menuitem> * tmp = its;
+  PtrList<MenuItem> * tmp = its;
   for (int i = 0; i < m->nitems; i++) {
     m->items[i] = tmp->head;
     m->items[i]->container = m;

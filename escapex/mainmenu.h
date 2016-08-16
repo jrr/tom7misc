@@ -12,7 +12,7 @@ struct mainmenu {
 
   virtual result show() = 0;
 
-  static mainmenu * create(player * plr);
+  static mainmenu * create(Player *plr);
 
   virtual void destroy() = 0;
   virtual ~mainmenu() {}

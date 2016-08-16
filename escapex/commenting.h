@@ -4,11 +4,9 @@
 
 #include "escapex.h"
 
-struct commentscreen {
-  
-  static void comment(player * plr, level * l, string md5,
+struct CommentScreen {
+  static void comment(Player *plr, Level *l, string md5,
 		      bool cookmode = false);
-
 };
 
 #endif

@@ -51,7 +51,7 @@ void handhold::init() {
 }
 
 void handhold::firsttime() {
-  message::quick(0,
+  Message::quick(0,
 		 GREEN "Welcome to Escape!\n"
 		 "\n"
 		 "You should start by creating a new player.\n"

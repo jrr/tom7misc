@@ -1,4 +1,3 @@
-
 #include "registration.h"
 #include "client.h"
 #include "extent.h"
@@ -13,7 +12,7 @@ struct registration_ : public registration {
   virtual void draw();
   void redraw() {
     draw();
-    SDL_Flip (screen);
+    SDL_Flip(screen);
   }
 
   virtual void destroy() {
@@ -28,22 +27,22 @@ struct registration_ : public registration {
     }
   }
 
-  textscroll * tx;
-  player * plr;
+  TextScroll *tx;
+  Player *plr;
 };
 
-registration * registration::create(player * p) {
+registration * registration::create(Player *p) {
   registration_ * r = new registration_();
   r->plr = p;
-  r->tx = textscroll::create(fon);
+  r->tx = TextScroll::create(fon);
   return r;
 }
 
 void registration_::registrate() {
 
-  http * hh = client::connect(plr, tx, this);
+  http * hh = Client::connect(plr, tx, this);
   if (!hh) { 
-    message::quick(this,
+    Message::quick(this,
 		   "Couldn't connect to server.",
 		   "Sorry", "", PICS XICON POP);
     return;
@@ -53,7 +52,7 @@ void registration_::registrate() {
 
   /* XXX again, need a better way to detect this */
   if (plr->name == "Default") {
-    message::quick(this, 
+    Message::quick(this, 
 		   "You can't register with the default player.",
 		   "Sorry", "", PICS XICON POP);
     return;
@@ -72,7 +71,7 @@ void registration_::registrate() {
 
     say("try " + itos(seql) + " " + itos(seqh) + (string)"...");
 
-    if (client::rpc(hh, REGISTER_RPC, 
+    if (Client::rpc(hh, REGISTER_RPC, 
 		    (string) "seql=" + itos(seql) +
 		    (string)"&seqh=" + itos(seqh) +
 		    (string)"&name=" + httputil::urlencode(plr->name),
@@ -85,26 +84,26 @@ void registration_::registrate() {
 	plr->webseqh = seqh;
 
 	if (plr->writefile()) {
-	  say ((string)"success! " GREEN + res);
-	  message::quick(this,
+	  say((string)"success! " GREEN + res);
+	  Message::quick(this,
 			 (string)"You are registered as player " 
 			 YELLOW "#" + itos(id),
 			 "OK!", "", PICS THUMBICON POP);
 	  return;
 	} else {
-	  say (RED "can't write player file...?");
+	  say(RED "can't write player file...?");
 	}
       } else {
-	say ((string)"non-number response? [" RED + res + POP "]");
+	say((string)"non-number response? [" RED + res + POP "]");
       }
     } else {
-      say ((string)"fail: [" RED + res + POP "]");
+      say((string)"fail: [" RED + res + POP "]");
     }
   }
 
   /* give up ... */
 
-  message::no(this, 
+  Message::no(this, 
 	      "Unable to register:\n"
 	      "     " RED + res + POP "\n"
 	      "   Try again later!");

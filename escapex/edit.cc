@@ -33,28 +33,27 @@
 #define XW (screen->w - XOFF)
 #define YH (screen->h - YOFF)
 
-int edit_menuitem[] =
-  { 0 /* skip - show foreground tile */,
-    0 /* skip - layer normal/alt */,
-    0 /* skip - changed/not */,
-    TU_SAVE, TU_SAVEAS, TU_LOAD,
-    TU_TITLE, TU_AUTHOR, TU_SIZE,
-    TU_PLAYERSTART, TU_CLEAR,
-    TU_PLAY, TU_RANDOM, 
-    TU_RANDTYPE,
-    TU_ERASE_BOT,
-    TU_FIRST_BOT,
-    TU_DALEK,
-    TU_HUGBOT,
-    TU_BROKEN,
-    TU_BOMB,
-    TU_BOMBTIMER,
-    TU_SLEEPWAKE,
-    TU_PREFAB,
-  };
+static constexpr int edit_menuitem[] = {
+  0 /* skip - show foreground tile */,
+  0 /* skip - layer normal/alt */,
+  0 /* skip - changed/not */,
+  TU_SAVE, TU_SAVEAS, TU_LOAD,
+  TU_TITLE, TU_AUTHOR, TU_SIZE,
+  TU_PLAYERSTART, TU_CLEAR,
+  TU_PLAY, TU_RANDOM, 
+  TU_RANDTYPE,
+  TU_ERASE_BOT,
+  TU_FIRST_BOT,
+  TU_DALEK,
+  TU_HUGBOT,
+  TU_BROKEN,
+  TU_BOMB,
+  TU_BOMBTIMER,
+  TU_SLEEPWAKE,
+  TU_PREFAB,
+};
 
-int tileorder[] =
-  {
+static constexpr int tileorder[] = {
   T_FLOOR, T_ROUGH, T_EXIT, T_BLUE, T_RED, T_GREY, T_GREEN, 
   T_GOLD, 
   T_BLACK,
@@ -94,9 +93,6 @@ int tileorder[] =
 #define POS_PREFAB 22
 #define NUM_MENUITEMS 23
 
-#define ispanel level::ispanel
-#define needsdest level::needsdest
-
 void editor::screenresize() {
   dr.width = XW;
   dr.height = YH;
@@ -119,7 +115,7 @@ void editor::fullclear(tile t) {
 /* XXX limit to selection */
 void editor::clear(tile bg, tile fg) {
   if (changed &&
-      !message::quick(this,
+      !Message::quick(this,
 		      "Clearing will destroy your unsaved changes.",
 		      "Clear anyway",
 		      "Don't clear")) {
@@ -128,8 +124,8 @@ void editor::clear(tile bg, tile fg) {
   }
 
   /* don't allow fill with panels or transporters */
-  if (needsdest(bg)) bg = T_FLOOR;
-  if (needsdest(fg)) fg = T_BLUE;
+  if (Level::needsdest(bg)) bg = T_FLOOR;
+  if (Level::needsdest(fg)) fg = T_BLUE;
 
   fullclear(bg);
   for (int x = 0; x < dr.lev->w; x++) {
@@ -166,7 +162,7 @@ void editor::draw() {
   int tx, ty;
   int sdx = -1, sdy = -1;
   if (dr.inmap(mousex, mousey, tx, ty)) {
-    if (needsdest(layerat(tx, ty))) {
+    if (Level::needsdest(layerat(tx, ty))) {
       dr.lev->getdest(tx, ty, sdx, sdy);
     }
   }
@@ -245,12 +241,12 @@ void editor::draw() {
   /* draw bomb timers */
   if (!dr.zoomfactor) {
     for (int b = 0; b < dr.lev->nbots; b++) {
-      if (level::isbomb(dr.lev->bott[b])) {
+      if (Level::isbomb(dr.lev->bott[b])) {
 	int bx, by;
 	dr.lev->where(dr.lev->boti[b], bx, by);
 	int bsx, bsy;
 	if (dr.onscreen(bx, by, bsx, bsy)) {
-	  string ss = RED + itos(level::bombmaxfuse(dr.lev->bott[b]));
+	  string ss = RED + itos(Level::bombmaxfuse(dr.lev->bott[b]));
 	  fon->draw(bsx + ((TILEW - fon->sizex(ss))>>1),
 		    bsy + ((TILEH - fon->height)>>1),
 		    ss);
@@ -410,7 +406,7 @@ void editor::playerstart() {
       dr.lev->guyy = y;
       changed = 1;
     } else {
-      message::no(this, "Can't put player on bots!");
+      Message::no(this, "Can't put player on bots!");
     }
   }
 
@@ -458,8 +454,8 @@ void editor::firstbot() {
 
     int i;
     if (dr.lev->botat(x, y, i)) {
-      level * l = dr.lev->clone();
-      Extent<level> el(l);
+      Level *l = dr.lev->clone();
+      Extent<Level> el(l);
       
       dr.lev->bott[0] = l->bott[i];
       dr.lev->botd[0] = l->botd[i];
@@ -493,12 +489,12 @@ void editor::sleepwake() {
       bot dest = B_BROKEN;
       switch (old) {
       default:
-	if (level::isbomb(old)) {
+	if (Level::isbomb(old)) {
 	  dr.message = RED "Can't sleep/wake bombs\n";
 	  redraw();
 	  return;
 	} else {
-	  message::bug(this, "sleep/wake not implemented for this bot");
+	  Message::bug(this, "sleep/wake not implemented for this bot");
 	  redraw();
 	  return;
 	}
@@ -535,7 +531,7 @@ void editor::placebot(bot b) {
 
     int ai;
     if (dr.lev->playerat(x, y)) {
-      message::no(this, "Can't put a bot on the player!");
+      Message::no(this, "Can't put a bot on the player!");
       
     } else if (dr.lev->botat(x, y, ai)) {
       
@@ -546,7 +542,7 @@ void editor::placebot(bot b) {
       if (dr.lev->nbots < LEVEL_MAX_ROBOTS) {
 	addbot(x, y, b);
       } else {
-	message::no(this, 
+	Message::no(this, 
 		    "Maximum robots (" + itos(LEVEL_MAX_ROBOTS) + 
 		    ") reached!");
 	redraw();
@@ -630,17 +626,17 @@ void editor::save() {
       if (omd5 != nmd5) {
 
 	/* do not free */
-	ptrlist<namedsolution> * sols = plr->solutionset(omd5);
+	PtrList<NamedSolution> * sols = plr->solutionset(omd5);
 
 	int rs = 0, rb = 0;
 	for (; sols; sols = sols->next) {
-	  namedsolution * ns = sols->head;
+	  NamedSolution *ns = sols->head;
 
 	  if (ns && ns->sol && !ns->bookmark && 
-	      level::verify(dr.lev, ns->sol)) {
+	      Level::verify(dr.lev, ns->sol)) {
 	    /* It still works! */
 	    
-	    namedsolution ns2(ns->sol, (string)"(recovered) "
+	    NamedSolution ns2(ns->sol, (string)"(recovered) "
 			      + ns->name, 
 			      ns->author, time(0), false);
 	    // setting def_candidate to true so we always add.
@@ -679,7 +675,7 @@ void editor::save() {
     changed = 0;
 
   } else {
-    message::bug(this, 
+    Message::bug(this, 
 		 "shouldn't be able to save with empty filename");
   }
 
@@ -691,9 +687,9 @@ void editor::save() {
 void editor::load() {
   clearselection();
 
-  loadlevel * ll = loadlevel::create(plr, EDIT_DIR, true, true);
+  loadlevel *ll = loadlevel::create(plr, EDIT_DIR, true, true);
   if (!ll) {
-    message::quick(this, "Can't open load screen!", 
+    Message::quick(this, "Can't open load screen!", 
 		   "Ut oh.", "", PICS XICON POP);
     redraw();
     return ;
@@ -703,7 +699,7 @@ void editor::load() {
   ll->destroy();
 
   /* allow corrupted files */
-  level * l = level::fromstring(ss, true);
+  Level *l = Level::fromstring(ss, true);
 
   if (l) { 
     dr.lev->destroy();
@@ -760,15 +756,15 @@ void editor::resize() {
   okay ok;
   ok.text = "Change Size";
   
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &theight);
-  ptrlist<menuitem>::push(l, &twidth);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &theight);
+  PtrList<MenuItem>::push(l, &twidth);
 
   menu * mm = menu::create(this, "Level Size", l, false);
 
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
 
   if (mm->menuize() == MR_OK) {
     int nnw = atoi(twidth.input.c_str());
@@ -785,7 +781,7 @@ void editor::resize() {
       
       changed = 1;
     } else {
-      message::quick(this,
+      Message::quick(this,
 		     "Size too large/small", 
 		     "Sorry", "");
       
@@ -795,12 +791,12 @@ void editor::resize() {
   redraw();
 }
 
-void editor::edit(level * origlev) {
+void editor::edit(Level *origlev) {
   
   if (origlev) {
     dr.lev = origlev->clone();
   } else {
-    dr.lev = level::defboard(18, 10);
+    dr.lev = Level::defboard(18, 10);
   }
 
   dr.scrollx = 0;
@@ -823,7 +819,7 @@ void editor::edit(level * origlev) {
 
   dr.message = "";
 
-  saved = solution::empty();
+  saved = Solution::empty();
 
   fixup();
 
@@ -886,7 +882,7 @@ void editor::edit(level * origlev) {
 	  /* XXX if I start in the map, then I should
 	     always draw to the edge, even if the end
 	     is not in the map */
-	} else if (!needsdest(current) &&
+	} else if (!Level::needsdest(current) &&
 		   !donotdraw &&
 		   e->state & SDL_BUTTON(SDL_BUTTON_LEFT) &&
 		   dr.inmap(omx, omy, otx, oty) &&
@@ -926,7 +922,7 @@ void editor::edit(level * origlev) {
 	   if any. */
 	int tx, ty;
 	if (dr.inmap(mousex, mousey, tx, ty)) {
-	  if (needsdest(layerat(tx, ty))) {
+	  if (Level::needsdest(layerat(tx, ty))) {
 	    if (dr.lev->destat(tx, ty) != olddest) {
 	      olddest = dr.lev->destat(tx, ty);
 	      yesdraw = 1;
@@ -1145,7 +1141,7 @@ void editor::edit(level * origlev) {
 	      int old = layerat(tx, ty);
 	      setlayer(tx, ty, current);
 
-	      if (needsdest(current)) {
+	      if (Level::needsdest(current)) {
 
 		int xx, yy;
 		if (getdest(xx, yy, "Click to set destination.")) {
@@ -1428,7 +1424,7 @@ void editor::edit(level * origlev) {
 		dr.lev->osettile(destx + offx,
 				 desty + offy, op);
 
-		if (needsdest(p) || needsdest(op)) {
+		if (Level::needsdest(p) || Level::needsdest(op)) {
 		  int delta = 0;
 		  /* need to find delta. */
 		  /* even simpler: assume that delta is
@@ -1498,8 +1494,8 @@ void editor::edit(level * origlev) {
 	    if (dr.lev->travel(selection.x, selection.y, d,
 			       tx, ty)) {
 	      /* easier if we clone. */
-	      level * cl = dr.lev->clone();
-	      Extent<level> ecl(cl);
+	      Level *cl = dr.lev->clone();
+	      Extent<Level> ecl(cl);
 
 	      /* then blank out the region */
 	      {
@@ -1529,8 +1525,8 @@ void editor::edit(level * origlev) {
 
 		  /* if the destination is inside the
 		     thing we're moving, then preserve it */
-		  if ((needsdest(cl->tileat(x, y)) ||
-		       needsdest(cl->otileat(x, y))) && 
+		  if ((Level::needsdest(cl->tileat(x, y)) ||
+		       Level::needsdest(cl->otileat(x, y))) && 
 		      ddx >= selection.x &&
 		      ddx < (selection.x + selection.w) &&
 		      ddy >= selection.y &&
@@ -1642,7 +1638,7 @@ void editor::edit(level * origlev) {
 
 	case SDLK_ESCAPE:
 	  if (changed) {
-	    if (message::quick(this,
+	    if (Message::quick(this,
 			       "Quitting will destroy your unsaved changes.",
 			       "Quit anyway.",
 			       "Don't quit.")) {
@@ -1870,7 +1866,7 @@ void editor::fixup() {
 
   /* XXX should fon->parens the texts */
 
-  level * l = dr.lev;
+  Level *l = dr.lev;
 
   if (l->title == "") l->title = "Untitled";
   if (l->author == "") l->author = plr->name;
@@ -1892,13 +1888,13 @@ void editor::fixup() {
 
     /* restore them where appropriate */
     int ref;
-    if (ispanel(l->tiles[i], ref)) {
+    if (Level::ispanel(l->tiles[i], ref)) {
       l->flags[i] |= TF_HASPANEL | 
 	             ((ref & 1) * TF_RPANELL) |
 	            (((ref & 2) >> 1) * TF_RPANELH);
     }
 
-    if (ispanel(l->otiles[i], ref)) {
+    if (Level::ispanel(l->otiles[i], ref)) {
       l->flags[i] |= TF_OPANEL |
 	             ((ref & 1) * TF_ROPANELL) |
 	            (((ref & 2) >> 1) * TF_ROPANELH);
@@ -1906,8 +1902,8 @@ void editor::fixup() {
 
     /* unset destination if not needed (makes
        smaller files because of longer runs) */
-    if (!(needsdest(l->tiles[i]) ||
-	  needsdest(l->otiles[i])))
+    if (!(Level::needsdest(l->tiles[i]) ||
+	  Level::needsdest(l->otiles[i])))
       l->dests[i] = 0;
 
   }
@@ -1939,7 +1935,7 @@ void editor::fixup() {
 
 }
 
-editor * editor::create(player * p) {
+editor * editor::create(Player *p) {
 
   editor * ee = new editor();
 

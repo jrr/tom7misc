@@ -111,14 +111,14 @@ void drawing::drawguy(dir d,
 
   if (dead && !zoomfactor) {
     /* just one dead frame */
-    s = animation::lasered2;
+    s = Animation::lasered2;
   } else {
     switch (d) {
     default:
-    case DIR_UP: s = animation::pic_guy_up[zoomfactor]; break;
-    case DIR_DOWN: s = animation::pic_guy_down[zoomfactor]; break;
-    case DIR_LEFT: s = animation::pic_guy_left[zoomfactor]; break;
-    case DIR_RIGHT: s = animation::pic_guy_right[zoomfactor]; break;
+    case DIR_UP: s = Animation::pic_guy_up[zoomfactor]; break;
+    case DIR_DOWN: s = Animation::pic_guy_down[zoomfactor]; break;
+    case DIR_LEFT: s = Animation::pic_guy_left[zoomfactor]; break;
+    case DIR_RIGHT: s = Animation::pic_guy_right[zoomfactor]; break;
     }
   }
 
@@ -142,52 +142,52 @@ void drawing::drawbot(bot b, dir d,
 
   switch (b) {
   default:
-    if (level::isbomb(b)) {
+    if (Level::isbomb(b)) {
       
       switch (data) {
 	/* XXX draw fuse in these cases */
 	/* fuse high */
       default:
 	overlapy = BOMB_OVERLAPY;
-	s = animation::pic_bomb_lit[data][zoomfactor];
+	s = Animation::pic_bomb_lit[data][zoomfactor];
 	break;
 	/* not lit */
       case -1:
 	overlapy = BOMB_OVERLAPY;
-	s = animation::pic_bomb_still[zoomfactor];
+	s = Animation::pic_bomb_still[zoomfactor];
 	break;
 
       }
     } else {
       overlapy = 0;
-      s = animation::error;
+      s = Animation::error;
     }
     break;
 
   case B_BROKEN:
     overlapy = BROKEN_OVERLAPY;
-    s = animation::pic_deadrobot[zoomfactor];
+    s = Animation::pic_deadrobot[zoomfactor];
     break;
 
     /* assume one dir, same overlap as corresponding bot */
   case B_HUGBOT_ASLEEP:
     overlapy = HUGBOT_OVERLAPY;
-    s = animation::pic_hugbot_asleep_down[zoomfactor]; break;
+    s = Animation::pic_hugbot_asleep_down[zoomfactor]; break;
     break;
 
   case B_DALEK_ASLEEP:
     overlapy = DALEK_OVERLAPY;
-    s = animation::pic_dalek_asleep_down[zoomfactor]; break;
+    s = Animation::pic_dalek_asleep_down[zoomfactor]; break;
     break;
 
   case B_HUGBOT:
     overlapy = HUGBOT_OVERLAPY;
     switch (d) {
     default:
-    case DIR_UP: s = animation::pic_hugbot_up[zoomfactor]; break;
-    case DIR_DOWN: s = animation::pic_hugbot_down[zoomfactor]; break;
-    case DIR_LEFT: s = animation::pic_hugbot_left[zoomfactor]; break;
-    case DIR_RIGHT: s = animation::pic_hugbot_right[zoomfactor]; break;
+    case DIR_UP: s = Animation::pic_hugbot_up[zoomfactor]; break;
+    case DIR_DOWN: s = Animation::pic_hugbot_down[zoomfactor]; break;
+    case DIR_LEFT: s = Animation::pic_hugbot_left[zoomfactor]; break;
+    case DIR_RIGHT: s = Animation::pic_hugbot_right[zoomfactor]; break;
     }
     break;
 
@@ -195,10 +195,10 @@ void drawing::drawbot(bot b, dir d,
     overlapy = DALEK_OVERLAPY;
     switch (d) {
     default:
-    case DIR_UP: s = animation::pic_dalek_up[zoomfactor]; break;
-    case DIR_DOWN: s = animation::pic_dalek_down[zoomfactor]; break;
-    case DIR_LEFT: s = animation::pic_dalek_left[zoomfactor]; break;
-    case DIR_RIGHT: s = animation::pic_dalek_right[zoomfactor]; break;
+    case DIR_UP: s = Animation::pic_dalek_up[zoomfactor]; break;
+    case DIR_DOWN: s = Animation::pic_dalek_down[zoomfactor]; break;
+    case DIR_LEFT: s = Animation::pic_dalek_left[zoomfactor]; break;
+    case DIR_RIGHT: s = Animation::pic_dalek_right[zoomfactor]; break;
     }
     break;
     /* draw nothing */
@@ -546,8 +546,8 @@ void drawing::drawdests(SDL_Surface * surf, bool shuffle) {
 	sx += TILEW >> (1 + zoomfactor);
 	sy += TILEH >> (1 + zoomfactor);
 
-	if (level::needsdest(lev->tileat(wx, wy))
-	    || level::needsdest(lev->otileat(wx, wy))) {
+	if (Level::needsdest(lev->tileat(wx, wy))
+	    || Level::needsdest(lev->otileat(wx, wy))) {
 	  int d = lev->destat(wx, wy);
 	  int dx, dy, px, py;
 	  lev->where(d, dx, dy);
@@ -665,13 +665,13 @@ bool drawing::onscreen(int x, int y,
 
 void drawing::drawsmall(int y, 
 			int botmargin, Uint32 color,
-			level * l, int solvemoves, string fname,
+			Level *l, int solvemoves, string fname,
 			ratestatus * votes,
 			rating * myrating,
 			int date, int speedrecord) {
 
   if (!l) {
-    message::bug(0, "There's no level to draw small!");
+    Message::bug(0, "There's no level to draw small!");
     return;
   }
 

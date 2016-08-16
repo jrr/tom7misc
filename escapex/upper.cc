@@ -56,9 +56,9 @@ struct contententry {
 using oldtable = hashtable<oldentry, string>;
 using contable = hashtable<contententry, string>;
 
-struct upreal : public upper {
+struct upreal : public Upper {
 
-  static upreal * create(http *, textscroll *, drawable *, string);
+  static upreal * create(http *, TextScroll *, Drawable *, string);
 
   ~upreal() override {}
 
@@ -92,8 +92,8 @@ struct upreal : public upper {
   }
 
   /* for reporting progress */
-  textscroll * tx;
-  drawable * below;
+  TextScroll *tx;
+  Drawable *below;
 
   oldtable * olds;
   contable * contents;
@@ -110,19 +110,19 @@ struct upreal : public upper {
   /* list of saved dirs: dir, index.
      rep invt: these are the same length */
   stringlist * dirlistd;
-  ptrlist<dirindex> * dirlisti;
+  PtrList<dirindex> * dirlisti;
 
   void init();
   void insertdir(string d);
 };
 
-upper * upper::create(http * h, textscroll * t,
-		      drawable * d, string f) {
+Upper * Upper::create(http * h, TextScroll *t,
+		      Drawable *d, string f) {
   return upreal::create(h, t, d, f);
 }
 
-upreal * upreal::create(http * h, textscroll * t,
-			drawable * d, string f) {
+upreal * upreal::create(http * h, TextScroll *t,
+			Drawable *d, string f) {
   upreal * ur = new upreal();
   ur->hh = h;
   ur->tx = t;
@@ -166,7 +166,7 @@ void upreal::savedir(string d, string i) {
   /* XXX error checking? */
   dirindex * di = dirindex::create();
   di->title = i;
-  ptrlist<dirindex>::push(dirlisti, di);
+  PtrList<dirindex>::push(dirlisti, di);
 }
 
 void upreal::insertdir(string src) {
@@ -297,7 +297,7 @@ bool upreal::setfile(string f, string md, ratestatus votes,
     if (dd == ".") dd = "";
 
     stringlist * dt = dirlistd;
-    ptrlist<dirindex> * it = dirlisti;
+    PtrList<dirindex> * it = dirlisti;
 
     while (dt && it) {
 
@@ -401,7 +401,7 @@ bool upreal::commit() {
      length(dirlisti) */
   while (dirlistd) {
     string d = stringpop(dirlistd);
-    dirindex * i = ptrlist<dirindex>::pop(dirlisti);
+    dirindex * i = PtrList<dirindex>::pop(dirlisti);
 
     string f = 
       (d == "") 

@@ -53,16 +53,16 @@ struct mmentry {
   void draw(int x, int y, bool sel);
 };
 
-typedef selector<mmentry, mmetype> msel;
+typedef Selector<mmentry, mmetype> msel;
 
-struct mmreal : public mainmenu, public drawable {
+struct mmreal : public mainmenu, public Drawable {
 
   virtual mainmenu::result show();
   virtual void destroy();
 
-  static mmreal * create(player * plr);
+  static mmreal * create(Player *plr);
 
-  /* for drawable */
+  /* for Drawable */
   virtual void draw();
   virtual void screenresize();
 
@@ -78,7 +78,7 @@ struct mmreal : public mainmenu, public drawable {
 
   msel * sel;
 
-  player * pp;
+  Player *pp;
   SDL_Surface * titlegraphic;
   SDL_Surface * background;
 
@@ -99,7 +99,7 @@ struct mmreal : public mainmenu, public drawable {
       compute_tutorial();
 	    
     } else {
-      message::quick(this, "Tutorial completed or unavailable!",
+      Message::quick(this, "Tutorial completed or unavailable!",
 		     "Sorry", "", PICS XICON POP);
     }
 
@@ -184,7 +184,7 @@ void mmentry::draw(int x, int y, bool sel) {
 void mmreal::compute_tutorial() {
   // XXX use leveldb for this.
 
-  loadlevel * ll = loadlevel::create(pp, TUTORIAL_DIR, false, false);
+  loadlevel *ll = loadlevel::create(pp, TUTORIAL_DIR, false, false);
   if (!ll) {
     tutorial_left = false;
     tutorial_nextlev = "error.esx";
@@ -372,10 +372,10 @@ void mmreal::makebackground() {
   int w = screen->w;
   int h = screen->h;
 
-  backgrounds::gradientblocks(background,
+  Backgrounds::gradientblocks(background,
 			      T_GREY,
 			      T_BLUE,
-			      backgrounds::blueish);
+			      Backgrounds::blueish);
   if (!background) return;
 
   /* draw alpharect for bottom */
@@ -427,11 +427,11 @@ void mmreal::makebackground() {
 
 }
 
-mainmenu * mainmenu::create(player * plr) {
+mainmenu * mainmenu::create(Player *plr) {
   return mmreal::create(plr);
 }
 
-mmreal * mmreal::create(player * plr) {
+mmreal * mmreal::create(Player *plr) {
 
   mmreal * mm = new mmreal();
   if (!mm) return 0;

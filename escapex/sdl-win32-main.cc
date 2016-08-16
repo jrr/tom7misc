@@ -133,7 +133,7 @@ static int ParseCommandLine(char *cmdline, char **argv) {
   if (argv) {
     argv[argc] = NULL;
   }
-  return (argc);
+  return argc;
 }
 
 /* Show an error message */
@@ -147,19 +147,19 @@ static void ShowError(const char *title, const char *message) {
 }
 
 /* Pop up an out of memory message, returns to Windows */
-static BOOL OutOfMemory(void) {
+static BOOL OutOfMemory() {
   ShowError("Fatal Error", "Out of memory - aborting");
   return FALSE;
 }
 
 /* SDL_Quit() shouldn't be used with atexit() directly because
    calling conventions may differ... */
-static void cleanup(void) {
+static void Cleanup() {
   SDL_Quit();
 }
 
 /* Remove the output files if there was no output written */
-static void cleanup_output(void) {
+static void Cleanup_output() {
   FILE *file;
   int empty;
 
@@ -196,7 +196,7 @@ static void cleanup_output(void) {
 }
 
 /* Redirect the output (stdout and stderr) to a file */
-static void redirect_output(void) {
+static void redirect_output() {
   DWORD pathlen;
 #ifdef _WIN32_WCE
   wchar_t path[MAX_PATH];
@@ -298,10 +298,10 @@ int console_main(int argc, char *argv[]) {
   /* Load SDL dynamic link library */
   if (SDL_Init(SDL_INIT_NOPARACHUTE) < 0) {
     ShowError("WinMain() error", SDL_GetError());
-    return (FALSE);
+    return FALSE;
   }
-  atexit(cleanup_output);
-  atexit(cleanup);
+  atexit(Cleanup_output);
+  atexit(Cleanup);
 
   /* Sam:
      We still need to pass in the application handle so that

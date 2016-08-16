@@ -9,7 +9,7 @@
 
 #define IND (fon->width)
 
-void prefs::show(player * plr) {
+void prefs::show(Player *plr) {
 
   /* ------- user info -------- */
   /* XXX allow changing of name,
@@ -122,31 +122,31 @@ void prefs::show(player * plr) {
   cancel can;
   can.text = "Cancel";
 
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 
-  ptrlist<menuitem>::push(l, &can);
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &spacer);
+  PtrList<MenuItem>::push(l, &can);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &spacer);
 
-  ptrlist<menuitem>::push(l, &debugnet);
-  ptrlist<menuitem>::push(l, &altconnect);
-  ptrlist<menuitem>::push(l, &servername);
-  ptrlist<menuitem>::push(l, &network);
-  ptrlist<menuitem>::push(l, &spacer);
+  PtrList<MenuItem>::push(l, &debugnet);
+  PtrList<MenuItem>::push(l, &altconnect);
+  PtrList<MenuItem>::push(l, &servername);
+  PtrList<MenuItem>::push(l, &network);
+  PtrList<MenuItem>::push(l, &spacer);
 
-  ptrlist<menuitem>::push(l, &optsol);
-  ptrlist<menuitem>::push(l, &animon);
-  ptrlist<menuitem>::push(l, &backup);
-  ptrlist<menuitem>::push(l, &showtut);
-  ptrlist<menuitem>::push(l, &askrate);
-  ptrlist<menuitem>::push(l, &game);
+  PtrList<MenuItem>::push(l, &optsol);
+  PtrList<MenuItem>::push(l, &animon);
+  PtrList<MenuItem>::push(l, &backup);
+  PtrList<MenuItem>::push(l, &showtut);
+  PtrList<MenuItem>::push(l, &askrate);
+  PtrList<MenuItem>::push(l, &game);
 
 
   menu * mm = menu::create(0, "Escape Preferences Menu", l, false);
 
   resultkind res = mm->menuize();
 
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
   mm->destroy();
 
   /* XXX check MR_QUIT */
@@ -165,9 +165,9 @@ void prefs::show(player * plr) {
   }
 }
 
-void prefs::defaults(player * plr) {
+void prefs::defaults(Player *plr) {
   
-  chunks * ch = plr->getchunks();
+  Chunks *ch = plr->getchunks();
   
   if (!ch->get(PREF_SERVER))
     putstring(plr, PREF_SERVER, DEFAULT_SERVER);
@@ -195,49 +195,49 @@ void prefs::defaults(player * plr) {
 
 }
 
-void prefs::putstring(player * plr, uint32 key, string s) {
-  plr->getchunks()->insert(new chunk(key, s));
+void prefs::putstring(Player *plr, uint32 key, string s) {
+  plr->getchunks()->insert(new Chunk(key, s));
 }
 
-void prefs::putbool(player * plr, uint32 key, bool b) {
-  plr->getchunks()->insert(new chunk(key, b));
+void prefs::putbool(Player *plr, uint32 key, bool b) {
+  plr->getchunks()->insert(new Chunk(key, b));
 }
 
-void prefs::putint(player * plr, uint32 key, int32 i) {
-  plr->getchunks()->insert(new chunk(key, i));
+void prefs::putint(Player *plr, uint32 key, int32 i) {
+  plr->getchunks()->insert(new Chunk(key, i));
 }
 
-int32 prefs::getint(player * plr, uint32 k) {
-  chunk * c = plr->getchunks()->get(k);
+int32 prefs::getint(Player *plr, uint32 k) {
+  Chunk *c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_INT32) {
     return c->i;
   } else {
     printf("c: %p\n", c);
     if (c) printf("c->type %d\n", c->type);
-    message::bug(0, "int pref unavailable: " RED + itos(k));
+    Message::bug(0, "int pref unavailable: " RED + itos(k));
     return 0;
   }
 }
 
-bool prefs::getbool(player * plr, uint32 k) {
-  chunk * c = plr->getchunks()->get(k);
+bool prefs::getbool(Player *plr, uint32 k) {
+  Chunk *c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_BOOL) {
     return (bool)c->i;
   } else {
-    message::bug(0, "bool pref unavailable: " RED + itos(k));
+    Message::bug(0, "bool pref unavailable: " RED + itos(k));
     return false;
   }
 }
 
-string prefs::getstring(player * plr, uint32 k) {
-  chunk * c = plr->getchunks()->get(k);
+string prefs::getstring(Player *plr, uint32 k) {
+  Chunk *c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_STRING) {
     return c->s;
   } else {
-    message::bug(0, "string pref unavailable: " RED + itos(k));
+    Message::bug(0, "string pref unavailable: " RED + itos(k));
     return "";
   }
 }

@@ -110,7 +110,7 @@ line * line::create(int a, int b, int c, int d) {
 
 bool util::isdir(string f) {
   struct stat st;
-  return (!stat(f.c_str(), &st)) && (st.st_mode & S_IFDIR);
+  return !stat(f.c_str(), &st) && (st.st_mode & S_IFDIR);
 }
 
 bool util::existsfile(string s) {
@@ -339,13 +339,13 @@ string util::ensureext(string f, string ext) {
   }
 }
 
-bool util::endswith (string big, string small_) {
+bool util::endswith(string big, string small_) {
   if (small_.length() > big.length()) return false;
   return big.substr(big.length() - small_.length(),
 		    small_.length()) == small_;
 }
 
-bool util::startswith (string big, string small_) {
+bool util::startswith(string big, string small_) {
   if (small_.length() > big.length()) return false;
   return big.substr(0, small_.length()) == small_;
 }
@@ -602,8 +602,8 @@ int util::library_compare(const string & l, const string & r) {
     else idxr += 4;
   }
 
-  return natural_compare (l.substr(idxl, l.length() - idxl),
-			  r.substr(idxr, r.length() - idxr));
+  return natural_compare(l.substr(idxl, l.length() - idxl),
+			 r.substr(idxr, r.length() - idxr));
 }
 
 /* XXX impossible to specify a spec for just ^ */
@@ -894,7 +894,7 @@ bool util::launchurl(const string & url) {
   if (urlcfurl) {
       OSStatus status = LSOpenCFURLRef(urlcfurl, NULL);
       CFRelease(urlcfurl);
-      return (status == noErr);
+      return status == noErr;
     }
   return 0;
 #endif

@@ -5,20 +5,20 @@
 
 #define BACKLOG 256
 
-struct textscroll_ : public textscroll {
+struct TextScroll_ : public TextScroll {
 
-  static textscroll_ * create(font * f);
+  static TextScroll_ * create(font * f);
   virtual void destroy();
   virtual void say(string s);
   virtual void unsay();
 
-  /* drawable */
+  /* Drawable */
   virtual void draw();
   virtual void screenresize();
 
   virtual void drawto(SDL_Surface * surf = 0);
 
-  virtual ~textscroll_();
+  virtual ~TextScroll_();
   
   string log[BACKLOG];
   int pwrite;
@@ -27,18 +27,18 @@ struct textscroll_ : public textscroll {
 
 };
 
-textscroll * textscroll::create(font * f) {
-  return textscroll_::create(f);
+TextScroll *TextScroll::create(font * f) {
+  return TextScroll_::create(f);
 }
 
-textscroll_::~textscroll_() {}
-textscroll::~textscroll() {}
+TextScroll_::~TextScroll_() {}
+TextScroll::~TextScroll() {}
 
-void textscroll_::destroy() { delete this; }
-void textscroll_::screenresize() {}
+void TextScroll_::destroy() { delete this; }
+void TextScroll_::screenresize() {}
 
-textscroll_ * textscroll_::create (font * f) {
-  textscroll_ * ts = new textscroll_();
+TextScroll_ * TextScroll_::create(font * f) {
+  TextScroll_ * ts = new TextScroll_();
   ts->ft = f;
   ts->posx = 0;
   ts->posy = 0;
@@ -49,7 +49,7 @@ textscroll_ * textscroll_::create (font * f) {
   return ts;
 }
 
-void textscroll_::say(string s) {
+void TextScroll_::say(string s) {
   /* write new entry */
   log[pwrite] = s;
   pwrite++;
@@ -58,7 +58,7 @@ void textscroll_::say(string s) {
 
 /* weird results if unsay() with
    an empty buffer */
-void textscroll_::unsay() {
+void TextScroll_::unsay() {
   if (pwrite) {
     pwrite--;
     log[pwrite] = "";
@@ -72,8 +72,7 @@ void textscroll_::unsay() {
    It's a little tricky because we're
    going backwards, but it's still easier
    than going forwards */
-void textscroll_::drawto (SDL_Surface * surf) {
-  
+void TextScroll_::drawto(SDL_Surface * surf) {
   if (!surf) surf = screen;
 
   int y = (posy + height) - (ft->height + vskip);
@@ -88,7 +87,7 @@ void textscroll_::drawto (SDL_Surface * surf) {
   }
 }
 
-void textscroll_::draw() { 
+void TextScroll_::draw() { 
   drawto(screen); 
 }
 

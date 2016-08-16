@@ -14,8 +14,7 @@
 SDL_Surface * screen;
 string self;
 
-int main (int argc, char ** argv) {
-
+int main(int argc, char **argv) {
   /* change to location of binary, so that we can find the
      images needed. */
   if (argc > 0) {
@@ -124,7 +123,7 @@ int main (int argc, char ** argv) {
 	  "};\n\n",
 	  num_enum.c_str());
 
-  fprintf(decs, "static Mix_Chunk * %s_data[%s] = {0};\n\n",
+  fprintf(decs, "static Mix_Chunk *%s_data[%s] = {0};\n\n",
 	  basename.c_str(), 
 	  num_enum.c_str());
 

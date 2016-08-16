@@ -2,7 +2,7 @@
 #include "escapex.h"
 #include "dirt.h"
 
-using rlist = ptrlist<SDL_Rect>;
+using rlist = PtrList<SDL_Rect>;
 
 namespace {
 struct Dreal : public Dirt {

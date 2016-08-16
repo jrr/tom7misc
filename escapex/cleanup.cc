@@ -8,7 +8,7 @@
 #include "edit.h"
 #include "dircache.h"
 
-void cleanup::clean() {
+void Cleanup::clean() {
   
   DIR * d = opendir(".");
   if (!d) return;

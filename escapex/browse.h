@@ -17,10 +17,10 @@
 #include "util.h"
 
 /* abstract interface */
-struct browse : public drawable {
+struct Browse : public Drawable {
 
-  static browse * create(bool allow_corrupted = false);
-  virtual ~browse() {}
+  static Browse * create(bool allow_corrupted = false);
+  virtual ~Browse() {}
   virtual void destroy() = 0;
 
   /* Display the browser modally until the user selects a level;
@@ -28,7 +28,7 @@ struct browse : public drawable {
      the user cancels. */
   virtual string selectlevel() = 0;
 
-  /* drawable */
+  /* Drawable */
   virtual void draw() = 0;
   virtual void screenresize() = 0;
 };

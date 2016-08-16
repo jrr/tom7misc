@@ -9,11 +9,11 @@ struct prompt {
   string input;
   string explanation;
 
-  drawable * below;
+  Drawable *below;
 
   /* XXX should probably be just this static method,
      and perhaps in util */
-  static string ask(drawable * b, string title, string def="");
+  static string ask(Drawable *b, string title, string def="");
 
   static prompt * create();
 

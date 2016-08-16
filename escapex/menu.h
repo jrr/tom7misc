@@ -34,7 +34,7 @@ struct inputresult {
 /* XXX add a way of getting defaults */
 /* (mostly) abstract base class of menuitems,
    which are "controls" in GUI lingo */
-struct menuitem {
+struct MenuItem {
 
   /* perhaps multi-line explanation of what this
      control sets. */
@@ -76,11 +76,11 @@ struct menuitem {
      assume e.type = SDL_KEYDOWN */
   virtual inputresult key(SDL_Event e);
 
-  menuitem() : indent(0), disabled(false) {}
-  virtual ~menuitem() {}
+  MenuItem() : indent(0), disabled(false) {}
+  virtual ~MenuItem() {}
 };
 
-struct textbox : public menuitem {
+struct textbox : public MenuItem {
   virtual string helptext() {
     return "Use like a normal simple editor. " BLUE "Tab" POP " exits.";
   }
@@ -129,7 +129,7 @@ struct textbox : public menuitem {
 };
 
 /* unselectable labels */
-struct label : public menuitem {
+struct label : public MenuItem {
   string text;
   virtual bool focusable() { return false; }
   virtual string helptext() { return ""; }
@@ -139,7 +139,7 @@ struct label : public menuitem {
 };
 
 /* empty space */
-struct vspace : public menuitem {
+struct vspace : public MenuItem {
   int height;
   vspace(int n) : height(n) {}
   virtual bool focusable() { return false; }
@@ -152,7 +152,7 @@ struct vspace : public menuitem {
   virtual ~vspace() {}
 };
 
-struct textinput : public menuitem {
+struct textinput : public MenuItem {
   string question;
   string input;
   /* immediately accept when pressing 'enter'? */
@@ -188,7 +188,7 @@ struct textpassword : public textinput {
   virtual ~textpassword() {}
 };
 
-struct toggle : public menuitem {
+struct toggle : public MenuItem {
   string question;
   bool checked;
 
@@ -207,7 +207,7 @@ struct toggle : public menuitem {
 
 };
 
-struct slider : public menuitem {
+struct slider : public MenuItem {
   string question;
   /* labels over lowest and highest points in slider */
   string low;
@@ -246,7 +246,7 @@ struct slider : public menuitem {
   string scrollbar;
 };
 
-struct okay : public menuitem {
+struct okay : public MenuItem {
   string text;
   int * ptr;
   int myval;
@@ -281,7 +281,7 @@ struct okay : public menuitem {
   virtual ~okay() {}
 };
 
-struct cancel : public menuitem {
+struct cancel : public MenuItem {
   string text;
 
   virtual string helptext() {
@@ -303,7 +303,7 @@ struct cancel : public menuitem {
 
 /* menus */
 
-struct menu : public drawable {
+struct menu : public Drawable {
 
   /* create a menu from some items. After this point,
      it's not possible to add or remove items. If
@@ -312,9 +312,9 @@ struct menu : public drawable {
      and is centered on the screen. */
   /* does not take ownership of the item pointers
      or the list cells */
-  static menu * create(drawable * below,
+  static menu * create(Drawable *below,
                        string title,
-                       ptrlist<menuitem> * items,
+                       PtrList<MenuItem> * items,
                        bool fullscreen);
 
   virtual void draw();
@@ -350,10 +350,10 @@ struct menu : public drawable {
   void nextfocus(int dir);
   inputresult clickselect(int x, int y);
 
-  drawable * below;
+  Drawable *below;
   string title;
   int nitems;
-  menuitem ** items;
+  MenuItem ** items;
   bool fullscreen;
   int selected;
   int skip;

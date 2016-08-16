@@ -9,12 +9,12 @@
 
 enum upresult { UL_OK, UL_FAIL, };
 
-struct upload : public drawable {
-  static upload * create();
+struct upload : public Drawable {
+  static upload *create();
   virtual ~upload();
   virtual void destroy() = 0;
 
-  virtual upresult up(player * p, string file, string desc) = 0;
+  virtual upresult up(Player *p, string file, string desc) = 0;
 
   virtual void draw() = 0;
   virtual void screenresize() = 0;

@@ -16,8 +16,8 @@ enum upgraderesult {
 };
 
 /* upgrading is updating Escape itself. */
-struct upgrader : public drawable {
-  static upgrader * create(player * p);
+struct upgrader : public Drawable {
+  static upgrader * create(Player *p);
   virtual upgraderesult upgrade(string & msg) = 0;
   virtual void destroy() = 0;
   virtual ~upgrader() {};

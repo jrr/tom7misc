@@ -14,15 +14,15 @@
 #define ALLSOLS_URL "/f/a/escape/allsols/"
 
 struct smanage {
-  static void manage(player *, string lmd5, level * lev);
+  static void manage(Player *, string lmd5, Level *lev);
 
-  static void promptupload(drawable * below,
-			   player *, string lmd5, 
-			   solution * s, string msg,
+  static void promptupload(Drawable *below,
+			   Player *, string lmd5, 
+			   Solution *s, string msg,
 			   string name,
 			   bool speedrec = false);
 
-  static void playback(player * plr, level * lev, namedsolution * ns);
+  static void playback(Player *plr, Level *lev, NamedSolution *ns);
 };
 
 #endif

@@ -14,7 +14,7 @@
 # include <time.h>
 #endif
 
-#define HASHSIZE 512
+static constexpr int HASHSIZE = 512;
 
 #define PLAYER_MAGIC "ESXP"
 #define PLAYERTEXT_MAGIC "ESPt"
@@ -26,11 +26,11 @@
 /* give some leeway for future expansion */
 #define IGNORED_FIELDS 8
 
-namedsolution * namedsolution::clone() {
-  return new namedsolution(sol->clone(), name, author, date, bookmark);
+NamedSolution *NamedSolution::clone() {
+  return new NamedSolution(sol->clone(), name, author, date, bookmark);
 }
 
-namedsolution::namedsolution() {
+NamedSolution::NamedSolution() {
   name = "";
   sol = 0;
   author = "";
@@ -38,7 +38,7 @@ namedsolution::namedsolution() {
   bookmark = false;
 }
 
-namedsolution::namedsolution(solution * s, string na, 
+NamedSolution::NamedSolution(Solution *s, string na, 
 			     string au, int da, bool bm) {
   name = na;
   sol = s;
@@ -47,7 +47,7 @@ namedsolution::namedsolution(solution * s, string na,
   bookmark = bm;
 }
 
-string namedsolution::tostring() {
+string NamedSolution::tostring() {
   string solstring = sol->tostring();
 
   return
@@ -58,7 +58,7 @@ string namedsolution::tostring() {
     sizes(bookmark ? 1 : 0);
 }
 
-namedsolution * namedsolution::fromstring (string s) {
+NamedSolution *NamedSolution::fromstring(string s) {
   unsigned int idx = 0;
   if (idx + 4 > s.length()) return 0; int d = shout(4, s, idx);
   
@@ -77,7 +77,7 @@ namedsolution * namedsolution::fromstring (string s) {
   string ss = s.substr(idx, sl);
   idx += sl;
   
-  solution * so = solution::fromstring(ss);
+  Solution *so = Solution::fromstring(ss);
   if (!so) return 0;
   
   bool bm;
@@ -88,19 +88,19 @@ namedsolution * namedsolution::fromstring (string s) {
     bm = !!bl;
   }
   
-  return new namedsolution(so, na, de, d, bm);
+  return new NamedSolution(so, na, de, d, bm);
 }
 
-void namedsolution::destroy() {
+void NamedSolution::destroy() {
   sol->destroy();
 }
 
-int namedsolution::compare(namedsolution * l, namedsolution * r) {
+int NamedSolution::compare(NamedSolution *l, NamedSolution *r) {
   /* PERF */
   return l->tostring().compare(r->tostring());
 }
 
-typedef ptrlist<namedsolution> nslist;
+typedef PtrList<NamedSolution> nslist;
 
 struct hashsolsetentry {
   string md5;
@@ -129,16 +129,15 @@ struct hashratentry {
   }
 };
 
-
-struct playerreal : public player {
+struct playerreal : public Player {
 
   void destroy();
 
   static playerreal * create(string n);
 
-  chunks * getchunks() { return ch; }
+  Chunks *getchunks() { return ch; }
 
-  solution * getsol(string md5);
+  Solution *getsol(string md5);
 
   rating * getrating(string md5);
   
@@ -151,15 +150,15 @@ struct playerreal : public player {
      after the player magic. (Also pass filename
      since the player remembers this.)
      caller will close checkfile */
-  static playerreal * fromfile_text(string fname, checkfile *);
-  static playerreal * fromfile_bin(string, checkfile *);
+  static playerreal * fromfile_text(string fname, CheckFile *);
+  static playerreal * fromfile_bin(string, CheckFile *);
 
   /* XX this one is wrong now; it returns "levels solved"
      not total number of solutions */
   int num_solutions() { return sotable->items; }
   int num_ratings() { return ratable->items; }
 
-  ptrlist<solution> * all_solutions();
+  PtrList<Solution> * all_solutions();
 
   virtual ~playerreal() {};
 
@@ -174,17 +173,17 @@ struct playerreal : public player {
   hashtable<hashsolsetentry, string> * sotable;
   hashtable<hashratentry, string> * ratable;
 
-  virtual ptrlist<namedsolution> * solutionset(string md5);
-  virtual void setsolutionset(string md5, ptrlist<namedsolution> *);
+  virtual PtrList<NamedSolution> * solutionset(string md5);
+  virtual void setsolutionset(string md5, PtrList<NamedSolution> *);
 
-  virtual void addsolution(string md5, namedsolution * ns, bool def_candidate);
-  virtual bool hassolution(string md5, solution * what);
+  virtual void addsolution(string md5, NamedSolution *ns, bool def_candidate);
+  virtual bool hassolution(string md5, Solution *what);
 
-  chunks * ch;
+  Chunks *ch;
 
 };
 
-bool playerreal::hassolution(string md5, solution * what) {
+bool playerreal::hassolution(string md5, Solution *what) {
   string whats = what->tostring();
 
   for (nslist * l = solutionset(md5); l; l = l->next) {
@@ -196,15 +195,15 @@ bool playerreal::hassolution(string md5, solution * what) {
 
 }
 
-ptrlist<solution> * playerreal::all_solutions() {
-  ptrlist<solution> * l = 0;
+PtrList<Solution> * playerreal::all_solutions() {
+  PtrList<Solution> * l = 0;
 
   for (int i = 0; i < sotable->allocated; i++) {
-    ptrlist<hashsolsetentry> * col = sotable->data[i];
+    PtrList<hashsolsetentry> * col = sotable->data[i];
     while (col) {
       nslist * these = col->head->solset;
       while (these) {
-	l = new ptrlist<solution>(these->head->sol, l);
+	l = new PtrList<Solution>(these->head->sol, l);
 	these = these->next;
       }
       col = col->next;
@@ -230,7 +229,7 @@ void playerreal::destroy() {
   delete this;
 }
 
-player * player::create(string n) {
+Player *Player::create(string n) {
   return playerreal::create(n);
 }
 
@@ -244,7 +243,7 @@ playerreal * playerreal::create(string n) {
   p->sotable = hashtable<hashsolsetentry,string>::create(HASHSIZE);
   p->ratable = hashtable<hashratentry,string>::create(HASHSIZE);
 
-  p->ch = chunks::create();
+  p->ch = Chunks::create();
 
   p->webid = 0;
   p->webseqh = 0;
@@ -261,9 +260,9 @@ playerreal * playerreal::create(string n) {
   return p;
 }
 
-solution * playerreal::getsol(string md5) {
+Solution *playerreal::getsol(string md5) {
   nslist * l = solutionset(md5);
-  /* first try to find a non-bookmark solution */
+  /* first try to find a non-bookmark Solution */
   for (nslist * tmp = l; tmp; tmp = tmp->next) {
     if (!tmp->head->bookmark) return tmp->head->sol;
   }
@@ -306,12 +305,12 @@ rating * playerreal::getrating(string md5) {
   else return 0;
 }
 
-void playerreal::addsolution(string md5, namedsolution * ns, bool def_candidate) {
+void playerreal::addsolution(string md5, NamedSolution *ns, bool def_candidate) {
   hashsolsetentry * he = sotable->lookup(md5);
 
   if (he && he->solset) {
 
-    namedsolution * headsol = he->solset->head;
+    NamedSolution *headsol = he->solset->head;
 
     // Reasons we might add the solution.
     // XXX This was partly written code; didn't compile... -tom7 14 Aug 2016
@@ -323,7 +322,7 @@ void playerreal::addsolution(string md5, namedsolution * ns, bool def_candidate)
 
       /* only if it doesn't already exist..? */
 #     if 0
-      for (ptrlist<namedsolution> * tmp = he->solset;
+      for (PtrList<NamedSolution> * tmp = he->solset;
 	   tmp; tmp = tmp->next) {
 
       }
@@ -331,7 +330,7 @@ void playerreal::addsolution(string md5, namedsolution * ns, bool def_candidate)
 
       /* put it at end, so it doesn't take over
 	 default */
-      ptrlist<namedsolution>::push_tail(he->solset,
+      PtrList<NamedSolution>::push_tail(he->solset,
 					ns->clone());
 
     /* XXX this code path is not used now */
@@ -348,7 +347,7 @@ void playerreal::addsolution(string md5, namedsolution * ns, bool def_candidate)
 
   } else {
     /* there's no solution set; create a new one. */
-    namedsolution * nsmine = ns->clone();
+    NamedSolution *nsmine = ns->clone();
     nslist * l = new nslist(nsmine, 0);
 
     sotable->insert(new hashsolsetentry(md5, l));
@@ -409,7 +408,7 @@ void playerreal::deleteoldbackups() {
   
 	  /* check that it's a valid number ... */
 	  if (age && sage == itos(age)) {
-	    /* printf ("saw '%s' with age %d\n", f.c_str(), age); */
+	    /* printf("saw '%s' with age %d\n", f.c_str(), age); */
 	    n++;
 	    if (age < oldest) oldest = age;
 	  }
@@ -423,7 +422,7 @@ void playerreal::deleteoldbackups() {
     string delme = basename + itos(oldest);
     if (util::existsfile(delme) && util::remove(delme)) {
       /* try deleting again */
-      /* printf ("deleted backup #%d\n", oldest); */
+      /* printf("deleted backup #%d\n", oldest); */
       deleteoldbackups();
     }
   }
@@ -474,8 +473,8 @@ bool playerreal::writef_text(string file) {
 
   {
   for (int i = 0; i < sotable->allocated; i++) {
-    ptrlist<hashsolsetentry>::sort(hashsolsetentry::compare, sotable->data[i]);
-    for (ptrlist<hashsolsetentry> * tmp = sotable->data[i]; 
+    PtrList<hashsolsetentry>::sort(hashsolsetentry::compare, sotable->data[i]);
+    for (PtrList<hashsolsetentry> * tmp = sotable->data[i]; 
 	tmp; 
 	tmp = tmp->next) {
       fprintf(f, "%s * %s\n", MD5::Ascii(tmp->head->md5).c_str(),
@@ -483,7 +482,7 @@ bool playerreal::writef_text(string file) {
 	      Base64::Encode(tmp->head->solset->head->tostring()).c_str());
       /* followed by perhaps more solutions marked with @ */
       /* sort them first, in place */
-      nslist::sort(namedsolution::compare, tmp->head->solset->next);
+      nslist::sort(NamedSolution::compare, tmp->head->solset->next);
 
       for (nslist * rest = tmp->head->solset->next;
 	  rest;
@@ -504,8 +503,8 @@ bool playerreal::writef_text(string file) {
 
   {
   for (int ii = 0; ii < ratable->allocated; ii++) {
-    ptrlist<hashratentry>::sort(hashratentry::compare, ratable->data[ii]);
-    for (ptrlist<hashratentry> * tmp = ratable->data[ii]; 
+    PtrList<hashratentry>::sort(hashratentry::compare, ratable->data[ii]);
+    for (PtrList<hashratentry> * tmp = ratable->data[ii]; 
 	tmp; 
 	tmp = tmp->next) {
       fprintf(f, "%s %s\n",
@@ -525,7 +524,7 @@ bool playerreal::writef_text(string file) {
   return 1;
 }
 
-player * player::fromfile(string file) {
+Player *Player::fromfile(string file) {
   return playerreal::fromfile(file);
 }
 
@@ -534,7 +533,7 @@ player * player::fromfile(string file) {
 		        return 0; } while (0)
 // #define FF_FAIL(s) return 0;
 
-playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
+playerreal * playerreal::fromfile_text(string fname, CheckFile * cf) {
 
   playerreal * p = playerreal::create("");
   if (!p) FF_FAIL("out of memory?");
@@ -578,7 +577,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
     if (next == "*") {
       /* default first */
       string solstring = Base64::Decode(util::chop(l));
-      namedsolution * ns = namedsolution::fromstring(solstring);
+      NamedSolution *ns = NamedSolution::fromstring(solstring);
       if (!ns) FF_FAIL ("bad namedsolution");
 
       nslist * solset = new nslist(ns, 0);
@@ -590,7 +589,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 	string tok = util::chop(l);
 	if (tok == "!") break;
 	else {
-	  namedsolution * ns = namedsolution::fromstring(Base64::Decode(tok));
+	  NamedSolution *ns = NamedSolution::fromstring(Base64::Decode(tok));
 	  if (!ns) FF_FAIL ("additional solution was bad");
 	  /* and append it */
 	  *etail = new nslist(ns, 0);
@@ -604,9 +603,9 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
     } else {
       /* old style singleton solutions */
       string solstring = Base64::Decode(next);
-      solution * sol = solution::fromstring(solstring);
+      Solution *sol = Solution::fromstring(solstring);
       if (!sol) FF_FAIL ("bad oldstyle solution");
-      namedsolution ns(sol, "Untitled", p->name, 0);
+      NamedSolution ns(sol, "Untitled", p->name, 0);
       p->addsolution(md, &ns, false);
       sol->destroy();
     }
@@ -636,7 +635,7 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 
   string cs; 
   if (!cf->getline(cs)) FF_FAIL ("expected prefs");
-  p->ch = chunks::fromstring(Base64::Decode(cs));
+  p->ch = Chunks::fromstring(Base64::Decode(cs));
 
   if (!p->ch) FF_FAIL ("bad prefs");
 
@@ -648,9 +647,9 @@ playerreal * playerreal::fromfile_text(string fname, checkfile * cf) {
 
 playerreal * playerreal::fromfile(string file) {
 
-  checkfile * cf = checkfile::create(file);
+  CheckFile * cf = CheckFile::create(file);
   if (!cf) return 0;
-  Extent<checkfile> ecf(cf);
+  Extent<CheckFile> ecf(cf);
 
   string s;
   if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return 0;
@@ -662,7 +661,7 @@ playerreal * playerreal::fromfile(string file) {
 }  
 
 /* XXX obsolete -- eventually deprecate and disable this */
-playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
+playerreal * playerreal::fromfile_bin(string fname, CheckFile * cf) {
 
   playerreal * p = playerreal::create("");
   if (!p) return 0;
@@ -695,11 +694,11 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
     if (!cf->readint(sollen)) return 0;
     if (!cf->read(sollen, solstring)) return 0;
 
-    solution * sol = solution::fromstring(solstring);
+    Solution *sol = Solution::fromstring(solstring);
 
     if (!sol) return 0;
 
-    namedsolution ns(sol, "Untitled", p->name, 0);
+    NamedSolution ns(sol, "Untitled", p->name, 0);
     p->addsolution(md5, &ns, false);
     sol->destroy();
   }
@@ -708,7 +707,7 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
      at all. perhaps obsolete this some day. */
   if (!cf->readint(i)) {
     if (p->ch) p->ch->destroy();
-    p->ch = chunks::create();
+    p->ch = Chunks::create();
     ep.release();
     return p;
   }
@@ -732,7 +731,7 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
   if (!cf->readint(i)) {
     ep.release();
     if (p->ch) p->ch->destroy();
-    p->ch = chunks::create();
+    p->ch = Chunks::create();
     return p;
   }
 
@@ -740,7 +739,7 @@ playerreal * playerreal::fromfile_bin(string fname, checkfile * cf) {
 
   string cs; 
   if (!cf->read(i, cs)) return 0;
-  chunks * cc = chunks::fromstring(cs);
+  Chunks *cc = Chunks::fromstring(cs);
 
   if (cc) {
     if (p->ch) p->ch->destroy();
