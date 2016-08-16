@@ -18,6 +18,8 @@ using namespace std;
 
 typedef int dir;
 
+template<class T> class PtrList;
+
 enum {
   DIR_NONE, DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT,
 };

@@ -9,6 +9,7 @@
 #include "upper.h"
 #include "handhold.h"
 #include "menu.h"
+#include "ptrlist.h"
 
 #include "client.h"
 

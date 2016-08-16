@@ -1,6 +1,7 @@
 
 #include "escapex.h"
 #include "dirt.h"
+#include "ptrlist.h"
 
 using rlist = PtrList<SDL_Rect>;
 

@@ -3,6 +3,7 @@
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
+#include "ptrlist.h"
 
 /* PERF: can optimize many of these width calculations.
    PERF: no need to append strings so often */

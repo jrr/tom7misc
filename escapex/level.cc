@@ -2,6 +2,7 @@
 #include "level.h"
 #include <assert.h>
 #include "extent.h"
+#include "ptrlist.h"
 
 /* This code is non-SDL, so it should be portable! */
 
