@@ -20,7 +20,7 @@
 struct dircache {
   
   virtual void destroy() = 0;
-  static dircache * create(player * p);
+  static dircache * create(Player *p);
   virtual ~dircache();
 
   virtual void getidx(string dir, dirindex *& idx) = 0;

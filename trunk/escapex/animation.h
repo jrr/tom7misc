@@ -36,7 +36,7 @@ struct aframe {
    that it can draw and erase itself as it goes.
 */
 
-struct animation {
+struct Animation {
   /* when to think next */
   unsigned int nexttick;
 
@@ -76,11 +76,11 @@ struct animation {
   /* next animation in the chain,
      if applicable. To replace this one
      when think() returns true. */
-  animation * next;
+  Animation * next;
 
-  animation() : depth(0), next(0), finale(false) {}
+  Animation() : depth(0), next(0), finale(false) {}
 
-  static int yorder_compare(animation * a, animation * b) {
+  static int yorder_compare(Animation * a, Animation * b) {
     int r = ((a->depth * YOSCALE) + a->yorder()) -
             ((b->depth * YOSCALE) + b->yorder());
 
@@ -152,14 +152,14 @@ struct animation {
   /* push some animations for the event ae
      onto the list anims. assume anims is 0 */
   static void start(drawing & dr, 
-		    ptrlist<animation> *& anims, 
-		    ptrlist<animation> *& sprites,
+		    PtrList<Animation> *& anims, 
+		    PtrList<Animation> *& sprites,
 		    aevent * ae);
 
   static void clearsprites(drawing & dr);
   static void clearent(drawing & dr, int ex, int ey, int olap);
 
-  static void erase_anims(ptrlist<animation> * a, Dirt *d);
+  static void erase_anims(PtrList<Animation> * a, Dirt *d);
 
   /* Think all of the animations in 'as' that are ready.
      If an animation has finished, remove it from the
@@ -169,18 +169,18 @@ struct animation {
      
      If 'done' is true, then finales are eligible to be
      removed, as long as everything running is a finale. */
-  static void think_anims(ptrlist<animation> ** as, unsigned int now,
+  static void think_anims(PtrList<Animation> ** as, unsigned int now,
 			  bool & remirror, bool done = false);
 
-  /* Call draw method for every animation in list. */
-  static void draw_anims(ptrlist<animation> * a);
+  /* Call draw method for every Animation in list. */
+  static void draw_anims(PtrList<Animation> * a);
 
   /* Initialize every anim. Return true if any init method returns
      true. */
-  static bool init_anims(ptrlist<animation> * a, unsigned int now);
+  static bool init_anims(PtrList<Animation> * a, unsigned int now);
 
   /* don't forget the tail */
-  virtual ~animation() { delete next; }
+  virtual ~Animation() { delete next; }
 
   private:
 
@@ -193,7 +193,7 @@ struct animation {
 };
 
 
-struct aninplace : public animation {
+struct aninplace : public Animation {
   int xpos, ypos;
   int loopsleft;
   int cframe;
@@ -225,13 +225,13 @@ struct aninplace : public animation {
    transition from a static tile that is part
    of the background and an animated version of
    that tile */
-struct anplacetile : public animation {
+struct anplacetile : public Animation {
   int what, sx, sy;
   anplacetile(int what_, int sx_, int sy_) 
     : what(what_), sx(sx_), sy(sy_) {}
 
   /* here the initializer draws it. */
-  virtual bool init (unsigned int now) {
+  virtual bool init(unsigned int now) {
     drawing::drawtile(sx, sy, what, 0, screen, false);
     /* trigger and die immediately */
     nexttick = now;
@@ -246,10 +246,10 @@ struct anplacetile : public animation {
   
 };
 
-struct anwait : public animation {
+struct anwait : public Animation {
   int wf;
   anwait(int frames) : wf(frames) {}
-  virtual bool think (unsigned int now) {
+  virtual bool think(unsigned int now) {
     return true;
   }
 
@@ -265,10 +265,10 @@ struct anwait : public animation {
 
 /* not really an animation -- plays a sound
    through the sound system. */
-struct ansound : public animation {
+struct ansound : public Animation {
   sound_t s;
   ansound(sound_t s_) : s(s_) {}
-  virtual bool think (unsigned int now) {
+  virtual bool think(unsigned int now) {
     sound::play(s);
     return true;
   }
@@ -287,7 +287,7 @@ struct ansound : public animation {
 /* XXX make this use aframe instead of surface */
 /* (easy now with draw method) */
 /* something flying horizontally or vertically */
-struct anflying : public animation {
+struct anflying : public Animation {
 
   /* XXX clean up members */
   int sx, sy;
@@ -346,7 +346,7 @@ struct anflying : public animation {
 };
 
 /* special like anplacetile */
-struct andraw : public animation {
+struct andraw : public Animation {
   /* copy; don't free! */
   SDL_Surface * s;
   int x, y;
@@ -372,7 +372,7 @@ struct andraw : public animation {
 };
 
 /* this keeps drawing it and is never done */
-struct anfinale : public animation {
+struct anfinale : public Animation {
   /* copy; don't free! */
   SDL_Surface * s;
   int x, y;
@@ -427,7 +427,7 @@ struct anflyingtile : public anflying {
 
 };
 
-struct anlaser : public animation {
+struct anlaser : public Animation {
 
   int sx, sy;
   dir d;
@@ -445,13 +445,13 @@ struct anlaser : public animation {
   int rl, gl, bl;
   int rlo, glo, blo;
 
-  virtual bool init (unsigned int now) {
+  virtual bool init(unsigned int now) {
     /* finale = true; */
     nexttick = now;
     return false;
   }
 
-  virtual void erase (Dirt * dirty) { 
+  virtual void erase(Dirt * dirty) { 
     if (!isfinal) {
       int px, py, ww, hh;
       /* PERF don't need to draw the whole
@@ -487,7 +487,7 @@ struct anlaser : public animation {
     }
   }
   
-  virtual bool think (unsigned int now);
+  virtual bool think(unsigned int now);
 
   virtual void draw();
 
@@ -512,12 +512,12 @@ struct anlaser : public animation {
 
 /* for now require that first and second have no 'next' field 
    also, init should not return true. */
-struct ancombo : public animation {
+struct ancombo : public Animation {
 
   /* if either is zero, then act like the other pointer. */
   /* invt: at least one is non-null */
-  animation * first;
-  animation * second;
+  Animation * first;
+  Animation * second;
 
   void settick() {
     if (first) {
@@ -527,9 +527,9 @@ struct ancombo : public animation {
     } else nexttick = second->nexttick;
   }
 
-  ancombo(animation * a, animation * b) : first(a), second(b) { }
+  ancombo(Animation * a, Animation * b) : first(a), second(b) { }
 
-  virtual bool init (unsigned int now) {
+  virtual bool init(unsigned int now) {
     /* XXX ignores return of init */
     if (first)  first ->init(now);
     if (second) second->init(now);
@@ -537,12 +537,12 @@ struct ancombo : public animation {
     return false;
   }
 
-  virtual void erase (Dirt * dirty) {
+  virtual void erase(Dirt * dirty) {
     if (first)  first ->erase(dirty);
     if (second) second->erase(dirty);
   }
   
-  virtual bool think (unsigned int now) {
+  virtual bool think(unsigned int now) {
     if (first && now >= first->nexttick) {
       if (first->think(now)) {
 	delete first;

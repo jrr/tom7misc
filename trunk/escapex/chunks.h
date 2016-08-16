@@ -8,17 +8,17 @@
 /* associative chunk database. */
 
 /* contents of database */
-enum chunktype : uint32 { CT_INT32, CT_BOOL, CT_STRING, };
-struct chunk {
-  chunktype type;
+enum ChunkType : uint32 { CT_INT32, CT_BOOL, CT_STRING, };
+struct Chunk {
+  ChunkType type;
   uint32 key;
 
   string tostring();
-  static chunk *fromstring(const string &s);
-  chunk(uint32, int32);
-  chunk(uint32, bool);
-  chunk(uint32, string);
-  virtual ~chunk() {}
+  static Chunk *fromstring(const string &s);
+  Chunk(uint32, int32);
+  Chunk(uint32, bool);
+  Chunk(uint32, string);
+  virtual ~Chunk() {}
 
   /* only one will make sense, depending on type */
   int i;
@@ -26,30 +26,30 @@ struct chunk {
 };
 
 /* database itself */
-struct chunks {
+struct Chunks {
 
   /* create a blank db with no chunks */
-  static chunks *create();
+  static Chunks *create();
 
   /* revive marshalled chunks */
-  static chunks *fromstring(const string &s);
+  static Chunks *fromstring(const string &s);
 
   /* marshall to string */
   virtual string tostring();
 
   /* returns 0 if not present */
-  virtual chunk *get(uint32 key);
+  virtual Chunk *get(uint32 key);
 
   /* replace existing chunk, if present.
      takes ownership of chunk in any case */
-  virtual void insert(chunk *data);
+  virtual void insert(Chunk *data);
 
-  virtual ~chunks() {}
+  virtual ~Chunks() {}
   virtual void destroy();
 
   private:
-  ptrlist<chunk> * data;
-  static int compare(chunk * l, chunk * r);
+  PtrList<Chunk> * data;
+  static int compare(Chunk *l, Chunk *r);
 };
 
 

@@ -42,11 +42,11 @@ struct direntry {
 
 struct dcreal : public dircache {
 
-  player * plr;
+  Player *plr;
   
   hashtable<direntry, string> * table;
 
-  static dcreal * create(player * p) {
+  static dcreal * create(Player *p) {
     dcreal * dc = new dcreal();
     if (!dc) return 0;
     Extent<dcreal> e(dc);
@@ -73,7 +73,7 @@ struct dcreal : public dircache {
 
 dircache::~dircache() {}
 
-dircache * dircache::create(player * p) {
+dircache * dircache::create(Player *p) {
   return dcreal::create(p);
 }
 
@@ -131,8 +131,8 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
     getidx(dir, didx);
 
     /* 
-       if (didx) printf ("%s index: %s\n", ifile.c_str(), didx->title.c_str());
-       else printf ("%s no index\n", ifile.c_str());
+       if (didx) printf("%s index: %s\n", ifile.c_str(), didx->title.c_str());
+       else printf("%s no index\n", ifile.c_str());
     */
 
     /* init array */
@@ -174,15 +174,15 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
 
         string contents = util::readfilemagic(ldn, LEVELMAGIC);
 
-        level * l = level::fromstring(contents);
+        Level *l = Level::fromstring(contents);
 
         if (l) {
           string md5c = MD5::Hash(contents);
 
           ttt++;
 
-          solution * s;
-          if ((s = plr->getsol(md5c)) && (s->verified || level::verify(l,s))) {
+          Solution *s;
+          if ((s = plr->getsol(md5c)) && (s->verified || Level::verify(l,s))) {
             s->verified = true;
             sss++;
           }

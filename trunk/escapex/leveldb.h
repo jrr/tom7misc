@@ -68,7 +68,7 @@ struct res_level;
 struct res_query;
 struct one_result {
   /* Give the actual subclass, or return null if it isn't. */
-  virtual const res_level * is_level() const { return NULL; }
+  virtual const res_level *is_level() const { return NULL; }
   virtual const res_query * is_query() const { return NULL; }
 };
 
@@ -76,7 +76,7 @@ struct one_result {
    about this player's relationship with the level are stored in the
    playerdb. */
 struct res_level : public one_result {
-  virtual const res_level * is_level() const { return this; }
+  virtual const res_level *is_level() const { return this; }
   res_level() : lev(0), date(0), speedrecord(0), nvotes(0), difficulty(0),
     style(0), rigidity(0), cooked(0), solved(0), owned_by_me(false) {}
 
@@ -95,7 +95,7 @@ struct res_level : public one_result {
      as read-only. Note that if we know about a level (like ratings
      from the index) but never found it on disk, this will be NULL and
      the sources vector will be empty. */
-  const level *lev;
+  const Level *lev;
 
   /* Date of (first) birth. */
   int date;
@@ -138,12 +138,12 @@ struct queryresult {
 };
 
 /* there is just one global level database. */
-struct leveldb {
+struct LevelDB {
   
   /* set the player once before adding source dirs/files
      or issuing queries. */
-  static void setplayer(player *);
-  static player * getplayer();
+  static void setplayer(Player *);
+  static Player *getplayer();
 
   /* set the sources that the database will use. */
   /* Add all files in this dir (n.b. not currently recursive) */
@@ -171,7 +171,7 @@ struct leveldb {
   static queryresult * query(const lquery &);
 
  private:
-  leveldb();
+  LevelDB();
 };
 
 #endif

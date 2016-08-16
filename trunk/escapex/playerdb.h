@@ -10,18 +10,18 @@
 using namespace std;
 
 /* abstract interface */
-struct playerdb {
+struct PlayerDB {
 
   /* make db by searching cwd for player files.
      if there are none, create a default. */
-  static playerdb * create();
+  static PlayerDB * create();
 
-  virtual player * chooseplayer() = 0;
+  virtual Player *chooseplayer() = 0;
 
   /* was this the first launch? (no default player found) */
   virtual bool firsttime() = 0;
 
-  virtual ~playerdb() {}
+  virtual ~PlayerDB() {}
 };
 
 #endif

@@ -19,17 +19,17 @@
 
 /* levels loaded from disk and waiting to be added to the database */
 struct levelwait {
-  level * l;
+  Level *l;
   /* Just a regular filename, but we should support collection files
      eventually. */
   string filename;
   string md5;
-  levelwait(level * le, string fn, string m) : l(le), filename(fn), md5(m) {}
+  levelwait(Level *le, string fn, string m) : l(le), filename(fn), md5(m) {}
   levelwait() : l(0) {}
 };
 
 /* Must be initialized before adding any sources. */
-static player * theplayer = 0;
+static Player *theplayer = 0;
 
 /* these are actually treated as stacks, but there's
    nothing wrong with that... */
@@ -39,7 +39,7 @@ static int filequeue_size = 0;
 
 /* loaded levels waiting to be added into the database
    (need to verify solutions), etc. */
-static ptrlist<levelwait> * levelqueue = 0;
+static PtrList<levelwait> * levelqueue = 0;
 static int levelqueue_size = 0;
 
 /* All levels that we've loaded, as a map from MD5 to the level
@@ -47,7 +47,7 @@ static int levelqueue_size = 0;
    efficiently in that canonical location. */
 static map<string, res_level*> all_levels;
 
-void leveldb::setplayer(player * p) {
+void LevelDB::setplayer(Player *p) {
   theplayer = p;
 }
 
@@ -56,7 +56,7 @@ void leveldb::setplayer(player * p) {
    be arbitrarily large. */
 /* XXX should be recursive too, I guess. */
 /* XXX if .escignore is present, stop */
-void leveldb::addsourcedir(string s) {
+void LevelDB::addsourcedir(string s) {
   if (!theplayer) abort();
   int count = 0;
   DIR * d = opendir(s.c_str());
@@ -72,13 +72,13 @@ void leveldb::addsourcedir(string s) {
   fprintf(stderr, "added %d files from %s\n", count, s.c_str());
 }
 
-void leveldb::addsourcefile(string s) {
+void LevelDB::addsourcefile(string s) {
   if (!theplayer) abort();
   filequeue = new stringlist(s, filequeue);
   filequeue_size++;
 }
 
-bool leveldb::uptodate(float * pct_disk, float * pct_verify) {
+bool LevelDB::uptodate(float * pct_disk, float * pct_verify) {
   // PERF: is map<>.size constant-time?
   int total = levelqueue_size + filequeue_size + all_levels.size();
 
@@ -102,7 +102,7 @@ bool leveldb::uptodate(float * pct_disk, float * pct_verify) {
   return levelqueue_size == 0 && filequeue_size == 0;
 }
 
-void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
+void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
   // message::bug(0, "DONATE.\n");
 
   int files_left = max_files;
@@ -117,12 +117,12 @@ void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
       fprintf(stderr, "Do verify.\n");
       verifies_left--;
       
-      std::unique_ptr<levelwait> lw {ptrlist<levelwait>::pop(levelqueue)};
+      std::unique_ptr<levelwait> lw {PtrList<levelwait>::pop(levelqueue)};
       levelqueue_size--;
 
       if (lw.get() == nullptr) abort();
 
-      res_level * entry = util::findorinsertnew(all_levels, lw->md5);
+      res_level *entry = util::findorinsertnew(all_levels, lw->md5);
 
       if (!entry || lw->md5.empty()) abort();
 
@@ -146,9 +146,9 @@ void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
 
       /* Verify the solution now so that we can get quicker access to
 	 it later. Should we do this for all solutions? */
-      if (solution * s = theplayer->getsol(entry->md5)) {
+      if (Solution *s = theplayer->getsol(entry->md5)) {
 	if (!s->verified) {
-	  s->verified = level::verify(entry->lev, s);
+	  s->verified = Level::verify(entry->lev, s);
 	  fprintf(stderr, "  %s solution for level @%p\n", s->verified?"valid":"invalid", entry);
 	}
       }
@@ -167,10 +167,10 @@ void leveldb::donate(int max_files, int max_verifies, int max_ticks) {
 	 support those. */
       if (util::hasmagic(s, LEVELMAGIC)) {
 	string c = readfile(s);
-	if (level * l = level::fromstring(c, true)) {
+	if (Level *l = Level::fromstring(c, true)) {
 	  string m = MD5::Hash(c);
 	  /* put on the level queue now */
-	  levelqueue = new ptrlist<levelwait>(new levelwait(l, s, m), levelqueue);
+	  levelqueue = new PtrList<levelwait>(new levelwait(l, s, m), levelqueue);
 	  levelqueue_size++;
 
 	  fprintf(stderr, "Enqueued level from %s\n", s.c_str());

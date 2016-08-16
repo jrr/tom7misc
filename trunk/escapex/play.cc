@@ -36,7 +36,7 @@
 /* medium speed */
 // #define POSTDRAW SDL_Delay (100);
 
-struct bookmarkitem;
+struct BookmarkItem;
 
 enum playstate {
   STATE_OKAY,
@@ -50,8 +50,8 @@ struct preal : public play {
   virtual void draw();
   virtual void screenresize();
 
-  virtual playresult doplay_save(player *, level *, 
-				 solution *& saved, string md5 = "");
+  virtual playresult doplay_save(Player *, Level *, 
+				 Solution *& saved, string md5 = "");
 
   virtual ~preal();
 
@@ -65,7 +65,7 @@ struct preal : public play {
   /* current solution.
      Its lifetime is within a call to doplay_save.
      Don't call redraw when not inside a call to doplay_save! */
-  solution * sol;
+  Solution *sol;
   /* current position in the
      solution. This is usually the same as sol->length, but
      if it is not, then we support the VCR (soon) and redo. */
@@ -82,20 +82,20 @@ struct preal : public play {
 
   /* hand closure-converted, ugh */
   bool redo();
-  void undo(level *& start, Extent<level> & ec, int nmoves);
-  void restart(level *& start, Extent<level> & ec);
-  void checkpoint(solution *& saved_sol,
-		  Extent<solution> & ess);
-  void restore(Extent<level> & ec,
-	       level * start,
-	       solution * saved_sol,
-	       Extent<solution> & eso);
-  void bookmarks(level * start, 
-		 Extent<level> & ec,
-		 player * plr, string md5, 
-		 solution *& sol,
-		 Extent<solution> & eso);
-  void bookmark_download(player * plr, string lmd5, level * lev);
+  void undo(Level *& start, Extent<Level> & ec, int nmoves);
+  void restart(Level *& start, Extent<Level> & ec);
+  void checkpoint(Solution *& saved_sol,
+		  Extent<Solution> & ess);
+  void restore(Extent<Level> & ec,
+	       Level *start,
+	       Solution *saved_sol,
+	       Extent<Solution> & eso);
+  void bookmarks(Level *start, 
+		 Extent<Level> & ec,
+		 Player *plr, string md5, 
+		 Solution *& sol,
+		 Extent<Solution> & eso);
+  void bookmark_download(Player *plr, string lmd5, Level *lev);
 
 
   void drawmenu();
@@ -107,8 +107,8 @@ private:
   Uint32 nextframe;
   playstate curstate();
 
-  static void setsolseta(player * plr, string md5,
-			 bookmarkitem ** books,
+  static void setsolseta(Player *plr, const string &md5,
+			 BookmarkItem ** books,
 			 int n);
 };
 
@@ -130,11 +130,12 @@ preal * preal::create() {
   return pr;
 }
 
+// XXX to local, or to class?
 SDL_Event dummy[256];
 
 /* idea: scrolling move history? */
 #define MI_NODRAW -1
-int play_menuitem[] = {
+static int play_menuitem[] = {
   TU_SAVESTATE,
   TU_RESTORESTATE,
   TU_BOOKMARKS,
@@ -171,26 +172,26 @@ enum bmaction {
   BMA_WATCH,
 };
 
-static const int bmi_zoomf = 2;
-struct bookmarkitem : public menuitem {
+static constexpr int bmi_zoomf = 2;
+struct BookmarkItem : public MenuItem {
 
   /* XX should base on size of level, number of bookmarks
      (base what? the size of the display? - tom) */
 
 
   /* with solution executed */
-  level * lev;
+  Level *lev;
 
   /* unsolved level, for communication with server */
   string levmd5;
   /* not owned */
-  player * plr;
+  Player *plr;
 
   /* the solution */
-  namedsolution * ns;
+  NamedSolution *ns;
   bool solved;
 
-  drawable * below;
+  Drawable *below;
 
   /* XXX */
   virtual string helptext() {
@@ -265,7 +266,7 @@ struct bookmarkitem : public menuitem {
     case SDLK_d:
     case SDLK_DELETE:
       /* XXX warn especially if it is the last solution? */
-      if (message::quick(container,
+      if (Message::quick(container,
 			 "Really delete '" YELLOW + 
 			 ns->name + POP "'?",
 			 "Delete",
@@ -281,7 +282,7 @@ struct bookmarkitem : public menuitem {
 	action.a = BMA_SETDEFAULT;
 	return inputresult(MR_OK);
       } else {
-	message::no(container, "Only a solution can be the default.");
+	Message::no(container, "Only a solution can be the default.");
 	return inputresult(MR_UPDATED);
       }
     }
@@ -294,7 +295,7 @@ struct bookmarkitem : public menuitem {
 	   ns->name,
 	   false);
       } else {
-	message::no(container, "You can only upload full solutions.");
+	Message::no(container, "You can only upload full solutions.");
       }
       return inputresult(MR_UPDATED);
     }
@@ -305,7 +306,7 @@ struct bookmarkitem : public menuitem {
 	action.a = BMA_OPTIMIZE;
 	return inputresult(MR_OK);
       } else {
-	message::no(container, "You can only optimize solutions.");
+	Message::no(container, "You can only optimize solutions.");
 	return inputresult(MR_UPDATED);
       }
     }
@@ -328,7 +329,7 @@ struct bookmarkitem : public menuitem {
       return inputresult(MR_OK);
 
     default:
-      return menuitem::key(e);
+      return MenuItem::key(e);
     }
   }
 
@@ -349,7 +350,7 @@ struct bookmarkitem : public menuitem {
   } action;
 
   /* copies lev, solution */
-  bookmarkitem(level * l, namedsolution * n, player * p, string md, drawable * b) {
+  BookmarkItem(Level *l, NamedSolution *n, Player *p, string md, Drawable *b) {
     bookmenu =
 		   "[" YELLOW "r" POP WHITE "ename" POP "]" 
 		   "[" YELLOW "d" POP WHITE "elete" POP "]" 
@@ -459,20 +460,20 @@ void preal::draw() {
   switch (curstate()) {
   case STATE_OKAY: break;
   case STATE_DEAD:
-    message::drawonlyv(screen->h - fon->height*8,
+    Message::drawonlyv(screen->h - fon->height*8,
 		       "You've died.",
 		       "Try again",
 		       "Quit", PICS SKULLICON);
     break;
   case STATE_WON:
-    message::drawonlyv(screen->h - fon->height*8,
+    Message::drawonlyv(screen->h - fon->height*8,
 		       "You solved it!!",
 		       "Continue", "", PICS THUMBICON);
     break;
   }
 
   /* XXX wrong, should use height,posy */
-  // fon->drawto(surf, posx + 2, (surf->h) - (fon->height + 1), message);
+  // fon->drawto(surf, posx + 2, (surf->h) - (fon->height + 1), Message);
 
   // dr.drawextra();
 }
@@ -504,8 +505,8 @@ void preal::videoresize(SDL_ResizeEvent * eventp) {
   redraw();
 }
 
-typedef ptrlist<aevent> elist;
-typedef ptrlist<animation> alist;
+typedef PtrList<aevent> elist;
+typedef PtrList<Animation> alist;
 
 bool preal::redo() {
   watching = false;
@@ -515,7 +516,7 @@ bool preal::redo() {
       solpos++;
       return true;
     } else {
-      message::no(this,
+      Message::no(this,
 		  "Can't redo! (Illegal move!)");
       return false;
     }
@@ -523,7 +524,7 @@ bool preal::redo() {
 }
 
 /* oh how I yearn for nested functions */
-void preal::undo(level *& start, Extent<level> & ec, int nm) {
+void preal::undo(Level *& start, Extent<Level> & ec, int nm) {
   if (solpos > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -540,7 +541,7 @@ void preal::undo(level *& start, Extent<level> & ec, int nm) {
   }
 }
 
-void preal::restart(level *& start, Extent<level> & ec) {
+void preal::restart(Level *& start, Extent<Level> & ec) {
   dr.lev->destroy();
   solpos = 0;
   dr.lev = start->clone();
@@ -549,28 +550,27 @@ void preal::restart(level *& start, Extent<level> & ec) {
   redraw();
 }
 
-/* set the player's solution set to the given array
+/* set the Player's solution set to the given array
    (of bookmarkitems) */
 
-void preal::setsolseta(player * plr, string md5,
-		       bookmarkitem ** books,
+void preal::setsolseta(Player *plr, const string &md5,
+		       BookmarkItem **books,
 		       int n) {
-
-  ptrlist<namedsolution> * solset = 0;
+  PtrList<NamedSolution> *solset = nullptr;
   
   for (int i = n - 1; i >= 0; i--) {
-    solset = new ptrlist<namedsolution>(books[i]->ns->clone(), solset);
+    solset = new PtrList<NamedSolution>(books[i]->ns->clone(), solset);
   }
 
   plr->setsolutionset(md5, solset);
   plr->writefile();
 }
 
-void preal::bookmarks(level * start, 
-		      Extent<level> & ec,
-		      player * plr, string md5, 
-		      solution *& sol,
-		      Extent<solution> & eso) {
+void preal::bookmarks(Level *start, 
+		      Extent<Level> &ec,
+		      Player *plr, string md5, 
+		      Solution *& sol,
+		      Extent<Solution> &eso) {
 
   enum okaywhat_t { OKAYWHAT_HUH, OKAYWHAT_NEW=10, OKAYWHAT_DOWNLOAD, };
 
@@ -579,7 +579,7 @@ void preal::bookmarks(level * start,
     okaywhat_t okay_what = OKAYWHAT_HUH;
     show_menu_again = false;
     if (md5 == "") {
-      message::bug(this, 
+      Message::bug(this, 
 		   "Bookmarks aren't available because \n"
 		   "I can't figure out what level this is!");
       redraw();
@@ -616,31 +616,31 @@ void preal::bookmarks(level * start,
     cancel can;
     can.text = "Cancel";
 
-    ptrlist<menuitem> * l = 0;
+    PtrList<MenuItem> * l = 0;
 
-    ptrlist<menuitem>::push(l, &can);
-    ptrlist<menuitem>::push(l, &book_current);
-    ptrlist<menuitem>::push(l, &defname);
-    ptrlist<menuitem>::push(l, &newtitle);
+    PtrList<MenuItem>::push(l, &can);
+    PtrList<MenuItem>::push(l, &book_current);
+    PtrList<MenuItem>::push(l, &defname);
+    PtrList<MenuItem>::push(l, &newtitle);
 
     /* initialize bmset with current bookmarks. */
     bool didsolve = false;
-    bookmarkitem ** books = 0;
+    BookmarkItem ** books = 0;
     int bmnum = 0;
     {
-      ptrlist<namedsolution> * ss = plr->solutionset(md5);
+      PtrList<NamedSolution> * ss = plr->solutionset(md5);
       bmnum = ss->length();
-      books = (bookmarkitem**) malloc(sizeof (bookmarkitem*) * bmnum);
+      books = (BookmarkItem**) malloc(sizeof (BookmarkItem*) * bmnum);
       
       for (int i = 0; i < bmnum ; i++) {
 	if (!ss->head->bookmark) didsolve = true;
-	bookmarkitem * tmp = new bookmarkitem(start, ss->head, plr, md5, this);
+	BookmarkItem * tmp = new BookmarkItem(start, ss->head, plr, md5, this);
 
 	tmp->explanation = 
 	  "Selecting this bookmark will load it,\n"
 	  "losing your current progress.\n";
 
-	ptrlist<menuitem>::push(l, tmp);
+	PtrList<MenuItem>::push(l, tmp);
 	books[i] = tmp;
 
 	ss = ss->next;
@@ -649,7 +649,7 @@ void preal::bookmarks(level * start,
     }
   
     /* only place 'existing' header if there are bookmarks */
-    if (bmnum > 0) ptrlist<menuitem>::push(l, &seltitle);
+    if (bmnum > 0) PtrList<MenuItem>::push(l, &seltitle);
 
     /* then if any bookmark is an actual solution, allow net access */
     okay netbutton;
@@ -661,13 +661,13 @@ void preal::bookmarks(level * start,
       "if you don't have them already.";
 
     if (didsolve) {
-      ptrlist<menuitem>::push(l, &netbutton);
-      ptrlist<menuitem>::push(l, &nettitle);
+      PtrList<MenuItem>::push(l, &netbutton);
+      PtrList<MenuItem>::push(l, &nettitle);
     }
 
     menu * mm = menu::create(this, "Bookmarks", l, false);
     Extent<menu> em(mm);
-    ptrlist<menuitem>::diminish(l);
+    PtrList<MenuItem>::diminish(l);
 
     mm->yoffset = fon->height + 4;
     mm->alpha = 230;
@@ -690,14 +690,13 @@ void preal::bookmarks(level * start,
 	case BMA_NONE: break;
 	
 	case BMA_SETDEFAULT: {
-	  
 	  /* XXX does this work right?? 
 	     should indicate the default bookmark here.
 	     (or else maybe try to set the default
 	     automatically, since it isn't very important) */
 
 	  /* Swap it and the 0th element. */
-	  bookmarkitem * tmp = books[bmnum - 1];
+	  BookmarkItem * tmp = books[bmnum - 1];
 	  books[bmnum - 1] = books[i];
 	  books[i] = tmp;
 
@@ -705,10 +704,10 @@ void preal::bookmarks(level * start,
 	  show_menu_again = true;
 	  goto found_action;
 	}
+
 	case BMA_DELETE: {
-	  
 	  /* swap with last item */
-	  bookmarkitem * tmp = books[bmnum - 1];
+	  BookmarkItem * tmp = books[bmnum - 1];
 	  books[bmnum - 1] = books[i];
 	  books[i] = tmp;
 	  
@@ -719,10 +718,10 @@ void preal::bookmarks(level * start,
 	  show_menu_again = true;
 	  goto found_action;
 	}
-	case BMA_OPTIMIZE: {
 
-	  solution * s = books[i]->ns->sol;
-	  solution * so = Optimize::opt(start, s);
+	case BMA_OPTIMIZE: {
+	  Solution *s = books[i]->ns->sol;
+	  Solution *so = Optimize::opt(start, s);
 	  if (so->length < s->length) {
 	    s->destroy();
 	    s = so;
@@ -736,8 +735,8 @@ void preal::bookmarks(level * start,
 	  show_menu_again = true;
 	  goto found_action;
 	}
+
 	case BMA_RENAME:
-	
 	  /* rename... */
 	  books[i]->ns->name = books[i]->action.s;
 	  
@@ -788,7 +787,7 @@ void preal::bookmarks(level * start,
 	     the current position without redos */
 	  int oldlen = sol->length;
 	  sol->length = solpos;
-	  namedsolution ns(sol, 
+	  NamedSolution ns(sol, 
 			   (defname.input == "") ? "Bookmark" : defname.input,
 			   /* no author */
 			   "",
@@ -810,7 +809,7 @@ void preal::bookmarks(level * start,
       }
 	
       default: {
- 	message::bug(0, "huh?");
+ 	Message::bug(0, "huh?");
 	break;
       }
       }
@@ -835,20 +834,17 @@ void preal::bookmarks(level * start,
 
   } while (show_menu_again);
   redraw();
-
 }
 
 /* XXX this should be documented in protocol.txt */
-void preal::bookmark_download(player * plr, string lmd5, level * lev) {
-
-
+void preal::bookmark_download(Player *plr, string lmd5, Level *lev) {
   string s;
-  client::quick_txdraw td;
+  Client::quick_txdraw td;
   
-  http * hh = client::connect(plr, td.tx, &td);
+  http * hh = Client::connect(plr, td.tx, &td);
 
   if (!hh) { 
-    message::no(&td, "Couldn't connect!");
+    Message::no(&td, "Couldn't connect!");
     return;
   }
 
@@ -874,15 +870,15 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
       int date = util::stoi(util::chop(line1));
       string name = util::losewhitel(line1);
 
-      solution * s = solution::fromstring(moves);
+      Solution *s = Solution::fromstring(moves);
       if (!s) {
-	message::no(&td, "Bad solution on server!");
+	Message::no(&td, "Bad solution on server!");
 	return;
       }
 
-      Extent<solution> es(s);
+      Extent<Solution> es(s);
 
-      namedsolution ns;
+      NamedSolution ns;
       ns.sol = s;
       ns.name = name;
       ns.author = author;
@@ -898,15 +894,15 @@ void preal::bookmark_download(player * plr, string lmd5, level * lev) {
     return;
 
   } else {
-    message::no(&td, "Couldn't get solutions");
+    Message::no(&td, "Couldn't get solutions");
     return;
   }
 
 }
 
 
-void preal::checkpoint(solution *& saved_sol,
-		       Extent<solution> & ess) {
+void preal::checkpoint(Solution *& saved_sol,
+		       Extent<Solution> & ess) {
   saved_sol->destroy();
   saved_sol = sol->clone();
   /* shouldn't save redos */
@@ -919,10 +915,10 @@ void preal::checkpoint(solution *& saved_sol,
   watching = false;
 }
 
-void preal::restore(Extent<level> & ec,
-		    level * start,
-		    solution * saved_sol,
-		    Extent<solution> & eso) {
+void preal::restore(Extent<Level> & ec,
+		    Level *start,
+		    Solution *saved_sol,
+		    Extent<Solution> & eso) {
   if (saved_sol->length > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -988,28 +984,28 @@ bool preal::getevent(SDL_Event * e, bool & fake) {
   } else return false;
 }
 
-playresult preal::doplay_save(player * plr, level * start, 
-			      solution *& saved, string md5) {
+playresult preal::doplay_save(Player *plr, Level *start, 
+			      Solution *& saved, string md5) {
   /* we never modify 'start' */
   dr.lev = start->clone();
-  Extent<level> ec(dr.lev);
+  Extent<Level> ec(dr.lev);
   
   disamb * ctx = disamb::create(start);
   Extent<disamb> edc(ctx);
 
-  sol = solution::empty();
+  sol = Solution::empty();
   solpos = 0;
-  solution * saved_sol;
+  Solution *saved_sol;
 
   /* if a solution was passed in, use it. */
   if (!saved) {
-    saved_sol = solution::empty();
+    saved_sol = Solution::empty();
   } else {
     saved_sol = saved->clone();
   }
 
-  Extent<solution> ess(saved_sol);
-  Extent<solution> eso(sol); 
+  Extent<Solution> ess(saved_sol);
+  Extent<Solution> eso(sol); 
 
   dr.scrollx = 0;
   dr.scrolly = 0;
@@ -1247,7 +1243,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	    if (answer != "") {
 	      string md;
 	      if (MD5::UnAscii(answer, md)) {
-		if (solution * that = plr->getsol(md)) {
+		if (Solution *that = plr->getsol(md)) {
 
 		  /* We now just append this solution but
 		     don't "redo" it. The player can do
@@ -1257,8 +1253,8 @@ playresult preal::doplay_save(player * plr, level * start,
 
 		  redraw();
 
-		} else message::no(this, "Sorry, not solved!");
-	      } else message::no(this, "Bad MD5");
+		} else Message::no(this, "Sorry, not solved!");
+	      } else Message::no(this, "Bad MD5");
 	    }
 
 	    redraw();
@@ -1275,11 +1271,11 @@ playresult preal::doplay_save(player * plr, level * start,
 	    watching = false;
 	    printf("Trying to complete..\n");
 	    sol->length = solpos;
-	    solution * ss = 
+	    Solution *ss = 
 	      Optimize::trycomplete(start, sol,
 				    plr->solutionset(md5));
 	    if (ss) {
-	      message::quick(this, "Completed from bookmarks: " GREEN
+	      Message::quick(this, "Completed from bookmarks: " GREEN
 			     + itos(ss->length) + POP " moves",
 			     "OK", "", PICS THUMBICON POP);
 	      sol->destroy();
@@ -1295,7 +1291,7 @@ playresult preal::doplay_save(player * plr, level * start,
 	      dr.lev->play(sol, moves);
 	      
 	    } else {
-	      message::no(this, "Couldn't complete from bookmarks.");
+	      Message::no(this, "Couldn't complete from bookmarks.");
 	    }
 	    redraw();
 	  }
@@ -1406,7 +1402,7 @@ playresult preal::doplay_save(player * plr, level * start,
 
 }
 
-void play::playrecord(string res, player * plr, bool allowrate) {
+void play::playrecord(string res, Player *plr, bool allowrate) {
   /* only prompt to rate if this is in a
      web collection */
   bool iscollection;
@@ -1425,7 +1421,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
   /* load canceled */
   if (ss == "") return;
 
-  level * lev = level::fromstring(ss);
+  Level *lev = Level::fromstring(ss);
 
   if (lev) { 
 
@@ -1457,8 +1453,8 @@ void play::playrecord(string res, player * plr, bool allowrate) {
 	 bookmarks)? */
       bool firstsol = true;
 
-      solution * sol = res.u.sol;
-      solution * opt;
+      Solution *sol = res.u.sol;
+      Solution *opt;
 
       /* remove any non-verfying solution first. we don't want to
 	 erase non-verfying solutions eagerly, since that could cause
@@ -1468,24 +1464,24 @@ void play::playrecord(string res, player * plr, bool allowrate) {
 	 solution, then go for it... */
 
       {
-	ptrlist<namedsolution> * sols = 
-	  ptrlist<namedsolution>::copy(plr->solutionset(md5));
-	ptrlist<namedsolution>::rev(sols);
+	PtrList<NamedSolution> * sols = 
+	  PtrList<NamedSolution>::copy(plr->solutionset(md5));
+	PtrList<NamedSolution>::rev(sols);
 
 	/* now filter just the ones that verify */
 	/* XXX LEAK: I don't understand the interface to
 	   (set)solutionset, so I don't free anything here. */
-	ptrlist<namedsolution> * newsols = 0;
+	PtrList<NamedSolution> * newsols = 0;
 	while (sols) {
-	  namedsolution * ns = ptrlist<namedsolution>::pop(sols);
+	  NamedSolution *ns = PtrList<NamedSolution>::pop(sols);
 
-	  level * check = level::fromstring(ss);
+	  Level *check = Level::fromstring(ss);
 	  if (check) {
 	    /* keep bookmarks too, since they basically never verify */
-	    if (ns->bookmark || level::verify(check, ns->sol)) {
+	    if (ns->bookmark || Level::verify(check, ns->sol)) {
 	      /* already solved it. */
 	      if (!ns->bookmark) firstsol = false;
-	      ptrlist<namedsolution>::push(newsols,
+	      PtrList<NamedSolution>::push(newsols,
 					   ns->clone());
 	    }
 	    check->destroy();
@@ -1497,7 +1493,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
 
       /* free 'sol', and init 'opt' */
       if (prefs::getbool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
-	level * check = level::fromstring(ss);
+	Level *check = Level::fromstring(ss);
 	if (check) {
 	  opt = Optimize::opt(check, sol);
 	  check->destroy();
@@ -1509,7 +1505,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
       
       
       {
-	namedsolution ns(opt, "Untitled", plr->name, time(0), false);
+	NamedSolution ns(opt, "Untitled", plr->name, time(0), false);
 	
 	plr->addsolution(md5, &ns, true);
 	plr->writefile();
@@ -1535,7 +1531,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
 		  
 	  rs->rate();
 	} else {
-	  message::bug(0, "Couldn't create rate object!");
+	  Message::bug(0, "Couldn't create rate object!");
 	}
 
       }
@@ -1544,7 +1540,7 @@ void play::playrecord(string res, player * plr, bool allowrate) {
       /* load again ... */
       return;
     } else {
-      printf ("????\n");
+      printf("????\n");
       return ;
     }
 
@@ -1569,7 +1565,7 @@ bool play::animatemove(drawing & dr, disamb *& ctx, Dirt *dirty, dir d) {
      is worthless to us, since the
      underlying level will have changed. */
  
-  animation::clearsprites(dr);
+  Animation::clearsprites(dr);
   
   bool success = dr.lev->move_animate(d, ctx, events);
 
@@ -1654,16 +1650,16 @@ bool play::animatemove(drawing & dr, disamb *& ctx, Dirt *dirty, dir d) {
 
       */
 
-      animation::erase_anims(anims, dirty);
-      animation::erase_anims(sprites, dirty);
+      Animation::erase_anims(anims, dirty);
+      Animation::erase_anims(sprites, dirty);
 
       /* reflect dirty rectangles action */
       dirty->clean();
 
       bool remirror = false;
 
-      animation::think_anims(&anims, now, remirror);
-      animation::think_anims(&sprites, now, remirror, !anims);
+      Animation::think_anims(&anims, now, remirror);
+      Animation::think_anims(&sprites, now, remirror, !anims);
 
       /* might need to save new background */
       if (remirror) dirty->mirror();
@@ -1675,11 +1671,11 @@ bool play::animatemove(drawing & dr, disamb *& ctx, Dirt *dirty, dir d) {
       if (anims || sprites) {
 
 	/* Sort animations by y-order every time! */
-	alist::sort(animation::yorder_compare, anims);
-	alist::sort(animation::yorder_compare, sprites);
+	alist::sort(Animation::yorder_compare, anims);
+	alist::sort(Animation::yorder_compare, sprites);
 
-	animation::draw_anims(anims);
-	animation::draw_anims(sprites);
+	Animation::draw_anims(anims);
+	Animation::draw_anims(sprites);
 		
 	SDL_Flip(screen);
 
@@ -1697,13 +1693,13 @@ bool play::animatemove(drawing & dr, disamb *& ctx, Dirt *dirty, dir d) {
 	// printf("** doing serial %d\n", s);
 	while (events && events->head->serial == s) {
 	  std::unique_ptr<aevent> ee{elist::pop(events)};
-	  animation::start(dr, anims, sprites, ee.get());
+	  Animation::start(dr, anims, sprites, ee.get());
 	}
 
 	if (anims || sprites) {
 	  bool domirror = false;
-	  domirror = animation::init_anims(anims, now) || domirror;
-	  domirror = animation::init_anims(sprites, now) || domirror;
+	  domirror = Animation::init_anims(anims, now) || domirror;
+	  domirror = Animation::init_anims(sprites, now) || domirror;
 		  
 	  /* PERF check return code to be more efficient */
 	  dirty->mirror();

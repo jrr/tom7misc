@@ -52,7 +52,7 @@ rating * rating::fromstring(string s) {
 
 struct rsreal : public ratescreen {
 
-  static rsreal * create(player * p, level * l, string levmd);
+  static rsreal * create(Player *p, Level *l, string levmd);
 
   virtual ~rsreal() {}
 
@@ -70,12 +70,12 @@ struct rsreal : public ratescreen {
   }
   
   private:
-  player * plr;
-  level * lev;
+  Player *plr;
+  Level *lev;
 
   string msg;
 
-  textscroll * tx;
+  TextScroll *tx;
   string levmd5;
   /* number of moves solved in (0 = unsolved) */
   int nsolved;
@@ -91,11 +91,11 @@ struct rsreal : public ratescreen {
 
 };
 
-ratescreen * ratescreen::create(player * p, level * l, string levmd) {
+ratescreen * ratescreen::create(Player *p, Level *l, string levmd) {
   return rsreal::create(p, l, levmd);
 }
 
-rsreal * rsreal::create(player * p, level * l, string levmd) {
+rsreal * rsreal::create(Player *p, Level *l, string levmd) {
   rsreal * rr = new rsreal();
   if (!rr) return 0;
 
@@ -104,7 +104,7 @@ rsreal * rsreal::create(player * p, level * l, string levmd) {
   rr->levmd5 = levmd;
  
   /* sol owned by player, don't free */
-  solution * sol = rr->plr->getsol(levmd);
+  Solution *sol = rr->plr->getsol(levmd);
   rr->nsolved = sol?sol->length:0;
 
   /* might be 0, that's ok. */
@@ -112,7 +112,7 @@ rsreal * rsreal::create(player * p, level * l, string levmd) {
 
   rr->below = 0;
 
-  rr->tx = textscroll::create (fon);
+  rr->tx = TextScroll::create(fon);
   rr->tx->posx = 2;
   rr->tx->posy = 2;
   rr->tx->width = screen->w - 4;
@@ -228,17 +228,17 @@ void rsreal::rate() {
   cancel can;
   can.text = "Cancel";
   
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 
-  ptrlist<menuitem>::push(l, &can);
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &solved);
-  ptrlist<menuitem>::push(l, &cooked);
-  ptrlist<menuitem>::push(l, &rigidity);
-  ptrlist<menuitem>::push(l, &style);
-  ptrlist<menuitem>::push(l, &difficulty);
-  ptrlist<menuitem>::push(l, &author);
-  ptrlist<menuitem>::push(l, &levname);
+  PtrList<MenuItem>::push(l, &can);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &solved);
+  PtrList<MenuItem>::push(l, &cooked);
+  PtrList<MenuItem>::push(l, &rigidity);
+  PtrList<MenuItem>::push(l, &style);
+  PtrList<MenuItem>::push(l, &difficulty);
+  PtrList<MenuItem>::push(l, &author);
+  PtrList<MenuItem>::push(l, &levname);
 
   menu * mm = menu::create(this, "Change Your Rating", l, false);
 
@@ -263,13 +263,13 @@ void rsreal::rate() {
     plr->writefile();
 
     /* send message to server */
-    http * hh = client::connect(plr, tx, this);
+    http * hh = Client::connect(plr, tx, this);
 
     string res;
 
     bool success = 
       (hh != 0) && 
-      client::rpc(hh, RATE_RPC,
+      Client::rpc(hh, RATE_RPC,
 		  /* credentials */
 		  (string)"id=" +
 		  itos(plr->webid) + 
@@ -291,7 +291,7 @@ void rsreal::rate() {
     if (success) {
 
       int record = util::stoi(res);
-      solution * ours = plr->getsol(levmd5);
+      Solution *ours = plr->getsol(levmd5);
       if (plr->webid && ours && ours->length < record) {
 	/* beat the record! prompt to upload. */
 
@@ -308,22 +308,22 @@ void rsreal::rate() {
 	   (with comment) instead */
 	/* first cook. prompt for comment. */
 	if (nr->cooked && !old_cooked) {
-	  commentscreen::comment(plr, lev, levmd5, true);
+	  CommentScreen::comment(plr, lev, levmd5, true);
 	} else {
 	  /* only if no other pop-up */
-	  message::quick(this, "Rating sent!",
+	  Message::quick(this, "Rating sent!",
 			 "OK", "", PICS THUMBICON POP);
 	}
       }
 
     } else {
-      message::quick(this, "Unable to send rating to server: " RED + res,
+      Message::quick(this, "Unable to send rating to server: " RED + res,
 		     "Cancel", "", PICS XICON POP);
     }
 
   } /* otherwise do nothing */
 
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
   mm->destroy();
 
 }

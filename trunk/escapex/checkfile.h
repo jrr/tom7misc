@@ -9,7 +9,7 @@
 
 /* XXX also check eof when these functions are called */
 
-struct checkfile {
+struct CheckFile {
   FILE * ff;
   bool read(unsigned int bytes, string & s) {
     /* fread stupidly *fails* if the size is 0 */
@@ -29,8 +29,8 @@ struct checkfile {
   
   void destroy() { fclose(ff); delete this; }
 
-  static checkfile * create(string f) {
-    checkfile * cf = new checkfile();
+  static CheckFile * create(string f) {
+    CheckFile * cf = new CheckFile();
     cf->ff = fopen(f.c_str(), "rb");
     if (cf->ff) return cf;
     else { delete cf; return 0; }

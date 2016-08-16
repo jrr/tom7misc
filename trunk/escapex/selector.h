@@ -28,7 +28,7 @@
       - destructive swap of the fields in l and r. used only if
       sort is called.
 
-     bool matches (char k);
+     bool matches(char k);
       - return true if the text can be said to 'match' the char k
         (when a key is pressed that doesn't do anything else, it
          jumps to the next matching entry).
@@ -56,15 +56,15 @@
 
 */
 
-template <class Item, class Ret>
-struct selector : public drawable {
+template<class Item, class Ret>
+struct Selector : public Drawable {
 
   int botmargin = 80;
   int yfit = 0;
   int selected = 0, skip = 0;
   int number;
 
-  drawable *below = nullptr;
+  Drawable *below = nullptr;
 
   /* SDL sends mousemotion events
      when there is no motion, sometimes--
@@ -82,7 +82,7 @@ struct selector : public drawable {
     delete this;
   }
 
-  virtual ~selector() {}
+  virtual ~Selector() {}
 
   /* sorts the selector using the compare function.
      left < right     ->    -1
@@ -176,7 +176,7 @@ struct selector : public drawable {
      nb, shrinking can be done cheaply and safely
      by just decrementing 'number.'
   */
-  void resize (int newsize) {
+  void resize(int newsize) {
     Item * olditems = items;
 
     items = new Item[newsize];
@@ -189,8 +189,8 @@ struct selector : public drawable {
     number = newsize;
   }
 
-  static selector * create(int n) {
-    selector * s = new selector();
+  static Selector * create(int n) {
+    Selector * s = new Selector();
     s->number = n;
     s->items = new Item[n];
 

@@ -5,7 +5,7 @@
 #include <string>
 #include "drawable.h"
 
-struct player;
+struct Player;
 
 /* some slack for later... */
 #define RATINGBYTES 6
@@ -29,9 +29,9 @@ struct rating {
 };
 
 
-struct ratescreen : public drawable {
+struct ratescreen : public Drawable {
   
-  static ratescreen * create (player * p, level * l, string levmd);
+  static ratescreen * create (Player *p, Level *l, string levmd);
 
   /* pops up a menu to rate the level identified
      by md5 string levmd. It's rated by player p,
@@ -60,7 +60,7 @@ struct ratescreen : public drawable {
 
   virtual void setmessage(string) = 0;
 
-  drawable * below;
+  Drawable *below;
 
 };
 

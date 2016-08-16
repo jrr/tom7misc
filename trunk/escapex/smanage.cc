@@ -18,14 +18,14 @@
 /* XXX getrgb */
 #define VCRSELCOLOR 0xFF224422
 
-typedef ptrlist<namedsolution> nslist;
+typedef PtrList<NamedSolution> nslist;
 
 /* entries in the selector */
 struct nsentry {
   
   /* stays at the top */
   bool def;
-  namedsolution ns;
+  NamedSolution ns;
 
   bool verifies;
 
@@ -72,17 +72,16 @@ struct nsentry {
   int convert() { return 0; }
 
   bool matches(char k) {
-    return (ns.name.length() > 0 &&
-	    (ns.name[0]|32) == (k|32));
+    return ns.name.length() > 0 && (ns.name[0]|32) == (k|32);
   }
 
   static int none() { return 0; }
 
-  static void swap (nsentry * l, nsentry * r) {
-#   define SWAP(t,f) {t f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
-    SWAP(namedsolution, ns);
-    SWAP(bool, def);
-    SWAP(bool, verifies);
+  static void swap(nsentry * l, nsentry * r) {
+#   define SWAP(f) { const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
+    SWAP(ns);
+    SWAP(def);
+    SWAP(verifies);
 #   undef SWAP
   }
   
@@ -105,9 +104,9 @@ struct nsentry {
 };
 
 
-typedef selector<nsentry, int> nsel;
+typedef Selector<nsentry, int> nsel;
 
-struct smreal : public drawable {
+struct smreal : public Drawable {
 
   virtual ~smreal() {}
   void destroy() {
@@ -115,7 +114,7 @@ struct smreal : public drawable {
     delete this;
   }
 
-  /* drawable */
+  /* Drawable */
   virtual void draw() {
     sdlutil::clearsurface(screen, BGCOLOR);
     /* XXX should drawsmall like load.
@@ -129,7 +128,7 @@ struct smreal : public drawable {
 
   virtual void screenresize() {}
 
-  static smreal * create(player * p, string lmd5, level * lev) {
+  static smreal * create(Player *p, string lmd5, Level *lev) {
     /* get the solution set */
 
     nslist * solset = p->solutionset(lmd5);
@@ -168,14 +167,14 @@ struct smreal : public drawable {
 
     /* now initialize the nsentries  */
     for (int i = 0; i < len; i++) {
-      solution * s = solset->head->sol->clone();
+      Solution *s = solset->head->sol->clone();
       sm->sel->items[i].def = (i == 0);
       sm->sel->items[i].ns.name = solset->head->name;
       sm->sel->items[i].ns.author = solset->head->author;
       sm->sel->items[i].ns.date = solset->head->date;
       sm->sel->items[i].ns.bookmark = solset->head->bookmark;
       sm->sel->items[i].ns.sol = s;
-      sm->sel->items[i].verifies = level::verify(lev, s);
+      sm->sel->items[i].verifies = Level::verify(lev, s);
 
       solset = solset->next;
     }
@@ -187,18 +186,18 @@ struct smreal : public drawable {
 
   nsel * sel;
 
-  static void downloadsolutions(player * plr, smreal * sm, string lmd5, level * lev);
+  static void downloadsolutions(Player *plr, smreal * sm, string lmd5, Level *lev);
 
 };
 
-void smanage::promptupload(drawable * below,
-			   player * plr, string lmd5, 
-			   solution * sol, string msg,
+void smanage::promptupload(Drawable *below,
+			   Player *plr, string lmd5, 
+			   Solution *sol, string msg,
 			   string name_,
 			   bool speedrec) {
 
   string s;
-  client::quick_txdraw td;
+  Client::quick_txdraw td;
 
   label message;
   message.text = msg;
@@ -243,28 +242,28 @@ void smanage::promptupload(drawable * below,
   cancel can;
   can.text = "Cancel";
   
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 
-  ptrlist<menuitem>::push(l, &can);
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &spacer);
+  PtrList<MenuItem>::push(l, &can);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &spacer);
 
-  ptrlist<menuitem>::push(l, &speed);
-  ptrlist<menuitem>::push(l, &desc);
-  ptrlist<menuitem>::push(l, &name);
-  ptrlist<menuitem>::push(l, &spacer2);
-  ptrlist<menuitem>::push(l, &message);
+  PtrList<MenuItem>::push(l, &speed);
+  PtrList<MenuItem>::push(l, &desc);
+  PtrList<MenuItem>::push(l, &name);
+  PtrList<MenuItem>::push(l, &spacer2);
+  PtrList<MenuItem>::push(l, &message);
 
   /* display menu */
   menu * mm = menu::create(below, "Upload solution?", l, false);
   resultkind res = mm->menuize();
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
   mm->destroy();
 
   if (res == MR_OK) {
 
     if (speed.checked ||
-	message::quick(0, "Are you sure you want to upload\n"
+	Message::quick(0, "Are you sure you want to upload\n"
 		       "   this solution without marking\n"
 		       "   it as a " BLUE "speedrun" POP "?\n"
 		       "\n"
@@ -275,10 +274,10 @@ void smanage::promptupload(drawable * below,
 		       "Upload anyway",
 		       "Cancel")) {
 
-      http * hh = client::connect(plr, td.tx, &td);
+      http * hh = Client::connect(plr, td.tx, &td);
     
       if (!hh) { 
-	message::no(&td, "Couldn't connect!");
+	Message::no(&td, "Couldn't connect!");
 	return;
       }
     
@@ -306,15 +305,15 @@ void smanage::promptupload(drawable * below,
 
 
       string out;
-      if (client::rpcput(hh, UPLOADSOL_RPC, fl, out)) {
+      if (Client::rpcput(hh, UPLOADSOL_RPC, fl, out)) {
 	if (speedrec)
-	  message::quick(&td, GREEN "Success! the record is yours!" POP,
+	  Message::quick(&td, GREEN "Success! the record is yours!" POP,
 			 "OK", "", PICS THUMBICON POP);
 	else
-	  message::quick(&td, GREEN "Success!" POP,
+	  Message::quick(&td, GREEN "Success!" POP,
 			 "OK", "", PICS THUMBICON POP);
       } else {
-	message::no(&td, RED "Upload failed: " + 
+	Message::no(&td, RED "Upload failed: " + 
 		    out + POP);
       }
 
@@ -325,14 +324,14 @@ void smanage::promptupload(drawable * below,
 }
 
 /* XXX this should be documented in protocol.txt */
-void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * lev) {
+void smreal::downloadsolutions(Player *plr, smreal * sm, string lmd5, Level *lev) {
   string s;
-  client::quick_txdraw td;
+  Client::quick_txdraw td;
   
-  http * hh = client::connect(plr, td.tx, &td);
+  http * hh = Client::connect(plr, td.tx, &td);
 
   if (!hh) { 
-    message::no(&td, "Couldn't connect!");
+    Message::no(&td, "Couldn't connect!");
     return;
   }
 
@@ -358,13 +357,13 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
       int date = util::stoi(util::chop(line1));
       string name = util::losewhitel(line1);
 
-      solution * s = solution::fromstring(moves);
+      Solution *s = Solution::fromstring(moves);
       if (!s) {
-	message::no(&td, "Bad solution on server!");
+	Message::no(&td, "Bad solution on server!");
 	return;
       }
 
-      Extent<solution> es(s);
+      Extent<Solution> es(s);
 
       /* now check if we've got it */
       /* PERF each of the following things is O(n)
@@ -394,7 +393,7 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
 	sm->sel->items[idx].ns.date = date;
 	/* these are always full solutions, not bookmarks */
 	sm->sel->items[idx].ns.bookmark = false;
-	sm->sel->items[idx].verifies = level::verify(lev, s);
+	sm->sel->items[idx].verifies = Level::verify(lev, s);
 
 	/* now this belongs to sm->sel */
 	es.release();
@@ -407,17 +406,17 @@ void smreal::downloadsolutions(player * plr, smreal * sm, string lmd5, level * l
     return;
 
   } else {
-    message::no(&td, "Couldn't get solutions");
+    Message::no(&td, "Couldn't get solutions");
     return;
   }
     
 }
 
-void smanage::manage(player * plr, string lmd5, level * lev) {
+void smanage::manage(Player *plr, string lmd5, Level *lev) {
   
   smreal * sm = smreal::create(plr, lmd5, lev);
   if (!sm) {
-    message::bug(0, "Couldn't create solution manager!");
+    Message::bug(0, "Couldn't create solution manager!");
     return;
   }
 
@@ -439,19 +438,19 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 	int i = sm->sel->selected;
 
 	/* one of these two will survive */
-	solution * sol = sm->sel->items[i].ns.sol;
-	solution * tmp = Optimize::opt(lev, sol);
+	Solution *sol = sm->sel->items[i].ns.sol;
+	Solution *tmp = Optimize::opt(lev, sol);
 
 	if (tmp->length < sol->length) {
 	  printf("putting sol!\n");
 	  sm->sel->items[i].ns.sol = tmp;
-	  message::quick(sm, "Optimized " RED +
-			 itos (sol->length) + POP " " LRARROW " "
+	  Message::quick(sm, "Optimized " RED +
+			 itos(sol->length) + POP " " LRARROW " "
 			 GREEN + itos(tmp->length) + POP ".",
 			 "OK", "", PICS THUMBICON POP);
 	  sol->destroy();
 	} else {
-	  message::no(sm, "No optimization possible.");
+	  Message::no(sm, "No optimization possible.");
 	  tmp->destroy();
 	}
 	sm->sel->redraw();
@@ -469,7 +468,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 				sm->sel->items[sm->sel->selected].ns.name,
 				false);
 	} else {
-	  message::no(sm, "You can't upload bookmarks or non-validating "
+	  Message::no(sm, "You can't upload bookmarks or non-validating "
 		      "solutions.");
 	}
 
@@ -508,7 +507,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 
 	  int i = sm->sel->selected;
 
-	  if (message::quick(sm,
+	  if (Message::quick(sm,
 			     "Really delete '" YELLOW + 
 			     sm->sel->items[i].ns.name + POP "'?",
 			     "Delete",
@@ -531,7 +530,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
 	    sm->sel->number--;
 	    sm->sel->selected = 0;
 	  }
-	} else message::no(sm, "Can't delete last solution!");
+	} else Message::no(sm, "Can't delete last solution!");
 
 	sm->resort();
 	sm->sel->redraw();
@@ -566,7 +565,7 @@ void smanage::manage(player * plr, string lmd5, level * lev) {
       for (int i = sm->sel->number - 1;
 	  i >= 0; 
 	  i--) {
-	solset = new nslist(new namedsolution(sm->sel->items[i].ns.sol,
+	solset = new nslist(new NamedSolution(sm->sel->items[i].ns.sol,
 					      sm->sel->items[i].ns.name,
 					      sm->sel->items[i].ns.author,
 					      sm->sel->items[i].ns.date,
@@ -596,7 +595,7 @@ enum pbstate {
 
 #define VCRHEIGHT 80
 
-struct pb : public drawable {
+struct pb : public Drawable {
 
   virtual ~pb() {}
  
@@ -646,7 +645,7 @@ struct pb : public drawable {
     SDL_Flip(screen);
   }
 
-  /* drawable */
+  /* Drawable */
   void draw() override {
     sdlutil::clearsurface(screen, BGCOLOR);
     dr.setscroll();
@@ -685,14 +684,14 @@ struct pb : public drawable {
   int soli;
 };
 
-void smanage::playback(player * plr, level * lev, namedsolution * ns) {
+void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
   pb p;
 
   p.dr.lev = lev->clone();
-  Extent<level> el(p.dr.lev);
+  Extent<Level> el(p.dr.lev);
 
-  solution * sol = ns->sol->clone();
-  Extent<solution> es(sol);
+  Solution *sol = ns->sol->clone();
+  Extent<Solution> es(sol);
   p.soli = 0;
 
 
@@ -779,7 +778,7 @@ void smanage::playback(player * plr, level * lev, namedsolution * ns) {
 	case SDLK_8:
 	  if (event.key.keysym.mod & KMOD_CTRL) {
 	    writefile("smanage_saved.esx", p.dr.lev->tostring());
-	    message::quick(0,
+	    Message::quick(0,
 			   GREEN "wrote level for debugging "
 			   RED "(DO NOT SUBMIT IT)" POP POP,
 			   "OK", "", PICS THUMBICON POP);

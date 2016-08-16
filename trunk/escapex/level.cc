@@ -82,7 +82,7 @@ struct RLE {
       bits = bytecount & 63;
     } else {
       if (bytecount > 4) {
-	printf ("Bad file bytecount %d\n", bytecount);
+	printf("Bad file bytecount %d\n", bytecount);
 	return nullptr;
       }
       bits = bytecount * 8;
@@ -293,11 +293,11 @@ struct RLE {
 };
 }
 
-string solution::tostring() const {
+string Solution::tostring() const {
   return sizes(length) + RLE::Encode(length, (int*)dirs);
 }
 
-solution * solution::fromstring(string s) {
+Solution *Solution::fromstring(string s) {
   unsigned int idx = 0;
   if (s.length() < 4) return nullptr;
   int len = shout(4, s, idx);
@@ -306,7 +306,7 @@ solution * solution::fromstring(string s) {
 
   if (!dd) return nullptr;
 
-  solution * sol = new solution();
+  Solution *sol = new Solution();
 
   sol->allocated =
     sol->length = len;
@@ -317,7 +317,7 @@ solution * solution::fromstring(string s) {
   return sol;
 }
 
-bool level::allowbeam(int tt) {
+bool Level::allowbeam(int tt) {
   switch (tt) {
   case T_FLOOR:
   case T_ELECTRIC:
@@ -344,7 +344,7 @@ bool level::allowbeam(int tt) {
    fires in. */
 /* also now checks for cohabitation with bots, which
    is deadly */
-bool level::isdead(int & tilex, int & tiley, dir & d) {
+bool Level::isdead(int & tilex, int & tiley, dir & d) {
 
   /* are we in the same square as a bot? Then we die. */
   if (botat(guyx, guyy)) {
@@ -402,7 +402,7 @@ bool level::isdead(int & tilex, int & tiley, dir & d) {
 }
 
 
-void level::swapo(int idx) {
+void Level::swapo(int idx) {
   int tmp = tiles[idx];
   tiles[idx] = otiles[idx];
   otiles[idx] = tmp;
@@ -438,28 +438,28 @@ static tile realpanel(int f) {
   }
 }
 
-bool level::issphere(int t) {
+bool Level::issphere(int t) {
   return (t == T_SPHERE ||
 	  t == T_RSPHERE ||
 	  t == T_GSPHERE ||
 	  t == T_BSPHERE);
 }
 
-bool level::issteel(int t) {
+bool Level::issteel(int t) {
   return (t == T_STEEL ||
 	  t == T_RSTEEL ||
 	  t == T_GSTEEL ||
 	  t == T_BSTEEL);
 }
 
-bool level::ispanel(int t) {
+bool Level::ispanel(int t) {
   return (t == T_PANEL ||
 	  t == T_RPANEL ||
 	  t == T_GPANEL ||
 	  t == T_BPANEL);
 }
 
-bool level::triggers(int tile, int panel) {
+bool Level::triggers(int tile, int panel) {
   /* "anything" triggers grey panels */
   if (panel == T_PANEL) return true;
   if (panel == T_RPANEL) {
@@ -488,7 +488,7 @@ bool level::triggers(int tile, int panel) {
 
 /* disambiguation context implementation */
 #ifndef NOANIMATION
-disamb * disamb::create(level * l) {
+disamb * disamb::create(Level *l) {
   disamb * d = new disamb();
   if (!d) return 0;
   Extent<disamb> ed(d);
@@ -518,11 +518,11 @@ void disamb::clear() {
   }
 }
 
-bool disamb::affect(int x, int y, level * l, ptrlist<aevent> **& etail) {
+bool disamb::affect(int x, int y, Level *l, PtrList<aevent> **& etail) {
   return affecti(y * w + x, l, etail);
 }
 
-bool disamb::affecti(int i, level * l, ptrlist<aevent> **& etail) {
+bool disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
   /* was this last updated in this same
      serial? if so, we need to move to
      the next serial. */
@@ -548,7 +548,7 @@ bool disamb::affecti(int i, level * l, ptrlist<aevent> **& etail) {
 /* maintain the invariant that in every serial within the list
    etail, there is at least one animation for every active
    entity */
-void disamb::serialup(level * l, ptrlist<aevent> **& etail) {
+void disamb::serialup(Level *l, PtrList<aevent> **& etail) {
 
   //  printf("serialup(old serial = %d)!\n", serial);
 
@@ -587,7 +587,7 @@ void disamb::serialup(level * l, ptrlist<aevent> **& etail) {
 }
 
 /* XXX should these also do the same check that affecti does? */
-void disamb::preaffectplayer(level * l, ptrlist<aevent> **& etail) {
+void disamb::preaffectplayer(Level *l, PtrList<aevent> **& etail) {
   if (player == serial) serialup(l, etail);
 }
 
@@ -595,7 +595,7 @@ void disamb::postaffectplayer() {
   player = serial;
 }
 
-void disamb::preaffectbot(int i, level * l, ptrlist<aevent> **& etail) {
+void disamb::preaffectbot(int i, Level *l, PtrList<aevent> **& etail) {
   if (bots[i] == serial) serialup(l, etail);
 }
 
@@ -614,7 +614,7 @@ void disamb::postaffectbot(int i) {
    should instead create empty level if the dimensions
    are that crazy/nonpositive
 */
-bool level::sanitize() {
+bool Level::sanitize() {
   bool was_sane = true;
 
   int len = w * h;
@@ -757,7 +757,7 @@ bool level::sanitize() {
   return was_sane;
 }
 
-void level::fixup_botorder() {
+void Level::fixup_botorder() {
   /* other fields are constant */
   struct bb {
     bot t;
@@ -803,7 +803,7 @@ void level::fixup_botorder() {
   free(bots);
 }
 
-level * level::fromstring(string s, bool allow_corrupted) {
+Level *Level::fromstring(string s, bool allow_corrupted) {
 
   int sw, sh;
 
@@ -852,7 +852,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
   /* at this point we will be able to return some kind of
      level, even if parts are corrupted */
 
-  level * l = new level();
+  Level *l = new Level();
   l->w = sw;
   l->h = sh;
 
@@ -966,7 +966,7 @@ level * level::fromstring(string s, bool allow_corrupted) {
   }
 }
 
-string level::tostring() {
+string Level::tostring() {
 
   string ou;
 
@@ -997,7 +997,7 @@ string level::tostring() {
 }
 
 /* deprecated */
-int level::newtile(int old) {
+int Level::newtile(int old) {
   switch (old) {
   case 0x0b: return T_STOP;
   case 0x0c: return T_RIGHT;
@@ -1047,7 +1047,7 @@ int level::newtile(int old) {
 /* is the tile at x,y connected to anything in
    direction d? (For instance, is there a light
    in direction d?) */
-bool level::isconnected(int pulsex, int pulsey, dir pd) {
+bool Level::isconnected(int pulsex, int pulsey, dir pd) {
   while (travel(pulsex, pulsey, pd, pulsex, pulsey)) {
     int targ = tileat(pulsex, pulsey);
 
@@ -1126,13 +1126,13 @@ bool level::isconnected(int pulsex, int pulsey, dir pd) {
 }
 
 /* deprecated */
-level * level::fromoldstring(string s) {
+Level *Level::fromoldstring(string s) {
   if (s.length() != 567) return 0;
 
-  level * n = level::blank(18, 10);
+  Level *n = Level::blank(18, 10);
 
   for (int i = 0; i < 180; i++) {
-    n->tiles[i] = level::newtile(s[i]);
+    n->tiles[i] = Level::newtile(s[i]);
     /* only regular panels */
     if (n->tiles[i] == T_PANEL)
       n->flags[i] = TF_HASPANEL;
@@ -1166,7 +1166,7 @@ level * level::fromoldstring(string s) {
   return n;
 }
 
-void level::destroy() {
+void Level::destroy() {
   free(tiles);
   free(otiles);
   free(dests);
@@ -1179,9 +1179,9 @@ void level::destroy() {
   delete this;
 }
 
-level * level::clone() const {
+Level *Level::clone() const {
 
-  level * n = new level();
+  Level *n = new Level();
 
   n->title = title;
   n->author = author;
@@ -1221,8 +1221,8 @@ level * level::clone() const {
   return n;
 }
 
-level * level::blank(int w, int h) {
-  level * n = new level();
+Level *Level::blank(int w, int h) {
+  Level *n = new Level();
   n->w = w;
   n->h = h;
   n->guyx = 1;
@@ -1255,8 +1255,8 @@ level * level::blank(int w, int h) {
   return n;
 }
 
-level * level::defboard(int w, int h) {
-  level * n = blank(w, h);
+Level *Level::defboard(int w, int h) {
+  Level *n = blank(w, h);
 
   /* just draw blue around it. */
 
@@ -1275,14 +1275,14 @@ level * level::defboard(int w, int h) {
   return n;
 }
 
-bool level::verify_prefix(const level * lev, const solution * s, solution *& out) {
-  level * l = lev->clone();
-  Extent<level> el(l);
+bool Level::verify_prefix(const Level *lev, const Solution *s, Solution *& out) {
+  Level *l = lev->clone();
+  Extent<Level> el(l);
 
-  out = solution::empty();
-  Extent<solution> eo(out);
+  out = Solution::empty();
+  Extent<Solution> eo(out);
 
-  for (solution::iter i = solution::iter(s);
+  for (Solution::iter i = Solution::iter(s);
       i.hasnext();
       i.next()) {
 
@@ -1305,8 +1305,8 @@ bool level::verify_prefix(const level * lev, const solution * s, solution *& out
   return false;
 }
 
-bool level::verify(const level * lev, const solution * s) {
-  level * l = lev->clone();
+bool Level::verify(const Level *lev, const Solution *s) {
+  Level *l = lev->clone();
 
   int moves;
   bool won = l->play(s, moves);
@@ -1316,7 +1316,7 @@ bool level::verify(const level * lev, const solution * s) {
   return won && moves == s->length;
 }
 
-bool level::play_subsol(const solution * s, int & moves, int start, int len) {
+bool Level::play_subsol(const Solution *s, int & moves, int start, int len) {
   moves = 0;
   for (int z = 0; z < len; z++) {
 
@@ -1337,12 +1337,12 @@ bool level::play_subsol(const solution * s, int & moves, int start, int len) {
   return false;
 }
 
-bool level::play(const solution * s, int & moves) {
+bool Level::play(const Solution *s, int & moves) {
   return play_subsol(s, moves, 0, s->length);
 }
 
 /* must be called with sensible sizes (so that malloc won't fail) */
-void level::resize(int neww, int newh) {
+void Level::resize(int neww, int newh) {
 
   int bytes = neww * newh * sizeof(int);
 

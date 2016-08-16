@@ -11,11 +11,11 @@ struct ulreal : public upload {
   static ulreal * create();
   ~ulreal() override {}
 
-  upresult up(player * p, string file, string) override;
+  upresult up(Player *p, string file, string) override;
 
   void redraw() {
     draw();
-    SDL_Flip (screen);
+    SDL_Flip(screen);
   }
 
   void say(string s) {
@@ -30,8 +30,8 @@ struct ulreal : public upload {
     delete this;
   }
 
-  textscroll * tx;
-  player * plr;
+  TextScroll *tx;
+  Player *plr;
 
   void draw() override;
   void screenresize() override;
@@ -47,7 +47,7 @@ ulreal * ulreal::create() {
   if (!ur) return 0;
   Extent<ulreal> eu(ur);
 
-  ur->tx = textscroll::create(fon);
+  ur->tx = TextScroll::create(fon);
   if (!ur->tx) return 0;
 
   ur->tx->posx = 5;
@@ -59,41 +59,41 @@ ulreal * ulreal::create() {
   return ur;
 }
 
-upresult ulreal::up (player * p, string f, string text) {
+upresult ulreal::up(Player *p, string f, string text) {
   redraw();
 
   string levcont = util::readfilemagic(f, LEVELMAGIC);
 
   plr = p;
 
-  level * lev = level::fromstring(levcont);
+  Level *lev = Level::fromstring(levcont);
   if (!lev) return UL_FAIL;
 
-  Extent<level> el(lev);
+  Extent<Level> el(lev);
   
   string md5c = MD5::Hash(levcont);
 
 
   /* don't free soln */
-  solution * slong;
+  Solution *slong;
   if (! ((slong = plr->getsol(md5c)) && 
-      level::verify(lev, slong)))
+      Level::verify(lev, slong)))
     return UL_FAIL; /* no solution?? */
 
   say(GREEN "Level and solution ok." POP);
   say("Optimizing...");
 
-  solution * opt = Optimize::opt(lev, slong);
+  Solution *opt = Optimize::opt(lev, slong);
   if (!opt) {
     say(RED "optimization failed" POP);
     return UL_FAIL;
   }
-  Extent<solution> es(opt);
+  Extent<Solution> es(opt);
 
   say(YELLOW + itos(slong->length) + GREY " " LRARROW " " POP +
       itos(opt->length) + POP);
 
-  http * hh = client::connect(plr, tx, this);
+  http * hh = Client::connect(plr, tx, this);
 
   if (!hh) return UL_FAIL;
 
@@ -113,14 +113,14 @@ upresult ulreal::up (player * p, string f, string text) {
   redraw();
 
   string out;
-  if (client::rpcput(hh, UPLOAD_RPC, fl, out)) {
-    message::quick(this, GREEN "success!" POP,
+  if (Client::rpcput(hh, UPLOAD_RPC, fl, out)) {
+    Message::quick(this, GREEN "success!" POP,
 		   "OK", "", PICS THUMBICON);
     formalist::diminish(fl);
 
     return UL_OK;
   } else {
-    message::no(this, RED "upload failed: " + 
+    Message::no(this, RED "upload failed: " + 
 		out + POP);
     formalist::diminish(fl);
 

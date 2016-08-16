@@ -57,8 +57,8 @@ struct llentry {
 };
 #endif
 
-struct browse_ : public browse {
-  browse_() : background(0) {}
+struct Browse_ : public Browse {
+  Browse_() : background(0) {}
 
   virtual void draw() {
     SDL_BlitSurface(background, 0, screen, 0);
@@ -92,14 +92,14 @@ struct browse_ : public browse {
   static string lastmd5;
 };
 
-void browse_::makebackground() {
+void Browse_::makebackground() {
   int w = screen->w;
   int h = screen->h;
 
-  backgrounds::gradientblocks(background,
+  Backgrounds::gradientblocks(background,
 			      T_GREY,
 			      T_RED,
-			      backgrounds::purpleish);
+			      Backgrounds::purpleish);
   if (!background) return;
 
   const Uint32 curveborder_color =
@@ -114,13 +114,13 @@ void browse_::makebackground() {
   const int border_x2 = w - 17, border_y2 = h - 13;
 
   /* Curves */
-  sdlutil::blitall(animation::curveborder_tan_tl, background,
+  sdlutil::blitall(Animation::curveborder_tan_tl, background,
 		   border_x1, border_y1);
-  sdlutil::blitall(animation::curveborder_tan_tr, background,
+  sdlutil::blitall(Animation::curveborder_tan_tr, background,
 		   border_x2 - curve_size, border_y1);
-  sdlutil::blitall(animation::curveborder_tan_br, background,
+  sdlutil::blitall(Animation::curveborder_tan_br, background,
 		   border_x2 - curve_size, border_y2 - curve_size);
-  sdlutil::blitall(animation::curveborder_tan_bl, background,
+  sdlutil::blitall(Animation::curveborder_tan_bl, background,
 		   border_x1, border_y2 - curve_size);
 
   const int inborder_height = border_y2 - border_y1 - curve_size * 2;
@@ -195,7 +195,7 @@ void browse_::makebackground() {
   }
 
   const int title_x = 39, title_y = 31;
-  sdlutil::blitall(animation::choose_a_level, background, title_x, title_y);
+  sdlutil::blitall(Animation::choose_a_level, background, title_x, title_y);
 
   /* bottom panel */
   const int bottom_height = 169;
@@ -216,7 +216,7 @@ void browse_::makebackground() {
 		    separator_x, botsep_y, separator_width, separator_height);
 }
 
-string browse_::selectlevel() {
+string Browse_::selectlevel() {
   SDL_Event event;
 
   Uint32 nextframe = SDL_GetTicks() + LOADFRAME_TICKS;
@@ -243,7 +243,7 @@ string browse_::selectlevel() {
 
       }
 
-      // XXX bogus. use selector.
+      // XXX bogus. use Selector.
       switch (event.type) {
       case SDL_QUIT:
 	return "";
@@ -256,8 +256,8 @@ string browse_::selectlevel() {
 }
 
 
-browse * browse::create(bool allow_corrupted) {
-  browse_ * b = new browse_;
+Browse * Browse::create(bool allow_corrupted) {
+  Browse_ * b = new Browse_;
   b->allow_corrupted = allow_corrupted;
   b->makebackground();
   return b;
@@ -339,7 +339,7 @@ void loadlevelreal::step() {
 
 
 /* PERF could precompute most of this */
-void llentry::draw (int x, int y, bool selected) {
+void llentry::draw(int x, int y, bool selected) {
   fon->draw(x, y, display(selected));
 }
 
@@ -440,7 +440,7 @@ bool loadlevelreal::first_unsolved(string & file, string & title) {
 #  define DBTIME(s) ;
 #endif
 
-loadlevelreal * loadlevelreal::create(player * p, string default_dir,
+loadlevelreal * loadlevelreal::create(Player *p, string default_dir,
 				      bool inexact,
 				      bool allow_corrupted_) {
   DBTIME_INIT;
@@ -660,12 +660,12 @@ int loadlevelreal::changedir(string what, bool remember) {
       string contents = util::readfilemagic(ldn, LEVELMAGIC);
 
       /* try to read it, passing along corruption flag */
-      level * l = level::fromstring(contents, allow_corrupted);
+      Level *l = Level::fromstring(contents, allow_corrupted);
 
       if (l) {
 	string md5c = MD5::Hash(contents);
 
-	using solset = ptrlist<namedsolution>;
+	using solset = PtrList<NamedSolution>;
 	
 	/* owned by player */
 	solset * sols = plr->solutionset(md5c);
@@ -677,7 +677,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	   and sanity sake */
 	if (sols) {
 	  if (sols->head->sol->verified ||
-	      level::verify(l, sols->head->sol)) {
+	      Level::verify(l, sols->head->sol)) {
 	    sols->head->sol->verified = true;
 	    nsel->items[i].solved = sols->head->sol->length;
 	  } else if (sols->next) { 
@@ -689,11 +689,11 @@ int loadlevelreal::changedir(string what, bool remember) {
 	    while (sols) {
 	      /* not trying bookmarks */
 	      if (!sols->head->bookmark &&
-		  level::verify(l, sols->head->sol)) {
+		  Level::verify(l, sols->head->sol)) {
 		/* ok! create the new list with this
 		   at the head. */
 
-		namedsolution * ver = sols->head->clone();
+		NamedSolution *ver = sols->head->clone();
 		ver->sol->verified = true;
 
 		/* get tail */
@@ -782,7 +782,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
 #if 0
   if (!nsel->number) {
-    message::no(0, "There are no levels at all!!");
+    Message::no(0, "There are no levels at all!!");
     return 0;
   }
 #endif
@@ -791,7 +791,7 @@ int loadlevelreal::changedir(string what, bool remember) {
   sel = nsel;
 
   if (!sel->number) {
-    message::no(0, "There are no levels at all!!");
+    Message::no(0, "There are no levels at all!!");
 
     /* FIXME crash if we continue  */
     exit(-1);

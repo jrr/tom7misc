@@ -4,7 +4,7 @@
 /* note: include level.h, not this. */
 
 /* Defines the types of animation events that can
-   occur. These are returned by level::move_animate
+   occur. These are returned by Level::move_animate
    if animation is enabled. */
 
 /* as a result of a move, a list of animation events

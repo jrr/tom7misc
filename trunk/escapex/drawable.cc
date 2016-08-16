@@ -1,14 +1,14 @@
 
 #include "drawable.h"
 
-struct nodraw_t : public drawable {
+struct nodraw_t : public Drawable {
   virtual void draw() {}
   virtual void screenresize() {}
 };
 
 /* singleton no-draw object */
-drawable * nodraw;
+Drawable *nodraw;
 
-void drawable::init() {
+void Drawable::init() {
   nodraw = new nodraw_t();
 }

@@ -6,9 +6,9 @@
 #include "escapex.h"
 #include "player.h"
 
-struct registration : public drawable {
+struct registration : public Drawable {
   
-  static registration * create (player * p);
+  static registration * create (Player *p);
 
   /* modifies p->webid to nonzero if successful */
   virtual void registrate() = 0;

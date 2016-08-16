@@ -54,7 +54,7 @@ private:
   int exittime;
   int guytime;
   
-  textscroll * tx;
+  TextScroll *tx;
   
 };
 

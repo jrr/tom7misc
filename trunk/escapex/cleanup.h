@@ -7,7 +7,7 @@
    and deletes them. also ensures that
    some expected game dirs actually exist,
    such as 'mylevels'*/
-struct cleanup {
+struct Cleanup {
   static void clean();
 };
 

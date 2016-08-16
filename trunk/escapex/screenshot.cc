@@ -54,8 +54,8 @@ int main(int argc, char **argv) {
     SDL_Quit();
     return 1;
   }
-  if (!animation::ainit_fast()) {
-    fprintf(stderr, "animation::ainit_fast failed\n");
+  if (!Animation::ainit_fast()) {
+    fprintf(stderr, "Animation::ainit_fast failed\n");
     SDL_Quit();
     return 1;
   }
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   int zf = 0;
 
   drawing d;
-  d.lev = level::fromstring(readfile(inlev));
+  d.lev = Level::fromstring(readfile(inlev));
   if (!d.lev) {
     fprintf(stderr, "Can't open %s\n", inlev.c_str());
     SDL_Quit();

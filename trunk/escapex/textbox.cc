@@ -334,7 +334,7 @@ inputresult textbox::key(SDL_Event e) {
     switch (key) {
     case SDLK_TAB:
     case SDLK_ESCAPE:
-      return menuitem::key(e);
+      return MenuItem::key(e);
       
     case SDLK_DOWN:
       down();
@@ -493,7 +493,7 @@ void textbox::type(char k) {
     /* printf("  ..fits\n"); */
     vallist<char>::push(before, k);
   } else if (k == ' ') {
-    /* printf ("  .. no fit adding whitespace\n"); */
+    /* printf("  .. no fit adding whitespace\n"); */
     vallist<char>::push(before, '\x00');
 
   } else {

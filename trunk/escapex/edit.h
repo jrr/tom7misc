@@ -13,22 +13,22 @@
 enum { RT_MAZE, RT_MAZE2, RT_CORRIDORS, RT_MAZEBUG1, RT_MAZEBUG2, 
        RT_ROOMS, RT_CRAZY, RT_RETRACT1, RT_RETRACTGOLD, NUM_RANDTYPES, };
 
-struct editor : public drawable {
+struct editor : public Drawable {
 
   /* takes ownership */
-  void setlevel(level * l) {
+  void setlevel(Level *l) {
     dr.lev = l;
   }
 
-  void edit(level * origlev = 0);
+  void edit(Level *origlev = 0);
 
-  /* drawable */
+  /* Drawable */
   void draw();
   void screenresize();
 
   virtual ~editor();
 
-  static editor * create(player * p);
+  static editor * create(Player *p);
 
   void destroy() {
     saved->destroy();
@@ -46,9 +46,9 @@ struct editor : public drawable {
 
   int changed;
 
-  player * plr;
+  Player *plr;
 
-  solution * saved;
+  Solution *saved;
 
   void tmenurotate(int n);
   void saveas();
@@ -84,7 +84,7 @@ struct editor : public drawable {
   bool retract_hole();
   bool retract_gold();
 
-  string ainame (int a);
+  string ainame(int a);
 
   void videoresize(SDL_ResizeEvent * eventp);
   

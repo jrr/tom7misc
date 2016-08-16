@@ -22,8 +22,8 @@ bool Analysis::isempty(int t) {
   }
 }
 
-onionfind * Analysis::reachable (level * lev) {
-  int size = lev->w * lev->h;
+onionfind * Analysis::reachable(Level *lev) {
+  const int size = lev->w * lev->h;
   onionfind * of = new onionfind(size);
 
   /* the algorithm is simple. each space begins in its own equivalence
@@ -41,8 +41,8 @@ onionfind * Analysis::reachable (level * lev) {
     for (int x = 0; x < lev->w; x++) {
 
       if (isempty(lev->tileat(x, y))) {
-	level * cl = lev->clone();
-	Extent<level> el(cl);
+	Level *cl = lev->clone();
+	Extent<Level> el(cl);
 
 	cl->warp(cl->guyx, cl->guyy, x, y);
 
@@ -51,8 +51,8 @@ onionfind * Analysis::reachable (level * lev) {
 	if (cl->isdead(dummy, dummy, unused)) continue;
 
 	for (dir d = FIRST_DIR; d <= LAST_DIR; d++) {
-	  level * cc = cl->clone();
-	  Extent<level> ec(cc);
+	  Level *cc = cl->clone();
+	  Extent<Level> ec(cc);
 
 	  
 	  /* we can't be walking off the map! */
@@ -64,8 +64,8 @@ onionfind * Analysis::reachable (level * lev) {
 	  if (isempty(lev->tileat(destx, desty)) &&
 	      cc->move(d) && !cc->isdead(dummy, dummy, unused)) {
 	    /* good. now just check the opposite... */
-	    level * co = cl->clone();
-	    Extent<level> eec(co);
+	    Level *co = cl->clone();
+	    Extent<Level> eec(co);
 
 	    co->warp(cl->guyx, cl->guyy, destx, desty);
 	    
@@ -89,23 +89,23 @@ onionfind * Analysis::reachable (level * lev) {
   return of;
 }
 
-static bool separator(level * lev, int x, int y, 
+static bool separator(Level *lev, int x, int y, 
 		      int x1, int y1, int & x2, int & y2, 
 		      int tile, bool search);
 
 
-bool Analysis::doessep(level * lev, int x, int y, 
+bool Analysis::doessep(Level *lev, int x, int y, 
 		       int x1, int y1, int x2, int y2, int tile) {
   return separator(lev, x, y, x1, y1, x2, y2, tile, false);
 }
 
-bool Analysis::issep(level * lev, int x, int y, 
-		     int x1, int y1, int & x2, int & y2, int tile) {
+bool Analysis::issep(Level *lev, int x, int y, 
+		     int x1, int y1, int &x2, int &y2, int tile) {
   return separator(lev, x, y, x1, y1, x2, y2, tile, true);
 }
 
-static bool separator(level * lev, int x, int y, 
-		      int x1, int y1, int & x2, int & y2, 
+static bool separator(Level *lev, int x, int y, 
+		      int x1, int y1, int &x2, int &y2, 
 		      int tile, bool search) {
 
   /*
@@ -128,8 +128,8 @@ static bool separator(level * lev, int x, int y,
   /* original equivalence class that we're in. */
   int oclass = orig->find(lev->index(x1, y1));
 
-  level * nlev = lev->clone();
-  Extent<level> le(nlev);
+  Level *nlev = lev->clone();
+  Extent<Level> le(nlev);
   
   nlev->settile(x, y, tile);
 
@@ -152,8 +152,8 @@ static bool separator(level * lev, int x, int y,
   /* now see if there are any newly separated regions. */
 
   if (search) {
-    for (y2 = 0; y2 < lev->h; y2 ++)
-      for (x2 = 0; x2 < lev->w; x2 ++) {
+    for (y2 = 0; y2 < lev->h; y2++)
+      for (x2 = 0; x2 < lev->w; x2++) {
 	/* check that they used to be the same */
 	if (orig->find(lev->index(x2, y2)) == oclass) {
 

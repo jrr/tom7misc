@@ -52,7 +52,7 @@ inline void PERMUTE3(Uint64 & h) {
 }
   
 
-static Uint64 hashlevel(level * l) {
+static Uint64 hashlevel(Level *l) {
   /* ignore title, author, w/h, dests, flags, 
      since these don't change.
      also ignore botd and guyd, which are presentational. */
@@ -92,7 +92,6 @@ static Uint64 hashlevel(level * l) {
 }
 
 struct lstate {
-  
   /* index (in cf) before which we are in this
      state */
   int pos;
@@ -105,14 +104,14 @@ struct lstate {
   }
 
   /* truncate */
-  static unsigned int hash (Uint64 i) { 
+  static unsigned int hash(Uint64 i) { 
     return (unsigned int)(i & 0xFFFFFFFFl); 
   }
 
-  lstate(int p, level * ll, bool initial=false) : pos(p) {
+  lstate(int p, Level *ll, bool initial = false) : pos(p) {
     thiskey = hashlevel(ll);
     /* need to treat this case specially, or else
-       the level "impossible" (and ones like it) get
+       the Level "impossible" (and ones like it) get
        optimized to a zero-length solution, which won't
        verify */
     if (ll->iswon() && initial) thiskey ^= 0xFFFF0000FFFF0000ULL;
@@ -124,20 +123,19 @@ struct lstate {
   void destroy() {
     delete this;
   }
-  
 };
 
 static void inval_above(lstate * ls, int cutoff) {
   if (ls->pos > cutoff) ls->thiskey = 0l;
 }
 
-solution * Optimize::opt(level * orig, solution * s) {
+Solution *Optimize::opt(Level *orig, Solution *s) {
 
-  level * l = orig->clone();
-  Extent<level> el(l);
+  Level *l = orig->clone();
+  Extent<Level> el(l);
 
-  if (!level::verify(l, s)) {
-    message::bug(0, "optimizer: solution is not valid to start!");
+  if (!Level::verify(l, s)) {
+    Message::bug(0, "optimizer: solution is not valid to start!");
     return s->clone();
   }
 
@@ -155,14 +153,14 @@ solution * Optimize::opt(level * orig, solution * s) {
      opinion this suboptimal behavior is very rare. */
   
   /* "cycle-free" solution */
-  solution * cf = solution::empty();
+  Solution *cf = Solution::empty();
   
-  solution::iter i(s);
+  Solution::iter i(s);
   hashtable<lstate, Uint64> * ht = hashtable<lstate, Uint64>::create(1023);
-  Extent<hashtable<lstate, Uint64> > eh(ht);
+  Extent<hashtable<lstate, Uint64>> eh(ht);
 
   /* insert initial state */
-  ht->insert (new lstate(0, l, true));
+  ht->insert(new lstate(0, l, true));
 
   for (; i.hasnext(); i.next()) {
   
@@ -217,7 +215,7 @@ solution * Optimize::opt(level * orig, solution * s) {
 
   } 
 
-  if (level::verify(orig, cf)) {
+  if (Level::verify(orig, cf)) {
     /*
     printf("Correct result: %d moves->%d moves\n",
 	   s->length, cf->length);
@@ -231,16 +229,16 @@ solution * Optimize::opt(level * orig, solution * s) {
 }
 
 
-typedef ptrlist<namedsolution> solset ;
-solution * Optimize::trycomplete(level * start, solution * prefix,
+typedef PtrList<NamedSolution> solset ;
+Solution *Optimize::trycomplete(Level *start, Solution *prefix,
 				 solset * sources) {
   /* do breadth first search by suffix length. */
   
-  level * wprefix = start->clone();
+  Level *wprefix = start->clone();
   int moves_unused;
   /* Assume this works.. */
   wprefix->play(prefix, moves_unused);
-  Extent<level> ewp(wprefix);
+  Extent<Level> ewp(wprefix);
 
   /* find the longest solution. */
   int max_slen = 0;
@@ -256,10 +254,10 @@ solution * Optimize::trycomplete(level * start, solution * prefix,
     for (solset * tmp = sources; tmp; tmp = tmp->next) {
       if (tmp->head->sol->length >= slen) {
 	/* do it! */
-	level * trysuf = wprefix->clone();
-	Extent<level> ets(trysuf);
+	Level *trysuf = wprefix->clone();
+	Extent<Level> ets(trysuf);
 
-	solution * trysol = tmp->head->sol;
+	Solution *trysol = tmp->head->sol;
 
 	/* execute exactly this suffix */
 	int moves;
@@ -274,7 +272,7 @@ solution * Optimize::trycomplete(level * start, solution * prefix,
 		 prefix->length + moves);
 #endif
 
-	  solution * ret = prefix->clone();
+	  Solution *ret = prefix->clone();
 	  for (int j = 0; j < moves; j++) {
 	    ret->append(trysol->dirs[j + trysol->length - slen]);
 	  }

@@ -10,14 +10,14 @@
 #include "drawable.h"
 #include "dirindex.h"
 
-struct upper {
+struct Upper {
   virtual void destroy() = 0;
-  virtual ~upper() {};
+  virtual ~Upper() {};
 
   /* create an upper, using the http connection hh,
      and directory dir */
-  static upper * create(http * hh, textscroll * t,
-			drawable * below, string dir);
+  static Upper * create(http * hh, TextScroll *t,
+			Drawable *below, string dir);
 
   /* the file 'f' (which may be prefixed by directories that have been
      previously saved), should be set to the contents specified by the
@@ -48,7 +48,7 @@ struct upper {
 
 };
 
-/* The upper object is used to replace one set of files with another
+/* The Upper object is used to replace one set of files with another
    during the upgrade process.
 
    When created, it loads each of the files in the directory into

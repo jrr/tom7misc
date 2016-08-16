@@ -6,7 +6,7 @@
 #define LEVEL_FREQ 300
 
 mainshow::mainshow(int w, int h, int zf) {
-  dr.lev = level::defboard(w, h);
+  dr.lev = Level::defboard(w, h);
   dr.width = (TILEW >> zf) * w;
   dr.height = (TILEH >> zf) * h;
   dr.margin = 0;
@@ -14,7 +14,7 @@ mainshow::mainshow(int w, int h, int zf) {
   dr.scrolly = 0;
   dr.zoomfactor = zf;
 
-  tx = textscroll::create(fonsmall);
+  tx = TextScroll::create(fonsmall);
   tx->width = 100;
   tx->height = (TILEH >> zf) * h;
 
@@ -38,7 +38,7 @@ void mainshow::draw(int x, int y, SDL_Surface * surf) {
   tx->posx = 4 + x + (TILEW >> dr.zoomfactor) * dr.lev->w;
   tx->posy = y;
 
-  tx->drawto (surf);
+  tx->drawto(surf);
 }
 
 void mainshow::step() {
@@ -75,7 +75,7 @@ bool mainshow::moveface(dir d) {
 void mainshow::trymove() {
 
   /* walk towards goal */
-  level * l = dr.lev;
+  Level *l = dr.lev;
   int dx = 0, dy = 0;
   if (l->guyx < exitx) dx = 1;
   else if (l->guyx > exitx) dx = -1;

@@ -123,7 +123,7 @@ static void fit_image(SDL_Surface *& packed, UsedMap * um,
 }
 
 
-int main (int argc, char ** argv) {
+int main(int argc, char **argv) {
 
   /* change to location of binary, so that we can find the
      images needed. */
@@ -230,7 +230,7 @@ int main (int argc, char ** argv) {
       SDL_Surface * pic = sdlutil::LoadImage(file.c_str());
      
       if (!pic) {
-	printf ("Packpng error! Can't open image file '%s'\n",
+	printf("Packpng error! Can't open image file '%s'\n",
 		file.c_str());
 	exit(-1);
       }
@@ -267,7 +267,7 @@ int main (int argc, char ** argv) {
 		x, y, pic->w, pic->h, name.c_str(),
 		name.c_str(), name.c_str());
 
-	printf ("%s at %d/%d\n", name.c_str(), x, y);
+	printf("%s at %d/%d\n", name.c_str(), x, y);
       }
 
     }

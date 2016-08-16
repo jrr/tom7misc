@@ -54,7 +54,7 @@ struct Match {
   }
 
   /* takes ownership of register array, but not level */
-  Match(int idx, int udir, int rdir, int nr, vector<int> regs, level * l) :
+  Match(int idx, int udir, int rdir, int nr, vector<int> regs, Level *l) :
     topleft(idx), up_dir(udir), right_dir(rdir), nregs(nr), 
     regs(std::move(regs)) {
     
@@ -67,7 +67,7 @@ struct Match {
   const int right_dir;
   const int nregs;
   const vector<int> regs;
-  level * lev;
+  Level *lev;
 };
 
 /* unfortunately we have to put the implementation
@@ -75,7 +75,7 @@ struct Match {
 template <class Info>
 struct pattern {
 
-  static pattern * create (string s) {
+  static pattern * create(string s) {
     std::unique_ptr<pattern> p{new pattern{}};
 
     for (int i = 0; i < 256; i++)
@@ -147,7 +147,7 @@ struct pattern {
   
   /* users can define their own predicates */
   void setpredicate(char c,
-                    bool (*f)(level *, Info *, int x, int y)) {
+                    bool (*f)(Level *, Info *, int x, int y)) {
 
     int idx = ((unsigned int) c) & 255;
     tab[idx].t = H_FN;
@@ -161,7 +161,7 @@ struct pattern {
   }
 
   /* find any arbitrary match */
-  Match *find(level *l, Info *inf) {
+  Match *find(Level *l, Info *inf) {
     Match::stream *i = findall(l, inf);
     Match *m = nullptr;
     if (i) {
@@ -173,7 +173,7 @@ struct pattern {
 
 
   struct mystream : public Match::stream {
-    mystream(level * l, Info * i, pattern<Info> * p) 
+    mystream(Level *l, Info * i, pattern<Info> * p) 
       /* to get a deterministic sequential generator here
 	 add ",0" in the initializer of g */
       : lev(l), inf(i), pat(p), g(lev->w * lev->h) {
@@ -302,7 +302,7 @@ struct pattern {
 	    /*
 	      printf("regs are:\n");
 	      for (int zz=0; zz < pat->nregs; zz++) {
-	      printf ("  %d=%d ", zz, r[zz]);
+	      printf("  %d=%d ", zz, r[zz]);
 	      }
 	      printf("\n");
 	    */
@@ -330,7 +330,7 @@ struct pattern {
     
     /* this is the entire state. we own none
        of these pointers */
-    level * lev;
+    Level *lev;
     Info * inf;
     int dirsleft;
     int this_dir;
@@ -341,7 +341,7 @@ struct pattern {
 
   /* find all matches. the stream is only valid
      while this pattern is still around */
-  Match::stream *findall(level * lev, Info * inf) {
+  Match::stream *findall(Level *lev, Info * inf) {
     return new mystream(lev, inf, this);
   }
 
@@ -363,7 +363,7 @@ struct pattern {
   struct handler {
     htype t;
     union {
-      bool (*f)(level *, Info *, int x, int y);
+      bool (*f)(Level *, Info *, int x, int y);
       int tile;
     } u;
   };

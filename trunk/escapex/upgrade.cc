@@ -69,7 +69,7 @@ typedef vallist<upitem> ulist;
 
 struct upgradereal : public upgrader {
 
-  static upgradereal * create(player * p);
+  static upgradereal * create(Player *p);
 
   upgraderesult upgrade(string & msg);
 
@@ -95,7 +95,7 @@ struct upgradereal : public upgrader {
     if (tx) tx->unsay();
   }
 
-  player * plr;
+  Player *plr;
 
   curesult checkupgrade(http * hh, string & msg,
 			ulist *& download, stringlist *& ok);
@@ -103,20 +103,20 @@ struct upgradereal : public upgrader {
   upresult doupgrade(http * hh, string & msg,
 		     ulist * upthese);
 
-  textscroll * tx;
+  TextScroll *tx;
 
   friend struct ugcallback;
 
 };
 
 
-upgrader * upgrader::create(player * p) {
+upgrader * upgrader::create(Player *p) {
   return upgradereal::create(p);
 }
 
-upgradereal * upgradereal::create(player * p) {
+upgradereal * upgradereal::create(Player *p) {
   upgradereal * uu = new upgradereal();
-  uu->tx = textscroll::create(fon);
+  uu->tx = TextScroll::create(fon);
   uu->tx->posx = 5;
   uu->tx->posy = 5;
   uu->tx->width = screen->w - 10;
@@ -181,7 +181,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 	(string)"/" + util::replace(fnodotdot,
 				    "/", "_");
 
-      say ((string)"Downloading " GREEN + dl + (string) POP " ...");
+      say((string)"Downloading " GREEN + dl + (string) POP " ...");
 
       say("Connecting...");
       redraw();
@@ -189,7 +189,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
       switch (hh->gettempfile(dl, hd->head.tempfile)) {
       case HT_OK:
 	unsay();
-	say ((string)"    ..." GREEN "OK: " + hd->head.tempfile + POP);
+	say((string)"    ..." GREEN "OK: " + hd->head.tempfile + POP);
 	/* good. */
 	redraw();
 	break;
@@ -205,7 +205,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
       /* catch error early */
     case UT_SYMLINK:
 #     ifdef WIN32
-      message::bug(this, 
+      Message::bug(this, 
 		   RED " Somehow got symlink upitem on win32");
       return UR_NODOWN;
 #     else
@@ -334,7 +334,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 
 #   ifdef WIN32
 
-    message::quick(this, "we need to do a trick to replace some files.",
+    Message::quick(this, "we need to do a trick to replace some files.",
 		   "ok", "");
     /* XXX this comment is wrong now; I use replace.exe */
     /* On Windows 98, we need to do something special, because an
@@ -371,7 +371,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 			      + 1 /* terminating 0 */));
     
     spawnargs[0] = strdup(REPLACE_EXE);
-    spawnargs[1] = strdup(startup::self.c_str());
+    spawnargs[1] = strdup(StartUp::self.c_str());
 
     int ii = 2;
     while (failsrc) {
@@ -392,7 +392,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 	  (string)(spawnargs[z] ? spawnargs[z] : "(null)"));
     }
 
-    message::quick(this, "Escape will now restart.",
+    Message::quick(this, "Escape will now restart.",
 		   "OK", "");
 
 
@@ -402,7 +402,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 
     /* No return */
 
-    message::bug(this,
+    Message::bug(this,
 		 "roundabout exec technique failed");
     return UR_CORRUPT;
 
@@ -415,7 +415,7 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 
 
   if (incomplete) {
-    message::quick(this, "one or more files could not be "
+    Message::quick(this, "one or more files could not be "
 		   "removed/moved/linked.",
 		   "upgrade failed!", "", PICS XICON);
     return UR_CORRUPT;
@@ -472,7 +472,7 @@ curesult upgradereal::checkupgrade(http * hh,
       if (md[0] == '-' && md[1] == '>') {
 	/* symlink */
 #       ifdef WIN32	
-	  message::quick(this,
+	  Message::quick(this,
 			 RED"OOPS!" POP " Can't make symlinks on win32. "
 			 "Upgrade file is broken?", "oops", "");
 	  return CU_FAIL;
@@ -568,7 +568,7 @@ upgraderesult upgradereal::upgrade(string & msg) {
   /* no matter what, cancel the hint to upgrade */
   handhold::did_upgrade();
 
-  http * hh = client::connect(plr, tx, this);
+  http * hh = Client::connect(plr, tx, this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
@@ -591,7 +591,7 @@ upgraderesult upgradereal::upgrade(string & msg) {
   case CU_FAIL:
     say((string)"Upgrade fail: " + upmsg);
     /* lists will be empty */
-    message::quick(this, "Couldn't get upgrade info.", 
+    Message::quick(this, "Couldn't get upgrade info.", 
 		   "Cancel", "", PICS XICON POP);
     break;
 
@@ -600,7 +600,7 @@ upgraderesult upgradereal::upgrade(string & msg) {
     say((string)"Upgrade: " + upmsg);
     stringlist::diminish(ok);
     ulist::diminish(download);
-    message::quick(this, "Already at newest version!", "OK", "");
+    Message::quick(this, "Already at newest version!", "OK", "");
     break;
 
   case CU_QUERY:
@@ -614,7 +614,7 @@ upgraderesult upgradereal::upgrade(string & msg) {
       say((string)"  " YELLOW + tmp->head.filename + POP);
     }
 
-    int doit = message::quick(this, "Upgrade Escape now?", 
+    int doit = Message::quick(this, "Upgrade Escape now?", 
 			      "Yes", "No", PICS QICON POP);
 
     if (doit) {
@@ -627,20 +627,20 @@ upgraderesult upgradereal::upgrade(string & msg) {
       switch (up) {
 
       case UR_CORRUPT:
-	message::quick(this, YELLOW "Oops! " POP 
+	Message::quick(this, YELLOW "Oops! " POP 
 		       "The installation failed and may be corrupted.", 
 		       "Exit", "", PICS SKULLICON);
 	return UP_EXIT;
 	break;
 	
       case UR_NODOWN:
-	message::quick(this, "Upgrade failed. Try again later.",
+	Message::quick(this, "Upgrade failed. Try again later.",
 		       "Oh well!", "", PICS XICON);
 	return UP_FAIL;
 	break;
 
       case UR_RESTART:
-	message::quick(this, "Upgrade succeeded! "
+	Message::quick(this, "Upgrade succeeded! "
 		       "You must exit and start Escape again.", 
 		       "Exit", "", PICS THUMBICON POP);
 	return UP_EXIT;

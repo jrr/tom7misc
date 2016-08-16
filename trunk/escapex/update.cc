@@ -26,7 +26,7 @@ enum selresult {
 
 struct updatereal : public updater {
 
-  static updatereal * create(player * p);
+  static updatereal * create(Player *p);
 
   updateresult update(string & msg);
 
@@ -55,9 +55,9 @@ struct updatereal : public updater {
     }
   }
 
-  player * plr;
+  Player *plr;
 
-  textscroll * tx;
+  TextScroll *tx;
 
   ccresult checkcolls(http * hh, 
 		      stringlist *& fnames, 
@@ -95,7 +95,7 @@ void subtoggle::docheck() {
 
 	} else {
 
-	  message::quick(0, (string)"Can't subscribe to " 
+	  Message::quick(0, (string)"Can't subscribe to " 
 			 BLUE + fname + (string)POP " (remove unsub file)",
 			 "Cancel", "", PICS XICON POP);
 
@@ -106,7 +106,7 @@ void subtoggle::docheck() {
 	  checked = true;
 	  
 	} else {
-	  message::quick(0, (string)"Can't subscribe to " 
+	  Message::quick(0, (string)"Can't subscribe to " 
 			 BLUE + fname + (string)POP " (can't make dir!!)",
 			 "Cancel", "", PICS XICON POP);
 	}
@@ -121,7 +121,7 @@ void subtoggle::docheck() {
 	checked = false;
 
       } else {
-	message::quick(0, (string)"Can't unsubscribe to "
+	Message::quick(0, (string)"Can't unsubscribe to "
 		       BLUE + fname + 
 		       (string)POP " (can't make unsub file!)",
 		       "Cancel", "", PICS XICON POP);
@@ -131,7 +131,7 @@ void subtoggle::docheck() {
 
 inputresult subtoggle::click(int, int) {
   docheck();
-  return inputresult (MR_UPDATED);
+  return inputresult(MR_UPDATED);
 }
 
 inputresult subtoggle::key(SDL_Event e) {
@@ -142,18 +142,18 @@ inputresult subtoggle::key(SDL_Event e) {
   case SDLK_SPACE:
     docheck();
     return inputresult(MR_UPDATED);
-  default: return menuitem::key(e);
+  default: return MenuItem::key(e);
   }
 
 }
 
-updater * updater::create(player * p) {
+updater * updater::create(Player *p) {
   return updatereal::create(p);
 }
 
-updatereal * updatereal::create(player * p) {
+updatereal * updatereal::create(Player *p) {
   updatereal * uu = new updatereal();
-  uu->tx = textscroll::create(fonsmall);
+  uu->tx = TextScroll::create(fonsmall);
   uu->tx->posx = 5;
   uu->tx->posy = 5;
   uu->tx->width = screen->w - 10;
@@ -229,7 +229,7 @@ selresult updatereal::selectcolls(stringlist * fnames,
 				  stringlist *& subsf,
 				  stringlist *& subss) {
 
-  ptrlist<menuitem> * boxes = 0;
+  PtrList<MenuItem> * boxes = 0;
 
   okay ok;
   ok.text = "Update Now";
@@ -263,16 +263,16 @@ selresult updatereal::selectcolls(stringlist * fnames,
       b->checked = false;
     }
 
-    ptrlist<menuitem>::push(boxes, b);
+    PtrList<MenuItem>::push(boxes, b);
     n_entries++;
 
     fnt = fnt->next;
     snt = snt->next;
   }
   
-  ptrlist<menuitem>::push(boxes, &v);
-  ptrlist<menuitem>::push(boxes, &can);
-  ptrlist<menuitem>::push(boxes, &ok);
+  PtrList<MenuItem>::push(boxes, &v);
+  PtrList<MenuItem>::push(boxes, &can);
+  PtrList<MenuItem>::push(boxes, &ok);
   
 
   menu * mm = menu::create(this, 
@@ -292,11 +292,11 @@ selresult updatereal::selectcolls(stringlist * fnames,
 
     /* skip first three, the buttons */
     for (int z = 0; z < 3; z++) {
-      ptrlist<menuitem>::pop(boxes);
+      PtrList<MenuItem>::pop(boxes);
     }
 
     for (int i = 0; i < n_entries; i++) {
-      subtoggle * st = (subtoggle*)ptrlist<menuitem>::pop(boxes);
+      subtoggle * st = (subtoggle*)PtrList<MenuItem>::pop(boxes);
       if (st->checked) {
 	stringlist::push(subsf, st->fname);
 	stringlist::push(subss, st->question);
@@ -339,14 +339,14 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
     }
 
     /* create upper for this collection dir. */
-    upper * up = upper::create(hh, tx, this, fname);
+    Upper * up = Upper::create(hh, tx, this, fname);
 
     if (!up) {
-      message::bug(this, "couldn't create upper object?!");
+      Message::bug(this, "couldn't create upper object?!");
       return;
     }
 
-    Extent<upper> eu(up);
+    Extent<Upper> eu(up);
 
     /* always save the root dir */
     up->savedir("", showname);
@@ -365,7 +365,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 	  d.find("//") != string::npos ||
 	  /* yes, I mean one backslash */
 	  d.find("\\") != string::npos) {
-	message::no(this, "Bad directory name in collection: " RED + d);
+	Message::no(this, "Bad directory name in collection: " RED + d);
 	return;
       }
       
@@ -395,7 +395,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 	  f.find("..") != string::npos ||
 	  f.find("//") != string::npos ||
 	  f.find("\\") != string::npos) {
-	message::no(this, "Bad file name in collection: " RED + f);
+	Message::no(this, "Bad file name in collection: " RED + f);
 	return;
       }
       
@@ -424,7 +424,7 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 	say((string)RED + f + (string)" " GREY + md + 
 	    (string)POP " (error!)" POP);
 	
-	message::quick(this, (string)
+	Message::quick(this, (string)
 		       RED "Unable to complete update of " BLUE + fname +
 		       (string)POP "." POP, "Next", "", PICS XICON POP);
 
@@ -462,7 +462,7 @@ updateresult updatereal::update(string & msg) {
   /* always cancel the hint */
   handhold::did_update();
 
-  http * hh = client::connect(plr, tx, this);
+  http * hh = Client::connect(plr, tx, this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
@@ -481,7 +481,7 @@ updateresult updatereal::update(string & msg) {
   default:
   case CC_FAIL:
     /* parse error? */
-    message::quick(this, "Failed to get collections list.", 
+    Message::quick(this, "Failed to get collections list.", 
 		   "Cancel", "", PICS XICON POP);
     stringlist::diminish(fnames);
     stringlist::diminish(shownames);
@@ -489,7 +489,7 @@ updateresult updatereal::update(string & msg) {
   }
 
   if (fnames == 0) {
-    message::quick(this, 
+    Message::quick(this, 
 		   "This version cannot accept any collections.\n"
 		   "   You should try upgrading, though a new version\n"
 		   "   might not be available yet for your platform.",
@@ -522,7 +522,7 @@ updateresult updatereal::update(string & msg) {
   /* XXX might want to give a fail message if any failed. */
   msg = GREEN "Level update complete.";
   say(msg);
-  message::quick(this, "Level update complete.", "OK", "",
+  Message::quick(this, "Level update complete.", "OK", "",
 		 PICS THUMBICON POP);
 
   return UD_SUCCESS;

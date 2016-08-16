@@ -20,8 +20,10 @@
 #define MENUITEMS 3
 enum pdbkind { K_PLAYER, K_NEW, K_IMPORT, K_QUIT, };
 
+namespace {
+
 /* entries in the selector */
-struct pdbentry {
+struct PDBEntry {
   pdbkind kind;
 
   string name;
@@ -32,22 +34,22 @@ struct pdbentry {
   static int height() { return TILEH + 8; }
   void draw(int x, int y, bool sel);
   string display(bool sel);
-  player * convert();
+  Player *convert();
 
   bool matches(char k);
-  static player * none() { return 0; }
+  static Player *none() { return 0; }
 
-  static void swap (pdbentry * l, pdbentry * r) {
-#   define SWAP(t,f) {t f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
-    SWAP(pdbkind, kind);
-    SWAP(string, name);
-    SWAP(string, fname);
-    SWAP(int, solved);
+  static void swap(PDBEntry * l, PDBEntry * r) {
+#   define SWAP(f) { const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
+    SWAP(kind);
+    SWAP(name);
+    SWAP(fname);
+    SWAP(solved);
 #   undef SWAP
   }
   
-  static int cmp_bysolved(const pdbentry & l,
-			  const pdbentry & r) {
+  static int cmp_bysolved(const PDBEntry & l,
+			  const PDBEntry & r) {
     if (l.kind < r.kind) return -1;
     if (l.kind > r.kind) return 1;
     if (l.solved > r.solved) return -1;
@@ -61,21 +63,21 @@ struct pdbentry {
 
 };
 
-struct playerdb_ : public playerdb {
+struct PlayerDB_ : public PlayerDB {
   /* make db with one player, 'Default' */
-  static playerdb_ *create();
+  static PlayerDB_ *create();
 
   bool first;
   bool firsttime() override { return first; }
 
-  player *chooseplayer() override;
+  Player *chooseplayer() override;
 
-  ~playerdb_() override {
+  ~PlayerDB_() override {
     sel->destroy();
   }
 
  private:
-  selector<pdbentry, player *> *sel;
+  Selector<PDBEntry, Player *> *sel;
   void addplayer(string);
   void delplayer(int);
   void insertmenu(int);
@@ -87,13 +89,13 @@ struct playerdb_ : public playerdb {
 };
 
 /* assumes there's enough room! */
-void playerdb_::insertmenu(int start) {
+void PlayerDB_::insertmenu(int start) {
   sel->items[start++].kind = K_QUIT;
   sel->items[start++].kind = K_NEW;
   sel->items[start++].kind = K_IMPORT;
 }
 
-void pdbentry::draw(int x, int y, bool selected) {
+void PDBEntry::draw(int x, int y, bool selected) {
 
   int ix = x + 4;
   int iy = y + 4;
@@ -132,18 +134,18 @@ void pdbentry::draw(int x, int y, bool selected) {
   }
 }
 
-string pdbentry::display(bool sel) {
+string PDBEntry::display(bool sel) {
   string color = "";
   if (sel) color = BLUE;
   return color + name + (string)" " POP 
          "(" YELLOW + itos(solved) + (string)POP ")";
 }
 
-player * pdbentry::convert() {
-  player * ret = player::fromfile(fname);
+Player *PDBEntry::convert() {
+  Player *ret = Player::fromfile(fname);
 
   if (!ret) {
-    message::no(0, "Couldn't read player " + fname);
+    Message::no(0, "Couldn't read player " + fname);
     return 0;
   } else {
     /* ensure that this player (which may be from an older version)
@@ -153,7 +155,7 @@ player * pdbentry::convert() {
   }
 }
 
-bool pdbentry::matches(char k) {
+bool PDBEntry::matches(char k) {
   if (kind == K_PLAYER) 
     return (name.length() > 0) && ((name[0]|32) == k);
   else if (kind == K_IMPORT) return ((k | 32) == 'i');
@@ -167,13 +169,13 @@ bool pdbentry::matches(char k) {
 /* Read current directory, inserting any player file that's found.
    If there are none found, then create a "default" player and
    start over. */
-playerdb_ * playerdb_::create() {
+PlayerDB_ * PlayerDB_::create() {
   
-  std::unique_ptr<playerdb_> pdb{new playerdb_{}};
+  std::unique_ptr<PlayerDB_> pdb{new PlayerDB_{}};
 
   /* need at least enough for the menuitems, and for the
      default player. */
-  pdb->sel = selector<pdbentry, player *>::create(MENUITEMS);
+  pdb->sel = Selector<PDBEntry, Player *>::create(MENUITEMS);
   if (!pdb->sel) return 0;
 
   pdb->sel->title = PDBTITLE;
@@ -198,7 +200,7 @@ playerdb_ * playerdb_::create() {
       pdb->sel->resize(MENUITEMS + n + 1);
       pdb->sel->items[n].kind = K_PLAYER;
       pdb->sel->items[n].fname = f;
-      player * p = player::fromfile(f);
+      Player *p = Player::fromfile(f);
 
       if (p) {
 	pdb->sel->items[n].name = p->name;
@@ -228,7 +230,7 @@ playerdb_ * playerdb_::create() {
   return pdb.release();
 }
 
-string playerdb_::safeify(string name) {
+string PlayerDB_::safeify(string name) {
   /* names can only contain certain characters. */
 
   string ou;
@@ -256,7 +258,7 @@ string playerdb_::safeify(string name) {
   return ou;
 }
 
-string playerdb_::makefilename(string name) {
+string PlayerDB_::makefilename(string name) {
   /* shorten to 8 chars, strip special characters,
      add .esp */
 
@@ -289,8 +291,8 @@ string playerdb_::makefilename(string name) {
   return ou;
 }
 
-void playerdb_::addplayer(string name) {
-  player * plr = player::create(name);
+void PlayerDB_::addplayer(string name) {
+  Player *plr = Player::create(name);
   if (plr) {
 
     /* can fail, for example, if the file exists */
@@ -316,12 +318,12 @@ void playerdb_::addplayer(string name) {
   } 
 
   /* failed if we got here */
-  message::quick(0, "Couldn't create player. Does file already exist?",
+  Message::quick(0, "Couldn't create player. Does file already exist?",
 		 "OK", "", PICS XICON POP);
 
 }
 
-void playerdb_::delplayer(int i) {
+void PlayerDB_::delplayer(int i) {
 
   /* XXX delete player file from disk? */
   if (sel->items[i].kind == K_PLAYER) {
@@ -341,10 +343,10 @@ void playerdb_::delplayer(int i) {
 }
 
 
-using selor = selector<pdbentry, player *>;
+using selor = Selector<PDBEntry, Player *>;
 
-player *playerdb_::chooseplayer() {
-  sel->sort(pdbentry::cmp_bysolved);
+Player *PlayerDB_::chooseplayer() {
+  sel->sort(PDBEntry::cmp_bysolved);
 
   sel->redraw();
 
@@ -380,12 +382,12 @@ player *playerdb_::chooseplayer() {
 	    delplayer(sel->selected);
 	  }
 
-	  sel->sort(pdbentry::cmp_bysolved);
+	  sel->sort(PDBEntry::cmp_bysolved);
 	  sel->redraw();
 	} else {
 
 	  /* XXX should we even do anything here? */
-	  message::no(0, "Can't delete default player or menu items!");
+	  Message::no(0, "Can't delete default player or menu items!");
 	  sel->redraw();
 
 	}
@@ -431,7 +433,7 @@ player *playerdb_::chooseplayer() {
   return 0;
 }
 
-void playerdb_::promptnew() {
+void PlayerDB_::promptnew() {
   /* XXX could default to getenv(LOGNAME) on linux */
   string ssss = safeify(prompt::ask(0,
 				    "Enter name for new player: "));
@@ -440,7 +442,7 @@ void playerdb_::promptnew() {
     addplayer(ssss);
   }
 
-  sel->sort(pdbentry::cmp_bysolved);
+  sel->sort(PDBEntry::cmp_bysolved);
   sel->redraw();
 }
 
@@ -449,7 +451,7 @@ void playerdb_::promptnew() {
    backups? */
 /* XXX this would be much nicer if it actually let
    you browse the directory for a player file */
-void playerdb_::promptimport() {
+void PlayerDB_::promptimport() {
 #if 0
   prompt * pp = prompt::create();
   Extent<prompt> ep(pp);
@@ -463,10 +465,7 @@ void playerdb_::promptimport() {
      if importing from an old version, we don't want the
      player file to still live in the previous version's
      directory! */
-  player * pa = player::fromfile(ss);
-
-  if (pa) {
-
+  if (Player *pa = Player::fromfile(ss)) {
     sel->resize(sel->number + 1);
 
     /* one slack spot; initialize it */
@@ -477,19 +476,21 @@ void playerdb_::promptimport() {
     
     pa->destroy();
 
-    sel->sort(pdbentry::cmp_bysolved);
+    sel->sort(PDBEntry::cmp_bysolved);
   } else if (ss != "") {
-    message::no(0, "Can't read " RED + ss + POP ".");
+    Message::no(0, "Can't read " RED + ss + POP ".");
   }
 #endif
 
-  message::no(0, 
+  Message::no(0, 
 	      "To import a player, just " BLUE "copy the .esp file" POP "\n"
 	      "   into the escape directory and restart the game.");
 
   sel->redraw();
 }
 
-playerdb * playerdb::create() {
-  return playerdb_::create();
+}  // namespace
+
+PlayerDB * PlayerDB::create() {
+  return PlayerDB_::create();
 }

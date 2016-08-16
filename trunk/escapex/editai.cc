@@ -22,16 +22,16 @@
 #include "pattern.h"
 
 /* matches anything */
-bool pred_any(level *, void * _, int x, int y) {
+bool pred_any(Level *, void * _, int x, int y) {
   return true;
 }
 
-bool pred_gold_or_sphere(level * lev, void * _, int x, int y) {
-  int t = lev->tileat(x, y);
-  return (t == T_GOLD || level::issphere(t));
+bool pred_gold_or_sphere(Level *lev, void * _, int x, int y) {
+  const int t = lev->tileat(x, y);
+  return t == T_GOLD || Level::issphere(t);
 }
 
-bool pred_stops_gold(level * lev, void * _, int x, int y) {
+bool pred_stops_gold(Level *lev, void * _, int x, int y) {
   switch (lev->tileat(x, y)) {
   case T_FLOOR:
   case T_PANEL:
@@ -48,7 +48,7 @@ bool pred_stops_gold(level * lev, void * _, int x, int y) {
 void editor::dorandom() {
 
   if (changed) {
-    if (!message::quick(this,
+    if (!Message::quick(this,
 			"Random will destroy your unsaved changes.",
 			"Do Random",
 			"Don't do Random")) {
@@ -450,7 +450,7 @@ void editor::dorandom() {
       Match *m;
       while ((m = ms_test->next())) {
 	int x, y;
-	m->getindex (0, x, y);
+	m->getindex(0, x, y);
 	dr.lev->settile(x, y, T_FLOOR);
 	delete m;
       }
@@ -544,7 +544,7 @@ void editor::dorandom() {
    into a space from which we can kick it.
 */
 bool editor::retract_gold() {
-  level * lev = dr.lev;
+  Level *lev = dr.lev;
   /* XX could also be at edge of map -- might want a way to
      specify that pattern */
   pattern<void> * bgold = pattern<void>::create("\\0 \\1GS\n");
@@ -571,7 +571,7 @@ bool editor::retract_gold() {
 
       bool sph = false;
       int oldtile = lev->tileat(x, y);
-      if (level::issphere(oldtile)) sph = true;
+      if (Level::issphere(oldtile)) sph = true;
 
       /* now try going left as far as possible 
 	 from the gold block */
@@ -579,7 +579,7 @@ bool editor::retract_gold() {
       const int left = m->left();
 
       /*
-      printf ("match at %d/%d, left: %s\n",
+      printf("match at %d/%d, left: %s\n",
 	      x, y, dirstring(left).c_str());
       */
 
@@ -610,7 +610,7 @@ bool editor::retract_gold() {
 
 	if (sph) {
 	  /* move guy left until first non-sphere space */
-	  while (level::issphere(lev->tileat(gx, gy))) {
+	  while (Level::issphere(lev->tileat(gx, gy))) {
 	    if (!lev->travel(gx, gy, left, gx, gy)) goto no_more_motion;
 	  }
 	}
@@ -783,7 +783,7 @@ bool editor::retract_hole() {
 
 void editor::retract1() {
 
-  message::no(this, "disabled--retract1 is buggy!");
+  Message::no(this, "disabled--retract1 is buggy!");
   return;
 
   /* perhaps rank these by priority; right now we just choose

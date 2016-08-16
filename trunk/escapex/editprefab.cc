@@ -67,28 +67,28 @@ void editor::prefab() {
     cancel can;
     can.text = "Cancel";
 	      
-    ptrlist<menuitem> * l = 0;
+    PtrList<MenuItem> * l = 0;
 	      
-    ptrlist<menuitem>::push(l, &can);
-    ptrlist<menuitem>::push(l, &spacer);
+    PtrList<MenuItem>::push(l, &can);
+    PtrList<MenuItem>::push(l, &spacer);
 
-    ptrlist<menuitem>::push(l, &file);
-    ptrlist<menuitem>::push(l, &timer);
-    ptrlist<menuitem>::push(l, &spacer);
+    PtrList<MenuItem>::push(l, &file);
+    PtrList<MenuItem>::push(l, &timer);
+    PtrList<MenuItem>::push(l, &spacer);
 	      
-    ptrlist<menuitem>::push(l, &message);
+    PtrList<MenuItem>::push(l, &message);
 	      
     /* display menu */
     menu * mm = menu::create(this, "Which prefab?", l, false);
     resultkind res = mm->menuize();
-    ptrlist<menuitem>::diminish(l);
+    PtrList<MenuItem>::diminish(l);
     mm->destroy();
 	      
     if (res == MR_OK) {
       switch (what) {
       case PF_TIMER:
 	if (!moveplayersafe()) {
-	  message::no(this, "There's nowhere to put the player!");
+	  Message::no(this, "There's nowhere to put the player!");
 	} else {
 	  pftimer();
 	}
@@ -97,11 +97,11 @@ void editor::prefab() {
 	pffile();
 	break;
       default:;
-	message::bug(this, "no prefab was selected..??");
+	Message::bug(this, "no prefab was selected..??");
       }
     }
   } else {
-    message::no(this, "You must select a region first.\n"
+    Message::no(this, "You must select a region first.\n"
 		"   " GREY "(drag with the right mouse button held)" POP);
   }
   redraw();
@@ -110,11 +110,11 @@ void editor::prefab() {
 
 /* XXX should allow me to specify the prompt for loading */
 void editor::pffile() {
-  level * small;
+  Level *small;
   {
-    loadlevel * ll = loadlevel::create(plr, EDIT_DIR, true, true);
+    loadlevel *ll = loadlevel::create(plr, EDIT_DIR, true, true);
     if (!ll) {
-      message::quick(this, "Can't open load screen!", 
+      Message::quick(this, "Can't open load screen!", 
 		     "Ut oh.", "", PICS XICON POP);
       redraw();
       return ;
@@ -124,7 +124,7 @@ void editor::pffile() {
     ll->destroy();
     
     /* allow corrupted files */
-    small = level::fromstring(ss, true);
+    small = Level::fromstring(ss, true);
   }
 
   if (!small) { 
@@ -161,29 +161,29 @@ void editor::pffile() {
   /* XXX (don't) constrain to selection option? */
 
 
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 	      
-  ptrlist<menuitem>::push(l, &can);
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &spacer);
+  PtrList<MenuItem>::push(l, &can);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &spacer);
   
-  ptrlist<menuitem>::push(l, &yoff);
-  ptrlist<menuitem>::push(l, &xoff);
+  PtrList<MenuItem>::push(l, &yoff);
+  PtrList<MenuItem>::push(l, &xoff);
 
-  ptrlist<menuitem>::push(l, &message2);
-  ptrlist<menuitem>::push(l, &message);
+  PtrList<MenuItem>::push(l, &message2);
+  PtrList<MenuItem>::push(l, &message);
 	      
   /* display menu */
   menu * mm = menu::create(this, "Inserting file", l, false);
   resultkind res = mm->menuize();
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
   mm->destroy();
 	      
   if (res == MR_OK) {
     int xo = util::stoi(xoff.input);
     int yo = util::stoi(yoff.input);
     if (xo < 0 || yo < 0) {
-      message::no(this, "bad offsets");
+      Message::no(this, "bad offsets");
       return;
     }
 
@@ -223,8 +223,8 @@ void editor::pffile() {
 			  small->tileat(srcx, srcy));
 	  dr.lev->osettile(dstx, dsty,
 			    small->otileat(srcx, srcy));
-	  if (level::needsdest(dr.lev->tileat(dstx, dsty)) ||
-	      level::needsdest(dr.lev->otileat(dstx, dsty))) {
+	  if (Level::needsdest(dr.lev->tileat(dstx, dsty)) ||
+	      Level::needsdest(dr.lev->otileat(dstx, dsty))) {
 	    
 	    int sdx, sdy;
 	    small->getdest(srcx, srcy, sdx, sdy);
@@ -306,28 +306,28 @@ void editor::pftimer() {
                         "on the left.";
   reverse.checked = false;
 
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 	      
-  ptrlist<menuitem>::push(l, &can);
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &spacer);
+  PtrList<MenuItem>::push(l, &can);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &spacer);
   
-  ptrlist<menuitem>::push(l, &reverse);
-  ptrlist<menuitem>::push(l, &nmoves);
+  PtrList<MenuItem>::push(l, &reverse);
+  PtrList<MenuItem>::push(l, &nmoves);
 
-  ptrlist<menuitem>::push(l, &message2);
-  ptrlist<menuitem>::push(l, &message);
+  PtrList<MenuItem>::push(l, &message2);
+  PtrList<MenuItem>::push(l, &message);
 	      
   /* display menu */
   menu * mm = menu::create(this, "Inserting timer", l, false);
   resultkind res = mm->menuize();
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
   mm->destroy();
 	      
   if (res == MR_OK) {
     int n = util::stoi(nmoves.input);
     if (n <= 0) {
-      message::no(this, "bad number of moves");
+      Message::no(this, "bad number of moves");
       return;
     }
     
@@ -375,7 +375,7 @@ void editor::pftimer() {
       if (timer_try(M, A, 0, i, n, reverse.checked)) return;
     }
 
-    message::no(this, "Can't find a timer; try increasing the width,\n"
+    Message::no(this, "Can't find a timer; try increasing the width,\n"
 		"   " "height, and number of available bots.");
 
   }
@@ -489,7 +489,7 @@ bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
 	if (A[z] == 0) dr.lev->swapo(dr.lev->index(trigx + dx * (1 + z), trigy));
 
 	if (dr.lev->nbots >= LEVEL_MAX_ROBOTS) {
-	  message::bug(this, "oops, exceeded bots! bug!");
+	  Message::bug(this, "oops, exceeded bots! bug!");
 	  return true;
 	}
 

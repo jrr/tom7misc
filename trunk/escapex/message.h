@@ -6,13 +6,13 @@
 #include "drawable.h"
 #include "chars.h"
 
-struct message : public drawable {
+struct Message : public Drawable {
   
   string title;
   string ok;
   string cancel;
 
-  drawable * below;
+  Drawable *below;
 
   /* xpos, height and width will
      be computed automatically.
@@ -20,7 +20,7 @@ struct message : public drawable {
   */
   int posy;
 
-  static message * create();
+  static Message * create();
   virtual void destroy() = 0;
 
   /* ok: true
@@ -30,14 +30,14 @@ struct message : public drawable {
 
   virtual void draw() = 0;
   virtual void screenresize() = 0;
-  virtual ~message();
+  virtual ~Message();
 
-  static bool quick(drawable * bbelow, string ttitle,
+  static bool quick(Drawable *bbelow, string ttitle,
 		    string ook, string ccancel, 
 		    string icon = PICS EXCICON POP,
 		    char * actualchar = 0,
 		    string charspec = "") {
-    message * m = message::create();
+    Message * m = Message::create();
     m->below = bbelow;
     m->posy = -1;
     m->title = icon + WHITE " " + ttitle;
@@ -49,13 +49,13 @@ struct message : public drawable {
     return x;
   }
 
-  static bool quickv(drawable * bbelow, int posy, 
+  static bool quickv(Drawable *bbelow, int posy, 
 		     string ttitle,
 		     string ook, string ccancel, 
 		     string icon = PICS EXCICON POP,
 		     char * actualchar = 0,
 		     string charspec = "") {
-    message * m = message::create();
+    Message * m = Message::create();
     m->below = bbelow;
     m->posy = posy;
     m->title = icon + WHITE " " + ttitle;
@@ -72,10 +72,10 @@ struct message : public drawable {
 			string ook, string ccancel, 
 			string icon = PICS EXCICON POP);
 
-  static bool bug(drawable * bbelow, string ttitle, char * actualchar = 0,
+  static bool bug(Drawable *bbelow, string ttitle, char * actualchar = 0,
 		  string charspec = "") {
     printf("Bug: %s\n", ttitle.c_str());
-    message * m = message::create();
+    Message * m = Message::create();
     m->below = bbelow;
     m->posy = -1;
     m->title = PICS BUGICON POP RED " BUG: " POP WHITE + ttitle +
@@ -88,9 +88,9 @@ struct message : public drawable {
     return x;
   }
 
-  static bool no(drawable * bbelow, string ttitle, char * actualchar = 0,
+  static bool no(Drawable *bbelow, string ttitle, char * actualchar = 0,
 		 string charspec = "") {
-    message * m = message::create();
+    Message * m = Message::create();
     m->below = bbelow;
     m->posy = -1;
     m->title = PICS XICON POP WHITE " " + ttitle;

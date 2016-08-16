@@ -75,7 +75,7 @@ struct fontreal : public font {
       for (int i = 0; i < ndim; i++) {
 	if (data[i]) SDL_FreeSurface(data[i]);
       }
-      free (data);
+      free(data);
     }
     delete this;
   }
@@ -95,13 +95,13 @@ font * font::create(string f, string c,
   return fontreal::create(f, c, w, h, s, o, d);
 }
 
-fontreal * fontreal::create (string file,
-			     string charmap,
-			     int width,
-			     int height,
-			     int styles,
-			     int overlap,
-			     int ndim) {
+fontreal * fontreal::create(string file,
+			    string charmap,
+			    int width,
+			    int height,
+			    int styles,
+			    int overlap,
+			    int ndim) {
 
   fontreal * f = new fontreal();
   if (!f) return 0;

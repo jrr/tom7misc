@@ -18,7 +18,7 @@ prompt * prompt::create() {
 
 prompt::~prompt() {}
 
-string prompt::ask(drawable * b, string t, string d) {
+string prompt::ask(Drawable *b, string t, string d) {
   std::unique_ptr<prompt> pp{prompt::create()};
   pp->title = t;
   pp->below = b;
@@ -41,17 +41,17 @@ string prompt::select() {
   cancel can;
   can.text = "Cancel";
 
-  ptrlist<menuitem> * l = 0;
+  PtrList<MenuItem> * l = 0;
 
-  ptrlist<menuitem>::push(l, &can);
-  ptrlist<menuitem>::push(l, &ok);
-  ptrlist<menuitem>::push(l, &spacer);
-  ptrlist<menuitem>::push(l, &inp);
-  // ptrlist<menuitem>::push(l, &lab);
+  PtrList<MenuItem>::push(l, &can);
+  PtrList<MenuItem>::push(l, &ok);
+  PtrList<MenuItem>::push(l, &spacer);
+  PtrList<MenuItem>::push(l, &inp);
+  // PtrList<MenuItem>::push(l, &lab);
 
   menu * mm = menu::create(below, GREY "Input Required", l, false);
   resultkind res = mm->menuize();
-  ptrlist<menuitem>::diminish(l);
+  PtrList<MenuItem>::diminish(l);
   mm->destroy();
   
   if (res == MR_OK) {
