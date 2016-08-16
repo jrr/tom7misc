@@ -2,6 +2,7 @@
 #include "escapex.h"
 #include "chunks.h"
 #include "util.h"
+#include "ptrlist.h"
 
 Chunk::Chunk(uint32 k, int32 ii) : type(CT_INT32), key(k), i(ii) {}
 Chunk::Chunk(uint32 k, bool bb) : type(CT_BOOL), key(k), i(bb) {}

@@ -5,6 +5,7 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
+#include "ptrlist.h"
 
 #include "escapex.h"
 #include "play.h"
@@ -505,8 +506,8 @@ void preal::videoresize(SDL_ResizeEvent * eventp) {
   redraw();
 }
 
-typedef PtrList<aevent> elist;
-typedef PtrList<Animation> alist;
+using elist = PtrList<aevent>;
+using alist = PtrList<Animation>;
 
 bool preal::redo() {
   watching = false;

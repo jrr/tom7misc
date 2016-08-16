@@ -5,6 +5,7 @@
 #include "../cc-lib/md5.h"
 #include "chars.h"
 #include "dirindex.h"
+#include "ptrlist.h"
 
 #define HASHSIZE 1021
 

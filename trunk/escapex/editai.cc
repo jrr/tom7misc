@@ -550,7 +550,7 @@ bool editor::retract_gold() {
   pattern<void> * bgold = pattern<void>::create("\\0 \\1GS\n");
 
   if (bgold) {
-    Extent<pattern<void> > ep(bgold);
+    Extent<pattern<void>> ep(bgold);
 
     /* XX could include panels */
     bgold->settile(' ', T_FLOOR);

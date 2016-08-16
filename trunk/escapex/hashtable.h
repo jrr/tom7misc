@@ -3,8 +3,10 @@
 #ifndef __HASHTABLE_H
 #define __HASHTABLE_H
 
-#include "util.h"
 #include <cstdint>
+
+#include "util.h"
+#include "ptrlist.h"
 
 /* The hashtable template takes two classes as arguments:
 
@@ -37,9 +39,9 @@ inline uint32_t hash_string(string s) {
 #if 0
 template <class I, class K>
 struct hlist {
-  I * data;
+  I *data;
   hlist<I,K> * next;
-  hlist(I * dd, hlist<I,K> * nn) : data(dd), next(nn) {}
+  hlist(I *dd, hlist<I,K> * nn) : data(dd), next(nn) {}
   void destroy() { delete this; }
 };
 #endif
@@ -55,10 +57,9 @@ struct hashtable {
 
   void destroy() {
     for (int i = 0; i < allocated; i++) {
-      for (PtrList<I>*tmp = data[i]; tmp; ) {
-	while (tmp) (PtrList<I>::pop(tmp))->destroy();
+      for (PtrList<I> *tmp = data[i]; tmp; ) {
+        while (tmp) PtrList<I>::pop(tmp)->destroy();
       }
-
     }
     free(data);
     delete this;
@@ -87,17 +88,17 @@ struct hashtable {
   /* does not overwrite existing entry, if any,
      but obscures it from lookup! (unless perhaps
      you later sort this list) */
-  void insert(I * item) {
+  void insert(I *item) {
     unsigned int loc = I::hash(item->key()) % allocated;
     
     data[loc] = new PtrList<I>(item, data[loc]);
     items++;
   }
 
-  I * lookup(K key) {
+  I *lookup(K key) {
     unsigned int loc = I::hash(key) % allocated;
 
-    for (PtrList<I> * tmp = data[loc]; tmp; tmp = tmp->next) {
+    for (PtrList<I> *tmp = data[loc]; tmp; tmp = tmp->next) {
       if (key == tmp->head->key()) return tmp->head;
     }
 
@@ -105,19 +106,19 @@ struct hashtable {
   }
 
   /* removes if present */
-  I * remove(K key) {
+  I *remove(K key) {
     unsigned int loc = I::hash(key) % allocated;
     
     PtrList<I> ** tmp = &data[loc];
     while (*tmp) {
       if (key == (*tmp)->head->key()) {
-	/* Remove it. */
-	PtrList<I> * node = *tmp;
-	*tmp = (*tmp)->next;
-	I * data = node->head;
-	node->next = 0;
-	delete node;
-	return data;
+        /* Remove it. */
+        PtrList<I> *node = *tmp;
+        *tmp = (*tmp)->next;
+        I *data = node->head;
+        node->next = 0;
+        delete node;
+        return data;
       }
       tmp = &((*tmp)->next);
     }
@@ -131,11 +132,11 @@ struct hashtable {
 /* must be oustide of hashtable itself, or Visual C++ gets
    horribly confused */
 template<class I, class K, class T>
-inline void hashtable_app( hashtable<I, K> * tab,
-			   void (*f)(I *, T), 
-			   T d ) {
+inline void hashtable_app(hashtable<I, K> * tab,
+                          void (*f)(I *, T), 
+                          T d ) {
   for (int i = 0 ; i < tab->allocated; i++ ) {
-    PtrList<I> * l = tab->data[i];
+    PtrList<I> *l = tab->data[i];
     while (l) {
       f(l->head, d);
       l = l->next;

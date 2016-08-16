@@ -6,6 +6,7 @@
 #include "chars.h"
 #include "extent.h"
 #include "menu.h"
+#include "ptrlist.h"
 
 /* XXX implement in terms of menu class?
    textinput is meant to be the same */

@@ -3,6 +3,7 @@
 #include "chars.h"
 #include "font.h"
 #include "dirt.h"
+#include "ptrlist.h"
 
 #include "progress.h"
 
@@ -1744,7 +1745,6 @@ anflying::anflying(SDL_Surface * what, int sx_, int sy_, dir dd, int sdist,
   speed = sp;
   wait = w;
 }
-
 
 bool anflying::think(unsigned int now) {
   /* are we done? */
