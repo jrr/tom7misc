@@ -33,6 +33,8 @@
 #  include <unistd.h>
 #endif
 
+namespace {
+
 enum curesult {
   /* can't upgrade */
   CU_FAIL, 
@@ -67,18 +69,18 @@ struct upitem {
 
 typedef vallist<upitem> ulist;
 
-struct upgradereal : public upgrader {
+struct Upgrader_ : public Upgrader {
 
-  static upgradereal * create(Player *p);
+  static Upgrader_ * create(Player *p);
 
-  upgraderesult upgrade(string & msg);
+  UpgradeResult upgrade(string & msg);
 
   virtual void destroy() {
     tx->destroy();
     delete this;
   }
 
-  virtual ~upgradereal() {}
+  virtual ~Upgrader_() {}
 
   virtual void draw();
   virtual void screenresize();
@@ -97,25 +99,19 @@ struct upgradereal : public upgrader {
 
   Player *plr;
 
-  curesult checkupgrade(http * hh, string & msg,
+  curesult checkupgrade(HTTP * hh, string & msg,
 			ulist *& download, stringlist *& ok);
 
-  upresult doupgrade(http * hh, string & msg,
+  upresult doupgrade(HTTP * hh, string & msg,
 		     ulist * upthese);
 
   TextScroll *tx;
 
-  friend struct ugcallback;
-
+  friend struct UGCallback;
 };
 
-
-upgrader * upgrader::create(Player *p) {
-  return upgradereal::create(p);
-}
-
-upgradereal * upgradereal::create(Player *p) {
-  upgradereal * uu = new upgradereal();
+Upgrader_ * Upgrader_::create(Player *p) {
+  Upgrader_ * uu = new Upgrader_();
   uu->tx = TextScroll::create(fon);
   uu->tx->posx = 5;
   uu->tx->posy = 5;
@@ -125,7 +121,7 @@ upgradereal * upgradereal::create(Player *p) {
   return uu;
 }
 
-void upgradereal::redraw() {
+void Upgrader_::redraw() {
   draw();
   SDL_Flip(screen);
 }
@@ -134,7 +130,7 @@ void upgradereal::redraw() {
    otherwise, md5 is set to the md5 
    hash of its contents */
 bool md5file(string f, string & md5) {
-  FILE * ff = fopen(f.c_str(), "rb");
+  FILE *ff = fopen(f.c_str(), "rb");
   if (!ff) return false;
   else {
     md5 = MD5::Hashf(ff);
@@ -143,8 +139,8 @@ bool md5file(string f, string & md5) {
   }
 }
 
-struct ugcallback : public httpcallback {
-  upgradereal * that;
+struct UGCallback : public httpcallback {
+  Upgrader_ * that;
   /* XXX use SDL_Ticks or whatever; never time(0) */
   virtual void progress(int recvd, int total) {
     if (recvd > (last + 16384) ||
@@ -159,7 +155,7 @@ struct ugcallback : public httpcallback {
       ltime = time(0);
     }
   }
-  ugcallback() : that(0), last(-1000) {
+  UGCallback() : that(0), last(-1000) {
     ltime = time(0);
   }
   int ltime;
@@ -169,8 +165,8 @@ struct ugcallback : public httpcallback {
 /* download anything in 'upthese', replacing the current
    versions on disk. Modifies the 'temporary' fields in
    upthese. */
-upresult upgradereal::doupgrade(http * hh, string & msg,
-				ulist * upthese) {
+upresult Upgrader_::doupgrade(HTTP * hh, string & msg,
+			      ulist * upthese) {
   for (ulist * hd = upthese; hd; hd = hd->next) {
     switch (hd->head.t) {
     case UT_FILE: {
@@ -423,10 +419,10 @@ upresult upgradereal::doupgrade(http * hh, string & msg,
 }
 
 /* download and ok should not contain anything */
-curesult upgradereal::checkupgrade(http * hh, 
-				   string & msg,
-				   ulist *& download,
-				   stringlist *& ok) {
+curesult Upgrader_::checkupgrade(HTTP * hh, 
+				 string & msg,
+				 ulist *& download,
+				 stringlist *& ok) {
   /* start by checking for new versions of escape itself. */
   string s;
   say("Connecting...");
@@ -563,22 +559,21 @@ curesult upgradereal::checkupgrade(http * hh,
   }
 }
 
-upgraderesult upgradereal::upgrade(string & msg) {
-
+UpgradeResult Upgrader_::upgrade(string & msg) {
   /* no matter what, cancel the hint to upgrade */
   handhold::did_upgrade();
 
-  http * hh = Client::connect(plr, tx, this);
+  HTTP * hh = Client::connect(plr, tx, this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
     return UP_FAIL;
   }
 
-  Extent<http> eh(hh);
+  Extent<HTTP> eh(hh);
 
   /* install upgrader */
-  ugcallback cb;
+  UGCallback cb;
   cb.that = this;
   hh->setcallback(&cb);
 
@@ -656,11 +651,17 @@ upgraderesult upgradereal::upgrade(string & msg) {
   return UP_FAIL;
 }
 
-void upgradereal::screenresize() {
+void Upgrader_::screenresize() {
   /* XXX resize */
 }
 
-void upgradereal::draw() {
+void Upgrader_::draw() {
   sdlutil::clearsurface(screen, BGCOLOR);
   tx->draw();
+}
+
+}  // namespace
+
+Upgrader * Upgrader::create(Player *p) {
+  return Upgrader_::create(p);
 }

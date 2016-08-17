@@ -17,7 +17,7 @@ void rating::destroy() {
   delete this;
 }
 
-rating * rating::create() {
+rating *rating::create() {
   return new rating();
 }
 
@@ -48,28 +48,25 @@ rating * rating::fromstring(string s) {
   return rat;
 }
 
-/* below is ratescreen */
+/* below is RateScreen */
+namespace {
 
-struct rsreal : public ratescreen {
+struct RateScreen_ : public RateScreen {
+  static RateScreen_ *Create(Player *p, Level *l, string levmd);
 
-  static rsreal * create(Player *p, Level *l, string levmd);
+  void rate() override;
 
-  virtual ~rsreal() {}
+  void draw() override;
+  void screenresize() override {}
 
-  virtual void rate();
+  void setmessage(string m) override { msg = m; }
 
-  virtual void draw();
-  virtual void screenresize() {}
-
-  virtual void setmessage(string m) { msg = m; }
-
-  virtual void destroy() {
+  ~RateScreen_() override {
     /* we don't own rating, player, or level */
     tx->destroy();
-    delete this;
   }
   
-  private:
+ private:
   Player *plr;
   Level *lev;
 
@@ -91,12 +88,8 @@ struct rsreal : public ratescreen {
 
 };
 
-ratescreen * ratescreen::create(Player *p, Level *l, string levmd) {
-  return rsreal::create(p, l, levmd);
-}
-
-rsreal * rsreal::create(Player *p, Level *l, string levmd) {
-  rsreal * rr = new rsreal();
+RateScreen_ * RateScreen_::Create(Player *p, Level *l, string levmd) {
+  RateScreen_ * rr = new RateScreen_();
   if (!rr) return 0;
 
   rr->plr = p;
@@ -121,7 +114,7 @@ rsreal * rsreal::create(Player *p, Level *l, string levmd) {
   return rr;
 }
 
-void rsreal::draw() {
+void RateScreen_::draw() {
   if (below) {
     below->draw();
   } else {
@@ -152,7 +145,7 @@ void rsreal::draw() {
 
 }
 
-void rsreal::rate() {
+void RateScreen_::rate() {
   /* XXX check that the player has registered */
 
   /* rat is the existing rating or 0 */
@@ -263,7 +256,7 @@ void rsreal::rate() {
     plr->writefile();
 
     /* send message to server */
-    http * hh = Client::connect(plr, tx, this);
+    HTTP * hh = Client::connect(plr, tx, this);
 
     string res;
 
@@ -328,3 +321,8 @@ void rsreal::rate() {
 
 }
 
+}  // namespace
+
+RateScreen *RateScreen::Create(Player *p, Level *l, string levmd) {
+  return RateScreen_::Create(p, l, levmd);
+}

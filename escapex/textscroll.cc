@@ -5,6 +5,7 @@
 
 #define BACKLOG 256
 
+namespace {
 struct TextScroll_ : public TextScroll {
 
   static TextScroll_ * create(font * f);
@@ -16,7 +17,7 @@ struct TextScroll_ : public TextScroll {
   virtual void draw();
   virtual void screenresize();
 
-  virtual void drawto(SDL_Surface * surf = 0);
+  virtual void drawto(SDL_Surface *surf = 0);
 
   virtual ~TextScroll_();
   
@@ -27,12 +28,7 @@ struct TextScroll_ : public TextScroll {
 
 };
 
-TextScroll *TextScroll::create(font * f) {
-  return TextScroll_::create(f);
-}
-
 TextScroll_::~TextScroll_() {}
-TextScroll::~TextScroll() {}
 
 void TextScroll_::destroy() { delete this; }
 void TextScroll_::screenresize() {}
@@ -72,7 +68,7 @@ void TextScroll_::unsay() {
    It's a little tricky because we're
    going backwards, but it's still easier
    than going forwards */
-void TextScroll_::drawto(SDL_Surface * surf) {
+void TextScroll_::drawto(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   int y = (posy + height) - (ft->height + vskip);
@@ -91,3 +87,9 @@ void TextScroll_::draw() {
   drawto(screen); 
 }
 
+}  // namespace
+
+TextScroll::~TextScroll() {}
+TextScroll *TextScroll::create(font * f) {
+  return TextScroll_::create(f);
+}

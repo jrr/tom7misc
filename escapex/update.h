@@ -16,14 +16,14 @@ enum updateresult {
 };
 
 /* update */
-struct updater : public Drawable {
-  static updater * create(Player *p);
+struct Updater : public Drawable {
+  static Updater *create(Player *p);
   virtual updateresult update(string & msg) = 0;
   virtual void destroy() = 0;
-  virtual ~updater() {};
+  virtual ~Updater() {};
 
-  virtual void draw() = 0;
-  virtual void screenresize() = 0;
+  void draw() override = 0;
+  void screenresize() override = 0;
 };
 
 #endif

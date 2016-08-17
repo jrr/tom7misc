@@ -124,7 +124,7 @@ int main(int argc, char ** argv) {
 	switch (entries[i].t) {
 	case T_FILE: {
 	  string fi = entries[i].filename;
-	  FILE * ff = fopen(fi.c_str(), "rb");
+	  FILE *ff = fopen(fi.c_str(), "rb");
 	  if (!ff) {
 	    fprintf(stderr, "Couldn't open %s\n", fi.c_str());
 	    return -1;

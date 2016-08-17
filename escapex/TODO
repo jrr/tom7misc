@@ -9,10 +9,12 @@ Make this work again on OSX 10.10+!
 Use specific-width integer types instead of 'unsigned'.
 
 Use font from cc-lib.
+Maybe move HTTP to cc-lib.
 
 64 bits!
 
 get rid of extent; use unique_ptr
+ - get rid of "destroy" methods
 
 When using the virtual implementation idiom, the "real" class
 can be defined in an anonymous namespace.
@@ -24,7 +26,6 @@ code cleanup
  - delete trailing whitespace
  - capitalize class names
      - rating
-     - message
 
  - replace vallist with deque or vector; it's not used in that many places
 

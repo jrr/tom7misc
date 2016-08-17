@@ -10,7 +10,7 @@
 /* XXX also check eof when these functions are called */
 
 struct CheckFile {
-  FILE * ff;
+  FILE *ff;
   bool read(unsigned int bytes, string & s) {
     /* fread stupidly *fails* if the size is 0 */
     if (bytes == 0) return "";

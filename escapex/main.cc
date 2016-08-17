@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     network = 1;
   }
 
-  sound::init();
+  Sound::init();
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, 
                       SDL_DEFAULT_REPEAT_INTERVAL);
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
   {
     printf("Welcome to escape " VERSION ".\n");
     SDL_WM_SetCaption("escape " VERSION, "");
-    SDL_Surface * icon = sdlutil::LoadImage(ICON_FILE);
+    SDL_Surface *icon = sdlutil::LoadImage(ICON_FILE);
     if (icon) SDL_WM_SetIcon(icon, 0);
     /* XXX free icon? It's not clear where we
        can safely do this. */
@@ -275,12 +275,12 @@ int main(int argc, char **argv) {
       } else if (r == mainmenu::UPGRADE) {
         /* upgrade escape binaries and graphics */
 
-        upgrader * uu = upgrader::create(plr);
+        Upgrader * uu = Upgrader::create(plr);
         if (!uu) {
           Message::bug(0, "Error creating upgrader");
           goto oops;
         }
-        ::Extent<upgrader> exu(uu);
+        ::Extent<Upgrader> exu(uu);
 
         string msg;
 
@@ -296,12 +296,12 @@ int main(int argc, char **argv) {
       } else if (r == mainmenu::UPDATE) {
         /* update levels */
 
-        updater * uu = updater::create(plr);
+        Updater * uu = Updater::create(plr);
         if (!uu) {
           Message::bug(0, "Error creating updater");
           goto oops;
         }
-        ::Extent<updater> exu(uu);
+        ::Extent<Updater> exu(uu);
 
         string msg;
 
@@ -310,13 +310,11 @@ int main(int argc, char **argv) {
       } else if (r == mainmenu::REGISTER) {
         /* register player online */
 
-        registration * rr = registration::create(plr);
-        if (!rr) {
+	std::unique_ptr<Registration> rr{Registration::Create(plr)};
+        if (!rr.get()) {
           Message::bug(0, "Couldn't create registration object");
           goto oops;
         }
-        
-        ::Extent<registration> exr(rr);
 
         rr->registrate();
 
@@ -335,7 +333,7 @@ int main(int argc, char **argv) {
 
 
  no_drawings: ;
-  sound::shutdown();
+  Sound::shutdown();
   SDL_Quit();
 
   return 0;

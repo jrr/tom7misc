@@ -29,7 +29,7 @@ mainshow::~mainshow() {
   tx = 0;
 }
 
-void mainshow::draw(int x, int y, SDL_Surface * surf) {
+void mainshow::draw(int x, int y, SDL_Surface *surf) {
   if (!surf) surf = screen;
   dr.posx = x;
   dr.posy = y;

@@ -1055,7 +1055,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 	  string af = sel->items[i].actualfile(path);
 
 	  /* XXX PERF md5s are stored */
-	  FILE * f = fopen(af.c_str(), "rb");
+	  FILE *f = fopen(af.c_str(), "rb");
 	  if (!f) {
 	    Message::bug(this, "couldn't open in recovery");
 	    sel->redraw();
@@ -1378,7 +1378,7 @@ string loadlevelreal::loop() {
 	      string file = 
 		sel->items[sel->selected].actualfile(path);
 	  
-	      FILE * f = fopen(file.c_str(), "rb");
+	      FILE *f = fopen(file.c_str(), "rb");
 	      if (!f) {
 		Message::bug(this, "Couldn't open file to comment on");
 	    
@@ -1415,7 +1415,7 @@ string loadlevelreal::loop() {
 		sel->items[sel->selected].actualfile(path);
 
 	      /* XXX now in llentry, also comment */
-	      FILE * f = fopen(file.c_str(), "rb");
+	      FILE *f = fopen(file.c_str(), "rb");
 	      if (!f) {
 		Message::bug(this, "Couldn't open file to rate");
 	    
@@ -1428,10 +1428,8 @@ string loadlevelreal::loop() {
 		string md = MD5::Hashf(f);
 		fclose(f);
 				   
-		ratescreen * rs = ratescreen::create(plr, l, md);
-		if (rs) {
-		  Extent<ratescreen> re(rs);
-
+		std::unique_ptr<RateScreen> rs{RateScreen::Create(plr, l, md)};
+		if (rs.get() != nullptr) {
 		  rs->rate();
 		} else {
 		  Message::bug(this, "Couldn't create rate object!");
@@ -1440,7 +1438,6 @@ string loadlevelreal::loop() {
 		/* now restore the rating */
 		sel->items[sel->selected].myrating = plr->getrating(md);
 		/* XX resort? */
-
 	      }
 
 	    } else {
@@ -1605,15 +1602,14 @@ string loadlevelreal::loop() {
 		/* XXX could detect certain kinds of annoying 
 		   levels and warn... */
 
-		upload * uu = upload::create();
+		std::unique_ptr<Upload> uu{Upload::Create()};
 
-		if (!uu) {
+		if (!uu.get()) {
 		  Message::bug(this,
 			       "Can't create upload object!");
 		  sel->redraw();
 		  continue;
 		}
-		Extent<upload> eu(uu);
 
 		/* save spot */
 		lastfile = sel->items[sel->selected].fname;
@@ -1622,8 +1618,8 @@ string loadlevelreal::loop() {
 		  sel->items[sel->selected].actualfile(path);
 
 		/* don't bother with message; upload does it */
-		switch (uu->up(plr, file, desc.get_text())) {
-		case UL_OK:
+		switch (uu->Up(plr, file, desc.get_text())) {
+		case UploadResult::OK:
 		  break;
 		default:
 		  break;

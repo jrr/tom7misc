@@ -9,7 +9,7 @@
 
 #include "sound_enum.h"
 
-struct sound {
+struct Sound {
 
   /* true if sound is available.
      it is safe to call any of these

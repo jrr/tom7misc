@@ -63,7 +63,7 @@ extern int network;
 /* is the audio subsystem started? */
 extern int audio;
 
-extern SDL_Surface * screen;
+extern SDL_Surface *screen;
 
 #ifndef PLATFORM
 #  ifdef WIN32

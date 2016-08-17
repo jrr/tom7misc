@@ -10,11 +10,10 @@
 #include <math.h>
 
 #include <string>
-using namespace std;
 
 #include "httputil.h"
 
-/* Before using the http class, you must initialize SDL_net
+/* Before using the HTTP class, you must initialize SDL_net
    with SDLNet_Init(). */
 
 /* results from GET/POST/etc. */
@@ -29,39 +28,39 @@ struct httpcallback {
 };
 
 /* interface only */
-struct http {
+struct HTTP {
   
-  static http * create();
+  static HTTP * create();
   virtual void destroy() = 0;
 
   /* set user-agent */
-  virtual void setua(string) = 0;
+  virtual void setua(std::string) = 0;
   /* ... other stuff ... */
 
   /* doesn't really connect -- just sets host:port for
      later requests. might fail if can't look up hostname. */
-  virtual bool connect(string host, int port = 80) = 0;
+  virtual bool connect(std::string host, int port = 80) = 0;
 
   /* download the entire thing to a string */
-  virtual httpresult get(string path, string & out) = 0;
+  virtual httpresult get(std::string path, std::string & out) = 0;
   
   /* create a temp file (in the cwd) and download to that.
      return the name of the temp file */
-  virtual httpresult gettempfile(string path, string & file) = 0;
+  virtual httpresult gettempfile(std::string path, std::string & file) = 0;
 
   /* use post, allowing to upload files */
-  virtual httpresult put(string path,
+  virtual httpresult put(std::string path,
 			 formalist * items,
-			 string & out) = 0;
+			 std::string & out) = 0;
 
   /* set callback object. This object is never freed. */
   virtual void setcallback(httpcallback *) = 0;
 
   /* this will be called with various debugging
      messages, if non-null */
-  void (*log_message)(const string & s);
+  void (*log_message)(const std::string &s);
 
-  virtual ~http() {};
+  virtual ~HTTP() {};
 };
 
 

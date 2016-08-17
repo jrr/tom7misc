@@ -59,7 +59,7 @@ using contable = hashtable<contententry, string>;
 
 struct upreal : public Upper {
 
-  static upreal * create(http *, TextScroll *, Drawable *, string);
+  static upreal * create(HTTP *, TextScroll *, Drawable *, string);
 
   ~upreal() override {}
 
@@ -99,7 +99,7 @@ struct upreal : public Upper {
   oldtable * olds;
   contable * contents;
 
-  http * hh;
+  HTTP * hh;
 
   /* the directory, like "official" */
   string dirname;
@@ -117,12 +117,12 @@ struct upreal : public Upper {
   void insertdir(string d);
 };
 
-Upper * Upper::create(http * h, TextScroll *t,
+Upper * Upper::create(HTTP * h, TextScroll *t,
 		      Drawable *d, string f) {
   return upreal::create(h, t, d, f);
 }
 
-upreal * upreal::create(http * h, TextScroll *t,
+upreal * upreal::create(HTTP * h, TextScroll *t,
 			Drawable *d, string f) {
   upreal * ur = new upreal();
   ur->hh = h;
@@ -361,7 +361,7 @@ bool upreal::commit() {
     /* Try removing before opening; Adam seems to think this
        improves our chances of success. */
     util::remove(nlf);
-    FILE * a = util::fopenp(nlf, "wb");
+    FILE *a = util::fopenp(nlf, "wb");
     if (!a) {
       say((string)RED "couldn't write " + nlf + POP);
       /* XXX should continue writing, just not delete? */

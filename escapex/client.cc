@@ -7,7 +7,7 @@
 bool Client::quick_rpc(Player *plr, string path, string query, string & ret) {
   quick_txdraw td;
   
-  http * hh = Client::connect(plr, td.tx, &td);
+  HTTP * hh = Client::connect(plr, td.tx, &td);
   
   td.say("Connecting..");
   td.draw();
@@ -18,7 +18,7 @@ bool Client::quick_rpc(Player *plr, string path, string query, string & ret) {
     return false;
   }
   
-  Extent<http> eh(hh);
+  Extent<HTTP> eh(hh);
 
   td.say("Sending command..");
   td.draw();

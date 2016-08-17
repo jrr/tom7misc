@@ -9,7 +9,7 @@
 const float Backgrounds::blueish = 178.0f;
 const float Backgrounds::purpleish = 260.0f; // 247.0f;
 
-static Uint32 hueish(SDL_Surface * surf, float base_hue) {
+static Uint32 hueish(SDL_Surface *surf, float base_hue) {
   float h = base_hue + (util::randfrac() * (233.0f - 178.0f));
   float s = .29f + (util::randfrac() * (.84f - .29f));
   float v = .12f + (util::randfrac() * (.50f - .12f));

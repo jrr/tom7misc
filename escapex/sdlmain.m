@@ -221,7 +221,8 @@ static void CustomApplicationMain (int argc, char **argv)
 
     /* Create SDLMain and make it the app delegate */
     sdlMain = [[SDLMain alloc] init];
-    [NSApp setDelegate:sdlMain];
+    // XXX tom7 added this cast here to suppress warning; does not know what's happening
+    [NSApp setDelegate:(id<NSFileManagerDelegate> _Nullable)sdlMain];
     
     /* Start the main event loop */
     [NSApp run];

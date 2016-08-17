@@ -3,21 +3,22 @@
 #include "extent.h"
 #include "draw.h"
 
-struct registration_ : public registration {
-  registration_() {}
+namespace {
+struct Registration_ : public Registration {
+  Registration_() {}
 
-  virtual void registrate();
+  void registrate() override;
 
-  virtual void screenresize();
-  virtual void draw();
+  void screenresize() override;
+  void draw() override;
+
   void redraw() {
     draw();
     SDL_Flip(screen);
   }
 
-  virtual void destroy() {
+  ~Registration_() override {
     tx->destroy();
-    delete this;
   }
 
   void say(string s) {
@@ -31,16 +32,9 @@ struct registration_ : public registration {
   Player *plr;
 };
 
-registration * registration::create(Player *p) {
-  registration_ * r = new registration_();
-  r->plr = p;
-  r->tx = TextScroll::create(fon);
-  return r;
-}
+void Registration_::registrate() {
 
-void registration_::registrate() {
-
-  http * hh = Client::connect(plr, tx, this);
+  HTTP * hh = Client::connect(plr, tx, this);
   if (!hh) { 
     Message::quick(this,
 		   "Couldn't connect to server.",
@@ -48,7 +42,7 @@ void registration_::registrate() {
     return;
   }
 
-  Extent<http> eh(hh);
+  Extent<HTTP> eh(hh);
 
   /* XXX again, need a better way to detect this */
   if (plr->name == "Default") {
@@ -111,11 +105,20 @@ void registration_::registrate() {
   return;
 }
 
-void registration_::screenresize() {
+void Registration_::screenresize() {
   /* XXX resize tx */
 }
 
-void registration_::draw() {
+void Registration_::draw() {
   sdlutil::clearsurface(screen, BGCOLOR);
   tx->draw();
+}
+
+}  // namespace
+
+Registration *Registration::Create(Player *p) {
+  Registration_ *r = new Registration_();
+  r->plr = p;
+  r->tx = TextScroll::create(fon);
+  return r;
 }

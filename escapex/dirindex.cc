@@ -51,7 +51,7 @@ struct di_real : public dirindex {
   /* read from disk */
   static dirindex * fromstring(string f);
 
-  static void writeone(ra_entry * i, FILE * f);
+  static void writeone(ra_entry * i, FILE *f);
 
   virtual bool getentry(string filename, ratestatus & v, int &, int &, int & o);
 
@@ -173,7 +173,7 @@ void di_real::destroy() {
 }
 
 /* argument to hashtable::app */
-void di_real::writeone(ra_entry * i, FILE * f) {
+void di_real::writeone(ra_entry * i, FILE *f) {
   fprintf(f, "%s %d %d %d %d %d %d %d %d %d\n",
 	  i->filename.c_str(),
 	  i->v.nvotes,
@@ -188,7 +188,7 @@ void di_real::writeone(ra_entry * i, FILE * f) {
 }
 
 void di_real::writefile(string fname) {
-  FILE * f = fopen(fname.c_str(), "wb");
+  FILE *f = fopen(fname.c_str(), "wb");
   if (!f) return; /* XXX? */
 		
   fprintf(f, INDEX3MAGIC "\n");
@@ -202,7 +202,7 @@ void di_real::writefile(string fname) {
   /* XXX sort first */
   
   /* then write each file */
-  hashtable_app<ra_entry, string, FILE * >(tab, writeone, f);
+  hashtable_app<ra_entry, string, FILE *>(tab, writeone, f);
 
   fclose(f);
 

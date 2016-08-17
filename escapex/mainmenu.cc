@@ -79,8 +79,8 @@ struct mmreal : public mainmenu, public Drawable {
   msel * sel;
 
   Player *pp;
-  SDL_Surface * titlegraphic;
-  SDL_Surface * background;
+  SDL_Surface *titlegraphic;
+  SDL_Surface *background;
 
   mainshow * mshow;
 
@@ -380,7 +380,7 @@ void mmreal::makebackground() {
 
   /* draw alpharect for bottom */
   int botoff = fon->height * 2 + 4;
-  SDL_Surface * bot = sdlutil::makealpharect(w, botoff,
+  SDL_Surface *bot = sdlutil::makealpharect(w, botoff,
 					     0, 0, 0, 120);
   if (bot) {
     SDL_Rect dest;

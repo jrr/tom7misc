@@ -16,7 +16,7 @@ struct Upper {
 
   /* create an upper, using the http connection hh,
      and directory dir */
-  static Upper * create(http * hh, TextScroll *t,
+  static Upper * create(HTTP * hh, TextScroll *t,
 			Drawable *below, string dir);
 
   /* the file 'f' (which may be prefixed by directories that have been

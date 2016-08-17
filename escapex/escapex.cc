@@ -2,7 +2,7 @@
 #include "escapex.h"
 
 /* XXX put this stuff in escapex.cc? */
-SDL_Surface * screen;
+SDL_Surface *screen;
 
 /* XXX should be bools */
 int network;

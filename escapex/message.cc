@@ -17,7 +17,7 @@ struct Message_ : public Message {
   void draw() override;
   void screenresize() override;
 
-  SDL_Surface * alpharect;
+  SDL_Surface *alpharect;
   bool loop(char * actualchar, string charspec);
 
   void init();

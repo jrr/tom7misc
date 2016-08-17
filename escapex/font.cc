@@ -150,7 +150,7 @@ void fontreal::draw_plain(int x, int y, string s) {
   drawto_plain(screen, x, y, s);
 }
 
-void fontreal::drawto_plain(SDL_Surface * surf, int x, int y, string s) {
+void fontreal::drawto_plain(SDL_Surface *surf, int x, int y, string s) {
 
   SDL_Rect src, dest;
 
@@ -172,7 +172,7 @@ void fontreal::drawto_plain(SDL_Surface * surf, int x, int y, string s) {
   }
 }
 
-void fontreal::drawto(SDL_Surface * surf, int x, int y, string s) {
+void fontreal::drawto(SDL_Surface *surf, int x, int y, string s) {
 
   SDL_Rect src, dest;
   /* XXX can't init these once, since blit can side-effect fields
