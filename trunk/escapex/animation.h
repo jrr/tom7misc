@@ -184,8 +184,8 @@ struct Animation {
 
   private:
 
-  static SDL_Surface * pitched_rect(int w, int h, int ph, 
-				    SDL_Surface * src,
+  static SDL_Surface *pitched_rect(int w, int h, int ph, 
+				    SDL_Surface *src,
 				    int oversample = FLIPS_OVERSAMPLE);
 
   static bool init_flips();
@@ -269,7 +269,7 @@ struct ansound : public Animation {
   sound_t s;
   ansound(sound_t s_) : s(s_) {}
   virtual bool think(unsigned int now) {
-    sound::play(s);
+    Sound::play(s);
     return true;
   }
 
@@ -304,11 +304,11 @@ struct anflying : public Animation {
   int wait;
 
   /* alias -- do not free */
-  SDL_Surface * above;
+  SDL_Surface *above;
 
   /* pass in screen pixel starting position, distance in
      pixels */
-  anflying(SDL_Surface * what, int sx, int sy, dir dd, int sdist,
+  anflying(SDL_Surface *what, int sx, int sy, dir dd, int sdist,
 	   int sp, int w);
 
   virtual int yorder() { return py; }
@@ -348,9 +348,9 @@ struct anflying : public Animation {
 /* special like anplacetile */
 struct andraw : public Animation {
   /* copy; don't free! */
-  SDL_Surface * s;
+  SDL_Surface *s;
   int x, y;
-  andraw(SDL_Surface * ss, int sx, int sy) :
+  andraw(SDL_Surface *ss, int sx, int sy) :
     s(ss), x(sx), y(sy) {}
 
   virtual bool init(unsigned int now) {
@@ -374,9 +374,9 @@ struct andraw : public Animation {
 /* this keeps drawing it and is never done */
 struct anfinale : public Animation {
   /* copy; don't free! */
-  SDL_Surface * s;
+  SDL_Surface *s;
   int x, y;
-  anfinale(SDL_Surface * ss, int sx, int sy) :
+  anfinale(SDL_Surface *ss, int sx, int sy) :
     s(ss), x(sx), y(sy) { finale = true; }
 
   virtual bool init(unsigned int now) {

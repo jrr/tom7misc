@@ -85,14 +85,14 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
 
   cs.tx->say(GREY "Making sure we're connected...");
   cs.redraw();
-  http * hh = Client::connect(p, cs.tx, &cs);
+  HTTP * hh = Client::connect(p, cs.tx, &cs);
   if (!hh) {
     Message::quick(&cs, "Can't connect to internet!",
 		   "OK", "", PICS XICON POP);
     return;
   }
   
-  Extent<http> eh(hh);
+  Extent<HTTP> eh(hh);
 
   {
     string res;

@@ -1,4 +1,3 @@
-
 #ifndef __RATING_H
 #define __RATING_H
 
@@ -11,7 +10,6 @@ struct Player;
 #define RATINGBYTES 6
 
 struct rating {
-  
   string tostring();
   
   static rating * fromstring(string);
@@ -25,13 +23,11 @@ struct rating {
   int rigidity;
   /* should only be true if same player has solved */
   int cooked;
-
 };
 
 
-struct ratescreen : public Drawable {
-  
-  static ratescreen * create (Player *p, Level *l, string levmd);
+struct RateScreen : public Drawable {
+  static RateScreen *Create(Player *p, Level *l, string levmd);
 
   /* pops up a menu to rate the level identified
      by md5 string levmd. It's rated by player p,
@@ -51,17 +47,14 @@ struct ratescreen : public Drawable {
   */
   virtual void rate() = 0;
 
-  virtual ~ratescreen() {}
+  virtual ~RateScreen() {}
 
   virtual void draw() = 0;
   virtual void screenresize() = 0;
 
-  virtual void destroy() = 0;
-
   virtual void setmessage(string) = 0;
 
   Drawable *below;
-
 };
 
 

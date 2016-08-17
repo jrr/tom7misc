@@ -5,13 +5,16 @@
 
 // XXX this can be improved by using vectors..
 #include <vector>
+#include <string>
+
+using namespace std;
 
 #define DMSG if (log_message) (*log_message)
 
 namespace {
-struct httpreal : public http {
-  httpreal();
-  virtual ~httpreal();
+struct HTTP_ : public HTTP {
+  HTTP_();
+  virtual ~HTTP_();
   virtual void destroy();
   virtual void setua(string);
   virtual bool connect(string host, int port = 80);
@@ -27,7 +30,7 @@ struct httpreal : public http {
 
  private:
 
-  virtual FILE * tempfile(string & f);
+  virtual FILE *tempfile(string & f);
 
   virtual string readrest();
   virtual string readresttofile();
@@ -55,17 +58,17 @@ struct httpreal : public http {
   string host;
 };
 
-httpresult httpreal::get(string path, string & out_) {
+httpresult HTTP_::get(string path, string & out_) {
   DMSG(util::ptos(this) + " get(" + path + ")\n");
   return get_general(path, out_, false);
 }
 
-httpresult httpreal::gettempfile(string path, string & out_) {
+httpresult HTTP_::gettempfile(string path, string & out_) {
   DMSG(util::ptos(this) + " gettempfile(" + path + ")\n");
   return get_general(path, out_, true);
 }
 
-httpreal::httpreal() {
+HTTP_::HTTP_() {
   callback = 0;
   conn = 0;
   remote.host = 0;
@@ -73,9 +76,9 @@ httpreal::httpreal() {
   log_message = 0;
 }
 
-httpreal::~httpreal() { }
+HTTP_::~HTTP_() { }
 
-void httpreal::destroy() {
+void HTTP_::destroy() {
   /* ? */
   if (conn) {
     DMSG(util::ptos(this) + " destroy\n");
@@ -85,9 +88,9 @@ void httpreal::destroy() {
   delete this;
 }
 
-void httpreal::setua(string s) { ua = s; }
+void HTTP_::setua(string s) { ua = s; }
 
-bool httpreal::connect(string chost, int port) {
+bool HTTP_::connect(string chost, int port) {
 
   DMSG(util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
   
@@ -125,7 +128,7 @@ bool sendall(TCPsocket socket, string d) {
   else return true;
 }
 
-httpresult httpreal::put(string path,
+httpresult HTTP_::put(string path,
 			 formalist * items,
 			 string & out) {
 
@@ -185,7 +188,7 @@ httpresult httpreal::put(string path,
   Accept: * / * (together)
 */
 
-httpresult httpreal::get_general(string path, string & res, bool tofile) {
+httpresult HTTP_::get_general(string path, string & res, bool tofile) {
   string req = 
     "GET " + path + " HTTP/1.0\r\n"
     "User-Agent: " + ua + "\r\n"
@@ -196,7 +199,7 @@ httpresult httpreal::get_general(string path, string & res, bool tofile) {
   return req_general(req, res, tofile);
 }
 
-httpresult httpreal::req_general(string req, string & res, bool tofile) {
+httpresult HTTP_::req_general(string req, string & res, bool tofile) {
   DMSG(util::ptos(this) + " conn@" + util::ptos(conn) + 
 	" req_general: \n[" + req + "]\n");
 
@@ -373,7 +376,7 @@ httpresult httpreal::req_general(string req, string & res, bool tofile) {
 #define BUFLEN 1024
 
 /* XXX use util::tempfile */
-FILE * httpreal::tempfile(string & f) {
+FILE *HTTP_::tempfile(string & f) {
   static int call = 0;
   int pid = util::getpid();
   int tries = 256;
@@ -383,7 +386,7 @@ FILE * httpreal::tempfile(string & f) {
     sprintf(fname, "dl%d%04X%04X.deleteme", call, pid, 
 	    (int)(0xFFFF & util::random()));
 
-    FILE * ret = util::open_new(fname);
+    FILE *ret = util::open_new(fname);
     if (ret) { 
       f = fname;
       return ret;
@@ -392,9 +395,9 @@ FILE * httpreal::tempfile(string & f) {
   return 0;
 }
 
-string httpreal::readresttofile() {
+string HTTP_::readresttofile() {
   string fname;
-  FILE * ff = tempfile(fname);
+  FILE *ff = tempfile(fname);
 
   DMSG("reading to file ... not logged.\n");
 
@@ -420,7 +423,7 @@ string httpreal::readresttofile() {
   return fname;
 }
 
-string httpreal::readrest() {
+string HTTP_::readrest() {
   string acc;
 
   char buf[BUFLEN];
@@ -444,7 +447,7 @@ string httpreal::readrest() {
   return acc;
 }
 
-string httpreal::readn(int n) {
+string HTTP_::readn(int n) {
   vector<char> buf;
   buf.resize(n);
 
@@ -471,13 +474,13 @@ string httpreal::readn(int n) {
   return ret;
 }
 
-string httpreal::readntofile(int n) {
+string HTTP_::readntofile(int n) {
 
   int total = n;
   int rem = n;
 
   string fname;
-  FILE * ff = tempfile(fname);
+  FILE *ff = tempfile(fname);
    
   if (!ff) return "";
 
@@ -504,9 +507,9 @@ string httpreal::readntofile(int n) {
   fclose(ff);
   return fname;
 }
-}
+}  // namespace
 
 /* export through http interface */
-http *http::create() {
-  return new httpreal();
+HTTP *HTTP::create() {
+  return new HTTP_();
 }

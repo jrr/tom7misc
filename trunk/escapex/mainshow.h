@@ -27,7 +27,7 @@ struct mainshow {
 
   /* draw to x,y on the supplied surface. if surface is
      0, then draw to the screen */
-  void draw(int x, int y, SDL_Surface * surf = 0);
+  void draw(int x, int y, SDL_Surface *surf = 0);
   
   ~mainshow();
 

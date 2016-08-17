@@ -360,7 +360,7 @@ struct menu : public Drawable {
 
   int posx, posy;
   int w, h, stath;
-  SDL_Surface * alpharect;
+  SDL_Surface *alpharect;
 
 };
 

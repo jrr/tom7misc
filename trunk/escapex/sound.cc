@@ -4,11 +4,11 @@
 #ifdef NOSOUND
 
 /* dummy implementation */
-bool sound::enabled() { return false; }
-void sound::mute(bool b) { }
-void sound::init() { }
-void sound::shutdown() { }
-void sound::play(sound_t s) { }
+bool Sound::enabled() { return false; }
+void Sound::mute(bool b) { }
+void Sound::init() { }
+void Sound::shutdown() { }
+void Sound::play(sound_t s) { }
 
 #else
 
@@ -26,10 +26,9 @@ static bool sound_available = false;
 static bool sound_muted = false;
 
 /* XXX should also halt any sound playing */
-void sound::mute(bool b) { sound_muted = b; }
+void Sound::mute(bool b) { sound_muted = b; }
 
-void sound::init() {
-
+void Sound::init() {
   if (audio) {
     /* XXX what frequency to use? */
     /* XXX fall back to mono if stereo fails */
@@ -55,14 +54,14 @@ void sound::init() {
 
 }
 
-void sound::play(sound_t s) {
+void Sound::play(sound_t s) {
   //  printf(" avail: %d muted: %d\n", sound_available?1:0, sound_muted?1:0);
   if (sound_available && !sound_muted) {
     Mix_PlayChannel(-1, sound_data[s], 0);
   }
 }
 
-void sound::shutdown() {
+void Sound::shutdown() {
   if (sound_available) {
     Mix_CloseAudio();
   }

@@ -76,7 +76,7 @@ struct Browse_ : public Browse {
   virtual string selectlevel();
 
   void makebackground();
-  SDL_Surface * background;
+  SDL_Surface *background;
 
   void redraw() {
     draw();
@@ -156,13 +156,13 @@ void Browse_::makebackground() {
   
   /* Partially-translucent insides. */
   {
-    SDL_Surface * vert = sdlutil::makealpharect(curve_size - curveborder_width,
+    SDL_Surface *vert = sdlutil::makealpharect(curve_size - curveborder_width,
 						inborder_height,
 						0, 0, 0, 0.8 * 255);
-    SDL_Surface * horiz = sdlutil::makealpharect(inborder_width,
+    SDL_Surface *horiz = sdlutil::makealpharect(inborder_width,
 						 curve_size - curveborder_width,
 						 0, 0, 0, 0.8 * 255);
-    SDL_Surface * center = sdlutil::makealpharect(inborder_width,
+    SDL_Surface *center = sdlutil::makealpharect(inborder_width,
 						  inborder_height,
 						  0, 0, 0, 0.8 * 255);
    

@@ -11,7 +11,7 @@
 #include <fstream>
 
 /* XXX necessary? */
-SDL_Surface * screen;
+SDL_Surface *screen;
 string self;
 
 int main(int argc, char **argv) {
@@ -63,9 +63,9 @@ int main(int argc, char **argv) {
   string enumname  = basename + "_enum.h";
   string decname   = basename + "_decs.h";
   string loadname  = basename + "_load.h";
-  FILE * enums = fopen(enumname.c_str(), "w");
-  FILE * decs  = fopen(decname.c_str(), "w");
-  FILE * load  = fopen(loadname.c_str(), "w");
+  FILE *enums = fopen(enumname.c_str(), "w");
+  FILE *decs  = fopen(decname.c_str(), "w");
+  FILE *load  = fopen(loadname.c_str(), "w");
 
   if (! (enums && decs && load)) {
     printf("Can't open output files.\n");

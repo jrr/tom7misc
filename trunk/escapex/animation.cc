@@ -764,7 +764,7 @@ static aframe frames_dalek_teleport_in[] =
 
 typedef PtrList<Animation> alist;
 
-static inline SDL_Surface * FACING_FRAME(dir d, bot entt, int data) {
+static inline SDL_Surface *FACING_FRAME(dir d, bot entt, int data) {
   switch (entt) {
   default:
     if (Level::isbomb(entt)) {
@@ -850,7 +850,7 @@ void Animation::start(drawing & dr,
     teleportin_t * at = &(ae->u.teleportin);
 
     aframe * frames_ent;
-    SDL_Surface * finale;
+    SDL_Surface *finale;
     int overlapy;
     switch (at->entt) {
     case B_PLAYER:
@@ -1437,7 +1437,7 @@ void Animation::start(drawing & dr,
 
     /* perhaps the graphic should be an argument, making this a
        general-purpose flying static image animation */
-    SDL_Surface * fly;
+    SDL_Surface *fly;
     switch (af->d) {
     default:
     case DIR_UP:
@@ -1736,7 +1736,7 @@ anflyingtile::anflyingtile(int ti_,
 }
 
 /* perhaps upgrade this to allow aframes instead of just surfaces */
-anflying::anflying(SDL_Surface * what, int sx_, int sy_, dir dd, int sdist,
+anflying::anflying(SDL_Surface *what, int sx_, int sy_, dir dd, int sdist,
 		   int sp, int w) 
   : sx(sx_), sy(sy_), d(dd), pleft(sdist) {
 
@@ -1811,7 +1811,7 @@ bool Animation::init_flips() {
   if (!(pic_flips_out_data && pic_flips_in_data && frame_flips_out
 	&& frame_flips_in)) return false;
 
-  SDL_Surface * tsrc = sdlutil::makesurface(TILEW, TILEH);
+  SDL_Surface *tsrc = sdlutil::makesurface(TILEW, TILEH);
   sdlutil::clearsurface(tsrc, 0xFFFFFFFF);
 
   
@@ -1839,7 +1839,7 @@ bool Animation::init_flips() {
     /* cut out tile to start */
     drawing::drawtile(0, 0, t, 0, tsrc);
     /* also a reversed one */
-    SDL_Surface * tsrcr = sdlutil::fliphoriz(tsrc);
+    SDL_Surface *tsrcr = sdlutil::fliphoriz(tsrc);
 
     /* flip_out is normal */
     for (int f = 0; f < NUM_FLIPFRAMES; f++) {
@@ -1863,7 +1863,7 @@ bool Animation::init_flips() {
 
       /* to avoid writing pitched_rect twice, we
 	 flip, pitch, then flip back */
-      SDL_Surface * tmp = 
+      SDL_Surface *tmp = 
 	pitched_rect(width, TILEH, TILEH + overlap * 2, tsrcr);
 
       int fr = (NUM_FLIPFRAMES - (f + 1));
@@ -1903,8 +1903,8 @@ bool Animation::init_flips() {
 /* generates a pitched rectangle (from left to right)
    at width w, that starts at height ph and is height
    h at the midpoint. */
-SDL_Surface * Animation::pitched_rect(int w, int h, int ph, 
-				      SDL_Surface * src,
+SDL_Surface *Animation::pitched_rect(int w, int h, int ph, 
+				      SDL_Surface *src,
                                       int oversample) {
   
   /* oversample by this amount */
@@ -1914,7 +1914,7 @@ SDL_Surface * Animation::pitched_rect(int w, int h, int ph,
   h <<= zf;
   ph <<= zf;
 
-  SDL_Surface * dst = sdlutil::makesurface(w, ph);
+  SDL_Surface *dst = sdlutil::makesurface(w, ph);
   if (!dst) return dst;
   
   /* set totally transparent */
@@ -1969,7 +1969,7 @@ SDL_Surface * Animation::pitched_rect(int w, int h, int ph,
 
   /* now resample down to nice size */
   while (zf--) {
-    SDL_Surface * tmp = dst;
+    SDL_Surface *tmp = dst;
     dst = sdlutil::shrink50(dst);
     SDL_FreeSurface(tmp);
   }

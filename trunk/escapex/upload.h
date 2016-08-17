@@ -7,19 +7,16 @@
 
 /* Upload a level and its solution to the server. */
 
-enum upresult { UL_OK, UL_FAIL, };
+enum class UploadResult { OK, FAIL, };
 
-struct upload : public Drawable {
-  static upload *create();
-  virtual ~upload();
-  virtual void destroy() = 0;
+struct Upload : public Drawable {
+  static Upload *Create();
+  virtual ~Upload();
 
-  virtual upresult up(Player *p, string file, string desc) = 0;
+  virtual UploadResult Up(Player *p, string file, string desc) = 0;
 
-  virtual void draw() = 0;
-  virtual void screenresize() = 0;
+  void draw() override = 0;
+  void screenresize() override = 0;
 };
-
-
 
 #endif

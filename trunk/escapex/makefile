@@ -186,6 +186,9 @@ CXXFLAGS=-std=c++14
 # know what the right fix is.
 CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX -DNOSOUND=1
 
+# XXX Suppress warning in SDL-supplied .m file, but should figure out what's going on here.
+CFLAGS=-Wno-objc-protocol-method-implementation
+
 # good for 10.11 MacBook
 # used to use /usr/local/lib
 LIBS=-L/usr/lib

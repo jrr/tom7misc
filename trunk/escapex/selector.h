@@ -58,7 +58,6 @@
 
 template<class Item, class Ret>
 struct Selector : public Drawable {
-
   int botmargin = 80;
   int yfit = 0;
   int selected = 0, skip = 0;
@@ -395,14 +394,15 @@ struct Selector : public Drawable {
     reset();
 
     while ( SDL_WaitEvent(&event) >= 0 ) {
-
       peres pr = doevent(event);
       switch (pr.type) {
       case PE_SELECTED:
         return items[pr.u.i].convert();
+
       case PE_EXIT: /* XXX */
       case PE_CANCEL:
         return Item::none();
+
       default:
       case PE_NONE:
         ;
@@ -411,7 +411,6 @@ struct Selector : public Drawable {
 
     return Item::none();
   }
-
 };
 
 #endif

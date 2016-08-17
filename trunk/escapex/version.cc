@@ -20,10 +20,9 @@ static string itos(int i) {
 }
 
 int main(int argc, char ** argv) {
-
   char buf[256];
 
-  const time_t t = time(0);
+  const time_t t = time(nullptr);
 
   strftime(buf, 255, "%Y%m%d0", localtime(&t));
 
@@ -37,7 +36,7 @@ int main(int argc, char ** argv) {
     }
   }
 
-  FILE * vh = fopen(VERSION_H, "w");
+  FILE *vh = fopen(VERSION_H, "w");
   
   if (!vh) { 
     printf("Can't open " VERSION_H " \n");

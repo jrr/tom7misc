@@ -182,7 +182,7 @@ struct util {
   static bool library_matches(char k, const string & s);
 
   /* open a new file. if it exists, return 0 */
-  static FILE * open_new(string s);
+  static FILE *open_new(string s);
   /* 0 on failure */
   static int changedir(string s);
   static int random();
@@ -193,7 +193,7 @@ struct util {
      modifies str. */
   static string getline(string & str);
   /* same, for open file. */
-  static string fgetline(FILE * f);
+  static string fgetline(FILE *f);
 
   /* chop the first token (ignoring whitespace) off
      of line, modifying line. */
@@ -253,7 +253,7 @@ struct util {
   static void createpathfor(string f);
 
   /* open, creating directories if necessary */
-  static FILE * fopenp(string f, string mode);
+  static FILE *fopenp(string f, string mode);
 
   /* move a file into an 'attic' backup dir */
   static void toattic(string f);

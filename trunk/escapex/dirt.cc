@@ -40,7 +40,7 @@ struct Dreal : public Dirt {
   }
 
 private:
-  SDL_Surface * surf = nullptr;
+  SDL_Surface *surf = nullptr;
   rlist * dirts = nullptr;
 };
 

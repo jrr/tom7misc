@@ -842,14 +842,14 @@ void preal::bookmark_download(Player *plr, string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
   
-  http * hh = Client::connect(plr, td.tx, &td);
+  HTTP * hh = Client::connect(plr, td.tx, &td);
 
   if (!hh) { 
     Message::no(&td, "Couldn't connect!");
     return;
   }
 
-  Extent<http> eh(hh);
+  Extent<HTTP> eh(hh);
   /* XXX register callback.. */
 
   httpresult hr = hh->get(ALLSOLS_URL + MD5::Ascii(lmd5), s);
@@ -1522,9 +1522,8 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
 	  !plr->getrating(md5) &&
 	  prefs::getbool(plr, PREF_ASKRATE)) {
 
-	ratescreen * rs = ratescreen::create(plr, lev, md5);
-	if (rs) {
-	  Extent<ratescreen> re(rs);
+	std::unique_ptr<RateScreen> rs{RateScreen::Create(plr, lev, md5)};
+	if (rs.get() != nullptr) {
 	  rs->setmessage(YELLOW
 			 "Please rate this level." POP
 			 GREY " (You can turn off this "

@@ -33,10 +33,10 @@ SDL_Surface ** drawing::tileutil = 0;
 bool drawing::loadimages() {
   /* PERF could be alpha=false. but the alphadim and shrink50
      routines rely on this being a 32 bit graphic. */
-  SDL_Surface * tt = sdlutil::LoadImage(TILES_FILE);
+  SDL_Surface *tt = sdlutil::LoadImage(TILES_FILE);
   if (!tt) return 0;
   
-  SDL_Surface * uu = sdlutil::LoadImage(TILEUTIL_FILE);
+  SDL_Surface *uu = sdlutil::LoadImage(TILEUTIL_FILE);
   if (!uu) return 0;
 
   /* XXX make dim levels for font too (pass in argument) */
@@ -103,11 +103,11 @@ void drawing::destroyimages() {
 void drawing::drawguy(dir d,
 		      int sx, int sy,
 		      int zoomfactor,
-		      SDL_Surface * surf, bool dead) {
+		      SDL_Surface *surf, bool dead) {
 
   if (!surf) surf = screen;
 
-  SDL_Surface * s = 0;
+  SDL_Surface *s = 0;
 
   if (dead && !zoomfactor) {
     /* just one dead frame */
@@ -132,12 +132,12 @@ void drawing::drawguy(dir d,
 void drawing::drawbot(bot b, dir d,
 		      int sx, int sy,
 		      int zoomfactor,
-		      SDL_Surface * surf,
+		      SDL_Surface *surf,
 		      int data) {
 
   if (!surf) surf = screen;
 
-  SDL_Surface * s = 0;
+  SDL_Surface *s = 0;
   int overlapy = 0;
 
   switch (b) {
@@ -215,7 +215,7 @@ void drawing::drawbot(bot b, dir d,
 }
 
 void drawing::drawtile(int px, int py, int tl, int zf, 
-		       SDL_Surface * surf, bool dim) {
+		       SDL_Surface *surf, bool dim) {
   
   if (!surf) surf = screen;
 
@@ -234,7 +234,7 @@ void drawing::drawtile(int px, int py, int tl, int zf,
 }
 
 void drawing::drawtileu(int px, int py, int tl, int zf,
-			SDL_Surface * surf) {
+			SDL_Surface *surf) {
   
   if (!surf) surf = screen;
 
@@ -321,7 +321,7 @@ static int ydepth_compare(const void * l, const void * r) {
 }
 
 void drawing::drawlev(int layer, /* dir facing, */
-		      SDL_Surface * surf, bool dim) {
+		      SDL_Surface *surf, bool dim) {
 
   if (!surf) surf = screen;
 
@@ -501,7 +501,7 @@ void drawing::drawlev(int layer, /* dir facing, */
 
 }
 
-void drawing::drawextra(SDL_Surface * surf) {
+void drawing::drawextra(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   if (!zoomfactor) {
@@ -515,7 +515,7 @@ void drawing::drawextra(SDL_Surface * surf) {
   }
 }
 
-void drawing::drawbotnums(SDL_Surface * surf) {
+void drawing::drawbotnums(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   if (!zoomfactor) {
@@ -534,7 +534,7 @@ void drawing::drawbotnums(SDL_Surface * surf) {
   }
 }
 
-void drawing::drawdests(SDL_Surface * surf, bool shuffle) {
+void drawing::drawdests(SDL_Surface *surf, bool shuffle) {
   if (!surf) surf = screen;
 
   sdlutil::slock(surf);

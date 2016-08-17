@@ -136,7 +136,7 @@ string readfile(string s) {
   if (util::isdir(s)) return "";
   if (s == "") return "";
 
-  FILE * f = fopen(s.c_str(), "rb");
+  FILE *f = fopen(s.c_str(), "rb");
 
   if (!f) return "";
   fseek(f, 0, SEEK_END);
@@ -154,7 +154,7 @@ string readfile(string s) {
   return ret;
 }
 
-static bool hasmagicf(FILE * f, const string & mag) {
+static bool hasmagicf(FILE *f, const string & mag) {
   char * hdr = (char*)malloc(mag.length());
   if (!hdr) return false;
 
@@ -176,7 +176,7 @@ static bool hasmagicf(FILE * f, const string & mag) {
 }
 
 bool util::hasmagic(string s, const string &mag) {
-  FILE * f = fopen(s.c_str(), "rb");
+  FILE *f = fopen(s.c_str(), "rb");
   if (!f) return false;
 
   bool hm = hasmagicf(f, mag);
@@ -194,7 +194,7 @@ string util::readfilemagic(string s, const string &mag) {
   /* PERF try this: and see! */
   // printf("Readfile '%s'\n", s.c_str());
 
-  FILE * f = fopen(s.c_str(), "rb");
+  FILE *f = fopen(s.c_str(), "rb");
 
   if (!f) return "";
 
@@ -223,7 +223,7 @@ string util::readfilemagic(string s, const string &mag) {
 
 bool writefile(string fn, string s) {
 
-  FILE * f = fopen(fn.c_str(), "wb");
+  FILE *f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
   /* XXX check failure */
@@ -364,7 +364,7 @@ int util::stoi(string s) {
 
 /* XXX race. should use creat
    with O_EXCL on unix, at least. */
-FILE * util::open_new(string fname) {
+FILE *util::open_new(string fname) {
   if (!existsfile(fname))
     return fopen(fname.c_str(), "wb+");
   else return 0;
@@ -385,7 +385,7 @@ string util::getline(string & chunk) {
 }
 
 /* PERF */
-string util::fgetline(FILE * f) {
+string util::fgetline(FILE *f) {
   string out;
   int c;
   while ( (c = fgetc(f)), ((c != EOF) && (c != '\n')) ) {
@@ -703,9 +703,9 @@ bool util::move(string src, string dst) {
 
 
 bool util::copy(string src, string dst) {
-  FILE * s = fopen(src.c_str(), "rb");
+  FILE *s = fopen(src.c_str(), "rb");
   if (!s) return false;
-  FILE * d = fopen(dst.c_str(), "wb+");
+  FILE *d = fopen(dst.c_str(), "wb+");
   if (!d) { fclose(s); return false; }
 
   char buf[256];
@@ -778,7 +778,7 @@ void util::createpathfor(string f) {
   }
 }
 
-FILE * util::fopenp(string f, string m) {
+FILE *util::fopenp(string f, string m) {
   createpathfor(f);
   return fopen(f.c_str(), m.c_str());
 }

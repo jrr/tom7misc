@@ -16,6 +16,8 @@
 #define UNSUBMARKER "unsubscribed"
 #define SHOWRATE 500
 
+namespace {
+
 /* result of checkcollections */
 enum ccresult {
   CC_FAIL, CC_OK,
@@ -25,9 +27,9 @@ enum selresult {
   SR_FAIL, SR_OK,
 };
 
-struct updatereal : public updater {
+struct Updater_ : public Updater {
 
-  static updatereal * create(Player *p);
+  static Updater_ * create(Player *p);
 
   updateresult update(string & msg);
 
@@ -36,7 +38,7 @@ struct updatereal : public updater {
     delete this;
   }
 
-  virtual ~updatereal() {}
+  virtual ~Updater_() {}
 
   virtual void draw();
   virtual void screenresize();
@@ -60,7 +62,7 @@ struct updatereal : public updater {
 
   TextScroll *tx;
 
-  ccresult checkcolls(http * hh, 
+  ccresult checkcolls(HTTP * hh, 
 		      stringlist *& fnames, 
 		      stringlist *& shownames);
 
@@ -68,7 +70,7 @@ struct updatereal : public updater {
 			stringlist * shownames,
 			stringlist *&, stringlist *&);
 
-  void updatecoll(http * hh, string fname, string showname); 
+  void updatecoll(HTTP * hh, string fname, string showname); 
 
 };
 
@@ -148,12 +150,8 @@ inputresult subtoggle::key(SDL_Event e) {
 
 }
 
-updater * updater::create(Player *p) {
-  return updatereal::create(p);
-}
-
-updatereal * updatereal::create(Player *p) {
-  updatereal * uu = new updatereal();
+Updater_ * Updater_::create(Player *p) {
+  Updater_ * uu = new Updater_();
   uu->tx = TextScroll::create(fonsmall);
   uu->tx->posx = 5;
   uu->tx->posy = 5;
@@ -164,7 +162,7 @@ updatereal * updatereal::create(Player *p) {
   return uu;
 }
 
-void updatereal::redraw() {
+void Updater_::redraw() {
   draw();
   SDL_Flip(screen);
 }
@@ -172,7 +170,7 @@ void updatereal::redraw() {
 /* return the available collections. 
    (by adding items to fnames, shownames)
 */
-ccresult updatereal::checkcolls(http * hh, 
+ccresult Updater_::checkcolls(HTTP * hh, 
 				stringlist *& fnames, 
 				stringlist *& shownames) {
   /* first, grab COLLECTIONS. */
@@ -225,7 +223,7 @@ ccresult updatereal::checkcolls(http * hh,
 
 /* invt: length(fnames) > 0 */
    
-selresult updatereal::selectcolls(stringlist * fnames, 
+selresult Updater_::selectcolls(stringlist * fnames, 
 				  stringlist * shownames,
 				  stringlist *& subsf,
 				  stringlist *& subss) {
@@ -314,7 +312,7 @@ selresult updatereal::selectcolls(stringlist * fnames,
 }
 
 /* update a single collection "fname" using http connection hh. */
-void updatereal::updatecoll(http * hh, string fname, string showname) {
+void Updater_::updatecoll(HTTP * hh, string fname, string showname) {
 
   say("");
   say((string)"Updating " BLUE + showname + (string)POP " (" YELLOW +
@@ -458,19 +456,19 @@ void updatereal::updatecoll(http * hh, string fname, string showname) {
 }
 
 /* very similar to upgrade... maybe abstract it? */
-updateresult updatereal::update(string & msg) {
+updateresult Updater_::update(string & msg) {
 
   /* always cancel the hint */
   handhold::did_update();
 
-  http * hh = Client::connect(plr, tx, this);
+  HTTP * hh = Client::connect(plr, tx, this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
     return UD_FAIL;
   }
 
-  Extent<http> eh(hh);
+  Extent<HTTP> eh(hh);
 
   stringlist * fnames = 0;
   stringlist * shownames = 0;
@@ -529,11 +527,17 @@ updateresult updatereal::update(string & msg) {
   return UD_SUCCESS;
 }
 
-void updatereal::screenresize() {
+void Updater_::screenresize() {
   /* XXX resize tx */
 }
 
-void updatereal::draw() {
+void Updater_::draw() {
   sdlutil::clearsurface(screen, BGCOLOR);
   tx->draw();
+}
+
+}  // namespace
+
+Updater *Updater::create(Player *p) {
+  return Updater_::create(p);
 }

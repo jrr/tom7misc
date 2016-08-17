@@ -7,11 +7,12 @@
 #include "../cc-lib/md5.h"
 #include "optimize.h"
 
-struct ulreal : public upload {
-  static ulreal * create();
-  ~ulreal() override {}
+namespace {
 
-  upresult up(Player *p, string file, string) override;
+struct Upload_ : public Upload {
+  static Upload_ *Create();
+
+  UploadResult Up(Player *p, string file, string) override;
 
   void redraw() {
     draw();
@@ -25,9 +26,8 @@ struct ulreal : public upload {
     }
   }
 
-  void destroy() override {
+  ~Upload_() override {
     if (tx) tx->destroy();
-    delete this;
   }
 
   TextScroll *tx;
@@ -35,31 +35,23 @@ struct ulreal : public upload {
 
   void draw() override;
   void screenresize() override;
-
 };
 
-upload * upload::create() {
-  return ulreal::create();
-}
-
-ulreal * ulreal::create() {
-  ulreal * ur = new ulreal();
-  if (!ur) return 0;
-  Extent<ulreal> eu(ur);
+Upload_ * Upload_::Create() {
+  std::unique_ptr<Upload_> ur{new Upload_};
 
   ur->tx = TextScroll::create(fon);
-  if (!ur->tx) return 0;
+  if (!ur->tx) return nullptr;
 
   ur->tx->posx = 5;
   ur->tx->posy = 5;
   ur->tx->width = screen->w - 10;
   ur->tx->height = screen->h - 10;
 
-  eu.release();
-  return ur;
+  return ur.release();
 }
 
-upresult ulreal::up(Player *p, string f, string text) {
+UploadResult Upload_::Up(Player *p, string f, string text) {
   redraw();
 
   string levcont = util::readfilemagic(f, LEVELMAGIC);
@@ -67,7 +59,7 @@ upresult ulreal::up(Player *p, string f, string text) {
   plr = p;
 
   Level *lev = Level::fromstring(levcont);
-  if (!lev) return UL_FAIL;
+  if (!lev) return UploadResult::FAIL;
 
   Extent<Level> el(lev);
   
@@ -78,7 +70,7 @@ upresult ulreal::up(Player *p, string f, string text) {
   Solution *slong;
   if (! ((slong = plr->getsol(md5c)) && 
       Level::verify(lev, slong)))
-    return UL_FAIL; /* no solution?? */
+    return UploadResult::FAIL; /* no solution?? */
 
   say(GREEN "Level and solution ok." POP);
   say("Optimizing...");
@@ -86,16 +78,16 @@ upresult ulreal::up(Player *p, string f, string text) {
   Solution *opt = Optimize::opt(lev, slong);
   if (!opt) {
     say(RED "optimization failed" POP);
-    return UL_FAIL;
+    return UploadResult::FAIL;
   }
   Extent<Solution> es(opt);
 
   say(YELLOW + itos(slong->length) + GREY " " LRARROW " " POP +
       itos(opt->length) + POP);
 
-  http * hh = Client::connect(plr, tx, this);
+  HTTP * hh = Client::connect(plr, tx, this);
 
-  if (!hh) return UL_FAIL;
+  if (!hh) return UploadResult::FAIL;
 
   string solcont = opt->tostring();
 
@@ -118,24 +110,30 @@ upresult ulreal::up(Player *p, string f, string text) {
 		   "OK", "", PICS THUMBICON);
     formalist::diminish(fl);
 
-    return UL_OK;
+    return UploadResult::OK;
   } else {
-    Message::no(this, RED "upload failed: " + 
+    Message::no(this, RED "Upload failed: " + 
 		out + POP);
     formalist::diminish(fl);
 
-    return UL_FAIL;
+    return UploadResult::FAIL;
   }
 
 }
 
-void ulreal::screenresize() {
+void Upload_::screenresize() {
   /* XXX resize */
 }
 
-void ulreal::draw() {
+void Upload_::draw() {
   sdlutil::clearsurface(screen, BGCOLOR);
   tx->draw();
 }
 
-upload::~upload() {}
+}  // namespace
+
+Upload::~Upload() {}
+
+Upload * Upload::Create() {
+  return Upload_::Create();
+}

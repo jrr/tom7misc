@@ -5,7 +5,6 @@
 #include "escapex.h"
 
 struct TextScroll : public Drawable {
-  
   int posx;
   int posy;
 
@@ -22,10 +21,10 @@ struct TextScroll : public Drawable {
   virtual void unsay() = 0;
 
   /* for Drawable interface */
-  virtual void draw() = 0;
-  virtual void screenresize() = 0;
+  void draw() override = 0;
+  void screenresize() override = 0;
   
-  virtual void drawto(SDL_Surface * surf = 0) = 0;
+  virtual void drawto(SDL_Surface *surf = 0) = 0;
 
   virtual ~TextScroll();
 };

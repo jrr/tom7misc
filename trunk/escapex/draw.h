@@ -118,31 +118,31 @@ struct drawing {
   static void drawguy(dir d,
 		      int sx, int sy,
 		      int zoomfactor,
-		      SDL_Surface * surf = 0, bool dead = false);
+		      SDL_Surface *surf = 0, bool dead = false);
 
   static void drawbot(bot b,
 		      dir d,
 		      int sx, int sy,
 		      int zoomfactor,
-		      SDL_Surface * surf = 0, 
+		      SDL_Surface *surf = 0, 
 		      int data = -1);
 
   /* if surface isn't supplied, then draw to screen. */
   static void drawtile(int px, int py, int tl, int zfactor = 0, 
-		       SDL_Surface * surf = 0, bool dim = false);
+		       SDL_Surface *surf = 0, bool dim = false);
   static void drawtileu(int px, int py, int tl, int zf = 0,
-			SDL_Surface * surf = 0);
+			SDL_Surface *surf = 0);
 
   void drawlev(int layer = 0,
-	       SDL_Surface * surf = 0, bool dim = false);
+	       SDL_Surface *surf = 0, bool dim = false);
 
   /* title, message, etc */
-  void drawextra(SDL_Surface * surf = 0);
+  void drawextra(SDL_Surface *surf = 0);
 
   /* debugging/editor/cheat */
-  void drawdests(SDL_Surface * surf = 0, bool shuffle = false);
+  void drawdests(SDL_Surface *surf = 0, bool shuffle = false);
   
-  void drawbotnums(SDL_Surface * surf = 0);
+  void drawbotnums(SDL_Surface *surf = 0);
 
   /* make sure the scroll doesn't waste space by
      drawing nothing when it could be drawing

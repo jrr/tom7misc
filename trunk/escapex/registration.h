@@ -6,20 +6,16 @@
 #include "escapex.h"
 #include "player.h"
 
-struct registration : public Drawable {
-  
-  static registration * create (Player *p);
+struct Registration : public Drawable {
+  static Registration *Create(Player *p);
 
   /* modifies p->webid to nonzero if successful */
   virtual void registrate() = 0;
 
-  virtual ~registration() {}
+  virtual ~Registration() {}
 
-  virtual void draw() = 0;
-  virtual void screenresize() = 0;
-
-  virtual void destroy() = 0;
-
+  void draw() override = 0;
+  void screenresize() override = 0;
 };
 
 #endif

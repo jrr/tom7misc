@@ -26,8 +26,8 @@
 #define HTTP_DEBUGFILE "netdebug.txt"
 
 struct Client {
-  static http * connect(Player *plr, TextScroll *tx, Drawable *that) {
-    http * hh = http::create();
+  static HTTP * connect(Player *plr, TextScroll *tx, Drawable *that) {
+    HTTP * hh = HTTP::create();
 
     if (prefs::getbool(plr, PREF_DEBUG_NET)) 
       hh->log_message = debug_log_message;
@@ -42,7 +42,7 @@ struct Client {
       return 0;
     }
 
-    ::Extent<http> eh(hh);
+    ::Extent<HTTP> eh(hh);
 
     string ua = "Escape (" VERSION "; " PLATFORM ")";
     if (tx) tx->say((string)"This is: " + ua);
@@ -73,7 +73,7 @@ struct Client {
   static bool quick_rpc(Player *, string path, string query, string & ret);
 
   /* true on success */
-  static bool rpc(http * hh, string path, string query, string & ret) {
+  static bool rpc(HTTP * hh, string path, string query, string & ret) {
     string m;
     httpresult hr = hh->get(path + (string)"?" + query, m);
     
@@ -98,7 +98,7 @@ struct Client {
 
   }
 
-  static bool rpcput(http * hh, string path, formalist * fl, string & ret) {
+  static bool rpcput(HTTP * hh, string path, formalist * fl, string & ret) {
     string m;
     httpresult hr = hh->put(path, fl, m);
     
@@ -128,7 +128,7 @@ struct Client {
   }
 
   static void debug_log_message(const string & s) {
-    FILE * f = fopen(HTTP_DEBUGFILE, "a");
+    FILE *f = fopen(HTTP_DEBUGFILE, "a");
 
     if (f) {
       fprintf(f, "%s", s.c_str());

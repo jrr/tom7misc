@@ -453,7 +453,7 @@ bool playerreal::writef(string file) {
 }
 
 bool playerreal::writef_text(string file) {
-  FILE * f = fopen(file.c_str(), "wb");
+  FILE *f = fopen(file.c_str(), "wb");
 
   if (!f) return 0;
 
