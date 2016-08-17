@@ -6,12 +6,6 @@
 # before you run make, or nothing will happen. See HACKING for
 # more information on compiling escape.
 
-# XXX can remove sdl_image on other platforms too.
-# XXX need to use cc-lib version of sdlutil.o
-# XXX also remove libpng!
-
-
-
 # -------------------------------------------------------------------
 
 ifdef LINUX
@@ -79,7 +73,7 @@ version : .dummy
 
 LIBFILES=libogg.so.0 libSDL-1.2.so.0 libSDL_net-1.2.so.0 libvorbisfile.so.3 libvorbis.so.0 libartsc.so.0 libesd.so.0
 
-# XXX Unfortunately, no machine on which to build linux binaries in 2010.
+# XXX Unfortunately, no machine on which to build linux binaries in 2010. (VMware?)
 RELEASEFILES=
 # RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png ${LIBFILES}
 
@@ -173,7 +167,7 @@ RPATH=-rpath @executable_path/../Frameworks
 # sound is disabled, but it's time to make it available on the OS X
 # release. Do this!
 # to add it, remove -DNOSOUND and add
-# -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers
+# 
 # to CPPFLAGS and add
 #  -framework SDL_mixer
 # to the g++ line linking below
@@ -184,7 +178,7 @@ CXXFLAGS=-std=c++14
 # directory called "SDL", since some frameworks want to include like
 # <SDL/sdl.h>. (is it just the now-deleted sdl_image, though?) Don't
 # know what the right fix is.
-CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX -DNOSOUND=1
+CPPFLAGS= -arch x86_64 -I. -I/usr/local/include -I${FRAMEWORKS}/SDL.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_net.framework/Versions/Current/Headers -I${FRAMEWORKS}/SDL_mixer.framework/Versions/Current/Headers -D_THREAD_SAFE -DOSX
 
 # XXX Suppress warning in SDL-supplied .m file, but should figure out what's going on here.
 CFLAGS=-Wno-objc-protocol-method-implementation
@@ -197,13 +191,13 @@ CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdl
 
 escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
+	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
 # XXX this would allow us to build "Screenshot.app", but we should
 # figure out some other approach for command-line tools.
 screenshot.exe : sdlmain.o draw.o screenshot.o escapex.o level.o util.o animation.o message.o progress.o sound.o font.o drawable.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
-	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o $@
+	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o $@
 
 .dummy :
 
@@ -220,9 +214,6 @@ mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
 
 releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx
-	# echo OSX_build/Frameworks/SDL_mixer.framework/SDL_mixer >> releasefiles.osx
-	# echo OSX_build/Frameworks/SDL_mixer.framework/Resources/Info.plist >> releasefiles.osx
-	# echo OSX_build/Frameworks/SDL_mixer.framework/Resources/pbdevelopment.plist >> releasefiles.osx
 
 UPGRADE : .dummy mkupgrade.exe releasefiles.osx symlinks.osx deletefiles.osx
 	strip escape.exe
@@ -233,9 +224,6 @@ release : UPGRADE
 	rm -rf ../release
 	mkdir ../release
 	cp ${RELEASEFILES} CURRENT UPGRADE ../release/
-	# cp OSX_build/Frameworks/SDL_mixer.framework/SDL_mixer ../release/OSX_build_Frameworks_SDL_mixer.framework_SDL_mixer
-	# cp OSX_build/Frameworks/SDL_mixer.framework/Resources/Info.plist ../release/OSX_build_Frameworks_SDL_mixer.framework_Resources_Info.plist
-	# cp OSX_build/Frameworks/SDL_mixer.framework/Resources/pbdevelopment.plist ../release/OSX_build_Frameworks_SDL_mixer.framework_Resources_pbdevelopment.plist
 	rm -f UPGRADE CURRENT mkupgrade.executables
 
 releaseup : release
@@ -243,12 +231,7 @@ releaseup : release
 
 zip : escape-beta-osx.zip
 
-# OSX_build goes inside an otherwise empty folder called
-# Escape.app. The folder should be renamed to Contents.
-# inside Contents/MacOS goes all of the regularly distributed
-# files.
-# the folder Escape.app is zipped to produce the result
-
+# XXX Note: in 2016 I didn't need to do this stuff.
 # for some reason frameworks need some redundance built with symlinks
 # XXX give this deps so it knows when to run
 framelinks :
@@ -256,11 +239,17 @@ framelinks :
 	-mkdir OSX_build/Frameworks/SDL.framework/Versions/A
 	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions
 	-mkdir OSX_build/Frameworks/SDL_net.framework/Versions/A
-	# -mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions
-	# -mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions/A
+	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions
+	-mkdir OSX_build/Frameworks/SDL_mixer.framework/Versions/A
 	cd OSX_build/Frameworks/SDL.framework/Versions/A && ln -s ../../SDL SDL && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
 	cd OSX_build/Frameworks/SDL_net.framework/Versions/A && ln -s ../../SDL_net SDL_net && ln -s ../../Headers Headers && ln -s ../../Resources Resources && cd .. && ln -s A Current
 
+
+# OSX_build goes inside an otherwise empty folder called
+# Escape.app. The folder should be renamed to Contents.
+# inside Contents/MacOS goes all of the regularly distributed
+# files.
+# the folder Escape.app is zipped to produce the result
 app : escape.exe
 	rm -rf /tmp/Escape.app
 	rm -f /tmp/escape-beta-osx.zip
@@ -277,11 +266,10 @@ app : escape.exe
 	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build
 	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks
 	# rm -rf /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
-	# ln -s ../MacOS/OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
 	# cp -R OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks/
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL.framework/Headers/*.h
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_net.framework/Headers/*.h
-	# rm -f /tmp/Escape.app/Contents/MacOS/OSX_build/SDL_mixer.framework/Headers/*.h
+	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework/Headers/*.h
 	rm -rf `find /tmp/Escape.app -name CVS`
 	rm -rf `find /tmp/Escape.app -name .svn`
 	rm -rf `find /tmp/Escape.app -name .DS_Store`

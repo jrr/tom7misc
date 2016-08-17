@@ -51,6 +51,10 @@ You may need to:
   - Make a symlink from SDL OSX_build/Frameworks/SDL.framework/Versions/A/Headers
     because some other SDL libraries expect to be able to include
     SDL headers as "SDL/SDL_endian.h" etc.
+  - Run something like
+      find . | xattr -d com.apple.quarantine
+    in order to remove the quarantine bits from downloaded frameworks
+    before distributing the app.
 
 The command "make desktop" makes Escape.app and puts it on the desktop;
 this is how I usually develop there.
