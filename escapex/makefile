@@ -231,7 +231,8 @@ releaseup : release
 
 zip : escape-beta-osx.zip
 
-# XXX Note: in 2016 I didn't need to do this stuff.
+# XXX Note: in 2016 I didn't need to do this stuff; svn seems to handle
+# symlinks correctly.
 # for some reason frameworks need some redundance built with symlinks
 # XXX give this deps so it knows when to run
 framelinks :
@@ -265,8 +266,6 @@ app : escape.exe
 	cp mylevels/index.esi /tmp/Escape.app/Contents/MacOS/mylevels/
 	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build
 	mkdir /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks
-	# rm -rf /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework
-	# cp -R OSX_build/Frameworks/SDL_mixer.framework /tmp/Escape.app/Contents/MacOS/OSX_build/Frameworks/
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL.framework/Headers/*.h
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_net.framework/Headers/*.h
 	rm -f /tmp/Escape.app/Contents/Frameworks/SDL_mixer.framework/Headers/*.h
