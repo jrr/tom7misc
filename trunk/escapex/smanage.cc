@@ -242,7 +242,7 @@ void smanage::promptupload(Drawable *below,
   cancel can;
   can.text = "Cancel";
   
-  PtrList<MenuItem> * l = 0;
+  PtrList<MenuItem> *l = 0;
 
   PtrList<MenuItem>::push(l, &can);
   PtrList<MenuItem>::push(l, &ok);

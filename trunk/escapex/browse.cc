@@ -446,7 +446,7 @@ loadlevelreal * loadlevelreal::create(Player *p, string default_dir,
   DBTIME_INIT;
 
   loadlevelreal * ll = new loadlevelreal();
-  ll->cache = dircache::create(p);
+  ll->cache = DirCache::create(p);
   if (!ll->cache) return 0;
   
   DBTIME("created dircache");
@@ -587,7 +587,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
   /* get (just) the index for this dir, which allows us to
      look up ratings. note that there may be no index. */
-  dirindex * thisindex = 0;
+  DirIndex * thisindex = 0;
   cache->getidx(where, thisindex);
 
 
@@ -630,7 +630,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	  i++;
 	} else {
 	  int ttt, sss;
-	  dirindex * iii = 0;
+	  DirIndex * iii = 0;
 
 	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
 	  if (cache->get(ldn, iii, ttt, sss, progress::drawbar,

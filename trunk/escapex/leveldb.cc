@@ -39,7 +39,7 @@ static int filequeue_size = 0;
 
 /* loaded levels waiting to be added into the database
    (need to verify solutions), etc. */
-static PtrList<levelwait> * levelqueue = 0;
+static PtrList<levelwait> *levelqueue = 0;
 static int levelqueue_size = 0;
 
 /* All levels that we've loaded, as a map from MD5 to the level

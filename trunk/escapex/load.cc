@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <memory>
 
 #include "directories.h"
 
@@ -16,7 +17,7 @@
 #include "util.h"
 #include "chars.h"
 
-#include "Message.h"
+#include "message.h"
 #include "upload.h"
 #include "prompt.h"
 
@@ -70,7 +71,7 @@ struct llentry {
 
   /* always owned by player; don't free */
   rating * myrating;
-  ratestatus votes;
+  RateStatus votes;
   int date;
   int speedrecord;
   bool owned;
@@ -285,14 +286,15 @@ struct loadlevelreal : public loadlevel {
   virtual void destroy() {
     if (showlev) showlev->destroy();
     sel->destroy();
-    if (cache) cache->destroy();
     while (path) stringpop(path);
     delete this;
   }
 
   virtual bool first_unsolved(string & file, string & title);
 
-  virtual ~loadlevelreal() {}
+  virtual ~loadlevelreal() {
+
+  }
 
   virtual string selectlevel();
   
@@ -347,7 +349,7 @@ struct loadlevelreal : public loadlevel {
 
   static sortstyle sortby;
 
-  struct dircache * cache;
+  std::unique_ptr<DirCache> cache;
 
   Player *plr;
   bool allow_corrupted;
@@ -564,14 +566,14 @@ bool loadlevelreal::first_unsolved(string & file, string & title) {
 #  define DBTIME(s) ;
 #endif
 
-loadlevelreal * loadlevelreal::create(Player *p, string default_dir,
-				      bool inexact,
-				      bool allow_corrupted_) {
+loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
+				     bool inexact,
+				     bool allow_corrupted_) {
   DBTIME_INIT;
 
   loadlevelreal * ll = new loadlevelreal();
-  ll->cache = dircache::create(p);
-  if (!ll->cache) return 0;
+  ll->cache.reset(DirCache::Create(p));
+  if (!ll->cache.get()) return nullptr;
   
   DBTIME("created dircache");
 
@@ -716,7 +718,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
   /* get (just) the index for this dir, which allows us to
      look up ratings. note that there may be no index. */
-  dirindex * thisindex = 0;
+  DirIndex * thisindex = 0;
   cache->getidx(where, thisindex);
 
 
@@ -759,11 +761,11 @@ int loadlevelreal::changedir(string what, bool remember) {
 	  i++;
 	} else {
 	  int ttt, sss;
-	  dirindex * iii = 0;
+	  DirIndex * iii = 0;
 
 	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
 	  if (cache->get(ldn, iii, ttt, sss, progress::drawbar,
-			 (void*) &dcp)) {
+			 (void *)&dcp)) {
 
 	    /* only show if it has levels,
 	       or at least has an index 
@@ -984,16 +986,14 @@ void loadlevelreal::drawsmall() {
 
 void loadlevelreal::solvefrombookmarks(const string &filename,
 				       bool wholedir) {
-  Player *rp = Player::fromfile(filename);
-  if (!rp) {
+  std::unique_ptr<Player> rp{Player::FromFile(filename)};
+  if (!rp.get()) {
     Message::quick(this, 
 		   "Couldn't open/understand that player file.",
 		   "OK", "", PICS XICON POP);
     sel->redraw();
     return;
   }
-
-  Extent<Player> erp(rp);
 
   int nsolved = 0;
 
@@ -1022,7 +1022,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
       done++;
 
       /* check every solution in rp. */
-      PtrList<Solution> * all = rp->all_solutions();
+      PtrList<Solution> *all = rp->all_solutions();
 
       /* we don't need to delete these solutions */
       int snn = 0;
@@ -1186,7 +1186,7 @@ string loadlevelreal::loop() {
 	      cancel can;
 	      can.text = "Cancel";
 	      
-	      PtrList<MenuItem> * l = 0;
+	      PtrList<MenuItem> *l = 0;
 	      
 	      PtrList<MenuItem>::push(l, &can);
 	      PtrList<MenuItem>::push(l, &ok);
@@ -1486,7 +1486,7 @@ string loadlevelreal::loop() {
 	    cancel can;
 	    can.text = "Cancel";
 
-	    PtrList<MenuItem> * l = 0;
+	    PtrList<MenuItem> *l = 0;
 
 	    PtrList<MenuItem>::push(l, &can);
 	    PtrList<MenuItem>::push(l, &spacer);
@@ -1567,7 +1567,7 @@ string loadlevelreal::loop() {
 		cancel can;
 		can.text = "Cancel";
 	      
-		PtrList<MenuItem> * l = 0;
+		PtrList<MenuItem> *l = 0;
 	      
 		PtrList<MenuItem>::push(l, &can);
 		PtrList<MenuItem>::push(l, &ok);

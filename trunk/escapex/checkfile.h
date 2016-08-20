@@ -14,7 +14,7 @@ struct CheckFile {
   bool read(unsigned int bytes, string & s) {
     /* fread stupidly *fails* if the size is 0 */
     if (bytes == 0) return "";
-    char * r = new char[bytes];
+    char *r = new char[bytes];
     string ss(bytes, '*');
     if (fread(r, bytes, 1, ff) == 1) {
       for (unsigned int i = 0; i < bytes; i++) ss[i] = r[i];

@@ -45,7 +45,7 @@ struct playresult {
 
 struct play : public Drawable {
   static play * create();
-  virtual playresult doplay_save(Player *, Level *, Solution *& saved, string md5) = 0;
+  virtual playresult doplay_save(Player *, Level *, Solution *&saved, string md5) = 0;
   virtual playresult doplay(Player *plr, Level *lev, string md5) {
     Solution *unused = 0;
     playresult res = doplay_save(plr, lev, unused, md5);

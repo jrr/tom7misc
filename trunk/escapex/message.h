@@ -25,7 +25,7 @@ struct Message : public Drawable {
 
   /* ok: true
      cancel: false */
-  virtual bool ask(char * actualchar = 0,
+  virtual bool ask(char *actualchar = 0,
 		   string charspec = "") = 0;
 
   virtual void draw() = 0;
@@ -35,7 +35,7 @@ struct Message : public Drawable {
   static bool quick(Drawable *bbelow, string ttitle,
 		    string ook, string ccancel, 
 		    string icon = PICS EXCICON POP,
-		    char * actualchar = 0,
+		    char *actualchar = 0,
 		    string charspec = "") {
     Message * m = Message::create();
     m->below = bbelow;
@@ -53,7 +53,7 @@ struct Message : public Drawable {
 		     string ttitle,
 		     string ook, string ccancel, 
 		     string icon = PICS EXCICON POP,
-		     char * actualchar = 0,
+		     char *actualchar = 0,
 		     string charspec = "") {
     Message * m = Message::create();
     m->below = bbelow;
@@ -72,7 +72,7 @@ struct Message : public Drawable {
 			string ook, string ccancel, 
 			string icon = PICS EXCICON POP);
 
-  static bool bug(Drawable *bbelow, string ttitle, char * actualchar = 0,
+  static bool bug(Drawable *bbelow, string ttitle, char *actualchar = 0,
 		  string charspec = "") {
     printf("Bug: %s\n", ttitle.c_str());
     Message * m = Message::create();
@@ -88,7 +88,7 @@ struct Message : public Drawable {
     return x;
   }
 
-  static bool no(Drawable *bbelow, string ttitle, char * actualchar = 0,
+  static bool no(Drawable *bbelow, string ttitle, char *actualchar = 0,
 		 string charspec = "") {
     Message * m = Message::create();
     m->below = bbelow;

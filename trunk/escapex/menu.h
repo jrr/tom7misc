@@ -107,17 +107,17 @@ struct textbox : public MenuItem {
   /* we use a "red sea" implementation, where the cursor
      is the cleaving, and we insert new chars onto the head
      of before (which appears in reverse order) */
-  vallist<char> * before;
-  vallist<char> * after;
+  vallist<char> *before;
+  vallist<char> *after;
 
   int charsw, charsh;
 
   /* destroys before, after */
   void empty();
 
-  string prevline(vallist<char> *& bb);
-  string nextword(vallist<char> *& aa);
-  string popword(vallist<char> *& bb, char & p);
+  string prevline(vallist<char> *&bb);
+  string nextword(vallist<char> *&aa);
+  string popword(vallist<char> *&bb, char & p);
   void addstring(string);
   void type(char);
   void left(bool erasing);
@@ -125,7 +125,7 @@ struct textbox : public MenuItem {
   void up();
   void down();
   void right(bool erasing);
-  int  countprevline(vallist<char> *& bb);
+  int  countprevline(vallist<char> *&bb);
 };
 
 /* unselectable labels */
@@ -314,7 +314,7 @@ struct menu : public Drawable {
      or the list cells */
   static menu * create(Drawable *below,
                        string title,
-                       PtrList<MenuItem> * items,
+                       PtrList<MenuItem> *items,
                        bool fullscreen);
 
   virtual void draw();
@@ -353,7 +353,7 @@ struct menu : public Drawable {
   Drawable *below;
   string title;
   int nitems;
-  MenuItem ** items;
+  MenuItem **items;
   bool fullscreen;
   int selected;
   int skip;

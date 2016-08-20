@@ -156,7 +156,7 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
   Solution *cf = Solution::empty();
   
   Solution::iter i(s);
-  hashtable<lstate, Uint64> * ht = hashtable<lstate, Uint64>::create(1023);
+  hashtable<lstate, Uint64> *ht = hashtable<lstate, Uint64>::create(1023);
   Extent<hashtable<lstate, Uint64>> eh(ht);
 
   /* insert initial state */

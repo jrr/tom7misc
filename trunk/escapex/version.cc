@@ -19,7 +19,7 @@ static string itos(int i) {
   return (string)s;
 }
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
   char buf[256];
 
   const time_t t = time(nullptr);

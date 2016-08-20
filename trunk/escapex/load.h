@@ -10,7 +10,6 @@
 
 /* abstract interface */
 struct loadlevel : public Drawable {
-
   virtual ~loadlevel();
   virtual void destroy() = 0;
 

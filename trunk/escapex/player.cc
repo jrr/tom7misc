@@ -26,6 +26,7 @@ static constexpr int HASHSIZE = 512;
 /* give some leeway for future expansion */
 #define IGNORED_FIELDS 8
 
+// TODO: Maybe namedsolution should be in its own file to simplify player interface.
 NamedSolution *NamedSolution::clone() {
   return new NamedSolution(sol->clone(), name, author, date, bookmark);
 }
@@ -100,67 +101,70 @@ int NamedSolution::compare(NamedSolution *l, NamedSolution *r) {
   return l->tostring().compare(r->tostring());
 }
 
-typedef PtrList<NamedSolution> nslist;
+namespace {
+
+typedef PtrList<NamedSolution> NSList;
 
 struct hashsolsetentry {
   string md5;
-  nslist * solset;
+  NSList *solset;
   static unsigned int hash(string k);
   string key() { return md5; }
   void destroy() { 
-    while (solset) nslist::pop(solset)->destroy();
+    while (solset) NSList::pop(solset)->destroy();
     delete this; 
   }
-  hashsolsetentry(string m, nslist * s) : md5(m), solset(s) {}
-  static int compare(hashsolsetentry * l, hashsolsetentry * r) {
+  hashsolsetentry(string m, NSList *s) : md5(m), solset(s) {}
+  static int compare(hashsolsetentry *l, hashsolsetentry *r) {
     return l->md5.compare(r->md5);
   }
 };
 
 struct hashratentry {
   string md5;
-  rating * rat;
+  rating *rat;
   static unsigned int hash(string k);
   string key() { return md5; }
   void destroy() { rat->destroy(); delete this; }
-  hashratentry(string m, rating * r) : md5(m), rat(r) {}
-  static int compare(hashratentry * l, hashratentry * r) {
+  hashratentry(string m, rating *r) : md5(m), rat(r) {}
+  static int compare(hashratentry *l, hashratentry *r) {
     return l->md5.compare(r->md5);
   }
 };
 
 struct playerreal : public Player {
-
-  void destroy();
-
-  static playerreal * create(string n);
+  static playerreal *Create(const string &n);
 
   Chunks *getchunks() { return ch; }
 
   Solution *getsol(string md5);
 
-  rating * getrating(string md5);
+  rating *getrating(string md5);
   
-  void putrating(string md5, rating * rat);
+  void putrating(string md5, rating *rat);
 
   bool writefile();
 
-  static playerreal * fromfile(string file);
+  static playerreal *FromFile(const string &file);
   /* call with file already open with cursor
      after the player magic. (Also pass filename
      since the player remembers this.)
      caller will close checkfile */
-  static playerreal * fromfile_text(string fname, CheckFile *);
-  static playerreal * fromfile_bin(string, CheckFile *);
+  static playerreal *fromfile_text(string fname, CheckFile *);
+  static playerreal *fromfile_bin(string, CheckFile *);
 
   /* XX this one is wrong now; it returns "levels solved"
      not total number of solutions */
   int num_solutions() { return sotable->items; }
   int num_ratings() { return ratable->items; }
 
-  PtrList<Solution> * all_solutions();
+  PtrList<Solution> *all_solutions();
 
-  virtual ~playerreal() {};
+  virtual ~playerreal() {
+    sotable->destroy();
+    ratable->destroy();
+    if (ch) ch->destroy();
+  };
 
   private:
 
@@ -170,10 +174,10 @@ struct playerreal : public Player {
   bool writef_binary(string);
   bool writef_text(string);
 
-  hashtable<hashsolsetentry, string> * sotable;
-  hashtable<hashratentry, string> * ratable;
+  hashtable<hashsolsetentry, string> *sotable;
+  hashtable<hashratentry, string> *ratable;
 
-  virtual PtrList<NamedSolution> * solutionset(string md5);
+  virtual PtrList<NamedSolution> *solutionset(string md5);
   virtual void setsolutionset(string md5, PtrList<NamedSolution> *);
 
   virtual void addsolution(string md5, NamedSolution *ns, bool def_candidate);
@@ -186,7 +190,7 @@ struct playerreal : public Player {
 bool playerreal::hassolution(string md5, Solution *what) {
   string whats = what->tostring();
 
-  for (nslist * l = solutionset(md5); l; l = l->next) {
+  for (NSList *l = solutionset(md5); l; l = l->next) {
     // printf(" %s == %s ?\n", Base64::Encode(whats).c_str(), (Base64::Encode(l->head->sol->tostring())).c_str());
     if (l->head->sol->tostring() == whats) return true;
   }
@@ -195,13 +199,13 @@ bool playerreal::hassolution(string md5, Solution *what) {
 
 }
 
-PtrList<Solution> * playerreal::all_solutions() {
-  PtrList<Solution> * l = 0;
+PtrList<Solution> *playerreal::all_solutions() {
+  PtrList<Solution> *l = 0;
 
   for (int i = 0; i < sotable->allocated; i++) {
-    PtrList<hashsolsetentry> * col = sotable->data[i];
+    PtrList<hashsolsetentry> *col = sotable->data[i];
     while (col) {
-      nslist * these = col->head->solset;
+      NSList *these = col->head->solset;
       while (these) {
 	l = new PtrList<Solution>(these->head->sol, l);
 	these = these->next;
@@ -222,21 +226,9 @@ unsigned int hashratentry::hash(string k) {
   return *(unsigned int*)(k.c_str());
 }
 
-void playerreal::destroy() {
-  sotable->destroy();
-  ratable->destroy();
-  if (ch) ch->destroy();
-  delete this;
-}
-
-Player *Player::create(string n) {
-  return playerreal::create(n);
-}
-
-playerreal * playerreal::create(string n) {
-  playerreal * p = new playerreal();
-  if (!p) return 0;
-  Extent<playerreal> e(p);
+playerreal *playerreal::Create(const string &n) {
+  std::unique_ptr<playerreal> p{new playerreal()};
+  if (!p.get()) return 0;
   
   p->name = n;
   
@@ -254,16 +246,15 @@ playerreal * playerreal::create(string n) {
   if (!p->ch) return 0;
 
   /* set default preferences */
-  prefs::defaults(p);
+  prefs::defaults(p.get());
 
-  e.release();
-  return p;
+  return p.release();
 }
 
 Solution *playerreal::getsol(string md5) {
-  nslist * l = solutionset(md5);
+  NSList *l = solutionset(md5);
   /* first try to find a non-bookmark Solution */
-  for (nslist * tmp = l; tmp; tmp = tmp->next) {
+  for (NSList *tmp = l; tmp; tmp = tmp->next) {
     if (!tmp->head->bookmark) return tmp->head->sol;
   }
   /* otherwise just return the first bookmark */
@@ -271,8 +262,8 @@ Solution *playerreal::getsol(string md5) {
   else return l->head->sol;
 }
 
-nslist * playerreal::solutionset(string md5) {
-  hashsolsetentry * he = sotable->lookup(md5);
+NSList *playerreal::solutionset(string md5) {
+  hashsolsetentry *he = sotable->lookup(md5);
 
   if (he) return he->solset;
   else return 0;
@@ -280,14 +271,14 @@ nslist * playerreal::solutionset(string md5) {
 
 /* maintain the invariant that if the list exists, it
    is non-empty */
-void playerreal::setsolutionset(string md5, nslist * ss) {
+void playerreal::setsolutionset(string md5, NSList *ss) {
   if (ss) {
-    hashsolsetentry * he = sotable->lookup(md5);
+    hashsolsetentry *he = sotable->lookup(md5);
     if (he) {
-      nslist * old = he->solset;
+      NSList *old = he->solset;
       he->solset = ss;
       /* delete old */
-      while (old) nslist::pop(old)->destroy();
+      while (old) NSList::pop(old)->destroy();
     } else {
       sotable->insert(new hashsolsetentry(md5, ss));
     }
@@ -298,15 +289,15 @@ void playerreal::setsolutionset(string md5, nslist * ss) {
 }
 
 
-rating * playerreal::getrating(string md5) {
-  hashratentry * re = ratable->lookup(md5);
+rating *playerreal::getrating(string md5) {
+  hashratentry *re = ratable->lookup(md5);
   
   if (re) return re->rat;
   else return 0;
 }
 
 void playerreal::addsolution(string md5, NamedSolution *ns, bool def_candidate) {
-  hashsolsetentry * he = sotable->lookup(md5);
+  hashsolsetentry *he = sotable->lookup(md5);
 
   if (he && he->solset) {
 
@@ -322,7 +313,7 @@ void playerreal::addsolution(string md5, NamedSolution *ns, bool def_candidate) 
 
       /* only if it doesn't already exist..? */
 #     if 0
-      for (PtrList<NamedSolution> * tmp = he->solset;
+      for (PtrList<NamedSolution> *tmp = he->solset;
 	   tmp; tmp = tmp->next) {
 
       }
@@ -348,15 +339,15 @@ void playerreal::addsolution(string md5, NamedSolution *ns, bool def_candidate) 
   } else {
     /* there's no solution set; create a new one. */
     NamedSolution *nsmine = ns->clone();
-    nslist * l = new nslist(nsmine, 0);
+    NSList *l = new NSList(nsmine, 0);
 
     sotable->insert(new hashsolsetentry(md5, l));
   }
 }
 
-void playerreal::putrating(string md5, rating * rat) {
+void playerreal::putrating(string md5, rating *rat) {
 
-  hashratentry * re = ratable->lookup(md5);
+  hashratentry *re = ratable->lookup(md5);
 
   if (re && re->rat) {
     /* overwrite */
@@ -376,7 +367,7 @@ string playerreal::backupfile(string fname, int epoch) {
 
 /* get rid of old backups, if any */
 void playerreal::deleteoldbackups() {
-  DIR * dir = opendir(".");
+  DIR *dir = opendir(".");
   if (!dir) return;
 
   /* XX must agree with backupfile */
@@ -388,7 +379,7 @@ void playerreal::deleteoldbackups() {
 #   endif
 	  fname + ".~");
 
-  dirent * de;
+  dirent *de;
   int n = 0;
   int oldest = (time(0) / BACKUP_FREQ) + 1 ;
   while ((de = readdir(dir))) {
@@ -474,7 +465,7 @@ bool playerreal::writef_text(string file) {
   {
   for (int i = 0; i < sotable->allocated; i++) {
     PtrList<hashsolsetentry>::sort(hashsolsetentry::compare, sotable->data[i]);
-    for (PtrList<hashsolsetentry> * tmp = sotable->data[i]; 
+    for (PtrList<hashsolsetentry> *tmp = sotable->data[i]; 
 	tmp; 
 	tmp = tmp->next) {
       fprintf(f, "%s * %s\n", MD5::Ascii(tmp->head->md5).c_str(),
@@ -482,9 +473,9 @@ bool playerreal::writef_text(string file) {
 	      Base64::Encode(tmp->head->solset->head->tostring()).c_str());
       /* followed by perhaps more solutions marked with @ */
       /* sort them first, in place */
-      nslist::sort(NamedSolution::compare, tmp->head->solset->next);
+      NSList::sort(NamedSolution::compare, tmp->head->solset->next);
 
-      for (nslist * rest = tmp->head->solset->next;
+      for (NSList *rest = tmp->head->solset->next;
 	  rest;
 	  rest = rest->next) {
 	fprintf(f, "  %s\n", 
@@ -504,7 +495,7 @@ bool playerreal::writef_text(string file) {
   {
   for (int ii = 0; ii < ratable->allocated; ii++) {
     PtrList<hashratentry>::sort(hashratentry::compare, ratable->data[ii]);
-    for (PtrList<hashratentry> * tmp = ratable->data[ii]; 
+    for (PtrList<hashratentry> *tmp = ratable->data[ii]; 
 	tmp; 
 	tmp = tmp->next) {
       fprintf(f, "%s %s\n",
@@ -524,21 +515,15 @@ bool playerreal::writef_text(string file) {
   return 1;
 }
 
-Player *Player::fromfile(string file) {
-  return playerreal::fromfile(file);
-}
-
 #define FF_FAIL(s) do { printf("Bad player: %s: %s\n", \
 			       fname.c_str(), s);      \
 		        return 0; } while (0)
 // #define FF_FAIL(s) return 0;
 
-playerreal * playerreal::fromfile_text(string fname, CheckFile * cf) {
-
-  playerreal * p = playerreal::create("");
-  if (!p) FF_FAIL("out of memory?");
+playerreal *playerreal::fromfile_text(string fname, CheckFile *cf) {
+  std::unique_ptr<playerreal> p {playerreal::Create("")};
+  if (!p.get()) FF_FAIL("out of memory?");
   p->fname = fname;
-  Extent<playerreal> ep(p);
 
   string s;
 
@@ -580,8 +565,8 @@ playerreal * playerreal::fromfile_text(string fname, CheckFile * cf) {
       NamedSolution *ns = NamedSolution::fromstring(solstring);
       if (!ns) FF_FAIL ("bad namedsolution");
 
-      nslist * solset = new nslist(ns, 0);
-      nslist ** etail = &solset->next;
+      NSList *solset = new NSList(ns, 0);
+      NSList **etail = &solset->next;
       
       /* now, any number of other solutions */
       for (;;) {
@@ -592,7 +577,7 @@ playerreal * playerreal::fromfile_text(string fname, CheckFile * cf) {
 	  NamedSolution *ns = NamedSolution::fromstring(Base64::Decode(tok));
 	  if (!ns) FF_FAIL ("additional solution was bad");
 	  /* and append it */
-	  *etail = new nslist(ns, 0);
+	  *etail = new NSList(ns, 0);
 	  etail = &((*etail)->next);
 	}
       }
@@ -623,7 +608,7 @@ playerreal * playerreal::fromfile_text(string fname, CheckFile * cf) {
     if (!MD5::UnAscii(md, md)) FF_FAIL ("bad rating md5");
 
     string ratstring = Base64::Decode(util::chop(l));
-    rating * rat = rating::fromstring(ratstring);
+    rating *rat = rating::fromstring(ratstring);
 
     if (!rat) FF_FAIL ("bad rating");
 
@@ -639,15 +624,13 @@ playerreal * playerreal::fromfile_text(string fname, CheckFile * cf) {
 
   if (!p->ch) FF_FAIL ("bad prefs");
 
-
-  ep.release();
-  return p;
+  return p.release();
 }
 
 
-playerreal * playerreal::fromfile(string file) {
+playerreal *playerreal::FromFile(const string &file) {
 
-  CheckFile * cf = CheckFile::create(file);
+  CheckFile *cf = CheckFile::create(file);
   if (!cf) return 0;
   Extent<CheckFile> ecf(cf);
 
@@ -661,12 +644,10 @@ playerreal * playerreal::fromfile(string file) {
 }  
 
 /* XXX obsolete -- eventually deprecate and disable this */
-playerreal * playerreal::fromfile_bin(string fname, CheckFile * cf) {
-
-  playerreal * p = playerreal::create("");
-  if (!p) return 0;
+playerreal *playerreal::fromfile_bin(string fname, CheckFile *cf) {
+  std::unique_ptr<playerreal> p{playerreal::Create("")};
+  if (!p.get()) return 0;
   p->fname = fname;
-  Extent<playerreal> ep(p);
 
   string s;
   int i;
@@ -708,8 +689,7 @@ playerreal * playerreal::fromfile_bin(string fname, CheckFile * cf) {
   if (!cf->readint(i)) {
     if (p->ch) p->ch->destroy();
     p->ch = Chunks::create();
-    ep.release();
-    return p;
+    return p.release();
   }
 
   /* otherwise; new format: i is number of ratings */
@@ -718,7 +698,7 @@ playerreal * playerreal::fromfile_bin(string fname, CheckFile * cf) {
     string rastring;
     if (!cf->read(16, md5)) return 0;
     if (!cf->read(RATINGBYTES,rastring)) return 0;
-    rating * rat = rating::fromstring(rastring);
+    rating *rat = rating::fromstring(rastring);
 
     if (!rat) return 0;
     p->putrating(md5, rat);
@@ -729,10 +709,9 @@ playerreal * playerreal::fromfile_bin(string fname, CheckFile * cf) {
      to fill in the missing prefs. */
 
   if (!cf->readint(i)) {
-    ep.release();
     if (p->ch) p->ch->destroy();
     p->ch = Chunks::create();
-    return p;
+    return p.release();
   }
 
   /* otherwise, read the table */
@@ -746,6 +725,15 @@ playerreal * playerreal::fromfile_bin(string fname, CheckFile * cf) {
     p->ch = cc;
   } else return 0;
 
-  ep.release();
-  return p;
+  return p.release();
+}
+
+}  // namespace
+
+Player *Player::Create(const string &n) {
+  return playerreal::Create(n);
+}
+
+Player *Player::FromFile(const string &file) {
+  return playerreal::FromFile(file);
 }

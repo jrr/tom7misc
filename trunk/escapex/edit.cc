@@ -626,7 +626,7 @@ void editor::save() {
       if (omd5 != nmd5) {
 
 	/* do not free */
-	PtrList<NamedSolution> * sols = plr->solutionset(omd5);
+	PtrList<NamedSolution> *sols = plr->solutionset(omd5);
 
 	int rs = 0, rb = 0;
 	for (; sols; sols = sols->next) {
@@ -756,7 +756,7 @@ void editor::resize() {
   okay ok;
   ok.text = "Change Size";
   
-  PtrList<MenuItem> * l = 0;
+  PtrList<MenuItem> *l = 0;
 
   PtrList<MenuItem>::push(l, &ok);
   PtrList<MenuItem>::push(l, &theight);

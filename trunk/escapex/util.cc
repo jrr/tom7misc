@@ -143,7 +143,7 @@ string readfile(string s) {
   int size = ftell(f);
   fseek(f, 0, SEEK_SET);
 
-  char * ss = (char*)malloc(size);
+  char *ss = (char*)malloc(size);
   fread(ss, 1, size, f);
 
   fclose(f);
@@ -155,7 +155,7 @@ string readfile(string s) {
 }
 
 static bool hasmagicf(FILE *f, const string & mag) {
-  char * hdr = (char*)malloc(mag.length());
+  char *hdr = (char*)malloc(mag.length());
   if (!hdr) return false;
 
   /* we may not even be able to read sizeof(header) bytes! */
@@ -210,7 +210,7 @@ string util::readfilemagic(string s, const string &mag) {
   int size = ftell(f);
   fseek(f, 0, SEEK_SET);
 
-  char * ss = (char*)malloc(size);
+  char *ss = (char*)malloc(size);
   fread(ss, 1, size, f);
 
   fclose(f);
@@ -858,7 +858,7 @@ void bitbuffer::writebits(int n, unsigned int b) {
     /* allocate more */
     if (bytes_needed > size) {
       int nsize = (size + 1) * 2;
-      unsigned char * tmp = (unsigned char *) malloc(nsize * sizeof (unsigned char));
+      unsigned char *tmp = (unsigned char *) malloc(nsize * sizeof (unsigned char));
       if (!tmp) abort();
       memset(tmp, 0, nsize);
       memcpy(tmp, data, size);

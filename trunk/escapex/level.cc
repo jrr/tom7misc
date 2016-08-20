@@ -1276,7 +1276,7 @@ Level *Level::defboard(int w, int h) {
   return n;
 }
 
-bool Level::verify_prefix(const Level *lev, const Solution *s, Solution *& out) {
+bool Level::verify_prefix(const Level *lev, const Solution *s, Solution *&out) {
   Level *l = lev->clone();
   Extent<Level> el(l);
 

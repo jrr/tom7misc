@@ -17,21 +17,18 @@
 #define IGNOREFILE ".escignore"
 
 /* abstract interface */
-struct dircache {
-  
-  virtual void destroy() = 0;
-  static dircache * create(Player *p);
-  virtual ~dircache();
+struct DirCache {
+  static DirCache *Create(Player *p);
+  virtual ~DirCache();
 
-  virtual void getidx(string dir, dirindex *& idx) = 0;
+  virtual void getidx(string dir, DirIndex *&idx) = 0;
 
   /* lookup dir in the cache, sticking the result in idx.
      optionally provide a callback function for progress */
-  virtual int get(string dir, dirindex *& idx, int & tot, int & sol,
+  virtual int get(string dir, DirIndex *&idx, int &tot, int &sol,
 		  void (*prog)(void * data, int n, int total, 
-			       const string & subdir, const int tks) = 0,
-		  void * prog_data = 0) = 0;
-
+			       const string &subdir, const int tks) = nullptr,
+		  void *prog_data = nullptr) = 0;
 };
 
 #endif

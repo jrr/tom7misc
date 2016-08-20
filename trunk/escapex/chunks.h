@@ -48,7 +48,7 @@ struct Chunks {
   virtual void destroy();
 
   private:
-  PtrList<Chunk> * data;
+  PtrList<Chunk> *data;
   static int compare(Chunk *l, Chunk *r);
 };
 

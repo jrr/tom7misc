@@ -11,20 +11,19 @@
 #include "dirindex.h"
 
 struct Upper {
-  virtual void destroy() = 0;
   virtual ~Upper() {};
 
   /* create an upper, using the http connection hh,
      and directory dir */
-  static Upper * create(HTTP * hh, TextScroll *t,
-			Drawable *below, string dir);
+  static Upper *Create(HTTP *hh, TextScroll *t,
+		       Drawable *below, string dir);
 
   /* the file 'f' (which may be prefixed by directories that have been
      previously saved), should be set to the contents specified by the
      md5 hash md.
 
      returns true if we will be able to accomplish this. */
-  virtual bool setfile(string f, string md, ratestatus votes,
+  virtual bool setfile(string f, string md, RateStatus votes,
 		       int date, int speedrecord, int owner) = 0;
 
   /* creates the directory d (if it does not exist), and ensures that
@@ -45,7 +44,6 @@ struct Upper {
      in the directory may be damaged (moved to attic) but we try to do
      this as little as possible. */
   virtual bool commit() = 0;
-
 };
 
 /* The Upper object is used to replace one set of files with another

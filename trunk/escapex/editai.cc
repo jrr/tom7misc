@@ -436,7 +436,7 @@ void editor::dorandom() {
 
   case RT_CRAZY: {
     /* XXX testing */
-    pattern<void> * pat_test = pattern<void>::create("...\n"
+    pattern<void> *pat_test = pattern<void>::create("...\n"
 						     "B\\0BB\n"
 						     "...\n");
     if (pat_test) {
@@ -547,7 +547,7 @@ bool editor::retract_gold() {
   Level *lev = dr.lev;
   /* XX could also be at edge of map -- might want a way to
      specify that pattern */
-  pattern<void> * bgold = pattern<void>::create("\\0 \\1GS\n");
+  pattern<void> *bgold = pattern<void>::create("\\0 \\1GS\n");
 
   if (bgold) {
     Extent<pattern<void>> ep(bgold);
@@ -726,7 +726,7 @@ bool editor::retract_hole() {
      from the current player's position; otherwise they definitely
      won't be separators
   */
-  pattern<void> * findsep = pattern<void>::create("\\0 \\1 \\2 \n");
+  pattern<void> *findsep = pattern<void>::create("\\0 \\1 \\2 \n");
   
   /* XXX only need 'empty' for first space */
   if (findsep) {
@@ -856,7 +856,7 @@ void editor::retract1() {
 
 
   /* XXX testing */
-  pattern<void> * pat_test = pattern<void>::create("...\n"
+  pattern<void> *pat_test = pattern<void>::create("...\n"
 						   ".GB\n"
 						   "...\n");
   if (pat_test) {

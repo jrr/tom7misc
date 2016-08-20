@@ -18,9 +18,9 @@
 font * fon;
 font * fonsmall;
 
-SDL_Surface ** drawing::tiles = 0;
-SDL_Surface ** drawing::tilesdim = 0;
-SDL_Surface ** drawing::tileutil = 0;
+SDL_Surface **drawing::tiles = 0;
+SDL_Surface **drawing::tilesdim = 0;
+SDL_Surface **drawing::tileutil = 0;
 
 /* the bottom of the load screen gives a preview of each level. This
    indicates the maximum width and height (in tiles) shown. */
@@ -666,7 +666,7 @@ bool drawing::onscreen(int x, int y,
 void drawing::drawsmall(int y, 
 			int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
-			ratestatus * votes,
+			RateStatus * votes,
 			rating * myrating,
 			int date, int speedrecord) {
 

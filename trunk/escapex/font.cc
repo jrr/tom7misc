@@ -32,7 +32,7 @@ struct font_attrlist {
     }      
   }
 
-  static int pop(font_attrlist *& il) {
+  static int pop(font_attrlist *&il) {
     if (il) {
       font_attrlist * tmp = il;
       int t = tmp->value;
@@ -48,7 +48,7 @@ struct fontreal : public font {
 
   /* data is an array of font images, differing in
      their alpha transparency */
-  SDL_Surface ** data;
+  SDL_Surface **data;
   int ndim;
 
   unsigned char chars[255];

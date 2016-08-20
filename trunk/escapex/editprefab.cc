@@ -67,7 +67,7 @@ void editor::prefab() {
     cancel can;
     can.text = "Cancel";
 	      
-    PtrList<MenuItem> * l = 0;
+    PtrList<MenuItem> *l = 0;
 	      
     PtrList<MenuItem>::push(l, &can);
     PtrList<MenuItem>::push(l, &spacer);
@@ -161,7 +161,7 @@ void editor::pffile() {
   /* XXX (don't) constrain to selection option? */
 
 
-  PtrList<MenuItem> * l = 0;
+  PtrList<MenuItem> *l = 0;
 	      
   PtrList<MenuItem>::push(l, &can);
   PtrList<MenuItem>::push(l, &ok);
@@ -306,7 +306,7 @@ void editor::pftimer() {
                         "on the left.";
   reverse.checked = false;
 
-  PtrList<MenuItem> * l = 0;
+  PtrList<MenuItem> *l = 0;
 	      
   PtrList<MenuItem>::push(l, &can);
   PtrList<MenuItem>::push(l, &ok);

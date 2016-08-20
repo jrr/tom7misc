@@ -100,7 +100,7 @@ struct Upgrader_ : public Upgrader {
   Player *plr;
 
   curesult checkupgrade(HTTP * hh, string & msg,
-			ulist *& download, stringlist *& ok);
+			ulist *&download, stringlist *&ok);
 
   upresult doupgrade(HTTP * hh, string & msg,
 		     ulist * upthese);
@@ -421,8 +421,8 @@ upresult Upgrader_::doupgrade(HTTP * hh, string & msg,
 /* download and ok should not contain anything */
 curesult Upgrader_::checkupgrade(HTTP * hh, 
 				 string & msg,
-				 ulist *& download,
-				 stringlist *& ok) {
+				 ulist *&download,
+				 stringlist *&ok) {
   /* start by checking for new versions of escape itself. */
   string s;
   say("Connecting...");

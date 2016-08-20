@@ -20,43 +20,41 @@
 #define WEBINDEXNAME "webindex.esi"
 
 /* all as totals */
-struct ratestatus {
-  int nvotes;
-  int difficulty;
-  int style;
-  int rigidity;
-  int cooked;
-  int solved;
+struct RateStatus {
+  int nvotes = 0;
+  int difficulty = 0;
+  int style = 0;
+  int rigidity = 0;
+  int cooked = 0;
+  int solved = 0;
 
-  ratestatus() : nvotes(0), difficulty(0), style(0), 
-       rigidity(0), cooked(0), solved(0) {}
+  RateStatus() {}
 };
 
-struct dirindex {
+struct DirIndex {
   
   /* make an empty index, suitable for later writing to disk */
-  static dirindex * create();
+  static DirIndex * create();
 
   virtual void destroy() = 0;
-  virtual ~dirindex() {}
+  virtual ~DirIndex() {}
 
   /* read from disk */
-  static dirindex * fromfile(string f);
+  static DirIndex * fromfile(string f);
 
   static bool isindex(string f);
 
   virtual void writefile(string f) = 0;
-  virtual void addentry(string filename, ratestatus v, 
+  virtual void addentry(string filename, RateStatus v, 
 			int date, int speedrecord, int owner) = 0;
 
-  virtual bool getentry(string filename, ratestatus & v,
-			int & date, int & speedrecord, int & owner) = 0;
+  virtual bool getentry(string filename, RateStatus &v,
+			int &date, int &speedrecord, int &owner) = 0;
 
   /* true if this is a managed collection */
   virtual bool webcollection() = 0;
 
   string title;
-
 };
 
 #endif

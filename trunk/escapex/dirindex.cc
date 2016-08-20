@@ -23,7 +23,7 @@ struct ra_entry {
     return filename;
   }
   string filename;
-  ratestatus v;
+  RateStatus v;
   int date;
   int speedrecord;
 
@@ -31,13 +31,13 @@ struct ra_entry {
 
   void destroy() { delete this; }
 
-  ra_entry(string s, ratestatus vv, int d, int sr, int o) 
+  ra_entry(string s, RateStatus vv, int d, int sr, int o) 
     : filename(s), v(vv), date(d), speedrecord(sr), owner(o) {}
   ra_entry() {}
 
 };
 
-struct di_real : public dirindex {
+struct di_real : public DirIndex {
   
   static di_real * create();
 
@@ -45,30 +45,30 @@ struct di_real : public dirindex {
 
   virtual void destroy();
   virtual ~di_real() {}
-  virtual void addentry(string filename, ratestatus v, 
+  virtual void addentry(string filename, RateStatus v, 
 			int date, int speedrecord, int owner);
 
   /* read from disk */
-  static dirindex * fromstring(string f);
+  static DirIndex * fromstring(string f);
 
   static void writeone(ra_entry * i, FILE *f);
 
-  virtual bool getentry(string filename, ratestatus & v, int &, int &, int & o);
+  virtual bool getentry(string filename, RateStatus & v, int &, int &, int & o);
 
   virtual bool webcollection() { return isweb; }
 
   /* mapping filenames to ra_entry */
-  hashtable<ra_entry, string> * tab;
+  hashtable<ra_entry, string> *tab;
 
   int isweb;
 
 };
 
-dirindex * dirindex::create() {
+DirIndex * DirIndex::create() {
   return di_real::create();
 }
 
-bool di_real::getentry(string filename, ratestatus & v, int & d, int & sr, int & o) {
+bool di_real::getentry(string filename, RateStatus & v, int & d, int & sr, int & o) {
   ra_entry * e = tab->lookup(filename);
   if (e) {
     v = e->v;
@@ -94,12 +94,12 @@ di_real * di_real::create() {
 }
 
 
-bool dirindex::isindex(string f) {
+bool DirIndex::isindex(string f) {
   return util::hasmagic(f, INDEXMAGIC) ||
          util::hasmagic(f, INDEX3MAGIC);
 }
 
-dirindex * dirindex::fromfile(string f) {
+DirIndex * DirIndex::fromfile(string f) {
 
   di_real * dr = di_real::create();
 
@@ -208,7 +208,7 @@ void di_real::writefile(string fname) {
 
 }
 
-void di_real::addentry(string f, ratestatus v, 
+void di_real::addentry(string f, RateStatus v, 
 		       int date, int speedrecord, int owner) {
   tab->insert(new ra_entry(f, v, date, speedrecord, owner));
 }

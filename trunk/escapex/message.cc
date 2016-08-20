@@ -12,13 +12,13 @@ struct Message_ : public Message {
 
   /*  enter: true
      escape: false */
-  bool ask(char * actualchar = 0, string charspec = "") override;
+  bool ask(char *actualchar = 0, string charspec = "") override;
 
   void draw() override;
   void screenresize() override;
 
   SDL_Surface *alpharect;
-  bool loop(char * actualchar, string charspec);
+  bool loop(char *actualchar, string charspec);
 
   void init();
   void redraw() {
@@ -111,7 +111,7 @@ void Message_::init() {
 
 }
 
-bool Message_::ask(char * actualchar, string charspec) {
+bool Message_::ask(char *actualchar, string charspec) {
   init();
   return loop(actualchar, charspec);
 }
@@ -146,7 +146,7 @@ void Message_::draw() {
 	      (string)YELLOW "ESCAPE" POP ": " + cancel);
 }
 
-bool Message_::loop(char * actualchar, string charspec) {
+bool Message_::loop(char *actualchar, string charspec) {
   redraw();
 
   SDL_Event e;

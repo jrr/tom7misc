@@ -142,16 +142,14 @@ string PDBEntry::display(bool sel) {
 }
 
 Player *PDBEntry::convert() {
-  Player *ret = Player::fromfile(fname);
-
-  if (!ret) {
-    Message::no(0, "Couldn't read player " + fname);
-    return 0;
-  } else {
+  if (Player *ret = Player::FromFile(fname)) {
     /* ensure that this player (which may be from an older version)
        has at least defaults for any new prefs */
     prefs::defaults(ret);
     return ret;
+  } else {
+    Message::no(0, "Couldn't read player " + fname);
+    return nullptr;
   }
 }
 
@@ -200,13 +198,12 @@ PlayerDB_ * PlayerDB_::create() {
       pdb->sel->resize(MENUITEMS + n + 1);
       pdb->sel->items[n].kind = K_PLAYER;
       pdb->sel->items[n].fname = f;
-      Player *p = Player::fromfile(f);
 
-      if (p) {
+      if (Player *p = Player::FromFile(f)) {
 	pdb->sel->items[n].name = p->name;
 	pdb->sel->items[n].solved = p->num_solutions();
 
-	p->destroy();
+	delete p;
       } else {
 	pdb->sel->items[n].name = f + "  **" RED "ERROR" POP "**";
 	pdb->sel->items[n].solved = -1;
@@ -292,8 +289,7 @@ string PlayerDB_::makefilename(string name) {
 }
 
 void PlayerDB_::addplayer(string name) {
-  Player *plr = Player::create(name);
-  if (plr) {
+  if (Player *plr = Player::Create(name)) {
 
     /* can fail, for example, if the file exists */
     string fname = makefilename(name);
@@ -310,17 +306,17 @@ void PlayerDB_::addplayer(string name) {
       sel->items[sel->number - 1].name = name;
       sel->items[sel->number - 1].fname = fname;
 
+      // XXX this leaks the player? -tom7   20 Aug 2016
+
       return;
     } else {
-      plr->destroy();
+      delete plr;
     }
-
   } 
 
   /* failed if we got here */
   Message::quick(0, "Couldn't create player. Does file already exist?",
 		 "OK", "", PICS XICON POP);
-
 }
 
 void PlayerDB_::delplayer(int i) {

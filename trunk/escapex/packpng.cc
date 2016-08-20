@@ -25,7 +25,7 @@ struct UsedMap {
   /* PERF could use less memory with a bit mask,
      but this program is run off-line, so that
      seems pretty pointless */
-  char * arr;
+  char *arr;
   int w, h;
 
   UsedMap(int ww, int hh) : w(ww), h(hh) {
@@ -35,7 +35,7 @@ struct UsedMap {
 
   /* new areas are unused */
   void resize(int ww, int hh) {
-    char * na = (char*)malloc(ww * hh * sizeof (char));
+    char *na = (char*)malloc(ww * hh * sizeof (char));
 
     /* start unused */
     memset(na, 0, ww * hh * sizeof (char));
@@ -83,7 +83,7 @@ struct UsedMap {
   }
 };
 
-static void fit_image(SDL_Surface *& packed, UsedMap * um, 
+static void fit_image(SDL_Surface *&packed, UsedMap * um, 
 		      int w, int h,
 		      int & x, int & y) {
   for (;;) {
