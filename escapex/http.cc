@@ -107,7 +107,7 @@ bool HTTP_::connect(string chost, int port) {
   return true;
 }
 
-void append(string & s, char * vec, unsigned int l) {
+void append(string & s, char *vec, unsigned int l) {
   unsigned int slen = s.length();
   unsigned int nlen = l + slen;
   string ret(nlen, '*');

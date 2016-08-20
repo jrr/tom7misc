@@ -17,7 +17,7 @@ static Uint32 hueish(SDL_Surface *surf, float base_hue) {
   return sdlutil::hsv(surf, h / 360.0f, s, v, a);
 }
 
-void Backgrounds::gradientblocks(SDL_Surface *& surf,
+void Backgrounds::gradientblocks(SDL_Surface *&surf,
 				 int tile_white,
 				 int tile_black,
 				 float gradient_hue) {

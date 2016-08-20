@@ -40,8 +40,8 @@ inline uint32_t hash_string(string s) {
 template <class I, class K>
 struct hlist {
   I *data;
-  hlist<I,K> * next;
-  hlist(I *dd, hlist<I,K> * nn) : data(dd), next(nn) {}
+  hlist<I,K> *next;
+  hlist(I *dd, hlist<I,K> *nn) : data(dd), next(nn) {}
   void destroy() { delete this; }
 };
 #endif
@@ -53,7 +53,7 @@ struct hashtable {
 
   int items;
 
-  PtrList<I> ** data;
+  PtrList<I> **data;
 
   void destroy() {
     for (int i = 0; i < allocated; i++) {
@@ -109,7 +109,7 @@ struct hashtable {
   I *remove(K key) {
     unsigned int loc = I::hash(key) % allocated;
     
-    PtrList<I> ** tmp = &data[loc];
+    PtrList<I> **tmp = &data[loc];
     while (*tmp) {
       if (key == (*tmp)->head->key()) {
         /* Remove it. */
@@ -132,7 +132,7 @@ struct hashtable {
 /* must be oustide of hashtable itself, or Visual C++ gets
    horribly confused */
 template<class I, class K, class T>
-inline void hashtable_app(hashtable<I, K> * tab,
+inline void hashtable_app(hashtable<I, K> *tab,
                           void (*f)(I *, T), 
                           T d ) {
   for (int i = 0 ; i < tab->allocated; i++ ) {

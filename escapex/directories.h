@@ -1,4 +1,3 @@
-
 /*
     Derived from source copyright Kevlin Henney, 1997, 2003. 
 
@@ -41,7 +40,7 @@ void          rewinddir(DIR *);
 
 /* no good place to put this, since
    dirent.cc is not linked in unix */
-inline int dirsize (const char * dir) {
+inline int dirsize(const char *dir) {
   DIR * d = opendir(dir);
   if (!d) return 0;
   int i = 0;

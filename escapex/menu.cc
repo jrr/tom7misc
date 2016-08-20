@@ -358,7 +358,7 @@ void menu::destroy() {
 
 menu * menu::create(Drawable *be,
 		    string ti,
-		    PtrList<MenuItem> * its,
+		    PtrList<MenuItem> *its,
 		    bool fs) {
   menu * m = new menu();
   if (!m) return m;
@@ -381,7 +381,7 @@ menu * menu::create(Drawable *be,
     return 0;
   }
 
-  PtrList<MenuItem> * tmp = its;
+  PtrList<MenuItem> *tmp = its;
   for (int i = 0; i < m->nitems; i++) {
     m->items[i] = tmp->head;
     m->items[i]->container = m;

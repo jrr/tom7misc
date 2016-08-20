@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
   /* The "real" main loop. */
   /* XXX should put the following in some other function. */
   {
-    Player *plr = nullptr;
+    std::unique_ptr<Player> plr;
     {
       std::unique_ptr<PlayerDB> pdb{PlayerDB::create()};
       if (pdb.get() == nullptr) {
@@ -179,16 +179,14 @@ int main(int argc, char **argv) {
 	handhold::firsttime();
       }
 
-      plr = pdb->chooseplayer();
+      plr.reset(pdb->chooseplayer());
     }
 
-    if (!plr) goto oops;
-
-    ::Extent<Player> ep(plr);
+    if (!plr.get()) goto oops;
 
     /* selected player. now begin the game. */
 
-    mainmenu * mm = mainmenu::create(plr);
+    mainmenu * mm = mainmenu::create(plr.get());
     if (!mm) {
       Message::bug(0, "Error creating main menu");
       goto oops;
@@ -197,7 +195,7 @@ int main(int argc, char **argv) {
     ::Extent<mainmenu> em(mm);
 
     // XXX here?
-    LevelDB::setplayer(plr);
+    LevelDB::setplayer(plr.get());
     LevelDB::addsourcedir("triage");
     LevelDB::addsourcedir("mylevels");
     LevelDB::addsourcedir("official");
@@ -212,10 +210,10 @@ int main(int argc, char **argv) {
            the user hits escape on the load screen. */
         for (;;) {
 	  if (loadlevel *ll = 
-	      loadlevel::create(plr, DEFAULT_DIR, true, false)) {
+	      loadlevel::create(plr.get(), DEFAULT_DIR, true, false)) {
 	    string res = ll->selectlevel();
 	    
-	    play::playrecord(res, plr);
+	    play::playrecord(res, plr.get());
 	    
 	    ll->destroy();
 	    
@@ -238,7 +236,7 @@ int main(int argc, char **argv) {
 	    string res = bb->selectlevel();
 	    if (res.empty()) break;
 
-	    play::playrecord(res, plr);
+	    play::playrecord(res, plr.get());
 
 	  } else {
 	    Message::bug(0, "Error creating browser");
@@ -262,7 +260,7 @@ int main(int argc, char **argv) {
       } else if (r == mainmenu::EDIT) {
         /* edit a level */
 
-        editor * ee = editor::create(plr);
+        editor * ee = editor::create(plr.get());
         if (!ee) {
           Message::bug(0, "Error creating editor");
           goto oops;
@@ -275,7 +273,7 @@ int main(int argc, char **argv) {
       } else if (r == mainmenu::UPGRADE) {
         /* upgrade escape binaries and graphics */
 
-        Upgrader * uu = Upgrader::create(plr);
+        Upgrader * uu = Upgrader::create(plr.get());
         if (!uu) {
           Message::bug(0, "Error creating upgrader");
           goto oops;
@@ -296,7 +294,7 @@ int main(int argc, char **argv) {
       } else if (r == mainmenu::UPDATE) {
         /* update levels */
 
-        Updater * uu = Updater::create(plr);
+        Updater * uu = Updater::create(plr.get());
         if (!uu) {
           Message::bug(0, "Error creating updater");
           goto oops;
@@ -310,7 +308,7 @@ int main(int argc, char **argv) {
       } else if (r == mainmenu::REGISTER) {
         /* register player online */
 
-	std::unique_ptr<Registration> rr{Registration::Create(plr)};
+	std::unique_ptr<Registration> rr{Registration::Create(plr.get())};
         if (!rr.get()) {
           Message::bug(0, "Couldn't create registration object");
           goto oops;

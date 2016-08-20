@@ -63,8 +63,8 @@ struct Updater_ : public Updater {
   TextScroll *tx;
 
   ccresult checkcolls(HTTP * hh, 
-		      stringlist *& fnames, 
-		      stringlist *& shownames);
+		      stringlist *&fnames, 
+		      stringlist *&shownames);
 
   selresult selectcolls(stringlist * fnames, 
 			stringlist * shownames,
@@ -171,8 +171,8 @@ void Updater_::redraw() {
    (by adding items to fnames, shownames)
 */
 ccresult Updater_::checkcolls(HTTP * hh, 
-				stringlist *& fnames, 
-				stringlist *& shownames) {
+				stringlist *&fnames, 
+				stringlist *&shownames) {
   /* first, grab COLLECTIONS. */
 
   string s;
@@ -225,10 +225,10 @@ ccresult Updater_::checkcolls(HTTP * hh,
    
 selresult Updater_::selectcolls(stringlist * fnames, 
 				  stringlist * shownames,
-				  stringlist *& subsf,
-				  stringlist *& subss) {
+				  stringlist *&subsf,
+				  stringlist *&subss) {
 
-  PtrList<MenuItem> * boxes = 0;
+  PtrList<MenuItem> *boxes = 0;
 
   okay ok;
   ok.text = "Update Now";
@@ -338,14 +338,12 @@ void Updater_::updatecoll(HTTP * hh, string fname, string showname) {
     }
 
     /* create upper for this collection dir. */
-    Upper * up = Upper::create(hh, tx, this, fname);
+    std::unique_ptr<Upper> up{Upper::Create(hh, tx, this, fname)};
 
-    if (!up) {
+    if (!up.get()) {
       Message::bug(this, "couldn't create upper object?!");
       return;
     }
-
-    Extent<Upper> eu(up);
 
     /* always save the root dir */
     up->savedir("", showname);
@@ -399,7 +397,7 @@ void Updater_::updatecoll(HTTP * hh, string fname, string showname) {
       }
       
 
-      ratestatus votes;
+      RateStatus votes;
 
       votes.nvotes = util::stoi(util::chop(line));
       votes.difficulty = util::stoi(util::chop(line));

@@ -18,8 +18,8 @@
 #define YOSCALE 65536
 
 /* an animation frame with timing and position information. */
-struct aframe {
-  SDL_Surface ** pic;
+struct AFrame {
+  SDL_Surface **pic;
   /* offsets */
   int x, y;
   /* amount of time to wait before drawing this frame */
@@ -76,11 +76,11 @@ struct Animation {
   /* next animation in the chain,
      if applicable. To replace this one
      when think() returns true. */
-  Animation * next;
+  Animation *next;
 
   Animation() : depth(0), next(0), finale(false) {}
 
-  static int yorder_compare(Animation * a, Animation * b) {
+  static int yorder_compare(Animation *a, Animation *b) {
     int r = ((a->depth * YOSCALE) + a->yorder()) -
             ((b->depth * YOSCALE) + b->yorder());
 
@@ -101,36 +101,36 @@ struct Animation {
 # include "animation_defs.h"
 
   /* there will be DRAW_NSIZES copies of these */
-  static  SDL_Surface ** pic_guy_up;
-  static  SDL_Surface ** pic_guy_down;
-  static  SDL_Surface ** pic_guy_left;
-  static  SDL_Surface ** pic_guy_right;
+  static  SDL_Surface **pic_guy_up;
+  static  SDL_Surface **pic_guy_down;
+  static  SDL_Surface **pic_guy_left;
+  static  SDL_Surface **pic_guy_right;
 
-  static  SDL_Surface ** pic_deadrobot;
-
-  /* XXX these are currently all the same */
-  static  SDL_Surface ** pic_dalek_up;
-  static  SDL_Surface ** pic_dalek_down;
-  static  SDL_Surface ** pic_dalek_left;
-  static  SDL_Surface ** pic_dalek_right;
+  static  SDL_Surface **pic_deadrobot;
 
   /* XXX these are currently all the same */
-  static  SDL_Surface ** pic_hugbot_up;
-  static  SDL_Surface ** pic_hugbot_down;
-  static  SDL_Surface ** pic_hugbot_left;
-  static  SDL_Surface ** pic_hugbot_right;
+  static  SDL_Surface **pic_dalek_up;
+  static  SDL_Surface **pic_dalek_down;
+  static  SDL_Surface **pic_dalek_left;
+  static  SDL_Surface **pic_dalek_right;
 
-  static SDL_Surface ** pic_dalek_asleep_up;
-  static SDL_Surface ** pic_dalek_asleep_down;
-  static SDL_Surface ** pic_dalek_asleep_left;
-  static SDL_Surface ** pic_dalek_asleep_right;
+  /* XXX these are currently all the same */
+  static  SDL_Surface **pic_hugbot_up;
+  static  SDL_Surface **pic_hugbot_down;
+  static  SDL_Surface **pic_hugbot_left;
+  static  SDL_Surface **pic_hugbot_right;
+
+  static SDL_Surface **pic_dalek_asleep_up;
+  static SDL_Surface **pic_dalek_asleep_down;
+  static SDL_Surface **pic_dalek_asleep_left;
+  static SDL_Surface **pic_dalek_asleep_right;
   
-  static SDL_Surface ** pic_hugbot_asleep_up;
-  static SDL_Surface ** pic_hugbot_asleep_down;
-  static SDL_Surface ** pic_hugbot_asleep_left;
-  static SDL_Surface ** pic_hugbot_asleep_right;
+  static SDL_Surface **pic_hugbot_asleep_up;
+  static SDL_Surface **pic_hugbot_asleep_down;
+  static SDL_Surface **pic_hugbot_asleep_left;
+  static SDL_Surface **pic_hugbot_asleep_right;
 
-  static SDL_Surface ** pic_bomb_still;
+  static SDL_Surface **pic_bomb_still;
   static SDL_Surface *** pic_bomb_lit;
   
   /* if finale is true, then the animation should
@@ -144,22 +144,22 @@ struct Animation {
   /* these are generated from tiles.png
      programatically */
   /* pvt? */
-  static SDL_Surface ** pic_flips_out_data;
-  static SDL_Surface ** pic_flips_in_data;
-  static aframe ** frame_flips_out;
-  static aframe ** frame_flips_in;
+  static SDL_Surface **pic_flips_out_data;
+  static SDL_Surface **pic_flips_in_data;
+  static AFrame **frame_flips_out;
+  static AFrame **frame_flips_in;
 
   /* push some animations for the event ae
      onto the list anims. assume anims is 0 */
   static void start(drawing & dr, 
-		    PtrList<Animation> *& anims, 
-		    PtrList<Animation> *& sprites,
+		    PtrList<Animation> *&anims, 
+		    PtrList<Animation> *&sprites,
 		    aevent * ae);
 
   static void clearsprites(drawing & dr);
   static void clearent(drawing & dr, int ex, int ey, int olap);
 
-  static void erase_anims(PtrList<Animation> * a, Dirt *d);
+  static void erase_anims(PtrList<Animation> *a, Dirt *d);
 
   /* Think all of the animations in 'as' that are ready.
      If an animation has finished, remove it from the
@@ -169,35 +169,35 @@ struct Animation {
      
      If 'done' is true, then finales are eligible to be
      removed, as long as everything running is a finale. */
-  static void think_anims(PtrList<Animation> ** as, unsigned int now,
-			  bool & remirror, bool done = false);
+  static void think_anims(PtrList<Animation> **as, unsigned int now,
+			  bool &remirror, bool done = false);
 
   /* Call draw method for every Animation in list. */
-  static void draw_anims(PtrList<Animation> * a);
+  static void draw_anims(PtrList<Animation> *a);
 
   /* Initialize every anim. Return true if any init method returns
      true. */
-  static bool init_anims(PtrList<Animation> * a, unsigned int now);
+  static bool init_anims(PtrList<Animation> *a, unsigned int now);
 
   /* don't forget the tail */
   virtual ~Animation() { delete next; }
 
-  private:
+ private:
 
   static SDL_Surface *pitched_rect(int w, int h, int ph, 
-				    SDL_Surface *src,
-				    int oversample = FLIPS_OVERSAMPLE);
+				   SDL_Surface *src,
+				   int oversample = FLIPS_OVERSAMPLE);
 
   static bool init_flips();
 
 };
 
 
-struct aninplace : public Animation {
+struct AnInPlace : public Animation {
   int xpos, ypos;
   int loopsleft;
-  int cframe;
-  aframe * frames;
+  int cframe = 0;
+  AFrame *frames;
 
   /* our dirty area */
   int bx, by, bw, bh;
@@ -208,87 +208,81 @@ struct aninplace : public Animation {
   /* f is a pointer to an array of frames, where the last element
      of the array has a pic pointer of 0. There must be at least
      one frame. */
-  aninplace(int x, int y, int loops, aframe * f) 
-    : xpos(x), ypos(y), loopsleft(loops-1), cframe(0), frames(f) {}
+  AnInPlace(int x, int y, int loops, AFrame *f) 
+    : xpos(x), ypos(y), loopsleft(loops - 1), frames(f) {}
 
-  virtual int yorder() { return ypos + frames[cframe].y; }
+  int yorder() override { return ypos + frames[cframe].y; }
 
-  virtual bool think(unsigned int);
-  virtual void draw();
-  virtual bool init(unsigned int now);
-  virtual void erase(Dirt *d);
-
-  virtual ~aninplace() { }
+  bool think(unsigned int) override;
+  void draw() override;
+  bool init(unsigned int now) override;
+  void erase(Dirt *d) override;
 };
 
 /* sort of special, because it is used as the
    transition from a static tile that is part
    of the background and an animated version of
    that tile */
-struct anplacetile : public Animation {
+struct AnPlaceTile : public Animation {
   int what, sx, sy;
-  anplacetile(int what_, int sx_, int sy_) 
+  AnPlaceTile(int what_, int sx_, int sy_) 
     : what(what_), sx(sx_), sy(sy_) {}
 
   /* here the initializer draws it. */
-  virtual bool init(unsigned int now) {
+  bool init(unsigned int now) override {
     drawing::drawtile(sx, sy, what, 0, screen, false);
     /* trigger and die immediately */
     nexttick = now;
     return true;
   }
   
-  virtual int yorder() { return sy; }
+  int yorder() override { return sy; }
   
-  virtual bool think(unsigned int) {
+  bool think(unsigned int) override {
     return true;
   }
-  
 };
 
-struct anwait : public Animation {
+struct AnWait : public Animation {
   int wf;
-  anwait(int frames) : wf(frames) {}
-  virtual bool think(unsigned int now) {
+  AnWait(int frames) : wf(frames) {}
+  bool think(unsigned int now) override {
     return true;
   }
 
   /* never draws */
-  virtual int yorder() { return 0; }
+  int yorder() override { return 0; }
 
-  virtual bool init(unsigned int now) {
+  bool init(unsigned int now) override {
     nexttick = now + wf;
     return false;
   }
-
 };
 
 /* not really an animation -- plays a sound
    through the sound system. */
-struct ansound : public Animation {
+struct AnSound : public Animation {
   sound_t s;
-  ansound(sound_t s_) : s(s_) {}
-  virtual bool think(unsigned int now) {
+  AnSound(sound_t s_) : s(s_) {}
+  bool think(unsigned int now) override {
     Sound::play(s);
     return true;
   }
 
   /* never draws */
-  virtual int yorder() { return 0; }
+  int yorder() override { return 0; }
 
-  virtual bool init(unsigned int now) {
+  bool init(unsigned int now) override {
     /* done immediately */
     nexttick = now;
     return false;
   }
-
 };
 
-/* XXX make this use aframe instead of surface */
+/* XXX make this use AFrame instead of surface */
 /* (easy now with draw method) */
 /* something flying horizontally or vertically */
-struct anflying : public Animation {
-
+struct AnFlying : public Animation {
   /* XXX clean up members */
   int sx, sy;
 
@@ -308,20 +302,16 @@ struct anflying : public Animation {
 
   /* pass in screen pixel starting position, distance in
      pixels */
-  anflying(SDL_Surface *what, int sx, int sy, dir dd, int sdist,
+  AnFlying(SDL_Surface *what, int sx, int sy, dir dd, int sdist,
 	   int sp, int w);
 
-  virtual int yorder() { return py; }
+  int yorder() override { return py; }
 
-  virtual ~anflying() {
-    /* not above! */
-  }
+  void draw() override;
+  bool init(unsigned int now) override;
+  bool think(unsigned int now) override;
 
-  virtual void draw();
-  virtual bool init(unsigned int now);
-  virtual bool think(unsigned int now);
-
-  virtual void erase(Dirt * dirty) {
+  void erase(Dirt *dirty) override {
     int xx, yy, ww, hh;
     size(xx, yy, ww, hh);
     dirty->setdirty(px, py, ww, hh);
@@ -337,7 +327,7 @@ struct anflying : public Animation {
     SDL_BlitSurface(above, 0, screen, &r);
   }
 
-  virtual void size(int & minx, int & miny, int & maxw, int & maxh) {
+  virtual void size(int &minx, int &miny, int &maxw, int &maxh) {
     minx = 0;
     miny = 0;
     maxw = above->w;
@@ -345,15 +335,15 @@ struct anflying : public Animation {
   }
 };
 
-/* special like anplacetile */
-struct andraw : public Animation {
+/* special like AnPlaceTile */
+struct AnDraw : public Animation {
   /* copy; don't free! */
   SDL_Surface *s;
   int x, y;
-  andraw(SDL_Surface *ss, int sx, int sy) :
+  AnDraw(SDL_Surface *ss, int sx, int sy) :
     s(ss), x(sx), y(sy) {}
 
-  virtual bool init(unsigned int now) {
+  bool init(unsigned int now) override {
     SDL_Rect r;
     r.x = x;
     r.y = y;
@@ -362,73 +352,69 @@ struct andraw : public Animation {
     return true;
   }
 
-  virtual int yorder() { return y; }
+  int yorder() override { return y; }
 
-  virtual bool think(unsigned int) {
+  bool think(unsigned int) override {
     /* die */
     return true;
   }
-
 };
 
 /* this keeps drawing it and is never done */
-struct anfinale : public Animation {
-  /* copy; don't free! */
+struct AnFinale : public Animation {
+  /* alias; don't free! */
   SDL_Surface *s;
   int x, y;
-  anfinale(SDL_Surface *ss, int sx, int sy) :
+  AnFinale(SDL_Surface *ss, int sx, int sy) :
     s(ss), x(sx), y(sy) { finale = true; }
 
-  virtual bool init(unsigned int now) {
+  bool init(unsigned int now) override {
     nexttick = now + 100000;
     return false;
   }
 
-  virtual bool think(unsigned int now) {
+  bool think(unsigned int now) override {
     /* don't bother thinking */
     nexttick = now + 100000;
     return true;
   }
 
-  virtual void draw() {
+  void draw() override {
     SDL_Rect r;
     r.x = x;
     r.y = y;
     SDL_BlitSurface(s, 0, screen, &r);
   }
 
-  virtual void erase(Dirt * dirty) {
+  void erase(Dirt *dirty) override {
     dirty->setdirty(x, y, s->w, s->h);
   }
 
-  virtual int yorder() { return y; }
-
+  int yorder() override { return y; }
 };
 
 
-struct anflyingtile : public anflying {
+struct AnFlyingTile : public AnFlying {
   int ti;
 
-  virtual void blit(int x, int y) {
+  void blit(int x, int y) override {
     drawing::drawtile(x, y, ti, 0, screen, false);
   }
 
-  virtual void size(int & minx, int & miny, int & maxw, int & maxh) {
+  void size(int &minx, int &miny, int &maxw, int &maxh) override {
     minx = 0;
     miny = 0;
     maxw = TILEW;
     maxh = TILEH;
   }
 
-  anflyingtile(int ti_,
+  AnFlyingTile(int ti_,
 	       int sx, int sy, 
 	       dir dd, int sdist,
 	       int sp, int w);
-
 };
 
-struct anlaser : public Animation {
-
+struct AnLaser : public Animation {
   int sx, sy;
   dir d;
   int ntiles;
@@ -445,13 +431,13 @@ struct anlaser : public Animation {
   int rl, gl, bl;
   int rlo, glo, blo;
 
-  virtual bool init(unsigned int now) {
+  bool init(unsigned int now) override {
     /* finale = true; */
     nexttick = now;
     return false;
   }
 
-  virtual void erase(Dirt * dirty) { 
+  void erase(Dirt *dirty) override { 
     if (!isfinal) {
       int px, py, ww, hh;
       /* PERF don't need to draw the whole
@@ -487,14 +473,14 @@ struct anlaser : public Animation {
     }
   }
   
-  virtual bool think(unsigned int now);
+  bool think(unsigned int now) override;
 
-  virtual void draw();
+  void draw() override;
 
   /* XXX do we really want to use the starting position of the laser? */
-  virtual int yorder() { return sy; }
+  int yorder() override { return sy; }
 
-  anlaser(int sx_, int sy_, dir d_, int nt, int cl,
+  AnLaser(int sx_, int sy_, dir d_, int nt, int cl,
 	  bool isfinal_,
 	  int rh_, int gh_, int bh_,
 	  int rho_, int gho_, int bho_,
@@ -507,17 +493,15 @@ struct anlaser : public Animation {
        rl(rl_), gl(gl_), bl(bl_),
        rlo(rlo_), glo(glo_), blo(blo_) 
   { }
-
 };
 
 /* for now require that first and second have no 'next' field 
    also, init should not return true. */
-struct ancombo : public Animation {
-
+struct AnCombo : public Animation {
   /* if either is zero, then act like the other pointer. */
   /* invt: at least one is non-null */
-  Animation * first;
-  Animation * second;
+  Animation *first;
+  Animation *second;
 
   void settick() {
     if (first) {
@@ -527,9 +511,9 @@ struct ancombo : public Animation {
     } else nexttick = second->nexttick;
   }
 
-  ancombo(Animation * a, Animation * b) : first(a), second(b) { }
+  AnCombo(Animation *a, Animation *b) : first(a), second(b) { }
 
-  virtual bool init(unsigned int now) {
+  bool init(unsigned int now) override {
     /* XXX ignores return of init */
     if (first)  first ->init(now);
     if (second) second->init(now);
@@ -537,23 +521,23 @@ struct ancombo : public Animation {
     return false;
   }
 
-  virtual void erase(Dirt * dirty) {
+  void erase(Dirt *dirty) override {
     if (first)  first ->erase(dirty);
     if (second) second->erase(dirty);
   }
   
-  virtual bool think(unsigned int now) {
+  bool think(unsigned int now) override {
     if (first && now >= first->nexttick) {
       if (first->think(now)) {
 	delete first;
-	first = 0;
+	first = nullptr;
       }
     }
 
     if (second && now >= second->nexttick) {
       if (second->think(now)) {
 	delete second;
-	second = 0;
+	second = nullptr;
       }
     }
 
@@ -564,18 +548,17 @@ struct ancombo : public Animation {
   }
 
   /* use minimum, I guess... */
-  virtual int yorder() {
+  int yorder() override {
     if (!first) return second->yorder();
     if (!second) return first->yorder();
     return util::minimum(first->yorder(), second->yorder());
   }
 
   /* draw at current location. */
-  virtual void draw() { 
+  void draw() override { 
     if (first) first->draw();
     if (second) second->draw();
   }
-
 };
 
 #endif

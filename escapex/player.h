@@ -47,10 +47,8 @@ struct Player {
   int webseqh;
   int webseql;
 
-  virtual void destroy() = 0;
-
-  static Player *create(string n);
-  static Player *fromfile(string file);
+  static Player *Create(const string &n);
+  static Player *FromFile(const string &file);
 
   /* returns the chunk structure for this
      player. After making any changes
@@ -78,11 +76,11 @@ struct Player {
 
   /* for solution recovery; get every solution in
      the player, regardless of the level it is for */
-  virtual PtrList<Solution> * all_solutions() = 0;
+  virtual PtrList<Solution> *all_solutions() = 0;
 
   /* return the solution set (perhaps empty) for the level indicated.
      the list and its contents remain owned by the player */
-  virtual PtrList<NamedSolution> * solutionset(string md5) = 0;
+  virtual PtrList<NamedSolution> *solutionset(string md5) = 0;
 
   /* frees anything that it overwrites, including the solutions. So
      calling setsolutionset on the set returned from solutionset
@@ -100,7 +98,6 @@ struct Player {
   virtual bool hassolution(string md5, Solution *what) = 0;
 
   virtual ~Player() {};
-
 };
 
 #endif

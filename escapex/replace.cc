@@ -33,7 +33,7 @@
 #endif
 
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
 
 # if 0
   printf("this is replace.exe\n\n");

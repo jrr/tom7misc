@@ -12,7 +12,7 @@ struct PtrList {
   PtrList<P> *next = nullptr;
   PtrList<P>(P *h, PtrList<P> *n) : head(h), next(n) {}
 
-  static void push(PtrList<P> *& sl, P *h) {
+  static void push(PtrList<P> *&sl, P *h) {
     sl = new PtrList<P>(h, sl);
   }
 
@@ -117,7 +117,7 @@ struct PtrList {
     pl = out;
   }
 
-  static void rev(PtrList<P> *& pl) {
+  static void rev(PtrList<P> *&pl) {
     PtrList<P> *out = 0;
     while (pl) push(out, pop(pl));
     pl = out;

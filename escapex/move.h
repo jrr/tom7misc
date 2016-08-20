@@ -373,7 +373,7 @@ void Level::swaptiles(int t1, int t2) {
 #ifdef ANIMATING_MOVE
 
 static void postanimate(Level *l, disamb * ctx,
-                        alist *& events, alist **& etail) {
+                        alist *&events, alist **& etail) {
 
   /* make sure there is animation for everything */
   //  printf("... postanimate ...\n");
@@ -425,7 +425,7 @@ static void postanimate(Level *l, disamb * ctx,
 
 #ifdef ANIMATING_MOVE
  void Level::bombsplode_animate(int now, 
-                int b, disamb * ctx, alist *& events,
+                int b, disamb * ctx, alist *&events,
                 alist **& etail) {
 #else
  void Level::bombsplode(int now, int b) {
@@ -512,9 +512,9 @@ static void postanimate(Level *l, disamb * ctx,
 
 
 #ifdef ANIMATING_MOVE
-  bool Level::move_animate(dir d, disamb * ctx, alist *& events) {
+  bool Level::move_animate(dir d, disamb * ctx, alist *&events) {
   events = 0;
-  alist ** etail = &events;
+  alist **etail = &events;
   ctx->clear();
 
   //  printf("----start move----\n");
@@ -641,7 +641,7 @@ static void postanimate(Level *l, disamb * ctx,
 #ifdef ANIMATING_MOVE
   bool Level::moveent_animate(dir d, int enti,
                               unsigned int cap, int entx, int enty, 
-                              alist *& events, disamb * ctx, 
+                              alist *&events, disamb * ctx, 
                               alist **& etail) {
   //  printf("==== entity %d's turn\n", enti);
 #else

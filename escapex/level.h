@@ -485,12 +485,12 @@ struct Level {
 
 # ifndef NOANIMATION
   /* see animation.h for documentation */
-  bool move_animate(dir, disamb * ctx, PtrList<aevent> *& events);
+  bool move_animate(dir, disamb * ctx, PtrList<aevent> *&events);
   bool moveent_animate(dir, int enti, unsigned int, int, int, 
 		       PtrList<aevent> *&,
                        disamb * ctx, PtrList<aevent> **&);
   void bombsplode_animate(int now,
-			  int bombi, disamb * ctx, PtrList<aevent> *& events,
+			  int bombi, disamb * ctx, PtrList<aevent> *&events,
 			  PtrList<aevent> **& etail);
 # endif
 
@@ -530,7 +530,7 @@ struct Level {
   static bool verify(const Level *lev, const Solution *s);
   /* returns a simplified solution, if s solves lev somewhere
      along the way. if the return is false, then out is garbage */
-  static bool verify_prefix(const Level *lev, const Solution *s, Solution *& out);
+  static bool verify_prefix(const Level *lev, const Solution *s, Solution *&out);
 
   /* execute solution. returns early (# moves set in moves)
      if we die (return false) or win (return true). false upon

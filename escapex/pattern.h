@@ -142,7 +142,7 @@ struct pattern {
     return p.release();
   }
 
-  private: int w, h; int * regs; int nregs; char * chars;
+  private: int w, h; int * regs; int nregs; char *chars;
   public:
   
   /* users can define their own predicates */
@@ -173,7 +173,7 @@ struct pattern {
 
 
   struct mystream : public Match::stream {
-    mystream(Level *l, Info * i, pattern<Info> * p) 
+    mystream(Level *l, Info *i, pattern<Info> *p) 
       /* to get a deterministic sequential generator here
 	 add ",0" in the initializer of g */
       : lev(l), inf(i), pat(p), g(lev->w * lev->h) {
@@ -331,17 +331,17 @@ struct pattern {
     /* this is the entire state. we own none
        of these pointers */
     Level *lev;
-    Info * inf;
+    Info *inf;
     int dirsleft;
     int this_dir;
 
-    pattern<Info> * pat;
+    pattern<Info> *pat;
     generator g;
   };
 
   /* find all matches. the stream is only valid
      while this pattern is still around */
-  Match::stream *findall(Level *lev, Info * inf) {
+  Match::stream *findall(Level *lev, Info *inf) {
     return new mystream(lev, inf, this);
   }
 

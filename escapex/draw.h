@@ -75,10 +75,10 @@ struct drawing {
   /* initialized by loadimages:
      there are DRAW_NSIZES of these 
      in exponential backoff */
-  static SDL_Surface ** tiles;
-  static SDL_Surface ** guy;
-  static SDL_Surface ** tilesdim;
-  static SDL_Surface ** tileutil;
+  static SDL_Surface **tiles;
+  static SDL_Surface **guy;
+  static SDL_Surface **tilesdim;
+  static SDL_Surface **tileutil;
 
   /* call this once in the program. true on success */
   static bool loadimages();
@@ -170,7 +170,7 @@ struct drawing {
      used for the load screen and rating */
   static void drawsmall(int y, int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
-			ratestatus * votes,
+			RateStatus * votes,
 			rating * myrating, int date = 0,
 			int speedrecord = 0);
 

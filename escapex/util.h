@@ -37,15 +37,15 @@ string sizes(int i);
 template <class T>
 struct vallist {
   T head;
-  vallist<T> * next;
-  vallist<T>(T h, vallist<T> * n) : head(h), next(n) {}
-  static void push(vallist<T> *& sl, T h) {
+  vallist<T> *next;
+  vallist<T>(T h, vallist<T> *n) : head(h), next(n) {}
+  static void push(vallist<T> *&sl, T h) {
     sl = new vallist<T>(h, sl);
   }
 
-  static T pop(vallist<T> *& sl, T u) {
+  static T pop(vallist<T> *&sl, T u) {
     if (sl) {
-      vallist<T> * tmp = sl;
+      vallist<T> *tmp = sl;
       T t = tmp->head;
       sl = sl->next;
       delete tmp;
@@ -54,7 +54,7 @@ struct vallist {
   }
 
   /* ie, destroy */
-  static void diminish(vallist<T> *& sl) {
+  static void diminish(vallist<T> *&sl) {
     T dummy;
     while (sl != nullptr) pop(sl, dummy);
   }
@@ -65,7 +65,7 @@ struct vallist {
 
   int length() {
     int res = 0;
-    vallist<T> * tmp = this;
+    vallist<T> *tmp = this;
     while (tmp) {
       tmp = tmp->next;
       res++;
@@ -73,7 +73,7 @@ struct vallist {
     return res;
   }
 
-  static vallist<T> * copy(vallist<T> * sl) {
+  static vallist<T> *copy(vallist<T> *sl) {
     if (sl) {
       return new vallist<T>(sl->head, 
 			    copy(sl->next));
@@ -82,7 +82,7 @@ struct vallist {
 };
 
 typedef vallist<string> stringlist;
-inline string stringpop(stringlist *& sl) {
+inline string stringpop(stringlist *&sl) {
   return stringlist::pop(sl, "");
 }
 
@@ -135,7 +135,7 @@ struct bitbuffer {
   ~bitbuffer() { free(data); }
 
   private:
-  unsigned char * data;
+  unsigned char *data;
   int size;
   int bits;
 };
@@ -282,7 +282,7 @@ struct util {
      insert it, and return that. */
   template <class K, class V>
   static V* findorinsertnew(map<K, V*> &m, const K &key) {
-    V *& pos = m[key];
+    V *&pos = m[key];
     if (!pos) pos = new V;
     return pos;
   }
@@ -292,16 +292,16 @@ struct util {
   /* sort items between first and last (inclusive) in the array. */
   /* XXX can't use this in MSVC 6.0 */
   template <class T>
-  static void sortarray(T * items,
-		 int (*compare)(const T & l, const T & r),
+  static void sortarray(T *items,
+			int (*compare)(const T &l, const T &r),
 			int first, int last);
 };
 
 
 /* templates follow. */
 template <class T>
-void util::sortarray(T * items,
-		     int (*compare)(const T & l, const T & r),
+void util::sortarray(T *items,
+		     int (*compare)(const T &l, const T &r),
 		     int first, int last) {
   /* done for zero, negative, or one-sized arrays. */
   if ((last - first) <= 0) return;

@@ -37,7 +37,7 @@ struct fentry {
   string dest; /* for symlinks */
 };
 
-int main(int argc, char ** argv) {
+int main(int argc, char **argv) {
   MD5::Init();
 
   if (!strcmp(argv[1], "-mkbat")) {

@@ -52,7 +52,7 @@ struct preal : public play {
   virtual void screenresize();
 
   virtual playresult doplay_save(Player *, Level *, 
-				 Solution *& saved, string md5 = "");
+				 Solution *&saved, string md5 = "");
 
   virtual ~preal();
 
@@ -83,9 +83,9 @@ struct preal : public play {
 
   /* hand closure-converted, ugh */
   bool redo();
-  void undo(Level *& start, Extent<Level> & ec, int nmoves);
-  void restart(Level *& start, Extent<Level> & ec);
-  void checkpoint(Solution *& saved_sol,
+  void undo(Level *&start, Extent<Level> & ec, int nmoves);
+  void restart(Level *&start, Extent<Level> & ec);
+  void checkpoint(Solution *&saved_sol,
 		  Extent<Solution> & ess);
   void restore(Extent<Level> & ec,
 	       Level *start,
@@ -94,7 +94,7 @@ struct preal : public play {
   void bookmarks(Level *start, 
 		 Extent<Level> & ec,
 		 Player *plr, string md5, 
-		 Solution *& sol,
+		 Solution *&sol,
 		 Extent<Solution> & eso);
   void bookmark_download(Player *plr, string lmd5, Level *lev);
 
@@ -109,7 +109,7 @@ private:
   playstate curstate();
 
   static void setsolseta(Player *plr, const string &md5,
-			 BookmarkItem ** books,
+			 BookmarkItem **books,
 			 int n);
 };
 
@@ -525,7 +525,7 @@ bool preal::redo() {
 }
 
 /* oh how I yearn for nested functions */
-void preal::undo(Level *& start, Extent<Level> & ec, int nm) {
+void preal::undo(Level *&start, Extent<Level> & ec, int nm) {
   if (solpos > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -542,7 +542,7 @@ void preal::undo(Level *& start, Extent<Level> & ec, int nm) {
   }
 }
 
-void preal::restart(Level *& start, Extent<Level> & ec) {
+void preal::restart(Level *&start, Extent<Level> & ec) {
   dr.lev->destroy();
   solpos = 0;
   dr.lev = start->clone();
@@ -570,7 +570,7 @@ void preal::setsolseta(Player *plr, const string &md5,
 void preal::bookmarks(Level *start, 
 		      Extent<Level> &ec,
 		      Player *plr, string md5, 
-		      Solution *& sol,
+		      Solution *&sol,
 		      Extent<Solution> &eso) {
 
   enum okaywhat_t { OKAYWHAT_HUH, OKAYWHAT_NEW=10, OKAYWHAT_DOWNLOAD, };
@@ -617,7 +617,7 @@ void preal::bookmarks(Level *start,
     cancel can;
     can.text = "Cancel";
 
-    PtrList<MenuItem> * l = 0;
+    PtrList<MenuItem> *l = 0;
 
     PtrList<MenuItem>::push(l, &can);
     PtrList<MenuItem>::push(l, &book_current);
@@ -626,10 +626,10 @@ void preal::bookmarks(Level *start,
 
     /* initialize bmset with current bookmarks. */
     bool didsolve = false;
-    BookmarkItem ** books = 0;
+    BookmarkItem **books = 0;
     int bmnum = 0;
     {
-      PtrList<NamedSolution> * ss = plr->solutionset(md5);
+      PtrList<NamedSolution> *ss = plr->solutionset(md5);
       bmnum = ss->length();
       books = (BookmarkItem**) malloc(sizeof (BookmarkItem*) * bmnum);
       
@@ -902,7 +902,7 @@ void preal::bookmark_download(Player *plr, string lmd5, Level *lev) {
 }
 
 
-void preal::checkpoint(Solution *& saved_sol,
+void preal::checkpoint(Solution *&saved_sol,
 		       Extent<Solution> & ess) {
   saved_sol->destroy();
   saved_sol = sol->clone();
@@ -986,7 +986,7 @@ bool preal::getevent(SDL_Event * e, bool & fake) {
 }
 
 playresult preal::doplay_save(Player *plr, Level *start, 
-			      Solution *& saved, string md5) {
+			      Solution *&saved, string md5) {
   /* we never modify 'start' */
   dr.lev = start->clone();
   Extent<Level> ec(dr.lev);
@@ -1410,7 +1410,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
   {
     string idx = 
       util::pathof(res) + (string)DIRSEP WEBINDEXNAME;
-    dirindex * di = dirindex::fromfile(idx);
+    DirIndex * di = DirIndex::fromfile(idx);
     iscollection = di?(di->webcollection()):false;
     if (di) di->destroy();
   }
@@ -1465,14 +1465,14 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
 	 solution, then go for it... */
 
       {
-	PtrList<NamedSolution> * sols = 
+	PtrList<NamedSolution> *sols = 
 	  PtrList<NamedSolution>::copy(plr->solutionset(md5));
 	PtrList<NamedSolution>::rev(sols);
 
 	/* now filter just the ones that verify */
 	/* XXX LEAK: I don't understand the interface to
 	   (set)solutionset, so I don't free anything here. */
-	PtrList<NamedSolution> * newsols = 0;
+	PtrList<NamedSolution> *newsols = 0;
 	while (sols) {
 	  NamedSolution *ns = PtrList<NamedSolution>::pop(sols);
 
@@ -1547,7 +1547,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
   } else return;
 }
 
-bool play::animatemove(drawing & dr, disamb *& ctx, Dirt *dirty, dir d) {
+bool play::animatemove(drawing & dr, disamb *&ctx, Dirt *dirty, dir d) {
   /* events waiting to be turned into animations */
   elist * events = 0;
   /* current phase of animation */

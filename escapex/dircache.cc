@@ -1,5 +1,3 @@
-
-
 #include "escapex.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
@@ -17,10 +15,12 @@
 
 #define HASHSIZE 31
 
-struct direntry {
+namespace {
+
+struct DirEntry {
   string dir;
 
-  dirindex * index;
+  DirIndex *index;
 
   /* these counts include recursive traversals */
   int total;
@@ -35,52 +35,37 @@ struct direntry {
     if (index) index->destroy(); 
     delete this; 
   }
-  direntry(string d, dirindex * i, int t, int s) : dir(d), index(i), total(t), solved(s) {
+  DirEntry(string d, DirIndex *i, int t, int s) : dir(d), index(i), total(t), solved(s) {
     // printf("dircached %s\n", d.c_str());
   }
 };
 
-struct dcreal : public dircache {
-
+struct DirCache_ : public DirCache {
   Player *plr;
   
-  hashtable<direntry, string> * table;
+  hashtable<DirEntry, string> *table;
+  ~DirCache_() override { table->destroy(); }
 
-  static dcreal * create(Player *p) {
-    dcreal * dc = new dcreal();
-    if (!dc) return 0;
-    Extent<dcreal> e(dc);
+  static DirCache_ *Create(Player *p) {
+    std::unique_ptr<DirCache_> dc{new DirCache_()};
+    if (!dc.get()) return nullptr;
   
     dc->plr = p;
 
-    dc->table = hashtable<direntry,string>::create(HASHSIZE);
+    dc->table = hashtable<DirEntry,string>::create(HASHSIZE);
 
     if (!dc->table) return 0;
  
-    e.release();
-    return dc;
+    return dc.release();
   }
 
-  virtual void destroy();
-
-  virtual void getidx(string dir, dirindex *& idx);
-  virtual int get(string dir, dirindex *& idx, 
-                  int & tot, int & sol,
-                  void (*prog)(void * d, int n, int total, 
-                               const string &, const int) = 0,
-                  void * pd = 0);
+  void getidx(string dir, DirIndex *&idx) override;
+  int get(string dir, DirIndex *&idx, 
+	  int &tot, int &sol,
+	  void (*prog)(void *d, int n, int total, 
+		       const string &, const int) = 0,
+	  void *pd = 0) override;
 };
-
-dircache::~dircache() {}
-
-dircache * dircache::create(Player *p) {
-  return dcreal::create(p);
-}
-
-void dcreal::destroy() {
-  table->destroy();
-  delete this;
-}
 
 /* make sure it starts with ./ */
 static string normalize(string dir) {
@@ -90,32 +75,32 @@ static string normalize(string dir) {
 }
 
 /* read index, but don't put in table */
-void dcreal::getidx(string dir, dirindex *& idx) {
+void DirCache_::getidx(string dir, DirIndex *&idx) {
   dir = normalize(dir);
   idx = 0;
   string ifile = dir + (string)DIRSEP WEBINDEXNAME;
-  idx = dirindex::fromfile(ifile);
+  idx = DirIndex::fromfile(ifile);
 
   /* also try old name */
-  if (!idx) idx = dirindex::fromfile(dir + (string)DIRSEP DIRINDEXNAME);
+  if (!idx) idx = DirIndex::fromfile(dir + (string)DIRSEP DIRINDEXNAME);
 }
 
-int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
-                void (*prog)(void * d, int n, int total, 
+int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
+                void (*prog)(void *d, int n, int total, 
                              const string &, const int),
-                void * pd) {
+                void *pd) {
   // printf("get: %s\n", dir.c_str());
 
   dir = normalize(dir);
   // printf("normalized: %s\n", dir.c_str());
 
-  direntry * de = table->lookup(dir);
+  DirEntry *de = table->lookup(dir);
   if (!de) {
     /* no entry. put it in the cache. */
 
     if (util::existsfile(dir + DIRSEP + IGNOREFILE)) {
       /* ignored dir */
-      table->insert(new direntry(dir, 0, 0, 0));
+      table->insert(new DirEntry(dir, 0, 0, 0));
       tot = 0; sol = 0; idx = 0;
       return 1;
     }
@@ -127,7 +112,7 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
     if (prog) total = dirsize(dir.c_str());
     /* printf("  DIRCACHE: %d total\n", total); */
 
-    dirindex * didx;
+    DirIndex *didx;
     getidx(dir, didx);
 
     /* 
@@ -136,9 +121,9 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
     */
 
     /* init array */
-    DIR * d = opendir(dir.c_str());
+    DIR *d = opendir(dir.c_str());
     if (!d) return 0;
-    dirent * dire;
+    dirent *dire;
 
     int ttt = 0, sss = 0;
     int num = 0;
@@ -162,7 +147,7 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
 
           int tsub, ssub;
 
-          dirindex * iii_unused = 0;
+          DirIndex *iii_unused = 0;
           if (get(ldn, iii_unused, tsub, ssub, prog, pd)) {
             ttt += tsub;
             sss += ssub;
@@ -194,7 +179,7 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
 
     closedir(d);
 
-    table->insert(new direntry(dir, didx, ttt, sss));
+    table->insert(new DirEntry(dir, didx, ttt, sss));
 
     tot = ttt;
     sol = sss;
@@ -202,10 +187,19 @@ int dcreal::get(string dir, dirindex *& idx, int & tot, int & sol,
 
     return 1;
 
-  } else { /* memoized */
+  } else { 
+    /* memoized */
     tot = de->total;
     sol = de->solved;
     idx = de->index;
     return 1;
   }
+}
+
+}  // namespace
+
+DirCache::~DirCache() {}
+
+DirCache *DirCache::Create(Player *p) {
+  return DirCache_::Create(p);
 }

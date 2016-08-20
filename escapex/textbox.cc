@@ -25,13 +25,13 @@ string textbox::get_text() {
   while (before) left(false);
   int len = after->length();
 
-  char * out = (char*)malloc(sizeof(char) * (len + 1));
+  char *out = (char*)malloc(sizeof(char) * (len + 1));
 
   /* zero terminate */
   out[len] = 0;
 
   {
-    vallist<char> * aa = after;
+    vallist<char> *aa = after;
     int i = 0;
     while (aa) {
       out[i] = aa->head;
@@ -140,7 +140,7 @@ void textbox::draw(int posx, int posy, int f) {
      at least drawlines lines? */
   
   int count = 0;
-  vallist<char> * tmp = before;
+  vallist<char> *tmp = before;
   stringlist * blines = 0;
 
   while (tmp) {
@@ -199,7 +199,7 @@ void textbox::draw(int posx, int posy, int f) {
 
   int x = lastline.length();
   
-  vallist<char> * rest = after;
+  vallist<char> *rest = after;
   /* write characters */
   while (rest && y < charsh) {
     /* see if we can fit this word on the line */
@@ -249,7 +249,7 @@ void textbox::draw(int posx, int posy, int f) {
 }
 
 /* PERF used extensively, has inefficient implementation */
-string textbox::prevline(vallist<char> *& bb) {
+string textbox::prevline(vallist<char> *&bb) {
   string theline;
 
   /* printf("prevline :"); */
@@ -275,7 +275,7 @@ string textbox::prevline(vallist<char> *& bb) {
 
 /* leaves aa pointing at the whitespace
    character that follows this word (orelse null) */
-string textbox::nextword(vallist<char> *& aa) {
+string textbox::nextword(vallist<char> *&aa) {
   string theword;
 
   while (aa) {
@@ -299,7 +299,7 @@ string textbox::nextword(vallist<char> *& aa) {
 /* pop the last word from bb. p will be set to the type of
    breaking char that preceded this word (which is also removed
    from bb.) */
-string textbox::popword(vallist<char> *& bb, char & p) {
+string textbox::popword(vallist<char> *&bb, char & p) {
   string out;
   while (bb) {
     char k = vallist<char>::pop(bb, ' ');
@@ -414,7 +414,7 @@ void textbox::left_noflow(bool erasing) {
 void textbox::up() {
   /* find out how many characters back 'up' is. */
 
-  vallist<char> * tmp = before;
+  vallist<char> *tmp = before;
   int thisline = countprevline(tmp);
   int prevline = countprevline(tmp);
 
@@ -431,7 +431,7 @@ void textbox::up() {
 void textbox::down() {
   /* how many chars into this line? */
 
-  vallist<char> * tmp = before;
+  vallist<char> *tmp = before;
   int thisline = countprevline(tmp);
 
   while (after) {
@@ -458,7 +458,7 @@ void textbox::down() {
 }
 
 /* PERF doesn't need to build string */
-int textbox::countprevline(vallist<char> *& bb) {
+int textbox::countprevline(vallist<char> *&bb) {
   string pl = prevline(bb);
   return pl.length();
 }
@@ -467,12 +467,12 @@ int textbox::countprevline(vallist<char> *& bb) {
    it needs to maintain the word wrap invariant
    in the 'before' list. */
 void textbox::type(char k) {
-  vallist<char> * tmp = before;
+  vallist<char> *tmp = before;
   string thisline = prevline(tmp);
 
   /* since we might be adding onto the beginning of an existing word,
      we need to include it in our line length test */
-  vallist<char> * tmp2 = after;
+  vallist<char> *tmp2 = after;
   string nword = nextword(tmp2);
 
   /* XXX if typing a space character -- even if it fits --

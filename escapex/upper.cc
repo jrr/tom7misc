@@ -9,7 +9,9 @@
 
 #define HASHSIZE 1021
 
-struct oldentry {
+namespace {
+
+struct OldEntry {
   /* suitable for open() */
   string fname;
 
@@ -25,12 +27,10 @@ struct oldentry {
 
   void destroy() { delete this; }
 
-  oldentry(string f) : fname(f), deleteme(true) {}
-
+  OldEntry(string f) : fname(f), deleteme(true) {}
 };
 
-struct contententry {
-  
+struct ContentEntry {
   string md5;
   string content;
 
@@ -48,23 +48,21 @@ struct contententry {
 
   void destroy() { delete this; }
 
-  contententry(string con) : content(con) {
+  ContentEntry(string con) : content(con) {
     md5 = MD5::Ascii(MD5::Hash(con));
   }
 
 };
 
-using oldtable = hashtable<oldentry, string>;
-using contable = hashtable<contententry, string>;
+using oldtable = hashtable<OldEntry, string>;
+using contable = hashtable<ContentEntry, string>;
 
-struct upreal : public Upper {
+struct Upper_ : public Upper {
+  static Upper_ *Create(HTTP *, TextScroll *, Drawable *, string);
 
-  static upreal * create(HTTP *, TextScroll *, Drawable *, string);
+  ~Upper_() override;
 
-  ~upreal() override {}
-
-  void destroy() override;
-  bool setfile(string f, string md, ratestatus votes, 
+  bool setfile(string f, string md, RateStatus votes, 
 	       int, int, int o) override;
   bool commit() override;
 
@@ -111,20 +109,15 @@ struct upreal : public Upper {
   /* list of saved dirs: dir, index.
      rep invt: these are the same length */
   stringlist * dirlistd;
-  PtrList<dirindex> * dirlisti;
+  PtrList<DirIndex> *dirlisti;
 
   void init();
   void insertdir(string d);
 };
 
-Upper * Upper::create(HTTP * h, TextScroll *t,
-		      Drawable *d, string f) {
-  return upreal::create(h, t, d, f);
-}
-
-upreal * upreal::create(HTTP * h, TextScroll *t,
+Upper_ * Upper_::Create(HTTP * h, TextScroll *t,
 			Drawable *d, string f) {
-  upreal * ur = new upreal();
+  Upper_ * ur = new Upper_();
   ur->hh = h;
   ur->tx = t;
   ur->below = d;
@@ -135,7 +128,7 @@ upreal * upreal::create(HTTP * h, TextScroll *t,
   return ur;
 }
 
-void upreal::init() {
+void Upper_::init() {
   /* initialize 'olds' and 'contents' */
 
   olds = oldtable::create(HASHSIZE);
@@ -156,7 +149,7 @@ void upreal::init() {
   insertdir(dirname);
 }
 
-void upreal::savedir(string d, string i) {
+void Upper_::savedir(string d, string i) {
   /* XXX: could fail if d is a file. In this
      case we're sort of in trouble, since we
      can't move d without invalidating our own
@@ -165,12 +158,12 @@ void upreal::savedir(string d, string i) {
   stringlist::push(dirlistd, d);
 
   /* XXX error checking? */
-  dirindex * di = dirindex::create();
+  DirIndex * di = DirIndex::create();
   di->title = i;
-  PtrList<dirindex>::push(dirlisti, di);
+  PtrList<DirIndex>::push(dirlisti, di);
 }
 
-void upreal::insertdir(string src) {
+void Upper_::insertdir(string src) {
   DIR * d = opendir(src.c_str());
     
   say((string)YELLOW"insertdir " + src + POP);
@@ -193,7 +186,7 @@ void upreal::insertdir(string src) {
     if (util::isdir(f)) {
       insertdir(f);
     } else {
-      olds->insert(new oldentry(f));
+      olds->insert(new OldEntry(f));
 
       /* XXX use readfilesize,
 	 where it won't read the file
@@ -202,24 +195,22 @@ void upreal::insertdir(string src) {
 	 managed dirs...)
       */
       string inside = readfile(f);
-      contents->insert(new contententry(inside));
+      contents->insert(new ContentEntry(inside));
     }
   }
 
   closedir(d);
 }
 
-void upreal::destroy() {
+Upper_::~Upper_() {
   stringlist::diminish(newlistf);
   stringlist::diminish(newlistm);
 
   contents->destroy();
   olds->destroy();
-
-  delete this;
 }
 
-bool upreal::setfile(string f, string md, ratestatus votes,
+bool Upper_::setfile(string f, string md, RateStatus votes,
 		     int date, int speedrecord, int owner) {
   say((string)"setfile(" + f + (string)", " 
       GREY + md + (string)POP ")", true);
@@ -237,7 +228,7 @@ bool upreal::setfile(string f, string md, ratestatus votes,
   }
 # endif
 
-  contententry * already = contents->lookup(md);
+  ContentEntry * already = contents->lookup(md);
 
   /* if it's not already in the content hashtable,
      get it from the internet. */
@@ -254,7 +245,7 @@ bool upreal::setfile(string f, string md, ratestatus votes,
 
     switch (hr) {
     case HT_OK: {
-      contententry * nce = new contententry(mm);
+      ContentEntry * nce = new ContentEntry(mm);
       sayover((string)"(setfile) downloaded : " + nce->md5, true);
 
       if (nce->md5 != md) {
@@ -281,7 +272,7 @@ bool upreal::setfile(string f, string md, ratestatus votes,
   /* if it's in the olds, mark it so
      that it won't be deleted */
 
-  oldentry * existing = olds->lookup(dirname + DIRSEP + f);
+  OldEntry * existing = olds->lookup(dirname + DIRSEP + f);
   if (existing) existing->deleteme = false;
 
   /* put it in newlist */
@@ -298,7 +289,7 @@ bool upreal::setfile(string f, string md, ratestatus votes,
     if (dd == ".") dd = "";
 
     stringlist * dt = dirlistd;
-    PtrList<dirindex> * it = dirlisti;
+    PtrList<DirIndex> *it = dirlisti;
 
     while (dt && it) {
 
@@ -317,11 +308,11 @@ bool upreal::setfile(string f, string md, ratestatus votes,
   return true;
 }
 
-static void deleteif(oldentry * oe, int dummy_param) {
+static void deleteif(OldEntry * oe, int dummy_param) {
   if (oe->deleteme) {
     /* we can delete index files with proper magic. these are
        always overwritten with every update */
-    if (dirindex::isindex(oe->fname)) {
+    if (DirIndex::isindex(oe->fname)) {
       /* but if deletion fails (in use?), try moving */
       if (!util::remove(oe->fname))
 	util::toattic(oe->fname);
@@ -331,7 +322,7 @@ static void deleteif(oldentry * oe, int dummy_param) {
   }
 }
 
-bool upreal::commit() {
+bool Upper_::commit() {
   say(YELLOW " ======= " WHITE " commit phase " POP " ======= " POP);
 
   /* overwrite anything in newlist. */
@@ -368,7 +359,7 @@ bool upreal::commit() {
       return false;
     }
 
-    contententry * ce = contents->lookup(nlm);
+    ContentEntry * ce = contents->lookup(nlm);
     
     if (!ce) {
       say((string)RED "bug: md5 " BLUE "[" + nlm +
@@ -402,7 +393,7 @@ bool upreal::commit() {
      length(dirlisti) */
   while (dirlistd) {
     string d = stringpop(dirlistd);
-    dirindex * i = PtrList<dirindex>::pop(dirlisti);
+    DirIndex * i = PtrList<DirIndex>::pop(dirlisti);
 
     string f = 
       (d == "") 
@@ -418,4 +409,11 @@ bool upreal::commit() {
   /* FIXME prune empty dirs */
 
   return true;
+}
+
+}  // namespace
+
+Upper * Upper::Create(HTTP *h, TextScroll *t,
+		      Drawable *d, string f) {
+  return Upper_::Create(h, t, d, f);
 }
