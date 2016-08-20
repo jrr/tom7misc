@@ -1,4 +1,7 @@
 
+// XXX is this still needed? -tom7  20 Aug 2016
+// Better to make Level a library that does not depend on SDL.
+
 #ifndef __LEVEL_H
 #define __LEVEL_H
 
@@ -281,7 +284,7 @@ struct Solution {
    Disambiguation contexts are associated with
    a particular level and cannot be mixed up!
 */
-struct disamb {
+struct Disamb {
   /* array of serial numbers. */
   int w, h;
   unsigned int * map;
@@ -294,7 +297,7 @@ struct disamb {
   /* keep track of current serial */
   unsigned int serial;
 
-  static disamb * create(struct Level *);
+  static Disamb * create(struct Level *);
   void destroy();
 
   /* sets everything to serial 0 */
@@ -480,10 +483,10 @@ struct Level {
 
 # ifndef NOANIMATION
   /* see animation.h for documentation */
-  bool move_animate(dir, disamb * ctx, PtrList<aevent> *&events);
+  bool move_animate(dir, Disamb * ctx, PtrList<aevent> *&events);
   bool moveent_animate(dir, int enti, unsigned int, int, int, 
 		       PtrList<aevent> *&,
-                       disamb * ctx, PtrList<aevent> **&);
+                       Disamb * ctx, PtrList<aevent> **&);
 <<<<<<< level.h
 # endif
 
@@ -491,7 +494,7 @@ struct Level {
 =======
 >>>>>>> 1.55
   void bombsplode_animate(int now,
-			  int bombi, disamb * ctx, PtrList<aevent> *&events,
+			  int bombi, Disamb * ctx, PtrList<aevent> *&events,
 			  PtrList<aevent> **& etail);
 <<<<<<< level.h
 # endif

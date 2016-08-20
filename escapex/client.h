@@ -29,12 +29,12 @@ struct Client {
   static HTTP * connect(Player *plr, TextScroll *tx, Drawable *that) {
     HTTP * hh = HTTP::create();
 
-    if (prefs::getbool(plr, PREF_DEBUG_NET)) 
+    if (Prefs::getbool(plr, PREF_DEBUG_NET)) 
       hh->log_message = debug_log_message;
 
-    string serveraddress = prefs::getstring(plr, PREF_SERVER);
+    string serveraddress = Prefs::getstring(plr, PREF_SERVER);
     int serverport =
-      (prefs::getbool(plr, PREF_ALTCONNECT))?8888:80;
+      (Prefs::getbool(plr, PREF_ALTCONNECT))?8888:80;
 
     if (!hh) { 
       if (tx) tx->say(YELLOW "Couldn't create http object.");

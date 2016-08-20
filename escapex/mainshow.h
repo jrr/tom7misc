@@ -17,10 +17,10 @@
 
 /* draws an ever-changing and poorly-played level */
 
-struct mainshow {
+struct MainShow {
   
   /* width and height given in tiles */
-  mainshow(int w, int h, int zf = 1);
+  MainShow(int w, int h, int zf = 1);
 
   /* take a step. this can be about anything */
   void step();
@@ -29,13 +29,13 @@ struct mainshow {
      0, then draw to the screen */
   void draw(int x, int y, SDL_Surface *surf = 0);
   
-  ~mainshow();
+  ~MainShow();
 
   int width() {
     return dr.width;
   }
 
-private:
+ private:
   
   drawing dr;
 
@@ -55,7 +55,6 @@ private:
   int guytime;
   
   TextScroll *tx;
-  
 };
 
 #endif

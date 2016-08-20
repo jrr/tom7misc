@@ -51,7 +51,7 @@ struct preal : public play {
   virtual void draw();
   virtual void screenresize();
 
-  virtual playresult doplay_save(Player *, Level *, 
+  virtual PlayResult doplay_save(Player *, Level *, 
 				 Solution *&saved, string md5 = "");
 
   virtual ~preal();
@@ -314,7 +314,7 @@ struct BookmarkItem : public MenuItem {
 
     case SDLK_r:
     case SDLK_F2: {
-      action.s = prompt::ask(container, 
+      action.s = Prompt::ask(container, 
 			     "New name: ", ns->name);
       if (action.s != "") {
 	action.a = BMA_RENAME;
@@ -985,25 +985,19 @@ bool preal::getevent(SDL_Event * e, bool & fake) {
   } else return false;
 }
 
-playresult preal::doplay_save(Player *plr, Level *start, 
+PlayResult preal::doplay_save(Player *plr, Level *start, 
 			      Solution *&saved, string md5) {
   /* we never modify 'start' */
   dr.lev = start->clone();
   Extent<Level> ec(dr.lev);
   
-  disamb * ctx = disamb::create(start);
-  Extent<disamb> edc(ctx);
+  std::unique_ptr<Disamb> ctx{Disamb::Create(start)};
 
   sol = Solution::empty();
   solpos = 0;
-  Solution *saved_sol;
-
   /* if a solution was passed in, use it. */
-  if (!saved) {
-    saved_sol = Solution::empty();
-  } else {
-    saved_sol = saved->clone();
-  }
+  Solution *saved_sol = saved ? saved->clone() :
+    Solution::empty();
 
   Extent<Solution> ess(saved_sol);
   Extent<Solution> eso(sol); 
@@ -1027,7 +1021,7 @@ playresult preal::doplay_save(Player *plr, Level *start,
   std::unique_ptr<Dirt> dirty{Dirt::create()};
 
   bool do_animate = 
-    prefs::getbool(plr, PREF_ANIMATION_ENABLED);
+    Prefs::getbool(plr, PREF_ANIMATION_ENABLED);
 
   for (;;) {
     //  while ( SDL_WaitEvent(&event) >= 0 ) {
@@ -1102,7 +1096,7 @@ playresult preal::doplay_save(Player *plr, Level *start,
 	    eso.release();
 	    if (saved) saved->destroy();
 	    saved = saved_sol->clone();
-	    return playresult::solved(sol);
+	    return PlayResult::solved(sol);
 
 	  case STATE_DEAD: /* fallthrough */
 	  case STATE_OKAY:
@@ -1125,7 +1119,7 @@ playresult preal::doplay_save(Player *plr, Level *start,
 	    eso.release();
 	    if (saved) saved->destroy();
 	    saved = saved_sol->clone();
-	    return playresult::solved(sol);
+	    return PlayResult::solved(sol);
 	  break;
 	  }
 	  break;
@@ -1141,7 +1135,7 @@ playresult preal::doplay_save(Player *plr, Level *start,
 	     animation temporarily */
 	  if (dr.zoomfactor == 0)
 	    do_animate =
-	      prefs::getbool(plr, PREF_ANIMATION_ENABLED);
+	      Prefs::getbool(plr, PREF_ANIMATION_ENABLED);
 
 	  /* fix scrolls */
 	  dr.makescrollreasonable();
@@ -1237,7 +1231,7 @@ playresult preal::doplay_save(Player *plr, Level *start,
 	       MD5 string here. Better would be to use loader, or
 	       at least require only a unique prefix of the md5. */
 	    watching = false;
-	    string answer = prompt::ask(this,
+	    string answer = Prompt::ask(this,
 					PICS QICON POP 
 					" What solution? (give md5 of level)");
 	    
@@ -1346,7 +1340,7 @@ playresult preal::doplay_save(Player *plr, Level *start,
 	  bool moved;
 
 	  if (do_animate && !dr.zoomfactor) {
-	    moved = animatemove(dr, ctx, dirty.get(), d);
+	    moved = animatemove(dr, ctx.get(), dirty.get(), d);
 	  } else {
 	    moved = dr.lev->move(d);
 	  }
@@ -1399,7 +1393,7 @@ playresult preal::doplay_save(Player *plr, Level *start,
   
   if (saved) saved->destroy();
   saved = saved_sol->clone();
-  return playresult::quit();
+  return PlayResult::quit();
 
 }
 
@@ -1429,7 +1423,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
     play * pla = play::create();
     Extent<play> ep(pla);
 
-    playresult res = pla->doplay(plr, lev, md5);
+    PlayResult res = pla->doplay(plr, lev, md5);
 
     if (res.type == PR_ERROR || res.type == PR_EXIT) {
       lev->destroy();
@@ -1493,7 +1487,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
       }
 
       /* free 'sol', and init 'opt' */
-      if (prefs::getbool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
+      if (Prefs::getbool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
 	Level *check = Level::fromstring(ss);
 	if (check) {
 	  opt = Optimize::opt(check, sol);
@@ -1520,7 +1514,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
 	  firstsol &&
 	  iscollection &&
 	  !plr->getrating(md5) &&
-	  prefs::getbool(plr, PREF_ASKRATE)) {
+	  Prefs::getbool(plr, PREF_ASKRATE)) {
 
 	std::unique_ptr<RateScreen> rs{RateScreen::Create(plr, lev, md5)};
 	if (rs.get() != nullptr) {
@@ -1547,7 +1541,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
   } else return;
 }
 
-bool play::animatemove(drawing & dr, disamb *&ctx, Dirt *dirty, dir d) {
+bool play::animatemove(drawing & dr, Disamb *ctx, Dirt *dirty, dir d) {
   /* events waiting to be turned into animations */
   elist * events = 0;
   /* current phase of animation */

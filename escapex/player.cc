@@ -246,7 +246,7 @@ playerreal *playerreal::Create(const string &n) {
   if (!p->ch) return 0;
 
   /* set default preferences */
-  prefs::defaults(p.get());
+  Prefs::defaults(p.get());
 
   return p.release();
 }
@@ -422,7 +422,7 @@ void playerreal::deleteoldbackups() {
 bool playerreal::writefile() {
 
   /* Back up the player file. */
-  if (prefs::getbool(this, PREF_BACKUP_PLAYER)) {
+  if (Prefs::getbool(this, PREF_BACKUP_PLAYER)) {
     int epoch = time(0) / BACKUP_FREQ;
     
     /* did we already back up in this epoch? */

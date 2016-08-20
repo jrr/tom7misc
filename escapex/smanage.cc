@@ -490,7 +490,7 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
       case SDLK_F2: {
 	/* rename. */
 
-	string sn = prompt::ask(sm,
+	string sn = Prompt::ask(sm,
 				"Solution name: ",
 				sm->sel->items[sm->sel->selected].ns.name);
 				  
@@ -695,15 +695,13 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
   p.soli = 0;
 
 
-  disamb * ctx = disamb::create(lev);
-  Extent<disamb> edc(ctx);
+  std::unique_ptr<Disamb> ctx{Disamb::Create(lev)};
 
   p.state = PB_PLAYING;
   p.screenresize();
   p.draw();
 
   for (;;) {
-
     /* act according to the state */
     switch (p.state) {
     case PB_PLAYONEMOVE:
@@ -714,7 +712,7 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	p.soli++;
 
 	/* and execute it, waiting for the animation to play. */
-	play::animatemove(p.dr, ctx, p.dirty.get(), move);
+	play::animatemove(p.dr, ctx.get(), p.dirty.get(), move);
 	/* track player */
 	p.dr.setscroll();
 	p.draw();

@@ -4,7 +4,7 @@
 #include "font.h"
 
 
-void progress::drawbar(void * vepoch, int n, int tot, 
+void Progress::drawbar(void * vepoch, int n, int tot, 
 		       const string & msg, int ticks) {
   Uint32 * epoch = (Uint32*) vepoch;
   if (tot > 50 && !(n % 5)) {

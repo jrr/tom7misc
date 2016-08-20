@@ -145,7 +145,7 @@ Player *PDBEntry::convert() {
   if (Player *ret = Player::FromFile(fname)) {
     /* ensure that this player (which may be from an older version)
        has at least defaults for any new prefs */
-    prefs::defaults(ret);
+    Prefs::defaults(ret);
     return ret;
   } else {
     Message::no(0, "Couldn't read player " + fname);
@@ -367,7 +367,7 @@ Player *PlayerDB_::chooseplayer() {
 	    && sel->items[sel->selected].kind == K_PLAYER) {
 
 	  string answer = 
-	    prompt::ask(0,
+	    Prompt::ask(0,
 			((string)PICS QICON POP " Really delete " BLUE +
 			 sel->items[sel->selected].name +
 			 (string)" " POP "(" YELLOW +
@@ -431,7 +431,7 @@ Player *PlayerDB_::chooseplayer() {
 
 void PlayerDB_::promptnew() {
   /* XXX could default to getenv(LOGNAME) on linux */
-  string ssss = safeify(prompt::ask(0,
+  string ssss = safeify(Prompt::ask(0,
 				    "Enter name for new player: "));
 	
   if (ssss != "") {
@@ -449,8 +449,8 @@ void PlayerDB_::promptnew() {
    you browse the directory for a player file */
 void PlayerDB_::promptimport() {
 #if 0
-  prompt * pp = prompt::create();
-  Extent<prompt> ep(pp);
+  Prompt *pp = Prompt::create();
+  Extent<Prompt> ep(pp);
 
   pp->title = "Enter filename (" BLUE "*.esp" POP "): ";
   pp->posx = 30;

@@ -5,7 +5,7 @@
 #define GUY_FREQ 40
 #define LEVEL_FREQ 300
 
-mainshow::mainshow(int w, int h, int zf) {
+MainShow::MainShow(int w, int h, int zf) {
   dr.lev = Level::defboard(w, h);
   dr.width = (TILEW >> zf) * w;
   dr.height = (TILEH >> zf) * h;
@@ -21,7 +21,7 @@ mainshow::mainshow(int w, int h, int zf) {
   newlevel();
 }
 
-mainshow::~mainshow() {
+MainShow::~MainShow() {
   dr.lev->destroy();
   dr.lev = 0;
 
@@ -29,7 +29,7 @@ mainshow::~mainshow() {
   tx = 0;
 }
 
-void mainshow::draw(int x, int y, SDL_Surface *surf) {
+void MainShow::draw(int x, int y, SDL_Surface *surf) {
   if (!surf) surf = screen;
   dr.posx = x;
   dr.posy = y;
@@ -41,7 +41,7 @@ void mainshow::draw(int x, int y, SDL_Surface *surf) {
   tx->drawto(surf);
 }
 
-void mainshow::step() {
+void MainShow::step() {
 
   int dumb, dumby;
   dir dummy;
@@ -66,13 +66,13 @@ void mainshow::step() {
 
 /* XXX facing is now in level, so this is just
    eta-expansion of move */
-bool mainshow::moveface(dir d) {
+bool MainShow::moveface(dir d) {
   if (dr.lev->move(d)) {
     return true;
   } else return false;
 }
 
-void mainshow::trymove() {
+void MainShow::trymove() {
 
   /* walk towards goal */
   Level *l = dr.lev;
@@ -107,7 +107,7 @@ void mainshow::trymove() {
 
 }
 
-void mainshow::randomspot(int & x, int & y) {
+void MainShow::randomspot(int & x, int & y) {
 
   int idx = 
     util::random() % ((dr.lev->w - 2) * (dr.lev->h - 2));
@@ -117,7 +117,7 @@ void mainshow::randomspot(int & x, int & y) {
 
 }
 
-void mainshow::newexit() {
+void MainShow::newexit() {
 
   dr.lev->settile(exitx, exity, T_FLOOR);
 
@@ -128,7 +128,7 @@ void mainshow::newexit() {
   exittime = 5 + (util::random() % EXIT_FREQ);
 }
 
-void mainshow::newguy() {
+void MainShow::newguy() {
 
   randomspot(dr.lev->guyx,
 	     dr.lev->guyy);
@@ -136,7 +136,7 @@ void mainshow::newguy() {
   guytime = 8 + (util::random() % GUY_FREQ);
 }
 
-void mainshow::newlevel() {
+void MainShow::newlevel() {
 
   /* XXX make a more interesting random level!! 
      (we had better improve the AI, then)

@@ -110,22 +110,22 @@ void editor::prefab() {
 
 /* XXX should allow me to specify the prompt for loading */
 void editor::pffile() {
-  Level *small;
-  {
-    loadlevel *ll = loadlevel::create(plr, EDIT_DIR, true, true);
-    if (!ll) {
+  Level *small =
+    [this]() -> Level * {
+    std::unique_ptr<LoadLevel> ll{
+      LoadLevel::Create(plr, EDIT_DIR, true, true)};
+    if (ll.get() == nullptr) {
       Message::quick(this, "Can't open load screen!", 
 		     "Ut oh.", "", PICS XICON POP);
       redraw();
-      return ;
+      return nullptr;
     }
     string res = ll->selectlevel();
     string ss = readfile(res);
-    ll->destroy();
     
     /* allow corrupted files */
-    small = Level::fromstring(ss, true);
-  }
+    return Level::fromstring(ss, true);
+  }();
 
   if (!small) { 
     dr.message = ((string) RED "error loading file to place" POP);

@@ -14,14 +14,14 @@ enum prtype {
 };
 
 #define stat(fn, ty) \
-  static playresult fn() { \
-    playresult p; \
+  static PlayResult fn() { \
+    PlayResult p; \
     p.type = PR_ ## ty; \
     return p; \
   }
  
 /* XXX move ... */
-struct playresult {
+struct PlayResult {
   
   prtype type;
 
@@ -32,8 +32,8 @@ struct playresult {
   stat(quit, QUIT);
   stat(error, ERROR);
 
-  static playresult solved(Solution *s) {
-    playresult p;
+  static PlayResult solved(Solution *s) {
+    PlayResult p;
     p.type = PR_SOLVED;
     p.u.sol = s;
     return p;
@@ -45,10 +45,10 @@ struct playresult {
 
 struct play : public Drawable {
   static play * create();
-  virtual playresult doplay_save(Player *, Level *, Solution *&saved, string md5) = 0;
-  virtual playresult doplay(Player *plr, Level *lev, string md5) {
+  virtual PlayResult doplay_save(Player *, Level *, Solution *&saved, string md5) = 0;
+  virtual PlayResult doplay(Player *plr, Level *lev, string md5) {
     Solution *unused = 0;
-    playresult res = doplay_save(plr, lev, unused, md5);
+    PlayResult res = doplay_save(plr, lev, unused, md5);
     unused->destroy();
     return res;
   }
@@ -64,7 +64,7 @@ struct play : public Drawable {
 
      assumes a non-invalidated recent "draw()",
      caller should draw() after, too. */
-  static bool animatemove(drawing &dr, disamb *&da, Dirt *dirty, dir d);
+  static bool animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d);
 };
 
 #endif

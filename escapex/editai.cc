@@ -790,7 +790,7 @@ void editor::retract1() {
      randomly. */
 
   /* choose a random path through our retraction operations */
-  for (generator g(2); g.anyleft(); g.next()) {
+  for (Generator g{2}; g.anyleft(); g.next()) {
     switch (g.item()) {
     default:
     case 0: if (retract_gold()) goto done; else break;
@@ -831,7 +831,7 @@ void editor::retract1() {
   /* for any spot in 'here' that is
      a separator, separate! */
 
-  for (generator g(dr.lev->w * dr.lev->h); 
+  for (Generator g{dr.lev->w * dr.lev->h}; 
        g.anyleft(); 
        g.next()) {
     int xx, yy;

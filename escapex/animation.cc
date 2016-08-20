@@ -1817,7 +1817,7 @@ bool Animation::init_flips() {
   
   int pe = SDL_GetTicks() + (PROGRESS_TICKS * 2);
   for (int t = 0; t < NUM_TILES; t++) {
-    progress::drawbar((void*)&pe, t, NUM_TILES, "");
+    Progress::drawbar((void*)&pe, t, NUM_TILES, "");
 
     /* space for frames */
     frame_flips_in[t] =

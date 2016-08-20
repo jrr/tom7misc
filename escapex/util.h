@@ -281,7 +281,7 @@ struct util {
   /* Return m[key] if it already exists, or allocate a new entry,
      insert it, and return that. */
   template <class K, class V>
-  static V* findorinsertnew(map<K, V*> &m, const K &key) {
+  static V *findorinsertnew(map<K, V*> &m, const K &key) {
     V *&pos = m[key];
     if (!pos) pos = new V;
     return pos;

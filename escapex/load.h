@@ -9,16 +9,15 @@
 #include "util.h"
 
 /* abstract interface */
-struct loadlevel : public Drawable {
-  virtual ~loadlevel();
-  virtual void destroy() = 0;
+struct LoadLevel : public Drawable {
+  virtual ~LoadLevel();
 
   virtual string selectlevel() = 0;
-  static loadlevel *create(Player *, string dir, 
-			    bool inexact,
-			    bool allow_corrupted = false);
+  static LoadLevel *Create(Player *, string dir, 
+			   bool inexact,
+			   bool allow_corrupted = false);
 
-  virtual bool first_unsolved(string & file, string & title) = 0;
+  virtual bool first_unsolved(string &file, string &title) = 0;
   
   /* Drawable */
   virtual void draw() = 0;

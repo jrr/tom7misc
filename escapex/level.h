@@ -19,6 +19,7 @@ using namespace std;
 typedef int dir;
 
 template<class T> class PtrList;
+class Level;
 
 enum {
   DIR_NONE, DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT,
@@ -284,10 +285,10 @@ struct Solution {
    Disambiguation contexts are associated with
    a particular level and shan't be mixed up!
 */
-struct disamb {
+struct Disamb {
   /* array of serial numbers. */
   int w, h;
-  unsigned int * map;
+  unsigned int *map;
   
   /* last serial in which the player was updated */
   unsigned int player;
@@ -297,8 +298,8 @@ struct disamb {
   /* keep track of current serial */
   unsigned int serial;
 
-  static disamb * create(struct Level *);
-  void destroy();
+  static Disamb *Create(Level *);
+  ~Disamb();
 
   /* sets everything to serial 0 */
   void clear();
@@ -317,12 +318,11 @@ struct disamb {
 
   void postaffectplayer();
   void postaffectbot(int i);
-  
 
   void serialup(Level *l, PtrList<aevent> **& etail);
 
   // For debugging
-  int serialat(int x, int y) { return map[y * w + x]; }
+  int serialat(int x, int y) const { return map[y * w + x]; }
 };
 #endif
 
@@ -485,12 +485,12 @@ struct Level {
 
 # ifndef NOANIMATION
   /* see animation.h for documentation */
-  bool move_animate(dir, disamb * ctx, PtrList<aevent> *&events);
+  bool move_animate(dir, Disamb * ctx, PtrList<aevent> *&events);
   bool moveent_animate(dir, int enti, unsigned int, int, int, 
 		       PtrList<aevent> *&,
-                       disamb * ctx, PtrList<aevent> **&);
+                       Disamb * ctx, PtrList<aevent> **&);
   void bombsplode_animate(int now,
-			  int bombi, disamb * ctx, PtrList<aevent> *&events,
+			  int bombi, Disamb * ctx, PtrList<aevent> *&events,
 			  PtrList<aevent> **& etail);
 # endif
 
