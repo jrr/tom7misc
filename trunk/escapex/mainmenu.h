@@ -6,18 +6,14 @@
 #include "player.h"
 #include "mainshow.h"
 
-struct mainmenu {
-
+struct MainMenu {
   enum result { LOAD, QUIT, EDIT, REGISTER, UPDATE, UPGRADE, LOAD_NEW, };
 
   virtual result show() = 0;
 
-  static mainmenu * create(Player *plr);
+  static MainMenu *Create(Player *plr);
 
-  virtual void destroy() = 0;
-  virtual ~mainmenu() {}
-  
+  virtual ~MainMenu();
 };
-
 
 #endif

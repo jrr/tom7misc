@@ -15,12 +15,12 @@
     a - 1 is a multiple of p, for every prime p dividing m
     a - 1 is a multiple of 4, if m is a multiple of 4
 */
-struct generator {
+struct Generator {
   /* size must be >= 1 */
-  generator(unsigned int size);
+  explicit Generator(unsigned int size);
   /* always generate 0..size-1 in order;
      pointer is ignored */
-  generator(unsigned int size, void *);
+  Generator(unsigned int size, void *);
 
   /* use as
      for (generator g(x); g.anyleft(); g.next()) {
@@ -28,20 +28,17 @@ struct generator {
      }
   */
   
-  bool anyleft();
-  unsigned int item();
+  bool anyleft() const;
+  unsigned int item() const;
   void next();
 
-
-  private:
-
+ private:
   unsigned int size;
-  unsigned int a;
+  unsigned int a = 1;
   unsigned int c;
   unsigned int x;
   
   int left;
-
 };
 
 

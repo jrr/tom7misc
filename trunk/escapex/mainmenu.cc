@@ -29,6 +29,8 @@
 // Note: It doesn't work at all yet; don't bother :)
 #define ENABLE_NEW_LEVEL_BROWSER 0
 
+namespace {
+
 enum mmetype {
   MM_TUTORIAL,
   MM_LOAD,
@@ -41,8 +43,10 @@ enum mmetype {
   MM_N_ITEMS,
 };
 
+struct mmreal;
+
 struct mmentry {
-  struct mmreal * parent;
+  mmreal *parent;
   mmetype t;
   static int height() { return TILEH - 8; }
   mmetype convert() { return t; }
@@ -55,18 +59,16 @@ struct mmentry {
 
 typedef Selector<mmentry, mmetype> msel;
 
-struct mmreal : public mainmenu, public Drawable {
+struct mmreal : public MainMenu, public Drawable {
+  MainMenu::result show() override;
 
-  virtual mainmenu::result show();
-  virtual void destroy();
-
-  static mmreal * create(Player *plr);
+  static mmreal *Create(Player *plr);
 
   /* for Drawable */
-  virtual void draw();
-  virtual void screenresize();
+  void draw() override;
+  void screenresize() override;
 
-  virtual ~mmreal() {}
+  ~mmreal() override;
 
  private:
   friend struct mmentry;
@@ -76,13 +78,13 @@ struct mmreal : public mainmenu, public Drawable {
     SDL_Flip(screen);
   }
 
-  msel * sel;
+  msel *sel;
 
   Player *pp;
   SDL_Surface *titlegraphic;
   SDL_Surface *background;
 
-  mainshow * mshow;
+  MainShow *mshow;
 
   void makebackground();
   void compute_tutorial();
@@ -184,14 +186,14 @@ void mmentry::draw(int x, int y, bool sel) {
 void mmreal::compute_tutorial() {
   // XXX use leveldb for this.
 
-  loadlevel *ll = loadlevel::create(pp, TUTORIAL_DIR, false, false);
-  if (!ll) {
+  std::unique_ptr<LoadLevel> ll{
+    LoadLevel::Create(pp, TUTORIAL_DIR, false, false)};
+  if (ll.get() == nullptr) {
     tutorial_left = false;
     tutorial_nextlev = "error.esx";
     tutorial_text = "(" RED "Tutorial missing!" POP ")";
-    return ;
+    return;
   }
-  Extent<loadlevel> el(ll);
 
   /* search through loader for first unsolved level */
   tutorial_left = ll->first_unsolved(tutorial_nextlev, tutorial_text);
@@ -237,7 +239,7 @@ void mmreal::draw() {
 
 
 #define FRAME_TICKS 500
-mainmenu::result mmreal::show() {
+MainMenu::result mmreal::show() {
   compute_tutorial();
 
   makebackground();
@@ -306,7 +308,7 @@ mainmenu::result mmreal::show() {
 	}
 
 	case SDLK_p: {
-	  prefs::show(pp);
+	  Prefs::show(pp);
 	  redraw();
 	  continue;
 	}
@@ -343,7 +345,7 @@ mainmenu::result mmreal::show() {
 	    if (network) return UPDATE;
 	    else continue;
 	case MM_PREFS:
-	    prefs::show(pp);
+	    Prefs::show(pp);
 	    redraw();
 	    continue;
 	default: break;
@@ -424,21 +426,14 @@ void mmreal::makebackground() {
     SDL_BlitSurface(bot, 0, background, &dest);
     SDL_FreeSurface(bot);
   }
-
 }
 
-mainmenu * mainmenu::create(Player *plr) {
-  return mmreal::create(plr);
-}
 
-mmreal * mmreal::create(Player *plr) {
-
-  mmreal * mm = new mmreal();
-  if (!mm) return 0;
+mmreal *mmreal::Create(Player *plr) {
+  std::unique_ptr<mmreal> mm{new mmreal};
+  if (mm.get() == nullptr) return nullptr;
   mm->titlegraphic = 0;
   mm->background = 0;
-
-  Extent<mmreal> em(mm);
 
   mm->titlegraphic = sdlutil::LoadImage(TITLE_FILE);
 
@@ -448,22 +443,22 @@ mmreal * mmreal::create(Player *plr) {
 
   mm->tutorial_left = false;
 
-  mm->mshow = new mainshow(18, 10, 1);
+  mm->mshow = new MainShow(18, 10, 1);
 
   /* set up selector... */
   mm->sel = msel::create(MM_N_ITEMS);
-  mm->sel->below = mm;  
+  mm->sel->below = mm.get();
   /* XXX should be a better way to do this. 
      (should really get it from titlegraphic, for one) */
   mm->sel->title = "\n\n\n\n\n\n\n\n\n\n";
   for (int j = 0; j < MM_N_ITEMS; j++) {
-    mm->sel->items[j].parent = mm;
+    mm->sel->items[j].parent = mm.get();
   }
   
   int i = 0;
   
   mm->sel->selected = 1;
-  if (prefs::getbool(plr, PREF_SHOWTUT)) {
+  if (Prefs::getbool(plr, PREF_SHOWTUT)) {
     mm->sel->items[i++].t = MM_TUTORIAL;
 
     /* select tutorial if there's something left. */
@@ -493,13 +488,19 @@ mmreal * mmreal::create(Player *plr) {
   /* maybe fewer, if some were removed */
   mm->sel->number = i;
 
-  em.release();
-  return mm;
+  return mm.release();
 }
 
-void mmreal::destroy() {
+mmreal::~mmreal() {
   if (titlegraphic) SDL_FreeSurface(titlegraphic);
   if (background) SDL_FreeSurface(background);
-  if (mshow) delete mshow;
-  delete this;
+  delete mshow;
+}
+
+}  // namespace
+
+MainMenu::~MainMenu() {}
+
+MainMenu *MainMenu::Create(Player *plr) {
+  return mmreal::Create(plr);
 }

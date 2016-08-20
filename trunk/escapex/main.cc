@@ -186,13 +186,11 @@ int main(int argc, char **argv) {
 
     /* selected player. now begin the game. */
 
-    mainmenu * mm = mainmenu::create(plr.get());
-    if (!mm) {
+    std::unique_ptr<MainMenu> mm{MainMenu::Create(plr.get())};
+    if (mm.get() == nullptr) {
       Message::bug(0, "Error creating main menu");
       goto oops;
     }
-
-    ::Extent<mainmenu> em(mm);
 
     // XXX here?
     LevelDB::setplayer(plr.get());
@@ -201,21 +199,20 @@ int main(int argc, char **argv) {
     LevelDB::addsourcedir("official");
 
     for (;;) {
-      mainmenu::result r = mm->show();
+      MainMenu::result r = mm->show();
 
-      if (r == mainmenu::LOAD) {
+      if (r == MainMenu::LOAD) {
         /* load and play levels */
 
         /* we stay in 'load' mode until
            the user hits escape on the load screen. */
         for (;;) {
-	  if (loadlevel *ll = 
-	      loadlevel::create(plr.get(), DEFAULT_DIR, true, false)) {
+	  std::unique_ptr<LoadLevel> ll{
+	    LoadLevel::Create(plr.get(), DEFAULT_DIR, true, false)};
+	  if (ll.get() != nullptr) {
 	    string res = ll->selectlevel();
 	    
 	    play::playrecord(res, plr.get());
-	    
-	    ll->destroy();
 	    
 	    if (res == "") break;
 	  } else {
@@ -224,7 +221,7 @@ int main(int argc, char **argv) {
 	  }
         }
 
-      } else if (r == mainmenu::LOAD_NEW) {
+      } else if (r == MainMenu::LOAD_NEW) {
 
 #if 1
 	for (;;) // XXX loop in browser instead.
@@ -250,14 +247,14 @@ int main(int argc, char **argv) {
 	  char msg[512];
 	  sprintf(msg, "Still working %.2f%% disk %.2f%% lev\n",
 		  disk * 100.0, lev * 100.0);
-	  progress::drawbar(&epoch, lev * 1000, 1000, msg, 200);
+	  Progress::drawbar(&epoch, lev * 1000, 1000, msg, 200);
 	  LevelDB::donate(0, 0, 10);
 	}
 
 	Message::bug(0, "Sorry, browser not hooked up yet");
 #endif
 
-      } else if (r == mainmenu::EDIT) {
+      } else if (r == MainMenu::EDIT) {
         /* edit a level */
 
         editor * ee = editor::create(plr.get());
@@ -270,7 +267,7 @@ int main(int argc, char **argv) {
         ee->edit();
 
 #     ifndef MULTIUSER
-      } else if (r == mainmenu::UPGRADE) {
+      } else if (r == MainMenu::UPGRADE) {
         /* upgrade escape binaries and graphics */
 
         Upgrader * uu = Upgrader::create(plr.get());
@@ -291,7 +288,7 @@ int main(int argc, char **argv) {
         }
 #     endif
 
-      } else if (r == mainmenu::UPDATE) {
+      } else if (r == MainMenu::UPDATE) {
         /* update levels */
 
         Updater * uu = Updater::create(plr.get());
@@ -305,7 +302,7 @@ int main(int argc, char **argv) {
 
         uu->update(msg);
 
-      } else if (r == mainmenu::REGISTER) {
+      } else if (r == MainMenu::REGISTER) {
         /* register player online */
 
 	std::unique_ptr<Registration> rr{Registration::Create(plr.get())};
@@ -316,7 +313,7 @@ int main(int argc, char **argv) {
 
         rr->registrate();
 
-      } else if (r == mainmenu::QUIT) {
+      } else if (r == MainMenu::QUIT) {
         break;
       }
 

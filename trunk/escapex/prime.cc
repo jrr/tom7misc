@@ -2,8 +2,7 @@
 #include "prime.h"
 #include "util.h"
 
-int prime::primetable[] =
-  {
+const int Prime::primetable[] = {
     2,      3,      5,      7,      
     11,      13,      17,      19,      
     23,      29,      31,      37,      
@@ -173,9 +172,9 @@ int prime::primetable[] =
     4969,      4973,      4987,      4993,      
     4999 };
 
-int prime::nprimes = sizeof (primetable) / sizeof (int);
+const int Prime::nprimes = sizeof primetable / sizeof (int);
 
-int prime::relativeto(int x) {
+int Prime::relativeto(int x) {
   /* we'll do this by picking primes, and testing
      if they divide x */
 

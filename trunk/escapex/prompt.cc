@@ -11,16 +11,16 @@
 /* XXX implement in terms of menu class?
    textinput is meant to be the same */
 
-prompt * prompt::create() {
-  prompt * pp = new prompt();
+Prompt *Prompt::Create() {
+  Prompt *pp = new Prompt();
   pp->below = 0;
   return pp;
 }
 
-prompt::~prompt() {}
+Prompt::~Prompt() {}
 
-string prompt::ask(Drawable *b, string t, string d) {
-  std::unique_ptr<prompt> pp{prompt::create()};
+string Prompt::ask(Drawable *b, string t, string d) {
+  std::unique_ptr<Prompt> pp{Prompt::Create()};
   pp->title = t;
   pp->below = b;
   pp->input = d;
@@ -28,7 +28,7 @@ string prompt::ask(Drawable *b, string t, string d) {
   return pp->select();
 }
 
-string prompt::select() {
+string Prompt::select() {
   textinput inp;
   inp.question = title;
   inp.input = input;

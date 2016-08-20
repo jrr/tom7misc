@@ -7,19 +7,19 @@
 
 #define DEFAULT_SERVER "escape.spacebar.org"
 
-enum { PREF_ALTCONNECT = 0x100,
-       PREF_SERVER,
-       PREF_ASKRATE,
-       PREF_SHOWTUT,
-       PREF_BACKUP_PLAYER,
-       PREF_DEBUG_NET,
-       PREF_ANIMATION_SPEED, /* UNUSED!! */
-       PREF_ANIMATION_ENABLED,
-       PREF_OPTIMIZE_SOLUTIONS,
+enum Pref : uint32 {
+  PREF_ALTCONNECT = 0x100,
+  PREF_SERVER = 0x101,
+  PREF_ASKRATE = 0x102,
+  PREF_SHOWTUT = 0x103,
+  PREF_BACKUP_PLAYER = 0x104,
+  PREF_DEBUG_NET = 0x105,
+  PREF_ANIMATION_SPEED = 0x106, /* UNUSED!! */
+  PREF_ANIMATION_ENABLED = 0x107,
+  PREF_OPTIMIZE_SOLUTIONS = 0x108,
 };
 
-
-struct prefs {
+struct Prefs {
   /* show preferences menu for plr */
   static void show(Player *plr);
 

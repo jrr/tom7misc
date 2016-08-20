@@ -4,7 +4,7 @@
 #include "escapex.h"
 #include "drawable.h"
 
-struct prompt {
+struct Prompt {
   string title;
   string input;
   string explanation;
@@ -13,13 +13,13 @@ struct prompt {
 
   /* XXX should probably be just this static method,
      and perhaps in util */
-  static string ask(Drawable *b, string title, string def="");
+  static string ask(Drawable *b, string title, string def = "");
 
-  static prompt * create();
+  static Prompt *Create();
 
   string select();
 
-  virtual ~prompt();
+  virtual ~Prompt();
 };
 
 #endif

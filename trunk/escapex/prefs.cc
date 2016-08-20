@@ -9,7 +9,7 @@
 
 #define IND (fon->width)
 
-void prefs::show(Player *plr) {
+void Prefs::show(Player *plr) {
 
   /* ------- user info -------- */
   /* XXX allow changing of name,
@@ -165,7 +165,7 @@ void prefs::show(Player *plr) {
   }
 }
 
-void prefs::defaults(Player *plr) {
+void Prefs::defaults(Player *plr) {
   
   Chunks *ch = plr->getchunks();
   
@@ -195,19 +195,19 @@ void prefs::defaults(Player *plr) {
 
 }
 
-void prefs::putstring(Player *plr, uint32 key, string s) {
+void Prefs::putstring(Player *plr, uint32 key, string s) {
   plr->getchunks()->insert(new Chunk(key, s));
 }
 
-void prefs::putbool(Player *plr, uint32 key, bool b) {
+void Prefs::putbool(Player *plr, uint32 key, bool b) {
   plr->getchunks()->insert(new Chunk(key, b));
 }
 
-void prefs::putint(Player *plr, uint32 key, int32 i) {
+void Prefs::putint(Player *plr, uint32 key, int32 i) {
   plr->getchunks()->insert(new Chunk(key, i));
 }
 
-int32 prefs::getint(Player *plr, uint32 k) {
+int32 Prefs::getint(Player *plr, uint32 k) {
   Chunk *c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_INT32) {
@@ -220,7 +220,7 @@ int32 prefs::getint(Player *plr, uint32 k) {
   }
 }
 
-bool prefs::getbool(Player *plr, uint32 k) {
+bool Prefs::getbool(Player *plr, uint32 k) {
   Chunk *c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_BOOL) {
@@ -231,7 +231,7 @@ bool prefs::getbool(Player *plr, uint32 k) {
   }
 }
 
-string prefs::getstring(Player *plr, uint32 k) {
+string Prefs::getstring(Player *plr, uint32 k) {
   Chunk *c = plr->getchunks()->get(k);
 
   if (c && c->type == CT_STRING) {

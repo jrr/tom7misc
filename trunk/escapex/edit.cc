@@ -348,7 +348,7 @@ void editor::tmenurotate(int n) {
 }
 
 void editor::settitle() {
-  string nt = prompt::ask(this, "Title for level: ",
+  string nt = Prompt::ask(this, "Title for level: ",
 			  dr.lev->title);
 
   dr.lev->title = nt;
@@ -362,7 +362,7 @@ void editor::settitle() {
 
 void editor::setauthor() {
 
-  string s = prompt::ask(this,
+  string s = Prompt::ask(this,
 			       "Author of level: ",
 			       dr.lev->author);
   if (s != "") dr.lev->author = s;
@@ -378,7 +378,7 @@ void editor::saveas() {
   if (filename == "") fn = (string)EDIT_DIR + (string) DIRSEP;
   else                fn = filename;
 
-  string nfn = prompt::ask(this, "Filename: ", fn);
+  string nfn = Prompt::ask(this, "Filename: ", fn);
 
   /* if cancelled, don't do anything */
   if (nfn == "") { 
@@ -687,8 +687,9 @@ void editor::save() {
 void editor::load() {
   clearselection();
 
-  loadlevel *ll = loadlevel::create(plr, EDIT_DIR, true, true);
-  if (!ll) {
+  std::unique_ptr<LoadLevel> ll{
+    LoadLevel::Create(plr, EDIT_DIR, true, true)};
+  if (!ll.get()) {
     Message::quick(this, "Can't open load screen!", 
 		   "Ut oh.", "", PICS XICON POP);
     redraw();
@@ -696,7 +697,6 @@ void editor::load() {
   }
   string res = ll->selectlevel();
   string ss = readfile(res);
-  ll->destroy();
 
   /* allow corrupted files */
   Level *l = Level::fromstring(ss, true);
@@ -728,7 +728,7 @@ void editor::playlev() {
   /* grab md5 in case player makes bookmarks */
   string md5 = MD5::Hash(dr.lev->tostring());
 
-  /* playresult res = */ pla->doplay_save(plr, dr.lev, saved, md5);
+  /* PlayResult res = */ pla->doplay_save(plr, dr.lev, saved, md5);
   
   /* has a different loop; might have resized */
   screenresize();

@@ -27,8 +27,14 @@ code cleanup
  - delete trailing whitespace
  - capitalize class names
      - rating
+     - grep 'struct [a-z]' *.h | grep -v '_t'
  - standardize on Class_ rather than classreal for private implementation
  - replace vallist with deque or vector; it's not used in that many places
+ - move Prime to Primes.
+ - move load.h to loadlevel.h
+
+make sure there is no 'delete this;' when destroy methods were
+converted to destructors!
 
 c++11isms
  - nullptr instead of 0

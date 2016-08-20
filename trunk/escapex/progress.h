@@ -8,7 +8,7 @@
 #define PROGRESS_RESTCOLOR 0xFF555555
 #define PROGRESS_BACKCOLOR 0xFF000000
 
-struct progress {
+struct Progress {
   /* 
      drawbar(epoch, int n, int tot, msg, ticks);
 

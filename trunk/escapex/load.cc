@@ -41,6 +41,8 @@
 #define LOADFRAME_TICKS 100
 #define STEPS_BEFORE_SOL 5
 
+namespace {
+
 /* XXX rationalize ".." stuff.
    Currently we disallow it completely, which
    seems like a good solution.
@@ -124,9 +126,9 @@ struct llentry {
   }
 
   /* default: directories are first */
-  static bool default_dirs(int & ret,
-			  const llentry & l,
-			  const llentry & r) {
+  static bool default_dirs(int &ret,
+			  const llentry &l,
+			  const llentry &r) {
 
     /* make this appear first */
     if (l.fname == ".." && r.fname != "..") {
@@ -154,8 +156,8 @@ struct llentry {
   }
 
   /* newest first -- only if webindex */
-  static int cmp_bydate(const llentry & l,
-			const llentry & r) {
+  static int cmp_bydate(const llentry &l,
+			const llentry &r) {
 
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -166,8 +168,8 @@ struct llentry {
     else return cmp_byname(l, r);
   }
 
-  static int cmp_bywebsolved(const llentry & l,
-			     const llentry & r) {
+  static int cmp_bywebsolved(const llentry &l,
+			     const llentry &r) {
     
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -177,8 +179,8 @@ struct llentry {
     else return 1;
   }
 
-  static int cmp_bysolved(const llentry & l,
-			  const llentry & r) {
+  static int cmp_bysolved(const llentry &l,
+			  const llentry &r) {
     int order;
     if (default_dirs(order, l, r)) return order;
 
@@ -190,8 +192,8 @@ struct llentry {
 
   /* descending sort by personal rating field */
 # define MINE(letter, field) \
-  static int cmp_bymy ## letter(const llentry & l, \
-		                const llentry & r) { \
+  static int cmp_bymy ## letter(const llentry &l, \
+		                const llentry &r) { \
     int order; \
     if (default_dirs(order, l, r)) return order; \
                                                   \
@@ -210,8 +212,8 @@ struct llentry {
 
   /* descending sort by global rating field */
 # define GLOB(letter, field) \
-  static int cmp_byglobal ## letter(const llentry & l, \
-			            const llentry & r) { \
+  static int cmp_byglobal ## letter(const llentry &l, \
+			            const llentry &r) { \
     int order; \
     if (default_dirs(order, l, r)) return order; \
                                                  \
@@ -229,8 +231,8 @@ struct llentry {
   GLOB(r, rigidity)
 # undef GLOB
 
-  static int cmp_byauthor(const llentry & l,
-			  const llentry & r) {
+  static int cmp_byauthor(const llentry &l,
+			  const llentry &r) {
     
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -241,8 +243,8 @@ struct llentry {
     else return c;
   }
 
-  static int cmp_byname(const llentry & l,
-			const llentry & r) {
+  static int cmp_byname(const llentry &l,
+			const llentry &r) {
 
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -267,51 +269,44 @@ struct llentry {
     return util::library_compare(l.name, r.name);
   }
 
-  static int cmp_none(const llentry & l,
-		      const llentry & r) {
+  static int cmp_none(const llentry &l,
+		      const llentry &r) {
     return 0;
   }
-
 
   static string none() { return ""; }
 };
 
 typedef Selector<llentry, string> selor;
 
-struct loadlevelreal : public loadlevel {
+struct LoadLevel_ : public LoadLevel {
+  void draw() override;
+  void screenresize() override {}
 
-  virtual void draw();
-  virtual void screenresize() {}
-
-  virtual void destroy() {
+  ~LoadLevel_() override {
     if (showlev) showlev->destroy();
     sel->destroy();
     while (path) stringpop(path);
-    delete this;
   }
 
-  virtual bool first_unsolved(string & file, string & title);
+  bool first_unsolved(string &file, string &title) override;
 
-  virtual ~loadlevelreal() {
-
-  }
-
-  virtual string selectlevel();
+  string selectlevel() override;
   
-  loadlevelreal() : helppos(0) {}
+  LoadLevel_() {}
 
-  static loadlevelreal * create(Player *p, string dir, 
-				bool inexact, bool ac);
+  static LoadLevel_ *Create(Player *p, string dir, 
+			       bool inexact, bool ac);
 
 
-  private:
+ private:
   /* rep inv:
      always of the form (../)*(realdir)* */
   /* XXX I think I now require/maintain that
      there be no .. at all in the path */
-  stringlist * path;
+  stringlist *path;
 
-  int helppos;
+  int helppos = 0;
   static const int numhelp;
   static string helptexts(int);
 
@@ -325,8 +320,8 @@ struct loadlevelreal : public loadlevel {
 
   /* getsort returns a comparison function. C++
      syntax for this is ridiculous */
-  static int (*getsort(sortstyle s)) (const llentry & l,
-				      const llentry & r) {
+  static int (*getsort(sortstyle s)) (const llentry &l,
+				      const llentry &r) {
     switch (s) {
     default:
     case SORT_DATE: return llentry::cmp_bydate;
@@ -388,23 +383,17 @@ struct loadlevelreal : public loadlevel {
 
 };
 
-loadlevelreal::sortstyle loadlevelreal::sortby = loadlevelreal::SORT_DATE;
-string loadlevelreal::lastdir;
-string loadlevelreal::lastfile;
+LoadLevel_::sortstyle LoadLevel_::sortby = LoadLevel_::SORT_DATE;
+string LoadLevel_::lastdir;
+string LoadLevel_::lastfile;
 
-loadlevel *loadlevel::create(Player *p, string dir, bool td, bool ac) {
-  return loadlevelreal::create(p, dir, td, ac);
-}
-
-loadlevel::~loadlevel() {}
-
-void loadlevelreal::select_lastfile() {
+void LoadLevel_::select_lastfile() {
   for (int i = 0; i < sel->number; i++) {
     if (sel->items[i].fname == lastfile) sel->selected = i;
   }
 }
 
-void loadlevelreal::fix_show(bool force) {
+void LoadLevel_::fix_show(bool force) {
   /* if we notice that we are out of sync with the selected
      level, switch to it. */
   
@@ -445,7 +434,7 @@ void loadlevelreal::fix_show(bool force) {
 
 }
 
-void loadlevelreal::step() {
+void LoadLevel_::step() {
 
   fix_show();
 
@@ -540,7 +529,7 @@ bool llentry::matches(char k) {
   else return (fname.length() > 0 && (fname[0] | 32) == k);
 }
 
-bool loadlevelreal::first_unsolved(string & file, string & title) {
+bool LoadLevel_::first_unsolved(string &file, string &title) {
   /* should use this natural sort, since this is used for the
      tutorials */
   sel->sort(getsort(SORT_ALPHA));
@@ -566,12 +555,12 @@ bool loadlevelreal::first_unsolved(string & file, string & title) {
 #  define DBTIME(s) ;
 #endif
 
-loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
+LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
 				     bool inexact,
 				     bool allow_corrupted_) {
   DBTIME_INIT;
 
-  loadlevelreal * ll = new loadlevelreal();
+  LoadLevel_ * ll = new LoadLevel_();
   ll->cache.reset(DirCache::Create(p));
   if (!ll->cache.get()) return nullptr;
   
@@ -626,13 +615,13 @@ loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
 }
 
 
-string loadlevelreal::selectlevel() {
+string LoadLevel_::selectlevel() {
   return loop();
 }
 
 
 /* prepend current path onto filename */
-string loadlevelreal::locate(string filename) {
+string LoadLevel_::locate(string filename) {
   
   stringlist * pp = path;
   
@@ -647,7 +636,7 @@ string loadlevelreal::locate(string filename) {
   else return out;
 }
 
-int loadlevelreal::changedir(string what, bool remember) {
+int LoadLevel_::changedir(string what, bool remember) {
 
   DBTIME_INIT;
 
@@ -764,7 +753,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	  DirIndex * iii = 0;
 
 	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
-	  if (cache->get(ldn, iii, ttt, sss, progress::drawbar,
+	  if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
 			 (void *)&dcp)) {
 
 	    /* only show if it has levels,
@@ -936,14 +925,14 @@ int loadlevelreal::changedir(string what, bool remember) {
   return 1;
 }
 
-void loadlevelreal::draw() {
+void LoadLevel_::draw() {
 
   sdlutil::clearsurface(screen, BGCOLOR);
 
   drawsmall();
 }
 
-void loadlevelreal::drawsmall() {
+void LoadLevel_::drawsmall() {
   Uint32 color = 
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
 
@@ -984,7 +973,7 @@ void loadlevelreal::drawsmall() {
   }
 }
 
-void loadlevelreal::solvefrombookmarks(const string &filename,
+void LoadLevel_::solvefrombookmarks(const string &filename,
 				       bool wholedir) {
   std::unique_ptr<Player> rp{Player::FromFile(filename)};
   if (!rp.get()) {
@@ -1036,7 +1025,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
 
 	Solution *out;
 
-	progress::drawbar((void*)&pe,
+	Progress::drawbar((void*)&pe,
 			  done, total, 
 			  GREY "(" + itos(nsolved) + ") " POP
 			  + sel->items[i].name + " " + 
@@ -1106,7 +1095,7 @@ void loadlevelreal::solvefrombookmarks(const string &filename,
   }
 }
 
-string loadlevelreal::loop() {
+string LoadLevel_::loop() {
 
   sel->redraw();
 
@@ -1684,8 +1673,8 @@ string loadlevelreal::loop() {
 /* previously we only showed certain options when
    they were available. It might be good to do that
    still. */
-const int loadlevelreal::numhelp = 2;
-string loadlevelreal::helptexts(int i) {
+const int LoadLevel_::numhelp = 2;
+string LoadLevel_::helptexts(int i) {
   switch (i) {
   case 0:
     return 
@@ -1723,3 +1712,11 @@ string loadlevelreal::helptexts(int i) {
 
   return RED "help index too high";
 }
+
+}  // namespace
+
+LoadLevel *LoadLevel::Create(Player *p, string dir, bool td, bool ac) {
+  return LoadLevel_::Create(p, dir, td, ac);
+}
+
+LoadLevel::~LoadLevel() {}

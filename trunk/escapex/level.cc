@@ -489,25 +489,21 @@ bool Level::triggers(int tile, int panel) {
 
 /* disambiguation context implementation */
 #ifndef NOANIMATION
-disamb * disamb::create(Level *l) {
-  disamb * d = new disamb();
-  if (!d) return 0;
-  Extent<disamb> ed(d);
+Disamb *Disamb::Create(Level *l) {
+  std::unique_ptr<Disamb> d{new Disamb};
   d->w = l->w;
   d->h = l->h;
   d->map = (unsigned int *)malloc(d->w * d->h * sizeof(unsigned int));
-  if (!d->map) return 0;
+  if (!d->map) return nullptr;
   d->clear();
-  ed.release();
-  return d;
+  return d.release();
 }
 
-void disamb::destroy() {
+Disamb::~Disamb() {
   free(map);
-  delete this;
 }
 
-void disamb::clear() {
+void Disamb::clear() {
   serial = 1;
   player = 0;
   for (int i = 0; i < LEVEL_MAX_ROBOTS; i++) {
@@ -519,11 +515,11 @@ void disamb::clear() {
   }
 }
 
-bool disamb::affect(int x, int y, Level *l, PtrList<aevent> **& etail) {
+bool Disamb::affect(int x, int y, Level *l, PtrList<aevent> **& etail) {
   return affecti(y * w + x, l, etail);
 }
 
-bool disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
+bool Disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
   /* was this last updated in this same
      serial? if so, we need to move to
      the next serial. */
@@ -549,7 +545,7 @@ bool disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
 /* maintain the invariant that in every serial within the list
    etail, there is at least one animation for every active
    entity */
-void disamb::serialup(Level *l, PtrList<aevent> **& etail) {
+void Disamb::serialup(Level *l, PtrList<aevent> **& etail) {
 
   //  printf("serialup(old serial = %d)!\n", serial);
 
@@ -588,19 +584,19 @@ void disamb::serialup(Level *l, PtrList<aevent> **& etail) {
 }
 
 /* XXX should these also do the same check that affecti does? */
-void disamb::preaffectplayer(Level *l, PtrList<aevent> **& etail) {
+void Disamb::preaffectplayer(Level *l, PtrList<aevent> **& etail) {
   if (player == serial) serialup(l, etail);
 }
 
-void disamb::postaffectplayer() {
+void Disamb::postaffectplayer() {
   player = serial;
 }
 
-void disamb::preaffectbot(int i, Level *l, PtrList<aevent> **& etail) {
+void Disamb::preaffectbot(int i, Level *l, PtrList<aevent> **& etail) {
   if (bots[i] == serial) serialup(l, etail);
 }
 
-void disamb::postaffectbot(int i) {
+void Disamb::postaffectbot(int i) {
   bots[i] = serial;
 }
 

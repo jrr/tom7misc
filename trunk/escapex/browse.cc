@@ -270,7 +270,7 @@ loadlevelreal::sortstyle loadlevelreal::sortby = loadlevelreal::SORT_DATE;
 string loadlevelreal::lastdir;
 string loadlevelreal::lastfile;
 
-loadlevel::~loadlevel() {}
+LoadLevel::~LoadLevel() {}
 
 void loadlevelreal::select_lastfile() {
   for (int i = 0; i < sel->number; i++) {
@@ -633,7 +633,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	  DirIndex * iii = 0;
 
 	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
-	  if (cache->get(ldn, iii, ttt, sss, progress::drawbar,
+	  if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
 			 (void*) &dcp)) {
 
 	    /* only show if it has levels,

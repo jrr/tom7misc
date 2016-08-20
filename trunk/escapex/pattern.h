@@ -336,7 +336,7 @@ struct pattern {
     int this_dir;
 
     pattern<Info> *pat;
-    generator g;
+    Generator g;
   };
 
   /* find all matches. the stream is only valid
