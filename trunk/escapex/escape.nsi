@@ -1,7 +1,6 @@
-;; escape installer for windows
-;; this uses the NSIS installer system (nsis.sourceforge.net)
-;;
-;; This installer is very simple!
+;; This file configures the installer for windows.
+;; I'm using the NSIS installer system (nsis.sourceforge.net).
+;; Very little happens in here!
 
 ;; to-do:
 ;; run escape when done
