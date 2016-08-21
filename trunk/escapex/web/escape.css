@@ -12,11 +12,6 @@
        A:visited { color: #6666FF }
        A:active { color: #DDDD44 }
 
-       .tiny { font : 9px Verdana, Arial, Helvetica, sans-serif }
-       .platformname { font-size : 32px; font-family: "Trebuchet MS", Verdana, Sans Serif; font-weight : bold }
-       .downloadlink { font-size : 22px; font-family: "Trebuchet MS", Verdana, Sans Serif; font-weight : bold;
-		       padding : 8px }
-
        .blackline { border: 2pt;
 		    border-style: solid;
 		    border-color: black; }

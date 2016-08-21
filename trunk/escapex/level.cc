@@ -4,6 +4,9 @@
 #include "extent.h"
 #include "ptrlist.h"
 
+#include <string>
+#include <memory>
+
 /* This code is non-SDL, so it should be portable! */
 
 namespace {
