@@ -125,12 +125,12 @@
 # define POSTAFFECTENT POSTAFFECTENTEX(enti)
 
 # define PUSHMOVE(type, var) {        \
-    aevent * a ## var = new aevent;   \
+    aevent *a ## var = new aevent;   \
     *etail = new alist(a ## var, 0);  \
     etail = &((*etail)->next);        \
     a ## var->serial = ctx->serial;   \
     a ## var->t = tag_ ## type;       \
-    type ## _t * var = & (a ## var->u. type);
+    type ## _t *var = &(a ## var->u. type);
 
 # define SWAPO(idx)                   \
     PUSHMOVE(swap, e)                 \
@@ -372,7 +372,7 @@ void Level::swaptiles(int t1, int t2) {
 
 #ifdef ANIMATING_MOVE
 
-static void postanimate(Level *l, Disamb * ctx,
+static void postanimate(Level *l, Disamb *ctx,
                         alist *&events, alist **& etail) {
 
   /* make sure there is animation for everything */
@@ -425,7 +425,7 @@ static void postanimate(Level *l, Disamb * ctx,
 
 #ifdef ANIMATING_MOVE
  void Level::bombsplode_animate(int now, 
-                int b, Disamb * ctx, alist *&events,
+                int b, Disamb *ctx, alist *&events,
                 alist **& etail) {
 #else
  void Level::bombsplode(int now, int b) {
@@ -641,7 +641,7 @@ static void postanimate(Level *l, Disamb * ctx,
 #ifdef ANIMATING_MOVE
   bool Level::moveent_animate(dir d, int enti,
                               unsigned int cap, int entx, int enty, 
-                              alist *&events, Disamb * ctx, 
+                              alist *&events, Disamb *ctx, 
                               alist **& etail) {
   //  printf("==== entity %d's turn\n", enti);
 #else
@@ -1139,12 +1139,12 @@ static void postanimate(Level *l, Disamb * ctx,
       */
 
       /* these are for remote swaps */
-      struct swaplist {
+      struct SwapList {
          int target;
-         swaplist * next;
-         swaplist(int t, swaplist * n) : target(t), next(n) {}
+         SwapList *next;
+         SwapList(int t, SwapList *n) : target(t), next(n) {}
       };
-      swaplist * remotes = 0;
+      SwapList *remotes = 0;
 
       /* need to delay swaps to the end. */
       int bswaps = 0, rswaps = 0, gswaps = 0;
@@ -1213,7 +1213,7 @@ static void postanimate(Level *l, Disamb * ctx,
               e->delay = dist;
             }
           #endif
-          remotes = new swaplist(destat(pulsex, pulsey), remotes);
+          remotes = new SwapList(destat(pulsex, pulsey), remotes);
 
         /* since this counts as being connected so far, we want to
            make sure that the circuit continues before animating
@@ -1351,7 +1351,7 @@ static void postanimate(Level *l, Disamb * ctx,
       }
 
       while (remotes) {
-        swaplist * t = remotes;
+        SwapList* t = remotes;
         remotes = remotes->next;
         #ifdef AM
         { int x, y; where(t->target, x, y);

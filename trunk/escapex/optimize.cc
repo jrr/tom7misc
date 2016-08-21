@@ -125,7 +125,7 @@ struct lstate {
   }
 };
 
-static void inval_above(lstate * ls, int cutoff) {
+static void inval_above(lstate *ls, int cutoff) {
   if (ls->pos > cutoff) ls->thiskey = 0l;
 }
 
@@ -180,9 +180,9 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
 
       /* now check if we've already been here. */
 
-      lstate * ls = new lstate(n, l);
+      lstate *ls = new lstate(n, l);
 
-      lstate * existing = ht->lookup(ls->key());
+      lstate *existing = ht->lookup(ls->key());
 
       if (existing) {
 	// printf("   found! at %d\n", existing->pos);
@@ -231,7 +231,7 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
 
 typedef PtrList<NamedSolution> solset ;
 Solution *Optimize::trycomplete(Level *start, Solution *prefix,
-				 solset * sources) {
+				 solset *sources) {
   /* do breadth first search by suffix length. */
   
   Level *wprefix = start->clone();
@@ -243,7 +243,7 @@ Solution *Optimize::trycomplete(Level *start, Solution *prefix,
   /* find the longest solution. */
   int max_slen = 0;
   {
-    for (solset * tmp = sources; tmp; tmp = tmp->next) {
+    for (solset *tmp = sources; tmp; tmp = tmp->next) {
       max_slen = util::maximum(tmp->head->sol->length, max_slen);
     }
   }
@@ -251,7 +251,7 @@ Solution *Optimize::trycomplete(Level *start, Solution *prefix,
   for (int slen = 0; slen < max_slen; slen++) {
     /* for each solution that is at least this many moves,
        try its suffix */
-    for (solset * tmp = sources; tmp; tmp = tmp->next) {
+    for (solset *tmp = sources; tmp; tmp = tmp->next) {
       if (tmp->head->sol->length >= slen) {
 	/* do it! */
 	Level *trysuf = wprefix->clone();

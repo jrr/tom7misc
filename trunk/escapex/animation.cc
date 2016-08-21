@@ -811,10 +811,10 @@ static inline int OVERLAP(bot entt) {
    frames instead of silently ignoring the animation. A fairly serious
    bug persisted for many years on every bomb explosion because we
    ignored a nonsensical animation. */
-void Animation::start(drawing & dr, 
+void Animation::start(drawing &dr, 
 		      PtrList<Animation> *&anims,
 		      PtrList<Animation> *&sprites,
-		      aevent * ae) {
+		      aevent *ae) {
   
   switch (ae->t) {
   case tag_winner:
@@ -822,7 +822,7 @@ void Animation::start(drawing & dr,
     break;
 
   case tag_teleportout: {
-    teleportout_t * at = &(ae->u.teleportout);
+    teleportout_t *at = &(ae->u.teleportout);
 
     AFrame *frames_ent;
     switch (at->entt) {
@@ -847,7 +847,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_teleportin: {
-    teleportin_t * at = &(ae->u.teleportin);
+    teleportin_t *at = &(ae->u.teleportin);
 
     AFrame *frames_ent;
     SDL_Surface *finale;
@@ -872,7 +872,7 @@ void Animation::start(drawing & dr,
 
     int xx, yy;
     if (dr.onscreen(at->x, at->y, xx, yy)) {
-      AnFinale * ag = new AnFinale(finale, xx, yy - overlapy);
+      AnFinale *ag = new AnFinale(finale, xx, yy - overlapy);
       Animation *a = new AnInPlace(xx, yy, 1, frames_ent);
       a->next = ag;
       alist::push(sprites, a);
@@ -881,7 +881,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_getheartframer: {
-    getheartframer_t * ag = &(ae->u.getheartframer);
+    getheartframer_t *ag = &(ae->u.getheartframer);
 
     int xx, yy;
     if (dr.onscreen(ag->x, ag->y, xx, yy)) {
@@ -893,7 +893,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_wakeup: {
-    wakeup_t * aw = &(ae->u.wakeup);
+    wakeup_t *aw = &(ae->u.wakeup);
 
     int xx, yy;
     if (dr.onscreen(aw->x, aw->y, xx, yy)) {
@@ -907,7 +907,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_wakeupdoor: {
-    wakeupdoor_t * aw = &(ae->u.wakeupdoor);
+    wakeupdoor_t *aw = &(ae->u.wakeupdoor);
 
     int xx, yy;
     if (dr.onscreen(aw->x, aw->y, xx, yy)) {
@@ -924,7 +924,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_lasered: {
-    lasered_t * al = &(ae->u.lasered);
+    lasered_t *al = &(ae->u.lasered);
 
     int xx, yy;
     if (dr.onscreen(al->x, al->y, xx, yy)) {
@@ -973,7 +973,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_transponderbeam: {
-    transponderbeam_t * at = &(ae->u.transponderbeam);
+    transponderbeam_t *at = &(ae->u.transponderbeam);
 
     int xx, yy;
     if (dr.onscreen(at->x, at->y, xx, yy)) {
@@ -1008,7 +1008,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_opendoor: {
-    opendoor_t * ao = &(ae->u.opendoor);
+    opendoor_t *ao = &(ae->u.opendoor);
 
     int xx, yy;
     if (dr.onscreen(ao->x, ao->y, xx, yy)) {
@@ -1022,7 +1022,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_liteup: {
-    liteup_t * al = &(ae->u.liteup);
+    liteup_t *al = &(ae->u.liteup);
 
     int xx, yy;
 
@@ -1050,7 +1050,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_litewire: {
-    litewire_t * aj = &(ae->u.litewire);
+    litewire_t *aj = &(ae->u.litewire);
     
     int xx, yy;
 
@@ -1086,7 +1086,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_pushgreen: {
-    pushgreen_t * ag = &(ae->u.pushgreen);
+    pushgreen_t *ag = &(ae->u.pushgreen);
 
     int xx, yy, dx, dy, dxx, dyy;
     if (dr.onscreen(ag->srcx, ag->srcy, xx, yy) &&
@@ -1116,7 +1116,7 @@ void Animation::start(drawing & dr,
 	break;
       }
 
-      AnPlaceTile * ap = new AnPlaceTile(T_FLOOR, xx, yy);
+      AnPlaceTile *ap = new AnPlaceTile(T_FLOOR, xx, yy);
       Animation *ar = new AnInPlace(ax, ay, 1, frames);
 
       ap->next = ar;
@@ -1129,7 +1129,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_bombsplosion: {
-    bombsplosion_t * ab = &(ae->u.bombsplosion);
+    bombsplosion_t *ab = &(ae->u.bombsplosion);
 
     int xx, yy;
     /* this is big, so this might not be a 
@@ -1156,7 +1156,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_trap: {
-    trap_t * at = &(ae->u.trap);
+    trap_t *at = &(ae->u.trap);
 
     int xx, yy;
     if (dr.onscreen(at->x, at->y, xx, yy)) {
@@ -1180,7 +1180,7 @@ void Animation::start(drawing & dr,
 
       /* PERF could use non-erasing (and non-alpha) blit
 	 for these animations */
-      AnPlaceTile * ap = new AnPlaceTile(at->whatold, xx, yy);
+      AnPlaceTile *ap = new AnPlaceTile(at->whatold, xx, yy);
       Animation *ar = new AnInPlace(xx, yy, 1, frames_fall);
 
       ap->next = ar;
@@ -1192,7 +1192,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_button: {
-    button_t * ab = &(ae->u.button);
+    button_t *ab = &(ae->u.button);
 
     int xx, yy;
 
@@ -1231,7 +1231,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_toggle: {
-    toggle_t * at = &(ae->u.toggle);
+    toggle_t *at = &(ae->u.toggle);
 
     int xx, yy;
     if (dr.onscreen(at->x, at->y, xx, yy)) {
@@ -1284,7 +1284,7 @@ void Animation::start(drawing & dr,
 
       /* PERF could use non-erasing (and non-alpha) blit
 	 for these animations */
-      AnPlaceTile * ap = new AnPlaceTile(at->whatold, xx, yy);
+      AnPlaceTile *ap = new AnPlaceTile(at->whatold, xx, yy);
       Animation *ar = new AnInPlace(xx, yy, 1, frames_rotating);
 
       ap->next = ar;
@@ -1304,14 +1304,14 @@ void Animation::start(drawing & dr,
   }
 
   case tag_breaks: {
-    breaks_t * ab = &(ae->u.breaks);
+    breaks_t *ab = &(ae->u.breaks);
     
     /* really easy. */
     int startx, starty;
     if (dr.onscreen(ab->x, ab->y, startx, starty)) {
 
       /* put floor */
-      AnPlaceTile * ap = 
+      AnPlaceTile *ap = 
 	new AnPlaceTile(T_FLOOR, startx, starty);
 
       ap->next = new AnInPlace(startx, starty, 1, frames_break);
@@ -1321,18 +1321,18 @@ void Animation::start(drawing & dr,
   }
 
   case tag_swap: {
-    swap_t * as = &(ae->u.swap);
+    swap_t *as = &(ae->u.swap);
     
     int sx, sy;
     if (dr.onscreen(as->x, as->y, sx, sy)) {
       /* queue up flip anim */
-      AnPlaceTile * ap =
+      AnPlaceTile *ap =
 	new AnPlaceTile(T_BLACK, sx, sy);
-      AnInPlace * aout =
+      AnInPlace *aout =
 	new AnInPlace(sx, sy, 1, frame_flips_out[as->was]);
-      AnInPlace * ain =
+      AnInPlace *ain =
 	new AnInPlace(sx, sy, 1, frame_flips_in[as->now]);
-      AnPlaceTile * ad =
+      AnPlaceTile *ad =
 	new AnPlaceTile(as->now, sx, sy);
 
       ap->next = aout;
@@ -1346,7 +1346,7 @@ void Animation::start(drawing & dr,
 
   case tag_jiggle: {
     /* do little jiggling. */
-    jiggle_t * aj = &(ae->u.jiggle);
+    jiggle_t *aj = &(ae->u.jiggle);
 
     int cx = aj->startx;
     int cy = aj->starty;
@@ -1392,10 +1392,10 @@ void Animation::start(drawing & dr,
 
 
       if (frames_jiggle) {
-	AnWait * aw = new AnWait(waitn);
-	AnPlaceTile * ap = new AnPlaceTile(T_FLOOR, sx, sy);
-	AnInPlace * jig = new AnInPlace(sx, sy, 1, frames_jiggle);
-	AnPlaceTile * ap2 = new AnPlaceTile(what, sx, sy);
+	AnWait *aw = new AnWait(waitn);
+	AnPlaceTile *ap = new AnPlaceTile(T_FLOOR, sx, sy);
+	AnInPlace *jig = new AnInPlace(sx, sy, 1, frames_jiggle);
+	AnPlaceTile *ap2 = new AnPlaceTile(what, sx, sy);
 
 	aw->next = ap;
 	ap->next = jig;
@@ -1412,7 +1412,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_fly: {
-    fly_t * af = &(ae->u.fly);
+    fly_t *af = &(ae->u.fly);
 
     /* assumes the yellow brick is on the
        screen now, which should be true by
@@ -1469,14 +1469,14 @@ void Animation::start(drawing & dr,
       break;
     }
 
-    AnFlying * a = new AnFlying(fly,
+    AnFlying *a = new AnFlying(fly,
 				startx + ox, starty + oy,
 				af->d,
 				dist,
 				ANFLYING_PIXELS_YELLOW_SPHERE,
 				ANFLYING_RATE_YELLOW_SPHERE);
 
-    AnPlaceTile * ap = 
+    AnPlaceTile *ap = 
       new AnPlaceTile(af->whatunder,
 		      startx, starty);
 
@@ -1494,7 +1494,7 @@ void Animation::start(drawing & dr,
 
     } else {
 
-      AnPlaceTile * afinal =
+      AnPlaceTile *afinal =
 	new AnPlaceTile(af->what, destx, desty);
 
 
@@ -1548,17 +1548,17 @@ void Animation::start(drawing & dr,
   }
 
   case tag_push: {
-    push_t * ap = &(ae->u.push);
+    push_t *ap = &(ae->u.push);
 
     int dx, dy, sx, sy, sdx, sdy;
     if (dr.lev->travel(ap->srcx, ap->srcy, ap->d, dx, dy) &&
 	dr.onscreen(ap->srcx, ap->srcy, sx, sy) &&
         dr.onscreen(dx, dy, sdx, sdy)) {
 
-      AnPlaceTile * aap = 
+      AnPlaceTile *aap = 
 	new AnPlaceTile(ap->under, sx, sy);
 
-      AnFlying * af =
+      AnFlying *af =
 	new AnFlyingTile(ap->what, sx, sy, ap->d,
 			 TILESIZE(ap->d), 
 			 WALKPUSH_DIST,
@@ -1593,7 +1593,7 @@ void Animation::start(drawing & dr,
 
       } else {
 	/* just draw in place */
-	AnPlaceTile * ag = new AnPlaceTile(ap->what, sdx, sdy);
+	AnPlaceTile *ag = new AnPlaceTile(ap->what, sdx, sdy);
 	af->next = ag;
       }
 
@@ -1604,7 +1604,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_botexplode: {
-    botexplode_t * as = &(ae->u.botexplode);
+    botexplode_t *as = &(ae->u.botexplode);
     int sx, sy;
     if (dr.onscreen(as->x, as->y, sx, sy)) {
       /* leave this bot undrawn. he's not coming back! */
@@ -1623,10 +1623,10 @@ void Animation::start(drawing & dr,
   case tag_press: {
     /* XXX draw frames for this; right now it's just STAND */
     /* XXX incorporate ent type as below */
-    press_t * as = &(ae->u.press);
+    press_t *as = &(ae->u.press);
     int sx, sy;
     if (dr.onscreen(as->x, as->y, sx, sy)) {
-      AnFinale * ag = new AnFinale(FACING_FRAME(as->d, B_PLAYER, 0),
+      AnFinale *ag = new AnFinale(FACING_FRAME(as->d, B_PLAYER, 0),
 				   sx, sy - OVERLAP(B_PLAYER));
       alist::push(sprites, ag);
     }
@@ -1634,10 +1634,10 @@ void Animation::start(drawing & dr,
   }
 
   case tag_stand: {
-    stand_t * as = &(ae->u.stand);
+    stand_t *as = &(ae->u.stand);
     int sx, sy;
     if (dr.onscreen(as->x, as->y, sx, sy)) {
-      AnFinale * ag = new AnFinale(FACING_FRAME(as->d, as->entt, as->data), 
+      AnFinale *ag = new AnFinale(FACING_FRAME(as->d, as->entt, as->data), 
 				   sx, sy - OVERLAP(as->entt));
       alist::push(sprites, ag);
     }
@@ -1645,7 +1645,7 @@ void Animation::start(drawing & dr,
   }
 
   case tag_walk: {
-    walk_t * aw = &(ae->u.walk);
+    walk_t *aw = &(ae->u.walk);
     
     int dx, dy, sx, sy, sdx, sdy;
     if (dr.lev->travel(aw->srcx, aw->srcy, aw->d, dx, dy) &&
@@ -1704,7 +1704,7 @@ void Animation::start(drawing & dr,
 
       if (!af) break;
 
-      AnFinale * ag = new AnFinale(FACING_FRAME(aw->d, aw->entt, aw->data),
+      AnFinale *ag = new AnFinale(FACING_FRAME(aw->d, aw->entt, aw->data),
 				   sdx, sdy - overlapy);
       
       af->next = ag;
@@ -2036,7 +2036,7 @@ bool AnInPlace::init(unsigned int now) {
 /* right now this is just the guy, but
    it should include robots (etc.)
    later too */
-void Animation::clearsprites(drawing & dr) {
+void Animation::clearsprites(drawing &dr) {
   clearent(dr, dr.lev->guyx, dr.lev->guyy, GUY_OVERLAPY);
   for (int i = 0; i < dr.lev->nbots; i++) {
     int x, y;
@@ -2050,7 +2050,7 @@ void Animation::clearsprites(drawing & dr) {
   }
 }
 
-void Animation::clearent(drawing & dr, int entx, int enty, int overlap) {
+void Animation::clearent(drawing &dr, int entx, int enty, int overlap) {
   int sx, sy;
 
   int ta1 = dr.lev->tileat(entx, enty);
@@ -2083,7 +2083,7 @@ void Animation::clearent(drawing & dr, int entx, int enty, int overlap) {
 }
 
 void Animation::think_anims(alist **as, unsigned int now,
-			    bool & remirror, bool done) {
+			    bool &remirror, bool done) {
 
   bool alldone = done;
 
@@ -2132,25 +2132,25 @@ void Animation::think_anims(alist **as, unsigned int now,
   }
 }
 
-void Animation::draw_anims(alist * anims) {
+void Animation::draw_anims(alist *anims) {
   // printf("-- draw list %p\n", anims);
-  for (alist * atmp = anims; atmp; 
+  for (alist *atmp = anims; atmp; 
       atmp = atmp->next) {
     // printf(" drawing %p (%s)\n", atmp->head, atmp->head->finale?"finale":"");
     atmp->head->draw();
   }
 }
 
-void Animation::erase_anims(alist * anims, Dirt *dirty) {
-  for (alist * atmp = anims; atmp; atmp = atmp->next) {
+void Animation::erase_anims(alist *anims, Dirt *dirty) {
+  for (alist *atmp = anims; atmp; atmp = atmp->next) {
     atmp->head->erase(dirty);
   }
 }	
 
-bool Animation::init_anims(alist * anims, unsigned int now) {
+bool Animation::init_anims(alist *anims, unsigned int now) {
   /* initialize the animations */
   bool yes = false;
-  for (alist * tmp = anims; tmp; tmp = tmp->next) {
+  for (alist *tmp = anims; tmp; tmp = tmp->next) {
     yes = tmp->head->init(now) || yes;
   }
   return yes;

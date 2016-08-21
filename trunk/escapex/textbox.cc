@@ -63,7 +63,7 @@ void textbox::set_text(string s) {
 
 }
 
-void textbox::size(int & w, int & h) {
+void textbox::size(int &w, int &h) {
   /* text area plus boundary, scroll indicator */
   w = fon->width * (charsw + 3);
   h = fon->height * (charsh + 3) - (fon->height >> 1);
@@ -141,7 +141,7 @@ void textbox::draw(int posx, int posy, int f) {
   
   int count = 0;
   vallist<char> *tmp = before;
-  stringlist * blines = 0;
+  stringlist *blines = 0;
 
   while (tmp) {
     if (count >= drawlines) break;
@@ -299,7 +299,7 @@ string textbox::nextword(vallist<char> *&aa) {
 /* pop the last word from bb. p will be set to the type of
    breaking char that preceded this word (which is also removed
    from bb.) */
-string textbox::popword(vallist<char> *&bb, char & p) {
+string textbox::popword(vallist<char> *&bb, char &p) {
   string out;
   while (bb) {
     char k = vallist<char>::pop(bb, ' ');

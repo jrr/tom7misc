@@ -12,9 +12,9 @@ struct Player;
 struct rating {
   string tostring();
   
-  static rating * fromstring(string);
+  static rating *fromstring(string);
 
-  static rating * create();
+  static rating *create();
 
   void destroy();
 

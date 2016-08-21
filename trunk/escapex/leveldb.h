@@ -69,7 +69,7 @@ struct res_query;
 struct one_result {
   /* Give the actual subclass, or return null if it isn't. */
   virtual const res_level *is_level() const { return NULL; }
-  virtual const res_query * is_query() const { return NULL; }
+  virtual const res_query *is_query() const { return NULL; }
 };
 
 /* This represents everything global we know about a level. Facts
@@ -118,7 +118,7 @@ struct res_level : public one_result {
 };
 
 struct res_query : public one_result {
-  virtual const res_query * is_query() const { return this; }
+  virtual const res_query *is_query() const { return this; }
 
   string name;
 
@@ -156,7 +156,7 @@ struct LevelDB {
      estimated completion percentage for loading files from
      disk, and parsing and verifying the levels and solutions.
      pct_verify is always less than or equal to pct_disk. */
-  static bool uptodate(float * pct_disk = 0, float * pct_verify = 0);
+  static bool uptodate(float *pct_disk = 0, float *pct_verify = 0);
 
   /* The leveldb won't get up to date unless the caller donates time
      to it. Smaller maxima mean less progress but less latency. For
@@ -168,7 +168,7 @@ struct LevelDB {
   /* Returns a new-ly allocated result for the given lquery, which
      is owned by the caller. See leveldb-query.h to construct 
      lqueries. */
-  static queryresult * query(const lquery &);
+  static queryresult *query(const lquery &);
 
  private:
   LevelDB();

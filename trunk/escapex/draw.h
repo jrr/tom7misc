@@ -67,8 +67,8 @@ enum { TU_TARGET, TU_DISABLED, TU_WARNING,
        TU_FUNDO,
 };
 
-extern font * fon;
-extern font * fonsmall;
+extern font *fon;
+extern font *fonsmall;
 
 struct drawing {
 
@@ -156,12 +156,12 @@ struct drawing {
   /* given screen coordinates x,y, return a tile
      if it is inside one on the screen */
   bool inmap(int x, int y,
-	     int & tx, int & ty);
+	     int &tx, int &ty);
 
   /* given a tile x,y, return its
      screen coordinates if it is displayed currently. */
   bool onscreen(int x, int y,
-		int & tx, int & ty);
+		int &tx, int &ty);
 
   /* XXX this should probably be elsewhere */
   /* XXX combine y and botmargin, which have to agree anyway 
@@ -170,8 +170,8 @@ struct drawing {
      used for the load screen and rating */
   static void drawsmall(int y, int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
-			RateStatus * votes,
-			rating * myrating, int date = 0,
+			RateStatus *votes,
+			rating *myrating, int date = 0,
 			int speedrecord = 0);
 
   /* height of small drawings */

@@ -29,9 +29,9 @@ enum selresult {
 
 struct Updater_ : public Updater {
 
-  static Updater_ * create(Player *p);
+  static Updater_ *create(Player *p);
 
-  updateresult update(string & msg);
+  updateresult update(string &msg);
 
   virtual void destroy() {
     tx->destroy();
@@ -62,15 +62,15 @@ struct Updater_ : public Updater {
 
   TextScroll *tx;
 
-  ccresult checkcolls(HTTP * hh, 
+  ccresult checkcolls(HTTP *hh, 
 		      stringlist *&fnames, 
 		      stringlist *&shownames);
 
-  selresult selectcolls(stringlist * fnames, 
-			stringlist * shownames,
+  selresult selectcolls(stringlist *fnames, 
+			stringlist *shownames,
 			stringlist *&, stringlist *&);
 
-  void updatecoll(HTTP * hh, string fname, string showname); 
+  void updatecoll(HTTP *hh, string fname, string showname); 
 
 };
 
@@ -150,8 +150,8 @@ inputresult subtoggle::key(SDL_Event e) {
 
 }
 
-Updater_ * Updater_::create(Player *p) {
-  Updater_ * uu = new Updater_();
+Updater_ *Updater_::create(Player *p) {
+  Updater_ *uu = new Updater_();
   uu->tx = TextScroll::create(fonsmall);
   uu->tx->posx = 5;
   uu->tx->posy = 5;
@@ -170,7 +170,7 @@ void Updater_::redraw() {
 /* return the available collections. 
    (by adding items to fnames, shownames)
 */
-ccresult Updater_::checkcolls(HTTP * hh, 
+ccresult Updater_::checkcolls(HTTP *hh, 
 				stringlist *&fnames, 
 				stringlist *&shownames) {
   /* first, grab COLLECTIONS. */
@@ -223,8 +223,8 @@ ccresult Updater_::checkcolls(HTTP * hh,
 
 /* invt: length(fnames) > 0 */
    
-selresult Updater_::selectcolls(stringlist * fnames, 
-				  stringlist * shownames,
+selresult Updater_::selectcolls(stringlist *fnames, 
+				  stringlist *shownames,
 				  stringlist *&subsf,
 				  stringlist *&subss) {
 
@@ -238,13 +238,13 @@ selresult Updater_::selectcolls(stringlist * fnames,
 
   vspace v(16);
 
-  stringlist * fnt = fnames;
-  stringlist * snt = shownames;
+  stringlist *fnt = fnames;
+  stringlist *snt = shownames;
 
   int n_entries = 0;
 
   while (fnt && snt) {
-    subtoggle * b = new subtoggle();
+    subtoggle *b = new subtoggle();
     b->fname = fnt->head;
     b->question = snt->head;
 
@@ -274,7 +274,7 @@ selresult Updater_::selectcolls(stringlist * fnames,
   PtrList<MenuItem>::push(boxes, &ok);
   
 
-  menu * mm = menu::create(this, 
+  menu *mm = menu::create(this, 
 			   "Select your collection subscriptions.", 
 			   boxes, false);
   if (!mm) return SR_FAIL;
@@ -295,7 +295,7 @@ selresult Updater_::selectcolls(stringlist * fnames,
     }
 
     for (int i = 0; i < n_entries; i++) {
-      subtoggle * st = (subtoggle*)PtrList<MenuItem>::pop(boxes);
+      subtoggle *st = (subtoggle*)PtrList<MenuItem>::pop(boxes);
       if (st->checked) {
 	stringlist::push(subsf, st->fname);
 	stringlist::push(subss, st->question);
@@ -312,7 +312,7 @@ selresult Updater_::selectcolls(stringlist * fnames,
 }
 
 /* update a single collection "fname" using http connection hh. */
-void Updater_::updatecoll(HTTP * hh, string fname, string showname) {
+void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 
   say("");
   say((string)"Updating " BLUE + showname + (string)POP " (" YELLOW +
@@ -454,12 +454,12 @@ void Updater_::updatecoll(HTTP * hh, string fname, string showname) {
 }
 
 /* very similar to upgrade... maybe abstract it? */
-updateresult Updater_::update(string & msg) {
+updateresult Updater_::update(string &msg) {
 
   /* always cancel the hint */
   handhold::did_update();
 
-  HTTP * hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx, this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
@@ -468,8 +468,8 @@ updateresult Updater_::update(string & msg) {
 
   Extent<HTTP> eh(hh);
 
-  stringlist * fnames = 0;
-  stringlist * shownames = 0;
+  stringlist *fnames = 0;
+  stringlist *shownames = 0;
 
   switch (checkcolls(hh, fnames, shownames)) {
   case CC_OK:
@@ -495,7 +495,7 @@ updateresult Updater_::update(string & msg) {
     return UD_FAIL;
   }
 
-  stringlist * subss, * subsf;
+  stringlist *subss, *subsf;
 
   
   selresult sr = selectcolls(fnames, shownames, subsf, subss);

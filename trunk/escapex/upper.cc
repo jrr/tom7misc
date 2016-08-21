@@ -94,30 +94,30 @@ struct Upper_ : public Upper {
   TextScroll *tx;
   Drawable *below;
 
-  oldtable * olds;
-  contable * contents;
+  oldtable *olds;
+  contable *contents;
 
-  HTTP * hh;
+  HTTP *hh;
 
   /* the directory, like "official" */
   string dirname;
 
   /* list of new files: filename, md5 */
-  stringlist * newlistf;
-  stringlist * newlistm;
+  stringlist *newlistf;
+  stringlist *newlistm;
 
   /* list of saved dirs: dir, index.
      rep invt: these are the same length */
-  stringlist * dirlistd;
+  stringlist *dirlistd;
   PtrList<DirIndex> *dirlisti;
 
   void init();
   void insertdir(string d);
 };
 
-Upper_ * Upper_::Create(HTTP * h, TextScroll *t,
+Upper_ *Upper_::Create(HTTP *h, TextScroll *t,
 			Drawable *d, string f) {
-  Upper_ * ur = new Upper_();
+  Upper_ *ur = new Upper_();
   ur->hh = h;
   ur->tx = t;
   ur->below = d;
@@ -158,17 +158,17 @@ void Upper_::savedir(string d, string i) {
   stringlist::push(dirlistd, d);
 
   /* XXX error checking? */
-  DirIndex * di = DirIndex::create();
+  DirIndex *di = DirIndex::create();
   di->title = i;
   PtrList<DirIndex>::push(dirlisti, di);
 }
 
 void Upper_::insertdir(string src) {
-  DIR * d = opendir(src.c_str());
+  DIR *d = opendir(src.c_str());
     
   say((string)YELLOW"insertdir " + src + POP);
 
-  struct dirent * de;
+  struct dirent *de;
   while ( (de = readdir(d)) ) {
 
     string basef = (string)de->d_name;
@@ -228,7 +228,7 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
   }
 # endif
 
-  ContentEntry * already = contents->lookup(md);
+  ContentEntry *already = contents->lookup(md);
 
   /* if it's not already in the content hashtable,
      get it from the internet. */
@@ -245,7 +245,7 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
 
     switch (hr) {
     case HT_OK: {
-      ContentEntry * nce = new ContentEntry(mm);
+      ContentEntry *nce = new ContentEntry(mm);
       sayover((string)"(setfile) downloaded : " + nce->md5, true);
 
       if (nce->md5 != md) {
@@ -272,7 +272,7 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
   /* if it's in the olds, mark it so
      that it won't be deleted */
 
-  OldEntry * existing = olds->lookup(dirname + DIRSEP + f);
+  OldEntry *existing = olds->lookup(dirname + DIRSEP + f);
   if (existing) existing->deleteme = false;
 
   /* put it in newlist */
@@ -288,7 +288,7 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
     /* we designate the current dir with the empty string, instead */
     if (dd == ".") dd = "";
 
-    stringlist * dt = dirlistd;
+    stringlist *dt = dirlistd;
     PtrList<DirIndex> *it = dirlisti;
 
     while (dt && it) {
@@ -308,7 +308,7 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
   return true;
 }
 
-static void deleteif(OldEntry * oe, int dummy_param) {
+static void deleteif(OldEntry *oe, int dummy_param) {
   if (oe->deleteme) {
     /* we can delete index files with proper magic. these are
        always overwritten with every update */
@@ -359,7 +359,7 @@ bool Upper_::commit() {
       return false;
     }
 
-    ContentEntry * ce = contents->lookup(nlm);
+    ContentEntry *ce = contents->lookup(nlm);
     
     if (!ce) {
       say((string)RED "bug: md5 " BLUE "[" + nlm +
@@ -393,7 +393,7 @@ bool Upper_::commit() {
      length(dirlisti) */
   while (dirlistd) {
     string d = stringpop(dirlistd);
-    DirIndex * i = PtrList<DirIndex>::pop(dirlisti);
+    DirIndex *i = PtrList<DirIndex>::pop(dirlisti);
 
     string f = 
       (d == "") 
@@ -413,7 +413,7 @@ bool Upper_::commit() {
 
 }  // namespace
 
-Upper * Upper::Create(HTTP *h, TextScroll *t,
+Upper *Upper::Create(HTTP *h, TextScroll *t,
 		      Drawable *d, string f) {
   return Upper_::Create(h, t, d, f);
 }

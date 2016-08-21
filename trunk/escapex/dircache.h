@@ -26,7 +26,7 @@ struct DirCache {
   /* lookup dir in the cache, sticking the result in idx.
      optionally provide a callback function for progress */
   virtual int get(string dir, DirIndex *&idx, int &tot, int &sol,
-		  void (*prog)(void * data, int n, int total, 
+		  void (*prog)(void *data, int n, int total, 
 			       const string &subdir, const int tks) = nullptr,
 		  void *prog_data = nullptr) = 0;
 };

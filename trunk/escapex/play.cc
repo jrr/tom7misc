@@ -72,10 +72,10 @@ struct preal : public play {
      if it is not, then we support the VCR (soon) and redo. */
   int solpos;
 
-  static preal * create();
+  static preal *create();
   void redraw();
 
-  void videoresize(SDL_ResizeEvent * eventp);
+  void videoresize(SDL_ResizeEvent *eventp);
 
   virtual void destroy() {
     delete this;
@@ -83,26 +83,26 @@ struct preal : public play {
 
   /* hand closure-converted, ugh */
   bool redo();
-  void undo(Level *&start, Extent<Level> & ec, int nmoves);
-  void restart(Level *&start, Extent<Level> & ec);
+  void undo(Level *&start, Extent<Level> &ec, int nmoves);
+  void restart(Level *&start, Extent<Level> &ec);
   void checkpoint(Solution *&saved_sol,
-		  Extent<Solution> & ess);
-  void restore(Extent<Level> & ec,
+		  Extent<Solution> &ess);
+  void restore(Extent<Level> &ec,
 	       Level *start,
 	       Solution *saved_sol,
-	       Extent<Solution> & eso);
+	       Extent<Solution> &eso);
   void bookmarks(Level *start, 
-		 Extent<Level> & ec,
+		 Extent<Level> &ec,
 		 Player *plr, string md5, 
 		 Solution *&sol,
-		 Extent<Solution> & eso);
+		 Extent<Solution> &eso);
   void bookmark_download(Player *plr, string lmd5, Level *lev);
 
 
   void drawmenu();
 
 private:
-  bool getevent(SDL_Event * e, bool & fake);
+  bool getevent(SDL_Event *e, bool &fake);
 
   bool watching;
   Uint32 nextframe;
@@ -116,12 +116,12 @@ private:
 play::~play() {}
 preal::~preal() {}
 
-play * play::create() {
+play *play::create() {
   return preal::create();
 }
 
-preal * preal::create() {
-  preal * pr = new preal();
+preal *preal::create() {
+  preal *pr = new preal();
   pr->watching = false;
   pr->layer = 0;
   pr->showdests = false;
@@ -241,7 +241,7 @@ struct BookmarkItem : public MenuItem {
     // + (string)(solved?" " GREEN "(solved)":""));
   }
 
-  virtual void size(int & w, int & h) {
+  virtual void size(int &w, int &h) {
 
     /* XXX also author, date.. */
     w = THUMBW + 8 + 
@@ -499,7 +499,7 @@ void preal::screenresize() {
   dr.height = screen->h - dr.posy;
 }
 
-void preal::videoresize(SDL_ResizeEvent * eventp) {
+void preal::videoresize(SDL_ResizeEvent *eventp) {
   screen = sdlutil::makescreen(eventp->w,
  			       eventp->h);
   screenresize();
@@ -525,7 +525,7 @@ bool preal::redo() {
 }
 
 /* oh how I yearn for nested functions */
-void preal::undo(Level *&start, Extent<Level> & ec, int nm) {
+void preal::undo(Level *&start, Extent<Level> &ec, int nm) {
   if (solpos > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -542,7 +542,7 @@ void preal::undo(Level *&start, Extent<Level> & ec, int nm) {
   }
 }
 
-void preal::restart(Level *&start, Extent<Level> & ec) {
+void preal::restart(Level *&start, Extent<Level> &ec) {
   dr.lev->destroy();
   solpos = 0;
   dr.lev = start->clone();
@@ -635,7 +635,7 @@ void preal::bookmarks(Level *start,
       
       for (int i = 0; i < bmnum ; i++) {
 	if (!ss->head->bookmark) didsolve = true;
-	BookmarkItem * tmp = new BookmarkItem(start, ss->head, plr, md5, this);
+	BookmarkItem *tmp = new BookmarkItem(start, ss->head, plr, md5, this);
 
 	tmp->explanation = 
 	  "Selecting this bookmark will load it,\n"
@@ -666,7 +666,7 @@ void preal::bookmarks(Level *start,
       PtrList<MenuItem>::push(l, &nettitle);
     }
 
-    menu * mm = menu::create(this, "Bookmarks", l, false);
+    menu *mm = menu::create(this, "Bookmarks", l, false);
     Extent<menu> em(mm);
     PtrList<MenuItem>::diminish(l);
 
@@ -697,7 +697,7 @@ void preal::bookmarks(Level *start,
 	     automatically, since it isn't very important) */
 
 	  /* Swap it and the 0th element. */
-	  BookmarkItem * tmp = books[bmnum - 1];
+	  BookmarkItem *tmp = books[bmnum - 1];
 	  books[bmnum - 1] = books[i];
 	  books[i] = tmp;
 
@@ -708,7 +708,7 @@ void preal::bookmarks(Level *start,
 
 	case BMA_DELETE: {
 	  /* swap with last item */
-	  BookmarkItem * tmp = books[bmnum - 1];
+	  BookmarkItem *tmp = books[bmnum - 1];
 	  books[bmnum - 1] = books[i];
 	  books[i] = tmp;
 	  
@@ -842,7 +842,7 @@ void preal::bookmark_download(Player *plr, string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
   
-  HTTP * hh = Client::connect(plr, td.tx, &td);
+  HTTP *hh = Client::connect(plr, td.tx, &td);
 
   if (!hh) { 
     Message::no(&td, "Couldn't connect!");
@@ -903,7 +903,7 @@ void preal::bookmark_download(Player *plr, string lmd5, Level *lev) {
 
 
 void preal::checkpoint(Solution *&saved_sol,
-		       Extent<Solution> & ess) {
+		       Extent<Solution> &ess) {
   saved_sol->destroy();
   saved_sol = sol->clone();
   /* shouldn't save redos */
@@ -916,10 +916,10 @@ void preal::checkpoint(Solution *&saved_sol,
   watching = false;
 }
 
-void preal::restore(Extent<Level> & ec,
+void preal::restore(Extent<Level> &ec,
 		    Level *start,
 		    Solution *saved_sol,
-		    Extent<Solution> & eso) {
+		    Extent<Solution> &eso) {
   if (saved_sol->length > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -960,7 +960,7 @@ void preal::restore(Extent<Level> & ec,
    fake keys, the argument 'fake' will be set true
    in the second case.
 */
-bool preal::getevent(SDL_Event * e, bool & fake) {
+bool preal::getevent(SDL_Event *e, bool &fake) {
   if (SDL_PollEvent(e)) {
     fake = false;
     return true;
@@ -1035,7 +1035,7 @@ PlayResult preal::doplay_save(Player *plr, Level *start,
       switch (event.type) {
       case SDL_QUIT: goto play_quit;
       case SDL_MOUSEBUTTONDOWN: {
-	SDL_MouseButtonEvent * e = (SDL_MouseButtonEvent*)&event;
+	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
 
 	if (e->button == SDL_BUTTON_LEFT) {
 
@@ -1372,7 +1372,7 @@ PlayResult preal::doplay_save(Player *plr, Level *start,
 	}
 	break;
       case SDL_VIDEORESIZE: {
-	SDL_ResizeEvent * eventp = (SDL_ResizeEvent*)&event;
+	SDL_ResizeEvent *eventp = (SDL_ResizeEvent*)&event;
 	videoresize(eventp);
 	/* sync size of dirty buffer */
 	/* XXX move this into member so that we can do it in
@@ -1404,7 +1404,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
   {
     string idx = 
       util::pathof(res) + (string)DIRSEP WEBINDEXNAME;
-    DirIndex * di = DirIndex::fromfile(idx);
+    DirIndex *di = DirIndex::fromfile(idx);
     iscollection = di?(di->webcollection()):false;
     if (di) di->destroy();
   }
@@ -1420,7 +1420,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
 
   if (lev) { 
 
-    play * pla = play::create();
+    play *pla = play::create();
     Extent<play> ep(pla);
 
     PlayResult res = pla->doplay(plr, lev, md5);
@@ -1541,13 +1541,13 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
   } else return;
 }
 
-bool play::animatemove(drawing & dr, Disamb *ctx, Dirt *dirty, dir d) {
+bool play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
   /* events waiting to be turned into animations */
-  elist * events = 0;
+  elist *events = 0;
   /* current phase of animation */
-  alist * anims = 0;
+  alist *anims = 0;
   /* current sprites (drawn on top of everything) */
-  alist * sprites = 0;
+  alist *sprites = 0;
 
 
   /* clear sprites from screen.
@@ -1595,7 +1595,7 @@ bool play::animatemove(drawing & dr, Disamb *ctx, Dirt *dirty, dir d) {
 	bool only_finales = true;
 
 	{
-	  for (alist * atmp = anims; atmp && !ready; 
+	  for (alist *atmp = anims; atmp && !ready; 
 	      atmp = atmp->next) {
 	    if (!atmp->head->finale) only_finales = false;
 	    if (atmp->head->nexttick < now) {
@@ -1605,7 +1605,7 @@ bool play::animatemove(drawing & dr, Disamb *ctx, Dirt *dirty, dir d) {
 	}
 
 	{
-	  for (alist * atmp = sprites; atmp && !ready; 
+	  for (alist *atmp = sprites; atmp && !ready; 
 	      atmp = atmp->next) {
 	    if (!atmp->head->finale) only_finales = false;
 	    if (atmp->head->nexttick < now) {

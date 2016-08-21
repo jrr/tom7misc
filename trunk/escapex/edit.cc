@@ -559,8 +559,8 @@ void editor::addbot(int x, int y, bot b) {
   int n = dr.lev->nbots + 1;
 	  
   /* all clear; add new one */
-  int * ni = (int*)malloc(sizeof(int) * n);
-  bot * nt = (bot*)malloc(sizeof(bot) * n);
+  int *ni = (int*)malloc(sizeof(int) * n);
+  bot *nt = (bot*)malloc(sizeof(bot) * n);
 	
   for (int i = 0; i < dr.lev->nbots; i++) {
     ni[i] = dr.lev->boti[i];
@@ -722,7 +722,7 @@ void editor::playlev() {
   /* XXX check result for 'exit' */
   fixup();
   
-  play * pla = play::create();
+  play *pla = play::create();
   Extent<play> ep(pla);
   
   /* grab md5 in case player makes bookmarks */
@@ -762,7 +762,7 @@ void editor::resize() {
   PtrList<MenuItem>::push(l, &theight);
   PtrList<MenuItem>::push(l, &twidth);
 
-  menu * mm = menu::create(this, "Level Size", l, false);
+  menu *mm = menu::create(this, "Level Size", l, false);
 
   PtrList<MenuItem>::diminish(l);
 
@@ -837,7 +837,7 @@ void editor::edit(Level *origlev) {
 	   has changed like mousing over a tile
 	   with a destination */
 
-	SDL_MouseMotionEvent * e = (SDL_MouseMotionEvent*)&event;
+	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
 	/* we do a lot of stuff here. set this flag if
 	   we need to redraw at the end. */
@@ -891,7 +891,7 @@ void editor::edit(Level *origlev) {
 	  if (otx != ntx ||
 	      oty != nty) {
 	    /* draw line. */
-	    line * sl = line::create(otx, oty, ntx, nty);
+	    line *sl = line::create(otx, oty, ntx, nty);
 	    Extent<line> el(sl);
 	    
 	    int cx = otx, cy = oty;
@@ -946,7 +946,7 @@ void editor::edit(Level *origlev) {
 	break;
       }
       case SDL_MOUSEBUTTONDOWN: {
-	SDL_MouseButtonEvent * e = (SDL_MouseButtonEvent*)&event;
+	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
 
 	/* any click in this state puts us in drawing mode. */
 	donotdraw = false;
@@ -1793,7 +1793,7 @@ void editor::next_bombtimer() {
   redraw();
 }
 
-bool editor::getdest(int & x, int & y, string msg) {
+bool editor::getdest(int &x, int &y, string msg) {
   clearselection();
 
   SDL_Event event;
@@ -1809,7 +1809,7 @@ bool editor::getdest(int & x, int & y, string msg) {
       switch (event.type) {
 
       case SDL_MOUSEBUTTONDOWN: {
-	SDL_MouseButtonEvent * e = (SDL_MouseButtonEvent*)&event;
+	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
 
 	/* we don't want this click (and drag) to result in
 	   drawing. */
@@ -1935,9 +1935,9 @@ void editor::fixup() {
 
 }
 
-editor * editor::create(Player *p) {
+editor *editor::create(Player *p) {
 
-  editor * ee = new editor();
+  editor *ee = new editor();
 
   ee->randtype = RT_MAZE;
   ee->plr = p;

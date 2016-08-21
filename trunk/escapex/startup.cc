@@ -30,9 +30,9 @@
 /* copy (or symlink) all levels (recursively) into the current directory. */
 /* (no trailing / on path) */
 int StartUp::install_levels(string path) {
-  DIR * d = opendir(path.c_str());
+  DIR *d = opendir(path.c_str());
   if (!d) return 0;
-  dirent * de;
+  dirent *de;
   
   while ( (de = readdir(d)) ) {
     string dn = de->d_name;

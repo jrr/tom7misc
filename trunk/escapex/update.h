@@ -18,7 +18,7 @@ enum updateresult {
 /* update */
 struct Updater : public Drawable {
   static Updater *create(Player *p);
-  virtual updateresult update(string & msg) = 0;
+  virtual updateresult update(string &msg) = 0;
   virtual void destroy() = 0;
   virtual ~Updater() {};
 

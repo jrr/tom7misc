@@ -65,8 +65,8 @@ struct hashtable {
     delete this;
   }
 
-  static hashtable * create(int i) {
-    hashtable * h = new hashtable();
+  static hashtable *create(int i) {
+    hashtable *h = new hashtable();
 
     h->allocated = i;
     h->data = (PtrList<I>**)malloc(i * sizeof (PtrList<I>*));

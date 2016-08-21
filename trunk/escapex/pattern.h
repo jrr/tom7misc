@@ -1,4 +1,3 @@
-
 #ifndef __PATTERN_H
 #define __PATTERN_H
 
@@ -20,22 +19,22 @@
 
 struct Match {
   /* index that matched the (relative) top left */
-  int top_left() { return topleft; }
+  int top_left() const { return topleft; }
 
   /* the match may be in a different orientation.
      these functions give the relative 
      up/down/left/right directions. (Ie, if the
      pattern is matched upside down, then up()
      returns DIR_DOWN */
-  dir up() { return up_dir; }
-  dir down() { return dir_reverse(up_dir); }
-  dir right() { return right_dir; }
-  dir left() { return dir_reverse(right_dir); }
+  dir up() const { return up_dir; }
+  dir down() const { return dir_reverse(up_dir); }
+  dir right() const { return right_dir; }
+  dir left() const { return dir_reverse(right_dir); }
 
   /* any 'register' set in the original pattern
      can be fetched here. false if no such
      register */
-  bool getindex(int reg, int & x, int & y) {
+  bool getindex(int reg, int &x, int &y) {
     if (reg < nregs) {
       int idx = regs[reg];
       lev->where(idx, x, y);
@@ -73,10 +72,10 @@ struct Match {
 /* unfortunately we have to put the implementation
    in the header. such is template programming. */
 template <class Info>
-struct pattern {
+struct Pattern {
 
-  static pattern * create(string s) {
-    std::unique_ptr<pattern> p{new pattern{}};
+  static Pattern *create(string s) {
+    std::unique_ptr<Pattern> p{new Pattern{}};
 
     for (int i = 0; i < 256; i++)
       p->tab[i].t = H_ERROR;
@@ -142,7 +141,7 @@ struct pattern {
     return p.release();
   }
 
-  private: int w, h; int * regs; int nregs; char *chars;
+  private: int w, h; int *regs; int nregs; char *chars;
   public:
   
   /* users can define their own predicates */
@@ -173,7 +172,7 @@ struct pattern {
 
 
   struct mystream : public Match::stream {
-    mystream(Level *l, Info *i, pattern<Info> *p) 
+    mystream(Level *l, Info *i, Pattern<Info> *p) 
       /* to get a deterministic sequential generator here
 	 add ",0" in the initializer of g */
       : lev(l), inf(i), pat(p), g(lev->w * lev->h) {
@@ -335,7 +334,7 @@ struct pattern {
     int dirsleft;
     int this_dir;
 
-    pattern<Info> *pat;
+    Pattern<Info> *pat;
     Generator g;
   };
 
@@ -350,7 +349,7 @@ struct pattern {
     free(chars);
     delete this;
   }
-  ~pattern() {}
+  ~Pattern() {}
 
   private:
 

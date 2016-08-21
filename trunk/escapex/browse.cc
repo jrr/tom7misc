@@ -256,8 +256,8 @@ string Browse_::selectlevel() {
 }
 
 
-Browse * Browse::create(bool allow_corrupted) {
-  Browse_ * b = new Browse_;
+Browse *Browse::create(bool allow_corrupted) {
+  Browse_ *b = new Browse_;
   b->allow_corrupted = allow_corrupted;
   b->makebackground();
   return b;
@@ -414,7 +414,7 @@ bool llentry::matches(char k) {
   else return (fname.length() > 0 && (fname[0] | 32) == k);
 }
 
-bool loadlevelreal::first_unsolved(string & file, string & title) {
+bool loadlevelreal::first_unsolved(string &file, string &title) {
   /* should use this natural sort, since this is used for the
      tutorials */
   sel->sort(getsort(SORT_ALPHA));
@@ -440,12 +440,12 @@ bool loadlevelreal::first_unsolved(string & file, string & title) {
 #  define DBTIME(s) ;
 #endif
 
-loadlevelreal * loadlevelreal::create(Player *p, string default_dir,
+loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
 				      bool inexact,
 				      bool allow_corrupted_) {
   DBTIME_INIT;
 
-  loadlevelreal * ll = new loadlevelreal();
+  loadlevelreal *ll = new loadlevelreal();
   ll->cache = DirCache::create(p);
   if (!ll->cache) return 0;
   
@@ -503,7 +503,7 @@ loadlevelreal * loadlevelreal::create(Player *p, string default_dir,
 /* prepend current path onto filename */
 string loadlevelreal::locate(string filename) {
   
-  stringlist * pp = path;
+  stringlist *pp = path;
   
   string out = filename;
   while (pp) {
@@ -522,7 +522,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
   // printf("changedir '%s' with path %p\n", what.c_str(), path);
   {
-    stringlist * pp = path;
+    stringlist *pp = path;
     while (pp) {
       /* printf("  '%s'\n", pp->head.c_str()); */
       pp = pp->next;
@@ -574,7 +574,7 @@ int loadlevelreal::changedir(string what, bool remember) {
   /* save this dir */
   if (remember) lastdir = where;
 
-  selor * nsel = selor::create(n);
+  selor *nsel = selor::create(n);
 
   nsel->botmargin = drawing::smallheight() + 16 ;
 
@@ -587,7 +587,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
   /* get (just) the index for this dir, which allows us to
      look up ratings. note that there may be no index. */
-  DirIndex * thisindex = 0;
+  DirIndex *thisindex = 0;
   cache->getidx(where, thisindex);
 
 
@@ -596,9 +596,9 @@ int loadlevelreal::changedir(string what, bool remember) {
   /* now read all of the files */
 
   /* init array */
-  DIR * d = opendir(where.c_str());
+  DIR *d = opendir(where.c_str());
   if (!d) return 0;
-  dirent * de;
+  dirent *de;
 
   int i;
   for (i = 0; i < n;) {
@@ -630,7 +630,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	  i++;
 	} else {
 	  int ttt, sss;
-	  DirIndex * iii = 0;
+	  DirIndex *iii = 0;
 
 	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
 	  if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
@@ -668,7 +668,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	using solset = PtrList<NamedSolution>;
 	
 	/* owned by player */
-	solset * sols = plr->solutionset(md5c);
+	solset *sols = plr->solutionset(md5c);
 
 	nsel->items[i].solved = 0;
 
@@ -684,7 +684,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	    /* first one didn't verify, but we should reorder
 	       solutions so that one does, if possible */
 
-	    solset * no = 0;
+	    solset *no = 0;
 	    
 	    while (sols) {
 	      /* not trying bookmarks */
@@ -699,7 +699,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 		/* get tail */
 		sols = sols->next;
 
-		solset * yes = 0;
+		solset *yes = 0;
 		
 		/* put the current tail there, cloning */
 		while (sols) {

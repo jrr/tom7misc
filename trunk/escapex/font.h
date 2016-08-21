@@ -12,7 +12,7 @@ struct font {
 
   int width, height, styles, overlap;
   
-  static font * create(string file,
+  static font *create(string file,
                        string charmap,
                        int width,
                        int height,
@@ -24,13 +24,13 @@ struct font {
      length(s) * (width-overlap) gives
      the screen width. */
   static unsigned int length(string);
-  static string substr(const string & s, 
+  static string substr(const string &s, 
 		       unsigned int start, 
 		       unsigned int len);
   /* len must be <= font::length(s) */
-  static string prefix(const string & s,
+  static string prefix(const string &s,
 		       unsigned int len);
-  static string suffix(const string & s,
+  static string suffix(const string &s,
 		       unsigned int len);
 
   /* similarly, pad a string out to n displayable
@@ -39,12 +39,12 @@ struct font {
      on the left side instead of right.
 
      precondition: |n| >= 3 */
-  static string pad(const string & s, int n);
+  static string pad(const string &s, int n);
 
   /* truncate to n chars if too long; if n is
      negative, truncate off the left side instead of
      the right. */
-  static string truncate(const string & s, int n);
+  static string truncate(const string &s, int n);
 
 
   /* return the size in pixels of the string.

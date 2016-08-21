@@ -225,7 +225,7 @@ int main(int argc, char **argv) {
 
 #if 1
 	for (;;) // XXX loop in browser instead.
-	  if (Browse * bb = Browse::create()) {
+	  if (Browse *bb = Browse::create()) {
 	    ::Extent<Browse> bb_d(bb);
 	    // XXX: Instead, have a version of the browser
 	    // that invokes playrecord on the stack, and a
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
       } else if (r == MainMenu::EDIT) {
         /* edit a level */
 
-        editor * ee = editor::create(plr.get());
+        editor *ee = editor::create(plr.get());
         if (!ee) {
           Message::bug(0, "Error creating editor");
           goto oops;
@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
       } else if (r == MainMenu::UPGRADE) {
         /* upgrade escape binaries and graphics */
 
-        Upgrader * uu = Upgrader::create(plr.get());
+        Upgrader *uu = Upgrader::create(plr.get());
         if (!uu) {
           Message::bug(0, "Error creating upgrader");
           goto oops;
@@ -291,7 +291,7 @@ int main(int argc, char **argv) {
       } else if (r == MainMenu::UPDATE) {
         /* update levels */
 
-        Updater * uu = Updater::create(plr.get());
+        Updater *uu = Updater::create(plr.get());
         if (!uu) {
           Message::bug(0, "Error creating updater");
           goto oops;

@@ -77,7 +77,7 @@ struct nsentry {
 
   static int none() { return 0; }
 
-  static void swap(nsentry * l, nsentry * r) {
+  static void swap(nsentry *l, nsentry *r) {
 #   define SWAP(f) { const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
     SWAP(ns);
     SWAP(def);
@@ -85,8 +85,8 @@ struct nsentry {
 #   undef SWAP
   }
   
-  static int cmp_default(const nsentry & l,
-			 const nsentry & r) {
+  static int cmp_default(const nsentry &l,
+			 const nsentry &r) {
     if (l.def && !r.def) return -1;
     if (r.def && !l.def) return 1;
 
@@ -128,16 +128,16 @@ struct smreal : public Drawable {
 
   virtual void screenresize() {}
 
-  static smreal * create(Player *p, string lmd5, Level *lev) {
+  static smreal *create(Player *p, string lmd5, Level *lev) {
     /* get the solution set */
 
-    nslist * solset = p->solutionset(lmd5);
+    nslist *solset = p->solutionset(lmd5);
     
     /* there are no solutions to manage! */
     if (!solset) return 0;
 
 
-    smreal * sm = new smreal;
+    smreal *sm = new smreal;
     if (!sm) return 0;
     int len = solset->length();
     
@@ -184,9 +184,9 @@ struct smreal : public Drawable {
     return sm;
   }
 
-  nsel * sel;
+  nsel *sel;
 
-  static void downloadsolutions(Player *plr, smreal * sm, string lmd5, Level *lev);
+  static void downloadsolutions(Player *plr, smreal *sm, string lmd5, Level *lev);
 
 };
 
@@ -255,7 +255,7 @@ void smanage::promptupload(Drawable *below,
   PtrList<MenuItem>::push(l, &message);
 
   /* display menu */
-  menu * mm = menu::create(below, "Upload solution?", l, false);
+  menu *mm = menu::create(below, "Upload solution?", l, false);
   resultkind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
   mm->destroy();
@@ -274,7 +274,7 @@ void smanage::promptupload(Drawable *below,
 		       "Upload anyway",
 		       "Cancel")) {
 
-      HTTP * hh = Client::connect(plr, td.tx, &td);
+      HTTP *hh = Client::connect(plr, td.tx, &td);
     
       if (!hh) { 
 	Message::no(&td, "Couldn't connect!");
@@ -287,7 +287,7 @@ void smanage::promptupload(Drawable *below,
 
       string solcont = sol->tostring();
     
-      formalist * fl = 0;
+      formalist *fl = 0;
     
       /* XXX seems necessary! but in aphasia cgi? */
       formalist::pusharg(fl, "dummy", "dummy");
@@ -324,11 +324,11 @@ void smanage::promptupload(Drawable *below,
 }
 
 /* XXX this should be documented in protocol.txt */
-void smreal::downloadsolutions(Player *plr, smreal * sm, string lmd5, Level *lev) {
+void smreal::downloadsolutions(Player *plr, smreal *sm, string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
   
-  HTTP * hh = Client::connect(plr, td.tx, &td);
+  HTTP *hh = Client::connect(plr, td.tx, &td);
 
   if (!hh) { 
     Message::no(&td, "Couldn't connect!");
@@ -414,7 +414,7 @@ void smreal::downloadsolutions(Player *plr, smreal * sm, string lmd5, Level *lev
 
 void smanage::manage(Player *plr, string lmd5, Level *lev) {
   
-  smreal * sm = smreal::create(plr, lmd5, lev);
+  smreal *sm = smreal::create(plr, lmd5, lev);
   if (!sm) {
     Message::bug(0, "Couldn't create solution manager!");
     return;
@@ -561,7 +561,7 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
     case nsel::PE_CANCEL: {
       /* done. write changes back into player file */
       /* create solset list, preserving order */
-      nslist * solset = 0;
+      nslist *solset = 0;
       for (int i = sm->sel->number - 1;
 	  i >= 0; 
 	  i--) {

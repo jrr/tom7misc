@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
       }
 
       int n = 0;
-      fentry * entries = new fentry[MAX_FILES];
+      fentry *entries = new fentry[MAX_FILES];
 
       string f;
       while (rel >> f) {

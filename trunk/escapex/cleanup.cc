@@ -10,9 +10,9 @@
 
 void Cleanup::clean() {
   
-  DIR * d = opendir(".");
+  DIR *d = opendir(".");
   if (!d) return;
-  dirent * dire;
+  dirent *dire;
 
   while ( (dire = readdir(d)) ) {
 

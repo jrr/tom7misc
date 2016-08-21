@@ -85,7 +85,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
 
   cs.tx->say(GREY "Making sure we're connected...");
   cs.redraw();
-  HTTP * hh = Client::connect(p, cs.tx, &cs);
+  HTTP *hh = Client::connect(p, cs.tx, &cs);
   if (!hh) {
     Message::quick(&cs, "Can't connect to internet!",
 		   "OK", "", PICS XICON POP);
@@ -166,7 +166,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
   PtrList<MenuItem>::push(l, &spoiler);
   PtrList<MenuItem>::push(l, &body);
 
-  menu * mm = menu::create(&cs, cookmode?"Explain your cook":"Leave a comment", l, false);
+  menu *mm = menu::create(&cs, cookmode?"Explain your cook":"Leave a comment", l, false);
   Extent<menu> em(mm);
   PtrList<MenuItem>::diminish(l);
 

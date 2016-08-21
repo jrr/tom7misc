@@ -50,7 +50,7 @@ string Prompt::select() {
   PtrList<MenuItem>::push(l, &inp);
   // PtrList<MenuItem>::push(l, &lab);
 
-  menu * mm = menu::create(below, GREY "Input Required", l, false);
+  menu *mm = menu::create(below, GREY "Input Required", l, false);
   resultkind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
   mm->destroy();

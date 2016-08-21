@@ -83,9 +83,9 @@ struct UsedMap {
   }
 };
 
-static void fit_image(SDL_Surface *&packed, UsedMap * um, 
+static void fit_image(SDL_Surface *&packed, UsedMap *um, 
 		      int w, int h,
-		      int & x, int & y) {
+		      int &x, int &y) {
   for (;;) {
     for (int yy = 0; yy <= um->h - h; yy++)
       for (int xx = 0; xx <= um->w - w; xx++) {

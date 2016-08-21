@@ -142,7 +142,7 @@ void Prefs::show(Player *plr) {
   PtrList<MenuItem>::push(l, &game);
 
 
-  menu * mm = menu::create(0, "Escape Preferences Menu", l, false);
+  menu *mm = menu::create(0, "Escape Preferences Menu", l, false);
 
   resultkind res = mm->menuize();
 

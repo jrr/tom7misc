@@ -22,16 +22,16 @@
 #include "pattern.h"
 
 /* matches anything */
-bool pred_any(Level *, void * _, int x, int y) {
+bool pred_any(Level *, void *_, int x, int y) {
   return true;
 }
 
-bool pred_gold_or_sphere(Level *lev, void * _, int x, int y) {
+bool pred_gold_or_sphere(Level *lev, void *_, int x, int y) {
   const int t = lev->tileat(x, y);
   return t == T_GOLD || Level::issphere(t);
 }
 
-bool pred_stops_gold(Level *lev, void * _, int x, int y) {
+bool pred_stops_gold(Level *lev, void *_, int x, int y) {
   switch (lev->tileat(x, y)) {
   case T_FLOOR:
   case T_PANEL:
@@ -436,7 +436,7 @@ void editor::dorandom() {
 
   case RT_CRAZY: {
     /* XXX testing */
-    pattern<void> *pat_test = pattern<void>::create("...\n"
+    Pattern<void> *pat_test = Pattern<void>::create("...\n"
 						     "B\\0BB\n"
 						     "...\n");
     if (pat_test) {
@@ -444,7 +444,7 @@ void editor::dorandom() {
       pat_test->settile('B', T_BLUE);
       pat_test->setpredicate('.', pred_any);
 
-      Match::stream * ms_test = 
+      Match::stream *ms_test = 
 	pat_test->findall(dr.lev, 0);
       
       Match *m;
@@ -547,10 +547,10 @@ bool editor::retract_gold() {
   Level *lev = dr.lev;
   /* XX could also be at edge of map -- might want a way to
      specify that pattern */
-  pattern<void> *bgold = pattern<void>::create("\\0 \\1GS\n");
+  Pattern<void> *bgold = Pattern<void>::create("\\0 \\1GS\n");
 
   if (bgold) {
-    Extent<pattern<void>> ep(bgold);
+    Extent<Pattern<void>> ep(bgold);
 
     /* XX could include panels */
     bgold->settile(' ', T_FLOOR);
@@ -726,13 +726,13 @@ bool editor::retract_hole() {
      from the current player's position; otherwise they definitely
      won't be separators
   */
-  pattern<void> *findsep = pattern<void>::create("\\0 \\1 \\2 \n");
+  Pattern<void> *findsep = Pattern<void>::create("\\0 \\1 \\2 \n");
   
   /* XXX only need 'empty' for first space */
   if (findsep) {
     findsep->settile(' ', T_FLOOR);
 
-    Match::stream * matches = 
+    Match::stream *matches = 
       findsep->findall(dr.lev, 0);
 
     Match *mtmp;
@@ -856,7 +856,7 @@ void editor::retract1() {
 
 
   /* XXX testing */
-  pattern<void> *pat_test = pattern<void>::create("...\n"
+  Pattern<void> *pat_test = Pattern<void>::create("...\n"
 						   ".GB\n"
 						   "...\n");
   if (pat_test) {
