@@ -210,7 +210,7 @@ version : .dummy
 RELEASEFILES=escape.exe font.png fontsmall.png tiles.png tileutil.png title.png icon.png escape.txt COPYING changelog animation.png splash.png
 
 mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
-	g++ -DOSX mkupgrade.cc ../cc-lib/md5.cc -o mkupgrade.exe
+	g++ ${CPPFLAGS} ${CXXFLAGS} -DOSX mkupgrade.cc ../cc-lib/md5.cc -o mkupgrade.exe
 
 releasefiles.osx :
 	echo ${RELEASEFILES} > releasefiles.osx

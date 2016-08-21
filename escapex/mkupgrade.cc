@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, 
 	      "usage:\n"
 	      "mkupgrade.exe releasefiles.platform "
-	      "symlinks.platform deletefiles.platform\n",
+	      "symlinks.platform deletefiles.platform\n"
 	      "(must supply a file for each, even if it's blank.)\n"
 	      "writes to stdout.\n");
       exit(-1);
