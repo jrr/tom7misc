@@ -19,7 +19,7 @@
 /* abstract interface */
 struct Browse : public Drawable {
 
-  static Browse * create(bool allow_corrupted = false);
+  static Browse *create(bool allow_corrupted = false);
   virtual ~Browse() {}
   virtual void destroy() = 0;
 

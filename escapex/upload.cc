@@ -37,7 +37,7 @@ struct Upload_ : public Upload {
   void screenresize() override;
 };
 
-Upload_ * Upload_::Create() {
+Upload_ *Upload_::Create() {
   std::unique_ptr<Upload_> ur{new Upload_};
 
   ur->tx = TextScroll::create(fon);
@@ -85,13 +85,13 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
   say(YELLOW + itos(slong->length) + GREY " " LRARROW " " POP +
       itos(opt->length) + POP);
 
-  HTTP * hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx, this);
 
   if (!hh) return UploadResult::FAIL;
 
   string solcont = opt->tostring();
 
-  formalist * fl = 0;
+  formalist *fl = 0;
 
   /* XXX seems necessary! bug in aphasia cgi? */
   formalist::pusharg(fl, "dummy", "dummy");
@@ -134,6 +134,6 @@ void Upload_::draw() {
 
 Upload::~Upload() {}
 
-Upload * Upload::Create() {
+Upload *Upload::Create() {
   return Upload_::Create();
 }

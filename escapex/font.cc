@@ -8,13 +8,13 @@ struct font_attrlist {
   attr what;
   int value;
 
-  font_attrlist * next;
+  font_attrlist *next;
 
-  font_attrlist(attr w, int h, font_attrlist * n) : what(w), value(h), next(n) {}
+  font_attrlist(attr w, int h, font_attrlist *n) : what(w), value(h), next(n) {}
 
   /* PERF: we often have to look at the entire stack. */
   /* sets the current color and alpha according to the stack */
-  static void set(font_attrlist * cs, int & c, int & a) {
+  static void set(font_attrlist *cs, int &c, int &a) {
     c = 0;
     a = 0;
     bool gotc = false, gota = false;
@@ -34,7 +34,7 @@ struct font_attrlist {
 
   static int pop(font_attrlist *&il) {
     if (il) {
-      font_attrlist * tmp = il;
+      font_attrlist *tmp = il;
       int t = tmp->value;
       il = il->next;
       delete tmp;
@@ -54,7 +54,7 @@ struct fontreal : public font {
   unsigned char chars[255];
 
   /* 9 x 16 */
-  static fontreal * create(string file,
+  static fontreal *create(string file,
 			   string charmap,
 			   int width,
 			   int height,
@@ -90,12 +90,12 @@ struct fontreal : public font {
 font::~font() {}
 fontreal::~fontreal() {}
 
-font * font::create(string f, string c,
+font *font::create(string f, string c,
 		    int w, int h, int s, int o, int d) {
   return fontreal::create(f, c, w, h, s, o, d);
 }
 
-fontreal * fontreal::create(string file,
+fontreal *fontreal::create(string file,
 			    string charmap,
 			    int width,
 			    int height,
@@ -103,7 +103,7 @@ fontreal * fontreal::create(string file,
 			    int overlap,
 			    int ndim) {
 
-  fontreal * f = new fontreal();
+  fontreal *f = new fontreal();
   if (!f) return 0;
   Extent<fontreal> fe(f);
   f->width = width;
@@ -237,11 +237,11 @@ void fontreal::drawto(SDL_Surface *surf, int x, int y, string s) {
 
 }
 
-int fontreal::sizex_plain(const string & s) {
+int fontreal::sizex_plain(const string &s) {
   return s.length() * (width - overlap);
 }
 
-int fontreal::sizex(const string & s) {
+int fontreal::sizex(const string &s) {
   return font::length(s) * (width - overlap);
 }
 
@@ -302,7 +302,7 @@ int fontreal::drawlinesc(int x, int y, string s, bool center) {
    "hello\nworld" returns 2
    "hello\nworld\n" returns 2
 */
-int font::lines(const string & s) {
+int font::lines(const string &s) {
   unsigned int idx = 0;
   int sofar = 0;
 
@@ -331,7 +331,7 @@ int font::lines(const string & s) {
   }
 }
 
-string font::substr(const string & s, unsigned int start, unsigned int len) {
+string font::substr(const string &s, unsigned int start, unsigned int len) {
   /* skip 'start' chars */
 
   unsigned int i = 0; /* pos in fontstring */
@@ -370,12 +370,12 @@ string font::substr(const string & s, unsigned int start, unsigned int len) {
 }
 
 /* assume n <= font::length(s) */
-string font::prefix(const string & s, unsigned int n) {
+string font::prefix(const string &s, unsigned int n) {
   return font::substr(s, 0, n);
 }
 
 /* assume n <= font::length (s) */
-string font::suffix(const string & s, unsigned int n) {
+string font::suffix(const string &s, unsigned int n) {
   return font::substr(s, font::length(s) - n, n);
 }
 
@@ -394,7 +394,7 @@ unsigned int font::length(string s) {
 
 /* XXX should go to fontutil */
 #include "chars.h"
-string font::pad(const string & s, int ns) {
+string font::pad(const string &s, int ns) {
   unsigned int l = font::length(s);
     
   unsigned int n = abs(ns);
@@ -414,7 +414,7 @@ string font::pad(const string & s, int ns) {
   }
 }
 
-string font::truncate(const string & s, int ns) {
+string font::truncate(const string &s, int ns) {
   unsigned int l = font::length(s);
 
   unsigned int n = abs(ns);

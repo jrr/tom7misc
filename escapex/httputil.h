@@ -15,10 +15,10 @@ struct formalist {
   std::string name;
   std::string filename;
   std::string content;
-  formalist * next;
+  formalist *next;
 
   static void pusharg(formalist *&l, std::string name, std::string arg) {
-    formalist * x = new formalist;
+    formalist *x = new formalist;
     x->next = l;
     x->ty = FT_ARG;
     x->name = name;
@@ -29,7 +29,7 @@ struct formalist {
 
   static void pushfile(formalist *&l, std::string name, 
 		       std::string filename, std::string contents) {
-    formalist * x = new formalist;
+    formalist *x = new formalist;
     x->next = l;
     x->ty = FT_FILE;
     x->name = name;
@@ -41,7 +41,7 @@ struct formalist {
   /* ie, destroy */
   static void diminish(formalist *&sl) {
     while (sl) {
-      formalist * tmp = sl;
+      formalist *tmp = sl;
       sl = sl->next;
       delete tmp;
     }

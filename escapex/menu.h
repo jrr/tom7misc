@@ -51,14 +51,14 @@ struct MenuItem {
   bool disabled;
 
   /* parent menu */
-  struct menu * container;
+  struct menu *container;
 
   /* stuff that all menuitems have */
 
   /* some controls can be focused, some not */
   virtual bool focusable() { return !disabled; }
 
-  virtual void size(int & width, int & height) = 0;
+  virtual void size(int &width, int &height) = 0;
   virtual void draw(int x, int y, int focused) = 0;
 
   /* mouse click relative to menuitem */
@@ -85,7 +85,7 @@ struct textbox : public MenuItem {
     return "Use like a normal simple editor. " BLUE "Tab" POP " exits.";
   }
   virtual void draw(int x, int y, int f);
-  virtual void size(int & w, int & h);
+  virtual void size(int &w, int &h);
   virtual ~textbox() { empty(); }
 
   string get_text();
@@ -117,7 +117,7 @@ struct textbox : public MenuItem {
 
   string prevline(vallist<char> *&bb);
   string nextword(vallist<char> *&aa);
-  string popword(vallist<char> *&bb, char & p);
+  string popword(vallist<char> *&bb, char &p);
   void addstring(string);
   void type(char);
   void left(bool erasing);
@@ -134,7 +134,7 @@ struct label : public MenuItem {
   virtual bool focusable() { return false; }
   virtual string helptext() { return ""; }
   virtual void draw(int x, int y, int f);
-  virtual void size(int & w, int & h);
+  virtual void size(int &w, int &h);
   virtual ~label() {}
 };
 
@@ -145,7 +145,7 @@ struct vspace : public MenuItem {
   virtual bool focusable() { return false; }
   virtual string helptext() { return ""; }
   virtual void draw(int x, int y, int f) { }
-  virtual void size(int & w, int & h) { 
+  virtual void size(int &w, int &h) { 
     w = 1;
     h = height;
   }
@@ -163,7 +163,7 @@ struct textinput : public MenuItem {
   }
   virtual void draw(int x, int y, int);
   virtual void draw_ch(int x, int y, int, char passwordchar = 0);
-  virtual void size(int & w, int & h);
+  virtual void size(int &w, int &h);
   virtual inputresult key(SDL_Event e);
 
   textinput() : accept_on_enter(false) {}
@@ -197,7 +197,7 @@ struct toggle : public MenuItem {
       BLUE "space" POP " to toggle.";
   }
   virtual void draw(int x, int y, int);
-  virtual void size(int & w, int & h);
+  virtual void size(int &w, int &h);
   virtual inputresult key(SDL_Event e);
   virtual inputresult click(int, int);
 
@@ -230,7 +230,7 @@ struct slider : public MenuItem {
 
   slider(int lows, int highs, int segs);
   virtual void draw(int x, int y, int f);
-  virtual void size(int & w, int & h);
+  virtual void size(int &w, int &h);
   virtual inputresult key(SDL_Event e);
   virtual inputresult click(int, int);
 
@@ -248,7 +248,7 @@ struct slider : public MenuItem {
 
 struct okay : public MenuItem {
   string text;
-  int * ptr;
+  int *ptr;
   int myval;
 
   virtual string helptext() {
@@ -260,11 +260,11 @@ struct okay : public MenuItem {
     myval = 0;
   }
 
-  okay(string text_, int * ptr_ = 0, int myval_ = 0)
+  okay(string text_, int *ptr_ = 0, int myval_ = 0)
     : text(text_), ptr(ptr_), myval(myval_) {}
 
   virtual void draw(int x, int y, int f);
-  virtual void size(int & w, int & h);
+  virtual void size(int &w, int &h);
 
   virtual void activate() {
     /* set pointer if applicable */
@@ -290,7 +290,7 @@ struct cancel : public MenuItem {
   }
 
   virtual void draw(int x, int y, int f);
-  virtual void size(int & w, int & h);
+  virtual void size(int &w, int &h);
   virtual inputresult key(SDL_Event e);
 
   virtual inputresult click(int, int) {
@@ -312,7 +312,7 @@ struct menu : public Drawable {
      and is centered on the screen. */
   /* does not take ownership of the item pointers
      or the list cells */
-  static menu * create(Drawable *below,
+  static menu *create(Drawable *below,
                        string title,
                        PtrList<MenuItem> *items,
                        bool fullscreen);

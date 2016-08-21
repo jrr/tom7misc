@@ -79,7 +79,7 @@ void editor::prefab() {
     PtrList<MenuItem>::push(l, &message);
 	      
     /* display menu */
-    menu * mm = menu::create(this, "Which prefab?", l, false);
+    menu *mm = menu::create(this, "Which prefab?", l, false);
     resultkind res = mm->menuize();
     PtrList<MenuItem>::diminish(l);
     mm->destroy();
@@ -174,7 +174,7 @@ void editor::pffile() {
   PtrList<MenuItem>::push(l, &message);
 	      
   /* display menu */
-  menu * mm = menu::create(this, "Inserting file", l, false);
+  menu *mm = menu::create(this, "Inserting file", l, false);
   resultkind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
   mm->destroy();
@@ -266,7 +266,7 @@ void editor::pffile() {
 }
 
 /* checks the condition at time t, for pftimer below */
-static bool timer_check(int * M, int * A, int i, int t) {
+static bool timer_check(int *M, int *A, int i, int t) {
   for (int z = 0; z < i; z++) {
     if (((A[z] + t) % M[z]) != 0) return false;
   }
@@ -319,7 +319,7 @@ void editor::pftimer() {
   PtrList<MenuItem>::push(l, &message);
 	      
   /* display menu */
-  menu * mm = menu::create(this, "Inserting timer", l, false);
+  menu *mm = menu::create(this, "Inserting timer", l, false);
   resultkind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
   mm->destroy();
@@ -386,7 +386,7 @@ void editor::pftimer() {
    if successful, modify the level to insert
    the timer and then return true.
 */
-bool editor::timer_try(int * M, int * A, int j, int i, int n, bool rev) {
+bool editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
 
   if (j < 0 || j > i) abort();
 

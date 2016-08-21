@@ -18,27 +18,27 @@ struct HTTP_ : public HTTP {
   virtual void destroy();
   virtual void setua(string);
   virtual bool connect(string host, int port = 80);
-  virtual httpresult get(string path, string & out);
-  virtual httpresult gettempfile(string path, string & file);
+  virtual httpresult get(string path, string &out);
+  virtual httpresult gettempfile(string path, string &file);
   virtual httpresult put(string path,
-			 formalist * items,
-			 string & out);
+			 formalist *items,
+			 string &out);
 
-  virtual void setcallback(httpcallback * cb) {
+  virtual void setcallback(httpcallback *cb) {
     callback = cb;
   }
 
  private:
 
-  virtual FILE *tempfile(string & f);
+  virtual FILE *tempfile(string &f);
 
   virtual string readrest();
   virtual string readresttofile();
   virtual string readn(int);
   virtual string readntofile(int);
 
-  virtual httpresult req_general(string req, string & res, bool tofile);
-  virtual httpresult get_general(string path, string & arg, bool tofile);
+  virtual httpresult req_general(string req, string &res, bool tofile);
+  virtual httpresult get_general(string path, string &arg, bool tofile);
   virtual void bye() {
     if (conn) {
       SDLNet_TCP_Close(conn);
@@ -46,7 +46,7 @@ struct HTTP_ : public HTTP {
     }
   }
 
-  httpcallback * callback;
+  httpcallback *callback;
 
   string ua;
 
@@ -58,12 +58,12 @@ struct HTTP_ : public HTTP {
   string host;
 };
 
-httpresult HTTP_::get(string path, string & out_) {
+httpresult HTTP_::get(string path, string &out_) {
   DMSG(util::ptos(this) + " get(" + path + ")\n");
   return get_general(path, out_, false);
 }
 
-httpresult HTTP_::gettempfile(string path, string & out_) {
+httpresult HTTP_::gettempfile(string path, string &out_) {
   DMSG(util::ptos(this) + " gettempfile(" + path + ")\n");
   return get_general(path, out_, true);
 }
@@ -107,7 +107,7 @@ bool HTTP_::connect(string chost, int port) {
   return true;
 }
 
-void append(string & s, char *vec, unsigned int l) {
+void append(string &s, char *vec, unsigned int l) {
   unsigned int slen = s.length();
   unsigned int nlen = l + slen;
   string ret(nlen, '*');
@@ -129,8 +129,8 @@ bool sendall(TCPsocket socket, string d) {
 }
 
 httpresult HTTP_::put(string path,
-			 formalist * items,
-			 string & out) {
+			 formalist *items,
+			 string &out) {
 
   /* large positive randomish number */
   int bnd = 0x10000000 | (0x7FFFFFFE & (util::random()));
@@ -188,7 +188,7 @@ httpresult HTTP_::put(string path,
   Accept: * / * (together)
 */
 
-httpresult HTTP_::get_general(string path, string & res, bool tofile) {
+httpresult HTTP_::get_general(string path, string &res, bool tofile) {
   string req = 
     "GET " + path + " HTTP/1.0\r\n"
     "User-Agent: " + ua + "\r\n"
@@ -199,7 +199,7 @@ httpresult HTTP_::get_general(string path, string & res, bool tofile) {
   return req_general(req, res, tofile);
 }
 
-httpresult HTTP_::req_general(string req, string & res, bool tofile) {
+httpresult HTTP_::req_general(string req, string &res, bool tofile) {
   DMSG(util::ptos(this) + " conn@" + util::ptos(conn) + 
 	" req_general: \n[" + req + "]\n");
 
@@ -376,7 +376,7 @@ httpresult HTTP_::req_general(string req, string & res, bool tofile) {
 #define BUFLEN 1024
 
 /* XXX use util::tempfile */
-FILE *HTTP_::tempfile(string & f) {
+FILE *HTTP_::tempfile(string &f) {
   static int call = 0;
   int pid = util::getpid();
   int tries = 256;

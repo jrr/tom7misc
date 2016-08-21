@@ -68,7 +68,7 @@ struct linereal : public line {
     }
   }
 
-  bool next(int & cx, int & cy) {
+  bool next(int &cx, int &cy) {
     if (dx > dy) {
       if (x0 == x1) return false;
       else {
@@ -104,7 +104,7 @@ struct linereal : public line {
 
 };
 
-line * line::create(int a, int b, int c, int d) {
+line *line::create(int a, int b, int c, int d) {
   return new linereal(a, b, c, d);
 }
 
@@ -154,7 +154,7 @@ string readfile(string s) {
   return ret;
 }
 
-static bool hasmagicf(FILE *f, const string & mag) {
+static bool hasmagicf(FILE *f, const string &mag) {
   char *hdr = (char*)malloc(mag.length());
   if (!hdr) return false;
 
@@ -241,7 +241,7 @@ string itos(int i) {
   return (string)s;
 }
 
-string util::ptos(void * p) {
+string util::ptos(void *p) {
   char s[64];
   sprintf(s, "%p", p);
   return (string)s;
@@ -268,7 +268,7 @@ string shint(int b, int i) {
 /* inverse of shint. does not check that
    there is enough room in s to read b bytes
    from idx ... */
-int shout(int b, string s, unsigned int & idx) {
+int shout(int b, string s, unsigned int &idx) {
   int r = 0;
   while (b--) {
     r = ((unsigned char)s[idx++]) + (r<<8);
@@ -370,7 +370,7 @@ FILE *util::open_new(string fname) {
   else return 0;
 }
 
-string util::getline(string & chunk) {
+string util::getline(string &chunk) {
   string ret;
   for (unsigned int i = 0; i < chunk.length(); i++) {
     if (chunk[i] == '\r') continue;
@@ -400,7 +400,7 @@ string util::fgetline(FILE *f) {
 /* PERF use substr instead of accumulating: this is used
    frequently in the net stuff */
 /* return first token in line, removing it from 'line' */
-string util::chop(string & line) {
+string util::chop(string &line) {
   for (unsigned int i = 0; i < line.length(); i++) {
     if (line[i] != ' ') {
       string acc;
@@ -420,7 +420,7 @@ string util::chop(string & line) {
 }
 
 /* PERF same */
-string util::chopto(char c, string & line) {
+string util::chopto(char c, string &line) {
   string acc;
   for (unsigned int i = 0; i < line.length(); i++) {
     if (line[i] != c) {
@@ -441,7 +441,7 @@ string util::chopto(char c, string & line) {
   return acc;
 }
 
-string util::losewhitel(const string & s) {
+string util::losewhitel(const string &s) {
   for (unsigned int i = 0; i < s.length(); i++) {
     switch (s[i]) {
     case ' ':
@@ -495,7 +495,7 @@ string util::tempfile(string suffix) {
    n.b. it is easy to overflow here, so perhaps comparing
    as we go is better
 */
-int util::natural_compare(const string & l, const string & r) {
+int util::natural_compare(const string &l, const string &r) {
   for (int caseless = 0; caseless < 2; caseless++) {
     unsigned int il = 0;
     unsigned int ir = 0;
@@ -573,7 +573,7 @@ int util::natural_compare(const string & l, const string & r) {
 
 /* same as above, but ignore "the" at beginning */
 /* XXX also ignore symbols ie ... at the beginning */
-int util::library_compare(const string & l, const string & r) {
+int util::library_compare(const string &l, const string &r) {
 
   /* XXX currently IGNOREs symbols, which could give incorrect
      results for strings that are equal other than their
@@ -632,7 +632,7 @@ bool util::matchspec(string spec, char c) {
 }
 
 
-bool util::library_matches(char k, const string & s) {
+bool util::library_matches(char k, const string &s) {
   /* skip symbolic */
   unsigned int idx = 0;
   while (idx < s.length() && (!isalnum(s[idx]))) idx++;
@@ -757,7 +757,7 @@ void util::toattic(string f) {
   }
 }
 
-string util::cdup(const string & dir) {
+string util::cdup(const string &dir) {
   /* XXX right second argument to rfind? I want to find the last / */
   int idx = dir.rfind(DIRSEP, dir.length() - 1);
   if (idx != (signed)string::npos) {
@@ -823,7 +823,7 @@ int bitbuffer::ceil(int bits) {
 }
 
 
-bool bitbuffer::nbits(string s, int n, int & idx, unsigned int & out) {
+bool bitbuffer::nbits(string s, int n, int &idx, unsigned int &out) {
 # define NTHBIT(x) !! (s[(x) >> 3] & (1 << (7 - ((x) & 7))))
 
   out = 0;
@@ -883,7 +883,7 @@ void bitbuffer::writebits(int n, unsigned int b) {
 #endif
 
 /* return true on success */
-bool util::launchurl(const string & url) {
+bool util::launchurl(const string &url) {
   /* XXX ??? */
 #if 0
 #ifdef OSX

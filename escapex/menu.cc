@@ -10,7 +10,7 @@
 
 #define TOPBARHEIGHT (fon->height * 2 + 4)
 
-void slider::size(int & w, int & h) {
+void slider::size(int &w, int &h) {
   w = fon->sizex(scrollbar + " " + question);
   h = fon->height + fonsmall->height + 2;
 }
@@ -92,7 +92,7 @@ slider::slider(int lows, int highs, int segs)
   scrollbar += SLIDERIGHT POP;
 }
 
-void toggle::size(int & w, int & h) {
+void toggle::size(int &w, int &h) {
   w = fon->sizex(question + " [ ]");
   h = fon->height;
 }
@@ -131,7 +131,7 @@ inputresult toggle::click(int x, int y) {
   return inputresult(MR_UPDATED);
 }
 
-void label::size(int & w, int & h) {
+void label::size(int &w, int &h) {
   h = fon->height;
   w = fon->sizex(text);
 }
@@ -172,7 +172,7 @@ void textinput::draw(int xp, int yp, int f) {
 /* XXX width should take into account
    potential length of input string, not just
    its current size */
-void textinput::size(int & w, int & h) {
+void textinput::size(int &w, int &h) {
   /* space and cursor */
   w = fon->sizex(question + " _" + input);
   h = fon->height;
@@ -286,7 +286,7 @@ void okay::draw(int x, int y, int f) {
   }
 }
 
-void okay::size(int & w, int & h) {
+void okay::size(int &w, int &h) {
   w = fon->sizex(text) + 4;
   h = fon->height + 4;
 }
@@ -316,7 +316,7 @@ void cancel::draw(int x, int y, int f) {
   }
 }
 
-void cancel::size(int & w, int & h) {
+void cancel::size(int &w, int &h) {
   w = fon->sizex(text) + 4;
   h = fon->height + 4;
 }
@@ -356,11 +356,11 @@ void menu::destroy() {
   delete this;
 }
 
-menu * menu::create(Drawable *be,
+menu *menu::create(Drawable *be,
 		    string ti,
 		    PtrList<MenuItem> *its,
 		    bool fs) {
-  menu * m = new menu();
+  menu *m = new menu();
   if (!m) return m;
   m->title = ti;
   m->below = be;
@@ -840,7 +840,7 @@ resultkind menu::menuize() {
 
     switch (e.type) {
     case SDL_MOUSEBUTTONDOWN: {
-      SDL_MouseButtonEvent * em = (SDL_MouseButtonEvent*)&e;
+      SDL_MouseButtonEvent *em = (SDL_MouseButtonEvent*)&e;
 
       if (em->button == SDL_BUTTON_LEFT) {
 	/* are we clicking on a menu item? */
@@ -874,7 +874,7 @@ resultkind menu::menuize() {
 	      
 	      switch (event.type) {
 	      case SDL_MOUSEMOTION: {
-		SDL_MouseMotionEvent * e = (SDL_MouseMotionEvent*)&event;
+		SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
 		// printf("DRAGMODE %d %d\n", e->x, e->y);		
 		posx = opx + (e->x - sx);

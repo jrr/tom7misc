@@ -107,7 +107,7 @@ void MainShow::trymove() {
 
 }
 
-void MainShow::randomspot(int & x, int & y) {
+void MainShow::randomspot(int &x, int &y) {
 
   int idx = 
     util::random() % ((dr.lev->w - 2) * (dr.lev->h - 2));

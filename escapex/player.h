@@ -61,11 +61,11 @@ struct Player {
      representation is "md5". don't free the solution! */
   virtual Solution *getsol(string md5) = 0;
 
-  virtual rating * getrating(string md5) = 0;
+  virtual rating *getrating(string md5) = 0;
   
   /* always overwriting an existing rating. 
      there is just one rating per level. */
-  virtual void putrating(string md5, rating * rat) = 0;
+  virtual void putrating(string md5, rating *rat) = 0;
 
   /* record a change on disk. this will also manage
      backups of the player file. */

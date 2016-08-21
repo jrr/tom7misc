@@ -39,7 +39,7 @@ struct ra_entry {
 
 struct di_real : public DirIndex {
   
-  static di_real * create();
+  static di_real *create();
 
   virtual void writefile(string);
 
@@ -49,11 +49,11 @@ struct di_real : public DirIndex {
 			int date, int speedrecord, int owner);
 
   /* read from disk */
-  static DirIndex * fromstring(string f);
+  static DirIndex *fromstring(string f);
 
-  static void writeone(ra_entry * i, FILE *f);
+  static void writeone(ra_entry *i, FILE *f);
 
-  virtual bool getentry(string filename, RateStatus & v, int &, int &, int & o);
+  virtual bool getentry(string filename, RateStatus &v, int &, int &, int &o);
 
   virtual bool webcollection() { return isweb; }
 
@@ -64,12 +64,12 @@ struct di_real : public DirIndex {
 
 };
 
-DirIndex * DirIndex::create() {
+DirIndex *DirIndex::create() {
   return di_real::create();
 }
 
-bool di_real::getentry(string filename, RateStatus & v, int & d, int & sr, int & o) {
-  ra_entry * e = tab->lookup(filename);
+bool di_real::getentry(string filename, RateStatus &v, int &d, int &sr, int &o) {
+  ra_entry *e = tab->lookup(filename);
   if (e) {
     v = e->v;
     d = e->date;
@@ -79,8 +79,8 @@ bool di_real::getentry(string filename, RateStatus & v, int & d, int & sr, int &
   } else return false;
 }
 
-di_real * di_real::create() {
-  di_real * dr = new di_real();
+di_real *di_real::create() {
+  di_real *dr = new di_real();
 
   if (!dr) return 0;
 
@@ -99,9 +99,9 @@ bool DirIndex::isindex(string f) {
          util::hasmagic(f, INDEX3MAGIC);
 }
 
-DirIndex * DirIndex::fromfile(string f) {
+DirIndex *DirIndex::fromfile(string f) {
 
-  di_real * dr = di_real::create();
+  di_real *dr = di_real::create();
 
   if (!dr) return 0;
 
@@ -120,7 +120,7 @@ DirIndex * DirIndex::fromfile(string f) {
   } else {
 
     Extent<di_real> de(dr);
-    CheckFile * cf = CheckFile::create(f);
+    CheckFile *cf = CheckFile::create(f);
     
     if (!cf) return 0;
     
@@ -142,7 +142,7 @@ DirIndex * DirIndex::fromfile(string f) {
     }
     
     while (cf->getline(s)) {
-      ra_entry * rr = new ra_entry;
+      ra_entry *rr = new ra_entry;
       Extent<ra_entry> re(rr);
 
       rr->filename = util::chop(s);
@@ -173,7 +173,7 @@ void di_real::destroy() {
 }
 
 /* argument to hashtable::app */
-void di_real::writeone(ra_entry * i, FILE *f) {
+void di_real::writeone(ra_entry *i, FILE *f) {
   fprintf(f, "%s %d %d %d %d %d %d %d %d %d\n",
 	  i->filename.c_str(),
 	  i->v.nvotes,

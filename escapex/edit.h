@@ -28,7 +28,7 @@ struct editor : public Drawable {
 
   virtual ~editor();
 
-  static editor * create(Player *p);
+  static editor *create(Player *p);
 
   void destroy() {
     saved->destroy();
@@ -86,7 +86,7 @@ struct editor : public Drawable {
 
   string ainame(int a);
 
-  void videoresize(SDL_ResizeEvent * eventp);
+  void videoresize(SDL_ResizeEvent *eventp);
   
   void setlayer(int x, int y, int t) {
     if (layer) {
@@ -106,7 +106,7 @@ struct editor : public Drawable {
 
   void blinktile(int, int, Uint32);
 
-  bool getdest(int & x, int & y, string msg);
+  bool getdest(int &x, int &y, string msg);
 
   bool showdests;
 

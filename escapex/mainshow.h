@@ -45,7 +45,7 @@ struct MainShow {
   bool moveface(dir);
 
   void trymove();
-  void randomspot(int & x, int & y);
+  void randomspot(int &x, int &y);
 
   int exitx;
   int exity;

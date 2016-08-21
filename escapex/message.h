@@ -20,7 +20,7 @@ struct Message : public Drawable {
   */
   int posy;
 
-  static Message * create();
+  static Message *create();
   virtual void destroy() = 0;
 
   /* ok: true
@@ -37,7 +37,7 @@ struct Message : public Drawable {
 		    string icon = PICS EXCICON POP,
 		    char *actualchar = 0,
 		    string charspec = "") {
-    Message * m = Message::create();
+    Message *m = Message::create();
     m->below = bbelow;
     m->posy = -1;
     m->title = icon + WHITE " " + ttitle;
@@ -55,7 +55,7 @@ struct Message : public Drawable {
 		     string icon = PICS EXCICON POP,
 		     char *actualchar = 0,
 		     string charspec = "") {
-    Message * m = Message::create();
+    Message *m = Message::create();
     m->below = bbelow;
     m->posy = posy;
     m->title = icon + WHITE " " + ttitle;
@@ -75,7 +75,7 @@ struct Message : public Drawable {
   static bool bug(Drawable *bbelow, string ttitle, char *actualchar = 0,
 		  string charspec = "") {
     printf("Bug: %s\n", ttitle.c_str());
-    Message * m = Message::create();
+    Message *m = Message::create();
     m->below = bbelow;
     m->posy = -1;
     m->title = PICS BUGICON POP RED " BUG: " POP WHITE + ttitle +
@@ -90,7 +90,7 @@ struct Message : public Drawable {
 
   static bool no(Drawable *bbelow, string ttitle, char *actualchar = 0,
 		 string charspec = "") {
-    Message * m = Message::create();
+    Message *m = Message::create();
     m->below = bbelow;
     m->posy = -1;
     m->title = PICS XICON POP WHITE " " + ttitle;

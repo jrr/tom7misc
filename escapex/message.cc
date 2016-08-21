@@ -7,7 +7,7 @@
 #include "chars.h"
 
 struct Message_ : public Message {
-  static Message_ * create();
+  static Message_ *create();
   void destroy() override;
 
   /*  enter: true
@@ -34,7 +34,7 @@ void Message::drawonlyv(int posy,
 			string ttitle,
 			string ook, string ccancel, 
 			string icon) {
-  Message_ * m = Message_::create();
+  Message_ *m = Message_::create();
   m->below = nodraw;
   m->posy = posy;
   m->title = icon + WHITE " " + ttitle;
@@ -158,7 +158,7 @@ bool Message_::loop(char *actualchar, string charspec) {
     case SDL_QUIT:
       return false; /* XXX ? */
     case SDL_MOUSEBUTTONDOWN: {
-      SDL_MouseButtonEvent * em = (SDL_MouseButtonEvent*)&e;
+      SDL_MouseButtonEvent *em = (SDL_MouseButtonEvent*)&e;
 
       if (em->button == SDL_BUTTON_LEFT) {
 	/* allow a click within the entire box if

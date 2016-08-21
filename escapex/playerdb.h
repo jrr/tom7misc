@@ -6,15 +6,11 @@
 #include <string>
 #include "selector.h"
 
-
-using namespace std;
-
 /* abstract interface */
 struct PlayerDB {
-
   /* make db by searching cwd for player files.
      if there are none, create a default. */
-  static PlayerDB * create();
+  static PlayerDB *create();
 
   virtual Player *chooseplayer() = 0;
 

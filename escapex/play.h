@@ -44,7 +44,7 @@ struct PlayResult {
 #undef stat
 
 struct play : public Drawable {
-  static play * create();
+  static play *create();
   virtual PlayResult doplay_save(Player *, Level *, Solution *&saved, string md5) = 0;
   virtual PlayResult doplay(Player *plr, Level *lev, string md5) {
     Solution *unused = 0;

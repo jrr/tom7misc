@@ -34,7 +34,7 @@ struct Registration_ : public Registration {
 
 void Registration_::registrate() {
 
-  HTTP * hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx, this);
   if (!hh) { 
     Message::quick(this,
 		   "Couldn't connect to server.",

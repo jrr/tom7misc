@@ -51,7 +51,7 @@ inline dir turnright(dir d) {
   }
 }
 
-inline void dirchange(dir d, int & dx, int & dy) {
+inline void dirchange(dir d, int &dx, int &dy) {
   switch (d) {
   case DIR_UP:
     dx = 0;
@@ -206,7 +206,7 @@ struct Solution {
      the playerdb instead. */
   bool verified;
   
-  dir * dirs;
+  dir *dirs;
 
   string tostring() const;
 
@@ -245,7 +245,7 @@ struct Solution {
 
   void append(dir d) {
     if (length == allocated) {
-      dir * tmp = dirs;
+      dir *tmp = dirs;
       allocated <<= 1;
       dirs = (dir*) malloc(allocated * sizeof (dir));
       memcpy(dirs, tmp, length * sizeof (dir));
@@ -341,25 +341,25 @@ struct Level {
   /* robots */
   int nbots;
   /* locations (as indices) */
-  int * boti;
+  int *boti;
   /* bot type */
-  bot * bott;
+  bot *bott;
   /* not saved with file; just presentational. putting the player
      direction in drawing just barely works; it should probably
      be here, too. */
-  dir * botd;
+  dir *botd;
   /* not presentational, but also not saved with the file;
      intialized to -1 on load. (e.g., current bomb timers) */
-  int * bota;
+  int *bota;
 
   /* shown */
-  int * tiles;
+  int *tiles;
   /* "other" (tiles swapped into bizarro world by panels) */
-  int * otiles;
+  int *otiles;
   /* destinations for transporters and panels (as index into tiles) */
-  int * dests;
+  int *dests;
   /* has a panel (under a pushable block)? etc. */
-  int * flags;
+  int *flags;
 
   /* true if corrupted on load. never saved */
   bool corrupted;
@@ -369,7 +369,7 @@ struct Level {
   }
 
   /* go straight to the target. no animation */
-  void warp(int & entx, int & enty, int targx, int targy) {
+  void warp(int &entx, int &enty, int targx, int targy) {
     int target = tileat(targx, targy);
 
     checkstepoff(entx, enty);
@@ -388,7 +388,7 @@ struct Level {
     }
   }
 
-  void where(int idx, int & x, int & y) {
+  void where(int idx, int &x, int &y) {
     x = idx % w;
     y = idx / w;
   }
@@ -422,7 +422,7 @@ struct Level {
   }
 
 
-  void getdest(int x, int y, int & xd, int & yd) {
+  void getdest(int x, int y, int &xd, int &yd) {
     xd = dests[y * w + x] % w;
     yd = dests[y * w + x] / w;
   }
@@ -441,7 +441,7 @@ struct Level {
     return tileat(guyx, guyy) == T_EXIT;
   }
 
-  bool travel(int x, int y, dir d, int & nx, int & ny) {
+  bool travel(int x, int y, dir d, int &nx, int &ny) {
     switch (d) {
       /* sometimes useful, for instance looping over all 
 	 affected tiles when bombing */
@@ -476,7 +476,7 @@ struct Level {
 
   /* shot by laser at (tilex, tiley) in direction (dir),
      or standing on a non-deleted bot. */
-  bool isdead(int & tilex, int & tiley, dir & d);
+  bool isdead(int &tilex, int &tiley, dir &d);
 
   /* returns true if move had effect. */
   bool move(dir);
@@ -485,12 +485,12 @@ struct Level {
 
 # ifndef NOANIMATION
   /* see animation.h for documentation */
-  bool move_animate(dir, Disamb * ctx, PtrList<aevent> *&events);
+  bool move_animate(dir, Disamb *ctx, PtrList<aevent> *&events);
   bool moveent_animate(dir, int enti, unsigned int, int, int, 
 		       PtrList<aevent> *&,
-                       Disamb * ctx, PtrList<aevent> **&);
+                       Disamb *ctx, PtrList<aevent> **&);
   void bombsplode_animate(int now,
-			  int bombi, Disamb * ctx, PtrList<aevent> *&events,
+			  int bombi, Disamb *ctx, PtrList<aevent> *&events,
 			  PtrList<aevent> **& etail);
 # endif
 
@@ -535,11 +535,11 @@ struct Level {
   /* execute solution. returns early (# moves set in moves)
      if we die (return false) or win (return true). false upon
      completing without winning or dying. */
-  bool play(const Solution *, int & moves);
+  bool play(const Solution *, int &moves);
   /* only 'length' moves of the solution, starting from move 'start' */
-  bool play_subsol(const Solution *, int & moves, int start, int length);
+  bool play_subsol(const Solution *, int &moves, int start, int length);
 
-  static string rleencode(int n, int * a);
+  static string rleencode(int n, int *a);
 
   void resize(int neww, int newh);
 
@@ -552,7 +552,7 @@ struct Level {
   /* return the lowest index bot at a specific location
      (if there's one there). We count B_DELETED and B_BOMB_X
      as not bots. */
-  bool botat(int x, int y, int & i) {
+  bool botat(int x, int y, int &i) {
     int z = index(x, y);
     for (int m = 0; m < nbots; m++) {
       if (boti[m] == z &&
@@ -586,7 +586,7 @@ struct Level {
     return ((int)b - (int)B_BOMB_0);
   }
 
-  static bool ispanel(int t, int & ref) {
+  static bool ispanel(int t, int &ref) {
     if (t == T_PANEL) { ref = PANEL_REGULAR; return true; }
     if (t == T_BPANEL) { ref = PANEL_BLUE; return true; }
     if (t == T_GPANEL) { ref = PANEL_GREEN; return true; }

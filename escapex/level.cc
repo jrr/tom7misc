@@ -303,7 +303,7 @@ Solution *Solution::fromstring(string s) {
   if (s.length() < 4) return nullptr;
   int len = shout(4, s, idx);
 
-  dir * dd = RLE::Decode(s, idx, len);
+  dir *dd = RLE::Decode(s, idx, len);
 
   if (!dd) return nullptr;
 
@@ -345,7 +345,7 @@ bool Level::allowbeam(int tt) {
    fires in. */
 /* also now checks for cohabitation with bots, which
    is deadly */
-bool Level::isdead(int & tilex, int & tiley, dir & d) {
+bool Level::isdead(int &tilex, int &tiley, dir &d) {
 
   /* are we in the same square as a bot? Then we die. */
   if (botat(guyx, guyy)) {
@@ -535,12 +535,12 @@ bool Disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
 }
 
 # define DIS_PUSHEVENT(type, var)     \
-    aevent * a ## var = new aevent;   \
+    aevent *a ## var = new aevent;   \
     *etail = new alist(a ## var, 0);  \
     etail = &((*etail)->next);        \
     a ## var->serial = serial;        \
     a ## var->t = tag_ ## type;       \
-    type ## _t * var = & (a ## var->u. type);
+    type ## _t *var = & (a ## var->u. type);
 
 /* maintain the invariant that in every serial within the list
    etail, there is at least one animation for every active
@@ -761,7 +761,7 @@ void Level::fixup_botorder() {
     int i;
   };
 
-  bb * bots = (bb*) malloc(sizeof(bb) * nbots);
+  bb *bots = (bb*) malloc(sizeof(bb) * nbots);
   {
     int j = 0;
     /* first put in non-bombs */
@@ -1313,7 +1313,7 @@ bool Level::verify(const Level *lev, const Solution *s) {
   return won && moves == s->length;
 }
 
-bool Level::play_subsol(const Solution *s, int & moves, int start, int len) {
+bool Level::play_subsol(const Solution *s, int &moves, int start, int len) {
   moves = 0;
   for (int z = 0; z < len; z++) {
 
@@ -1334,7 +1334,7 @@ bool Level::play_subsol(const Solution *s, int & moves, int start, int len) {
   return false;
 }
 
-bool Level::play(const Solution *s, int & moves) {
+bool Level::play(const Solution *s, int &moves) {
   return play_subsol(s, moves, 0, s->length);
 }
 

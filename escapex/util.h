@@ -88,15 +88,15 @@ inline string stringpop(stringlist *&sl) {
 
 /* drawing lines with Bresenham's algorithm */
 struct line {
-  static line * create(int x0, int y0, int x1, int y1);
+  static line *create(int x0, int y0, int x1, int y1);
   virtual void destroy() = 0;
-  virtual bool next(int & x, int & y) = 0;
+  virtual bool next(int &x, int &y) = 0;
   virtual ~line() {};
 };
 
 /* union find structure, n.b. union is a keyword */
 struct onionfind {
-  int * arr;
+  int *arr;
 
   int find(int);
   void onion(int,int);
@@ -116,7 +116,7 @@ struct bitbuffer {
      write that to output and return true.
      if an error occurs (such as going beyond the end of the string),
      then return false, perhaps destroying idx and output */
-  static bool nbits(string s, int n, int & idx, unsigned int & output);
+  static bool nbits(string s, int n, int &idx, unsigned int &output);
 
   /* create a new empty bit buffer */
   bitbuffer() : data(0), size(0), bits(0) { }
@@ -173,13 +173,13 @@ struct util {
      rather than
      Tutorial 1, Tutorial 10, Tutorial 11, ..., Tutorial 2, Tutorial 20, ...
   */
-  static int natural_compare(const string & l, const string & r);
+  static int natural_compare(const string &l, const string &r);
 
   /* Same as above, but ignore 'the' at the beginning */
-  static int library_compare(const string & l, const string & r);
+  static int library_compare(const string &l, const string &r);
 
   /* Is string s alphabetized under char k? */
-  static bool library_matches(char k, const string & s);
+  static bool library_matches(char k, const string &s);
 
   /* open a new file. if it exists, return 0 */
   static FILE *open_new(string s);
@@ -191,13 +191,13 @@ struct util {
   static int getpid();
   /* anything ending with \n. ignores \r.
      modifies str. */
-  static string getline(string & str);
+  static string getline(string &str);
   /* same, for open file. */
   static string fgetline(FILE *f);
 
   /* chop the first token (ignoring whitespace) off
      of line, modifying line. */
-  static string chop(string & line);
+  static string chop(string &line);
 
   /* number of entries (not . or ..) in dir d */
   static int dirsize(string d);
@@ -205,7 +205,7 @@ struct util {
   /* mylevels/good_tricky   to
      mylevels               to
      . */
-  static string cdup(const string & dir);
+  static string cdup(const string &dir);
 
   /* true iff big ends with small */
   static bool endswith(string big_, string small_);
@@ -216,11 +216,11 @@ struct util {
      occurrence of character c. The character
      is deleted from both the returned string and
      the line */
-  static string chopto(char c, string & line);
+  static string chopto(char c, string &line);
 
   /* erase any whitespace up to the first 
      non-whitespace char. */
-  static string losewhitel(const string & s);
+  static string losewhitel(const string &s);
 
   /* try to remove the file. If it
      doesn't exist or is successfully

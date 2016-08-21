@@ -9,7 +9,7 @@
 
 struct Analysis {
   /* get the set of equivalence classes */
-  static onionfind * reachable(Level *);
+  static onionfind *reachable(Level *);
 
   /* the tile at x,y is a separator if:
 
@@ -28,7 +28,7 @@ struct Analysis {
   */
   static bool issep(Level *, int x, int y,
 		    int x1, int y1,
-		    int & x2, int & y2, int tile = T_STOP);
+		    int &x2, int &y2, int tile = T_STOP);
 
   /* same, but provide x2 and y2 as inputs: adding
      tile at x/y must separate previously connected

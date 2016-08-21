@@ -34,7 +34,7 @@ static Player *theplayer = 0;
 /* these are actually treated as stacks, but there's
    nothing wrong with that... */
 /* files waiting to be added into the level database */
-static stringlist * filequeue = 0;
+static stringlist *filequeue = 0;
 static int filequeue_size = 0;
 
 /* loaded levels waiting to be added into the database
@@ -59,8 +59,8 @@ void LevelDB::setplayer(Player *p) {
 void LevelDB::addsourcedir(string s) {
   if (!theplayer) abort();
   int count = 0;
-  DIR * d = opendir(s.c_str());
-  dirent * de;
+  DIR *d = opendir(s.c_str());
+  dirent *de;
   while ( (de = readdir(d)) ) {
     if (strcmp(".", de->d_name) &&
 	strcmp("..", de->d_name)) {
@@ -78,7 +78,7 @@ void LevelDB::addsourcefile(string s) {
   filequeue_size++;
 }
 
-bool LevelDB::uptodate(float * pct_disk, float * pct_verify) {
+bool LevelDB::uptodate(float *pct_disk, float *pct_verify) {
   // PERF: is map<>.size constant-time?
   int total = levelqueue_size + filequeue_size + all_levels.size();
 
@@ -193,7 +193,7 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
 /* Query processing.
    Maybe this belongs in leveldb-query.cc? */
 #if 0
-static lval getfield(const lentry * l, const lfield f) {
+static lval getfield(const lentry *l, const lfield f) {
   switch (f) {
   case LF_TITLE: return lval(l->lev->title);
   case LF_AUTHOR: return lval(l->lev->author);
@@ -206,7 +206,7 @@ static lval getfield(const lentry * l, const lfield f) {
   }
 }
 
-lval lexp::eval(const lentry * l) {
+lval lexp::eval(const lentry *l) {
   switch (tag) {
   case LE_VALUE: return v;
   case LE_FIELD: return getfield(l, f);

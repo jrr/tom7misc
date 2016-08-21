@@ -22,9 +22,9 @@ bool Analysis::isempty(int t) {
   }
 }
 
-onionfind * Analysis::reachable(Level *lev) {
+onionfind *Analysis::reachable(Level *lev) {
   const int size = lev->w * lev->h;
-  onionfind * of = new onionfind(size);
+  onionfind *of = new onionfind(size);
 
   /* the algorithm is simple. each space begins in its own equivalence
      class. Then, for each "empty" space we place the guy there (a la
@@ -90,7 +90,7 @@ onionfind * Analysis::reachable(Level *lev) {
 }
 
 static bool separator(Level *lev, int x, int y, 
-		      int x1, int y1, int & x2, int & y2, 
+		      int x1, int y1, int &x2, int &y2, 
 		      int tile, bool search);
 
 

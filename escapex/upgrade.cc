@@ -71,9 +71,9 @@ typedef vallist<upitem> ulist;
 
 struct Upgrader_ : public Upgrader {
 
-  static Upgrader_ * create(Player *p);
+  static Upgrader_ *create(Player *p);
 
-  UpgradeResult upgrade(string & msg);
+  UpgradeResult upgrade(string &msg);
 
   virtual void destroy() {
     tx->destroy();
@@ -99,19 +99,19 @@ struct Upgrader_ : public Upgrader {
 
   Player *plr;
 
-  curesult checkupgrade(HTTP * hh, string & msg,
+  curesult checkupgrade(HTTP *hh, string &msg,
 			ulist *&download, stringlist *&ok);
 
-  upresult doupgrade(HTTP * hh, string & msg,
-		     ulist * upthese);
+  upresult doupgrade(HTTP *hh, string &msg,
+		     ulist *upthese);
 
   TextScroll *tx;
 
   friend struct UGCallback;
 };
 
-Upgrader_ * Upgrader_::create(Player *p) {
-  Upgrader_ * uu = new Upgrader_();
+Upgrader_ *Upgrader_::create(Player *p) {
+  Upgrader_ *uu = new Upgrader_();
   uu->tx = TextScroll::create(fon);
   uu->tx->posx = 5;
   uu->tx->posy = 5;
@@ -129,7 +129,7 @@ void Upgrader_::redraw() {
 /* false if file doesn't exist.
    otherwise, md5 is set to the md5 
    hash of its contents */
-bool md5file(string f, string & md5) {
+bool md5file(string f, string &md5) {
   FILE *ff = fopen(f.c_str(), "rb");
   if (!ff) return false;
   else {
@@ -140,7 +140,7 @@ bool md5file(string f, string & md5) {
 }
 
 struct UGCallback : public httpcallback {
-  Upgrader_ * that;
+  Upgrader_ *that;
   /* XXX use SDL_Ticks or whatever; never time(0) */
   virtual void progress(int recvd, int total) {
     if (recvd > (last + 16384) ||
@@ -165,9 +165,9 @@ struct UGCallback : public httpcallback {
 /* download anything in 'upthese', replacing the current
    versions on disk. Modifies the 'temporary' fields in
    upthese. */
-upresult Upgrader_::doupgrade(HTTP * hh, string & msg,
-			      ulist * upthese) {
-  for (ulist * hd = upthese; hd; hd = hd->next) {
+upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
+			      ulist *upthese) {
+  for (ulist *hd = upthese; hd; hd = hd->next) {
     switch (hd->head.t) {
     case UT_FILE: {
 
@@ -222,11 +222,11 @@ upresult Upgrader_::doupgrade(HTTP * hh, string & msg,
   /* these hold srcs and dests of any files that
      couldn't be replaced while the program is
      running. */
-  stringlist * failsrc = 0;
-  stringlist * faildst = 0;
+  stringlist *failsrc = 0;
+  stringlist *faildst = 0;
   bool incomplete = false;
 
-  for (ulist * h = upthese; h; h = h->next) {
+  for (ulist *h = upthese; h; h = h->next) {
 
     string tf = h->head.tempfile;
 
@@ -271,7 +271,7 @@ upresult Upgrader_::doupgrade(HTTP * hh, string & msg,
   /* do symlinks if supported. 
      we already caught them and errored on win32 */
 # ifndef WIN32 /* posix */
-  for (ulist * hs = upthese;
+  for (ulist *hs = upthese;
       hs;
       hs = hs->next) {
 
@@ -307,7 +307,7 @@ upresult Upgrader_::doupgrade(HTTP * hh, string & msg,
   }
 # endif
 
-  for (ulist * hr = upthese;
+  for (ulist *hr = upthese;
       hr;
       hr = hr->next) {
 
@@ -419,8 +419,8 @@ upresult Upgrader_::doupgrade(HTTP * hh, string & msg,
 }
 
 /* download and ok should not contain anything */
-curesult Upgrader_::checkupgrade(HTTP * hh, 
-				 string & msg,
+curesult Upgrader_::checkupgrade(HTTP *hh, 
+				 string &msg,
 				 ulist *&download,
 				 stringlist *&ok) {
   /* start by checking for new versions of escape itself. */
@@ -559,11 +559,11 @@ curesult Upgrader_::checkupgrade(HTTP * hh,
   }
 }
 
-UpgradeResult Upgrader_::upgrade(string & msg) {
+UpgradeResult Upgrader_::upgrade(string &msg) {
   /* no matter what, cancel the hint to upgrade */
   handhold::did_upgrade();
 
-  HTTP * hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx, this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
@@ -577,10 +577,10 @@ UpgradeResult Upgrader_::upgrade(string & msg) {
   cb.that = this;
   hh->setcallback(&cb);
 
-  ulist * download;
+  ulist *download;
 
   /* XXX what is the point of the 'ok' list? */
-  stringlist * ok;
+  stringlist *ok;
   string upmsg;
   switch (checkupgrade(hh, upmsg, download, ok)) {
   case CU_FAIL:
@@ -602,7 +602,7 @@ UpgradeResult Upgrader_::upgrade(string & msg) {
   case CU_RECOMMEND: {
 
     say("Upgrade: " BLUE "The following files are not up-to-date:" POP);
-    for (ulist * tmp = download;
+    for (ulist *tmp = download;
 	tmp;
 	tmp = tmp->next) {
       /* XXX print delete, symlink, etc */
@@ -662,6 +662,6 @@ void Upgrader_::draw() {
 
 }  // namespace
 
-Upgrader * Upgrader::create(Player *p) {
+Upgrader *Upgrader::create(Player *p) {
   return Upgrader_::create(p);
 }

@@ -33,10 +33,10 @@ string rating::tostring() {
   return r;
 }
 
-rating * rating::fromstring(string s) {
+rating *rating::fromstring(string s) {
   if (s.length() != 6) return 0;
 
-  rating * rat = create();
+  rating *rat = create();
 
   if (!rat) return 0;
 
@@ -84,12 +84,12 @@ struct RateScreen_ : public RateScreen {
 
   /* current values for the rating. (or 0 if none yet) */
 
-  rating * rat;
+  rating *rat;
 
 };
 
-RateScreen_ * RateScreen_::Create(Player *p, Level *l, string levmd) {
-  RateScreen_ * rr = new RateScreen_();
+RateScreen_ *RateScreen_::Create(Player *p, Level *l, string levmd) {
+  RateScreen_ *rr = new RateScreen_();
   if (!rr) return 0;
 
   rr->plr = p;
@@ -233,7 +233,7 @@ void RateScreen_::rate() {
   PtrList<MenuItem>::push(l, &author);
   PtrList<MenuItem>::push(l, &levname);
 
-  menu * mm = menu::create(this, "Change Your Rating", l, false);
+  menu *mm = menu::create(this, "Change Your Rating", l, false);
 
   /* XXX look for MR_QUIT too */
   if (MR_OK == mm->menuize()) {
@@ -244,7 +244,7 @@ void RateScreen_::rate() {
        don't need to free it. putrating will overwrite
        it or create a new one, if necessary. */
 
-    rating * nr = rating::create();
+    rating *nr = rating::create();
 
     nr->difficulty = difficulty.pos;
     nr->style = style.pos;
@@ -256,7 +256,7 @@ void RateScreen_::rate() {
     plr->writefile();
 
     /* send message to server */
-    HTTP * hh = Client::connect(plr, tx, this);
+    HTTP *hh = Client::connect(plr, tx, this);
 
     string res;
 

@@ -11,7 +11,7 @@
 
 struct CheckFile {
   FILE *ff;
-  bool read(unsigned int bytes, string & s) {
+  bool read(unsigned int bytes, string &s) {
     /* fread stupidly *fails* if the size is 0 */
     if (bytes == 0) return "";
     char *r = new char[bytes];
@@ -29,14 +29,14 @@ struct CheckFile {
   
   void destroy() { fclose(ff); delete this; }
 
-  static CheckFile * create(string f) {
-    CheckFile * cf = new CheckFile();
+  static CheckFile *create(string f) {
+    CheckFile *cf = new CheckFile();
     cf->ff = fopen(f.c_str(), "rb");
     if (cf->ff) return cf;
     else { delete cf; return 0; }
   }
 
-  bool readint(int & i) {
+  bool readint(int &i) {
     string s;
     if (!read(4, s)) return 0;
     i = 
@@ -47,7 +47,7 @@ struct CheckFile {
     return 1;
   }
 
-  bool getline(string & s) {
+  bool getline(string &s) {
     if (feof(ff)) return false;
     s = util::fgetline(ff);
     return true;

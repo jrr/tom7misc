@@ -12,7 +12,7 @@ int audio;
 bool handle_video_event(Drawable *parent, const SDL_Event &event) {
   switch (event.type) {
   case SDL_VIDEORESIZE: {
-    SDL_ResizeEvent * re = (SDL_ResizeEvent*)&event;
+    SDL_ResizeEvent *re = (SDL_ResizeEvent*)&event;
     screen = sdlutil::makescreen(re->w, re->h);
     if (parent) {
       parent->screenresize();

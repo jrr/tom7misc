@@ -24,7 +24,7 @@
    what is returned when the user presses enter.
 
    item :
-     void swap(Item * l, Item * r)
+     void swap(Item *l, Item *r)
       - destructive swap of the fields in l and r. used only if
       sort is called.
 
@@ -74,7 +74,7 @@ struct Selector : public Drawable {
 
   string title;
 
-  Item * items;
+  Item *items;
 
   void destroy() {
     delete [] items;
@@ -87,7 +87,7 @@ struct Selector : public Drawable {
      left < right     ->    -1
      left = right     ->     0
      left > right     ->     1 */
-  void sort(int (*compare)(const Item & left, const Item & right)) {
+  void sort(int (*compare)(const Item &left, const Item &right)) {
     quicks(compare, 0, number - 1);
   }
 
@@ -176,7 +176,7 @@ struct Selector : public Drawable {
      by just decrementing 'number.'
   */
   void resize(int newsize) {
-    Item * olditems = items;
+    Item *olditems = items;
 
     items = new Item[newsize];
 
@@ -188,8 +188,8 @@ struct Selector : public Drawable {
     number = newsize;
   }
 
-  static Selector * create(int n) {
-    Selector * s = new Selector();
+  static Selector *create(int n) {
+    Selector *s = new Selector();
     s->number = n;
     s->items = new Item[n];
 
@@ -246,7 +246,7 @@ struct Selector : public Drawable {
     if (below) below->screenresize();
   }
 
-  bool pointitem(int y, int & n) {
+  bool pointitem(int y, int &n) {
     int topsize = fon->lines(title) * fon->height + 2;
 
     /* nb. it is possible to select an item that is out of the
@@ -289,7 +289,7 @@ struct Selector : public Drawable {
     /* new! mouse stuff */
     case SDL_MOUSEBUTTONDOWN: {
       DPRINTF("  ... mbd\n");
-      SDL_MouseButtonEvent * em = (SDL_MouseButtonEvent*)&e;
+      SDL_MouseButtonEvent *em = (SDL_MouseButtonEvent*)&e;
 
       if (em->button == SDL_BUTTON_LEFT) {
         /* check that we are in zone */
@@ -299,7 +299,7 @@ struct Selector : public Drawable {
       break;
     }
     case SDL_MOUSEMOTION: {
-      SDL_MouseMotionEvent * em = (SDL_MouseMotionEvent*)&e;
+      SDL_MouseMotionEvent *em = (SDL_MouseMotionEvent*)&e;
       DPRINTF("  ... mm (%d, %d)\n", em->x, em->y);
 
       int nth;

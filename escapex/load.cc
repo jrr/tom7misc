@@ -72,7 +72,7 @@ struct llentry {
   bool corrupted;
 
   /* always owned by player; don't free */
-  rating * myrating;
+  rating *myrating;
   RateStatus votes;
   int date;
   int speedrecord;
@@ -115,9 +115,9 @@ struct llentry {
 #   undef SWAP
   }
 
-  string actualfile(stringlist * p) {
+  string actualfile(stringlist *p) {
     string file = fname;
-    stringlist * pathtmp = stringlist::copy(p);
+    stringlist *pathtmp = stringlist::copy(p);
     while (pathtmp) {
       file = stringpop(pathtmp) + 
 	     string(DIRSEP) + file;
@@ -369,7 +369,7 @@ struct LoadLevel_ : public LoadLevel {
      then we are out of sync. */
   int showidx;
 
-  selor * sel;
+  selor *sel;
   string loop();
 
   /* if possible, select the last file seen here */
@@ -560,7 +560,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
 				     bool allow_corrupted_) {
   DBTIME_INIT;
 
-  LoadLevel_ * ll = new LoadLevel_();
+  LoadLevel_ *ll = new LoadLevel_();
   ll->cache.reset(DirCache::Create(p));
   if (!ll->cache.get()) return nullptr;
   
@@ -623,7 +623,7 @@ string LoadLevel_::selectlevel() {
 /* prepend current path onto filename */
 string LoadLevel_::locate(string filename) {
   
-  stringlist * pp = path;
+  stringlist *pp = path;
   
   string out = filename;
   while (pp) {
@@ -642,7 +642,7 @@ int LoadLevel_::changedir(string what, bool remember) {
 
   // printf("changedir '%s' with path %p\n", what.c_str(), path);
   {
-    stringlist * pp = path;
+    stringlist *pp = path;
     while (pp) {
       /* printf("  '%s'\n", pp->head.c_str()); */
       pp = pp->next;
@@ -694,7 +694,7 @@ int LoadLevel_::changedir(string what, bool remember) {
   /* save this dir */
   if (remember) lastdir = where;
 
-  selor * nsel = selor::create(n);
+  selor *nsel = selor::create(n);
 
   nsel->botmargin = drawing::smallheight() + 16 ;
 
@@ -707,7 +707,7 @@ int LoadLevel_::changedir(string what, bool remember) {
 
   /* get (just) the index for this dir, which allows us to
      look up ratings. note that there may be no index. */
-  DirIndex * thisindex = 0;
+  DirIndex *thisindex = 0;
   cache->getidx(where, thisindex);
 
 
@@ -716,9 +716,9 @@ int LoadLevel_::changedir(string what, bool remember) {
   /* now read all of the files */
 
   /* init array */
-  DIR * d = opendir(where.c_str());
+  DIR *d = opendir(where.c_str());
   if (!d) return 0;
-  dirent * de;
+  dirent *de;
 
   int i;
   for (i = 0; i < n;) {
@@ -750,7 +750,7 @@ int LoadLevel_::changedir(string what, bool remember) {
 	  i++;
 	} else {
 	  int ttt, sss;
-	  DirIndex * iii = 0;
+	  DirIndex *iii = 0;
 
 	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
 	  if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
@@ -789,7 +789,7 @@ int LoadLevel_::changedir(string what, bool remember) {
 	typedef PtrList<NamedSolution> solset;
 	
 	/* owned by player */
-	solset * sols = plr->solutionset(md5c);
+	solset *sols = plr->solutionset(md5c);
 
 	nsel->items[i].solved = 0;
 
@@ -805,7 +805,7 @@ int LoadLevel_::changedir(string what, bool remember) {
 	    /* first one didn't verify, but we should reorder
 	       solutions so that one does, if possible */
 
-	    solset * no = 0;
+	    solset *no = 0;
 	    
 	    while (sols) {
 	      /* not trying bookmarks */
@@ -820,7 +820,7 @@ int LoadLevel_::changedir(string what, bool remember) {
 		/* get tail */
 		sols = sols->next;
 
-		solset * yes = 0;
+		solset *yes = 0;
 		
 		/* put the current tail there, cloning */
 		while (sols) {
@@ -1191,7 +1191,7 @@ string LoadLevel_::loop() {
 
 	      
 	      /* display menu */
-	      menu * mm = menu::create(0, "Really delete?", l, false);
+	      menu *mm = menu::create(0, "Really delete?", l, false);
 	      resultkind res = mm->menuize();
 	      PtrList<MenuItem>::diminish(l);
 	      mm->destroy();
@@ -1491,7 +1491,7 @@ string LoadLevel_::loop() {
 	    PtrList<MenuItem>::push(l, &message1);
 
 	    /* display menu */
-	    menu * mm = menu::create(this, "Solve from bookmarks?", l, false);
+	    menu *mm = menu::create(this, "Solve from bookmarks?", l, false);
 	    resultkind res = mm->menuize();
 
 	    if (res == MR_OK) {
@@ -1578,7 +1578,7 @@ string LoadLevel_::loop() {
 
 	      
 		/* display menu */
-		menu * mm = menu::create(0, "Really upload?", l, false);
+		menu *mm = menu::create(0, "Really upload?", l, false);
 		resultkind res = mm->menuize();
 		PtrList<MenuItem>::diminish(l);
 		mm->destroy();

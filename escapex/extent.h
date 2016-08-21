@@ -11,13 +11,13 @@
 template <class P>
 struct Extent {
   
-  P * ptr;
+  P *ptr;
 
-  Extent(P * p) : ptr(p) {}
+  Extent(P *p) : ptr(p) {}
 
   void release() { ptr = 0; }
 
-  void replace(P * p) { ptr = p; }
+  void replace(P *p) { ptr = p; }
 
   ~Extent() { if (ptr) ptr->destroy(); }
 
@@ -26,10 +26,10 @@ struct Extent {
 /* for call to 'free' */
 template <class P>
 struct Extentf {
-  P * ptr;
-  Extentf(P * p) : ptr(p) {}
+  P *ptr;
+  Extentf(P *p) : ptr(p) {}
   void release() { ptr = 0; }
-  void replace(P * p) { ptr = p; }
+  void replace(P *p) { ptr = p; }
   ~Extentf() { if (ptr) free(ptr); }
 };
 

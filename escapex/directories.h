@@ -41,10 +41,10 @@ void          rewinddir(DIR *);
 /* no good place to put this, since
    dirent.cc is not linked in unix */
 inline int dirsize(const char *dir) {
-  DIR * d = opendir(dir);
+  DIR *d = opendir(dir);
   if (!d) return 0;
   int i = 0;
-  dirent * de;
+  dirent *de;
   for (;;i++) {
     de = readdir(d);
     if (!de) break;

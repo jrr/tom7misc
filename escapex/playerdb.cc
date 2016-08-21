@@ -39,7 +39,7 @@ struct PDBEntry {
   bool matches(char k);
   static Player *none() { return 0; }
 
-  static void swap(PDBEntry * l, PDBEntry * r) {
+  static void swap(PDBEntry *l, PDBEntry *r) {
 #   define SWAP(f) { const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
     SWAP(kind);
     SWAP(name);
@@ -48,8 +48,8 @@ struct PDBEntry {
 #   undef SWAP
   }
   
-  static int cmp_bysolved(const PDBEntry & l,
-			  const PDBEntry & r) {
+  static int cmp_bysolved(const PDBEntry &l,
+			  const PDBEntry &r) {
     if (l.kind < r.kind) return -1;
     if (l.kind > r.kind) return 1;
     if (l.solved > r.solved) return -1;
@@ -167,7 +167,7 @@ bool PDBEntry::matches(char k) {
 /* Read current directory, inserting any player file that's found.
    If there are none found, then create a "default" player and
    start over. */
-PlayerDB_ * PlayerDB_::create() {
+PlayerDB_ *PlayerDB_::create() {
   
   std::unique_ptr<PlayerDB_> pdb{new PlayerDB_{}};
 
@@ -179,9 +179,9 @@ PlayerDB_ * PlayerDB_::create() {
   pdb->sel->title = PDBTITLE;
 
 
-  DIR * d = opendir(".");
+  DIR *d = opendir(".");
   if (!d) return 0;
-  dirent * de;
+  dirent *de;
 
   int n = 0;
   while ( (de = readdir(d)) ) {
@@ -487,6 +487,6 @@ void PlayerDB_::promptimport() {
 
 }  // namespace
 
-PlayerDB * PlayerDB::create() {
+PlayerDB *PlayerDB::create() {
   return PlayerDB_::create();
 }

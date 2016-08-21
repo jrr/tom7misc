@@ -24,7 +24,7 @@ struct Dreal : public Dirt {
 
   ~Dreal() override {
     if (surf) SDL_FreeSurface(surf);
-    SDL_Rect * tmp;
+    SDL_Rect *tmp;
     while (( tmp = rlist::pop(dirts) )) delete tmp;
   }
 
@@ -41,7 +41,7 @@ struct Dreal : public Dirt {
 
 private:
   SDL_Surface *surf = nullptr;
-  rlist * dirts = nullptr;
+  rlist *dirts = nullptr;
 };
 
 /* assumes surf is the correct size by invariant */
@@ -55,7 +55,7 @@ void Dreal::mirror() {
    there is more dirty area than the screen, we can just
    redraw the whole screen. */
 void Dreal::setdirty(int x, int y, int w, int h) {
-  SDL_Rect * r = (SDL_Rect*)malloc(sizeof (SDL_Rect));
+  SDL_Rect *r = (SDL_Rect*)malloc(sizeof (SDL_Rect));
   r->x = x;
   r->y = y;
   r->w = w;
@@ -64,7 +64,7 @@ void Dreal::setdirty(int x, int y, int w, int h) {
 }
 
 void Dreal::clean() {
-  SDL_Rect * r;
+  SDL_Rect *r;
   while ( (r = rlist::pop(dirts)) ) {
     SDL_BlitSurface(surf, r, screen, r);
     /* debug version */

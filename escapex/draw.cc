@@ -15,8 +15,8 @@
 #define FONT_FILE DATADIR "font.png"
 #define FONTSMALL_FILE DATADIR "fontsmall.png"
 
-font * fon;
-font * fonsmall;
+font *fon;
+font *fonsmall;
 
 SDL_Surface **drawing::tiles = 0;
 SDL_Surface **drawing::tilesdim = 0;
@@ -314,9 +314,9 @@ struct bb {
   int a; /* extended data */
 };
 
-static int ydepth_compare(const void * l, const void * r) {
-  bb * ll = (bb*) l;
-  bb * rr = (bb*) r;
+static int ydepth_compare(const void *l, const void *r) {
+  bb *ll = (bb*) l;
+  bb *rr = (bb*) r;
   return ll->i - rr->i;
 }
 
@@ -461,7 +461,7 @@ void drawing::drawlev(int layer, /* dir facing, */
   /* XXX this is not really accurate. We should sort these by z(y)-order
      wrt to the guy as well */
   {
-    bb * bots = (bb*) malloc((lev->nbots + 1) * sizeof(bb));
+    bb *bots = (bb*) malloc((lev->nbots + 1) * sizeof(bb));
 
     {
       for (int i = 0; i < lev->nbots; i++) {
@@ -570,7 +570,7 @@ void drawing::drawdests(SDL_Surface *surf, bool shuffle) {
 
 	    /* draw line: dark bg first */
 	    {
-	      line * l = line::create(sx, sy, px, py);
+	      line *l = line::create(sx, sy, px, py);
 	      Extent<line> el(l);
 		
 	      int xx, yy;
@@ -593,7 +593,7 @@ void drawing::drawdests(SDL_Surface *surf, bool shuffle) {
 
 	    /* then inside */
 	    {
-	      line * l = line::create(sx, sy, px, py);
+	      line *l = line::create(sx, sy, px, py);
 	      Extent<line> el(l);
 		
 	      int xx, yy;
@@ -616,7 +616,7 @@ void drawing::drawdests(SDL_Surface *surf, bool shuffle) {
 }
 
 bool drawing::inmap(int x, int y,
-		    int & tx, int & ty) {
+		    int &tx, int &ty) {
 
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
@@ -644,7 +644,7 @@ bool drawing::inmap(int x, int y,
 
 
 bool drawing::onscreen(int x, int y,
-		       int & tx, int & ty) {
+		       int &tx, int &ty) {
 
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
@@ -666,8 +666,8 @@ bool drawing::onscreen(int x, int y,
 void drawing::drawsmall(int y, 
 			int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
-			RateStatus * votes,
-			rating * myrating,
+			RateStatus *votes,
+			rating *myrating,
 			int date, int speedrecord) {
 
   if (!l) {

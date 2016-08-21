@@ -4,10 +4,10 @@
 #include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 
-bool Client::quick_rpc(Player *plr, string path, string query, string & ret) {
+bool Client::quick_rpc(Player *plr, string path, string query, string &ret) {
   quick_txdraw td;
   
-  HTTP * hh = Client::connect(plr, td.tx, &td);
+  HTTP *hh = Client::connect(plr, td.tx, &td);
   
   td.say("Connecting..");
   td.draw();

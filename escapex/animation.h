@@ -151,13 +151,13 @@ struct Animation {
 
   /* push some animations for the event ae
      onto the list anims. assume anims is 0 */
-  static void start(drawing & dr, 
+  static void start(drawing &dr, 
 		    PtrList<Animation> *&anims, 
 		    PtrList<Animation> *&sprites,
-		    aevent * ae);
+		    aevent *ae);
 
-  static void clearsprites(drawing & dr);
-  static void clearent(drawing & dr, int ex, int ey, int olap);
+  static void clearsprites(drawing &dr);
+  static void clearent(drawing &dr, int ex, int ey, int olap);
 
   static void erase_anims(PtrList<Animation> *a, Dirt *d);
 
