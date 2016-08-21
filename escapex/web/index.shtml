@@ -7,6 +7,17 @@
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
 <meta name="keywords" content="escape, puzzle game, lolo, chip's challenge, windows, macintosh, mac, osx, os x, win, linux, games, SDL, free, freeware, shareware, GPL, open source, puzzle, tiles, grid, sokoban, boxes, push, level editor, internet, sharing, online, download, tom7" />
 <meta name="description" content="Escape is a deep tile-based puzzle game with internet features." />
+<style>
+.platform {
+  width: 180px;
+  border: 1px solid #005;
+  border-radius: 2px;
+  background: #DDF;
+  background-image: url(images/stripebg.png);
+  padding: 1px;
+  margin-top: 2px;
+}
+</style>
 </head><body background="images/barsbg.png" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
 
 <table width="704" style="margin-left : auto; margin-right : auto" cellspacing="0" border="0" cellpadding="0"><tr>
@@ -22,7 +33,7 @@
 <td bgcolor="#444477" width="3" valign="top"><img src="spacer.gif" alt="" width="3" height="3" /></td>
 
 <!-- main content -->
-<td style="background : #FFFFFF;" bgcolor="#FFFFFF">
+<td style="background : #FFF;" bgcolor="#FFF">
 <table cellpadding="4"><tr><td>
 <center><img src="images/webtitle.png" width="494" height="87" alt="Escape"/></center>
 
@@ -38,10 +49,10 @@ reflexes&mdash;it's all about your brain.</p>
 <tr><td colspan="3" valign="top"><a href="download.shtml"><img src="images/choose-platform.png" border="0" alt="Choose a platform or get help / more options..." width="578" height="29" /></a></td></tr>
 <tr>
 <td>
-  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.png) ; cellpadding : 2px">
+  <table class="platform">
   <tr><td>
-      <center><a href="escapesetup.exe"><img border="0" src="images/win32-logo.png" alt="Windows" width="120" height="120" /></a></center>
-       <center><b>Windows (any version)</b>
+      <center><a href="escapesetup.exe"><img border="0" src="images/windows.svg" alt="Windows" width="120" height="120" /></a></center>
+       <center><b>Windows (64-bit)</b>
        <br /><b><a href="escapesetup.exe">escapesetup.exe</a>
                 (<a href="escape-beta.zip">zip</a>)</b>
        </center>
@@ -50,10 +61,10 @@ reflexes&mdash;it's all about your brain.</p>
 </td>
 
 <td>
-  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.png) ; cellpadding : 2px">
+  <table class="platform">
   <tr><td>
-      <center><a href="escape-beta-osx.zip"><img border="0" src="images/osx-logo.png" alt="Mac OS X" width="120" height="120" /></a></center>
-       <center><b>Mac OS X (any version)</b>
+      <center><a href="escape-beta-osx.zip"><img border="0" src="images/osx.svg" alt="Mac OS X" width="120" height="120" /></a></center>
+       <center><b>macOS (64-bit, 10.8+)</b>
        <br /><b><a href="escape-beta-osx.zip">escape-beta-osx.zip</a></b>
        </center>
        </td></tr> 
@@ -61,9 +72,9 @@ reflexes&mdash;it's all about your brain.</p>
 </td>
 
 <td>
-  <table style="width : 180px; border : 1px solid #000055 ; background : #DDDDFF ; background-image: url(images/stripebg.png) ; cellpadding : 2px">
+  <table class="platform">
   <tr><td>
-      <center><a href="escape-beta.tar.gz"><img border="0" src="images/linux-logo.png" alt="x86 Linux" width="120" height="120" /></a></center>
+      <center><a href="escape-beta.tar.gz"><img border="0" src="images/linux.svg" alt="x86 Linux" width="120" height="120" /></a></center>
        <center><b>Linux (x86 static binary)</b>
        <br /><b><a href="escape-beta.tar.gz">escape-beta.tar.gz</a></b>
        </center>

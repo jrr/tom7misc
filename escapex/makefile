@@ -2,7 +2,7 @@
 # correct platform. You need to do one of
 #   export LINUX=true
 #   export OSX=true
-#   export MINGW=true
+#   export WIN32=true
 # before you run make, or nothing will happen. See HACKING for
 # more information on compiling escape.
 
@@ -279,9 +279,9 @@ desktop : app
 	cp -R /tmp/Escape.app ~/Desktop/
 
 escape-beta-osx.zip : app
-	cd /tmp && zip -r -9 -y escape-beta-osx.zip Escape.app
-	rm -f escape-beta-osx.zip
-	cp /tmp/escape-beta-osx.zip .
+	cd /tmp && zip -r -9 -y $@ Escape.app
+	rm -f $@
+	cp /tmp/$@ .
 
 zipup : escape-beta-osx.zip
 	scp escape-beta-osx.zip root@spacebar.org:/var/www/escape/
@@ -297,7 +297,7 @@ clean :
 endif
 
 # mingw makefile, using TDM-GCC. This is the new way to compile on Windows.
-ifdef MINGW
+ifdef WIN32
 
 default : escape.exe
 
@@ -415,7 +415,7 @@ screenshot.exe : draw-console.o level-console.o ../cc-lib/sdl/font-console.o uti
 .dummy :
 
 version : .dummy
-	${CXX} version.cc -o version.exe
+	${CXX} ${CXXFLAGS} ${CPPFLAGS} version.cc -o version.exe
 	./version.exe
 	make clean
 	make -j 8 escape.exe
@@ -437,17 +437,34 @@ CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 
 UPGRADE: CURRENT
 
 release : UPGRADE
-	echo "Note, use of pscp and scp don't seem to work when making under mingw,"
-	echo "so you want to use cygwin bash for this."
+	echo "Note, if pscp doesn't work under mingw, you"
+	echo "may want to use cygwin bash for this."
 	pscp -C ${RELEASEFILES} UPGRADE CURRENT root@spacebar.org:/var/www/escape/win32/
 	rm -f UPGRADE CURRENT mkupgrade.exe
 
-zip : escape-beta.tar.gz
+zip : escape-beta.zip
 
-zipup : escape-beta.tar.gz
-	echo "Note, use of pscp and scp don't seem to work when making under mingw,"
-	echo "so you want to use cygwin bash for this."
-	pscp escape-beta.tar.gz root@spacebar.org:/var/www/escape/
+escape-beta.zip : ${RELEASEFILES} makefile
+	strip escape.exe
+	strip replace.exe
+	rm -f $@
+	rm -rf tmp_escapezip
+	mkdir tmp_escapezip
+	cp ${RELEASEFILES} tmp_escapezip
+#	Note: This does mercifully ignore .svn dirs.
+	cp -r triage tmp_escapezip/
+	cp -r official tmp_escapezip/
+	mkdir tmp_escapezip/mylevels
+	cp mylevels/index.esi tmp_escapezip/mylevels
+	cd tmp_escapezip && zip -r -9 -y $@ *
+	mv tmp_escapezip/$@ .
+# 	optional, improves size using zopfli. advancemame.it
+	./advzip.exe -4 -z $@
+
+zipup : escape-beta.zip
+	echo "Note, if pscp doesn't work under mingw, you"
+	echo "may want to use cygwin bash for this."
+	pscp escape-beta.zip root@spacebar.org:/var/www/escape/
 
 # default location
 MAKENSIS='c:\program files (x86)\nsis\makensis.exe'
@@ -458,14 +475,13 @@ escapesetup.exe : .dummy ${RELEASEFILES} escape.nsi
 installer : escapesetup.exe
 
 installerup : escapesetup.exe
-	echo "Note, use of pscp and scp don't seem to work when making under mingw,"
-	echo "so you want to use cygwin bash for this."
+	echo "Note, if pscp doesn't work under mingw, you"
+	echo "may want to use cygwin bash for this."
 	pscp escapesetup.exe root@spacebar.org:/var/www/escape/
 
 source : escape-src.tar.bz2
 
-# 	cd /usr0/src/escape-src && find . -name CVS > /usr0/src/escape-src/.tarignore
-#       this includes binaries for OSX...
+# XXX wrong, bad
 escape-src.tar.bz2 :
 	cd /usr0/src/escape-src && cvs up -dP
 	rm -rf /usr0/src/escape-src/web /usr0/src/escape-src/*.es{p,d}
@@ -476,8 +492,8 @@ escape-src.tar.bz2 :
 
 # XXX two copies.. better if we could make src.tar be a symlink to the versioned tar.
 sourceup : source CURRENT
-	echo "Note, use of pscp and scp don't seem to work when making under mingw,"
-	echo "so you want to use cygwin bash for this."
+	echo "Note, if pscp doesn't work under mingw, you"
+	echo "may want to use cygwin bash for this."
 	pscp escape-src.tar.bz2 root@spacebar.org:/var/www/escape/source/
 	pscp escape-src.tar.bz2 root@spacebar.org:/var/www/escape/source/escape-src-`cat CURRENT`.tar.bz2
 

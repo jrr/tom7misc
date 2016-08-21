@@ -5,6 +5,12 @@
 <meta name=description content="Download instructions for Escape (Windows / Mac OS X / Linux).">
 <link rel=stylesheet type="text/css" href="escape.css" title="escape" />
 <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+<style>
+  .tiny { font : 9px Verdana, Arial, Helvetica, sans-serif }
+  .platformname { font-size : 32px; font-family: "Trebuchet MS", Verdana, Sans Serif; font-weight : bold }
+  .downloadlink { text-align: right; font-size : 22px; font-family: "Trebuchet MS", Verdana, Sans Serif; font-weight : bold; padding : 8px }
+  .platformdeets { color: #777 }
+</style>
 </head><body background="images/barsbg.png" leftmargin=0 topmargin=0 marginwidth=0 marginheight=0>
 
 <table width="704" style="margin-left : auto; margin-right : auto" cellspacing=0 border=0 cellpadding=0><tr>
@@ -32,11 +38,15 @@ Escape, try using the in-game upgrade feature rather than downloading
 a fresh copy from this page. This will only download the necessary
 files and will preserve any progress your players have made.
 
-<!-- Windows -->
+<img style="margin: 16px auto 0 auto" src="images/newcomputers.png" alt="If you have a shiny new computer, try these puppies!">
+
+<!-- New Windows -->
 <table width="100%">
 <tr>
-<td rowspan=2 valign=top><a href="escapesetup.exe"><img border=0 src="images/win32-logo.png" width=120 height=120></a></td>
-<td width="100%" valign=top><span class="platformname">Windows</span></td>
+<td rowspan=2 valign=top><a href="escapesetup.exe"><img border=0 src="images/windows.svg" width=120 height=120></a></td>
+<td valign=top><div class="platformname">64-bit Windows</div>
+  <div class="platformdeets">64-bit; Windows 7+</div>
+</td>
 <td valign=top><div class="downloadlink"><a href="escapesetup.exe">escapesetup.exe</a></div></td></tr>
 <tr><td colspan=2 valign="top">
 <span class=tiny>Current version: <!--#include virtual="/win32/CURRENT" --></span>
@@ -62,17 +72,60 @@ the directory.</p>
 <!-- OS X -->
 <table width="100%">
 <tr>
-<td rowspan=2 valign=top><a href="escape-beta-osx.zip"><img border=0 src="images/osx-logo.png" width=120 height=120></a></td>
-<td width="100%" valign=top><div class="platformname">Mac OS X</div></td>
+<td rowspan=2 valign=top><a href="escape-beta-osx.zip"><img border=0 src="images/osx.svg" width=120 height=120></a></td>
+<td valign=top><div class="platformname">macOS</div>
+<div class="platformdeets">64-bit, x86, 10.8+</div>
+</td>
 <td valign=top><div class="downloadlink"><a href="escape-beta-osx.zip">escape-beta-osx.zip</a></div></td></tr>
 <tr><td colspan=2 valign="top">
 <span class=tiny>Current version: <!--#include virtual="/osx/CURRENT" --></span>
 
-<p align=justify>After downloading on Mac OS X, the archive should
+<p align=justify>After downloading on macOS, the archive should
 automatically be extracted. Inside is a single application labeled
 <b>Escape</b>. Simply double-click this icon to play. You can move it
 anywhere without disturbing player files in progress. To uninstall,
 simply delete the icon.
+
+</td></tr></table>
+
+<img style="margin: 16px auto 8px auto" src="images/oldcomputers.png" alt="These archive downloads are for ye olde computers!">
+
+<!-- Old Windows -->
+<table width="100%">
+<tr>
+<td rowspan=2 valign=top><a href="old-escapesetup.exe"><img border=0 src="images/win32-logo.png" width=120 height=120></a></td>
+<td valign=top><div class="platformname">32-bit Windows</div>
+  <div class="platformdeets">32-bit; Windows 95, 98, 2000, XP, 7</div>
+</td>
+<td valign=top><div class="downloadlink"><a href="old-escapesetup.exe">old-escapesetup.exe</a></div></td></tr>
+<tr><td colspan=2 valign="top">
+<span class=tiny>Final version: 200912250</span>
+
+<p align=justify>This is an archive version of the game for old versions
+  of Windows, and 32-bit computers. Simply run the installer to install
+  the game to a directory of your choice.</p>
+
+<p align=justify>Some advanced users may prefer to download a <b><a
+href="old-escape-beta.zip">zip file</a></b> to perform manual
+installation.</p>
+
+</td></tr></table>
+
+<br/><br/>
+
+<!-- OS X -->
+<table width="100%">
+<tr>
+<td rowspan=2 valign=top><a href="old-escape-beta-osx.zip"><img border=0 src="images/old-osx.png" width=120 height=120></a></td>
+<td valign=top><div class="platformname">Old Mac OS X</div>
+<div class="platformdeets">32-bit, PPC &amp; x86, 10.5 or earlier</div>
+</td>
+<td valign=top><div class="downloadlink"><a href="old-escape-beta-osx.zip">old-escape-beta-osx.zip</a></div></td></tr>
+<tr><td colspan=2 valign="top">
+<span class=tiny>Final version: 200704130</span>
+
+<p align=justify>This is an archive version of the game for old versions
+  of Mac OS&nbsp;X, and 32-bit or PowerPC computers.</p>
 
 <p align=justify>Escape is not compatible with OS 9 or earlier.</p>
 
@@ -84,7 +137,7 @@ simply delete the icon.
 <table width="100%">
 <tr>
 <td rowspan=2 valign=top><a href="escape-beta.tar.gz"><img border=0 src="images/linux-logo.png" width=120 height=120></a></td>
-<td width="100%" valign=top><div class="platformname">x86 Linux</div></td>
+<td valign=top><div class="platformname">x86 Linux</div></td>
 <td valign=top><div class="downloadlink"><a href="escape-beta.tar.gz">escape-beta.tar.gz</a></div></td></tr>
 <tr><td colspan=2 valign="top">
 <span class=tiny>Current version: <!--#include virtual="/linux/CURRENT" --></span>
@@ -107,7 +160,7 @@ code. To do so, use the source archive below.</p>
 <table width="100%">
 <tr>
 <td rowspan=2 valign=top><a href="/source/escape-src.tar.bz2"><img border=0 src="images/source-logo.png" width=120 height=120></a></td>
-<td width="100%" valign=top><div class="platformname">Source Code</div></td>
+<td valign=top><div class="platformname">Source Code</div></td>
 <td valign=top><div class="downloadlink"><a href="/source/escape-src.tar.bz2">escape-src.tar.bz2</a></div></td></tr>
 <tr><td colspan=2 valign="top">
 <span class=tiny>Current version: <!--#include virtual="/linux/CURRENT" --></span>
@@ -126,12 +179,11 @@ repository at Sourceforge.</p>
 compliance the source code to those libraries can be downloaded <b><a
 href="source/SDL/">here</a></b>, however, it's probably a better idea
 to download them from their homes on the web. 
-       (<b><a href="http://www.libsdl.org/download-1.2.php">SDL</a></b>,
-        <b><a href="http://www.libsdl.org/projects/SDL_net/">SDL_net</a></b>,
-        <b><a href="http://www.libsdl.org/projects/SDL_image/">SDL_image</a></b>,
-        <b><a href="http://www.libsdl.org/projects/SDL_mixer/">SDL_mixer</a></b>)
+  (<b><a href="http://www.libsdl.org/download-1.2.php">SDL</a></b>,
+   <b><a href="http://www.libsdl.org/projects/SDL_net/">SDL_net</a></b>,
+   <b><a href="http://www.libsdl.org/projects/SDL_image/">SDL_image</a></b>,
+   <b><a href="http://www.libsdl.org/projects/SDL_mixer/">SDL_mixer</a></b>)
 </p>
-
 
 </td></tr></table>
 
@@ -140,8 +192,8 @@ to download them from their homes on the web.
 <a name="AmigaOS4"></a>
 <table width="100%">
 <tr>
-<td rowspan=2 valign=top><a href="http://os4depot.net/index.php?function=showfile&file=game/puzzle/escape.lha"><img border=0 src="/images/amiga-logo.png" width=120 height=120></a></td>
-<td width="100%" valign=top><div class="platformname">Amiga OS4</div></td>
+<td rowspan=2 valign=top><a href="http://os4depot.net/index.php?function=showfile&file=game/puzzle/escape.lha"><img border=0 src="images/amiga-logo.png" width=120 height=120></a></td>
+<td valign=top><div class="platformname">Amiga OS4</div></td>
 <td valign=top><div class="downloadlink"><a href="http://os4depot.net/index.php?function=showfile&file=game/puzzle/escape.lha">(offsite&nbsp;link)</a></div></td></tr>
 <tr><td colspan=2 valign="top">
 <span class=tiny>April 2005</span>
@@ -160,15 +212,15 @@ He also includes some sound effects!</p>
 <a name="DOS"></a>
 <table width="100%">
 <tr>
-<td rowspan=2 valign=top><div style="width:120px;"><center><a href="/escape-dos.zip"><img border=0 src="/images/dos.png" width=90 height=96></a></center></div></td>
-<td width="100%" valign=top><div class="platformname">MS-DOS</div></td>
+<td rowspan=2 valign=top><div style="width:120px;"><center><a href="/escape-dos.zip"><img border=0 src="images/dos.png" width=90 height=96></a></center></div></td>
+<td valign=top><div class="platformname">MS-DOS</div></td>
 <td valign=top><div class="downloadlink"><a href="/escape-dos.zip">escape-dos.zip</a></div></td></tr>
 <tr><td colspan=2 valign="top">
 <span class=tiny>August 1996</span>
 
-<p align=justify>Here is the original Escape for DOS, from over 10
-years ago. Don't use this one if your computer can handle the modern
-version! It includes about 100 levels. Note: levels created with the
+<p align=justify>Here is the original Escape for DOS, from 20 years
+ago. Don't use this one if your computer can handle the modern
+version! It includes about 100 levels. Note: Levels created with the
 built-in editor are not necessarily compatible with the modern Escape,
 because I have fixed bugs in the behavior of some tiles.</p>
 
@@ -180,7 +232,7 @@ because I have fixed bugs in the behavior of some tiles.</p>
 <table width="100%">
 <tr>
 <td rowspan=2 valign=top><a href="/escape.nes"><img border=0 src="images/nes-logo.png" width=120 height=120></a></td>
-<td width="100%" valign=top><div class="platformname">Nintendo Entertainment System</div></td>
+<td valign=top><div class="platformname">Nintendo Entertainment System</div></td>
 <td valign=top><div class="downloadlink"><a href="/escape.nes">escape.nes</a></div></td></tr>
 <tr><td colspan=2 valign="top">
 <span class=tiny>Current version: 1.0; Summer 2004</span>

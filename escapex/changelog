@@ -1,3 +1,9 @@
+2016-08-21  Tom 7  <Tom@RIVERCITY>
+
+        * makefile: Updated build process on Windows and Linux as well.
+          Escape is now 64-bit everywhere. Using "Beta 5" moniker now.
+          Aggressively compressed graphics.
+
 2016-07-29  Tom 7  <tom7@...>
 
         * Getting this to compile on modern OS X.
