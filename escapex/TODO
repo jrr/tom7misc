@@ -2,11 +2,12 @@
 
 * Current Projects
 
-Make this work again on OSX 10.10+!
+Make this work again on OSX 10.10+ and windows!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
     - bug: background color in editor
     - bug: mipmaps confuse channels
+ - bug on windows: console shows, ugh!
 
 Use specific-width integer types instead of 'unsigned'.
 
