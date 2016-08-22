@@ -336,8 +336,13 @@ OPT=-O2
 CPPFLAGS=${DEBUG} -DNOSOUND=1 -DWIN32 -Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include  -I. ${SDLINCLUDES} ${SDLNETINCLUDES}
 CXXFLAGS= -std=c++14 ${OPT}
 
-# -Wl,-rpath=. 
-LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,console ${OPT}  -static
+# -Wl,-rpath=.
+
+# It works fine to pick either one of
+#    -Wl,--subsystem,console
+#    -Wl,--subsystem,windows
+# and the former opens the console for useful/annoying debugging info.
+LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,windows ${OPT}  -static
 
 # -lSDL_mixer
 # at end  -lvorbisfile -lvorbis -logg
