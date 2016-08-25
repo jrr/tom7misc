@@ -46,6 +46,13 @@ in
          val title = Escape.gettitle lev
 
          val nctitle = nocolor title
+
+         fun debug-system s =
+             let in
+                 debug s;
+                 system s
+             end
+                 
      in
          ensuredir pre;
 
@@ -99,13 +106,11 @@ in
 
          let 
              (* insert level *)
-             do system ("/bin/mv " ^ levloc ^ " " ^
-                        (pre ^ "/" ^ pos))
+             do debug-system [/bin/mv [levloc] [pre]/[pos]]
 
              (* this appears to be irrelevant now,
                 since we store solutions in the database *)
-             do system ("/bin/mv " ^ solloc ^ " " ^
-                        (SOLROOT ^ levmd5 ^ ".sol"))
+             do debug-system [/bin/mv [solloc] [SOLROOT][levmd5].sol]
 
              val levid = 
                  insert (levmd5,
