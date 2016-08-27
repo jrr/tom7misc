@@ -28,6 +28,8 @@
 // and 485/803 minor leagues, plus obviously 34/34 regressions and 22/22
 // official levels.
 
+using AList = PtrList<aevent>;
+
 /* pushmove is used like this:
    XXX why is this called pushmove??
 
@@ -78,9 +80,7 @@
 #undef AFFECT
 #undef AFFECTI
 #undef PREAFFECTENTEX
-#undef PREAFFECTENT
 #undef POSTAFFECTENTEX
-#undef POSTAFFECTENT
 #undef BOTEXPLODE
 #undef WAKEUPDOOR
 #undef WAKEUP
@@ -120,23 +120,18 @@
 #ifdef ANIMATING_MOVE
 # include "util.h"
 # include "aevent.h"
-  typedef PtrList<aevent> alist;
-
 # define AM
 
 # define AFFECT(x, y) ctx->affect(x, y, this, etail)
 # define AFFECTI(i) ctx->affecti(i, this, etail)
 # define PREAFFECTENTEX(ei) if (ei == -1) ctx->preaffectplayer(this, etail); \
                             else ctx->preaffectbot(ei, this, etail);
-# define PREAFFECTENT PREAFFECTENTEX(enti)
-
 # define POSTAFFECTENTEX(ei) if (ei == -1) ctx->postaffectplayer(); \
                              else ctx->postaffectbot(ei);
-# define POSTAFFECTENT POSTAFFECTENTEX(enti)
 
 # define PUSHMOVE(type, var) {        \
     aevent *a ## var = new aevent;    \
-    *etail = new alist(a ## var, 0);  \
+    *etail = new AList(a ## var, 0);  \
     etail = &((*etail)->next);        \
     a ## var->serial = ctx->Serial(); \
     a ## var->t = tag_ ## type;       \
@@ -285,7 +280,6 @@
 # define STANDBOT(i) do { ; } while (0)
 # define GETHEARTFRAMER(a, b) do { ; } while (0)
 # define TRANSPONDERBEAM(xx, yy, destx, desty, fr, delay) do { ; } while (0)
-# define BOMBSPLOSION(xx, yy) do { ; } while (0)
 # define TELEPORTOUT(ei, xx, yy) do { ; } while (0)
 # define TELEPORTIN(ei, xx, yy) do { ; } while (0)
 #endif
@@ -381,9 +375,9 @@ void Level::swaptiles(int t1, int t2) {
 #endif
 
 #ifdef ANIMATING_MOVE
-
-static void postanimate(Level *l, Disamb *ctx,
-                        alist *&events, alist **& etail) {
+template<class DAB>
+static void postanimate(Level *l, DAB *ctx,
+                        AList *&events, AList **&etail) {
 
   /* make sure there is animation for everything */
   //  printf("... postanimate ...\n");
@@ -424,7 +418,7 @@ static void postanimate(Level *l, Disamb *ctx,
    maintains the invt that every phase has a player
    motion in 'events.' Finally, call postanimate
    to add in winning or death events. */
-# define RET(b) do { postanimate(this, ctx, events, etail); \
+# define RET(b) do { postanimate<Disamb>(this, ctx, events, etail); \
                      return (b); } while (0)
 
 #else
@@ -433,98 +427,11 @@ static void postanimate(Level *l, Disamb *ctx,
 
 #endif
 
-#ifdef ANIMATING_MOVE
- void Level::bombsplode_animate(int now,
-                int b, Disamb *ctx, alist *&events,
-                alist **& etail) {
-#else
- void Level::bombsplode(int now, int b) {
-#endif
-
-  bott[b] = B_BOMB_X;
-  int x, y;
-  where(boti[b], x, y);
-
-  /* animate first */
-  {
-    for (dir dd = FIRST_DIR_SELF; dd < LAST_DIR; dd++) {
-      int bx, by;
-      if (travel(x, y, dd, bx, by)) {
-        (void)AFFECT(bx, by);
-      }
-    }
-
-    BOMBSPLOSION(x, y);
-  }
-
-  {
-    for (dir dd = FIRST_DIR_SELF; dd <= LAST_DIR; dd++) {
-      int bx, by;
-      if (travel(x, y, dd, bx, by)) {
-    if (bombable(tileat(bx, by))) {
-      /* animate? */
-      settile(bx, by, T_FLOOR);
-      /* clear flags */
-      setflag(bx, by, flagat(bx, by) & ~(TF_HASPANEL |
-                                         TF_RPANELL  |
-                                         TF_RPANELH));
-    }
-
-    {
-      int z = index(bx, by);
-      for (int bdie = 0; bdie < nbots; bdie++) {
-        if (boti[bdie] == z) {
-          PREAFFECTENTEX(bdie);
-          // AFFECTI(boti[b]);
-          POSTAFFECTENTEX(bdie);
-
-          bot bd = bott[bdie];
-          if (bd == B_DELETED ||
-              bd == B_BOMB_X) /* ignore */ continue;
-
-          if (Level::isbomb(bd)) {
-        /* chain reaction */
-        if (bdie < now) {
-          #ifdef ANIMATING_MOVE
-             bombsplode_animate(now, bdie, ctx, events, etail);
-          #else
-             bombsplode(now, bdie);
-          #endif
-          break;
-        } else {
-          /* will explode this turn (unless a bot
-             pushes it??) */
-          bota[bdie] = 0;
-          break;
-        }
-              } else {
-        /* non-bomb, so just kill it */
-        /* FIXME: This isn't correct in the case that
-           some bots move after the bomb explodes; they
-           might move *onto* the explosion. See
-           "revenge of the malformed levels 2". Of
-           course, this can only happen if there are
-           bots with higher numbers than bombs, which
-           levels can't be made by the editor. Possibly
-           they should be rejected by the sanitizer as
-           well. */
-        BOTEXPLODE(bdie);
-        bott[bdie] = B_DELETED;
-        break;
-          } /* isbomb? */
-        } /* bot here? */
-          } /* loop over bots */
-        } /* block */
-      } /* adjacent? */
-    } /* loop adjacent */
-  } /* block */
-}
-
 
 #ifdef ANIMATING_MOVE
-  bool Level::move_animate(dir d, Disamb *ctx, alist *&events) {
-  events = 0;
-  alist **etail = &events;
+  bool Level::move_animate(dir d, Disamb *ctx, AList *&events) {
+  events = nullptr;
+  AList **etail = &events;
   ctx->clear();
 
   //  printf("----start move----\n");
@@ -564,9 +471,14 @@ static void postanimate(Level *l, Disamb *ctx,
       if (bota[b] == 0) {
          /* time's up: explodes */
 #            ifdef ANIMATING_MOVE
-               bombsplode_animate(b, b, ctx, events, etail);
+               Bombsplode<true, Disamb>(b, b, ctx, events, etail);
 #            else
-           bombsplode(b, b);
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               Bombsplode<false, NullDisamb>(b, b, &unused_disamb, unused, etail_unused);
 #            endif
 
       } else if (bota[b] > 0) {
@@ -651,8 +563,8 @@ static void postanimate(Level *l, Disamb *ctx,
 #ifdef ANIMATING_MOVE
   bool Level::moveent_animate(dir d, int enti,
                               unsigned int cap, int entx, int enty,
-                              alist *&events, Disamb *ctx,
-                              alist **& etail) {
+                              AList *&events, Disamb *ctx,
+                              AList **&etail) {
   //  printf("==== entity %d's turn\n", enti);
 #else
   bool Level::moveent(dir d, int enti,
@@ -743,7 +655,7 @@ static void postanimate(Level *l, Disamb *ctx,
 
            /* affect first, then make anims */
 
-           PREAFFECTENT;
+           PREAFFECTENTEX(enti);
            PREAFFECTENTEX(pushent);
            (void)AFFECT(farx, fary);
            (void)AFFECT(newx, newy);
@@ -754,7 +666,7 @@ static void postanimate(Level *l, Disamb *ctx,
            isbomb(bott[pushent]))
                bota[pushent] = ((int)bott[pushent] - (int)B_BOMB_0);
 
-           POSTAFFECTENT;
+           POSTAFFECTENTEX(enti);
            POSTAFFECTENTEX(pushent);
 
            /* XXX should be "waspushed" or whatever */
@@ -823,9 +735,9 @@ static void postanimate(Level *l, Disamb *ctx,
 
       } else {
         /* XXX also affect source? */
-        PREAFFECTENT;
+        PREAFFECTENTEX(enti);
         (void)AFFECT(newx, newy);
-        POSTAFFECTENT;
+        POSTAFFECTENTEX(enti);
         WALKED(d, false);
 
         //        printf("first ent is at %d/%d\n", entx, enty);
@@ -861,8 +773,8 @@ static void postanimate(Level *l, Disamb *ctx,
 
       CHECKSTEPOFF(entx, enty);
 
-      PREAFFECTENT;
-      POSTAFFECTENT;
+      PREAFFECTENTEX(enti);
+      POSTAFFECTENTEX(enti);
       WALKED(d, false);
 
       SETENTPOS(newx, newy);
@@ -1091,11 +1003,11 @@ static void postanimate(Level *l, Disamb *ctx,
 
       if (cap & (CAP_CANTELEPORT | CAP_ISPLAYER)) {
          (void)AFFECT(newx, newy);
-         PREAFFECTENT;
-         POSTAFFECTENT;
+         PREAFFECTENTEX(enti);
+         POSTAFFECTENTEX(enti);
          WALKED(d, true);
-         PREAFFECTENT;
-         POSTAFFECTENT;
+         PREAFFECTENTEX(enti);
+         POSTAFFECTENTEX(enti);
          TELEPORTOUT(enti, newx, newy);
 
          int targx, targy;
@@ -1108,8 +1020,8 @@ static void postanimate(Level *l, Disamb *ctx,
          SETENTPOS(targx, targy);
 
          (void)AFFECT(targx, targy);
-         PREAFFECTENT;
-         POSTAFFECTENT;
+         PREAFFECTENTEX(enti);
+         POSTAFFECTENTEX(enti);
          /* teleporting always faces the player down;
             there's just one animation. */
          SETENTDIR(DIR_DOWN);
@@ -1413,8 +1325,8 @@ static void postanimate(Level *l, Disamb *ctx,
 
           (void)AFFECT(destx, desty);
           (void)AFFECT(newx, newy);
-          PREAFFECTENT;
-          POSTAFFECTENT;
+          PREAFFECTENTEX(enti);
+          POSTAFFECTENTEX(enti);
           PUSHGREEN(newx, newy, d);
           WALKED(d, true);
 
@@ -1635,8 +1547,8 @@ static void postanimate(Level *l, Disamb *ctx,
     }
 
     /* XXX also boundary conditions? (XXX what does that mean?) */
-    PREAFFECTENT;
-    POSTAFFECTENT;
+    PREAFFECTENTEX(enti);
+    POSTAFFECTENTEX(enti);
     WALKED(d, true);
 
     SETENTPOS(newx, newy);
@@ -1734,8 +1646,8 @@ static void postanimate(Level *l, Disamb *ctx,
 
     (void)AFFECT(newx, newy);
     (void)AFFECT(destx, desty);
-    PREAFFECTENT;
-    POSTAFFECTENT;
+    PREAFFECTENTEX(enti);
+    POSTAFFECTENTEX(enti);
 
     PUSHED(d, target, newx, newy, replacement, zap, hole);
     WALKED(d, true);
@@ -1759,8 +1671,8 @@ static void postanimate(Level *l, Disamb *ctx,
         playerat(newx, newy)) return false;
     if (cap & CAP_HEARTFRAMERS) {
       (void)AFFECT(newx, newy);
-      PREAFFECTENT;
-      POSTAFFECTENT;
+      PREAFFECTENTEX(enti);
+      POSTAFFECTENTEX(enti);
       WALKED(d, true);
 
       /* snag heart framer */
@@ -1837,8 +1749,8 @@ static void postanimate(Level *l, Disamb *ctx,
           (cap & CAP_ZAPSELF)) {
 
         (void)AFFECT(newx, newy);
-        PREAFFECTENT;
-        POSTAFFECTENT;
+        PREAFFECTENTEX(enti);
+        POSTAFFECTENTEX(enti);
         WALKED(d, false);
 
         /* change where it is */
@@ -1846,8 +1758,8 @@ static void postanimate(Level *l, Disamb *ctx,
 
         /* then kill it */
         bott[enti] = B_DELETED;
-        PREAFFECTENT;
-        POSTAFFECTENT;
+        PREAFFECTENTEX(enti);
+        POSTAFFECTENTEX(enti);
         BOTEXPLODE(enti);
 
         /* might have stepped off a panel/trap */

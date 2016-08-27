@@ -392,15 +392,7 @@ struct Level {
 # ifndef NOANIMATION
   /* see animation.h for documentation */
   bool move_animate(dir, Disamb *ctx, PtrList<aevent> *&events);
-  bool moveent_animate(dir, int enti, unsigned int, int, int, 
-		       PtrList<aevent> *&,
-                       Disamb *ctx, PtrList<aevent> **&);
-  void bombsplode_animate(int now,
-			  int bombi, Disamb *ctx, PtrList<aevent> *&events,
-			  PtrList<aevent> **& etail);
 # endif
-
-  void bombsplode(int now, int bombi);
 
   /* create clone of current state. */
   Level *clone() const;
@@ -505,7 +497,7 @@ struct Level {
     return (t == T_REMOTE || t == T_TRANSPORT || ispanel(t, dummy));
   }
 
-  private:
+ private:
   /* solution wants access to rleencoding and decoding */
   friend struct Solution;
 
@@ -520,7 +512,7 @@ struct Level {
   }
 
   /* is the tile bombable? */
-  static bool bombable(int t) {
+  static bool Bombable(int t) {
     switch (t) {
       /* some level of danger */
     case T_EXIT:
@@ -636,6 +628,15 @@ struct Level {
     return false;
   }
 
+# ifndef NOANIMATION
+  bool moveent_animate(dir, int enti, unsigned int, int, int, 
+		       PtrList<aevent> *&,
+                       Disamb *ctx, PtrList<aevent> **&);
+# endif
+  template<bool ANIMATE, class DAB>
+  void Bombsplode(int now,
+		  int bombi, DAB *ctx, PtrList<aevent> *&events,
+		  PtrList<aevent> **& etail);
 };
 
 
