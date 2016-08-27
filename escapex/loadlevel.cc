@@ -2,7 +2,7 @@
 #include "escapex.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
-#include "load.h"
+#include "loadlevel.h"
 #include "../cc-lib/md5.h"
 
 #include <string.h>
