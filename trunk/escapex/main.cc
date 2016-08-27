@@ -7,7 +7,7 @@
 #include "util.h"
 #include "escapex.h"
 #include "font.h"
-#include "load.h"
+#include "loadlevel.h"
 #include "extent.h"
 #include "player.h"
 #include "../cc-lib/md5.h"
@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
       /* If there are no players, assume this is the
 	 first launch. */
       if (pdb->firsttime()) {
-	handhold::firsttime();
+	HandHold::firsttime();
       }
 
       plr.reset(pdb->chooseplayer());
@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
 	  if (ll.get() != nullptr) {
 	    string res = ll->selectlevel();
 	    
-	    play::playrecord(res, plr.get());
+	    Play::playrecord(res, plr.get());
 	    
 	    if (res == "") break;
 	  } else {
@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
 	    string res = bb->selectlevel();
 	    if (res.empty()) break;
 
-	    play::playrecord(res, plr.get());
+	    Play::playrecord(res, plr.get());
 
 	  } else {
 	    Message::bug(0, "Error creating browser");

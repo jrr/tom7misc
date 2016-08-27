@@ -222,8 +222,8 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
   /* these hold srcs and dests of any files that
      couldn't be replaced while the program is
      running. */
-  stringlist *failsrc = 0;
-  stringlist *faildst = 0;
+  stringlist *failsrc = nullptr;
+  stringlist *faildst = nullptr;
   bool incomplete = false;
 
   for (ulist *h = upthese; h; h = h->next) {
@@ -561,7 +561,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
 
 UpgradeResult Upgrader_::upgrade(string &msg) {
   /* no matter what, cancel the hint to upgrade */
-  handhold::did_upgrade();
+  HandHold::did_upgrade();
 
   HTTP *hh = Client::connect(plr, tx, this);
 

@@ -1,7 +1,7 @@
 #include "escapex.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
-#include "load.h"
+#include "loadlevel.h"
 #include "../cc-lib/md5.h"
 
 #include <sys/stat.h>
@@ -147,7 +147,7 @@ int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
 
           int tsub, ssub;
 
-          DirIndex *iii_unused = 0;
+          DirIndex *iii_unused = nullptr;
           if (get(ldn, iii_unused, tsub, ssub, prog, pd)) {
             ttt += tsub;
             sss += ssub;

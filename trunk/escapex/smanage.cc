@@ -242,7 +242,7 @@ void smanage::promptupload(Drawable *below,
   cancel can;
   can.text = "Cancel";
   
-  PtrList<MenuItem> *l = 0;
+  PtrList<MenuItem> *l = nullptr;
 
   PtrList<MenuItem>::push(l, &can);
   PtrList<MenuItem>::push(l, &ok);
@@ -287,7 +287,7 @@ void smanage::promptupload(Drawable *below,
 
       string solcont = sol->tostring();
     
-      formalist *fl = 0;
+      formalist *fl = nullptr;
     
       /* XXX seems necessary! but in aphasia cgi? */
       formalist::pusharg(fl, "dummy", "dummy");
@@ -561,7 +561,7 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
     case nsel::PE_CANCEL: {
       /* done. write changes back into player file */
       /* create solset list, preserving order */
-      nslist *solset = 0;
+      nslist *solset = nullptr;
       for (int i = sm->sel->number - 1;
 	  i >= 0; 
 	  i--) {
@@ -712,7 +712,7 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	p.soli++;
 
 	/* and execute it, waiting for the animation to play. */
-	play::animatemove(p.dr, ctx.get(), p.dirty.get(), move);
+	Play::animatemove(p.dr, ctx.get(), p.dirty.get(), move);
 	/* track player */
 	p.dr.setscroll();
 	p.draw();

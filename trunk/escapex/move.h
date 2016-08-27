@@ -1144,7 +1144,7 @@ static void postanimate(Level *l, Disamb *ctx,
          SwapList *next;
          SwapList(int t, SwapList *n) : target(t), next(n) {}
       };
-      SwapList *remotes = 0;
+      SwapList *remotes = nullptr;
 
       /* need to delay swaps to the end. */
       int bswaps = 0, rswaps = 0, gswaps = 0;

@@ -31,6 +31,8 @@
 
 #define POSTDRAW ;
 
+namespace {
+
 /* for observing frame by frame -- slooow */
 // #define POSTDRAW SDL_Delay (300);
 
@@ -45,16 +47,22 @@ enum playstate {
   STATE_WON,
 };
 
-struct preal : public play {
-
+struct Play_ : public Play {
   bool waitenter();
-  virtual void draw();
-  virtual void screenresize();
+  void draw() override;
+  void screenresize() override;
 
-  virtual PlayResult doplay_save(Player *, Level *, 
-				 Solution *&saved, string md5 = "");
+  PlayResult doplay_save(Player *, Level *, 
+			 Solution *&saved, string md5 = "") override;
 
-  virtual ~preal();
+  PlayResult doplay(Player *plr, Level *lev, string md5) override {
+    Solution *unused = nullptr;
+    PlayResult res = doplay_save(plr, lev, unused, md5);
+    unused->destroy();
+    return res;
+  }
+  
+  ~Play_() override {}
 
   /* debugging */
   int layer;
@@ -67,19 +75,15 @@ struct preal : public play {
      Its lifetime is within a call to doplay_save.
      Don't call redraw when not inside a call to doplay_save! */
   Solution *sol;
-  /* current position in the
-     solution. This is usually the same as sol->length, but
-     if it is not, then we support the VCR (soon) and redo. */
+  /* current position in the solution. This is usually the same as
+     sol->length, but if it is not, then we support the VCR (soon) and
+     redo. */
   int solpos;
 
-  static preal *create();
+  static Play_ *Create();
   void redraw();
 
   void videoresize(SDL_ResizeEvent *eventp);
-
-  virtual void destroy() {
-    delete this;
-  }
 
   /* hand closure-converted, ugh */
   bool redo();
@@ -101,7 +105,7 @@ struct preal : public play {
 
   void drawmenu();
 
-private:
+ private:
   bool getevent(SDL_Event *e, bool &fake);
 
   bool watching;
@@ -113,15 +117,8 @@ private:
 			 int n);
 };
 
-play::~play() {}
-preal::~preal() {}
-
-play *play::create() {
-  return preal::create();
-}
-
-preal *preal::create() {
-  preal *pr = new preal();
+Play_ *Play_::Create() {
+  Play_ *pr = new Play_();
   pr->watching = false;
   pr->layer = 0;
   pr->showdests = false;
@@ -381,7 +378,7 @@ struct BookmarkItem : public MenuItem {
 };
 
 
-void preal::drawmenu() {
+void Play_::drawmenu() {
   int showw = (screen->w / TILEW) - 1;
 
   /* could be showw + 1 */
@@ -427,7 +424,7 @@ void preal::drawmenu() {
   }
 }
 
-void preal::draw() {
+void Play_::draw() {
   dr.setscroll();
 
   Uint32 color = 
@@ -479,7 +476,7 @@ void preal::draw() {
   // dr.drawextra();
 }
 
-playstate preal::curstate() {
+playstate Play_::curstate() {
   int unused;
   dir unusedd;
   if (solpos != 0 && dr.lev->isdead(unused, unused, unusedd)) 
@@ -489,17 +486,17 @@ playstate preal::curstate() {
   else return STATE_OKAY;
 }
 
-void preal::redraw() {
+void Play_::redraw() {
   draw();
   SDL_Flip(screen);
 }
 
-void preal::screenresize() {
+void Play_::screenresize() {
   dr.width = screen->w - dr.posx;
   dr.height = screen->h - dr.posy;
 }
 
-void preal::videoresize(SDL_ResizeEvent *eventp) {
+void Play_::videoresize(SDL_ResizeEvent *eventp) {
   screen = sdlutil::makescreen(eventp->w,
  			       eventp->h);
   screenresize();
@@ -509,7 +506,7 @@ void preal::videoresize(SDL_ResizeEvent *eventp) {
 using elist = PtrList<aevent>;
 using alist = PtrList<Animation>;
 
-bool preal::redo() {
+bool Play_::redo() {
   watching = false;
   if (curstate() == STATE_OKAY &&
       solpos < sol->length) {
@@ -525,7 +522,7 @@ bool preal::redo() {
 }
 
 /* oh how I yearn for nested functions */
-void preal::undo(Level *&start, Extent<Level> &ec, int nm) {
+void Play_::undo(Level *&start, Extent<Level> &ec, int nm) {
   if (solpos > 0) {
     dr.lev->destroy();
     dr.lev = start->clone();
@@ -542,7 +539,7 @@ void preal::undo(Level *&start, Extent<Level> &ec, int nm) {
   }
 }
 
-void preal::restart(Level *&start, Extent<Level> &ec) {
+void Play_::restart(Level *&start, Extent<Level> &ec) {
   dr.lev->destroy();
   solpos = 0;
   dr.lev = start->clone();
@@ -554,7 +551,7 @@ void preal::restart(Level *&start, Extent<Level> &ec) {
 /* set the Player's solution set to the given array
    (of bookmarkitems) */
 
-void preal::setsolseta(Player *plr, const string &md5,
+void Play_::setsolseta(Player *plr, const string &md5,
 		       BookmarkItem **books,
 		       int n) {
   PtrList<NamedSolution> *solset = nullptr;
@@ -567,7 +564,7 @@ void preal::setsolseta(Player *plr, const string &md5,
   plr->writefile();
 }
 
-void preal::bookmarks(Level *start, 
+void Play_::bookmarks(Level *start, 
 		      Extent<Level> &ec,
 		      Player *plr, string md5, 
 		      Solution *&sol,
@@ -617,7 +614,7 @@ void preal::bookmarks(Level *start,
     cancel can;
     can.text = "Cancel";
 
-    PtrList<MenuItem> *l = 0;
+    PtrList<MenuItem> *l = nullptr;
 
     PtrList<MenuItem>::push(l, &can);
     PtrList<MenuItem>::push(l, &book_current);
@@ -626,7 +623,7 @@ void preal::bookmarks(Level *start,
 
     /* initialize bmset with current bookmarks. */
     bool didsolve = false;
-    BookmarkItem **books = 0;
+    BookmarkItem **books = nullptr;
     int bmnum = 0;
     {
       PtrList<NamedSolution> *ss = plr->solutionset(md5);
@@ -826,19 +823,17 @@ void preal::bookmarks(Level *start,
   found_action:;
 
     /* now erase the bookmark menuitems */
-    {
-      for (int i = 0; i < bmnum; i++) {
-	books[i]->destroy();
-      }
-      free(books);
+    for (int i = 0; i < bmnum; i++) {
+      books[i]->destroy();
     }
+    free(books);
 
   } while (show_menu_again);
   redraw();
 }
 
 /* XXX this should be documented in protocol.txt */
-void preal::bookmark_download(Player *plr, string lmd5, Level *lev) {
+void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
   
@@ -902,7 +897,7 @@ void preal::bookmark_download(Player *plr, string lmd5, Level *lev) {
 }
 
 
-void preal::checkpoint(Solution *&saved_sol,
+void Play_::checkpoint(Solution *&saved_sol,
 		       Extent<Solution> &ess) {
   saved_sol->destroy();
   saved_sol = sol->clone();
@@ -916,7 +911,7 @@ void preal::checkpoint(Solution *&saved_sol,
   watching = false;
 }
 
-void preal::restore(Extent<Level> &ec,
+void Play_::restore(Extent<Level> &ec,
 		    Level *start,
 		    Solution *saved_sol,
 		    Extent<Solution> &eso) {
@@ -960,7 +955,7 @@ void preal::restore(Extent<Level> &ec,
    fake keys, the argument 'fake' will be set true
    in the second case.
 */
-bool preal::getevent(SDL_Event *e, bool &fake) {
+bool Play_::getevent(SDL_Event *e, bool &fake) {
   if (SDL_PollEvent(e)) {
     fake = false;
     return true;
@@ -985,7 +980,7 @@ bool preal::getevent(SDL_Event *e, bool &fake) {
   } else return false;
 }
 
-PlayResult preal::doplay_save(Player *plr, Level *start, 
+PlayResult Play_::doplay_save(Player *plr, Level *start, 
 			      Solution *&saved, string md5) {
   /* we never modify 'start' */
   dr.lev = start->clone();
@@ -1397,7 +1392,9 @@ PlayResult preal::doplay_save(Player *plr, Level *start,
 
 }
 
-void play::playrecord(string res, Player *plr, bool allowrate) {
+}  // namespace
+
+void Play::playrecord(string res, Player *plr, bool allowrate) {
   /* only prompt to rate if this is in a
      web collection */
   bool iscollection;
@@ -1418,11 +1415,9 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
 
   Level *lev = Level::fromstring(ss);
 
-  if (lev) { 
-
-    play *pla = play::create();
-    Extent<play> ep(pla);
-
+  if (lev !=  nullptr) { 
+    std::unique_ptr<Play> pla{Play::Create()};
+    
     PlayResult res = pla->doplay(plr, lev, md5);
 
     if (res.type == PR_ERROR || res.type == PR_EXIT) {
@@ -1466,7 +1461,7 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
 	/* now filter just the ones that verify */
 	/* XXX LEAK: I don't understand the interface to
 	   (set)solutionset, so I don't free anything here. */
-	PtrList<NamedSolution> *newsols = 0;
+	PtrList<NamedSolution> *newsols = nullptr;
 	while (sols) {
 	  NamedSolution *ns = PtrList<NamedSolution>::pop(sols);
 
@@ -1541,13 +1536,13 @@ void play::playrecord(string res, Player *plr, bool allowrate) {
   } else return;
 }
 
-bool play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
+bool Play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
   /* events waiting to be turned into animations */
-  elist *events = 0;
+  elist *events = nullptr;
   /* current phase of animation */
-  alist *anims = 0;
+  alist *anims = nullptr;
   /* current sprites (drawn on top of everything) */
-  alist *sprites = 0;
+  alist *sprites = nullptr;
 
 
   /* clear sprites from screen.
@@ -1703,5 +1698,11 @@ bool play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
   }
 
   return success;
-
 }
+
+Play::~Play() {}
+
+Play *Play::Create() {
+  return Play_::Create();
+}
+

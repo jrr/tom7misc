@@ -228,7 +228,7 @@ selresult Updater_::selectcolls(stringlist *fnames,
 				  stringlist *&subsf,
 				  stringlist *&subss) {
 
-  PtrList<MenuItem> *boxes = 0;
+  PtrList<MenuItem> *boxes = nullptr;
 
   okay ok;
   ok.text = "Update Now";
@@ -457,7 +457,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 updateresult Updater_::update(string &msg) {
 
   /* always cancel the hint */
-  handhold::did_update();
+  HandHold::did_update();
 
   HTTP *hh = Client::connect(plr, tx, this);
 
@@ -468,8 +468,8 @@ updateresult Updater_::update(string &msg) {
 
   Extent<HTTP> eh(hh);
 
-  stringlist *fnames = 0;
-  stringlist *shownames = 0;
+  stringlist *fnames = nullptr;
+  stringlist *shownames = nullptr;
 
   switch (checkcolls(hh, fnames, shownames)) {
   case CC_OK:

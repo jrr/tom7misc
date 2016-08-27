@@ -141,7 +141,7 @@ void textbox::draw(int posx, int posy, int f) {
   
   int count = 0;
   vallist<char> *tmp = before;
-  stringlist *blines = 0;
+  stringlist *blines = nullptr;
 
   while (tmp) {
     if (count >= drawlines) break;

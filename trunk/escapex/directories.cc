@@ -35,7 +35,7 @@ struct DIR {
 };
 
 DIR *opendir(const char *name) {
-  DIR *dir = 0;
+  DIR *dir = nullptr;
 
   if (name && name[0]) {
     size_t base_length = strlen(name);
@@ -82,7 +82,7 @@ int closedir(DIR *dir) {
 }
 
 struct dirent *readdir(DIR *dir) {
-  struct dirent *result = 0;
+  struct dirent *result = nullptr;
 
   if (dir && dir->handle != -1) {
     if (!dir->result.d_name || _findnext(dir->handle, &dir->info) != -1) {

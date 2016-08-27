@@ -184,7 +184,7 @@ void fontreal::drawto(SDL_Surface *surf, int x, int y, string s) {
   src.h = height;
 
   /* keep track of our color and alpha settings */
-  font_attrlist * cstack = 0; 
+  font_attrlist * cstack = nullptr; 
   int color, alpha;
   font_attrlist::set(cstack, color, alpha);
 

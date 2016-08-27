@@ -91,7 +91,7 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
 
   string solcont = opt->tostring();
 
-  formalist *fl = 0;
+  formalist *fl = nullptr;
 
   /* XXX seems necessary! bug in aphasia cgi? */
   formalist::pusharg(fl, "dummy", "dummy");

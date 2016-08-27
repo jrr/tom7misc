@@ -29,17 +29,17 @@ struct levelwait {
 };
 
 /* Must be initialized before adding any sources. */
-static Player *theplayer = 0;
+static Player *theplayer = nullptr;
 
 /* these are actually treated as stacks, but there's
    nothing wrong with that... */
 /* files waiting to be added into the level database */
-static stringlist *filequeue = 0;
+static stringlist *filequeue = nullptr;
 static int filequeue_size = 0;
 
 /* loaded levels waiting to be added into the database
    (need to verify solutions), etc. */
-static PtrList<levelwait> *levelqueue = 0;
+static PtrList<levelwait> *levelqueue = nullptr;
 static int levelqueue_size = 0;
 
 /* All levels that we've loaded, as a map from MD5 to the level

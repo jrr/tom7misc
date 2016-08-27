@@ -1,7 +1,7 @@
 #ifndef __HANDHOLD_H
 #define __HANDHOLD_H
 
-struct handhold {
+struct HandHold {
   /* do something the first time the game is launched */
   static void firsttime();
   static void init();

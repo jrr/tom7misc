@@ -296,7 +296,7 @@ struct LoadLevel_ : public LoadLevel {
   LoadLevel_() {}
 
   static LoadLevel_ *Create(Player *p, string dir, 
-			       bool inexact, bool ac);
+			    bool inexact, bool ac);
 
 
  private:

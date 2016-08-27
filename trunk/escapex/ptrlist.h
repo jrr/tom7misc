@@ -118,7 +118,7 @@ struct PtrList {
   }
 
   static void rev(PtrList<P> *&pl) {
-    PtrList<P> *out = 0;
+    PtrList<P> *out = nullptr;
     while (pl) push(out, pop(pl));
     pl = out;
   }
