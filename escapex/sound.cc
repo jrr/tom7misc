@@ -8,7 +8,7 @@ bool Sound::enabled() { return false; }
 void Sound::mute(bool b) { }
 void Sound::init() { }
 void Sound::shutdown() { }
-void Sound::play(sound_t s) { }
+void Sound::Play(sound_t s) { }
 
 #else
 
@@ -54,7 +54,7 @@ void Sound::init() {
 
 }
 
-void Sound::play(sound_t s) {
+void Sound::Play(sound_t s) {
   //  printf(" avail: %d muted: %d\n", sound_available?1:0, sound_muted?1:0);
   if (sound_available && !sound_muted) {
     Mix_PlayChannel(-1, sound_data[s], 0);

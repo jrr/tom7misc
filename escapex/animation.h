@@ -265,7 +265,7 @@ struct AnSound : public Animation {
   sound_t s;
   AnSound(sound_t s_) : s(s_) {}
   bool think(unsigned int now) override {
-    Sound::play(s);
+    Sound::Play(s);
     return true;
   }
 

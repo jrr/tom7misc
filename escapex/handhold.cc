@@ -33,7 +33,7 @@ static bool hh_write() {
 		   sizes(hh_lastupgrade));
 }
 
-void handhold::init() {
+void HandHold::init() {
   string hh = util::readfilemagic(HANDHOLD_FILE, HANDHOLD_MAGIC);
   
   unsigned int idx = strlen(HANDHOLD_MAGIC);
@@ -50,7 +50,7 @@ void handhold::init() {
   }
 }
 
-void handhold::firsttime() {
+void HandHold::firsttime() {
   Message::quick(0,
 		 GREEN "Welcome to Escape!\n"
 		 "\n"
@@ -80,22 +80,22 @@ void handhold::firsttime() {
 }
 
 
-void handhold::did_update() {
+void HandHold::did_update() {
   hh_lastupdate = time(0);
   hh_write();
 }
 
-void handhold::did_upgrade() {
+void HandHold::did_upgrade() {
   hh_lastupgrade = time(0);
   hh_write();
 }
 
 
-bool handhold::recommend_update() {
+bool HandHold::recommend_update() {
   return hh_ok && (hh_lastupdate < (time(0) - UPDATE_INTERVAL));
 }
 
-bool handhold::recommend_upgrade() {
+bool HandHold::recommend_upgrade() {
 # ifdef MULTIUSER
   return false;
 # else

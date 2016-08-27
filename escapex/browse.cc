@@ -587,7 +587,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
   /* get (just) the index for this dir, which allows us to
      look up ratings. note that there may be no index. */
-  DirIndex *thisindex = 0;
+  DirIndex *thisindex = nullptr;
   cache->getidx(where, thisindex);
 
 
@@ -630,7 +630,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	  i++;
 	} else {
 	  int ttt, sss;
-	  DirIndex *iii = 0;
+	  DirIndex *iii = nullptr;
 
 	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
 	  if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
@@ -684,7 +684,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 	    /* first one didn't verify, but we should reorder
 	       solutions so that one does, if possible */
 
-	    solset *no = 0;
+	    solset *no = nullptr;
 	    
 	    while (sols) {
 	      /* not trying bookmarks */
@@ -699,7 +699,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 		/* get tail */
 		sols = sols->next;
 
-		solset *yes = 0;
+		solset *yes = nullptr;
 		
 		/* put the current tail there, cloning */
 		while (sols) {

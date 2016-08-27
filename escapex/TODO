@@ -23,14 +23,13 @@ When using the virtual implementation idiom, the "real" class
 can be defined in an anonymous namespace.
 
 code cleanup
- - dos2unix on all source files again: leveldb-query.h
  - untabify all source
  - delete trailing whitespace
  - capitalize class names
+     - editor
      - grep 'struct [a-z]' *.h | grep -v '_t'
  - standardize on Class_ rather than classreal for private implementation
  - replace vallist with deque or vector; it's not used in that many places
- - move load.h to loadlevel.h
  - hash should be 64-bit, should not cast c_str() to hash strings because
    no guarantee that they have enough data
 

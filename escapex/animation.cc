@@ -1026,7 +1026,7 @@ void Animation::start(drawing &dr,
 
     int xx, yy;
 
-    AFrame *frames = 0;
+    AFrame *frames = nullptr;
     sound_t s = S_ERROR;
     switch (al->what) {
     default: frames = frames_error; break;
@@ -1055,7 +1055,7 @@ void Animation::start(drawing &dr,
     int xx, yy;
 
     if (dr.onscreen(aj->x, aj->y, xx, yy)) {
-      AFrame *frames = 0;
+      AFrame *frames = nullptr;
       switch (aj->what) {
 #define JUICEFRAME(DD, dd) \
           case T_ ## DD: frames = frames_juice_ ## dd; break;
@@ -1655,14 +1655,14 @@ void Animation::start(drawing &dr,
       /* -------------- new version ------------------ */
       int overlapy = 0;
 
-      Animation *af = 0;
+      Animation *af = nullptr;
 
       switch (aw->entt) {
 
 #     define INPLACE(entcase, olap, basename)            \
       case entcase: {                                    \
 	overlapy = olap;                                 \
-        AFrame *wa = 0;                                 \
+        AFrame *wa = nullptr;                                 \
 	switch (aw->d) {                                  \
 	 default:                                        \
 	 case DIR_UP: wa = basename ## backward; break;  \

@@ -18,9 +18,9 @@
 font *fon;
 font *fonsmall;
 
-SDL_Surface **drawing::tiles = 0;
-SDL_Surface **drawing::tilesdim = 0;
-SDL_Surface **drawing::tileutil = 0;
+SDL_Surface **drawing::tiles = nullptr;
+SDL_Surface **drawing::tilesdim = nullptr;
+SDL_Surface **drawing::tileutil = nullptr;
 
 /* the bottom of the load screen gives a preview of each level. This
    indicates the maximum width and height (in tiles) shown. */
@@ -107,7 +107,7 @@ void drawing::drawguy(dir d,
 
   if (!surf) surf = screen;
 
-  SDL_Surface *s = 0;
+  SDL_Surface *s = nullptr;
 
   if (dead && !zoomfactor) {
     /* just one dead frame */
@@ -137,7 +137,7 @@ void drawing::drawbot(bot b, dir d,
 
   if (!surf) surf = screen;
 
-  SDL_Surface *s = 0;
+  SDL_Surface *s = nullptr;
   int overlapy = 0;
 
   switch (b) {

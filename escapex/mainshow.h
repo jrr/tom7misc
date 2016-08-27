@@ -9,7 +9,7 @@
 #include "prefs.h"
 #include "chars.h"
 #include "client.h"
-#include "load.h"
+#include "loadlevel.h"
 #include "message.h"
 #include "play.h"
 #include "generator.h"

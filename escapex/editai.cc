@@ -13,7 +13,7 @@
 #include "util.h"
 #include "edit.h"
 
-#include "load.h"
+#include "loadlevel.h"
 
 #include "message.h"
 #include "analysis.h"

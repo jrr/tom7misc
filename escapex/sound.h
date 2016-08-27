@@ -25,7 +25,7 @@ struct Sound {
 
   /* play sound s asynchronously.
      won't play if muted or disabled */
-  static void play(sound_t s);
+  static void Play(sound_t s);
 
   /* okay to call even if sound initialization failed */
   static void shutdown();

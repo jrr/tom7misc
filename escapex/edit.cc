@@ -14,7 +14,7 @@
 #include "util.h"
 #include "edit.h"
 
-#include "load.h"
+#include "loadlevel.h"
 #include "../cc-lib/md5.h"
 
 #include "message.h"
@@ -722,8 +722,7 @@ void editor::playlev() {
   /* XXX check result for 'exit' */
   fixup();
   
-  play *pla = play::create();
-  Extent<play> ep(pla);
+  std::unique_ptr<Play> pla{Play::Create()};
   
   /* grab md5 in case player makes bookmarks */
   string md5 = MD5::Hash(dr.lev->tostring());
@@ -756,7 +755,7 @@ void editor::resize() {
   okay ok;
   ok.text = "Change Size";
   
-  PtrList<MenuItem> *l = 0;
+  PtrList<MenuItem> *l = nullptr;
 
   PtrList<MenuItem>::push(l, &ok);
   PtrList<MenuItem>::push(l, &theight);

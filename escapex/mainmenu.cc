@@ -7,7 +7,7 @@
 #include "prefs.h"
 #include "chars.h"
 #include "client.h"
-#include "load.h"
+#include "loadlevel.h"
 #include "message.h"
 #include "play.h"
 #include "handhold.h"
@@ -97,7 +97,7 @@ struct mmreal : public MainMenu, public Drawable {
     if (tutorial_left &&
 	tutorial_nextlev != "") {
 	  
-      play::playrecord(tutorial_nextlev, pp, false);
+      Play::playrecord(tutorial_nextlev, pp, false);
       compute_tutorial();
 	    
     } else {
@@ -151,7 +151,7 @@ void mmentry::draw(int x, int y, bool sel) {
 # ifndef MULTIUSER
   case MM_UPGRADE:
     drawing::drawtileu(sxi, y, TU_3, 0, screen);
-    if (handhold::recommend_upgrade())
+    if (HandHold::recommend_upgrade())
       fon->draw(sxr, ctry, RECOMMENDED_TEXT);
 
     fon->draw(sx, ctry, "Upgrade Escape from internet.");
@@ -161,7 +161,7 @@ void mmentry::draw(int x, int y, bool sel) {
   case MM_UPDATE:
     drawing::drawtileu(sxi, y, TU_4, 0, screen);
     /* don't show more than one recommendation */
-    if (handhold::recommend_update() && !handhold::recommend_upgrade())
+    if (HandHold::recommend_update() && !HandHold::recommend_upgrade())
       fon->draw(sxr, ctry, RECOMMENDED_TEXT);
 
     fon->draw(sx, ctry, "Get new levels from internet.");

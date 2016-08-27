@@ -201,7 +201,7 @@ bool playerreal::hassolution(string md5, Solution *what) {
 }
 
 PtrList<Solution> *playerreal::all_solutions() {
-  PtrList<Solution> *l = 0;
+  PtrList<Solution> *l = nullptr;
 
   for (int i = 0; i < sotable->allocated; i++) {
     PtrList<hashsolsetentry> *col = sotable->data[i];
@@ -499,6 +499,9 @@ bool playerreal::writef_text(string file) {
 	 tmp; 
 	 tmp = tmp->next) {
       string md5ascii = MD5::Ascii(tmp->head->md5).c_str();
+      fprintf(f, "%s %s\n",
+	      md5ascii.c_str(),
+	      Base64::Encode(tmp->head->rat->tostring()).c_str());
     }
   }
 

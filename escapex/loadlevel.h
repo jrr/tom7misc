@@ -1,6 +1,6 @@
 
-#ifndef __LOAD_H
-#define __LOAD_H
+#ifndef __LOADLEVEL_H
+#define __LOADLEVEL_H
 
 #include "escapex.h"
 #include "font.h"
