@@ -4,7 +4,7 @@
 */
 
 /* sorry about this.
-   
+
    because we want to use this code twice, once in highly
    optimiz(able) form for use on the server and in non-interactive
    solution verification, and once in interactive form, returning
@@ -18,6 +18,16 @@
    plain ol' move.
 */
 
+// Notes for templatizing this thing, 2016:
+// Two goals overall:
+//   - efficient version of move() that doesn't pay for animation
+//   - ability to compile level without dependency on SDL.
+//
+// ...
+// Before I started on 27 Aug 2016, tom7 had 1282/2509 Triage levels solved,
+// and 485/803 minor leagues, plus obviously 34/34 regressions and 22/22
+// official levels.
+
 /* pushmove is used like this:
    XXX why is this called pushmove??
 
@@ -29,7 +39,7 @@
 */
 
 /* Capabilities of entities (players and bots). */
-   
+
 #ifndef GUYCAP
 # define CAP_ISPLAYER 1
 # define CAP_CANTELEPORT 2
@@ -125,10 +135,10 @@
 # define POSTAFFECTENT POSTAFFECTENTEX(enti)
 
 # define PUSHMOVE(type, var) {        \
-    aevent *a ## var = new aevent;   \
+    aevent *a ## var = new aevent;    \
     *etail = new alist(a ## var, 0);  \
     etail = &((*etail)->next);        \
-    a ## var->serial = ctx->serial;   \
+    a ## var->serial = ctx->Serial(); \
     a ## var->t = tag_ ## type;       \
     type ## _t *var = &(a ## var->u. type);
 
@@ -331,7 +341,7 @@
 
 /* must call this whenever a bot steps
    onto a tile where there might be other
-   bots. (walking atop one, or teleporting) 
+   bots. (walking atop one, or teleporting)
 
    we assume that there is at most ONE other
    bot, by invariant (which this function restores).
@@ -424,7 +434,7 @@ static void postanimate(Level *l, Disamb *ctx,
 #endif
 
 #ifdef ANIMATING_MOVE
- void Level::bombsplode_animate(int now, 
+ void Level::bombsplode_animate(int now,
                 int b, Disamb *ctx, alist *&events,
                 alist **& etail) {
 #else
@@ -526,7 +536,7 @@ static void postanimate(Level *l, Disamb *ctx,
        XXX animate this!
     */
     guyd = d;
-   
+
     /* player always moves first */
     bool m;
     #ifdef AM
@@ -569,7 +579,7 @@ static void postanimate(Level *l, Disamb *ctx,
           continue;
 
     } else
-        switch (bott[b]) {        
+        switch (bott[b]) {
           /* nb, not isbomb */
           case B_BOMB_X:
              /* disappear */
@@ -584,7 +594,7 @@ static void postanimate(Level *l, Disamb *ctx,
           case B_DALEK: {
             /* dalek always moves towards player, favoring
                left/right movement */
-            
+
             if (x == guyx) {
               /* same column? move up/down */
               if (y < guyy) bd = DIR_DOWN;
@@ -609,9 +619,9 @@ static void postanimate(Level *l, Disamb *ctx,
           default: bd = DIR_NONE;
           break;
         }
-        
+
         if (bd != DIR_NONE) {
-          bool bm = 
+          bool bm =
           #ifdef AM
             moveent_animate(bd, b, bc, x, y,
                             events, ctx, etail);
@@ -640,8 +650,8 @@ static void postanimate(Level *l, Disamb *ctx,
 
 #ifdef ANIMATING_MOVE
   bool Level::moveent_animate(dir d, int enti,
-                              unsigned int cap, int entx, int enty, 
-                              alist *&events, Disamb *ctx, 
+                              unsigned int cap, int entx, int enty,
+                              alist *&events, Disamb *ctx,
                               alist **& etail) {
   //  printf("==== entity %d's turn\n", enti);
 #else
@@ -668,7 +678,7 @@ static void postanimate(Level *l, Disamb *ctx,
     case T_ROUGH:
     case T_BDOWN:
     case T_RDOWN:
-    case T_GDOWN: 
+    case T_GDOWN:
 
     /* panels are mostly the same */
     case T_PANEL: {
@@ -707,9 +717,9 @@ static void postanimate(Level *l, Disamb *ctx,
         if (travel(newx, newy, d, farx, fary)) {
            int ftarget = tileat(farx, fary);
            switch (ftarget) {
-             case T_ELECTRIC: 
+             case T_ELECTRIC:
                 /* only bots pushed into electric */
-                if (pushent == -1) return false; 
+                if (pushent == -1) return false;
                 else break;
              case T_TRAP2:
              case T_TRAP1:
@@ -799,7 +809,7 @@ static void postanimate(Level *l, Disamb *ctx,
            if (swapsrc) {
               (void)AFFECTI(destat(srcx, srcy));
               SWAPO(destat(srcx, srcy));
-           }  
+           }
 
            /* pushed ent is stepping onto new panel, perhaps */
            if (ftarget == T_PANEL) {
@@ -821,7 +831,7 @@ static void postanimate(Level *l, Disamb *ctx,
         //        printf("first ent is at %d/%d\n", entx, enty);
 
         /* might have stepped onto bot */
-        CHECKBOTDEATH(newx, newy, enti);        
+        CHECKBOTDEATH(newx, newy, enti);
 
         /* panel actions */
         //        printf(" %d   Checkstepoff...\n", enti);
@@ -833,7 +843,7 @@ static void postanimate(Level *l, Disamb *ctx,
 
 
         if (target == T_PANEL) {
-          // printf(" %d   step on panel...\n", enti);   
+          // printf(" %d   step on panel...\n", enti);
           (void)AFFECTI(destat(newx, newy));
           SWAPO(destat(newx, newy));
         }
@@ -894,7 +904,7 @@ static void postanimate(Level *l, Disamb *ctx,
       int opp = (target == T_0 ? T_1 : T_0);
 
       SWAPTILES(T_UD, T_LR, 0);
-     
+
       (void)AFFECT(newx, newy);
       settile(newx, newy, opp);
       BUTTON(newx, newy, target);
@@ -953,7 +963,7 @@ static void postanimate(Level *l, Disamb *ctx,
       }
       #endif
 
-      int goldx = newx, goldy = newy;      
+      int goldx = newx, goldy = newy;
 
       /* remove gold block */
       (void)AFFECT(goldx, goldy);
@@ -987,7 +997,7 @@ static void postanimate(Level *l, Disamb *ctx,
     bool did = AFFECT(goldx, goldy);
     printf("%d %d: %s %d %d\n", goldx, goldy, did?"did":"not",
            ctx->serialat(goldx, goldy),
-           ctx->serial);
+           ctx->Serial());
 #endif
     // AFFECT(goldx, goldy);
       }
@@ -1020,7 +1030,7 @@ static void postanimate(Level *l, Disamb *ctx,
         bool doswapt = false;
         if (Level::triggers(target, landon)) {
           doswapt = true;
-        }  
+        }
 
         /* XXX may have already affected this
            if the gold block didn't move at all */
@@ -1028,6 +1038,7 @@ static void postanimate(Level *l, Disamb *ctx,
         settile(goldx, goldy, target);
 
         bool zapped = false;
+        (void)zapped;
         if (landon == T_ELECTRIC) {
           /* gold zapped. however, if the
              electric was the target of a panel
@@ -1120,7 +1131,7 @@ static void postanimate(Level *l, Disamb *ctx,
 
     /* careful: the order in which swaps happen
        matters, because an earlier pulse could
-       block beams for a later one (by raising floor). 
+       block beams for a later one (by raising floor).
        So we have to save up the effects and then
        perform them all at once at the end. (Panel
        swaps from remotes are last as always.)
@@ -1130,7 +1141,7 @@ static void postanimate(Level *l, Disamb *ctx,
 
       /* We want the wires to only glow if they are connected to
          something, so the function ''isconnected'' will tell us
-         if a pulse will succeed in hitting something. 
+         if a pulse will succeed in hitting something.
 
          After that, in each successful direction we trace out
          and animate. We also remember the effects; these all
@@ -1256,8 +1267,8 @@ static void postanimate(Level *l, Disamb *ctx,
         do {
            int ta = tileat(pulsex, pulsey);
                    // printf(" ... at %d/%d: %d\n", pulsex, pulsey, ta);
-           if (!allowbeam(ta) || 
-               botat(pulsex, pulsey) || 
+           if (!allowbeam(ta) ||
+               botat(pulsex, pulsey) ||
                playerat(pulsex, pulsey)) {
               /* hit something. is it a transponder? */
               if (ta == T_TRANSPONDER) {
@@ -1266,8 +1277,8 @@ static void postanimate(Level *l, Disamb *ctx,
                the pulse loop */
                         #ifdef AM
               LITEWIRE(pulsex, pulsey, targ, pd, dist);
-              TRANSPONDERBEAM(pulsex, pulsey, 
-                                      transx, transy, 
+              TRANSPONDERBEAM(pulsex, pulsey,
+                                      transx, transy,
                       pd, dist);
             #endif
               } else {
@@ -1357,12 +1368,12 @@ static void postanimate(Level *l, Disamb *ctx,
         { int x, y; where(t->target, x, y);
           if (0) printf("(was %d %d) ",
                         ctx->serialat(x, y),
-                        ctx->serial);
+                        ctx->Serial());
           bool did = AFFECTI(t->target);
-          if (0) printf("%d=%d,%d: %s %d %d\n", 
-                        t->target, x, y, did?"did":"not", 
-                        ctx->serialat(x, y), 
-                        ctx->serial);
+          if (0) printf("%d=%d,%d: %s %d %d\n",
+                        t->target, x, y, did?"did":"not",
+                        ctx->serialat(x, y),
+                        ctx->Serial());
           // AFFECTI(t->target);
         }
         #endif
@@ -1416,17 +1427,17 @@ static void postanimate(Level *l, Disamb *ctx,
       } else return false;
     }
 
-    case T_STEEL: 
+    case T_STEEL:
     case T_RSTEEL:
     case T_GSTEEL:
     case T_BSTEEL: {
-    
+
     /* three phases. first, see if we can push this
-       whole column one space. 
+       whole column one space.
 
        if so, generate animations.
 
-       then, update panel states. this is tricky. */  
+       then, update panel states. this is tricky. */
 
     int destx = newx, desty = newy;
     {
@@ -1448,6 +1459,7 @@ static void postanimate(Level *l, Disamb *ctx,
     /* what did we hit? */
     int hittile;
     bool zap = false;
+    (void)zap;
     switch (hittile = tileat(destx, desty)) {
     /* nb if we "hit" steel, then it's steel to the edge of the
        level, so no push. */
@@ -1468,7 +1480,7 @@ static void postanimate(Level *l, Disamb *ctx,
        [ ][S][S][S][S][ ]
            ^
            steels
-           starting at newx,newy 
+           starting at newx,newy
 
         d  ---->
     */
@@ -1540,7 +1552,7 @@ static void postanimate(Level *l, Disamb *ctx,
 
        Because these swaps are supposed to be delayed, we
        set the TF_TEMP flag if the tile should do a swap
-       afterwards. 
+       afterwards.
     */
 
     bool swapnew = false;
@@ -1641,7 +1653,7 @@ static void postanimate(Level *l, Disamb *ctx,
     case T_NW:
     case T_SE:
     case T_SW:
-    case T_WE: 
+    case T_WE:
 
     case T_LR:
     case T_UD:
@@ -1666,7 +1678,9 @@ static void postanimate(Level *l, Disamb *ctx,
 
     bool doswap = false;
     bool zap = false;
+    (void)zap;
     bool hole = false;
+    (void)hole;
     int destx, desty;
 
 
@@ -1676,7 +1690,7 @@ static void postanimate(Level *l, Disamb *ctx,
       if (travel(newx, newy, d, destx, desty)) {
 
         int destt = tileat(destx, desty);
-        if (playerat(destx, desty) || botat(destx, desty)) 
+        if (playerat(destx, desty) || botat(destx, desty))
            return false;
         switch (destt) {
         case T_FLOOR:
@@ -1697,7 +1711,7 @@ static void postanimate(Level *l, Disamb *ctx,
             settile(destx, desty, T_FLOOR);
             settile(newx, newy, replacement);
             hole = true;
-            break; 
+            break;
           } else return(false);
         /* all panels are pretty much the same */
         case T_BPANEL:
@@ -1726,7 +1740,7 @@ static void postanimate(Level *l, Disamb *ctx,
     PUSHED(d, target, newx, newy, replacement, zap, hole);
     WALKED(d, true);
 
-    CHECKSTEPOFF(entx, enty);     
+    CHECKSTEPOFF(entx, enty);
 
     SETENTPOS(newx, newy);
 
@@ -1741,7 +1755,7 @@ static void postanimate(Level *l, Disamb *ctx,
     case T_HEARTFRAMER:
     /* only the player can pick up
        heart framers */
-    if (botat(newx, newy) || 
+    if (botat(newx, newy) ||
         playerat(newx, newy)) return false;
     if (cap & CAP_HEARTFRAMERS) {
       (void)AFFECT(newx, newy);
@@ -1754,7 +1768,7 @@ static void postanimate(Level *l, Disamb *ctx,
       GETHEARTFRAMER(newx, newy);
 
       /* any heart framers left? */
-      
+
       if (!hasframers()) {
         for (int y = 0; y < h; y++) {
           for (int x = 0; x < w; x++) {
@@ -1764,8 +1778,8 @@ static void postanimate(Level *l, Disamb *ctx,
              /* better anim, like exclamation mark */
              // TOGGLE(x, y, T_SLEEPINGDOOR, T_EXIT);
              WAKEUPDOOR(x, y);
-             settile(x, y, T_EXIT); 
-           } 
+             settile(x, y, T_EXIT);
+           }
           }
         }
 
@@ -1819,9 +1833,9 @@ static void postanimate(Level *l, Disamb *ctx,
         playerat(newx, newy)) return false;
     /* some bots are stupid enough
        to zap themselves */
-      if (enti != -1 && 
+      if (enti != -1 &&
           (cap & CAP_ZAPSELF)) {
-        
+
         (void)AFFECT(newx, newy);
         PREAFFECTENT;
         POSTAFFECTENT;
@@ -1829,7 +1843,7 @@ static void postanimate(Level *l, Disamb *ctx,
 
         /* change where it is */
         boti[enti] = index(newx, newy);
-        
+
         /* then kill it */
         bott[enti] = B_DELETED;
         PREAFFECTENT;
