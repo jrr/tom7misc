@@ -13,7 +13,7 @@ ifdef LINUX
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
 
-OFILES = main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
+OFILES = main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o escapex.o directories.o browse.o ${CCLIBOBJECTS}
 
 default : escape.exe
 
@@ -189,7 +189,7 @@ LIBS=-L/usr/lib
 
 CCLIBOBJECTS=../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/sdl/sdlutil.o ../cc-lib/md5.o ../cc-lib/base64.o
 
-escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
+escape.exe : escapex.o browse.o main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o sdlmain.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o backgrounds.o ${CCLIBOBJECTS}
 	@export MACOSX_DEPLOYMENT_TARGET=${VERSION_TARGET}
 	g++ -arch x86_64 -F${FRAMEWORKS} -framework SDL_mixer -framework SDL_net ${LIBS} -framework SDL -framework OpenGL -framework AGL -framework IOKit -framework Carbon -framework Cocoa ${RPATH} $^ -o escape.exe
 
@@ -323,7 +323,7 @@ LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
 # XXX some of these have moved to cc-lib
-ESCOBJECTS= main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o prime.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
+ESCOBJECTS= main.o level.o load.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 # XXX
 SDLUTILOBJECTS= ../cc-lib/sdl/sdlutil.o ../cc-lib/sdl/font.o
@@ -342,7 +342,10 @@ CXXFLAGS= -std=c++14 ${OPT}
 #    -Wl,--subsystem,console
 #    -Wl,--subsystem,windows
 # and the former opens the console for useful/annoying debugging info.
-LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,windows ${OPT}  -static
+# SUBSYSTEM=windows
+SUBSYSTEM=windows
+# TODO: Check that SUBSYSTEM=windows when doing a release
+LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}  -static
 
 # -lSDL_mixer
 # at end  -lvorbisfile -lvorbis -logg
@@ -436,6 +439,7 @@ mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
 
 CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 mkupgrade.exe
 	strip escape.exe
+	strip replace.exe
 	./mkupgrade.exe releasefiles.win32 symlinks.win32 deletefiles.win32 > UPGRADE
 	./mkupgrade.exe -v > CURRENT
 
@@ -465,6 +469,7 @@ escape-beta.zip : ${RELEASEFILES} makefile
 	mv tmp_escapezip/$@ .
 # 	optional, improves size using zopfli. advancemame.it
 	./advzip.exe -4 -z $@
+	rm -rf tmp_escapezip
 
 zipup : escape-beta.zip
 	echo "Note, if pscp doesn't work under mingw, you"

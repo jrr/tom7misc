@@ -1,8 +1,18 @@
+2016-08-27  Tom 7  <Tom@RIVERCITY>
+
+        * md5.cc: Fixed bug where solutions weren't stored correctly.
+          You can paste the "-- ratings" selection from an old .esp
+          file or backup into your new .esp file in order to get
+          solutions back. A solution that starts with 0123456789abcdef
+          is buggy and won't correspond to any level.
+
 2016-08-21  Tom 7  <Tom@RIVERCITY>
 
         * makefile: Updated build process on Windows and Linux as well.
           Escape is now 64-bit everywhere. Using "Beta 5" moniker now.
           Aggressively compressed graphics.
+
+        * makefile: Fixed console appearing on win32.
 
 2016-07-29  Tom 7  <tom7@...>
 

@@ -667,7 +667,7 @@ void drawing::drawsmall(int y,
 			int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
 			RateStatus *votes,
-			rating *myrating,
+			Rating *myrating,
 			int date, int speedrecord) {
 
   if (!l) {

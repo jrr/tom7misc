@@ -9,20 +9,18 @@ struct Player;
 /* some slack for later... */
 #define RATINGBYTES 6
 
-struct rating {
+struct Rating {
   string tostring();
   
-  static rating *fromstring(string);
+  static Rating *FromString(const string &s);
 
-  static rating *create();
+  static Rating *Create();
 
-  void destroy();
-
-  int difficulty;
-  int style;
-  int rigidity;
+  int difficulty = 0;
+  int style = 0;
+  int rigidity = 0;
   /* should only be true if same player has solved */
-  int cooked;
+  int cooked = 0;
 };
 
 

@@ -26,7 +26,8 @@ static constexpr int HASHSIZE = 512;
 /* give some leeway for future expansion */
 #define IGNORED_FIELDS 8
 
-// TODO: Maybe namedsolution should be in its own file to simplify player interface.
+// TODO: Maybe namedsolution should be in its own file to simplify
+// player interface.
 NamedSolution *NamedSolution::clone() {
   return new NamedSolution(sol->clone(), name, author, date, bookmark);
 }
@@ -122,11 +123,11 @@ struct hashsolsetentry {
 
 struct hashratentry {
   string md5;
-  rating *rat;
+  Rating *rat;
   static unsigned int hash(string k);
   string key() { return md5; }
-  void destroy() { rat->destroy(); delete this; }
-  hashratentry(string m, rating *r) : md5(m), rat(r) {}
+  void destroy() { delete rat; delete this; }
+  hashratentry(string m, Rating *r) : md5(m), rat(r) {}
   static int compare(hashratentry *l, hashratentry *r) {
     return l->md5.compare(r->md5);
   }
@@ -139,9 +140,9 @@ struct playerreal : public Player {
 
   Solution *getsol(string md5);
 
-  rating *getrating(string md5);
+  Rating *getrating(string md5);
   
-  void putrating(string md5, rating *rat);
+  void putrating(string md5, Rating *rat);
 
   bool writefile();
 
@@ -289,14 +290,15 @@ void playerreal::setsolutionset(string md5, NSList *ss) {
 }
 
 
-rating *playerreal::getrating(string md5) {
+Rating *playerreal::getrating(string md5) {
   hashratentry *re = ratable->lookup(md5);
   
   if (re) return re->rat;
-  else return 0;
+  else return nullptr;
 }
 
-void playerreal::addsolution(string md5, NamedSolution *ns, bool def_candidate) {
+void playerreal::addsolution(string md5, NamedSolution *ns,
+			     bool def_candidate) {
   hashsolsetentry *he = sotable->lookup(md5);
 
   if (he && he->solset) {
@@ -345,13 +347,12 @@ void playerreal::addsolution(string md5, NamedSolution *ns, bool def_candidate) 
   }
 }
 
-void playerreal::putrating(string md5, rating *rat) {
-
+void playerreal::putrating(string md5, Rating *rat) {
   hashratentry *re = ratable->lookup(md5);
 
   if (re && re->rat) {
     /* overwrite */
-    re->rat->destroy();
+    delete re->rat;
     re->rat = rat;
   } else ratable->insert(new hashratentry(md5, rat));
 
@@ -492,18 +493,15 @@ bool playerreal::writef_text(string file) {
 
   /* ditto... */
 
-  {
-  for (int ii = 0; ii < ratable->allocated; ii++) {
-    PtrList<hashratentry>::sort(hashratentry::compare, ratable->data[ii]);
-    for (PtrList<hashratentry> *tmp = ratable->data[ii]; 
-	tmp; 
-	tmp = tmp->next) {
-      fprintf(f, "%s %s\n",
-	      MD5::Ascii(tmp->head->md5).c_str(),
-	      Base64::Encode(tmp->head->rat->tostring()).c_str());
+  for (int i = 0; i < ratable->allocated; i++) {
+    PtrList<hashratentry>::sort(hashratentry::compare, ratable->data[i]);
+    for (PtrList<hashratentry> *tmp = ratable->data[i]; 
+	 tmp; 
+	 tmp = tmp->next) {
+      string md5ascii = MD5::Ascii(tmp->head->md5).c_str();
     }
   }
-  }
+
   fprintf(f, PREFMARKER "\n");
 
   /* write chunks */
@@ -542,40 +540,40 @@ playerreal *playerreal::fromfile_text(string fname, CheckFile *cf) {
   if (!cf->getline(p->name)) FF_FAIL("player name");
 
   /* expect solution marker now */
-  if (!cf->getline(s) || s != SOLMARKER) FF_FAIL ("solution marker");
+  if (!cf->getline(s) || s != SOLMARKER) FF_FAIL("solution marker");
 
   /* now read solutions until -- ratings */
 
   for ( ;; ) {
     string l;
-    if (!cf->getline(l)) FF_FAIL ("expected solution");
+    if (!cf->getline(l)) FF_FAIL("expected solution");
     
     /* maybe this is the end? */
     if (l == RATMARKER) break;
     
     string mda = util::chop(l);
     string md;
-    if (!MD5::UnAscii(mda, md)) FF_FAIL (((string)"bad md5 " + mda).c_str());
-
+    if (!MD5::UnAscii(mda, md)) FF_FAIL(((string)"bad md5 " + mda).c_str());
+    
     string next = util::chop(l);
     
     if (next == "*") {
       /* default first */
       string solstring = Base64::Decode(util::chop(l));
       NamedSolution *ns = NamedSolution::fromstring(solstring);
-      if (!ns) FF_FAIL ("bad namedsolution");
+      if (!ns) FF_FAIL("bad namedsolution");
 
       NSList *solset = new NSList(ns, 0);
       NSList **etail = &solset->next;
       
       /* now, any number of other solutions */
       for (;;) {
-	if (!cf->getline(l)) FF_FAIL ("expected more solutions");
+	if (!cf->getline(l)) FF_FAIL("expected more solutions");
 	string tok = util::chop(l);
 	if (tok == "!") break;
 	else {
 	  NamedSolution *ns = NamedSolution::fromstring(Base64::Decode(tok));
-	  if (!ns) FF_FAIL ("additional solution was bad");
+	  if (!ns) FF_FAIL("additional solution was bad");
 	  /* and append it */
 	  *etail = new NSList(ns, 0);
 	  etail = &((*etail)->next);
@@ -589,7 +587,7 @@ playerreal *playerreal::fromfile_text(string fname, CheckFile *cf) {
       /* old style singleton solutions */
       string solstring = Base64::Decode(next);
       Solution *sol = Solution::fromstring(solstring);
-      if (!sol) FF_FAIL ("bad oldstyle solution");
+      if (!sol) FF_FAIL("bad oldstyle solution");
       NamedSolution ns(sol, "Untitled", p->name, 0);
       p->addsolution(md, &ns, false);
       sol->destroy();
@@ -600,17 +598,17 @@ playerreal *playerreal::fromfile_text(string fname, CheckFile *cf) {
 
   for ( ;; ) {
     string l;
-    if (!cf->getline(l)) FF_FAIL ("expected rating");
+    if (!cf->getline(l)) FF_FAIL("expected rating");
 
     if (l == PREFMARKER) break;
 
     string md = util::chop(l);
-    if (!MD5::UnAscii(md, md)) FF_FAIL ("bad rating md5");
+    if (!MD5::UnAscii(md, md)) FF_FAIL("bad rating md5");
 
     string ratstring = Base64::Decode(util::chop(l));
-    rating *rat = rating::fromstring(ratstring);
+    Rating *rat = Rating::FromString(ratstring);
 
-    if (!rat) FF_FAIL ("bad rating");
+    if (!rat) FF_FAIL("bad rating");
 
     /* ignore rest of line */
     p->putrating(md, rat);
@@ -619,51 +617,50 @@ playerreal *playerreal::fromfile_text(string fname, CheckFile *cf) {
   /* already read pref marker */
 
   string cs; 
-  if (!cf->getline(cs)) FF_FAIL ("expected prefs");
+  if (!cf->getline(cs)) FF_FAIL("expected prefs");
   p->ch = Chunks::fromstring(Base64::Decode(cs));
 
-  if (!p->ch) FF_FAIL ("bad prefs");
+  if (!p->ch) FF_FAIL("bad prefs");
 
   return p.release();
 }
 
 
 playerreal *playerreal::FromFile(const string &file) {
-
   CheckFile *cf = CheckFile::create(file);
-  if (!cf) return 0;
+  if (!cf) return nullptr;
   Extent<CheckFile> ecf(cf);
 
   string s;
-  if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return 0;
+  if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return nullptr;
   
   /* binary or text format? */
   if (s == PLAYER_MAGIC) return fromfile_bin(file, cf);
   else if (s == PLAYERTEXT_MAGIC) return fromfile_text(file, cf);
-  else return 0;
+  else return nullptr;
 }  
 
 /* XXX obsolete -- eventually deprecate and disable this */
 playerreal *playerreal::fromfile_bin(string fname, CheckFile *cf) {
   std::unique_ptr<playerreal> p{playerreal::Create("")};
-  if (!p.get()) return 0;
+  if (!p.get()) return nullptr;
   p->fname = fname;
 
   string s;
   int i;
 
-  if (!cf->readint(p->webid)) return 0;
-  if (!cf->readint(p->webseqh)) return 0;
-  if (!cf->readint(p->webseql)) return 0;
+  if (!cf->readint(p->webid)) return nullptr;
+  if (!cf->readint(p->webseqh)) return nullptr;
+  if (!cf->readint(p->webseql)) return nullptr;
 
   /* ignored fields for now */
   for (int z = 0; z < IGNORED_FIELDS; z++) {
-    if (!cf->readint(i)) return 0;
+    if (!cf->readint(i)) return nullptr;
   }
   
-  if (!cf->readint(i)) return 0;
-  if (!cf->read(i, p->name)) return 0;
-  if (!cf->readint(i)) return 0;
+  if (!cf->readint(i)) return nullptr;
+  if (!cf->read(i, p->name)) return nullptr;
+  if (!cf->readint(i)) return nullptr;
 
 
   /* i holds number of solutions */
@@ -671,13 +668,13 @@ playerreal *playerreal::fromfile_bin(string fname, CheckFile *cf) {
     string md5;
     int sollen;
     string solstring;
-    if (!cf->read(16, md5)) return 0;
-    if (!cf->readint(sollen)) return 0;
-    if (!cf->read(sollen, solstring)) return 0;
+    if (!cf->read(16, md5)) return nullptr;
+    if (!cf->readint(sollen)) return nullptr;
+    if (!cf->read(sollen, solstring)) return nullptr;
 
     Solution *sol = Solution::fromstring(solstring);
 
-    if (!sol) return 0;
+    if (!sol) return nullptr;
 
     NamedSolution ns(sol, "Untitled", p->name, 0);
     p->addsolution(md5, &ns, false);
@@ -696,11 +693,11 @@ playerreal *playerreal::fromfile_bin(string fname, CheckFile *cf) {
   while (i--) {
     string md5;
     string rastring;
-    if (!cf->read(16, md5)) return 0;
-    if (!cf->read(RATINGBYTES,rastring)) return 0;
-    rating *rat = rating::fromstring(rastring);
+    if (!cf->read(16, md5)) return nullptr;
+    if (!cf->read(RATINGBYTES, rastring)) return nullptr;
+    Rating *rat = Rating::FromString(rastring);
 
-    if (!rat) return 0;
+    if (!rat) return nullptr;
     p->putrating(md5, rat);
   }
 
@@ -717,13 +714,13 @@ playerreal *playerreal::fromfile_bin(string fname, CheckFile *cf) {
   /* otherwise, read the table */
 
   string cs; 
-  if (!cf->read(i, cs)) return 0;
+  if (!cf->read(i, cs)) return nullptr;
   Chunks *cc = Chunks::fromstring(cs);
 
   if (cc) {
     if (p->ch) p->ch->destroy();
     p->ch = cc;
-  } else return 0;
+  } else return nullptr;
 
   return p.release();
 }
