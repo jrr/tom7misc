@@ -39,9 +39,9 @@ void MD5::Init() {
   if (memcmp(s.c_str(), ASDF_HASH, 16)) {
     /* wrong answer. swap bytes */
 #   if 0
-      for(int i = 0; i < 16; i ++) printf("%02x ", 255 & s[i]);
+      for (int i = 0; i < 16; i++) printf("%02x ", 255 & s[i]);
       printf("\n");
-      for(int i = 0; i < 16; i ++) printf("%02x ", 255 & ASDF_HASH[i]);
+      for (int i = 0; i < 16; i++) printf("%02x ", 255 & ASDF_HASH[i]);
       printf("MD5: swapping byte order\n");
 #   endif
 
@@ -70,7 +70,7 @@ static void MD5Transform(uint32 buf[4], uint32 in[16]);
 */
 
 /* swap bytes on LOWFIRST machines */
-static void byteReverse(unsigned char * buf, unsigned longs) {
+static void byteReverse(unsigned char *buf, unsigned longs) {
   if (md5__byteorder == BO_LOWFIRST) {
     uint32 t;
     do {
@@ -285,12 +285,12 @@ static void MD5Transform(uint32 buf[4], uint32 in[16]) {
 }
 
 /* finalize and return a 16-byte string */
-static string md5__result(struct MD5Context * ctx) {
+static string md5__result(struct MD5Context *ctx) {
   unsigned char result[16];
   MD5Final(result, ctx);
   /* initialize a string of the proper length */
   string r = "0123456789ABCDEF";
-  for(int i = 0; i < 16; i ++) r[i] = (char)result[i];
+  for (int i = 0; i < 16; i++) r[i] = (char)result[i];
   return r;
 }
 
@@ -304,7 +304,7 @@ string MD5::Hash(const string &in) {
   return md5__result(&ctx);
 }
 
-string MD5::Hashf(FILE * f) {
+string MD5::Hashf(FILE *f) {
   MD5Context ctx;
   MD5Init(&ctx);
 
@@ -322,11 +322,11 @@ string MD5::Hashf(FILE * f) {
 string MD5::Ascii(const string &s) {
   static constexpr char hd[] = "0123456789abcdef";
   /* XX require specific length? */
-  unsigned int sz = s.length();
+  size_t sz = s.length();
 
   string out(sz * 2, '*');
 
-  for(unsigned int i = 0; i < sz; i ++) {
+  for (size_t i = 0; i < sz; i++) {
     out[i * 2]     = hd[(s[i] >> 4) & 0xF];
     out[i * 2 + 1] = hd[ s[i]       & 0xF];
   }
@@ -336,17 +336,24 @@ string MD5::Ascii(const string &s) {
 
 /* XXX doesn't check each char is 0-9a-fA-f */
 bool MD5::UnAscii(const string &s, string &out) {
-  unsigned int sz = s.length();
+  if (&s == &out) {
+    // Doesn't work if s and out are the same object, so
+    // make a copy and recurse.
+    string cpy = s;
+    return UnAscii(cpy, out);
+  } else {
+    size_t sz = s.length();
 
-  if (sz != 32) return false;
+    if (sz != 32) return false;
 
-  out = "0123456789abcdef";
+    out = "0123456789abcdef";
 
-  for (unsigned int i = 0; i < 16; i ++) {
-    out[i] = 
-      (((s[i * 2] | 4400) % 55) << 4) |
-      ((s[i * 2 + 1] | 4400) % 55);
+    for (size_t i = 0; i < 16; i++) {
+      out[i] = 
+	(((s[i * 2] | 4400) % 55) << 4) |
+	((s[i * 2 + 1] | 4400) % 55);
+    }
+
+    return true;
   }
-
-  return true;
 }
