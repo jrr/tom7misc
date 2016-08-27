@@ -1,12 +1,12 @@
 
 #include "generator.h"
 #include "util.h"
-#include "prime.h"
+#include "primes.h"
 
 Generator::Generator(unsigned int s) : size(s) {
   /* generate a random prime c that does
      not divide size. */
-  c = Prime::relativeto(s);
+  c = Primes::relativeto(s);
 
   /* pick any random starting point */
   x = ((unsigned)util::random()) % size;

@@ -9,8 +9,7 @@
 #include "chunks.h"
 
 /* Database for a single player.
-   Stores his solutions, mainly.
-   Also now stores his ratings.
+   Stores the player's solutions, ratings, and preferences.
 */
 
 /* A named solution might actually solve 
@@ -57,15 +56,15 @@ struct Player {
      the chunks */
   virtual Chunks *getchunks() = 0;
 
-  /* get the default solution (if any) for the map whose md5
+  /* get the default solution (if any) for the level whose md5
      representation is "md5". don't free the solution! */
   virtual Solution *getsol(string md5) = 0;
 
-  virtual rating *getrating(string md5) = 0;
+  virtual Rating *getrating(string md5) = 0;
   
   /* always overwriting an existing rating. 
      there is just one rating per level. */
-  virtual void putrating(string md5, rating *rat) = 0;
+  virtual void putrating(string md5, Rating *rat) = 0;
 
   /* record a change on disk. this will also manage
      backups of the player file. */

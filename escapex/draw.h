@@ -171,7 +171,7 @@ struct drawing {
   static void drawsmall(int y, int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
 			RateStatus *votes,
-			rating *myrating, int date = 0,
+			Rating *myrating, int date = 0,
 			int speedrecord = 0);
 
   /* height of small drawings */

@@ -72,7 +72,7 @@ struct llentry {
   bool corrupted;
 
   /* always owned by player; don't free */
-  rating *myrating;
+  Rating *myrating;
   RateStatus votes;
   int date;
   int speedrecord;
@@ -974,7 +974,7 @@ void LoadLevel_::drawsmall() {
 }
 
 void LoadLevel_::solvefrombookmarks(const string &filename,
-				       bool wholedir) {
+				    bool wholedir) {
   std::unique_ptr<Player> rp{Player::FromFile(filename)};
   if (!rp.get()) {
     Message::quick(this, 

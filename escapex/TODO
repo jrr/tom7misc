@@ -27,12 +27,12 @@ code cleanup
  - untabify all source
  - delete trailing whitespace
  - capitalize class names
-     - rating
      - grep 'struct [a-z]' *.h | grep -v '_t'
  - standardize on Class_ rather than classreal for private implementation
  - replace vallist with deque or vector; it's not used in that many places
- - move Prime to Primes.
  - move load.h to loadlevel.h
+ - hash should be 64-bit, should not cast c_str() to hash strings because
+   no guarantee that they have enough data
 
 make sure there is no 'delete this;' when destroy methods were
 converted to destructors!

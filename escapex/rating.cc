@@ -13,15 +13,11 @@
 #include "commenting.h"
 #include "smanage.h"
 
-void rating::destroy() {
-  delete this;
+Rating *Rating::Create() {
+  return new Rating();
 }
 
-rating *rating::create() {
-  return new rating();
-}
-
-string rating::tostring() {
+string Rating::tostring() {
   /* just use one hex digit for each. */
 
   string r = "aa    ";
@@ -33,12 +29,12 @@ string rating::tostring() {
   return r;
 }
 
-rating *rating::fromstring(string s) {
-  if (s.length() != 6) return 0;
+Rating *Rating::FromString(const string &s) {
+  if (s.length() != 6) return nullptr;
 
-  rating *rat = create();
+  Rating *rat = Create();
 
-  if (!rat) return 0;
+  if (!rat) return nullptr;
 
   rat->difficulty = (s[0] >> 4) & 0xF;
   rat->style = s[0] & 0xF;
@@ -84,7 +80,7 @@ struct RateScreen_ : public RateScreen {
 
   /* current values for the rating. (or 0 if none yet) */
 
-  rating *rat;
+  Rating *rat;
 
 };
 
@@ -244,7 +240,7 @@ void RateScreen_::rate() {
        don't need to free it. putrating will overwrite
        it or create a new one, if necessary. */
 
-    rating *nr = rating::create();
+    Rating *nr = Rating::Create();
 
     nr->difficulty = difficulty.pos;
     nr->style = style.pos;
@@ -282,7 +278,6 @@ void RateScreen_::rate() {
     if (hh) hh->destroy();
 
     if (success) {
-
       int record = util::stoi(res);
       Solution *ours = plr->getsol(levmd5);
       if (plr->webid && ours && ours->length < record) {
@@ -318,7 +313,6 @@ void RateScreen_::rate() {
 
   PtrList<MenuItem>::diminish(l);
   mm->destroy();
-
 }
 
 }  // namespace

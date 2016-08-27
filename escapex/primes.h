@@ -1,8 +1,8 @@
 
-#ifndef __PRIME_H
-#define __PRIME_H
+#ifndef __PRIMES_H
+#define __PRIMES_H
 
-struct Prime {
+struct Primes {
   /* return a random integer relatively prime to x (> 0) */
   static int relativeto(int x);
 
