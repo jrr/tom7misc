@@ -63,7 +63,7 @@ struct Disamb {
 // support.
 struct NullDisamb {
   static NullDisamb *Create(Level *);
-  ~NullDisamb();
+  ~NullDisamb() {};
 
   /* sets everything to serial 0 */
   void clear() {}

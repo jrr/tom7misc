@@ -479,6 +479,8 @@ bool Level::triggers(int tile, int panel) {
   return false;
 }
 
+#include "move2016.h"
+
 
 /* two copies of the move function */
 #undef  ANIMATING_MOVE
