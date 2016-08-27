@@ -762,7 +762,7 @@ static AFrame frames_dalek_teleport_in[] =
     {&Animation::dalek_teleport0, 1, -28, 20},
     {0, 0, 0, 20} };
 
-typedef PtrList<Animation> alist;
+using alist = PtrList<Animation>;
 
 static inline SDL_Surface *FACING_FRAME(dir d, bot entt, int data) {
   switch (entt) {

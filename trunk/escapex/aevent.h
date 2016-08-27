@@ -1,7 +1,7 @@
 #ifndef __AEVENT_H
 #define __AEVENT_H
 
-/* note: include level.h, not this. */
+#include "level-base.h"
 
 /* Defines the types of animation events that can
    occur. These are returned by Level::move_animate

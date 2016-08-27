@@ -1,4 +1,3 @@
-
 #ifndef __LEVEL_H
 #define __LEVEL_H
 
@@ -6,20 +5,14 @@
 #include <cstring>
 #include <string.h>
 
+#include "aevent.h"
+#include "level-base.h"
+#include "disamb.h"
+
 using namespace std;
 
-#define LEVELMAGIC "ESXL"
-
-#define LEVEL_MAX_HEIGHT 100
-#define LEVEL_MAX_WIDTH  100
-#define LEVEL_MAX_AREA   2048
-#define LEVEL_MAX_ROBOTS 15
-#define LEVEL_BOMB_MAX_TIMER 10
-
-typedef int dir;
 
 template<class T> class PtrList;
-class Level;
 
 enum {
   DIR_NONE, DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT,
@@ -152,39 +145,6 @@ enum tile {
   NUM_TILES,
 };
 
-enum bot {
-  B_BROKEN,
-  B_DALEK,
-  B_HUGBOT,
-
-  /* no sleeping broken, since it would be
-     identical to regular broken. */
-  B_DALEK_ASLEEP,
-  B_HUGBOT_ASLEEP,
-
-  /* BOMB_n is a bomb with max timer n. 
-     the bot data indicates the current
-     timer value. */
-  /* explodes immediately after being pushed */
-  B_BOMB_0,
-  /* ... not named ... */
-  B_BOMB_MAX = B_BOMB_0 + LEVEL_BOMB_MAX_TIMER,
-
-  NUM_ROBOTS,
-
-  /* can't place on map, but is used to identify
-     the type of an entity in general */
-  B_PLAYER = -1,
-  /* deleted bots arise from destruction. They
-     are invisible and inert. We can't rearrange
-     the bot list because their indices are used
-     in an essential way as identities. */
-  B_DELETED = -2,
-
-  /* exploded bomb; becomes deleted next turn */
-  B_BOMB_X = -3,
-};
-
 /* optional, since the Escape server wants to be able to
    validate solutions without knowing anything about
    animation. */
@@ -271,61 +231,7 @@ struct Solution {
       append(i.item());
     }
   }
-
-
 };
-
-#ifndef NOANIMATION
-/* disambiguation context.
-   used only within animation; keeps track
-   of where action has occurred on the
-   grid -- if two actions interfere, then
-   we serialize them. 
-   
-   Disambiguation contexts are associated with
-   a particular level and shan't be mixed up!
-*/
-struct Disamb {
-  /* array of serial numbers. */
-  int w, h;
-  unsigned int *map;
-  
-  /* last serial in which the player was updated */
-  unsigned int player;
-  /* same, bots */
-  unsigned int bots[LEVEL_MAX_ROBOTS];
-
-  /* keep track of current serial */
-  unsigned int serial;
-
-  static Disamb *Create(Level *);
-  ~Disamb();
-
-  /* sets everything to serial 0 */
-  void clear();
-
-  /* affect a location. This might
-     cause the serial to increase. Call this
-     before creating the associated animation. Returns true if
-     the serial did increase. */
-  bool affect(int x, int y, Level *l, PtrList<aevent> **& etail);
-  bool affecti(int idx, Level *l, PtrList<aevent> **& etail);
-
-  /* should be paired with calls to 'affect' 
-     for the squares that these things live in */
-  void preaffectplayer(Level *l, PtrList<aevent> **& etail);
-  void preaffectbot(int i, Level *l, PtrList<aevent> **& etail);
-
-  void postaffectplayer();
-  void postaffectbot(int i);
-
-  void serialup(Level *l, PtrList<aevent> **& etail);
-
-  // For debugging
-  int serialat(int x, int y) const { return map[y * w + x]; }
-};
-#endif
-
 
 struct Level {
   string title;
