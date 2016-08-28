@@ -96,6 +96,7 @@ struct button_t { int x; int y; int whatold; };
 struct trap_t { int x; int y; int whatold; };
 
 /* count goes 0...n, where n is the length of the connection */
+// XXX2016: dir is type dir?
 struct litewire_t { int x; int y; int what; int dir; int count; };
 
 struct liteup_t { int x; int y; int what; int delay; };

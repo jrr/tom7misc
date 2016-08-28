@@ -51,7 +51,6 @@ using AList = PtrList<aevent>;
 #undef BUTTON
 #undef TRAP
 #undef PUSHGREEN
-#undef LITEWIRE
 #undef RET
 #undef AFFECT
 #undef AFFECTI
@@ -62,7 +61,6 @@ using AList = PtrList<aevent>;
 #undef WAKEUP
 #undef STANDBOT
 #undef GETHEARTFRAMER
-#undef TRANSPONDERBEAM
 
 /* We need to correctly track the position of
    an entity during a move. We have the variables
@@ -155,14 +153,6 @@ using AList = PtrList<aevent>;
       e->srcy = yy;            \
       e->d = dd;               \
     }
-# define LITEWIRE(xx, yy, wh, pd, cc) \
-   PUSHMOVE(litewire, e)          \
-      e->x = xx;                  \
-      e->y = yy;                  \
-      e->what = wh;               \
-      e->dir = pd;                \
-      e->count = cc;              \
-   }
 # define BOTEXPLODE(botidx)             \
    PUSHMOVE(botexplode, e)              \
     where(boti[botidx], e->x, e->y);    \
@@ -187,15 +177,6 @@ using AList = PtrList<aevent>;
      e->x = xx; e->y = yy;              \
    }
 
-# define TRANSPONDERBEAM(xx, yy, destx, desty, fr, delay) \
-    PUSHMOVE(transponderbeam, e)        \
-      e->x = destx;                     \
-      e->y = desty;                     \
-      e->lx = xx;                       \
-      e->ly = yy;                       \
-      e->from = fr;                     \
-      e->count = delay;                 \
-    }
 #else
 # define SWAPO(idx) swapo(idx)
 # define WALKED(a, b) do { ; } while (0)
@@ -205,7 +186,6 @@ using AList = PtrList<aevent>;
 # define BUTTON(a, b, c) do { ; } while (0)
 # define TRAP(a, b, c) do { ; } while (0)
 # define PUSHGREEN(a, b, c) do { ; } while (0)
-# define LITEWIRE(a, b, c, d, e) do { ; } while (0)
 # define AFFECT(a, b) false
 # define AFFECTI(a) false
 # define PREAFFECTENTEX(a) do { ; } while (0)
@@ -215,7 +195,7 @@ using AList = PtrList<aevent>;
 # define WAKEUP(a, b) do { ; } while (0)
 # define STANDBOT(i) do { ; } while (0)
 # define GETHEARTFRAMER(a, b) do { ; } while (0)
-# define TRANSPONDERBEAM(xx, yy, destx, desty, fr, delay) do { ; } while (0)
+
 #endif
 
 /* helper functions */
@@ -789,259 +769,21 @@ static void postanimate(Level *l, DAB *ctx,
 
     }
 
-    /* careful: the order in which swaps happen
-       matters, because an earlier pulse could
-       block beams for a later one (by raising floor).
-       So we have to save up the effects and then
-       perform them all at once at the end. (Panel
-       swaps from remotes are last as always.)
-    */
     case T_BUTTON: {
-      /* XXX check caps */
-
-      /* We want the wires to only glow if they are connected to
-         something, so the function ''isconnected'' will tell us
-         if a pulse will succeed in hitting something.
-
-         After that, in each successful direction we trace out
-         and animate. We also remember the effects; these all
-         have to happen at the end or else it could matter what
-         order we try the pulses in.
-      */
-
-      /* these are for remote swaps */
-      struct SwapList {
-         int target;
-         SwapList *next;
-         SwapList(int t, SwapList *n) : target(t), next(n) {}
-      };
-      SwapList *remotes = nullptr;
-
-      /* need to delay swaps to the end. */
-      int bswaps = 0, rswaps = 0, gswaps = 0;
-
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
-
-      /* but always push a button pressing anim */
-      (void)AFFECT(newx, newy);
-      BUTTON(newx, newy, T_BUTTON);
-
-      for (dir dd = FIRST_DIR; dd <= LAST_DIR; dd++) {
-      if (
-#ifndef ANIMATING_MOVE
-          /* if animation is off, then don't pre-scan */
-          1 ||
-#endif
-          isconnected(newx, newy, dd)) {
-
-      /* send a pulse in that direction. */
-      int pulsex = newx, pulsey = newy;
-      dir pd = dd;
-
-      int dist = 0;
-
-      while (pd != DIR_NONE &&
-                travel(pulsex, pulsey, pd, pulsex, pulsey)) {
-        int targ = tileat(pulsex, pulsey);
-
-        /* liteup animation if a wire. note: this code
-           would lite up any tile (floor, exit, etc.) except
-           that those are avoided by the pre-scan above. */
-        #ifdef ANIMATING_MOVE
-        switch (targ) {
-           case T_BLIGHT:
-           case T_RLIGHT:
-           case T_GLIGHT:
-           case T_REMOTE:
-             break;
-           default:
-         /* Should affect here, because for example remotes
-            might target some of these wires. But then subsequent
-            wires are delayed because of the delay hack we use.
-            So, if affecting advances the serial, reset the delay.
-                XXX: The result is correct but not desirable; wires
-                pause in the middle of their electricity. Probably
-                should arrange it so it all goes in one shot. */
-             if (AFFECT(pulsex, pulsey)) {
-               dist = 0;
-             }
-             LITEWIRE(pulsex, pulsey, targ, pd, dist);
-             break;
-        }
-        #endif
-
-        dist++;
-
-        switch (targ) {
-        case T_REMOTE:
-          #ifdef ANIMATING_MOVE
-            (void)AFFECT(pulsex, pulsey);
-            PUSHMOVE(liteup, e)
-              e->x = pulsex;
-              e->y = pulsey;
-              e->what = targ;
-              e->delay = dist;
-            }
-          #endif
-          remotes = new SwapList(destat(pulsex, pulsey), remotes);
-
-        /* since this counts as being connected so far, we want to
-           make sure that the circuit continues before animating
-           it ... */
-              if (
-                  #ifndef ANIMATING_MOVE
-                  0 &&
-                  #endif
-                  !isconnected(pulsex, pulsey, pd)) pd = DIR_NONE;
-          continue;
-
-        case T_BLIGHT:
-        case T_RLIGHT:
-        case T_GLIGHT:
-          #ifdef ANIMATING_MOVE
-          (void)AFFECT(pulsex, pulsey);
-          PUSHMOVE(liteup, e)
-            e->x = pulsex;
-            e->y = pulsey;
-            e->what = targ;
-            e->delay = dist;
-          }
-          #endif
-          if (targ == T_BLIGHT) bswaps++;
-          if (targ == T_RLIGHT) rswaps++;
-          if (targ == T_GLIGHT) gswaps++;
-          pd = DIR_NONE;
-          break;
-
-        case T_TRANSPONDER: {
-              // printf("transponder at %d/%d\n", pulsex, pulsey);
-          #ifdef ANIMATING_MOVE
-            int transx = pulsex;
-            int transy = pulsey;
-          #endif
-          if (!travel(pulsex, pulsey, pd, pulsex, pulsey)) {
-            pd = DIR_NONE;
-          } else {
-        /* keep going until we hit another transponder. */
-        do {
-           int ta = tileat(pulsex, pulsey);
-                   // printf(" ... at %d/%d: %d\n", pulsex, pulsey, ta);
-           if (!allowbeam(ta) ||
-               botat(pulsex, pulsey) ||
-               playerat(pulsex, pulsey)) {
-              /* hit something. is it a transponder? */
-              if (ta == T_TRANSPONDER) {
-            /* okay, then we are on the 'old' tile with
-               the direction set, so we're ready to continue
-               the pulse loop */
-                        #ifdef ANIMATING_MOVE
-              LITEWIRE(pulsex, pulsey, targ, pd, dist);
-              TRANSPONDERBEAM(pulsex, pulsey,
-                                      transx, transy,
-                      pd, dist);
-            #endif
-              } else {
-            /* didn't hit transponder! stop. */
-            pd = DIR_NONE;
-              }
-              break;
-           } else {
-              /* in preparation for beam across these squares... */
-              #ifdef ANIMATING_MOVE
-                (void)AFFECT(pulsex, pulsey);
-              #endif
-           }
-           /* otherwise keep going... */
-        } while (travel(pulsex, pulsey, pd, pulsex, pulsey));
-          }
-
-          break;
-            }
-
-        case T_NSWE:
-          /* just keep going in same direction */
-          continue;
-
-        case T_NS:
-          if (pd == DIR_UP || pd == DIR_DOWN) continue;
-          else pd = DIR_NONE;
-          break;
-
-        case T_WE:
-          if (pd == DIR_LEFT || pd == DIR_RIGHT) continue;
-          else pd = DIR_NONE;
-          break;
-
-        case T_NW:
-          if (pd == DIR_DOWN) pd = DIR_LEFT;
-          else if (pd == DIR_RIGHT) pd = DIR_UP;
-          else pd = DIR_NONE;
-          break;
-
-        case T_SW:
-          if (pd == DIR_UP) pd = DIR_LEFT;
-          else if (pd == DIR_RIGHT) pd = DIR_DOWN;
-          else pd = DIR_NONE;
-          break;
-
-        case T_NE:
-          if (pd == DIR_DOWN) pd = DIR_RIGHT;
-          else if (pd == DIR_LEFT) pd = DIR_UP;
-          else pd = DIR_NONE;
-          break;
-
-        case T_SE:
-          if (pd == DIR_UP) pd = DIR_RIGHT;
-          else if (pd == DIR_LEFT) pd = DIR_DOWN;
-          else pd = DIR_NONE;
-          break;
-
-        default: /* any non-wire stops electricity */
-          pd = DIR_NONE;
-          break;
-            }
-          }
-        }
-
-      }
-
-      /* XXX for better results, delay according
-         to the time (push times onto a stack or
-         something) */
-      while (bswaps--) {
-        SWAPTILES(T_BUP, T_BDOWN, 0);
-      }
-
-      while (rswaps--) {
-        SWAPTILES(T_RUP, T_RDOWN, 0);
-      }
-
-      while (gswaps--) {
-        SWAPTILES(T_GUP, T_GDOWN, 0);
-      }
-
-      while (remotes) {
-        SwapList* t = remotes;
-        remotes = remotes->next;
-        #ifdef ANIMATING_MOVE
-        { int x, y; where(t->target, x, y);
-          if (0) printf("(was %d %d) ",
-                        ctx->serialat(x, y),
-                        ctx->Serial());
-          bool did = AFFECTI(t->target);
-          if (0) printf("%d=%d,%d: %s %d %d\n",
-                        t->target, x, y, did?"did":"not",
-                        ctx->serialat(x, y),
-                        ctx->Serial());
-          // AFFECTI(t->target);
-        }
-        #endif
-        SWAPO(t->target);
-        delete t;
-      }
-
-      return(true);
+#            ifdef ANIMATING_MOVE
+               return MoveEntButton<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntButton<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
     case T_BROKEN:
 
