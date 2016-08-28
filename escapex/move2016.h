@@ -469,4 +469,174 @@ bool Level::MoveEntOn(dir d, int enti, Capabilities cap,
   return true;
 }
 
+// Assumes target is one of RSPHERE, GSPHERE, BSPHERE, SPHERE, or GOLD.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
+			    int entx, int enty, int newx, int newy,
+			    DAB *ctx, AList *&events,
+			    AList **&etail) {
+  /* spheres allow pushing in a line:
+     ->OOOO  becomes OOO   ---->O
+
+     so keep traveling while the tile
+     in the destination direction is
+     a sphere of any sort.
+  */
+  const int firstx = newx, firsty = newy;
+  int tnx, tny;
+  while (issphere(tileat(newx, newy)) &&
+	 !(playerat(newx, newy) ||
+	   botat(newx, newy)) &&
+	 travel(newx, newy, d, tnx, tny) &&
+	 issphere(tileat(tnx, tny))) {
+    newx = tnx;
+    newy = tny;
+    target = tileat(tnx, tny);
+  }
+
+  /* can't push if we ran into entity */
+  /* XXX jiggle anyway */
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  if (ANIMATING) {
+    /* if we passed through any spheres,
+       'jiggle' them (even if we don't ultimately push). */
+    if (firstx != newx || firsty != newy) {
+      /* affect whole row */
+      for (int ix = firstx, iy = firsty;
+	   (firstx != newx && firsty != newy);
+	   travel(ix, iy, d, ix, iy)) {
+	AFFECT2016(ix, iy);
+      }
+
+      const int num = abs(newx - firstx) + abs(newy - firsty); 
+      PUSHMOVE2016(jiggle, ([&](jiggle_t *e) {
+	e->startx = firstx;
+	e->starty = firsty;
+	e->d = d;
+	e->num = num;
+      }));
+    }
+  }
+
+  int goldx = newx, goldy = newy;
+
+  /* remove gold block */
+  AFFECT2016(goldx, goldy);
+  const int replacement = (flagat(goldx, goldy) & TF_HASPANEL) ?
+    realpanel(flagat(goldx, goldy)) :
+    T_FLOOR;
+
+  settile(goldx, goldy, replacement);
+
+  int tgoldx, tgoldy;
+
+  while (travel(goldx, goldy, d, tgoldx, tgoldy)) {
+    int next = tileat(tgoldx, tgoldy);
+    if (!(next == T_ELECTRIC ||
+	  next == T_PANEL ||
+	  next == T_BPANEL ||
+	  next == T_RPANEL ||
+	  next == T_GPANEL ||
+	  next == T_FLOOR) ||
+	botat(tgoldx, tgoldy) ||
+	playerat(tgoldx, tgoldy)) break;
+
+    goldx = tgoldx;
+    goldy = tgoldy;
+
+    if (next == T_ELECTRIC) break;
+
+    // Otherwise, going to fly through this spot.
+    if (ANIMATING) {
+      const bool did = ctx->affect(goldx, goldy, this, etail);
+      if (false)
+	printf("%d %d: %s %d %d\n", goldx, goldy, did ? "did" : "not",
+	       ctx->serialat(goldx, goldy),
+	       ctx->Serial());
+    }
+  }
+
+  /* goldx is dest, newx is source */
+  if (goldx != newx ||
+      goldy != newy) {
+    const int landon = tileat(goldx, goldy);
+    const bool doswap = ([&]{
+      /* untrigger from source */
+      if (flagat(newx, newy) & TF_HASPANEL) {
+	const int pan = realpanel(flagat(newx,newy));
+	/* any */
+	/* XXX2016? use Level::triggers here */
+	if (pan == T_PANEL ||
+	    /* colors */
+	    (target == T_GSPHERE &&
+	     pan == T_GPANEL) ||
+	    (target == T_RSPHERE &&
+	     pan == T_RPANEL) ||
+	    (target == T_BSPHERE &&
+	     pan == T_BPANEL)) {
+	  return true;
+	}
+      }
+      return false;
+    }());
+
+    /* only the correct color sphere can trigger
+       the colored panels */
+    const bool doswapt = Level::triggers(target, landon);
+
+    /* XXX may have already affected this
+       if the gold block didn't move at all */
+    AFFECT2016(goldx, goldy);
+    settile(goldx, goldy, target);
+
+    const bool zapped = ([&]{
+      if (landon == T_ELECTRIC) {
+	/* gold zapped. however, if the
+	   electric was the target of a panel
+	   that we just left, the electric has
+	   been swapped into the o world (along
+	   with the gold). So swap there. */
+	settile(goldx, goldy, T_ELECTRIC);
+	return true;
+      }
+      return false;
+    }());
+
+    if (ANIMATING) {
+      const int distance = abs((goldx - newx) + (goldy - newy));
+      PUSHMOVE2016(fly, ([&](fly_t *e) {
+	e->what = target;
+	e->whatunder = replacement;
+	e->srcx = newx;
+	e->srcy = newy;
+	e->d = d;
+	/* number of tiles traveled */
+	e->distance = distance;
+	e->zapped = zapped;
+      }));
+    }
+
+    if (doswapt) {
+      AFFECTI2016(destat(goldx, goldy));
+      SWAPO2016(destat(goldx, goldy));
+    }
+
+    if (doswap) {
+      AFFECTI2016(destat(newx, newy));
+      SWAPO2016(destat(newx, newy));
+    }
+
+    return true;
+
+  } else {
+    /* didn't move; put it back */
+    settile(newx, newy, target);
+
+    /* TODO: animate it when 'stuck' */
+    return false;
+  }
+}
+
 #endif
