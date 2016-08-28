@@ -3,6 +3,10 @@
 #ifndef __MOVE2016_H
 #define __MOVE2016_H
 
+#include "level-base.h"
+#include "aevent.h"
+#include "ptrlist.h"
+
 // Notes for templatizing this thing, 2016:
 // Two goals overall:
 //   - efficient version of move() that doesn't pay for animation
@@ -16,6 +20,24 @@
 
 using AList = PtrList<aevent>;
 
+// TODO: Make a lexical distinction between the macros that do something
+// that affects the level, and those that are purely animation.
+
+// TODO: instead of comparing enti against -1, use B_PLAYER.
+
+// TODO: Migrate these macros to functions and templates as much as
+// possible. This approach is better than the old move.h, but it still
+// sucks to have to know what variables are in scope and avoid certain
+// symbols inside the lambdas...
+
+#define AFFECT2016(x, y) do {                   \
+    (void)ctx->affect((x), (y), this, etail);   \
+  } while (0)
+
+#define AFFECTI2016(i) do {                     \
+    (void)ctx->affecti((i), this, etail);       \
+  } while (0)
+
 // This new version of the macro looks more like a function call.
 // It requires the following to be in scope:
 //     etail   (XXX docs)
@@ -24,51 +46,214 @@ using AList = PtrList<aevent>;
 //                turned on).
 // It should be used like this:
 //
-// PUSHMOVE2016(bombsplosion, [&](bomsplosion_t *e) {
+// PUSHMOVE2016(bombsplosion, ([&](bomsplosion_t *e) {
 //   e->x = x;
 //   e->y = y;
-// });
+// }));
+//
+// Note the need for parentheses around the lambda argument if it
+// contains a comma outside of parentheses. It also seems to fail to
+// parse (or somehow parses wrong?) if there are ternary operators
+// inside the lambda. (??)
 //
 // No code is executed (lambda is dead) if ANIMATING is false. Scope
 // of fn should be as expected and the macro should behave like a
 // normal statement.
-#define PUSHMOVE2016(type, fn) do {		\
-    if (ANIMATING) {				\
-      (fn)([&]() -> type ## _t * {		\
-	aevent *a = new aevent;			\
-	*etail = new AList(a, nullptr);		\
-        etail = &((*etail)->next);		\
-        a->serial = ctx->Serial();		\
-        a->t = tag_ ## type;			\
-        return &(a->u. type );			\
-      }());					\
-    };						\
+#define PUSHMOVE2016(type, fn) do {             \
+    if (ANIMATING) {                            \
+      (fn)([&]() -> type ## _t * {              \
+        aevent *a = new aevent;                 \
+        *etail = new AList(a, nullptr);         \
+        etail = &((*etail)->next);              \
+        a->serial = ctx->Serial();              \
+        a->t = tag_ ## type;                    \
+        return &(a->u. type );                  \
+      }());                                     \
+    };                                          \
   } while (0)
 
 // Expected in scope: ctx, ANIMATING
 // fn is a lambda that takes no args. It is executed whether animation
 // on or not!
-#define AFFECTENT2016(entid, fn) do {					\
-    const int affectent_ei = (entid);					\
-    if (ANIMATING) {							\
-      if (affectent_ei == -1) ctx->preaffectplayer(this, etail);	\
-      else ctx->preaffectbot(affectent_ei, this, etail);		\
-    }									\
-    (fn)();								\
-    if (ANIMATING) {							\
-      if (affectent_ei == -1) ctx->postaffectplayer();			\
-      else ctx->postaffectbot(affectent_ei);				\
+#define AFFECTENT2016(entid, fn) do {                                   \
+    const int affectent_ei = (entid);                                   \
+    if (ANIMATING) {                                                    \
+      if (affectent_ei == -1) ctx->preaffectplayer(this, etail);        \
+      else ctx->preaffectbot(affectent_ei, this, etail);                \
+    }                                                                   \
+    (fn)();                                                             \
+    if (ANIMATING) {                                                    \
+      if (affectent_ei == -1) ctx->postaffectplayer();                  \
+      else ctx->postaffectbot(affectent_ei);                            \
+    }                                                                   \
+  } while (0)
+
+#define BOTEXPLODE2016(botidx) do {                   \
+    if (ANIMATING) {                                  \
+      const int botexplode_botidx = (botidx);         \
+      PUSHMOVE2016(botexplode, [&](botexplode_t *e) { \
+        where(boti[botexplode_botidx], e->x, e->y);   \
+      });                                             \
+    }                                                 \
+  } while (0)
+
+#define WALKEDEX2016(d, ex, ey, ei, push) do {                          \
+    if (ANIMATING) {                                                    \
+      const dir walked_d = (d);                                         \
+      const int walked_ex = (ex), walked_ey = (ey);                     \
+      const int walked_ei = (ei);                                       \
+      const bool walked_push = (push);                                  \
+      const int walked_under = tileat(walked_ex, walked_ey);		\
+      const bot walked_entt =						\
+	(walked_ei == -1) ? B_PLAYER : bott[walked_ei];			\
+      const int walked_data =						\
+	(walked_ei == -1) ? 0 : bota[walked_ei];			\
+      PUSHMOVE2016(walk, ([&](walk_t *e) {				\
+        e->srcx = walked_ex;                                            \
+        e->srcy = walked_ey;                                            \
+        e->d = walked_d;                                                \
+        e->pushing = walked_push;                                       \
+        e->whatunder = walked_under;					\
+        e->entt = walked_entt;						\
+        e->data = walked_data;						\
+      }));								\
     }									\
   } while (0)
 
-#define BOTEXPLODE2016(botidx) do {		      \
-    if (ANIMATING) {				      \
-      const int botexplode_botidx = (botidx);	      \
-      PUSHMOVE2016(botexplode, [&](botexplode_t *e) { \
-        where(boti[botexplode_botidx], e->x, e->y);   \
-      });					      \
-    }						      \
+#define WALKED2016(d, push) WALKEDEX2016(d, entx, enty, enti, push)
+
+#define TELEPORTOUT2016(ei, xx, yy) do {                                \
+    if (ANIMATING) {                                                    \
+      const int teleportout_ei = (ei);                                  \
+      const int teleportout_x = (xx);                                   \
+      const int teleportout_y = (yy);                                   \
+      const bot teleportout_entt =					\
+	(teleportout_ei == -1) ? B_PLAYER : bott[teleportout_ei];	\
+      PUSHMOVE2016(teleportout, ([&](teleportout_t *e) {		\
+        e->x = teleportout_x;						\
+	e->y = teleportout_y;						\
+        e->entt = teleportout_entt; 					\
+      }));								\
+    }                                                                   \
   } while (0)
+
+#define TELEPORTIN2016(ei, xx, yy) do {                                 \
+    if (ANIMATING) {                                                    \
+      const int teleportin_ei = (ei);                                   \
+      const int teleportin_x = (xx);                                    \
+      const int teleportin_y = (yy);                                    \
+      const bot teleportout_entt =					\
+	(teleportin_ei == -1) ? B_PLAYER : bott[teleportin_ei];		\
+      PUSHMOVE2016(teleportin, [&](teleportin_t *e) {                   \
+        e->x = teleportin_x;						\
+	e->y = teleportin_y;						\
+        e->entt = teleportout_entt;					\
+      });                                                               \
+    }                                                                   \
+  } while (0)
+
+#define TRAP2016(xx, yy, tt) do {		\
+    if (ANIMATING) {                            \
+      const int trap_xx = (xx), trap_yy = (yy); \
+      const int trap_tt = (tt);			\
+      PUSHMOVE2016(trap, ([&](trap_t *e) {	\
+        e->x = trap_xx;                         \
+        e->y = trap_yy;                         \
+        e->whatold = trap_tt;			\
+      }));					\
+    }                                           \
+  } while (0)
+
+// Helper functions -- these actually have an effect on the level state,
+// in addition to animating.
+
+// Modifies the in-scope entity position variables, as well as updating
+// the permanent location. XXX maybe this is a bad idea?
+#define SETENTPOS2016(xx, yy) do {   \
+    entx = xx;                       \
+    enty = yy;                       \
+    SetEntPos(enti, entx, enty);     \
+  } while (0)
+
+// Note that this macro has the side-effect of actually doing the
+// tile swap!
+#define SWAPO2016(idx) do {                   \
+    const int swapo_idx = (idx);              \
+    PUSHMOVE2016(swap, ([&](swap_t *e) {      \
+      int xx, yy;                             \
+      where(swapo_idx, xx, yy);               \
+      e->x = xx;                              \
+      e->y = yy;                              \
+      e->was = tileat(xx, yy);                \
+      e->now = otileat(xx, yy);               \
+    }));				      \
+    swapo(swapo_idx);                         \
+  } while (0)
+
+/* after stepping off a tile, deactivate a panel
+   if there was one there. */
+/* nb: only for regular panels */
+#define CHECKLEAVEPANEL2016(xx, yy) do {                                \
+    const int checkleavepanel_xx = (xx);                                \
+    const int checkleavepanel_yy = (yy);                                \
+    if (tileat(checkleavepanel_xx, checkleavepanel_yy) == T_PANEL) {    \
+      AFFECTI2016(destat(checkleavepanel_xx, checkleavepanel_yy));      \
+      SWAPO2016(destat(checkleavepanel_xx, checkleavepanel_yy));        \
+    }                                                                   \
+  } while (0)
+
+#define CHECKTRAP2016(xx, yy) do {                                      \
+    const int checktrap_xx = (xx), checktrap_yy = (yy);                 \
+    if (tileat(checktrap_xx, checktrap_yy) == T_TRAP1) {                \
+      AFFECT2016(checktrap_xx, checktrap_yy);                           \
+      settile(checktrap_xx, checktrap_yy, T_HOLE);                      \
+      TRAP2016(checktrap_xx, checktrap_yy, T_TRAP1);                    \
+    } else if (tileat(checktrap_xx, checktrap_yy) == T_TRAP2) {         \
+      AFFECT2016(checktrap_xx, checktrap_yy);                           \
+      settile(checktrap_xx, checktrap_yy, T_TRAP1);                     \
+      TRAP2016(checktrap_xx, checktrap_yy, T_TRAP2);                    \
+    }                                                                   \
+  } while (0)
+
+/* actions on the player stepping off of a tile */
+/* generally, you should only call this once per
+   motion, at the very end. that's because it may
+   install new panels (by swapping), and panel swaps
+   are supposed to happen at the end. */
+#define CHECKSTEPOFF2016(xx, yy) do {                                  \
+    const int checkstepoff_xx = (xx), checkstepoff_yy = (yy);          \
+    CHECKTRAP2016(checkstepoff_xx, checkstepoff_yy);                   \
+    CHECKLEAVEPANEL2016(checkstepoff_xx, checkstepoff_yy);             \
+  } while (0)
+
+/* must call this whenever a bot steps
+   onto a tile where there might be other
+   bots. (walking atop one, or teleporting)
+
+   we assume that there is at most ONE other
+   bot, by invariant (which this function restores).
+*/
+#define CHECKBOTDEATH2016(xx, yy, me) do {                  \
+    const int cbd_xx = (xx), cbd_yy = (yy);                 \
+    const int cbd_me = (me);                                \
+    if (cbd_me != B_PLAYER) { /* checked at end of turn */  \
+      const int mei = index(cbd_xx, cbd_yy);                \
+      for (int b = 0; b < nbots; b++) {                     \
+        if (cbd_me != b && bott[b] != B_DELETED &&          \
+            bott[b] != B_BOMB_X &&                          \
+            mei == boti[b]) {                               \
+          /* yes! delete other bot and make me */           \
+          /* broken. */                                     \
+          AFFECTI2016(mei);				    \
+          bott[b] = B_DELETED;                              \
+          bott[cbd_me] = B_BROKEN;                          \
+          /* AFFECTENT;  */                                 \
+          BOTEXPLODE2016(b);                                \
+        }                                                   \
+      }                                                     \
+    }                                                       \
+  } while (0)
+
 
 template<bool ANIMATING, class DAB>
 void Level::Bombsplode(int now,
@@ -83,8 +268,7 @@ void Level::Bombsplode(int now,
     for (dir dd = FIRST_DIR_SELF; dd < LAST_DIR; dd++) {
       int bx, by;
       if (travel(x, y, dd, bx, by)) {
-        // XXX2016 should be macro?
-        (void)ctx->affect(bx, by, this, etail);
+        AFFECT2016(bx, by);
       }
     }
 
@@ -98,56 +282,108 @@ void Level::Bombsplode(int now,
     int bx, by;
     if (travel(x, y, dd, bx, by)) {
       if (Bombable(tileat(bx, by))) {
-	/* animate? */
-	settile(bx, by, T_FLOOR);
-	/* clear flags */
-	setflag(bx, by, flagat(bx, by) & ~(TF_HASPANEL |
-					   TF_RPANELL  |
-					   TF_RPANELH));
+        /* animate? */
+        settile(bx, by, T_FLOOR);
+        /* clear flags */
+        setflag(bx, by, flagat(bx, by) & ~(TF_HASPANEL |
+                                           TF_RPANELL  |
+                                           TF_RPANELH));
       }
 
 
       int z = index(bx, by);
       for (int bdie = 0; bdie < nbots; bdie++) {
-	if (boti[bdie] == z) {
-	  AFFECTENT2016(bdie, []{});
+        if (boti[bdie] == z) {
+          AFFECTENT2016(bdie, []{});
 
-	  bot bd = bott[bdie];
-	  if (bd == B_DELETED ||
-	      bd == B_BOMB_X) /* ignore */ continue;
+          bot bd = bott[bdie];
+          if (bd == B_DELETED ||
+              bd == B_BOMB_X) /* ignore */ continue;
 
-	  if (Level::isbomb(bd)) {
-	    /* chain reaction */
-	    if (bdie < now) {
-	      Bombsplode<ANIMATING, DAB>(now, bdie, ctx, events, etail);
-	      break;
-	    } else {
-	      /* will explode this turn (unless a bot
-		 pushes it??) */
-	      bota[bdie] = 0;
-	      break;
-	    }
-	  } else {
-	    /* non-bomb, so just kill it */
-	    /* FIXME: This isn't correct in the case that
-	       some bots move after the bomb explodes; they
-	       might move *onto* the explosion. See
-	       "revenge of the malformed levels 2". Of
-	       course, this can only happen if there are
-	       bots with higher numbers than bombs, which
-	       levels can't be made by the editor. Possibly
-	       they should be rejected by the sanitizer as
-	       well. */
-	    BOTEXPLODE2016(bdie);
-	    bott[bdie] = B_DELETED;
-	    break;
-	  } /* isbomb? */
-	} /* bot here? */
+          if (Level::isbomb(bd)) {
+            /* chain reaction */
+            if (bdie < now) {
+              Bombsplode<ANIMATING, DAB>(now, bdie, ctx, events, etail);
+              break;
+            } else {
+              /* will explode this turn (unless a bot
+                 pushes it??) */
+              bota[bdie] = 0;
+              break;
+            }
+          } else {
+            /* non-bomb, so just kill it */
+            /* FIXME: This isn't correct in the case that
+               some bots move after the bomb explodes; they
+               might move *onto* the explosion. See
+               "revenge of the malformed levels 2". Of
+               course, this can only happen if there are
+               bots with higher numbers than bombs, which
+               levels can't be made by the editor. Possibly
+               they should be rejected by the sanitizer as
+               well. */
+            BOTEXPLODE2016(bdie);
+            bott[bdie] = B_DELETED;
+            break;
+          } /* isbomb? */
+        } /* bot here? */
       } /* loop over bots */
 
     } /* adjacent? */
   } /* loop adjacent */
 }
 
-      
+
+// Assumes target = T_TRANSPORT.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntTransport(dir d, int enti, Capabilities cap,
+                             int entx, int enty, int newx, int newy,
+                             DAB *ctx, AList *&events,
+                             AList **&etail) {
+  /* not if there's an entity there */
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  if (cap & (CAP_CANTELEPORT | CAP_ISPLAYER)) {
+    AFFECT2016(newx, newy);
+   
+    AFFECTENT2016(enti, []{});
+    WALKED2016(d, true);
+    AFFECTENT2016(enti, []{});
+
+    TELEPORTOUT2016(enti, newx, newy);
+
+    int targx, targy;
+    where(dests[w * newy + newx], targx, targy);
+    
+    /* cache this, since stepping off might change it */
+    const int targ = tileat(targx, targy);
+
+    CHECKSTEPOFF2016(entx, enty);
+    SETENTPOS2016(targx, targy);
+
+    AFFECT2016(targx, targy);
+    AFFECTENT2016(enti, []{});
+
+    /* teleporting always faces the player down;
+       there's just one animation. */
+    SetEntDir(enti, DIR_DOWN);
+
+    TELEPORTIN2016(enti, targx, targy);
+
+    switch (targ) {
+    case T_PANEL:
+      AFFECTI2016(destat(targx, targy));
+      SWAPO2016(destat(targx, targy));
+      break;
+    default:;
+    }
+
+    CHECKBOTDEATH2016(targx, targy, enti);
+    
+    return true;
+  }
+  return false;
+}
+
 #endif

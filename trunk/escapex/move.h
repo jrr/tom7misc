@@ -40,28 +40,6 @@ using AList = PtrList<aevent>;
    }
 */
 
-/* Capabilities of entities (players and bots). */
-
-#ifndef GUYCAP
-# define CAP_ISPLAYER 1
-# define CAP_CANTELEPORT 2
-# define CAP_CRUSHPLAYER 4
-# define CAP_WALKINTOBOTS CAP_CRUSHPLAYER
-# define CAP_PUSHPLAYER 8
-# define CAP_ZAPSELF CAP_WALKINTOBOTS
-
-# define CAP_PUSHBOTS CAP_PUSHPLAYER
-
-# define CAP_HEARTFRAMERS 16
-
-/* should have cap for 'unpushable',
-   but we don't have any such robots yet. */
-
-# define GUYCAP (CAP_ISPLAYER | CAP_CANTELEPORT | CAP_PUSHBOTS | CAP_HEARTFRAMERS)
-# define DALEKCAP (CAP_CANTELEPORT | CAP_CRUSHPLAYER | CAP_WALKINTOBOTS)
-# define HUGBOTCAP (CAP_PUSHPLAYER | CAP_PUSHBOTS)
-#endif
-
 #undef SWAPO
 #undef PUSHMOVE
 #undef CHECKLEAVEPANEL
@@ -85,8 +63,6 @@ using AList = PtrList<aevent>;
 #undef WAKEUP
 #undef STANDBOT
 #undef GETHEARTFRAMER
-#undef TELEPORTOUT
-#undef TELEPORTIN
 #undef TRANSPONDERBEAM
 
 /* We need to correctly track the position of
@@ -99,20 +75,7 @@ using AList = PtrList<aevent>;
 #define SETENTPOS(xx, yy) do {       \
    entx = xx;                        \
    enty = yy;                        \
-   if (enti == B_PLAYER) {           \
-     guyx = xx;                      \
-     guyy = yy;                      \
-   } else {                          \
-     boti[enti] = index(xx, yy);     \
-   }                                 \
- } while (0)
-
-#define SETENTDIR(d) do {            \
-   if (enti == B_PLAYER) {           \
-     guyd = d;                       \
-   } else {                          \
-     botd[enti] = d;                 \
-   }                                 \
+   SetEntPos(enti, xx, yy);          \
  } while (0)
 
 #ifdef ANIMATING_MOVE
@@ -229,16 +192,6 @@ using AList = PtrList<aevent>;
    PUSHMOVE(getheartframer, e)          \
      e->x = xx; e->y = yy;              \
    }
-# define TELEPORTOUT(ei, xx, yy)           \
-   PUSHMOVE(teleportout, e)                \
-     e->x = xx; e->y = yy;                 \
-     e->entt = (ei==-1)?B_PLAYER:bott[ei]; \
-   }
-# define TELEPORTIN(ei, xx, yy)            \
-   PUSHMOVE(teleportin, e)                 \
-     e->x = xx; e->y = yy;                 \
-     e->entt = (ei==-1)?B_PLAYER:bott[ei]; \
-   }
 
 # define TRANSPONDERBEAM(xx, yy, destx, desty, fr, delay) \
     PUSHMOVE(transponderbeam, e)        \
@@ -270,8 +223,6 @@ using AList = PtrList<aevent>;
 # define STANDBOT(i) do { ; } while (0)
 # define GETHEARTFRAMER(a, b) do { ; } while (0)
 # define TRANSPONDERBEAM(xx, yy, destx, desty, fr, delay) do { ; } while (0)
-# define TELEPORTOUT(ei, xx, yy) do { ; } while (0)
-# define TELEPORTIN(ei, xx, yy) do { ; } while (0)
 #endif
 
 /* helper functions */
@@ -987,48 +938,21 @@ static void postanimate(Level *l, DAB *ctx,
     }
 
     case T_TRANSPORT: {
-      /* not if there's an entity there */
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
+#            ifdef ANIMATING_MOVE
+               return MoveEntTransport<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntTransport<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
 
-      if (cap & (CAP_CANTELEPORT | CAP_ISPLAYER)) {
-         (void)AFFECT(newx, newy);
-         PREAFFECTENTEX(enti);
-         POSTAFFECTENTEX(enti);
-         WALKED(d, true);
-         PREAFFECTENTEX(enti);
-         POSTAFFECTENTEX(enti);
-         TELEPORTOUT(enti, newx, newy);
-
-         int targx, targy;
-         where(dests[w * newy + newx], targx, targy);
-
-         /* cache this, since stepping off might change it */
-         int targ = tileat(targx, targy);
-
-         CHECKSTEPOFF(entx, enty);
-         SETENTPOS(targx, targy);
-
-         (void)AFFECT(targx, targy);
-         PREAFFECTENTEX(enti);
-         POSTAFFECTENTEX(enti);
-         /* teleporting always faces the player down;
-            there's just one animation. */
-         SETENTDIR(DIR_DOWN);
-         TELEPORTIN(enti, targx, targy);
-
-         switch (targ) {
-         case T_PANEL:
-           (void)AFFECTI(destat(targx, targy));
-           SWAPO(destat(targx, targy));
-           break;
-         default:;
-         }
-
-         CHECKBOTDEATH(targx, targy, enti);
-
-         return true;
-      } else return false;
     }
 
     /* careful: the order in which swaps happen
@@ -1780,10 +1704,10 @@ static void postanimate(Level *l, DAB *ctx,
          unsuccessfully (anim 'press?') */
 
     default:
-      return(false);
+      return false;
 
     }
-  } else return(false);
+  } else return false;
 }
 
 #ifdef PUSHMOVE

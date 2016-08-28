@@ -7,6 +7,8 @@
 #ifndef __LEVEL_BASE_H
 #define __LEVEL_BASE_H
 
+#include <cstdint>
+
 #define LEVELMAGIC "ESXL"
 
 #define LEVEL_MAX_HEIGHT 100
@@ -49,5 +51,26 @@ enum bot {
   /* exploded bomb; becomes deleted next turn */
   B_BOMB_X = -3,
 };
+
+/* Capabilities of entities (players and bots). */
+
+enum Capabilities : uint32_t {
+  CAP_ISPLAYER = 1U,
+  CAP_CANTELEPORT = 2U,
+  CAP_CRUSHPLAYER = 4U,
+  CAP_PUSHPLAYER = 8U,
+  CAP_HEARTFRAMERS = 16U,
+};
+
+// These are just aliases for other capabilities. Maybe shouldn't do this?
+#define CAP_WALKINTOBOTS CAP_CRUSHPLAYER
+#define CAP_ZAPSELF CAP_WALKINTOBOTS
+#define CAP_PUSHBOTS CAP_PUSHPLAYER
+  
+/* should have cap for 'unpushable',
+   but we don't have any such robots yet. */
+#define GUYCAP (CAP_ISPLAYER | CAP_CANTELEPORT | CAP_PUSHBOTS | CAP_HEARTFRAMERS)
+#define DALEKCAP (CAP_CANTELEPORT | CAP_CRUSHPLAYER | CAP_WALKINTOBOTS)
+#define HUGBOTCAP (CAP_PUSHPLAYER | CAP_PUSHBOTS)
 
 #endif

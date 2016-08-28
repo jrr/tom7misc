@@ -84,7 +84,7 @@ inline dir dir_reverse(dir d) {
   case DIR_DOWN: return DIR_UP;
   case DIR_RIGHT: return DIR_LEFT;
   default:
-  case DIR_NONE: return DIR_NONE;    
+  case DIR_NONE: return DIR_NONE;
   }
 }
 
@@ -97,13 +97,13 @@ enum {
 };
 
 enum tflag {
-  TF_NONE = 0, 
+  TF_NONE = 0,
 
   /* panel under tile (ie, pushable block) */
   /* if HASPANEL is set,
      then TF_RPANELH * 2 + TF_RPANELL
      says what kind (see panel colors above) */
-  TF_HASPANEL = 1, 
+  TF_HASPANEL = 1,
 
   TF_RPANELL = 4,
   TF_RPANELH = 8,
@@ -121,20 +121,20 @@ enum tflag {
 };
 
 enum tile {
-  T_FLOOR, T_RED, T_BLUE, T_GREY, T_GREEN, T_EXIT, T_HOLE, T_GOLD, 
+  T_FLOOR, T_RED, T_BLUE, T_GREY, T_GREEN, T_EXIT, T_HOLE, T_GOLD,
   T_LASER, T_PANEL, T_STOP, T_RIGHT, T_LEFT, T_UP, T_DOWN, T_ROUGH,
   T_ELECTRIC, T_ON, T_OFF, T_TRANSPORT, T_BROKEN, T_LR, T_UD, T_0,
-  T_1, T_NS, T_NE, T_NW, T_SE, T_SW, T_WE, T_BUTTON, T_BLIGHT, 
+  T_1, T_NS, T_NE, T_NW, T_SE, T_SW, T_WE, T_BUTTON, T_BLIGHT,
   T_RLIGHT, T_GLIGHT, T_BLACK, T_BUP, T_BDOWN,
-  T_RUP, T_RDOWN, T_GUP, T_GDOWN, 
+  T_RUP, T_RDOWN, T_GUP, T_GDOWN,
   T_BSPHERE, T_RSPHERE, T_GSPHERE, T_SPHERE,
   T_TRAP2, T_TRAP1,
-  
-  T_BPANEL, T_RPANEL, T_GPANEL,
-  
-  T_STEEL, T_BSTEEL, T_RSTEEL, T_GSTEEL, 
 
-  T_HEARTFRAMER, T_SLEEPINGDOOR, 
+  T_BPANEL, T_RPANEL, T_GPANEL,
+
+  T_STEEL, T_BSTEEL, T_RSTEEL, T_GSTEEL,
+
+  T_HEARTFRAMER, T_SLEEPINGDOOR,
 
   T_TRANSPONDER, T_NSWE, T_REMOTE,
 
@@ -159,13 +159,13 @@ struct Solution {
   int length;
   int allocated;
 
-  /* true if verified in this run of the program. 
+  /* true if verified in this run of the program.
      XXX this is a little awkward, since we don't
      have the level that this is purportedly a
      solution for handy. perhaps this should be in
      the playerdb instead. */
   bool verified;
-  
+
   dir *dirs;
 
   string tostring() const;
@@ -218,7 +218,7 @@ struct Solution {
   struct iter {
     int pos;
     const Solution *sol;
-  
+
     iter(const Solution *s) : pos(0), sol(s) {}
     bool hasnext() { return pos < sol->length; }
     void next() { pos++; }
@@ -281,7 +281,7 @@ struct Level {
     checkstepoff(entx, enty);
     /* XXX can be incorrect --
        need to use SETENTPOS, since we need to reflect
-       this immediately in the boti array 
+       this immediately in the boti array
        (so that serialup knows where the bot is standing) */
     entx = targx;
     enty = targy;
@@ -349,7 +349,7 @@ struct Level {
 
   bool travel(int x, int y, dir d, int &nx, int &ny) {
     switch (d) {
-      /* sometimes useful, for instance looping over all 
+      /* sometimes useful, for instance looping over all
 	 affected tiles when bombing */
     case DIR_NONE:
       nx = x;
@@ -386,8 +386,6 @@ struct Level {
 
   /* returns true if move had effect. */
   bool move(dir);
-  /* pass the entity index, or -1 for the player */
-  bool moveent(dir, int enti, unsigned int, int, int);
 
 # ifndef NOANIMATION
   /* see animation.h for documentation */
@@ -404,7 +402,7 @@ struct Level {
      valid level with as much data from the original as
      possible (but may still return 0) */
   static Level *fromstring(string s, bool allow_corrupted = false);
-  
+
   /* 0 on error */
   static Level *fromoldstring(string s);
 
@@ -428,7 +426,8 @@ struct Level {
   static bool verify(const Level *lev, const Solution *s);
   /* returns a simplified solution, if s solves lev somewhere
      along the way. if the return is false, then out is garbage */
-  static bool verify_prefix(const Level *lev, const Solution *s, Solution *&out);
+  static bool verify_prefix(const Level *lev, const Solution *s,
+			    Solution *&out);
 
   /* execute solution. returns early (# moves set in moves)
      if we die (return false) or win (return true). false upon
@@ -454,7 +453,7 @@ struct Level {
     int z = index(x, y);
     for (int m = 0; m < nbots; m++) {
       if (boti[m] == z &&
-	  bott[m] != B_DELETED && 
+	  bott[m] != B_DELETED &&
 	  bott[m] != B_BOMB_X) {
 	i = m;
 	return true;
@@ -575,14 +574,14 @@ struct Level {
 	 complicated */
     case T_TRAP1:
     case T_TRAP2:
-      
+
 
       /* useful for level designers */
     case T_LEFT:
     case T_RIGHT:
     case T_UP:
     case T_DOWN:
-      
+
       /* Seems sturdy */
     case T_TRANSPORT:
     case T_ON:
@@ -612,9 +611,9 @@ struct Level {
     case T_GDOWN:
     case T_RUP:
     case T_RDOWN:
-      
+
       return false;
-    }      
+    }
 
     /* illegal tile */
     abort();
@@ -628,8 +627,31 @@ struct Level {
     return false;
   }
 
+  void SetEntDir(int enti, dir d) {
+    if (enti == B_PLAYER) {
+      guyd = d;
+    } else {
+      botd[enti] = d;
+    }
+  }
+
+  void SetEntPos(int enti, int x, int y) {
+    if (enti == B_PLAYER) {
+      guyx = x;           
+      guyy = y;           
+    } else {               
+      boti[enti] = index(x, y);
+    }
+  }
+  
+  /* pass the entity index, or -1 for the player */
+  // XXX capabilities to int32
+  bool moveent(dir d, int enti, unsigned int capabilities,
+	       int entx, int enty);
+
 # ifndef NOANIMATION
-  bool moveent_animate(dir, int enti, unsigned int, int, int, 
+  bool moveent_animate(dir d, int enti, unsigned int capabilities,
+		       int entx, int enty,
 		       PtrList<aevent> *&,
                        Disamb *ctx, PtrList<aevent> **&);
 # endif
@@ -637,6 +659,12 @@ struct Level {
   void Bombsplode(int now,
 		  int bombi, DAB *ctx, PtrList<aevent> *&events,
 		  PtrList<aevent> **& etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEntTransport(dir d, int enti, Capabilities cap,
+			int entx, int enty, int newx, int newy,
+			DAB *ctx, PtrList<aevent> *&events,
+			PtrList<aevent> **&etail);
 };
 
 
