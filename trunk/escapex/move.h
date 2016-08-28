@@ -52,7 +52,6 @@ using AList = PtrList<aevent>;
 #undef TRAP
 #undef PUSHGREEN
 #undef LITEWIRE
-#undef OPENDOOR
 #undef RET
 #undef AFFECT
 #undef AFFECTI
@@ -164,11 +163,6 @@ using AList = PtrList<aevent>;
       e->dir = pd;                \
       e->count = cc;              \
    }
-# define OPENDOOR(xx, yy) \
-   PUSHMOVE(opendoor, e)  \
-      e->x = xx;          \
-      e->y = yy;          \
-   }
 # define BOTEXPLODE(botidx)             \
    PUSHMOVE(botexplode, e)              \
     where(boti[botidx], e->x, e->y);    \
@@ -206,7 +200,6 @@ using AList = PtrList<aevent>;
 # define SWAPO(idx) swapo(idx)
 # define WALKED(a, b) do { ; } while (0)
 # define WALKEDEX(a, b, c, d, e) do { ; } while (0)
-# define OPENDOOR(a, b) do { ; } while (0)
 # define PUSHED(a, b, c, d, e, f, g) do { ; } while (0)
 # define TOGGLE(a, b, c, d) do { ; } while (0)
 # define BUTTON(a, b, c) do { ; } while (0)
@@ -704,48 +697,40 @@ static void postanimate(Level *l, DAB *ctx,
         return(true);
       }
     }
-    case T_EXIT:
-
-      /* XXX check cap */
-
-      /* can't push bots off exits */
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
-
-      CHECKSTEPOFF(entx, enty);
-
-      PREAFFECTENTEX(enti);
-      POSTAFFECTENTEX(enti);
-      WALKED(d, false);
-
-      SETENTPOS(newx, newy);
-
-      /* open door */
-      (void)AFFECT(newx, newy);
-      OPENDOOR(newx, newy);
-
-      return(true);
+    case T_EXIT: {
+#            ifdef ANIMATING_MOVE
+               return MoveEntExit<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntExit<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
+      }  
 
     case T_ON: {
-      /* can't activate if someone stands on it */
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
-
-      for (int y = 0; y < h; y++)
-        for (int x = 0; x < w; x++) {
-          if (tileat(x, y) == T_ELECTRIC) {
-            (void)AFFECT(x, y);
-            TOGGLE(x, y, T_ELECTRIC, abs(x - newx) + abs(y - newy));
-            settile(x, y, T_FLOOR);
-          }
-        }
-
-      (void)AFFECT(newx, newy);
-      settile(newx, newy, T_OFF);
-      /* XXX animate pushing, but not moving */
-      BUTTON(newx, newy, T_ON);
-      return(true);
+#            ifdef ANIMATING_MOVE
+               return MoveEntOn<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntOn<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
+
     case T_0:
     case T_1: {
 

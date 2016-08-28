@@ -103,21 +103,21 @@ using AList = PtrList<aevent>;
       const int walked_ex = (ex), walked_ey = (ey);                     \
       const int walked_ei = (ei);                                       \
       const bool walked_push = (push);                                  \
-      const int walked_under = tileat(walked_ex, walked_ey);		\
-      const bot walked_entt =						\
-	(walked_ei == -1) ? B_PLAYER : bott[walked_ei];			\
-      const int walked_data =						\
-	(walked_ei == -1) ? 0 : bota[walked_ei];			\
-      PUSHMOVE2016(walk, ([&](walk_t *e) {				\
+      const int walked_under = tileat(walked_ex, walked_ey);            \
+      const bot walked_entt =                                           \
+        (walked_ei == -1) ? B_PLAYER : bott[walked_ei];                 \
+      const int walked_data =                                           \
+        (walked_ei == -1) ? 0 : bota[walked_ei];                        \
+      PUSHMOVE2016(walk, ([&](walk_t *e) {                              \
         e->srcx = walked_ex;                                            \
         e->srcy = walked_ey;                                            \
         e->d = walked_d;                                                \
         e->pushing = walked_push;                                       \
-        e->whatunder = walked_under;					\
-        e->entt = walked_entt;						\
-        e->data = walked_data;						\
-      }));								\
-    }									\
+        e->whatunder = walked_under;                                    \
+        e->entt = walked_entt;                                          \
+        e->data = walked_data;                                          \
+      }));                                                              \
+    }                                                                   \
   } while (0)
 
 #define WALKED2016(d, push) WALKEDEX2016(d, entx, enty, enti, push)
@@ -127,13 +127,13 @@ using AList = PtrList<aevent>;
       const int teleportout_ei = (ei);                                  \
       const int teleportout_x = (xx);                                   \
       const int teleportout_y = (yy);                                   \
-      const bot teleportout_entt =					\
-	(teleportout_ei == -1) ? B_PLAYER : bott[teleportout_ei];	\
-      PUSHMOVE2016(teleportout, ([&](teleportout_t *e) {		\
-        e->x = teleportout_x;						\
-	e->y = teleportout_y;						\
-        e->entt = teleportout_entt; 					\
-      }));								\
+      const bot teleportout_entt =                                      \
+        (teleportout_ei == -1) ? B_PLAYER : bott[teleportout_ei];       \
+      PUSHMOVE2016(teleportout, ([&](teleportout_t *e) {                \
+        e->x = teleportout_x;                                           \
+        e->y = teleportout_y;                                           \
+        e->entt = teleportout_entt;                                     \
+      }));                                                              \
     }                                                                   \
   } while (0)
 
@@ -142,26 +142,52 @@ using AList = PtrList<aevent>;
       const int teleportin_ei = (ei);                                   \
       const int teleportin_x = (xx);                                    \
       const int teleportin_y = (yy);                                    \
-      const bot teleportout_entt =					\
-	(teleportin_ei == -1) ? B_PLAYER : bott[teleportin_ei];		\
+      const bot teleportout_entt =                                      \
+        (teleportin_ei == -1) ? B_PLAYER : bott[teleportin_ei];         \
       PUSHMOVE2016(teleportin, [&](teleportin_t *e) {                   \
-        e->x = teleportin_x;						\
-	e->y = teleportin_y;						\
-        e->entt = teleportout_entt;					\
+        e->x = teleportin_x;                                            \
+        e->y = teleportin_y;                                            \
+        e->entt = teleportout_entt;                                     \
       });                                                               \
     }                                                                   \
   } while (0)
 
-#define TRAP2016(xx, yy, tt) do {		\
+#define TRAP2016(xx, yy, tt) do {               \
     if (ANIMATING) {                            \
       const int trap_xx = (xx), trap_yy = (yy); \
-      const int trap_tt = (tt);			\
-      PUSHMOVE2016(trap, ([&](trap_t *e) {	\
+      const int trap_tt = (tt);                 \
+      PUSHMOVE2016(trap, ([&](trap_t *e) {      \
         e->x = trap_xx;                         \
         e->y = trap_yy;                         \
-        e->whatold = trap_tt;			\
-      }));					\
+        e->whatold = trap_tt;                   \
+      }));                                      \
     }                                           \
+  } while (0)
+
+#define TOGGLE2016(xx, yy, t, d) do {			\
+    if (ANIMATING) {                                    \
+      const int toggle_x = (xx), toggle_y = (yy);       \
+      const int toggle_wh = (t);                        \
+      const int toggle_delay = (d);			\
+      PUSHMOVE2016(toggle, ([&](toggle_t *e) {		\
+        e->x = toggle_x;                                \
+        e->y = toggle_y;                                \
+        e->whatold = toggle_wh;                         \
+        e->delay = toggle_delay;			\
+      }));                                              \
+    }                                                   \
+  } while (0)
+
+#define BUTTON2016(xx, yy, t) do {                \
+    if (ANIMATING) {                              \
+      const int button_x = (xx), button_y = (yy); \
+      const int button_wh = (t);                  \
+      PUSHMOVE2016(button, ([&](button_t *e) {    \
+        e->x = button_x;                          \
+        e->y = button_y;                          \
+        e->whatold = button_wh;                   \
+      }));                                        \
+    }                                             \
   } while (0)
 
 // Helper functions -- these actually have an effect on the level state,
@@ -186,7 +212,7 @@ using AList = PtrList<aevent>;
       e->y = yy;                              \
       e->was = tileat(xx, yy);                \
       e->now = otileat(xx, yy);               \
-    }));				      \
+    }));                                      \
     swapo(swapo_idx);                         \
   } while (0)
 
@@ -244,7 +270,7 @@ using AList = PtrList<aevent>;
             mei == boti[b]) {                               \
           /* yes! delete other bot and make me */           \
           /* broken. */                                     \
-          AFFECTI2016(mei);				    \
+          AFFECTI2016(mei);                                 \
           bott[b] = B_DELETED;                              \
           bott[cbd_me] = B_BROKEN;                          \
           /* AFFECTENT;  */                                 \
@@ -346,7 +372,7 @@ bool Level::MoveEntTransport(dir d, int enti, Capabilities cap,
 
   if (cap & (CAP_CANTELEPORT | CAP_ISPLAYER)) {
     AFFECT2016(newx, newy);
-   
+
     AFFECTENT2016(enti, []{});
     WALKED2016(d, true);
     AFFECTENT2016(enti, []{});
@@ -355,7 +381,7 @@ bool Level::MoveEntTransport(dir d, int enti, Capabilities cap,
 
     int targx, targy;
     where(dests[w * newy + newx], targx, targy);
-    
+
     /* cache this, since stepping off might change it */
     const int targ = tileat(targx, targy);
 
@@ -380,10 +406,67 @@ bool Level::MoveEntTransport(dir d, int enti, Capabilities cap,
     }
 
     CHECKBOTDEATH2016(targx, targy, enti);
-    
+
     return true;
   }
   return false;
+}
+
+// Assumes target == T_EXIT.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntExit(dir d, int enti, Capabilities cap,
+                        int entx, int enty, int newx, int newy,
+                        DAB *ctx, AList *&events,
+                        AList **&etail) {
+  /* XXX check cap */
+
+  /* can't push bots off exits */
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  CHECKSTEPOFF2016(entx, enty);
+
+  AFFECTENT2016(enti, []{});
+  WALKED2016(d, false);
+
+  SETENTPOS2016(newx, newy);
+
+  /* open door */
+  AFFECT2016(newx, newy);
+
+  PUSHMOVE2016(opendoor, [&](opendoor_t *e) {
+    e->x = newx;
+    e->y = newy;
+  });
+
+  return true;
+}
+
+// Assumes target == T_ON.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntOn(dir d, int enti, Capabilities cap,
+                      int entx, int enty, int newx, int newy,
+                      DAB *ctx, AList *&events,
+                      AList **&etail) {
+  /* can't activate if someone stands on it */
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  for (int y = 0; y < h; y++) {
+    for (int x = 0; x < w; x++) {
+      if (tileat(x, y) == T_ELECTRIC) {
+        AFFECT2016(x, y);
+        TOGGLE2016(x, y, T_ELECTRIC, abs(x - newx) + abs(y - newy));
+        settile(x, y, T_FLOOR);
+      }
+    }
+  }
+    
+  AFFECT2016(newx, newy);
+  settile(newx, newy, T_OFF);
+  /* XXX animate pushing, but not moving */
+  BUTTON2016(newx, newy, T_ON);
+  return true;
 }
 
 #endif
