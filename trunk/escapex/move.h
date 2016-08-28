@@ -755,171 +755,20 @@ static void postanimate(Level *l, DAB *ctx,
     case T_GSPHERE:
     case T_SPHERE:
     case T_GOLD: {
-
-      /* spheres allow pushing in a line:
-         ->OOOO  becomes OOO   ---->O
-
-         so keep traveling while the tile
-         in the destination direction is
-         a sphere of any sort.
-      */
-      #ifdef ANIMATING_MOVE
-      int firstx = newx, firsty = newy;
-      #endif
-      int tnx, tny;
-      while (issphere(tileat(newx, newy)) &&
-             !(playerat(newx, newy) ||
-               botat(newx, newy)) &&
-             travel(newx, newy, d, tnx, tny) &&
-             issphere(tileat(tnx, tny))) {
-        newx = tnx;
-        newy = tny;
-        target = tileat(tnx, tny);
-      }
-
-      /* can't push if we ran into entity */
-      /* XXX jiggle anyway */
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
-
-      #ifdef ANIMATING_MOVE
-      /* if we passed through any spheres,
-         'jiggle' them (even if we don't ultimately push). */
-      if (firstx != newx || firsty != newy) {
-
-        /* affect whole row */
-        for (int ix = firstx, iy = firsty;
-            (firstx != newx && firsty != newy);
-            travel(ix, iy, d, ix, iy)) (void)AFFECT(ix, iy);
-
-        PUSHMOVE(jiggle, e)
-          e->startx = firstx;
-          e->starty = firsty;
-          e->d = d;
-          e->num = abs(newx - firstx) + abs(newy - firsty);
-        }
-      }
-      #endif
-
-      int goldx = newx, goldy = newy;
-
-      /* remove gold block */
-      (void)AFFECT(goldx, goldy);
-      int replacement = (flagat(goldx, goldy) & TF_HASPANEL)?
-                           realpanel(flagat(goldx, goldy)):
-                           T_FLOOR;
-
-      settile(goldx, goldy, replacement);
-
-      int tgoldx, tgoldy;
-
-      while (travel(goldx, goldy, d, tgoldx, tgoldy)) {
-
-        int next = tileat(tgoldx, tgoldy);
-        if (!(next == T_ELECTRIC ||
-              next == T_PANEL ||
-              next == T_BPANEL ||
-              next == T_RPANEL ||
-              next == T_GPANEL ||
-              next == T_FLOOR) ||
-            botat(tgoldx, tgoldy) ||
-            playerat(tgoldx, tgoldy)) break;
-
-        goldx = tgoldx;
-        goldy = tgoldy;
-
-        if (next == T_ELECTRIC) break;
-
-    // Otherwise, going to fly through this spot.
-#ifdef ANIMATING_MOVE
-    bool did = AFFECT(goldx, goldy);
-    printf("%d %d: %s %d %d\n", goldx, goldy, did?"did":"not",
-           ctx->serialat(goldx, goldy),
-           ctx->Serial());
-#endif
-    // AFFECT(goldx, goldy);
-      }
-
-      /* goldx is dest, newx is source */
-      if (goldx != newx ||
-          goldy != newy) {
-
-        int landon = tileat(goldx, goldy);
-        int doswap = 0;
-
-        /* untrigger from source */
-        if (flagat(newx, newy) & TF_HASPANEL) {
-          int pan = realpanel(flagat(newx,newy));
-          /* any */
-          /* XXX use triggers here */
-          if (pan == T_PANEL ||
-              /* colors */
-              (target == T_GSPHERE &&
-               pan == T_GPANEL) ||
-              (target == T_RSPHERE &&
-               pan == T_RPANEL) ||
-              (target == T_BSPHERE &&
-               pan == T_BPANEL))
-            doswap = 1;
-        }
-
-        /* only the correct color sphere can trigger
-           the colored panels */
-        bool doswapt = false;
-        if (Level::triggers(target, landon)) {
-          doswapt = true;
-        }
-
-        /* XXX may have already affected this
-           if the gold block didn't move at all */
-        (void)AFFECT(goldx, goldy);
-        settile(goldx, goldy, target);
-
-        bool zapped = false;
-        (void)zapped;
-        if (landon == T_ELECTRIC) {
-          /* gold zapped. however, if the
-             electric was the target of a panel
-             that we just left, the electric has
-             been swapped into the o world (along
-             with the gold). So swap there. */
-            settile(goldx, goldy, T_ELECTRIC);
-
-            zapped = true;
-        }
-
-        #ifdef ANIMATING_MOVE
-        PUSHMOVE(fly, e)
-           e->what = target;
-           e->whatunder = replacement;
-           e->srcx = newx;
-           e->srcy = newy;
-           e->d = d;
-           /* number of tiles traveled */
-           e->distance = abs((goldx - newx) + (goldy - newy));
-           e->zapped = zapped;
-        }
-        #endif
-
-        if (doswapt) {
-          (void)AFFECTI(destat(goldx, goldy));
-          SWAPO(destat(goldx, goldy));
-        }
-
-        if (doswap) {
-          (void)AFFECTI(destat(newx, newy));
-          SWAPO(destat(newx, newy));
-        }
-
-        return(true);
-
-      } else {
-        /* didn't move; put it back */
-        settile(newx, newy, target);
-
-        /* XXX stuck aevent */
-        return(false);
-      }
+#            ifdef ANIMATING_MOVE
+               return MoveEntGoldlike<true, Disamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntGoldlike<false, NullDisamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
 
     case T_TRANSPORT: {
