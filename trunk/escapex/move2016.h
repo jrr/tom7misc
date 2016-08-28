@@ -933,4 +933,90 @@ bool Level::MoveEntButton(dir d, int enti, Capabilities cap,
   return true;
 }
 
+// Assumes target == T_HEARTFRAMER.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntHeartframer(dir d, int enti, Capabilities cap,
+			       int entx, int enty, int newx, int newy,
+			       DAB *ctx, AList *&events,
+			       AList **&etail) {
+  if (botat(newx, newy) ||
+      playerat(newx, newy)) return false;
+
+  /* only the player can pick up
+     heart framers */
+  if (cap & CAP_HEARTFRAMERS) {
+    AFFECT2016(newx, newy);
+    AFFECTENT2016(enti, []{});
+    WALKED2016(d, true);
+
+    /* snag heart framer */
+    settile(newx, newy, T_FLOOR);
+
+    PUSHMOVE2016(getheartframer, [&](getheartframer_t *e) {
+      e->x = newx;
+      e->y = newy;
+    });
+
+    /* any heart framers left? */
+
+    if (!hasframers()) {
+      for (int y = 0; y < h; y++) {
+	for (int x = 0; x < w; x++) {
+	  const int t = tileat(x, y);
+	  if (t == T_SLEEPINGDOOR) {
+	    AFFECT2016(x, y);
+	    PUSHMOVE2016(wakeupdoor, [&](wakeupdoor_t *e) {
+	      e->x = x; e->y = y;
+	    });
+	    settile(x, y, T_EXIT);
+	  }
+	}
+      }
+
+      /* also bots */
+      for (int i = 0; i < nbots; i++) {
+	const int orig_bott = bott[i];
+	switch (orig_bott) {
+	case B_DALEK_ASLEEP:
+	case B_HUGBOT_ASLEEP:
+	  AFFECTENT2016(i, [&]() {
+	    AFFECTI2016(boti[i]);
+	  });
+
+	  bott[i] =
+	    (orig_bott == B_DALEK_ASLEEP) ?
+	    B_DALEK : B_HUGBOT;
+	  PUSHMOVE2016(stand, [&](stand_t *e) {
+	    where(boti[i], e->x, e->y);
+	    e->d = botd[i];
+	    e->entt = bott[i];
+	    e->data = bota[i];
+	  });
+
+	  if (ANIMATING) {
+	    int xx, yy;
+	    where(boti[i], xx, yy);
+
+	    PUSHMOVE2016(wakeup, [&](wakeup_t *e) {
+	      e->x = xx;
+	      e->y = yy;
+	    });
+	  }
+	  break;
+
+	default:;
+	}
+      }
+    }
+
+    /* panel actions are last */
+    CHECKSTEPOFF2016(entx, enty);
+
+    SETENTPOS2016(newx, newy);
+
+    return true;
+  }
+  return false;
+}
+
 #endif
