@@ -649,22 +649,36 @@ struct Level {
   bool moveent(dir d, int enti, unsigned int capabilities,
 	       int entx, int enty);
 
+  using AList = PtrList<aevent>;
+  
 # ifndef NOANIMATION
   bool moveent_animate(dir d, int enti, unsigned int capabilities,
 		       int entx, int enty,
-		       PtrList<aevent> *&,
-                       Disamb *ctx, PtrList<aevent> **&);
+		       AList *&,
+                       Disamb *ctx, AList **&);
 # endif
   template<bool ANIMATE, class DAB>
   void Bombsplode(int now,
-		  int bombi, DAB *ctx, PtrList<aevent> *&events,
-		  PtrList<aevent> **& etail);
+		  int bombi, DAB *ctx, AList *&events,
+		  AList **& etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntTransport(dir d, int enti, Capabilities cap,
 			int entx, int enty, int newx, int newy,
-			DAB *ctx, PtrList<aevent> *&events,
-			PtrList<aevent> **&etail);
+			DAB *ctx, AList *&events,
+			AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEntExit(dir d, int enti, Capabilities cap,
+		   int entx, int enty, int newx, int newy,
+		   DAB *ctx, AList *&events,
+		   AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEntOn(dir d, int enti, Capabilities cap,
+		 int entx, int enty, int newx, int newy,
+		 DAB *ctx, AList *&events,
+		 AList **&etail);
 };
 
 
