@@ -57,10 +57,6 @@ using AList = PtrList<aevent>;
 #undef PREAFFECTENTEX
 #undef POSTAFFECTENTEX
 #undef BOTEXPLODE
-#undef WAKEUPDOOR
-#undef WAKEUP
-#undef STANDBOT
-#undef GETHEARTFRAMER
 
 /* We need to correctly track the position of
    an entity during a move. We have the variables
@@ -157,25 +153,6 @@ using AList = PtrList<aevent>;
    PUSHMOVE(botexplode, e)              \
     where(boti[botidx], e->x, e->y);    \
    }
-# define WAKEUPDOOR(xx, yy)             \
-   PUSHMOVE(wakeupdoor, e)              \
-     e->x = xx; e->y = yy;              \
-   }
-# define WAKEUP(xx, yy)                 \
-   PUSHMOVE(wakeup, e)                  \
-     e->x = xx; e->y = yy;              \
-   }
-# define STANDBOT(i)                    \
-   PUSHMOVE(stand, e)                   \
-     where(boti[i], e->x, e->y);        \
-     e->d = botd[i];                    \
-     e->entt = bott[i];                 \
-     e->data = bota[i];                 \
-   }
-# define GETHEARTFRAMER(xx, yy)         \
-   PUSHMOVE(getheartframer, e)          \
-     e->x = xx; e->y = yy;              \
-   }
 
 #else
 # define SWAPO(idx) swapo(idx)
@@ -191,10 +168,6 @@ using AList = PtrList<aevent>;
 # define PREAFFECTENTEX(a) do { ; } while (0)
 # define POSTAFFECTENTEX(a) do { ; } while (0)
 # define BOTEXPLODE(a) do { ; } while (0)
-# define WAKEUPDOOR(a, b) do { ; } while (0)
-# define WAKEUP(a, b) do { ; } while (0)
-# define STANDBOT(i) do { ; } while (0)
-# define GETHEARTFRAMER(a, b) do { ; } while (0)
 
 #endif
 
@@ -1154,81 +1127,22 @@ static void postanimate(Level *l, DAB *ctx,
     return(true);
     }
 
-    case T_HEARTFRAMER:
-    /* only the player can pick up
-       heart framers */
-    if (botat(newx, newy) ||
-        playerat(newx, newy)) return false;
-    if (cap & CAP_HEARTFRAMERS) {
-      (void)AFFECT(newx, newy);
-      PREAFFECTENTEX(enti);
-      POSTAFFECTENTEX(enti);
-      WALKED(d, true);
-
-      /* snag heart framer */
-      settile(newx, newy, T_FLOOR);
-      GETHEARTFRAMER(newx, newy);
-
-      /* any heart framers left? */
-
-      if (!hasframers()) {
-        for (int y = 0; y < h; y++) {
-          for (int x = 0; x < w; x++) {
-           int t = tileat(x, y);
-           if (t == T_SLEEPINGDOOR) {
-             (void)AFFECT(x, y);
-             /* better anim, like exclamation mark */
-             // TOGGLE(x, y, T_SLEEPINGDOOR, T_EXIT);
-             WAKEUPDOOR(x, y);
-             settile(x, y, T_EXIT);
-           }
-          }
-        }
-
-        /* also bots */
-        for (int i = 0; i < nbots; i++) {
-          switch (bott[i]) {
-          case B_DALEK_ASLEEP:
-            PREAFFECTENTEX(i);
-            (void)AFFECTI(boti[i]);
-            POSTAFFECTENTEX(i);
-
-            bott[i] = B_DALEK;
-            STANDBOT(i);
-
-            { int xx, yy;
-              where(boti[i], xx, yy);
-              WAKEUP(xx, yy);
-            }
-            break;
-          case B_HUGBOT_ASLEEP:
-            PREAFFECTENTEX(i);
-            (void)AFFECTI(boti[i]);
-            POSTAFFECTENTEX(i);
-
-            bott[i] = B_HUGBOT;
-            STANDBOT(i);
-
-            { int xx, yy;
-              where(boti[i], xx, yy);
-              WAKEUP(xx, yy);
-            }
-            break;
-            default: ;
-            /* nothing */
-            break;
-          }
-        }
-      }
-
-      /* panel actions are last */
-      CHECKSTEPOFF(entx, enty);
-
-      SETENTPOS(newx, newy);
-
-      return true;
-    } else return false;
-    break;
+    case T_HEARTFRAMER: {
+#            ifdef ANIMATING_MOVE
+               return MoveEntHeartframer<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntHeartframer<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
+    }
 
     case T_ELECTRIC:
     if (botat(newx, newy) ||
