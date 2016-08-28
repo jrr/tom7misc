@@ -10,6 +10,7 @@
 //
 // ...
 // Before I started on 27 Aug 2016, tom7 had 1282/2509 Triage levels solved,
+// (but then I solved a few and it's 1284)
 // and 485/803 minor leagues, plus obviously 34/34 regressions and 22/22
 // official levels.
 
@@ -60,7 +61,7 @@ using AList = PtrList<aevent>;
     }									\
   } while (0)
 
-# define BOTEXPLODE2016(botidx) do {		      \
+#define BOTEXPLODE2016(botidx) do {		      \
     if (ANIMATING) {				      \
       const int botexplode_botidx = (botidx);	      \
       PUSHMOVE2016(botexplode, [&](botexplode_t *e) { \
