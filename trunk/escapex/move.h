@@ -62,7 +62,6 @@ using AList = PtrList<aevent>;
 # define HUGBOTCAP (CAP_PUSHPLAYER | CAP_PUSHBOTS)
 #endif
 
-#undef AM
 #undef SWAPO
 #undef PUSHMOVE
 #undef CHECKLEAVEPANEL
@@ -89,7 +88,6 @@ using AList = PtrList<aevent>;
 #undef TELEPORTOUT
 #undef TELEPORTIN
 #undef TRANSPONDERBEAM
-#undef BOMBSPLOSION
 
 /* We need to correctly track the position of
    an entity during a move. We have the variables
@@ -120,7 +118,6 @@ using AList = PtrList<aevent>;
 #ifdef ANIMATING_MOVE
 # include "util.h"
 # include "aevent.h"
-# define AM
 
 # define AFFECT(x, y) ctx->affect(x, y, this, etail)
 # define AFFECTI(i) ctx->affecti(i, this, etail)
@@ -252,11 +249,6 @@ using AList = PtrList<aevent>;
       e->from = fr;                     \
       e->count = delay;                 \
     }
-# define BOMBSPLOSION(xx, yy)   \
-    PUSHMOVE(bombsplosion, e)      \
-      e->x = xx;           \
-      e->y = yy;           \
-    }
 #else
 # define SWAPO(idx) swapo(idx)
 # define WALKED(a, b) do { ; } while (0)
@@ -270,9 +262,7 @@ using AList = PtrList<aevent>;
 # define LITEWIRE(a, b, c, d, e) do { ; } while (0)
 # define AFFECT(a, b) false
 # define AFFECTI(a) false
-# define PREAFFECTENT /* nuthin' */
 # define PREAFFECTENTEX(a) do { ; } while (0)
-# define POSTAFFECTENT /* nuthin' */
 # define POSTAFFECTENTEX(a) do { ; } while (0)
 # define BOTEXPLODE(a) do { ; } while (0)
 # define WAKEUPDOOR(a, b) do { ; } while (0)
@@ -446,7 +436,7 @@ static void postanimate(Level *l, DAB *ctx,
 
     /* player always moves first */
     bool m;
-    #ifdef AM
+    #ifdef ANIMATING_MOVE
       m = moveent_animate(d, -1, GUYCAP, guyx, guyy,
                           events, ctx, etail);
     #else
@@ -534,7 +524,7 @@ static void postanimate(Level *l, DAB *ctx,
 
         if (bd != DIR_NONE) {
           bool bm =
-          #ifdef AM
+          #ifdef ANIMATING_MOVE
             moveent_animate(bd, b, bc, x, y,
                             events, ctx, etail);
           #else
@@ -543,7 +533,7 @@ static void postanimate(Level *l, DAB *ctx,
 
           /* try second choice */
           if (!bm && bd2 != DIR_NONE) {
-            #ifdef AM
+            #ifdef ANIMATING_MOVE
               moveent_animate(bd2, b, bc, x, y,
                               events, ctx, etail);
             #else
@@ -837,7 +827,7 @@ static void postanimate(Level *l, DAB *ctx,
          in the destination direction is
          a sphere of any sort.
       */
-      #ifdef AM
+      #ifdef ANIMATING_MOVE
       int firstx = newx, firsty = newy;
       #endif
       int tnx, tny;
@@ -856,7 +846,7 @@ static void postanimate(Level *l, DAB *ctx,
       if (playerat(newx, newy) ||
           botat(newx, newy)) return false;
 
-      #ifdef AM
+      #ifdef ANIMATING_MOVE
       /* if we passed through any spheres,
          'jiggle' them (even if we don't ultimately push). */
       if (firstx != newx || firsty != newy) {
@@ -905,7 +895,7 @@ static void postanimate(Level *l, DAB *ctx,
         if (next == T_ELECTRIC) break;
 
     // Otherwise, going to fly through this spot.
-#ifdef AM
+#ifdef ANIMATING_MOVE
     bool did = AFFECT(goldx, goldy);
     printf("%d %d: %s %d %d\n", goldx, goldy, did?"did":"not",
            ctx->serialat(goldx, goldy),
@@ -962,7 +952,7 @@ static void postanimate(Level *l, DAB *ctx,
             zapped = true;
         }
 
-        #ifdef AM
+        #ifdef ANIMATING_MOVE
         PUSHMOVE(fly, e)
            e->what = target;
            e->whatunder = replacement;
@@ -1081,7 +1071,7 @@ static void postanimate(Level *l, DAB *ctx,
 
       for (dir dd = FIRST_DIR; dd <= LAST_DIR; dd++) {
       if (
-#ifndef AM
+#ifndef ANIMATING_MOVE
           /* if animation is off, then don't pre-scan */
           1 ||
 #endif
@@ -1100,7 +1090,7 @@ static void postanimate(Level *l, DAB *ctx,
         /* liteup animation if a wire. note: this code
            would lite up any tile (floor, exit, etc.) except
            that those are avoided by the pre-scan above. */
-        #ifdef AM
+        #ifdef ANIMATING_MOVE
         switch (targ) {
            case T_BLIGHT:
            case T_RLIGHT:
@@ -1127,7 +1117,7 @@ static void postanimate(Level *l, DAB *ctx,
 
         switch (targ) {
         case T_REMOTE:
-          #ifdef AM
+          #ifdef ANIMATING_MOVE
             (void)AFFECT(pulsex, pulsey);
             PUSHMOVE(liteup, e)
               e->x = pulsex;
@@ -1142,7 +1132,7 @@ static void postanimate(Level *l, DAB *ctx,
            make sure that the circuit continues before animating
            it ... */
               if (
-                  #ifndef AM
+                  #ifndef ANIMATING_MOVE
                   0 &&
                   #endif
                   !isconnected(pulsex, pulsey, pd)) pd = DIR_NONE;
@@ -1151,7 +1141,7 @@ static void postanimate(Level *l, DAB *ctx,
         case T_BLIGHT:
         case T_RLIGHT:
         case T_GLIGHT:
-          #ifdef AM
+          #ifdef ANIMATING_MOVE
           (void)AFFECT(pulsex, pulsey);
           PUSHMOVE(liteup, e)
             e->x = pulsex;
@@ -1168,7 +1158,7 @@ static void postanimate(Level *l, DAB *ctx,
 
         case T_TRANSPONDER: {
               // printf("transponder at %d/%d\n", pulsex, pulsey);
-          #ifdef AM
+          #ifdef ANIMATING_MOVE
             int transx = pulsex;
             int transy = pulsey;
           #endif
@@ -1187,7 +1177,7 @@ static void postanimate(Level *l, DAB *ctx,
             /* okay, then we are on the 'old' tile with
                the direction set, so we're ready to continue
                the pulse loop */
-                        #ifdef AM
+                        #ifdef ANIMATING_MOVE
               LITEWIRE(pulsex, pulsey, targ, pd, dist);
               TRANSPONDERBEAM(pulsex, pulsey,
                                       transx, transy,
@@ -1200,7 +1190,7 @@ static void postanimate(Level *l, DAB *ctx,
               break;
            } else {
               /* in preparation for beam across these squares... */
-              #ifdef AM
+              #ifdef ANIMATING_MOVE
                 (void)AFFECT(pulsex, pulsey);
               #endif
            }
@@ -1276,7 +1266,7 @@ static void postanimate(Level *l, DAB *ctx,
       while (remotes) {
         SwapList* t = remotes;
         remotes = remotes->next;
-        #ifdef AM
+        #ifdef ANIMATING_MOVE
         { int x, y; where(t->target, x, y);
           if (0) printf("(was %d %d) ",
                         ctx->serialat(x, y),
@@ -1303,7 +1293,7 @@ static void postanimate(Level *l, DAB *ctx,
       (void)AFFECT(newx, newy);
       settile(newx, newy, T_FLOOR);
 
-      #ifdef AM
+      #ifdef ANIMATING_MOVE
       PUSHMOVE(breaks, e)
          e->x = newx;
          e->y = newy;
@@ -1400,7 +1390,7 @@ static void postanimate(Level *l, DAB *ctx,
 
 
     /* at this point, the push is going through */
-    #ifdef AM
+    #ifdef ANIMATING_MOVE
     /* make pass to affect (so that all move in same serial) */
     { int xx = destx, yy = desty;
       do {
@@ -1798,8 +1788,4 @@ static void postanimate(Level *l, DAB *ctx,
 
 #ifdef PUSHMOVE
 # undef PUSHMOVE
-#endif
-
-#ifdef AM
-# undef AM
 #endif
