@@ -30,6 +30,8 @@ using AList = PtrList<aevent>;
 // sucks to have to know what variables are in scope and avoid certain
 // symbols inside the lambdas...
 
+// TODO: No need to wrap *calls* to these macros in if (ANIMATING) ...
+
 #define AFFECT2016(x, y) do {                   \
     (void)ctx->affect((x), (y), this, etail);   \
   } while (0)
@@ -164,16 +166,16 @@ using AList = PtrList<aevent>;
     }                                           \
   } while (0)
 
-#define TOGGLE2016(xx, yy, t, d) do {			\
+#define TOGGLE2016(xx, yy, t, d) do {                   \
     if (ANIMATING) {                                    \
       const int toggle_x = (xx), toggle_y = (yy);       \
       const int toggle_wh = (t);                        \
-      const int toggle_delay = (d);			\
-      PUSHMOVE2016(toggle, ([&](toggle_t *e) {		\
+      const int toggle_delay = (d);                     \
+      PUSHMOVE2016(toggle, ([&](toggle_t *e) {          \
         e->x = toggle_x;                                \
         e->y = toggle_y;                                \
         e->whatold = toggle_wh;                         \
-        e->delay = toggle_delay;			\
+        e->delay = toggle_delay;                        \
       }));                                              \
     }                                                   \
   } while (0)
@@ -188,6 +190,21 @@ using AList = PtrList<aevent>;
         e->whatold = button_wh;                   \
       }));                                        \
     }                                             \
+  } while (0)
+
+#define LITEWIRE2016(xx, yy, wh, pd, cc) do {           \
+    if (ANIMATING) {                                    \
+      const int lw_xx = (xx), lw_yy = (yy);             \
+      const int lw_wh = (wh), lw_pd = (pd);             \
+      const int lw_cc = (cc);                           \
+      PUSHMOVE2016(litewire, ([&](litewire_t *e) {      \
+        e->x = lw_xx;                                   \
+        e->y = lw_yy;                                   \
+        e->what = lw_wh;                                \
+        e->dir = lw_pd;                                 \
+        e->count = lw_cc;                               \
+      }));                                              \
+    }                                                   \
   } while (0)
 
 // Helper functions -- these actually have an effect on the level state,
@@ -214,6 +231,24 @@ using AList = PtrList<aevent>;
       e->now = otileat(xx, yy);               \
     }));                                      \
     swapo(swapo_idx);                         \
+  } while (0)
+
+#define SWAPTILES2016(t1, t2, d) do {                 \
+    const int st_t1 = (t1), st_t2 = (t2), st_d = (d); \
+    for (int y = 0; y < h; y++) {                     \
+      for (int x = 0; x < w; x++) {                   \
+        const int t = tileat(x, y);                   \
+        if (t == st_t1) {                             \
+          AFFECT2016(x, y);                           \
+          TOGGLE2016(x, y, t, st_d);                  \
+          settile(x, y, st_t2);                       \
+        } else if (t == st_t2) {                      \
+          AFFECT2016(x, y);                           \
+          TOGGLE2016(x, y, t, st_d);                  \
+          settile(x, y, st_t1);                       \
+        }                                             \
+      }                                               \
+    }                                                 \
   } while (0)
 
 /* after stepping off a tile, deactivate a panel
@@ -461,7 +496,7 @@ bool Level::MoveEntOn(dir d, int enti, Capabilities cap,
       }
     }
   }
-    
+
   AFFECT2016(newx, newy);
   settile(newx, newy, T_OFF);
   /* XXX animate pushing, but not moving */
@@ -472,9 +507,9 @@ bool Level::MoveEntOn(dir d, int enti, Capabilities cap,
 // Assumes target is one of RSPHERE, GSPHERE, BSPHERE, SPHERE, or GOLD.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
-			    int entx, int enty, int newx, int newy,
-			    DAB *ctx, AList *&events,
-			    AList **&etail) {
+                            int entx, int enty, int newx, int newy,
+                            DAB *ctx, AList *&events,
+                            AList **&etail) {
   /* spheres allow pushing in a line:
      ->OOOO  becomes OOO   ---->O
 
@@ -485,10 +520,10 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
   const int firstx = newx, firsty = newy;
   int tnx, tny;
   while (issphere(tileat(newx, newy)) &&
-	 !(playerat(newx, newy) ||
-	   botat(newx, newy)) &&
-	 travel(newx, newy, d, tnx, tny) &&
-	 issphere(tileat(tnx, tny))) {
+         !(playerat(newx, newy) ||
+           botat(newx, newy)) &&
+         travel(newx, newy, d, tnx, tny) &&
+         issphere(tileat(tnx, tny))) {
     newx = tnx;
     newy = tny;
     target = tileat(tnx, tny);
@@ -505,17 +540,17 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
     if (firstx != newx || firsty != newy) {
       /* affect whole row */
       for (int ix = firstx, iy = firsty;
-	   (firstx != newx && firsty != newy);
-	   travel(ix, iy, d, ix, iy)) {
-	AFFECT2016(ix, iy);
+           (firstx != newx && firsty != newy);
+           travel(ix, iy, d, ix, iy)) {
+        AFFECT2016(ix, iy);
       }
 
-      const int num = abs(newx - firstx) + abs(newy - firsty); 
+      const int num = abs(newx - firstx) + abs(newy - firsty);
       PUSHMOVE2016(jiggle, ([&](jiggle_t *e) {
-	e->startx = firstx;
-	e->starty = firsty;
-	e->d = d;
-	e->num = num;
+        e->startx = firstx;
+        e->starty = firsty;
+        e->d = d;
+        e->num = num;
       }));
     }
   }
@@ -535,13 +570,13 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
   while (travel(goldx, goldy, d, tgoldx, tgoldy)) {
     int next = tileat(tgoldx, tgoldy);
     if (!(next == T_ELECTRIC ||
-	  next == T_PANEL ||
-	  next == T_BPANEL ||
-	  next == T_RPANEL ||
-	  next == T_GPANEL ||
-	  next == T_FLOOR) ||
-	botat(tgoldx, tgoldy) ||
-	playerat(tgoldx, tgoldy)) break;
+          next == T_PANEL ||
+          next == T_BPANEL ||
+          next == T_RPANEL ||
+          next == T_GPANEL ||
+          next == T_FLOOR) ||
+        botat(tgoldx, tgoldy) ||
+        playerat(tgoldx, tgoldy)) break;
 
     goldx = tgoldx;
     goldy = tgoldy;
@@ -552,9 +587,9 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
     if (ANIMATING) {
       const bool did = ctx->affect(goldx, goldy, this, etail);
       if (false)
-	printf("%d %d: %s %d %d\n", goldx, goldy, did ? "did" : "not",
-	       ctx->serialat(goldx, goldy),
-	       ctx->Serial());
+        printf("%d %d: %s %d %d\n", goldx, goldy, did ? "did" : "not",
+               ctx->serialat(goldx, goldy),
+               ctx->Serial());
     }
   }
 
@@ -565,19 +600,19 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
     const bool doswap = ([&]{
       /* untrigger from source */
       if (flagat(newx, newy) & TF_HASPANEL) {
-	const int pan = realpanel(flagat(newx,newy));
-	/* any */
-	/* XXX2016? use Level::triggers here */
-	if (pan == T_PANEL ||
-	    /* colors */
-	    (target == T_GSPHERE &&
-	     pan == T_GPANEL) ||
-	    (target == T_RSPHERE &&
-	     pan == T_RPANEL) ||
-	    (target == T_BSPHERE &&
-	     pan == T_BPANEL)) {
-	  return true;
-	}
+        const int pan = realpanel(flagat(newx,newy));
+        /* any */
+        /* XXX2016? use Level::triggers here */
+        if (pan == T_PANEL ||
+            /* colors */
+            (target == T_GSPHERE &&
+             pan == T_GPANEL) ||
+            (target == T_RSPHERE &&
+             pan == T_RPANEL) ||
+            (target == T_BSPHERE &&
+             pan == T_BPANEL)) {
+          return true;
+        }
       }
       return false;
     }());
@@ -593,13 +628,13 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
 
     const bool zapped = ([&]{
       if (landon == T_ELECTRIC) {
-	/* gold zapped. however, if the
-	   electric was the target of a panel
-	   that we just left, the electric has
-	   been swapped into the o world (along
-	   with the gold). So swap there. */
-	settile(goldx, goldy, T_ELECTRIC);
-	return true;
+        /* gold zapped. however, if the
+           electric was the target of a panel
+           that we just left, the electric has
+           been swapped into the o world (along
+           with the gold). So swap there. */
+        settile(goldx, goldy, T_ELECTRIC);
+        return true;
       }
       return false;
     }());
@@ -607,14 +642,14 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
     if (ANIMATING) {
       const int distance = abs((goldx - newx) + (goldy - newy));
       PUSHMOVE2016(fly, ([&](fly_t *e) {
-	e->what = target;
-	e->whatunder = replacement;
-	e->srcx = newx;
-	e->srcy = newy;
-	e->d = d;
-	/* number of tiles traveled */
-	e->distance = distance;
-	e->zapped = zapped;
+        e->what = target;
+        e->whatunder = replacement;
+        e->srcx = newx;
+        e->srcy = newy;
+        e->d = d;
+        /* number of tiles traveled */
+        e->distance = distance;
+        e->zapped = zapped;
       }));
     }
 
@@ -637,6 +672,265 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
     /* TODO: animate it when 'stuck' */
     return false;
   }
+}
+
+
+// assumes target is T_BUTTON.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntButton(dir d, int enti, Capabilities cap,
+                          int entx, int enty, int newx, int newy,
+                          DAB *ctx, AList *&events,
+                          AList **&etail) {
+  /* careful: the order in which swaps happen
+     matters, because an earlier pulse could
+     block beams for a later one (by raising floor).
+     So we have to save up the effects and then
+     perform them all at once at the end. (Panel
+     swaps from remotes are last as always.)
+  */
+
+  /* XXX check caps */
+
+  /* We want the wires to only glow if they are connected to
+     something, so the function ''isconnected'' will tell us
+     if a pulse will succeed in hitting something.
+
+     After that, in each successful direction we trace out
+     and animate. We also remember the effects; these all
+     have to happen at the end or else it could matter what
+     order we try the pulses in.
+  */
+
+  /* these are for remote swaps */
+  // PERF can probably just use vector<>?
+  struct SwapList {
+    int target;
+    SwapList *next;
+    SwapList(int t, SwapList *n) : target(t), next(n) {}
+  };
+  SwapList *remotes = nullptr;
+
+  /* need to delay swaps to the end. */
+  int bswaps = 0, rswaps = 0, gswaps = 0;
+
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  /* but always push a button pressing anim */
+  AFFECT2016(newx, newy);
+  BUTTON2016(newx, newy, T_BUTTON);
+
+  for (dir dd = FIRST_DIR; dd <= LAST_DIR; dd++) {
+    // if animation is off, then don't pre-scan
+    if (!ANIMATING ||
+        isconnected(newx, newy, dd)) {
+
+      /* send a pulse in that direction. */
+      int pulsex = newx, pulsey = newy;
+      dir pd = dd;
+
+      int dist = 0;
+
+      while (pd != DIR_NONE &&
+             travel(pulsex, pulsey, pd, pulsex, pulsey)) {
+        const int targ = tileat(pulsex, pulsey);
+
+        /* liteup animation if a wire. note: this code
+           would lite up any tile (floor, exit, etc.) except
+           that those are avoided by the pre-scan above. */
+        if (ANIMATING) {
+          switch (targ) {
+          case T_BLIGHT:
+          case T_RLIGHT:
+          case T_GLIGHT:
+          case T_REMOTE:
+            break;
+          default:
+            /* Should affect here, because for example remotes
+               might target some of these wires. But then subsequent
+               wires are delayed because of the delay hack we use.
+               So, if affecting advances the serial, reset the delay.
+               XXX: The result is correct but not desirable; wires
+               pause in the middle of their electricity. Probably
+               should arrange it so it all goes in one shot. */
+            if (ctx->affect(pulsex, pulsey, this, etail)) {
+              dist = 0;
+            }
+            LITEWIRE2016(pulsex, pulsey, targ, pd, dist);
+            break;
+          }
+        }
+
+        dist++;
+
+        switch (targ) {
+        case T_REMOTE:
+          if (ANIMATING) {
+            AFFECT2016(pulsex, pulsey);
+            PUSHMOVE2016(liteup, ([&](liteup_t *e) {
+              e->x = pulsex;
+              e->y = pulsey;
+              e->what = targ;
+              e->delay = dist;
+            }));
+          }
+          remotes = new SwapList(destat(pulsex, pulsey), remotes);
+
+          /* since this counts as being connected so far, we want to
+             make sure that the circuit continues before animating
+             it ... */
+          if (ANIMATING) {
+            if (!isconnected(pulsex, pulsey, pd)) pd = DIR_NONE;
+          }
+          continue;
+
+        case T_BLIGHT:
+        case T_RLIGHT:
+        case T_GLIGHT:
+          if (ANIMATING) {
+            AFFECT2016(pulsex, pulsey);
+            PUSHMOVE2016(liteup, ([&](liteup_t *e) {
+              e->x = pulsex;
+              e->y = pulsey;
+              e->what = targ;
+              e->delay = dist;
+            }));
+          }
+
+          if (targ == T_BLIGHT) bswaps++;
+          if (targ == T_RLIGHT) rswaps++;
+          if (targ == T_GLIGHT) gswaps++;
+          pd = DIR_NONE;
+          break;
+
+        case T_TRANSPONDER: {
+          // printf("transponder at %d/%d\n", pulsex, pulsey);
+          const int transx = pulsex;
+          const int transy = pulsey;
+          if (!travel(pulsex, pulsey, pd, pulsex, pulsey)) {
+            pd = DIR_NONE;
+          } else {
+            /* keep going until we hit another transponder. */
+            do {
+              const int ta = tileat(pulsex, pulsey);
+              // printf(" ... at %d/%d: %d\n", pulsex, pulsey, ta);
+              if (!allowbeam(ta) ||
+                  botat(pulsex, pulsey) ||
+                  playerat(pulsex, pulsey)) {
+                /* hit something. is it a transponder? */
+                if (ta == T_TRANSPONDER) {
+                  /* okay, then we are on the 'old' tile with
+                     the direction set, so we're ready to continue
+                     the pulse loop */
+                  LITEWIRE2016(pulsex, pulsey, targ, pd, dist);
+                  PUSHMOVE2016(transponderbeam, ([&](transponderbeam_t *e) {
+                    e->x = transx;
+                    e->y = transy;
+                    e->lx = pulsex;
+                    e->ly = pulsey;
+                    e->from = pd;
+                    e->count = dist;
+                  }));
+
+                } else {
+                  /* didn't hit transponder! stop. */
+                  pd = DIR_NONE;
+                }
+                break;
+              } else {
+                /* in preparation for beam across these squares... */
+                AFFECT2016(pulsex, pulsey);
+              }
+              /* otherwise keep going... */
+            } while (travel(pulsex, pulsey, pd, pulsex, pulsey));
+          }
+
+          break;
+        }
+
+        case T_NSWE:
+          /* just keep going in same direction */
+          continue;
+
+        case T_NS:
+          if (pd == DIR_UP || pd == DIR_DOWN) continue;
+          else pd = DIR_NONE;
+          break;
+
+        case T_WE:
+          if (pd == DIR_LEFT || pd == DIR_RIGHT) continue;
+          else pd = DIR_NONE;
+          break;
+
+        case T_NW:
+          if (pd == DIR_DOWN) pd = DIR_LEFT;
+          else if (pd == DIR_RIGHT) pd = DIR_UP;
+          else pd = DIR_NONE;
+          break;
+
+        case T_SW:
+          if (pd == DIR_UP) pd = DIR_LEFT;
+          else if (pd == DIR_RIGHT) pd = DIR_DOWN;
+          else pd = DIR_NONE;
+          break;
+
+        case T_NE:
+          if (pd == DIR_DOWN) pd = DIR_RIGHT;
+          else if (pd == DIR_LEFT) pd = DIR_UP;
+          else pd = DIR_NONE;
+          break;
+
+        case T_SE:
+          if (pd == DIR_UP) pd = DIR_RIGHT;
+          else if (pd == DIR_LEFT) pd = DIR_DOWN;
+          else pd = DIR_NONE;
+          break;
+
+        default: /* any non-wire stops electricity */
+          pd = DIR_NONE;
+          break;
+        }
+      }
+    }
+
+  }
+
+  /* XXX for better results, delay according
+     to the time (push times onto a stack or
+     something) */
+  while (bswaps--) {
+    SWAPTILES2016(T_BUP, T_BDOWN, 0);
+  }
+
+  while (rswaps--) {
+    SWAPTILES2016(T_RUP, T_RDOWN, 0);
+  }
+
+  while (gswaps--) {
+    SWAPTILES2016(T_GUP, T_GDOWN, 0);
+  }
+
+  while (remotes != nullptr) {
+    SwapList *t = remotes;
+    remotes = remotes->next;
+    if (ANIMATING) {
+      int x, y;
+      where(t->target, x, y);
+      if (false) printf("(was %d %d) ",
+			ctx->serialat(x, y),
+			ctx->Serial());
+      bool did = ctx->affecti(t->target, this, etail);
+      if (false) printf("%d=%d,%d: %s %d %d\n",
+			t->target, x, y, did ? "did" : "not",
+			ctx->serialat(x, y),
+			ctx->Serial());
+      // AFFECTI(t->target);
+    }
+    SWAPO2016(t->target);
+    delete t;
+  }
+
+  return true;
 }
 
 #endif

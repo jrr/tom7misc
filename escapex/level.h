@@ -11,16 +11,7 @@
 
 using namespace std;
 
-
 template<class T> class PtrList;
-
-enum {
-  DIR_NONE, DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT,
-};
-
-#define FIRST_DIR_SELF DIR_NONE
-#define FIRST_DIR DIR_UP
-#define LAST_DIR DIR_RIGHT
 
 inline dir turnleft(dir d) {
   switch (d) {
@@ -662,6 +653,8 @@ struct Level {
 		  int bombi, DAB *ctx, AList *&events,
 		  AList **& etail);
 
+  // n.b. Not all of these have the same signature!
+  
   template<bool ANIMATING, class DAB>
   bool MoveEntTransport(dir d, int enti, Capabilities cap,
 			int entx, int enty, int newx, int newy,
@@ -685,6 +678,12 @@ struct Level {
 		       int entx, int enty, int newx, int newy,
 		       DAB *ctx, AList *&events,
 		       AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEntButton(dir d, int enti, Capabilities cap,
+		     int entx, int enty, int newx, int newy,
+		     DAB *ctx, AList *&events,
+		     AList **&etail);
 };
 
 

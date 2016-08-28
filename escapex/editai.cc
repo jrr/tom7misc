@@ -449,7 +449,7 @@ void editor::dorandom() {
       
       Match *m;
       while ((m = ms_test->next())) {
-	int x, y;
+	int x = 0, y = 0;
 	m->getindex(0, x, y);
 	dr.lev->settile(x, y, T_FLOOR);
 	delete m;
@@ -566,7 +566,7 @@ bool editor::retract_gold() {
     while (Match *mtmp = matches->next()) {
       std::unique_ptr<Match> m{mtmp};
 
-      int x, y;
+      int x = 0, y = 0;
       m->getindex(1, x, y);
 
       bool sph = false;
@@ -585,7 +585,7 @@ bool editor::retract_gold() {
 
       /* place to put the gold block. man must be to its
 	 left. */
-      int targx, targy;
+      int targx = 0, targy = 0;
       m->getindex(0, targx, targy);
 
       /* these are the best targets so far */
@@ -739,11 +739,11 @@ bool editor::retract_hole() {
     while ((mtmp = matches->next())) {
       std::unique_ptr<Match> m{mtmp};
 
-      int x, y;
+      int x = 0, y = 0;
       m->getindex(2, x, y);
-      int x0, y0;
+      int x0 = 0, y0 = 0;
       m->getindex(0, x0, y0);
-      int x1, y1;
+      int x1 = 0, y1 = 0;
       m->getindex(1, x1, y1);
 
       /*

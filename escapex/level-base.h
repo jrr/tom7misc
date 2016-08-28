@@ -17,7 +17,16 @@
 #define LEVEL_MAX_ROBOTS 15
 #define LEVEL_BOMB_MAX_TIMER 10
 
+// TODO: Can it be an actual enum?
 using dir = int;
+
+enum {
+  DIR_NONE, DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT,
+};
+
+#define FIRST_DIR_SELF DIR_NONE
+#define FIRST_DIR DIR_UP
+#define LAST_DIR DIR_RIGHT
 
 enum bot {
   B_BROKEN,
