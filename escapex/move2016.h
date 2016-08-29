@@ -17,6 +17,9 @@
 // (but then I solved a few and it's 1284)
 // and 485/803 minor leagues, plus obviously 34/34 regressions and 22/22
 // official levels.
+//
+// Later this became 1279/2493 (synced; some levels were deleted),
+// 485/803 minor leagues, 36/36 regression, 22/22 official.
 
 using AList = PtrList<aevent>;
 
@@ -1533,6 +1536,101 @@ bool Level::MoveEnt01(int target, dir d, int enti, Capabilities cap,
   AFFECT2016(newx, newy);
   settile(newx, newy, opp);
   BUTTON2016(newx, newy, target);
+
+  return true;
+}
+
+// For target = T_TRANSPONDER, T_RED, T_NSWE, T_NS, T_NE, T_NW, T_SE,
+// T_SW, T_WE, T_LR, T_UD, T_GREY.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntPushable(int target, dir d, int enti, Capabilities cap,
+			    int entx, int enty, int newx, int newy,
+			    DAB *ctx, AList *&events,
+			    AList **&etail) {
+  /* don't push a block that an entity stands on! */
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  // These can only be pushed in the correct direction.
+  if (target == T_LR && (d == DIR_UP || d == DIR_DOWN)) return false;
+  if (target == T_UD && (d == DIR_LEFT || d == DIR_RIGHT)) return false;
+
+  /* we're always stepping onto the panel that the block was on, so we
+     don't need to change its state. (if it's a regular panel, then
+     don't change because our feet are on it. if it's a colored panel,
+     don't change because neither the man nor the block can activate
+     it.) But we do need to put a panel there instead of floor. */
+  const int replacement = (flagat(newx, newy) & TF_HASPANEL)?
+    realpanel(flagat(newx,newy)) : T_FLOOR;
+
+  bool doswap = false;
+  bool zap = false;
+  bool hole = false;
+  int destx, desty;
+  
+  if (!travel(newx, newy, d, destx, desty))
+    return false;
+  if (playerat(destx, desty) || botat(destx, desty))
+    return false;
+  const int destt = tileat(destx, desty);
+  switch (destt) {
+  case T_FLOOR:
+    /* easy */
+    settile(destx, desty, target);
+    settile(newx, newy, replacement);
+    break;
+  case T_ELECTRIC:
+    if (target == T_LR || target == T_UD)
+      return false;
+
+    /* Zap! */
+    settile(newx, newy, replacement);
+    zap = true;
+    break;
+  case T_HOLE:
+    /* only grey blocks into holes */
+    if (target != T_GREY)
+      return false;
+
+    settile(destx, desty, T_FLOOR);
+    settile(newx, newy, replacement);
+    hole = true;
+    break;
+    /* all panels are pretty much the same */
+  case T_BPANEL:
+  case T_RPANEL:
+  case T_GPANEL:
+  case T_PANEL:
+    if (target == T_LR || target == T_UD)
+      return false;
+	
+    /* delay the swap */
+    /* (can only push down grey panels */
+    doswap = (destt == T_PANEL);
+    settile(destx, desty, target);
+    settile(newx, newy, replacement);
+    break;
+  default:
+    return false;
+  }
+
+  /* Success! */
+
+  AFFECT2016(newx, newy);
+  AFFECT2016(destx, desty);
+  AFFECTENT2016(enti, []{});
+
+  PUSHED2016(d, target, newx, newy, replacement, zap, hole);
+  WALKED2016(d, true);
+
+  CHECKSTEPOFF2016(entx, enty);
+
+  SETENTPOS2016(newx, newy);
+
+  if (doswap) {
+    AFFECTI2016(destat(destx, desty));
+    SWAPO2016(destat(destx, desty));
+  }
 
   return true;
 }
