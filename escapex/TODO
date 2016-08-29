@@ -32,6 +32,7 @@ code cleanup
  - replace vallist with deque or vector; it's not used in that many places
  - hash should be 64-bit, should not cast c_str() to hash strings because
    no guarantee that they have enough data
+ - return(true) etc.
 
 make sure there is no 'delete this;' when destroy methods were
 converted to destructors!

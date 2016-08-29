@@ -494,7 +494,6 @@ struct Level {
   void checkstepoff(int, int);
   void checkleavepanel(int, int);
   static int newtile(int old);
-  void swaptiles(int t1, int t2);
   void clearflag(int fl) {
     for (int i = 0; i < w * h; i++) {
       flags[i] &= ~fl;
@@ -714,6 +713,18 @@ struct Level {
 			int entx, int enty, int newx, int newy,
 			DAB *ctx, AList *&events,
 			AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEntSteel(int target, dir d, int enti, Capabilities cap,
+		    int entx, int enty, int newx, int newy,
+		    DAB *ctx, AList *&events,
+		    AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEnt01(int target, dir d, int enti, Capabilities cap,
+		 int entx, int enty, int newx, int newy,
+		 DAB *ctx, AList *&events,
+		 AList **&etail);
 };
 
 #endif
