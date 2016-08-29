@@ -696,6 +696,18 @@ struct Level {
 		       int entx, int enty, int newx, int newy,
 		       DAB *ctx, AList *&events,
 		       AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEntBroken(dir d, int enti, Capabilities cap,
+		     int entx, int enty, int newx, int newy,
+		     DAB *ctx, AList *&events,
+		     AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveEntGreen(dir d, int enti, Capabilities cap,
+		    int entx, int enty, int newx, int newy,
+		    DAB *ctx, AList *&events,
+		    AList **&etail);
 };
 
 #endif

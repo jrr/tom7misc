@@ -50,7 +50,6 @@ using AList = PtrList<aevent>;
 #undef TOGGLE
 #undef BUTTON
 #undef TRAP
-#undef PUSHGREEN
 #undef RET
 #undef AFFECT
 #undef AFFECTI
@@ -143,12 +142,6 @@ using AList = PtrList<aevent>;
       e->y = yy;           \
       e->whatold = t;      \
     }
-# define PUSHGREEN(xx, yy, dd) \
-    PUSHMOVE(pushgreen, e)     \
-      e->srcx = xx;            \
-      e->srcy = yy;            \
-      e->d = dd;               \
-    }
 # define BOTEXPLODE(botidx)             \
    PUSHMOVE(botexplode, e)              \
     where(boti[botidx], e->x, e->y);    \
@@ -162,7 +155,6 @@ using AList = PtrList<aevent>;
 # define TOGGLE(a, b, c, d) do { ; } while (0)
 # define BUTTON(a, b, c) do { ; } while (0)
 # define TRAP(a, b, c) do { ; } while (0)
-# define PUSHGREEN(a, b, c) do { ; } while (0)
 # define AFFECT(a, b) false
 # define AFFECTI(a) false
 # define PREAFFECTENTEX(a) do { ; } while (0)
@@ -758,48 +750,39 @@ static void postanimate(Level *l, DAB *ctx,
                       &unused_disamb, unused, etail_unused);
 #            endif
     }
-    case T_BROKEN:
 
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
-
-      (void)AFFECT(newx, newy);
-      settile(newx, newy, T_FLOOR);
-
-      #ifdef ANIMATING_MOVE
-      PUSHMOVE(breaks, e)
-         e->x = newx;
-         e->y = newy;
-      }
-      #endif
-      return(true);
+    case T_BROKEN: {
+#            ifdef ANIMATING_MOVE
+               return MoveEntBroken<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntBroken<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
+    }
 
     case T_GREEN: {
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
-
-      int destx, desty;
-      if (travel(newx, newy, d, destx, desty)) {
-        if (tileat(destx, desty) == T_FLOOR &&
-            !botat(destx, desty) &&
-            !playerat(destx, desty)) {
-          settile(destx, desty, T_BLUE);
-          settile(newx, newy, T_FLOOR);
-
-          (void)AFFECT(destx, desty);
-          (void)AFFECT(newx, newy);
-          PREAFFECTENTEX(enti);
-          POSTAFFECTENTEX(enti);
-          PUSHGREEN(newx, newy, d);
-          WALKED(d, true);
-
-          CHECKSTEPOFF(entx, enty);
-
-          SETENTPOS(newx, newy);
-
-          return true;
-        } else return false;
-      } else return false;
+#            ifdef ANIMATING_MOVE
+               return MoveEntGreen<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntGreen<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
 
     case T_STEEL:
