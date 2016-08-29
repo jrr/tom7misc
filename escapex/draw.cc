@@ -407,7 +407,7 @@ void drawing::drawlev(int layer, /* dir facing, */
     int gx = posx + margin + ((TILEW >> zoomfactor) * (lev->guyx - scrollx)) + (TILEH >> (zoomfactor + 1));
     int gy = posy + margin + ((TILEH >> zoomfactor) * (lev->guyy - scrolly)) + (TILEW >> (zoomfactor + 1));
 
-    int chx, chy;
+    int chx = 0, chy = 0;
     dirchange(dd, chx, chy);
 
 #   if 0

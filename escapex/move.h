@@ -1144,34 +1144,22 @@ static void postanimate(Level *l, DAB *ctx,
 #            endif
     }
 
-    case T_ELECTRIC:
-    if (botat(newx, newy) ||
-        playerat(newx, newy)) return false;
-    /* some bots are stupid enough
-       to zap themselves */
-      if (enti != -1 &&
-          (cap & CAP_ZAPSELF)) {
-
-        (void)AFFECT(newx, newy);
-        PREAFFECTENTEX(enti);
-        POSTAFFECTENTEX(enti);
-        WALKED(d, false);
-
-        /* change where it is */
-        boti[enti] = index(newx, newy);
-
-        /* then kill it */
-        bott[enti] = B_DELETED;
-        PREAFFECTENTEX(enti);
-        POSTAFFECTENTEX(enti);
-        BOTEXPLODE(enti);
-
-        /* might have stepped off a panel/trap */
-        CHECKSTEPOFF(entx, enty);
-
-        return true;
-      } else return false;
-    break;
+    case T_ELECTRIC: {
+#            ifdef ANIMATING_MOVE
+               return MoveEntElectric<true, Disamb>(d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntElectric<false, NullDisamb>(d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
+    }
 
     case T_BLUE:
     case T_HOLE:
