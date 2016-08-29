@@ -1393,7 +1393,7 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
   {
     int movex = destx, movey = desty;
     while (! (movex == newx && movey == newy)) {
-      int nextx, nexty;
+      int nextx = 0, nexty = 0;
       travel(movex, movey, revd, nextx, nexty);
       settile(movex, movey, tileat(nextx, nexty));
       movex = nextx;
@@ -1457,7 +1457,7 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
 
       prevt = heret;
 
-      int nextx, nexty;
+      int nextx = 0, nexty = 0;
       travel(lookx, looky, revd, nextx, nexty);
 
       lookx = nextx;
@@ -1506,7 +1506,7 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
       }
 
       /* next */
-      int nextx, nexty;
+      int nextx = 0, nexty = 0;
       travel(lookx, looky, revd, nextx, nexty);
       lookx = nextx;
       looky = nexty;
@@ -1634,5 +1634,159 @@ bool Level::MoveEntPushable(int target, dir d, int enti, Capabilities cap,
 
   return true;
 }
+
+template<bool ANIMATING, class DAB>
+bool Level::MoveEnt(dir d, int enti, Capabilities cap,
+                    int entx, int enty,
+                    DAB *ctx, AList *&events, AList **&etail) {
+
+  int newx = 0, newy = 0;
+  if (travel(entx, enty, d, newx, newy)) {
+    const int target = tileat(newx, newy);
+    switch (target) {
+
+    /* these aren't pressed by the player so act like floor */
+    case T_BPANEL:
+    case T_GPANEL:
+    case T_RPANEL:
+
+    /* these are only affected when we step *off* */
+    case T_TRAP2:
+    case T_TRAP1:
+
+    case T_FLOOR:
+    case T_ROUGH:
+    case T_BDOWN:
+    case T_RDOWN:
+    case T_GDOWN:
+
+    /* panels are mostly the same */
+    case T_PANEL:
+      return MoveEntFloorlike<ANIMATING, DAB>(
+	  target, d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_EXIT:
+      return MoveEntExit<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_ON:
+      return MoveEntOn<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_0:
+    case T_1:
+      return MoveEnt01<ANIMATING, DAB>(
+	  target, d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_BSPHERE:
+    case T_RSPHERE:
+    case T_GSPHERE:
+    case T_SPHERE:
+    case T_GOLD:
+      return MoveEntGoldlike<ANIMATING, DAB>(
+	  target, d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_TRANSPORT:
+      return MoveEntTransport<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_BUTTON:
+      return MoveEntButton<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_BROKEN:
+      return MoveEntBroken<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_GREEN:
+      return MoveEntGreen<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_STEEL:
+    case T_RSTEEL:
+    case T_GSTEEL:
+    case T_BSTEEL:
+      return MoveEntSteel<ANIMATING, DAB>(
+	  target, d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    /* simple pushable blocks use this case */
+    case T_TRANSPONDER:
+    case T_RED:
+    case T_NSWE:
+    case T_NS:
+    case T_NE:
+    case T_NW:
+    case T_SE:
+    case T_SW:
+    case T_WE:
+
+    case T_LR:
+    case T_UD:
+
+    case T_GREY:
+      return MoveEntPushable<ANIMATING, DAB>(
+	  target, d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_HEARTFRAMER:
+      return MoveEntHeartframer<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_ELECTRIC:
+      return MoveEntElectric<ANIMATING, DAB>(
+	  d, enti,
+	  cap, entx, enty,
+	  newx, newy, ctx, events, etail);
+
+    case T_BLUE:
+    case T_HOLE:
+    case T_LASER:
+    case T_STOP:
+    case T_RIGHT:
+    case T_LEFT:
+    case T_UP:
+    case T_DOWN:
+    case T_BLIGHT:
+    case T_RLIGHT:
+    case T_GLIGHT:
+    case T_RUP:
+    case T_BUP:
+    case T_GUP:
+    case T_OFF:
+    case T_BLACK:
+
+      /* XXX animate pushing up against these
+         unsuccessfully (anim 'press?') */
+
+    default:
+      return false;
+    }
+  }
+  return false;
+}
+
 
 #endif
