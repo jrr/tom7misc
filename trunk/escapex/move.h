@@ -452,7 +452,7 @@ static void postanimate(Level *l, DAB *ctx,
 #endif
 
   int newx = 0, newy = 0;
-  int target;
+  int target; // XXX2016 ok to move into decl?
   if (travel(entx, enty, d, newx, newy)) {
     switch (target = tileat(newx, newy)) {
 
@@ -473,175 +473,22 @@ static void postanimate(Level *l, DAB *ctx,
 
     /* panels are mostly the same */
     case T_PANEL: {
-
-      bool pushing = false;
-      int pushent = 0;
-      if (playerat(newx, newy)) {
-         /* if player is on bot, can't push */
-         if (botat(newx, newy)) return false;
-         /* push? */
-         if (cap & CAP_PUSHPLAYER) {
-           pushing = true;
-           pushent = -1;
-           /* step on? */
-         } else if (cap & CAP_CRUSHPLAYER) {
-           pushing = false;
-         } else return false;
-      } else if (botat(newx, newy, pushent)) {
-         /* push? */
-         if (cap & CAP_PUSHBOTS) {
-            /* check that the target bot is pushable */
-            pushing = true;
-         /* step on? */
-         } else if (cap & CAP_WALKINTOBOTS) {
-            pushing = false;
-         } else return false;
-      }
-
-      if (pushing) {
-        /* OK, we know that the next spot
-           contains a bot (or player), and
-           we have the capability to push that
-           entity. But we have to check what
-           lives beyond this spot. */
-        int farx, fary;
-        if (travel(newx, newy, d, farx, fary)) {
-           int ftarget = tileat(farx, fary);
-           switch (ftarget) {
-             case T_ELECTRIC:
-                /* only bots pushed into electric */
-                if (pushent == -1) return false;
-                else break;
-             case T_TRAP2:
-             case T_TRAP1:
-             case T_FLOOR:
-             case T_ROUGH:
-             case T_RDOWN:
-             case T_GDOWN:
-             case T_BDOWN:
-             case T_PANEL:
-             case T_RPANEL:
-             case T_GPANEL:
-             case T_BPANEL:
-                break;
-             default:
-                return false;
-           }
-           /* also check bot -- can't push
-              two in a row */
-           if (botat(farx, fary)) return false;
-           if (playerat(farx, fary)) return false;
-
-           /* affect first, then make anims */
-
-           PREAFFECTENTEX(enti);
-           PREAFFECTENTEX(pushent);
-           (void)AFFECT(farx, fary);
-           (void)AFFECT(newx, newy);
-
-           /* if a bomb, light and reset fuse */
-           /* XXX animate? */
-           if (pushent != -1 &&
-           isbomb(bott[pushent]))
-               bota[pushent] = ((int)bott[pushent] - (int)B_BOMB_0);
-
-           POSTAFFECTENTEX(enti);
-           POSTAFFECTENTEX(pushent);
-
-           /* XXX should be "waspushed" or whatever */
-           WALKEDEX(d, newx, newy, pushent, false);
-           /* okay, now move the pushing ent */
-           WALKED(d, true);
-
-
-           /* okay, now move the pushing ent */
-           //           WALKED(d, true);
-
-           // printf("now change positions...\n");
-           /* okay, push! */
-           if (pushent == -1) {
-              guyx = farx;
-              guyy = fary;
-           } else {
-              int id = index(farx, fary);
-              boti[pushent] = id;
-           }
-
-           /* handle leaving current (pusher) pos */
-           CHECKTRAP(entx, enty);
-           /* but still need to check panels, later... */
-           int srcx = entx, srcy = enty;
-           bool swapsrc = tileat(entx, enty) == T_PANEL;
-
-           /* then move me. */
-           SETENTPOS(newx, newy);
-
-           /* now deal with zapping */
-           if (ftarget == T_ELECTRIC &&
-               pushent != -1) {
-              /* can't be player: kill bot */
-              bott[pushent] = B_DELETED;
-              (void)AFFECT(farx, fary);
-              BOTEXPLODE(pushent);
-           }
-
-           /* the tile in the middle is being stepped off
-              and stepped on. if it's a panel, don't do anything.
-              (to avoid a double swap) */
-           if (target == T_PANEL) {
-              /* do nothing */
-           } else {
-              CHECKTRAP(newx, newy);
-           }
-
-           /* -- panel phase -- */
-
-           /* first, if pusher stepped off a panel, it swaps */
-           if (swapsrc) {
-              (void)AFFECTI(destat(srcx, srcy));
-              SWAPO(destat(srcx, srcy));
-           }
-
-           /* pushed ent is stepping onto new panel, perhaps */
-           if (ftarget == T_PANEL) {
-              (void)AFFECTI(destat(farx, fary));
-              SWAPO(destat(farx, fary));
-           }
-
-           return true;
-
-        } else return false;
-
-      } else {
-        /* XXX also affect source? */
-        PREAFFECTENTEX(enti);
-        (void)AFFECT(newx, newy);
-        POSTAFFECTENTEX(enti);
-        WALKED(d, false);
-
-        //        printf("first ent is at %d/%d\n", entx, enty);
-
-        /* might have stepped onto bot */
-        CHECKBOTDEATH(newx, newy, enti);
-
-        /* panel actions */
-        //        printf(" %d   Checkstepoff...\n", enti);
-        CHECKSTEPOFF(entx, enty);
-
-        SETENTPOS(newx, newy);
-
-        //        printf("now ent is at %d/%d\n", entx, enty);
-
-
-        if (target == T_PANEL) {
-          // printf(" %d   step on panel...\n", enti);
-          (void)AFFECTI(destat(newx, newy));
-          SWAPO(destat(newx, newy));
-        }
-
-        return(true);
-      }
+#            ifdef ANIMATING_MOVE
+               return MoveEntFloorlike<true, Disamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntFloorlike<false, NullDisamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
+    
     case T_EXIT: {
 #            ifdef ANIMATING_MOVE
                return MoveEntExit<true, Disamb>(d, enti,
