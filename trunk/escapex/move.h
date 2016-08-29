@@ -424,9 +424,9 @@ static void postanimate(Level *l, DAB *ctx,
 #endif
 
   int newx = 0, newy = 0;
-  int target; // XXX2016 ok to move into decl?
   if (travel(entx, enty, d, newx, newy)) {
-    switch (target = tileat(newx, newy)) {
+    const int target = tileat(newx, newy);
+    switch (target) {
 
     /* these aren't pressed by the player so act like floor */
     case T_BPANEL:
@@ -638,97 +638,20 @@ static void postanimate(Level *l, DAB *ctx,
     case T_UD:
 
     case T_GREY: {
-
-    /* don't push a block that an entity stands on! */
-    if (playerat(newx, newy) ||
-        botat(newx, newy)) return false;
-
-
-    /* we're always stepping onto the panel that
-       the block was on, so we don't need to change
-       its state. (if it's a regular panel, then
-       don't change because our feet are on it. if
-       it's a colored panel, don't change because
-       neither the man nor the block can activate it.)
-       But we do need to put a panel there
-       instead of floor. */
-    int replacement = (flagat(newx, newy) & TF_HASPANEL)?
-              realpanel(flagat(newx,newy)):T_FLOOR;
-
-    bool doswap = false;
-    bool zap = false;
-    (void)zap;
-    bool hole = false;
-    (void)hole;
-    int destx, desty;
-
-
-      if (target == T_LR && (d == DIR_UP || d == DIR_DOWN)) return(false);
-      if (target == T_UD && (d == DIR_LEFT || d == DIR_RIGHT)) return(false);
-
-      if (travel(newx, newy, d, destx, desty)) {
-
-        int destt = tileat(destx, desty);
-        if (playerat(destx, desty) || botat(destx, desty))
-           return false;
-        switch (destt) {
-        case T_FLOOR:
-          /* easy */
-          settile(destx, desty, target);
-          settile(newx, newy, replacement);
-          break;
-        case T_ELECTRIC:
-          /* Zap! */
-          if (target != T_LR && target != T_UD) {
-            settile(newx, newy, replacement);
-          } else return(false);
-            zap = true;
-          break;
-        case T_HOLE:
-          /* only grey blocks into holes */
-          if (target == T_GREY) {
-            settile(destx, desty, T_FLOOR);
-            settile(newx, newy, replacement);
-            hole = true;
-            break;
-          } else return(false);
-        /* all panels are pretty much the same */
-        case T_BPANEL:
-        case T_RPANEL:
-        case T_GPANEL:
-        case T_PANEL:
-          if (target != T_LR && target != T_UD) {
-            /* delay the swap */
-            /* (can only push down grey panels */
-            doswap = (destt == T_PANEL);
-            settile(destx, desty, target);
-            settile(newx, newy, replacement);
-          } else return(false);
-          break;
-        default: return(false);
-        }
-      } else return(false);
-
-      /* Success! */
-
-    (void)AFFECT(newx, newy);
-    (void)AFFECT(destx, desty);
-    PREAFFECTENTEX(enti);
-    POSTAFFECTENTEX(enti);
-
-    PUSHED(d, target, newx, newy, replacement, zap, hole);
-    WALKED(d, true);
-
-    CHECKSTEPOFF(entx, enty);
-
-    SETENTPOS(newx, newy);
-
-    if (doswap) {
-      (void)AFFECTI(destat(destx, desty));
-      SWAPO(destat(destx, desty));
-    }
-
-    return(true);
+#            ifdef ANIMATING_MOVE
+               return MoveEntPushable<true, Disamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntPushable<false, NullDisamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
 
     case T_HEARTFRAMER: {
