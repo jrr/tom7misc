@@ -48,7 +48,6 @@ using AList = PtrList<aevent>;
 #undef WALKEDEX
 #undef PUSHED
 #undef TOGGLE
-#undef BUTTON
 #undef TRAP
 #undef RET
 #undef AFFECT
@@ -130,12 +129,6 @@ using AList = PtrList<aevent>;
       e->whatold = t;         \
       e->delay = d;           \
     }
-# define BUTTON(xx, yy, t) \
-    PUSHMOVE(button, e)    \
-      e->x = xx;           \
-      e->y = yy;           \
-      e->whatold = t;      \
-    }
 # define TRAP(xx, yy, t)   \
     PUSHMOVE(trap, e)      \
       e->x = xx;           \
@@ -153,7 +146,6 @@ using AList = PtrList<aevent>;
 # define WALKEDEX(a, b, c, d, e) do { ; } while (0)
 # define PUSHED(a, b, c, d, e, f, g) do { ; } while (0)
 # define TOGGLE(a, b, c, d) do { ; } while (0)
-# define BUTTON(a, b, c) do { ; } while (0)
 # define TRAP(a, b, c) do { ; } while (0)
 # define AFFECT(a, b) false
 # define AFFECTI(a) false
@@ -196,22 +188,6 @@ using AList = PtrList<aevent>;
   CHECKLEAVEPANEL(xx, yy);                 \
 } while (0)
 
-#define SWAPTILES(t1, t2, d) do { \
-  for (int y = 0; y < h; y++) {   \
-  for (int x = 0; x < w; x++) {   \
-   int t = tileat(x, y);          \
-   if (t == t1) {                 \
-     (void)AFFECT(x, y);          \
-     TOGGLE(x, y, t, d);          \
-     settile(x, y, t2);           \
-   } else if (t == t2) {          \
-     (void)AFFECT(x, y);          \
-     TOGGLE(x, y, t, d);          \
-     settile(x, y, t1);           \
-   }                              \
-  } }                             \
-} while (0)
-
 /* must call this whenever a bot steps
    onto a tile where there might be other
    bots. (walking atop one, or teleporting)
@@ -246,10 +222,6 @@ void Level::checkstepoff(int x, int y) {
 
 void Level::checkleavepanel(int x, int y) {
   CHECKSTEPOFF(x, y);
-}
-
-void Level::swaptiles(int t1, int t2) {
-  SWAPTILES(t1, t2, 0);
 }
 #endif
 
@@ -488,7 +460,7 @@ static void postanimate(Level *l, DAB *ctx,
                       &unused_disamb, unused, etail_unused);
 #            endif
     }
-    
+
     case T_EXIT: {
 #            ifdef ANIMATING_MOVE
                return MoveEntExit<true, Disamb>(d, enti,
@@ -504,7 +476,7 @@ static void postanimate(Level *l, DAB *ctx,
                       (Capabilities)cap, entx, enty, newx, newy,
                       &unused_disamb, unused, etail_unused);
 #            endif
-      }  
+      }
 
     case T_ON: {
 #            ifdef ANIMATING_MOVE
@@ -525,21 +497,20 @@ static void postanimate(Level *l, DAB *ctx,
 
     case T_0:
     case T_1: {
-
-      /* ditto */
-      if (playerat(newx, newy) ||
-          botat(newx, newy)) return false;
-
-
-      int opp = (target == T_0 ? T_1 : T_0);
-
-      SWAPTILES(T_UD, T_LR, 0);
-
-      (void)AFFECT(newx, newy);
-      settile(newx, newy, opp);
-      BUTTON(newx, newy, target);
-
-      return(true);
+#            ifdef ANIMATING_MOVE
+               return MoveEnt01<true, Disamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEnt01<false, NullDisamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
 
     case T_BSPHERE:
@@ -636,219 +607,22 @@ static void postanimate(Level *l, DAB *ctx,
     case T_RSTEEL:
     case T_GSTEEL:
     case T_BSTEEL: {
-
-    /* three phases. first, see if we can push this
-       whole column one space.
-
-       if so, generate animations.
-
-       then, update panel states. this is tricky. */
-
-    int destx = newx, desty = newy;
-    {
-      int curx = newx, cury = newy;
-      /* go until not steel, or if we hit a robot
-         anywhere along this, end */
-      while (!botat(curx, cury) && !playerat(curx, cury) &&
-             travel(curx, cury, d, destx, desty) &&
-             issteel(tileat(destx, desty))) {
-         curx = destx;
-         cury = desty;
-      }
+#            ifdef ANIMATING_MOVE
+               return MoveEntSteel<true, Disamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty,
+                      newx, newy, ctx, events, etail);
+#            else
+             // XXX 2016 pass along existing events, etail when
+             // move takes those as well
+               NullDisamb unused_disamb;
+               PtrList<aevent> *unused = nullptr;
+               AList **etail_unused = &unused;
+               return MoveEntSteel<false, NullDisamb>(target, d, enti,
+                      (Capabilities)cap, entx, enty, newx, newy,
+                      &unused_disamb, unused, etail_unused);
+#            endif
     }
 
-    /* entity in our column or at the end? sorry */
-    if (botat(destx, desty) ||
-        playerat(destx, desty)) return false;
-
-    /* what did we hit? */
-    int hittile;
-    bool zap = false;
-    (void)zap;
-    switch (hittile = tileat(destx, desty)) {
-    /* nb if we "hit" steel, then it's steel to the edge of the
-       level, so no push. */
-    case T_PANEL:
-    case T_GPANEL:
-    case T_BPANEL:
-    case T_RPANEL:
-    case T_FLOOR:
-       break;
-    case T_ELECTRIC:
-       zap = true;
-       break;
-    default: return(false);
-    }
-
-    /*  guy            destx,desty
-        v              v
-       [ ][S][S][S][S][ ]
-           ^
-           steels
-           starting at newx,newy
-
-        d  ---->
-    */
-    dir revd = dir_reverse(d);
-
-
-    /* at this point, the push is going through */
-    #ifdef ANIMATING_MOVE
-    /* make pass to affect (so that all move in same serial) */
-    { int xx = destx, yy = desty;
-      do {
-        travel(xx, yy, revd, xx, yy);
-        (void)AFFECT(xx, yy);
-      } while (! (xx == newx && yy == newy));
-      (void)AFFECT(newx, newy);
-    }
-
-    { int xx = destx, yy = desty;
-      bool zappy = zap;
-      do {
-        travel(xx, yy, revd, xx, yy);
-        int replacement = (flagat(xx, yy) & TF_HASPANEL)?
-                           realpanel(flagat(xx,yy)):T_FLOOR;
-        int what = tileat(xx, yy);
-        PUSHED(d, what, xx, yy, replacement, zappy, false);
-
-        /* only last one can zap */
-        zappy = false;
-      } while (! (xx == newx && yy == newy));
-    }
-    #endif
-
-    /* move the steel blocks first. */
-    { int movex = destx, movey = desty;
-      while (! (movex == newx && movey == newy)) {
-        int nextx, nexty;
-        travel(movex, movey, revd, nextx, nexty);
-        settile(movex, movey, tileat(nextx, nexty));
-        movex = nextx;
-        movey = nexty;
-      }
-    }
-
-    /* and one more, for the tile that we're stepping onto */
-    {
-      int replacement = (flagat(newx, newy) & TF_HASPANEL)?
-                         realpanel(flagat(newx,newy)):T_FLOOR;
-      settile(newx, newy, replacement);
-    }
-
-    /* reconcile panels.
-
-       imagine pushing a row of blocks one space to the
-       right.
-
-       we loop over the NEW positions for the steel blocks.
-       If a steel block is on a panel (that it can trigger),
-       then we trigger that panel as long as the thing to
-       its right (which used to be there) couldn't trigger
-       it. this handles new panels that are turned ON.
-
-       if we can't trigger the panel, then we check to see
-       if the panel to our right (which used to be there)
-       also can't trigger it. If so, we don't do anything.
-       Otherwise, we "untrigger" the panel.
-
-       To simplify, if triggerstatus_now != triggerstatus_old,
-       we trigger. (Trigger has the same effect as untriggering.)
-
-       Because these swaps are supposed to be delayed, we
-       set the TF_TEMP flag if the tile should do a swap
-       afterwards.
-    */
-
-    bool swapnew = false;
-    { int lookx = destx, looky = desty;
-      int prevt = T_FLOOR; /* anything that doesn't trigger */
-      while (! (lookx == newx && looky == newy)) {
-
-        int heret = tileat(lookx, looky);
-
-        /* triggerstatus for this location (lookx, looky) */
-        bool triggerstatus_now =
-             (flagat(lookx, looky) & TF_HASPANEL) &&
-             triggers(heret, realpanel(flagat(lookx, looky)));
-
-        bool triggerstatus_old =
-             (flagat(lookx, looky) & TF_HASPANEL) &&
-             issteel(prevt) &&
-             triggers(prevt, realpanel(flagat(lookx, looky)));
-
-        if (triggerstatus_now != triggerstatus_old) {
-           setflag(lookx, looky, flagat(lookx, looky) | TF_TEMP);
-           //           printf("Yes swap at %d/%d\n", lookx, looky);
-        } else setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
-
-        prevt = heret;
-
-        int nextx, nexty;
-        travel(lookx, looky, revd, nextx, nexty);
-
-        lookx = nextx;
-        looky = nexty;
-      }
-
-      /* first panel is slightly different */
-      { int first = tileat(newx, newy);
-        bool trig_now = (first == T_PANEL);
-        bool trig_old =
-           ispanel(first) &&
-           triggers(prevt, realpanel(flagat(newx, newy)));
-
-        if (trig_old != trig_now) {
-          swapnew = true;
-        }
-      }
-    }
-
-
-    /* zap, if necessary, before swapping */
-    if (zap) {
-      settile(destx, desty, T_ELECTRIC);
-      /* XXX animate */
-    }
-
-    /* now we can start swapping. */
-    CHECKSTEPOFF(entx, enty);
-
-    /* this part is now invariant to order, because there is
-       only one destination per location */
-
-    if (swapnew) {
-      (void)AFFECTI(destat(newx, newy));
-      SWAPO(destat(newx, newy));
-    }
-
-    { int lookx = destx, looky = desty;
-      while (! (lookx == newx && looky == newy)) {
-
-        if (flagat(lookx, looky) & TF_TEMP) {
-          (void)AFFECTI(destat(lookx, looky));
-          SWAPO(destat(lookx, looky));
-          setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
-        }
-
-        /* next */
-        int nextx, nexty;
-        travel(lookx, looky, revd, nextx, nexty);
-        lookx = nextx;
-        looky = nexty;
-      }
-    }
-
-    /* XXX also boundary conditions? (XXX what does that mean?) */
-    PREAFFECTENTEX(enti);
-    POSTAFFECTENTEX(enti);
-    WALKED(d, true);
-
-    SETENTPOS(newx, newy);
-
-    return(true);
-    break;
-    }
     /* simple pushable blocks use this case */
     case T_TRANSPONDER:
     case T_RED:

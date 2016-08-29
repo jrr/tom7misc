@@ -207,6 +207,26 @@ using AList = PtrList<aevent>;
     }                                                   \
   } while (0)
 
+# define PUSHED2016(d, w, x, y, u, z, h) do {	 \
+    if (ANIMATING) {				 \
+      const dir pushed_d = (d);			 \
+      const int pushed_w = (w);			 \
+      const int pushed_x = (x), pushed_y = (y);	 \
+      const int pushed_u = (u);			 \
+      const bool pushed_z = (z), pushed_h = (h); \
+      PUSHMOVE2016(push, ([&](push_t *e) {	 \
+	e->srcx = pushed_x;			 \
+	e->srcy = pushed_y;			 \
+	e->d = pushed_d;			 \
+	e->under = pushed_u;			 \
+	e->what = pushed_w;			 \
+	e->zap = pushed_z;			 \
+	e->hole = pushed_h;			 \
+      }));					 \
+    }						 \
+  } while (0)
+
+
 // Helper functions -- these actually have an effect on the level state,
 // in addition to animating.
 
@@ -1280,5 +1300,241 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
   }
 }
 
+// Target should be STEEL, RSTEEL, GSTEEL or BSTEEL.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
+			 int entx, int enty, int newx, int newy,
+			 DAB *ctx, AList *&events,
+			 AList **&etail) {
+  /* three phases. first, see if we can push this
+     whole column one space.
+
+     if so, generate animations.
+
+     then, update panel states. this is tricky. */
+  int destx = newx, desty = newy;
+  {
+    int curx = newx, cury = newy;
+    /* go until not steel, or if we hit a robot
+       anywhere along this, end */
+    while (!botat(curx, cury) && !playerat(curx, cury) &&
+	   travel(curx, cury, d, destx, desty) &&
+	   issteel(tileat(destx, desty))) {
+      curx = destx;
+      cury = desty;
+    }
+  }
+
+  /* entity in our column or at the end? sorry */
+  if (botat(destx, desty) ||
+      playerat(destx, desty)) return false;
+
+  /* what did we hit? */
+  const int hittile = tileat(destx, desty);
+  const bool zap = hittile == T_ELECTRIC;
+  switch (hittile) {
+    /* nb if we "hit" steel, then it's steel to the edge of the
+       level, so no push. */
+  case T_PANEL:
+  case T_GPANEL:
+  case T_BPANEL:
+  case T_RPANEL:
+  case T_FLOOR:
+  case T_ELECTRIC:
+    break;
+  default:
+    return false;
+  }
+
+  /*  guy            destx,desty
+      v              v
+      [ ][S][S][S][S][ ]
+      ^
+      steels
+      starting at newx,newy
+
+      d  ---->
+  */
+  const dir revd = dir_reverse(d);
+
+
+  /* at this point, the push is going through */
+  if (ANIMATING) {
+    /* make pass to affect (so that all move in same serial) */
+    {
+      int xx = destx, yy = desty;
+      do {
+	travel(xx, yy, revd, xx, yy);
+	AFFECT2016(xx, yy);
+      } while (! (xx == newx && yy == newy));
+      AFFECT2016(newx, newy);
+    }
+
+    {
+      int xx = destx, yy = desty;
+      bool zappy = zap;
+      do {
+	travel(xx, yy, revd, xx, yy);
+	int replacement = (flagat(xx, yy) & TF_HASPANEL) ?
+	  realpanel(flagat(xx,yy)) : T_FLOOR;
+	int what = tileat(xx, yy);
+	PUSHED2016(d, what, xx, yy, replacement, zappy, false);
+
+	/* only last one can zap */
+	zappy = false;
+      } while (! (xx == newx && yy == newy));
+    }
+  }
+
+  /* move the steel blocks first. */
+  {
+    int movex = destx, movey = desty;
+    while (! (movex == newx && movey == newy)) {
+      int nextx, nexty;
+      travel(movex, movey, revd, nextx, nexty);
+      settile(movex, movey, tileat(nextx, nexty));
+      movex = nextx;
+      movey = nexty;
+    }
+  }
+
+  /* and one more, for the tile that we're stepping onto */
+  {
+    const int replacement = (flagat(newx, newy) & TF_HASPANEL) ?
+      realpanel(flagat(newx,newy)) : T_FLOOR;
+    settile(newx, newy, replacement);
+  }
+
+  /* reconcile panels.
+
+     imagine pushing a row of blocks one space to the
+     right.
+
+     we loop over the NEW positions for the steel blocks.
+     If a steel block is on a panel (that it can trigger),
+     then we trigger that panel as long as the thing to
+     its right (which used to be there) couldn't trigger
+     it. this handles new panels that are turned ON.
+
+     if we can't trigger the panel, then we check to see
+     if the panel to our right (which used to be there)
+     also can't trigger it. If so, we don't do anything.
+     Otherwise, we "untrigger" the panel.
+
+     To simplify, if triggerstatus_now != triggerstatus_old,
+     we trigger. (Trigger has the same effect as untriggering.)
+
+     Because these swaps are supposed to be delayed, we
+     set the TF_TEMP flag if the tile should do a swap
+     afterwards.
+  */
+
+  bool swapnew = false;
+  {
+    int lookx = destx, looky = desty;
+    int prevt = T_FLOOR; /* anything that doesn't trigger */
+    while (! (lookx == newx && looky == newy)) {
+      const int heret = tileat(lookx, looky);
+
+      /* triggerstatus for this location (lookx, looky) */
+      const bool triggerstatus_now =
+	(flagat(lookx, looky) & TF_HASPANEL) &&
+	triggers(heret, realpanel(flagat(lookx, looky)));
+
+      const bool triggerstatus_old =
+	(flagat(lookx, looky) & TF_HASPANEL) &&
+	issteel(prevt) &&
+	triggers(prevt, realpanel(flagat(lookx, looky)));
+
+      if (triggerstatus_now != triggerstatus_old) {
+	setflag(lookx, looky, flagat(lookx, looky) | TF_TEMP);
+      } else {
+	setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
+      }
+
+      prevt = heret;
+
+      int nextx, nexty;
+      travel(lookx, looky, revd, nextx, nexty);
+
+      lookx = nextx;
+      looky = nexty;
+    }
+
+    /* first panel is slightly different */
+    {
+      const int first = tileat(newx, newy);
+      const bool trig_now = first == T_PANEL;
+      const bool trig_old =
+	ispanel(first) &&
+	triggers(prevt, realpanel(flagat(newx, newy)));
+
+      if (trig_old != trig_now) {
+	swapnew = true;
+      }
+    }
+  }
+
+  /* zap, if necessary, before swapping. This was
+     already animated above. */
+  if (zap) {
+    settile(destx, desty, T_ELECTRIC);
+  }
+
+  /* now we can start swapping. */
+  CHECKSTEPOFF2016(entx, enty);
+
+  /* this part is now invariant to order, because there is
+     only one destination per location */
+
+  if (swapnew) {
+    AFFECTI2016(destat(newx, newy));
+    SWAPO2016(destat(newx, newy));
+  }
+
+  {
+    int lookx = destx, looky = desty;
+    while (! (lookx == newx && looky == newy)) {
+
+      if (flagat(lookx, looky) & TF_TEMP) {
+	AFFECTI2016(destat(lookx, looky));
+	SWAPO2016(destat(lookx, looky));
+	setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
+      }
+
+      /* next */
+      int nextx, nexty;
+      travel(lookx, looky, revd, nextx, nexty);
+      lookx = nextx;
+      looky = nexty;
+    }
+  }
+
+  /* XXX also boundary conditions? (XXX what does that mean?) */
+  AFFECTENT2016(enti, []{});
+  WALKED2016(d, true);
+
+  SETENTPOS2016(newx, newy);
+  return true;
+}
+
+template<bool ANIMATING, class DAB>
+bool Level::MoveEnt01(int target, dir d, int enti, Capabilities cap,
+		      int entx, int enty, int newx, int newy,
+		      DAB *ctx, AList *&events,
+		      AList **&etail) {
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  const int opp = (target == T_0 ? T_1 : T_0);
+
+  SWAPTILES2016(T_UD, T_LR, 0);
+
+  AFFECT2016(newx, newy);
+  settile(newx, newy, opp);
+  BUTTON2016(newx, newy, target);
+
+  return true;
+}
 
 #endif
