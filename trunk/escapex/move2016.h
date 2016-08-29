@@ -917,13 +917,13 @@ bool Level::MoveEntButton(dir d, int enti, Capabilities cap,
       int x, y;
       where(t->target, x, y);
       if (false) printf("(was %d %d) ",
-			ctx->serialat(x, y),
-			ctx->Serial());
+                        ctx->serialat(x, y),
+                        ctx->Serial());
       bool did = ctx->affecti(t->target, this, etail);
       if (false) printf("%d=%d,%d: %s %d %d\n",
-			t->target, x, y, did ? "did" : "not",
-			ctx->serialat(x, y),
-			ctx->Serial());
+                        t->target, x, y, did ? "did" : "not",
+                        ctx->serialat(x, y),
+                        ctx->Serial());
       // AFFECTI(t->target);
     }
     SWAPO2016(t->target);
@@ -936,9 +936,9 @@ bool Level::MoveEntButton(dir d, int enti, Capabilities cap,
 // Assumes target == T_HEARTFRAMER.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntHeartframer(dir d, int enti, Capabilities cap,
-			       int entx, int enty, int newx, int newy,
-			       DAB *ctx, AList *&events,
-			       AList **&etail) {
+                               int entx, int enty, int newx, int newy,
+                               DAB *ctx, AList *&events,
+                               AList **&etail) {
   if (botat(newx, newy) ||
       playerat(newx, newy)) return false;
 
@@ -961,51 +961,51 @@ bool Level::MoveEntHeartframer(dir d, int enti, Capabilities cap,
 
     if (!hasframers()) {
       for (int y = 0; y < h; y++) {
-	for (int x = 0; x < w; x++) {
-	  const int t = tileat(x, y);
-	  if (t == T_SLEEPINGDOOR) {
-	    AFFECT2016(x, y);
-	    PUSHMOVE2016(wakeupdoor, [&](wakeupdoor_t *e) {
-	      e->x = x; e->y = y;
-	    });
-	    settile(x, y, T_EXIT);
-	  }
-	}
+        for (int x = 0; x < w; x++) {
+          const int t = tileat(x, y);
+          if (t == T_SLEEPINGDOOR) {
+            AFFECT2016(x, y);
+            PUSHMOVE2016(wakeupdoor, [&](wakeupdoor_t *e) {
+              e->x = x; e->y = y;
+            });
+            settile(x, y, T_EXIT);
+          }
+        }
       }
 
       /* also bots */
       for (int i = 0; i < nbots; i++) {
-	const int orig_bott = bott[i];
-	switch (orig_bott) {
-	case B_DALEK_ASLEEP:
-	case B_HUGBOT_ASLEEP:
-	  AFFECTENT2016(i, [&]() {
-	    AFFECTI2016(boti[i]);
-	  });
+        const int orig_bott = bott[i];
+        switch (orig_bott) {
+        case B_DALEK_ASLEEP:
+        case B_HUGBOT_ASLEEP:
+          AFFECTENT2016(i, [&]() {
+            AFFECTI2016(boti[i]);
+          });
 
-	  bott[i] =
-	    (orig_bott == B_DALEK_ASLEEP) ?
-	    B_DALEK : B_HUGBOT;
-	  PUSHMOVE2016(stand, [&](stand_t *e) {
-	    where(boti[i], e->x, e->y);
-	    e->d = botd[i];
-	    e->entt = bott[i];
-	    e->data = bota[i];
-	  });
+          bott[i] =
+            (orig_bott == B_DALEK_ASLEEP) ?
+            B_DALEK : B_HUGBOT;
+          PUSHMOVE2016(stand, [&](stand_t *e) {
+            where(boti[i], e->x, e->y);
+            e->d = botd[i];
+            e->entt = bott[i];
+            e->data = bota[i];
+          });
 
-	  if (ANIMATING) {
-	    int xx, yy;
-	    where(boti[i], xx, yy);
+          if (ANIMATING) {
+            int xx, yy;
+            where(boti[i], xx, yy);
 
-	    PUSHMOVE2016(wakeup, [&](wakeup_t *e) {
-	      e->x = xx;
-	      e->y = yy;
-	    });
-	  }
-	  break;
+            PUSHMOVE2016(wakeup, [&](wakeup_t *e) {
+              e->x = xx;
+              e->y = yy;
+            });
+          }
+          break;
 
-	default:;
-	}
+        default:;
+        }
       }
     }
 
@@ -1016,6 +1016,39 @@ bool Level::MoveEntHeartframer(dir d, int enti, Capabilities cap,
 
     return true;
   }
+  return false;
+}
+
+// Assumes target == T_ELECTRIC.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntElectric(dir d, int enti, Capabilities cap,
+			    int entx, int enty, int newx, int newy,
+			    DAB *ctx, AList *&events,
+			    AList **&etail) {
+  if (botat(newx, newy) ||
+      playerat(newx, newy)) return false;
+  /* some bots are stupid enough
+     to zap themselves */
+  if (enti != B_PLAYER &&
+      (cap & CAP_ZAPSELF)) {
+
+    AFFECT2016(newx, newy);
+    AFFECTENT2016(enti, []{});
+    WALKED2016(d, false);
+
+    /* change where it is */
+    boti[enti] = index(newx, newy);
+
+    /* then kill it */
+    bott[enti] = B_DELETED;
+    AFFECTENT2016(enti, []{});
+    BOTEXPLODE2016(enti);
+
+    /* might have stepped off a panel/trap */
+    CHECKSTEPOFF2016(entx, enty);
+
+    return true;
+  } 
   return false;
 }
 

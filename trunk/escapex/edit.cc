@@ -1303,7 +1303,7 @@ void editor::edit(Level *origlev) {
 	      break;
 	    }
 
-	    int drightx, drighty, ddownx, ddowny;
+	    int drightx = 0, drighty = 0, ddownx = 0, ddowny = 0;
 	    dirchange(right, drightx, drighty);
 	    dirchange(down,  ddownx,  ddowny);
 
