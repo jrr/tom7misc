@@ -1052,4 +1052,63 @@ bool Level::MoveEntElectric(dir d, int enti, Capabilities cap,
   return false;
 }
 
+// Assumes target == T_BROKEN.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntBroken(dir d, int enti, Capabilities cap,
+			  int entx, int enty, int newx, int newy,
+			  DAB *ctx, AList *&events,
+			  AList **&etail) {
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  AFFECT2016(newx, newy);
+  settile(newx, newy, T_FLOOR);
+
+  PUSHMOVE2016(breaks, ([&](breaks_t *e) {
+    e->x = newx;
+    e->y = newy;
+  }));
+  return true;
+}
+
+// Assumes target == T_GREEN.
+template<bool ANIMATING, class DAB>
+bool Level::MoveEntGreen(dir d, int enti, Capabilities cap,
+			 int entx, int enty, int newx, int newy,
+			 DAB *ctx, AList *&events,
+			 AList **&etail) {
+  if (playerat(newx, newy) ||
+      botat(newx, newy)) return false;
+
+  int destx, desty;
+  if (travel(newx, newy, d, destx, desty) &&
+      tileat(destx, desty) == T_FLOOR &&
+      !botat(destx, desty) &&
+      !playerat(destx, desty)) {
+    settile(destx, desty, T_BLUE);
+    settile(newx, newy, T_FLOOR);
+
+    AFFECT2016(destx, desty);
+    AFFECT2016(newx, newy);
+    AFFECTENT2016(enti, []{});
+
+    PUSHMOVE2016(pushgreen, ([&](pushgreen_t *e) {
+      e->srcx = newx;
+      e->srcy = newy;
+      e->d = d;
+    }));
+      
+    WALKED2016(d, true);
+
+    CHECKSTEPOFF2016(entx, enty);
+
+    SETENTPOS2016(newx, newy);
+
+    return true;
+  }
+
+  return false;
+}
+
+
 #endif
