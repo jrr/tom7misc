@@ -492,7 +492,6 @@ struct Level {
   friend struct Solution;
 
   void checkstepoff(int, int);
-  void checkleavepanel(int, int);
   static int newtile(int old);
   void clearflag(int fl) {
     for (int i = 0; i < w * h; i++) {
@@ -634,20 +633,16 @@ struct Level {
     }
   }
   
-  /* pass the entity index, or -1 for the player */
-  // XXX capabilities to int32
-  bool moveent(dir d, int enti, unsigned int capabilities,
-	       int entx, int enty);
-
   using AList = PtrList<aevent>;
+
+  // XXX capabilities to int32
+  /* pass the entity index, or -1 for the player */
+  template<bool ANIMATING, class DAB>
+  bool MoveEnt(dir d, int enti, Capabilities cap,
+	       int entx, int enty,
+	       DAB *ctx, AList *&events, AList **&etail);
   
-# ifndef NOANIMATION
-  bool moveent_animate(dir d, int enti, unsigned int capabilities,
-		       int entx, int enty,
-		       AList *&,
-                       Disamb *ctx, AList **&);
-# endif
-  template<bool ANIMATE, class DAB>
+  template<bool ANIMATING, class DAB>
   void Bombsplode(int now,
 		  int bombi, DAB *ctx, AList *&events,
 		  AList **& etail);

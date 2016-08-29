@@ -1477,7 +1477,7 @@ void editor::edit(Level *origlev) {
 	  } else if ((event.key.keysym.mod & KMOD_CTRL) &&
 		     selection.w > 0) {
 
-	    int dx, dy;
+	    int dx = 0, dy = 0;
 	    dirchange(d, dx, dy);
 
 	    /* tx, ty are the start of the destination
@@ -1617,7 +1617,7 @@ void editor::edit(Level *origlev) {
 
 	    /* move scroll window */
     
-	    int dx, dy;
+	    int dx = 0, dy = 0;
 	    dirchange(d, dx, dy);
 	    dr.scrollx += dx;
 	    dr.scrolly += dy;
