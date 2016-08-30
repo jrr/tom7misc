@@ -40,34 +40,11 @@ using AList = PtrList<aevent>;
    }
 */
 
-#undef SWAPO
 #undef PUSHMOVE
-#undef CHECKLEAVEPANEL
-#undef CHECKSTEPOFF
-#undef TRAP
-#undef RET
-#undef AFFECT
-#undef AFFECTI
-
-/* We need to correctly track the position of
-   an entity during a move. We have the variables
-   entx and enty, but they can't be references because
-   we store some positions as a single integer index
-   (bots in the boti array). So instead, we use this
-   function to reflect changes to entx/enty in the
-   permanent store. */
-#define SETENTPOS(xx, yy) do {       \
-   entx = xx;                        \
-   enty = yy;                        \
-   SetEntPos(enti, xx, yy);          \
- } while (0)
 
 #ifdef ANIMATING_MOVE
 # include "util.h"
 # include "aevent.h"
-
-# define AFFECT(x, y) ctx->affect(x, y, this, etail)
-# define AFFECTI(i) ctx->affecti(i, this, etail)
 
 # define PUSHMOVE(type, var) {        \
     aevent *a ## var = new aevent;    \
@@ -77,65 +54,15 @@ using AList = PtrList<aevent>;
     a ## var->t = tag_ ## type;       \
     type ## _t *var = &(a ## var->u. type);
 
-# define SWAPO(idx)                   \
-    PUSHMOVE(swap, e)                 \
-      int xx, yy;                     \
-      where(idx, xx, yy);             \
-      e->x = xx;                      \
-      e->y = yy;                      \
-      e->was = tileat(xx, yy);        \
-      e->now = otileat(xx, yy);       \
-      swapo(idx);                     \
-   }
-# define TRAP(xx, yy, t)   \
-    PUSHMOVE(trap, e)      \
-      e->x = xx;           \
-      e->y = yy;           \
-      e->whatold = t;      \
-    }
-
-#else
-# define SWAPO(idx) swapo(idx)
-# define TRAP(a, b, c) do { ; } while (0)
-# define AFFECT(a, b) false
-# define AFFECTI(a) false
-
 #endif
 
-/* helper functions */
-/* after stepping off a tile, deactivate a panel
-   if there was one there. */
-/* nb: only for regular panels */
-#define CHECKLEAVEPANEL(xx, yy) do {  \
-  if (tileat(xx, yy) == T_PANEL) {    \
-    (void)AFFECTI(destat(xx, yy));    \
-    SWAPO(destat(xx, yy));            \
-  }                                   \
-} while (0)
 
-#define CHECKTRAP(xx, yy) do {             \
-  if (tileat(xx, yy) == T_TRAP1) {         \
-    (void)AFFECT(xx, yy);                  \
-    settile(xx, yy, T_HOLE);               \
-    TRAP(xx, yy, T_TRAP1);                 \
-  } else if (tileat(xx, yy) == T_TRAP2) {  \
-    (void)AFFECT(xx, yy);                  \
-    settile(xx, yy, T_TRAP1);              \
-    TRAP(xx, yy, T_TRAP2);                 \
-  }                                        \
-} while (0)
-
-/* actions on the player stepping off of a tile */
-/* generally, you should only call this once per
-   motion, at the very end. that's because it may
-   install new panels (by swapping), and panel swaps
-   are supposed to happen at the end. */
-#define CHECKSTEPOFF(xx, yy) do {          \
-  CHECKTRAP(xx, yy);                       \
-  CHECKLEAVEPANEL(xx, yy);                 \
-} while (0)
 
 #ifdef ANIMATING_MOVE
+/* always increment the serial at the end, which
+   maintains the invt that every phase has a player
+   motion in 'events.' Finally, call postanimate
+   to add in winning or death events. */
 template<class DAB>
 static void postanimate(Level *l, DAB *ctx,
                         AList *&events, AList **&etail) {
@@ -175,17 +102,7 @@ static void postanimate(Level *l, DAB *ctx,
   }
 }
 
-/* always increment the serial at the end, which
-   maintains the invt that every phase has a player
-   motion in 'events.' Finally, call postanimate
-   to add in winning or death events. */
-// XXX this is just used in one place now, so inline
-# define RET(b) do { postanimate<Disamb>(this, ctx, events, etail); \
-                     return (b); } while (0)
-
 #else
-
-# define RET(b) return (b);
 
 #endif
 
@@ -331,9 +248,16 @@ static void postanimate(Level *l, DAB *ctx,
         }
       }
 
-      RET(true);
-    } else RET(false);
-
+      #ifdef ANIMATING_MOVE
+      postanimate<Disamb>(this, ctx, events, etail);
+      #endif
+      return true;
+    } else {
+      #ifdef ANIMATING_MOVE
+      postanimate<Disamb>(this, ctx, events, etail);
+      #endif
+      return false;
+    }
   }
 
 
