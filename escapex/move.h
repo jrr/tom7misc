@@ -135,15 +135,6 @@ using AList = PtrList<aevent>;
   CHECKLEAVEPANEL(xx, yy);                 \
 } while (0)
 
-#ifndef ANIMATING_MOVE
-/* generate callable versions of the macros */
-/* n.b. this is used */
-void Level::checkstepoff(int x, int y) {
-  CHECKSTEPOFF(x, y);
-}
-
-#endif
-
 #ifdef ANIMATING_MOVE
 template<class DAB>
 static void postanimate(Level *l, DAB *ctx,

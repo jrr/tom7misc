@@ -269,7 +269,7 @@ struct Level {
   void warp(int &entx, int &enty, int targx, int targy) {
     int target = tileat(targx, targy);
 
-    checkstepoff(entx, enty);
+    CheckStepOff(entx, enty);
     /* XXX can be incorrect --
        need to use SETENTPOS, since we need to reflect
        this immediately in the boti array
@@ -389,13 +389,10 @@ struct Level {
   /* writes current state into a string */
   string tostring();
 
-  /* 0 on error. if allow_corrupted is true, it returns a
+  /* null on error. if allow_corrupted is true, it returns a
      valid level with as much data from the original as
-     possible (but may still return 0) */
+     possible (but may still return null) */
   static Level *fromstring(string s, bool allow_corrupted = false);
-
-  /* 0 on error */
-  static Level *fromoldstring(string s);
 
   static Level *blank(int w, int h);
   static Level *defboard(int w, int h);
@@ -426,8 +423,6 @@ struct Level {
   bool play(const Solution *, int &moves);
   /* only 'length' moves of the solution, starting from move 'start' */
   bool play_subsol(const Solution *, int &moves, int start, int length);
-
-  static string rleencode(int n, int *a);
 
   void resize(int neww, int newh);
 
@@ -461,7 +456,7 @@ struct Level {
   }
 
   bool playerat(int x, int y) {
-    return ((x == guyx) && (y == guyy));
+    return (x == guyx) && (y == guyy);
   }
 
   static bool isbomb(bot b) {
@@ -471,7 +466,7 @@ struct Level {
 
   /* pre: b is bomb */
   static int bombmaxfuse(bot b) {
-    return ((int)b - (int)B_BOMB_0);
+    return (int)b - (int)B_BOMB_0;
   }
 
   static bool ispanel(int t, int &ref) {
@@ -491,8 +486,8 @@ struct Level {
   /* solution wants access to rleencoding and decoding */
   friend struct Solution;
 
-  void checkstepoff(int, int);
-  static int newtile(int old);
+  void CheckStepOff(int x, int y);
+  void ClearMap();
   void clearflag(int fl) {
     for (int i = 0; i < w * h; i++) {
       flags[i] &= ~fl;
@@ -635,7 +630,6 @@ struct Level {
   
   using AList = PtrList<aevent>;
 
-  // XXX capabilities to int32
   /* pass the entity index, or -1 for the player */
   template<bool ANIMATING, class DAB>
   bool MoveEnt(dir d, int enti, Capabilities cap,

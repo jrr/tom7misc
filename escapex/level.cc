@@ -494,6 +494,15 @@ bool Level::triggers(int tile, int panel) {
 
 #define FSDEBUG if (0)
 
+// Clears just the tiles portion of the level.
+void Level::ClearMap() {
+  for (int i = 0; i < w * h; i++) {
+    tiles[i]  = T_FLOOR;
+    otiles[i] = T_FLOOR;
+    dests[i]  = 0; /* 0, 0 */
+    flags[i]  = 0;
+  }
+}
 
 /* nb: assumes reasonable dimensions, at least.
    should instead create empty level if the dimensions
@@ -504,11 +513,23 @@ bool Level::sanitize() {
 
   int len = w * h;
 
-  /* XXX what to do with zero height and width levels? */
+  if (w < 1 || h < 1) {
+    FSDEBUG printf("insane: size must be positive: %dx%d\n", w, h);
+    was_sane = false;
+    w = std::max(1, w);
+    h = std::max(1, h);
 
-  {
+    int bytes = w * h * sizeof (int);
+    tiles  = (int*)realloc(tiles, bytes);
+    otiles = (int*)realloc(otiles, bytes);
+    dests  = (int*)realloc(dests, bytes);
+    flags  = (int*)realloc(flags, bytes);
+
+    ClearMap();
+    len = w * h;
+  }
+  
   for (int i = 0; i < len; i++) {
-
     /* a destination outside the level */
     if (dests[i] < 0 || dests[i] >= len) {
       FSDEBUG printf("insane: dest out of range: %d\n", dests[i]);
@@ -554,7 +575,6 @@ bool Level::sanitize() {
       was_sane = false;
       flags[i] = expected_flags;
     }
-  }
   }
 
   /* staring position outside the level */
@@ -644,52 +664,45 @@ bool Level::sanitize() {
 
 void Level::fixup_botorder() {
   /* other fields are constant */
-  struct bb {
+  struct BB {
     bot t;
     int i;
   };
 
-  bb *bots = (bb*) malloc(sizeof(bb) * nbots);
+  BB *bots = (BB *)malloc(sizeof (BB) * nbots);
   {
     int j = 0;
     /* first put in non-bombs */
-    {
-      for (int i = 0; i < nbots; i++) {
-	if (!isbomb(bott[i])) {
-	  bots[j].t = bott[i];
-	  bots[j].i = boti[i];
-	  j++;
-	}
+    for (int i = 0; i < nbots; i++) {
+      if (!isbomb(bott[i])) {
+	bots[j].t = bott[i];
+	bots[j].i = boti[i];
+	j++;
       }
     }
 
     /* then bombs */
-    {
-      for (int i = 0; i < nbots; i++) {
-	if (isbomb(bott[i])) {
-	  bots[j].t = bott[i];
-	  bots[j].i = boti[i];
-	  j++;
-	}
+    for (int i = 0; i < nbots; i++) {
+      if (isbomb(bott[i])) {
+	bots[j].t = bott[i];
+	bots[j].i = boti[i];
+	j++;
       }
     }
   }
 
   /* now put them back. */
-  {
-    for (int i = 0; i < nbots; i++) {
-      bott[i] = bots[i].t;
-      boti[i] = bots[i].i;
-      botd[i] = DIR_DOWN;
-      bota[i] = -1;
-    }
+  for (int i = 0; i < nbots; i++) {
+    bott[i] = bots[i].t;
+    boti[i] = bots[i].i;
+    botd[i] = DIR_DOWN;
+    bota[i] = -1;
   }
 
   free(bots);
 }
 
 Level *Level::fromstring(string s, bool allow_corrupted) {
-
   int sw, sh;
 
   /* check magic! */
@@ -852,7 +865,6 @@ Level *Level::fromstring(string s, bool allow_corrupted) {
 }
 
 string Level::tostring() {
-
   string ou;
 
   /* magic */
@@ -879,54 +891,6 @@ string Level::tostring() {
   ou += RLE::Encode(nbots, boti);
   ou += RLE::Encode(nbots, (int*)bott);
   return ou;
-}
-
-/* deprecated */
-int Level::newtile(int old) {
-  switch (old) {
-  case 0x0b: return T_STOP;
-  case 0x0c: return T_RIGHT;
-  case 0x0d: return T_LEFT;
-  case 0x0e: return T_UP;
-  case 0x0f: return T_DOWN;
-  case 0x1A: return T_NS;
-  case 0x1B: return T_NE;
-  case 0x1C: return T_NW;
-  case 0x1D: return T_SE;
-  case 0x1E: return T_SW;
-  case 0x1F: return T_WE;
-  case 0x21: return T_BLIGHT;
-  case 0x22: return T_RLIGHT;
-  case 0x23: return T_GLIGHT;
-  case 0x24: return T_BUP;
-  case 0x25: return T_BDOWN;
-  case 0x26: return T_RUP;
-  case 0x27: return T_RDOWN;
-  case 0x28: return T_GUP;
-  case 0x29: return T_GDOWN;
-  case 10: return T_PANEL;
-  case 16: return T_ROUGH;
-  case 17: return T_ELECTRIC;
-  case 18: return T_ON;
-  case 19: return T_OFF;
-  case 1: return T_FLOOR;
-  case 20: return T_TRANSPORT;
-  case 21: return T_BROKEN;
-  case 22: return T_LR;
-  case 23: return T_UD;
-  case 24: return T_0;
-  case 25: return T_1;
-  case 2: return T_RED;
-  case 32: return T_BUTTON;
-  case 3: return T_BLUE;
-  case 4: return T_GREY;
-  case 5: return T_GREEN;
-  case 6: return T_EXIT;
-  case 7: return T_HOLE;
-  case 8: return T_GOLD;
-  case 0x9: return T_LASER;
-  default: return T_STOP; /* ? */
-  }
 }
 
 /* is the tile at x,y connected to anything in
@@ -1010,47 +974,6 @@ bool Level::isconnected(int pulsex, int pulsey, dir pd) {
   return false;
 }
 
-/* deprecated */
-Level *Level::fromoldstring(string s) {
-  if (s.length() != 567) return 0;
-
-  Level *n = Level::blank(18, 10);
-
-  for (int i = 0; i < 180; i++) {
-    n->tiles[i] = Level::newtile(s[i]);
-    /* only regular panels */
-    if (n->tiles[i] == T_PANEL)
-      n->flags[i] = TF_HASPANEL;
-    /* else already 0 */
-  }
-
-  /* otiles always floor */
-
-  for (int j = 0; j < 180; j++) {
-    n->dests[j] = 18 * (-1 + (int)s[j + 180 + 180]) +
-      (-1 + (int)s[j + 180]);
-  }
-
-  n->guyx = s[180 + 180 + 180] - 1;
-  n->guyy = s[180 + 180 + 180 + 1] - 1;
-  n->guyd = DIR_DOWN;
-
-  n->title = s.substr(180 + 180 + 180 + 2, 25);
-
-  /* chop trailing spaces from author */
-  int v;
-  for (v = n->title.length() - 1; v >= 0; v--) {
-    if (n->title[v] != ' ') break;
-  }
-  n->title = n->title.substr(0, v + 1);
-
-  n->author = "imported";
-
-  n->sanitize();
-
-  return n;
-}
-
 void Level::destroy() {
   free(tiles);
   free(otiles);
@@ -1116,7 +1039,7 @@ Level *Level::blank(int w, int h) {
 
   n->corrupted = false;
 
-  int bytes = w * h * sizeof(int);
+  const int bytes = w * h * sizeof (int);
 
   n->tiles  = (int*)malloc(bytes);
   n->otiles = (int*)malloc(bytes);
@@ -1130,13 +1053,8 @@ Level *Level::blank(int w, int h) {
   n->botd   = 0;
   n->bota   = 0;
 
-  for (int i = 0; i < w * h; i++) {
-    n->tiles[i]  = T_FLOOR;
-    n->otiles[i] = T_FLOOR;
-    n->dests[i]  = 0; /* 0, 0 */
-    n->flags[i]  = 0;
-  }
-
+  n->ClearMap();
+  
   return n;
 }
 
@@ -1152,7 +1070,7 @@ Level *Level::defboard(int w, int h) {
   }
 
   /* left, right */
-  for (int j = 0; j < h; j++) {
+  for (int j = 1; j < h - 1; j++) {
     n->tiles[j * w] = T_BLUE;
     n->tiles[j * w + (w - 1)] = T_BLUE;
   }
