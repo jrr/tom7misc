@@ -339,6 +339,17 @@ using AList = PtrList<aevent>;
   } while (0)
 
 
+/* generate callable version of this macro */
+void Level::CheckStepOff(int x, int y) {
+  using DAB = NullDisamb;
+  NullDisamb ctx_;
+  DAB *ctx = &ctx_;
+  AList *events = nullptr;
+  AList **etail = &events;
+  static constexpr bool ANIMATING = false;
+  CHECKSTEPOFF2016(x, y);
+}
+
 template<bool ANIMATING, class DAB>
 void Level::Bombsplode(int now,
                        int b, DAB *ctx, AList *&events,
