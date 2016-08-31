@@ -47,7 +47,7 @@ packsound.exe : util-console.o packsound-console.o
 sound.o : sound.cc sound_load.h
 	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
-level.o : level.cc move.h move2016.h
+level.o : level.cc move2016.h
 	g++ ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
 sound_load.h : sound.pack packsound.cc
@@ -372,7 +372,7 @@ packsound.exe : util-console.o packsound-console.o ${SDLOBJECTS}
 sound.o : sound.cc sound_load.h
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
-level.o : level.cc move.h move2016.h
+level.o : level.cc move2016.h
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
 animation.o : animation.cc animation.h animation_load.h

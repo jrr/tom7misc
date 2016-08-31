@@ -764,7 +764,7 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	    /* play back solutions up to this point */
 	    p.soli -= n;
 	    for (int i = 0; i < p.soli; i++) {
-	      p.dr.lev->move(sol->dirs[i]);
+	      p.dr.lev->Move(sol->dirs[i]);
 	    }
 	  }
 	  
@@ -798,7 +798,7 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	      /* play back solutions up to this point */
 	      p.soli += n;
 	      for (int i = 0; i < p.soli; i++) {
-		p.dr.lev->move(sol->dirs[i]);
+		p.dr.lev->Move(sol->dirs[i]);
 	      }
 	    }
 	  

@@ -171,7 +171,7 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
        it. (These shouldn't make their way
        into solutions during regular play,
        anyway.) */
-    if (l->move(d)) {
+    if (l->Move(d)) {
 
       /* provisionally execute this move in our
 	 cycle-free solution. */

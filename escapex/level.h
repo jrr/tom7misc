@@ -5,9 +5,13 @@
 #include <cstring>
 #include <string.h>
 
+// n.b. Don't let this module depend on SDL. The server needs to be
+// able to link it in.
 #include "aevent.h"
 #include "level-base.h"
 #include "disamb.h"
+#include "util.h"
+#include "aevent.h"
 
 using namespace std;
 
@@ -135,15 +139,6 @@ enum tile {
 
   NUM_TILES,
 };
-
-/* optional, since the Escape server wants to be able to
-   validate solutions without knowing anything about
-   animation. */
-#ifndef NOANIMATION
-# include "util.h"
-# include "aevent.h"
-#endif
-
 
 /* a solution is just a list of moves */
 struct Solution {
@@ -376,12 +371,10 @@ struct Level {
   bool isdead(int &tilex, int &tiley, dir &d);
 
   /* returns true if move had effect. */
-  bool move(dir);
+  bool Move(dir d);
 
-# ifndef NOANIMATION
   /* see animation.h for documentation */
-  bool move_animate(dir, Disamb *ctx, PtrList<aevent> *&events);
-# endif
+  bool MoveAnimate(dir d, Disamb *ctx, PtrList<aevent> *&events);
 
   /* create clone of current state. */
   Level *clone() const;
@@ -723,6 +716,9 @@ struct Level {
 		       int entx, int enty, int newx, int newy,
 		       DAB *ctx, AList *&events,
 		       AList **&etail);
+
+  template<bool ANIMATING, class DAB>
+  bool MoveMaybeAnimate(dir d, DAB *ctx, AList *&events, AList **&etail);
 };
 
 #endif
