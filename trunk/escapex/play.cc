@@ -1590,7 +1590,7 @@ bool Play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
 	bool only_finales = true;
 
 	for (alist *atmp = anims; atmp && !ready; 
-	    atmp = atmp->next) {
+	     atmp = atmp->next) {
 	  if (!atmp->head->finale) only_finales = false;
 	  if (atmp->head->nexttick < now) {
 	    ready = true;
@@ -1598,7 +1598,7 @@ bool Play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
 	}
 
 	for (alist *atmp = sprites; atmp && !ready; 
-	    atmp = atmp->next) {
+	     atmp = atmp->next) {
 	  if (!atmp->head->finale) only_finales = false;
 	  if (atmp->head->nexttick < now) {
 	    ready = true;
