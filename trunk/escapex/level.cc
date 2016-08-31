@@ -481,17 +481,6 @@ bool Level::triggers(int tile, int panel) {
 
 #include "move2016.h"
 
-
-/* two copies of the move function */
-#undef  ANIMATING_MOVE
-#include "move.h"
-
-#ifndef NOANIMATION
-# define ANIMATING_MOVE
-# include "move.h"
-# undef  ANIMATING_MOVE
-#endif
-
 #define FSDEBUG if (0)
 
 // Clears just the tiles portion of the level.
@@ -1091,7 +1080,7 @@ bool Level::verify_prefix(const Level *lev, const Solution *s, Solution *&out) {
 
     dir d = i.item();
 
-    if (l->move(d)) {
+    if (l->Move(d)) {
       /* include it */
       out->append(d);
       /* potentially fail *after* each move */
@@ -1220,4 +1209,17 @@ void Level::resize(int neww, int newh) {
      as well as making any destinations point within
      the level */
   sanitize();
+}
+
+
+bool Level::Move(dir d) {
+  NullDisamb ctx;
+  AList *events = nullptr;
+  AList **tail = &events;
+  return MoveMaybeAnimate<false, NullDisamb>(d, &ctx, events, tail);
+}
+  
+bool Level::MoveAnimate(dir d, Disamb *ctx, AList *&events) {
+  AList **tail = &events;
+  return MoveMaybeAnimate<true, Disamb>(d, ctx, events, tail);
 }

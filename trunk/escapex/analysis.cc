@@ -62,14 +62,14 @@ onionfind *Analysis::reachable(Level *lev) {
 	  /* PERF could save some work by checking if they're
 	     already unioned */
 	  if (isempty(lev->tileat(destx, desty)) &&
-	      cc->move(d) && !cc->isdead(dummy, dummy, unused)) {
+	      cc->Move(d) && !cc->isdead(dummy, dummy, unused)) {
 	    /* good. now just check the opposite... */
 	    Level *co = cl->clone();
 	    Extent<Level> eec(co);
 
 	    co->warp(cl->guyx, cl->guyy, destx, desty);
 	    
-	    if (co->move(dir_reverse(d)) &&
+	    if (co->Move(dir_reverse(d)) &&
 		!co->isdead(dummy, dummy, unused)) {
 
 	      /* these two spots are mutually accessible,

@@ -42,7 +42,6 @@ struct MainShow {
   void newlevel();
   void newexit();
   void newguy();
-  bool moveface(dir);
 
   void trymove();
   void randomspot(int &x, int &y);

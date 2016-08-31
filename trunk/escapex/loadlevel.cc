@@ -444,7 +444,7 @@ void LoadLevel_::step() {
       /* step */
       if (solstep < showsol->length) {
 	dir d = showsol->dirs[solstep];
-	showlev->move(d);
+	showlev->Move(d);
 	solstep++;
       }
 

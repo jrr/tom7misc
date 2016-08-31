@@ -1837,5 +1837,106 @@ void Level::PostAnimate(DAB *ctx, AList *&events, AList **&etail) {
   }
 }
 
+template<bool ANIMATING, class DAB>
+bool Level::MoveMaybeAnimate(dir d, DAB *ctx, AList *&events, AList **&etail) {
+  ctx->clear();
+  /* change our orientation, even if we don't move.
+     TODO: animate this! */
+  guyd = d;
+
+  /* player always moves first */
+  const bool player_moved = MoveEnt<ANIMATING, DAB>(
+      d, -1, (Capabilities)GUYCAP, guyx, guyy,
+      ctx, events, etail);
+    
+  if (player_moved) {
+    for (int b = 0; b < nbots; b++) {
+
+      int x, y;
+      where(boti[b], x, y);
+
+      dir bd = DIR_NONE; /* dir to go */
+      dir bd2 = DIR_NONE; /* second choice */
+      Capabilities bcap = (Capabilities)0; /* its capabilities */
+
+      if (Level::isbomb(bott[b])) {
+	/* bombs never move */
+	bd = DIR_NONE;
+
+	if (bota[b] == 0) {
+	  /* time's up: explodes */
+	  Bombsplode<ANIMATING, DAB>(b, b, ctx, events, etail);
+	} else if (bota[b] > 0) {
+	  /* fuse burns */
+	  bota[b]--;
+	  /* XXX animate? */
+	} else {
+	  /* unlit: do nothing */
+	}
+	continue;
+
+      } else {
+	switch (bott[b]) {
+	  /* nb, not isbomb */
+	case B_BOMB_X:
+	  /* disappear */
+	  bott[b] = B_DELETED;
+	  /* no animation since it's already invisible */
+	  bd = DIR_NONE;
+	  break;
+
+	  /* these two are the same except for their
+	     capabilities */
+	case B_HUGBOT:
+	case B_DALEK: {
+	  /* dalek always moves towards player, favoring
+	     left/right movement */
+
+	  if (x == guyx) {
+	    /* same column? move up/down */
+	    if (y < guyy) bd = DIR_DOWN;
+	    else if (y > guyy) bd = DIR_UP;
+	    else bd = DIR_NONE; /* on player !! EXTERMINATE */
+	  } else {
+	    if (x > guyx) bd = DIR_LEFT;
+	    else bd = DIR_RIGHT;
+
+	    /* but still set second choice */
+	    if (y < guyy) bd2 = DIR_DOWN;
+	    else if (y > guyy) bd2 = DIR_UP;
+	  }
+
+	  switch (bott[b]) {
+	  default: /* impossible */
+	  case B_DALEK: bcap = DALEKCAP; break;
+	  case B_HUGBOT: bcap = HUGBOTCAP; break;
+	  }
+	  break;
+	}
+	default: bd = DIR_NONE;
+	  break;
+	}
+      }
+	
+      if (bd != DIR_NONE) {
+	const bool bot_moved = MoveEnt<ANIMATING, DAB>(
+	    bd, b, bcap, x, y, ctx, events, etail);
+
+	/* try second choice */
+	if (!bot_moved && bd2 != DIR_NONE) {
+	  MoveEnt<ANIMATING, DAB>(bd2, b, bcap, x, y,
+				  ctx, events, etail);
+	}
+      }
+    }
+
+    PostAnimate<ANIMATING, DAB>(ctx, events, etail);
+    return true;
+  } else {
+    PostAnimate<ANIMATING, DAB>(ctx, events, etail);
+    return false;
+  }
+}
+
 
 #endif

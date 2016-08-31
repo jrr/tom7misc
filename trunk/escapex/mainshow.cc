@@ -42,7 +42,6 @@ void MainShow::draw(int x, int y, SDL_Surface *surf) {
 }
 
 void MainShow::step() {
-
   int dumb, dumby;
   dir dummy;
   if (dr.lev->isdead(dumb, dumby, dummy)) {
@@ -64,16 +63,7 @@ void MainShow::step() {
   tx->say("");
 }
 
-/* XXX facing is now in level, so this is just
-   eta-expansion of move */
-bool MainShow::moveface(dir d) {
-  if (dr.lev->move(d)) {
-    return true;
-  } else return false;
-}
-
 void MainShow::trymove() {
-
   /* walk towards goal */
   Level *l = dr.lev;
   int dx = 0, dy = 0;
@@ -85,40 +75,36 @@ void MainShow::trymove() {
 
   if (util::random() & 1) {
     /* prefer x */
-    if (dx > 0 && moveface(DIR_RIGHT)) return;
-    if (dx < 0 && moveface(DIR_LEFT)) return;
+    if (dx > 0 && dr.lev->Move(DIR_RIGHT)) return;
+    if (dx < 0 && dr.lev->Move(DIR_LEFT)) return;
 
-    if (dy > 0 && moveface(DIR_DOWN)) return;
-    if (dy < 0 && moveface(DIR_UP)) return;
+    if (dy > 0 && dr.lev->Move(DIR_DOWN)) return;
+    if (dy < 0 && dr.lev->Move(DIR_UP)) return;
 
   } else {
     /* prefer y */
 
-    if (dy > 0 && moveface(DIR_DOWN)) return;
-    if (dy < 0 && moveface(DIR_UP)) return;
+    if (dy > 0 && dr.lev->Move(DIR_DOWN)) return;
+    if (dy < 0 && dr.lev->Move(DIR_UP)) return;
 
-    if (dx > 0 && moveface(DIR_RIGHT)) return;
-    if (dx < 0 && moveface(DIR_LEFT)) return;
+    if (dx > 0 && dr.lev->Move(DIR_RIGHT)) return;
+    if (dx < 0 && dr.lev->Move(DIR_LEFT)) return;
 
   }
 
   /* if we can't make any move, reset faster */
   if (guytime > 1) guytime--;
-
 }
 
 void MainShow::randomspot(int &x, int &y) {
-
   int idx = 
     util::random() % ((dr.lev->w - 2) * (dr.lev->h - 2));
 
   x = 1 + idx % (dr.lev->w - 2);
   y = 1 + idx / (dr.lev->w - 2);
-
 }
 
 void MainShow::newexit() {
-
   dr.lev->settile(exitx, exity, T_FLOOR);
 
   randomspot(exitx, exity);
@@ -129,7 +115,6 @@ void MainShow::newexit() {
 }
 
 void MainShow::newguy() {
-
   randomspot(dr.lev->guyx,
 	     dr.lev->guyy);
   
@@ -137,7 +122,6 @@ void MainShow::newguy() {
 }
 
 void MainShow::newlevel() {
-
   /* XXX make a more interesting random level!! 
      (we had better improve the AI, then)
 

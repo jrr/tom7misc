@@ -78,8 +78,8 @@ enum Capabilities : uint32_t {
   
 /* should have cap for 'unpushable',
    but we don't have any such robots yet. */
-#define GUYCAP (CAP_ISPLAYER | CAP_CANTELEPORT | CAP_PUSHBOTS | CAP_HEARTFRAMERS)
-#define DALEKCAP (CAP_CANTELEPORT | CAP_CRUSHPLAYER | CAP_WALKINTOBOTS)
-#define HUGBOTCAP (CAP_PUSHPLAYER | CAP_PUSHBOTS)
+#define GUYCAP (Capabilities)(CAP_ISPLAYER | CAP_CANTELEPORT | CAP_PUSHBOTS | CAP_HEARTFRAMERS)
+#define DALEKCAP (Capabilities)(CAP_CANTELEPORT | CAP_CRUSHPLAYER | CAP_WALKINTOBOTS)
+#define HUGBOTCAP (Capabilities)(CAP_PUSHPLAYER | CAP_PUSHBOTS)
 
 #endif

@@ -510,7 +510,7 @@ bool Play_::redo() {
   watching = false;
   if (curstate() == STATE_OKAY &&
       solpos < sol->length) {
-    if (dr.lev->move(sol->dirs[solpos])) {
+    if (dr.lev->Move(sol->dirs[solpos])) {
       solpos++;
       return true;
     } else {
@@ -1337,7 +1337,7 @@ PlayResult Play_::doplay_save(Player *plr, Level *start,
 	  if (do_animate && !dr.zoomfactor) {
 	    moved = animatemove(dr, ctx.get(), dirty.get(), d);
 	  } else {
-	    moved = dr.lev->move(d);
+	    moved = dr.lev->Move(d);
 	  }
 
 	  /* now end turn */
@@ -1402,7 +1402,7 @@ void Play::playrecord(string res, Player *plr, bool allowrate) {
     string idx = 
       util::pathof(res) + (string)DIRSEP WEBINDEXNAME;
     DirIndex *di = DirIndex::fromfile(idx);
-    iscollection = di?(di->webcollection()):false;
+    iscollection = di ? di->webcollection() : false;
     if (di) di->destroy();
   }
 
@@ -1556,7 +1556,7 @@ bool Play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
  
   Animation::clearsprites(dr);
   
-  bool success = dr.lev->move_animate(d, ctx, events);
+  bool success = dr.lev->MoveAnimate(d, ctx, events);
 
   /* loop playing animations. */
   while (sprites || anims || events) {
@@ -1589,23 +1589,19 @@ bool Play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
 
 	bool only_finales = true;
 
-	{
-	  for (alist *atmp = anims; atmp && !ready; 
-	      atmp = atmp->next) {
-	    if (!atmp->head->finale) only_finales = false;
-	    if (atmp->head->nexttick < now) {
-	      ready = true;
-	    }
+	for (alist *atmp = anims; atmp && !ready; 
+	    atmp = atmp->next) {
+	  if (!atmp->head->finale) only_finales = false;
+	  if (atmp->head->nexttick < now) {
+	    ready = true;
 	  }
 	}
 
-	{
-	  for (alist *atmp = sprites; atmp && !ready; 
-	      atmp = atmp->next) {
-	    if (!atmp->head->finale) only_finales = false;
-	    if (atmp->head->nexttick < now) {
-	      ready = true;
-	    }
+	for (alist *atmp = sprites; atmp && !ready; 
+	    atmp = atmp->next) {
+	  if (!atmp->head->finale) only_finales = false;
+	  if (atmp->head->nexttick < now) {
+	    ready = true;
 	  }
 	}
 
