@@ -33,6 +33,9 @@ code cleanup
  - hash should be 64-bit, should not cast c_str() to hash strings because
    no guarantee that they have enough data
  - return(true) etc.
+ - actually I mistakenly rewrote some entity indices to B_PLAYER, but
+   B_PLAYER is not an index; it's a bot type -- should fix, maybe
+   by introducing a new constant like ENTI_PLAYER (also -1).
 
 make sure there is no 'delete this;' when destroy methods were
 converted to destructors!
