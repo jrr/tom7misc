@@ -1,4 +1,3 @@
-
 // New move header. Include just once!
 #ifndef __MOVE2016_H
 #define __MOVE2016_H
@@ -6,20 +5,6 @@
 #include "level-base.h"
 #include "aevent.h"
 #include "ptrlist.h"
-
-// Notes for templatizing this thing, 2016:
-// Two goals overall:
-//   - efficient version of move() that doesn't pay for animation
-//   - ability to compile level without dependency on SDL.
-//
-// ...
-// Before I started on 27 Aug 2016, tom7 had 1282/2509 Triage levels solved,
-// (but then I solved a few and it's 1284)
-// and 485/803 minor leagues, plus obviously 34/34 regressions and 22/22
-// official levels.
-//
-// Later this became 1279/2493 (synced; some levels were deleted),
-// 485/803 minor leagues, 36/36 regression, 22/22 official.
 
 using AList = PtrList<aevent>;
 

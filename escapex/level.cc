@@ -349,7 +349,6 @@ bool Level::allowbeam(int tt) {
 /* also now checks for cohabitation with bots, which
    is deadly */
 bool Level::isdead(int &tilex, int &tiley, dir &d) {
-
   /* are we in the same square as a bot? Then we die. */
   if (botat(guyx, guyy)) {
     tilex = guyx;
@@ -493,10 +492,6 @@ void Level::ClearMap() {
   }
 }
 
-/* nb: assumes reasonable dimensions, at least.
-   should instead create empty level if the dimensions
-   are that crazy/nonpositive
-*/
 bool Level::sanitize() {
   bool was_sane = true;
 
@@ -977,7 +972,6 @@ void Level::destroy() {
 }
 
 Level *Level::clone() const {
-
   Level *n = new Level();
 
   n->title = title;
@@ -1115,7 +1109,7 @@ bool Level::play_subsol(const Solution *s, int &moves, int start, int len) {
     dir d = s->dirs[start + z];
 
     moves++;
-    if (move(d)) {
+    if (Move(d)) {
       /* potentially fail *after* each move */
       int dummy; dir dumb;
       if (isdead(dummy, dummy, dumb)) return false;

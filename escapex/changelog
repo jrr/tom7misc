@@ -1,10 +1,18 @@
+2016-08-30  Tom 7  <Tom@RIVERCITY>
+
+        * level.cc: Escape can no longer load DOS-version level files.
+          It's been 15 years! You could import them with one of the
+          legacy Escape binaries and then save them in the new format,
+          which has not changed in a long time.
+
 2016-08-27  Tom 7  <Tom@RIVERCITY>
 
         * md5.cc: Fixed bug where solutions weren't stored correctly.
           You can paste the "-- ratings" selection from an old .esp
           file or backup into your new .esp file in order to get
           solutions back. A solution that starts with 0123456789abcdef
-          is buggy and won't correspond to any level.
+          is buggy and won't correspond to any level. (Thanks, noname
+          and Kirima!)
 
 2016-08-21  Tom 7  <Tom@RIVERCITY>
 

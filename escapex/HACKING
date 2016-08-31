@@ -48,7 +48,8 @@ You may need to:
     compilers (indeed, to run make itself)
   - Type "make framelinks" to make some symlinks inside of the
     Frameworks dir
-  - Make a symlink from SDL OSX_build/Frameworks/SDL.framework/Versions/A/Headers
+  - Make a symlink from SDL to
+      OSX_build/Frameworks/SDL.framework/Versions/A/Headers
     because some other SDL libraries expect to be able to include
     SDL headers as "SDL/SDL_endian.h" etc.
   - Run something like
