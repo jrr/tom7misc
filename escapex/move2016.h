@@ -1799,5 +1799,43 @@ bool Level::MoveEnt(dir d, int enti, Capabilities cap,
   return false;
 }
 
+/* always increment the serial at the end, which
+   maintains the invt that every phase has a player
+   motion in 'events.' Finally, call postanimate
+   to add in winning or death events. */
+template<bool ANIMATING, class DAB>
+void Level::PostAnimate(DAB *ctx, AList *&events, AList **&etail) {
+  /* make sure there is animation for everything */
+  ctx->serialup(this, etail);
+
+  int lx, ly; dir from;
+  if (isdead(lx, ly, from)) {
+    /* XXX or affect? */
+
+    /* lite up laser tile (lx, ly), too  ... if laser death */
+    AFFECTENT2016(B_PLAYER, []{});
+    PUSHMOVE2016(lasered, ([&](lasered_t *e) {
+      e->x = guyx;
+      e->y = guyy;
+      e->lx = lx;
+      e->ly = ly;
+      e->from = dir_reverse(from);
+    }));
+
+    ctx->serialup(this, etail);
+
+  } else if (iswon()) {
+
+    AFFECTENT2016(B_PLAYER, []{});
+
+    PUSHMOVE2016(winner, ([&](winner_t *e) {
+      e->x = guyx;
+      e->y = guyy;
+    }));
+
+    ctx->serialup(this, etail);
+  }
+}
+
 
 #endif

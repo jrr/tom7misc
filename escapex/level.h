@@ -630,6 +630,9 @@ struct Level {
   
   using AList = PtrList<aevent>;
 
+  template<bool ANIMATING, class DAB>
+  void PostAnimate(DAB *ctx, AList *&events, AList **&etail);
+  
   /* pass the entity index, or -1 for the player */
   template<bool ANIMATING, class DAB>
   bool MoveEnt(dir d, int enti, Capabilities cap,

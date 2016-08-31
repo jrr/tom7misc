@@ -30,81 +30,13 @@
 
 using AList = PtrList<aevent>;
 
-/* pushmove is used like this:
-   XXX why is this called pushmove??
-
-   PUSHMOVE(fly, e) (* note: no opening brace *)
-     e->srcx = 10;
-     e->srcy = 20;
-     ...
-   }
-*/
-
-#undef PUSHMOVE
-
 #ifdef ANIMATING_MOVE
 # include "util.h"
 # include "aevent.h"
 
-# define PUSHMOVE(type, var) {        \
-    aevent *a ## var = new aevent;    \
-    *etail = new AList(a ## var, 0);  \
-    etail = &((*etail)->next);        \
-    a ## var->serial = ctx->Serial(); \
-    a ## var->t = tag_ ## type;       \
-    type ## _t *var = &(a ## var->u. type);
-
 #endif
 
 
-
-#ifdef ANIMATING_MOVE
-/* always increment the serial at the end, which
-   maintains the invt that every phase has a player
-   motion in 'events.' Finally, call postanimate
-   to add in winning or death events. */
-template<class DAB>
-static void postanimate(Level *l, DAB *ctx,
-                        AList *&events, AList **&etail) {
-
-  /* make sure there is animation for everything */
-  //  printf("... postanimate ...\n");
-  ctx->serialup(l, etail);
-
-  int lx, ly; dir from;
-  if (l->isdead(lx, ly, from)) {
-    /* XXX or affect? */
-
-    /* lite up laser tile (lx, ly), too  ... if laser death */
-    ctx->preaffectplayer(l, etail);
-    ctx->postaffectplayer();
-    PUSHMOVE(lasered, e)
-      e->x = l->guyx;
-      e->y = l->guyy;
-      e->lx = lx;
-      e->ly = ly;
-      e->from = dir_reverse(from);
-    }
-
-    ctx->serialup(l, etail);
-
-  } else if (l->iswon()) {
-
-    ctx->preaffectplayer(l, etail);
-    ctx->postaffectplayer();
-
-    PUSHMOVE(winner, e)
-      e->x = l->guyx;
-      e->y = l->guyy;
-    }
-
-    ctx->serialup(l, etail);
-  }
-}
-
-#else
-
-#endif
 
 
 #ifdef ANIMATING_MOVE
@@ -249,19 +181,13 @@ static void postanimate(Level *l, DAB *ctx,
       }
 
       #ifdef ANIMATING_MOVE
-      postanimate<Disamb>(this, ctx, events, etail);
+      PostAnimate<true, Disamb>(ctx, events, etail);
       #endif
       return true;
     } else {
       #ifdef ANIMATING_MOVE
-      postanimate<Disamb>(this, ctx, events, etail);
+      PostAnimate<true, Disamb>(ctx, events, etail);
       #endif
       return false;
     }
   }
-
-
-
-#ifdef PUSHMOVE
-# undef PUSHMOVE
-#endif
