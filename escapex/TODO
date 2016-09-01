@@ -7,7 +7,6 @@ Make this work again on OSX 10.10+ and windows!
  - byte order when manually making graphics, like mainshow?
     - bug: background color in editor
     - bug: mipmaps confuse channels
- - bug on windows: console shows, ugh!
 
 Use specific-width integer types instead of 'unsigned'.
 
@@ -32,10 +31,14 @@ code cleanup
  - replace vallist with deque or vector; it's not used in that many places
  - hash should be 64-bit, should not cast c_str() to hash strings because
    no guarantee that they have enough data
- - return(true) etc.
  - actually I mistakenly rewrote some entity indices to B_PLAYER, but
    B_PLAYER is not an index; it's a bot type -- should fix, maybe
    by introducing a new constant like ENTI_PLAYER (also -1).
+ - find {[ \n]*for and remove needless braces; long ago on visual studio,
+   you needed to do this if you had two for loops that declared the
+   same index var.
+
+move png2esx.cc to misc, add command-line flag support
 
 make sure there is no 'delete this;' when destroy methods were
 converted to destructors!
@@ -257,8 +260,6 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
 *** vc++ warnings
 *** triage xxx/fixme/perf
 *** split up deeply nested code
-*** move.h bad tabification
-*** make move.h into C++ template?
 **** main.cc
 ***** this shouldn't all be in main, anyway
 **** load.cc !!
@@ -309,13 +310,6 @@ http://sourceforge.net/project/downloading.php?groupname=optipng&filename=optipn
 *** Load
 **** hit esc from a directory two levels deep. now re-enter load
     screen and go to .. --- it sends you straight to the root.
-*** LIBPNG has security holes and should be upgraded on platforms where
-    it is shipped. Escape doesn't load untrusted pngs, but one day we
-    may support a skin system, at which point this would become
-    potentially exploitable.
-
-    Unfortunately, word has it that SDL_Image uses an ancient libpng
-    API, so we may be screwed.
 *** hit 1 to load. remove one of the directories from the command line. 
     try to change to it. now, you won't be able to change to anything
     because the path will be screwed up.
