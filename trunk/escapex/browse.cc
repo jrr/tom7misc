@@ -320,7 +320,6 @@ void loadlevelreal::fix_show(bool force) {
 }
 
 void loadlevelreal::step() {
-
   fix_show();
 
   /* now, if we have a lev, maybe make a move */

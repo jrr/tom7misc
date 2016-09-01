@@ -343,7 +343,7 @@ CXXFLAGS= -std=c++14 ${OPT}
 #    -Wl,--subsystem,windows
 # and the former opens the console for useful/annoying debugging info.
 # SUBSYSTEM=windows
-SUBSYSTEM=windows
+SUBSYSTEM=console
 # TODO: Check that SUBSYSTEM=windows when doing a release
 LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}  -static
 
@@ -368,6 +368,10 @@ replace.exe : replace.o util.o
 packsound.exe : util-console.o packsound-console.o ${SDLOBJECTS}
 	${CXX} -o $@ $^ ${LDFLAGS}
 	strip packsound.exe
+
+# XXX shouldn't need SDL.
+png2esx.exe : level.o disamb.o util.o ../cc-lib/stb_image.o ../cc-lib/color-util.o png2esx.o
+	${CXX} -o $@ $^ -m64 
 
 sound.o : sound.cc sound_load.h
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
