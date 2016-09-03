@@ -373,6 +373,10 @@ packsound.exe : util-console.o packsound-console.o ${SDLOBJECTS}
 	${CXX} -o $@ $^ ${LDFLAGS}
 	strip packsound.exe
 
+rle_test.exe : rle.o rle_test.o
+	${CXX} -o $@ $^
+	strip rle_test.exe
+
 # XXX shouldn't need SDL.
 # XXX to misc/
 png2esx.exe : level.o rle.o disamb.o util.o ../cc-lib/stb_image.o ../cc-lib/color-util.o png2esx.o
