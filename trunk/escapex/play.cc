@@ -837,14 +837,13 @@ void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
   
-  HTTP *hh = Client::connect(plr, td.tx.get(), &td);
+  std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
 
-  if (!hh) { 
+  if (hh.get() == nullptr) { 
     Message::no(&td, "Couldn't connect!");
     return;
   }
 
-  Extent<HTTP> eh(hh);
   /* XXX register callback.. */
 
   httpresult hr = hh->get(ALLSOLS_URL + MD5::Ascii(lmd5), s);
@@ -893,7 +892,6 @@ void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
     Message::no(&td, "Couldn't get solutions");
     return;
   }
-
 }
 
 

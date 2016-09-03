@@ -7,7 +7,6 @@
 #include "http.h"
 #include "chars.h"
 #include "message.h"
-#include "extent.h"
 #include "util.h"
 #include "player.h"
 #include "prefs.h"
@@ -27,7 +26,7 @@
 
 struct Client {
   static HTTP *connect(Player *plr, TextScroll *tx, Drawable *that) {
-    HTTP *hh = HTTP::create();
+    std::unique_ptr<HTTP> hh{HTTP::Create()};
 
     if (Prefs::getbool(plr, PREF_DEBUG_NET)) 
       hh->log_message = debug_log_message;
@@ -36,13 +35,11 @@ struct Client {
     int serverport =
       (Prefs::getbool(plr, PREF_ALTCONNECT))?8888:80;
 
-    if (!hh) { 
+    if (hh.get() == nullptr) { 
       if (tx) tx->say(YELLOW "Couldn't create http object.");
       Message::quick(that, "Upgrade failed!", "Cancel", "");
       return 0;
     }
-
-    ::Extent<HTTP> eh(hh);
 
     string ua = "Escape (" VERSION "; " PLATFORM ")";
     if (tx) tx->say((string)"This is: " + ua);
@@ -65,8 +62,7 @@ struct Client {
       return 0;
     }
 
-    eh.release();
-    return hh;
+    return hh.release();
   }
 
   /* XX add bool quiet=true; when false show progress */
@@ -95,7 +91,6 @@ struct Client {
       ret = ("http request failed");
       return false;
     }
-
   }
 
   static bool rpcput(HTTP *hh, string path, formalist *fl, string &ret) {

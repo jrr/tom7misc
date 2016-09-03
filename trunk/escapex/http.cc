@@ -1,6 +1,5 @@
 
 #include "http.h"
-#include "extent.h"
 #include "util.h"
 
 // XXX this can be improved by using vectors..
@@ -9,13 +8,12 @@
 
 using namespace std;
 
-#define DMSG if (log_message) (*log_message)
+#define DMSG if (log_message != nullptr) (*log_message)
 
 namespace {
 struct HTTP_ : public HTTP {
   HTTP_();
   virtual ~HTTP_();
-  virtual void destroy();
   virtual void setua(string);
   virtual bool connect(string host, int port = 80);
   virtual httpresult get(string path, string &out);
@@ -46,13 +44,13 @@ struct HTTP_ : public HTTP {
     }
   }
 
-  httpcallback *callback;
+  httpcallback *callback = nullptr;
 
   string ua;
 
   IPaddress remote;
 
-  TCPsocket conn;
+  TCPsocket conn = 0;
 
   /* for virtual servers */
   string host;
@@ -69,29 +67,22 @@ httpresult HTTP_::gettempfile(string path, string &out_) {
 }
 
 HTTP_::HTTP_() {
-  callback = 0;
-  conn = 0;
   remote.host = 0;
   remote.port = 0;
-  log_message = 0;
+  log_message = nullptr;
 }
 
-HTTP_::~HTTP_() { }
-
-void HTTP_::destroy() {
+HTTP_::~HTTP_() {
   /* ? */
   if (conn) {
     DMSG(util::ptos(this) + " destroy\n");
     SDLNet_TCP_Close(conn);
-    conn = 0;
   }
-  delete this;
 }
 
 void HTTP_::setua(string s) { ua = s; }
 
 bool HTTP_::connect(string chost, int port) {
-
   DMSG(util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
   
   /* should work for "snoot.org" or "128.2.194.11" */
@@ -475,7 +466,6 @@ string HTTP_::readn(int n) {
 }
 
 string HTTP_::readntofile(int n) {
-
   int total = n;
   int rem = n;
 
@@ -510,6 +500,6 @@ string HTTP_::readntofile(int n) {
 }  // namespace
 
 /* export through http interface */
-HTTP *HTTP::create() {
+HTTP *HTTP::Create() {
   return new HTTP_();
 }

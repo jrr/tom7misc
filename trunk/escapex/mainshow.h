@@ -3,7 +3,6 @@
 #define __MAINSHOW_H
 
 #include "draw.h"
-#include "extent.h"
 #include "version.h"
 #include "util.h"
 #include "prefs.h"

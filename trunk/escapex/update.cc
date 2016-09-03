@@ -1,6 +1,5 @@
 
 #include "update.h"
-#include "extent.h"
 #include "util.h"
 #include "textscroll.h"
 #include "prompt.h"
@@ -453,19 +452,17 @@ UpdateResult Updater_::update(string &msg) {
   /* always cancel the hint */
   HandHold::did_update();
 
-  HTTP *hh = Client::connect(plr, tx.get(), this);
+  std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
 
-  if (!hh) { 
+  if (hh.get() == nullptr) { 
     msg = YELLOW "Couldn't connect." POP;
     return UD_FAIL;
   }
 
-  Extent<HTTP> eh(hh);
-
   stringlist *fnames = nullptr;
   stringlist *shownames = nullptr;
 
-  switch (checkcolls(hh, fnames, shownames)) {
+  switch (checkcolls(hh.get(), fnames, shownames)) {
   case CC_OK:
     say("Got collections list.");
     break;
@@ -507,7 +504,7 @@ UpdateResult Updater_::update(string &msg) {
     string ff = stringpop(subsf);
     string ss = stringpop(subss);
 
-    updatecoll(hh, ff, ss);
+    updatecoll(hh.get(), ff, ss);
   }
 
   /* XXX might want to give a fail message if any failed. */

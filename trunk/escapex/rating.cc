@@ -245,13 +245,13 @@ void RateScreen_::rate() {
     plr->writefile();
 
     /* send message to server */
-    HTTP *hh = Client::connect(plr, tx.get(), this);
+    std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
 
     string res;
 
     bool success = 
-      (hh != 0) && 
-      Client::rpc(hh, RATE_RPC,
+      (hh.get() != nullptr) && 
+      Client::rpc(hh.get(), RATE_RPC,
 		  /* credentials */
 		  (string)"id=" +
 		  itos(plr->webid) + 
@@ -268,7 +268,7 @@ void RateScreen_::rate() {
 		  (string)"&solved=" + itos((int)!!nsolved),
 		  res);
 
-    if (hh) hh->destroy();
+    hh.reset();
 
     if (success) {
       int record = util::stoi(res);
