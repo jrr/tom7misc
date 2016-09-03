@@ -11,6 +11,9 @@ using uint32 = uint32_t;
 using namespace std;
 
 // XXX this is not thread safe, and is gross. Fix!
+// We also have strict-aliasing bugs in this file. :(
+// Just read the bytes out of memory and assemble them into
+// words!
 enum md5__bo { BO_HIGHFIRST, BO_LOWFIRST, };
 static md5__bo md5__byteorder = BO_HIGHFIRST;
 

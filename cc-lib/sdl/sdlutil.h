@@ -55,9 +55,13 @@ struct sdlutil {
   // With clipping.
   static void drawbox(SDL_Surface *, int x1, int y1, int w, int h,
 		      Uint8 r, Uint8 g, Uint8 b);
-  
-  static void clearsurface(SDL_Surface *, Uint32);
 
+  // Note: uint32 must be in the correct byte order for the surface.
+  static void clearsurface(SDL_Surface *, Uint32);
+  // Correctly maps color to the surface's byte order.
+  static void ClearSurface(SDL_Surface *, Uint8 r, Uint8 g, Uint8 b,
+			   Uint8 a = 255);
+  
   /* make a n pixel border around a surface. */
   static void outline(SDL_Surface *, int n, int r, int g, int b, int a);
 
@@ -91,6 +95,7 @@ struct sdlutil {
 
   /* make a new surface with the same contents as the old, or 'color' where
      undefined */
+  // XXX version that doesn't need pre-mapped color
   static SDL_Surface *resize_canvas(SDL_Surface *s, int w, int h, Uint32 color);
 
   /* print out flags and maybe other things */
@@ -114,16 +119,27 @@ struct sdlutil {
   /* flip a surface horizontally */
   static SDL_Surface *fliphoriz(SDL_Surface *src);
 
-  /* mix two 32bit colors, doing the right thing for alpha */
+  /* mix two 32bit colors, doing the right thing for alpha.
+     Deprecated -- it's almost always wrong because we don't know
+     which channel is alpha. Use Mix2.
+   */
   static Uint32 mix2(Uint32, Uint32);
-
+  static Uint32 Mix2(const SDL_Surface *surface_for, Uint32 j, Uint32 k);
+  
   /* mix four 32bit colors, byte-order agnostic */
+  /* Deprecated -- it's almost always wrong because we don't know
+     which channel is alpha. Use Mix4. */
   static Uint32 mix4(Uint32, Uint32, Uint32, Uint32);
-
+  static Uint32 Mix4(const SDL_Surface *surface_for,
+		     Uint32 j, Uint32 k, Uint32 l, Uint32 m);
+  
   /* frac should be between 0 and 1, and we get frac of the first
-     color and 1-frac of the second */
+     color and 1-frac of the second. Note that this does not
+     treat alpha specially. */
   static Uint32 mixfrac(Uint32, Uint32, float frac);
 
+  // Don't use these. They are incorrect and there isn't a good way
+  // to get them at compile-time.
   static const Uint32 rmask, gmask, bmask, amask;
 
   /* convert from hue-saturation-value-alpha space to RGBA (compatible
