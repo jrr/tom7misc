@@ -34,8 +34,8 @@ struct Updater_ : public Updater {
 
   UpdateResult update(string &msg) override;
 
-  virtual void draw();
-  virtual void screenresize();
+  void draw() override;
+  void screenresize() override;
 
   void redraw();
 
