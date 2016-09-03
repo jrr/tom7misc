@@ -137,10 +137,11 @@ struct Client {
   }
 
   /* need the drawable to draw background, too */
-  /* static */ struct quick_txdraw : public Drawable {
-    TextScroll *tx;
+  /* static */
+  struct quick_txdraw : public Drawable {
+    std::unique_ptr<TextScroll> tx;
     quick_txdraw() {
-      tx = TextScroll::create(fon);
+      tx.reset(TextScroll::Create(fon));
       tx->posx = 5;
       tx->posy = 5;
       tx->width = screen->w - 10;
@@ -148,16 +149,12 @@ struct Client {
     }
 
     void say(string s) { tx->say(s); }
-    void draw() {
+    void draw() override {
       sdlutil::clearsurface(screen, BGCOLOR);
       tx->draw();
     }
-    void screenresize() {
+    void screenresize() override {
       tx->screenresize();
-    }
-
-    virtual ~quick_txdraw() {
-      tx->destroy();
     }
   };
   

@@ -44,6 +44,8 @@
 #define LOADFRAME_TICKS 100
 #define STEPS_BEFORE_SOL 5
 
+namespace {
+
 #if 0
 struct llentry {
   /* Global level/collection information. */
@@ -60,20 +62,17 @@ struct llentry {
 struct Browse_ : public Browse {
   Browse_() : background(0) {}
 
-  virtual void draw() {
+  void draw() override {
     SDL_BlitSurface(background, 0, screen, 0);
   }
 
-  virtual void screenresize() {
+  void screenresize() override {
     makebackground();
   }
   
-  virtual void destroy() {
-    // if (showlev) showlev->destroy();
-    delete this;
-  }
-
-  virtual string selectlevel();
+  ~Browse_() override {}
+  
+  string selectlevel() override;
 
   void makebackground();
   SDL_Surface *background;
@@ -255,8 +254,9 @@ string Browse_::selectlevel() {
 
 }
 
+}   // namespace
 
-Browse *Browse::create(bool allow_corrupted) {
+Browse *Browse::Create(bool allow_corrupted) {
   Browse_ *b = new Browse_;
   b->allow_corrupted = allow_corrupted;
   b->makebackground();

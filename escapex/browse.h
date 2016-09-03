@@ -18,10 +18,8 @@
 
 /* abstract interface */
 struct Browse : public Drawable {
-
-  static Browse *create(bool allow_corrupted = false);
+  static Browse *Create(bool allow_corrupted = false);
   virtual ~Browse() {}
-  virtual void destroy() = 0;
 
   /* Display the browser modally until the user selects a level;
      return a filename for that level or the empty string if
@@ -29,8 +27,8 @@ struct Browse : public Drawable {
   virtual string selectlevel() = 0;
 
   /* Drawable */
-  virtual void draw() = 0;
-  virtual void screenresize() = 0;
+  void draw() override = 0;
+  void screenresize() override = 0;
 };
 
 #endif

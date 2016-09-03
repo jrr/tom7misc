@@ -13,8 +13,9 @@
 #include "commenting.h"
 #include "httputil.h"
 
+namespace {
 struct cscreen : public Drawable {
-  virtual void draw() {
+  void draw() override {
     sdlutil::clearsurface(screen, BGCOLOR);
 
     fon->draw(2, 2, (string)(BLUE "Commenting on: " POP YELLOW) +
@@ -32,16 +33,11 @@ struct cscreen : public Drawable {
 		       lev, nsolved, 
 		       MD5::Ascii(levmd5), 0, 0);
 
-    if (tx) tx->draw();
+    if (tx.get() != nullptr) tx->draw();
   }
 
-  virtual void screenresize() {
+  void screenresize() override {
     /* XXX */
-  }
-
-  virtual ~cscreen() {
-    tx->destroy();
-    tx = 0;
   }
 
   void redraw() {
@@ -53,18 +49,18 @@ struct cscreen : public Drawable {
   int nsolved;
   string levmd5;
 
-  TextScroll *tx;
+  std::unique_ptr<TextScroll> tx;
 
   cscreen() {
-    tx = TextScroll::create(fon);
+    tx.reset(TextScroll::Create(fon));
     tx->posx = 2;
     tx->posy = fon->height + 2;
     tx->width = screen->w - 4;
     tx->height = screen->h - 
       (drawing::smallheight() + fon->height + 24);
   }
-
 };
+}  // namespace
 
 void CommentScreen::comment(Player *p, Level *lev, string md5,
 			    bool cookmode) {
@@ -85,7 +81,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
 
   cs.tx->say(GREY "Making sure we're connected...");
   cs.redraw();
-  HTTP *hh = Client::connect(p, cs.tx, &cs);
+  HTTP *hh = Client::connect(p, cs.tx.get(), &cs);
   if (!hh) {
     Message::quick(&cs, "Can't connect to internet!",
 		   "OK", "", PICS XICON POP);

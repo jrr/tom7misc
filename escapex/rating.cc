@@ -57,18 +57,13 @@ struct RateScreen_ : public RateScreen {
 
   void setmessage(string m) override { msg = m; }
 
-  ~RateScreen_() override {
-    /* we don't own rating, player, or level */
-    tx->destroy();
-  }
-  
  private:
   Player *plr;
   Level *lev;
 
   string msg;
 
-  TextScroll *tx;
+  std::unique_ptr<TextScroll> tx;
   string levmd5;
   /* number of moves solved in (0 = unsolved) */
   int nsolved;
@@ -79,9 +74,7 @@ struct RateScreen_ : public RateScreen {
   }
 
   /* current values for the rating. (or 0 if none yet) */
-
   Rating *rat;
-
 };
 
 RateScreen_ *RateScreen_::Create(Player *p, Level *l, string levmd) {
@@ -101,7 +94,7 @@ RateScreen_ *RateScreen_::Create(Player *p, Level *l, string levmd) {
 
   rr->below = 0;
 
-  rr->tx = TextScroll::create(fon);
+  rr->tx.reset(TextScroll::Create(fon));
   rr->tx->posx = 2;
   rr->tx->posy = 2;
   rr->tx->width = screen->w - 4;
@@ -252,7 +245,7 @@ void RateScreen_::rate() {
     plr->writefile();
 
     /* send message to server */
-    HTTP *hh = Client::connect(plr, tx, this);
+    HTTP *hh = Client::connect(plr, tx.get(), this);
 
     string res;
 

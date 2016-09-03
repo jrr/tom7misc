@@ -53,7 +53,7 @@ struct MainShow {
   int exittime;
   int guytime;
   
-  TextScroll *tx;
+  std::unique_ptr<TextScroll> tx;
 };
 
 #endif

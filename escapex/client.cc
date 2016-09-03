@@ -7,7 +7,7 @@
 bool Client::quick_rpc(Player *plr, string path, string query, string &ret) {
   quick_txdraw td;
   
-  HTTP *hh = Client::connect(plr, td.tx, &td);
+  HTTP *hh = Client::connect(plr, td.tx.get(), &td);
   
   td.say("Connecting..");
   td.draw();

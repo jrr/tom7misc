@@ -837,7 +837,7 @@ void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
   
-  HTTP *hh = Client::connect(plr, td.tx, &td);
+  HTTP *hh = Client::connect(plr, td.tx.get(), &td);
 
   if (!hh) { 
     Message::no(&td, "Couldn't connect!");

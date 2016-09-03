@@ -14,7 +14,7 @@ MainShow::MainShow(int w, int h, int zf) {
   dr.scrolly = 0;
   dr.zoomfactor = zf;
 
-  tx = TextScroll::create(fonsmall);
+  tx.reset(TextScroll::Create(fonsmall));
   tx->width = 100;
   tx->height = (TILEH >> zf) * h;
 
@@ -23,10 +23,7 @@ MainShow::MainShow(int w, int h, int zf) {
 
 MainShow::~MainShow() {
   dr.lev->destroy();
-  dr.lev = 0;
-
-  tx->destroy();
-  tx = 0;
+  dr.lev = nullptr;
 }
 
 void MainShow::draw(int x, int y, SDL_Surface *surf) {

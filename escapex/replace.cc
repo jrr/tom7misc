@@ -20,13 +20,9 @@
 #include <windows.h>
 #include <malloc.h>
 
-#include "util.h"
+#include <unistd.h>
 
-#ifdef WIN32
-/* execl */
-#  include <process.h>
-#  define sleep _sleep
-#endif
+#include "util.h"
 
 #ifndef WIN32
 # error "replace.cc is only for win32 builds!"
@@ -71,7 +67,6 @@ int main(int argc, char **argv) {
     }
 
     for (int tries = 0; tries < 3; tries++) {
-
       spawnl(_P_OVERLAY, execafter.c_str(), execafter.c_str(),
 	     "-upgraded", 0);
 
