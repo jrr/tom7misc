@@ -30,3 +30,8 @@ fixedword5x8.sml : makefixedword
 
 makefixedword : makefixedword.sml fixedwordvec-sig.sml makefixedword-main.sml makefixedword.cm
 	mlton @MLton max-heap 150m -- makefixedword.cm
+
+
+# XXX build may be wrong since compilation flags not shared with ..
+png2esx.exe : ../level.o ../rle.o ../disamb.o ../util.o ../../cc-lib/stb_image.o ../../cc-lib/color-util.o png2esx.o
+	${CXX} -o $@ $^ -m64 

@@ -15,8 +15,7 @@
 #include "optimize.h"
 #include "play.h"
 
-/* XXX getrgb */
-#define VCRSELCOLOR 0xFF224422
+#define VCRSELCOLOR 0x22, 0x44, 0x22, 0xFF
 
 typedef PtrList<NamedSolution> nslist;
 
@@ -624,7 +623,8 @@ struct pb : public Drawable {
       case PB_PLAYING: r.x = x - 2 + (skip * 2); break;
       case PB_PLAYONEMOVE: r.x = x - 2 + (skip * 4); break;
       }
-      SDL_FillRect(screen, &r, VCRSELCOLOR);
+      SDL_FillRect(screen, &r, SDL_MapRGBA(screen->format,
+					   VCRSELCOLOR));
     }
 
     Drawing::drawtileu(x, y, TU_FREVBUTTON); 

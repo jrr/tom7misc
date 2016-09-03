@@ -1,10 +1,13 @@
 #include "rle.h"
 
+#include <vector>
 #include <string>
 #include "util.h"
 #include "extent.h"
 #include "escapex.h"
 #include <assert.h>
+
+using namespace std;
 
 namespace {
 // Maybe promote this to its own library in cc-lib?
@@ -172,42 +175,26 @@ int *EscapeRLE::Decode(const string &s, unsigned int &idx_bytes, int n) {
   return out;
 }
 
-/* 
-   PERF this can be more efficient by using a reduced
-   number of bits to write frame headers. There is
-   already support for this in Decode.
-*/
+/* We avoid using "real" compression schemes
+   (such as Huffman encoding) because the
+   overhead of dictionaries can often dwarf
+   the size of what we're encoding (ie,
+   200 move solutions). */
 string EscapeRLE::Encode(int n, const int *a) {
-  int max = 0;
-  for (int j = 0; j < n; j++) {
-    if (a[j] > max) max = a[j];
-  }
-
-  /* how many bytes to write a single item?
-     (see the discussion at EscapeRLE::Encode)
-
-     We avoid using "real" compression schemes
-     (such as Huffman encoding) because the
-     overhead of dictionaries can often dwarf
-     the size of what we're encoding (ie,
-     200 move solutions). */
-
-  unsigned int bits = 0;
-
-  {
-    unsigned int shift = max;
-    for (int i = 0; i <= 32; i++) {
-      if (shift & 1) bits = i + 1;
-      shift >>= 1;
-    }
-  }
-
-  /* printf("bits needed: %d\n", bits); */
-
-  BitBuffer ou;
-
-  /* new format has high bit set (see RLE::Decode) */
-  ou.writebits(8, bits | 128);
+  enum ItemType {
+    FRAME,
+    VALUE,
+  };
+  
+  struct Item {
+    Item(ItemType type, uint32 value) : type(type), value(value) {}
+    ItemType type;
+    uint32 value;
+  };
+  // We take two passes because we're allowed to specify the number of
+  // bits used for frames and values, and we compute these after we
+  // know the maximum value we need to represent.
+  vector<Item> items;
 
   enum Mode {
     /* back == front */
@@ -243,8 +230,8 @@ string EscapeRLE::Encode(int n, const int *a) {
 
       if (front >= n) {
 	/* write a single character */
-	ou.writebits(8, 1);
-	ou.writebits(bits, a[back]);
+	items.emplace_back(FRAME, 1U);
+	items.emplace_back(VALUE, a[back]);
 	mode = EXIT;
       } else {
 	if (a[front] == a[back]) {
@@ -264,15 +251,14 @@ string EscapeRLE::Encode(int n, const int *a) {
 
       if (front >= n || a[front] != a[back]) {
 	/* write run. */
-	while ((front - back) > 0) {
-	  unsigned int x = front - back;
-	  if (x > 255) x = 255;
+	assert((front - back) > 0);
+	const uint32 x = front - back;
+	
+	items.emplace_back(FRAME, x);
+	items.emplace_back(VALUE, a[back]);
+	
+	back += x;
 
-	  ou.writebits(8, x);
-	  ou.writebits(bits, a[back]);
-
-	  back += x;
-	}
 	if (front >= n) mode = EXIT;
 	else mode = NOTHING;
       } else front++;
@@ -283,10 +269,8 @@ string EscapeRLE::Encode(int n, const int *a) {
 
       if (front >= n ||
 	  ((front - back) >= 3 &&
-	   (a[front] ==
-	    a[front - 1]) &&
-	   (a[front] ==
-	    a[front - 2]))) {
+	   (a[front] == a[front - 1]) &&
+	   (a[front] == a[front - 2]))) {
 
 	if (front >= n) {
 	  /* will write tail anti-run below */
@@ -307,19 +291,18 @@ string EscapeRLE::Encode(int n, const int *a) {
 	   there's just one character */
 	while ((front - back) > 0) {
 	  unsigned int x = front - back;
-	  if (x > 255) x = 255;
 
 	  if (x == 1) {
-	    ou.writebits(8, 1);
-	    ou.writebits(bits, a[back]);
+	    items.emplace_back(FRAME, 1U);
+	    items.emplace_back(VALUE, a[back]);
 
 	    back++;
 	  } else {
-	    ou.writebits(8, 0);
-	    ou.writebits(8, x);
+	    items.emplace_back(FRAME, 0U);
+	    items.emplace_back(FRAME, x);
 
 	    while (x--) {
-	      ou.writebits(bits, a[back]);
+	      items.emplace_back(VALUE, a[back]);
 	      back++;
 	    }
 	  }
@@ -329,6 +312,65 @@ string EscapeRLE::Encode(int n, const int *a) {
     }
   }
 
+  // Now that we know the encoding we'll use, figure
+  // out how big items and frames are.
+
+  /* how many bytes to write a single item?
+     (see the discussion at EscapeRLE::Encode) */
+  uint32 maxf = 0, maxv = 0;
+  for (const Item &item : items) {
+    if (item.type == FRAME) {
+      if (item.value > maxf) maxf = item.value;
+    } else {
+      assert(item.type == VALUE);
+      if (item.value > maxv) maxv = item.value;
+    }
+  }
+
+  auto BitsNeeded = [](uint32 max) -> uint32 {
+    uint32 bits = 0;
+    unsigned int shift = max;
+    for (int i = 0; i <= 32; i++) {
+      if (shift & 1) bits = i + 1;
+      shift >>= 1;
+    }
+    return bits;
+  };
+
+  // Framebits of zero is disallowed. It would only be useful in
+  // encoding the empty vector.
+  const uint32 framebits = max(BitsNeeded(maxf), 1U);
+  const uint32 valuebits = BitsNeeded(maxv);
+  // Since these are uint32 values, they can't need more than 32 bits!
+  assert(valuebits <= 32);
+  
+  BitBuffer ou;
+  // Format specifier is always 8 bits, with top bit set.
+  // If framebits is not the default, we also set the next bit,
+  // then emit 5 more with the framebits.
+  if (framebits != 8) {
+    ou.writebits(8, 0b11000000 | valuebits);
+    ou.writebits(5, framebits);
+  } else {
+    ou.writebits(8, 0b10000000 | valuebits);
+    // (using default framebits == 8)
+  }
+
+  for (const Item &item : items) {
+    switch (item.type) {
+    case FRAME:
+      ou.writebits(framebits, item.value);
+      break;
+    case VALUE:
+      ou.writebits(valuebits, item.value);
+      break;
+    default:
+      assert(false);
+    }
+  }
+
+  // printf("Wrote n=%d in %d items, framebits %u (%u) valuebits %u (%u)\n",
+  // n, (int)items.size(), framebits, maxf, valuebits, maxv);
+  
   return ou.getstring();
 }
-

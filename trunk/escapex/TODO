@@ -5,9 +5,8 @@
 Make this work again on OSX 10.10+ and windows!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
-    - bug: background color in editor
-    - bug: mipmaps confuse channels
-
+     - any more of these?
+     
 Use specific-width integer types instead of 'unsigned'.
 
 Use font from cc-lib.
@@ -17,14 +16,15 @@ Maybe move HTTP to cc-lib.
 
 get rid of extent; use unique_ptr
  - get rid of "destroy" methods
+    - level
+    - solution
+ - there are some like 'extentf' still in use
 
 code cleanup
  - untabify all source
  - delete trailing whitespace
  - use enum class for "result" enums
- - remove destroy() and extent
-     - http
-     - ...
+ - move solution out of level
  - capitalize class names
      - font
      - grep 'struct [a-z]' *.h | grep -v '_t'

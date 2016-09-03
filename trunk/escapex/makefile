@@ -377,11 +377,6 @@ rle_test.exe : rle.o rle_test.o
 	${CXX} -o $@ $^
 	strip rle_test.exe
 
-# XXX shouldn't need SDL.
-# XXX to misc/
-png2esx.exe : level.o rle.o disamb.o util.o ../cc-lib/stb_image.o ../cc-lib/color-util.o png2esx.o
-	${CXX} -o $@ $^ -m64 
-
 sound.o : sound.cc sound_load.h
 	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c -o $@ $<
 
