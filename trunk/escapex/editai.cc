@@ -45,7 +45,7 @@ bool pred_stops_gold(Level *lev, void *_, int x, int y) {
   }
 }
 
-void editor::dorandom() {
+void Editor::dorandom() {
 
   if (changed) {
     if (!Message::quick(this,
@@ -543,7 +543,7 @@ void editor::dorandom() {
    that's against a gold-stopping tile by 'sucking' it 
    into a space from which we can kick it.
 */
-bool editor::retract_gold() {
+bool Editor::retract_gold() {
   Level *lev = dr.lev;
   /* XX could also be at edge of map -- might want a way to
      specify that pattern */
@@ -694,7 +694,7 @@ bool editor::retract_gold() {
    randomly walk it somewhere that we can
    reach.
 */
-bool editor::retract_grey() {
+bool Editor::retract_grey() {
   
   return false;
 }
@@ -711,7 +711,7 @@ bool editor::retract_grey() {
    [player] [grey] [hole]
 
  */
-bool editor::retract_hole() {
+bool Editor::retract_hole() {
   /* FIXME Crash on empty level (pattern code) */
 
   /* XXX it should be possible to create test functions that depend on
@@ -781,7 +781,7 @@ bool editor::retract_hole() {
 }
 
 
-void editor::retract1() {
+void Editor::retract1() {
 
   Message::no(this, "disabled--retract1 is buggy!");
   return;
@@ -882,7 +882,7 @@ void editor::retract1() {
 #endif
 }
 
-string editor::ainame(int i) {
+string Editor::ainame(int i) {
   switch (i) {
   case RT_MAZE: return YELLOW "Maze" POP BLUE ": Creates a maze using the foreground tile." POP;
   case RT_MAZE2: return YELLOW "Maze 2" POP BLUE ": Like maze, but passages may cross." POP;

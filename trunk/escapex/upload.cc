@@ -19,18 +19,14 @@ struct Upload_ : public Upload {
     SDL_Flip(screen);
   }
 
-  void say(string s) {
-    if (tx) {
+  void say(const string &s) {
+    if (tx.get() != nullptr) {
       tx->say(s);
       redraw();
     }
   }
 
-  ~Upload_() override {
-    if (tx) tx->destroy();
-  }
-
-  TextScroll *tx;
+  std::unique_ptr<TextScroll> tx;
   Player *plr;
 
   void draw() override;
@@ -40,8 +36,8 @@ struct Upload_ : public Upload {
 Upload_ *Upload_::Create() {
   std::unique_ptr<Upload_> ur{new Upload_};
 
-  ur->tx = TextScroll::create(fon);
-  if (!ur->tx) return nullptr;
+  ur->tx.reset(TextScroll::Create(fon));
+  if (ur->tx.get() == nullptr) return nullptr;
 
   ur->tx->posx = 5;
   ur->tx->posy = 5;
@@ -85,7 +81,7 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
   say(YELLOW + itos(slong->length) + GREY " " LRARROW " " POP +
       itos(opt->length) + POP);
 
-  HTTP *hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx.get(), this);
 
   if (!hh) return UploadResult::FAIL;
 

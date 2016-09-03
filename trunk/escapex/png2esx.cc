@@ -27,10 +27,20 @@ struct LAB {
 };
 
 int main(int argc, char **argv) {
+  if (argc < 2) {
+    printf("Provide a png file on the command line.\n");
+    return -1;
+  }
+  string filename = argv[1];
+
   // TODO: command-line args, etc.
   int w, h, comp_unused;
-  uint8 *input_rgba = stbi_load("exit.png", &w, &h, &comp_unused, 4);
-
+  uint8 *input_rgba = stbi_load(filename.c_str(), &w, &h, &comp_unused, 4);
+  if (input_rgba == nullptr) {
+    printf("Unable to load %s?\n", filename.c_str());
+    return -1;
+  }
+  
   printf("Input %d x %d...\n", w, h);
   
   int tilesw, tilesh, tilescomp_unused;
@@ -92,7 +102,7 @@ int main(int argc, char **argv) {
   }
 
   // Now just save.
-  level->title = "png";
+  level->title = filename;
   level->author = "png2esx";
   level->w = w;
   level->h = h;

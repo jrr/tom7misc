@@ -27,7 +27,13 @@ OutFile "escapesetup.exe"
 BrandingText "Escape Setup"
 
 ; The default installation directory
-InstallDir $PROGRAMFILES\Escape
+;; Not using the traditional $PROGRAMFILES because
+;; Escape wants to write to its directory (including
+;; overwriting its own binary). $APPDATA is a reasonable
+;; choice, but this directory is hidden from users, which
+;; makes it harder to do things like manually recover one's
+;; player file or levels. 
+InstallDir c:\escape
 
   ;; less confusing
   ShowInstDetails "nevershow"

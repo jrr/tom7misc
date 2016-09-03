@@ -21,7 +21,7 @@
 enum { PF_NONE = 0, PF_TIMER, PF_FILE, };
 
 /* move him out of the selection */
-bool editor::moveplayersafe() {
+bool Editor::moveplayersafe() {
   if (dr.lev->guyx >= selection.x &&
       dr.lev->guyy >= selection.y &&
       dr.lev->guyx < (selection.x + selection.w) &&
@@ -44,7 +44,7 @@ bool editor::moveplayersafe() {
   } else return true;
 }
 
-void editor::prefab() {
+void Editor::prefab() {
   if (selection.w) {
     /* display menu to select. */
     int what = 0;
@@ -109,7 +109,7 @@ void editor::prefab() {
 
 
 /* XXX should allow me to specify the prompt for loading */
-void editor::pffile() {
+void Editor::pffile() {
   Level *small =
     [this]() -> Level * {
     std::unique_ptr<LoadLevel> ll{
@@ -276,7 +276,7 @@ static bool timer_check(int *M, int *A, int i, int t) {
 /* insert a timer. Prompt for the number of moves, then try to use
    the minimum number of bots within the given space to form the
    timer. */
-void editor::pftimer() {
+void Editor::pftimer() {
   label message;
   message.text = 
     PICS QICON POP
@@ -386,7 +386,7 @@ void editor::pftimer() {
    if successful, modify the level to insert
    the timer and then return true.
 */
-bool editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
+bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
 
   if (j < 0 || j > i) abort();
 

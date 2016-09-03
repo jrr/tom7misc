@@ -18,14 +18,15 @@ Maybe move HTTP to cc-lib.
 get rid of extent; use unique_ptr
  - get rid of "destroy" methods
 
-When using the virtual implementation idiom, the "real" class
-can be defined in an anonymous namespace.
-
 code cleanup
  - untabify all source
  - delete trailing whitespace
+ - use enum class for "result" enums
+ - remove destroy() and extent
+     - http
+     - ...
  - capitalize class names
-     - editor
+     - font
      - grep 'struct [a-z]' *.h | grep -v '_t'
  - standardize on Class_ rather than classreal for private implementation
  - replace vallist with deque or vector; it's not used in that many places
@@ -37,6 +38,10 @@ code cleanup
  - find {[ \n]*for and remove needless braces; long ago on visual studio,
    you needed to do this if you had two for loops that declared the
    same index var.
+ - When using the virtual implementation idiom, the "real" class
+   can be defined in an anonymous namespace.
+ - MainShow can use private implementation
+
 
 move png2esx.cc to misc, add command-line flag support
 

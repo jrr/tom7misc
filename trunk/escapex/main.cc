@@ -8,7 +8,6 @@
 #include "escapex.h"
 #include "font.h"
 #include "loadlevel.h"
-#include "extent.h"
 #include "player.h"
 #include "../cc-lib/md5.h"
 #include "prompt.h"
@@ -63,13 +62,13 @@ int main(int argc, char **argv) {
 
   audio = 0;
   network = 0;
-  if (SDL_Init (SDL_INIT_VIDEO | 
-                SDL_INIT_TIMER | 
-		SDL_INIT_AUDIO | DEBUG_PARACHUTE) < 0) {
+  if (SDL_Init(SDL_INIT_VIDEO | 
+	       SDL_INIT_TIMER | 
+	       SDL_INIT_AUDIO | DEBUG_PARACHUTE) < 0) {
 
     /* try without audio */
-    if (SDL_Init (SDL_INIT_VIDEO | 
-		  SDL_INIT_TIMER | DEBUG_PARACHUTE) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | 
+		 SDL_INIT_TIMER | DEBUG_PARACHUTE) < 0) {
       
       printf("Unable to initialize SDL. (%s)\n", SDL_GetError());
       
@@ -223,10 +222,10 @@ int main(int argc, char **argv) {
 
       } else if (r == MainMenu::LOAD_NEW) {
 
-#if 1
-	for (;;) // XXX loop in browser instead.
-	  if (Browse *bb = Browse::create()) {
-	    ::Extent<Browse> bb_d(bb);
+	// FIXME not finished, doesn't work
+	for (;;) {// XXX loop in browser instead.
+	  std::unique_ptr<Browse> bb{Browse::Create()};
+  	  if (bb.get() != nullptr) {
 	    // XXX: Instead, have a version of the browser
 	    // that invokes playrecord on the stack, and a
 	    // separate bb->selectfile() for editing.
@@ -239,30 +238,16 @@ int main(int argc, char **argv) {
 	    Message::bug(0, "Error creating browser");
 	    break;
 	  }
-#else
-
-	float disk, lev;
-	Uint32 epoch = 0;
-	while (!LevelDB::uptodate(&disk, &lev)) {
-	  char msg[512];
-	  sprintf(msg, "Still working %.2f%% disk %.2f%% lev\n",
-		  disk * 100.0, lev * 100.0);
-	  Progress::drawbar(&epoch, lev * 1000, 1000, msg, 200);
-	  LevelDB::donate(0, 0, 10);
 	}
-
-	Message::bug(0, "Sorry, browser not hooked up yet");
-#endif
-
+	  
       } else if (r == MainMenu::EDIT) {
         /* edit a level */
 
-        editor *ee = editor::create(plr.get());
-        if (!ee) {
-          Message::bug(0, "Error creating editor");
+	std::unique_ptr<Editor> ee{Editor::Create(plr.get())};
+        if (ee.get() == nullptr) {
+          Message::bug(0, "Error creating Editor");
           goto oops;
         }
-        ::Extent<editor> exe(ee);
         
         ee->edit();
 
@@ -270,16 +255,15 @@ int main(int argc, char **argv) {
       } else if (r == MainMenu::UPGRADE) {
         /* upgrade escape binaries and graphics */
 
-        Upgrader *uu = Upgrader::create(plr.get());
+	std::unique_ptr<Upgrader> uu{Upgrader::Create(plr.get())};
         if (!uu) {
           Message::bug(0, "Error creating upgrader");
           goto oops;
         }
-        ::Extent<Upgrader> exu(uu);
 
         string msg;
 
-        switch (uu->upgrade (msg)) {
+        switch (uu->upgrade(msg)) {
         case UP_EXIT:
           /* force quit */
           goto done;
@@ -291,12 +275,11 @@ int main(int argc, char **argv) {
       } else if (r == MainMenu::UPDATE) {
         /* update levels */
 
-        Updater *uu = Updater::create(plr.get());
-        if (!uu) {
+	std::unique_ptr<Updater> uu{Updater::Create(plr.get())};
+        if (uu.get() == nullptr) {
           Message::bug(0, "Error creating updater");
           goto oops;
         }
-        ::Extent<Updater> exu(uu);
 
         string msg;
 

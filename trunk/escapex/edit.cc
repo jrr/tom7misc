@@ -93,7 +93,7 @@ static constexpr int tileorder[] = {
 #define POS_PREFAB 22
 #define NUM_MENUITEMS 23
 
-void editor::screenresize() {
+void Editor::screenresize() {
   dr.width = XW;
   dr.height = YH;
   
@@ -103,7 +103,7 @@ void editor::screenresize() {
   tmenuscroll = 0;
 }
 
-void editor::fullclear(tile t) {
+void Editor::fullclear(tile t) {
   for (int x = 0; x < dr.lev->w; x++) {
     for (int y = 0; y < dr.lev->h; y++) {
       dr.lev->settile(x, y, t);
@@ -113,7 +113,7 @@ void editor::fullclear(tile t) {
 }
 
 /* XXX limit to selection */
-void editor::clear(tile bg, tile fg) {
+void Editor::clear(tile bg, tile fg) {
   if (changed &&
       !Message::quick(this,
 		      "Clearing will destroy your unsaved changes.",
@@ -142,7 +142,7 @@ void editor::clear(tile bg, tile fg) {
 }
 
 /* for debugging, since it pauses everything */
-void editor::blinktile(int destx, int desty, Uint32 color) {
+void Editor::blinktile(int destx, int desty, Uint32 color) {
   int xx, yy;
   if (dr.onscreen(destx, desty, xx, yy)) {
     SDL_Rect dst;
@@ -156,7 +156,7 @@ void editor::blinktile(int destx, int desty, Uint32 color) {
   SDL_Delay(500);
 }
 
-void editor::draw() {
+void Editor::draw() {
 
   /* check if we need to highlight a destination */
   int tx, ty;
@@ -327,7 +327,7 @@ void editor::draw() {
 
 }
 
-void editor::tmenurotate(int n) {
+void Editor::tmenurotate(int n) {
 
   tmenuscroll += n;
 
@@ -347,7 +347,7 @@ void editor::tmenurotate(int n) {
   redraw();
 }
 
-void editor::settitle() {
+void Editor::settitle() {
   string nt = Prompt::ask(this, "Title for level: ",
 			  dr.lev->title);
 
@@ -360,7 +360,7 @@ void editor::settitle() {
   redraw();
 }
 
-void editor::setauthor() {
+void Editor::setauthor() {
 
   string s = Prompt::ask(this,
 			       "Author of level: ",
@@ -372,7 +372,7 @@ void editor::setauthor() {
 }
 
 /* XXX warn if saving into managed directory */
-void editor::saveas() {
+void Editor::saveas() {
 
   string fn;
   if (filename == "") fn = (string)EDIT_DIR + (string) DIRSEP;
@@ -395,7 +395,7 @@ void editor::saveas() {
   save();
 }
 
-void editor::playerstart() {
+void Editor::playerstart() {
   clearselection();
 
   int x, y;
@@ -414,7 +414,7 @@ void editor::playerstart() {
 }
 
 /* XXX target selection? */
-void editor::erasebot() {
+void Editor::erasebot() {
   clearselection();
   
   int x, y;
@@ -430,7 +430,7 @@ void editor::erasebot() {
   redraw();
 }
 
-bool editor::clearbot(int x, int y) {
+bool Editor::clearbot(int x, int y) {
 
     int i;
     if (dr.lev->botat(x, y, i)) {
@@ -448,7 +448,7 @@ bool editor::clearbot(int x, int y) {
     } else return false;
 }
 
-void editor::firstbot() {
+void Editor::firstbot() {
   int x, y;
   if (getdest(x, y, (string)"click on bot to make #1")) {
 
@@ -478,7 +478,7 @@ void editor::firstbot() {
   redraw();
 }
 
-void editor::sleepwake() {
+void Editor::sleepwake() {
   int x, y;
   if (getdest(x, y, (string)"click on bot sleep/wake")) {
 
@@ -517,7 +517,7 @@ void editor::sleepwake() {
   redraw();
 }
 
-void editor::placebot(bot b) {
+void Editor::placebot(bot b) {
   clearselection();
 
   int x, y;
@@ -555,7 +555,7 @@ void editor::placebot(bot b) {
 
 /* must ensure there is space, and that
    there is not a bot or player on this spot already */
-void editor::addbot(int x, int y, bot b) {
+void Editor::addbot(int x, int y, bot b) {
   int n = dr.lev->nbots + 1;
 	  
   /* all clear; add new one */
@@ -590,7 +590,7 @@ void editor::addbot(int x, int y, bot b) {
   changed = 1;
 }
 
-void editor::save() {
+void Editor::save() {
   clearselection();
 
   fixup();
@@ -684,7 +684,7 @@ void editor::save() {
 
 /* XXX should warn if you load from a managed directory. */
 /* target selection? */
-void editor::load() {
+void Editor::load() {
   clearselection();
 
   std::unique_ptr<LoadLevel> ll{
@@ -716,9 +716,11 @@ void editor::load() {
   redraw();
 }
 
-editor::~editor() {}
+Editor::~Editor() {
+  saved->destroy();
+}
 
-void editor::playlev() {
+void Editor::playlev() {
   /* XXX check result for 'exit' */
   fixup();
   
@@ -734,7 +736,7 @@ void editor::playlev() {
   redraw();
 }
 
-void editor::resize() {
+void Editor::resize() {
   clearselection();
 
   string nw = itos(dr.lev->w);
@@ -790,7 +792,7 @@ void editor::resize() {
   redraw();
 }
 
-void editor::edit(Level *origlev) {
+void Editor::edit(Level *origlev) {
   
   if (origlev) {
     dr.lev = origlev->clone();
@@ -1785,14 +1787,14 @@ void editor::edit(Level *origlev) {
   return;
 }
 
-void editor::next_bombtimer() {
+void Editor::next_bombtimer() {
   currentbomb = (bot)((int)currentbomb + 1);
   if ((int)currentbomb > (int)B_BOMB_MAX)
     currentbomb = B_BOMB_0;
   redraw();
 }
 
-bool editor::getdest(int &x, int &y, string msg) {
+bool Editor::getdest(int &x, int &y, string msg) {
   clearselection();
 
   SDL_Event event;
@@ -1861,7 +1863,7 @@ bool editor::getdest(int &x, int &y, string msg) {
 }
 
 /* fix various things before playing or saving. */
-void editor::fixup() {
+void Editor::fixup() {
 
   /* XXX should fon->parens the texts */
 
@@ -1934,13 +1936,11 @@ void editor::fixup() {
 
 }
 
-editor *editor::create(Player *p) {
-
-  editor *ee = new editor();
+Editor *Editor::Create(Player *p) {
+  std::unique_ptr<Editor> ee{new Editor};
 
   ee->randtype = RT_MAZE;
   ee->plr = p;
-  Extent<editor> exe(ee);
 
   ee->current = T_BLUE;
   ee->layer = 0;
@@ -1954,7 +1954,6 @@ editor *editor::create(Player *p) {
 
   if (!ee->plr) return 0;
 
-  exe.release();
-  return ee;
+  return ee.release();
 }
 

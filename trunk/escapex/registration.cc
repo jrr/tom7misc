@@ -17,24 +17,19 @@ struct Registration_ : public Registration {
     SDL_Flip(screen);
   }
 
-  ~Registration_() override {
-    tx->destroy();
-  }
-
-  void say(string s) {
-    if (tx) {
+  void say(const string &s) {
+    if (tx.get() != nullptr) {
       tx->say(s);
       redraw();
     }
   }
 
-  TextScroll *tx;
+  std::unique_ptr<TextScroll> tx;
   Player *plr;
 };
 
 void Registration_::registrate() {
-
-  HTTP *hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx.get(), this);
   if (!hh) { 
     Message::quick(this,
 		   "Couldn't connect to server.",
@@ -119,6 +114,6 @@ void Registration_::draw() {
 Registration *Registration::Create(Player *p) {
   Registration_ *r = new Registration_();
   r->plr = p;
-  r->tx = TextScroll::create(fon);
+  r->tx.reset(TextScroll::Create(fon));
   return r;
 }

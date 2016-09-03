@@ -274,7 +274,7 @@ void smanage::promptupload(Drawable *below,
 		       "Upload anyway",
 		       "Cancel")) {
 
-      HTTP *hh = Client::connect(plr, td.tx, &td);
+      HTTP *hh = Client::connect(plr, td.tx.get(), &td);
     
       if (!hh) { 
 	Message::no(&td, "Couldn't connect!");
@@ -324,11 +324,12 @@ void smanage::promptupload(Drawable *below,
 }
 
 /* XXX this should be documented in protocol.txt */
-void smreal::downloadsolutions(Player *plr, smreal *sm, string lmd5, Level *lev) {
+void smreal::downloadsolutions(Player *plr, smreal *sm,
+			       string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
   
-  HTTP *hh = Client::connect(plr, td.tx, &td);
+  HTTP *hh = Client::connect(plr, td.tx.get(), &td);
 
   if (!hh) { 
     Message::no(&td, "Couldn't connect!");

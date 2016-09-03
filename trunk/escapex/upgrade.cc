@@ -70,31 +70,23 @@ struct upitem {
 typedef vallist<upitem> ulist;
 
 struct Upgrader_ : public Upgrader {
+  static Upgrader_ *Create(Player *p);
 
-  static Upgrader_ *create(Player *p);
+  UpgradeResult upgrade(string &msg) override;
 
-  UpgradeResult upgrade(string &msg);
-
-  virtual void destroy() {
-    tx->destroy();
-    delete this;
-  }
-
-  virtual ~Upgrader_() {}
-
-  virtual void draw();
-  virtual void screenresize();
+  void draw() override;
+  void screenresize() override;
 
   void redraw();
 
-  private:
+ private:
 
-  void say(string s) {
-    if (tx) tx->say(s);
+  void say(const string &s) {
+    if (tx.get() != nullptr) tx->say(s);
   }
 
   void unsay() {
-    if (tx) tx->unsay();
+    if (tx.get() != nullptr) tx->unsay();
   }
 
   Player *plr;
@@ -105,14 +97,14 @@ struct Upgrader_ : public Upgrader {
   upresult doupgrade(HTTP *hh, string &msg,
 		     ulist *upthese);
 
-  TextScroll *tx;
+  std::unique_ptr<TextScroll> tx;
 
   friend struct UGCallback;
 };
 
-Upgrader_ *Upgrader_::create(Player *p) {
+Upgrader_ *Upgrader_::Create(Player *p) {
   Upgrader_ *uu = new Upgrader_();
-  uu->tx = TextScroll::create(fon);
+  uu->tx.reset(TextScroll::Create(fon));
   uu->tx->posx = 5;
   uu->tx->posy = 5;
   uu->tx->width = screen->w - 10;
@@ -563,7 +555,7 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   /* no matter what, cancel the hint to upgrade */
   HandHold::did_upgrade();
 
-  HTTP *hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx.get(), this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
@@ -662,6 +654,8 @@ void Upgrader_::draw() {
 
 }  // namespace
 
-Upgrader *Upgrader::create(Player *p) {
-  return Upgrader_::create(p);
+Upgrader::~Upgrader() {}
+
+Upgrader *Upgrader::Create(Player *p) {
+  return Upgrader_::Create(p);
 }

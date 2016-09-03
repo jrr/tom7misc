@@ -322,7 +322,6 @@ SDLNETOBJECTS=SDL_net/SDLnet.o SDL_net/SDLnetselect.o SDL_net/SDLnetTCP.o SDL_ne
 LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 LINKSDLNET= -lws2_32 -liphlpapi
 
-# XXX some of these have moved to cc-lib
 ESCOBJECTS= main.o level.o disamb.o loadlevel.o font.o play.o util.o player.o playerdb.o prompt.o draw.o drawable.o edit.o editprefab.o mainmenu.o upgrade.o http.o httputil.o textscroll.o message.o update.o editai.o dircache.o upper.o registration.o upload.o rating.o menu.o prefs.o chunks.o dirindex.o textbox.o analysis.o generator.o primes.o commenting.o cleanup.o mainshow.o handhold.o animation.o dirt.o sound.o optimize.o smanage.o client.o progress.o leveldb.o startup.o icon.o browse.o backgrounds.o escapex.o
 
 # XXX
@@ -344,7 +343,12 @@ CXXFLAGS= -std=c++14 ${OPT}
 # and the former opens the console for useful/annoying debugging info.
 # SUBSYSTEM=windows
 SUBSYSTEM=console
-# TODO: Check that SUBSYSTEM=windows when doing a release
+# You can remove this GNU-ism if you need to; it just prevents me from
+# accidentally releasing the console build.
+release_check = \
+	$(if $(filter windows,${SUBSYSTEM}),,\
+	$(error SUBSYSTEM is ${SUBSYSTEM} -- do not release in console mode!))
+
 LDFLAGS =  -L. ${LINKSDL} ${LINKSDLNET} -m64 -Wl,--subsystem,${SUBSYSTEM} ${OPT}  -static
 
 # -lSDL_mixer
@@ -370,6 +374,7 @@ packsound.exe : util-console.o packsound-console.o ${SDLOBJECTS}
 	strip packsound.exe
 
 # XXX shouldn't need SDL.
+# XXX to misc/
 png2esx.exe : level.o disamb.o util.o ../cc-lib/stb_image.o ../cc-lib/color-util.o png2esx.o
 	${CXX} -o $@ $^ -m64 
 
@@ -442,6 +447,7 @@ mkupgrade.exe : mkupgrade.cc ../cc-lib/md5.cc
 	${CXX} ${CPPFLAGS} ${CXXFLAGS} -DWIN32 mkupgrade.cc ../cc-lib/md5.cc -o mkupgrade.exe
 
 CURRENT : .dummy escape.exe releasefiles.win32 symlinks.win32 deletefiles.win32 mkupgrade.exe
+	@:$(call release_check)
 	strip escape.exe
 	strip replace.exe
 	./mkupgrade.exe releasefiles.win32 symlinks.win32 deletefiles.win32 > UPGRADE
@@ -456,6 +462,7 @@ release : UPGRADE
 zip : escape-beta.zip
 
 escape-beta.zip : ${RELEASEFILES} makefile
+	@:$(call release_check)
 	strip escape.exe
 	strip replace.exe
 	rm -f $@
@@ -480,6 +487,9 @@ zipup : escape-beta.zip
 MAKENSIS='c:\program files (x86)\nsis\makensis.exe'
 
 escapesetup.exe : .dummy ${RELEASEFILES} escape.nsi
+	@:$(call release_check)
+	strip escape.exe
+	strip replace.exe
 	${MAKENSIS} escape.nsi
 
 installer : escapesetup.exe

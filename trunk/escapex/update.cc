@@ -11,6 +11,9 @@
 #include "menu.h"
 #include "ptrlist.h"
 
+#include <memory>
+#include <string>
+
 #include "client.h"
 
 #define UNSUBMARKER "unsubscribed"
@@ -28,17 +31,9 @@ enum selresult {
 };
 
 struct Updater_ : public Updater {
+  static Updater_ *Create(Player *p);
 
-  static Updater_ *create(Player *p);
-
-  updateresult update(string &msg);
-
-  virtual void destroy() {
-    tx->destroy();
-    delete this;
-  }
-
-  virtual ~Updater_() {}
+  UpdateResult update(string &msg) override;
 
   virtual void draw();
   virtual void screenresize();
@@ -47,12 +42,12 @@ struct Updater_ : public Updater {
 
   private:
 
-  void say(string s) {
-    if (tx) tx->say(s);
+  void say(const string &s) {
+    if (tx.get() != nullptr) tx->say(s);
   }
 
-  void sayover(string s) {
-    if (tx) {
+  void sayover(const string &s) {
+    if (tx.get() != nullptr) {
       tx->unsay();
       tx->say(s);
     }
@@ -60,7 +55,7 @@ struct Updater_ : public Updater {
 
   Player *plr;
 
-  TextScroll *tx;
+  std::unique_ptr<TextScroll> tx;
 
   ccresult checkcolls(HTTP *hh, 
 		      stringlist *&fnames, 
@@ -150,9 +145,9 @@ inputresult subtoggle::key(SDL_Event e) {
 
 }
 
-Updater_ *Updater_::create(Player *p) {
+Updater_ *Updater_::Create(Player *p) {
   Updater_ *uu = new Updater_();
-  uu->tx = TextScroll::create(fonsmall);
+  uu->tx.reset(TextScroll::Create(fonsmall));
   uu->tx->posx = 5;
   uu->tx->posy = 5;
   uu->tx->width = screen->w - 10;
@@ -338,7 +333,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
     }
 
     /* create upper for this collection dir. */
-    std::unique_ptr<Upper> up{Upper::Create(hh, tx, this, fname)};
+    std::unique_ptr<Upper> up{Upper::Create(hh, tx.get(), this, fname)};
 
     if (!up.get()) {
       Message::bug(this, "couldn't create upper object?!");
@@ -454,12 +449,11 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 }
 
 /* very similar to upgrade... maybe abstract it? */
-updateresult Updater_::update(string &msg) {
-
+UpdateResult Updater_::update(string &msg) {
   /* always cancel the hint */
   HandHold::did_update();
 
-  HTTP *hh = Client::connect(plr, tx, this);
+  HTTP *hh = Client::connect(plr, tx.get(), this);
 
   if (!hh) { 
     msg = YELLOW "Couldn't connect." POP;
@@ -536,6 +530,8 @@ void Updater_::draw() {
 
 }  // namespace
 
-Updater *Updater::create(Player *p) {
-  return Updater_::create(p);
+Updater::~Updater() {}
+
+Updater *Updater::Create(Player *p) {
+  return Updater_::Create(p);
 }

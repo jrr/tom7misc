@@ -13,7 +13,7 @@
 enum { RT_MAZE, RT_MAZE2, RT_CORRIDORS, RT_MAZEBUG1, RT_MAZEBUG2, 
        RT_ROOMS, RT_CRAZY, RT_RETRACT1, RT_RETRACTGOLD, NUM_RANDTYPES, };
 
-struct editor : public Drawable {
+struct Editor : public Drawable {
 
   /* takes ownership */
   void setlevel(Level *l) {
@@ -26,14 +26,9 @@ struct editor : public Drawable {
   void draw();
   void screenresize();
 
-  virtual ~editor();
+  virtual ~Editor();
 
-  static editor *create(Player *p);
-
-  void destroy() {
-    saved->destroy();
-    delete this;
-  }
+  static Editor *Create(Player *p);
 
   private:
 

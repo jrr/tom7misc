@@ -7,9 +7,7 @@
 
 namespace {
 struct TextScroll_ : public TextScroll {
-
-  static TextScroll_ *create(font *f);
-  virtual void destroy();
+  static TextScroll_ *Create(font *f);
   virtual void say(string s);
   virtual void unsay();
 
@@ -24,16 +22,15 @@ struct TextScroll_ : public TextScroll {
   string log[BACKLOG];
   int pwrite;
 
+  // Not owned.
   font *ft;
-
 };
 
 TextScroll_::~TextScroll_() {}
 
-void TextScroll_::destroy() { delete this; }
 void TextScroll_::screenresize() {}
 
-TextScroll_ *TextScroll_::create(font *f) {
+TextScroll_ *TextScroll_::Create(font *f) {
   TextScroll_ *ts = new TextScroll_();
   ts->ft = f;
   ts->posx = 0;
@@ -90,6 +87,6 @@ void TextScroll_::draw() {
 }  // namespace
 
 TextScroll::~TextScroll() {}
-TextScroll *TextScroll::create(font *f) {
-  return TextScroll_::create(f);
+TextScroll *TextScroll::Create(font *f) {
+  return TextScroll_::Create(f);
 }
