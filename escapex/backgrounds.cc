@@ -41,14 +41,12 @@ void Backgrounds::gradientblocks(SDL_Surface *&surf,
      only that area shows through. */
 
 #if 0
-  sdlutil::clearsurface(surf,
-			SDL_MapRGBA(surf->format,
-				    0xFF, 0xFF, 0xFF, 0xFF));
+  sdlutil::ClearSurface(surf, 0xFF, 0xFF, 0xFF, 0xFF);
 #endif
 
   for (int y = 0; y < 1 + h / (TILEW >> 1); y++)
     for (int x = 0; x < 1 + w / (TILEH >> 1); x++) {
-      drawing::drawtile(x * (TILEH >> 1), y * (TILEW >> 1),
+      Drawing::drawtile(x * (TILEH >> 1), y * (TILEW >> 1),
 			((x + y) & 1) ? tile_white : tile_black,
 			1, surf);
     }
@@ -57,9 +55,7 @@ void Backgrounds::gradientblocks(SDL_Surface *&surf,
   /* gradient. we pick a bunch of random points and then
      interpolate between them. */
 
-  sdlutil::clearsurface(gradient, 
-			SDL_MapRGBA(gradient->format, 
-				    0xFF, 0xFF, 0xFF, 0xFF));
+  sdlutil::ClearSurface(gradient, 0xFF, 0xFF, 0xFF, 0xFF);
 
   int x = 0;
   Uint32 last = hueish(gradient, gradient_hue);

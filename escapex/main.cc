@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
   }
 
   /* XXX callback progress for ainit */
-  if (!drawing::loadimages() || !Animation::ainit()) {
+  if (!Drawing::loadimages() || !Animation::ainit()) {
     if (fon) Message::bug(0, "Error loading graphics!");
     printf("Failed to load graphics.\n");
     goto no_drawings;
@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
 #endif
 
  oops: ;
-  drawing::destroyimages();
+  Drawing::destroyimages();
 
 
  no_drawings: ;

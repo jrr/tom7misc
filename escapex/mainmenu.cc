@@ -127,30 +127,30 @@ void mmentry::draw(int x, int y, bool sel) {
   switch (t) {
   case MM_TUTORIAL:
     /* figure out what the next unsolved tutorial level is */
-    drawing::drawtileu(sxi, y, TU_T, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_T, 0, screen);
     if (parent->tutorial_left)
       fon->draw(sx, ctry, parent->tutorial_text);
     else
       fon->draw(sx, ctry, GREY + parent->tutorial_text);
     break;
   case MM_LOAD:
-    drawing::drawtileu(sxi, y, TU_1, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_1, 0, screen);
     fon->draw(sx, ctry, YELLOW "Load a level.");
     break;
 
   case MM_LOAD_NEW:
-    drawing::drawtileu(sxi, y, TU_LOAD, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_LOAD, 0, screen);
     fon->draw(sx, ctry, YELLOW "New level browser!");
     break;
     
   case MM_EDIT:
-    drawing::drawtileu(sxi, y, TU_2, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_2, 0, screen);
     fon->draw(sx, ctry, "Edit a level.");
     break;
 
 # ifndef MULTIUSER
   case MM_UPGRADE:
-    drawing::drawtileu(sxi, y, TU_3, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_3, 0, screen);
     if (HandHold::recommend_upgrade())
       fon->draw(sxr, ctry, RECOMMENDED_TEXT);
 
@@ -159,7 +159,7 @@ void mmentry::draw(int x, int y, bool sel) {
 # endif
 
   case MM_UPDATE:
-    drawing::drawtileu(sxi, y, TU_4, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_4, 0, screen);
     /* don't show more than one recommendation */
     if (HandHold::recommend_update() && !HandHold::recommend_upgrade())
       fon->draw(sxr, ctry, RECOMMENDED_TEXT);
@@ -168,11 +168,11 @@ void mmentry::draw(int x, int y, bool sel) {
     break;
 
   case MM_PREFS:
-    drawing::drawtileu(sxi, y, TU_P, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_P, 0, screen);
     fon->draw(sx, ctry, "Change preferences.");
     break;
   case MM_QUIT:
-    drawing::drawtileu(sxi, y, TU_X, 0, screen);
+    Drawing::drawtileu(sxi, y, TU_X, 0, screen);
     fon->draw(sx, ctry, "Quit.");
     break;
 

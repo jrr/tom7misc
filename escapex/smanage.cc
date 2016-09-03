@@ -627,17 +627,17 @@ struct pb : public Drawable {
       SDL_FillRect(screen, &r, VCRSELCOLOR);
     }
 
-    drawing::drawtileu(x, y, TU_FREVBUTTON); 
+    Drawing::drawtileu(x, y, TU_FREVBUTTON); 
     fon->drawcenter(x + (TILEW>>1), yf, "ctrl\n" LLARROW); x += skip;
-    drawing::drawtileu(x, y, TU_REVBUTTON);
+    Drawing::drawtileu(x, y, TU_REVBUTTON);
     fon->drawcenter(x + (TILEW>>1), yf, LLARROW); x += skip;
-    drawing::drawtileu(x, y, TU_PLAYBUTTON);
+    Drawing::drawtileu(x, y, TU_PLAYBUTTON);
     fon->drawcenter(x + (TILEW>>1), yf, "spc"); x += skip;
-    drawing::drawtileu(x, y, TU_PAUSEBUTTON);
+    Drawing::drawtileu(x, y, TU_PAUSEBUTTON);
     fon->drawcenter(x + (TILEW>>1), yf, "spc"); x += skip;
-    drawing::drawtileu(x, y, TU_FWDBUTTON);
+    Drawing::drawtileu(x, y, TU_FWDBUTTON);
     fon->drawcenter(x + (TILEW>>1), yf, LRARROW); x += skip;
-    drawing::drawtileu(x, y, TU_FFWDBUTTON);
+    Drawing::drawtileu(x, y, TU_FFWDBUTTON);
     fon->drawcenter(x + (TILEW>>1), yf, "ctrl\n" LRARROW); x += skip;
     SDL_Flip(screen);
   }
@@ -675,7 +675,7 @@ struct pb : public Drawable {
   }
 
   pbstate state;
-  drawing dr;
+  Drawing dr;
   std::unique_ptr<Dirt> dirty;
   /* index into solution */
   int soli;

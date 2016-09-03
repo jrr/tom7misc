@@ -811,7 +811,7 @@ static inline int OVERLAP(bot entt) {
    frames instead of silently ignoring the animation. A fairly serious
    bug persisted for many years on every bomb explosion because we
    ignored a nonsensical animation. */
-void Animation::start(drawing &dr, 
+void Animation::start(Drawing &dr, 
 		      PtrList<Animation> *&anims,
 		      PtrList<Animation> *&sprites,
 		      aevent *ae) {
@@ -1812,8 +1812,7 @@ bool Animation::init_flips() {
 	&& frame_flips_in)) return false;
 
   SDL_Surface *tsrc = sdlutil::makesurface(TILEW, TILEH);
-  sdlutil::clearsurface(tsrc, 0xFFFFFFFF);
-
+  sdlutil::ClearSurface(tsrc, 0xFF, 0xFF, 0xFF, 0xFF);
   
   int pe = SDL_GetTicks() + (PROGRESS_TICKS * 2);
   for (int t = 0; t < NUM_TILES; t++) {
@@ -1837,7 +1836,7 @@ bool Animation::init_flips() {
     */
 
     /* cut out tile to start */
-    drawing::drawtile(0, 0, t, 0, tsrc);
+    Drawing::drawtile(0, 0, t, 0, tsrc);
     /* also a reversed one */
     SDL_Surface *tsrcr = sdlutil::fliphoriz(tsrc);
 
@@ -2036,7 +2035,7 @@ bool AnInPlace::init(unsigned int now) {
 /* right now this is just the guy, but
    it should include robots (etc.)
    later too */
-void Animation::clearsprites(drawing &dr) {
+void Animation::clearsprites(Drawing &dr) {
   clearent(dr, dr.lev->guyx, dr.lev->guyy, GUY_OVERLAPY);
   for (int i = 0; i < dr.lev->nbots; i++) {
     int x, y;
@@ -2050,15 +2049,15 @@ void Animation::clearsprites(drawing &dr) {
   }
 }
 
-void Animation::clearent(drawing &dr, int entx, int enty, int overlap) {
+void Animation::clearent(Drawing &dr, int entx, int enty, int overlap) {
   int sx, sy;
 
   int ta1 = dr.lev->tileat(entx, enty);
   if (dr.onscreen(entx, enty, sx, sy)) {
     if (ta1 == T_EXIT) {
-      drawing::drawtileu(sx, sy, TU_EXITOPEN);
+      Drawing::drawtileu(sx, sy, TU_EXITOPEN);
     } else {
-      drawing::drawtile(sx, sy, ta1);
+      Drawing::drawtile(sx, sy, ta1);
     }
   }
 
@@ -2068,8 +2067,8 @@ void Animation::clearent(drawing &dr, int entx, int enty, int overlap) {
     if (ta2 == T_EXIT &&
 	(dr.lev->botat(entx, enty - 1) ||
 	 dr.lev->playerat(entx, enty - 1))) {
-      drawing::drawtileu(sx, sy, TU_EXITOPEN);
-    } else drawing::drawtile(sx, sy, ta2);
+      Drawing::drawtileu(sx, sy, TU_EXITOPEN);
+    } else Drawing::drawtile(sx, sy, ta2);
   } else if (enty == 0 && dr.onscreen(entx, enty, sx, sy)) {
     /* at top of screen, draw background */
     SDL_Rect dst;

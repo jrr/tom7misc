@@ -70,7 +70,7 @@ enum { TU_TARGET, TU_DISABLED, TU_WARNING,
 extern font *fon;
 extern font *fonsmall;
 
-struct drawing {
+struct Drawing {
 
   /* initialized by loadimages:
      there are DRAW_NSIZES of these 
@@ -89,28 +89,26 @@ struct drawing {
      below */
 
   /* space around the tiles in a level drawing */
-  int margin;
+  int margin = 0;
 
   /* in tiles. 0,0 means no scroll. */
-  int scrollx;
-  int scrolly;
+  int scrollx = 0;
+  int scrolly = 0;
 
-  int posx;
-  int posy;
-  int width;
-  int height;
+  int posx = 0;
+  int posy = 0;
+  int width = 0;
+  int height = 0;
 
   /* must be in range 0..(DRAW_NSIZES - 1) */
-  int zoomfactor;
+  int zoomfactor = 0;
 
-  Level *lev;
+  Level *lev = nullptr;
 
   string message;
 
   /* must set at least width, height, lev */
-  drawing() : margin(0),
-               scrollx(0), scrolly(0), posx(0), 
-               posy(0), zoomfactor(0), lev(0) {}
+  Drawing() {}
 
   /* Drawing functions */
 

@@ -49,8 +49,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  if (!drawing::loadimages()) {
-    fprintf(stderr, "drawing::loadimages failed\n");
+  if (!Drawing::loadimages()) {
+    fprintf(stderr, "Drawing::loadimages failed\n");
     SDL_Quit();
     return 1;
   }
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 
   int zf = 0;
 
-  drawing d;
+  Drawing d;
   d.lev = Level::fromstring(readfile(inlev));
   if (!d.lev) {
     fprintf(stderr, "Can't open %s\n", inlev.c_str());
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 
   SDL_FreeSurface(shot);
 
-  drawing::destroyimages();
+  Drawing::destroyimages();
 
   return 0;
 }
