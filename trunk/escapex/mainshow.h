@@ -36,7 +36,7 @@ struct MainShow {
 
  private:
   
-  drawing dr;
+  Drawing dr;
 
   void newlevel();
   void newexit();

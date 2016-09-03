@@ -58,7 +58,7 @@ struct Play : public Drawable {
 
      assumes a non-invalidated recent "draw()",
      caller should draw() after, too. */
-  static bool animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d);
+  static bool animatemove(Drawing &dr, Disamb *ctx, Dirt *dirty, dir d);
 };
 
 #endif

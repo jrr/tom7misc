@@ -18,9 +18,9 @@
 font *fon;
 font *fonsmall;
 
-SDL_Surface **drawing::tiles = nullptr;
-SDL_Surface **drawing::tilesdim = nullptr;
-SDL_Surface **drawing::tileutil = nullptr;
+SDL_Surface **Drawing::tiles = nullptr;
+SDL_Surface **Drawing::tilesdim = nullptr;
+SDL_Surface **Drawing::tileutil = nullptr;
 
 /* the bottom of the load screen gives a preview of each level. This
    indicates the maximum width and height (in tiles) shown. */
@@ -30,7 +30,7 @@ SDL_Surface **drawing::tileutil = nullptr;
 
 #define SHOWDESTCOLOR 0xAA, 0xAA, 0x33
 
-bool drawing::loadimages() {
+bool Drawing::loadimages() {
   /* PERF could be alpha=false. but the alphadim and shrink50
      routines rely on this being a 32 bit graphic. */
   SDL_Surface *tt = sdlutil::LoadImage(TILES_FILE);
@@ -82,8 +82,7 @@ bool drawing::loadimages() {
   return true;
 }
 
-void drawing::destroyimages() {
-
+void Drawing::destroyimages() {
   for (int i = 0; i < DRAW_NSIZES; i++) {
     if (tiles && tiles[i]) SDL_FreeSurface(tiles[i]);
     if (tilesdim && tilesdim[i]) SDL_FreeSurface(tilesdim[i]);
@@ -96,11 +95,10 @@ void drawing::destroyimages() {
 
   if (fon) fon->destroy();
   if (fonsmall) fonsmall->destroy();
-
 }
 
 /* draw guy facing d at screen location x/y */
-void drawing::drawguy(dir d,
+void Drawing::drawguy(dir d,
 		      int sx, int sy,
 		      int zoomfactor,
 		      SDL_Surface *surf, bool dead) {
@@ -129,7 +127,7 @@ void drawing::drawguy(dir d,
   SDL_BlitSurface(s, 0, surf, &dst);
 }
 
-void drawing::drawbot(bot b, dir d,
+void Drawing::drawbot(bot b, dir d,
 		      int sx, int sy,
 		      int zoomfactor,
 		      SDL_Surface *surf,
@@ -214,7 +212,7 @@ void drawing::drawbot(bot b, dir d,
 
 }
 
-void drawing::drawtile(int px, int py, int tl, int zf, 
+void Drawing::drawtile(int px, int py, int tl, int zf, 
 		       SDL_Surface *surf, bool dim) {
   
   if (!surf) surf = screen;
@@ -233,7 +231,7 @@ void drawing::drawtile(int px, int py, int tl, int zf,
 
 }
 
-void drawing::drawtileu(int px, int py, int tl, int zf,
+void Drawing::drawtileu(int px, int py, int tl, int zf,
 			SDL_Surface *surf) {
   
   if (!surf) surf = screen;
@@ -257,7 +255,7 @@ void drawing::drawtileu(int px, int py, int tl, int zf,
    the guy is. unreasonable scrolls show areas outside
    the level when there is something to show on the
    other side */
-void drawing::makescrollreasonable() {
+void Drawing::makescrollreasonable() {
 
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
@@ -274,7 +272,7 @@ void drawing::makescrollreasonable() {
 
 /* set the scroll window so that the guy is at least
    in the picture */
-void drawing::setscroll() {
+void Drawing::setscroll() {
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
 
@@ -320,7 +318,7 @@ static int ydepth_compare(const void *l, const void *r) {
   return ll->i - rr->i;
 }
 
-void drawing::drawlev(int layer, /* dir facing, */
+void Drawing::drawlev(int layer, /* dir facing, */
 		      SDL_Surface *surf, bool dim) {
 
   if (!surf) surf = screen;
@@ -356,17 +354,12 @@ void drawing::drawlev(int layer, /* dir facing, */
     }
   }
 
-  for (int xx = scrollx;
-       xx < (showw + scrollx);
-       xx++)
-    for (int yy = scrolly;
-	 yy < (showh + scrolly);
-	 yy++) {
+  for (int xx = scrollx; xx < (showw + scrollx); xx++)
+    for (int yy = scrolly; yy < (showh + scrolly); yy++) {
 
-      if (xx < lev->w &&
-	  yy < lev->h) {
+      if (xx < lev->w && yy < lev->h) {
 
-	int tile = layer?lev->otileat(xx,yy):lev->tileat(xx, yy);
+	int tile = layer? lev->otileat(xx,yy) : lev->tileat(xx, yy);
 
 	/* draw the tile--but if it is the exit and we're standing
 	   on it, draw the door open (even if we are dead) */
@@ -501,7 +494,7 @@ void drawing::drawlev(int layer, /* dir facing, */
 
 }
 
-void drawing::drawextra(SDL_Surface *surf) {
+void Drawing::drawextra(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   if (!zoomfactor) {
@@ -515,7 +508,7 @@ void drawing::drawextra(SDL_Surface *surf) {
   }
 }
 
-void drawing::drawbotnums(SDL_Surface *surf) {
+void Drawing::drawbotnums(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   if (!zoomfactor) {
@@ -534,7 +527,7 @@ void drawing::drawbotnums(SDL_Surface *surf) {
   }
 }
 
-void drawing::drawdests(SDL_Surface *surf, bool shuffle) {
+void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
   if (!surf) surf = screen;
 
   sdlutil::slock(surf);
@@ -615,7 +608,7 @@ void drawing::drawdests(SDL_Surface *surf, bool shuffle) {
   sdlutil::sulock(surf);
 }
 
-bool drawing::inmap(int x, int y,
+bool Drawing::inmap(int x, int y,
 		    int &tx, int &ty) {
 
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
@@ -643,7 +636,7 @@ bool drawing::inmap(int x, int y,
 }
 
 
-bool drawing::onscreen(int x, int y,
+bool Drawing::onscreen(int x, int y,
 		       int &tx, int &ty) {
 
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
@@ -663,7 +656,7 @@ bool drawing::onscreen(int x, int y,
   return 0;
 }
 
-void drawing::drawsmall(int y, 
+void Drawing::drawsmall(int y, 
 			int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
 			RateStatus *votes,
@@ -675,7 +668,7 @@ void drawing::drawsmall(int y,
     return;
   }
 
-  drawing dr;
+  Drawing dr;
   dr.lev = l;
   dr.margin = 0;
 
@@ -825,6 +818,6 @@ void drawing::drawsmall(int y,
 
 }
 
-int drawing::smallheight() {
+int Drawing::smallheight() {
   return PREVIEWHEIGHT;
 }

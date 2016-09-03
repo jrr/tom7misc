@@ -1,3 +1,20 @@
+2016-09-03  Tom 7  <Tom@RIVERCITY>
+
+        * player.cc: Escape no longer supports the old binary player
+          file format circa 2007. You could use one of the legacy
+          Escape binaries from the web site to convert this to the text
+          format. This should affect almost nobody!
+
+        * escape.nsi: Escape now installs by default in c:\escape,
+          since newer versions of Windows don't let programs write into
+          "Program Files." Escape needs to write here to download
+          levels and upgrade itself.
+
+        * sdlutil.cc: Fixed some cosmetic bugs relating to color channel
+          order on platforms like macOS (visible on main menu, editor
+          background, zoomed-out levels, etc.). Probably-imperceptible
+          improvements to zoomed-out graphics on all platforms.
+
 2016-08-30  Tom 7  <Tom@RIVERCITY>
 
         * level.cc: Escape can no longer load DOS-version level files.

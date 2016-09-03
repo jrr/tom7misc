@@ -117,7 +117,7 @@ struct Editor : public Drawable {
 
   string filename;
 
-  drawing dr;
+  Drawing dr;
 
   int randtype;
   /* if this is set, then dragging should

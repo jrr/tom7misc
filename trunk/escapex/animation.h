@@ -151,13 +151,13 @@ struct Animation {
 
   /* push some animations for the event ae
      onto the list anims. assume anims is 0 */
-  static void start(drawing &dr, 
+  static void start(Drawing &dr, 
 		    PtrList<Animation> *&anims, 
 		    PtrList<Animation> *&sprites,
 		    aevent *ae);
 
-  static void clearsprites(drawing &dr);
-  static void clearent(drawing &dr, int ex, int ey, int olap);
+  static void clearsprites(Drawing &dr);
+  static void clearent(Drawing &dr, int ex, int ey, int olap);
 
   static void erase_anims(PtrList<Animation> *a, Dirt *d);
 
@@ -230,7 +230,7 @@ struct AnPlaceTile : public Animation {
 
   /* here the initializer draws it. */
   bool init(unsigned int now) override {
-    drawing::drawtile(sx, sy, what, 0, screen, false);
+    Drawing::drawtile(sx, sy, what, 0, screen, false);
     /* trigger and die immediately */
     nexttick = now;
     return true;
@@ -398,7 +398,7 @@ struct AnFlyingTile : public AnFlying {
   int ti;
 
   void blit(int x, int y) override {
-    drawing::drawtile(x, y, ti, 0, screen, false);
+    Drawing::drawtile(x, y, ti, 0, screen, false);
   }
 
   void size(int &minx, int &miny, int &maxw, int &maxh) override {

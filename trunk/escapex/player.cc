@@ -152,7 +152,6 @@ struct playerreal : public Player {
      since the player remembers this.)
      caller will close checkfile */
   static playerreal *fromfile_text(string fname, CheckFile *);
-  static playerreal *fromfile_bin(string, CheckFile *);
 
   /* XX this one is wrong now; it returns "levels solved"
      not total number of solutions */
@@ -167,12 +166,11 @@ struct playerreal : public Player {
     if (ch) ch->destroy();
   };
 
-  private:
+ private:
 
   void deleteoldbackups();
   static string backupfile(string fname, int epoch);
   bool writef(string);
-  bool writef_binary(string);
   bool writef_text(string);
 
   hashtable<hashsolsetentry, string> *sotable;
@@ -467,8 +465,8 @@ bool playerreal::writef_text(string file) {
   for (int i = 0; i < sotable->allocated; i++) {
     PtrList<hashsolsetentry>::sort(hashsolsetentry::compare, sotable->data[i]);
     for (PtrList<hashsolsetentry> *tmp = sotable->data[i]; 
-	tmp; 
-	tmp = tmp->next) {
+	 tmp; 
+	 tmp = tmp->next) {
       fprintf(f, "%s * %s\n", MD5::Ascii(tmp->head->md5).c_str(),
 	      /* assume at least one solution */
 	      Base64::Encode(tmp->head->solset->head->tostring()).c_str());
@@ -477,8 +475,8 @@ bool playerreal::writef_text(string file) {
       NSList::sort(NamedSolution::compare, tmp->head->solset->next);
 
       for (NSList *rest = tmp->head->solset->next;
-	  rest;
-	  rest = rest->next) {
+	   rest;
+	   rest = rest->next) {
 	fprintf(f, "  %s\n", 
 		Base64::Encode(rest->head->tostring()).c_str());
       }
@@ -638,95 +636,9 @@ playerreal *playerreal::FromFile(const string &file) {
   if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return nullptr;
   
   /* binary or text format? */
-  if (s == PLAYER_MAGIC) return fromfile_bin(file, cf);
-  else if (s == PLAYERTEXT_MAGIC) return fromfile_text(file, cf);
+  if (s == PLAYERTEXT_MAGIC) return fromfile_text(file, cf);
   else return nullptr;
 }  
-
-/* XXX obsolete -- eventually deprecate and disable this */
-playerreal *playerreal::fromfile_bin(string fname, CheckFile *cf) {
-  std::unique_ptr<playerreal> p{playerreal::Create("")};
-  if (!p.get()) return nullptr;
-  p->fname = fname;
-
-  string s;
-  int i;
-
-  if (!cf->readint(p->webid)) return nullptr;
-  if (!cf->readint(p->webseqh)) return nullptr;
-  if (!cf->readint(p->webseql)) return nullptr;
-
-  /* ignored fields for now */
-  for (int z = 0; z < IGNORED_FIELDS; z++) {
-    if (!cf->readint(i)) return nullptr;
-  }
-  
-  if (!cf->readint(i)) return nullptr;
-  if (!cf->read(i, p->name)) return nullptr;
-  if (!cf->readint(i)) return nullptr;
-
-
-  /* i holds number of solutions */
-  while (i--) {
-    string md5;
-    int sollen;
-    string solstring;
-    if (!cf->read(16, md5)) return nullptr;
-    if (!cf->readint(sollen)) return nullptr;
-    if (!cf->read(sollen, solstring)) return nullptr;
-
-    Solution *sol = Solution::fromstring(solstring);
-
-    if (!sol) return nullptr;
-
-    NamedSolution ns(sol, "Untitled", p->name, 0);
-    p->addsolution(md5, &ns, false);
-    sol->destroy();
-  }
-
-  /* here allow old player files with no ratings
-     at all. perhaps obsolete this some day. */
-  if (!cf->readint(i)) {
-    if (p->ch) p->ch->destroy();
-    p->ch = Chunks::create();
-    return p.release();
-  }
-
-  /* otherwise; new format: i is number of ratings */
-  while (i--) {
-    string md5;
-    string rastring;
-    if (!cf->read(16, md5)) return nullptr;
-    if (!cf->read(RATINGBYTES, rastring)) return nullptr;
-    Rating *rat = Rating::FromString(rastring);
-
-    if (!rat) return nullptr;
-    p->putrating(md5, rat);
-  }
-
-  /* here allow old player files with no chunks
-     at all. Caller should be calling prefs::defaults
-     to fill in the missing prefs. */
-
-  if (!cf->readint(i)) {
-    if (p->ch) p->ch->destroy();
-    p->ch = Chunks::create();
-    return p.release();
-  }
-
-  /* otherwise, read the table */
-
-  string cs; 
-  if (!cf->read(i, cs)) return nullptr;
-  Chunks *cc = Chunks::fromstring(cs);
-
-  if (cc) {
-    if (p->ch) p->ch->destroy();
-    p->ch = cc;
-  } else return nullptr;
-
-  return p.release();
-}
 
 }  // namespace
 

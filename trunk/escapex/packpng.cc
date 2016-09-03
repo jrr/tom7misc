@@ -15,7 +15,7 @@
 SDL_Surface *screen;
 string self;
 
-#define BACKCOLOR 0xAA338833
+#define BACKCOLOR 0x33, 0x88, 0x33, 0xAA
 
 /* smaller growrate gives slightly better output,
    with substantially worse performance */
@@ -60,10 +60,11 @@ struct UsedMap {
   }
 
   bool usedrange(int x, int y, int ww, int hh) {
-    for (int yy = 0; yy < hh; yy++)
+    for (int yy = 0; yy < hh; yy++) {
       for (int xx = 0; xx < ww; xx++) {
 	if (used(x + xx, y + yy)) return true;
       }
+    }
     return false;
   }
 
@@ -72,10 +73,11 @@ struct UsedMap {
   }
 
   void userange(int x, int y, int ww, int hh) {
-    for (int yy = 0; yy < hh; yy++)
+    for (int yy = 0; yy < hh; yy++) {
       for (int xx = 0; xx < ww; xx++) {
 	use(x + xx, y + yy);
       }
+    }
   }
 
   ~UsedMap() {
@@ -87,7 +89,7 @@ static void fit_image(SDL_Surface *&packed, UsedMap *um,
 		      int w, int h,
 		      int &x, int &y) {
   for (;;) {
-    for (int yy = 0; yy <= um->h - h; yy++)
+    for (int yy = 0; yy <= um->h - h; yy++) {
       for (int xx = 0; xx <= um->w - w; xx++) {
 	if (!um->usedrange(xx, yy, w, h)) {
 	  um->userange(xx, yy, w, h);
@@ -96,11 +98,11 @@ static void fit_image(SDL_Surface *&packed, UsedMap *um,
 	  return;
 	}
       }
-
+    }
+      
     /* didn't fit. expand to make the image more square. */
     /* PERF insane */
     int nw = um->w, nh = um->h;
-
 
     /* minimum sane sizes */
     if (um->w < w) {
@@ -114,7 +116,10 @@ static void fit_image(SDL_Surface *&packed, UsedMap *um,
     }
 
     um->resize(nw, nh);
-    SDL_Surface *n = sdlutil::resize_canvas(packed, nw, nh, BACKCOLOR);
+    // XXX byte order
+    SDL_Surface *n = sdlutil::resize_canvas(packed, nw, nh,
+					    SDL_MapRGBA(packed->format,
+							BACKCOLOR));
     SDL_FreeSurface(packed);
     packed = n;
 
@@ -199,7 +204,7 @@ int main(int argc, char **argv) {
   FILE *decs = fopen(decname.c_str(), "w");
   FILE *load = fopen(loadname.c_str(), "w");
 
-  if (! (defs && decs && load)) {
+  if (!(defs && decs && load)) {
     printf("Can't open output files.\n");
     return -1;
   }

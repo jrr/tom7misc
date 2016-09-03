@@ -70,7 +70,7 @@ struct Play_ : public Play {
   bool showdestsshuffle;
   bool showbotnums;
 
-  drawing dr;
+  Drawing dr;
   /* current solution.
      Its lifetime is within a call to doplay_save.
      Don't call redraw when not inside a call to doplay_save! */
@@ -200,7 +200,7 @@ struct BookmarkItem : public MenuItem {
   string solmenu; 
 
   virtual void draw(int x, int y, int f) {
-    drawing dr;
+    Drawing dr;
     dr.posx = x;
     dr.posy = y + 2;
     dr.width = THUMBW;
@@ -399,12 +399,12 @@ void Play_::drawmenu() {
       /* if currently playing, draw this as a pause button, not a
 	 play button */
       if (watching) {
-	drawing::drawtileu(2 + j * TILEW, 2, TU_PLAYPAUSE_PLAY, 0);
+	Drawing::drawtileu(2 + j * TILEW, 2, TU_PLAYPAUSE_PLAY, 0);
       } else {
-	drawing::drawtileu(2 + j * TILEW, 2, TU_PLAYPAUSE, 0);
+	Drawing::drawtileu(2 + j * TILEW, 2, TU_PLAYPAUSE, 0);
       }
     } else {
-      drawing::drawtileu(2 + j * TILEW, 2, play_menuitem[j], 0);
+      Drawing::drawtileu(2 + j * TILEW, 2, play_menuitem[j], 0);
     }
   }
 
@@ -412,15 +412,15 @@ void Play_::drawmenu() {
   if (solpos == 0) {
     /* nb. important that these two share disabled
        state, since the graphics overlap */
-    drawing::drawtileu(POS_RESTART * TILEW, 2, TU_DISABLED, 0);
-    drawing::drawtileu(POS_UNDO * TILEW, 2, TU_DISABLED, 0);
-    drawing::drawtileu(POS_FUNDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_RESTART * TILEW, 2, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_UNDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_FUNDO * TILEW, 2, TU_DISABLED, 0);
   }
 
   if (solpos == sol->length) {
-    drawing::drawtileu(POS_REDO * TILEW, 2, TU_DISABLED, 0);
-    drawing::drawtileu(POS_FREDO * TILEW, 2, TU_DISABLED, 0);
-    drawing::drawtileu(POS_PLAYPAUSE * TILEW, 2, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_REDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_FREDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_PLAYPAUSE * TILEW, 2, TU_DISABLED, 0);
   }
 }
 
@@ -1534,7 +1534,7 @@ void Play::playrecord(string res, Player *plr, bool allowrate) {
   } else return;
 }
 
-bool Play::animatemove(drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
+bool Play::animatemove(Drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
   /* events waiting to be turned into animations */
   elist *events = nullptr;
   /* current phase of animation */

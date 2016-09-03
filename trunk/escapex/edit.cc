@@ -21,7 +21,7 @@
 #include "menu.h"
 #include "chars.h"
 
-#define EDITORBGCOLOR 0xFF111122
+#define EDITORBGCOLOR 0x11, 0x11, 0x22, 0xFF
 #define SELRECTCOLOR 0x76, 0x12, 0xAA
 #define SELRECTCOLOR2 0xAA, 0x40, 0xFF
 
@@ -167,7 +167,7 @@ void Editor::draw() {
     }
   }
 
-  sdlutil::clearsurface(screen, EDITORBGCOLOR);
+  sdlutil::ClearSurface(screen, EDITORBGCOLOR);
   /* draw black for menu */
   { 
     SDL_Rect dst;
@@ -188,11 +188,11 @@ void Editor::draw() {
     if (j == POS_CURRENT) {
       dr.drawtile(j * TILEW, 0, current, 0);
     } else if (j == POS_LAYER) {
-      drawing::drawtileu(j * TILEW, 0, layer?TU_LAYERALT:TU_LAYERNORMAL, 0);
+      Drawing::drawtileu(j * TILEW, 0, layer ? TU_LAYERALT : TU_LAYERNORMAL, 0);
     } else if (j == POS_CHANGED) {
-      if (changed) drawing::drawtileu(j * TILEW, 0, TU_CHANGED, 0);
+      if (changed) Drawing::drawtileu(j * TILEW, 0, TU_CHANGED, 0);
     } else if (j < NUM_MENUITEMS && edit_menuitem[j]) {
-      drawing::drawtileu(j * TILEW, 0, edit_menuitem[j], 0);
+      Drawing::drawtileu(j * TILEW, 0, edit_menuitem[j], 0);
     }
 
     /* draw extra info */
@@ -207,17 +207,17 @@ void Editor::draw() {
   /* disable menu items where appropriate */
 
   if (filename == "") {
-    drawing::drawtileu(POS_SAVE * TILEW, 0, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_SAVE * TILEW, 0, TU_DISABLED, 0);
   }
 
   if (!selection.w) {
-    drawing::drawtileu(POS_PREFAB * TILEW, 0, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_PREFAB * TILEW, 0, TU_DISABLED, 0);
   }
 
   if (!dr.lev->nbots) {
-    drawing::drawtileu(POS_FIRST_BOT * TILEW, 0, TU_DISABLED, 0);
-    drawing::drawtileu(POS_ERASE_BOT * TILEW, 0, TU_DISABLED, 0);
-    drawing::drawtileu(POS_SLEEPWAKE * TILEW, 0, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_FIRST_BOT * TILEW, 0, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_ERASE_BOT * TILEW, 0, TU_DISABLED, 0);
+    Drawing::drawtileu(POS_SLEEPWAKE * TILEW, 0, TU_DISABLED, 0);
   }
 
   /* draw tile menu */
@@ -228,7 +228,7 @@ void Editor::draw() {
       dr.drawtile(i * TILEW, TILEH, tileorder[tt], 0);
   }
 
-  drawing::drawtileu(i * TILEW, TILEH, TU_TILESUD, 0);
+  Drawing::drawtileu(i * TILEW, TILEH, TU_TILESUD, 0);
 
   /* always point him down. */
   dr.drawlev(layer);
@@ -260,7 +260,7 @@ void Editor::draw() {
   {
     int px, py;
     if (sdx >= 0 && dr.onscreen(sdx, sdy, px, py)) {
-      drawing::drawtileu(px, py, TU_TARGET, dr.zoomfactor);
+      Drawing::drawtileu(px, py, TU_TARGET, dr.zoomfactor);
     }
   }
 

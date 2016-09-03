@@ -575,7 +575,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
   selor *nsel = selor::create(n);
 
-  nsel->botmargin = drawing::smallheight() + 16 ;
+  nsel->botmargin = Drawing::smallheight() + 16 ;
 
   nsel->below = this;
 
@@ -838,7 +838,7 @@ void loadlevelreal::drawsmall() {
     fon->draw(16, y + 8, WHITE "(" BLUE "Directory" POP ")" POP);
   } else {
     if (!showlev) fix_show(true);
-    drawing::drawsmall(y,
+    Drawing::drawsmall(y,
 		       sel->botmargin,
 		       color,
 		       showlev,
