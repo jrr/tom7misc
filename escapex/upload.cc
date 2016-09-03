@@ -2,6 +2,7 @@
 #include "upload.h"
 #include "client.h"
 #include "http.h"
+#include "extent.h"
 #include "message.h"
 #include "draw.h"
 #include "../cc-lib/md5.h"

@@ -1,6 +1,5 @@
 
 #include "upgrade.h"
-#include "extent.h"
 #include "../cc-lib/md5.h"
 #include "util.h"
 #include "textscroll.h"
@@ -555,14 +554,12 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   /* no matter what, cancel the hint to upgrade */
   HandHold::did_upgrade();
 
-  HTTP *hh = Client::connect(plr, tx.get(), this);
+  std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
 
-  if (!hh) { 
+  if (hh.get() == nullptr) { 
     msg = YELLOW "Couldn't connect." POP;
     return UP_FAIL;
   }
-
-  Extent<HTTP> eh(hh);
 
   /* install upgrader */
   UGCallback cb;
@@ -574,7 +571,7 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   /* XXX what is the point of the 'ok' list? */
   stringlist *ok;
   string upmsg;
-  switch (checkupgrade(hh, upmsg, download, ok)) {
+  switch (checkupgrade(hh.get(), upmsg, download, ok)) {
   case CU_FAIL:
     say((string)"Upgrade fail: " + upmsg);
     /* lists will be empty */
@@ -608,7 +605,7 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
 
       string upgmsg;
       upresult up;
-      up = doupgrade(hh, upmsg, download);
+      up = doupgrade(hh.get(), upmsg, download);
       stringlist::diminish(ok);
       ulist::diminish(download);
       switch (up) {

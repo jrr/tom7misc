@@ -3,6 +3,7 @@
 #include "rating.h"
 
 #include "player.h"
+#include "extent.h"
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
@@ -81,19 +82,17 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
 
   cs.tx->say(GREY "Making sure we're connected...");
   cs.redraw();
-  HTTP *hh = Client::connect(p, cs.tx.get(), &cs);
-  if (!hh) {
+  std::unique_ptr<HTTP> hh{Client::connect(p, cs.tx.get(), &cs)};
+  if (hh.get() == nullptr) {
     Message::quick(&cs, "Can't connect to internet!",
 		   "OK", "", PICS XICON POP);
     return;
   }
   
-  Extent<HTTP> eh(hh);
-
   {
     string res;
     bool success = 
-      Client::rpc(hh, PING_RPC,
+      Client::rpc(hh.get(), PING_RPC,
 		  /* credentials */
 		  (string)"id=" +
 		  itos(p->webid) + 
@@ -176,7 +175,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
 
     string res;
     bool success = 
-      Client::rpc(hh, COMMENT_RPC,
+      Client::rpc(hh.get(), COMMENT_RPC,
 		  /* credentials */
 		  (string)"id=" + itos(p->webid) + 
 		  (string)"&seql=" + itos(p->webseql) +

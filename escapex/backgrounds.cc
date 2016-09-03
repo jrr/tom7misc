@@ -1,7 +1,6 @@
 
 #include "backgrounds.h"
 #include "draw.h"
-#include "extent.h"
 #include "util.h"
 #include "chars.h"
 #include "../cc-lib/sdl/sdlutil.h"

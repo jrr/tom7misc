@@ -8,7 +8,6 @@
 
 #include "directories.h"
 
-#include "extent.h"
 #include "util.h"
 #include "dircache.h"
 #include "progress.h"

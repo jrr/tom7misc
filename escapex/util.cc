@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "util.h"
-#include "extent.h"
 
 #ifdef WIN32
    /* chdir */
@@ -816,64 +815,6 @@ int onionfind::find(int a) {
 onionfind::onionfind(int size) {
   arr = new int[size];
   for (int i = 0; i < size; i++) arr[i] = -1;
-}
-
-int bitbuffer::ceil(int bits) {
-  return (bits >> 3) + !!(bits & 7);
-}
-
-
-bool bitbuffer::nbits(string s, int n, int &idx, unsigned int &out) {
-# define NTHBIT(x) !! (s[(x) >> 3] & (1 << (7 - ((x) & 7))))
-
-  out = 0;
-
-  while (n--) {
-    out <<= 1;
-    /* check bounds */
-    if ((unsigned)(idx >> 3) >= s.length()) return false;
-    out |= NTHBIT(idx);
-    idx++;
-  }
-  return true;
-
-# undef NTHBIT
-}
-
-string bitbuffer::getstring() {
-  int n = ceil(bits);
-  if (data) return string((char *)data, n);
-  else return "";
-}
-
-void bitbuffer::writebits(int n, unsigned int b) {
-  /* assumes position already holds 0 */
-# define WRITEBIT(x, v) data[(x) >> 3] |= ((!!v) << (7 - ((x) & 7)))
-
-  /* printf("writebits(%d, %d)\n", n, b); */
-
-  for (int i = 0; i < n; i++) {
-    int bytes_needed = ceil(bits + 1);
-
-    /* allocate more */
-    if (bytes_needed > size) {
-      int nsize = (size + 1) * 2;
-      unsigned char *tmp = (unsigned char *) malloc(nsize * sizeof (unsigned char));
-      if (!tmp) abort();
-      memset(tmp, 0, nsize);
-      memcpy(tmp, data, size);
-      free(data);
-      data = tmp;
-      size = nsize;
-    }
-
-    int bit = !!(b & (1 << (n - (i + 1))));
-    /* printf("  write %d at %d\n", bit, bits); */
-    WRITEBIT(bits, bit);
-    bits++;
-  }
-
-# undef WRITEBIT
 }
 
 #if WIN32

@@ -9,7 +9,6 @@
 #include "play.h"
 #include "prompt.h"
 
-#include "extent.h"
 #include "util.h"
 #include "edit.h"
 

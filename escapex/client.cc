@@ -7,21 +7,19 @@
 bool Client::quick_rpc(Player *plr, string path, string query, string &ret) {
   quick_txdraw td;
   
-  HTTP *hh = Client::connect(plr, td.tx.get(), &td);
+  std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
   
   td.say("Connecting..");
   td.draw();
 
-  if (!hh) { 
+  if (hh.get() == nullptr) { 
     Message::no(&td, "Couldn't connect!");
     ret = "Couldn't connect.";
     return false;
   }
   
-  Extent<HTTP> eh(hh);
-
   td.say("Sending command..");
   td.draw();
   
-  return rpc(hh, path, query, ret);
+  return rpc(hh.get(), path, query, ret);
 }

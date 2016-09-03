@@ -274,15 +274,13 @@ void smanage::promptupload(Drawable *below,
 		       "Upload anyway",
 		       "Cancel")) {
 
-      HTTP *hh = Client::connect(plr, td.tx.get(), &td);
+      std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
     
-      if (!hh) { 
+      if (hh.get() != nullptr) { 
 	Message::no(&td, "Couldn't connect!");
 	return;
       }
     
-      Extent<HTTP> eh(hh);
-
       string res;
 
       string solcont = sol->tostring();
@@ -305,7 +303,7 @@ void smanage::promptupload(Drawable *below,
 
 
       string out;
-      if (Client::rpcput(hh, UPLOADSOL_RPC, fl, out)) {
+      if (Client::rpcput(hh.get(), UPLOADSOL_RPC, fl, out)) {
 	if (speedrec)
 	  Message::quick(&td, GREEN "Success! the record is yours!" POP,
 			 "OK", "", PICS THUMBICON POP);
@@ -329,16 +327,14 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
   string s;
   Client::quick_txdraw td;
   
-  HTTP *hh = Client::connect(plr, td.tx.get(), &td);
+  std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
 
-  if (!hh) { 
+  if (hh.get() != nullptr) { 
     Message::no(&td, "Couldn't connect!");
     return;
   }
 
-  Extent<HTTP> eh(hh);
   /* XXX register callback.. */
-
 
   httpresult hr = hh->get(ALLSOLS_URL + MD5::Ascii(lmd5), s);
   if (hr == HT_OK) {

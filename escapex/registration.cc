@@ -1,6 +1,6 @@
 #include "registration.h"
 #include "client.h"
-#include "extent.h"
+#include "http.h"
 #include "draw.h"
 
 namespace {
@@ -29,15 +29,13 @@ struct Registration_ : public Registration {
 };
 
 void Registration_::registrate() {
-  HTTP *hh = Client::connect(plr, tx.get(), this);
-  if (!hh) { 
+  std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
+  if (hh.get() == nullptr) { 
     Message::quick(this,
 		   "Couldn't connect to server.",
 		   "Sorry", "", PICS XICON POP);
     return;
   }
-
-  Extent<HTTP> eh(hh);
 
   /* XXX again, need a better way to detect this */
   if (plr->name == "Default") {
@@ -47,7 +45,7 @@ void Registration_::registrate() {
     return;
   }
 
-  int tries=2;
+  int tries = 2;
 
   string res;
   while (tries--) {
@@ -60,7 +58,7 @@ void Registration_::registrate() {
 
     say("try " + itos(seql) + " " + itos(seqh) + (string)"...");
 
-    if (Client::rpc(hh, REGISTER_RPC, 
+    if (Client::rpc(hh.get(), REGISTER_RPC, 
 		    (string) "seql=" + itos(seql) +
 		    (string)"&seqh=" + itos(seqh) +
 		    (string)"&name=" + httputil::urlencode(plr->name),
