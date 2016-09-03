@@ -16,8 +16,14 @@ using namespace std;
 # define USE_DISPLAY_FORMAT 1
 #endif
 
-/* XXX It seems that byte order doesn't affect the
-   ordering of the colors within a Uint32. */
+/* 
+   XXX uses of these are probably always wrong. In addition
+   to the host byte order (though you're probably compiling
+   for x86 or x86-64, so this is probably not an issue), different
+   OSes use different channel order. Stamp this out.
+   SDL_GetRGBA and SDL_MapRGBA are the correct way to do this,
+   though they may not be as fast.
+ */
 #if 0 /* SDL_BYTEORDER == SDL_BIG_ENDIAN */
   const Uint32 sdlutil::rmask = 0xff000000;
   const Uint32 sdlutil::gmask = 0x00ff0000;
@@ -116,8 +122,8 @@ SDL_Surface *sdlutil::resize_canvas(SDL_Surface *s,
   SDL_Surface *m = makesurface(w, h);
   if (!m) return 0;
 
-  for(int y = 0; y < h; y++)
-    for(int x = 0; x < w; x++) {
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++) {
       Uint32 c = color;
       if (y < s->h && x < s->w)
 	c = getpixel(s, x, y);
@@ -277,6 +283,12 @@ void sdlutil::clearsurface(SDL_Surface *s, Uint32 color) {
   SDL_FillRect(s, 0, color);
 }
 
+void sdlutil::ClearSurface(SDL_Surface *s,
+			   Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
+  Uint32 color = SDL_MapRGBA(s->format, r, g, b, a);
+  SDL_FillRect(s, 0, color);
+}
+
 Uint32 sdlutil::mix2(Uint32 ia, Uint32 ib) {
   Uint32 ar = (ia >> rshift) & 0xFF;
   Uint32 br = (ib >> rshift) & 0xFF;
@@ -347,22 +359,118 @@ Uint32 sdlutil::mix4(Uint32 a, Uint32 b, Uint32 c, Uint32 d) {
   return mix2(mix2(a, b), mix2(c, d));
 }
 
+Uint32 sdlutil::Mix4(const SDL_Surface *surf,
+		     Uint32 ai, Uint32 bi, Uint32 ci, Uint32 di) {
+
+  Uint8 ar8, ag8, ab8, aa8;
+  Uint8 br8, bg8, bb8, ba8;
+  Uint8 cr8, cg8, cb8, ca8;
+  Uint8 dr8, dg8, db8, da8;
+
+  SDL_GetRGBA(ai, surf->format, &ar8, &ag8, &ab8, &aa8);
+  SDL_GetRGBA(bi, surf->format, &br8, &bg8, &bb8, &ba8);
+  SDL_GetRGBA(ci, surf->format, &cr8, &cg8, &cb8, &ca8);
+  SDL_GetRGBA(di, surf->format, &dr8, &dg8, &db8, &da8);
+
+  const Uint32 ar = ar8, ag = ag8, ab = ab8, aa = aa8;
+  const Uint32 br = br8, bg = bg8, bb = bb8, ba = ba8;
+  const Uint32 cr = cr8, cg = cg8, cb = cb8, ca = ca8;
+  const Uint32 dr = dr8, dg = dg8, db = db8, da = da8;
+  
+  // This is the same as idea as Mix2; see that for the math.
+  
+  Uint32 r = 0;
+  Uint32 g = 0;
+  Uint32 b = 0;
+
+  const Uint32 denom = aa + ba + ca + da;
+  if (denom > 0) {
+    r = (ar * aa + br * ba + cr * ca + dr * da) / denom;
+    g = (ag * aa + bg * ba + cg * ca + dg * da) / denom;
+    b = (ab * aa + bb * ba + cb * ca + db * da) / denom;
+  }
+
+  /* alpha output is just the average */
+  const Uint32 a = denom >> 2;
+
+  return SDL_MapRGBA(surf->format, r, g, b, a);
+}
+
+Uint32 sdlutil::Mix2(const SDL_Surface *surf,
+		     Uint32 ia, Uint32 ib) {
+  Uint8 ar8, ag8, ab8, aa8;
+  Uint8 br8, bg8, bb8, ba8;
+  SDL_GetRGBA(ia, surf->format, &ar8, &ag8, &ab8, &aa8);
+  SDL_GetRGBA(ib, surf->format, &br8, &bg8, &bb8, &ba8);
+
+  Uint32 ar = ar8, ag = ag8, ab = ab8, aa = aa8;
+  Uint32 br = br8, bg = bg8, bb = bb8, ba = ba8;
+  
+  /* if these are all fractions 0..1,
+     color output is
+       color1 * alpha1 + color2 * alpha2
+       ---------------------------------
+              alpha1 + alpha2               */
+
+  Uint32 r = 0;
+  Uint32 g = 0;
+  Uint32 b = 0;
+
+  if ((aa + ba) > 0) {
+    /* really want 
+        (ar / 255) * (aa / 255) +
+        (br / 255) * (ba / 255)
+	-------------------------
+	(aa / 255) + (ba / 255)
+
+	to get r as a fraction. we then
+	multiply by 255 to get the output
+	as a byte.
+	
+	but this is:
+
+        ar * (aa / 255) +
+        br * (ba / 255)
+	-----------------------
+	(aa / 255) + (ba / 255)
+
+	which can be simplified to
+	
+	ar * aa + br * ba
+	-----------------
+	     aa + ba
+
+	.. and doing the division last keeps
+	us from quantization errors.
+    */
+    r = (ar * aa + br * ba) / (aa + ba);
+    g = (ag * aa + bg * ba) / (aa + ba);
+    b = (ab * aa + bb * ba) / (aa + ba);
+  }
+
+  /* alpha output is just the average */
+  const Uint32 a = (aa + ba) >> 1;
+
+  return SDL_MapRGBA(surf->format, r, g, b, a);
+}
+
+
 Uint32 sdlutil::mixfrac(Uint32 a, Uint32 b, float f) {
   Uint32 factor  = (Uint32) (f * 0x100);
   Uint32 ofactor = 0x100 - factor;
 
   Uint32 o24 = (((a >> 24) & 0xFF) * factor +
-		((b >> 24) & 0xFF) * ofactor) >> (8);
+		((b >> 24) & 0xFF) * ofactor) >> 8;
 
   Uint32 o16 = (((a >> 16) & 0xFF) * factor +
-		((b >> 16) & 0xFF) * ofactor) >> (8);
+		((b >> 16) & 0xFF) * ofactor) >> 8;
 
   Uint32 o8 = (((a >> 8) & 0xFF) * factor +
-		((b >> 8) & 0xFF) * ofactor) >> (8);
+		((b >> 8) & 0xFF) * ofactor) >> 8;
 
 
   Uint32 o = ((a & 0xFF) * factor +
-	      (b & 0xFF) * ofactor) >> (8);
+	      (b & 0xFF) * ofactor) >> 8;
 
   return (o24 << 24) | (o16 << 16) | (o8 << 8) | o;
 }
@@ -383,7 +491,7 @@ Uint32 sdlutil::hsv(SDL_Surface *sur, float h, float s, float v, float a) {
 
     float red, green, blue;
 
-    switch((int)hue) {
+    switch ((int)hue) {
     case 0:  red = v     ; green = var_3 ; blue = var_1; break;
     case 1:  red = var_2 ; green = v     ; blue = var_1; break;
     case 2:  red = var_1 ; green = v     ; blue = var_3; break;
@@ -398,7 +506,6 @@ Uint32 sdlutil::hsv(SDL_Surface *sur, float h, float s, float v, float a) {
   }
 
   return SDL_MapRGBA(sur->format, r, g, b, (int)(a * 255));
-
 }
 
 SDL_Surface *sdlutil::alphadim(SDL_Surface *src) {
@@ -414,18 +521,18 @@ SDL_Surface *sdlutil::alphadim(SDL_Surface *src) {
   slock(ret);
   slock(src);
 
-  for(int y = 0; y < hh; y++) {
-    for(int x = 0; x < ww; x++) {
-      Uint32 color = *((Uint32 *)src->pixels + y*src->pitch/4 + x);
+  for (int y = 0; y < hh; y++) {
+    for (int x = 0; x < ww; x++) {
+      Uint32 color = *((Uint32 *)src->pixels + y * src->pitch / 4 + x);
       
       /* divide alpha channel by 2 */
-      /* XXX this seems to be wrong on powerpc (dims some other channel
-	 instead). but if the masks are right, how could this go wrong?*/
-      color =
-	(color & (sdlutil::rmask | sdlutil::gmask | sdlutil::bmask)) |
-	(((color & sdlutil::amask) >> 1) & sdlutil::amask);
+      Uint8 r, g, b, a;
+      SDL_GetRGBA(color, src->format, &r, &g, &b, &a);
+      a >>= 1;
+
+      color = SDL_MapRGBA(src->format, r, g, b, a);
   
-      *((Uint32 *)ret->pixels + y*ret->pitch/4 + x) = color;
+      *((Uint32 *)ret->pixels + y * ret->pitch / 4 + x) = color;
     }
   }
     
@@ -457,15 +564,15 @@ SDL_Surface *sdlutil::shrink50(SDL_Surface *src) {
   slock(ret);
   slock(src);
 
-  for(int y = 0; y < ret->h; y++) {
-    for(int x = 0; x < ret->w; x++) {
+  for (int y = 0; y < ret->h; y++) {
+    for (int x = 0; x < ret->w; x++) {
       /* get and mix four src pixels for each dst pixel */
       Uint32 c1 = *((Uint32 *)src->pixels + (y*2)*src->pitch/4 + (x*2));
       Uint32 c2 = *((Uint32 *)src->pixels + (1+y*2)*src->pitch/4 + (1+x*2));
       Uint32 c3 = *((Uint32 *)src->pixels + (1+y*2)*src->pitch/4 + (x*2));
       Uint32 c4 = *((Uint32 *)src->pixels + (y*2)*src->pitch/4 + (1+x*2));
 
-      Uint32 color = mix4(c1, c2, c3, c4);
+      Uint32 color = Mix4(src, c1, c2, c3, c4);
   
       *((Uint32 *)ret->pixels + y*ret->pitch/4 + x) = color;
     }
@@ -494,8 +601,8 @@ SDL_Surface *sdlutil::grow2x(SDL_Surface *src) {
   Uint8 *pdest = (Uint8*)ret->pixels;
 
   int ww2 = ww << 1;
-  for(int y = 0; y < hh; y++) {
-    for(int x = 0; x < ww; x++) {
+  for (int y = 0; y < hh; y++) {
+    for (int x = 0; x < ww; x++) {
       Uint32 rgba = *(Uint32*)(p + 4 * (y * ww + x));
       
       // Write four pixels.
@@ -571,7 +678,7 @@ SDL_Surface *sdlutil::makealpharectgrad(int w, int h,
   if (!ret) return 0;
 
   /* draws each line as a separate rectangle. */
-  for(int i = 0; i < h; i++) {
+  for (int i = 0; i < h; i++) {
     /* no bias yet */
     float frac = 1.0f - ((float)i / (float)h);
     int r = (int) ((r1 * frac) + (r2 * (1.0 - frac)));
@@ -1010,8 +1117,8 @@ SDL_Surface *sdlutil::fliphoriz(SDL_Surface *src) {
   slock(src);
   slock(dst);
   
-  for(int y = 0; y < src->h; y++) {
-    for(int x = 0; x < src->w; x++) {
+  for (int y = 0; y < src->h; y++) {
+    for (int x = 0; x < src->w; x++) {
       Uint32 px = getpixel(src, x, y);
       setpixel(dst, (src->w - x) - 1, y, px);
     }
