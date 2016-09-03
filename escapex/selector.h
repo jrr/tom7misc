@@ -9,7 +9,7 @@
 #include "font.h"
 #include "draw.h"
 
-#define SELCOLOR 0xFF224422
+#define SELCOLOR 0x22, 0x44, 0x22, 0xFF
 
 #define DPRINTF if (0) printf
 
@@ -231,11 +231,12 @@ struct Selector : public Drawable {
         dst.w = screen->w - 12;
         dst.y = 2 + topsize + (i - skip) * Item::height() - 1;
         dst.h = Item::height() + 2;
-        SDL_FillRect(screen, &dst, SELCOLOR);
+        SDL_FillRect(screen, &dst,
+		     SDL_MapRGBA(screen->format, SELCOLOR));
       }
 
       items[i].draw(8, 2 + topsize +
-                    (i - skip) * Item::height(), (i==selected));
+                    (i - skip) * Item::height(), (i == selected));
     }
   }
 

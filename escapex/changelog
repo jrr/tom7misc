@@ -1,5 +1,12 @@
 2016-09-03  Tom 7  <Tom@RIVERCITY>
 
+        * rle.cc: Due to compression, player files and (newly saved)
+          levels will be about 13% smaller. The format is backward-
+          compatible.
+
+        * selector.h: Also make color of the selector bar match on
+          all platforms.
+
         * player.cc: Escape no longer supports the old binary player
           file format circa 2007. You could use one of the legacy
           Escape binaries from the web site to convert this to the text
