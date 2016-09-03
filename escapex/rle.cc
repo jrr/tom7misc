@@ -123,7 +123,7 @@ int *EscapeRLE::Decode(const string &s, unsigned int &idx_bytes, int n) {
       if (!BitBuffer::nbits(s, 5, idx, framebits)) return nullptr;
       // Framebits of 0 leads to only invalid frames (anti-runs of
       // length 0), and so is illegal.
-      if (!(framebits > 0 && framebits <= 32)) return nullptr;
+      if (framebits <= 0 || framebits > 32) return nullptr;
     }
     bits = bytecount & 63;
   } else {
@@ -177,7 +177,7 @@ int *EscapeRLE::Decode(const string &s, unsigned int &idx_bytes, int n) {
    number of bits to write frame headers. There is
    already support for this in Decode.
 */
-string EscapeRLE::Encode(int n, int *a) {
+string EscapeRLE::Encode(int n, const int *a) {
   int max = 0;
   for (int j = 0; j < n; j++) {
     if (a[j] > max) max = a[j];
@@ -259,7 +259,6 @@ string EscapeRLE::Encode(int n, int *a) {
       }
       break;
     case RUN:
-
       assert((front - back) >= 2);
       /* from back to front should be same char */
 

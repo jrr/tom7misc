@@ -28,15 +28,15 @@
 
    A frame is:
 
-      framebits bits representing a run count 1-255, followed by an
-      integer (written with some number of bits, depending on the
+      framebits bits representing a run count [1,2^framebits), followed
+      by an integer (written with some number of bits, depending on the
       count above) which means 'count' copies of the integer. The
       idea is that we can compress runs of equal values.
 
       or
 
       framebits of 0, followed by framebits bits giving an anti-run
-      count 1-255, then 'count' integers each encoded as above. The
+      count [1,2^framebits), then 'count' integers each encoded as above. The
       idea here is to avoid counts of '1' when the values are
       continually different.
 */
@@ -64,7 +64,10 @@ struct EscapeRLE {
   /* encode n ints in 'a', and return it as a string.
      This uses a greedy strategy that is not optimal.
   */
-  static std::string Encode(int n, int *a);
+  static std::string Encode(int n, const int *a);
+
+ private:
+  EscapeRLE() = delete;
 };
 
 #endif
