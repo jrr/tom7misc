@@ -1,5 +1,5 @@
 
-/* XXX This is deprecated (in favor of the bookmarks menu) 
+/* XXX This is deprecated (in favor of the bookmarks menu)
    and should be deleted. */
 
 #include "smanage.h"
@@ -22,7 +22,7 @@ typedef PtrList<NamedSolution> nslist;
 
 /* entries in the selector */
 struct nsentry {
-  
+
   /* stays at the top */
   bool def;
   NamedSolution ns;
@@ -38,11 +38,11 @@ struct nsentry {
     /* XXX add date */
     /* PERF precompute */
     string s;
-    
+
     if (ns.bookmark) s = PICS BOOKMARKPIC POP " ";
     else s = PICS THUMBICON POP "  ";
-    
-    s += 
+
+    s +=
       color + Font::pad(ns.name, 32) + POP
       + Font::pad("(" GREEN + itos(ns.sol.Length()), -6) + POP + " moves)"
       "  ";
@@ -84,7 +84,7 @@ struct nsentry {
     SWAP(verifies);
 #   undef SWAP
   }
-  
+
   static int cmp_default(const nsentry &l,
 			 const nsentry &r) {
     if (l.def && !r.def) return -1;
@@ -132,7 +132,7 @@ struct smreal : public Drawable {
     /* get the solution set */
 
     nslist *solset = p->solutionset(lmd5);
-    
+
     /* there are no solutions to manage! */
     if (!solset) return 0;
 
@@ -140,14 +140,14 @@ struct smreal : public Drawable {
     smreal *sm = new smreal;
     if (!sm) return 0;
     int len = solset->length();
-    
+
     sm->sel = nsel::create(len);
 
     sm->sel->title =
       "                                "
       "Managing solutions. " POP "\n"
       "                                "
-      PICS BARLEFT BAR BAR BAR BAR BAR BAR BAR BAR BAR BAR 
+      PICS BARLEFT BAR BAR BAR BAR BAR BAR BAR BAR BAR BAR
       BAR BAR BAR BAR BAR BAR BAR
       BARRIGHT POP "\n"
       BLUE "enter" POP " to watch solution. "
@@ -156,8 +156,8 @@ struct smreal : public Drawable {
       BLUE "ctrl-i" POP " makes default. "
       "\n"
       BLUE "ctrl-o" POP " optimizes a solution.";
-      
-    
+
+
     if (p->webid)
       sm->sel->title += "\n"
       BLUE "ctrl-u" POP " to upload to server. "
@@ -192,7 +192,7 @@ struct smreal : public Drawable {
 #endif
 
 void smanage::promptupload(Drawable *below,
-			   Player *plr, string lmd5, 
+			   Player *plr, string lmd5,
 			   const Solution &sol, string msg,
 			   string name_,
 			   bool speedrec) {
@@ -212,7 +212,7 @@ void smanage::promptupload(Drawable *below,
   name.disabled = speedrec;
   name.explanation =
     "Name this solution, briefly.";
-  
+
   toggle speed;
   speed.indent = IND;
   speed.disabled = speedrec;
@@ -242,7 +242,7 @@ void smanage::promptupload(Drawable *below,
 
   cancel can;
   can.text = "Cancel";
-  
+
   PtrList<MenuItem> *l = nullptr;
 
   PtrList<MenuItem>::push(l, &can);
@@ -276,18 +276,18 @@ void smanage::promptupload(Drawable *below,
 		       "Cancel")) {
 
       std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
-    
-      if (hh.get() != nullptr) { 
+
+      if (hh.get() == nullptr) {
 	Message::no(&td, "Couldn't connect!");
 	return;
       }
-    
+
       string res;
 
       string solcont = sol.ToString();
-    
+
       formalist *fl = nullptr;
-    
+
       /* XXX seems necessary! but in aphasia cgi? */
       formalist::pusharg(fl, "dummy", "dummy");
       formalist::pusharg(fl, "id", itos(plr->webid));
@@ -312,11 +312,11 @@ void smanage::promptupload(Drawable *below,
 	  Message::quick(&td, GREEN "Success!" POP,
 			 "OK", "", PICS THUMBICON POP);
       } else {
-	Message::no(&td, RED "Upload failed: " + 
+	Message::no(&td, RED "Upload failed: " +
 		    out + POP);
       }
 
-      formalist::diminish(fl);    
+      formalist::diminish(fl);
     }
   }
 
@@ -328,10 +328,10 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
 			       string lmd5, Level *lev) {
   string s;
   Client::quick_txdraw td;
-  
+
   std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
 
-  if (hh.get() != nullptr) { 
+  if (hh.get() == nullptr) {
     Message::no(&td, "Couldn't connect!");
     return;
   }
@@ -350,7 +350,7 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
       string line1 = util::getline(s);
       string author = util::getline(s);
       string moves = Base64::Decode(util::getline(s));
-      
+
       /* this is the solution id, which we don't need */
       (void) util::stoi(util::chop(line1));
       int date = util::stoi(util::chop(line1));
@@ -366,7 +366,7 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
 
       /* now check if we've got it */
       /* PERF each of the following things is O(n)
-	 with bad constants, but we don't expect 
+	 with bad constants, but we don't expect
 	 many solutions */
       for (int n = 0; n < sm->sel->number; n++) {
 	/* use string equality.
@@ -377,7 +377,7 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
 	if (moves == sm->sel->items[n].ns.sol->tostring()) {
 	  /* toss it */
 	  goto toss_it;
-	} 
+	}
       }
 
       /* keep it */
@@ -398,7 +398,7 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
 	es.release();
 
       }
-	
+
     toss_it:;
     }
 
@@ -411,7 +411,7 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
 }
 
 void smanage::manage(Player *plr, string lmd5, Level *lev) {
-  
+
   smreal *sm = smreal::create(plr, lmd5, lev);
   if (!sm) {
     Message::bug(0, "Couldn't create solution manager!");
@@ -423,13 +423,13 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
   sm->sel->redraw();
 
   SDL_Event event;
-  
+
   while (SDL_WaitEvent(&event) >= 0) {
 
     switch (event.type) {
     case SDL_KEYDOWN: {
       int key = event.key.keysym.sym;
-      
+
       switch (key) {
       case SDLK_o: {
 	if (!(event.key.keysym.mod & KMOD_CTRL)) break;
@@ -455,12 +455,12 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
       }
 	break;
       case SDLK_u:
-	if (!(event.key.keysym.mod & KMOD_CTRL)) break;	
+	if (!(event.key.keysym.mod & KMOD_CTRL)) break;
 	if (!plr->webid) break;
 
 	if (sm->sel->items[sm->sel->selected].ns.sol->verified &&
 	    !sm->sel->items[sm->sel->selected].ns.bookmark) {
-	  smanage::promptupload(0, plr, lmd5, 
+	  smanage::promptupload(0, plr, lmd5,
 				sm->sel->items[sm->sel->selected].ns.sol,
 				"Please only upload interesting solutions or speedruns.",
 				sm->sel->items[sm->sel->selected].ns.name,
@@ -474,13 +474,13 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
 
 	continue;
       case SDLK_d:
-	if (!(event.key.keysym.mod & KMOD_CTRL)) break;	
+	if (!(event.key.keysym.mod & KMOD_CTRL)) break;
 	/* get solutions from web */
 	smreal::downloadsolutions(plr, sm, lmd5, lev);
 
 	sm->resort();
 	sm->sel->redraw();
-	
+
 	continue;
       case SDLK_r:
 	if (!(event.key.keysym.mod & KMOD_CTRL)) break;
@@ -491,8 +491,8 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
 	string sn = Prompt::ask(sm,
 				"Solution name: ",
 				sm->sel->items[sm->sel->selected].ns.name);
-				  
-	  
+
+
 	sm->sel->items[sm->sel->selected].ns.name = sn;
 
 	/* XX resort? would have to track cursor */
@@ -506,7 +506,7 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
 	  int i = sm->sel->selected;
 
 	  if (Message::quick(sm,
-			     "Really delete '" YELLOW + 
+			     "Really delete '" YELLOW +
 			     sm->sel->items[i].ns.name + POP "'?",
 			     "Delete",
 			     "Cancel")) {
@@ -519,12 +519,12 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
 	    /* now remove this one by overwriting it with the
 	       last one. first delete the sol since we own it */
 	    sm->sel->items[i].ns.sol->destroy();
-	    
+
 	    /* might be overwriting self, but that's no problem */
 	    sm->sel->items[i].ns = sm->sel->items[sm->sel->number - 1].ns;
-	    sm->sel->items[i].verifies = 
+	    sm->sel->items[i].verifies =
 	      sm->sel->items[sm->sel->number - 1].verifies;
-	      
+
 	    sm->sel->number--;
 	    sm->sel->selected = 0;
 	  }
@@ -547,7 +547,7 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
       }
     }
     }
-    
+
     /* key wasn't handled above */
     switch (sm->sel->doevent(event).type) {
     case nsel::PE_SELECTED:
@@ -561,7 +561,7 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
       /* create solset list, preserving order */
       nslist *solset = nullptr;
       for (int i = sm->sel->number - 1;
-	  i >= 0; 
+	  i >= 0;
 	  i--) {
 	solset = new nslist(new NamedSolution(sm->sel->items[i].ns.sol,
 					      sm->sel->items[i].ns.name,
@@ -570,7 +570,7 @@ void smanage::manage(Player *plr, string lmd5, Level *lev) {
 					      sm->sel->items[i].ns.bookmark),
 			    solset);
       }
-      
+
       plr->setsolutionset(lmd5, solset);
       plr->writefile();
 
@@ -596,7 +596,7 @@ enum pbstate {
 struct pb : public Drawable {
 
   virtual ~pb() {}
- 
+
   void drawvcr() {
     int y = screen->h - VCRHEIGHT;
     int yf = y + TILEH + 4;
@@ -629,7 +629,7 @@ struct pb : public Drawable {
 					   VCRSELCOLOR));
     }
 
-    Drawing::drawtileu(x, y, TU_FREVBUTTON); 
+    Drawing::drawtileu(x, y, TU_FREVBUTTON);
     fon->drawcenter(x + (TILEW>>1), yf, "ctrl\n" LLARROW); x += skip;
     Drawing::drawtileu(x, y, TU_REVBUTTON);
     fon->drawcenter(x + (TILEW>>1), yf, LLARROW); x += skip;
@@ -732,12 +732,12 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
       SDL_Delay(50);
       break;
     }
-    
+
     /* process keyboard input */
     /* XXX also allow mouseclicks on vcr */
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-      
+
       if (handle_video_event(&p, event)) continue;
 
       switch (event.type) {
@@ -750,7 +750,7 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	case SDLK_u:
 	case SDLK_LEFT: {
 	  bool fast = (event.key.keysym.mod & KMOD_CTRL);
-	  
+
 	  int n = util::minimum(p.soli, fast?10:1);
 	  /* undo and pause */
 
@@ -759,14 +759,14 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	    p.dr.lev->destroy();
 	    p.dr.lev = lev->clone();
 	    el.replace(p.dr.lev);
-	    
+
 	    /* play back solutions up to this point */
 	    p.soli -= n;
 	    for (int i = 0; i < p.soli; i++) {
 	      p.dr.lev->Move(sol->dirs[i]);
 	    }
 	  }
-	  
+
 	  p.state = PB_PAUSED;
 	  p.draw();
 	  break;
@@ -793,14 +793,14 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	      p.dr.lev->destroy();
 	      p.dr.lev = lev->clone();
 	      el.replace(p.dr.lev);
-	    
+
 	      /* play back solutions up to this point */
 	      p.soli += n;
 	      for (int i = 0; i < p.soli; i++) {
 		p.dr.lev->Move(sol->dirs[i]);
 	      }
 	    }
-	  
+
 	    p.state = PB_PAUSED;
 	    p.draw();
 	  } else {
@@ -819,7 +819,7 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
 	  }
 	  p.drawvcr();
 	  break;
-	} 
+	}
 	case SDLK_ESCAPE: return;
 	}
 	break;

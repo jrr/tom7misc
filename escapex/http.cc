@@ -13,16 +13,16 @@ using namespace std;
 namespace {
 struct HTTP_ : public HTTP {
   HTTP_();
-  virtual ~HTTP_();
-  virtual void setua(string);
-  virtual bool connect(string host, int port = 80);
-  virtual httpresult get(string path, string &out);
-  virtual httpresult gettempfile(string path, string &file);
-  virtual httpresult put(string path,
-			 formalist *items,
-			 string &out);
+  ~HTTP_() override;
+  void setua(string) override;
+  bool connect(string host, int port = 80) override;
+  httpresult get(string path, string &out) override;
+  httpresult gettempfile(string path, string &file) override;
+  httpresult put(const string &path,
+		 formalist *items,
+		 string &out) override;
 
-  virtual void setcallback(httpcallback *cb) {
+  void setcallback(httpcallback *cb) override {
     callback = cb;
   }
 
@@ -80,14 +80,17 @@ HTTP_::~HTTP_() {
   }
 }
 
-void HTTP_::setua(string s) { ua = s; }
+void HTTP_::setua(string s) {
+  ua = std::move(s);
+}
 
 bool HTTP_::connect(string chost, int port) {
   DMSG(util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
   
   /* should work for "snoot.org" or "128.2.194.11" */
   if (SDLNet_ResolveHost(&remote, (char *)chost.c_str(), port)) {
-    DMSG(util::ptos(this) + " can't resolve: " + (string)(SDLNet_GetError()) + "\n");
+    DMSG(util::ptos(this) + " can't resolve: " +
+	 (string)(SDLNet_GetError()) + "\n");
     return false;
   }
 
@@ -119,9 +122,9 @@ bool sendall(TCPsocket socket, string d) {
   else return true;
 }
 
-httpresult HTTP_::put(string path,
-			 formalist *items,
-			 string &out) {
+httpresult HTTP_::put(const string &path,
+		      formalist *items,
+		      string &out) {
 
   /* large positive randomish number */
   int bnd = 0x10000000 | (0x7FFFFFFE & (util::random()));
@@ -207,7 +210,8 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
  
   if (!sendall(conn, req)) {
     /* error. try again? */
-    DMSG(util::ptos(this) + " can't send: " + (string)(SDLNet_GetError()) + "\n");
+    DMSG(util::ptos(this) + " can't send: " +
+	 (string)(SDLNet_GetError()) + "\n");
     SDLNet_TCP_Close(conn);
     conn = 0;
     return HT_ERROR;
@@ -234,7 +238,8 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
   */
   for (;;) {
     if (SDLNet_TCP_Recv(conn, &c, 1) != 1) {
-      DMSG(util::ptos(this) + " can't recv: " + (string)(SDLNet_GetError()) + "\n");
+      DMSG(util::ptos(this) + " can't recv: " +
+	   (string)(SDLNet_GetError()) + "\n");
       printf("Error in recv.\n");
       bye();
       return HT_ERROR;

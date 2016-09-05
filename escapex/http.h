@@ -47,7 +47,7 @@ struct HTTP {
   virtual httpresult gettempfile(std::string path, std::string &file) = 0;
 
   /* use post, allowing to upload files */
-  virtual httpresult put(std::string path,
+  virtual httpresult put(const std::string &path,
 			 formalist *items,
 			 std::string &out) = 0;
 
@@ -60,6 +60,5 @@ struct HTTP {
 
   virtual ~HTTP() {};
 };
-
 
 #endif
