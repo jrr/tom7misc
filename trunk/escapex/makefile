@@ -343,7 +343,7 @@ CXXFLAGS= -std=c++14 ${OPT}
 #    -Wl,--subsystem,windows
 # and the former opens the console for useful/annoying debugging info.
 # SUBSYSTEM=windows
-SUBSYSTEM=console
+SUBSYSTEM=windows
 # You can remove this GNU-ism if you need to; it just prevents me from
 # accidentally releasing the console build.
 release_check = \
