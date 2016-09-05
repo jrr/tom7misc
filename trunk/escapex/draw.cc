@@ -15,8 +15,8 @@
 #define FONT_FILE DATADIR "font.png"
 #define FONTSMALL_FILE DATADIR "fontsmall.png"
 
-font *fon;
-font *fonsmall;
+Font *fon = nullptr;
+Font *fonsmall = nullptr;
 
 SDL_Surface **Drawing::tiles = nullptr;
 SDL_Surface **Drawing::tilesdim = nullptr;
@@ -40,11 +40,11 @@ bool Drawing::loadimages() {
   if (!uu) return 0;
 
   /* XXX make dim levels for font too (pass in argument) */
-  fon = font::create(FONT_FILE,
+  fon = Font::Create(FONT_FILE,
 		     FONTCHARS,
  		     9, 16, FONTSTYLES, 1, 3);
 
-  fonsmall = font::create(FONTSMALL_FILE,
+  fonsmall = Font::Create(FONTSMALL_FILE,
 			  FONTCHARS,
 			  6, 6, FONTSTYLES, 0, 3);
 
@@ -93,8 +93,11 @@ void Drawing::destroyimages() {
   free(tilesdim);
   free(tileutil);
 
-  if (fon) fon->destroy();
-  if (fonsmall) fonsmall->destroy();
+  delete fon;
+  fon = nullptr;
+
+  delete fonsmall;
+  fon = nullptr;
 }
 
 /* draw guy facing d at screen location x/y */
@@ -747,17 +750,17 @@ void Drawing::drawsmall(int y,
 
   int ratey = texty;
 
-  if (solvemoves) {
+  if (solvemoves > 0) {
     /* XXX could draw this in color based on its relation
-       to the speedrecord */
+       to the speedrecord -- doesn't work? XXX2016 */
     string movecolor =
-      ((speedrecord>0) && (speedrecord > solvemoves))?GREEN:GREY;
+      ((speedrecord > 0) && (speedrecord > solvemoves)) ? GREEN : GREY;
     
     fon->draw(textx, texty += fon->height,
 	      (string)GREEN "Solved! " POP WHITE "(" GREY +
 	      movecolor + itos(solvemoves) +
 	      (string) POP " move" + 
-	      (string)((solvemoves!=1)?"s":"") + POP ")" POP);
+	      (string)((solvemoves != 1) ? "s" : "") + POP ")" POP);
     if (speedrecord) {
       string rstring;
       if (speedrecord > 20000) rstring = RED + itos(speedrecord);

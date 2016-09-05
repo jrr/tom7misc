@@ -10,18 +10,18 @@ using namespace std;
 using AList = PtrList<aevent>;
 
 /* disambiguation context implementation */
-Disamb *Disamb::Create(Level *l) {
+Disamb *Disamb::Create(const Level *l) {
   std::unique_ptr<Disamb> d{new Disamb};
   d->w = l->w;
   d->h = l->h;
-  d->map = (unsigned int *)malloc(d->w * d->h * sizeof(unsigned int));
-  if (!d->map) return nullptr;
+  d->serials = (unsigned int *)malloc(d->w * d->h * sizeof(unsigned int));
+  if (!d->serials) return nullptr;
   d->clear();
   return d.release();
 }
 
 Disamb::~Disamb() {
-  free(map);
+  free(serials);
 }
 
 void Disamb::clear() {
@@ -32,7 +32,7 @@ void Disamb::clear() {
   }
 
   for (int i = 0; i < (w * h); i++) {
-    map[i] = 0;
+    serials[i] = 0;
   }
 }
 
@@ -45,12 +45,12 @@ bool Disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
      serial? if so, we need to move to
      the next serial. */
 
-  if (map[i] == serial) {
+  if (serials[i] == serial) {
     serialup(l, etail);
-    map[i] = serial;
+    serials[i] = serial;
     return true;
   } else {
-    map[i] = serial;
+    serials[i] = serial;
     return false;
   }
 }

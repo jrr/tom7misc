@@ -619,55 +619,44 @@ void Editor::save() {
 	 candidate md5s. We get these whenever
 	 we play or save. */
 
-      string omd5 = MD5::Hash(old);
-
-      string nmd5 = MD5::Hash(nstr);
+      const string omd5 = MD5::Hash(old);
+      const string nmd5 = MD5::Hash(nstr);
       /* only try if level changed */
       if (omd5 != nmd5) {
 
-	/* do not free */
-	PtrList<NamedSolution> *sols = plr->solutionset(omd5);
-
 	int rs = 0, rb = 0;
-	for (; sols; sols = sols->next) {
-	  NamedSolution *ns = sols->head;
-
-	  if (ns && ns->sol && !ns->bookmark && 
-	      Level::verify(dr.lev, ns->sol)) {
+	for (const NamedSolution &ns : plr->SolutionSet(omd5)) {
+	  if (!ns.bookmark && 
+	      Level::Verify(dr.lev, ns.sol)) {
+	    string name = ns.name;
+	    if (name.find("(recovered)") == string::npos)
+	      name = (string)"(recovered) " + name;
 	    /* It still works! */
-	    
-	    NamedSolution ns2(ns->sol, (string)"(recovered) "
-			      + ns->name, 
-			      ns->author, time(0), false);
-	    // setting def_candidate to true so we always add.
-	    // XXX that parameter's description is nonsensical
-	    plr->addsolution(nmd5, &ns2, true);
-	    
+	    NamedSolution ns2(ns.sol, name, ns.author, time(0), false);
+	    plr->AddSolution(nmd5, std::move(ns2), true);
 	    rs++;
-	  } else if (ns && ns->sol && ns->bookmark) {
-	    // setting def_candidate to true so we always add.
-	    // XXX that parameter's description is nonsensical
-	    plr->addsolution(nmd5, ns->clone(), true);
+	  } else if (ns.bookmark) {
+	    plr->AddSolution(nmd5, ns, true);
 	    rb++;
 	  }
-	  
 	}
 
 	if (rs + rb > 0) {
 	  string s = rs?((string)YELLOW + itos(rs) + POP " solution"
-			 + ((rs==1)?(string)"":(string)"s")
-			 + ((rb)?(string)", ":(string)"")
-			 ):"";
+			 + ((rs == 1) ? (string)"" : (string)"s")
+			 + (rb ? (string)", " : (string)"")
+			 ) : "";
 	  string b = rb?((string)YELLOW + itos(rb) + POP " bookmark"
-			 + ((rb==1)?(string)"":(string)"s")
-			 ):"";
+			 + ((rb == 1) ? (string)"" : (string)"s")
+			 ) : "";
 	  dr.message += (string)ALPHA50 " (" BLUE "recovered " + s + b + 
-	                       (string)POP ")" POP;
+	                (string)POP ")" POP;
 	  plr->writefile();
 	}
 
       } else {
-	dr.message += (string)" again " ALPHA50 GREY "(" + MD5::Ascii(nmd5) + ")" POP POP;
+	dr.message += (string)" again " ALPHA50 GREY "(" +
+	   MD5::Ascii(nmd5) + ")" POP POP;
       }
     }     
     
@@ -716,9 +705,7 @@ void Editor::load() {
   redraw();
 }
 
-Editor::~Editor() {
-  saved->destroy();
-}
+Editor::~Editor() {}
 
 void Editor::playlev() {
   /* XXX check result for 'exit' */
@@ -729,7 +716,8 @@ void Editor::playlev() {
   /* grab md5 in case player makes bookmarks */
   string md5 = MD5::Hash(dr.lev->tostring());
 
-  /* PlayResult res = */ pla->doplay_save(plr, dr.lev, saved, md5);
+  /* PlayResult res = */
+  (void)pla->DoPlaySave(plr, dr.lev, &saved, md5);
   
   /* has a different loop; might have resized */
   screenresize();
@@ -820,7 +808,7 @@ void Editor::edit(Level *origlev) {
 
   dr.message = "";
 
-  saved = Solution::empty();
+  saved.Clear();
 
   fixup();
 

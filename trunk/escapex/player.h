@@ -12,26 +12,24 @@
    Stores the player's solutions, ratings, and preferences.
 */
 
-/* A named solution might actually solve 
-   the level, or it might be a mere bookmark. */
+// A named solution might actually solve 
+// the level, or it might be a mere bookmark.
+// Value semantics.
 struct NamedSolution {
   string name;
-  Solution *sol;
+  Solution sol;
   /* only when bookmark = false */
   string author;
-  int date;
-  bool bookmark;
-  NamedSolution(Solution *s, string na = "Untitled", 
+  int date = 0;
+  bool bookmark = false;
+  NamedSolution(Solution s, string na = "Untitled", 
                 string au = "Unknown", int da = 0, 
                 bool bm = false);
-  string tostring();
-  static NamedSolution *fromstring(string);
-  void destroy();
-  static int compare(NamedSolution *, NamedSolution *);
+  string ToString() const;
+  static bool FromString(const string &s, NamedSolution *ns);
+  static int Compare(NamedSolution *l, NamedSolution *r);
   NamedSolution(); /* needed for selector */
-
-  /* deep clone; copies solution too */
-  NamedSolution *clone();
+  ~NamedSolution() {}
 };
 
 /* interface only */
@@ -56,45 +54,56 @@ struct Player {
      the chunks */
   virtual Chunks *getchunks() = 0;
 
-  /* get the default solution (if any) for the level whose md5
-     representation is "md5". don't free the solution! */
-  virtual Solution *getsol(string md5) = 0;
+  /* Get the default solution (if any) for the level whose md5
+     representation is "md5", or returns null. Solution remains
+     owned by Player. */
+  virtual const Solution *GetSol(const string &md5) const = 0;
+  // Return the length of the default solution, or 0 if none.
+  // (All valid solutions have positive length.)
+  virtual int GetSolLength(const string &md5) const = 0;
 
-  virtual Rating *getrating(string md5) = 0;
+  // Set the default solution (returned by GetSol) verified
+  // for this level.
+  // XXX this is gross; verification should be cached elsewhere
+  virtual void SetDefaultVerified(const string &md5) = 0;
+  // Set the solution within the SolutionSet at this index as
+  // verified. Doesn't invalidate solution set reference. XXX
+  // also gross.
+  virtual void SetVerified(const string &md5, int idx) = 0;
   
-  /* always overwriting an existing rating. 
+  virtual Rating *getrating(const string &md5) const = 0;
+  
+  /* Always overwriting an existing rating. 
      there is just one rating per level. */
   virtual void putrating(string md5, Rating *rat) = 0;
 
-  /* record a change on disk. this will also manage
+  /* Record a change on disk. this will also manage
      backups of the player file. */
   virtual bool writefile() = 0;
 
-  virtual int num_solutions() = 0;
-  virtual int num_ratings() = 0;
+  virtual int num_solutions() const = 0;
+  virtual int num_ratings() const = 0;
 
-  /* for solution recovery; get every solution in
+  /* For solution recovery; get every solution in
      the player, regardless of the level it is for */
-  virtual PtrList<Solution> *all_solutions() = 0;
+  virtual vector<Solution> AllSolutions() const = 0;
 
-  /* return the solution set (perhaps empty) for the level indicated.
-     the list and its contents remain owned by the player */
-  virtual PtrList<NamedSolution> *solutionset(string md5) = 0;
+  /* Return a reference to the solution set (perhaps empty) for the 
+     level indicated. The first solution, if any, is the default. */
+  virtual const vector<NamedSolution> &SolutionSet(const string &md5) const = 0;
 
-  /* frees anything that it overwrites, including the solutions. So
-     calling setsolutionset on the set returned from solutionset
-     without cloning the solutions first will prematurely free them */
-  virtual void setsolutionset(string md5, PtrList<NamedSolution> *) = 0;
+  // Overwrites the solution set for a particular level MD5.
+  virtual void SetSolutionSet(const string &md5,
+			      vector<NamedSolution> solset) = 0;
 
-  /* simply add a new solution to the set. copies ns, so it remains
-     owned by the caller. If def_candidate is true, this might be made
-     the default solution if it is not a bookmark, and it is better
-     than the current default. */
-  virtual void addsolution(string md5, NamedSolution *ns, 
+  /* Simply add a new solution to the set. If def_candidate is true
+     and the solution is not a bookmark, it might be made the
+     default solution. The solution is always added. */
+  virtual void AddSolution(const string &md5, NamedSolution ns, 
                            bool def_candidate = false) = 0;
 
   /* is this solution already in the solution set? */
-  virtual bool hassolution(string md5, Solution *what) = 0;
+  virtual bool HasSolution(const string &md5, const Solution &what) = 0;
 
   virtual ~Player() {};
 };

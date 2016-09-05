@@ -23,14 +23,14 @@ struct Editor : public Drawable {
   void edit(Level *origlev = 0);
 
   /* Drawable */
-  void draw();
-  void screenresize();
+  void draw() override;
+  void screenresize() override;
 
   virtual ~Editor();
 
   static Editor *Create(Player *p);
 
-  private:
+ private:
 
   void redraw() {
     draw();
@@ -43,7 +43,8 @@ struct Editor : public Drawable {
 
   Player *plr;
 
-  Solution *saved;
+  // We persist the solution across playing sessions while editing.
+  Solution saved;
 
   void tmenurotate(int n);
   void saveas();

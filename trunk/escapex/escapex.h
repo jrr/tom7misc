@@ -83,4 +83,9 @@ extern SDL_Surface *screen;
 #   pragma warning(disable: 4800)
 #endif
 
+#define NOT_COPYABLE(classname) \
+  private: \
+  classname(const classname &) = delete; \
+  classname &operator =(const classname &) = delete
+
 #endif

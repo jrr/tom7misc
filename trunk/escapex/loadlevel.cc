@@ -56,7 +56,7 @@ namespace {
 /* XXX normalize these by pulling
    sizex, sizey, author (at least)
    out of lev */
-struct llentry {
+struct LLEntry {
   string fname;
   string name;
   string md5;
@@ -66,6 +66,7 @@ struct llentry {
   int sizex;
   int sizey;
 
+  // If >0, length of player's solution.
   int solved;
   int total;
 
@@ -90,10 +91,10 @@ struct llentry {
   string convert() { return fname; }
   bool matches(char k);
 
-  ~llentry() { if (lev) lev->destroy(); }
-  llentry() { lev = 0; }
+  ~LLEntry() { if (lev) lev->destroy(); }
+  LLEntry() { lev = 0; }
   
-  static void swap(llentry *l, llentry *r) {
+  static void swap(LLEntry *l, LLEntry *r) {
 #   define SWAP(f) {const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
     SWAP(md5);
     SWAP(fname);
@@ -127,8 +128,8 @@ struct llentry {
 
   /* default: directories are first */
   static bool default_dirs(int &ret,
-			  const llentry &l,
-			  const llentry &r) {
+			  const LLEntry &l,
+			  const LLEntry &r) {
 
     /* make this appear first */
     if (l.fname == ".." && r.fname != "..") {
@@ -156,8 +157,8 @@ struct llentry {
   }
 
   /* newest first -- only if webindex */
-  static int cmp_bydate(const llentry &l,
-			const llentry &r) {
+  static int cmp_bydate(const LLEntry &l,
+			const LLEntry &r) {
 
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -168,8 +169,8 @@ struct llentry {
     else return cmp_byname(l, r);
   }
 
-  static int cmp_bywebsolved(const llentry &l,
-			     const llentry &r) {
+  static int cmp_bywebsolved(const LLEntry &l,
+			     const LLEntry &r) {
     
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -179,21 +180,20 @@ struct llentry {
     else return 1;
   }
 
-  static int cmp_bysolved(const llentry &l,
-			  const llentry &r) {
+  static int cmp_bysolved(const LLEntry &l,
+			  const LLEntry &r) {
     int order;
     if (default_dirs(order, l, r)) return order;
 
     if (l.solved < r.solved) return -1;
     else if (l.solved == r.solved) return cmp_byname(l, r);
     else return 1;
-
   }
 
   /* descending sort by personal rating field */
 # define MINE(letter, field) \
-  static int cmp_bymy ## letter(const llentry &l, \
-		                const llentry &r) { \
+  static int cmp_bymy ## letter(const LLEntry &l, \
+		                const LLEntry &r) { \
     int order; \
     if (default_dirs(order, l, r)) return order; \
                                                   \
@@ -212,8 +212,8 @@ struct llentry {
 
   /* descending sort by global rating field */
 # define GLOB(letter, field) \
-  static int cmp_byglobal ## letter(const llentry &l, \
-			            const llentry &r) { \
+  static int cmp_byglobal ## letter(const LLEntry &l, \
+			            const LLEntry &r) { \
     int order; \
     if (default_dirs(order, l, r)) return order; \
                                                  \
@@ -231,8 +231,8 @@ struct llentry {
   GLOB(r, rigidity)
 # undef GLOB
 
-  static int cmp_byauthor(const llentry &l,
-			  const llentry &r) {
+  static int cmp_byauthor(const LLEntry &l,
+			  const LLEntry &r) {
     
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -243,8 +243,8 @@ struct llentry {
     else return c;
   }
 
-  static int cmp_byname(const llentry &l,
-			const llentry &r) {
+  static int cmp_byname(const LLEntry &l,
+			const LLEntry &r) {
 
     int order;
     if (default_dirs(order, l, r)) return order;
@@ -269,15 +269,15 @@ struct llentry {
     return util::library_compare(l.name, r.name);
   }
 
-  static int cmp_none(const llentry &l,
-		      const llentry &r) {
+  static int cmp_none(const LLEntry &l,
+		      const LLEntry &r) {
     return 0;
   }
 
   static string none() { return ""; }
 };
 
-typedef Selector<llentry, string> selor;
+typedef Selector<LLEntry, string> selor;
 
 struct LoadLevel_ : public LoadLevel {
   void draw() override;
@@ -320,21 +320,21 @@ struct LoadLevel_ : public LoadLevel {
 
   /* getsort returns a comparison function. C++
      syntax for this is ridiculous */
-  static int (*getsort(sortstyle s)) (const llentry &l,
-				      const llentry &r) {
+  static int (*getsort(sortstyle s)) (const LLEntry &l,
+				      const LLEntry &r) {
     switch (s) {
     default:
-    case SORT_DATE: return llentry::cmp_bydate;
-    case SORT_ALPHA: return llentry::cmp_byname;
-    case SORT_SOLVED: return llentry::cmp_bysolved;
-    case SORT_WEBSOLVED: return llentry::cmp_bywebsolved;
-    case SORT_PD: return llentry::cmp_bymyd;
-    case SORT_PS: return llentry::cmp_bymys;
-    case SORT_PR: return llentry::cmp_bymyr;
-    case SORT_GD: return llentry::cmp_byglobald;
-    case SORT_GS: return llentry::cmp_byglobals;
-    case SORT_GR: return llentry::cmp_byglobalr;
-    case SORT_AUTHOR: return llentry::cmp_byauthor;
+    case SORT_DATE: return LLEntry::cmp_bydate;
+    case SORT_ALPHA: return LLEntry::cmp_byname;
+    case SORT_SOLVED: return LLEntry::cmp_bysolved;
+    case SORT_WEBSOLVED: return LLEntry::cmp_bywebsolved;
+    case SORT_PD: return LLEntry::cmp_bymyd;
+    case SORT_PS: return LLEntry::cmp_bymys;
+    case SORT_PR: return LLEntry::cmp_bymyr;
+    case SORT_GD: return LLEntry::cmp_byglobald;
+    case SORT_GS: return LLEntry::cmp_byglobals;
+    case SORT_GR: return LLEntry::cmp_byglobalr;
+    case SORT_AUTHOR: return LLEntry::cmp_byauthor;
     }
   }
 
@@ -358,26 +358,26 @@ struct LoadLevel_ : public LoadLevel {
 
 
   string locate(string);
-  int changedir(string, bool remember = true);
+  int ChangeDir(string, bool remember = true);
 
   /* this for solution preview */
   Uint32 showstart;
   Level *showlev;
   int solstep;
-  Solution *showsol;
+  Solution showsol;
   /* if this isn't the same as sel->selected,
      then we are out of sync. */
   int showidx;
 
   selor *sel;
-  string loop();
+  string Loop();
 
   /* if possible, select the last file seen here */
   void select_lastfile();
   
   /* called a few times a second, advancing through
      a solution if one exists. */
-  void step();
+  void Step();
   void fix_show(bool force = false);
   void drawsmall();
 
@@ -397,29 +397,22 @@ void LoadLevel_::fix_show(bool force) {
   /* if we notice that we are out of sync with the selected
      level, switch to it. */
   
-  /*
-  printf("fix_show. sel->selected %d, showidx %d, showlev %p, sol %p\n",
-	 sel->selected, showidx, showlev, showsol);
-  */
-
   if (force || (sel->selected != showidx)) {
 
     showidx = sel->selected;
     if (showlev) showlev->destroy();
     showlev = 0;
-    showsol = 0;
-
+    showsol.Clear();
+    solstep = 0;
+    
     /* directory might be totally empty?? */
     if (sel->number) {
-
-      /*
-      printf("about to read from showidx %d. there are %d", showidx,
-	     sel->number);
-      */
       if (!sel->items[showidx].isdir) {
 	// printf("well the level is %p\n", sel->items[showidx].lev);
 	showlev = sel->items[showidx].lev->clone();
-	if ( (showsol = plr->getsol(sel->items[showidx].md5)) ) {
+	const Solution *lsol = plr->GetSol(sel->items[showidx].md5);
+	if (lsol != nullptr) {
+	  showsol = *lsol;
 	  solstep = 0;
 	  showstart = STEPS_BEFORE_SOL;
 	}
@@ -429,21 +422,17 @@ void LoadLevel_::fix_show(bool force) {
     }
     
   }
-
-  // printf("exit fix_show\n");
-
 }
 
-void LoadLevel_::step() {
-
+void LoadLevel_::Step() {
   fix_show();
 
   /* now, if we have a lev, maybe make a move */
-  if (showlev && showsol) {
+  if (showlev && !showsol.IsEmpty()) {
     if (!showstart) {
       /* step */
-      if (solstep < showsol->length) {
-	dir d = showsol->dirs[solstep];
+      if (solstep < showsol.Length()) {
+	dir d = showsol.At(solstep);
 	showlev->Move(d);
 	solstep++;
       }
@@ -454,11 +443,11 @@ void LoadLevel_::step() {
 
 
 /* PERF could precompute most of this */
-void llentry::draw(int x, int y, bool selected) {
+void LLEntry::draw(int x, int y, bool selected) {
   fon->draw(x, y, display(selected));
 }
 
-string llentry::display(bool selected) {
+string LLEntry::display(bool selected) {
   string color = WHITE;
   if (selected) color = YELLOW;
 
@@ -513,18 +502,18 @@ string llentry::display(bool selected) {
 	(string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(votes.rigidity / votes.nvotes));    }
 
     string line =
-      pre + color + font::pad(name, ns) + (string)" " POP + 
+      pre + color + Font::pad(name, ns) + (string)" " POP + 
       (string)(corrupted?RED:GREEN) + 
-      font::pad(itos(sizex) + (string)GREY "x" POP +
+      Font::pad(itos(sizex) + (string)GREY "x" POP +
 		itos(sizey), ss) + POP +
-      (string)" " BLUE + font::pad(author, as) + POP + myr + 
+      (string)" " BLUE + Font::pad(author, as) + POP + myr + 
       (string)" " + ratings;
 
     return line;
   }
 }
 
-bool llentry::matches(char k) {
+bool LLEntry::matches(char k) {
   if (name.length() > 0) return util::library_matches(k, name);
   else return (fname.length() > 0 && (fname[0] | 32) == k);
 }
@@ -583,7 +572,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
   ll->showstart = 0;
   ll->showlev = 0;
   ll->solstep = 0;
-  ll->showsol = 0;
+  ll->showsol.Clear();
   ll->showidx = -1; /* start outside array */
 
   /* recover 'last dir' */
@@ -595,7 +584,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
     /* XXX should fall back (to argument?) if this fails;
        maybe the last directory was deleted? */
     do {
-      if (ll->changedir(dir)) goto chdir_ok;
+      if (ll->ChangeDir(dir)) goto chdir_ok;
       printf("Dir missing? Up: %s\n", dir.c_str());
       dir = util::cdup(dir);
     } while (dir != ".");
@@ -606,7 +595,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
     /* try to find lastfile in this dir, if possible */
     ll->select_lastfile();
   } else {
-    if (!ll->changedir(dir, false)) return 0;
+    if (!ll->ChangeDir(dir, false)) return 0;
   }
 
   DBTIME("done");
@@ -616,7 +605,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
 
 
 string LoadLevel_::selectlevel() {
-  return loop();
+  return Loop();
 }
 
 
@@ -636,11 +625,10 @@ string LoadLevel_::locate(string filename) {
   else return out;
 }
 
-int LoadLevel_::changedir(string what, bool remember) {
-
+int LoadLevel_::ChangeDir(string what, bool remember) {
   DBTIME_INIT;
 
-  // printf("changedir '%s' with path %p\n", what.c_str(), path);
+  // printf("ChangeDir '%s' with path %p\n", what.c_str(), path);
   {
     stringlist *pp = path;
     while (pp) {
@@ -785,78 +773,35 @@ int LoadLevel_::changedir(string what, bool remember) {
       if (l) {
 	string md5c = MD5::Hash(contents);
 
-
-	typedef PtrList<NamedSolution> solset;
-	
-	/* owned by player */
-	solset *sols = plr->solutionset(md5c);
-
 	nsel->items[i].solved = 0;
 
-	/* XXX this isn't incorrect, but we should ignore
-	   solutions marked as bookmarks for performance
-	   and sanity sake */
-	if (sols) {
-	  if (sols->head->sol->verified ||
-	      Level::verify(l, sols->head->sol)) {
-	    sols->head->sol->verified = true;
-	    nsel->items[i].solved = sols->head->sol->length;
-	  } else if (sols->next) { 
-	    /* first one didn't verify, but we should reorder
-	       solutions so that one does, if possible */
+	{
+	  const vector<NamedSolution> &sols = plr->SolutionSet(md5c);
+	  for (int sidx = 0; sidx < sols.size(); sidx++) {
+	    const NamedSolution &ns = sols[sidx];
+	    if (!ns.bookmark &&
+		(ns.sol.verified ||
+		 Level::Verify(l, ns.sol))) {
+	      plr->SetVerified(md5c, sidx);
+	      nsel->items[i].solved = ns.sol.Length();
 
-	    solset *no = 0;
-	    
-	    while (sols) {
-	      /* not trying bookmarks */
-	      if (!sols->head->bookmark &&
-		  Level::verify(l, sols->head->sol)) {
-		/* ok! create the new list with this
-		   at the head. */
-
-		NamedSolution *ver = sols->head->clone();
-		ver->sol->verified = true;
-
-		/* get tail */
-		sols = sols->next;
-
-		solset *yes = 0;
-		
-		/* put the current tail there, cloning */
-		while (sols) {
-		  solset::push(yes, sols->head->clone());
-		  sols = sols->next;
+	      if (sidx != 0) {
+		// Since we found a verfying solution that's not the
+		// default, move it first.
+		vector<NamedSolution> newsols = {ns};
+		newsols.reserve(sols.size());
+		for (int j = 0; j < sols.size(); j++) {
+		  if (sidx != j) newsols.push_back(sols[j]);
 		}
-
-		/* god this is annoying in C++ */
-		while (no) {
-		  solset::push(yes, no->head->clone());
-		  no = no->next;
-		}
-
-		solset::push(yes, ver);
-
-		/* now save this reordering and succeed */
-		plr->setsolutionset(md5c, yes);
-		nsel->items[i].solved = ver->sol->length;
-
-		goto solset_search_done;
-
-	      } else {
-		solset::push(no, sols->head);
-		sols = sols->next;
+		plr->SetSolutionSet(md5c, std::move(newsols));
+		// 'sols' is invalid now.
+		break;
 	      }
+	      break;
 	    }
-
-	    /* didn't find any, so free head;
-	       solved stays 0 */
-	    solset::diminish(no);
-
-	  solset_search_done:;
 	  }
 	}
-
-
+	  
 	nsel->items[i].isdir = 0;
 	nsel->items[i].md5 = md5c;
 	nsel->items[i].fname = de->d_name;
@@ -926,9 +871,7 @@ int LoadLevel_::changedir(string what, bool remember) {
 }
 
 void LoadLevel_::draw() {
-
   sdlutil::clearsurface(screen, BGCOLOR);
-
   drawsmall();
 }
 
@@ -990,41 +933,33 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
   int pe = 0; // SDL_GetTicks() + (PROGRESS_TICKS * 2);
 
   int total = 0;
-  {
-    for (int i = 0; i < sel->number; i++) {
-      if ((!sel->items[i].isdir) &&
-	  (!sel->items[i].solved)) {
-	total++;
-      }
+  for (int i = 0; i < sel->number; i++) {
+    if ((!sel->items[i].isdir) &&
+	(!sel->items[i].solved)) {
+      total++;
     }
   }
 
+  /* check every solution in rp. */
+  const vector<Solution> all = rp->AllSolutions();
+  
   /* for each unsolved level, try to recover solution */
   int done = 0;
   string solveds;
-  // XXX honor wholedir
+
   for (int i = 0; i < sel->number; i++) {
     if ((wholedir || i == sel->selected) &&
 	!sel->items[i].isdir &&
 	!sel->items[i].solved) {
 
+      const Level *solveme = sel->items[i].lev;
+      
       done++;
 
-      /* check every solution in rp. */
-      PtrList<Solution> *all = rp->all_solutions();
-
-      /* we don't need to delete these solutions */
       int snn = 0;
 
       // XXX check for esc keypress
-      while (all) {
-	Solution *s = PtrList<Solution>::pop(all);
-
-	/* PERF verify does its own cloning */
-	Level *l = sel->items[i].lev->clone();
-
-	Solution *out;
-
+      for (const Solution &s : all) {
 	Progress::drawbar((void*)&pe,
 			  done, total, 
 			  GREY "(" + itos(nsolved) + ") " POP
@@ -1036,11 +971,10 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
 
 	snn++;
 
-	/* printf("try %p on %p\n", s, l); */
-	if (Level::verify_prefix(l, s, out)) {
-
-	  /* XX should be length of prefix that solves */
-	  sel->items[i].solved = 1;
+	/* printf("try %p on %p\n", s, solveme); */
+	Solution out;
+	if (Level::VerifyPrefix(solveme, s, &out) && out.Length() > 0) {
+	  sel->items[i].solved = out.Length();
 	  string af = sel->items[i].actualfile(path);
 
 	  /* XXX PERF md5s are stored */
@@ -1051,19 +985,18 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
 	    continue;
 	  }
 	  string md5 = MD5::Hashf(f);
-
 	  fclose(f);
 
 	  /* extend progress msg */
 	  {
 	    if (solveds != "") solveds += GREY ", ";
-	    solveds += GREEN ALPHA100 + l->title;
-	    solveds = font::truncate(solveds, 
-				     /* keep right side, not left */
-				     -(
-				       -1 + 
-				       (screen->w /
-					(fonsmall->width - fonsmall->overlap))));
+	    solveds += GREEN ALPHA100 + solveme->title;
+	    solveds = Font::truncate(
+		solveds, 
+		/* keep right side, not left */
+		-(-1 + 
+		  (screen->w /
+		   (fonsmall->width - fonsmall->overlap))));
 	    /* force draw */
 	    pe = 0;
 	  }
@@ -1072,16 +1005,13 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
 	  {
 	    NamedSolution ns(out, "Recovered", plr->name, 
 			     time(0), false);
-	    plr->addsolution(md5, &ns, false);
+	    plr->AddSolution(md5, std::move(ns), false);
 	  }
 	  nsolved++;
-	  out->destroy();
 
 	  /* then don't bother looking at the tail */
-	  PtrList<Solution>::diminish(all);
+	  break;
 	}
-
-	l->destroy();
       }
     }
   }
@@ -1095,8 +1025,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
   }
 }
 
-string LoadLevel_::loop() {
-
+string LoadLevel_::Loop() {
   sel->redraw();
 
   SDL_Event event;
@@ -1112,7 +1041,7 @@ string LoadLevel_::loop() {
     Uint32 now = SDL_GetTicks();
   
     if (now > nextframe) {
-      step(); 
+      Step(); 
       nextframe = now + LOADFRAME_TICKS;
       /* only draw the part that changed */
       drawsmall();
@@ -1121,7 +1050,7 @@ string LoadLevel_::loop() {
   
     while (SDL_PollEvent(&event)) {
 
-      if ( event.type == SDL_KEYDOWN ) {
+      if (event.type == SDL_KEYDOWN) {
 	int key = event.key.keysym.sym;
 	/* breaking from here will allow the key to be
 	   treated as a search */
@@ -1202,7 +1131,7 @@ string LoadLevel_::loop() {
 		string res;
 		if (Client::quick_rpc(plr, DELETE_RPC,
 				      (string)"pass=" +
-				      httputil::urlencode(pass.input) +
+				      HTTPUtil::urlencode(pass.input) +
 				      (string)"&id=" +
 				      itos(plr->webid) + 
 				      (string)"&seql=" +
@@ -1212,7 +1141,7 @@ string LoadLevel_::loop() {
 				      (string)"&md=" +
 				      MD5::Ascii(md5) +
 				      (string)"&text=" +
-				      httputil::urlencode(desc.get_text()),
+				      HTTPUtil::urlencode(desc.get_text()),
 				      res)) {
 		
 		  Message::quick(this, "Success!", "OK", "", PICS THUMBICON POP);
@@ -1263,7 +1192,7 @@ string LoadLevel_::loop() {
 	  else if (sel->selected - 1 >= 0)
 	    lastfile = sel->items[sel->selected - 1].fname;
 	  
-	  changedir(".");
+	  ChangeDir(".");
 	  
 	  select_lastfile();
 	  fix_show(true);
@@ -1323,7 +1252,7 @@ string LoadLevel_::loop() {
 	}
 	case SDLK_BACKSPACE:
 	  /* might fail, but that's okay */
-	  changedir("..");
+	  ChangeDir("..");
 	  sel->redraw();
 	  continue;
 	case SDLK_KP_PLUS:
@@ -1335,6 +1264,7 @@ string LoadLevel_::loop() {
 	  sel->redraw();
 	  continue;
 
+	  #if 0
 	case SDLK_m:
 	  if ((event.key.keysym.mod & KMOD_CTRL) &&
 	      !sel->items[sel->selected].isdir) {
@@ -1353,6 +1283,8 @@ string LoadLevel_::loop() {
 	    continue;
 	  } else break;
 	  continue;
+	  #endif
+	  
 	case SDLK_c:
 	  if ((event.key.keysym.mod & KMOD_CTRL) &&
 	      !sel->items[sel->selected].isdir &&
@@ -1403,7 +1335,7 @@ string LoadLevel_::loop() {
 	      string file = 
 		sel->items[sel->selected].actualfile(path);
 
-	      /* XXX now in llentry, also comment */
+	      /* XXX now in LLEntry, also comment */
 	      FILE *f = fopen(file.c_str(), "rb");
 	      if (!f) {
 		Message::bug(this, "Couldn't open file to rate");
@@ -1444,9 +1376,12 @@ string LoadLevel_::loop() {
 
 	    label message1, message2, message3, message4;
 	    message1.text = PICS BOOKMARKPIC POP " Solve from bookmarks.";
-	    message2.text = "    Note: This will often solve loose or short levels";
-	    message3.text = "    that you've never seen before, which is a little";
-	    message4.text = "    bit like cheating, right?";
+	    message2.text =
+	      "    Note: This will often solve loose or short levels";
+	    message3.text =
+	      "    that you've never seen before, which is a little";
+	    message4.text =
+	      "    bit like cheating, right?";
 
 	    vspace spacer(fon->height);
 
@@ -1636,11 +1571,11 @@ string LoadLevel_::loop() {
       switch (pr.type) {
       case selor::PE_SELECTED:
 	if (sel->items[pr.u.i].isdir) {
-	  /* XXX test if changedir failed, if so,
+	  /* XXX test if ChangeDir failed, if so,
 	     display message. but why would it
 	     fail? */
 	  /* printf("chdir '%s'\n", sel->items[pr.u.i].fname.c_str()); */
-	  if (!changedir(sel->items[pr.u.i].fname)) {
+	  if (!ChangeDir(sel->items[pr.u.i].fname)) {
 	    Message::quick(0, "Couldn't change to " BLUE +
 			   sel->items[pr.u.i].fname,
 			   "Sorry", "", PICS XICON POP);

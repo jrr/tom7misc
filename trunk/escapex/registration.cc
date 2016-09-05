@@ -61,7 +61,7 @@ void Registration_::registrate() {
     if (Client::rpc(hh.get(), REGISTER_RPC, 
 		    (string) "seql=" + itos(seql) +
 		    (string)"&seqh=" + itos(seqh) +
-		    (string)"&name=" + httputil::urlencode(plr->name),
+		    (string)"&name=" + HTTPUtil::urlencode(plr->name),
 		    res)) {
       
       int id = util::stoi(res);

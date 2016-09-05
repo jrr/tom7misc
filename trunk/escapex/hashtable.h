@@ -1,5 +1,7 @@
 // XXX see if we can use unordered_map instead; I'm sure it's
 // much better!
+//
+// Note that this is hashtable<Value, Key>; the opposite of unordered_map.
 #ifndef __HASHTABLE_H
 #define __HASHTABLE_H
 
@@ -95,16 +97,26 @@ struct hashtable {
     items++;
   }
 
+  const I *lookup(K key) const {
+    const unsigned int loc = I::hash(key) % allocated;
+
+    for (const PtrList<I> *tmp = data[loc]; tmp; tmp = tmp->next) {
+      if (key == tmp->head->key()) return tmp->head;
+    }
+
+    return nullptr;
+  }
+
   I *lookup(K key) {
-    unsigned int loc = I::hash(key) % allocated;
+    const unsigned int loc = I::hash(key) % allocated;
 
     for (PtrList<I> *tmp = data[loc]; tmp; tmp = tmp->next) {
       if (key == tmp->head->key()) return tmp->head;
     }
 
-    return 0;
+    return nullptr;
   }
-
+  
   /* removes if present */
   I *remove(K key) {
     unsigned int loc = I::hash(key) % allocated;

@@ -15,6 +15,7 @@
 #include "optimize.h"
 #include "play.h"
 
+#if 0
 #define VCRSELCOLOR 0x22, 0x44, 0x22, 0xFF
 
 typedef PtrList<NamedSolution> nslist;
@@ -42,14 +43,14 @@ struct nsentry {
     else s = PICS THUMBICON POP "  ";
     
     s += 
-      color + font::pad(ns.name, 32) + POP
-      + font::pad("(" GREEN + itos(ns.sol->length), -6) + POP + " moves)"
+      color + Font::pad(ns.name, 32) + POP
+      + Font::pad("(" GREEN + itos(ns.sol.Length()), -6) + POP + " moves)"
       "  ";
 
     if (ns.bookmark) {
       s += GREY "(bookmark)" POP;
     } else {
-      s += GREY "by " POP + font::pad(ns.author, 16);
+      s += GREY "by " POP + Font::pad(ns.author, 16);
     }
 
     fon->draw(x, yy + y, s);
@@ -188,10 +189,11 @@ struct smreal : public Drawable {
   static void downloadsolutions(Player *plr, smreal *sm, string lmd5, Level *lev);
 
 };
+#endif
 
 void smanage::promptupload(Drawable *below,
 			   Player *plr, string lmd5, 
-			   Solution *sol, string msg,
+			   const Solution &sol, string msg,
 			   string name_,
 			   bool speedrec) {
 
@@ -282,7 +284,7 @@ void smanage::promptupload(Drawable *below,
     
       string res;
 
-      string solcont = sol->tostring();
+      string solcont = sol.ToString();
     
       formalist *fl = nullptr;
     
@@ -293,7 +295,7 @@ void smanage::promptupload(Drawable *below,
       formalist::pusharg(fl, "seqh", itos(plr->webseqh));
       formalist::pusharg(fl, "md", MD5::Ascii(lmd5));
       formalist::pusharg(fl, "name", name.input);
-      formalist::pusharg(fl, "speedonly", speed.checked?"1":"0");
+      formalist::pusharg(fl, "speedonly", speed.checked ? "1" : "0");
       formalist::pusharg(fl, "desc", desc.get_text());
       formalist::pushfile(fl, "sol", "sol.esx", solcont);
 
@@ -320,6 +322,7 @@ void smanage::promptupload(Drawable *below,
 
 }
 
+#if 0
 /* XXX this should be documented in protocol.txt */
 void smreal::downloadsolutions(Player *plr, smreal *sm,
 			       string lmd5, Level *lev) {
@@ -405,7 +408,6 @@ void smreal::downloadsolutions(Player *plr, smreal *sm,
     Message::no(&td, "Couldn't get solutions");
     return;
   }
-    
 }
 
 void smanage::manage(Player *plr, string lmd5, Level *lev) {
@@ -828,3 +830,4 @@ void smanage::playback(Player *plr, Level *lev, NamedSolution *ns) {
     }
   }
 }
+#endif

@@ -4,6 +4,9 @@
 #include "message.h"
 #include "hashtable.h"
 #include "extent.h"
+#include "solution.h"
+#include "player.h"
+#include "level.h"
 
 /* hash table entry. corresponds to a level state
    and the earliest position (in the solution) at
@@ -129,14 +132,14 @@ static void inval_above(lstate *ls, int cutoff) {
   if (ls->pos > cutoff) ls->thiskey = 0l;
 }
 
-Solution *Optimize::opt(Level *orig, Solution *s) {
-
+// static
+Solution Optimize::Opt(const Level *orig, const Solution &s) {
   Level *l = orig->clone();
   Extent<Level> el(l);
 
-  if (!Level::verify(l, s)) {
+  if (!Level::Verify(l, s)) {
     Message::bug(0, "optimizer: solution is not valid to start!");
-    return s->clone();
+    return s;
   }
 
   /* first, a conservative optimization pass.
@@ -153,7 +156,7 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
      opinion this suboptimal behavior is very rare. */
   
   /* "cycle-free" solution */
-  Solution *cf = Solution::empty();
+  Solution cf;
   
   Solution::iter i(s);
   hashtable<lstate, Uint64> *ht = hashtable<lstate, Uint64>::create(1023);
@@ -163,7 +166,6 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
   ht->insert(new lstate(0, l, true));
 
   for (; i.hasnext(); i.next()) {
-  
     dir d = i.item();
     
     /* execute the move. If it didn't
@@ -175,8 +177,8 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
 
       /* provisionally execute this move in our
 	 cycle-free solution. */
-      cf->append(d);
-      int n = cf->length;
+      cf.Append(d);
+      int n = cf.Length();
 
       /* now check if we've already been here. */
 
@@ -190,8 +192,7 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
 	   already gets us here. Instead of making this
 	   move, we should just backtrack to the point
 	   at which we were in this state! */
-	
-	cf->length = existing->pos;
+	cf.Truncate(existing->pos);
 	
 	/* now, anything we've done since then is
 	   invalidated, (this is where the sub-optimality
@@ -202,7 +203,7 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
 	   wrong bin, now, but we aren't going to try to find
 	   it!) */
 	
-	hashtable_app<lstate, Uint64, int> ( ht, inval_above, cf->length );
+	hashtable_app<lstate, Uint64, int>(ht, inval_above, cf.Length());
 
 	/* don't need this any more */
 	delete ls;
@@ -212,77 +213,70 @@ Solution *Optimize::opt(Level *orig, Solution *s) {
 	ht->insert(ls);
       }
     }
-
   } 
 
-  if (Level::verify(orig, cf)) {
+  if (!Level::Verify(orig, cf)) {
+    printf("Result didn't verify!!\n");
+    return s;
+  }
+
+  if (cf.Length() < s.Length()) {
     /*
     printf("Correct result: %d moves->%d moves\n",
 	   s->length, cf->length);
     */
     return cf;
   } else {
-    printf("Result didn't verify!!\n");
-    cf->destroy();
-    return s->clone();
+    return s;
   }
 }
 
-
-typedef PtrList<NamedSolution> solset ;
-Solution *Optimize::trycomplete(Level *start, Solution *prefix,
-				 solset *sources) {
+// static
+bool Optimize::TryComplete(Level *start, const Solution &prefix,
+			   const vector<NamedSolution> &sources,
+			   Solution *sol) {
   /* do breadth first search by suffix length. */
   
   Level *wprefix = start->clone();
   int moves_unused;
   /* Assume this works.. */
-  wprefix->play(prefix, moves_unused);
+  wprefix->Play(prefix, moves_unused);
   Extent<Level> ewp(wprefix);
 
   /* find the longest solution. */
   int max_slen = 0;
-  {
-    for (solset *tmp = sources; tmp; tmp = tmp->next) {
-      max_slen = util::maximum(tmp->head->sol->length, max_slen);
-    }
+  for (const NamedSolution &ns : sources) {
+    max_slen = std::max(ns.sol.Length(), max_slen);
   }
 
   for (int slen = 0; slen < max_slen; slen++) {
     /* for each solution that is at least this many moves,
        try its suffix */
-    for (solset *tmp = sources; tmp; tmp = tmp->next) {
-      if (tmp->head->sol->length >= slen) {
+    for (const NamedSolution &ns : sources) {
+      if (ns.sol.Length() >= slen) {
 	/* do it! */
 	Level *trysuf = wprefix->clone();
 	Extent<Level> ets(trysuf);
 
-	Solution *trysol = tmp->head->sol;
+	const Solution &trysol = ns.sol;
 
 	/* execute exactly this suffix */
 	int moves;
-	if (trysuf->play_subsol(trysol, moves,
-				trysol->length - slen,
-				slen)) {
+	if (trysuf->PlayPrefix(trysol, moves,
+			       trysol.Length() - slen,
+			       slen)) {
 	  /* success! (with move moves) */
-#if 0
-	  printf("Success! Prefix %d + (sub)suffix %d = %d moves\n",
-		 prefix->length,
-		 moves,
-		 prefix->length + moves);
-#endif
-
-	  Solution *ret = prefix->clone();
+	  *sol = prefix;
 	  for (int j = 0; j < moves; j++) {
-	    ret->append(trysol->dirs[j + trysol->length - slen]);
+	    sol->Append(trysol.At(j + trysol.Length() - slen));
 	  }
 
-	  return ret;
+	  return true;
 	}
       }
     }
     // printf("No suffixes of length %d...\n", slen);
   }
 
-  return 0;
+  return false;
 }

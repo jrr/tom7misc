@@ -12,6 +12,7 @@
 #include "disamb.h"
 #include "util.h"
 #include "aevent.h"
+#include "solution.h"
 
 using namespace std;
 
@@ -138,85 +139,6 @@ enum tile {
   */
 
   NUM_TILES,
-};
-
-/* a solution is just a list of moves */
-struct Solution {
-  int length;
-  int allocated;
-
-  /* true if verified in this run of the program.
-     XXX this is a little awkward, since we don't
-     have the level that this is purportedly a
-     solution for handy. perhaps this should be in
-     the playerdb instead. */
-  bool verified;
-
-  dir *dirs;
-
-  string tostring() const;
-
-  static Solution *fromstring(string s);
-
-  Solution *clone() const {
-    Solution *s = new Solution();
-    s->length = length;
-    s->allocated = allocated;
-    s->dirs = (dir*) malloc(allocated * sizeof (dir));
-    s->verified = verified;
-    /* PERF memcpy */
-    for (int i = 0; i < length; i++) {
-      s->dirs[i] = dirs[i];
-    }
-    return s;
-  }
-
-  void destroy() {
-    free(dirs);
-    delete this;
-  }
-
-  static Solution *empty() {
-    Solution *s = new Solution();
-    s->length = 0;
-    s->allocated = 32;
-    s->dirs = (dir*) malloc(32 * sizeof (dir));
-    s->verified = false;
-    return s;
-  }
-
-  void clear() {
-    length = 0;
-  }
-
-  void append(dir d) {
-    if (length == allocated) {
-      dir *tmp = dirs;
-      allocated <<= 1;
-      dirs = (dir*) malloc(allocated * sizeof (dir));
-      memcpy(dirs, tmp, length * sizeof (dir));
-      free(tmp);
-    }
-    dirs[length++] = d;
-    verified = false;
-  }
-
-  struct iter {
-    int pos;
-    const Solution *sol;
-
-    iter(const Solution *s) : pos(0), sol(s) {}
-    bool hasnext() { return pos < sol->length; }
-    void next() { pos++; }
-    dir item() { return sol->dirs[pos]; }
-
-  };
-
-  void appends(Solution *s) {
-    for (iter i(s); i.hasnext(); i.next()) {
-      append(i.item());
-    }
-  }
 };
 
 struct Level {
@@ -404,18 +326,21 @@ struct Level {
   void destroy();
 
   /* play to see if it wins, does not modify level or sol */
-  static bool verify(const Level *lev, const Solution *s);
-  /* returns a simplified solution, if s solves lev somewhere
-     along the way. if the return is false, then out is garbage */
-  static bool verify_prefix(const Level *lev, const Solution *s,
-			    Solution *&out);
+  static bool Verify(const Level *lev, const Solution &s);
+  /* Replaces out with a simplified solution, if s solves lev
+     somewhere along the way. If the return is false, then out is in
+     an unspecified state. */
+  static bool VerifyPrefix(const Level *lev, const Solution &s,
+			    Solution *out);
 
   /* execute solution. returns early (# moves set in moves)
      if we die (return false) or win (return true). false upon
      completing without winning or dying. */
-  bool play(const Solution *, int &moves);
-  /* only 'length' moves of the solution, starting from move 'start' */
-  bool play_subsol(const Solution *, int &moves, int start, int length);
+  bool Play(const Solution &s, int &moves);
+  /* only 'length' moves of the solution, starting from move 'start' 
+     length must be <= s.Length(). */
+  // XXX2016 was play_subsol
+  bool PlayPrefix(const Solution &s, int &moves, int start, int length);
 
   void resize(int neww, int newh);
 
@@ -476,8 +401,6 @@ struct Level {
   }
 
  private:
-  /* solution wants access to rleencoding and decoding */
-  friend struct Solution;
 
   void CheckStepOff(int x, int y);
   void ClearMap();
@@ -535,7 +458,7 @@ struct Level {
     case T_GPANEL:
     case T_BPANEL:
 
-    return true;
+      return true;
 
     case T_FLOOR:
 

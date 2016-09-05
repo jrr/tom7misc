@@ -64,29 +64,23 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
 
 
   /* don't free soln */
-  Solution *slong;
-  if (! ((slong = plr->getsol(md5c)) && 
-      Level::verify(lev, slong)))
+  const Solution *slong = plr->GetSol(md5c);
+  if (slong == nullptr || !Level::Verify(lev, *slong))
     return UploadResult::FAIL; /* no solution?? */
 
   say(GREEN "Level and solution ok." POP);
   say("Optimizing...");
 
-  Solution *opt = Optimize::opt(lev, slong);
-  if (!opt) {
-    say(RED "optimization failed" POP);
-    return UploadResult::FAIL;
-  }
-  Extent<Solution> es(opt);
+  Solution opt = Optimize::Opt(lev, *slong);
 
-  say(YELLOW + itos(slong->length) + GREY " " LRARROW " " POP +
-      itos(opt->length) + POP);
+  say(YELLOW + itos(slong->Length()) + GREY " " LRARROW " " POP +
+      itos(opt.Length()) + POP);
 
   HTTP *hh = Client::connect(plr, tx.get(), this);
 
   if (!hh) return UploadResult::FAIL;
 
-  string solcont = opt->tostring();
+  const string solcont = opt.ToString();
 
   formalist *fl = nullptr;
 

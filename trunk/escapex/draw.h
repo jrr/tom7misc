@@ -67,11 +67,10 @@ enum { TU_TARGET, TU_DISABLED, TU_WARNING,
        TU_FUNDO,
 };
 
-extern font *fon;
-extern font *fonsmall;
+extern Font *fon;
+extern Font *fonsmall;
 
 struct Drawing {
-
   /* initialized by loadimages:
      there are DRAW_NSIZES of these 
      in exponential backoff */
@@ -165,7 +164,11 @@ struct Drawing {
   /* XXX combine y and botmargin, which have to agree anyway 
      ps. this function is much less complicated now */
   /* draw a small version of the level, with some info.
-     used for the load screen and rating */
+     used for the load screen and rating.
+
+     solvemoves is the number of moves in the player's solution,
+     or 0 if unsolved (all valid solutions have at least one move.)
+  */
   static void drawsmall(int y, int botmargin, Uint32 color,
 			Level *l, int solvemoves, string fname,
 			RateStatus *votes,
@@ -174,7 +177,6 @@ struct Drawing {
 
   /* height of small drawings */
   static int smallheight();
-
 };
 
 #endif
