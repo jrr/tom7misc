@@ -343,7 +343,7 @@ int WINAPI WinMain(HINSTANCE hInst,
   size_t nLen;
 #endif
 
-  fprintf(stderr, "WinMain.\n");
+  // fprintf(stderr, "WinMain.\n");
 
   /* Start up DDHELP.EXE before opening any files, so DDHELP doesn't
      keep them open.  This is a hack.. hopefully it will be fixed
@@ -354,7 +354,7 @@ int WINAPI WinMain(HINSTANCE hInst,
     FreeLibrary(handle);
   }
 
-  fprintf(stderr, "Loaded ddraw...\n");
+  // fprintf(stderr, "Loaded ddraw...\n");
 
   /* Check for stdio redirect settings and do the redirection */
   if ((env_str = SDL_getenv("SDL_STDIO_REDIRECT"))) {
@@ -370,7 +370,7 @@ int WINAPI WinMain(HINSTANCE hInst,
   }
 #endif
 
-  fprintf(stderr, "Get command line...\n");
+  // fprintf(stderr, "Get command line...\n");
 
 #ifdef _WIN32_WCE
   nLen = wcslen(szCmdLine) + 128 + 1;
@@ -396,7 +396,7 @@ int WINAPI WinMain(HINSTANCE hInst,
   SDL_strlcpy(cmdline, bufp, nLen);
 #endif
 
-  fprintf(stderr, "Parse command line...\n");
+  // fprintf(stderr, "Parse command line...\n");
 
   /* Parse it into argv and argc */
   argc = ParseCommandLine(cmdline, NULL);

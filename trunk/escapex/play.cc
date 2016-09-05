@@ -282,12 +282,13 @@ struct BookmarkItem : public MenuItem {
     }
     case SDLK_u: {
       if (solved) {
-	smanage::promptupload
-	  (below, plr, levmd5,
-	   ns.sol,
-	   "Please only upload interesting solutions or speedruns.",
-	   ns.name,
-	   false);
+	fprintf(stderr, "prompt upload..\n");
+	smanage::promptupload(
+	    below, plr, levmd5,
+	    ns.sol,
+	    "Please only upload interesting solutions or speedruns.",
+	    ns.name,
+	    false);
       } else {
 	Message::no(container, "You can only upload full solutions.");
       }

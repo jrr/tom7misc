@@ -1,5 +1,8 @@
 2016-09-05  Tom 7  <Tom@RIVERCITY>
 
+        * smanage.cc: Fix bug in version 201609031 where solutions
+          could never be uploaded.
+
         * player.cc: Solutions in the player file are now sorted
           in numeric order (by level MD5), not by semi-numeric
           hash function.

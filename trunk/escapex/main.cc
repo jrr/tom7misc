@@ -1,9 +1,6 @@
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
 
-// XXX temporary for "sleep" 
-#include <unistd.h>
-
 #include "util.h"
 #include "escapex.h"
 #include "font.h"

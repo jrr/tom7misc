@@ -302,11 +302,18 @@ void Player_::AddSolution(const string &md5, NamedSolution ns,
     } else {
       // Since bookmarks are inserted manually, don't dedupe.
       if (!ns.bookmark) {
-	// For full solutions, don't insert exact (aside from date)
-	// duplicates.
+	// For full solutions, don't insert duplicates. It's a
+	// duplicate if it has the exact same moves and either has the
+	// default name or has the same name/author as the existing
+	// one. We treat untitled solutions specially because they are
+	// inserted after solving a level, which happens when watching
+	// a solution and pressing enter at the end.
+	const bool untitled = ns.name == "Untitled";
+	
 	for (const NamedSolution &other : row) {
-	  if (other.author == ns.author &&
-	      other.name == ns.name &&
+	  if ((untitled ||
+	       (other.author == ns.author &&
+		other.name == ns.name)) &&
 	      !other.bookmark &&
 	      Solution::Equal(other.sol, ns.sol)) {
 	    return;
