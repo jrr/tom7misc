@@ -623,8 +623,11 @@ void Play_::Bookmarks(Level *start,
     const int bmnum = existing_solutions.size();
     BookmarkItem **books =
       (BookmarkItem**) malloc(sizeof (BookmarkItem *) * bmnum);
-      
-    for (int i = 0; i < bmnum; i++) {
+
+    // Build up the list in reverse so that it's the same order as
+    // existing_solutions. We rely on these being parallel below
+    // (which is sorta bad).
+    for (int i = bmnum - 1; i >= 0; i--) {
       if (!existing_solutions[i].bookmark) didsolve = true;
       BookmarkItem *bi =
 	new BookmarkItem(start, &existing_solutions[i], plr, md5, this);

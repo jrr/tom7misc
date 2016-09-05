@@ -1,5 +1,9 @@
 2016-09-05  Tom 7  <Tom@RIVERCITY>
 
+        * player.cc: Solutions in the player file are now sorted
+          in numeric order (by level MD5), not by semi-numeric
+          hash function.
+
         * solution.cc: Totally redid how solutions are stored in
           memory, making it possible to fix the long-standing bug
           where a player could only have one non-bookmark solution.
