@@ -271,7 +271,6 @@ Rating *Player_::getrating(const string &md5) const {
   else return nullptr;
 }
 
-// TODO2016: If this solution is a duplicate, don't add it?
 void Player_::AddSolution(const string &md5, NamedSolution ns,
 			  bool def_candidate) {
   vector<NamedSolution> &row = soltable[md5];
@@ -301,7 +300,20 @@ void Player_::AddSolution(const string &md5, NamedSolution ns,
       // Make default by inserting at the beginning.
       row.insert(row.begin(), std::move(ns));
     } else {
-      // Just put it at the end.
+      // Since bookmarks are inserted manually, don't dedupe.
+      if (!ns.bookmark) {
+	// For full solutions, don't insert exact (aside from date)
+	// duplicates.
+	for (const NamedSolution &other : row) {
+	  if (other.author == ns.author &&
+	      other.name == ns.name &&
+	      !other.bookmark &&
+	      Solution::Equal(other.sol, ns.sol)) {
+	    return;
+	  }
+	}
+      }
+      // Otherwise, just add it at the end.
       row.push_back(std::move(ns));
     }
   }
@@ -309,8 +321,7 @@ void Player_::AddSolution(const string &md5, NamedSolution ns,
 
 void Player_::putrating(string md5, Rating *rat) {
   hashratentry *re = ratable->lookup(md5);
-
-  if (re && re->rat) {
+  if (re != nullptr && re->rat) {
     /* overwrite */
     delete re->rat;
     re->rat = rat;
@@ -432,9 +443,11 @@ bool Player_::writef_text(const string &file) {
 	    Base64::Encode(p.second->at(0).ToString()).c_str());
     /* followed by perhaps more solutions marked with @ */
 
-    for (const NamedSolution &ns : *p.second)
+    for (int i = 1; i < p.second->size(); i++) {
+      const NamedSolution &ns = p.second->at(i);
       fprintf(f, "  %s\n", Base64::Encode(ns.ToString()).c_str());
-
+    }
+      
     /* end it (makes parsing easier) */
     fprintf(f, "!\n");
   }
