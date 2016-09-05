@@ -69,8 +69,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
   cs.lev = lev;
   cs.levmd5 = md5;
   
-  Solution *sol = p->getsol(md5);
-  cs.nsolved = sol?sol->length:0;
+  cs.nsolved = p->GetSolLength(md5);
 
 
   cs.redraw();
@@ -181,16 +180,16 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
 		  (string)"&seql=" + itos(p->webseql) +
 		  (string)"&seqh=" + itos(p->webseqh) +
 		  (string)"&md=" + MD5::Ascii(md5) +
-		  (string)"&comment=" + httputil::urlencode(com) +
+		  (string)"&comment=" + HTTPUtil::urlencode(com) +
 		  (string)"&spoiler=" + itos(!!spoiler.checked),
 		  res);
 
     if (success) {
-      Message::quick(&cs, "posted: " + font::truncate(res, 60), 
+      Message::quick(&cs, "posted: " + Font::truncate(res, 60), 
 		     "OK", "", PICS THUMBICON POP);
     } else {
       /* XXX copy to clipboard? */
-      Message::quick(&cs, "failed: " + font::truncate(res, 60), 
+      Message::quick(&cs, "failed: " + Font::truncate(res, 60), 
 		     "comment lost =(", "", PICS XICON POP);
     }
    

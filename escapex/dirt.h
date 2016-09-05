@@ -2,7 +2,6 @@
 #define __DIRT_H
 
 struct Dirt {
-  
   /* bring up-to-date with the screen.
      (expensive). Should be called whenever
      the screen size changes.

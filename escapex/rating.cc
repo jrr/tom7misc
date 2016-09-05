@@ -84,11 +84,8 @@ RateScreen_ *RateScreen_::Create(Player *p, Level *l, string levmd) {
   rr->plr = p;
   rr->lev = l;
   rr->levmd5 = levmd;
- 
-  /* sol owned by player, don't free */
-  Solution *sol = rr->plr->getsol(levmd);
-  rr->nsolved = sol?sol->length:0;
-
+  rr->nsolved = rr->plr->GetSolLength(levmd);
+    
   /* might be 0, that's ok. */
   rr->rat = rr->plr->getrating(levmd);
 
@@ -142,9 +139,9 @@ void RateScreen_::rate() {
   redraw();
 
   label levname;
-  levname.text = font::pad(lev->title, 50);
+  levname.text = Font::pad(lev->title, 50);
   label author;
-  author.text = (string)"  by " + font::pad(lev->author, 45);
+  author.text = (string)"  by " + Font::pad(lev->author, 45);
 
   int IND = 2;
 
@@ -272,14 +269,14 @@ void RateScreen_::rate() {
 
     if (success) {
       int record = util::stoi(res);
-      Solution *ours = plr->getsol(levmd5);
-      if (plr->webid && ours && ours->length < record) {
+      const Solution *ours = plr->GetSol(levmd5);
+      if (plr->webid && (ours != nullptr) && ours->Length() < record) {
 	/* beat the record! prompt to upload. */
 
-	smanage::promptupload(0, plr, levmd5, ours, 
+	smanage::promptupload(0, plr, levmd5, *ours,
 			      "You made a new speed record! " RED +
 			      itos(record) + POP " " LRARROW " " GREEN +
-			      itos(ours->length),
+			      itos(ours->Length()),
 			      "Speed Record",
 			      true);
 

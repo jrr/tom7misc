@@ -4,7 +4,7 @@
 
 #include <string>
 
-struct httputil {
+struct HTTPUtil {
   static std::string urlencode(const std::string &);
 };
 
@@ -23,7 +23,7 @@ struct formalist {
     x->ty = FT_ARG;
     x->name = name;
     /* this appears to be too many */
-    x->content = arg; // httputil::urlencode(arg);
+    x->content = arg; // HTTPUtil::urlencode(arg);
     l = x;
   }
 

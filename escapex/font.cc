@@ -2,19 +2,21 @@
 #include "font.h"
 #include "extent.h"
 
+namespace {
+
 enum attr { COLOR, ALPHA, };
 
-struct font_attrlist {
+struct AttrList {
   attr what;
   int value;
 
-  font_attrlist *next;
+  AttrList *next;
 
-  font_attrlist(attr w, int h, font_attrlist *n) : what(w), value(h), next(n) {}
+  AttrList(attr w, int h, AttrList *n) : what(w), value(h), next(n) {}
 
   /* PERF: we often have to look at the entire stack. */
   /* sets the current color and alpha according to the stack */
-  static void set(font_attrlist *cs, int &c, int &a) {
+  static void set(AttrList *cs, int &c, int &a) {
     c = 0;
     a = 0;
     bool gotc = false, gota = false;
@@ -32,20 +34,18 @@ struct font_attrlist {
     }      
   }
 
-  static int pop(font_attrlist *&il) {
+  static int pop(AttrList *&il) {
     if (il) {
-      font_attrlist *tmp = il;
+      AttrList *tmp = il;
       int t = tmp->value;
       il = il->next;
       delete tmp;
       return t;
     } else return 0;
   }
-
 };
 
-struct fontreal : public font {
-
+struct Font_ : public Font {
   /* data is an array of font images, differing in
      their alpha transparency */
   SDL_Surface **data;
@@ -54,48 +54,37 @@ struct fontreal : public font {
   unsigned char chars[255];
 
   /* 9 x 16 */
-  static fontreal *create(string file,
-			   string charmap,
-			   int width,
-			   int height,
-			   int styles=1,
-			   int overlap=0,
-			   int ndim_=2);
-  virtual int sizex(const string &);
-  virtual int sizex_plain(const string &);
+  static Font_ *Create(string file,
+			  string charmap,
+			  int width,
+			  int height,
+			  int styles=1,
+			  int overlap=0,
+			  int ndim_=2);
+  int sizex(const string &) override;
+  int sizex_plain(const string &) override;
 
-  virtual void draw(int x, int y, string s);
-  virtual void drawto(SDL_Surface *, int x, int y, string s);
+  void draw(int x, int y, string s) override;
+  void drawto(SDL_Surface *, int x, int y, string s) override;
 
-  virtual void draw_plain(int x, int y, string s);
-  virtual void drawto_plain(SDL_Surface *, int x, int y, string s);
+  void draw_plain(int x, int y, string s) override;
+  void drawto_plain(SDL_Surface *, int x, int y, string s) override;
 
-  virtual void destroy() {
+  ~Font_() override {
     if (data) {
       for (int i = 0; i < ndim; i++) {
 	if (data[i]) SDL_FreeSurface(data[i]);
       }
       free(data);
     }
-    delete this;
   }
 
   virtual int drawlinesc(int x, int y, string, bool);
   virtual int drawlines(int x, int y, string);
   virtual int drawcenter(int x, int y, string);
-
-  virtual ~fontreal();
 };
 
-font::~font() {}
-fontreal::~fontreal() {}
-
-font *font::create(string f, string c,
-		    int w, int h, int s, int o, int d) {
-  return fontreal::create(f, c, w, h, s, o, d);
-}
-
-fontreal *fontreal::create(string file,
+Font_ *Font_::Create(string file,
 			    string charmap,
 			    int width,
 			    int height,
@@ -103,9 +92,9 @@ fontreal *fontreal::create(string file,
 			    int overlap,
 			    int ndim) {
 
-  fontreal *f = new fontreal();
-  if (!f) return 0;
-  Extent<fontreal> fe(f);
+  std::unique_ptr<Font_> f{new Font_};
+  if (f.get() == nullptr) return nullptr;
+
   f->width = width;
   f->height = height;
   f->styles = styles;
@@ -113,20 +102,20 @@ fontreal *fontreal::create(string file,
   f->data = 0;
   f->ndim = ndim;
 
-  if (!ndim) return 0;
+  if (!ndim) return nullptr;
 
   f->data = (SDL_Surface **)malloc(sizeof (SDL_Surface *) * ndim);
-  if (!f->data) return 0;
+  if (!f->data) return nullptr;
   for (int z = 0; z < ndim; z++) f->data[z] = 0;
 
   f->data[0] = sdlutil::LoadImage(file.c_str());
-  if (!f->data[0]) return 0;
+  if (!f->data[0]) return nullptr;
 
   int last = 0;
   while (last < (ndim - 1)) {
     last++;
     f->data[last] = sdlutil::alphadim(f->data[last - 1]);
-    if (!f->data[last]) return 0;
+    if (!f->data[last]) return nullptr;
   }
 
   for (int j = 0; j < 255; j++) {
@@ -138,20 +127,18 @@ fontreal *fontreal::create(string file,
     f->chars[idx] = i;
   }
 
-  fe.release();
-  return f;
+  return f.release();
 }
 
-void fontreal::draw(int x, int y, string s) {
+void Font_::draw(int x, int y, string s) {
   drawto(screen, x, y, s);
 }
 
-void fontreal::draw_plain(int x, int y, string s) {
+void Font_::draw_plain(int x, int y, string s) {
   drawto_plain(screen, x, y, s);
 }
 
-void fontreal::drawto_plain(SDL_Surface *surf, int x, int y, string s) {
-
+void Font_::drawto_plain(SDL_Surface *surf, int x, int y, string s) {
   SDL_Rect src, dest;
 
   dest.x = x;
@@ -172,7 +159,7 @@ void fontreal::drawto_plain(SDL_Surface *surf, int x, int y, string s) {
   }
 }
 
-void fontreal::drawto(SDL_Surface *surf, int x, int y, string s) {
+void Font_::drawto(SDL_Surface *surf, int x, int y, string s) {
 
   SDL_Rect src, dest;
   /* XXX can't init these once, since blit can side-effect fields
@@ -184,9 +171,9 @@ void fontreal::drawto(SDL_Surface *surf, int x, int y, string s) {
   src.h = height;
 
   /* keep track of our color and alpha settings */
-  font_attrlist * cstack = nullptr; 
+  AttrList * cstack = nullptr; 
   int color, alpha;
-  font_attrlist::set(cstack, color, alpha);
+  AttrList::set(cstack, color, alpha);
 
   for (unsigned int i = 0; i < s.length(); i++) {
 
@@ -196,26 +183,26 @@ void fontreal::drawto(SDL_Surface *surf, int x, int y, string s) {
 	switch ((unsigned char)s[i]) {
 	case '^': break; /* quoted... keep going */
 	case '<': /* pop */
-	  if (cstack) font_attrlist::pop(cstack);
-	  font_attrlist::set(cstack, color, alpha);
+	  if (cstack) AttrList::pop(cstack);
+	  AttrList::set(cstack, color, alpha);
 	  continue;
 	default:
 	  if (s[i] >= '#' && s[i] <= '\'') {
 	    /* alpha */
 	    cstack =
-	      new font_attrlist(ALPHA,
-				abs((unsigned char)s[i] - '#') % ndim,
-				cstack);
+	      new AttrList(ALPHA,
+			   abs((unsigned char)s[i] - '#') % ndim,
+			   cstack);
 	  } else {
 	    /* color */
 	    cstack = 
-	      new font_attrlist(COLOR,
-				abs(((unsigned char)s[i] - '0')
-				    % styles),
-				cstack);
+	      new AttrList(COLOR,
+			   abs(((unsigned char)s[i] - '0')
+			       % styles),
+			   cstack);
 	  }
 
-	  font_attrlist::set(cstack, color, alpha);
+	  AttrList::set(cstack, color, alpha);
 	  continue;
 	}
       }
@@ -233,36 +220,35 @@ void fontreal::drawto(SDL_Surface *surf, int x, int y, string s) {
   }
 
   /* empty list */
-  while (cstack) font_attrlist::pop(cstack);
+  while (cstack) AttrList::pop(cstack);
 
 }
 
-int fontreal::sizex_plain(const string &s) {
+int Font_::sizex_plain(const string &s) {
   return s.length() * (width - overlap);
 }
 
-int fontreal::sizex(const string &s) {
-  return font::length(s) * (width - overlap);
+int Font_::sizex(const string &s) {
+  return Font::length(s) * (width - overlap);
 }
 
-int fontreal::drawlines(int x, int y, string s) {
+int Font_::drawlines(int x, int y, string s) {
   return drawlinesc(x, y, s, false);
 }
 
-int fontreal::drawcenter(int x, int y, string s) {
+int Font_::drawcenter(int x, int y, string s) {
   return drawlinesc(x, y, s, true);
 }
 
 
 /* XXX doesn't handle color codes that span lines. */
-int fontreal::drawlinesc(int x, int y, string s, bool center) {
-  
+int Font_::drawlinesc(int x, int y, string s, bool center) {
   int start = 0;
   unsigned int idx = 0;
   /* draw every non-empty string delimited by \n */
   int offset = 0;
   int wroteany = 0;
-  for (;;idx++) {
+  for (; ; idx++) {
   again:;
     /* reached end of string? */
     if (idx >= s.length()) {
@@ -294,6 +280,8 @@ int fontreal::drawlinesc(int x, int y, string s, bool center) {
   }
 }
 
+}  // namespace
+
 /* by example:
    "" returns 0
    "\n" returns 1
@@ -302,7 +290,7 @@ int fontreal::drawlinesc(int x, int y, string s, bool center) {
    "hello\nworld" returns 2
    "hello\nworld\n" returns 2
 */
-int font::lines(const string &s) {
+int Font::lines(const string &s) {
   unsigned int idx = 0;
   int sofar = 0;
 
@@ -331,7 +319,7 @@ int font::lines(const string &s) {
   }
 }
 
-string font::substr(const string &s, unsigned int start, unsigned int len) {
+string Font::substr(const string &s, unsigned int start, unsigned int len) {
   /* skip 'start' chars */
 
   unsigned int i = 0; /* pos in fontstring */
@@ -356,7 +344,6 @@ string font::substr(const string &s, unsigned int start, unsigned int len) {
   /* XXX should also add any trailing
      control codes */
   for (; i < s.length() && k < len; i++) {
-
     if ((unsigned char)s[i] == '^') {
       if (i < s.length()) {
 	i++;
@@ -370,16 +357,16 @@ string font::substr(const string &s, unsigned int start, unsigned int len) {
 }
 
 /* assume n <= font::length(s) */
-string font::prefix(const string &s, unsigned int n) {
-  return font::substr(s, 0, n);
+string Font::prefix(const string &s, unsigned int n) {
+  return Font::substr(s, 0, n);
 }
 
-/* assume n <= font::length (s) */
-string font::suffix(const string &s, unsigned int n) {
-  return font::substr(s, font::length(s) - n, n);
+/* assume n <= Font::length (s) */
+string Font::suffix(const string &s, unsigned int n) {
+  return Font::substr(s, Font::length(s) - n, n);
 }
 
-unsigned int font::length(string s) {
+unsigned int Font::length(string s) {
   unsigned int i, n=0;
   for (i = 0; i < s.length(); i++) {
     if ((unsigned char)s[i] == '^') {
@@ -392,16 +379,17 @@ unsigned int font::length(string s) {
   return n;
 }
 
+
 /* XXX should go to fontutil */
 #include "chars.h"
-string font::pad(const string &s, int ns) {
-  unsigned int l = font::length(s);
+string Font::pad(const string &s, int ns) {
+  unsigned int l = Font::length(s);
     
   unsigned int n = abs(ns);
 
   if (l > n) {
     return truncate(s, ns);
-    // return font::prefix(s, n - 3) + (string)ALPHA50 "..." POP;
+    // return Font::prefix(s, n - 3) + (string)ALPHA50 "..." POP;
   } else {
     string ou;
     /* PERF there's definitely a faster way to do this */
@@ -414,16 +402,21 @@ string font::pad(const string &s, int ns) {
   }
 }
 
-string font::truncate(const string &s, int ns) {
-  unsigned int l = font::length(s);
+string Font::truncate(const string &s, int ns) {
+  unsigned int l = Font::length(s);
 
   unsigned int n = abs(ns);
   if (l > n) {
     if (ns > 0) {
-      return font::prefix(s, n - 3) + (string)ALPHA50 "..." POP;
+      return Font::prefix(s, n - 3) + (string)ALPHA50 "..." POP;
     } else {
-      return (string)ALPHA50 "..." POP + font::suffix(s, n - 3);
+      return (string)ALPHA50 "..." POP + Font::suffix(s, n - 3);
     }
   } else return s;
+}
 
+Font::~Font() {}
+Font *Font::Create(string f, string c,
+		   int w, int h, int s, int o, int d) {
+  return Font_::Create(f, c, w, h, s, o, d);
 }

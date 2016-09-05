@@ -10,30 +10,6 @@
 
 /* This code is non-SDL, so it should be portable! */
 
-string Solution::tostring() const {
-  return sizes(length) + EscapeRLE::Encode(length, (int*)dirs);
-}
-
-Solution *Solution::fromstring(string s) {
-  unsigned int idx = 0;
-  if (s.length() < 4) return nullptr;
-  int len = shout(4, s, idx);
-
-  dir *dd = EscapeRLE::Decode(s, idx, len);
-
-  if (!dd) return nullptr;
-
-  Solution *sol = new Solution();
-
-  sol->allocated =
-    sol->length = len;
-
-  sol->dirs = dd;
-  sol->verified = false;
-
-  return sol;
-}
-
 bool Level::allowbeam(int tt) {
   switch (tt) {
   case T_FLOOR:
@@ -774,12 +750,12 @@ Level *Level::defboard(int w, int h) {
   return n;
 }
 
-bool Level::verify_prefix(const Level *lev, const Solution *s, Solution *&out) {
+bool Level::VerifyPrefix(const Level *lev, const Solution &s,
+			 Solution *out_ref) {
   Level *l = lev->clone();
   Extent<Level> el(l);
 
-  out = Solution::empty();
-  Extent<Solution> eo(out);
+  Solution out;
 
   for (Solution::iter i = Solution::iter(s);
        i.hasnext();
@@ -789,12 +765,12 @@ bool Level::verify_prefix(const Level *lev, const Solution *s, Solution *&out) {
 
     if (l->Move(d)) {
       /* include it */
-      out->append(d);
+      out.Append(d);
       /* potentially fail *after* each move */
       int dummy; dir dumb;
       if (l->isdead(dummy, dummy, dumb)) return false;
       if (l->iswon()) {
-	eo.release();
+	*out_ref = std::move(out);
 	return true;
       }
     }
@@ -804,22 +780,21 @@ bool Level::verify_prefix(const Level *lev, const Solution *s, Solution *&out) {
   return false;
 }
 
-bool Level::verify(const Level *lev, const Solution *s) {
+bool Level::Verify(const Level *lev, const Solution &s) {
   Level *l = lev->clone();
 
   int moves;
-  bool won = l->play(s, moves);
+  bool won = l->Play(s, moves);
 
   l->destroy();
 
-  return won && moves == s->length;
+  return won && moves == s.Length();
 }
 
-bool Level::play_subsol(const Solution *s, int &moves, int start, int len) {
+bool Level::PlayPrefix(const Solution &s, int &moves, int start, int len) {
   moves = 0;
   for (int z = 0; z < len; z++) {
-
-    dir d = s->dirs[start + z];
+    dir d = s.At(start + z);
 
     moves++;
     if (Move(d)) {
@@ -836,8 +811,8 @@ bool Level::play_subsol(const Solution *s, int &moves, int start, int len) {
   return false;
 }
 
-bool Level::play(const Solution *s, int &moves) {
-  return play_subsol(s, moves, 0, s->length);
+bool Level::Play(const Solution &s, int &moves) {
+  return PlayPrefix(s, moves, 0, s.Length());
 }
 
 /* must be called with sensible sizes (so that malloc won't fail) */

@@ -142,14 +142,16 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
       if (entry->lev == 0) entry->lev = lw->l;
       else delete lw->l;
 
-      fprintf(stderr, "Inserted level %p from %s\n", entry, lw->filename.c_str());
+      fprintf(stderr, "Inserted level %p from %s\n",
+	      entry, lw->filename.c_str());
 
       /* Verify the solution now so that we can get quicker access to
 	 it later. Should we do this for all solutions? */
-      if (Solution *s = theplayer->getsol(entry->md5)) {
-	if (!s->verified) {
-	  s->verified = Level::verify(entry->lev, s);
-	  fprintf(stderr, "  %s solution for level @%p\n", s->verified?"valid":"invalid", entry);
+      if (const Solution *s = theplayer->GetSol(entry->md5)) {
+	if (!s->verified && Level::Verify(entry->lev, *s)) {
+	  theplayer->SetDefaultVerified(entry->md5);
+	  fprintf(stderr, "  valid solution for level %s\n",
+		  MD5::Ascii(entry->md5).c_str());
 	}
       }
 

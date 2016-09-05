@@ -397,11 +397,11 @@ string llentry::display(bool selected) {
 	(string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(votes.rigidity / votes.nvotes));    }
 
     string line =
-      pre + color + font::pad(name, ns) + (string)" " POP + 
+      pre + color + Font::pad(name, ns) + (string)" " POP + 
       (string)(corrupted?RED:GREEN) + 
-      font::pad(itos(sizex) + (string)GREY "x" POP +
+      Font::pad(itos(sizex) + (string)GREY "x" POP +
 		itos(sizey), ss) + POP +
-      (string)" " BLUE + font::pad(author, as) + POP + myr + 
+      (string)" " BLUE + Font::pad(author, as) + POP + myr + 
       (string)" " + ratings;
 
     return line;

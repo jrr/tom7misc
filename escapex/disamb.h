@@ -17,7 +17,8 @@
 struct Level;
 
 struct Disamb {
-  static Disamb *Create(Level *);
+  // Level is just used to initialize the size; no alias is retained.
+  static Disamb *Create(const Level *l);
   ~Disamb();
 
   /* sets everything to serial 0 */
@@ -43,11 +44,11 @@ struct Disamb {
   unsigned int Serial() const { return serial; }
   
   // For debugging
-  unsigned int serialat(int x, int y) const { return map[y * w + x]; }
+  unsigned int serialat(int x, int y) const { return serials[y * w + x]; }
  private:
   /* array of serial numbers. */
   int w, h;
-  unsigned int *map; // XXX rename
+  unsigned int *serials;
   
   /* last serial in which the player was updated */
   unsigned int player;
@@ -62,7 +63,8 @@ struct Disamb {
 // the Move template for the best performance but no animation
 // support.
 struct NullDisamb {
-  static NullDisamb *Create(Level *);
+  // XXX2016, unused?
+  static NullDisamb *Create(const Level *l);
   ~NullDisamb() {};
 
   /* sets everything to serial 0 */

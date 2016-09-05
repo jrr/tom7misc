@@ -1,3 +1,16 @@
+2016-09-05  Tom 7  <Tom@RIVERCITY>
+
+        * solution.cc: Totally redid how solutions are stored in
+          memory, making it possible to fix the long-standing bug
+          where a player could only have one non-bookmark solution.
+          (Thanks, noname and almost everyone!)
+
+        * loadlevel.cc: Disabled the standalone solution manager.
+          This legacy thing has been undocumented for years. The
+          bookmark manager (press 'b') does more stuff and works
+          correctly. (If it lacks a feature that you miss, let me
+          know!)
+
 2016-09-03  Tom 7  <Tom@RIVERCITY>
 
         * rle.cc: Due to compression, player files and (newly saved)

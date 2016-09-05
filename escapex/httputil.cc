@@ -3,7 +3,7 @@
 
 using namespace std;
 
-string httputil::urlencode(const string &s) {
+string HTTPUtil::urlencode(const string &s) {
   string out;
   for (unsigned int x = 0; x < s.length(); x++) {
     if (s[x] == ' ')

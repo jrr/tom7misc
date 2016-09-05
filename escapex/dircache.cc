@@ -155,7 +155,6 @@ int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
         }
 
       } else {
-
         string contents = util::readfilemagic(ldn, LEVELMAGIC);
 
         Level *l = Level::fromstring(contents);
@@ -165,10 +164,16 @@ int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
 
           ttt++;
 
-          Solution *s;
-          if ((s = plr->getsol(md5c)) && (s->verified || Level::verify(l,s))) {
-            s->verified = true;
-            sss++;
+          const Solution *s = plr->GetSol(md5c);
+          if (s != nullptr) {
+	    if (s->verified) {
+	      sss++;
+	    } else {
+	      if (Level::Verify(l, *s)) {
+		plr->SetDefaultVerified(md5c);
+		sss++;
+	      }
+	    }
           }
 
           l->destroy();

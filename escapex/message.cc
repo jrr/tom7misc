@@ -86,7 +86,7 @@ void Message_::init() {
 		  util::maximum(fon->sizex(ok),
 				fon->sizex(cancel)));
 
-  nlines = font::lines(title);
+  nlines = Font::lines(title);
 
   int h;
   if (cancel == "") {

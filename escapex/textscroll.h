@@ -15,7 +15,7 @@ struct TextScroll : public Drawable {
   int vskip;
 
   /* at default size = entire screen */
-  static TextScroll *Create(font *);
+  static TextScroll *Create(Font *);
   virtual void say(string s) = 0;
   virtual void unsay() = 0;
 

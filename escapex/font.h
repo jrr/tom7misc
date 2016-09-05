@@ -8,17 +8,16 @@
 #include <string>
 
 /* XXX move some of this to fontutil */
-struct font {
-
+struct Font {
   int width, height, styles, overlap;
   
-  static font *create(string file,
-                       string charmap,
-                       int width,
-                       int height,
-                       int styles=1,
-                       int overlap=0,
-		       int dims=2);
+  static Font *Create(string file,
+		      string charmap,
+		      int width,
+		      int height,
+		      int styles=1,
+		      int overlap=0,
+		      int dims=2);
   
   /* number of drawn characters, ignoring control codes.
      length(s) * (width-overlap) gives
@@ -27,7 +26,7 @@ struct font {
   static string substr(const string &s, 
 		       unsigned int start, 
 		       unsigned int len);
-  /* len must be <= font::length(s) */
+  /* len must be <= Font::length(s) */
   static string prefix(const string &s,
 		       unsigned int len);
   static string suffix(const string &s,
@@ -73,8 +72,7 @@ struct font {
   /* same, but centers each line horizontally about the x position */
   virtual int drawcenter(int x, int y, string s) = 0;
 
-  virtual void destroy() = 0;
-  virtual ~font();
+  virtual ~Font();
 };
 
 #endif

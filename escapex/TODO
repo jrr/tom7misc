@@ -26,7 +26,6 @@ code cleanup
  - use enum class for "result" enums
  - move solution out of level
  - capitalize class names
-     - font
      - grep 'struct [a-z]' *.h | grep -v '_t'
  - standardize on Class_ rather than classreal for private implementation
  - replace vallist with deque or vector; it's not used in that many places
@@ -41,6 +40,12 @@ code cleanup
  - When using the virtual implementation idiom, the "real" class
    can be defined in an anonymous namespace.
  - MainShow can use private implementation
+ - Play::sol can be unique ptr?
+ - or maybe solutions can just be values?
+ - use std::max instead of util::maximum, etc.
+ - pref to not delete incomplete solutions when solving a level?
+ - delete commented-out code in smanage
+ - if keeping promptupload, rename
 
 
 move png2esx.cc to misc, add command-line flag support
@@ -431,13 +436,6 @@ http://tucows.com/preview/383408
 **** font::closestack
   .. adds and removes pops to make parens balanced.
 
-** "messages" in escape levels
-  Is this really a good idea? It's quite fun to try to express
-  things merely using the stuff in the game.
-*** prompts (waits keypress)
-*** status line
-*** 'hint' flag with 'hinting' mode
-
 ** editor fanciness
 *** random styles and random generator
 **** 'pattern' matching system
@@ -452,8 +450,7 @@ http://tucows.com/preview/383408
 01/06/2005  01:12 PM            50,140 tom.esp
 -rw-r--r--    1 tom7     users       48929 Jun 23 13:27 tom.esp
 -rw-r--r--    1 tom7     users       33669 Jun 23 19:54 tom.esp (sub-byte encodings)
-*** in rleencode, write smaller frame headers
-    rledecode already supports this.
+
 *** improve solution optimization
     (look for shorter paths between level-changing events)
     it seems that some of the reachability stuff should
@@ -502,7 +499,6 @@ http://tucows.com/preview/383408
    this is superior to the "tile background" hack above
 
 ** Build system
-*** after make upgrade on windows, md5.obj is messed
 *** make recommend (etc.)
 
 ** new tiles

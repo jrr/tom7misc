@@ -32,7 +32,7 @@ void Progress::drawbar(void *vepoch, int n, int tot,
       rect.w = w;
 
       /* space for message */
-      int lin = font::lines(msg);
+      int lin = Font::lines(msg);
       rect.y = fonsmall->height * 2 - 2;
       rect.h = (fonsmall->height * lin) + 3;
       SDL_FillRect(screen, &rect, PROGRESS_BACKCOLOR);

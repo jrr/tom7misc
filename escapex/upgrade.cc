@@ -476,7 +476,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
 	  if (n < 0 ||
 	      (string)(char*)(&buf) != dst) {
 	    /* bad */
-	    say(font::pad(fi, 16) + (string)RED " " LRARROW " " POP WHITE
+	    say(Font::pad(fi, 16) + (string)RED " " LRARROW " " POP WHITE
 		+ dst + (string) POP RED " wrong" POP);
 
 	    upitem uu;
@@ -485,7 +485,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
 	    uu.dest = dst;
 	    ulist::push(download, uu);
 	  } else {
-	    say(font::pad(fi, 16) + (string)GREY " " LRARROW " "
+	    say(Font::pad(fi, 16) + (string)GREY " " LRARROW " "
 		+ dst + (string) POP GREEN " ok" POP);
 	  }
 
@@ -493,14 +493,14 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
       } else if (md[0] == '*') {
 	/* delete */
 	if (util::existsfile(lfi)) {
-	  say(font::pad(fi, 16) + 
+	  say(Font::pad(fi, 16) + 
 	      (string)RED " (" PICS TRASHCAN POP ")" POP);
 	  upitem uu;
 	  uu.t = UT_DELETE;
 	  uu.filename = fi;
 	  ulist::push(download, uu);
 	} else {
-	  say(font::pad(fi, 16) + (string)GREY " (absent)" POP
+	  say(Font::pad(fi, 16) + (string)GREY " (absent)" POP
 	      GREEN " ok" POP);
 	}
       } else {
@@ -508,7 +508,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
 	if (md5file(lfi, nowmd) &&
 	    md == MD5::Ascii(nowmd)) {
 	  stringlist::push(ok, fi);
-	  say(font::pad(fi, 16) + (string)GREY " " + md + 
+	  say(Font::pad(fi, 16) + (string)GREY " " + md + 
 	      (string) GREEN " ok");
 	} else {
 	  upitem uu;
@@ -516,7 +516,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
 	  uu.filename = fi; 
 	  ulist::push(download, uu);
 
-	  say(font::pad(fi, 16) + (string)WHITE " " + md + 
+	  say(Font::pad(fi, 16) + (string)WHITE " " + md + 
 	      (string) RED " wrong: " POP GREY + MD5::Ascii(nowmd));
 	}
       }
