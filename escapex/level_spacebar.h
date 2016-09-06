@@ -89,7 +89,7 @@ inline dir dir_reverse(dir d) {
   case DIR_DOWN: return DIR_UP;
   case DIR_RIGHT: return DIR_LEFT;
   default:
-  case DIR_NONE: return DIR_NONE;    
+  case DIR_NONE: return DIR_NONE;
   }
 }
 
@@ -102,13 +102,13 @@ enum {
 };
 
 enum tflag {
-  TF_NONE = 0, 
+  TF_NONE = 0,
 
   /* panel under tile (ie, pushable block) */
   /* if HASPANEL is set,
      then TF_RPANELH * 2 + TF_RPANELL
      says what kind (see panel colors above) */
-  TF_HASPANEL = 1, 
+  TF_HASPANEL = 1,
 
   TF_RPANELL = 4,
   TF_RPANELH = 8,
@@ -126,20 +126,20 @@ enum tflag {
 };
 
 enum tile {
-  T_FLOOR, T_RED, T_BLUE, T_GREY, T_GREEN, T_EXIT, T_HOLE, T_GOLD, 
+  T_FLOOR, T_RED, T_BLUE, T_GREY, T_GREEN, T_EXIT, T_HOLE, T_GOLD,
   T_LASER, T_PANEL, T_STOP, T_RIGHT, T_LEFT, T_UP, T_DOWN, T_ROUGH,
   T_ELECTRIC, T_ON, T_OFF, T_TRANSPORT, T_BROKEN, T_LR, T_UD, T_0,
-  T_1, T_NS, T_NE, T_NW, T_SE, T_SW, T_WE, T_BUTTON, T_BLIGHT, 
+  T_1, T_NS, T_NE, T_NW, T_SE, T_SW, T_WE, T_BUTTON, T_BLIGHT,
   T_RLIGHT, T_GLIGHT, T_BLACK, T_BUP, T_BDOWN,
-  T_RUP, T_RDOWN, T_GUP, T_GDOWN, 
+  T_RUP, T_RDOWN, T_GUP, T_GDOWN,
   T_BSPHERE, T_RSPHERE, T_GSPHERE, T_SPHERE,
   T_TRAP2, T_TRAP1,
-  
-  T_BPANEL, T_RPANEL, T_GPANEL,
-  
-  T_STEEL, T_BSTEEL, T_RSTEEL, T_GSTEEL, 
 
-  T_HEARTFRAMER, T_SLEEPINGDOOR, 
+  T_BPANEL, T_RPANEL, T_GPANEL,
+
+  T_STEEL, T_BSTEEL, T_RSTEEL, T_GSTEEL,
+
+  T_HEARTFRAMER, T_SLEEPINGDOOR,
 
   T_TRANSPONDER, T_NSWE, T_REMOTE,
 
@@ -160,7 +160,7 @@ enum bot {
   B_DALEK_ASLEEP,
   B_HUGBOT_ASLEEP,
 
-  /* BOMB_n is a bomb with max timer n. 
+  /* BOMB_n is a bomb with max timer n.
      the bot data indicates the current
      timer value. */
   /* explodes immediately after being pushed */
@@ -198,13 +198,13 @@ struct Solution {
   int length;
   int allocated;
 
-  /* true if verified in this run of the program. 
+  /* true if verified in this run of the program.
      XXX this is a little awkward, since we don't
      have the level that this is purportedly a
      solution for handy. perhaps this should be in
      the playerdb instead. */
   bool verified;
-  
+
   dir *dirs;
 
   string tostring();
@@ -257,7 +257,7 @@ struct Solution {
   struct iter {
     int pos;
     Solution *sol;
-  
+
     iter(Solution *s) : pos(0), sol(s) {}
     bool hasnext() { return pos < sol->length; }
     void next() { pos++; }
@@ -279,8 +279,8 @@ struct Solution {
    used only within animation; keeps track
    of where action has occurred on the
    grid -- if two actions interfere, then
-   we serialize them. 
-   
+   we serialize them.
+
    Disambiguation contexts are associated with
    a particular level and cannot be mixed up!
 */
@@ -288,7 +288,7 @@ struct Disamb {
   /* array of serial numbers. */
   int w, h;
   unsigned int *map;
-  
+
   /* last serial in which the player was updated */
   unsigned int player;
   /* same, bots */
@@ -309,14 +309,14 @@ struct Disamb {
   void affect(int x, int y, Level *l, PtrList<aevent> **& etail);
   void affecti(int idx, Level *l, PtrList<aevent> **& etail);
 
-  /* should be paired with calls to 'affect' 
+  /* should be paired with calls to 'affect'
      for the squares that these things live in */
   void preaffectplayer(Level *l, PtrList<aevent> **& etail);
   void preaffectbot(int i, Level *l, PtrList<aevent> **& etail);
 
   void postaffectplayer();
   void postaffectbot(int i);
-  
+
 
   void serialup(Level *l, PtrList<aevent> **& etail);
 
@@ -325,7 +325,7 @@ struct Disamb {
 
 
 struct Level {
-  
+
   string title;
   string author;
 
@@ -373,7 +373,7 @@ struct Level {
     checkstepoff(entx, enty);
     /* XXX can be incorrect --
        need to use SETENTPOS, since we need to reflect
-       this immediately in the boti array 
+       this immediately in the boti array
        (so that serialup knows where the bot is standing) */
     entx = targx;
     enty = targy;
@@ -441,8 +441,8 @@ struct Level {
 
   bool travel(int x, int y, dir d, int &nx, int &ny) {
     switch (d) {
-      /* sometimes useful, for instance looping over all 
-	 affected tiles when bombing */
+      /* sometimes useful, for instance looping over all
+         affected tiles when bombing */
     case DIR_NONE:
       nx = x;
       ny = y;
@@ -484,8 +484,8 @@ struct Level {
 # ifndef NOANIMATION
   /* see animation.h for documentation */
   bool move_animate(dir, Disamb *ctx, PtrList<aevent> *&events);
-  bool moveent_animate(dir, int enti, unsigned int, int, int, 
-		       PtrList<aevent> *&,
+  bool moveent_animate(dir, int enti, unsigned int, int, int,
+                       PtrList<aevent> *&,
                        Disamb *ctx, PtrList<aevent> **&);
 <<<<<<< level.h
 # endif
@@ -494,8 +494,8 @@ struct Level {
 =======
 >>>>>>> 1.55
   void bombsplode_animate(int now,
-			  int bombi, Disamb *ctx, PtrList<aevent> *&events,
-			  PtrList<aevent> **& etail);
+                          int bombi, Disamb *ctx, PtrList<aevent> *&events,
+                          PtrList<aevent> **& etail);
 <<<<<<< level.h
 # endif
 =======
@@ -514,7 +514,7 @@ struct Level {
      valid level with as much data from the original as
      possible (but may still return 0) */
   static Level *fromstring(string s, bool allow_corrupted = false);
-  
+
   /* 0 on error */
   static Level *fromoldstring(string s);
 
@@ -558,10 +558,10 @@ struct Level {
     int z = index(x, y);
     for (int m = 0; m < nbots; m++) {
       if (boti[m] == z &&
-	  bott[m] != B_DELETED && 
-	  bott[m] != B_BOMB_X) {
-	i = m;
-	return true;
+          bott[m] != B_DELETED &&
+          bott[m] != B_BOMB_X) {
+        i = m;
+        return true;
       }
     }
     return false;
@@ -580,7 +580,7 @@ struct Level {
 
   static bool isbomb(bot b) {
     return ((int)b >= (int)B_BOMB_0 &&
-	    (int)b <= (int)B_BOMB_MAX);
+            (int)b <= (int)B_BOMB_MAX);
   }
 
   /* pre: b is bomb */
@@ -650,7 +650,7 @@ struct Level {
       /* ?? sure? */
     case T_BLUE:
       /* don't want walls made of this
-	 ugly thing */
+         ugly thing */
     case T_STOP:
 
       /* but doesn't count as picking it up */
@@ -674,19 +674,19 @@ struct Level {
     case T_ROUGH:
 
       /* for symmetry with holes.
-	 maybe could become holes,
-	 but that is just more
-	 complicated */
+         maybe could become holes,
+         but that is just more
+         complicated */
     case T_TRAP1:
     case T_TRAP2:
-      
+
 
       /* useful for level designers */
     case T_LEFT:
     case T_RIGHT:
     case T_UP:
     case T_DOWN:
-      
+
       /* Seems sturdy */
     case T_TRANSPORT:
     case T_ON:
@@ -709,16 +709,16 @@ struct Level {
     case T_GSPHERE:
 
       /* shouldn't bomb the floorlike things,
-	 so also their 'up' counterparts */
+         so also their 'up' counterparts */
     case T_BUP:
     case T_BDOWN:
     case T_GUP:
     case T_GDOWN:
     case T_RUP:
     case T_RDOWN:
-      
+
       return false;
-    }      
+    }
 
     /* illegal tile */
     abort();

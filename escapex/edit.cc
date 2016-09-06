@@ -40,7 +40,7 @@ static constexpr int edit_menuitem[] = {
   TU_SAVE, TU_SAVEAS, TU_LOAD,
   TU_TITLE, TU_AUTHOR, TU_SIZE,
   TU_PLAYERSTART, TU_CLEAR,
-  TU_PLAY, TU_RANDOM, 
+  TU_PLAY, TU_RANDOM,
   TU_RANDTYPE,
   TU_ERASE_BOT,
   TU_FIRST_BOT,
@@ -54,27 +54,27 @@ static constexpr int edit_menuitem[] = {
 };
 
 static constexpr int tileorder[] = {
-  T_FLOOR, T_ROUGH, T_EXIT, T_BLUE, T_RED, T_GREY, T_GREEN, 
-  T_GOLD, 
+  T_FLOOR, T_ROUGH, T_EXIT, T_BLUE, T_RED, T_GREY, T_GREEN,
+  T_GOLD,
   T_BLACK,
-  T_TRAP2, T_TRAP1, T_HOLE, 
-  T_LASER, T_PANEL, 
+  T_TRAP2, T_TRAP1, T_HOLE,
+  T_LASER, T_PANEL,
   T_BPANEL, T_RPANEL, T_GPANEL,
   T_STOP, T_RIGHT, T_LEFT, T_UP, T_DOWN,
-  T_ELECTRIC, T_ON, T_OFF, T_TRANSPORT, T_BROKEN, T_LR, T_UD, 
-  T_0, T_1, 
+  T_ELECTRIC, T_ON, T_OFF, T_TRANSPORT, T_BROKEN, T_LR, T_UD,
+  T_0, T_1,
   T_BUTTON,
   T_NS, T_NE, T_NW, T_SE, T_SW, T_WE, T_NSWE,
-  T_TRANSPONDER, 
-  
+  T_TRANSPONDER,
+
   T_REMOTE,
   T_BLIGHT, T_RLIGHT, T_GLIGHT, T_BUP, T_BDOWN,
-  T_RUP, T_RDOWN, T_GUP, T_GDOWN, 
+  T_RUP, T_RDOWN, T_GUP, T_GDOWN,
 
   T_BSPHERE, T_RSPHERE, T_GSPHERE, T_SPHERE,
-  T_STEEL, T_BSTEEL, T_RSTEEL, T_GSTEEL, 
+  T_STEEL, T_BSTEEL, T_RSTEEL, T_GSTEEL,
 
-  T_HEARTFRAMER, T_SLEEPINGDOOR, 
+  T_HEARTFRAMER, T_SLEEPINGDOOR,
 
   };
 
@@ -96,7 +96,7 @@ static constexpr int tileorder[] = {
 void Editor::screenresize() {
   dr.width = XW;
   dr.height = YH;
-  
+
   /* XXX not sure how to recalculate this ... */
   /* perhaps scroll so that the foreground tile is
      visible */
@@ -116,9 +116,9 @@ void Editor::fullclear(tile t) {
 void Editor::clear(tile bg, tile fg) {
   if (changed &&
       !Message::quick(this,
-		      "Clearing will destroy your unsaved changes.",
-		      "Clear anyway",
-		      "Don't clear")) {
+                      "Clearing will destroy your unsaved changes.",
+                      "Clear anyway",
+                      "Don't clear")) {
     redraw();
     return;
   }
@@ -136,7 +136,7 @@ void Editor::clear(tile bg, tile fg) {
     dr.lev->settile(0, y, fg);
     dr.lev->settile(dr.lev->w - 1, y, fg);
   }
-  
+
   changed = 0;
   redraw();
 }
@@ -169,7 +169,7 @@ void Editor::draw() {
 
   sdlutil::ClearSurface(screen, EDITORBGCOLOR);
   /* draw black for menu */
-  { 
+  {
     SDL_Rect dst;
     dst.x = 0;
     dst.y = 0;
@@ -199,8 +199,8 @@ void Editor::draw() {
     if (j == POS_RANDTYPE) {
       fon->draw(j * TILEW + 14, 12, GREY + itos(randtype) + POP);
     } else if (j == POS_BOMBTIMER) {
-      fon->draw(j * TILEW + 14, 12, 
-		GREY + itos((int)currentbomb - (int)B_BOMB_0) + POP);
+      fon->draw(j * TILEW + 14, 12,
+                GREY + itos((int)currentbomb - (int)B_BOMB_0) + POP);
     }
   }
 
@@ -242,15 +242,15 @@ void Editor::draw() {
   if (!dr.zoomfactor) {
     for (int b = 0; b < dr.lev->nbots; b++) {
       if (Level::isbomb(dr.lev->bott[b])) {
-	int bx, by;
-	dr.lev->where(dr.lev->boti[b], bx, by);
-	int bsx, bsy;
-	if (dr.onscreen(bx, by, bsx, bsy)) {
-	  string ss = RED + itos(Level::bombmaxfuse(dr.lev->bott[b]));
-	  fon->draw(bsx + ((TILEW - fon->sizex(ss))>>1),
-		    bsy + ((TILEH - fon->height)>>1),
-		    ss);
-	}
+        int bx, by;
+        dr.lev->where(dr.lev->boti[b], bx, by);
+        int bsx, bsy;
+        if (dr.onscreen(bx, by, bsx, bsy)) {
+          string ss = RED + itos(Level::bombmaxfuse(dr.lev->bott[b]));
+          fon->draw(bsx + ((TILEW - fon->sizex(ss))>>1),
+                    bsy + ((TILEH - fon->height)>>1),
+                    ss);
+        }
       }
     }
   }
@@ -275,13 +275,13 @@ void Editor::draw() {
      off-screen */
   if (selection.w > 0 &&
       selection.h > 0) {
-    
+
     int px, py, pdx, pdy;
     if (dr.onscreen(selection.x, selection.y, px, py) &&
-	dr.onscreen(selection.x + selection.w - 1,
-		    selection.y + selection.h - 1,
-		    pdx, pdy)) {
-      
+        dr.onscreen(selection.x + selection.w - 1,
+                    selection.y + selection.h - 1,
+                    pdx, pdy)) {
+
       pdx += (TILEW >> dr.zoomfactor) - 1;
       pdy += (TILEH >> dr.zoomfactor) - 1;
 
@@ -291,25 +291,25 @@ void Editor::draw() {
       sdlutil::drawline(screen, px, pdy, pdx, pdy, SELRECTCOLOR);
 
 
-      sdlutil::drawline(screen, px + 1, py + 1, px + 1, pdy - 1, 
-			SELRECTCOLOR2);
-      sdlutil::drawline(screen, px + 1, py + 1, pdx - 1, py + 1, 
-			SELRECTCOLOR2);
-      sdlutil::drawline(screen, pdx - 1, py + 1, pdx - 1, pdy - 1, 
-			SELRECTCOLOR2);
-      sdlutil::drawline(screen, px + 1, pdy - 1, pdx - 1, pdy - 1, 
-			SELRECTCOLOR2);
+      sdlutil::drawline(screen, px + 1, py + 1, px + 1, pdy - 1,
+                        SELRECTCOLOR2);
+      sdlutil::drawline(screen, px + 1, py + 1, pdx - 1, py + 1,
+                        SELRECTCOLOR2);
+      sdlutil::drawline(screen, pdx - 1, py + 1, pdx - 1, pdy - 1,
+                        SELRECTCOLOR2);
+      sdlutil::drawline(screen, px + 1, pdy - 1, pdx - 1, pdy - 1,
+                        SELRECTCOLOR2);
 
-      
 
-      sdlutil::drawline(screen, px + 2, py + 2, px + 2, pdy - 2, 
-			SELRECTCOLOR);
-      sdlutil::drawline(screen, px + 2, py + 2, pdx - 2, py + 2, 
-			SELRECTCOLOR);
-      sdlutil::drawline(screen, pdx - 2, py + 2, pdx - 2, pdy - 2, 
-			SELRECTCOLOR);
-      sdlutil::drawline(screen, px + 2, pdy - 2, pdx - 2, pdy - 2, 
-			SELRECTCOLOR);
+
+      sdlutil::drawline(screen, px + 2, py + 2, px + 2, pdy - 2,
+                        SELRECTCOLOR);
+      sdlutil::drawline(screen, px + 2, py + 2, pdx - 2, py + 2,
+                        SELRECTCOLOR);
+      sdlutil::drawline(screen, pdx - 2, py + 2, pdx - 2, pdy - 2,
+                        SELRECTCOLOR);
+      sdlutil::drawline(screen, px + 2, pdy - 2, pdx - 2, pdy - 2,
+                        SELRECTCOLOR);
 
 
     }
@@ -318,11 +318,11 @@ void Editor::draw() {
   /* coordinates of scroll */
   if (dr.scrollx > 0 ||
       dr.scrolly > 0) {
-    
+
     fonsmall->draw(dr.posx + dr.margin + 1,
-		   dr.posy + dr.margin - fonsmall->height,
-		   itos(dr.scrollx) + ", " +
-		   itos(dr.scrolly));
+                   dr.posy + dr.margin - fonsmall->height,
+                   itos(dr.scrollx) + ", " +
+                   itos(dr.scrolly));
   }
 
 }
@@ -336,7 +336,7 @@ void Editor::tmenurotate(int n) {
   if (tmenuscroll * showw >= NTILEORDER) tmenuscroll = 0;
 
   /* largest possible */
-  if (tmenuscroll < 0) { 
+  if (tmenuscroll < 0) {
     int tt = 0;
     while ((tt * showw) < NTILEORDER) {
       tt++;
@@ -349,7 +349,7 @@ void Editor::tmenurotate(int n) {
 
 void Editor::settitle() {
   string nt = Prompt::ask(this, "Title for level: ",
-			  dr.lev->title);
+                          dr.lev->title);
 
   dr.lev->title = nt;
 
@@ -363,8 +363,8 @@ void Editor::settitle() {
 void Editor::setauthor() {
 
   string s = Prompt::ask(this,
-			       "Author of level: ",
-			       dr.lev->author);
+                               "Author of level: ",
+                               dr.lev->author);
   if (s != "") dr.lev->author = s;
 
   changed = 1;
@@ -381,7 +381,7 @@ void Editor::saveas() {
   string nfn = Prompt::ask(this, "Filename: ", fn);
 
   /* if cancelled, don't do anything */
-  if (nfn == "") { 
+  if (nfn == "") {
     redraw();
     return;
   }
@@ -399,7 +399,7 @@ void Editor::playerstart() {
   clearselection();
 
   int x, y;
-  
+
   if (getdest(x, y, "Click to choose player start.")) {
     if (!dr.lev->botat(x, y)) {
       dr.lev->guyx = x;
@@ -416,7 +416,7 @@ void Editor::playerstart() {
 /* XXX target selection? */
 void Editor::erasebot() {
   clearselection();
-  
+
   int x, y;
   if (getdest(x, y, (string)"Click on bot to erase.")) {
 
@@ -435,13 +435,13 @@ bool Editor::clearbot(int x, int y) {
     int i;
     if (dr.lev->botat(x, y, i)) {
       /* reduce number of bots and shift every one bigger
-	 than this one down */
+         than this one down */
       dr.lev->nbots--;
       for (int m = i; m < dr.lev->nbots; m++) {
-	dr.lev->bott[m] = dr.lev->bott[m + 1];
-	dr.lev->boti[m] = dr.lev->boti[m + 1];
-	dr.lev->botd[m] = dr.lev->botd[m + 1];
-	dr.lev->bota[m] = dr.lev->bota[m + 1];
+        dr.lev->bott[m] = dr.lev->bott[m + 1];
+        dr.lev->boti[m] = dr.lev->boti[m + 1];
+        dr.lev->botd[m] = dr.lev->botd[m + 1];
+        dr.lev->bota[m] = dr.lev->bota[m + 1];
       }
       /* not necessary to make arrays smaller. */
       return true;
@@ -456,7 +456,7 @@ void Editor::firstbot() {
     if (dr.lev->botat(x, y, i)) {
       Level *l = dr.lev->clone();
       Extent<Level> el(l);
-      
+
       dr.lev->bott[0] = l->bott[i];
       dr.lev->botd[0] = l->botd[i];
       dr.lev->boti[0] = l->boti[i];
@@ -465,13 +465,13 @@ void Editor::firstbot() {
       /* now copy rest */
       int r = 1;
       for (int b = 0; b < l->nbots; b++) {
-	if (b != i) {
-	  dr.lev->bott[r] = l->bott[b];
-	  dr.lev->botd[r] = l->botd[b];
-	  dr.lev->boti[r] = l->boti[b];
-	  dr.lev->bota[r] = l->bota[b];
-	  r++;
-	}
+        if (b != i) {
+          dr.lev->bott[r] = l->bott[b];
+          dr.lev->botd[r] = l->botd[b];
+          dr.lev->boti[r] = l->boti[b];
+          dr.lev->bota[r] = l->bota[b];
+          r++;
+        }
       }
     } else dr.message = "No bot there!";
   }
@@ -489,19 +489,19 @@ void Editor::sleepwake() {
       bot dest = B_BROKEN;
       switch (old) {
       default:
-	if (Level::isbomb(old)) {
-	  dr.message = RED "Can't sleep/wake bombs\n";
-	  redraw();
-	  return;
-	} else {
-	  Message::bug(this, "sleep/wake not implemented for this bot");
-	  redraw();
-	  return;
-	}
+        if (Level::isbomb(old)) {
+          dr.message = RED "Can't sleep/wake bombs\n";
+          redraw();
+          return;
+        } else {
+          Message::bug(this, "sleep/wake not implemented for this bot");
+          redraw();
+          return;
+        }
       case B_BROKEN:
-	dr.message = RED "Can't sleep/wake broken bots\n";
-	redraw();
-	return;
+        dr.message = RED "Can't sleep/wake broken bots\n";
+        redraw();
+        return;
       case B_DALEK: dest = B_DALEK_ASLEEP; break;
       case B_DALEK_ASLEEP: dest = B_DALEK; break;
       case B_HUGBOT: dest = B_HUGBOT_ASLEEP; break;
@@ -521,7 +521,7 @@ void Editor::placebot(bot b) {
   clearselection();
 
   int x, y;
-  
+
   string msg =
     (dr.lev->nbots < LEVEL_MAX_ROBOTS) ?
     ("Click to place bot of type " + itos((int)b)) :
@@ -532,22 +532,22 @@ void Editor::placebot(bot b) {
     int ai;
     if (dr.lev->playerat(x, y)) {
       Message::no(this, "Can't put a bot on the player!");
-      
+
     } else if (dr.lev->botat(x, y, ai)) {
-      
+
       dr.lev->bott[ai] = b;
       changed = 1;
 
     } else {
       if (dr.lev->nbots < LEVEL_MAX_ROBOTS) {
-	addbot(x, y, b);
+        addbot(x, y, b);
       } else {
-	Message::no(this, 
-		    "Maximum robots (" + itos(LEVEL_MAX_ROBOTS) + 
-		    ") reached!");
-	redraw();
+        Message::no(this,
+                    "Maximum robots (" + itos(LEVEL_MAX_ROBOTS) +
+                    ") reached!");
+        redraw();
       }
-    } 
+    }
   }
 
   redraw();
@@ -557,16 +557,16 @@ void Editor::placebot(bot b) {
    there is not a bot or player on this spot already */
 void Editor::addbot(int x, int y, bot b) {
   int n = dr.lev->nbots + 1;
-	  
+
   /* all clear; add new one */
   int *ni = (int*)malloc(sizeof(int) * n);
   bot *nt = (bot*)malloc(sizeof(bot) * n);
-	
+
   for (int i = 0; i < dr.lev->nbots; i++) {
     ni[i] = dr.lev->boti[i];
     nt[i] = dr.lev->bott[i];
   }
-	
+
   ni[n - 1] = dr.lev->index(x, y);
   nt[n - 1] = b;
   free(dr.lev->boti);
@@ -574,7 +574,7 @@ void Editor::addbot(int x, int y, bot b) {
   dr.lev->boti = ni;
   dr.lev->bott = nt;
   dr.lev->nbots = n;
-	
+
   /* need to update directions, too */
   free(dr.lev->botd);
   dr.lev->botd = (dir*)malloc(sizeof (dir) * n);
@@ -610,62 +610,62 @@ void Editor::save() {
 
     if (old != "") {
       /* if player has solution for the
-	 level existing in the file that we're
-	 overwriting, try it out on the new
-	 file. (We may just be changing something
-	 cosmetic!) */
+         level existing in the file that we're
+         overwriting, try it out on the new
+         file. (We may just be changing something
+         cosmetic!) */
 
       /* XXX should keep around a list of
-	 candidate md5s. We get these whenever
-	 we play or save. */
+         candidate md5s. We get these whenever
+         we play or save. */
 
       const string omd5 = MD5::Hash(old);
       const string nmd5 = MD5::Hash(nstr);
       /* only try if level changed */
       if (omd5 != nmd5) {
 
-	int rs = 0, rb = 0;
-	for (const NamedSolution &ns : plr->SolutionSet(omd5)) {
-	  if (!ns.bookmark && 
-	      Level::Verify(dr.lev, ns.sol)) {
-	    string name = ns.name;
-	    if (name.find("(recovered)") == string::npos)
-	      name = (string)"(recovered) " + name;
-	    /* It still works! */
-	    NamedSolution ns2(ns.sol, name, ns.author, time(0), false);
-	    plr->AddSolution(nmd5, std::move(ns2), true);
-	    rs++;
-	  } else if (ns.bookmark) {
-	    plr->AddSolution(nmd5, ns, true);
-	    rb++;
-	  }
-	}
+        int rs = 0, rb = 0;
+        for (const NamedSolution &ns : plr->SolutionSet(omd5)) {
+          if (!ns.bookmark &&
+              Level::Verify(dr.lev, ns.sol)) {
+            string name = ns.name;
+            if (name.find("(recovered)") == string::npos)
+              name = (string)"(recovered) " + name;
+            /* It still works! */
+            NamedSolution ns2(ns.sol, name, ns.author, time(0), false);
+            plr->AddSolution(nmd5, std::move(ns2), true);
+            rs++;
+          } else if (ns.bookmark) {
+            plr->AddSolution(nmd5, ns, true);
+            rb++;
+          }
+        }
 
-	if (rs + rb > 0) {
-	  string s = rs?((string)YELLOW + itos(rs) + POP " solution"
-			 + ((rs == 1) ? (string)"" : (string)"s")
-			 + (rb ? (string)", " : (string)"")
-			 ) : "";
-	  string b = rb?((string)YELLOW + itos(rb) + POP " bookmark"
-			 + ((rb == 1) ? (string)"" : (string)"s")
-			 ) : "";
-	  dr.message += (string)ALPHA50 " (" BLUE "recovered " + s + b + 
-	                (string)POP ")" POP;
-	  plr->writefile();
-	}
+        if (rs + rb > 0) {
+          string s = rs?((string)YELLOW + itos(rs) + POP " solution"
+                         + ((rs == 1) ? (string)"" : (string)"s")
+                         + (rb ? (string)", " : (string)"")
+                         ) : "";
+          string b = rb?((string)YELLOW + itos(rb) + POP " bookmark"
+                         + ((rb == 1) ? (string)"" : (string)"s")
+                         ) : "";
+          dr.message += (string)ALPHA50 " (" BLUE "recovered " + s + b +
+                        (string)POP ")" POP;
+          plr->writefile();
+        }
 
       } else {
-	dr.message += (string)" again " ALPHA50 GREY "(" +
-	   MD5::Ascii(nmd5) + ")" POP POP;
+        dr.message += (string)" again " ALPHA50 GREY "(" +
+           MD5::Ascii(nmd5) + ")" POP POP;
       }
-    }     
-    
+    }
+
     /* on success, we clear changed flag */
     changed = 0;
 
   } else {
-    Message::bug(this, 
-		 "shouldn't be able to save with empty filename");
+    Message::bug(this,
+                 "shouldn't be able to save with empty filename");
   }
 
   redraw();
@@ -679,8 +679,8 @@ void Editor::load() {
   std::unique_ptr<LoadLevel> ll{
     LoadLevel::Create(plr, EDIT_DIR, true, true)};
   if (!ll.get()) {
-    Message::quick(this, "Can't open load screen!", 
-		   "Ut oh.", "", PICS XICON POP);
+    Message::quick(this, "Can't open load screen!",
+                   "Ut oh.", "", PICS XICON POP);
     redraw();
     return ;
   }
@@ -690,7 +690,7 @@ void Editor::load() {
   /* allow corrupted files */
   Level *l = Level::fromstring(ss, true);
 
-  if (l) { 
+  if (l) {
     dr.lev->destroy();
     dr.lev = l;
     filename = res;
@@ -701,7 +701,7 @@ void Editor::load() {
   } else {
     dr.message = ((string) RED "error loading " + res + POP);
   }
- 
+
   redraw();
 }
 
@@ -710,15 +710,15 @@ Editor::~Editor() {}
 void Editor::playlev() {
   /* XXX check result for 'exit' */
   fixup();
-  
+
   std::unique_ptr<Play> pla{Play::Create()};
-  
+
   /* grab md5 in case player makes bookmarks */
   string md5 = MD5::Hash(dr.lev->tostring());
 
   /* PlayResult res = */
   (void)pla->DoPlaySave(plr, dr.lev, &saved, md5);
-  
+
   /* has a different loop; might have resized */
   screenresize();
   redraw();
@@ -744,14 +744,14 @@ void Editor::resize() {
 
   okay ok;
   ok.text = "Change Size";
-  
+
   PtrList<MenuItem> *l = nullptr;
 
   PtrList<MenuItem>::push(l, &ok);
   PtrList<MenuItem>::push(l, &theight);
   PtrList<MenuItem>::push(l, &twidth);
 
-  menu *mm = menu::create(this, "Level Size", l, false);
+  Menu *mm = Menu::create(this, "Level Size", l, false);
 
   PtrList<MenuItem>::diminish(l);
 
@@ -760,20 +760,20 @@ void Editor::resize() {
     int nnh = atoi(theight.input.c_str());
 
     if (nnw > 0 && nnw <= LEVEL_MAX_WIDTH &&
-	nnh > 0 && nnh <= LEVEL_MAX_HEIGHT &&
-	(nnw * nnh <= LEVEL_MAX_AREA)) {
+        nnh > 0 && nnh <= LEVEL_MAX_HEIGHT &&
+        (nnw * nnh <= LEVEL_MAX_AREA)) {
       dr.lev->resize(nnw, nnh);
-      
+
       /* reset scroll position */
       dr.scrollx = 0;
       dr.scrolly = 0;
-      
+
       changed = 1;
     } else {
       Message::quick(this,
-		     "Size too large/small", 
-		     "Sorry", "");
-      
+                     "Size too large/small",
+                     "Sorry", "");
+
     }
   } /* XXX else MR_QUIT */
 
@@ -781,7 +781,7 @@ void Editor::resize() {
 }
 
 void Editor::edit(Level *origlev) {
-  
+
   if (origlev) {
     dr.lev = origlev->clone();
   } else {
@@ -821,955 +821,955 @@ void Editor::edit(Level *origlev) {
       switch (event.type) {
 
       case SDL_MOUSEMOTION: {
-	/* some more efficient way to do this?? */
-	/* we only need to redraw if something 
-	   has changed like mousing over a tile
-	   with a destination */
+        /* some more efficient way to do this?? */
+        /* we only need to redraw if something
+           has changed like mousing over a tile
+           with a destination */
 
-	SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
+        SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
 
-	/* we do a lot of stuff here. set this flag if
-	   we need to redraw at the end. */
-	int yesdraw = 0;
+        /* we do a lot of stuff here. set this flag if
+           we need to redraw at the end. */
+        int yesdraw = 0;
 
-	int omx = mousex;
-	int omy = mousey;
+        int omx = mousex;
+        int omy = mousey;
 
-	mousex = e->x;
-	mousey = e->y;
+        mousex = e->x;
+        mousey = e->y;
 
-	/* if mouse down, draw line of tiles.
-	   don't do it if they need destinations. */
-	int otx, oty;
-	int ntx, nty;
+        /* if mouse down, draw line of tiles.
+           don't do it if they need destinations. */
+        int otx, oty;
+        int ntx, nty;
 
-	/* XXX how do I set this? */
-	bool ctrl_held = false;
+        /* XXX how do I set this? */
+        bool ctrl_held = false;
 
-	/* right mouse button, or ctrl held ... */
-	if (((e->state & SDL_BUTTON(SDL_BUTTON_RIGHT)) ||
-	     ((e->state & SDL_BUTTON(SDL_BUTTON_LEFT)) &&
-	      ctrl_held)) &&
-	    selection.w > 0 &&
-	    dr.inmap(mousex, mousey, ntx, nty)) {
+        /* right mouse button, or ctrl held ... */
+        if (((e->state & SDL_BUTTON(SDL_BUTTON_RIGHT)) ||
+             ((e->state & SDL_BUTTON(SDL_BUTTON_LEFT)) &&
+              ctrl_held)) &&
+            selection.w > 0 &&
+            dr.inmap(mousex, mousey, ntx, nty)) {
 
-	  /* change selection rectangle */
-	  int nw = 1 + (ntx - selection.x);
-	  int nh = 1 + (nty - selection.y);
-	  
-	  if (nw != selection.w ||
-	      nh != selection.h) {
+          /* change selection rectangle */
+          int nw = 1 + (ntx - selection.x);
+          int nh = 1 + (nty - selection.y);
 
-	    if (nw <= 0 || nh <= 0) { nw = nh = 0; }
+          if (nw != selection.w ||
+              nh != selection.h) {
 
-	    selection.w = nw;
-	    selection.h = nh;
-	    redraw();
-	  }
+            if (nw <= 0 || nh <= 0) { nw = nh = 0; }
 
-	  /* left mouse button ... */
-	  /* XXX if I start in the map, then I should
-	     always draw to the edge, even if the end
-	     is not in the map */
-	} else if (!Level::needsdest(current) &&
-		   !donotdraw &&
-		   e->state & SDL_BUTTON(SDL_BUTTON_LEFT) &&
-		   dr.inmap(omx, omy, otx, oty) &&
-		   dr.inmap(mousex, mousey, ntx, nty)) {
+            selection.w = nw;
+            selection.h = nh;
+            redraw();
+          }
 
-	  if (otx != ntx ||
-	      oty != nty) {
-	    /* draw line. */
-	    line *sl = line::create(otx, oty, ntx, nty);
-	    Extent<line> el(sl);
-	    
-	    int cx = otx, cy = oty;
-	    
-	    do {
-	      setlayer(cx, cy, current);
+          /* left mouse button ... */
+          /* XXX if I start in the map, then I should
+             always draw to the edge, even if the end
+             is not in the map */
+        } else if (!Level::needsdest(current) &&
+                   !donotdraw &&
+                   e->state & SDL_BUTTON(SDL_BUTTON_LEFT) &&
+                   dr.inmap(omx, omy, otx, oty) &&
+                   dr.inmap(mousex, mousey, ntx, nty)) {
 
-	    } while (sl->next(cx, cy));
+          if (otx != ntx ||
+              oty != nty) {
+            /* draw line. */
+            line *sl = line::create(otx, oty, ntx, nty);
+            Extent<line> el(sl);
 
-	    changed = 1;
-	    /* always draw */
-	    yesdraw = 1;
-	  } else {
-	    /* draw pixel */
-	    
-	    if ((layer?(dr.lev->otileat(ntx, nty))
-		 :(dr.lev->tileat(ntx, nty)))
-		!= current) {
-	      setlayer(ntx, nty, current);
-	      yesdraw = 1;
-	      changed = 1;
-	    }
+            int cx = otx, cy = oty;
 
-	  }
-	}
+            do {
+              setlayer(cx, cy, current);
 
-	/* calculate the destination to draw,
-	   if any. */
-	int tx, ty;
-	if (dr.inmap(mousex, mousey, tx, ty)) {
-	  if (Level::needsdest(layerat(tx, ty))) {
-	    if (dr.lev->destat(tx, ty) != olddest) {
-	      olddest = dr.lev->destat(tx, ty);
-	      yesdraw = 1;
-	    }
-	    /* XXX unify with next case */
-	  } else {
-	    if (olddest != -1) {
-	      olddest = -1;
-	      yesdraw = 1;
-	    } 
-	  }
-	} else {
-	  if (olddest != -1) {
-	    olddest = -1;
-	    yesdraw = 1;
-	  }
-	}
+            } while (sl->next(cx, cy));
 
-	if (yesdraw) redraw();
+            changed = 1;
+            /* always draw */
+            yesdraw = 1;
+          } else {
+            /* draw pixel */
 
-	break;
+            if ((layer?(dr.lev->otileat(ntx, nty))
+                 :(dr.lev->tileat(ntx, nty)))
+                != current) {
+              setlayer(ntx, nty, current);
+              yesdraw = 1;
+              changed = 1;
+            }
+
+          }
+        }
+
+        /* calculate the destination to draw,
+           if any. */
+        int tx, ty;
+        if (dr.inmap(mousex, mousey, tx, ty)) {
+          if (Level::needsdest(layerat(tx, ty))) {
+            if (dr.lev->destat(tx, ty) != olddest) {
+              olddest = dr.lev->destat(tx, ty);
+              yesdraw = 1;
+            }
+            /* XXX unify with next case */
+          } else {
+            if (olddest != -1) {
+              olddest = -1;
+              yesdraw = 1;
+            }
+          }
+        } else {
+          if (olddest != -1) {
+            olddest = -1;
+            yesdraw = 1;
+          }
+        }
+
+        if (yesdraw) redraw();
+
+        break;
       }
       case SDL_MOUSEBUTTONDOWN: {
-	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
+        SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
 
-	/* any click in this state puts us in drawing mode. */
-	donotdraw = false;
+        /* any click in this state puts us in drawing mode. */
+        donotdraw = false;
 
-	if (e->button == SDL_BUTTON_MIDDLE) {
+        if (e->button == SDL_BUTTON_MIDDLE) {
 
-	  /* XXX would be nice if we could pair this with the event
-	     and not the current status of the keyboard, alas... */
-	  if (SDL_GetModState() & KMOD_CTRL) {
-	    /* swap */
-	    int tx, ty;
-	    if (dr.inmap(e->x, e->y, tx, ty)) {
-	      dr.lev->swapo(dr.lev->index(tx, ty));
-	      changed = 1;
-	      redraw();
-	    }
-	  } else {
-	    /* eyedropper */
-	    int tx, ty;
-	    if (dr.inmap(e->x, e->y, 
-			 tx, ty)) {
-	      
-	      current = layer?dr.lev->otileat(tx, ty):dr.lev->tileat(tx, ty);
-	      
-	      redraw();
-	    }
-	  }
-	  
-	} else if (e->button == SDL_BUTTON_RIGHT) {
-	  /* Start drawing selection rectangle */
-	  int tx, ty;
-	  if (dr.inmap(e->x, e->y, tx, ty)) {
-	    selection.x = tx;
-	    selection.y = ty;
-	    
-	    selection.w = 1;
-	    selection.h = 1;
-	  } else selection.w = 0;
-	  redraw();
+          /* XXX would be nice if we could pair this with the event
+             and not the current status of the keyboard, alas... */
+          if (SDL_GetModState() & KMOD_CTRL) {
+            /* swap */
+            int tx, ty;
+            if (dr.inmap(e->x, e->y, tx, ty)) {
+              dr.lev->swapo(dr.lev->index(tx, ty));
+              changed = 1;
+              redraw();
+            }
+          } else {
+            /* eyedropper */
+            int tx, ty;
+            if (dr.inmap(e->x, e->y,
+                         tx, ty)) {
 
-	} else if (e->button == SDL_BUTTON_LEFT) {
+              current = layer?dr.lev->otileat(tx, ty):dr.lev->tileat(tx, ty);
 
-	  int showw = (screen->w / TILEW) - 1;
+              redraw();
+            }
+          }
 
-	  /* on tile menu? */
-	  if (e->y >= TILEH &&
-	      e->y < (2 * TILEH)) {
+        } else if (e->button == SDL_BUTTON_RIGHT) {
+          /* Start drawing selection rectangle */
+          int tx, ty;
+          if (dr.inmap(e->x, e->y, tx, ty)) {
+            selection.x = tx;
+            selection.y = ty;
 
-	    if (e->x >= (TILEW * showw) &&
-		e->x < (TILEW * (showw + 1))) {
-	      
-	      if (e->y < TILEH + (TILEH >> 1))
-		tmenurotate(-1);
-	      else tmenurotate(1);
+            selection.w = 1;
+            selection.h = 1;
+          } else selection.w = 0;
+          redraw();
 
-	    } else if (/* e->x always >= 0 && */
-		       e->x < (showw * TILEW)) {
-	      
-	      int tt = (e->x / TILEW) + (tmenuscroll * showw);
+        } else if (e->button == SDL_BUTTON_LEFT) {
 
-	      if (tt >= 0 && tt < NTILEORDER) current = tileorder[tt];
+          int showw = (screen->w / TILEW) - 1;
 
-	      redraw();
+          /* on tile menu? */
+          if (e->y >= TILEH &&
+              e->y < (2 * TILEH)) {
 
-	    } /* else nothing. */
-	    
+            if (e->x >= (TILEW * showw) &&
+                e->x < (TILEW * (showw + 1))) {
 
+              if (e->y < TILEH + (TILEH >> 1))
+                tmenurotate(-1);
+              else tmenurotate(1);
 
-	  } else if (/* e->y always >= 0 && */
-		     e->y < TILEH) {
-	    /* menu */
+            } else if (/* e->x always >= 0 && */
+                       e->x < (showw * TILEW)) {
 
-	    int n = e->x / TILEW;
+              int tt = (e->x / TILEW) + (tmenuscroll * showw);
 
-	    dr.message = itos(n);
+              if (tt >= 0 && tt < NTILEORDER) current = tileorder[tt];
 
-	    redraw();
+              redraw();
 
-	    if (n < NUM_MENUITEMS) {
-	      
-	      /*
-		TU_SAVE, TU_SAVEAS, TU_LOAD,
-		TU_TITLE, TU_AUTHOR, TU_SIZE,
-		TU_PLAYERSTART, TU_CLEAR,
-		TU_PLAY, TU_RANDOM,
-	      */
-
-	      if (n == POS_LAYER) {
-		layer = !layer;
-		redraw();
-	      } else switch (edit_menuitem[n]) {
-
-	      case TU_SIZE:
-		resize();
-		break;
-
-	      case TU_PLAYERSTART:
-		playerstart();
-		break;
-
-	      case TU_DALEK:
-		placebot(B_DALEK);
-		break;
-
-	      case TU_BOMB:
-		placebot(currentbomb);
-		break;
-
-	      case TU_HUGBOT:
-		placebot(B_HUGBOT);
-		break;
-
-	      case TU_BROKEN:
-		placebot(B_BROKEN);
-		break;
-
-	      case TU_ERASE_BOT:
-		erasebot();
-		break;
-
-	      case TU_FIRST_BOT:
-		firstbot();
-		break;
-
-	      case TU_LOAD:
-		load();
-		break;
-
-	      case TU_AUTHOR:
-		setauthor();
-		break;
-
-	      case TU_TITLE:
-		settitle();
-		break;
-
-	      case TU_RANDOM:
-		dorandom();
-		break;
-		
-	      case TU_RANDTYPE:
-		randtype++;
-		randtype %= NUM_RANDTYPES;
-		dr.message = ainame(randtype);
-		redraw();
-		break;
-		
-	      case TU_BOMBTIMER:
-		next_bombtimer();
-		break;
-
-	      case TU_SAVEAS:
-		saveas();
-		break;
-		
-	      case TU_SLEEPWAKE:
-		sleepwake();
-		break;
-
-	      case TU_PREFAB:
-		prefab();
-		break;
-
-	      case TU_SAVE:
-		if (filename == "") saveas();
-		else save();
-		break;
-
-	      case TU_PLAY:
-		playlev();
-		break;
-
-	      case TU_CLEAR:
-		clear(T_FLOOR, (tile)current);
-		break;
-	      default: ;
-
-	      }
-
-	    } /* else outside menu */
+            } /* else nothing. */
 
 
-	  } else {
-	    int tx, ty;
 
-	    clearselection();
+          } else if (/* e->y always >= 0 && */
+                     e->y < TILEH) {
+            /* menu */
 
-	    if (dr.inmap(e->x, e->y, 
-			 tx, ty)) {
-	      /* drawing area */
+            int n = e->x / TILEW;
 
-	      int old = layerat(tx, ty);
-	      setlayer(tx, ty, current);
+            dr.message = itos(n);
 
-	      if (Level::needsdest(current)) {
+            redraw();
 
-		int xx, yy;
-		if (getdest(xx, yy, "Click to set destination.")) {
-		  dr.lev->setdest(tx, ty, xx, yy);
-		} else {
-		  setlayer(tx, ty, old);
-		}
-		olddest = dr.lev->destat(tx, ty);
+            if (n < NUM_MENUITEMS) {
 
-	      }
+              /*
+                TU_SAVE, TU_SAVEAS, TU_LOAD,
+                TU_TITLE, TU_AUTHOR, TU_SIZE,
+                TU_PLAYERSTART, TU_CLEAR,
+                TU_PLAY, TU_RANDOM,
+              */
 
-	      changed = 1;
-	      redraw();
-	    }
-	  }
+              if (n == POS_LAYER) {
+                layer = !layer;
+                redraw();
+              } else switch (edit_menuitem[n]) {
+
+              case TU_SIZE:
+                resize();
+                break;
+
+              case TU_PLAYERSTART:
+                playerstart();
+                break;
+
+              case TU_DALEK:
+                placebot(B_DALEK);
+                break;
+
+              case TU_BOMB:
+                placebot(currentbomb);
+                break;
+
+              case TU_HUGBOT:
+                placebot(B_HUGBOT);
+                break;
+
+              case TU_BROKEN:
+                placebot(B_BROKEN);
+                break;
+
+              case TU_ERASE_BOT:
+                erasebot();
+                break;
+
+              case TU_FIRST_BOT:
+                firstbot();
+                break;
+
+              case TU_LOAD:
+                load();
+                break;
+
+              case TU_AUTHOR:
+                setauthor();
+                break;
+
+              case TU_TITLE:
+                settitle();
+                break;
+
+              case TU_RANDOM:
+                dorandom();
+                break;
+
+              case TU_RANDTYPE:
+                randtype++;
+                randtype %= NUM_RANDTYPES;
+                dr.message = ainame(randtype);
+                redraw();
+                break;
+
+              case TU_BOMBTIMER:
+                next_bombtimer();
+                break;
+
+              case TU_SAVEAS:
+                saveas();
+                break;
+
+              case TU_SLEEPWAKE:
+                sleepwake();
+                break;
+
+              case TU_PREFAB:
+                prefab();
+                break;
+
+              case TU_SAVE:
+                if (filename == "") saveas();
+                else save();
+                break;
+
+              case TU_PLAY:
+                playlev();
+                break;
+
+              case TU_CLEAR:
+                clear(T_FLOOR, (tile)current);
+                break;
+              default: ;
+
+              }
+
+            } /* else outside menu */
 
 
-	} else if (e->button == SDL_BUTTON_RIGHT) {
-	  /* on tile menu? if so, rotate. */
+          } else {
+            int tx, ty;
 
-	  if (e->y > TILEH &&
-	      e->y <= (2 * TILEH)) {
-	    tmenurotate(1);
-	  }
+            clearselection();
 
-	}
-	
-	break;
+            if (dr.inmap(e->x, e->y,
+                         tx, ty)) {
+              /* drawing area */
+
+              int old = layerat(tx, ty);
+              setlayer(tx, ty, current);
+
+              if (Level::needsdest(current)) {
+
+                int xx, yy;
+                if (getdest(xx, yy, "Click to set destination.")) {
+                  dr.lev->setdest(tx, ty, xx, yy);
+                } else {
+                  setlayer(tx, ty, old);
+                }
+                olddest = dr.lev->destat(tx, ty);
+
+              }
+
+              changed = 1;
+              redraw();
+            }
+          }
+
+
+        } else if (e->button == SDL_BUTTON_RIGHT) {
+          /* on tile menu? if so, rotate. */
+
+          if (e->y > TILEH &&
+              e->y <= (2 * TILEH)) {
+            tmenurotate(1);
+          }
+
+        }
+
+        break;
       }
 
       case SDL_QUIT: goto edit_quit;
       case SDL_KEYDOWN:
-	switch (event.key.keysym.sym) {
-	  
-	case SDLK_F2:
-	  settitle();
-	  break;
-
-	case SDLK_KP_MINUS:
-	case SDLK_MINUS:
-	case SDLK_PAGEUP:
-	  tmenurotate(-1);
-	  break;
-
-	case SDLK_KP_PLUS:
-	case SDLK_PLUS:
-	case SDLK_EQUALS:
-	case SDLK_PAGEDOWN:
-	  tmenurotate(1);
-	  break;
-	  
-	case SDLK_UP:
-	case SDLK_DOWN:
-	case SDLK_RIGHT:
-	case SDLK_LEFT: {
-
-	  dir d = DIR_NONE;
-	  switch (event.key.keysym.sym) {
-	  case SDLK_DOWN: d = DIR_DOWN; break;
-	  case SDLK_UP: d = DIR_UP; break;
-	  case SDLK_RIGHT: d = DIR_RIGHT; break;
-	  case SDLK_LEFT: d = DIR_LEFT; break;
-	  default: ; /* impossible - lint */
-	  }
-
-	  if ((event.key.keysym.mod & KMOD_SHIFT) &&
-	      selection.w > 0) {
-
-	    /* extend selection in that direction by one
-	       row/column. */
-	  
-	    /* the theory here is to "do the right thing,"
-	       but to explain the "right thing" with the
-	       simplest possible rule as to what "right"
-	       is. */
-
-	    /* for the discussion here we will assume the
-	       pattern is being extended on its right side. */
-
-	    /* the first step is to detect a pattern.
-	       this is done only with respect to the tiles
-	       (not destinations) in the foreground and
-	       background. bots and players are ignored as
-	       well. Assume the sequence of tiles is S.
-	       We then find the shortest prefix Sp such
-	       that
-
-	        S = Sp,...,Sp,S'
-	            `---v---'
-		      j occurrences (j >= 1)
-
-	       and S' is a (possibly empty) proper prefix
-	       of Sp. The pattern is then Sp. Since S' may
-	       be empty, a unique shortest Sp exists for
-	       any S. */
-
-	    /* to extend, we simply place a column (#n) of
-	       tiles aside the selection so that S'Sp[n] is
-	       still a prefix of Sp. (this is also always
-	       possible because S' is a *proper* prefix of
-	       Sp). */
-
-	    /* this explains everything except for the
-	       destination of panels, teleports, and remotes. 
-	       For a panel at index i within the new column Sp[n],
-	       we look at the destinations of the occurrences
-	       of that panel in Sp_0[n], Sp_1[n], .. Sp_j-1[n],
-	       which we call D0..Dj-1. 
-	       
-	       If the delta d1-d0, d2-d1, ... is constant,
-	       then the destination of the new panel is
-	       j*delta + d0. Otherwise, we arbitrarily choose
-	       d0. (we could instead perhaps reject this
-	       patterning, and extend--we can always make
-	       delta constant by making the whole thing one
-	       pattern! but this may be a bit too crazy).
-	       (Or, we could just put a stopsign or something
-	       here to indicate that we couldn't make a
-	       sensible panel--maybe that is better. */
-	    
-	    dir right = d;
-	    dir down;
-	    /* could use level::turnright? */
-	    switch (right) {
-	    default:
-	    case DIR_RIGHT: down = DIR_DOWN; break;
-	    case DIR_LEFT: down = DIR_UP; break;
-	    case DIR_DOWN: down = DIR_LEFT; break;
-	    case DIR_UP: down = DIR_RIGHT; break;
-	    }
-
-	    int width, height;
-	    switch (right) {
-	    default:
-	    case DIR_LEFT:
-	    case DIR_RIGHT: width = selection.w; height = selection.h; break;
-	    case DIR_DOWN:
-	    case DIR_UP: width = selection.h; height = selection.w; break;
-	    }
-
-	    /* the "top-left" according to the coordinate system */
-	    int startx, starty;
-	    switch (right) {
-	    default:
-	    case DIR_UP:
-	      startx = selection.x;
-	      starty = selection.y + selection.h - 1;
-	      break;
-	    case DIR_DOWN:
-	      startx = selection.x + selection.w - 1;
-	      starty = selection.y;
-	      break;
-	    case DIR_LEFT:
-	      startx = selection.x + selection.w - 1;
-	      starty = selection.y + selection.h - 1;
-	      break;
-	    case DIR_RIGHT:
-	      startx = selection.x;
-	      starty = selection.y;
-	      break;
-	    }
-
-	    int drightx = 0, drighty = 0, ddownx = 0, ddowny = 0;
-	    dirchange(right, drightx, drighty);
-	    dirchange(down,  ddownx,  ddowny);
-
-    
-	    /* this is the beginning of the new column */
-	    int destx = startx + (drightx * width);
-	    int desty = starty + (drighty * width);
-
-	    /* check that there's room to extend */
-	    if (destx >= dr.lev->w ||
-		desty >= dr.lev->h ||
-		destx < 0 ||
-		desty < 0) continue;
-
-	    /* blinktile(destx, desty, 0xFF884499); */
-    
-
-	    /* determine pattern length "plen"
-	       (must be at least 1, since selection is
-	       non-empty) */
-	    int plen = 1;
-	    for (; plen <= width; plen++) {
-	      /* check that this is a legal pattern. if so,
-		 it is the shortest, since we are checking
-		 in order */
-
-	      /* printf("try plen %d...\n", plen); */
-
-	      /* number of pattern (prefixes) we need to
-		 check. If it evenly divides plen, then
-		 there are width/plen of them. But if there
-		 is any partial pattern, we add that in. */
-	      int max = (width / plen) + !!(width % plen);
-	      for (int n = 0; n < max; n++) {
-		/* first column of pattern occurrence to check */
-		int checkx = startx + (drightx * plen * n);
-		int checky = starty + (drighty * plen * n);
-
-		/*
-		printf("  (n:%d) checkx %d, checky %d\n",
-		       n, checkx, checky);
-		*/
-
-		/* now check the pattern here. */
-		/* since it may be a prefix, we only go up
-		   to "maxcol": */
-		int maxcol = util::minimum(plen, width - (n * plen));
-		/* printf("  ... maxcol = %d\n", maxcol); */
-		for (int col = 0; col < maxcol; col++) {
-		  for (int row = 0; row < height; row++) {
-		    int offx = 
-		      (col * drightx) +
-		      (row * ddownx);
-
-		    int offy =
-		      (col * drighty) +
-		      (row * ddowny);
-		    
-		    #if 0
-		    printf("   compare %d/%d to %d/%d\n",
-			   startx + offx, starty + offy,
-			   checkx + offx, checky + offy);
-		    blinktile(startx + offx, starty + offy, 
-			      0xFF0000FF);
-		    blinktile(checkx + offx, checky + offy, 
-			      0xFFFF0000);
-		    redraw();
-		    #endif
-
-		    /* must be equal in bg and fg */
-		    if (
-			! ((dr.lev->tileat(startx + offx,
-					   starty + offy) ==
-			    dr.lev->tileat(checkx + offx,
-					   checky + offy)) &&
-
-			   (dr.lev->otileat(startx + offx,
-					    starty + offy) ==
-			    dr.lev->otileat(checkx + offx,
-					    checky + offy)))) {
-		      /* printf("NOT EQUAL.\n"); */
-		      /* then we fail; check next */
-		      goto next_size;
-		      
-		    }
-		    
-		  }
-		}
-		
-		/* check pattern occurrence #n */
-	      }
-	      /* success! */
-	      break;
-	    next_size: ;
-	    }
-	    /* printf("OK: plen is: %d\n", plen); */
-
-	    /* make new column */
-	    {
-	      /* column offset within pattern */
-	      int col = width % plen;
-	      for (int row = 0; row < height; row++) {
-		int offx = (row * ddownx);
-		int offy = (row * ddowny);
-
-		int p = 
-		  dr.lev->tileat(startx + (col * drightx) + offx,
-				 starty + (col * drighty) + offy);
-
-		dr.lev->settile(destx + offx,
-				desty + offy, p);
-
-		int op = 
-		  dr.lev->otileat(startx + (col * drightx) + offx,
-				  starty + (col * drighty) + offy);
-
-		dr.lev->osettile(destx + offx,
-				 desty + offy, op);
-
-		if (Level::needsdest(p) || Level::needsdest(op)) {
-		  int delta = 0;
-		  /* need to find delta. */
-		  /* even simpler: assume that delta is
-		     constant (from the first gap). */
-
-		  int origdest = 
-		    dr.lev->destat(startx + (col * drightx) + offx,
-				   starty + (col * drighty) + offy);
-		  
-		  if (width < (plen * 2)) delta = 0;
-		  else {
-		    int seconddest =
-		      dr.lev->destat(startx + ((col + plen) * drightx) + 
-				     offx,
-				     starty + ((col + plen) * drighty) + 
-				     offy);
-		    
-		    delta = seconddest - origdest;
-		  }
-  
-		  /* then the new dest is delta * n + origdest */
-		  int n = (width) / plen;
-		  
-		  /* printf("delta: %d, n: %d\n", delta, n); */
-
-
-		  int de = delta * n + origdest;
-		  if (de < 0) de = 0;
-		  if (de >= dr.lev->w * dr.lev->h) 
-		    de = (dr.lev->w * dr.lev->h) - 1;
-
-		  int xxx, yyy;
-		  dr.lev->where(de, xxx, yyy);
-		  dr.lev->setdest(destx + offx, desty + offy, xxx, yyy);
-		}
-				
-	      }
-	    }
-
-	    /* and extend pattern */
-	    switch (d) {
-	    default: break;
-	    case DIR_RIGHT: selection.w++; break;
-	    case DIR_DOWN: selection.h++; break;
-	    case DIR_UP: selection.y--; selection.h++; break;
-	    case DIR_LEFT: selection.x--; selection.w++; break;
-	    }
-
-	    redraw();
-
-	  } else if ((event.key.keysym.mod & KMOD_CTRL) &&
-		     selection.w > 0) {
-
-	    int dx = 0, dy = 0;
-	    dirchange(d, dx, dy);
-
-	    /* tx, ty are the start of the destination
-	       of this block move */
-	    int tx, ty;
-	    /* but first check that the far corner will
-	       also be on the screen */
-	    if (!dr.lev->travel(selection.x + selection.w - 1, 
-				selection.y + selection.h - 1, 
-				d, tx, ty)) break;
-
-
-	    if (dr.lev->travel(selection.x, selection.y, d,
-			       tx, ty)) {
-	      /* easier if we clone. */
-	      Level *cl = dr.lev->clone();
-	      Extent<Level> ecl(cl);
-
-	      /* then blank out the region */
-	      {
-		for (int y = selection.y; y < selection.y + selection.h; y++) {
-		  for (int x = selection.x; x < selection.x + selection.w; x++) {
-		    dr.lev->settile(x, y, T_FLOOR);
-		    dr.lev->osettile(x, y, T_FLOOR);
-		    dr.lev->setdest(x, y, 0, 0);
-		    dr.lev->setflag(x, y, 0);
-		  }
-		}
-	      }
-
-	      for (int y = selection.y; y < selection.y + selection.h; y++)
-		for (int x = selection.x; x < selection.x + selection.w; x++) {
-
-		  /* copy all the parts */
-		  dr.lev->settile(x + dx, y + dy,
-				  cl->tileat(x, y));
-
-		  dr.lev->osettile(x + dx, y + dy,
-				   cl->otileat(x, y));
-
-		  {
-		  int ddx, ddy;
-		  cl->where(cl->destat(x, y), ddx, ddy);
-
-		  /* if the destination is inside the
-		     thing we're moving, then preserve it */
-		  if ((Level::needsdest(cl->tileat(x, y)) ||
-		       Level::needsdest(cl->otileat(x, y))) && 
-		      ddx >= selection.x &&
-		      ddx < (selection.x + selection.w) &&
-		      ddy >= selection.y &&
-		      ddy < (selection.y + selection.h)) {
-
-		    ddx += dx;
-		    ddy += dy;
-		    
-		  }
-
-		  /* anyway copy dest */
-		  dr.lev->setdest(x + dx, y + dy, ddx, ddy);
-		  }
-		  
-		  /* finally, flags */
-		  dr.lev->setflag(x + dx, y + dy,
-				  cl->flagat(x, y));
-
-		}
-
-	      /* move player, bots */
-	      if (dr.lev->guyx >= selection.x &&
-		  dr.lev->guyy >= selection.y &&
-		  dr.lev->guyx < (selection.x + selection.w) &&
-		  dr.lev->guyy < (selection.y + selection.h)) {
-		dr.lev->guyx += dx;
-		dr.lev->guyy += dy;
-
-		/* if moving over bot (on edge), delete it */
-		if (dr.lev->guyx < selection.x ||
-		    dr.lev->guyy < selection.y ||
-		    dr.lev->guyx >= (selection.x + selection.w) ||
-		    dr.lev->guyy >= (selection.y + selection.h)) {
-		  int bi;
-		  if (dr.lev->botat(dr.lev->guyx, dr.lev->guyy, bi)) {
-		    dr.lev->bott[bi] = B_DELETED;
-		  }
-		}
-
-	      }
-
-	      {
-		for (int i = 0; i < dr.lev->nbots; i++) {
-
-		  int bx, by;
-		  dr.lev->where(dr.lev->boti[i], bx, by);
-		  if (bx >= selection.x &&
-		      by >= selection.y &&
-		      bx < (selection.x + selection.w) &&
-		      by < (selection.y + selection.h)) {
-		    bx += dx;
-		    by += dy;
-
-		    /* destroy any bot we're overwriting
-		       (but not if it's in the selection, because
-		       then it will move, too) */
-		    int bi;
-		    if (bx < selection.x ||
-			by < selection.y ||
-			bx >= (selection.x + selection.w) ||
-			by >= (selection.y + selection.h)) {
-		      
-		      if (dr.lev->botat(bx, by, bi)) {
-			/* overwrite bot */
-			dr.lev->bott[bi] = B_DELETED;
-		      } else if (dr.lev->playerat(bx, by)) {
-			/* Delete self if trying to
-			   overwrite player! */
-			dr.lev->bott[i] = B_DELETED;
-		      }
-		    }
-		  }
-		    
-		    /* move bot (even if deleted) */
-		  dr.lev->boti[i] = dr.lev->index(bx, by);
-		}
-	      }
-
-	      /* move selection with it, but don't change size */
-	      selection.x = tx;
-	      selection.y = ty;
-
-	      fixup();
-	    } /* would move stay on screen? */
-
-
-	    redraw();
-	  } else {
-
-	    /* move scroll window */
-    
-	    int dx = 0, dy = 0;
-	    dirchange(d, dx, dy);
-	    dr.scrollx += dx;
-	    dr.scrolly += dy;
-	    
-	    dr.makescrollreasonable();
-	    
-	    redraw();
-	    
-	  }
-	}
-	  break;
-	  
-	default: ;
-	  /* no match; try unicode */
-	
-	switch (event.key.keysym.unicode) {
-
-	case SDLK_ESCAPE:
-	  if (changed) {
-	    if (Message::quick(this,
-			       "Quitting will destroy your unsaved changes.",
-			       "Quit anyway.",
-			       "Don't quit.")) {
-	      goto edit_quit;
-	    } else {
-	      redraw();
-	    }
-	  } else goto edit_quit;
-
-	case SDLK_RETURN:
-	  /* XXX center scroll on mouse */
-	  break;
-
-	case SDLK_r:
-	  dorandom();
-	  break;
-
-	case SDLK_z:
-	  resize();
-	  break;
-
-	case SDLK_c:
-	  clear(T_FLOOR, (tile)current);
-	  break;
-
-	case SDLK_v: /* XXX paste */
-	  break;
-
-	case SDLK_e:
-	  playerstart();
-	  break;
-
-	case SDLK_o:
-	  erasebot();
-	  break;
-
-	case SDLK_f:
-	  firstbot();
-	  break;
-
-	case SDLK_i:
-	  prefab();
-	  break;
-
-	case SDLK_w:
-	  sleepwake();
-	  break;
-
-	case SDLK_m:
-	  next_bombtimer();
-	  break;
-
-	case SDLK_k:
-	  placebot(B_DALEK);
-	  break;
-
-	case SDLK_b:
-	  placebot(currentbomb);
-	  break;
-
-	case SDLK_n:
-	  placebot(B_BROKEN);
-	  break;
-
-	case SDLK_h:
-	  placebot(B_HUGBOT);
-	  break;
-
-	case SDLK_u:
-	  setauthor();
-	  break;
-
-	case SDLK_d:
-	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    clearselection();
-	    redraw();
-	  } else {
-	    showdests = !showdests;
-	    redraw();
-	  }
-	  break;
-
-	case SDLK_a:
-	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    selection.x = 0;
-	    selection.y = 0;
-	    selection.w = dr.lev->w;
-	    selection.h = dr.lev->h;
-	    redraw();
-	  } else {
-	    saveas();
-	  }
-	  break;
-
-	case SDLK_t:
-	  settitle();
-	  break;
-
-	case SDLK_s:
-	  if (filename == "") saveas();
-	  else save();
-	  break;
-
-	case SDLK_p:
-	  playlev();
-	  break;
-
-	case SDLK_l:
-	  load();
-	  break;
-
-	case SDLK_y:
-	  layer = !layer;
-	  redraw();
-	  break;
-
-	  /* zoom */
-	case SDLK_LEFTBRACKET:
-	case SDLK_RIGHTBRACKET:
-	  dr.zoomfactor += (event.key.keysym.unicode == SDLK_LEFTBRACKET)? +1 : -1;
-	  if (dr.zoomfactor < 0) dr.zoomfactor = 0;
-	  if (dr.zoomfactor >= DRAW_NSIZES) dr.zoomfactor = DRAW_NSIZES - 1;
-
-	  /* scrolls? */
-	  dr.makescrollreasonable();
-
-	  redraw();
-	  break;
-
-	default:
-	  break;
-	} /* switch unicode */
-	} /* switch sym */
-	break;
+        switch (event.key.keysym.sym) {
+
+        case SDLK_F2:
+          settitle();
+          break;
+
+        case SDLK_KP_MINUS:
+        case SDLK_MINUS:
+        case SDLK_PAGEUP:
+          tmenurotate(-1);
+          break;
+
+        case SDLK_KP_PLUS:
+        case SDLK_PLUS:
+        case SDLK_EQUALS:
+        case SDLK_PAGEDOWN:
+          tmenurotate(1);
+          break;
+
+        case SDLK_UP:
+        case SDLK_DOWN:
+        case SDLK_RIGHT:
+        case SDLK_LEFT: {
+
+          dir d = DIR_NONE;
+          switch (event.key.keysym.sym) {
+          case SDLK_DOWN: d = DIR_DOWN; break;
+          case SDLK_UP: d = DIR_UP; break;
+          case SDLK_RIGHT: d = DIR_RIGHT; break;
+          case SDLK_LEFT: d = DIR_LEFT; break;
+          default: ; /* impossible - lint */
+          }
+
+          if ((event.key.keysym.mod & KMOD_SHIFT) &&
+              selection.w > 0) {
+
+            /* extend selection in that direction by one
+               row/column. */
+
+            /* the theory here is to "do the right thing,"
+               but to explain the "right thing" with the
+               simplest possible rule as to what "right"
+               is. */
+
+            /* for the discussion here we will assume the
+               pattern is being extended on its right side. */
+
+            /* the first step is to detect a pattern.
+               this is done only with respect to the tiles
+               (not destinations) in the foreground and
+               background. bots and players are ignored as
+               well. Assume the sequence of tiles is S.
+               We then find the shortest prefix Sp such
+               that
+
+                S = Sp,...,Sp,S'
+                    `---v---'
+                      j occurrences (j >= 1)
+
+               and S' is a (possibly empty) proper prefix
+               of Sp. The pattern is then Sp. Since S' may
+               be empty, a unique shortest Sp exists for
+               any S. */
+
+            /* to extend, we simply place a column (#n) of
+               tiles aside the selection so that S'Sp[n] is
+               still a prefix of Sp. (this is also always
+               possible because S' is a *proper* prefix of
+               Sp). */
+
+            /* this explains everything except for the
+               destination of panels, teleports, and remotes.
+               For a panel at index i within the new column Sp[n],
+               we look at the destinations of the occurrences
+               of that panel in Sp_0[n], Sp_1[n], .. Sp_j-1[n],
+               which we call D0..Dj-1.
+
+               If the delta d1-d0, d2-d1, ... is constant,
+               then the destination of the new panel is
+               j*delta + d0. Otherwise, we arbitrarily choose
+               d0. (we could instead perhaps reject this
+               patterning, and extend--we can always make
+               delta constant by making the whole thing one
+               pattern! but this may be a bit too crazy).
+               (Or, we could just put a stopsign or something
+               here to indicate that we couldn't make a
+               sensible panel--maybe that is better. */
+
+            dir right = d;
+            dir down;
+            /* could use level::turnright? */
+            switch (right) {
+            default:
+            case DIR_RIGHT: down = DIR_DOWN; break;
+            case DIR_LEFT: down = DIR_UP; break;
+            case DIR_DOWN: down = DIR_LEFT; break;
+            case DIR_UP: down = DIR_RIGHT; break;
+            }
+
+            int width, height;
+            switch (right) {
+            default:
+            case DIR_LEFT:
+            case DIR_RIGHT: width = selection.w; height = selection.h; break;
+            case DIR_DOWN:
+            case DIR_UP: width = selection.h; height = selection.w; break;
+            }
+
+            /* the "top-left" according to the coordinate system */
+            int startx, starty;
+            switch (right) {
+            default:
+            case DIR_UP:
+              startx = selection.x;
+              starty = selection.y + selection.h - 1;
+              break;
+            case DIR_DOWN:
+              startx = selection.x + selection.w - 1;
+              starty = selection.y;
+              break;
+            case DIR_LEFT:
+              startx = selection.x + selection.w - 1;
+              starty = selection.y + selection.h - 1;
+              break;
+            case DIR_RIGHT:
+              startx = selection.x;
+              starty = selection.y;
+              break;
+            }
+
+            int drightx = 0, drighty = 0, ddownx = 0, ddowny = 0;
+            dirchange(right, drightx, drighty);
+            dirchange(down,  ddownx,  ddowny);
+
+
+            /* this is the beginning of the new column */
+            int destx = startx + (drightx * width);
+            int desty = starty + (drighty * width);
+
+            /* check that there's room to extend */
+            if (destx >= dr.lev->w ||
+                desty >= dr.lev->h ||
+                destx < 0 ||
+                desty < 0) continue;
+
+            /* blinktile(destx, desty, 0xFF884499); */
+
+
+            /* determine pattern length "plen"
+               (must be at least 1, since selection is
+               non-empty) */
+            int plen = 1;
+            for (; plen <= width; plen++) {
+              /* check that this is a legal pattern. if so,
+                 it is the shortest, since we are checking
+                 in order */
+
+              /* printf("try plen %d...\n", plen); */
+
+              /* number of pattern (prefixes) we need to
+                 check. If it evenly divides plen, then
+                 there are width/plen of them. But if there
+                 is any partial pattern, we add that in. */
+              int max = (width / plen) + !!(width % plen);
+              for (int n = 0; n < max; n++) {
+                /* first column of pattern occurrence to check */
+                int checkx = startx + (drightx * plen * n);
+                int checky = starty + (drighty * plen * n);
+
+                /*
+                printf("  (n:%d) checkx %d, checky %d\n",
+                       n, checkx, checky);
+                */
+
+                /* now check the pattern here. */
+                /* since it may be a prefix, we only go up
+                   to "maxcol": */
+                int maxcol = util::minimum(plen, width - (n * plen));
+                /* printf("  ... maxcol = %d\n", maxcol); */
+                for (int col = 0; col < maxcol; col++) {
+                  for (int row = 0; row < height; row++) {
+                    int offx =
+                      (col * drightx) +
+                      (row * ddownx);
+
+                    int offy =
+                      (col * drighty) +
+                      (row * ddowny);
+
+                    #if 0
+                    printf("   compare %d/%d to %d/%d\n",
+                           startx + offx, starty + offy,
+                           checkx + offx, checky + offy);
+                    blinktile(startx + offx, starty + offy,
+                              0xFF0000FF);
+                    blinktile(checkx + offx, checky + offy,
+                              0xFFFF0000);
+                    redraw();
+                    #endif
+
+                    /* must be equal in bg and fg */
+                    if (
+                        ! ((dr.lev->tileat(startx + offx,
+                                           starty + offy) ==
+                            dr.lev->tileat(checkx + offx,
+                                           checky + offy)) &&
+
+                           (dr.lev->otileat(startx + offx,
+                                            starty + offy) ==
+                            dr.lev->otileat(checkx + offx,
+                                            checky + offy)))) {
+                      /* printf("NOT EQUAL.\n"); */
+                      /* then we fail; check next */
+                      goto next_size;
+
+                    }
+
+                  }
+                }
+
+                /* check pattern occurrence #n */
+              }
+              /* success! */
+              break;
+            next_size: ;
+            }
+            /* printf("OK: plen is: %d\n", plen); */
+
+            /* make new column */
+            {
+              /* column offset within pattern */
+              int col = width % plen;
+              for (int row = 0; row < height; row++) {
+                int offx = (row * ddownx);
+                int offy = (row * ddowny);
+
+                int p =
+                  dr.lev->tileat(startx + (col * drightx) + offx,
+                                 starty + (col * drighty) + offy);
+
+                dr.lev->settile(destx + offx,
+                                desty + offy, p);
+
+                int op =
+                  dr.lev->otileat(startx + (col * drightx) + offx,
+                                  starty + (col * drighty) + offy);
+
+                dr.lev->osettile(destx + offx,
+                                 desty + offy, op);
+
+                if (Level::needsdest(p) || Level::needsdest(op)) {
+                  int delta = 0;
+                  /* need to find delta. */
+                  /* even simpler: assume that delta is
+                     constant (from the first gap). */
+
+                  int origdest =
+                    dr.lev->destat(startx + (col * drightx) + offx,
+                                   starty + (col * drighty) + offy);
+
+                  if (width < (plen * 2)) delta = 0;
+                  else {
+                    int seconddest =
+                      dr.lev->destat(startx + ((col + plen) * drightx) +
+                                     offx,
+                                     starty + ((col + plen) * drighty) +
+                                     offy);
+
+                    delta = seconddest - origdest;
+                  }
+
+                  /* then the new dest is delta * n + origdest */
+                  int n = (width) / plen;
+
+                  /* printf("delta: %d, n: %d\n", delta, n); */
+
+
+                  int de = delta * n + origdest;
+                  if (de < 0) de = 0;
+                  if (de >= dr.lev->w * dr.lev->h)
+                    de = (dr.lev->w * dr.lev->h) - 1;
+
+                  int xxx, yyy;
+                  dr.lev->where(de, xxx, yyy);
+                  dr.lev->setdest(destx + offx, desty + offy, xxx, yyy);
+                }
+
+              }
+            }
+
+            /* and extend pattern */
+            switch (d) {
+            default: break;
+            case DIR_RIGHT: selection.w++; break;
+            case DIR_DOWN: selection.h++; break;
+            case DIR_UP: selection.y--; selection.h++; break;
+            case DIR_LEFT: selection.x--; selection.w++; break;
+            }
+
+            redraw();
+
+          } else if ((event.key.keysym.mod & KMOD_CTRL) &&
+                     selection.w > 0) {
+
+            int dx = 0, dy = 0;
+            dirchange(d, dx, dy);
+
+            /* tx, ty are the start of the destination
+               of this block move */
+            int tx, ty;
+            /* but first check that the far corner will
+               also be on the screen */
+            if (!dr.lev->travel(selection.x + selection.w - 1,
+                                selection.y + selection.h - 1,
+                                d, tx, ty)) break;
+
+
+            if (dr.lev->travel(selection.x, selection.y, d,
+                               tx, ty)) {
+              /* easier if we clone. */
+              Level *cl = dr.lev->clone();
+              Extent<Level> ecl(cl);
+
+              /* then blank out the region */
+              {
+                for (int y = selection.y; y < selection.y + selection.h; y++) {
+                  for (int x = selection.x; x < selection.x + selection.w; x++) {
+                    dr.lev->settile(x, y, T_FLOOR);
+                    dr.lev->osettile(x, y, T_FLOOR);
+                    dr.lev->setdest(x, y, 0, 0);
+                    dr.lev->setflag(x, y, 0);
+                  }
+                }
+              }
+
+              for (int y = selection.y; y < selection.y + selection.h; y++)
+                for (int x = selection.x; x < selection.x + selection.w; x++) {
+
+                  /* copy all the parts */
+                  dr.lev->settile(x + dx, y + dy,
+                                  cl->tileat(x, y));
+
+                  dr.lev->osettile(x + dx, y + dy,
+                                   cl->otileat(x, y));
+
+                  {
+                  int ddx, ddy;
+                  cl->where(cl->destat(x, y), ddx, ddy);
+
+                  /* if the destination is inside the
+                     thing we're moving, then preserve it */
+                  if ((Level::needsdest(cl->tileat(x, y)) ||
+                       Level::needsdest(cl->otileat(x, y))) &&
+                      ddx >= selection.x &&
+                      ddx < (selection.x + selection.w) &&
+                      ddy >= selection.y &&
+                      ddy < (selection.y + selection.h)) {
+
+                    ddx += dx;
+                    ddy += dy;
+
+                  }
+
+                  /* anyway copy dest */
+                  dr.lev->setdest(x + dx, y + dy, ddx, ddy);
+                  }
+
+                  /* finally, flags */
+                  dr.lev->setflag(x + dx, y + dy,
+                                  cl->flagat(x, y));
+
+                }
+
+              /* move player, bots */
+              if (dr.lev->guyx >= selection.x &&
+                  dr.lev->guyy >= selection.y &&
+                  dr.lev->guyx < (selection.x + selection.w) &&
+                  dr.lev->guyy < (selection.y + selection.h)) {
+                dr.lev->guyx += dx;
+                dr.lev->guyy += dy;
+
+                /* if moving over bot (on edge), delete it */
+                if (dr.lev->guyx < selection.x ||
+                    dr.lev->guyy < selection.y ||
+                    dr.lev->guyx >= (selection.x + selection.w) ||
+                    dr.lev->guyy >= (selection.y + selection.h)) {
+                  int bi;
+                  if (dr.lev->botat(dr.lev->guyx, dr.lev->guyy, bi)) {
+                    dr.lev->bott[bi] = B_DELETED;
+                  }
+                }
+
+              }
+
+              {
+                for (int i = 0; i < dr.lev->nbots; i++) {
+
+                  int bx, by;
+                  dr.lev->where(dr.lev->boti[i], bx, by);
+                  if (bx >= selection.x &&
+                      by >= selection.y &&
+                      bx < (selection.x + selection.w) &&
+                      by < (selection.y + selection.h)) {
+                    bx += dx;
+                    by += dy;
+
+                    /* destroy any bot we're overwriting
+                       (but not if it's in the selection, because
+                       then it will move, too) */
+                    int bi;
+                    if (bx < selection.x ||
+                        by < selection.y ||
+                        bx >= (selection.x + selection.w) ||
+                        by >= (selection.y + selection.h)) {
+
+                      if (dr.lev->botat(bx, by, bi)) {
+                        /* overwrite bot */
+                        dr.lev->bott[bi] = B_DELETED;
+                      } else if (dr.lev->playerat(bx, by)) {
+                        /* Delete self if trying to
+                           overwrite player! */
+                        dr.lev->bott[i] = B_DELETED;
+                      }
+                    }
+                  }
+
+                    /* move bot (even if deleted) */
+                  dr.lev->boti[i] = dr.lev->index(bx, by);
+                }
+              }
+
+              /* move selection with it, but don't change size */
+              selection.x = tx;
+              selection.y = ty;
+
+              fixup();
+            } /* would move stay on screen? */
+
+
+            redraw();
+          } else {
+
+            /* move scroll window */
+
+            int dx = 0, dy = 0;
+            dirchange(d, dx, dy);
+            dr.scrollx += dx;
+            dr.scrolly += dy;
+
+            dr.makescrollreasonable();
+
+            redraw();
+
+          }
+        }
+          break;
+
+        default: ;
+          /* no match; try unicode */
+
+        switch (event.key.keysym.unicode) {
+
+        case SDLK_ESCAPE:
+          if (changed) {
+            if (Message::quick(this,
+                               "Quitting will destroy your unsaved changes.",
+                               "Quit anyway.",
+                               "Don't quit.")) {
+              goto edit_quit;
+            } else {
+              redraw();
+            }
+          } else goto edit_quit;
+
+        case SDLK_RETURN:
+          /* XXX center scroll on mouse */
+          break;
+
+        case SDLK_r:
+          dorandom();
+          break;
+
+        case SDLK_z:
+          resize();
+          break;
+
+        case SDLK_c:
+          clear(T_FLOOR, (tile)current);
+          break;
+
+        case SDLK_v: /* XXX paste */
+          break;
+
+        case SDLK_e:
+          playerstart();
+          break;
+
+        case SDLK_o:
+          erasebot();
+          break;
+
+        case SDLK_f:
+          firstbot();
+          break;
+
+        case SDLK_i:
+          prefab();
+          break;
+
+        case SDLK_w:
+          sleepwake();
+          break;
+
+        case SDLK_m:
+          next_bombtimer();
+          break;
+
+        case SDLK_k:
+          placebot(B_DALEK);
+          break;
+
+        case SDLK_b:
+          placebot(currentbomb);
+          break;
+
+        case SDLK_n:
+          placebot(B_BROKEN);
+          break;
+
+        case SDLK_h:
+          placebot(B_HUGBOT);
+          break;
+
+        case SDLK_u:
+          setauthor();
+          break;
+
+        case SDLK_d:
+          if (event.key.keysym.mod & KMOD_CTRL) {
+            clearselection();
+            redraw();
+          } else {
+            showdests = !showdests;
+            redraw();
+          }
+          break;
+
+        case SDLK_a:
+          if (event.key.keysym.mod & KMOD_CTRL) {
+            selection.x = 0;
+            selection.y = 0;
+            selection.w = dr.lev->w;
+            selection.h = dr.lev->h;
+            redraw();
+          } else {
+            saveas();
+          }
+          break;
+
+        case SDLK_t:
+          settitle();
+          break;
+
+        case SDLK_s:
+          if (filename == "") saveas();
+          else save();
+          break;
+
+        case SDLK_p:
+          playlev();
+          break;
+
+        case SDLK_l:
+          load();
+          break;
+
+        case SDLK_y:
+          layer = !layer;
+          redraw();
+          break;
+
+          /* zoom */
+        case SDLK_LEFTBRACKET:
+        case SDLK_RIGHTBRACKET:
+          dr.zoomfactor += (event.key.keysym.unicode == SDLK_LEFTBRACKET)? +1 : -1;
+          if (dr.zoomfactor < 0) dr.zoomfactor = 0;
+          if (dr.zoomfactor >= DRAW_NSIZES) dr.zoomfactor = DRAW_NSIZES - 1;
+
+          /* scrolls? */
+          dr.makescrollreasonable();
+
+          redraw();
+          break;
+
+        default:
+          break;
+        } /* switch unicode */
+        } /* switch sym */
+        break;
       default:;
       }
     }
-    
+
     SDL_Delay(25);
   }
  edit_quit:
-  
+
   dr.lev->destroy();
 
   return;
@@ -1798,52 +1798,52 @@ bool Editor::getdest(int &x, int &y, string msg) {
       switch (event.type) {
 
       case SDL_MOUSEBUTTONDOWN: {
-	SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
+        SDL_MouseButtonEvent *e = (SDL_MouseButtonEvent*)&event;
 
-	/* we don't want this click (and drag) to result in
-	   drawing. */
-	donotdraw = true;
+        /* we don't want this click (and drag) to result in
+           drawing. */
+        donotdraw = true;
 
-	if (e->button == SDL_BUTTON_LEFT) {
-	  
-	  int tx, ty;
-	  if (dr.inmap(e->x, e->y, 
-		       tx, ty)) {
+        if (e->button == SDL_BUTTON_LEFT) {
 
-	    x = tx;
-	    y = ty;
+          int tx, ty;
+          if (dr.inmap(e->x, e->y,
+                       tx, ty)) {
 
-	    dr.message = itos(tx) + (string)", " + itos(ty);
-	    return 1;
-	  }
-	  /* other clicks cancel */
-	} else {
-	  dr.message = "";
-	  return 0;
-	}
-	break;
+            x = tx;
+            y = ty;
+
+            dr.message = itos(tx) + (string)", " + itos(ty);
+            return 1;
+          }
+          /* other clicks cancel */
+        } else {
+          dr.message = "";
+          return 0;
+        }
+        break;
       }
 
       case SDL_QUIT: return 0;
       case SDL_KEYDOWN:
-	switch (event.key.keysym.sym) {
-	case SDLK_UP: dr.scrolly--; break;
-	case SDLK_DOWN: dr.scrolly++; break;
-	case SDLK_LEFT: dr.scrollx--; break;
-	case SDLK_RIGHT: dr.scrollx++; break;
-	case SDLK_ESCAPE:
-	  dr.message = "";
-	  return 0;
-	default:
-	  break;
-	}
-	dr.makescrollreasonable();
-	redraw();
-	break;
+        switch (event.key.keysym.sym) {
+        case SDLK_UP: dr.scrolly--; break;
+        case SDLK_DOWN: dr.scrolly++; break;
+        case SDLK_LEFT: dr.scrollx--; break;
+        case SDLK_RIGHT: dr.scrollx++; break;
+        case SDLK_ESCAPE:
+          dr.message = "";
+          return 0;
+        default:
+          break;
+        }
+        dr.makescrollreasonable();
+        redraw();
+        break;
       default:;
       }
     }
-    
+
     SDL_Delay(25);
   }
   /* XXX unreachable */
@@ -1878,21 +1878,21 @@ void Editor::fixup() {
     /* restore them where appropriate */
     int ref;
     if (Level::ispanel(l->tiles[i], ref)) {
-      l->flags[i] |= TF_HASPANEL | 
-	             ((ref & 1) * TF_RPANELL) |
-	            (((ref & 2) >> 1) * TF_RPANELH);
+      l->flags[i] |= TF_HASPANEL |
+                     ((ref & 1) * TF_RPANELL) |
+                    (((ref & 2) >> 1) * TF_RPANELH);
     }
 
     if (Level::ispanel(l->otiles[i], ref)) {
       l->flags[i] |= TF_OPANEL |
-	             ((ref & 1) * TF_ROPANELL) |
-	            (((ref & 2) >> 1) * TF_ROPANELH);
+                     ((ref & 1) * TF_ROPANELL) |
+                    (((ref & 2) >> 1) * TF_ROPANELH);
     }
 
     /* unset destination if not needed (makes
        smaller files because of longer runs) */
     if (!(Level::needsdest(l->tiles[i]) ||
-	  Level::needsdest(l->otiles[i])))
+          Level::needsdest(l->otiles[i])))
       l->dests[i] = 0;
 
   }
@@ -1903,17 +1903,17 @@ void Editor::fixup() {
     int bdi = 0;
     for (int bi = 0; bi < dr.lev->nbots; bi++) {
       if (dr.lev->bott[bi] >= 0 &&
-	  dr.lev->bott[bi] < NUM_ROBOTS) {
-	/* save bot */
-	dr.lev->bott[bdi] = dr.lev->bott[bi];
-	dr.lev->boti[bdi] = dr.lev->boti[bi];
-	dr.lev->botd[bdi] = DIR_DOWN;
-	/* always -1 */
-	dr.lev->bota[bdi] = -1;
-	bdi++;
+          dr.lev->bott[bi] < NUM_ROBOTS) {
+        /* save bot */
+        dr.lev->bott[bdi] = dr.lev->bott[bi];
+        dr.lev->boti[bdi] = dr.lev->boti[bi];
+        dr.lev->botd[bdi] = DIR_DOWN;
+        /* always -1 */
+        dr.lev->bota[bdi] = -1;
+        bdi++;
       }
     }
-    
+
     dr.lev->nbots = bdi;
   }
 
@@ -1933,7 +1933,7 @@ Editor *Editor::Create(Player *p) {
   ee->current = T_BLUE;
   ee->layer = 0;
   ee->tmenuscroll = 0;
-  
+
   ee->showdests = false;
 
   ee->changed = 0;

@@ -31,7 +31,7 @@ void MainShow::draw(int x, int y, SDL_Surface *surf) {
   dr.posx = x;
   dr.posy = y;
   dr.drawlev(0, surf, true);
-  
+
   tx->posx = 4 + x + (TILEW >> dr.zoomfactor) * dr.lev->w;
   tx->posy = y;
 
@@ -94,7 +94,7 @@ void MainShow::trymove() {
 }
 
 void MainShow::randomspot(int &x, int &y) {
-  int idx = 
+  int idx =
     util::random() % ((dr.lev->w - 2) * (dr.lev->h - 2));
 
   x = 1 + idx % (dr.lev->w - 2);
@@ -107,54 +107,54 @@ void MainShow::newexit() {
   randomspot(exitx, exity);
 
   dr.lev->settile(exitx, exity, T_EXIT);
-  
+
   exittime = 5 + (util::random() % EXIT_FREQ);
 }
 
 void MainShow::newguy() {
   randomspot(dr.lev->guyx,
-	     dr.lev->guyy);
-  
+             dr.lev->guyy);
+
   guytime = 8 + (util::random() % GUY_FREQ);
 }
 
 void MainShow::newlevel() {
-  /* XXX make a more interesting random level!! 
+  /* XXX make a more interesting random level!!
      (we had better improve the AI, then)
 
      actually, the AI gets a big bonus by being
      randomly placed (and having a moving exit),
      so even if we just pulled random levels from
      the triage collection (at 18x10 or smaller),
-     we'd probably win eventually. */ 
+     we'd probably win eventually. */
   for (int y = 0; y < dr.lev->h; y++) {
     for (int x = 0; x < dr.lev->w; x++) {
       dr.lev->settile(x, y, T_FLOOR);
-      
+
       /* sometimes put something other than floor */
       if (!(util::random() & 127))
-	dr.lev->settile(x, y, T_LASER);
+        dr.lev->settile(x, y, T_LASER);
 
       if (!(util::random() & 63))
-	dr.lev->settile(x, y, T_BLUE);
+        dr.lev->settile(x, y, T_BLUE);
 
       if (!(util::random() & 63))
-	dr.lev->settile(x, y, T_GREY);
+        dr.lev->settile(x, y, T_GREY);
 
       if (!(util::random() & 63))
-	dr.lev->settile(x, y, T_HOLE);
+        dr.lev->settile(x, y, T_HOLE);
 
       if (!(util::random() & 63)) {
-	dr.lev->settile(x, y, T_TRANSPORT);
-	int dx = 1, dy = 1;
-	randomspot(dx, dy);
-	dr.lev->setdest(x, y, dx, dy);
+        dr.lev->settile(x, y, T_TRANSPORT);
+        int dx = 1, dy = 1;
+        randomspot(dx, dy);
+        dr.lev->setdest(x, y, dx, dy);
       }
 
 
       if (x == 0 || x == (dr.lev->w - 1) ||
-	  y == 0 || y == (dr.lev->h - 1)) 
-	dr.lev->settile(x, y, T_BLUE);
+          y == 0 || y == (dr.lev->h - 1))
+        dr.lev->settile(x, y, T_BLUE);
     }
   }
 

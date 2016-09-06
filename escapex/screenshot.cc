@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     /* on win32, the ".exe" may or may not
        be present. Also, the file may have
        been invoked in any CaSe. */
-    
+
     self = util::lcase(util::fileof(argv[0]));
     self = util::ensureext(self, ".exe");
 
@@ -36,10 +36,10 @@ int main(int argc, char **argv) {
 
   if (argc != 3) {
     fprintf(stderr,
-	    "Usage: screenshot /path/to/level.esx /path/to/output.png\n");
-    fprintf(stderr, 
-	    "(relative paths will be interpreted from the location of the\n"
-	    " screenshot binary.)\n");
+            "Usage: screenshot /path/to/level.esx /path/to/output.png\n");
+    fprintf(stderr,
+            "(relative paths will be interpreted from the location of the\n"
+            " screenshot binary.)\n");
     return 1;
   }
 
@@ -78,8 +78,8 @@ int main(int argc, char **argv) {
   /* now zoom out until the level fits in the
      target size */
   while (((d.lev->w * (TILEW >> zf)) > 300 ||
-	  (d.lev->h * (TILEH >> zf)) > 300) &&
-	 zf < (DRAW_NSIZES - 1)) {
+          (d.lev->h * (TILEH >> zf)) > 300) &&
+         zf < (DRAW_NSIZES - 1)) {
     zf++;
   }
 

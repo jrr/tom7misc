@@ -26,7 +26,7 @@ struct CheckFile {
       return 0;
     }
   }
-  
+
   void destroy() { fclose(ff); delete this; }
 
   static CheckFile *create(string f) {
@@ -39,7 +39,7 @@ struct CheckFile {
   bool readint(int &i) {
     string s;
     if (!read(4, s)) return 0;
-    i = 
+    i =
       ((unsigned char)s[0] << 24) |
       ((unsigned char)s[1] << 16) |
       ((unsigned char)s[2] << 8) |

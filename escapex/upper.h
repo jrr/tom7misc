@@ -16,7 +16,7 @@ struct Upper {
   /* create an upper, using the http connection hh,
      and directory dir */
   static Upper *Create(HTTP *hh, TextScroll *t,
-		       Drawable *below, string dir);
+                       Drawable *below, string dir);
 
   /* the file 'f' (which may be prefixed by directories that have been
      previously saved), should be set to the contents specified by the
@@ -24,7 +24,7 @@ struct Upper {
 
      returns true if we will be able to accomplish this. */
   virtual bool setfile(string f, string md, RateStatus votes,
-		       int date, int speedrecord, int owner) = 0;
+                       int date, int speedrecord, int owner) = 0;
 
   /* creates the directory d (if it does not exist), and ensures that
      it will not be pruned. The index string becomes the directory's
@@ -56,13 +56,13 @@ struct Upper {
    oldentries.
 
    First, makedir is called on all of the subdirectories (and their
-   index names) that need to exist. 
+   index names) that need to exist.
 
    Then, setfile is called on all of the filenames (and hashes of
    their contents) that are supposed to be in the collection. Each
    filename should exist only in subdirectories created by makedir
    above (or else be in the "root").
-   
+
    If the md5 is not in the hashtable, then we download it using
    the http object (see protocol.txt). If this fails, then the entire
    process fails and setfile returns false.
@@ -72,7 +72,7 @@ struct Upper {
    For each oldentry, we have a flag 'delme' that is initially set to
    1. If we setfile to that file name, then we don't want to delete
    the file in the cleanup phase, so we set the deleteme flag to 0.
-   
+
    Finally, when the client calls commit(), we:
 
     - look up the md5 for each item in the newlist, and write it

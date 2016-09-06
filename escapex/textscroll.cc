@@ -18,7 +18,7 @@ struct TextScroll_ : public TextScroll {
   virtual void drawto(SDL_Surface *surf = 0);
 
   virtual ~TextScroll_();
-  
+
   string log[BACKLOG];
   int pwrite;
 
@@ -80,8 +80,8 @@ void TextScroll_::drawto(SDL_Surface *surf) {
   }
 }
 
-void TextScroll_::draw() { 
-  drawto(screen); 
+void TextScroll_::draw() {
+  drawto(screen);
 }
 
 }  // namespace

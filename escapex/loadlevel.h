@@ -13,12 +13,12 @@ struct LoadLevel : public Drawable {
   virtual ~LoadLevel();
 
   virtual string selectlevel() = 0;
-  static LoadLevel *Create(Player *, string dir, 
-			   bool inexact,
-			   bool allow_corrupted = false);
+  static LoadLevel *Create(Player *, string dir,
+                           bool inexact,
+                           bool allow_corrupted = false);
 
   virtual bool first_unsolved(string &file, string &title) = 0;
-  
+
   /* Drawable */
   void draw() override = 0;
   void screenresize() override = 0;

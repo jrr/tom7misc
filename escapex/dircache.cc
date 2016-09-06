@@ -30,9 +30,9 @@ struct DirEntry {
   }
 
   string key() { return dir; }
-  void destroy() { 
-    if (index) index->destroy(); 
-    delete this; 
+  void destroy() {
+    if (index) index->destroy();
+    delete this;
   }
   DirEntry(string d, DirIndex *i, int t, int s) : dir(d), index(i), total(t), solved(s) {
     // printf("dircached %s\n", d.c_str());
@@ -41,29 +41,29 @@ struct DirEntry {
 
 struct DirCache_ : public DirCache {
   Player *plr;
-  
+
   hashtable<DirEntry, string> *table;
   ~DirCache_() override { table->destroy(); }
 
   static DirCache_ *Create(Player *p) {
     std::unique_ptr<DirCache_> dc{new DirCache_()};
     if (!dc.get()) return nullptr;
-  
+
     dc->plr = p;
 
     dc->table = hashtable<DirEntry,string>::create(HASHSIZE);
 
     if (!dc->table) return 0;
- 
+
     return dc.release();
   }
 
   void getidx(string dir, DirIndex *&idx) override;
-  int get(string dir, DirIndex *&idx, 
-	  int &tot, int &sol,
-	  void (*prog)(void *d, int n, int total, 
-		       const string &, const int) = 0,
-	  void *pd = 0) override;
+  int get(string dir, DirIndex *&idx,
+          int &tot, int &sol,
+          void (*prog)(void *d, int n, int total,
+                       const string &, const int) = 0,
+          void *pd = 0) override;
 };
 
 /* make sure it starts with ./ */
@@ -85,7 +85,7 @@ void DirCache_::getidx(string dir, DirIndex *&idx) {
 }
 
 int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
-                void (*prog)(void *d, int n, int total, 
+                void (*prog)(void *d, int n, int total,
                              const string &, const int),
                 void *pd) {
   // printf("get: %s\n", dir.c_str());
@@ -114,7 +114,7 @@ int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
     DirIndex *didx;
     getidx(dir, didx);
 
-    /* 
+    /*
        if (didx) printf("%s index: %s\n", ifile.c_str(), didx->title.c_str());
        else printf("%s no index\n", ifile.c_str());
     */
@@ -166,14 +166,14 @@ int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
 
           const Solution *s = plr->GetSol(md5c);
           if (s != nullptr) {
-	    if (s->verified) {
-	      sss++;
-	    } else {
-	      if (Level::Verify(l, *s)) {
-		plr->SetDefaultVerified(md5c);
-		sss++;
-	      }
-	    }
+            if (s->verified) {
+              sss++;
+            } else {
+              if (Level::Verify(l, *s)) {
+                plr->SetDefaultVerified(md5c);
+                sss++;
+              }
+            }
           }
 
           l->destroy();
@@ -191,7 +191,7 @@ int DirCache_::get(string dir, DirIndex *&idx, int &tot, int &sol,
 
     return 1;
 
-  } else { 
+  } else {
     /* memoized */
     tot = de->total;
     sol = de->solved;

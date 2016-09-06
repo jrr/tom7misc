@@ -21,7 +21,7 @@
 
       void destroy();
         - destroy the entry
-      
+
    K, the key used for comparison, and the input to the hash function,
    does not require any methods other than the == operator. It is
    typically std::string.
@@ -50,7 +50,7 @@ struct hlist {
 
 template <class I, class K>
 struct hashtable {
-  
+
   int allocated;
 
   int items;
@@ -73,7 +73,7 @@ struct hashtable {
     h->allocated = i;
     h->data = (PtrList<I>**)malloc(i * sizeof (PtrList<I>*));
     h->items = 0;
-    
+
     if (!h->data) {
       delete h;
       return 0;
@@ -92,7 +92,7 @@ struct hashtable {
      you later sort this list) */
   void insert(I *item) {
     unsigned int loc = I::hash(item->key()) % allocated;
-    
+
     data[loc] = new PtrList<I>(item, data[loc]);
     items++;
   }
@@ -116,11 +116,11 @@ struct hashtable {
 
     return nullptr;
   }
-  
+
   /* removes if present */
   I *remove(K key) {
     unsigned int loc = I::hash(key) % allocated;
-    
+
     PtrList<I> **tmp = &data[loc];
     while (*tmp) {
       if (key == (*tmp)->head->key()) {
@@ -145,7 +145,7 @@ struct hashtable {
    horribly confused */
 template<class I, class K, class T>
 inline void hashtable_app(hashtable<I, K> *tab,
-                          void (*f)(I *, T), 
+                          void (*f)(I *, T),
                           T d ) {
   for (int i = 0 ; i < tab->allocated; i++ ) {
     PtrList<I> *l = tab->data[i];

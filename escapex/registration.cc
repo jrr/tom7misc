@@ -30,18 +30,18 @@ struct Registration_ : public Registration {
 
 void Registration_::registrate() {
   std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
-  if (hh.get() == nullptr) { 
+  if (hh.get() == nullptr) {
     Message::quick(this,
-		   "Couldn't connect to server.",
-		   "Sorry", "", PICS XICON POP);
+                   "Couldn't connect to server.",
+                   "Sorry", "", PICS XICON POP);
     return;
   }
 
   /* XXX again, need a better way to detect this */
   if (plr->name == "Default") {
-    Message::quick(this, 
-		   "You can't register with the default player.",
-		   "Sorry", "", PICS XICON POP);
+    Message::quick(this,
+                   "You can't register with the default player.",
+                   "Sorry", "", PICS XICON POP);
     return;
   }
 
@@ -51,37 +51,37 @@ void Registration_::registrate() {
   while (tries--) {
     int seql = util::random();
     int seqh = util::random() ^ (((int)SDL_GetTicks() << 16) |
-				 ((int)SDL_GetTicks() >> 16));
+                                 ((int)SDL_GetTicks() >> 16));
 
     seql = abs(seql);
     seqh = abs(seqh);
 
     say("try " + itos(seql) + " " + itos(seqh) + (string)"...");
 
-    if (Client::rpc(hh.get(), REGISTER_RPC, 
-		    (string) "seql=" + itos(seql) +
-		    (string)"&seqh=" + itos(seqh) +
-		    (string)"&name=" + HTTPUtil::urlencode(plr->name),
-		    res)) {
-      
+    if (Client::rpc(hh.get(), REGISTER_RPC,
+                    (string) "seql=" + itos(seql) +
+                    (string)"&seqh=" + itos(seqh) +
+                    (string)"&name=" + HTTPUtil::urlencode(plr->name),
+                    res)) {
+
       int id = util::stoi(res);
       if (id) {
-	plr->webid = id;
-	plr->webseql = seql;
-	plr->webseqh = seqh;
+        plr->webid = id;
+        plr->webseql = seql;
+        plr->webseqh = seqh;
 
-	if (plr->writefile()) {
-	  say((string)"success! " GREEN + res);
-	  Message::quick(this,
-			 (string)"You are registered as player " 
-			 YELLOW "#" + itos(id),
-			 "OK!", "", PICS THUMBICON POP);
-	  return;
-	} else {
-	  say(RED "can't write player file...?");
-	}
+        if (plr->writefile()) {
+          say((string)"success! " GREEN + res);
+          Message::quick(this,
+                         (string)"You are registered as player "
+                         YELLOW "#" + itos(id),
+                         "OK!", "", PICS THUMBICON POP);
+          return;
+        } else {
+          say(RED "can't write player file...?");
+        }
       } else {
-	say((string)"non-number response? [" RED + res + POP "]");
+        say((string)"non-number response? [" RED + res + POP "]");
       }
     } else {
       say((string)"fail: [" RED + res + POP "]");
@@ -90,11 +90,11 @@ void Registration_::registrate() {
 
   /* give up ... */
 
-  Message::no(this, 
-	      "Unable to register:\n"
-	      "     " RED + res + POP "\n"
-	      "   Try again later!");
-		 
+  Message::no(this,
+              "Unable to register:\n"
+              "     " RED + res + POP "\n"
+              "   Try again later!");
+
   return;
 }
 

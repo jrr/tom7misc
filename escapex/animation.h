@@ -26,7 +26,7 @@ struct AFrame {
   int wait;
 };
 
-/* these are actual 'in-progress' animation objects. 
+/* these are actual 'in-progress' animation objects.
 
    for example, consider a yellow block flying across
    the screen. This knows where it currently is,
@@ -50,8 +50,8 @@ struct Animation {
   /* This is called right before the animation
      is activated. It will always be called
      while the active animations are erased
-     from the screen. 
-     
+     from the screen.
+
      If this has changed the state of the screen,
      then return true, so that they dirty mirror
      can be updated. */
@@ -63,7 +63,7 @@ struct Animation {
   /* the graphic from its current position,
      by invoking dirty->setdirty */
   virtual void erase(Dirt *dirty) { }
-  
+
   /* think as a result of the timer passing
      the point set by nexttick. this can
      change the internal state, etc. return
@@ -92,7 +92,7 @@ struct Animation {
 
   /* false if fail */
   static bool ainit();
-  /* used for command-line apps (screenshot.exe) 
+  /* used for command-line apps (screenshot.exe)
      that don't need animation, just frames for draw */
   static bool ainit_fast();
 
@@ -124,7 +124,7 @@ struct Animation {
   static SDL_Surface **pic_dalek_asleep_down;
   static SDL_Surface **pic_dalek_asleep_left;
   static SDL_Surface **pic_dalek_asleep_right;
-  
+
   static SDL_Surface **pic_hugbot_asleep_up;
   static SDL_Surface **pic_hugbot_asleep_down;
   static SDL_Surface **pic_hugbot_asleep_left;
@@ -132,11 +132,11 @@ struct Animation {
 
   static SDL_Surface **pic_bomb_still;
   static SDL_Surface *** pic_bomb_lit;
-  
+
   /* if finale is true, then the animation should
      not be removed despite returning 'true' from
      think -- instead, it should die when every
-     animation is a finale and thinks true. 
+     animation is a finale and thinks true.
 
      finale true implies next is null. */
   bool finale;
@@ -151,10 +151,10 @@ struct Animation {
 
   /* push some animations for the event ae
      onto the list anims. assume anims is 0 */
-  static void start(Drawing &dr, 
-		    PtrList<Animation> *&anims, 
-		    PtrList<Animation> *&sprites,
-		    aevent *ae);
+  static void start(Drawing &dr,
+                    PtrList<Animation> *&anims,
+                    PtrList<Animation> *&sprites,
+                    aevent *ae);
 
   static void clearsprites(Drawing &dr);
   static void clearent(Drawing &dr, int ex, int ey, int olap);
@@ -165,12 +165,12 @@ struct Animation {
      If an animation has finished, remove it from the
      list, perhaps starting the next one in the series.
      If anything changes the background, then remirror
-     is set to true (otherwise it is untouched). 
-     
+     is set to true (otherwise it is untouched).
+
      If 'done' is true, then finales are eligible to be
      removed, as long as everything running is a finale. */
   static void think_anims(PtrList<Animation> **as, unsigned int now,
-			  bool &remirror, bool done = false);
+                          bool &remirror, bool done = false);
 
   /* Call draw method for every Animation in list. */
   static void draw_anims(PtrList<Animation> *a);
@@ -184,9 +184,9 @@ struct Animation {
 
  private:
 
-  static SDL_Surface *pitched_rect(int w, int h, int ph, 
-				   SDL_Surface *src,
-				   int oversample = FLIPS_OVERSAMPLE);
+  static SDL_Surface *pitched_rect(int w, int h, int ph,
+                                   SDL_Surface *src,
+                                   int oversample = FLIPS_OVERSAMPLE);
 
   static bool init_flips();
 
@@ -208,7 +208,7 @@ struct AnInPlace : public Animation {
   /* f is a pointer to an array of frames, where the last element
      of the array has a pic pointer of 0. There must be at least
      one frame. */
-  AnInPlace(int x, int y, int loops, AFrame *f) 
+  AnInPlace(int x, int y, int loops, AFrame *f)
     : xpos(x), ypos(y), loopsleft(loops - 1), frames(f) {}
 
   int yorder() override { return ypos + frames[cframe].y; }
@@ -225,7 +225,7 @@ struct AnInPlace : public Animation {
    that tile */
 struct AnPlaceTile : public Animation {
   int what, sx, sy;
-  AnPlaceTile(int what_, int sx_, int sy_) 
+  AnPlaceTile(int what_, int sx_, int sy_)
     : what(what_), sx(sx_), sy(sy_) {}
 
   /* here the initializer draws it. */
@@ -235,9 +235,9 @@ struct AnPlaceTile : public Animation {
     nexttick = now;
     return true;
   }
-  
+
   int yorder() override { return sy; }
-  
+
   bool think(unsigned int) override {
     return true;
   }
@@ -303,7 +303,7 @@ struct AnFlying : public Animation {
   /* pass in screen pixel starting position, distance in
      pixels */
   AnFlying(SDL_Surface *what, int sx, int sy, dir dd, int sdist,
-	   int sp, int w);
+           int sp, int w);
 
   int yorder() override { return py; }
 
@@ -409,9 +409,9 @@ struct AnFlyingTile : public AnFlying {
   }
 
   AnFlyingTile(int ti_,
-	       int sx, int sy, 
-	       dir dd, int sdist,
-	       int sp, int w);
+               int sx, int sy,
+               dir dd, int sdist,
+               int sp, int w);
 };
 
 struct AnLaser : public Animation {
@@ -437,42 +437,42 @@ struct AnLaser : public Animation {
     return false;
   }
 
-  void erase(Dirt *dirty) override { 
+  void erase(Dirt *dirty) override {
     if (!isfinal) {
       int px, py, ww, hh;
       /* PERF don't need to draw the whole
-	 tile here, just laser width */
+         tile here, just laser width */
       switch (d) {
       default: return;
       case DIR_RIGHT:
-	px = sx;
-	py = sy;
-	ww = ntiles * TILEW;
-	hh = TILEH;
-	break;
+        px = sx;
+        py = sy;
+        ww = ntiles * TILEW;
+        hh = TILEH;
+        break;
       case DIR_LEFT:
-	px = sx - ntiles * TILEW;
-	py = sy;
-	ww = ntiles * TILEW;
-	hh = TILEH;
-	break;
+        px = sx - ntiles * TILEW;
+        py = sy;
+        ww = ntiles * TILEW;
+        hh = TILEH;
+        break;
       case DIR_DOWN:
-	px = sx;
-	py = sy;
-	ww = TILEW;
-	hh = ntiles * TILEH;
-	break;
+        px = sx;
+        py = sy;
+        ww = TILEW;
+        hh = ntiles * TILEH;
+        break;
       case DIR_UP:
-	px = sx;
-	py = sy - ntiles * TILEH;
-	ww = TILEW;
-	hh = ntiles * TILEH;
-	break;
+        px = sx;
+        py = sy - ntiles * TILEH;
+        ww = TILEW;
+        hh = ntiles * TILEH;
+        break;
       }
       dirty->setdirty(px, py, ww, hh);
     }
   }
-  
+
   bool think(unsigned int now) override;
 
   void draw() override;
@@ -481,21 +481,21 @@ struct AnLaser : public Animation {
   int yorder() override { return sy; }
 
   AnLaser(int sx_, int sy_, dir d_, int nt, int cl,
-	  bool isfinal_,
-	  int rh_, int gh_, int bh_,
-	  int rho_, int gho_, int bho_,
-	  int rl_, int gl_, int bl_,
-	  int rlo_, int glo_, int blo_) :
+          bool isfinal_,
+          int rh_, int gh_, int bh_,
+          int rho_, int gho_, int bho_,
+          int rl_, int gl_, int bl_,
+          int rlo_, int glo_, int blo_) :
     sx(sx_), sy(sy_), d(d_), ntiles(nt), cyclesleft(cl),
        isfinal(isfinal_),
        rh(rh_), gh(gh_), bh(bh_),
        rho(rho_), gho(gho_), bho(bho_),
        rl(rl_), gl(gl_), bl(bl_),
-       rlo(rlo_), glo(glo_), blo(blo_) 
+       rlo(rlo_), glo(glo_), blo(blo_)
   { }
 };
 
-/* for now require that first and second have no 'next' field 
+/* for now require that first and second have no 'next' field
    also, init should not return true. */
 struct AnCombo : public Animation {
   /* if either is zero, then act like the other pointer. */
@@ -506,7 +506,7 @@ struct AnCombo : public Animation {
   void settick() {
     if (first) {
       if (second) {
-	nexttick = util::minimum(first->nexttick, second->nexttick);
+        nexttick = util::minimum(first->nexttick, second->nexttick);
       } else nexttick = first->nexttick;
     } else nexttick = second->nexttick;
   }
@@ -525,19 +525,19 @@ struct AnCombo : public Animation {
     if (first)  first ->erase(dirty);
     if (second) second->erase(dirty);
   }
-  
+
   bool think(unsigned int now) override {
     if (first && now >= first->nexttick) {
       if (first->think(now)) {
-	delete first;
-	first = nullptr;
+        delete first;
+        first = nullptr;
       }
     }
 
     if (second && now >= second->nexttick) {
       if (second->think(now)) {
-	delete second;
-	second = nullptr;
+        delete second;
+        second = nullptr;
       }
     }
 
@@ -555,7 +555,7 @@ struct AnCombo : public Animation {
   }
 
   /* draw at current location. */
-  void draw() override { 
+  void draw() override {
     if (first) first->draw();
     if (second) second->draw();
   }

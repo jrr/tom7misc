@@ -22,7 +22,7 @@ struct TextScroll : public Drawable {
   /* for Drawable interface */
   void draw() override = 0;
   void screenresize() override = 0;
-  
+
   virtual void drawto(SDL_Surface *surf = 0) = 0;
 
   virtual ~TextScroll();

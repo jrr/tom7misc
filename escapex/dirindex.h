@@ -9,7 +9,7 @@
      * current speed records for each level
      * (your idea here)
 
-   indices are written as index.esi in each managed directory. 
+   indices are written as index.esi in each managed directory.
 
    Note: This is being replaced by leveldb for the 4.0 series.
 */
@@ -32,7 +32,7 @@ struct RateStatus {
 };
 
 struct DirIndex {
-  
+
   /* make an empty index, suitable for later writing to disk */
   static DirIndex *create();
 
@@ -40,16 +40,16 @@ struct DirIndex {
   virtual ~DirIndex() {}
 
   /* read from disk */
-  static DirIndex *fromfile(string f);
+  static DirIndex *fromfile(const string &f);
 
-  static bool isindex(string f);
+  static bool isindex(const string &f);
 
   virtual void writefile(string f) = 0;
-  virtual void addentry(string filename, RateStatus v, 
-			int date, int speedrecord, int owner) = 0;
+  virtual void addentry(string filename, RateStatus v,
+                        int date, int speedrecord, int owner) = 0;
 
   virtual bool getentry(string filename, RateStatus &v,
-			int &date, int &speedrecord, int &owner) = 0;
+                        int &date, int &speedrecord, int &owner) = 0;
 
   /* true if this is a managed collection */
   virtual bool webcollection() = 0;

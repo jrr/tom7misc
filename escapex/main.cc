@@ -59,16 +59,16 @@ int main(int argc, char **argv) {
 
   audio = 0;
   network = 0;
-  if (SDL_Init(SDL_INIT_VIDEO | 
-	       SDL_INIT_TIMER | 
-	       SDL_INIT_AUDIO | DEBUG_PARACHUTE) < 0) {
+  if (SDL_Init(SDL_INIT_VIDEO |
+               SDL_INIT_TIMER |
+               SDL_INIT_AUDIO | DEBUG_PARACHUTE) < 0) {
 
     /* try without audio */
-    if (SDL_Init(SDL_INIT_VIDEO | 
-		 SDL_INIT_TIMER | DEBUG_PARACHUTE) < 0) {
-      
+    if (SDL_Init(SDL_INIT_VIDEO |
+                 SDL_INIT_TIMER | DEBUG_PARACHUTE) < 0) {
+
       printf("Unable to initialize SDL. (%s)\n", SDL_GetError());
-      
+
       return 1;
 
     } else {
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
   } else {
     audio = 1;
   }
-  
+
   if (SDLNet_Init() == -1) {
     network = 0;
     printf("(debug) SDLNet_Init: %s\n", SDLNet_GetError());
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
   Sound::init();
 
-  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, 
+  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
                       SDL_DEFAULT_REPEAT_INTERVAL);
 
   SDL_EnableUNICODE(1);
@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
       SDL_Flip(screen);
 
       SDL_FreeSurface(splash);
-      
+
     }
 
   }
@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
   /* XXX this could display for unix and osx too, direct from the exec */
   /* Windows has some weird command line args stuff for an executable
      upgrading itself. See upgrade.cc and replace.cc for
-     description. */ 
+     description. */
 
   if (argc == 2 &&
       !strcmp(argv[1], "-upgraded")) {
@@ -165,14 +165,14 @@ int main(int argc, char **argv) {
     {
       std::unique_ptr<PlayerDB> pdb{PlayerDB::create()};
       if (pdb.get() == nullptr) {
-	Message::bug(0, "Error in playerdb?");
-	goto oops;
+        Message::bug(0, "Error in playerdb?");
+        goto oops;
       }
-      
+
       /* If there are no players, assume this is the
-	 first launch. */
+         first launch. */
       if (pdb->firsttime()) {
-	HandHold::firsttime();
+        HandHold::firsttime();
       }
 
       plr.reset(pdb->chooseplayer());
@@ -203,56 +203,56 @@ int main(int argc, char **argv) {
         /* we stay in 'load' mode until
            the user hits escape on the load screen. */
         for (;;) {
-	  std::unique_ptr<LoadLevel> ll{
-	    LoadLevel::Create(plr.get(), DEFAULT_DIR, true, false)};
-	  if (ll.get() != nullptr) {
-	    string res = ll->selectlevel();
-	    
-	    Play::playrecord(res, plr.get());
-	    
-	    if (res == "") break;
-	  } else {
-	    Message::bug(0, "Error creating load screen");
-	    break;
-	  }
+          std::unique_ptr<LoadLevel> ll{
+            LoadLevel::Create(plr.get(), DEFAULT_DIR, true, false)};
+          if (ll.get() != nullptr) {
+            string res = ll->selectlevel();
+
+            Play::playrecord(res, plr.get());
+
+            if (res == "") break;
+          } else {
+            Message::bug(0, "Error creating load screen");
+            break;
+          }
         }
 
       } else if (r == MainMenu::LOAD_NEW) {
 
-	// FIXME not finished, doesn't work
-	for (;;) {// XXX loop in browser instead.
-	  std::unique_ptr<Browse> bb{Browse::Create()};
-  	  if (bb.get() != nullptr) {
-	    // XXX: Instead, have a version of the browser
-	    // that invokes playrecord on the stack, and a
-	    // separate bb->selectfile() for editing.
-	    string res = bb->selectlevel();
-	    if (res.empty()) break;
+        // FIXME not finished, doesn't work
+        for (;;) {// XXX loop in browser instead.
+          std::unique_ptr<Browse> bb{Browse::Create()};
+            if (bb.get() != nullptr) {
+            // XXX: Instead, have a version of the browser
+            // that invokes playrecord on the stack, and a
+            // separate bb->selectfile() for editing.
+            string res = bb->selectlevel();
+            if (res.empty()) break;
 
-	    Play::playrecord(res, plr.get());
+            Play::playrecord(res, plr.get());
 
-	  } else {
-	    Message::bug(0, "Error creating browser");
-	    break;
-	  }
-	}
-	  
+          } else {
+            Message::bug(0, "Error creating browser");
+            break;
+          }
+        }
+
       } else if (r == MainMenu::EDIT) {
         /* edit a level */
 
-	std::unique_ptr<Editor> ee{Editor::Create(plr.get())};
+        std::unique_ptr<Editor> ee{Editor::Create(plr.get())};
         if (ee.get() == nullptr) {
           Message::bug(0, "Error creating Editor");
           goto oops;
         }
-        
+
         ee->edit();
 
 #     ifndef MULTIUSER
       } else if (r == MainMenu::UPGRADE) {
         /* upgrade escape binaries and graphics */
 
-	std::unique_ptr<Upgrader> uu{Upgrader::Create(plr.get())};
+        std::unique_ptr<Upgrader> uu{Upgrader::Create(plr.get())};
         if (!uu) {
           Message::bug(0, "Error creating upgrader");
           goto oops;
@@ -272,7 +272,7 @@ int main(int argc, char **argv) {
       } else if (r == MainMenu::UPDATE) {
         /* update levels */
 
-	std::unique_ptr<Updater> uu{Updater::Create(plr.get())};
+        std::unique_ptr<Updater> uu{Updater::Create(plr.get())};
         if (uu.get() == nullptr) {
           Message::bug(0, "Error creating updater");
           goto oops;
@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
       } else if (r == MainMenu::REGISTER) {
         /* register player online */
 
-	std::unique_ptr<Registration> rr{Registration::Create(plr.get())};
+        std::unique_ptr<Registration> rr{Registration::Create(plr.get())};
         if (!rr.get()) {
           Message::bug(0, "Couldn't create registration object");
           goto oops;

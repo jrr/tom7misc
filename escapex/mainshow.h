@@ -17,7 +17,7 @@
 /* draws an ever-changing and poorly-played level */
 
 struct MainShow {
-  
+
   /* width and height given in tiles */
   MainShow(int w, int h, int zf = 1);
 
@@ -27,7 +27,7 @@ struct MainShow {
   /* draw to x,y on the supplied surface. if surface is
      0, then draw to the screen */
   void draw(int x, int y, SDL_Surface *surf = 0);
-  
+
   ~MainShow();
 
   int width() {
@@ -35,7 +35,7 @@ struct MainShow {
   }
 
  private:
-  
+
   Drawing dr;
 
   void newlevel();
@@ -51,7 +51,7 @@ struct MainShow {
   int leveltime;
   int exittime;
   int guytime;
-  
+
   std::unique_ptr<TextScroll> tx;
 };
 

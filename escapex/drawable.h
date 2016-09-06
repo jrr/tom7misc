@@ -10,7 +10,7 @@ struct Drawable {
      else may have drawn before you. */
   virtual void draw() = 0;
 
-  /* be notified that the screen size has changed. 
+  /* be notified that the screen size has changed.
      screen->w and screen->h will have been updated
      with the new size. */
   virtual void screenresize() = 0;

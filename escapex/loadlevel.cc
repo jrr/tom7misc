@@ -1,8 +1,8 @@
 
 #include "escapex.h"
+#include "loadlevel.h"
 #include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
-#include "loadlevel.h"
 #include "../cc-lib/md5.h"
 
 #include <string.h>
@@ -25,10 +25,10 @@
 
 #include "dirindex.h"
 #include "optimize.h"
-#include "smanage.h"
 #include "client.h"
 
 #include "menu.h"
+#include "textbox.h"
 
 #include "progress.h"
 
@@ -61,7 +61,7 @@ struct LLEntry {
   string name;
   string md5;
   int isdir;
-  
+
   string author;
   int sizex;
   int sizey;
@@ -79,7 +79,7 @@ struct LLEntry {
   int speedrecord;
   bool owned;
 
-  /* true if this is a 'managed' file 
+  /* true if this is a 'managed' file
      (part of a web collection) */
   bool managed;
 
@@ -93,7 +93,7 @@ struct LLEntry {
 
   ~LLEntry() { if (lev) lev->destroy(); }
   LLEntry() { lev = 0; }
-  
+
   static void swap(LLEntry *l, LLEntry *r) {
 #   define SWAP(f) {const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
     SWAP(md5);
@@ -120,35 +120,35 @@ struct LLEntry {
     string file = fname;
     stringlist *pathtmp = stringlist::copy(p);
     while (pathtmp) {
-      file = stringpop(pathtmp) + 
-	     string(DIRSEP) + file;
+      file = stringpop(pathtmp) +
+             string(DIRSEP) + file;
     }
     return file;
   }
 
   /* default: directories are first */
   static bool default_dirs(int &ret,
-			  const LLEntry &l,
-			  const LLEntry &r) {
+                          const LLEntry &l,
+                          const LLEntry &r) {
 
     /* make this appear first */
     if (l.fname == ".." && r.fname != "..") {
-      ret = -1; return true; 
+      ret = -1; return true;
     }
     if (l.fname != ".." && r.fname == "..") {
       ret = 1; return true;
     }
-  
+
     /* then directories */
     if (l.isdir && !r.isdir) { ret = -1; return true; }
     if (!l.isdir && r.isdir) { ret = 1; return true; }
-    
+
     /* if one is a dir, both are. sort by
        number of levels first. */
     if (l.isdir) {
       ret = 1;
       if (l.total > r.total) ret = -1;
-      if (l.total == r.total) ret = 0; 
+      if (l.total == r.total) ret = 0;
       return true;
     }
 
@@ -158,11 +158,11 @@ struct LLEntry {
 
   /* newest first -- only if webindex */
   static int cmp_bydate(const LLEntry &l,
-			const LLEntry &r) {
+                        const LLEntry &r) {
 
     int order;
     if (default_dirs(order, l, r)) return order;
-    
+
     if (l.date > r.date) return -1;
     else if (l.date < r.date) return 1;
     /* or by solved? */
@@ -170,8 +170,8 @@ struct LLEntry {
   }
 
   static int cmp_bywebsolved(const LLEntry &l,
-			     const LLEntry &r) {
-    
+                             const LLEntry &r) {
+
     int order;
     if (default_dirs(order, l, r)) return order;
 
@@ -181,7 +181,7 @@ struct LLEntry {
   }
 
   static int cmp_bysolved(const LLEntry &l,
-			  const LLEntry &r) {
+                          const LLEntry &r) {
     int order;
     if (default_dirs(order, l, r)) return order;
 
@@ -193,7 +193,7 @@ struct LLEntry {
   /* descending sort by personal rating field */
 # define MINE(letter, field) \
   static int cmp_bymy ## letter(const LLEntry &l, \
-		                const LLEntry &r) { \
+                                const LLEntry &r) { \
     int order; \
     if (default_dirs(order, l, r)) return order; \
                                                   \
@@ -213,14 +213,14 @@ struct LLEntry {
   /* descending sort by global rating field */
 # define GLOB(letter, field) \
   static int cmp_byglobal ## letter(const LLEntry &l, \
-			            const LLEntry &r) { \
+                                    const LLEntry &r) { \
     int order; \
     if (default_dirs(order, l, r)) return order; \
                                                  \
     float nl = l.votes.nvotes?(l.votes. field / \
-			       (float)l.votes.nvotes):-1.0f; \
+                               (float)l.votes.nvotes):-1.0f; \
     float nr = r.votes.nvotes?(r.votes. field / \
-			       (float)r.votes.nvotes):-1.0f; \
+                               (float)r.votes.nvotes):-1.0f; \
     if (nl < nr) return 1; \
     else if (nl > nr) return -1; \
     else return cmp_byname(l, r); \
@@ -232,8 +232,8 @@ struct LLEntry {
 # undef GLOB
 
   static int cmp_byauthor(const LLEntry &l,
-			  const LLEntry &r) {
-    
+                          const LLEntry &r) {
+
     int order;
     if (default_dirs(order, l, r)) return order;
 
@@ -244,23 +244,23 @@ struct LLEntry {
   }
 
   static int cmp_byname(const LLEntry &l,
-			const LLEntry &r) {
+                        const LLEntry &r) {
 
     int order;
     if (default_dirs(order, l, r)) return order;
 
     /* XXX filter color codes here */
-    /* XXX ignore case -- strcasecmp is not available on win32? */  
-    
+    /* XXX ignore case -- strcasecmp is not available on win32? */
+
     /* then, sort by names. */
     if (l.name == r.name) {
       /* they might both be empty -- then
-	 use filenames. */
+         use filenames. */
       if (l.name == "") {
-	if (l.fname == r.fname) return 0;
-	
-	/* we assume filenames are unique */
-	return util::natural_compare(l.fname, r.fname);
+        if (l.fname == r.fname) return 0;
+
+        /* we assume filenames are unique */
+        return util::natural_compare(l.fname, r.fname);
       } else return 0;
     }
 
@@ -270,7 +270,7 @@ struct LLEntry {
   }
 
   static int cmp_none(const LLEntry &l,
-		      const LLEntry &r) {
+                      const LLEntry &r) {
     return 0;
   }
 
@@ -292,11 +292,11 @@ struct LoadLevel_ : public LoadLevel {
   bool first_unsolved(string &file, string &title) override;
 
   string selectlevel() override;
-  
+
   LoadLevel_() {}
 
-  static LoadLevel_ *Create(Player *p, string dir, 
-			    bool inexact, bool ac);
+  static LoadLevel_ *Create(Player *p, string dir,
+                            bool inexact, bool ac);
 
 
  private:
@@ -321,7 +321,7 @@ struct LoadLevel_ : public LoadLevel {
   /* getsort returns a comparison function. C++
      syntax for this is ridiculous */
   static int (*getsort(sortstyle s)) (const LLEntry &l,
-				      const LLEntry &r) {
+                                      const LLEntry &r) {
     switch (s) {
     default:
     case SORT_DATE: return LLEntry::cmp_bydate;
@@ -354,7 +354,7 @@ struct LoadLevel_ : public LoadLevel {
   /* and last filename we selected */
   static string lastfile;
   /* and last sort order */
-  
+
 
 
   string locate(string);
@@ -374,7 +374,7 @@ struct LoadLevel_ : public LoadLevel {
 
   /* if possible, select the last file seen here */
   void select_lastfile();
-  
+
   /* called a few times a second, advancing through
      a solution if one exists. */
   void Step();
@@ -396,7 +396,7 @@ void LoadLevel_::select_lastfile() {
 void LoadLevel_::fix_show(bool force) {
   /* if we notice that we are out of sync with the selected
      level, switch to it. */
-  
+
   if (force || (sel->selected != showidx)) {
 
     showidx = sel->selected;
@@ -404,23 +404,23 @@ void LoadLevel_::fix_show(bool force) {
     showlev = 0;
     showsol.Clear();
     solstep = 0;
-    
+
     /* directory might be totally empty?? */
     if (sel->number) {
       if (!sel->items[showidx].isdir) {
-	// printf("well the level is %p\n", sel->items[showidx].lev);
-	showlev = sel->items[showidx].lev->clone();
-	const Solution *lsol = plr->GetSol(sel->items[showidx].md5);
-	if (lsol != nullptr) {
-	  showsol = *lsol;
-	  solstep = 0;
-	  showstart = STEPS_BEFORE_SOL;
-	}
+        // printf("well the level is %p\n", sel->items[showidx].lev);
+        showlev = sel->items[showidx].lev->clone();
+        const Solution *lsol = plr->GetSol(sel->items[showidx].md5);
+        if (lsol != nullptr) {
+          showsol = *lsol;
+          solstep = 0;
+          showstart = STEPS_BEFORE_SOL;
+        }
       }
     } else {
       // printf("empty dir!\n");
     }
-    
+
   }
 }
 
@@ -432,9 +432,9 @@ void LoadLevel_::Step() {
     if (!showstart) {
       /* step */
       if (solstep < showsol.Length()) {
-	dir d = showsol.At(solstep);
-	showlev->Move(d);
-	solstep++;
+        dir d = showsol.At(solstep);
+        showlev->Move(d);
+        solstep++;
       }
 
     } else showstart--;
@@ -465,18 +465,18 @@ string LLEntry::display(bool selected) {
 
       string so = "";
       if (total > 0) {
-	so = itos(solved) + (string)"/" + itos(total);
+        so = itos(solved) + (string)"/" + itos(total);
       } else {
-	if (!selected) color = GREY;
-	so = "(no levels)";
+        if (!selected) color = GREY;
+        so = "(no levels)";
       }
 
       string showname = "";
       if (name != "") showname = name;
       else showname = fname;
 
-      return pre + 
-	color + (string)"[" + showname + (string)" " + so + "]" POP;
+      return pre +
+        color + (string)"[" + showname + (string)" " + so + "]" POP;
     }
   } else {
     string pre = "   ";
@@ -486,27 +486,27 @@ string LLEntry::display(bool selected) {
     string myr = "  " "  " "  ";
 
     if (myrating) {
-      myr = 
-	(string)RED   BARSTART + (char)(BAR_0[0] + (int)(myrating->difficulty)) +
-	(string)GREEN BARSTART + (char)(BAR_0[0] + (int)(myrating->style)) +
-	(string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(myrating->rigidity));
+      myr =
+        (string)RED   BARSTART + (char)(BAR_0[0] + (int)(myrating->difficulty)) +
+        (string)GREEN BARSTART + (char)(BAR_0[0] + (int)(myrating->style)) +
+        (string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(myrating->rigidity));
     }
 
     /* shows alpha-dimmed if there are fewer than 3(?) votes */
     string ratings = "  " "  " "  ";
     if (votes.nvotes > 0) {
-      ratings = 
-	(string)((votes.nvotes <= 2)? ((votes.nvotes <= 1) ? ALPHA25 : ALPHA50) : "") +
-	(string)RED   BARSTART + (char)(BAR_0[0] + (int)(votes.difficulty / votes.nvotes)) +
-	(string)GREEN BARSTART + (char)(BAR_0[0] + (int)(votes.style / votes.nvotes)) +
-	(string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(votes.rigidity / votes.nvotes));    }
+      ratings =
+        (string)((votes.nvotes <= 2)? ((votes.nvotes <= 1) ? ALPHA25 : ALPHA50) : "") +
+        (string)RED   BARSTART + (char)(BAR_0[0] + (int)(votes.difficulty / votes.nvotes)) +
+        (string)GREEN BARSTART + (char)(BAR_0[0] + (int)(votes.style / votes.nvotes)) +
+        (string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(votes.rigidity / votes.nvotes));    }
 
     string line =
-      pre + color + Font::pad(name, ns) + (string)" " POP + 
-      (string)(corrupted?RED:GREEN) + 
+      pre + color + Font::pad(name, ns) + (string)" " POP +
+      (string)(corrupted?RED:GREEN) +
       Font::pad(itos(sizex) + (string)GREY "x" POP +
-		itos(sizey), ss) + POP +
-      (string)" " BLUE + Font::pad(author, as) + POP + myr + 
+                itos(sizey), ss) + POP +
+      (string)" " BLUE + Font::pad(author, as) + POP + myr +
       (string)" " + ratings;
 
     return line;
@@ -525,7 +525,7 @@ bool LoadLevel_::first_unsolved(string &file, string &title) {
 
   for (int i = 0; i < sel->number; i++) {
     if ((!sel->items[i].isdir) &&
-	(!sel->items[i].solved)) {
+        (!sel->items[i].solved)) {
       file = sel->items[i].actualfile(path);
       title = sel->items[i].name;
       return true;
@@ -545,14 +545,14 @@ bool LoadLevel_::first_unsolved(string &file, string &title) {
 #endif
 
 LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
-				     bool inexact,
-				     bool allow_corrupted_) {
+                                     bool inexact,
+                                     bool allow_corrupted_) {
   DBTIME_INIT;
 
   LoadLevel_ *ll = new LoadLevel_();
   ll->cache.reset(DirCache::Create(p));
   if (!ll->cache.get()) return nullptr;
-  
+
   DBTIME("created dircache");
 
   /* might want this to persist across loads, who knows... */
@@ -580,7 +580,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
 
   if (inexact) {
     if (lastdir != "") dir = lastdir;
-    
+
     /* XXX should fall back (to argument?) if this fails;
        maybe the last directory was deleted? */
     do {
@@ -589,7 +589,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
       dir = util::cdup(dir);
     } while (dir != ".");
 
-    return 0;	
+    return 0;
 
   chdir_ok:
     /* try to find lastfile in this dir, if possible */
@@ -611,9 +611,9 @@ string LoadLevel_::selectlevel() {
 
 /* prepend current path onto filename */
 string LoadLevel_::locate(string filename) {
-  
+
   stringlist *pp = path;
-  
+
   string out = filename;
   while (pp) {
     if (out == "") out = pp->head;
@@ -720,47 +720,47 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
       string dn = de->d_name;
 
       /* senseless to include current dir,
-	 CVS and SVN dirs... */
+         CVS and SVN dirs... */
       if (!(dn == "." ||
-	    dn == "CVS" ||
-	    dn == ".svn" ||
-	    /* for now, don't even allow the user
-	       to go above the home directory,
-	       since we don't handle that
-	       properly. */
-	    (dn == ".." && !path))) {
+            dn == "CVS" ||
+            dn == ".svn" ||
+            /* for now, don't even allow the user
+               to go above the home directory,
+               since we don't handle that
+               properly. */
+            (dn == ".." && !path))) {
 
-	if (dn == "..") {
-	  /* don't report completions for parent */
-	  nsel->items[i].fname = dn;
-	  nsel->items[i].isdir = 1;
-	  nsel->items[i].solved = 0;
-	  i++;
-	} else {
-	  int ttt, sss;
-	  DirIndex *iii = 0;
+        if (dn == "..") {
+          /* don't report completions for parent */
+          nsel->items[i].fname = dn;
+          nsel->items[i].isdir = 1;
+          nsel->items[i].solved = 0;
+          i++;
+        } else {
+          int ttt, sss;
+          DirIndex *iii = 0;
 
-	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
-	  if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
-			 (void *)&dcp)) {
+          int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
+          if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
+                         (void *)&dcp)) {
 
-	    /* only show if it has levels,
-	       or at least has an index 
-	       (in corrupted mode we show everything) */
-	    if (iii || ttt || allow_corrupted) {
-	    
-	      nsel->items[i].fname = dn;
-	      nsel->items[i].isdir = 1;
-	      nsel->items[i].solved = sss;
-	      nsel->items[i].total = ttt;
-	      
-	      /* no need to save the index, just the title */
-	      nsel->items[i].name = iii?(iii->title):dn;
-	      
-	      i++;
-	    }
-	  }
-	}
+            /* only show if it has levels,
+               or at least has an index
+               (in corrupted mode we show everything) */
+            if (iii || ttt || allow_corrupted) {
+
+              nsel->items[i].fname = dn;
+              nsel->items[i].isdir = 1;
+              nsel->items[i].solved = sss;
+              nsel->items[i].total = ttt;
+
+              /* no need to save the index, just the title */
+              nsel->items[i].name = iii?(iii->title):dn;
+
+              i++;
+            }
+          }
+        }
       }
 
     } else {
@@ -771,65 +771,65 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
       Level *l = Level::fromstring(contents, allow_corrupted);
 
       if (l) {
-	string md5c = MD5::Hash(contents);
+        string md5c = MD5::Hash(contents);
 
-	nsel->items[i].solved = 0;
+        nsel->items[i].solved = 0;
 
-	{
-	  const vector<NamedSolution> &sols = plr->SolutionSet(md5c);
-	  for (int sidx = 0; sidx < sols.size(); sidx++) {
-	    const NamedSolution &ns = sols[sidx];
-	    if (!ns.bookmark &&
-		(ns.sol.verified ||
-		 Level::Verify(l, ns.sol))) {
-	      plr->SetVerified(md5c, sidx);
-	      nsel->items[i].solved = ns.sol.Length();
+        {
+          const vector<NamedSolution> &sols = plr->SolutionSet(md5c);
+          for (int sidx = 0; sidx < sols.size(); sidx++) {
+            const NamedSolution &ns = sols[sidx];
+            if (!ns.bookmark &&
+                (ns.sol.verified ||
+                 Level::Verify(l, ns.sol))) {
+              plr->SetVerified(md5c, sidx);
+              nsel->items[i].solved = ns.sol.Length();
 
-	      if (sidx != 0) {
-		// Since we found a verfying solution that's not the
-		// default, move it first.
-		vector<NamedSolution> newsols = {ns};
-		newsols.reserve(sols.size());
-		for (int j = 0; j < sols.size(); j++) {
-		  if (sidx != j) newsols.push_back(sols[j]);
-		}
-		plr->SetSolutionSet(md5c, std::move(newsols));
-		// 'sols' is invalid now.
-		break;
-	      }
-	      break;
-	    }
-	  }
-	}
-	  
-	nsel->items[i].isdir = 0;
-	nsel->items[i].md5 = md5c;
-	nsel->items[i].fname = de->d_name;
-	nsel->items[i].name = l->title;
-	nsel->items[i].author = l->author;
-	nsel->items[i].corrupted = l->iscorrupted();
-	nsel->items[i].sizex = l->w;
-	nsel->items[i].sizey = l->h;
-	nsel->items[i].lev = l;
-	nsel->items[i].myrating = plr->getrating(md5c);
-	nsel->items[i].speedrecord = 0;
-	nsel->items[i].date = 0;
-	nsel->items[i].owned = false;
-	nsel->items[i].managed = thisindex && thisindex->webcollection();
+              if (sidx != 0) {
+                // Since we found a verfying solution that's not the
+                // default, move it first.
+                vector<NamedSolution> newsols = {ns};
+                newsols.reserve(sols.size());
+                for (int j = 0; j < sols.size(); j++) {
+                  if (sidx != j) newsols.push_back(sols[j]);
+                }
+                plr->SetSolutionSet(md5c, std::move(newsols));
+                // 'sols' is invalid now.
+                break;
+              }
+              break;
+            }
+          }
+        }
 
-	/* failure result is ignored, because the
-	   votes are initialized to 0 anyway */
-	if (thisindex) {
-	  int ow;
-	  thisindex->getentry(de->d_name, 
-			      nsel->items[i].votes,
-			      nsel->items[i].date,
-			      nsel->items[i].speedrecord,
-			      ow);
-	  nsel->items[i].owned = plr->webid == ow;
-	} 
+        nsel->items[i].isdir = 0;
+        nsel->items[i].md5 = md5c;
+        nsel->items[i].fname = de->d_name;
+        nsel->items[i].name = l->title;
+        nsel->items[i].author = l->author;
+        nsel->items[i].corrupted = l->iscorrupted();
+        nsel->items[i].sizex = l->w;
+        nsel->items[i].sizey = l->h;
+        nsel->items[i].lev = l;
+        nsel->items[i].myrating = plr->getrating(md5c);
+        nsel->items[i].speedrecord = 0;
+        nsel->items[i].date = 0;
+        nsel->items[i].owned = false;
+        nsel->items[i].managed = thisindex && thisindex->webcollection();
 
-	i++;
+        /* failure result is ignored, because the
+           votes are initialized to 0 anyway */
+        if (thisindex) {
+          int ow;
+          thisindex->getentry(de->d_name,
+                              nsel->items[i].votes,
+                              nsel->items[i].date,
+                              nsel->items[i].speedrecord,
+                              ow);
+          nsel->items[i].owned = plr->webid == ow;
+        }
+
+        i++;
       }
     }
   }
@@ -841,7 +841,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
   closedir(d);
 
   DBTIME("cd got everything");
-  
+
   nsel->sort(getsort(sortby));
 
   DBTIME("cd sorted");
@@ -876,7 +876,7 @@ void LoadLevel_::draw() {
 }
 
 void LoadLevel_::drawsmall() {
-  Uint32 color = 
+  Uint32 color =
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
 
   int y = (screen->h - sel->botmargin) + 4 ;
@@ -904,25 +904,25 @@ void LoadLevel_::drawsmall() {
   } else {
     if (!showlev) fix_show(true);
     Drawing::drawsmall(y,
-		       sel->botmargin,
-		       color,
-		       showlev,
-		       sel->items[sel->selected].solved,
-		       sel->items[sel->selected].fname,
-		       &sel->items[sel->selected].votes,
-		       sel->items[sel->selected].myrating,
-		       sel->items[sel->selected].date,
-		       sel->items[sel->selected].speedrecord);
+                       sel->botmargin,
+                       color,
+                       showlev,
+                       sel->items[sel->selected].solved,
+                       sel->items[sel->selected].fname,
+                       &sel->items[sel->selected].votes,
+                       sel->items[sel->selected].myrating,
+                       sel->items[sel->selected].date,
+                       sel->items[sel->selected].speedrecord);
   }
 }
 
 void LoadLevel_::solvefrombookmarks(const string &filename,
-				    bool wholedir) {
+                                    bool wholedir) {
   std::unique_ptr<Player> rp{Player::FromFile(filename)};
   if (!rp.get()) {
-    Message::quick(this, 
-		   "Couldn't open/understand that player file.",
-		   "OK", "", PICS XICON POP);
+    Message::quick(this,
+                   "Couldn't open/understand that player file.",
+                   "OK", "", PICS XICON POP);
     sel->redraw();
     return;
   }
@@ -935,83 +935,83 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
   int total = 0;
   for (int i = 0; i < sel->number; i++) {
     if ((!sel->items[i].isdir) &&
-	(!sel->items[i].solved)) {
+        (!sel->items[i].solved)) {
       total++;
     }
   }
 
   /* check every solution in rp. */
   const vector<Solution> all = rp->AllSolutions();
-  
+
   /* for each unsolved level, try to recover solution */
   int done = 0;
   string solveds;
 
   for (int i = 0; i < sel->number; i++) {
     if ((wholedir || i == sel->selected) &&
-	!sel->items[i].isdir &&
-	!sel->items[i].solved) {
+        !sel->items[i].isdir &&
+        !sel->items[i].solved) {
 
       const Level *solveme = sel->items[i].lev;
-      
+
       done++;
 
       int snn = 0;
 
       // XXX check for esc keypress
       for (const Solution &s : all) {
-	Progress::drawbar((void*)&pe,
-			  done, total, 
-			  GREY "(" + itos(nsolved) + ") " POP
-			  + sel->items[i].name + " " + 
-			  GREY + "(sol #" + itos(snn) + ")"
-			  "\n" 
-			  ALPHA100 GREEN +
-			  solveds);
+        Progress::drawbar((void*)&pe,
+                          done, total,
+                          GREY "(" + itos(nsolved) + ") " POP
+                          + sel->items[i].name + " " +
+                          GREY + "(sol #" + itos(snn) + ")"
+                          "\n"
+                          ALPHA100 GREEN +
+                          solveds);
 
-	snn++;
+        snn++;
 
-	/* printf("try %p on %p\n", s, solveme); */
-	Solution out;
-	if (Level::VerifyPrefix(solveme, s, &out) && out.Length() > 0) {
-	  sel->items[i].solved = out.Length();
-	  string af = sel->items[i].actualfile(path);
+        /* printf("try %p on %p\n", s, solveme); */
+        Solution out;
+        if (Level::VerifyPrefix(solveme, s, &out) && out.Length() > 0) {
+          sel->items[i].solved = out.Length();
+          string af = sel->items[i].actualfile(path);
 
-	  /* XXX PERF md5s are stored */
-	  FILE *f = fopen(af.c_str(), "rb");
-	  if (!f) {
-	    Message::bug(this, "couldn't open in recovery");
-	    sel->redraw();
-	    continue;
-	  }
-	  string md5 = MD5::Hashf(f);
-	  fclose(f);
+          /* XXX PERF md5s are stored */
+          FILE *f = fopen(af.c_str(), "rb");
+          if (!f) {
+            Message::bug(this, "couldn't open in recovery");
+            sel->redraw();
+            continue;
+          }
+          string md5 = MD5::Hashf(f);
+          fclose(f);
 
-	  /* extend progress msg */
-	  {
-	    if (solveds != "") solveds += GREY ", ";
-	    solveds += GREEN ALPHA100 + solveme->title;
-	    solveds = Font::truncate(
-		solveds, 
-		/* keep right side, not left */
-		-(-1 + 
-		  (screen->w /
-		   (fonsmall->width - fonsmall->overlap))));
-	    /* force draw */
-	    pe = 0;
-	  }
+          /* extend progress msg */
+          {
+            if (solveds != "") solveds += GREY ", ";
+            solveds += GREEN ALPHA100 + solveme->title;
+            solveds = Font::truncate(
+                solveds,
+                /* keep right side, not left */
+                -(-1 +
+                  (screen->w /
+                   (fonsmall->width - fonsmall->overlap))));
+            /* force draw */
+            pe = 0;
+          }
 
-	  /* save solution now */
-	  {
-	    NamedSolution ns(out, "Recovered", plr->name, 
-			     time(0), false);
-	    plr->AddSolution(md5, std::move(ns), false);
-	  }
-	  nsolved++;
+          /* save solution now */
+          {
+            NamedSolution ns(out, "Recovered", plr->name,
+                             time(0), false);
+            plr->AddSolution(md5, std::move(ns), false);
+          }
+          nsolved++;
 
-	  /* then don't bother looking at the tail */
-	  break;
-	}
+          /* then don't bother looking at the tail */
+          break;
+        }
       }
     }
   }
@@ -1020,8 +1020,8 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
     plr->writefile();
   } else {
     Message::quick(this,
-		   "Couldn't recover any new solutions.",
-		   "OK", "", PICS EXCICON POP);
+                   "Couldn't recover any new solutions.",
+                   "OK", "", PICS EXCICON POP);
   }
 }
 
@@ -1039,566 +1039,546 @@ string LoadLevel_::Loop() {
     SDL_Delay(1);
 
     Uint32 now = SDL_GetTicks();
-  
+
     if (now > nextframe) {
-      Step(); 
+      Step();
       nextframe = now + LOADFRAME_TICKS;
       /* only draw the part that changed */
       drawsmall();
       SDL_Flip(screen);
     }
-  
+
     while (SDL_PollEvent(&event)) {
 
       if (event.type == SDL_KEYDOWN) {
-	int key = event.key.keysym.sym;
-	/* breaking from here will allow the key to be
-	   treated as a search */
-
-	switch (key) {
-	case SDLK_DELETE: {
-	  string file = 
-	    sel->items[sel->selected].actualfile(path);
-
-	  string md5 =
-	    sel->items[sel->selected].md5;
-
-	  if (sel->items[sel->selected].managed) {
-
-	    /* inside a web collection; we must own it */
-	    if (/* this should be a user class, not a specific define.. */
-		plr->webid == SUPERUSER ||
-		(sel->items[sel->selected].owned &&
-		 plr->webid)) {
-	      
-	      label message;
-	      message.text = 
-		PICS TRASHCAN POP
-		" Really delete level from web collection?";
-	      label message2;
-	      message2.text =
-		GREY "    (moves it to the graveyard)";
-	      
-	      int IND = 2;
-	      
-	      string password;
-
-	      textpassword pass;
-	      pass.question = "Server password:";
-	      pass.input = "";
-	      pass.explanation =
-		"The server password. If you don't know it, too bad!"; 
-
-	      textbox desc(42, 7);
-	      desc.indent = IND;
-	      desc.question = "Message. " GREY "(recommended)" POP;
-	      desc.explanation =
-		"You can explain your deletion here.";
-	      
-	      vspace spacer((int)(fon->height * 1.5f));
-	      vspace spacer2((int)(fon->height * 1.5f));
-	      
-	      okay ok;
-	      ok.text = "Delete Level";
-	      
-	      cancel can;
-	      can.text = "Cancel";
-	      
-	      PtrList<MenuItem> *l = 0;
-	      
-	      PtrList<MenuItem>::push(l, &can);
-	      PtrList<MenuItem>::push(l, &ok);
-	      PtrList<MenuItem>::push(l, &spacer);
-
-	      if (!sel->items[sel->selected].owned)
-		PtrList<MenuItem>::push(l, &pass);
-
-	      PtrList<MenuItem>::push(l, &desc);
-	      PtrList<MenuItem>::push(l, &spacer2);
-	      PtrList<MenuItem>::push(l, &message2);
-	      PtrList<MenuItem>::push(l, &message);
-
-	      
-	      /* display menu */
-	      menu *mm = menu::create(0, "Really delete?", l, false);
-	      resultkind res = mm->menuize();
-	      PtrList<MenuItem>::diminish(l);
-	      mm->destroy();
-	      
-	      if (res == MR_OK) {
-		
-		/* ask server */
-		string res;
-		if (Client::quick_rpc(plr, DELETE_RPC,
-				      (string)"pass=" +
-				      HTTPUtil::urlencode(pass.input) +
-				      (string)"&id=" +
-				      itos(plr->webid) + 
-				      (string)"&seql=" +
-				      itos(plr->webseql) +
-				      (string)"&seqh=" +
-				      itos(plr->webseqh) +
-				      (string)"&md=" +
-				      MD5::Ascii(md5) +
-				      (string)"&text=" +
-				      HTTPUtil::urlencode(desc.get_text()),
-				      res)) {
-		
-		  Message::quick(this, "Success!", "OK", "", PICS THUMBICON POP);
-
-		} else {
-		  Message::no(this, "Couldn't delete: " + res);
-		  sel->redraw();
-		  continue;
-		}
-	      } else {
-		/* menu: cancel */
-		sel->redraw();
-		continue;
-	      }
-
-	    } else {
-	      Message::no(this, 
-			  "In web collections, you can only delete\n"
-			  "   a level that you uploaded. "
-			  "(marked " PICS KEYPIC POP ")\n");
-	      sel->redraw();
-	      continue;
-	    }
-
-	  } else {
-	    /* just a file on disk */
-	    if (!Message::quick(this,
-				PICS TRASHCAN POP " Really delete " BLUE +
-				file + POP "?",
-				"Yes",
-				"Cancel", PICS QICON POP)) {
-	      sel->redraw();
-	      continue;
-	    }
-	  }
-
-	  if (!util::remove(file)) {
-	    Message::no(this, "Error deleting file!");
-	    sel->redraw();
-	    continue;
-	  }
-
-	  /* we've deleted, so we need to reload this dir. save
-	     lastfile as the file after or before the one we just
-	     deleted */
-	  if (sel->selected + 1 < sel->number)
-	    lastfile = sel->items[sel->selected + 1].fname;
-	  else if (sel->selected - 1 >= 0)
-	    lastfile = sel->items[sel->selected - 1].fname;
-	  
-	  ChangeDir(".");
-	  
-	  select_lastfile();
-	  fix_show(true);
-	  sel->redraw();
-	  break;
-	}
-
-	  /* sorting options */
-	case SDLK_t:
-	case SDLK_n:
-	case SDLK_s:
-	case SDLK_d:
-	case SDLK_g:
-	case SDLK_a:
-	case SDLK_e:
-	case SDLK_v: {
-	  int resort = 0;
-
-	  /* XXX allow other sorts */
-	  if (event.key.keysym.mod & KMOD_CTRL) {
-	    resort = 1;
-	    switch (key) {
-	    default:
-	    case SDLK_n: sortby = SORT_DATE; break;
-	    case SDLK_a: sortby = SORT_ALPHA; break;
-	    case SDLK_v: sortby = SORT_SOLVED; break;
-	    case SDLK_e: sortby = SORT_WEBSOLVED; break;
-
-	    case SDLK_d: sortby = SORT_GD; break;
-	    case SDLK_s: sortby = SORT_GS; break;
-	    case SDLK_g: sortby = SORT_GR; break;
-
-	    case SDLK_t: sortby = SORT_AUTHOR; break;
-
-	    }
-	  } else if (event.key.keysym.mod & KMOD_ALT) {
-	    switch (key) {
-	    default: sortby = SORT_ALPHA; break;
-	    case SDLK_d: sortby = SORT_PD; break;
-	    case SDLK_s: sortby = SORT_PS; break;
-	    case SDLK_g: sortby = SORT_PR; break;
-	    }
-	    resort = 1;
-	  }
-
-	  if (resort) {
-	    /* focus follows currently selected file */
-	    lastfile = sel->items[sel->selected].fname;
-
-	    sel->sort(getsort(sortby));
-	    
-	    select_lastfile();
-	    sel->redraw();
-
-	    continue;
-	  } else break;
-	}
-	case SDLK_BACKSPACE:
-	  /* might fail, but that's okay */
-	  ChangeDir("..");
-	  sel->redraw();
-	  continue;
-	case SDLK_KP_PLUS:
-	case SDLK_SLASH:
-	case SDLK_QUESTION:
-	  helppos++;
-	  helppos %= numhelp;
-	  sel->title = helptexts(helppos);
-	  sel->redraw();
-	  continue;
-
-	  #if 0
-	case SDLK_m:
-	  if ((event.key.keysym.mod & KMOD_CTRL) &&
-	      !sel->items[sel->selected].isdir) {
-
-	    if (sel->items[sel->selected].solved) {
-	      /* ctrl-m: manage solutions */
-	      
-	      smanage::manage(plr, sel->items[sel->selected].md5, 
-			      sel->items[sel->selected].lev);
-
-	    } else Message::no(this, "You must solve this level first.");
-
-	    /* we probably messed this up */
-	    fix_show(true);
-	    sel->redraw();
-	    continue;
-	  } else break;
-	  continue;
-	  #endif
-	  
-	case SDLK_c:
-	  if ((event.key.keysym.mod & KMOD_CTRL) &&
-	      !sel->items[sel->selected].isdir &&
-	      sel->items[sel->selected].lev) {
-	    /* ctrl-c: comment on a level */
-	  
-	    if (plr->webid) {
-	      Level *l = sel->items[sel->selected].lev;
-
-	      lastfile = sel->items[sel->selected].fname;
-
-	      string file = 
-		sel->items[sel->selected].actualfile(path);
-	  
-	      FILE *f = fopen(file.c_str(), "rb");
-	      if (!f) {
-		Message::bug(this, "Couldn't open file to comment on");
-	    
-	      } else {
-
-		string md = MD5::Hashf(f);
-		fclose(f);
-	    
-		/* This does its own error reporting */
-		CommentScreen::comment(plr, l, md);
-
-	      }
-	    } else {
-	      Message::no(this, "You must register with the server to comment.\n"
-			  "   (Press " BLUE "R" POP " on the main menu.)");
-	    }
-	    sel->redraw();
-	  } else break;
-	  continue;
-
-	case SDLK_r:
-	  if ((event.key.keysym.mod & KMOD_CTRL) &&
-	      !sel->items[sel->selected].isdir &&
-	      sel->items[sel->selected].lev) {
-	    /* ctrl-r: rate a level */
-
-	    if (plr->webid) {
-	  
-	      Level *l = sel->items[sel->selected].lev;
-
-	      lastfile = sel->items[sel->selected].fname;
-
-	      string file = 
-		sel->items[sel->selected].actualfile(path);
-
-	      /* XXX now in LLEntry, also comment */
-	      FILE *f = fopen(file.c_str(), "rb");
-	      if (!f) {
-		Message::bug(this, "Couldn't open file to rate");
-	    
-	      } else {
-
-		/* first remove its rating. it will be
-		   invalidated */
-		sel->items[sel->selected].myrating = 0;
-	    
-		string md = MD5::Hashf(f);
-		fclose(f);
-				   
-		std::unique_ptr<RateScreen> rs{RateScreen::Create(plr, l, md)};
-		if (rs.get() != nullptr) {
-		  rs->rate();
-		} else {
-		  Message::bug(this, "Couldn't create rate object!");
-		}
-
-		/* now restore the rating */
-		sel->items[sel->selected].myrating = plr->getrating(md);
-		/* XX resort? */
-	      }
-
-	    } else {
-	      Message::no(this, 
-			  "You must register with the server to rate levels.\n"
-			  "   (Press " BLUE "R" POP " on the main menu.)");
-
-	    }
-
-	    sel->redraw();
-	  } else break;
-	  continue;
-	case SDLK_0:
-	  if (event.key.keysym.mod & KMOD_CTRL) {
-
-	    label message1, message2, message3, message4;
-	    message1.text = PICS BOOKMARKPIC POP " Solve from bookmarks.";
-	    message2.text =
-	      "    Note: This will often solve loose or short levels";
-	    message3.text =
-	      "    that you've never seen before, which is a little";
-	    message4.text =
-	      "    bit like cheating, right?";
-
-	    vspace spacer(fon->height);
-
-	    textinput filename;
-	    filename.question = "Player file:";
-	    filename.explanation = 
-	      "Name of the player file (.esp) to read solutions from.";
-	    filename.accept_on_enter = false;
-	    // XXX TODO: Set current player file as the default, since
-	    // that is usually what you want.
-	    filename.input = lastrecover;
-
-	    toggle everything;
-	    everything.checked = false;
-	    everything.question = "Everything in the directory.";
-	    everything.explanation = 
-	      "If checked, then try solving every level in the directory.\n"
-	      "Not recommended unless you are recovering a bookmarks file.";
-
-	    int what;
-	    okay solve("Try to solve", &what, 1);
-	    solve.explanation = 
-	      "Try to solve the level or levels.\n"
-	      "Saves solutions if successful!";
-
-	    cancel can;
-	    can.text = "Cancel";
-
-	    PtrList<MenuItem> *l = 0;
-
-	    PtrList<MenuItem>::push(l, &can);
-	    PtrList<MenuItem>::push(l, &spacer);
-
-	    PtrList<MenuItem>::push(l, &solve);
-	    PtrList<MenuItem>::push(l, &everything);
-	    PtrList<MenuItem>::push(l, &filename);
-
-	    PtrList<MenuItem>::push(l, &spacer);
-	    PtrList<MenuItem>::push(l, &message4);
-	    PtrList<MenuItem>::push(l, &message3);
-	    PtrList<MenuItem>::push(l, &message2);
-	    PtrList<MenuItem>::push(l, &message1);
-
-	    /* display menu */
-	    menu *mm = menu::create(this, "Solve from bookmarks?", l, false);
-	    resultkind res = mm->menuize();
-
-	    if (res == MR_OK) {
-	      solvefrombookmarks(filename.input, everything.checked);
-	    }
-
-	    PtrList<MenuItem>::diminish(l);
-	    mm->destroy();
-
-	    fix_show();
-	    sel->redraw();
-	  } else break;
-	  continue;
-	case SDLK_u:
-	  /* holding ctrl, has registererd */
-	  if ((event.key.keysym.mod & KMOD_CTRL)) {
-	    /* ctrl-u */
-	    if (plr->webid) {
-
-	      /* could show message if not solved */
-	      if (!sel->items[sel->selected].isdir &&
-		  sel->items[sel->selected].solved) {
-
-		label message;
-		label message2;
-		label message3;
-		label message4;
-		label message5;
-		label message6;
-		message.text = 
-		  PICS QICON POP
-		  " Upload this level to the internet?";
-		message2.text =
-		  "   " GREY "Only do this when the level's really done." POP;
-
-	      
-		message3.text =
-		  PICS EXCICON POP " " RED "Important" POP 
-		  ": Only upload levels that are your own work!" POP;
-
-		message4.text =
-		  "   " GREY "(not copied from the web without permission)" POP;
-
-		message5.text = 
-		  "   By uploading, you agree to let anyone freely distribute";
-		message6.text =
-		  "   and/or modify your level.";
-
-		int IND = 2;
-	      
-		textbox desc(42, 7);
-		desc.indent = IND;
-		desc.question = "Message. " GREY "(optional)" POP;
-		desc.explanation =
-		  "You can post a comment about the level you're uploading.";
-	      
-		vspace spacer((int)(fon->height * 0.8f));
-	      
-		okay ok;
-		ok.text = "Upload Level";
-	      
-		cancel can;
-		can.text = "Cancel";
-	      
-		PtrList<MenuItem> *l = 0;
-	      
-		PtrList<MenuItem>::push(l, &can);
-		PtrList<MenuItem>::push(l, &ok);
-		PtrList<MenuItem>::push(l, &spacer);
-	      
-		PtrList<MenuItem>::push(l, &desc);
-		PtrList<MenuItem>::push(l, &spacer);
-
-		PtrList<MenuItem>::push(l, &message6);
-		PtrList<MenuItem>::push(l, &message5);
-		PtrList<MenuItem>::push(l, &spacer);
-
-		PtrList<MenuItem>::push(l, &message4);
-		PtrList<MenuItem>::push(l, &message3);
-		PtrList<MenuItem>::push(l, &spacer);
-
-		PtrList<MenuItem>::push(l, &message2);
-		PtrList<MenuItem>::push(l, &message);
-
-	      
-		/* display menu */
-		menu *mm = menu::create(0, "Really upload?", l, false);
-		resultkind res = mm->menuize();
-		PtrList<MenuItem>::diminish(l);
-		mm->destroy();
-	      
-		if (res != MR_OK) {
-		  sel->redraw();
-		  continue;
-		}
-
-		/* XXX could detect certain kinds of annoying 
-		   levels and warn... */
-
-		std::unique_ptr<Upload> uu{Upload::Create()};
-
-		if (!uu.get()) {
-		  Message::bug(this,
-			       "Can't create upload object!");
-		  sel->redraw();
-		  continue;
-		}
-
-		/* save spot */
-		lastfile = sel->items[sel->selected].fname;
-
-		string file = 
-		  sel->items[sel->selected].actualfile(path);
-
-		/* don't bother with message; upload does it */
-		switch (uu->Up(plr, file, desc.get_text())) {
-		case UploadResult::OK:
-		  break;
-		default:
-		  break;
-		}
-	      } else {
-		Message::no(this, 
-			    "Can't upload dirs or unsolved levels.");
-	      }
-	    } else {
-	      Message::no
-		(this, 
-		 "You must register with the server to upload levels.\n"
-		 "(Press " BLUE "R" POP " on the main menu.)");
-	    }
-	    sel->redraw();
-	    continue;
-
-	  } else break;
-	default:
-	  break;
-	}
+        int key = event.key.keysym.sym;
+        /* breaking from here will allow the key to be
+           treated as a search */
+
+        switch (key) {
+        case SDLK_DELETE: {
+          string file =
+            sel->items[sel->selected].actualfile(path);
+
+          string md5 =
+            sel->items[sel->selected].md5;
+
+          if (sel->items[sel->selected].managed) {
+
+            /* inside a web collection; we must own it */
+            if (/* this should be a user class, not a specific define.. */
+                plr->webid == SUPERUSER ||
+                (sel->items[sel->selected].owned &&
+                 plr->webid)) {
+
+              label message;
+              message.text =
+                PICS TRASHCAN POP
+                " Really delete level from web collection?";
+              label message2;
+              message2.text =
+                GREY "    (moves it to the graveyard)";
+
+              int IND = 2;
+
+              string password;
+
+              textpassword pass;
+              pass.question = "Server password:";
+              pass.input = "";
+              pass.explanation =
+                "The server password. If you don't know it, too bad!";
+
+              TextBox desc(42, 7);
+              desc.indent = IND;
+              desc.question = "Message. " GREY "(recommended)" POP;
+              desc.explanation =
+                "You can explain your deletion here.";
+
+              vspace spacer((int)(fon->height * 1.5f));
+              vspace spacer2((int)(fon->height * 1.5f));
+
+              okay ok;
+              ok.text = "Delete Level";
+
+              cancel can;
+              can.text = "Cancel";
+
+              PtrList<MenuItem> *l = 0;
+
+              PtrList<MenuItem>::push(l, &can);
+              PtrList<MenuItem>::push(l, &ok);
+              PtrList<MenuItem>::push(l, &spacer);
+
+              if (!sel->items[sel->selected].owned)
+                PtrList<MenuItem>::push(l, &pass);
+
+              PtrList<MenuItem>::push(l, &desc);
+              PtrList<MenuItem>::push(l, &spacer2);
+              PtrList<MenuItem>::push(l, &message2);
+              PtrList<MenuItem>::push(l, &message);
+
+
+              /* display menu */
+              Menu *mm = Menu::create(0, "Really delete?", l, false);
+              resultkind res = mm->menuize();
+              PtrList<MenuItem>::diminish(l);
+              mm->destroy();
+
+              if (res == MR_OK) {
+
+                /* ask server */
+                string res;
+                if (Client::quick_rpc(plr, DELETE_RPC,
+                                      (string)"pass=" +
+                                      HTTPUtil::urlencode(pass.input) +
+                                      (string)"&id=" +
+                                      itos(plr->webid) +
+                                      (string)"&seql=" +
+                                      itos(plr->webseql) +
+                                      (string)"&seqh=" +
+                                      itos(plr->webseqh) +
+                                      (string)"&md=" +
+                                      MD5::Ascii(md5) +
+                                      (string)"&text=" +
+                                      HTTPUtil::urlencode(desc.get_text()),
+                                      res)) {
+
+                  Message::quick(this, "Success!", "OK", "", PICS THUMBICON POP);
+
+                } else {
+                  Message::no(this, "Couldn't delete: " + res);
+                  sel->redraw();
+                  continue;
+                }
+              } else {
+                /* menu: cancel */
+                sel->redraw();
+                continue;
+              }
+
+            } else {
+              Message::no(this,
+                          "In web collections, you can only delete\n"
+                          "   a level that you uploaded. "
+                          "(marked " PICS KEYPIC POP ")\n");
+              sel->redraw();
+              continue;
+            }
+
+          } else {
+            /* just a file on disk */
+            if (!Message::quick(this,
+                                PICS TRASHCAN POP " Really delete " BLUE +
+                                file + POP "?",
+                                "Yes",
+                                "Cancel", PICS QICON POP)) {
+              sel->redraw();
+              continue;
+            }
+          }
+
+          if (!util::remove(file)) {
+            Message::no(this, "Error deleting file!");
+            sel->redraw();
+            continue;
+          }
+
+          /* we've deleted, so we need to reload this dir. save
+             lastfile as the file after or before the one we just
+             deleted */
+          if (sel->selected + 1 < sel->number)
+            lastfile = sel->items[sel->selected + 1].fname;
+          else if (sel->selected - 1 >= 0)
+            lastfile = sel->items[sel->selected - 1].fname;
+
+          ChangeDir(".");
+
+          select_lastfile();
+          fix_show(true);
+          sel->redraw();
+          break;
+        }
+
+          /* sorting options */
+        case SDLK_t:
+        case SDLK_n:
+        case SDLK_s:
+        case SDLK_d:
+        case SDLK_g:
+        case SDLK_a:
+        case SDLK_e:
+        case SDLK_v: {
+          int resort = 0;
+
+          /* XXX allow other sorts */
+          if (event.key.keysym.mod & KMOD_CTRL) {
+            resort = 1;
+            switch (key) {
+            default:
+            case SDLK_n: sortby = SORT_DATE; break;
+            case SDLK_a: sortby = SORT_ALPHA; break;
+            case SDLK_v: sortby = SORT_SOLVED; break;
+            case SDLK_e: sortby = SORT_WEBSOLVED; break;
+
+            case SDLK_d: sortby = SORT_GD; break;
+            case SDLK_s: sortby = SORT_GS; break;
+            case SDLK_g: sortby = SORT_GR; break;
+
+            case SDLK_t: sortby = SORT_AUTHOR; break;
+
+            }
+          } else if (event.key.keysym.mod & KMOD_ALT) {
+            switch (key) {
+            default: sortby = SORT_ALPHA; break;
+            case SDLK_d: sortby = SORT_PD; break;
+            case SDLK_s: sortby = SORT_PS; break;
+            case SDLK_g: sortby = SORT_PR; break;
+            }
+            resort = 1;
+          }
+
+          if (resort) {
+            /* focus follows currently selected file */
+            lastfile = sel->items[sel->selected].fname;
+
+            sel->sort(getsort(sortby));
+
+            select_lastfile();
+            sel->redraw();
+
+            continue;
+          } else break;
+        }
+        case SDLK_BACKSPACE:
+          /* might fail, but that's okay */
+          ChangeDir("..");
+          sel->redraw();
+          continue;
+        case SDLK_KP_PLUS:
+        case SDLK_SLASH:
+        case SDLK_QUESTION:
+          helppos++;
+          helppos %= numhelp;
+          sel->title = helptexts(helppos);
+          sel->redraw();
+          continue;
+
+        case SDLK_c:
+          if ((event.key.keysym.mod & KMOD_CTRL) &&
+              !sel->items[sel->selected].isdir &&
+              sel->items[sel->selected].lev) {
+            /* ctrl-c: comment on a level */
+
+            if (plr->webid) {
+              Level *l = sel->items[sel->selected].lev;
+
+              lastfile = sel->items[sel->selected].fname;
+
+              string file =
+                sel->items[sel->selected].actualfile(path);
+
+              FILE *f = fopen(file.c_str(), "rb");
+              if (!f) {
+                Message::bug(this, "Couldn't open file to comment on");
+
+              } else {
+
+                string md = MD5::Hashf(f);
+                fclose(f);
+
+                /* This does its own error reporting */
+                CommentScreen::comment(plr, l, md);
+
+              }
+            } else {
+              Message::no(this,
+                          "You must register with the server to comment.\n"
+                          "   (Press " BLUE "R" POP " on the main menu.)");
+            }
+            sel->redraw();
+          } else break;
+          continue;
+
+        case SDLK_r:
+          if ((event.key.keysym.mod & KMOD_CTRL) &&
+              !sel->items[sel->selected].isdir &&
+              sel->items[sel->selected].lev) {
+            /* ctrl-r: rate a level */
+
+            if (plr->webid) {
+
+              Level *l = sel->items[sel->selected].lev;
+
+              lastfile = sel->items[sel->selected].fname;
+
+              string file =
+                sel->items[sel->selected].actualfile(path);
+
+              /* XXX now in LLEntry, also comment */
+              FILE *f = fopen(file.c_str(), "rb");
+              if (!f) {
+                Message::bug(this, "Couldn't open file to rate");
+
+              } else {
+
+                /* first remove its rating. it will be
+                   invalidated */
+                sel->items[sel->selected].myrating = 0;
+
+                string md = MD5::Hashf(f);
+                fclose(f);
+
+                std::unique_ptr<RateScreen> rs{RateScreen::Create(plr, l, md)};
+                if (rs.get() != nullptr) {
+                  rs->rate();
+                } else {
+                  Message::bug(this, "Couldn't create rate object!");
+                }
+
+                /* now restore the rating */
+                sel->items[sel->selected].myrating = plr->getrating(md);
+                /* XX resort? */
+              }
+
+            } else {
+              Message::no(this,
+                          "You must register with the server to rate levels.\n"
+                          "   (Press " BLUE "R" POP " on the main menu.)");
+
+            }
+
+            sel->redraw();
+          } else break;
+          continue;
+        case SDLK_0:
+          if (event.key.keysym.mod & KMOD_CTRL) {
+
+            label message1, message2, message3, message4;
+            message1.text = PICS BOOKMARKPIC POP " Solve from bookmarks.";
+            message2.text =
+              "    Note: This will often solve loose or short levels";
+            message3.text =
+              "    that you've never seen before, which is a little";
+            message4.text =
+              "    bit like cheating, right?";
+
+            vspace spacer(fon->height);
+
+            textinput filename;
+            filename.question = "Player file:";
+            filename.explanation =
+              "Name of the player file (.esp) to read solutions from.";
+            filename.accept_on_enter = false;
+            // XXX TODO: Set current player file as the default, since
+            // that is usually what you want.
+            filename.input = lastrecover;
+
+            toggle everything;
+            everything.checked = false;
+            everything.question = "Everything in the directory.";
+            everything.explanation =
+              "If checked, then try solving every level in the directory.\n"
+              "Not recommended unless you are recovering a bookmarks file.";
+
+            int what;
+            okay solve("Try to solve", &what, 1);
+            solve.explanation =
+              "Try to solve the level or levels.\n"
+              "Saves solutions if successful!";
+
+            cancel can;
+            can.text = "Cancel";
+
+            PtrList<MenuItem> *l = 0;
+
+            PtrList<MenuItem>::push(l, &can);
+            PtrList<MenuItem>::push(l, &spacer);
+
+            PtrList<MenuItem>::push(l, &solve);
+            PtrList<MenuItem>::push(l, &everything);
+            PtrList<MenuItem>::push(l, &filename);
+
+            PtrList<MenuItem>::push(l, &spacer);
+            PtrList<MenuItem>::push(l, &message4);
+            PtrList<MenuItem>::push(l, &message3);
+            PtrList<MenuItem>::push(l, &message2);
+            PtrList<MenuItem>::push(l, &message1);
+
+            /* display menu */
+            Menu *mm = Menu::create(this, "Solve from bookmarks?", l, false);
+            resultkind res = mm->menuize();
+
+            if (res == MR_OK) {
+              solvefrombookmarks(filename.input, everything.checked);
+            }
+
+            PtrList<MenuItem>::diminish(l);
+            mm->destroy();
+
+            fix_show();
+            sel->redraw();
+          } else break;
+          continue;
+        case SDLK_u:
+          /* holding ctrl, has registererd */
+          if ((event.key.keysym.mod & KMOD_CTRL)) {
+            /* ctrl-u */
+            if (plr->webid) {
+
+              /* could show message if not solved */
+              if (!sel->items[sel->selected].isdir &&
+                  sel->items[sel->selected].solved) {
+
+                label message;
+                label message2;
+                label message3;
+                label message4;
+                label message5;
+                label message6;
+                message.text =
+                  PICS QICON POP
+                  " Upload this level to the internet?";
+                message2.text =
+                  "   " GREY "Only do this when the level's really done." POP;
+
+
+                message3.text =
+                  PICS EXCICON POP " " RED "Important" POP
+                  ": Only upload levels that are your own work!" POP;
+
+                message4.text =
+                  "   " GREY "(not copied from the web without permission)" POP;
+
+                message5.text =
+                  "   By uploading, you agree to let anyone freely distribute";
+                message6.text =
+                  "   and/or modify your level.";
+
+                int IND = 2;
+
+                TextBox desc(42, 7);
+                desc.indent = IND;
+                desc.question = "Message. " GREY "(optional)" POP;
+                desc.explanation =
+                  "You can post a comment about the level you're uploading.";
+
+                vspace spacer((int)(fon->height * 0.8f));
+
+                okay ok;
+                ok.text = "Upload Level";
+
+                cancel can;
+                can.text = "Cancel";
+
+                PtrList<MenuItem> *l = 0;
+
+                PtrList<MenuItem>::push(l, &can);
+                PtrList<MenuItem>::push(l, &ok);
+                PtrList<MenuItem>::push(l, &spacer);
+
+                PtrList<MenuItem>::push(l, &desc);
+                PtrList<MenuItem>::push(l, &spacer);
+
+                PtrList<MenuItem>::push(l, &message6);
+                PtrList<MenuItem>::push(l, &message5);
+                PtrList<MenuItem>::push(l, &spacer);
+
+                PtrList<MenuItem>::push(l, &message4);
+                PtrList<MenuItem>::push(l, &message3);
+                PtrList<MenuItem>::push(l, &spacer);
+
+                PtrList<MenuItem>::push(l, &message2);
+                PtrList<MenuItem>::push(l, &message);
+
+
+                /* display menu */
+                Menu *mm = Menu::create(0, "Really upload?", l, false);
+                resultkind res = mm->menuize();
+                PtrList<MenuItem>::diminish(l);
+                mm->destroy();
+
+                if (res != MR_OK) {
+                  sel->redraw();
+                  continue;
+                }
+
+                /* XXX could detect certain kinds of annoying
+                   levels and warn... */
+
+                std::unique_ptr<Upload> uu{Upload::Create()};
+
+                if (!uu.get()) {
+                  Message::bug(this,
+                               "Can't create upload object!");
+                  sel->redraw();
+                  continue;
+                }
+
+                /* save spot */
+                lastfile = sel->items[sel->selected].fname;
+
+                string file =
+                  sel->items[sel->selected].actualfile(path);
+
+                /* don't bother with message; upload does it */
+                switch (uu->Up(plr, file, desc.get_text())) {
+                case UploadResult::OK:
+                  break;
+                default:
+                  break;
+                }
+              } else {
+                Message::no(this,
+                            "Can't upload dirs or unsolved levels.");
+              }
+            } else {
+              Message::no
+                (this,
+                 "You must register with the server to upload levels.\n"
+                 "(Press " BLUE "R" POP " on the main menu.)");
+            }
+            sel->redraw();
+            continue;
+
+          } else break;
+        default:
+          break;
+        }
       }
-    
+
       selor::peres pr = sel->doevent(event);
       switch (pr.type) {
       case selor::PE_SELECTED:
-	if (sel->items[pr.u.i].isdir) {
-	  /* XXX test if ChangeDir failed, if so,
-	     display message. but why would it
-	     fail? */
-	  /* printf("chdir '%s'\n", sel->items[pr.u.i].fname.c_str()); */
-	  if (!ChangeDir(sel->items[pr.u.i].fname)) {
-	    Message::quick(0, "Couldn't change to " BLUE +
-			   sel->items[pr.u.i].fname,
-			   "Sorry", "", PICS XICON POP);
-	  }
-	  /* printf("chdir success.\n"); */
-	  sel->redraw();
-	  break;
-	} else {
-	  string out = sel->items[pr.u.i].fname;
-	  lastfile = out;
-	  while (path) {
-	    out = stringpop(path) + string(DIRSEP) + out;
-	  }
-	  return out;
-	}
+        if (sel->items[pr.u.i].isdir) {
+          /* XXX test if ChangeDir failed, if so,
+             display message. but why would it
+             fail? */
+          /* printf("chdir '%s'\n", sel->items[pr.u.i].fname.c_str()); */
+          if (!ChangeDir(sel->items[pr.u.i].fname)) {
+            Message::quick(0, "Couldn't change to " BLUE +
+                           sel->items[pr.u.i].fname,
+                           "Sorry", "", PICS XICON POP);
+          }
+          /* printf("chdir success.\n"); */
+          sel->redraw();
+          break;
+        } else {
+          string out = sel->items[pr.u.i].fname;
+          lastfile = out;
+          while (path) {
+            out = stringpop(path) + string(DIRSEP) + out;
+          }
+          return out;
+        }
       case selor::PE_EXIT: /* XXX */
       case selor::PE_CANCEL:
-	return "";
+        return "";
       default:
       case selor::PE_NONE:
-	;
+        ;
       }
-    
+
     }
 
   } /* unreachable */
@@ -1612,7 +1592,7 @@ const int LoadLevel_::numhelp = 2;
 string LoadLevel_::helptexts(int i) {
   switch (i) {
   case 0:
-    return 
+    return
       WHITE
       "Use the " BLUE "arrow keys" POP " to select a level and "
       "press " BLUE "enter" POP " or " BLUE "esc" POP " to cancel."
@@ -1620,15 +1600,15 @@ string LoadLevel_::helptexts(int i) {
       WHITE
       "Press " BLUE "ctrl-u" POP
       " to upload a level you've created to the internet.\n"
-      
+
       WHITE
       "Press " BLUE "ctrl-r" POP " to adjust your rating of a level,"
       " or "   BLUE "ctrl-c" POP " to publish a comment.\n";
 
   case 1:
     return
-      WHITE "Sorting options: " BLUE "ctrl-" 
-            RED "d" POP "," 
+      WHITE "Sorting options: " BLUE "ctrl-"
+            RED "d" POP ","
             GREEN "s" POP ","
             BLUE "g" POP POP
             " sorts by global " RED "difficulty" POP ","
@@ -1640,7 +1620,7 @@ string LoadLevel_::helptexts(int i) {
       // deprecated.
       //      BLUE "ctrl-m" POP " manages solutions (upload/download/view).\n"
 
-      WHITE BLUE "ctrl-a" POP " sorts alphabetically, " BLUE "ctrl-t" POP " by author. " 
+      WHITE BLUE "ctrl-a" POP " sorts alphabetically, " BLUE "ctrl-t" POP " by author. "
             BLUE "ctrl-v" POP " shows unsolved levels first.";
 
   }

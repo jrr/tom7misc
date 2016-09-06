@@ -11,12 +11,12 @@ struct Dirt {
 
   /* call if the screen is resized */
   virtual void matchscreen() = 0;
-  
+
   /* PERF could offer mirror_region, which
      allows us to do more local dirtyrect stuff
      by predicting the regions that we will
      need to mirror */
-  
+
   /* enqueue a rectangle to be drawn from the
      mirror. */
   virtual void setdirty(int x, int y, int w, int h) = 0;

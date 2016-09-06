@@ -232,7 +232,7 @@ struct Selector : public Drawable {
         dst.y = 2 + topsize + (i - skip) * Item::height() - 1;
         dst.h = Item::height() + 2;
         SDL_FillRect(screen, &dst,
-		     SDL_MapRGBA(screen->format, SELCOLOR));
+                     SDL_MapRGBA(screen->format, SELCOLOR));
       }
 
       items[i].draw(8, 2 + topsize +

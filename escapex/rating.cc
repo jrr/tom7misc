@@ -11,7 +11,7 @@
 
 #include "client.h"
 #include "commenting.h"
-#include "smanage.h"
+#include "solutionuploading.h"
 
 Rating *Rating::Create() {
   return new Rating();
@@ -25,7 +25,7 @@ string Rating::tostring() {
   r[0] = ((difficulty & 0xF) << 4) | (style & 0xF);
   r[1] = ((rigidity & 0xF) << 4) | (cooked & 0xF);
   r[2] = r[3] = r[4] = r[5] = 0;
-  
+
   return r;
 }
 
@@ -38,7 +38,7 @@ Rating *Rating::FromString(const string &s) {
 
   rat->difficulty = (s[0] >> 4) & 0xF;
   rat->style = s[0] & 0xF;
-  rat->rigidity = (s[1] >> 4) & 0xF; 
+  rat->rigidity = (s[1] >> 4) & 0xF;
   rat->cooked = s[1] & 0xF;
 
   return rat;
@@ -85,7 +85,7 @@ RateScreen_ *RateScreen_::Create(Player *p, Level *l, string levmd) {
   rr->lev = l;
   rr->levmd5 = levmd;
   rr->nsolved = rr->plr->GetSolLength(levmd);
-    
+
   /* might be 0, that's ok. */
   rr->rat = rr->plr->getrating(levmd);
 
@@ -109,23 +109,23 @@ void RateScreen_::draw() {
   }
 
   fon->draw(2, 2, (string)(BLUE "Rating: " POP YELLOW) +
-	    lev->title + POP);
+            lev->title + POP);
 
   fon->draw(2, 2 + 3 * fon->height, msg);
 
   /* draw level thumbnail... */
 
-  const Uint32 color = 
+  const Uint32 color =
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
   const int margin = Drawing::smallheight() + 16;
   const int y = (screen->h - margin) + 4;
   Drawing::drawsmall(y,
-		     margin,
-		     color,
-		     lev, nsolved, 
-		     MD5::Ascii(levmd5),
-		     /* XX pass in current rating? */
-		     0, 0);
+                     margin,
+                     color,
+                     lev, nsolved,
+                     MD5::Ascii(levmd5),
+                     /* XX pass in current rating? */
+                     0, 0);
 
   /* draw current rating? */
 
@@ -151,7 +151,7 @@ void RateScreen_::rate() {
   difficulty.question = "Difficulty";
   difficulty.low = "easy";
   difficulty.high = "hard";
-  difficulty.explanation = 
+  difficulty.explanation =
     "Choose your rating for this level's difficulty.\n"
     "You can rate it even if you haven't solved the level yet.";
 
@@ -161,7 +161,7 @@ void RateScreen_::rate() {
   style.question = "Style     ";
   style.low = "lame";
   style.high = "cool";
-  style.explanation = 
+  style.explanation =
     "How do you rate the composition of this level?\n"
     "How interesting is it to play? How does it look?\n"
     "How different is it from previously created levels?\n";
@@ -172,7 +172,7 @@ void RateScreen_::rate() {
   rigidity.question = "Rigidity  ";
   rigidity.low = "loose";
   rigidity.high = "tight";
-  rigidity.explanation = 
+  rigidity.explanation =
     "Did this level have many solutions (loose) or few (rigid)?\n"
     "Rigidity is not necessarily good or bad.";
 
@@ -194,7 +194,7 @@ void RateScreen_::rate() {
   solved.disabled = true;
   solved.checked = (nsolved>0);
   solved.question = "Solved " GREY "(set automatically)" POP;
-  /* XXX can't ever see this. 
+  /* XXX can't ever see this.
      maybe disabled items should be selectable,
      but not modifiable? */
   solved.explanation =
@@ -206,7 +206,7 @@ void RateScreen_::rate() {
 
   cancel can;
   can.text = "Cancel";
-  
+
   PtrList<MenuItem> *l = nullptr;
 
   PtrList<MenuItem>::push(l, &can);
@@ -219,13 +219,13 @@ void RateScreen_::rate() {
   PtrList<MenuItem>::push(l, &author);
   PtrList<MenuItem>::push(l, &levname);
 
-  menu *mm = menu::create(this, "Change Your Rating", l, false);
+  Menu *mm = Menu::create(this, "Change Your Rating", l, false);
 
   /* XXX look for MR_QUIT too */
   if (MR_OK == mm->menuize()) {
 
     /* Send to the server. */
-  
+
     /* rat, if nonzero, is owned by the player so we
        don't need to free it. putrating will overwrite
        it or create a new one, if necessary. */
@@ -246,24 +246,24 @@ void RateScreen_::rate() {
 
     string res;
 
-    bool success = 
-      (hh.get() != nullptr) && 
+    bool success =
+      (hh.get() != nullptr) &&
       Client::rpc(hh.get(), RATE_RPC,
-		  /* credentials */
-		  (string)"id=" +
-		  itos(plr->webid) + 
-		  (string)"&seql=" +
-		  itos(plr->webseql) +
-		  (string)"&seqh=" +
-		  itos(plr->webseqh) +
-		  /* rating */
-		  (string)"&md=" + MD5::Ascii(levmd5) +
-		  (string)"&diff=" + itos(nr->difficulty) +
-		  (string)"&style=" + itos(nr->style) +
-		  (string)"&rigid=" + itos(nr->rigidity) +
-		  (string)"&cooked=" + itos((int)nr->cooked) +
-		  (string)"&solved=" + itos((int)!!nsolved),
-		  res);
+                  /* credentials */
+                  (string)"id=" +
+                  itos(plr->webid) +
+                  (string)"&seql=" +
+                  itos(plr->webseql) +
+                  (string)"&seqh=" +
+                  itos(plr->webseqh) +
+                  /* rating */
+                  (string)"&md=" + MD5::Ascii(levmd5) +
+                  (string)"&diff=" + itos(nr->difficulty) +
+                  (string)"&style=" + itos(nr->style) +
+                  (string)"&rigid=" + itos(nr->rigidity) +
+                  (string)"&cooked=" + itos((int)nr->cooked) +
+                  (string)"&solved=" + itos((int)!!nsolved),
+                  res);
 
     hh.reset();
 
@@ -271,32 +271,33 @@ void RateScreen_::rate() {
       int record = util::stoi(res);
       const Solution *ours = plr->GetSol(levmd5);
       if (plr->webid && (ours != nullptr) && ours->Length() < record) {
-	/* beat the record! prompt to upload. */
+        /* beat the record! prompt to upload. */
 
-	smanage::promptupload(0, plr, levmd5, *ours,
-			      "You made a new speed record! " RED +
-			      itos(record) + POP " " LRARROW " " GREEN +
-			      itos(ours->Length()),
-			      "Speed Record",
-			      true);
+        SolutionUploading::PromptUpload(
+            nullptr, plr, levmd5, *ours,
+            "You made a new speed record! " RED +
+            itos(record) + POP " " LRARROW " " GREEN +
+            itos(ours->Length()),
+            "Speed Record",
+            true);
 
       } else {
 
-	/* XXX perhaps should prompt to upload solution 
-	   (with comment) instead */
-	/* first cook. prompt for comment. */
-	if (nr->cooked && !old_cooked) {
-	  CommentScreen::comment(plr, lev, levmd5, true);
-	} else {
-	  /* only if no other pop-up */
-	  Message::quick(this, "Rating sent!",
-			 "OK", "", PICS THUMBICON POP);
-	}
+        /* XXX perhaps should prompt to upload solution
+           (with comment) instead */
+        /* first cook. prompt for comment. */
+        if (nr->cooked && !old_cooked) {
+          CommentScreen::comment(plr, lev, levmd5, true);
+        } else {
+          /* only if no other pop-up */
+          Message::quick(this, "Rating sent!",
+                         "OK", "", PICS THUMBICON POP);
+        }
       }
 
     } else {
       Message::quick(this, "Unable to send rating to server: " RED + res,
-		     "Cancel", "", PICS XICON POP);
+                     "Cancel", "", PICS XICON POP);
     }
 
   } /* otherwise do nothing */

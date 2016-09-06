@@ -24,7 +24,7 @@ struct Solution {
     dirs.resize(n);
     verified = false;
   }
-  
+
   std::string ToString() const;
 
   static bool FromString(const std::string &s, Solution *sol);
@@ -35,7 +35,7 @@ struct Solution {
   static Solution Empty() { return Solution{}; }
 
   bool IsEmpty() const { return dirs.empty(); }
-  
+
   void Clear() {
     dirs.clear();
     verified = false;
@@ -48,7 +48,7 @@ struct Solution {
 
   // Same moves; ignores the "verified" field.
   static bool Equal(const Solution &l, const Solution &r);
-  
+
   // XXX should be thin wrapper on vector::begin()
   // so that we can use ranged-for too.
   struct iter {

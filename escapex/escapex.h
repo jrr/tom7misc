@@ -43,7 +43,7 @@ using uint64 = uint64_t;
 /* build this many zoomed versions of
    the graphics, each at 1/2 the size
    of the previous (including the 1:1
-   originals) 
+   originals)
 
    careful setting this too high, or
    else shrink50 will eventually fail
@@ -68,7 +68,7 @@ extern SDL_Surface *screen;
 #ifndef PLATFORM
 #  ifdef WIN32
 #    define PLATFORM "win32"
-#  else 
+#  else
 #    ifdef OSX
 #      define PLATFORM "osx"
 #    else /* assume linux */

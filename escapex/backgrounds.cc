@@ -17,9 +17,9 @@ static Uint32 hueish(SDL_Surface *surf, float base_hue) {
 }
 
 void Backgrounds::gradientblocks(SDL_Surface *&surf,
-				 int tile_white,
-				 int tile_black,
-				 float gradient_hue) {
+                                 int tile_white,
+                                 int tile_black,
+                                 float gradient_hue) {
   /* PERF could avoid doing this if not resizing, but nobody calls it
      that way (would look weird anyway because gradient would keep
      spazzing out) */
@@ -31,7 +31,7 @@ void Backgrounds::gradientblocks(SDL_Surface *&surf,
   if (!surf) return;
 
   // sdlutil::printsurfaceinfo(surf);
-  
+
   SDL_Surface *gradient = sdlutil::makesurface(w, h);
   if (!gradient) return;
 
@@ -47,8 +47,8 @@ void Backgrounds::gradientblocks(SDL_Surface *&surf,
   for (int y = 0; y < 1 + h / (TILEW >> 1); y++)
     for (int x = 0; x < 1 + w / (TILEH >> 1); x++) {
       Drawing::drawtile(x * (TILEH >> 1), y * (TILEW >> 1),
-			((x + y) & 1) ? tile_white : tile_black,
-			1, surf);
+                        ((x + y) & 1) ? tile_white : tile_black,
+                        1, surf);
     }
 
 

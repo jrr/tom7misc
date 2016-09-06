@@ -12,9 +12,9 @@ struct Backgrounds {
      surf so that it points to an surface with the
      same size as the screen, if it doesn't already. */
   static void gradientblocks(SDL_Surface *&surf,
-			     int tile_white,
-			     int tile_black,
-			     float gradient_hue);
+                             int tile_white,
+                             int tile_black,
+                             float gradient_hue);
 
   /* Hues in degrees */
   static const float blueish;

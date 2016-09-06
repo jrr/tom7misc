@@ -49,35 +49,35 @@ void Editor::dorandom() {
 
   if (changed) {
     if (!Message::quick(this,
-			"Random will destroy your unsaved changes.",
-			"Do Random",
-			"Don't do Random")) {
+                        "Random will destroy your unsaved changes.",
+                        "Do Random",
+                        "Don't do Random")) {
       redraw();
       return;
     }
-  } 
-  
+  }
+
   switch (randtype) {
 
-  case RT_MAZE: 
+  case RT_MAZE:
   case RT_MAZE2: {
 
     if (dr.lev->w < 3 ||
-	dr.lev->h < 3) {
+        dr.lev->h < 3) {
       dr.message = RED "Sorry" POP ", the level is too small to make a maze.";
       redraw();
       return;
     }
 
     fullclear(T_BLUE);
-    
+
     /* start with seed */
     dr.lev->settile(1 + util::random() % (dr.lev->w - 2),
-		    1 + util::random() % (dr.lev->h - 2),
-		    T_EXIT);
+                    1 + util::random() % (dr.lev->h - 2),
+                    T_EXIT);
 
     /* look for this
-       
+
     B.B
     B!B
     .F.
@@ -96,61 +96,61 @@ void Editor::dorandom() {
       int innerh = dr.lev->h - 2;
 
       /* try to remove bias towards top left
-	 by starting in a random spot. */
+         by starting in a random spot. */
       int randx = abs(util::random());
       int randy = abs(util::random());
 
       for (int iy = 0; iy < innerh; iy++) {
-	for (int ix = 0; ix < innerw; ix++) {
-	  
-	  int y = 1 + ((iy + randy) % innerh);
-	  int x = 1 + ((ix + randx) % innerw);
+        for (int ix = 0; ix < innerw; ix++) {
 
-	  if (dr.lev->tileat(x, y) != T_BLUE) {
-	    /* try all dirs, but start with a
-	       random one. */
+          int y = 1 + ((iy + randy) % innerh);
+          int x = 1 + ((ix + randx) % innerw);
 
-	    int tries = 4;
-	    int sd = 1 + (util::random() & 3);
+          if (dr.lev->tileat(x, y) != T_BLUE) {
+            /* try all dirs, but start with a
+               random one. */
 
-	    while (tries--) {
-	      int tx, ty; /* targets */
-	      int nx, ny, /* temp */
-  	        bx, by; /* one beyond target */
+            int tries = 4;
+            int sd = 1 + (util::random() & 3);
 
-	      if (dr.lev->travel(x, y, sd, tx, ty) &&
-		  /* must be blue, otherwise this won't be a change */
-		  dr.lev->tileat(tx, ty) == T_BLUE &&
-		  /* to its left must be blue. */
-		  dr.lev->travel(tx, ty, turnleft(sd), nx, ny) &&
-		  dr.lev->tileat(nx, ny) == T_BLUE &&
-		  /* ... and right */
-		  dr.lev->travel(tx, ty, turnright(sd), nx, ny) &&
-		  dr.lev->tileat(nx, ny) == T_BLUE &&
-		  /* and beyond it ... */
-		  dr.lev->travel(tx, ty, sd, bx, by) &&
-		  /* must have blue to its left */
-		  dr.lev->travel(bx, by, turnleft(sd), nx, ny) &&
-		  dr.lev->tileat(nx, ny) == T_BLUE &&
-		  /* ... and right */
-		  dr.lev->travel(bx, by, turnright(sd), nx, ny) &&
-		  dr.lev->tileat(nx, ny) == T_BLUE &&
-		  /* if maze, we can't be connecting with
-		     another corridor. */
-		  (randtype == RT_MAZE2 ||
-		   (dr.lev->tileat(bx, by) == T_BLUE))) {
+            while (tries--) {
+              int tx, ty; /* targets */
+              int nx, ny, /* temp */
+                  bx, by; /* one beyond target */
 
-		hadchange = 1;
-		dr.lev->settile(tx, ty, T_FLOOR);
-		break; /* from try loop */
-	      }
+              if (dr.lev->travel(x, y, sd, tx, ty) &&
+                  /* must be blue, otherwise this won't be a change */
+                  dr.lev->tileat(tx, ty) == T_BLUE &&
+                  /* to its left must be blue. */
+                  dr.lev->travel(tx, ty, turnleft(sd), nx, ny) &&
+                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  /* ... and right */
+                  dr.lev->travel(tx, ty, turnright(sd), nx, ny) &&
+                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  /* and beyond it ... */
+                  dr.lev->travel(tx, ty, sd, bx, by) &&
+                  /* must have blue to its left */
+                  dr.lev->travel(bx, by, turnleft(sd), nx, ny) &&
+                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  /* ... and right */
+                  dr.lev->travel(bx, by, turnright(sd), nx, ny) &&
+                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  /* if maze, we can't be connecting with
+                     another corridor. */
+                  (randtype == RT_MAZE2 ||
+                   (dr.lev->tileat(bx, by) == T_BLUE))) {
 
-	      sd = 1 + (sd & 3);
-	    }
-	    /* not safe in any direction. */
+                hadchange = 1;
+                dr.lev->settile(tx, ty, T_FLOOR);
+                break; /* from try loop */
+              }
 
-	  } /* if we found seed */
-	} /* x */
+              sd = 1 + (sd & 3);
+            }
+            /* not safe in any direction. */
+
+          } /* if we found seed */
+        } /* x */
       } /* y */
     } while (hadchange);
 
@@ -159,10 +159,10 @@ void Editor::dorandom() {
   }
 
   case RT_CORRIDORS: {
-    
+
     fullclear(T_BLUE);
-    
-    /* 
+
+    /*
        set to floor only if in this
        configuration:
 
@@ -175,17 +175,17 @@ void Editor::dorandom() {
     do {
 
       hadchange = 0;
-      
+
       for (int y = 0; y < (dr.lev->h - 1); y++) {
-	for (int x = 0; x < (dr.lev->w - 1); x++) {
+        for (int x = 0; x < (dr.lev->w - 1); x++) {
 
-	  /* pick a number 0..3 */
-	  int which = util::random() & 3;
+          /* pick a number 0..3 */
+          int which = util::random() & 3;
 
-	  /* try each corner, selecting the 
-	     'which'th one that succeeds */
+          /* try each corner, selecting the
+             'which'th one that succeeds */
 
-	  /* consider setting xx,yy if no diagonal floors. */
+          /* consider setting xx,yy if no diagonal floors. */
 #             define TRY(xx, yy) \
                 if (dr.lev->tileat( xx,       yy     ) == T_BLUE && \
                     dr.lev->tileat((xx) - 1, (yy) - 1) == T_BLUE && \
@@ -194,37 +194,37 @@ void Editor::dorandom() {
                     dr.lev->tileat((xx) - 1, (yy) + 1) == T_BLUE) { \
                    if (which) which--; \
                    else { \
-		      dr.lev->settile(xx, yy, T_FLOOR); \
+                      dr.lev->settile(xx, yy, T_FLOOR); \
                       hadchange = 1; \
                       break; \
                    } \
-	        }
+                }
 
-	  /* try each of the cases */
-	  if (x > 0 &&
-	      y > 0) {
-	    TRY(x, y);
-	  }
+          /* try each of the cases */
+          if (x > 0 &&
+              y > 0) {
+            TRY(x, y);
+          }
 
-	  if (x > 0 &&
-	      y < (dr.lev->h - 2)) {
-	    TRY(x, y + 1);
-	  }
+          if (x > 0 &&
+              y < (dr.lev->h - 2)) {
+            TRY(x, y + 1);
+          }
 
-	  if (x < (dr.lev->w - 2) &&
-	      y > 0) {
-	    TRY(x + 1, y);
-	  }
+          if (x < (dr.lev->w - 2) &&
+              y > 0) {
+            TRY(x + 1, y);
+          }
 
-	  if (x < (dr.lev->w - 2) &&
-	      y < (dr.lev->h - 2)) {
-	    TRY(x + 1, y + 1);
-	  }
+          if (x < (dr.lev->w - 2) &&
+              y < (dr.lev->h - 2)) {
+            TRY(x + 1, y + 1);
+          }
 #             undef TRY
 
-	}
+        }
       }
-      
+
     } while (hadchange);
 
     break;
@@ -232,14 +232,14 @@ void Editor::dorandom() {
 
     /* XXX once this didn't halt for me: could be bug below */
   case RT_MAZEBUG1: {
-    
+
     fullclear(T_BLUE);
 
     /* XXX disable because of bugs */
 #   if 0
 
     /* look for anything shaped like this:
-         
+
     BB
     BB
 
@@ -256,25 +256,25 @@ void Editor::dorandom() {
     do {
 
       hadchange = 0;
-      
+
       for (int y = 0; y < (dr.lev->h - 1); y++) {
-	for (int x = 0; x < (dr.lev->w - 1); x++) {
-	  /* XXX: valgrind reports invalid read here */
-	  if (dr.lev->tileat(x, y) == T_BLUE &&
-	      dr.lev->tileat(x + 1, y) == T_BLUE &&
-	      dr.lev->tileat(x + y, y + 1) == T_BLUE &&
-	      dr.lev->tileat(x, y + 1) == T_BLUE) {
-	  
-	    /* found 2x2 blue square. */
+        for (int x = 0; x < (dr.lev->w - 1); x++) {
+          /* XXX: valgrind reports invalid read here */
+          if (dr.lev->tileat(x, y) == T_BLUE &&
+              dr.lev->tileat(x + 1, y) == T_BLUE &&
+              dr.lev->tileat(x + y, y + 1) == T_BLUE &&
+              dr.lev->tileat(x, y + 1) == T_BLUE) {
 
-	    /* pick a number 0..3 */
-	    int which = util::random() & 3;
+            /* found 2x2 blue square. */
 
-	    /* try each corner, selecting the 
-	       'which'th one that succeeds */
+            /* pick a number 0..3 */
+            int which = util::random() & 3;
+
+            /* try each corner, selecting the
+               'which'th one that succeeds */
 
 
-	    /* consider setting xx,yy if no diagonal floors. */
+            /* consider setting xx,yy if no diagonal floors. */
 #             define TRY(xx, yy) \
                 if (dr.lev->tileat((xx) - 1, (yy) - 1) == T_BLUE && \
                     dr.lev->tileat((xx) + 1, (yy) - 1) == T_BLUE && \
@@ -282,38 +282,38 @@ void Editor::dorandom() {
                     dr.lev->tileat((xx) - 1, (yy) + 1) == T_BLUE) { \
                    if (which) which--; \
                    else { \
-		      dr.lev->settile(xx, yy, T_FLOOR); \
+                      dr.lev->settile(xx, yy, T_FLOOR); \
                       hadchange = 1; \
                       break; \
                    } \
-	        }
+                }
 
-	    /* try each of the cases */
-	    if (x > 0 &&
-		y > 0) {
-	      TRY(x, y);
-	    }
+            /* try each of the cases */
+            if (x > 0 &&
+                y > 0) {
+              TRY(x, y);
+            }
 
-	    if (x > 0 &&
-		y < (dr.lev->h - 2)) {
-	      TRY(x, y + 1);
-	    }
+            if (x > 0 &&
+                y < (dr.lev->h - 2)) {
+              TRY(x, y + 1);
+            }
 
-	    if (x < (dr.lev->w - 2) &&
-		y > 0) {
-	      TRY(x + 1, y);
-	    }
+            if (x < (dr.lev->w - 2) &&
+                y > 0) {
+              TRY(x + 1, y);
+            }
 
-	    if (x < (dr.lev->w - 2) &&
-		y < (dr.lev->h - 2)) {
-	      TRY(x + 1, y + 1);
-	    }
+            if (x < (dr.lev->w - 2) &&
+                y < (dr.lev->h - 2)) {
+              TRY(x + 1, y + 1);
+            }
 #             undef TRY
 
-	  }
-	}
+          }
+        }
       }
-      
+
     } while (hadchange);
 
 #   endif
@@ -322,11 +322,11 @@ void Editor::dorandom() {
 
     /* broken version of above */
   case RT_MAZEBUG2: {
-    
+
     fullclear(T_BLUE);
-    
+
     /* look for anything shaped like this:
-         
+
     BB
     BB
 
@@ -343,65 +343,65 @@ void Editor::dorandom() {
     do {
 
       hadchange = 0;
-      
+
       for (int y = 0; y < (dr.lev->h - 1); y++) {
-	for (int x = 0; x < (dr.lev->w - 1); x++) {
-	  if (dr.lev->tileat(x, y) == T_BLUE &&
-	      dr.lev->tileat(x + 1, y) == T_BLUE &&
-	      dr.lev->tileat(x + y, y + 1) == T_BLUE &&
-	      dr.lev->tileat(x, y + 1) == T_BLUE) {
-	  
-	    /* found 2x2 blue square. */
+        for (int x = 0; x < (dr.lev->w - 1); x++) {
+          if (dr.lev->tileat(x, y) == T_BLUE &&
+              dr.lev->tileat(x + 1, y) == T_BLUE &&
+              dr.lev->tileat(x + y, y + 1) == T_BLUE &&
+              dr.lev->tileat(x, y + 1) == T_BLUE) {
 
-	    /* pick a number 0..3 */
-	    int which = util::random() & 3;
+            /* found 2x2 blue square. */
 
-	    /* try each corner, selecting the 
-	       'which'th one that succeeds */
+            /* pick a number 0..3 */
+            int which = util::random() & 3;
 
-	    int looking = 0;
-	    do {
+            /* try each corner, selecting the
+               'which'th one that succeeds */
 
-	      /* XXX if looking=1 ... nonterm?? why? */
-	      
-	      /* consider setting rx ry if xx xy checks out */
+            int looking = 0;
+            do {
+
+              /* XXX if looking=1 ... nonterm?? why? */
+
+              /* consider setting rx ry if xx xy checks out */
 #             define TRY(rx, ry, xx, yy) \
                 if (dr.lev->tileat(xx, yy) == T_BLUE) { \
                    looking = 0; \
                    if (which) which--; \
                    else { \
-		      dr.lev->settile(rx, ry, T_FLOOR); \
+                      dr.lev->settile(rx, ry, T_FLOOR); \
                       hadchange = 1; \
                       break; \
                    } \
-	        }
-							  
-	      /* try each of the cases */
-	      if (x > 0 &&
-		  y > 0) {
-		TRY(x, y, x - 1, y - 1);
-	      }
+                }
 
-	      if (x > 0 &&
-		  y < (dr.lev->h - 2)) {
-		TRY(x, y + 1, x - 1, y + 2);
-	      }
+              /* try each of the cases */
+              if (x > 0 &&
+                  y > 0) {
+                TRY(x, y, x - 1, y - 1);
+              }
 
-	      if (x < (dr.lev->w - 2) &&
-		  y > 0) {
-		TRY(x + 1, y, x + 2, y - 1);
-	      }
+              if (x > 0 &&
+                  y < (dr.lev->h - 2)) {
+                TRY(x, y + 1, x - 1, y + 2);
+              }
 
-	      if (x < (dr.lev->w - 2) &&
-		  y < (dr.lev->h - 2)) {
-		TRY(x + 1, y + 1, x + 2, y + 2);
-	      }
+              if (x < (dr.lev->w - 2) &&
+                  y > 0) {
+                TRY(x + 1, y, x + 2, y - 1);
+              }
+
+              if (x < (dr.lev->w - 2) &&
+                  y < (dr.lev->h - 2)) {
+                TRY(x + 1, y + 1, x + 2, y + 2);
+              }
 #             undef TRY
-	    } while (looking);
-	  }
-	}
+            } while (looking);
+          }
+        }
       }
-      
+
     } while (hadchange);
 
     break;
@@ -425,9 +425,9 @@ void Editor::dorandom() {
       /* draw until we hit something. */
       dr.lev->settile(x, y, current);
       while (dr.lev->travel(x, y, d, x, y)) {
-	if (dr.lev->tileat(x, y) != current)
-	  dr.lev->settile(x, y, current);
-	else break;
+        if (dr.lev->tileat(x, y) != current)
+          dr.lev->settile(x, y, current);
+        else break;
       }
     }
 
@@ -437,22 +437,22 @@ void Editor::dorandom() {
   case RT_CRAZY: {
     /* XXX testing */
     Pattern<void> *pat_test = Pattern<void>::create("...\n"
-						     "B\\0BB\n"
-						     "...\n");
+                                                     "B\\0BB\n"
+                                                     "...\n");
     if (pat_test) {
       pat_test->settile('G', T_GREY);
       pat_test->settile('B', T_BLUE);
       pat_test->setpredicate('.', pred_any);
 
-      Match::stream *ms_test = 
-	pat_test->findall(dr.lev, 0);
-      
+      Match::stream *ms_test =
+        pat_test->findall(dr.lev, 0);
+
       Match *m;
       while ((m = ms_test->next())) {
-	int x = 0, y = 0;
-	m->getindex(0, x, y);
-	dr.lev->settile(x, y, T_FLOOR);
-	delete m;
+        int x = 0, y = 0;
+        m->getindex(0, x, y);
+        dr.lev->settile(x, y, T_FLOOR);
+        delete m;
       }
     }
 
@@ -501,7 +501,7 @@ void Editor::dorandom() {
      .. then we can transition to:
 
         [player][block][floor]
-     
+
      if the block is originally attacked by a
      laser, even better. if as a result of the
      retraction, it is NOT attacked, that's
@@ -512,15 +512,15 @@ void Editor::dorandom() {
      areas of the graph), and we are in one
      of those two areas, then put an "obstacle"
      disconnecting them:
-     
-      - a hole in the bottleneck, with a grey 
+
+      - a hole in the bottleneck, with a grey
         block right next to it, and the player
-	immediately ready to push that block
-	in the hole
+        immediately ready to push that block
+        in the hole
 
       - put a panel under a block
         targeting a (stop sign) at the
-	bottleneck
+        bottleneck
 
       -
 
@@ -528,11 +528,11 @@ void Editor::dorandom() {
      'pull' a block from it, or
      'suck' a gold block.
 
-   - low priority local moves: 
+   - low priority local moves:
        - press a 0/1 toggle
        - "come from" any transporter
          in a disconnected area
-	 that targets this one.
+         that targets this one.
 
    we prune out any move that leaves the
    player dead.
@@ -540,7 +540,7 @@ void Editor::dorandom() {
 */
 
 /* we can retract any gold-like block (including spheres)
-   that's against a gold-stopping tile by 'sucking' it 
+   that's against a gold-stopping tile by 'sucking' it
    into a space from which we can kick it.
 */
 bool Editor::retract_gold() {
@@ -556,9 +556,9 @@ bool Editor::retract_gold() {
     bgold->settile(' ', T_FLOOR);
     bgold->setpredicate('G', pred_gold_or_sphere);
     bgold->setpredicate('S', pred_stops_gold);
-    
+
     std::unique_ptr<onionfind> reach{Analysis::reachable(lev)};
-  
+
     std::unique_ptr<Match::stream> matches{
       bgold->findall(dr.lev, 0)};
 
@@ -573,18 +573,18 @@ bool Editor::retract_gold() {
       int oldtile = lev->tileat(x, y);
       if (Level::issphere(oldtile)) sph = true;
 
-      /* now try going left as far as possible 
-	 from the gold block */
+      /* now try going left as far as possible
+         from the gold block */
 
       const int left = m->left();
 
       /*
       printf("match at %d/%d, left: %s\n",
-	      x, y, dirstring(left).c_str());
+              x, y, dirstring(left).c_str());
       */
 
       /* place to put the gold block. man must be to its
-	 left. */
+         left. */
       int targx = 0, targy = 0;
       m->getindex(0, targx, targy);
 
@@ -595,75 +595,75 @@ bool Editor::retract_gold() {
 
       int gx, gy;
       while (lev->travel(targx, targy, left, gx, gy)) {
-	/* as long as there's even a place for the guy to
-	   stand... */
-	/* printf("try targ %d/%d\n", targx, targy); */
-	
-	/* we're done if target is non-floor */
-	/* XX could include panels */
-	if (lev->tileat(targx, targy) != T_FLOOR) break;
+        /* as long as there's even a place for the guy to
+           stand... */
+        /* printf("try targ %d/%d\n", targx, targy); */
 
-	/* this is a candidate if we can place the guy in
-	   a 'pushing position' that he can reach. this
-	   is in gx,gy if !sph, otherwise there may be 0
-	   or more spheres in between */
+        /* we're done if target is non-floor */
+        /* XX could include panels */
+        if (lev->tileat(targx, targy) != T_FLOOR) break;
 
-	if (sph) {
-	  /* move guy left until first non-sphere space */
-	  while (Level::issphere(lev->tileat(gx, gy))) {
-	    if (!lev->travel(gx, gy, left, gx, gy)) goto no_more_motion;
-	  }
-	}
+        /* this is a candidate if we can place the guy in
+           a 'pushing position' that he can reach. this
+           is in gx,gy if !sph, otherwise there may be 0
+           or more spheres in between */
 
-	/* the space has to be reachable by the guy. but we
-	   can still potentially continue if this space is
-	   not occupiable. */
-	if (reach->find(lev->index(lev->guyx, lev->guyy)) ==
-	    reach->find(lev->index(gx, gy))) {
+        if (sph) {
+          /* move guy left until first non-sphere space */
+          while (Level::issphere(lev->tileat(gx, gy))) {
+            if (!lev->travel(gx, gy, left, gx, gy)) goto no_more_motion;
+          }
+        }
 
-	  /*
-	  printf("candidate! guy: %d/%d gold: %d/%d\n",
-		 gx, gy, targx, targy);
-	  */
+        /* the space has to be reachable by the guy. but we
+           can still potentially continue if this space is
+           not occupiable. */
+        if (reach->find(lev->index(lev->guyx, lev->guyy)) ==
+            reach->find(lev->index(gx, gy))) {
 
-	  /* is this a ricochet? (that means we can expect
-	     to repeat this process for this new location) */
-	  int ux, uy;
-	  int dx, dy;
-	  if (lev->travel(targx, targy, m->up(), ux, uy) &&
-	      lev->travel(targx, targy, m->down(), dx, dy) &&
+          /*
+          printf("candidate! guy: %d/%d gold: %d/%d\n",
+                 gx, gy, targx, targy);
+          */
 
-	      ((pred_stops_gold(lev, 0, ux, uy) &&
-		lev->tileat(dx, dy) == T_FLOOR) ||
-	       (pred_stops_gold(lev, 0, dx, dy) &&
-		lev->tileat(ux, uy) == T_FLOOR))) {
+          /* is this a ricochet? (that means we can expect
+             to repeat this process for this new location) */
+          int ux, uy;
+          int dx, dy;
+          if (lev->travel(targx, targy, m->up(), ux, uy) &&
+              lev->travel(targx, targy, m->down(), dx, dy) &&
 
-	    /* then this new place is definitely better */
-	    /* printf("  ... ricocheting!\n"); */
-	    best_has_ricochet = true;
+              ((pred_stops_gold(lev, 0, ux, uy) &&
+                lev->tileat(dx, dy) == T_FLOOR) ||
+               (pred_stops_gold(lev, 0, dx, dy) &&
+                lev->tileat(ux, uy) == T_FLOOR))) {
 
-	    bgx = gx;
-	    bgy = gy;
-	    bestx = targx;
-	    besty = targy;
+            /* then this new place is definitely better */
+            /* printf("  ... ricocheting!\n"); */
+            best_has_ricochet = true;
 
-	    /* small chance of exiting now */
-	    if (! (util::random() & 7)) goto no_more_motion;
-	    
-	  } else {
-	    /* only beats previous non-ricochet */
-	    if (!best_has_ricochet) {
-	      bgx = gx;
-	      bgy = gy;
-	      bestx = targx;
-	      besty = targy;
-	      /* small chance of exiting now */
-	      if (! (util::random() & 7)) goto no_more_motion;
-	    }
-	  }
-	} 
-	/* now try next spot ... */
-	if (!lev->travel(targx, targy, left, targx, targy)) break;
+            bgx = gx;
+            bgy = gy;
+            bestx = targx;
+            besty = targy;
+
+            /* small chance of exiting now */
+            if (! (util::random() & 7)) goto no_more_motion;
+
+          } else {
+            /* only beats previous non-ricochet */
+            if (!best_has_ricochet) {
+              bgx = gx;
+              bgy = gy;
+              bestx = targx;
+              besty = targy;
+              /* small chance of exiting now */
+              if (! (util::random() & 7)) goto no_more_motion;
+            }
+          }
+        }
+        /* now try next spot ... */
+        if (!lev->travel(targx, targy, left, targx, targy)) break;
       }
 
     no_more_motion:;
@@ -671,15 +671,15 @@ bool Editor::retract_gold() {
       /* printf("looked at all candidates\n"); */
 
       if (bestx >= 0) {
-	/* ... */
-	lev->settile(x, y, T_FLOOR);
-	lev->settile(bestx, besty, oldtile);
-	lev->guyx = bgx;
-	lev->guyy = bgy;
-	return true;
+        /* ... */
+        lev->settile(x, y, T_FLOOR);
+        lev->settile(bestx, besty, oldtile);
+        lev->guyx = bgx;
+        lev->guyy = bgy;
+        return true;
 
       } else {
-	/* printf("no motion possible.\n"); */
+        /* printf("no motion possible.\n"); */
 
       }
     }
@@ -688,18 +688,18 @@ bool Editor::retract_gold() {
   } else return false;
 }
 
-/* moves any grey style block. 
+/* moves any grey style block.
    we find a block with an empty space
    next to it that we can reach. we then
    randomly walk it somewhere that we can
    reach.
 */
 bool Editor::retract_grey() {
-  
+
   return false;
 }
 
-/* 
+/*
    If we have the following:
 
    ..S
@@ -720,19 +720,19 @@ bool Editor::retract_hole() {
      pattern directly */
   /* this is pretty slow. but it seems hard to test for \2 being
      a separator, since we can't know what it separates (maybe
-     it is cheaper anyway, since this will have a LOT of matches?) 
-     
+     it is cheaper anyway, since this will have a LOT of matches?)
+
      XXX we should at least make sure that each of these are reachable
      from the current player's position; otherwise they definitely
      won't be separators
   */
   Pattern<void> *findsep = Pattern<void>::create("\\0 \\1 \\2 \n");
-  
+
   /* XXX only need 'empty' for first space */
   if (findsep) {
     findsep->settile(' ', T_FLOOR);
 
-    Match::stream *matches = 
+    Match::stream *matches =
       findsep->findall(dr.lev, 0);
 
     Match *mtmp;
@@ -747,37 +747,37 @@ bool Editor::retract_hole() {
       m->getindex(1, x1, y1);
 
       /*
-	printf("match! r2 at %d/%d up: %s right: %s\n", x, y,
-	dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
+        printf("match! r2 at %d/%d up: %s right: %s\n", x, y,
+        dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
       */
 
       if (Analysis::doessep(dr.lev, x, y,
-			    dr.lev->guyx, 
-			    dr.lev->guyy, x0, y0, T_HOLE) &&
-	  Analysis::doessep(dr.lev, x, y,
-			    dr.lev->guyx,
-			    dr.lev->guyy, x1, y1, T_HOLE)) {
+                            dr.lev->guyx,
+                            dr.lev->guyy, x0, y0, T_HOLE) &&
+          Analysis::doessep(dr.lev, x, y,
+                            dr.lev->guyx,
+                            dr.lev->guyy, x1, y1, T_HOLE)) {
 
-	/*
-	printf("fullmatch! at %d/%d up: %s right: %s\n", x, y,
-	       dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
-	*/
+        /*
+        printf("fullmatch! at %d/%d up: %s right: %s\n", x, y,
+               dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
+        */
 
-	dr.lev->settile(x, y, T_HOLE);
-	dr.lev->settile(x1, y1, T_GREY);
+        dr.lev->settile(x, y, T_HOLE);
+        dr.lev->settile(x1, y1, T_GREY);
 
-	/* maybe check we're not dead here? I'm not sure this is
-	   correct in every case. */
-	dr.lev->guyx = x0;
-	dr.lev->guyy = y0;
+        /* maybe check we're not dead here? I'm not sure this is
+           correct in every case. */
+        dr.lev->guyx = x0;
+        dr.lev->guyy = y0;
 
-	/* FIXME cleanup */
-	return true;
+        /* FIXME cleanup */
+        return true;
       }
     }
   }
   return false;
-  
+
 }
 
 
@@ -805,9 +805,9 @@ void Editor::retract1() {
   dr.message = "retracted!";
   return ;
 
-#if 0  
-  /* build a graph of the level as-is. 
-     
+#if 0
+  /* build a graph of the level as-is.
+
   the graph is a set of equivalence classes
   (representing direct reachability via walking
   without dying) */
@@ -818,7 +818,7 @@ void Editor::retract1() {
   {
     for (int y = 0; y < dr.lev->h; y++) {
       for (int x = 0; x < dr.lev->w; x++) {
-	printf("%4d ", rr->find(dr.lev->index(x, y)));
+        printf("%4d ", rr->find(dr.lev->index(x, y)));
       }
       printf("\n");
     }
@@ -831,20 +831,20 @@ void Editor::retract1() {
   /* for any spot in 'here' that is
      a separator, separate! */
 
-  for (Generator g{dr.lev->w * dr.lev->h}; 
-       g.anyleft(); 
+  for (Generator g{dr.lev->w * dr.lev->h};
+       g.anyleft();
        g.next()) {
     int xx, yy;
     dr.lev->where(g.item(), xx, yy);
 
     int ox, oy;
     if (Analysis::issep(dr.lev, xx, yy,
-			dr.lev->guyx, 
-			dr.lev->guyy, ox, oy)) {
+                        dr.lev->guyx,
+                        dr.lev->guyy, ox, oy)) {
 
       /*
-	printf("separates xx,yy = %d/%d, ox,oy %d/%d\n",
-	xx, yy, ox, oy);
+        printf("separates xx,yy = %d/%d, ox,oy %d/%d\n",
+        xx, yy, ox, oy);
       */
 
       dr.lev->settile(xx, yy, T_STOP);
@@ -857,14 +857,14 @@ void Editor::retract1() {
 
   /* XXX testing */
   Pattern<void> *pat_test = Pattern<void>::create("...\n"
-						   ".GB\n"
-						   "...\n");
+                                                   ".GB\n"
+                                                   "...\n");
   if (pat_test) {
     pat_test->settile('G', T_GREY);
     pat_test->settile('B', T_BLUE);
     pat_test->setpredicate('.', pred_any);
 
-    Match::stream *ms_test = 
+    Match::stream *ms_test =
       pat_test->findall(dr.lev, 0);
 
     Match *m;
@@ -873,7 +873,7 @@ void Editor::retract1() {
       dr.lev->where(m->top_left(), x, y);
       /*
       printf("match! at %d/%d up: %s right: %s\n", x, y,
-	     dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
+             dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
       */
 
       m->destroy();
@@ -892,7 +892,7 @@ string Editor::ainame(int i) {
   case RT_ROOMS: return YELLOW "Rooms" POP BLUE ": Creates \"rooms\" with the foreground tile." POP;
   case RT_CRAZY: return RED "Crazy" POP BLUE ": For testing." POP;
   case RT_RETRACT1: return YELLOW "Retract 1" POP BLUE ": Disabled." POP; /* Retracts one move in a variety of ways." POP; */
-  case RT_RETRACTGOLD: 
+  case RT_RETRACTGOLD:
     return YELLOW "Retract Gold" POP BLUE ": Retracts motion of a gold block (or sphere)." POP;
   default: return (string)RED "No Description for Randtype #" + itos(i);
   }

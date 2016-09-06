@@ -1,6 +1,6 @@
 
 /*
-    Derived from source copyright Kevlin Henney, 1997, 2003. 
+    Derived from source copyright Kevlin Henney, 1997, 2003.
 
     THIS FILE ONLY:
 
@@ -8,7 +8,7 @@
     documentation for any purpose is hereby granted without fee, provided
     that this copyright and permissions notice appear in all copies and
     derivatives.
-    
+
     This software is supplied "as is" without express or implied warranty.
 
     But that said, if there are any problems please get in touch.
@@ -47,11 +47,11 @@ DIR *opendir(const char *name) {
       strcat(strcpy(dir->name, name), all);
 
       if ((dir->handle = (long) _findfirst(dir->name, &dir->info)) != -1) {
-	dir->result.d_name = 0;
+        dir->result.d_name = 0;
       } else /* rollback */ {
-	free(dir->name);
-	free(dir);
-	dir = 0;
+        free(dir->name);
+        free(dir);
+        dir = 0;
       }
     } else /* rollback */ {
       free(dir);

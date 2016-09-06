@@ -12,7 +12,7 @@
    Stores the player's solutions, ratings, and preferences.
 */
 
-// A named solution might actually solve 
+// A named solution might actually solve
 // the level, or it might be a mere bookmark.
 // Value semantics.
 struct NamedSolution {
@@ -22,8 +22,8 @@ struct NamedSolution {
   string author;
   int date = 0;
   bool bookmark = false;
-  NamedSolution(Solution s, string na = "Untitled", 
-                string au = "Unknown", int da = 0, 
+  NamedSolution(Solution s, string na = "Untitled",
+                string au = "Unknown", int da = 0,
                 bool bm = false);
   string ToString() const;
   static bool FromString(const string &s, NamedSolution *ns);
@@ -70,10 +70,10 @@ struct Player {
   // verified. Doesn't invalidate solution set reference. XXX
   // also gross.
   virtual void SetVerified(const string &md5, int idx) = 0;
-  
+
   virtual Rating *getrating(const string &md5) const = 0;
-  
-  /* Always overwriting an existing rating. 
+
+  /* Always overwriting an existing rating.
      there is just one rating per level. */
   virtual void putrating(string md5, Rating *rat) = 0;
 
@@ -88,18 +88,18 @@ struct Player {
      the player, regardless of the level it is for */
   virtual vector<Solution> AllSolutions() const = 0;
 
-  /* Return a reference to the solution set (perhaps empty) for the 
+  /* Return a reference to the solution set (perhaps empty) for the
      level indicated. The first solution, if any, is the default. */
   virtual const vector<NamedSolution> &SolutionSet(const string &md5) const = 0;
 
   // Overwrites the solution set for a particular level MD5.
   virtual void SetSolutionSet(const string &md5,
-			      vector<NamedSolution> solset) = 0;
+                              vector<NamedSolution> solset) = 0;
 
   /* Simply add a new solution to the set. If def_candidate is true
      and the solution is not a bookmark, it might be made the
      default solution. The solution is always added. */
-  virtual void AddSolution(const string &md5, NamedSolution ns, 
+  virtual void AddSolution(const string &md5, NamedSolution ns,
                            bool def_candidate = false) = 0;
 
   /* is this solution already in the solution set? */

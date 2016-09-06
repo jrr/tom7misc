@@ -8,7 +8,7 @@ struct StartUp {
 # ifndef MULTIUSER
   static string self;
 # endif
-  
+
   /* change to the appropriate directory at startup.
      zero on error */
 

@@ -10,7 +10,7 @@
 
 /* hash table entry. corresponds to a level state
    and the earliest position (in the solution) at
-   which we are in this state. 
+   which we are in this state.
 
    we never check actual level equality, just hash
    equality. This means we can screw up in the
@@ -34,7 +34,7 @@ inline void PERMUTE1(Uint64 & h) {
 
   h = (((h & 0xF0F0F0F0F0F0F0F0ULL) >> 4) |
        ((h & 0x0F0F0F0F0F0F0F0FULL) << 4));
-  
+
   h =  (h &  0xFFFFFFFF00000000ULL) |
       ((h &  0x00000000FFFF0000ULL) >> 16) |
       ((h &  0x000000000000FFFFULL) << 16);
@@ -46,22 +46,22 @@ inline void PERMUTE2(Uint64 & h) {
       ((h & 0xFFFFFFFFULL) * 0x09ABCDEFULL);
   h ^= 0x112233FFEEDDCCULL;
 }
- 
+
 /* linear */
 inline void PERMUTE3(Uint64 & h) {
   h ^= 0x1F1F2E2E3D3D4C4CULL;
   h = ((h >> 32) * 0x19283746ULL) |
       ((h & 0xFFFFFFFFULL) * 0xF9E8D7C6ULL);
 }
-  
+
 
 static Uint64 hashlevel(Level *l) {
-  /* ignore title, author, w/h, dests, flags, 
+  /* ignore title, author, w/h, dests, flags,
      since these don't change.
      also ignore botd and guyd, which are presentational. */
 
   Uint64 h = 0x3333333333333333ULL;
-  
+
   /* start with position of guy */
   h ^= ((Uint64)l->guyx << 31);
   h ^=  l->guyy;
@@ -107,8 +107,8 @@ struct lstate {
   }
 
   /* truncate */
-  static unsigned int hash(Uint64 i) { 
-    return (unsigned int)(i & 0xFFFFFFFFl); 
+  static unsigned int hash(Uint64 i) {
+    return (unsigned int)(i & 0xFFFFFFFFl);
   }
 
   lstate(int p, Level *ll, bool initial = false) : pos(p) {
@@ -147,17 +147,17 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
      this is simple: for each move we make, we hash the current
      level state. If we ever re-enter the same state later, then
      we can cut out the "cycle". Lots of pointless walking around
-     or panel testing can easily cause such cycles. 
+     or panel testing can easily cause such cycles.
 
      Note, this optimization pass could be better. We are very
      eager about excising cycles, but this means that we might not
      get rid of the "best" cycles. Instead, we could build the
      actual state graph and then find the shortest path. In my
      opinion this suboptimal behavior is very rare. */
-  
+
   /* "cycle-free" solution */
   Solution cf;
-  
+
   Solution::iter i(s);
   hashtable<lstate, Uint64> *ht = hashtable<lstate, Uint64>::create(1023);
   Extent<hashtable<lstate, Uint64>> eh(ht);
@@ -167,7 +167,7 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
 
   for (; i.hasnext(); i.next()) {
     dir d = i.item();
-    
+
     /* execute the move. If it didn't
        do anything, we'll just ignore
        it. (These shouldn't make their way
@@ -176,7 +176,7 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
     if (l->Move(d)) {
 
       /* provisionally execute this move in our
-	 cycle-free solution. */
+         cycle-free solution. */
       cf.Append(d);
       int n = cf.Length();
 
@@ -187,33 +187,33 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
       lstate *existing = ht->lookup(ls->key());
 
       if (existing) {
-	// printf("   found! at %d\n", existing->pos);
-	/* Well, some prefix of the existing solution
-	   already gets us here. Instead of making this
-	   move, we should just backtrack to the point
-	   at which we were in this state! */
-	cf.Truncate(existing->pos);
-	
-	/* now, anything we've done since then is
-	   invalidated, (this is where the sub-optimality
-	   comes in) so "remove" it. The hashtable doesn't
-	   have a deletion method, so we just set its hash
-	   key to zero so we'll never find it again (this
-	   is actually fairly bogus since it will be in the
-	   wrong bin, now, but we aren't going to try to find
-	   it!) */
-	
-	hashtable_app<lstate, Uint64, int>(ht, inval_above, cf.Length());
+        // printf("   found! at %d\n", existing->pos);
+        /* Well, some prefix of the existing solution
+           already gets us here. Instead of making this
+           move, we should just backtrack to the point
+           at which we were in this state! */
+        cf.Truncate(existing->pos);
 
-	/* don't need this any more */
-	delete ls;
+        /* now, anything we've done since then is
+           invalidated, (this is where the sub-optimality
+           comes in) so "remove" it. The hashtable doesn't
+           have a deletion method, so we just set its hash
+           key to zero so we'll never find it again (this
+           is actually fairly bogus since it will be in the
+           wrong bin, now, but we aren't going to try to find
+           it!) */
+
+        hashtable_app<lstate, Uint64, int>(ht, inval_above, cf.Length());
+
+        /* don't need this any more */
+        delete ls;
 
       } else {
-	/* new state, so insert it */
-	ht->insert(ls);
+        /* new state, so insert it */
+        ht->insert(ls);
       }
     }
-  } 
+  }
 
   if (!Level::Verify(orig, cf)) {
     printf("Result didn't verify!!\n");
@@ -223,7 +223,7 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
   if (cf.Length() < s.Length()) {
     /*
     printf("Correct result: %d moves->%d moves\n",
-	   s->length, cf->length);
+           s->length, cf->length);
     */
     return cf;
   } else {
@@ -233,10 +233,10 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
 
 // static
 bool Optimize::TryComplete(Level *start, const Solution &prefix,
-			   const vector<NamedSolution> &sources,
-			   Solution *sol) {
+                           const vector<NamedSolution> &sources,
+                           Solution *sol) {
   /* do breadth first search by suffix length. */
-  
+
   Level *wprefix = start->clone();
   int moves_unused;
   /* Assume this works.. */
@@ -254,25 +254,25 @@ bool Optimize::TryComplete(Level *start, const Solution &prefix,
        try its suffix */
     for (const NamedSolution &ns : sources) {
       if (ns.sol.Length() >= slen) {
-	/* do it! */
-	Level *trysuf = wprefix->clone();
-	Extent<Level> ets(trysuf);
+        /* do it! */
+        Level *trysuf = wprefix->clone();
+        Extent<Level> ets(trysuf);
 
-	const Solution &trysol = ns.sol;
+        const Solution &trysol = ns.sol;
 
-	/* execute exactly this suffix */
-	int moves;
-	if (trysuf->PlayPrefix(trysol, moves,
-			       trysol.Length() - slen,
-			       slen)) {
-	  /* success! (with move moves) */
-	  *sol = prefix;
-	  for (int j = 0; j < moves; j++) {
-	    sol->Append(trysol.At(j + trysol.Length() - slen));
-	  }
+        /* execute exactly this suffix */
+        int moves;
+        if (trysuf->PlayPrefix(trysol, moves,
+                               trysol.Length() - slen,
+                               slen)) {
+          /* success! (with move moves) */
+          *sol = prefix;
+          for (int j = 0; j < moves; j++) {
+            sol->Append(trysol.At(j + trysol.Length() - slen));
+          }
 
-	  return true;
-	}
+          return true;
+        }
       }
     }
     // printf("No suffixes of length %d...\n", slen);

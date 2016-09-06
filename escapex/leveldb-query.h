@@ -6,11 +6,11 @@
 
 /* Queries against the level database (see leveldb.h for where they
    are used).
-   
+
    This is annoying because C++ is not good at abstract syntax trees,
    but the basic idea is to form simple expressions over fields of
    levels (or their solutions, whatever) that describe filters (what
-   levels to show) and sorts (what order to return them in). 
+   levels to show) and sorts (what order to return them in).
 
    Eventually we should have a parser for these so that advanced users
    can create their own queries in the interface. */
@@ -139,7 +139,7 @@ struct lsort {
   bool descending;
 };
 
-struct lquery { 
+struct lquery {
   /* returns boolean */
   lexp filter;
 

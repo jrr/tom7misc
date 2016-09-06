@@ -14,6 +14,7 @@
 #define INDEX2MAGIC "ESXi" /* now obsolete. but don't reuse */
 #define INDEX3MAGIC "ESX!"
 
+namespace {
 struct ra_entry {
   static unsigned int hash(string k) {
     return hash_string(k);
@@ -31,22 +32,22 @@ struct ra_entry {
 
   void destroy() { delete this; }
 
-  ra_entry(string s, RateStatus vv, int d, int sr, int o) 
+  ra_entry(string s, RateStatus vv, int d, int sr, int o)
     : filename(s), v(vv), date(d), speedrecord(sr), owner(o) {}
   ra_entry() {}
 
 };
 
-struct di_real : public DirIndex {
-  
-  static di_real *create();
+struct DirIndex_ : public DirIndex {
+
+  static DirIndex_ *create();
 
   virtual void writefile(string);
 
   virtual void destroy();
-  virtual ~di_real() {}
-  virtual void addentry(string filename, RateStatus v, 
-			int date, int speedrecord, int owner);
+  virtual ~DirIndex_() {}
+  virtual void addentry(string filename, RateStatus v,
+                        int date, int speedrecord, int owner);
 
   /* read from disk */
   static DirIndex *fromstring(string f);
@@ -64,11 +65,8 @@ struct di_real : public DirIndex {
 
 };
 
-DirIndex *DirIndex::create() {
-  return di_real::create();
-}
 
-bool di_real::getentry(string filename, RateStatus &v, int &d, int &sr, int &o) {
+bool DirIndex_::getentry(string filename, RateStatus &v, int &d, int &sr, int &o) {
   ra_entry *e = tab->lookup(filename);
   if (e) {
     v = e->v;
@@ -79,8 +77,8 @@ bool di_real::getentry(string filename, RateStatus &v, int &d, int &sr, int &o) 
   } else return false;
 }
 
-di_real *di_real::create() {
-  di_real *dr = new di_real();
+DirIndex_ *DirIndex_::create() {
+  DirIndex_ *dr = new DirIndex_();
 
   if (!dr) return 0;
 
@@ -93,15 +91,56 @@ di_real *di_real::create() {
   return dr;
 }
 
-
-bool DirIndex::isindex(string f) {
-  return util::hasmagic(f, INDEXMAGIC) ||
-         util::hasmagic(f, INDEX3MAGIC);
+void DirIndex_::destroy() {
+  if (tab) tab->destroy();
+  delete this;
 }
 
-DirIndex *DirIndex::fromfile(string f) {
+/* argument to hashtable::app */
+void DirIndex_::writeone(ra_entry *i, FILE *f) {
+  fprintf(f, "%s %d %d %d %d %d %d %d %d %d\n",
+          i->filename.c_str(),
+          i->v.nvotes,
+          i->v.difficulty,
+          i->v.style,
+          i->v.rigidity,
+          i->v.cooked,
+          i->v.solved,
+          i->date,
+          i->speedrecord,
+          i->owner);
+}
 
-  di_real *dr = di_real::create();
+void DirIndex_::writefile(string fname) {
+  FILE *f = fopen(fname.c_str(), "wb");
+  if (!f) return; /* XXX? */
+
+  fprintf(f, INDEX3MAGIC "\n");
+
+  /* single line gives title */
+  fprintf(f, "%s\n", title.c_str());
+
+  /* a few ignored lines */
+  for (int i = 0; i < INDEX_IGNORED_FIELDS; i++) fprintf(f, "\n");
+
+  /* XXX sort first */
+
+  /* then write each file */
+  hashtable_app<ra_entry, string, FILE *>(tab, writeone, f);
+
+  fclose(f);
+
+}
+
+void DirIndex_::addentry(string f, RateStatus v,
+                       int date, int speedrecord, int owner) {
+  tab->insert(new ra_entry(f, v, date, speedrecord, owner));
+}
+
+}  // namespace
+
+DirIndex *DirIndex::fromfile(const string &f) {
+  DirIndex_ *dr = DirIndex_::create();
 
   if (!dr) return 0;
 
@@ -111,36 +150,36 @@ DirIndex *DirIndex::fromfile(string f) {
   /* chop off magic, then erase leading whitespace */
   if (iii != "") {
     dr->title = util::losewhitel(iii.substr
-				 (strlen(INDEXMAGIC), 
-				  iii.length() - 
-				  strlen(INDEXMAGIC)));
+                                 (strlen(INDEXMAGIC),
+                                  iii.length() -
+                                  strlen(INDEXMAGIC)));
 
     /* hashtable remains empty */
     return dr;
   } else {
 
-    Extent<di_real> de(dr);
+    Extent<DirIndex_> de(dr);
     CheckFile *cf = CheckFile::create(f);
-    
+
     if (!cf) return 0;
-    
+
     Extent<CheckFile> fe(cf);
 
     /* check that it starts with v2 magic */
     string s;
-    if (!cf->read(strlen(INDEX3MAGIC), s) || 
-	s != INDEX3MAGIC) return 0;
+    if (!cf->read(strlen(INDEX3MAGIC), s) ||
+        s != INDEX3MAGIC) return 0;
 
     /* strip newline */
     if (!(cf->getline(s) && s == "")) return 0;
 
     if (!(cf->getline(dr->title))) return 0;
 
-    { 
+    {
       for (int i = 0; i < INDEX_IGNORED_FIELDS; i++)
-	if (!cf->getline(s)) return 0; 
+        if (!cf->getline(s)) return 0;
     }
-    
+
     while (cf->getline(s)) {
       ra_entry *rr = new ra_entry;
       Extent<ra_entry> re(rr);
@@ -164,51 +203,13 @@ DirIndex *DirIndex::fromfile(string f) {
     de.release();
     return dr;
   }
-
 }
 
-void di_real::destroy() {
-  if (tab) tab->destroy();
-  delete this;
+bool DirIndex::isindex(const string &f) {
+  return util::hasmagic(f, INDEXMAGIC) ||
+         util::hasmagic(f, INDEX3MAGIC);
 }
 
-/* argument to hashtable::app */
-void di_real::writeone(ra_entry *i, FILE *f) {
-  fprintf(f, "%s %d %d %d %d %d %d %d %d %d\n",
-	  i->filename.c_str(),
-	  i->v.nvotes,
-	  i->v.difficulty,
-	  i->v.style,
-	  i->v.rigidity,
-	  i->v.cooked,
-	  i->v.solved,
-	  i->date,
-	  i->speedrecord,
-	  i->owner);
-}
-
-void di_real::writefile(string fname) {
-  FILE *f = fopen(fname.c_str(), "wb");
-  if (!f) return; /* XXX? */
-		
-  fprintf(f, INDEX3MAGIC "\n");
-
-  /* single line gives title */
-  fprintf(f, "%s\n", title.c_str());
-
-  /* a few ignored lines */
-  for (int i = 0; i < INDEX_IGNORED_FIELDS; i++) fprintf(f, "\n");
-  
-  /* XXX sort first */
-  
-  /* then write each file */
-  hashtable_app<ra_entry, string, FILE *>(tab, writeone, f);
-
-  fclose(f);
-
-}
-
-void di_real::addentry(string f, RateStatus v, 
-		       int date, int speedrecord, int owner) {
-  tab->insert(new ra_entry(f, v, date, speedrecord, owner));
+DirIndex *DirIndex::create() {
+  return DirIndex_::create();
 }

@@ -19,10 +19,10 @@ void Prefs::show(Player *plr) {
 
   /* ------- game prefs ------- */
   label game;
-  game.text = PICS BARLEFT BAR BAR BARRIGHT POP 
+  game.text = PICS BARLEFT BAR BAR BARRIGHT POP
                GREEN " Game Settings " POP
               PICS BARLEFT BAR BAR BARRIGHT POP ;
-  
+
   toggle askrate;
   askrate.indent = IND;
   askrate.disabled = !plr->webid;
@@ -59,7 +59,7 @@ void Prefs::show(Player *plr) {
   animspeed.question = "Animation Speed";
   animspeed.low = "slower";
   animspeed.high = "faster    off ^^";
-  animspeed.explanation = 
+  animspeed.explanation =
     "Speed of animation in the game. If set to maximum,\n"
     "animation will be disabled for snappiest possible action.";
 #endif
@@ -68,7 +68,7 @@ void Prefs::show(Player *plr) {
   animon.indent = IND;
   animon.checked = getbool(plr, PREF_ANIMATION_ENABLED);
   animon.question = "Enable Animation";
-  animon.explanation = 
+  animon.explanation =
     "Draw animations when playing. Recommended unless you are\n"
     "extremely impatient.\n"
     GREY "(Default: Checked)";
@@ -77,17 +77,17 @@ void Prefs::show(Player *plr) {
   optsol.indent = IND;
   optsol.checked = getbool(plr, PREF_OPTIMIZE_SOLUTIONS);
   optsol.question = "Optimize Solutions";
-  optsol.explanation = 
+  optsol.explanation =
     "After you solve a level, the game will automatically try\n"
     "to optimize your solution to make it shorter.\n"
     GREY "(Default: Checked)";
 
   /* ------- network ---------- */
   label network;
-  network.text = 
-    PICS BARLEFT BAR BAR BARRIGHT POP 
+  network.text =
+    PICS BARLEFT BAR BAR BARRIGHT POP
        GREEN " Network Settings " POP
-    PICS BARLEFT BAR BAR BARRIGHT POP; 
+    PICS BARLEFT BAR BAR BARRIGHT POP;
 
   textinput servername;
   servername.indent = IND;
@@ -142,7 +142,7 @@ void Prefs::show(Player *plr) {
   PtrList<MenuItem>::push(l, &game);
 
 
-  menu *mm = menu::create(0, "Escape Preferences Menu", l, false);
+  Menu *mm = Menu::create(0, "Escape Preferences Menu", l, false);
 
   resultkind res = mm->menuize();
 
@@ -166,9 +166,9 @@ void Prefs::show(Player *plr) {
 }
 
 void Prefs::defaults(Player *plr) {
-  
+
   Chunks *ch = plr->getchunks();
-  
+
   if (!ch->get(PREF_SERVER))
     putstring(plr, PREF_SERVER, DEFAULT_SERVER);
 

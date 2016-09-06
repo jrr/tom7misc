@@ -33,8 +33,8 @@ static constexpr int HASHSIZE = 512;
 
 NamedSolution::NamedSolution() {}
 
-NamedSolution::NamedSolution(Solution s, string na, 
-			     string au, int da, bool bm) {
+NamedSolution::NamedSolution(Solution s, string na,
+                             string au, int da, bool bm) {
   name = na;
   sol = std::move(s);
   author = au;
@@ -58,28 +58,28 @@ bool NamedSolution::FromString(const string &s, NamedSolution *ns) {
   unsigned int idx = 0;
   if (idx + 4 > s.length()) return false;
   int d = shout(4, s, idx);
-  
+
   if (idx + 4 > s.length()) return false;
   int nl = shout(4, s, idx);
   if (idx + nl > s.length()) return false;
   string name = s.substr(idx, nl);
   idx += nl;
-  
+
   if (idx + 4 > s.length()) return false;
   int dl = shout(4, s, idx);
   if (idx + dl > s.length()) return false;
   string de = s.substr(idx, dl);
   idx += dl;
-  
+
   if (idx + 4 > s.length()) return false;
   int sl = shout(4, s, idx);
   if (idx + sl > s.length()) return false;
   string ss = s.substr(idx, sl);
   idx += sl;
-  
+
   Solution so;
   if (!Solution::FromString(ss, &so)) return false;
-  
+
   bool bm;
   if (idx + 4 > s.length()) bm = false;
   else {
@@ -108,9 +108,9 @@ struct hashsolsetentry {
   NSList *solset;
   static unsigned int hash(string k);
   string key() { return md5; }
-  void destroy() { 
+  void destroy() {
     while (solset) NSList::pop(solset)->destroy();
-    delete this; 
+    delete this;
   }
   hashsolsetentry(string m, NSList *s) : md5(m), solset(s) {}
   static int compare(hashsolsetentry *l, hashsolsetentry *r) {
@@ -144,7 +144,7 @@ struct Player_ : public Player {
     if (sols.empty()) return nullptr;
     return &sols[0].sol;
   }
-  
+
   int GetSolLength(const string &md5) const override {
     if (const Solution *s = GetSol(md5))
       return s->Length();
@@ -163,7 +163,7 @@ struct Player_ : public Player {
   }
 
   Rating *getrating(const string &md5) const override;
-  
+
   void putrating(string md5, Rating *rat);
 
   bool writefile();
@@ -182,16 +182,16 @@ struct Player_ : public Player {
 
   vector<Solution> AllSolutions() const override {
     vector<Solution> out;
-    
+
     for (const auto &p : soltable) {
       for (const NamedSolution &ns : p.second) {
-	out.push_back(ns.sol);
+        out.push_back(ns.sol);
       }
     }
 
     return out;
   }
-  
+
   virtual ~Player_() {
     ratable->destroy();
     if (ch) ch->destroy();
@@ -209,7 +209,7 @@ struct Player_ : public Player {
     if (it == soltable.end()) return empty_solutionset;
     else return it->second;
   }
-  
+
  private:
 
   void deleteoldbackups();
@@ -232,8 +232,8 @@ struct Player_ : public Player {
   }
 
   void AddSolution(const string &md5, NamedSolution ns,
-		   bool def_candidate) override;
-  
+                   bool def_candidate) override;
+
   Chunks *ch;
 };
 
@@ -244,9 +244,9 @@ unsigned int hashratentry::hash(string k) {
 Player_ *Player_::Create(const string &n) {
   std::unique_ptr<Player_> p{new Player_()};
   if (!p.get()) return 0;
-  
+
   p->name = n;
-  
+
   p->ratable = hashtable<hashratentry,string>::create(HASHSIZE);
 
   p->ch = Chunks::create();
@@ -266,13 +266,13 @@ Player_ *Player_::Create(const string &n) {
 
 Rating *Player_::getrating(const string &md5) const {
   const hashratentry *re = ratable->lookup(md5);
-  
+
   if (re) return re->rat;
   else return nullptr;
 }
 
 void Player_::AddSolution(const string &md5, NamedSolution ns,
-			  bool def_candidate) {
+                          bool def_candidate) {
   vector<NamedSolution> &row = soltable[md5];
   if (row.empty()) {
     // Always add if we have no solutions.
@@ -287,7 +287,7 @@ void Player_::AddSolution(const string &md5, NamedSolution ns,
     // Is it a solution and faster than whatever the default is
     // (bookmark or not)?
     const bool faster_solution =
-      !ns.bookmark && 
+      !ns.bookmark &&
       ns.sol.Length() < first.sol.Length();
     // I made the solution, and the default is by someone else.
     const bool is_my_solution =
@@ -296,29 +296,29 @@ void Player_::AddSolution(const string &md5, NamedSolution ns,
       first.author != this->name;
 
     if (def_candidate &&
-	(first_real_solution || faster_solution || is_my_solution)) {
+        (first_real_solution || faster_solution || is_my_solution)) {
       // Make default by inserting at the beginning.
       row.insert(row.begin(), std::move(ns));
     } else {
       // Since bookmarks are inserted manually, don't dedupe.
       if (!ns.bookmark) {
-	// For full solutions, don't insert duplicates. It's a
-	// duplicate if it has the exact same moves and either has the
-	// default name or has the same name/author as the existing
-	// one. We treat untitled solutions specially because they are
-	// inserted after solving a level, which happens when watching
-	// a solution and pressing enter at the end.
-	const bool untitled = ns.name == "Untitled";
-	
-	for (const NamedSolution &other : row) {
-	  if ((untitled ||
-	       (other.author == ns.author &&
-		other.name == ns.name)) &&
-	      !other.bookmark &&
-	      Solution::Equal(other.sol, ns.sol)) {
-	    return;
-	  }
-	}
+        // For full solutions, don't insert duplicates. It's a
+        // duplicate if it has the exact same moves and either has the
+        // default name or has the same name/author as the existing
+        // one. We treat untitled solutions specially because they are
+        // inserted after solving a level, which happens when watching
+        // a solution and pressing enter at the end.
+        const bool untitled = ns.name == "Untitled";
+
+        for (const NamedSolution &other : row) {
+          if ((untitled ||
+               (other.author == ns.author &&
+                other.name == ns.name)) &&
+              !other.bookmark &&
+              Solution::Equal(other.sol, ns.sol)) {
+            return;
+          }
+        }
       }
       // Otherwise, just add it at the end.
       row.push_back(std::move(ns));
@@ -350,45 +350,45 @@ void Player_::deleteoldbackups() {
   if (!dir) return;
 
   /* XX must agree with backupfile */
-  string basename = 
+  string basename =
 #   ifdef WIN32
         util::lcase(
 #   else
-	(
+        (
 #   endif
-	  fname + ".~");
+          fname + ".~");
 
   dirent *de;
   int n = 0;
   int oldest = (time(0) / BACKUP_FREQ) + 1 ;
   while ((de = readdir(dir))) {
-    string f = 
+    string f =
 #     ifdef WIN32
         util::lcase(
 #     else
-	(
+        (
 #     endif
       de->d_name);
 
-	if (f.substr(0, basename.length()) ==
-	    basename) {
-	  string sage = f.substr(basename.length(),
-				 f.length() - basename.length());
-	  int age = atoi(sage.c_str());
-  
-	  /* check that it's a valid number ... */
-	  if (age && sage == itos(age)) {
-	    /* printf("saw '%s' with age %d\n", f.c_str(), age); */
-	    n++;
-	    if (age < oldest) oldest = age;
-	  }
-	}
+        if (f.substr(0, basename.length()) ==
+            basename) {
+          string sage = f.substr(basename.length(),
+                                 f.length() - basename.length());
+          int age = atoi(sage.c_str());
+
+          /* check that it's a valid number ... */
+          if (age && sage == itos(age)) {
+            /* printf("saw '%s' with age %d\n", f.c_str(), age); */
+            n++;
+            if (age < oldest) oldest = age;
+          }
+        }
   } /* while */
 
   closedir(dir);
 
   if (n > N_BACKUPS) {
-    
+
     string delme = basename + itos(oldest);
     if (util::existsfile(delme) && util::remove(delme)) {
       /* try deleting again */
@@ -403,7 +403,7 @@ bool Player_::writefile() {
   /* Back up the player file. */
   if (Prefs::getbool(this, PREF_BACKUP_PLAYER)) {
     int epoch = time(0) / BACKUP_FREQ;
-    
+
     /* did we already back up in this epoch? */
     string tf = backupfile(fname, epoch);
     if (!util::existsfile(tf)) {
@@ -424,13 +424,13 @@ bool Player_::writef_text(const string &file) {
 
   fprintf(f, "%s\n", PLAYERTEXT_MAGIC);
   fprintf(f,
-	  "%d\n"
-	  "%d\n"
-	  "%d\n", webid, webseqh, webseql);
+          "%d\n"
+          "%d\n"
+          "%d\n", webid, webseqh, webseql);
 
   /* write ignored fields; for later expansion... */
   for (int u = 0 ; u < IGNORED_FIELDS; u++) fprintf(f, "0\n");
-  
+
   fprintf(f, "%s\n", name.c_str());
 
   fprintf(f, SOLMARKER "\n");
@@ -447,14 +447,14 @@ bool Player_::writef_text(const string &file) {
   for (const auto &p : sorted_sols) {
     // We checked above that we have at least one solution.
     fprintf(f, "%s * %s\n", MD5::Ascii(p.first).c_str(),
-	    Base64::Encode(p.second->at(0).ToString()).c_str());
+            Base64::Encode(p.second->at(0).ToString()).c_str());
     /* followed by perhaps more solutions marked with @ */
 
     for (int i = 1; i < p.second->size(); i++) {
       const NamedSolution &ns = p.second->at(i);
       fprintf(f, "  %s\n", Base64::Encode(ns.ToString()).c_str());
     }
-      
+
     /* end it (makes parsing easier) */
     fprintf(f, "!\n");
   }
@@ -466,13 +466,13 @@ bool Player_::writef_text(const string &file) {
 
   for (int i = 0; i < ratable->allocated; i++) {
     PtrList<hashratentry>::sort(hashratentry::compare, ratable->data[i]);
-    for (PtrList<hashratentry> *tmp = ratable->data[i]; 
-	 tmp; 
-	 tmp = tmp->next) {
+    for (PtrList<hashratentry> *tmp = ratable->data[i];
+         tmp;
+         tmp = tmp->next) {
       string md5ascii = MD5::Ascii(tmp->head->md5).c_str();
       fprintf(f, "%s %s\n",
-	      md5ascii.c_str(),
-	      Base64::Encode(tmp->head->rat->tostring()).c_str());
+              md5ascii.c_str(),
+              Base64::Encode(tmp->head->rat->tostring()).c_str());
     }
   }
 
@@ -488,8 +488,8 @@ bool Player_::writef_text(const string &file) {
 }
 
 #define FF_FAIL(s) do { printf("Bad player: %s: %s\n", \
-			       fname.c_str(), s);      \
-		        return 0; } while (0)
+                               fname.c_str(), s);      \
+                        return 0; } while (0)
 // #define FF_FAIL(s) return 0;
 
 Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
@@ -521,40 +521,40 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
   for (;;) {
     string l;
     if (!cf->getline(l)) FF_FAIL("expected solution");
-    
+
     /* maybe this is the end? */
     if (l == RATMARKER) break;
-    
+
     string mda = util::chop(l);
     string md;
     if (!MD5::UnAscii(mda, md)) FF_FAIL(((string)"bad md5 " + mda).c_str());
-    
+
     string next = util::chop(l);
-    
+
     if (next == "*") {
       /* default first */
       string nsolstring = Base64::Decode(util::chop(l));
       NamedSolution ns;
       if (!NamedSolution::FromString(nsolstring, &ns)) {
-	FF_FAIL("bad namedsolution");
+        FF_FAIL("bad namedsolution");
       }
-	
+
       vector<NamedSolution> solutionset = {std::move(ns)};
-      
+
       /* now, any number of other solutions */
       for (;;) {
-	if (!cf->getline(l)) FF_FAIL("expected more solutions");
-	string tok = util::chop(l);
-	if (tok == "!") break;
-	else {
-	  NamedSolution ns;
-	  if (!NamedSolution::FromString(Base64::Decode(tok), &ns)) {
-	    FF_FAIL("additional solution was bad");
-	  }
-	  solutionset.push_back(std::move(ns));
-	}
+        if (!cf->getline(l)) FF_FAIL("expected more solutions");
+        string tok = util::chop(l);
+        if (tok == "!") break;
+        else {
+          NamedSolution ns;
+          if (!NamedSolution::FromString(Base64::Decode(tok), &ns)) {
+            FF_FAIL("additional solution was bad");
+          }
+          solutionset.push_back(std::move(ns));
+        }
       }
-      
+
       /* add a whole solution set */
       p->soltable[md] = std::move(solutionset);
     } else {
@@ -563,11 +563,11 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
       string solstring = Base64::Decode(next);
       Solution sol;
       if (!Solution::FromString(solstring, &sol)) {
-	FF_FAIL("bad oldstyle solution");
+        FF_FAIL("bad oldstyle solution");
       }
       p->AddSolution(md,
-		     NamedSolution(sol, "Untitled", p->name, 0),
-		     false);
+                     NamedSolution(sol, "Untitled", p->name, 0),
+                     false);
     }
   }
 
@@ -593,7 +593,7 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
 
   /* already read pref marker */
 
-  string cs; 
+  string cs;
   if (!cf->getline(cs)) FF_FAIL("expected prefs");
   p->ch = Chunks::fromstring(Base64::Decode(cs));
 
@@ -610,11 +610,11 @@ Player_ *Player_::FromFile(const string &file) {
 
   string s;
   if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return nullptr;
-  
+
   /* binary or text format? */
   if (s == PLAYERTEXT_MAGIC) return fromfile_text(file, cf);
   else return nullptr;
-}  
+}
 
 }  // namespace
 

@@ -10,12 +10,12 @@
 /* menus are essentially what are often called
    "forms" in GUI lingo */
 
-enum resultkind { 
-  MR_NOTHING, 
+enum resultkind {
+  MR_NOTHING,
   /* go to the next or previous item */
-  MR_NEXT, MR_PREV, 
+  MR_NEXT, MR_PREV,
   /* the key is rejected as illegal */
-  MR_REJECT, 
+  MR_REJECT,
   /* some action has changed the display
      (implied by next,prev) */
   MR_UPDATED,
@@ -51,7 +51,7 @@ struct MenuItem {
   bool disabled;
 
   /* parent menu */
-  struct menu *container;
+  struct Menu *container;
 
   /* stuff that all menuitems have */
 
@@ -72,60 +72,12 @@ struct MenuItem {
   virtual string helptext() = 0;
 
   /* some default behavior here */
-  /* process a keypress. 
+  /* process a keypress.
      assume e.type = SDL_KEYDOWN */
   virtual inputresult key(SDL_Event e);
 
   MenuItem() : indent(0), disabled(false) {}
   virtual ~MenuItem() {}
-};
-
-struct textbox : public MenuItem {
-  virtual string helptext() {
-    return "Use like a normal simple editor. " BLUE "Tab" POP " exits.";
-  }
-  virtual void draw(int x, int y, int f);
-  virtual void size(int &w, int &h);
-  virtual ~textbox() { empty(); }
-
-  string get_text();
-  /* puts cursor at the beginning, 0 scroll.
-     might want to call goto_end after setting. */
-  void set_text(string);
-
-  virtual inputresult key(SDL_Event e);
-
-  textbox(int cw, int ch) : 
-    before(0), after(0), charsw(cw), charsh(ch) {}
-
-  string question;
-
-  void goto_beginning();
-  void goto_end();
-
-  private:
-  /* we use a "red sea" implementation, where the cursor
-     is the cleaving, and we insert new chars onto the head
-     of before (which appears in reverse order) */
-  vallist<char> *before;
-  vallist<char> *after;
-
-  int charsw, charsh;
-
-  /* destroys before, after */
-  void empty();
-
-  string prevline(vallist<char> *&bb);
-  string nextword(vallist<char> *&aa);
-  string popword(vallist<char> *&bb, char &p);
-  void addstring(string);
-  void type(char);
-  void left(bool erasing);
-  void left_noflow(bool);
-  void up();
-  void down();
-  void right(bool erasing);
-  int  countprevline(vallist<char> *&bb);
 };
 
 /* unselectable labels */
@@ -145,7 +97,7 @@ struct vspace : public MenuItem {
   virtual bool focusable() { return false; }
   virtual string helptext() { return ""; }
   virtual void draw(int x, int y, int f) { }
-  virtual void size(int &w, int &h) { 
+  virtual void size(int &w, int &h) {
     w = 1;
     h = height;
   }
@@ -158,7 +110,7 @@ struct textinput : public MenuItem {
   /* immediately accept when pressing 'enter'? */
   bool accept_on_enter;
 
-  virtual string helptext() { 
+  virtual string helptext() {
     return "Enter a single line of text.";
   }
   virtual void draw(int x, int y, int);
@@ -192,8 +144,8 @@ struct toggle : public MenuItem {
   string question;
   bool checked;
 
-  virtual string helptext() { 
-    return "Press " BLUE "enter" POP " or " 
+  virtual string helptext() {
+    return "Press " BLUE "enter" POP " or "
       BLUE "space" POP " to toggle.";
   }
   virtual void draw(int x, int y, int);
@@ -224,7 +176,7 @@ struct slider : public MenuItem {
   int nsegs;
 
   virtual string helptext() {
-    return "Press " BLUE "left" POP " or " BLUE "right" POP 
+    return "Press " BLUE "left" POP " or " BLUE "right" POP
            " to change the setting.";
   }
 
@@ -241,7 +193,7 @@ struct slider : public MenuItem {
   int pos;
 
   private:
-  
+
   /* scrollbar graphic as string. has nseg segments */
   string scrollbar;
 };
@@ -285,7 +237,7 @@ struct cancel : public MenuItem {
   string text;
 
   virtual string helptext() {
-    return "Press " BLUE "enter" POP " to cancel. " 
+    return "Press " BLUE "enter" POP " to cancel. "
            GREY "(" BLUE "esc" POP " also cancels at any time.)";
   }
 
@@ -303,7 +255,7 @@ struct cancel : public MenuItem {
 
 /* menus */
 
-struct menu : public Drawable {
+struct Menu : public Drawable {
 
   /* create a menu from some items. After this point,
      it's not possible to add or remove items. If
@@ -312,7 +264,7 @@ struct menu : public Drawable {
      and is centered on the screen. */
   /* does not take ownership of the item pointers
      or the list cells */
-  static menu *create(Drawable *below,
+  static Menu *create(Drawable *below,
                        string title,
                        PtrList<MenuItem> *items,
                        bool fullscreen);
@@ -326,7 +278,7 @@ struct menu : public Drawable {
 
   /* all menuitems will still be available */
   virtual void destroy();
-  virtual ~menu() {};
+  virtual ~Menu() {};
 
   int alpha;
   /* set negative to get centered behavior */
@@ -334,7 +286,7 @@ struct menu : public Drawable {
 
   private:
 
-  menu() {
+  Menu() {
     items = 0;
     alpharect = 0;
     below = 0;
@@ -361,7 +313,6 @@ struct menu : public Drawable {
   int posx, posy;
   int w, h, stath;
   SDL_Surface *alpharect;
-
 };
 
 #endif

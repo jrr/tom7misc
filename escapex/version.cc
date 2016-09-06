@@ -37,8 +37,8 @@ int main(int argc, char **argv) {
   }
 
   FILE *vh = fopen(VERSION_H, "w");
-  
-  if (!vh) { 
+
+  if (!vh) {
     printf("Can't open " VERSION_H " \n");
     exit(-1);
   }
@@ -55,6 +55,6 @@ int main(int argc, char **argv) {
   // Tags in subversion are a bit more heavyweight, so don't bother.
   // string sys2 = (string)"cvs tag -c escape-" + itos(n);
   // system(sys2.c_str());
-  
+
   return 0;
 }

@@ -1,6 +1,6 @@
 
 // XXX trim.
-// Things like client operations (upload/comment) need to be in 
+// Things like client operations (upload/comment) need to be in
 // separate files.
 #include "escapex.h"
 #include "level.h"
@@ -69,9 +69,9 @@ struct Browse_ : public Browse {
   void screenresize() override {
     makebackground();
   }
-  
+
   ~Browse_() override {}
-  
+
   string selectlevel() override;
 
   void makebackground();
@@ -96,9 +96,9 @@ void Browse_::makebackground() {
   int h = screen->h;
 
   Backgrounds::gradientblocks(background,
-			      T_GREY,
-			      T_RED,
-			      Backgrounds::purpleish);
+                              T_GREY,
+                              T_RED,
+                              Backgrounds::purpleish);
   if (!background) return;
 
   const Uint32 curveborder_color =
@@ -114,13 +114,13 @@ void Browse_::makebackground() {
 
   /* Curves */
   sdlutil::blitall(Animation::curveborder_tan_tl, background,
-		   border_x1, border_y1);
+                   border_x1, border_y1);
   sdlutil::blitall(Animation::curveborder_tan_tr, background,
-		   border_x2 - curve_size, border_y1);
+                   border_x2 - curve_size, border_y1);
   sdlutil::blitall(Animation::curveborder_tan_br, background,
-		   border_x2 - curve_size, border_y2 - curve_size);
+                   border_x2 - curve_size, border_y2 - curve_size);
   sdlutil::blitall(Animation::curveborder_tan_bl, background,
-		   border_x1, border_y2 - curve_size);
+                   border_x1, border_y2 - curve_size);
 
   const int inborder_height = border_y2 - border_y1 - curve_size * 2;
   const int inborder_width = border_x2 - border_x1 - curve_size * 2;
@@ -128,65 +128,65 @@ void Browse_::makebackground() {
   /* Thick border connecting curves */
   /* left */
   sdlutil::fillrect(background, curveborder_color,
-		    border_x1, border_y1 + curve_size,
-		    curveborder_width, 
-		    inborder_height);
+                    border_x1, border_y1 + curve_size,
+                    curveborder_width,
+                    inborder_height);
 
   /* top */
   sdlutil::fillrect(background, curveborder_color,
-		    border_x1 + curve_size, 
-		    border_y1,
-		    inborder_width,
-		    curveborder_width);
+                    border_x1 + curve_size,
+                    border_y1,
+                    inborder_width,
+                    curveborder_width);
 
   /* right */
   sdlutil::fillrect(background, curveborder_color,
-		    border_x2 - curveborder_width,
-		    border_y1 + curve_size,
-		    curveborder_width,
-		    inborder_height);
+                    border_x2 - curveborder_width,
+                    border_y1 + curve_size,
+                    curveborder_width,
+                    inborder_height);
 
   /* bottom */
   sdlutil::fillrect(background, curveborder_color,
-		    border_x1 + curve_size,
-		    border_y2 - curveborder_width,
-		    inborder_width,
-		    curveborder_width);
-  
+                    border_x1 + curve_size,
+                    border_y2 - curveborder_width,
+                    inborder_width,
+                    curveborder_width);
+
   /* Partially-translucent insides. */
   {
     SDL_Surface *vert = sdlutil::makealpharect(curve_size - curveborder_width,
-						inborder_height,
-						0, 0, 0, 0.8 * 255);
+                                                inborder_height,
+                                                0, 0, 0, 0.8 * 255);
     SDL_Surface *horiz = sdlutil::makealpharect(inborder_width,
-						 curve_size - curveborder_width,
-						 0, 0, 0, 0.8 * 255);
+                                                 curve_size - curveborder_width,
+                                                 0, 0, 0, 0.8 * 255);
     SDL_Surface *center = sdlutil::makealpharect(inborder_width,
-						  inborder_height,
-						  0, 0, 0, 0.8 * 255);
-   
-    /* left and right */
-    sdlutil::blitall(vert, background, 
-		     border_x1 + curveborder_width,
-		     border_y1 + curve_size);
+                                                  inborder_height,
+                                                  0, 0, 0, 0.8 * 255);
 
-    sdlutil::blitall(vert, background, 
-		     border_x2 - curve_size,
-		     border_y1 + curve_size);
-    
+    /* left and right */
+    sdlutil::blitall(vert, background,
+                     border_x1 + curveborder_width,
+                     border_y1 + curve_size);
+
+    sdlutil::blitall(vert, background,
+                     border_x2 - curve_size,
+                     border_y1 + curve_size);
+
     /* top and bottom */
     sdlutil::blitall(horiz, background,
-		     border_x1 + curve_size,
-		     border_y1 + curveborder_width);
+                     border_x1 + curve_size,
+                     border_y1 + curveborder_width);
 
     sdlutil::blitall(horiz, background,
-		     border_x1 + curve_size,
-		     border_y2 - curve_size);
+                     border_x1 + curve_size,
+                     border_y2 - curve_size);
 
     /* center */
     sdlutil::blitall(center, background,
-		     border_x1 + curve_size,
-		     border_y1 + curve_size);
+                     border_x1 + curve_size,
+                     border_y1 + curve_size);
 
     SDL_FreeSurface(vert);
     SDL_FreeSurface(horiz);
@@ -200,7 +200,7 @@ void Browse_::makebackground() {
   const int bottom_height = 169;
 
   /* separator bars */
-  const Uint32 separator_color = 
+  const Uint32 separator_color =
     SDL_MapRGBA(background->format, 92, 59, 59, 255);
   const int separator_x = border_x1 + curveborder_width + 1;
   const int separator_width = border_x2 - border_x1 - curveborder_width * 2 - 2;
@@ -209,10 +209,10 @@ void Browse_::makebackground() {
   const int botsep_y = border_y2 - bottom_height - separator_height;
 
   sdlutil::fillrect(background, separator_color,
-		    separator_x, topsep_y, separator_width, separator_height);
+                    separator_x, topsep_y, separator_width, separator_height);
 
   sdlutil::fillrect(background, separator_color,
-		    separator_x, botsep_y, separator_width, separator_height);
+                    separator_x, botsep_y, separator_width, separator_height);
 }
 
 string Browse_::selectlevel() {
@@ -225,27 +225,27 @@ string Browse_::selectlevel() {
     SDL_Delay(1);
 
     Uint32 now = SDL_GetTicks();
-  
+
     while (SDL_PollEvent(&event)) {
 
       if (handle_video_event(this, event)) continue;
 
       if ( event.type == SDL_KEYDOWN ) {
-	int key = event.key.keysym.sym;
-	/* breaking from here will allow the key to be
-	   treated as a search */
+        int key = event.key.keysym.sym;
+        /* breaking from here will allow the key to be
+           treated as a search */
 
-	switch (key) {
-	  // Handle special keys...
-	default:;
-	} 
+        switch (key) {
+          // Handle special keys...
+        default:;
+        }
 
       }
 
       // XXX bogus. use Selector.
       switch (event.type) {
       case SDL_QUIT:
-	return "";
+        return "";
       default:;
       }
     }
@@ -281,10 +281,10 @@ void loadlevelreal::select_lastfile() {
 void loadlevelreal::fix_show(bool force) {
   /* if we notice that we are out of sync with the selected
      level, switch to it. */
-  
+
   /*
   printf("fix_show. sel->selected %d, showidx %d, showlev %p, sol %p\n",
-	 sel->selected, showidx, showlev, showsol);
+         sel->selected, showidx, showlev, showsol);
   */
 
   if (force || (sel->selected != showidx)) {
@@ -299,20 +299,20 @@ void loadlevelreal::fix_show(bool force) {
 
       /*
       printf("about to read from showidx %d. there are %d", showidx,
-	     sel->number);
+             sel->number);
       */
       if (!sel->items[showidx].isdir) {
-	// printf("well the level is %p\n", sel->items[showidx].lev);
-	showlev = sel->items[showidx].lev->clone();
-	if ( (showsol = plr->getsol(sel->items[showidx].md5)) ) {
-	  solstep = 0;
-	  showstart = STEPS_BEFORE_SOL;
-	}
+        // printf("well the level is %p\n", sel->items[showidx].lev);
+        showlev = sel->items[showidx].lev->clone();
+        if ( (showsol = plr->getsol(sel->items[showidx].md5)) ) {
+          solstep = 0;
+          showstart = STEPS_BEFORE_SOL;
+        }
       }
     } else {
       // printf("empty dir!\n");
     }
-    
+
   }
 
   // printf("exit fix_show\n");
@@ -327,9 +327,9 @@ void loadlevelreal::step() {
     if (!showstart) {
       /* step */
       if (solstep < showsol->length) {
-	dir d = showsol->dirs[solstep];
-	showlev->move(d);
-	solstep++;
+        dir d = showsol->dirs[solstep];
+        showlev->move(d);
+        solstep++;
       }
 
     } else showstart--;
@@ -360,18 +360,18 @@ string llentry::display(bool selected) {
 
       string so = "";
       if (total > 0) {
-	so = itos(solved) + (string)"/" + itos(total);
+        so = itos(solved) + (string)"/" + itos(total);
       } else {
-	if (!selected) color = GREY;
-	so = "(no levels)";
+        if (!selected) color = GREY;
+        so = "(no levels)";
       }
 
       string showname = "";
       if (name != "") showname = name;
       else showname = fname;
 
-      return pre + 
-	color + (string)"[" + showname + (string)" " + so + "]" POP;
+      return pre +
+        color + (string)"[" + showname + (string)" " + so + "]" POP;
     }
   } else {
     string pre = "   ";
@@ -381,27 +381,27 @@ string llentry::display(bool selected) {
     string myr = "  " "  " "  ";
 
     if (myrating) {
-      myr = 
-	(string)RED   BARSTART + (char)(BAR_0[0] + (int)(myrating->difficulty)) +
-	(string)GREEN BARSTART + (char)(BAR_0[0] + (int)(myrating->style)) +
-	(string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(myrating->rigidity));
+      myr =
+        (string)RED   BARSTART + (char)(BAR_0[0] + (int)(myrating->difficulty)) +
+        (string)GREEN BARSTART + (char)(BAR_0[0] + (int)(myrating->style)) +
+        (string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(myrating->rigidity));
     }
 
     /* shows alpha-dimmed if there are fewer than 3(?) votes */
     string ratings = "  " "  " "  ";
     if (votes.nvotes > 0) {
-      ratings = 
-	(string)((votes.nvotes <= 2)? ((votes.nvotes <= 1) ? ALPHA25 : ALPHA50) : "") +
-	(string)RED   BARSTART + (char)(BAR_0[0] + (int)(votes.difficulty / votes.nvotes)) +
-	(string)GREEN BARSTART + (char)(BAR_0[0] + (int)(votes.style / votes.nvotes)) +
-	(string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(votes.rigidity / votes.nvotes));    }
+      ratings =
+        (string)((votes.nvotes <= 2)? ((votes.nvotes <= 1) ? ALPHA25 : ALPHA50) : "") +
+        (string)RED   BARSTART + (char)(BAR_0[0] + (int)(votes.difficulty / votes.nvotes)) +
+        (string)GREEN BARSTART + (char)(BAR_0[0] + (int)(votes.style / votes.nvotes)) +
+        (string)BLUE  BARSTART + (char)(BAR_0[0] + (int)(votes.rigidity / votes.nvotes));    }
 
     string line =
-      pre + color + Font::pad(name, ns) + (string)" " POP + 
-      (string)(corrupted?RED:GREEN) + 
+      pre + color + Font::pad(name, ns) + (string)" " POP +
+      (string)(corrupted?RED:GREEN) +
       Font::pad(itos(sizex) + (string)GREY "x" POP +
-		itos(sizey), ss) + POP +
-      (string)" " BLUE + Font::pad(author, as) + POP + myr + 
+                itos(sizey), ss) + POP +
+      (string)" " BLUE + Font::pad(author, as) + POP + myr +
       (string)" " + ratings;
 
     return line;
@@ -420,7 +420,7 @@ bool loadlevelreal::first_unsolved(string &file, string &title) {
 
   for (int i = 0; i < sel->number; i++) {
     if ((!sel->items[i].isdir) &&
-	(!sel->items[i].solved)) {
+        (!sel->items[i].solved)) {
       file = sel->items[i].actualfile(path);
       title = sel->items[i].name;
       return true;
@@ -440,14 +440,14 @@ bool loadlevelreal::first_unsolved(string &file, string &title) {
 #endif
 
 loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
-				      bool inexact,
-				      bool allow_corrupted_) {
+                                      bool inexact,
+                                      bool allow_corrupted_) {
   DBTIME_INIT;
 
   loadlevelreal *ll = new loadlevelreal();
   ll->cache = DirCache::create(p);
   if (!ll->cache) return 0;
-  
+
   DBTIME("created dircache");
 
   /* might want this to persist across loads, who knows... */
@@ -475,7 +475,7 @@ loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
 
   if (inexact) {
     if (lastdir != "") dir = lastdir;
-    
+
     /* XXX should fall back (to argument?) if this fails;
        maybe the last directory was deleted? */
     do {
@@ -484,7 +484,7 @@ loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
       dir = util::cdup(dir);
     } while (dir != ".");
 
-    return 0;	
+    return 0;
 
   chdir_ok:
     /* try to find lastfile in this dir, if possible */
@@ -501,9 +501,9 @@ loadlevelreal *loadlevelreal::create(Player *p, string default_dir,
 
 /* prepend current path onto filename */
 string loadlevelreal::locate(string filename) {
-  
+
   stringlist *pp = path;
-  
+
   string out = filename;
   while (pp) {
     if (out == "") out = pp->head;
@@ -611,47 +611,47 @@ int loadlevelreal::changedir(string what, bool remember) {
       string dn = de->d_name;
 
       /* senseless to include current dir,
-	 CVS and SVN dirs... */
+         CVS and SVN dirs... */
       if (!(dn == "." ||
-	    dn == "CVS" ||
-	    dn == ".svn" ||
-	    /* for now, don't even allow the user
-	       to go above the home directory,
-	       since we don't handle that
-	       properly. */
-	    (dn == ".." && !path))) {
+            dn == "CVS" ||
+            dn == ".svn" ||
+            /* for now, don't even allow the user
+               to go above the home directory,
+               since we don't handle that
+               properly. */
+            (dn == ".." && !path))) {
 
-	if (dn == "..") {
-	  /* don't report completions for parent */
-	  nsel->items[i].fname = dn;
-	  nsel->items[i].isdir = 1;
-	  nsel->items[i].solved = 0;
-	  i++;
-	} else {
-	  int ttt, sss;
-	  DirIndex *iii = nullptr;
+        if (dn == "..") {
+          /* don't report completions for parent */
+          nsel->items[i].fname = dn;
+          nsel->items[i].isdir = 1;
+          nsel->items[i].solved = 0;
+          i++;
+        } else {
+          int ttt, sss;
+          DirIndex *iii = nullptr;
 
-	  int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
-	  if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
-			 (void*) &dcp)) {
+          int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
+          if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
+                         (void*) &dcp)) {
 
-	    /* only show if it has levels,
-	       or at least has an index 
-	       (in corrupted mode we show everything) */
-	    if (iii || ttt || allow_corrupted) {
-	    
-	      nsel->items[i].fname = dn;
-	      nsel->items[i].isdir = 1;
-	      nsel->items[i].solved = sss;
-	      nsel->items[i].total = ttt;
-	      
-	      /* no need to save the index, just the title */
-	      nsel->items[i].name = iii?(iii->title):dn;
-	      
-	      i++;
-	    }
-	  }
-	}
+            /* only show if it has levels,
+               or at least has an index
+               (in corrupted mode we show everything) */
+            if (iii || ttt || allow_corrupted) {
+
+              nsel->items[i].fname = dn;
+              nsel->items[i].isdir = 1;
+              nsel->items[i].solved = sss;
+              nsel->items[i].total = ttt;
+
+              /* no need to save the index, just the title */
+              nsel->items[i].name = iii?(iii->title):dn;
+
+              i++;
+            }
+          }
+        }
       }
 
     } else {
@@ -662,107 +662,107 @@ int loadlevelreal::changedir(string what, bool remember) {
       Level *l = Level::fromstring(contents, allow_corrupted);
 
       if (l) {
-	string md5c = MD5::Hash(contents);
+        string md5c = MD5::Hash(contents);
 
-	using solset = PtrList<NamedSolution>;
-	
-	/* owned by player */
-	solset *sols = plr->solutionset(md5c);
+        using solset = PtrList<NamedSolution>;
 
-	nsel->items[i].solved = 0;
+        /* owned by player */
+        solset *sols = plr->solutionset(md5c);
 
-	/* XXX this isn't incorrect, but we should ignore
-	   solutions marked as bookmarks for performance
-	   and sanity sake */
-	if (sols) {
-	  if (sols->head->sol->verified ||
-	      Level::verify(l, sols->head->sol)) {
-	    sols->head->sol->verified = true;
-	    nsel->items[i].solved = sols->head->sol->length;
-	  } else if (sols->next) { 
-	    /* first one didn't verify, but we should reorder
-	       solutions so that one does, if possible */
+        nsel->items[i].solved = 0;
 
-	    solset *no = nullptr;
-	    
-	    while (sols) {
-	      /* not trying bookmarks */
-	      if (!sols->head->bookmark &&
-		  Level::verify(l, sols->head->sol)) {
-		/* ok! create the new list with this
-		   at the head. */
+        /* XXX this isn't incorrect, but we should ignore
+           solutions marked as bookmarks for performance
+           and sanity sake */
+        if (sols) {
+          if (sols->head->sol->verified ||
+              Level::verify(l, sols->head->sol)) {
+            sols->head->sol->verified = true;
+            nsel->items[i].solved = sols->head->sol->length;
+          } else if (sols->next) {
+            /* first one didn't verify, but we should reorder
+               solutions so that one does, if possible */
 
-		NamedSolution *ver = sols->head->clone();
-		ver->sol->verified = true;
+            solset *no = nullptr;
 
-		/* get tail */
-		sols = sols->next;
+            while (sols) {
+              /* not trying bookmarks */
+              if (!sols->head->bookmark &&
+                  Level::verify(l, sols->head->sol)) {
+                /* ok! create the new list with this
+                   at the head. */
 
-		solset *yes = nullptr;
-		
-		/* put the current tail there, cloning */
-		while (sols) {
-		  solset::push(yes, sols->head->clone());
-		  sols = sols->next;
-		}
+                NamedSolution *ver = sols->head->clone();
+                ver->sol->verified = true;
 
-		/* god this is annoying in C++ */
-		while (no) {
-		  solset::push(yes, no->head->clone());
-		  no = no->next;
-		}
+                /* get tail */
+                sols = sols->next;
 
-		solset::push(yes, ver);
+                solset *yes = nullptr;
 
-		/* now save this reordering and succeed */
-		plr->setsolutionset(md5c, yes);
-		nsel->items[i].solved = ver->sol->length;
+                /* put the current tail there, cloning */
+                while (sols) {
+                  solset::push(yes, sols->head->clone());
+                  sols = sols->next;
+                }
 
-		goto solset_search_done;
+                /* god this is annoying in C++ */
+                while (no) {
+                  solset::push(yes, no->head->clone());
+                  no = no->next;
+                }
 
-	      } else {
-		solset::push(no, sols->head);
-		sols = sols->next;
-	      }
-	    }
+                solset::push(yes, ver);
 
-	    /* didn't find any, so free head;
-	       solved stays 0 */
-	    solset::diminish(no);
+                /* now save this reordering and succeed */
+                plr->setsolutionset(md5c, yes);
+                nsel->items[i].solved = ver->sol->length;
 
-	  solset_search_done:;
-	  }
-	}
+                goto solset_search_done;
+
+              } else {
+                solset::push(no, sols->head);
+                sols = sols->next;
+              }
+            }
+
+            /* didn't find any, so free head;
+               solved stays 0 */
+            solset::diminish(no);
+
+          solset_search_done:;
+          }
+        }
 
 
-	nsel->items[i].isdir = 0;
-	nsel->items[i].md5 = md5c;
-	nsel->items[i].fname = de->d_name;
-	nsel->items[i].name = l->title;
-	nsel->items[i].author = l->author;
-	nsel->items[i].corrupted = l->iscorrupted();
-	nsel->items[i].sizex = l->w;
-	nsel->items[i].sizey = l->h;
-	nsel->items[i].lev = l;
-	nsel->items[i].myrating = plr->getrating(md5c);
-	nsel->items[i].speedrecord = 0;
-	nsel->items[i].date = 0;
-	nsel->items[i].owned = false;
-	nsel->items[i].managed = thisindex && thisindex->webcollection();
+        nsel->items[i].isdir = 0;
+        nsel->items[i].md5 = md5c;
+        nsel->items[i].fname = de->d_name;
+        nsel->items[i].name = l->title;
+        nsel->items[i].author = l->author;
+        nsel->items[i].corrupted = l->iscorrupted();
+        nsel->items[i].sizex = l->w;
+        nsel->items[i].sizey = l->h;
+        nsel->items[i].lev = l;
+        nsel->items[i].myrating = plr->getrating(md5c);
+        nsel->items[i].speedrecord = 0;
+        nsel->items[i].date = 0;
+        nsel->items[i].owned = false;
+        nsel->items[i].managed = thisindex && thisindex->webcollection();
 
-	/* failure result is ignored, because the
-	   votes are initialized to 0 anyway */
-	if (thisindex) {
-	  int ow;
-	  thisindex->getentry(de->d_name, 
-			      nsel->items[i].votes,
-			      nsel->items[i].date,
-			      nsel->items[i].speedrecord,
-			      ow);
-	  nsel->items[i].owned = plr->webid == ow;
-	} 
+        /* failure result is ignored, because the
+           votes are initialized to 0 anyway */
+        if (thisindex) {
+          int ow;
+          thisindex->getentry(de->d_name,
+                              nsel->items[i].votes,
+                              nsel->items[i].date,
+                              nsel->items[i].speedrecord,
+                              ow);
+          nsel->items[i].owned = plr->webid == ow;
+        }
 
-	i++;
+        i++;
       }
     }
   }
@@ -774,7 +774,7 @@ int loadlevelreal::changedir(string what, bool remember) {
   closedir(d);
 
   DBTIME("cd got everything");
-  
+
   nsel->sort(getsort(sortby));
 
   DBTIME("cd sorted");
@@ -811,7 +811,7 @@ void loadlevelreal::draw() {
 }
 
 void loadlevelreal::drawsmall() {
-  Uint32 color = 
+  Uint32 color =
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
 
   int y = (screen->h - sel->botmargin) + 4 ;
@@ -839,15 +839,15 @@ void loadlevelreal::drawsmall() {
   } else {
     if (!showlev) fix_show(true);
     Drawing::drawsmall(y,
-		       sel->botmargin,
-		       color,
-		       showlev,
-		       sel->items[sel->selected].solved,
-		       sel->items[sel->selected].fname,
-		       &sel->items[sel->selected].votes,
-		       sel->items[sel->selected].myrating,
-		       sel->items[sel->selected].date,
-		       sel->items[sel->selected].speedrecord);
+                       sel->botmargin,
+                       color,
+                       showlev,
+                       sel->items[sel->selected].solved,
+                       sel->items[sel->selected].fname,
+                       &sel->items[sel->selected].votes,
+                       sel->items[sel->selected].myrating,
+                       sel->items[sel->selected].date,
+                       sel->items[sel->selected].speedrecord);
   }
 }
 
@@ -858,7 +858,7 @@ const int loadlevelreal::numhelp = 2;
 string loadlevelreal::helptexts(int i) {
   switch (i) {
   case 0:
-    return 
+    return
       WHITE
       "Use the " BLUE "arrow keys" POP " to select a level and "
       "press " BLUE "enter" POP " or " BLUE "esc" POP " to cancel."
@@ -866,15 +866,15 @@ string loadlevelreal::helptexts(int i) {
       WHITE
       "Press " BLUE "ctrl-u" POP
       " to upload a level you've created to the internet.\n"
-      
+
       WHITE
       "Press " BLUE "ctrl-r" POP " to adjust your rating of a level,"
       " or "   BLUE "ctrl-c" POP " to publish a comment.\n";
 
   case 1:
     return
-      WHITE "Sorting options: " BLUE "ctrl-" 
-            RED "d" POP "," 
+      WHITE "Sorting options: " BLUE "ctrl-"
+            RED "d" POP ","
             GREEN "s" POP ","
             BLUE "g" POP POP
             " sorts by global " RED "difficulty" POP ","
@@ -886,7 +886,7 @@ string loadlevelreal::helptexts(int i) {
       // deprecated.
       //      BLUE "ctrl-m" POP " manages solutions (upload/download/view).\n"
 
-      WHITE BLUE "ctrl-a" POP " sorts alphabetically, " BLUE "ctrl-t" POP " by author. " 
+      WHITE BLUE "ctrl-a" POP " sorts alphabetically, " BLUE "ctrl-t" POP " by author. "
             BLUE "ctrl-v" POP " shows unsolved levels first.";
 
   }

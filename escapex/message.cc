@@ -30,17 +30,17 @@ struct Message_ : public Message {
   int posx;
 };
 
-void Message::drawonlyv(int posy, 
-			string ttitle,
-			string ook, string ccancel, 
-			string icon) {
+void Message::drawonlyv(int posy,
+                        string ttitle,
+                        string ook, string ccancel,
+                        string icon) {
   Message_ *m = Message_::create();
   m->below = nodraw;
   m->posy = posy;
   m->title = icon + WHITE " " + ttitle;
   m->ok = ook;
   m->cancel = ccancel;
-    
+
   m->init();
   m->draw();
   m->destroy();
@@ -68,23 +68,23 @@ void Message_::init() {
 
   /* find longest line */
   int ll = 0;
-  { 
+  {
     string titlen = title + "\n";
     int cl = 0;
     for (unsigned int i = 0; i < titlen.length(); i++) {
       if (titlen[i] == '\n') {
-	ll = util::maximum(fon->sizex(titlen.substr(cl, i - cl)), ll);
-	cl = i;
+        ll = util::maximum(fon->sizex(titlen.substr(cl, i - cl)), ll);
+        cl = i;
       } else if (titlen[cl] == '\n') cl = i;
     }
   }
 
-  int w = 
+  int w =
     (2 * fon->width) +
     util::maximum(ll,
-		  fon->sizex("ESCAPE: ") +
-		  util::maximum(fon->sizex(ok),
-				fon->sizex(cancel)));
+                  fon->sizex("ESCAPE: ") +
+                  util::maximum(fon->sizex(ok),
+                                fon->sizex(cancel)));
 
   nlines = Font::lines(title);
 
@@ -97,7 +97,7 @@ void Message_::init() {
 
   /* now center */
   posx = (screen->w - w) / 2;
-  
+
   /* and y, if desired */
   if (posy < 0) {
     posy = (screen->h - h) / 2;
@@ -140,10 +140,10 @@ void Message_::draw() {
   /* draw text */
   fon->drawlines(posx + fon->width, posy + fon->height, title);
   fon->draw(posx + fon->width, posy + ((1 + nlines) * fon->height),
-	    (string)YELLOW "ENTER" POP ":  " + ok);
-  if (cancel != "") 
+            (string)YELLOW "ENTER" POP ":  " + ok);
+  if (cancel != "")
     fon->draw(posx + fon->width, posy + ((2 + nlines) * fon->height),
-	      (string)YELLOW "ESCAPE" POP ": " + cancel);
+              (string)YELLOW "ESCAPE" POP ": " + cancel);
 }
 
 bool Message_::loop(char *actualchar, string charspec) {
@@ -161,56 +161,56 @@ bool Message_::loop(char *actualchar, string charspec) {
       SDL_MouseButtonEvent *em = (SDL_MouseButtonEvent*)&e;
 
       if (em->button == SDL_BUTTON_LEFT) {
-	/* allow a click within the entire box if
-	   there is no cancel; otherwise, require clicking
-	   on the text itself. */
-	
- 	int x = em->x;
-	int y = em->y;
+        /* allow a click within the entire box if
+           there is no cancel; otherwise, require clicking
+           on the text itself. */
 
-	if (cancel == "") {
-	  if (x > posx &&
-	      x < (posx + alpharect->w) &&
-	      y >= posy &&
-	      y < (posy + alpharect->h)) return true;
-	} else {
-	  if (x > posx &&
-	      x < (posx + alpharect->w)) {
+         int x = em->x;
+        int y = em->y;
 
-	    /* which did we click on? */
-	    if (y > posy + ((1 + nlines) * fon->height) &&
-		y < posy + ((2 + nlines) * fon->height)) return true;
+        if (cancel == "") {
+          if (x > posx &&
+              x < (posx + alpharect->w) &&
+              y >= posy &&
+              y < (posy + alpharect->h)) return true;
+        } else {
+          if (x > posx &&
+              x < (posx + alpharect->w)) {
 
-	    if (y > posy + ((2 + nlines) * fon->height) &&
-		y < posy + ((3 + nlines) * fon->height)) return false;
+            /* which did we click on? */
+            if (y > posy + ((1 + nlines) * fon->height) &&
+                y < posy + ((2 + nlines) * fon->height)) return true;
 
-	  }
-	}
-	/* out of area; flash screen? */
-	
+            if (y > posy + ((2 + nlines) * fon->height) &&
+                y < posy + ((3 + nlines) * fon->height)) return false;
+
+          }
+        }
+        /* out of area; flash screen? */
+
       }
     }
     case SDL_KEYDOWN:
       key = e.key.keysym.sym;
       if (actualchar) {
-	  int uc = e.key.keysym.unicode;
-	  if ((uc & ~0x7F) == 0 && uc >= ' ') {
-	    *actualchar = (char)uc;
-	    /* non-ascii */
-	  } else *actualchar = 0;
+          int uc = e.key.keysym.unicode;
+          if ((uc & ~0x7F) == 0 && uc >= ' ') {
+            *actualchar = (char)uc;
+            /* non-ascii */
+          } else *actualchar = 0;
       }
       switch (key) {
       case SDLK_ESCAPE:
-	return false;
+        return false;
       case SDLK_RETURN:
-	return true;
+        return true;
 
       default:;
-	/* is this a key in our range? */
-	if (actualchar && util::matchspec(charspec, *actualchar)) {
-	  return false; /* wasn't 'enter' */
-	} 
-	/* XXX else might flash screen or something */
+        /* is this a key in our range? */
+        if (actualchar && util::matchspec(charspec, *actualchar)) {
+          return false; /* wasn't 'enter' */
+        }
+        /* XXX else might flash screen or something */
       }
       break;
     default:;

@@ -19,8 +19,8 @@ struct Optimize {
      that solves l. If successful, return true and set sol to
      a complete solution. */
   static bool TryComplete(Level *l, const Solution &prefix,
-			  const vector<NamedSolution> &sources,
-			  Solution *sol);
+                          const vector<NamedSolution> &sources,
+                          Solution *sol);
 };
 
 #endif

@@ -53,18 +53,18 @@ bool Level::isdead(int &tilex, int &tiley, dir &d) {
     if (travel(guyx, guyy, db, xx, yy)) {
 
       /* nb, botat might not be correct, since it
-	 returns the lowest bot; so just loop
-	 manually: */
+         returns the lowest bot; so just loop
+         manually: */
       int z = index(xx, yy);
       for (int m = 0; m < nbots; m++) {
-	// printf("Bot %d type %d @ %d\n", m, bott[m], boti[m]);
-	if (boti[m] == z && bott[m] == B_BOMB_X) {
-	  /* ?? */
-	  tilex = guyx;
-	  tiley = guyy;
-	  d = DIR_NONE;
-	  return true;
-	}
+        // printf("Bot %d type %d @ %d\n", m, bott[m], boti[m]);
+        if (boti[m] == z && bott[m] == B_BOMB_X) {
+          /* ?? */
+          tilex = guyx;
+          tiley = guyy;
+          d = DIR_NONE;
+          return true;
+        }
       }
 
     }
@@ -78,10 +78,10 @@ bool Level::isdead(int &tilex, int &tiley, dir &d) {
 
     while (travel(lx, ly, dd, lx, ly)) {
       if (tileat(lx, ly) == T_LASER) {
-	tilex = lx;
-	tiley = ly;
-	d = dir_reverse(dd);
-	return true;
+        tilex = lx;
+        tiley = ly;
+        d = dir_reverse(dd);
+        return true;
       }
       int tt = tileat(lx, ly);
       if (!allowbeam(tt)) break;
@@ -116,8 +116,8 @@ void Level::swapo(int idx) {
 
     /* erase old */
     (flags[idx] & ~(TF_HASPANEL | TF_OPANEL |
-		    TF_RPANELL | TF_RPANELH |
-		    TF_ROPANELL | TF_ROPANELH));
+                    TF_RPANELL | TF_RPANELH |
+                    TF_ROPANELL | TF_ROPANELH));
 }
 
 static tile realpanel(int f) {
@@ -132,23 +132,23 @@ static tile realpanel(int f) {
 
 bool Level::issphere(int t) {
   return (t == T_SPHERE ||
-	  t == T_RSPHERE ||
-	  t == T_GSPHERE ||
-	  t == T_BSPHERE);
+          t == T_RSPHERE ||
+          t == T_GSPHERE ||
+          t == T_BSPHERE);
 }
 
 bool Level::issteel(int t) {
   return (t == T_STEEL ||
-	  t == T_RSTEEL ||
-	  t == T_GSTEEL ||
-	  t == T_BSTEEL);
+          t == T_RSTEEL ||
+          t == T_GSTEEL ||
+          t == T_BSTEEL);
 }
 
 bool Level::ispanel(int t) {
   return (t == T_PANEL ||
-	  t == T_RPANEL ||
-	  t == T_GPANEL ||
-	  t == T_BPANEL);
+          t == T_RPANEL ||
+          t == T_GPANEL ||
+          t == T_BPANEL);
 }
 
 bool Level::triggers(int tile, int panel) {
@@ -201,7 +201,7 @@ bool Level::sanitize() {
     ClearMap();
     len = w * h;
   }
-  
+
   for (int i = 0; i < len; i++) {
     /* a destination outside the level */
     if (dests[i] < 0 || dests[i] >= len) {
@@ -244,7 +244,7 @@ bool Level::sanitize() {
 
     if (flags[i] != expected_flags) {
       FSDEBUG printf("insane: expected flags at %d: %d but got %d\n",
-		     i, expected_flags, flags[i]);
+                     i, expected_flags, flags[i]);
       was_sane = false;
       flags[i] = expected_flags;
     }
@@ -276,45 +276,45 @@ bool Level::sanitize() {
       where(boti[i], x, y);
 
       /* This might put bad bots on top of one another at position 0,
-	 but we delete them later. */
+         but we delete them later. */
       if (x >= w || x < 0 || y >= h || y < 0) {
-	FSDEBUG printf("insane: bot out of level\n");
-	was_sane = false; boti[i] = 0;
+        FSDEBUG printf("insane: bot out of level\n");
+        was_sane = false; boti[i] = 0;
       }
 
       if (bott[i] >= NUM_ROBOTS || bott[i] < 0) {
-	FSDEBUG printf("insane: too many bots, or bot index bad\n");
-	was_sane = false; bott[i] = B_DALEK;
+        FSDEBUG printf("insane: too many bots, or bot index bad\n");
+        was_sane = false; bott[i] = B_DALEK;
       }
     }
 
     /* Now delete any overlapping bots. */
     for (int i = 0; i < nbots; i++) {
       for (int j = i + 1; j < nbots; j++) {
-	if (boti[i] == boti[j]) {
-	  /* So delete bot at index j. Do this
-	     by swapping with the end and just
-	     resizing. */
-	  was_sane = false;
-	  int t = nbots - 1;
-	  int ti = boti[t];
-	  boti[t] = boti[j];
-	  boti[j] = ti;
-	  int td = botd[t];
-	  botd[t] = botd[j];
-	  botd[j] = td;
-	  bot tt = bott[t];
-	  bott[t] = bott[j];
-	  bott[j] = tt;
-	  int ta = bota[t];
-	  bota[t] = bota[j];
-	  bota[j] = ta;
+        if (boti[i] == boti[j]) {
+          /* So delete bot at index j. Do this
+             by swapping with the end and just
+             resizing. */
+          was_sane = false;
+          int t = nbots - 1;
+          int ti = boti[t];
+          boti[t] = boti[j];
+          boti[j] = ti;
+          int td = botd[t];
+          botd[t] = botd[j];
+          botd[j] = td;
+          bot tt = bott[t];
+          bott[t] = bott[j];
+          bott[j] = tt;
+          int ta = bota[t];
+          bota[t] = bota[j];
+          bota[j] = ta;
 
-	  nbots--;
-	  /* And need to check bot j again, since it's
-	     different. */
-	  j--;
-	}
+          nbots--;
+          /* And need to check bot j again, since it's
+             different. */
+          j--;
+        }
       }
     }
 
@@ -324,10 +324,10 @@ bool Level::sanitize() {
      */
     for (int i = 0; i < nbots - 1; i++) {
       if (isbomb(bott[i]) && !isbomb(bott[i + 1])) {
-	was_sane = false;
-	/* Preserves relative bot order. */
-	fixup_botorder();
-	break;
+        was_sane = false;
+        /* Preserves relative bot order. */
+        fixup_botorder();
+        break;
       }
     }
   }
@@ -348,18 +348,18 @@ void Level::fixup_botorder() {
     /* first put in non-bombs */
     for (int i = 0; i < nbots; i++) {
       if (!isbomb(bott[i])) {
-	bots[j].t = bott[i];
-	bots[j].i = boti[i];
-	j++;
+        bots[j].t = bott[i];
+        bots[j].i = boti[i];
+        j++;
       }
     }
 
     /* then bombs */
     for (int i = 0; i < nbots; i++) {
       if (isbomb(bott[i])) {
-	bots[j].t = bott[i];
-	bots[j].i = boti[i];
-	j++;
+        bots[j].t = bott[i];
+        bots[j].i = boti[i];
+        j++;
       }
     }
   }
@@ -454,12 +454,12 @@ Level *Level::fromstring(string s, bool allow_corrupted) {
   } else {
     l->nbots = shout(4, s, idx);
     if (l->nbots < 0 ||
-	l->nbots > LEVEL_MAX_ROBOTS) {
+        l->nbots > LEVEL_MAX_ROBOTS) {
       l->nbots = 0;
       // l->corrupted = true;
       /* probably the reading frame is off
-	 now, but what can we do when given
-	 a ridiculous file? */
+         now, but what can we do when given
+         a ridiculous file? */
     }
 
     l->boti = EscapeRLE::Decode(s, idx, l->nbots);
@@ -580,26 +580,26 @@ bool Level::isconnected(int pulsex, int pulsey, dir pd) {
     case T_GLIGHT: return true;
     case T_TRANSPONDER:
       if (!travel(pulsex, pulsey, pd, pulsex, pulsey))
-	return false;
+        return false;
       else {
-	/* keep going until we hit another transponder. */
-	do {
-	  int ta = tileat(pulsex, pulsey);
-	  if (!allowbeam(ta) ||
-	      botat(pulsex, pulsey) ||
-	      playerat(pulsex, pulsey)) {
-	    /* hit something. is it a transponder? */
-	    if (ta == T_TRANSPONDER) {
-	      break; /* do */
-	    } else return false;
-	  }
-	  /* otherwise keep going... */
-	} while (travel(pulsex, pulsey, pd, pulsex, pulsey));
-	/* either we've hit the transponder and the pulse
-	   continues, or we've fallen off the edge of the
-	   level (while fails). In the second case, the
-	   pulse will fail to find a wire, so it will fail
-	   on the next round */
+        /* keep going until we hit another transponder. */
+        do {
+          int ta = tileat(pulsex, pulsey);
+          if (!allowbeam(ta) ||
+              botat(pulsex, pulsey) ||
+              playerat(pulsex, pulsey)) {
+            /* hit something. is it a transponder? */
+            if (ta == T_TRANSPONDER) {
+              break; /* do */
+            } else return false;
+          }
+          /* otherwise keep going... */
+        } while (travel(pulsex, pulsey, pd, pulsex, pulsey));
+        /* either we've hit the transponder and the pulse
+           continues, or we've fallen off the edge of the
+           level (while fails). In the second case, the
+           pulse will fail to find a wire, so it will fail
+           on the next round */
       }
       break;
     case T_NSWE:
@@ -726,7 +726,7 @@ Level *Level::blank(int w, int h) {
   n->bota   = 0;
 
   n->ClearMap();
-  
+
   return n;
 }
 
@@ -751,7 +751,7 @@ Level *Level::defboard(int w, int h) {
 }
 
 bool Level::VerifyPrefix(const Level *lev, const Solution &s,
-			 Solution *out_ref) {
+                         Solution *out_ref) {
   Level *l = lev->clone();
   Extent<Level> el(l);
 
@@ -770,8 +770,8 @@ bool Level::VerifyPrefix(const Level *lev, const Solution &s,
       int dummy; dir dumb;
       if (l->isdead(dummy, dummy, dumb)) return false;
       if (l->iswon()) {
-	*out_ref = std::move(out);
-	return true;
+        *out_ref = std::move(out);
+        return true;
       }
     }
   }
@@ -830,25 +830,25 @@ void Level::resize(int neww, int newh) {
     for (int y = 0; y < newh; y++) {
 
       if (x < w && y < h) {
-	nt[y * neww + x] = tiles[y * w + x];
-	no[y * neww + x] = otiles[y * w + x];
-	nf[y * neww + x] = flags[y * w + x];
+        nt[y * neww + x] = tiles[y * w + x];
+        no[y * neww + x] = otiles[y * w + x];
+        nf[y * neww + x] = flags[y * w + x];
 
-	/* set dests to point to the same place in
-	   the new level, if possible. otherwise
-	   just point it to 0,0 */
-	int odx = dests[y * w + x] % w;
-	int ody = dests[y * w + x] / w;
-	if (odx < neww && ody < newh && odx >= 0 && ody >= 0) {
-	  nd[y * neww + x] = odx + (ody * neww);
-	} else {
-	  nd[y * neww + x] = 0;
-	}
+        /* set dests to point to the same place in
+           the new level, if possible. otherwise
+           just point it to 0,0 */
+        int odx = dests[y * w + x] % w;
+        int ody = dests[y * w + x] / w;
+        if (odx < neww && ody < newh && odx >= 0 && ody >= 0) {
+          nd[y * neww + x] = odx + (ody * neww);
+        } else {
+          nd[y * neww + x] = 0;
+        }
       } else {
-	nt[y * neww + x] = T_FLOOR;
-	no[y * neww + x] = T_FLOOR;
-	nd[y * neww + x] = 0;
-	nf[y * neww + x] = 0;
+        nt[y * neww + x] = T_FLOOR;
+        no[y * neww + x] = T_FLOOR;
+        nd[y * neww + x] = 0;
+        nf[y * neww + x] = 0;
       }
 
     }
@@ -860,13 +860,13 @@ void Level::resize(int neww, int newh) {
       int bx, by;
       where(boti[b], bx, by);
       if (bx < neww && bx >= 0 &&
-	  by < newh && by >= 0) {
-	/* keep bot */
-	boti[bi] = by * neww + bx;
-	bott[bi] = bott[b];
-	botd[bi] = botd[b];
-	bota[bi] = bota[b];
-	bi++;
+          by < newh && by >= 0) {
+        /* keep bot */
+        boti[bi] = by * neww + bx;
+        bott[bi] = bott[b];
+        botd[bi] = botd[b];
+        bota[bi] = bota[b];
+        bi++;
       }
     }
     nbots = bi;
@@ -899,7 +899,7 @@ bool Level::Move(dir d) {
   AList **tail = &events;
   return MoveMaybeAnimate<false, NullDisamb>(d, &ctx, events, tail);
 }
-  
+
 bool Level::MoveAnimate(dir d, Disamb *ctx, AList *&events) {
   AList **tail = &events;
   return MoveMaybeAnimate<true, Disamb>(d, ctx, events, tail);

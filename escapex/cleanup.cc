@@ -9,7 +9,7 @@
 #include "dircache.h"
 
 void Cleanup::clean() {
-  
+
   DIR *d = opendir(".");
   if (!d) return;
   dirent *dire;
@@ -25,8 +25,8 @@ void Cleanup::clean() {
     } else {
 
       if (util::endswith(dn, ".deleteme")) {
-	/* printf(" remove '%s'\n", ldn.c_str()); */
-	util::remove(ldn);
+        /* printf(" remove '%s'\n", ldn.c_str()); */
+        util::remove(ldn);
       }
     }
   }

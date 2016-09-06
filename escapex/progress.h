@@ -9,7 +9,7 @@
 #define PROGRESS_BACKCOLOR 0xFF000000
 
 struct Progress {
-  /* 
+  /*
      drawbar(epoch, int n, int tot, msg, ticks);
 
      draws a progress bar.
@@ -24,5 +24,5 @@ struct Progress {
      but should be initialized to an appropriate future tick.)
    */
   static void drawbar(void *, int n, int tot, const string &,
-		      const int ticks = PROGRESS_TICKS);
+                      const int ticks = PROGRESS_TICKS);
 };
