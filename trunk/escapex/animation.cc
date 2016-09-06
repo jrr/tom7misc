@@ -117,12 +117,12 @@ bool Animation::ainit_fast() {
   if (!sdlutil::make_mipmaps(pic_bomb_still, DRAW_NSIZES)) return 0;
 
   pic_bomb_lit = (SDL_Surface***)malloc((LEVEL_BOMB_MAX_TIMER+1) *
-					sizeof (SDL_Surface **));
+                                        sizeof (SDL_Surface **));
 
   {
     for (int i = 0; i <= LEVEL_BOMB_MAX_TIMER; i++) {
-      pic_bomb_lit[i] = (SDL_Surface**)malloc(DRAW_NSIZES * 
-					      sizeof(SDL_Surface *));
+      pic_bomb_lit[i] = (SDL_Surface**)malloc(DRAW_NSIZES *
+                                              sizeof(SDL_Surface *));
 
       /* going to draw on these, so duplicate */
       switch (i) {
@@ -134,10 +134,10 @@ bool Animation::ainit_fast() {
 
       /* draw timer on it */
       {
-	string ss = RED + itos(i);
-	fon->drawto(pic_bomb_lit[i][0], (TILEW - fon->sizex(ss))>>1,
-		    ((TILEH + BOMB_OVERLAPY) - fon->height)>>1,
-		    ss);
+        string ss = RED + itos(i);
+        fon->drawto(pic_bomb_lit[i][0], (TILEW - fon->sizex(ss))>>1,
+                    ((TILEH + BOMB_OVERLAPY) - fon->height)>>1,
+                    ss);
       }
 
 
@@ -339,7 +339,7 @@ static AFrame frames_onezero_fade[] =
     {&Animation::onezero_fade0, 0, 0, 40},
     {0, 0, 0, 40} };
 
-static AFrame frames_trap1_falls[] = 
+static AFrame frames_trap1_falls[] =
   { {&Animation::trap1_falls0, 0, 0, 0},
     {&Animation::trap1_falls1, 0, 0, 40},
     {&Animation::trap1_falls2, 0, 0, 40},
@@ -347,7 +347,7 @@ static AFrame frames_trap1_falls[] =
     {0, 0, 0, 40} };
 
 /* XXX could be improved */
-static AFrame frames_trap2_falls[] = 
+static AFrame frames_trap2_falls[] =
   { {&Animation::trap2_falls0, 0, 0, 0},
     {&Animation::trap2_falls1, 0, 0, 80},
     {0, 0, 0, 80} };
@@ -770,7 +770,7 @@ static inline SDL_Surface *FACING_FRAME(dir d, bot entt, int data) {
     if (Level::isbomb(entt)) {
       if (data < 0) return Animation::pic_bomb_still[0];
       else return Animation::pic_bomb_lit[data][0];
-    } 
+    }
     /* else FALLTHROUGH */
   case B_DELETED:
   case B_BOMB_X:
@@ -779,8 +779,8 @@ static inline SDL_Surface *FACING_FRAME(dir d, bot entt, int data) {
   case B_PLAYER:
     switch (d) {
     default:
-    case DIR_UP: return Animation::pic_guy_up[0]; 
-    case DIR_DOWN: return Animation::pic_guy_down[0]; 
+    case DIR_UP: return Animation::pic_guy_up[0];
+    case DIR_DOWN: return Animation::pic_guy_down[0];
     case DIR_LEFT: return Animation::pic_guy_left[0];
     case DIR_RIGHT: return Animation::pic_guy_right[0];
     }
@@ -811,11 +811,11 @@ static inline int OVERLAP(bot entt) {
    frames instead of silently ignoring the animation. A fairly serious
    bug persisted for many years on every bomb explosion because we
    ignored a nonsensical animation. */
-void Animation::start(Drawing &dr, 
-		      PtrList<Animation> *&anims,
-		      PtrList<Animation> *&sprites,
-		      aevent *ae) {
-  
+void Animation::start(Drawing &dr,
+                      PtrList<Animation> *&anims,
+                      PtrList<Animation> *&sprites,
+                      aevent *ae) {
+
   switch (ae->t) {
   case tag_winner:
     // XXX implement this
@@ -916,7 +916,7 @@ void Animation::start(Drawing &dr,
       alist::push(anims, aa);
 
       Animation *a = new AnInPlace(xx, yy, 1, frames_doorwake);
-      a->next = new AnPlaceTile(T_EXIT, xx, yy); 
+      a->next = new AnPlaceTile(T_EXIT, xx, yy);
       alist::push(anims, a);
 
     }
@@ -930,34 +930,34 @@ void Animation::start(Drawing &dr,
     if (dr.onscreen(al->x, al->y, xx, yy)) {
 
       /* compute ntiles so animated laser doesn't
-	 go off drawing area */
+         go off drawing area */
       int nt = 0;
       dir dd = al->from;
       int dummy;
-      for (int wx = al->x, wy = al->y; 
-	  /* haven't gotten there */
-	  !(wx == al->lx && wy == al->ly)
-	    && /* still on screen */
-	    dr.onscreen(wx, wy, dummy, dummy);
-	  dr.lev->travel(wx, wy, dd, wx, wy)) {
-	nt++;
+      for (int wx = al->x, wy = al->y;
+          /* haven't gotten there */
+          !(wx == al->lx && wy == al->ly)
+            && /* still on screen */
+            dr.onscreen(wx, wy, dummy, dummy);
+          dr.lev->travel(wx, wy, dd, wx, wy)) {
+        nt++;
       }
 
       if (al->from != DIR_NONE) {
-	Animation *l = new AnLaser(xx, yy, al->from, 
-				    nt,
-				    LASER_COUNT,
-				    true,
-				    DEATHLASER_COLORS);
-	alist::push(anims, l);
-      } 
+        Animation *l = new AnLaser(xx, yy, al->from,
+                                    nt,
+                                    LASER_COUNT,
+                                    true,
+                                    DEATHLASER_COLORS);
+        alist::push(anims, l);
+      }
 
-      Animation *a = new AnInPlace(xx, yy - GUY_OVERLAPY, 
-				    1, frames_lasered);
+      Animation *a = new AnInPlace(xx, yy - GUY_OVERLAPY,
+                                    1, frames_lasered);
       a->depth = 10; /* above everything */
 
       Animation *af = new AnFinale(lasered2,
-				    xx, yy - GUY_OVERLAPY);
+                                    xx, yy - GUY_OVERLAPY);
       af->depth = 10;
       a->next = af;
 
@@ -979,30 +979,30 @@ void Animation::start(Drawing &dr,
     if (dr.onscreen(at->x, at->y, xx, yy)) {
 
       /* compute ntiles so animated beam doesn't
-	 go off drawing area */
+         go off drawing area */
       int nt = 0;
       dir dd = at->from;
       int dummy;
-      for (int wx = at->x, wy = at->y; 
-	  /* haven't gotten there */
-	  !(wx == at->lx && wy == at->ly)
-	    && /* still on screen */
-	    dr.onscreen(wx, wy, dummy, dummy);
-	  dr.lev->travel(wx, wy, dd, wx, wy)) {
-	nt++;
+      for (int wx = at->x, wy = at->y;
+          /* haven't gotten there */
+          !(wx == at->lx && wy == at->ly)
+            && /* still on screen */
+            dr.onscreen(wx, wy, dummy, dummy);
+          dr.lev->travel(wx, wy, dd, wx, wy)) {
+        nt++;
       }
 
       if (at->from != DIR_NONE) {
-	/* XXX can't use AnLaser:
-	   - needs erase */
-	Animation *l = new AnLaser(xx, yy, at->from, 
-				    nt, TRANSPONDERBEAM_COUNT,
-				    false,
-				    TRANSPONDERBEAM_COLORS);
-	Animation *ar = new AnWait(at->count * (WAIT_BETWEEN_WIRE + AN_SLOW));
-	ar->next = l;
-	alist::push(anims, ar);
-      } 
+        /* XXX can't use AnLaser:
+           - needs erase */
+        Animation *l = new AnLaser(xx, yy, at->from,
+                                    nt, TRANSPONDERBEAM_COUNT,
+                                    false,
+                                    TRANSPONDERBEAM_COLORS);
+        Animation *ar = new AnWait(at->count * (WAIT_BETWEEN_WIRE + AN_SLOW));
+        ar->next = l;
+        alist::push(anims, ar);
+      }
     }
     break;
   }
@@ -1036,7 +1036,7 @@ void Animation::start(Drawing &dr,
     case T_REMOTE: frames = frames_remotelite; s = S_ERROR; /* XXX S_REMOTE */ break;
       break;
     }
-    
+
     /* XXX offscreen sounds softer? */
     Animation *ar = new AnWait(al->delay * (WAIT_BETWEEN_WIRE + AN_SLOW));
     ar->next = new AnSound(s);
@@ -1045,13 +1045,13 @@ void Animation::start(Drawing &dr,
     }
 
     alist::push(anims, ar);
-    
+
     break;
   }
 
   case tag_litewire: {
     litewire_t *aj = &(ae->u.litewire);
-    
+
     int xx, yy;
 
     if (dr.onscreen(aj->x, aj->y, xx, yy)) {
@@ -1060,21 +1060,21 @@ void Animation::start(Drawing &dr,
 #define JUICEFRAME(DD, dd) \
           case T_ ## DD: frames = frames_juice_ ## dd; break;
       default:
-	frames = frames_error; break;
-	JUICEFRAME(NS, ns);
-	JUICEFRAME(NW, nw);
-	JUICEFRAME(NE, ne);
-	JUICEFRAME(SW, sw);
-	JUICEFRAME(SE, se);
-	JUICEFRAME(WE, we);
+        frames = frames_error; break;
+        JUICEFRAME(NS, ns);
+        JUICEFRAME(NW, nw);
+        JUICEFRAME(NE, ne);
+        JUICEFRAME(SW, sw);
+        JUICEFRAME(SE, se);
+        JUICEFRAME(WE, we);
       case T_TRANSPONDER:
-	/* XXX differentiate send/recv */
-	frames = frames_transponder; break;
+        /* XXX differentiate send/recv */
+        frames = frames_transponder; break;
       case T_NSWE:
-	if (aj->dir == DIR_UP ||
-	    aj->dir == DIR_DOWN) frames = frames_juice_nswe_ud;
-	else frames = frames_juice_nswe_lr;
-	break;
+        if (aj->dir == DIR_UP ||
+            aj->dir == DIR_DOWN) frames = frames_juice_nswe_ud;
+        else frames = frames_juice_nswe_lr;
+        break;
       }
 
       Animation *ar = new AnWait(aj->count * (WAIT_BETWEEN_WIRE + AN_SLOW));
@@ -1090,8 +1090,8 @@ void Animation::start(Drawing &dr,
 
     int xx, yy, dx, dy, dxx, dyy;
     if (dr.onscreen(ag->srcx, ag->srcy, xx, yy) &&
-	dr.lev->travel(ag->srcx, ag->srcy, ag->d, dx, dy) &&
-	dr.onscreen(dx, dy, dxx, dyy)) {
+        dr.lev->travel(ag->srcx, ag->srcy, ag->d, dx, dy) &&
+        dr.onscreen(dx, dy, dxx, dyy)) {
 
       int ax = xx;
       int ay = yy;
@@ -1101,19 +1101,19 @@ void Animation::start(Drawing &dr,
       switch (ag->d) {
       default: /* impossible */
       case DIR_RIGHT:
-	frames = frames_green_pushright;
-	break;
+        frames = frames_green_pushright;
+        break;
       case DIR_LEFT:
-	frames = frames_green_pushleft;
-	ax = xx - TILEW;
-	break;
+        frames = frames_green_pushleft;
+        ax = xx - TILEW;
+        break;
       case DIR_DOWN:
-	frames = frames_green_pushdown;
-	break;
+        frames = frames_green_pushdown;
+        break;
       case DIR_UP:
-	frames = frames_green_pushup;
-	ay = yy - TILEH;
-	break;
+        frames = frames_green_pushup;
+        ay = yy - TILEH;
+        break;
       }
 
       AnPlaceTile *ap = new AnPlaceTile(T_FLOOR, xx, yy);
@@ -1132,24 +1132,24 @@ void Animation::start(Drawing &dr,
     bombsplosion_t *ab = &(ae->u.bombsplosion);
 
     int xx, yy;
-    /* this is big, so this might not be a 
-       reasonable approximation--might want to 
+    /* this is big, so this might not be a
+       reasonable approximation--might want to
        use cliprect instead */
     if (dr.onscreen(ab->x, ab->y, xx, yy)) {
 
       /* first paint the affected tiles, then the explosion atop that */
 
       for (dir dd = FIRST_DIR_SELF; dd <= LAST_DIR; dd++) {
-	int bx, by;
-	int bbx, bby;
-	if (dr.lev->travel(ab->x, ab->y, dd, bx, by)
-	    && dr.onscreen(bx, by, bbx, bby)) {
-	  alist::push(anims, new AnPlaceTile(dr.lev->tileat(bx, by), bbx, bby));
-	}
+        int bx, by;
+        int bbx, bby;
+        if (dr.lev->travel(ab->x, ab->y, dd, bx, by)
+            && dr.onscreen(bx, by, bbx, bby)) {
+          alist::push(anims, new AnPlaceTile(dr.lev->tileat(bx, by), bbx, bby));
+        }
       }
 
       Animation *ar = new AnInPlace(xx, yy, 1, frames_bombsplosion);
-      
+
       alist::push(anims, ar);
     }
     break;
@@ -1165,21 +1165,21 @@ void Animation::start(Drawing &dr,
       AFrame *frames_fall;
       switch (at->whatold) {
       case T_TRAP1:
-	destt = T_HOLE;
-	frames_fall = frames_trap1_falls;
-	break;
+        destt = T_HOLE;
+        frames_fall = frames_trap1_falls;
+        break;
       case T_TRAP2:
-	destt = T_TRAP1;
-	frames_fall = frames_trap2_falls;
-	break;
+        destt = T_TRAP1;
+        frames_fall = frames_trap2_falls;
+        break;
       default:
-	destt = T_FLOOR;
-	frames_fall = frames_error;
-	break;
+        destt = T_FLOOR;
+        frames_fall = frames_error;
+        break;
       }
 
       /* PERF could use non-erasing (and non-alpha) blit
-	 for these animations */
+         for these animations */
       AnPlaceTile *ap = new AnPlaceTile(at->whatold, xx, yy);
       Animation *ar = new AnInPlace(xx, yy, 1, frames_fall);
 
@@ -1206,7 +1206,7 @@ void Animation::start(Drawing &dr,
       frames_pressing = frames_onezero_fade;
       destt = (ab->whatold==T_1)?T_0:T_1;
       break;
-    case T_ON: 
+    case T_ON:
       s = S_POWEROFF;
       destt = T_OFF;
       frames_pressing = frames_ongoesoff;
@@ -1220,7 +1220,7 @@ void Animation::start(Drawing &dr,
     Animation *ap = new AnSound(s);
     if (dr.onscreen(ab->x, ab->y, xx, yy)) {
       /* PERF could use non-erasing (and non-alpha) blit
-	 for these animations */
+         for these animations */
       ap->next = new AnPlaceTile(ab->whatold, xx, yy);
       ap->next->next = new AnInPlace(xx, yy, 1, frames_pressing);
       ap->next->next->next = new AnPlaceTile(destt, xx, yy);
@@ -1239,51 +1239,51 @@ void Animation::start(Drawing &dr,
       int destt;
       AFrame *frames_rotating;
       switch (at->whatold) {
-	/* could maybe go other direction for one */
-      case T_UD: 
-	destt = T_LR;
-	frames_rotating = frames_slider_rotates;
-	break;
-      case T_LR: 
-	destt = T_UD;
-	frames_rotating = frames_slider_rotates;
-	break;
+        /* could maybe go other direction for one */
+      case T_UD:
+        destt = T_LR;
+        frames_rotating = frames_slider_rotates;
+        break;
+      case T_LR:
+        destt = T_UD;
+        frames_rotating = frames_slider_rotates;
+        break;
       case T_ELECTRIC:
-	destt = T_FLOOR;
-	frames_rotating = frames_electric_off;
-	break;
+        destt = T_FLOOR;
+        frames_rotating = frames_electric_off;
+        break;
       case T_BUP:
-	destt = T_BDOWN;
-	frames_rotating = frames_bluefloor_godown;
-	break;
+        destt = T_BDOWN;
+        frames_rotating = frames_bluefloor_godown;
+        break;
       case T_BDOWN:
-	destt = T_BUP;
-	frames_rotating = frames_bluefloor_goup;
-	break;
+        destt = T_BUP;
+        frames_rotating = frames_bluefloor_goup;
+        break;
       case T_GUP:
-	destt = T_GDOWN;
-	frames_rotating = frames_greenfloor_godown;
-	break;
+        destt = T_GDOWN;
+        frames_rotating = frames_greenfloor_godown;
+        break;
       case T_GDOWN:
-	destt = T_GUP;
-	frames_rotating = frames_greenfloor_goup;
-	break;
+        destt = T_GUP;
+        frames_rotating = frames_greenfloor_goup;
+        break;
       case T_RUP:
-	destt = T_RDOWN;
-	frames_rotating = frames_redfloor_godown;
-	break;
+        destt = T_RDOWN;
+        frames_rotating = frames_redfloor_godown;
+        break;
       case T_RDOWN:
-	destt = T_RUP;
-	frames_rotating = frames_redfloor_goup;
-	break;
+        destt = T_RUP;
+        frames_rotating = frames_redfloor_goup;
+        break;
       default:
-	destt = T_FLOOR;
-	frames_rotating = frames_error;
-	break;
+        destt = T_FLOOR;
+        frames_rotating = frames_error;
+        break;
       }
 
       /* PERF could use non-erasing (and non-alpha) blit
-	 for these animations */
+         for these animations */
       AnPlaceTile *ap = new AnPlaceTile(at->whatold, xx, yy);
       Animation *ar = new AnInPlace(xx, yy, 1, frames_rotating);
 
@@ -1291,13 +1291,13 @@ void Animation::start(Drawing &dr,
       ar->next = new AnPlaceTile(destt, xx, yy);
 
       if (at->delay) {
-	Animation *aw = new AnWait(at->delay * (WAIT_BETWEEN_WIRE + AN_SLOW));
-	aw->next = ap;
-	alist::push(anims, aw);
+        Animation *aw = new AnWait(at->delay * (WAIT_BETWEEN_WIRE + AN_SLOW));
+        aw->next = ap;
+        alist::push(anims, aw);
       } else {
-	alist::push(anims, ap);
+        alist::push(anims, ap);
       }
-	
+
 
     }
     break;
@@ -1305,14 +1305,14 @@ void Animation::start(Drawing &dr,
 
   case tag_breaks: {
     breaks_t *ab = &(ae->u.breaks);
-    
+
     /* really easy. */
     int startx, starty;
     if (dr.onscreen(ab->x, ab->y, startx, starty)) {
 
       /* put floor */
-      AnPlaceTile *ap = 
-	new AnPlaceTile(T_FLOOR, startx, starty);
+      AnPlaceTile *ap =
+        new AnPlaceTile(T_FLOOR, startx, starty);
 
       ap->next = new AnInPlace(startx, starty, 1, frames_break);
       alist::push(anims, ap);
@@ -1322,18 +1322,18 @@ void Animation::start(Drawing &dr,
 
   case tag_swap: {
     swap_t *as = &(ae->u.swap);
-    
+
     int sx, sy;
     if (dr.onscreen(as->x, as->y, sx, sy)) {
       /* queue up flip anim */
       AnPlaceTile *ap =
-	new AnPlaceTile(T_BLACK, sx, sy);
+        new AnPlaceTile(T_BLACK, sx, sy);
       AnInPlace *aout =
-	new AnInPlace(sx, sy, 1, frame_flips_out[as->was]);
+        new AnInPlace(sx, sy, 1, frame_flips_out[as->was]);
       AnInPlace *ain =
-	new AnInPlace(sx, sy, 1, frame_flips_in[as->now]);
+        new AnInPlace(sx, sy, 1, frame_flips_in[as->now]);
       AnPlaceTile *ad =
-	new AnPlaceTile(as->now, sx, sy);
+        new AnPlaceTile(as->now, sx, sy);
 
       ap->next = aout;
       aout->next = ain;
@@ -1359,11 +1359,11 @@ void Animation::start(Drawing &dr,
     while (dist-- && dr.onscreen(cx, cy, sx, sy)) {
 
       /* XXX this is wrong. the sphere may have been
-	 the target of a panel and be gone now. 
-	 
-	 unfortunately the jiggle struct can't safely
-	 contain an array of whats, since we use
-	 the default destructor and a union. 
+         the target of a panel and be gone now.
+
+         unfortunately the jiggle struct can't safely
+         contain an array of whats, since we use
+         the default destructor and a union.
       */
 
       int what = dr.lev->tileat(cx, cy);
@@ -1373,35 +1373,35 @@ void Animation::start(Drawing &dr,
       switch (what) {
       default: frames_jiggle = 0; break;
       case T_BSPHERE:
-	if (LR(aj->d)) frames_jiggle = frames_bsp_jiggle_lr;
-	else           frames_jiggle = frames_bsp_jiggle_ud;
-	break;
+        if (LR(aj->d)) frames_jiggle = frames_bsp_jiggle_lr;
+        else           frames_jiggle = frames_bsp_jiggle_ud;
+        break;
       case T_GSPHERE:
-	if (LR(aj->d)) frames_jiggle = frames_gsp_jiggle_lr;
-	else           frames_jiggle = frames_gsp_jiggle_ud;
-	break;
+        if (LR(aj->d)) frames_jiggle = frames_gsp_jiggle_lr;
+        else           frames_jiggle = frames_gsp_jiggle_ud;
+        break;
       case T_RSPHERE:
-	if (LR(aj->d)) frames_jiggle = frames_rsp_jiggle_lr;
-	else           frames_jiggle = frames_rsp_jiggle_ud;
-	break;
+        if (LR(aj->d)) frames_jiggle = frames_rsp_jiggle_lr;
+        else           frames_jiggle = frames_rsp_jiggle_ud;
+        break;
       case T_SPHERE:
-	if (LR(aj->d)) frames_jiggle = frames_sp_jiggle_lr;
-	else           frames_jiggle = frames_sp_jiggle_ud;
-	break;
+        if (LR(aj->d)) frames_jiggle = frames_sp_jiggle_lr;
+        else           frames_jiggle = frames_sp_jiggle_ud;
+        break;
       }
 
 
       if (frames_jiggle) {
-	AnWait *aw = new AnWait(waitn);
-	AnPlaceTile *ap = new AnPlaceTile(T_FLOOR, sx, sy);
-	AnInPlace *jig = new AnInPlace(sx, sy, 1, frames_jiggle);
-	AnPlaceTile *ap2 = new AnPlaceTile(what, sx, sy);
+        AnWait *aw = new AnWait(waitn);
+        AnPlaceTile *ap = new AnPlaceTile(T_FLOOR, sx, sy);
+        AnInPlace *jig = new AnInPlace(sx, sy, 1, frames_jiggle);
+        AnPlaceTile *ap2 = new AnPlaceTile(what, sx, sy);
 
-	aw->next = ap;
-	ap->next = jig;
-	jig->next = ap2;
-	
-	alist::push(anims, aw);
+        aw->next = ap;
+        ap->next = jig;
+        jig->next = ap2;
+
+        alist::push(anims, aw);
       }
 
       dr.lev->travel(cx, cy, aj->d, cx, cy);
@@ -1428,8 +1428,8 @@ void Animation::start(Drawing &dr,
 
     /* compute the amount that is on screen, in pixels */
     while (dleft-- &&
-	  dr.lev->travel(x, y, af->d, x, y) &&
-	  dr.onscreen(x, y, destx, desty)) {
+          dr.lev->travel(x, y, af->d, x, y) &&
+          dr.onscreen(x, y, destx, desty)) {
       dist += TILESIZE(af->d);
     }
 
@@ -1470,15 +1470,15 @@ void Animation::start(Drawing &dr,
     }
 
     AnFlying *a = new AnFlying(fly,
-				startx + ox, starty + oy,
-				af->d,
-				dist,
-				ANFLYING_PIXELS_YELLOW_SPHERE,
-				ANFLYING_RATE_YELLOW_SPHERE);
+                                startx + ox, starty + oy,
+                                af->d,
+                                dist,
+                                ANFLYING_PIXELS_YELLOW_SPHERE,
+                                ANFLYING_RATE_YELLOW_SPHERE);
 
-    AnPlaceTile *ap = 
+    AnPlaceTile *ap =
       new AnPlaceTile(af->whatunder,
-		      startx, starty);
+                      startx, starty);
 
     ap->next = a;
 
@@ -1488,56 +1488,56 @@ void Animation::start(Drawing &dr,
 
       /* don't draw tile, because it is disappearing! */
       if (dleft <= 0) {
-	/* XXX zapped sound */
-	a->next = new AnInPlace(destx, desty, 1, frames_zap);
+        /* XXX zapped sound */
+        a->next = new AnInPlace(destx, desty, 1, frames_zap);
       }
 
     } else {
 
       AnPlaceTile *afinal =
-	new AnPlaceTile(af->what, destx, desty);
+        new AnPlaceTile(af->what, destx, desty);
 
 
       AFrame *sanim;
       switch (af->what) {
       default:
       case T_GOLD:
-	switch (af->d) {
-	default:
-	case DIR_LEFT:  sanim = frames_yellow_smush_hitleft; break;
-	case DIR_RIGHT: sanim = frames_yellow_smush_hitright; break;
-	case DIR_UP:    sanim = frames_yellow_smush_hitup; break;
-	case DIR_DOWN:  sanim = frames_yellow_smush_hitdown; break;
-	}
-	break;
+        switch (af->d) {
+        default:
+        case DIR_LEFT:  sanim = frames_yellow_smush_hitleft; break;
+        case DIR_RIGHT: sanim = frames_yellow_smush_hitright; break;
+        case DIR_UP:    sanim = frames_yellow_smush_hitup; break;
+        case DIR_DOWN:  sanim = frames_yellow_smush_hitdown; break;
+        }
+        break;
 #define PICKFRAMES(C, c)                                               \
       case T_ ## C ## PHERE:                                           \
-	switch (af->d) {                                                \
-	default:                                                       \
-	case DIR_LEFT:  sanim = frames_ ## c ## phere_smush_l;  break; \
-	case DIR_RIGHT: sanim = frames_ ## c ## phere_smush_r;  break; \
-	case DIR_UP:    sanim = frames_ ## c ## phere_smush_u;  break; \
-	case DIR_DOWN:  sanim = frames_ ## c ## phere_smush_d;  break; \
-	}                                                              \
-	break;
-	PICKFRAMES(BS, bs);
-	PICKFRAMES(GS, gs);
-	PICKFRAMES(RS, rs);
-	PICKFRAMES(S, s);
+        switch (af->d) {                                                \
+        default:                                                       \
+        case DIR_LEFT:  sanim = frames_ ## c ## phere_smush_l;  break; \
+        case DIR_RIGHT: sanim = frames_ ## c ## phere_smush_r;  break; \
+        case DIR_UP:    sanim = frames_ ## c ## phere_smush_u;  break; \
+        case DIR_DOWN:  sanim = frames_ ## c ## phere_smush_d;  break; \
+        }                                                              \
+        break;
+        PICKFRAMES(BS, bs);
+        PICKFRAMES(GS, gs);
+        PICKFRAMES(RS, rs);
+        PICKFRAMES(S, s);
       }
 
       /* squish anim -- but only if we made it all the
-	 to the end without going off the screen. */
+         to the end without going off the screen. */
       if (dleft <= 0) {
-	/* adjust based on direction */
-	a->next = new AnSound(S_CLICK);
-	a->next->next = 
-	  new AnInPlace(destx + ((af->d == DIR_RIGHT)?2:0),
-			desty + ((af->d == DIR_DOWN)?2:0), 1, sanim);
-	a->next->next->next = afinal;
+        /* adjust based on direction */
+        a->next = new AnSound(S_CLICK);
+        a->next->next =
+          new AnInPlace(destx + ((af->d == DIR_RIGHT)?2:0),
+                        desty + ((af->d == DIR_DOWN)?2:0), 1, sanim);
+        a->next->next->next = afinal;
       } else {
-	/* and draw it in its final position */
-	a->next = afinal;
+        /* and draw it in its final position */
+        a->next = afinal;
       }
     }
 
@@ -1552,49 +1552,49 @@ void Animation::start(Drawing &dr,
 
     int dx, dy, sx, sy, sdx, sdy;
     if (dr.lev->travel(ap->srcx, ap->srcy, ap->d, dx, dy) &&
-	dr.onscreen(ap->srcx, ap->srcy, sx, sy) &&
+        dr.onscreen(ap->srcx, ap->srcy, sx, sy) &&
         dr.onscreen(dx, dy, sdx, sdy)) {
 
-      AnPlaceTile *aap = 
-	new AnPlaceTile(ap->under, sx, sy);
+      AnPlaceTile *aap =
+        new AnPlaceTile(ap->under, sx, sy);
 
       AnFlying *af =
-	new AnFlyingTile(ap->what, sx, sy, ap->d,
-			 TILESIZE(ap->d), 
-			 WALKPUSH_DIST,
-			 WALKPUSH_WAIT);
+        new AnFlyingTile(ap->what, sx, sy, ap->d,
+                         TILESIZE(ap->d),
+                         WALKPUSH_DIST,
+                         WALKPUSH_WAIT);
 
       aap->next = af;
 
       if (ap->zap) {
-	/* we already know dest is on screen */
-	af->next = new AnInPlace(sdx, sdy, 1, frames_zap);
+        /* we already know dest is on screen */
+        af->next = new AnInPlace(sdx, sdy, 1, frames_zap);
 
       } else if (ap->hole) {
 
-	/* there are three layers. from bottom to top:
-	   ash, which draws the hole shrinking
-	   adrop, which draws the grey block dropping in
-	   apuff, which shows a puff of smoke on top */
+        /* there are three layers. from bottom to top:
+           ash, which draws the hole shrinking
+           adrop, which draws the grey block dropping in
+           apuff, which shows a puff of smoke on top */
 
-	/* XX better if this slides into place */
-	Animation *adrop =
-	  new AnInPlace(sdx, sdy, 1, frames_grey_drop);
+        /* XX better if this slides into place */
+        Animation *adrop =
+          new AnInPlace(sdx, sdy, 1, frames_grey_drop);
 
-	Animation *apuff = new AnInPlace(sdx, sdy, 1, frames_smokepuff);
+        Animation *apuff = new AnInPlace(sdx, sdy, 1, frames_smokepuff);
 
-	Animation *ac = new AnCombo(adrop, apuff);
-	
-	Animation *ash = new AnInPlace(sdx, sdy, 1, frames_shrinkhole);
+        Animation *ac = new AnCombo(adrop, apuff);
 
-	/* erase hole. */
-	af->next = new AnPlaceTile(T_FLOOR, sdx, sdy);
-	af->next->next = new AnCombo(ash, ac);
+        Animation *ash = new AnInPlace(sdx, sdy, 1, frames_shrinkhole);
+
+        /* erase hole. */
+        af->next = new AnPlaceTile(T_FLOOR, sdx, sdy);
+        af->next->next = new AnCombo(ash, ac);
 
       } else {
-	/* just draw in place */
-	AnPlaceTile *ag = new AnPlaceTile(ap->what, sdx, sdy);
-	af->next = ag;
+        /* just draw in place */
+        AnPlaceTile *ag = new AnPlaceTile(ap->what, sdx, sdy);
+        af->next = ag;
       }
 
 
@@ -1611,7 +1611,7 @@ void Animation::start(Drawing &dr,
       Animation *apuff = new AnInPlace(sx, sy, 1, frames_smokepuff);
 
       /* Replacing this with another explosion would probably
-	 be nice. */
+         be nice. */
       Animation *azap = new AnInPlace(sx, sy, 1, frames_zap);
       Animation *a = new AnCombo(apuff, azap);
       a->depth = 1; /* on top of other stuff, like walking */
@@ -1627,7 +1627,7 @@ void Animation::start(Drawing &dr,
     int sx, sy;
     if (dr.onscreen(as->x, as->y, sx, sy)) {
       AnFinale *ag = new AnFinale(FACING_FRAME(as->d, B_PLAYER, 0),
-				   sx, sy - OVERLAP(B_PLAYER));
+                                   sx, sy - OVERLAP(B_PLAYER));
       alist::push(sprites, ag);
     }
     break;
@@ -1637,8 +1637,8 @@ void Animation::start(Drawing &dr,
     stand_t *as = &(ae->u.stand);
     int sx, sy;
     if (dr.onscreen(as->x, as->y, sx, sy)) {
-      AnFinale *ag = new AnFinale(FACING_FRAME(as->d, as->entt, as->data), 
-				   sx, sy - OVERLAP(as->entt));
+      AnFinale *ag = new AnFinale(FACING_FRAME(as->d, as->entt, as->data),
+                                   sx, sy - OVERLAP(as->entt));
       alist::push(sprites, ag);
     }
     break;
@@ -1646,10 +1646,10 @@ void Animation::start(Drawing &dr,
 
   case tag_walk: {
     walk_t *aw = &(ae->u.walk);
-    
+
     int dx, dy, sx, sy, sdx, sdy;
     if (dr.lev->travel(aw->srcx, aw->srcy, aw->d, dx, dy) &&
-	dr.onscreen(aw->srcx, aw->srcy, sx, sy) &&
+        dr.onscreen(aw->srcx, aw->srcy, sx, sy) &&
         dr.onscreen(dx, dy, sdx, sdy)) {
 
       /* -------------- new version ------------------ */
@@ -1661,54 +1661,54 @@ void Animation::start(Drawing &dr,
 
 #     define INPLACE(entcase, olap, basename)            \
       case entcase: {                                    \
-	overlapy = olap;                                 \
+        overlapy = olap;                                 \
         AFrame *wa = nullptr;                                 \
-	switch (aw->d) {                                  \
-	 default:                                        \
-	 case DIR_UP: wa = basename ## backward; break;  \
-	 case DIR_DOWN: wa = basename ## forward; break; \
-	 case DIR_RIGHT: wa = basename ## right; break;  \
-	 case DIR_LEFT: wa = basename ## left; break;    \
-	}                                                \
+        switch (aw->d) {                                  \
+         default:                                        \
+         case DIR_UP: wa = basename ## backward; break;  \
+         case DIR_DOWN: wa = basename ## forward; break; \
+         case DIR_RIGHT: wa = basename ## right; break;  \
+         case DIR_LEFT: wa = basename ## left; break;    \
+        }                                                \
         af = new AnInPlace(sx, sy - overlapy, 1, wa);    \
         }                                                \
-	break
+        break
 
-	INPLACE(B_PLAYER, GUY_OVERLAPY, frames_walk);
-	INPLACE(B_DALEK, DALEK_OVERLAPY, frames_dalek);
-	INPLACE(B_HUGBOT, HUGBOT_OVERLAPY, frames_hugbot);
-	/* actually, these should be done as below with fly */
-	INPLACE(B_DALEK_ASLEEP, DALEK_OVERLAPY, frames_dalek_asleep);
-	INPLACE(B_HUGBOT_ASLEEP, HUGBOT_OVERLAPY, frames_hugbot_asleep);
-	INPLACE(B_BROKEN, BROKEN_OVERLAPY, frames_deadrobot);
+        INPLACE(B_PLAYER, GUY_OVERLAPY, frames_walk);
+        INPLACE(B_DALEK, DALEK_OVERLAPY, frames_dalek);
+        INPLACE(B_HUGBOT, HUGBOT_OVERLAPY, frames_hugbot);
+        /* actually, these should be done as below with fly */
+        INPLACE(B_DALEK_ASLEEP, DALEK_OVERLAPY, frames_dalek_asleep);
+        INPLACE(B_HUGBOT_ASLEEP, HUGBOT_OVERLAPY, frames_hugbot_asleep);
+        INPLACE(B_BROKEN, BROKEN_OVERLAPY, frames_deadrobot);
 
 #      undef INPLACE
 
       default:
-	if (Level::isbomb(aw->entt)) {
+        if (Level::isbomb(aw->entt)) {
 
-	  overlapy = BOMB_OVERLAPY;
+          overlapy = BOMB_OVERLAPY;
 
-	  af = new AnFlying(pic_bomb_lit[aw->data][0],
-			    sx, sy - BOMB_OVERLAPY,
-			    aw->d,
-			    TILESIZE(aw->d),
-			    WALKPUSH_DIST, WALKPUSH_WAIT);
-	  break;
-	} 
-	/* else FALLTHROUGH */
+          af = new AnFlying(pic_bomb_lit[aw->data][0],
+                            sx, sy - BOMB_OVERLAPY,
+                            aw->d,
+                            TILESIZE(aw->d),
+                            WALKPUSH_DIST, WALKPUSH_WAIT);
+          break;
+        }
+        /* else FALLTHROUGH */
       case B_DELETED:
       case B_BOMB_X:
-	af = new AnInPlace(sx, sy, 1, frames_error);
+        af = new AnInPlace(sx, sy, 1, frames_error);
       }
 
       if (!af) break;
 
       AnFinale *ag = new AnFinale(FACING_FRAME(aw->d, aw->entt, aw->data),
-				   sdx, sdy - overlapy);
-      
+                                   sdx, sdy - overlapy);
+
       af->next = ag;
-      
+
       /* walking is a sprite! */
       alist::push(sprites, af);
     }
@@ -1723,25 +1723,25 @@ bool AnFlying::init(unsigned int now) {
 
   px = sx;
   py = sy;
-  
+
   return false;
 }
 
 AnFlyingTile::AnFlyingTile(int ti_,
-			   int sx, int sy, 
-			   dir dd, int sdist,
-			   int sp, int w)
+                           int sx, int sy,
+                           dir dd, int sdist,
+                           int sp, int w)
   : AnFlying(0, sx, sy, dd, sdist, sp, w) {
   ti = ti_;
 }
 
 /* perhaps upgrade this to allow aframes instead of just surfaces */
 AnFlying::AnFlying(SDL_Surface *what, int sx_, int sy_, dir dd, int sdist,
-		   int sp, int w) 
+                   int sp, int w)
   : sx(sx_), sy(sy_), d(dd), pleft(sdist) {
 
   above = what;
-  
+
   speed = sp;
   wait = w;
 }
@@ -1751,7 +1751,7 @@ bool AnFlying::think(unsigned int now) {
   if (pleft <= 0) {
     return true;
   }
-    
+
   /* should probably compute based on the
      number of frames we missed, too */
   int go = util::minimum(speed, pleft);
@@ -1779,25 +1779,25 @@ void AnFlying::draw() {
 
 
 /* generate the surfaces and aframes for
-   flips. Each tile has two animations 
-   ('in' and 'out'), each of which has 
-   frames. 
+   flips. Each tile has two animations
+   ('in' and 'out'), each of which has
+   frames.
 
    'out' looks like this:
 
-		   ;,        ;
+                   ;,        ;
       +-----+      | `.      |
       |     |  ->  |  |  ->  |
       |     |      |  .      |
       +-----+      |,'       ;
-			     '
+                             '
 */
 bool Animation::init_flips() {
 
   pic_flips_out_data =
     (SDL_Surface**)
     malloc (NUM_TILES * NUM_FLIPFRAMES * sizeof(SDL_Surface *));
-  
+
   pic_flips_in_data =
     (SDL_Surface**)
     malloc (NUM_TILES * NUM_FLIPFRAMES * sizeof(SDL_Surface *));
@@ -1809,11 +1809,11 @@ bool Animation::init_flips() {
     (AFrame**) malloc (NUM_TILES * sizeof(AFrame*));
 
   if (!(pic_flips_out_data && pic_flips_in_data && frame_flips_out
-	&& frame_flips_in)) return false;
+        && frame_flips_in)) return false;
 
   SDL_Surface *tsrc = sdlutil::makesurface(TILEW, TILEH);
   sdlutil::ClearSurface(tsrc, 0xFF, 0xFF, 0xFF, 0xFF);
-  
+
   int pe = SDL_GetTicks() + (PROGRESS_TICKS * 2);
   for (int t = 0; t < NUM_TILES; t++) {
     Progress::drawbar((void*)&pe, t, NUM_TILES, "");
@@ -1844,15 +1844,15 @@ bool Animation::init_flips() {
     for (int f = 0; f < NUM_FLIPFRAMES; f++) {
 
       float dist = ((float)f / NUM_FLIPFRAMES) * (UTIL_PI * 0.5f);
-      
+
       int overlap = (int) (sin(dist) * FLIP_PIXELS_OVERLAP);
 
       /* XX shouldn't actually go to 0 */
       int width = (int)(cos(dist) * (float)TILEW);
       if (width <= 0) width = 1;
- 
+
       pic_flips_out(t, f) =
-	pitched_rect(width, TILEH, TILEH + overlap * 2, tsrc);
+        pitched_rect(width, TILEH, TILEH + overlap * 2, tsrc);
 
       /* put in the frames */
       frame_flips_out[t][f].pic = &pic_flips_out(t, f);
@@ -1861,15 +1861,15 @@ bool Animation::init_flips() {
       frame_flips_out[t][f].wait = f?FLIP_SPEED:0;
 
       /* to avoid writing pitched_rect twice, we
-	 flip, pitch, then flip back */
-      SDL_Surface *tmp = 
-	pitched_rect(width, TILEH, TILEH + overlap * 2, tsrcr);
+         flip, pitch, then flip back */
+      SDL_Surface *tmp =
+        pitched_rect(width, TILEH, TILEH + overlap * 2, tsrcr);
 
       int fr = (NUM_FLIPFRAMES - (f + 1));
 
       pic_flips_in(t, fr) = sdlutil::fliphoriz(tmp);
       SDL_FreeSurface(tmp);
-	
+
       frame_flips_in[t][fr].pic = &pic_flips_in(t, fr);
       frame_flips_in[t][fr].x = (TILEW - width) >> 1;
       frame_flips_in[t][fr].y = -overlap;
@@ -1882,18 +1882,18 @@ bool Animation::init_flips() {
     frame_flips_out[t][NUM_FLIPFRAMES].x = 0;
     frame_flips_out[t][NUM_FLIPFRAMES].y = 0;
     frame_flips_out[t][NUM_FLIPFRAMES].wait = FLIP_SPEED;
-    
+
     frame_flips_in[t][NUM_FLIPFRAMES].pic = 0;
     frame_flips_in[t][NUM_FLIPFRAMES].x = 0;
     frame_flips_in[t][NUM_FLIPFRAMES].y = 0;
     frame_flips_in[t][NUM_FLIPFRAMES].wait = FLIP_SPEED;
 
-      
+
     SDL_FreeSurface(tsrcr);
   }
   SDL_FreeSurface(tsrc);
 
-  
+
   return true;
 }
 
@@ -1902,10 +1902,10 @@ bool Animation::init_flips() {
 /* generates a pitched rectangle (from left to right)
    at width w, that starts at height ph and is height
    h at the midpoint. */
-SDL_Surface *Animation::pitched_rect(int w, int h, int ph, 
-				      SDL_Surface *src,
+SDL_Surface *Animation::pitched_rect(int w, int h, int ph,
+                                      SDL_Surface *src,
                                       int oversample) {
-  
+
   /* oversample by this amount */
   int zf = oversample;
 
@@ -1915,7 +1915,7 @@ SDL_Surface *Animation::pitched_rect(int w, int h, int ph,
 
   SDL_Surface *dst = sdlutil::makesurface(w, ph);
   if (!dst) return dst;
-  
+
   /* set totally transparent */
   sdlutil::clearsurface(dst, 0x0);
   //  sdlutil::clearsurface(dst, 0x99FF9999);
@@ -1930,7 +1930,7 @@ SDL_Surface *Animation::pitched_rect(int w, int h, int ph,
 
   /*
     .                    w
-    .                 ```````  
+    .                 ```````
     .            .....+,................
     .           .     | `+, ....        . descent
     .        ph.      |  | `+   .    ...
@@ -1959,7 +1959,7 @@ SDL_Surface *Animation::pitched_rect(int w, int h, int ph,
       Uint32 sc = sdlutil::getpixel(src, x, y);
 
       sdlutil::setpixel(dst, col, start + i, sc);
-      
+
     }
   }
 
@@ -2020,7 +2020,7 @@ bool AnInPlace::init(unsigned int now) {
     if ((*frames[i].pic)->h + frames[i].y > maxy)
       maxy = (*frames[i].pic)->h + frames[i].y;
   }
-  
+
   bx = xpos + minx;
   by = ypos + miny;
   bw = maxx - minx;
@@ -2040,10 +2040,10 @@ void Animation::clearsprites(Drawing &dr) {
   for (int i = 0; i < dr.lev->nbots; i++) {
     int x, y;
     if (dr.lev->bott[i] != B_DELETED &&
-	dr.lev->bott[i] != B_BOMB_X) {
+        dr.lev->bott[i] != B_BOMB_X) {
       dr.lev->where(dr.lev->boti[i], x, y);
       /* can be conservative here so that we don't have to
-	 dispatch on bot type */
+         dispatch on bot type */
       clearent(dr, x, y, MAX_OVERLAPY);
     }
   }
@@ -2065,8 +2065,8 @@ void Animation::clearent(Drawing &dr, int entx, int enty, int overlap) {
     int ta2 = dr.lev->tileat(entx, enty - 1);
     /* XXX draw openexit if ent above */
     if (ta2 == T_EXIT &&
-	(dr.lev->botat(entx, enty - 1) ||
-	 dr.lev->playerat(entx, enty - 1))) {
+        (dr.lev->botat(entx, enty - 1) ||
+         dr.lev->playerat(entx, enty - 1))) {
       Drawing::drawtileu(sx, sy, TU_EXITOPEN);
     } else Drawing::drawtile(sx, sy, ta2);
   } else if (enty == 0 && dr.onscreen(entx, enty, sx, sy)) {
@@ -2082,7 +2082,7 @@ void Animation::clearent(Drawing &dr, int entx, int enty, int overlap) {
 }
 
 void Animation::think_anims(alist **as, unsigned int now,
-			    bool &remirror, bool done) {
+                            bool &remirror, bool done) {
 
   bool alldone = done;
 
@@ -2094,22 +2094,22 @@ void Animation::think_anims(alist **as, unsigned int now,
       if (!del) alldone = false;
 
       /* delete if done, but not finales. we take
-	 care of those at the end */
+         care of those at the end */
       if (del && !(*tmp)->head->finale) {
-	Animation *del = (*tmp)->head;
-	/* another in line? */
-	if (del->next) {
-	  (*tmp)->head = del->next;
-	  remirror = (*tmp)->head->init(now) || remirror;
-	} else {
-	  /* get rid of it */
-	  *tmp = (*tmp)->next;
-	}
-	del->next = 0;
-	delete del;
-	/* don't advance; give this one a
-	   chance to think */
-	continue;
+        Animation *del = (*tmp)->head;
+        /* another in line? */
+        if (del->next) {
+          (*tmp)->head = del->next;
+          remirror = (*tmp)->head->init(now) || remirror;
+        } else {
+          /* get rid of it */
+          *tmp = (*tmp)->next;
+        }
+        del->next = 0;
+        delete del;
+        /* don't advance; give this one a
+           chance to think */
+        continue;
       }
     } else if (!(*tmp)->head->finale) alldone = false;
     /* advance */
@@ -2124,7 +2124,7 @@ void Animation::think_anims(alist **as, unsigned int now,
     while (*as) {
       Animation *tmp = alist::pop(*as);
       /* don't draw any more. we just
-	 prevent the screen from flipping at this point */
+         prevent the screen from flipping at this point */
       // tmp->draw();
       delete tmp;
     }
@@ -2133,7 +2133,7 @@ void Animation::think_anims(alist **as, unsigned int now,
 
 void Animation::draw_anims(alist *anims) {
   // printf("-- draw list %p\n", anims);
-  for (alist *atmp = anims; atmp; 
+  for (alist *atmp = anims; atmp;
       atmp = atmp->next) {
     // printf(" drawing %p (%s)\n", atmp->head, atmp->head->finale?"finale":"");
     atmp->head->draw();
@@ -2144,7 +2144,7 @@ void Animation::erase_anims(alist *anims, Dirt *dirty) {
   for (alist *atmp = anims; atmp; atmp = atmp->next) {
     atmp->head->erase(dirty);
   }
-}	
+}
 
 bool Animation::init_anims(alist *anims, unsigned int now) {
   /* initialize the animations */
@@ -2200,11 +2200,11 @@ void AnLaser::draw() {
 
       sdlutil::drawpixel(screen, px, py, ri, gi, bi);
       if (d == DIR_UP || d == DIR_DOWN) {
-	sdlutil::drawpixel(screen, px - 1, py, ro, go, bo);
-	sdlutil::drawpixel(screen, px + 1, py, ro, go, bo);
+        sdlutil::drawpixel(screen, px - 1, py, ro, go, bo);
+        sdlutil::drawpixel(screen, px + 1, py, ro, go, bo);
       } else {
-	sdlutil::drawpixel(screen, px, py - 1, ro, go, bo);
-	sdlutil::drawpixel(screen, px, py + 1, ro, go, bo);
+        sdlutil::drawpixel(screen, px, py - 1, ro, go, bo);
+        sdlutil::drawpixel(screen, px, py + 1, ro, go, bo);
       }
 
       px += chx;

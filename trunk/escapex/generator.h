@@ -8,7 +8,7 @@
 /* the generator is   Xn =   a * X(n-1) + c   mod size
 
    currently we always use some prime that does not divide size
-   (so they are relatively prime), and a = 1. To get generators 
+   (so they are relatively prime), and a = 1. To get generators
    (with period size) for a > 1, we must satisfy the following
    conditions, which are not trivial:
 
@@ -27,7 +27,7 @@ struct Generator {
       ... g.item() ...
      }
   */
-  
+
   bool anyleft() const;
   unsigned int item() const;
   void next();
@@ -37,7 +37,7 @@ struct Generator {
   unsigned int a = 1;
   unsigned int c;
   unsigned int x;
-  
+
   int left;
 };
 

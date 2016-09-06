@@ -6,7 +6,7 @@
 
 struct CommentScreen {
   static void comment(Player *plr, Level *l, string md5,
-		      bool cookmode = false);
+                      bool cookmode = false);
 };
 
 #endif

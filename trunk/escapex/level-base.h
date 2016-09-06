@@ -38,7 +38,7 @@ enum bot {
   B_DALEK_ASLEEP,
   B_HUGBOT_ASLEEP,
 
-  /* BOMB_n is a bomb with max timer n. 
+  /* BOMB_n is a bomb with max timer n.
      the bot data indicates the current
      timer value. */
   /* explodes immediately after being pushed */
@@ -75,7 +75,7 @@ enum Capabilities : uint32_t {
 #define CAP_WALKINTOBOTS CAP_CRUSHPLAYER
 #define CAP_ZAPSELF CAP_WALKINTOBOTS
 #define CAP_PUSHBOTS CAP_PUSHPLAYER
-  
+
 /* should have cap for 'unpushable',
    but we don't have any such robots yet. */
 #define GUYCAP (Capabilities)(CAP_ISPLAYER | CAP_CANTELEPORT | CAP_PUSHBOTS | CAP_HEARTFRAMERS)

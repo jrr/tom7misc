@@ -10,7 +10,7 @@
 
 // #include "SDL_mutex.h"
 
-/* 
+/*
    New (4.0) level database. (Not yet finished or being used.)
 
    The level database keeps track of all of the levels and
@@ -85,7 +85,7 @@ struct res_level : public one_result {
   /* The level may appear in multiple places.
 
      For now, these are just filenames. When we some
-     day support multi-level files, this can be something 
+     day support multi-level files, this can be something
      like /games/escape/2008pack.esz/001.esx */
   vector<string> sources;
 
@@ -99,7 +99,7 @@ struct res_level : public one_result {
 
   /* Date of (first) birth. */
   int date;
-  
+
   /* Number of moves in fastest known solution(s) */
   int speedrecord;
 
@@ -139,7 +139,7 @@ struct queryresult {
 
 /* there is just one global level database. */
 struct LevelDB {
-  
+
   /* set the player once before adding source dirs/files
      or issuing queries. */
   static void setplayer(Player *);
@@ -166,7 +166,7 @@ struct LevelDB {
   static void donate(int max_files, int max_verifies, int max_ticks);
 
   /* Returns a new-ly allocated result for the given lquery, which
-     is owned by the caller. See leveldb-query.h to construct 
+     is owned by the caller. See leveldb-query.h to construct
      lqueries. */
   static queryresult *query(const lquery &);
 

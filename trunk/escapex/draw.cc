@@ -9,7 +9,7 @@
 #include "message.h"
 #include <time.h>
 #include "extent.h"
- 
+
 #define TILEUTIL_FILE DATADIR "tileutil.png"
 #define TILES_FILE DATADIR "tiles.png"
 #define FONT_FILE DATADIR "font.png"
@@ -35,18 +35,18 @@ bool Drawing::loadimages() {
      routines rely on this being a 32 bit graphic. */
   SDL_Surface *tt = sdlutil::LoadImage(TILES_FILE);
   if (!tt) return 0;
-  
+
   SDL_Surface *uu = sdlutil::LoadImage(TILEUTIL_FILE);
   if (!uu) return 0;
 
   /* XXX make dim levels for font too (pass in argument) */
   fon = Font::Create(FONT_FILE,
-		     FONTCHARS,
- 		     9, 16, FONTSTYLES, 1, 3);
+                     FONTCHARS,
+                      9, 16, FONTSTYLES, 1, 3);
 
   fonsmall = Font::Create(FONTSMALL_FILE,
-			  FONTCHARS,
-			  6, 6, FONTSTYLES, 0, 3);
+                          FONTCHARS,
+                          6, 6, FONTSTYLES, 0, 3);
 
   tiles = (SDL_Surface **)malloc(sizeof (SDL_Surface *) * DRAW_NSIZES);
   tilesdim = (SDL_Surface **)malloc(sizeof (SDL_Surface *) * DRAW_NSIZES);
@@ -88,7 +88,7 @@ void Drawing::destroyimages() {
     if (tilesdim && tilesdim[i]) SDL_FreeSurface(tilesdim[i]);
     if (tileutil && tileutil[i]) SDL_FreeSurface(tileutil[i]);
   }
-  
+
   free(tiles);
   free(tilesdim);
   free(tileutil);
@@ -102,9 +102,9 @@ void Drawing::destroyimages() {
 
 /* draw guy facing d at screen location x/y */
 void Drawing::drawguy(dir d,
-		      int sx, int sy,
-		      int zoomfactor,
-		      SDL_Surface *surf, bool dead) {
+                      int sx, int sy,
+                      int zoomfactor,
+                      SDL_Surface *surf, bool dead) {
 
   if (!surf) surf = screen;
 
@@ -126,15 +126,15 @@ void Drawing::drawguy(dir d,
   SDL_Rect dst;
   dst.x = sx;
   dst.y = sy - (GUY_OVERLAPY >> zoomfactor);
-  
+
   SDL_BlitSurface(s, 0, surf, &dst);
 }
 
 void Drawing::drawbot(bot b, dir d,
-		      int sx, int sy,
-		      int zoomfactor,
-		      SDL_Surface *surf,
-		      int data) {
+                      int sx, int sy,
+                      int zoomfactor,
+                      SDL_Surface *surf,
+                      int data) {
 
   if (!surf) surf = screen;
 
@@ -144,19 +144,19 @@ void Drawing::drawbot(bot b, dir d,
   switch (b) {
   default:
     if (Level::isbomb(b)) {
-      
+
       switch (data) {
-	/* XXX draw fuse in these cases */
-	/* fuse high */
+        /* XXX draw fuse in these cases */
+        /* fuse high */
       default:
-	overlapy = BOMB_OVERLAPY;
-	s = Animation::pic_bomb_lit[data][zoomfactor];
-	break;
-	/* not lit */
+        overlapy = BOMB_OVERLAPY;
+        s = Animation::pic_bomb_lit[data][zoomfactor];
+        break;
+        /* not lit */
       case -1:
-	overlapy = BOMB_OVERLAPY;
-	s = Animation::pic_bomb_still[zoomfactor];
-	break;
+        overlapy = BOMB_OVERLAPY;
+        s = Animation::pic_bomb_still[zoomfactor];
+        break;
 
       }
     } else {
@@ -210,14 +210,14 @@ void Drawing::drawbot(bot b, dir d,
   SDL_Rect dst;
   dst.x = sx;
   dst.y = sy - (overlapy >> zoomfactor);
-  
+
   SDL_BlitSurface(s, 0, surf, &dst);
 
 }
 
-void Drawing::drawtile(int px, int py, int tl, int zf, 
-		       SDL_Surface *surf, bool dim) {
-  
+void Drawing::drawtile(int px, int py, int tl, int zf,
+                       SDL_Surface *surf, bool dim) {
+
   if (!surf) surf = screen;
 
   SDL_Rect src, dst;
@@ -235,8 +235,8 @@ void Drawing::drawtile(int px, int py, int tl, int zf,
 }
 
 void Drawing::drawtileu(int px, int py, int tl, int zf,
-			SDL_Surface *surf) {
-  
+                        SDL_Surface *surf) {
+
   if (!surf) surf = screen;
 
   SDL_Rect src, dest;
@@ -306,7 +306,7 @@ void Drawing::setscroll() {
 
 }
 
-/* we sort the bots (and player) by 'depth' 
+/* we sort the bots (and player) by 'depth'
    in order to draw them in a consistent order. */
 struct bb {
   int i; /* index */
@@ -322,7 +322,7 @@ static int ydepth_compare(const void *l, const void *r) {
 }
 
 void Drawing::drawlev(int layer, /* dir facing, */
-		      SDL_Surface *surf, bool dim) {
+                      SDL_Surface *surf, bool dim) {
 
   if (!surf) surf = screen;
 
@@ -331,7 +331,7 @@ void Drawing::drawlev(int layer, /* dir facing, */
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
 
   /* draw arrows if scrolled. */
-  
+
   /* actual width/height of tile area, then. */
   int actualw = showw * (TILEW >> zoomfactor);
   int actualh = showh * (TILEH >> zoomfactor);
@@ -362,26 +362,26 @@ void Drawing::drawlev(int layer, /* dir facing, */
 
       if (xx < lev->w && yy < lev->h) {
 
-	int tile = layer? lev->otileat(xx,yy) : lev->tileat(xx, yy);
+        int tile = layer? lev->otileat(xx,yy) : lev->tileat(xx, yy);
 
-	/* draw the tile--but if it is the exit and we're standing
-	   on it, draw the door open (even if we are dead) */
+        /* draw the tile--but if it is the exit and we're standing
+           on it, draw the door open (even if we are dead) */
 
-	/* XXX also when dimmed */
-	if (!dim &&
-	    tile == T_EXIT &&
-	    ((lev->guyx == xx &&
-	      lev->guyy == yy) || lev->botat(xx, yy))) {
+        /* XXX also when dimmed */
+        if (!dim &&
+            tile == T_EXIT &&
+            ((lev->guyx == xx &&
+              lev->guyy == yy) || lev->botat(xx, yy))) {
 
-	  drawtileu(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
-		    posy + margin + (TILEH >> zoomfactor) * (yy - scrolly),
-		    TU_EXITOPEN, zoomfactor, surf);
-	  
-	} else {
-	  drawtile(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
-		   posy + margin + (TILEH >> zoomfactor) * (yy - scrolly),
-		   tile, zoomfactor, surf, dim);
-	}
+          drawtileu(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
+                    posy + margin + (TILEH >> zoomfactor) * (yy - scrolly),
+                    TU_EXITOPEN, zoomfactor, surf);
+
+        } else {
+          drawtile(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
+                   posy + margin + (TILEH >> zoomfactor) * (yy - scrolly),
+                   tile, zoomfactor, surf, dim);
+        }
 
       } /* else ?  - scrolled off map */
 
@@ -393,9 +393,9 @@ void Drawing::drawlev(int layer, /* dir facing, */
 
   /* if dead by laser, draw laser */
   if (isdead && dd != DIR_NONE) {
-    /* dx, dy are a tile where the laser begins. 
+    /* dx, dy are a tile where the laser begins.
        get screen coordinates. */
-    
+
     int px = posx + margin + ((TILEW >> zoomfactor) * (dx - scrollx)) + (TILEH >> (zoomfactor + 1));
     int py = posy + margin + ((TILEH >> zoomfactor) * (dy - scrolly)) + (TILEW >> (zoomfactor + 1));
 
@@ -409,8 +409,8 @@ void Drawing::drawlev(int layer, /* dir facing, */
 #   if 0
     char msg[128];
     sprintf(msg, " %d/%d "LRARROW" %d/%d (dir: %s = %d/%d)",
-	    px, py, gx, gy, dirstring(dd).c_str(),
-	    chx, chy);
+            px, py, gx, gy, dirstring(dd).c_str(),
+            chx, chy);
 
     fon->drawto(surf, 2, surf->h - (3*(fon->height + 1)), msg);
 #   endif
@@ -421,28 +421,28 @@ void Drawing::drawlev(int layer, /* dir facing, */
     py += chy * (TILEH >> (zoomfactor + 1));
 
     sdlutil::slock(surf);
-    
+
     while (px != gx || py != gy) {
 
       /* make sure it's in surf */
       if (!(px < 0 || py < 0 ||
-	    px >= surf->w ||
-	    py >= surf->h ||
-	    /* and in scrollwindow */
+            px >= surf->w ||
+            py >= surf->h ||
+            /* and in scrollwindow */
 
-	    px < (margin + posx) ||
-	    py < (margin + posy) ||
-	    px > (margin + posx + showw * (TILEW >> zoomfactor)) ||
-	    py > (margin + posy + showh * (TILEH >> zoomfactor)))) {
+            px < (margin + posx) ||
+            py < (margin + posy) ||
+            px > (margin + posx + showw * (TILEW >> zoomfactor)) ||
+            py > (margin + posy + showh * (TILEH >> zoomfactor)))) {
 
-	sdlutil::drawpixel(surf, px, py, 255, 255, 255);
-	if (dd == DIR_UP || dd == DIR_DOWN) {
-	  sdlutil::drawpixel(surf, px - 1, py, 255, 0, 0);
-	  sdlutil::drawpixel(surf, px + 1, py, 255, 0, 0);
-	} else {
-	  sdlutil::drawpixel(surf, px, py - 1, 255, 0, 0);
-	  sdlutil::drawpixel(surf, px, py + 1, 255, 0, 0);
-	}
+        sdlutil::drawpixel(surf, px, py, 255, 255, 255);
+        if (dd == DIR_UP || dd == DIR_DOWN) {
+          sdlutil::drawpixel(surf, px - 1, py, 255, 0, 0);
+          sdlutil::drawpixel(surf, px + 1, py, 255, 0, 0);
+        } else {
+          sdlutil::drawpixel(surf, px, py - 1, 255, 0, 0);
+          sdlutil::drawpixel(surf, px, py + 1, 255, 0, 0);
+        }
 
       }
 
@@ -461,10 +461,10 @@ void Drawing::drawlev(int layer, /* dir facing, */
 
     {
       for (int i = 0; i < lev->nbots; i++) {
-	bots[i].i = lev->boti[i];
-	bots[i].e = lev->bott[i];
-	bots[i].d = lev->botd[i];
-	bots[i].a = lev->bota[i];
+        bots[i].i = lev->boti[i];
+        bots[i].e = lev->bott[i];
+        bots[i].d = lev->botd[i];
+        bots[i].a = lev->bota[i];
       }
       /* and player */
       bots[lev->nbots].i = lev->index(lev->guyx, lev->guyy);
@@ -483,12 +483,12 @@ void Drawing::drawlev(int layer, /* dir facing, */
       lev->where(bots[i].i, bx, by);
 
       if (onscreen(bx, by, bsx, bsy)) {
-	if (bots[i].e == B_PLAYER) 
-	  drawguy(bots[i].d, bsx, bsy, 
-		  zoomfactor, surf, isdead);
-	else
-	  drawbot(bots[i].e, bots[i].d, bsx, bsy,
-		  zoomfactor, surf, bots[i].a);
+        if (bots[i].e == B_PLAYER)
+          drawguy(bots[i].d, bsx, bsy,
+                  zoomfactor, surf, isdead);
+        else
+          drawbot(bots[i].e, bots[i].d, bsx, bsy,
+                  zoomfactor, surf, bots[i].a);
       }
     }
 
@@ -503,9 +503,9 @@ void Drawing::drawextra(SDL_Surface *surf) {
   if (!zoomfactor) {
     /* XXX should fon->parens and build these texts at load time */
     fon->drawto(surf, posx + margin + 2, (posy + (margin >> 1)) - fon->height,
-		lev->title + (string)" " GREY "by " POP BLUE + 
-		lev->author + POP);
-    
+                lev->title + (string)" " GREY "by " POP BLUE +
+                lev->author + POP);
+
     /* XXX wrong, should use height,posy */
     fon->drawto(surf, posx + 2, (surf->h) - (fon->height + 1), message);
   }
@@ -520,11 +520,11 @@ void Drawing::drawbotnums(SDL_Surface *surf) {
       lev->where(lev->boti[b], bx, by);
       int bsx, bsy;
       if (onscreen(bx, by, bsx, bsy)) {
-	string ss = YELLOW + itos(b + 1);
-	fon->drawto(surf,
-		    bsx + TILEW - fon->sizex(ss),
-		    bsy + TILEH - fon->height,
-		    ss);
+        string ss = YELLOW + itos(b + 1);
+        fon->drawto(surf,
+                    bsx + TILEW - fon->sizex(ss),
+                    bsy + TILEH - fon->height,
+                    ss);
       }
     }
   }
@@ -538,81 +538,81 @@ void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
     for (int wy = 0; wy < lev->h; wy++) {
       int sy, sx;
       if (onscreen(wx, wy, sx, sy)) {
-	  
-	sx += TILEW >> (1 + zoomfactor);
-	sy += TILEH >> (1 + zoomfactor);
 
-	if (Level::needsdest(lev->tileat(wx, wy))
-	    || Level::needsdest(lev->otileat(wx, wy))) {
-	  int d = lev->destat(wx, wy);
-	  int dx, dy, px, py;
-	  lev->where(d, dx, dy);
+        sx += TILEW >> (1 + zoomfactor);
+        sy += TILEH >> (1 + zoomfactor);
 
-	  if (onscreen(dx, dy, px, py)) {
+        if (Level::needsdest(lev->tileat(wx, wy))
+            || Level::needsdest(lev->otileat(wx, wy))) {
+          int d = lev->destat(wx, wy);
+          int dx, dy, px, py;
+          lev->where(d, dx, dy);
 
-	    px += TILEW >> (1 + zoomfactor);
-	    py += TILEH >> (1 + zoomfactor);
+          if (onscreen(dx, dy, px, py)) {
 
-	    /* shake them around a little bit to reduce overlap */
-	    if (shuffle) {
-	      int maxw = TILEW >> (2 + zoomfactor);
-	      int maxh = TILEH >> (2 + zoomfactor);
-	      
-	      px += (util::random() % maxw - (maxw >> 1));
-	      py += (util::random() % maxh - (maxh >> 1));
-	      sx += (util::random() % maxw - (maxw >> 1));
-	      sy += (util::random() % maxh - (maxh >> 1));
-	    }
+            px += TILEW >> (1 + zoomfactor);
+            py += TILEH >> (1 + zoomfactor);
 
-	    /* draw line: dark bg first */
-	    {
-	      line *l = line::create(sx, sy, px, py);
-	      Extent<line> el(l);
-		
-	      int xx, yy;
-	      while (l->next(xx, yy)) {
-		  
+            /* shake them around a little bit to reduce overlap */
+            if (shuffle) {
+              int maxw = TILEW >> (2 + zoomfactor);
+              int maxh = TILEH >> (2 + zoomfactor);
+
+              px += (util::random() % maxw - (maxw >> 1));
+              py += (util::random() % maxh - (maxh >> 1));
+              sx += (util::random() % maxw - (maxw >> 1));
+              sy += (util::random() % maxh - (maxh >> 1));
+            }
+
+            /* draw line: dark bg first */
+            {
+              line *l = line::create(sx, sy, px, py);
+              Extent<line> el(l);
+
+              int xx, yy;
+              while (l->next(xx, yy)) {
+
 #               define DARK(xxx, yyy) \
-		  sdlutil::setpixel(surf, xxx, yyy, \
+                  sdlutil::setpixel(surf, xxx, yyy, \
                                     sdlutil::mix2 \
-				    (sdlutil::getpixel \
-				     (surf, xxx, yyy), \
-				    sdlutil::amask))
-		
-		DARK(xx-1, yy);
-		DARK(xx+1, yy);
-		DARK(xx, yy-1);
-		DARK(xx, yy+1);
+                                    (sdlutil::getpixel \
+                                     (surf, xxx, yyy), \
+                                    sdlutil::amask))
+
+                DARK(xx-1, yy);
+                DARK(xx+1, yy);
+                DARK(xx, yy-1);
+                DARK(xx, yy+1);
 #               undef DARK
-	      }
-	    }
+              }
+            }
 
-	    /* then inside */
-	    {
-	      line *l = line::create(sx, sy, px, py);
-	      Extent<line> el(l);
-		
-	      int xx, yy;
-	      while (l->next(xx, yy)) {
+            /* then inside */
+            {
+              line *l = line::create(sx, sy, px, py);
+              Extent<line> el(l);
 
-		int r = 255 & ((wx * wy) ^ dx);
-		int g = 255 & ((wx * 13 + dy) ^ ~wy);
-		int b = 255 & ((dx * 99 + wy) ^ (101 * dy));
+              int xx, yy;
+              while (l->next(xx, yy)) {
 
-		sdlutil::drawpixel(surf, xx, yy,
-				   r, g, b);
-		  
-	      }
-	    }
-	  }
-	}
+                int r = 255 & ((wx * wy) ^ dx);
+                int g = 255 & ((wx * 13 + dy) ^ ~wy);
+                int b = 255 & ((dx * 99 + wy) ^ (101 * dy));
+
+                sdlutil::drawpixel(surf, xx, yy,
+                                   r, g, b);
+
+              }
+            }
+          }
+        }
       }
     }
   sdlutil::sulock(surf);
 }
 
 bool Drawing::inmap(int x, int y,
-		    int &tx, int &ty) {
+                    int &tx, int &ty) {
 
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
@@ -623,14 +623,14 @@ bool Drawing::inmap(int x, int y,
       y < (margin + posy) + (TILEH >> zoomfactor) * showh) {
 
     /* in! */
-    
+
     tx = ((x - (margin + posx)) / (TILEW >> zoomfactor)) + scrollx;
     ty = ((y - (margin + posy)) / (TILEH >> zoomfactor)) + scrolly;
 
     if (tx >= lev->w ||
-	ty >= lev->h ||
-	tx < 0 ||
-	ty < 0) return false;
+        ty >= lev->h ||
+        tx < 0 ||
+        ty < 0) return false;
 
     return true;
   }
@@ -640,7 +640,7 @@ bool Drawing::inmap(int x, int y,
 
 
 bool Drawing::onscreen(int x, int y,
-		       int &tx, int &ty) {
+                       int &tx, int &ty) {
 
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
@@ -659,12 +659,12 @@ bool Drawing::onscreen(int x, int y,
   return 0;
 }
 
-void Drawing::drawsmall(int y, 
-			int botmargin, Uint32 color,
-			Level *l, int solvemoves, string fname,
-			RateStatus *votes,
-			Rating *myrating,
-			int date, int speedrecord) {
+void Drawing::drawsmall(int y,
+                        int botmargin, Uint32 color,
+                        Level *l, int solvemoves, string fname,
+                        RateStatus *votes,
+                        Rating *myrating,
+                        int date, int speedrecord) {
 
   if (!l) {
     Message::bug(0, "There's no level to draw small!");
@@ -677,7 +677,7 @@ void Drawing::drawsmall(int y,
 
 # define MAXZOOMFACTOR 2
 
-  /* choose the zoom factor to use. 
+  /* choose the zoom factor to use.
 
      we use the smallest zoom factor (largest tiles)
      that can draw the whole thing, with a max zoom
@@ -686,16 +686,16 @@ void Drawing::drawsmall(int y,
   int zf = 0;
 
   while (zf < MAXZOOMFACTOR &&
-	 (l->w * (TILEW >> zf) > PREVIEWWIDTH ||
-	  l->h * (TILEH >> zf) > PREVIEWHEIGHT)) zf++;
+         (l->w * (TILEW >> zf) > PREVIEWWIDTH ||
+          l->h * (TILEH >> zf) > PREVIEWHEIGHT)) zf++;
 
   /* if it fits, center it */
-  dr.posx = 4 + 
-    ((l->w * (TILEW >> zf) >= PREVIEWWIDTH)?0 : 
+  dr.posx = 4 +
+    ((l->w * (TILEW >> zf) >= PREVIEWWIDTH)?0 :
      ((PREVIEWWIDTH - (l->w * (TILEW >> zf))) >> 1));
 
   dr.posy = y + 8 +
-    ((l->h * (TILEH >> zf) >= PREVIEWHEIGHT)?0 : 
+    ((l->h * (TILEH >> zf) >= PREVIEWHEIGHT)?0 :
      ((PREVIEWHEIGHT - (l->h * (TILEH >> zf))) >> 1));
 
   dr.width = PREVIEWWIDTH;
@@ -716,23 +716,23 @@ void Drawing::drawsmall(int y,
   dst.h = botmargin - (16 + 8);
   dst.w = 2;
   SDL_FillRect(screen, &dst, color);
-    
+
   int texty = (y + 8) - fon->height;
 
   /* sideinfo */
 
   fon->draw(textx, texty += fon->height,
-	    (string)WHITE +
-	    (string)YELLOW "Level:  " POP + l->title + 
-	    (string)YELLOW " (" GREY + fname + (string) POP ")" POP POP);
+            (string)WHITE +
+            (string)YELLOW "Level:  " POP + l->title +
+            (string)YELLOW " (" GREY + fname + (string) POP ")" POP POP);
   fon->draw(textx, texty += fon->height,
-	    (string)YELLOW "Author: " BLUE + l->author + POP POP);
+            (string)YELLOW "Author: " BLUE + l->author + POP POP);
 
   fon->draw(textx, texty += fon->height,
-	    (string)YELLOW "Size:   " + ((l->iscorrupted())?RED:GREEN) +
-	    itos(l->w) + (string)GREY "x" POP +
-	    itos(l->h) + POP POP +
-	    (string)((l->iscorrupted()) ? RED " corrupted!" POP : ""));
+            (string)YELLOW "Size:   " + ((l->iscorrupted())?RED:GREEN) +
+            itos(l->w) + (string)GREY "x" POP +
+            itos(l->h) + POP POP +
+            (string)((l->iscorrupted()) ? RED " corrupted!" POP : ""));
 
   texty += fon->height + 2;
 
@@ -742,8 +742,8 @@ void Drawing::drawsmall(int y,
     const time_t t = date;
     /* available on win32?? */
     strftime(buf, 250, "%d %b %Y", localtime(&t));
-    fonsmall->draw(textx + fon->sizex("Author: "), 
-		   texty, (string)GREY + (char*)buf);
+    fonsmall->draw(textx + fon->sizex("Author: "),
+                   texty, (string)GREY + (char*)buf);
   }
 
   texty += (fon->height >> 1) - 2;
@@ -755,35 +755,35 @@ void Drawing::drawsmall(int y,
        to the speedrecord -- doesn't work? XXX2016 */
     string movecolor =
       ((speedrecord > 0) && (speedrecord > solvemoves)) ? GREEN : GREY;
-    
+
     fon->draw(textx, texty += fon->height,
-	      (string)GREEN "Solved! " POP WHITE "(" GREY +
-	      movecolor + itos(solvemoves) +
-	      (string) POP " move" + 
-	      (string)((solvemoves != 1) ? "s" : "") + POP ")" POP);
+              (string)GREEN "Solved! " POP WHITE "(" GREY +
+              movecolor + itos(solvemoves) +
+              (string) POP " move" +
+              (string)((solvemoves != 1) ? "s" : "") + POP ")" POP);
     if (speedrecord) {
       string rstring;
       if (speedrecord > 20000) rstring = RED + itos(speedrecord);
       else rstring = itos(speedrecord);
 
       fonsmall->draw(textx + fon->sizex("Solved! ("),
-		     texty + fon->height,
-		     GREY "Record: " + rstring);
+                     texty + fon->height,
+                     GREY "Record: " + rstring);
     }
   } else {
     fon->draw(textx, texty += fon->height,
-	      (string)GREY "Not solved." POP);
+              (string)GREY "Not solved." POP);
   }
 
   int ratex = textx + (22 * fon->width);
 
   if (myrating) {
     fonsmall->draw(ratex, ratey += fonsmall->height,
-	      ((string)" Rated " +
-	       RED   "difficulty " + itos(myrating->difficulty) + POP "  "
-	       GREEN "style " + itos(myrating->style) + POP "  "
-	       BLUE  "rigidity " + itos(myrating->rigidity) + POP));
-	      /* XX show cooked */
+              ((string)" Rated " +
+               RED   "difficulty " + itos(myrating->difficulty) + POP "  "
+               GREEN "style " + itos(myrating->style) + POP "  "
+               BLUE  "rigidity " + itos(myrating->rigidity) + POP));
+              /* XX show cooked */
   } else {
     fonsmall->draw(ratex, ratey += fonsmall->height, GREY "Not rated.");
   }
@@ -792,7 +792,7 @@ void Drawing::drawsmall(int y,
   ratey += 4;
 
   if (votes && votes->nvotes > 0) {
-    
+
     int gd = (int)((float)votes->difficulty / (float)votes->nvotes);
     int gs = (int)((float)votes->style      / (float)votes->nvotes);
     int gr = (int)((float)votes->rigidity   / (float)votes->nvotes);
@@ -801,19 +801,19 @@ void Drawing::drawsmall(int y,
     int gcook = (int)((float)(100 * votes->cooked) / (float)votes->nvotes);
 
     fonsmall->draw(ratex, ratey += fonsmall->height,
-	      ((string) "Global " +
-	       RED   "difficulty " + itos(gd) + POP "  "
-	       GREEN "style " + itos(gs) + POP "  "
-	       BLUE  "rigidity " + itos(gr) + POP));
+              ((string) "Global " +
+               RED   "difficulty " + itos(gd) + POP "  "
+               GREEN "style " + itos(gs) + POP "  "
+               BLUE  "rigidity " + itos(gr) + POP));
 
     ratey += 2;
-  
+
     fonsmall->draw(ratex, ratey += fonsmall->height,
-		   ((string)
-		    "       "
-		    YELLOW + itos(gsol)  + "% " POP GREY "solved  " POP
-		    YELLOW + itos(gcook) + "% " POP GREY "cooked  " POP
-		    GREY "of " POP YELLOW + itos(votes->nvotes) + POP));
+                   ((string)
+                    "       "
+                    YELLOW + itos(gsol)  + "% " POP GREY "solved  " POP
+                    YELLOW + itos(gcook) + "% " POP GREY "cooked  " POP
+                    GREY "of " POP YELLOW + itos(votes->nvotes) + POP));
 
   } else {
     /* nothing */

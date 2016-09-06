@@ -1,7 +1,6 @@
 
 #include "mainmenu.h"
 #include "draw.h"
-#include "extent.h"
 #include "version.h"
 #include "util.h"
 #include "prefs.h"
@@ -43,10 +42,10 @@ enum mmetype {
   MM_N_ITEMS,
 };
 
-struct mmreal;
+struct MainMenu_;
 
 struct mmentry {
-  mmreal *parent;
+  MainMenu_ *parent;
   mmetype t;
   static int height() { return TILEH - 8; }
   mmetype convert() { return t; }
@@ -59,16 +58,16 @@ struct mmentry {
 
 typedef Selector<mmentry, mmetype> msel;
 
-struct mmreal : public MainMenu, public Drawable {
+struct MainMenu_ : public MainMenu, public Drawable {
   MainMenu::result show() override;
 
-  static mmreal *Create(Player *plr);
+  static MainMenu_ *Create(Player *plr);
 
   /* for Drawable */
   void draw() override;
   void screenresize() override;
 
-  ~mmreal() override;
+  ~MainMenu_() override;
 
  private:
   friend struct mmentry;
@@ -95,14 +94,14 @@ struct mmreal : public MainMenu, public Drawable {
   void playtutorial() {
 
     if (tutorial_left &&
-	tutorial_nextlev != "") {
-	  
+        tutorial_nextlev != "") {
+
       Play::playrecord(tutorial_nextlev, pp, false);
       compute_tutorial();
-	    
+
     } else {
       Message::quick(this, "Tutorial completed or unavailable!",
-		     "Sorry", "", PICS XICON POP);
+                     "Sorry", "", PICS XICON POP);
     }
 
   }
@@ -142,7 +141,7 @@ void mmentry::draw(int x, int y, bool sel) {
     Drawing::drawtileu(sxi, y, TU_LOAD, 0, screen);
     fon->draw(sx, ctry, YELLOW "New level browser!");
     break;
-    
+
   case MM_EDIT:
     Drawing::drawtileu(sxi, y, TU_2, 0, screen);
     fon->draw(sx, ctry, "Edit a level.");
@@ -183,7 +182,7 @@ void mmentry::draw(int x, int y, bool sel) {
 }
 
 
-void mmreal::compute_tutorial() {
+void MainMenu_::compute_tutorial() {
   // XXX use leveldb for this.
 
   std::unique_ptr<LoadLevel> ll{
@@ -200,7 +199,7 @@ void mmreal::compute_tutorial() {
   if (!tutorial_left) tutorial_text = "Tutorial complete.";
 }
 
-void mmreal::draw() {
+void MainMenu_::draw() {
   SDL_BlitSurface(background, 0, screen, 0);
 
   /* draw status info at the bottom */
@@ -208,25 +207,25 @@ void mmreal::draw() {
 
   if (pp->webid) {
     fon->draw(6, y += fon->height,
-	      (string)BLUE + pp->name + (string)GREY " is Player #" POP +
-	      itos(pp->webid) + POP);
+              (string)BLUE + pp->name + (string)GREY " is Player #" POP +
+              itos(pp->webid) + POP);
   } else {
     if (network) {
       fon->draw(6, y += fon->height, WHITE
-		"Press [" YELLOW "R" POP "] to register your player online!" 
-		POP);
+                "Press [" YELLOW "R" POP "] to register your player online!"
+                POP);
     } else {
       fon->draw(6, y += fon->height, GREY
-		"(connect to the internet to register your player online)" 
-		POP);
+                "(connect to the internet to register your player online)"
+                POP);
     }
   }
 
   y += fon->height;
-  fon->draw(6, y, 
-	    PICS BARLEFT BAR BAR BARRIGHT POP 
-	    BLUE "ESCAPE " POP GREY "Version " VERSION POP 
-	    PICS BARLEFT BAR BAR BARRIGHT POP);
+  fon->draw(6, y,
+            PICS BARLEFT BAR BAR BARRIGHT POP
+            BLUE "ESCAPE " POP GREY "Version " VERSION POP
+            PICS BARLEFT BAR BAR BARRIGHT POP);
 
   {
     string web = GREY "http://" BLUE DEFAULT_SERVER POP "/";
@@ -239,7 +238,7 @@ void mmreal::draw() {
 
 
 #define FRAME_TICKS 500
-MainMenu::result mmreal::show() {
+MainMenu::result MainMenu_::show() {
   compute_tutorial();
 
   makebackground();
@@ -267,95 +266,95 @@ MainMenu::result mmreal::show() {
 
       switch (e.type) {
       case SDL_QUIT:
-	return QUIT;
+        return QUIT;
 
       case SDL_KEYDOWN:
-	key = e.key.keysym.sym;
-	switch (key) {
+        key = e.key.keysym.sym;
+        switch (key) {
 
-	case SDLK_ESCAPE:
-	case SDLK_x:
-	  return QUIT;
+        case SDLK_ESCAPE:
+        case SDLK_x:
+          return QUIT;
 
-	case SDLK_l:
-	case SDLK_1:
-	  return LOAD;
+        case SDLK_l:
+        case SDLK_1:
+          return LOAD;
 
-	case SDLK_b:
-	  return LOAD_NEW;
+        case SDLK_b:
+          return LOAD_NEW;
 
-	case SDLK_e:
-	case SDLK_2:
-	  return EDIT;
+        case SDLK_e:
+        case SDLK_2:
+          return EDIT;
 
 #       ifndef MULTIUSER
-	case SDLK_u:
-	case SDLK_3:
-	  if (network) return UPGRADE;
-	  else continue;
+        case SDLK_u:
+        case SDLK_3:
+          if (network) return UPGRADE;
+          else continue;
 #       endif
 
-	case SDLK_g:
-	case SDLK_4:
-	  if (network) return UPDATE;
-	  else continue;
+        case SDLK_g:
+        case SDLK_4:
+          if (network) return UPDATE;
+          else continue;
 
-	case SDLK_t: {
-	  /* XXX shouldn't this be a return TUTORIAL or whatever? */
-	  playtutorial();
-	  redraw();
-	  continue;
-	}
+        case SDLK_t: {
+          /* XXX shouldn't this be a return TUTORIAL or whatever? */
+          playtutorial();
+          redraw();
+          continue;
+        }
 
-	case SDLK_p: {
-	  Prefs::show(pp);
-	  redraw();
-	  continue;
-	}
+        case SDLK_p: {
+          Prefs::show(pp);
+          redraw();
+          continue;
+        }
 
-	case SDLK_r: {
-	  if (network && !pp->webid) return REGISTER;
-	  else continue;
-	}
+        case SDLK_r: {
+          if (network && !pp->webid) return REGISTER;
+          else continue;
+        }
 
-	default: break;
+        default: break;
 
-	}
+        }
       default: break;
       }
 
       /* if we got here, then we don't know how to
-	 preempt the event, so use the selector. */
+         preempt the event, so use the selector. */
       msel::peres pr = sel->doevent(e);
       switch (pr.type) {
       case msel::PE_SELECTED:
-	switch (sel->items[sel->selected].t) {
-	case MM_TUTORIAL:
-	  playtutorial();
-	  redraw();
-	  continue;
-	case MM_LOAD: return LOAD;
-	case MM_LOAD_NEW: return LOAD_NEW;
-	case MM_EDIT: return EDIT;
-	case MM_QUIT: return QUIT;
-	case MM_UPGRADE:
-	    if (network) return UPGRADE;
-	    else continue;
-	case MM_UPDATE:
-	    if (network) return UPDATE;
-	    else continue;
-	case MM_PREFS:
-	    Prefs::show(pp);
-	    redraw();
-	    continue;
-	default: break;
-	}
-	/* ??? */
-	break;
-	/* FALLTHROUGH */
+        switch (sel->items[sel->selected].t) {
+        case MM_TUTORIAL:
+          playtutorial();
+          redraw();
+          continue;
+        case MM_LOAD: return LOAD;
+        case MM_LOAD_NEW: return LOAD_NEW;
+        case MM_EDIT: return EDIT;
+        case MM_QUIT: return QUIT;
+        case MM_UPGRADE:
+            if (network) return UPGRADE;
+            else continue;
+        case MM_UPDATE:
+            if (network) return UPDATE;
+            else continue;
+        case MM_PREFS:
+            Prefs::show(pp);
+            redraw();
+            continue;
+        default: break;
+        }
+        /* ??? */
+        break;
+        /* FALLTHROUGH */
       case msel::PE_EXIT:
       case msel::PE_CANCEL:
-	return QUIT;
+        return QUIT;
       default:
       case msel::PE_NONE:;
       }
@@ -365,25 +364,25 @@ MainMenu::result mmreal::show() {
   return QUIT;
 }
 
-void mmreal::screenresize() {
+void MainMenu_::screenresize() {
   makebackground();
 }
 
 /* the background is pretty complex, so we precompute it */
-void mmreal::makebackground() {
+void MainMenu_::makebackground() {
   int w = screen->w;
   int h = screen->h;
 
   Backgrounds::gradientblocks(background,
-			      T_GREY,
-			      T_BLUE,
-			      Backgrounds::blueish);
+                              T_GREY,
+                              T_BLUE,
+                              Backgrounds::blueish);
   if (!background) return;
 
   /* draw alpharect for bottom */
   int botoff = fon->height * 2 + 4;
   SDL_Surface *bot = sdlutil::makealpharect(w, botoff,
-					     0, 0, 0, 120);
+                                             0, 0, 0, 120);
   if (bot) {
     SDL_Rect dest;
     dest.x = 0;
@@ -408,16 +407,16 @@ void mmreal::makebackground() {
     SDL_Rect dest;
     dest.x = sx;
     dest.y = 16;
-    
+
     SDL_BlitSurface(titlegraphic, 0, background, &dest);
   }
 
   /* and the background for the text */
-  bot = sdlutil::makealpharect(w, 
-			       16 +
-			       sel->number *
-			       mmentry::height(),
-			       0, 0, 0, 120);
+  bot = sdlutil::makealpharect(w,
+                               16 +
+                               sel->number *
+                               mmentry::height(),
+                               0, 0, 0, 120);
 
   if (bot) {
     SDL_Rect dest;
@@ -429,8 +428,8 @@ void mmreal::makebackground() {
 }
 
 
-mmreal *mmreal::Create(Player *plr) {
-  std::unique_ptr<mmreal> mm{new mmreal};
+MainMenu_ *MainMenu_::Create(Player *plr) {
+  std::unique_ptr<MainMenu_> mm{new MainMenu_};
   if (mm.get() == nullptr) return nullptr;
   mm->titlegraphic = 0;
   mm->background = 0;
@@ -448,22 +447,22 @@ mmreal *mmreal::Create(Player *plr) {
   /* set up selector... */
   mm->sel = msel::create(MM_N_ITEMS);
   mm->sel->below = mm.get();
-  /* XXX should be a better way to do this. 
+  /* XXX should be a better way to do this.
      (should really get it from titlegraphic, for one) */
   mm->sel->title = "\n\n\n\n\n\n\n\n\n\n";
   for (int j = 0; j < MM_N_ITEMS; j++) {
     mm->sel->items[j].parent = mm.get();
   }
-  
+
   int i = 0;
-  
+
   mm->sel->selected = 1;
   if (Prefs::getbool(plr, PREF_SHOWTUT)) {
     mm->sel->items[i++].t = MM_TUTORIAL;
 
     /* select tutorial if there's something left. */
     mm->compute_tutorial();
-    if (mm->tutorial_left) 
+    if (mm->tutorial_left)
       mm->sel->selected = 0;
   }
 
@@ -491,7 +490,7 @@ mmreal *mmreal::Create(Player *plr) {
   return mm.release();
 }
 
-mmreal::~mmreal() {
+MainMenu_::~MainMenu_() {
   if (titlegraphic) SDL_FreeSurface(titlegraphic);
   if (background) SDL_FreeSurface(background);
   delete mshow;
@@ -502,5 +501,5 @@ mmreal::~mmreal() {
 MainMenu::~MainMenu() {}
 
 MainMenu *MainMenu::Create(Player *plr) {
-  return mmreal::Create(plr);
+  return MainMenu_::Create(plr);
 }

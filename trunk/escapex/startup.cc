@@ -33,7 +33,7 @@ int StartUp::install_levels(string path) {
   DIR *d = opendir(path.c_str());
   if (!d) return 0;
   dirent *de;
-  
+
   while ( (de = readdir(d)) ) {
     string dn = de->d_name;
     string full = path + (string)DIRSEP + dn;
@@ -47,7 +47,7 @@ int StartUp::install_levels(string path) {
       /* and go there... */
       // printf("chdir %s\n", dn.c_str());
       if (!util::changedir(dn)) return 0;
-      
+
       /* copy all the files recursively */
       if (!install_levels(full)) return 0;
 
@@ -74,15 +74,15 @@ int StartUp::setdir(int argc, char **argv) {
     printf("Can't change to home directory!\n");
     return 0;
   }
-  
+
   if (!util::existsdir(DOTESCAPE)) {
     /* first startup. */
     if (util::makedir(DOTESCAPE)) {
       printf("Created " DOTESCAPE " ...\n");
       if (util::changedir(DOTESCAPE) && install_levels(STARTUP_LEVELS)) {
-	printf("Installed levels...\n");
+        printf("Installed levels...\n");
       } else {
-	printf("Warning: wasn't able to create local cache of levels\n");
+        printf("Warning: wasn't able to create local cache of levels\n");
       }
     } else {
       printf("Can't create " DOTESCAPE " in home directory!\n");
@@ -93,7 +93,7 @@ int StartUp::setdir(int argc, char **argv) {
 
   /* now change into the directory we created */
   if (!(util::changedir(getenv("HOME")) &&
-	util::changedir(DOTESCAPE))) {
+        util::changedir(DOTESCAPE))) {
     printf("Can't change into " DOTESCAPE " directory!\n");
     return 0;
   }

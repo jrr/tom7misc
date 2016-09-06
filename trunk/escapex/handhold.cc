@@ -28,14 +28,14 @@ static int hh_lastupgrade = 0;
 static bool hh_write() {
 
   return writefile(HANDHOLD_FILE,
-		   (string)HANDHOLD_MAGIC +
-		   sizes(hh_lastupdate) +
-		   sizes(hh_lastupgrade));
+                   (string)HANDHOLD_MAGIC +
+                   sizes(hh_lastupdate) +
+                   sizes(hh_lastupgrade));
 }
 
 void HandHold::init() {
   string hh = util::readfilemagic(HANDHOLD_FILE, HANDHOLD_MAGIC);
-  
+
   unsigned int idx = strlen(HANDHOLD_MAGIC);
   if (hh.length() == (idx + (2 * 4))) {
     hh_lastupdate = shout(4, hh, idx);
@@ -52,26 +52,26 @@ void HandHold::init() {
 
 void HandHold::firsttime() {
   Message::quick(0,
-		 GREEN "Welcome to Escape!\n"
-		 "\n"
-		 "You should start by creating a new player.\n"
-		 "    " GREY "(on the next screen)" POP "\n"
-		 "\n"
-		 "Escape has a number of internet features. If\n"
-		 "you're connected, it is recommended that you do\n"
-		 "this stuff before playing:\n"
-		 "\n"
-		 "  " PICS ARROWR POP 
-		 " Register your player with the server.\n"
+                 GREEN "Welcome to Escape!\n"
+                 "\n"
+                 "You should start by creating a new player.\n"
+                 "    " GREY "(on the next screen)" POP "\n"
+                 "\n"
+                 "Escape has a number of internet features. If\n"
+                 "you're connected, it is recommended that you do\n"
+                 "this stuff before playing:\n"
+                 "\n"
+                 "  " PICS ARROWR POP
+                 " Register your player with the server.\n"
 # ifndef MULTIUSER
-		 "  " PICS ARROWR POP " Upgrade Escape (if available).\n"
+                 "  " PICS ARROWR POP " Upgrade Escape (if available).\n"
 # endif
-		 "  " PICS ARROWR POP " Get any new levels (if available).\n"
-		 "\n"
-		 "You can do each of these from the main menu."
-		 "\n ",
-		 "Play the game!",
-		 "", PICS EXCICON POP);
+                 "  " PICS ARROWR POP " Get any new levels (if available).\n"
+                 "\n"
+                 "You can do each of these from the main menu."
+                 "\n ",
+                 "Play the game!",
+                 "", PICS EXCICON POP);
 
   /* XXX could use build date here */
   hh_lastupdate = 0;

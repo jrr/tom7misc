@@ -4,8 +4,8 @@
 #include "font.h"
 
 
-void Progress::drawbar(void *vepoch, int n, int tot, 
-		       const string &msg, int ticks) {
+void Progress::drawbar(void *vepoch, int n, int tot,
+                       const string &msg, int ticks) {
   Uint32 * epoch = (Uint32*) vepoch;
   if (tot > 50 && !(n % 5)) {
     Uint32 ti = SDL_GetTicks();

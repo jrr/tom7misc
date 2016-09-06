@@ -36,11 +36,11 @@ namespace {
 
 enum curesult {
   /* can't upgrade */
-  CU_FAIL, 
+  CU_FAIL,
   /* can upgrade, query */
   CU_QUERY ,
   /* should upgrade, recommend */
-  CU_RECOMMEND, 
+  CU_RECOMMEND,
   /* already at newest version */
   CU_NEWEST,
 };
@@ -91,10 +91,10 @@ struct Upgrader_ : public Upgrader {
   Player *plr;
 
   curesult checkupgrade(HTTP *hh, string &msg,
-			ulist *&download, stringlist *&ok);
+                        ulist *&download, stringlist *&ok);
 
   upresult doupgrade(HTTP *hh, string &msg,
-		     ulist *upthese);
+                     ulist *upthese);
 
   std::unique_ptr<TextScroll> tx;
 
@@ -118,7 +118,7 @@ void Upgrader_::redraw() {
 }
 
 /* false if file doesn't exist.
-   otherwise, md5 is set to the md5 
+   otherwise, md5 is set to the md5
    hash of its contents */
 bool md5file(string f, string &md5) {
   FILE *ff = fopen(f.c_str(), "rb");
@@ -135,12 +135,12 @@ struct UGCallback : public httpcallback {
   /* XXX use SDL_Ticks or whatever; never time(0) */
   virtual void progress(int recvd, int total) {
     if (recvd > (last + 16384) ||
-	ltime < time(0)) {
+        ltime < time(0)) {
       if (that && that->tx) {
-	that->tx->unsay();
-	that->tx->say((string)GREEN + itos(recvd) + GREY "/" POP + 
-		      itos(total) + POP);
-	that->redraw();
+        that->tx->unsay();
+        that->tx->say((string)GREEN + itos(recvd) + GREY "/" POP +
+                      itos(total) + POP);
+        that->redraw();
       }
       last = recvd;
       ltime = time(0);
@@ -157,7 +157,7 @@ struct UGCallback : public httpcallback {
    versions on disk. Modifies the 'temporary' fields in
    upthese. */
 upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
-			      ulist *upthese) {
+                              ulist *upthese) {
   for (ulist *hd = upthese; hd; hd = hd->next) {
     switch (hd->head.t) {
     case UT_FILE: {
@@ -165,8 +165,8 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
       string fnodotdot = util::replace(hd->head.filename, "..", "@");
 
       string dl = (string)"/" + (string)PLATFORM +
-	(string)"/" + util::replace(fnodotdot,
-				    "/", "_");
+        (string)"/" + util::replace(fnodotdot,
+                                    "/", "_");
 
       say((string)"Downloading " GREEN + dl + (string) POP " ...");
 
@@ -175,25 +175,25 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
       switch (hh->gettempfile(dl, hd->head.tempfile)) {
       case HT_OK:
-	unsay();
-	say((string)"    ..." GREEN "OK: " + hd->head.tempfile + POP);
-	/* good. */
-	redraw();
-	break;
+        unsay();
+        say((string)"    ..." GREEN "OK: " + hd->head.tempfile + POP);
+        /* good. */
+        redraw();
+        break;
       default:
-	say((string) YELLOW "Download error: " + msg + POP);
-	msg = (string)"Failed to download " GREEN + dl + POP;
-	return UR_NODOWN;
+        say((string) YELLOW "Download error: " + msg + POP);
+        msg = (string)"Failed to download " GREEN + dl + POP;
+        return UR_NODOWN;
       }
-    
+
     }
       break;
 
       /* catch error early */
     case UT_SYMLINK:
 #     ifdef WIN32
-      Message::bug(this, 
-		   RED " Somehow got symlink upitem on win32");
+      Message::bug(this,
+                   RED " Somehow got symlink upitem on win32");
       return UR_NODOWN;
 #     else
       break;
@@ -227,39 +227,39 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
     if (h->head.t == UT_FILE) {
 
       if (util::remove(local)) {
-	/* make sure directories exist */
-	util::createpathfor(local);
-	if (util::move(tf, local)) {
-	  /* ok */
-	  say((string)"Replaced " YELLOW  + local + POP);
+        /* make sure directories exist */
+        util::createpathfor(local);
+        if (util::move(tf, local)) {
+          /* ok */
+          say((string)"Replaced " YELLOW  + local + POP);
 
 #       ifndef WIN32 /* posix */
-	  /* set executable */
-	  if (local.length() >= 4 && 
-	      local.substr(local.length() - 4, 4) ==
-	      ".exe") {
-	    chmod(local.c_str(), 
-		  S_IRUSR | S_IWUSR | S_IXUSR |
-		  S_IRGRP | S_IXGRP |
-		  S_IROTH | S_IXOTH);
-	  }
+          /* set executable */
+          if (local.length() >= 4 &&
+              local.substr(local.length() - 4, 4) ==
+              ".exe") {
+            chmod(local.c_str(),
+                  S_IRUSR | S_IWUSR | S_IXUSR |
+                  S_IRGRP | S_IXGRP |
+                  S_IROTH | S_IXOTH);
+          }
 #       endif
-	} else {
-	  say((string) RED "Can't replace " YELLOW + local + POP POP);
+        } else {
+          say((string) RED "Can't replace " YELLOW + local + POP POP);
 
-	  stringlist::push(faildst, local);
-	  stringlist::push(failsrc, tf);
-	}
+          stringlist::push(faildst, local);
+          stringlist::push(failsrc, tf);
+        }
       } else {
-	say((string) RED "Can't unlink " YELLOW + local + POP POP);
+        say((string) RED "Can't unlink " YELLOW + local + POP POP);
 
-	stringlist::push(faildst, local);
-	stringlist::push(failsrc, tf);
+        stringlist::push(faildst, local);
+        stringlist::push(failsrc, tf);
       }
     }
   }
 
-  /* do symlinks if supported. 
+  /* do symlinks if supported.
      we already caught them and errored on win32 */
 # ifndef WIN32 /* posix */
   for (ulist *hs = upthese;
@@ -271,27 +271,27 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
     string dst = hs->head.dest;
 
     if (hs->head.t == UT_SYMLINK) {
-      
+
       /* first remove anything, if there.
          since we're in posix, we don't need
-	 to be sneaky about this. */
+         to be sneaky about this. */
 
       util::createpathfor(src);
       /* XXX should also remove dirs? */
       if (!util::remove(src)) {
-	say((string) RED "Can't unlink " YELLOW + src + 
-	    POP " for symlink." POP);
+        say((string) RED "Can't unlink " YELLOW + src +
+            POP " for symlink." POP);
         /* XXX ought try several prefixes in case this has happened before */
-	if (!rename(src.c_str(), (src + ".deleteme").c_str())) {
-	  say((string) RED "Can't rename it either!");
-	  incomplete = true;
-	} else {
-	  symlink(dst.c_str(), src.c_str());
-	  say(src + GREEN " " LRARROW " " POP + dst);
-	}
+        if (!rename(src.c_str(), (src + ".deleteme").c_str())) {
+          say((string) RED "Can't rename it either!");
+          incomplete = true;
+        } else {
+          symlink(dst.c_str(), src.c_str());
+          say(src + GREEN " " LRARROW " " POP + dst);
+        }
       } else {
-	symlink(dst.c_str(), src.c_str());
-	say(src + GREEN " " LRARROW " " POP + dst);
+        symlink(dst.c_str(), src.c_str());
+        say(src + GREEN " " LRARROW " " POP + dst);
       }
 
     }
@@ -302,15 +302,15 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
       hr;
       hr = hr->next) {
 
-    string todel = 
+    string todel =
       util::replace(hr->head.filename, "/", DIRSEP);
 
     if (hr->head.t == UT_DELETE) {
       if (util::remove(todel)) {
-	say((string)PICS TRASHCAN POP " " GREEN + todel + POP);
+        say((string)PICS TRASHCAN POP " " GREEN + todel + POP);
       } else {
-	say((string) RED "Can't unlink " YELLOW + todel + POP POP);
-	incomplete = true;
+        say((string) RED "Can't unlink " YELLOW + todel + POP POP);
+        incomplete = true;
       }
     }
   }
@@ -322,24 +322,24 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 #   ifdef WIN32
 
     Message::quick(this, "we need to do a trick to replace some files.",
-		   "ok", "");
+                   "ok", "");
     /* XXX this comment is wrong now; I use replace.exe */
     /* On Windows 98, we need to do something special, because an
-       executable cannot write to or remove itself. 
+       executable cannot write to or remove itself.
 
        The plan is this: rename the downloaded executable
        to something.exe. (Suppose the running exe is called
        self.exe)
-	 
+
        ..      execafter     src         dst        src     dst
        exec something.exe self.exe something.exe tmp.dll sdl.dll
-	 
+
        something will overwrite self, then
-	 
+
        exec self.exe -upgraded
 
        and then the new self will say, "Upgrade complete!"
-	 
+
     */
 
     int nmoves = failsrc->length();
@@ -351,12 +351,12 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
     // requires that we assign non-const strings into the array,
     // which can't be done for string literals or string::c_str.
     // Maybe I'm just confused.
-    char **spawnargs = 
+    char **spawnargs =
       (char **) malloc(sizeof (char *) *
-			     ((nmoves * 2) + 1 /* argv[0] */ 
-			      + 1 /* execafter */
-			      + 1 /* terminating 0 */));
-    
+                             ((nmoves * 2) + 1 /* argv[0] */
+                              + 1 /* execafter */
+                              + 1 /* terminating 0 */));
+
     spawnargs[0] = strdup(REPLACE_EXE);
     spawnargs[1] = strdup(StartUp::self.c_str());
 
@@ -368,7 +368,7 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
       spawnargs[ii++] = strdup(dd.c_str());
 
       say((string)"Will move " GREEN + ss +
-	  (string)POP " to " GREEN + dd + POP);
+          (string)POP " to " GREEN + dd + POP);
 
     }
 
@@ -376,21 +376,21 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
     for (int z = 0; z < ii; z++) {
       say((string)"[" YELLOW + itos(z) + (string)POP"] " +
-	  (string)(spawnargs[z] ? spawnargs[z] : "(null)"));
+          (string)(spawnargs[z] ? spawnargs[z] : "(null)"));
     }
 
     Message::quick(this, "Escape will now restart.",
-		   "OK", "");
+                   "OK", "");
 
 
-    spawnv(_P_OVERLAY, 
-	   REPLACE_EXE,
-	   spawnargs);
+    spawnv(_P_OVERLAY,
+           REPLACE_EXE,
+           spawnargs);
 
     /* No return */
 
     Message::bug(this,
-		 "roundabout exec technique failed");
+                 "roundabout exec technique failed");
     return UR_CORRUPT;
 
 #   else /* not win32 */
@@ -403,17 +403,17 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
   if (incomplete) {
     Message::quick(this, "one or more files could not be "
-		   "removed/moved/linked.",
-		   "upgrade failed!", "", PICS XICON);
+                   "removed/moved/linked.",
+                   "upgrade failed!", "", PICS XICON);
     return UR_CORRUPT;
   } else return UR_RESTART;
 }
 
 /* download and ok should not contain anything */
-curesult Upgrader_::checkupgrade(HTTP *hh, 
-				 string &msg,
-				 ulist *&download,
-				 stringlist *&ok) {
+curesult Upgrader_::checkupgrade(HTTP *hh,
+                                 string &msg,
+                                 ulist *&download,
+                                 stringlist *&ok) {
   /* start by checking for new versions of escape itself. */
   string s;
   say("Connecting...");
@@ -431,7 +431,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
     say((string)"      oldest supported: " BLUE + itos(oldest) + POP);
     say((string)"   recommend threshold: " BLUE + itos(recom) + POP);
     say((string)"       current version: " BLUE + itos(current) +
-	(string)" " POP "\"" BLUE + name + (string) POP "\"");
+        (string)" " POP "\"" BLUE + name + (string) POP "\"");
 
     download = 0;
     ok = 0;
@@ -442,7 +442,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
       /* filename */
       string fi = util::chop(fl);
       string lfi = util::replace(fi, "/", DIRSEP);
-      
+
       /* encodings (ignored) */
       util::chop(fl);
       /* md5 */
@@ -450,92 +450,92 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
       /* ignore remainder of fl for now ... */
 
       if (fi == "" || md == "") {
-	say(RED "UPGRADE list appears to be corrupt (empty filename/md5)");
-	return CU_FAIL;
+        say(RED "UPGRADE list appears to be corrupt (empty filename/md5)");
+        return CU_FAIL;
       }
 
       /* md might be md5, or another special command. */
 
       if (md[0] == '-' && md[1] == '>') {
-	/* symlink */
-#       ifdef WIN32	
-	  Message::quick(this,
-			 RED"OOPS!" POP " Can't make symlinks on win32. "
-			 "Upgrade file is broken?", "oops", "");
-	  return CU_FAIL;
+        /* symlink */
+#       ifdef WIN32
+          Message::quick(this,
+                         RED"OOPS!" POP " Can't make symlinks on win32. "
+                         "Upgrade file is broken?", "oops", "");
+          return CU_FAIL;
 #       else
-	  string dst = md.substr(2, md.length() - 2);
+          string dst = md.substr(2, md.length() - 2);
 
-	  char buf[1024];
-	  /* readlink does not put 0 at end (?) */
-	  memset(buf, 0, 1024 * sizeof(char));
-	  int n = readlink(lfi.c_str(), buf, 1023);
+          char buf[1024];
+          /* readlink does not put 0 at end (?) */
+          memset(buf, 0, 1024 * sizeof(char));
+          int n = readlink(lfi.c_str(), buf, 1023);
 
-	  /* if there's a link and it has the right thing
-	     in it, we're done. */
-	  if (n < 0 ||
-	      (string)(char*)(&buf) != dst) {
-	    /* bad */
-	    say(Font::pad(fi, 16) + (string)RED " " LRARROW " " POP WHITE
-		+ dst + (string) POP RED " wrong" POP);
+          /* if there's a link and it has the right thing
+             in it, we're done. */
+          if (n < 0 ||
+              (string)(char*)(&buf) != dst) {
+            /* bad */
+            say(Font::pad(fi, 16) + (string)RED " " LRARROW " " POP WHITE
+                + dst + (string) POP RED " wrong" POP);
 
-	    upitem uu;
-	    uu.t = UT_SYMLINK;
-	    uu.filename = fi;
-	    uu.dest = dst;
-	    ulist::push(download, uu);
-	  } else {
-	    say(Font::pad(fi, 16) + (string)GREY " " LRARROW " "
-		+ dst + (string) POP GREEN " ok" POP);
-	  }
+            upitem uu;
+            uu.t = UT_SYMLINK;
+            uu.filename = fi;
+            uu.dest = dst;
+            ulist::push(download, uu);
+          } else {
+            say(Font::pad(fi, 16) + (string)GREY " " LRARROW " "
+                + dst + (string) POP GREEN " ok" POP);
+          }
 
 #       endif
       } else if (md[0] == '*') {
-	/* delete */
-	if (util::existsfile(lfi)) {
-	  say(Font::pad(fi, 16) + 
-	      (string)RED " (" PICS TRASHCAN POP ")" POP);
-	  upitem uu;
-	  uu.t = UT_DELETE;
-	  uu.filename = fi;
-	  ulist::push(download, uu);
-	} else {
-	  say(Font::pad(fi, 16) + (string)GREY " (absent)" POP
-	      GREEN " ok" POP);
-	}
+        /* delete */
+        if (util::existsfile(lfi)) {
+          say(Font::pad(fi, 16) +
+              (string)RED " (" PICS TRASHCAN POP ")" POP);
+          upitem uu;
+          uu.t = UT_DELETE;
+          uu.filename = fi;
+          ulist::push(download, uu);
+        } else {
+          say(Font::pad(fi, 16) + (string)GREY " (absent)" POP
+              GREEN " ok" POP);
+        }
       } else {
-	string nowmd;
-	if (md5file(lfi, nowmd) &&
-	    md == MD5::Ascii(nowmd)) {
-	  stringlist::push(ok, fi);
-	  say(Font::pad(fi, 16) + (string)GREY " " + md + 
-	      (string) GREEN " ok");
-	} else {
-	  upitem uu;
-	  uu.t = UT_FILE;
-	  uu.filename = fi; 
-	  ulist::push(download, uu);
+        string nowmd;
+        if (md5file(lfi, nowmd) &&
+            md == MD5::Ascii(nowmd)) {
+          stringlist::push(ok, fi);
+          say(Font::pad(fi, 16) + (string)GREY " " + md +
+              (string) GREEN " ok");
+        } else {
+          upitem uu;
+          uu.t = UT_FILE;
+          uu.filename = fi;
+          ulist::push(download, uu);
 
-	  say(Font::pad(fi, 16) + (string)WHITE " " + md + 
-	      (string) RED " wrong: " POP GREY + MD5::Ascii(nowmd));
-	}
+          say(Font::pad(fi, 16) + (string)WHITE " " + md +
+              (string) RED " wrong: " POP GREY + MD5::Ascii(nowmd));
+        }
       }
 
     }
-    
+
     if (download != 0) {
       if (atoi(VERSION) < oldest) {
-	stringlist::diminish(ok);
-	ulist::diminish(download);
-	return CU_FAIL;
+        stringlist::diminish(ok);
+        ulist::diminish(download);
+        return CU_FAIL;
       }
 
       if (atoi(VERSION) < recom) {
-	msg = BLUE "Upgrade recommended!" POP;
-	return CU_RECOMMEND;
+        msg = BLUE "Upgrade recommended!" POP;
+        return CU_RECOMMEND;
       } else {
-	msg = BLUE "Upgrade optional." POP;
-	return CU_QUERY;
+        msg = BLUE "Upgrade optional." POP;
+        return CU_QUERY;
       }
 
     } else {
@@ -556,7 +556,7 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
 
   std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
 
-  if (hh.get() == nullptr) { 
+  if (hh.get() == nullptr) {
     msg = YELLOW "Couldn't connect." POP;
     return UP_FAIL;
   }
@@ -575,8 +575,8 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   case CU_FAIL:
     say((string)"Upgrade fail: " + upmsg);
     /* lists will be empty */
-    Message::quick(this, "Couldn't get upgrade info.", 
-		   "Cancel", "", PICS XICON POP);
+    Message::quick(this, "Couldn't get upgrade info.",
+                   "Cancel", "", PICS XICON POP);
     break;
 
   case CU_NEWEST:
@@ -592,14 +592,14 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
 
     say("Upgrade: " BLUE "The following files are not up-to-date:" POP);
     for (ulist *tmp = download;
-	tmp;
-	tmp = tmp->next) {
+        tmp;
+        tmp = tmp->next) {
       /* XXX print delete, symlink, etc */
       say((string)"  " YELLOW + tmp->head.filename + POP);
     }
 
-    int doit = Message::quick(this, "Upgrade Escape now?", 
-			      "Yes", "No", PICS QICON POP);
+    int doit = Message::quick(this, "Upgrade Escape now?",
+                              "Yes", "No", PICS QICON POP);
 
     if (doit) {
 
@@ -611,24 +611,24 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
       switch (up) {
 
       case UR_CORRUPT:
-	Message::quick(this, YELLOW "Oops! " POP 
-		       "The installation failed and may be corrupted.", 
-		       "Exit", "", PICS SKULLICON);
-	return UP_EXIT;
-	break;
-	
+        Message::quick(this, YELLOW "Oops! " POP
+                       "The installation failed and may be corrupted.",
+                       "Exit", "", PICS SKULLICON);
+        return UP_EXIT;
+        break;
+
       case UR_NODOWN:
-	Message::quick(this, "Upgrade failed. Try again later.",
-		       "Oh well!", "", PICS XICON);
-	return UP_FAIL;
-	break;
+        Message::quick(this, "Upgrade failed. Try again later.",
+                       "Oh well!", "", PICS XICON);
+        return UP_FAIL;
+        break;
 
       case UR_RESTART:
-	Message::quick(this, "Upgrade succeeded! "
-		       "You must exit and start Escape again.", 
-		       "Exit", "", PICS THUMBICON POP);
-	return UP_EXIT;
-	break;
+        Message::quick(this, "Upgrade succeeded! "
+                       "You must exit and start Escape again.",
+                       "Exit", "", PICS THUMBICON POP);
+        return UP_EXIT;
+        break;
       }
 
     }

@@ -35,26 +35,26 @@ struct linereal : public line {
   int frac;
 
   virtual ~linereal() {}
-  
-  linereal(int x0_, int y0_, int x1_, int y1_) : 
+
+  linereal(int x0_, int y0_, int x1_, int y1_) :
     x0(x0_), y0(y0_), x1(x1_), y1(y1_) {
-    
+
 
     dy = y1 - y0;
     dx = x1 - x0;
 
-    if (dy < 0) { 
+    if (dy < 0) {
       dy = -dy;
-      stepy = -1; 
+      stepy = -1;
     } else {
-      stepy = 1; 
+      stepy = 1;
     }
 
     if (dx < 0) {
       dx = -dx;
       stepx = -1;
-    } else { 
-      stepx = 1; 
+    } else {
+      stepx = 1;
     }
 
     dy <<= 1;
@@ -71,32 +71,32 @@ struct linereal : public line {
     if (dx > dy) {
       if (x0 == x1) return false;
       else {
-	if (frac >= 0) {
-	  y0 += stepy;
-	  frac -= dx;
-	}
-	x0 += stepx;
-	frac += dy;
-	cx = x0;
-	cy = y0;
-	return true;
+        if (frac >= 0) {
+          y0 += stepy;
+          frac -= dx;
+        }
+        x0 += stepx;
+        frac += dy;
+        cx = x0;
+        cy = y0;
+        return true;
       }
     } else {
       if (y0 == y1) return false;
       else {
-	if (frac >= 0) {
-	  x0 += stepx;
-	  frac -= dy;
-	}
-	y0 += stepy;
-	frac += dx;
-	cx = x0;
-	cy = y0;
-	return true;
+        if (frac >= 0) {
+          x0 += stepx;
+          frac -= dy;
+        }
+        y0 += stepy;
+        frac += dx;
+        cx = x0;
+        cy = y0;
+        return true;
       }
     }
   }
-  
+
   virtual void destroy() {
     delete this;
   }
@@ -169,7 +169,7 @@ static bool hasmagicf(FILE *f, const string &mag) {
       return false;
     }
   }
-  
+
   free(hdr);
   return true;
 }
@@ -179,7 +179,7 @@ bool util::hasmagic(string s, const string &mag) {
   if (!f) return false;
 
   bool hm = hasmagicf(f, mag);
-  
+
   fclose(f);
   return hm;
 }
@@ -229,7 +229,7 @@ bool writefile(string fn, string s) {
   fwrite(s.c_str(), 1, s.length(), f);
 
   fclose(f);
-  
+
   return true;
 
 }
@@ -258,7 +258,7 @@ string sizes(int i) {
 
 /* XXX these have terrible names */
 
-/* represent int i (as i mod (2^(b/8))) 
+/* represent int i (as i mod (2^(b/8)))
    using only b bytes */
 string shint(int b, int i) {
   return sizes(i).substr(4-b, b);
@@ -289,8 +289,8 @@ string util::lcase(string in) {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'A' &&
-	in[i] <= 'Z') out += in[i]|32;
-    
+        in[i] <= 'Z') out += in[i]|32;
+
     else out += in[i];
   }
   return out;
@@ -300,8 +300,8 @@ string util::ucase(string in) {
   string out;
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'a' &&
-	in[i] <= 'z') out += (in[i] & (~ 32));
-    
+        in[i] <= 'z') out += (in[i] & (~ 32));
+
     else out += in[i];
   }
   return out;
@@ -332,7 +332,7 @@ string util::ensureext(string f, string ext) {
     return f + ext;
   else {
     if (f.substr(f.length() - ext.length(),
-		 ext.length()) != ext)
+                 ext.length()) != ext)
       return f + ext;
     else return f;
   }
@@ -341,7 +341,7 @@ string util::ensureext(string f, string ext) {
 bool util::endswith(string big, string small_) {
   if (small_.length() > big.length()) return false;
   return big.substr(big.length() - small_.length(),
-		    small_.length()) == small_;
+                    small_.length()) == small_;
 }
 
 bool util::startswith(string big, string small_) {
@@ -404,10 +404,10 @@ string util::chop(string &line) {
     if (line[i] != ' ') {
       string acc;
       for (unsigned int j = i; j < line.length(); j++) {
-	if (line[j] == ' ') {
-	  line = line.substr(j, line.length() - j);
-	  return acc;
-	} else acc += line[j];
+        if (line[j] == ' ') {
+          line = line.substr(j, line.length() - j);
+          return acc;
+        } else acc += line[j];
       }
       line = "";
       return acc;
@@ -426,11 +426,11 @@ string util::chopto(char c, string &line) {
       acc += line[i];
     } else {
       if (i < (line.length() - 1)) {
-	line = line.substr(i + 1, line.length() - (i + 1));
-	return acc;
+        line = line.substr(i + 1, line.length() - (i + 1));
+        return acc;
       } else {
-	line = "";
-	return acc;
+        line = "";
+        return acc;
       }
     }
   }
@@ -464,8 +464,8 @@ string util::tempfile(string suffix) {
   do {
     char c[128];
     sprintf(c,
-	    "%d_%d_%d",
-	    tries, getpid(), random());
+            "%d_%d_%d",
+            tries, getpid(), random());
     tries++;
     fname = (string)c + suffix;
   } while (existsfile(fname));
@@ -477,7 +477,7 @@ string util::tempfile(string suffix) {
    a single character (non-numeral) or a sequence of
    numerals that are interpreted as a number. We then
    do lexicographic comparison on this stream of tokens.
-   assumes ascii. 
+   assumes ascii.
 
    l < r     -1
    l = r      0
@@ -488,9 +488,9 @@ string util::tempfile(string suffix) {
    abc 0123 def
    abc 123 def
 
-   as equal strings. perhaps don't allow 0 to start a 
+   as equal strings. perhaps don't allow 0 to start a
    number?
-   
+
    n.b. it is easy to overflow here, so perhaps comparing
    as we go is better
 */
@@ -498,67 +498,67 @@ int util::natural_compare(const string &l, const string &r) {
   for (int caseless = 0; caseless < 2; caseless++) {
     unsigned int il = 0;
     unsigned int ir = 0;
-    
+
     while (il < l.length() || ir < r.length()) {
       /* if out of tokens in either string, it comes first. */
       if (il >= l.length()) return -1;
       if (ir >= r.length()) return 1;
-      
+
       int lc = (unsigned char)l[il];
       int rc = (unsigned char)r[ir];
-      
+
       if (lc >= '0' && lc <= '9') {
-	if (rc >= '0' && rc <= '9') {
-	  /* compare ints */
-	  int ll = 0;
-	  int rr = 0;
+        if (rc >= '0' && rc <= '9') {
+          /* compare ints */
+          int ll = 0;
+          int rr = 0;
 
-	  while (il < l.length() && l[il] >= '0' && l[il] <= '9') {
-	    ll *= 10;
-	    ll += (l[il] - '0');
-	    il++;
-	  }
+          while (il < l.length() && l[il] >= '0' && l[il] <= '9') {
+            ll *= 10;
+            ll += (l[il] - '0');
+            il++;
+          }
 
-	  while (ir < r.length() && r[ir] >= '0' && r[ir] <= '9') {
-	    rr *= 10;
-	    rr += (r[ir] - '0');
-	    ir++;
-	  }
+          while (ir < r.length() && r[ir] >= '0' && r[ir] <= '9') {
+            rr *= 10;
+            rr += (r[ir] - '0');
+            ir++;
+          }
 
-	  if (ll < rr) return -1;
-	  if (ll > rr) return 1;
-	  /* otherwise continue... */
-	
-	  il++;
-	  ir++;
-	} else {
-	  /* treat numbers larger than any char. */
-	  return 1;
-	}
+          if (ll < rr) return -1;
+          if (ll > rr) return 1;
+          /* otherwise continue... */
+
+          il++;
+          ir++;
+        } else {
+          /* treat numbers larger than any char. */
+          return 1;
+        }
       } else {
-	if (rc >= '0' && rc <= '9') {
-	  return -1;
-	} else {
-	  /* compare chars */
-	  if ((rc|32) >= 'a' && (rc|32) <= 'z' &&
-	      (lc|32) >= 'a' && (rc|32) <= 'z' &&
-	      !caseless) {
-	  
-	    /* letters are case-insensitive */
-	    if ((lc|32) < (rc|32)) return -1;
-	    if ((lc|32) > (rc|32)) return 1;
-	  } else {
-	    if (lc < rc) return -1;
-	    if (lc > rc) return 1;
-	  }
-	
-	  /* same so far. continue... */
-	
-	  il++;
-	  ir++;
-	}
+        if (rc >= '0' && rc <= '9') {
+          return -1;
+        } else {
+          /* compare chars */
+          if ((rc|32) >= 'a' && (rc|32) <= 'z' &&
+              (lc|32) >= 'a' && (rc|32) <= 'z' &&
+              !caseless) {
+
+            /* letters are case-insensitive */
+            if ((lc|32) < (rc|32)) return -1;
+            if ((lc|32) > (rc|32)) return 1;
+          } else {
+            if (lc < rc) return -1;
+            if (lc > rc) return 1;
+          }
+
+          /* same so far. continue... */
+
+          il++;
+          ir++;
+        }
       }
-    
+
     }
     /* strings look equal when compared
        as case-insensitive. so try again
@@ -602,13 +602,13 @@ int util::library_compare(const string &l, const string &r) {
   }
 
   return natural_compare(l.substr(idxl, l.length() - idxl),
-			 r.substr(idxr, r.length() - idxr));
+                         r.substr(idxr, r.length() - idxr));
 }
 
 /* XXX impossible to specify a spec for just ^ */
 bool util::matchspec(string spec, char c) {
   if (!spec.length()) return false;
-  else if (spec[0] == '^') 
+  else if (spec[0] == '^')
   return !matchspec(spec.substr(1, spec.length() - 1), c);
 
   /* now loop looking for c in string, or ranges */
@@ -620,10 +620,10 @@ bool util::matchspec(string spec, char c) {
     if (spec[i] == '-') {
       /* can't be first or last */
       if (i && i < (spec.length() - 1)) {
-	if (spec[i - 1] <= c &&
-	    spec[i + 1] >= c) return true;
-	/* skip dash and next char */
-	i++;
+        if (spec[i - 1] <= c &&
+            spec[i + 1] >= c) return true;
+        /* skip dash and next char */
+        i++;
       }
     }
   }
@@ -635,7 +635,7 @@ bool util::library_matches(char k, const string &s) {
   /* skip symbolic */
   unsigned int idx = 0;
   while (idx < s.length() && (!isalnum(s[idx]))) idx++;
-  
+
   /* skip 'the' */
   if (s.length() >= (idx + 5) &&
       (s[idx]|32) == 't' &&
@@ -657,8 +657,8 @@ bool util::remove(string f) {
        rename tmp  delme1234.exe
        exec(delme1234.exe "-replace" "escape.exe")
           (now, the program has to have a flag -replace
-	   that instructs it to replace escape.exe 
-	   with itself, then exit)
+           that instructs it to replace escape.exe
+           with itself, then exit)
        .. hopefully exec will unlock the original
        process's executable!! */
 
@@ -672,7 +672,7 @@ bool util::remove(string f) {
 # else /* posix */
     if (0 == unlink(f.c_str())) return true;
 # endif
-  } 
+  }
   return false;
 
 }
@@ -714,9 +714,9 @@ bool util::copy(string src, string dst) {
     x = fread(buf, 1, 256, s);
     if (x) {
       if ((signed)fwrite(buf, 1, x, d) < x) {
-	fclose(s);
-	fclose(d);
-	return false;
+        fclose(s);
+        fclose(d);
+        return false;
       }
     }
   } while (x == 256);
@@ -746,7 +746,7 @@ void util::toattic(string f) {
   /* XXX race */
   int tries = 12;
   while (tries--) {
-    string dest = (string)ATTIC_DIR + DIRSEP + 
+    string dest = (string)ATTIC_DIR + DIRSEP +
                   itos(random()) + (string)"_" + nf;
     if (!existsfile(dest)) {
       // printf("move(%s,%s)\n", f.c_str(), dest.c_str());
@@ -770,7 +770,7 @@ void util::createpathfor(string f) {
   for (unsigned int i = 0; i < f.length();  i++) {
     if (f[i] == DIRSEPC) {
       /* initial / will cause s == "" for first
-	 appearance */
+         appearance */
       if (s != "") makedir(s);
     }
     s += f[i];
@@ -828,10 +828,10 @@ bool util::launchurl(const string &url) {
   /* XXX ??? */
 #if 0
 #ifdef OSX
-  CFURLRef urlcfurl = CFURLCreateWithBytes(kCFAllocatorDefault, 
-					   (const UInt8*)url.c_str(), 
-					   (CFIndex)strlen(urlstring), 
-					   kCFStringEncodingASCII, NULL);
+  CFURLRef urlcfurl = CFURLCreateWithBytes(kCFAllocatorDefault,
+                                           (const UInt8*)url.c_str(),
+                                           (CFIndex)strlen(urlstring),
+                                           kCFStringEncodingASCII, NULL);
   if (urlcfurl) {
       OSStatus status = LSOpenCFURLRef(urlcfurl, NULL);
       CFRelease(urlcfurl);
@@ -847,8 +847,8 @@ bool util::launchurl(const string &url) {
   // compatibility. Can't just cast to "int" per Microsoft's
   // documentation because that triggers a loss of precision warning.
   // Fortunately C++11 has a good integral type for this.
-  return ((intptr_t)ShellExecute(NULL, "open", url.c_str(), 
-				 NULL, NULL, SW_SHOWNORMAL)) > 32;
+  return ((intptr_t)ShellExecute(NULL, "open", url.c_str(),
+                                 NULL, NULL, SW_SHOWNORMAL)) > 32;
 #endif
 
   /* otherwise.. */
@@ -861,7 +861,7 @@ float util::randfrac() {
 }
 
 /* XXX implement */
-/* see http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/winui/windowsuserinterface/dataexchange/clipboard/usingtheclipboard.asp ... ugh. 
+/* see http://msdn.microsoft.com/library/default.asp?url=/library/en-us/winui/winui/windowsuserinterface/dataexchange/clipboard/usingtheclipboard.asp ... ugh.
 
    better: http://www.libsdl.org/projects/scrap/
 */
@@ -883,7 +883,7 @@ bool util::setclipboard(string as) {
    real need for cryptographic randomness.
 
    web sequence numbers are chosen randomly, now, so we
-   actually do. 
+   actually do.
 */
 int util::random() {
 # ifdef WIN32

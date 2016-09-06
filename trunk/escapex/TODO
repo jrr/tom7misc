@@ -22,12 +22,10 @@ get rid of extent; use unique_ptr
 
 code cleanup
  - untabify all source
- - delete trailing whitespace
  - use enum class for "result" enums
  - move solution out of level
  - capitalize class names
      - grep 'struct [a-z]' *.h | grep -v '_t'
- - standardize on Class_ rather than classreal for private implementation
  - replace vallist with deque or vector; it's not used in that many places
  - hash should be 64-bit, should not cast c_str() to hash strings because
    no guarantee that they have enough data

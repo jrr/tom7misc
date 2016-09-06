@@ -258,7 +258,7 @@ struct Level {
   bool travel(int x, int y, dir d, int &nx, int &ny) {
     switch (d) {
       /* sometimes useful, for instance looping over all
-	 affected tiles when bombing */
+         affected tiles when bombing */
     case DIR_NONE:
       nx = x;
       ny = y;
@@ -331,13 +331,13 @@ struct Level {
      somewhere along the way. If the return is false, then out is in
      an unspecified state. */
   static bool VerifyPrefix(const Level *lev, const Solution &s,
-			    Solution *out);
+                            Solution *out);
 
   /* execute solution. returns early (# moves set in moves)
      if we die (return false) or win (return true). false upon
      completing without winning or dying. */
   bool Play(const Solution &s, int &moves);
-  /* only 'length' moves of the solution, starting from move 'start' 
+  /* only 'length' moves of the solution, starting from move 'start'
      length must be <= s.Length(). */
   // XXX2016 was play_subsol
   bool PlayPrefix(const Solution &s, int &moves, int start, int length);
@@ -357,10 +357,10 @@ struct Level {
     int z = index(x, y);
     for (int m = 0; m < nbots; m++) {
       if (boti[m] == z &&
-	  bott[m] != B_DELETED &&
-	  bott[m] != B_BOMB_X) {
-	i = m;
-	return true;
+          bott[m] != B_DELETED &&
+          bott[m] != B_BOMB_X) {
+        i = m;
+        return true;
       }
     }
     return false;
@@ -379,7 +379,7 @@ struct Level {
 
   static bool isbomb(bot b) {
     return ((int)b >= (int)B_BOMB_0 &&
-	    (int)b <= (int)B_BOMB_MAX);
+            (int)b <= (int)B_BOMB_MAX);
   }
 
   /* pre: b is bomb */
@@ -445,7 +445,7 @@ struct Level {
       /* ?? sure? */
     case T_BLUE:
       /* don't want walls made of this
-	 ugly thing */
+         ugly thing */
     case T_STOP:
 
       /* but doesn't count as picking it up */
@@ -469,9 +469,9 @@ struct Level {
     case T_ROUGH:
 
       /* for symmetry with holes.
-	 maybe could become holes,
-	 but that is just more
-	 complicated */
+         maybe could become holes,
+         but that is just more
+         complicated */
     case T_TRAP1:
     case T_TRAP2:
 
@@ -504,7 +504,7 @@ struct Level {
     case T_GSPHERE:
 
       /* shouldn't bomb the floorlike things,
-	 so also their 'up' counterparts */
+         so also their 'up' counterparts */
     case T_BUP:
     case T_BDOWN:
     case T_GUP:
@@ -537,108 +537,108 @@ struct Level {
 
   void SetEntPos(int enti, int x, int y) {
     if (enti == B_PLAYER) {
-      guyx = x;           
-      guyy = y;           
-    } else {               
+      guyx = x;
+      guyy = y;
+    } else {
       boti[enti] = index(x, y);
     }
   }
-  
+
   using AList = PtrList<aevent>;
 
   template<bool ANIMATING, class DAB>
   void PostAnimate(DAB *ctx, AList *&events, AList **&etail);
-  
+
   /* pass the entity index, or -1 for the player */
   template<bool ANIMATING, class DAB>
   bool MoveEnt(dir d, int enti, Capabilities cap,
-	       int entx, int enty,
-	       DAB *ctx, AList *&events, AList **&etail);
-  
+               int entx, int enty,
+               DAB *ctx, AList *&events, AList **&etail);
+
   template<bool ANIMATING, class DAB>
   void Bombsplode(int now,
-		  int bombi, DAB *ctx, AList *&events,
-		  AList **& etail);
+                  int bombi, DAB *ctx, AList *&events,
+                  AList **& etail);
 
   // n.b. Not all of these have the same signature!
-  
+
   template<bool ANIMATING, class DAB>
   bool MoveEntTransport(dir d, int enti, Capabilities cap,
-			int entx, int enty, int newx, int newy,
-			DAB *ctx, AList *&events,
-			AList **&etail);
+                        int entx, int enty, int newx, int newy,
+                        DAB *ctx, AList *&events,
+                        AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntExit(dir d, int enti, Capabilities cap,
-		   int entx, int enty, int newx, int newy,
-		   DAB *ctx, AList *&events,
-		   AList **&etail);
+                   int entx, int enty, int newx, int newy,
+                   DAB *ctx, AList *&events,
+                   AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntOn(dir d, int enti, Capabilities cap,
-		 int entx, int enty, int newx, int newy,
-		 DAB *ctx, AList *&events,
-		 AList **&etail);
+                 int entx, int enty, int newx, int newy,
+                 DAB *ctx, AList *&events,
+                 AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
-		       int entx, int enty, int newx, int newy,
-		       DAB *ctx, AList *&events,
-		       AList **&etail);
+                       int entx, int enty, int newx, int newy,
+                       DAB *ctx, AList *&events,
+                       AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntButton(dir d, int enti, Capabilities cap,
-		     int entx, int enty, int newx, int newy,
-		     DAB *ctx, AList *&events,
-		     AList **&etail);
+                     int entx, int enty, int newx, int newy,
+                     DAB *ctx, AList *&events,
+                     AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntHeartframer(dir d, int enti, Capabilities cap,
-			  int entx, int enty, int newx, int newy,
-			  DAB *ctx, AList *&events,
-			  AList **&etail);
+                          int entx, int enty, int newx, int newy,
+                          DAB *ctx, AList *&events,
+                          AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntElectric(dir d, int enti, Capabilities cap,
-		       int entx, int enty, int newx, int newy,
-		       DAB *ctx, AList *&events,
-		       AList **&etail);
+                       int entx, int enty, int newx, int newy,
+                       DAB *ctx, AList *&events,
+                       AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntBroken(dir d, int enti, Capabilities cap,
-		     int entx, int enty, int newx, int newy,
-		     DAB *ctx, AList *&events,
-		     AList **&etail);
+                     int entx, int enty, int newx, int newy,
+                     DAB *ctx, AList *&events,
+                     AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntGreen(dir d, int enti, Capabilities cap,
-		    int entx, int enty, int newx, int newy,
-		    DAB *ctx, AList *&events,
-		    AList **&etail);
+                    int entx, int enty, int newx, int newy,
+                    DAB *ctx, AList *&events,
+                    AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
-			int entx, int enty, int newx, int newy,
-			DAB *ctx, AList *&events,
-			AList **&etail);
+                        int entx, int enty, int newx, int newy,
+                        DAB *ctx, AList *&events,
+                        AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntSteel(int target, dir d, int enti, Capabilities cap,
-		    int entx, int enty, int newx, int newy,
-		    DAB *ctx, AList *&events,
-		    AList **&etail);
+                    int entx, int enty, int newx, int newy,
+                    DAB *ctx, AList *&events,
+                    AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEnt01(int target, dir d, int enti, Capabilities cap,
-		 int entx, int enty, int newx, int newy,
-		 DAB *ctx, AList *&events,
-		 AList **&etail);
+                 int entx, int enty, int newx, int newy,
+                 DAB *ctx, AList *&events,
+                 AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveEntPushable(int target, dir d, int enti, Capabilities cap,
-		       int entx, int enty, int newx, int newy,
-		       DAB *ctx, AList *&events,
-		       AList **&etail);
+                       int entx, int enty, int newx, int newy,
+                       DAB *ctx, AList *&events,
+                       AList **&etail);
 
   template<bool ANIMATING, class DAB>
   bool MoveMaybeAnimate(dir d, DAB *ctx, AList *&events, AList **&etail);

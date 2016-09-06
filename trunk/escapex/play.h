@@ -12,7 +12,7 @@
 enum class PlayResultType {
   QUIT, ERROR, SOLVED, EXIT,
 };
- 
+
 /* XXX move ... */
 struct PlayResult {
   PlayResultType type;
@@ -41,7 +41,7 @@ struct PlayResult {
 struct Play : public Drawable {
   static Play *Create();
   virtual PlayResult DoPlaySave(Player *p, Level *lev,
-				Solution *saved, const string &md5) = 0;
+                                Solution *saved, const string &md5) = 0;
   virtual PlayResult DoPlay(Player *plr, Level *lev, const string &md5) = 0;
   /* play, recording the game in the player's solution file */
   static void playrecord(string file, Player *plr, bool allowrate = true);

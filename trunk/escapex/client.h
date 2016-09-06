@@ -28,14 +28,14 @@ struct Client {
   static HTTP *connect(Player *plr, TextScroll *tx, Drawable *that) {
     std::unique_ptr<HTTP> hh{HTTP::Create()};
 
-    if (Prefs::getbool(plr, PREF_DEBUG_NET)) 
+    if (Prefs::getbool(plr, PREF_DEBUG_NET))
       hh->log_message = debug_log_message;
 
     string serveraddress = Prefs::getstring(plr, PREF_SERVER);
     int serverport =
       (Prefs::getbool(plr, PREF_ALTCONNECT))?8888:80;
 
-    if (hh.get() == nullptr) { 
+    if (hh.get() == nullptr) {
       if (tx) tx->say(YELLOW "Couldn't create http object.");
       Message::quick(that, "Upgrade failed!", "Cancel", "");
       return 0;
@@ -43,12 +43,12 @@ struct Client {
 
     string ua = "Escape (" VERSION "; " PLATFORM ")";
     if (tx) tx->say((string)"This is: " + ua);
-  
+
     hh->setua(ua);
 
     if (tx) tx->say((string)
-		    "Connecting to " YELLOW + serveraddress + 
-		    WHITE ":" POP + itos(serverport) + POP "...");
+                    "Connecting to " YELLOW + serveraddress +
+                    WHITE ":" POP + itos(serverport) + POP "...");
 
     if (that) {
       that->draw();
@@ -56,8 +56,8 @@ struct Client {
     }
 
     if (!hh->connect(serveraddress, serverport)) {
-      if (tx) tx->say((string)RED "Couldn't connect to " 
-		      YELLOW + serveraddress + POP ".");
+      if (tx) tx->say((string)RED "Couldn't connect to "
+                      YELLOW + serveraddress + POP ".");
       Message::quick(that, "Can't connect!", "Cancel", "");
       return 0;
     }
@@ -72,18 +72,18 @@ struct Client {
   static bool rpc(HTTP *hh, string path, string query, string &ret) {
     string m;
     httpresult hr = hh->get(path + (string)"?" + query, m);
-    
+
     if (hr == HT_OK) {
-      
+
       if (m.length() >= 2 &&
           m[0] == 'o' &&
           m[1] == 'k') {
 
-	/* drop first token */
+        /* drop first token */
         (void) util::chop(m);
         ret = util::losewhitel(m);
         return true;
-      } else { 
+      } else {
         ret = m;
         return false;
       }
@@ -96,24 +96,24 @@ struct Client {
   static bool rpcput(HTTP *hh, string path, formalist *fl, string &ret) {
     string m;
     httpresult hr = hh->put(path, fl, m);
-    
+
     if (hr == HT_OK) {
-      
+
       if (m.length() >= 2 &&
           m[0] == 'o' &&
           m[1] == 'k') {
 
-	/* drop first token */
+        /* drop first token */
         (void) util::chop(m);
         ret = util::losewhitel(m);
         return true;
-      } else { 
+      } else {
         ret = m;
         return false;
       }
-      
+
     } else if (hr == HT_404) {
-      
+
       ret = "error code 404";
       return false;
     } else {
@@ -152,7 +152,7 @@ struct Client {
       tx->screenresize();
     }
   };
-  
+
 };
 
 #endif

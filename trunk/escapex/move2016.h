@@ -195,23 +195,23 @@ using AList = PtrList<aevent>;
     }                                                   \
   } while (0)
 
-# define PUSHED2016(d, w, x, y, u, z, h) do {	 \
-    if (ANIMATING) {				 \
-      const dir pushed_d = (d);			 \
-      const int pushed_w = (w);			 \
-      const int pushed_x = (x), pushed_y = (y);	 \
-      const int pushed_u = (u);			 \
+# define PUSHED2016(d, w, x, y, u, z, h) do {         \
+    if (ANIMATING) {                                 \
+      const dir pushed_d = (d);                         \
+      const int pushed_w = (w);                         \
+      const int pushed_x = (x), pushed_y = (y);         \
+      const int pushed_u = (u);                         \
       const bool pushed_z = (z), pushed_h = (h); \
-      PUSHMOVE2016(push, ([&](push_t *e) {	 \
-	e->srcx = pushed_x;			 \
-	e->srcy = pushed_y;			 \
-	e->d = pushed_d;			 \
-	e->under = pushed_u;			 \
-	e->what = pushed_w;			 \
-	e->zap = pushed_z;			 \
-	e->hole = pushed_h;			 \
-      }));					 \
-    }						 \
+      PUSHMOVE2016(push, ([&](push_t *e) {         \
+        e->srcx = pushed_x;                         \
+        e->srcy = pushed_y;                         \
+        e->d = pushed_d;                         \
+        e->under = pushed_u;                         \
+        e->what = pushed_w;                         \
+        e->zap = pushed_z;                         \
+        e->hole = pushed_h;                         \
+      }));                                         \
+    }                                                 \
   } while (0)
 
 
@@ -1041,9 +1041,9 @@ bool Level::MoveEntHeartframer(dir d, int enti, Capabilities cap,
 // Assumes target == T_ELECTRIC.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntElectric(dir d, int enti, Capabilities cap,
-			    int entx, int enty, int newx, int newy,
-			    DAB *ctx, AList *&events,
-			    AList **&etail) {
+                            int entx, int enty, int newx, int newy,
+                            DAB *ctx, AList *&events,
+                            AList **&etail) {
   if (botat(newx, newy) ||
       playerat(newx, newy)) return false;
   /* some bots are stupid enough
@@ -1067,16 +1067,16 @@ bool Level::MoveEntElectric(dir d, int enti, Capabilities cap,
     CHECKSTEPOFF2016(entx, enty);
 
     return true;
-  } 
+  }
   return false;
 }
 
 // Assumes target == T_BROKEN.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntBroken(dir d, int enti, Capabilities cap,
-			  int entx, int enty, int newx, int newy,
-			  DAB *ctx, AList *&events,
-			  AList **&etail) {
+                          int entx, int enty, int newx, int newy,
+                          DAB *ctx, AList *&events,
+                          AList **&etail) {
   if (playerat(newx, newy) ||
       botat(newx, newy)) return false;
 
@@ -1093,9 +1093,9 @@ bool Level::MoveEntBroken(dir d, int enti, Capabilities cap,
 // Assumes target == T_GREEN.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntGreen(dir d, int enti, Capabilities cap,
-			 int entx, int enty, int newx, int newy,
-			 DAB *ctx, AList *&events,
-			 AList **&etail) {
+                         int entx, int enty, int newx, int newy,
+                         DAB *ctx, AList *&events,
+                         AList **&etail) {
   if (playerat(newx, newy) ||
       botat(newx, newy)) return false;
 
@@ -1116,7 +1116,7 @@ bool Level::MoveEntGreen(dir d, int enti, Capabilities cap,
       e->srcy = newy;
       e->d = d;
     }));
-      
+
     WALKED2016(d, true);
 
     CHECKSTEPOFF2016(entx, enty);
@@ -1134,9 +1134,9 @@ bool Level::MoveEntGreen(dir d, int enti, Capabilities cap,
 // FLOOR, ROUGH, RDOWN, GDOWN, BDOWN, or PANEL.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
-			     int entx, int enty, int newx, int newy,
-			     DAB *ctx, AList *&events,
-			     AList **&etail) {
+                             int entx, int enty, int newx, int newy,
+                             DAB *ctx, AList *&events,
+                             AList **&etail) {
   bool pushing = false;
   int pushent = 0;
   if (playerat(newx, newy)) {
@@ -1170,9 +1170,9 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
       int ftarget = tileat(farx, fary);
       switch (ftarget) {
       case T_ELECTRIC:
-	/* only bots pushed into electric */
-	if (pushent == B_PLAYER) return false;
-	else break;
+        /* only bots pushed into electric */
+        if (pushent == B_PLAYER) return false;
+        else break;
       case T_TRAP2:
       case T_TRAP1:
       case T_FLOOR:
@@ -1184,9 +1184,9 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
       case T_RPANEL:
       case T_GPANEL:
       case T_BPANEL:
-	break;
+        break;
       default:
-	return false;
+        return false;
       }
       /* also check bot -- can't push two in a row */
       if (botat(farx, fary)) return false;
@@ -1195,20 +1195,20 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
       /* affect first, then make anims */
 
       AFFECTENT2016(enti, ([&]{
-	AFFECTENT2016(pushent, ([&]{
-	  AFFECT2016(farx, fary);
-	  AFFECT2016(newx, newy);
+        AFFECTENT2016(pushent, ([&]{
+          AFFECT2016(farx, fary);
+          AFFECT2016(newx, newy);
 
-	  /* if a bomb, light and reset fuse */
-	  /* XXX animate? */
-	  if (pushent != -1 &&
-	      isbomb(bott[pushent]))
-	    bota[pushent] = ((int)bott[pushent] - (int)B_BOMB_0);
+          /* if a bomb, light and reset fuse */
+          /* XXX animate? */
+          if (pushent != -1 &&
+              isbomb(bott[pushent]))
+            bota[pushent] = ((int)bott[pushent] - (int)B_BOMB_0);
 
-	  // XXX2016: This inverts the order that postaffect
-	  // ran vs the move.h approach. (But it looks like that
-	  // shouldn't matter; they both just change serial?)
-	}));
+          // XXX2016: This inverts the order that postaffect
+          // ran vs the move.h approach. (But it looks like that
+          // shouldn't matter; they both just change serial?)
+        }));
       }));
 
 
@@ -1219,11 +1219,11 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
 
       /* okay, push! */
       if (pushent == B_PLAYER) {
-	guyx = farx;
-	guyy = fary;
+        guyx = farx;
+        guyy = fary;
       } else {
-	int id = index(farx, fary);
-	boti[pushent] = id;
+        int id = index(farx, fary);
+        boti[pushent] = id;
       }
 
       /* handle leaving current (pusher) pos */
@@ -1237,34 +1237,34 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
 
       /* now deal with zapping */
       if (ftarget == T_ELECTRIC &&
-	  pushent != -1) {
-	/* can't be player: kill bot */
-	bott[pushent] = B_DELETED;
-	AFFECT2016(farx, fary);
-	BOTEXPLODE2016(pushent);
+          pushent != -1) {
+        /* can't be player: kill bot */
+        bott[pushent] = B_DELETED;
+        AFFECT2016(farx, fary);
+        BOTEXPLODE2016(pushent);
       }
 
       /* the tile in the middle is being stepped off
-	 and stepped on. if it's a panel, don't do anything.
-	 (to avoid a double swap) */
+         and stepped on. if it's a panel, don't do anything.
+         (to avoid a double swap) */
       if (target == T_PANEL) {
-	/* do nothing */
+        /* do nothing */
       } else {
-	CHECKTRAP2016(newx, newy);
+        CHECKTRAP2016(newx, newy);
       }
 
       /* -- panel phase -- */
 
       /* first, if pusher stepped off a panel, it swaps */
       if (swapsrc) {
-	AFFECTI2016(destat(srcx, srcy));
-	SWAPO2016(destat(srcx, srcy));
+        AFFECTI2016(destat(srcx, srcy));
+        SWAPO2016(destat(srcx, srcy));
       }
 
       /* pushed ent is stepping onto new panel, perhaps */
       if (ftarget == T_PANEL) {
-	AFFECTI2016(destat(farx, fary));
-	SWAPO2016(destat(farx, fary));
+        AFFECTI2016(destat(farx, fary));
+        SWAPO2016(destat(farx, fary));
       }
 
       return true;
@@ -1274,7 +1274,7 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
 
   } else {
     // Not pushing.
-    
+
     /* XXX also affect source? */
     AFFECTENT2016(enti, ([&]{
       AFFECT2016(newx, newy);
@@ -1302,9 +1302,9 @@ bool Level::MoveEntFloorlike(int target, dir d, int enti, Capabilities cap,
 // Target should be STEEL, RSTEEL, GSTEEL or BSTEEL.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
-			 int entx, int enty, int newx, int newy,
-			 DAB *ctx, AList *&events,
-			 AList **&etail) {
+                         int entx, int enty, int newx, int newy,
+                         DAB *ctx, AList *&events,
+                         AList **&etail) {
   /* three phases. first, see if we can push this
      whole column one space.
 
@@ -1317,8 +1317,8 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
     /* go until not steel, or if we hit a robot
        anywhere along this, end */
     while (!botat(curx, cury) && !playerat(curx, cury) &&
-	   travel(curx, cury, d, destx, desty) &&
-	   issteel(tileat(destx, desty))) {
+           travel(curx, cury, d, destx, desty) &&
+           issteel(tileat(destx, desty))) {
       curx = destx;
       cury = desty;
     }
@@ -1363,8 +1363,8 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
     {
       int xx = destx, yy = desty;
       do {
-	travel(xx, yy, revd, xx, yy);
-	AFFECT2016(xx, yy);
+        travel(xx, yy, revd, xx, yy);
+        AFFECT2016(xx, yy);
       } while (! (xx == newx && yy == newy));
       AFFECT2016(newx, newy);
     }
@@ -1373,14 +1373,14 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
       int xx = destx, yy = desty;
       bool zappy = zap;
       do {
-	travel(xx, yy, revd, xx, yy);
-	int replacement = (flagat(xx, yy) & TF_HASPANEL) ?
-	  realpanel(flagat(xx,yy)) : T_FLOOR;
-	int what = tileat(xx, yy);
-	PUSHED2016(d, what, xx, yy, replacement, zappy, false);
+        travel(xx, yy, revd, xx, yy);
+        int replacement = (flagat(xx, yy) & TF_HASPANEL) ?
+          realpanel(flagat(xx,yy)) : T_FLOOR;
+        int what = tileat(xx, yy);
+        PUSHED2016(d, what, xx, yy, replacement, zappy, false);
 
-	/* only last one can zap */
-	zappy = false;
+        /* only last one can zap */
+        zappy = false;
       } while (! (xx == newx && yy == newy));
     }
   }
@@ -1437,18 +1437,18 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
 
       /* triggerstatus for this location (lookx, looky) */
       const bool triggerstatus_now =
-	(flagat(lookx, looky) & TF_HASPANEL) &&
-	triggers(heret, realpanel(flagat(lookx, looky)));
+        (flagat(lookx, looky) & TF_HASPANEL) &&
+        triggers(heret, realpanel(flagat(lookx, looky)));
 
       const bool triggerstatus_old =
-	(flagat(lookx, looky) & TF_HASPANEL) &&
-	issteel(prevt) &&
-	triggers(prevt, realpanel(flagat(lookx, looky)));
+        (flagat(lookx, looky) & TF_HASPANEL) &&
+        issteel(prevt) &&
+        triggers(prevt, realpanel(flagat(lookx, looky)));
 
       if (triggerstatus_now != triggerstatus_old) {
-	setflag(lookx, looky, flagat(lookx, looky) | TF_TEMP);
+        setflag(lookx, looky, flagat(lookx, looky) | TF_TEMP);
       } else {
-	setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
+        setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
       }
 
       prevt = heret;
@@ -1465,11 +1465,11 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
       const int first = tileat(newx, newy);
       const bool trig_now = first == T_PANEL;
       const bool trig_old =
-	ispanel(first) &&
-	triggers(prevt, realpanel(flagat(newx, newy)));
+        ispanel(first) &&
+        triggers(prevt, realpanel(flagat(newx, newy)));
 
       if (trig_old != trig_now) {
-	swapnew = true;
+        swapnew = true;
       }
     }
   }
@@ -1496,9 +1496,9 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
     while (! (lookx == newx && looky == newy)) {
 
       if (flagat(lookx, looky) & TF_TEMP) {
-	AFFECTI2016(destat(lookx, looky));
-	SWAPO2016(destat(lookx, looky));
-	setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
+        AFFECTI2016(destat(lookx, looky));
+        SWAPO2016(destat(lookx, looky));
+        setflag(lookx, looky, flagat(lookx, looky) & ~TF_TEMP);
       }
 
       /* next */
@@ -1519,9 +1519,9 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
 
 template<bool ANIMATING, class DAB>
 bool Level::MoveEnt01(int target, dir d, int enti, Capabilities cap,
-		      int entx, int enty, int newx, int newy,
-		      DAB *ctx, AList *&events,
-		      AList **&etail) {
+                      int entx, int enty, int newx, int newy,
+                      DAB *ctx, AList *&events,
+                      AList **&etail) {
   if (playerat(newx, newy) ||
       botat(newx, newy)) return false;
 
@@ -1540,9 +1540,9 @@ bool Level::MoveEnt01(int target, dir d, int enti, Capabilities cap,
 // T_SW, T_WE, T_LR, T_UD, T_GREY.
 template<bool ANIMATING, class DAB>
 bool Level::MoveEntPushable(int target, dir d, int enti, Capabilities cap,
-			    int entx, int enty, int newx, int newy,
-			    DAB *ctx, AList *&events,
-			    AList **&etail) {
+                            int entx, int enty, int newx, int newy,
+                            DAB *ctx, AList *&events,
+                            AList **&etail) {
   /* don't push a block that an entity stands on! */
   if (playerat(newx, newy) ||
       botat(newx, newy)) return false;
@@ -1563,7 +1563,7 @@ bool Level::MoveEntPushable(int target, dir d, int enti, Capabilities cap,
   bool zap = false;
   bool hole = false;
   int destx, desty;
-  
+
   if (!travel(newx, newy, d, destx, desty))
     return false;
   if (playerat(destx, desty) || botat(destx, desty))
@@ -1599,7 +1599,7 @@ bool Level::MoveEntPushable(int target, dir d, int enti, Capabilities cap,
   case T_PANEL:
     if (target == T_LR || target == T_UD)
       return false;
-	
+
     /* delay the swap */
     /* (can only push down grey panels */
     doswap = (destt == T_PANEL);
@@ -1659,28 +1659,28 @@ bool Level::MoveEnt(dir d, int enti, Capabilities cap,
     /* panels are mostly the same */
     case T_PANEL:
       return MoveEntFloorlike<ANIMATING, DAB>(
-	  target, d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          target, d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_EXIT:
       return MoveEntExit<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_ON:
       return MoveEntOn<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_0:
     case T_1:
       return MoveEnt01<ANIMATING, DAB>(
-	  target, d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          target, d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_BSPHERE:
     case T_RSPHERE:
@@ -1688,42 +1688,42 @@ bool Level::MoveEnt(dir d, int enti, Capabilities cap,
     case T_SPHERE:
     case T_GOLD:
       return MoveEntGoldlike<ANIMATING, DAB>(
-	  target, d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          target, d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_TRANSPORT:
       return MoveEntTransport<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_BUTTON:
       return MoveEntButton<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_BROKEN:
       return MoveEntBroken<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_GREEN:
       return MoveEntGreen<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_STEEL:
     case T_RSTEEL:
     case T_GSTEEL:
     case T_BSTEEL:
       return MoveEntSteel<ANIMATING, DAB>(
-	  target, d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          target, d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     /* simple pushable blocks use this case */
     case T_TRANSPONDER:
@@ -1741,21 +1741,21 @@ bool Level::MoveEnt(dir d, int enti, Capabilities cap,
 
     case T_GREY:
       return MoveEntPushable<ANIMATING, DAB>(
-	  target, d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          target, d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_HEARTFRAMER:
       return MoveEntHeartframer<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_ELECTRIC:
       return MoveEntElectric<ANIMATING, DAB>(
-	  d, enti,
-	  cap, entx, enty,
-	  newx, newy, ctx, events, etail);
+          d, enti,
+          cap, entx, enty,
+          newx, newy, ctx, events, etail);
 
     case T_BLUE:
     case T_HOLE:
@@ -1833,7 +1833,7 @@ bool Level::MoveMaybeAnimate(dir d, DAB *ctx, AList *&events, AList **&etail) {
   const bool player_moved = MoveEnt<ANIMATING, DAB>(
       d, -1, (Capabilities)GUYCAP, guyx, guyy,
       ctx, events, etail);
-    
+
   if (player_moved) {
     for (int b = 0; b < nbots; b++) {
 
@@ -1845,73 +1845,73 @@ bool Level::MoveMaybeAnimate(dir d, DAB *ctx, AList *&events, AList **&etail) {
       Capabilities bcap = (Capabilities)0; /* its capabilities */
 
       if (Level::isbomb(bott[b])) {
-	/* bombs never move */
-	bd = DIR_NONE;
+        /* bombs never move */
+        bd = DIR_NONE;
 
-	if (bota[b] == 0) {
-	  /* time's up: explodes */
-	  Bombsplode<ANIMATING, DAB>(b, b, ctx, events, etail);
-	} else if (bota[b] > 0) {
-	  /* fuse burns */
-	  bota[b]--;
-	  /* XXX animate? */
-	} else {
-	  /* unlit: do nothing */
-	}
-	continue;
+        if (bota[b] == 0) {
+          /* time's up: explodes */
+          Bombsplode<ANIMATING, DAB>(b, b, ctx, events, etail);
+        } else if (bota[b] > 0) {
+          /* fuse burns */
+          bota[b]--;
+          /* XXX animate? */
+        } else {
+          /* unlit: do nothing */
+        }
+        continue;
 
       } else {
-	switch (bott[b]) {
-	  /* nb, not isbomb */
-	case B_BOMB_X:
-	  /* disappear */
-	  bott[b] = B_DELETED;
-	  /* no animation since it's already invisible */
-	  bd = DIR_NONE;
-	  break;
+        switch (bott[b]) {
+          /* nb, not isbomb */
+        case B_BOMB_X:
+          /* disappear */
+          bott[b] = B_DELETED;
+          /* no animation since it's already invisible */
+          bd = DIR_NONE;
+          break;
 
-	  /* these two are the same except for their
-	     capabilities */
-	case B_HUGBOT:
-	case B_DALEK: {
-	  /* dalek always moves towards player, favoring
-	     left/right movement */
+          /* these two are the same except for their
+             capabilities */
+        case B_HUGBOT:
+        case B_DALEK: {
+          /* dalek always moves towards player, favoring
+             left/right movement */
 
-	  if (x == guyx) {
-	    /* same column? move up/down */
-	    if (y < guyy) bd = DIR_DOWN;
-	    else if (y > guyy) bd = DIR_UP;
-	    else bd = DIR_NONE; /* on player !! EXTERMINATE */
-	  } else {
-	    if (x > guyx) bd = DIR_LEFT;
-	    else bd = DIR_RIGHT;
+          if (x == guyx) {
+            /* same column? move up/down */
+            if (y < guyy) bd = DIR_DOWN;
+            else if (y > guyy) bd = DIR_UP;
+            else bd = DIR_NONE; /* on player !! EXTERMINATE */
+          } else {
+            if (x > guyx) bd = DIR_LEFT;
+            else bd = DIR_RIGHT;
 
-	    /* but still set second choice */
-	    if (y < guyy) bd2 = DIR_DOWN;
-	    else if (y > guyy) bd2 = DIR_UP;
-	  }
+            /* but still set second choice */
+            if (y < guyy) bd2 = DIR_DOWN;
+            else if (y > guyy) bd2 = DIR_UP;
+          }
 
-	  switch (bott[b]) {
-	  default: /* impossible */
-	  case B_DALEK: bcap = DALEKCAP; break;
-	  case B_HUGBOT: bcap = HUGBOTCAP; break;
-	  }
-	  break;
-	}
-	default: bd = DIR_NONE;
-	  break;
-	}
+          switch (bott[b]) {
+          default: /* impossible */
+          case B_DALEK: bcap = DALEKCAP; break;
+          case B_HUGBOT: bcap = HUGBOTCAP; break;
+          }
+          break;
+        }
+        default: bd = DIR_NONE;
+          break;
+        }
       }
-	
-      if (bd != DIR_NONE) {
-	const bool bot_moved = MoveEnt<ANIMATING, DAB>(
-	    bd, b, bcap, x, y, ctx, events, etail);
 
-	/* try second choice */
-	if (!bot_moved && bd2 != DIR_NONE) {
-	  MoveEnt<ANIMATING, DAB>(bd2, b, bcap, x, y,
-				  ctx, events, etail);
-	}
+      if (bd != DIR_NONE) {
+        const bool bot_moved = MoveEnt<ANIMATING, DAB>(
+            bd, b, bcap, x, y, ctx, events, etail);
+
+        /* try second choice */
+        if (!bot_moved && bd2 != DIR_NONE) {
+          MoveEnt<ANIMATING, DAB>(bd2, b, bcap, x, y,
+                                  ctx, events, etail);
+        }
       }
     }
 

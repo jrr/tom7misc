@@ -12,9 +12,9 @@
 
 using namespace std;
 
-/* size of zoom 0 tiles 
+/* size of zoom 0 tiles
    we assume that these are
-   evenly divisible by 
+   evenly divisible by
    2^(DRAW_NSIZES - 1) */
 #define TILEW 32
 #define TILEH 32
@@ -37,29 +37,29 @@ enum { TU_TARGET, TU_DISABLED, TU_WARNING,
        TU_TILESUD,
        TU_SAVE, TU_SAVEAS, TU_LOAD,
        TU_TITLE, TU_AUTHOR, TU_SIZE, TU_PLAYERSTART,
-       TU_CLEAR, TU_PLAY, TU_RANDOM, TU_RANDTYPE, 
-       TU_CHANGED, 
+       TU_CLEAR, TU_PLAY, TU_RANDOM, TU_RANDTYPE,
+       TU_CHANGED,
 
        /* menu items */
        TU_X, TU_N, TU_I,
        TU_T, TU_1, TU_2, TU_3, TU_4, TU_P,
-       
+
        TU_EXITOPEN,
 
        TU_ERASE_BOT, TU_FIRST_BOT,
        TU_DALEK, TU_BROKEN, TU_HUGBOT,
 
        TU_PLAYBUTTON, TU_PAUSEBUTTON,
-       TU_FREVBUTTON, TU_FFWDBUTTON, 
+       TU_FREVBUTTON, TU_FFWDBUTTON,
        TU_FWDBUTTON, TU_REVBUTTON,
 
        TU_SLEEPWAKE, TU_PREFAB,
-       TU_BOMB, TU_BOMBTIMER, 
+       TU_BOMB, TU_BOMBTIMER,
 
        TU_SAVESTATE, TU_RESTORESTATE,
        TU_BOOKMARKS,
        TU_RESTART,
-       TU_UNDO,       
+       TU_UNDO,
        TU_REDO,
        TU_PLAYPAUSE,
        TU_PLAYPAUSE_PLAY,
@@ -72,7 +72,7 @@ extern Font *fonsmall;
 
 struct Drawing {
   /* initialized by loadimages:
-     there are DRAW_NSIZES of these 
+     there are DRAW_NSIZES of these
      in exponential backoff */
   static SDL_Surface **tiles;
   static SDL_Surface **guy;
@@ -113,32 +113,32 @@ struct Drawing {
 
   /* screen coordinates */
   static void drawguy(dir d,
-		      int sx, int sy,
-		      int zoomfactor,
-		      SDL_Surface *surf = 0, bool dead = false);
+                      int sx, int sy,
+                      int zoomfactor,
+                      SDL_Surface *surf = 0, bool dead = false);
 
   static void drawbot(bot b,
-		      dir d,
-		      int sx, int sy,
-		      int zoomfactor,
-		      SDL_Surface *surf = 0, 
-		      int data = -1);
+                      dir d,
+                      int sx, int sy,
+                      int zoomfactor,
+                      SDL_Surface *surf = 0,
+                      int data = -1);
 
   /* if surface isn't supplied, then draw to screen. */
-  static void drawtile(int px, int py, int tl, int zfactor = 0, 
-		       SDL_Surface *surf = 0, bool dim = false);
+  static void drawtile(int px, int py, int tl, int zfactor = 0,
+                       SDL_Surface *surf = 0, bool dim = false);
   static void drawtileu(int px, int py, int tl, int zf = 0,
-			SDL_Surface *surf = 0);
+                        SDL_Surface *surf = 0);
 
   void drawlev(int layer = 0,
-	       SDL_Surface *surf = 0, bool dim = false);
+               SDL_Surface *surf = 0, bool dim = false);
 
   /* title, message, etc */
   void drawextra(SDL_Surface *surf = 0);
 
   /* debugging/editor/cheat */
   void drawdests(SDL_Surface *surf = 0, bool shuffle = false);
-  
+
   void drawbotnums(SDL_Surface *surf = 0);
 
   /* make sure the scroll doesn't waste space by
@@ -153,15 +153,15 @@ struct Drawing {
   /* given screen coordinates x,y, return a tile
      if it is inside one on the screen */
   bool inmap(int x, int y,
-	     int &tx, int &ty);
+             int &tx, int &ty);
 
   /* given a tile x,y, return its
      screen coordinates if it is displayed currently. */
   bool onscreen(int x, int y,
-		int &tx, int &ty);
+                int &tx, int &ty);
 
   /* XXX this should probably be elsewhere */
-  /* XXX combine y and botmargin, which have to agree anyway 
+  /* XXX combine y and botmargin, which have to agree anyway
      ps. this function is much less complicated now */
   /* draw a small version of the level, with some info.
      used for the load screen and rating.
@@ -170,10 +170,10 @@ struct Drawing {
      or 0 if unsolved (all valid solutions have at least one move.)
   */
   static void drawsmall(int y, int botmargin, Uint32 color,
-			Level *l, int solvemoves, string fname,
-			RateStatus *votes,
-			Rating *myrating, int date = 0,
-			int speedrecord = 0);
+                        Level *l, int solvemoves, string fname,
+                        RateStatus *votes,
+                        Rating *myrating, int date = 0,
+                        int speedrecord = 0);
 
   /* height of small drawings */
   static int smallheight();

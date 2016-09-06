@@ -19,8 +19,8 @@ struct HTTP_ : public HTTP {
   httpresult get(string path, string &out) override;
   httpresult gettempfile(string path, string &file) override;
   httpresult put(const string &path,
-		 formalist *items,
-		 string &out) override;
+                 formalist *items,
+                 string &out) override;
 
   void setcallback(httpcallback *cb) override {
     callback = cb;
@@ -86,11 +86,11 @@ void HTTP_::setua(string s) {
 
 bool HTTP_::connect(string chost, int port) {
   DMSG(util::ptos(this) + " connect '" + chost + "':" + itos(port) + "\n");
-  
+
   /* should work for "snoot.org" or "128.2.194.11" */
   if (SDLNet_ResolveHost(&remote, (char *)chost.c_str(), port)) {
     DMSG(util::ptos(this) + " can't resolve: " +
-	 (string)(SDLNet_GetError()) + "\n");
+         (string)(SDLNet_GetError()) + "\n");
     return false;
   }
 
@@ -123,8 +123,8 @@ bool sendall(TCPsocket socket, string d) {
 }
 
 httpresult HTTP_::put(const string &path,
-		      formalist *items,
-		      string &out) {
+                      formalist *items,
+                      string &out) {
 
   /* large positive randomish number */
   int bnd = 0x10000000 | (0x7FFFFFFE & (util::random()));
@@ -138,17 +138,17 @@ httpresult HTTP_::put(const string &path,
   while (items) {
     switch (items->ty) {
     case FT_ARG:
-      body += "\r\nContent-Disposition: form-data; name=\"" + 
-	items->name + "\"\r\n\r\n" +
-	items->content;
+      body += "\r\nContent-Disposition: form-data; name=\"" +
+        items->name + "\"\r\n\r\n" +
+        items->content;
       break;
     default:
     case FT_FILE:
       body += "\r\nContent-Disposition: form-data; name=\"" +
-	items->name + "\"; filename=\"" +
-	items->filename + "\"\r\n"
-	"Content-Type: application/octet-stream\r\n\r\n" +
-	items->content;
+        items->name + "\"; filename=\"" +
+        items->filename + "\"\r\n"
+        "Content-Type: application/octet-stream\r\n\r\n" +
+        items->content;
       break;
     }
     body += "\r\n--" + boundary;
@@ -161,7 +161,7 @@ httpresult HTTP_::put(const string &path,
 
   /* XXX if I use http/1.1 here, result has some extra
      crap at the beginning */
-  string hdr = 
+  string hdr =
     "POST " + path + " HTTP/1.0\r\n"
     "User-Agent: " + ua + "\r\n"
     "Host: " + host + "\r\n"
@@ -183,35 +183,35 @@ httpresult HTTP_::put(const string &path,
 */
 
 httpresult HTTP_::get_general(string path, string &res, bool tofile) {
-  string req = 
+  string req =
     "GET " + path + " HTTP/1.0\r\n"
     "User-Agent: " + ua + "\r\n"
     "Host: " + host + "\r\n"
     "Accept: */*\r\n"
     "\r\n";
-    
+
   return req_general(req, res, tofile);
 }
 
 httpresult HTTP_::req_general(string req, string &res, bool tofile) {
-  DMSG(util::ptos(this) + " conn@" + util::ptos(conn) + 
-	" req_general: \n[" + req + "]\n");
+  DMSG(util::ptos(this) + " conn@" + util::ptos(conn) +
+        " req_general: \n[" + req + "]\n");
 
   /* we don't use keep-alive now. each request is a new
      connection. */
   bye();
   if (! (conn = SDLNet_TCP_Open(&remote))) {
-    DMSG(util::ptos(this) + " can't connect: " + 
-	  (string)(SDLNet_GetError()) + "\n");
+    DMSG(util::ptos(this) + " can't connect: " +
+          (string)(SDLNet_GetError()) + "\n");
     return HT_ERROR;
   }
 
   DMSG(util::ptos(this) + " connected.\n");
- 
+
   if (!sendall(conn, req)) {
     /* error. try again? */
     DMSG(util::ptos(this) + " can't send: " +
-	 (string)(SDLNet_GetError()) + "\n");
+         (string)(SDLNet_GetError()) + "\n");
     SDLNet_TCP_Close(conn);
     conn = 0;
     return HT_ERROR;
@@ -239,7 +239,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
   for (;;) {
     if (SDLNet_TCP_Recv(conn, &c, 1) != 1) {
       DMSG(util::ptos(this) + " can't recv: " +
-	   (string)(SDLNet_GetError()) + "\n");
+           (string)(SDLNet_GetError()) + "\n");
       printf("Error in recv.\n");
       bye();
       return HT_ERROR;
@@ -258,66 +258,66 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
       cline = "";
 
       if (first) {
-	  
-	/* HTTP/1.x */
-	util::chop(line);
-	/* 200 */
-	string status = util::chop(line);
-	    
-	if (status != "200") {
-	  /* XXX or whatever ... */
-	  DMSG(util::ptos(this) + " got status code " + status + "\n");
-	  /* close connection, since we don't want to read
-	     anything. */
-	  bye();
-	  return HT_404;
-	}
-	first = 0;
+
+        /* HTTP/1.x */
+        util::chop(line);
+        /* 200 */
+        string status = util::chop(line);
+
+        if (status != "200") {
+          /* XXX or whatever ... */
+          DMSG(util::ptos(this) + " got status code " + status + "\n");
+          /* close connection, since we don't want to read
+             anything. */
+          bye();
+          return HT_404;
+        }
+        first = 0;
       } else { /* not first line */
-	if (line == "") {
-	  /* empty line means read content! */
-	  DMSG("++content mode++\n");
-	  goto readcontent;
-	} else { /* is a header line */
+        if (line == "") {
+          /* empty line means read content! */
+          DMSG("++content mode++\n");
+          goto readcontent;
+        } else { /* is a header line */
 
-	  DMSG("header line [" + line + "]\n");
+          DMSG("header line [" + line + "]\n");
 
-	  string field = util::chop(line);
+          string field = util::chop(line);
 
-	  /*
-	    HTTP/1.1 200 OK
-	    Date: Sun, 28 Sep 2003 21:07:49 GMT
-	    Server: Apache/1.3.26 (Unix) mod_fastcgi/2.2.12
-	    Last-Modified: Thu, 05 Dec 2002 15:22:12 GMT
-	    ETag: "c784b-158-3def6f24"
-	    Accept-Ranges: bytes
-	    Content-Length: 344
-	    Connection: close
-	    Content-Type: text/html
-		
-	    (content)
-	  */
+          /*
+            HTTP/1.1 200 OK
+            Date: Sun, 28 Sep 2003 21:07:49 GMT
+            Server: Apache/1.3.26 (Unix) mod_fastcgi/2.2.12
+            Last-Modified: Thu, 05 Dec 2002 15:22:12 GMT
+            ETag: "c784b-158-3def6f24"
+            Accept-Ranges: bytes
+            Content-Length: 344
+            Connection: close
+            Content-Type: text/html
 
-	  if (field == "Content-Length:") {
-	    string l = util::chop(line);
-	    contentlen = atoi(l.c_str());
-	    DMSG("content length is " + itos (contentlen) + "\n");
-	  } else if (field == "Connection:") {
-	    string how = util::lcase(util::chop(line));
-	    if (how == "close") 
-	      connecttype = CT_CLOSE;
-	    else if (how == "keepalive")
-	      connecttype = CT_KEEP;
-	    else { 
-	      /* bad header */
-	      DMSG("bad connection type\n");
-	      bye();
-	      return HT_ERROR;
-	    }
-	  } else {
-	    /* ignored */
-	  }
-	}
+            (content)
+          */
+
+          if (field == "Content-Length:") {
+            string l = util::chop(line);
+            contentlen = atoi(l.c_str());
+            DMSG("content length is " + itos (contentlen) + "\n");
+          } else if (field == "Connection:") {
+            string how = util::lcase(util::chop(line));
+            if (how == "close")
+              connecttype = CT_CLOSE;
+            else if (how == "keepalive")
+              connecttype = CT_KEEP;
+            else {
+              /* bad header */
+              DMSG("bad connection type\n");
+              bye();
+              return HT_ERROR;
+            }
+          } else {
+            /* ignored */
+          }
+        }
 
       }
 
@@ -331,9 +331,9 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
        connection is in state ready to receive data.
     */
  readcontent:
-    
+
   if (contentlen == -1) {
-      
+
     if (connecttype != CT_CLOSE) {
       DMSG("content length but not close\n");
       bye();
@@ -364,7 +364,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
     }
 
   }
-    
+
   /* XXX unreachable */
   return HT_ERROR;
 }
@@ -379,11 +379,11 @@ FILE *HTTP_::tempfile(string &f) {
   call++;
   while (tries--) {
     char fname[256];
-    sprintf(fname, "dl%d%04X%04X.deleteme", call, pid, 
-	    (int)(0xFFFF & util::random()));
+    sprintf(fname, "dl%d%04X%04X.deleteme", call, pid,
+            (int)(0xFFFF & util::random()));
 
     FILE *ret = util::open_new(fname);
-    if (ret) { 
+    if (ret) {
       f = fname;
       return ret;
     }
@@ -434,7 +434,7 @@ string HTTP_::readrest() {
     append(acc, buf, x);
     if (callback) callback->progress(n += x, -1);
   }
-  
+
   SDLNet_TCP_Close(conn);
   conn = 0;
 
@@ -461,7 +461,7 @@ string HTTP_::readn(int n) {
     rem -= x;
     if (callback) callback->progress(done, total);
   }
-  
+
   string ret = "";
   append(ret, buf.data(), n);
 
@@ -476,7 +476,7 @@ string HTTP_::readntofile(int n) {
 
   string fname;
   FILE *ff = tempfile(fname);
-   
+
   if (!ff) return "";
 
   /* printf("fname %s\n", fname.c_str()); */
@@ -498,7 +498,7 @@ string HTTP_::readntofile(int n) {
     rem -= x;
     if (callback) callback->progress(done += x, total);
   }
-  
+
   fclose(ff);
   return fname;
 }

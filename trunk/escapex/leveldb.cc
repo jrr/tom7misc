@@ -51,8 +51,8 @@ void LevelDB::setplayer(Player *p) {
   theplayer = p;
 }
 
-/* XXX should enqueue the directory to be processed 
-   here instead of doing it immediately, since directories could 
+/* XXX should enqueue the directory to be processed
+   here instead of doing it immediately, since directories could
    be arbitrarily large. */
 /* XXX should be recursive too, I guess. */
 /* XXX if .escignore is present, stop */
@@ -63,7 +63,7 @@ void LevelDB::addsourcedir(string s) {
   dirent *de;
   while ( (de = readdir(d)) ) {
     if (strcmp(".", de->d_name) &&
-	strcmp("..", de->d_name)) {
+        strcmp("..", de->d_name)) {
       count++;
       addsourcefile(util::dirplus(s, de->d_name));
     }
@@ -85,11 +85,11 @@ bool LevelDB::uptodate(float *pct_disk, float *pct_verify) {
   if (pct_disk) {
     if (total) {
       *pct_disk = 1.0 - float(filequeue_size) / total;
-	} else {
+        } else {
       *pct_disk = 1.0;
     }
   }
-  
+
   if (pct_verify) {
     if (total) {
       *pct_verify = 1.0 - float(levelqueue_size + filequeue_size) / total;
@@ -111,12 +111,12 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
 
   do {
     if (levelqueue &&
-	(!max_verifies ||
-	 verifies_left > 0)) {
+        (!max_verifies ||
+         verifies_left > 0)) {
 
       fprintf(stderr, "Do verify.\n");
       verifies_left--;
-      
+
       std::unique_ptr<levelwait> lw {PtrList<levelwait>::pop(levelqueue)};
       levelqueue_size--;
 
@@ -143,21 +143,21 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
       else delete lw->l;
 
       fprintf(stderr, "Inserted level %p from %s\n",
-	      entry, lw->filename.c_str());
+              entry, lw->filename.c_str());
 
       /* Verify the solution now so that we can get quicker access to
-	 it later. Should we do this for all solutions? */
+         it later. Should we do this for all solutions? */
       if (const Solution *s = theplayer->GetSol(entry->md5)) {
-	if (!s->verified && Level::Verify(entry->lev, *s)) {
-	  theplayer->SetDefaultVerified(entry->md5);
-	  fprintf(stderr, "  valid solution for level %s\n",
-		  MD5::Ascii(entry->md5).c_str());
-	}
+        if (!s->verified && Level::Verify(entry->lev, *s)) {
+          theplayer->SetDefaultVerified(entry->md5);
+          fprintf(stderr, "  valid solution for level %s\n",
+                  MD5::Ascii(entry->md5).c_str());
+        }
       }
 
     } else if (filequeue &&
-	       (!max_files ||
-		files_left > 0)) {
+               (!max_files ||
+                files_left > 0)) {
 
       fprintf(stderr, "Do file.\n");
 
@@ -166,21 +166,21 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
       filequeue_size--;
 
       /* XXX else could be a multilevel file, once we
-	 support those. */
+         support those. */
       if (util::hasmagic(s, LEVELMAGIC)) {
-	string c = readfile(s);
-	if (Level *l = Level::fromstring(c, true)) {
-	  string m = MD5::Hash(c);
-	  /* put on the level queue now */
-	  levelqueue = new PtrList<levelwait>(new levelwait(l, s, m), levelqueue);
-	  levelqueue_size++;
+        string c = readfile(s);
+        if (Level *l = Level::fromstring(c, true)) {
+          string m = MD5::Hash(c);
+          /* put on the level queue now */
+          levelqueue = new PtrList<levelwait>(new levelwait(l, s, m), levelqueue);
+          levelqueue_size++;
 
-	  fprintf(stderr, "Enqueued level from %s\n", s.c_str());
-      	} else {
-	  fprintf(stderr, "%s is not a level\n", s.c_str());
-	}
+          fprintf(stderr, "Enqueued level from %s\n", s.c_str());
+              } else {
+          fprintf(stderr, "%s is not a level\n", s.c_str());
+        }
       } else {
-	fprintf(stderr, "%s does not have the magic\n", s.c_str());
+        fprintf(stderr, "%s does not have the magic\n", s.c_str());
       }
 
     } else {

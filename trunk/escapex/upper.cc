@@ -23,7 +23,7 @@ struct OldEntry {
 
   static unsigned int hash(string k) {
     return util::hash(k);
-  }  
+  }
 
   void destroy() { delete this; }
 
@@ -62,8 +62,8 @@ struct Upper_ : public Upper {
 
   ~Upper_() override;
 
-  bool setfile(string f, string md, RateStatus votes, 
-	       int, int, int o) override;
+  bool setfile(string f, string md, RateStatus votes,
+               int, int, int o) override;
   bool commit() override;
 
   void savedir(string d, string index) override;
@@ -116,7 +116,7 @@ struct Upper_ : public Upper {
 };
 
 Upper_ *Upper_::Create(HTTP *h, TextScroll *t,
-			Drawable *d, string f) {
+                        Drawable *d, string f) {
   Upper_ *ur = new Upper_();
   ur->hh = h;
   ur->tx = t;
@@ -165,7 +165,7 @@ void Upper_::savedir(string d, string i) {
 
 void Upper_::insertdir(string src) {
   DIR *d = opendir(src.c_str());
-    
+
   say((string)YELLOW"insertdir " + src + POP);
 
   struct dirent *de;
@@ -178,10 +178,10 @@ void Upper_::insertdir(string src) {
 
     /* ignore some stuff */
     if (basef == "" /* ?? */ ||
-	basef == "." ||
-	basef == ".." ||
-	basef == ".svn" ||
-	basef == "CVS") continue;
+        basef == "." ||
+        basef == ".." ||
+        basef == ".svn" ||
+        basef == "CVS") continue;
 
     if (util::isdir(f)) {
       insertdir(f);
@@ -189,10 +189,10 @@ void Upper_::insertdir(string src) {
       olds->insert(new OldEntry(f));
 
       /* XXX use readfilesize,
-	 where it won't read the file
-	 unless it is small. (Someone
-	 might stick big files in
-	 managed dirs...)
+         where it won't read the file
+         unless it is small. (Someone
+         might stick big files in
+         managed dirs...)
       */
       string inside = readfile(f);
       contents->insert(new ContentEntry(inside));
@@ -211,8 +211,8 @@ Upper_::~Upper_() {
 }
 
 bool Upper_::setfile(string f, string md, RateStatus votes,
-		     int date, int speedrecord, int owner) {
-  say((string)"setfile(" + f + (string)", " 
+                     int date, int speedrecord, int owner) {
+  say((string)"setfile(" + f + (string)", "
       GREY + md + (string)POP ")", true);
 
   /* check that f is legal */
@@ -234,14 +234,14 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
      get it from the internet. */
   if (!already) {
     string mm;
-    
+
     string first = md.substr(0, 2);
     string last  = md.substr(2, md.length() - 2);
 
-    httpresult hr = 
+    httpresult hr =
       hh->get((string)"/" + dirname +
-	      (string)"/" + first +
-	      (string)"/" + last, mm);
+              (string)"/" + first +
+              (string)"/" + last, mm);
 
     switch (hr) {
     case HT_OK: {
@@ -249,11 +249,11 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
       sayover((string)"(setfile) downloaded : " + nce->md5, true);
 
       if (nce->md5 != md) {
-	say(RED "what I got differs from expected");
-	say("written to last_got for debug");
-	/* debug */
-	writefile("last_got", mm);
-	return false;
+        say(RED "what I got differs from expected");
+        say("written to last_got for debug");
+        /* debug */
+        writefile("last_got", mm);
+        return false;
       }
       contents->insert(nce);
       break;
@@ -265,8 +265,8 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
     }
   } else {
     sayover((string)"(setfile) already exists : "
-	    BLUE + f + (string)POP" "
-	    GREY + md + (string)POP, true);
+            BLUE + f + (string)POP" "
+            GREY + md + (string)POP, true);
   }
 
   /* if it's in the olds, mark it so
@@ -295,16 +295,16 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
 
       // printf("compare [%s] [%s]\n", dt->head.c_str(), dd.c_str());
       if (dt->head == dd) {
-	it->head->addentry(ff, votes, date, speedrecord, owner);
-	return true;
+        it->head->addentry(ff, votes, date, speedrecord, owner);
+        return true;
       }
 
       dt = dt->next;
       it = it->next;
     }
-    /* XXX should fail if directory not found? */  
+    /* XXX should fail if directory not found? */
   }
-    
+
   return true;
 }
 
@@ -315,7 +315,7 @@ static void deleteif(OldEntry *oe, int dummy_param) {
     if (DirIndex::isindex(oe->fname)) {
       /* but if deletion fails (in use?), try moving */
       if (!util::remove(oe->fname))
-	util::toattic(oe->fname);
+        util::toattic(oe->fname);
     } else {
       util::toattic(oe->fname);
     }
@@ -339,7 +339,7 @@ bool Upper_::commit() {
   for (;;) {
     nlf = stringpop(newlistf);
     nlm = stringpop(newlistm);
-    
+
     if (nlf == "") {
       if (nlm == "") break; /* done */
       say(RED "inconsistent lengths of nlf/nlm??" POP);
@@ -360,24 +360,24 @@ bool Upper_::commit() {
     }
 
     ContentEntry *ce = contents->lookup(nlm);
-    
+
     if (!ce) {
       say((string)RED "bug: md5 " BLUE "[" + nlm +
-	  (string)"]" POP " isn't in table now??");
+          (string)"]" POP " isn't in table now??");
 
       fclose(a);
       return false;
     } else {
       if (1 != fwrite(ce->content.c_str(), ce->content.length(), 1, a)) {
-	say((string)RED "couldn't write to " BLUE + nlf +
-	    (string)POP " (disk full?)");
+        say((string)RED "couldn't write to " BLUE + nlf +
+            (string)POP " (disk full?)");
 
-	fclose(a);
-	return false;
+        fclose(a);
+        return false;
       } else {
-	/*
-	  say((string)GREEN "wrote " BLUE + nlf +
-	  (string)POP " <- " GREY + nlm + (string)POP" ok"); */
+        /*
+          say((string)GREEN "wrote " BLUE + nlf +
+          (string)POP " <- " GREY + nlm + (string)POP" ok"); */
       }
     }
 
@@ -395,8 +395,8 @@ bool Upper_::commit() {
     string d = stringpop(dirlistd);
     DirIndex *i = PtrList<DirIndex>::pop(dirlisti);
 
-    string f = 
-      (d == "") 
+    string f =
+      (d == "")
       ? (dirname + (string)DIRSEP WEBINDEXNAME)
       : dirname + (string)DIRSEP + d + (string)DIRSEP WEBINDEXNAME;
 
@@ -414,6 +414,6 @@ bool Upper_::commit() {
 }  // namespace
 
 Upper *Upper::Create(HTTP *h, TextScroll *t,
-		      Drawable *d, string f) {
+                      Drawable *d, string f) {
   return Upper_::Create(h, t, d, f);
 }

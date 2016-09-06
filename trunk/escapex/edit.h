@@ -10,7 +10,7 @@
 
 #define EDIT_DIR "mylevels"
 
-enum { RT_MAZE, RT_MAZE2, RT_CORRIDORS, RT_MAZEBUG1, RT_MAZEBUG2, 
+enum { RT_MAZE, RT_MAZE2, RT_CORRIDORS, RT_MAZEBUG1, RT_MAZEBUG2,
        RT_ROOMS, RT_CRAZY, RT_RETRACT1, RT_RETRACTGOLD, NUM_RANDTYPES, };
 
 struct Editor : public Drawable {
@@ -83,7 +83,7 @@ struct Editor : public Drawable {
   string ainame(int a);
 
   void videoresize(SDL_ResizeEvent *eventp);
-  
+
   void setlayer(int x, int y, int t) {
     if (layer) {
       dr.lev->osettile(x, y, t);
@@ -91,7 +91,7 @@ struct Editor : public Drawable {
       dr.lev->settile(x, y, t);
     }
   }
-  
+
   int layerat(int x, int y) {
     if (layer) {
       return dr.lev->otileat(x, y);

@@ -323,13 +323,13 @@ int console_main(int argc, char *argv[]) {
 /* This is where execution begins [windowed apps] */
 
 int WINAPI WinMain(HINSTANCE hInst,
-		   HINSTANCE hPrev,
+                   HINSTANCE hPrev,
 #ifdef _WIN32_WCE
-		   LPWSTR szCmdLine,
+                   LPWSTR szCmdLine,
 #else
-		   LPSTR szCmdLine,
+                   LPSTR szCmdLine,
 #endif
-		   int sw) {
+                   int sw) {
   HMODULE handle;
   char **argv;
   int argc;

@@ -20,7 +20,7 @@ struct BitBuffer {
      then return false, perhaps destroying idx and output */
   template<class UINT>
   static bool nbits(const string &s, int n,
-		    unsigned int &idx, UINT &output);
+                    unsigned int &idx, UINT &output);
 
   /* create a new empty bit buffer */
   BitBuffer() : data(0), size(0), bits(0) { }
@@ -29,7 +29,7 @@ struct BitBuffer {
   template<class UINT>
   void writebits(int width, UINT thebits);
 
-  /* get the contents of the buffer as a string, 
+  /* get the contents of the buffer as a string,
      padded at the end if necessary */
   string getstring();
 
@@ -87,7 +87,7 @@ void BitBuffer::writebits(int n, UINT b) {
     if (bytes_needed > size) {
       int nsize = (size + 1) * 2;
       uint8 *tmp =
-	(uint8 *) malloc(nsize * sizeof (unsigned char));
+        (uint8 *) malloc(nsize * sizeof (unsigned char));
       if (!tmp) abort();
       memset(tmp, 0, nsize);
       memcpy(tmp, data, size);
@@ -155,18 +155,18 @@ int *EscapeRLE::Decode(const string &s, unsigned int &idx_bytes, int n) {
       /* printf("  .. [%d] anti %d\n", idx, run); */
       if (run == 0) return nullptr; /* illegal */
       for (unsigned int m = 0; m < run; m++) {
-	unsigned int ch;
-	if (!BitBuffer::nbits(s, bits, idx, ch)) return nullptr;
-	if (oi >= n) return nullptr;
-	out[oi++] = ch;
+        unsigned int ch;
+        if (!BitBuffer::nbits(s, bits, idx, ch)) return nullptr;
+        if (oi >= n) return nullptr;
+        out[oi++] = ch;
       }
     } else {
       unsigned int ch;
       if (!BitBuffer::nbits(s, bits, idx, ch)) return nullptr;
 
       for (unsigned int m = 0; m < run; m++) {
-	if (oi >= n) return nullptr;
-	out[oi++] = ch;
+        if (oi >= n) return nullptr;
+        out[oi++] = ch;
       }
     }
   }
@@ -185,7 +185,7 @@ string EscapeRLE::Encode(int n, const int *a) {
     FRAME,
     VALUE,
   };
-  
+
   struct Item {
     Item(ItemType type, uint32 value) : type(type), value(value) {}
     ItemType type;
@@ -221,28 +221,28 @@ string EscapeRLE::Encode(int n, const int *a) {
 
       if (front >= n) mode = EXIT; /* done, no backlog */
       else {
-	mode = CHAR;
-	front++;
+        mode = CHAR;
+        front++;
       }
       break;
     case CHAR:
       assert(back == (front - 1));
 
       if (front >= n) {
-	/* write a single character */
-	items.emplace_back(FRAME, 1U);
-	items.emplace_back(VALUE, a[back]);
-	mode = EXIT;
+        /* write a single character */
+        items.emplace_back(FRAME, 1U);
+        items.emplace_back(VALUE, a[back]);
+        mode = EXIT;
       } else {
-	if (a[front] == a[back]) {
-	  /* start run */
-	  mode = RUN;
-	  front++;
-	} else {
-	  /* start antirun */
-	  mode = ANTIRUN;
-	  front++;
-	}
+        if (a[front] == a[back]) {
+          /* start run */
+          mode = RUN;
+          front++;
+        } else {
+          /* start antirun */
+          mode = ANTIRUN;
+          front++;
+        }
       }
       break;
     case RUN:
@@ -250,17 +250,17 @@ string EscapeRLE::Encode(int n, const int *a) {
       /* from back to front should be same char */
 
       if (front >= n || a[front] != a[back]) {
-	/* write run. */
-	assert((front - back) > 0);
-	const uint32 x = front - back;
-	
-	items.emplace_back(FRAME, x);
-	items.emplace_back(VALUE, a[back]);
-	
-	back += x;
+        /* write run. */
+        assert((front - back) > 0);
+        const uint32 x = front - back;
 
-	if (front >= n) mode = EXIT;
-	else mode = NOTHING;
+        items.emplace_back(FRAME, x);
+        items.emplace_back(VALUE, a[back]);
+
+        back += x;
+
+        if (front >= n) mode = EXIT;
+        else mode = NOTHING;
       } else front++;
 
       break;
@@ -268,46 +268,46 @@ string EscapeRLE::Encode(int n, const int *a) {
       assert((front - back) >= 2);
 
       if (front >= n ||
-	  ((front - back) >= 3 &&
-	   (a[front] == a[front - 1]) &&
-	   (a[front] == a[front - 2]))) {
+          ((front - back) >= 3 &&
+           (a[front] == a[front - 1]) &&
+           (a[front] == a[front - 2]))) {
 
-	if (front >= n) {
-	  /* will write tail anti-run below */
-	  mode = EXIT;
-	} else {
-	  /* must be here because we saw a run of 3.
-	     we don't want to include this
-	     run in the anti-run */
-	  front -= 2;
-	  /* after writing anti-run, we will
-	     be with back = front and in
-	     NOTHING state, but we will
-	     detect a run. */
-	  mode = NOTHING;
-	}
+        if (front >= n) {
+          /* will write tail anti-run below */
+          mode = EXIT;
+        } else {
+          /* must be here because we saw a run of 3.
+             we don't want to include this
+             run in the anti-run */
+          front -= 2;
+          /* after writing anti-run, we will
+             be with back = front and in
+             NOTHING state, but we will
+             detect a run. */
+          mode = NOTHING;
+        }
 
-	/* write anti-run, unless
-	   there's just one character */
-	while ((front - back) > 0) {
-	  unsigned int x = front - back;
+        /* write anti-run, unless
+           there's just one character */
+        while ((front - back) > 0) {
+          unsigned int x = front - back;
 
-	  if (x == 1) {
-	    items.emplace_back(FRAME, 1U);
-	    items.emplace_back(VALUE, a[back]);
+          if (x == 1) {
+            items.emplace_back(FRAME, 1U);
+            items.emplace_back(VALUE, a[back]);
 
-	    back++;
-	  } else {
-	    items.emplace_back(FRAME, 0U);
-	    items.emplace_back(FRAME, x);
+            back++;
+          } else {
+            items.emplace_back(FRAME, 0U);
+            items.emplace_back(FRAME, x);
 
-	    while (x--) {
-	      items.emplace_back(VALUE, a[back]);
-	      back++;
-	    }
-	  }
-	}
-	break;
+            while (x--) {
+              items.emplace_back(VALUE, a[back]);
+              back++;
+            }
+          }
+        }
+        break;
       } else front++;
     }
   }
@@ -343,7 +343,7 @@ string EscapeRLE::Encode(int n, const int *a) {
   const uint32 valuebits = BitsNeeded(maxv);
   // Since these are uint32 values, they can't need more than 32 bits!
   assert(valuebits <= 32);
-  
+
   BitBuffer ou;
   // Format specifier is always 8 bits, with top bit set.
   // If framebits is not the default, we also set the next bit,
@@ -371,6 +371,6 @@ string EscapeRLE::Encode(int n, const int *a) {
 
   // printf("Wrote n=%d in %d items, framebits %u (%u) valuebits %u (%u)\n",
   // n, (int)items.size(), framebits, maxf, valuebits, maxv);
-  
+
   return ou.getstring();
 }

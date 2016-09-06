@@ -75,8 +75,8 @@ struct vallist {
 
   static vallist<T> *copy(vallist<T> *sl) {
     if (sl) {
-      return new vallist<T>(sl->head, 
-			    copy(sl->next));
+      return new vallist<T>(sl->head,
+                            copy(sl->next));
     } else return 0;
   }
 };
@@ -105,7 +105,7 @@ struct onionfind {
   ~onionfind() { delete [] arr; }
 
   private:
-  
+
   onionfind(const onionfind &) { abort(); }
 };
 
@@ -133,7 +133,7 @@ struct util {
      dirplus("/usr/local", "/etc/passwd")  gives "/etc/passwd"  */
   static string dirplus(const string &dir, const string &file);
 
-  /* spec is a character spec like "A-Z0-9`,." 
+  /* spec is a character spec like "A-Z0-9`,."
      XXX document */
   static bool matchspec(string spec, char c);
 
@@ -187,7 +187,7 @@ struct util {
      the line */
   static string chopto(char c, string &line);
 
-  /* erase any whitespace up to the first 
+  /* erase any whitespace up to the first
      non-whitespace char. */
   static string losewhitel(const string &s);
 
@@ -195,7 +195,7 @@ struct util {
      doesn't exist or is successfully
      removed, then return true. */
   static bool remove(string f);
-  
+
   /* move a file from src to dst. Return
      true on success. */
   static bool move(string src, string dst);
@@ -205,7 +205,7 @@ struct util {
 
   // Not thread safe!
   static string tempfile(string suffix);
-  
+
   /* does this file exist and is it a directory? */
   static bool isdir(string s);
 
@@ -262,16 +262,16 @@ struct util {
   /* XXX can't use this in MSVC 6.0 */
   template <class T>
   static void sortarray(T *items,
-			int (*compare)(const T &l, const T &r),
-			int first, int last);
+                        int (*compare)(const T &l, const T &r),
+                        int first, int last);
 };
 
 
 /* templates follow. */
 template <class T>
 void util::sortarray(T *items,
-		     int (*compare)(const T &l, const T &r),
-		     int first, int last) {
+                     int (*compare)(const T &l, const T &r),
+                     int first, int last) {
   /* done for zero, negative, or one-sized arrays. */
   if ((last - first) <= 0) return;
 
@@ -284,7 +284,7 @@ void util::sortarray(T *items,
   /* invariant in while loop:
      everything from first+1 .. i-1 is less-eq than [first]
      everything from j + 1 .. last is greater than [first]. */
-    
+
   /* move fingers together, preserving the invariant */
   while (i != j) {
     if (compare(items[i], items[first]) != 1) { /* <= */
@@ -295,22 +295,22 @@ void util::sortarray(T *items,
       /* [i] belongs on the other side */
 
       if (compare(items[j], items[first]) == 1) { /* > */
-	/* [j] belongs in greater set */
-	j--;
-	/* XXX could be more efficient by avoiding re-test
-	   for i; favor simplicity now */
-	continue;
+        /* [j] belongs in greater set */
+        j--;
+        /* XXX could be more efficient by avoiding re-test
+           for i; favor simplicity now */
+        continue;
       } else {
-	/* [j] belongs on the other side */
-	{ /* swap i,j */
-	  T temp = items[i];
-	  items[i] = items[j];
-	  items[j] = temp;
-	}
-	/* the invariant still holds, and we have
-	   made progress towards sorting, so we
-	   can continue */
-	continue;
+        /* [j] belongs on the other side */
+        { /* swap i,j */
+          T temp = items[i];
+          items[i] = items[j];
+          items[j] = temp;
+        }
+        /* the invariant still holds, and we have
+           made progress towards sorting, so we
+           can continue */
+        continue;
       }
 
     }
@@ -335,8 +335,8 @@ void util::sortarray(T *items,
     /* [i] needs to be in the greater set.
        however, we know [i - 1] is in the
        smaller set. swap it with the pivot.
-       i - 1 is always at least as big as 
-       first because i starts at first + 1 
+       i - 1 is always at least as big as
+       first because i starts at first + 1
        and only increases.
     */
     if (first != (i - 1)) {
@@ -352,7 +352,7 @@ void util::sortarray(T *items,
        in the lesseq set. */
     sortarray(items, compare, first, i - 2);
     sortarray(items, compare, i, last);
-  } 
+  }
 }
 
 #endif

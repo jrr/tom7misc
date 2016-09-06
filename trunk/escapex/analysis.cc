@@ -31,8 +31,8 @@ onionfind *Analysis::reachable(Level *lev) {
      transporter -- it's important that he presses any panel at that
      spot, and leaves any panel he's currently on). if he's dead, then
      we change nothing. if he can legally step in any of the four
-     directions, and vice versa, then we union them and continue. 
-     
+     directions, and vice versa, then we union them and continue.
+
      an empty space is: floor, rough, a panel, any colored floor that
      is 'down'
   */
@@ -41,46 +41,46 @@ onionfind *Analysis::reachable(Level *lev) {
     for (int x = 0; x < lev->w; x++) {
 
       if (isempty(lev->tileat(x, y))) {
-	Level *cl = lev->clone();
-	Extent<Level> el(cl);
+        Level *cl = lev->clone();
+        Extent<Level> el(cl);
 
-	cl->warp(cl->guyx, cl->guyy, x, y);
+        cl->warp(cl->guyx, cl->guyy, x, y);
 
-	/* mustn't be dead already! */
-	int dummy; dir unused;
-	if (cl->isdead(dummy, dummy, unused)) continue;
+        /* mustn't be dead already! */
+        int dummy; dir unused;
+        if (cl->isdead(dummy, dummy, unused)) continue;
 
-	for (dir d = FIRST_DIR; d <= LAST_DIR; d++) {
-	  Level *cc = cl->clone();
-	  Extent<Level> ec(cc);
+        for (dir d = FIRST_DIR; d <= LAST_DIR; d++) {
+          Level *cc = cl->clone();
+          Extent<Level> ec(cc);
 
-	  
-	  /* we can't be walking off the map! */
-	  int destx, desty;
-	  if (!lev->travel(x, y, d, destx, desty)) continue;
-	  
-	  /* PERF could save some work by checking if they're
-	     already unioned */
-	  if (isempty(lev->tileat(destx, desty)) &&
-	      cc->Move(d) && !cc->isdead(dummy, dummy, unused)) {
-	    /* good. now just check the opposite... */
-	    Level *co = cl->clone();
-	    Extent<Level> eec(co);
 
-	    co->warp(cl->guyx, cl->guyy, destx, desty);
-	    
-	    if (co->Move(dir_reverse(d)) &&
-		!co->isdead(dummy, dummy, unused)) {
+          /* we can't be walking off the map! */
+          int destx, desty;
+          if (!lev->travel(x, y, d, destx, desty)) continue;
 
-	      /* these two spots are mutually accessible,
-		 so union them */
+          /* PERF could save some work by checking if they're
+             already unioned */
+          if (isempty(lev->tileat(destx, desty)) &&
+              cc->Move(d) && !cc->isdead(dummy, dummy, unused)) {
+            /* good. now just check the opposite... */
+            Level *co = cl->clone();
+            Extent<Level> eec(co);
 
-	      of->onion(lev->index(x, y),
-			lev->index(destx, desty));
-	      
-	    }
-	  } /* else can't move! */
-	}
+            co->warp(cl->guyx, cl->guyy, destx, desty);
+
+            if (co->Move(dir_reverse(d)) &&
+                !co->isdead(dummy, dummy, unused)) {
+
+              /* these two spots are mutually accessible,
+                 so union them */
+
+              of->onion(lev->index(x, y),
+                        lev->index(destx, desty));
+
+            }
+          } /* else can't move! */
+        }
 
       } /* empty */
 
@@ -89,24 +89,24 @@ onionfind *Analysis::reachable(Level *lev) {
   return of;
 }
 
-static bool separator(Level *lev, int x, int y, 
-		      int x1, int y1, int &x2, int &y2, 
-		      int tile, bool search);
+static bool separator(Level *lev, int x, int y,
+                      int x1, int y1, int &x2, int &y2,
+                      int tile, bool search);
 
 
-bool Analysis::doessep(Level *lev, int x, int y, 
-		       int x1, int y1, int x2, int y2, int tile) {
+bool Analysis::doessep(Level *lev, int x, int y,
+                       int x1, int y1, int x2, int y2, int tile) {
   return separator(lev, x, y, x1, y1, x2, y2, tile, false);
 }
 
-bool Analysis::issep(Level *lev, int x, int y, 
-		     int x1, int y1, int &x2, int &y2, int tile) {
+bool Analysis::issep(Level *lev, int x, int y,
+                     int x1, int y1, int &x2, int &y2, int tile) {
   return separator(lev, x, y, x1, y1, x2, y2, tile, true);
 }
 
-static bool separator(Level *lev, int x, int y, 
-		      int x1, int y1, int &x2, int &y2, 
-		      int tile, bool search) {
+static bool separator(Level *lev, int x, int y,
+                      int x1, int y1, int &x2, int &y2,
+                      int tile, bool search) {
 
   /*
     printf("  separator(%d, %d, x1=%d, y1=%d, x2=%d, y2=%d, %s)\n",
@@ -130,7 +130,7 @@ static bool separator(Level *lev, int x, int y,
 
   Level *nlev = lev->clone();
   Extent<Level> le(nlev);
-  
+
   nlev->settile(x, y, tile);
 
   std::unique_ptr<onionfind> fresh{Analysis::reachable(nlev)};
@@ -140,7 +140,7 @@ static bool separator(Level *lev, int x, int y,
     printf("\nseparate at %d/%d?? after:\n", x, y);
     for (int y = 0; y < lev->h; y++) {
       for (int x = 0; x < lev->w; x++) {
-	printf("%4d ", fresh->find(nlev->index(x, y)));
+        printf("%4d ", fresh->find(nlev->index(x, y)));
       }
       printf("\n");
     }
@@ -154,29 +154,29 @@ static bool separator(Level *lev, int x, int y,
   if (search) {
     for (y2 = 0; y2 < lev->h; y2++)
       for (x2 = 0; x2 < lev->w; x2++) {
-	/* check that they used to be the same */
-	if (orig->find(lev->index(x2, y2)) == oclass) {
+        /* check that they used to be the same */
+        if (orig->find(lev->index(x2, y2)) == oclass) {
 
-	  /* but now different! */
-	  if (fresh->find(nlev->index(x2, y2)) != expect) {
+          /* but now different! */
+          if (fresh->find(nlev->index(x2, y2)) != expect) {
 
-	    /*
-	      printf("may separate: oclass=%d, expect=%d, actual=%d\n",
-	      oclass, expect,
-	      fresh->find(nlev->index(x2, y2)) != expect);
-	    */
+            /*
+              printf("may separate: oclass=%d, expect=%d, actual=%d\n",
+              oclass, expect,
+              fresh->find(nlev->index(x2, y2)) != expect);
+            */
 
-	    /* also mustn't be the same as the one
-	       we just added. */
-	    if (x2 != x || y2 != y) return true;
-	  }
-	}
+            /* also mustn't be the same as the one
+               we just added. */
+            if (x2 != x || y2 != y) return true;
+          }
+        }
       }
     return false;
   } else {
     if (orig->find(lev->index(x2, y2)) == oclass &&
-	fresh->find(nlev->index(x2, y2)) != expect &&
-	(x2 != x || y2 != y)) return true;
+        fresh->find(nlev->index(x2, y2)) != expect &&
+        (x2 != x || y2 != y)) return true;
     else return false;
   }
 

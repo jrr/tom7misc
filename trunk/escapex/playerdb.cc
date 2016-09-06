@@ -47,9 +47,9 @@ struct PDBEntry {
     SWAP(solved);
 #   undef SWAP
   }
-  
+
   static int cmp_bysolved(const PDBEntry &l,
-			  const PDBEntry &r) {
+                          const PDBEntry &r) {
     if (l.kind < r.kind) return -1;
     if (l.kind > r.kind) return 1;
     if (l.solved > r.solved) return -1;
@@ -128,7 +128,7 @@ void PDBEntry::draw(int x, int y, bool selected) {
     /* Draw the player graphic. Should actually animate the
        player that's selected. */
     Drawing::drawguy(DIR_DOWN, ix, iy, 0, screen);
-    
+
     fon->draw(tx, ty, display(selected));
     break;
   }
@@ -137,7 +137,7 @@ void PDBEntry::draw(int x, int y, bool selected) {
 string PDBEntry::display(bool sel) {
   string color = "";
   if (sel) color = BLUE;
-  return color + name + (string)" " POP 
+  return color + name + (string)" " POP
          "(" YELLOW + itos(solved) + (string)POP ")";
 }
 
@@ -154,12 +154,12 @@ Player *PDBEntry::convert() {
 }
 
 bool PDBEntry::matches(char k) {
-  if (kind == K_PLAYER) 
+  if (kind == K_PLAYER)
     return (name.length() > 0) && ((name[0]|32) == k);
   else if (kind == K_IMPORT) return ((k | 32) == 'i');
   else if (kind == K_NEW) return ((k | 32) == 'n');
   else if (kind == K_QUIT) return ((k | 32) == 'x' ||
-				   (k | 32) == 'q');
+                                   (k | 32) == 'q');
   /* ?? */
   else return false;
 }
@@ -168,7 +168,7 @@ bool PDBEntry::matches(char k) {
    If there are none found, then create a "default" player and
    start over. */
 PlayerDB_ *PlayerDB_::create() {
-  
+
   std::unique_ptr<PlayerDB_> pdb{new PlayerDB_{}};
 
   /* need at least enough for the menuitems, and for the
@@ -186,7 +186,7 @@ PlayerDB_ *PlayerDB_::create() {
   int n = 0;
   while ( (de = readdir(d)) ) {
     string f = de->d_name;
-   
+
 #   ifdef WIN32
     f = util::lcase(f);
 #   endif
@@ -200,13 +200,13 @@ PlayerDB_ *PlayerDB_::create() {
       pdb->sel->items[n].fname = f;
 
       if (Player *p = Player::FromFile(f)) {
-	pdb->sel->items[n].name = p->name;
-	pdb->sel->items[n].solved = p->num_solutions();
+        pdb->sel->items[n].name = p->name;
+        pdb->sel->items[n].solved = p->num_solutions();
 
-	delete p;
+        delete p;
       } else {
-	pdb->sel->items[n].name = f + "  **" RED "ERROR" POP "**";
-	pdb->sel->items[n].solved = -1;
+        pdb->sel->items[n].name = f + "  **" RED "ERROR" POP "**";
+        pdb->sel->items[n].solved = -1;
       }
 
       n++;
@@ -231,25 +231,25 @@ string PlayerDB_::safeify(string name) {
   /* names can only contain certain characters. */
 
   string ou;
-  
+
   for (unsigned int i = 0;
        i < name.length() && ou.length() < 32;
        i++) {
-    
+
     if ((name[i] >= 'A' &&
-	 name[i] <= 'Z') ||
-	(name[i] >= 'a' &&
-	 name[i] <= 'z') ||
-	(name[i] >= '0' &&
-	 name[i] <= '9') ||
-	name[i] == '_' ||
-	name[i] == '-' ||
-	name[i] == ' ' ||
-	name[i] == '.' ||
-	name[i] == '(' ||
-	name[i] == ')' ||
-	name[i] == '!' ||
-	name[i] == '@') ou += (char)name[i];
+         name[i] <= 'Z') ||
+        (name[i] >= 'a' &&
+         name[i] <= 'z') ||
+        (name[i] >= '0' &&
+         name[i] <= '9') ||
+        name[i] == '_' ||
+        name[i] == '-' ||
+        name[i] == ' ' ||
+        name[i] == '.' ||
+        name[i] == '(' ||
+        name[i] == ')' ||
+        name[i] == '!' ||
+        name[i] == '@') ou += (char)name[i];
   }
 
   return ou;
@@ -260,21 +260,21 @@ string PlayerDB_::makefilename(string name) {
      add .esp */
 
   string ou;
-  
+
   for (unsigned int i = 0;
       i < name.length() && ou.length() <= 8;
       i++) {
-    
+
     if ((name[i] >= 'A' &&
-	 name[i] <= 'Z') ||
-	(name[i] >= 'a' &&
-	 name[i] <= 'z') ||
-	(name[i] >= '0' &&
-	 name[i] <= '9') ||
-	name[i] == '_') ou += (char)name[i];
+         name[i] <= 'Z') ||
+        (name[i] >= 'a' &&
+         name[i] <= 'z') ||
+        (name[i] >= '0' &&
+         name[i] <= '9') ||
+        name[i] == '_') ou += (char)name[i];
     else if (name[i] == ' ') ou += '_';
   }
-  
+
   if (ou == "") ou = "player";
 
   ou += ".esp";
@@ -312,11 +312,11 @@ void PlayerDB_::addplayer(string name) {
     } else {
       delete plr;
     }
-  } 
+  }
 
   /* failed if we got here */
   Message::quick(0, "Couldn't create player. Does file already exist?",
-		 "OK", "", PICS XICON POP);
+                 "OK", "", PICS XICON POP);
 }
 
 void PlayerDB_::delplayer(int i) {
@@ -329,10 +329,10 @@ void PlayerDB_::delplayer(int i) {
     int n = 0;
     for (int m = 0; m < sel->number; m++) {
       if (m != i) {
-	sel->items[n++] = sel->items[m];
-      } 
+        sel->items[n++] = sel->items[m];
+      }
     }
-    
+
     sel->number = n;
     sel->selected = 0;
   }
@@ -350,52 +350,52 @@ Player *PlayerDB_::chooseplayer() {
 
   while ( SDL_WaitEvent(&event) >= 0 ) {
 
-    /* control-something is handled 
+    /* control-something is handled
        separately. */
 
     if (event.type == SDL_KEYDOWN &&
-	(event.key.keysym.mod & KMOD_CTRL))
+        (event.key.keysym.mod & KMOD_CTRL))
       switch (event.key.keysym.sym) {
 
       default:
-	break;
+        break;
 
-	/* delete selected */
+        /* delete selected */
       case SDLK_d: {
-	/* XXX use a more robust method here to detect the default player. */
-	if (sel->items[sel->selected].name != "Default"
-	    && sel->items[sel->selected].kind == K_PLAYER) {
+        /* XXX use a more robust method here to detect the default player. */
+        if (sel->items[sel->selected].name != "Default"
+            && sel->items[sel->selected].kind == K_PLAYER) {
 
-	  string answer = 
-	    Prompt::ask(0,
-			((string)PICS QICON POP " Really delete " BLUE +
-			 sel->items[sel->selected].name +
-			 (string)" " POP "(" YELLOW +
-			 itos(sel->items[sel->selected].solved) +
-			 (string)" " POP "solved)? (y/N) "));
-	
-	  if (answer.length() > 0 && (answer[0]|32) == 'y') {
-	    delplayer(sel->selected);
-	  }
+          string answer =
+            Prompt::ask(0,
+                        ((string)PICS QICON POP " Really delete " BLUE +
+                         sel->items[sel->selected].name +
+                         (string)" " POP "(" YELLOW +
+                         itos(sel->items[sel->selected].solved) +
+                         (string)" " POP "solved)? (y/N) "));
 
-	  sel->sort(PDBEntry::cmp_bysolved);
-	  sel->redraw();
-	} else {
+          if (answer.length() > 0 && (answer[0]|32) == 'y') {
+            delplayer(sel->selected);
+          }
 
-	  /* XXX should we even do anything here? */
-	  Message::no(0, "Can't delete default player or menu items!");
-	  sel->redraw();
+          sel->sort(PDBEntry::cmp_bysolved);
+          sel->redraw();
+        } else {
 
-	}
-	continue;
+          /* XXX should we even do anything here? */
+          Message::no(0, "Can't delete default player or menu items!");
+          sel->redraw();
+
+        }
+        continue;
       }
-	/* create new */
+        /* create new */
       case SDLK_n: {
-	promptnew();
-	continue;
+        promptnew();
+        continue;
       }
       }
-     
+
 
     /* otherwise, handle via default selector */
     selor::peres pr = sel->doevent(event);
@@ -403,16 +403,16 @@ Player *PlayerDB_::chooseplayer() {
     case selor::PE_SELECTED:
       switch (sel->items[sel->selected].kind) {
       case K_PLAYER:
-	return sel->items[sel->selected].convert();
+        return sel->items[sel->selected].convert();
       case K_QUIT:
-	return 0; /* XXX? */
+        return 0; /* XXX? */
       case K_IMPORT:
-	promptimport();
-	continue;
+        promptimport();
+        continue;
 
       case K_NEW:
-	promptnew();
-	continue;
+        promptnew();
+        continue;
       }
       /* ??? */
       break;
@@ -432,8 +432,8 @@ Player *PlayerDB_::chooseplayer() {
 void PlayerDB_::promptnew() {
   /* XXX could default to getenv(LOGNAME) on linux */
   string ssss = safeify(Prompt::ask(0,
-				    "Enter name for new player: "));
-	
+                                    "Enter name for new player: "));
+
   if (ssss != "") {
     addplayer(ssss);
   }
@@ -469,7 +469,7 @@ void PlayerDB_::promptimport() {
     sel->items[sel->number - 1].solved = pa->num_solutions();
     sel->items[sel->number - 1].name = pa->name;
     sel->items[sel->number - 1].fname = pa->fname;
-    
+
     pa->destroy();
 
     sel->sort(PDBEntry::cmp_bysolved);
@@ -478,9 +478,9 @@ void PlayerDB_::promptimport() {
   }
 #endif
 
-  Message::no(0, 
-	      "To import a player, just " BLUE "copy the .esp file" POP "\n"
-	      "   into the escape directory and restart the game.");
+  Message::no(0,
+              "To import a player, just " BLUE "copy the .esp file" POP "\n"
+              "   into the escape directory and restart the game.");
 
   sel->redraw();
 }

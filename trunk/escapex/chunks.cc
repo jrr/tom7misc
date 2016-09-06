@@ -10,7 +10,7 @@ Chunk::Chunk(uint32 k, string ss) : type(CT_STRING), key(k), i(0), s(ss) {}
 
 string Chunk::tostring() {
   /* key and type first, then data.
-     the size of string data must be deduced from some other 
+     the size of string data must be deduced from some other
      source. */
   // printf("tostring(%p): key %d, type %d, i %d, b %d, s %");
 
@@ -35,7 +35,7 @@ Chunk *Chunk::fromstring(const string &s) {
   case CT_BOOL:
     if (s.length() < 12) return nullptr;
     else return new Chunk(key, (bool)shout(4, s, idx));
-  case CT_INT32: 
+  case CT_INT32:
     if (s.length() < 12) return nullptr;
     else return new Chunk(key, (int)shout(4, s, idx));
   case CT_STRING:
@@ -84,7 +84,7 @@ string Chunks::tostring() {
   }
   */
 
-  /* 
+  /*
   printf("Chunk tostring:\n");
   printf("data: %p\n", data); */
   for (PtrList<Chunk> *tmp = data; tmp; tmp = tmp->next) {
@@ -125,7 +125,7 @@ Chunks *Chunks::fromstring(const string &s) {
   if (!ck) return nullptr;
 
   ck->data = dat;
-  
+
   return ck;
 }
 

@@ -11,19 +11,19 @@
    (avent) will be returned. Each event describes
    something that happened in a level (e.g., a block
    was pushed from one square to another, a series
-   of tiles were flipped from 'up' state to 'down,' 
-   or the player was shot by a laser). The 
-   responsibility for how these events should be 
+   of tiles were flipped from 'up' state to 'down,'
+   or the player was shot by a laser). The
+   responsibility for how these events should be
    portrayed lies in whatever interprets the event
    list. In this sense animation also includes
    sound effects.
-   
+
    Events have time stamps, given as serial numbers.
    Events with the same serial number happen at the
    same time. The event list should always be sorted
    with earlier serial numbers at the beginning of
    the list, and the numbers have no particular
-   significance outside of ordering the list. 
+   significance outside of ordering the list.
 
    For each kind of event, there is an atag (tag_event),
    a structure describing the kind of data it contains
@@ -33,23 +33,23 @@
 
 using dir = int;
 
-enum atag { tag_fly, tag_push, tag_jiggle, tag_breaks, tag_swap, 
-	    tag_walk, tag_press, tag_stand, tag_toggle, tag_button, 
-	    tag_trap, tag_pushgreen, tag_litewire, tag_liteup,
-	    tag_opendoor, tag_lasered, tag_winner, tag_botexplode,
-	    tag_wakeupdoor, tag_getheartframer, tag_wakeup,
-	    tag_transponderbeam, tag_bombsplosion, tag_teleportout,
-	    tag_teleportin,
+enum atag { tag_fly, tag_push, tag_jiggle, tag_breaks, tag_swap,
+            tag_walk, tag_press, tag_stand, tag_toggle, tag_button,
+            tag_trap, tag_pushgreen, tag_litewire, tag_liteup,
+            tag_opendoor, tag_lasered, tag_winner, tag_botexplode,
+            tag_wakeupdoor, tag_getheartframer, tag_wakeup,
+            tag_transponderbeam, tag_bombsplosion, tag_teleportout,
+            tag_teleportin,
 };
 
 
 /* a tile (ie, gold block) flies from one location, horizontally or
    vertically for n tiles, and stops there (or is zapped). */
-struct fly_t { int what; int srcx; int srcy; dir d; int distance; 
+struct fly_t { int what; int srcx; int srcy; dir d; int distance;
                bool zapped; int whatunder; };
 /* Player steps into srcx, srcy from direction d, pushing the block
    there one square. */
-struct push_t { int what; int under; int srcx; int srcy; 
+struct push_t { int what; int under; int srcx; int srcy;
                 dir d; bool zap; bool hole; };
 
 /* green can only be pushed from floor to floor */
@@ -65,7 +65,7 @@ struct breaks_t { int x; int y; };
 struct swap_t { int x; int y; int was; int now; };
 
 /* entity (player, bot) walking */
-struct walk_t { int srcx; int srcy; dir d; bool pushing; 
+struct walk_t { int srcx; int srcy; dir d; bool pushing;
                 int whatunder; bot entt; int data; };
 
 /* entity (player, bot) teleporting out */
@@ -74,7 +74,7 @@ struct teleportout_t { int x; int y; bot entt; };
 /* same, but teleporting in */
 struct teleportin_t { int x; int y; bot entt; };
 
-/* player pressing in some direction 
+/* player pressing in some direction
    it's a kick if the player is moving a gold block
    or sphere. Otherwise, it's a press (of a button). */
 struct press_t { int x; int y; dir d; bool kick; };
@@ -107,7 +107,7 @@ struct opendoor_t { int x; int y; };
    (which is in direction 'from' relative to him) */
 struct lasered_t { int x; int y; dir from; int lx; int ly; };
 
-/* beam hitting x,y from lx,ly in direction 'from' 
+/* beam hitting x,y from lx,ly in direction 'from'
    (relative to target as above). count as with litewire */
 struct transponderbeam_t { int x; int y; dir from; int lx; int ly; int count; };
 

@@ -2,7 +2,7 @@
    Used only within animation; keeps track of where action has
    occurred on the grid -- if two actions interfere, then we serialize
    them.
-   
+
    Disambiguation contexts are associated with particular levels and
    shan't be mixed up!
 */
@@ -31,7 +31,7 @@ struct Disamb {
   bool affect(int x, int y, Level *l, PtrList<aevent> **& etail);
   bool affecti(int idx, Level *l, PtrList<aevent> **& etail);
 
-  /* should be paired with calls to 'affect' 
+  /* should be paired with calls to 'affect'
      for the squares that these things live in */
   void preaffectplayer(Level *l, PtrList<aevent> **& etail);
   void preaffectbot(int i, Level *l, PtrList<aevent> **& etail);
@@ -42,14 +42,14 @@ struct Disamb {
   void serialup(Level *l, PtrList<aevent> **& etail);
 
   unsigned int Serial() const { return serial; }
-  
+
   // For debugging
   unsigned int serialat(int x, int y) const { return serials[y * w + x]; }
  private:
   /* array of serial numbers. */
   int w, h;
   unsigned int *serials;
-  
+
   /* last serial in which the player was updated */
   unsigned int player;
   /* same, bots */
@@ -81,7 +81,7 @@ struct NullDisamb {
     return false;
   }
 
-  /* should be paired with calls to 'affect' 
+  /* should be paired with calls to 'affect'
      for the squares that these things live in */
   void preaffectplayer(Level *l, PtrList<aevent> **& etail) {}
   void preaffectbot(int i, Level *l, PtrList<aevent> **& etail) {}
@@ -92,7 +92,7 @@ struct NullDisamb {
   void serialup(Level *l, PtrList<aevent> **& etail) {}
 
   unsigned int Serial() const { return 0U; }
-  
+
   // For debugging
   unsigned int serialat(int x, int y) const { return 0U; }
 };

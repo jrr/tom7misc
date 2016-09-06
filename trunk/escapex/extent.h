@@ -10,7 +10,7 @@
 
 template <class P>
 struct Extent {
-  
+
   P *ptr;
 
   Extent(P *p) : ptr(p) {}

@@ -2,15 +2,16 @@
 #include "menu.h"
 #include "draw.h"
 #include "chars.h"
+#include "textbox.h"
 
 /* n.b.: for fixing all these crazy corner cases, it seems that a good
    technique is to simply 'retype' any area that needs to be reflown. */
 
-/* 
+/*
   we have an invariant that 'before' is chunked into lines
   by virtual line-breaks (or real line breaks), where no
   line is longer than the width of the text box. there are
-  three kinds: 
+  three kinds:
      \n    --- a real newline. obviously a line break
      \x00  --- a virtual line break, translates into a space
      \x01  --- a virtual line break, translates to nothing
@@ -20,7 +21,7 @@
 
 /* XXX moves cursor home. this is OK for current use,
    but should be documented */
-string textbox::get_text() {
+string TextBox::get_text() {
   /* go home (to avoid virtual line breaks) */
   while (before) left(false);
   int len = after->length();
@@ -45,14 +46,14 @@ string textbox::get_text() {
   return ret;
 }
 
-void textbox::empty() {
+void TextBox::Clear() {
   vallist<char>::diminish(before);
   vallist<char>::diminish(after);
 }
 
-void textbox::set_text(string s) {
+void TextBox::set_text(string s) {
   /* remove what's there */
-  empty();
+  Clear();
   before = 0;
   int sl = s.length();
 
@@ -63,13 +64,13 @@ void textbox::set_text(string s) {
 
 }
 
-void textbox::size(int &w, int &h) {
+void TextBox::size(int &w, int &h) {
   /* text area plus boundary, scroll indicator */
   w = fon->width * (charsw + 3);
   h = fon->height * (charsh + 3) - (fon->height >> 1);
 }
 
-void textbox::draw(int posx, int posy, int f) {
+void TextBox::draw(int posx, int posy, int f) {
 
   /* draw header and skip */
   fon->draw(posx, posy, question);
@@ -112,14 +113,14 @@ void textbox::draw(int posx, int posy, int f) {
   }
 
   /* now draw text! */
-  
+
   /* start by going backwards into the 'before'
      list, collecting up lines of text until we
      get to
 
      (a) the beginning of the text. Then we
      can just draw it in a straightforward way.
-     
+
      (b) n lines, where n is about height/2.
      in this case, we can ignore anything
      preceding these lines, and draw forward
@@ -138,25 +139,25 @@ void textbox::draw(int posx, int posy, int f) {
 
   /* distinguish (a) and (b): can we get
      at least drawlines lines? */
-  
+
   int count = 0;
   vallist<char> *tmp = before;
   stringlist *blines = nullptr;
 
   while (tmp) {
     if (count >= drawlines) break;
-    
+
     stringlist::push(blines, prevline(tmp));
     count++;
   }
 
   /* now we are in case (a) if !tmp,
-     and case (b) otherwise. 
+     and case (b) otherwise.
 
      actually, we treat both cases the
      same way:
 
-     1. draw 'count' partial lines. 
+     1. draw 'count' partial lines.
      2. (draw cursor)
      3. draw characters (doing word wrap)
      in order to fill text box or
@@ -178,7 +179,7 @@ void textbox::draw(int posx, int posy, int f) {
     /* printf("drew [%s] at %d\n", lastline.c_str(), y); */
     y++;
   }
-  
+
   if (count) y--;
 
   /* now y is on the final line, which
@@ -198,7 +199,7 @@ void textbox::draw(int posx, int posy, int f) {
   }
 
   int x = lastline.length();
-  
+
   vallist<char> *rest = after;
   /* write characters */
   while (rest && y < charsh) {
@@ -209,38 +210,38 @@ void textbox::draw(int posx, int posy, int f) {
 
       if (w.length() + x > (unsigned)charsw) {
         /* wrap! */
-          
+
         if (x == 0) {
-	  /* impossible to wrap whole word; split */
-	  fon->draw_plain(posx + (x * (fon->width - fon->overlap)),
-			  posy + (y * fon->height), w.substr(0, charsw));
-	  x = 0;
-	  y++;
-	  if (y >= charsh) break;
-	  w = w.substr(charsw, w.length() - charsw);
-	  continue;
+          /* impossible to wrap whole word; split */
+          fon->draw_plain(posx + (x * (fon->width - fon->overlap)),
+                          posy + (y * fon->height), w.substr(0, charsw));
+          x = 0;
+          y++;
+          if (y >= charsh) break;
+          w = w.substr(charsw, w.length() - charsw);
+          continue;
         } else {
-	  x = 0;
-	  y++;
-	  if (y >= charsh) break;
+          x = 0;
+          y++;
+          if (y >= charsh) break;
         }
       } else {
 
-	fon->draw_plain(posx + (x * (fon->width - fon->overlap)),
-			posy + (y * fon->height),
-			w);
-	x += w.length();
-	w = "";
+        fon->draw_plain(posx + (x * (fon->width - fon->overlap)),
+                        posy + (y * fon->height),
+                        w);
+        x += w.length();
+        w = "";
       }
-      
+
     }
 
     /* deal with whitespace. */
     if (rest) {
       if (rest->head == '\n') {
-	/* carriage return */
-	x = 0;
-	y++;
+        /* carriage return */
+        x = 0;
+        y++;
       } else x++;
       /* skip it */
       rest = rest->next;
@@ -249,7 +250,7 @@ void textbox::draw(int posx, int posy, int f) {
 }
 
 /* PERF used extensively, has inefficient implementation */
-string textbox::prevline(vallist<char> *&bb) {
+string TextBox::prevline(vallist<char> *&bb) {
   string theline;
 
   /* printf("prevline :"); */
@@ -275,7 +276,7 @@ string textbox::prevline(vallist<char> *&bb) {
 
 /* leaves aa pointing at the whitespace
    character that follows this word (orelse null) */
-string textbox::nextword(vallist<char> *&aa) {
+string TextBox::nextword(vallist<char> *&aa) {
   string theword;
 
   while (aa) {
@@ -299,7 +300,7 @@ string textbox::nextword(vallist<char> *&aa) {
 /* pop the last word from bb. p will be set to the type of
    breaking char that preceded this word (which is also removed
    from bb.) */
-string textbox::popword(vallist<char> *&bb, char &p) {
+string TextBox::popword(vallist<char> *&bb, char &p) {
   string out;
   while (bb) {
     char k = vallist<char>::pop(bb, ' ');
@@ -318,15 +319,15 @@ string textbox::popword(vallist<char> *&bb, char &p) {
   return out;
 }
 
-void textbox::goto_beginning() {
+void TextBox::goto_beginning() {
   while (before) left(false);
 }
 
-void textbox::goto_end() {
+void TextBox::goto_end() {
   while (after) right(false);
 }
 
-inputresult textbox::key(SDL_Event e) {
+inputresult TextBox::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
@@ -335,7 +336,7 @@ inputresult textbox::key(SDL_Event e) {
     case SDLK_TAB:
     case SDLK_ESCAPE:
       return MenuItem::key(e);
-      
+
     case SDLK_DOWN:
       down();
       return inputresult(MR_UPDATED);
@@ -361,7 +362,7 @@ inputresult textbox::key(SDL_Event e) {
     case SDLK_HOME:
       goto_beginning();
       return inputresult(MR_UPDATED);
-      
+
     case SDLK_END:
       goto_end();
       return inputresult(MR_UPDATED);
@@ -374,22 +375,22 @@ inputresult textbox::key(SDL_Event e) {
     default: {
       int uc = e.key.keysym.unicode;
       if ((uc & ~0x7F) == 0 && uc >= ' ') {
-	type((char)(uc));
-	return inputresult(MR_UPDATED);
+        type((char)(uc));
+        return inputresult(MR_UPDATED);
       } else return inputresult(MR_REJECT);
     }
     }
   } else return inputresult(MR_REJECT);
 }
 
-void textbox::right(bool erasing) {
+void TextBox::right(bool erasing) {
   if (after) {
     char k = vallist<char>::pop(after, ' ');
     if (!erasing) type(k);
-  } 
+  }
 }
 
-void textbox::left(bool erasing) {
+void TextBox::left(bool erasing) {
   left_noflow(erasing);
   if (before) {
     left_noflow(false);
@@ -397,7 +398,7 @@ void textbox::left(bool erasing) {
   }
 }
 
-void textbox::left_noflow(bool erasing) {
+void TextBox::left_noflow(bool erasing) {
   while (before) {
     char k = vallist<char>::pop(before, '*');
     if (k == '\x00') {
@@ -408,17 +409,17 @@ void textbox::left_noflow(bool erasing) {
     }
     if (!erasing) vallist<char>::push(after, k);
     return ;
-  } 
+  }
 }
 
-void textbox::up() {
+void TextBox::up() {
   /* find out how many characters back 'up' is. */
 
   vallist<char> *tmp = before;
   int thisline = countprevline(tmp);
   int prevline = countprevline(tmp);
 
-  int charsback = 
+  int charsback =
     /* go back to beginning of previous line */
     thisline + prevline + 1 /* break */ +
     /* but then go forward to horizontally match
@@ -428,7 +429,7 @@ void textbox::up() {
   while (charsback--) left(false);
 }
 
-void textbox::down() {
+void TextBox::down() {
   /* how many chars into this line? */
 
   vallist<char> *tmp = before;
@@ -438,17 +439,17 @@ void textbox::down() {
     /* did we reach new line? */
     right(false);
     if (before->head == '\n' ||
-	before->head == '\x00' ||
-	before->head == '\x01') {
+        before->head == '\x00' ||
+        before->head == '\x01') {
       while (after && thisline--) {
-	right(false);
-	if (before && (before->head == '\n' ||
-		       before->head == '\x00' ||
-		       before->head == '\x01')) {
-	  /* went off the end of the line */
-	  left(false);
-	  return;
-	}
+        right(false);
+        if (before && (before->head == '\n' ||
+                       before->head == '\x00' ||
+                       before->head == '\x01')) {
+          /* went off the end of the line */
+          left(false);
+          return;
+        }
       }
 
       return;
@@ -458,7 +459,7 @@ void textbox::down() {
 }
 
 /* PERF doesn't need to build string */
-int textbox::countprevline(vallist<char> *&bb) {
+int TextBox::countprevline(vallist<char> *&bb) {
   string pl = prevline(bb);
   return pl.length();
 }
@@ -466,7 +467,7 @@ int textbox::countprevline(vallist<char> *&bb) {
 /* insert a key at the cursor. tricky because
    it needs to maintain the word wrap invariant
    in the 'before' list. */
-void textbox::type(char k) {
+void TextBox::type(char k) {
   vallist<char> *tmp = before;
   string thisline = prevline(tmp);
 
@@ -482,12 +483,12 @@ void textbox::type(char k) {
      here's a line that can support about 8 more chars
      here'sareallylongwordthatcertainlywon'tfit
          ^
-	 inserting a space here should move 'here' to prev line. */
+         inserting a space here should move 'here' to prev line. */
 
   /* printf("type: '%c' thisline '%s' nextword '%s'\n",
      k, thisline.c_str(), nword.c_str()); */
 
-  /* XXX check if we're typing a newline char. 
+  /* XXX check if we're typing a newline char.
      it can always fit */
   if (thisline.length() + nword.length() < (unsigned)charsw) {
     /* printf("  ..fits\n"); */
@@ -506,31 +507,31 @@ void textbox::type(char k) {
 
     if (before) {
       /* not at the very beginning */
-      
+
       /* are we at the beginning of the line? */
       if (p == ' ') {
-	/* no -- move to the next line, and recurse! */
-	vallist<char>::push(before, '\x00');
-	for (unsigned int i = 0; i < ww.length(); i++) {
-	  type(ww[i]);
-	}
+        /* no -- move to the next line, and recurse! */
+        vallist<char>::push(before, '\x00');
+        for (unsigned int i = 0; i < ww.length(); i++) {
+          type(ww[i]);
+        }
       } else {
         /* In this case, there's no sense in trying to word
            wrap. We'll put a virtual break if we've ABSOLUTELY
            run out of space. */
-	/* put back breaking char */
+        /* put back breaking char */
         vallist<char>::push(before, p);
-	addstring(ww);
+        addstring(ww);
 
         if (ww.length() >= (unsigned)charsw) {
 
-  	  /* then virtual break */
-	  vallist<char>::push(before, '\x01');
+            /* then virtual break */
+          vallist<char>::push(before, '\x01');
         }
       }
     } else {
       /* if before is empty, we'll put
-	 the word here, and split it */
+         the word here, and split it */
 
       addstring(ww);
 
@@ -544,7 +545,7 @@ void textbox::type(char k) {
 }
 
 /* push a whole string onto before */
-void textbox::addstring(string s) {
+void TextBox::addstring(string s) {
   for (unsigned int i = 0; i < s.length(); i++) {
     vallist<char>::push(before, s[i]);
   }

@@ -11,7 +11,7 @@ struct Player;
 
 struct Rating {
   string tostring();
-  
+
   static Rating *FromString(const string &s);
 
   static Rating *Create();
@@ -36,7 +36,7 @@ struct RateScreen : public Drawable {
 
      if the player has already rated this level, this
      allows him to edit his old rating.
-     
+
      this call manages the rating in the player's file,
      saving the file if necessary, and updating the
      rating on the internet.

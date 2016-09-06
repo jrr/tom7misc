@@ -44,7 +44,7 @@ struct PtrList {
 
   void toarray(P **& aout, int &numout) {
     numout = length();
-    
+
     aout = (P**) malloc(sizeof (P*) * numout);
     PtrList<P> *tmp = this;
     for (int i = 0; i < numout; i++) {
@@ -55,8 +55,8 @@ struct PtrList {
 
   static PtrList<P> *copy(PtrList<P> *sl) {
     if (sl) {
-      return new PtrList<P>(sl->head, 
-			    copy(sl->next));
+      return new PtrList<P>(sl->head,
+                            copy(sl->next));
     } else return 0;
   }
 
@@ -65,8 +65,8 @@ struct PtrList {
     if (!sl) sl = new PtrList<P>(h, 0);
     else push_tail(sl->next, h);
   }
-  
-  /* merge sort the list in place. 
+
+  /* merge sort the list in place.
      PERF! not tuned for speed, but still worst case O(n lg n) */
   static void sort(int compare(P *a, P *b), PtrList<P> *&pl) {
     /* if empty or a singleton, we're done. */
@@ -92,24 +92,24 @@ struct PtrList {
     while (left || right) {
       if (left) {
 
-	if (right) {
-	  int ord = compare(left->head, right->head);
-	  
-	  if (ord < 0) { /* left < right */
-	    push(out, pop(left));
-	  } else if (ord > 0) { /* left > right */
-	    push(out, pop(right));
-	  } else {
-	    /* equal */
-	    push(out, pop(left));
-	    push(out, pop(right));
-	  }
-	} else {
-	  push(out, pop(left));
-	}
+        if (right) {
+          int ord = compare(left->head, right->head);
+
+          if (ord < 0) { /* left < right */
+            push(out, pop(left));
+          } else if (ord > 0) { /* left > right */
+            push(out, pop(right));
+          } else {
+            /* equal */
+            push(out, pop(left));
+            push(out, pop(right));
+          }
+        } else {
+          push(out, pop(left));
+        }
 
       } else {
-	push(out, pop(right));
+        push(out, pop(right));
       }
     }
 

@@ -16,7 +16,7 @@ struct Analysis {
      - for any tile x2,y2 =/= x,y that is in the
        same equivalence class as x1,y1, updating the
        level with a block at x,y makes x1,y1,x2,y2
-       become different equivalence classes 
+       become different equivalence classes
 
        the idea is that the block is some sort of
        critical place separating two parts of the
@@ -27,17 +27,17 @@ struct Analysis {
      linear in the size of the level)
   */
   static bool issep(Level *, int x, int y,
-		    int x1, int y1,
-		    int &x2, int &y2, int tile = T_STOP);
+                    int x1, int y1,
+                    int &x2, int &y2, int tile = T_STOP);
 
   /* same, but provide x2 and y2 as inputs: adding
      tile at x/y must separate previously connected
      x1/y1 and x2/y2. */
-     
-  static bool doessep(Level *, 
-		      int x, int y,
-		      int x1, int y1,
-		      int x2, int y2, int tile = T_STOP);
+
+  static bool doessep(Level *,
+                      int x, int y,
+                      int x1, int y1,
+                      int x2, int y2, int tile = T_STOP);
 
   /* player can stand on this tile */
   static bool isempty(int tile);

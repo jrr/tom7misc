@@ -22,7 +22,7 @@ struct Match {
   int top_left() const { return topleft; }
 
   /* the match may be in a different orientation.
-     these functions give the relative 
+     these functions give the relative
      up/down/left/right directions. (Ie, if the
      pattern is matched upside down, then up()
      returns DIR_DOWN */
@@ -54,9 +54,9 @@ struct Match {
 
   /* takes ownership of register array, but not level */
   Match(int idx, int udir, int rdir, int nr, vector<int> regs, Level *l) :
-    topleft(idx), up_dir(udir), right_dir(rdir), nregs(nr), 
+    topleft(idx), up_dir(udir), right_dir(rdir), nregs(nr),
     regs(std::move(regs)) {
-    
+
     lev = l->clone();
   }
 
@@ -95,7 +95,7 @@ struct Pattern {
       int thisline = 0;
       int idx = 0;
       for (unsigned int i = 0; i < s.length(); i++) {
-	
+
         /* maybe we reached eol? */
         if (s[i] == '\n') {
           if (p->w == -1) {
@@ -125,7 +125,7 @@ struct Pattern {
             if (!(i < s.length())) return 0;
           }
           p->nregs = util::maximum(p->nregs, reg + 1);
-	  
+
         }
 
         p->regs[idx]  = reg;
@@ -137,13 +137,13 @@ struct Pattern {
 
     if (p->w <= 0) return 0;
     if (p->h <= 0) return 0;
-    
+
     return p.release();
   }
 
   private: int w, h; int *regs; int nregs; char *chars;
   public:
-  
+
   /* users can define their own predicates */
   void setpredicate(char c,
                     bool (*f)(Level *, Info *, int x, int y)) {
@@ -172,9 +172,9 @@ struct Pattern {
 
 
   struct mystream : public Match::stream {
-    mystream(Level *l, Info *i, Pattern<Info> *p) 
+    mystream(Level *l, Info *i, Pattern<Info> *p)
       /* to get a deterministic sequential generator here
-	 add ",0" in the initializer of g */
+         add ",0" in the initializer of g */
       : lev(l), inf(i), pat(p), g(lev->w * lev->h) {
 
       dirsleft = 4;
@@ -192,18 +192,18 @@ struct Pattern {
           dirsleft--;
 
           /* printf("now dirsleft %d, thisdir %s\n", dirsleft, dirstring(this_dir).c_str()); */
-	  
+
           int x, y;
           lev->where(g.item(), x, y);
 
           int sd = this_dir;
 
-	  /* printf("try from %d/%d in dir %s\n",
-	     x, y, dirstring(sd).c_str()); */
+          /* printf("try from %d/%d in dir %s\n",
+             x, y, dirstring(sd).c_str()); */
 
           /* match topleft = x, y
              in direction sd */
-	
+
           /* "real" dx and dy.
              read    a = rd D1 D2    as
 
@@ -211,22 +211,22 @@ struct Pattern {
              in virtual dimension D1, this
              corresponds to 'a' degrees of
              motion along real dimension D2.
-	     
+
              for dir_up, real and virtual
              dimensions coincide, so this
              is rdxx = 1, rdyy = 1, and
              the others 0.
-	     
+
              XXX it would be possible to support
              flips in addition to rotations, and
              it seems sensible to do so? */
 
           int rdxx = 0, rdxy = 0,
             rdyx = 0, rdyy = 0;
-	  
+
           switch (sd) {
           case DIR_UP:
-            rdxx = rdyy = 1; 
+            rdxx = rdyy = 1;
             break;
           case DIR_DOWN:
             rdxx = rdyy = -1;
@@ -256,26 +256,26 @@ struct Pattern {
               y + (pat->h * rdyy) > lev->h ||
               y + (pat->w * rdxy) < -1 ||
               y + (pat->w * rdxy) > lev->h) continue;
-	  
+
           /* now we know that we can
              potentially fit the pattern,
-             and our translation is set up. 
-	     
+             and our translation is set up.
+
              create our register file */
-	  
-	  vector<int> r;
-	  r.resize(pat->nregs);
+
+          vector<int> r;
+          r.resize(pat->nregs);
           for (int z = 0; z < pat->nregs; z++) r[z] = 0;
-	
+
           for (int vi = 0; vi < (pat->w * pat->h); vi++) {
             int vx = vi % pat->w;
             int vy = vi / pat->w;
-	    
+
             int rx = x + (rdxx * vx) + (rdyx * vy);
             int ry = y + (rdyy * vy) + (rdxy * vx);
-	    
+
             /* now test: */
-	    
+
             unsigned char code = pat->chars[vi];
             switch (pat->tab[code].t) {
             case H_MATCHTILE:
@@ -286,25 +286,25 @@ struct Pattern {
               break;
             case H_ERROR: goto no_match;
             }
-	    
+
             /* set reg, if any */
             if (pat->regs[vi] >= 0) r[pat->regs[vi]] = lev->index(rx, ry);
-          }	      
+          }
 
           /* successful match */
 
           {
             /* XXX this should be derived from rdxx, etc.
-	       (so that we can support flips) */
+               (so that we can support flips) */
             const int rd = turnright(sd);
 
-	    /*
-	      printf("regs are:\n");
-	      for (int zz=0; zz < pat->nregs; zz++) {
-	      printf("  %d=%d ", zz, r[zz]);
-	      }
-	      printf("\n");
-	    */
+            /*
+              printf("regs are:\n");
+              for (int zz=0; zz < pat->nregs; zz++) {
+              printf("  %d=%d ", zz, r[zz]);
+              }
+              printf("\n");
+            */
 
             return new Match(lev->index(x, y), sd, rd,
                              pat->nregs, std::move(r), lev);
@@ -324,9 +324,9 @@ struct Pattern {
         } /* dirsleft */
 
     } /* mystream::next */
-    
+
     private:
-    
+
     /* this is the entire state. we own none
        of these pointers */
     Level *lev;

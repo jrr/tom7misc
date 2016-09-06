@@ -59,7 +59,7 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
   if (!lev) return UploadResult::FAIL;
 
   Extent<Level> el(lev);
-  
+
   string md5c = MD5::Hash(levcont);
 
 
@@ -98,13 +98,13 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
   string out;
   if (Client::rpcput(hh, UPLOAD_RPC, fl, out)) {
     Message::quick(this, GREEN "success!" POP,
-		   "OK", "", PICS THUMBICON);
+                   "OK", "", PICS THUMBICON);
     formalist::diminish(fl);
 
     return UploadResult::OK;
   } else {
-    Message::no(this, RED "Upload failed: " + 
-		out + POP);
+    Message::no(this, RED "Upload failed: " +
+                out + POP);
     formalist::diminish(fl);
 
     return UploadResult::FAIL;

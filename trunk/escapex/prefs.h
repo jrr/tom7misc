@@ -25,7 +25,7 @@ struct Prefs {
 
   /* call this on any chunk that is read in.
      it ensures that there's at least a
-     default value for each expected preference 
+     default value for each expected preference
      key. */
   static void defaults(Player *plr);
 

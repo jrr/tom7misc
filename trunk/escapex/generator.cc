@@ -19,7 +19,7 @@ Generator::Generator(unsigned int s) : size(s) {
     x, c, size); */
 }
 
-Generator::Generator(unsigned int s, void *ignored) 
+Generator::Generator(unsigned int s, void *ignored)
   : size(s), c(1), x(0) {
   left = (int)size;
 }

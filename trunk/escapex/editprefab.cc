@@ -27,17 +27,17 @@ bool Editor::moveplayersafe() {
       dr.lev->guyy < (selection.y + selection.h)) {
     for (int y = 0; y < dr.lev->h; y++)
       for (int x = 0; x < dr.lev->w; x++) {
-	if (x >= selection.x &&
-	    y >= selection.y &&
-	    x < (selection.x + selection.w) &&
-	    y < (selection.y + selection.h)) continue;
-	
-	if (dr.lev->botat(x, y)) continue;
+        if (x >= selection.x &&
+            y >= selection.y &&
+            x < (selection.x + selection.w) &&
+            y < (selection.y + selection.h)) continue;
 
-	dr.lev->guyx = x;
-	dr.lev->guyy = y;
+        if (dr.lev->botat(x, y)) continue;
 
-	return true;
+        dr.lev->guyx = x;
+        dr.lev->guyy = y;
+
+        return true;
       }
     return false;
   } else return true;
@@ -49,59 +49,59 @@ void Editor::prefab() {
     int what = 0;
 
     label message;
-    message.text = 
+    message.text =
       PICS QICON POP
       " Select a prefab to insert.";
 
     vspace spacer(fon->height);
-	      
+
     okay timer("Timer", &what, PF_TIMER);
     timer.explanation = "Insert a bot-based countdown timer\n"
                         "for a specified number of moves.";
-	      
+
     okay file("File", &what, PF_FILE);
     file.explanation = "Paste the contents of another level\n"
                        "in a file you choose.";
 
     cancel can;
     can.text = "Cancel";
-	      
+
     PtrList<MenuItem> *l = nullptr;
-	      
+
     PtrList<MenuItem>::push(l, &can);
     PtrList<MenuItem>::push(l, &spacer);
 
     PtrList<MenuItem>::push(l, &file);
     PtrList<MenuItem>::push(l, &timer);
     PtrList<MenuItem>::push(l, &spacer);
-	      
+
     PtrList<MenuItem>::push(l, &message);
-	      
+
     /* display menu */
-    menu *mm = menu::create(this, "Which prefab?", l, false);
+    Menu *mm = Menu::create(this, "Which prefab?", l, false);
     resultkind res = mm->menuize();
     PtrList<MenuItem>::diminish(l);
     mm->destroy();
-	      
+
     if (res == MR_OK) {
       switch (what) {
       case PF_TIMER:
-	if (!moveplayersafe()) {
-	  Message::no(this, "There's nowhere to put the player!");
-	} else {
-	  pftimer();
-	}
-	break;
+        if (!moveplayersafe()) {
+          Message::no(this, "There's nowhere to put the player!");
+        } else {
+          pftimer();
+        }
+        break;
       case PF_FILE:
-	pffile();
-	break;
+        pffile();
+        break;
       default:;
-	Message::bug(this, "no prefab was selected..??");
+        Message::bug(this, "no prefab was selected..??");
       }
     }
   } else {
     Message::no(this, "You must select a region first.\n"
-		"   " GREY "(drag with the right mouse button held)" POP);
+                "   " GREY "(drag with the right mouse button held)" POP);
   }
   redraw();
 }
@@ -114,19 +114,19 @@ void Editor::pffile() {
     std::unique_ptr<LoadLevel> ll{
       LoadLevel::Create(plr, EDIT_DIR, true, true)};
     if (ll.get() == nullptr) {
-      Message::quick(this, "Can't open load screen!", 
-		     "Ut oh.", "", PICS XICON POP);
+      Message::quick(this, "Can't open load screen!",
+                     "Ut oh.", "", PICS XICON POP);
       redraw();
       return nullptr;
     }
     string res = ll->selectlevel();
     string ss = readfile(res);
-    
+
     /* allow corrupted files */
     return Level::fromstring(ss, true);
   }();
 
-  if (!small) { 
+  if (!small) {
     dr.message = ((string) RED "error loading file to place" POP);
     return;
   }
@@ -134,7 +134,7 @@ void Editor::pffile() {
   /* now menu */
   /* XXX should show preview of level we're about to place */
   label message;
-  message.text = 
+  message.text =
     PICS QICON POP
     " "   "This will place the level " BLUE + small->title + POP;
   label message2;
@@ -156,28 +156,28 @@ void Editor::pffile() {
   yoff.explanation = "Ignore this many rows in the input.";
   yoff.question = "Y offset: ";
   yoff.input = "0";
-     
+
   /* XXX (don't) constrain to selection option? */
 
 
   PtrList<MenuItem> *l = nullptr;
-	      
+
   PtrList<MenuItem>::push(l, &can);
   PtrList<MenuItem>::push(l, &ok);
   PtrList<MenuItem>::push(l, &spacer);
-  
+
   PtrList<MenuItem>::push(l, &yoff);
   PtrList<MenuItem>::push(l, &xoff);
 
   PtrList<MenuItem>::push(l, &message2);
   PtrList<MenuItem>::push(l, &message);
-	      
+
   /* display menu */
-  menu *mm = menu::create(this, "Inserting file", l, false);
+  Menu *mm = Menu::create(this, "Inserting file", l, false);
   resultkind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
   mm->destroy();
-	      
+
   if (res == MR_OK) {
     int xo = util::stoi(xoff.input);
     int yo = util::stoi(yoff.input);
@@ -190,53 +190,53 @@ void Editor::pffile() {
     {
       moveplayersafe();
       for (int x = selection.x; x < selection.x + selection.w; x++)
-	for (int y = selection.y; y < selection.y + selection.h; y++)
-	  clearbot(x, y);
+        for (int y = selection.y; y < selection.y + selection.h; y++)
+          clearbot(x, y);
     }
 
 
     /* tiles and dests */
     for (int y = 0; y < small->h; y++)
       for (int x = 0; x < small->w; x++) {
-	
-	int srcx = x + xo;
-	int srcy = y + yo;
-	int dstx = x + selection.x;
-	int dsty = y + selection.y;
 
-	/* has to be in both source and destination. */
-	if (srcx >= 0 && srcx < small->w &&
-	    srcy >= 0 && srcy < small->h &&
+        int srcx = x + xo;
+        int srcy = y + yo;
+        int dstx = x + selection.x;
+        int dsty = y + selection.y;
 
-	    dstx >= selection.x && dstx < selection.x + selection.w &&
-	    dsty >= selection.y && dsty < selection.y + selection.h
-	    
-	    /*
-	      or for no cropping...
-	    dstx >= 0 && dstx < dr.lev->w &&
-	    dsty >= 0 && dsty < dr.lev->h
-	    */
-	    ) {
-	  
-	  dr.lev->settile(dstx, dsty,
-			  small->tileat(srcx, srcy));
-	  dr.lev->osettile(dstx, dsty,
-			    small->otileat(srcx, srcy));
-	  if (Level::needsdest(dr.lev->tileat(dstx, dsty)) ||
-	      Level::needsdest(dr.lev->otileat(dstx, dsty))) {
-	    
-	    int sdx, sdy;
-	    small->getdest(srcx, srcy, sdx, sdy);
-	    sdx += (dstx - srcx);
-	    sdy += (dsty - srcy);
-	    /* then make sure it's in bounds... */
-	    if (sdx < 0) sdx = 0;
-	    if (sdx >= dr.lev->w) sdx = dr.lev->w - 1;
-	    if (sdy < 0) sdy = 0;
-	    if (sdy >= dr.lev->w) sdy = dr.lev->w - 1;
-	    dr.lev->setdest(dstx, dsty, sdx, sdy);
-	  }
-	}
+        /* has to be in both source and destination. */
+        if (srcx >= 0 && srcx < small->w &&
+            srcy >= 0 && srcy < small->h &&
+
+            dstx >= selection.x && dstx < selection.x + selection.w &&
+            dsty >= selection.y && dsty < selection.y + selection.h
+
+            /*
+              or for no cropping...
+            dstx >= 0 && dstx < dr.lev->w &&
+            dsty >= 0 && dsty < dr.lev->h
+            */
+            ) {
+
+          dr.lev->settile(dstx, dsty,
+                          small->tileat(srcx, srcy));
+          dr.lev->osettile(dstx, dsty,
+                            small->otileat(srcx, srcy));
+          if (Level::needsdest(dr.lev->tileat(dstx, dsty)) ||
+              Level::needsdest(dr.lev->otileat(dstx, dsty))) {
+
+            int sdx, sdy;
+            small->getdest(srcx, srcy, sdx, sdy);
+            sdx += (dstx - srcx);
+            sdy += (dsty - srcy);
+            /* then make sure it's in bounds... */
+            if (sdx < 0) sdx = 0;
+            if (sdx >= dr.lev->w) sdx = dr.lev->w - 1;
+            if (sdy < 0) sdy = 0;
+            if (sdy >= dr.lev->w) sdy = dr.lev->w - 1;
+            dr.lev->setdest(dstx, dsty, sdx, sdy);
+          }
+        }
 
       }
 
@@ -248,10 +248,10 @@ void Editor::pffile() {
       xx += selection.x - xo;
       yy += selection.y - yo;
       if (xx >= selection.x && yy >= selection.y &&
-	  xx < selection.x + selection.w && 
-	  yy < selection.y + selection.h) {
-	if (dr.lev->nbots < LEVEL_MAX_ROBOTS)
-	  this->addbot(xx, yy, small->bott[i]);
+          xx < selection.x + selection.w &&
+          yy < selection.y + selection.h) {
+        if (dr.lev->nbots < LEVEL_MAX_ROBOTS)
+          this->addbot(xx, yy, small->bott[i]);
       }
     }
 
@@ -260,7 +260,7 @@ void Editor::pffile() {
     fixup();
 
   }
- 
+
   redraw();
 }
 
@@ -277,7 +277,7 @@ static bool timer_check(int *M, int *A, int i, int t) {
    timer. */
 void Editor::pftimer() {
   label message;
-  message.text = 
+  message.text =
     PICS QICON POP
     " " RED "Note:" POP " Please use timers in good taste; leave a";
   label message2;
@@ -285,12 +285,12 @@ void Editor::pftimer() {
     "   " "little slack for the player!";
 
   vspace spacer(fon->height);
-	      
+
   okay ok("OK");
-  
+
   cancel can;
   can.text = "Cancel";
-	      
+
   textinput nmoves;
   nmoves.explanation = "The player will have this many moves\n"
     "before the bot reaches the stop sign.";
@@ -306,30 +306,30 @@ void Editor::pftimer() {
   reverse.checked = false;
 
   PtrList<MenuItem> *l = nullptr;
-	      
+
   PtrList<MenuItem>::push(l, &can);
   PtrList<MenuItem>::push(l, &ok);
   PtrList<MenuItem>::push(l, &spacer);
-  
+
   PtrList<MenuItem>::push(l, &reverse);
   PtrList<MenuItem>::push(l, &nmoves);
 
   PtrList<MenuItem>::push(l, &message2);
   PtrList<MenuItem>::push(l, &message);
-	      
+
   /* display menu */
-  menu *mm = menu::create(this, "Inserting timer", l, false);
+  Menu *mm = Menu::create(this, "Inserting timer", l, false);
   resultkind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
   mm->destroy();
-	      
+
   if (res == MR_OK) {
     int n = util::stoi(nmoves.input);
     if (n <= 0) {
       Message::no(this, "bad number of moves");
       return;
     }
-    
+
     /* the general idea here is to form a series of rows, each
        containing a dalek that walks left and into a transporter that
        resets him to his "home" position (offset 0). the length of
@@ -345,15 +345,15 @@ void Editor::pftimer() {
        where t is the least such time where
        (A_i + t) mod M_i = 0
        for every i.
-	 
+
        The problem, then, is to compute the best i, M_i, and A_i,
        subject to the following constraints:
 
-       i < MAX_BOTS - existing_bots      (1 is needed for the 
+       i < MAX_BOTS - existing_bots      (1 is needed for the
        trigger bot as well)
        i < selection.h - 2               (3 rows for trigger bot)
        max(M_i) < selection.w            (1 needed for teleport)
-       
+
        We want to minimize the solution, according to the following
        measure (lexicographically),
          - smallest i
@@ -364,18 +364,18 @@ void Editor::pftimer() {
        Remainder Theorem. But given how small the values of t that we'll
        encounter will be, looping makes it easier to make sure we get it
        right. */
-    
+
     int M[LEVEL_MAX_WIDTH];
     int A[LEVEL_MAX_WIDTH];
 
-    for (int i = 1; (i < LEVEL_MAX_ROBOTS - dr.lev->nbots) && 
-	            i < (selection.w - 2) &&
-	            i < (selection.h - 2); i++) {
+    for (int i = 1; (i < LEVEL_MAX_ROBOTS - dr.lev->nbots) &&
+                    i < (selection.w - 2) &&
+                    i < (selection.h - 2); i++) {
       if (timer_try(M, A, 0, i, n, reverse.checked)) return;
     }
 
     Message::no(this, "Can't find a timer; try increasing the width,\n"
-		"   " "height, and number of available bots.");
+                "   " "height, and number of available bots.");
 
   }
 }
@@ -391,12 +391,12 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
 
   if (j < i) {
     /* wlog we will assume that M_i > M_i+1, also
-       M_i of 0 ill-defined, and 1 pointless, 
+       M_i of 0 ill-defined, and 1 pointless,
        so start at 2. */
-    
+
     for (M[j] = 2; M[j] < (j?M[j-1]:selection.w); M[j]++) {
       for (A[j] = 0; A[j] < M[j]; A[j]++) {
-	if (timer_try(M, A, j + 1, i, n, rev)) return true;
+        if (timer_try(M, A, j + 1, i, n, rev)) return true;
       }
     }
 
@@ -409,7 +409,7 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
     /* also must not be satisfied for any smaller t */
     {
       for (int u = 0; u < n; u++) {
-	if (timer_check(M, A, i, u)) return false;
+        if (timer_check(M, A, i, u)) return false;
       }
     }
 
@@ -418,8 +418,8 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
     printf("okay: i=%d\n", i);
     {
       for (int z = 0; z < i; z++) {
-	printf("  M[%d] = %d, A[%d] = %d\n",
-	       z, M[z], z, A[z]);
+        printf("  M[%d] = %d, A[%d] = %d\n",
+               z, M[z], z, A[z]);
       }
     }
     #endif
@@ -428,10 +428,10 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
     /* black out selection */
     {
       for (int x = selection.x; x < selection.x + selection.w; x++) {
-	for (int y = selection.y; y < selection.y + selection.h; y++) {
-	  dr.lev->settile(x, y, T_BLACK);
-	  clearbot(x, y);
-	}
+        for (int y = selection.y; y < selection.y + selection.h; y++) {
+          dr.lev->settile(x, y, T_BLACK);
+          clearbot(x, y);
+        }
       }
     }
 
@@ -442,7 +442,7 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
     int rootx = rev?(selection.x + selection.w - 1):selection.x;
 
     /* XXX could do better on trigger bot; only need
-       to block it on top and bottom at the first column. 
+       to block it on top and bottom at the first column.
        (usually this cell is not used above because M[j] is
        strictly decreasing. */
     {
@@ -453,46 +453,46 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
       addbot(trigx, trigy, B_DALEK);
       dr.lev->settile(trigx + dx * (i + 1), trigy, T_RPANEL);
       /* target self, I guess? */
-      dr.lev->setdest(trigx + dx * (i + 1), trigy, 
-		      trigx + dx * (i + 1), trigy);
+      dr.lev->setdest(trigx + dx * (i + 1), trigy,
+                      trigx + dx * (i + 1), trigy);
 
       for (int z = 0; z < i; z++) {
-	int home = (rootx + dx * (selection.w - 1)) - (dx * M[z]);
+        int home = (rootx + dx * (selection.w - 1)) - (dx * M[z]);
 
-	#if 0
-	printf("home: %d\n", home);
-	printf(" set %d/%d\n", selection.x + selection.w - 1,
-	       selection.y + z);
-	#endif
+        #if 0
+        printf("home: %d\n", home);
+        printf(" set %d/%d\n", selection.x + selection.w - 1,
+               selection.y + z);
+        #endif
 
-	int y = selection.y + z;
+        int y = selection.y + z;
 
-	/* clear a path */
-	for (int x = home; x != rootx + dx * selection.w; x += dx) {
-	  dr.lev->settile(x, y, T_ROUGH);
-	}
+        /* clear a path */
+        for (int x = home; x != rootx + dx * selection.w; x += dx) {
+          dr.lev->settile(x, y, T_ROUGH);
+        }
 
-	/* teleporter at far right. */
-	dr.lev->settile(rootx + dx * (selection.w - 1), y, T_TRANSPORT);
-	dr.lev->setdest(rootx + dx * (selection.w - 1), y,
-			home, y);
+        /* teleporter at far right. */
+        dr.lev->settile(rootx + dx * (selection.w - 1), y, T_TRANSPORT);
+        dr.lev->setdest(rootx + dx * (selection.w - 1), y,
+                        home, y);
 
-	/* make panel */
-	dr.lev->settile(home, y, T_PANEL);
-	dr.lev->setdest(home, y, trigx + dx * (1 + z), trigy);
+        /* make panel */
+        dr.lev->settile(home, y, T_PANEL);
+        dr.lev->setdest(home, y, trigx + dx * (1 + z), trigy);
 
-	dr.lev->settile(trigx + dx * (1 + z), trigy, T_BLACK);
-	dr.lev->osettile(trigx + dx * (1 + z), trigy, T_RSTEEL);
-	/* do a pre-emptive swap if bot starts home, since he'll be
-	   on the panel */
-	if (A[z] == 0) dr.lev->swapo(dr.lev->index(trigx + dx * (1 + z), trigy));
+        dr.lev->settile(trigx + dx * (1 + z), trigy, T_BLACK);
+        dr.lev->osettile(trigx + dx * (1 + z), trigy, T_RSTEEL);
+        /* do a pre-emptive swap if bot starts home, since he'll be
+           on the panel */
+        if (A[z] == 0) dr.lev->swapo(dr.lev->index(trigx + dx * (1 + z), trigy));
 
-	if (dr.lev->nbots >= LEVEL_MAX_ROBOTS) {
-	  Message::bug(this, "oops, exceeded bots! bug!");
-	  return true;
-	}
+        if (dr.lev->nbots >= LEVEL_MAX_ROBOTS) {
+          Message::bug(this, "oops, exceeded bots! bug!");
+          return true;
+        }
 
-	addbot(home + dx * A[z], y, B_DALEK);
+        addbot(home + dx * A[z], y, B_DALEK);
 
       }
     }

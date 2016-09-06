@@ -39,12 +39,12 @@ void Sound::init() {
       printf("Can't open audio. (%s)\n", Mix_GetError());
       return;
     }
-    
+
     if (-1 == Mix_AllocateChannels(4)) {
       Mix_CloseAudio();
       return;
     }
-    
+
     /* load sound data into memory */
     #include "sound_load.h"
     /* XXX fail gracefully */

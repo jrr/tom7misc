@@ -8,7 +8,7 @@
    encoding:
 
    high bit 1: byte & 0b00111111 gives the bit count, which
-	       must be <= 32.
+               must be <= 32.
 
    high bit 0: then bit count is byte * 8.
      (this is for backwards compatibility with

@@ -27,8 +27,8 @@ struct formalist {
     l = x;
   }
 
-  static void pushfile(formalist *&l, std::string name, 
-		       std::string filename, std::string contents) {
+  static void pushfile(formalist *&l, std::string name,
+                       std::string filename, std::string contents) {
     formalist *x = new formalist;
     x->next = l;
     x->ty = FT_FILE;

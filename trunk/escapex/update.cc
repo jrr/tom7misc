@@ -56,15 +56,15 @@ struct Updater_ : public Updater {
 
   std::unique_ptr<TextScroll> tx;
 
-  ccresult checkcolls(HTTP *hh, 
-		      stringlist *&fnames, 
-		      stringlist *&shownames);
+  ccresult checkcolls(HTTP *hh,
+                      stringlist *&fnames,
+                      stringlist *&shownames);
 
-  selresult selectcolls(stringlist *fnames, 
-			stringlist *shownames,
-			stringlist *&, stringlist *&);
+  selresult selectcolls(stringlist *fnames,
+                        stringlist *shownames,
+                        stringlist *&, stringlist *&);
 
-  void updatecoll(HTTP *hh, string fname, string showname); 
+  void updatecoll(HTTP *hh, string fname, string showname);
 
 };
 
@@ -85,43 +85,43 @@ void subtoggle::docheck() {
 
       /* try to subscribe */
       if (util::existsdir(fname)) {
-	/* delete unsub file from dir */
-	if (util::remove(fname + (string)DIRSEP + UNSUBMARKER)) {
+        /* delete unsub file from dir */
+        if (util::remove(fname + (string)DIRSEP + UNSUBMARKER)) {
 
-	  checked = true;
+          checked = true;
 
-	} else {
+        } else {
 
-	  Message::quick(0, (string)"Can't subscribe to " 
-			 BLUE + fname + (string)POP " (remove unsub file)",
-			 "Cancel", "", PICS XICON POP);
+          Message::quick(0, (string)"Can't subscribe to "
+                         BLUE + fname + (string)POP " (remove unsub file)",
+                         "Cancel", "", PICS XICON POP);
 
-	}
+        }
       } else {
-	/* create subscription (directory) */
-	if (util::makedir(fname)) {
-	  checked = true;
-	  
-	} else {
-	  Message::quick(0, (string)"Can't subscribe to " 
-			 BLUE + fname + (string)POP " (can't make dir!!)",
-			 "Cancel", "", PICS XICON POP);
-	}
+        /* create subscription (directory) */
+        if (util::makedir(fname)) {
+          checked = true;
+
+        } else {
+          Message::quick(0, (string)"Can't subscribe to "
+                         BLUE + fname + (string)POP " (can't make dir!!)",
+                         "Cancel", "", PICS XICON POP);
+        }
       }
     } else {
       /* try to unsubscribe */
-    
-      if (writefile(fname + (string)DIRSEP + UNSUBMARKER,
-		    (string)"delete this file to resubscribe to " + fname + 
-		    (string)"\n")) {
 
-	checked = false;
+      if (writefile(fname + (string)DIRSEP + UNSUBMARKER,
+                    (string)"delete this file to resubscribe to " + fname +
+                    (string)"\n")) {
+
+        checked = false;
 
       } else {
-	Message::quick(0, (string)"Can't unsubscribe to "
-		       BLUE + fname + 
-		       (string)POP " (can't make unsub file!)",
-		       "Cancel", "", PICS XICON POP);
+        Message::quick(0, (string)"Can't unsubscribe to "
+                       BLUE + fname +
+                       (string)POP " (can't make unsub file!)",
+                       "Cancel", "", PICS XICON POP);
       }
     }
 }
@@ -161,12 +161,12 @@ void Updater_::redraw() {
   SDL_Flip(screen);
 }
 
-/* return the available collections. 
+/* return the available collections.
    (by adding items to fnames, shownames)
 */
-ccresult Updater_::checkcolls(HTTP *hh, 
-				stringlist *&fnames, 
-				stringlist *&shownames) {
+ccresult Updater_::checkcolls(HTTP *hh,
+                              stringlist *&fnames,
+                              stringlist *&shownames) {
   /* first, grab COLLECTIONS. */
 
   string s;
@@ -177,12 +177,12 @@ ccresult Updater_::checkcolls(HTTP *hh,
     int ncolls = util::stoi(util::getline(s));
 
     say((string)BLUE + itos(ncolls) + (string)" collection" +
-	(string)((ncolls==1)?"":"s") + (string)":" POP);
+        (string)((ncolls==1)?"":"s") + (string)":" POP);
 
     /* then, ncolls collections */
     while (ncolls--) {
       string line = util::getline(s);
-      
+
       string fname = util::chop(line);
       int minv  = util::stoi(util::chop(line));
       string showname = line;
@@ -190,17 +190,17 @@ ccresult Updater_::checkcolls(HTTP *hh,
       int usable = util::stoi(VERSION) >= minv;
 
       if (fname == "") {
-	say(RED "  collections file corrupt!!" POP);
-	return CC_FAIL;
+        say(RED "  collections file corrupt!!" POP);
+        return CC_FAIL;
       }
 
       say((string)"  " YELLOW + fname + POP +
-	  (string)(usable? " " GREEN : " " RED) +
-	  itos(minv) + (string)POP " " BLUE + showname + POP);
+          (string)(usable? " " GREEN : " " RED) +
+          itos(minv) + (string)POP " " BLUE + showname + POP);
 
       if (usable) {
-	stringlist::push(fnames, fname);
-	stringlist::push(shownames, showname);
+        stringlist::push(fnames, fname);
+        stringlist::push(shownames, showname);
       }
     }
 
@@ -216,11 +216,11 @@ ccresult Updater_::checkcolls(HTTP *hh,
 
 
 /* invt: length(fnames) > 0 */
-   
-selresult Updater_::selectcolls(stringlist *fnames, 
-				  stringlist *shownames,
-				  stringlist *&subsf,
-				  stringlist *&subss) {
+
+selresult Updater_::selectcolls(stringlist *fnames,
+                                stringlist *shownames,
+                                stringlist *&subsf,
+                                stringlist *&subss) {
 
   PtrList<MenuItem> *boxes = nullptr;
 
@@ -242,15 +242,15 @@ selresult Updater_::selectcolls(stringlist *fnames,
     b->fname = fnt->head;
     b->question = snt->head;
 
-    /* check subscribed: 
+    /* check subscribed:
        for collection 'triage' we are
        subscribed if 'triage' subdir exists
        AND 'triage/unsubscribed' does not exist */
     if (util::existsdir(fnt->head)) {
       if (util::existsfile(fnt->head + (string)DIRSEP + UNSUBMARKER)) {
-	b->checked = false;
+        b->checked = false;
       } else {
-	b->checked = true;
+        b->checked = true;
       }
     } else {
       b->checked = false;
@@ -262,15 +262,15 @@ selresult Updater_::selectcolls(stringlist *fnames,
     fnt = fnt->next;
     snt = snt->next;
   }
-  
+
   PtrList<MenuItem>::push(boxes, &v);
   PtrList<MenuItem>::push(boxes, &can);
   PtrList<MenuItem>::push(boxes, &ok);
-  
 
-  menu *mm = menu::create(this, 
-			   "Select your collection subscriptions.", 
-			   boxes, false);
+
+  Menu *mm = Menu::create(this,
+                           "Select your collection subscriptions.",
+                           boxes, false);
   if (!mm) return SR_FAIL;
 
   resultkind res = mm->menuize();
@@ -291,8 +291,8 @@ selresult Updater_::selectcolls(stringlist *fnames,
     for (int i = 0; i < n_entries; i++) {
       subtoggle *st = (subtoggle*)PtrList<MenuItem>::pop(boxes);
       if (st->checked) {
-	stringlist::push(subsf, st->fname);
-	stringlist::push(subss, st->question);
+        stringlist::push(subsf, st->fname);
+        stringlist::push(subss, st->question);
       }
 
       delete st;
@@ -323,7 +323,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
     int minv = util::stoi(util::getline(s));
     int ndirs = util::stoi(util::getline(s));
     int nfiles = util::stoi(util::getline(s));
-    string version = util::getline(s);    
+    string version = util::getline(s);
 
     if (util::stoi(VERSION) < minv) {
       say(RED "?? Server inconsistent: This escape version is too old!" POP);
@@ -346,20 +346,20 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 
     while (ndirs--) {
       string line = util::getline(s);
-      
+
       string d = util::chop(line);
       string name = util::losewhitel(line);
 
       /* sanity check d. */
       if (d.length() < 1 || d[0] == '/' ||
-	  d.find("..") != string::npos ||
-	  d.find("//") != string::npos ||
-	  /* yes, I mean one backslash */
-	  d.find("\\") != string::npos) {
-	Message::no(this, "Bad directory name in collection: " RED + d);
-	return;
+          d.find("..") != string::npos ||
+          d.find("//") != string::npos ||
+          /* yes, I mean one backslash */
+          d.find("\\") != string::npos) {
+        Message::no(this, "Bad directory name in collection: " RED + d);
+        return;
       }
-      
+
       /* on win32, rewrite / to \ */
       util::replace(d, "/", DIRSEP);
 
@@ -375,21 +375,21 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
       string line = util::getline(s);
 
       /* printf("line: '%s'\n", line.c_str()); */
-     
+
       string f = util::chop(line);
       string md = util::chop(line);
 
       /* sanity check f. This may be relative
-	 to the current directory, so it is the
-	 same condition as above */
+         to the current directory, so it is the
+         same condition as above */
       if (f.length() < 1 || f[0] == '/' ||
-	  f.find("..") != string::npos ||
-	  f.find("//") != string::npos ||
-	  f.find("\\") != string::npos) {
-	Message::no(this, "Bad file name in collection: " RED + f);
-	return;
+          f.find("..") != string::npos ||
+          f.find("//") != string::npos ||
+          f.find("\\") != string::npos) {
+        Message::no(this, "Bad file name in collection: " RED + f);
+        return;
       }
-      
+
 
       RateStatus votes;
 
@@ -405,27 +405,27 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
       int owner = util::stoi(util::chop(line));
 
       /* require file and md5, but not any of the voting stuff
-	 (they will default to 0) */
-      if (f != "" && md != "" && up->setfile(f, md, votes, 
-					     date, speedrecord, owner)) {
-	/* XXX change to sayover? */
-	/* say((string)GREEN + f + (string)" " GREY + md + POP POP); */
+         (they will default to 0) */
+      if (f != "" && md != "" && up->setfile(f, md, votes,
+                                             date, speedrecord, owner)) {
+        /* XXX change to sayover? */
+        /* say((string)GREEN + f + (string)" " GREY + md + POP POP); */
 
-      } else { 
-	say((string)RED + f + (string)" " GREY + md + 
-	    (string)POP " (error!)" POP);
-	
-	Message::quick(this, (string)
-		       RED "Unable to complete update of " BLUE + fname +
-		       (string)POP "." POP, "Next", "", PICS XICON POP);
+      } else {
+        say((string)RED + f + (string)" " GREY + md +
+            (string)POP " (error!)" POP);
 
-	return;
+        Message::quick(this, (string)
+                       RED "Unable to complete update of " BLUE + fname +
+                       (string)POP "." POP, "Next", "", PICS XICON POP);
+
+        return;
 
       }
 
       if (SDL_GetTicks() - epoch > SHOWRATE) {
-	epoch = SDL_GetTicks();
-	redraw();
+        epoch = SDL_GetTicks();
+        redraw();
       }
 
     }
@@ -454,7 +454,7 @@ UpdateResult Updater_::update(string &msg) {
 
   std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
 
-  if (hh.get() == nullptr) { 
+  if (hh.get() == nullptr) {
     msg = YELLOW "Couldn't connect." POP;
     return UD_FAIL;
   }
@@ -469,26 +469,26 @@ UpdateResult Updater_::update(string &msg) {
   default:
   case CC_FAIL:
     /* parse error? */
-    Message::quick(this, "Failed to get collections list.", 
-		   "Cancel", "", PICS XICON POP);
+    Message::quick(this, "Failed to get collections list.",
+                   "Cancel", "", PICS XICON POP);
     stringlist::diminish(fnames);
     stringlist::diminish(shownames);
     return UD_FAIL;
   }
 
   if (fnames == 0) {
-    Message::quick(this, 
-		   "This version cannot accept any collections.\n"
-		   "   You should try upgrading, though a new version\n"
-		   "   might not be available yet for your platform.",
-		   "Cancel", "", PICS XICON POP);
+    Message::quick(this,
+                   "This version cannot accept any collections.\n"
+                   "   You should try upgrading, though a new version\n"
+                   "   might not be available yet for your platform.",
+                   "Cancel", "", PICS XICON POP);
     /* fnames, shownames already empty */
     return UD_FAIL;
   }
 
   stringlist *subss, *subsf;
 
-  
+
   selresult sr = selectcolls(fnames, shownames, subsf, subss);
   stringlist::diminish(fnames);
   stringlist::diminish(shownames);
@@ -511,7 +511,7 @@ UpdateResult Updater_::update(string &msg) {
   msg = GREEN "Level update complete.";
   say(msg);
   Message::quick(this, "Level update complete.", "OK", "",
-		 PICS THUMBICON POP);
+                 PICS THUMBICON POP);
 
   return UD_SUCCESS;
 }

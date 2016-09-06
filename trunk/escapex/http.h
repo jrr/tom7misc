@@ -41,15 +41,15 @@ struct HTTP {
 
   /* download the entire thing to a string */
   virtual httpresult get(std::string path, std::string &out) = 0;
-  
+
   /* create a temp file (in the cwd) and download to that.
      return the name of the temp file */
   virtual httpresult gettempfile(std::string path, std::string &file) = 0;
 
   /* use post, allowing to upload files */
   virtual httpresult put(const std::string &path,
-			 formalist *items,
-			 std::string &out) = 0;
+                         formalist *items,
+                         std::string &out) = 0;
 
   /* set callback object. This object is never freed. */
   virtual void setcallback(httpcallback *) = 0;
