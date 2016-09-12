@@ -1340,7 +1340,7 @@ void Editor::edit(Level *origlev) {
                 /* now check the pattern here. */
                 /* since it may be a prefix, we only go up
                    to "maxcol": */
-                int maxcol = util::minimum(plen, width - (n * plen));
+                int maxcol = std::min(plen, width - (n * plen));
                 /* printf("  ... maxcol = %d\n", maxcol); */
                 for (int col = 0; col < maxcol; col++) {
                   for (int row = 0; row < height; row++) {

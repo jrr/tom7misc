@@ -73,7 +73,7 @@ void Message_::init() {
     int cl = 0;
     for (unsigned int i = 0; i < titlen.length(); i++) {
       if (titlen[i] == '\n') {
-        ll = util::maximum(fon->sizex(titlen.substr(cl, i - cl)), ll);
+        ll = std::max(fon->sizex(titlen.substr(cl, i - cl)), ll);
         cl = i;
       } else if (titlen[cl] == '\n') cl = i;
     }
@@ -81,10 +81,10 @@ void Message_::init() {
 
   int w =
     (2 * fon->width) +
-    util::maximum(ll,
-                  fon->sizex("ESCAPE: ") +
-                  util::maximum(fon->sizex(ok),
-                                fon->sizex(cancel)));
+    std::max(ll,
+	     fon->sizex("ESCAPE: ") +
+	     std::max(fon->sizex(ok),
+		      fon->sizex(cancel)));
 
   nlines = Font::lines(title);
 

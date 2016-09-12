@@ -801,22 +801,6 @@ string util::replace(string src, string findme, string rep) {
   return src;
 }
 
-/* implementation of imperative union-find is
-   beautifully simple */
-void onionfind::onion(int a, int b) {
-  if (find(a) != find(b)) arr[find(a)] = b;
-}
-
-int onionfind::find(int a) {
-  if (arr[a] == -1) return a;
-  else return arr[a] = find(arr[a]);
-}
-
-onionfind::onionfind(int size) {
-  arr = new int[size];
-  for (int i = 0; i < size; i++) arr[i] = -1;
-}
-
 #if WIN32
 // for ShellExecute
 # include <shellapi.h>

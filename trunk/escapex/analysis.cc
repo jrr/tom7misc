@@ -1,5 +1,6 @@
 
 #include "analysis.h"
+#include "../cc-lib/union-find.h"
 #include "extent.h"
 
 #include <memory>
@@ -22,9 +23,9 @@ bool Analysis::isempty(int t) {
   }
 }
 
-onionfind *Analysis::reachable(Level *lev) {
+std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
   const int size = lev->w * lev->h;
-  onionfind *of = new onionfind(size);
+  std::unique_ptr<UnionFind> of{new UnionFind{size}};
 
   /* the algorithm is simple. each space begins in its own equivalence
      class. Then, for each "empty" space we place the guy there (a la
@@ -75,7 +76,7 @@ onionfind *Analysis::reachable(Level *lev) {
               /* these two spots are mutually accessible,
                  so union them */
 
-              of->onion(lev->index(x, y),
+              of->Union(lev->index(x, y),
                         lev->index(destx, desty));
 
             }
@@ -86,7 +87,7 @@ onionfind *Analysis::reachable(Level *lev) {
 
     }
   } /* loop over level */
-  return of;
+  return std::move(of);
 }
 
 static bool separator(Level *lev, int x, int y,
@@ -123,17 +124,17 @@ static bool separator(Level *lev, int x, int y,
   if (!search && (x1 == x2 && y1 == y2)) return false;
   if (!search && (x == x2 && y == y2)) return false;
 
-  std::unique_ptr<onionfind> orig{Analysis::reachable(lev)};
+  std::unique_ptr<UnionFind> orig = Analysis::Reachable(lev);
 
   /* original equivalence class that we're in. */
-  int oclass = orig->find(lev->index(x1, y1));
+  int oclass = orig->Find(lev->index(x1, y1));
 
   Level *nlev = lev->clone();
   Extent<Level> le(nlev);
 
   nlev->settile(x, y, tile);
 
-  std::unique_ptr<onionfind> fresh{Analysis::reachable(nlev)};
+  std::unique_ptr<UnionFind> fresh = Analysis::Reachable(nlev);
 
 # if 0
   {
@@ -147,7 +148,7 @@ static bool separator(Level *lev, int x, int y,
   }
 # endif
 
-  int expect = fresh->find(nlev->index(x1, y1));
+  int expect = fresh->Find(nlev->index(x1, y1));
 
   /* now see if there are any newly separated regions. */
 
@@ -155,10 +156,10 @@ static bool separator(Level *lev, int x, int y,
     for (y2 = 0; y2 < lev->h; y2++)
       for (x2 = 0; x2 < lev->w; x2++) {
         /* check that they used to be the same */
-        if (orig->find(lev->index(x2, y2)) == oclass) {
+        if (orig->Find(lev->index(x2, y2)) == oclass) {
 
           /* but now different! */
-          if (fresh->find(nlev->index(x2, y2)) != expect) {
+          if (fresh->Find(nlev->index(x2, y2)) != expect) {
 
             /*
               printf("may separate: oclass=%d, expect=%d, actual=%d\n",
@@ -174,8 +175,8 @@ static bool separator(Level *lev, int x, int y,
       }
     return false;
   } else {
-    if (orig->find(lev->index(x2, y2)) == oclass &&
-        fresh->find(nlev->index(x2, y2)) != expect &&
+    if (orig->Find(lev->index(x2, y2)) == oclass &&
+        fresh->Find(nlev->index(x2, y2)) != expect &&
         (x2 != x || y2 != y)) return true;
     else return false;
   }

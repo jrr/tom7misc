@@ -3,13 +3,14 @@
 
 #include "escapex.h"
 #include "util.h"
+#include "../cc-lib/union-find.h"
 
 /* analysis of levels. used for editai,
    maybe for solution analysis, etc */
 
 struct Analysis {
   /* get the set of equivalence classes */
-  static onionfind *reachable(Level *);
+  static std::unique_ptr<UnionFind> Reachable(Level *);
 
   /* the tile at x,y is a separator if:
 

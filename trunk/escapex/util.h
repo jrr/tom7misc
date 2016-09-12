@@ -94,21 +94,6 @@ struct line {
   virtual ~line() {};
 };
 
-/* union find structure, n.b. union is a keyword */
-struct onionfind {
-  int *arr;
-
-  int find(int);
-  void onion(int,int);
-
-  onionfind(int);
-  ~onionfind() { delete [] arr; }
-
-  private:
-
-  onionfind(const onionfind &) { abort(); }
-};
-
 struct util {
   /* only read if the file begins with the magic string */
   static bool hasmagic(string, const string &magic);
@@ -230,18 +215,6 @@ struct util {
   /* replace all occurrences of 'findme' with 'replacewith' in 'src' */
   static string replace(string src, string findme, string replacewith);
 
-  /* called minimum, maximum because some includes
-     define these with macros, ugh */
-  static int minimum(int a, int b) {
-    if (a < b) return a;
-    else return b;
-  }
-
-  static int maximum(int a, int b) {
-    if (a > b) return a;
-    else return b;
-  }
-
   /* returns false if failed/unsupported */
   static bool setclipboard(string);
 
@@ -255,104 +228,6 @@ struct util {
     if (!pos) pos = new V;
     return pos;
   }
-
-
-  /* T needs copy constructor */
-  /* sort items between first and last (inclusive) in the array. */
-  /* XXX can't use this in MSVC 6.0 */
-  template <class T>
-  static void sortarray(T *items,
-                        int (*compare)(const T &l, const T &r),
-                        int first, int last);
 };
-
-
-/* templates follow. */
-template <class T>
-void util::sortarray(T *items,
-                     int (*compare)(const T &l, const T &r),
-                     int first, int last) {
-  /* done for zero, negative, or one-sized arrays. */
-  if ((last - first) <= 0) return;
-
-  /* pick a pivot, and put it at position [first] */
-  /* (right now just use whatever is already in 'first' */
-
-  int i = first + 1;
-  int j = last;
-
-  /* invariant in while loop:
-     everything from first+1 .. i-1 is less-eq than [first]
-     everything from j + 1 .. last is greater than [first]. */
-
-  /* move fingers together, preserving the invariant */
-  while (i != j) {
-    if (compare(items[i], items[first]) != 1) { /* <= */
-      /* [i] belongs in less-eq set */
-      i++;
-      continue;
-    } else {
-      /* [i] belongs on the other side */
-
-      if (compare(items[j], items[first]) == 1) { /* > */
-        /* [j] belongs in greater set */
-        j--;
-        /* XXX could be more efficient by avoiding re-test
-           for i; favor simplicity now */
-        continue;
-      } else {
-        /* [j] belongs on the other side */
-        { /* swap i,j */
-          T temp = items[i];
-          items[i] = items[j];
-          items[j] = temp;
-        }
-        /* the invariant still holds, and we have
-           made progress towards sorting, so we
-           can continue */
-        continue;
-      }
-
-    }
-
-  }
-
-  /* [piv] ... less-eq ... [i,j] ... greater ... */
-  if (compare(items[i], items[first]) != 1) { /* <= */
-    /* [i] <= [pivot]. if we swap them,
-       we'll be all set. */
-
-    /* pivot is bigger than gap. swap them. */
-    { /* swap first, i */
-      T temp = items[i];
-      items[i] = items[first];
-      items[first] = temp;
-    }
-    /* these must be smaller */
-    sortarray(items, compare, first, i - 1);
-    sortarray(items, compare, i + 1, last);
-  } else { /* [i] > [pivot] */
-    /* [i] needs to be in the greater set.
-       however, we know [i - 1] is in the
-       smaller set. swap it with the pivot.
-       i - 1 is always at least as big as
-       first because i starts at first + 1
-       and only increases.
-    */
-    if (first != (i - 1)) {
-      /* swap first, i-1 */
-      T temp = items[i - 1];
-      items[i - 1] = items[first];
-      items[first] = temp;
-    }
-
-    /* adjust subslices. i isn't necessarily
-       the smallest thing in the greater set.
-       but the new pivot is bigger than anything
-       in the lesseq set. */
-    sortarray(items, compare, first, i - 2);
-    sortarray(items, compare, i, last);
-  }
-}
 
 #endif
