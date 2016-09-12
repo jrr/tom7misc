@@ -195,21 +195,6 @@ struct line {
   virtual ~line() {};
 };
 
-/* union find structure, n.b. union is a keyword */
-struct onionfind {
-  int *arr;
-
-  int find(int);
-  void onion(int, int);
-
-  explicit onionfind(int);
-  ~onionfind () { delete [] arr; }
-
-  private:
-
-  onionfind(const onionfind &) { abort (); }
-};
-
 /* treats strings as buffers of bits */
 struct bitbuffer {
   /* read n bits from the string s from bit offset idx.
