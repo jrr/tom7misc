@@ -124,7 +124,7 @@ struct Pattern {
             i++;
             if (!(i < s.length())) return 0;
           }
-          p->nregs = util::maximum(p->nregs, reg + 1);
+          p->nregs = std::max(p->nregs, reg + 1);
 
         }
 
@@ -141,8 +141,12 @@ struct Pattern {
     return p.release();
   }
 
-  private: int w, h; int *regs; int nregs; char *chars;
-  public:
+ private:
+  int w = 0, h = 0;
+  int *regs = nullptr;
+  int nregs = 0;
+  char *chars = nullptr;
+ public:
 
   /* users can define their own predicates */
   void setpredicate(char c,

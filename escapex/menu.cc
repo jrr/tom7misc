@@ -601,11 +601,9 @@ void Menu::screenresize() {
     int tw, th;
     items[i]->size(tw, th); tw += items[i]->indent;
     toth += th;
-    maxw =
-      util::maximum(maxw, tw);
+    maxw = std::max(maxw, tw);
 
-    maxw =
-      util::maximum(maxw,
+    maxw = std::max(maxw,
                     fon->sizex(items[i]->helptext()));
 
     string ex = items[i]->explanation;
@@ -613,14 +611,11 @@ void Menu::screenresize() {
     int thisl = 0;
     while (ex != "") {
       string hi = util::chopto('\n', ex);
-      maxw =
-        util::maximum(maxw, fon->sizex(hi));
+      maxw = std::max(maxw, fon->sizex(hi));
       thisl++;
     }
 
-    maxl =
-      util::maximum(maxl, thisl);
-
+    maxl = std::max(maxl, thisl);
   }
 
   /* need room at least for the separator,

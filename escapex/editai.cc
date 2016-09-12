@@ -11,6 +11,7 @@
 
 #include "extent.h"
 #include "util.h"
+#include "../cc-lib/union-find.h"
 #include "edit.h"
 
 #include "loadlevel.h"
@@ -557,7 +558,7 @@ bool Editor::retract_gold() {
     bgold->setpredicate('G', pred_gold_or_sphere);
     bgold->setpredicate('S', pred_stops_gold);
 
-    std::unique_ptr<onionfind> reach{Analysis::reachable(lev)};
+    std::unique_ptr<UnionFind> reach = Analysis::Reachable(lev);
 
     std::unique_ptr<Match::stream> matches{
       bgold->findall(dr.lev, 0)};
@@ -618,8 +619,8 @@ bool Editor::retract_gold() {
         /* the space has to be reachable by the guy. but we
            can still potentially continue if this space is
            not occupiable. */
-        if (reach->find(lev->index(lev->guyx, lev->guyy)) ==
-            reach->find(lev->index(gx, gy))) {
+        if (reach->Find(lev->index(lev->guyx, lev->guyy)) ==
+            reach->Find(lev->index(gx, gy))) {
 
           /*
           printf("candidate! guy: %d/%d gold: %d/%d\n",
@@ -812,13 +813,13 @@ void Editor::retract1() {
   (representing direct reachability via walking
   without dying) */
 
-  std::unique_ptr<onionfind> rr{Analysis::reachable(dr.lev)};
+  std::unique_ptr<UnionFind> rr = Analysis::Reachable(dr.lev);
 
 # if 0
   {
     for (int y = 0; y < dr.lev->h; y++) {
       for (int x = 0; x < dr.lev->w; x++) {
-        printf("%4d ", rr->find(dr.lev->index(x, y)));
+        printf("%4d ", rr->Find(dr.lev->index(x, y)));
       }
       printf("\n");
     }

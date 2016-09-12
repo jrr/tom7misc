@@ -21,7 +21,6 @@ get rid of extent; use unique_ptr
  - there are some like 'extentf' still in use
 
 code cleanup
- - untabify all source
  - use enum class for "result" enums
  - move solution out of level
  - capitalize class names
@@ -42,9 +41,6 @@ code cleanup
  - or maybe solutions can just be values?
  - use std::max instead of util::maximum, etc.
  - pref to not delete incomplete solutions when solving a level?
- - delete commented-out code in smanage
- - if keeping promptupload, rename
-
 
 move png2esx.cc to misc, add command-line flag support
 

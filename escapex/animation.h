@@ -506,7 +506,7 @@ struct AnCombo : public Animation {
   void settick() {
     if (first) {
       if (second) {
-        nexttick = util::minimum(first->nexttick, second->nexttick);
+        nexttick = std::min(first->nexttick, second->nexttick);
       } else nexttick = first->nexttick;
     } else nexttick = second->nexttick;
   }
@@ -551,7 +551,7 @@ struct AnCombo : public Animation {
   int yorder() override {
     if (!first) return second->yorder();
     if (!second) return first->yorder();
-    return util::minimum(first->yorder(), second->yorder());
+    return std::min(first->yorder(), second->yorder());
   }
 
   /* draw at current location. */

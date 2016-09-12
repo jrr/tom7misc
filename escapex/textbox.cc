@@ -424,7 +424,7 @@ void TextBox::up() {
     thisline + prevline + 1 /* break */ +
     /* but then go forward to horizontally match
        our position on this line */
-    -(util::minimum(thisline, prevline));
+    -(std::min(thisline, prevline));
 
   while (charsback--) left(false);
 }

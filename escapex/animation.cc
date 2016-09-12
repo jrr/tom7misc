@@ -1754,7 +1754,7 @@ bool AnFlying::think(unsigned int now) {
 
   /* should probably compute based on the
      number of frames we missed, too */
-  int go = util::minimum(speed, pleft);
+  int go = std::min(speed, pleft);
 
   {
     int dx = 0, dy = 0;

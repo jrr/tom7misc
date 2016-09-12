@@ -486,7 +486,7 @@ string HTTP_::readntofile(int n) {
   int done = 0;
   int x;
   while (rem > 0) {
-    x = SDLNet_TCP_Recv(conn, buf, util::minimum(BUFLEN,rem));
+    x = SDLNet_TCP_Recv(conn, buf, std::min(BUFLEN,rem));
     if (x <= 0) {
       fclose(ff);
       printf("bad exit from readntofile\n");

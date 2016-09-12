@@ -238,14 +238,13 @@ struct BookmarkItem : public MenuItem {
 
     /* XXX also author, date.. */
     w = THUMBW + 8 +
-      util::maximum(fon->sizex(ns.name),
-                    fonsmall->sizex(solmenu));
+      std::max(fon->sizex(ns.name), fonsmall->sizex(solmenu));
 
     /* at least 4 lines for text, plus menu,
        but then the minimum of the thumbnail height and the
        actual level's height at this zoom */
-    h = util::maximum(8 + fonsmall->height + fon->height * 4,
-                      util::minimum(THUMBH, 4 + lev->h * (TILEH >> bmi_zoomf)));
+    h = std::max(8 + fonsmall->height + fon->height * 4,
+		 std::min(THUMBH, 4 + lev->h * (TILEH >> bmi_zoomf)));
 
   }
 
