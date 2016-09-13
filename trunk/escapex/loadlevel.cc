@@ -695,9 +695,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
 
   /* get (just) the index for this dir, which allows us to
      look up ratings. note that there may be no index. */
-  DirIndex *thisindex = 0;
-  cache->getidx(where, thisindex);
-
+  std::unique_ptr<DirIndex> thisindex = cache->GetIdx(where);
 
   DBTIME("cd got index");
 
@@ -738,10 +736,12 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
           i++;
         } else {
           int ttt, sss;
-          DirIndex *iii = 0;
 
+	  // Note 2016: I may have changed the behavior here
+	  // on directories with .escignore.
           int dcp = SDL_GetTicks() + (PROGRESS_TICKS * 2);
-          if (cache->get(ldn, iii, ttt, sss, Progress::drawbar,
+          if (DirIndex *iii =
+	      cache->Get(ldn, ttt, sss, Progress::drawbar,
                          (void *)&dcp)) {
 
             /* only show if it has levels,
@@ -755,7 +755,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
               nsel->items[i].total = ttt;
 
               /* no need to save the index, just the title */
-              nsel->items[i].name = iii?(iii->title):dn;
+              nsel->items[i].name = iii ? iii->title : dn;
 
               i++;
             }
@@ -815,11 +815,12 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
         nsel->items[i].speedrecord = 0;
         nsel->items[i].date = 0;
         nsel->items[i].owned = false;
-        nsel->items[i].managed = thisindex && thisindex->webcollection();
+        nsel->items[i].managed = thisindex.get() != nullptr &&
+	  thisindex->webcollection();
 
         /* failure result is ignored, because the
            votes are initialized to 0 anyway */
-        if (thisindex) {
+        if (thisindex.get() != nullptr) {
           int ow;
           thisindex->getentry(de->d_name,
                               nsel->items[i].votes,
@@ -848,7 +849,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
 
 #if 0
   if (!nsel->number) {
-    Message::no(0, "There are no levels at all!!");
+    Message::No(0, "There are no levels at all!!");
     return 0;
   }
 #endif
@@ -857,7 +858,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
   sel = nsel;
 
   if (!sel->number) {
-    Message::no(0, "There are no levels at all!!");
+    Message::No(0, "There are no levels at all!!");
 
     /* FIXME crash if we continue  */
     exit(-1);
@@ -920,7 +921,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
                                     bool wholedir) {
   std::unique_ptr<Player> rp{Player::FromFile(filename)};
   if (!rp.get()) {
-    Message::quick(this,
+    Message::Quick(this,
                    "Couldn't open/understand that player file.",
                    "OK", "", PICS XICON POP);
     sel->redraw();
@@ -980,7 +981,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
           /* XXX PERF md5s are stored */
           FILE *f = fopen(af.c_str(), "rb");
           if (!f) {
-            Message::bug(this, "couldn't open in recovery");
+            Message::Bug(this, "couldn't open in recovery");
             sel->redraw();
             continue;
           }
@@ -1019,7 +1020,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
   if (nsolved > 0) {
     plr->writefile();
   } else {
-    Message::quick(this,
+    Message::Quick(this,
                    "Couldn't recover any new solutions.",
                    "OK", "", PICS EXCICON POP);
   }
@@ -1144,10 +1145,10 @@ string LoadLevel_::Loop() {
                                       HTTPUtil::urlencode(desc.get_text()),
                                       res)) {
 
-                  Message::quick(this, "Success!", "OK", "", PICS THUMBICON POP);
+                  Message::Quick(this, "Success!", "OK", "", PICS THUMBICON POP);
 
                 } else {
-                  Message::no(this, "Couldn't delete: " + res);
+                  Message::No(this, "Couldn't delete: " + res);
                   sel->redraw();
                   continue;
                 }
@@ -1158,7 +1159,7 @@ string LoadLevel_::Loop() {
               }
 
             } else {
-              Message::no(this,
+              Message::No(this,
                           "In web collections, you can only delete\n"
                           "   a level that you uploaded. "
                           "(marked " PICS KEYPIC POP ")\n");
@@ -1168,7 +1169,7 @@ string LoadLevel_::Loop() {
 
           } else {
             /* just a file on disk */
-            if (!Message::quick(this,
+            if (!Message::Quick(this,
                                 PICS TRASHCAN POP " Really delete " BLUE +
                                 file + POP "?",
                                 "Yes",
@@ -1179,7 +1180,7 @@ string LoadLevel_::Loop() {
           }
 
           if (!util::remove(file)) {
-            Message::no(this, "Error deleting file!");
+            Message::No(this, "Error deleting file!");
             sel->redraw();
             continue;
           }
@@ -1280,7 +1281,7 @@ string LoadLevel_::Loop() {
 
               FILE *f = fopen(file.c_str(), "rb");
               if (!f) {
-                Message::bug(this, "Couldn't open file to comment on");
+                Message::Bug(this, "Couldn't open file to comment on");
 
               } else {
 
@@ -1292,7 +1293,7 @@ string LoadLevel_::Loop() {
 
               }
             } else {
-              Message::no(this,
+              Message::No(this,
                           "You must register with the server to comment.\n"
                           "   (Press " BLUE "R" POP " on the main menu.)");
             }
@@ -1318,7 +1319,7 @@ string LoadLevel_::Loop() {
               /* XXX now in LLEntry, also comment */
               FILE *f = fopen(file.c_str(), "rb");
               if (!f) {
-                Message::bug(this, "Couldn't open file to rate");
+                Message::Bug(this, "Couldn't open file to rate");
 
               } else {
 
@@ -1333,7 +1334,7 @@ string LoadLevel_::Loop() {
                 if (rs.get() != nullptr) {
                   rs->rate();
                 } else {
-                  Message::bug(this, "Couldn't create rate object!");
+                  Message::Bug(this, "Couldn't create rate object!");
                 }
 
                 /* now restore the rating */
@@ -1342,7 +1343,7 @@ string LoadLevel_::Loop() {
               }
 
             } else {
-              Message::no(this,
+              Message::No(this,
                           "You must register with the server to rate levels.\n"
                           "   (Press " BLUE "R" POP " on the main menu.)");
 
@@ -1509,7 +1510,7 @@ string LoadLevel_::Loop() {
                 std::unique_ptr<Upload> uu{Upload::Create()};
 
                 if (!uu.get()) {
-                  Message::bug(this,
+                  Message::Bug(this,
                                "Can't create upload object!");
                   sel->redraw();
                   continue;
@@ -1529,11 +1530,11 @@ string LoadLevel_::Loop() {
                   break;
                 }
               } else {
-                Message::no(this,
+                Message::No(this,
                             "Can't upload dirs or unsolved levels.");
               }
             } else {
-              Message::no
+              Message::No
                 (this,
                  "You must register with the server to upload levels.\n"
                  "(Press " BLUE "R" POP " on the main menu.)");
@@ -1556,7 +1557,7 @@ string LoadLevel_::Loop() {
              fail? */
           /* printf("chdir '%s'\n", sel->items[pr.u.i].fname.c_str()); */
           if (!ChangeDir(sel->items[pr.u.i].fname)) {
-            Message::quick(0, "Couldn't change to " BLUE +
+            Message::Quick(0, "Couldn't change to " BLUE +
                            sel->items[pr.u.i].fname,
                            "Sorry", "", PICS XICON POP);
           }

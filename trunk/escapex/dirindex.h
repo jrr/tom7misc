@@ -32,15 +32,13 @@ struct RateStatus {
 };
 
 struct DirIndex {
-
   /* make an empty index, suitable for later writing to disk */
-  static DirIndex *create();
+  static DirIndex *Create();
 
-  virtual void destroy() = 0;
   virtual ~DirIndex() {}
 
   /* read from disk */
-  static DirIndex *fromfile(const string &f);
+  static DirIndex *FromFile(const string &f);
 
   static bool isindex(const string &f);
 
@@ -52,7 +50,7 @@ struct DirIndex {
                         int &date, int &speedrecord, int &owner) = 0;
 
   /* true if this is a managed collection */
-  virtual bool webcollection() = 0;
+  virtual bool webcollection() const = 0;
 
   string title;
 };

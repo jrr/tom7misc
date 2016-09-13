@@ -259,7 +259,7 @@ struct BookmarkItem : public MenuItem {
     case SDLK_d:
     case SDLK_DELETE:
       /* XXX warn especially if it is the last solution? */
-      if (Message::quick(container,
+      if (Message::Quick(container,
                          "Really delete '" YELLOW +
                          ns.name + POP "'?",
                          "Delete",
@@ -275,7 +275,7 @@ struct BookmarkItem : public MenuItem {
         action.a = BMA_SETDEFAULT;
         return inputresult(MR_OK);
       } else {
-        Message::no(container, "Only a solution can be the default.");
+        Message::No(container, "Only a solution can be the default.");
         return inputresult(MR_UPDATED);
       }
     }
@@ -288,7 +288,7 @@ struct BookmarkItem : public MenuItem {
             ns.name,
             false);
       } else {
-        Message::no(container, "You can only upload full solutions.");
+        Message::No(container, "You can only upload full solutions.");
       }
       return inputresult(MR_UPDATED);
     }
@@ -299,7 +299,7 @@ struct BookmarkItem : public MenuItem {
         action.a = BMA_OPTIMIZE;
         return inputresult(MR_OK);
       } else {
-        Message::no(container, "You can only optimize solutions.");
+        Message::No(container, "You can only optimize solutions.");
         return inputresult(MR_UPDATED);
       }
     }
@@ -452,13 +452,13 @@ void Play_::draw() {
   switch (CurState()) {
   case PlayState::OKAY: break;
   case PlayState::DEAD:
-    Message::drawonlyv(screen->h - fon->height*8,
+    Message::DrawOnlyv(screen->h - fon->height*8,
                        "You've died.",
                        "Try again",
                        "Quit", PICS SKULLICON);
     break;
   case PlayState::WON:
-    Message::drawonlyv(screen->h - fon->height*8,
+    Message::DrawOnlyv(screen->h - fon->height*8,
                        "You solved it!!",
                        "Continue", "", PICS THUMBICON);
     break;
@@ -508,7 +508,7 @@ bool Play_::Redo() {
       solpos++;
       return true;
     } else {
-      Message::no(this,
+      Message::No(this,
                   "Can't redo! (Illegal move!)");
       return false;
     }
@@ -571,7 +571,7 @@ void Play_::Bookmarks(Level *start,
     okaywhat_t okay_what = OKAYWHAT_HUH;
     show_menu_again = false;
     if (md5 == "") {
-      Message::bug(this,
+      Message::Bug(this,
                    "Bookmarks aren't available because \n"
                    "I can't figure out what level this is!");
       redraw();
@@ -793,7 +793,7 @@ void Play_::Bookmarks(Level *start,
       }
 
       default: {
-         Message::bug(0, "huh?");
+         Message::Bug(0, "huh?");
         break;
       }
       }
@@ -826,7 +826,7 @@ void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
   std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
 
   if (hh.get() == nullptr) {
-    Message::no(&td, "Couldn't connect!");
+    Message::No(&td, "Couldn't connect!");
     return;
   }
 
@@ -853,7 +853,7 @@ void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
 
       Solution s;
       if (!Solution::FromString(moves, &s)) {
-        Message::no(&td, "Bad solution on server!");
+        Message::No(&td, "Bad solution on server!");
         return;
       }
 
@@ -874,7 +874,7 @@ void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
     return;
 
   } else {
-    Message::no(&td, "Couldn't get solutions");
+    Message::No(&td, "Couldn't get solutions");
     return;
   }
 }
@@ -1212,8 +1212,8 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
                   sol.Appends(*that);
 
                   redraw();
-                } else Message::no(this, "Sorry, not solved!");
-              } else Message::no(this, "Bad MD5");
+                } else Message::No(this, "Sorry, not solved!");
+              } else Message::No(this, "Bad MD5");
             }
 
             redraw();
@@ -1233,7 +1233,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
             Solution ss;
             if (Optimize::TryComplete(start, sol,
                                       plr->SolutionSet(md5), &ss)) {
-              Message::quick(this, "Completed from bookmarks: " GREEN
+              Message::Quick(this, "Completed from bookmarks: " GREEN
                              + itos(ss.Length()) + POP " moves",
                              "OK", "", PICS THUMBICON POP);
               sol = ss;
@@ -1247,7 +1247,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
               dr.lev->Play(sol, moves);
 
             } else {
-              Message::no(this, "Couldn't complete from bookmarks.");
+              Message::No(this, "Couldn't complete from bookmarks.");
             }
             redraw();
           }
@@ -1364,14 +1364,11 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
 void Play::playrecord(string res, Player *plr, bool allowrate) {
   /* only prompt to rate if this is in a
      web collection */
-  bool iscollection;
-  {
-    string idx =
-      util::pathof(res) + (string)DIRSEP WEBINDEXNAME;
-    DirIndex *di = DirIndex::fromfile(idx);
-    iscollection = di ? di->webcollection() : false;
-    if (di) di->destroy();
-  }
+  const bool iscollection = [&]{
+    string idx = util::pathof(res) + (string)DIRSEP WEBINDEXNAME;
+    std::unique_ptr<DirIndex> di{DirIndex::FromFile(idx)};
+    return di.get() != nullptr && di->webcollection();
+  }();
 
   string ss = readfile(res);
 
@@ -1474,7 +1471,7 @@ void Play::playrecord(string res, Player *plr, bool allowrate) {
 
           rs->rate();
         } else {
-          Message::bug(0, "Couldn't create rate object!");
+          Message::Bug(0, "Couldn't create rate object!");
         }
 
       }

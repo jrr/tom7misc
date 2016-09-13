@@ -290,13 +290,13 @@ void RateScreen_::rate() {
           CommentScreen::comment(plr, lev, levmd5, true);
         } else {
           /* only if no other pop-up */
-          Message::quick(this, "Rating sent!",
+          Message::Quick(this, "Rating sent!",
                          "OK", "", PICS THUMBICON POP);
         }
       }
 
     } else {
-      Message::quick(this, "Unable to send rating to server: " RED + res,
+      Message::Quick(this, "Unable to send rating to server: " RED + res,
                      "Cancel", "", PICS XICON POP);
     }
 

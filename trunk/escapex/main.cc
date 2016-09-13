@@ -112,24 +112,19 @@ int main(int argc, char **argv) {
   /* draw splash while loading images. animation init
      takes some time! */
 
-  {
-    SDL_Surface *splash = sdlutil::LoadImage(SPLASH_FILE);
-    if (splash) {
-      SDL_Rect dst;
-      dst.x = 2;
-      dst.y = screen->h - (splash->h + 2);
-      SDL_BlitSurface(splash, 0, screen, &dst);
-      SDL_Flip(screen);
+  if (SDL_Surface *splash = sdlutil::LoadImage(SPLASH_FILE)) {
+    SDL_Rect dst;
+    dst.x = 2;
+    dst.y = screen->h - (splash->h + 2);
+    SDL_BlitSurface(splash, 0, screen, &dst);
+    SDL_Flip(screen);
 
-      SDL_FreeSurface(splash);
-
-    }
-
+    SDL_FreeSurface(splash);
   }
 
   /* XXX callback progress for ainit */
   if (!Drawing::loadimages() || !Animation::ainit()) {
-    if (fon) Message::bug(0, "Error loading graphics!");
+    if (fon) Message::Bug(0, "Error loading graphics!");
     printf("Failed to load graphics.\n");
     goto no_drawings;
   }
@@ -144,7 +139,7 @@ int main(int argc, char **argv) {
   if (argc == 2 &&
       !strcmp(argv[1], "-upgraded")) {
 
-    Message::quick(0, "Upgrade to version " VERSION " successful!",
+    Message::Quick(0, "Upgrade to version " VERSION " successful!",
                    "OK", "", PICS THUMBICON POP);
 
   }
@@ -165,7 +160,7 @@ int main(int argc, char **argv) {
     {
       std::unique_ptr<PlayerDB> pdb{PlayerDB::create()};
       if (pdb.get() == nullptr) {
-        Message::bug(0, "Error in playerdb?");
+        Message::Bug(0, "Error in playerdb?");
         goto oops;
       }
 
@@ -184,7 +179,7 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<MainMenu> mm{MainMenu::Create(plr.get())};
     if (mm.get() == nullptr) {
-      Message::bug(0, "Error creating main menu");
+      Message::Bug(0, "Error creating main menu");
       goto oops;
     }
 
@@ -212,7 +207,7 @@ int main(int argc, char **argv) {
 
             if (res == "") break;
           } else {
-            Message::bug(0, "Error creating load screen");
+            Message::Bug(0, "Error creating load screen");
             break;
           }
         }
@@ -232,7 +227,7 @@ int main(int argc, char **argv) {
             Play::playrecord(res, plr.get());
 
           } else {
-            Message::bug(0, "Error creating browser");
+            Message::Bug(0, "Error creating browser");
             break;
           }
         }
@@ -242,7 +237,7 @@ int main(int argc, char **argv) {
 
         std::unique_ptr<Editor> ee{Editor::Create(plr.get())};
         if (ee.get() == nullptr) {
-          Message::bug(0, "Error creating Editor");
+          Message::Bug(0, "Error creating Editor");
           goto oops;
         }
 
@@ -254,7 +249,7 @@ int main(int argc, char **argv) {
 
         std::unique_ptr<Upgrader> uu{Upgrader::Create(plr.get())};
         if (!uu) {
-          Message::bug(0, "Error creating upgrader");
+          Message::Bug(0, "Error creating upgrader");
           goto oops;
         }
 
@@ -274,7 +269,7 @@ int main(int argc, char **argv) {
 
         std::unique_ptr<Updater> uu{Updater::Create(plr.get())};
         if (uu.get() == nullptr) {
-          Message::bug(0, "Error creating updater");
+          Message::Bug(0, "Error creating updater");
           goto oops;
         }
 
@@ -287,7 +282,7 @@ int main(int argc, char **argv) {
 
         std::unique_ptr<Registration> rr{Registration::Create(plr.get())};
         if (!rr.get()) {
-          Message::bug(0, "Couldn't create registration object");
+          Message::Bug(0, "Couldn't create registration object");
           goto oops;
         }
 

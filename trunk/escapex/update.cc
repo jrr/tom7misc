@@ -92,7 +92,7 @@ void subtoggle::docheck() {
 
         } else {
 
-          Message::quick(0, (string)"Can't subscribe to "
+          Message::Quick(0, (string)"Can't subscribe to "
                          BLUE + fname + (string)POP " (remove unsub file)",
                          "Cancel", "", PICS XICON POP);
 
@@ -103,7 +103,7 @@ void subtoggle::docheck() {
           checked = true;
 
         } else {
-          Message::quick(0, (string)"Can't subscribe to "
+          Message::Quick(0, (string)"Can't subscribe to "
                          BLUE + fname + (string)POP " (can't make dir!!)",
                          "Cancel", "", PICS XICON POP);
         }
@@ -118,7 +118,7 @@ void subtoggle::docheck() {
         checked = false;
 
       } else {
-        Message::quick(0, (string)"Can't unsubscribe to "
+        Message::Quick(0, (string)"Can't unsubscribe to "
                        BLUE + fname +
                        (string)POP " (can't make unsub file!)",
                        "Cancel", "", PICS XICON POP);
@@ -335,7 +335,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
     std::unique_ptr<Upper> up{Upper::Create(hh, tx.get(), this, fname)};
 
     if (!up.get()) {
-      Message::bug(this, "couldn't create upper object?!");
+      Message::Bug(this, "couldn't create upper object?!");
       return;
     }
 
@@ -356,7 +356,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
           d.find("//") != string::npos ||
           /* yes, I mean one backslash */
           d.find("\\") != string::npos) {
-        Message::no(this, "Bad directory name in collection: " RED + d);
+        Message::No(this, "Bad directory name in collection: " RED + d);
         return;
       }
 
@@ -386,7 +386,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
           f.find("..") != string::npos ||
           f.find("//") != string::npos ||
           f.find("\\") != string::npos) {
-        Message::no(this, "Bad file name in collection: " RED + f);
+        Message::No(this, "Bad file name in collection: " RED + f);
         return;
       }
 
@@ -415,7 +415,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
         say((string)RED + f + (string)" " GREY + md +
             (string)POP " (error!)" POP);
 
-        Message::quick(this, (string)
+        Message::Quick(this, (string)
                        RED "Unable to complete update of " BLUE + fname +
                        (string)POP "." POP, "Next", "", PICS XICON POP);
 
@@ -469,7 +469,7 @@ UpdateResult Updater_::update(string &msg) {
   default:
   case CC_FAIL:
     /* parse error? */
-    Message::quick(this, "Failed to get collections list.",
+    Message::Quick(this, "Failed to get collections list.",
                    "Cancel", "", PICS XICON POP);
     stringlist::diminish(fnames);
     stringlist::diminish(shownames);
@@ -477,7 +477,7 @@ UpdateResult Updater_::update(string &msg) {
   }
 
   if (fnames == 0) {
-    Message::quick(this,
+    Message::Quick(this,
                    "This version cannot accept any collections.\n"
                    "   You should try upgrading, though a new version\n"
                    "   might not be available yet for your platform.",
@@ -510,7 +510,7 @@ UpdateResult Updater_::update(string &msg) {
   /* XXX might want to give a fail message if any failed. */
   msg = GREEN "Level update complete.";
   say(msg);
-  Message::quick(this, "Level update complete.", "OK", "",
+  Message::Quick(this, "Level update complete.", "OK", "",
                  PICS THUMBICON POP);
 
   return UD_SUCCESS;

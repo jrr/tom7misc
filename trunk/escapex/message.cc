@@ -6,18 +6,22 @@
 #include "util.h"
 #include "chars.h"
 
-struct Message_ : public Message {
-  static Message_ *create();
-  void destroy() override;
+namespace {
 
+struct Message_ : public Message {
+  static Message_ *Create();
+  ~Message_() override {
+    if (alpharect) SDL_FreeSurface(alpharect);
+  }
+  
   /*  enter: true
      escape: false */
-  bool ask(char *actualchar = 0, string charspec = "") override;
+  bool Ask(char *actualchar = 0, string charspec = "") override;
 
   void draw() override;
   void screenresize() override;
 
-  SDL_Surface *alpharect;
+  SDL_Surface *alpharect = nullptr;
   bool loop(char *actualchar, string charspec);
 
   void init();
@@ -26,42 +30,18 @@ struct Message_ : public Message {
     SDL_Flip(screen);
   }
 
-  int nlines;
-  int posx;
+  int nlines = 0;
+  int posx = 0;
 };
 
-void Message::drawonlyv(int posy,
-                        string ttitle,
-                        string ook, string ccancel,
-                        string icon) {
-  Message_ *m = Message_::create();
-  m->below = nodraw;
-  m->posy = posy;
-  m->title = icon + WHITE " " + ttitle;
-  m->ok = ook;
-  m->cancel = ccancel;
 
-  m->init();
-  m->draw();
-  m->destroy();
-}
-
-void Message_::destroy() {
-  if (alpharect) SDL_FreeSurface(alpharect);
-  delete this;
-}
-
-Message::~Message() {}
-Message_ *Message_::create() {
+Message_ *Message_::Create() {
   Message_ *pp = new Message_{};
   pp->below = 0;
   pp->alpharect = 0;
   pp->posx = 0;
   pp->nlines = 0;
   return pp;
-}
-Message *Message::create() {
-  return Message_::create();
 }
 
 void Message_::init() {
@@ -88,12 +68,9 @@ void Message_::init() {
 
   nlines = Font::lines(title);
 
-  int h;
-  if (cancel == "") {
-    h = ((3 + nlines) * fon->height);
-  } else {
-    h = ((4 + nlines) * fon->height);
-  }
+  const int h = cancel == "" ?
+    ((3 + nlines) * fon->height) :
+    ((4 + nlines) * fon->height);
 
   /* now center */
   posx = (screen->w - w) / 2;
@@ -108,10 +85,9 @@ void Message_::init() {
   alpharect = sdlutil::makealpharect(w, h, 90, 90, 90, 200);
 
   sdlutil::outline(alpharect, 2, 36, 36, 36, 200);
-
 }
 
-bool Message_::ask(char *actualchar, string charspec) {
+bool Message_::Ask(char *actualchar, string charspec) {
   init();
   return loop(actualchar, charspec);
 }
@@ -121,7 +97,6 @@ void Message_::screenresize() {
 }
 
 void Message_::draw() {
-
   /* clear back */
   if (!below) {
     sdlutil::clearsurface(screen, BGCOLOR);
@@ -219,3 +194,24 @@ bool Message_::loop(char *actualchar, string charspec) {
   return false; /* XXX ??? */
 }
 
+}  // namespace
+
+void Message::DrawOnlyv(int posy,
+                        string ttitle,
+                        string ook, string ccancel,
+                        string icon) {
+  std::unique_ptr<Message_> m{Message_::Create()};
+  m->below = nodraw;
+  m->posy = posy;
+  m->title = icon + WHITE " " + ttitle;
+  m->ok = ook;
+  m->cancel = ccancel;
+
+  m->init();
+  m->draw();
+}
+
+Message::~Message() {}
+Message *Message::Create() {
+  return Message_::Create();
+}

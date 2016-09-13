@@ -49,7 +49,7 @@ bool pred_stops_gold(Level *lev, void *_, int x, int y) {
 void Editor::dorandom() {
 
   if (changed) {
-    if (!Message::quick(this,
+    if (!Message::Quick(this,
                         "Random will destroy your unsaved changes.",
                         "Do Random",
                         "Don't do Random")) {
@@ -784,7 +784,7 @@ bool Editor::retract_hole() {
 
 void Editor::retract1() {
 
-  Message::no(this, "disabled--retract1 is buggy!");
+  Message::No(this, "disabled--retract1 is buggy!");
   return;
 
   /* perhaps rank these by priority; right now we just choose

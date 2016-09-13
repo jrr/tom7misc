@@ -100,25 +100,6 @@ int NamedSolution::Compare(NamedSolution *l, NamedSolution *r) {
 
 namespace {
 
-#if 0
-typedef PtrList<NamedSolution> NSList;
-
-struct hashsolsetentry {
-  string md5;
-  NSList *solset;
-  static unsigned int hash(string k);
-  string key() { return md5; }
-  void destroy() {
-    while (solset) NSList::pop(solset)->destroy();
-    delete this;
-  }
-  hashsolsetentry(string m, NSList *s) : md5(m), solset(s) {}
-  static int compare(hashsolsetentry *l, hashsolsetentry *r) {
-    return l->md5.compare(r->md5);
-  }
-};
-#endif
-
 struct hashratentry {
   string md5;
   Rating *rat;

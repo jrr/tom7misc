@@ -261,14 +261,14 @@ string TextBox::prevline(vallist<char> *&bb) {
     case '\x00':
     case '\x01':
       /* any break will work */
-      bb = bb-> next;
+      bb = bb->next;
       return theline;
     default:
       theline = bb->head + theline;
       break;
     }
 
-    bb = bb-> next;
+    bb = bb->next;
   }
 
   return theline;

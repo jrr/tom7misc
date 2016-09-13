@@ -115,7 +115,7 @@ void Editor::fullclear(tile t) {
 /* XXX limit to selection */
 void Editor::clear(tile bg, tile fg) {
   if (changed &&
-      !Message::quick(this,
+      !Message::Quick(this,
                       "Clearing will destroy your unsaved changes.",
                       "Clear anyway",
                       "Don't clear")) {
@@ -406,7 +406,7 @@ void Editor::playerstart() {
       dr.lev->guyy = y;
       changed = 1;
     } else {
-      Message::no(this, "Can't put player on bots!");
+      Message::No(this, "Can't put player on bots!");
     }
   }
 
@@ -494,7 +494,7 @@ void Editor::sleepwake() {
           redraw();
           return;
         } else {
-          Message::bug(this, "sleep/wake not implemented for this bot");
+          Message::Bug(this, "sleep/wake not implemented for this bot");
           redraw();
           return;
         }
@@ -531,7 +531,7 @@ void Editor::placebot(bot b) {
 
     int ai;
     if (dr.lev->playerat(x, y)) {
-      Message::no(this, "Can't put a bot on the player!");
+      Message::No(this, "Can't put a bot on the player!");
 
     } else if (dr.lev->botat(x, y, ai)) {
 
@@ -542,7 +542,7 @@ void Editor::placebot(bot b) {
       if (dr.lev->nbots < LEVEL_MAX_ROBOTS) {
         addbot(x, y, b);
       } else {
-        Message::no(this,
+        Message::No(this,
                     "Maximum robots (" + itos(LEVEL_MAX_ROBOTS) +
                     ") reached!");
         redraw();
@@ -664,7 +664,7 @@ void Editor::save() {
     changed = 0;
 
   } else {
-    Message::bug(this,
+    Message::Bug(this,
                  "shouldn't be able to save with empty filename");
   }
 
@@ -679,7 +679,7 @@ void Editor::load() {
   std::unique_ptr<LoadLevel> ll{
     LoadLevel::Create(plr, EDIT_DIR, true, true)};
   if (!ll.get()) {
-    Message::quick(this, "Can't open load screen!",
+    Message::Quick(this, "Can't open load screen!",
                    "Ut oh.", "", PICS XICON POP);
     redraw();
     return ;
@@ -770,7 +770,7 @@ void Editor::resize() {
 
       changed = 1;
     } else {
-      Message::quick(this,
+      Message::Quick(this,
                      "Size too large/small",
                      "Sorry", "");
 
@@ -1627,7 +1627,7 @@ void Editor::edit(Level *origlev) {
 
         case SDLK_ESCAPE:
           if (changed) {
-            if (Message::quick(this,
+            if (Message::Quick(this,
                                "Quitting will destroy your unsaved changes.",
                                "Quit anyway.",
                                "Don't quit.")) {

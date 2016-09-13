@@ -138,7 +138,7 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
   Extent<Level> el(l);
 
   if (!Level::Verify(l, s)) {
-    Message::bug(0, "optimizer: solution is not valid to start!");
+    Message::Bug(0, "optimizer: solution is not valid to start!");
     return s;
   }
 

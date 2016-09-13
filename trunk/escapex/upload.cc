@@ -97,13 +97,13 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
 
   string out;
   if (Client::rpcput(hh, UPLOAD_RPC, fl, out)) {
-    Message::quick(this, GREEN "success!" POP,
+    Message::Quick(this, GREEN "success!" POP,
                    "OK", "", PICS THUMBICON);
     formalist::diminish(fl);
 
     return UploadResult::OK;
   } else {
-    Message::no(this, RED "Upload failed: " +
+    Message::No(this, RED "Upload failed: " +
                 out + POP);
     formalist::diminish(fl);
 

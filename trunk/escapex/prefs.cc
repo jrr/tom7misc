@@ -215,7 +215,7 @@ int32 Prefs::getint(Player *plr, uint32 k) {
   } else {
     printf("c: %p\n", c);
     if (c) printf("c->type %d\n", c->type);
-    Message::bug(0, "int pref unavailable: " RED + itos(k));
+    Message::Bug(0, "int pref unavailable: " RED + itos(k));
     return 0;
   }
 }
@@ -226,7 +226,7 @@ bool Prefs::getbool(Player *plr, uint32 k) {
   if (c && c->type == CT_BOOL) {
     return (bool)c->i;
   } else {
-    Message::bug(0, "bool pref unavailable: " RED + itos(k));
+    Message::Bug(0, "bool pref unavailable: " RED + itos(k));
     return false;
   }
 }
@@ -237,7 +237,7 @@ string Prefs::getstring(Player *plr, uint32 k) {
   if (c && c->type == CT_STRING) {
     return c->s;
   } else {
-    Message::bug(0, "string pref unavailable: " RED + itos(k));
+    Message::Bug(0, "string pref unavailable: " RED + itos(k));
     return "";
   }
 }

@@ -189,7 +189,7 @@ struct Selector : public Drawable {
   }
 
   static Selector *create(int n) {
-    Selector *s = new Selector();
+    Selector *s = new Selector;
     s->number = n;
     s->items = new Item[n];
 

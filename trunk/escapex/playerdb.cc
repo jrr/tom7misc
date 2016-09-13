@@ -148,7 +148,7 @@ Player *PDBEntry::convert() {
     Prefs::defaults(ret);
     return ret;
   } else {
-    Message::no(0, "Couldn't read player " + fname);
+    Message::No(0, "Couldn't read player " + fname);
     return nullptr;
   }
 }
@@ -315,7 +315,7 @@ void PlayerDB_::addplayer(string name) {
   }
 
   /* failed if we got here */
-  Message::quick(0, "Couldn't create player. Does file already exist?",
+  Message::Quick(0, "Couldn't create player. Does file already exist?",
                  "OK", "", PICS XICON POP);
 }
 
@@ -383,7 +383,7 @@ Player *PlayerDB_::chooseplayer() {
         } else {
 
           /* XXX should we even do anything here? */
-          Message::no(0, "Can't delete default player or menu items!");
+          Message::No(0, "Can't delete default player or menu items!");
           sel->redraw();
 
         }
@@ -474,11 +474,11 @@ void PlayerDB_::promptimport() {
 
     sel->sort(PDBEntry::cmp_bysolved);
   } else if (ss != "") {
-    Message::no(0, "Can't read " RED + ss + POP ".");
+    Message::No(0, "Can't read " RED + ss + POP ".");
   }
 #endif
 
-  Message::no(0,
+  Message::No(0,
               "To import a player, just " BLUE "copy the .esp file" POP "\n"
               "   into the escape directory and restart the game.");
 

@@ -158,7 +158,7 @@ void Upper_::savedir(string d, string i) {
   stringlist::push(dirlistd, d);
 
   /* XXX error checking? */
-  DirIndex *di = DirIndex::create();
+  DirIndex *di = DirIndex::Create();
   di->title = i;
   PtrList<DirIndex>::push(dirlisti, di);
 }
@@ -393,17 +393,15 @@ bool Upper_::commit() {
      length(dirlisti) */
   while (dirlistd) {
     string d = stringpop(dirlistd);
-    DirIndex *i = PtrList<DirIndex>::pop(dirlisti);
+    std::unique_ptr<DirIndex> i{PtrList<DirIndex>::pop(dirlisti)};
 
     string f =
-      (d == "")
-      ? (dirname + (string)DIRSEP WEBINDEXNAME)
-      : dirname + (string)DIRSEP + d + (string)DIRSEP WEBINDEXNAME;
+      (d == "") ?
+      (dirname + (string)DIRSEP WEBINDEXNAME) :
+      dirname + (string)DIRSEP + d + (string)DIRSEP WEBINDEXNAME;
 
     /* XXX check failure? */
     i->writefile(f);
-
-    i->destroy();
   }
 
   /* FIXME prune empty dirs */

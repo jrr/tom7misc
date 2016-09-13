@@ -87,7 +87,7 @@ void Editor::prefab() {
       switch (what) {
       case PF_TIMER:
         if (!moveplayersafe()) {
-          Message::no(this, "There's nowhere to put the player!");
+          Message::No(this, "There's nowhere to put the player!");
         } else {
           pftimer();
         }
@@ -96,11 +96,11 @@ void Editor::prefab() {
         pffile();
         break;
       default:;
-        Message::bug(this, "no prefab was selected..??");
+        Message::Bug(this, "no prefab was selected..??");
       }
     }
   } else {
-    Message::no(this, "You must select a region first.\n"
+    Message::No(this, "You must select a region first.\n"
                 "   " GREY "(drag with the right mouse button held)" POP);
   }
   redraw();
@@ -114,7 +114,7 @@ void Editor::pffile() {
     std::unique_ptr<LoadLevel> ll{
       LoadLevel::Create(plr, EDIT_DIR, true, true)};
     if (ll.get() == nullptr) {
-      Message::quick(this, "Can't open load screen!",
+      Message::Quick(this, "Can't open load screen!",
                      "Ut oh.", "", PICS XICON POP);
       redraw();
       return nullptr;
@@ -182,7 +182,7 @@ void Editor::pffile() {
     int xo = util::stoi(xoff.input);
     int yo = util::stoi(yoff.input);
     if (xo < 0 || yo < 0) {
-      Message::no(this, "bad offsets");
+      Message::No(this, "bad offsets");
       return;
     }
 
@@ -326,7 +326,7 @@ void Editor::pftimer() {
   if (res == MR_OK) {
     int n = util::stoi(nmoves.input);
     if (n <= 0) {
-      Message::no(this, "bad number of moves");
+      Message::No(this, "bad number of moves");
       return;
     }
 
@@ -374,7 +374,7 @@ void Editor::pftimer() {
       if (timer_try(M, A, 0, i, n, reverse.checked)) return;
     }
 
-    Message::no(this, "Can't find a timer; try increasing the width,\n"
+    Message::No(this, "Can't find a timer; try increasing the width,\n"
                 "   " "height, and number of available bots.");
 
   }
@@ -488,7 +488,7 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
         if (A[z] == 0) dr.lev->swapo(dr.lev->index(trigx + dx * (1 + z), trigy));
 
         if (dr.lev->nbots >= LEVEL_MAX_ROBOTS) {
-          Message::bug(this, "oops, exceeded bots! bug!");
+          Message::Bug(this, "oops, exceeded bots! bug!");
           return true;
         }
 
