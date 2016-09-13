@@ -781,7 +781,7 @@ int loadlevelreal::changedir(string what, bool remember) {
 
 #if 0
   if (!nsel->number) {
-    Message::no(0, "There are no levels at all!!");
+    Message::No(0, "There are no levels at all!!");
     return 0;
   }
 #endif
@@ -790,7 +790,7 @@ int loadlevelreal::changedir(string what, bool remember) {
   sel = nsel;
 
   if (!sel->number) {
-    Message::no(0, "There are no levels at all!!");
+    Message::No(0, "There are no levels at all!!");
 
     /* FIXME crash if we continue  */
     exit(-1);

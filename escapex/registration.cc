@@ -31,7 +31,7 @@ struct Registration_ : public Registration {
 void Registration_::registrate() {
   std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
   if (hh.get() == nullptr) {
-    Message::quick(this,
+    Message::Quick(this,
                    "Couldn't connect to server.",
                    "Sorry", "", PICS XICON POP);
     return;
@@ -39,7 +39,7 @@ void Registration_::registrate() {
 
   /* XXX again, need a better way to detect this */
   if (plr->name == "Default") {
-    Message::quick(this,
+    Message::Quick(this,
                    "You can't register with the default player.",
                    "Sorry", "", PICS XICON POP);
     return;
@@ -72,7 +72,7 @@ void Registration_::registrate() {
 
         if (plr->writefile()) {
           say((string)"success! " GREEN + res);
-          Message::quick(this,
+          Message::Quick(this,
                          (string)"You are registered as player "
                          YELLOW "#" + itos(id),
                          "OK!", "", PICS THUMBICON POP);
@@ -90,7 +90,7 @@ void Registration_::registrate() {
 
   /* give up ... */
 
-  Message::no(this,
+  Message::No(this,
               "Unable to register:\n"
               "     " RED + res + POP "\n"
               "   Try again later!");

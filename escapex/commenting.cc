@@ -84,7 +84,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
   cs.redraw();
   std::unique_ptr<HTTP> hh{Client::connect(p, cs.tx.get(), &cs)};
   if (hh.get() == nullptr) {
-    Message::quick(&cs, "Can't connect to internet!",
+    Message::Quick(&cs, "Can't connect to internet!",
                    "OK", "", PICS XICON POP);
     return;
   }
@@ -105,7 +105,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
                   res);
 
     if (!success) {
-      Message::quick(&cs,
+      Message::Quick(&cs,
                      "Ping to server failed! "
                      "Perhaps this level is not uploaded.",
                      "OK", "", PICS XICON POP);
@@ -186,11 +186,11 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
                   res);
 
     if (success) {
-      Message::quick(&cs, "posted: " + Font::truncate(res, 60),
+      Message::Quick(&cs, "posted: " + Font::truncate(res, 60),
                      "OK", "", PICS THUMBICON POP);
     } else {
       /* XXX copy to clipboard? */
-      Message::quick(&cs, "failed: " + Font::truncate(res, 60),
+      Message::Quick(&cs, "failed: " + Font::truncate(res, 60),
                      "comment lost =(", "", PICS XICON POP);
     }
 

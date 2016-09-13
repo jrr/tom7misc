@@ -25,50 +25,45 @@ struct ra_entry {
   }
   string filename;
   RateStatus v;
-  int date;
-  int speedrecord;
+  int date = 0;
+  int speedrecord = 0;
 
-  int owner;
+  int owner = 0;
 
   void destroy() { delete this; }
 
   ra_entry(string s, RateStatus vv, int d, int sr, int o)
     : filename(s), v(vv), date(d), speedrecord(sr), owner(o) {}
   ra_entry() {}
-
 };
 
 struct DirIndex_ : public DirIndex {
+  static DirIndex_ *Create();
 
-  static DirIndex_ *create();
+  void writefile(string) override;
 
-  virtual void writefile(string);
-
-  virtual void destroy();
-  virtual ~DirIndex_() {}
-  virtual void addentry(string filename, RateStatus v,
-                        int date, int speedrecord, int owner);
-
-  /* read from disk */
-  static DirIndex *fromstring(string f);
+  ~DirIndex_() override {
+    if (tab) tab->destroy();
+  }
+  void addentry(string filename, RateStatus v,
+		int date, int speedrecord, int owner) override;
 
   static void writeone(ra_entry *i, FILE *f);
 
-  virtual bool getentry(string filename, RateStatus &v, int &, int &, int &o);
+  bool getentry(string filename, RateStatus &v, int &, int &, int &o) override;
 
-  virtual bool webcollection() { return isweb; }
+  bool webcollection() const override { return isweb; }
 
   /* mapping filenames to ra_entry */
-  hashtable<ra_entry, string> *tab;
+  hashtable<ra_entry, string> *tab = nullptr;
 
-  int isweb;
-
+  int isweb = 0;
 };
 
 
-bool DirIndex_::getentry(string filename, RateStatus &v, int &d, int &sr, int &o) {
-  ra_entry *e = tab->lookup(filename);
-  if (e) {
+bool DirIndex_::getentry(string filename,
+			 RateStatus &v, int &d, int &sr, int &o) {
+  if (ra_entry *e = tab->lookup(filename)) {
     v = e->v;
     d = e->date;
     sr = e->speedrecord;
@@ -77,23 +72,18 @@ bool DirIndex_::getentry(string filename, RateStatus &v, int &d, int &sr, int &o
   } else return false;
 }
 
-DirIndex_ *DirIndex_::create() {
-  DirIndex_ *dr = new DirIndex_();
+DirIndex_ *DirIndex_::Create() {
+  std::unique_ptr<DirIndex_> dr{new DirIndex_};
 
-  if (!dr) return 0;
+  if (dr.get() == nullptr) return nullptr;
 
   dr->title = "No name";
   dr->isweb = 0;
   dr->tab = hashtable<ra_entry, string>::create(HASHSIZE);
 
-  if (!dr->tab) { dr->destroy(); return 0; }
+  if (!dr->tab) return nullptr;
 
-  return dr;
-}
-
-void DirIndex_::destroy() {
-  if (tab) tab->destroy();
-  delete this;
+  return dr.release();
 }
 
 /* argument to hashtable::app */
@@ -139,10 +129,10 @@ void DirIndex_::addentry(string f, RateStatus v,
 
 }  // namespace
 
-DirIndex *DirIndex::fromfile(const string &f) {
-  DirIndex_ *dr = DirIndex_::create();
+DirIndex *DirIndex::FromFile(const string &f) {
+  std::unique_ptr<DirIndex_> dr{DirIndex_::Create()};
 
-  if (!dr) return 0;
+  if (dr.get() == nullptr) return nullptr;
 
   /* read old index files */
   string iii = util::readfilemagic(f, INDEXMAGIC);
@@ -155,30 +145,26 @@ DirIndex *DirIndex::fromfile(const string &f) {
                                   strlen(INDEXMAGIC)));
 
     /* hashtable remains empty */
-    return dr;
+    return dr.release();
   } else {
-
-    Extent<DirIndex_> de(dr);
     CheckFile *cf = CheckFile::create(f);
 
-    if (!cf) return 0;
+    if (!cf) return nullptr;
 
     Extent<CheckFile> fe(cf);
 
     /* check that it starts with v2 magic */
     string s;
     if (!cf->read(strlen(INDEX3MAGIC), s) ||
-        s != INDEX3MAGIC) return 0;
+        s != INDEX3MAGIC) return nullptr;
 
     /* strip newline */
-    if (!(cf->getline(s) && s == "")) return 0;
+    if (!(cf->getline(s) && s == "")) return nullptr;
 
-    if (!(cf->getline(dr->title))) return 0;
+    if (!(cf->getline(dr->title))) return nullptr;
 
-    {
-      for (int i = 0; i < INDEX_IGNORED_FIELDS; i++)
-        if (!cf->getline(s)) return 0;
-    }
+    for (int i = 0; i < INDEX_IGNORED_FIELDS; i++)
+      if (!cf->getline(s)) return nullptr;
 
     while (cf->getline(s)) {
       ra_entry *rr = new ra_entry;
@@ -200,8 +186,7 @@ DirIndex *DirIndex::fromfile(const string &f) {
     }
 
     dr->isweb = 1;
-    de.release();
-    return dr;
+    return dr.release();
   }
 }
 
@@ -210,6 +195,6 @@ bool DirIndex::isindex(const string &f) {
          util::hasmagic(f, INDEX3MAGIC);
 }
 
-DirIndex *DirIndex::create() {
-  return DirIndex_::create();
+DirIndex *DirIndex::Create() {
+  return DirIndex_::Create();
 }

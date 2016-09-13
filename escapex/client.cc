@@ -13,7 +13,7 @@ bool Client::quick_rpc(Player *plr, string path, string query, string &ret) {
   td.draw();
 
   if (hh.get() == nullptr) {
-    Message::no(&td, "Couldn't connect!");
+    Message::No(&td, "Couldn't connect!");
     ret = "Couldn't connect.";
     return false;
   }

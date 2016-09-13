@@ -37,7 +37,7 @@ struct Client {
 
     if (hh.get() == nullptr) {
       if (tx) tx->say(YELLOW "Couldn't create http object.");
-      Message::quick(that, "Upgrade failed!", "Cancel", "");
+      Message::Quick(that, "Upgrade failed!", "Cancel", "");
       return 0;
     }
 
@@ -58,7 +58,7 @@ struct Client {
     if (!hh->connect(serveraddress, serverport)) {
       if (tx) tx->say((string)RED "Couldn't connect to "
                       YELLOW + serveraddress + POP ".");
-      Message::quick(that, "Can't connect!", "Cancel", "");
+      Message::Quick(that, "Can't connect!", "Cancel", "");
       return 0;
     }
 

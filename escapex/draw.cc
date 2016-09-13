@@ -667,7 +667,7 @@ void Drawing::drawsmall(int y,
                         int date, int speedrecord) {
 
   if (!l) {
-    Message::bug(0, "There's no level to draw small!");
+    Message::Bug(0, "There's no level to draw small!");
     return;
   }
 

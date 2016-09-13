@@ -84,7 +84,7 @@ void SolutionUploading::PromptUpload(Drawable *below,
   if (res == MR_OK) {
 
     if (speed.checked ||
-        Message::quick(0, "Are you sure you want to upload\n"
+        Message::Quick(0, "Are you sure you want to upload\n"
                        "   this solution without marking\n"
                        "   it as a " BLUE "speedrun" POP "?\n"
                        "\n"
@@ -98,7 +98,7 @@ void SolutionUploading::PromptUpload(Drawable *below,
       std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
 
       if (hh.get() == nullptr) {
-        Message::no(&td, "Couldn't connect!");
+        Message::No(&td, "Couldn't connect!");
         return;
       }
 
@@ -123,13 +123,13 @@ void SolutionUploading::PromptUpload(Drawable *below,
       string out;
       if (Client::rpcput(hh.get(), UPLOADSOL_RPC, fl, out)) {
         if (speedrec)
-          Message::quick(&td, GREEN "Success! the record is yours!" POP,
+          Message::Quick(&td, GREEN "Success! the record is yours!" POP,
                          "OK", "", PICS THUMBICON POP);
         else
-          Message::quick(&td, GREEN "Success!" POP,
+          Message::Quick(&td, GREEN "Success!" POP,
                          "OK", "", PICS THUMBICON POP);
       } else {
-        Message::no(&td, RED "Upload failed: " +
+        Message::No(&td, RED "Upload failed: " +
                     out + POP);
       }
 

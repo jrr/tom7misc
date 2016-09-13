@@ -192,7 +192,7 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
       /* catch error early */
     case UT_SYMLINK:
 #     ifdef WIN32
-      Message::bug(this,
+      Message::Bug(this,
                    RED " Somehow got symlink upitem on win32");
       return UR_NODOWN;
 #     else
@@ -321,7 +321,7 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
 #   ifdef WIN32
 
-    Message::quick(this, "we need to do a trick to replace some files.",
+    Message::Quick(this, "we need to do a trick to replace some files.",
                    "ok", "");
     /* XXX this comment is wrong now; I use replace.exe */
     /* On Windows 98, we need to do something special, because an
@@ -379,7 +379,7 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
           (string)(spawnargs[z] ? spawnargs[z] : "(null)"));
     }
 
-    Message::quick(this, "Escape will now restart.",
+    Message::Quick(this, "Escape will now restart.",
                    "OK", "");
 
 
@@ -389,7 +389,7 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
     /* No return */
 
-    Message::bug(this,
+    Message::Bug(this,
                  "roundabout exec technique failed");
     return UR_CORRUPT;
 
@@ -402,7 +402,7 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
 
   if (incomplete) {
-    Message::quick(this, "one or more files could not be "
+    Message::Quick(this, "one or more files could not be "
                    "removed/moved/linked.",
                    "upgrade failed!", "", PICS XICON);
     return UR_CORRUPT;
@@ -459,7 +459,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
       if (md[0] == '-' && md[1] == '>') {
         /* symlink */
 #       ifdef WIN32
-          Message::quick(this,
+          Message::Quick(this,
                          RED"OOPS!" POP " Can't make symlinks on win32. "
                          "Upgrade file is broken?", "oops", "");
           return CU_FAIL;
@@ -575,7 +575,7 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   case CU_FAIL:
     say((string)"Upgrade fail: " + upmsg);
     /* lists will be empty */
-    Message::quick(this, "Couldn't get upgrade info.",
+    Message::Quick(this, "Couldn't get upgrade info.",
                    "Cancel", "", PICS XICON POP);
     break;
 
@@ -584,7 +584,7 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
     say((string)"Upgrade: " + upmsg);
     stringlist::diminish(ok);
     ulist::diminish(download);
-    Message::quick(this, "Already at newest version!", "OK", "");
+    Message::Quick(this, "Already at newest version!", "OK", "");
     break;
 
   case CU_QUERY:
@@ -598,7 +598,7 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
       say((string)"  " YELLOW + tmp->head.filename + POP);
     }
 
-    int doit = Message::quick(this, "Upgrade Escape now?",
+    int doit = Message::Quick(this, "Upgrade Escape now?",
                               "Yes", "No", PICS QICON POP);
 
     if (doit) {
@@ -611,20 +611,20 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
       switch (up) {
 
       case UR_CORRUPT:
-        Message::quick(this, YELLOW "Oops! " POP
+        Message::Quick(this, YELLOW "Oops! " POP
                        "The installation failed and may be corrupted.",
                        "Exit", "", PICS SKULLICON);
         return UP_EXIT;
         break;
 
       case UR_NODOWN:
-        Message::quick(this, "Upgrade failed. Try again later.",
+        Message::Quick(this, "Upgrade failed. Try again later.",
                        "Oh well!", "", PICS XICON);
         return UP_FAIL;
         break;
 
       case UR_RESTART:
-        Message::quick(this, "Upgrade succeeded! "
+        Message::Quick(this, "Upgrade succeeded! "
                        "You must exit and start Escape again.",
                        "Exit", "", PICS THUMBICON POP);
         return UP_EXIT;

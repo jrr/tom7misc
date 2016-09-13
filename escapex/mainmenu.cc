@@ -31,7 +31,7 @@
 namespace {
 
 enum mmetype {
-  MM_TUTORIAL,
+  MM_TUTORIAL = 0,
   MM_LOAD,
   MM_EDIT,
   MM_UPGRADE,
@@ -100,7 +100,7 @@ struct MainMenu_ : public MainMenu, public Drawable {
       compute_tutorial();
 
     } else {
-      Message::quick(this, "Tutorial completed or unavailable!",
+      Message::Quick(this, "Tutorial completed or unavailable!",
                      "Sorry", "", PICS XICON POP);
     }
 
@@ -247,7 +247,7 @@ MainMenu::result MainMenu_::show() {
   SDL_Event e;
 
   Uint32 nextframe = SDL_GetTicks() + FRAME_TICKS;
-  for ( ;; ) {
+  for (;;) {
     SDL_Delay(1);
 
     /* turn on animation? */
@@ -443,7 +443,7 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
   mm->tutorial_left = false;
 
   mm->mshow = new MainShow(18, 10, 1);
-
+  
   /* set up selector... */
   mm->sel = msel::create(MM_N_ITEMS);
   mm->sel->below = mm.get();
@@ -486,7 +486,6 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
 
   /* maybe fewer, if some were removed */
   mm->sel->number = i;
-
   return mm.release();
 }
 
