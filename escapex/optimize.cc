@@ -59,7 +59,6 @@ static Uint64 hashlevel(Level *l) {
   /* ignore title, author, w/h, dests, flags,
      since these don't change.
      also ignore botd and guyd, which are presentational. */
-
   Uint64 h = 0x3333333333333333ULL;
 
   /* start with position of guy */
@@ -69,31 +68,28 @@ static Uint64 hashlevel(Level *l) {
   PERMUTE2(h);
 
   /* hash up tiles */
-  {
-    for (int i = 0; i < l->w * l->h; i++) {
-      h ^= (Uint64)l->tiles[i];
-      PERMUTE1(h);
-      h += (Uint64)l->otiles[i];
-      PERMUTE2(h);
-    }
+  for (int i = 0; i < l->w * l->h; i++) {
+    h ^= (Uint64)l->tiles[i];
+    PERMUTE1(h);
+    h += (Uint64)l->otiles[i];
+    PERMUTE2(h);
   }
 
   /* then bots */
-  {
-    for (int j = 0; j < l->nbots; j++) {
-      h = ROR64(h, j);
-      h ^= (Uint64)l->bott[j];
-      PERMUTE3(h);
-      h ^= (Uint64)l->boti[j];
-      PERMUTE1(h);
-      h ^= (Uint64)l->bota[j];
-      PERMUTE2(h);
-    }
+  for (int j = 0; j < l->nbots; j++) {
+    h = ROR64(h, j);
+    h ^= (Uint64)l->bott[j];
+    PERMUTE3(h);
+    h ^= (Uint64)l->boti[j];
+    PERMUTE1(h);
+    h ^= (Uint64)l->bota[j];
+    PERMUTE2(h);
   }
 
   return h;
 }
 
+namespace {
 struct lstate {
   /* index (in cf) before which we are in this
      state */
@@ -127,6 +123,7 @@ struct lstate {
     delete this;
   }
 };
+}
 
 static void inval_above(lstate *ls, int cutoff) {
   if (ls->pos > cutoff) ls->thiskey = 0l;

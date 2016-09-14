@@ -1,32 +1,71 @@
 
 #include "mainshow.h"
 
+#include <memory>
+
 #define EXIT_FREQ 10
 #define GUY_FREQ 40
 #define LEVEL_FREQ 300
 
-MainShow::MainShow(int w, int h, int zf) {
-  dr.lev = Level::defboard(w, h);
-  dr.width = (TILEW >> zf) * w;
-  dr.height = (TILEH >> zf) * h;
-  dr.margin = 0;
-  dr.scrollx = 0;
-  dr.scrolly = 0;
-  dr.zoomfactor = zf;
+namespace {
 
-  tx.reset(TextScroll::Create(fonsmall));
-  tx->width = 100;
-  tx->height = (TILEH >> zf) * h;
+struct MainShow_ : public MainShow {
+  /* width and height given in tiles */
+  MainShow_(int w, int h, int zf = 1) {
+    dr.lev = Level::defboard(w, h);
+    dr.width = (TILEW >> zf) * w;
+    dr.height = (TILEH >> zf) * h;
+    dr.margin = 0;
+    dr.scrollx = 0;
+    dr.scrolly = 0;
+    dr.zoomfactor = zf;
 
-  newlevel();
-}
+    tx.reset(TextScroll::Create(fonsmall));
+    tx->width = 100;
+    tx->height = (TILEH >> zf) * h;
 
-MainShow::~MainShow() {
-  dr.lev->destroy();
-  dr.lev = nullptr;
-}
+    newlevel();
+  }
 
-void MainShow::draw(int x, int y, SDL_Surface *surf) {
+  /* take a step. this can be about anything */
+  void step() override;
+
+  /* draw to x,y on the supplied surface. if surface is
+     0, then draw to the screen */
+  void draw(int x, int y, SDL_Surface *surf = 0) override;
+
+  ~MainShow_() override {
+    dr.lev->destroy();
+    dr.lev = nullptr;
+  }
+
+  
+  int width() override {
+    return dr.width;
+  }
+
+ private:
+
+  Drawing dr;
+
+  void newlevel();
+  void newexit();
+  void newguy();
+
+  void trymove();
+  void randomspot(int &x, int &y);
+
+  int exitx;
+  int exity;
+
+  int leveltime;
+  int exittime;
+  int guytime;
+
+  std::unique_ptr<TextScroll> tx;
+};
+
+void MainShow_::draw(int x, int y, SDL_Surface *surf) {
   if (!surf) surf = screen;
   dr.posx = x;
   dr.posy = y;
@@ -38,7 +77,7 @@ void MainShow::draw(int x, int y, SDL_Surface *surf) {
   tx->drawto(surf);
 }
 
-void MainShow::step() {
+void MainShow_::step() {
   int dumb, dumby;
   dir dummy;
   if (dr.lev->isdead(dumb, dumby, dummy)) {
@@ -60,7 +99,7 @@ void MainShow::step() {
   tx->say("");
 }
 
-void MainShow::trymove() {
+void MainShow_::trymove() {
   /* walk towards goal */
   Level *l = dr.lev;
   int dx = 0, dy = 0;
@@ -93,7 +132,7 @@ void MainShow::trymove() {
   if (guytime > 1) guytime--;
 }
 
-void MainShow::randomspot(int &x, int &y) {
+void MainShow_::randomspot(int &x, int &y) {
   int idx =
     util::random() % ((dr.lev->w - 2) * (dr.lev->h - 2));
 
@@ -101,7 +140,7 @@ void MainShow::randomspot(int &x, int &y) {
   y = 1 + idx / (dr.lev->w - 2);
 }
 
-void MainShow::newexit() {
+void MainShow_::newexit() {
   dr.lev->settile(exitx, exity, T_FLOOR);
 
   randomspot(exitx, exity);
@@ -111,14 +150,14 @@ void MainShow::newexit() {
   exittime = 5 + (util::random() % EXIT_FREQ);
 }
 
-void MainShow::newguy() {
+void MainShow_::newguy() {
   randomspot(dr.lev->guyx,
              dr.lev->guyy);
 
   guytime = 8 + (util::random() % GUY_FREQ);
 }
 
-void MainShow::newlevel() {
+void MainShow_::newlevel() {
   /* XXX make a more interesting random level!!
      (we had better improve the AI, then)
 
@@ -166,4 +205,12 @@ void MainShow::newlevel() {
   newexit();
 
   leveltime = 30 + (util::random() % LEVEL_FREQ);
+}
+
+}  // namespace
+
+MainShow::~MainShow() {}
+
+std::unique_ptr<MainShow> MainShow::Create(int x, int y, int zf) {
+  return std::make_unique<MainShow_>(x, y, zf);
 }

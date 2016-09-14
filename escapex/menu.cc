@@ -753,41 +753,37 @@ inputresult Menu::clickselect(int xc, int yc) {
      control area */
   int y = TOPBARHEIGHT;
 
-  {
-    for (int n = skip; n < nitems; n++) {
-      int iw, ih;
-      items[n]->size(iw, ih);
-      iw += items[n]->indent;
-      /* give a line of leeway between control area and status area */
-      if (y + ih < (h - (stath + fon->height))) {
-        /* this control will be on screen, so did we
-           click it? */
+  for (int n = skip; n < nitems; n++) {
+    int iw, ih;
+    items[n]->size(iw, ih);
+    iw += items[n]->indent;
+    /* give a line of leeway between control area and status area */
+    if (y + ih < (h - (stath + fon->height))) {
+      /* this control will be on screen, so did we
+         click it? */
 
-        if ((!items[n]->disabled) &&
-            xc >= 0 &&
-            xc < w &&
-            yc >= y &&
-            yc <= (y + ih)) {
+      if ((!items[n]->disabled) &&
+          xc >= 0 &&
+          xc < w &&
+          yc >= y &&
+          yc <= (y + ih)) {
 
-          /* at a minimum, select this one if it is
-             focusable */
-          if (items[n]->focusable()) selected = n;
-          inputresult res = items[n]->click(xc, yc - y);
-          redraw();
-          return res;
-        }
-
-        y += ih;
-
+        /* at a minimum, select this one if it is
+           focusable */
+        if (items[n]->focusable()) selected = n;
+        inputresult res = items[n]->click(xc, yc - y);
+        redraw();
+        return res;
       }
 
+      y += ih;
     }
   }
   return inputresult(MR_REJECT);
 }
 
 #define PROCESSRESULT(res)              \
-  switch (res.kind()) {                  \
+  switch (res.kind()) {                 \
   case MR_OK:                           \
   case MR_CANCEL:                       \
   case MR_QUIT: return res.kind();      \
@@ -800,7 +796,7 @@ inputresult Menu::clickselect(int xc, int yc) {
     break;                              \
                                         \
   case MR_NEXT:                         \
-    selected++;                        \
+    selected++;                         \
     selected %= nitems;                 \
     nextfocus(1);                       \
     redraw();                           \
@@ -809,7 +805,7 @@ inputresult Menu::clickselect(int xc, int yc) {
   case MR_PREV:                         \
     if (!selected) {                    \
       selected = nitems - 1;            \
-    } else--selected;                  \
+    } else --selected;                  \
     nextfocus(-1);                      \
     redraw();                           \
     break;                              \

@@ -131,7 +131,7 @@ Chunks *Chunks::fromstring(const string &s) {
 
 void Chunks::insert(Chunk *insme) {
   for (PtrList<Chunk> *tmp = data;
-      tmp; tmp = tmp->next) {
+       tmp; tmp = tmp->next) {
 
     if (insme->key == tmp->head->key) {
       delete tmp->head;

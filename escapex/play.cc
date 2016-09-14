@@ -1035,7 +1035,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
                 Undo(start, ec, 10);
                 break;
               case TU_FREDO:
-                { for (int i = 0; i < 10; i++) Redo(); }
+                for (int i = 0; i < 10; i++) Redo();
                 redraw();
                 break;
 

@@ -407,31 +407,25 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
     if (!timer_check(M, A, i, n)) return false;
 
     /* also must not be satisfied for any smaller t */
-    {
-      for (int u = 0; u < n; u++) {
-        if (timer_check(M, A, i, u)) return false;
-      }
+    for (int u = 0; u < n; u++) {
+      if (timer_check(M, A, i, u)) return false;
     }
 
     /* good! */
     #if 0
     printf("okay: i=%d\n", i);
-    {
-      for (int z = 0; z < i; z++) {
-        printf("  M[%d] = %d, A[%d] = %d\n",
-               z, M[z], z, A[z]);
-      }
+    for (int z = 0; z < i; z++) {
+      printf("  M[%d] = %d, A[%d] = %d\n",
+	     z, M[z], z, A[z]);
     }
     #endif
     /* write it... */
 
     /* black out selection */
-    {
-      for (int x = selection.x; x < selection.x + selection.w; x++) {
-        for (int y = selection.y; y < selection.y + selection.h; y++) {
-          dr.lev->settile(x, y, T_BLACK);
-          clearbot(x, y);
-        }
+    for (int x = selection.x; x < selection.x + selection.w; x++) {
+      for (int y = selection.y; y < selection.y + selection.h; y++) {
+	dr.lev->settile(x, y, T_BLACK);
+	clearbot(x, y);
       }
     }
 
@@ -485,7 +479,8 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
         dr.lev->osettile(trigx + dx * (1 + z), trigy, T_RSTEEL);
         /* do a pre-emptive swap if bot starts home, since he'll be
            on the panel */
-        if (A[z] == 0) dr.lev->swapo(dr.lev->index(trigx + dx * (1 + z), trigy));
+        if (A[z] == 0)
+	  dr.lev->swapo(dr.lev->index(trigx + dx * (1 + z), trigy));
 
         if (dr.lev->nbots >= LEVEL_MAX_ROBOTS) {
           Message::Bug(this, "oops, exceeded bots! bug!");
@@ -493,7 +488,6 @@ bool Editor::timer_try(int *M, int *A, int j, int i, int n, bool rev) {
         }
 
         addbot(home + dx * A[z], y, B_DALEK);
-
       }
     }
 
