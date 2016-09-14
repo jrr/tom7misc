@@ -119,31 +119,28 @@ bool Animation::ainit_fast() {
   pic_bomb_lit = (SDL_Surface***)malloc((LEVEL_BOMB_MAX_TIMER+1) *
                                         sizeof (SDL_Surface **));
 
-  {
-    for (int i = 0; i <= LEVEL_BOMB_MAX_TIMER; i++) {
-      pic_bomb_lit[i] = (SDL_Surface**)malloc(DRAW_NSIZES *
-                                              sizeof(SDL_Surface *));
 
-      /* going to draw on these, so duplicate */
-      switch (i) {
-      default: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_3); break;
-      case 2: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_2); break;
-      case 1: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_1); break;
-      case 0: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_0); break;
-      }
+  for (int i = 0; i <= LEVEL_BOMB_MAX_TIMER; i++) {
+    pic_bomb_lit[i] = (SDL_Surface**)malloc(DRAW_NSIZES *
+					    sizeof(SDL_Surface *));
 
-      /* draw timer on it */
-      {
-        string ss = RED + itos(i);
-        fon->drawto(pic_bomb_lit[i][0], (TILEW - fon->sizex(ss))>>1,
-                    ((TILEH + BOMB_OVERLAPY) - fon->height)>>1,
-                    ss);
-      }
-
-
-      if (!sdlutil::make_mipmaps(pic_bomb_lit[i], DRAW_NSIZES)) return 0;
-
+    /* going to draw on these, so duplicate */
+    switch (i) {
+    default: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_3); break;
+    case 2: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_2); break;
+    case 1: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_1); break;
+    case 0: pic_bomb_lit[i][0] = sdlutil::duplicate(bomb_lit_0); break;
     }
+
+    /* draw timer on it */
+    {
+      string ss = RED + itos(i);
+      fon->drawto(pic_bomb_lit[i][0], (TILEW - fon->sizex(ss))>>1,
+		  ((TILEH + BOMB_OVERLAPY) - fon->height)>>1,
+		  ss);
+    }
+
+    if (!sdlutil::make_mipmaps(pic_bomb_lit[i], DRAW_NSIZES)) return 0;
   }
 
   /* dalek */

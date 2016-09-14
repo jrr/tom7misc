@@ -83,7 +83,7 @@ struct MainMenu_ : public MainMenu, public Drawable {
   SDL_Surface *titlegraphic;
   SDL_Surface *background;
 
-  MainShow *mshow;
+  std::unique_ptr<MainShow> mshow;
 
   void makebackground();
   void compute_tutorial();
@@ -231,7 +231,6 @@ void MainMenu_::draw() {
     string web = GREY "http://" BLUE DEFAULT_SERVER POP "/";
     fon->draw(screen->w - fon->sizex(web) - 6, y, web);
   }
-
 
   mshow->draw((screen->w - mshow->width()) >> 1, SHOWY, screen);
 }
@@ -442,7 +441,7 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
 
   mm->tutorial_left = false;
 
-  mm->mshow = new MainShow(18, 10, 1);
+  mm->mshow = MainShow::Create(18, 10, 1);
   
   /* set up selector... */
   mm->sel = msel::create(MM_N_ITEMS);
@@ -492,7 +491,6 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
 MainMenu_::~MainMenu_() {
   if (titlegraphic) SDL_FreeSurface(titlegraphic);
   if (background) SDL_FreeSurface(background);
-  delete mshow;
 }
 
 }  // namespace

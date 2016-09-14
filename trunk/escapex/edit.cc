@@ -4,6 +4,7 @@
 #include <time.h>
 #include "edit.h"
 #include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/lines.h"
 #include "draw.h"
 
 #include "escapex.h"
@@ -880,30 +881,24 @@ void Editor::edit(Level *origlev) {
           if (otx != ntx ||
               oty != nty) {
             /* draw line. */
-            line *sl = line::create(otx, oty, ntx, nty);
-            Extent<line> el(sl);
-
-            int cx = otx, cy = oty;
-
-            do {
-              setlayer(cx, cy, current);
-
-            } while (sl->next(cx, cy));
-
+	    for (const std::pair<int, int> point :
+		   Line<int>{otx, oty, ntx, nty}) {
+	      int cx = point.first, cy = point.second;
+	      setlayer(cx, cy, current);
+	    }
+	    
             changed = 1;
             /* always draw */
             yesdraw = 1;
           } else {
             /* draw pixel */
 
-            if ((layer?(dr.lev->otileat(ntx, nty))
-                 :(dr.lev->tileat(ntx, nty)))
-                != current) {
+            if ((layer ? dr.lev->otileat(ntx, nty) :
+		 dr.lev->tileat(ntx, nty)) != current) {
               setlayer(ntx, nty, current);
               yesdraw = 1;
               changed = 1;
             }
-
           }
         }
 
@@ -1487,18 +1482,16 @@ void Editor::edit(Level *origlev) {
               Extent<Level> ecl(cl);
 
               /* then blank out the region */
-              {
-                for (int y = selection.y; y < selection.y + selection.h; y++) {
-                  for (int x = selection.x; x < selection.x + selection.w; x++) {
-                    dr.lev->settile(x, y, T_FLOOR);
-                    dr.lev->osettile(x, y, T_FLOOR);
-                    dr.lev->setdest(x, y, 0, 0);
-                    dr.lev->setflag(x, y, 0);
-                  }
-                }
-              }
+	      for (int y = selection.y; y < selection.y + selection.h; y++) {
+		for (int x = selection.x; x < selection.x + selection.w; x++) {
+		  dr.lev->settile(x, y, T_FLOOR);
+		  dr.lev->osettile(x, y, T_FLOOR);
+		  dr.lev->setdest(x, y, 0, 0);
+		  dr.lev->setflag(x, y, 0);
+		}
+	      }
 
-              for (int y = selection.y; y < selection.y + selection.h; y++)
+              for (int y = selection.y; y < selection.y + selection.h; y++) {
                 for (int x = selection.x; x < selection.x + selection.w; x++) {
 
                   /* copy all the parts */
@@ -1509,33 +1502,31 @@ void Editor::edit(Level *origlev) {
                                    cl->otileat(x, y));
 
                   {
-                  int ddx, ddy;
-                  cl->where(cl->destat(x, y), ddx, ddy);
+		    int ddx, ddy;
+		    cl->where(cl->destat(x, y), ddx, ddy);
 
-                  /* if the destination is inside the
-                     thing we're moving, then preserve it */
-                  if ((Level::needsdest(cl->tileat(x, y)) ||
-                       Level::needsdest(cl->otileat(x, y))) &&
-                      ddx >= selection.x &&
-                      ddx < (selection.x + selection.w) &&
-                      ddy >= selection.y &&
-                      ddy < (selection.y + selection.h)) {
+		    /* if the destination is inside the
+		       thing we're moving, then preserve it */
+		    if ((Level::needsdest(cl->tileat(x, y)) ||
+			 Level::needsdest(cl->otileat(x, y))) &&
+			ddx >= selection.x &&
+			ddx < (selection.x + selection.w) &&
+			ddy >= selection.y &&
+			ddy < (selection.y + selection.h)) {
+		      ddx += dx;
+		      ddy += dy;
+		    }
 
-                    ddx += dx;
-                    ddy += dy;
-
-                  }
-
-                  /* anyway copy dest */
-                  dr.lev->setdest(x + dx, y + dy, ddx, ddy);
+		    /* anyway copy dest */
+		    dr.lev->setdest(x + dx, y + dy, ddx, ddy);
                   }
 
                   /* finally, flags */
                   dr.lev->setflag(x + dx, y + dy,
                                   cl->flagat(x, y));
-
                 }
-
+	      }
+		
               /* move player, bots */
               if (dr.lev->guyx >= selection.x &&
                   dr.lev->guyy >= selection.y &&
@@ -1554,45 +1545,42 @@ void Editor::edit(Level *origlev) {
                     dr.lev->bott[bi] = B_DELETED;
                   }
                 }
-
               }
 
-              {
-                for (int i = 0; i < dr.lev->nbots; i++) {
 
-                  int bx, by;
-                  dr.lev->where(dr.lev->boti[i], bx, by);
-                  if (bx >= selection.x &&
-                      by >= selection.y &&
-                      bx < (selection.x + selection.w) &&
-                      by < (selection.y + selection.h)) {
-                    bx += dx;
-                    by += dy;
+	      for (int i = 0; i < dr.lev->nbots; i++) {
+		int bx, by;
+		dr.lev->where(dr.lev->boti[i], bx, by);
+		if (bx >= selection.x &&
+		    by >= selection.y &&
+		    bx < (selection.x + selection.w) &&
+		    by < (selection.y + selection.h)) {
+		  bx += dx;
+		  by += dy;
 
-                    /* destroy any bot we're overwriting
-                       (but not if it's in the selection, because
-                       then it will move, too) */
-                    int bi;
-                    if (bx < selection.x ||
-                        by < selection.y ||
-                        bx >= (selection.x + selection.w) ||
-                        by >= (selection.y + selection.h)) {
+		  /* destroy any bot we're overwriting
+		     (but not if it's in the selection, because
+		     then it will move, too) */
+		  int bi;
+		  if (bx < selection.x ||
+		      by < selection.y ||
+		      bx >= (selection.x + selection.w) ||
+		      by >= (selection.y + selection.h)) {
 
-                      if (dr.lev->botat(bx, by, bi)) {
-                        /* overwrite bot */
-                        dr.lev->bott[bi] = B_DELETED;
-                      } else if (dr.lev->playerat(bx, by)) {
-                        /* Delete self if trying to
-                           overwrite player! */
-                        dr.lev->bott[i] = B_DELETED;
-                      }
-                    }
-                  }
+		    if (dr.lev->botat(bx, by, bi)) {
+		      /* overwrite bot */
+		      dr.lev->bott[bi] = B_DELETED;
+		    } else if (dr.lev->playerat(bx, by)) {
+		      /* Delete self if trying to
+			 overwrite player! */
+		      dr.lev->bott[i] = B_DELETED;
+		    }
+		  }
+		}
 
-                    /* move bot (even if deleted) */
-                  dr.lev->boti[i] = dr.lev->index(bx, by);
-                }
-              }
+		/* move bot (even if deleted) */
+		dr.lev->boti[i] = dr.lev->index(bx, by);
+	      }
 
               /* move selection with it, but don't change size */
               selection.x = tx;
@@ -1601,10 +1589,8 @@ void Editor::edit(Level *origlev) {
               fixup();
             } /* would move stay on screen? */
 
-
             redraw();
           } else {
-
             /* move scroll window */
 
             int dx = 0, dy = 0;
@@ -1615,12 +1601,10 @@ void Editor::edit(Level *origlev) {
             dr.makescrollreasonable();
 
             redraw();
-
           }
-        }
           break;
-
-        default: ;
+        }
+        default:
           /* no match; try unicode */
 
         switch (event.key.keysym.unicode) {

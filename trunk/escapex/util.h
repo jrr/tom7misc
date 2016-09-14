@@ -86,14 +86,6 @@ inline string stringpop(stringlist *&sl) {
   return stringlist::pop(sl, "");
 }
 
-/* drawing lines with Bresenham's algorithm */
-struct line {
-  static line *create(int x0, int y0, int x1, int y1);
-  virtual void destroy() = 0;
-  virtual bool next(int &x, int &y) = 0;
-  virtual ~line() {};
-};
-
 struct util {
   /* only read if the file begins with the magic string */
   static bool hasmagic(string, const string &magic);

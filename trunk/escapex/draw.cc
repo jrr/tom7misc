@@ -3,6 +3,7 @@
 
 #include "draw.h"
 #include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/lines.h"
 #include "chars.h"
 #include "util.h"
 #include "animation.h"
@@ -459,19 +460,17 @@ void Drawing::drawlev(int layer, /* dir facing, */
   {
     bb *bots = (bb*) malloc((lev->nbots + 1) * sizeof(bb));
 
-    {
-      for (int i = 0; i < lev->nbots; i++) {
-        bots[i].i = lev->boti[i];
-        bots[i].e = lev->bott[i];
-        bots[i].d = lev->botd[i];
-        bots[i].a = lev->bota[i];
-      }
-      /* and player */
-      bots[lev->nbots].i = lev->index(lev->guyx, lev->guyy);
-      bots[lev->nbots].e = B_PLAYER;
-      bots[lev->nbots].d = lev->guyd;
-      bots[lev->nbots].a = 0;
+    for (int i = 0; i < lev->nbots; i++) {
+      bots[i].i = lev->boti[i];
+      bots[i].e = lev->bott[i];
+      bots[i].d = lev->botd[i];
+      bots[i].a = lev->bota[i];
     }
+    /* and player */
+    bots[lev->nbots].i = lev->index(lev->guyx, lev->guyy);
+    bots[lev->nbots].e = B_PLAYER;
+    bots[lev->nbots].d = lev->guyd;
+    bots[lev->nbots].a = 0;
 
     /* sort */
     qsort(bots, lev->nbots, sizeof (bb), ydepth_compare);
@@ -531,10 +530,11 @@ void Drawing::drawbotnums(SDL_Surface *surf) {
 }
 
 void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
-  if (!surf) surf = screen;
+  if (surf == nullptr) surf = screen;
 
+  const Uint32 black = SDL_MapRGBA(surf->format, 0, 0, 0, 0xFF);
   sdlutil::slock(surf);
-  for (int wx = 0; wx < lev->w; wx++)
+  for (int wx = 0; wx < lev->w; wx++) {
     for (int wy = 0; wy < lev->h; wy++) {
       int sy, sx;
       if (onscreen(wx, wy, sx, sy)) {
@@ -542,8 +542,8 @@ void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
         sx += TILEW >> (1 + zoomfactor);
         sy += TILEH >> (1 + zoomfactor);
 
-        if (Level::needsdest(lev->tileat(wx, wy))
-            || Level::needsdest(lev->otileat(wx, wy))) {
+        if (Level::needsdest(lev->tileat(wx, wy)) ||
+	    Level::needsdest(lev->otileat(wx, wy))) {
           int d = lev->destat(wx, wy);
           int dx, dy, px, py;
           lev->where(d, dx, dy);
@@ -565,49 +565,34 @@ void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
             }
 
             /* draw line: dark bg first */
-            {
-              line *l = line::create(sx, sy, px, py);
-              Extent<line> el(l);
-
-              int xx, yy;
-              while (l->next(xx, yy)) {
-
-#               define DARK(xxx, yyy) \
-                  sdlutil::setpixel(surf, xxx, yyy, \
-                                    sdlutil::mix2 \
-                                    (sdlutil::getpixel \
-                                     (surf, xxx, yyy), \
-                                    sdlutil::amask))
-
-                DARK(xx-1, yy);
-                DARK(xx+1, yy);
-                DARK(xx, yy-1);
-                DARK(xx, yy+1);
-#               undef DARK
-              }
-            }
+	    auto Dark = [surf, black](int xxx, int yyy) {
+	      sdlutil::setpixel(
+		  surf, xxx, yyy,
+		  sdlutil::mix2(sdlutil::getpixel(surf, xxx, yyy),
+				black));
+	    };
+	    for (const pair<int, int> point : Line<int>{sx, sy, px, py}) {
+	      const int xx = point.first, yy = point.second;
+	      Dark(xx - 1, yy);
+	      Dark(xx + 1, yy);
+	      Dark(xx, yy - 1);
+	      Dark(xx, yy + 1);
+	    }
 
             /* then inside */
-            {
-              line *l = line::create(sx, sy, px, py);
-              Extent<line> el(l);
-
-              int xx, yy;
-              while (l->next(xx, yy)) {
-
-                int r = 255 & ((wx * wy) ^ dx);
-                int g = 255 & ((wx * 13 + dy) ^ ~wy);
-                int b = 255 & ((dx * 99 + wy) ^ (101 * dy));
-
-                sdlutil::drawpixel(surf, xx, yy,
-                                   r, g, b);
-
-              }
+	    for (const pair<int, int> point : Line<int>{sx, sy, px, py}) {
+	      const int xx = point.first, yy = point.second;
+	      int r = 255 & ((wx * wy) ^ dx);
+	      int g = 255 & ((wx * 13 + dy) ^ ~wy);
+	      int b = 255 & ((dx * 99 + wy) ^ (101 * dy));
+	      
+	      sdlutil::drawpixel(surf, xx, yy, r, g, b);
             }
           }
         }
       }
     }
+  }
   sdlutil::sulock(surf);
 }
 
