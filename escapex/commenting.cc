@@ -117,9 +117,9 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
   cs.tx->say(GREY "ok.");
   cs.redraw();
 
-  label levname;
+  Label levname;
   levname.text = lev->title;
-  label author;
+  Label author;
   author.text = (string)"  by " + lev->author;
 
   int IND = 2;
@@ -138,7 +138,7 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
     /* XXX put cursor at end */
   }
 
-  toggle spoiler;
+  Toggle spoiler;
   spoiler.indent = IND;
   spoiler.disabled = cookmode;
   spoiler.checked = cookmode;
@@ -148,11 +148,10 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
     "to the level, or some other surprise best left to be discovered\n"
     "by the player? If so, then it has spoilers, so mark that here.";
 
-  okay ok;
+  Okay ok;
   ok.text = "Submit Comment";
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
   PtrList<MenuItem> *l = nullptr;
 
@@ -161,16 +160,17 @@ void CommentScreen::comment(Player *p, Level *lev, string md5,
   PtrList<MenuItem>::push(l, &spoiler);
   PtrList<MenuItem>::push(l, &body);
 
-  Menu *mm = Menu::create(&cs, cookmode?"Explain your cook":"Leave a comment", l, false);
-  Extent<Menu> em(mm);
+  std::unique_ptr<Menu> mm = 
+    Menu::Create(&cs, cookmode ? "Explain your cook" : "Leave a comment", 
+		 l, false);
   PtrList<MenuItem>::diminish(l);
 
   mm->yoffset = fon->height + 4;
   mm->alpha = 230;
 
 
-  /* XXX look for MR_QUIT too */
-  if (MR_OK == mm->menuize()) {
+  /* XXX look for InputResultKind::QUIT too */
+  if (InputResultKind::OK == mm->menuize()) {
     string com = body.get_text();
 
     string res;

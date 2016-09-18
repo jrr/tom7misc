@@ -21,12 +21,12 @@
 namespace {
 
 /* result of checkcollections */
-enum ccresult {
-  CC_FAIL, CC_OK,
+enum class CCResult {
+  FAIL, OK,
 };
 
-enum selresult {
-  SR_FAIL, SR_OK,
+enum class SelResult {
+  FAIL, OK,
 };
 
 struct Updater_ : public Updater {
@@ -56,11 +56,11 @@ struct Updater_ : public Updater {
 
   std::unique_ptr<TextScroll> tx;
 
-  ccresult checkcolls(HTTP *hh,
+  CCResult checkcolls(HTTP *hh,
                       stringlist *&fnames,
                       stringlist *&shownames);
 
-  selresult selectcolls(stringlist *fnames,
+  SelResult selectcolls(stringlist *fnames,
                         stringlist *shownames,
                         stringlist *&, stringlist *&);
 
@@ -70,11 +70,11 @@ struct Updater_ : public Updater {
 
 /* version of toggle where toggling causes the
    subscription file to be written/removed */
-struct subtoggle : public toggle {
+struct subtoggle : public Toggle {
   string fname;
 
-  virtual inputresult key(SDL_Event e);
-  virtual inputresult click(int x, int y);
+  virtual InputResult key(SDL_Event e);
+  virtual InputResult click(int x, int y);
 
   void docheck();
 
@@ -126,19 +126,19 @@ void subtoggle::docheck() {
     }
 }
 
-inputresult subtoggle::click(int, int) {
+InputResult subtoggle::click(int, int) {
   docheck();
-  return inputresult(MR_UPDATED);
+  return InputResult(InputResultKind::UPDATED);
 }
 
-inputresult subtoggle::key(SDL_Event e) {
+InputResult subtoggle::key(SDL_Event e) {
   int kk = e.key.keysym.sym;
 
   switch (kk) {
   case SDLK_RETURN:
   case SDLK_SPACE:
     docheck();
-    return inputresult(MR_UPDATED);
+    return InputResult(InputResultKind::UPDATED);
   default: return MenuItem::key(e);
   }
 
@@ -164,7 +164,7 @@ void Updater_::redraw() {
 /* return the available collections.
    (by adding items to fnames, shownames)
 */
-ccresult Updater_::checkcolls(HTTP *hh,
+CCResult Updater_::checkcolls(HTTP *hh,
                               stringlist *&fnames,
                               stringlist *&shownames) {
   /* first, grab COLLECTIONS. */
@@ -191,7 +191,7 @@ ccresult Updater_::checkcolls(HTTP *hh,
 
       if (fname == "") {
         say(RED "  collections file corrupt!!" POP);
-        return CC_FAIL;
+        return CCResult::FAIL;
       }
 
       say((string)"  " YELLOW + fname + POP +
@@ -204,12 +204,12 @@ ccresult Updater_::checkcolls(HTTP *hh,
       }
     }
 
-    return CC_OK;
+    return CCResult::OK;
 
   } else {
     say("Message from server: " RED + s);
     say(RED "Unable to fetch collection list." POP);
-    return CC_FAIL;
+    return CCResult::FAIL;
   }
 
 }
@@ -217,20 +217,19 @@ ccresult Updater_::checkcolls(HTTP *hh,
 
 /* invt: length(fnames) > 0 */
 
-selresult Updater_::selectcolls(stringlist *fnames,
+SelResult Updater_::selectcolls(stringlist *fnames,
                                 stringlist *shownames,
                                 stringlist *&subsf,
                                 stringlist *&subss) {
 
   PtrList<MenuItem> *boxes = nullptr;
 
-  okay ok;
+  Okay ok;
   ok.text = "Update Now";
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
-  vspace v(16);
+  VSpace v(16);
 
   stringlist *fnt = fnames;
   stringlist *snt = shownames;
@@ -268,16 +267,14 @@ selresult Updater_::selectcolls(stringlist *fnames,
   PtrList<MenuItem>::push(boxes, &ok);
 
 
-  Menu *mm = Menu::create(this,
-                           "Select your collection subscriptions.",
-                           boxes, false);
-  if (!mm) return SR_FAIL;
+  std::unique_ptr<Menu> mm =
+    Menu::Create(this, "Select your collection subscriptions.", boxes, false);
+  if (mm.get() == nullptr) return SelResult::FAIL;
 
-  resultkind res = mm->menuize();
+  InputResultKind res = mm->menuize();
+  mm.reset();
 
-  mm->destroy();
-
-  if (res == MR_OK) {
+  if (res == InputResultKind::OK) {
     /* process selections from 'boxes' list */
 
     subsf = 0;
@@ -298,9 +295,9 @@ selresult Updater_::selectcolls(stringlist *fnames,
       delete st;
     }
 
-    return SR_OK;
+    return SelResult::OK;
   } else {
-    return SR_FAIL;
+    return SelResult::FAIL;
   }
 
 }
@@ -463,11 +460,11 @@ UpdateResult Updater_::update(string &msg) {
   stringlist *shownames = nullptr;
 
   switch (checkcolls(hh.get(), fnames, shownames)) {
-  case CC_OK:
+  case CCResult::OK:
     say("Got collections list.");
     break;
   default:
-  case CC_FAIL:
+  case CCResult::FAIL:
     /* parse error? */
     Message::Quick(this, "Failed to get collections list.",
                    "Cancel", "", PICS XICON POP);
@@ -486,14 +483,13 @@ UpdateResult Updater_::update(string &msg) {
     return UD_FAIL;
   }
 
-  stringlist *subss, *subsf;
+  stringlist *subss = nullptr, *subsf = nullptr;
 
-
-  selresult sr = selectcolls(fnames, shownames, subsf, subss);
+  SelResult sr = selectcolls(fnames, shownames, subsf, subss);
   stringlist::diminish(fnames);
   stringlist::diminish(shownames);
 
-  if (sr != SR_OK) return UD_FAIL;
+  if (sr != SelResult::OK) return UD_FAIL;
 
   say(GREEN "Selected subscriptions.");
 

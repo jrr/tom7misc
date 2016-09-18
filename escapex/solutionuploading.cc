@@ -20,12 +20,12 @@ void SolutionUploading::PromptUpload(Drawable *below,
   string s;
   Client::quick_txdraw td;
 
-  label message;
+  Label message;
   message.text = msg;
 
   int IND = 2;
 
-  textinput name;
+  TextInput name;
   name.indent = IND;
   name.question = "Name:";
   name.input = name_;
@@ -33,7 +33,7 @@ void SolutionUploading::PromptUpload(Drawable *below,
   name.explanation =
     "Name this solution, briefly.";
 
-  toggle speed;
+  Toggle speed;
   speed.indent = IND;
   speed.disabled = speedrec;
   speed.checked = true;
@@ -53,15 +53,14 @@ void SolutionUploading::PromptUpload(Drawable *below,
     "with the level. This is optional, but if the solution isn't\n"
     "interesting somehow, why are you uploading it?\n";
 
-  vspace spacer((int)(fon->height * 1.5f));
-  vspace spacer2((int)(fon->height * 1.5f));
+  VSpace spacer((int)(fon->height * 1.5f));
+  VSpace spacer2((int)(fon->height * 1.5f));
 
 
-  okay ok;
+  Okay ok;
   ok.text = "Upload Solution";
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
   PtrList<MenuItem> *l = nullptr;
 
@@ -76,12 +75,12 @@ void SolutionUploading::PromptUpload(Drawable *below,
   PtrList<MenuItem>::push(l, &message);
 
   /* display menu */
-  Menu *mm = Menu::create(below, "Upload solution?", l, false);
-  resultkind res = mm->menuize();
+  std::unique_ptr<Menu> mm = Menu::Create(below, "Upload solution?", l, false);
+  InputResultKind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
-  mm->destroy();
+  mm.reset();
 
-  if (res == MR_OK) {
+  if (res == InputResultKind::OK) {
 
     if (speed.checked ||
         Message::Quick(0, "Are you sure you want to upload\n"

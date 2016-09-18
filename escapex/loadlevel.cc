@@ -1072,11 +1072,11 @@ string LoadLevel_::Loop() {
                 (sel->items[sel->selected].owned &&
                  plr->webid)) {
 
-              label message;
+              Label message;
               message.text =
                 PICS TRASHCAN POP
                 " Really delete level from web collection?";
-              label message2;
+              Label message2;
               message2.text =
                 GREY "    (moves it to the graveyard)";
 
@@ -1084,7 +1084,7 @@ string LoadLevel_::Loop() {
 
               string password;
 
-              textpassword pass;
+              TextPassword pass;
               pass.question = "Server password:";
               pass.input = "";
               pass.explanation =
@@ -1096,14 +1096,13 @@ string LoadLevel_::Loop() {
               desc.explanation =
                 "You can explain your deletion here.";
 
-              vspace spacer((int)(fon->height * 1.5f));
-              vspace spacer2((int)(fon->height * 1.5f));
+              VSpace spacer((int)(fon->height * 1.5f));
+              VSpace spacer2((int)(fon->height * 1.5f));
 
-              okay ok;
+              Okay ok;
               ok.text = "Delete Level";
 
-              cancel can;
-              can.text = "Cancel";
+              Cancel can;
 
               PtrList<MenuItem> *l = 0;
 
@@ -1121,13 +1120,13 @@ string LoadLevel_::Loop() {
 
 
               /* display menu */
-              Menu *mm = Menu::create(0, "Really delete?", l, false);
-              resultkind res = mm->menuize();
+	      std::unique_ptr<Menu> mm = 
+		Menu::Create(0, "Really delete?", l, false);
+              InputResultKind res = mm->menuize();
               PtrList<MenuItem>::diminish(l);
-              mm->destroy();
+	      mm.reset();
 
-              if (res == MR_OK) {
-
+              if (res == InputResultKind::OK) {
                 /* ask server */
                 string res;
                 if (Client::quick_rpc(plr, DELETE_RPC,
@@ -1355,7 +1354,7 @@ string LoadLevel_::Loop() {
         case SDLK_0:
           if (event.key.keysym.mod & KMOD_CTRL) {
 
-            label message1, message2, message3, message4;
+            Label message1, message2, message3, message4;
             message1.text = PICS BOOKMARKPIC POP " Solve from bookmarks.";
             message2.text =
               "    Note: This will often solve loose or short levels";
@@ -1364,9 +1363,9 @@ string LoadLevel_::Loop() {
             message4.text =
               "    bit like cheating, right?";
 
-            vspace spacer(fon->height);
+            VSpace spacer(fon->height);
 
-            textinput filename;
+            TextInput filename;
             filename.question = "Player file:";
             filename.explanation =
               "Name of the player file (.esp) to read solutions from.";
@@ -1375,7 +1374,7 @@ string LoadLevel_::Loop() {
             // that is usually what you want.
             filename.input = lastrecover;
 
-            toggle everything;
+            Toggle everything;
             everything.checked = false;
             everything.question = "Everything in the directory.";
             everything.explanation =
@@ -1383,13 +1382,12 @@ string LoadLevel_::Loop() {
               "Not recommended unless you are recovering a bookmarks file.";
 
             int what;
-            okay solve("Try to solve", &what, 1);
+            Okay solve("Try to solve", &what, 1);
             solve.explanation =
               "Try to solve the level or levels.\n"
               "Saves solutions if successful!";
 
-            cancel can;
-            can.text = "Cancel";
+            Cancel can;
 
             PtrList<MenuItem> *l = 0;
 
@@ -1407,15 +1405,16 @@ string LoadLevel_::Loop() {
             PtrList<MenuItem>::push(l, &message1);
 
             /* display menu */
-            Menu *mm = Menu::create(this, "Solve from bookmarks?", l, false);
-            resultkind res = mm->menuize();
+	    std::unique_ptr<Menu> mm =
+	      Menu::Create(this, "Solve from bookmarks?", l, false);
+            InputResultKind res = mm->menuize();
 
-            if (res == MR_OK) {
+            if (res == InputResultKind::OK) {
               solvefrombookmarks(filename.input, everything.checked);
             }
 
             PtrList<MenuItem>::diminish(l);
-            mm->destroy();
+	    mm.reset();
 
             fix_show();
             sel->redraw();
@@ -1431,12 +1430,12 @@ string LoadLevel_::Loop() {
               if (!sel->items[sel->selected].isdir &&
                   sel->items[sel->selected].solved) {
 
-                label message;
-                label message2;
-                label message3;
-                label message4;
-                label message5;
-                label message6;
+                Label message;
+                Label message2;
+                Label message3;
+                Label message4;
+                Label message5;
+                Label message6;
                 message.text =
                   PICS QICON POP
                   " Upload this level to the internet?";
@@ -1464,13 +1463,12 @@ string LoadLevel_::Loop() {
                 desc.explanation =
                   "You can post a comment about the level you're uploading.";
 
-                vspace spacer((int)(fon->height * 0.8f));
+                VSpace spacer((int)(fon->height * 0.8f));
 
-                okay ok;
+                Okay ok;
                 ok.text = "Upload Level";
 
-                cancel can;
-                can.text = "Cancel";
+                Cancel can;
 
                 PtrList<MenuItem> *l = 0;
 
@@ -1494,12 +1492,13 @@ string LoadLevel_::Loop() {
 
 
                 /* display menu */
-                Menu *mm = Menu::create(0, "Really upload?", l, false);
-                resultkind res = mm->menuize();
+		std::unique_ptr<Menu> mm =
+		  Menu::Create(0, "Really upload?", l, false);
+                InputResultKind res = mm->menuize();
                 PtrList<MenuItem>::diminish(l);
-                mm->destroy();
+		mm.reset();
 
-                if (res != MR_OK) {
+                if (res != InputResultKind::OK) {
                   sel->redraw();
                   continue;
                 }

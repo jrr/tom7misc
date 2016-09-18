@@ -327,7 +327,7 @@ void TextBox::goto_end() {
   while (after) right(false);
 }
 
-inputresult TextBox::key(SDL_Event e) {
+InputResult TextBox::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
@@ -339,48 +339,48 @@ inputresult TextBox::key(SDL_Event e) {
 
     case SDLK_DOWN:
       down();
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
 
     case SDLK_UP:
       up();
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
 
     case SDLK_BACKSPACE:
       left(true);
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
     case SDLK_LEFT:
       left(false);
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
 
     case SDLK_DELETE:
       right(true);
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
     case SDLK_RIGHT:
       right(false);
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
 
     case SDLK_HOME:
       goto_beginning();
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
 
     case SDLK_END:
       goto_end();
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
 
     case SDLK_KP_ENTER:
     case SDLK_RETURN:
       type((char)'\n');
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
 
     default: {
       int uc = e.key.keysym.unicode;
       if ((uc & ~0x7F) == 0 && uc >= ' ') {
         type((char)(uc));
-        return inputresult(MR_UPDATED);
-      } else return inputresult(MR_REJECT);
+        return InputResult(InputResultKind::UPDATED);
+      } else return InputResult(InputResultKind::REJECT);
     }
     }
-  } else return inputresult(MR_REJECT);
+  } else return InputResult(InputResultKind::REJECT);
 }
 
 void TextBox::right(bool erasing) {

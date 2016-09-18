@@ -10,32 +10,31 @@
 /* menus are essentially what are often called
    "forms" in GUI lingo */
 
-enum resultkind {
-  MR_NOTHING,
+enum class InputResultKind {
+  NOTHING,
   /* go to the next or previous item */
-  MR_NEXT, MR_PREV,
+  NEXT, PREV,
   /* the key is rejected as illegal */
-  MR_REJECT,
+  REJECT,
   /* some action has changed the display
      (implied by next,prev) */
-  MR_UPDATED,
+  UPDATED,
   /* confirm or cancel the entire menu */
-  MR_OK, MR_CANCEL,
+  OK, CANCEL,
   /* quit the program */
-  MR_QUIT,
+  QUIT,
 };
 
-struct inputresult {
-  resultkind k;
-  virtual resultkind kind() { return k; }
-  inputresult(resultkind i) : k(i) {}
+struct InputResult {
+  InputResultKind k;
+  virtual InputResultKind kind() { return k; }
+  explicit InputResult(InputResultKind i) : k(i) {}
 };
 
 /* XXX add a way of getting defaults */
 /* (mostly) abstract base class of menuitems,
    which are "controls" in GUI lingo */
 struct MenuItem {
-
   /* perhaps multi-line explanation of what this
      control sets. */
   string explanation;
@@ -44,14 +43,14 @@ struct MenuItem {
      this amount is interpreted as being automatically
      added to the width in size and the x value for
      draw. */
-  int indent;
+  int indent = 0;
 
   /* if the control is disabled, it should not
      be focusable and should draw differently */
-  bool disabled;
+  bool disabled = false;
 
   /* parent menu */
-  struct Menu *container;
+  struct Menu *container = nullptr;
 
   /* stuff that all menuitems have */
 
@@ -62,9 +61,9 @@ struct MenuItem {
   virtual void draw(int x, int y, int focused) = 0;
 
   /* mouse click relative to menuitem */
-  virtual inputresult click(int x, int y) {
+  virtual InputResult click(int x, int y) {
     /* XXX send key 'enter' */
-    return inputresult(MR_REJECT);
+    return InputResult(InputResultKind::REJECT);
   }
 
   /* displayed at the bottom of the screen to
@@ -74,26 +73,26 @@ struct MenuItem {
   /* some default behavior here */
   /* process a keypress.
      assume e.type = SDL_KEYDOWN */
-  virtual inputresult key(SDL_Event e);
+  virtual InputResult key(SDL_Event e);
 
-  MenuItem() : indent(0), disabled(false) {}
+  MenuItem() {}
   virtual ~MenuItem() {}
 };
 
 /* unselectable labels */
-struct label : public MenuItem {
+struct Label : public MenuItem {
   string text;
   virtual bool focusable() { return false; }
   virtual string helptext() { return ""; }
   virtual void draw(int x, int y, int f);
   virtual void size(int &w, int &h);
-  virtual ~label() {}
+  virtual ~Label() {}
 };
 
 /* empty space */
-struct vspace : public MenuItem {
-  int height;
-  vspace(int n) : height(n) {}
+struct VSpace : public MenuItem {
+  int height = 0;
+  explicit VSpace(int n) : height(n) {}
   virtual bool focusable() { return false; }
   virtual string helptext() { return ""; }
   virtual void draw(int x, int y, int f) { }
@@ -101,162 +100,145 @@ struct vspace : public MenuItem {
     w = 1;
     h = height;
   }
-  virtual ~vspace() {}
+  virtual ~VSpace() {}
 };
 
-struct textinput : public MenuItem {
+struct TextInput : public MenuItem {
   string question;
   string input;
   /* immediately accept when pressing 'enter'? */
-  bool accept_on_enter;
+  bool accept_on_enter = false;
 
-  virtual string helptext() {
+  string helptext() override {
     return "Enter a single line of text.";
   }
-  virtual void draw(int x, int y, int);
-  virtual void draw_ch(int x, int y, int, char passwordchar = 0);
-  virtual void size(int &w, int &h);
-  virtual inputresult key(SDL_Event e);
+  void draw(int x, int y, int) override;
+  void size(int &w, int &h) override;
+  InputResult key(SDL_Event e) override;
 
-  textinput() : accept_on_enter(false) {}
+  TextInput() {}
 
-  virtual ~textinput() {}
-
-  private:
+ protected:
+   virtual void draw_ch(int x, int y, int, char passwordchar = 0);
+ private:
   /* cursor before nth character in input */
   /* XXX probably want to check that the cursor is
      still inside 'input', because input can be
      changed externally */
-  int cursor;
+  int cursor = 0;
 };
 
-struct textpassword : public textinput {
-  virtual string helptext() {
+struct TextPassword : public TextInput {
+  string helptext() override {
     return "Enter a password.";
   }
-  virtual void draw(int x, int y, int i) {
+  void draw(int x, int y, int i) override {
     draw_ch(x, y, i, '*');
   }
-  virtual ~textpassword() {}
 };
 
-struct toggle : public MenuItem {
+struct Toggle : public MenuItem {
   string question;
-  bool checked;
+  bool checked = false;
 
-  virtual string helptext() {
+  string helptext() override {
     return "Press " BLUE "enter" POP " or "
       BLUE "space" POP " to toggle.";
   }
-  virtual void draw(int x, int y, int);
-  virtual void size(int &w, int &h);
-  virtual inputresult key(SDL_Event e);
-  virtual inputresult click(int, int);
-
-  virtual ~toggle() {}
-
-  private:
-
+  void draw(int x, int y, int) override;
+  void size(int &w, int &h) override;
+  InputResult key(SDL_Event e) override;
+  InputResult click(int, int) override;
 };
 
-struct slider : public MenuItem {
+struct Slider : public MenuItem {
   string question;
   /* labels over lowest and highest points in slider */
   string low;
   string high;
 
   /* inclusive */
-  int lowest;
-  int highest;
+  int lowest = 0;
+  int highest = 0;
 
   /* for best accuracy, nsegs should be
      (highest - lowest + 1). This directly affects
      the width. Therefore nsegs should be at
      least length(low) + length(hi) + 1 */
-  int nsegs;
+  int nsegs = 0;
 
-  virtual string helptext() {
+  string helptext() override {
     return "Press " BLUE "left" POP " or " BLUE "right" POP
            " to change the setting.";
   }
 
-  slider(int lows, int highs, int segs);
-  virtual void draw(int x, int y, int f);
-  virtual void size(int &w, int &h);
-  virtual inputresult key(SDL_Event e);
-  virtual inputresult click(int, int);
-
-  virtual ~slider() {}
+  Slider(int lows, int highs, int segs);
+  void draw(int x, int y, int f) override;
+  void size(int &w, int &h) override;
+  InputResult key(SDL_Event e) override;
+  InputResult click(int, int) override;
 
   /* selected position along line (value in the inclusive
      interval (lowest, highest)) */
-  int pos;
+  int pos = 0;
 
-  private:
-
+ private:
   /* scrollbar graphic as string. has nseg segments */
   string scrollbar;
 };
 
-struct okay : public MenuItem {
+struct Okay : public MenuItem {
   string text;
-  int *ptr;
-  int myval;
+  int *ptr = nullptr;
+  int myval = 0;
 
-  virtual string helptext() {
+  string helptext() override {
     return "Press " BLUE "enter" POP " to confirm.";
   }
 
-  okay() {
-    ptr = 0;
-    myval = 0;
+  Okay() {}
+
+  Okay(string text, int *ptr = nullptr, int myval = 0)
+    : text(text), ptr(ptr), myval(myval) {}
+
+  void draw(int x, int y, int f) override;
+  void size(int &w, int &h) override;
+
+  InputResult key(SDL_Event e) override;
+
+  InputResult click(int, int) override {
+    activate();
+    return InputResult(InputResultKind::OK);
   }
 
-  okay(string text_, int *ptr_ = 0, int myval_ = 0)
-    : text(text_), ptr(ptr_), myval(myval_) {}
-
-  virtual void draw(int x, int y, int f);
-  virtual void size(int &w, int &h);
-
+ protected:
   virtual void activate() {
     /* set pointer if applicable */
     if (ptr) *ptr = myval;
   }
-
-  virtual inputresult key(SDL_Event e);
-
-  virtual inputresult click(int, int) {
-    activate();
-    return inputresult(MR_OK);
-  }
-
-  virtual ~okay() {}
 };
 
-struct cancel : public MenuItem {
-  string text;
+struct Cancel : public MenuItem {
+  string text = "Cancel";
 
-  virtual string helptext() {
+  string helptext() override {
     return "Press " BLUE "enter" POP " to cancel. "
            GREY "(" BLUE "esc" POP " also cancels at any time.)";
   }
 
-  virtual void draw(int x, int y, int f);
-  virtual void size(int &w, int &h);
-  virtual inputresult key(SDL_Event e);
+  void draw(int x, int y, int f) override;
+  void size(int &w, int &h) override;
+  InputResult key(SDL_Event e) override;
 
-  virtual inputresult click(int, int) {
-    return inputresult(MR_CANCEL);
+  InputResult click(int, int) override {
+    return InputResult(InputResultKind::CANCEL);
   }
-
-  virtual ~cancel() {}
 };
 
 
 /* menus */
 
 struct Menu : public Drawable {
-
   /* create a menu from some items. After this point,
      it's not possible to add or remove items. If
      'fullscreen' is true, the menu uses the whole screen.
@@ -264,55 +246,45 @@ struct Menu : public Drawable {
      and is centered on the screen. */
   /* does not take ownership of the item pointers
      or the list cells */
-  static Menu *create(Drawable *below,
-                       string title,
-                       PtrList<MenuItem> *items,
-                       bool fullscreen);
+  static std::unique_ptr<Menu> Create(Drawable *below,
+				      string title,
+				      PtrList<MenuItem> *items,
+				      bool fullscreen);
 
-  virtual void draw();
-  virtual void screenresize();
+  void draw() override;
+  void screenresize() override;
 
   /* enter modal mode and return the final result of
-     the menu. expect MR_OK, MR_CANCEL, or MR_QUIT */
-  resultkind menuize();
+     the menu. expect OK, CANCEL, or QUIT */
+  InputResultKind menuize();
 
   /* all menuitems will still be available */
-  virtual void destroy();
-  virtual ~Menu() {};
+  virtual ~Menu();
 
-  int alpha;
+  int alpha = 200;
   /* set negative to get centered behavior */
-  int yoffset;
+  int yoffset = -1;
 
-  private:
-
-  Menu() {
-    items = 0;
-    alpharect = 0;
-    below = 0;
-    selected = 0;
-    alpha = 200;
-    skip = 0;
-    yoffset = -1;
-  }
+ private:
+  Menu() {}
 
   void redraw();
   bool skip_ok(int);
   void fixup(int);
   void nextfocus(int dir);
-  inputresult clickselect(int x, int y);
+  InputResult clickselect(int x, int y);
 
-  Drawable *below;
+  Drawable *below = nullptr;
   string title;
-  int nitems;
-  MenuItem **items;
-  bool fullscreen;
-  int selected;
-  int skip;
+  int nitems = 0;
+  MenuItem **items = nullptr;
+  bool fullscreen = false;
+  int selected = 0;
+  int skip = 0;
 
-  int posx, posy;
-  int w, h, stath;
-  SDL_Surface *alpharect;
+  int posx = 0, posy = 0;
+  int w = 0, h = 0, stath = 0;
+  SDL_Surface *alpharect = nullptr;
 };
 
 #endif

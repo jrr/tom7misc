@@ -4,7 +4,6 @@
 #include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 #include "chars.h"
-#include "extent.h"
 #include "menu.h"
 #include "ptrlist.h"
 
@@ -29,18 +28,17 @@ string Prompt::ask(Drawable *b, string t, string d) {
 }
 
 string Prompt::select() {
-  textinput inp;
+  TextInput inp;
   inp.question = title;
   inp.input = input;
   inp.explanation = explanation;
 
-  vspace spacer((int)(fon->height * 1.5f));
+  VSpace spacer((int)(fon->height * 1.5f));
 
-  okay ok;
+  Okay ok;
   ok.text = "Accept";
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
   PtrList<MenuItem> *l = nullptr;
 
@@ -50,12 +48,12 @@ string Prompt::select() {
   PtrList<MenuItem>::push(l, &inp);
   // PtrList<MenuItem>::push(l, &lab);
 
-  Menu *mm = Menu::create(below, GREY "Input Required", l, false);
-  resultkind res = mm->menuize();
+  std::unique_ptr<Menu> mm =
+    Menu::Create(below, GREY "Input Required", l, false);
+  InputResultKind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
-  mm->destroy();
 
-  if (res == MR_OK) {
+  if (res == InputResultKind::OK) {
     return inp.input;
   } else return ""; /* ?? */
 }

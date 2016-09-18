@@ -29,7 +29,7 @@ struct CheckFile {
 
   void destroy() { fclose(ff); delete this; }
 
-  static CheckFile *create(string f) {
+  static CheckFile *create(const string &f) {
     CheckFile *cf = new CheckFile();
     cf->ff = fopen(f.c_str(), "rb");
     if (cf->ff) return cf;

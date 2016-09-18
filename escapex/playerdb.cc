@@ -1,7 +1,6 @@
 
 #include "playerdb.h"
 #include "util.h"
-#include "extent.h"
 #include "prompt.h"
 #include "chars.h"
 #include "message.h"
@@ -448,36 +447,6 @@ void PlayerDB_::promptnew() {
 /* XXX this would be much nicer if it actually let
    you browse the directory for a player file */
 void PlayerDB_::promptimport() {
-#if 0
-  Prompt *pp = Prompt::create();
-  Extent<Prompt> ep(pp);
-
-  pp->title = "Enter filename (" BLUE "*.esp" POP "): ";
-  pp->posx = 30;
-  pp->posy = 30;
-
-  string ss = pp->select();
-  /* XXX we should probably make a copy of the player file.
-     if importing from an old version, we don't want the
-     player file to still live in the previous version's
-     directory! */
-  if (Player *pa = Player::fromfile(ss)) {
-    sel->resize(sel->number + 1);
-
-    /* one slack spot; initialize it */
-    sel->items[sel->number - 1].kind = K_PLAYER;
-    sel->items[sel->number - 1].solved = pa->num_solutions();
-    sel->items[sel->number - 1].name = pa->name;
-    sel->items[sel->number - 1].fname = pa->fname;
-
-    pa->destroy();
-
-    sel->sort(PDBEntry::cmp_bysolved);
-  } else if (ss != "") {
-    Message::No(0, "Can't read " RED + ss + POP ".");
-  }
-#endif
-
   Message::No(0,
               "To import a player, just " BLUE "copy the .esp file" POP "\n"
               "   into the escape directory and restart the game.");

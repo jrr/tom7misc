@@ -731,19 +731,19 @@ void Editor::resize() {
   string nw = itos(dr.lev->w);
   string nh = itos(dr.lev->h);
 
-  textinput twidth;
+  TextInput twidth;
   twidth.question = "Width";
   twidth.input = nw;
   twidth.explanation =
     "Width of the level in tiles.";
 
-  textinput theight;
+  TextInput theight;
   theight.question = "Height";
   theight.input = nh;
   theight.explanation =
     "Height of the level in tiles.";
 
-  okay ok;
+  Okay ok;
   ok.text = "Change Size";
 
   PtrList<MenuItem> *l = nullptr;
@@ -752,11 +752,9 @@ void Editor::resize() {
   PtrList<MenuItem>::push(l, &theight);
   PtrList<MenuItem>::push(l, &twidth);
 
-  Menu *mm = Menu::create(this, "Level Size", l, false);
+  std::unique_ptr<Menu> mm = Menu::Create(this, "Level Size", l, false);
 
-  PtrList<MenuItem>::diminish(l);
-
-  if (mm->menuize() == MR_OK) {
+  if (mm->menuize() == InputResultKind::OK) {
     int nnw = atoi(twidth.input.c_str());
     int nnh = atoi(theight.input.c_str());
 
@@ -776,7 +774,9 @@ void Editor::resize() {
                      "Sorry", "");
 
     }
-  } /* XXX else MR_QUIT */
+  } /* XXX else InputResultKind::QUIT */
+
+  PtrList<MenuItem>::diminish(l);
 
   redraw();
 }
