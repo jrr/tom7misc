@@ -248,13 +248,13 @@ struct BookmarkItem : public MenuItem {
 
   }
 
-  virtual inputresult key(SDL_Event e) {
+  virtual InputResult key(SDL_Event e) {
 
     switch (e.key.keysym.sym) {
     case SDLK_RETURN:
       /* XXX if solution, maybe go straight to watching? */
       action.a = BMA_SELECT;
-      return inputresult(MR_OK);
+      return InputResult(InputResultKind::OK);
 
     case SDLK_d:
     case SDLK_DELETE:
@@ -266,17 +266,17 @@ struct BookmarkItem : public MenuItem {
                          "Cancel")) {
 
         action.a = BMA_DELETE;
-        return inputresult(MR_OK);
-      } else return inputresult(MR_UPDATED);
+        return InputResult(InputResultKind::OK);
+      } else return InputResult(InputResultKind::UPDATED);
 
     case SDLK_INSERT: {
       /* only if it is solved */
       if (solved) {
         action.a = BMA_SETDEFAULT;
-        return inputresult(MR_OK);
+        return InputResult(InputResultKind::OK);
       } else {
         Message::No(container, "Only a solution can be the default.");
-        return inputresult(MR_UPDATED);
+        return InputResult(InputResultKind::UPDATED);
       }
     }
     case SDLK_u: {
@@ -290,17 +290,17 @@ struct BookmarkItem : public MenuItem {
       } else {
         Message::No(container, "You can only upload full solutions.");
       }
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
     }
 
     case SDLK_o: {
       /* only if it is solved */
       if (solved) {
         action.a = BMA_OPTIMIZE;
-        return inputresult(MR_OK);
+        return InputResult(InputResultKind::OK);
       } else {
         Message::No(container, "You can only optimize solutions.");
-        return inputresult(MR_UPDATED);
+        return InputResult(InputResultKind::UPDATED);
       }
     }
 
@@ -310,23 +310,23 @@ struct BookmarkItem : public MenuItem {
                              "New name: ", ns.name);
       if (action.s != "") {
         action.a = BMA_RENAME;
-        return inputresult(MR_OK);
+        return InputResult(InputResultKind::OK);
       } else {
         /* redraw */
-        return inputresult(MR_UPDATED);
+        return InputResult(InputResultKind::UPDATED);
       }
     }
 
     case SDLK_w:
       action.a = BMA_WATCH;
-      return inputresult(MR_OK);
+      return InputResult(InputResultKind::OK);
 
     default:
       return MenuItem::key(e);
     }
   }
 
-  virtual inputresult click(int, int) {
+  virtual InputResult click(int, int) {
     SDL_Event e;
     /* XXX is this enough to make it a legal key? */
     /* XXX should be a library call */
@@ -578,25 +578,25 @@ void Play_::Bookmarks(Level *start,
       return;
     }
 
-    label nettitle;
+    Label nettitle;
     nettitle.text = PICS BARLEFT BAR BAR BARRIGHT POP " Server bookmarks "
       PICS BARLEFT BAR BAR BARRIGHT POP;
 
-    label seltitle;
+    Label seltitle;
     seltitle.text = PICS BARLEFT BAR BAR BARRIGHT POP " Existing bookmarks "
       PICS BARLEFT BAR BAR BARRIGHT POP;
 
-    label newtitle;
+    Label newtitle;
     newtitle.text = PICS BARLEFT BAR BAR BARRIGHT POP " Add a new bookmark "
       PICS BARLEFT BAR BAR BARRIGHT POP;
 
-    textinput defname;
+    TextInput defname;
     defname.question = "New bookmark name:";
     /* XXX maybe generate in serial? */
     defname.input = "Bookmark";
     defname.explanation = "The bookmark will be saved with this name.";
 
-    okay book_current;
+    Okay book_current;
     book_current.ptr = (int*)&okay_what;
     book_current.myval = OKAYWHAT_NEW;
     book_current.text = "Bookmark current state";
@@ -605,8 +605,7 @@ void Play_::Bookmarks(Level *start,
       "and allow you to come back to a place in\n"
       "solving the level where you left off.";
 
-    cancel can;
-    can.text = "Cancel";
+    Cancel can;
 
     PtrList<MenuItem> *l = nullptr;
 
@@ -643,7 +642,7 @@ void Play_::Bookmarks(Level *start,
     if (bmnum > 0) PtrList<MenuItem>::push(l, &seltitle);
 
     /* then if any bookmark is an actual solution, allow net access */
-    okay netbutton;
+    Okay netbutton;
     netbutton.ptr = (int*)&okay_what;
     netbutton.myval = OKAYWHAT_DOWNLOAD;
     netbutton.text = "Download solutions";
@@ -656,22 +655,21 @@ void Play_::Bookmarks(Level *start,
       PtrList<MenuItem>::push(l, &nettitle);
     }
 
-    Menu *mm = Menu::create(this, "Bookmarks", l, false);
-    Extent<Menu> em(mm);
+    std::unique_ptr<Menu> mm = Menu::Create(this, "Bookmarks", l, false);
     PtrList<MenuItem>::diminish(l);
 
     mm->yoffset = fon->height + 4;
     mm->alpha = 230;
 
 
-    resultkind k = mm->menuize();
+    InputResultKind k = mm->menuize();
 
     switch (k) {
-    case MR_NEXT: case MR_PREV:
-    case MR_REJECT: case MR_UPDATED:
-    case MR_NOTHING: break;
-    case MR_OK: {
-      /* MR_OK could come from hitting the OK button,
+    case InputResultKind::NEXT: case InputResultKind::PREV:
+    case InputResultKind::REJECT: case InputResultKind::UPDATED:
+    case InputResultKind::NOTHING: break;
+    case InputResultKind::OK: {
+      /* InputResultKind::OK could come from hitting the OK button,
          or hitting one of the bookmarks. so look
          to see if it was a bookmark first. */
 
@@ -799,9 +797,9 @@ void Play_::Bookmarks(Level *start,
       }
 
     }
-    case MR_QUIT:
+    case InputResultKind::QUIT:
       /* XXX actually quit */
-    case MR_CANCEL:
+    case InputResultKind::CANCEL:
       /* cancel */
       break;
     }

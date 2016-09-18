@@ -15,15 +15,15 @@ void Prefs::show(Player *plr) {
   /* XXX allow changing of name,
      which should notify the server */
 
-  vspace spacer((int)(fon->height * 1.5f));
+  VSpace spacer((int)(fon->height * 1.5f));
 
   /* ------- game prefs ------- */
-  label game;
+  Label game;
   game.text = PICS BARLEFT BAR BAR BARRIGHT POP
                GREEN " Game Settings " POP
               PICS BARLEFT BAR BAR BARRIGHT POP ;
 
-  toggle askrate;
+  Toggle askrate;
   askrate.indent = IND;
   askrate.disabled = !plr->webid;
   askrate.question = "Prompt to Rate";
@@ -33,7 +33,7 @@ void Prefs::show(Player *plr) {
     "a level after solving it for the first time.\n"
     GREY "(Default: Checked)";
 
-  toggle showtut;
+  Toggle showtut;
   showtut.indent = IND;
   showtut.disabled = false;
   showtut.question = "Show Tutorial";
@@ -42,7 +42,7 @@ void Prefs::show(Player *plr) {
     "Show the tutorial on the main menu.\n"
     GREY "(Default: Checked)";
 
-  toggle backup;
+  Toggle backup;
   backup.indent = IND;
   backup.disabled = false;
   backup.question = "Backup Player";
@@ -53,7 +53,7 @@ void Prefs::show(Player *plr) {
     GREY "(Default: Checked)";
 
 #if 0
-  slider animspeed(0, ANIMATION_MAX_SPEED, 22);
+  Slider animspeed(0, ANIMATION_MAX_SPEED, 22);
   animspeed.indent = IND;
   animspeed.pos = getint(plr, PREF_ANIMATION_SPEED);
   animspeed.question = "Animation Speed";
@@ -64,7 +64,7 @@ void Prefs::show(Player *plr) {
     "animation will be disabled for snappiest possible action.";
 #endif
 
-  toggle animon;
+  Toggle animon;
   animon.indent = IND;
   animon.checked = getbool(plr, PREF_ANIMATION_ENABLED);
   animon.question = "Enable Animation";
@@ -73,7 +73,7 @@ void Prefs::show(Player *plr) {
     "extremely impatient.\n"
     GREY "(Default: Checked)";
 
-  toggle optsol;
+  Toggle optsol;
   optsol.indent = IND;
   optsol.checked = getbool(plr, PREF_OPTIMIZE_SOLUTIONS);
   optsol.question = "Optimize Solutions";
@@ -83,13 +83,13 @@ void Prefs::show(Player *plr) {
     GREY "(Default: Checked)";
 
   /* ------- network ---------- */
-  label network;
+  Label network;
   network.text =
     PICS BARLEFT BAR BAR BARRIGHT POP
        GREEN " Network Settings " POP
     PICS BARLEFT BAR BAR BARRIGHT POP;
 
-  textinput servername;
+  TextInput servername;
   servername.indent = IND;
   servername.question = "Server:";
   servername.input = getstring(plr, PREF_SERVER);
@@ -98,7 +98,7 @@ void Prefs::show(Player *plr) {
     "to in order to upgrade, register, and get new levels.\n"
     GREY "(Default: escape.spacebar.org)";
 
-  toggle altconnect;
+  Toggle altconnect;
   altconnect.indent = IND;
   altconnect.checked = getbool(plr, PREF_ALTCONNECT);
   altconnect.question = "Alternate Connect";
@@ -107,7 +107,7 @@ void Prefs::show(Player *plr) {
     "alternate port, which may bypass troublesome proxies.\n"
     GREY "(Default: Unchecked)";
 
-  toggle debugnet;
+  Toggle debugnet;
   debugnet.indent = IND;
   debugnet.checked = getbool(plr, PREF_DEBUG_NET);
   debugnet.question = "Debug Network";
@@ -116,11 +116,10 @@ void Prefs::show(Player *plr) {
     "in a file. " RED "NOT RECOMMENDED" POP " for normal users.\n"
     GREY "(Default: Unchecked)";
 
-  okay ok;
+  Okay ok;
   ok.text = "Change Preferences";
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
   PtrList<MenuItem> *l = nullptr;
 
@@ -142,15 +141,15 @@ void Prefs::show(Player *plr) {
   PtrList<MenuItem>::push(l, &game);
 
 
-  Menu *mm = Menu::create(0, "Escape Preferences Menu", l, false);
+  std::unique_ptr<Menu> mm = Menu::Create(0, "Escape Preferences Menu", l, false);
 
-  resultkind res = mm->menuize();
+  InputResultKind res = mm->menuize();
 
   PtrList<MenuItem>::diminish(l);
-  mm->destroy();
+  mm.reset();
 
-  /* XXX check MR_QUIT */
-  if (res == MR_OK) {
+  /* XXX check InputResultKind::QUIT */
+  if (res == InputResultKind::OK) {
     putstring(plr, PREF_SERVER, servername.input);
     putbool(plr, PREF_ALTCONNECT, altconnect.checked);
     putbool(plr, PREF_ASKRATE, askrate.checked);

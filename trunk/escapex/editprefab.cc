@@ -48,23 +48,22 @@ void Editor::prefab() {
     /* display menu to select. */
     int what = 0;
 
-    label message;
+    Label message;
     message.text =
       PICS QICON POP
       " Select a prefab to insert.";
 
-    vspace spacer(fon->height);
+    VSpace spacer(fon->height);
 
-    okay timer("Timer", &what, PF_TIMER);
+    Okay timer("Timer", &what, PF_TIMER);
     timer.explanation = "Insert a bot-based countdown timer\n"
                         "for a specified number of moves.";
 
-    okay file("File", &what, PF_FILE);
+    Okay file("File", &what, PF_FILE);
     file.explanation = "Paste the contents of another level\n"
                        "in a file you choose.";
 
-    cancel can;
-    can.text = "Cancel";
+    Cancel can;
 
     PtrList<MenuItem> *l = nullptr;
 
@@ -78,12 +77,12 @@ void Editor::prefab() {
     PtrList<MenuItem>::push(l, &message);
 
     /* display menu */
-    Menu *mm = Menu::create(this, "Which prefab?", l, false);
-    resultkind res = mm->menuize();
+    std::unique_ptr<Menu> mm = Menu::Create(this, "Which prefab?", l, false);
+    InputResultKind res = mm->menuize();
     PtrList<MenuItem>::diminish(l);
-    mm->destroy();
+    mm.reset();
 
-    if (res == MR_OK) {
+    if (res == InputResultKind::OK) {
       switch (what) {
       case PF_TIMER:
         if (!moveplayersafe()) {
@@ -133,26 +132,25 @@ void Editor::pffile() {
 
   /* now menu */
   /* XXX should show preview of level we're about to place */
-  label message;
+  Label message;
   message.text =
     PICS QICON POP
     " "   "This will place the level " BLUE + small->title + POP;
-  label message2;
+  Label message2;
   message2.text =
     "   " "within the selected region.";
 
-  vspace spacer(fon->height);
+  VSpace spacer(fon->height);
 
-  okay ok("OK");
+  Okay ok("OK");
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
-  textinput xoff;
+  TextInput xoff;
   xoff.explanation = "Ignore this many columns in the input.";
   xoff.question = "X offset: ";
   xoff.input = "0";
-  textinput yoff;
+  TextInput yoff;
   yoff.explanation = "Ignore this many rows in the input.";
   yoff.question = "Y offset: ";
   yoff.input = "0";
@@ -173,12 +171,12 @@ void Editor::pffile() {
   PtrList<MenuItem>::push(l, &message);
 
   /* display menu */
-  Menu *mm = Menu::create(this, "Inserting file", l, false);
-  resultkind res = mm->menuize();
+  std::unique_ptr<Menu> mm = Menu::Create(this, "Inserting file", l, false);
+  InputResultKind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
-  mm->destroy();
+  mm.reset();
 
-  if (res == MR_OK) {
+  if (res == InputResultKind::OK) {
     int xo = util::stoi(xoff.input);
     int yo = util::stoi(yoff.input);
     if (xo < 0 || yo < 0) {
@@ -276,28 +274,27 @@ static bool timer_check(int *M, int *A, int i, int t) {
    the minimum number of bots within the given space to form the
    timer. */
 void Editor::pftimer() {
-  label message;
+  Label message;
   message.text =
     PICS QICON POP
     " " RED "Note:" POP " Please use timers in good taste; leave a";
-  label message2;
+  Label message2;
   message2.text =
     "   " "little slack for the player!";
 
-  vspace spacer(fon->height);
+  VSpace spacer(fon->height);
 
-  okay ok("OK");
+  Okay ok("OK");
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
-  textinput nmoves;
+  TextInput nmoves;
   nmoves.explanation = "The player will have this many moves\n"
     "before the bot reaches the stop sign.";
   nmoves.question = "Number of moves: ";
 
   /* XX could check automatically based on location of selection */
-  toggle reverse;
+  Toggle reverse;
   reverse.question = "Player on left";
   reverse.explanation = "The timer must be on either the left side\n"
                         "or right side of the level. Check this to\n"
@@ -318,12 +315,12 @@ void Editor::pftimer() {
   PtrList<MenuItem>::push(l, &message);
 
   /* display menu */
-  Menu *mm = Menu::create(this, "Inserting timer", l, false);
-  resultkind res = mm->menuize();
+  std::unique_ptr<Menu> mm = Menu::Create(this, "Inserting timer", l, false);
+  InputResultKind res = mm->menuize();
   PtrList<MenuItem>::diminish(l);
-  mm->destroy();
+  mm.reset();
 
-  if (res == MR_OK) {
+  if (res == InputResultKind::OK) {
     int n = util::stoi(nmoves.input);
     if (n <= 0) {
       Message::No(this, "bad number of moves");

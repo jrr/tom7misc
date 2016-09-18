@@ -5,7 +5,7 @@
 #include "menu.h"
 
 struct TextBox : public MenuItem {
-  virtual string helptext() {
+  string helptext() override {
     return "Use like a normal simple editor. " BLUE "Tab" POP " exits.";
   }
   void draw(int x, int y, int f) override;
@@ -17,7 +17,7 @@ struct TextBox : public MenuItem {
      might want to call goto_end after setting. */
   void set_text(string);
 
-  inputresult key(SDL_Event e) override;
+  InputResult key(SDL_Event e) override;
 
   TextBox(int cw, int ch) : charsw(cw), charsh(ch) {}
 

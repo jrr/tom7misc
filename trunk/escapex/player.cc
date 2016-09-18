@@ -115,7 +115,7 @@ struct hashratentry {
 struct Player_ : public Player {
   static Player_ *Create(const string &n);
 
-  Chunks *getchunks() { return ch; }
+  Chunks *getchunks() override { return ch; }
 
   // XXX this used to return a non-bookmark if it exists. The
   // solutions should now be kept in a canonical order where real
@@ -145,9 +145,9 @@ struct Player_ : public Player {
 
   Rating *getrating(const string &md5) const override;
 
-  void putrating(string md5, Rating *rat);
+  void putrating(string md5, Rating *rat) override;
 
-  bool writefile();
+  bool writefile() override;
 
   static Player_ *FromFile(const string &file);
   /* call with file already open with cursor

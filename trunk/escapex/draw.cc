@@ -9,7 +9,6 @@
 #include "animation.h"
 #include "message.h"
 #include <time.h>
-#include "extent.h"
 
 #define TILEUTIL_FILE DATADIR "tileutil.png"
 #define TILES_FILE DATADIR "tiles.png"

@@ -138,14 +138,14 @@ void RateScreen_::rate() {
 
   redraw();
 
-  label levname;
+  Label levname;
   levname.text = Font::pad(lev->title, 50);
-  label author;
+  Label author;
   author.text = (string)"  by " + Font::pad(lev->author, 45);
 
   int IND = 2;
 
-  slider difficulty(0, 10, 22);
+  Slider difficulty(0, 10, 22);
   difficulty.indent = IND;
   difficulty.pos = rat ? rat->difficulty : 5;
   difficulty.question = "Difficulty";
@@ -155,7 +155,7 @@ void RateScreen_::rate() {
     "Choose your rating for this level's difficulty.\n"
     "You can rate it even if you haven't solved the level yet.";
 
-  slider style(0, 10, 22);
+  Slider style(0, 10, 22);
   style.indent = IND;
   style.pos = rat ? rat->style : 5;
   style.question = "Style     ";
@@ -166,7 +166,7 @@ void RateScreen_::rate() {
     "How interesting is it to play? How does it look?\n"
     "How different is it from previously created levels?\n";
 
-  slider rigidity(0, 10, 22);
+  Slider rigidity(0, 10, 22);
   rigidity.indent = IND;
   rigidity.pos = rat ? rat->rigidity : 5;
   rigidity.question = "Rigidity  ";
@@ -178,7 +178,7 @@ void RateScreen_::rate() {
 
   bool old_cooked = rat? (!! rat->cooked):false;
 
-  toggle cooked;
+  Toggle cooked;
   cooked.indent = IND;
   cooked.disabled = nsolved==0;
   cooked.checked = old_cooked;
@@ -189,7 +189,7 @@ void RateScreen_::rate() {
     "\"cooked\" it. Cooking really only applies to more rigid\n"
     "levels. (Please leave a comment describing the cook!)";
 
-  toggle solved;
+  Toggle solved;
   solved.indent = IND;
   solved.disabled = true;
   solved.checked = (nsolved>0);
@@ -201,11 +201,10 @@ void RateScreen_::rate() {
     "Whether or not you've solved the level.\n"
     "This is set automatically.";
 
-  okay ok;
+  Okay ok;
   ok.text = "Change Rating";
 
-  cancel can;
-  can.text = "Cancel";
+  Cancel can;
 
   PtrList<MenuItem> *l = nullptr;
 
@@ -219,10 +218,10 @@ void RateScreen_::rate() {
   PtrList<MenuItem>::push(l, &author);
   PtrList<MenuItem>::push(l, &levname);
 
-  Menu *mm = Menu::create(this, "Change Your Rating", l, false);
+  std::unique_ptr<Menu> mm = Menu::Create(this, "Change Your Rating", l, false);
 
-  /* XXX look for MR_QUIT too */
-  if (MR_OK == mm->menuize()) {
+  /* XXX look for InputResultKind::QUIT too */
+  if (InputResultKind::OK == mm->menuize()) {
 
     /* Send to the server. */
 
@@ -303,7 +302,6 @@ void RateScreen_::rate() {
   } /* otherwise do nothing */
 
   PtrList<MenuItem>::diminish(l);
-  mm->destroy();
 }
 
 }  // namespace

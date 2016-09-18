@@ -1,18 +1,17 @@
 
 #include "font.h"
-#include "extent.h"
 
 namespace {
 
-enum attr { COLOR, ALPHA, };
+enum Attr { COLOR, ALPHA, };
 
 struct AttrList {
-  attr what;
+  Attr what;
   int value;
 
   AttrList *next;
 
-  AttrList(attr w, int h, AttrList *n) : what(w), value(h), next(n) {}
+  AttrList(Attr w, int h, AttrList *n) : what(w), value(h), next(n) {}
 
   /* PERF: we often have to look at the entire stack. */
   /* sets the current color and alpha according to the stack */
@@ -79,9 +78,9 @@ struct Font_ : public Font {
     }
   }
 
-  virtual int drawlinesc(int x, int y, string, bool);
-  virtual int drawlines(int x, int y, string);
-  virtual int drawcenter(int x, int y, string);
+  int drawlinesc(int x, int y, string, bool);
+  int drawlines(int x, int y, string) override;
+  int drawcenter(int x, int y, string) override;
 };
 
 Font_ *Font_::Create(string file,

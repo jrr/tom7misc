@@ -10,12 +10,12 @@
 
 #define TOPBARHEIGHT (fon->height * 2 + 4)
 
-void slider::size(int &w, int &h) {
+void Slider::size(int &w, int &h) {
   w = fon->sizex(scrollbar + " " + question);
   h = fon->height + fonsmall->height + 2;
 }
 
-inputresult slider::key(SDL_Event e) {
+InputResult Slider::key(SDL_Event e) {
   int key = e.key.keysym.sym;
 
   switch (key) {
@@ -29,10 +29,10 @@ inputresult slider::key(SDL_Event e) {
   if (pos < lowest) pos = lowest;
   if (pos > highest) pos = highest;
 
-  return inputresult(MR_UPDATED);
+  return InputResult(InputResultKind::UPDATED);
 }
 
-inputresult slider::click(int x, int y) {
+InputResult Slider::click(int x, int y) {
   int sidew = fon->sizex(question + " ");
 
   int restw = (nsegs - 1) * (fon->width - fon->overlap);
@@ -55,10 +55,10 @@ inputresult slider::click(int x, int y) {
 
   pos = newpos;
 
-  return inputresult(MR_UPDATED);
+  return InputResult(InputResultKind::UPDATED);
 }
 
-void slider::draw(int xpos, int ypos, int foc) {
+void Slider::draw(int xpos, int ypos, int foc) {
   int off = fon->sizex(question + " ");
 
   fon->draw(xpos, ypos + (fon->height / 3),
@@ -81,7 +81,7 @@ void slider::draw(int xpos, int ypos, int foc) {
                  ypos + fon->height, (foc?YELLOW:GREY) + high);
 }
 
-slider::slider(int lows, int highs, int segs)
+Slider::Slider(int lows, int highs, int segs)
   : lowest(lows), highest(highs), nsegs(segs) {
 
   pos = lowest + ((highest - lowest) / 2);
@@ -92,12 +92,12 @@ slider::slider(int lows, int highs, int segs)
   scrollbar += SLIDERIGHT POP;
 }
 
-void toggle::size(int &w, int &h) {
+void Toggle::size(int &w, int &h) {
   w = fon->sizex(question + " [ ]");
   h = fon->height;
 }
 
-void toggle::draw(int xpos, int ypos, int f) {
+void Toggle::draw(int xpos, int ypos, int f) {
   string pre = disabled?GREY:"";
   fon->draw(xpos, ypos,
             pre +
@@ -113,30 +113,30 @@ void toggle::draw(int xpos, int ypos, int f) {
               YELLOW LCHECKMARK POP);
 }
 
-inputresult toggle::key(SDL_Event e) {
+InputResult Toggle::key(SDL_Event e) {
   int kk = e.key.keysym.sym;
 
   switch (kk) {
   case SDLK_RETURN:
   case SDLK_SPACE:
     checked = !checked;
-    return inputresult(MR_UPDATED);
+    return InputResult(InputResultKind::UPDATED);
   default: return MenuItem::key(e);
   }
 
 }
 
-inputresult toggle::click(int x, int y) {
+InputResult Toggle::click(int x, int y) {
   checked = !checked;
-  return inputresult(MR_UPDATED);
+  return InputResult(InputResultKind::UPDATED);
 }
 
-void label::size(int &w, int &h) {
+void Label::size(int &w, int &h) {
   h = fon->height;
   w = fon->sizex(text);
 }
 
-void label::draw(int xpos, int ypos, int f) {
+void Label::draw(int xpos, int ypos, int f) {
   /* never focused */
   fon->draw(xpos, ypos, text);
 }
@@ -145,7 +145,7 @@ void label::draw(int xpos, int ypos, int f) {
 /* XXX allow cursor to move within input */
 /* XXX add 'cursor' graphic to font */
 /* XXX draw differently when disabled */
-void textinput::draw_ch(int xpos, int ypos, int f, char c) {
+void TextInput::draw_ch(int xpos, int ypos, int f, char c) {
   string i = input;
 
   if (c) {
@@ -165,37 +165,37 @@ void textinput::draw_ch(int xpos, int ypos, int f, char c) {
   }
 }
 
-void textinput::draw(int xp, int yp, int f) {
+void TextInput::draw(int xp, int yp, int f) {
   draw_ch(xp, yp, f, 0);
 }
 
 /* XXX width should take into account
    potential length of input string, not just
    its current size */
-void textinput::size(int &w, int &h) {
+void TextInput::size(int &w, int &h) {
   /* space and cursor */
   w = fon->sizex(question + " _" + input);
   h = fon->height;
 }
 
-inputresult textinput::key(SDL_Event e) {
+InputResult TextInput::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
   /* finish immediately on enter if flag set */
   if (( // e.key.keysym.sym == SDLK_ENTER ||
        e.key.keysym.sym == SDLK_RETURN) &&
-      accept_on_enter) return inputresult(MR_OK);
+      accept_on_enter) return InputResult(InputResultKind::OK);
 
-  inputresult def = MenuItem::key(e);
+  InputResult def = MenuItem::key(e);
   switch (def.kind()) {
   default: return def;
-  case MR_NOTHING:
+  case InputResultKind::NOTHING:
 
     switch (key) {
     case SDLK_BACKSPACE:
       input = input.substr(0, input.length() - 1);
-      return inputresult(MR_UPDATED);
+      return InputResult(InputResultKind::UPDATED);
       break;
 
     default:
@@ -203,14 +203,14 @@ inputresult textinput::key(SDL_Event e) {
           e.key.keysym.mod & KMOD_CTRL) {
 
         input = "";
-        return inputresult(MR_UPDATED);
+        return InputResult(InputResultKind::UPDATED);
 
       } else {
         int uc = e.key.keysym.unicode;
         if ((uc & ~0x7F) == 0 && uc >= ' ') {
           input += (char)(uc);
-          return inputresult(MR_UPDATED);
-        } else return inputresult(MR_NOTHING);
+          return InputResult(InputResultKind::UPDATED);
+        } else return InputResult(InputResultKind::NOTHING);
       }
     } /* switch if unhandled */
 
@@ -219,14 +219,14 @@ inputresult textinput::key(SDL_Event e) {
 }
 
 /* only accept 'return' */
-inputresult okay::key(SDL_Event e) {
+InputResult Okay::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
   switch (key) {
   case SDLK_RETURN:
     activate();
-    return inputresult(MR_OK);
+    return InputResult(InputResultKind::OK);
   default: return MenuItem::key(e);
   }
 
@@ -275,7 +275,7 @@ static void drawbutton(int x, int y, int w, int h, int f) {
 }
 
 /* XXX disabled? */
-void okay::draw(int x, int y, int f) {
+void Okay::draw(int x, int y, int f) {
 
   drawbutton(x, y + 1, fon->sizex(text), fon->height, f);
 
@@ -286,27 +286,27 @@ void okay::draw(int x, int y, int f) {
   }
 }
 
-void okay::size(int &w, int &h) {
+void Okay::size(int &w, int &h) {
   w = fon->sizex(text) + 4;
   h = fon->height + 4;
 }
 
 
 
-inputresult cancel::key(SDL_Event e) {
+InputResult Cancel::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
   switch (key) {
   case SDLK_RETURN:
-    return inputresult(MR_CANCEL);
+    return InputResult(InputResultKind::CANCEL);
   default: return MenuItem::key(e);
   }
 
 }
 
 /* XXX disabled? */
-void cancel::draw(int x, int y, int f) {
+void Cancel::draw(int x, int y, int f) {
   drawbutton(x, y + 1, fon->sizex(text), fon->height, f);
 
   if (f) {
@@ -316,7 +316,7 @@ void cancel::draw(int x, int y, int f) {
   }
 }
 
-void cancel::size(int &w, int &h) {
+void Cancel::size(int &w, int &h) {
   w = fon->sizex(text) + 4;
   h = fon->height + 4;
 }
@@ -325,43 +325,41 @@ void cancel::size(int &w, int &h) {
 /* default keys for menuitems:
    up, tab, down, return, escape
 */
-inputresult MenuItem::key(SDL_Event e) {
+InputResult MenuItem::key(SDL_Event e) {
 
   int key = e.key.keysym.sym;
 
   if (!(e.key.keysym.mod & (KMOD_CTRL | KMOD_ALT))) {
     switch (key) {
     case SDLK_UP:
-      return inputresult(MR_PREV);
+      return InputResult(InputResultKind::PREV);
 
     case SDLK_TAB:
     case SDLK_DOWN:
     case SDLK_RETURN:
-      return inputresult(MR_NEXT);
+      return InputResult(InputResultKind::NEXT);
 
     case SDLK_ESCAPE:
-      return inputresult(MR_CANCEL);
+      return InputResult(InputResultKind::CANCEL);
 
     default:
       /* ignore most keys */
-      return inputresult(MR_NOTHING);
+      return InputResult(InputResultKind::NOTHING);
     }
-  } else return inputresult(MR_NOTHING);
+  } else return InputResult(InputResultKind::NOTHING);
 }
 
-/* doesn't reclaim menuitems */
-void Menu::destroy() {
-  if (alpharect) SDL_FreeSurface(alpharect);
+Menu::~Menu() {
+  if (alpharect != nullptr) SDL_FreeSurface(alpharect);
   free(items);
-  delete this;
 }
 
-Menu *Menu::create(Drawable *be,
-                    string ti,
-                    PtrList<MenuItem> *its,
-                    bool fs) {
-  Menu *m = new Menu();
-  if (!m) return m;
+std::unique_ptr<Menu> Menu::Create(Drawable *be,
+				   string ti,
+				   PtrList<MenuItem> *its,
+				   bool fs) {
+  std::unique_ptr<Menu> m{new Menu};
+  if (m.get() == nullptr) return nullptr;
   m->title = ti;
   m->below = be;
   m->fullscreen = fs;
@@ -370,21 +368,21 @@ Menu *Menu::create(Drawable *be,
   m->alpharect = 0;
   m->nitems = its->length();
   if (!m->nitems) {
-    delete m;
-    return 0;
+    m.reset();
+    return m;
   }
   m->items = (MenuItem**)malloc(m->nitems *
-                                sizeof(MenuItem *));
+                                sizeof (MenuItem *));
 
   if (!m->items) {
-    delete m;
-    return 0;
+    m.reset();
+    return m;
   }
 
   PtrList<MenuItem> *tmp = its;
   for (int i = 0; i < m->nitems; i++) {
     m->items[i] = tmp->head;
-    m->items[i]->container = m;
+    m->items[i]->container = m.get();
     tmp = tmp->next;
   }
 
@@ -748,7 +746,7 @@ void Menu::nextfocus(int d) {
 }
 
 /* relative to menu */
-inputresult Menu::clickselect(int xc, int yc) {
+InputResult Menu::clickselect(int xc, int yc) {
   /* current y offset (from posy). start in the
      control area */
   int y = TOPBARHEIGHT;
@@ -771,7 +769,7 @@ inputresult Menu::clickselect(int xc, int yc) {
         /* at a minimum, select this one if it is
            focusable */
         if (items[n]->focusable()) selected = n;
-        inputresult res = items[n]->click(xc, yc - y);
+        InputResult res = items[n]->click(xc, yc - y);
         redraw();
         return res;
       }
@@ -779,30 +777,30 @@ inputresult Menu::clickselect(int xc, int yc) {
       y += ih;
     }
   }
-  return inputresult(MR_REJECT);
+  return InputResult(InputResultKind::REJECT);
 }
 
 #define PROCESSRESULT(res)              \
   switch (res.kind()) {                 \
-  case MR_OK:                           \
-  case MR_CANCEL:                       \
-  case MR_QUIT: return res.kind();      \
+  case InputResultKind::OK:                           \
+  case InputResultKind::CANCEL:                       \
+  case InputResultKind::QUIT: return res.kind();      \
                                         \
-  case MR_UPDATED:                      \
+  case InputResultKind::UPDATED:                      \
     redraw();                           \
     break;                              \
-  case MR_REJECT:                       \
+  case InputResultKind::REJECT:                       \
     /* XXX beep or flash display */     \
     break;                              \
                                         \
-  case MR_NEXT:                         \
+  case InputResultKind::NEXT:                         \
     selected++;                         \
     selected %= nitems;                 \
     nextfocus(1);                       \
     redraw();                           \
     break;                              \
                                         \
-  case MR_PREV:                         \
+  case InputResultKind::PREV:                         \
     if (!selected) {                    \
       selected = nitems - 1;            \
     } else --selected;                  \
@@ -811,11 +809,11 @@ inputresult Menu::clickselect(int xc, int yc) {
     break;                              \
                                         \
   default:                              \
-  case MR_NOTHING:                      \
+  case InputResultKind::NOTHING:                      \
     break;                              \
   }
 
-resultkind Menu::menuize() {
+InputResultKind Menu::menuize() {
   /* always start out at the beginning */
   selected = 0;
   nextfocus(1);
@@ -845,7 +843,7 @@ resultkind Menu::menuize() {
           if (y >= (posy + TOPBARHEIGHT) &&
               y < (posy + h)) {
 
-            inputresult res =
+            InputResult res =
               clickselect(x - posx, y - posy);
             PROCESSRESULT(res);
           } else if (y >= posy &&
@@ -896,10 +894,10 @@ resultkind Menu::menuize() {
     }
       break;
     case SDL_QUIT:
-      return MR_QUIT;
+      return InputResultKind::QUIT;
     case SDL_KEYDOWN: {
 
-      inputresult res = items[selected]->key(e);
+      InputResult res = items[selected]->key(e);
       PROCESSRESULT(res);
       break;
     }
@@ -907,5 +905,5 @@ resultkind Menu::menuize() {
     }
   }
   /* XXX possible? what does waitevent < 0 mean? */
-  return MR_CANCEL;
+  return InputResultKind::CANCEL;
 }
