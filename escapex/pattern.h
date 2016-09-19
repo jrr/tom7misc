@@ -73,15 +73,14 @@ struct Match {
    in the header. such is template programming. */
 template <class Info>
 struct Pattern {
-
-  static Pattern *create(string s) {
-    std::unique_ptr<Pattern> p{new Pattern{}};
+  static std::unique_ptr<Pattern> Create(const string &s_in) {
+    std::unique_ptr<Pattern> p{new Pattern};
 
     for (int i = 0; i < 256; i++)
-      p->tab[i].t = H_ERROR;
+      p->tab[i].t = HType::ERROR;
 
     /* ignore whitespace */
-    s = util::replace(s, " ", "");
+    string s = util::replace(s_in, " ", "");
 
     p->nregs = 0;
     p->w = -1;
@@ -135,10 +134,10 @@ struct Pattern {
       }
     }
 
-    if (p->w <= 0) return 0;
-    if (p->h <= 0) return 0;
+    if (p->w <= 0) return nullptr;
+    if (p->h <= 0) return nullptr;
 
-    return p.release();
+    return p;
   }
 
  private:
@@ -146,20 +145,20 @@ struct Pattern {
   int *regs = nullptr;
   int nregs = 0;
   char *chars = nullptr;
- public:
 
+ public:
   /* users can define their own predicates */
   void setpredicate(char c,
                     bool (*f)(Level *, Info *, int x, int y)) {
 
     int idx = ((unsigned int) c) & 255;
-    tab[idx].t = H_FN;
+    tab[idx].t = HType::FN;
     tab[idx].u.f = f;
   }
 
   void settile(char c, int t) {
     int idx = ((unsigned int) c) & 255;
-    tab[idx].t = H_MATCHTILE;
+    tab[idx].t = HType::MATCHTILE;
     tab[idx].u.tile = t;
   }
 
@@ -173,7 +172,6 @@ struct Pattern {
     delete i;
     return m;
   }
-
 
   struct mystream : public Match::stream {
     mystream(Level *l, Info *i, Pattern<Info> *p)
@@ -282,13 +280,13 @@ struct Pattern {
 
             unsigned char code = pat->chars[vi];
             switch (pat->tab[code].t) {
-            case H_MATCHTILE:
+            case HType::MATCHTILE:
               if (pat->tab[code].u.tile != lev->tileat(rx, ry)) goto no_match;
               break;
-            case H_FN:
+            case HType::FN:
               if (!pat->tab[code].u.f(lev, inf, rx, ry)) goto no_match;
               break;
-            case H_ERROR: goto no_match;
+            case HType::ERROR: goto no_match;
             }
 
             /* set reg, if any */
@@ -348,23 +346,18 @@ struct Pattern {
     return new mystream(lev, inf, this);
   }
 
-  void destroy() {
+  ~Pattern() {
     free(regs);
     free(chars);
-    delete this;
   }
-  ~Pattern() {}
 
-  private:
-
-  /* apparently necessary for some versions of VC++,
-     even though mystream is nested */
+ private:
   friend struct mystream;
 
-  enum htype { H_ERROR, H_MATCHTILE, H_FN, };
+  enum class HType { ERROR, MATCHTILE, FN, };
 
   struct handler {
-    htype t;
+    HType t;
     union {
       bool (*f)(Level *, Info *, int x, int y);
       int tile;
@@ -372,7 +365,6 @@ struct Pattern {
   };
 
   handler tab[256];
-
 };
 
 

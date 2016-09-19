@@ -28,6 +28,7 @@ code cleanup
  - replace vallist with deque or vector; it's not used in that many places
  - hash should be 64-bit, should not cast c_str() to hash strings because
    no guarantee that they have enough data
+   - use unordered_map<> instead of hashtable<> in dirindex; easy
  - in move2016, actually I mistakenly rewrote some entity indices to
    B_PLAYER, but B_PLAYER is not an index; it's a bot type -- should
    fix, maybe by introducing a new constant like ENTI_PLAYER (also
@@ -35,6 +36,8 @@ code cleanup
 - When using the virtual implementation idiom, the "real" class
    can be defined in an anonymous namespace.
  - pref to not delete incomplete solutions when solving a level?
+
+merge util with cc-lib's.
 
 move png2esx.cc to misc, add command-line flag support
 

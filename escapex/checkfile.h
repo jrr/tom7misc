@@ -10,7 +10,7 @@
 /* XXX also check eof when these functions are called */
 
 struct CheckFile {
-  FILE *ff;
+  FILE *ff = nullptr;
   bool read(unsigned int bytes, string &s) {
     /* fread stupidly *fails* if the size is 0 */
     if (bytes == 0) return "";
@@ -27,13 +27,14 @@ struct CheckFile {
     }
   }
 
-  void destroy() { fclose(ff); delete this; }
+  ~CheckFile() {
+    fclose(ff);
+  }
 
-  static CheckFile *create(const string &f) {
-    CheckFile *cf = new CheckFile();
-    cf->ff = fopen(f.c_str(), "rb");
-    if (cf->ff) return cf;
-    else { delete cf; return 0; }
+  static std::unique_ptr<CheckFile> Create(const string &f) {
+    FILE *ff = fopen(f.c_str(), "rb");
+    if (ff == nullptr) return nullptr;
+    return std::unique_ptr<CheckFile>(new CheckFile{ff});
   }
 
   bool readint(int &i) {
@@ -52,6 +53,10 @@ struct CheckFile {
     s = util::fgetline(ff);
     return true;
   }
+
+ private:
+  explicit CheckFile(FILE *ff) : ff(ff) {}
+  NOT_COPYABLE(CheckFile);
 };
 
 #endif

@@ -4,7 +4,6 @@
 
 #include "util.h"
 #include "font.h"
-#include "extent.h"
 #include "draw.h"
 
 #include <iostream>
