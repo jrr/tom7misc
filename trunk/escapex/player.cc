@@ -6,7 +6,6 @@
 #include <string>
 #include <assert.h>
 
-#include "extent.h"
 #include "chunks.h"
 #include "checkfile.h"
 #include "prefs.h"
@@ -585,15 +584,14 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
 
 
 Player_ *Player_::FromFile(const string &file) {
-  CheckFile *cf = CheckFile::create(file);
-  if (!cf) return nullptr;
-  Extent<CheckFile> ecf(cf);   // XXX Last one!
+  std::unique_ptr<CheckFile> cf{CheckFile::Create(file)};
+  if (cf.get() == nullptr) return nullptr;
 
   string s;
   if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return nullptr;
 
   /* binary or text format? */
-  if (s == PLAYERTEXT_MAGIC) return fromfile_text(file, cf);
+  if (s == PLAYERTEXT_MAGIC) return fromfile_text(file, cf.get());
   else return nullptr;
 }
 

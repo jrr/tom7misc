@@ -15,7 +15,7 @@
 #define INDEX3MAGIC "ESX!"
 
 namespace {
-struct ra_entry {
+struct RAEntry {
   static unsigned int hash(string k) {
     return hash_string(k);
   }
@@ -32,9 +32,9 @@ struct ra_entry {
 
   void destroy() { delete this; }
 
-  ra_entry(string s, RateStatus vv, int d, int sr, int o)
+  RAEntry(string s, RateStatus vv, int d, int sr, int o)
     : filename(s), v(vv), date(d), speedrecord(sr), owner(o) {}
-  ra_entry() {}
+  RAEntry() {}
 };
 
 struct DirIndex_ : public DirIndex {
@@ -48,14 +48,14 @@ struct DirIndex_ : public DirIndex {
   void addentry(string filename, RateStatus v,
 		int date, int speedrecord, int owner) override;
 
-  static void writeone(ra_entry *i, FILE *f);
+  static void writeone(RAEntry *i, FILE *f);
 
   bool getentry(string filename, RateStatus &v, int &, int &, int &o) override;
 
   bool webcollection() const override { return isweb; }
 
-  /* mapping filenames to ra_entry */
-  hashtable<ra_entry, string> *tab = nullptr;
+  /* mapping filenames to RAEntry */
+  hashtable<RAEntry, string> *tab = nullptr;
 
   int isweb = 0;
 };
@@ -63,7 +63,7 @@ struct DirIndex_ : public DirIndex {
 
 bool DirIndex_::getentry(string filename,
 			 RateStatus &v, int &d, int &sr, int &o) {
-  if (ra_entry *e = tab->lookup(filename)) {
+  if (RAEntry *e = tab->lookup(filename)) {
     v = e->v;
     d = e->date;
     sr = e->speedrecord;
@@ -79,7 +79,7 @@ DirIndex_ *DirIndex_::Create() {
 
   dr->title = "No name";
   dr->isweb = 0;
-  dr->tab = hashtable<ra_entry, string>::create(HASHSIZE);
+  dr->tab = hashtable<RAEntry, string>::create(HASHSIZE);
 
   if (!dr->tab) return nullptr;
 
@@ -87,7 +87,7 @@ DirIndex_ *DirIndex_::Create() {
 }
 
 /* argument to hashtable::app */
-void DirIndex_::writeone(ra_entry *i, FILE *f) {
+void DirIndex_::writeone(RAEntry *i, FILE *f) {
   fprintf(f, "%s %d %d %d %d %d %d %d %d %d\n",
           i->filename.c_str(),
           i->v.nvotes,
@@ -116,7 +116,7 @@ void DirIndex_::writefile(string fname) {
   /* XXX sort first */
 
   /* then write each file */
-  hashtable_app<ra_entry, string, FILE *>(tab, writeone, f);
+  hashtable_app<RAEntry, string, FILE *>(tab, writeone, f);
 
   fclose(f);
 
@@ -124,7 +124,7 @@ void DirIndex_::writefile(string fname) {
 
 void DirIndex_::addentry(string f, RateStatus v,
                        int date, int speedrecord, int owner) {
-  tab->insert(new ra_entry(f, v, date, speedrecord, owner));
+  tab->insert(new RAEntry(f, v, date, speedrecord, owner));
 }
 
 }  // namespace
@@ -147,11 +147,9 @@ DirIndex *DirIndex::FromFile(const string &f) {
     /* hashtable remains empty */
     return dr.release();
   } else {
-    CheckFile *cf = CheckFile::create(f);
+    std::unique_ptr<CheckFile> cf{CheckFile::Create(f)};
 
-    if (!cf) return nullptr;
-
-    Extent<CheckFile> fe(cf);
+    if (cf.get() == nullptr) return nullptr;
 
     /* check that it starts with v2 magic */
     string s;
@@ -167,8 +165,8 @@ DirIndex *DirIndex::FromFile(const string &f) {
       if (!cf->getline(s)) return nullptr;
 
     while (cf->getline(s)) {
-      ra_entry *rr = new ra_entry;
-      Extent<ra_entry> re(rr);
+      RAEntry *rr = new RAEntry;
+      Extent<RAEntry> re(rr);
 
       rr->filename = util::chop(s);
       rr->v.nvotes = util::stoi(util::chop(s));

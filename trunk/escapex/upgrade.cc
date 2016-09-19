@@ -34,26 +34,26 @@
 
 namespace {
 
-enum curesult {
+enum class CUResult {
   /* can't upgrade */
-  CU_FAIL,
+  FAIL,
   /* can upgrade, query */
-  CU_QUERY ,
+  QUERY,
   /* should upgrade, recommend */
-  CU_RECOMMEND,
+  RECOMMEND,
   /* already at newest version */
-  CU_NEWEST,
+  NEWEST,
 };
 
-enum upresult {
+enum class UpResult {
   /* error downloading something. Everything is
      still fine, though, we just didn't upgrade. */
-  UR_NODOWN,
+  NODOWN,
   /* error replacing files.
      now escape may be in an inconsistent state. */
-  UR_CORRUPT,
+  CORRUPT,
   /* ok. restart */
-  UR_RESTART,
+  RESTART,
 };
 
 enum uptype { UT_FILE, UT_DELETE, UT_SYMLINK, };
@@ -90,10 +90,10 @@ struct Upgrader_ : public Upgrader {
 
   Player *plr;
 
-  curesult checkupgrade(HTTP *hh, string &msg,
+  CUResult checkupgrade(HTTP *hh, string &msg,
                         ulist *&download, stringlist *&ok);
 
-  upresult doupgrade(HTTP *hh, string &msg,
+  UpResult doupgrade(HTTP *hh, string &msg,
                      ulist *upthese);
 
   std::unique_ptr<TextScroll> tx;
@@ -156,7 +156,7 @@ struct UGCallback : public httpcallback {
 /* download anything in 'upthese', replacing the current
    versions on disk. Modifies the 'temporary' fields in
    upthese. */
-upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
+UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
                               ulist *upthese) {
   for (ulist *hd = upthese; hd; hd = hd->next) {
     switch (hd->head.t) {
@@ -183,21 +183,22 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
       default:
         say((string) YELLOW "Download error: " + msg + POP);
         msg = (string)"Failed to download " GREEN + dl + POP;
-        return UR_NODOWN;
+        return UpResult::NODOWN;
       }
 
-    }
       break;
+    }
 
-      /* catch error early */
     case UT_SYMLINK:
+      /* catch error early */
 #     ifdef WIN32
       Message::Bug(this,
                    RED " Somehow got symlink upitem on win32");
-      return UR_NODOWN;
+      return UpResult::NODOWN;
 #     else
       break;
 #     endif
+
     default:
       /* don't need to do anything to prepare these */
       break;
@@ -206,9 +207,9 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
   /* Now the 'tempfile' field is filled in for every file downloaded.
 
-  This is the point of no return: If we don't succeed in replacing,
-  deleting, and symlinking each upitem here, then the installation
-  is possibly corrupt. */
+     This is the point of no return: If we don't succeed in replacing,
+     deleting, and symlinking each upitem here, then the installation
+     is possibly corrupt. */
 
   /* these hold srcs and dests of any files that
      couldn't be replaced while the program is
@@ -263,8 +264,8 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
      we already caught them and errored on win32 */
 # ifndef WIN32 /* posix */
   for (ulist *hs = upthese;
-      hs;
-      hs = hs->next) {
+       hs;
+       hs = hs->next) {
 
     /* not replacing slash char here, because posix */
     string src = hs->head.filename;
@@ -299,8 +300,8 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 # endif
 
   for (ulist *hr = upthese;
-      hr;
-      hr = hr->next) {
+       hr;
+       hr = hr->next) {
 
     string todel =
       util::replace(hr->head.filename, "/", DIRSEP);
@@ -391,7 +392,7 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
 
     Message::Bug(this,
                  "roundabout exec technique failed");
-    return UR_CORRUPT;
+    return UpResult::CORRUPT;
 
 #   else /* not win32 */
 
@@ -405,12 +406,12 @@ upresult Upgrader_::doupgrade(HTTP *hh, string &msg,
     Message::Quick(this, "one or more files could not be "
                    "removed/moved/linked.",
                    "upgrade failed!", "", PICS XICON);
-    return UR_CORRUPT;
-  } else return UR_RESTART;
+    return UpResult::CORRUPT;
+  } else return UpResult::RESTART;
 }
 
 /* download and ok should not contain anything */
-curesult Upgrader_::checkupgrade(HTTP *hh,
+CUResult Upgrader_::checkupgrade(HTTP *hh,
                                  string &msg,
                                  ulist *&download,
                                  stringlist *&ok) {
@@ -451,7 +452,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
 
       if (fi == "" || md == "") {
         say(RED "UPGRADE list appears to be corrupt (empty filename/md5)");
-        return CU_FAIL;
+        return CUResult::FAIL;
       }
 
       /* md might be md5, or another special command. */
@@ -462,7 +463,7 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
           Message::Quick(this,
                          RED"OOPS!" POP " Can't make symlinks on win32. "
                          "Upgrade file is broken?", "oops", "");
-          return CU_FAIL;
+          return CUResult::FAIL;
 #       else
           string dst = md.substr(2, md.length() - 2);
 
@@ -527,26 +528,26 @@ curesult Upgrader_::checkupgrade(HTTP *hh,
       if (atoi(VERSION) < oldest) {
         stringlist::diminish(ok);
         ulist::diminish(download);
-        return CU_FAIL;
+        return CUResult::FAIL;
       }
 
       if (atoi(VERSION) < recom) {
         msg = BLUE "Upgrade recommended!" POP;
-        return CU_RECOMMEND;
+        return CUResult::RECOMMEND;
       } else {
         msg = BLUE "Upgrade optional." POP;
-        return CU_QUERY;
+        return CUResult::QUERY;
       }
 
     } else {
       msg = BLUE "All files are up to date." POP;
-      return CU_NEWEST;
+      return CUResult::NEWEST;
     }
 
   } else {
     say("Message from server: " RED + s);
     msg = YELLOW "Error contacting upgrade server." POP;
-    return CU_FAIL;
+    return CUResult::FAIL;
   }
 }
 
@@ -572,14 +573,14 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   stringlist *ok;
   string upmsg;
   switch (checkupgrade(hh.get(), upmsg, download, ok)) {
-  case CU_FAIL:
+  case CUResult::FAIL:
     say((string)"Upgrade fail: " + upmsg);
     /* lists will be empty */
     Message::Quick(this, "Couldn't get upgrade info.",
                    "Cancel", "", PICS XICON POP);
     break;
 
-  case CU_NEWEST:
+  case CUResult::NEWEST:
     /* XXX show md5s or sizes or something cool. */
     say((string)"Upgrade: " + upmsg);
     stringlist::diminish(ok);
@@ -587,13 +588,13 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
     Message::Quick(this, "Already at newest version!", "OK", "");
     break;
 
-  case CU_QUERY:
-  case CU_RECOMMEND: {
+  case CUResult::QUERY:
+  case CUResult::RECOMMEND: {
 
     say("Upgrade: " BLUE "The following files are not up-to-date:" POP);
     for (ulist *tmp = download;
-        tmp;
-        tmp = tmp->next) {
+	 tmp;
+	 tmp = tmp->next) {
       /* XXX print delete, symlink, etc */
       say((string)"  " YELLOW + tmp->head.filename + POP);
     }
@@ -604,26 +605,25 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
     if (doit) {
 
       string upgmsg;
-      upresult up;
-      up = doupgrade(hh.get(), upmsg, download);
+      const UpResult up = doupgrade(hh.get(), upmsg, download);
       stringlist::diminish(ok);
       ulist::diminish(download);
       switch (up) {
 
-      case UR_CORRUPT:
+      case UpResult::CORRUPT:
         Message::Quick(this, YELLOW "Oops! " POP
                        "The installation failed and may be corrupted.",
                        "Exit", "", PICS SKULLICON);
         return UP_EXIT;
         break;
 
-      case UR_NODOWN:
+      case UpResult::NODOWN:
         Message::Quick(this, "Upgrade failed. Try again later.",
                        "Oh well!", "", PICS XICON);
         return UP_FAIL;
         break;
 
-      case UR_RESTART:
+      case UpResult::RESTART:
         Message::Quick(this, "Upgrade succeeded! "
                        "You must exit and start Escape again.",
                        "Exit", "", PICS THUMBICON POP);

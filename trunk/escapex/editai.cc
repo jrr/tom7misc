@@ -9,7 +9,6 @@
 #include "play.h"
 #include "prompt.h"
 
-#include "extent.h"
 #include "util.h"
 #include "../cc-lib/union-find.h"
 #include "edit.h"
@@ -437,10 +436,11 @@ void Editor::dorandom() {
 
   case RT_CRAZY: {
     /* XXX testing */
-    Pattern<void> *pat_test = Pattern<void>::create("...\n"
-                                                     "B\\0BB\n"
-                                                     "...\n");
-    if (pat_test) {
+    std::unique_ptr<Pattern<void>> pat_test =
+      Pattern<void>::Create("...\n"
+			    "B\\0BB\n"
+			    "...\n");
+    if (pat_test.get() != nullptr) {
       pat_test->settile('G', T_GREY);
       pat_test->settile('B', T_BLUE);
       pat_test->setpredicate('.', pred_any);
@@ -548,10 +548,9 @@ bool Editor::retract_gold() {
   Level *lev = dr.lev;
   /* XX could also be at edge of map -- might want a way to
      specify that pattern */
-  Pattern<void> *bgold = Pattern<void>::create("\\0 \\1GS\n");
+  std::unique_ptr<Pattern<void>> bgold = Pattern<void>::Create("\\0 \\1GS\n");
 
-  if (bgold) {
-    Extent<Pattern<void>> ep(bgold);
+  if (bgold.get() != nullptr) {
 
     /* XX could include panels */
     bgold->settile(' ', T_FLOOR);
@@ -727,10 +726,11 @@ bool Editor::retract_hole() {
      from the current player's position; otherwise they definitely
      won't be separators
   */
-  Pattern<void> *findsep = Pattern<void>::create("\\0 \\1 \\2 \n");
+  std::unique_ptr<Pattern<void>> findsep =
+    Pattern<void>::Create("\\0 \\1 \\2 \n");
 
   /* XXX only need 'empty' for first space */
-  if (findsep) {
+  if (findsep.get() != nullptr) {
     findsep->settile(' ', T_FLOOR);
 
     Match::stream *matches =

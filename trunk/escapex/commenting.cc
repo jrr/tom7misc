@@ -3,7 +3,6 @@
 #include "rating.h"
 
 #include "player.h"
-#include "extent.h"
 #include "draw.h"
 #include "chars.h"
 #include "message.h"
