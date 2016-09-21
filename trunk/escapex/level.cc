@@ -4,7 +4,6 @@
 #include <string>
 #include <memory>
 
-#include "extent.h"
 #include "ptrlist.h"
 #include "rle.h"
 
@@ -37,7 +36,7 @@ bool Level::allowbeam(int tt) {
    fires in. */
 /* also now checks for cohabitation with bots, which
    is deadly */
-bool Level::isdead(int &tilex, int &tiley, dir &d) {
+bool Level::isdead(int &tilex, int &tiley, dir &d) const {
   /* are we in the same square as a bot? Then we die. */
   if (botat(guyx, guyy)) {
     tilex = guyx;
@@ -66,7 +65,6 @@ bool Level::isdead(int &tilex, int &tiley, dir &d) {
           return true;
         }
       }
-
     }
   }
 
@@ -101,7 +99,6 @@ void Level::swapo(int idx) {
 
   /* swap haspanel/opanel and their refinements as well */
   flags[idx] =
-
     /* panel bits */
     ((flags[idx] & TF_HASPANEL) ? TF_OPANEL : TF_NONE) |
     ((flags[idx] & TF_OPANEL) ? TF_HASPANEL : TF_NONE) |
@@ -120,7 +117,7 @@ void Level::swapo(int idx) {
                     TF_ROPANELL | TF_ROPANELH));
 }
 
-static tile realpanel(int f) {
+tile Level::RealPanel(int f) {
   if (f & TF_RPANELH) {
     if (f & TF_RPANELL) return T_RPANEL;
     else return T_GPANEL;
@@ -375,11 +372,12 @@ void Level::fixup_botorder() {
   free(bots);
 }
 
-Level *Level::fromstring(string s, bool allow_corrupted) {
+std::unique_ptr<Level> Level::FromString(string s, bool allow_corrupted) {
   int sw, sh;
 
   /* check magic! */
-  if (s.substr(0, ((string)LEVELMAGIC).length()) != LEVELMAGIC) return 0;
+  if (s.substr(0, ((string)LEVELMAGIC).length()) != LEVELMAGIC)
+    return nullptr;
 
 
   FSDEBUG printf("magic ok...");
@@ -423,7 +421,7 @@ Level *Level::fromstring(string s, bool allow_corrupted) {
   /* at this point we will be able to return some kind of
      level, even if parts are corrupted */
 
-  Level *l = new Level();
+  std::unique_ptr<Level> l{new Level};
   l->w = sw;
   l->h = sh;
 
@@ -485,14 +483,12 @@ Level *Level::fromstring(string s, bool allow_corrupted) {
       l->botd[i] = DIR_DOWN;
       l->bota[i] = -1;
     }
-
   }
 
   /* XXX support messages here. */
 
 
   if (l->tiles && l->otiles && l->dests && l->flags) {
-
     /* check level's sanity, one last time */
     l->corrupted = (!l->sanitize()) || l->corrupted;
 
@@ -500,8 +496,7 @@ Level *Level::fromstring(string s, bool allow_corrupted) {
       FSDEBUG printf("success\n");
       return l;
     } else {
-      l->destroy();
-      return 0;
+      return nullptr;
     }
 
   } else if (l->tiles && allow_corrupted) {
@@ -527,17 +522,15 @@ Level *Level::fromstring(string s, bool allow_corrupted) {
       return l;
     } else {
       /* out of memory? */
-      l->destroy();
-      return 0;
+      return nullptr;
     }
 
   } else {
-    l->destroy();
-    return 0;
+    return nullptr;
   }
 }
 
-string Level::tostring() {
+string Level::tostring() const {
   string ou;
 
   /* magic */
@@ -569,7 +562,7 @@ string Level::tostring() {
 /* is the tile at x,y connected to anything in
    direction d? (For instance, is there a light
    in direction d?) */
-bool Level::isconnected(int pulsex, int pulsey, dir pd) {
+bool Level::isconnected(int pulsex, int pulsey, dir pd) const {
   while (travel(pulsex, pulsey, pd, pulsex, pulsey)) {
     int targ = tileat(pulsex, pulsey);
 
@@ -647,7 +640,7 @@ bool Level::isconnected(int pulsex, int pulsey, dir pd) {
   return false;
 }
 
-void Level::destroy() {
+Level::~Level() {
   free(tiles);
   free(otiles);
   free(dests);
@@ -657,11 +650,10 @@ void Level::destroy() {
   free(bott);
   free(botd);
   free(bota);
-  delete this;
 }
 
-Level *Level::clone() const {
-  Level *n = new Level();
+std::unique_ptr<Level> Level::Clone() const {
+  std::unique_ptr<Level> n{new Level};
 
   n->title = title;
   n->author = author;
@@ -701,8 +693,8 @@ Level *Level::clone() const {
   return n;
 }
 
-Level *Level::blank(int w, int h) {
-  Level *n = new Level();
+std::unique_ptr<Level> Level::Blank(int w, int h) {
+  std::unique_ptr<Level> n{new Level};
   n->w = w;
   n->h = h;
   n->guyx = 1;
@@ -730,8 +722,8 @@ Level *Level::blank(int w, int h) {
   return n;
 }
 
-Level *Level::defboard(int w, int h) {
-  Level *n = blank(w, h);
+std::unique_ptr<Level> Level::DefBoard(int w, int h) {
+  std::unique_ptr<Level> n = Blank(w, h);
 
   /* just draw blue around it. */
 
@@ -752,9 +744,7 @@ Level *Level::defboard(int w, int h) {
 
 bool Level::VerifyPrefix(const Level *lev, const Solution &s,
                          Solution *out_ref) {
-  Level *l = lev->clone();
-  Extent<Level> el(l);
-
+  std::unique_ptr<Level> l = lev->Clone();
   Solution out;
 
   for (Solution::iter i = Solution::iter(s);
@@ -781,13 +771,11 @@ bool Level::VerifyPrefix(const Level *lev, const Solution &s,
 }
 
 bool Level::Verify(const Level *lev, const Solution &s) {
-  Level *l = lev->clone();
+  std::unique_ptr<Level> l = lev->Clone();
 
   int moves;
-  bool won = l->Play(s, moves);
-
-  l->destroy();
-
+  const bool won = l->Play(s, moves);
+  
   return won && moves == s.Length();
 }
 

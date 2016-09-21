@@ -292,7 +292,7 @@ void Drawing::setscroll() {
   }
 
   /* when near the right, bottom, show at least
-     pad+1 so that there are pad not including the
+     pad+1 so that they are pad not including the
      guy himself */
   if (lev->guyx >= (scrollx + showw - (xpad + 1)))
     scrollx = (lev->guyx - showw) + (xpad + 1);
@@ -303,21 +303,22 @@ void Drawing::setscroll() {
   if (lev->guyy < (scrolly + ypad)) scrolly = lev->guyy - ypad;
 
   makescrollreasonable();
-
 }
 
+namespace {
 /* we sort the bots (and player) by 'depth'
    in order to draw them in a consistent order. */
-struct bb {
+struct BB {
   int i; /* index */
   bot e; /* ent type */
   int d; /* direction */
   int a; /* extended data */
 };
+}
 
 static int ydepth_compare(const void *l, const void *r) {
-  bb *ll = (bb*) l;
-  bb *rr = (bb*) r;
+  BB *ll = (BB*) l;
+  BB *rr = (BB*) r;
   return ll->i - rr->i;
 }
 
@@ -457,7 +458,7 @@ void Drawing::drawlev(int layer, /* dir facing, */
   /* XXX this is not really accurate. We should sort these by z(y)-order
      wrt to the guy as well */
   {
-    bb *bots = (bb*) malloc((lev->nbots + 1) * sizeof(bb));
+    BB *bots = (BB*) malloc((lev->nbots + 1) * sizeof (BB));
 
     for (int i = 0; i < lev->nbots; i++) {
       bots[i].i = lev->boti[i];
@@ -472,7 +473,7 @@ void Drawing::drawlev(int layer, /* dir facing, */
     bots[lev->nbots].a = 0;
 
     /* sort */
-    qsort(bots, lev->nbots, sizeof (bb), ydepth_compare);
+    qsort(bots, lev->nbots, sizeof (BB), ydepth_compare);
 
     /* now draw from bots array (guy is included) */
     for (int i = 0; i <= lev->nbots; i++) {
@@ -625,7 +626,6 @@ bool Drawing::inmap(int x, int y,
 
 bool Drawing::onscreen(int x, int y,
                        int &tx, int &ty) {
-
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
 
@@ -645,7 +645,7 @@ bool Drawing::onscreen(int x, int y,
 
 void Drawing::drawsmall(int y,
                         int botmargin, Uint32 color,
-                        Level *l, int solvemoves, string fname,
+                        const Level *l, int solvemoves, string fname,
                         RateStatus *votes,
                         Rating *myrating,
                         int date, int speedrecord) {
@@ -713,7 +713,7 @@ void Drawing::drawsmall(int y,
             (string)YELLOW "Author: " BLUE + l->author + POP POP);
 
   fon->draw(textx, texty += fon->height,
-            (string)YELLOW "Size:   " + ((l->iscorrupted())?RED:GREEN) +
+            (string)YELLOW "Size:   " + (l->iscorrupted() ? RED : GREEN) +
             itos(l->w) + (string)GREY "x" POP +
             itos(l->h) + POP POP +
             (string)((l->iscorrupted()) ? RED " corrupted!" POP : ""));
@@ -802,7 +802,6 @@ void Drawing::drawsmall(int y,
   } else {
     /* nothing */
   }
-
 }
 
 int Drawing::smallheight() {

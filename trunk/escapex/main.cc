@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
           if (ll.get() != nullptr) {
             string res = ll->selectlevel();
 
-            Play::playrecord(res, plr.get());
+            Play::PlayRecord(res, plr.get());
 
             if (res == "") break;
           } else {
@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
             string res = bb->selectlevel();
             if (res.empty()) break;
 
-            Play::playrecord(res, plr.get());
+            Play::PlayRecord(res, plr.get());
 
           } else {
             Message::Bug(0, "Error creating browser");

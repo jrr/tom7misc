@@ -83,7 +83,7 @@ struct LLEntry {
      (part of a web collection) */
   bool managed;
 
-  Level *lev;
+  std::unique_ptr<Level> lev;
 
   static int height() { return fon->height; }
   string display(bool selected);
@@ -91,11 +91,10 @@ struct LLEntry {
   string convert() { return fname; }
   bool matches(char k);
 
-  ~LLEntry() { if (lev) lev->destroy(); }
-  LLEntry() { lev = 0; }
+  LLEntry() {}
 
   static void swap(LLEntry *l, LLEntry *r) {
-#   define SWAP(f) {const auto f ## _tmp = l->f; l->f = r->f; r->f = f ## _tmp; }
+#   define SWAP(f) {auto f ## _tmp = std::move(l->f); l->f = std::move(r->f); r->f = std::move(f ## _tmp); }
     SWAP(md5);
     SWAP(fname);
     SWAP(name);
@@ -114,6 +113,7 @@ struct LLEntry {
     SWAP(myrating);
     SWAP(votes);
 #   undef SWAP
+    
   }
 
   string actualfile(stringlist *p) {
@@ -128,8 +128,8 @@ struct LLEntry {
 
   /* default: directories are first */
   static bool default_dirs(int &ret,
-                          const LLEntry &l,
-                          const LLEntry &r) {
+			   const LLEntry &l,
+			   const LLEntry &r) {
 
     /* make this appear first */
     if (l.fname == ".." && r.fname != "..") {
@@ -284,7 +284,7 @@ struct LoadLevel_ : public LoadLevel {
   void screenresize() override {}
 
   ~LoadLevel_() override {
-    if (showlev) showlev->destroy();
+    showlev.reset();
     sel->destroy();
     while (path) stringpop(path);
   }
@@ -362,7 +362,7 @@ struct LoadLevel_ : public LoadLevel {
 
   /* this for solution preview */
   Uint32 showstart;
-  Level *showlev;
+  std::unique_ptr<Level> showlev;
   int solstep;
   Solution showsol;
   /* if this isn't the same as sel->selected,
@@ -400,8 +400,7 @@ void LoadLevel_::fix_show(bool force) {
   if (force || (sel->selected != showidx)) {
 
     showidx = sel->selected;
-    if (showlev) showlev->destroy();
-    showlev = 0;
+    showlev.reset();
     showsol.Clear();
     solstep = 0;
 
@@ -409,7 +408,7 @@ void LoadLevel_::fix_show(bool force) {
     if (sel->number) {
       if (!sel->items[showidx].isdir) {
         // printf("well the level is %p\n", sel->items[showidx].lev);
-        showlev = sel->items[showidx].lev->clone();
+        showlev = sel->items[showidx].lev->Clone();
         const Solution *lsol = plr->GetSol(sel->items[showidx].md5);
         if (lsol != nullptr) {
           showsol = *lsol;
@@ -428,7 +427,7 @@ void LoadLevel_::Step() {
   fix_show();
 
   /* now, if we have a lev, maybe make a move */
-  if (showlev && !showsol.IsEmpty()) {
+  if (showlev.get() != nullptr && !showsol.IsEmpty()) {
     if (!showstart) {
       /* step */
       if (solstep < showsol.Length()) {
@@ -570,7 +569,6 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
   ll->path = 0;
 
   ll->showstart = 0;
-  ll->showlev = 0;
   ll->solstep = 0;
   ll->showsol.Clear();
   ll->showidx = -1; /* start outside array */
@@ -768,7 +766,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
       string contents = util::readfilemagic(ldn, LEVELMAGIC);
 
       /* try to read it, passing along corruption flag */
-      Level *l = Level::fromstring(contents, allow_corrupted);
+      std::unique_ptr<Level> l = Level::FromString(contents, allow_corrupted);
 
       if (l) {
         string md5c = MD5::Hash(contents);
@@ -781,7 +779,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
             const NamedSolution &ns = sols[sidx];
             if (!ns.bookmark &&
                 (ns.sol.verified ||
-                 Level::Verify(l, ns.sol))) {
+                 Level::Verify(l.get(), ns.sol))) {
               plr->SetVerified(md5c, sidx);
               nsel->items[i].solved = ns.sol.Length();
 
@@ -810,7 +808,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
         nsel->items[i].corrupted = l->iscorrupted();
         nsel->items[i].sizex = l->w;
         nsel->items[i].sizey = l->h;
-        nsel->items[i].lev = l;
+        nsel->items[i].lev = std::move(l);
         nsel->items[i].myrating = plr->getrating(md5c);
         nsel->items[i].speedrecord = 0;
         nsel->items[i].date = 0;
@@ -903,11 +901,11 @@ void LoadLevel_::drawsmall() {
   } else if (sel->items[sel->selected].isdir) {
     fon->draw(16, y + 8, WHITE "(" BLUE "Directory" POP ")" POP);
   } else {
-    if (!showlev) fix_show(true);
+    if (showlev.get() == nullptr) fix_show(true);
     Drawing::drawsmall(y,
                        sel->botmargin,
                        color,
-                       showlev,
+                       showlev.get(),
                        sel->items[sel->selected].solved,
                        sel->items[sel->selected].fname,
                        &sel->items[sel->selected].votes,
@@ -953,7 +951,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
         !sel->items[i].isdir &&
         !sel->items[i].solved) {
 
-      const Level *solveme = sel->items[i].lev;
+      const Level *solveme = sel->items[i].lev.get();
 
       done++;
 
@@ -1271,8 +1269,6 @@ string LoadLevel_::Loop() {
             /* ctrl-c: comment on a level */
 
             if (plr->webid) {
-              Level *l = sel->items[sel->selected].lev;
-
               lastfile = sel->items[sel->selected].fname;
 
               string file =
@@ -1288,7 +1284,8 @@ string LoadLevel_::Loop() {
                 fclose(f);
 
                 /* This does its own error reporting */
-                CommentScreen::comment(plr, l, md);
+                CommentScreen::comment(
+		    plr, sel->items[sel->selected].lev.get(), md);
 
               }
             } else {
@@ -1307,9 +1304,6 @@ string LoadLevel_::Loop() {
             /* ctrl-r: rate a level */
 
             if (plr->webid) {
-
-              Level *l = sel->items[sel->selected].lev;
-
               lastfile = sel->items[sel->selected].fname;
 
               string file =
@@ -1329,7 +1323,10 @@ string LoadLevel_::Loop() {
                 string md = MD5::Hashf(f);
                 fclose(f);
 
-                std::unique_ptr<RateScreen> rs{RateScreen::Create(plr, l, md)};
+                std::unique_ptr<RateScreen> rs{
+		  RateScreen::Create(plr,
+				     sel->items[sel->selected].lev.get(),
+				     md)};
                 if (rs.get() != nullptr) {
                   rs->rate();
                 } else {

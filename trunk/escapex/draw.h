@@ -102,7 +102,8 @@ struct Drawing {
   /* must be in range 0..(DRAW_NSIZES - 1) */
   int zoomfactor = 0;
 
-  Level *lev = nullptr;
+  // Not owned!
+  const Level *lev = nullptr;
 
   string message;
 
@@ -170,7 +171,7 @@ struct Drawing {
      or 0 if unsolved (all valid solutions have at least one move.)
   */
   static void drawsmall(int y, int botmargin, Uint32 color,
-                        Level *l, int solvemoves, string fname,
+                        const Level *l, int solvemoves, string fname,
                         RateStatus *votes,
                         Rating *myrating, int date = 0,
                         int speedrecord = 0);

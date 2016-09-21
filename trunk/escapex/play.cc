@@ -52,24 +52,30 @@ struct Play_ : public Play {
   void draw() override;
   void screenresize() override;
 
-  PlayResult DoPlaySave(Player *plr, Level *lev,
+  PlayResult DoPlaySave(Player *plr,
                         Solution *saved, const string &md5) override;
 
-  PlayResult DoPlay(Player *plr, Level *lev, const string &md5) override {
+  PlayResult DoPlay(Player *plr, const string &md5) override {
     Solution unused;
-    PlayResult res = DoPlaySave(plr, lev, &unused, md5);
+    PlayResult res = DoPlaySave(plr, &unused, md5);
     return res;
   }
 
   ~Play_() override {}
-
+  Play_(const Level *l) : lev{l->Clone()} {
+    dr.lev = lev.get();
+  }
+  
   /* debugging */
   int layer;
   bool showdests;
   bool showdestsshuffle;
   bool showbotnums;
 
+  // Representation invariant: dr.lev == lev.get()
   Drawing dr;
+  std::unique_ptr<Level> lev;
+  
   /* current solution.
      Its lifetime is within a call to DoPlaySave.
      Don't call redraw when not inside a call to DoPlaySave! */
@@ -79,27 +85,24 @@ struct Play_ : public Play {
      redo. */
   int solpos = 0;
 
-  static Play_ *Create();
+  static Play_ *Create(const Level *l);
   void redraw();
 
   void videoresize(SDL_ResizeEvent *eventp);
 
   /* hand closure-converted, ugh */
   bool Redo();
-  void Undo(const Level *start, Extent<Level> &ec, int nmoves);
-  void Restart(const Level *start, Extent<Level> &ec);
+  void Undo(const Level *start, int nmoves);
+  void Restart(const Level *start);
   void Checkpoint(Solution *saved_sol);
-  void Restore(Extent<Level> &ec,
-               Level *start,
+  void Restore(const Level *start,
                const Solution *saved_sol);
   // sol is a pointer to the current solution; the bookmarks menu may
   // replace it.
-  void Bookmarks(Level *start,
-                 Extent<Level> &ec,
+  void Bookmarks(const Level *start,
                  Player *plr, string md5,
                  Solution *sol);
-  void bookmark_download(Player *plr, string lmd5, Level *lev);
-
+  void BookmarkDownload(Player *plr, const string &lmd5);
 
   void drawmenu();
 
@@ -113,10 +116,16 @@ struct Play_ : public Play {
   static void SetSolsFromBookmarkItems(Player *plr, const string &md5,
                                        BookmarkItem **books,
                                        int n);
+  /* makes move d (returning true if successful and false if not),
+     animating the action.
+
+     assumes a non-invalidated recent "draw()",
+     caller should draw() after, too. */
+  bool AnimateMove(Disamb *ctx, Dirt *dirty, dir d);
 };
 
-Play_ *Play_::Create() {
-  Play_ *pr = new Play_();
+Play_ *Play_::Create(const Level *l) {
+  Play_ *pr = new Play_(l);
   pr->watching = false;
   pr->layer = 0;
   pr->showdests = false;
@@ -173,8 +182,8 @@ struct BookmarkItem : public MenuItem {
   /* XX should base on size of level, number of bookmarks
      (base what? the size of the display? - tom) */
 
-  /* with solution executed */
-  Level *lev = nullptr;
+  /* with solution executed. owned */
+  std::unique_ptr<Level> lev;
 
   /* unsolved level, for communication with server */
   string levmd5;
@@ -187,15 +196,14 @@ struct BookmarkItem : public MenuItem {
 
   Drawable *below = nullptr;
 
-  /* XXX */
-  virtual string helptext() {
+  string helptext() override {
     return "Press " BLUE "enter" POP " to load this bookmark.";
   }
 
   string bookmenu;
   string solmenu;
 
-  virtual void draw(int x, int y, int f) {
+  void draw(int x, int y, int f) override {
     Drawing dr;
     dr.posx = x;
     dr.posy = y + 2;
@@ -206,7 +214,7 @@ struct BookmarkItem : public MenuItem {
     dr.scrollx = 0;
     dr.scrolly = 0;
 
-    dr.lev = lev;
+    dr.lev = lev.get();
     dr.setscroll();
     dr.drawlev();
 
@@ -234,8 +242,7 @@ struct BookmarkItem : public MenuItem {
     // + (string)(solved?" " GREEN "(solved)":""));
   }
 
-  virtual void size(int &w, int &h) {
-
+  void size(int &w, int &h) override {
     /* XXX also author, date.. */
     w = THUMBW + 8 +
       std::max(fon->sizex(ns.name), fonsmall->sizex(solmenu));
@@ -248,7 +255,7 @@ struct BookmarkItem : public MenuItem {
 
   }
 
-  virtual InputResult key(SDL_Event e) {
+  InputResult key(SDL_Event e) override {
 
     switch (e.key.keysym.sym) {
     case SDLK_RETURN:
@@ -326,7 +333,7 @@ struct BookmarkItem : public MenuItem {
     }
   }
 
-  virtual InputResult click(int, int) {
+  InputResult click(int, int) override {
     SDL_Event e;
     /* XXX is this enough to make it a legal key? */
     /* XXX should be a library call */
@@ -343,19 +350,17 @@ struct BookmarkItem : public MenuItem {
   } action;
 
   /* copies lev, solution */
-  BookmarkItem(Level *l, const NamedSolution *n, Player *p,
+  BookmarkItem(const Level *l, const NamedSolution *n, Player *p,
                string md, Drawable *b) {
-    bookmenu =
-                   "[" YELLOW "r" POP WHITE "ename" POP "]"
+    bookmenu =     "[" YELLOW "r" POP WHITE "ename" POP "]"
                    "[" YELLOW "d" POP WHITE "elete" POP "]"
                    "[" YELLOW "w" POP WHITE "atch"  POP "]";
 
-    solmenu =
-                   bookmenu +
+    solmenu =      bookmenu +
                    "[" YELLOW "u" POP WHITE "pload" POP "]"
                    "[" YELLOW "o" POP WHITE "ptimize" POP "]";
 
-    lev = l->clone();
+    lev = l->Clone();
     ns = *n;
     int unused = 0;
     lev->Play(ns.sol, unused);
@@ -364,10 +369,6 @@ struct BookmarkItem : public MenuItem {
     plr = p;
     levmd5 = md;
     below = b;
-  }
-
-  void destroy() {
-    lev->destroy();
   }
 };
 
@@ -446,8 +447,8 @@ void Play_::draw() {
   if (showbotnums) dr.drawbotnums();
 
   fon->drawto(screen, 4, TILEH + 6,
-              dr.lev->title + (string)" " GREY "by " POP BLUE +
-              dr.lev->author + POP);
+              lev->title + (string)" " GREY "by " POP BLUE +
+              lev->author + POP);
 
   switch (CurState()) {
   case PlayState::OKAY: break;
@@ -473,9 +474,9 @@ void Play_::draw() {
 PlayState Play_::CurState() {
   int unused;
   dir unusedd;
-  if (solpos != 0 && dr.lev->isdead(unused, unused, unusedd))
+  if (solpos != 0 && lev->isdead(unused, unused, unusedd))
     return PlayState::DEAD;
-  else if (solpos != 0 && dr.lev->iswon())
+  else if (solpos != 0 && lev->iswon())
     return PlayState::WON;
   else return PlayState::OKAY;
 }
@@ -504,7 +505,7 @@ bool Play_::Redo() {
   watching = false;
   if (CurState() == PlayState::OKAY &&
       solpos < sol.Length()) {
-    if (dr.lev->Move(sol.At(solpos))) {
+    if (lev->Move(sol.At(solpos))) {
       solpos++;
       return true;
     } else {
@@ -518,28 +519,26 @@ bool Play_::Redo() {
 /* oh how I yearn for nested functions
    well now you have them! So what? -2016
  */
-void Play_::Undo(const Level *start, Extent<Level> &ec, int nm) {
+void Play_::Undo(const Level *start, int nm) {
   if (solpos > 0) {
-    dr.lev->destroy();
-    dr.lev = start->clone();
-    ec.replace(dr.lev);
+    lev = start->Clone();
+    dr.lev = lev.get();
 
     /* move position backwards */
     solpos -= nm;
     if (solpos < 0) solpos = 0;
 
     int moves;
-    dr.lev->PlayPrefix(sol, moves, 0, solpos);
+    lev->PlayPrefix(sol, moves, 0, solpos);
     watching = false;
     redraw();
   }
 }
 
-void Play_::Restart(const Level *start, Extent<Level> &ec) {
-  dr.lev->destroy();
+void Play_::Restart(const Level *start) {
   solpos = 0;
-  dr.lev = start->clone();
-  ec.replace(dr.lev);
+  lev = start->Clone();
+  dr.lev = lev.get();
   watching = false;
   redraw();
 }
@@ -560,17 +559,16 @@ void Play_::SetSolsFromBookmarkItems(Player *plr, const string &md5,
   plr->writefile();
 }
 
-void Play_::Bookmarks(Level *start,
-                      Extent<Level> &ec,
+void Play_::Bookmarks(const Level *start,
                       Player *plr, string md5,
                       Solution *sol) {
-  enum okaywhat_t { OKAYWHAT_HUH, OKAYWHAT_NEW=10, OKAYWHAT_DOWNLOAD, };
+  enum okaywhat_t { OKAYWHAT_HUH, OKAYWHAT_NEW = 10, OKAYWHAT_DOWNLOAD, };
 
   bool show_menu_again;
   do {
     okaywhat_t okay_what = OKAYWHAT_HUH;
     show_menu_again = false;
-    if (md5 == "") {
+    if (md5.empty()) {
       Message::Bug(this,
                    "Bookmarks aren't available because \n"
                    "I can't figure out what level this is!");
@@ -736,9 +734,8 @@ void Play_::Bookmarks(Level *start,
         case BMA_SELECT: {
           /* restore the bookmark */
 
-          dr.lev->destroy();
-          dr.lev = start->clone();
-          ec.replace(dr.lev);
+	  lev = start->Clone();
+          dr.lev = lev.get();
 
           *sol = books[i]->ns.sol;
 
@@ -750,7 +747,7 @@ void Play_::Bookmarks(Level *start,
             solpos = sol->Length();
             watching = false;
             int moves;
-            dr.lev->Play(*sol, moves);
+            lev->Play(*sol, moves);
           }
 
           goto found_action;
@@ -785,7 +782,7 @@ void Play_::Bookmarks(Level *start,
       }
 
       case OKAYWHAT_DOWNLOAD: {
-        bookmark_download(plr, md5, start);
+        BookmarkDownload(plr, md5);
         show_menu_again = true;
         break;
       }
@@ -808,7 +805,7 @@ void Play_::Bookmarks(Level *start,
 
     /* now erase the bookmark menuitems */
     for (int i = 0; i < bmnum; i++) {
-      books[i]->destroy();
+      delete books[i];
     }
     free(books);
 
@@ -817,7 +814,7 @@ void Play_::Bookmarks(Level *start,
 }
 
 /* XXX this should be documented in protocol.txt */
-void Play_::bookmark_download(Player *plr, string lmd5, Level *lev) {
+void Play_::BookmarkDownload(Player *plr, const string &lmd5) {
   string s;
   Client::quick_txdraw td;
 
@@ -888,13 +885,11 @@ void Play_::Checkpoint(Solution *saved_sol) {
   watching = false;
 }
 
-void Play_::Restore(Extent<Level> &ec,
-                    Level *start,
+void Play_::Restore(const Level *start,
                     const Solution *saved_sol) {
   if (saved_sol->Length() > 0) {
-    dr.lev->destroy();
-    dr.lev = start->clone();
-    ec.replace(dr.lev);
+    lev = start->Clone();
+    dr.lev = lev.get();
 
     sol = *saved_sol;
     solpos = sol.Length();
@@ -906,7 +901,7 @@ void Play_::Restore(Extent<Level> &ec,
        solution persists)
     */
     int moves;
-    dr.lev->Play(sol, moves);
+    lev->Play(sol, moves);
     sol.Truncate(moves);
     watching = false;
     redraw();
@@ -954,13 +949,12 @@ bool Play_::getevent(SDL_Event *e, bool &fake) {
   } else return false;
 }
 
-PlayResult Play_::DoPlaySave(Player *plr, Level *start,
+PlayResult Play_::DoPlaySave(Player *plr,
                              Solution *saved, const string &md5) {
-  /* we never modify 'start' */
-  dr.lev = start->clone();
-  Extent<Level> ec(dr.lev);
+  std::unique_ptr<Level> start = lev->Clone();
+  dr.lev = lev.get();
 
-  std::unique_ptr<Disamb> ctx{Disamb::Create(start)};
+  std::unique_ptr<Disamb> ctx{Disamb::Create(start.get())};
 
   sol.Clear();
   solpos = 0;
@@ -1012,13 +1006,13 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
             if (targ < NUM_PLAYMENUITEMS) {
               switch (play_menuitem[targ]) {
               case TU_BOOKMARKS:
-                Bookmarks(start, ec, plr, md5, &sol);
+                Bookmarks(start.get(), plr, md5, &sol);
                 break;
               case TU_RESTORESTATE:
-                Restore(ec, start, &saved_sol);
+                Restore(start.get(), &saved_sol);
                 break;
               case TU_UNDO:
-                Undo(start, ec, 1);
+                Undo(start.get(), 1);
                 break;
               case TU_REDO:
                 Redo();
@@ -1030,7 +1024,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
                 redraw();
                 break;
               case TU_FUNDO:
-                Undo(start, ec, 10);
+                Undo(start.get(), 10);
                 break;
               case TU_FREDO:
                 for (int i = 0; i < 10; i++) Redo();
@@ -1038,7 +1032,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
                 break;
 
               case TU_RESTART:
-                Restart(start, ec);
+                Restart(start.get());
                 break;
               case TU_SAVESTATE:
                 Checkpoint(&saved_sol);
@@ -1072,7 +1066,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
           break;
 
         case SDLK_t:
-          Restart(start, ec);
+          Restart(start.get());
           break;
 
         case SDLK_RETURN:
@@ -1080,7 +1074,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
           switch (CurState()) {
           case PlayState::DEAD: /* fallthrough */
           case PlayState::OKAY:
-            Restart(start, ec);
+            Restart(start.get());
             break;
           case PlayState::WON:
             return Won();
@@ -1113,7 +1107,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
 
         case SDLK_b:
           watching = false;
-          Bookmarks(start, ec, plr, md5, &sol);
+          Bookmarks(start.get(), plr, md5, &sol);
           break;
 
         case SDLK_c:
@@ -1122,7 +1116,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
           break;
 
         case SDLK_r:
-          Restore(ec, start, &saved_sol);
+          Restore(start.get(), &saved_sol);
           break;
 
         case SDLK_d:
@@ -1136,7 +1130,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
           break;
 
         case SDLK_u: {
-          Undo(start, ec, 1);
+          Undo(start.get(), 1);
           break;
         }
 
@@ -1183,7 +1177,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
 
         case SDLK_u:
           if (event.key.keysym.mod & KMOD_CTRL) {
-            Undo(start, ec, 10);
+            Undo(start.get(), 10);
             redraw();
           }
           break;
@@ -1229,7 +1223,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
             printf("Trying to complete..\n");
             sol.Truncate(solpos);
             Solution ss;
-            if (Optimize::TryComplete(start, sol,
+            if (Optimize::TryComplete(start.get(), sol,
                                       plr->SolutionSet(md5), &ss)) {
               Message::Quick(this, "Completed from bookmarks: " GREEN
                              + itos(ss.Length()) + POP " moves",
@@ -1238,11 +1232,10 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
               /* put us at end of solution */
               solpos = ss.Length();
 
-              dr.lev->destroy();
-              dr.lev = start->clone();
-              ec.replace(dr.lev);
+	      lev = start->Clone();
+	      dr.lev = lev.get();
               int moves;
-              dr.lev->Play(sol, moves);
+              lev->Play(sol, moves);
 
             } else {
               Message::No(this, "Couldn't complete from bookmarks.");
@@ -1258,7 +1251,7 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
         }
 
         case SDLK_HOME: {
-          Restart(start, ec);
+          Restart(start.get());
           break;
         }
 
@@ -1299,9 +1292,9 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
           bool moved;
 
           if (do_animate && !dr.zoomfactor) {
-            moved = AnimateMove(dr, ctx.get(), dirty.get(), d);
+            moved = AnimateMove(ctx.get(), dirty.get(), d);
           } else {
-            moved = dr.lev->Move(d);
+            moved = lev->Move(d);
           }
 
           /* now end turn */
@@ -1357,142 +1350,13 @@ PlayResult Play_::DoPlaySave(Player *plr, Level *start,
   return PlayResult::Quit();
 }
 
-}  // namespace
-
-void Play::playrecord(string res, Player *plr, bool allowrate) {
-  /* only prompt to rate if this is in a
-     web collection */
-  const bool iscollection = [&]{
-    string idx = util::pathof(res) + (string)DIRSEP WEBINDEXNAME;
-    std::unique_ptr<DirIndex> di{DirIndex::FromFile(idx)};
-    return di.get() != nullptr && di->webcollection();
-  }();
-
-  string ss = readfile(res);
-
-  string md5 = MD5::Hash(ss);
-
-  /* load canceled */
-  if (ss == "") return;
-
-  Level *lev = Level::fromstring(ss);
-
-  // TODO2016: This whole part could use some work; I simplified
-  // it when making Solutions values, but there are some awkward
-  // vestiges still. Should happen after fixing ~Level() though.
-  if (lev != nullptr) {
-    std::unique_ptr<Play> pla{Play::Create()};
-
-    PlayResult res = pla->DoPlay(plr, lev, md5);
-
-    if (res.type == PlayResultType::ERROR ||
-        res.type == PlayResultType::EXIT) {
-      lev->destroy();
-      /* XXX should return something different */
-      return;
-
-    } else if (res.type == PlayResultType::QUIT) {
-      /* back to level selection */
-      lev->destroy();
-      return;
-
-    } else if (res.type == PlayResultType::SOLVED) {
-      /* write solution, using the MD5 from the file on
-         disk--there's no guarantee that md5(lev.ToString())
-         will be the same. */
-
-      Solution sol = res.sol;
-
-      /* remove any non-verfying solution first. we don't want to
-         erase non-verfying solutions eagerly, since that could cause
-         data lossage in the case that a new bugvision of the game
-         causes old good solutions to fail. But if we have something
-         to replace it with, and the player actively input that new
-         solution, then go for it... */
-
-      // Is this our first solution (not including bookmarks)?
-      bool firstsol = true;
-      {
-        const vector<NamedSolution> &oldsols = plr->SolutionSet(md5);
-        vector<NamedSolution> keepsols;
-        keepsols.reserve(oldsols.size());
-
-        /* now filter just the ones that verify */
-        for (const NamedSolution &ns : oldsols) {
-          if (Level *check = Level::fromstring(ss)) {
-            /* keep bookmarks too, since they basically never verify */
-            if (ns.bookmark || Level::Verify(check, ns.sol)) {
-              /* already solved it. */
-              if (!ns.bookmark) firstsol = false;
-              keepsols.push_back(ns);
-            }
-            check->destroy();
-          }
-        }
-
-        plr->SetSolutionSet(md5, keepsols);
-      }
-
-      // Initialize opt, the solution we'll actually store.
-      Solution opt;
-      if (Prefs::getbool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
-        if (Level *check = Level::fromstring(ss)) {
-          opt = Optimize::Opt(check, sol);
-          check->destroy();
-        } else {
-          opt = sol;
-        }
-      } else {
-        opt = sol;
-      }
-
-      {
-        NamedSolution ns(opt, "Untitled", plr->name, time(0), false);
-
-        plr->AddSolution(md5, std::move(ns), true);
-        plr->writefile();
-      }
-
-      if (allowrate &&
-          plr->webid &&
-          firstsol &&
-          iscollection &&
-          !plr->getrating(md5) &&
-          Prefs::getbool(plr, PREF_ASKRATE)) {
-
-        std::unique_ptr<RateScreen> rs{RateScreen::Create(plr, lev, md5)};
-        if (rs.get() != nullptr) {
-          rs->setmessage(YELLOW
-                         "Please rate this level." POP
-                         GREY " (You can turn off this "
-                         "automatic prompt from the preferences menu.)" POP);
-
-          rs->rate();
-        } else {
-          Message::Bug(0, "Couldn't create rate object!");
-        }
-
-      }
-      lev->destroy();
-
-      /* load again ... */
-      return;
-    } else {
-      printf("????\n");
-      return ;
-    }
-
-  } else return;
-}
-
-bool Play::AnimateMove(Drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
+bool Play_::AnimateMove(Disamb *ctx, Dirt *dirty, dir d) {
   /* events waiting to be turned into animations */
   elist *events = nullptr;
   /* current phase of animation */
   alist *anims = nullptr;
   /* current sprites (drawn on top of everything) */
   alist *sprites = nullptr;
-
 
   /* clear sprites from screen.
      sprites are always drawn on top of
@@ -1505,7 +1369,7 @@ bool Play::AnimateMove(Drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
 
   Animation::clearsprites(dr);
 
-  bool success = dr.lev->MoveAnimate(d, ctx, events);
+  bool success = lev->MoveAnimate(d, ctx, events);
 
   /* loop playing animations. */
   while (sprites || anims || events) {
@@ -1645,9 +1509,134 @@ bool Play::AnimateMove(Drawing &dr, Disamb *ctx, Dirt *dirty, dir d) {
   return success;
 }
 
+}  // namespace
+
+void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
+  /* only prompt to rate if this is in a
+     web collection */
+  const bool iscollection = [&]{
+    string idx = util::pathof(filename) + (string)DIRSEP WEBINDEXNAME;
+    std::unique_ptr<DirIndex> di{DirIndex::FromFile(idx)};
+    return di.get() != nullptr && di->webcollection();
+  }();
+
+  const string ss = readfile(filename);
+  /* load canceled */
+  if (ss.empty()) return;
+  
+  const string md5 = MD5::Hash(ss);
+
+  std::unique_ptr<Level> level = Level::FromString(ss);
+
+  // TODO2016: This whole part could use some work; I simplified
+  // it when making Solutions values, but there are some awkward
+  // vestiges still. Should happen after fixing ~Level() though.
+  if (level.get() != nullptr) {
+    std::unique_ptr<Play> pla{Play::Create(level.get())};
+
+    PlayResult res = pla->DoPlay(plr, md5);
+
+    if (res.type == PlayResultType::ERROR ||
+        res.type == PlayResultType::EXIT) {
+
+      /* XXX should return something different */
+      return;
+
+    } else if (res.type == PlayResultType::QUIT) {
+      /* back to level selection */
+      return;
+
+    } else if (res.type == PlayResultType::SOLVED) {
+      /* write solution, using the MD5 from the file on
+         disk--there's no guarantee that md5(level.ToString())
+         will be the same. */
+
+      Solution sol = res.sol;
+
+      /* remove any non-verfying solution first. we don't want to
+         erase non-verfying solutions eagerly, since that could cause
+         data lossage in the case that a new bugvision of the game
+         causes old good solutions to fail. But if we have something
+         to replace it with, and the player actively input that new
+         solution, then go for it... */
+
+      // Is this our first solution (not including bookmarks)?
+      bool firstsol = true;
+      {
+        const vector<NamedSolution> &oldsols = plr->SolutionSet(md5);
+        vector<NamedSolution> keepsols;
+        keepsols.reserve(oldsols.size());
+
+        /* now filter just the ones that verify */
+        for (const NamedSolution &ns : oldsols) {
+	  std::unique_ptr<Level> check = Level::FromString(ss);
+	  if (check.get() != nullptr) {
+            /* keep bookmarks too, since they basically never verify */
+            if (ns.bookmark || Level::Verify(check.get(), ns.sol)) {
+              /* already solved it. */
+              if (!ns.bookmark) firstsol = false;
+              keepsols.push_back(ns);
+            }
+          }
+        }
+
+        plr->SetSolutionSet(md5, keepsols);
+      }
+
+      // Initialize opt, the solution we'll actually store.
+      Solution opt;
+      if (Prefs::getbool(plr, PREF_OPTIMIZE_SOLUTIONS)) {
+	std::unique_ptr<Level> check = Level::FromString(ss);
+        if (check.get() != nullptr) {
+          opt = Optimize::Opt(check.get(), sol);
+        } else {
+          opt = sol;
+        }
+      } else {
+        opt = sol;
+      }
+
+      {
+        NamedSolution ns(opt, "Untitled", plr->name, time(0), false);
+
+        plr->AddSolution(md5, std::move(ns), true);
+        plr->writefile();
+      }
+
+      if (allowrate &&
+          plr->webid &&
+          firstsol &&
+          iscollection &&
+          !plr->getrating(md5) &&
+          Prefs::getbool(plr, PREF_ASKRATE)) {
+
+        std::unique_ptr<RateScreen> rs{
+	  RateScreen::Create(plr, level.get(), md5)};
+        if (rs.get() != nullptr) {
+          rs->setmessage(YELLOW
+                         "Please rate this level." POP
+                         GREY " (You can turn off this "
+                         "automatic prompt from the preferences menu.)" POP);
+
+          rs->rate();
+        } else {
+          Message::Bug(0, "Couldn't create rate object!");
+        }
+
+      }
+
+      /* load again ... */
+      return;
+    } else {
+      printf("????\n");
+      return;
+    }
+  } else return;
+}
+
 Play::~Play() {}
 
-Play *Play::Create() {
-  return Play_::Create();
+Play *Play::Create(const Level *l) {
+  return Play_::Create(l);
 }
 

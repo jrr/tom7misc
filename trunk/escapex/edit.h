@@ -37,11 +37,11 @@ struct Editor : public Drawable {
     SDL_Flip(screen);
   }
 
-  bot currentbomb;
+  bot currentbomb = B_BOMB_0;
 
-  int changed;
+  int changed = 0;
 
-  Player *plr;
+  Player *plr = nullptr;
 
   // We persist the solution across playing sessions while editing.
   Solution saved;
@@ -104,26 +104,26 @@ struct Editor : public Drawable {
 
   bool getdest(int &x, int &y, string msg);
 
-  bool showdests;
+  bool showdests = false;
 
-  int tmenuscroll;
+  int tmenuscroll = 0;
   /* 0 = real, 1 = bizarro */
-  int layer;
+  int layer = 0;
 
-  int olddest;
+  int olddest = 0;
 
-  int mousex, mousey;
+  int mousex = 0, mousey = 0;
 
-  int current;
+  int current = 0;
 
   string filename;
 
   Drawing dr;
 
-  int randtype;
+  int randtype = 0;
   /* if this is set, then dragging should
      not drop tiles */
-  bool donotdraw;
+  bool donotdraw = false;
 
   /* if w=0 or h=0, then no selection */
   SDL_Rect selection;
