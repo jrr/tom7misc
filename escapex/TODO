@@ -6,7 +6,7 @@ Make this work again on OSX 10.10+ and windows!
  - Add mixer framework in for next release
  - byte order when manually making graphics, like mainshow?
      - any more of these?
-     
+
 Use specific-width integer types instead of 'unsigned'.
 
 Use font from cc-lib.
@@ -36,6 +36,9 @@ code cleanup
 - When using the virtual implementation idiom, the "real" class
    can be defined in an anonymous namespace.
  - pref to not delete incomplete solutions when solving a level?
+
+in play.cc, make a function that replaces the level (And the level in the
+drawing) with something, like the Start lev.
 
 merge util with cc-lib's.
 

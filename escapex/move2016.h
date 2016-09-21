@@ -579,7 +579,7 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
   /* remove gold block */
   AFFECT2016(goldx, goldy);
   const int replacement = (flagat(goldx, goldy) & TF_HASPANEL) ?
-    realpanel(flagat(goldx, goldy)) :
+    RealPanel(flagat(goldx, goldy)) :
     T_FLOOR;
 
   settile(goldx, goldy, replacement);
@@ -619,7 +619,7 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
     const bool doswap = ([&]{
       /* untrigger from source */
       if (flagat(newx, newy) & TF_HASPANEL) {
-        const int pan = realpanel(flagat(newx,newy));
+        const int pan = RealPanel(flagat(newx,newy));
         /* any */
         /* XXX2016? use Level::triggers here */
         if (pan == T_PANEL ||
@@ -1375,7 +1375,7 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
       do {
         travel(xx, yy, revd, xx, yy);
         int replacement = (flagat(xx, yy) & TF_HASPANEL) ?
-          realpanel(flagat(xx,yy)) : T_FLOOR;
+          RealPanel(flagat(xx,yy)) : T_FLOOR;
         int what = tileat(xx, yy);
         PUSHED2016(d, what, xx, yy, replacement, zappy, false);
 
@@ -1400,7 +1400,7 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
   /* and one more, for the tile that we're stepping onto */
   {
     const int replacement = (flagat(newx, newy) & TF_HASPANEL) ?
-      realpanel(flagat(newx,newy)) : T_FLOOR;
+      RealPanel(flagat(newx,newy)) : T_FLOOR;
     settile(newx, newy, replacement);
   }
 
@@ -1438,12 +1438,12 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
       /* triggerstatus for this location (lookx, looky) */
       const bool triggerstatus_now =
         (flagat(lookx, looky) & TF_HASPANEL) &&
-        triggers(heret, realpanel(flagat(lookx, looky)));
+        triggers(heret, RealPanel(flagat(lookx, looky)));
 
       const bool triggerstatus_old =
         (flagat(lookx, looky) & TF_HASPANEL) &&
         issteel(prevt) &&
-        triggers(prevt, realpanel(flagat(lookx, looky)));
+        triggers(prevt, RealPanel(flagat(lookx, looky)));
 
       if (triggerstatus_now != triggerstatus_old) {
         setflag(lookx, looky, flagat(lookx, looky) | TF_TEMP);
@@ -1466,7 +1466,7 @@ bool Level::MoveEntSteel(int target, dir d, int enti, Capabilities cap,
       const bool trig_now = first == T_PANEL;
       const bool trig_old =
         ispanel(first) &&
-        triggers(prevt, realpanel(flagat(newx, newy)));
+        triggers(prevt, RealPanel(flagat(newx, newy)));
 
       if (trig_old != trig_now) {
         swapnew = true;
@@ -1557,7 +1557,7 @@ bool Level::MoveEntPushable(int target, dir d, int enti, Capabilities cap,
      don't change because neither the man nor the block can activate
      it.) But we do need to put a panel there instead of floor. */
   const int replacement = (flagat(newx, newy) & TF_HASPANEL)?
-    realpanel(flagat(newx,newy)) : T_FLOOR;
+    RealPanel(flagat(newx,newy)) : T_FLOOR;
 
   bool doswap = false;
   bool zap = false;

@@ -39,22 +39,18 @@ struct PlayResult {
 };
 
 struct Play : public Drawable {
-  static Play *Create();
-  virtual PlayResult DoPlaySave(Player *p, Level *lev,
-                                Solution *saved, const string &md5) = 0;
-  virtual PlayResult DoPlay(Player *plr, Level *lev, const string &md5) = 0;
+  // Does not take ownership of level.
+  static Play *Create(const Level *l);
+
+  virtual PlayResult DoPlaySave(Player *p, Solution *saved,
+				const string &md5) = 0;
+  virtual PlayResult DoPlay(Player *plr, const string &md5) = 0;
   /* play, recording the game in the player's solution file */
-  static void playrecord(string file, Player *plr, bool allowrate = true);
+  static void PlayRecord(const string &file, Player *plr,
+			 bool allowrate = true);
   void draw() override = 0;
   void screenresize() override = 0;
   virtual ~Play();
-
-  /* makes move d (returning true if successful and false if not),
-     animating the action.
-
-     assumes a non-invalidated recent "draw()",
-     caller should draw() after, too. */
-  static bool AnimateMove(Drawing &dr, Disamb *ctx, Dirt *dirty, dir d);
 };
 
 #endif

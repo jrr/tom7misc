@@ -86,7 +86,7 @@ struct MainMenu_ : public MainMenu, public Drawable {
   std::unique_ptr<MainShow> mshow;
 
   void makebackground();
-  void compute_tutorial();
+  void ComputeTutorial();
   bool tutorial_left;
   string tutorial_text;
   string tutorial_nextlev;
@@ -96,8 +96,8 @@ struct MainMenu_ : public MainMenu, public Drawable {
     if (tutorial_left &&
         tutorial_nextlev != "") {
 
-      Play::playrecord(tutorial_nextlev, pp, false);
-      compute_tutorial();
+      Play::PlayRecord(tutorial_nextlev, pp, false);
+      ComputeTutorial();
 
     } else {
       Message::Quick(this, "Tutorial completed or unavailable!",
@@ -182,7 +182,7 @@ void mmentry::draw(int x, int y, bool sel) {
 }
 
 
-void MainMenu_::compute_tutorial() {
+void MainMenu_::ComputeTutorial() {
   // XXX use leveldb for this.
 
   std::unique_ptr<LoadLevel> ll{
@@ -238,7 +238,7 @@ void MainMenu_::draw() {
 
 #define FRAME_TICKS 500
 MainMenu::result MainMenu_::show() {
-  compute_tutorial();
+  ComputeTutorial();
 
   makebackground();
   redraw();
@@ -460,7 +460,7 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
     mm->sel->items[i++].t = MM_TUTORIAL;
 
     /* select tutorial if there's something left. */
-    mm->compute_tutorial();
+    mm->ComputeTutorial();
     if (mm->tutorial_left)
       mm->sel->selected = 0;
   }
