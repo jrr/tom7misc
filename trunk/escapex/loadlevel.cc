@@ -12,7 +12,6 @@
 
 #include "directories.h"
 
-#include "extent.h"
 #include "dircache.h"
 #include "util.h"
 #include "chars.h"

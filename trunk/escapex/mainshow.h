@@ -31,7 +31,7 @@ struct MainShow {
 
   virtual ~MainShow();
 
-  virtual int width() = 0;
+  virtual int width() const = 0;
 };
 
 #endif

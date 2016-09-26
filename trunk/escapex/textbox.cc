@@ -408,7 +408,7 @@ void TextBox::left_noflow(bool erasing) {
       continue;
     }
     if (!erasing) vallist<char>::push(after, k);
-    return ;
+    return;
   }
 }
 

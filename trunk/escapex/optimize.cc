@@ -3,10 +3,10 @@
 #include "optimize.h"
 #include "message.h"
 #include "hashtable.h"
-#include "extent.h"
 #include "solution.h"
 #include "player.h"
 #include "level.h"
+#include "extent.h"
 
 /* hash table entry. corresponds to a level state
    and the earliest position (in the solution) at
@@ -55,7 +55,7 @@ inline void PERMUTE3(Uint64 & h) {
 }
 
 
-static Uint64 hashlevel(Level *l) {
+static Uint64 hashlevel(const Level *l) {
   /* ignore title, author, w/h, dests, flags,
      since these don't change.
      also ignore botd and guyd, which are presentational. */
@@ -90,7 +90,7 @@ static Uint64 hashlevel(Level *l) {
 }
 
 namespace {
-struct lstate {
+struct LState {
   /* index (in cf) before which we are in this
      state */
   int pos;
@@ -98,7 +98,7 @@ struct lstate {
   /* if 0, the entry has been invalidated */
   Uint64 thiskey;
 
-  Uint64 key() {
+  Uint64 key() const {
     return thiskey;
   }
 
@@ -107,7 +107,7 @@ struct lstate {
     return (unsigned int)(i & 0xFFFFFFFFl);
   }
 
-  lstate(int p, Level *ll, bool initial = false) : pos(p) {
+  LState(int p, const Level *ll, bool initial = false) : pos(p) {
     thiskey = hashlevel(ll);
     /* need to treat this case specially, or else
        the Level "impossible" (and ones like it) get
@@ -125,16 +125,15 @@ struct lstate {
 };
 }
 
-static void inval_above(lstate *ls, int cutoff) {
+static void inval_above(LState *ls, int cutoff) {
   if (ls->pos > cutoff) ls->thiskey = 0l;
 }
 
 // static
 Solution Optimize::Opt(const Level *orig, const Solution &s) {
-  Level *l = orig->clone();
-  Extent<Level> el(l);
+  std::unique_ptr<Level> l = orig->Clone();
 
-  if (!Level::Verify(l, s)) {
+  if (!Level::Verify(l.get(), s)) {
     Message::Bug(0, "optimizer: solution is not valid to start!");
     return s;
   }
@@ -155,12 +154,13 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
   /* "cycle-free" solution */
   Solution cf;
 
+  // XXX2016 in for?
   Solution::iter i(s);
-  hashtable<lstate, Uint64> *ht = hashtable<lstate, Uint64>::create(1023);
-  Extent<hashtable<lstate, Uint64>> eh(ht);
+  hashtable<LState, Uint64> *ht = hashtable<LState, Uint64>::create(1023);
+  Extent<hashtable<LState, Uint64>> eh(ht);
 
   /* insert initial state */
-  ht->insert(new lstate(0, l, true));
+  ht->insert(new LState(0, l.get(), true));
 
   for (; i.hasnext(); i.next()) {
     dir d = i.item();
@@ -179,9 +179,9 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
 
       /* now check if we've already been here. */
 
-      lstate *ls = new lstate(n, l);
+      LState *ls = new LState(n, l.get());
 
-      lstate *existing = ht->lookup(ls->key());
+      LState *existing = ht->lookup(ls->key());
 
       if (existing) {
         // printf("   found! at %d\n", existing->pos);
@@ -200,7 +200,7 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
            wrong bin, now, but we aren't going to try to find
            it!) */
 
-        hashtable_app<lstate, Uint64, int>(ht, inval_above, cf.Length());
+        hashtable_app<LState, Uint64, int>(ht, inval_above, cf.Length());
 
         /* don't need this any more */
         delete ls;
@@ -234,11 +234,10 @@ bool Optimize::TryComplete(Level *start, const Solution &prefix,
                            Solution *sol) {
   /* do breadth first search by suffix length. */
 
-  Level *wprefix = start->clone();
+  std::unique_ptr<Level> wprefix = start->Clone();
   int moves_unused;
   /* Assume this works.. */
   wprefix->Play(prefix, moves_unused);
-  Extent<Level> ewp(wprefix);
 
   /* find the longest solution. */
   int max_slen = 0;
@@ -252,8 +251,7 @@ bool Optimize::TryComplete(Level *start, const Solution &prefix,
     for (const NamedSolution &ns : sources) {
       if (ns.sol.Length() >= slen) {
         /* do it! */
-        Level *trysuf = wprefix->clone();
-        Extent<Level> ets(trysuf);
+	std::unique_ptr<Level> trysuf = wprefix->Clone();
 
         const Solution &trysol = ns.sol;
 

@@ -1,7 +1,6 @@
 
 #include "analysis.h"
 #include "../cc-lib/union-find.h"
-#include "extent.h"
 
 #include <memory>
 
@@ -42,8 +41,7 @@ std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
     for (int x = 0; x < lev->w; x++) {
 
       if (isempty(lev->tileat(x, y))) {
-        Level *cl = lev->clone();
-        Extent<Level> el(cl);
+	std::unique_ptr<Level> cl = lev->Clone();
 
         cl->warp(cl->guyx, cl->guyy, x, y);
 
@@ -52,9 +50,7 @@ std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
         if (cl->isdead(dummy, dummy, unused)) continue;
 
         for (dir d = FIRST_DIR; d <= LAST_DIR; d++) {
-          Level *cc = cl->clone();
-          Extent<Level> ec(cc);
-
+	  std::unique_ptr<Level> cc = cl->Clone();
 
           /* we can't be walking off the map! */
           int destx, desty;
@@ -65,8 +61,7 @@ std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
           if (isempty(lev->tileat(destx, desty)) &&
               cc->Move(d) && !cc->isdead(dummy, dummy, unused)) {
             /* good. now just check the opposite... */
-            Level *co = cl->clone();
-            Extent<Level> eec(co);
+	    std::unique_ptr<Level> co = cl->Clone();
 
             co->warp(cl->guyx, cl->guyy, destx, desty);
 
@@ -129,12 +124,11 @@ static bool separator(Level *lev, int x, int y,
   /* original equivalence class that we're in. */
   int oclass = orig->Find(lev->index(x1, y1));
 
-  Level *nlev = lev->clone();
-  Extent<Level> le(nlev);
+  std::unique_ptr<Level> nlev = lev->Clone();
 
   nlev->settile(x, y, tile);
 
-  std::unique_ptr<UnionFind> fresh = Analysis::Reachable(nlev);
+  std::unique_ptr<UnionFind> fresh = Analysis::Reachable(nlev.get());
 
 # if 0
   {

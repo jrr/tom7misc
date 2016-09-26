@@ -8,7 +8,6 @@
 #include "directories.h"
 #include "../cc-lib/md5.h"
 #include "SDL.h"
-#include "extent.h"
 #include "player.h"
 #include "message.h"
 #include "progress.h" // XXX
@@ -18,14 +17,14 @@
 #include <string>
 
 /* levels loaded from disk and waiting to be added to the database */
-struct levelwait {
+struct LevelWait {
   Level *l;
   /* Just a regular filename, but we should support collection files
      eventually. */
   string filename;
   string md5;
-  levelwait(Level *le, string fn, string m) : l(le), filename(fn), md5(m) {}
-  levelwait() : l(0) {}
+  LevelWait(Level *le, string fn, string m) : l(le), filename(fn), md5(m) {}
+  LevelWait() : l(0) {}
 };
 
 /* Must be initialized before adding any sources. */
@@ -39,7 +38,7 @@ static int filequeue_size = 0;
 
 /* loaded levels waiting to be added into the database
    (need to verify solutions), etc. */
-static PtrList<levelwait> *levelqueue = nullptr;
+static PtrList<LevelWait> *levelqueue = nullptr;
 static int levelqueue_size = 0;
 
 /* All levels that we've loaded, as a map from MD5 to the level
@@ -117,7 +116,7 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
       fprintf(stderr, "Do verify.\n");
       verifies_left--;
 
-      std::unique_ptr<levelwait> lw {PtrList<levelwait>::pop(levelqueue)};
+      std::unique_ptr<LevelWait> lw {PtrList<LevelWait>::pop(levelqueue)};
       levelqueue_size--;
 
       if (lw.get() == nullptr) abort();
@@ -169,10 +168,12 @@ void LevelDB::donate(int max_files, int max_verifies, int max_ticks) {
          support those. */
       if (util::hasmagic(s, LEVELMAGIC)) {
         string c = readfile(s);
-        if (Level *l = Level::fromstring(c, true)) {
-          string m = MD5::Hash(c);
+	std::unique_ptr<Level> l = Level::FromString(c, true);
+        if (l.get() != nullptr) {
+          const string m = MD5::Hash(c);
           /* put on the level queue now */
-          levelqueue = new PtrList<levelwait>(new levelwait(l, s, m), levelqueue);
+          levelqueue = new PtrList<LevelWait>(
+	      new LevelWait(l.get(), s, m), levelqueue);
           levelqueue_size++;
 
           fprintf(stderr, "Enqueued level from %s\n", s.c_str());

@@ -224,7 +224,7 @@ struct Level {
   int destat(int x, int y) const {
     return dests[y * w + x];
   }
-  
+
   void settile(int x, int y, int t) {
     tiles[y * w + x] = t;
   }
@@ -311,8 +311,8 @@ struct Level {
   static std::unique_ptr<Level> FromString(
       string s, bool allow_corrupted = false);
 
-  std::unique_ptr<Level> Blank(int w, int h);
-  std::unique_ptr<Level> DefBoard(int w, int h);
+  static std::unique_ptr<Level> Blank(int w, int h);
+  static std::unique_ptr<Level> DefBoard(int w, int h);
 
   /* correct a level (bad tiles, bad destinations, overlapping
      bots, etc.) for saving or loading. In-progress levels
@@ -402,7 +402,7 @@ struct Level {
  private:
 
   static tile RealPanel(int f);
-  
+
   void CheckStepOff(int x, int y);
   void ClearMap();
   void clearflag(int fl) {

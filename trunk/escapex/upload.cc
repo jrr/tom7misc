@@ -2,7 +2,6 @@
 #include "upload.h"
 #include "client.h"
 #include "http.h"
-#include "extent.h"
 #include "message.h"
 #include "draw.h"
 #include "../cc-lib/md5.h"
@@ -15,7 +14,7 @@ struct Upload_ : public Upload {
 
   UploadResult Up(Player *p, string file, string) override;
 
-  void redraw() {
+  void Redraw() {
     draw();
     SDL_Flip(screen);
   }
@@ -23,7 +22,7 @@ struct Upload_ : public Upload {
   void say(const string &s) {
     if (tx.get() != nullptr) {
       tx->say(s);
-      redraw();
+      Redraw();
     }
   }
 
@@ -49,29 +48,26 @@ Upload_ *Upload_::Create() {
 }
 
 UploadResult Upload_::Up(Player *p, string f, string text) {
-  redraw();
+  Redraw();
 
-  string levcont = util::readfilemagic(f, LEVELMAGIC);
+  const string levcont = util::readfilemagic(f, LEVELMAGIC);
 
   plr = p;
 
-  Level *lev = Level::fromstring(levcont);
-  if (!lev) return UploadResult::FAIL;
-
-  Extent<Level> el(lev);
+  std::unique_ptr<Level> lev = Level::FromString(levcont);
+  if (lev.get() == nullptr) return UploadResult::FAIL;
 
   string md5c = MD5::Hash(levcont);
 
-
   /* don't free soln */
   const Solution *slong = plr->GetSol(md5c);
-  if (slong == nullptr || !Level::Verify(lev, *slong))
+  if (slong == nullptr || !Level::Verify(lev.get(), *slong))
     return UploadResult::FAIL; /* no solution?? */
 
   say(GREEN "Level and solution ok." POP);
   say("Optimizing...");
 
-  Solution opt = Optimize::Opt(lev, *slong);
+  Solution opt = Optimize::Opt(lev.get(), *slong);
 
   say(YELLOW + itos(slong->Length()) + GREY " " LRARROW " " POP +
       itos(opt.Length()) + POP);
@@ -93,7 +89,7 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
   formalist::pushfile(fl, "lev", "lev.esx", levcont);
   formalist::pushfile(fl, "sol", "sol.esx", solcont);
 
-  redraw();
+  Redraw();
 
   string out;
   if (Client::rpcput(hh, UPLOAD_RPC, fl, out)) {

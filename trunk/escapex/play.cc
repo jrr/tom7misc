@@ -10,7 +10,6 @@
 #include "escapex.h"
 #include "play.h"
 
-#include "extent.h"
 #include "message.h"
 #include "chars.h"
 #include "util.h"
