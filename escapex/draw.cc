@@ -203,8 +203,8 @@ void Drawing::drawbot(bot b, dir d,
     }
     break;
     /* draw nothing */
-  case B_BOMB_X: return ;
-  case B_DELETED: return ;
+  case B_BOMB_X: return;
+  case B_DELETED: return;
   }
 
   SDL_Rect dst;

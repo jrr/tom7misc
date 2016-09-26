@@ -16,11 +16,12 @@ enum { RT_MAZE, RT_MAZE2, RT_CORRIDORS, RT_MAZEBUG1, RT_MAZEBUG2,
 struct Editor : public Drawable {
 
   /* takes ownership */
-  void setlevel(Level *l) {
-    dr.lev = l;
+  void SetLevel(std::unique_ptr<Level> l) {
+    level = std::move(l);
+    dr.lev = level.get();
   }
 
-  void edit(Level *origlev = 0);
+  void Edit(const Level *origlev = nullptr);
 
   /* Drawable */
   void draw() override;
@@ -32,7 +33,7 @@ struct Editor : public Drawable {
 
  private:
 
-  void redraw() {
+  void Redraw() {
     draw();
     SDL_Flip(screen);
   }
@@ -67,7 +68,7 @@ struct Editor : public Drawable {
   bool clearbot(int x, int y);
   bool moveplayersafe();
 
-  void fixup();
+  void FixUp();
   bool timer_try(int *, int *, int, int, int n, bool rev);
   void addbot(int x, int y, bot b);
 
@@ -86,18 +87,14 @@ struct Editor : public Drawable {
 
   void setlayer(int x, int y, int t) {
     if (layer) {
-      dr.lev->osettile(x, y, t);
+      level->osettile(x, y, t);
     } else {
-      dr.lev->settile(x, y, t);
+      level->settile(x, y, t);
     }
   }
 
-  int layerat(int x, int y) {
-    if (layer) {
-      return dr.lev->otileat(x, y);
-    } else {
-      return dr.lev->tileat(x, y);
-    }
+  int layerat(int x, int y) const {
+    return layer ? level->otileat(x, y) : level->tileat(x, y);
   }
 
   void blinktile(int, int, Uint32);
@@ -118,8 +115,11 @@ struct Editor : public Drawable {
 
   string filename;
 
+  // Representation invariant: dr.lev aliases
+  // level.get().
   Drawing dr;
-
+  std::unique_ptr<Level> level;
+  
   int randtype = 0;
   /* if this is set, then dragging should
      not drop tiles */

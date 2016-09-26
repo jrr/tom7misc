@@ -52,7 +52,7 @@ void Editor::dorandom() {
                         "Random will destroy your unsaved changes.",
                         "Do Random",
                         "Don't do Random")) {
-      redraw();
+      Redraw();
       return;
     }
   }
@@ -62,18 +62,18 @@ void Editor::dorandom() {
   case RT_MAZE:
   case RT_MAZE2: {
 
-    if (dr.lev->w < 3 ||
-        dr.lev->h < 3) {
+    if (level->w < 3 ||
+        level->h < 3) {
       dr.message = RED "Sorry" POP ", the level is too small to make a maze.";
-      redraw();
+      Redraw();
       return;
     }
 
     fullclear(T_BLUE);
 
     /* start with seed */
-    dr.lev->settile(1 + util::random() % (dr.lev->w - 2),
-                    1 + util::random() % (dr.lev->h - 2),
+    level->settile(1 + util::random() % (level->w - 2),
+                    1 + util::random() % (level->h - 2),
                     T_EXIT);
 
     /* look for this
@@ -92,8 +92,8 @@ void Editor::dorandom() {
 
       hadchange = 0;
 
-      int innerw = dr.lev->w - 2;
-      int innerh = dr.lev->h - 2;
+      int innerw = level->w - 2;
+      int innerh = level->h - 2;
 
       /* try to remove bias towards top left
          by starting in a random spot. */
@@ -106,7 +106,7 @@ void Editor::dorandom() {
           int y = 1 + ((iy + randy) % innerh);
           int x = 1 + ((ix + randx) % innerw);
 
-          if (dr.lev->tileat(x, y) != T_BLUE) {
+          if (level->tileat(x, y) != T_BLUE) {
             /* try all dirs, but start with a
                random one. */
 
@@ -118,30 +118,30 @@ void Editor::dorandom() {
               int nx, ny, /* temp */
                   bx, by; /* one beyond target */
 
-              if (dr.lev->travel(x, y, sd, tx, ty) &&
+              if (level->travel(x, y, sd, tx, ty) &&
                   /* must be blue, otherwise this won't be a change */
-                  dr.lev->tileat(tx, ty) == T_BLUE &&
+                  level->tileat(tx, ty) == T_BLUE &&
                   /* to its left must be blue. */
-                  dr.lev->travel(tx, ty, turnleft(sd), nx, ny) &&
-                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  level->travel(tx, ty, turnleft(sd), nx, ny) &&
+                  level->tileat(nx, ny) == T_BLUE &&
                   /* ... and right */
-                  dr.lev->travel(tx, ty, turnright(sd), nx, ny) &&
-                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  level->travel(tx, ty, turnright(sd), nx, ny) &&
+                  level->tileat(nx, ny) == T_BLUE &&
                   /* and beyond it ... */
-                  dr.lev->travel(tx, ty, sd, bx, by) &&
+                  level->travel(tx, ty, sd, bx, by) &&
                   /* must have blue to its left */
-                  dr.lev->travel(bx, by, turnleft(sd), nx, ny) &&
-                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  level->travel(bx, by, turnleft(sd), nx, ny) &&
+                  level->tileat(nx, ny) == T_BLUE &&
                   /* ... and right */
-                  dr.lev->travel(bx, by, turnright(sd), nx, ny) &&
-                  dr.lev->tileat(nx, ny) == T_BLUE &&
+                  level->travel(bx, by, turnright(sd), nx, ny) &&
+                  level->tileat(nx, ny) == T_BLUE &&
                   /* if maze, we can't be connecting with
                      another corridor. */
                   (randtype == RT_MAZE2 ||
-                   (dr.lev->tileat(bx, by) == T_BLUE))) {
+                   (level->tileat(bx, by) == T_BLUE))) {
 
                 hadchange = 1;
-                dr.lev->settile(tx, ty, T_FLOOR);
+                level->settile(tx, ty, T_FLOOR);
                 break; /* from try loop */
               }
 
@@ -176,8 +176,8 @@ void Editor::dorandom() {
 
       hadchange = 0;
 
-      for (int y = 0; y < (dr.lev->h - 1); y++) {
-        for (int x = 0; x < (dr.lev->w - 1); x++) {
+      for (int y = 0; y < level->h - 1; y++) {
+        for (int x = 0; x < level->w - 1; x++) {
 
           /* pick a number 0..3 */
           int which = util::random() & 3;
@@ -187,14 +187,14 @@ void Editor::dorandom() {
 
           /* consider setting xx,yy if no diagonal floors. */
 #             define TRY(xx, yy) \
-                if (dr.lev->tileat( xx,       yy     ) == T_BLUE && \
-                    dr.lev->tileat((xx) - 1, (yy) - 1) == T_BLUE && \
-                    dr.lev->tileat((xx) + 1, (yy) - 1) == T_BLUE && \
-                    dr.lev->tileat((xx) + 1, (yy) + 1) == T_BLUE && \
-                    dr.lev->tileat((xx) - 1, (yy) + 1) == T_BLUE) { \
+                if (level->tileat( xx,       yy     ) == T_BLUE && \
+                    level->tileat((xx) - 1, (yy) - 1) == T_BLUE && \
+                    level->tileat((xx) + 1, (yy) - 1) == T_BLUE && \
+                    level->tileat((xx) + 1, (yy) + 1) == T_BLUE && \
+                    level->tileat((xx) - 1, (yy) + 1) == T_BLUE) { \
                    if (which) which--; \
                    else { \
-                      dr.lev->settile(xx, yy, T_FLOOR); \
+                      level->settile(xx, yy, T_FLOOR); \
                       hadchange = 1; \
                       break; \
                    } \
@@ -207,17 +207,17 @@ void Editor::dorandom() {
           }
 
           if (x > 0 &&
-              y < (dr.lev->h - 2)) {
+              y < (level->h - 2)) {
             TRY(x, y + 1);
           }
 
-          if (x < (dr.lev->w - 2) &&
+          if (x < (level->w - 2) &&
               y > 0) {
             TRY(x + 1, y);
           }
 
-          if (x < (dr.lev->w - 2) &&
-              y < (dr.lev->h - 2)) {
+          if (x < (level->w - 2) &&
+              y < (level->h - 2)) {
             TRY(x + 1, y + 1);
           }
 #             undef TRY
@@ -257,13 +257,13 @@ void Editor::dorandom() {
 
       hadchange = 0;
 
-      for (int y = 0; y < (dr.lev->h - 1); y++) {
-        for (int x = 0; x < (dr.lev->w - 1); x++) {
+      for (int y = 0; y < level->h - 1; y++) {
+        for (int x = 0; x < level->w - 1; x++) {
           /* XXX: valgrind reports invalid read here */
-          if (dr.lev->tileat(x, y) == T_BLUE &&
-              dr.lev->tileat(x + 1, y) == T_BLUE &&
-              dr.lev->tileat(x + y, y + 1) == T_BLUE &&
-              dr.lev->tileat(x, y + 1) == T_BLUE) {
+          if (level->tileat(x, y) == T_BLUE &&
+              level->tileat(x + 1, y) == T_BLUE &&
+              level->tileat(x + y, y + 1) == T_BLUE &&
+              level->tileat(x, y + 1) == T_BLUE) {
 
             /* found 2x2 blue square. */
 
@@ -276,13 +276,13 @@ void Editor::dorandom() {
 
             /* consider setting xx,yy if no diagonal floors. */
 #             define TRY(xx, yy) \
-                if (dr.lev->tileat((xx) - 1, (yy) - 1) == T_BLUE && \
-                    dr.lev->tileat((xx) + 1, (yy) - 1) == T_BLUE && \
-                    dr.lev->tileat((xx) + 1, (yy) + 1) == T_BLUE && \
-                    dr.lev->tileat((xx) - 1, (yy) + 1) == T_BLUE) { \
+                if (level->tileat((xx) - 1, (yy) - 1) == T_BLUE && \
+                    level->tileat((xx) + 1, (yy) - 1) == T_BLUE && \
+                    level->tileat((xx) + 1, (yy) + 1) == T_BLUE && \
+                    level->tileat((xx) - 1, (yy) + 1) == T_BLUE) { \
                    if (which) which--; \
                    else { \
-                      dr.lev->settile(xx, yy, T_FLOOR); \
+                      level->settile(xx, yy, T_FLOOR); \
                       hadchange = 1; \
                       break; \
                    } \
@@ -295,17 +295,17 @@ void Editor::dorandom() {
             }
 
             if (x > 0 &&
-                y < (dr.lev->h - 2)) {
+                y < (level->h - 2)) {
               TRY(x, y + 1);
             }
 
-            if (x < (dr.lev->w - 2) &&
+            if (x < (level->w - 2) &&
                 y > 0) {
               TRY(x + 1, y);
             }
 
-            if (x < (dr.lev->w - 2) &&
-                y < (dr.lev->h - 2)) {
+            if (x < (level->w - 2) &&
+                y < (level->h - 2)) {
               TRY(x + 1, y + 1);
             }
 #             undef TRY
@@ -344,12 +344,12 @@ void Editor::dorandom() {
 
       hadchange = 0;
 
-      for (int y = 0; y < (dr.lev->h - 1); y++) {
-        for (int x = 0; x < (dr.lev->w - 1); x++) {
-          if (dr.lev->tileat(x, y) == T_BLUE &&
-              dr.lev->tileat(x + 1, y) == T_BLUE &&
-              dr.lev->tileat(x + y, y + 1) == T_BLUE &&
-              dr.lev->tileat(x, y + 1) == T_BLUE) {
+      for (int y = 0; y < (level->h - 1); y++) {
+        for (int x = 0; x < (level->w - 1); x++) {
+          if (level->tileat(x, y) == T_BLUE &&
+              level->tileat(x + 1, y) == T_BLUE &&
+              level->tileat(x + y, y + 1) == T_BLUE &&
+              level->tileat(x, y + 1) == T_BLUE) {
 
             /* found 2x2 blue square. */
 
@@ -366,11 +366,11 @@ void Editor::dorandom() {
 
               /* consider setting rx ry if xx xy checks out */
 #             define TRY(rx, ry, xx, yy) \
-                if (dr.lev->tileat(xx, yy) == T_BLUE) { \
+                if (level->tileat(xx, yy) == T_BLUE) { \
                    looking = 0; \
                    if (which) which--; \
                    else { \
-                      dr.lev->settile(rx, ry, T_FLOOR); \
+                      level->settile(rx, ry, T_FLOOR); \
                       hadchange = 1; \
                       break; \
                    } \
@@ -383,17 +383,17 @@ void Editor::dorandom() {
               }
 
               if (x > 0 &&
-                  y < (dr.lev->h - 2)) {
+                  y < (level->h - 2)) {
                 TRY(x, y + 1, x - 1, y + 2);
               }
 
-              if (x < (dr.lev->w - 2) &&
+              if (x < (level->w - 2) &&
                   y > 0) {
                 TRY(x + 1, y, x + 2, y - 1);
               }
 
-              if (x < (dr.lev->w - 2) &&
-                  y < (dr.lev->h - 2)) {
+              if (x < (level->w - 2) &&
+                  y < (level->h - 2)) {
                 TRY(x + 1, y + 1, x + 2, y + 2);
               }
 #             undef TRY
@@ -416,17 +416,17 @@ void Editor::dorandom() {
 
     while (nl--) {
       /* pick random x, y, */
-      int x = util::random() % dr.lev->w;
-      int y = util::random() % dr.lev->h;
+      int x = util::random() % level->w;
+      int y = util::random() % level->h;
 
       /* XXX depends on order of dir enum */
       int d = 1 + ( util::random() & 3 );
 
       /* draw until we hit something. */
-      dr.lev->settile(x, y, current);
-      while (dr.lev->travel(x, y, d, x, y)) {
-        if (dr.lev->tileat(x, y) != current)
-          dr.lev->settile(x, y, current);
+      level->settile(x, y, current);
+      while (level->travel(x, y, d, x, y)) {
+        if (level->tileat(x, y) != current)
+          level->settile(x, y, current);
         else break;
       }
     }
@@ -446,13 +446,13 @@ void Editor::dorandom() {
       pat_test->setpredicate('.', pred_any);
 
       Match::stream *ms_test =
-        pat_test->findall(dr.lev, 0);
+        pat_test->findall(level.get(), 0);
 
       Match *m;
       while ((m = ms_test->next())) {
         int x = 0, y = 0;
         m->getindex(0, x, y);
-        dr.lev->settile(x, y, T_FLOOR);
+        level->settile(x, y, T_FLOOR);
         delete m;
       }
     }
@@ -481,7 +481,7 @@ void Editor::dorandom() {
   /* right after a random, treat the level as 'unchanged'
      so that we can 'random' again without a prompt. */
   changed = 0;
-  redraw();
+  Redraw();
 }
 
 /* go one macro-move 'into the past' */
@@ -545,7 +545,6 @@ void Editor::dorandom() {
    into a space from which we can kick it.
 */
 bool Editor::retract_gold() {
-  Level *lev = dr.lev;
   /* XX could also be at edge of map -- might want a way to
      specify that pattern */
   std::unique_ptr<Pattern<void>> bgold = Pattern<void>::Create("\\0 \\1GS\n");
@@ -557,10 +556,10 @@ bool Editor::retract_gold() {
     bgold->setpredicate('G', pred_gold_or_sphere);
     bgold->setpredicate('S', pred_stops_gold);
 
-    std::unique_ptr<UnionFind> reach = Analysis::Reachable(lev);
+    std::unique_ptr<UnionFind> reach = Analysis::Reachable(level.get());
 
     std::unique_ptr<Match::stream> matches{
-      bgold->findall(dr.lev, 0)};
+      bgold->findall(level.get(), 0)};
 
     // XXX upgrading extent; this can be done a better way
     while (Match *mtmp = matches->next()) {
@@ -570,7 +569,7 @@ bool Editor::retract_gold() {
       m->getindex(1, x, y);
 
       bool sph = false;
-      int oldtile = lev->tileat(x, y);
+      int oldtile = level->tileat(x, y);
       if (Level::issphere(oldtile)) sph = true;
 
       /* now try going left as far as possible
@@ -594,14 +593,14 @@ bool Editor::retract_gold() {
       bool best_has_ricochet = false;
 
       int gx, gy;
-      while (lev->travel(targx, targy, left, gx, gy)) {
+      while (level->travel(targx, targy, left, gx, gy)) {
         /* as long as there's even a place for the guy to
            stand... */
         /* printf("try targ %d/%d\n", targx, targy); */
 
         /* we're done if target is non-floor */
         /* XX could include panels */
-        if (lev->tileat(targx, targy) != T_FLOOR) break;
+        if (level->tileat(targx, targy) != T_FLOOR) break;
 
         /* this is a candidate if we can place the guy in
            a 'pushing position' that he can reach. this
@@ -610,16 +609,16 @@ bool Editor::retract_gold() {
 
         if (sph) {
           /* move guy left until first non-sphere space */
-          while (Level::issphere(lev->tileat(gx, gy))) {
-            if (!lev->travel(gx, gy, left, gx, gy)) goto no_more_motion;
+          while (Level::issphere(level->tileat(gx, gy))) {
+            if (!level->travel(gx, gy, left, gx, gy)) goto no_more_motion;
           }
         }
 
         /* the space has to be reachable by the guy. but we
            can still potentially continue if this space is
            not occupiable. */
-        if (reach->Find(lev->index(lev->guyx, lev->guyy)) ==
-            reach->Find(lev->index(gx, gy))) {
+        if (reach->Find(level->index(level->guyx, level->guyy)) ==
+            reach->Find(level->index(gx, gy))) {
 
           /*
           printf("candidate! guy: %d/%d gold: %d/%d\n",
@@ -630,13 +629,12 @@ bool Editor::retract_gold() {
              to repeat this process for this new location) */
           int ux, uy;
           int dx, dy;
-          if (lev->travel(targx, targy, m->up(), ux, uy) &&
-              lev->travel(targx, targy, m->down(), dx, dy) &&
-
-              ((pred_stops_gold(lev, 0, ux, uy) &&
-                lev->tileat(dx, dy) == T_FLOOR) ||
-               (pred_stops_gold(lev, 0, dx, dy) &&
-                lev->tileat(ux, uy) == T_FLOOR))) {
+          if (level->travel(targx, targy, m->up(), ux, uy) &&
+              level->travel(targx, targy, m->down(), dx, dy) &&
+              ((pred_stops_gold(level.get(), 0, ux, uy) &&
+                level->tileat(dx, dy) == T_FLOOR) ||
+               (pred_stops_gold(level.get(), 0, dx, dy) &&
+                level->tileat(ux, uy) == T_FLOOR))) {
 
             /* then this new place is definitely better */
             /* printf("  ... ricocheting!\n"); */
@@ -663,7 +661,7 @@ bool Editor::retract_gold() {
           }
         }
         /* now try next spot ... */
-        if (!lev->travel(targx, targy, left, targx, targy)) break;
+        if (!level->travel(targx, targy, left, targx, targy)) break;
       }
 
     no_more_motion:;
@@ -672,10 +670,10 @@ bool Editor::retract_gold() {
 
       if (bestx >= 0) {
         /* ... */
-        lev->settile(x, y, T_FLOOR);
-        lev->settile(bestx, besty, oldtile);
-        lev->guyx = bgx;
-        lev->guyy = bgy;
+        level->settile(x, y, T_FLOOR);
+        level->settile(bestx, besty, oldtile);
+        level->guyx = bgx;
+        level->guyy = bgy;
         return true;
 
       } else {
@@ -734,7 +732,7 @@ bool Editor::retract_hole() {
     findsep->settile(' ', T_FLOOR);
 
     Match::stream *matches =
-      findsep->findall(dr.lev, 0);
+      findsep->findall(level.get(), 0);
 
     Match *mtmp;
     while ((mtmp = matches->next())) {
@@ -752,25 +750,25 @@ bool Editor::retract_hole() {
         dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
       */
 
-      if (Analysis::doessep(dr.lev, x, y,
-                            dr.lev->guyx,
-                            dr.lev->guyy, x0, y0, T_HOLE) &&
-          Analysis::doessep(dr.lev, x, y,
-                            dr.lev->guyx,
-                            dr.lev->guyy, x1, y1, T_HOLE)) {
+      if (Analysis::doessep(level.get(), x, y,
+                            level->guyx,
+                            level->guyy, x0, y0, T_HOLE) &&
+          Analysis::doessep(level.get(), x, y,
+                            level->guyx,
+                            level->guyy, x1, y1, T_HOLE)) {
 
         /*
         printf("fullmatch! at %d/%d up: %s right: %s\n", x, y,
                dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
         */
 
-        dr.lev->settile(x, y, T_HOLE);
-        dr.lev->settile(x1, y1, T_GREY);
+        level->settile(x, y, T_HOLE);
+        level->settile(x1, y1, T_GREY);
 
         /* maybe check we're not dead here? I'm not sure this is
            correct in every case. */
-        dr.lev->guyx = x0;
-        dr.lev->guyy = y0;
+        level->guyx = x0;
+        level->guyy = y0;
 
         /* FIXME cleanup */
         return true;
@@ -800,11 +798,11 @@ void Editor::retract1() {
   }
 
   dr.message = RED "no retraction applies";
-  return ;
+  return;
  done:
 
   dr.message = "retracted!";
-  return ;
+  return;
 
 #if 0
   /* build a graph of the level as-is.
@@ -813,13 +811,13 @@ void Editor::retract1() {
   (representing direct reachability via walking
   without dying) */
 
-  std::unique_ptr<UnionFind> rr = Analysis::Reachable(dr.lev);
+  std::unique_ptr<UnionFind> rr = Analysis::Reachable(level.get());
 
 # if 0
   {
-    for (int y = 0; y < dr.lev->h; y++) {
-      for (int x = 0; x < dr.lev->w; x++) {
-        printf("%4d ", rr->Find(dr.lev->index(x, y)));
+    for (int y = 0; y < level->h; y++) {
+      for (int x = 0; x < level->w; x++) {
+        printf("%4d ", rr->Find(level->index(x, y)));
       }
       printf("\n");
     }
@@ -827,30 +825,30 @@ void Editor::retract1() {
 # endif
 
   /* dumb first attempt */
-  /* int here = rr->find(dr.lev->index(x, y)); */
+  /* int here = rr->find(level->index(x, y)); */
 
   /* for any spot in 'here' that is
      a separator, separate! */
 
-  for (Generator g{dr.lev->w * dr.lev->h};
+  for (Generator g{level->w * level->h};
        g.anyleft();
        g.next()) {
     int xx, yy;
-    dr.lev->where(g.item(), xx, yy);
+    level->where(g.item(), xx, yy);
 
     int ox, oy;
-    if (Analysis::issep(dr.lev, xx, yy,
-                        dr.lev->guyx,
-                        dr.lev->guyy, ox, oy)) {
+    if (Analysis::issep(level.get(), xx, yy,
+                        level->guyx,
+                        level->guyy, ox, oy)) {
 
       /*
         printf("separates xx,yy = %d/%d, ox,oy %d/%d\n",
         xx, yy, ox, oy);
       */
 
-      dr.lev->settile(xx, yy, T_STOP);
-      dr.lev->guyx = ox;
-      dr.lev->guyy = oy;
+      level->settile(xx, yy, T_STOP);
+      level->guyx = ox;
+      level->guyy = oy;
       return;
     }
   }
@@ -866,12 +864,12 @@ void Editor::retract1() {
     pat_test->setpredicate('.', pred_any);
 
     Match::stream *ms_test =
-      pat_test->findall(dr.lev, 0);
+      pat_test->findall(level.get(), 0);
 
     Match *m;
     while ((m = ms_test->next())) {
       int x, y;
-      dr.lev->where(m->top_left(), x, y);
+      level->where(m->top_left(), x, y);
       /*
       printf("match! at %d/%d up: %s right: %s\n", x, y,
              dirstring(m->up()).c_str(), dirstring(m->right()).c_str());

@@ -1211,7 +1211,7 @@ void Animation::start(Drawing &dr,
     default:
       /* XXX button */
       /* XXX show error anim in impossible cases */
-      return ;
+      return;
     }
 
     Animation *ap = new AnSound(s);

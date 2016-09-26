@@ -12,7 +12,8 @@ namespace {
 struct MainShow_ : public MainShow {
   /* width and height given in tiles */
   MainShow_(int w, int h, int zf = 1) {
-    dr.lev = Level::defboard(w, h);
+    level = Level::DefBoard(w, h);
+    dr.lev = level.get();
     dr.width = (TILEW >> zf) * w;
     dr.height = (TILEH >> zf) * h;
     dr.margin = 0;
@@ -34,20 +35,16 @@ struct MainShow_ : public MainShow {
      0, then draw to the screen */
   void draw(int x, int y, SDL_Surface *surf = 0) override;
 
-  ~MainShow_() override {
-    dr.lev->destroy();
-    dr.lev = nullptr;
-  }
-
-  
-  int width() override {
+  int width() const override {
     return dr.width;
   }
 
  private:
 
+  // Representation invariant: dr.lev aliases level
   Drawing dr;
-
+  std::unique_ptr<Level> level;
+  
   void newlevel();
   void newexit();
   void newguy();
@@ -71,7 +68,7 @@ void MainShow_::draw(int x, int y, SDL_Surface *surf) {
   dr.posy = y;
   dr.drawlev(0, surf, true);
 
-  tx->posx = 4 + x + (TILEW >> dr.zoomfactor) * dr.lev->w;
+  tx->posx = 4 + x + (TILEW >> dr.zoomfactor) * level->w;
   tx->posy = y;
 
   tx->drawto(surf);
@@ -80,12 +77,12 @@ void MainShow_::draw(int x, int y, SDL_Surface *surf) {
 void MainShow_::step() {
   int dumb, dumby;
   dir dummy;
-  if (dr.lev->isdead(dumb, dumby, dummy)) {
+  if (level->isdead(dumb, dumby, dummy)) {
     tx->say(RED "Drat!");
     newguy();
   }
 
-  if (dr.lev->iswon()) {
+  if (level->iswon()) {
     tx->say(GREEN "Yeah!");
     newexit();
   }
@@ -101,31 +98,29 @@ void MainShow_::step() {
 
 void MainShow_::trymove() {
   /* walk towards goal */
-  Level *l = dr.lev;
   int dx = 0, dy = 0;
-  if (l->guyx < exitx) dx = 1;
-  else if (l->guyx > exitx) dx = -1;
+  if (level->guyx < exitx) dx = 1;
+  else if (level->guyx > exitx) dx = -1;
 
-  if (l->guyy < exity) dy = 1;
-  else if (l->guyy > exity) dy = -1;
+  if (level->guyy < exity) dy = 1;
+  else if (level->guyy > exity) dy = -1;
 
   if (util::random() & 1) {
     /* prefer x */
-    if (dx > 0 && dr.lev->Move(DIR_RIGHT)) return;
-    if (dx < 0 && dr.lev->Move(DIR_LEFT)) return;
+    if (dx > 0 && level->Move(DIR_RIGHT)) return;
+    if (dx < 0 && level->Move(DIR_LEFT)) return;
 
-    if (dy > 0 && dr.lev->Move(DIR_DOWN)) return;
-    if (dy < 0 && dr.lev->Move(DIR_UP)) return;
+    if (dy > 0 && level->Move(DIR_DOWN)) return;
+    if (dy < 0 && level->Move(DIR_UP)) return;
 
   } else {
     /* prefer y */
 
-    if (dy > 0 && dr.lev->Move(DIR_DOWN)) return;
-    if (dy < 0 && dr.lev->Move(DIR_UP)) return;
+    if (dy > 0 && level->Move(DIR_DOWN)) return;
+    if (dy < 0 && level->Move(DIR_UP)) return;
 
-    if (dx > 0 && dr.lev->Move(DIR_RIGHT)) return;
-    if (dx < 0 && dr.lev->Move(DIR_LEFT)) return;
-
+    if (dx > 0 && level->Move(DIR_RIGHT)) return;
+    if (dx < 0 && level->Move(DIR_LEFT)) return;
   }
 
   /* if we can't make any move, reset faster */
@@ -133,26 +128,23 @@ void MainShow_::trymove() {
 }
 
 void MainShow_::randomspot(int &x, int &y) {
-  int idx =
-    util::random() % ((dr.lev->w - 2) * (dr.lev->h - 2));
-
-  x = 1 + idx % (dr.lev->w - 2);
-  y = 1 + idx / (dr.lev->w - 2);
+  int idx = util::random() % ((level->w - 2) * (level->h - 2));
+  x = 1 + idx % (level->w - 2);
+  y = 1 + idx / (level->w - 2);
 }
 
 void MainShow_::newexit() {
-  dr.lev->settile(exitx, exity, T_FLOOR);
+  level->settile(exitx, exity, T_FLOOR);
 
   randomspot(exitx, exity);
 
-  dr.lev->settile(exitx, exity, T_EXIT);
+  level->settile(exitx, exity, T_EXIT);
 
   exittime = 5 + (util::random() % EXIT_FREQ);
 }
 
 void MainShow_::newguy() {
-  randomspot(dr.lev->guyx,
-             dr.lev->guyy);
+  randomspot(level->guyx, level->guyy);
 
   guytime = 8 + (util::random() % GUY_FREQ);
 }
@@ -166,42 +158,42 @@ void MainShow_::newlevel() {
      so even if we just pulled random levels from
      the triage collection (at 18x10 or smaller),
      we'd probably win eventually. */
-  for (int y = 0; y < dr.lev->h; y++) {
-    for (int x = 0; x < dr.lev->w; x++) {
-      dr.lev->settile(x, y, T_FLOOR);
+  for (int y = 0; y < level->h; y++) {
+    for (int x = 0; x < level->w; x++) {
+      level->settile(x, y, T_FLOOR);
 
       /* sometimes put something other than floor */
       if (!(util::random() & 127))
-        dr.lev->settile(x, y, T_LASER);
+        level->settile(x, y, T_LASER);
 
       if (!(util::random() & 63))
-        dr.lev->settile(x, y, T_BLUE);
+        level->settile(x, y, T_BLUE);
 
       if (!(util::random() & 63))
-        dr.lev->settile(x, y, T_GREY);
+        level->settile(x, y, T_GREY);
 
       if (!(util::random() & 63))
-        dr.lev->settile(x, y, T_HOLE);
+        level->settile(x, y, T_HOLE);
 
       if (!(util::random() & 63)) {
-        dr.lev->settile(x, y, T_TRANSPORT);
+        level->settile(x, y, T_TRANSPORT);
         int dx = 1, dy = 1;
         randomspot(dx, dy);
-        dr.lev->setdest(x, y, dx, dy);
+        level->setdest(x, y, dx, dy);
       }
 
 
-      if (x == 0 || x == (dr.lev->w - 1) ||
-          y == 0 || y == (dr.lev->h - 1))
-        dr.lev->settile(x, y, T_BLUE);
+      if (x == 0 || x == (level->w - 1) ||
+          y == 0 || y == (level->h - 1))
+        level->settile(x, y, T_BLUE);
     }
   }
 
   newguy();
 
   /* this clears the spot where the guy lives */
-  exitx = dr.lev->guyx;
-  exity = dr.lev->guyy;
+  exitx = level->guyx;
+  exity = level->guyy;
   newexit();
 
   leveltime = 30 + (util::random() % LEVEL_FREQ);

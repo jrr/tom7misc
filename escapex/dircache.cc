@@ -157,9 +157,9 @@ DirIndex *DirCache_::Get(const string &dir_in,
       } else {
         string contents = util::readfilemagic(ldn, LEVELMAGIC);
 
-        Level *l = Level::fromstring(contents);
+	std::unique_ptr<Level> l = Level::FromString(contents);
 
-        if (l) {
+        if (l.get() != nullptr) {
           string md5c = MD5::Hash(contents);
 
           ttt++;
@@ -169,14 +169,12 @@ DirIndex *DirCache_::Get(const string &dir_in,
             if (s->verified) {
               sss++;
             } else {
-              if (Level::Verify(l, *s)) {
+              if (Level::Verify(l.get(), *s)) {
                 plr->SetDefaultVerified(md5c);
                 sss++;
               }
             }
           }
-
-          l->destroy();
         }
       }
     }

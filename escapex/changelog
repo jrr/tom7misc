@@ -1,3 +1,7 @@
+2016-09-25  Tom 7  <Tom@RIVERCITY>
+
+        * Fixed several minor memory leaks.
+
 2016-09-05  Tom 7  <Tom@RIVERCITY>
 
         * smanage.cc: Fix bug in version 201609031 where solutions

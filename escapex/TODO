@@ -16,8 +16,7 @@ Maybe move HTTP to cc-lib.
 
 get rid of extent; use unique_ptr
  - get rid of "destroy" methods
-    - level
-    - solution
+    - some hashtable stuff still
  - there are some like 'extentf' still in use
 
 code cleanup
@@ -25,6 +24,7 @@ code cleanup
  - move solution out of level
  - capitalize class names
      - grep 'struct [a-z]' *.h | grep -v '_t'
+     - Match::stream
  - replace vallist with deque or vector; it's not used in that many places
  - hash should be 64-bit, should not cast c_str() to hash strings because
    no guarantee that they have enough data
@@ -36,6 +36,8 @@ code cleanup
 - When using the virtual implementation idiom, the "real" class
    can be defined in an anonymous namespace.
  - pref to not delete incomplete solutions when solving a level?
+
+maybe Drawing should not have a const level* alias?
 
 in play.cc, make a function that replaces the level (And the level in the
 drawing) with something, like the Start lev.

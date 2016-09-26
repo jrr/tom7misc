@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
           goto oops;
         }
 
-        ee->edit();
+        ee->Edit();
 
 #     ifndef MULTIUSER
       } else if (r == MainMenu::UPGRADE) {

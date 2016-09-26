@@ -892,3 +892,5 @@ bool Level::MoveAnimate(dir d, Disamb *ctx, AList *&events) {
   AList **tail = &events;
   return MoveMaybeAnimate<true, Disamb>(d, ctx, events, tail);
 }
+
+Level::Level() {}

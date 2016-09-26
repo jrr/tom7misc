@@ -11,7 +11,6 @@
 #include "play.h"
 #include "prompt.h"
 
-#include "extent.h"
 #include "util.h"
 #include "edit.h"
 
@@ -76,8 +75,7 @@ static constexpr int tileorder[] = {
   T_STEEL, T_BSTEEL, T_RSTEEL, T_GSTEEL,
 
   T_HEARTFRAMER, T_SLEEPINGDOOR,
-
-  };
+};
 
 #define NTILEORDER ((int)(sizeof (tileorder) / sizeof (int)))
 
@@ -105,12 +103,12 @@ void Editor::screenresize() {
 }
 
 void Editor::fullclear(tile t) {
-  for (int x = 0; x < dr.lev->w; x++) {
-    for (int y = 0; y < dr.lev->h; y++) {
-      dr.lev->settile(x, y, t);
+  for (int x = 0; x < level->w; x++) {
+    for (int y = 0; y < level->h; y++) {
+      level->settile(x, y, t);
     }
   }
-  dr.lev->nbots = 0;
+  level->nbots = 0;
 }
 
 /* XXX limit to selection */
@@ -120,7 +118,7 @@ void Editor::clear(tile bg, tile fg) {
                       "Clearing will destroy your unsaved changes.",
                       "Clear anyway",
                       "Don't clear")) {
-    redraw();
+    Redraw();
     return;
   }
 
@@ -129,17 +127,17 @@ void Editor::clear(tile bg, tile fg) {
   if (Level::needsdest(fg)) fg = T_BLUE;
 
   fullclear(bg);
-  for (int x = 0; x < dr.lev->w; x++) {
-    dr.lev->settile(x, 0, fg);
-    dr.lev->settile(x, dr.lev->h - 1, fg);
+  for (int x = 0; x < level->w; x++) {
+    level->settile(x, 0, fg);
+    level->settile(x, level->h - 1, fg);
   }
-  for (int y = 0; y < dr.lev->h; y++) {
-    dr.lev->settile(0, y, fg);
-    dr.lev->settile(dr.lev->w - 1, y, fg);
+  for (int y = 0; y < level->h; y++) {
+    level->settile(0, y, fg);
+    level->settile(level->w - 1, y, fg);
   }
 
   changed = 0;
-  redraw();
+  Redraw();
 }
 
 /* for debugging, since it pauses everything */
@@ -164,7 +162,7 @@ void Editor::draw() {
   int sdx = -1, sdy = -1;
   if (dr.inmap(mousex, mousey, tx, ty)) {
     if (Level::needsdest(layerat(tx, ty))) {
-      dr.lev->getdest(tx, ty, sdx, sdy);
+      level->getdest(tx, ty, sdx, sdy);
     }
   }
 
@@ -215,7 +213,7 @@ void Editor::draw() {
     Drawing::drawtileu(POS_PREFAB * TILEW, 0, TU_DISABLED, 0);
   }
 
-  if (!dr.lev->nbots) {
+  if (!level->nbots) {
     Drawing::drawtileu(POS_FIRST_BOT * TILEW, 0, TU_DISABLED, 0);
     Drawing::drawtileu(POS_ERASE_BOT * TILEW, 0, TU_DISABLED, 0);
     Drawing::drawtileu(POS_SLEEPWAKE * TILEW, 0, TU_DISABLED, 0);
@@ -241,13 +239,13 @@ void Editor::draw() {
 
   /* draw bomb timers */
   if (!dr.zoomfactor) {
-    for (int b = 0; b < dr.lev->nbots; b++) {
-      if (Level::isbomb(dr.lev->bott[b])) {
+    for (int b = 0; b < level->nbots; b++) {
+      if (Level::isbomb(level->bott[b])) {
         int bx, by;
-        dr.lev->where(dr.lev->boti[b], bx, by);
+        level->where(level->boti[b], bx, by);
         int bsx, bsy;
         if (dr.onscreen(bx, by, bsx, bsy)) {
-          string ss = RED + itos(Level::bombmaxfuse(dr.lev->bott[b]));
+          string ss = RED + itos(Level::bombmaxfuse(level->bott[b]));
           fon->draw(bsx + ((TILEW - fon->sizex(ss))>>1),
                     bsy + ((TILEH - fon->height)>>1),
                     ss);
@@ -345,31 +343,31 @@ void Editor::tmenurotate(int n) {
     tmenuscroll = tt - 1;
   }
 
-  redraw();
+  Redraw();
 }
 
 void Editor::settitle() {
   string nt = Prompt::ask(this, "Title for level: ",
-                          dr.lev->title);
+                          level->title);
 
-  dr.lev->title = nt;
+  level->title = nt;
 
-  if (dr.lev->title == "") dr.lev->title = "Untitled";
+  if (level->title.empty()) level->title = "Untitled";
 
 
   changed = 1;
-  redraw();
+  Redraw();
 }
 
 void Editor::setauthor() {
 
   string s = Prompt::ask(this,
-                               "Author of level: ",
-                               dr.lev->author);
-  if (s != "") dr.lev->author = s;
+			 "Author of level: ",
+			 level->author);
+  if (!s.empty()) level->author = s;
 
   changed = 1;
-  redraw();
+  Redraw();
 }
 
 /* XXX warn if saving into managed directory */
@@ -383,13 +381,13 @@ void Editor::saveas() {
 
   /* if cancelled, don't do anything */
   if (nfn == "") {
-    redraw();
+    Redraw();
     return;
   }
 
   /* if level is untitled, get the title from this */
-  if (dr.lev->title == "Untitled")
-    dr.lev->title = util::fileof(nfn);
+  if (level->title == "Untitled")
+    level->title = util::fileof(nfn);
 
   filename = util::ensureext(nfn, ".esx");
 
@@ -402,16 +400,16 @@ void Editor::playerstart() {
   int x, y;
 
   if (getdest(x, y, "Click to choose player start.")) {
-    if (!dr.lev->botat(x, y)) {
-      dr.lev->guyx = x;
-      dr.lev->guyy = y;
+    if (!level->botat(x, y)) {
+      level->guyx = x;
+      level->guyy = y;
       changed = 1;
     } else {
       Message::No(this, "Can't put player on bots!");
     }
   }
 
-  redraw();
+  Redraw();
 }
 
 /* XXX target selection? */
@@ -427,22 +425,22 @@ void Editor::erasebot() {
     changed = 1;
   }
 
-  dr.lev->fixup_botorder();
-  redraw();
+  level->fixup_botorder();
+  Redraw();
 }
 
 bool Editor::clearbot(int x, int y) {
 
     int i;
-    if (dr.lev->botat(x, y, i)) {
+    if (level->botat(x, y, i)) {
       /* reduce number of bots and shift every one bigger
          than this one down */
-      dr.lev->nbots--;
-      for (int m = i; m < dr.lev->nbots; m++) {
-        dr.lev->bott[m] = dr.lev->bott[m + 1];
-        dr.lev->boti[m] = dr.lev->boti[m + 1];
-        dr.lev->botd[m] = dr.lev->botd[m + 1];
-        dr.lev->bota[m] = dr.lev->bota[m + 1];
+      level->nbots--;
+      for (int m = i; m < level->nbots; m++) {
+        level->bott[m] = level->bott[m + 1];
+        level->boti[m] = level->boti[m + 1];
+        level->botd[m] = level->botd[m + 1];
+        level->bota[m] = level->bota[m + 1];
       }
       /* not necessary to make arrays smaller. */
       return true;
@@ -454,29 +452,28 @@ void Editor::firstbot() {
   if (getdest(x, y, (string)"click on bot to make #1")) {
 
     int i;
-    if (dr.lev->botat(x, y, i)) {
-      Level *l = dr.lev->clone();
-      Extent<Level> el(l);
+    if (level->botat(x, y, i)) {
+      std::unique_ptr<Level> l = level->Clone();
 
-      dr.lev->bott[0] = l->bott[i];
-      dr.lev->botd[0] = l->botd[i];
-      dr.lev->boti[0] = l->boti[i];
-      dr.lev->bota[0] = l->bota[i];
+      level->bott[0] = l->bott[i];
+      level->botd[0] = l->botd[i];
+      level->boti[0] = l->boti[i];
+      level->bota[0] = l->bota[i];
 
       /* now copy rest */
       int r = 1;
       for (int b = 0; b < l->nbots; b++) {
         if (b != i) {
-          dr.lev->bott[r] = l->bott[b];
-          dr.lev->botd[r] = l->botd[b];
-          dr.lev->boti[r] = l->boti[b];
-          dr.lev->bota[r] = l->bota[b];
+          level->bott[r] = l->bott[b];
+          level->botd[r] = l->botd[b];
+          level->boti[r] = l->boti[b];
+          level->bota[r] = l->bota[b];
           r++;
         }
       }
     } else dr.message = "No bot there!";
   }
-  redraw();
+  Redraw();
 }
 
 void Editor::sleepwake() {
@@ -484,24 +481,24 @@ void Editor::sleepwake() {
   if (getdest(x, y, (string)"click on bot sleep/wake")) {
 
     int i;
-    if (dr.lev->botat(x, y, i)) {
+    if (level->botat(x, y, i)) {
 
-      bot old = dr.lev->bott[i];
+      bot old = level->bott[i];
       bot dest = B_BROKEN;
       switch (old) {
       default:
         if (Level::isbomb(old)) {
           dr.message = RED "Can't sleep/wake bombs\n";
-          redraw();
+          Redraw();
           return;
         } else {
           Message::Bug(this, "sleep/wake not implemented for this bot");
-          redraw();
+          Redraw();
           return;
         }
       case B_BROKEN:
         dr.message = RED "Can't sleep/wake broken bots\n";
-        redraw();
+        Redraw();
         return;
       case B_DALEK: dest = B_DALEK_ASLEEP; break;
       case B_DALEK_ASLEEP: dest = B_DALEK; break;
@@ -509,13 +506,13 @@ void Editor::sleepwake() {
       case B_HUGBOT_ASLEEP: dest = B_HUGBOT; break;
       }
 
-      dr.lev->bott[i] = dest;
+      level->bott[i] = dest;
 
     } else dr.message = "No bot there!";
   }
 
-  dr.lev->fixup_botorder();
-  redraw();
+  level->fixup_botorder();
+  Redraw();
 }
 
 void Editor::placebot(bot b) {
@@ -524,83 +521,82 @@ void Editor::placebot(bot b) {
   int x, y;
 
   string msg =
-    (dr.lev->nbots < LEVEL_MAX_ROBOTS) ?
+    (level->nbots < LEVEL_MAX_ROBOTS) ?
     ("Click to place bot of type " + itos((int)b)) :
     (RED "Out of bots!" POP " -- click existing bot to change type.");
 
   if (getdest(x, y, msg)) {
 
     int ai;
-    if (dr.lev->playerat(x, y)) {
+    if (level->playerat(x, y)) {
       Message::No(this, "Can't put a bot on the player!");
 
-    } else if (dr.lev->botat(x, y, ai)) {
+    } else if (level->botat(x, y, ai)) {
 
-      dr.lev->bott[ai] = b;
+      level->bott[ai] = b;
       changed = 1;
 
     } else {
-      if (dr.lev->nbots < LEVEL_MAX_ROBOTS) {
+      if (level->nbots < LEVEL_MAX_ROBOTS) {
         addbot(x, y, b);
       } else {
         Message::No(this,
                     "Maximum robots (" + itos(LEVEL_MAX_ROBOTS) +
                     ") reached!");
-        redraw();
+        Redraw();
       }
     }
   }
 
-  redraw();
+  Redraw();
 }
 
 /* must ensure there is space, and that
    there is not a bot or player on this spot already */
 void Editor::addbot(int x, int y, bot b) {
-  int n = dr.lev->nbots + 1;
+  int n = level->nbots + 1;
 
   /* all clear; add new one */
   int *ni = (int*)malloc(sizeof(int) * n);
   bot *nt = (bot*)malloc(sizeof(bot) * n);
 
-  for (int i = 0; i < dr.lev->nbots; i++) {
-    ni[i] = dr.lev->boti[i];
-    nt[i] = dr.lev->bott[i];
+  for (int i = 0; i < level->nbots; i++) {
+    ni[i] = level->boti[i];
+    nt[i] = level->bott[i];
   }
 
-  ni[n - 1] = dr.lev->index(x, y);
+  ni[n - 1] = level->index(x, y);
   nt[n - 1] = b;
-  free(dr.lev->boti);
-  free(dr.lev->bott);
-  dr.lev->boti = ni;
-  dr.lev->bott = nt;
-  dr.lev->nbots = n;
+  free(level->boti);
+  free(level->bott);
+  level->boti = ni;
+  level->bott = nt;
+  level->nbots = n;
 
   /* need to update directions, too */
-  free(dr.lev->botd);
-  dr.lev->botd = (dir*)malloc(sizeof (dir) * n);
-  for (int z = 0; z < n; z++) dr.lev->botd[z] = DIR_DOWN;
+  free(level->botd);
+  level->botd = (dir*)malloc(sizeof (dir) * n);
+  for (int z = 0; z < n; z++) level->botd[z] = DIR_DOWN;
 
 
   /* attribs always -1 except when playing */
-  free(dr.lev->bota);
-  dr.lev->bota = (int*)malloc(sizeof (int) * n);
-  for (int z = 0; z < n; z++) dr.lev->bota[z] = -1;
+  free(level->bota);
+  level->bota = (int*)malloc(sizeof (int) * n);
+  for (int z = 0; z < n; z++) level->bota[z] = -1;
 
-  dr.lev->fixup_botorder();
+  level->fixup_botorder();
   changed = 1;
 }
 
 void Editor::save() {
   clearselection();
 
-  fixup();
+  FixUp();
 
-  if (filename != "") {
-
+  if (!filename.empty()) {
     string old = readfile(filename);
 
-    string nstr = dr.lev->tostring();
+    string nstr = level->tostring();
 
     if (writefile(filename, nstr)) {
       dr.message = "Wrote " GREEN + filename + POP;
@@ -609,7 +605,7 @@ void Editor::save() {
       filename = "";
     }
 
-    if (old != "") {
+    if (!old.empty()) {
       /* if player has solution for the
          level existing in the file that we're
          overwriting, try it out on the new
@@ -628,7 +624,7 @@ void Editor::save() {
         int rs = 0, rb = 0;
         for (const NamedSolution &ns : plr->SolutionSet(omd5)) {
           if (!ns.bookmark &&
-              Level::Verify(dr.lev, ns.sol)) {
+              Level::Verify(level.get(), ns.sol)) {
             string name = ns.name;
             if (name.find("(recovered)") == string::npos)
               name = (string)"(recovered) " + name;
@@ -669,7 +665,7 @@ void Editor::save() {
                  "shouldn't be able to save with empty filename");
   }
 
-  redraw();
+  Redraw();
 }
 
 /* XXX should warn if you load from a managed directory. */
@@ -682,54 +678,53 @@ void Editor::load() {
   if (!ll.get()) {
     Message::Quick(this, "Can't open load screen!",
                    "Ut oh.", "", PICS XICON POP);
-    redraw();
-    return ;
+    Redraw();
+    return;
   }
   string res = ll->selectlevel();
   string ss = readfile(res);
 
   /* allow corrupted files */
-  Level *l = Level::fromstring(ss, true);
+  std::unique_ptr<Level> l = Level::FromString(ss, true);
 
-  if (l) {
-    dr.lev->destroy();
-    dr.lev = l;
+  if (l.get() != nullptr) {
+    SetLevel(std::move(l));
     filename = res;
     dr.message = ((string)"Loaded " + filename);
 
-    fixup();
+    FixUp();
     changed = 0;
   } else {
     dr.message = ((string) RED "error loading " + res + POP);
   }
 
-  redraw();
+  Redraw();
 }
 
 Editor::~Editor() {}
 
 void Editor::playlev() {
   /* XXX check result for 'exit' */
-  fixup();
+  FixUp();
 
-  std::unique_ptr<Play> pla{Play::Create()};
+  std::unique_ptr<Play> pla{Play::Create(level.get())};
 
   /* grab md5 in case player makes bookmarks */
-  string md5 = MD5::Hash(dr.lev->tostring());
+  string md5 = MD5::Hash(level->tostring());
 
   /* PlayResult res = */
-  (void)pla->DoPlaySave(plr, dr.lev, &saved, md5);
+  (void)pla->DoPlaySave(plr, &saved, md5);
 
   /* has a different loop; might have resized */
   screenresize();
-  redraw();
+  Redraw();
 }
 
 void Editor::resize() {
   clearselection();
 
-  string nw = itos(dr.lev->w);
-  string nh = itos(dr.lev->h);
+  string nw = itos(level->w);
+  string nh = itos(level->h);
 
   TextInput twidth;
   twidth.question = "Width";
@@ -761,7 +756,7 @@ void Editor::resize() {
     if (nnw > 0 && nnw <= LEVEL_MAX_WIDTH &&
         nnh > 0 && nnh <= LEVEL_MAX_HEIGHT &&
         (nnw * nnh <= LEVEL_MAX_AREA)) {
-      dr.lev->resize(nnw, nnh);
+      level->resize(nnw, nnh);
 
       /* reset scroll position */
       dr.scrollx = 0;
@@ -778,15 +773,14 @@ void Editor::resize() {
 
   PtrList<MenuItem>::diminish(l);
 
-  redraw();
+  Redraw();
 }
 
-void Editor::edit(Level *origlev) {
-
-  if (origlev) {
-    dr.lev = origlev->clone();
+void Editor::Edit(const Level *origlev) {
+  if (origlev != nullptr) {
+    SetLevel(origlev->Clone());
   } else {
-    dr.lev = Level::defboard(18, 10);
+    SetLevel(Level::DefBoard(18, 10));
   }
 
   dr.scrollx = 0;
@@ -811,9 +805,9 @@ void Editor::edit(Level *origlev) {
 
   saved.Clear();
 
-  fixup();
+  FixUp();
 
-  redraw();
+  Redraw();
 
   for (;;) {
     while (SDL_PollEvent(&event)) {
@@ -865,7 +859,7 @@ void Editor::edit(Level *origlev) {
 
             selection.w = nw;
             selection.h = nh;
-            redraw();
+            Redraw();
           }
 
           /* left mouse button ... */
@@ -893,8 +887,8 @@ void Editor::edit(Level *origlev) {
           } else {
             /* draw pixel */
 
-            if ((layer ? dr.lev->otileat(ntx, nty) :
-		 dr.lev->tileat(ntx, nty)) != current) {
+            if ((layer ? level->otileat(ntx, nty) :
+		 level->tileat(ntx, nty)) != current) {
               setlayer(ntx, nty, current);
               yesdraw = 1;
               changed = 1;
@@ -907,8 +901,8 @@ void Editor::edit(Level *origlev) {
         int tx, ty;
         if (dr.inmap(mousex, mousey, tx, ty)) {
           if (Level::needsdest(layerat(tx, ty))) {
-            if (dr.lev->destat(tx, ty) != olddest) {
-              olddest = dr.lev->destat(tx, ty);
+            if (level->destat(tx, ty) != olddest) {
+              olddest = level->destat(tx, ty);
               yesdraw = 1;
             }
             /* XXX unify with next case */
@@ -925,7 +919,7 @@ void Editor::edit(Level *origlev) {
           }
         }
 
-        if (yesdraw) redraw();
+        if (yesdraw) Redraw();
 
         break;
       }
@@ -943,9 +937,9 @@ void Editor::edit(Level *origlev) {
             /* swap */
             int tx, ty;
             if (dr.inmap(e->x, e->y, tx, ty)) {
-              dr.lev->swapo(dr.lev->index(tx, ty));
+              level->swapo(level->index(tx, ty));
               changed = 1;
-              redraw();
+              Redraw();
             }
           } else {
             /* eyedropper */
@@ -953,9 +947,9 @@ void Editor::edit(Level *origlev) {
             if (dr.inmap(e->x, e->y,
                          tx, ty)) {
 
-              current = layer?dr.lev->otileat(tx, ty):dr.lev->tileat(tx, ty);
+              current = layer ? level->otileat(tx, ty) : level->tileat(tx, ty);
 
-              redraw();
+              Redraw();
             }
           }
 
@@ -969,7 +963,7 @@ void Editor::edit(Level *origlev) {
             selection.w = 1;
             selection.h = 1;
           } else selection.w = 0;
-          redraw();
+          Redraw();
 
         } else if (e->button == SDL_BUTTON_LEFT) {
 
@@ -993,7 +987,7 @@ void Editor::edit(Level *origlev) {
 
               if (tt >= 0 && tt < NTILEORDER) current = tileorder[tt];
 
-              redraw();
+              Redraw();
 
             } /* else nothing. */
 
@@ -1007,7 +1001,7 @@ void Editor::edit(Level *origlev) {
 
             dr.message = itos(n);
 
-            redraw();
+            Redraw();
 
             if (n < NUM_MENUITEMS) {
 
@@ -1020,7 +1014,7 @@ void Editor::edit(Level *origlev) {
 
               if (n == POS_LAYER) {
                 layer = !layer;
-                redraw();
+                Redraw();
               } else switch (edit_menuitem[n]) {
 
               case TU_SIZE:
@@ -1075,7 +1069,7 @@ void Editor::edit(Level *origlev) {
                 randtype++;
                 randtype %= NUM_RANDTYPES;
                 dr.message = ainame(randtype);
-                redraw();
+                Redraw();
                 break;
 
               case TU_BOMBTIMER:
@@ -1095,7 +1089,7 @@ void Editor::edit(Level *origlev) {
                 break;
 
               case TU_SAVE:
-                if (filename == "") saveas();
+                if (filename.empty()) saveas();
                 else save();
                 break;
 
@@ -1129,16 +1123,16 @@ void Editor::edit(Level *origlev) {
 
                 int xx, yy;
                 if (getdest(xx, yy, "Click to set destination.")) {
-                  dr.lev->setdest(tx, ty, xx, yy);
+                  level->setdest(tx, ty, xx, yy);
                 } else {
                   setlayer(tx, ty, old);
                 }
-                olddest = dr.lev->destat(tx, ty);
+                olddest = level->destat(tx, ty);
 
               }
 
               changed = 1;
-              redraw();
+              Redraw();
             }
           }
 
@@ -1298,8 +1292,8 @@ void Editor::edit(Level *origlev) {
             int desty = starty + (drighty * width);
 
             /* check that there's room to extend */
-            if (destx >= dr.lev->w ||
-                desty >= dr.lev->h ||
+            if (destx >= level->w ||
+                desty >= level->h ||
                 destx < 0 ||
                 desty < 0) continue;
 
@@ -1355,20 +1349,20 @@ void Editor::edit(Level *origlev) {
                               0xFF0000FF);
                     blinktile(checkx + offx, checky + offy,
                               0xFFFF0000);
-                    redraw();
+                    Redraw();
                     #endif
 
                     /* must be equal in bg and fg */
                     if (
-                        ! ((dr.lev->tileat(startx + offx,
-                                           starty + offy) ==
-                            dr.lev->tileat(checkx + offx,
-                                           checky + offy)) &&
+                        ! ((level->tileat(startx + offx,
+					  starty + offy) ==
+                            level->tileat(checkx + offx,
+					  checky + offy)) &&
 
-                           (dr.lev->otileat(startx + offx,
-                                            starty + offy) ==
-                            dr.lev->otileat(checkx + offx,
-                                            checky + offy)))) {
+                           (level->otileat(startx + offx,
+					   starty + offy) ==
+                            level->otileat(checkx + offx,
+                                           checky + offy)))) {
                       /* printf("NOT EQUAL.\n"); */
                       /* then we fail; check next */
                       goto next_size;
@@ -1395,18 +1389,18 @@ void Editor::edit(Level *origlev) {
                 int offy = (row * ddowny);
 
                 int p =
-                  dr.lev->tileat(startx + (col * drightx) + offx,
-                                 starty + (col * drighty) + offy);
+                  level->tileat(startx + (col * drightx) + offx,
+				starty + (col * drighty) + offy);
 
-                dr.lev->settile(destx + offx,
-                                desty + offy, p);
+                level->settile(destx + offx,
+			       desty + offy, p);
 
                 int op =
-                  dr.lev->otileat(startx + (col * drightx) + offx,
-                                  starty + (col * drighty) + offy);
+                  level->otileat(startx + (col * drightx) + offx,
+				 starty + (col * drighty) + offy);
 
-                dr.lev->osettile(destx + offx,
-                                 desty + offy, op);
+                level->osettile(destx + offx,
+				desty + offy, op);
 
                 if (Level::needsdest(p) || Level::needsdest(op)) {
                   int delta = 0;
@@ -1415,16 +1409,16 @@ void Editor::edit(Level *origlev) {
                      constant (from the first gap). */
 
                   int origdest =
-                    dr.lev->destat(startx + (col * drightx) + offx,
-                                   starty + (col * drighty) + offy);
+                    level->destat(startx + (col * drightx) + offx,
+				  starty + (col * drighty) + offy);
 
                   if (width < (plen * 2)) delta = 0;
                   else {
                     int seconddest =
-                      dr.lev->destat(startx + ((col + plen) * drightx) +
-                                     offx,
-                                     starty + ((col + plen) * drighty) +
-                                     offy);
+                      level->destat(startx + ((col + plen) * drightx) +
+				    offx,
+				    starty + ((col + plen) * drighty) +
+				    offy);
 
                     delta = seconddest - origdest;
                   }
@@ -1437,12 +1431,12 @@ void Editor::edit(Level *origlev) {
 
                   int de = delta * n + origdest;
                   if (de < 0) de = 0;
-                  if (de >= dr.lev->w * dr.lev->h)
-                    de = (dr.lev->w * dr.lev->h) - 1;
+                  if (de >= level->w * level->h)
+                    de = (level->w * level->h) - 1;
 
                   int xxx, yyy;
-                  dr.lev->where(de, xxx, yyy);
-                  dr.lev->setdest(destx + offx, desty + offy, xxx, yyy);
+                  level->where(de, xxx, yyy);
+                  level->setdest(destx + offx, desty + offy, xxx, yyy);
                 }
 
               }
@@ -1457,7 +1451,7 @@ void Editor::edit(Level *origlev) {
             case DIR_LEFT: selection.x--; selection.w++; break;
             }
 
-            redraw();
+            Redraw();
 
           } else if ((event.key.keysym.mod & KMOD_CTRL) &&
                      selection.w > 0) {
@@ -1470,24 +1464,23 @@ void Editor::edit(Level *origlev) {
             int tx, ty;
             /* but first check that the far corner will
                also be on the screen */
-            if (!dr.lev->travel(selection.x + selection.w - 1,
-                                selection.y + selection.h - 1,
-                                d, tx, ty)) break;
+            if (!level->travel(selection.x + selection.w - 1,
+			       selection.y + selection.h - 1,
+			       d, tx, ty)) break;
 
 
-            if (dr.lev->travel(selection.x, selection.y, d,
-                               tx, ty)) {
+            if (level->travel(selection.x, selection.y, d,
+			      tx, ty)) {
               /* easier if we clone. */
-              Level *cl = dr.lev->clone();
-              Extent<Level> ecl(cl);
+	      std::unique_ptr<Level> cl = level->Clone();
 
               /* then blank out the region */
 	      for (int y = selection.y; y < selection.y + selection.h; y++) {
 		for (int x = selection.x; x < selection.x + selection.w; x++) {
-		  dr.lev->settile(x, y, T_FLOOR);
-		  dr.lev->osettile(x, y, T_FLOOR);
-		  dr.lev->setdest(x, y, 0, 0);
-		  dr.lev->setflag(x, y, 0);
+		  level->settile(x, y, T_FLOOR);
+		  level->osettile(x, y, T_FLOOR);
+		  level->setdest(x, y, 0, 0);
+		  level->setflag(x, y, 0);
 		}
 	      }
 
@@ -1495,11 +1488,11 @@ void Editor::edit(Level *origlev) {
                 for (int x = selection.x; x < selection.x + selection.w; x++) {
 
                   /* copy all the parts */
-                  dr.lev->settile(x + dx, y + dy,
-                                  cl->tileat(x, y));
+                  level->settile(x + dx, y + dy,
+				 cl->tileat(x, y));
 
-                  dr.lev->osettile(x + dx, y + dy,
-                                   cl->otileat(x, y));
+                  level->osettile(x + dx, y + dy,
+				  cl->otileat(x, y));
 
                   {
 		    int ddx, ddy;
@@ -1518,39 +1511,39 @@ void Editor::edit(Level *origlev) {
 		    }
 
 		    /* anyway copy dest */
-		    dr.lev->setdest(x + dx, y + dy, ddx, ddy);
+		    level->setdest(x + dx, y + dy, ddx, ddy);
                   }
 
                   /* finally, flags */
-                  dr.lev->setflag(x + dx, y + dy,
-                                  cl->flagat(x, y));
+                  level->setflag(x + dx, y + dy,
+				 cl->flagat(x, y));
                 }
 	      }
 		
               /* move player, bots */
-              if (dr.lev->guyx >= selection.x &&
-                  dr.lev->guyy >= selection.y &&
-                  dr.lev->guyx < (selection.x + selection.w) &&
-                  dr.lev->guyy < (selection.y + selection.h)) {
-                dr.lev->guyx += dx;
-                dr.lev->guyy += dy;
+              if (level->guyx >= selection.x &&
+                  level->guyy >= selection.y &&
+                  level->guyx < (selection.x + selection.w) &&
+                  level->guyy < (selection.y + selection.h)) {
+                level->guyx += dx;
+                level->guyy += dy;
 
                 /* if moving over bot (on edge), delete it */
-                if (dr.lev->guyx < selection.x ||
-                    dr.lev->guyy < selection.y ||
-                    dr.lev->guyx >= (selection.x + selection.w) ||
-                    dr.lev->guyy >= (selection.y + selection.h)) {
+                if (level->guyx < selection.x ||
+                    level->guyy < selection.y ||
+                    level->guyx >= (selection.x + selection.w) ||
+                    level->guyy >= (selection.y + selection.h)) {
                   int bi;
-                  if (dr.lev->botat(dr.lev->guyx, dr.lev->guyy, bi)) {
-                    dr.lev->bott[bi] = B_DELETED;
+                  if (level->botat(level->guyx, level->guyy, bi)) {
+                    level->bott[bi] = B_DELETED;
                   }
                 }
               }
 
 
-	      for (int i = 0; i < dr.lev->nbots; i++) {
+	      for (int i = 0; i < level->nbots; i++) {
 		int bx, by;
-		dr.lev->where(dr.lev->boti[i], bx, by);
+		level->where(level->boti[i], bx, by);
 		if (bx >= selection.x &&
 		    by >= selection.y &&
 		    bx < (selection.x + selection.w) &&
@@ -1567,29 +1560,29 @@ void Editor::edit(Level *origlev) {
 		      bx >= (selection.x + selection.w) ||
 		      by >= (selection.y + selection.h)) {
 
-		    if (dr.lev->botat(bx, by, bi)) {
+		    if (level->botat(bx, by, bi)) {
 		      /* overwrite bot */
-		      dr.lev->bott[bi] = B_DELETED;
-		    } else if (dr.lev->playerat(bx, by)) {
+		      level->bott[bi] = B_DELETED;
+		    } else if (level->playerat(bx, by)) {
 		      /* Delete self if trying to
 			 overwrite player! */
-		      dr.lev->bott[i] = B_DELETED;
+		      level->bott[i] = B_DELETED;
 		    }
 		  }
 		}
 
 		/* move bot (even if deleted) */
-		dr.lev->boti[i] = dr.lev->index(bx, by);
+		level->boti[i] = level->index(bx, by);
 	      }
 
               /* move selection with it, but don't change size */
               selection.x = tx;
               selection.y = ty;
 
-              fixup();
+              FixUp();
             } /* would move stay on screen? */
 
-            redraw();
+            Redraw();
           } else {
             /* move scroll window */
 
@@ -1600,7 +1593,7 @@ void Editor::edit(Level *origlev) {
 
             dr.makescrollreasonable();
 
-            redraw();
+            Redraw();
           }
           break;
         }
@@ -1617,7 +1610,7 @@ void Editor::edit(Level *origlev) {
                                "Don't quit.")) {
               goto edit_quit;
             } else {
-              redraw();
+              Redraw();
             }
           } else goto edit_quit;
 
@@ -1687,10 +1680,10 @@ void Editor::edit(Level *origlev) {
         case SDLK_d:
           if (event.key.keysym.mod & KMOD_CTRL) {
             clearselection();
-            redraw();
+            Redraw();
           } else {
             showdests = !showdests;
-            redraw();
+            Redraw();
           }
           break;
 
@@ -1698,9 +1691,9 @@ void Editor::edit(Level *origlev) {
           if (event.key.keysym.mod & KMOD_CTRL) {
             selection.x = 0;
             selection.y = 0;
-            selection.w = dr.lev->w;
-            selection.h = dr.lev->h;
-            redraw();
+            selection.w = level->w;
+            selection.h = level->h;
+            Redraw();
           } else {
             saveas();
           }
@@ -1711,7 +1704,7 @@ void Editor::edit(Level *origlev) {
           break;
 
         case SDLK_s:
-          if (filename == "") saveas();
+          if (filename.empty()) saveas();
           else save();
           break;
 
@@ -1725,7 +1718,7 @@ void Editor::edit(Level *origlev) {
 
         case SDLK_y:
           layer = !layer;
-          redraw();
+          Redraw();
           break;
 
           /* zoom */
@@ -1738,7 +1731,7 @@ void Editor::edit(Level *origlev) {
           /* scrolls? */
           dr.makescrollreasonable();
 
-          redraw();
+          Redraw();
           break;
 
         default:
@@ -1754,8 +1747,6 @@ void Editor::edit(Level *origlev) {
   }
  edit_quit:
 
-  dr.lev->destroy();
-
   return;
 }
 
@@ -1763,7 +1754,7 @@ void Editor::next_bombtimer() {
   currentbomb = (bot)((int)currentbomb + 1);
   if ((int)currentbomb > (int)B_BOMB_MAX)
     currentbomb = B_BOMB_0;
-  redraw();
+  Redraw();
 }
 
 bool Editor::getdest(int &x, int &y, string msg) {
@@ -1773,7 +1764,7 @@ bool Editor::getdest(int &x, int &y, string msg) {
 
   dr.message = msg;
 
-  redraw();
+  Redraw();
 
   for (;;) {
     while (SDL_PollEvent(&event)) {
@@ -1822,7 +1813,7 @@ bool Editor::getdest(int &x, int &y, string msg) {
           break;
         }
         dr.makescrollreasonable();
-        redraw();
+        Redraw();
         break;
       default:;
       }
@@ -1835,20 +1826,16 @@ bool Editor::getdest(int &x, int &y, string msg) {
 }
 
 /* fix various things before playing or saving. */
-void Editor::fixup() {
-
+void Editor::FixUp() {
   /* XXX should fon->parens the texts */
 
-  Level *l = dr.lev;
+  if (level->title.empty()) level->title = "Untitled";
+  if (level->author.empty()) level->author = plr->name;
+  if (level->author.empty()) level->author = "Anonymous";
 
-  if (l->title == "") l->title = "Untitled";
-  if (l->author == "") l->author = plr->name;
-  if (l->author == "") l->author = "Anonymous";
-
-  for (int i = 0; i < l->w * l->h; i++) {
-
+  for (int i = 0; i < level->w * level->h; i++) {
     /* always clear 'temp' flag. */
-    l->flags[i] &= ~(TF_TEMP);
+    level->flags[i] &= ~(TF_TEMP);
 
     /* make sure panel flag is set if tile is a panel.
        we have to also set the flag refinement: is it
@@ -1856,56 +1843,54 @@ void Editor::fixup() {
     */
     /* first remove the flags no matter what. (we don't
        want to accumulate *extra* flags) */
-    l->flags[i] &= ~(TF_HASPANEL | TF_RPANELL | TF_RPANELH);
-    l->flags[i] &= ~(TF_OPANEL | TF_ROPANELL | TF_ROPANELH);
+    level->flags[i] &= ~(TF_HASPANEL | TF_RPANELL | TF_RPANELH);
+    level->flags[i] &= ~(TF_OPANEL | TF_ROPANELL | TF_ROPANELH);
 
     /* restore them where appropriate */
     int ref;
-    if (Level::ispanel(l->tiles[i], ref)) {
-      l->flags[i] |= TF_HASPANEL |
+    if (Level::ispanel(level->tiles[i], ref)) {
+      level->flags[i] |= TF_HASPANEL |
                      ((ref & 1) * TF_RPANELL) |
                     (((ref & 2) >> 1) * TF_RPANELH);
     }
 
-    if (Level::ispanel(l->otiles[i], ref)) {
-      l->flags[i] |= TF_OPANEL |
+    if (Level::ispanel(level->otiles[i], ref)) {
+      level->flags[i] |= TF_OPANEL |
                      ((ref & 1) * TF_ROPANELL) |
                     (((ref & 2) >> 1) * TF_ROPANELH);
     }
 
     /* unset destination if not needed (makes
        smaller files because of longer runs) */
-    if (!(Level::needsdest(l->tiles[i]) ||
-          Level::needsdest(l->otiles[i])))
-      l->dests[i] = 0;
-
+    if (!(Level::needsdest(level->tiles[i]) ||
+          Level::needsdest(level->otiles[i])))
+      level->dests[i] = 0;
   }
 
   /* bots: remove deleted ones, normalize
      direction and attributes */
   {
     int bdi = 0;
-    for (int bi = 0; bi < dr.lev->nbots; bi++) {
-      if (dr.lev->bott[bi] >= 0 &&
-          dr.lev->bott[bi] < NUM_ROBOTS) {
+    for (int bi = 0; bi < level->nbots; bi++) {
+      if (level->bott[bi] >= 0 &&
+          level->bott[bi] < NUM_ROBOTS) {
         /* save bot */
-        dr.lev->bott[bdi] = dr.lev->bott[bi];
-        dr.lev->boti[bdi] = dr.lev->boti[bi];
-        dr.lev->botd[bdi] = DIR_DOWN;
+        level->bott[bdi] = level->bott[bi];
+        level->boti[bdi] = level->boti[bi];
+        level->botd[bdi] = DIR_DOWN;
         /* always -1 */
-        dr.lev->bota[bdi] = -1;
+        level->bota[bdi] = -1;
         bdi++;
       }
     }
 
-    dr.lev->nbots = bdi;
+    level->nbots = bdi;
   }
 
-  dr.lev->fixup_botorder();
+  level->fixup_botorder();
 
   // XXX At this point the level should always
   // pass sanitize test. Check?
-
 }
 
 Editor *Editor::Create(Player *p) {

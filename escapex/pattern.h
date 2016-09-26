@@ -48,16 +48,12 @@ struct Match {
     virtual ~stream() {}
   };
 
-  ~Match() {
-    lev->destroy();
-  }
+  ~Match() {}
 
   /* takes ownership of register array, but not level */
-  Match(int idx, int udir, int rdir, int nr, vector<int> regs, Level *l) :
+  Match(int idx, int udir, int rdir, int nr, vector<int> regs, const Level *l) :
     topleft(idx), up_dir(udir), right_dir(rdir), nregs(nr),
-    regs(std::move(regs)) {
-
-    lev = l->clone();
+    regs(std::move(regs)), lev(l->Clone()) {
   }
 
  private:
@@ -66,7 +62,7 @@ struct Match {
   const int right_dir;
   const int nregs;
   const vector<int> regs;
-  Level *lev;
+  std::unique_ptr<Level> lev;
 };
 
 /* unfortunately we have to put the implementation
