@@ -4,7 +4,8 @@
 //
 // /* Draw a line from (3, 4) to (-7, 8). */
 // for (const std::pair<int, int> point : Line<int>{3, 4, -7, 8}) {
-//   drawpixel(point.x, point.y)
+//   int x = point.first, y = point.second;
+//   drawpixel(x, y);
 // }
 
 #ifndef __CC_LIB_LINE_H
