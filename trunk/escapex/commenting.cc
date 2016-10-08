@@ -46,7 +46,7 @@ struct cscreen : public Drawable {
     SDL_Flip(screen);
   }
 
-  Level *lev;
+  const Level *lev;
   int nsolved;
   string levmd5;
 
@@ -63,7 +63,7 @@ struct cscreen : public Drawable {
 };
 }  // namespace
 
-void CommentScreen::comment(Player *p, Level *lev, string md5,
+void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
                             bool cookmode) {
   cscreen cs;
   cs.lev = lev;

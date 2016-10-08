@@ -1283,7 +1283,7 @@ string LoadLevel_::Loop() {
                 fclose(f);
 
                 /* This does its own error reporting */
-                CommentScreen::comment(
+                CommentScreen::Comment(
 		    plr, sel->items[sel->selected].lev.get(), md);
 
               }
@@ -1327,7 +1327,7 @@ string LoadLevel_::Loop() {
 				     sel->items[sel->selected].lev.get(),
 				     md)};
                 if (rs.get() != nullptr) {
-                  rs->rate();
+                  rs->Rate();
                 } else {
                   Message::Bug(this, "Couldn't create rate object!");
                 }

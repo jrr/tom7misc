@@ -452,7 +452,7 @@ bool Player_::writef_text(const string &file) {
       string md5ascii = MD5::Ascii(tmp->head->md5).c_str();
       fprintf(f, "%s %s\n",
               md5ascii.c_str(),
-              Base64::Encode(tmp->head->rat->tostring()).c_str());
+              Base64::Encode(tmp->head->rat->ToString()).c_str());
     }
   }
 
