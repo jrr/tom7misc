@@ -566,7 +566,7 @@ void Menu::fixup(int vspace) {
     if (skip_ok(vspace)) return;
 }
 
-void Menu::redraw() {
+void Menu::Redraw() {
   draw();
   SDL_Flip(screen);
 }
@@ -770,7 +770,7 @@ InputResult Menu::clickselect(int xc, int yc) {
            focusable */
         if (items[n]->focusable()) selected = n;
         InputResult res = items[n]->click(xc, yc - y);
-        redraw();
+        Redraw();
         return res;
       }
 
@@ -787,7 +787,7 @@ InputResult Menu::clickselect(int xc, int yc) {
   case InputResultKind::QUIT: return res.kind();      \
                                         \
   case InputResultKind::UPDATED:                      \
-    redraw();                           \
+    Redraw();                           \
     break;                              \
   case InputResultKind::REJECT:                       \
     /* XXX beep or flash display */     \
@@ -797,7 +797,7 @@ InputResult Menu::clickselect(int xc, int yc) {
     selected++;                         \
     selected %= nitems;                 \
     nextfocus(1);                       \
-    redraw();                           \
+    Redraw();                           \
     break;                              \
                                         \
   case InputResultKind::PREV:                         \
@@ -805,7 +805,7 @@ InputResult Menu::clickselect(int xc, int yc) {
       selected = nitems - 1;            \
     } else --selected;                  \
     nextfocus(-1);                      \
-    redraw();                           \
+    Redraw();                           \
     break;                              \
                                         \
   default:                              \
@@ -819,7 +819,7 @@ InputResultKind Menu::menuize() {
   nextfocus(1);
   screenresize();
 
-  redraw();
+  Redraw();
 
   SDL_Event e;
 
@@ -859,8 +859,7 @@ InputResultKind Menu::menuize() {
             /* DRAG mouse capture */
             SDL_Event event;
 
-            for (;;) while ( SDL_PollEvent(&event) ) {
-
+            for (;;) while (SDL_PollEvent(&event)) {
               switch (event.type) {
               case SDL_MOUSEMOTION: {
                 SDL_MouseMotionEvent *e = (SDL_MouseMotionEvent*)&event;
@@ -875,7 +874,7 @@ InputResultKind Menu::menuize() {
 
                 /* XXX also bottom and right? */
 
-                redraw();
+                Redraw();
                 /* PERF dump events that are queued up? */
                 break;
               }
@@ -883,11 +882,10 @@ InputResultKind Menu::menuize() {
                 if (em->button == SDL_BUTTON_LEFT) goto dragdone;
                 break;
               }
-
             }
 
           dragdone:
-            redraw();
+            Redraw();
           }
         }
       }

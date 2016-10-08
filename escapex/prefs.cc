@@ -166,48 +166,48 @@ void Prefs::show(Player *plr) {
 
 void Prefs::defaults(Player *plr) {
 
-  Chunks *ch = plr->getchunks();
+  Chunks *ch = plr->GetChunks();
 
-  if (!ch->get(PREF_SERVER))
+  if (!ch->Get(PREF_SERVER))
     putstring(plr, PREF_SERVER, DEFAULT_SERVER);
 
-  if (!ch->get(PREF_ALTCONNECT))
+  if (!ch->Get(PREF_ALTCONNECT))
     putbool(plr, PREF_ALTCONNECT, false);
 
-  if (!ch->get(PREF_ASKRATE))
+  if (!ch->Get(PREF_ASKRATE))
     putbool(plr, PREF_ASKRATE, true);
 
-  if (!ch->get(PREF_SHOWTUT))
+  if (!ch->Get(PREF_SHOWTUT))
     putbool(plr, PREF_SHOWTUT, true);
 
-  if (!ch->get(PREF_BACKUP_PLAYER))
+  if (!ch->Get(PREF_BACKUP_PLAYER))
     putbool(plr, PREF_BACKUP_PLAYER, true);
 
-  if (!ch->get(PREF_DEBUG_NET))
+  if (!ch->Get(PREF_DEBUG_NET))
     putbool(plr, PREF_DEBUG_NET, false);
 
-  if (!ch->get(PREF_ANIMATION_ENABLED))
+  if (!ch->Get(PREF_ANIMATION_ENABLED))
     putbool(plr, PREF_ANIMATION_ENABLED, true);
 
-  if (!ch->get(PREF_OPTIMIZE_SOLUTIONS))
+  if (!ch->Get(PREF_OPTIMIZE_SOLUTIONS))
     putbool(plr, PREF_OPTIMIZE_SOLUTIONS, true);
 
 }
 
 void Prefs::putstring(Player *plr, uint32 key, string s) {
-  plr->getchunks()->insert(new Chunk(key, s));
+  plr->GetChunks()->Insert(new Chunk(key, s));
 }
 
 void Prefs::putbool(Player *plr, uint32 key, bool b) {
-  plr->getchunks()->insert(new Chunk(key, b));
+  plr->GetChunks()->Insert(new Chunk(key, b));
 }
 
 void Prefs::putint(Player *plr, uint32 key, int32 i) {
-  plr->getchunks()->insert(new Chunk(key, i));
+  plr->GetChunks()->Insert(new Chunk(key, i));
 }
 
 int32 Prefs::getint(Player *plr, uint32 k) {
-  Chunk *c = plr->getchunks()->get(k);
+  Chunk *c = plr->GetChunks()->Get(k);
 
   if (c && c->type == CT_INT32) {
     return c->i;
@@ -220,7 +220,7 @@ int32 Prefs::getint(Player *plr, uint32 k) {
 }
 
 bool Prefs::getbool(Player *plr, uint32 k) {
-  Chunk *c = plr->getchunks()->get(k);
+  Chunk *c = plr->GetChunks()->Get(k);
 
   if (c && c->type == CT_BOOL) {
     return (bool)c->i;
@@ -231,7 +231,7 @@ bool Prefs::getbool(Player *plr, uint32 k) {
 }
 
 string Prefs::getstring(Player *plr, uint32 k) {
-  Chunk *c = plr->getchunks()->get(k);
+  Chunk *c = plr->GetChunks()->Get(k);
 
   if (c && c->type == CT_STRING) {
     return c->s;

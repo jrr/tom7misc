@@ -13,8 +13,8 @@ struct Chunk {
   ChunkType type;
   uint32 key;
 
-  string tostring();
-  static Chunk *fromstring(const string &s);
+  string ToString();
+  static Chunk *FromString(const string &s);
   Chunk(uint32, int32);
   Chunk(uint32, bool);
   Chunk(uint32, string);
@@ -27,29 +27,27 @@ struct Chunk {
 
 /* database itself */
 struct Chunks {
-
   /* create a blank db with no chunks */
-  static Chunks *create();
+  static std::unique_ptr<Chunks> Create();
 
   /* revive marshalled chunks */
-  static Chunks *fromstring(const string &s);
+  static std::unique_ptr<Chunks> FromString(const string &s);
 
   /* marshall to string */
-  virtual string tostring();
+  virtual string ToString();
 
   /* returns 0 if not present */
-  virtual Chunk *get(uint32 key);
+  virtual Chunk *Get(uint32 key);
 
   /* replace existing chunk, if present.
      takes ownership of chunk in any case */
-  virtual void insert(Chunk *data);
+  virtual void Insert(Chunk *data);
 
-  virtual ~Chunks() {}
-  virtual void destroy();
+  virtual ~Chunks();
 
-  private:
-  PtrList<Chunk> *data;
-  static int compare(Chunk *l, Chunk *r);
+ private:
+  PtrList<Chunk> *data = nullptr;
+  static int Compare(Chunk *l, Chunk *r);
 };
 
 

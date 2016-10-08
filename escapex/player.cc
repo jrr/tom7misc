@@ -99,14 +99,14 @@ int NamedSolution::Compare(NamedSolution *l, NamedSolution *r) {
 
 namespace {
 
-struct hashratentry {
+struct HashRatEntry {
   string md5;
   Rating *rat;
   static unsigned int hash(string k);
   string key() { return md5; }
   void destroy() { delete rat; delete this; }
-  hashratentry(string m, Rating *r) : md5(m), rat(r) {}
-  static int compare(hashratentry *l, hashratentry *r) {
+  HashRatEntry(string m, Rating *r) : md5(m), rat(r) {}
+  static int compare(HashRatEntry *l, HashRatEntry *r) {
     return l->md5.compare(r->md5);
   }
 };
@@ -114,7 +114,7 @@ struct hashratentry {
 struct Player_ : public Player {
   static Player_ *Create(const string &n);
 
-  Chunks *getchunks() override { return ch; }
+  Chunks *GetChunks() override { return ch.get(); }
 
   // XXX this used to return a non-bookmark if it exists. The
   // solutions should now be kept in a canonical order where real
@@ -174,7 +174,6 @@ struct Player_ : public Player {
 
   virtual ~Player_() {
     ratable->destroy();
-    if (ch) ch->destroy();
   };
 
   bool HasSolution(const string &md5, const Solution &what) override {
@@ -199,7 +198,7 @@ struct Player_ : public Player {
   // Keys are (raw) MD5 strings. The order of the solutions
   // matters; the first one is the default solution.
   unordered_map<string, vector<NamedSolution>> soltable;
-  hashtable<hashratentry, string> *ratable;
+  hashtable<HashRatEntry, string> *ratable;
 
   const vector<NamedSolution> empty_solutionset;
 
@@ -214,10 +213,10 @@ struct Player_ : public Player {
   void AddSolution(const string &md5, NamedSolution ns,
                    bool def_candidate) override;
 
-  Chunks *ch;
+  std::unique_ptr<Chunks> ch;
 };
 
-unsigned int hashratentry::hash(string k) {
+unsigned int HashRatEntry::hash(string k) {
   return *(unsigned int*)(k.c_str());
 }
 
@@ -227,9 +226,9 @@ Player_ *Player_::Create(const string &n) {
 
   p->name = n;
 
-  p->ratable = hashtable<hashratentry,string>::create(HASHSIZE);
+  p->ratable = hashtable<HashRatEntry,string>::create(HASHSIZE);
 
-  p->ch = Chunks::create();
+  p->ch = Chunks::Create();
 
   p->webid = 0;
   p->webseqh = 0;
@@ -245,7 +244,7 @@ Player_ *Player_::Create(const string &n) {
 }
 
 Rating *Player_::getrating(const string &md5) const {
-  const hashratentry *re = ratable->lookup(md5);
+  const HashRatEntry *re = ratable->lookup(md5);
 
   if (re) return re->rat;
   else return nullptr;
@@ -307,12 +306,12 @@ void Player_::AddSolution(const string &md5, NamedSolution ns,
 }
 
 void Player_::putrating(string md5, Rating *rat) {
-  hashratentry *re = ratable->lookup(md5);
+  HashRatEntry *re = ratable->lookup(md5);
   if (re != nullptr && re->rat) {
     /* overwrite */
     delete re->rat;
     re->rat = rat;
-  } else ratable->insert(new hashratentry(md5, rat));
+  } else ratable->insert(new HashRatEntry(md5, rat));
 
 }
 
@@ -445,8 +444,8 @@ bool Player_::writef_text(const string &file) {
   /* ditto... */
 
   for (int i = 0; i < ratable->allocated; i++) {
-    PtrList<hashratentry>::sort(hashratentry::compare, ratable->data[i]);
-    for (PtrList<hashratentry> *tmp = ratable->data[i];
+    PtrList<HashRatEntry>::sort(HashRatEntry::compare, ratable->data[i]);
+    for (PtrList<HashRatEntry> *tmp = ratable->data[i];
          tmp;
          tmp = tmp->next) {
       string md5ascii = MD5::Ascii(tmp->head->md5).c_str();
@@ -459,8 +458,7 @@ bool Player_::writef_text(const string &file) {
   fprintf(f, PREFMARKER "\n");
 
   /* write chunks */
-  /* ch->tostring() */
-  fprintf(f, "%s\n", Base64::Encode(ch->tostring()).c_str());
+  fprintf(f, "%s\n", Base64::Encode(ch->ToString()).c_str());
 
 
   fclose(f);
@@ -575,9 +573,9 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
 
   string cs;
   if (!cf->getline(cs)) FF_FAIL("expected prefs");
-  p->ch = Chunks::fromstring(Base64::Decode(cs));
+  p->ch = Chunks::FromString(Base64::Decode(cs));
 
-  if (!p->ch) FF_FAIL("bad prefs");
+  if (p->ch.get() == nullptr) FF_FAIL("bad prefs");
 
   return p.release();
 }

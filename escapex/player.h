@@ -47,12 +47,10 @@ struct Player {
   static Player *Create(const string &n);
   static Player *FromFile(const string &file);
 
-  /* returns the chunk structure for this
-     player. After making any changes
-     (insertions, modifications), call
-     writefile to save them. Don't free
-     the chunks */
-  virtual Chunks *getchunks() = 0;
+  /* returns the chunk structure for this player. After making any
+     changes (insertions, modifications), call writefile to save them.
+     The Chunks object remains owned by the Player. */
+  virtual Chunks *GetChunks() = 0;
 
   /* Get the default solution (if any) for the level whose md5
      representation is "md5", or returns null. Solution remains
