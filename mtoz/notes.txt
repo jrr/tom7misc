@@ -1,0 +1,26 @@
+  // The trickiest part about just combining abstract objects for
+  // training is that we want to use efficient layouts in memory: Both
+  // because the networks can be very large, and we are substantially
+  // limited by GPU memory (4-8GB range in 2016); and because we want
+  // to avoid copying as much as possible. In particular, we should
+  // not have to copy from one system's outputs into another system's
+  // inputs when that system could just be indexing into the existing
+  // outputs during its forward pass (etc.). The old Network approach
+  // handled this directly, but it got to assume that every stage
+  // was just an ordinary neural-network layer.
+  //
+  // To represent the System itself, we need:
+  //   Input edge weights (learnable)
+  //   Node biases (learnable)
+  //   Instructions for how to read the input edge values
+  //
+  // The first two are easy; these can just be data that's private to
+  // the system implementation, and it can just keep some data on the
+  // GPU that it refers to during the various passes. No other systems
+  // should need to have access to this.
+  //
+  // The instructions for how to read input edge values are tied
+  // up with the next thing, which is how we represent an in-progress
+  // forward calculation. We call this a "stimulation".
+  //
+  // To represent a stimulation, we need the value of each node (

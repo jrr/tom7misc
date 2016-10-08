@@ -1,7 +1,7 @@
 
 default: mtoz.exe
 
-all: mtoz.exe cluster.exe cluster1d.exe cluster2d.exe cluster3d.exe
+all: mtoz.exe mtoz-flat.exe cluster.exe cluster1d.exe cluster2d.exe cluster3d.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -std=c++14
@@ -53,6 +53,10 @@ OBJECTS=$(UTILOBJECTS) $(FCEULIBOBJECTS)
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
 
 mtoz.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o mtoz.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+mtoz-flat.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o mtoz-flat.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
