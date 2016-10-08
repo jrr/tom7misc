@@ -1,6 +1,10 @@
 // This code was forked from ../redi, so read there for some
 // development history / thoughts.
 
+// This version of MTOZ uses a flat network; this was the last
+// working version before I started trying to use a convolutional
+// one. It does work, with poor performance and quality.
+
 #include "../cc-lib/sdl/sdlutil.h"
 #include "SDL.h"
 #include "SDL_main.h"
@@ -200,140 +204,9 @@ static constexpr float ByteFloat(uint8 b) {
   return (b / 255.0);
 }
 
-// Some thinking aloud about convolutions:
-//
-// For a convolution, a network with a small(er) number of inputs is
-// run on multiple different segments of a larger input array. This
-// is inherently spatial, and so requires some notion of "pixel". (A
-// pixel may be mapped to multiple nodes, however). Say we have a
-// network with a 16x16 pixel input size, which produces a 24x24
-// pixel output. This can be run on any input plane of size IWxIH,
-// with IW >= 16 and IH >= 16. We execute it on every rectangle ((x,
-// y), (x + 15, y + 15)) where 0 <= x <= IW - 16 and 0 <= y <= IH -
-// 16 and where x and y are divisible by in_x_stride and in_y_stride
-// (typically 1--need to make sure this evenly divides something,
-// XXX). Each execution produces a 24x24 pixel rectangle, and there
-// are (IW - 16) * (IH - 16) / (in_x_stride * in_y_stride) of them.
-//
-// The output rectangles are combined by overlapping them, at
-// intervals of out_x_stride and out_y_stride. If these are also 1,
-// the output is barely any bigger: On the x dimension, we have IW -
-// 16 of them, each overlapping on consecutive pixels, so this just
-// has width IW - 16 + 24, or IW + 8. In the middle of the output
-// image, the pixels receive 24*24 overlapping output values. We
-// should average these values, so as not to burden the network
-// itself with distinguishing the edge outputs (which get as few as
-// 1 pixel to average; only one rectangle touches a corner) from the
-// center. (It would be a simple matter for it to learn a constant
-// scaling factor.) This may require a bit of smarts in computing
-// the errors/weight updates. Anyway, the in_ and out_ strides should
-// probably be related to the amount of inflation or compression that
-// the network itself does, so in the case of 16x16->24x24, maybe
-// strides of 2->3 would be right.
-//
-// Now note that a regular layer is just a special case of a
-// convolutional one, where W=IW, H=IH, and in_stride=1 (or,
-// anything). The output size can also be different from the input,
-// and they don't need to have any special relationship; we only
-// need the strides to divide the sizes, and 1 always will. It is
-// maybe useful to treat regular layers as special cases of
-// convolutional in the C++ code, but in the performance-sensitive
-// kernel code we probably shouldn't. For example, there's no point
-// in performing an average operation when there can be only 1
-// contributor to each pixel, and generating these averages may
-// involve computing intermediate outputs.
-
-// So let's say that a System is a spatial arrangement of networks.
-// The System understands pixels (is spatial) and the network is
-// just about interconnections of nodes. The System parameters are
-// static; all we learn during the training process are bias terms
-// and weights in the networks. However, training still operates on
-// the System level, because during the forward pass we need to
-// perform the convolution operation (running sub-networks on
-// multiple rectangles and averaging); during the error propagation
-// we need to do the inverse; and the other steps are probably
-// impacted as well.
-
-struct SystemConfiguration {
-  // idea: Something that flattens the tree-structured configuration
-  // into vector, by assigning each node an id in [0, radix)?
-};
-
-struct System;
-
-// Stimulation of a single System. This is basically activations for
-// an input and output layer, plus anything that is needed internally.
-struct GPUStimulation {
-  // Deletes any memory allocated on the GPU.
-  virtual ~GPUStimulation();
-  // How many bytes are used, approximately? Used for diagnostics
-  // or maybe some day scheduling.
-  virtual int64 Size() const;
-
-  // XXX sub-stimulations?
-
-  // Every stimulation belongs to a single system instance.
-  System *system = nullptr;
-};
-
-struct GPUErrors {
-  // Deletes any memory allocated on the GPU.
-  virtual ~GPUErrors();
-  virtual int64 Size() const;
-
-  // Every Errors belongs to a single system instance, and came from
-  // a single stimulation instance. (XXX true, but do we need the
-  // stimulation pointer? I think we may want to delete the stimulation
-  // as soon as we have errors.)
-  System *system = nullptr;
-  Stimulation *stimulation = nullptr;
-};
-
-
-// Note that with this setup we get no (GPU-native) parallelism across
-// multiple stimulations (or errors/updates), but
-//  - They can still be run in parallel CPU threads, with two running
-//    the same kernel at the same time. We just may not be able to make
-//    the best use of GPU data parallelism in this situation.
-//  - There is typically plenty of on-GPU parallelism within the
-//    execution of a system on a single stimulation.
-struct System {
-  // A System must have fixed input/ouput dimensions. A pixel consists
-  // of one or more channels, e.g., 3 for RGB or 1 for "brightness"
-  // only. (Note that a pixel could represent other things, like
-  // an audio sample.)
-  int input_width, input_height, input_channels;
-  int output_width, output_height, output_channels;
-
-  // The hardest part of doing this well will be to arrange the
-  // network (actually, the dynamic state from stimulation, error, and
-  // updates) in GPU memory in such a way that we can avoid copying
-  // between subsystems. But let's postpone that problem, instead just
-  // thinking about making something that works.
-
-  // Allocate a new uninitialized stimulation for this system.
-  virtual GPUStimulation *NewStimulation() = 0;
-  // Maybe should be member of the stimulation?
-  virtual GPUErrors *NewErrors(GPUStimulation *stim) = 0;
-  
-  // Initialize the stimulation from the results of the previous
-  // phase; typically this is a single previous system. In the case of
-  // something like an input layer, it may do nothing (because it has
-  // already been initialized?).
-  virtual void Initialize(
-      const vector<GPUStimulation *> &prev, GPUStimulation *stim) = 0;
-  // Run the forward pass resulting in a stimulation that is completely
-  // populated.
-  virtual void Forward(GPUStimulation *stim) = 0;
-
-  virtual void PropagateErrors(
-      
-  
-};
-
-
-#define NEIGHBORHOOD 1  
+#define NEIGHBORHOOD 1
 struct NetworkConfiguration {
+ 
   const int num_layers = 5;
   // Note that these must have num_layers + 1 entries.
   // The number of nodes in each layer is width * height * channels.
@@ -1587,7 +1460,7 @@ static void TrainThread() {
   // "Eval" here means generating frames of a movie to make a video.
   // If EVAL_ONLY is true, we skip training, and write a frame on every round
   // (since that's all that the round does).
-  static constexpr bool EVAL_ONLY = true;
+  static constexpr bool EVAL_ONLY = false;
   // Should be the index of the next eval-%d.png to write, for
   // multi-session training (XXX get this from a checkpoint file or something).
   const int FRAMES_ALREADY_DONE = []() {
