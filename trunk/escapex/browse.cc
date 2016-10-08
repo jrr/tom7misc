@@ -229,7 +229,7 @@ string Browse_::selectlevel() {
 
       if (handle_video_event(this, event)) continue;
 
-      if ( event.type == SDL_KEYDOWN ) {
+      if (event.type == SDL_KEYDOWN) {
         int key = event.key.keysym.sym;
         /* breaking from here will allow the key to be
            treated as a search */

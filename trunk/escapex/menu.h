@@ -268,7 +268,7 @@ struct Menu : public Drawable {
  private:
   Menu() {}
 
-  void redraw();
+  void Redraw();
   bool skip_ok(int);
   void fixup(int);
   void nextfocus(int dir);
