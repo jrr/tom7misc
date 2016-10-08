@@ -17,9 +17,8 @@ Rating *Rating::Create() {
   return new Rating();
 }
 
-string Rating::tostring() {
+string Rating::ToString() const {
   /* just use one hex digit for each. */
-
   string r = "aa    ";
 
   r[0] = ((difficulty & 0xF) << 4) | (style & 0xF);
@@ -48,18 +47,18 @@ Rating *Rating::FromString(const string &s) {
 namespace {
 
 struct RateScreen_ : public RateScreen {
-  static RateScreen_ *Create(Player *p, Level *l, string levmd);
+  static RateScreen_ *Create(Player *p, const Level *l, const string &levmd);
 
-  void rate() override;
+  void Rate() override;
 
   void draw() override;
   void screenresize() override {}
 
-  void setmessage(string m) override { msg = m; }
+  void SetMessage(const string &m) override { msg = m; }
 
  private:
   Player *plr;
-  Level *lev;
+  const Level *lev;
 
   string msg;
 
@@ -77,9 +76,10 @@ struct RateScreen_ : public RateScreen {
   Rating *rat;
 };
 
-RateScreen_ *RateScreen_::Create(Player *p, Level *l, string levmd) {
+RateScreen_ *RateScreen_::Create(
+    Player *p, const Level *l, const string &levmd) {
   RateScreen_ *rr = new RateScreen_();
-  if (!rr) return 0;
+  if (!rr) return nullptr;
 
   rr->plr = p;
   rr->lev = l;
@@ -131,7 +131,7 @@ void RateScreen_::draw() {
 
 }
 
-void RateScreen_::rate() {
+void RateScreen_::Rate() {
   /* XXX check that the player has registered */
 
   /* rat is the existing rating or 0 */
@@ -286,7 +286,7 @@ void RateScreen_::rate() {
            (with comment) instead */
         /* first cook. prompt for comment. */
         if (nr->cooked && !old_cooked) {
-          CommentScreen::comment(plr, lev, levmd5, true);
+          CommentScreen::Comment(plr, lev, levmd5, true);
         } else {
           /* only if no other pop-up */
           Message::Quick(this, "Rating sent!",
@@ -306,6 +306,6 @@ void RateScreen_::rate() {
 
 }  // namespace
 
-RateScreen *RateScreen::Create(Player *p, Level *l, string levmd) {
+RateScreen *RateScreen::Create(Player *p, const Level *l, const string &levmd) {
   return RateScreen_::Create(p, l, levmd);
 }

@@ -6,11 +6,8 @@
 
 struct Player;
 
-/* some slack for later... */
-#define RATINGBYTES 6
-
 struct Rating {
-  string tostring();
+  string ToString() const;
 
   static Rating *FromString(const string &s);
 
@@ -25,7 +22,7 @@ struct Rating {
 
 
 struct RateScreen : public Drawable {
-  static RateScreen *Create(Player *p, Level *l, string levmd);
+  static RateScreen *Create(Player *p, const Level *l, const string &levmd);
 
   /* pops up a menu to rate the level identified
      by md5 string levmd. It's rated by player p,
@@ -43,16 +40,16 @@ struct RateScreen : public Drawable {
 
      doesn't free player or level objects.
   */
-  virtual void rate() = 0;
+  virtual void Rate() = 0;
 
   virtual ~RateScreen() {}
 
-  virtual void draw() = 0;
-  virtual void screenresize() = 0;
+  void draw() override = 0;
+  void screenresize() override = 0;
 
-  virtual void setmessage(string) = 0;
+  virtual void SetMessage(const string &s) = 0;
 
-  Drawable *below;
+  Drawable *below = nullptr;
 };
 
 

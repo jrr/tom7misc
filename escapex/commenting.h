@@ -5,7 +5,7 @@
 #include "escapex.h"
 
 struct CommentScreen {
-  static void comment(Player *plr, Level *l, string md5,
+  static void Comment(Player *plr, const Level *l, const string &md5,
                       bool cookmode = false);
 };
 

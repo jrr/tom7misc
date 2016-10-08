@@ -1612,12 +1612,12 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
         std::unique_ptr<RateScreen> rs{
 	  RateScreen::Create(plr, level.get(), md5)};
         if (rs.get() != nullptr) {
-          rs->setmessage(YELLOW
+          rs->SetMessage(YELLOW
                          "Please rate this level." POP
                          GREY " (You can turn off this "
                          "automatic prompt from the preferences menu.)" POP);
 
-          rs->rate();
+          rs->Rate();
         } else {
           Message::Bug(0, "Couldn't create rate object!");
         }
