@@ -62,6 +62,8 @@ struct PDBEntry {
 
 };
 
+using Selor = Selector<PDBEntry, Player *>;
+
 struct PlayerDB_ : public PlayerDB {
   /* make db with one player, 'Default' */
   static PlayerDB_ *create();
@@ -71,24 +73,20 @@ struct PlayerDB_ : public PlayerDB {
 
   Player *chooseplayer() override;
 
-  ~PlayerDB_() override {
-    sel->destroy();
-  }
-
  private:
-  Selector<PDBEntry, Player *> *sel;
-  void addplayer(string);
-  void delplayer(int);
-  void insertmenu(int);
-  void promptnew();
-  void promptimport();
+  std::unique_ptr<Selor> sel;
+  void AddPlayer(string);
+  void DeletePlayer(int);
+  void InsertMenu(int);
+  void PromptNew();
+  void PromptImport();
 
-  static string makefilename(string name);
-  static string safeify(string name);
+  static string MakeFilename(string name);
+  static string Safeify(string name);
 };
 
 /* assumes there's enough room! */
-void PlayerDB_::insertmenu(int start) {
+void PlayerDB_::InsertMenu(int start) {
   sel->items[start++].kind = K_QUIT;
   sel->items[start++].kind = K_NEW;
   sel->items[start++].kind = K_IMPORT;
@@ -172,7 +170,7 @@ PlayerDB_ *PlayerDB_::create() {
 
   /* need at least enough for the menuitems, and for the
      default player. */
-  pdb->sel = Selector<PDBEntry, Player *>::create(MENUITEMS);
+  pdb->sel = Selector<PDBEntry, Player *>::Create(MENUITEMS);
   if (!pdb->sel) return 0;
 
   pdb->sel->title = PDBTITLE;
@@ -194,7 +192,7 @@ PlayerDB_ *PlayerDB_::create() {
        to avoid importing backups */
     /* printf("%s...\n", f.c_str()); */
     if (util::endswith(f, ".esp")) {
-      pdb->sel->resize(MENUITEMS + n + 1);
+      pdb->sel->Resize(MENUITEMS + n + 1);
       pdb->sel->items[n].kind = K_PLAYER;
       pdb->sel->items[n].fname = f;
 
@@ -214,19 +212,19 @@ PlayerDB_ *PlayerDB_::create() {
 
   /* no players found? */
   if (n == 0) {
-    pdb->sel->resize(MENUITEMS);
-    pdb->insertmenu(0);
-    pdb->addplayer("Default");
+    pdb->sel->Resize(MENUITEMS);
+    pdb->InsertMenu(0);
+    pdb->AddPlayer("Default");
     pdb->first = true;
   } else {
-    pdb->insertmenu(n);
+    pdb->InsertMenu(n);
     pdb->first = false;
   }
 
   return pdb.release();
 }
 
-string PlayerDB_::safeify(string name) {
+string PlayerDB_::Safeify(string name) {
   /* names can only contain certain characters. */
 
   string ou;
@@ -254,7 +252,7 @@ string PlayerDB_::safeify(string name) {
   return ou;
 }
 
-string PlayerDB_::makefilename(string name) {
+string PlayerDB_::MakeFilename(string name) {
   /* shorten to 8 chars, strip special characters,
      add .esp */
 
@@ -287,14 +285,14 @@ string PlayerDB_::makefilename(string name) {
   return ou;
 }
 
-void PlayerDB_::addplayer(string name) {
+void PlayerDB_::AddPlayer(string name) {
   if (Player *plr = Player::Create(name)) {
 
     /* can fail, for example, if the file exists */
-    string fname = makefilename(name);
+    string fname = MakeFilename(name);
     if (fname != "") {
 
-      sel->resize(sel->number + 1);
+      sel->Resize(sel->number + 1);
 
       plr->fname = fname;
       plr->writefile();
@@ -318,7 +316,7 @@ void PlayerDB_::addplayer(string name) {
                  "OK", "", PICS XICON POP);
 }
 
-void PlayerDB_::delplayer(int i) {
+void PlayerDB_::DeletePlayer(int i) {
 
   /* XXX delete player file from disk? */
   if (sel->items[i].kind == K_PLAYER) {
@@ -337,17 +335,14 @@ void PlayerDB_::delplayer(int i) {
   }
 }
 
-
-using selor = Selector<PDBEntry, Player *>;
-
 Player *PlayerDB_::chooseplayer() {
-  sel->sort(PDBEntry::cmp_bysolved);
+  sel->Sort(PDBEntry::cmp_bysolved);
 
-  sel->redraw();
+  sel->Redraw();
 
   SDL_Event event;
 
-  while ( SDL_WaitEvent(&event) >= 0 ) {
+  while (SDL_WaitEvent(&event) >= 0) {
 
     /* control-something is handled
        separately. */
@@ -374,71 +369,70 @@ Player *PlayerDB_::chooseplayer() {
                          (string)" " POP "solved)? (y/N) "));
 
           if (answer.length() > 0 && (answer[0]|32) == 'y') {
-            delplayer(sel->selected);
+            DeletePlayer(sel->selected);
           }
 
-          sel->sort(PDBEntry::cmp_bysolved);
-          sel->redraw();
+          sel->Sort(PDBEntry::cmp_bysolved);
+          sel->Redraw();
         } else {
 
           /* XXX should we even do anything here? */
           Message::No(0, "Can't delete default player or menu items!");
-          sel->redraw();
-
+          sel->Redraw();
         }
         continue;
       }
         /* create new */
       case SDLK_n: {
-        promptnew();
+        PromptNew();
         continue;
       }
       }
 
 
     /* otherwise, handle via default selector */
-    selor::peres pr = sel->doevent(event);
+    Selor::PERes pr = sel->DoEvent(event);
     switch (pr.type) {
-    case selor::PE_SELECTED:
+    case Selor::PEType::SELECTED:
       switch (sel->items[sel->selected].kind) {
       case K_PLAYER:
         return sel->items[sel->selected].convert();
       case K_QUIT:
         return 0; /* XXX? */
       case K_IMPORT:
-        promptimport();
+        PromptImport();
         continue;
 
       case K_NEW:
-        promptnew();
+        PromptNew();
         continue;
       }
       /* ??? */
       break;
       /* FALLTHROUGH */
-    case selor::PE_EXIT: /* XXX */
-    case selor::PE_CANCEL:
+    case Selor::PEType::EXIT: /* XXX */
+    case Selor::PEType::CANCEL:
       return 0;
     default:
-    case selor::PE_NONE:
-      ;
+    case Selor::PEType::NONE:
+      break;
     }
   }
 
   return 0;
 }
 
-void PlayerDB_::promptnew() {
+void PlayerDB_::PromptNew() {
   /* XXX could default to getenv(LOGNAME) on linux */
-  string ssss = safeify(Prompt::ask(0,
-                                    "Enter name for new player: "));
+  string ssss = Safeify(
+      Prompt::ask(0, "Enter name for new player: "));
 
   if (ssss != "") {
-    addplayer(ssss);
+    AddPlayer(ssss);
   }
 
-  sel->sort(PDBEntry::cmp_bysolved);
-  sel->redraw();
+  sel->Sort(PDBEntry::cmp_bysolved);
+  sel->Redraw();
 }
 
 /* FIXME there should be no need for this any more? */
@@ -446,12 +440,12 @@ void PlayerDB_::promptnew() {
    backups? */
 /* XXX this would be much nicer if it actually let
    you browse the directory for a player file */
-void PlayerDB_::promptimport() {
+void PlayerDB_::PromptImport() {
   Message::No(0,
               "To import a player, just " BLUE "copy the .esp file" POP "\n"
               "   into the escape directory and restart the game.");
 
-  sel->redraw();
+  sel->Redraw();
 }
 
 }  // namespace

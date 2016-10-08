@@ -118,7 +118,7 @@ void Editor::pffile() {
       Redraw();
       return nullptr;
     }
-    string res = ll->selectlevel();
+    string res = ll->SelectLevel();
     string ss = readfile(res);
 
     /* allow corrupted files */

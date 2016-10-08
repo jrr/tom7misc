@@ -276,7 +276,7 @@ struct LLEntry {
   static string none() { return ""; }
 };
 
-typedef Selector<LLEntry, string> selor;
+using Selor = Selector<LLEntry, string>;
 
 struct LoadLevel_ : public LoadLevel {
   void draw() override;
@@ -284,13 +284,12 @@ struct LoadLevel_ : public LoadLevel {
 
   ~LoadLevel_() override {
     showlev.reset();
-    sel->destroy();
     while (path) stringpop(path);
   }
 
-  bool first_unsolved(string &file, string &title) override;
+  bool FirstUnsolved(string &file, string &title) override;
 
-  string selectlevel() override;
+  string SelectLevel() override;
 
   LoadLevel_() {}
 
@@ -368,11 +367,11 @@ struct LoadLevel_ : public LoadLevel {
      then we are out of sync. */
   int showidx;
 
-  selor *sel;
+  std::unique_ptr<Selor> sel;
   string Loop();
 
   /* if possible, select the last file seen here */
-  void select_lastfile();
+  void SelectLastFile();
 
   /* called a few times a second, advancing through
      a solution if one exists. */
@@ -386,7 +385,7 @@ LoadLevel_::sortstyle LoadLevel_::sortby = LoadLevel_::SORT_DATE;
 string LoadLevel_::lastdir;
 string LoadLevel_::lastfile;
 
-void LoadLevel_::select_lastfile() {
+void LoadLevel_::SelectLastFile() {
   for (int i = 0; i < sel->number; i++) {
     if (sel->items[i].fname == lastfile) sel->selected = i;
   }
@@ -516,10 +515,10 @@ bool LLEntry::matches(char k) {
   else return (fname.length() > 0 && (fname[0] | 32) == k);
 }
 
-bool LoadLevel_::first_unsolved(string &file, string &title) {
+bool LoadLevel_::FirstUnsolved(string &file, string &title) {
   /* should use this natural sort, since this is used for the
      tutorials */
-  sel->sort(getsort(SORT_ALPHA));
+  sel->Sort(getsort(SORT_ALPHA));
 
   for (int i = 0; i < sel->number; i++) {
     if ((!sel->items[i].isdir) &&
@@ -590,7 +589,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
 
   chdir_ok:
     /* try to find lastfile in this dir, if possible */
-    ll->select_lastfile();
+    ll->SelectLastFile();
   } else {
     if (!ll->ChangeDir(dir, false)) return 0;
   }
@@ -601,7 +600,7 @@ LoadLevel_ *LoadLevel_::Create(Player *p, string default_dir,
 }
 
 
-string LoadLevel_::selectlevel() {
+string LoadLevel_::SelectLevel() {
   return Loop();
 }
 
@@ -679,7 +678,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
   /* save this dir */
   if (remember) lastdir = where;
 
-  selor *nsel = selor::create(n);
+  std::unique_ptr<Selor> nsel = Selor::Create(n);
 
   nsel->botmargin = Drawing::smallheight() + 16 ;
 
@@ -840,19 +839,11 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
 
   DBTIME("cd got everything");
 
-  nsel->sort(getsort(sortby));
+  nsel->Sort(getsort(sortby));
 
   DBTIME("cd sorted");
 
-#if 0
-  if (!nsel->number) {
-    Message::No(0, "There are no levels at all!!");
-    return 0;
-  }
-#endif
-
-  if (sel) sel->destroy();
-  sel = nsel;
+  sel = std::move(nsel);
 
   if (!sel->number) {
     Message::No(0, "There are no levels at all!!");
@@ -921,7 +912,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
     Message::Quick(this,
                    "Couldn't open/understand that player file.",
                    "OK", "", PICS XICON POP);
-    sel->redraw();
+    sel->Redraw();
     return;
   }
 
@@ -979,7 +970,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
           FILE *f = fopen(af.c_str(), "rb");
           if (!f) {
             Message::Bug(this, "couldn't open in recovery");
-            sel->redraw();
+            sel->Redraw();
             continue;
           }
           string md5 = MD5::Hashf(f);
@@ -1024,7 +1015,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
 }
 
 string LoadLevel_::Loop() {
-  sel->redraw();
+  sel->Redraw();
 
   SDL_Event event;
 
@@ -1145,12 +1136,12 @@ string LoadLevel_::Loop() {
 
                 } else {
                   Message::No(this, "Couldn't delete: " + res);
-                  sel->redraw();
+                  sel->Redraw();
                   continue;
                 }
               } else {
                 /* menu: cancel */
-                sel->redraw();
+                sel->Redraw();
                 continue;
               }
 
@@ -1159,7 +1150,7 @@ string LoadLevel_::Loop() {
                           "In web collections, you can only delete\n"
                           "   a level that you uploaded. "
                           "(marked " PICS KEYPIC POP ")\n");
-              sel->redraw();
+              sel->Redraw();
               continue;
             }
 
@@ -1170,14 +1161,14 @@ string LoadLevel_::Loop() {
                                 file + POP "?",
                                 "Yes",
                                 "Cancel", PICS QICON POP)) {
-              sel->redraw();
+              sel->Redraw();
               continue;
             }
           }
 
           if (!util::remove(file)) {
             Message::No(this, "Error deleting file!");
-            sel->redraw();
+            sel->Redraw();
             continue;
           }
 
@@ -1191,9 +1182,9 @@ string LoadLevel_::Loop() {
 
           ChangeDir(".");
 
-          select_lastfile();
+          SelectLastFile();
           fix_show(true);
-          sel->redraw();
+          sel->Redraw();
           break;
         }
 
@@ -1239,10 +1230,10 @@ string LoadLevel_::Loop() {
             /* focus follows currently selected file */
             lastfile = sel->items[sel->selected].fname;
 
-            sel->sort(getsort(sortby));
+            sel->Sort(getsort(sortby));
 
-            select_lastfile();
-            sel->redraw();
+            SelectLastFile();
+            sel->Redraw();
 
             continue;
           } else break;
@@ -1250,7 +1241,7 @@ string LoadLevel_::Loop() {
         case SDLK_BACKSPACE:
           /* might fail, but that's okay */
           ChangeDir("..");
-          sel->redraw();
+          sel->Redraw();
           continue;
         case SDLK_KP_PLUS:
         case SDLK_SLASH:
@@ -1258,7 +1249,7 @@ string LoadLevel_::Loop() {
           helppos++;
           helppos %= numhelp;
           sel->title = helptexts(helppos);
-          sel->redraw();
+          sel->Redraw();
           continue;
 
         case SDLK_c:
@@ -1292,7 +1283,7 @@ string LoadLevel_::Loop() {
                           "You must register with the server to comment.\n"
                           "   (Press " BLUE "R" POP " on the main menu.)");
             }
-            sel->redraw();
+            sel->Redraw();
           } else break;
           continue;
 
@@ -1344,7 +1335,7 @@ string LoadLevel_::Loop() {
 
             }
 
-            sel->redraw();
+            sel->Redraw();
           } else break;
           continue;
         case SDLK_0:
@@ -1413,7 +1404,7 @@ string LoadLevel_::Loop() {
 	    mm.reset();
 
             fix_show();
-            sel->redraw();
+            sel->Redraw();
           } else break;
           continue;
         case SDLK_u:
@@ -1495,7 +1486,7 @@ string LoadLevel_::Loop() {
 		mm.reset();
 
                 if (res != InputResultKind::OK) {
-                  sel->redraw();
+                  sel->Redraw();
                   continue;
                 }
 
@@ -1507,7 +1498,7 @@ string LoadLevel_::Loop() {
                 if (!uu.get()) {
                   Message::Bug(this,
                                "Can't create upload object!");
-                  sel->redraw();
+                  sel->Redraw();
                   continue;
                 }
 
@@ -1534,7 +1525,7 @@ string LoadLevel_::Loop() {
                  "You must register with the server to upload levels.\n"
                  "(Press " BLUE "R" POP " on the main menu.)");
             }
-            sel->redraw();
+            sel->Redraw();
             continue;
 
           } else break;
@@ -1543,9 +1534,9 @@ string LoadLevel_::Loop() {
         }
       }
 
-      selor::peres pr = sel->doevent(event);
+      Selor::PERes pr = sel->DoEvent(event);
       switch (pr.type) {
-      case selor::PE_SELECTED:
+      case Selor::PEType::SELECTED:
         if (sel->items[pr.u.i].isdir) {
           /* XXX test if ChangeDir failed, if so,
              display message. but why would it
@@ -1557,7 +1548,7 @@ string LoadLevel_::Loop() {
                            "Sorry", "", PICS XICON POP);
           }
           /* printf("chdir success.\n"); */
-          sel->redraw();
+          sel->Redraw();
           break;
         } else {
           string out = sel->items[pr.u.i].fname;
@@ -1567,12 +1558,12 @@ string LoadLevel_::Loop() {
           }
           return out;
         }
-      case selor::PE_EXIT: /* XXX */
-      case selor::PE_CANCEL:
+      case Selor::PEType::EXIT: /* XXX */
+      case Selor::PEType::CANCEL:
         return "";
       default:
-      case selor::PE_NONE:
-        ;
+      case Selor::PEType::NONE:
+        break;
       }
 
     }

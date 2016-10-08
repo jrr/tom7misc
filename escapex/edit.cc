@@ -681,7 +681,7 @@ void Editor::load() {
     Redraw();
     return;
   }
-  string res = ll->selectlevel();
+  string res = ll->SelectLevel();
   string ss = readfile(res);
 
   /* allow corrupted files */

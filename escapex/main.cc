@@ -1,12 +1,12 @@
-#include "level.h"
 #include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/md5.h"
 
+#include "level.h"
 #include "util.h"
 #include "escapex.h"
 #include "font.h"
 #include "loadlevel.h"
 #include "player.h"
-#include "../cc-lib/md5.h"
 #include "prompt.h"
 #include "draw.h"
 #include "playerdb.h"
@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
           std::unique_ptr<LoadLevel> ll{
             LoadLevel::Create(plr.get(), DEFAULT_DIR, true, false)};
           if (ll.get() != nullptr) {
-            string res = ll->selectlevel();
+            string res = ll->SelectLevel();
 
             Play::PlayRecord(res, plr.get());
 
