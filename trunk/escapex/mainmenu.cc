@@ -30,33 +30,33 @@
 
 namespace {
 
-enum mmetype {
-  MM_TUTORIAL = 0,
-  MM_LOAD,
-  MM_EDIT,
-  MM_UPGRADE,
-  MM_UPDATE,
-  MM_PREFS,
-  MM_QUIT,
-  MM_LOAD_NEW,
-  MM_N_ITEMS,
+enum class MMEType {
+  TUTORIAL,
+  LOAD,
+  EDIT,
+  UPGRADE,
+  UPDATE,
+  PREFS,
+  QUIT,
+  LOAD_NEW,
+#define NUM_ITEMS 8
 };
 
 struct MainMenu_;
 
-struct mmentry {
+struct MMEntry {
   MainMenu_ *parent;
-  mmetype t;
+  MMEType t;
   static int height() { return TILEH - 8; }
-  mmetype convert() { return t; }
-  mmetype none() { return MM_QUIT; }
-  void swap(mmentry *, mmentry *) { /* unnecessary, no sorting */ }
+  MMEType convert() { return t; }
+  MMEType none() { return MMEType::QUIT; }
+  void swap(MMEntry *, MMEntry *) { /* unnecessary, no sorting */ }
   /* no matches, because we catch these keys ourselves */
   bool matches(char) { return false; }
   void draw(int x, int y, bool sel);
 };
 
-typedef Selector<mmentry, mmetype> msel;
+using MSel = Selector<MMEntry, MMEType>;
 
 struct MainMenu_ : public MainMenu, public Drawable {
   MainMenu::result show() override;
@@ -70,14 +70,14 @@ struct MainMenu_ : public MainMenu, public Drawable {
   ~MainMenu_() override;
 
  private:
-  friend struct mmentry;
+  friend struct MMEntry;
 
-  void redraw() {
+  void Redraw() {
     sel->draw();
     SDL_Flip(screen);
   }
 
-  msel *sel;
+  std::unique_ptr<MSel> sel;
 
   Player *pp;
   SDL_Surface *titlegraphic;
@@ -113,7 +113,7 @@ struct MainMenu_ : public MainMenu, public Drawable {
 
 };
 
-void mmentry::draw(int x, int y, bool sel) {
+void MMEntry::draw(int x, int y, bool sel) {
 
   int sxi = parent->startx();
   int sx = sxi + TILEW + 16;
@@ -124,7 +124,7 @@ void mmentry::draw(int x, int y, bool sel) {
   int ctry = y + ((height() >> 1) - (fon->height >> 1)) + 4;
 
   switch (t) {
-  case MM_TUTORIAL:
+  case MMEType::TUTORIAL:
     /* figure out what the next unsolved tutorial level is */
     Drawing::drawtileu(sxi, y, TU_T, 0, screen);
     if (parent->tutorial_left)
@@ -132,23 +132,23 @@ void mmentry::draw(int x, int y, bool sel) {
     else
       fon->draw(sx, ctry, GREY + parent->tutorial_text);
     break;
-  case MM_LOAD:
+  case MMEType::LOAD:
     Drawing::drawtileu(sxi, y, TU_1, 0, screen);
     fon->draw(sx, ctry, YELLOW "Load a level.");
     break;
 
-  case MM_LOAD_NEW:
+  case MMEType::LOAD_NEW:
     Drawing::drawtileu(sxi, y, TU_LOAD, 0, screen);
     fon->draw(sx, ctry, YELLOW "New level browser!");
     break;
 
-  case MM_EDIT:
+  case MMEType::EDIT:
     Drawing::drawtileu(sxi, y, TU_2, 0, screen);
     fon->draw(sx, ctry, "Edit a level.");
     break;
 
 # ifndef MULTIUSER
-  case MM_UPGRADE:
+  case MMEType::UPGRADE:
     Drawing::drawtileu(sxi, y, TU_3, 0, screen);
     if (HandHold::recommend_upgrade())
       fon->draw(sxr, ctry, RECOMMENDED_TEXT);
@@ -157,7 +157,7 @@ void mmentry::draw(int x, int y, bool sel) {
     break;
 # endif
 
-  case MM_UPDATE:
+  case MMEType::UPDATE:
     Drawing::drawtileu(sxi, y, TU_4, 0, screen);
     /* don't show more than one recommendation */
     if (HandHold::recommend_update() && !HandHold::recommend_upgrade())
@@ -166,11 +166,11 @@ void mmentry::draw(int x, int y, bool sel) {
     fon->draw(sx, ctry, "Get new levels from internet.");
     break;
 
-  case MM_PREFS:
+  case MMEType::PREFS:
     Drawing::drawtileu(sxi, y, TU_P, 0, screen);
     fon->draw(sx, ctry, "Change preferences.");
     break;
-  case MM_QUIT:
+  case MMEType::QUIT:
     Drawing::drawtileu(sxi, y, TU_X, 0, screen);
     fon->draw(sx, ctry, "Quit.");
     break;
@@ -195,7 +195,7 @@ void MainMenu_::ComputeTutorial() {
   }
 
   /* search through loader for first unsolved level */
-  tutorial_left = ll->first_unsolved(tutorial_nextlev, tutorial_text);
+  tutorial_left = ll->FirstUnsolved(tutorial_nextlev, tutorial_text);
   if (!tutorial_left) tutorial_text = "Tutorial complete.";
 }
 
@@ -241,7 +241,7 @@ MainMenu::result MainMenu_::show() {
   ComputeTutorial();
 
   makebackground();
-  redraw();
+  Redraw();
 
   SDL_Event e;
 
@@ -255,7 +255,7 @@ MainMenu::result MainMenu_::show() {
     if (now > nextframe) {
       mshow->step();
       nextframe = now + FRAME_TICKS;
-      redraw();
+      Redraw();
     }
 
     while (SDL_PollEvent(&e)) {
@@ -301,13 +301,13 @@ MainMenu::result MainMenu_::show() {
         case SDLK_t: {
           /* XXX shouldn't this be a return TUTORIAL or whatever? */
           playtutorial();
-          redraw();
+          Redraw();
           continue;
         }
 
         case SDLK_p: {
           Prefs::show(pp);
-          redraw();
+          Redraw();
           continue;
         }
 
@@ -324,38 +324,39 @@ MainMenu::result MainMenu_::show() {
 
       /* if we got here, then we don't know how to
          preempt the event, so use the selector. */
-      msel::peres pr = sel->doevent(e);
+      MSel::PERes pr = sel->DoEvent(e);
       switch (pr.type) {
-      case msel::PE_SELECTED:
+      case MSel::PEType::SELECTED:
         switch (sel->items[sel->selected].t) {
-        case MM_TUTORIAL:
+        case MMEType::TUTORIAL:
           playtutorial();
-          redraw();
+          Redraw();
           continue;
-        case MM_LOAD: return LOAD;
-        case MM_LOAD_NEW: return LOAD_NEW;
-        case MM_EDIT: return EDIT;
-        case MM_QUIT: return QUIT;
-        case MM_UPGRADE:
+        case MMEType::LOAD: return LOAD;
+        case MMEType::LOAD_NEW: return LOAD_NEW;
+        case MMEType::EDIT: return EDIT;
+        case MMEType::QUIT: return QUIT;
+        case MMEType::UPGRADE:
             if (network) return UPGRADE;
             else continue;
-        case MM_UPDATE:
+        case MMEType::UPDATE:
             if (network) return UPDATE;
             else continue;
-        case MM_PREFS:
+        case MMEType::PREFS:
             Prefs::show(pp);
-            redraw();
+            Redraw();
             continue;
         default: break;
         }
         /* ??? */
         break;
         /* FALLTHROUGH */
-      case msel::PE_EXIT:
-      case msel::PE_CANCEL:
+      case MSel::PEType::EXIT:
+      case MSel::PEType::CANCEL:
         return QUIT;
       default:
-      case msel::PE_NONE:;
+      case MSel::PEType::NONE:
+	break;
       }
     }
   }
@@ -414,7 +415,7 @@ void MainMenu_::makebackground() {
   bot = sdlutil::makealpharect(w,
                                16 +
                                sel->number *
-                               mmentry::height(),
+                               MMEntry::height(),
                                0, 0, 0, 120);
 
   if (bot) {
@@ -442,14 +443,15 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
   mm->tutorial_left = false;
 
   mm->mshow = MainShow::Create(18, 10, 1);
+
   
   /* set up selector... */
-  mm->sel = msel::create(MM_N_ITEMS);
+  mm->sel = MSel::Create(NUM_ITEMS);
   mm->sel->below = mm.get();
   /* XXX should be a better way to do this.
      (should really get it from titlegraphic, for one) */
   mm->sel->title = "\n\n\n\n\n\n\n\n\n\n";
-  for (int j = 0; j < MM_N_ITEMS; j++) {
+  for (int j = 0; j < NUM_ITEMS; j++) {
     mm->sel->items[j].parent = mm.get();
   }
 
@@ -457,7 +459,7 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
 
   mm->sel->selected = 1;
   if (Prefs::getbool(plr, PREF_SHOWTUT)) {
-    mm->sel->items[i++].t = MM_TUTORIAL;
+    mm->sel->items[i++].t = MMEType::TUTORIAL;
 
     /* select tutorial if there's something left. */
     mm->ComputeTutorial();
@@ -465,20 +467,20 @@ MainMenu_ *MainMenu_::Create(Player *plr) {
       mm->sel->selected = 0;
   }
 
-  mm->sel->items[i++].t = MM_LOAD;
+  mm->sel->items[i++].t = MMEType::LOAD;
   if (ENABLE_NEW_LEVEL_BROWSER) {
-    mm->sel->items[i++].t = MM_LOAD_NEW;
+    mm->sel->items[i++].t = MMEType::LOAD_NEW;
   }
-  mm->sel->items[i++].t = MM_EDIT;
+  mm->sel->items[i++].t = MMEType::EDIT;
   if (network) {
 #   ifndef MULTIUSER
-    mm->sel->items[i++].t = MM_UPGRADE;
+    mm->sel->items[i++].t = MMEType::UPGRADE;
 #   endif
-    mm->sel->items[i++].t = MM_UPDATE;
+    mm->sel->items[i++].t = MMEType::UPDATE;
   }
 
-  mm->sel->items[i++].t = MM_PREFS;
-  mm->sel->items[i++].t = MM_QUIT;
+  mm->sel->items[i++].t = MMEType::PREFS;
+  mm->sel->items[i++].t = MMEType::QUIT;
 
 
   /* FIXME the rest ... */

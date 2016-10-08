@@ -44,8 +44,6 @@ drawing) with something, like the Start lev.
 
 merge util with cc-lib's.
 
-move png2esx.cc to misc, add command-line flag support
-
 make sure there is no 'delete this;' when destroy methods were
 converted to destructors!
 
