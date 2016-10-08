@@ -170,9 +170,9 @@ void WriteData(const vector<uint16> &samples,
 }
 
 template<class T>
-static SaveGeneric(const string &filename,
-		   const vector<T> &samples,
-		   int samplerate) {
+static int SaveGeneric(const string &filename,
+		       const vector<T> &samples,
+		       int samplerate) {
   Format format = GetFormat(samples);
   vector<uint8> bytes;
   bytes.reserve(BytesNeeded(format, samplerate));

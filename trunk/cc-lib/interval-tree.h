@@ -24,7 +24,7 @@ struct IntervalTreeJSON;
 // An interval tree stores overlapping one-dimensional intervals in an
 // efficient way, permitting O(log(n) + m) lookup (where n is the
 // number intervals and m is the number of intervals in the response).
-// One use would be storing the notes in song and then asking, at this
+// One use would be storing the notes in a song and then asking, at this
 // moment in time, what notes are currently active?
 //
 // Idx must be a type with a comparison operators and efficient
