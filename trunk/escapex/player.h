@@ -3,10 +3,9 @@
 #define __PLAYER_H
 
 #include "level.h"
-#include "hashtable.h"
 #include "rating.h"
-#include "util.h"
 #include "chunks.h"
+#include "solution.h"
 
 /* Database for a single player.
    Stores the player's solutions, ratings, and preferences.
@@ -72,12 +71,13 @@ struct Player {
   virtual Rating *getrating(const string &md5) const = 0;
 
   /* Always overwriting an existing rating.
-     there is just one rating per level. */
-  virtual void putrating(string md5, Rating *rat) = 0;
+     there is just one rating per level. Takes ownership of
+     the Rating object. */
+  virtual void PutRating(const string &md5, Rating *rat) = 0;
 
   /* Record a change on disk. this will also manage
      backups of the player file. */
-  virtual bool writefile() = 0;
+  virtual bool WriteFile() = 0;
 
   virtual int num_solutions() const = 0;
   virtual int num_ratings() const = 0;

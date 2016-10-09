@@ -555,7 +555,7 @@ void Play_::SetSolsFromBookmarkItems(Player *plr, const string &md5,
     newsols.push_back(books[i]->ns);
 
   plr->SetSolutionSet(md5, newsols);
-  plr->writefile();
+  plr->WriteFile();
 }
 
 void Play_::Bookmarks(const Level *start,
@@ -688,7 +688,7 @@ void Play_::Bookmarks(const Level *start,
             if (i != j) newsolutions.push_back(existing_solutions[j]);
           }
           plr->SetSolutionSet(md5, std::move(newsolutions));
-          plr->writefile();
+          plr->WriteFile();
 
           show_menu_again = true;
           goto found_action;
@@ -701,7 +701,7 @@ void Play_::Bookmarks(const Level *start,
             if (i != j) newsolutions.push_back(existing_solutions[j]);
           }
           plr->SetSolutionSet(md5, std::move(newsolutions));
-          plr->writefile();
+          plr->WriteFile();
 
           show_menu_again = true;
           goto found_action;
@@ -774,7 +774,7 @@ void Play_::Bookmarks(const Level *start,
                            true);
           /* shouldn't make this default */
           plr->AddSolution(md5, std::move(ns), false);
-          plr->writefile();
+          plr->WriteFile();
         }
         /* message: "bookmark added" */
         break;
@@ -1599,7 +1599,7 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
         NamedSolution ns(opt, "Untitled", plr->name, time(0), false);
 
         plr->AddSolution(md5, std::move(ns), true);
-        plr->writefile();
+        plr->WriteFile();
       }
 
       if (allowrate &&

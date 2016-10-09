@@ -237,8 +237,8 @@ void RateScreen_::Rate() {
     nr->cooked = cooked.checked;
 
     /* putrating takes ownership */
-    plr->putrating(levmd5, nr);
-    plr->writefile();
+    plr->PutRating(levmd5, nr);
+    plr->WriteFile();
 
     /* send message to server */
     std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};

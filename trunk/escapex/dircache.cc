@@ -3,6 +3,7 @@
 #include "../cc-lib/sdl/sdlutil.h"
 #include "loadlevel.h"
 #include "../cc-lib/md5.h"
+#include "hashtable.h"
 
 #include <sys/stat.h>
 
@@ -43,6 +44,7 @@ struct DirEntry {
 struct DirCache_ : public DirCache {
   Player *plr;
 
+  // unordered_map<string, DirEntry>
   hashtable<DirEntry, string> *table;
   ~DirCache_() override { table->destroy(); }
 
