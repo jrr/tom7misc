@@ -1,52 +1,38 @@
 #include "escapex.h"
-#include "level.h"
-#include "../cc-lib/sdl/sdlutil.h"
-#include "loadlevel.h"
-#include "../cc-lib/md5.h"
-#include "hashtable.h"
 
+#include <memory>
+#include <unordered_map>
 #include <sys/stat.h>
 
+#include "level.h"
+#include "loadlevel.h"
+#include "../cc-lib/md5.h"
 #include "directories.h"
-
 #include "util.h"
 #include "dircache.h"
 #include "progress.h"
-
-#define HASHSIZE 31
 
 namespace {
 
 struct DirEntry {
   string dir;
 
-  DirIndex *index = nullptr;
+  std::unique_ptr<DirIndex> index;
 
   /* these counts include recursive traversals */
-  int total;
-  int solved;
+  int total = 0;
+  int solved = 0;
 
-  static unsigned int hash(string k) {
-    return util::hash(k);
-  }
-
-  string key() { return dir; }
-  void destroy() {
-    delete index;
-    delete this;
-  }
-  DirEntry(string d, DirIndex *i, int t, int s) :
-    dir(d), index(i), total(t), solved(s) {
+  DirEntry(string d, std::unique_ptr<DirIndex> i, int t, int s) :
+    dir(d), index(std::move(i)), total(t), solved(s) {
     // printf("dircached %s\n", d.c_str());
   }
 };
 
 struct DirCache_ : public DirCache {
-  Player *plr;
+  Player *plr = nullptr;
 
-  // unordered_map<string, DirEntry>
-  hashtable<DirEntry, string> *table;
-  ~DirCache_() override { table->destroy(); }
+  unordered_map<string, std::unique_ptr<DirEntry>> table;
 
   static DirCache_ *Create(Player *p) {
     std::unique_ptr<DirCache_> dc{new DirCache_()};
@@ -54,19 +40,15 @@ struct DirCache_ : public DirCache {
 
     dc->plr = p;
 
-    dc->table = hashtable<DirEntry, string>::create(HASHSIZE);
-
-    if (!dc->table) return 0;
-
     return dc.release();
   }
 
   std::unique_ptr<DirIndex> GetIdx(const string &dir) override;
   DirIndex *Get(const string &dir,
-		int &tot, int &sol,
-		void (*prog)(void *d, int n, int total,
-			     const string &, const int) = 0,
-		void *pd = 0) override;
+                int &tot, int &sol,
+                void (*prog)(void *d, int n, int total,
+                             const string &, const int) = 0,
+                void *pd = 0) override;
 };
 
 /* make sure it starts with ./ */
@@ -90,22 +72,22 @@ std::unique_ptr<DirIndex> DirCache_::GetIdx(const string &dir_in) {
 }
 
 DirIndex *DirCache_::Get(const string &dir_in,
-			 int &tot, int &sol,
-			 void (*prog)(void *d, int n, int total,
-				      const string &, const int),
-			 void *pd) {
+                         int &tot, int &sol,
+                         void (*prog)(void *d, int n, int total,
+                                      const string &, const int),
+                         void *pd) {
   // printf("get: %s\n", dir.c_str());
 
   const string dir = normalize(dir_in);
   // printf("normalized: %s\n", dir.c_str());
   
-  DirEntry *de = table->lookup(dir);
-  if (!de) {
+  auto it = table.find(dir);
+  if (it == table.end()) {
     /* no entry. put it in the cache. */
 
     if (util::existsfile(dir + DIRSEP + IGNOREFILE)) {
       /* ignored dir */
-      table->insert(new DirEntry(dir, 0, 0, 0));
+      table[dir] = make_unique<DirEntry>(dir, nullptr, 0, 0);
       tot = 0;
       sol = 0;
       return nullptr;
@@ -113,7 +95,7 @@ DirIndex *DirCache_::Get(const string &dir_in,
 
     /* printf("uncached and not ignored: '%s'\n", dir.c_str()); */
 
-    /* calculuate size (for callback) */
+    /* calculate size (for callback) */
     int total = 0;
     if (prog) total = dirsize(dir.c_str());
     /* printf("  DIRCACHE: %d total\n", total); */
@@ -159,7 +141,7 @@ DirIndex *DirCache_::Get(const string &dir_in,
       } else {
         string contents = util::readfilemagic(ldn, LEVELMAGIC);
 
-	std::unique_ptr<Level> l = Level::FromString(contents);
+        std::unique_ptr<Level> l = Level::FromString(contents);
 
         if (l.get() != nullptr) {
           string md5c = MD5::Hash(contents);
@@ -184,16 +166,16 @@ DirIndex *DirCache_::Get(const string &dir_in,
     closedir(d);
 
     DirIndex *ret = didx.get();
-    table->insert(new DirEntry(dir, didx.release(), ttt, sss));
+    table[dir] = make_unique<DirEntry>(dir, std::move(didx), ttt, sss);
 
     tot = ttt;
     sol = sss;
     return ret;
   } else {
     /* memoized */
-    tot = de->total;
-    sol = de->solved;
-    return de->index;
+    tot = it->second->total;
+    sol = it->second->solved;
+    return it->second->index.get();
   }
 }
 

@@ -18,8 +18,6 @@
 # include <time.h>
 #endif
 
-static constexpr int HASHSIZE = 512;
-
 #define PLAYER_MAGIC "ESXP"
 #define PLAYERTEXT_MAGIC "ESPt"
 #define PLAYER_MAGICS_LENGTH 4
@@ -170,6 +168,10 @@ struct Player_ : public Player {
     auto it = soltable.find(md5);
     if (it == soltable.end()) return empty_solutionset;
     else return it->second;
+  }
+
+  ~Player_() {
+    for (auto &p : ratable) delete p.second;
   }
 
  private:
