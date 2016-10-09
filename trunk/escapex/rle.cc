@@ -10,6 +10,16 @@
 using namespace std;
 
 namespace {
+/* for call to 'free' */
+template <class P>
+struct Extentf {
+  P *ptr;
+  Extentf(P *p) : ptr(p) {}
+  void release() { ptr = 0; }
+  void replace(P *p) { ptr = p; }
+  ~Extentf() { if (ptr) free(ptr); }
+};
+
 // Maybe promote this to its own library in cc-lib?
 /* treats strings as buffers of bits */
 struct BitBuffer {

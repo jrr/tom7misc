@@ -8,6 +8,7 @@
 
 // n.b. Don't let this module depend on SDL. The server needs to be
 // able to link it in.
+#include "base.h"
 #include "aevent.h"
 #include "level-base.h"
 #include "disamb.h"

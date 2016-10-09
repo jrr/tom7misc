@@ -1,12 +1,24 @@
 
+#include <unordered_map>
+
 #include "escapex.h"
 #include "optimize.h"
 #include "message.h"
-#include "hashtable.h"
 #include "solution.h"
 #include "player.h"
 #include "level.h"
-#include "extent.h"
+
+// To map-util?
+template<class C, class F>
+static void EraseMatching(C *cont, F f) {
+  for(auto it = cont->begin(); it != cont->end(); ) {
+    if (f(*it)) {
+      it = cont->erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
 
 /* hash table entry. corresponds to a level state
    and the earliest position (in the solution) at
@@ -15,19 +27,22 @@
    we never check actual level equality, just hash
    equality. This means we can screw up in the
    presence of collisions, but we check our work
-   when we're done, so this is only a performance
+   when we're done, so this is only a quality
    issue rather than a correctness one. */
 
-#define ROR64(h, n) (((h) >> (n)) | ((h) << (64 - (n))))
+inline static uint64 ROR64(uint64 h, int n) {
+  return (h >> n) | (h << (64 - n));
+}
 /* from md5 */
-#define F1(x, y, z) (z ^ (x & (y ^ z)))
-
+inline static uint64 F1(uint64 x, uint64 y, uint64 z) {
+  return z ^ (x & (y ^ z));
+}
 
 /* XXX it's likely that some of these operations are actually
    defaulting to 32 bits, which wastes entropy */
 
 /* non-linear permutation */
-inline void PERMUTE1(Uint64 & h) {
+inline static void PERMUTE1(uint64 &h) {
   /* always rotate at least one position,
      but be dependent on the value of h */
   h = ROR64(h, (h & 31) + 1);
@@ -41,48 +56,47 @@ inline void PERMUTE1(Uint64 & h) {
 }
 
 /* linear */
-inline void PERMUTE2(Uint64 & h) {
+inline static void PERMUTE2(uint64 &h) {
   h = ((h >> 32) * 0x12345678ULL) |
       ((h & 0xFFFFFFFFULL) * 0x09ABCDEFULL);
   h ^= 0x112233FFEEDDCCULL;
 }
 
 /* linear */
-inline void PERMUTE3(Uint64 & h) {
+inline static void PERMUTE3(uint64 &h) {
   h ^= 0x1F1F2E2E3D3D4C4CULL;
   h = ((h >> 32) * 0x19283746ULL) |
       ((h & 0xFFFFFFFFULL) * 0xF9E8D7C6ULL);
 }
 
-
-static Uint64 hashlevel(const Level *l) {
+static uint64 HashLevel(const Level *l) {
   /* ignore title, author, w/h, dests, flags,
      since these don't change.
      also ignore botd and guyd, which are presentational. */
-  Uint64 h = 0x3333333333333333ULL;
+  uint64 h = 0x3333333333333333ULL;
 
   /* start with position of guy */
-  h ^= ((Uint64)l->guyx << 31);
-  h ^=  l->guyy;
+  h ^= ((uint64)l->guyx << 31);
+  h ^= l->guyy;
 
   PERMUTE2(h);
 
   /* hash up tiles */
   for (int i = 0; i < l->w * l->h; i++) {
-    h ^= (Uint64)l->tiles[i];
+    h ^= (uint64)l->tiles[i];
     PERMUTE1(h);
-    h += (Uint64)l->otiles[i];
+    h += (uint64)l->otiles[i];
     PERMUTE2(h);
   }
 
   /* then bots */
   for (int j = 0; j < l->nbots; j++) {
     h = ROR64(h, j);
-    h ^= (Uint64)l->bott[j];
+    h ^= (uint64)l->bott[j];
     PERMUTE3(h);
-    h ^= (Uint64)l->boti[j];
+    h ^= (uint64)l->boti[j];
     PERMUTE1(h);
-    h ^= (Uint64)l->bota[j];
+    h ^= (uint64)l->bota[j];
     PERMUTE2(h);
   }
 
@@ -91,24 +105,15 @@ static Uint64 hashlevel(const Level *l) {
 
 namespace {
 struct LState {
-  /* index (in cf) before which we are in this
-     state */
-  int pos;
-
   /* if 0, the entry has been invalidated */
-  Uint64 thiskey;
+  uint64 thiskey = 0ULL;
 
-  Uint64 key() const {
-    return thiskey;
+  bool operator==(const LState &other) const {
+    return thiskey == other.thiskey;
   }
 
-  /* truncate */
-  static unsigned int hash(Uint64 i) {
-    return (unsigned int)(i & 0xFFFFFFFFl);
-  }
-
-  LState(int p, const Level *ll, bool initial = false) : pos(p) {
-    thiskey = hashlevel(ll);
+  LState(const Level *ll, bool initial = false) {
+    thiskey = HashLevel(ll);
     /* need to treat this case specially, or else
        the Level "impossible" (and ones like it) get
        optimized to a zero-length solution, which won't
@@ -118,15 +123,16 @@ struct LState {
     /* 0 is used for something special */
     if (!thiskey) thiskey++;
   }
-
-  void destroy() {
-    delete this;
-  }
 };
 }
 
-static void inval_above(LState *ls, int cutoff) {
-  if (ls->pos > cutoff) ls->thiskey = 0l;
+namespace std {
+template<>
+struct hash<LState> {
+  size_t operator()(const LState& l) const {
+    return (size_t)l.thiskey;
+  }
+};
 }
 
 // static
@@ -156,20 +162,20 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
 
   // XXX2016 in for?
   Solution::iter i(s);
-  hashtable<LState, Uint64> *ht = hashtable<LState, Uint64>::create(1023);
-  Extent<hashtable<LState, Uint64>> eh(ht);
+  // XXX I think this could just be unordered_map<uint64, int>?
+  // Map level state to the position in the cf solution that we reach that
+  // state.
+  std::unordered_map<LState, int> ht;
 
   /* insert initial state */
-  ht->insert(new LState(0, l.get(), true));
+  ht.insert(make_pair(LState(l.get(), true), 0));
 
   for (; i.hasnext(); i.next()) {
     dir d = i.item();
 
-    /* execute the move. If it didn't
-       do anything, we'll just ignore
-       it. (These shouldn't make their way
-       into solutions during regular play,
-       anyway.) */
+    /* execute the move. If it didn't do anything, we'll just ignore
+       it. (These shouldn't make their way into solutions during
+       regular play, anyway.) */
     if (l->Move(d)) {
 
       /* provisionally execute this move in our
@@ -179,35 +185,26 @@ Solution Optimize::Opt(const Level *orig, const Solution &s) {
 
       /* now check if we've already been here. */
 
-      LState *ls = new LState(n, l.get());
+      LState ls{l.get()};
 
-      LState *existing = ht->lookup(ls->key());
-
-      if (existing) {
+      auto it = ht.find(ls);
+      if (it != ht.end()) {
         // printf("   found! at %d\n", existing->pos);
         /* Well, some prefix of the existing solution
            already gets us here. Instead of making this
            move, we should just backtrack to the point
            at which we were in this state! */
-        cf.Truncate(existing->pos);
+        cf.Truncate(it->second);
 
-        /* now, anything we've done since then is
-           invalidated, (this is where the sub-optimality
-           comes in) so "remove" it. The hashtable doesn't
-           have a deletion method, so we just set its hash
-           key to zero so we'll never find it again (this
-           is actually fairly bogus since it will be in the
-           wrong bin, now, but we aren't going to try to find
-           it!) */
-
-        hashtable_app<LState, Uint64, int>(ht, inval_above, cf.Length());
-
-        /* don't need this any more */
-        delete ls;
+        /* now, anything we've done since then is invalidated, (this
+           is where the sub-optimality comes in) so remove it. */
+	EraseMatching(&ht, [cutoff = cf.Length()](pair<const LState, int> &kv) {
+	  return kv.second > cutoff;
+	});
 
       } else {
         /* new state, so insert it */
-        ht->insert(ls);
+        ht.insert(make_pair(ls, n));
       }
     }
   }

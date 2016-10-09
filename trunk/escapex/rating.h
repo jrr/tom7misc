@@ -5,6 +5,7 @@
 #include "drawable.h"
 
 struct Player;
+struct Level;
 
 struct Rating {
   string ToString() const;
