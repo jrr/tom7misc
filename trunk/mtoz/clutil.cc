@@ -8,21 +8,75 @@ CL::CL() {
   cl_uint num_platforms;
   cl_platform_id platform = nullptr;
   CHECK(CL_SUCCESS == clGetPlatformIDs(0, nullptr, &num_platforms));
-
-  // Choose the first platform. XXX Tom: Look into this to ensure this is what we actually want.
+  fprintf(stderr, "CL:: Number of platforms: %d.\n", num_platforms);
+  
+  // Choose the first platform that has a GPU.
+  int chosen_platform_id = -1;
   if (num_platforms > 0) {
-    cl_platform_id *platforms = (cl_platform_id *)malloc(num_platforms * sizeof(cl_platform_id));
+    cl_platform_id *platforms =
+      (cl_platform_id *)malloc(num_platforms * sizeof (cl_platform_id));
     CHECK(CL_SUCCESS == clGetPlatformIDs(num_platforms, platforms, nullptr));
-    platform = platforms[0];
+    for (int i = 0; i < num_platforms; i++) {
+      struct Prop {
+	cl_platform_info key;
+	size_t size;
+	char *value;
+      };
+      Prop props[] = {
+	{CL_PLATFORM_PROFILE, 0, nullptr},
+	{CL_PLATFORM_VERSION, 0, nullptr},
+	{CL_PLATFORM_NAME, 0, nullptr},
+	{CL_PLATFORM_VENDOR, 0, nullptr},
+	{CL_PLATFORM_EXTENSIONS, 0, nullptr},
+      };
+      for (Prop &prop : props) {
+	clGetPlatformInfo(
+	    platforms[i], prop.key, 0, nullptr, &prop.size);
+	prop.value = (char *)malloc(prop.size + 1);
+	clGetPlatformInfo(
+	    platforms[i], prop.key, prop.size, prop.value, nullptr);
+      }
+
+      fprintf(stderr,
+	      "% 4d. %s (%s):\n"
+	      "      %s; %s\n", 
+	      i, props[2].value, props[0].value,
+	      props[1].value, props[3].value, props[4].value);
+
+      cl_uint platform_devices = 0;
+      if (CL_SUCCESS == clGetDeviceIDs(platforms[i], CL_DEVICE_TYPE_GPU,
+				       0, nullptr, &platform_devices)) {
+	fprintf(stderr,
+		"      Number of GPUs: %d\n", (int)platform_devices);
+	if (chosen_platform_id == -1)
+	  chosen_platform_id = i;
+      } else {
+	fprintf(stderr,
+		"      NO GPU devices.\n");
+      }
+
+      for (Prop &prop : props) free(prop.value);
+    }
+
+    if (chosen_platform_id == -1) {
+      fprintf(stderr, "There were no platforms with GPUs. Aborting.\n");
+      abort();
+    }
+
+    fprintf(stderr, "Using platform %d.\n", chosen_platform_id);
+    platform = platforms[chosen_platform_id];
     free(platforms);
   }
 
   // Get the GPU device.
-  CHECK(CL_SUCCESS == clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &num_devices));
-  CHECK(num_devices > 0);
+  CHECK(CL_SUCCESS == clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU,
+				     0, nullptr, &num_devices));
+  CHECK(num_devices > 0) << "Platform should only be selected if it "
+    "reports having devices??";
 
-  devices = (cl_device_id *)malloc(num_devices * sizeof(cl_device_id));
-  CHECK(CL_SUCCESS == clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, num_devices, devices, nullptr));
+  devices = (cl_device_id *)malloc(num_devices * sizeof (cl_device_id));
+  CHECK(CL_SUCCESS == clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU,
+				     num_devices, devices, nullptr));
 
   context = clCreateContext(nullptr, 1, devices, nullptr, nullptr, nullptr);
   queue = clCreateCommandQueue(context, devices[0], 0, nullptr);
