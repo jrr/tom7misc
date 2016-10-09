@@ -1,9 +1,9 @@
 #ifndef __ANALYSIS_H
 #define __ANALYSIS_H
 
-#include "escapex.h"
-#include "util.h"
+#include "base.h"
 #include "../cc-lib/union-find.h"
+#include "level.h"
 
 /* analysis of levels. used for editai,
    maybe for solution analysis, etc */

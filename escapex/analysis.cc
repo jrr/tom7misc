@@ -1,6 +1,7 @@
 
 #include "analysis.h"
 #include "../cc-lib/union-find.h"
+#include "level.h"
 
 #include <memory>
 

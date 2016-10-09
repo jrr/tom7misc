@@ -6,6 +6,7 @@
 #include <SDL.h>
 #include "util.h"
 #include "chars.h"
+#include "ptrlist.h"
 
 /* menus are essentially what are often called
    "forms" in GUI lingo */

@@ -38,16 +38,6 @@ inline uint32_t hash_string(string s) {
   return output;
 }
 
-#if 0
-template <class I, class K>
-struct hlist {
-  I *data;
-  hlist<I,K> *next;
-  hlist(I *dd, hlist<I,K> *nn) : data(dd), next(nn) {}
-  void destroy() { delete this; }
-};
-#endif
-
 template <class I, class K>
 struct hashtable {
 

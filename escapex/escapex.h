@@ -9,20 +9,12 @@
 
 #include <string>
 #include <memory>
-#include <cstdint>
 
-#include "level.h"
+#include "base.h"
 #include "font.h"
 #include "drawable.h"
 
 #include "../cc-lib/sdl/sdlutil.h"
-
-using namespace std;
-
-using uint8 = uint8_t;
-using int32 = int32_t;
-using uint32 = uint32_t;
-using uint64 = uint64_t;
 
 #include "version.h"
 
@@ -77,15 +69,5 @@ extern SDL_Surface *screen;
 #    endif
 #  endif
 #endif
-
-#if defined(WIN32) && defined(_MSC_VER)
-/* totally moronic "performance" warning in VC++ */
-#   pragma warning(disable: 4800)
-#endif
-
-#define NOT_COPYABLE(classname) \
-  private: \
-  classname(const classname &) = delete; \
-  classname &operator =(const classname &) = delete
 
 #endif

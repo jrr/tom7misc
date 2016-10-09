@@ -2,8 +2,8 @@
 #ifndef __CHUNKS_H
 #define __CHUNKS_H
 
-#include "escapex.h"
-#include "util.h"
+#include "base.h"
+#include "ptrlist.h"
 
 /* associative chunk database. */
 
