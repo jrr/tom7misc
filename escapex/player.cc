@@ -1,7 +1,7 @@
-
 #include "player.h"
 
 #include <unordered_map>
+#include <map>
 #include <vector>
 #include <string>
 #include <assert.h>
@@ -98,19 +98,6 @@ int NamedSolution::Compare(NamedSolution *l, NamedSolution *r) {
 }
 
 namespace {
-
-struct HashRatEntry {
-  string md5;
-  Rating *rat;
-  static unsigned int hash(string k);
-  string key() { return md5; }
-  void destroy() { delete rat; delete this; }
-  HashRatEntry(string m, Rating *r) : md5(m), rat(r) {}
-  static int compare(HashRatEntry *l, HashRatEntry *r) {
-    return l->md5.compare(r->md5);
-  }
-};
-
 struct Player_ : public Player {
   static Player_ *Create(const string &n);
 
@@ -144,9 +131,9 @@ struct Player_ : public Player {
 
   Rating *getrating(const string &md5) const override;
 
-  void putrating(string md5, Rating *rat) override;
+  void PutRating(const string &md5, Rating *rat) override;
 
-  bool writefile() override;
+  bool WriteFile() override;
 
   static Player_ *FromFile(const string &file);
   /* call with file already open with cursor
@@ -158,7 +145,7 @@ struct Player_ : public Player {
   /* XX this one is wrong now; it returns "levels solved"
      not total number of solutions */
   int num_solutions() const override { return soltable.size(); }
-  int num_ratings() const override { return ratable->items; }
+  int num_ratings() const override { return ratable.size(); }
 
   vector<Solution> AllSolutions() const override {
     vector<Solution> out;
@@ -171,10 +158,6 @@ struct Player_ : public Player {
 
     return out;
   }
-
-  virtual ~Player_() {
-    ratable->destroy();
-  };
 
   bool HasSolution(const string &md5, const Solution &what) override {
     for (const NamedSolution &ns : SolutionSet(md5)) {
@@ -198,7 +181,8 @@ struct Player_ : public Player {
   // Keys are (raw) MD5 strings. The order of the solutions
   // matters; the first one is the default solution.
   unordered_map<string, vector<NamedSolution>> soltable;
-  hashtable<HashRatEntry, string> *ratable;
+  // Rating pointers are owned.
+  unordered_map<string, Rating *> ratable;
 
   const vector<NamedSolution> empty_solutionset;
 
@@ -216,17 +200,11 @@ struct Player_ : public Player {
   std::unique_ptr<Chunks> ch;
 };
 
-unsigned int HashRatEntry::hash(string k) {
-  return *(unsigned int*)(k.c_str());
-}
-
 Player_ *Player_::Create(const string &n) {
   std::unique_ptr<Player_> p{new Player_()};
   if (!p.get()) return 0;
 
   p->name = n;
-
-  p->ratable = hashtable<HashRatEntry,string>::create(HASHSIZE);
 
   p->ch = Chunks::Create();
 
@@ -234,7 +212,6 @@ Player_ *Player_::Create(const string &n) {
   p->webseqh = 0;
   p->webseql = 0;
 
-  if (!p->ratable) return 0;
   if (!p->ch) return 0;
 
   /* set default preferences */
@@ -244,10 +221,9 @@ Player_ *Player_::Create(const string &n) {
 }
 
 Rating *Player_::getrating(const string &md5) const {
-  const HashRatEntry *re = ratable->lookup(md5);
-
-  if (re) return re->rat;
-  else return nullptr;
+  auto it = ratable.find(md5);
+  if (it == ratable.end()) return nullptr;
+  return it->second;
 }
 
 void Player_::AddSolution(const string &md5, NamedSolution ns,
@@ -305,14 +281,12 @@ void Player_::AddSolution(const string &md5, NamedSolution ns,
   }
 }
 
-void Player_::putrating(string md5, Rating *rat) {
-  HashRatEntry *re = ratable->lookup(md5);
-  if (re != nullptr && re->rat) {
-    /* overwrite */
-    delete re->rat;
-    re->rat = rat;
-  } else ratable->insert(new HashRatEntry(md5, rat));
-
+void Player_::PutRating(const string &md5, Rating *rat) {
+  auto it = ratable.find(md5);
+  if (it != ratable.end()) {
+    delete it->second;
+  }
+  ratable[md5] = rat;
 }
 
 /* in seconds */
@@ -377,8 +351,7 @@ void Player_::deleteoldbackups() {
   }
 }
 
-bool Player_::writefile() {
-
+bool Player_::WriteFile() {
   /* Back up the player file. */
   if (Prefs::getbool(this, PREF_BACKUP_PLAYER)) {
     int epoch = time(0) / BACKUP_FREQ;
@@ -415,43 +388,44 @@ bool Player_::writef_text(const string &file) {
   fprintf(f, SOLMARKER "\n");
   /* fprintf(f, "%d\n", sotable->items); */
 
-  // Sort so that text formats diff better (e.g. in version control)
-  map<string, const vector<NamedSolution> *> sorted_sols;
-  for (const auto &p : soltable) {
-    if (!p.second.empty()) {
-      sorted_sols[p.first] = &p.second;
-    }
-  }
-
-  for (const auto &p : sorted_sols) {
-    // We checked above that we have at least one solution.
-    fprintf(f, "%s * %s\n", MD5::Ascii(p.first).c_str(),
-            Base64::Encode(p.second->at(0).ToString()).c_str());
-    /* followed by perhaps more solutions marked with @ */
-
-    for (int i = 1; i < p.second->size(); i++) {
-      const NamedSolution &ns = p.second->at(i);
-      fprintf(f, "  %s\n", Base64::Encode(ns.ToString()).c_str());
+  {
+    // Sort so that text formats diff better (e.g. in version control)
+    map<string, const vector<NamedSolution> *> sorted_sols;
+    for (const auto &p : soltable) {
+      if (!p.second.empty()) {
+	sorted_sols[p.first] = &p.second;
+      }
     }
 
-    /* end it (makes parsing easier) */
-    fprintf(f, "!\n");
+    for (const auto &p : sorted_sols) {
+      // We checked above that we have at least one solution.
+      fprintf(f, "%s * %s\n", MD5::Ascii(p.first).c_str(),
+	      Base64::Encode(p.second->at(0).ToString()).c_str());
+      /* followed by perhaps more solutions marked with @ */
+
+      for (int i = 1; i < p.second->size(); i++) {
+	const NamedSolution &ns = p.second->at(i);
+	fprintf(f, "  %s\n", Base64::Encode(ns.ToString()).c_str());
+      }
+
+      /* end it (makes parsing easier) */
+      fprintf(f, "!\n");
+    }
   }
 
   fprintf(f, RATMARKER "\n");
-  /* fprintf(f, "%d\n", ratable->items); */
 
-  /* ditto... */
+  {
+    // Also sort ratings to keep text diffs small.
+    // Rating pointers are aliases.
+    map<string, Rating *> sorted_ratings;
+    for (const auto &p : ratable) sorted_ratings.insert(p);
 
-  for (int i = 0; i < ratable->allocated; i++) {
-    PtrList<HashRatEntry>::sort(HashRatEntry::compare, ratable->data[i]);
-    for (PtrList<HashRatEntry> *tmp = ratable->data[i];
-         tmp;
-         tmp = tmp->next) {
-      string md5ascii = MD5::Ascii(tmp->head->md5).c_str();
+    for (const auto &p : sorted_ratings) {
+      const string md5ascii = MD5::Ascii(p.first).c_str();
       fprintf(f, "%s %s\n",
-              md5ascii.c_str(),
-              Base64::Encode(tmp->head->rat->ToString()).c_str());
+	      md5ascii.c_str(),
+	      Base64::Encode(p.second->ToString()).c_str());
     }
   }
 
@@ -459,7 +433,6 @@ bool Player_::writef_text(const string &file) {
 
   /* write chunks */
   fprintf(f, "%s\n", Base64::Encode(ch->ToString()).c_str());
-
 
   fclose(f);
   return 1;
@@ -566,7 +539,7 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
     if (!rat) FF_FAIL("bad rating");
 
     /* ignore rest of line */
-    p->putrating(md, rat);
+    p->PutRating(md, rat);
   }
 
   /* already read pref marker */

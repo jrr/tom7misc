@@ -1006,7 +1006,7 @@ void LoadLevel_::solvefrombookmarks(const string &filename,
   }
 
   if (nsolved > 0) {
-    plr->writefile();
+    plr->WriteFile();
   } else {
     Message::Quick(this,
                    "Couldn't recover any new solutions.",

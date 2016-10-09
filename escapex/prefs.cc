@@ -160,7 +160,7 @@ void Prefs::show(Player *plr) {
     putbool(plr, PREF_OPTIMIZE_SOLUTIONS, optsol.checked);
 
     /* prefs may have changed, so write */
-    plr->writefile();
+    plr->WriteFile();
   }
 }
 

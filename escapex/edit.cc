@@ -648,7 +648,7 @@ void Editor::save() {
                          ) : "";
           dr.message += (string)ALPHA50 " (" BLUE "recovered " + s + b +
                         (string)POP ")" POP;
-          plr->writefile();
+          plr->WriteFile();
         }
 
       } else {

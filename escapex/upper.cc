@@ -6,6 +6,7 @@
 #include "chars.h"
 #include "dirindex.h"
 #include "ptrlist.h"
+#include "hashtable.h"
 
 #define HASHSIZE 1021
 

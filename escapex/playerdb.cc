@@ -295,7 +295,7 @@ void PlayerDB_::AddPlayer(string name) {
       sel->Resize(sel->number + 1);
 
       plr->fname = fname;
-      plr->writefile();
+      plr->WriteFile();
 
       /* one slack spot; initialize it */
       sel->items[sel->number - 1].kind = K_PLAYER;

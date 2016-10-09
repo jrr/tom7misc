@@ -70,7 +70,7 @@ void Registration_::registrate() {
         plr->webseql = seql;
         plr->webseqh = seqh;
 
-        if (plr->writefile()) {
+        if (plr->WriteFile()) {
           say((string)"success! " GREEN + res);
           Message::Quick(this,
                          (string)"You are registered as player "
