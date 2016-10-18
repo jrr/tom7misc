@@ -1,14 +1,13 @@
-
 #include "upper.h"
+
+#include <unordered_map>
+
 #include "util.h"
 #include "directories.h"
 #include "../cc-lib/md5.h"
 #include "chars.h"
 #include "dirindex.h"
 #include "ptrlist.h"
-#include "hashtable.h"
-
-#define HASHSIZE 1021
 
 namespace {
 
@@ -16,17 +15,12 @@ struct OldEntry {
   /* suitable for open() */
   string fname;
 
-  bool deleteme;
+  bool deleteme = false;
 
+  // XXX delete
   string key() {
     return fname;
   }
-
-  static unsigned int hash(string k) {
-    return util::hash(k);
-  }
-
-  void destroy() { delete this; }
 
   OldEntry(string f) : fname(f), deleteme(true) {}
 };
@@ -39,37 +33,23 @@ struct ContentEntry {
     return md5;
   }
 
-  /* endianness doesn't matter; we just have
-     to be consistent */
-  /* poorer than it could be because
-     this string is in ASCII */
-  static unsigned int hash(string k) {
-    return *((unsigned int*) k.c_str());
+  explicit ContentEntry(string con) : content(std::move(con)) {
+    md5 = MD5::Ascii(MD5::Hash(content));
   }
-
-  void destroy() { delete this; }
-
-  ContentEntry(string con) : content(con) {
-    md5 = MD5::Ascii(MD5::Hash(con));
-  }
-
 };
-
-using oldtable = hashtable<OldEntry, string>;
-using contable = hashtable<ContentEntry, string>;
 
 struct Upper_ : public Upper {
   static Upper_ *Create(HTTP *, TextScroll *, Drawable *, string);
 
   ~Upper_() override;
 
-  bool setfile(string f, string md, RateStatus votes,
+  bool SetFile(const string &f, const string &md, RateStatus votes,
                int, int, int o) override;
-  bool commit() override;
+  bool Commit() override;
 
-  void savedir(string d, string index) override;
+  void SaveDir(const string &d, const string &index) override;
 
-  void redraw() {
+  void Redraw() {
     if (below) {
       below->draw();
       SDL_Flip(screen);
@@ -79,7 +59,7 @@ struct Upper_ : public Upper {
   void say(string s, bool nodraw = false) {
     if (tx) {
       tx->say(s);
-      if (!nodraw) redraw();
+      if (!nodraw) Redraw();
     }
   }
 
@@ -87,7 +67,7 @@ struct Upper_ : public Upper {
     if (tx) {
       tx->unsay();
       tx->say(s);
-      if (!nodraw) redraw();
+      if (!nodraw) Redraw();
     }
   }
 
@@ -95,8 +75,8 @@ struct Upper_ : public Upper {
   TextScroll *tx;
   Drawable *below;
 
-  oldtable *olds;
-  contable *contents;
+  std::unordered_map<string, OldEntry> olds;
+  std::unordered_map<string, ContentEntry> contents;
 
   HTTP *hh;
 
@@ -132,9 +112,6 @@ Upper_ *Upper_::Create(HTTP *h, TextScroll *t,
 void Upper_::init() {
   /* initialize 'olds' and 'contents' */
 
-  olds = oldtable::create(HASHSIZE);
-  contents = contable::create(HASHSIZE);
-
   newlistf = 0;
   newlistm = 0;
 
@@ -150,7 +127,7 @@ void Upper_::init() {
   insertdir(dirname);
 }
 
-void Upper_::savedir(string d, string i) {
+void Upper_::SaveDir(const string &d, const string &i) {
   /* XXX: could fail if d is a file. In this
      case we're sort of in trouble, since we
      can't move d without invalidating our own
@@ -187,7 +164,7 @@ void Upper_::insertdir(string src) {
     if (util::isdir(f)) {
       insertdir(f);
     } else {
-      olds->insert(new OldEntry(f));
+      olds.insert({f, OldEntry(f)});
 
       /* XXX use readfilesize,
          where it won't read the file
@@ -195,8 +172,8 @@ void Upper_::insertdir(string src) {
          might stick big files in
          managed dirs...)
       */
-      string inside = readfile(f);
-      contents->insert(new ContentEntry(inside));
+      ContentEntry entry{readfile(f)};
+      contents.insert({entry.md5, std::move(entry)});
     }
   }
 
@@ -206,14 +183,11 @@ void Upper_::insertdir(string src) {
 Upper_::~Upper_() {
   stringlist::diminish(newlistf);
   stringlist::diminish(newlistm);
-
-  contents->destroy();
-  olds->destroy();
 }
 
-bool Upper_::setfile(string f, string md, RateStatus votes,
+bool Upper_::SetFile(const string &f, const string &md, RateStatus votes,
                      int date, int speedrecord, int owner) {
-  say((string)"setfile(" + f + (string)", "
+  say((string)"SetFile(" + f + (string)", "
       GREY + md + (string)POP ")", true);
 
   /* check that f is legal */
@@ -229,11 +203,9 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
   }
 # endif
 
-  ContentEntry *already = contents->lookup(md);
-
   /* if it's not already in the content hashtable,
      get it from the internet. */
-  if (!already) {
+  if (contents.find(md) == contents.end()) {
     string mm;
 
     string first = md.substr(0, 2);
@@ -246,17 +218,17 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
 
     switch (hr) {
     case HT_OK: {
-      ContentEntry *nce = new ContentEntry(mm);
-      sayover((string)"(setfile) downloaded : " + nce->md5, true);
+      ContentEntry nce{mm};
+      sayover((string)"(SetFile) downloaded : " + nce.md5, true);
 
-      if (nce->md5 != md) {
+      if (nce.md5 != md) {
         say(RED "what I got differs from expected");
         say("written to last_got for debug");
         /* debug */
         writefile("last_got", mm);
         return false;
       }
-      contents->insert(nce);
+      contents.insert({nce.md5, std::move(nce)});
       break;
     }
 
@@ -265,16 +237,17 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
       return false;
     }
   } else {
-    sayover((string)"(setfile) already exists : "
+    sayover((string)"(SetFile) already exists : "
             BLUE + f + (string)POP" "
             GREY + md + (string)POP, true);
   }
 
   /* if it's in the olds, mark it so
      that it won't be deleted */
-
-  OldEntry *existing = olds->lookup(dirname + DIRSEP + f);
-  if (existing) existing->deleteme = false;
+  {
+    auto it = olds.find(dirname + DIRSEP + f);
+    if (it != olds.end()) it->second.deleteme = false;
+  }
 
   /* put it in newlist */
 
@@ -296,7 +269,7 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
 
       // printf("compare [%s] [%s]\n", dt->head.c_str(), dd.c_str());
       if (dt->head == dd) {
-        it->head->addentry(ff, votes, date, speedrecord, owner);
+        it->head->AddEntry(ff, votes, date, speedrecord, owner);
         return true;
       }
 
@@ -309,21 +282,21 @@ bool Upper_::setfile(string f, string md, RateStatus votes,
   return true;
 }
 
-static void deleteif(OldEntry *oe, int dummy_param) {
-  if (oe->deleteme) {
+static void DeleteIf(const OldEntry &oe) {
+  if (oe.deleteme) {
     /* we can delete index files with proper magic. these are
        always overwritten with every update */
-    if (DirIndex::isindex(oe->fname)) {
+    if (DirIndex::IsIndex(oe.fname)) {
       /* but if deletion fails (in use?), try moving */
-      if (!util::remove(oe->fname))
-        util::toattic(oe->fname);
+      if (!util::remove(oe.fname))
+        util::toattic(oe.fname);
     } else {
-      util::toattic(oe->fname);
+      util::toattic(oe.fname);
     }
   }
 }
 
-bool Upper_::commit() {
+bool Upper_::Commit() {
   say(YELLOW " ======= " WHITE " commit phase " POP " ======= " POP);
 
   /* overwrite anything in newlist. */
@@ -360,25 +333,27 @@ bool Upper_::commit() {
       return false;
     }
 
-    ContentEntry *ce = contents->lookup(nlm);
+    {
+      auto it = contents.find(nlm);
+      if (it == contents.end()) {
+	say((string)RED "bug: md5 " BLUE "[" + nlm +
+	    (string)"]" POP " isn't in table now??");
 
-    if (!ce) {
-      say((string)RED "bug: md5 " BLUE "[" + nlm +
-          (string)"]" POP " isn't in table now??");
-
-      fclose(a);
-      return false;
-    } else {
-      if (1 != fwrite(ce->content.c_str(), ce->content.length(), 1, a)) {
-        say((string)RED "couldn't write to " BLUE + nlf +
-            (string)POP " (disk full?)");
-
-        fclose(a);
-        return false;
+	fclose(a);
+	return false;
       } else {
-        /*
-          say((string)GREEN "wrote " BLUE + nlf +
-          (string)POP " <- " GREY + nlm + (string)POP" ok"); */
+	const ContentEntry &ce = it->second;
+	if (1 != fwrite(ce.content.data(), ce.content.length(), 1, a)) {
+	  say((string)RED "couldn't write to " BLUE + nlf +
+	      (string)POP " (disk full?)");
+
+	  fclose(a);
+	  return false;
+	} else {
+	  /*
+	    say((string)GREEN "wrote " BLUE + nlf +
+	    (string)POP " <- " GREY + nlm + (string)POP" ok"); */
+	}
       }
     }
 
@@ -387,7 +362,8 @@ bool Upper_::commit() {
   }
 
   /* delete anything with delme=true in olds */
-  hashtable_app(olds, deleteif, 0);
+  for (const auto &p : olds)
+    DeleteIf(p.second);
 
   /* create indices */
   /* We have the invt that length(dirlistd) =
@@ -402,7 +378,7 @@ bool Upper_::commit() {
       dirname + (string)DIRSEP + d + (string)DIRSEP WEBINDEXNAME;
 
     /* XXX check failure? */
-    i->writefile(f);
+    i->WriteFile(f);
   }
 
   /* FIXME prune empty dirs */
@@ -413,6 +389,6 @@ bool Upper_::commit() {
 }  // namespace
 
 Upper *Upper::Create(HTTP *h, TextScroll *t,
-                      Drawable *d, string f) {
+		     Drawable *d, const string &f) {
   return Upper_::Create(h, t, d, f);
 }

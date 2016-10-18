@@ -16,14 +16,14 @@ struct Upper {
   /* create an upper, using the http connection hh,
      and directory dir */
   static Upper *Create(HTTP *hh, TextScroll *t,
-                       Drawable *below, string dir);
+                       Drawable *below, const string &dir);
 
   /* the file 'f' (which may be prefixed by directories that have been
      previously saved), should be set to the contents specified by the
      md5 hash md.
 
      returns true if we will be able to accomplish this. */
-  virtual bool setfile(string f, string md, RateStatus votes,
+  virtual bool SetFile(const string &f, const string &md, RateStatus votes,
                        int date, int speedrecord, int owner) = 0;
 
   /* creates the directory d (if it does not exist), and ensures that
@@ -38,12 +38,12 @@ struct Upper {
 
      /
      subdir/        */
-  virtual void savedir(string d, string index) = 0;
+  virtual void SaveDir(const string &d, const string &index) = 0;
 
   /* return true if committing is successful. if false, then the files
      in the directory may be damaged (moved to attic) but we try to do
      this as little as possible. */
-  virtual bool commit() = 0;
+  virtual bool Commit() = 0;
 };
 
 /* The Upper object is used to replace one set of files with another

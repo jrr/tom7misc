@@ -835,7 +835,7 @@ void Animation::start(Drawing &dr,
     }
 
     int xx, yy;
-    if (dr.onscreen(at->x, at->y, xx, yy)) {
+    if (dr.OnScreen(at->x, at->y, xx, yy)) {
       // Animation *a = new AnPlaceTile(T_TRANSPORT, xx, yy);
       Animation *a = /* a->next = */ new AnInPlace(xx, yy, 1, frames_ent);
       alist::push(anims, a);
@@ -868,7 +868,7 @@ void Animation::start(Drawing &dr,
     }
 
     int xx, yy;
-    if (dr.onscreen(at->x, at->y, xx, yy)) {
+    if (dr.OnScreen(at->x, at->y, xx, yy)) {
       AnFinale *ag = new AnFinale(finale, xx, yy - overlapy);
       Animation *a = new AnInPlace(xx, yy, 1, frames_ent);
       a->next = ag;
@@ -881,7 +881,7 @@ void Animation::start(Drawing &dr,
     getheartframer_t *ag = &(ae->u.getheartframer);
 
     int xx, yy;
-    if (dr.onscreen(ag->x, ag->y, xx, yy)) {
+    if (dr.OnScreen(ag->x, ag->y, xx, yy)) {
       Animation *a = new AnPlaceTile(T_FLOOR, xx, yy);
       a->next = new AnInPlace(xx, yy, 1, frames_hf_evaporate);
       alist::push(sprites, a);
@@ -893,7 +893,7 @@ void Animation::start(Drawing &dr,
     wakeup_t *aw = &(ae->u.wakeup);
 
     int xx, yy;
-    if (dr.onscreen(aw->x, aw->y, xx, yy)) {
+    if (dr.OnScreen(aw->x, aw->y, xx, yy)) {
       Animation *aa = new AnInPlace(xx, yy, 1, frames_attention);
       aa->depth = 2;
       alist::push(sprites, aa);
@@ -907,7 +907,7 @@ void Animation::start(Drawing &dr,
     wakeupdoor_t *aw = &(ae->u.wakeupdoor);
 
     int xx, yy;
-    if (dr.onscreen(aw->x, aw->y, xx, yy)) {
+    if (dr.OnScreen(aw->x, aw->y, xx, yy)) {
       Animation *aa = new AnInPlace(xx, yy, 1, frames_attention);
       aa->depth = 2;
       alist::push(anims, aa);
@@ -924,7 +924,7 @@ void Animation::start(Drawing &dr,
     lasered_t *al = &(ae->u.lasered);
 
     int xx, yy;
-    if (dr.onscreen(al->x, al->y, xx, yy)) {
+    if (dr.OnScreen(al->x, al->y, xx, yy)) {
 
       /* compute ntiles so animated laser doesn't
          go off drawing area */
@@ -935,7 +935,7 @@ void Animation::start(Drawing &dr,
           /* haven't gotten there */
           !(wx == al->lx && wy == al->ly)
             && /* still on screen */
-            dr.onscreen(wx, wy, dummy, dummy);
+            dr.OnScreen(wx, wy, dummy, dummy);
           dr.lev->travel(wx, wy, dd, wx, wy)) {
         nt++;
       }
@@ -973,7 +973,7 @@ void Animation::start(Drawing &dr,
     transponderbeam_t *at = &(ae->u.transponderbeam);
 
     int xx, yy;
-    if (dr.onscreen(at->x, at->y, xx, yy)) {
+    if (dr.OnScreen(at->x, at->y, xx, yy)) {
 
       /* compute ntiles so animated beam doesn't
          go off drawing area */
@@ -984,7 +984,7 @@ void Animation::start(Drawing &dr,
           /* haven't gotten there */
           !(wx == at->lx && wy == at->ly)
             && /* still on screen */
-            dr.onscreen(wx, wy, dummy, dummy);
+            dr.OnScreen(wx, wy, dummy, dummy);
           dr.lev->travel(wx, wy, dd, wx, wy)) {
         nt++;
       }
@@ -1008,7 +1008,7 @@ void Animation::start(Drawing &dr,
     opendoor_t *ao = &(ae->u.opendoor);
 
     int xx, yy;
-    if (dr.onscreen(ao->x, ao->y, xx, yy)) {
+    if (dr.OnScreen(ao->x, ao->y, xx, yy)) {
       /* maybe also some fanfare graphics */
       Animation *ar = new AnInPlace(xx, yy, 1, frames_opendoor);
       Animation *af = new AnDraw(door_opens2, xx, yy);
@@ -1037,7 +1037,7 @@ void Animation::start(Drawing &dr,
     /* XXX offscreen sounds softer? */
     Animation *ar = new AnWait(al->delay * (WAIT_BETWEEN_WIRE + AN_SLOW));
     ar->next = new AnSound(s);
-    if (dr.onscreen(al->x, al->y, xx, yy)) {
+    if (dr.OnScreen(al->x, al->y, xx, yy)) {
       ar->next->next = new AnInPlace(xx, yy, 1, frames);
     }
 
@@ -1051,7 +1051,7 @@ void Animation::start(Drawing &dr,
 
     int xx, yy;
 
-    if (dr.onscreen(aj->x, aj->y, xx, yy)) {
+    if (dr.OnScreen(aj->x, aj->y, xx, yy)) {
       AFrame *frames = nullptr;
       switch (aj->what) {
 #define JUICEFRAME(DD, dd) \
@@ -1086,9 +1086,9 @@ void Animation::start(Drawing &dr,
     pushgreen_t *ag = &(ae->u.pushgreen);
 
     int xx, yy, dx, dy, dxx, dyy;
-    if (dr.onscreen(ag->srcx, ag->srcy, xx, yy) &&
+    if (dr.OnScreen(ag->srcx, ag->srcy, xx, yy) &&
         dr.lev->travel(ag->srcx, ag->srcy, ag->d, dx, dy) &&
-        dr.onscreen(dx, dy, dxx, dyy)) {
+        dr.OnScreen(dx, dy, dxx, dyy)) {
 
       int ax = xx;
       int ay = yy;
@@ -1132,7 +1132,7 @@ void Animation::start(Drawing &dr,
     /* this is big, so this might not be a
        reasonable approximation--might want to
        use cliprect instead */
-    if (dr.onscreen(ab->x, ab->y, xx, yy)) {
+    if (dr.OnScreen(ab->x, ab->y, xx, yy)) {
 
       /* first paint the affected tiles, then the explosion atop that */
 
@@ -1140,7 +1140,7 @@ void Animation::start(Drawing &dr,
         int bx, by;
         int bbx, bby;
         if (dr.lev->travel(ab->x, ab->y, dd, bx, by)
-            && dr.onscreen(bx, by, bbx, bby)) {
+            && dr.OnScreen(bx, by, bbx, bby)) {
           alist::push(anims, new AnPlaceTile(dr.lev->tileat(bx, by), bbx, bby));
         }
       }
@@ -1156,7 +1156,7 @@ void Animation::start(Drawing &dr,
     trap_t *at = &(ae->u.trap);
 
     int xx, yy;
-    if (dr.onscreen(at->x, at->y, xx, yy)) {
+    if (dr.OnScreen(at->x, at->y, xx, yy)) {
 
       int destt;
       AFrame *frames_fall;
@@ -1215,7 +1215,7 @@ void Animation::start(Drawing &dr,
     }
 
     Animation *ap = new AnSound(s);
-    if (dr.onscreen(ab->x, ab->y, xx, yy)) {
+    if (dr.OnScreen(ab->x, ab->y, xx, yy)) {
       /* PERF could use non-erasing (and non-alpha) blit
          for these animations */
       ap->next = new AnPlaceTile(ab->whatold, xx, yy);
@@ -1231,7 +1231,7 @@ void Animation::start(Drawing &dr,
     toggle_t *at = &(ae->u.toggle);
 
     int xx, yy;
-    if (dr.onscreen(at->x, at->y, xx, yy)) {
+    if (dr.OnScreen(at->x, at->y, xx, yy)) {
 
       int destt;
       AFrame *frames_rotating;
@@ -1305,7 +1305,7 @@ void Animation::start(Drawing &dr,
 
     /* really easy. */
     int startx, starty;
-    if (dr.onscreen(ab->x, ab->y, startx, starty)) {
+    if (dr.OnScreen(ab->x, ab->y, startx, starty)) {
 
       /* put floor */
       AnPlaceTile *ap =
@@ -1321,7 +1321,7 @@ void Animation::start(Drawing &dr,
     swap_t *as = &(ae->u.swap);
 
     int sx, sy;
-    if (dr.onscreen(as->x, as->y, sx, sy)) {
+    if (dr.OnScreen(as->x, as->y, sx, sy)) {
       /* queue up flip anim */
       AnPlaceTile *ap =
         new AnPlaceTile(T_BLACK, sx, sy);
@@ -1353,7 +1353,7 @@ void Animation::start(Drawing &dr,
     int waitn = 0;
     int dist = aj->num;
 
-    while (dist-- && dr.onscreen(cx, cy, sx, sy)) {
+    while (dist-- && dr.OnScreen(cx, cy, sx, sy)) {
 
       /* XXX this is wrong. the sphere may have been
          the target of a panel and be gone now.
@@ -1421,12 +1421,12 @@ void Animation::start(Drawing &dr,
     int destx, desty;
     int dist = 0;
 
-    if (!dr.onscreen(x, y, startx, starty)) return;
+    if (!dr.OnScreen(x, y, startx, starty)) return;
 
     /* compute the amount that is on screen, in pixels */
     while (dleft-- &&
           dr.lev->travel(x, y, af->d, x, y) &&
-          dr.onscreen(x, y, destx, desty)) {
+          dr.OnScreen(x, y, destx, desty)) {
       dist += TILESIZE(af->d);
     }
 
@@ -1549,8 +1549,8 @@ void Animation::start(Drawing &dr,
 
     int dx, dy, sx, sy, sdx, sdy;
     if (dr.lev->travel(ap->srcx, ap->srcy, ap->d, dx, dy) &&
-        dr.onscreen(ap->srcx, ap->srcy, sx, sy) &&
-        dr.onscreen(dx, dy, sdx, sdy)) {
+        dr.OnScreen(ap->srcx, ap->srcy, sx, sy) &&
+        dr.OnScreen(dx, dy, sdx, sdy)) {
 
       AnPlaceTile *aap =
         new AnPlaceTile(ap->under, sx, sy);
@@ -1603,7 +1603,7 @@ void Animation::start(Drawing &dr,
   case tag_botexplode: {
     botexplode_t *as = &(ae->u.botexplode);
     int sx, sy;
-    if (dr.onscreen(as->x, as->y, sx, sy)) {
+    if (dr.OnScreen(as->x, as->y, sx, sy)) {
       /* leave this bot undrawn. he's not coming back! */
       Animation *apuff = new AnInPlace(sx, sy, 1, frames_smokepuff);
 
@@ -1622,7 +1622,7 @@ void Animation::start(Drawing &dr,
     /* XXX incorporate ent type as below */
     press_t *as = &(ae->u.press);
     int sx, sy;
-    if (dr.onscreen(as->x, as->y, sx, sy)) {
+    if (dr.OnScreen(as->x, as->y, sx, sy)) {
       AnFinale *ag = new AnFinale(FACING_FRAME(as->d, B_PLAYER, 0),
                                    sx, sy - OVERLAP(B_PLAYER));
       alist::push(sprites, ag);
@@ -1633,7 +1633,7 @@ void Animation::start(Drawing &dr,
   case tag_stand: {
     stand_t *as = &(ae->u.stand);
     int sx, sy;
-    if (dr.onscreen(as->x, as->y, sx, sy)) {
+    if (dr.OnScreen(as->x, as->y, sx, sy)) {
       AnFinale *ag = new AnFinale(FACING_FRAME(as->d, as->entt, as->data),
                                    sx, sy - OVERLAP(as->entt));
       alist::push(sprites, ag);
@@ -1646,8 +1646,8 @@ void Animation::start(Drawing &dr,
 
     int dx, dy, sx, sy, sdx, sdy;
     if (dr.lev->travel(aw->srcx, aw->srcy, aw->d, dx, dy) &&
-        dr.onscreen(aw->srcx, aw->srcy, sx, sy) &&
-        dr.onscreen(dx, dy, sdx, sdy)) {
+        dr.OnScreen(aw->srcx, aw->srcy, sx, sy) &&
+        dr.OnScreen(dx, dy, sdx, sdy)) {
 
       /* -------------- new version ------------------ */
       int overlapy = 0;
@@ -1833,7 +1833,7 @@ bool Animation::init_flips() {
     */
 
     /* cut out tile to start */
-    Drawing::drawtile(0, 0, t, 0, tsrc);
+    Drawing::DrawTile(0, 0, t, 0, tsrc);
     /* also a reversed one */
     SDL_Surface *tsrcr = sdlutil::fliphoriz(tsrc);
 
@@ -2050,23 +2050,23 @@ void Animation::clearent(Drawing &dr, int entx, int enty, int overlap) {
   int sx, sy;
 
   int ta1 = dr.lev->tileat(entx, enty);
-  if (dr.onscreen(entx, enty, sx, sy)) {
+  if (dr.OnScreen(entx, enty, sx, sy)) {
     if (ta1 == T_EXIT) {
-      Drawing::drawtileu(sx, sy, TU_EXITOPEN);
+      Drawing::DrawTileU(sx, sy, TU_EXITOPEN);
     } else {
-      Drawing::drawtile(sx, sy, ta1);
+      Drawing::DrawTile(sx, sy, ta1);
     }
   }
 
-  if (enty > 0 && dr.onscreen(entx, enty - 1, sx, sy)) {
+  if (enty > 0 && dr.OnScreen(entx, enty - 1, sx, sy)) {
     int ta2 = dr.lev->tileat(entx, enty - 1);
     /* XXX draw openexit if ent above */
     if (ta2 == T_EXIT &&
         (dr.lev->botat(entx, enty - 1) ||
          dr.lev->playerat(entx, enty - 1))) {
-      Drawing::drawtileu(sx, sy, TU_EXITOPEN);
-    } else Drawing::drawtile(sx, sy, ta2);
-  } else if (enty == 0 && dr.onscreen(entx, enty, sx, sy)) {
+      Drawing::DrawTileU(sx, sy, TU_EXITOPEN);
+    } else Drawing::DrawTile(sx, sy, ta2);
+  } else if (enty == 0 && dr.OnScreen(entx, enty, sx, sy)) {
     /* at top of screen, draw background */
     SDL_Rect dst;
     dst.x = sx;

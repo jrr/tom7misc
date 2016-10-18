@@ -103,7 +103,7 @@ struct Play_ : public Play {
                  Solution *sol);
   void BookmarkDownload(Player *plr, const string &lmd5);
 
-  void drawmenu();
+  void DrawMenu();
 
  private:
   bool getevent(SDL_Event *e, bool &fake);
@@ -214,8 +214,8 @@ struct BookmarkItem : public MenuItem {
     dr.scrolly = 0;
 
     dr.lev = lev.get();
-    dr.setscroll();
-    dr.drawlev();
+    dr.SetScroll();
+    dr.DrawLev();
 
     if (f) {
       fon->draw(x + THUMBW + 4, y + 4, YELLOW + ns.name);
@@ -372,7 +372,7 @@ struct BookmarkItem : public MenuItem {
 };
 
 
-void Play_::drawmenu() {
+void Play_::DrawMenu() {
   int showw = (screen->w / TILEW) - 1;
 
   /* could be showw + 1 */
@@ -393,12 +393,12 @@ void Play_::drawmenu() {
       /* if currently playing, draw this as a pause button, not a
          play button */
       if (watching) {
-        Drawing::drawtileu(2 + j * TILEW, 2, TU_PLAYPAUSE_PLAY, 0);
+        Drawing::DrawTileU(2 + j * TILEW, 2, TU_PLAYPAUSE_PLAY, 0);
       } else {
-        Drawing::drawtileu(2 + j * TILEW, 2, TU_PLAYPAUSE, 0);
+        Drawing::DrawTileU(2 + j * TILEW, 2, TU_PLAYPAUSE, 0);
       }
     } else {
-      Drawing::drawtileu(2 + j * TILEW, 2, play_menuitem[j], 0);
+      Drawing::DrawTileU(2 + j * TILEW, 2, play_menuitem[j], 0);
     }
   }
 
@@ -406,20 +406,20 @@ void Play_::drawmenu() {
   if (solpos == 0) {
     /* nb. important that these two share disabled
        state, since the graphics overlap */
-    Drawing::drawtileu(POS_RESTART * TILEW, 2, TU_DISABLED, 0);
-    Drawing::drawtileu(POS_UNDO * TILEW, 2, TU_DISABLED, 0);
-    Drawing::drawtileu(POS_FUNDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_RESTART * TILEW, 2, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_UNDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_FUNDO * TILEW, 2, TU_DISABLED, 0);
   }
 
   if (solpos == sol.Length()) {
-    Drawing::drawtileu(POS_REDO * TILEW, 2, TU_DISABLED, 0);
-    Drawing::drawtileu(POS_FREDO * TILEW, 2, TU_DISABLED, 0);
-    Drawing::drawtileu(POS_PLAYPAUSE * TILEW, 2, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_REDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_FREDO * TILEW, 2, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_PLAYPAUSE * TILEW, 2, TU_DISABLED, 0);
   }
 }
 
 void Play_::draw() {
-  dr.setscroll();
+  dr.SetScroll();
 
   Uint32 color =
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
@@ -438,12 +438,12 @@ void Play_::draw() {
   }
 
 
-  drawmenu();
+  DrawMenu();
 
-  dr.drawlev(layer);
+  dr.DrawLev(layer);
 
-  if (showdests) dr.drawdests(0, showdestsshuffle);
-  if (showbotnums) dr.drawbotnums();
+  if (showdests) dr.DrawDests(0, showdestsshuffle);
+  if (showbotnums) dr.DrawBotNums();
 
   fon->drawto(screen, 4, TILEH + 6,
               lev->title + (string)" " GREY "by " POP BLUE +
@@ -1095,7 +1095,7 @@ PlayResult Play_::DoPlaySave(Player *plr,
               Prefs::getbool(plr, PREF_ANIMATION_ENABLED);
 
           /* fix scrolls */
-          dr.makescrollreasonable();
+          dr.MakeScrollReasonable();
           redraw();
           break;
 
@@ -1516,7 +1516,7 @@ void Play::PlayRecord(const string &filename, Player *plr, bool allowrate) {
   const bool iscollection = [&]{
     string idx = util::pathof(filename) + (string)DIRSEP WEBINDEXNAME;
     std::unique_ptr<DirIndex> di{DirIndex::FromFile(idx)};
-    return di.get() != nullptr && di->webcollection();
+    return di.get() != nullptr && di->WebCollection();
   }();
 
   const string ss = readfile(filename);

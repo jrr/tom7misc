@@ -230,7 +230,7 @@ struct AnPlaceTile : public Animation {
 
   /* here the initializer draws it. */
   bool init(unsigned int now) override {
-    Drawing::drawtile(sx, sy, what, 0, screen, false);
+    Drawing::DrawTile(sx, sy, what, 0, screen, false);
     /* trigger and die immediately */
     nexttick = now;
     return true;
@@ -398,7 +398,7 @@ struct AnFlyingTile : public AnFlying {
   int ti;
 
   void blit(int x, int y) override {
-    Drawing::drawtile(x, y, ti, 0, screen, false);
+    Drawing::DrawTile(x, y, ti, 0, screen, false);
   }
 
   void size(int &minx, int &miny, int &maxw, int &maxh) override {

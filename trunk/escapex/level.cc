@@ -117,7 +117,7 @@ void Level::swapo(int idx) {
                     TF_ROPANELL | TF_ROPANELH));
 }
 
-tile Level::RealPanel(int f) {
+Tile Level::RealPanel(int f) {
   if (f & TF_RPANELH) {
     if (f & TF_RPANELL) return T_RPANEL;
     else return T_GPANEL;

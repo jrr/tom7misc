@@ -2,18 +2,19 @@
 #ifndef __DRAW_H
 #define __DRAW_H
 
-#include "SDL.h"
 #include "level.h"
 #include "font.h"
 #include <math.h>
 #include <string>
-#include "rating.h"
-#include "dirindex.h"
 
 using namespace std;
 
-/* size of zoom 0 tiles
-   we assume that these are
+class SDL_Surface;
+class Rating;
+class RateStatus;
+
+/* Size of zoom 0 tiles.
+   We assume that these are
    evenly divisible by
    2^(DRAW_NSIZES - 1) */
 #define TILEW 32
@@ -32,39 +33,40 @@ using namespace std;
 #define SRCTILESW 16
 
 /* utility tiles */
-enum { TU_TARGET, TU_DISABLED, TU_WARNING,
-       TU_LAYERNORMAL, TU_LAYERALT,
-       TU_TILESUD,
-       TU_SAVE, TU_SAVEAS, TU_LOAD,
-       TU_TITLE, TU_AUTHOR, TU_SIZE, TU_PLAYERSTART,
-       TU_CLEAR, TU_PLAY, TU_RANDOM, TU_RANDTYPE,
-       TU_CHANGED,
+enum {
+  TU_TARGET, TU_DISABLED, TU_WARNING,
+  TU_LAYERNORMAL, TU_LAYERALT,
+  TU_TILESUD,
+  TU_SAVE, TU_SAVEAS, TU_LOAD,
+  TU_TITLE, TU_AUTHOR, TU_SIZE, TU_PLAYERSTART,
+  TU_CLEAR, TU_PLAY, TU_RANDOM, TU_RANDTYPE,
+  TU_CHANGED,
 
-       /* menu items */
-       TU_X, TU_N, TU_I,
-       TU_T, TU_1, TU_2, TU_3, TU_4, TU_P,
+  /* menu items */
+  TU_X, TU_N, TU_I,
+  TU_T, TU_1, TU_2, TU_3, TU_4, TU_P,
 
-       TU_EXITOPEN,
+  TU_EXITOPEN,
 
-       TU_ERASE_BOT, TU_FIRST_BOT,
-       TU_DALEK, TU_BROKEN, TU_HUGBOT,
+  TU_ERASE_BOT, TU_FIRST_BOT,
+  TU_DALEK, TU_BROKEN, TU_HUGBOT,
 
-       TU_PLAYBUTTON, TU_PAUSEBUTTON,
-       TU_FREVBUTTON, TU_FFWDBUTTON,
-       TU_FWDBUTTON, TU_REVBUTTON,
+  TU_PLAYBUTTON, TU_PAUSEBUTTON,
+  TU_FREVBUTTON, TU_FFWDBUTTON,
+  TU_FWDBUTTON, TU_REVBUTTON,
 
-       TU_SLEEPWAKE, TU_PREFAB,
-       TU_BOMB, TU_BOMBTIMER,
+  TU_SLEEPWAKE, TU_PREFAB,
+  TU_BOMB, TU_BOMBTIMER,
 
-       TU_SAVESTATE, TU_RESTORESTATE,
-       TU_BOOKMARKS,
-       TU_RESTART,
-       TU_UNDO,
-       TU_REDO,
-       TU_PLAYPAUSE,
-       TU_PLAYPAUSE_PLAY,
-       TU_FREDO,
-       TU_FUNDO,
+  TU_SAVESTATE, TU_RESTORESTATE,
+  TU_BOOKMARKS,
+  TU_RESTART,
+  TU_UNDO,
+  TU_REDO,
+  TU_PLAYPAUSE,
+  TU_PLAYPAUSE_PLAY,
+  TU_FREDO,
+  TU_FUNDO,
 };
 
 extern Font *fon;
@@ -80,9 +82,9 @@ struct Drawing {
   static SDL_Surface **tileutil;
 
   /* call this once in the program. true on success */
-  static bool loadimages();
+  static bool LoadImages();
 
-  static void destroyimages();
+  static void DestroyImages();
 
   /* set these before using the functions
      below */
@@ -113,12 +115,12 @@ struct Drawing {
   /* Drawing functions */
 
   /* screen coordinates */
-  static void drawguy(dir d,
+  static void DrawGuy(dir d,
                       int sx, int sy,
                       int zoomfactor,
                       SDL_Surface *surf = 0, bool dead = false);
 
-  static void drawbot(bot b,
+  static void DrawBot(bot b,
                       dir d,
                       int sx, int sy,
                       int zoomfactor,
@@ -126,40 +128,40 @@ struct Drawing {
                       int data = -1);
 
   /* if surface isn't supplied, then draw to screen. */
-  static void drawtile(int px, int py, int tl, int zfactor = 0,
+  static void DrawTile(int px, int py, int tl, int zfactor = 0,
                        SDL_Surface *surf = 0, bool dim = false);
-  static void drawtileu(int px, int py, int tl, int zf = 0,
+  static void DrawTileU(int px, int py, int tl, int zf = 0,
                         SDL_Surface *surf = 0);
 
-  void drawlev(int layer = 0,
-               SDL_Surface *surf = 0, bool dim = false);
+  void DrawLev(int layer = 0,
+               SDL_Surface *surf = nullptr, bool dim = false);
 
   /* title, message, etc */
-  void drawextra(SDL_Surface *surf = 0);
+  void DrawExtra(SDL_Surface *surf = nullptr);
 
   /* debugging/editor/cheat */
-  void drawdests(SDL_Surface *surf = 0, bool shuffle = false);
+  void DrawDests(SDL_Surface *surf = nullptr, bool shuffle = false);
 
-  void drawbotnums(SDL_Surface *surf = 0);
+  void DrawBotNums(SDL_Surface *surf = nullptr);
 
   /* make sure the scroll doesn't waste space by
      drawing nothing when it could be drawing
      something */
-  void makescrollreasonable();
+  void MakeScrollReasonable();
 
   /* scroll so that the guy is visible and somewhat
      centered */
-  void setscroll();
+  void SetScroll();
 
   /* given screen coordinates x,y, return a tile
      if it is inside one on the screen */
-  bool inmap(int x, int y,
-             int &tx, int &ty);
+  bool InMap(int x, int y,
+             int &tx, int &ty) const;
 
   /* given a tile x,y, return its
      screen coordinates if it is displayed currently. */
-  bool onscreen(int x, int y,
-                int &tx, int &ty);
+  bool OnScreen(int x, int y,
+                int &tx, int &ty) const;
 
   /* XXX this should probably be elsewhere */
   /* XXX combine y and botmargin, which have to agree anyway
@@ -170,14 +172,14 @@ struct Drawing {
      solvemoves is the number of moves in the player's solution,
      or 0 if unsolved (all valid solutions have at least one move.)
   */
-  static void drawsmall(int y, int botmargin, Uint32 color,
-                        const Level *l, int solvemoves, string fname,
+  static void DrawSmall(int y, int botmargin, Uint32 color,
+                        const Level *l, int solvemoves, const string &fname,
                         RateStatus *votes,
                         Rating *myrating, int date = 0,
                         int speedrecord = 0);
 
   /* height of small drawings */
-  static int smallheight();
+  static int SmallHeight();
 };
 
 #endif

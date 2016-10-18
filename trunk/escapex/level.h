@@ -94,7 +94,7 @@ enum {
   PANEL_RED = 3,
 };
 
-enum tflag {
+enum TFlag {
   TF_NONE = 0,
 
   /* panel under tile (ie, pushable block) */
@@ -118,7 +118,7 @@ enum tflag {
   TF_TEMP = 64,
 };
 
-enum tile {
+enum Tile {
   T_FLOOR, T_RED, T_BLUE, T_GREY, T_GREEN, T_EXIT, T_HOLE, T_GOLD,
   T_LASER, T_PANEL, T_STOP, T_RIGHT, T_LEFT, T_UP, T_DOWN, T_ROUGH,
   T_ELECTRIC, T_ON, T_OFF, T_TRANSPORT, T_BROKEN, T_LR, T_UD, T_0,
@@ -402,7 +402,7 @@ struct Level {
 
  private:
 
-  static tile RealPanel(int f);
+  static Tile RealPanel(int f);
 
   void CheckStepOff(int x, int y);
   void ClearMap();

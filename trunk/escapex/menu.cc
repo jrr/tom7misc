@@ -416,10 +416,11 @@ void Menu::draw() {
   yoff += fon->height;
 
   /* ensure the selected control is on the screen! */
-  fixup( (h - (stath + fon->height)) - yoff );
+  fixup((h - (stath + fon->height)) - yoff);
 
   if (skip != 0) {
-    fon->draw(x, 2 + posy + (yoff - fon->height), ALPHA50 PICS ARROWU POP YELLOW " More " POP PICS ARROWU POP POP);
+    fon->draw(x, 2 + posy + (yoff - fon->height), 
+	      ALPHA50 PICS ARROWU POP YELLOW " More " POP PICS ARROWU POP POP);
   }
 
   /* XXX the calculations in the following two parts are shared,

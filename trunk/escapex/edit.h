@@ -51,15 +51,15 @@ struct Editor : public Drawable {
   void saveas();
   void settitle();
   void setauthor();
-  void playerstart();
+  void PlayerStart();
   void placebot(bot);
   void sleepwake();
   void erasebot();
   void firstbot();
   void save();
   void load();
-  void resize();
-  void clear(tile bg, tile fg);
+  void Resize();
+  void Clear(Tile bg, Tile fg);
   void playlev();
   void prefab();
   void pftimer();
@@ -72,8 +72,8 @@ struct Editor : public Drawable {
   bool timer_try(int *, int *, int, int, int n, bool rev);
   void addbot(int x, int y, bot b);
 
-  void dorandom();
-  void fullclear(tile);
+  void DoRandom();
+  void FullClear(Tile t);
 
   /* stuff for ai */
   void retract1();
@@ -127,7 +127,7 @@ struct Editor : public Drawable {
 
   /* if w=0 or h=0, then no selection */
   SDL_Rect selection;
-  void clearselection() {
+  void ClearSelection() {
     selection.w = 0;
     selection.h = 0;
     selection.x = 0;

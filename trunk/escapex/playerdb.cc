@@ -107,24 +107,24 @@ void PDBEntry::draw(int x, int y, bool selected) {
     break;
 
   case K_IMPORT:
-    Drawing::drawtileu(ix, iy, TU_I, 0, screen);
+    Drawing::DrawTileU(ix, iy, TU_I, 0, screen);
     fon->draw(tx, ty, BLUE "Import / Recover Player");
     break;
 
   case K_NEW:
-    Drawing::drawtileu(ix, iy, TU_N, 0, screen);
+    Drawing::DrawTileU(ix, iy, TU_N, 0, screen);
     fon->draw(tx, ty, BLUE "New Player");
     break;
 
   case K_QUIT:
-    Drawing::drawtileu(ix, iy, TU_X, 0, screen);
+    Drawing::DrawTileU(ix, iy, TU_X, 0, screen);
     fon->draw(tx, ty, BLUE "Quit");
     break;
 
   case K_PLAYER:
     /* Draw the player graphic. Should actually animate the
        player that's selected. */
-    Drawing::drawguy(DIR_DOWN, ix, iy, 0, screen);
+    Drawing::DrawGuy(DIR_DOWN, ix, iy, 0, screen);
 
     fon->draw(tx, ty, display(selected));
     break;

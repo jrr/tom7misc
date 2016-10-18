@@ -47,8 +47,7 @@
      Ret convert();
       - convert this item into a returnable Ret, upon its selection.
 
-     The Item class's destructor is used to deallocate it, rather
-     than a destroy() method.
+     The Item class's destructor is used to deallocate it.
 
    ret :
 

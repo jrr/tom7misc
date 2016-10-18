@@ -1,37 +1,32 @@
-
-#include "SDL.h"
-#include <math.h>
-#include "level.h"
-#include "../cc-lib/sdl/sdlutil.h"
-#include "draw.h"
-
-#include "escapex.h"
-#include "play.h"
-#include "prompt.h"
-
-#include "util.h"
-#include "../cc-lib/union-find.h"
 #include "edit.h"
 
-#include "loadlevel.h"
+#include <math.h>
 
+#include "SDL.h"
+#include "../cc-lib/sdl/sdlutil.h"
+#include "../cc-lib/union-find.h"
+
+#include "level.h"
+#include "draw.h"
+#include "escapex.h"
+#include "play.h"
+#include "util.h"
 #include "message.h"
 #include "analysis.h"
-
 #include "generator.h"
 #include "pattern.h"
 
 /* matches anything */
-bool pred_any(Level *, void *_, int x, int y) {
+static bool pred_any(Level *, void *_, int x, int y) {
   return true;
 }
 
-bool pred_gold_or_sphere(Level *lev, void *_, int x, int y) {
+static bool pred_gold_or_sphere(Level *lev, void *_, int x, int y) {
   const int t = lev->tileat(x, y);
   return t == T_GOLD || Level::issphere(t);
 }
 
-bool pred_stops_gold(Level *lev, void *_, int x, int y) {
+static bool pred_stops_gold(Level *lev, void *_, int x, int y) {
   switch (lev->tileat(x, y)) {
   case T_FLOOR:
   case T_PANEL:
@@ -45,8 +40,7 @@ bool pred_stops_gold(Level *lev, void *_, int x, int y) {
   }
 }
 
-void Editor::dorandom() {
-
+void Editor::DoRandom() {
   if (changed) {
     if (!Message::Quick(this,
                         "Random will destroy your unsaved changes.",
@@ -69,7 +63,7 @@ void Editor::dorandom() {
       return;
     }
 
-    fullclear(T_BLUE);
+    FullClear(T_BLUE);
 
     /* start with seed */
     level->settile(1 + util::random() % (level->w - 2),
@@ -160,7 +154,7 @@ void Editor::dorandom() {
 
   case RT_CORRIDORS: {
 
-    fullclear(T_BLUE);
+    FullClear(T_BLUE);
 
     /*
        set to floor only if in this
@@ -233,7 +227,7 @@ void Editor::dorandom() {
     /* XXX once this didn't halt for me: could be bug below */
   case RT_MAZEBUG1: {
 
-    fullclear(T_BLUE);
+    FullClear(T_BLUE);
 
     /* XXX disable because of bugs */
 #   if 0
@@ -323,7 +317,7 @@ void Editor::dorandom() {
     /* broken version of above */
   case RT_MAZEBUG2: {
 
-    fullclear(T_BLUE);
+    FullClear(T_BLUE);
 
     /* look for anything shaped like this:
 
@@ -410,7 +404,7 @@ void Editor::dorandom() {
   case RT_ROOMS: {
     /* XXX use 'clear' flag to decide whether
        to do this or not */
-    fullclear(T_FLOOR);
+    FullClear(T_FLOOR);
 
     int nl = 12;
 
@@ -420,7 +414,7 @@ void Editor::dorandom() {
       int y = util::random() % level->h;
 
       /* XXX depends on order of dir enum */
-      int d = 1 + ( util::random() & 3 );
+      int d = 1 + (util::random() & 3);
 
       /* draw until we hit something. */
       level->settile(x, y, current);
@@ -750,10 +744,10 @@ bool Editor::retract_hole() {
         dirstring(m->up()).c_str(), dirstring(m->right()).c_str());
       */
 
-      if (Analysis::doessep(level.get(), x, y,
+      if (Analysis::DoesSep(level.get(), x, y,
                             level->guyx,
                             level->guyy, x0, y0, T_HOLE) &&
-          Analysis::doessep(level.get(), x, y,
+          Analysis::DoesSep(level.get(), x, y,
                             level->guyx,
                             level->guyy, x1, y1, T_HOLE)) {
 
