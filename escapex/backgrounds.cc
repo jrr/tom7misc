@@ -46,7 +46,7 @@ void Backgrounds::gradientblocks(SDL_Surface *&surf,
 
   for (int y = 0; y < 1 + h / (TILEW >> 1); y++)
     for (int x = 0; x < 1 + w / (TILEH >> 1); x++) {
-      Drawing::drawtile(x * (TILEH >> 1), y * (TILEW >> 1),
+      Drawing::DrawTile(x * (TILEH >> 1), y * (TILEW >> 1),
                         ((x + y) & 1) ? tile_white : tile_black,
                         1, surf);
     }

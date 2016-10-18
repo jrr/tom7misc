@@ -6,7 +6,7 @@
 #include <memory>
 
 /* could include traps. preference? */
-bool Analysis::isempty(int t) {
+bool Analysis::IsEmpty(int t) {
   switch (t) {
   case T_FLOOR:
   case T_ROUGH:
@@ -41,7 +41,7 @@ std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
   for (int y = 0; y < lev->h; y++) {
     for (int x = 0; x < lev->w; x++) {
 
-      if (isempty(lev->tileat(x, y))) {
+      if (IsEmpty(lev->tileat(x, y))) {
 	std::unique_ptr<Level> cl = lev->Clone();
 
         cl->warp(cl->guyx, cl->guyy, x, y);
@@ -59,7 +59,7 @@ std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
 
           /* PERF could save some work by checking if they're
              already unioned */
-          if (isempty(lev->tileat(destx, desty)) &&
+          if (IsEmpty(lev->tileat(destx, desty)) &&
               cc->Move(d) && !cc->isdead(dummy, dummy, unused)) {
             /* good. now just check the opposite... */
 	    std::unique_ptr<Level> co = cl->Clone();
@@ -86,34 +86,19 @@ std::unique_ptr<UnionFind> Analysis::Reachable(Level *lev) {
   return std::move(of);
 }
 
-static bool separator(Level *lev, int x, int y,
-                      int x1, int y1, int &x2, int &y2,
-                      int tile, bool search);
-
-
-bool Analysis::doessep(Level *lev, int x, int y,
-                       int x1, int y1, int x2, int y2, int tile) {
-  return separator(lev, x, y, x1, y1, x2, y2, tile, false);
-}
-
-bool Analysis::issep(Level *lev, int x, int y,
-                     int x1, int y1, int &x2, int &y2, int tile) {
-  return separator(lev, x, y, x1, y1, x2, y2, tile, true);
-}
-
-static bool separator(Level *lev, int x, int y,
+static bool Separator(Level *lev, int x, int y,
                       int x1, int y1, int &x2, int &y2,
                       int tile, bool search) {
 
   /*
-    printf("  separator(%d, %d, x1=%d, y1=%d, x2=%d, y2=%d, %s)\n",
+    printf("  Separator(%d, %d, x1=%d, y1=%d, x2=%d, y2=%d, %s)\n",
     x, y, x1, y2, x2, y2, search?"SEARCH":"NOSEARCH");
   */
 
   /* must be currently empty.
      this could be relaxed to blocks
      that allow lasers through... */
-  if (!Analysis::isempty(lev->tileat(x, y))) return false;
+  if (!Analysis::IsEmpty(lev->tileat(x, y))) return false;
 
   /* don't include degenerate cases */
   if (x == x1 && y == y1) return false;
@@ -175,5 +160,14 @@ static bool separator(Level *lev, int x, int y,
         (x2 != x || y2 != y)) return true;
     else return false;
   }
+}
 
+bool Analysis::DoesSep(Level *lev, int x, int y,
+                       int x1, int y1, int x2, int y2, int tile) {
+  return Separator(lev, x, y, x1, y1, x2, y2, tile, false);
+}
+
+bool Analysis::IsSep(Level *lev, int x, int y,
+                     int x1, int y1, int &x2, int &y2, int tile) {
+  return Separator(lev, x, y, x1, y1, x2, y2, tile, true);
 }

@@ -12,30 +12,23 @@ Use specific-width integer types instead of 'unsigned'.
 Use font from cc-lib.
 Maybe move HTTP to cc-lib.
 
-64 bits!
-
-get rid of extent; use unique_ptr
- - get rid of "destroy" methods
-    - some hashtable stuff still
- - there are some like 'extentf' still in use
-
 code cleanup
+ - in places where I switched from hashtable to unordered_map, can
+   probably remove the key from the value struct.
  - use enum class for "result" enums
  - move solution out of level
  - capitalize class names
      - grep 'struct [a-z]' *.h | grep -v '_t'
      - Match::stream
  - replace vallist with deque or vector; it's not used in that many places
- - hash should be 64-bit, should not cast c_str() to hash strings because
-   no guarantee that they have enough data
-   - use unordered_map<> instead of hashtable<> in dirindex; easy
  - in move2016, actually I mistakenly rewrote some entity indices to
    B_PLAYER, but B_PLAYER is not an index; it's a bot type -- should
    fix, maybe by introducing a new constant like ENTI_PLAYER (also
    -1).
 - When using the virtual implementation idiom, the "real" class
-   can be defined in an anonymous namespace.
+  can be defined in an anonymous namespace.
  - pref to not delete incomplete solutions when solving a level?
+ - remove space in ' ;'
 
 maybe Drawing should not have a const level* alias?
 
@@ -43,9 +36,6 @@ in play.cc, make a function that replaces the level (And the level in the
 drawing) with something, like the Start lev.
 
 merge util with cc-lib's.
-
-make sure there is no 'delete this;' when destroy methods were
-converted to destructors!
 
 c++11isms
  - nullptr instead of 0

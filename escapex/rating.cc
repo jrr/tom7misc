@@ -95,7 +95,7 @@ RateScreen_ *RateScreen_::Create(
   rr->tx->posx = 2;
   rr->tx->posy = 2;
   rr->tx->width = screen->w - 4;
-  rr->tx->height = screen->h - (Drawing::smallheight() + 24);
+  rr->tx->height = screen->h - (Drawing::SmallHeight() + 24);
 
   return rr;
 }
@@ -117,9 +117,9 @@ void RateScreen_::draw() {
 
   const Uint32 color =
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
-  const int margin = Drawing::smallheight() + 16;
+  const int margin = Drawing::SmallHeight() + 16;
   const int y = (screen->h - margin) + 4;
-  Drawing::drawsmall(y,
+  Drawing::DrawSmall(y,
                      margin,
                      color,
                      lev, nsolved,

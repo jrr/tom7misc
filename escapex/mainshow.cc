@@ -66,7 +66,7 @@ void MainShow_::draw(int x, int y, SDL_Surface *surf) {
   if (!surf) surf = screen;
   dr.posx = x;
   dr.posy = y;
-  dr.drawlev(0, surf, true);
+  dr.DrawLev(0, surf, true);
 
   tx->posx = 4 + x + (TILEW >> dr.zoomfactor) * level->w;
   tx->posy = y;

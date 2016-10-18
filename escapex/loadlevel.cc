@@ -680,7 +680,7 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
 
   std::unique_ptr<Selor> nsel = Selor::Create(n);
 
-  nsel->botmargin = Drawing::smallheight() + 16 ;
+  nsel->botmargin = Drawing::SmallHeight() + 16;
 
   nsel->below = this;
 
@@ -812,13 +812,13 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
         nsel->items[i].date = 0;
         nsel->items[i].owned = false;
         nsel->items[i].managed = thisindex.get() != nullptr &&
-	  thisindex->webcollection();
+	  thisindex->WebCollection();
 
         /* failure result is ignored, because the
            votes are initialized to 0 anyway */
         if (thisindex.get() != nullptr) {
           int ow;
-          thisindex->getentry(de->d_name,
+          thisindex->GetEntry(de->d_name,
                               nsel->items[i].votes,
                               nsel->items[i].date,
                               nsel->items[i].speedrecord,
@@ -892,7 +892,7 @@ void LoadLevel_::drawsmall() {
     fon->draw(16, y + 8, WHITE "(" BLUE "Directory" POP ")" POP);
   } else {
     if (showlev.get() == nullptr) fix_show(true);
-    Drawing::drawsmall(y,
+    Drawing::DrawSmall(y,
                        sel->botmargin,
                        color,
                        showlev.get(),

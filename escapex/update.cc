@@ -337,7 +337,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
     }
 
     /* always save the root dir */
-    up->savedir("", showname);
+    up->SaveDir("", showname);
 
     say("ndirs: " + itos(ndirs));
 
@@ -360,7 +360,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
       /* on win32, rewrite / to \ */
       util::replace(d, "/", DIRSEP);
 
-      up->savedir(d, name);
+      up->SaveDir(d, name);
     }
 
     say("nfiles: " + itos(nfiles));
@@ -403,7 +403,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 
       /* require file and md5, but not any of the voting stuff
          (they will default to 0) */
-      if (f != "" && md != "" && up->setfile(f, md, votes,
+      if (f != "" && md != "" && up->SetFile(f, md, votes,
                                              date, speedrecord, owner)) {
         /* XXX change to sayover? */
         /* say((string)GREEN + f + (string)" " GREY + md + POP POP); */
@@ -428,7 +428,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
     }
 
     /* XXX only say this if there were stray files */
-    if (up->commit()) {
+    if (up->Commit()) {
       say(GREEN "Success. Stray files moved to " BLUE "attic" POP"." POP);
     } else {
       say(RED "Committing failed. Stray files not deleted." POP);

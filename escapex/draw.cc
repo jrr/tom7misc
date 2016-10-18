@@ -2,13 +2,18 @@
 /* drawing a level */
 
 #include "draw.h"
+
+#include <time.h>
+
+#include "SDL.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/lines.h"
 #include "chars.h"
 #include "util.h"
 #include "animation.h"
 #include "message.h"
-#include <time.h>
+#include "rating.h"
+#include "dirindex.h"
 
 #define TILEUTIL_FILE DATADIR "tileutil.png"
 #define TILES_FILE DATADIR "tiles.png"
@@ -30,7 +35,7 @@ SDL_Surface **Drawing::tileutil = nullptr;
 
 #define SHOWDESTCOLOR 0xAA, 0xAA, 0x33
 
-bool Drawing::loadimages() {
+bool Drawing::LoadImages() {
   /* PERF could be alpha=false. but the alphadim and shrink50
      routines rely on this being a 32 bit graphic. */
   SDL_Surface *tt = sdlutil::LoadImage(TILES_FILE);
@@ -82,7 +87,7 @@ bool Drawing::loadimages() {
   return true;
 }
 
-void Drawing::destroyimages() {
+void Drawing::DestroyImages() {
   for (int i = 0; i < DRAW_NSIZES; i++) {
     if (tiles && tiles[i]) SDL_FreeSurface(tiles[i]);
     if (tilesdim && tilesdim[i]) SDL_FreeSurface(tilesdim[i]);
@@ -97,11 +102,11 @@ void Drawing::destroyimages() {
   fon = nullptr;
 
   delete fonsmall;
-  fon = nullptr;
+  fonsmall = nullptr;
 }
 
 /* draw guy facing d at screen location x/y */
-void Drawing::drawguy(dir d,
+void Drawing::DrawGuy(dir d,
                       int sx, int sy,
                       int zoomfactor,
                       SDL_Surface *surf, bool dead) {
@@ -130,7 +135,7 @@ void Drawing::drawguy(dir d,
   SDL_BlitSurface(s, 0, surf, &dst);
 }
 
-void Drawing::drawbot(bot b, dir d,
+void Drawing::DrawBot(bot b, dir d,
                       int sx, int sy,
                       int zoomfactor,
                       SDL_Surface *surf,
@@ -215,7 +220,7 @@ void Drawing::drawbot(bot b, dir d,
 
 }
 
-void Drawing::drawtile(int px, int py, int tl, int zf,
+void Drawing::DrawTile(int px, int py, int tl, int zf,
                        SDL_Surface *surf, bool dim) {
 
   if (!surf) surf = screen;
@@ -234,7 +239,7 @@ void Drawing::drawtile(int px, int py, int tl, int zf,
 
 }
 
-void Drawing::drawtileu(int px, int py, int tl, int zf,
+void Drawing::DrawTileU(int px, int py, int tl, int zf,
                         SDL_Surface *surf) {
 
   if (!surf) surf = screen;
@@ -258,8 +263,7 @@ void Drawing::drawtileu(int px, int py, int tl, int zf,
    the guy is. unreasonable scrolls show areas outside
    the level when there is something to show on the
    other side */
-void Drawing::makescrollreasonable() {
-
+void Drawing::MakeScrollReasonable() {
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
 
@@ -275,7 +279,7 @@ void Drawing::makescrollreasonable() {
 
 /* set the scroll window so that the guy is at least
    in the picture */
-void Drawing::setscroll() {
+void Drawing::SetScroll() {
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
 
@@ -302,7 +306,7 @@ void Drawing::setscroll() {
   if (lev->guyx < (scrollx + xpad)) scrollx = lev->guyx - xpad;
   if (lev->guyy < (scrolly + ypad)) scrolly = lev->guyy - ypad;
 
-  makescrollreasonable();
+  MakeScrollReasonable();
 }
 
 namespace {
@@ -322,7 +326,7 @@ static int ydepth_compare(const void *l, const void *r) {
   return ll->i - rr->i;
 }
 
-void Drawing::drawlev(int layer, /* dir facing, */
+void Drawing::DrawLev(int layer, /* dir facing, */
                       SDL_Surface *surf, bool dim) {
 
   if (!surf) surf = screen;
@@ -374,12 +378,12 @@ void Drawing::drawlev(int layer, /* dir facing, */
             ((lev->guyx == xx &&
               lev->guyy == yy) || lev->botat(xx, yy))) {
 
-          drawtileu(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
+          DrawTileU(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
                     posy + margin + (TILEH >> zoomfactor) * (yy - scrolly),
                     TU_EXITOPEN, zoomfactor, surf);
 
         } else {
-          drawtile(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
+          DrawTile(posx + margin + (TILEW >> zoomfactor) * (xx - scrollx),
                    posy + margin + (TILEH >> zoomfactor) * (yy - scrolly),
                    tile, zoomfactor, surf, dim);
         }
@@ -481,12 +485,12 @@ void Drawing::drawlev(int layer, /* dir facing, */
       int bx, by;
       lev->where(bots[i].i, bx, by);
 
-      if (onscreen(bx, by, bsx, bsy)) {
+      if (OnScreen(bx, by, bsx, bsy)) {
         if (bots[i].e == B_PLAYER)
-          drawguy(bots[i].d, bsx, bsy,
+          DrawGuy(bots[i].d, bsx, bsy,
                   zoomfactor, surf, isdead);
         else
-          drawbot(bots[i].e, bots[i].d, bsx, bsy,
+          DrawBot(bots[i].e, bots[i].d, bsx, bsy,
                   zoomfactor, surf, bots[i].a);
       }
     }
@@ -496,7 +500,7 @@ void Drawing::drawlev(int layer, /* dir facing, */
 
 }
 
-void Drawing::drawextra(SDL_Surface *surf) {
+void Drawing::DrawExtra(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   if (!zoomfactor) {
@@ -510,7 +514,7 @@ void Drawing::drawextra(SDL_Surface *surf) {
   }
 }
 
-void Drawing::drawbotnums(SDL_Surface *surf) {
+void Drawing::DrawBotNums(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   if (!zoomfactor) {
@@ -518,7 +522,7 @@ void Drawing::drawbotnums(SDL_Surface *surf) {
       int bx, by;
       lev->where(lev->boti[b], bx, by);
       int bsx, bsy;
-      if (onscreen(bx, by, bsx, bsy)) {
+      if (OnScreen(bx, by, bsx, bsy)) {
         string ss = YELLOW + itos(b + 1);
         fon->drawto(surf,
                     bsx + TILEW - fon->sizex(ss),
@@ -529,7 +533,7 @@ void Drawing::drawbotnums(SDL_Surface *surf) {
   }
 }
 
-void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
+void Drawing::DrawDests(SDL_Surface *surf, bool shuffle) {
   if (surf == nullptr) surf = screen;
 
   const Uint32 black = SDL_MapRGBA(surf->format, 0, 0, 0, 0xFF);
@@ -537,7 +541,7 @@ void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
   for (int wx = 0; wx < lev->w; wx++) {
     for (int wy = 0; wy < lev->h; wy++) {
       int sy, sx;
-      if (onscreen(wx, wy, sx, sy)) {
+      if (OnScreen(wx, wy, sx, sy)) {
 
         sx += TILEW >> (1 + zoomfactor);
         sy += TILEH >> (1 + zoomfactor);
@@ -548,7 +552,7 @@ void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
           int dx, dy, px, py;
           lev->where(d, dx, dy);
 
-          if (onscreen(dx, dy, px, py)) {
+          if (OnScreen(dx, dy, px, py)) {
 
             px += TILEW >> (1 + zoomfactor);
             py += TILEH >> (1 + zoomfactor);
@@ -596,9 +600,8 @@ void Drawing::drawdests(SDL_Surface *surf, bool shuffle) {
   sdlutil::sulock(surf);
 }
 
-bool Drawing::inmap(int x, int y,
-                    int &tx, int &ty) {
-
+bool Drawing::InMap(int x, int y,
+                    int &tx, int &ty) const {
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
 
@@ -624,8 +627,8 @@ bool Drawing::inmap(int x, int y,
 }
 
 
-bool Drawing::onscreen(int x, int y,
-                       int &tx, int &ty) {
+bool Drawing::OnScreen(int x, int y,
+                       int &tx, int &ty) const {
   int showw = (width - (margin + margin)) / (TILEW >> zoomfactor);
   int showh = (height - (margin + margin)) / (TILEH >> zoomfactor);
 
@@ -643,9 +646,9 @@ bool Drawing::onscreen(int x, int y,
   return 0;
 }
 
-void Drawing::drawsmall(int y,
+void Drawing::DrawSmall(int y,
                         int botmargin, Uint32 color,
-                        const Level *l, int solvemoves, string fname,
+                        const Level *l, int solvemoves, const string &fname,
                         RateStatus *votes,
                         Rating *myrating,
                         int date, int speedrecord) {
@@ -686,10 +689,10 @@ void Drawing::drawsmall(int y,
   dr.height = PREVIEWHEIGHT;
   dr.zoomfactor = zf;
 
-  dr.setscroll();
+  dr.SetScroll();
 
   /* (let scroll be determined automatically) */
-  dr.drawlev(0, screen);
+  dr.DrawLev(0, screen);
 
   /* borders */
   int textx = 24 + PREVIEWWIDTH;
@@ -804,6 +807,6 @@ void Drawing::drawsmall(int y,
   }
 }
 
-int Drawing::smallheight() {
+int Drawing::SmallHeight() {
   return PREVIEWHEIGHT;
 }

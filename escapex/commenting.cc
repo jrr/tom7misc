@@ -26,9 +26,9 @@ struct cscreen : public Drawable {
 
     Uint32 color =
       SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
-    int margin = Drawing::smallheight() + 16;
+    int margin = Drawing::SmallHeight() + 16;
     int y = (screen->h - margin) + 4 ;
-    Drawing::drawsmall(y,
+    Drawing::DrawSmall(y,
                        margin,
                        color,
                        lev, nsolved,
@@ -58,7 +58,7 @@ struct cscreen : public Drawable {
     tx->posy = fon->height + 2;
     tx->width = screen->w - 4;
     tx->height = screen->h -
-      (Drawing::smallheight() + fon->height + 24);
+      (Drawing::SmallHeight() + fon->height + 24);
   }
 };
 }  // namespace

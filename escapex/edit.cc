@@ -1,22 +1,19 @@
+#include "edit.h"
 
-#include "SDL.h"
 #include <math.h>
 #include <time.h>
-#include "edit.h"
+
+#include "SDL.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/lines.h"
-#include "draw.h"
+#include "../cc-lib/md5.h"
 
+#include "draw.h"
 #include "escapex.h"
 #include "play.h"
 #include "prompt.h"
-
 #include "util.h"
-#include "edit.h"
-
 #include "loadlevel.h"
-#include "../cc-lib/md5.h"
-
 #include "message.h"
 #include "menu.h"
 #include "chars.h"
@@ -102,7 +99,7 @@ void Editor::screenresize() {
   tmenuscroll = 0;
 }
 
-void Editor::fullclear(tile t) {
+void Editor::FullClear(Tile t) {
   for (int x = 0; x < level->w; x++) {
     for (int y = 0; y < level->h; y++) {
       level->settile(x, y, t);
@@ -112,7 +109,7 @@ void Editor::fullclear(tile t) {
 }
 
 /* XXX limit to selection */
-void Editor::clear(tile bg, tile fg) {
+void Editor::Clear(Tile bg, Tile fg) {
   if (changed &&
       !Message::Quick(this,
                       "Clearing will destroy your unsaved changes.",
@@ -126,7 +123,7 @@ void Editor::clear(tile bg, tile fg) {
   if (Level::needsdest(bg)) bg = T_FLOOR;
   if (Level::needsdest(fg)) fg = T_BLUE;
 
-  fullclear(bg);
+  FullClear(bg);
   for (int x = 0; x < level->w; x++) {
     level->settile(x, 0, fg);
     level->settile(x, level->h - 1, fg);
@@ -143,7 +140,7 @@ void Editor::clear(tile bg, tile fg) {
 /* for debugging, since it pauses everything */
 void Editor::blinktile(int destx, int desty, Uint32 color) {
   int xx, yy;
-  if (dr.onscreen(destx, desty, xx, yy)) {
+  if (dr.OnScreen(destx, desty, xx, yy)) {
     SDL_Rect dst;
     dst.x = xx;
     dst.y = yy;
@@ -160,7 +157,7 @@ void Editor::draw() {
   /* check if we need to highlight a destination */
   int tx, ty;
   int sdx = -1, sdy = -1;
-  if (dr.inmap(mousex, mousey, tx, ty)) {
+  if (dr.InMap(mousex, mousey, tx, ty)) {
     if (Level::needsdest(layerat(tx, ty))) {
       level->getdest(tx, ty, sdx, sdy);
     }
@@ -185,13 +182,13 @@ void Editor::draw() {
   for (int j = 0; j < showw; j++) {
 
     if (j == POS_CURRENT) {
-      dr.drawtile(j * TILEW, 0, current, 0);
+      dr.DrawTile(j * TILEW, 0, current, 0);
     } else if (j == POS_LAYER) {
-      Drawing::drawtileu(j * TILEW, 0, layer ? TU_LAYERALT : TU_LAYERNORMAL, 0);
+      Drawing::DrawTileU(j * TILEW, 0, layer ? TU_LAYERALT : TU_LAYERNORMAL, 0);
     } else if (j == POS_CHANGED) {
-      if (changed) Drawing::drawtileu(j * TILEW, 0, TU_CHANGED, 0);
+      if (changed) Drawing::DrawTileU(j * TILEW, 0, TU_CHANGED, 0);
     } else if (j < NUM_MENUITEMS && edit_menuitem[j]) {
-      Drawing::drawtileu(j * TILEW, 0, edit_menuitem[j], 0);
+      Drawing::DrawTileU(j * TILEW, 0, edit_menuitem[j], 0);
     }
 
     /* draw extra info */
@@ -206,17 +203,17 @@ void Editor::draw() {
   /* disable menu items where appropriate */
 
   if (filename == "") {
-    Drawing::drawtileu(POS_SAVE * TILEW, 0, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_SAVE * TILEW, 0, TU_DISABLED, 0);
   }
 
   if (!selection.w) {
-    Drawing::drawtileu(POS_PREFAB * TILEW, 0, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_PREFAB * TILEW, 0, TU_DISABLED, 0);
   }
 
   if (!level->nbots) {
-    Drawing::drawtileu(POS_FIRST_BOT * TILEW, 0, TU_DISABLED, 0);
-    Drawing::drawtileu(POS_ERASE_BOT * TILEW, 0, TU_DISABLED, 0);
-    Drawing::drawtileu(POS_SLEEPWAKE * TILEW, 0, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_FIRST_BOT * TILEW, 0, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_ERASE_BOT * TILEW, 0, TU_DISABLED, 0);
+    Drawing::DrawTileU(POS_SLEEPWAKE * TILEW, 0, TU_DISABLED, 0);
   }
 
   /* draw tile menu */
@@ -224,18 +221,18 @@ void Editor::draw() {
   for (i = 0; i < showw; i++) {
     int tt = i + (showw * tmenuscroll);
     if (tt < NTILEORDER)
-      dr.drawtile(i * TILEW, TILEH, tileorder[tt], 0);
+      dr.DrawTile(i * TILEW, TILEH, tileorder[tt], 0);
   }
 
-  Drawing::drawtileu(i * TILEW, TILEH, TU_TILESUD, 0);
+  Drawing::DrawTileU(i * TILEW, TILEH, TU_TILESUD, 0);
 
   /* always point him down. */
-  dr.drawlev(layer);
+  dr.DrawLev(layer);
   /* ? */
-  dr.drawextra();
+  dr.DrawExtra();
 
   /* always draw bot numbers */
-  dr.drawbotnums();
+  dr.DrawBotNums();
 
   /* draw bomb timers */
   if (!dr.zoomfactor) {
@@ -244,7 +241,7 @@ void Editor::draw() {
         int bx, by;
         level->where(level->boti[b], bx, by);
         int bsx, bsy;
-        if (dr.onscreen(bx, by, bsx, bsy)) {
+        if (dr.OnScreen(bx, by, bsx, bsy)) {
           string ss = RED + itos(Level::bombmaxfuse(level->bott[b]));
           fon->draw(bsx + ((TILEW - fon->sizex(ss))>>1),
                     bsy + ((TILEH - fon->height)>>1),
@@ -258,15 +255,15 @@ void Editor::draw() {
   /* XX maybe not if showdests? */
   {
     int px, py;
-    if (sdx >= 0 && dr.onscreen(sdx, sdy, px, py)) {
-      Drawing::drawtileu(px, py, TU_TARGET, dr.zoomfactor);
+    if (sdx >= 0 && dr.OnScreen(sdx, sdy, px, py)) {
+      Drawing::DrawTileU(px, py, TU_TARGET, dr.zoomfactor);
     }
   }
 
   /* could be better at stacking arrows so that multiple ones
      on the same line could be distinguished */
   if (showdests) {
-    dr.drawdests();
+    dr.DrawDests();
   }
 
   /* draw selection rectangle, if it exists */
@@ -276,8 +273,8 @@ void Editor::draw() {
       selection.h > 0) {
 
     int px, py, pdx, pdy;
-    if (dr.onscreen(selection.x, selection.y, px, py) &&
-        dr.onscreen(selection.x + selection.w - 1,
+    if (dr.OnScreen(selection.x, selection.y, px, py) &&
+        dr.OnScreen(selection.x + selection.w - 1,
                     selection.y + selection.h - 1,
                     pdx, pdy)) {
 
@@ -394,8 +391,8 @@ void Editor::saveas() {
   save();
 }
 
-void Editor::playerstart() {
-  clearselection();
+void Editor::PlayerStart() {
+  ClearSelection();
 
   int x, y;
 
@@ -414,7 +411,7 @@ void Editor::playerstart() {
 
 /* XXX target selection? */
 void Editor::erasebot() {
-  clearselection();
+  ClearSelection();
 
   int x, y;
   if (getdest(x, y, (string)"Click on bot to erase.")) {
@@ -516,7 +513,7 @@ void Editor::sleepwake() {
 }
 
 void Editor::placebot(bot b) {
-  clearselection();
+  ClearSelection();
 
   int x, y;
 
@@ -589,7 +586,7 @@ void Editor::addbot(int x, int y, bot b) {
 }
 
 void Editor::save() {
-  clearselection();
+  ClearSelection();
 
   FixUp();
 
@@ -671,7 +668,7 @@ void Editor::save() {
 /* XXX should warn if you load from a managed directory. */
 /* target selection? */
 void Editor::load() {
-  clearselection();
+  ClearSelection();
 
   std::unique_ptr<LoadLevel> ll{
     LoadLevel::Create(plr, EDIT_DIR, true, true)};
@@ -720,8 +717,8 @@ void Editor::playlev() {
   Redraw();
 }
 
-void Editor::resize() {
-  clearselection();
+void Editor::Resize() {
+  ClearSelection();
 
   string nw = itos(level->w);
   string nh = itos(level->h);
@@ -791,7 +788,7 @@ void Editor::Edit(const Level *origlev) {
   dr.height = YH;
   dr.margin = 12;
 
-  clearselection();
+  ClearSelection();
 
   olddest = -1;
 
@@ -846,7 +843,7 @@ void Editor::Edit(const Level *origlev) {
              ((e->state & SDL_BUTTON(SDL_BUTTON_LEFT)) &&
               ctrl_held)) &&
             selection.w > 0 &&
-            dr.inmap(mousex, mousey, ntx, nty)) {
+            dr.InMap(mousex, mousey, ntx, nty)) {
 
           /* change selection rectangle */
           int nw = 1 + (ntx - selection.x);
@@ -869,8 +866,8 @@ void Editor::Edit(const Level *origlev) {
         } else if (!Level::needsdest(current) &&
                    !donotdraw &&
                    e->state & SDL_BUTTON(SDL_BUTTON_LEFT) &&
-                   dr.inmap(omx, omy, otx, oty) &&
-                   dr.inmap(mousex, mousey, ntx, nty)) {
+                   dr.InMap(omx, omy, otx, oty) &&
+                   dr.InMap(mousex, mousey, ntx, nty)) {
 
           if (otx != ntx ||
               oty != nty) {
@@ -899,7 +896,7 @@ void Editor::Edit(const Level *origlev) {
         /* calculate the destination to draw,
            if any. */
         int tx, ty;
-        if (dr.inmap(mousex, mousey, tx, ty)) {
+        if (dr.InMap(mousex, mousey, tx, ty)) {
           if (Level::needsdest(layerat(tx, ty))) {
             if (level->destat(tx, ty) != olddest) {
               olddest = level->destat(tx, ty);
@@ -936,7 +933,7 @@ void Editor::Edit(const Level *origlev) {
           if (SDL_GetModState() & KMOD_CTRL) {
             /* swap */
             int tx, ty;
-            if (dr.inmap(e->x, e->y, tx, ty)) {
+            if (dr.InMap(e->x, e->y, tx, ty)) {
               level->swapo(level->index(tx, ty));
               changed = 1;
               Redraw();
@@ -944,7 +941,7 @@ void Editor::Edit(const Level *origlev) {
           } else {
             /* eyedropper */
             int tx, ty;
-            if (dr.inmap(e->x, e->y,
+            if (dr.InMap(e->x, e->y,
                          tx, ty)) {
 
               current = layer ? level->otileat(tx, ty) : level->tileat(tx, ty);
@@ -956,7 +953,7 @@ void Editor::Edit(const Level *origlev) {
         } else if (e->button == SDL_BUTTON_RIGHT) {
           /* Start drawing selection rectangle */
           int tx, ty;
-          if (dr.inmap(e->x, e->y, tx, ty)) {
+          if (dr.InMap(e->x, e->y, tx, ty)) {
             selection.x = tx;
             selection.y = ty;
 
@@ -1018,11 +1015,11 @@ void Editor::Edit(const Level *origlev) {
               } else switch (edit_menuitem[n]) {
 
               case TU_SIZE:
-                resize();
+                Resize();
                 break;
 
               case TU_PLAYERSTART:
-                playerstart();
+                PlayerStart();
                 break;
 
               case TU_DALEK:
@@ -1062,7 +1059,7 @@ void Editor::Edit(const Level *origlev) {
                 break;
 
               case TU_RANDOM:
-                dorandom();
+                DoRandom();
                 break;
 
               case TU_RANDTYPE:
@@ -1098,7 +1095,7 @@ void Editor::Edit(const Level *origlev) {
                 break;
 
               case TU_CLEAR:
-                clear(T_FLOOR, (tile)current);
+                Clear(T_FLOOR, (Tile)current);
                 break;
               default: ;
 
@@ -1110,9 +1107,9 @@ void Editor::Edit(const Level *origlev) {
           } else {
             int tx, ty;
 
-            clearselection();
+            ClearSelection();
 
-            if (dr.inmap(e->x, e->y,
+            if (dr.InMap(e->x, e->y,
                          tx, ty)) {
               /* drawing area */
 
@@ -1591,7 +1588,7 @@ void Editor::Edit(const Level *origlev) {
             dr.scrollx += dx;
             dr.scrolly += dy;
 
-            dr.makescrollreasonable();
+            dr.MakeScrollReasonable();
 
             Redraw();
           }
@@ -1619,22 +1616,22 @@ void Editor::Edit(const Level *origlev) {
           break;
 
         case SDLK_r:
-          dorandom();
+          DoRandom();
           break;
 
         case SDLK_z:
-          resize();
+          Resize();
           break;
 
         case SDLK_c:
-          clear(T_FLOOR, (tile)current);
+          Clear(T_FLOOR, (Tile)current);
           break;
 
         case SDLK_v: /* XXX paste */
           break;
 
         case SDLK_e:
-          playerstart();
+          PlayerStart();
           break;
 
         case SDLK_o:
@@ -1679,7 +1676,7 @@ void Editor::Edit(const Level *origlev) {
 
         case SDLK_d:
           if (event.key.keysym.mod & KMOD_CTRL) {
-            clearselection();
+            ClearSelection();
             Redraw();
           } else {
             showdests = !showdests;
@@ -1729,7 +1726,7 @@ void Editor::Edit(const Level *origlev) {
           if (dr.zoomfactor >= DRAW_NSIZES) dr.zoomfactor = DRAW_NSIZES - 1;
 
           /* scrolls? */
-          dr.makescrollreasonable();
+          dr.MakeScrollReasonable();
 
           Redraw();
           break;
@@ -1758,7 +1755,7 @@ void Editor::next_bombtimer() {
 }
 
 bool Editor::getdest(int &x, int &y, string msg) {
-  clearselection();
+  ClearSelection();
 
   SDL_Event event;
 
@@ -1782,9 +1779,8 @@ bool Editor::getdest(int &x, int &y, string msg) {
         if (e->button == SDL_BUTTON_LEFT) {
 
           int tx, ty;
-          if (dr.inmap(e->x, e->y,
+          if (dr.InMap(e->x, e->y,
                        tx, ty)) {
-
             x = tx;
             y = ty;
 
@@ -1812,7 +1808,7 @@ bool Editor::getdest(int &x, int &y, string msg) {
         default:
           break;
         }
-        dr.makescrollreasonable();
+        dr.MakeScrollReasonable();
         Redraw();
         break;
       default:;

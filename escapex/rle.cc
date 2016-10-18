@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 #include "util.h"
-#include "extent.h"
 #include "escapex.h"
 #include <assert.h>
 

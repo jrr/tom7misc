@@ -27,21 +27,20 @@ struct Analysis {
      this operation is fairly expensive (at least
      linear in the size of the level)
   */
-  static bool issep(Level *, int x, int y,
+  static bool IsSep(Level *, int x, int y,
                     int x1, int y1,
                     int &x2, int &y2, int tile = T_STOP);
 
   /* same, but provide x2 and y2 as inputs: adding
      tile at x/y must separate previously connected
      x1/y1 and x2/y2. */
-
-  static bool doessep(Level *,
+  static bool DoesSep(Level *,
                       int x, int y,
                       int x1, int y1,
                       int x2, int y2, int tile = T_STOP);
 
   /* player can stand on this tile */
-  static bool isempty(int tile);
+  static bool IsEmpty(int tile);
 };
 
 #endif

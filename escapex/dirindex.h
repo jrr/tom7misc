@@ -40,17 +40,17 @@ struct DirIndex {
   /* read from disk */
   static DirIndex *FromFile(const string &f);
 
-  static bool isindex(const string &f);
+  static bool IsIndex(const string &f);
 
-  virtual void writefile(string f) = 0;
-  virtual void addentry(string filename, RateStatus v,
+  virtual void WriteFile(const string &f) = 0;
+  virtual void AddEntry(const string &filename, RateStatus v,
                         int date, int speedrecord, int owner) = 0;
 
-  virtual bool getentry(string filename, RateStatus &v,
+  virtual bool GetEntry(const string &filename, RateStatus &v,
                         int &date, int &speedrecord, int &owner) = 0;
 
   /* true if this is a managed collection */
-  virtual bool webcollection() const = 0;
+  virtual bool WebCollection() const = 0;
 
   string title;
 };
