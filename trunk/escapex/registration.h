@@ -10,12 +10,12 @@ struct Registration : public Drawable {
   static Registration *Create(Player *p);
 
   /* modifies p->webid to nonzero if successful */
-  virtual void registrate() = 0;
+  virtual void Registrate() = 0;
 
   virtual ~Registration() {}
 
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
 };
 
 #endif

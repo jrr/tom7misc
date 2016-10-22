@@ -124,7 +124,7 @@ struct wakeup_t { int x; int y; };
 
 struct bombsplosion_t { int x; int y; };
 
-struct aevent {
+struct AEvent {
   unsigned int serial;
 
   atag t;

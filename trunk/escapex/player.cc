@@ -453,27 +453,27 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
   string s;
 
   /* strip newline after magic */
-  if (!(cf->getline(s) && s == "")) FF_FAIL("newline after magic");
+  if (!(cf->GetLine(s) && s == "")) FF_FAIL("newline after magic");
 
-  if (!cf->getline(s)) FF_FAIL("no webid"); p->webid = util::stoi(s);
-  if (!cf->getline(s)) FF_FAIL("no seqh");  p->webseqh = util::stoi(s);
-  if (!cf->getline(s)) FF_FAIL("no seql");  p->webseql = util::stoi(s);
+  if (!cf->GetLine(s)) FF_FAIL("no webid"); p->webid = util::stoi(s);
+  if (!cf->GetLine(s)) FF_FAIL("no seqh");  p->webseqh = util::stoi(s);
+  if (!cf->GetLine(s)) FF_FAIL("no seql");  p->webseql = util::stoi(s);
 
   /* ignored fields for now */
   for (int z = 0; z < IGNORED_FIELDS; z++) {
-    if (!cf->getline(s)) FF_FAIL("ignored fields");
+    if (!cf->GetLine(s)) FF_FAIL("ignored fields");
   }
 
-  if (!cf->getline(p->name)) FF_FAIL("player name");
+  if (!cf->GetLine(p->name)) FF_FAIL("player name");
 
   /* expect solution marker now */
-  if (!cf->getline(s) || s != SOLMARKER) FF_FAIL("solution marker");
+  if (!cf->GetLine(s) || s != SOLMARKER) FF_FAIL("solution marker");
 
   /* now read solutions until -- ratings */
 
   for (;;) {
     string l;
-    if (!cf->getline(l)) FF_FAIL("expected solution");
+    if (!cf->GetLine(l)) FF_FAIL("expected solution");
 
     /* maybe this is the end? */
     if (l == RATMARKER) break;
@@ -496,7 +496,7 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
 
       /* now, any number of other solutions */
       for (;;) {
-        if (!cf->getline(l)) FF_FAIL("expected more solutions");
+        if (!cf->GetLine(l)) FF_FAIL("expected more solutions");
         string tok = util::chop(l);
         if (tok == "!") break;
         else {
@@ -528,7 +528,7 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
 
   for (;;) {
     string l;
-    if (!cf->getline(l)) FF_FAIL("expected rating");
+    if (!cf->GetLine(l)) FF_FAIL("expected rating");
 
     if (l == PREFMARKER) break;
 
@@ -547,7 +547,7 @@ Player_ *Player_::fromfile_text(string fname, CheckFile *cf) {
   /* already read pref marker */
 
   string cs;
-  if (!cf->getline(cs)) FF_FAIL("expected prefs");
+  if (!cf->GetLine(cs)) FF_FAIL("expected prefs");
   p->ch = Chunks::FromString(Base64::Decode(cs));
 
   if (p->ch.get() == nullptr) FF_FAIL("bad prefs");
@@ -561,7 +561,7 @@ Player_ *Player_::FromFile(const string &file) {
   if (cf.get() == nullptr) return nullptr;
 
   string s;
-  if (!cf->read(PLAYER_MAGICS_LENGTH, s)) return nullptr;
+  if (!cf->Read(PLAYER_MAGICS_LENGTH, s)) return nullptr;
 
   /* binary or text format? */
   if (s == PLAYERTEXT_MAGIC) return fromfile_text(file, cf.get());

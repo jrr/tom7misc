@@ -5,7 +5,7 @@
 #include <string>
 
 struct HTTPUtil {
-  static std::string urlencode(const std::string &);
+  static std::string URLEncode(const std::string &);
 };
 
 enum formtype { FT_ARG, FT_FILE, };
@@ -23,7 +23,7 @@ struct formalist {
     x->ty = FT_ARG;
     x->name = name;
     /* this appears to be too many */
-    x->content = arg; // HTTPUtil::urlencode(arg);
+    x->content = arg; // HTTPUtil::URLEncode(arg);
     l = x;
   }
 

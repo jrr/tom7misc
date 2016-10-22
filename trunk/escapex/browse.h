@@ -24,11 +24,11 @@ struct Browse : public Drawable {
   /* Display the browser modally until the user selects a level;
      return a filename for that level or the empty string if
      the user cancels. */
-  virtual string selectlevel() = 0;
+  virtual string SelectLevel() = 0;
 
   /* Drawable */
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
 };
 
 #endif

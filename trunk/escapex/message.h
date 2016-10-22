@@ -25,8 +25,8 @@ struct Message : public Drawable {
   virtual bool Ask(char *actualchar = 0,
                    string charspec = "") = 0;
 
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
   virtual ~Message();
 
   static bool Quick(Drawable *bbelow, string ttitle,

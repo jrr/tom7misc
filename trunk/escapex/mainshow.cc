@@ -71,19 +71,19 @@ void MainShow_::draw(int x, int y, SDL_Surface *surf) {
   tx->posx = 4 + x + (TILEW >> dr.zoomfactor) * level->w;
   tx->posy = y;
 
-  tx->drawto(surf);
+  tx->DrawTo(surf);
 }
 
 void MainShow_::step() {
   int dumb, dumby;
   dir dummy;
   if (level->isdead(dumb, dumby, dummy)) {
-    tx->say(RED "Drat!");
+    tx->Say(RED "Drat!");
     newguy();
   }
 
   if (level->iswon()) {
-    tx->say(GREEN "Yeah!");
+    tx->Say(GREEN "Yeah!");
     newexit();
   }
 
@@ -93,7 +93,7 @@ void MainShow_::step() {
 
   trymove();
 
-  tx->say("");
+  tx->Say("");
 }
 
 void MainShow_::trymove() {

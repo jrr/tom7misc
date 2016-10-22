@@ -61,23 +61,23 @@ struct llentry {
 struct Browse_ : public Browse {
   Browse_() : background(0) {}
 
-  void draw() override {
+  void Draw() override {
     SDL_BlitSurface(background, 0, screen, 0);
   }
 
-  void screenresize() override {
+  void ScreenResize() override {
     makebackground();
   }
 
   ~Browse_() override {}
 
-  string selectlevel() override;
+  string SelectLevel() override;
 
   void makebackground();
   SDL_Surface *background;
 
   void redraw() {
-    draw();
+    Draw();
     SDL_Flip(screen);
   }
 
@@ -94,7 +94,7 @@ void Browse_::makebackground() {
   int w = screen->w;
   int h = screen->h;
 
-  Backgrounds::gradientblocks(background,
+  Backgrounds::GradientBlocks(background,
                               T_GREY,
                               T_RED,
                               Backgrounds::purpleish);
@@ -214,7 +214,7 @@ void Browse_::makebackground() {
                     separator_x, botsep_y, separator_width, separator_height);
 }
 
-string Browse_::selectlevel() {
+string Browse_::SelectLevel() {
   SDL_Event event;
 
   Uint32 nextframe = SDL_GetTicks() + LOADFRAME_TICKS;
@@ -227,7 +227,7 @@ string Browse_::selectlevel() {
 
     while (SDL_PollEvent(&event)) {
 
-      if (handle_video_event(this, event)) continue;
+      if (HandleVideoEvent(this, event)) continue;
 
       if (event.type == SDL_KEYDOWN) {
         int key = event.key.keysym.sym;

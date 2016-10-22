@@ -15,8 +15,8 @@
 #include "httputil.h"
 
 namespace {
-struct cscreen : public Drawable {
-  void draw() override {
+struct CScreen : public Drawable {
+  void Draw() override {
     sdlutil::clearsurface(screen, BGCOLOR);
 
     fon->draw(2, 2, (string)(BLUE "Commenting on: " POP YELLOW) +
@@ -34,25 +34,25 @@ struct cscreen : public Drawable {
                        lev, nsolved,
                        MD5::Ascii(levmd5), 0, 0);
 
-    if (tx.get() != nullptr) tx->draw();
+    if (tx.get() != nullptr) tx->Draw();
   }
 
-  void screenresize() override {
+  void ScreenResize() override {
     /* XXX */
   }
 
-  void redraw() {
-    draw();
+  void Redraw() {
+    Draw();
     SDL_Flip(screen);
   }
 
-  const Level *lev;
-  int nsolved;
+  const Level *lev = nullptr;
+  int nsolved = 0;
   string levmd5;
 
   std::unique_ptr<TextScroll> tx;
 
-  cscreen() {
+  CScreen() {
     tx.reset(TextScroll::Create(fon));
     tx->posx = 2;
     tx->posy = fon->height + 2;
@@ -65,23 +65,22 @@ struct cscreen : public Drawable {
 
 void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
                             bool cookmode) {
-  cscreen cs;
+  CScreen cs;
   cs.lev = lev;
   cs.levmd5 = md5;
 
   cs.nsolved = p->GetSolLength(md5);
 
-
-  cs.redraw();
+  cs.Redraw();
 
   /* XXX if cookmode, then we have already just connected.. */
 
   /* make sure that we can access the server, since we will lose
      a comment that we compose if it can't be posted. */
 
-  cs.tx->say(GREY "Making sure we're connected...");
-  cs.redraw();
-  std::unique_ptr<HTTP> hh{Client::connect(p, cs.tx.get(), &cs)};
+  cs.tx->Say(GREY "Making sure we're connected...");
+  cs.Redraw();
+  std::unique_ptr<HTTP> hh{Client::Connect(p, cs.tx.get(), &cs)};
   if (hh.get() == nullptr) {
     Message::Quick(&cs, "Can't connect to internet!",
                    "OK", "", PICS XICON POP);
@@ -91,7 +90,7 @@ void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
   {
     string res;
     bool success =
-      Client::rpc(hh.get(), PING_RPC,
+      Client::RPC(hh.get(), PING_RPC,
                   /* credentials */
                   (string)"id=" +
                   itos(p->webid) +
@@ -113,15 +112,15 @@ void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
 
   }
 
-  cs.tx->say(GREY "ok.");
-  cs.redraw();
+  cs.tx->Say(GREY "ok.");
+  cs.Redraw();
 
   Label levname;
   levname.text = lev->title;
   Label author;
   author.text = (string)"  by " + lev->author;
 
-  int IND = 2;
+  static constexpr int IND = 2;
 
   TextBox body(50, 13);
   body.indent = IND;
@@ -167,20 +166,19 @@ void CommentScreen::Comment(Player *p, const Level *lev, const string &md5,
   mm->yoffset = fon->height + 4;
   mm->alpha = 230;
 
-
   /* XXX look for InputResultKind::QUIT too */
   if (InputResultKind::OK == mm->menuize()) {
     string com = body.get_text();
 
     string res;
     bool success =
-      Client::rpc(hh.get(), COMMENT_RPC,
+      Client::RPC(hh.get(), COMMENT_RPC,
                   /* credentials */
                   (string)"id=" + itos(p->webid) +
                   (string)"&seql=" + itos(p->webseql) +
                   (string)"&seqh=" + itos(p->webseqh) +
                   (string)"&md=" + MD5::Ascii(md5) +
-                  (string)"&comment=" + HTTPUtil::urlencode(com) +
+                  (string)"&comment=" + HTTPUtil::URLEncode(com) +
                   (string)"&spoiler=" + itos(!!spoiler.checked),
                   res);
 

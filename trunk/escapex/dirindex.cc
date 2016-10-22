@@ -134,18 +134,18 @@ DirIndex *DirIndex::FromFile(const string &f) {
 
     /* check that it starts with v2 magic */
     string s;
-    if (!cf->read(strlen(INDEX3MAGIC), s) ||
+    if (!cf->Read(strlen(INDEX3MAGIC), s) ||
         s != INDEX3MAGIC) return nullptr;
 
     /* strip newline */
-    if (!(cf->getline(s) && s == "")) return nullptr;
+    if (!(cf->GetLine(s) && s == "")) return nullptr;
 
-    if (!(cf->getline(dr->title))) return nullptr;
+    if (!(cf->GetLine(dr->title))) return nullptr;
 
     for (int i = 0; i < INDEX_IGNORED_FIELDS; i++)
-      if (!cf->getline(s)) return nullptr;
+      if (!cf->GetLine(s)) return nullptr;
 
-    while (cf->getline(s)) {
+    while (cf->GetLine(s)) {
       RAEntry rr;
 
       rr.filename = util::chop(s);

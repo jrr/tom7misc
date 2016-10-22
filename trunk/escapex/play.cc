@@ -47,9 +47,8 @@ enum class PlayState {
 };
 
 struct Play_ : public Play {
-  bool waitenter();
-  void draw() override;
-  void screenresize() override;
+  void Draw() override;
+  void ScreenResize() override;
 
   PlayResult DoPlaySave(Player *plr,
                         Solution *saved, const string &md5) override;
@@ -77,7 +76,7 @@ struct Play_ : public Play {
   
   /* current solution.
      Its lifetime is within a call to DoPlaySave.
-     Don't call redraw when not inside a call to DoPlaySave! */
+     Don't call Redraw when not inside a call to DoPlaySave! */
   Solution sol;
   /* current position in the solution. This is usually the same as
      sol.Length(), but if it is not, then we support the VCR (soon) and
@@ -85,7 +84,7 @@ struct Play_ : public Play {
   int solpos = 0;
 
   static Play_ *Create(const Level *l);
-  void redraw();
+  void Redraw();
 
   void videoresize(SDL_ResizeEvent *eventp);
 
@@ -418,7 +417,7 @@ void Play_::DrawMenu() {
   }
 }
 
-void Play_::draw() {
+void Play_::Draw() {
   dr.SetScroll();
 
   Uint32 color =
@@ -480,12 +479,12 @@ PlayState Play_::CurState() {
   else return PlayState::OKAY;
 }
 
-void Play_::redraw() {
-  draw();
+void Play_::Redraw() {
+  Draw();
   SDL_Flip(screen);
 }
 
-void Play_::screenresize() {
+void Play_::ScreenResize() {
   dr.width = screen->w - dr.posx;
   dr.height = screen->h - dr.posy;
 }
@@ -493,11 +492,11 @@ void Play_::screenresize() {
 void Play_::videoresize(SDL_ResizeEvent *eventp) {
   screen = sdlutil::makescreen(eventp->w,
                                 eventp->h);
-  screenresize();
-  redraw();
+  ScreenResize();
+  Redraw();
 }
 
-using elist = PtrList<aevent>;
+using elist = PtrList<AEvent>;
 using alist = PtrList<Animation>;
 
 bool Play_::Redo() {
@@ -530,7 +529,7 @@ void Play_::Undo(const Level *start, int nm) {
     int moves;
     lev->PlayPrefix(sol, moves, 0, solpos);
     watching = false;
-    redraw();
+    Redraw();
   }
 }
 
@@ -539,7 +538,7 @@ void Play_::Restart(const Level *start) {
   lev = start->Clone();
   dr.lev = lev.get();
   watching = false;
-  redraw();
+  Redraw();
 }
 
 /* set the Player's solution set to the given array
@@ -571,7 +570,7 @@ void Play_::Bookmarks(const Level *start,
       Message::Bug(this,
                    "Bookmarks aren't available because \n"
                    "I can't figure out what level this is!");
-      redraw();
+      Redraw();
       return;
     }
 
@@ -809,15 +808,15 @@ void Play_::Bookmarks(const Level *start,
     free(books);
 
   } while (show_menu_again);
-  redraw();
+  Redraw();
 }
 
 /* XXX this should be documented in protocol.txt */
 void Play_::BookmarkDownload(Player *plr, const string &lmd5) {
   string s;
-  Client::quick_txdraw td;
+  Client::QuickTxDraw td;
 
-  std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
+  std::unique_ptr<HTTP> hh{Client::Connect(plr, td.tx.get(), &td)};
 
   if (hh.get() == nullptr) {
     Message::No(&td, "Couldn't connect!");
@@ -826,9 +825,9 @@ void Play_::BookmarkDownload(Player *plr, const string &lmd5) {
 
   /* XXX register callback.. */
 
-  httpresult hr = hh->get(ALLSOLS_URL + MD5::Ascii(lmd5), s);
+  HTTPResult hr = hh->get(ALLSOLS_URL + MD5::Ascii(lmd5), s);
 
-  if (hr == HT_OK) {
+  if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
     int nsols = util::stoi(util::getline(s));
 
@@ -903,7 +902,7 @@ void Play_::Restore(const Level *start,
     lev->Play(sol, moves);
     sol.Truncate(moves);
     watching = false;
-    redraw();
+    Redraw();
   }
 }
 
@@ -968,9 +967,9 @@ PlayResult Play_::DoPlaySave(Player *plr,
      (since the drawing has built in slack (margin,
      we correct for that here too) */
   dr.posy = TILEH + fon->height + 4;
-  screenresize();
+  ScreenResize();
 
-  redraw();
+  Redraw();
 
   SDL_Event event;
 
@@ -1015,19 +1014,19 @@ PlayResult Play_::DoPlaySave(Player *plr,
                 break;
               case TU_REDO:
                 Redo();
-                redraw();
+                Redraw();
                 break;
               case TU_PLAYPAUSE:
                 watching = !watching;
                 nextframe = 0;
-                redraw();
+                Redraw();
                 break;
               case TU_FUNDO:
                 Undo(start.get(), 10);
                 break;
               case TU_FREDO:
                 for (int i = 0; i < 10; i++) Redo();
-                redraw();
+                Redraw();
                 break;
 
               case TU_RESTART:
@@ -1096,12 +1095,12 @@ PlayResult Play_::DoPlaySave(Player *plr,
 
           /* fix scrolls */
           dr.MakeScrollReasonable();
-          redraw();
+          Redraw();
           break;
 
         case SDLK_y:
           layer = !layer;
-          redraw();
+          Redraw();
           break;
 
         case SDLK_b:
@@ -1120,12 +1119,12 @@ PlayResult Play_::DoPlaySave(Player *plr,
 
         case SDLK_d:
           showdests = !showdests;
-          redraw();
+          Redraw();
           break;
 
         case SDLK_n:
           showbotnums = !showbotnums;
-          redraw();
+          Redraw();
           break;
 
         case SDLK_u: {
@@ -1137,13 +1136,13 @@ PlayResult Play_::DoPlaySave(Player *plr,
           watching = !watching;
           nextframe = 0;
           // printf("Watching: %d\n", (int)watching);
-          redraw();
+          Redraw();
           break;
         }
 
         case SDLK_o: {
           Redo();
-          redraw();
+          Redraw();
           break;
         }
 
@@ -1164,20 +1163,20 @@ PlayResult Play_::DoPlaySave(Player *plr,
             showdests = true;
             showdestsshuffle = true;
           }
-          redraw();
+          Redraw();
           break;
 
         case SDLK_o:
           if (event.key.keysym.mod & KMOD_CTRL) {
             for (int i = 0; i < 10; i++) Redo();
-            redraw();
+            Redraw();
           }
           break;
 
         case SDLK_u:
           if (event.key.keysym.mod & KMOD_CTRL) {
             Undo(start.get(), 10);
-            redraw();
+            Redraw();
           }
           break;
 
@@ -1202,12 +1201,12 @@ PlayResult Play_::DoPlaySave(Player *plr,
                   sol.Truncate(solpos);
                   sol.Appends(*that);
 
-                  redraw();
+                  Redraw();
                 } else Message::No(this, "Sorry, not solved!");
               } else Message::No(this, "Bad MD5");
             }
 
-            redraw();
+            Redraw();
           }
           break;
         }
@@ -1239,13 +1238,13 @@ PlayResult Play_::DoPlaySave(Player *plr,
             } else {
               Message::No(this, "Couldn't complete from bookmarks.");
             }
-            redraw();
+            Redraw();
           }
         }
 
         case SDLK_END: {
           while (Redo()) {}
-          redraw();
+          Redraw();
           break;
         }
 
@@ -1268,7 +1267,7 @@ PlayResult Play_::DoPlaySave(Player *plr,
             default: ; /* impossible */
             }
 
-            redraw();
+            Redraw();
             break;
           }
 
@@ -1312,9 +1311,9 @@ PlayResult Play_::DoPlaySave(Player *plr,
             dr.message = "";
           }
 
-          /* no matter what, redraw so we change the direction
+          /* no matter what, Redraw so we change the direction
              we're facing */
-          redraw();
+          Redraw();
 
           break;
         }
@@ -1328,12 +1327,12 @@ PlayResult Play_::DoPlaySave(Player *plr,
         videoresize(eventp);
         /* sync size of dirty buffer */
         /* XXX move this into member so that we can do it in
-           screenresize and use handle_video_events. */
+           ScreenResize and use HandleVideoEvents. */
         dirty->matchscreen();
         break;
       }
       case SDL_VIDEOEXPOSE:
-        redraw();
+        Redraw();
         break;
       default: break;
       }
@@ -1468,8 +1467,8 @@ bool Play_::AnimateMove(Disamb *ctx, Dirt *dirty, dir d) {
       if (anims || sprites) {
 
         /* Sort animations by y-order every time! */
-        alist::sort(Animation::yorder_compare, anims);
-        alist::sort(Animation::yorder_compare, sprites);
+        alist::sort(Animation::YOrderCompare, anims);
+        alist::sort(Animation::YOrderCompare, sprites);
 
         Animation::draw_anims(anims);
         Animation::draw_anims(sprites);
@@ -1489,7 +1488,7 @@ bool Play_::AnimateMove(Disamb *ctx, Dirt *dirty, dir d) {
         /* push all events with the same serial */
         // printf("** doing serial %d\n", s);
         while (events && events->head->serial == s) {
-          std::unique_ptr<aevent> ee{elist::pop(events)};
+          std::unique_ptr<AEvent> ee{elist::pop(events)};
           Animation::start(dr, anims, sprites, ee.get());
         }
 

@@ -9,21 +9,21 @@ int network;
 int audio;
 
 
-bool handle_video_event(Drawable *parent, const SDL_Event &event) {
+bool HandleVideoEvent(Drawable *parent, const SDL_Event &event) {
   switch (event.type) {
   case SDL_VIDEORESIZE: {
     SDL_ResizeEvent *re = (SDL_ResizeEvent*)&event;
     screen = sdlutil::makescreen(re->w, re->h);
     if (parent) {
-      parent->screenresize();
-      parent->draw();
+      parent->ScreenResize();
+      parent->Draw();
       SDL_Flip(screen);
     }
     return true;
   }
   case SDL_VIDEOEXPOSE:
     if (parent) {
-      parent->draw();
+      parent->Draw();
       SDL_Flip(screen);
     }
     return true;

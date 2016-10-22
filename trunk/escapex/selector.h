@@ -122,13 +122,13 @@ struct Selector : public Drawable {
   }
 
   virtual void Redraw() {
-    draw();
+    Draw();
     SDL_Flip(screen);
   }
 
-  void draw() override {
+  void Draw() override {
     if (below) {
-      below->draw();
+      below->Draw();
     } else {
       /* clear back */
       sdlutil::clearsurface(screen, BGCOLOR);
@@ -164,8 +164,8 @@ struct Selector : public Drawable {
   /* Don't have to do anything because our size is specified in
      terms of the screen size. (Though maybe that's not ideal.)
      But give the parent a chance to rejigger. */
-  void screenresize() override {
-    if (below) below->screenresize();
+  void ScreenResize() override {
+    if (below) below->ScreenResize();
   }
 
   bool PointItem(int y, int &n) {
@@ -205,7 +205,7 @@ struct Selector : public Drawable {
     int key;
     DPRINTF("sel.h doevent %d\n", e.type);
 
-    if (handle_video_event(this, e)) return PERes(PEType::NONE);
+    if (HandleVideoEvent(this, e)) return PERes(PEType::NONE);
 
     switch (e.type) {
     /* new! mouse stuff */

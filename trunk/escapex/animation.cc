@@ -811,7 +811,7 @@ static inline int OVERLAP(bot entt) {
 void Animation::start(Drawing &dr,
                       PtrList<Animation> *&anims,
                       PtrList<Animation> *&sprites,
-                      aevent *ae) {
+                      AEvent *ae) {
 
   switch (ae->t) {
   case tag_winner:
@@ -1715,7 +1715,7 @@ void Animation::start(Drawing &dr,
   } /* Switch anim tag */
 }
 
-bool AnFlying::init(unsigned int now) {
+bool AnFlying::Init(unsigned int now) {
   nexttick = now;
 
   px = sx;
@@ -1743,7 +1743,7 @@ AnFlying::AnFlying(SDL_Surface *what, int sx_, int sy_, dir dd, int sdist,
   wait = w;
 }
 
-bool AnFlying::think(unsigned int now) {
+bool AnFlying::Think(unsigned int now) {
   /* are we done? */
   if (pleft <= 0) {
     return true;
@@ -1769,7 +1769,7 @@ bool AnFlying::think(unsigned int now) {
   return false;
 }
 
-void AnFlying::draw() {
+void AnFlying::Draw() {
   /* we save position, so this is easy */
   blit(px, py);
 }
@@ -1973,12 +1973,11 @@ SDL_Surface *Animation::pitched_rect(int w, int h, int ph,
   return dst;
 }
 
-void AnInPlace::erase(Dirt *dirty) {
+void AnInPlace::Erase(Dirt *dirty) {
   dirty->setdirty(bx, by, bw, bh);
 }
 
-bool AnInPlace::think(unsigned int now) {
-
+bool AnInPlace::Think(unsigned int now) {
   /* maybe done, or time to loop */
   if (!frames[cframe + 1].pic) {
     if (loopsleft) {
@@ -1993,7 +1992,7 @@ bool AnInPlace::think(unsigned int now) {
   return false;
 }
 
-void AnInPlace::draw() {
+void AnInPlace::Draw() {
   int fr = cframe;
   SDL_Rect rd;
   rd.x = xpos + frames[fr].x;
@@ -2001,7 +2000,7 @@ void AnInPlace::draw() {
   SDL_BlitSurface(*frames[fr].pic, 0, screen, &rd);
 }
 
-bool AnInPlace::init(unsigned int now) {
+bool AnInPlace::Init(unsigned int now) {
   /* find the minimum offset and max size of each frame.
      this is the region that we mark dirty each time. */
 
@@ -2086,7 +2085,7 @@ void Animation::think_anims(alist **as, unsigned int now,
   for (alist **tmp = as; *tmp;) {
     /* XXX depends on uninitialized values? */
     if ((*tmp)->head->nexttick <= now) {
-      bool del = (*tmp)->head->think(now);
+      bool del = (*tmp)->head->Think(now);
 
       if (!del) alldone = false;
 
@@ -2097,7 +2096,7 @@ void Animation::think_anims(alist **as, unsigned int now,
         /* another in line? */
         if (del->next) {
           (*tmp)->head = del->next;
-          remirror = (*tmp)->head->init(now) || remirror;
+          remirror = (*tmp)->head->Init(now) || remirror;
         } else {
           /* get rid of it */
           *tmp = (*tmp)->next;
@@ -2133,13 +2132,13 @@ void Animation::draw_anims(alist *anims) {
   for (alist *atmp = anims; atmp;
       atmp = atmp->next) {
     // printf(" drawing %p (%s)\n", atmp->head, atmp->head->finale?"finale":"");
-    atmp->head->draw();
+    atmp->head->Draw();
   }
 }
 
 void Animation::erase_anims(alist *anims, Dirt *dirty) {
   for (alist *atmp = anims; atmp; atmp = atmp->next) {
-    atmp->head->erase(dirty);
+    atmp->head->Erase(dirty);
   }
 }
 
@@ -2147,12 +2146,12 @@ bool Animation::init_anims(alist *anims, unsigned int now) {
   /* initialize the animations */
   bool yes = false;
   for (alist *tmp = anims; tmp; tmp = tmp->next) {
-    yes = tmp->head->init(now) || yes;
+    yes = tmp->head->Init(now) || yes;
   }
   return yes;
 }
 
-void AnLaser::draw() {
+void AnLaser::Draw() {
   int chx = 0, chy = 0;
   dirchange(d, chx, chy);
 
@@ -2211,10 +2210,9 @@ void AnLaser::draw() {
   }
 
   sdlutil::sulock(screen);
-
 }
 
-bool AnLaser::think(unsigned int now) {
+bool AnLaser::Think(unsigned int now) {
   if (!cyclesleft) return true;
 
   cyclesleft--;

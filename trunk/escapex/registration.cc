@@ -7,20 +7,25 @@ namespace {
 struct Registration_ : public Registration {
   Registration_() {}
 
-  void registrate() override;
+  void Registrate() override;
 
-  void screenresize() override;
-  void draw() override;
+  void ScreenResize() override {
+    /* XXX resize tx */
+  }
+  void Draw() override {
+    sdlutil::clearsurface(screen, BGCOLOR);
+    tx->Draw();
+  }
 
-  void redraw() {
-    draw();
+  void Redraw() {
+    Draw();
     SDL_Flip(screen);
   }
 
   void say(const string &s) {
     if (tx.get() != nullptr) {
-      tx->say(s);
-      redraw();
+      tx->Say(s);
+      Redraw();
     }
   }
 
@@ -28,8 +33,8 @@ struct Registration_ : public Registration {
   Player *plr;
 };
 
-void Registration_::registrate() {
-  std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
+void Registration_::Registrate() {
+  std::unique_ptr<HTTP> hh{Client::Connect(plr, tx.get(), this)};
   if (hh.get() == nullptr) {
     Message::Quick(this,
                    "Couldn't connect to server.",
@@ -58,10 +63,10 @@ void Registration_::registrate() {
 
     say("try " + itos(seql) + " " + itos(seqh) + (string)"...");
 
-    if (Client::rpc(hh.get(), REGISTER_RPC,
+    if (Client::RPC(hh.get(), REGISTER_RPC,
                     (string) "seql=" + itos(seql) +
                     (string)"&seqh=" + itos(seqh) +
-                    (string)"&name=" + HTTPUtil::urlencode(plr->name),
+                    (string)"&name=" + HTTPUtil::URLEncode(plr->name),
                     res)) {
 
       int id = util::stoi(res);
@@ -96,15 +101,6 @@ void Registration_::registrate() {
               "   Try again later!");
 
   return;
-}
-
-void Registration_::screenresize() {
-  /* XXX resize tx */
-}
-
-void Registration_::draw() {
-  sdlutil::clearsurface(screen, BGCOLOR);
-  tx->draw();
 }
 
 }  // namespace

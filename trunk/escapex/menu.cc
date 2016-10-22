@@ -389,10 +389,10 @@ std::unique_ptr<Menu> Menu::Create(Drawable *be,
   return m;
 }
 
-void Menu::draw() {
-
-  if (below) below->draw();
-  else {
+void Menu::Draw() {
+  if (below) {
+    below->Draw();
+  } else {
     sdlutil::clearsurface(screen, BGCOLOR);
   }
 
@@ -480,7 +480,8 @@ void Menu::draw() {
     } else {
       /* out of space: stop trying to draw controls.
          (but draw a "more" icon) */
-      fon->draw(x, posy + yoff, ALPHA50 PICS ARROWD POP YELLOW " More " POP PICS ARROWD POP POP);
+      fon->draw(x, posy + yoff, 
+		ALPHA50 PICS ARROWD POP YELLOW " More " POP PICS ARROWD POP POP);
       break;
     }
   }
@@ -568,16 +569,16 @@ void Menu::fixup(int vspace) {
 }
 
 void Menu::Redraw() {
-  draw();
+  Draw();
   SDL_Flip(screen);
 }
 
 /* sets up the sizes (w,h,stath,posx,posy,alpharect)
    after the screen has been resized, or when first
    creating the menu */
-void Menu::screenresize() {
+void Menu::ScreenResize() {
 
-  if (below) below->screenresize();
+  if (below) below->ScreenResize();
 
   /* calculate size of menu */
 
@@ -818,7 +819,7 @@ InputResultKind Menu::menuize() {
   /* always start out at the beginning */
   selected = 0;
   nextfocus(1);
-  screenresize();
+  ScreenResize();
 
   Redraw();
 
@@ -826,7 +827,7 @@ InputResultKind Menu::menuize() {
 
   /* event loop */
   while (SDL_WaitEvent(&e) >= 0) {
-    if (handle_video_event(this, e)) continue;
+    if (HandleVideoEvent(this, e)) continue;
 
     switch (e.type) {
     case SDL_MOUSEBUTTONDOWN: {

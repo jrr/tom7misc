@@ -20,8 +20,8 @@ struct LoadLevel : public Drawable {
   virtual bool FirstUnsolved(string &file, string &title) = 0;
 
   /* Drawable */
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
 };
 
 #endif

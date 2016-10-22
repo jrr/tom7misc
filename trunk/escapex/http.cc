@@ -16,35 +16,35 @@ struct HTTP_ : public HTTP {
   ~HTTP_() override;
   void setua(string) override;
   bool connect(string host, int port = 80) override;
-  httpresult get(string path, string &out) override;
-  httpresult gettempfile(string path, string &file) override;
-  httpresult put(const string &path,
+  HTTPResult get(string path, string &out) override;
+  HTTPResult gettempfile(string path, string &file) override;
+  HTTPResult put(const string &path,
                  formalist *items,
                  string &out) override;
 
-  void setcallback(httpcallback *cb) override {
-    callback = cb;
+  void SetCallback(std::function<void(int, int)> cb) override {
+    callback = std::move(cb);
   }
 
  private:
 
-  virtual FILE *tempfile(string &f);
+  virtual FILE *TempFile(string &f);
 
   virtual string readrest();
   virtual string readresttofile();
   virtual string readn(int);
   virtual string readntofile(int);
 
-  virtual httpresult req_general(string req, string &res, bool tofile);
-  virtual httpresult get_general(string path, string &arg, bool tofile);
+  virtual HTTPResult req_general(string req, string &res, bool tofile);
+  virtual HTTPResult get_general(string path, string &arg, bool tofile);
   virtual void bye() {
     if (conn) {
       SDLNet_TCP_Close(conn);
       conn = 0;
     }
   }
-
-  httpcallback *callback = nullptr;
+  
+  std::function<void(int, int)> callback = [](int a, int b){};
 
   string ua;
 
@@ -56,12 +56,12 @@ struct HTTP_ : public HTTP {
   string host;
 };
 
-httpresult HTTP_::get(string path, string &out_) {
+HTTPResult HTTP_::get(string path, string &out_) {
   DMSG(util::ptos(this) + " get(" + path + ")\n");
   return get_general(path, out_, false);
 }
 
-httpresult HTTP_::gettempfile(string path, string &out_) {
+HTTPResult HTTP_::gettempfile(string path, string &out_) {
   DMSG(util::ptos(this) + " gettempfile(" + path + ")\n");
   return get_general(path, out_, true);
 }
@@ -122,7 +122,7 @@ bool sendall(TCPsocket socket, string d) {
   else return true;
 }
 
-httpresult HTTP_::put(const string &path,
+HTTPResult HTTP_::put(const string &path,
                       formalist *items,
                       string &out) {
 
@@ -182,7 +182,7 @@ httpresult HTTP_::put(const string &path,
   Accept: * / * (together)
 */
 
-httpresult HTTP_::get_general(string path, string &res, bool tofile) {
+HTTPResult HTTP_::get_general(string path, string &res, bool tofile) {
   string req =
     "GET " + path + " HTTP/1.0\r\n"
     "User-Agent: " + ua + "\r\n"
@@ -193,7 +193,7 @@ httpresult HTTP_::get_general(string path, string &res, bool tofile) {
   return req_general(req, res, tofile);
 }
 
-httpresult HTTP_::req_general(string req, string &res, bool tofile) {
+HTTPResult HTTP_::req_general(string req, string &res, bool tofile) {
   DMSG(util::ptos(this) + " conn@" + util::ptos(conn) +
         " req_general: \n[" + req + "]\n");
 
@@ -203,7 +203,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
   if (! (conn = SDLNet_TCP_Open(&remote))) {
     DMSG(util::ptos(this) + " can't connect: " +
           (string)(SDLNet_GetError()) + "\n");
-    return HT_ERROR;
+    return HTTPResult::ERROR_OTHER;
   }
 
   DMSG(util::ptos(this) + " connected.\n");
@@ -214,7 +214,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
          (string)(SDLNet_GetError()) + "\n");
     SDLNet_TCP_Close(conn);
     conn = 0;
-    return HT_ERROR;
+    return HTTPResult::ERROR_OTHER;
   }
 
   DMSG(util::ptos(this) + " sent request.\n");
@@ -242,7 +242,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
            (string)(SDLNet_GetError()) + "\n");
       printf("Error in recv.\n");
       bye();
-      return HT_ERROR;
+      return HTTPResult::ERROR_OTHER;
     }
 
     {
@@ -270,7 +270,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
           /* close connection, since we don't want to read
              anything. */
           bye();
-          return HT_404;
+          return HTTPResult::ERROR_404;
         }
         first = 0;
       } else { /* not first line */
@@ -312,7 +312,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
               /* bad header */
               DMSG("bad connection type\n");
               bye();
-              return HT_ERROR;
+              return HTTPResult::ERROR_OTHER;
             }
           } else {
             /* ignored */
@@ -337,7 +337,7 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
     if (connecttype != CT_CLOSE) {
       DMSG("content length but not close\n");
       bye();
-      return HT_ERROR;
+      return HTTPResult::ERROR_OTHER;
     }
 
     /* read until failure */
@@ -345,10 +345,10 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
     if (tofile) {
       res = readresttofile();
       /* printf("rtof: %s\n", res.c_str()); */
-      return HT_OK;
+      return HTTPResult::OK;
     } else {
       res = readrest();
-      return HT_OK;
+      return HTTPResult::OK;
     }
 
   } else {
@@ -357,22 +357,22 @@ httpresult HTTP_::req_general(string req, string &res, bool tofile) {
     if (tofile) {
       res = readntofile(contentlen);
       /* printf("ntof: %s\n", res.c_str()); */
-      return HT_OK;
+      return HTTPResult::OK;
     } else {
       res = readn(contentlen);
-      return HT_OK;
+      return HTTPResult::OK;
     }
 
   }
 
   /* XXX unreachable */
-  return HT_ERROR;
+  return HTTPResult::ERROR_OTHER;
 }
 
 #define BUFLEN 1024
 
 /* XXX use util::tempfile */
-FILE *HTTP_::tempfile(string &f) {
+FILE *HTTP_::TempFile(string &f) {
   static int call = 0;
   int pid = util::getpid();
   int tries = 256;
@@ -393,7 +393,7 @@ FILE *HTTP_::tempfile(string &f) {
 
 string HTTP_::readresttofile() {
   string fname;
-  FILE *ff = tempfile(fname);
+  FILE *ff = TempFile(fname);
 
   DMSG("reading to file ... not logged.\n");
 
@@ -408,7 +408,7 @@ string HTTP_::readresttofile() {
   int x;
   while ((x = SDLNet_TCP_Recv(conn, buf, BUFLEN)) > 0) {
     fwrite(buf, 1, x, ff);
-    if (callback) callback->progress(n += x, -1);
+    callback(n += x, -1);
   }
 
   fclose(ff);
@@ -432,7 +432,7 @@ string HTTP_::readrest() {
 
   while ((x = SDLNet_TCP_Recv(conn, buf, BUFLEN)) > 0) {
     append(acc, buf, x);
-    if (callback) callback->progress(n += x, -1);
+    callback(n += x, -1);
   }
 
   SDLNet_TCP_Close(conn);
@@ -459,7 +459,7 @@ string HTTP_::readn(int n) {
 
     done += x;
     rem -= x;
-    if (callback) callback->progress(done, total);
+    callback(done, total);
   }
 
   string ret = "";
@@ -475,7 +475,7 @@ string HTTP_::readntofile(int n) {
   int rem = n;
 
   string fname;
-  FILE *ff = tempfile(fname);
+  FILE *ff = TempFile(fname);
 
   if (!ff) return "";
 
@@ -496,7 +496,7 @@ string HTTP_::readntofile(int n) {
     fwrite(buf, 1, x, ff);
 
     rem -= x;
-    if (callback) callback->progress(done += x, total);
+    callback(done += x, total);
   }
 
   fclose(ff);

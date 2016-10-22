@@ -45,8 +45,8 @@ struct RateScreen : public Drawable {
 
   virtual ~RateScreen() {}
 
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
 
   virtual void SetMessage(const string &s) = 0;
 

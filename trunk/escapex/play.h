@@ -48,8 +48,8 @@ struct Play : public Drawable {
   /* play, recording the game in the player's solution file */
   static void PlayRecord(const string &file, Player *plr,
 			 bool allowrate = true);
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
   virtual ~Play();
 };
 

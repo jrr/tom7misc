@@ -24,8 +24,8 @@ struct Editor : public Drawable {
   void Edit(const Level *origlev = nullptr);
 
   /* Drawable */
-  void draw() override;
-  void screenresize() override;
+  void Draw() override;
+  void ScreenResize() override;
 
   virtual ~Editor();
 
@@ -34,7 +34,7 @@ struct Editor : public Drawable {
  private:
 
   void Redraw() {
-    draw();
+    Draw();
     SDL_Flip(screen);
   }
 

@@ -9,7 +9,7 @@
 struct MainMenu {
   enum result { LOAD, QUIT, EDIT, REGISTER, UPDATE, UPGRADE, LOAD_NEW, };
 
-  virtual result show() = 0;
+  virtual result Show() = 0;
 
   static MainMenu *Create(Player *plr);
 

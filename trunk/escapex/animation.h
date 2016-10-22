@@ -45,7 +45,7 @@ struct Animation {
   int depth;
   /* should be actual screen coordinate. determines drawing order
      for animations at the same depth. */
-  virtual int yorder() = 0;
+  virtual int YOrder() = 0;
 
   /* This is called right before the animation
      is activated. It will always be called
@@ -55,23 +55,23 @@ struct Animation {
      If this has changed the state of the screen,
      then return true, so that they dirty mirror
      can be updated. */
-  virtual bool init(unsigned int now) {
+  virtual bool Init(unsigned int now) {
     nexttick = now;
     return false;
   }
 
   /* the graphic from its current position,
      by invoking dirty->setdirty */
-  virtual void erase(Dirt *dirty) { }
+  virtual void Erase(Dirt *dirty) { }
 
   /* think as a result of the timer passing
      the point set by nexttick. this can
      change the internal state, etc. return
      true if the animation has died. */
-  virtual bool think(unsigned int now) = 0;
+  virtual bool Think(unsigned int now) = 0;
 
   /* draw at current location. */
-  virtual void draw() { }
+  virtual void Draw() { }
 
   /* next animation in the chain,
      if applicable. To replace this one
@@ -80,9 +80,9 @@ struct Animation {
 
   Animation() : depth(0), next(0), finale(false) {}
 
-  static int yorder_compare(Animation *a, Animation *b) {
-    int r = ((a->depth * YOSCALE) + a->yorder()) -
-            ((b->depth * YOSCALE) + b->yorder());
+  static int YOrderCompare(Animation *a, Animation *b) {
+    int r = ((a->depth * YOSCALE) + a->YOrder()) -
+            ((b->depth * YOSCALE) + b->YOrder());
 
     /* if they are the same, use pointer comparison
        just to be more stable */
@@ -131,7 +131,7 @@ struct Animation {
   static SDL_Surface **pic_hugbot_asleep_right;
 
   static SDL_Surface **pic_bomb_still;
-  static SDL_Surface *** pic_bomb_lit;
+  static SDL_Surface ***pic_bomb_lit;
 
   /* if finale is true, then the animation should
      not be removed despite returning 'true' from
@@ -154,7 +154,7 @@ struct Animation {
   static void start(Drawing &dr,
                     PtrList<Animation> *&anims,
                     PtrList<Animation> *&sprites,
-                    aevent *ae);
+                    AEvent *ae);
 
   static void clearsprites(Drawing &dr);
   static void clearent(Drawing &dr, int ex, int ey, int olap);
@@ -211,12 +211,12 @@ struct AnInPlace : public Animation {
   AnInPlace(int x, int y, int loops, AFrame *f)
     : xpos(x), ypos(y), loopsleft(loops - 1), frames(f) {}
 
-  int yorder() override { return ypos + frames[cframe].y; }
+  int YOrder() override { return ypos + frames[cframe].y; }
 
-  bool think(unsigned int) override;
-  void draw() override;
-  bool init(unsigned int now) override;
-  void erase(Dirt *d) override;
+  bool Think(unsigned int) override;
+  void Draw() override;
+  bool Init(unsigned int now) override;
+  void Erase(Dirt *d) override;
 };
 
 /* sort of special, because it is used as the
@@ -229,16 +229,16 @@ struct AnPlaceTile : public Animation {
     : what(what_), sx(sx_), sy(sy_) {}
 
   /* here the initializer draws it. */
-  bool init(unsigned int now) override {
+  bool Init(unsigned int now) override {
     Drawing::DrawTile(sx, sy, what, 0, screen, false);
     /* trigger and die immediately */
     nexttick = now;
     return true;
   }
 
-  int yorder() override { return sy; }
+  int YOrder() override { return sy; }
 
-  bool think(unsigned int) override {
+  bool Think(unsigned int) override {
     return true;
   }
 };
@@ -246,14 +246,14 @@ struct AnPlaceTile : public Animation {
 struct AnWait : public Animation {
   int wf;
   AnWait(int frames) : wf(frames) {}
-  bool think(unsigned int now) override {
+  bool Think(unsigned int now) override {
     return true;
   }
 
   /* never draws */
-  int yorder() override { return 0; }
+  int YOrder() override { return 0; }
 
-  bool init(unsigned int now) override {
+  bool Init(unsigned int now) override {
     nexttick = now + wf;
     return false;
   }
@@ -264,15 +264,15 @@ struct AnWait : public Animation {
 struct AnSound : public Animation {
   sound_t s;
   AnSound(sound_t s_) : s(s_) {}
-  bool think(unsigned int now) override {
+  bool Think(unsigned int now) override {
     Sound::Play(s);
     return true;
   }
 
   /* never draws */
-  int yorder() override { return 0; }
+  int YOrder() override { return 0; }
 
-  bool init(unsigned int now) override {
+  bool Init(unsigned int now) override {
     /* done immediately */
     nexttick = now;
     return false;
@@ -305,13 +305,13 @@ struct AnFlying : public Animation {
   AnFlying(SDL_Surface *what, int sx, int sy, dir dd, int sdist,
            int sp, int w);
 
-  int yorder() override { return py; }
+  int YOrder() override { return py; }
 
-  void draw() override;
-  bool init(unsigned int now) override;
-  bool think(unsigned int now) override;
+  void Draw() override;
+  bool Init(unsigned int now) override;
+  bool Think(unsigned int now) override;
 
-  void erase(Dirt *dirty) override {
+  void Erase(Dirt *dirty) override {
     int xx, yy, ww, hh;
     size(xx, yy, ww, hh);
     dirty->setdirty(px, py, ww, hh);
@@ -343,7 +343,7 @@ struct AnDraw : public Animation {
   AnDraw(SDL_Surface *ss, int sx, int sy) :
     s(ss), x(sx), y(sy) {}
 
-  bool init(unsigned int now) override {
+  bool Init(unsigned int now) override {
     SDL_Rect r;
     r.x = x;
     r.y = y;
@@ -352,9 +352,9 @@ struct AnDraw : public Animation {
     return true;
   }
 
-  int yorder() override { return y; }
+  int YOrder() override { return y; }
 
-  bool think(unsigned int) override {
+  bool Think(unsigned int) override {
     /* die */
     return true;
   }
@@ -368,29 +368,29 @@ struct AnFinale : public Animation {
   AnFinale(SDL_Surface *ss, int sx, int sy) :
     s(ss), x(sx), y(sy) { finale = true; }
 
-  bool init(unsigned int now) override {
+  bool Init(unsigned int now) override {
     nexttick = now + 100000;
     return false;
   }
 
-  bool think(unsigned int now) override {
+  bool Think(unsigned int now) override {
     /* don't bother thinking */
     nexttick = now + 100000;
     return true;
   }
 
-  void draw() override {
+  void Draw() override {
     SDL_Rect r;
     r.x = x;
     r.y = y;
     SDL_BlitSurface(s, 0, screen, &r);
   }
 
-  void erase(Dirt *dirty) override {
+  void Erase(Dirt *dirty) override {
     dirty->setdirty(x, y, s->w, s->h);
   }
 
-  int yorder() override { return y; }
+  int YOrder() override { return y; }
 };
 
 
@@ -431,13 +431,13 @@ struct AnLaser : public Animation {
   int rl, gl, bl;
   int rlo, glo, blo;
 
-  bool init(unsigned int now) override {
+  bool Init(unsigned int now) override {
     /* finale = true; */
     nexttick = now;
     return false;
   }
 
-  void erase(Dirt *dirty) override {
+  void Erase(Dirt *dirty) override {
     if (!isfinal) {
       int px, py, ww, hh;
       /* PERF don't need to draw the whole
@@ -473,12 +473,12 @@ struct AnLaser : public Animation {
     }
   }
 
-  bool think(unsigned int now) override;
+  bool Think(unsigned int now) override;
 
-  void draw() override;
+  void Draw() override;
 
   /* XXX do we really want to use the starting position of the laser? */
-  int yorder() override { return sy; }
+  int YOrder() override { return sy; }
 
   AnLaser(int sx_, int sy_, dir d_, int nt, int cl,
           bool isfinal_,
@@ -513,29 +513,29 @@ struct AnCombo : public Animation {
 
   AnCombo(Animation *a, Animation *b) : first(a), second(b) { }
 
-  bool init(unsigned int now) override {
-    /* XXX ignores return of init */
-    if (first)  first ->init(now);
-    if (second) second->init(now);
+  bool Init(unsigned int now) override {
+    /* XXX ignores return of Init */
+    if (first)  first ->Init(now);
+    if (second) second->Init(now);
     settick();
     return false;
   }
 
-  void erase(Dirt *dirty) override {
-    if (first)  first ->erase(dirty);
-    if (second) second->erase(dirty);
+  void Erase(Dirt *dirty) override {
+    if (first)  first ->Erase(dirty);
+    if (second) second->Erase(dirty);
   }
 
-  bool think(unsigned int now) override {
+  bool Think(unsigned int now) override {
     if (first && now >= first->nexttick) {
-      if (first->think(now)) {
+      if (first->Think(now)) {
         delete first;
         first = nullptr;
       }
     }
 
     if (second && now >= second->nexttick) {
-      if (second->think(now)) {
+      if (second->Think(now)) {
         delete second;
         second = nullptr;
       }
@@ -548,16 +548,16 @@ struct AnCombo : public Animation {
   }
 
   /* use minimum, I guess... */
-  int yorder() override {
-    if (!first) return second->yorder();
-    if (!second) return first->yorder();
-    return std::min(first->yorder(), second->yorder());
+  int YOrder() override {
+    if (!first) return second->YOrder();
+    if (!second) return first->YOrder();
+    return std::min(first->YOrder(), second->YOrder());
   }
 
   /* draw at current location. */
-  void draw() override {
-    if (first) first->draw();
-    if (second) second->draw();
+  void Draw() override {
+    if (first) first->Draw();
+    if (second) second->Draw();
   }
 };
 

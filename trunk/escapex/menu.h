@@ -252,8 +252,8 @@ struct Menu : public Drawable {
 				      PtrList<MenuItem> *items,
 				      bool fullscreen);
 
-  void draw() override;
-  void screenresize() override;
+  void Draw() override;
+  void ScreenResize() override;
 
   /* enter modal mode and return the final result of
      the menu. expect OK, CANCEL, or QUIT */

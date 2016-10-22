@@ -4,13 +4,14 @@
 #include "../cc-lib/sdl/sdlutil.h"
 #include "draw.h"
 
-bool Client::quick_rpc(Player *plr, string path, string query, string &ret) {
-  quick_txdraw td;
+bool Client::QuickRPC(Player *plr, const string &path, const string &query,
+		      string &ret) {
+  QuickTxDraw td;
 
-  std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
+  std::unique_ptr<HTTP> hh{Client::Connect(plr, td.tx.get(), &td)};
 
   td.say("Connecting..");
-  td.draw();
+  td.Draw();
 
   if (hh.get() == nullptr) {
     Message::No(&td, "Couldn't connect!");
@@ -19,7 +20,7 @@ bool Client::quick_rpc(Player *plr, string path, string query, string &ret) {
   }
 
   td.say("Sending command..");
-  td.draw();
+  td.Draw();
 
-  return rpc(hh.get(), path, query, ret);
+  return RPC(hh.get(), path, query, ret);
 }

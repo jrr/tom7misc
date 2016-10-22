@@ -52,10 +52,10 @@ int main(int argc, char **argv) {
   /* set up md5 early, before any threads */
   MD5::Init();
 
-  Drawable::init();
+  Drawable::Init();
 
   /* clean up any stray files */
-  Cleanup::clean();
+  Cleanup::Clean();
 
   audio = 0;
   network = 0;
@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
     LevelDB::addsourcedir("official");
 
     for (;;) {
-      MainMenu::result r = mm->show();
+      MainMenu::result r = mm->Show();
 
       if (r == MainMenu::LOAD) {
         /* load and play levels */
@@ -221,7 +221,7 @@ int main(int argc, char **argv) {
             // XXX: Instead, have a version of the browser
             // that invokes playrecord on the stack, and a
             // separate bb->selectfile() for editing.
-            string res = bb->selectlevel();
+            string res = bb->SelectLevel();
             if (res.empty()) break;
 
             Play::PlayRecord(res, plr.get());
@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
 
         string msg;
 
-        switch (uu->upgrade(msg)) {
+        switch (uu->Upgrade(msg)) {
         case UP_EXIT:
           /* force quit */
           goto done;
@@ -286,7 +286,7 @@ int main(int argc, char **argv) {
           goto oops;
         }
 
-        rr->registrate();
+        rr->Registrate();
 
       } else if (r == MainMenu::QUIT) {
         break;
