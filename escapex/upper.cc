@@ -185,8 +185,9 @@ Upper_::~Upper_() {
   stringlist::diminish(newlistm);
 }
 
-bool Upper_::SetFile(const string &f, const string &md, RateStatus votes,
+bool Upper_::SetFile(const string &ff, const string &md, RateStatus votes,
                      int date, int speedrecord, int owner) {
+  string f = ff;
   say((string)"SetFile(" + f + (string)", "
       GREY + md + (string)POP ")", true);
 
