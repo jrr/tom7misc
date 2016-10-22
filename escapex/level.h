@@ -298,7 +298,7 @@ struct Level {
   bool Move(dir d);
 
   /* see animation.h for documentation */
-  bool MoveAnimate(dir d, Disamb *ctx, PtrList<aevent> *&events);
+  bool MoveAnimate(dir d, Disamb *ctx, PtrList<AEvent> *&events);
 
   /* create clone of current state. */
   std::unique_ptr<Level> Clone() const;
@@ -546,7 +546,7 @@ struct Level {
     }
   }
 
-  using AList = PtrList<aevent>;
+  using AList = PtrList<AEvent>;
 
   template<bool ANIMATING, class DAB>
   void PostAnimate(DAB *ctx, AList *&events, AList **&etail);

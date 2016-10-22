@@ -8,22 +8,22 @@ struct TextScroll : public Drawable {
   int posx;
   int posy;
 
-  int height;
-  int width;
+  int height = 0;
+  int width = 0;
 
   /* pixels between lines */
-  int vskip;
+  int vskip = 0;
 
   /* at default size = entire screen */
   static TextScroll *Create(Font *);
-  virtual void say(string s) = 0;
-  virtual void unsay() = 0;
+  virtual void Say(string s) = 0;
+  virtual void Unsay() = 0;
 
   /* for Drawable interface */
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
 
-  virtual void drawto(SDL_Surface *surf = 0) = 0;
+  virtual void DrawTo(SDL_Surface *surf = 0) = 0;
 
   virtual ~TextScroll();
 };

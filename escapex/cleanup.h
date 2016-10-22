@@ -6,9 +6,9 @@
    for any files named *.deleteme,
    and deletes them. also ensures that
    some expected game dirs actually exist,
-   such as 'mylevels'*/
+   such as 'mylevels' */
 struct Cleanup {
-  static void clean();
+  static void Clean();
 };
 
 #endif

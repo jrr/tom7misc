@@ -6,7 +6,7 @@
 #include "aevent.h"
 #include "ptrlist.h"
 
-using AList = PtrList<aevent>;
+using AList = PtrList<AEvent>;
 
 // TODO: Make a lexical distinction between the macros that do something
 // that affects the level, and those that are purely animation.
@@ -52,7 +52,7 @@ using AList = PtrList<aevent>;
 #define PUSHMOVE2016(type, fn) do {             \
     if (ANIMATING) {                            \
       (fn)([&]() -> type ## _t * {              \
-        aevent *a = new aevent;                 \
+        AEvent *a = new AEvent;                 \
         *etail = new AList(a, nullptr);         \
         etail = &((*etail)->next);              \
         a->serial = ctx->Serial();              \
@@ -607,7 +607,7 @@ bool Level::MoveEntGoldlike(int target, dir d, int enti, Capabilities cap,
       const bool did = ctx->affect(goldx, goldy, this, etail);
       if (false)
         printf("%d %d: %s %d %d\n", goldx, goldy, did ? "did" : "not",
-               ctx->serialat(goldx, goldy),
+               ctx->SerialAt(goldx, goldy),
                ctx->Serial());
     }
   }
@@ -936,12 +936,12 @@ bool Level::MoveEntButton(dir d, int enti, Capabilities cap,
       int x, y;
       where(t->target, x, y);
       if (false) printf("(was %d %d) ",
-                        ctx->serialat(x, y),
+                        ctx->SerialAt(x, y),
                         ctx->Serial());
       bool did = ctx->affecti(t->target, this, etail);
       if (false) printf("%d=%d,%d: %s %d %d\n",
                         t->target, x, y, did ? "did" : "not",
-                        ctx->serialat(x, y),
+                        ctx->SerialAt(x, y),
                         ctx->Serial());
       // AFFECTI(t->target);
     }

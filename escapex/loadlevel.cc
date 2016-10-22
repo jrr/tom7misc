@@ -279,8 +279,8 @@ struct LLEntry {
 using Selor = Selector<LLEntry, string>;
 
 struct LoadLevel_ : public LoadLevel {
-  void draw() override;
-  void screenresize() override {}
+  void Draw() override;
+  void ScreenResize() override {}
 
   ~LoadLevel_() override {
     showlev.reset();
@@ -377,7 +377,7 @@ struct LoadLevel_ : public LoadLevel {
      a solution if one exists. */
   void Step();
   void fix_show(bool force = false);
-  void drawsmall();
+  void DrawSmall();
 
 };
 
@@ -859,12 +859,12 @@ int LoadLevel_::ChangeDir(string what, bool remember) {
   return 1;
 }
 
-void LoadLevel_::draw() {
+void LoadLevel_::Draw() {
   sdlutil::clearsurface(screen, BGCOLOR);
-  drawsmall();
+  DrawSmall();
 }
 
-void LoadLevel_::drawsmall() {
+void LoadLevel_::DrawSmall() {
   Uint32 color =
     SDL_MapRGBA(screen->format, 0x22, 0x22, 0x44, 0xFF);
 
@@ -1033,7 +1033,7 @@ string LoadLevel_::Loop() {
       Step();
       nextframe = now + LOADFRAME_TICKS;
       /* only draw the part that changed */
-      drawsmall();
+      DrawSmall();
       SDL_Flip(screen);
     }
 
@@ -1117,20 +1117,20 @@ string LoadLevel_::Loop() {
               if (res == InputResultKind::OK) {
                 /* ask server */
                 string res;
-                if (Client::quick_rpc(plr, DELETE_RPC,
-                                      (string)"pass=" +
-                                      HTTPUtil::urlencode(pass.input) +
-                                      (string)"&id=" +
-                                      itos(plr->webid) +
-                                      (string)"&seql=" +
-                                      itos(plr->webseql) +
-                                      (string)"&seqh=" +
-                                      itos(plr->webseqh) +
-                                      (string)"&md=" +
-                                      MD5::Ascii(md5) +
-                                      (string)"&text=" +
-                                      HTTPUtil::urlencode(desc.get_text()),
-                                      res)) {
+                if (Client::QuickRPC(plr, DELETE_RPC,
+				     (string)"pass=" +
+				     HTTPUtil::URLEncode(pass.input) +
+				     (string)"&id=" +
+				     itos(plr->webid) +
+				     (string)"&seql=" +
+				     itos(plr->webseql) +
+				     (string)"&seqh=" +
+				     itos(plr->webseqh) +
+				     (string)"&md=" +
+				     MD5::Ascii(md5) +
+				     (string)"&text=" +
+				     HTTPUtil::URLEncode(desc.get_text()),
+				     res)) {
 
                   Message::Quick(this, "Success!", "OK", "", PICS THUMBICON POP);
 

@@ -89,7 +89,7 @@ static constexpr int tileorder[] = {
 #define POS_PREFAB 22
 #define NUM_MENUITEMS 23
 
-void Editor::screenresize() {
+void Editor::ScreenResize() {
   dr.width = XW;
   dr.height = YH;
 
@@ -152,7 +152,7 @@ void Editor::blinktile(int destx, int desty, Uint32 color) {
   SDL_Delay(500);
 }
 
-void Editor::draw() {
+void Editor::Draw() {
 
   /* check if we need to highlight a destination */
   int tx, ty;
@@ -713,7 +713,7 @@ void Editor::playlev() {
   (void)pla->DoPlaySave(plr, &saved, md5);
 
   /* has a different loop; might have resized */
-  screenresize();
+  ScreenResize();
   Redraw();
 }
 
@@ -808,7 +808,7 @@ void Editor::Edit(const Level *origlev) {
 
   for (;;) {
     while (SDL_PollEvent(&event)) {
-      if (handle_video_event(this, event)) continue;
+      if (HandleVideoEvent(this, event)) continue;
 
       switch (event.type) {
 
@@ -1765,7 +1765,7 @@ bool Editor::getdest(int &x, int &y, string msg) {
 
   for (;;) {
     while (SDL_PollEvent(&event)) {
-      if (handle_video_event(this, event)) continue;
+      if (HandleVideoEvent(this, event)) continue;
 
       switch (event.type) {
 

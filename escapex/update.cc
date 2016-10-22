@@ -34,21 +34,30 @@ struct Updater_ : public Updater {
 
   UpdateResult update(string &msg) override;
 
-  void draw() override;
-  void screenresize() override;
+  void Draw() override {
+    sdlutil::clearsurface(screen, BGCOLOR);
+    tx->Draw();
+  }
 
-  void redraw();
+  void ScreenResize() override {
+    // XXX resize tx
+  }
 
   private:
 
+  void Redraw() {
+    Draw();
+    SDL_Flip(screen);
+  }
+
   void say(const string &s) {
-    if (tx.get() != nullptr) tx->say(s);
+    if (tx.get() != nullptr) tx->Say(s);
   }
 
   void sayover(const string &s) {
     if (tx.get() != nullptr) {
-      tx->unsay();
-      tx->say(s);
+      tx->Unsay();
+      tx->Say(s);
     }
   }
 
@@ -156,11 +165,6 @@ Updater_ *Updater_::Create(Player *p) {
   return uu;
 }
 
-void Updater_::redraw() {
-  draw();
-  SDL_Flip(screen);
-}
-
 /* return the available collections.
    (by adding items to fnames, shownames)
 */
@@ -170,9 +174,9 @@ CCResult Updater_::checkcolls(HTTP *hh,
   /* first, grab COLLECTIONS. */
 
   string s;
-  httpresult hr = hh->get(COLLECTIONSURL, s);
+  HTTPResult hr = hh->get(COLLECTIONSURL, s);
 
-  if (hr == HT_OK) {
+  if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
     int ncolls = util::stoi(util::getline(s));
 
@@ -311,9 +315,9 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
   say("");
 
   string s;
-  httpresult hr = hh->get((string)"/" + fname + (string) ".txt", s);
+  HTTPResult hr = hh->get((string)"/" + fname + (string) ".txt", s);
 
-  if (hr == HT_OK) {
+  if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
 
     string showname = util::getline(s);
@@ -422,7 +426,7 @@ void Updater_::updatecoll(HTTP *hh, string fname, string showname) {
 
       if (SDL_GetTicks() - epoch > SHOWRATE) {
         epoch = SDL_GetTicks();
-        redraw();
+        Redraw();
       }
 
     }
@@ -449,7 +453,7 @@ UpdateResult Updater_::update(string &msg) {
   /* always cancel the hint */
   HandHold::did_update();
 
-  std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
+  std::unique_ptr<HTTP> hh{Client::Connect(plr, tx.get(), this)};
 
   if (hh.get() == nullptr) {
     msg = YELLOW "Couldn't connect." POP;
@@ -510,15 +514,6 @@ UpdateResult Updater_::update(string &msg) {
                  PICS THUMBICON POP);
 
   return UD_SUCCESS;
-}
-
-void Updater_::screenresize() {
-  /* XXX resize tx */
-}
-
-void Updater_::draw() {
-  sdlutil::clearsurface(screen, BGCOLOR);
-  tx->draw();
 }
 
 }  // namespace

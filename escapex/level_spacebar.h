@@ -306,19 +306,19 @@ struct Disamb {
   /* affect a location. This might
      cause the serial to increase. Call this
      before creating the associated animation. */
-  void affect(int x, int y, Level *l, PtrList<aevent> **& etail);
-  void affecti(int idx, Level *l, PtrList<aevent> **& etail);
+  void affect(int x, int y, Level *l, PtrList<AEvent> **& etail);
+  void affecti(int idx, Level *l, PtrList<AEvent> **& etail);
 
   /* should be paired with calls to 'affect'
      for the squares that these things live in */
-  void preaffectplayer(Level *l, PtrList<aevent> **& etail);
-  void preaffectbot(int i, Level *l, PtrList<aevent> **& etail);
+  void preaffectplayer(Level *l, PtrList<AEvent> **& etail);
+  void preaffectbot(int i, Level *l, PtrList<AEvent> **& etail);
 
   void postaffectplayer();
   void postaffectbot(int i);
 
 
-  void serialup(Level *l, PtrList<aevent> **& etail);
+  void serialup(Level *l, PtrList<AEvent> **& etail);
 
 };
 #endif
@@ -483,10 +483,10 @@ struct Level {
 
 # ifndef NOANIMATION
   /* see animation.h for documentation */
-  bool move_animate(dir, Disamb *ctx, PtrList<aevent> *&events);
+  bool move_animate(dir, Disamb *ctx, PtrList<AEvent> *&events);
   bool moveent_animate(dir, int enti, unsigned int, int, int,
-                       PtrList<aevent> *&,
-                       Disamb *ctx, PtrList<aevent> **&);
+                       PtrList<AEvent> *&,
+                       Disamb *ctx, PtrList<AEvent> **&);
 <<<<<<< level.h
 # endif
 
@@ -494,8 +494,8 @@ struct Level {
 =======
 >>>>>>> 1.55
   void bombsplode_animate(int now,
-                          int bombi, Disamb *ctx, PtrList<aevent> *&events,
-                          PtrList<aevent> **& etail);
+                          int bombi, Disamb *ctx, PtrList<AEvent> *&events,
+                          PtrList<AEvent> **& etail);
 <<<<<<< level.h
 # endif
 =======

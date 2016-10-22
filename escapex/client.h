@@ -25,38 +25,38 @@
 #define HTTP_DEBUGFILE "netdebug.txt"
 
 struct Client {
-  static HTTP *connect(Player *plr, TextScroll *tx, Drawable *that) {
+  static HTTP *Connect(Player *plr, TextScroll *tx, Drawable *that) {
     std::unique_ptr<HTTP> hh{HTTP::Create()};
 
     if (Prefs::getbool(plr, PREF_DEBUG_NET))
-      hh->log_message = debug_log_message;
+      hh->log_message = DebugLogMessage;
 
     string serveraddress = Prefs::getstring(plr, PREF_SERVER);
     int serverport =
       (Prefs::getbool(plr, PREF_ALTCONNECT))?8888:80;
 
     if (hh.get() == nullptr) {
-      if (tx) tx->say(YELLOW "Couldn't create http object.");
+      if (tx) tx->Say(YELLOW "Couldn't create http object.");
       Message::Quick(that, "Upgrade failed!", "Cancel", "");
       return 0;
     }
 
     string ua = "Escape (" VERSION "; " PLATFORM ")";
-    if (tx) tx->say((string)"This is: " + ua);
+    if (tx) tx->Say((string)"This is: " + ua);
 
     hh->setua(ua);
 
-    if (tx) tx->say((string)
+    if (tx) tx->Say((string)
                     "Connecting to " YELLOW + serveraddress +
                     WHITE ":" POP + itos(serverport) + POP "...");
 
     if (that) {
-      that->draw();
+      that->Draw();
       SDL_Flip(screen);
     }
 
     if (!hh->connect(serveraddress, serverport)) {
-      if (tx) tx->say((string)RED "Couldn't connect to "
+      if (tx) tx->Say((string)RED "Couldn't connect to "
                       YELLOW + serveraddress + POP ".");
       Message::Quick(that, "Can't connect!", "Cancel", "");
       return 0;
@@ -66,14 +66,15 @@ struct Client {
   }
 
   /* XX add bool quiet=true; when false show progress */
-  static bool quick_rpc(Player *, string path, string query, string &ret);
+  static bool QuickRPC(Player *, const string &path, 
+		       const string &query, string &ret);
 
   /* true on success */
-  static bool rpc(HTTP *hh, string path, string query, string &ret) {
+  static bool RPC(HTTP *hh, const string &path, const string &query, string &ret) {
     string m;
-    httpresult hr = hh->get(path + (string)"?" + query, m);
+    HTTPResult hr = hh->get(path + (string)"?" + query, m);
 
-    if (hr == HT_OK) {
+    if (hr == HTTPResult::OK) {
 
       if (m.length() >= 2 &&
           m[0] == 'o' &&
@@ -93,11 +94,11 @@ struct Client {
     }
   }
 
-  static bool rpcput(HTTP *hh, string path, formalist *fl, string &ret) {
+  static bool RPCPut(HTTP *hh, const string &path, formalist *fl, string &ret) {
     string m;
-    httpresult hr = hh->put(path, fl, m);
+    HTTPResult hr = hh->put(path, fl, m);
 
-    if (hr == HT_OK) {
+    if (hr == HTTPResult::OK) {
 
       if (m.length() >= 2 &&
           m[0] == 'o' &&
@@ -112,7 +113,7 @@ struct Client {
         return false;
       }
 
-    } else if (hr == HT_404) {
+    } else if (hr == HTTPResult::ERROR_404) {
 
       ret = "error code 404";
       return false;
@@ -122,7 +123,7 @@ struct Client {
     }
   }
 
-  static void debug_log_message(const string &s) {
+  static void DebugLogMessage(const string &s) {
     FILE *f = fopen(HTTP_DEBUGFILE, "a");
 
     if (f) {
@@ -133,9 +134,9 @@ struct Client {
 
   /* need the drawable to draw background, too */
   /* static */
-  struct quick_txdraw : public Drawable {
+  struct QuickTxDraw : public Drawable {
     std::unique_ptr<TextScroll> tx;
-    quick_txdraw() {
+    QuickTxDraw() {
       tx.reset(TextScroll::Create(fon));
       tx->posx = 5;
       tx->posy = 5;
@@ -143,13 +144,13 @@ struct Client {
       tx->height = screen->h - 10;
     }
 
-    void say(string s) { tx->say(s); }
-    void draw() override {
+    void say(const string &s) { tx->Say(s); }
+    void Draw() override {
       sdlutil::clearsurface(screen, BGCOLOR);
-      tx->draw();
+      tx->Draw();
     }
-    void screenresize() override {
-      tx->screenresize();
+    void ScreenResize() override {
+      tx->ScreenResize();
     }
   };
 

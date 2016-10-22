@@ -21,8 +21,8 @@ struct Updater : public Drawable {
   virtual UpdateResult update(string &msg) = 0;
   virtual ~Updater();
 
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
 };
 
 #endif

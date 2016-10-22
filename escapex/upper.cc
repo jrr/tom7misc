@@ -51,22 +51,22 @@ struct Upper_ : public Upper {
 
   void Redraw() {
     if (below) {
-      below->draw();
+      below->Draw();
       SDL_Flip(screen);
     }
   }
 
   void say(string s, bool nodraw = false) {
     if (tx) {
-      tx->say(s);
+      tx->Say(s);
       if (!nodraw) Redraw();
     }
   }
 
   void sayover(string s, bool nodraw = false) {
     if (tx) {
-      tx->unsay();
-      tx->say(s);
+      tx->Unsay();
+      tx->Say(s);
       if (!nodraw) Redraw();
     }
   }
@@ -211,13 +211,13 @@ bool Upper_::SetFile(const string &f, const string &md, RateStatus votes,
     string first = md.substr(0, 2);
     string last  = md.substr(2, md.length() - 2);
 
-    httpresult hr =
+    HTTPResult hr =
       hh->get((string)"/" + dirname +
               (string)"/" + first +
               (string)"/" + last, mm);
 
     switch (hr) {
-    case HT_OK: {
+    case HTTPResult::OK: {
       ContentEntry nce{mm};
       sayover((string)"(SetFile) downloaded : " + nce.md5, true);
 

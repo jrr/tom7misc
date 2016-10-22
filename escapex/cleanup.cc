@@ -8,8 +8,7 @@
 #include "edit.h"
 #include "dircache.h"
 
-void Cleanup::clean() {
-
+void Cleanup::Clean() {
   DIR *d = opendir(".");
   if (!d) return;
   dirent *dire;
@@ -40,6 +39,4 @@ void Cleanup::clean() {
   writefile((string)ATTIC_DIR + DIRSEP + IGNOREFILE, "");
 
   closedir(d);
-
-
 }

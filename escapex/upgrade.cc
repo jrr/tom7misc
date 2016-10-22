@@ -1,15 +1,17 @@
 
 #include "upgrade.h"
+
+#include <time.h>
 #include "../cc-lib/md5.h"
+
 #include "util.h"
 #include "textscroll.h"
 #include "prompt.h"
 #include "message.h"
 #include "chars.h"
-#include "time.h"
 #include "handhold.h"
 #include "startup.h"
-
+#include "base.h"
 #include "client.h"
 
 #ifdef WIN32
@@ -71,21 +73,30 @@ typedef vallist<upitem> ulist;
 struct Upgrader_ : public Upgrader {
   static Upgrader_ *Create(Player *p);
 
-  UpgradeResult upgrade(string &msg) override;
+  UpgradeResult Upgrade(string &msg) override;
 
-  void draw() override;
-  void screenresize() override;
+  void Draw() override {
+    sdlutil::clearsurface(screen, BGCOLOR);
+    tx->Draw();
+  }
 
-  void redraw();
+  void ScreenResize() override {
+    /* XXX resize */
+  }
 
  private:
 
+  void Redraw() {
+    Draw();
+    SDL_Flip(screen);
+  }
+
   void say(const string &s) {
-    if (tx.get() != nullptr) tx->say(s);
+    if (tx.get() != nullptr) tx->Say(s);
   }
 
   void unsay() {
-    if (tx.get() != nullptr) tx->unsay();
+    if (tx.get() != nullptr) tx->Unsay();
   }
 
   Player *plr;
@@ -112,11 +123,6 @@ Upgrader_ *Upgrader_::Create(Player *p) {
   return uu;
 }
 
-void Upgrader_::redraw() {
-  draw();
-  SDL_Flip(screen);
-}
-
 /* false if file doesn't exist.
    otherwise, md5 is set to the md5
    hash of its contents */
@@ -129,29 +135,6 @@ bool md5file(string f, string &md5) {
     return true;
   }
 }
-
-struct UGCallback : public httpcallback {
-  Upgrader_ *that;
-  /* XXX use SDL_Ticks or whatever; never time(0) */
-  virtual void progress(int recvd, int total) {
-    if (recvd > (last + 16384) ||
-        ltime < time(0)) {
-      if (that && that->tx) {
-        that->tx->unsay();
-        that->tx->say((string)GREEN + itos(recvd) + GREY "/" POP +
-                      itos(total) + POP);
-        that->redraw();
-      }
-      last = recvd;
-      ltime = time(0);
-    }
-  }
-  UGCallback() : that(0), last(-1000) {
-    ltime = time(0);
-  }
-  int ltime;
-  int last;
-};
 
 /* download anything in 'upthese', replacing the current
    versions on disk. Modifies the 'temporary' fields in
@@ -171,14 +154,14 @@ UpResult Upgrader_::doupgrade(HTTP *hh, string &msg,
       say((string)"Downloading " GREEN + dl + (string) POP " ...");
 
       say("Connecting...");
-      redraw();
+      Redraw();
 
       switch (hh->gettempfile(dl, hd->head.tempfile)) {
-      case HT_OK:
+      case HTTPResult::OK:
         unsay();
         say((string)"    ..." GREEN "OK: " + hd->head.tempfile + POP);
         /* good. */
-        redraw();
+        Redraw();
         break;
       default:
         say((string) YELLOW "Download error: " + msg + POP);
@@ -418,14 +401,14 @@ CUResult Upgrader_::checkupgrade(HTTP *hh,
   /* start by checking for new versions of escape itself. */
   string s;
   say("Connecting...");
-  httpresult hr = hh->get(UPGRADEURL, s);
-  if (hr == HT_OK) {
+  HTTPResult hr = hh->get(UPGRADEURL, s);
+  if (hr == HTTPResult::OK) {
     /* parse result. see protocol.txt */
-    int nfiles     =    util::stoi(util::getline(s));
-    int oldest     =    util::stoi(util::getline(s));
-    int recom      =    util::stoi(util::getline(s));
-    int current    =    util::stoi(util::getline(s));
-    string name    =         util::getline(s);
+    int nfiles  = util::stoi(util::getline(s));
+    int oldest  = util::stoi(util::getline(s));
+    int recom   = util::stoi(util::getline(s));
+    int current = util::stoi(util::getline(s));
+    string name = util::getline(s);
     /* then, nfiles files */
 
     say("Got upgrade information:");
@@ -551,11 +534,11 @@ CUResult Upgrader_::checkupgrade(HTTP *hh,
   }
 }
 
-UpgradeResult Upgrader_::upgrade(string &msg) {
+UpgradeResult Upgrader_::Upgrade(string &msg) {
   /* no matter what, cancel the hint to upgrade */
   HandHold::did_upgrade();
 
-  std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
+  std::unique_ptr<HTTP> hh{Client::Connect(plr, tx.get(), this)};
 
   if (hh.get() == nullptr) {
     msg = YELLOW "Couldn't connect." POP;
@@ -563,14 +546,26 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   }
 
   /* install upgrader */
-  UGCallback cb;
-  cb.that = this;
-  hh->setcallback(&cb);
-
-  ulist *download;
+  int last = -1000;
+  int64 ltime = time(nullptr);
+  hh->SetCallback([this, &last, &ltime]
+		  (int recvd, int total) {
+		    if (recvd > (last + 16384) ||
+			ltime < time(0)) {
+		      if (tx != nullptr) {
+			tx->Unsay();
+			tx->Say((string)GREEN + itos(recvd) + GREY "/" POP +
+				itos(total) + POP);
+			Redraw();
+		      }
+		      last = recvd;
+		      ltime = time(0);
+		    }
+		  });
+  ulist *download = nullptr;
 
   /* XXX what is the point of the 'ok' list? */
-  stringlist *ok;
+  stringlist *ok = nullptr;
   string upmsg;
   switch (checkupgrade(hh.get(), upmsg, download, ok)) {
   case CUResult::FAIL:
@@ -638,15 +633,6 @@ UpgradeResult Upgrader_::upgrade(string &msg) {
   }
 
   return UP_FAIL;
-}
-
-void Upgrader_::screenresize() {
-  /* XXX resize */
-}
-
-void Upgrader_::draw() {
-  sdlutil::clearsurface(screen, BGCOLOR);
-  tx->draw();
 }
 
 }  // namespace

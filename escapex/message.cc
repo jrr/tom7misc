@@ -18,15 +18,15 @@ struct Message_ : public Message {
      escape: false */
   bool Ask(char *actualchar = 0, string charspec = "") override;
 
-  void draw() override;
-  void screenresize() override;
+  void Draw() override;
+  void ScreenResize() override;
 
   SDL_Surface *alpharect = nullptr;
   bool loop(char *actualchar, string charspec);
 
   void init();
-  void redraw() {
-    draw();
+  void Redraw() {
+    Draw();
     SDL_Flip(screen);
   }
 
@@ -92,16 +92,16 @@ bool Message_::Ask(char *actualchar, string charspec) {
   return loop(actualchar, charspec);
 }
 
-void Message_::screenresize() {
-  if (below) below->screenresize();
+void Message_::ScreenResize() {
+  if (below) below->ScreenResize();
 }
 
-void Message_::draw() {
+void Message_::Draw() {
   /* clear back */
   if (!below) {
     sdlutil::clearsurface(screen, BGCOLOR);
   } else {
-    below->draw();
+    below->Draw();
   }
 
   /* draw alpha-transparent box */
@@ -122,11 +122,11 @@ void Message_::draw() {
 }
 
 bool Message_::loop(char *actualchar, string charspec) {
-  redraw();
+  Redraw();
 
   SDL_Event e;
   while (SDL_WaitEvent(&e) >= 0) {
-    if (handle_video_event(this, e)) continue;
+    if (HandleVideoEvent(this, e)) continue;
     int key;
 
     switch (e.type) {
@@ -208,7 +208,7 @@ void Message::DrawOnlyv(int posy,
   m->cancel = ccancel;
 
   m->init();
-  m->draw();
+  m->Draw();
 }
 
 Message::~Message() {}

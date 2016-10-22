@@ -1,10 +1,12 @@
 
 #include "upload.h"
+
+#include "../cc-lib/md5.h"
+
 #include "client.h"
 #include "http.h"
 #include "message.h"
 #include "draw.h"
-#include "../cc-lib/md5.h"
 #include "optimize.h"
 
 namespace {
@@ -12,25 +14,30 @@ namespace {
 struct Upload_ : public Upload {
   static Upload_ *Create();
 
-  UploadResult Up(Player *p, string file, string) override;
+  UploadResult Up(Player *p, const string &file, const string &) override;
 
   void Redraw() {
-    draw();
+    Draw();
     SDL_Flip(screen);
   }
 
   void say(const string &s) {
     if (tx.get() != nullptr) {
-      tx->say(s);
+      tx->Say(s);
       Redraw();
     }
   }
 
   std::unique_ptr<TextScroll> tx;
-  Player *plr;
+  Player *plr = nullptr;
 
-  void draw() override;
-  void screenresize() override;
+  void Draw() override {
+    sdlutil::clearsurface(screen, BGCOLOR);
+    tx->Draw();
+  }
+  void ScreenResize() override {
+    /* XXX resize */
+  }
 };
 
 Upload_ *Upload_::Create() {
@@ -47,7 +54,7 @@ Upload_ *Upload_::Create() {
   return ur.release();
 }
 
-UploadResult Upload_::Up(Player *p, string f, string text) {
+UploadResult Upload_::Up(Player *p, const string &f, const string &text) {
   Redraw();
 
   const string levcont = util::readfilemagic(f, LEVELMAGIC);
@@ -72,7 +79,7 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
   say(YELLOW + itos(slong->Length()) + GREY " " LRARROW " " POP +
       itos(opt.Length()) + POP);
 
-  HTTP *hh = Client::connect(plr, tx.get(), this);
+  HTTP *hh = Client::Connect(plr, tx.get(), this);
 
   if (!hh) return UploadResult::FAIL;
 
@@ -92,7 +99,7 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
   Redraw();
 
   string out;
-  if (Client::rpcput(hh, UPLOAD_RPC, fl, out)) {
+  if (Client::RPCPut(hh, UPLOAD_RPC, fl, out)) {
     Message::Quick(this, GREEN "success!" POP,
                    "OK", "", PICS THUMBICON);
     formalist::diminish(fl);
@@ -106,15 +113,6 @@ UploadResult Upload_::Up(Player *p, string f, string text) {
     return UploadResult::FAIL;
   }
 
-}
-
-void Upload_::screenresize() {
-  /* XXX resize */
-}
-
-void Upload_::draw() {
-  sdlutil::clearsurface(screen, BGCOLOR);
-  tx->draw();
 }
 
 }  // namespace

@@ -48,7 +48,7 @@
    it was such an event. On resize, makes a new screen surface
    of the appropriate size. Either way, call parent's draw method
    and flip the screen, if it's non-NULL. */
-bool handle_video_event(Drawable *parent, const SDL_Event &e);
+bool HandleVideoEvent(Drawable *parent, const SDL_Event &e);
 
 /* is the network enabled? */
 extern int network;

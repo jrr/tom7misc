@@ -51,8 +51,8 @@ struct RateScreen_ : public RateScreen {
 
   void Rate() override;
 
-  void draw() override;
-  void screenresize() override {}
+  void Draw() override;
+  void ScreenResize() override {}
 
   void SetMessage(const string &m) override { msg = m; }
 
@@ -67,8 +67,8 @@ struct RateScreen_ : public RateScreen {
   /* number of moves solved in (0 = unsolved) */
   int nsolved;
 
-  void redraw() {
-    draw();
+  void Redraw() {
+    Draw();
     SDL_Flip(screen);
   }
 
@@ -100,9 +100,9 @@ RateScreen_ *RateScreen_::Create(
   return rr;
 }
 
-void RateScreen_::draw() {
+void RateScreen_::Draw() {
   if (below) {
-    below->draw();
+    below->Draw();
   } else {
     /* clear back */
     sdlutil::clearsurface(screen, BGCOLOR);
@@ -136,7 +136,7 @@ void RateScreen_::Rate() {
 
   /* rat is the existing rating or 0 */
 
-  redraw();
+  Redraw();
 
   Label levname;
   levname.text = Font::pad(lev->title, 50);
@@ -241,13 +241,13 @@ void RateScreen_::Rate() {
     plr->WriteFile();
 
     /* send message to server */
-    std::unique_ptr<HTTP> hh{Client::connect(plr, tx.get(), this)};
+    std::unique_ptr<HTTP> hh{Client::Connect(plr, tx.get(), this)};
 
     string res;
 
     bool success =
       (hh.get() != nullptr) &&
-      Client::rpc(hh.get(), RATE_RPC,
+      Client::RPC(hh.get(), RATE_RPC,
                   /* credentials */
                   (string)"id=" +
                   itos(plr->webid) +

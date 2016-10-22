@@ -7,7 +7,7 @@
 
 using namespace std;
 
-using AList = PtrList<aevent>;
+using AList = PtrList<AEvent>;
 
 /* disambiguation context implementation */
 Disamb *Disamb::Create(const Level *l) {
@@ -36,11 +36,11 @@ void Disamb::clear() {
   }
 }
 
-bool Disamb::affect(int x, int y, Level *l, PtrList<aevent> **& etail) {
+bool Disamb::affect(int x, int y, Level *l, PtrList<AEvent> **& etail) {
   return affecti(y * w + x, l, etail);
 }
 
-bool Disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
+bool Disamb::affecti(int i, Level *l, PtrList<AEvent> **& etail) {
   /* was this last updated in this same
      serial? if so, we need to move to
      the next serial. */
@@ -56,7 +56,7 @@ bool Disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
 }
 
 #define DIS_PUSHEVENT(type, var)                \
-  aevent *a ## var = new aevent;                \
+  AEvent *a ## var = new AEvent;                \
   *etail = new AList(a ## var, nullptr);        \
   etail = &((*etail)->next);                    \
   a ## var->serial = serial;                    \
@@ -66,7 +66,7 @@ bool Disamb::affecti(int i, Level *l, PtrList<aevent> **& etail) {
 /* maintain the invariant that in every serial within the list
    etail, there is at least one animation for every active
    entity */
-void Disamb::serialup(Level *l, PtrList<aevent> **& etail) {
+void Disamb::serialup(Level *l, PtrList<AEvent> **& etail) {
   //  printf("serialup(old serial = %d)!\n", serial);
 
   if (serial != player) {
@@ -104,7 +104,7 @@ void Disamb::serialup(Level *l, PtrList<aevent> **& etail) {
 }
 
 /* XXX should these also do the same check that affecti does? */
-void Disamb::preaffectplayer(Level *l, PtrList<aevent> **& etail) {
+void Disamb::preaffectplayer(Level *l, PtrList<AEvent> **& etail) {
   if (player == serial) serialup(l, etail);
 }
 
@@ -112,7 +112,7 @@ void Disamb::postaffectplayer() {
   player = serial;
 }
 
-void Disamb::preaffectbot(int i, Level *l, PtrList<aevent> **& etail) {
+void Disamb::preaffectbot(int i, Level *l, PtrList<AEvent> **& etail) {
   if (bots[i] == serial) serialup(l, etail);
 }
 

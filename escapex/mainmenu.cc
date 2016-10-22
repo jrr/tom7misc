@@ -59,13 +59,13 @@ struct MMEntry {
 using MSel = Selector<MMEntry, MMEType>;
 
 struct MainMenu_ : public MainMenu, public Drawable {
-  MainMenu::result show() override;
+  MainMenu::result Show() override;
 
   static MainMenu_ *Create(Player *plr);
 
   /* for Drawable */
-  void draw() override;
-  void screenresize() override;
+  void Draw() override;
+  void ScreenResize() override;
 
   ~MainMenu_() override;
 
@@ -73,7 +73,7 @@ struct MainMenu_ : public MainMenu, public Drawable {
   friend struct MMEntry;
 
   void Redraw() {
-    sel->draw();
+    sel->Draw();
     SDL_Flip(screen);
   }
 
@@ -85,7 +85,7 @@ struct MainMenu_ : public MainMenu, public Drawable {
 
   std::unique_ptr<MainShow> mshow;
 
-  void makebackground();
+  void MakeBackground();
   void ComputeTutorial();
   bool tutorial_left;
   string tutorial_text;
@@ -199,7 +199,7 @@ void MainMenu_::ComputeTutorial() {
   if (!tutorial_left) tutorial_text = "Tutorial complete.";
 }
 
-void MainMenu_::draw() {
+void MainMenu_::Draw() {
   SDL_BlitSurface(background, 0, screen, 0);
 
   /* draw status info at the bottom */
@@ -237,10 +237,10 @@ void MainMenu_::draw() {
 
 
 #define FRAME_TICKS 500
-MainMenu::result MainMenu_::show() {
+MainMenu::result MainMenu_::Show() {
   ComputeTutorial();
 
-  makebackground();
+  MakeBackground();
   Redraw();
 
   SDL_Event e;
@@ -261,7 +261,7 @@ MainMenu::result MainMenu_::show() {
     while (SDL_PollEvent(&e)) {
       int key;
 
-      if (handle_video_event(this, e)) continue;
+      if (HandleVideoEvent(this, e)) continue;
 
       switch (e.type) {
       case SDL_QUIT:
@@ -337,15 +337,15 @@ MainMenu::result MainMenu_::show() {
         case MMEType::EDIT: return EDIT;
         case MMEType::QUIT: return QUIT;
         case MMEType::UPGRADE:
-            if (network) return UPGRADE;
-            else continue;
+	  if (network) return UPGRADE;
+	  else continue;
         case MMEType::UPDATE:
-            if (network) return UPDATE;
-            else continue;
+	  if (network) return UPDATE;
+	  else continue;
         case MMEType::PREFS:
-            Prefs::show(pp);
-            Redraw();
-            continue;
+	  Prefs::show(pp);
+	  Redraw();
+	  continue;
         default: break;
         }
         /* ??? */
@@ -364,16 +364,16 @@ MainMenu::result MainMenu_::show() {
   return QUIT;
 }
 
-void MainMenu_::screenresize() {
-  makebackground();
+void MainMenu_::ScreenResize() {
+  MakeBackground();
 }
 
 /* the background is pretty complex, so we precompute it */
-void MainMenu_::makebackground() {
+void MainMenu_::MakeBackground() {
   int w = screen->w;
   int h = screen->h;
 
-  Backgrounds::gradientblocks(background,
+  Backgrounds::GradientBlocks(background,
                               T_GREY,
                               T_BLUE,
                               Backgrounds::blueish);

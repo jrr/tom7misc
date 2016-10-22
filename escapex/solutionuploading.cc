@@ -18,7 +18,7 @@ void SolutionUploading::PromptUpload(Drawable *below,
                                      const string &name_,
                                      bool speedrec) {
   string s;
-  Client::quick_txdraw td;
+  Client::QuickTxDraw td;
 
   Label message;
   message.text = msg;
@@ -94,7 +94,7 @@ void SolutionUploading::PromptUpload(Drawable *below,
                        "Upload anyway",
                        "Cancel")) {
 
-      std::unique_ptr<HTTP> hh{Client::connect(plr, td.tx.get(), &td)};
+      std::unique_ptr<HTTP> hh{Client::Connect(plr, td.tx.get(), &td)};
 
       if (hh.get() == nullptr) {
         Message::No(&td, "Couldn't connect!");
@@ -117,10 +117,10 @@ void SolutionUploading::PromptUpload(Drawable *below,
       formalist::pushfile(fl, "sol", "sol.esx", solcont);
 
       td.say("Uploading..");
-      td.draw();
+      td.Draw();
 
       string out;
-      if (Client::rpcput(hh.get(), UPLOADSOL_RPC, fl, out)) {
+      if (Client::RPCPut(hh.get(), UPLOADSOL_RPC, fl, out)) {
         if (speedrec)
           Message::Quick(&td, GREEN "Success! the record is yours!" POP,
                          "OK", "", PICS THUMBICON POP);

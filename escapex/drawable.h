@@ -8,14 +8,14 @@ struct Drawable {
   /* draw yourself on the surface.
      don't clear it, because someone
      else may have drawn before you. */
-  virtual void draw() = 0;
+  virtual void Draw() = 0;
 
   /* be notified that the screen size has changed.
      screen->w and screen->h will have been updated
      with the new size. */
-  virtual void screenresize() = 0;
+  virtual void ScreenResize() = 0;
 
-  static void init();
+  static void Init();
 };
 
 extern Drawable *nodraw;

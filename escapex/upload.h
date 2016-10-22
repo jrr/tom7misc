@@ -13,10 +13,10 @@ struct Upload : public Drawable {
   static Upload *Create();
   virtual ~Upload();
 
-  virtual UploadResult Up(Player *p, string file, string desc) = 0;
+  virtual UploadResult Up(Player *p, const string &file, const string &desc) = 0;
 
-  void draw() override = 0;
-  void screenresize() override = 0;
+  void Draw() override = 0;
+  void ScreenResize() override = 0;
 };
 
 #endif

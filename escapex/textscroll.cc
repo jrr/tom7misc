@@ -8,16 +8,19 @@
 namespace {
 struct TextScroll_ : public TextScroll {
   static TextScroll_ *Create(Font *f);
-  virtual void say(string s);
-  virtual void unsay();
+  void Say(string s) override;
+  void Unsay() override;
 
   /* Drawable */
-  virtual void draw();
-  virtual void screenresize();
+  void Draw() override {
+    DrawTo(screen);
+  }
 
-  virtual void drawto(SDL_Surface *surf = 0);
+  void ScreenResize() override {}
 
-  virtual ~TextScroll_();
+  void DrawTo(SDL_Surface *surf = 0) override;
+
+  ~TextScroll_() override {};
 
   string log[BACKLOG];
   int pwrite;
@@ -25,10 +28,6 @@ struct TextScroll_ : public TextScroll {
   // Not owned.
   Font *ft;
 };
-
-TextScroll_::~TextScroll_() {}
-
-void TextScroll_::screenresize() {}
 
 TextScroll_ *TextScroll_::Create(Font *f) {
   TextScroll_ *ts = new TextScroll_();
@@ -42,16 +41,16 @@ TextScroll_ *TextScroll_::Create(Font *f) {
   return ts;
 }
 
-void TextScroll_::say(string s) {
+void TextScroll_::Say(string s) {
   /* write new entry */
   log[pwrite] = s;
   pwrite++;
   pwrite %= BACKLOG;
 }
 
-/* weird results if unsay() with
+/* weird results if Unsay() with
    an empty buffer */
-void TextScroll_::unsay() {
+void TextScroll_::Unsay() {
   if (pwrite) {
     pwrite--;
     log[pwrite] = "";
@@ -65,7 +64,7 @@ void TextScroll_::unsay() {
    It's a little tricky because we're
    going backwards, but it's still easier
    than going forwards */
-void TextScroll_::drawto(SDL_Surface *surf) {
+void TextScroll_::DrawTo(SDL_Surface *surf) {
   if (!surf) surf = screen;
 
   int y = (posy + height) - (ft->height + vskip);
@@ -78,10 +77,6 @@ void TextScroll_::drawto(SDL_Surface *surf) {
     if (l < 0) l = BACKLOG - 1;
     y -= (ft->height + vskip);
   }
-}
-
-void TextScroll_::draw() {
-  drawto(screen);
 }
 
 }  // namespace

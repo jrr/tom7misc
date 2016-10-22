@@ -11,7 +11,7 @@
 
 struct CheckFile {
   FILE *ff = nullptr;
-  bool read(unsigned int bytes, string &s) {
+  bool Read(unsigned int bytes, string &s) {
     /* fread stupidly *fails* if the size is 0 */
     if (bytes == 0) return "";
     char *r = new char[bytes];
@@ -37,9 +37,9 @@ struct CheckFile {
     return std::unique_ptr<CheckFile>(new CheckFile{ff});
   }
 
-  bool readint(int &i) {
+  bool ReadInt(int &i) {
     string s;
-    if (!read(4, s)) return 0;
+    if (!Read(4, s)) return 0;
     i =
       ((unsigned char)s[0] << 24) |
       ((unsigned char)s[1] << 16) |
@@ -48,7 +48,7 @@ struct CheckFile {
     return 1;
   }
 
-  bool getline(string &s) {
+  bool GetLine(string &s) {
     if (feof(ff)) return false;
     s = util::fgetline(ff);
     return true;
