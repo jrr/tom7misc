@@ -1,0 +1,16 @@
+group is
+
+#if (defined(SMLNJ_VERSION))
+  $/basis.cm
+  ../sml-lib/port/nj.sml
+#else
+  ../sml-lib/port/mlton.sml
+#endif
+
+  ckit/ckit-lib.cm
+
+  cil.sml
+  tocil-sig.sml
+  tocil.sml
+  abc.sml
+  
