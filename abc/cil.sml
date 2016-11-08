@@ -23,7 +23,8 @@ struct
 
   (* All binary operators are on 32-bit words. *)
   datatype exp =
-    Plus of value * value
+    Value of value
+  | Plus of value * value
   | Minus of value * value
   | Times of value * value
   | SignedDivision of value * value
@@ -58,9 +59,9 @@ struct
     (* and type? *)
   | Store of loc * value * stmt
     (* cond, true-branch, rest *)
-  | If of value * stmt * stmt
-  | Label of string * stmt
-  | Goto of string
+  (* | If of value * stmt * stmt *)
+  (* | Label of string * stmt *)
+  | GotoIf of value * string * stmt
   | Return of value
   | End
 
