@@ -1,6 +1,9 @@
 structure ToCIL :> TOCIL =
 struct
 
+  infixr 9 `
+  fun a ` b = a b
+
   exception ToCIL of string
   open CIL
 
@@ -32,6 +35,60 @@ struct
     fun insert (r : 'a blockcollector, l, v : 'a) =
       r := SM.insert(!r, l, v)
   end
+
+  local val var_ctr = ref 0
+  in
+    fun genvar s =
+      let in
+        var_ctr := !var_ctr + 1;
+        "l$" ^ s ^ "$" ^ Int.toString (!var_ctr)
+      end
+  end
+
+  datatype normop = PLUS | MINUS | TIMES | DIVIDE | MOD | GT | LT | GTE | LTE |
+    EQ | NEQ | BITOR | BITAND | BITXOR | LSHIFT | RSHIFT
+  datatype shortop = AND | OR
+    (*
+  datatype assignop = PLUSA | MINUSA | TIMESA | DIVA | MODA | XORA | ORA | ANDA |
+    LSHIFTA | RSHIFTA
+    *)
+
+  datatype binopclass =
+      SHORT_CIRCUIT of shortop
+    | ASSIGNING of normop
+    | NORMAL of normop
+
+  fun binopclass (b : Ast.binop) =
+    case b of
+      Ast.Plus => NORMAL PLUS
+    | Ast.Minus => NORMAL MINUS
+    | Ast.Times => NORMAL TIMES
+    | Ast.Divide => NORMAL DIVIDE
+    | Ast.Mod => NORMAL MOD
+    | Ast.Gt => NORMAL GT
+    | Ast.Lt => NORMAL LT
+    | Ast.Gte => NORMAL GTE
+    | Ast.Lte => NORMAL LTE
+    | Ast.Eq => NORMAL EQ
+    | Ast.Neq => NORMAL NEQ
+    | Ast.BitOr => NORMAL BITOR
+    | Ast.BitAnd => NORMAL BITAND
+    | Ast.BitXor => NORMAL BITXOR
+    | Ast.Lshift => NORMAL LSHIFT
+    | Ast.Rshift => NORMAL RSHIFT
+    | Ast.And => SHORT_CIRCUIT AND
+    | Ast.Or => SHORT_CIRCUIT OR
+    | Ast.BinopExt _ => raise ToCIL "No binop extensions are supported"
+    | Ast.PlusAssign => ASSIGNING PLUS
+    | Ast.MinusAssign => ASSIGNING MINUS
+    | Ast.TimesAssign => ASSIGNING TIMES
+    | Ast.DivAssign => ASSIGNING DIVIDE
+    | Ast.ModAssign => ASSIGNING MOD
+    | Ast.XorAssign => ASSIGNING BITXOR
+    | Ast.OrAssign => ASSIGNING BITOR
+    | Ast.AndAssign => ASSIGNING BITAND
+    | Ast.LshiftAssign => ASSIGNING LSHIFT
+    | Ast.RshiftAssign => ASSIGNING RSHIFT
 
   (* Some derived forms *)
   fun Goto label = GotoIf (WordLiteral 0w1, label, End)
@@ -79,6 +136,54 @@ struct
     case e of
       Ast.IntConst i => k (WordLiteral (word32_literal i))
     | Ast.RealConst r => raise ToCIL "unimplemented: floating point (literal)"
+    | Ast.Id (id as { global = false, ... }) =>
+        let
+          val loc = idstring id
+          val v = genvar loc
+        in
+          Bind (v, Read ` Local loc, k ` Var v)
+        end
+
+    | Ast.Id (id as { global = true, ... }) =>
+        let
+          val loc = uidstring id
+          val v = genvar loc
+        in
+          Bind (v, Read ` Global loc, k ` Var v)
+        end
+
+    | Ast.Binop (bop, a, b) =>
+        (case binopclass bop of
+           SHORT_CIRCUIT _ => raise ToCIL "short-circuiting binops unimplemented"
+         | ASSIGNING _ => raise ToCIL "assigning binops unimplemented"
+         | NORMAL bop =>
+             transexp a bc
+             (fn av =>
+              transexp b bc
+              (fn bv =>
+               let val v = genvar "b"
+               in
+                 case bop of
+                    PLUS => Bind (v, Plus (av, bv), k ` Var v)
+                  | MINUS => Bind (v, Minus (av, bv), k ` Var v)
+                  | TIMES => Bind (v, Times (av, bv), k ` Var v)
+                  | DIVIDE =>
+                      (* Bind (v, Divide (av, bv), k ` Var v) *)
+                      raise ToCIL "division unimplemented because of signedness"
+                  | MOD => Bind (v, Mod (av, bv), k ` Var v)
+                  | GT => Bind (v, Greater (av, bv), k ` Var v)
+                  | LT => Bind (v, Less (av, bv), k ` Var v)
+                  | GTE => Bind (v, GreaterEq (av, bv), k ` Var v)
+                  | LTE => Bind (v, LessEq (av, bv), k ` Var v)
+                  | EQ => Bind (v, Eq (av, bv), k ` Var v)
+                  | NEQ => Bind (v, Neq (av, bv), k ` Var v)
+                  | BITOR => Bind (v, Or (av, bv), k ` Var v)
+                  | BITAND => Bind (v, And (av, bv), k ` Var v)
+                  | BITXOR => Bind (v, Xor (av, bv), k ` Var v)
+                  | LSHIFT => Bind (v, LeftShift (av, bv), k ` Var v)
+                  | RSHIFT => Bind (v, RightShift (av, bv), k ` Var v)
+               end)))
+
     | _ => raise ToCIL "unimplemented expression type (so many HERE)"
 
   (* Typedecls ignored currently. *)

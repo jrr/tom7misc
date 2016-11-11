@@ -37,6 +37,8 @@ struct
   | GreaterEq of value * value
   | Less of value * value
   | LessEq of value * value
+  | Eq of value * value
+  | Neq of value * value
   (* These are all bitwise. && and || are compiled away. *)
   | And of value * value
   | Or of value * value
