@@ -12,10 +12,15 @@ struct
     type 'a blockcollector
     type label = string
     val empty : unit -> 'a blockcollector
+    (* Generated labels are distinct, even across different
+       blockcollector instances or if the collector is extracted. *)
     val genlabel : string -> label
     val label : string -> label
     val insert : 'a blockcollector * label * 'a -> unit
 
+    (* Empties the block collector, returning its contents. No
+       label appears more than once. *)
+    val extract : 'a blockcollector -> (label * 'a) list
     (* XXX tolist or whatever *)
   end =
   struct
@@ -34,6 +39,13 @@ struct
     fun empty () = ref SM.empty
     fun insert (r : 'a blockcollector, l, v : 'a) =
       r := SM.insert(!r, l, v)
+    fun extract (r : 'a blockcollector) =
+      let
+        val v = SM.listItemsi (!r)
+      in
+        r := SM.empty;
+        v
+      end
   end
 
   local val var_ctr = ref 0
@@ -203,10 +215,8 @@ struct
   and transstatement (Ast.STMT (s, _, _) : Ast.statement) (bc : stmt BC.blockcollector) (k : unit -> CIL.stmt) : CIL.stmt =
     case s of
       Ast.Expr NONE => k ()
-
     | Ast.Expr (SOME e) => transexp e bc (fn v => k ())
     | Ast.ErrorStmt => raise ToCIL "encountered ErrorStmt"
-
     | Ast.Compound (decls, stmts) =>
         let
           fun dodecls nil = transstatementlist stmts bc k
@@ -246,7 +256,6 @@ struct
                                  (fn () => Goto rest_label))
                        end)
     | Ast.Goto lab => Goto (labstring lab)
-
 
     | Ast.While (e, s) => raise ToCIL "unimplemented: while"
     | Ast.Do (e, s) => raise ToCIL "unimplemented: do"
@@ -301,7 +310,7 @@ struct
                                        Store (Global uid, v, End))
                     | Ast.Aggregate _ => raise ToCIL "aggregate initialization unimplemented")
              in
-               globals := (uid, (t, stmt)) :: !globals
+               globals := (uid, Glob { typ = t, init = stmt, blocks = BC.extract bc}) :: !globals
              end)
         | onedecl (Ast.DECL (Ast.FunctionDef (id, args, body), _, _)) =
            (case id of
@@ -315,7 +324,9 @@ struct
                     (fn () => Return (WordLiteral 0w0))
                 in
                   (* (string * ((string * typ) list * typ * stmt)) list, *)
-                  functions := (uid, (map onearg args, ret, stmt)) :: !functions
+                  functions := (uid, Func { args = map onearg args,
+                                            ret = ret, body = stmt,
+                                            blocks = BC.extract bc }) :: !functions
                 end
             | _ => raise ToCIL "Expected FunctionDef to have Function type.\n")
         | onedecl (Ast.DECL _) = raise ToCIL "External declaration not supported.\n"
@@ -327,3 +338,4 @@ struct
       end
 
 end
+

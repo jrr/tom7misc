@@ -71,12 +71,23 @@ struct
   | Return of value
   | End
 
+  datatype function =
+    Func of { args : (string * typ) list,
+              ret : typ,
+              body : stmt,
+              blocks : (string * stmt) list }
+
+  datatype global =
+    Glob of { typ : typ,
+              init : stmt,
+              blocks : (string * stmt) list }
+
   datatype program =
-    Program of { functions : (string * ((string * typ) list * typ * stmt)) list,
+    Program of { functions : (string * function) list,
                  (* The stmt here is initialization code, which is expected
                     to write to (only) this global, and should not depend on
                     any globals. Could be empty. *)
-                 globals : (string * (typ * stmt)) list }
+                 globals : (string * global) list }
 
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
     | typtos (Reference t) = "(" ^ typtos t ^ " ref)"
@@ -130,16 +141,21 @@ struct
     | stmttos (Return v) = "  return " ^ valtos v
     | stmttos End = "  end"
 
-  fun progtos (Program { functions : (string * ((string * typ) list * typ * stmt)) list,
-                         globals : (string * (typ * stmt)) list }) =
+  fun progtos (Program { functions, globals }) =
     let
-      fun func (s, (args, ret, body)) =
-        "FUNC " ^ s ^ "(" ^ StringUtil.delimit ", "
-        (map (fn (s, t) => s ^ " : " ^ typtos t) args) ^ ") =\n" ^
-        stmttos body
+      fun blocktos (lab, s) =
+        lab ^ ":\n" ^
+        stmttos s
 
-      fun glob (s, (t, init)) = "GLOBAL " ^ s ^ " : " ^ typtos t ^ " =\n" ^
-        stmttos init
+      fun func (s, Func {args, ret, body, blocks}) =
+        "FUNC " ^ s ^ "(" ^ StringUtil.delimit ", "
+        (map (fn (s, t) => s ^ " : " ^ typtos t) args) ^ ") : " ^ typtos ret ^ " =\n" ^
+        stmttos body ^ "\n" ^
+        StringUtil.delimit "\n" (map blocktos blocks)
+
+      fun glob (s, Glob {typ, init, blocks}) = "GLOBAL " ^ s ^ " : " ^ typtos typ ^ " =\n" ^
+        stmttos init ^
+        StringUtil.delimit "\n" (map blocktos blocks)
     in
       StringUtil.delimit "\n" (map func functions) ^ "\n\n" ^
       StringUtil.delimit "\n" (map glob globals) ^ "\n"
