@@ -29,6 +29,7 @@ struct
       let
         val cil = ToCIL.tocil ast
       in
+        print (CIL.progtos cil ^ "\n");
         cil
       end
        | { errorCount, ... } => raise ABC ("Parsing/elaboration failed with " ^
