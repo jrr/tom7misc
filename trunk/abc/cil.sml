@@ -6,6 +6,7 @@ struct
   datatype value =
     Var of string
   | WordLiteral of Word32.word
+    (* Maybe should be pointer to bytes? *)
   | StringLiteral of string
 
   (* Post-elaboration type *)
@@ -22,6 +23,8 @@ struct
   (* TODO functions *)
 
   (* All binary operators are on 32-bit words. *)
+  (* XXX maybe recursive instances of value should really just be a variable,
+     basically, a register? *)
   datatype exp =
     Value of value
   | Plus of value * value
@@ -33,6 +36,7 @@ struct
        so these are unsigned. *)
   | LeftShift of value * value
   | RightShift of value * value
+    (* XXX we need signed versions of greater, greatereq, less, lesseq *)
   | Greater of value * value
   | GreaterEq of value * value
   | Less of value * value
@@ -73,4 +77,72 @@ struct
                     to write to (only) this global, and should not depend on
                     any globals. Could be empty. *)
                  globals : (string * (typ * stmt)) list }
+
+  fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
+    | typtos (Reference t) = "(" ^ typtos t ^ " ref)"
+    | typtos (Struct t) = "... TODO STRUCT ..."
+    | typtos Word32 = "w32"
+    | typtos Word16 = "w16"
+    | typtos Word8 = "w8"
+
+  fun valtos (Var v) = v
+    | valtos (WordLiteral w) = Word32.toString w
+    (* XXX heuristic for data, etc. *)
+    | valtos (StringLiteral s) = "\"" ^ String.toString s ^ "\""
+
+  fun loctos (Local l) = l
+    | loctos (Global l) = "GLOBAL " ^ l
+
+  fun exptos (Value v) = valtos v
+    | exptos (Plus (a, b)) = valtos a ^ " + " ^ valtos b
+    | exptos (Minus (a, b)) = valtos a ^ " - " ^ valtos b
+    | exptos (Times (a, b)) = valtos a ^ " * " ^ valtos b
+    | exptos (SignedDivision (a, b)) = valtos a ^ " -/ " ^ valtos b
+    | exptos (UnsignedDivision (a, b)) = valtos a ^ " +/ " ^ valtos b
+    | exptos (LeftShift (a, b)) = valtos a ^ " << " ^ valtos b
+    | exptos (RightShift (a, b)) = valtos a ^ " >> " ^ valtos b
+    | exptos (Greater (a, b)) = valtos a ^ " > " ^ valtos b
+    | exptos (GreaterEq (a, b)) = valtos a ^ " >= " ^ valtos b
+    | exptos (Less (a, b)) = valtos a ^ " < " ^ valtos b
+    | exptos (LessEq (a, b)) = valtos a ^ " <= " ^ valtos b
+    | exptos (Eq (a, b)) = valtos a ^ " == " ^ valtos b
+    | exptos (Neq (a, b)) = valtos a ^ " != " ^ valtos b
+    | exptos (And (a, b)) = valtos a ^ " & " ^ valtos b
+    | exptos (Or (a, b)) = valtos a ^ " | " ^ valtos b
+    | exptos (Xor (a, b)) = valtos a ^ " ^ " ^ valtos b
+    | exptos (Mod (a, b)) = valtos a ^ " % " ^ valtos b
+    | exptos (Not a) = "!" ^ valtos a
+    | exptos (Complement a) = "~" ^ valtos a
+    | exptos (Negate a) = "-" ^ valtos a
+    | exptos (Address a) = "&" ^ valtos a
+    | exptos (Dereference a) = "*" ^ valtos a
+    | exptos (Subscript (a, b)) = valtos a ^ "[" ^ valtos b ^ "]"
+    | exptos (Member (a, s)) = "(" ^ valtos a ^ ")." ^ s
+    | exptos (Call (s, vl)) = s ^ "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
+    | exptos (Read loc) = "READ " ^ loctos loc
+
+  fun stmttos (Bind (var, e, s)) =
+        "  " ^ var ^ " = " ^ exptos e ^ "\n" ^ stmttos s
+    | stmttos (Store (l, v, s)) =
+        "  " ^ loctos l ^ " := " ^ valtos v ^ "\n" ^ stmttos s
+    | stmttos (GotoIf (v, lab, s)) =
+        "  if " ^ valtos v ^ " goto " ^ lab ^ "\n" ^ stmttos s
+    | stmttos (Return v) = "  return " ^ valtos v
+    | stmttos End = "  end"
+
+  fun progtos (Program { functions : (string * ((string * typ) list * typ * stmt)) list,
+                         globals : (string * (typ * stmt)) list }) =
+    let
+      fun func (s, (args, ret, body)) =
+        "FUNC " ^ s ^ "(" ^ StringUtil.delimit ", "
+        (map (fn (s, t) => s ^ " : " ^ typtos t) args) ^ ") =\n" ^
+        stmttos body
+
+      fun glob (s, (t, init)) = "GLOBAL " ^ s ^ " : " ^ typtos t ^ " =\n" ^
+        stmttos init
+    in
+      StringUtil.delimit "\n" (map func functions) ^ "\n\n" ^
+      StringUtil.delimit "\n" (map glob globals) ^ "\n"
+    end
+
 end

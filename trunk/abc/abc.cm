@@ -19,6 +19,11 @@ group is
   ../sml-lib/njlib/ord-set-sig.sml
   ../sml-lib/njlib/splay-set-fn.sml
 
+  ../sml-lib/util/stringutil-sig.sml
+  ../sml-lib/util/stringutil.sml
+  ../sml-lib/util/listutil-sig.sml
+  ../sml-lib/util/listutil.sml
+
   cil.sml
   tocil-sig.sml
   tocil.sml
