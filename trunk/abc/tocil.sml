@@ -60,10 +60,6 @@ struct
   datatype normop = PLUS | MINUS | TIMES | DIVIDE | MOD | GT | LT | GTE | LTE |
     EQ | NEQ | BITOR | BITAND | BITXOR | LSHIFT | RSHIFT
   datatype shortop = AND | OR
-    (*
-  datatype assignop = PLUSA | MINUSA | TIMESA | DIVA | MODA | XORA | ORA | ANDA |
-    LSHIFTA | RSHIFTA
-    *)
 
   datatype binopclass =
       SHORT_CIRCUIT of shortop
@@ -196,6 +192,18 @@ struct
                   | RSHIFT => Bind (v, RightShift (av, bv), k ` Var v)
                end)))
 
+    | Ast.Unop (uop, a) =>
+         (case uop of
+            Ast.Uplus => (* This does nothing. *) transexp a bc k
+          | Ast.Not => transexp a bc
+              (fn av => let val v = genvar "u" in Bind (v, Not av, k ` Var v) end)
+          | Ast.Negate => transexp a bc
+              (fn av => let val v = genvar "u" in Bind (v, Negate av, k ` Var v) end)
+          | Ast.BitNot => transexp a bc
+              (fn av => let val v = genvar "u" in Bind (v, Complement av, k ` Var v) end)
+          | Ast.UnopExt _ => raise ToCIL "unop extensions not implemented"
+          | _ => raise ToCIL "pre/post increment/decrement unimplemented")
+
     | _ => raise ToCIL "unimplemented expression type (so many HERE)"
 
   (* Typedecls ignored currently. *)
@@ -208,18 +216,24 @@ struct
      | Ast.Aggregate _ => raise ToCIL "aggregate initialization unimplemented (decl)")
 
   (* XXX need to keep track of a 'break' label. *)
-  fun transstatementlist nil (bc : stmt BC.blockcollector) (k : unit -> CIL.stmt) : CIL.stmt = k ()
-    | transstatementlist (s :: t) bc k =
-    transstatement s bc (fn () => transstatementlist t bc k)
+  fun transstatementlist nil _ _ k : CIL.stmt = k ()
+    | transstatementlist (s :: t)
+                         (targs : { break : string option, continue : string option })
+                         (bc : stmt BC.blockcollector)
+                         (k : unit -> stmt) =
+    transstatement s targs bc (fn () => transstatementlist t targs bc k)
 
-  and transstatement (Ast.STMT (s, _, _) : Ast.statement) (bc : stmt BC.blockcollector) (k : unit -> CIL.stmt) : CIL.stmt =
+  and transstatement (Ast.STMT (s, orig_id, orig_loc) : Ast.statement)
+                     (targs : { break : string option, continue : string option })
+                     (bc : stmt BC.blockcollector)
+                     (k : unit -> CIL.stmt) : CIL.stmt =
     case s of
       Ast.Expr NONE => k ()
     | Ast.Expr (SOME e) => transexp e bc (fn v => k ())
     | Ast.ErrorStmt => raise ToCIL "encountered ErrorStmt"
     | Ast.Compound (decls, stmts) =>
         let
-          fun dodecls nil = transstatementlist stmts bc k
+          fun dodecls nil = transstatementlist stmts targs bc k
             | dodecls (h :: t) = transdecl h bc (fn () => dodecls t)
         in
           dodecls decls
@@ -235,7 +249,7 @@ struct
                          val rest_label = BC.genlabel "if_r"
                        in
                          BC.insert (bc, true_label,
-                                    transstatement body bc
+                                    transstatement body targs bc
                                     (fn () => Goto rest_label));
                          BC.insert (bc, rest_label, k ());
                          GotoIf (cond, true_label,
@@ -248,45 +262,121 @@ struct
                          val rest_label = BC.genlabel "if_r"
                        in
                          BC.insert (bc, true_label,
-                                    transstatement true_body bc
+                                    transstatement true_body targs bc
                                     (fn () => Goto rest_label));
                          BC.insert (bc, rest_label, k ());
                          GotoIf (cond, true_label,
-                                 transstatement false_body bc
+                                 transstatement false_body targs bc
                                  (fn () => Goto rest_label))
                        end)
     | Ast.Goto lab => Goto (labstring lab)
 
-    | Ast.While (e, s) => raise ToCIL "unimplemented: while"
-    | Ast.Do (e, s) => raise ToCIL "unimplemented: do"
+    | Ast.While (cond, body) =>
+        let
+          val body_label = BC.genlabel "whilebody"
+          val done_label = BC.genlabel "whiledone"
+          val ncond = genvar "ncond"
+          val body_targs =
+            { break = SOME done_label,
+              continue = SOME body_label }
+        in
+          BC.insert (bc, done_label, k ());
+          BC.insert (bc, body_label,
+                     transexp cond bc
+                     (fn condv =>
+                      Bind (ncond, Not condv,
+                            GotoIf (Var ncond, done_label,
+                                    transstatement body body_targs bc
+                                    (fn () => Goto body_label)))));
+          Goto body_label
+        end
+
+    | Ast.Do (cond, body) =>
+        let
+          val test_label = BC.genlabel "dotest"
+          val body_label = BC.genlabel "dobody"
+          val done_label = BC.genlabel "dodone"
+          val body_targs =
+            { break = SOME done_label,
+              continue = SOME test_label }
+        in
+          BC.insert (bc, done_label, k ());
+          BC.insert (bc, test_label,
+                     transexp cond bc
+                     (fn condv =>
+                      GotoIf (condv, body_label,
+                              Goto done_label)));
+          BC.insert (bc, body_label,
+                     transstatement body body_targs bc
+                     (fn () => Goto test_label));
+          Goto body_label
+        end
+
     | Ast.For (init, cond, inc, body) =>
         let
-          (*
-          this doesn't work because we don't have aid/locs for the made-up
-          expressions
-          fun maketrivial NONE = Value (WordLiteral 0w0) | maketrivial (SOME e) = e
-          val init = maketrivial init
-          val cond = maketrivial cond
-          val inc = maketrivial inc
-          *)
+          val start_label = BC.genlabel "forstart"
+          val inc_label = BC.genlabel "forinc"
+          val done_label = BC.genlabel "fordone"
+          val ncond = genvar "ncond"
+
+          val body_targs =
+            { break = SOME done_label,
+              continue = SOME inc_label }
         in
-          raise ToCIL "unimplemented: for"
+          (* Increment and then jump to the while condition.
+             This is the target of a 'continue'.
+             We can definitely produce simpler code when there
+             is no increment, but this is rare and better handled
+             in the optimizer anyway. *)
+          BC.insert (bc, inc_label,
+                     case inc of
+                       NONE => Goto start_label
+                     | SOME e =>
+                         transexp e bc
+                         (fn _ => Goto start_label));
+
+          (* Test the while condition and either enter the
+             loop or jump past it. *)
+          BC.insert (bc, start_label,
+                     case cond of
+                       NONE => (transstatement body body_targs bc
+                                (fn () => Goto inc_label))
+                     | SOME c =>
+                         transexp c bc
+                         (fn condv =>
+                          Bind (ncond, Not condv,
+                                GotoIf (Var ncond, done_label,
+                                        transstatement body body_targs bc
+                                        (fn () => Goto inc_label)))));
+
+          (* When we're done, it's just the current continuation. *)
+          BC.insert (bc, done_label, k ());
+
+          case init of
+            NONE => Goto start_label
+          | SOME e => transexp e bc (fn _ => Goto start_label)
         end
 
     | Ast.Labeled (lab, s) =>
         let val l = labstring lab
-        in BC.insert (bc, l, transstatement s bc k);
+        in BC.insert (bc, l, transstatement s targs bc k);
            Goto l
         end
 
+    | Ast.Break =>
+        (case targs of
+           { break = SOME lab, ... } => Goto lab
+         | _ => raise ToCIL "break statement without target")
+    | Ast.Continue =>
+        (case targs of
+           { continue = SOME lab, ... } => Goto lab
+         | _ => raise ToCIL "continue statement without target")
+
+    | Ast.Switch (e, s) => raise ToCIL "unimplemented: switch"
     | Ast.CaseLabel (num, s) => raise ToCIL "unimplemented: case labels"
     | Ast.DefaultLabel s => raise ToCIL "unimplemented: default"
 
-    | Ast.Break => raise ToCIL "unimplemented: break"
-    | Ast.Continue => raise ToCIL "unimplemented: continue"
-    | Ast.Switch (e, s) => raise ToCIL "unimplemented: switch"
     | Ast.StatExt _ => raise ToCIL "statement extensions unsupported"
-
 
   fun tocil decls =
     let
@@ -319,7 +409,7 @@ struct
                   val uid = uidstring id
                   val ret = transtype ret
                   fun onearg id = (idstring id, transtype (#ctype id))
-                  val stmt = transstatement body bc
+                  val stmt = transstatement body { break = NONE, continue = NONE } bc
                     (* Should support nullary return? *)
                     (fn () => Return (WordLiteral 0w0))
                 in
@@ -333,7 +423,6 @@ struct
 
       in
         app onedecl decls;
-        (* XXX need to return blocks as well. *)
         Program { functions = rev (!functions), globals = rev (!globals) }
       end
 
