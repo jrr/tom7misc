@@ -47,6 +47,7 @@ struct
         v
       end
   end
+  type 'a bc = 'a BC.blockcollector
 
   local val var_ctr = ref 0
   in
@@ -107,6 +108,7 @@ struct
   (* For globals and functions, we just use the name. These must be
      globally unique and we could use them for linking (?). *)
   fun uidstring ({ name, ... } : Ast.id) = Symbol.name name
+  fun newidstring s = s ^ "$$" ^ Pid.toString (Pid.new ())
 
   fun labstring ({ name, ... } : Ast.label) = Symbol.name name
 
@@ -140,29 +142,97 @@ struct
   (* XXX needs to check bounds, which depend on signedness? *)
   fun word32_literal i = Word32.fromLargeInt i
 
-  fun transexp (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt BC.blockcollector) (k : value -> stmt) : stmt =
+  (* Translate an expression as an lvalue. This means producing a value that is the lvalue's
+     address. *)
+  fun translvalue (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc) (k : value -> stmt) : stmt =
+    case e of
+      Ast.Id (id as { global = false, ... }) => k (AddressLiteral ` Local ` idstring id)
+    | Ast.Id (id as { global = true, ... }) => k (AddressLiteral ` Global ` uidstring id)
+    | _ => raise ToCIL "unimplemented lvalue"
+
+
+  (* Normal translation of an expression (rvalue).
+     XXX can/should appeal to lvalue above?
+     *)
+  and transexp (orig_exp as Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc) (k : value -> stmt) : stmt =
     case e of
       Ast.IntConst i => k (WordLiteral (word32_literal i))
     | Ast.RealConst r => raise ToCIL "unimplemented: floating point (literal)"
-    | Ast.Id (id as { global = false, ... }) =>
-        let
-          val loc = idstring id
-          val v = genvar loc
-        in
-          Bind (v, Read ` Local loc, k ` Var v)
-        end
 
-    | Ast.Id (id as { global = true, ... }) =>
-        let
-          val loc = uidstring id
-          val v = genvar loc
-        in
-          Bind (v, Read ` Global loc, k ` Var v)
-        end
+    (* XXX do function-scope variables declared "static" show as globals?
+       we don't currently initialize them, but we need to. *)
+    (* XXX this should be part of a generic lvalue case? *)
+    | Ast.Id id => translvalue orig_exp bc
+        (fn addr =>
+         let
+           val loc = idstring id
+           val v = genvar loc
+         in
+           Bind (v, Read addr, k ` Var v)
+         end)
 
     | Ast.Binop (bop, a, b) =>
         (case binopclass bop of
-           SHORT_CIRCUIT _ => raise ToCIL "short-circuiting binops unimplemented"
+           SHORT_CIRCUIT AND =>
+             (* a && b is like a ? !!b : false. *)
+             transexp a bc
+             (fn av =>
+              let
+                val res = newidstring "andr"
+                val resv = genvar "r"
+                val nresv = genvar "nr"
+                val nnresv = genvar "nnr"
+                val true_lab = BC.genlabel "andtrue"
+                val done_lab = BC.genlabel "anddone"
+              in
+                BC.insert (bc, true_lab,
+                           transexp b bc
+                           (fn bv =>
+                            Bind (nresv, Not bv,
+                                  Bind (nnresv, Not ` Var nresv,
+                                        Store (AddressLiteral ` Local res, Var nnresv,
+                                               Goto done_lab)))));
+
+                BC.insert (bc, done_lab,
+                           Bind (resv, Read ` AddressLiteral ` Local res,
+                                 k ` Var resv));
+
+                GotoIf (av, true_lab,
+                        (* condition fails; store false *)
+                        Store (AddressLiteral ` Local res, WordLiteral 0w0,
+                               Goto done_lab))
+              end)
+
+         | SHORT_CIRCUIT OR =>
+             (* a || b is like a ? true : !!b. *)
+             transexp a bc
+             (fn av =>
+              let
+                val res = newidstring "orr"
+                val resv = genvar "r"
+                val nresv = genvar "nr"
+                val nnresv = genvar "nnr"
+                val true_lab = BC.genlabel "ortrue"
+                val done_lab = BC.genlabel "ordone"
+              in
+                BC.insert (bc, true_lab,
+                           Store (AddressLiteral ` Local res, WordLiteral 0w1,
+                                  Goto done_lab));
+
+                BC.insert (bc, done_lab,
+                           Bind (resv, Read ` AddressLiteral ` Local res,
+                                 k ` Var resv));
+
+                GotoIf (av, true_lab,
+                        (* fall through to false branch *)
+                        transexp b bc
+                        (fn bv =>
+                         Bind (nresv, Not bv,
+                               Bind (nnresv, Not ` Var nresv,
+                                     Store (AddressLiteral ` Local res, Var nnresv,
+                                            Goto done_lab)))))
+              end)
+
          | ASSIGNING _ => raise ToCIL "assigning binops unimplemented"
          | NORMAL bop =>
              transexp a bc
@@ -204,28 +274,71 @@ struct
           | Ast.UnopExt _ => raise ToCIL "unop extensions not implemented"
           | _ => raise ToCIL "pre/post increment/decrement unimplemented")
 
-    | _ => raise ToCIL "unimplemented expression type (so many HERE)"
+
+    | Ast.StringConst s => raise ToCIL "unimplemented: string constants"
+    | Ast.Call (e, el) => raise ToCIL "unimplemented: Call"
+    | Ast.QuestionColon (cond, te, fe) =>
+          transexp cond bc
+          (fn condv =>
+           let
+             (* Use a new local variable to store the result so that variables
+                don't have to span basic blocks. XXX need to sort out whether
+                this is necessary. *)
+             val res = newidstring "ternr"
+             val resv = genvar "r"
+             val true_lab = BC.genlabel "ternt"
+             val done_lab = BC.genlabel "terndone"
+           in
+             BC.insert (bc, true_lab,
+                        transexp te bc
+                        (fn tv =>
+                        Store (AddressLiteral ` Local res, tv,
+                               Goto done_lab)));
+             BC.insert (bc, done_lab,
+                        Bind (resv, Read ` AddressLiteral ` Local res,
+                              k ` Var resv));
+
+             GotoIf (condv, true_lab,
+                     (* fall through to false branch *)
+                     transexp fe bc
+                     (fn fv =>
+                      Store (AddressLiteral ` Local res, fv,
+                             Goto done_lab)))
+           end)
+    | Ast.Assign _ => raise ToCIL "unimplemented: Assign"
+    | Ast.Comma _ => raise ToCIL "unimplemented: Comma"
+    | Ast.Sub _ => raise ToCIL "unimplemented: Sub"
+    | Ast.Member _ => raise ToCIL "unimplemented: Member"
+    | Ast.Arrow _ => raise ToCIL "unimplemented: Arrow"
+    | Ast.Deref _ => raise ToCIL "unimplemented: Deref"
+    | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
+    | Ast.Cast _ => raise ToCIL "unimplemented: cast"
+    | Ast.EnumId (m, n) => k ` WordLiteral ` word32_literal n
+    | Ast.SizeOf _ => raise ToCIL "unimplemented: sizeof"
+    | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
+    | Ast.ErrorExpr => raise ToCIL "encountered ErrorExpr"
 
   (* Typedecls ignored currently. *)
-  fun transdecl (Ast.TypeDecl _) (bc : stmt BC.blockcollector) (k : unit -> stmt) : stmt = k ()
+  fun transdecl (Ast.TypeDecl _) (bc : stmt bc) (k : unit -> stmt) : stmt = k ()
     (* Should probably still add it to a context? *)
     | transdecl (Ast.VarDecl (id, NONE)) bc k = k ()
     | transdecl (Ast.VarDecl (id, SOME init)) bc k =
     (case init of
-       Ast.Simple e => transexp e bc (fn v => Store (Global (uidstring id), v, k ()))
+       Ast.Simple e => transexp e bc (fn v => Store (AddressLiteral ` Global ` uidstring id, v, k ()))
      | Ast.Aggregate _ => raise ToCIL "aggregate initialization unimplemented (decl)")
 
-  (* XXX need to keep track of a 'break' label. *)
+  (* When translating a statement, the 'break' and 'continue' targets
+     the label to jump to when seeing those statements. *)
   fun transstatementlist nil _ _ k : CIL.stmt = k ()
     | transstatementlist (s :: t)
                          (targs : { break : string option, continue : string option })
-                         (bc : stmt BC.blockcollector)
+                         (bc : stmt bc)
                          (k : unit -> stmt) =
     transstatement s targs bc (fn () => transstatementlist t targs bc k)
 
   and transstatement (Ast.STMT (s, orig_id, orig_loc) : Ast.statement)
                      (targs : { break : string option, continue : string option })
-                     (bc : stmt BC.blockcollector)
+                     (bc : stmt bc)
                      (k : unit -> CIL.stmt) : CIL.stmt =
     case s of
       Ast.Expr NONE => k ()
@@ -380,7 +493,7 @@ struct
 
   fun tocil decls =
     let
-      val bc : stmt BC.blockcollector = BC.empty ()
+      val bc : stmt bc = BC.empty ()
 
       val globals = ref nil
       val functions = ref nil
@@ -389,6 +502,9 @@ struct
            Ast.TypeDecl { shadow = _, tid = _ } => ()
          | Ast.VarDecl (id, init) =>
              let
+               (* XXX "static" probably needs to be treated separately if we have multiple
+                  translations units. But maybe ckit already gives the identifiers different
+                  uids? *)
                val uid = uidstring id
                val t = transtype (#ctype id)
                val stmt = case init of
@@ -397,7 +513,7 @@ struct
                    (case ie of
                       Ast.Simple e =>
                         transexp e bc (fn (v : value) =>
-                                       Store (Global uid, v, End))
+                                       Store (AddressLiteral ` Global ` uid, v, End))
                     | Ast.Aggregate _ => raise ToCIL "aggregate initialization unimplemented")
              in
                globals := (uid, Glob { typ = t, init = stmt, blocks = BC.extract bc}) :: !globals
