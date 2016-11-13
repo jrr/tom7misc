@@ -1,0 +1,5 @@
+
+ - Track whether a variable is already the result of a
+   comparison (or more generally, whether it is known
+   to be 0 or 1). Avoid !!b, which we use in the translation
+   of && and ||.

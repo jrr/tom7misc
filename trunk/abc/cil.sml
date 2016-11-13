@@ -5,6 +5,7 @@ struct
 
   datatype value =
     Var of string
+  | AddressLiteral of loc
   | WordLiteral of Word32.word
     (* Maybe should be pointer to bytes? *)
   | StringLiteral of string
@@ -56,14 +57,16 @@ struct
   | Dereference of value
   | Subscript of value * value
   | Member of value * string
-  | Call of string * value list
-  | Read of loc
+  | Call of value * value list
+    (* XXX needs type/width? *)
+  | Read of value
 
   datatype stmt =
     (* and type? *)
     Bind of string * exp * stmt
-    (* and type? *)
-  | Store of loc * value * stmt
+  (* Store(address, value, rest)
+     XXX and type/width? *)
+  | Store of value * value * stmt
     (* cond, true-branch, rest *)
   (* | If of value * stmt * stmt *)
   (* | Label of string * stmt *)
@@ -96,13 +99,14 @@ struct
     | typtos Word16 = "w16"
     | typtos Word8 = "w8"
 
-  fun valtos (Var v) = v
-    | valtos (WordLiteral w) = Word32.toString w
-    (* XXX heuristic for data, etc. *)
-    | valtos (StringLiteral s) = "\"" ^ String.toString s ^ "\""
-
   fun loctos (Local l) = l
     | loctos (Global l) = "GLOBAL " ^ l
+
+  fun valtos (Var v) = v
+    | valtos (WordLiteral w) = "0x" ^ Word32.toString w
+    (* XXX heuristic for data, etc. *)
+    | valtos (StringLiteral s) = "\"" ^ String.toString s ^ "\""
+    | valtos (AddressLiteral a) = "ADDR(" ^ loctos a ^ ")"
 
   fun exptos (Value v) = valtos v
     | exptos (Plus (a, b)) = valtos a ^ " + " ^ valtos b
@@ -129,13 +133,13 @@ struct
     | exptos (Dereference a) = "*" ^ valtos a
     | exptos (Subscript (a, b)) = valtos a ^ "[" ^ valtos b ^ "]"
     | exptos (Member (a, s)) = "(" ^ valtos a ^ ")." ^ s
-    | exptos (Call (s, vl)) = s ^ "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
-    | exptos (Read loc) = "READ " ^ loctos loc
+    | exptos (Call (f, vl)) = "CALL " ^ valtos f ^ "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
+    | exptos (Read addr) = "READ " ^ valtos addr
 
   fun stmttos (Bind (var, e, s)) =
         "  " ^ var ^ " = " ^ exptos e ^ "\n" ^ stmttos s
-    | stmttos (Store (l, v, s)) =
-        "  " ^ loctos l ^ " := " ^ valtos v ^ "\n" ^ stmttos s
+    | stmttos (Store (dest, v, s)) =
+        "  " ^ valtos dest ^ " := " ^ valtos v ^ "\n" ^ stmttos s
     | stmttos (GotoIf (v, lab, s)) =
         "  if " ^ valtos v ^ " goto " ^ lab ^ "\n" ^ stmttos s
     | stmttos (Return v) = "  return " ^ valtos v
