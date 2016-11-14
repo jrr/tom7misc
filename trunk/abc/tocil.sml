@@ -148,8 +148,24 @@ struct
     case e of
       Ast.Id (id as { global = false, ... }) => k (AddressLiteral ` Local ` idstring id)
     | Ast.Id (id as { global = true, ... }) => k (AddressLiteral ` Global ` uidstring id)
+
+    (* These should be in lvalue *)
+    | Ast.Sub _ => raise ToCIL "unimplemented lvalue: Sub"
+    | Ast.Member _ => raise ToCIL "unimplemented lvalue: Member"
+    | Ast.Arrow _ => raise ToCIL "unimplemented lvalue: Arrow"
+    | Ast.Deref _ => raise ToCIL "unimplemented lvalue: Deref"
+
     | _ => raise ToCIL "unimplemented lvalue"
 
+
+  and transexplist (es : Ast.expression list) (bc : stmt bc) (k : value list -> stmt) : stmt =
+    let
+      fun tel revl nil = k (rev revl)
+        | tel revl (e :: rest) =
+        transexp e bc (fn v => tel (v :: revl) rest)
+    in
+      tel nil es
+    end
 
   (* Normal translation of an expression (rvalue).
      XXX can/should appeal to lvalue above?
@@ -272,11 +288,66 @@ struct
           | Ast.BitNot => transexp a bc
               (fn av => let val v = genvar "u" in Bind (v, Complement av, k ` Var v) end)
           | Ast.UnopExt _ => raise ToCIL "unop extensions not implemented"
-          | _ => raise ToCIL "pre/post increment/decrement unimplemented")
+          | Ast.PreInc =>
+              translvalue a bc
+              (fn addr =>
+               let
+                 val oldv = genvar "preincold"
+                 val newv = genvar "preincnew"
+               in
+                 Bind (oldv, Read addr,
+                       Bind (newv, Plus (Var oldv, WordLiteral 0w1),
+                             Store (addr, Var newv,
+                                    k ` Var newv)))
+               end)
+          | Ast.PreDec =>
+              translvalue a bc
+              (fn addr =>
+               let
+                 val oldv = genvar "predecold"
+                 val newv = genvar "predecnew"
+               in
+                 Bind (oldv, Read addr,
+                       Bind (newv, Minus (Var oldv, WordLiteral 0w1),
+                             Store (addr, Var newv,
+                                    k ` Var newv)))
+               end)
 
+          | Ast.PostInc =>
+              translvalue a bc
+              (fn addr =>
+               let
+                 val oldv = genvar "postincold"
+                 val newv = genvar "postincnew"
+               in
+                 Bind (oldv, Read addr,
+                       Bind (newv, Plus (Var oldv, WordLiteral 0w1),
+                             Store (addr, Var newv,
+                                    k ` Var oldv)))
+               end)
+          | Ast.PostDec =>
+              translvalue a bc
+              (fn addr =>
+               let
+                 val oldv = genvar "postdecold"
+                 val newv = genvar "postdecnew"
+               in
+                 Bind (oldv, Read addr,
+                       Bind (newv, Minus (Var oldv, WordLiteral 0w1),
+                             Store (addr, Var newv,
+                                    k ` Var oldv)))
+               end))
 
     | Ast.StringConst s => raise ToCIL "unimplemented: string constants"
-    | Ast.Call (e, el) => raise ToCIL "unimplemented: Call"
+    | Ast.Call (f, args) =>
+          transexp f bc
+          (fn fv =>
+           transexplist args bc
+           (fn argsv =>
+            let val v = genvar "call"
+            in Bind (v, Call (fv, argsv), k ` Var v)
+            end))
+
     | Ast.QuestionColon (cond, te, fe) =>
           transexp cond bc
           (fn condv =>
@@ -305,12 +376,23 @@ struct
                       Store (AddressLiteral ` Local res, fv,
                              Goto done_lab)))
            end)
-    | Ast.Assign _ => raise ToCIL "unimplemented: Assign"
-    | Ast.Comma _ => raise ToCIL "unimplemented: Comma"
+
+    | Ast.Assign (dst, rhs) =>
+          translvalue dst bc
+          (fn dstaddr =>
+           transexp rhs bc
+           (fn rhsv =>
+            Store (dstaddr, rhsv,
+                   k rhsv)))
+
+    | Ast.Comma (a, b) => transexp a bc (fn _ => transexp b bc k)
+
+    (* These should be in lvalue *)
     | Ast.Sub _ => raise ToCIL "unimplemented: Sub"
     | Ast.Member _ => raise ToCIL "unimplemented: Member"
     | Ast.Arrow _ => raise ToCIL "unimplemented: Arrow"
     | Ast.Deref _ => raise ToCIL "unimplemented: Deref"
+
     | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
     | Ast.Cast _ => raise ToCIL "unimplemented: cast"
     | Ast.EnumId (m, n) => k ` WordLiteral ` word32_literal n
@@ -324,7 +406,12 @@ struct
     | transdecl (Ast.VarDecl (id, NONE)) bc k = k ()
     | transdecl (Ast.VarDecl (id, SOME init)) bc k =
     (case init of
-       Ast.Simple e => transexp e bc (fn v => Store (AddressLiteral ` Global ` uidstring id, v, k ()))
+       Ast.Simple e =>
+         let val addrkind = if #global id then Global else Local
+         in
+           transexp e bc
+           (fn v => Store (AddressLiteral ` addrkind ` uidstring id, v, k ()))
+         end
      | Ast.Aggregate _ => raise ToCIL "aggregate initialization unimplemented (decl)")
 
   (* When translating a statement, the 'break' and 'continue' targets
