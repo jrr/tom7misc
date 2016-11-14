@@ -1,4 +1,8 @@
 
+These are common in for loops without break or continue:
+ - fuse blocks with unconditional goto and no other entry points
+ - reverse goto of !cond when it's the only use of the label.
+
  - Track whether a variable is already the result of a
    comparison (or more generally, whether it is known
    to be 0 or 1). Avoid !!b, which we use in the translation
