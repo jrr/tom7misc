@@ -15,13 +15,13 @@ struct
     Pointer of typ
     (* Like & in C++. Essentially a C lvalue. *)
   | Reference of typ
+  | Code of typ * typ list
   | Struct of (string * typ) list
   (* All our computation is with 32-bit values. But loads and
      stores need to know the width. *)
   | Word32
   | Word16
   | Word8
-  (* TODO functions *)
 
   (* All binary operators are on 32-bit words. *)
   (* XXX maybe recursive instances of value should really just be a variable,
@@ -95,6 +95,9 @@ struct
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
     | typtos (Reference t) = "(" ^ typtos t ^ " ref)"
     | typtos (Struct t) = "... TODO STRUCT ..."
+    | typtos (Code (ret, args)) = ("(" ^
+                                   StringUtil.delimit " , " (map typtos args) ^
+                                   " -> " ^ typtos ret ^ ")")
     | typtos Word32 = "w32"
     | typtos Word16 = "w16"
     | typtos Word8 = "w8"

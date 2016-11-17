@@ -120,9 +120,10 @@ struct
     (* We ignore const (just affects error checking and optimization)
        and volatile (means nothing) *)
     | Ast.Qual (_, t) => transtype t
+    (* Array should be represented as pointer, right? *)
     | Ast.Array _ => raise ToCIL "Array types unimplemented."
     | Ast.Pointer t => Pointer (transtype t)
-    | Ast.Function (ret, args) => raise ToCIL "Function types unimplemented."
+    | Ast.Function (ret, args) => Code (transtype ret, map (transtype o #1) args)
     | Ast.StructRef tid => raise ToCIL "unimplemented: need to look up struct and inline it"
     | Ast.UnionRef tid => raise ToCIL "unions unimplemented"
     (* All enums represented as int32 *)
@@ -142,6 +143,27 @@ struct
   (* XXX needs to check bounds, which depend on signedness? *)
   fun word32_literal i = Word32.fromLargeInt i
 
+  fun opconstructor bop : (value * value -> exp) =
+    case bop of
+      PLUS => Plus
+    | MINUS => Minus
+    | TIMES => Times
+    | DIVIDE =>
+        (* Divide *)
+        raise ToCIL "division unimplemented because of signedness"
+    | MOD => Mod
+    | GT => Greater
+    | LT => Less
+    | GTE => GreaterEq
+    | LTE => LessEq
+    | EQ => Eq
+    | NEQ => Neq
+    | BITOR => Or
+    | BITAND => And
+    | BITXOR => Xor
+    | LSHIFT => LeftShift
+    | RSHIFT => RightShift
+
   (* Translate an expression as an lvalue. This means producing a value that is the lvalue's
      address. *)
   fun translvalue (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc) (k : value -> stmt) : stmt =
@@ -149,13 +171,12 @@ struct
       Ast.Id (id as { global = false, ... }) => k (AddressLiteral ` Local ` idstring id)
     | Ast.Id (id as { global = true, ... }) => k (AddressLiteral ` Global ` uidstring id)
 
-    (* These should be in lvalue *)
     | Ast.Sub _ => raise ToCIL "unimplemented lvalue: Sub"
     | Ast.Member _ => raise ToCIL "unimplemented lvalue: Member"
     | Ast.Arrow _ => raise ToCIL "unimplemented lvalue: Arrow"
     | Ast.Deref _ => raise ToCIL "unimplemented lvalue: Deref"
 
-    | _ => raise ToCIL "unimplemented lvalue"
+    | _ => raise ToCIL "illegal/unimplemented lvalue"
 
 
   and transexplist (es : Ast.expression list) (bc : stmt bc) (k : value list -> stmt) : stmt =
@@ -171,234 +192,235 @@ struct
      XXX can/should appeal to lvalue above?
      *)
   and transexp (orig_exp as Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc) (k : value -> stmt) : stmt =
-    case e of
-      Ast.IntConst i => k (WordLiteral (word32_literal i))
-    | Ast.RealConst r => raise ToCIL "unimplemented: floating point (literal)"
-
-    (* XXX do function-scope variables declared "static" show as globals?
-       we don't currently initialize them, but we need to. *)
-    (* XXX this should be part of a generic lvalue case? *)
-    | Ast.Id id => translvalue orig_exp bc
+    let
+      fun as_lvalue s =
+        translvalue orig_exp bc
         (fn addr =>
          let
-           val loc = idstring id
-           val v = genvar loc
+           val v = genvar s
          in
            Bind (v, Read addr, k ` Var v)
          end)
+    in
+      case e of
+        Ast.IntConst i => k (WordLiteral (word32_literal i))
+      | Ast.RealConst r => raise ToCIL "unimplemented: floating point (literal)"
 
-    | Ast.Binop (bop, a, b) =>
-        (case binopclass bop of
-           SHORT_CIRCUIT AND =>
-             (* a && b is like a ? !!b : false. *)
-             transexp a bc
-             (fn av =>
-              let
-                val res = newidstring "andr"
-                val resv = genvar "r"
-                val nresv = genvar "nr"
-                val nnresv = genvar "nnr"
-                val true_lab = BC.genlabel "andtrue"
-                val done_lab = BC.genlabel "anddone"
-              in
-                BC.insert (bc, true_lab,
-                           transexp b bc
-                           (fn bv =>
-                            Bind (nresv, Not bv,
-                                  Bind (nnresv, Not ` Var nresv,
-                                        Store (AddressLiteral ` Local res, Var nnresv,
-                                               Goto done_lab)))));
+      (* XXX do function-scope variables declared "static" show as globals?
+         we don't currently initialize them, but we need to. *)
+      (* XXX this should be part of a generic lvalue case? *)
+      | Ast.Id id => as_lvalue (idstring id)
+      | Ast.Sub _ => as_lvalue "sub"
+      | Ast.Member _ => as_lvalue "mem"
+      | Ast.Arrow _ => as_lvalue "arrow"
+      | Ast.Deref _ => as_lvalue "deref"
 
-                BC.insert (bc, done_lab,
-                           Bind (resv, Read ` AddressLiteral ` Local res,
-                                 k ` Var resv));
+      | Ast.Binop (bop, a, b) =>
+          (case binopclass bop of
+             SHORT_CIRCUIT AND =>
+               (* a && b is like a ? !!b : false. *)
+               transexp a bc
+               (fn av =>
+                let
+                  val res = newidstring "andr"
+                  val resv = genvar "r"
+                  val nresv = genvar "nr"
+                  val nnresv = genvar "nnr"
+                  val true_lab = BC.genlabel "andtrue"
+                  val done_lab = BC.genlabel "anddone"
+                in
+                  BC.insert (bc, true_lab,
+                             transexp b bc
+                             (fn bv =>
+                              Bind (nresv, Not bv,
+                                    Bind (nnresv, Not ` Var nresv,
+                                          Store (AddressLiteral ` Local res, Var nnresv,
+                                                 Goto done_lab)))));
 
-                GotoIf (av, true_lab,
-                        (* condition fails; store false *)
-                        Store (AddressLiteral ` Local res, WordLiteral 0w0,
-                               Goto done_lab))
-              end)
+                  BC.insert (bc, done_lab,
+                             Bind (resv, Read ` AddressLiteral ` Local res,
+                                   k ` Var resv));
 
-         | SHORT_CIRCUIT OR =>
-             (* a || b is like a ? true : !!b. *)
-             transexp a bc
-             (fn av =>
-              let
-                val res = newidstring "orr"
-                val resv = genvar "r"
-                val nresv = genvar "nr"
-                val nnresv = genvar "nnr"
-                val true_lab = BC.genlabel "ortrue"
-                val done_lab = BC.genlabel "ordone"
-              in
-                BC.insert (bc, true_lab,
-                           Store (AddressLiteral ` Local res, WordLiteral 0w1,
-                                  Goto done_lab));
+                  GotoIf (av, true_lab,
+                          (* condition fails; store false *)
+                          Store (AddressLiteral ` Local res, WordLiteral 0w0,
+                                 Goto done_lab))
+                end)
 
-                BC.insert (bc, done_lab,
-                           Bind (resv, Read ` AddressLiteral ` Local res,
-                                 k ` Var resv));
+           | SHORT_CIRCUIT OR =>
+               (* a || b is like a ? true : !!b. *)
+               transexp a bc
+               (fn av =>
+                let
+                  val res = newidstring "orr"
+                  val resv = genvar "r"
+                  val nresv = genvar "nr"
+                  val nnresv = genvar "nnr"
+                  val true_lab = BC.genlabel "ortrue"
+                  val done_lab = BC.genlabel "ordone"
+                in
+                  BC.insert (bc, true_lab,
+                             Store (AddressLiteral ` Local res, WordLiteral 0w1,
+                                    Goto done_lab));
 
-                GotoIf (av, true_lab,
-                        (* fall through to false branch *)
-                        transexp b bc
-                        (fn bv =>
-                         Bind (nresv, Not bv,
-                               Bind (nnresv, Not ` Var nresv,
-                                     Store (AddressLiteral ` Local res, Var nnresv,
-                                            Goto done_lab)))))
-              end)
+                  BC.insert (bc, done_lab,
+                             Bind (resv, Read ` AddressLiteral ` Local res,
+                                   k ` Var resv));
 
-         | ASSIGNING _ => raise ToCIL "assigning binops unimplemented"
-         | NORMAL bop =>
-             transexp a bc
-             (fn av =>
-              transexp b bc
-              (fn bv =>
-               let val v = genvar "b"
-               in
-                 case bop of
-                    PLUS => Bind (v, Plus (av, bv), k ` Var v)
-                  | MINUS => Bind (v, Minus (av, bv), k ` Var v)
-                  | TIMES => Bind (v, Times (av, bv), k ` Var v)
-                  | DIVIDE =>
-                      (* Bind (v, Divide (av, bv), k ` Var v) *)
-                      raise ToCIL "division unimplemented because of signedness"
-                  | MOD => Bind (v, Mod (av, bv), k ` Var v)
-                  | GT => Bind (v, Greater (av, bv), k ` Var v)
-                  | LT => Bind (v, Less (av, bv), k ` Var v)
-                  | GTE => Bind (v, GreaterEq (av, bv), k ` Var v)
-                  | LTE => Bind (v, LessEq (av, bv), k ` Var v)
-                  | EQ => Bind (v, Eq (av, bv), k ` Var v)
-                  | NEQ => Bind (v, Neq (av, bv), k ` Var v)
-                  | BITOR => Bind (v, Or (av, bv), k ` Var v)
-                  | BITAND => Bind (v, And (av, bv), k ` Var v)
-                  | BITXOR => Bind (v, Xor (av, bv), k ` Var v)
-                  | LSHIFT => Bind (v, LeftShift (av, bv), k ` Var v)
-                  | RSHIFT => Bind (v, RightShift (av, bv), k ` Var v)
-               end)))
+                  GotoIf (av, true_lab,
+                          (* fall through to false branch *)
+                          transexp b bc
+                          (fn bv =>
+                           Bind (nresv, Not bv,
+                                 Bind (nnresv, Not ` Var nresv,
+                                       Store (AddressLiteral ` Local res, Var nnresv,
+                                              Goto done_lab)))))
+                end)
 
-    | Ast.Unop (uop, a) =>
-         (case uop of
-            Ast.Uplus => (* This does nothing. *) transexp a bc k
-          | Ast.Not => transexp a bc
-              (fn av => let val v = genvar "u" in Bind (v, Not av, k ` Var v) end)
-          | Ast.Negate => transexp a bc
-              (fn av => let val v = genvar "u" in Bind (v, Negate av, k ` Var v) end)
-          | Ast.BitNot => transexp a bc
-              (fn av => let val v = genvar "u" in Bind (v, Complement av, k ` Var v) end)
-          | Ast.UnopExt _ => raise ToCIL "unop extensions not implemented"
-          | Ast.PreInc =>
-              translvalue a bc
-              (fn addr =>
-               let
-                 val oldv = genvar "preincold"
-                 val newv = genvar "preincnew"
-               in
-                 Bind (oldv, Read addr,
-                       Bind (newv, Plus (Var oldv, WordLiteral 0w1),
-                             Store (addr, Var newv,
-                                    k ` Var newv)))
-               end)
-          | Ast.PreDec =>
-              translvalue a bc
-              (fn addr =>
-               let
-                 val oldv = genvar "predecold"
-                 val newv = genvar "predecnew"
-               in
-                 Bind (oldv, Read addr,
-                       Bind (newv, Minus (Var oldv, WordLiteral 0w1),
-                             Store (addr, Var newv,
-                                    k ` Var newv)))
-               end)
+           | ASSIGNING bop =>
+               translvalue a bc
+               (fn addr =>
+                transexp b bc
+                (fn bv =>
+                 let
+                   val oldv = genvar "assopold"
+                   val newv = genvar "assopnew"
+                   val ctor = opconstructor bop
+                 in
+                   Bind (oldv, Read addr,
+                         Bind (newv, ctor (Var oldv, bv),
+                               Store (addr, Var newv,
+                                      k ` Var newv)))
+                 end))
 
-          | Ast.PostInc =>
-              translvalue a bc
-              (fn addr =>
-               let
-                 val oldv = genvar "postincold"
-                 val newv = genvar "postincnew"
-               in
-                 Bind (oldv, Read addr,
-                       Bind (newv, Plus (Var oldv, WordLiteral 0w1),
-                             Store (addr, Var newv,
-                                    k ` Var oldv)))
-               end)
-          | Ast.PostDec =>
-              translvalue a bc
-              (fn addr =>
-               let
-                 val oldv = genvar "postdecold"
-                 val newv = genvar "postdecnew"
-               in
-                 Bind (oldv, Read addr,
-                       Bind (newv, Minus (Var oldv, WordLiteral 0w1),
-                             Store (addr, Var newv,
-                                    k ` Var oldv)))
-               end))
+           | NORMAL bop =>
+               transexp a bc
+               (fn av =>
+                transexp b bc
+                (fn bv =>
+                 let val v = genvar "b"
+                   val ctor = opconstructor bop
+                 in
+                   Bind (v, ctor (av, bv), k ` Var v)
+                 end)))
 
-    | Ast.StringConst s => raise ToCIL "unimplemented: string constants"
-    | Ast.Call (f, args) =>
-          transexp f bc
-          (fn fv =>
-           transexplist args bc
-           (fn argsv =>
-            let val v = genvar "call"
-            in Bind (v, Call (fv, argsv), k ` Var v)
-            end))
+      | Ast.Unop (uop, a) =>
+           (case uop of
+              Ast.Uplus => (* This does nothing. *) transexp a bc k
+            | Ast.Not => transexp a bc
+                (fn av => let val v = genvar "u" in Bind (v, Not av, k ` Var v) end)
+            | Ast.Negate => transexp a bc
+                (fn av => let val v = genvar "u" in Bind (v, Negate av, k ` Var v) end)
+            | Ast.BitNot => transexp a bc
+                (fn av => let val v = genvar "u" in Bind (v, Complement av, k ` Var v) end)
+            | Ast.UnopExt _ => raise ToCIL "unop extensions unsupported"
+            | Ast.PreInc =>
+                translvalue a bc
+                (fn addr =>
+                 let
+                   val oldv = genvar "preincold"
+                   val newv = genvar "preincnew"
+                 in
+                   Bind (oldv, Read addr,
+                         Bind (newv, Plus (Var oldv, WordLiteral 0w1),
+                               Store (addr, Var newv,
+                                      k ` Var newv)))
+                 end)
+            | Ast.PreDec =>
+                translvalue a bc
+                (fn addr =>
+                 let
+                   val oldv = genvar "predecold"
+                   val newv = genvar "predecnew"
+                 in
+                   Bind (oldv, Read addr,
+                         Bind (newv, Minus (Var oldv, WordLiteral 0w1),
+                               Store (addr, Var newv,
+                                      k ` Var newv)))
+                 end)
 
-    | Ast.QuestionColon (cond, te, fe) =>
-          transexp cond bc
-          (fn condv =>
-           let
-             (* Use a new local variable to store the result so that variables
-                don't have to span basic blocks. XXX need to sort out whether
-                this is necessary. *)
-             val res = newidstring "ternr"
-             val resv = genvar "r"
-             val true_lab = BC.genlabel "ternt"
-             val done_lab = BC.genlabel "terndone"
-           in
-             BC.insert (bc, true_lab,
-                        transexp te bc
-                        (fn tv =>
-                        Store (AddressLiteral ` Local res, tv,
-                               Goto done_lab)));
-             BC.insert (bc, done_lab,
-                        Bind (resv, Read ` AddressLiteral ` Local res,
-                              k ` Var resv));
+            | Ast.PostInc =>
+                translvalue a bc
+                (fn addr =>
+                 let
+                   val oldv = genvar "postincold"
+                   val newv = genvar "postincnew"
+                 in
+                   Bind (oldv, Read addr,
+                         Bind (newv, Plus (Var oldv, WordLiteral 0w1),
+                               Store (addr, Var newv,
+                                      k ` Var oldv)))
+                 end)
+            | Ast.PostDec =>
+                translvalue a bc
+                (fn addr =>
+                 let
+                   val oldv = genvar "postdecold"
+                   val newv = genvar "postdecnew"
+                 in
+                   Bind (oldv, Read addr,
+                         Bind (newv, Minus (Var oldv, WordLiteral 0w1),
+                               Store (addr, Var newv,
+                                      k ` Var oldv)))
+                 end))
 
-             GotoIf (condv, true_lab,
-                     (* fall through to false branch *)
-                     transexp fe bc
-                     (fn fv =>
-                      Store (AddressLiteral ` Local res, fv,
-                             Goto done_lab)))
-           end)
+      | Ast.StringConst s => raise ToCIL "unimplemented: string constants"
+      | Ast.Call (f, args) =>
+            transexp f bc
+            (fn fv =>
+             transexplist args bc
+             (fn argsv =>
+              let val v = genvar "call"
+              in Bind (v, Call (fv, argsv), k ` Var v)
+              end))
 
-    | Ast.Assign (dst, rhs) =>
-          translvalue dst bc
-          (fn dstaddr =>
-           transexp rhs bc
-           (fn rhsv =>
-            Store (dstaddr, rhsv,
-                   k rhsv)))
+      | Ast.QuestionColon (cond, te, fe) =>
+            transexp cond bc
+            (fn condv =>
+             let
+               (* Use a new local variable to store the result so that variables
+                  don't have to span basic blocks. XXX need to sort out whether
+                  this is necessary. *)
+               val res = newidstring "ternr"
+               val resv = genvar "r"
+               val true_lab = BC.genlabel "ternt"
+               val done_lab = BC.genlabel "terndone"
+             in
+               BC.insert (bc, true_lab,
+                          transexp te bc
+                          (fn tv =>
+                          Store (AddressLiteral ` Local res, tv,
+                                 Goto done_lab)));
+               BC.insert (bc, done_lab,
+                          Bind (resv, Read ` AddressLiteral ` Local res,
+                                k ` Var resv));
 
-    | Ast.Comma (a, b) => transexp a bc (fn _ => transexp b bc k)
+               GotoIf (condv, true_lab,
+                       (* fall through to false branch *)
+                       transexp fe bc
+                       (fn fv =>
+                        Store (AddressLiteral ` Local res, fv,
+                               Goto done_lab)))
+             end)
 
-    (* These should be in lvalue *)
-    | Ast.Sub _ => raise ToCIL "unimplemented: Sub"
-    | Ast.Member _ => raise ToCIL "unimplemented: Member"
-    | Ast.Arrow _ => raise ToCIL "unimplemented: Arrow"
-    | Ast.Deref _ => raise ToCIL "unimplemented: Deref"
+      | Ast.Assign (dst, rhs) =>
+            translvalue dst bc
+            (fn dstaddr =>
+             transexp rhs bc
+             (fn rhsv =>
+              Store (dstaddr, rhsv,
+                     k rhsv)))
 
-    | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
-    | Ast.Cast _ => raise ToCIL "unimplemented: cast"
-    | Ast.EnumId (m, n) => k ` WordLiteral ` word32_literal n
-    | Ast.SizeOf _ => raise ToCIL "unimplemented: sizeof"
-    | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
-    | Ast.ErrorExpr => raise ToCIL "encountered ErrorExpr"
+      | Ast.Comma (a, b) => transexp a bc (fn _ => transexp b bc k)
+
+
+      | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
+      | Ast.Cast _ => raise ToCIL "unimplemented: cast"
+      | Ast.EnumId (m, n) => k ` WordLiteral ` word32_literal n
+      | Ast.SizeOf _ => raise ToCIL "unimplemented: sizeof"
+      | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
+      | Ast.ErrorExpr => raise ToCIL "encountered ErrorExpr"
+    end
 
   (* Typedecls ignored currently. *)
   fun transdecl (Ast.TypeDecl _) (bc : stmt bc) (k : unit -> stmt) : stmt = k ()
