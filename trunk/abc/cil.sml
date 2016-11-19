@@ -19,8 +19,6 @@ struct
   (* Post-elaboration type *)
   datatype typ =
     Pointer of typ
-    (* Like & in C++. Essentially a C lvalue. *)
-  | Reference of typ
   | Code of typ * typ list
   | Struct of (string * typ) list
   (* All our computation is with 32-bit values. But loads and
@@ -99,7 +97,6 @@ struct
                  globals : (string * global) list }
 
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
-    | typtos (Reference t) = "(" ^ typtos t ^ " ref)"
     | typtos (Struct t) = "... TODO STRUCT ..."
     | typtos (Code (ret, args)) = ("(" ^
                                    StringUtil.delimit " , " (map typtos args) ^
@@ -116,6 +113,10 @@ struct
     (* XXX heuristic for data, etc. *)
     | valtos (StringLiteral s) = "\"" ^ String.toString s ^ "\""
     | valtos (AddressLiteral a) = "ADDR(" ^ loctos a ^ ")"
+
+  fun widthtos Width32 = "_32"
+    | widthtos Width16 = "_16"
+    | widthtos Width8 = "_8"
 
   fun exptos (Value v) = valtos v
     | exptos (Plus (a, b)) = valtos a ^ " + " ^ valtos b
@@ -142,13 +143,15 @@ struct
     | exptos (Dereference a) = "*" ^ valtos a
     | exptos (Subscript (a, b)) = valtos a ^ "[" ^ valtos b ^ "]"
     | exptos (Member (a, s)) = "(" ^ valtos a ^ ")." ^ s
-    | exptos (Call (f, vl)) = "CALL " ^ valtos f ^ "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
-    | exptos (Load addr) = "LOAD " ^ valtos addr
+    | exptos (Call (f, vl)) = "CALL " ^ valtos f ^
+        "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
+    | exptos (Load (addr, width)) = "LOAD" ^ widthtos width ^ " " ^ valtos addr
 
   fun stmttos (Bind (var, e, s)) =
         "  " ^ var ^ " = " ^ exptos e ^ "\n" ^ stmttos s
-    | stmttos (Store (dest, v, s)) =
-        "  " ^ valtos dest ^ " := " ^ valtos v ^ "\n" ^ stmttos s
+    | stmttos (Store (dest, width, v, s)) =
+        "  " ^ valtos dest ^ " :=" ^ widthtos width ^
+        " " ^ valtos v ^ "\n" ^ stmttos s
     | stmttos (GotoIf (v, lab, s)) =
         "  if " ^ valtos v ^ " goto " ^ lab ^ "\n" ^ stmttos s
     | stmttos (Return v) = "  return " ^ valtos v
