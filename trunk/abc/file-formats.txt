@@ -1,0 +1,15 @@
+Linux: ELF files start with 0x7F, DEL. Several bytes have to be 0.
+
+Need to check Mach-O for OS X.
+
+COM is easy (no header even), but limited to 64k. But maybe could read
+itself and map its own memory; overlays, etc. Also not sure this can
+be 32-bit mode?
+
+MS-DOS EXE may be possible. A troublesome field is the "overlay",
+which is normally 0 and not frequently used. It may be ignored...
+
+PE (win32 and 64-bit) is no good. The magic 0x50450000 in the COFF
+header contains zeroes. To skip the optional header (which seems to
+require zeroes), the size would probably have to be zero?
+
