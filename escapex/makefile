@@ -31,7 +31,7 @@ LDLIBS = -lSDL_net -lSDL_mixer `sdl-config --libs`
 # for multiuser, add -DMULTIUSER -DDATADIR=\"/tmp/escapedata/\" -DSTARTUP_LEVELS=\"/tmp/escapelevels\"
 # with appropriate paths to the static data (trailing slash for data dir; no trailing for startup)
 CPPFLAGS = `sdl-config --cflags` 
-CXXFLAGS = --std=c++11 -g -Wall -O2 -Wno-sign-compare
+CXXFLAGS = --std=c++14 -g -Wall -O2 -Wno-sign-compare
 
 escape.exe : ${OFILES}
 	g++ -o escape.exe ${LDFLAGS} $^ ${LDLIBS}
