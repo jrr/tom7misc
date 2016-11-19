@@ -7,6 +7,11 @@ struct
   exception ToCIL of string
   open CIL
 
+  (* Width of load/store for boolean temporaries.
+     Anything will work, so this is just a
+     performance preference. *)
+  val BOOL_WIDTH = Width32
+
   structure BC :>
   sig
     type 'a blockcollector
@@ -124,11 +129,13 @@ struct
     | Ast.Array _ => raise ToCIL "Array types unimplemented."
     | Ast.Pointer t => Pointer (transtype t)
     | Ast.Function (ret, args) => Code (transtype ret, map (transtype o #1) args)
-    | Ast.StructRef tid => raise ToCIL "unimplemented: need to look up struct and inline it"
+    | Ast.StructRef tid =>
+        raise ToCIL "unimplemented: need to look up struct and inline it"
     | Ast.UnionRef tid => raise ToCIL "unions unimplemented"
     (* All enums represented as int32 *)
     | Ast.EnumRef _ => Word32
-    | Ast.TypeRef tid => raise ToCIL "unimplemented: need to look up typedef and return it"
+    | Ast.TypeRef tid =>
+          raise ToCIL "unimplemented: need to look up typedef and return it"
     | Ast.Numeric (_, _, signedness, intkind, _) =>
         (case intkind of
           Ast.CHAR => Word8
@@ -164,14 +171,42 @@ struct
     | LSHIFT => LeftShift
     | RSHIFT => RightShift
 
-  (* Translate an expression as an lvalue. This means producing a value that is the lvalue's
-     address. *)
-  fun translvalue (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc) (k : value -> stmt) : stmt =
-    case e of
-      Ast.Id (id as { global = false, ... }) => k (AddressLiteral ` Local ` idstring id)
-    | Ast.Id (id as { global = true, ... }) => k (AddressLiteral ` Global ` uidstring id)
+  fun typewidth t =
+    case t of
+      Ast.Void => raise ToCIL "void cannot be read nor written (?)"
+    | Ast.Ellipses => raise ToCIL "Ellipses not expected in lvalue"
+    | Ast.Qual (_, t) => typewidth t
+    | Ast.Numeric (_, _, signedness, intkind, _) =>
+        (case intkind of
+          Ast.CHAR => Width8
+        | Ast.SHORT => Width16
+        | Ast.INT => Width32
+        | Ast.LONG => Width32
+        | Ast.LONGLONG => raise ToCIL "unimplemented typewidth: long long"
+        | _ => raise ToCIL "unimplemented type width: floating point")
+    (* Pointer *)
+    | Ast.Array _ => Width32
+    | Ast.Pointer _ => Width32
+    | Ast.Function _ => Width32
+    | Ast.StructRef _ => raise ToCIL "unimplemented: struct lvalues"
+    | Ast.UnionRef _ => raise ToCIL "unimplemented: union lvalues"
+    | Ast.EnumRef _ => Width32
+    | Ast.TypeRef tid => raise ToCIL "XXX need to look up typedef in type width"
+    | Ast.Error => raise ToCIL "Encountered error type"
 
-    | Ast.Sub _ => raise ToCIL "unimplemented lvalue: Sub"
+
+  (* Translate an expression as an lvalue. This means producing a value
+     that is the lvalue's address. We also pass to the continuation the
+     width of the lvalue. *)
+  fun translvalue (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
+                  (k : value * width -> stmt) : stmt =
+    case e of
+      Ast.Id (id as { global = false, ctype, ... }) =>
+        k (AddressLiteral ` Local ` idstring id, typewidth ctype)
+    | Ast.Id (id as { global = true, ctype, ... }) =>
+        k (AddressLiteral ` Global ` uidstring id, typewidth ctype)
+
+    | Ast.Sub (ptr, offset) => raise ToCIL "unimplemented lvalue: Sub"
     | Ast.Member _ => raise ToCIL "unimplemented lvalue: Member"
     | Ast.Arrow _ => raise ToCIL "unimplemented lvalue: Arrow"
     | Ast.Deref _ => raise ToCIL "unimplemented lvalue: Deref"
@@ -179,7 +214,8 @@ struct
     | _ => raise ToCIL "illegal/unimplemented lvalue"
 
 
-  and transexplist (es : Ast.expression list) (bc : stmt bc) (k : value list -> stmt) : stmt =
+  and transexplist (es : Ast.expression list) (bc : stmt bc)
+                   (k : value list -> stmt) : stmt =
     let
       fun tel revl nil = k (rev revl)
         | tel revl (e :: rest) =
@@ -191,15 +227,16 @@ struct
   (* Normal translation of an expression (rvalue).
      XXX can/should appeal to lvalue above?
      *)
-  and transexp (orig_exp as Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc) (k : value -> stmt) : stmt =
+  and transexp (orig_exp as Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
+               (k : value -> stmt) : stmt =
     let
       fun as_lvalue s =
         translvalue orig_exp bc
-        (fn addr =>
+        (fn (addr, width) =>
          let
            val v = genvar s
          in
-           Bind (v, Read addr, k ` Var v)
+           Bind (v, Load (addr, width), k ` Var v)
          end)
     in
       case e of
@@ -229,21 +266,25 @@ struct
                   val true_lab = BC.genlabel "andtrue"
                   val done_lab = BC.genlabel "anddone"
                 in
-                  BC.insert (bc, true_lab,
-                             transexp b bc
-                             (fn bv =>
-                              Bind (nresv, Not bv,
-                                    Bind (nnresv, Not ` Var nresv,
-                                          Store (AddressLiteral ` Local res, Var nnresv,
-                                                 Goto done_lab)))));
+                  BC.insert
+                  (bc, true_lab,
+                   transexp b bc
+                   (fn bv =>
+                    Bind (nresv, Not bv,
+                          Bind (nnresv, Not ` Var nresv,
+                                Store (AddressLiteral ` Local res, BOOL_WIDTH,
+                                       Var nnresv,
+                                       Goto done_lab)))));
 
                   BC.insert (bc, done_lab,
-                             Bind (resv, Read ` AddressLiteral ` Local res,
+                             Bind (resv,
+                                   Load ` AddressLiteral ` Local res, BOOL_WIDTH,
                                    k ` Var resv));
 
                   GotoIf (av, true_lab,
                           (* condition fails; store false *)
-                          Store (AddressLiteral ` Local res, WordLiteral 0w0,
+                          Store (AddressLiteral ` Local res,  BOOL_WIDTH,
+                                 WordLiteral 0w0,
                                  Goto done_lab))
                 end)
 
@@ -260,26 +301,30 @@ struct
                   val done_lab = BC.genlabel "ordone"
                 in
                   BC.insert (bc, true_lab,
-                             Store (AddressLiteral ` Local res, WordLiteral 0w1,
+                             Store (AddressLiteral ` Local res, BOOL_WIDTH,
+                                    WordLiteral 0w1,
                                     Goto done_lab));
 
                   BC.insert (bc, done_lab,
-                             Bind (resv, Read ` AddressLiteral ` Local res,
+                             Bind (resv,
+                                   Load ` AddressLiteral ` Local res, BOOL_WIDTH,
                                    k ` Var resv));
 
-                  GotoIf (av, true_lab,
-                          (* fall through to false branch *)
-                          transexp b bc
-                          (fn bv =>
-                           Bind (nresv, Not bv,
-                                 Bind (nnresv, Not ` Var nresv,
-                                       Store (AddressLiteral ` Local res, Var nnresv,
-                                              Goto done_lab)))))
+                  GotoIf
+                  (av, true_lab,
+                   (* fall through to false branch *)
+                   transexp b bc
+                   (fn bv =>
+                    Bind (nresv, Not bv,
+                          Bind (nnresv, Not ` Var nresv,
+                                Store (AddressLiteral ` Local res, BOOL_WIDTH,
+                                       Var nnresv,
+                                       Goto done_lab)))))
                 end)
 
            | ASSIGNING bop =>
                translvalue a bc
-               (fn addr =>
+               (fn (addr, width) =>
                 transexp b bc
                 (fn bv =>
                  let
@@ -287,7 +332,7 @@ struct
                    val newv = genvar "assopnew"
                    val ctor = opconstructor bop
                  in
-                   Bind (oldv, Read addr,
+                   Bind (oldv, Load addr,
                          Bind (newv, ctor (Var oldv, bv),
                                Store (addr, Var newv,
                                       k ` Var newv)))
@@ -308,32 +353,35 @@ struct
            (case uop of
               Ast.Uplus => (* This does nothing. *) transexp a bc k
             | Ast.Not => transexp a bc
-                (fn av => let val v = genvar "u" in Bind (v, Not av, k ` Var v) end)
+                (fn av =>
+                 let val v = genvar "u" in Bind (v, Not av, k ` Var v) end)
             | Ast.Negate => transexp a bc
-                (fn av => let val v = genvar "u" in Bind (v, Negate av, k ` Var v) end)
+                (fn av =>
+                 let val v = genvar "u" in Bind (v, Negate av, k ` Var v) end)
             | Ast.BitNot => transexp a bc
-                (fn av => let val v = genvar "u" in Bind (v, Complement av, k ` Var v) end)
+                (fn av =>
+                 let val v = genvar "u" in Bind (v, Complement av, k ` Var v) end)
             | Ast.UnopExt _ => raise ToCIL "unop extensions unsupported"
             | Ast.PreInc =>
                 translvalue a bc
-                (fn addr =>
+                (fn (addr, width) =>
                  let
                    val oldv = genvar "preincold"
                    val newv = genvar "preincnew"
                  in
-                   Bind (oldv, Read addr,
+                   Bind (oldv, Load addr,
                          Bind (newv, Plus (Var oldv, WordLiteral 0w1),
                                Store (addr, Var newv,
                                       k ` Var newv)))
                  end)
             | Ast.PreDec =>
                 translvalue a bc
-                (fn addr =>
+                (fn (addr, width) =>
                  let
                    val oldv = genvar "predecold"
                    val newv = genvar "predecnew"
                  in
-                   Bind (oldv, Read addr,
+                   Bind (oldv, Load addr,
                          Bind (newv, Minus (Var oldv, WordLiteral 0w1),
                                Store (addr, Var newv,
                                       k ` Var newv)))
@@ -341,24 +389,24 @@ struct
 
             | Ast.PostInc =>
                 translvalue a bc
-                (fn addr =>
+                (fn (addr, width) =>
                  let
                    val oldv = genvar "postincold"
                    val newv = genvar "postincnew"
                  in
-                   Bind (oldv, Read addr,
+                   Bind (oldv, Load addr,
                          Bind (newv, Plus (Var oldv, WordLiteral 0w1),
                                Store (addr, Var newv,
                                       k ` Var oldv)))
                  end)
             | Ast.PostDec =>
                 translvalue a bc
-                (fn addr =>
+                (fn (addr, width) =>
                  let
                    val oldv = genvar "postdecold"
                    val newv = genvar "postdecnew"
                  in
-                   Bind (oldv, Read addr,
+                   Bind (oldv, Load addr,
                          Bind (newv, Minus (Var oldv, WordLiteral 0w1),
                                Store (addr, Var newv,
                                       k ` Var oldv)))
@@ -392,7 +440,7 @@ struct
                           Store (AddressLiteral ` Local res, tv,
                                  Goto done_lab)));
                BC.insert (bc, done_lab,
-                          Bind (resv, Read ` AddressLiteral ` Local res,
+                          Bind (resv, Load ` AddressLiteral ` Local res,
                                 k ` Var resv));
 
                GotoIf (condv, true_lab,
@@ -405,14 +453,13 @@ struct
 
       | Ast.Assign (dst, rhs) =>
             translvalue dst bc
-            (fn dstaddr =>
+            (fn (dstaddr, dstwidth) =>
              transexp rhs bc
              (fn rhsv =>
               Store (dstaddr, rhsv,
                      k rhsv)))
 
       | Ast.Comma (a, b) => transexp a bc (fn _ => transexp b bc k)
-
 
       | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
       | Ast.Cast _ => raise ToCIL "unimplemented: cast"
@@ -434,13 +481,15 @@ struct
            transexp e bc
            (fn v => Store (AddressLiteral ` addrkind ` uidstring id, v, k ()))
          end
-     | Ast.Aggregate _ => raise ToCIL "aggregate initialization unimplemented (decl)")
+     | Ast.Aggregate _ =>
+         raise ToCIL "aggregate initialization unimplemented (decl)")
 
   (* When translating a statement, the 'break' and 'continue' targets
      the label to jump to when seeing those statements. *)
   fun transstatementlist nil _ _ k : CIL.stmt = k ()
     | transstatementlist (s :: t)
-                         (targs : { break : string option, continue : string option })
+                         (targs : { break : string option,
+                                    continue : string option })
                          (bc : stmt bc)
                          (k : unit -> stmt) =
     transstatement s targs bc (fn () => transstatementlist t targs bc k)
@@ -611,9 +660,9 @@ struct
            Ast.TypeDecl { shadow = _, tid = _ } => ()
          | Ast.VarDecl (id, init) =>
              let
-               (* XXX "static" probably needs to be treated separately if we have multiple
-                  translations units. But maybe ckit already gives the identifiers different
-                  uids? *)
+               (* XXX "static" probably needs to be treated separately if we have
+                  multiple translations units. But maybe ckit already
+                  gives the identifiers different uids? *)
                val uid = uidstring id
                val t = transtype (#ctype id)
                val stmt = case init of
@@ -621,11 +670,14 @@ struct
                | SOME ie =>
                    (case ie of
                       Ast.Simple e =>
-                        transexp e bc (fn (v : value) =>
-                                       Store (AddressLiteral ` Global ` uid, v, End))
-                    | Ast.Aggregate _ => raise ToCIL "aggregate initialization unimplemented")
+                        transexp e bc
+                        (fn (v : value) =>
+                         Store (AddressLiteral ` Global ` uid, v, End))
+                    | Ast.Aggregate _ =>
+                        raise ToCIL "aggregate initialization unimplemented")
              in
-               globals := (uid, Glob { typ = t, init = stmt, blocks = BC.extract bc}) :: !globals
+               globals := (uid, Glob { typ = t, init = stmt,
+                                       blocks = BC.extract bc}) :: !globals
              end)
         | onedecl (Ast.DECL (Ast.FunctionDef (id, args, body), _, _)) =
            (case id of
@@ -634,7 +686,8 @@ struct
                   val uid = uidstring id
                   val ret = transtype ret
                   fun onearg id = (idstring id, transtype (#ctype id))
-                  val stmt = transstatement body { break = NONE, continue = NONE } bc
+                  val stmt = transstatement body { break = NONE,
+                                                   continue = NONE } bc
                     (* Should support nullary return? *)
                     (fn () => Return (WordLiteral 0w0))
                 in
@@ -644,7 +697,8 @@ struct
                                             blocks = BC.extract bc }) :: !functions
                 end
             | _ => raise ToCIL "Expected FunctionDef to have Function type.\n")
-        | onedecl (Ast.DECL _) = raise ToCIL "External declaration not supported.\n"
+        | onedecl (Ast.DECL _) =
+              raise ToCIL "External declaration not supported.\n"
 
       in
         app onedecl decls;

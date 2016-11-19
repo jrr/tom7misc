@@ -3,6 +3,12 @@ struct
 
   datatype loc = Local of string | Global of string
 
+  (* Width of data for a read or write.
+      - This is where we'd support bitfields
+        (I think there would be both an offset and size.)
+      - This is maybe also where we'd support struct copying. *)
+  datatype width = Width8 | Width16 | Width32
+
   datatype value =
     Var of string
   | AddressLiteral of loc
@@ -18,7 +24,9 @@ struct
   | Code of typ * typ list
   | Struct of (string * typ) list
   (* All our computation is with 32-bit values. But loads and
-     stores need to know the width. *)
+     stores need to know the width (in particular, we need to
+     distinguish between a function that takes char * and one
+     that takes int *. *)
   | Word32
   | Word16
   | Word8
@@ -58,15 +66,13 @@ struct
   | Subscript of value * value
   | Member of value * string
   | Call of value * value list
-    (* XXX needs type/width? *)
-  | Read of value
+  | Load of value * width
 
   datatype stmt =
     (* and type? *)
     Bind of string * exp * stmt
-  (* Store(address, value, rest)
-     XXX and type/width? *)
-  | Store of value * value * stmt
+  (* Store(address, width, value, rest) *)
+  | Store of value * width * value * stmt
     (* cond, true-branch, rest *)
   (* | If of value * stmt * stmt *)
   (* | Label of string * stmt *)
@@ -137,7 +143,7 @@ struct
     | exptos (Subscript (a, b)) = valtos a ^ "[" ^ valtos b ^ "]"
     | exptos (Member (a, s)) = "(" ^ valtos a ^ ")." ^ s
     | exptos (Call (f, vl)) = "CALL " ^ valtos f ^ "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
-    | exptos (Read addr) = "READ " ^ valtos addr
+    | exptos (Load addr) = "LOAD " ^ valtos addr
 
   fun stmttos (Bind (var, e, s)) =
         "  " ^ var ^ " = " ^ exptos e ^ "\n" ^ stmttos s
