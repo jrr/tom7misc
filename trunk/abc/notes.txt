@@ -23,6 +23,40 @@ plus maybe 0x0D (CR), 0x0A (LF), 0x09 (TAB).
 
 0x0A, 0x0D, 0x09 are all OR opcodes.
 
+Tricks:
+ - Though we have some limitations in the encoding of register
+   targets, we can permute/copy between registers using the
+   PUSH and POP instructions (0x50+r, 0x58+r).
+ - Loading literals:
+      XOR REG, REG
+      XOR REG, IMM   (8, 16, 32 bits possible)
+      there is also PUSH of immediates
+ - Math:
+     We have IMUL, phew.
+     DIV we'll have to do in software (don't even have shifts for
+     division by power of two)
+     ADD (a, b) is the same as SUB (a, -b) as long as 
+ - Bitwise complement:
+     XOR REG, REG
+     DEC REG  // now 0xFFFFFFFF
+     XOR REG, REG2
+
+Notable missing opcodes:
+ - MOV. Ugh. Need this for...
+     - loading literals
+     - moving between registers
+     - loading from and storing to memory
+   ... looks like XOR with a memory operand and register known to
+       contain 0 will work for loads and stores, though?
+ - DIV and IDIV. Will need to do division in software, I guess.
+ - CALL. We can probably manually push and jump.
+ - RET*. We can probably manually pop and jump?
+ - INT. Used to make DOS system calls, which might be important
+   for setting up "unreal mode" (not to mention basic IO in DOS)
+ - SHL and SHR, which are used all over the place. Since we also
+   don't have ADD, this could make some normally easy
+   things quite hard. Hmm. (We do have IMUL, INC and SUB, and can
+   do bitwise complement with XOR.)
 
  - No two-byte opcodes can be used because these are prefixed
    with 0x0F.
@@ -32,10 +66,7 @@ plus maybe 0x0D (CR), 0x0A (LF), 0x09 (TAB).
      to use self-modifying code, or some other trick?)
    - SSE, MMX, VMX are here; stuff like CMOV that's useful
      but inessential.
-   - PUSH, POP (0x0FA8, 0x0FA9 ?!)
-   - IMUL (signed multiply)
    - "Jump short" instructions
-   -
 
 32-bit ModR/M byte table.
 ASCII values marked with *.
