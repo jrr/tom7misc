@@ -1,13 +1,31 @@
 Linux: ELF files start with 0x7F, DEL. Several bytes have to be 0.
 
-Need to check Mach-O for OS X.
+Mach-O magic is 0xFEEDFACE (hehe) and requires MH_EXECUTE=0x2 in the
+header, among other problems.
+https://opensource.apple.com/source/xnu/xnu-792/EXTERNAL_HEADERS/mach-o/loader.h
+
 
 COM is easy (no header even), but limited to 64k. But maybe could read
-itself and map its own memory; overlays, etc. Also not sure this can
-be 32-bit mode?
+itself and map its own memory; overlays, etc. It is 16-bit. Doesn't
+work on modern Windows, but would work in DOSBOX. Can it enable 32-bit
+mode itself?
+
 
 MS-DOS EXE may be possible. A troublesome field is the "overlay",
 which is normally 0 and not frequently used. It may be ignored...
+These may be 16-bit only, as well?
+  - I tested setting the overlay to 0x6161 and it works fine in dosbox.
+  - Looks like on 386+, it's possible to use 32-bit registers in
+    real mode, by either setting a bit in the code segment, or by using
+    a prefix (0x66=f, 0x67=g) on the instruction.
+  - Address offsets can be 32-bit, but if they exceed 0xFFFF you get
+    an exception.
+  - BUT, "unreal mode" may allow this.
+      - You have to enter protected mode,
+      - set up the data segment registers to be 32-bit
+      - go back to real mode (by rebooting?)
+      - now you can use DS:[EAX] to read 4GB
+      - I guess don't touch segment registers?
 
 PE (win32 and 64-bit) is no good. The magic 0x50450000 in the COFF
 header contains zeroes. To skip the optional header (which seems to
