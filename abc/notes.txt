@@ -49,14 +49,18 @@ Notable missing opcodes:
    ... looks like XOR with a memory operand and register known to
        contain 0 will work for loads and stores, though?
  - DIV and IDIV. Will need to do division in software, I guess.
- - CALL. We can probably manually push and jump.
- - RET*. We can probably manually pop and jump?
+ - CALL and RET. While it's not a big deal to manually jump indirect
+   with JMP [eax] (etc.), it looks like reading the EIP register
+   might be difficult. Fortunately, if we know where we are located
+   in memory, the return address is a constant.
  - INT. Used to make DOS system calls, which might be important
-   for setting up "unreal mode" (not to mention basic IO in DOS)
+   for setting up "unreal mode" (not to mention basic IO in DOS).
+   Probably only workaround for this is self-modifying code.
  - SHL and SHR, which are used all over the place. Since we also
    don't have ADD, this could make some normally easy
    things quite hard. Hmm. (We do have IMUL, INC and SUB, and can
    do bitwise complement with XOR.)
+ - NOT, NEG. Can do this with XOR, deg (flags notwithstanding)
 
  - No two-byte opcodes can be used because these are prefixed
    with 0x0F.
@@ -128,7 +132,7 @@ Scaled Index  SS  Index   Value of SIB Byte (in Hexadecimal)
 [ECX]             001     08 ?09 ?0A  0B  0C ?0D  0E  0F
 [EDX]             010     10  11  12  13  14  15  16  17
 [EBX]             011     18  19  1A  1B  1C  1D  1E  1F
-none              100    *20 *21 *22 *23 *24 *25 *26 *27
+illegal           100    *20 *21 *22 *23 *24 *25 *26 *27
 [EBP]             101    *28 *29 *2A *2B *2C *2D *2E *2F
 [ESI]             110    *30 *31 *32 *33 *34 *35 *36 *37
 [EDI]             111    *38 *39 *3A *3B *3C *3D *3E *3F
@@ -136,7 +140,7 @@ none              100    *20 *21 *22 *23 *24 *25 *26 *27
 [ECX*2]           001    *48 *49 *4A *4B *4C *4D *4E *4F
 [EDX*2]           010    *50 *51 *52 *53 *54 *55 *56 *57
 [EBX*2]           011    *58 *59 *5A *5B *5C *5D *5E *5F
-none              100    *60 *61 *62 *63 *64 *65 *66 *67
+illegal           100    *60 *61 *62 *63 *64 *65 *66 *67
 [EBP*2]           101    *68 *69 *6A *6B *6C *6D *6E *6F
 [ESI*2]           110    *70 *71 *72 *73 *74 *75 *76 *77
 [EDI*2]           111    *78 *79 *7A *7B *7C *7D *7E  7F
@@ -144,7 +148,7 @@ none              100    *60 *61 *62 *63 *64 *65 *66 *67
 [ECX*4]           001     88  89  8A  8B  8C  8D  8E  8F
 [EDX*4]           010     90  91  92  93  94  95  96  97
 [EBX*4]           011     98  99  9A  9B  9C  9D  9E  9F
-none              100     A0  A1  A2  A3  A4  A5  A6  A7
+illegal           100     A0  A1  A2  A3  A4  A5  A6  A7
 [EBP*4]           101     A8  A9  AA  AB  AC  AD  AE  AF
 [ESI*4]           110     B0  B1  B2  B3  B4  B5  B6  B7
 [EDI*4]           111     B8  B9  BA  BB  BC  BD  BE  BF
@@ -152,12 +156,13 @@ none              100     A0  A1  A2  A3  A4  A5  A6  A7
 [ECX*8]           001     C8  C9  CA  CB  CC  CD  CE  CF
 [EDX*8]           010     D0  D1  D2  D3  D4  D5  D6  D7
 [EBX*8]           011     D8  D9  DA  DB  DC  DD  DE  DF
-none              100     E0  E1  E2  E3  E4  E5  E6  E7
+illegal           100     E0  E1  E2  E3  E4  E5  E6  E7
 [EBP*8]           101     E8  E9  EA  EB  EC  ED  EE  EF
 [ESI*8]           110     F0  F1  F2  F3  F4  F5  F6  F7
 [EDI*8]           111     F8  F9  FA  FB  FC  FD  FE  FF
 
 alt:
-00 = disp32
-01 = ebp+disp8
-10 = ebp+disp32
+Mod from ModR/M
+00              = disp32
+01              = ebp+disp8
+10              = ebp+disp32
