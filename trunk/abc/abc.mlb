@@ -24,6 +24,8 @@ $(SML_LIB)/basis/basis.mlb
 cil.sml
 tocil-sig.sml
 tocil.sml
+x86.sml
+
 abc.sml
 
 main.sml
