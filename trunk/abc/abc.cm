@@ -24,6 +24,9 @@ group is
   ../sml-lib/util/listutil-sig.sml
   ../sml-lib/util/listutil.sml
 
+  (* We need Word16 in SML/NJ. *)
+  ../sml-lib/misc/wordn.sml
+
   cil.sml
   tocil-sig.sml
   tocil.sml
