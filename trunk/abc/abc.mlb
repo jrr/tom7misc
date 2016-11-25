@@ -26,6 +26,7 @@ tocil-sig.sml
 tocil.sml
 x86.sml
 
+writetest.sml
 abc.sml
 
 main.sml

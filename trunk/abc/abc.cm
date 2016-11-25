@@ -33,4 +33,5 @@ group is
 
   x86.sml
 
+  writetest.sml
   abc.sml
