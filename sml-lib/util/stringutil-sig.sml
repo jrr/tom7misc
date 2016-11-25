@@ -43,7 +43,7 @@ sig
   val readfile : string -> string
   (* writefile file contents *)
   val writefile : string -> string -> unit
-
+  val writefilev8 : string -> Word8Vector.vector -> unit
 
   val delimit : string -> string list -> string
 

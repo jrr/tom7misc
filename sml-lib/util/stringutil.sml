@@ -275,6 +275,14 @@ struct
       TextIO.closeOut l
     end
 
+  fun writefilev8 f (v : Word8Vector.vector) =
+    let
+      val s : BinIO.outstream = BinIO.openOut f
+    in
+      BinIO.output (s, v);
+      BinIO.closeOut s
+    end
+
   fun truncate l s =
       if size s > l then String.substring(s, 0, l)
       else s
