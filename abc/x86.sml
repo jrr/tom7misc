@@ -4,10 +4,11 @@ struct
   exception X86 of string
 
   type word8 = Word8.word
+  type word8vector = Word8Vector.vector
   infix @@
-  val vec : word8 list -> word8 vector = Vector.fromList
-  fun (v1 : word8 vector) @@ (v2 : word8 vector) =
-    Vector.concat [v1, v2]
+  val vec : word8 list -> Word8Vector.vector = Word8Vector.fromList
+  fun (v1 : word8vector) @@ (v2 : word8vector) =
+    Word8Vector.concat [v1, v2]
   val << = Word8.<<
   val >> = Word8.>>
   val || = Word8.orb
@@ -37,14 +38,19 @@ struct
       base : sib_base_reg }
 
 
-  (* The reg field in the mod-reg-rm byte. This is not the
-     full set of x86 registers. Note that the meaning of the
-     last four differs based on whether this is a BYTE or MULTI
-     instruction. For BYTE instructions, it's the high byte
+  (* The reg field in the mod-reg-rm byte, which is also used in a reg
+     when mod/rm=reg, or in register-based opcode sequences like INC
+     and POP. This is not the full set of x86 registers. Note that the
+     meaning of the last four differs based on whether this is a BYTE
+     or MULTI instruction. For BYTE instructions, it's the high byte
      in the registers, for MULTI, it's the alternate registers. *)
   (* XXX maybe should just list them out and then something
      checks for validity? *)
   datatype reg = A | C | D | B | AH_SP | CH_BP | DH_SI | BH_DI
+
+  datatype multireg =
+      AX | CX | DX | BX | SP | BP | SI | DI
+    | EAX | ECX | EDX | EBX | ESP | EBP | ESI | EDI
 
   datatype modrm =
     (* mod=00. Indirect through register,
@@ -97,10 +103,55 @@ struct
 
   (* Incomplete set of X86 opcodes. *)
   datatype ins =
-    AND of size * args
-    (* AND al/ax/eax <- imm8 *)
-  | AND_A_IMM of immediate
-    (* ... *)
+    (* 20-23 AND variants *)
+      AND of size * args
+    (* 24,25 AND al/ax/eax <- imm *)
+    | AND_A_IMM of immediate
+    (* 26 ES segment override prefix *)
+    (* 27 DAA Decimal Adjust AL after addition
+       this instruction is normally useless, but
+       might be a shorter way to load certain
+       constants into AL? *)
+    (* 28-2B SUB variants *)
+    | SUB of size * args
+    (* 2C,2D SUB al/ax/eax <- imm *)
+    | SUB_A_IMM of immediate
+    (* 2E CS segment override prefix *)
+    (* 2F DAS Decimal Adjust AL after subtraction *)
+    (* 30-33 XOR variants *)
+    | XOR of size * args
+    (* 34,35 XOR al/ax/eax <- imm *)
+    | XOR_A_IMM of immediate
+    (* 36 SS segment override prefix *)
+    (* 37 AAA ASCII Adjust After Division *)
+    (* 38-3B CMP variants *)
+    | CMP of size * args
+    (* 3C,3D CMP al,ax,eax , imm *)
+    | CMP_A_IMM of immediate
+    (* 3F DS segment override prefix *)
+    (* AAS ASCII Adjust After Subtraction *)
+    (* 40-47 INC multibyte register *)
+    | INC of multireg
+    (* 48-4F DEC multibyte register *)
+    | DEC of multireg
+    (* 50-57 PUSH multibyte register *)
+    | PUSH of multireg
+    (* 58-5F POP multibyte register *)
+    | POP of multireg
+    (* 60,61 PUSH/POP all. XXX useful, but need to look into
+       the encoding. *)
+    (* 62 BOUND Check array index against bounds *)
+    (* 63 ARPL Adjust RPL field of segment selector *)
+  (* 64 FS segment override prefix *)
+  (* 65 GS segment override prefix *)
+  (* 66 operand size override prefix *)
+  (* 67 address size override prefix *)
+  (* 68 push immediate 16/32 *)
+  (* XXX IMUL here *)
+  (* XXX JMP short instructions *)
+
+      (* These instructions are out of gamut *)
+    | INT of word8
 
   fun decode_size S8 : word8 = 0w0
     (* The prefix byte, decoded separately, determines
@@ -138,7 +189,27 @@ struct
     | DH_SI => 0w6
     | BH_DI => 0w7
 
-  fun decode_modrm modrm : (word8 * word8 * word8 vector) =
+  (* This can only return S16 or S32 *)
+  fun decode_multireg mr : size * word8 =
+    case mr of
+      AX => (S16, 0w0)
+    | CX => (S16, 0w1)
+    | DX => (S16, 0w2)
+    | BX => (S16, 0w3)
+    | SP => (S16, 0w4)
+    | BP => (S16, 0w5)
+    | SI => (S16, 0w6)
+    | DI => (S16, 0w7)
+    | EAX => (S32, 0w0)
+    | ECX => (S32, 0w1)
+    | EDX => (S32, 0w2)
+    | EBX => (S32, 0w3)
+    | ESP => (S32, 0w4)
+    | EBP => (S32, 0w5)
+    | ESI => (S32, 0w6)
+    | EDI => (S32, 0w7)
+
+  fun decode_modrm modrm : (word8 * word8 * word8vector) =
     case modrm of
       IND_EAX => raise X86 "unimplemented"
     | IND_ECX => raise X86 "unimplemented"
@@ -170,7 +241,7 @@ struct
      dir, mod, reg, r/m,
      and a (typically empty) vector of suffix bytes. *)
   fun decode_args (reg <- modrm) :
-    (word8 * word8 * word8 * word8 * word8 vector) =
+    (word8 * word8 * word8 * word8 * word8vector) =
     let val (md, rm, suffix) = decode_modrm modrm
     in (0w1, md, decode_reg reg, rm, suffix)
     end
@@ -187,34 +258,71 @@ struct
     | get_prefix (CTX { default_32 = true, ...}) S32 = vec[]
     | get_prefix (CTX { default_32 = false, ...}) S32 = vec [0wx66]
 
-  fun encode ctx (i : ins) : word8 vector =
-    case i of
-      AND (size, args) =>
-      let
-        val prefix = get_prefix ctx size
-        val opcode = 0w020 >> 0w2
-        val s = decode_size size
-        val (d, md, reg, rm, suffix) = decode_args args
-      in
-        prefix @@
-        vec [(opcode << 0w2) || (d << 0w1) || s,
-             (md << 0w6) || (reg << 0w3) || rm] @@
-        suffix
-      end
-    | AND_A_IMM imm =>
-      let
-        val size = immediate_size imm
-        val prefix = get_prefix ctx size
-        val opcode = 0w24 >> 0w2
-        val s = decode_size size
-      in
-        prefix @@
-        vec [(opcode << 0w2) || s] @@
-        decode_immediate imm
-      end
-(*
-    | _ => raise X86 "unimplemented ins"
-      *)
+  fun encode ctx (i : ins) : word8vector =
+    let
+      (* Encode a normal instruction (e.g. AND).
+         base_opcode is the actual first opcode in the group; not shifted. *)
+      fun encode_normal (base_opcode : word8) (size, args) =
+        let
+          val prefix = get_prefix ctx size
+          val opcode = base_opcode >> 0w2
+          val s = decode_size size
+          val (d, md, reg, rm, suffix) = decode_args args
+        in
+          prefix @@
+          vec [(opcode << 0w2) || (d << 0w1) || s,
+               (md << 0w6) || (reg << 0w3) || rm] @@
+          suffix
+        end
+
+      (* Encode a normal instruction that takes an immediate
+         (e.g AND_A_IMM).
+         base_opcode is the actual first of the two opcodes; not shifted. *)
+      fun encode_normal_imm (base_opcode : word8) imm =
+        let
+          val size = immediate_size imm
+          val prefix = get_prefix ctx size
+          val opcode = base_opcode >> 0w2
+          val s = decode_size size
+        in
+          prefix @@
+          vec [(opcode << 0w2) || s] @@
+          decode_immediate imm
+        end
+
+      fun encode_multireg_based (base_opcode : word8) mr =
+        let
+          val (size, r) = decode_multireg mr
+          val _ = size = S8 andalso raise X86 "impossible"
+          val prefix = get_prefix ctx size
+        in
+          prefix @@
+          vec [Word8.+(base_opcode, r)]
+        end
+    in
+      case i of
+        AND (size, args) => encode_normal 0wx20 (size, args)
+      | AND_A_IMM imm => encode_normal_imm 0wx24 imm
+      | SUB (size, args) => encode_normal 0wx28 (size, args)
+      | SUB_A_IMM imm => encode_normal_imm 0wx2C imm
+      | XOR (size, args) => encode_normal 0wx30 (size, args)
+      | XOR_A_IMM imm => encode_normal_imm 0wx34 imm
+      | CMP (size, args) => encode_normal 0wx38 (size, args)
+      | CMP_A_IMM imm => encode_normal_imm 0wx3C imm
+      | INC mr => encode_multireg_based 0wx40 mr
+      | DEC mr => encode_multireg_based 0wx48 mr
+      | PUSH mr => encode_multireg_based 0wx50 mr
+      | POP mr => encode_multireg_based 0wx58 mr
+
+      (* out of gamut *)
+      | INT w => vec [0wxCD, w]
+    (*
+      | _ => raise X86 "unimplemented ins"
+        *)
+    end
+
+  (* https://www.onlinedisassembler.com/odaweb/
+     good tool for debugging the output *)
 
   val XXX = AND (S32, A <- Register C)
   val XXY = AND (S8, IND_EAX <~ C)
