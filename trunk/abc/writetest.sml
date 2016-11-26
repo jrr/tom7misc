@@ -37,10 +37,11 @@ struct
   fun writecom () =
     let
 
-      (*
       val prog =
-        printstring "hello this is my cool program it so good\r\n"
-*)
+        printstring "hello this is my cool program it so good\r\n" @
+        exit ()
+
+(*
       val prog = [NOP, NOP,
                   XOR (S16, A <- Register A),
                   XOR_A_IMM (I16 ` Word16.fromInt 0x2A2A),
@@ -52,7 +53,7 @@ struct
                   PUSH AX,
                   PUSH AX,
                   PUSH AX]
-
+*)
 
       val ctx = CTX { default_32 = false }
 
@@ -97,11 +98,22 @@ struct
       (* Paragraphs in header. A paragraph is 16 bytes.
          The minimum printable value is 0x2020 * 16 = 131584, which
          is bigger than we'd like. (CR/LF here?) *)
-      val headersize = vec [0wx20, 0wx20]
+      (* val headersize = vec [0wx20, 0wx20] *)
+      (* Actually we want the header size to be apparently large so that
+         the image size fits in RAM with extra minmemory *)
+      val headersize = vec [0wx7e, 0wx7e]
       (* Min/max number of 16-byte paragraphs required above
          the end of the program. I think this is like BSS? *)
-      val minmemory = vec [0wx20, 0wx20]
-      val maxmemory = vec [0wx20, 0wx20]
+      (* val minmemory = vec [0wx20, 0wx20]
+         val maxmemory = vec [0wx20, 0wx20] *)
+      (* we want this to be small, since DOS only has about 40557 paragraphs to
+         give us. This value (little-endian) is 0b0111000000100000, which gets
+         shifted up 4, overflowing all the 1 bits at the top. (XXX doesn't work;
+         I guess it gets extended to 32 bits) *)
+      (* val minmemory = vec [0wx20, 0wx70] *)
+        (* CR/LF (0x0A0x0D) yields 48314; still too big... *)
+      val minmemory = vec [0wx0A, 0wx0D]
+      val maxmemory = minmemory
       (* Stack segment displacement, in 16-byte paragraphs.
          what does this mean? *)
       val initSS = vec [0wx6e, 0wx6e]
