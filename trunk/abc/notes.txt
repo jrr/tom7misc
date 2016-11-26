@@ -69,7 +69,8 @@ Maybe it is the stack coexisting with my program
   414         sssp=RealMake(pspseg,0xfffe);
   415         mem_writew(PhysMake(pspseg,0xfffe),0);
 (indeed SS=01FE.
- but who put stuff in my stack?!)
+ but who put stuff in my stack?!
+ Note that even BIOS interrupts mess with the stack. :/)
 
 Yes, it looks like PUSH will overwrite this high area of memory.
 
