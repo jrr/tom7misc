@@ -151,6 +151,7 @@ struct
   (* XXX JMP short instructions *)
 
       (* These instructions are out of gamut *)
+    | NOP
     | INT of word8
 
   fun decode_size S8 : word8 = 0w0
@@ -315,6 +316,7 @@ struct
       | POP mr => encode_multireg_based 0wx58 mr
 
       (* out of gamut *)
+      | NOP => vec [0wx90]
       | INT w => vec [0wxCD, w]
     (*
       | _ => raise X86 "unimplemented ins"
