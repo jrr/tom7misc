@@ -1,0 +1,67 @@
+\documentclass[twocolumn]{article}
+\usepackage[top=1.1in, left=0.85in, right=0.85in]{geometry}
+
+\usepackage{supertabular}
+\usepackage{amsthm}
+\usepackage{relsize}
+\usepackage{amsmath}
+\usepackage{amssymb}
+% \usepackage{code}
+\usepackage{graphicx}
+\usepackage{fancyvrb}
+\usepackage{url}
+\usepackage{textcomp}
+
+\pagestyle{empty}
+
+\newcommand\comment[1]{}
+
+\newcommand\st{$^{\mathrm{st}}$}
+\newcommand\nd{$^{\mathrm{nd}}$}
+\newcommand\rd{$^{\mathrm{rd}}$}
+\renewcommand\th{$^{\mathrm{th}}$}
+\newcommand\tm{$^{\mbox{\tiny \textsc{tm}}}$}
+
+% nice fractions
+\newcommand\sfrac[2]{{}\,$^{#1}$\!/{}\!$_{#2}$}
+
+\newcommand\citef[1]{\addtocounter{footnote}{1}\footnotetext{\cite{#1}}\ensuremath{^{\mbox{\footnotesize [\thefootnote]}}}}
+
+\usepackage{ulem}
+% go back to italics for emphasis, though
+\normalem
+
+\begin{document} 
+
+\title{This is the Title}
+\author{Dr.~Tom~Murphy~VII~Ph.D.\thanks{
+    Copyright \copyright\ 2017 the Regents of the Wikiplia Foundation.
+    Appears in SIGBOVIK 2017 with the utmost concern of the
+    Association for Computational Heresy; {\em IEEEEEE!} press,
+    Verlag--Verlag volume no.~0x2017. BMD 0.00} }
+
+\renewcommand\>{$>$}
+\newcommand\<{$<$}
+
+\date{1 April 2017}
+
+\maketitle
+
+\section*{Abstract}
+This is the abstract
+
+\vspace{1em}
+{\noindent \small {\bf Keywords}:
+  keywords
+}
+
+\section{Introduction}
+
+% ``characters'' ``words'' and ``paragraphs'' and ``pages''
+
+
+\bibliographystyle{IEEEtran}
+% \bibliographycomment{} % nothing
+\bibliography{paper}
+
+\end{document}

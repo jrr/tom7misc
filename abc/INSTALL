@@ -1,0 +1,13 @@
+
+compiling dosbox was easy on linux,
+
+svn co svn://svn.code.sf.net/p/dosbox/code-0/dosbox/trunk dosbox
+apt-get install automake
+apt-get install libncurses-dev
+./autogen.sh
+./configure --enable-debug
+make
+
+
+To build ABC with sml/nj, you need ml-yacc (ugh)
+apt-get install ml-yacc
