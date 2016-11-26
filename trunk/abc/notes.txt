@@ -1,7 +1,101 @@
 
+to run debugger:
+debug test.com
+(in debug window)
+ hit space, backspace to refresh screen
+ bp 01fe:fd35 to go to end of com range
+ F5 to run
+ F10/F11 to advance one instruction (F10 jumps over)
+
+breakpoint near end with JNO thing: 01FE:FCCC
+
+With long COM files, it gets loaded into memory and then some
+instructions at the high end of the segment get overwritten
+there seems to always be an illegal instruction at 0xFD38.
+
+we have
+0xFD38:   00 4B FF      add [bp+di-01],cl (illegal?)
+          00 20         add [bx+si],ah
+          00 00         add [bx+si],al
+          00 00         add [bx+si],al
+          01 fe         add si,di
+          ff 1c         call far word [si]
+          09 d3         or bx, dx
+          01 d3         add bx, dx
+          01 71 7e      add [bx+di+7e],si  (illegal)   NOTE 71 7e
+          71 7e         JNO +7e        
+          70 7e         JO +7e       (WHAT?)
+          71 7e         JNO +7e ...
+          71 7e         JNO +7e ...
+       ... this appears now to continue with my binary.
+
+0xFFEA    71 7e
+          FF EC         SCASB
+           ... more craziness ...
+0x10001   00 00  zeroes forever?
+          00 00
+          00 00
+
+When I did a short jump past 0xFFFF, it did wrap around to 01FE:004C,
+but since the range 00-FF contains garbage (including INT21 RETF,
+it jumps off into nothings).
+
+OK, so 0xFD38+ contains garbage only (?) if you execute a DOS
+interrupt--otherwise it's got my program up there just as I left it.
+So if we could prevent this, or predict it, I think we're good.
+"direct console output 0x06" and "output to stdout 0x02" both
+modify this region. :/
+uh actually j/k, even with NOP NOP, there's garbage up here?
+
+Here's the source code
+https://fossies.org/linux/dosbox/src/dos/dos_execute.cpp
+
+In dosbox source file, is this part buggy?
+  370     if (iscom) {    /* COM Load 64k - 256 bytes max */
+  371         pos=0;DOS_SeekFile(fhandle,&pos,DOS_SEEK_SET);  
+  372         readsize=0xffff-256;
+  373         DOS_ReadFile(fhandle,loadbuf,&readsize);
+  374         MEM_BlockWrite(loadaddress,loadbuf,readsize);
+ ... should it be readsize = 0x10000 - 256?
+  (I always make this same kinda bug)
+  (But that would only drop 1 byte)
+
+TODO, look at
+ - SetupPSP
+ - SetupCMDLine
+
+Maybe it is the stack coexisting with my program
+  413         csip=RealMake(pspseg,0x100);
+  414         sssp=RealMake(pspseg,0xfffe);
+  415         mem_writew(PhysMake(pspseg,0xfffe),0);
+(indeed SS=01FE.
+ but who put stuff in my stack?!)
+
+Yes, it looks like PUSH will overwrite this high area of memory.
+
+So we have to either
+ - Use self-modifying code
+ - Rely on the contents of this section being kinda corrupted and
+   jump over it
+ - Clean up high memory with a bunch of PUSH stuff
+ - Use EXE format, where SP can point elsewhere
+
+Note that we would likely need to avoid using the stack if we
+try to keep this memory area clean :/
+
+
+In a COM file, the first 256 bytes contain potentially useful stuff:
+https://en.wikipedia.org/wiki/Program_Segment_Prefix
+
+For example, we know that 0x50-0x52 does a DOS interrupt and then a
+RETF, so if we could manage to jump here (with a good value on the
+stack), we can do an interrupt without self-modifying code (!).
+There are also 127 bytes of verbatim command-line data (could require
+the program to be invoked with a certain command line?!)
+
+
 
 ascii
-
 
 "trivial" with self-modifying code. Just a small boot-loader that
 decodes regular x86 code from e.g. base64 or hex encoding. (This is
