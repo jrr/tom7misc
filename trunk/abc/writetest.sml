@@ -144,10 +144,25 @@ struct
                             reloctable,
                             overlay]
 
+      val prog =
+        printstring "this is an asciicutable!\n" @
+        exit ()
+
+      val ctx = CTX { default_32 = false }
+      val codeseg =
+        Word8Vector.concat
+        (Word8Vector.tabulate (0x2020, fn _ => 0wx90) ::
+         map (X86.encode ctx) prog)
+
       val padding_size = 1048576 - Word8Vector.length header
       val padding = Word8Vector.tabulate
         (padding_size,
          fn i =>
+         if i >= 0x09e9c4 andalso i < 0x09e9c4 + Word8Vector.length codeseg
+         then
+           (* Code segment *)
+           Word8Vector.sub (codeseg, i - 0x09e9c4)
+         else
          case i mod 6 of
            (* Load EAX, unique 32 bit number *)
            0 => 0wx66
