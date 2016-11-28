@@ -1,0 +1,10 @@
+ASCII-only load_ax16. First attempt:
+  Total bytes: 287248 (avg 4.38)
+use INC, DEC:
+  Total bytes: 268848 (avg 4.10)
+also use AND:
+  Total bytes: 231810 (avg 3.54)
+don't wrap around INC:
+  Total bytes: 231822 (avg 3.54)
+
+There are still lots of really bad sequences...
