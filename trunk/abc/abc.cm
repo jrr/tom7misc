@@ -35,5 +35,8 @@ group is
 
   x86.sml
 
+  tactics.sml
+  tactics-test.sml
+
   writetest.sml
   abc.sml
