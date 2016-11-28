@@ -20,3 +20,6 @@ ASCII version (other than INTs)
 
 Use existing correct value of AH:
 # of code bytes: 224
+
+Implemented some known 16-to-16 ops, making it worse!:
+# of code bytes: 229
