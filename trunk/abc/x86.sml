@@ -123,7 +123,7 @@ struct
     (* 34,35 XOR al/ax/eax <- imm *)
     | XOR_A_IMM of immediate
     (* 36 SS segment override prefix *)
-    (* 37 AAA ASCII Adjust After Division *)
+    (* 37 AAA ASCII Adjust After Addition *)
     (* 38-3B CMP variants *)
     | CMP of size * args
     (* 3C,3D CMP al,ax,eax , imm *)
