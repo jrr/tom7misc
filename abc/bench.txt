@@ -6,5 +6,17 @@ also use AND:
   Total bytes: 231810 (avg 3.54)
 don't wrap around INC:
   Total bytes: 231822 (avg 3.54)
+bug fix (shoudln't change length):
+  Total bytes: 231822 (avg 3.54)
 
 There are still lots of really bad sequences...
+
+
+
+357 bytes for EXE HEADER program (non-ascii)
+
+ASCII version (other than INTs)
+# of code bytes: 415
+
+Use existing correct value of AH:
+# of code bytes: 224
