@@ -57,8 +57,6 @@ struct
   fun writeexe () =
     let
 
-      val XXX_ZERO = vec [0w0, 0w0]
-
       (* Aside from the keyword "signature" being replaced with "magic",
          these are the same names as the DOSBox source code. Every entry
          is 16-bit. *)
@@ -72,9 +70,9 @@ struct
          have to give an invalid value here, but DOSBox ANDs the value
          with 07ff. This gives 0x67E * 512 = 850944 bytes.*)
       val pages = vec [0wx7e, 0wx7e]
-      (* Number of relocation entries. We'd probably just like this
-         to be zero, but... *)
-      val relocations = XXX_ZERO (* vec [0wx20, 0wx20]; *)
+      (* Number of relocation entries. We want this to be the minimum
+         value we can, since it's totally wasted space. *)
+      val relocations = vec [0wx20, 0wx20]
       (* Paragraphs in header. A paragraph is 16 bytes.
          The minimum printable value is 0x2020 * 16 = 131584, which
          is bigger than we'd like. (CR/LF here?) *)
@@ -103,6 +101,7 @@ struct
       val initIP = vec [0wx20, 0wx20]
       (* Displacement of code segment. *)
       val initCS = vec [0wx20, 0wx20]
+      (* Offset in the file that begins the relocations. *)
       val reloctable = vec [0wx20, 0wx20]
       (* Tells the OS what overlay number this is. Should be 0
          for the main executable, but it seems to work if it's not *)
@@ -137,10 +136,19 @@ struct
         [Word8Vector.tabulate (0x2020, fn _ => 0wx90),
          codebytes]
 
+      val RELOCTABLE_START = 0x2020
+      val NUM_RELOCATIONS = 0x2020
+
       val padding_size = 1048576 - Word8Vector.length header
       val padding = Word8Vector.tabulate
         (padding_size,
          fn i =>
+         if i >= RELOCTABLE_START - Word8Vector.length header andalso
+            i < RELOCTABLE_START - Word8Vector.length header + NUM_RELOCATIONS * 2
+         then
+           (* relocation table. *)
+           0wx20
+         else
          if i >= 0x09e9c4 andalso i < 0x09e9c4 + Word8Vector.length codeseg
          then
            (* Code segment *)
