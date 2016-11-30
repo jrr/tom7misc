@@ -147,7 +147,12 @@ struct
             i < RELOCTABLE_START - Word8Vector.length header + NUM_RELOCATIONS * 2
          then
            (* relocation table. *)
-           0wx20
+           let
+             val off = i - RELOCTABLE_START - Word8Vector.length header
+           in
+             if i mod 4 = 0 then 0wx19
+             else 0wx20
+           end
          else
          if i >= 0x09e9c4 andalso i < 0x09e9c4 + Word8Vector.length codeseg
          then
