@@ -262,6 +262,57 @@ struct
           POP (reg_to_multireg16 r)])
       end
 
+  fun check_printable_modrm modrm =
+    let
+      val w =
+        case modrm of
+          IND_EAX_DISP8 w => w
+        | IND_ECX_DISP8 w => w
+        | IND_EDX_DISP8 w => w
+        | IND_EBX_DISP8 w => w
+        | IND_SIB_DISP8 _ => raise Tactics "unimplemented"
+        | IND_EPB_DISP8 w => w
+        | IND_ESI_DISP8 w => w
+        | IND_EDI_DISP8 w => w
+        | _ => raise Tactics "mov16ind8 only works with [REG]+disp8 addressing mode."
+    in
+      if w >= 0wx20 andalso w <= 0wx7e then ()
+      else raise Tactics "disp8 is non-printable in move16ind8"
+    end
+
+  (* As if the MOV instruction with [REG]+disp8 addressing.
+     We first do AND with the destination to make it zero.
+     We then XOR the destination with the source.
+
+     Uses the stack temporarily and trashes flags, but nothing else
+     is modified. *)
+  fun move16ind8 (modrm <~ reg) =
+    let
+      val () = check_printable_modrm modrm
+      val (known_ax, ins0) = load_ax16 (NONE, NONE) (SOME 0w0, SOME 0w0)
+    in
+      (* PERF if AX is already 0, or we don't need to keep it, then can avoid push/pop *)
+      PUSH AX ::
+      ins0 @
+      [AND (S16, modrm <~ A),
+       POP AX,
+       XOR (S16, modrm <~ reg)]
+    end
+  (*
+   | move16ind8 (reg <- modrm) =
+    let
+      val () = check_printable_modrm modrm
+      val (known_ax, ins0) = load_reg16 ((NONE, NONE), (NONE, NONE)) (Word16.fromInt 0)
+    in
+      (* PERF if AX is already 0, or we don't need to keep it, then can avoid push/pop *)
+      PUSH AX ::
+      ins0 @
+      [AND (S16, modrm <~ A),
+       POP AX,
+       XOR (S16, modrm <~ reg)]
+    end
+*)
+
   (* Binary NOT of the AX register. Trashes BP, flags *)
   fun not_ax16 (bp : reg16value) : (reg16value * reg16value * ins list) =
   (* Strategy here is to do AX <- XOR(AX, OxFFFF).
@@ -274,14 +325,12 @@ struct
       ((NONE, NONE), (SOME 0wxFF, SOME 0wxFF),
        PUSH AX ::
        neg1ins @
-       [POP AX,
-        (* XXX encoding of this instruction needs address size override. *)
-        DB 0wx67,
+       [POP AX] @
         (* note: DOSBox shows the disassembly hint ss:[0120] = blah here, but it
            seems to execute ds:[0120] as expected. *)
-        MOV (S16, IND_EBX_DISP8 0wx20 <~ CH_BP),
-        DB 0wx67,
-        XOR (S16, A <- IND_EBX_DISP8 0wx20)])
+        (* MOV (S16, IND_EBX_DISP8 0wx20 <~ CH_BP), *)
+       move16ind8 (IND_EBX_DISP8 0wx20 <~ CH_BP) @
+       [XOR (S16, A <- IND_EBX_DISP8 0wx20)])
     end
 
   (* This sets up the initial invariants.
