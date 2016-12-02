@@ -222,54 +222,73 @@ struct
          load_all16 (known_ah, known_al) (vh, vl)
     end
 
+  (* XXX maybe in X86.sml? *)
+  fun reg_to_multireg16 r =
+    case r of
+      A => AX
+    | C => CX
+    | D => DX
+    | B => BX
+    | AH_SP => SP
+    | CH_BP => BP
+    | DH_SI => SI
+    | BH_DI => DI
+
   (* Load a 16-bit register (!= ax) with the specific value.
      May use stack but restores it.
      Can trash flags.
      Only AX and target register are modified. *)
-  (* fun load_reg16 (ax : reg16value, rx : reg16value) (r : reg) (v : Word16.word) = *)
+  fun load_reg16 (ax : reg16value, rx : reg16value) (A : reg) (v : Word16.word) =
+    raise Tactics "load_reg16 can't take AX. use load_ax16."
+    | load_reg16 (ax, rx) r v =
+      (* PERF! Check whether we already have the value in r! *)
+      let
+        val vh = Word8.fromInt ` Word16.toInt ` Word16.andb(Word16.>>(v, 0w8),
+                                                            Word16.fromInt 0xFF)
+        val vl = Word8.fromInt ` Word16.toInt ` Word16.andb(v,
+                                                            Word16.fromInt 0xFF)
+
+        val (known_ax, axins) = load_ax16 ax (SOME vh, SOME vl)
+      in
+        (known_ax, (SOME vh, SOME vl),
+         axins @
+         [PUSH AX,
+          POP (reg_to_multireg16 r)])
+      end
+
+    (*
+  (* Binary NOT of the AX register.
+     Needs a 16-bit register to use as a temporary. *)
+  fun not_ax16 (r : reg, v : reg16value) : (reg16value * reg16value * ins list) =
+  (* Strategy here is to do AX <- XOR(AX, OxFFFF).
+     Generating FFFF is pretty easy (0 - 1). *)
+    load_reg16 (DH_SI,
+*)
 
   (* XXX this should return the known values *)
   (* Generate code that prints the string. Uses the interrupt instruction, so non-ASCII. *)
   fun printstring s =
     let
-      fun emit known_ax nil = nil
-        | emit known_ax (c :: rest) =
+      fun emit known_ax known_dx nil = nil
+        | emit (known_ax : reg16value) (known_dx : reg16value) (c :: rest) =
         let
-          val c = Word8.fromInt ` ord c
           (* Load AH=06, AL=char *)
           val (known_ax, axins) =
-            load_ax16 known_ax (SOME 0wx06, SOME c)
+            load_ax16 known_ax (SOME 0wx06, SOME ` Word8.fromInt ` ord c)
+          (* PERF we actually only need to set DL *)
+          val (known_ax, known_dx, dxins) =
+            load_reg16 (known_ax, known_dx) D (Word16.fromInt (0x06 * 256 + ord c))
         in
           axins @
-          [PUSH AX,
-           POP DX,
-           INT 0wx21] @
-          (* interrupt returns character written in AL *)
-          emit (SOME 0wx06, SOME c) rest
+          dxins @
+          [INT 0wx21] @
+          (* interrupt returns character written in AL.
+             Not known whether it preserves DX? *)
+          emit (SOME 0wx06, SOME ` Word8.fromInt ` ord c) (NONE, NONE) rest
         end
     in
-      emit (NONE, NONE) (explode s)
+      emit (NONE, NONE) (NONE, NONE) (explode s)
     end
-  (*
-    List.concat `
-    map (fn c =>
-         (* PERF:
-            - no need to repeatedly set AH (interrupt num)
-            - can XOR with previous value of DL
-            - AL gets the previous character written
-            - if repeated character, skip loading *)
-         [XOR (S8, D <- Register D),
-          (* Need to use both AH and AL *)
-          XOR (S16, A <- Register A),
-          XOR_A_IMM (I8 ` Word8.fromInt ` ord c),
-          XOR (S8, D <- Register A),
-          (* A contains c. Make it contain 2. *)
-          (* 02: Write character to stdout. DL=char. *)
-          (* 06: Direct console output *)
-          XOR_A_IMM (I8 ` Word8.xorb (0wx06, Word8.fromInt ` ord c)),
-          XOR (S8, AH_SP <- Register A),
-          INT 0wx21]) (explode s)
-*)
 
   (* Exits the program. Uses the interrupt instruction, so non-ASCII. *)
   fun exit () =
