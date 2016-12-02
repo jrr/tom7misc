@@ -35,6 +35,9 @@ group is
 
   x86.sml
 
+  machine-sig.sml
+  machine.sml
+
   tactics.sml
   tactics-test.sml
 

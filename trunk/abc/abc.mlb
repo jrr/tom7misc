@@ -28,6 +28,9 @@ $(SML_LIB)/basis/basis.mlb
   tocil.sml
   x86.sml
 
+  machine-sig.sml
+  machine.sml
+
   tactics.sml
   tactics-test.sml
 
