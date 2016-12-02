@@ -55,6 +55,8 @@ struct
   (* For indirect r/m (e.g. IND_EBX), these are the 32-bit address
      versions. The 16 bit modes are not listed here, and are sorta
      weird (e.g. bp + di + disp8), but we could support them.
+     (XXX we really should -- [BX+disp8] is there and printable,
+     and disp16 could even be quite useful.)
      (In 16-bit mode, these need a prefix byte in order to make them
      use the 32-bit registers...) *)
   datatype modrm =

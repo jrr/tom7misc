@@ -2,6 +2,7 @@ structure Tactics =
 struct
 
   exception Tactics of string
+  structure M = Machine
 
   infixr 9 `
   fun a ` b = a b
@@ -24,11 +25,6 @@ struct
       (wh, wl)
     end
 
-  (* High, low. NONE means don't know (on input) or don't care (on output) *)
-  type reg16value = Word8.word option * Word8.word option
-
-  (* TODO: Machine state, which keeps track of all the registes/flags as above. *)
-
   (* Find printable C such that AND (AL, C) = VL; of course not always possible. *)
   fun inverse_and (al, vl) =
     let
@@ -40,6 +36,25 @@ struct
     in
       r 0wx20
     end
+
+  (* High, low. NONE means don't know (on input) or don't care (on output) *)
+  (* XXX rewrite the next function to not need this oddity *)
+  type reg16value = Word8.word option * Word8.word option
+
+  structure Instructions :>
+  sig
+    type insns
+    val empty : insns
+    val // : insns * ins -> insns
+    val get : insns -> ins list
+  end =
+  struct
+    (* in reverse *)
+    type insns = ins list
+    val empty : insns = nil
+    fun // (l, i) = i :: l
+    fun get l = rev l
+  end
 
   (* Load an arbitrary value into AX.
      If the requested value in AH is NONE ("don't care"), the existing value is preserved.
