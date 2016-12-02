@@ -52,6 +52,11 @@ struct
       AX | CX | DX | BX | SP | BP | SI | DI
     | EAX | ECX | EDX | EBX | ESP | EBP | ESI | EDI
 
+  (* For indirect r/m (e.g. IND_EBX), these are the 32-bit address
+     versions. The 16 bit modes are not listed here, and are sorta
+     weird (e.g. bp + di + disp8), but we could support them.
+     (In 16-bit mode, these need a prefix byte in order to make them
+     use the 32-bit registers...) *)
   datatype modrm =
     (* mod=00. Indirect through register,
        or special stuff *)
@@ -64,7 +69,7 @@ struct
   | IND_ESI
   | IND_EDI
   (* mod=01. One-byte displacement.
-     Despite being of type word8, this is a signed two's-complement
+     Despite being of SML type word8, this is a signed two's-complement
      displacement. *)
   | IND_EAX_DISP8 of Word8.word
   | IND_ECX_DISP8 of Word8.word
@@ -214,55 +219,63 @@ struct
     | ESI => (S32, 0w6)
     | EDI => (S32, 0w7)
 
-  (* Return unshifted (mod, rm, suffix bytes) *)
-  fun decode_modrm modrm : (word8 * word8 * word8vector) =
-    case modrm of
-      IND_EAX => raise X86 "unimplemented"
-    | IND_ECX => raise X86 "unimplemented"
-    | IND_EDX => raise X86 "unimplemented"
-    | IND_EBX => raise X86 "unimplemented"
-    | IND_SIB sib => raise X86 "unimplemented"
-    | DISP32 w32 => raise X86 "unimplemented"
-    | IND_ESI => raise X86 "unimplemented"
-    | IND_EDI => raise X86 "unimplemented"
-    | IND_EAX_DISP8 w8 => raise X86 "unimplemented"
-    | IND_ECX_DISP8 w8 => raise X86 "unimplemented"
-    | IND_EDX_DISP8 w8 => raise X86 "unimplemented"
-    | IND_EBX_DISP8 w8 => (0w1, 0w3, vec [w8])
-    | IND_SIB_DISP8 (sib, w8) => raise X86 "unimplemented"
-    | IND_EPB_DISP8 w8 => raise X86 "unimplemented"
-    | IND_ESI_DISP8 w8 => raise X86 "unimplemented"
-    | IND_EDI_DISP8 w8 => raise X86 "unimplemented"
-    | IND_EAX_DISP32 w32 => raise X86 "unimplemented"
-    | IND_ECX_DISP32 w32 => raise X86 "unimplemented"
-    | IND_EDX_DISP32 w32 => raise X86 "unimplemented"
-    | IND_EBX_DISP32 w32 => raise X86 "unimplemented"
-    | IND_SIB_DISP32 (sib, w32) => raise X86 "unimplemented"
-    | IND_EPB_DISP32 w32 => raise X86 "unimplemented"
-    | IND_ESI_DISP32 w32 => raise X86 "unimplemented"
-    | IND_EDI_DISP32 w32 => raise X86 "unimplemented"
-    | Register r => (0w3, decode_reg r, vec[])
-
-  (* Returns unshifted bits for
-     dir, mod, reg, r/m,
-     and a (typically empty) vector of suffix bytes. *)
-  fun decode_args (reg <- modrm) :
-    (word8 * word8 * word8 * word8 * word8vector) =
-    let val (md, rm, suffix) = decode_modrm modrm
-    in (0w1, md, decode_reg reg, rm, suffix)
-    end
-    | decode_args (modrm <~ reg) =
-    let val (md, rm, suffix) = decode_modrm modrm
-    in (0w0, md, decode_reg reg, rm, suffix)
+  (* Return unshifted (prefix bytes, mod, rm, suffix bytes) *)
+  fun decode_modrm (CTX ctx) modrm : (word8vector * word8 * word8 * word8vector) =
+    let
+      val pfx_addr32 = if #default_32 ctx
+                       then vec []
+                       else vec [0wx67]
+    in
+      case modrm of
+        IND_EAX => raise X86 "unimplemented"
+      | IND_ECX => raise X86 "unimplemented"
+      | IND_EDX => raise X86 "unimplemented"
+      | IND_EBX => raise X86 "unimplemented"
+      | IND_SIB sib => raise X86 "unimplemented"
+      | DISP32 w32 => raise X86 "unimplemented"
+      | IND_ESI => raise X86 "unimplemented"
+      | IND_EDI => raise X86 "unimplemented"
+      | IND_EAX_DISP8 w8 => raise X86 "unimplemented"
+      | IND_ECX_DISP8 w8 => raise X86 "unimplemented"
+      | IND_EDX_DISP8 w8 => raise X86 "unimplemented"
+      | IND_EBX_DISP8 w8 => (pfx_addr32, 0w1, 0w3, vec [w8])
+      | IND_SIB_DISP8 (sib, w8) => raise X86 "unimplemented"
+      | IND_EPB_DISP8 w8 => raise X86 "unimplemented"
+      | IND_ESI_DISP8 w8 => raise X86 "unimplemented"
+      | IND_EDI_DISP8 w8 => raise X86 "unimplemented"
+      | IND_EAX_DISP32 w32 => raise X86 "unimplemented"
+      | IND_ECX_DISP32 w32 => raise X86 "unimplemented"
+      | IND_EDX_DISP32 w32 => raise X86 "unimplemented"
+      | IND_EBX_DISP32 w32 => raise X86 "unimplemented"
+      | IND_SIB_DISP32 (sib, w32) => raise X86 "unimplemented"
+      | IND_EPB_DISP32 w32 => raise X86 "unimplemented"
+      | IND_ESI_DISP32 w32 => raise X86 "unimplemented"
+      | IND_EDI_DISP32 w32 => raise X86 "unimplemented"
+      | Register r =>
+          (* Pretty sure address size prefix does nothing *)
+          (vec [], 0w3, decode_reg r, vec[])
     end
 
-  (* This is the operand-size prefix. 0x67 is address-size
-     prefix, which I may need to use for some opcodes? XXX *)
-  fun get_prefix _ S8 = vec[]
-    | get_prefix (CTX { default_32 = true, ...}) S16 = vec [0wx66]
-    | get_prefix (CTX { default_32 = false, ...}) S16 = vec[]
-    | get_prefix (CTX { default_32 = true, ...}) S32 = vec[]
-    | get_prefix (CTX { default_32 = false, ...}) S32 = vec [0wx66]
+  (* Returns (prefix, dir, mod, reg, rm, suffix)
+     where dir, mod, reg, r/m are unshifted bits
+     and prefix and suffix are (typically empty) vectors of bytes *)
+  fun decode_args ctx (reg <- modrm) :
+    (word8vector * word8 * word8 * word8 * word8 * word8vector) =
+    let val (prefix, md, rm, suffix) = decode_modrm ctx modrm
+    in (prefix, 0w1, md, decode_reg reg, rm, suffix)
+    end
+    | decode_args ctx (modrm <~ reg) =
+    let val (prefix, md, rm, suffix) = decode_modrm ctx modrm
+    in (prefix, 0w0, md, decode_reg reg, rm, suffix)
+    end
+
+  (* This is the operand-size prefix. The address-size prefix is
+     emitted by decode_modrm. *)
+  fun get_operand_prefix _ S8 = vec[]
+    | get_operand_prefix (CTX { default_32 = true, ...}) S16 = vec [0wx66]
+    | get_operand_prefix (CTX { default_32 = false, ...}) S16 = vec[]
+    | get_operand_prefix (CTX { default_32 = true, ...}) S32 = vec[]
+    | get_operand_prefix (CTX { default_32 = false, ...}) S32 = vec [0wx66]
 
   fun encode ctx (i : ins) : word8vector =
     let
@@ -270,12 +283,13 @@ struct
          base_opcode is the actual first opcode in the group; not shifted. *)
       fun encode_normal (base_opcode : word8) (size, args) =
         let
-          val prefix = get_prefix ctx size
+          val prefix = get_operand_prefix ctx size
           val opcode = base_opcode >> 0w2
           val s = decode_size size
-          val (d, md, reg, rm, suffix) = decode_args args
+          val (prefix2, d, md, reg, rm, suffix) = decode_args ctx args
         in
           prefix @@
+          prefix2 @@
           vec [(opcode << 0w2) || (d << 0w1) || s,
                (md << 0w6) || (reg << 0w3) || rm] @@
           suffix
@@ -287,7 +301,7 @@ struct
       fun encode_normal_imm (base_opcode : word8) imm =
         let
           val size = immediate_size imm
-          val prefix = get_prefix ctx size
+          val prefix = get_operand_prefix ctx size
           val opcode = base_opcode >> 0w2
           val s = decode_size size
         in
@@ -300,7 +314,7 @@ struct
         let
           val (size, r) = decode_multireg mr
           val _ = size = S8 andalso raise X86 "impossible"
-          val prefix = get_prefix ctx size
+          val prefix = get_operand_prefix ctx size
         in
           prefix @@
           vec [Word8.+(base_opcode, r)]
