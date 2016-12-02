@@ -84,7 +84,6 @@ So we have to either
 Note that we would likely need to avoid using the stack if we
 try to keep this memory area clean :/
 
-
 In a COM file, the first 256 bytes contain potentially useful stuff:
 https://en.wikipedia.org/wiki/Program_Segment_Prefix
 
@@ -95,6 +94,15 @@ There are also 127 bytes of verbatim command-line data (could require
 the program to be invoked with a certain command line?!)
 
 
+EXE format
+ - with header at r3012, cs=220D (has my code in it), IP=2020
+   SS=705B (blank, ESP=7e7e, but this still gives us 32kb stack)
+   FS=GS=0
+   ESI=2020 (what is it?)
+   EDI=7e7e (what is it?)
+   ES=DS=01DD. Starts with 256 bytes of not my program; I think
+               it is the PSP?
+   Note that the code segment does NOT start with this.          
 
 ascii
 
@@ -170,6 +178,9 @@ Notable missing opcodes:
 32-bit ModR/M byte table.
 ASCII values marked with *.
 http://www.c-jump.com/CIS77/CPU/x86/X77_0090_addressing_modes.htm
+
+For these indirects, the default segment register is DS,
+except for BP (and maybe SP), which use SS (stack segment).
 
 r8(/r)                            AL  CL  DL  BL  AH  CH  DH  BH
 r16(/r)                           AX  CX  DX  BX  SP  BP  SI  DI

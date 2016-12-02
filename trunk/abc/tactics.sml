@@ -27,6 +27,8 @@ struct
   (* High, low. NONE means don't know (on input) or don't care (on output) *)
   type reg16value = Word8.word option * Word8.word option
 
+  (* TODO: Machine state, which keeps track of all the registes/flags as above. *)
+
   (* Find printable C such that AND (AL, C) = VL; of course not always possible. *)
   fun inverse_and (al, vl) =
     let
