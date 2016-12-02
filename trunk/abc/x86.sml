@@ -151,8 +151,12 @@ struct
   (* XXX JMP short instructions *)
 
       (* These instructions are out of gamut *)
+    | MOV of size * args
     | NOP
     | INT of word8
+
+      (* XXX hax *)
+    | DB of word8
 
   fun decode_size S8 : word8 = 0w0
     (* The prefix byte, decoded separately, determines
@@ -210,6 +214,7 @@ struct
     | ESI => (S32, 0w6)
     | EDI => (S32, 0w7)
 
+  (* Return unshifted (mod, rm, suffix bytes) *)
   fun decode_modrm modrm : (word8 * word8 * word8vector) =
     case modrm of
       IND_EAX => raise X86 "unimplemented"
@@ -223,7 +228,7 @@ struct
     | IND_EAX_DISP8 w8 => raise X86 "unimplemented"
     | IND_ECX_DISP8 w8 => raise X86 "unimplemented"
     | IND_EDX_DISP8 w8 => raise X86 "unimplemented"
-    | IND_EBX_DISP8 w8 => raise X86 "unimplemented"
+    | IND_EBX_DISP8 w8 => (0w1, 0w3, vec [w8])
     | IND_SIB_DISP8 (sib, w8) => raise X86 "unimplemented"
     | IND_EPB_DISP8 w8 => raise X86 "unimplemented"
     | IND_ESI_DISP8 w8 => raise X86 "unimplemented"
@@ -316,8 +321,10 @@ struct
       | POP mr => encode_multireg_based 0wx58 mr
 
       (* out of gamut *)
+      | MOV (size, args) => encode_normal 0wx88 (size, args)
       | NOP => vec [0wx90]
       | INT w => vec [0wxCD, w]
+      | DB w => vec [w]
     (*
       | _ => raise X86 "unimplemented ins"
         *)

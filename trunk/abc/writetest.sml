@@ -17,23 +17,13 @@ struct
   fun writecom () =
     let
 
+      (* XXX: This won't work any more, since we assume that we can use temporaries in
+         DS, but DS = CS. Maybe for COM files we can start by moving DS to the next 64k,
+         just assuming that ram is safe to use? *)
       val prog =
+        Tactics.initialize () @
         Tactics.printstring "hello this is my cool program it so good\r\n" @
         Tactics.exit ()
-
-(*
-      val prog = [NOP, NOP,
-                  XOR (S16, A <- Register A),
-                  XOR_A_IMM (I16 ` Word16.fromInt 0x2A2A),
-                  PUSH AX,
-                  PUSH AX,
-                  PUSH AX,
-                  PUSH AX,
-                  PUSH AX,
-                  PUSH AX,
-                  PUSH AX,
-                  PUSH AX]
-*)
 
       val ctx = CTX { default_32 = false }
 
@@ -124,6 +114,10 @@ struct
                             overlay]
 
       val prog =
+        Tactics.initialize () @
+        (* XXX testing *)
+        (#2 (Tactics.load_ax16 (NONE, NONE) (SOME 0wxAB, SOME 0wxCD))) @
+        (#3 (Tactics.not_ax16 (NONE, NONE))) @
         Tactics.printstring "this is an asciicutable!\n" @
         Tactics.exit ()
       val ctx = CTX { default_32 = false }

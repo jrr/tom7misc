@@ -14,6 +14,16 @@ struct
 
   fun ftos f = Real.fmt (StringCvt.FIX (SOME 2)) f
 
+  fun w16tow8s (w : Word16.word) : Word8.word * Word8.word =
+    let
+      val wh = Word8.fromInt ` Word16.toInt ` Word16.andb(Word16.>>(w, 0w8),
+                                                          Word16.fromInt 0xFF)
+      val wl = Word8.fromInt ` Word16.toInt ` Word16.andb(w,
+                                                          Word16.fromInt 0xFF)
+    in
+      (wh, wl)
+    end
+
   (* High, low. NONE means don't know (on input) or don't care (on output) *)
   type reg16value = Word8.word option * Word8.word option
 
@@ -38,6 +48,7 @@ struct
      go from 0 to 80!!) *)
   (* Note that loading EAX (or any register) can be easily accomplished by pushing two
      16-bit literals with this routine, then POP with the operand size prefix. *)
+  (* PERF: IMUL on an immediate is useful here too. *)
   (* XXX probably better to separate this out into routines that do small parts,
      like one that loads ah with some known values. *)
   fun load_ax16 (ax : reg16value) (v : reg16value) : (reg16value * ins list) =
@@ -190,10 +201,7 @@ struct
                else
                  let
                    val s = Word16.-(a, v)
-                   val sh = Word8.fromInt ` Word16.toInt ` Word16.andb(Word16.>>(s, 0w8),
-                                                                       Word16.fromInt 0xFF)
-                   val sl = Word8.fromInt ` Word16.toInt ` Word16.andb(s,
-                                                                       Word16.fromInt 0xFF)
+                   val (sh, sl) = w16tow8s s
                  in
                    if sh >= PRINT_LOW andalso sh <= PRINT_HIGH andalso
                       sl >= PRINT_LOW andalso sl <= PRINT_HIGH
@@ -243,11 +251,7 @@ struct
     | load_reg16 (ax, rx) r v =
       (* PERF! Check whether we already have the value in r! *)
       let
-        val vh = Word8.fromInt ` Word16.toInt ` Word16.andb(Word16.>>(v, 0w8),
-                                                            Word16.fromInt 0xFF)
-        val vl = Word8.fromInt ` Word16.toInt ` Word16.andb(v,
-                                                            Word16.fromInt 0xFF)
-
+        val (vh, vl) = w16tow8s v
         val (known_ax, axins) = load_ax16 ax (SOME vh, SOME vl)
       in
         (known_ax, (SOME vh, SOME vl),
@@ -256,14 +260,85 @@ struct
           POP (reg_to_multireg16 r)])
       end
 
-    (*
-  (* Binary NOT of the AX register.
-     Needs a 16-bit register to use as a temporary. *)
-  fun not_ax16 (r : reg, v : reg16value) : (reg16value * reg16value * ins list) =
+  (* Binary NOT of the AX register. Trashes BP, flags *)
+  fun not_ax16 (bp : reg16value) : (reg16value * reg16value * ins list) =
   (* Strategy here is to do AX <- XOR(AX, OxFFFF).
-     Generating FFFF is pretty easy (0 - 1). *)
-    load_reg16 (DH_SI,
-*)
+     Generating FFFF is pretty cheap (0 - 1). We have to put it in a temporary
+     in order to do it; we'll use [EBX]+0x20. *)
+    let
+      val (known_ax, known_bp, neg1ins) = load_reg16 ((NONE, NONE), bp) CH_BP (Word16.fromInt 0xFFFF)
+    in
+      (* XXX if we actually know AX's value, just do a load_. *)
+      ((NONE, NONE), (SOME 0wxFF, SOME 0wxFF),
+       PUSH AX ::
+       neg1ins @
+       [POP AX,
+        (* XXX encoding of this instruction needs address size override. *)
+        DB 0wx67,
+        (* note: DOSBox shows the disassembly hint ss:[0120] = blah here, but it
+           seems to execute ds:[0120] as expected. *)
+        MOV (S16, IND_EBX_DISP8 0wx20 <~ CH_BP),
+        DB 0wx67,
+        XOR (S16, A <- IND_EBX_DISP8 0wx20)])
+    end
+
+  (* This sets up the initial invariants.
+     - EBX = 0x00000100. We don't have any register-to-register operations, but we can do
+       some indirect addressing, for example
+          MOV ESI <- [EBX]
+       or
+          MOV ESI <- [EBX]+'a'     (of course note we do not have MOV instruction)
+       EBX is a fairly useless register, since it can't be the REG argument except
+       when using [REG]+disp32 as R/M, and all registers can be used that way. By
+       keeping it a constant value, we can use the following slots as temporaries:
+          [EBX], i.e. DS:00000100 (available registers are ESP, EBP, ESI, EDI)
+          [EBX]+0x20, i.e. DS:00000120 (all registers available)
+          ...
+          [EBX]+0x7e, i.e. DS:0000017e (all registers available)
+
+       0 would be an obvious choice for the constant value, but DS:0000 contains 256
+       bytes of the PSP, which we want to keep:
+          - it contains the command line and maybe some other useful stuff from the
+            program's environment.
+          - it's guaranteed to contain INT 21; RETF (at DS:0050), which we could use
+            to do system calls without self-modifying code if we could get the right
+            stuff on the stack and somehow get control here (it's in range of a JNO 0x7e
+            at the end of the address space, so this seems possible.)
+       The base value basically doesn't matter. I think everything here works fine with
+       different values TEMP_START (up to 0xFFFF - 0x7E). We may need to preserve other
+       parts of the data segment, though, such as the region right before the address space
+       wraps.
+
+       This is lots of temporaries, so that's nice. It's also critical because it's
+       the only way we can do math ops like XOR on non-immediate values. Example:
+          Get DS:0100 to contain V2
+          PUSH AX
+          POP BP
+          XOR BP <- [EBX]
+          PUSH BP
+          POP AX
+       or
+          Get DS:0120 to contain V2
+          XOR AX <- [EBX]+0x20
+
+       Note that we also have disp32 available, but this is basically useless in
+       real mode because all printable values will overflow the segment.
+       *)
+  val TEMP_START = Word16.fromInt 0x0100
+  (* XXX return machine state *)
+  fun initialize () =
+    let
+      val (th, tl) = w16tow8s TEMP_START
+      val (known_ax, inshigh) = load_ax16 (NONE, NONE) (SOME 0w0, SOME 0w0)
+      val (known_ax, inslow) = load_ax16 (SOME 0w0, SOME 0w0) (SOME th, SOME tl)
+    (* TODO: Other stuff? *)
+    in
+      inshigh @
+      [PUSH AX] @
+      inslow @
+      [PUSH AX,
+       POP EBX]
+    end
 
   (* XXX this should return the known values *)
   (* Generate code that prints the string. Uses the interrupt instruction, so non-ASCII. *)
