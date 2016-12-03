@@ -27,10 +27,12 @@ struct
           val mach = Machine.all_unknown
           val mach = Machine.learn_slot mach Machine.EAX Machine.---@ al
           val mach = Machine.learn_slot mach Machine.EAX Machine.--@- 0w0
-          val (mach, ins) = Tactics.load_ax16 mach (Word16.fromInt dst)
+          val acc = Tactics.Acc.empty mach
+          val acc = Tactics.load_ax16 acc (Word16.fromInt dst)
           val ctx = X86.CTX { default_32 = false }
-          val bytes = Word8Vector.concat (map (encode ctx) (Tactics.Instructions.get ins))
+          val bytes = Word8Vector.concat (map (encode ctx) (Tactics.Acc.insns acc))
           val n = Word8Vector.length bytes
+          val mach = Tactics.Acc.mach acc
         in
           Word8Vector.app (fn c => if c < PRINT_LOW orelse c > PRINT_HIGH
                                    then raise TacticsTest "byte not printable!"
