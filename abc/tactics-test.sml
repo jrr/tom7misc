@@ -24,18 +24,21 @@ struct
         let
           val al = Word8.fromInt src
           val vl = Word8.fromInt dst
-          val (known, ins) = Tactics.load_ax16 (NONE, SOME al) (NONE, SOME vl)
+          val mach = Machine.all_unknown
+          val mach = Machine.learn_slot mach Machine.EAX Machine.---@ al
+          val mach = Machine.learn_slot mach Machine.EAX Machine.--@- 0w0
+          val (mach, ins) = Tactics.load_ax16 mach (Word16.fromInt dst)
           val ctx = X86.CTX { default_32 = false }
-          val bytes = Word8Vector.concat (map (encode ctx) ins)
+          val bytes = Word8Vector.concat (map (encode ctx) (Tactics.Instructions.get ins))
           val n = Word8Vector.length bytes
         in
           Word8Vector.app (fn c => if c < PRINT_LOW orelse c > PRINT_HIGH
                                    then raise TacticsTest "byte not printable!"
                                    else ());
-          (case known of
-             (_, SOME r) => if r <> vl
-                            then raise TacticsTest "WRONG known value"
-                            else ()
+          (case Machine.slot mach Machine.EAX Machine.---@ of
+             SOME r => if r <> vl
+                       then raise TacticsTest "WRONG known value"
+                       else ()
            | _ => raise TacticsTest "UNKNOWN known value?");
           print (Word8.toString al ^ " -> " ^ Word8.toString vl ^ ": " ^
                  Int.toString n ^ "\n");
