@@ -113,7 +113,9 @@ still hard because all the modern headers use zeroes?)
 
 Control.Print.printDepth := 100;
 
-
+Some crazy ideas:
+ - Can we use the relocation table to modify our binary in a
+   predictable way at startup?
 
 
 Comprehensive opcode encoding reference:
@@ -144,6 +146,24 @@ Tricks:
      DEC REG  // now 0xFFFFFFFF
      XOR REG, REG2
 
+
+   IN, OUTS
+ - It looks possible to blink PS/2 LEDs for output:
+   http://wiki.osdev.org/PS/2_Keyboard
+   as well as probably read scancodes!
+
+  decent documentation:
+   http://www.felixcloutier.com/x86/OUTS:OUTSB:OUTSW:OUTSD.html
+  PC speaker:
+   http://www.dreamincode.net/forums/topic/23986-generating-sound-in-assembly/
+  Covox Speech Thing is just DAC on the parallel port; DOSBox
+  emulates it.
+  Adlib:
+   http://bespin.org/~qz/pc-gpe/adlib.txt
+
+ - OUTS looks pretty general; it takes the IO port from DX and
+   the value from memory (specified in DS:ESI).
+
 Notable missing opcodes:
  - MOV. Ugh. Need this for...
      - loading literals
@@ -159,11 +179,24 @@ Notable missing opcodes:
  - INT. Used to make DOS system calls, which might be important
    for setting up "unreal mode" (not to mention basic IO in DOS).
    Probably only workaround for this is self-modifying code.
+   (but there is an INT 21 in the PSP...)
  - SHL and SHR, which are used all over the place. Since we also
    don't have ADD, this could make some normally easy
    things quite hard. Hmm. (We do have IMUL, INC and SUB, and can
    do bitwise complement with XOR.)
  - NOT, NEG. Can do this with XOR, deg (flags notwithstanding)
+
+----------------------------------------------------------------------
+          unsolved!
+          
+ - POP CS (actually 0f was an 8086/88-specific opcode?)
+   MOV CS, AX -- seems to need opcode 8e, and XOR/AND trick doesn't
+   assemble (would be hard anyway because code would jump to 0000
+   immediately I think)
+   I think this is necessary for more than 64k of
+   code, and to use the INT 21 RETF in DS... are there other ways?
+   (COM file would not have this problem btw)
+----------------------------------------------------------------------
 
  - No two-byte opcodes can be used because these are prefixed
    with 0x0F.
@@ -174,6 +207,9 @@ Notable missing opcodes:
    - SSE, MMX, VMX are here; stuff like CMOV that's useful
      but inessential.
    - "Jump short" instructions
+
+XXX there is also this 16-bit table; it's useful:
+http://3.bp.blogspot.com/-IC8Ll747_Gk/TZj39lDafmI/AAAAAAAAAAU/FLtuyZuGO2A/s1600/16_bit_addressing_modRM.png
 
 32-bit ModR/M byte table.
 ASCII values marked with *.
