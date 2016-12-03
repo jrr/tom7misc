@@ -14,6 +14,7 @@ struct
 
   fun ftos f = Real.fmt (StringCvt.FIX (SOME 2)) f
 
+    (*
   fun writecom () =
     let
 
@@ -43,6 +44,7 @@ struct
     in
       StringUtil.writefilev8 "dos/test.com" bytes
     end
+*)
 
   fun writeexe () =
     let
@@ -113,13 +115,25 @@ struct
                             reloctable,
                             overlay]
 
-      val prog =
-        Tactics.initialize () @
-        (* XXX testing *)
-        (#2 (Tactics.load_ax16 (NONE, NONE) (SOME 0wxAB, SOME 0wxCD))) @
-        (#3 (Tactics.not_ax16 (NONE, NONE))) @
-        Tactics.printstring "this is an asciicutable!\n" @
-        Tactics.exit ()
+      val (mach, insa) = Tactics.initialize ()
+      val (mach, insb) = Tactics.load_ax16 mach (Word16.fromInt 0xABCD)
+      val (mach, insc) = Tactics.not_ax16 mach
+      val (mach, insd) = Tactics.printstring mach "this is an asciicutable!\n"
+      val (inse) = Tactics.exit mach ()
+
+      local
+        val /// = Tactics.Instructions.///
+        infix ///
+      in
+        val prog =
+          Tactics.Instructions.get
+          (insa ///
+           insb ///
+           insc ///
+           insd ///
+           inse)
+      end
+
       val ctx = CTX { default_32 = false }
       val codebytes = Word8Vector.concat (map (X86.encode ctx) prog)
       val () = print ("# of code bytes: " ^
@@ -165,6 +179,6 @@ struct
       val bytes = Word8Vector.concat [header, padding]
     in
       StringUtil.writefilev8 "dos/header.exe" bytes
-    end
+    end handle Tactics.Tactics s => print ("Tactics: " ^ s ^ "\n")
 
 end

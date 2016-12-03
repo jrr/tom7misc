@@ -16,6 +16,7 @@ sig
   datatype reg = EAX | ECX | EDX | EBX | ESP | EBP | ESI | EDI
 
   val forget_reg32 : mach -> reg -> mach
+  val forget_reg16 : mach -> reg -> mach    
   val learn_reg16 : mach -> reg -> Word16.word -> mach
   val learn_reg32 : mach -> reg -> Word32.word -> mach
   val learn_slot : mach -> reg -> slot -> Word8.word -> mach
@@ -30,4 +31,7 @@ sig
 
   (* TODO: processor flags *)
   (* TODO: temporary values *)
+
+  val debugstring : mach -> string
+    
 end

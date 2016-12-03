@@ -55,6 +55,13 @@ struct
       update_reg mach reg up
     end
 
+  fun forget_reg16 mach reg =
+    let
+      fun up (a, b, _, _) = (a, b, NONE, NONE)
+    in
+      update_reg mach reg up
+    end
+
   fun forget_slot mach reg slot =
     let
       fun up (a, b, c, d) =
@@ -148,5 +155,26 @@ struct
           SOME (Word16.orb(Word16.<<(c, 0w8), d))
         end
     | _ => NONE
+
+
+  fun kbs NONE = "??"
+    | kbs (SOME w) =
+    let val s = Word8.toString w
+    in
+      if size s = 1
+      then "0" ^ s
+      else s
+    end
+
+  fun krs (a, b, c, d) = String.concat [kbs a, kbs b, kbs c, kbs d]
+
+  fun debugstring (M { regs = { eax, ecx, edx, ebx,
+                                esp, ebp, esi, edi } }) =
+    let
+    in
+      String.concat ["EAX ", krs eax, "  ECX ", krs ecx, "  EDX ", krs edx, "  EBX ", krs ebx, "\n",
+                     "ESP ", krs esp, "  EBP ", krs ebp, "  ESI ", krs esi, "  EDI ", krs edi]
+
+    end
 
 end

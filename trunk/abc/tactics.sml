@@ -3,6 +3,8 @@ struct
 
   exception Tactics of string
   structure M = Machine
+  datatype slot = datatype M.slot
+  type mach = M.mach
 
   infixr 9 `
   fun a ` b = a b
@@ -46,6 +48,7 @@ struct
     type insns
     val empty : insns
     val // : insns * ins -> insns
+    val /// : insns * insns -> insns
     val get : insns -> ins list
   end =
   struct
@@ -53,8 +56,17 @@ struct
     type insns = ins list
     val empty : insns = nil
     fun // (l, i) = i :: l
+    (* eg if we have   lfirst                      and lsecond
+                       empty // PUSH AX // INC BX  empty // POP BX // DEC CX
+                  =    inc :: ax :: nil            dec :: pop :: nil
+       then we want    empty // PUSH AX // INC BX // POP BX // DEC CX
+       which is dec :: pop :: inc :: push :: nil
+       so this is just lsecond @ lfirst *)
+    fun /// (lfirst, lsecond) = lsecond @ lfirst
     fun get l = rev l
   end
+  open Instructions
+  infix // ///
 
   (* Load an arbitrary value into AX.
      If the requested value in AH is NONE ("don't care"), the existing value is preserved.
@@ -68,96 +80,83 @@ struct
   (* PERF: IMUL on an immediate is useful here too. *)
   (* XXX probably better to separate this out into routines that do small parts,
      like one that loads ah with some known values. *)
-  fun load_ax16 (ax : reg16value) (v : reg16value) : (reg16value * ins list) =
-    let
-      (* Fully general load of 16-bit literal; fallback case. *)
-      fun load_all16 (known_ah, known_al) (vh, vl) =
-        (* If AH already has what we need, we can skip a lot. *)
-        if known_ah = SOME vh
-        then load_ax16 (known_ah, known_al) (NONE, SOME vl)
+  local
+    (* May not change AH, since we use this in 16-bit loads. We could be more aggressive
+       (IMUL, etc.) if we did't care about preserving AH. *)
+    fun load_al_known mach al vl : mach * insns =
+      let
+        val () = print ("load_al_known have: " ^ Word8.toString al ^
+                        " v: " ^ Word8.toString vl ^ " with machine:\n" ^
+                        M.debugstring mach ^ "\n")
+        val () =
+          case M.slot mach M.EAX ---@ of
+            NONE => raise Tactics "must really know al in load_al_known"
+          | SOME al' => if al <> al'
+                        then raise Tactics "wrong known al in load_al_known?"
+                        else ()
+      in
+        if al = vl
+        (* We already have the value we wanted! *)
+        then (mach, empty)
         else
-          let
-            val (known, load_high) = load_ax16 (known_ah, known_al) (SOME vh, NONE)
-            val (known, load_low) = load_ax16 known (NONE, SOME vl)
-          in
-            (known, load_high @ load_low)
-          end
-    in
-      case (ax, v) of
-        (* Somehow we don't care what the value is at all *)
-        (known, (NONE, NONE)) => (known, nil)
-      | (known as (known_ah, SOME al), (NONE, SOME vl)) =>
-          (* Loading AL only. *)
-          if al = vl
-          (* We already have the value we wanted! *)
-          then ((known_ah, SOME vl), nil)
+          (* Best is if we can emit a single byte instruction INC or
+             DEC to transform it. We don't DEC 0 nor INC FF, because
+             these also change AH. Note that this issue does not
+             apply to SUB, because it is an 8-bit operation. *)
+          if al <> 0wxFF andalso vl = Word8.+ (al, 0w1)
+          then (M.learn_slot mach M.EAX ---@ vl, empty // INC AX)
           else
-            (* Best is if we can emit a single byte instruction INC or
-               DEC to transform it. We don't DEC 0 nor INC FF, because
-               these also change AH. Note that this issue does not
-               apply to SUB, because it is an 8-bit operation.
-               PERF: If we really don't care about the value of AH, or
-               just want to propagate what we know about it, we could
-               use 16-bit inc/dec here... *)
-            if al <> 0wxFF andalso vl = Word8.+ (al, 0w1)
-            then ((known_ah, SOME vl), [INC AX])
-            else if al <> 0wx00 andalso vl = Word8.- (al, 0w1)
-                 then ((known_ah, SOME vl), [DEC AX])
-                 else
-            (* If we know AL, we can often get the result we want
-               immediately by XOR, SUB, or AND with an immediate. *)
-            let val x = Word8.xorb (al, vl)
-            in
-              if x >= PRINT_LOW andalso x <= PRINT_HIGH
-              then ((known_ah, SOME vl), [XOR_A_IMM ` I8 x])
-              else
-                let
-                  (* we want VL = AL - s,
-                         s + VL = AL
-                         s = AL - VL *)
-                  val s = Word8.- (al, vl)
-                in
-                  (* print ("al: " ^ Word8.toString al ^
-                     " vl: " ^ Word8.toString vl ^
-                     " s: " ^ Word8.toString s ^ "\n"); *)
-                  if s >= PRINT_LOW andalso s <= PRINT_HIGH
-                  then ((known_ah, SOME vl), [SUB_A_IMM ` I8 s])
-                  else
-                    (* AND is occasionally a good way, for example, if
-                       AL already contains 0xFF and VL is printable. *)
-                    case inverse_and (al, vl) of
-                      SOME c => ((known_ah, SOME vl), [AND_A_IMM ` I8 c])
-                    | NONE =>
-                        let
-                          (* XXX PERF be smarter here. This does terminate for
-                             all pairs, but takes as many as 36 bytes (maybe more),
-                             like for 0xFF -> 0x80. *)
-                          val s1 = 0wx7e
-                          val (kt, t) =
-                            load_ax16 (known_ah, SOME (Word8.- (al, s1))) (NONE, SOME vl)
-                        in
-                          (kt, SUB_A_IMM ` I8 s1 :: t)
-                        end
-                end
-            end
-      | ((known_ah, NONE), value as (NONE, SOME vl)) =>
-        (* Put *some* known value in AL so that we can do the routine above.
-           PERF: Of course, some choices are better than others here! If
-           we had a precomputed table of src*dst pairs, we could try to
-           compute a good one. *)
-            let val (kt, t) = load_ax16 (known_ah, SOME 0w0) value
-            in
-              (kt,
-               AND_A_IMM ` I8 0wx40 ::   (* ASCII '@', dec 64 *)
-               (* AL either contains 0x40 or 0x00. *)
-               AND_A_IMM ` I8 0wx20 ::   (* ASCII ' ', dec 32 *)
-               (* Now AL definitely contains 00. *)
-               t)
-            end
+            if al <> 0wx00 andalso vl = Word8.- (al, 0w1)
+            then (M.learn_slot mach M.EAX ---@ vl, empty // DEC AX)
+            else
+              (* If we know AL, we can often get the result we want
+                 immediately by XOR, SUB, or AND with an immediate. *)
+              let val x = Word8.xorb (al, vl)
+              in
+                if x >= PRINT_LOW andalso x <= PRINT_HIGH
+                then (M.learn_slot mach M.EAX ---@ vl, empty // XOR_A_IMM ` I8 x)
+                else
+                  let
+                    (* we want VL = AL - s,
+                           s + VL = AL
+                           s = AL - VL *)
+                    val s = Word8.- (al, vl)
+                  in
+                    (* print ("al: " ^ Word8.toString al ^
+                       " vl: " ^ Word8.toString vl ^
+                       " s: " ^ Word8.toString s ^ "\n"); *)
+                    if s >= PRINT_LOW andalso s <= PRINT_HIGH
+                    then (M.learn_slot mach M.EAX ---@ vl, empty // SUB_A_IMM ` I8 s)
+                    else
+                      (* AND is occasionally a good way, for example, if
+                         AL already contains 0xFF and VL is printable. *)
+                      case inverse_and (al, vl) of
+                        SOME c => (M.learn_slot mach M.EAX ---@ vl, empty // AND_A_IMM ` I8 c)
+                      | NONE =>
+                          let
+                            (* XXX PERF be smarter here. This does terminate for
+                               all pairs, but takes as many as 36 bytes (maybe more),
+                               like for 0xFF -> 0x80. *)
+                            val s1 = 0wx7e
+                            val new_al = Word8.- (al, s1)
+                            val mach = M.learn_slot mach M.EAX ---@ new_al
+                            val insns = empty // SUB_A_IMM ` I8 s1
 
-      (* PERF: Loading AH when something is known. *)
+                            (* PERF if we do know AH, recursing to the general routine
+                               could occasionally produce better paths (e.g. 16-bit DEC) *)
+                            val (mach, tins) = load_al_known mach new_al vl
+                          in
+                            (mach, insns /// tins)
+                          end
+                  end
+              end
+      end
 
-      | (known, value as (SOME vh, NONE)) =>
+    (* Like above, but allowed to trash AL; really just here for two-part 16-bit loads. *)
+    fun load_ah_known mach (ah, al) vh : mach * insns =
+      if ah = vh
+      then (mach, empty)
+      else
       (* Loading something into AH. One reasonably brief way to do this is to misalign the stack.
          Load the desired value into AL, so that we have AH=ah?, AL=vh.
          PUSH AX, giving
@@ -173,18 +172,87 @@ struct
                    v  v
                   AL AH
          INC SP (keep stack aligned; avoid unbounded growth) *)
-         let
-           val (known, load_low) = load_ax16 known (NONE, SOME vh)
-         in
-           ((SOME vh, NONE),
-           load_low @
-            [PUSH AX,
-             DEC SP,
-             POP AX,
-             INC SP])
-         end
+        let
+          val () = print ("load_ah_known have: " ^ Word8.toString ah ^ ", " ^ Word8.toString al ^
+                          " v: " ^ Word8.toString vh ^ " with machine:\n" ^
+                          M.debugstring mach ^ "\n")
+          val (mach, inst_low) = load_al_known mach al vh
+          (* We don't know what's after the stack, so knowledge of AL is lost.
+             ESP stays the same. *)
+          val mach : mach = M.forget_slot mach M.EAX ---@
+          val mach : mach = M.learn_slot mach M.EAX --@- vh
+        in
+          (mach,
+           inst_low //
+           PUSH AX //
+           DEC SP //
+           POP AX //
+           INC SP)
+        end
 
-      | ((SOME ah, SOME al), target as (SOME vh, SOME vl)) =>
+    fun load_al mach vl : mach * insns =
+      case M.slot mach M.EAX ---@ of
+        SOME al => load_al_known mach al vl
+      | NONE =>
+          let
+            val insns = empty //
+              (AND_A_IMM ` I8 0wx40) //
+              (AND_A_IMM ` I8 0wx20)
+            val mach = M.learn_slot mach M.EAX ---@ 0w0
+            val (mach, t) = load_al_known mach 0w0 vl
+          in
+            (mach, insns /// t)
+          end
+
+    (* Fully general load of 16-bit literal; fallback case. *)
+    fun load_general mach (ah, al) (vh, vl) =
+      let
+        val (mach, ih) = load_ah_known mach (ah, al) vh
+        val (mach, il) = load_al mach vl
+      in
+        (mach, ih /// il)
+      end
+
+    (* Load AX, knowing that it currently contains some value. *)
+    fun load_ax16_known (mach : M.mach) (ax : Word16.word) (v : Word16.word) : mach * insns =
+      let
+        val (ah, al) = w16tow8s ax
+        val (vh, vl) = w16tow8s v
+      in
+        (* PERF 16-bit tricks first! *)
+        load_general mach (ah, al) (vh, vl)
+      end
+  in
+    fun load_ax16 (mach : M.mach) (w : Word16.word) : mach * insns =
+      case M.reg16 mach M.EAX of
+        SOME ax => load_ax16_known mach ax w
+      | NONE =>
+          (* PERF: If we end up going the load_general route, then zeroing
+             this is kinda pointless, because we still have to zero AL after
+             the POP reads some unknown byte from the stack. Could compare the
+             two approaches. *)
+          (* PERF: Case where we know one of AH or AL, just not the other one *)
+          (* Put *some* known value in AX so that we can use the routine
+             above. PERF: Obviously some choices are better than others, and it
+             depends on the value we're trying to load. For now, zero. *)
+          let
+            val insns = empty //
+              (AND_A_IMM ` I16 ` Word16.fromInt 0x4040) //
+              (AND_A_IMM ` I16 ` Word16.fromInt 0x2020)
+
+            val mach = M.learn_reg16 mach M.EAX (Word16.fromInt 0)
+            val (mach, t) = load_ax16_known mach (Word16.fromInt 0) w
+          in
+            (mach, insns /// t)
+          end
+
+    (* XXX: 8-bit versions *)
+  end
+
+
+(* some 16-bit tricks *)
+(*
+                    | ((SOME ah, SOME al), target as (SOME vh, SOME vl)) =>
          (* PERF: This should consider multi-instruction sequences. *)
          let
            val a = Word16.fromInt (Word8.toInt ah * 256 + Word8.toInt al)
@@ -246,6 +314,7 @@ struct
       | ((known_ah, known_al), (SOME vh, SOME vl)) =>
          load_all16 (known_ah, known_al) (vh, vl)
     end
+*)
 
   (* XXX maybe in X86.sml? *)
   fun reg_to_multireg16 r =
@@ -259,23 +328,42 @@ struct
     | DH_SI => SI
     | BH_DI => DI
 
-  (* Load a 16-bit register (!= ax) with the specific value.
+  fun reg_to_machreg r =
+    case r of
+      A => M.EAX
+    | C => M.ECX
+    | D => M.EDX
+    | B => M.EBX
+    | AH_SP => M.ESP
+    | CH_BP => M.EBP
+    | DH_SI => M.ESI
+    | BH_DI => M.EDI
+
+  (* Load a 16-bit register with the specified value.
      May use stack but restores it.
      Can trash flags.
-     Only AX and target register are modified. *)
-  fun load_reg16 (ax : reg16value, rx : reg16value) (A : reg) (v : Word16.word) =
-    raise Tactics "load_reg16 can't take AX. use load_ax16."
-    | load_reg16 (ax, rx) r v =
-      (* PERF! Check whether we already have the value in r! *)
-      let
-        val (vh, vl) = w16tow8s v
-        val (known_ax, axins) = load_ax16 ax (SOME vh, SOME vl)
-      in
-        (known_ax, (SOME vh, SOME vl),
-         axins @
-         [PUSH AX,
-          POP (reg_to_multireg16 r)])
-      end
+     Modifies AX. *)
+  fun load_reg16 (mach : mach) (A : reg) (v : Word16.word) = load_ax16 mach v
+    | load_reg16 mach r v =
+    let
+      fun general () =
+        let
+          val (mach, axins) = load_ax16 mach v
+          val mach = M.learn_reg16 mach (reg_to_machreg r) v
+        in
+          (mach,
+           axins //
+           PUSH AX //
+           POP (reg_to_multireg16 r))
+        end
+    in
+      (* PERF see if we have the value in any reg, then PUSH/POP *)
+      (* PERF use temporaries *)
+      case M.reg16 mach ` reg_to_machreg r of
+        (* just in case we already have it... *)
+        SOME oldv => if v = oldv then (mach, empty) else general ()
+      | _ => general ()
+    end
 
   fun check_printable_modrm modrm =
     let
@@ -301,17 +389,20 @@ struct
 
      Uses the stack temporarily and trashes flags, but nothing else
      is modified. *)
-  fun move16ind8 (modrm <~ reg) =
+  fun move16ind8 mach (modrm <~ reg) =
     let
       val () = check_printable_modrm modrm
-      val (known_ax, ins0) = load_ax16 (NONE, NONE) (SOME 0w0, SOME 0w0)
-    in
       (* PERF if AX is already 0, or we don't need to keep it, then can avoid push/pop *)
-      PUSH AX ::
-      ins0 @
-      [AND (S16, modrm <~ A),
-       POP AX,
-       XOR (S16, modrm <~ reg)]
+      val insns = empty // PUSH AX
+      val (mach, axins) = load_ax16 mach (Word16.fromInt 0)
+      (* XXX this should track the value of the temporary *)
+    in
+      (mach,
+       insns ///
+       axins //
+       AND (S16, modrm <~ A) //
+       POP AX //
+       XOR (S16, modrm <~ reg))
     end
   (*
    | move16ind8 (reg <- modrm) =
@@ -329,23 +420,20 @@ struct
 *)
 
   (* Binary NOT of the AX register. Trashes BP, flags *)
-  fun not_ax16 (bp : reg16value) : (reg16value * reg16value * ins list) =
+  fun not_ax16 mach : mach * insns =
   (* Strategy here is to do AX <- XOR(AX, OxFFFF).
      Generating FFFF is pretty cheap (0 - 1). We have to put it in a temporary
      in order to do it; we'll use [EBX]+0x20. *)
     let
-      val (known_ax, known_bp, neg1ins) = load_reg16 ((NONE, NONE), bp) CH_BP (Word16.fromInt 0xFFFF)
+      val insns = empty // PUSH AX
+      val (mach, neg1ins) = load_reg16 mach CH_BP (Word16.fromInt 0xFFFF)
+      val insns = insns /// neg1ins // POP AX
+      val mach = M.forget_reg16 mach M.EAX
+      val (mach, movins) = move16ind8 mach (IND_EBX_DISP8 0wx20 <~ CH_BP)
+      val insns = insns /// movins // XOR (S16, A <- IND_EBX_DISP8 0wx20)
+      val mach = M.forget_reg16 mach M.EAX
     in
-      (* XXX if we actually know AX's value, just do a load_. *)
-      ((NONE, NONE), (SOME 0wxFF, SOME 0wxFF),
-       PUSH AX ::
-       neg1ins @
-       [POP AX] @
-        (* note: DOSBox shows the disassembly hint ss:[0120] = blah here, but it
-           seems to execute ds:[0120] as expected. *)
-        (* MOV (S16, IND_EBX_DISP8 0wx20 <~ CH_BP), *)
-       move16ind8 (IND_EBX_DISP8 0wx20 <~ CH_BP) @
-       [XOR (S16, A <- IND_EBX_DISP8 0wx20)])
+      (mach, insns)
     end
 
   (* This sets up the initial invariants.
@@ -391,50 +479,52 @@ struct
        real mode because all printable values will overflow the segment.
        *)
   val TEMP_START = Word16.fromInt 0x0100
-  (* XXX return machine state *)
-  fun initialize () =
+  fun initialize () : (mach * insns) =
     let
-      val (th, tl) = w16tow8s TEMP_START
-      val (known_ax, inshigh) = load_ax16 (NONE, NONE) (SOME 0w0, SOME 0w0)
-      val (known_ax, inslow) = load_ax16 (SOME 0w0, SOME 0w0) (SOME th, SOME tl)
+      val mach = M.all_unknown
+      val (mach, inshigh) = load_ax16 mach (Word16.fromInt 0)
+      val insns = inshigh // PUSH AX
+      val (mach, inslow) = load_ax16 mach TEMP_START
+      val insns = insns /// inslow // PUSH AX // POP EBX
+      val mach = M.learn_reg32 mach M.EBX (Word32.fromInt ` Word16.toInt TEMP_START)
     (* TODO: Other stuff? *)
     in
-      inshigh @
-      [PUSH AX] @
-      inslow @
-      [PUSH AX,
-       POP EBX]
+      (mach, insns)
     end
 
   (* XXX this should return the known values *)
   (* Generate code that prints the string. Uses the interrupt instruction, so non-ASCII. *)
-  fun printstring s =
+  fun printstring mach s : mach * insns =
     let
-      fun emit known_ax known_dx nil = nil
-        | emit (known_ax : reg16value) (known_dx : reg16value) (c :: rest) =
+      fun emit mach nil insns = (mach, insns)
+        | emit mach (c :: rest) insns =
         let
           (* Load AH=06, AL=char *)
-          val (known_ax, axins) =
-            load_ax16 known_ax (SOME 0wx06, SOME ` Word8.fromInt ` ord c)
+          val value = Word16.fromInt (0x06 * 256 + ord c)
+          val (mach, axins) = load_ax16 mach value
           (* PERF we actually only need to set DL *)
-          val (known_ax, known_dx, dxins) =
-            load_reg16 (known_ax, known_dx) D (Word16.fromInt (0x06 * 256 + ord c))
-        in
-          axins @
-          dxins @
-          [INT 0wx21] @
+          val insns = insns /// axins // PUSH AX // POP DX
+          val mach = M.learn_reg16 mach M.EDX value
+          val insns = insns // INT 0wx21
           (* interrupt returns character written in AL.
              Not known whether it preserves DX? *)
-          emit (SOME 0wx06, SOME ` Word8.fromInt ` ord c) (NONE, NONE) rest
+          val mach = M.forget_reg16 mach M.EDX
+          val mach = M.learn_reg16 mach M.EAX value
+
+        in
+          emit mach rest insns
         end
     in
-      emit (NONE, NONE) (NONE, NONE) (explode s)
+      emit mach (explode s) empty
     end
 
-  (* Exits the program. Uses the interrupt instruction, so non-ASCII. *)
-  fun exit () =
-    [XOR (S16, A <- Register A),
-     XOR_A_IMM (I16 (Word16.fromInt 0x4c00)),
-     INT 0wx21]
+  (* Exits the program. Uses the interrupt instruction, so non-ASCII.
+     Doesn't return mach since it's, like, undefined *)
+  fun exit mach () : insns =
+    let
+      val (mach, insns) = load_ax16 mach (Word16.fromInt 0x4c00)
+    in
+      insns // INT 0wx21
+    end
 
 end

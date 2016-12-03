@@ -23,3 +23,18 @@ Use existing correct value of AH:
 
 Implemented some known 16-to-16 ops, making it worse!:
 # of code bytes: 229
+
+
+before Machine rewrite:
+WriteTest.writeexe();
+# of code bytes: 320
+
+
+after machine rewrite:
+Total bytes: 231822 (avg 3.54)  (ok good)
+
+
+after Machine rewrite:
+# of code bytes: 300    :)
+
+... I'm also not using any 16-bit tricks in there.
