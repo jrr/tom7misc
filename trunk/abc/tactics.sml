@@ -376,6 +376,10 @@ struct
       else raise Tactics "disp8 is non-printable in move16ind8"
     end
 
+  fun check_not_stack16 AH_SP = raise Tactics ("can't use SP (probably because the tactic " ^
+                                               "needs to use the stack)")
+    | check_not_stack16 _ = ()
+
   (* As if the MOV instruction with [REG]+disp8 addressing.
      We first do AND with the destination to make it zero.
      We then XOR the destination with the source.
@@ -385,6 +389,7 @@ struct
   fun move16ind8 acc (modrm <~ reg) : acc =
     let
       val () = check_printable_modrm modrm
+      val () = check_not_stack16 reg
       (* PERF if AX is already 0, or we don't need to keep it, then can avoid push/pop *)
       val acc = acc // PUSH AX
       val acc = load_ax16 acc (Word16.fromInt 0)
@@ -410,6 +415,8 @@ struct
     end
 *)
 
+  (* XXX For not_ and add_, there's really no reason why this has to use AX
+     specifically. In fact we should really avoid AX since it's used to load immediates... *)
   (* Binary NOT of the AX register. Trashes BP, flags *)
   fun not_ax16 acc : acc =
   (* Strategy here is to do AX <- XOR(AX, OxFFFF).
@@ -428,6 +435,39 @@ struct
     in
       acc
     end
+
+  (* ADD ax <- r. *)
+  fun add_ax16 acc r : acc =
+    (* Strategy here is to do SUB (AX, -V).
+       -V is NOT V + 1. *)
+    let
+      val () = check_not_stack16 r
+      val mr = reg_to_multireg16 r
+      val acc = acc //
+        PUSH AX //
+        PUSH mr //
+        POP AX ??
+        forget_reg16 M.EAX
+      val acc = not_ax16 acc
+      val acc = acc //
+        INC AX ??
+        forget_reg16 M.EAX
+      (* now AX contains -V, and top of stack is input AX. *)
+      (* Choice of 0wx24 is arbitrary. Should have the accumulator
+         allocate this or something. *)
+      val acc = move16ind8 acc (IND_EBX_DISP8 0wx24 <~ A)
+      (* Restore input AX. *)
+      val acc = acc //
+        POP AX ??
+        forget_reg16 M.EAX //
+        (* Finally we can do it *)
+        SUB (S16, A <- IND_EBX_DISP8 0wx24) ??
+        forget_reg16 M.EAX
+    in
+      acc
+    end
+
+
 
   (* This sets up the initial invariants.
      - EBX = 0x00000100. We don't have any register-to-register operations, but we can do

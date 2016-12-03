@@ -116,8 +116,9 @@ struct
                             overlay]
 
       val acc = Tactics.initialize ()
-      val acc = Tactics.load_ax16 acc (Word16.fromInt 0xABCD)
-      val acc = Tactics.not_ax16 acc
+      val acc = Tactics.load_reg16 acc C (Word16.fromInt 0x1234)
+      val acc = Tactics.load_ax16 acc (Word16.fromInt 0x3333)
+      val acc = Tactics.add_ax16 acc C
       val acc = Tactics.printstring acc "this is an asciicutable!\n"
       val acc = Tactics.exit acc ()
 
