@@ -115,24 +115,13 @@ struct
                             reloctable,
                             overlay]
 
-      val (mach, insa) = Tactics.initialize ()
-      val (mach, insb) = Tactics.load_ax16 mach (Word16.fromInt 0xABCD)
-      val (mach, insc) = Tactics.not_ax16 mach
-      val (mach, insd) = Tactics.printstring mach "this is an asciicutable!\n"
-      val (inse) = Tactics.exit mach ()
+      val acc = Tactics.initialize ()
+      val acc = Tactics.load_ax16 acc (Word16.fromInt 0xABCD)
+      val acc = Tactics.not_ax16 acc
+      val acc = Tactics.printstring acc "this is an asciicutable!\n"
+      val acc = Tactics.exit acc ()
 
-      local
-        val /// = Tactics.Instructions.///
-        infix ///
-      in
-        val prog =
-          Tactics.Instructions.get
-          (insa ///
-           insb ///
-           insc ///
-           insd ///
-           inse)
-      end
+      val prog = Tactics.Acc.insns acc
 
       val ctx = CTX { default_32 = false }
       val codebytes = Word8Vector.concat (map (X86.encode ctx) prog)
