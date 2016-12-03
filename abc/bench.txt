@@ -38,3 +38,6 @@ after Machine rewrite:
 # of code bytes: 300    :)
 
 ... I'm also not using any 16-bit tricks in there.
+
+with 16-bit tricks:
+# of code bytes: 285

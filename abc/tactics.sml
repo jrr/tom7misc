@@ -15,6 +15,9 @@ struct
   val PRINT_LOW : Word8.word = 0wx20
   val PRINT_HIGH : Word8.word =  0wx7e
 
+  fun dprint (f : unit -> string) = ()
+  (* fun dprint f = print (f ()) *)
+
   fun ftos f = Real.fmt (StringCvt.FIX (SOME 2)) f
 
   fun w16tow8s (w : Word16.word) : Word8.word * Word8.word =
@@ -38,10 +41,6 @@ struct
     in
       r 0wx20
     end
-
-  (* High, low. NONE means don't know (on input) or don't care (on output) *)
-  (* XXX rewrite the next function to not need this oddity *)
-  type reg16value = Word8.word option * Word8.word option
 
   structure Instructions :>
   sig
@@ -78,16 +77,15 @@ struct
   (* Note that loading EAX (or any register) can be easily accomplished by pushing two
      16-bit literals with this routine, then POP with the operand size prefix. *)
   (* PERF: IMUL on an immediate is useful here too. *)
-  (* XXX probably better to separate this out into routines that do small parts,
-     like one that loads ah with some known values. *)
   local
     (* May not change AH, since we use this in 16-bit loads. We could be more aggressive
        (IMUL, etc.) if we did't care about preserving AH. *)
     fun load_al_known mach al vl : mach * insns =
       let
-        val () = print ("load_al_known have: " ^ Word8.toString al ^
-                        " v: " ^ Word8.toString vl ^ " with machine:\n" ^
-                        M.debugstring mach ^ "\n")
+        val () = dprint (fn () =>
+                         "load_al_known have: " ^ Word8.toString al ^
+                         " v: " ^ Word8.toString vl ^ " with machine:\n" ^
+                         M.debugstring mach ^ "\n")
         val () =
           case M.slot mach M.EAX ---@ of
             NONE => raise Tactics "must really know al in load_al_known"
@@ -173,9 +171,10 @@ struct
                   AL AH
          INC SP (keep stack aligned; avoid unbounded growth) *)
         let
-          val () = print ("load_ah_known have: " ^ Word8.toString ah ^ ", " ^ Word8.toString al ^
-                          " v: " ^ Word8.toString vh ^ " with machine:\n" ^
-                          M.debugstring mach ^ "\n")
+          val () = dprint (fn () =>
+                           "load_ah_known have: " ^ Word8.toString ah ^ ", " ^ Word8.toString al ^
+                           " v: " ^ Word8.toString vh ^ " with machine:\n" ^
+                           M.debugstring mach ^ "\n")
           val (mach, inst_low) = load_al_known mach al vh
           (* We don't know what's after the stack, so knowledge of AL is lost.
              ESP stays the same. *)
@@ -214,13 +213,74 @@ struct
       end
 
     (* Load AX, knowing that it currently contains some value. *)
-    fun load_ax16_known (mach : M.mach) (ax : Word16.word) (v : Word16.word) : mach * insns =
+    fun load_ax16_known (mach : M.mach) (a : Word16.word) (v : Word16.word) : mach * insns =
       let
-        val (ah, al) = w16tow8s ax
+        val (ah, al) = w16tow8s a
         val (vh, vl) = w16tow8s v
+
+        fun fallback () = load_general mach (ah, al) (vh, vl)
+
+        val inc_distance = Word16.toInt ` Word16.-(v, a)
+        val dec_distance = Word16.toInt ` Word16.-(a, v)
+
+        val _ = (inc_distance >= 0 andalso dec_distance >= 0)
+          orelse raise Tactics "impossible!"
+
+        (* PERF higher is probabably better here, but this is conservative
+           since stuff like XOR_A_IMM I16 is 3 bytes. Instead, should just
+           try a few things and compare. *)
+        val MAX_DISTANCE = 3
+
+        (* PERF: This should consider multi-instruction sequences. *)
+
+        (* PERF rarely, we could find I8 versions of these that also work.
+           we do search some of those in the general case if AH already
+           contains VH, but for example we still might eagerly perform a
+           16-bit AND here when an 8-bit one would do. *)
+        fun binops () =
+          let
+            val xh = Word8.xorb (ah, vh)
+            val xl = Word8.xorb (al, vl)
+          in
+            if xh >= PRINT_LOW andalso xh <= PRINT_HIGH andalso
+               xl >= PRINT_LOW andalso xl <= PRINT_HIGH
+            then
+              let
+                val xx = Word16.fromInt (Word8.toInt xh * 256 + Word8.toInt xl)
+              in
+                (M.learn_reg16 mach M.EAX v,
+                 empty // (XOR_A_IMM ` I16 xx))
+              end
+            else
+              let
+                val s = Word16.-(a, v)
+                val (sh, sl) = w16tow8s s
+              in
+                if sh >= PRINT_LOW andalso sh <= PRINT_HIGH andalso
+                   sl >= PRINT_LOW andalso sl <= PRINT_HIGH
+                then (M.learn_reg16 mach M.EAX v, empty // (SUB_A_IMM ` I16 s))
+                else
+                  case inverse_and (ah, vh) of
+                    NONE => fallback ()
+                  | SOME ch =>
+                    (case inverse_and (al, vl) of
+                       NONE => fallback ()
+                     | SOME cl =>
+                         (M.learn_reg16 mach M.EAX v,
+                          empty // (AND_A_IMM ` I16 `
+                                    Word16.fromInt (Word8.toInt ch * 256 + Word8.toInt cl))))
+              end
+          end
+
+        fun rep 0 i = empty
+          | rep n i = rep (n - 1) i // i
       in
-        (* PERF 16-bit tricks first! *)
-        load_general mach (ah, al) (vh, vl)
+        (* inc/dec_distance 0 covers the case that they are equal. *)
+        if inc_distance <= MAX_DISTANCE
+        then (M.learn_reg16 mach M.EAX v, rep inc_distance (INC AX))
+        else if dec_distance <= MAX_DISTANCE
+             then (M.learn_reg16 mach M.EAX v, rep dec_distance (DEC AX))
+             else binops ()
       end
   in
     fun load_ax16 (mach : M.mach) (w : Word16.word) : mach * insns =
@@ -248,73 +308,6 @@ struct
 
     (* XXX: 8-bit versions *)
   end
-
-
-(* some 16-bit tricks *)
-(*
-                    | ((SOME ah, SOME al), target as (SOME vh, SOME vl)) =>
-         (* PERF: This should consider multi-instruction sequences. *)
-         let
-           val a = Word16.fromInt (Word8.toInt ah * 256 + Word8.toInt al)
-           val v = Word16.fromInt (Word8.toInt vh * 256 + Word8.toInt vl)
-
-           val inc_distance = Word16.toInt ` Word16.-(v, a)
-           val dec_distance = Word16.toInt ` Word16.-(a, v)
-
-           val _ = (inc_distance >= 0 andalso dec_distance >= 0)
-             orelse raise Tactics "impossible!"
-
-           (* PERF higher is probabably better here, but this is conservative
-              since stuff like XOR_A_IMM I16 is 3 bytes. *)
-           val MAX_DISTANCE = 3
-
-           fun fallback () = load_all16 (SOME ah, SOME al) (vh, vl)
-
-           (* PERF rarely, we could find I8 versions of these that also work.
-              we do search some of those in the general case if AH already
-              contains VH, but for example we still might eagerly perform a
-              16-bit AND here when an 8-bit one would do. *)
-           fun binops () =
-             let
-               val xh = Word8.xorb (ah, vh)
-               val xl = Word8.xorb (al, vl)
-             in
-               if xh >= PRINT_LOW andalso xh <= PRINT_HIGH andalso
-                  xl >= PRINT_LOW andalso xl <= PRINT_HIGH
-               then (target, [XOR_A_IMM ` I16 (Word16.fromInt (Word8.toInt xh * 256 +
-                                                               Word8.toInt xl))])
-               else
-                 let
-                   val s = Word16.-(a, v)
-                   val (sh, sl) = w16tow8s s
-                 in
-                   if sh >= PRINT_LOW andalso sh <= PRINT_HIGH andalso
-                      sl >= PRINT_LOW andalso sl <= PRINT_HIGH
-                   then (target, [SUB_A_IMM ` I16 ` s])
-                   else
-                     case inverse_and (ah, vh) of
-                       NONE => fallback ()
-                     | SOME ch =>
-                       (case inverse_and (al, vl) of
-                          NONE => fallback ()
-                        | SOME cl =>
-                            (target, [AND_A_IMM ` I16 `
-                                      Word16.fromInt (Word8.toInt ch * 256 + Word8.toInt cl)]))
-                 end
-             end
-         in
-           (* inc/dec_distance 0 covers the case that they are equal. *)
-           if inc_distance <= MAX_DISTANCE
-           then (target, List.tabulate (inc_distance, fn _ => INC AX))
-           else if dec_distance <= MAX_DISTANCE
-                then (target, List.tabulate (dec_distance, fn _ => DEC AX))
-                else binops()
-         end
-
-      | ((known_ah, known_al), (SOME vh, SOME vl)) =>
-         load_all16 (known_ah, known_al) (vh, vl)
-    end
-*)
 
   (* XXX maybe in X86.sml? *)
   fun reg_to_multireg16 r =
@@ -492,7 +485,6 @@ struct
       (mach, insns)
     end
 
-  (* XXX this should return the known values *)
   (* Generate code that prints the string. Uses the interrupt instruction, so non-ASCII. *)
   fun printstring mach s : mach * insns =
     let
