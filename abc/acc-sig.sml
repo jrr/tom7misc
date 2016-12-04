@@ -24,17 +24,30 @@ sig
   (* Apply transformation to machine. *)
   val ?? : acc * (Machine.mach -> Machine.mach) -> acc
 
+  (* Claiming registers. A 16-bit register's friend is the 32-bit version, and vice versa.
+     A register and its friend cannot be simultaneously claimed. *)
+  val friend : X86.multireg -> X86.multireg
   (* Claim a 16-bit or 32-bit register.
-     Claiming an already-claimed register is fatal, including claiming the 16 bit version
-     when the 32-bit one is claimed, or vice versa. *)
+     Claiming a register that's already claimed, or that whose friend is claimed, is fatal. *)
   val ++ : acc * X86.multireg -> acc
   (* Release a 16-bit or 32-bit register. Releasing an already-free register is fatal.
      Must release at the same width as it was claimed. *)
   val -- : acc * X86.multireg -> acc
 
+  (* True if the register and its friend are both unclaimed *)
+  val can_be_claimed : acc -> X86.multireg -> bool
+  (* Returns SOME mr for the multireg mr that, if unclaimed,
+     makes the argument register claimable. This can only be the
+     argument register or its friend. If both the registe and
+     its friend are unclaimed, returns NONE (this means it can
+     be claimed). *)
+  val blocking_claim : acc -> X86.multireg -> X86.multireg option
+
   (* Checks that neither the register nor its 16/32-bit are claimed. *)
-  val assert_unclaimed : acc * X86.multireg -> unit
-  val assert_claimed : acc * X86.multireg -> unit
+  val assert_unclaimed : acc -> X86.multireg -> unit
+  (* Assert that the register is claimed. AX is claimed if EAX is claimed
+     (since it is a proper subregister), but not vice versa. *)
+  val assert_claimed : acc -> X86.multireg -> unit
 
   (* TODO: Get free 32-bit or 16-bit register. Maybe in tactics? *)
 
@@ -42,6 +55,7 @@ sig
      Maybe these should just have the following types in Machine? *)
   val forget_reg32 : Machine.reg -> Machine.mach -> Machine.mach
   val forget_reg16 : Machine.reg -> Machine.mach -> Machine.mach
+  val forget_multireg : X86.multireg -> Machine.mach -> Machine.mach
   val forget_slot : Machine.reg -> Machine.slot -> Machine.mach -> Machine.mach
   val learn_reg32 : Machine.reg -> Word32.word -> Machine.mach -> Machine.mach
   val learn_reg16 : Machine.reg -> Word16.word -> Machine.mach -> Machine.mach

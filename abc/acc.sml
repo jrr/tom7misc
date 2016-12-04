@@ -20,6 +20,19 @@ struct
   fun ?? ({ mach, ins, claimed }, mf) = { mach = mf mach, ins = ins, claimed = claimed }
   fun mach { mach, ins = _, claimed = _ } = mach
 
+  fun dumpstate { mach, ins, claimed } =
+    let
+      val recent = map X86.insstring (rev (ListUtil.takeupto 25 ins))
+    in
+      "== Machine ==\n" ^
+      Machine.debugstring mach ^ "\n" ^
+      "== Claimed ==\n" ^
+      (* XXX *)
+      Word32.toString claimed ^ "\n" ^
+      "== Recent Instructions==\n" ^
+      StringUtil.delimit "\n" recent ^ "\n"
+    end
+
   fun friend mr =
     case mr of
       X86.AX  => X86.EAX
@@ -83,30 +96,71 @@ struct
       { mach = mach, ins = ins, claimed = Word32.andb (claimed, Word32.notb regmask) }
     end
 
-  fun assert_claimed ({ mach, ins, claimed }, mr) =
-    let
-      val (regmask, _) = multimask mr
-    in
-      if 0w0 = Word32.andb (claimed, regmask)
-      then raise Acc ("assert_claimed failed: " ^ X86.multiregstring mr ^ " is not claimed.")
-      else ()
-    end
-  fun assert_unclaimed ({ mach, ins, claimed }, mr) =
+  fun blocking_claim { mach, ins, claimed } mr =
     let
       val (regmask, friendmask) = multimask mr
     in
       if 0w0 <> Word32.andb (claimed, regmask)
-      then raise Acc ("assert_unclaimed failed: " ^ X86.multiregstring mr ^ " is claimed.")
+      then SOME mr
+      else if 0w0 <> Word32.andb (claimed, friendmask)
+           then SOME (friend mr)
+           else NONE
+    end
+
+  fun can_be_claimed acc mr = Option.isSome (blocking_claim acc mr)
+
+  fun assert_claimed (acc as { mach, ins, claimed }) mr =
+    let
+      val (regmask, friendmask) = multimask mr
+      (* If this is a 16-bit register, then we're ok if either the
+         16- or 32-bit register is claimed. *)
+      val mask =
+        case X86.decode_multireg mr of
+          (X86.S16, _) => Word32.orb (regmask, friendmask)
+        | (X86.S32, _) => regmask
+        | _ => raise Acc "bug: multireg has 16- or 32-bit size."
+    in
+      if 0w0 = Word32.andb (claimed, mask)
+      then raise Acc ("assert_claimed failed: " ^ X86.multiregstring mr ^ " is not claimed.\n" ^
+                      dumpstate acc)
+      else ()
+    end
+  fun assert_unclaimed (acc as { mach, ins, claimed }) mr =
+    let
+      val (regmask, friendmask) = multimask mr
+    in
+      if 0w0 <> Word32.andb (claimed, regmask)
+      then raise Acc ("assert_unclaimed failed: " ^ X86.multiregstring mr ^ " is claimed.\n" ^
+                      dumpstate acc)
       else ();
       if 0w0 <> Word32.andb (claimed, friendmask)
       then raise Acc ("assert_unclaimed failed: " ^ X86.multiregstring mr ^ "'s friend " ^
-                      X86.multiregstring (friend mr) ^ " is claimed.")
+                      X86.multiregstring (friend mr) ^ " is claimed.\n" ^
+                      dumpstate acc)
       else ()
     end
 
-
   fun forget_reg32 r m = Machine.forget_reg32 m r
   fun forget_reg16 r m = Machine.forget_reg32 m r
+  fun forget_multireg mr m =
+    case mr of
+      X86.AX  => forget_reg16 Machine.EAX m
+    | X86.CX  => forget_reg16 Machine.ECX m
+    | X86.DX  => forget_reg16 Machine.EDX m
+    | X86.BX  => forget_reg16 Machine.EBX m
+    | X86.SP  => forget_reg16 Machine.ESP m
+    | X86.BP  => forget_reg16 Machine.EBP m
+    | X86.SI  => forget_reg16 Machine.ESI m
+    | X86.DI  => forget_reg16 Machine.EDI m
+    | X86.EAX => forget_reg32 Machine.EAX m
+    | X86.ECX => forget_reg32 Machine.ECX m
+    | X86.EDX => forget_reg32 Machine.EDX m
+    | X86.EBX => forget_reg32 Machine.EBX m
+    | X86.ESP => forget_reg32 Machine.ESP m
+    | X86.EBP => forget_reg32 Machine.EBP m
+    | X86.ESI => forget_reg32 Machine.ESI m
+    | X86.EDI => forget_reg32 Machine.EDI m
+
   fun forget_slot r s m = Machine.forget_slot m r s
 
   fun learn_reg32 r w m = Machine.learn_reg32 m r w

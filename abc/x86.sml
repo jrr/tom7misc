@@ -52,6 +52,18 @@ struct
        AX |  CX |  DX |  BX |  SP |  BP |  SI |  DI
     | EAX | ECX | EDX | EBX | ESP | EBP | ESI | EDI
 
+  (* Get the 16-bit multireg version of some register *)
+  fun reg_to_multireg16 r =
+    case r of
+      A => AX
+    | C => CX
+    | D => DX
+    | B => BX
+    | AH_SP => SP
+    | CH_BP => BP
+    | DH_SI => SI
+    | BH_DI => DI
+
   (* For indirect r/m (e.g. IND_EBX), these are the 32-bit address
      versions. The 16 bit modes are not listed here, and are sorta
      weird (e.g. bp + di + disp8), but we could support them.
@@ -364,5 +376,68 @@ struct
     | EBP => "EBP"
     | ESI => "ESI"
     | EDI => "EDI"
+
+  fun immediatestring (I8 w) = "I8 " ^ Word8.toString w
+    | immediatestring (I16 w) = "I16 " ^ Word16.toString w
+    | immediatestring (I32 w) = "I32 " ^ Word32.toString w
+
+  fun sizestring S8 = "S8"
+    | sizestring S16 = "S16"
+    | sizestring S32 = "S32"
+
+  local
+    fun sizedregstring (S8, reg) =
+      (case reg of
+         A => "AL"
+       | C => "CL"
+       | D => "DL"
+       | B => "BL"
+       | AH_SP => "AH"
+       | CH_BP => "CH"
+       | DH_SI => "DH"
+       | BH_DI => "BH")
+      | sizedregstring (s, reg) =
+         let val sizeprefix = if s = S32 then "E" else ""
+         in
+           sizeprefix ^
+           (case reg of
+              A => "AX"
+            | C => "CX"
+            | D => "DX"
+            | B => "BX"
+            | AH_SP => "SP"
+            | CH_BP => "BP"
+            | DH_SI => "SI"
+            | BH_DI => "DI")
+         end
+
+    fun modrmstring _ = "(modrm)"
+
+    fun sizeargsstring (size, (reg <- modrm)) =
+          sizedregstring (size, reg) ^ " <- " ^ modrmstring modrm
+      | sizeargsstring (size, (modrm <~ reg)) =
+          " <- " ^ modrmstring modrm ^ " <~ " ^ sizedregstring (size, reg)
+  in
+    fun insstring ins =
+      case ins of
+        AND sa => "AND " ^ sizeargsstring sa
+      | AND_A_IMM imm => "AND A, " ^ immediatestring imm
+      | SUB sa => "SUB " ^ sizeargsstring sa
+      | SUB_A_IMM imm => "SUB A, " ^ immediatestring imm
+      | XOR sa => "XOR " ^ sizeargsstring sa
+      | XOR_A_IMM imm => "XOR A, " ^ immediatestring imm
+      | CMP sa => "CMP " ^ sizeargsstring sa
+      | CMP_A_IMM imm => "CMP A, " ^ immediatestring imm
+      | INC mr => "INC " ^ multiregstring mr
+      | DEC mr => "DEC " ^ multiregstring mr
+      | PUSH mr => "PUSH " ^ multiregstring mr
+      | POP mr => "POP " ^ multiregstring mr
+
+      | MOV sa => "MOV " ^ sizeargsstring sa
+      | NOP => "NOP"
+      | INT w => "INTERRUPT"
+      | DB w => "DB"
+(*      | _ => "OTHER_INS" *)
+  end
 
 end

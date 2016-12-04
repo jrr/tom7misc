@@ -1,7 +1,10 @@
 
-ckit/ckit-lib.mlb
-
 $(SML_LIB)/basis/basis.mlb
+$(SML_LIB)/basis/mlton.mlb
+../sml-lib/port/port-sig.sml
+../sml-lib/port/mlton.sml
+
+ckit/ckit-lib.mlb
 
   ../sml-lib/njlib/lib-base-sig.sml
   ../sml-lib/njlib/lib-base.sml
