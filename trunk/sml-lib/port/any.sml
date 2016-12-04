@@ -1,6 +1,6 @@
 
 (* Implementation of the Port structure for any compiler. *)
-structure Port =
+structure Port :> PORT =
 struct
 
   (* no exn history ever available *)

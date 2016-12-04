@@ -197,6 +197,11 @@ sig
     (* first n items in list 1, rest in list 2 *)
     val cleave : int -> 'a list -> 'a list * 'a list
 
+    (* takeupto n l
+       Returns the first n elements of l (like List.take) if there
+       are fewer than l in the list. Otherwise, returns the whole list. *)
+    val takeupto : int -> 'a list -> 'a list
+
     (* generate a list of all permutations of the input list *)
     val permutations : 'a list -> 'a list list
     (* list of all sublists of the input, in arbitrary order *)

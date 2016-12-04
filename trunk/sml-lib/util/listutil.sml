@@ -468,6 +468,15 @@ struct
 
    fun cleave n l = if n < 0 then raise Subscript else cleave' n l nil
 
+   fun takeupto n l =
+     let
+       fun tut (_, acc, nil) = l
+         | tut (0, acc, _) = rev acc
+         | tut (n, acc, h :: t) = tut (n - 1, h :: acc, t)
+     in
+       tut (n, nil, l)
+     end
+
    fun permutations nil = [nil]
      | permutations (h :: t) =
        let
