@@ -12,6 +12,9 @@ struct
   open X86
   infix <- <~
 
+  open Acc
+  infix // ??
+
   val PRINT_LOW : Word8.word = 0wx20
   val PRINT_HIGH : Word8.word =  0wx7e
 
@@ -41,48 +44,6 @@ struct
     in
       r 0wx20
     end
-
-  structure Acc :>
-  sig
-    type acc
-    (* Create accumulator from machine state and
-       empty instruction queue *)
-    val empty : Machine.mach -> acc
-    (* TODO: Execute the instruction, updating the machine state. *)
-    (* val exec : acc * ins -> acc *)
-    (* Append instruction. Doesn't interpret it. *)
-    val // : acc * ins -> acc
-    (* Get instructions in forward order *)
-    val insns : acc -> ins list
-    (* Clear instructions *)
-    val clear : acc -> acc
-    (* Apply transformation to machine. *)
-    val ?? : acc * (mach -> mach) -> acc
-    val mach : acc -> mach
-  end =
-  struct
-  (* instruction list is in reverse order *)
-    type acc = mach * ins list
-    fun empty m : acc = (m, nil)
-    fun // ((m, l), i) = (m, i :: l)
-    fun insns (m, l) = rev l
-    fun clear (m, _) = (m, nil)
-    fun ?? ((m, l), mf) = (mf m, l)
-    fun mach (m, _) = m
-  end
-
-  (* Maybe these should just have the following types in Machine. *)
-  fun forget_reg32 r m = M.forget_reg32 m r
-  fun forget_reg16 r m = M.forget_reg32 m r
-  fun forget_slot r s m = M.forget_slot m r s
-
-  fun learn_reg32 r w m = M.learn_reg32 m r w
-  fun learn_reg16 r w m = M.learn_reg16 m r w
-  fun learn_slot r s w m = M.learn_slot m r s w
-  fun set_slot r s wo m = M.set_slot m r s wo
-
-  open Acc
-  infix // ??
 
   (* Load an arbitrary value into AX.
      If the requested value in AH is NONE ("don't care"), the existing value is preserved.

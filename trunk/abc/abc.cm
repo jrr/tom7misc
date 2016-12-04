@@ -38,6 +38,9 @@ group is
   machine-sig.sml
   machine.sml
 
+  acc-sig.sml
+  acc.sml
+
   tactics.sml
   tactics-test.sml
 
