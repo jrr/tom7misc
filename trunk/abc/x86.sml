@@ -49,7 +49,7 @@ struct
   datatype reg = A | C | D | B | AH_SP | CH_BP | DH_SI | BH_DI
 
   datatype multireg =
-      AX | CX | DX | BX | SP | BP | SI | DI
+       AX |  CX |  DX |  BX |  SP |  BP |  SI |  DI
     | EAX | ECX | EDX | EBX | ESP | EBP | ESI | EDI
 
   (* For indirect r/m (e.g. IND_EBX), these are the 32-bit address
@@ -346,10 +346,23 @@ struct
         *)
     end
 
-  (* https://www.onlinedisassembler.com/odaweb/
-     good tool for debugging the output *)
+  fun multiregstring mr =
+    case mr of
+      AX  => "AX"
+    | CX  => "CX"
+    | DX  => "DX"
+    | BX  => "BX"
+    | SP  => "SP"
+    | BP  => "BP"
+    | SI  => "SI"
+    | DI  => "DI"
+    | EAX => "EAX"
+    | ECX => "ECX"
+    | EDX => "EDX"
+    | EBX => "EBX"
+    | ESP => "ESP"
+    | EBP => "EBP"
+    | ESI => "ESI"
+    | EDI => "EDI"
 
-  val XXX = AND (S32, A <- Register C)
-  val XXY = AND (S8, IND_EAX <~ C)
-  val XXZ = AND_A_IMM (I32 0wxAABBCCDD)
 end
