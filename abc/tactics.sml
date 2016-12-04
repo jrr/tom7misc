@@ -79,6 +79,7 @@ struct
   fun learn_reg32 r w m = M.learn_reg32 m r w
   fun learn_reg16 r w m = M.learn_reg16 m r w
   fun learn_slot r s w m = M.learn_slot m r s w
+  fun set_slot r s wo m = M.set_slot m r s wo
 
   open Acc
   infix // ??
@@ -380,6 +381,25 @@ struct
                                                "needs to use the stack)")
     | check_not_stack16 _ = ()
 
+  (* Load the register with the immediate value, saving the value in AX. *)
+  fun load_reg16only acc A v = load_ax16 acc v
+    | load_reg16only acc r v =
+    let
+      (* Save the two slots independently, since reg16 will return NONE if we
+         know AH but not AL, for example.
+         XXX utility for this. *)
+      val old_ah = M.slot (mach acc) M.EAX --@-
+      val old_al = M.slot (mach acc) M.EAX ---@
+
+      val () = check_not_stack16 r
+      val acc = acc // PUSH AX
+    in
+      load_reg16 acc r v //
+      POP AX ??
+      set_slot M.EAX --@- old_ah ??
+      set_slot M.EAX --@- old_al
+    end
+
   (* As if the MOV instruction with [REG]+disp8 addressing.
      We first do AND with the destination to make it zero.
      We then XOR the destination with the source.
@@ -415,11 +435,9 @@ struct
     end
 *)
 
-  (* XXX For not_ and add_, there's really no reason why this has to use AX
-     specifically. In fact we should really avoid AX since it's used to load immediates... *)
-  (* Binary NOT of the AX register. Trashes BP, flags *)
+  (* Binary NOT of register r. *)
   fun not_ax16 acc : acc =
-  (* Strategy here is to do AX <- XOR(AX, OxFFFF).
+  (* Strategy here is to do R <- XOR(R, OxFFFF).
      Generating FFFF is pretty cheap (0 - 1). We have to put it in a temporary
      in order to do it; we'll use [EBX]+0x20. *)
     let

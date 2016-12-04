@@ -86,6 +86,18 @@ struct
       update_reg mach reg up
     end
 
+  fun set_slot mach reg slot s =
+    let
+      fun up (a, b, c, d) =
+        case slot of
+          @--- => (s, b, c, d)
+        | -@-- => (a, s, c, d)
+        | --@- => (a, b, s, d)
+        | ---@ => (a, b, c, s)
+    in
+      update_reg mach reg up
+    end
+
   fun learn_reg16 mach reg w =
     let
       val wh = Word8.fromInt (Word16.toInt (Word16.andb(Word16.>>(w, 0w8),
