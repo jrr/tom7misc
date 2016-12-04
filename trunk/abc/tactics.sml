@@ -45,6 +45,61 @@ struct
       r 0wx20
     end
 
+
+  (* Claim the multireg for the duration of the function call,
+     saving the register (or friend) if necessary to enable this. *)
+  fun save_and_claim acc (mr : multireg) (f : acc -> acc) : acc =
+    case blocking_claim acc mr of
+      NONE =>
+        let
+          val acc = acc ++ mr
+          val acc = f acc
+        in
+          acc -- mr
+        end
+    | SOME old =>
+        let
+          (* PERF we should restore knowledge of the register
+             we're re-claiming, but need to do it for the
+             corresponding slots depending on whether it is
+             16 or 32-bit. *)
+          val acc = acc //
+            PUSH old
+            -- old
+            ++ mr
+          val acc = f acc
+        in
+          acc
+          -- mr
+          ++ old //
+          POP old ??
+          forget_multireg old
+        end
+
+
+  (* Claim one of the registers in l, preferring registers towards the
+     front of the list. If all are used, then just pick one and save
+     it to the stack, restoring it at the end.
+
+     The continuation is run with the register marked as claimed, and then
+     it is unclaimed at the end. *)
+  fun claim_reg16 acc (l : reg list) (f : acc * reg -> acc) : acc =
+    let
+      (* n.b., when this calls save_and_claim, we know whether the claim will be blocked or not. *)
+      fun get_unclaimed nil =
+          (* No registers are unclaimed. *)
+          (case l of
+             nil => raise Tactics "claim_reg16 needs at least one register in the list"
+           | r :: _ => save_and_claim acc (reg_to_multireg16 r) (fn a => f (a, r)))
+        | get_unclaimed (r :: rest) =
+           let val mr = reg_to_multireg16 r
+           in if can_be_claimed acc mr
+              then save_and_claim acc mr (fn a => f (a, r))
+              else get_unclaimed rest
+           end
+    in
+      get_unclaimed l
+    end
   (* Load an arbitrary value into AX.
      If the requested value in AH is NONE ("don't care"), the existing value is preserved.
      Can trash flags. Only AX is modified.
@@ -255,40 +310,30 @@ struct
     (* Load AX with the 16-bit value.
        The register should already be claimed by the caller. *)
     fun load_ax16 acc (w : Word16.word) : acc =
-      case M.reg16 (mach acc) M.EAX of
-        SOME ax => load_ax16_known acc ax w
-      | NONE =>
-          (* PERF: If we end up going the load_general route, then zeroing
-             this is kinda pointless, because we still have to zero AL after
-             the POP reads some unknown byte from the stack. Could compare the
-             two approaches. *)
-          (* PERF: Case where we know one of AH or AL, just not the other one *)
-          (* Put *some* known value in AX so that we can use the routine
-             above. PERF: Obviously some choices are better than others, and it
-             depends on the value we're trying to load. For now, zero. *)
-          let
-            val acc = acc //
-              (AND_A_IMM ` I16 ` Word16.fromInt 0x4040) //
-              (AND_A_IMM ` I16 ` Word16.fromInt 0x2020) ??
-              learn_reg16 M.EAX (Word16.fromInt 0)
-          in
-            load_ax16_known acc (Word16.fromInt 0) w
-          end
-
+      let in
+        assert_claimed acc AX;
+        case M.reg16 (mach acc) M.EAX of
+          SOME ax => load_ax16_known acc ax w
+        | NONE =>
+            (* PERF: If we end up going the load_general route, then zeroing
+               this is kinda pointless, because we still have to zero AL after
+               the POP reads some unknown byte from the stack. Could compare the
+               two approaches. *)
+            (* PERF: Case where we know one of AH or AL, just not the other one *)
+            (* Put *some* known value in AX so that we can use the routine
+               above. PERF: Obviously some choices are better than others, and it
+               depends on the value we're trying to load. For now, zero. *)
+            let
+              val acc = acc //
+                (AND_A_IMM ` I16 ` Word16.fromInt 0x4040) //
+                (AND_A_IMM ` I16 ` Word16.fromInt 0x2020) ??
+                learn_reg16 M.EAX (Word16.fromInt 0)
+            in
+              load_ax16_known acc (Word16.fromInt 0) w
+            end
+      end handle e => raise e
     (* XXX: 8-bit versions *)
   end
-
-  (* XXX maybe in X86.sml? *)
-  fun reg_to_multireg16 r =
-    case r of
-      A => AX
-    | C => CX
-    | D => DX
-    | B => BX
-    | AH_SP => SP
-    | CH_BP => BP
-    | DH_SI => SI
-    | BH_DI => DI
 
   fun reg_to_machreg r =
     case r of
@@ -302,6 +347,7 @@ struct
     | BH_DI => M.EDI
 
   (* Load a 16-bit register with the specified value.
+     Must claim the target register and AX before calling.
      May use stack but restores it.
      Can trash flags.
      Modifies AX. *)
@@ -314,13 +360,16 @@ struct
         POP (reg_to_multireg16 r) ??
         learn_reg16 (reg_to_machreg r) v
     in
+      assert_claimed acc (reg_to_multireg16 r);
+      assert_claimed acc AX;
+
       (* PERF see if we have the value in any reg, then PUSH/POP *)
       (* PERF use temporaries *)
       case M.reg16 (mach acc) ` reg_to_machreg r of
         (* just in case we already have it... *)
         SOME oldv => if v = oldv then acc else general ()
       | _ => general ()
-    end
+    end handle e => raise e
 
   fun check_printable_modrm modrm =
     let
@@ -344,111 +393,104 @@ struct
                                                "needs to use the stack)")
     | check_not_stack16 _ = ()
 
-  (* Load the register with the immediate value, saving the value in AX. *)
+  (* Load the register with the immediate value.
+     Only need to claim the target register; may trash AX if unclaimed.
+     *)
   fun load_reg16only acc A v = load_ax16 acc v
     | load_reg16only acc r v =
-    let
-      (* Save the two slots independently, since reg16 will return NONE if we
-         know AH but not AL, for example.
-         XXX utility for this. *)
-      val old_ah = M.slot (mach acc) M.EAX --@-
-      val old_al = M.slot (mach acc) M.EAX ---@
-
-      val () = check_not_stack16 r
-      val acc = acc // PUSH AX
-    in
-      load_reg16 acc r v //
-      POP AX ??
-      set_slot M.EAX --@- old_ah ??
-      set_slot M.EAX --@- old_al
-    end
+    save_and_claim acc AX
+    (fn acc =>
+     let in
+       check_not_stack16 r;
+       load_reg16 acc r v
+     end)
 
   (* As if the MOV instruction with [REG]+disp8 addressing.
      We first do AND with the destination to make it zero.
      We then XOR the destination with the source.
 
+     Avoid using reg=A, since we then need to save and restore it.
+
      Uses the stack temporarily and trashes flags, but nothing else
      is modified. *)
+  (* PERF in both cases, if we can find a register that already contains 0,
+     use it instead of loading that into A *)
   fun move16ind8 acc (modrm <~ reg) : acc =
-    let
-      val () = check_printable_modrm modrm
-      val () = check_not_stack16 reg
-      (* PERF if AX is already 0, or we don't need to keep it, then can avoid push/pop *)
-      val acc = acc // PUSH AX
-      val acc = load_ax16 acc (Word16.fromInt 0)
-    in
-      (* XXX this should track the value of the temporary too. *)
-      acc //
-      AND (S16, modrm <~ A) //
-      POP AX //
+    let in
+      check_printable_modrm modrm;
+      check_not_stack16 reg;
+      assert_claimed acc (reg_to_multireg16 reg);
+      save_and_claim acc AX
+      (fn acc =>
+       load_ax16 acc (Word16.fromInt 0) //
+       AND (S16, modrm <~ A)) //
       XOR (S16, modrm <~ reg)
+      (* XXX this should track the value of the temporary too. *)
     end
-  (*
-   | move16ind8 (reg <- modrm) =
-    let
-      val () = check_printable_modrm modrm
-      val (known_ax, ins0) = load_reg16 ((NONE, NONE), (NONE, NONE)) (Word16.fromInt 0)
-    in
-      (* PERF if AX is already 0, or we don't need to keep it, then can avoid push/pop *)
-      PUSH AX ::
-      ins0 @
-      [AND (S16, modrm <~ A),
-       POP AX,
-       XOR (S16, modrm <~ reg)]
-    end
-*)
+
+   | move16ind8 acc (reg <- modrm) =
+    let in
+      check_printable_modrm modrm;
+      check_not_stack16 reg;
+      assert_claimed acc (reg_to_multireg16 reg);
+
+      load_reg16only acc reg (Word16.fromInt 0) //
+      XOR (S16, reg <- modrm)
+      (* XXX this should track the value of the temporary too. *)
+    end handle e => raise e
 
   (* Binary NOT of register r. *)
-  fun not_ax16 acc : acc =
+  fun not_reg16 acc r : acc =
   (* Strategy here is to do R <- XOR(R, OxFFFF).
      Generating FFFF is pretty cheap (0 - 1). We have to put it in a temporary
      in order to do it; we'll use [EBX]+0x20. *)
-    let
-      val acc = acc // PUSH AX
-      val acc = load_reg16 acc CH_BP (Word16.fromInt 0xFFFF)
-      (* Forget EAX due to POP. It will have whatever value we started with,
-         but we probably don't know it or why would we be computing NOT? *)
-      val acc = acc // POP AX ?? forget_reg16 M.EAX
-      val acc = move16ind8 acc (IND_EBX_DISP8 0wx20 <~ CH_BP)
-      val acc = acc //
-        XOR (S16, A <- IND_EBX_DISP8 0wx20) ??
-        forget_reg16 M.EAX
-    in
-      acc
-    end
+    let in
+      assert_claimed acc (reg_to_multireg16 r);
+      claim_reg16 acc [C, D, CH_BP, DH_SI, BH_DI, A]
+      (fn (acc, tmpr) =>
+       let
+         val acc = load_reg16only acc tmpr (Word16.fromInt 0xFFFF)
+       in
+         move16ind8 acc (IND_EBX_DISP8 0wx20 <~ tmpr)
+       end) //
+      XOR (S16, r <- IND_EBX_DISP8 0wx20) ??
+      forget_reg16 (reg_to_machreg r)
+    end handle e => raise e
 
-  (* ADD ax <- r. *)
-  fun add_ax16 acc r : acc =
-    (* Strategy here is to do SUB (AX, -V).
+  (* ADD rdst <- rsrc.
+     Both rdst and rsrc must be claimed.
+
+     PERF should make destructive version that modifies rsrc. *)
+  fun add_reg16 acc rdst rsrc : acc =
+    (* Strategy here is to do SUB (RDST, -V).
        -V is NOT V + 1. *)
-    let
-      val () = check_not_stack16 r
-      val mr = reg_to_multireg16 r
-      val acc = acc //
-        PUSH AX //
-        PUSH mr //
-        POP AX ??
-        forget_reg16 M.EAX
-      val acc = not_ax16 acc
-      val acc = acc //
-        INC AX ??
-        forget_reg16 M.EAX
-      (* now AX contains -V, and top of stack is input AX. *)
-      (* Choice of 0wx24 is arbitrary. Should have the accumulator
-         allocate this or something. *)
-      val acc = move16ind8 acc (IND_EBX_DISP8 0wx24 <~ A)
-      (* Restore input AX. *)
-      val acc = acc //
-        POP AX ??
-        forget_reg16 M.EAX //
-        (* Finally we can do it *)
-        SUB (S16, A <- IND_EBX_DISP8 0wx24) ??
-        forget_reg16 M.EAX
-    in
-      acc
-    end
+    let in
+      check_not_stack16 rsrc;
+      check_not_stack16 rdst;
+      assert_claimed acc (reg_to_multireg16 rsrc);
+      assert_claimed acc (reg_to_multireg16 rdst);
 
-
+      claim_reg16 acc [C, D, CH_BP, DH_SI, BH_DI, A]
+      (fn (acc, rtmp) =>
+       let
+         val acc =
+           acc //
+           PUSH (reg_to_multireg16 rsrc) //
+           POP (reg_to_multireg16 rtmp) ??
+           forget_reg16 (reg_to_machreg rtmp)
+         val acc = not_reg16 acc rtmp //
+           INC (reg_to_multireg16 rtmp) ??
+           forget_reg16 (reg_to_machreg rtmp)
+         (* now rtmp contains -V. *)
+         (* Choice of 0wx24 is arbitrary. Should have the accumulator
+            allocate this or something. *)
+       in
+         move16ind8 acc (IND_EBX_DISP8 0wx24 <~ rtmp)
+       end) //
+      (* Finally we can do it *)
+      SUB (S16, rdst <- IND_EBX_DISP8 0wx24) ??
+      forget_reg16 (reg_to_machreg rdst)
+    end handle e => raise e
 
   (* This sets up the initial invariants.
      - EBX = 0x00000100. We don't have any register-to-register operations, but we can do
@@ -495,16 +537,21 @@ struct
   val TEMP_START = Word16.fromInt 0x0100
   fun initialize () : acc =
     let
-      val acc = empty M.all_unknown
+      val acc = empty M.all_unknown ++ EAX
       val acc = load_ax16 acc (Word16.fromInt 0)
       val acc = acc // PUSH AX
       val acc = load_ax16 acc TEMP_START
+      (* EBX stays claimed always.
+         XXX actually maybe it should have "locked" state, so that we can't even
+         save_and_claim. *)
+      val acc = acc ++ EBX
       val acc = acc // PUSH AX // POP EBX ??
         learn_reg32 M.EBX (Word32.fromInt ` Word16.toInt TEMP_START)
-    (* TODO: Other stuff? *)
+      val acc = acc -- EAX
+      (* TODO: Other stuff? *)
     in
       acc
-    end
+    end handle e => raise e
 
   (* Generate code that prints the string. Uses the interrupt instruction, so non-ASCII. *)
   fun printstring acc s : acc =
@@ -514,15 +561,17 @@ struct
         let
           (* Load AH=06, AL=char *)
           val value = Word16.fromInt (0x06 * 256 + ord c)
+          val acc = acc ++ AX
           val acc = load_ax16 acc value
           (* PERF we actually only need to set DL *)
+          val acc = acc ++ DX
           val acc = acc // PUSH AX // POP DX ??
             learn_reg16 M.EDX value
           val acc = acc // INT 0wx21 ??
           (* interrupt returns character written in AL.
              Not known whether it preserves DX? *)
             forget_reg16 M.EDX ??
-            learn_reg16 M.EAX value
+            learn_reg16 M.EAX value -- AX -- DX
         in
           emit acc rest
         end
@@ -531,8 +580,11 @@ struct
     end
 
   (* Exits the program. Uses the interrupt instruction, so non-ASCII. *)
-  fun exit mach () : acc =
-    load_ax16 mach (Word16.fromInt 0x4c00) //
-    INT 0wx21
+  fun exit acc : acc =
+    let val acc = acc ++ AX
+    in
+      load_ax16 acc (Word16.fromInt 0x4c00) //
+      INT 0wx21 -- AX
+    end
 
 end

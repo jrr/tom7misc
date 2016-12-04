@@ -9,6 +9,9 @@ struct
   open X86
   infix <- <~
 
+  open Acc
+  infix // ?? ++ --
+
   val PRINT_LOW : Word8.word = 0wx20
   val PRINT_HIGH : Word8.word =  0wx7e
 
@@ -45,6 +48,10 @@ struct
       StringUtil.writefilev8 "dos/test.com" bytes
     end
 *)
+
+  fun eprint (e, s) =
+    print ("Exception: " ^ s ^ "\n" ^
+           StringUtil.delimit "\n  " (Port.exnhistory e) ^ "\n")
 
   fun writeexe () =
     let
@@ -116,11 +123,14 @@ struct
                             overlay]
 
       val acc = Tactics.initialize ()
-      val acc = Tactics.load_reg16 acc C (Word16.fromInt 0x1234)
+      val acc = acc ++ CX
+      val acc = Tactics.load_reg16only acc C (Word16.fromInt 0x1234)
+      val acc = acc ++ AX
       val acc = Tactics.load_ax16 acc (Word16.fromInt 0x3333)
-      val acc = Tactics.add_ax16 acc C
+      val acc = Tactics.add_reg16 acc A C
+      val acc = acc -- AX -- CX
       val acc = Tactics.printstring acc "this is an asciicutable!\n"
-      val acc = Tactics.exit acc ()
+      val acc = Tactics.exit acc
 
       val prog = Acc.insns acc
 
@@ -169,6 +179,6 @@ struct
       val bytes = Word8Vector.concat [header, padding]
     in
       StringUtil.writefilev8 "dos/header.exe" bytes
-    end handle Tactics.Tactics s => print ("Tactics: " ^ s ^ "\n")
-             | Acc.Acc s => print ("Acc: " ^ s ^ "\n")
+    end handle e as (Tactics.Tactics s) => eprint (e, "Tactics: " ^ s ^ "\n")
+             | e as (Acc.Acc s) => eprint (e, "Acc: " ^ s ^ "\n")
 end

@@ -41,3 +41,6 @@ after Machine rewrite:
 
 with 16-bit tricks:
 # of code bytes: 285
+
+Claim registers:
+# of code bytes: 336
