@@ -21,6 +21,8 @@ sig
   val learn_reg32 : mach -> reg -> Word32.word -> mach
   val learn_reg16 : mach -> reg -> Word16.word -> mach
   val learn_slot : mach -> reg -> slot -> Word8.word -> mach
+  (* NONE = forget, SOME = learn. *)
+  val set_slot : mach -> reg -> slot -> Word8.word option -> mach
 
   val slot : mach -> reg -> slot -> Word8.word option
   (* If either slot is unknown, this will be NONE. Query the individual
