@@ -122,7 +122,7 @@ struct
       val acc = Tactics.printstring acc "this is an asciicutable!\n"
       val acc = Tactics.exit acc ()
 
-      val prog = Tactics.Acc.insns acc
+      val prog = Acc.insns acc
 
       val ctx = CTX { default_32 = false }
       val codebytes = Word8Vector.concat (map (X86.encode ctx) prog)

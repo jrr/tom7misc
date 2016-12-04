@@ -31,6 +31,9 @@ $(SML_LIB)/basis/basis.mlb
   machine-sig.sml
   machine.sml
 
+  acc-sig.sml
+  acc.sml
+
   tactics.sml
   tactics-test.sml
 
