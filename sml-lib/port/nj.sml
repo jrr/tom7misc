@@ -1,7 +1,7 @@
 
 (* the Port structure for SML/NJ *)
-structure Port =
-struct 
+structure Port :> PORT =
+struct
 
   val exnhistory = SMLofNJ.exnHistory
 
