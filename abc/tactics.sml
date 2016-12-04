@@ -13,7 +13,7 @@ struct
   infix <- <~
 
   open Acc
-  infix // ??
+  infix // ?? ++ --
 
   val PRINT_LOW : Word8.word = 0wx20
   val PRINT_HIGH : Word8.word =  0wx7e
@@ -252,6 +252,8 @@ struct
              else binops ()
       end
   in
+    (* Load AX with the 16-bit value.
+       The register should already be claimed by the caller. *)
     fun load_ax16 acc (w : Word16.word) : acc =
       case M.reg16 (mach acc) M.EAX of
         SOME ax => load_ax16_known acc ax w

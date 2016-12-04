@@ -7,6 +7,8 @@ It's purely functional and has a semi-monadic structure so that it can be
 used for assembly like sequences of instructions and annotations. *)
 signature ACC =
 sig
+  exception Acc of string
+
   type acc
   (* Create accumulator from machine state. Empty instruction queue and no
      claimed registers. *)
@@ -22,6 +24,20 @@ sig
   (* Apply transformation to machine. *)
   val ?? : acc * (Machine.mach -> Machine.mach) -> acc
 
+  (* Claim a 16-bit or 32-bit register.
+     Claiming an already-claimed register is fatal, including claiming the 16 bit version
+     when the 32-bit one is claimed, or vice versa. *)
+  val ++ : acc * X86.multireg -> acc
+  (* Release a 16-bit or 32-bit register. Releasing an already-free register is fatal.
+     Must release at the same width as it was claimed. *)
+  val -- : acc * X86.multireg -> acc
+
+  (* Checks that neither the register nor its 16/32-bit are claimed. *)
+  val assert_unclaimed : acc * X86.multireg -> unit
+  val assert_claimed : acc * X86.multireg -> unit
+
+  (* TODO: Get free 32-bit or 16-bit register. Maybe in tactics? *)
+
   (* Curried such that mach is in the last slot; suitable for ?? op.
      Maybe these should just have the following types in Machine? *)
   val forget_reg32 : Machine.reg -> Machine.mach -> Machine.mach
@@ -36,6 +52,6 @@ sig
   (* val exec : acc * ins -> acc *)
 
   (*
-    infix // ??
+    infix // ?? ++ --
   *)
 end

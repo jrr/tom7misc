@@ -170,5 +170,5 @@ struct
     in
       StringUtil.writefilev8 "dos/header.exe" bytes
     end handle Tactics.Tactics s => print ("Tactics: " ^ s ^ "\n")
-
+             | Acc.Acc s => print ("Acc: " ^ s ^ "\n")
 end

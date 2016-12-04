@@ -7,6 +7,9 @@ debug test.com
  F5 to run
  F10/F11 to advance one instruction (F10 jumps over)
 
+  (* https://www.onlinedisassembler.com/odaweb/
+     good tool for debugging the output *)
+
 breakpoint near end with JNO thing: 01FE:FCCC
 
 With long COM files, it gets loaded into memory and then some
