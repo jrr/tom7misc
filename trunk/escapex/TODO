@@ -12,6 +12,21 @@ Use specific-width integer types instead of 'unsigned'.
 Use font from cc-lib.
 Maybe move HTTP to cc-lib.
 
+Bugs in 2016:
+    Bug: If I download new solutions from the servers, then
+    immediately quit the program without solving any levels, then when
+    I restart the program, the downloaded solutions are lost. For now,
+    it seems possible to get around this by solving any level (e.g. by
+    replaying a stored solution to the end) after new solution
+    download but before quitting.
+
+    Also, if a level has a height of 12, and there are more than four
+    solutions in the player file, then the bookmark menu behaves a bit
+    strange: when one tries to scroll down from the start to the
+    fourth bookmark, suddenly the highlighting is lost. One can still
+    choose that bookmark by pressing the Enter key. Or one can scroll
+    further down and then back up to select the fourth bookmark.
+
 code cleanup
  - in places where I switched from hashtable to unordered_map, can
    probably remove the key from the value struct.
