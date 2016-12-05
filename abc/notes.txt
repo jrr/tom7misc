@@ -114,6 +114,8 @@ decodes regular x86 code from e.g. base64 or hex encoding. (This is
 still hard because all the modern headers use zeroes?)
 
 
+
+
 Control.Print.printDepth := 100;
 
 Some crazy ideas:
@@ -157,10 +159,12 @@ Tricks:
 
   decent documentation:
    http://www.felixcloutier.com/x86/OUTS:OUTSB:OUTSW:OUTSD.html
+   http://c9x.me/x86/html/file_module_x86_id_141.html
   PC speaker:
    http://www.dreamincode.net/forums/topic/23986-generating-sound-in-assembly/
   Covox Speech Thing is just DAC on the parallel port; DOSBox
-  emulates it.
+  emulates it. Parallel port is pretty easy with IN/OUT:
+   http://wiki.osdev.org/Parallel_port
   Adlib:
    http://bespin.org/~qz/pc-gpe/adlib.txt
 
