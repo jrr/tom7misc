@@ -358,6 +358,15 @@ struct
         *)
     end
 
+  (* Returns the encoded size of the instruction in bytes.
+
+     PERF: This may be a bit of a hot-spot since it's used in search.
+     It doesn't need to actually build the vector. maybe mlton knows
+     this? Or encode could be functorized over a vector-like thing,
+     where one version just keeps count. *)
+  fun encoded_size ctx (i : ins) : int =
+    Word8Vector.length (encode ctx i)
+
   fun multiregstring mr =
     case mr of
       AX  => "AX"

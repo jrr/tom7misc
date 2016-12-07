@@ -45,6 +45,23 @@ struct
       r 0wx20
     end
 
+  (* Sometimes we have more than one strategy for emitting
+     instructions, and the shortest one will depend on the
+     machine state or specific values being used.
+
+     This tries every strategy in the list, and returns
+     the result of the one with the shortest instruction bytes.
+     It doesn't take into account cycle count, different
+     resulting machine states or claim lists, etc..
+
+     A strategy can fail (give NONE) but if all fail, this
+     aborts. *)
+  fun multistrategy acc (fs : (acc -> acc option) list) : acc =
+    let
+      val start_size = insbytes acc
+    in
+      raise Tactics "unimplemented"
+    end
 
   (* Claim the multireg for the duration of the function call,
      saving the register (or friend) if necessary to enable this. *)
@@ -85,11 +102,13 @@ struct
      it is unclaimed at the end. *)
   fun claim_reg16 acc (l : reg list) (f : acc * reg -> acc) : acc =
     let
-      (* n.b., when this calls save_and_claim, we know whether the claim will be blocked or not. *)
+      (* n.b., when this calls save_and_claim, we know whether the claim
+         will be blocked or not. *)
       fun get_unclaimed nil =
           (* No registers are unclaimed. *)
           (case l of
-             nil => raise Tactics "claim_reg16 needs at least one register in the list"
+             nil =>
+               raise Tactics "claim_reg16 needs at least one register in the list"
            | r :: _ => save_and_claim acc (reg_to_multireg16 r) (fn a => f (a, r)))
         | get_unclaimed (r :: rest) =
            let val mr = reg_to_multireg16 r
@@ -101,18 +120,21 @@ struct
       get_unclaimed l
     end
   (* Load an arbitrary value into AX.
-     If the requested value in AH is NONE ("don't care"), the existing value is preserved.
+     If the requested value in AH is NONE ("don't care"), the existing value
+     is preserved.
      Can trash flags. Only AX is modified.
 
      PERF! Should do some kind of search with dynamic programming, etc.
      There are still lots of really bad sequences in here (36 bytes to
      go from 0 to 80!!) *)
-  (* Note that loading EAX (or any register) can be easily accomplished by pushing two
-     16-bit literals with this routine, then POP with the operand size prefix. *)
+  (* Note that loading EAX (or any register) can be easily accomplished
+     by pushing two 16-bit literals with this routine, then POP with
+     the operand size prefix. *)
   (* PERF: IMUL on an immediate is useful here too. *)
   local
-    (* May not change AH, since we use this in 16-bit loads. We could be more aggressive
-       (IMUL, etc.) if we did't care about preserving AH. *)
+    (* May not change AH, since we use this in 16-bit loads. We could be
+       more aggressive (IMUL, etc.) if we did't care about preserving
+       AH. *)
     fun load_al_known acc al vl : acc =
       let
         val () = dprint (fn () =>
@@ -182,7 +204,8 @@ struct
       if ah = vh
       then acc
       else
-      (* Loading something into AH. One reasonably brief way to do this is to misalign the stack.
+      (* Loading something into AH. One reasonably brief way to do this is to
+         misalign the stack.
          Load the desired value into AL, so that we have AH=ah?, AL=vh.
          PUSH AX, giving
                   AL AH
@@ -198,10 +221,12 @@ struct
                   AL AH
          INC SP (keep stack aligned; avoid unbounded growth) *)
         let
-          val () = dprint (fn () =>
-                           "load_ah_known have: " ^ Word8.toString ah ^ ", " ^ Word8.toString al ^
-                           " v: " ^ Word8.toString vh ^ " with machine:\n" ^
-                           M.debugstring (mach acc) ^ "\n")
+          val () = dprint
+            (fn () =>
+             "load_ah_known have: " ^ Word8.toString ah ^ ", " ^
+             Word8.toString al ^
+             " v: " ^ Word8.toString vh ^ " with machine:\n" ^
+             M.debugstring (mach acc) ^ "\n")
           val acc = load_al_known acc al vh
         in
           acc //
@@ -291,7 +316,8 @@ struct
                        NONE => fallback ()
                      | SOME cl =>
                          acc // (AND_A_IMM ` I16 `
-                                 Word16.fromInt (Word8.toInt ch * 256 + Word8.toInt cl)) ??
+                                 Word16.fromInt
+                                 (Word8.toInt ch * 256 + Word8.toInt cl)) ??
                          learn_reg16 M.EAX v)
               end
           end
@@ -389,8 +415,9 @@ struct
       else raise Tactics "disp8 is non-printable in move16ind8"
     end
 
-  fun check_not_stack16 AH_SP = raise Tactics ("can't use SP (probably because the tactic " ^
-                                               "needs to use the stack)")
+  fun check_not_stack16 AH_SP =
+    raise Tactics ("can't use SP (probably because the tactic " ^
+                   "needs to use the stack)")
     | check_not_stack16 _ = ()
 
   (* Load the register with the immediate value.
@@ -493,8 +520,8 @@ struct
     end handle e => raise e
 
   (* This sets up the initial invariants.
-     - EBX = 0x00000100. We don't have any register-to-register operations, but we can do
-       some indirect addressing, for example
+     - EBX = 0x00000100. We don't have any register-to-register operations,
+       but we can do some indirect addressing, for example
           MOV ESI <- [EBX]
        or
           MOV ESI <- [EBX]+'a'     (of course note we do not have MOV instruction)
@@ -506,18 +533,21 @@ struct
           ...
           [EBX]+0x7e, i.e. DS:0000017e (all registers available)
 
-       0 would be an obvious choice for the constant value, but DS:0000 contains 256
-       bytes of the PSP, which we want to keep:
+       0 would be an obvious choice for the constant value, but DS:0000
+       contains 256 bytes of the PSP, which we want to keep:
           - it contains the command line and maybe some other useful stuff from the
             program's environment.
-          - it's guaranteed to contain INT 21; RETF (at DS:0050), which we could use
-            to do system calls without self-modifying code if we could get the right
-            stuff on the stack and somehow get control here (it's in range of a JNO 0x7e
-            at the end of the address space, so this seems possible.)
-       The base value basically doesn't matter. I think everything here works fine with
-       different values TEMP_START (up to 0xFFFF - 0x7E). We may need to preserve other
-       parts of the data segment, though, such as the region right before the address space
-       wraps.
+          - it's guaranteed to contain INT 21; RETF (at DS:0050), which we could
+            use to do system calls without self-modifying code if we could get
+            the right stuff on the stack and somehow get control here (it's in
+            range of a JNO 0x7e at the end of the address space, so this seems
+            possible.)
+
+       The base value basically doesn't matter. I think everything
+       here works fine with different values TEMP_START (up to 0xFFFF
+       - 0x7E). We may need to preserve other parts of the data
+       segment, though, such as the region right before the address
+       space wraps.
 
        This is lots of temporaries, so that's nice. It's also critical because it's
        the only way we can do math ops like XOR on non-immediate values. Example:
@@ -537,7 +567,7 @@ struct
   val TEMP_START = Word16.fromInt 0x0100
   fun initialize () : acc =
     let
-      val acc = empty M.all_unknown ++ EAX
+      val acc = empty (X86.CTX { default_32 = false }) M.all_unknown ++ EAX
       val acc = load_ax16 acc (Word16.fromInt 0)
       val acc = acc // PUSH AX
       val acc = load_ax16 acc TEMP_START
@@ -553,7 +583,8 @@ struct
       acc
     end handle e => raise e
 
-  (* Generate code that prints the string. Uses the interrupt instruction, so non-ASCII. *)
+  (* Generate code that prints the string. Uses the interrupt instruction, so
+     non-ASCII. *)
   fun printstring acc s : acc =
     let
       fun emit acc nil = acc

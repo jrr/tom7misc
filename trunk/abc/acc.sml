@@ -3,6 +3,7 @@ struct
 
   exception Acc of string
 
+  type ctx = X86.ctx
   type ins = X86.ins
   type mach = Machine.mach
   datatype slot = datatype Machine.slot
@@ -12,15 +13,24 @@ struct
      The representation invariant is that a register and its friend are never both
      claimed (e.g. NAND(!!(claimed & AX), !!(claimed & EAX))).
  *)
-  type acc = { mach : mach, ins : ins list, claimed : Word32.word }
-  fun empty m : acc = { mach = m, ins = nil, claimed = 0w0 }
-  fun // ({ mach, ins, claimed }, i) = { mach = mach, ins = i :: ins, claimed = claimed }
-  fun insns { mach, ins, claimed } = rev ins
-  fun clear_insns { mach, ins = _, claimed } = { mach = mach, ins = nil, claimed = claimed }
-  fun ?? ({ mach, ins, claimed }, mf) = { mach = mf mach, ins = ins, claimed = claimed }
-  fun mach { mach, ins = _, claimed = _ } = mach
+  datatype acc = A of { ctx : ctx, mach : mach, ins : ins list, insbytes : int,
+                        claimed : Word32.word }
+  fun empty c m : acc = A { ctx = c, mach = m, ins = nil,
+                            insbytes = 0, claimed = 0w0 }
+  fun // (A { ctx, mach, ins, insbytes, claimed }, i) =
+    A { ctx = ctx, mach = mach, ins = i :: ins,
+        insbytes = insbytes + X86.encoded_size ctx i,
+        claimed = claimed }
+  fun insns (A { ins, ... }) = rev ins
+  fun clear_insns (A { ctx, mach, ins = _, insbytes = _, claimed }) =
+    A { ctx = ctx, mach = mach, ins = nil, insbytes = 0, claimed = claimed }
+  fun insbytes (A { insbytes = b, ... }) = b
+  fun ?? (A { ctx, mach, ins, insbytes, claimed }, mf) =
+    A { ctx = ctx, mach = mf mach, ins = ins, insbytes = insbytes,
+        claimed = claimed }
+  fun mach (A { mach, ... }) = mach
 
-  fun dumpstate { mach, ins, claimed } =
+  fun dumpstate (A { ctx, mach, ins, insbytes, claimed }) =
     let
       val recent = map X86.insstring (rev (ListUtil.takeupto 25 ins))
     in
@@ -29,7 +39,7 @@ struct
       "== Claimed ==\n" ^
       (* XXX *)
       Word32.toString claimed ^ "\n" ^
-      "== Recent Instructions==\n" ^
+      "== Recent Instructions (total " ^ Int.toString insbytes ^ " bytes) ==\n" ^
       StringUtil.delimit "\n" recent ^ "\n"
     end
 
@@ -52,7 +62,8 @@ struct
     | X86.ESI => X86.SI
     | X86.EDI => X86.DI
 
-  (* Returns the bit for this register, and the bit for its friend (AX's friend is EAX, etc.) *)
+  (* Returns the bit for this register, and the bit for its friend (AX's
+friend is EAX, etc.) *)
   fun multimask mr : Word32.word * Word32.word =
     case mr of
       X86.AX  => (0wx01, 0wx010000)
@@ -72,7 +83,7 @@ struct
     | X86.ESI => (0wx400000, 0wx40)
     | X86.EDI => (0wx800000, 0wx80)
 
-  fun ++ ({ mach, ins, claimed }, mr) =
+  fun ++ (A { ctx, mach, ins, insbytes, claimed }, mr) =
     let
       val (regmask, friendmask) = multimask mr
     in
@@ -83,20 +94,22 @@ struct
       then raise Acc ("Can't claim " ^ X86.multiregstring mr ^ " because " ^
                       X86.multiregstring (friend mr) ^ " is already claimed")
       else ();
-      { mach = mach, ins = ins, claimed = Word32.orb (claimed, regmask) }
+      A { ctx = ctx, mach = mach, ins = ins, insbytes = insbytes,
+          claimed = Word32.orb (claimed, regmask) }
     end
 
-  fun -- ({ mach, ins, claimed }, mr) =
+  fun -- (A { ctx, mach, ins, insbytes, claimed }, mr) =
     let
       val (regmask, _) = multimask mr
     in
       if 0w0 = Word32.andb (claimed, regmask)
       then raise Acc ("Can't release unclaimed " ^ X86.multiregstring mr)
       else ();
-      { mach = mach, ins = ins, claimed = Word32.andb (claimed, Word32.notb regmask) }
+      A { ctx = ctx, mach = mach, ins = ins, insbytes = insbytes,
+          claimed = Word32.andb (claimed, Word32.notb regmask) }
     end
 
-  fun blocking_claim { mach, ins, claimed } mr =
+  fun blocking_claim (A { claimed, ... }) mr =
     let
       val (regmask, friendmask) = multimask mr
     in
@@ -109,7 +122,7 @@ struct
 
   fun can_be_claimed acc mr = Option.isSome (blocking_claim acc mr)
 
-  fun assert_claimed (acc as { mach, ins, claimed }) mr =
+  fun assert_claimed (acc as (A { claimed, ... })) mr =
     let
       val (regmask, friendmask) = multimask mr
       (* If this is a 16-bit register, then we're ok if either the
@@ -121,21 +134,24 @@ struct
         | _ => raise Acc "bug: multireg has 16- or 32-bit size."
     in
       if 0w0 = Word32.andb (claimed, mask)
-      then raise Acc ("assert_claimed failed: " ^ X86.multiregstring mr ^ " is not claimed.\n" ^
+      then raise Acc ("assert_claimed failed: " ^ X86.multiregstring mr ^
+                      " is not claimed.\n" ^
                       dumpstate acc)
       else ()
     end
-  fun assert_unclaimed (acc as { mach, ins, claimed }) mr =
+  fun assert_unclaimed (acc as (A { claimed, ... })) mr =
     let
       val (regmask, friendmask) = multimask mr
     in
       if 0w0 <> Word32.andb (claimed, regmask)
-      then raise Acc ("assert_unclaimed failed: " ^ X86.multiregstring mr ^ " is claimed.\n" ^
+      then raise Acc ("assert_unclaimed failed: " ^ X86.multiregstring mr ^
+                      " is claimed.\n" ^
                       dumpstate acc)
       else ();
       if 0w0 <> Word32.andb (claimed, friendmask)
-      then raise Acc ("assert_unclaimed failed: " ^ X86.multiregstring mr ^ "'s friend " ^
-                      X86.multiregstring (friend mr) ^ " is claimed.\n" ^
+      then raise Acc ("assert_unclaimed failed: " ^ X86.multiregstring mr ^
+                      "'s friend " ^ X86.multiregstring (friend mr) ^
+                      " is claimed.\n" ^
                       dumpstate acc)
       else ()
     end
