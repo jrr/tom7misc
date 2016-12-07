@@ -12,13 +12,15 @@ sig
   type acc
   (* Create accumulator from machine state. Empty instruction queue and no
      claimed registers. *)
-  val empty : Machine.mach -> acc
+  val empty : X86.ctx -> Machine.mach -> acc
   (* Append instruction. Doesn't interpret it. *)
   val // : acc * X86.ins -> acc
   (* Get instructions in forward order. *)
   val insns : acc -> X86.ins list
   (* Clear instructions. *)
   val clear_insns : acc -> acc
+  (* Get the number of bytes of encoded instructions. *)
+  val insbytes : acc -> int
   (* Get the machine *)
   val mach : acc -> Machine.mach
   (* Apply transformation to machine. *)
