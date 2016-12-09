@@ -9,6 +9,12 @@ struct
   open X86
   infix <- <~
 
+  val // = Acc.//
+  val ?? = Acc.??
+  val ++ = Acc.++
+  val -- = Acc.--
+  infix // ?? ++ --
+
   val PRINT_LOW : Word8.word = 0wx20
   val PRINT_HIGH : Word8.word =  0wx7e
 
@@ -27,13 +33,14 @@ struct
           val mach = Machine.all_unknown
           val mach = Machine.learn_slot mach Machine.EAX Machine.---@ al
           val mach = Machine.learn_slot mach Machine.EAX Machine.--@- 0w0
-          val acc = Acc.empty (X86.CTX { default_32 = false }) mach
+          val acc = Acc.empty (X86.CTX { default_32 = false }) mach ++ X86.AX
           val acc = Tactics.load_ax16 acc (Word16.fromInt dst)
           val ctx = X86.CTX { default_32 = false }
           val bytes = Word8Vector.concat (map (encode ctx) (Acc.insns acc))
           val n = Word8Vector.length bytes
           val mach = Acc.mach acc
         in
+          Acc.assert_claimed acc X86.AX;
           Word8Vector.app (fn c => if c < PRINT_LOW orelse c > PRINT_HIGH
                                    then raise TacticsTest "byte not printable!"
                                    else ());

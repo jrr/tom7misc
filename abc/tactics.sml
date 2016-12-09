@@ -132,6 +132,59 @@ struct
      the operand size prefix. *)
   (* PERF: IMUL on an immediate is useful here too. *)
   local
+    (* Table of the best way to transform a known value in AL to a target
+       value (source-major index). Can't depend on other machine
+       state, and can't change the values other than AL. (Arithmetic
+       flags may change.) *)
+    val byte_table = Array.array (256 * 256, NONE : (ins list * int) option)
+
+    fun populate_byte_table () =
+      let
+        (* Take one pass over the table. Return false if the table
+           doesn't improve. *)
+        fun onepass () =
+          let
+            val improved = ref false
+            fun inc acc al vl =
+              raise Tactics "unimplemented"
+          (* ... *)
+          in
+            Util.for 0 255
+            (fn src =>
+             let
+               val src = Word8.fromInt src
+               (* XXX take context from somewhere?
+                  It doesn't affect correctness but would cause us to
+                  make mistakes about the size of some ops. *)
+               val acc = Acc.empty (CTX { default_32 = false }) M.all_unknown
+               val acc = acc ?? learn_slot M.EAX ---@ src
+               val acc = acc ++ AX
+             in
+               Util.for 0 255
+               (fn dst =>
+                let
+                  val dst = Word8.fromInt dst
+                in
+                  (* This should also manage measuring the output,
+                     setting cells if they've improved, etc. *)
+                  inc acc dec src;
+                  raise Tactics "unimplemented"
+                end)
+             end)
+          end
+
+        fun multipass () =
+          if onepass ()
+          then multipass ()
+          else ()
+      in
+        multipass ();
+        Array.app (fn NONE =>
+                   raise Tactics "failed to complete byte table"
+                    | SOME _ => ()) byte_table
+      end
+    val () = populate_byte_table ()
+
     (* May not change AH, since we use this in 16-bit loads. We could be
        more aggressive (IMUL, etc.) if we did't care about preserving
        AH. *)
@@ -152,9 +205,9 @@ struct
         (* We already have the value we wanted! *)
         then acc
         else
-          (* Best is if we can emit a single byte instruction INC or
-             DEC to transform it. We don't DEC 0 nor INC FF, because
-             these also change AH. Note that this issue does not
+          (* Best is if we can emit a single byte instruction INC or DEC to
+             transform it. We don't DEC 0 nor INC FF, because these
+             also change AH. Note that this overflow issue does not
              apply to SUB, because it is an 8-bit operation. *)
           if al <> 0wxFF andalso vl = Word8.+ (al, 0w1)
           then acc // INC AX ?? learn_slot M.EAX ---@ vl
