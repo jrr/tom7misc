@@ -15,8 +15,11 @@ struct
   open Acc
   infix // ?? ++ --
 
+  (* PERF: If we allow CR/LF, they need to be included here.
+     Note that there are many loops from low to high, as well. *)
   val PRINT_LOW : Word8.word = 0wx20
   val PRINT_HIGH : Word8.word =  0wx7e
+  fun printable p = p >= PRINT_LOW andalso p <= PRINT_HIGH
 
   fun dprint (f : unit -> string) = ()
   (* fun dprint f = print (f ()) *)
@@ -393,49 +396,82 @@ struct
             end
       end
 
-    (* Like above, but allowed to trash AL; really just here for two-part 1
-       6-bit loads.
-       PERF: IMUL may be good for this.
-       *)
-    fun load_ah_known acc (ah, al) vh : acc =
-      if ah = vh
-      then acc
-      else
-      (* Loading something into AH. One reasonably brief way to do this is to
-         misalign the stack.
-         Load the desired value into AL, so that we have AH=ah?, AL=vh.
-         PUSH AX, giving
-                  AL AH
-                   |  |
-                   v  v
-            SP -> vh ah? ?? ?? ?? ...
-         DEC SP, giving
-            SP -> ?? vh ah? ?? ?? ?? ...
-         POP AX, giving
-            SP -> ?? vh ah? ?? ?? ?? ...
-                   |  |
-                   v  v
-                  AL AH
-         INC SP (keep stack aligned; avoid unbounded growth) *)
-        let
-          val () = dprint
-            (fn () =>
-             "load_ah_known have: " ^ Word8.toString ah ^ ", " ^
-             Word8.toString al ^
-             " v: " ^ Word8.toString vh ^ " with machine:\n" ^
-             M.debugstring (mach acc) ^ "\n")
-          val acc = load_al_known acc al vh
-        in
-          acc //
-          PUSH AX //
-          DEC SP //
-          POP AX //
-          INC SP ??
-          (* We don't know what's after the stack, so knowledge of AL is lost.
-             ESP stays the same. *)
-          forget_slot M.EAX ---@ ??
-          learn_slot M.EAX --@- vh
-        end
+    (* Load an arbitrary value into AH and optionally a printable one
+       into AL.
+
+       Loading something into AH. One reasonably brief way to do this is to
+       misalign the stack.
+       Load the desired value into AL, so that we have AH=ah?, AL=vh.
+           PUSH AX, giving
+                    AL AH
+                     |  |
+                     v  v
+              SP -> vh ah? ?? ?? ?? ...
+           PUSH abcd, giving    (8-bit push is 0 padded; no-good)
+              SP -> cd ab vh ah? ?? ?? ?? ...
+           INC SP, giving
+              SP -> ab vh ah? ?? ?? ?? ...
+           POP AX, giving
+              SP -> ab vh ah? ?? ?? ?? ...
+                     |  |
+                     v  v
+                    AL AH
+           INC SP (keep stack aligned; avoid unbounded growth)
+
+         PERF: IMUL may be good for this too.
+
+         Instead of PUSHing an immediate, we can also just DEC SP,
+         which leaves AL unknown at the end, but is shorter. If
+         vlo is NONE, then do this. *)
+    fun load_ah_known acc (ah, al) vlo vh : acc =
+      let
+        (* Push two bytes on the stack, where the top must be
+           the given one. Can do anything it wants to AX.
+
+           PERF if we have the value in the low byte of any register,
+           we could push it here... *)
+        fun pushbyte b =
+          let
+            val via_ax = SOME (load_al_known acc al b // PUSH AX)
+            val imm = if printable b
+                      then SOME (acc // (PUSH_IMM ` I8 b))
+                      else NONE
+          in
+            multistrategy [via_ax, imm]
+          end
+      in
+        case vlo of
+          NONE =>
+            if ah = vh
+            then acc
+            else
+              let val acc = pushbyte vh
+              in
+                acc //
+                (* put trash at top of stack *)
+                DEC SP //
+                POP AX //
+                INC SP ??
+                (* ESP stays the same, but AL is lost because we don't
+                   know what was on the stack. *)
+                forget_slot M.EAX ---@ ??
+                learn_slot M.EAX --@- vh
+              end
+          | SOME vl =>
+            let val acc = pushbyte vh
+            in
+              acc //
+              (* put VL VL at top of stack *)
+              PUSH_IMM ` I16 (w8stow16 (vl, vl)) //
+              (* discard second VL *)
+              INC SP //
+              POP AX //
+              INC SP ??
+              (* ESP stays the same. *)
+              learn_slot M.EAX ---@ vl ??
+              learn_slot M.EAX --@- vh
+            end
+      end
 
     (* Load AL with the value, without touching AH or anything else. *)
     fun load_al acc vl : acc =
@@ -457,9 +493,21 @@ struct
         val (ah, al) = w16tow8s a
         val (vh, vl) = w16tow8s v
 
-        fun bytewise () =
+        fun bytewise_hint () =
           let
-            val acc = load_ah_known acc (ah, al) vh
+            (* Hint must be printable. This covers the case where the
+               target al is already printable. *)
+            val alhint = Array.sub (best_printable_src,
+                                    Word8.toInt al)
+            val acc = load_ah_known acc (ah, al) (SOME alhint) vh
+            val acc = load_al_known acc alhint vl
+          in
+            SOME acc
+          end
+
+        fun bytewise_blind () =
+          let
+            val acc = load_ah_known acc (ah, al) NONE vh
             val acc = load_al acc vl
           in
             SOME acc
@@ -472,8 +520,7 @@ struct
             val xh = Word8.xorb (ah, vh)
             val xl = Word8.xorb (al, vl)
           in
-            if xh >= PRINT_LOW andalso xh <= PRINT_HIGH andalso
-               xl >= PRINT_LOW andalso xl <= PRINT_HIGH
+            if printable xh andalso printable xl
             then
               let
                 val xx = w8stow16 (xh, xl)
@@ -488,8 +535,7 @@ struct
              val s = Word16.-(a, v)
              val (sh, sl) = w16tow8s s
            in
-             if sh >= PRINT_LOW andalso sh <= PRINT_HIGH andalso
-                sl >= PRINT_LOW andalso sl <= PRINT_HIGH
+             if printable sh andalso printable sl
              then SOME (acc // (SUB_A_IMM ` I16 s) ?? learn_reg16 M.EAX v)
              else NONE
            end
@@ -529,7 +575,8 @@ struct
                  else NONE
           end
       in
-        multistrategy [incdec (), xor (), sub (), and16 (), bytewise ()]
+        multistrategy [incdec (), xor (), sub (), and16 (),
+                       bytewise_hint (), bytewise_blind ()]
       end
   in
     (* Load AX with the 16-bit value.
@@ -566,7 +613,7 @@ struct
              then we do that, and try to load the best printable
              src value for the low byte. This covers the case
              that the low byte is already printable. *)
-          if wh >= PRINT_LOW andalso wh <= PRINT_HIGH
+          if printable wh
           then
             let
               val wp = w8stow16 (wh, best_lsrc)
@@ -601,14 +648,28 @@ struct
      May use stack but restores it.
      Can trash flags.
      Modifies AX. *)
-  fun load_reg16 (acc : acc) (A : reg) (v : Word16.word) : acc = load_ax16 acc v
-    | load_reg16 acc r v =
+  fun load_reg16 (acc : acc) (r : reg) (v : Word16.word) : acc =
     let
       fun general () =
-        load_ax16 acc v //
-        PUSH AX //
-        POP (reg_to_multireg16 r) ??
-        learn_reg16 (reg_to_machreg r) v
+        let
+          val via_a =
+            case r of
+              A => SOME ` load_ax16 acc v
+            | _ => SOME (load_ax16 acc v //
+                         PUSH AX //
+                         POP (reg_to_multireg16 r) ??
+                         learn_reg16 (reg_to_machreg r) v)
+          val (vh, vl) = w16tow8s v
+          val imm =
+            if printable vh andalso printable vl
+            then SOME (acc //
+                       PUSH_IMM ` I16 v //
+                       POP (reg_to_multireg16 r) ??
+                       learn_reg16 (reg_to_machreg r) v)
+            else NONE
+        in
+          multistrategy [via_a, imm]
+        end
     in
       assert_claimed acc (reg_to_multireg16 r);
       assert_claimed acc AX;
@@ -653,6 +714,7 @@ struct
     (fn acc =>
      let in
        check_not_stack16 r;
+       (* PERF -- we don't need to save AX if value is printable. *)
        load_reg16 acc r v
      end)
 

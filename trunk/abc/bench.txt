@@ -67,3 +67,6 @@ before push_imm: 170479, 295
 
 multistrategy load_ax16: 293
 with push_imm: 284
+
+with bytewise_hint: 283
+
