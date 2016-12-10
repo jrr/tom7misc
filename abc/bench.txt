@@ -52,5 +52,13 @@ and with and:
 Total byte table size (opcode bytes): 231000
 and with sub:
 Total byte table size (opcode bytes): 170479
+.. very nice! :)
 
-.. very nice!
+why does the tactics_test benchmark produce
+slightly larger code? (oh it does load_ax16)
+Total bytes: 174142 (avg 2.66)
+
+With code table,
+# of code bytes: 300
+
+Multistrategy load_ax16: 295

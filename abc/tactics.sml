@@ -51,6 +51,12 @@ struct
       r 0wx20
     end
 
+  infix ||
+  fun acc1 || acc2 =
+    if Acc.insbytes acc1 <= Acc.insbytes acc2
+    then acc1
+    else acc2
+
   (* Sometimes we have more than one strategy for emitting
      instructions, and the shortest one will depend on the
      machine state or specific values being used.
@@ -62,11 +68,15 @@ struct
 
      A strategy can fail (give NONE) but if all fail, this
      aborts. *)
-  fun multistrategy acc (fs : (acc -> acc option) list) : acc =
+  fun multistrategy (aol : acc option list) : acc =
     let
-      val start_size = insbytes acc
+      fun f (best, NONE) = best
+        | f (NONE, SOME a) = SOME a
+        | f (SOME a, SOME b) = SOME (a || b)
     in
-      raise Tactics "unimplemented"
+      case foldl f NONE aol of
+        NONE => raise Tactics "multistrategy failed!"
+      | SOME best => best
     end
 
   (* Claim the multireg for the duration of the function call,
@@ -128,15 +138,12 @@ struct
   (* Load an arbitrary value into AX.
      If the requested value in AH is NONE ("don't care"), the existing value
      is preserved.
-     Can trash flags. Only AX is modified.
-
-     PERF! Should do some kind of search with dynamic programming, etc.
-     There are still lots of really bad sequences in here (36 bytes to
-     go from 0 to 80!!) *)
+     Can trash flags. Only AX is modified. *)
   (* Note that loading EAX (or any register) can be easily accomplished
      by pushing two 16-bit literals with this routine, then POP with
      the operand size prefix. *)
-  (* PERF: IMUL on an immediate is useful here too. *)
+  (* PERF: IMUL on an immediate is useful here too. (Basically just
+     when AH already contains a small value.) *)
   local
     (* Table of the best way to transform a known value in AL to a target
        value (source-major index). Can't depend on other machine
@@ -295,11 +302,12 @@ struct
 
         fun multipass () =
           let in
-            (* prtable (); *)
             if onepass ()
             then multipass ()
             else ()
           end
+
+        val start_time = Time.now ()
       in
         (* First, fill in the diagonal to get started. We can go
            from a value to itself with no instructions; 0 bytes. *)
@@ -309,9 +317,12 @@ struct
 
         multipass ();
         (* prtable (); *)
-        savetableimage ();
+        (* savetableimage (); *)
         print ("Total byte table size (opcode bytes): " ^
-               Int.toString ` tablesize () ^ "\n");
+               Int.toString ` tablesize () ^ "\n" ^
+               "Computed in " ^
+               Time.toString (Time.-(Time.now (), start_time)) ^
+               " sec.\n");
         Array.app (fn NONE =>
                    raise Tactics "failed to complete byte table"
                     | SOME _ => ()) byte_table
@@ -332,59 +343,25 @@ struct
           | SOME al' => if al <> al'
                         then raise Tactics "wrong known al in load_al_known?"
                         else ()
+        val () = assert_claimed acc AX
+        val srci = Word8.toInt al
+        val dsti = Word8.toInt vl
       in
-        if al = vl
-        (* We already have the value we wanted! *)
-        then acc
-        else
-          (* Best is if we can emit a single byte instruction INC or DEC to
-             transform it. We don't DEC 0 nor INC FF, because these
-             also change AH. Note that this overflow issue does not
-             apply to SUB, because it is an 8-bit operation. *)
-          if al <> 0wxFF andalso vl = Word8.+ (al, 0w1)
-          then acc // INC AX ?? learn_slot M.EAX ---@ vl
-          else
-            if al <> 0wx00 andalso vl = Word8.- (al, 0w1)
-            then acc // DEC AX ?? learn_slot M.EAX ---@ vl
-            else
-              (* If we know AL, we can often get the result we want
-                 immediately by XOR, SUB, or AND with an immediate. *)
-              let val x = Word8.xorb (al, vl)
-              in
-                if x >= PRINT_LOW andalso x <= PRINT_HIGH
-                then acc // (XOR_A_IMM ` I8 x) ?? learn_slot M.EAX ---@ vl
-                else
-                  let
-                    (* we want VL = AL - s,
-                           s + VL = AL
-                           s = AL - VL *)
-                    val s = Word8.- (al, vl)
-                  in
-                    if s >= PRINT_LOW andalso s <= PRINT_HIGH
-                    then acc // (SUB_A_IMM ` I8 s) ?? learn_slot M.EAX ---@ vl
-                    else
-                      (* AND is occasionally a good way, for example, if
-                         AL already contains 0xFF and VL is printable. *)
-                      case inverse_and (al, vl) of
-                        SOME c => acc // (AND_A_IMM ` I8 c) ?? learn_slot M.EAX ---@ vl
-                      | NONE =>
-                          let
-                            (* XXX PERF be smarter here. This does terminate for
-                               all pairs, but takes as many as 36 bytes (maybe more),
-                               like for 0xFF -> 0x80. *)
-                            val s1 = 0wx7e
-                            val new_al = Word8.- (al, s1)
-                            val acc = acc // (SUB_A_IMM ` I8 s1) ?? learn_slot M.EAX ---@ new_al
-                          in
-                            (* PERF if we do know AH, recursing to the general routine
-                               could occasionally produce better paths (e.g. 16-bit DEC) *)
-                            load_al_known acc new_al vl
-                          end
-                  end
-              end
+        case Array.sub (byte_table, srci * 256 + dsti) of
+          NONE => raise Tactics "table not initialized?"
+        | SOME (ins, _) =>
+            let fun ap acc nil = acc
+                  | ap acc (i :: rest) = ap (acc // i) rest
+            in
+              ap acc ins ??
+              learn_slot M.EAX ---@ vl
+            end
       end
 
-    (* Like above, but allowed to trash AL; really just here for two-part 16-bit loads. *)
+    (* Like above, but allowed to trash AL; really just here for two-part 1
+       6-bit loads.
+       PERF: IMUL may be good for this.
+       *)
     fun load_ah_known acc (ah, al) vh : acc =
       if ah = vh
       then acc
@@ -453,26 +430,11 @@ struct
         val (ah, al) = w16tow8s a
         val (vh, vl) = w16tow8s v
 
-        fun fallback () = load_general acc (ah, al) (vh, vl)
-
-        val inc_distance = Word16.toInt ` Word16.-(v, a)
-        val dec_distance = Word16.toInt ` Word16.-(a, v)
-
-        val _ = (inc_distance >= 0 andalso dec_distance >= 0)
-          orelse raise Tactics "impossible!"
-
-        (* PERF higher is probabably better here, but this is conservative
-           since stuff like XOR_A_IMM I16 is 3 bytes. Instead, should just
-           try a few things and compare. *)
-        val MAX_DISTANCE = 3
+        fun fallback () = SOME ` load_general acc (ah, al) (vh, vl)
 
         (* PERF: This should consider multi-instruction sequences. *)
 
-        (* PERF rarely, we could find I8 versions of these that also work.
-           we do search some of those in the general case if AH already
-           contains VH, but for example we still might eagerly perform a
-           16-bit AND here when an 8-bit one would do. *)
-        fun binops () =
+        fun xor () =
           let
             val xh = Word8.xorb (ah, vh)
             val xl = Word8.xorb (al, vl)
@@ -483,39 +445,60 @@ struct
               let
                 val xx = Word16.fromInt (Word8.toInt xh * 256 + Word8.toInt xl)
               in
-                acc // (XOR_A_IMM ` I16 xx) ?? learn_reg16 M.EAX v
+                SOME (acc // (XOR_A_IMM ` I16 xx) ?? learn_reg16 M.EAX v)
               end
-            else
-              let
-                val s = Word16.-(a, v)
-                val (sh, sl) = w16tow8s s
-              in
-                if sh >= PRINT_LOW andalso sh <= PRINT_HIGH andalso
-                   sl >= PRINT_LOW andalso sl <= PRINT_HIGH
-                then acc // (SUB_A_IMM ` I16 s) ?? learn_reg16 M.EAX v
-                else
-                  case inverse_and (ah, vh) of
-                    NONE => fallback ()
-                  | SOME ch =>
-                    (case inverse_and (al, vl) of
-                       NONE => fallback ()
-                     | SOME cl =>
-                         acc // (AND_A_IMM ` I16 `
-                                 Word16.fromInt
-                                 (Word8.toInt ch * 256 + Word8.toInt cl)) ??
-                         learn_reg16 M.EAX v)
-              end
+            else NONE
           end
 
-        fun rep 0 acc i = acc
-          | rep n acc i = rep (n - 1) (acc // i) i
+         fun sub () =
+           let
+             val s = Word16.-(a, v)
+             val (sh, sl) = w16tow8s s
+           in
+             if sh >= PRINT_LOW andalso sh <= PRINT_HIGH andalso
+                sl >= PRINT_LOW andalso sl <= PRINT_HIGH
+             then SOME (acc // (SUB_A_IMM ` I16 s) ?? learn_reg16 M.EAX v)
+             else NONE
+           end
+
+         fun and16 () =
+           case inverse_and (ah, vh) of
+             NONE => NONE
+           | SOME ch =>
+               (case inverse_and (al, vl) of
+                  NONE => NONE
+                | SOME cl =>
+                    SOME (acc // (AND_A_IMM ` I16 `
+                                  Word16.fromInt
+                                  (Word8.toInt ch * 256 + Word8.toInt cl)) ??
+                          learn_reg16 M.EAX v))
+
+        fun incdec () =
+          let
+            val inc_distance = Word16.toInt ` Word16.-(v, a)
+            val dec_distance = Word16.toInt ` Word16.-(a, v)
+
+            val _ = (inc_distance >= 0 andalso dec_distance >= 0)
+              orelse raise Tactics "impossible!"
+
+            (* Just time/quality tradeoff since we check for the shortest
+               sequence below. *)
+            val MAX_DISTANCE = 10
+
+            fun rep 0 acc i = acc
+              | rep n acc i = rep (n - 1) (acc // i) i
+
+          in
+            (* inc/dec_distance 0 covers the case that they are equal. *)
+            if inc_distance <= MAX_DISTANCE
+            then SOME (rep inc_distance acc (INC AX) ?? learn_reg16 M.EAX v)
+            else if dec_distance <= MAX_DISTANCE
+                 then SOME
+                   (rep dec_distance acc (DEC AX) ?? learn_reg16 M.EAX v)
+                 else NONE
+          end
       in
-        (* inc/dec_distance 0 covers the case that they are equal. *)
-        if inc_distance <= MAX_DISTANCE
-        then rep inc_distance acc (INC AX) ?? learn_reg16 M.EAX v
-        else if dec_distance <= MAX_DISTANCE
-             then rep dec_distance acc (DEC AX) ?? learn_reg16 M.EAX v
-             else binops ()
+        multistrategy [incdec (), xor (), sub (), and16 (), fallback ()]
       end
   in
     (* Load AX with the 16-bit value.
