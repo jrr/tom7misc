@@ -23,8 +23,8 @@ struct
   datatype ctx = CTX of { default_32 : bool }
 
   datatype sib_index_reg =
-    (* 101 is illegal *)
-    INDEX_A | INDEX_C | INDEX_D | INDEX_B | INDEX_BP | INDEX_SI | INDEX_DI
+      (* 101 is illegal *)
+      INDEX_A | INDEX_C | INDEX_D | INDEX_B | INDEX_BP | INDEX_SI | INDEX_DI
   datatype sib_base_reg =
       BASE_A | BASE_C | BASE_D | BASE_B | BASE_SP | BASE_DISP_OR_EBP
     | BASE_SI | BASE_DI
@@ -145,7 +145,7 @@ struct
     (* 37 AAA ASCII Adjust After Addition *)
     (* 38-3B CMP variants *)
     | CMP of size * args
-    (* 3C,3D CMP al,ax,eax , imm *)
+    (* 3C,3D CMP al/ax/eax, imm *)
     | CMP_A_IMM of immediate
     (* 3F DS segment override prefix *)
     (* AAS ASCII Adjust After Subtraction *)
@@ -163,9 +163,10 @@ struct
     (* 63 ARPL Adjust RPL field of segment selector *)
   (* 64 FS segment override prefix *)
   (* 65 GS segment override prefix *)
-  (* 66 operand size override prefix *)
+    (* 66 operand size override prefix -- implicit *)
   (* 67 address size override prefix *)
-  (* 68 push immediate 16/32 *)
+    (* 68 push immediate 16/32, 6A push immediate 8 *)
+    | PUSH_IMM of immediate
   (* XXX IMUL here *)
   (* XXX JMP short instructions *)
 
@@ -287,8 +288,8 @@ struct
      emitted by decode_modrm. *)
   fun get_operand_prefix _ S8 = vec[]
     | get_operand_prefix (CTX { default_32 = true, ...}) S16 = vec [0wx66]
-    | get_operand_prefix (CTX { default_32 = false, ...}) S16 = vec[]
-    | get_operand_prefix (CTX { default_32 = true, ...}) S32 = vec[]
+    | get_operand_prefix (CTX { default_32 = false, ...}) S16 = vec []
+    | get_operand_prefix (CTX { default_32 = true, ...}) S32 = vec []
     | get_operand_prefix (CTX { default_32 = false, ...}) S32 = vec [0wx66]
 
   fun encode ctx (i : ins) : word8vector =
@@ -347,7 +348,13 @@ struct
       | DEC mr => encode_multireg_based 0wx48 mr
       | PUSH mr => encode_multireg_based 0wx50 mr
       | POP mr => encode_multireg_based 0wx58 mr
-
+      | PUSH_IMM imm =>
+          let val pfx = get_operand_prefix ctx (immediate_size imm)
+          in
+            case imm of
+              I8 w => pfx @@ vec [0wx6A, w]
+            | _ => pfx @@ vec [0wx68] @@ decode_immediate imm
+          end
       (* out of gamut *)
       | MOV (size, args) => encode_normal 0wx88 (size, args)
       | NOP => vec [0wx90]
@@ -441,6 +448,7 @@ struct
       | DEC mr => "DEC " ^ multiregstring mr
       | PUSH mr => "PUSH " ^ multiregstring mr
       | POP mr => "POP " ^ multiregstring mr
+      | PUSH_IMM imm => "PUSH " ^ immediatestring imm
 
       | MOV sa => "MOV " ^ sizeargsstring sa
       | NOP => "NOP"

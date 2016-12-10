@@ -61,4 +61,9 @@ Total bytes: 174142 (avg 2.66)
 With code table,
 # of code bytes: 300
 
-Multistrategy load_ax16: 295
+Multistrategy load_ax16_known: 295
+
+before push_imm: 170479, 295
+
+multistrategy load_ax16: 293
+with push_imm: 284

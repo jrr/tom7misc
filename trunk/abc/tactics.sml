@@ -33,6 +33,10 @@ struct
       (wh, wl)
     end
 
+  fun w8stow16 (wh : Word8.word, wl : Word8.word) =
+    Word16.orb(Word16.<<(Word16.fromInt (Word8.toInt wh), 0w8),
+               Word16.fromInt (Word8.toInt wl))
+
   fun for8 (lo : Word8.word) (hi : Word8.word) f =
       if lo > hi then ()
       else (ignore (f lo); for8 (Word8.+(lo, 0w1)) hi f)
@@ -150,6 +154,35 @@ struct
        state, and can't change the values other than AL. (Arithmetic
        flags may change.) *)
     val byte_table = Array.array (256 * 256, NONE : (ins list * int) option)
+    (* For any destination byte (index), what printable source would
+       we like to start with in AL? (e.g. s with the smallest instruction
+       bytes for byte_table[256 * s + index] *)
+    val best_printable_src = Array.array (256, PRINT_LOW : Word8.word)
+
+    fun populate_best_printable () =
+      Util.for 0 255
+      (fn index =>
+       let
+         fun get src = case Array.sub (byte_table, src * 256 + index) of
+           NONE => raise Tactics "incomplete"
+         | SOME (_, b) => b
+         val bestsrc = ref ` Word8.toInt PRINT_LOW
+         val bestlen = ref ` get ` !bestsrc
+       in
+         Util.for (Word8.toInt PRINT_LOW) (Word8.toInt PRINT_HIGH)
+         (fn src =>
+          let val v = get src
+          in
+            if get src < !bestlen
+            then
+              let in
+                bestsrc := src;
+                bestlen := v
+              end
+            else ()
+          end);
+         Array.update (best_printable_src, index, Word8.fromInt (!bestsrc))
+       end)
 
     fun tablesize () =
       let
@@ -328,6 +361,8 @@ struct
                     | SOME _ => ()) byte_table
       end
     val () = populate_byte_table ()
+    val () = populate_best_printable ()
+
     (* May not change AH, since we use this in 16-bit loads. We could be
        more aggressive (IMUL, etc.) if we did't care about preserving
        AH. *)
@@ -402,6 +437,7 @@ struct
           learn_slot M.EAX --@- vh
         end
 
+    (* Load AL with the value, without touching AH or anything else. *)
     fun load_al acc vl : acc =
       case M.slot (mach acc) M.EAX ---@ of
         SOME al => load_al_known acc al vl
@@ -415,22 +451,19 @@ struct
             load_al_known acc 0w0 vl
           end
 
-    (* Fully general load of 16-bit literal; fallback case. *)
-    fun load_general acc (ah, al) (vh, vl) : acc =
-      let
-        val acc = load_ah_known acc (ah, al) vh
-        val acc = load_al acc vl
-      in
-        acc
-      end
-
     (* Load AX, knowing that it currently contains some value. *)
     fun load_ax16_known (acc : acc) (a : Word16.word) (v : Word16.word) : acc =
       let
         val (ah, al) = w16tow8s a
         val (vh, vl) = w16tow8s v
 
-        fun fallback () = SOME ` load_general acc (ah, al) (vh, vl)
+        fun bytewise () =
+          let
+            val acc = load_ah_known acc (ah, al) vh
+            val acc = load_al acc vl
+          in
+            SOME acc
+          end
 
         (* PERF: This should consider multi-instruction sequences. *)
 
@@ -443,7 +476,7 @@ struct
                xl >= PRINT_LOW andalso xl <= PRINT_HIGH
             then
               let
-                val xx = Word16.fromInt (Word8.toInt xh * 256 + Word8.toInt xl)
+                val xx = w8stow16 (xh, xl)
               in
                 SOME (acc // (XOR_A_IMM ` I16 xx) ?? learn_reg16 M.EAX v)
               end
@@ -468,9 +501,7 @@ struct
                (case inverse_and (al, vl) of
                   NONE => NONE
                 | SOME cl =>
-                    SOME (acc // (AND_A_IMM ` I16 `
-                                  Word16.fromInt
-                                  (Word8.toInt ch * 256 + Word8.toInt cl)) ??
+                    SOME (acc // (AND_A_IMM ` I16 ` w8stow16 (ch, cl)) ??
                           learn_reg16 M.EAX v))
 
         fun incdec () =
@@ -498,33 +529,58 @@ struct
                  else NONE
           end
       in
-        multistrategy [incdec (), xor (), sub (), and16 (), fallback ()]
+        multistrategy [incdec (), xor (), sub (), and16 (), bytewise ()]
       end
   in
     (* Load AX with the 16-bit value.
        The register should already be claimed by the caller. *)
     fun load_ax16 acc (w : Word16.word) : acc =
-      let in
-        assert_claimed acc AX;
-        case M.reg16 (mach acc) M.EAX of
-          SOME ax => load_ax16_known acc ax w
-        | NONE =>
-            (* PERF: If we end up going the load_general route, then zeroing
-               this is kinda pointless, because we still have to zero AL after
-               the POP reads some unknown byte from the stack. Could compare the
-               two approaches. *)
-            (* PERF: Case where we know one of AH or AL, just not the other one *)
-            (* Put *some* known value in AX so that we can use the routine
-               above. PERF: Obviously some choices are better than others, and it
-               depends on the value we're trying to load. For now, zero. *)
+      let
+        val () = assert_claimed acc AX
+
+        val known =
+          case M.reg16 (mach acc) M.EAX of
+            SOME ax => SOME ` load_ax16_known acc ax w
+          | NONE => NONE
+
+        (* PERF: Case where we know one of AH or AL, just not the other one *)
+
+        val via_zero =
+          let
+            val acc = acc //
+              (AND_A_IMM ` I16 ` Word16.fromInt 0x4040) //
+              (AND_A_IMM ` I16 ` Word16.fromInt 0x2020) ??
+              learn_reg16 M.EAX (Word16.fromInt 0)
+          in
+            SOME ` load_ax16_known acc (Word16.fromInt 0) w
+          end
+
+        (* PERF should consider loading values that are close
+           (via xor, sub, inc, dec, and) to the one we want. *)
+        val (wh, wl) = w16tow8s w
+        val best_lsrc = Array.sub (best_printable_src,
+                                   Word8.toInt wl)
+        val pushpop =
+          (* We can push a 16-bit printable immediate, then pop
+             it into AX (4 bytes). If the high byte is printable,
+             then we do that, and try to load the best printable
+             src value for the low byte. This covers the case
+             that the low byte is already printable. *)
+          if wh >= PRINT_LOW andalso wh <= PRINT_HIGH
+          then
             let
+              val wp = w8stow16 (wh, best_lsrc)
               val acc = acc //
-                (AND_A_IMM ` I16 ` Word16.fromInt 0x4040) //
-                (AND_A_IMM ` I16 ` Word16.fromInt 0x2020) ??
-                learn_reg16 M.EAX (Word16.fromInt 0)
+                PUSH_IMM ` I16 wp // POP AX ??
+                learn_reg16 M.EAX wp
             in
-              load_ax16_known acc (Word16.fromInt 0) w
+              (* Now try to load from this known value. *)
+              SOME ` load_ax16_known acc wp w
             end
+          else NONE
+
+      in
+        multistrategy [known, via_zero, pushpop]
       end handle e => raise e
     (* XXX: 8-bit versions *)
   end
