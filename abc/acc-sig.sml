@@ -26,13 +26,16 @@ sig
   (* Apply transformation to machine. *)
   val ?? : acc * (Machine.mach -> Machine.mach) -> acc
 
-  (* Claiming registers. A 16-bit register's friend is the 32-bit version, and vice versa.
+  (* Claiming registers. A 16-bit register's friend is the 32-bit version,
+     and vice versa.
      A register and its friend cannot be simultaneously claimed. *)
   val friend : X86.multireg -> X86.multireg
   (* Claim a 16-bit or 32-bit register.
-     Claiming a register that's already claimed, or that whose friend is claimed, is fatal. *)
+     Claiming a register that's already claimed, or that whose friend is
+     claimed, is fatal. *)
   val ++ : acc * X86.multireg -> acc
-  (* Release a 16-bit or 32-bit register. Releasing an already-free register is fatal.
+  (* Release a 16-bit or 32-bit register. Releasing an already-free register
+     is fatal.
      Must release at the same width as it was claimed. *)
   val -- : acc * X86.multireg -> acc
 

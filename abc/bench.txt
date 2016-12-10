@@ -44,3 +44,13 @@ with 16-bit tricks:
 
 Claim registers:
 # of code bytes: 336
+
+
+new byte table approach; just inc, dec, xor:
+Total byte table size (opcode bytes): 269048
+and with and:
+Total byte table size (opcode bytes): 231000
+and with sub:
+Total byte table size (opcode bytes): 170479
+
+.. very nice!
