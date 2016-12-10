@@ -70,3 +70,5 @@ with push_imm: 284
 
 with bytewise_hint: 283
 
+use 8-bit immediate push: 280
+

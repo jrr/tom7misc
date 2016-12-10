@@ -45,6 +45,16 @@ struct
       else (ignore (f lo); for8 (Word8.+(lo, 0w1)) hi f)
 
 
+  (* Push the 16-bit value; if the high byte is zero then we can do
+     it in one fewer byte. *)
+  fun push16 (v : Word16.word) =
+    let val (vh, vl) = w16tow8s v
+    in
+      if vh = 0w0
+      then PUSH_IMM ` I8 vl
+      else PUSH_IMM ` I16 v
+    end
+
   (* Find printable C such that AND (AL, C) = VL; of course not always
      possible. *)
   fun inverse_and (al, vl) =
@@ -462,7 +472,7 @@ struct
             in
               acc //
               (* put VL VL at top of stack *)
-              PUSH_IMM ` I16 (w8stow16 (vl, vl)) //
+              push16 (w8stow16 (vl, vl)) //
               (* discard second VL *)
               INC SP //
               POP AX //
@@ -608,17 +618,17 @@ struct
         val best_lsrc = Array.sub (best_printable_src,
                                    Word8.toInt wl)
         val pushpop =
-          (* We can push a 16-bit printable immediate, then pop
-             it into AX (4 bytes). If the high byte is printable,
-             then we do that, and try to load the best printable
-             src value for the low byte. This covers the case
-             that the low byte is already printable. *)
-          if printable wh
+          (* We can push an 8- or 16-bit printable immediate, then pop it into
+             AX (4 bytes). If the high byte is printable (or zero), then we do
+             that, and try to load the best printable src value for
+             the low byte. This covers the case that the low byte is
+             already printable. *)
+          if printable wh orelse wh = 0w0
           then
             let
               val wp = w8stow16 (wh, best_lsrc)
               val acc = acc //
-                PUSH_IMM ` I16 wp // POP AX ??
+                push16 wp // POP AX ??
                 learn_reg16 M.EAX wp
             in
               (* Now try to load from this known value. *)
@@ -629,7 +639,7 @@ struct
       in
         multistrategy [known, via_zero, pushpop]
       end handle e => raise e
-    (* XXX: 8-bit versions *)
+
   end
 
   fun reg_to_machreg r =
