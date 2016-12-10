@@ -40,6 +40,7 @@ struct
           val n = Word8Vector.length bytes
           val mach = Acc.mach acc
         in
+          Acc.insbytes acc = n orelse raise TacticsTest "WRONG insbytes";
           Acc.assert_claimed acc X86.AX;
           Word8Vector.app (fn c => if c < PRINT_LOW orelse c > PRINT_HIGH
                                    then raise TacticsTest "byte not printable!"
