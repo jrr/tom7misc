@@ -32,8 +32,9 @@ struct
         print (CIL.progtos cil ^ "\n");
         cil
       end
-       | { errorCount, ... } => raise ABC ("Parsing/elaboration failed with " ^
-                                           Int.toString errorCount ^ " error(s)");
+       | { errorCount, ... } =>
+      raise ABC ("Parsing/elaboration failed with " ^
+                 Int.toString errorCount ^ " error(s)");
 
   fun go f =
     go_internal f

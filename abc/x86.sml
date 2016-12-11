@@ -164,7 +164,7 @@ struct
   (* 64 FS segment override prefix *)
   (* 65 GS segment override prefix *)
     (* 66 operand size override prefix -- implicit *)
-  (* 67 address size override prefix *)
+    (* 67 address size override prefix -- implicit *)
     (* 68 push immediate 16/32, 6A push immediate 8 *)
     | PUSH_IMM of immediate
   (* XXX IMUL here *)
@@ -235,7 +235,8 @@ struct
     | EDI => (S32, 0w7)
 
   (* Return unshifted (prefix bytes, mod, rm, suffix bytes) *)
-  fun decode_modrm (CTX ctx) modrm : (word8vector * word8 * word8 * word8vector) =
+  fun decode_modrm (CTX ctx) modrm :
+    (word8vector * word8 * word8 * word8vector) =
     let
       val pfx_addr32 = if #default_32 ctx
                        then vec []
