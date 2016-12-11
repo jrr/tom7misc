@@ -71,9 +71,7 @@ struct
     Bind of string * exp * stmt
   (* Store(address, width, value, rest) *)
   | Store of value * width * value * stmt
-    (* cond, true-branch, rest *)
-  (* | If of value * stmt * stmt *)
-  (* | Label of string * stmt *)
+  (* GotoIf(cond, true-label, else-branch). *)
   | GotoIf of value * string * stmt
   | Return of value
   | End
@@ -165,11 +163,13 @@ struct
 
       fun func (s, Func {args, ret, body, blocks}) =
         "FUNC " ^ s ^ "(" ^ StringUtil.delimit ", "
-        (map (fn (s, t) => s ^ " : " ^ typtos t) args) ^ ") : " ^ typtos ret ^ " =\n" ^
+        (map (fn (s, t) => s ^ " : " ^ typtos t) args) ^ ") : " ^
+        typtos ret ^ " =\n" ^
         stmttos body ^ "\n" ^
         StringUtil.delimit "\n" (map blocktos blocks)
 
-      fun glob (s, Glob {typ, init, blocks}) = "GLOBAL " ^ s ^ " : " ^ typtos typ ^ " =\n" ^
+      fun glob (s, Glob {typ, init, blocks}) = "GLOBAL " ^ s ^ " : " ^
+        typtos typ ^ " =\n" ^
         stmttos init ^
         StringUtil.delimit "\n" (map blocktos blocks)
     in

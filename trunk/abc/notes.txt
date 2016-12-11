@@ -150,7 +150,13 @@ Tricks:
      XOR REG, REG
      DEC REG  // now 0xFFFFFFFF
      XOR REG, REG2
-
+ - Unconditional jumps:
+   - JNO jumps if the overflow flag is cleared.
+   - XOR EAX, 0x20; XOR EAX, 0x20 preserves register values and
+     always clears the overflow (and carry) flags. It wrecks
+     other flags, though.
+ - BOUND can maybe be used to exit? triggers exception (INT 5)
+   "Thank you for playing wing commander."
 
    IN, OUTS
  - It looks possible to blink PS/2 LEDs for output:
@@ -182,7 +188,8 @@ Notable missing opcodes:
  - CALL and RET. While it's not a big deal to manually jump indirect
    with JMP [eax] (etc.), it looks like reading the EIP register
    might be difficult. Fortunately, if we know where we are located
-   in memory, the return address is a constant.
+   in memory, the return address is a constant. (But actually we only
+   have short immediate jumps forward, ugh)
  - INT. Used to make DOS system calls, which might be important
    for setting up "unreal mode" (not to mention basic IO in DOS).
    Probably only workaround for this is self-modifying code.
@@ -190,7 +197,7 @@ Notable missing opcodes:
  - SHL and SHR, which are used all over the place. Since we also
    don't have ADD, this could make some normally easy
    things quite hard. Hmm. (We do have IMUL, INC and SUB, and can
-   do bitwise complement with XOR.)
+   do bitwise complement with XOR. SHL is a series of self-adds.)
  - NOT, NEG. Can do this with XOR, deg (flags notwithstanding)
 
 ----------------------------------------------------------------------

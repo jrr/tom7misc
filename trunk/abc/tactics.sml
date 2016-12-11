@@ -28,10 +28,10 @@ struct
 
   fun w16tow8s (w : Word16.word) : Word8.word * Word8.word =
     let
-      val wh = Word8.fromInt ` Word16.toInt ` Word16.andb(Word16.>>(w, 0w8),
-                                                          Word16.fromInt 0xFF)
-      val wl = Word8.fromInt ` Word16.toInt ` Word16.andb(w,
-                                                          Word16.fromInt 0xFF)
+      val wh = Word8.fromInt ` Word16.toInt `
+        Word16.andb(Word16.>>(w, 0w8), Word16.fromInt 0xFF)
+      val wl = Word8.fromInt ` Word16.toInt `
+        Word16.andb(w, Word16.fromInt 0xFF)
     in
       (wh, wl)
     end
@@ -140,9 +140,10 @@ struct
       fun get_unclaimed nil =
           (* No registers are unclaimed. *)
           (case l of
-             nil =>
-               raise Tactics "claim_reg16 needs at least one register in the list"
-           | r :: _ => save_and_claim acc (reg_to_multireg16 r) (fn a => f (a, r)))
+             nil => raise Tactics ("claim_reg16 needs at least one " ^
+                                   "register in the list")
+           | r :: _ => save_and_claim acc (reg_to_multireg16 r)
+                       (fn a => f (a, r)))
         | get_unclaimed (r :: rest) =
            let val mr = reg_to_multireg16 r
            in if can_be_claimed acc mr
@@ -602,6 +603,9 @@ struct
 
         (* PERF: Case where we know one of AH or AL, just not the other one *)
 
+        (* PERF: Delete it? two ANDs is 6 bytes, and via_20 is 3.
+           Would probably be better to spend the cycles trying to
+           find a better starting value. *)
         val via_zero =
           let
             val acc = acc //
@@ -610,6 +614,18 @@ struct
               learn_reg16 M.EAX (Word16.fromInt 0)
           in
             SOME ` load_ax16_known acc (Word16.fromInt 0) w
+          end
+
+        (* Loading a single byte into AX is only 3 bytes,
+           but it must be printable! *)
+        val via_20 =
+          let
+            val acc = acc //
+              PUSH_IMM ` I8 0wx20 //
+              POP AX ??
+              learn_reg16 M.EAX (Word16.fromInt 0x20)
+          in
+            SOME ` load_ax16_known acc (Word16.fromInt 0x20) w
           end
 
         (* PERF should consider loading values that are close
@@ -622,7 +638,11 @@ struct
              AX (4 bytes). If the high byte is printable (or zero), then we do
              that, and try to load the best printable src value for
              the low byte. This covers the case that the low byte is
-             already printable. *)
+             already printable.
+
+             PERF: If we are only pushing one byte, a good precursor to
+             WH might be the right choice, since we'll often do the multibyte
+             load which starts with a load of ah. *)
           if printable wh orelse wh = 0w0
           then
             let
@@ -637,7 +657,7 @@ struct
           else NONE
 
       in
-        multistrategy [known, via_zero, pushpop]
+        multistrategy [known, via_zero, via_20, pushpop]
       end handle e => raise e
 
   end
@@ -704,7 +724,8 @@ struct
         | IND_EPB_DISP8 w => w
         | IND_ESI_DISP8 w => w
         | IND_EDI_DISP8 w => w
-        | _ => raise Tactics "mov16ind8 only works with [REG]+disp8 addressing mode."
+        | _ => raise Tactics ("mov16ind8 only works with [REG]+disp8 " ^
+                              "addressing mode.")
     in
       if w >= 0wx20 andalso w <= 0wx7e then ()
       else raise Tactics "disp8 is non-printable in move16ind8"
@@ -820,10 +841,13 @@ struct
        but we can do some indirect addressing, for example
           MOV ESI <- [EBX]
        or
-          MOV ESI <- [EBX]+'a'     (of course note we do not have MOV instruction)
-       EBX is a fairly useless register, since it can't be the REG argument except
-       when using [REG]+disp32 as R/M, and all registers can be used that way. By
-       keeping it a constant value, we can use the following slots as temporaries:
+          MOV ESI <- [EBX]+'a'     (of course note we do not have MOV)
+
+       EBX is a fairly useless register, since it can't be the REG
+       argument except when using [REG]+disp32 as R/M, and all
+       registers can be used that way. By keeping it a constant value,
+       we can use the following slots as temporaries:
+
           [EBX], i.e. DS:00000100 (available registers are ESP, EBP, ESI, EDI)
           [EBX]+0x20, i.e. DS:00000120 (all registers available)
           ...
@@ -831,8 +855,8 @@ struct
 
        0 would be an obvious choice for the constant value, but DS:0000
        contains 256 bytes of the PSP, which we want to keep:
-          - it contains the command line and maybe some other useful stuff from the
-            program's environment.
+          - it contains the command line and maybe some other useful stuff
+            from the program's environment.
           - it's guaranteed to contain INT 21; RETF (at DS:0050), which we could
             use to do system calls without self-modifying code if we could get
             the right stuff on the stack and somehow get control here (it's in
@@ -845,8 +869,9 @@ struct
        segment, though, such as the region right before the address
        space wraps.
 
-       This is lots of temporaries, so that's nice. It's also critical because it's
-       the only way we can do math ops like XOR on non-immediate values. Example:
+       This is lots of temporaries, so that's nice. It's also critical
+       because it's the only way we can do math ops like XOR on
+       non-immediate values. Example:
           Get DS:0100 to contain V2
           PUSH AX
           POP BP
