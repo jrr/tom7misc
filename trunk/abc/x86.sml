@@ -160,9 +160,12 @@ struct
     (* 60,61 PUSH/POP all. XXX useful, but need to look into
        the encoding. *)
     (* 62 BOUND Check array index against bounds *)
-    (* 63 ARPL Adjust RPL field of segment selector *)
-  (* 64 FS segment override prefix *)
-  (* 65 GS segment override prefix *)
+    (* 63 ARPL Adjust RPL field of segment selector
+
+       This instruction seems useless outside OS stuff,
+       and appears to be illegal in real mode. *)
+    (* 64 FS segment override prefix *)
+    (* 65 GS segment override prefix *)
     (* 66 operand size override prefix -- implicit *)
     (* 67 address size override prefix -- implicit *)
     (* 68 push immediate 16/32, 6A push immediate 8 *)
@@ -251,14 +254,15 @@ struct
       | DISP32 w32 => raise X86 "unimplemented"
       | IND_ESI => raise X86 "unimplemented"
       | IND_EDI => raise X86 "unimplemented"
-      | IND_EAX_DISP8 w8 => raise X86 "unimplemented"
-      | IND_ECX_DISP8 w8 => raise X86 "unimplemented"
-      | IND_EDX_DISP8 w8 => raise X86 "unimplemented"
+      | IND_EAX_DISP8 w8 => (pfx_addr32, 0w1, 0w0, vec [w8])
+      | IND_ECX_DISP8 w8 => (pfx_addr32, 0w1, 0w1, vec [w8])
+      | IND_EDX_DISP8 w8 => (pfx_addr32, 0w1, 0w2, vec [w8])
       | IND_EBX_DISP8 w8 => (pfx_addr32, 0w1, 0w3, vec [w8])
       | IND_SIB_DISP8 (sib, w8) => raise X86 "unimplemented"
-      | IND_EPB_DISP8 w8 => raise X86 "unimplemented"
-      | IND_ESI_DISP8 w8 => raise X86 "unimplemented"
-      | IND_EDI_DISP8 w8 => raise X86 "unimplemented"
+      | IND_EPB_DISP8 w8 => (pfx_addr32, 0w1, 0w5, vec [w8])
+      | IND_ESI_DISP8 w8 => (pfx_addr32, 0w1, 0w6, vec [w8])
+      | IND_EDI_DISP8 w8 => (pfx_addr32, 0w1, 0w7, vec [w8])
+      (* These are all always non-printable *)
       | IND_EAX_DISP32 w32 => raise X86 "unimplemented"
       | IND_ECX_DISP32 w32 => raise X86 "unimplemented"
       | IND_EDX_DISP32 w32 => raise X86 "unimplemented"
