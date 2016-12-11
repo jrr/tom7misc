@@ -210,6 +210,49 @@ Notable missing opcodes:
    I think this is necessary for more than 64k of
    code, and to use the INT 21 RETF in DS... are there other ways?
    (COM file would not have this problem btw)
+
+We can do dynamic jumps (maybe) by modifying the IVT (using FS or GS
+prefix -- are these segments guaranteed to be zero?) and then
+performing illegal instructions. This lets us set CS and IP, but there
+are some major limitations:
+  - The stack will contain the address of the instruction that
+    faulted (not the one following it), so IRET just loops.
+  - The fault clears the interrupt flag, and only STI, POPF and
+    IRET can reset the flag. (And it looks like the illegal
+    opcode won't jump if IF=0.)
+One solution would be to send to some code that already contains
+an IRET. This would be great if we could adjust the stack to
+contain a useful value (e.g. POP AX; INC AX; INC AX; PUSH AX,
+though this destroys ax so..). Since we know where the interrupt
+handlers are (by reading the IVT), we could maybe insert this
+code (it's all printable) before the IVT and then jump there
+instead. But I don't think there's any way to modify arbitrary
+segment:offset values (the interrupt handler could be anywhere)
+without the instructions that modify segment registers (eg POP ES).
+
+Might be possible to send control flow into the PSP (but can we
+even figure out what DS is? Perhaps using the relocation table?). Some
+interesting parts:
+  - DS:002B has "call near bx". This could maybe jump into arguments
+    supplied on the command line, but everything would have to be
+    printable (though at this point we have the ability to modify
+    the stack, like we could do
+        // Get rid of the return addr from that call
+        POP AX;
+        // Adjust the return pointer for the interrupt call
+        POP AX; INC AX; INC AX; PUSH AX
+        ... now somehow jump (not INT/CALL) to the interrupt handler ...
+        ??
+    ... or actually why not just jump into the PSP, not using that
+    CALL NEAR BX? (And in that case, it need not be PSP, it can just
+    be some code that we loaded anywhere.)
+
+
+.. and don't forget the possibility of jumping mid-instruction.
+
+OTOH, we CAN at least use this technique to "cleanly" exit the
+program, since that interrupt does not return.
+
 ----------------------------------------------------------------------
 
  - No two-byte opcodes can be used because these are prefixed

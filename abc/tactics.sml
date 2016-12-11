@@ -886,9 +886,37 @@ struct
        real mode because all printable values will overflow the segment.
        *)
   val TEMP_START = Word16.fromInt 0x0100
+  val IVT_INT_21 = Word16.fromInt (0x21 * 4)
+  val IVT_INT_ILLEGAL = Word16.fromInt (0x06 * 4)
   fun initialize () : acc =
     let
       val acc = empty (X86.CTX { default_32 = false }) M.all_unknown ++ EAX
+      (* Overwrite interrupt vector table so that 'illegal instruction'
+         is actually DOS INT 21h. *)
+
+      (* Clear some registers. *)
+      val acc = acc //
+        AND_A_IMM ` I32 0wx40204020 //
+        AND_A_IMM ` I32 0wx20402040 ??
+        learn_reg32 M.EAX 0w0 //
+        PUSH EAX ++ EBX //
+        POP EBX ??
+        learn_reg32 M.EBX 0w0
+
+      val acc = load_reg16 acc B IVT_INT_21
+
+      val acc = acc ++ ECX //
+        (* Access segment FS=0 *)
+        DB 0wx64 //
+        MOV (S32, C <- IND_EBX_DISP8 0w0)
+
+      val acc = load_reg16 acc B IVT_INT_ILLEGAL
+      val acc = acc //
+        DB 0wx64 //
+        MOV (S32, IND_EBX_DISP8 0w0 <~ C)
+
+      val acc = acc -- ECX -- EBX
+
       val acc = load_ax16 acc (Word16.fromInt 0)
       val acc = acc // PUSH AX
       val acc = load_ax16 acc TEMP_START
@@ -919,7 +947,10 @@ struct
           val acc = acc ++ DX
           val acc = acc // PUSH AX // POP DX ??
             learn_reg16 M.EDX value
-          val acc = acc // INT 0wx21 ??
+          val acc =
+            acc // INT 0wx21 ??
+            (* illegal instruction *)
+            (* acc // X86.DB 0wx63 // X86.DB 0wx2a ?? *)
           (* interrupt returns character written in AL.
              Not known whether it preserves DX? *)
             forget_reg16 M.EDX ??
@@ -936,7 +967,10 @@ struct
     let val acc = acc ++ AX
     in
       load_ax16 acc (Word16.fromInt 0x4c00) //
-      INT 0wx21 -- AX
+      (* illegal instruction; we never return *)
+      X86.DB 0wx63 // X86.DB 0wx2a -- AX
+
+      (* INT 0wx21 -- AX *)
     end
 
 end
