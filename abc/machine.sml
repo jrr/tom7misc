@@ -24,7 +24,8 @@ struct
   val all_unknown = M { regs = { eax = UNK, ecx = UNK, edx = UNK, ebx = UNK,
                                  esp = UNK, ebp = UNK, esi = UNK, edi = UNK } }
 
-  fun update_reg (M { regs = { eax, ecx, edx, ebx, esp, ebp, esi, edi } }) reg32 f =
+  fun update_reg (M { regs = { eax, ecx, edx, ebx,
+                               esp, ebp, esi, edi } }) reg32 f =
     let
       val regs =
         case reg32 of
@@ -111,9 +112,12 @@ struct
 
   fun learn_reg32 mach reg w =
     let
-      val wa = Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(w, 0w24), 0wxFF)))
-      val wb = Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(w, 0w16), 0wxFF)))
-      val wc = Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(w, 0w8), 0wxFF)))
+      val wa = Word8.fromInt (Word32.toInt
+                              (Word32.andb(Word32.>>(w, 0w24), 0wxFF)))
+      val wb = Word8.fromInt (Word32.toInt
+                              (Word32.andb(Word32.>>(w, 0w16), 0wxFF)))
+      val wc = Word8.fromInt (Word32.toInt
+                              (Word32.andb(Word32.>>(w, 0w8), 0wxFF)))
       val wd = Word8.fromInt (Word32.toInt (Word32.andb(w, 0wxFF)))
       fun up _ = (SOME wa, SOME wb, SOME wc, SOME wd)
     in
@@ -182,11 +186,11 @@ struct
 
   fun debugstring (M { regs = { eax, ecx, edx, ebx,
                                 esp, ebp, esi, edi } }) =
-    let
-    in
-      String.concat ["EAX ", krs eax, "  ECX ", krs ecx, "  EDX ", krs edx, "  EBX ", krs ebx, "\n",
-                     "ESP ", krs esp, "  EBP ", krs ebp, "  ESI ", krs esi, "  EDI ", krs edi]
-
+    let in
+      String.concat ["EAX ", krs eax, "  ECX ", krs ecx,
+                     "  EDX ", krs edx, "  EBX ", krs ebx, "\n",
+                     "ESP ", krs esp, "  EBP ", krs ebp,
+                     "  ESI ", krs esi, "  EDI ", krs edi]
     end
 
 end

@@ -35,6 +35,10 @@ group is
   tocil-sig.sml
   tocil.sml
 
+  asm.sml
+  toasm-sig.sml
+  toasm.sml
+
   x86.sml
 
   machine-sig.sml

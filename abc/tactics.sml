@@ -784,7 +784,7 @@ struct
     end handle e => raise e
 
   (* Binary NOT of register r. *)
-  fun not_reg16 acc r : acc =
+  fun complement_reg16 acc r : acc =
   (* Strategy here is to do R <- XOR(R, OxFFFF).
      Generating FFFF is pretty cheap (0 - 1). We have to put it in a temporary
      in order to do it; we'll use [EBX]+0x20. *)
@@ -822,7 +822,7 @@ struct
            PUSH (reg_to_multireg16 rsrc) //
            POP (reg_to_multireg16 rtmp) ??
            forget_reg16 (reg_to_machreg rtmp)
-         val acc = not_reg16 acc rtmp //
+         val acc = complement_reg16 acc rtmp //
            INC (reg_to_multireg16 rtmp) ??
            forget_reg16 (reg_to_machreg rtmp)
          (* now rtmp contains -V. *)
@@ -967,8 +967,10 @@ struct
     let val acc = acc ++ AX
     in
       load_ax16 acc (Word16.fromInt 0x4c00) //
-      (* illegal instruction; we never return *)
-      X86.DB 0wx63 // X86.DB 0wx2a -- AX
+      (* "cya" is an illegal instruction; we never return *)
+      X86.DB 0wx63 // X86.DB 0wx79 // X86.DB 0wx61 //
+      (* follow with ! to be emphatic *)
+      X86.DB 0wx21 -- AX
 
       (* INT 0wx21 -- AX *)
     end
