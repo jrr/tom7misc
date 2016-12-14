@@ -28,9 +28,10 @@ struct
          env : State.symtab } } =>
       let
         val cil = ToCIL.tocil ast
+        val () = print (CIL.progtos cil ^ "\n")
+        val asm = ToASM.toasm cil
       in
-        print (CIL.progtos cil ^ "\n");
-        cil
+        print "TODO: Rest of compiler\n"
       end
        | { errorCount, ... } =>
       raise ABC ("Parsing/elaboration failed with " ^
@@ -44,6 +45,10 @@ struct
           case e of
             ABC s => "ABC: " ^ s ^ "\n"
           | ToCIL.ToCIL s => "ToCIL: " ^ s ^ "\n"
+          | ToASM.ToASM s => "ToASM: " ^ s ^ "\n"
+          | Tactics.Tactics s => "Tactics: " ^ s ^ "\n"
+          | Acc.Acc s => "Acc: " ^ s ^ "\n"
+          | X86.X86 s => "X86: " ^ s ^ "\n"
           | e => "Uncaught exception: " ^ exnName e
       in
         print s;
