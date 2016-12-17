@@ -113,12 +113,14 @@ struct
       cmds: cmd list }
   and proc = Proc of
     { name: string,
+      (* Size of stack frame for arguments. *)
+      argbytes: int,
       (* Size of stack frame for local variables,
-         including the function arguments. *)
+         excluding the function arguments. *)
       localbytes: int,
       (* Map local variables (and arguments) to
-         byte offsets from base. *)
-      locals: (string * int) list,
+         byte offsets from base (beginning of arguments). *)
+      offsets: (string * int) list,
       (* Every block belongs to a single procedure,
          and its references to local variables
          are relative to that. *)

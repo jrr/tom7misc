@@ -6,14 +6,14 @@ local
 in
 (* val () = WriteTest.writeexe() *)
 
-(*
 val () = Params.main1
   "Provide the name of a single C file on the command line."
   (fn cfile =>
    ignore (ABC.go cfile))
-*)
-
+  handle e => eprint (e, exnName e)
+  (*
 val () = TacticsTest.all_combinations ()
 handle e as (Tactics.Tactics s) => eprint (e, "Tactics: " ^ s ^ "\n")
              | e as (Acc.Acc s) => eprint (e, "Acc: " ^ s ^ "\n")
+*)
 end
