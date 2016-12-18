@@ -153,6 +153,48 @@ struct
     in
       get_unclaimed l
     end
+
+  (* XXX to utils? *)
+  structure FixedStack :>
+  sig
+    exception FixedStack of string
+    type 'a fixedstack
+    (* Give a sentinel value and maximum capacity. *)
+    val empty : int * 'a -> 'a fixedstack
+    val capacity : 'a fixedstack -> int
+    val size : 'a fixedstack -> int
+    (* Raises fixedstack if full. *)
+    val push : 'a fixedstack * 'a -> unit
+    val isempty : 'a fixedstack -> bool
+    val popopt : 'a fixedstack -> 'a option
+    (* Raises FixedStack if empty. *)
+    val pop : 'a fixedstack -> 'a
+  end =
+  struct
+    exception FixedStack of string
+    type 'a fixedstack = int ref * 'a Array.array
+    fun empty (cap, a) = (ref 0, Array.array (cap, a))
+    fun capacity (_, arr) = Array.length arr
+    fun size (s, _) = !s
+    fun push ((s, arr), item) =
+      let in
+        Array.update (arr, !s, item);
+        s := !s + 1
+      end handle General.Subscript => raise FixedStack "full"
+    fun isempty (ref 0, _) = true
+      | isempty _ = false
+    fun popopt (s, arr) =
+      let in
+        s := !s - 1;
+        SOME (Array.sub (arr, !s))
+      end handle General.Subscript => NONE
+    fun pop (s, arr) =
+      let in
+        s := !s - 1;
+        Array.sub (arr, !s - 1)
+      end handle General.Subscript => raise FixedStack "empty"
+  end
+
   (* Load an arbitrary value into AX.
      If the requested value in AH is NONE ("don't care"), the existing value
      is preserved.
@@ -167,7 +209,7 @@ struct
        value (source-major index). Can't depend on other machine
        state, and can't change the values other than AL. (Arithmetic
        flags may change.) *)
-    val byte_table = Array.array (256 * 256, NONE : (ins list * int) option)
+    val byte_table = Array.array (256 * 256, (nil, ~1) : ins list * int)
     (* For any destination byte (index), what printable source would
        we like to start with in AL? (e.g. s with the smallest instruction
        bytes for byte_table[256 * s + index] *)
@@ -178,8 +220,8 @@ struct
       (fn index =>
        let
          fun get src = case Array.sub (byte_table, src * 256 + index) of
-           NONE => raise Tactics "incomplete"
-         | SOME (_, b) => b
+           (_, ~1) => raise Tactics "pbp: incomplete"
+         | (_, b) => b
          val bestsrc = ref ` Word8.toInt PRINT_LOW
          val bestlen = ref ` get ` !bestsrc
        in
@@ -202,8 +244,8 @@ struct
       let
         val ctr = ref 0
       in
-        Array.app (fn NONE => raise Tactics "incomplete"
-                    | SOME (_, b) => ctr := !ctr + b) byte_table;
+        Array.app (fn (_, ~1) => raise Tactics "size: incomplete"
+                    | (_, b) => ctr := !ctr + b) byte_table;
         !ctr
       end
 
@@ -217,10 +259,10 @@ struct
           let in
             print ("  " ^ Int.toString dsti ^ ": ");
             (case Array.sub (byte_table, srci * 256 + dsti) of
-               NONE => print "NONE\n"
-             | SOME (ins, b) => print ("[" ^ Int.toString b ^ "] " ^
-                                       StringUtil.delimit "  "
-                                       (map X86.insstring ins) ^ "\n"))
+               (_, ~1) => print "NONE\n"
+             | (ins, b) => print ("[" ^ Int.toString b ^ "] " ^
+                                  StringUtil.delimit "  "
+                                  (map X86.insstring ins) ^ "\n"))
           end)
        end)
 
@@ -237,8 +279,8 @@ struct
             let
               val b =
                 case Array.sub (byte_table, row * 256 + col) of
-                  NONE => 255
-                | SOME (_, b) => if b > 255 then 255 else b
+                  (_, ~1) => 255
+                | (_, b) => if b > 255 then 255 else b
             in
               TextIO.output(f,
                             Int.toString b ^ " " ^
@@ -253,116 +295,129 @@ struct
 
     fun populate_byte_table () =
       let
-        (* Take one pass over the table. Return false if the table
-           doesn't improve. *)
-        fun onepass () =
-          let
-            val improved = ref false
-            fun edge_inc acc 0wxFF = NONE
-              | edge_inc acc al =
-              SOME (acc // INC AX, Word8.+ (al, 0w1))
-            fun edge_dec acc 0wx00 = NONE
-              | edge_dec acc al =
-              SOME (acc // DEC AX, Word8.- (al, 0w1))
-            fun edge_xor b acc al =
-              SOME (acc // XOR_A_IMM ` I8 b, Word8.xorb (al, b))
-            fun edge_and b acc al =
-              SOME (acc // AND_A_IMM ` I8 b, Word8.andb (al, b))
-            fun edge_sub b acc al =
-              SOME (acc // SUB_A_IMM ` I8 b, Word8.- (al, b))
-          in
-            (* PERF instead of looping over all cells, we could
-               have a queue of changed cells. *)
-            Util.for 0 255
-            (fn srci =>
-             let
-               val src = Word8.fromInt srci
-               (* XXX take context from somewhere?
-                  It doesn't affect correctness but would cause us to
-                  make mistakes about the size of some ops. *)
-               val acc = Acc.empty (CTX { default_32 = false }) M.all_unknown
-               val acc = acc ?? learn_slot M.EAX ---@ src
-               val acc = acc ++ AX
-             in
-               Util.for 0 255
-               (fn dsti =>
-                let
-                  val dst = Word8.fromInt dsti
-                in
-                  case Array.sub (byte_table, srci * 256 + dsti) of
-                    NONE => ()
-                      (* Don't know how to get here from src yet, so nothing
-                         to do. *)
-                  | SOME (best, best_size) =>
-                      (* So best takes us from src to dst in best_size
-                         bytes. Can we extend that to improve our path
-                         to (src, X) for some X? *)
-                      let
-                        (* Use the result of an edge to update the
-                           table if it's an improvement. *)
-                        fun try NONE = ()
-                          | try (SOME (acc, new_dst)) =
-                          let
-                            val new_dsti = Word8.toInt new_dst
-                            fun isbetter new_bytes =
-                              case Array.sub (byte_table,
-                                              srci * 256 + new_dsti) of
-                                NONE => true
-                              | SOME (_, old_bytes) =>
-                                  new_bytes + best_size < old_bytes
-                          in
-                            if isbetter ` Acc.insbytes acc
-                            then
-                              let in
-                                (*
-                                print
-                                ("Improved " ^ Int.toString srci ^
-                                 " to " ^ Int.toString dsti ^
-                                 " (" ^ Int.toString best_size ^
-                                 " + " ^ Int.toString (Acc.insbytes acc) ^
-                                 ")\n");
-                                *)
-                                improved := true;
-                                Array.update
-                                (byte_table, srci * 256 + new_dsti,
-                                 SOME (best @ Acc.insns acc,
-                                       best_size + Acc.insbytes acc))
-                              end
-                            else ()
-                          end
-                      in
-                        (* Try different edges out of this node. *)
-                        try ` edge_inc acc dst;
-                        try ` edge_dec acc dst;
-                        for8 PRINT_LOW PRINT_HIGH
-                        (fn b =>
-                         let in
-                           try ` (edge_xor b acc dst);
-                           try ` (edge_and b acc dst);
-                           try ` (edge_sub b acc dst)
-                         end)
-                      end
-                end)
-             end);
-            !improved
-          end
-
-        fun multipass () =
-          let in
-            if onepass ()
-            then multipass ()
-            else ()
-          end
-
         val start_time = Time.now ()
+
+        (* Since a cell could be pushed more than once, this is actually
+           an "empirical" value (the procedure below is deterministic...) *)
+        val todo = FixedStack.empty (65536, (0, 0))
+
+        fun edge_inc acc 0wxFF = NONE
+          | edge_inc acc al =
+          SOME (acc // INC AX, Word8.+ (al, 0w1))
+        fun edge_dec acc 0wx00 = NONE
+          | edge_dec acc al =
+          SOME (acc // DEC AX, Word8.- (al, 0w1))
+        fun edge_xor b acc al =
+          SOME (acc // XOR_A_IMM ` I8 b, Word8.xorb (al, b))
+        fun edge_and b acc al =
+          SOME (acc // AND_A_IMM ` I8 b, Word8.andb (al, b))
+        fun edge_sub b acc al =
+          SOME (acc // SUB_A_IMM ` I8 b, Word8.- (al, b))
+
+        (* XXX take context from somewhere?
+           It doesn't affect correctness but would cause us to
+           make mistakes about the size of some ops. *)
+        val empty_acc = Acc.empty (CTX { default_32 = false }) M.all_unknown
+
+        (* Loop over the todo stack until we're done. *)
+        fun loop () =
+          case FixedStack.popopt todo of
+            NONE => ()
+          | SOME (cell, expected) =>
+          (* A cell could be improved before we even get to it. If this
+             happens, we know that this cell will be explored because of
+             the time it was pushed on the stack with this lower value.
+             So just skip. *)
+          if #2 ` Array.sub (byte_table, cell) < expected
+          then loop ()
+          else
+          let
+            (* This is a cell that has had its score improved. So
+               look at all the cells we have edges to, and see if we
+               have a faster path there via this cell now. *)
+            val srci = cell div 256
+            val dsti = cell mod 256
+            val src = Word8.fromInt srci
+            val dst = Word8.fromInt dsti
+
+            (* So best takes us from src to dst in best_size
+               bytes. Can we extend that to improve our path
+               to (src, X) for some X? *)
+            val (best, best_size) = Array.sub (byte_table, cell)
+            val () = if best_size = ~1
+                     then raise Tactics "stack contained uninitialized val?"
+                     else ()
+
+            val acc = empty_acc ?? learn_slot M.EAX ---@ src
+            val acc = acc ++ AX
+
+            (* Use the result of an edge to update the
+               table if it's an improvement. *)
+            fun try NONE = ()
+              | try (SOME (acc, new_dst)) =
+              let
+                val new_dsti = Word8.toInt new_dst
+                val newcell = srci * 256 + new_dsti
+                fun isbetter new_bytes =
+                  case Array.sub (byte_table, newcell) of
+                    (* first path here is always better *)
+                    (_, ~1) => true
+                  | (_, old_bytes) =>
+                      new_bytes + best_size < old_bytes
+              in
+                if isbetter ` Acc.insbytes acc
+                then
+                  let
+                    val newbytes = best_size + Acc.insbytes acc
+                  in
+                    (*
+                    print
+                    ("Improved " ^ Int.toString srci ^
+                     " to " ^ Int.toString dsti ^
+                     " (" ^ Int.toString best_size ^
+                     " + " ^ Int.toString (Acc.insbytes acc) ^
+                     ")\n");
+                    *)
+                    (* Save the value we think this cell has,
+                       so that we don't end up visiting it
+                       multiple times without new information. *)
+                    FixedStack.push (todo, (newcell, newbytes));
+                    Array.update
+                    (byte_table, newcell,
+                     (best @ Acc.insns acc, newbytes))
+                  end
+                else ()
+              end
+          in
+            (* Try different edges out of this node. *)
+            (* Since we use a stack, this visits the INC/DEC
+               edges last. This is good because you can always
+               form long chains of INC/DEC to get between numbers,
+               but we can almost always do better. *)
+            try ` edge_inc acc dst;
+            try ` edge_dec acc dst;
+            for8 PRINT_LOW PRINT_HIGH
+            (fn b =>
+             let in
+               try ` (edge_xor b acc dst);
+               try ` (edge_and b acc dst);
+               try ` (edge_sub b acc dst)
+             end);
+            loop ()
+          end
       in
         (* First, fill in the diagonal to get started. We can go
            from a value to itself with no instructions; 0 bytes. *)
         Util.for 0 255
         (fn b =>
-         Array.update (byte_table, b * 256 + b, SOME (nil, 0)));
+         let
+           val cell = b * 256 + b
+         in
+           Array.update (byte_table, cell, (nil, 0));
+           FixedStack.push (todo, (cell, 0))
+         end);
 
-        multipass ();
+        loop ();
         (* prtable (); *)
         (* savetableimage (); *)
         print ("Total byte table size (opcode bytes): " ^
@@ -370,11 +425,14 @@ struct
                "Computed in " ^
                Time.toString (Time.-(Time.now (), start_time)) ^
                " sec.\n");
-        Array.app (fn NONE =>
-                   raise Tactics "failed to complete byte table"
-                    | SOME _ => ()) byte_table
+        Array.app (fn (_, b) =>
+                   if b = ~1 then raise Tactics "failed to complete byte table"
+                   else ()) byte_table
       end
     val () = populate_byte_table ()
+      handle Tactics s =>
+        (print ("Initializing byte table failed: " ^ s ^ "\n");
+         raise (Tactics s))
     val () = populate_best_printable ()
 
     (* May not change AH, since we use this in 16-bit loads. We could be
@@ -395,16 +453,12 @@ struct
         val () = assert_claimed acc AX
         val srci = Word8.toInt al
         val dsti = Word8.toInt vl
+        val (ins, bytes) = Array.sub (byte_table, srci * 256 + dsti)
+        fun ap acc nil = acc
+          | ap acc (i :: rest) = ap (acc // i) rest
       in
-        case Array.sub (byte_table, srci * 256 + dsti) of
-          NONE => raise Tactics "table not initialized?"
-        | SOME (ins, _) =>
-            let fun ap acc nil = acc
-                  | ap acc (i :: rest) = ap (acc // i) rest
-            in
-              ap acc ins ??
-              learn_slot M.EAX ---@ vl
-            end
+        ap acc ins ??
+        learn_slot M.EAX ---@ vl
       end
 
     (* Load an arbitrary value into AH and optionally a printable one
