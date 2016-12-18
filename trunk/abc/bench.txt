@@ -72,3 +72,17 @@ with bytewise_hint: 283
 
 use 8-bit immediate push: 280
 "zero" 16-bit register with push/pop: 275
+
+
+making printable table faster (mlton):
+
+start 13.181s
+no option: 12.298s
+(170479 is total table size opcode bytes)
+
+use fixed size stack:
+Total byte table size (opcode bytes): 170479
+Computed in 4.513 sec.    good!
+
+Don't do redundant pops: 4.392s
+

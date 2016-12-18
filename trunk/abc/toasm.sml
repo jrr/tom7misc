@@ -27,6 +27,7 @@ struct
   (* XXX maybe need Pointwise for CIL... *)
   (* Apply f to every local in the statement. *)
   (* XXX How to get local's size? *)
+(*
   fun apploc_stmt C.End = ()
     | apploc_stmt (C.Return v) = apploc_val v
     | apploc_stmt (C.Bind (_, e, s)) = (apploc_exp e; apploc_stmt s)
@@ -37,7 +38,7 @@ struct
   | GotoIf of value * string * stmt
   | Return of value
   | End
-
+*)
 
   fun doproc (name, C.Func
               { args : (string * C.typ) list,
