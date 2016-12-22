@@ -1,8 +1,18 @@
 
 group is
 
+#if (defined(SMLNJ_VERSION))
+  $/basis.cm
+#endif
+
 ../util/stringutil-sig.sml
 ../util/stringutil.sml
+
+color-sig.sml
+color.sml
+
+wordn.sml
+bigword.sml
 
 params-sig.sml
 params.sml
