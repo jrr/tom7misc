@@ -1,8 +1,8 @@
 
-(* WordN for 0 <= N <= 32. 
+(* WordN for 0 <= N <= 32.
    For compatibility between mlton and NJ;
    mlton supports all of these, but NJ does
-   not. 
+   not.
 
    Note that this won't overload constants or
    math ops at the new types. This is because
@@ -15,16 +15,16 @@ functor WordNX(structure W : WORD
                val bits : int) :> WORD =
 struct
     (* structure W = Word32 *)
-    
+
     (* sanity check that we can implement a word of
        this size with the supplied structure *)
-    val () = if W.wordSize < bits 
+    val () = if W.wordSize < bits
              then raise Overflow (* maybe a better exception?? *)
              else ()
 
     (* representation invariant: always mod 2^bits *)
     type word = W.word
-    
+
     val mask = W.>> (W.fromInt ~1, Word.fromInt W.wordSize - Word.fromInt bits)
 
     exception Unimplemented
@@ -66,6 +66,8 @@ struct
     val op >= = W.>=
 
     val toString = W.toString
+    (* PERF: For some reason, sml/nj uses polyEqual for = here in popCount
+       below. Doesn't make sense to me since it should be monomorphic... *)
     fun fromString s =
         (case W.fromString s of
              NONE => NONE
@@ -76,7 +78,27 @@ struct
 
     fun ~>> _ = raise Unimplemented
     fun << (x, y) = W.andb(mask, W.<<(x, y))
+    (* PERF: This doesn't need to be masked, right? *)
     fun >> (x, y) = W.andb(mask, W.>>(x, y))
+
+    (* Population count is the number of 1-bits. This appears to be a new
+       WORD extension ca. 2016, so for maximum compatibility I
+       implemented it directly (rather than relying on an underlying
+       Word.popCount). *)
+    fun popCount (w : word) : int =
+      let
+        (* Note we cannot use pattern matching or literals on type
+           Word, since it is a functor argument. *)
+        fun pc (w : word, n : int) =
+          if w = W.fromInt 0 then n
+          else
+            pc (W.>>(w, 0w1),
+                if W.andb(w, W.fromInt 1) <> W.fromInt 0
+                then n + 1
+                else n)
+      in
+        pc (w, 0)
+      end
 
     (* last, since overloaded.. *)
     fun x + y = W.andb(mask, W.+(x, y))
@@ -85,7 +107,6 @@ struct
     fun x * y = W.andb(mask, W.*(x, y))
     fun x div y = W.andb(mask, W.div(x, y))
     fun x mod y = W.andb(mask, W.mod(x, y))
-
 end
 
 (* word8 is not optional in basis *)
