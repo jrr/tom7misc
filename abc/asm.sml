@@ -26,9 +26,10 @@
 
    There are at least two issues that make this harder
    than a typical assembly task:
-      - Loads of immediate values are variable-length.
-        So it doesn't simply work to leave placeholder
-        values and then do a second pass to reify labels.
+      - Loading an immediate value takes a variable-length
+        number of opcodes. So it doesn't simply work to leave
+        placeholder values and then do a second pass to reify
+        labels.
       - In order to maintain the jump ladder, a "basic
         block" cannot be more than 126(?) bytes, because
         we need to be able to jump over it. It's not
