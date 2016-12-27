@@ -14,9 +14,11 @@ struct
     | szbytes S16 = 2
     | szbytes S32 = 4
 
-  fun ctypsize C.Word32 = S32
-    | ctypsize C.Word16 = S16
-    | ctypsize C.Word8 = S8
+  (* Signedness doesn't matter any more -- the representation is
+     the same and the operations are explicit. *)
+  fun ctypsize (C.Word32 _) = S32
+    | ctypsize (C.Word16 _) = S16
+    | ctypsize (C.Word8 _) = S8
     (* All pointers are 16-bit offsets into DS. *)
     | ctypsize (C.Pointer _) = S16
     (* Labels in code segment, not addresses but no way for
