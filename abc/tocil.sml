@@ -97,13 +97,16 @@ struct
   end
 
   datatype normop = PLUS | MINUS | TIMES | DIVIDE | MOD | GT | LT | GTE | LTE |
-    EQ | NEQ | BITOR | BITAND | BITXOR | LSHIFT | RSHIFT
+    EQ | NEQ | BITOR | BITAND | BITXOR
   datatype shortop = AND | OR
+  datatype shiftop = LSHIFT | RSHIFT
 
   datatype binopclass =
       SHORT_CIRCUIT of shortop
-    | ASSIGNING of normop
     | NORMAL of normop
+    | SHIFT of shiftop
+    | ASSIGNING of normop
+    | ASSIGNING_SHIFT of shiftop
 
   fun binopclass (b : Ast.binop) =
     case b of
@@ -121,8 +124,8 @@ struct
     | Ast.BitOr => NORMAL BITOR
     | Ast.BitAnd => NORMAL BITAND
     | Ast.BitXor => NORMAL BITXOR
-    | Ast.Lshift => NORMAL LSHIFT
-    | Ast.Rshift => NORMAL RSHIFT
+    | Ast.Lshift => SHIFT LSHIFT
+    | Ast.Rshift => SHIFT RSHIFT
     | Ast.And => SHORT_CIRCUIT AND
     | Ast.Or => SHORT_CIRCUIT OR
     | Ast.BinopExt _ => raise ToCIL "No binop extensions are supported"
@@ -134,11 +137,8 @@ struct
     | Ast.XorAssign => ASSIGNING BITXOR
     | Ast.OrAssign => ASSIGNING BITOR
     | Ast.AndAssign => ASSIGNING BITAND
-    | Ast.LshiftAssign => ASSIGNING LSHIFT
-    | Ast.RshiftAssign => ASSIGNING RSHIFT
-
-  (* Some derived forms *)
-  fun Goto label = GotoIf (LiteralTrue, label, End)
+    | Ast.LshiftAssign => ASSIGNING_SHIFT LSHIFT
+    | Ast.RshiftAssign => ASSIGNING_SHIFT RSHIFT
 
   (* For local variables, disambiguate the symbol with the uid. *)
   fun idstring ({ name, uid, ... } : Ast.id) =
@@ -213,6 +213,59 @@ struct
   val BOGUS_TYPE = Struct nil
   val BOGUS_WIDTH = Width16
 
+  (* Implicit coercion when we know the source and destination types. *)
+  fun implicit { v : value, src : typ, dst : typ } (k : value * typ -> stmt) : stmt =
+    if eq_typ (src, dst) then k (v, dst)
+    else
+      let
+        (* true if a promotion from a to b should be sign-extended *)
+        fun extend _ Signed = true
+          | extend _ Unsigned = false
+      in
+      (case (src, dst) of
+         (* Signedness is just a translation artifact; there's nothing to do. *)
+         (Word32 _, Word32 _) => k (v, dst)
+       | (Word16 _, Word16 _) => k (v, dst)
+       | (Word8 _, Word8 _) => k (v, dst)
+       | (Word8 sa, Word16 sb) =>
+           let val var = genvar "p"
+           in Bind (var, Promote { v = v, src = Width8, dst = Width16,
+                                   signed = extend sa sb },
+                    k (Var var, dst))
+           end
+       | (Word8 sa, Word32 sb) =>
+           let val var = genvar "p"
+           in Bind (var, Promote { v = v, src = Width8, dst = Width32,
+                                   signed = extend sa sb },
+                    k (Var var, dst))
+           end
+       | (Word16 sa, Word32 sb) =>
+           let val var = genvar "p"
+           in Bind (var, Promote { v = v, src = Width16, dst = Width32,
+                                   signed = extend sa sb },
+                    k (Var var, dst))
+           end
+
+       | (Word16 sa, Word8 sb) =>
+           let val var = genvar "t"
+           in Bind (var, Truncate { v = v, src = Width16, dst = Width8 },
+                    k (Var var, dst))
+           end
+       | (Word32 sa, Word8 sb) =>
+           let val var = genvar "t"
+           in Bind (var, Truncate { v = v, src = Width32, dst = Width8 },
+                    k (Var var, dst))
+           end
+       | (Word32 sa, Word16 sb) =>
+           let val var = genvar "t"
+           in Bind (var, Truncate { v = v, src = Width32, dst = Width16 },
+                    k (Var var, dst))
+           end
+
+       | _ => raise ToCIL ("implicit coercion from " ^ typtos src ^ " to " ^
+                           typtos dst ^ " not allowed/implemented. Try casting?"))
+      end
+
   (* Give the constructor and return type for a given AST binop. Both of its arguments
      must have been promoted to the same numeric typ t. *)
   fun opconstructor bop (t : typ) : (value * value -> exp) * typ =
@@ -248,10 +301,6 @@ struct
       | BITOR => (atwidth Or, t)
       | BITAND => (atwidth And, t)
       | BITXOR => (atwidth Xor, t)
-      | LSHIFT => raise ToCIL ("left shift should not be done this way " ^
-                               "since it always takes a word8 on the rhs")
-      | RSHIFT => raise ToCIL ("right shift should not be done this way " ^
-                               "since it always takes a word8 on the rhs")
     end
 
   (* Translate an expression as an lvalue. This means producing a value
@@ -319,7 +368,9 @@ struct
          end)
     in
       case e of
-        (* XXX need some way to deduce the types of literals! *)
+        (* XXX need some way to deduce the types of literals.
+           Possibly they can always be signed, and then we
+           can rewrite to smaller literals later as an optimization?? *)
         Ast.IntConst i =>
           let
             val typ = Word32 Signed
@@ -437,6 +488,45 @@ struct
                                       k (Var newv, rett))))
                  end))
 
+           | ASSIGNING_SHIFT bop =>
+               translvalue a bc
+               (fn (addr, width, ltyp) =>
+                transexp b bc
+                (fn (bv, bt) =>
+                 let
+                   val oldv = genvar "ashiftold"
+                   val newv = genvar "ashiftnew"
+                   val ctor =
+                     case bop of
+                       LSHIFT => LeftShift
+                     | RSHIFT => RightShift
+                 in
+                   implicit { src = bt, dst = Word8 Unsigned, v = bv }
+                   (fn (bv, _) =>
+                    Bind (oldv, Load (width, addr),
+                          Bind (newv, ctor (width, Var oldv, bv),
+                                Store (width, addr,
+                                       Var newv,
+                                       k (Var newv, ltyp)))))
+                 end))
+
+           | SHIFT bop =>
+               transexp a bc
+               (fn (av, at) =>
+                transexp b bc
+                (fn (bv, bt) =>
+                 let
+                   val v = genvar "shift"
+                   val ctor =
+                     case bop of
+                       LSHIFT => LeftShift
+                     | RSHIFT => RightShift
+                 in
+                   implicit { src = bt, dst = Word8 Unsigned, v = bv }
+                   (fn (bv, _) =>
+                    Bind (v, ctor (typewidth at, av, bv), k (Var v, at)))
+                 end))
+
            | NORMAL bop =>
                transexp a bc
                (fn (av, at) =>
@@ -465,9 +555,11 @@ struct
                 transexp a bc k
             | Ast.Not => transexp a bc
                 (fn (av, at) =>
-                 (* XXX check at is bool or convert *)
                  let val v = genvar "u"
-                 in Bind (v, Not (BOOL_WIDTH, av), k (Var v, BOOL_TYPE))
+                 in
+                   implicit { src = at, dst = BOOL_TYPE, v = av }
+                   (fn (av, _) =>
+                    Bind (v, Not (BOOL_WIDTH, av), k (Var v, BOOL_TYPE)))
                  end)
             | Ast.Negate => transexp a bc
                 (fn (av, at) =>
@@ -539,8 +631,9 @@ struct
                  in
                    Bind (oldv, Load (width, addr),
                          Bind (newv, Minus (width, Var oldv,
-                                           (* XXX signedness from ltyp *)
-                                            unsigned_literal width 1),
+                                            case typesignedness ltyp of
+                                              Unsigned => unsigned_literal width 1
+                                            | Signed => signed_literal width 1),
                                Store (width, addr, Var newv,
                                       k (Var oldv, ltyp))))
                  end))
@@ -549,11 +642,25 @@ struct
       | Ast.Call (f, args) =>
             transexp f bc
             (fn (fv, ft) =>
-             transexplist args bc
-             (fn args =>
-              let val v = genvar "call"
-              in Bind (v, Call (fv, map #1 args), k (Var v, BOGUS_TYPE))
-              end))
+             case ft of
+               Code (rett, argt) =>
+                 transexplist args bc
+                 (fn args =>
+                  let
+                    val retv = genvar "call"
+                    fun implicitargs racc nil nil =
+                          Bind (retv, Call (fv, rev racc), k (Var retv, rett))
+                      | implicitargs racc (t :: trest) ((v, vt) :: vrest) =
+                          implicit { src = vt, dst = t, v = v }
+                          (fn (v, vt) =>
+                           implicitargs (v :: racc) trest vrest)
+                      | implicitargs _ _ _ =
+                          raise ToCIL "argument number mismatch in Call"
+                  in
+                    implicitargs nil argt args
+                  end)
+             | _ => raise ToCIL ("tried to call value of non-function " ^
+                                 "type " ^ typtos ft))
 
       | Ast.QuestionColon (cond, te, fe) =>
             transexp cond bc
@@ -768,10 +875,12 @@ struct
                      | SOME c =>
                          transexp c bc
                          (fn (condv, condt) =>
-                          Bind (ncond, Not (BOOL_WIDTH, condv),
-                                GotoIf (Var ncond, done_label,
-                                        transstatement body body_targs bc
-                                        (fn () => Goto inc_label)))));
+                          implicit { src = condt, dst = BOOL_TYPE, v = condv }
+                          (fn (bv, _) =>
+                           Bind (ncond, Not (BOOL_WIDTH, bv),
+                                 GotoIf (Var ncond, done_label,
+                                         transstatement body body_targs bc
+                                         (fn () => Goto inc_label))))));
 
           (* When we're done, it's just the current continuation. *)
           BC.insert (bc, done_label, k ());
@@ -824,11 +933,12 @@ struct
                    (case ie of
                       Ast.Simple e =>
                         transexp e bc
-                        (fn (v : value, t : typ) =>
-                         (* XXX truncate/promote? *)
-                         Store (ctypewidth ctype,
-                                AddressLiteral ` Global ` uid,
-                                v, End))
+                        (fn (v : value, vt : typ) =>
+                         implicit { v = v, src = vt, dst = t }
+                         (fn (vv, vvt) =>
+                          Store (ctypewidth ctype,
+                                 AddressLiteral ` Global ` uid,
+                                 vv, End)))
                     | Ast.Aggregate _ =>
                         raise ToCIL "aggregate initialization unimplemented")
              in

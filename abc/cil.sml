@@ -102,6 +102,7 @@ struct
   (* GotoIf(cond, true-label, else-branch). *)
   | GotoIf of value * string * stmt
   | Return of value
+  | Goto of string
   | End
 
   datatype function =
@@ -133,6 +134,28 @@ struct
     | typtos (Word16 Signed) = "i16"
     | typtos (Word8 Unsigned) = "u8"
     | typtos (Word8 Signed) = "i8"
+
+  local
+    fun eq_typ (Pointer a, Pointer b) = eq_typ (a, b)
+      | eq_typ (Struct a, Struct b) = eq_meml (a, b)
+      | eq_typ (Code (aret, aargs), Code (bret, bargs)) =
+          eq_typ (aret, bret) andalso eq_typl (aargs, bargs)
+      | eq_typ (Word32 s1, Word32 s2) = s1 = s2
+      | eq_typ (Word16 s1, Word16 s2) = s1 = s2
+      | eq_typ (Word8 s1, Word8 s2) = s1 = s2
+      | eq_typ _ = false
+
+    and eq_meml (nil, nil) = true
+      | eq_meml ((av, a) :: arest, (bv, b) :: brest) = av = bv andalso
+      eq_typ (a, b) andalso eq_meml (arest, brest)
+      | eq_meml _ = false
+
+    and eq_typl (nil, nil) = true
+      | eq_typl (a :: arest, b :: brest) = eq_typ (a, b) andalso eq_typl (arest, brest)
+      | eq_typl _ = false
+  in
+    val eq_typ = eq_typ
+  end
 
   fun loctos (Local l) = l
     | loctos (Global l) = "GLOBAL " ^ l
@@ -195,6 +218,7 @@ struct
     | stmttos (GotoIf (v, lab, s)) =
         "  if " ^ valtos v ^ " goto " ^ lab ^ "\n" ^ stmttos s
     | stmttos (Return v) = "  return " ^ valtos v
+    | stmttos (Goto lab) = "  goto " ^ lab
     | stmttos End = "  end"
 
   fun progtos (Program { functions, globals }) =
