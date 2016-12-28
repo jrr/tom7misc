@@ -319,23 +319,28 @@ struct
         in k (AddressLiteral ` Global ` uidstring id, typewidth typ, typ)
         end
     | Ast.Sub (ptr, idx) =>
-        let
-          (* FIXME -- need to get this from the pointer type *)
-          val argwidth = Width32
-          val scaled_idx = genvar "sidx"
-          val addr = genvar "off"
-          fun scale Width32 v = LeftShift (POINTER_WIDTH, v, Word8Literal 0w2)
-            | scale Width16 v = LeftShift (POINTER_WIDTH, v, Word8Literal 0w1)
-            | scale Width8 v = Value v
-        in
-          transexp ptr bc
-          (fn (ptrv, ptrt) =>
-           transexp idx bc
-           (fn (idxv, idxt) =>
-            Bind (scaled_idx, scale argwidth idxv,
-                  Bind (addr, Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
-                        k (Var addr, argwidth, BOGUS_TYPE)))))
-        end
+        transexp ptr bc
+        (fn (ptrv, ptrt) =>
+         case ptrt of
+           Pointer t =>
+             let
+               val argwidth = typewidth t
+               val scaled_idx = genvar "sidx"
+               val addr = genvar "off"
+               fun scale Width32 v =
+                 LeftShift (POINTER_WIDTH, v, Word8Literal 0w2)
+                 | scale Width16 v =
+                 LeftShift (POINTER_WIDTH, v, Word8Literal 0w1)
+                 | scale Width8 v = Value v
+             in
+               transexp idx bc
+               (fn (idxv, idxt) =>
+                Bind (scaled_idx, scale argwidth idxv,
+                      Bind (addr, Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
+                            k (Var addr, argwidth, ptrt))))
+             end
+         | _ => raise ToCIL ("Attempt to subscript something of " ^
+                             "non-array type: " ^ typtos ptrt))
 
     | Ast.Member _ => raise ToCIL "unimplemented lvalue: Member"
     | Ast.Arrow _ => raise ToCIL "unimplemented lvalue: Arrow"
@@ -393,46 +398,49 @@ struct
                (* a && b is like a ? !!b : false. *)
                transexp a bc
                (fn (av, at) =>
-                let
-                  (* XXX check that at is bool, or convert *)
-                  val res = newidstring "andr"
-                  val resv = genvar "r"
-                  val nresv = genvar "nr"
-                  val nnresv = genvar "nnr"
-                  val true_lab = BC.genlabel "andtrue"
-                  val done_lab = BC.genlabel "anddone"
-                in
-                  BC.insert
-                  (bc, true_lab,
-                   transexp b bc
-                   (fn (bv : value, bt : typ) =>
-                    (* XXX check that bt is bool, or convert *)
-                    Bind (nresv, Not (BOOL_WIDTH, bv),
-                          Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
-                                Store (BOOL_WIDTH,
-                                       AddressLiteral ` Local res,
-                                       Var nnresv,
-                                       Goto done_lab)))));
+                implicit { src = at, dst = BOOL_TYPE, v = av }
+                (fn (av, _) =>
+                 let
+                   val res = newidstring "andr"
+                   val resv = genvar "r"
+                   val nresv = genvar "nr"
+                   val nnresv = genvar "nnr"
+                   val true_lab = BC.genlabel "andtrue"
+                   val done_lab = BC.genlabel "anddone"
+                 in
+                   BC.insert
+                   (bc, true_lab,
+                    transexp b bc
+                    (fn (bv : value, bt : typ) =>
+                     implicit { src = bt, dst = BOOL_TYPE, v = bv }
+                     (fn (bv, _) =>
+                      Bind (nresv, Not (BOOL_WIDTH, bv),
+                            Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
+                                  Store (BOOL_WIDTH,
+                                         AddressLiteral ` Local res,
+                                         Var nnresv,
+                                         Goto done_lab))))));
 
-                  BC.insert
-                  (bc, done_lab,
-                   Bind (resv,
-                         Load (BOOL_WIDTH, AddressLiteral ` Local res),
-                         k (Var resv, BOOL_TYPE)));
+                   BC.insert
+                   (bc, done_lab,
+                    Bind (resv,
+                          Load (BOOL_WIDTH, AddressLiteral ` Local res),
+                          k (Var resv, BOOL_TYPE)));
 
-                  GotoIf (av, true_lab,
-                          (* condition fails; store false *)
-                          Store (BOOL_WIDTH,
-                                 AddressLiteral ` Local res,
-                                 LiteralFalse,
-                                 Goto done_lab))
-                end)
+                   GotoIf (av, true_lab,
+                           (* condition fails; store false *)
+                           Store (BOOL_WIDTH,
+                                  AddressLiteral ` Local res,
+                                  LiteralFalse,
+                                  Goto done_lab))
+                 end))
 
            | SHORT_CIRCUIT OR =>
                (* a || b is like a ? true : !!b. *)
                transexp a bc
                (fn (av, at) =>
-                (* XXX check that at is bool, or convert *)
+                implicit { src = at, dst = BOOL_TYPE, v = av }
+                (fn (av, _) =>
                 let
                   val res = newidstring "orr"
                   val resv = genvar "r"
@@ -458,14 +466,15 @@ struct
                    (* fall through to false branch *)
                    transexp b bc
                    (fn (bv, bt) =>
-                    (* XXX check that bt is bool, or convert *)
-                    Bind (nresv, Not (BOOL_WIDTH, bv),
-                          Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
-                                Store (BOOL_WIDTH,
-                                       AddressLiteral ` Local res,
-                                       Var nnresv,
-                                       Goto done_lab)))))
-                end)
+                    implicit { src = bt, dst = BOOL_TYPE, v = bv }
+                    (fn (bv, _) =>
+                     Bind (nresv, Not (BOOL_WIDTH, bv),
+                           Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
+                                 Store (BOOL_WIDTH,
+                                        AddressLiteral ` Local res,
+                                        Var nnresv,
+                                        Goto done_lab))))))
+                end))
 
            | ASSIGNING bop =>
                translvalue a bc
