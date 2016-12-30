@@ -8,6 +8,7 @@ Library
   signature AST
   structure Ast
   signature PP_AST
+  structure PPLib
   structure PPAst
   signature UIDTABIMP
   structure Tidtab

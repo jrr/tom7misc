@@ -17,6 +17,8 @@ struct
 
   (* Maybe these should be functor arguments? *)
   val POINTER_WIDTH = Width16
+  val INT_WIDTH = Width16
+  val INT_TYPE = Word16 Signed
 
   (* Literal at the given width. The (unsigned) integer must fit. *)
   fun unsigned_literal Width8 i =
@@ -213,14 +215,53 @@ struct
   val BOGUS_TYPE = Struct nil
   val BOGUS_WIDTH = Width16
 
+  (* Compute the "join" of two types used in an arithmetic expression.
+
+     This page is a good explanation of the rules:
+     http://securecoding.cert.org/confluence/display/c/
+       INT02-C.+Understand+integer+conversion+rules
+       *)
+  fun jointypes oat obt =
+    let
+      fun bits (Word8 _) = 8
+        | bits (Word16 _) = 16
+        | bits (Word32 _) = 32
+        | bits _ = raise ToCIL ("attempt to join non-word types. probably " ^
+                                "do need to support pointers here, though")
+
+      (* First of all, they need to be promoted to at least "int". *)
+      fun up t = if bits t < bits INT_TYPE
+                 then INT_TYPE
+                 else t
+      val at = up oat
+      val bt = up obt
+
+      fun sign Unsigned _ = Unsigned
+        | sign _ Unsigned = Unsigned
+        | sign Signed Signed = Signed
+    in
+      if bits INT_TYPE < 16
+      then raise ToCIL "int type < 16 bits not supported here"
+      else ();
+      case (at, bt) of
+        (Word16 a, Word16 b) => Word16 (sign a b)
+      | (Word32 a, Word32 b) => Word32 (sign a b)
+      | (Word32 s, Word16 _) => Word32 s
+      | (Word16 _, Word32 s) => Word32 s
+      | _ => raise ToCIL ("unsupported types to arithmetic operator: " ^
+                          typtos oat ^ " (became " ^ typtos at ^ ") and " ^
+                          typtos obt ^ " (became " ^ typtos bt ^ ")")
+    end
+
   (* Implicit coercion when we know the source and destination types. *)
-  fun implicit { v : value, src : typ, dst : typ } (k : value * typ -> stmt) : stmt =
+  fun implicit { v : value, src : typ, dst : typ }
+               (k : value * typ -> stmt) : stmt =
     if eq_typ (src, dst) then k (v, dst)
     else
       let
         (* true if a promotion from a to b should be sign-extended *)
-        fun extend _ Signed = true
-          | extend _ Unsigned = false
+        fun extend Signed _ = true
+          | extend _ _ = false
       in
       (case (src, dst) of
          (* Signedness is just a translation artifact; there's nothing to do. *)
@@ -482,19 +523,19 @@ struct
                 transexp b bc
                 (fn (bv, bt) =>
                  let
-                   (* FIXME BOGUS need to promote arguments to
-                      the right types. Maybe need to combine with
-                      below. *)
-                   val argstyp = Word16 Signed
+                   (* if we have uchar += uint32, the operation is
+                      an 8-bit one and the result is 8-bit. *)
                    val oldv = genvar "assopold"
                    val newv = genvar "assopnew"
-                   val (ctor, rett) = opconstructor bop argstyp
+                   val (ctor, rett) = opconstructor bop ltyp
                  in
-                   Bind (oldv, Load (width, addr),
-                         Bind (newv, ctor (Var oldv, bv),
-                               Store (width, addr,
-                                      Var newv,
-                                      k (Var newv, rett))))
+                   implicit { src = bt, dst = ltyp, v = bv }
+                   (fn (bv, _) =>
+                    Bind (oldv, Load (width, addr),
+                          Bind (newv, ctor (Var oldv, bv),
+                                Store (width, addr,
+                                       Var newv,
+                                       k (Var newv, rett)))))
                  end))
 
            | ASSIGNING_SHIFT bop =>
@@ -542,17 +583,15 @@ struct
                 transexp b bc
                 (fn (bv, bt) =>
                  let
-                   (* XXX need to deal with signedness/size in
-                      op constructor, which may also need to
-                      do implicit conversion *)
-                   (* FIXME BOGUS need to promote arguments to
-                      the right types. Maybe need to combine with
-                      below. *)
-                   val argstyp = Word16 Signed
+                   val targettype = jointypes at bt
                    val v = genvar "b"
-                   val (ctor, rett) = opconstructor bop argstyp
+                   val (ctor, rett) = opconstructor bop targettype
                  in
-                   Bind (v, ctor (av, bv), k (Var v, rett))
+                   implicit { src = at, dst = targettype, v = av }
+                   (fn (av, _) =>
+                    implicit { src = bt, dst = targettype, v = bv }
+                    (fn (bv, _) =>
+                     Bind (v, ctor (av, bv), k (Var v, rett))))
                  end)))
 
       | Ast.Unop (uop, a) =>
@@ -717,9 +756,10 @@ struct
             (fn (dstaddr, dstwidth : width, dsttyp : typ) =>
              transexp rhs bc
              (fn (rhsv, rhst) =>
-              (* XXX need to promote/truncate to convert rhst to dsttype. *)
-              Store (dstwidth, dstaddr, rhsv,
-                     k (rhsv, rhst))))
+              implicit { src = rhst, dst = dsttyp, v = rhsv }
+              (fn (rhsv, _) =>
+               Store (dstwidth, dstaddr, rhsv,
+                      k (rhsv, rhst)))))
 
       | Ast.Comma (a, b) => transexp a bc (fn _ => transexp b bc k)
 
@@ -739,14 +779,17 @@ struct
     | transdecl (Ast.VarDecl (id as { ctype, global, ...}, SOME init)) bc k =
     (case init of
        Ast.Simple e =>
-         let val addrkind = if global then Global else Local
+         let
+           val addrkind = if global then Global else Local
+           val vartyp = transtype ctype
          in
            transexp e bc
            (fn (v, t) =>
-            (* XXX promote/truncate *)
-            Store (ctypewidth ctype,
-                   AddressLiteral ` addrkind ` uidstring id,
-                   v, k ()))
+            implicit { src = t, dst = vartyp, v = v }
+            (fn (v, _) =>
+             Store (typewidth vartyp,
+                    AddressLiteral ` addrkind ` uidstring id,
+                    v, k ())))
          end
      | Ast.Aggregate _ =>
          raise ToCIL "aggregate initialization unimplemented (decl)")

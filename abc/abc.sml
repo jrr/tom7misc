@@ -27,6 +27,9 @@ struct
          (* symbol table generated during elaboration *)
          env : State.symtab } } =>
       let
+        (* XXX flags to control printing of intermediate results *)
+        val () = PPLib.ppToStrm (PPAst.ppAst () tidtab) TextIO.stdOut ast
+        val () = print "\n\n"
         val cil = ToCIL.tocil ast
         val () = print (CIL.progtos cil ^ "\n")
         val asm = ToASM.toasm cil

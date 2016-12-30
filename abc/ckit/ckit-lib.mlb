@@ -863,6 +863,7 @@ in
    signature PARSER = gs_33
    signature PARSETREE = gs_31
    signature PARSE_TO_AST = gs_79
+   structure PPLib = gs_88
    structure PPAst = gs_93
    signature PP_AST = gs_86
    structure ParseToAst = gs_104
