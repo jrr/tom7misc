@@ -116,6 +116,8 @@ C | L | S | INITIAL
  * GCC accepts this, but SGI cc does not. This program is not ANSI
  * compliant.
  *
+ * In 2016, Tom 7 added line-based comments (//), which are a non-standard
+ * extension in a lot of "ANSI" C compilers, and are in C99.
  *)
 
 type svalue = Tokens.svalue
@@ -295,7 +297,7 @@ fun yyAction3 (strm, lastMatch : yymatch) = (yystrm := strm;
       (YYBEGIN INITIAL; continue()))
 fun yyAction4 (strm, lastMatch : yymatch) = (yystrm := strm; (continue()))
 fun yyAction5 (strm, lastMatch : yymatch) = (yystrm := strm;
-      (YYBEGIN L; print "enter\n"; continue()))
+      (YYBEGIN L; continue()))
 fun yyAction6 (strm, lastMatch : yymatch) = (yystrm := strm;
       (SourceMap.newline sourceMap yypos;
                     YYBEGIN INITIAL; continue()))
