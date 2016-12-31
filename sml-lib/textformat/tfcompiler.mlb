@@ -1,6 +1,7 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/basis/mlton.mlb
 
+../port/port-sig.sml
 ../port/mlton.sml
 
 ../njlib/lib-base-sig.sml
