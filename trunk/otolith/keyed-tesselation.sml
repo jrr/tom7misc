@@ -92,7 +92,6 @@ struct
     fun eq (a : node, b : node) = a = b
 
     fun id (N (ref { id = i, ... })) = i
-
   end
 
   (* PERF if we had some kind of invariants on winding order we

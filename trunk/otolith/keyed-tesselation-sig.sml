@@ -105,7 +105,7 @@ sig
               \|
               n4
 
-     since a new edge from n4 to n4 would leave us with two overlapping
+     since a new edge from n3 to n4 would leave us with two overlapping
      triangles (or if n3 and n4 are colinear, a degenerate triangle).
 
      When it can succeed, returned are the original edge, the point on
