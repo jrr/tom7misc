@@ -9,7 +9,7 @@ struct
   type anim = image Vector.vector
 
   fun loadimage f =
-    case SDL.Image.load f of
+    case SDL.loadimage f of
       NONE => (print ("Couldn't load " ^ f ^ "\n");
                raise Images)
     | SOME surf =>

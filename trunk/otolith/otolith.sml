@@ -720,7 +720,7 @@ struct
 
       (* val () = Draw.noise_postfilter pixels *)
       val () = Draw.scanline_postfilter pixels
-      (* val () = Draw.mixpixel_postfilter 0.25 0.8 pixels *)
+      val () = Draw.mixpixel_postfilter 0.25 0.8 pixels
       val () = fillscreen pixels
       val () = ctr := !ctr + 1
     in

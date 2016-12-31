@@ -109,6 +109,13 @@ struct
 
   exception Parse of string
 
+  type int_type = int
+  val negate = ~
+  val int_fromstring = Int.fromString
+  fun int_toint i = i
+  fun int_tobool i = i <> 0
+
+
   structure S = Substring
 
   fun readfile f =
@@ -142,11 +149,22 @@ struct
   infix 2 ^^
   fun $s : dll' = let val r = ref NONE in (D'(s, r), r) end
   fun dlltostring (head, _) =
-    let fun dts (D' (s, r)) =
-          case !r of
-             NONE => s
-           | SOME d => s ^ dts d
-    in dts head
+    let
+      fun getsize (D' (s, r)) =
+        case !r of
+          NONE => size s
+        | SOME d => size s + getsize d
+      val a = CharArray.array(getsize head, chr 0)
+      fun dts (D' (s, r), idx) =
+        let in
+          CharArray.copyVec { src = s, dst = a, di = idx };
+          (case !r of
+             NONE => ()
+           | SOME d => dts (d, idx + size s))
+        end
+    in
+      dts (head, 0);
+      CharArray.vector a
     end
   fun dllconcat' nil = $""
     | dllconcat' (h :: t) = h ^^ dllconcat' t
@@ -177,13 +195,13 @@ struct
       S.concat (S.full "\"" :: ss (S.full str)) (* " *)
     end
   datatype fielddata' =
-      Int' of int
+      Int' of int_type
     | String' of string
     | List' of fielddata' list
     | Message' of string * (string * fielddata') list
   datatype token' =
       LBRACE' | RBRACE' | LBRACK' | RBRACK'
-    | COMMA' | INT' of int | STRING' of string
+    | COMMA' | INT' of int_type | STRING' of string
     | SYMBOL' of S.substring
   type field' = string * fielddata'
   fun whitespace #" " = true
@@ -201,10 +219,10 @@ struct
         ord c >= ord #"0" andalso ord c <= ord #"9"
       fun readint (s : S.substring) : token' * S.substring =
         let val (f, s) = case S.sub (s, 0) of
-               #"-" => (~, S.triml 1 s)
+               #"-" => (negate, S.triml 1 s)
              | _ => ((fn x => x), s)
             val (intpart, rest) = S.splitl numeric s
-        in case Int.fromString (S.string intpart) of
+        in case int_fromstring (S.string intpart) of
              NONE => raise Parse ("Expected integer")
            | SOME i => (INT' (f i), rest)
         end
@@ -355,7 +373,7 @@ struct
       case d' of
         ("id", d') =>
           id_ref' :=
-          (case d' of Int' i => i
+          (case d' of Int' i => int_toint i
             | _ => raise Parse "expected int")
       | ("c", d') =>
           coords_ref' :=
@@ -363,9 +381,9 @@ struct
             List.map (fn d' => (case d' of List' [f0', f1', f2'] =>
                             ((case f0' of String' s => s
                                 | _ => raise Parse "expected string"),
-                              (case f1' of Int' i => i
+                              (case f1' of Int' i => int_toint i
                                 | _ => raise Parse "expected int"),
-                              (case f2' of Int' i => i
+                              (case f2' of Int' i => int_toint i
                                 | _ => raise Parse "expected int"))
                             | _ => raise Parse "expected 3-list for tuple")) l
             | _ => raise Parse "expected list for list")
@@ -373,9 +391,9 @@ struct
           triangles_ref' :=
           (case d' of List' l =>
             List.map (fn d' => (case d' of List' [f0', f1'] =>
-                            ((case f0' of Int' i => i
+                            ((case f0' of Int' i => int_toint i
                                 | _ => raise Parse "expected int"),
-                              (case f1' of Int' i => i
+                              (case f1' of Int' i => int_toint i
                                 | _ => raise Parse "expected int"))
                             | _ => raise Parse "expected 2-list for tuple")) l
             | _ => raise Parse "expected list for list")
@@ -446,9 +464,9 @@ struct
           screens_ref' :=
           (case d' of List' l =>
             List.map (fn d' => (case d' of List' [f0', f1', f2'] =>
-                            ((case f0' of Int' i => i
+                            ((case f0' of Int' i => int_toint i
                                 | _ => raise Parse "expected int"),
-                              (case f1' of Int' i => i
+                              (case f1' of Int' i => int_toint i
                                 | _ => raise Parse "expected int"),
                               (case f2' of Message' ("S", fs) => screen_fromfields' fs
                                 | _ => raise Parse "expected submessage screen"))

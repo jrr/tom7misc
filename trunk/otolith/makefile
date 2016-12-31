@@ -41,11 +41,11 @@ SDLML=../sdlml/*.sml ../sdlml/*.c
 
 #EXNHISTORY=-const 'Exn.keepHistory true' 
 #  -mwindows works, disables console?
-otolith.exe : sdl_win32_main.o ${OBJECTS} otolith.cm ${SMLS} ${SDLML} makefile
-	${MLTON} @MLton max-heap 512m -- -cc-opt " -I SDL/include -Dmain=SDL_main " -link-opt "-Wl,--subsystem,console -LSDL/lib/${SDLARCH} -LSDL_image/lib/${SDLARCH} -lSDL -lSDL_image -lkernel32 -lmingw32" -output $@ -default-ann 'allowFFI true' ${EXNHISTORY} otolith.cm sdl_win32_main.o ${OBJECTS}
+otolith.exe : sdl_win32_main.o ${OBJECTS} otolith.mlb ${SMLS} ${SDLML} makefile
+	${MLTON} -cc-opt " -I SDL/include -Dmain=SDL_main " -link-opt "-Wl,--subsystem,console -LSDL/lib/${SDLARCH} -LSDL_image/lib/${SDLARCH} -lSDL -lSDL_image -lkernel32 -lmingw32" -output $@ -default-ann 'allowFFI true' ${EXNHISTORY} otolith.mlb sdl_win32_main.o ${OBJECTS}
 
 tfcompiler.exe : ../sml-lib/textformat/*
-	${MLTON} @MLton max-heap 512m -- -output $@ ../sml-lib/textformat/tfcompiler.cm
+	${MLTON} -output $@ ../sml-lib/textformat/tfcompiler.mlb
 
 clean :
 	rm -f *.obj *.exe *.manifest *.ilk *.pdb *.o
