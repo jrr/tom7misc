@@ -31,7 +31,9 @@ struct
         val () = PPLib.ppToStrm (PPAst.ppAst () tidtab) TextIO.stdOut ast
         val () = print "\n\n"
         val cil = ToCIL.tocil ast
-        val () = print (CIL.progtos cil ^ "\n")
+        val () = print ("\nToCIL:\n" ^ CIL.progtos cil ^ "\n")
+        val cil = OptimizeCIL.optimize cil
+        val () = print ("\nOptimized:\n" ^ CIL.progtos cil ^ "\n")
         val asm = ToASM.toasm cil
       in
         print "TODO: Rest of compiler\n"

@@ -211,10 +211,6 @@ struct
     | _ => raise ToCIL ("Tried to compute signedness of non-numeric type " ^
                         typtos t ^ "(binop applied to it?)")
 
-  (* FIXME placeholder during refactor *)
-  val BOGUS_TYPE = Struct nil
-  val BOGUS_WIDTH = Width16
-
   (* Compute the "join" of two types used in an arithmetic expression.
 
      This page is a good explanation of the rules:
@@ -303,12 +299,13 @@ struct
                     k (Var var, dst))
            end
 
-       | _ => raise ToCIL ("implicit coercion from " ^ typtos src ^ " to " ^
-                           typtos dst ^ " not allowed/implemented. Try casting?"))
+       | _ => raise ToCIL
+           ("implicit coercion from " ^ typtos src ^ " to " ^
+            typtos dst ^ " not allowed/implemented. Try casting?"))
       end
 
-  (* Give the constructor and return type for a given AST binop. Both of its arguments
-     must have been promoted to the same numeric typ t. *)
+  (* Give the constructor and return type for a given AST binop. Both of
+     its arguments must have been promoted to the same numeric typ t. *)
   fun opconstructor bop (t : typ) : (value * value -> exp) * typ =
     let
       val width = typewidth t
@@ -353,11 +350,11 @@ struct
     case e of
       Ast.Id (id as { global = false, ctype, ... }) =>
         let val typ = transtype ctype
-        in k (AddressLiteral ` Local ` idstring id, typewidth typ, typ)
+        in k (AddressLiteral (Local ` idstring id, typ), typewidth typ, typ)
         end
     | Ast.Id (id as { global = true, ctype, ... }) =>
         let val typ = transtype ctype
-        in k (AddressLiteral ` Global ` uidstring id, typewidth typ, typ)
+        in k (AddressLiteral (Global ` uidstring id, typ), typewidth typ, typ)
         end
     | Ast.Sub (ptr, idx) =>
         transexp ptr bc
@@ -416,7 +413,8 @@ struct
       case e of
         (* XXX need some way to deduce the types of literals.
            Possibly they can always be signed, and then we
-           can rewrite to smaller literals later as an optimization?? *)
+           can rewrite to smaller literals later as an optimization?
+           Looks like this may work. *)
         Ast.IntConst i =>
           let
             val typ = Word32 Signed
@@ -458,20 +456,20 @@ struct
                       Bind (nresv, Not (BOOL_WIDTH, bv),
                             Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
                                   Store (BOOL_WIDTH,
-                                         AddressLiteral ` Local res,
+                                         AddressLiteral (Local res, BOOL_TYPE),
                                          Var nnresv,
                                          Goto done_lab))))));
 
                    BC.insert
                    (bc, done_lab,
                     Bind (resv,
-                          Load (BOOL_WIDTH, AddressLiteral ` Local res),
+                          Load (BOOL_WIDTH, AddressLiteral (Local res, BOOL_TYPE)),
                           k (Var resv, BOOL_TYPE)));
 
                    GotoIf (av, true_lab,
                            (* condition fails; store false *)
                            Store (BOOL_WIDTH,
-                                  AddressLiteral ` Local res,
+                                  AddressLiteral (Local res, BOOL_TYPE),
                                   LiteralFalse,
                                   Goto done_lab))
                  end))
@@ -492,14 +490,14 @@ struct
                 in
                   BC.insert (bc, true_lab,
                              Store (BOOL_WIDTH,
-                                    AddressLiteral ` Local res,
+                                    AddressLiteral (Local res, BOOL_TYPE),
                                     LiteralTrue,
                                     Goto done_lab));
 
                   BC.insert
                   (bc, done_lab,
                    Bind (resv,
-                         Load (BOOL_WIDTH, AddressLiteral ` Local res),
+                         Load (BOOL_WIDTH, AddressLiteral (Local res, BOOL_TYPE)),
                          k (Var resv, BOOL_TYPE)));
 
                   GotoIf
@@ -512,7 +510,7 @@ struct
                      Bind (nresv, Not (BOOL_WIDTH, bv),
                            Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
                                  Store (BOOL_WIDTH,
-                                        AddressLiteral ` Local res,
+                                        AddressLiteral (Local res, BOOL_TYPE),
                                         Var nnresv,
                                         Goto done_lab))))))
                 end))
@@ -718,37 +716,60 @@ struct
                   variables don't have to span basic blocks. XXX need to
                   sort out whether this is necessary. *)
                val res = newidstring "ternr"
-               (* XXX this would have to be synthesized if we support
-                  struct copying, long long, etc. *)
-               val width = BOGUS_WIDTH
+
+               (* Hack attack!
+                  Do a throwaway translation of the true and false
+                  branches, because we need to know types they'll produce,
+                  unfortunately, ahead of time.
+
+                  PERF Note that this results in exponential time
+                  compilation for nested ?: expressions, but it doesn't
+                  seem like an easy-to-fix problem. *)
+               fun exptype e =
+                 let
+                   (* throw-away blockcollector. *)
+                   val bc = BC.empty ()
+                   val tr = ref ` Struct nil
+                 in
+                   ignore (transexp e bc
+                           (fn (_, t) =>
+                            let in
+                              tr := t;
+                              End
+                            end));
+                   !tr
+                 end
+
+               val synthtyp = jointypes (exptype te) (exptype fe)
+               val width = typewidth synthtyp
                val resv = genvar "r"
                val true_lab = BC.genlabel "ternt"
                val done_lab = BC.genlabel "terndone"
-               (* XXX some way to check compatibility of types in the
-                  two branches. It's tricky because converting them
-                  outputs to the blockcollector. We can assume the
-                  program is well-formed, but we may need to insert
-                  coercions? *)
              in
                BC.insert (bc, true_lab,
                           transexp te bc
                           (fn (tv, tt) =>
-                           Store (width, AddressLiteral ` Local res,
-                                  tv,
-                                  Goto done_lab)));
+                           implicit { src = tt, dst = synthtyp, v = tv }
+                           (fn (tv, _) =>
+                            Store (width, AddressLiteral (Local res, synthtyp),
+                                   tv,
+                                   Goto done_lab))));
                BC.insert (bc, done_lab,
                           Bind (resv,
-                                Load (width, AddressLiteral ` Local res),
-                                (* XXX synthesized type... *)
-                                k (Var resv, BOGUS_TYPE)));
+                                Load (width, AddressLiteral (Local res, synthtyp)),
+                                k (Var resv, synthtyp)));
 
-               GotoIf (condv, true_lab,
-                       (* fall through to false branch *)
-                       transexp fe bc
-                       (fn (fv, ft) =>
-                        Store (width, AddressLiteral ` Local res,
-                               fv,
-                               Goto done_lab)))
+               implicit { src = condt, dst = BOOL_TYPE, v = condv }
+               (fn (condv, _) =>
+                GotoIf (condv, true_lab,
+                        (* fall through to false branch *)
+                        transexp fe bc
+                        (fn (fv, ft) =>
+                         implicit { src = ft, dst = synthtyp, v = fv }
+                         (fn (fv, _) =>
+                          Store (width, AddressLiteral (Local res, synthtyp),
+                                 fv,
+                                 Goto done_lab)))))
              end)
 
       | Ast.Assign (dst, rhs) =>
@@ -788,7 +809,7 @@ struct
             implicit { src = t, dst = vartyp, v = v }
             (fn (v, _) =>
              Store (typewidth vartyp,
-                    AddressLiteral ` addrkind ` uidstring id,
+                    AddressLiteral (addrkind ` uidstring id, vartyp),
                     v, k ())))
          end
      | Ast.Aggregate _ =>
@@ -989,7 +1010,7 @@ struct
                          implicit { v = v, src = vt, dst = t }
                          (fn (vv, vvt) =>
                           Store (ctypewidth ctype,
-                                 AddressLiteral ` Global ` uid,
+                                 AddressLiteral (Global ` uid, t),
                                  vv, End)))
                     | Ast.Aggregate _ =>
                         raise ToCIL "aggregate initialization unimplemented")
