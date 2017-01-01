@@ -103,6 +103,8 @@ struct
   datatype stmt =
     (* and type? *)
     Bind of string * exp * stmt
+    (* Like bind, but no variable. *)
+  | Do of exp * stmt
   (* Store(width, address, value, rest) *)
   | Store of width * value * value * stmt
   (* GotoIf(cond, true-label, else-branch). *)
@@ -218,6 +220,8 @@ struct
 
   fun stmttos (Bind (var, e, s)) =
         "  " ^ var ^ " = " ^ exptos e ^ "\n" ^ stmttos s
+    | stmttos (Do (e, s)) =
+        "  do " ^ exptos e ^ "\n" ^ stmttos s
     | stmttos (Store (width, dest, v, s)) =
         "  " ^ valtos dest ^ " :=" ^ widthtos width ^
         " " ^ valtos v ^ "\n" ^ stmttos s
