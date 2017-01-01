@@ -91,6 +91,7 @@ struct
     in
       case stmt of
         Bind a => call A.case_Bind a
+      | Do a => call A.case_Do a
       | Store a => call A.case_Store a
       | GotoIf a => call A.case_GotoIf a
       | Return a => call A.case_Return a
@@ -263,6 +264,13 @@ Member *)
       val s = selfs arg ctx s
     in
       Bind (v, e, s)
+    end
+  fun case_Do arg ({ selft, selfv, selfe, selfs }, ctx) (e, s) =
+    let
+      val (e, t) = selfe arg ctx e
+      val s = selfs arg ctx s
+    in
+      Do (e, s)
     end
   fun case_Store arg ({ selft, selfv, selfe, selfs }, ctx) (w, addr, v, s) =
     let

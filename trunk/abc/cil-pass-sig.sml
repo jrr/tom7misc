@@ -67,6 +67,7 @@ sig
 
   (* stmt cases *)
   val case_Bind : arg -> selves * CIL.context -> string * CIL.exp * CIL.stmt -> CIL.stmt
+  val case_Do : arg -> selves * CIL.context -> CIL.exp * CIL.stmt -> CIL.stmt
   val case_Store : arg -> selves * CIL.context -> CIL.width * CIL.value * CIL.value * CIL.stmt -> CIL.stmt
   val case_GotoIf : arg -> selves * CIL.context -> CIL.value * string * CIL.stmt -> CIL.stmt
   val case_Return : arg -> selves * CIL.context -> CIL.value -> CIL.stmt
