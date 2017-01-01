@@ -31,6 +31,8 @@ sig
   (* Remove an item, returning new map and value removed.
      Raises LibBase.NotFound if not found. *)
   val remove: 'a map * Key.ord_key -> 'a map * 'a
+  (* Remove the item; no effect if it doesn't exist. *)
+  val erase : 'a map * Key.ord_key -> 'a map
 
   (* Return the number of items in the map *)
   val numItems: 'a map -> int

@@ -67,6 +67,9 @@ struct
           | (_, r) => (root := r; raise LibBase.NotFound)
         (* end case *))
 
+  (* PERF can be done faster directly? *)
+  fun erase (m, k) = #1 (remove (m, k)) handle LibBase.NotFound => m
+
   (* Return the number of items in the table *)
   fun numItems EMPTY = 0
     | numItems (MAP{nobj, ...}) = nobj
