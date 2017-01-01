@@ -9,16 +9,6 @@ struct
       - This is maybe also where we'd support struct copying. *)
   datatype width = Width8 | Width16 | Width32
 
-  datatype value =
-    Var of string
-  | AddressLiteral of loc
-  | Word8Literal of Word8.word
-  | Word16Literal of Word16.word
-  | Word32Literal of Word32.word
-
-    (* Maybe should be pointer to bytes? *)
-  | StringLiteral of string
-
   datatype signedness = Signed | Unsigned
 
   (* Post-elaboration type *)
@@ -35,6 +25,17 @@ struct
   | Word32 of signedness
   | Word16 of signedness
   | Word8 of signedness
+
+  datatype value =
+    Var of string
+    (* typ is the type of the thing thing pointed to. *)
+  | AddressLiteral of loc * typ
+  | Word8Literal of Word8.word
+  | Word16Literal of Word16.word
+  | Word32Literal of Word32.word
+
+    (* Maybe should be pointer to bytes? *)
+  | StringLiteral of string
 
   (* Here's how we handle integral widths and signedness.
      After conversion to CIL, everything should be completely explicit:
@@ -87,10 +88,15 @@ struct
   | Not of width * value
   | Complement of width * value
   | Negate of width * value
-  | AddressOf of value
-  | Dereference of value
-  | Subscript of value * value
-  | Member of value * string
+
+  (* Is this necessary? I think we just translate the lvalue and
+     don't LOAD from it. *)
+  (* | AddressOf of string *)
+  (* Similarly, this becomes a LOAD *)
+  (* | Dereference of value *)
+    (* Math and then LOAD *)
+  (* | Subscript of value * value
+     | Member of value * string *)
   | Call of value * value list
   | Load of width * value
 
@@ -166,7 +172,7 @@ struct
     | valtos (Word8Literal w) = "0x" ^ Word8.toString w
     (* XXX heuristic for data, etc. *)
     | valtos (StringLiteral s) = "\"" ^ String.toString s ^ "\""
-    | valtos (AddressLiteral a) = "ADDR(" ^ loctos a ^ ")"
+    | valtos (AddressLiteral (a, t)) = "ADDR(" ^ loctos a ^ " : " ^ typtos t ^ ")"
 
   fun widthtos Width32 = "_32"
     | widthtos Width16 = "_16"
@@ -202,10 +208,10 @@ struct
     | exptos (Not (w, a)) = "!" ^ valtos a
     | exptos (Complement (w, a)) = "~" ^ valtos a
     | exptos (Negate (w, a)) = "-" ^ valtos a
-    | exptos (AddressOf a) = "&" ^ valtos a
-    | exptos (Dereference a) = "*" ^ valtos a
-    | exptos (Subscript (a, b)) = valtos a ^ "[" ^ valtos b ^ "]"
-    | exptos (Member (a, s)) = "(" ^ valtos a ^ ")." ^ s
+    (* | exptos (AddressOf s) = "&" ^ s *)
+    (* | exptos (Dereference a) = "*" ^ valtos a *)
+    (* | exptos (Subscript (a, b)) = valtos a ^ "[" ^ valtos b ^ "]" *)
+    (* | exptos (Member (a, s)) = "(" ^ valtos a ^ ")." ^ s *)
     | exptos (Call (f, vl)) = "CALL " ^ valtos f ^
         "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
     | exptos (Load (width, addr)) = "LOAD" ^ widthtos width ^ " " ^ valtos addr
@@ -243,4 +249,20 @@ struct
       StringUtil.delimit "\n" (map glob globals) ^ "\n"
     end
 
+  structure Context :>
+  sig
+    type context
+    val empty : context
+    val lookup : context * string -> typ option
+    val insert : context * string * typ -> context
+  end =
+  struct
+    structure SM = SplayMapFn(type ord_key = string
+                              val compare = String.compare)
+    datatype context = C of { vars : typ SM.map }
+    val empty = C { vars = SM.empty }
+    fun lookup (C { vars, ... }, s) = SM.find (vars, s)
+    fun insert (C { vars }, s, t) = C { vars = SM.insert (vars, s, t) }
+  end
+  type context = Context.context
 end

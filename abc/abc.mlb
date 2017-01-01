@@ -27,8 +27,14 @@ ckit/ckit-lib.mlb
   ../sml-lib/misc/params.sml
 
   cil.sml
+  cil-pass-sig.sml
+  cil-pass.sml
+
   tocil-sig.sml
   tocil.sml
+
+  optimize-cil-sig.sml
+  optimize-cil.sml
 
   asm.sml
   toasm-sig.sml
