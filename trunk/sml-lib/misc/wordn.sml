@@ -9,13 +9,9 @@
    overloading sucks.
 *)
 
-(* FIXME: sign extension is not implemented *)
-
 functor WordNX(structure W : WORD
                val bits : int) :> WORD =
 struct
-  (* structure W = Word32 *)
-
   (* sanity check that we can implement a word of
      this size with the supplied structure *)
   val () = if W.wordSize < bits
@@ -121,7 +117,6 @@ struct
       W.>>(x, y)
 
   fun << (x, y) = W.andb(mask, W.<<(x, y))
-  (* PERF: This doesn't need to be masked, right? *)
   fun >> (x, y) = W.>>(x, y)
 
   (* Population count is the number of 1-bits. This appears to be a new

@@ -2,8 +2,10 @@ group is
 
 #if (defined(SMLNJ_VERSION))
  $/basis.cm
+ ../port/port-sig.sml
  ../port/nj.sml
 #else
+ ../port/port-sig.sml
  ../port/mlton.sml
 #endif
 
