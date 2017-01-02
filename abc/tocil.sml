@@ -1024,16 +1024,18 @@ struct
                 let
                   val uid = uidstring id
                   val ret = transtype ret
+                  val startlabel = BC.genlabel "start"
                   fun onearg id = (idstring id, transtype (#ctype id))
-                  val stmt = transstatement body { break = NONE,
-                                                   continue = NONE } bc
-                    (* Should support nullary return? *)
-                    (fn () => Return (unsigned_literal Width8 0))
                 in
+                  BC.insert (bc, startlabel,
+                             transstatement body { break = NONE,
+                                                   continue = NONE } bc
+                             (* Should support nullary return? *)
+                             (fn () => Return (unsigned_literal Width8 0)));
                   (* (string * ((string * typ) list * typ * stmt)) list, *)
                   functions :=
                     (uid, Func { args = map onearg args,
-                                 ret = ret, body = stmt,
+                                 ret = ret, body = startlabel,
                                  blocks = BC.extract bc }) :: !functions
                 end
             | _ => raise ToCIL "Expected FunctionDef to have Function type.\n")
