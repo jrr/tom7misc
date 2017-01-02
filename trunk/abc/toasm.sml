@@ -45,7 +45,7 @@ struct
   fun doproc (name, C.Func
               { args : (string * C.typ) list,
                 ret : C.typ,
-                body : C.stmt,
+                body : string,
                 blocks : (string * C.stmt) list }) : A.proc =
     let
       (* XXX check no overlap between these two... *)

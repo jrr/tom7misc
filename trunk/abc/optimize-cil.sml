@@ -17,6 +17,12 @@ struct
     | wordwidth Width32 = Word32 Unsigned
   fun fst (a, _) = a
 
+  (* Must agree with tocil. *)
+  val BOOL_WIDTH = Width16
+  val BOOL_TYPE = Word16 Unsigned
+  val LiteralTrue = Word16Literal ` Word16.fromInt 1
+  val LiteralFalse = Word16Literal ` Word16.fromInt 0
+
   structure DeadVarsArg : CILPASSARG =
   struct
     type arg = { used: bool ref SM.map, simplified: bool ref }
@@ -54,6 +60,44 @@ struct
       end
   end
   structure DeadVars = CILPass(DeadVarsArg)
+
+  structure AnalyzeBlocksArg : CILPASSARG =
+  struct
+    (* For each block label (key of outer map), give
+       the count of uses within other blocks (label is key of inner map). *)
+    type arg = { current: string, uses: int SM.map ref SM.map }
+    structure CI = CILIdentity(type arg = arg)
+    open CI
+
+    fun adduse { current, uses } used user =
+      let
+        val mr =
+          case SM.find (uses, used) of
+            NONE =>
+              let val newmap = ref SM.empty
+              in
+                SM.insert (uses, used, newmap);
+                newmap
+              end
+          | SOME r => r
+      in
+        case SM.find (!mr, used) of
+          NONE => mr := SM.insert (!mr, used, 1)
+        | SOME r => mr := SM.insert (!mr, used, r + 1)
+      end
+
+    (* XXX finish me... *)
+    (*
+    fun case_GotoIf arg ({ selft, selfv, selfe, selfs }, ctx) (v, lab, s) =
+      let
+        val (v, _) = selfv arg ctx v
+        val s = selfs arg ctx s
+      in
+        GotoIf (v, lab, s)
+      end
+    fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) = Goto
+    *)
+  end
 
   fun effectless_expression e =
     case e of
@@ -143,6 +187,45 @@ struct
                  (value, t)
                end)
 
+    fun case_GotoIf (arg as { known, simplified })
+                    ({ selft, selfv, selfe, selfs }, ctx) (v, lab, s) =
+      let
+        datatype kb =
+            Unknown
+          | Zero
+          | Nonzero
+        fun kbvalue (Var s) =
+          (case SM.find (known, s) of
+             NONE => Unknown
+           | SOME v => kbvalue v)
+          | kbvalue (Word8Literal w) =
+             if w = Word8.fromInt 0 then Zero else Nonzero
+          | kbvalue (Word16Literal w) =
+             if w = Word16.fromInt 0 then Zero else Nonzero
+          | kbvalue (Word32Literal w) =
+             if w = Word32.fromInt 0 then Zero else Nonzero
+          (* PERF I guess this could be a string/address literal, in
+             which case it is nonzero, yeah? *)
+          | kbvalue _ = Unknown
+
+        val (v, _) = selfv arg ctx v
+      in
+        case kbvalue v of
+          Unknown => GotoIf (v, lab, selfs arg ctx s)
+        | Zero =>
+            let in
+              eprint ("dropping always-false gotoif " ^ lab);
+              simplified := true;
+              selfs arg ctx s
+            end
+        | Nonzero =>
+            let in
+              eprint ("gotoif " ^ lab ^ " is always taken");
+              simplified := true;
+              Goto lab
+            end
+      end
+
     fun case_Truncate arg ({ selft, selfv, selfe, selfs }, ctx) { src, dst, v } =
       let
         fun default v = (Truncate { src = src, dst = dst, v = v },
@@ -169,6 +252,67 @@ struct
         | (v as Var _, _, _) => default v
         | _ => raise OptimizeCIL "illegal truncation?"
       end
+
+    (* TODO: Promote *)
+    fun comparison ctor { a8, a16, a32 }
+      (arg as { known, simplified })
+      ({ selft, selfv, selfe, selfs } : selves, ctx) (w, a, b) =
+      let
+        val (a, _) = selfv arg ctx a
+        val (b, _) = selfv arg ctx b
+
+        datatype kc =
+          Unknown
+        | K8 of Word8.word
+        | K16 of Word16.word
+        | K32 of Word32.word
+
+        fun kcvalue (Var s) =
+          (* XXX should have already been handled.. *)
+          Unknown
+          | kcvalue (Word8Literal w) = K8 w
+          | kcvalue (Word16Literal w) = K16 w
+          | kcvalue (Word32Literal w) = K32 w
+          | kcvalue _ = Unknown
+      in
+        (* PERF some partially-known comparisons are always true or false,
+           like x <= 0xFF *)
+        case (kcvalue a, kcvalue b) of
+          (Unknown, _) => (ctor (w, a, b), BOOL_TYPE)
+        | (_, Unknown) => (ctor (w, a, b), BOOL_TYPE)
+        | (K8 wa, K8 wb) =>
+            let in
+              simplified := true;
+              eprint "known 8-bit comparison\n";
+              (Value (if a8 (wa, wb) then LiteralTrue else LiteralFalse),
+               BOOL_TYPE)
+            end
+        | (K16 wa, K16 wb) =>
+            let in
+              simplified := true;
+              eprint "known 8-bit comparison\n";
+              (Value (if a16 (wa, wb) then LiteralTrue else LiteralFalse),
+               BOOL_TYPE)
+            end
+        | (K32 wa, K32 wb) =>
+            let in
+              simplified := true;
+              eprint "known 8-bit comparison\n";
+              (Value (if a32 (wa, wb) then LiteralTrue else LiteralFalse),
+               BOOL_TYPE)
+            end
+        | _ => raise OptimizeCIL "argument width mismatch to comparison"
+      end
+
+    (* XXX rest of comparison operators *)
+    val case_Greater = comparison Greater
+      { a8 = Word8.>, a16 = Word16.>, a32 = Word32.> }
+    val case_GreaterEq = comparison GreaterEq
+      { a8 = Word8.>=, a16 = Word16.>=, a32 = Word32.>= }
+    val case_Less = comparison Less
+      { a8 = Word8.<, a16 = Word16.<, a32 = Word32.< }
+    val case_LessEq = comparison LessEq
+      { a8 = Word8.<=, a16 = Word16.<=, a32 = Word32.<= }
   end
   structure Simplify = CILPass(SimplifyArg)
 
@@ -196,7 +340,7 @@ struct
     let
       fun one_function (name, Func { args, ret, body, blocks }) =
         (name,
-         Func { args = args, ret = ret, body = optimize_block body,
+         Func { args = args, ret = ret, body = body,
                 blocks = ListUtil.mapsecond optimize_block blocks })
     in
       Program { functions = map one_function functions,
@@ -206,8 +350,10 @@ struct
 end
 
 (* TODO:
+   - Drop unreachable blocks!
+   - Drop unused loads and stores!
    - If a basic block just does an unconditional GOTO to
-   another block, rewrite calls to it.
+     another block, rewrite calls to it.
    - If we have !cond, see if we can reverse the definition of
-   cond (e.g. a < b becomes a >= b).
+     cond (e.g. a < b becomes a >= b).
  *)

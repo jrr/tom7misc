@@ -109,14 +109,15 @@ struct
   | Store of width * value * value * stmt
   (* GotoIf(cond, true-label, else-branch). *)
   | GotoIf of value * string * stmt
-  | Return of value
   | Goto of string
+  | Return of value
   | End
 
   datatype function =
     Func of { args : (string * typ) list,
               ret : typ,
-              body : stmt,
+              (* Initial label; must appear in blocks. *)
+              body : string,
               blocks : (string * stmt) list }
 
   datatype global =
@@ -241,7 +242,7 @@ struct
         "FUNC " ^ s ^ "(" ^ StringUtil.delimit ", "
         (map (fn (s, t) => s ^ " : " ^ typtos t) args) ^ ") : " ^
         typtos ret ^ " =\n" ^
-        stmttos body ^ "\n" ^
+        "start at " ^ body ^ "\n" ^
         StringUtil.delimit "\n" (map blocktos blocks)
 
       fun glob (s, Glob {typ, init, blocks}) = "GLOBAL " ^ s ^ " : " ^
