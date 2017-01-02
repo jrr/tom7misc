@@ -14,99 +14,142 @@
 functor WordNX(structure W : WORD
                val bits : int) :> WORD =
 struct
-    (* structure W = Word32 *)
+  (* structure W = Word32 *)
 
-    (* sanity check that we can implement a word of
-       this size with the supplied structure *)
-    val () = if W.wordSize < bits
-             then raise Overflow (* maybe a better exception?? *)
-             else ()
+  (* sanity check that we can implement a word of
+     this size with the supplied structure *)
+  val () = if W.wordSize < bits
+           then raise Overflow (* maybe a better exception?? *)
+           else ()
 
-    (* representation invariant: always mod 2^bits *)
-    type word = W.word
+  (* representation invariant: always mod 2^bits *)
+  type word = W.word
 
-    val mask = W.>> (W.fromInt ~1, Word.fromInt W.wordSize - Word.fromInt bits)
+  val mask = W.>> (W.fromInt ~1, Word.fromInt W.wordSize - Word.fromInt bits)
+  val signmask =
+    (* Should we really allow bits = 0? *)
+    if bits = 0
+    then W.fromInt 1
+    else W.<< (W.fromInt 1, Word.fromInt (bits - 1))
 
-    exception Unimplemented
+  exception Unimplemented
 
-    val wordSize = bits
-    fun toLargeWord x = W.toLargeWord x
-    fun toLargeWordX x = raise Unimplemented
-    fun fromLargeWord x = W.andb(mask, W.fromLargeWord x)
-
-    val toLarge = toLargeWord
-    val toLargeX = toLargeWordX
-    val fromLarge = fromLargeWord
-
-    fun toInt x = W.toInt x
-    fun toIntX x = raise Unimplemented
-
-    fun toLargeInt x = W.toLargeInt x
-    fun toLargeIntX x = raise Unimplemented
-
-    fun fromLargeInt x = W.andb(mask, W.fromLargeInt x)
-    fun fromInt x = W.andb(mask, W.fromInt x)
-
-    fun ~ x = raise Unimplemented
-    fun fmt _ = raise Unimplemented
-    fun scan _ = raise Unimplemented
-
-    val orb = W.orb
-    val xorb = W.xorb (* ok since 0 xorb 0 = 0 *)
-    val andb = W.andb
-    fun notb x = W.andb(mask, W.notb x)
-
-    (* assuming these are unsigned *)
-    val compare = W.compare
-    val min = W.min
-    val max = W.max
-    val op < = W.<
-    val op > = W.>
-    val op <= = W.<=
-    val op >= = W.>=
-
-    val toString = W.toString
-    (* PERF: For some reason, sml/nj uses polyEqual for = here in popCount
-       below. Doesn't make sense to me since it should be monomorphic... *)
-    fun fromString s =
-        (case W.fromString s of
-             NONE => NONE
-           | SOME w => if w = W.andb(mask, w)
-                       then SOME w
-                       else raise Overflow)
-
-
-    fun ~>> _ = raise Unimplemented
-    fun << (x, y) = W.andb(mask, W.<<(x, y))
-    (* PERF: This doesn't need to be masked, right? *)
-    fun >> (x, y) = W.andb(mask, W.>>(x, y))
-
-    (* Population count is the number of 1-bits. This appears to be a new
-       WORD extension ca. 2016, so for maximum compatibility I
-       implemented it directly (rather than relying on an underlying
-       Word.popCount). *)
-    fun popCount (w : word) : int =
-      let
-        (* Note we cannot use pattern matching or literals on type
-           Word, since it is a functor argument. *)
-        fun pc (w : word, n : int) =
-          if w = W.fromInt 0 then n
-          else
-            pc (W.>>(w, 0w1),
-                if W.andb(w, W.fromInt 1) <> W.fromInt 0
-                then n + 1
-                else n)
-      in
-        pc (w, 0)
+  val wordSize = bits
+  fun toLargeWord x = W.toLargeWord x
+  fun toLargeWordX x =
+    if W.andb(signmask, x) <> W.fromInt 0
+    then
+      let val ext = W.orb(W.notb mask, x)
+      in W.toLargeWordX ext
       end
+    else W.toLargeWordX x
+  fun fromLargeWord x = W.andb(mask, W.fromLargeWord x)
 
-    (* last, since overloaded.. *)
-    fun x + y = W.andb(mask, W.+(x, y))
-    (* ?? *)
-    fun x - y = W.andb(mask, W.-(x, y))
-    fun x * y = W.andb(mask, W.*(x, y))
-    fun x div y = W.andb(mask, W.div(x, y))
-    fun x mod y = W.andb(mask, W.mod(x, y))
+  val toLarge = toLargeWord
+  val toLargeX = toLargeWordX
+  val fromLarge = fromLargeWord
+
+  fun toInt x = W.toInt x
+  fun toIntX x =
+    if W.andb(signmask, x) <> W.fromInt 0
+    then
+      let val ext = W.orb(W.notb mask, x)
+      in W.toIntX ext
+      end
+    else W.toIntX x
+
+  fun toLargeInt x = W.toLargeInt x
+  fun toLargeIntX x =
+    if W.andb(signmask, x) <> W.fromInt 0
+    then
+      (* negative - do sign extension. *)
+      let
+        (* Make high bits all one. *)
+        val ext = W.orb(W.notb mask, x)
+      in
+        W.toLargeInt ext
+      end
+    else W.toLargeInt x
+
+  fun fromLargeInt x = W.andb(mask, W.fromLargeInt x)
+  fun fromInt x = W.andb(mask, W.fromInt x)
+
+  fun fmt _ = raise Unimplemented
+  fun scan _ = raise Unimplemented
+
+  val orb = W.orb
+  val xorb = W.xorb (* ok since 0 xorb 0 = 0 *)
+  val andb = W.andb
+  fun notb x = W.andb(mask, W.notb x)
+
+  fun ~ x = W.andb(mask, W.+ (W.notb x, W.fromInt 1))
+
+  (* assuming these are unsigned *)
+  val compare = W.compare
+  val min = W.min
+  val max = W.max
+  val op < = W.<
+  val op > = W.>
+  val op <= = W.<=
+  val op >= = W.>=
+
+  val toString = W.toString
+  (* PERF: For some reason, sml/nj uses polyEqual for = here in popCount
+     below. Doesn't make sense to me since it should be monomorphic... *)
+  fun fromString s =
+      (case W.fromString s of
+           NONE => NONE
+         | SOME w => if w = W.andb(mask, w)
+                     then SOME w
+                     else raise Overflow)
+
+
+  fun ~>> (x, y) =
+    if W.andb(signmask, x) <> W.fromInt 0
+    then
+      (* negative - do sign extension. *)
+      let
+        (* Make high bits all one, then use native sign-extending
+           shift. *)
+        val ext = W.orb(W.notb mask, x)
+        val shift = W.~>> (ext, y)
+      in
+        W.andb(mask, shift)
+      end
+    else
+      (* non-negative; same as >> *)
+      W.>>(x, y)
+
+  fun << (x, y) = W.andb(mask, W.<<(x, y))
+  (* PERF: This doesn't need to be masked, right? *)
+  fun >> (x, y) = W.>>(x, y)
+
+  (* Population count is the number of 1-bits. This appears to be a new
+     WORD extension ca. 2016, so for maximum compatibility I
+     implemented it directly (rather than relying on an underlying
+     Word.popCount). *)
+  fun popCount (w : word) : int =
+    let
+      (* Note we cannot use pattern matching or literals on type
+         Word, since it is a functor argument. *)
+      fun pc (w : word, n : int) =
+        if w = W.fromInt 0 then n
+        else
+          pc (W.>>(w, 0w1),
+              if W.andb(w, W.fromInt 1) <> W.fromInt 0
+              then n + 1
+              else n)
+    in
+      pc (w, 0)
+    end
+
+  (* last, since overloaded.. *)
+  fun x + y = W.andb(mask, W.+(x, y))
+  (* ?? *)
+  fun x - y = W.andb(mask, W.-(x, y))
+  fun x * y = W.andb(mask, W.*(x, y))
+  fun x div y = W.andb(mask, W.div(x, y))
+  fun x mod y = W.andb(mask, W.mod(x, y))
 end
 
 (* word8 is not optional in basis *)
@@ -143,4 +186,3 @@ structure Word28 = WordNX(structure W = Word32 val bits = 28)
 structure Word29 = WordNX(structure W = Word32 val bits = 29)
 structure Word30 = WordNX(structure W = Word32 val bits = 30)
 structure Word31 = WordNX(structure W = Word32 val bits = 31)
-
