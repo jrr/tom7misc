@@ -1,5 +1,6 @@
 functor SnapPoints(structure A : SNAPPOINTSARG
-                   structure Q : QUADTREE where type pos = A.pos and type dist = real) : 
+                   structure Q : QUADTREE where type pos = A.pos
+                                            and type dist = real) :
         SNAPPOINTS where type poly = A.poly =
 struct
 
@@ -16,7 +17,7 @@ struct
      In particular, we want "within-epsilon" to be an equivalence
      relation on vertices. If we are not careful, we have a situation
      like
-     
+
         * -e- * -e- * -e- *
         A     B     C     D
 
@@ -92,177 +93,176 @@ struct
   *)
   fun snap epsilon (polys : ('a * poly) list) =
     let
-        (* We're going to be messing with the points in the polygons.
-           Remember each polygon's identity, by putting them in a
-           vector. From now on the index into this vector will be
-           the polygon's identity. *)
-        val polys = Vector.fromList polys
+      (* We're going to be messing with the points in the polygons.
+         Remember each polygon's identity, by putting them in a
+         vector. From now on the index into this vector will be
+         the polygon's identity. *)
+      val polys = Vector.fromList polys
 
-        (* Each point's location is either native (because it is the
-           canonical representative of its equivalence class) or it
-           is in some other point's equivalence class. If that's the
-           case, give the index of that other point. *)
-        datatype loc =
-            Native of A.pos
-          | Via of int
+      (* Each point's location is either native (because it is the
+         canonical representative of its equivalence class) or it
+         is in some other point's equivalence class. If that's the
+         case, give the index of that other point. *)
+      datatype loc =
+          Native of A.pos
+        | Via of int
 
-        (* We also need the point locations. Each point needs to know its home
-           polygon (as int), its winding number in that polygon (so
-           that we can reconstruct it later; as an int), and its
-           equivalence class (datatype loc).
-           We ignore the associated data, which we zip back in later.
-           *)
-        val points =
-            Vector.fromList
-            (Vector.foldli (fn (polynum, (_, pts), b) =>
-                            ListUtil.foldli (fn (pointnum, pt, bb) =>
-                                             { loc = ref (Native pt),
-                                               winding = pointnum,
-                                               poly = polynum } :: bb) nil
-                            (A.points pts)
-                            @ b)
-             nil polys)
+      (* We also need the point locations. Each point needs to know its home
+         polygon (as int), its winding number in that polygon (so
+         that we can reconstruct it later; as an int), and its
+         equivalence class (datatype loc).
+         We ignore the associated data, which we zip back in later.
+         *)
+      val points =
+          Vector.fromList
+          (Vector.foldli (fn (polynum, (_, pts), b) =>
+                          ListUtil.foldli (fn (pointnum, pt, bb) =>
+                                           { loc = ref (Native pt),
+                                             winding = pointnum,
+                                             poly = polynum } :: bb) nil
+                          (A.points pts)
+                          @ b)
+           nil polys)
 
-        (* PERF path compression *)
-        fun getloc { loc = ref (Native pt), ...} = pt
-          | getloc { loc = ref (Via i), ... } = getloc (Vector.sub(points, i))
+      (* PERF path compression *)
+      fun getloc { loc = ref (Native pt), ...} = pt
+        | getloc { loc = ref (Via i), ... } = getloc (Vector.sub(points, i))
 
-        fun canonical { loc = ref (Native _), winding = _, poly = _ } = true
-          | canonical _ = false
+      fun canonical { loc = ref (Native _), winding = _, poly = _ } = true
+        | canonical _ = false
 
-        fun point i = Vector.sub(points, i)
+      fun point i = Vector.sub(points, i)
 
-        (* PERF: The kd-tree never changes, but we ignore points that are
-           not canonical in the output. It would be faster if we could
-           remove them. Maybe a second filtering pass once we know the
-           canonicity? *)
+      (* PERF: The kd-tree never changes, but we ignore points that are
+         not canonical in the output. It would be faster if we could
+         remove them. Maybe a second filtering pass once we know the
+         canonicity? *)
 
-        (* Insert in randomized order, since worst case is a series of
-           close-by horizontal or vertical points. *)
-        local
-            val all_points = ref nil
-            val () = Vector.appi
-                (fn (idx, pt) => all_points := (idx, getloc pt) :: !all_points) points
-            val all_points = Array.fromList (!all_points)
-            val mt = MersenneTwister.init32 0wxCAFEBABE
-            val () = MersenneTwister.shuffle mt all_points
+      (* Insert in randomized order, since worst case is a series of
+         close-by horizontal or vertical points. *)
+      local
+          val all_points = ref nil
+          val () = Vector.appi
+              (fn (idx, pt) => all_points := (idx, getloc pt) :: !all_points) points
+          val all_points = Array.fromList (!all_points)
+          val mt = MersenneTwister.init32 0wxCAFEBABE
+          val () = MersenneTwister.shuffle mt all_points
+      in
+          val kdtree = Array.foldl (fn ((idx, pt), t) => Q.insert t idx pt) Q.empty all_points
+      end
+
+      (* Compare ordered pairs deterministically for any set of
+         points, regardless of insertion order. This is a
+         lexicographic order.
+         First, the pair with shorter distance is smaller.
+         For the same distance, the pair with the smaller first point
+         is smaller. If that is the same point, then the pair with the
+         smaller second point.
+         *)
+      fun comparepair ((a, b), (aa, bb)) =
+          case Real.compare (A.dist (a, b), A.dist (aa, bb)) of
+              EQUAL => (case A.compare (a, aa) of
+                            EQUAL => A.compare (b, bb)
+                          | order => order)
+            | order => order
+
+      fun comparepairidx ((i, j), (ii, jj)) =
+          comparepair ((getloc (point i), getloc (point j)),
+                       (getloc (point ii), getloc (point jj)))
+
+      (* Modifies equivalence class refs until we're done. *)
+      (* XXX It's not clear that this always preserves the well-formedness
+         of the polygons (like keeps them from being non-self-intersecting).
+         Should at least check that the output is reasonable and raise an
+         error if not. *)
+      fun mergeloop () =
+        let
+          (* Start by getting all pairs. We only consider canonical
+             points in this algorithm, so the seeds are just those. *)
+          val seeds = Vector.foldli
+              (fn (idx, pt, seeds) =>
+               if canonical pt
+               then (idx, pt) :: seeds
+               else seeds) nil points
+
+          fun itspairs ((seed, { loc = ref (Native pt), poly, winding = _ }), b) =
+              let
+                  val close = Q.lookup kdtree pt epsilon
+              in
+                  (* Eliminate any that are not native. Also eliminate
+                     any that are in the same polygon. This will include
+                     the point itself. *)
+                  List.mapPartial (fn i =>
+                                   let val pt = Vector.sub(points, i)
+                                   in
+                                       if canonical pt andalso
+                                          #poly pt <> poly
+                                       then SOME (seed, i)
+                                       else NONE
+                                   end) close @ b
+              end
+            | itspairs (_, b) = b
         in
-            val kdtree = Array.foldl (fn ((idx, pt), t) => Q.insert t idx pt) Q.empty all_points
+          (* Might be done? *)
+          case foldr itspairs nil seeds of
+              nil => ()
+            | pairs =>
+                let
+                  (*
+                  val () = print "All pairs:\n";
+                  fun printidx i =
+                      let
+                          val p as { poly, winding, ... } = point i
+                          val (x, y) = getloc p
+                      in
+                          print (Int.toString i ^ ": " ^
+                                 Real.fmt (StringCvt.FIX (SOME 3)) x ^ ", " ^
+                                 Real.fmt (StringCvt.FIX (SOME 3)) y ^ ", poly " ^
+                                 Int.toString poly ^ "." ^
+                                 Int.toString winding)
+                      end
+                  val () = List.app (fn (i, ii) =>
+                                     let in
+                                         print "  ";
+                                         printidx i;
+                                         printidx ii;
+                                         print "\n"
+                                     end) pairs
+                  *)
+
+                  val (p1, p2) = ListUtil.min comparepairidx pairs
+                  (* Always merge to the left. *)
+                  val (pl, pr) =
+                      case A.compare (getloc (point p1), getloc (point p2)) of
+                          LESS => (p1, p2)
+                        | _ => (p2, p1)
+                in
+                  (* print "merge.\n";*)
+                  #loc (point pr) := Via pl;
+                  mergeloop ()
+                end
         end
 
-        (* Compare ordered pairs deterministically for any set of
-           points, regardless of insertion order. This is a
-           lexicographic order.
-           First, the pair with shorter distance is smaller.
-           For the same distance, the pair with the smaller first point
-           is smaller. If that is the same point, then the pair with the
-           smaller second point.
-           *)
-        fun comparepair ((a, b), (aa, bb)) =
-            case Real.compare (A.dist (a, b), A.dist (aa, bb)) of
-                EQUAL => (case A.compare (a, aa) of
-                              EQUAL => A.compare (b, bb)
-                            | order => order)
-              | order => order
+      (* After this, all points are merged. *)
+      val () = mergeloop ()
 
-        fun comparepairidx ((i, j), (ii, jj)) =
-            comparepair ((getloc (point i), getloc (point j)),
-                         (getloc (point ii), getloc (point jj)))
+      (* Now we reassemble the polygons. *)
+      val points = Vector.foldr (fn (p as { poly, winding, ... }, b) =>
+                                 (poly, (winding, getloc p)) :: b) nil points
 
-        (* Modifies equivalence class refs until we're done. *)
-        (* XXX It's not clear that this always preserves the well-formedness 
-           of the polygons (like keeps them from being non-self-intersecting).
-           Should at least check that the output is reasonable and raise an
-           error if not. *)
-        fun mergeloop () =
-          let
-              (* Start by getting all pairs. We only consider canonical
-                 points in this algorithm, so the seeds are just those. *)
-              val seeds = Vector.foldli
-                  (fn (idx, pt, seeds) =>
-                   if canonical pt
-                   then (idx, pt) :: seeds
-                   else seeds) nil points
+      (* Chunk them by polygon again, and replace polygon index with original
+         data. *)
+      val polys : ('a * (int * A.pos) list) list =
+          map (fn (idx, poly) =>
+               (#1 (Vector.sub(polys, idx)), poly))
+          (ListUtil.stratify Int.compare points)
 
-              fun itspairs ((seed, { loc = ref (Native pt), poly, winding = _ }), b) =
-                  let
-                      val close = Q.lookup kdtree pt epsilon
-                  in
-                      (* Eliminate any that are not native. Also eliminate 
-                         any that are in the same polygon. This will include
-                         the point itself. *)
-                      List.mapPartial (fn i =>
-                                       let val pt = Vector.sub(points, i)
-                                       in
-                                           if canonical pt andalso
-                                              #poly pt <> poly
-                                           then SOME (seed, i)
-                                           else NONE
-                                       end) close @ b
-                  end
-                | itspairs (_, b) = b
-          in
-              (* Might be done? *)
-              case foldr itspairs nil seeds of
-                  nil => ()
-                | pairs => 
-                      let 
-                          (*
-                          val () = print "All pairs:\n";
-                          fun printidx i =
-                              let 
-                                  val p as { poly, winding, ... } = point i
-                                  val (x, y) = getloc p
-                              in
-                                  print (Int.toString i ^ ": " ^
-                                         Real.fmt (StringCvt.FIX (SOME 3)) x ^ ", " ^
-                                         Real.fmt (StringCvt.FIX (SOME 3)) y ^ ", poly " ^
-                                         Int.toString poly ^ "." ^
-                                         Int.toString winding)
-                              end
-                          val () = List.app (fn (i, ii) =>
-                                             let in                                          
-                                                 print "  ";
-                                                 printidx i;
-                                                 printidx ii;
-                                                 print "\n"
-                                             end) pairs
-                          *)
-
-                          val (p1, p2) = ListUtil.min comparepairidx pairs
-                          (* Always merge to the left. *)
-                          val (pl, pr) = 
-                              case A.compare (getloc (point p1), getloc (point p2)) of
-                                  LESS => (p1, p2)
-                                | _ => (p2, p1)
-                      in
-                          (* print "merge.\n";*)
-                          #loc (point pr) := Via pl;
-                          mergeloop ()
-                      end
-          end
-
-        (* After this, all points are merged. *)
-        val () = mergeloop ()
-
-        (* Now we reassemble the polygons. *)
-        val points = Vector.foldr (fn (p as { poly, winding, ... }, b) =>
-                                   (poly, (winding, getloc p)) :: b) nil points
-
-        (* Chunk them by polygon again, and replace polygon index with original
-           data. *)
-        val polys : ('a * (int * A.pos) list) list =
-            map (fn (idx, poly) =>
-                 (#1 (Vector.sub(polys, idx)), poly))
-            (ListUtil.stratify Int.compare points)
-
-        (* Now sort by winding number *)
-        val polys : ('a * (int * A.pos) list) list = 
-            ListUtil.mapsecond (ListUtil.sort (ListUtil.byfirst Int.compare)) polys
-        (* Discard that too *)
-        val polys : ('a * A.poly) list =
-            ListUtil.mapsecond (A.poly o map #2) polys
-
+      (* Now sort by winding number *)
+      val polys : ('a * (int * A.pos) list) list =
+          ListUtil.mapsecond (ListUtil.sort (ListUtil.byfirst Int.compare)) polys
+      (* Discard that too *)
+      val polys : ('a * A.poly) list =
+          ListUtil.mapsecond (A.poly o map #2) polys
     in
         polys
     end

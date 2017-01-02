@@ -8,11 +8,11 @@
    are near the boundary, just queries both. *)
 signature LATLONTREE =
 sig
-    include QUADTREE where type pos = LatLon.pos
-                       and type dist = real
-    (* tosvg tree maxdepth west print
-       For visualization purposes. Uses gnomonic projection with root of
-       tree as center. If west is true, print west hemisphere. If false,
-       print east. *)
-    val tosvg : 'a tree -> int -> bool -> (string -> unit) -> unit
+  include QUADTREE where type pos = LatLon.pos
+                     and type dist = real
+  (* tosvg tree maxdepth west print
+     For visualization purposes. Uses gnomonic projection with root of
+     tree as center. If west is true, print west hemisphere. If false,
+     print east. *)
+  val tosvg : 'a tree -> int -> bool -> (string -> unit) -> unit
 end

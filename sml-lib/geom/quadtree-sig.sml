@@ -9,7 +9,7 @@ sig
 
     (* Functional set of points with associated data of type 'a *)
     type 'a tree
-        
+
     (* No points. *)
     val empty : 'a tree
 
@@ -23,7 +23,8 @@ sig
        NOTE: Currently, linear time! *)
     val closestpoint : 'a tree -> pos -> ('a * dist) option
 
-    (* val bounds : 'a tree -> { minx : xpos, maxx : xpos, miny : ypos, maxy : ypos } *)
+    (* val bounds : 'a tree -> { minx : xpos, maxx : xpos,
+                                 miny : ypos, maxy : ypos } *)
 
     val map : ('a -> 'b) -> 'a tree -> 'b tree
     val app : ('a -> unit) -> 'a tree -> unit
@@ -43,7 +44,7 @@ sig
     (* Describe the position of a point; each point has an x position and
        a y position. For example, real numbers. *)
     type pos
-    type xpos 
+    type xpos
     type ypos
     val xpos : pos -> xpos
     val ypos : pos -> ypos
@@ -72,9 +73,9 @@ sig
        numbers. *)
     val xdist : xpos * xpos -> dist
     val ydist : ypos * ypos -> dist
- 
-    (* dist_leq d1 d2 
-       true if d1 is less than or equal to d2. 
+
+    (* dist_leq d1 d2
+       true if d1 is less than or equal to d2.
        For example, <= on reals. *)
     val dleq : dist * dist -> bool
 

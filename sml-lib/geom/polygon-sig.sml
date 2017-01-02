@@ -16,7 +16,8 @@ sig
 
   (* Gives an axis-aligned bounding box that includes the polygon, as
      the northwest corner and southeast corner. *)
-  val boundingbox : polygon -> { topx : real, topy : real, botx : real, boty : real }
+  val boundingbox : polygon -> { topx : real, topy : real,
+                                 botx : real, boty : real }
 
   (* Returns true if the given point is inside the polygon. For a point
      on the boundary, it will return true or false arbitrarily.

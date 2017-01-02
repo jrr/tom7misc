@@ -1,9 +1,7 @@
 
 structure LatLonTreeTest =
 struct
+  structure LLT = LatLonTree
 
-    structure LLT = LatLonTree
-
-    (* XXX *)
-
+  (* XXX *)
 end
