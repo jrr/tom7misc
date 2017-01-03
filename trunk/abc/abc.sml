@@ -54,6 +54,7 @@ struct
           | Tactics.Tactics s => "Tactics: " ^ s ^ "\n"
           | Acc.Acc s => "Acc: " ^ s ^ "\n"
           | X86.X86 s => "X86: " ^ s ^ "\n"
+          | OptimizeCIL.OptimizeCIL s => "OptimizeCIL: " ^ s ^ "\n"
           | e => "Uncaught exception: " ^ exnName e
       in
         print s;

@@ -287,12 +287,12 @@ Member *)
     in
       GotoIf (v, lab, s)
     end
+  fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) = Goto
   fun case_Return arg ({ selft, selfv, selfe, selfs }, ctx) v =
     let
       val (v, _) = selfv arg ctx v
     in
       Return v
     end
-  fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) = Goto
   fun case_End arg ({ selft, selfv, selfe, selfs }, ctx) = End
 end
