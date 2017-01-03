@@ -2,6 +2,7 @@
 local
   fun eprint (e, s) =
     print ("Exception: " ^ s ^ "\n" ^
+           exnMessage e ^ "\n" ^
            StringUtil.delimit "\n  " (Port.exnhistory e) ^ "\n")
 in
 (* val () = WriteTest.writeexe() *)

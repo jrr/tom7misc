@@ -1,3 +1,12 @@
+(* Signed comparisons *)
+functor WS(W : WORD) =
+struct
+  fun less (x, y) = LargeInt.<(W.toLargeIntX x, W.toLargeIntX y)
+  fun lesseq (x, y) = LargeInt.<=(W.toLargeIntX x, W.toLargeIntX y)
+  fun greater (x, y) = LargeInt.>(W.toLargeIntX x, W.toLargeIntX y)
+  fun greatereq (x, y) = LargeInt.>=(W.toLargeIntX x, W.toLargeIntX y)
+end
+
 structure OptimizeCIL :> OPTIMIZECIL =
 struct
   infixr 9 `
@@ -11,6 +20,11 @@ struct
                             val compare = String.compare)
   (* XXX some kind of debug mode *)
   fun eprint s = print (s ^ "\n")
+
+  structure WS8 = WS(Word8)
+  structure WS16 = WS(Word16)
+  structure WS32 = WS(Word32)
+
 
   fun wordwidth Width8 = Word8 Unsigned
     | wordwidth Width16 = Word16 Unsigned
@@ -61,42 +75,141 @@ struct
   end
   structure DeadVars = CILPass(DeadVarsArg)
 
+  (* For each block label (key of outer map), give
+     the count of uses within other blocks (label is key of inner map). *)
+  type analyze_blocks_uses = int SM.map ref SM.map
   structure AnalyzeBlocksArg : CILPASSARG =
   struct
-    (* For each block label (key of outer map), give
-       the count of uses within other blocks (label is key of inner map). *)
-    type arg = { current: string, uses: int SM.map ref SM.map }
+    type arg = { current : string, uses : analyze_blocks_uses ref }
     structure CI = CILIdentity(type arg = arg)
     open CI
 
-    fun adduse { current, uses } used user =
+    fun adduse { current, uses } used =
       let
         val mr =
-          case SM.find (uses, used) of
+          case SM.find (!uses, used) of
             NONE =>
               let val newmap = ref SM.empty
               in
-                SM.insert (uses, used, newmap);
+                uses := SM.insert (!uses, used, newmap);
                 newmap
               end
           | SOME r => r
       in
-        case SM.find (!mr, used) of
-          NONE => mr := SM.insert (!mr, used, 1)
-        | SOME r => mr := SM.insert (!mr, used, r + 1)
+        case SM.find (!mr, current) of
+          NONE => mr := SM.insert (!mr, current, 1)
+        | SOME r => mr := SM.insert (!mr, current, r + 1)
       end
 
-    (* XXX finish me... *)
-    (*
-    fun case_GotoIf arg ({ selft, selfv, selfe, selfs }, ctx) (v, lab, s) =
-      let
-        val (v, _) = selfv arg ctx v
-        val s = selfs arg ctx s
-      in
-        GotoIf (v, lab, s)
+    fun case_GotoIf arg (stuff as ({ selft, selfv, selfe, selfs }, ctx))
+      (v, lab, s) =
+      let in
+        adduse arg lab;
+        print ("use " ^ lab ^ "\n");
+        CI.case_GotoIf arg stuff (v, lab, s)
       end
-    fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) = Goto
-    *)
+
+    fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) lab =
+      let in
+        adduse arg lab;
+        Goto lab
+      end
+  end
+
+  structure OptimizeBlocksArg : CILPASSARG =
+  struct
+    type arg = { uses : analyze_blocks_uses,
+                 blocks : (string * stmt) list,
+                 removeme : string list ref,
+                 simplified : bool ref }
+    structure CI = CILIdentity(type arg = arg)
+    open CI
+
+    fun simplify ({ simplified, ... } : arg) = simplified := true
+
+    fun totaluses ({ uses, ... } : arg) lab =
+      case SM.find (uses, lab) of
+        NONE => raise OptimizeCIL ("unanalyzed label? " ^ lab)
+      | SOME m => SM.foldl op+ 0 (!m)
+
+    fun getblock ({ blocks, ... } : arg) lab =
+      case ListUtil.Alist.find op= blocks lab of
+        NONE => raise OptimizeCIL ("missing block " ^ lab)
+      | SOME stmt => stmt
+
+    fun markremove ({ removeme, ... } : arg) lab =
+      removeme := lab :: !removeme
+
+    (* Can't really do anything about GotoIf... *)
+
+    fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) lab =
+      if totaluses arg lab = 1
+      then
+        let in
+          eprint ("Inlining single-use block " ^ lab);
+          simplify arg;
+          markremove arg lab;
+          getblock arg lab
+        end
+      else Goto lab
+  end
+  structure OptimizeBlocks =
+  struct
+    structure AB = CILPass(AnalyzeBlocksArg)
+    structure OB = CILPass(OptimizeBlocksArg)
+    (* TODO: If "body" does a goto to another label immediately,
+       we can rewrite it... *)
+    (* TODO: Drop blocks only used by themselves.
+       (Or in general, unreachable cycles.) *)
+    fun optimize simplified (Func { args, ret, body, blocks }) =
+      let
+        (* Prevent anything from touching the function's entry point *)
+        val uses : analyze_blocks_uses ref =
+          ref ` SM.insert (SM.empty, body,
+                           ref ` SM.insert (SM.empty, "", 999))
+        fun analyze_one_block (name, stmt) =
+          let
+            val arg = { current = name, uses = uses }
+          in
+            ignore ` AB.converts arg CIL.Context.empty stmt
+          end
+
+        val () = app analyze_one_block blocks
+        val () = SM.appi (fn (lab, u) =>
+                          let in
+                            print (lab ^ ":\n");
+                            SM.appi (fn (user, n) =>
+                                     print ("  by " ^ user ^ " x" ^
+                                            Int.toString n ^ "\n")) (!u)
+                          end) (!uses)
+
+        (* We'll remove any block that has no uses, and maybe more
+           because they get inlined. *)
+        val removeme = ref (SM.foldli (fn (lab, m, remove) =>
+                                       if SM.isempty (!m)
+                                       then lab :: remove
+                                       else remove) nil (!uses))
+
+        fun optimize_one_block (name, stmt) =
+          let
+            val arg = { uses = !uses, blocks = blocks,
+                        removeme = removeme, simplified = simplified }
+          in
+            (name, OB.converts arg CIL.Context.empty stmt)
+          end
+
+        val blocks = map optimize_one_block blocks
+        (* Remove anything that was marked to be removed because it
+           was inlined. *)
+        val blocks = List.filter
+          (fn (name, _) =>
+           not ` List.exists (fn name' => name = name') (!removeme)) blocks
+      in
+        if length ` !removeme > 0
+        then simplified := true
+        else ();
+        Func { args = args, ret = ret, body = body, blocks = blocks }
+      end
   end
 
   fun effectless_expression e =
@@ -304,24 +417,34 @@ struct
         | _ => raise OptimizeCIL "argument width mismatch to comparison"
       end
 
-    (* XXX rest of comparison operators *)
-    val case_Greater = comparison Greater
+    val case_Above = comparison Above
       { a8 = Word8.>, a16 = Word16.>, a32 = Word32.> }
-    val case_GreaterEq = comparison GreaterEq
+    val case_AboveEq = comparison AboveEq
       { a8 = Word8.>=, a16 = Word16.>=, a32 = Word32.>= }
-    val case_Less = comparison Less
+    val case_Below = comparison Below
       { a8 = Word8.<, a16 = Word16.<, a32 = Word32.< }
-    val case_LessEq = comparison LessEq
+    val case_BelowEq = comparison BelowEq
       { a8 = Word8.<=, a16 = Word16.<=, a32 = Word32.<= }
+    val case_Eq = comparison Eq
+      { a8 = op =, a16 = op =, a32 = op = }
+    val case_Neq = comparison Neq
+      { a8 = op <>, a16 = op <>, a32 = op <> }
+    val case_Greater = comparison Greater
+      { a8 = WS8.greater, a16 = WS16.greater, a32 = WS32.greater }
+    val case_GreaterEq = comparison GreaterEq
+      { a8 = WS8.greatereq, a16 = WS16.greatereq, a32 = WS32.greatereq }
+    val case_Less = comparison Less
+      { a8 = WS8.less, a16 = WS16.less, a32 = WS32.less }
+    val case_LessEq = comparison LessEq
+      { a8 = WS8.lesseq, a16 = WS16.lesseq, a32 = WS32.lesseq }
   end
   structure Simplify = CILPass(SimplifyArg)
 
   (* Optimize a basic block without any contextual information.
      Blocks are closed code that manifest effects through loads
      and stores to local/global addresses. *)
-  fun optimize_block (block : stmt) : stmt =
+  fun optimize_block simplified (block : stmt) : stmt =
     let
-      val simplified = ref false
       val ctx = CIL.Context.empty
       val block = Simplify.converts
         ({ known = SM.empty, simplified = simplified }) ctx block
@@ -330,30 +453,46 @@ struct
         ({ used = SM.empty, simplified = simplified }) ctx block
       (* ... more optimizations here ... *)
     in
-      (* Keep going if we had any simplifications. *)
-      if !simplified
-      then optimize_block block
-      else block
+      block
+    end
+
+  fun optimize_function simplified (name, func) =
+    let
+      val Func { args, ret, body, blocks } =
+        OptimizeBlocks.optimize simplified func
+    in
+      (name,
+       Func { args = args, ret = ret, body = body,
+              blocks = ListUtil.mapsecond (optimize_block simplified) blocks })
     end
 
   fun optimize (Program { functions, globals }) =
     let
-      fun one_function (name, Func { args, ret, body, blocks }) =
-        (name,
-         Func { args = args, ret = ret, body = body,
-                blocks = ListUtil.mapsecond optimize_block blocks })
+      val () = print "\n----------- optimization round -------------\n"
+      val simplified = ref false
+      val functions = map (optimize_function simplified) functions
+
+      val prog = Program { functions = functions, globals = globals }
     in
-      Program { functions = map one_function functions,
-                globals = globals }
+      print ("\nNow:\n" ^ CIL.progtos prog ^ "\n");
+
+      if !simplified
+      then optimize prog
+      else prog
     end
 
 end
 
 (* TODO:
-   - Drop unreachable blocks!
+   - Often the value of a LOAD will already be known (like it's
+     in a variable) -- use it!
    - Drop unused loads and stores!
    - If a basic block just does an unconditional GOTO to
      another block, rewrite calls to it.
    - If we have !cond, see if we can reverse the definition of
      cond (e.g. a < b becomes a >= b).
+   - If we have AND32(x, 1), there's no need to first convert
+     x to 32 bits. Just do AND16.
+   - No need to promote argument before GotoIf on it (truncate could
+     drop one bits though).
  *)

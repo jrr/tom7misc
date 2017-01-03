@@ -9,7 +9,10 @@ struct
 
   (* Width of load/store for boolean temporaries.
      Anything will work, so this is just a
-     performance preference. *)
+     performance preference.
+
+     XXX Note that optimizations assume this too.
+     *)
   val BOOL_WIDTH = Width16
   val BOOL_TYPE = Word16 Unsigned
   val LiteralTrue = Word16Literal ` Word16.fromInt 1
