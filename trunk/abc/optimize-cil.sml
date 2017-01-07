@@ -163,10 +163,17 @@ struct
        (Or in general, unreachable cycles.) *)
     fun optimize simplified (Func { args, ret, body, blocks }) =
       let
-        (* Prevent anything from touching the function's entry point *)
-        val uses : analyze_blocks_uses ref =
-          ref ` SM.insert (SM.empty, body,
-                           ref ` SM.insert (SM.empty, "", 999))
+        val uses : analyze_blocks_uses ref = ref SM.empty
+        (* Give every block an entry, so that we later see 0-use blocks. *)
+        val () = app (fn (name, _) =>
+                      uses :=
+                      SM.insert (!uses, name,
+                                 (* But prevent anything from touching the
+                                    function's entry point *)
+                                 if name = body
+                                 then ref ` SM.insert (SM.empty, "", 999)
+                                 else ref SM.empty)) blocks
+
         fun analyze_one_block (name, stmt) =
           let
             val arg = { current = name, uses = uses }
@@ -366,7 +373,41 @@ struct
         | _ => raise OptimizeCIL "illegal truncation?"
       end
 
-    (* TODO: Promote *)
+    fun case_Promote arg ({ selft, selfv, selfe, selfs }, ctx)
+                         { src, dst, v, signed } =
+      let
+        fun default v = (Promote { src = src, dst = dst,
+                                   v = v, signed = signed },
+                         wordwidth dst)
+      in
+        case (fst ` selfv arg ctx v, src, dst, signed) of
+          (_, Width32, _, _) => raise OptimizeCIL "word8 cannot be promoted"
+
+        | (Word16Literal w16, Width16, Width32, true) =>
+            (Value ` Word32Literal ` Word32.fromInt ` Word16.toIntX w16,
+             Word32 Unsigned)
+        | (Word16Literal w16, Width16, Width32, false) =>
+            (Value ` Word32Literal ` Word32.fromInt ` Word16.toInt w16,
+             Word32 Unsigned)
+
+        | (Word8Literal w8, Width8, Width32, true) =>
+            (Value ` Word32Literal ` Word32.fromInt ` Word8.toIntX w8,
+             Word32 Unsigned)
+        | (Word8Literal w8, Width8, Width32, false) =>
+            (Value ` Word32Literal ` Word32.fromInt ` Word8.toInt w8,
+             Word32 Unsigned)
+
+        | (Word8Literal w8, Width8, Width16, true) =>
+            (Value ` Word16Literal ` Word16.fromInt ` Word8.toIntX w8,
+             Word16 Unsigned)
+        | (Word8Literal w8, Width8, Width16, false) =>
+            (Value ` Word16Literal ` Word16.fromInt ` Word8.toInt w8,
+             Word16 Unsigned)
+
+        | (v as Var _, _, _, _) => default v
+        | _ => raise OptimizeCIL "illegal promotion?"
+      end
+
     fun comparison ctor { a8, a16, a32 }
       (arg as { known, simplified })
       ({ selft, selfv, selfe, selfs } : selves, ctx) (w, a, b) =
