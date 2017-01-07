@@ -1,5 +1,7 @@
 structure ToASM :> TOASM =
 struct
+  infixr 9 `
+  fun a ` b = a b
 
   structure C = CIL
   structure A = ASM
@@ -26,21 +28,33 @@ struct
     | ctypsize (C.Code _) = S16
     | ctypsize (C.Struct _) = raise ToASM "unimplemented: structs"
 
-  (* XXX maybe need Pointwise for CIL... *)
-  (* Apply f to every local in the statement. *)
-  (* XXX How to get local's size? *)
-(*
-  fun apploc_stmt C.End = ()
-    | apploc_stmt (C.Return v) = apploc_val v
-    | apploc_stmt (C.Bind (_, e, s)) = (apploc_exp e; apploc_stmt s)
-    | apploc_stmt (C.Store (v, _, vv, st
-  (* Store(address, width, value, rest) *)
-  | Store of value * width * value * stmt
-  (* GotoIf(cond, true-label, else-branch). *)
-  | GotoIf of value * string * stmt
-  | Return of value
-  | End
-*)
+  (* Accumulate all of the mentions of Locals into the map. *)
+  structure GetSizesArg : CILPASSARG =
+  struct
+    type arg = C.typ SM.map ref
+    structure CI = CILIdentity(type arg = arg)
+    open CI
+    fun case_AddressLiteral arg (selves, ctx) (loc, typ) =
+      let val ret = CI.case_AddressLiteral arg (selves, ctx) (loc, typ)
+      in
+        case loc of
+          C.Global _ => ret
+        | C.Local s =>
+            (case SM.find (!arg, s) of
+               NONE =>
+                 let in
+                   arg := SM.insert (!arg, s, typ);
+                   ret
+                 end
+             | SOME otyp =>
+                 if C.eq_typ (typ, otyp)
+                 then ret
+                 else raise ToASM ("Local " ^ s ^
+                                   " used at inconsistent types: " ^
+                                   C.typtos typ ^ " and " ^ C.typtos otyp))
+      end
+  end
+  structure GetSizes = CILPass(GetSizesArg)
 
   fun doproc (name, C.Func
               { args : (string * C.typ) list,
@@ -48,13 +62,22 @@ struct
                 body : string,
                 blocks : (string * C.stmt) list }) : A.proc =
     let
-      (* XXX check no overlap between these two... *)
-      val argsizes : (string * sz) list = ListUtil.mapsecond ctypsize args
-      val localsizes : sz SM.map ref = ref SM.empty
+      val argsizes : sz SM.map =
+        foldl (fn ((s, t), m) => SM.insert (m, s, ctypsize t)) SM.empty args
 
-      (* XXX crawl through blocks to find all locals *)
-
-      val localsizes = !localsizes
+      val localsizes =
+        let
+          val localtypes : C.typ SM.map ref = ref SM.empty
+          fun oneblock (_, stmt) =
+            ignore ` GetSizes.converts localtypes C.Context.empty stmt
+        in
+          app oneblock blocks;
+          (* Exclude args from locals, since they are allocated as
+             args. *)
+          SM.filteri (fn (k, s) =>
+                      not ` Option.isSome ` SM.find (argsizes, k)) `
+          SM.map ctypsize ` !localtypes
+        end
 
       (* Arguments and locals are not on the normal stack. They go in the
          data segment and are accessed through some base pointer (EDX?
@@ -62,27 +85,27 @@ struct
          frame. We do this because it's possible to take their
          address, and we represent pointers as 16-bit offsets into the
          data segment. *)
-        (* XXX we can just read nextpos between the allocs below *)
-      val argbytes =
-        List.foldl (fn ((_, s), b) => b + szbytes s) 0 argsizes
-      val localbytes =
-        SM.foldli (fn (_, s, b) => b + szbytes s) 0 localsizes
       val nextpos = ref 0
       (* We use a totally packed layout, ignoring the fact that bad
          alignment causes lost cycles. We are much more constrained
          by code/data size (64k) than clock speed (4+ GHz).
          PERF: Rearranging locals and args to get better alignment
-         would be pretty easy, and free from code/data size perspective. *)
+         would be pretty easy, and free from code/data size perspective.
+         Rearranging args would take a global analysis, but would not
+         be so bad. *)
       val offsets : (string * int) list ref = ref nil
       fun alloc (s, sz) =
         let in
           offsets := (s, !nextpos) :: !offsets;
           nextpos := !nextpos + szbytes sz
         end
-    in
+
       (* Args must come first *)
-      List.app alloc argsizes;
-      SM.appi alloc localsizes;
+      val () = SM.appi alloc argsizes
+      val argbytes = !nextpos
+      val () = SM.appi alloc localsizes
+      val localbytes = !nextpos - argbytes
+    in
       print ("Frame for proc " ^ name ^ ":\n" ^
              String.concat (map (fn (s, off) => "  " ^ Int.toString off ^
                                  ": " ^ s ^ "\n") (rev (!offsets))));
