@@ -1257,7 +1257,7 @@ should specify \":\" or \":>\" and the constraining signature."
 "\\<\\(nil\\|true\\|false\\|0[wWxX]+[0-9A-Fa-f]+\\|~?[0-9]+\\.[0-9]+\\|~?[0-9]+\\)\\>"
 . font-lock-constant-face
 )
-;; for the type part of a datat/with/eq type decl.
+;; for the type part of a data/with/eq type decl.
 ("\\<\\(data\\|with\\|eq\\)?type *\\( \\|'[A-Za-z'_]*\\|( *\\('[A-Za-z'_]* *,? *\\)+)\\) *\\([A-Za-z][A-Za-z0-9_']*\\)"
 4 font-lock-type-face)
 
@@ -1274,7 +1274,7 @@ should specify \":\" or \":>\" and the constraining signature."
 ("\\([A-Z][A-Za-z]*\\.\\)+\\([a-z][A-Za-z0-9'_]*\\)" 2 font-lock-variable-name-face)
 
 (
-;; regexp for ML types (just builtin):
+;; regexp for ML types (just builtin and type variables):
 "\\<\\(unit\\|int\\|real\\|bool\\|float\\|exn\\|ref\\|char\\|string\\|list\\|option\\|'[A-Za-z_']+\\)\\>"
 . font-lock-type-face)
 
