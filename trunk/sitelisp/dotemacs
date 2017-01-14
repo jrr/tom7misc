@@ -53,7 +53,7 @@
        ;; Don't use FixedSys Excelsior 2 or 3; they are "anti"-aliased!
        "FixedSys-15"))
      (t t))
-;    (modify-frame-parameters f (list '(height . 75)))
+     (modify-frame-parameters f (list '(height . 72)))
     ))
 
 (add-hook 'after-make-frame-functions 'frame-settings)
@@ -63,7 +63,7 @@
 ;; Here's how to programmatically set the window size.
 ;; (frame-parameters)
 ;; (modify-frame-parameters nil (list '(left . 40)))
-;; (modify-frame-parameters nil (list '(height . 75)))
+;; (modify-frame-parameters nil (list '(height . 72)))
 ;;
 ;; You can use this to read the current cryptic font string on any platform:
 ;; (insert (cdr (assq 'font (frame-parameters))))
@@ -73,6 +73,23 @@
     (setq explicit-shell-file-name "bash"))
 
 (require 'switch-files)
+
+;; Goal here is to disable the behavior where C-x b avoids a buffer if
+;; it's open in another frame. Often I want to have some piece of a source
+;; file open for reference while I'm editing normally, and this drives
+;; me nuts with my stack-based editing style.
+;;
+;; for this to behave well, you'll want to customize this var to t:
+;; switch-to-buffer-preserve-window-point
+;; (otherwise it will send you to the location of the cursor in the other
+;; frame!)
+(defun tom7-other-buffer ()
+  "Switch to the last buffer selected, even if it already visible (unlike mode-line-other-buffer)."
+  (interactive)
+  ;; first arg to other buffer tells it to ignore the current buffer (duh)
+  ;; second tells it to include buffers already visible.
+  (switch-to-buffer (other-buffer (current-buffer) t) nil t))
+
 
 (global-set-key "\M-g" 'goto-line)
 (global-set-key "\C-x\C-d" 'dired)
@@ -87,7 +104,7 @@
 (global-set-key "\M-\t" 'untabify-buffer)
 (global-set-key "\M-k" 'copy-line)
 (global-set-key "\M-\"" 'quote-word)
-(global-set-key "\C-\\" 'mode-line-other-buffer)
+(global-set-key "\C-\\" 'tom7-other-buffer)
 (global-set-key "\C-o" 'switch-files)
 (global-set-key "\C-]" 'cycle-recent-forward)
 (global-set-key "\C-p" 'cycle-recent-backward)
@@ -332,7 +349,7 @@
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 
 (font-lock-add-keywords 'c++-mode '(
-("\\<\\(static_assert\\|export\\|nullptr\\|constexpr\\|override\\)\\>" . font-lock-keyword-face)
+("\\<\\(static_assert\\|export\\|nullptr\\|constexpr\\|final\\|override\\)\\>" . font-lock-keyword-face)
 ))
 
 ;; (defconst tom7-cc-style
