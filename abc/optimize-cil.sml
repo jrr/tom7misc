@@ -536,4 +536,4 @@ end
      x to 32 bits. Just do AND16.
    - No need to promote argument before GotoIf on it (truncate could
      drop one bits though).
- *)
+     *)

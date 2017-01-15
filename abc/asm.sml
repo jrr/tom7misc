@@ -2,13 +2,14 @@
 
    Very low-level language, but not quite X86 opcodes.
    Here we have:
+      - DATA layout is explicit, but not CODE layout.
       - labels, symbolic execution points that we can
         branch to. We don't have "JMP", so these aren't
         code addresses; they're numbered sequentially with
         small integers.
       - conditional jumps to computed destinations
       - "macro" instructions that can be implemented in
-        printable x86, but that require require significant
+        printable x86, but that require significant
         expansion.
 
    But compared to CIL:
@@ -55,6 +56,10 @@ struct
      must be a EBX+disp8) in the output, translation to x86 takes
      care of this for us.
 
+     Loads and stores commute with temporary accesses; these things
+     represent intermediate expressions that are inaccessible from
+     C semantics (undefined behavior can still mess them up, possibly).
+
      The lifetime of a temporary is explicit, or ...?
      *)
   type tmp = string
@@ -80,15 +85,42 @@ struct
   | LessEq of tmp * tmp
   | Eq of tmp * tmp
   | NotEq of tmp * tmp
+  (* These avoid us having to load literal zero, which is
+     very common. JZ is actually the same instruction as JE
+     (and JNZ is JNE), but without a CMP -- we just need the
+     zero flag to reflect the value being tested. One way
+     to ensure this is to XOR tmp <- 0x20 twice.
+     (Alternately we can XOR once and then just reverse the
+     sense of the jmp.) *)
+  | EqZero of tmp
+  | NeZero of tmp
+  (* Unconditional jump *)
+  | True
 
   (* Destination comes first. *)
   datatype cmd =
-    (* Advance the base pointer to make room for the locals
-       for the given procedure. *)
-    CreateLocals of string
-  | DestroyLocals of string
-  | Load8T of tmp * Word8.word
-  | Load16T of tmp * Word16.word
+    (* Advance the base pointer to make room for the arguments
+       for this funtion. This is done by the caller, since the
+       arguments need to then be set up in this frame. *)
+    PrepareArgs of string
+    (* Remove the frame. This is also done by the caller, since
+       at the end of functions before returning. *)
+  | DestroyArgs of string
+    (* Expand or shrink the frame by moving the base pointer.
+       A function expands in its header to make room for its
+       local variables, and shrinks before returning. This has
+       to be done by the function itself, because the type of
+       a function pointer does not indicate how much local
+       space it needs. *)
+  | ExpandFrame of int
+  | ShrinkFrame of int
+  | Load8 of tmp * tmp
+  | Load16 of tmp * tmp
+    (* Store (addr, val) *)
+  | Store8 of tmp * tmp
+  | Store16 of tmp * tmp
+  | Immediate8 of tmp * Word8.word
+  | Immediate16 of tmp * Word16.word
   (* PERF allow tmp * literal? It is only more efficient
      if the literal is printable... *)
   | Add16 of tmp * tmp
@@ -104,8 +136,6 @@ struct
        returning from functions and for C function
        pointers. *)
   | JumpInd of tmp
-    (* Unconditional jump to literal label. *)
-  | Jump of string
     (* Conditional jumps all take a literal label. *)
   | JumpCond16 of cond * string
 
@@ -120,11 +150,17 @@ struct
          excluding the function arguments. *)
       localbytes: int,
       (* Map local variables (and arguments) to
-         byte offsets from base (beginning of arguments). *)
+         byte offsets from base (beginning of arguments),
+         once both the arguments and local frame have been
+         set up. *)
       offsets: (string * int) list,
-      (* Every block belongs to a single procedure,
-         and its references to local variables
-         are relative to that. *)
+      (* Every block belongs to a single procedure, and its
+         references to local variables are relative to that.
+
+         The order of this list is significant; execution
+         begins at the first block and falls through to the
+         next (unless of course there's an unconditional
+         jump). Exection must not "fall off the end." *)
       blocks: block list }
 
   (* XXX data... *)
