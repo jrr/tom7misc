@@ -153,9 +153,9 @@ struct
 
       fun gencmds ctx stmt =
         case stmt of
-          C.Bind (var, e, s) =>
+          C.Bind (var, t, e, s) =>
             let
-              (* val ctx = C.Context.insert (ctx, var, *)
+              val ctx = C.Context.insert (ctx, var, t)
               val (cmds, next) = gencmds ctx s
             in (A.Add16 (var, "unimplemented") :: cmds, next)
             end

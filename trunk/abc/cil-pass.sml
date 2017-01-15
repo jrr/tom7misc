@@ -257,13 +257,15 @@ Member *)
     | _ => raise CILIdentity "load on non-pointer")
 
   (* stmt *)
-  fun case_Bind arg ({ selft, selfv, selfe, selfs }, ctx) (v, e, s) =
+  fun case_Bind arg ({ selft, selfv, selfe, selfs }, ctx) (v, t, e, s) =
     let
-      val (e, t) = selfe arg ctx e
+      val (e, tv) = selfe arg ctx e
+      val t = selft arg ctx t
+      (* XXX check that t = tv? *)
       val ctx = Context.insert (ctx, v, t)
       val s = selfs arg ctx s
     in
-      Bind (v, e, s)
+      Bind (v, t, e, s)
     end
   fun case_Do arg ({ selft, selfv, selfe, selfs }, ctx) (e, s) =
     let

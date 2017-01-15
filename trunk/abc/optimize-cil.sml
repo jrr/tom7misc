@@ -49,16 +49,18 @@ struct
       | SOME r => r := true
 
     fun case_Bind (arg as { used, simplified })
-      ({ selft, selfv, selfe, selfs }, ctx) (v, e, s) =
+      ({ selft, selfv, selfe, selfs }, ctx) (v, t, e, s) =
       let
-        val (e, t) = selfe arg ctx e
+        val (e, te) = selfe arg ctx e
+        (* XXX check t = te? *)
+        val t = selft arg ctx t
         val ctx = Context.insert (ctx, v, t)
         val r = ref false
         val arg = { used = SM.insert (used, v, r), simplified = simplified }
         val s = selfs arg ctx s
       in
         if !r
-        then Bind (v, e, s)
+        then Bind (v, t, e, s)
         else
           let in
             simplified := true;
@@ -280,9 +282,10 @@ struct
         else Do (e, s)
       end
 
-    fun case_Bind arg ({ selft, selfv, selfe, selfs }, ctx) (v, e, s) =
+    fun case_Bind arg ({ selft, selfv, selfe, selfs }, ctx) (v, t, e, s) =
       let
-        val (e, t) = selfe arg ctx e
+        val (e, te) = selfe arg ctx e
+        val t = selft arg ctx t
         val ctx = Context.insert (ctx, v, t)
         val arg =
           case e of
@@ -291,7 +294,7 @@ struct
 
         val s = selfs arg ctx s
       in
-        Bind (v, e, s)
+        Bind (v, t, e, s)
       end
 
     fun case_Var (arg as { known, simplified })

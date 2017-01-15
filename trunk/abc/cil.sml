@@ -101,8 +101,7 @@ struct
   | Load of width * value
 
   datatype stmt =
-    (* and type? *)
-    Bind of string * exp * stmt
+    Bind of string * typ * exp * stmt
     (* Like bind, but no variable. *)
   | Do of exp * stmt
   (* Store(width, address, value, rest) *)
@@ -219,8 +218,8 @@ struct
         "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
     | exptos (Load (width, addr)) = "LOAD" ^ widthtos width ^ " " ^ valtos addr
 
-  fun stmttos (Bind (var, e, s)) =
-        "  " ^ var ^ " = " ^ exptos e ^ "\n" ^ stmttos s
+  fun stmttos (Bind (var, t, e, s)) =
+        "  " ^ var ^ " : " ^ typtos t ^ " = " ^ exptos e ^ "\n" ^ stmttos s
     | stmttos (Do (e, s)) =
         "  do " ^ exptos e ^ "\n" ^ stmttos s
     | stmttos (Store (width, dest, v, s)) =

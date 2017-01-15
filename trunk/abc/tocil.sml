@@ -20,6 +20,7 @@ struct
 
   (* Maybe these should be functor arguments? *)
   val POINTER_WIDTH = Width16
+  val POINTER_INT_TYPE = Word16 Signed
   val INT_WIDTH = Width16
   val INT_TYPE = Word16 Signed
 
@@ -269,36 +270,42 @@ struct
        | (Word8 _, Word8 _) => k (v, dst)
        | (Word8 sa, Word16 sb) =>
            let val var = genvar "p"
-           in Bind (var, Promote { v = v, src = Width8, dst = Width16,
-                                   signed = extend sa sb },
+           in Bind (var, dst,
+                    Promote { v = v, src = Width8, dst = Width16,
+                              signed = extend sa sb },
                     k (Var var, dst))
            end
        | (Word8 sa, Word32 sb) =>
            let val var = genvar "p"
-           in Bind (var, Promote { v = v, src = Width8, dst = Width32,
-                                   signed = extend sa sb },
+           in Bind (var, dst,
+                    Promote { v = v, src = Width8, dst = Width32,
+                              signed = extend sa sb },
                     k (Var var, dst))
            end
        | (Word16 sa, Word32 sb) =>
            let val var = genvar "p"
-           in Bind (var, Promote { v = v, src = Width16, dst = Width32,
-                                   signed = extend sa sb },
+           in Bind (var, dst,
+                    Promote { v = v, src = Width16, dst = Width32,
+                              signed = extend sa sb },
                     k (Var var, dst))
            end
 
        | (Word16 sa, Word8 sb) =>
            let val var = genvar "t"
-           in Bind (var, Truncate { v = v, src = Width16, dst = Width8 },
+           in Bind (var, dst,
+                    Truncate { v = v, src = Width16, dst = Width8 },
                     k (Var var, dst))
            end
        | (Word32 sa, Word8 sb) =>
            let val var = genvar "t"
-           in Bind (var, Truncate { v = v, src = Width32, dst = Width8 },
+           in Bind (var, dst,
+                    Truncate { v = v, src = Width32, dst = Width8 },
                     k (Var var, dst))
            end
        | (Word32 sa, Word16 sb) =>
            let val var = genvar "t"
-           in Bind (var, Truncate { v = v, src = Width32, dst = Width16 },
+           in Bind (var, dst,
+                    Truncate { v = v, src = Width32, dst = Width16 },
                     k (Var var, dst))
            end
 
@@ -376,8 +383,12 @@ struct
              in
                transexp idx bc
                (fn (idxv, idxt) =>
-                Bind (scaled_idx, scale argwidth idxv,
-                      Bind (addr, Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
+                Bind (scaled_idx, POINTER_INT_TYPE,
+                      scale argwidth idxv,
+                      (* XXX note this treats pointer as int; should
+                         we have explicit conversion? *)
+                      Bind (addr, ptrt,
+                            Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
                             k (Var addr, argwidth, ptrt))))
              end
          | _ => raise ToCIL ("Attempt to subscript something of " ^
@@ -410,7 +421,7 @@ struct
          let
            val v = genvar s
          in
-           Bind (v, Load (width, addr), k (Var v, typ))
+           Bind (v, typ, Load (width, addr), k (Var v, typ))
          end)
     in
       case e of
@@ -456,8 +467,10 @@ struct
                     (fn (bv : value, bt : typ) =>
                      implicit { src = bt, dst = BOOL_TYPE, v = bv }
                      (fn (bv, _) =>
-                      Bind (nresv, Not (BOOL_WIDTH, bv),
-                            Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
+                      Bind (nresv, BOOL_TYPE,
+                            Not (BOOL_WIDTH, bv),
+                            Bind (nnresv, BOOL_TYPE,
+                                  Not (BOOL_WIDTH, Var nresv),
                                   Store (BOOL_WIDTH,
                                          AddressLiteral (Local res, BOOL_TYPE),
                                          Var nnresv,
@@ -465,8 +478,9 @@ struct
 
                    BC.insert
                    (bc, done_lab,
-                    Bind (resv,
-                          Load (BOOL_WIDTH, AddressLiteral (Local res, BOOL_TYPE)),
+                    Bind (resv, BOOL_TYPE,
+                          Load (BOOL_WIDTH,
+                                AddressLiteral (Local res, BOOL_TYPE)),
                           k (Var resv, BOOL_TYPE)));
 
                    GotoIf (av, true_lab,
@@ -499,8 +513,9 @@ struct
 
                   BC.insert
                   (bc, done_lab,
-                   Bind (resv,
-                         Load (BOOL_WIDTH, AddressLiteral (Local res, BOOL_TYPE)),
+                   Bind (resv, BOOL_TYPE,
+                         Load (BOOL_WIDTH,
+                               AddressLiteral (Local res, BOOL_TYPE)),
                          k (Var resv, BOOL_TYPE)));
 
                   GotoIf
@@ -510,8 +525,10 @@ struct
                    (fn (bv, bt) =>
                     implicit { src = bt, dst = BOOL_TYPE, v = bv }
                     (fn (bv, _) =>
-                     Bind (nresv, Not (BOOL_WIDTH, bv),
-                           Bind (nnresv, Not (BOOL_WIDTH, Var nresv),
+                     Bind (nresv, BOOL_TYPE,
+                           Not (BOOL_WIDTH, bv),
+                           Bind (nnresv, BOOL_TYPE,
+                                 Not (BOOL_WIDTH, Var nresv),
                                  Store (BOOL_WIDTH,
                                         AddressLiteral (Local res, BOOL_TYPE),
                                         Var nnresv,
@@ -532,8 +549,10 @@ struct
                  in
                    implicit { src = bt, dst = ltyp, v = bv }
                    (fn (bv, _) =>
-                    Bind (oldv, Load (width, addr),
-                          Bind (newv, ctor (Var oldv, bv),
+                    Bind (oldv, ltyp,
+                          Load (width, addr),
+                          Bind (newv, rett,
+                                ctor (Var oldv, bv),
                                 Store (width, addr,
                                        Var newv,
                                        k (Var newv, rett)))))
@@ -554,8 +573,10 @@ struct
                  in
                    implicit { src = bt, dst = Word8 Unsigned, v = bv }
                    (fn (bv, _) =>
-                    Bind (oldv, Load (width, addr),
-                          Bind (newv, ctor (width, Var oldv, bv),
+                    Bind (oldv, ltyp,
+                          Load (width, addr),
+                          Bind (newv, ltyp,
+                                ctor (width, Var oldv, bv),
                                 Store (width, addr,
                                        Var newv,
                                        k (Var newv, ltyp)))))
@@ -575,7 +596,7 @@ struct
                  in
                    implicit { src = bt, dst = Word8 Unsigned, v = bv }
                    (fn (bv, _) =>
-                    Bind (v, ctor (typewidth at, av, bv), k (Var v, at)))
+                    Bind (v, at, ctor (typewidth at, av, bv), k (Var v, at)))
                  end))
 
            | NORMAL bop =>
@@ -592,7 +613,7 @@ struct
                    (fn (av, _) =>
                     implicit { src = bt, dst = targettype, v = bv }
                     (fn (bv, _) =>
-                     Bind (v, ctor (av, bv), k (Var v, rett))))
+                     Bind (v, rett, ctor (av, bv), k (Var v, rett))))
                  end)))
 
       | Ast.Unop (uop, a) =>
@@ -608,18 +629,21 @@ struct
                  in
                    implicit { src = at, dst = BOOL_TYPE, v = av }
                    (fn (av, _) =>
-                    Bind (v, Not (BOOL_WIDTH, av), k (Var v, BOOL_TYPE)))
+                    Bind (v, BOOL_TYPE,
+                          Not (BOOL_WIDTH, av), k (Var v, BOOL_TYPE)))
                  end)
             | Ast.Negate => transexp a bc
                 (fn (av, at) =>
                  let val v = genvar "u"
-                 in Bind (v, Negate (typewidth at, av), k (Var v, at))
+                 in Bind (v, at,
+                          Negate (typewidth at, av), k (Var v, at))
                  end)
             | Ast.BitNot => transexp a bc
                 (fn (av, at) =>
                  let
                    val v = genvar "u"
-                 in Bind (v, Complement (typewidth at, av), k (Var v, at))
+                 in Bind (v, at,
+                          Complement (typewidth at, av), k (Var v, at))
                  end)
             | Ast.UnopExt _ => raise ToCIL "unop extensions unsupported"
             | Ast.PreInc =>
@@ -629,11 +653,13 @@ struct
                    val oldv = genvar "preincold"
                    val newv = genvar "preincnew"
                  in
-                   Bind (oldv, Load (width, addr),
-                         Bind (newv, Plus (width, Var oldv,
-                                           case typesignedness ltyp of
-                                             Unsigned => unsigned_literal width 1
-                                           | Signed => signed_literal width 1),
+                   Bind (oldv, ltyp,
+                         Load (width, addr),
+                         Bind (newv, ltyp,
+                               Plus (width, Var oldv,
+                                     case typesignedness ltyp of
+                                       Unsigned => unsigned_literal width 1
+                                     | Signed => signed_literal width 1),
                                Store (width, addr,
                                       Var newv,
                                       k (Var newv, ltyp))))
@@ -645,11 +671,13 @@ struct
                    val oldv = genvar "predecold"
                    val newv = genvar "predecnew"
                  in
-                   Bind (oldv, Load (width, addr),
-                         Bind (newv, Minus (width, Var oldv,
-                                            case typesignedness ltyp of
-                                              Unsigned => unsigned_literal width 1
-                                            | Signed => signed_literal width 1),
+                   Bind (oldv, ltyp,
+                         Load (width, addr),
+                         Bind (newv, ltyp,
+                               Minus (width, Var oldv,
+                                      case typesignedness ltyp of
+                                        Unsigned => unsigned_literal width 1
+                                      | Signed => signed_literal width 1),
                                Store (width, addr,
                                       Var newv,
                                       k (Var newv, ltyp))))
@@ -662,11 +690,13 @@ struct
                    val oldv = genvar "postincold"
                    val newv = genvar "postincnew"
                  in
-                   Bind (oldv, Load (width, addr),
-                         Bind (newv, Plus (width, Var oldv,
-                                            case typesignedness ltyp of
-                                              Unsigned => unsigned_literal width 1
-                                            | Signed => signed_literal width 1),
+                   Bind (oldv, ltyp,
+                         Load (width, addr),
+                         Bind (newv, ltyp,
+                               Plus (width, Var oldv,
+                                     case typesignedness ltyp of
+                                       Unsigned => unsigned_literal width 1
+                                     | Signed => signed_literal width 1),
                                Store (width, addr,
                                       Var newv,
                                       k (Var oldv, ltyp))))
@@ -678,11 +708,13 @@ struct
                    val oldv = genvar "postdecold"
                    val newv = genvar "postdecnew"
                  in
-                   Bind (oldv, Load (width, addr),
-                         Bind (newv, Minus (width, Var oldv,
-                                            case typesignedness ltyp of
-                                              Unsigned => unsigned_literal width 1
-                                            | Signed => signed_literal width 1),
+                   Bind (oldv, ltyp,
+                         Load (width, addr),
+                         Bind (newv, ltyp,
+                               Minus (width, Var oldv,
+                                      case typesignedness ltyp of
+                                        Unsigned => unsigned_literal width 1
+                                      | Signed => signed_literal width 1),
                                Store (width, addr, Var newv,
                                       k (Var oldv, ltyp))))
                  end))
@@ -698,7 +730,8 @@ struct
                   let
                     val retv = genvar "call"
                     fun implicitargs racc nil nil =
-                          Bind (retv, Call (fv, rev racc), k (Var retv, rett))
+                      Bind (retv, rett,
+                            Call (fv, rev racc), k (Var retv, rett))
                       | implicitargs racc (t :: trest) ((v, vt) :: vrest) =
                           implicit { src = vt, dst = t, v = v }
                           (fn (v, vt) =>
@@ -758,8 +791,9 @@ struct
                                    tv,
                                    Goto done_lab))));
                BC.insert (bc, done_lab,
-                          Bind (resv,
-                                Load (width, AddressLiteral (Local res, synthtyp)),
+                          Bind (resv, synthtyp,
+                                Load (width,
+                                      AddressLiteral (Local res, synthtyp)),
                                 k (Var resv, synthtyp)));
 
                implicit { src = condt, dst = BOOL_TYPE, v = condv }
@@ -891,7 +925,8 @@ struct
           BC.insert (bc, body_label,
                      transexp cond bc
                      (fn (condv, condt) =>
-                      Bind (ncond, Not (BOOL_WIDTH, condv),
+                      Bind (ncond, BOOL_TYPE,
+                            Not (BOOL_WIDTH, condv),
                             GotoIf (Var ncond, done_label,
                                     transstatement body body_targs bc
                                     (fn () => Goto body_label)))));
@@ -953,7 +988,8 @@ struct
                          (fn (condv, condt) =>
                           implicit { src = condt, dst = BOOL_TYPE, v = condv }
                           (fn (bv, _) =>
-                           Bind (ncond, Not (BOOL_WIDTH, bv),
+                           Bind (ncond, BOOL_TYPE,
+                                 Not (BOOL_WIDTH, bv),
                                  GotoIf (Var ncond, done_label,
                                          transstatement body body_targs bc
                                          (fn () => Goto inc_label))))));
