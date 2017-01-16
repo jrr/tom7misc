@@ -50,11 +50,16 @@
 structure ASM =
 struct
 
+  datatype sz = S8 | S16 | S32
+
   (* Temporary, which can be implemented with a register or
-     DS:[EBX+disp8] (or even stack?), so we have a lot of them. Though
-     we can only use a certain subset of x86 (e.g. exactly one operand
-     must be a EBX+disp8) in the output, translation to x86 takes
-     care of this for us.
+     DS:[EBX+disp8] (or even stack?), so we have a lot of them (in
+     fact we start by assuming an arbitrary number). Though we can
+     only use a certain subset of x86 (e.g. exactly one operand must
+     be a EBX+disp8) in the output, translation to x86 takes care of
+     this for us.
+
+     Every temporary knows its size and this is part of its identity.
 
      Loads and stores commute with temporary accesses; these things
      represent intermediate expressions that are inaccessible from
@@ -62,7 +67,7 @@ struct
 
      The lifetime of a temporary is explicit, or ...?
      *)
-  type tmp = string
+  type tmp = string * sz
 
   (* X86 offers both "A < B" and "B > A", which have equivalent
      meaning, but are encoded differently (CMP (A, B) vs CMP (B, A))
@@ -97,7 +102,12 @@ struct
   (* Unconditional jump *)
   | True
 
-  (* Destination comes first. *)
+  (* Destination comes first.
+
+     The size of the temporaries defines the operation being
+     performed, but of course not all combinations are supported.
+     TODO: Document what is allowed.
+     *)
   datatype cmd =
     (* Advance the base pointer to make room for the arguments
        for this funtion. This is done by the caller, since the
@@ -123,13 +133,13 @@ struct
   | Immediate16 of tmp * Word16.word
   (* PERF allow tmp * literal? It is only more efficient
      if the literal is printable... *)
-  | Add16 of tmp * tmp
-  | Sub16 of tmp * tmp
-  | Complement16 of tmp
-  | Mov16 of tmp * tmp
-  | Xor16 of tmp * tmp
-  | Push16 of tmp
-  | Pop16 of tmp
+  | Add of tmp * tmp
+  | Sub of tmp * tmp
+  | Complement of tmp
+  | Mov of tmp * tmp
+  | Xor of tmp * tmp
+  | Push of tmp
+  | Pop of tmp
     (* Name of block. 16 bits. *)
   | LoadLabel of tmp * string
     (* General jump to 16-bit code pointer. Used for
@@ -137,7 +147,7 @@ struct
        pointers. *)
   | JumpInd of tmp
     (* Conditional jumps all take a literal label. *)
-  | JumpCond16 of cond * string
+  | JumpCond of cond * string
 
   datatype block = Block of
     { name: string,
