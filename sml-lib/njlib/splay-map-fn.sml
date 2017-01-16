@@ -122,6 +122,27 @@ struct
         end
   end (* local *)
 
+  (* PERF: Should these perform splay operations? *)
+  fun headi EMPTY = NONE
+    | headi (MAP {root, ...}) =
+    let
+      fun h SplayNil = NONE
+        | h (SplayObj { left = SplayNil, value, ... }) = SOME value
+        | h (SplayObj { left, ... }) = h left
+    in
+      h (!root)
+    end
+
+  fun head EMPTY = NONE
+    | head (MAP {root, ...}) =
+    let
+      fun h SplayNil = NONE
+        | h (SplayObj { left = SplayNil, value = (_, value), ... }) = SOME value
+        | h (SplayObj { left, ... }) = h left
+    in
+      h (!root)
+    end
+
   (* Apply a function to the entries of the dictionary *)
   fun appi _ EMPTY = ()
     | appi af (MAP{root, ...}) =
