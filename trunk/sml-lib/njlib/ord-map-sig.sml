@@ -1,7 +1,7 @@
 (* ord-map-sig.sml
  *
  * COPYRIGHT (c) 1996 by AT&T Research.  See COPYRIGHT file for details.
- * Modified by Tom 7 in 2002, 2003
+ * Modified by Tom 7 in 2002, 2003, 2016
  *
  * Abstract signature of an applicative-style finite maps (dictionaries)
  * structure over ordered monomorphic keys.
@@ -18,6 +18,10 @@ sig
   (* The empty map *)
   val empty : 'a map
   val isempty : 'a map -> bool
+
+  (* Return the element with the smallest key, if the map has any values. *)
+  val head : 'a map -> 'a option
+  val headi : 'a map -> (Key.ord_key * 'a) option
 
   (* Insert an item. Existing item with same key is overwritten. *)
   val insert : 'a map * Key.ord_key * 'a -> 'a map
