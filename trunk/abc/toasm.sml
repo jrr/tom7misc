@@ -7,6 +7,7 @@ struct
   structure A = ASM
 
   exception ToASM of string
+  datatype sz = datatype ASM.sz
 
   (* Optimizations TODO:
      - Reuse temporaries.
@@ -18,15 +19,27 @@ struct
      - A handful of operators can use immediate values, at
        least printable ones. *)
 
+  (* Notes on translation strategy:
+
+     - all temporaries are either 16 or 32 bits.
+       many 8-bit operations are available to us, but
+       it adds lots of complexity.
+
+     *)
+
+
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
 
-  datatype sz = S8 | S16 | S32
   fun szbytes S8 = 1
     | szbytes S16 = 2
     | szbytes S32 = 4
 
-  (* Signedness doesn't matter any more -- the representation is
+  (* Layout size of a CIL type (e.g. in a locals frame or struct).
+     This is not necessarily the size of a temporary that holds
+     such a value.
+
+     Signedness doesn't matter any more -- the representation is
      the same and the operations are explicit. *)
   fun ctypsize (C.Word32 _) = S32
     | ctypsize (C.Word16 _) = S16
@@ -36,6 +49,7 @@ struct
     (* Labels in code segment, not addresses but no way for
        them to be bigger than 16 bits! *)
     | ctypsize (C.Code _) = S16
+    (* Maybe this should already have been compiled away. *)
     | ctypsize (C.Struct _) = raise ToASM "unimplemented: structs"
 
   (* Accumulate all of the mentions of Locals into the map. *)
@@ -66,6 +80,9 @@ struct
   end
   structure GetSizes = CILPass(GetSizesArg)
 
+  infix //
+  fun cmd // (cmds, next) = (cmd :: cmds, next)
+
   (* Generate the blocks for a CIL Function, once we know the locals
      layout. *)
   fun genblocks { name, offsets, argbytes, localbytes, body, blocks } =
@@ -80,14 +97,14 @@ struct
       (* Generate code to put the value v in a new temporary,
          then call the continuation with that temporary and its size. *)
       fun gentmp (ctx : C.context) (v : C.value)
-                 (k : string * sz -> (A.cmd list * 'b)) : A.cmd list * 'b =
+                 (k : A.tmp -> A.cmd list * 'b) : A.cmd list * 'b =
         case v of
           C.Var var =>
             (case C.Context.lookup (ctx, var) of
                NONE => raise ToASM ("Unbound variable " ^ var)
              | SOME ctyp =>
                  (* A variable is always translated to a same-named
-                    temporary. *)
+                    temporary at the appropriate size. *)
                  k (var, ctypsize ctyp))
         (* typ is the type of the thing thing pointed to. *)
         | C.AddressLiteral (loc, typ) => raise ToASM "unimplemented addr"
@@ -96,11 +113,26 @@ struct
         | C.Word32Literal w32 => raise ToASM "unimplemented w32"
         | C.StringLiteral _ => raise ToASM "unimplemented string literals"
 
-      fun genexp (ctx : C.context) (e : C.exp)
-                 (k : string * sz -> (A.cmd list * 'b)) : A.cmd list * 'b =
-        raise ToASM "unimplemented genexp"
+      fun genexp (ctx : C.context) (vt : (string * C.typ) option, e : C.exp)
+                 (k : unit -> A.cmd list * 'b) : A.cmd list * 'b =
+        case (e, vt) of
+          (C.Call (fv, argvs), vt) =>
+            (* This is the only one that we actually need to emit if
+               the result is unused (i.e. vt is NONE). *)
+            raise ToASM "unimplemented call"
+        | (_, NONE) => k ()
+        | (C.Value value, SOME (var, t)) =>
+            (* PERF, should probably avoid the mov in most of
+               these cases. Maybe should be done as part of temporary
+               allocation phase though. *)
+            gentmp ctx value
+            (fn tmp =>
+             (* XXX Check compatibility of t and sz from tmp? *)
+             let val sz = #2 tmp
+             in A.Mov ((var, sz), tmp) // k ()
+             end)
+        | (_, SOME (var, t)) => raise ToASM "unimplemented many exps..."
 (*
-            Value of value
     (* For dst < src. Just discards bits. *)
   | Truncate of { src: width, dst: width, v: value }
     (* For dst > src. Sign-extends if signed is true. *)
@@ -154,31 +186,29 @@ struct
       fun gencmds ctx stmt =
         case stmt of
           C.Bind (var, t, e, s) =>
-            let
-              val ctx = C.Context.insert (ctx, var, t)
-              val (cmds, next) = gencmds ctx s
-            in (A.Add16 (var, "unimplemented") :: cmds, next)
-            end
+            genexp ctx (SOME (var, t), e)
+            (fn () =>
+             let val ctx = C.Context.insert (ctx, var, t)
+             in gencmds ctx s
+             end)
         | C.Do (e, s) =>
-            let val (cmds, next) = gencmds ctx s
-            in (A.Xor16 ("unused", "unimplemented") :: cmds, next)
-            end
+            genexp ctx (NONE, e) (fn () => gencmds ctx s)
         | C.Store (width, addr, v, s) =>
             let val (cmds, next) = gencmds ctx s
             in
               case width of
                 C.Width8 =>
                   gentmp ctx addr
-                  (fn (taddr, _) =>
+                  (fn addrtmp =>
                    gentmp ctx v
-                   (fn (tv, _) =>
-                    (A.Store8 (taddr, tv) :: cmds, next)))
+                   (fn vtmp =>
+                    (A.Store8 (addrtmp, vtmp) :: cmds, next)))
               | C.Width16 =>
                   gentmp ctx addr
-                  (fn (taddr, _) =>
+                  (fn addrtmp =>
                    gentmp ctx v
-                   (fn (tv, _) =>
-                    (A.Store16 (taddr, tv) :: cmds, next)))
+                   (fn vtmp =>
+                    (A.Store16 (addrtmp, vtmp) :: cmds, next)))
               | C.Width32 =>
                   (* Maybe just compile it as two 16-bit stores
                      for now? *)
@@ -188,8 +218,8 @@ struct
             let val (cmds, next) = gencmds ctx s
             in
               gentmp ctx v
-              (fn (tv, _) =>
-               (A.JumpCond16 (A.NeZero tv, truelab) :: cmds, next))
+              (fn vtmp =>
+               (A.JumpCond (A.NeZero vtmp, truelab) :: cmds, next))
             end
         | C.Goto lab =>
             (case SM.find (!done, lab) of
@@ -198,7 +228,7 @@ struct
                SOME () => (nil, SOME lab)
                (* Otherwise, an explicit jump and we don't have
                   a suggestion for the next block. *)
-             | NONE => ([A.JumpCond16 (A.True, lab)], NONE))
+             | NONE => ([A.JumpCond (A.True, lab)], NONE))
 
         | C.Return v => raise ToASM "unimplemented"
         | C.End =>
