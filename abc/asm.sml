@@ -109,12 +109,16 @@ struct
      TODO: Document what is allowed.
      *)
   datatype cmd =
-    (* Advance the base pointer to make room for the arguments
+    (* XXX I think Prepare/Destroy are actually the same as
+       expand/shrink *)
+    (* Advance the base pointer to make
        for this funtion. This is done by the caller, since the
        arguments need to then be set up in this frame. *)
     PrepareArgs of string
-    (* Remove the frame. This is also done by the caller, since
-       at the end of functions before returning. *)
+    (* Remove the frame. This could be done by the caller or
+       callee, but we do it in the callee so that we have a
+       good chance of merging the ShrinkFrame and DestroyArgs,
+       which both just modify the base pointer. *)
   | DestroyArgs of string
     (* Expand or shrink the frame by moving the base pointer.
        A function expands in its header to make room for its
@@ -124,9 +128,10 @@ struct
        space it needs. *)
   | ExpandFrame of int
   | ShrinkFrame of int
+    (* Load (dst, addr) *)
   | Load8 of tmp * tmp
   | Load16 of tmp * tmp
-    (* Store (addr, val) *)
+    (* Store (addr, src) *)
   | Store8 of tmp * tmp
   | Store16 of tmp * tmp
   | Immediate8 of tmp * Word8.word
@@ -176,5 +181,66 @@ struct
   (* XXX data... *)
   datatype program = Program of { procs: proc list,
                                   main: string }
+
+  fun tmptos (v, s) = v ^
+    (case s of
+       S8 => "[8]"
+     | S16 => ""
+     | S32 => "[32]")
+
+  fun condtos c =
+    case c of
+      Below (a, b) => "jb " ^ tmptos a ^ ", " ^ tmptos b
+    | BelowEq (a, b) => "jbe " ^ tmptos a ^ ", " ^ tmptos b
+    | Less (a, b) => "jl " ^ tmptos a ^ ", " ^ tmptos b
+    | LessEq (a, b) => "jle " ^ tmptos a ^ ", " ^ tmptos b
+    | Eq (a, b) => "je " ^ tmptos a ^ ", " ^ tmptos b
+    | NotEq (a, b) => "jne " ^ tmptos a ^ ", " ^ tmptos b
+    | EqZero a => "jz " ^ tmptos a
+    | NeZero a => "jnz " ^ tmptos a
+    | True => "jmp"
+
+  fun cmdtos c =
+    case c of
+      ExpandFrame n => "expandframe " ^ Int.toString n
+    | ShrinkFrame n => "shrinkframe " ^ Int.toString n
+    | Load8 (dst, addr) => "load8 " ^ tmptos dst ^ " <- [" ^ tmptos addr ^ "]"
+    | Load16 (dst, addr) => "load16 " ^ tmptos dst ^ " <- [" ^ tmptos addr ^ "]"
+    | Store8 (addr, src) => "store8 [" ^ tmptos addr ^ "] <- " ^ tmptos src
+    | Store16 (addr, src) => "store16 [" ^ tmptos addr ^ "] <- " ^ tmptos src
+    | Push tmp => "push " ^ tmptos tmp
+    | Pop tmp => "push " ^ tmptos tmp
+    | LoadLabel (tmp, lab) => "loadlabel " ^ tmptos tmp ^ " <- &" ^ lab
+    | JumpInd tmp => "jmp_ind " ^ tmptos tmp
+    | JumpCond (cond, lab) => condtos cond ^ " " ^ lab
+    | _ => "unimplemented cmdtos cmd"
+(*
+  | Immediate8 of tmp * Word8.word
+  | Immediate16 of tmp * Word16.word
+  (* PERF allow tmp * literal? It is only more efficient
+     if the literal is printable... *)
+  | Add of tmp * tmp
+  | Sub of tmp * tmp
+  | Complement of tmp
+  | Mov of tmp * tmp
+  | Xor of tmp * tmp
+*)
+  fun blocktos (Block { name, cmds }) =
+    "  " ^ name ^ ":\n" ^
+    String.concat (map (fn cmd => "    " ^ cmdtos cmd ^ "\n") cmds)
+
+  fun proctos (Proc { name, argbytes, localbytes, offsets, blocks }) =
+    let val offsets = ListUtil.sort (ListUtil.bysecond Int.compare) offsets
+    in
+      "PROC " ^ name ^ " (argbytes " ^ Int.toString argbytes ^
+      " localbytes " ^ Int.toString localbytes ^ "):\n  {\n" ^
+      String.concat (map (fn (s, i) => "    @" ^ Int.toString i ^
+                          "\t" ^ s ^ "\n") offsets) ^ "  }\n" ^
+      StringUtil.delimit "\n" (map blocktos blocks)
+    end
+
+  fun progtos (Program { procs, main }) =
+    "PROGRAM (main = " ^ main ^ "):\n" ^
+    StringUtil.delimit "\n" (map proctos procs) ^ "\n"
 
 end
