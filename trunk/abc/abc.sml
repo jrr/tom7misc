@@ -35,6 +35,7 @@ struct
         val cil = OptimizeCIL.optimize cil
         val () = print ("\nOptimized:\n" ^ CIL.progtos cil ^ "\n")
         val asm = ToASM.toasm cil
+        val () = print ("\nToASM:\n" ^ ASM.progtos asm ^ "\n")
       in
         print "TODO: Rest of compiler\n"
       end

@@ -21,6 +21,16 @@ struct
 
   (* Notes on translation strategy:
 
+     - The comparison operators are some trouble; we don't
+       something like cmov, so we have to do a compare-
+       and-jump in order to compute the values. (It would
+       maybe be possible to subtract and check the sign
+       bit manually, but it's pretty fiddly.) So before
+       translating to ASM, we need to replace the
+       comparison expressions with the versions that
+       compare and branch at once. (XXX need to add these
+       to CIL.)
+
      - all temporaries are either 16 or 32 bits.
        many 8-bit operations are available to us, but
        it adds lots of complexity.
@@ -82,6 +92,21 @@ struct
 
   infix //
   fun cmd // (cmds, next) = (cmd :: cmds, next)
+
+  local
+    val ctr = ref 0
+  in
+    fun newtmp (name, size) =
+      let
+        val x = !ctr
+      in
+        ctr := x + 1;
+        (* XXX this is pretty bogus since we keep using $.
+           Should either parse to remove $, or just have
+           a symbol type.*)
+        (name ^ "$t" ^ Int.toString x, size)
+      end
+  end
 
   (* Generate the blocks for a CIL Function, once we know the locals
      layout. *)
@@ -230,12 +255,35 @@ struct
                   a suggestion for the next block. *)
              | NONE => ([A.JumpCond (A.True, lab)], NONE))
 
-        | C.Return v => raise ToASM "unimplemented"
+        | C.Return v =>
+            let val ratmp = newtmp ("returnaddr", S16)
+            in
+              (* PERF can just merge these *)
+              (A.ShrinkFrame localbytes ::
+               A.ShrinkFrame argbytes ::
+               (* XXX this is probably no good -- we've just
+                  moved the base pointer so the allocation of
+                  this temporary will not be right. Ideas:
+                   - "Return" macro that keeps track of the
+                     temporary or uses a register;
+                   - Alternatively/Equivalently, JumpInd always takes
+                     the address from the top of the stack (this might
+                     be cheaper than you think because stack ops are
+                     mostly 1 byte)
+                   - Oh wait it's actually fine because temporaries
+                     are not the same as "frame" (which is addressable
+                     local variables)? This will become clear later..
+                    *)
+               A.Pop ratmp ::
+               A.JumpInd ratmp ::
+               nil,
+               NONE)
+            end
         | C.End =>
-               (* Unreachable, so we can just fall off the end.
-                  XXX Actually I think this is used inconsistently,
-                  like for local variable initialization? *)
-               (nil, NONE)
+            (* Unreachable, so we can just fall off the end.
+               XXX Actually I think this is used inconsistently,
+               like for local variable initialization? *)
+            (nil, NONE)
 
       fun donext () =
         case SM.headi (!todo) of
@@ -261,7 +309,8 @@ struct
 
       val header_label = name ^ "$hdr"
       fun genall () =
-        (* Need to set up local variable frame. *)
+        (* Need to set up local variable frame. Caller has already
+           set up 'argbytes' bytes for us. *)
         A.Block { name = header_label, cmds = [A.ExpandFrame localbytes] } ::
         (* And then continue with the function's entry point. *)
         genblock body
