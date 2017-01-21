@@ -100,14 +100,23 @@ struct
   | Call of value * value list
   | Load of width * value
 
+  (* Alternative to the operator forms. *)
+  datatype cond =
+    CLess of width * value * value
+  | CLessEq of width * value * value
+  | CBelow of width * value * value
+  | CBelowEq of width * value * value
+  | CEq of width * value * value
+  | CNeq of width * value * value
+
   datatype stmt =
     Bind of string * typ * exp * stmt
     (* Like bind, but no variable. *)
   | Do of exp * stmt
-  (* Store(width, address, value, rest) *)
+    (* Store (width, address, value, rest) *)
   | Store of width * value * value * stmt
-  (* GotoIf(cond, true-label, else-branch). *)
-  | GotoIf of value * string * stmt
+    (* GotoIf (cond, true-label, else-branch). *)
+  | GotoIf of cond * string * stmt
   | Goto of string
   | Return of value
   | End
@@ -218,6 +227,13 @@ struct
         "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
     | exptos (Load (width, addr)) = "LOAD" ^ widthtos width ^ " " ^ valtos addr
 
+  fun condtos (CLess (w, a, b)) = valtos a ^ " <s " ^ valtos b
+    | condtos (CLessEq (w, a, b)) = valtos a ^ " <=s " ^ valtos b
+    | condtos (CBelow (w, a, b)) = valtos a ^ " < " ^ valtos b
+    | condtos (CBelowEq (w, a, b)) = valtos a ^ " <s " ^ valtos b
+    | condtos (CEq (w, a, b)) = valtos a ^ " == " ^ valtos b
+    | condtos (CNeq (w, a, b)) = valtos a ^ " != " ^ valtos b
+
   fun stmttos (Bind (var, t, e, s)) =
         "  " ^ var ^ " : " ^ typtos t ^ " = " ^ exptos e ^ "\n" ^ stmttos s
     | stmttos (Do (e, s)) =
@@ -225,8 +241,8 @@ struct
     | stmttos (Store (width, dest, v, s)) =
         "  " ^ valtos dest ^ " :=" ^ widthtos width ^
         " " ^ valtos v ^ "\n" ^ stmttos s
-    | stmttos (GotoIf (v, lab, s)) =
-        "  if " ^ valtos v ^ " goto " ^ lab ^ "\n" ^ stmttos s
+    | stmttos (GotoIf (c, lab, s)) =
+        "  if " ^ condtos c ^ " goto " ^ lab ^ "\n" ^ stmttos s
     | stmttos (Return v) = "  return " ^ valtos v
     | stmttos (Goto lab) = "  goto " ^ lab
     | stmttos End = "  end"

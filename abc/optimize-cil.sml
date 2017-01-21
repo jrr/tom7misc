@@ -104,11 +104,11 @@ struct
       end
 
     fun case_GotoIf arg (stuff as ({ selft, selfv, selfe, selfs }, ctx))
-      (v, lab, s) =
+      (cond, lab, s) =
       let in
         adduse arg lab;
         print ("use " ^ lab ^ "\n");
-        CI.case_GotoIf arg stuff (v, lab, s)
+        CI.case_GotoIf arg stuff (cond, lab, s)
       end
 
     fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) lab =
@@ -311,42 +311,55 @@ struct
                end)
 
     fun case_GotoIf (arg as { known, simplified })
-                    ({ selft, selfv, selfe, selfs }, ctx) (v, lab, s) =
+                    ({ selft, selfv, selfe, selfs }, ctx) (c, lab, s) =
       let
-        datatype kb =
-            Unknown
-          | Zero
-          | Nonzero
-        fun kbvalue (Var s) =
-          (case SM.find (known, s) of
-             NONE => Unknown
-           | SOME v => kbvalue v)
-          | kbvalue (Word8Literal w) =
-             if w = Word8.fromInt 0 then Zero else Nonzero
-          | kbvalue (Word16Literal w) =
-             if w = Word16.fromInt 0 then Zero else Nonzero
-          | kbvalue (Word32Literal w) =
-             if w = Word32.fromInt 0 then Zero else Nonzero
-          (* PERF I guess this could be a string/address literal, in
-             which case it is nonzero, yeah? *)
-          | kbvalue _ = Unknown
+        datatype cmp = LESS of bool | BELOW of bool | EQ | NEQ
+        fun vv a = let val (a, _) = selfv arg ctx a in a end
+        val (cmp, w, a, b, ctor) =
+          case c of
+            CLess (w, a, b) => (LESS false, w, vv a, vv b, CLess)
+          | CLessEq (w, a, b) => (LESS true, w, vv a, vv b, CLessEq)
+          | CBelow (w, a, b) => (BELOW false, w, vv a, vv b, CBelow)
+          | CBelowEq (w, a, b) => (BELOW true, w, vv a, vv b, CBelowEq)
+          | CEq (w, a, b) => (EQ, w, vv a, vv b, CEq)
+          | CNeq (w, a, b) => (NEQ, w, vv a, vv b, CNeq)
+        val s = selfs arg ctx s
+        datatype taken = Taken | NotTaken | Unknown
+        fun take true = Taken
+          | take false = NotTaken
+        fun check w_expected =
+          if w = w_expected
+          then ()
+          else raise OptimizeCIL ("In GotoIf, argument values didn't " ^
+                                  "agree with annotated size. Wanted " ^
+                                  widthtos w_expected ^ " but saw literals " ^
+                                  " of type " ^ widthtos w)
+        val taken =
+          case (cmp, a, b) of
+            (LESS eq, Word8Literal a, Word8Literal b) =>
+              let in
+                check Width8;
+                take ` (if eq then op <= else op <) (Word8.toIntX a,
+                                                     Word8.toIntX b)
+              end
+          | (LESS eq, Word16Literal a, Word16Literal b) =>
+              let in
+                check Width16;
+                take ` (if eq then op <= else op <) (Word16.toIntX a,
+                                                     Word16.toIntX b)
+              end
+          | (LESS eq, Word32Literal a, Word32Literal b) =>
+              let in
+                check Width32;
+                take ` (if eq then op <= else op <) (Word32.toIntX a,
+                                                     Word32.toIntX b)
+              end
+          (* XXX BELOW, EQ, NEQ *)
+          | _ => Unknown
 
-        val (v, _) = selfv arg ctx v
       in
-        case kbvalue v of
-          Unknown => GotoIf (v, lab, selfs arg ctx s)
-        | Zero =>
-            let in
-              eprint ("dropping always-false gotoif " ^ lab);
-              simplified := true;
-              selfs arg ctx s
-            end
-        | Nonzero =>
-            let in
-              eprint ("gotoif " ^ lab ^ " is always taken");
-              simplified := true;
-              Goto lab
-            end
+        (* XXX do something with 'taken'! *)
+        GotoIf (ctor (w, a, b), lab, s)
       end
 
     fun case_Truncate arg ({ selft, selfv, selfe, selfs }, ctx) { src, dst, v } =

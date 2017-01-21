@@ -282,12 +282,26 @@ Member *)
     in
       Store (w, addr, v, s)
     end
-  fun case_GotoIf arg ({ selft, selfv, selfe, selfs }, ctx) (v, lab, s) =
+  fun case_GotoIf arg ({ selft, selfv, selfe, selfs } : selves, ctx)
+                      (c, lab, s) =
     let
-      val (v, _) = selfv arg ctx v
+      val c =
+        case c of
+           CLess (w, a, b) =>
+             CLess (w, #1 ` selfv arg ctx a, #1 ` selfv arg ctx b)
+         | CLessEq (w, a, b) =>
+             CLessEq (w, #1 ` selfv arg ctx a, #1 ` selfv arg ctx b)
+         | CBelow (w, a, b) =>
+             CBelow (w, #1 ` selfv arg ctx a, #1 ` selfv arg ctx b)
+         | CBelowEq (w, a, b) =>
+             CBelowEq (w, #1 ` selfv arg ctx a, #1 ` selfv arg ctx b)
+         | CEq (w, a, b) =>
+             CEq (w, #1 ` selfv arg ctx a, #1 ` selfv arg ctx b)
+         | CNeq (w, a, b) =>
+             CNeq (w, #1 ` selfv arg ctx a, #1 ` selfv arg ctx b)
       val s = selfs arg ctx s
     in
-      GotoIf (v, lab, s)
+      GotoIf (c, lab, s)
     end
   fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) = Goto
   fun case_Return arg ({ selft, selfv, selfe, selfs }, ctx) v =

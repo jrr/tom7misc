@@ -483,7 +483,7 @@ struct
                                 AddressLiteral (Local res, BOOL_TYPE)),
                           k (Var resv, BOOL_TYPE)));
 
-                   GotoIf (av, true_lab,
+                   GotoIf (CNeq (BOOL_WIDTH, av, LiteralFalse), true_lab,
                            (* condition fails; store false *)
                            Store (BOOL_WIDTH,
                                   AddressLiteral (Local res, BOOL_TYPE),
@@ -519,7 +519,7 @@ struct
                          k (Var resv, BOOL_TYPE)));
 
                   GotoIf
-                  (av, true_lab,
+                  (CNeq (BOOL_WIDTH, av, LiteralFalse), true_lab,
                    (* fall through to false branch *)
                    transexp b bc
                    (fn (bv, bt) =>
@@ -798,7 +798,7 @@ struct
 
                implicit { src = condt, dst = BOOL_TYPE, v = condv }
                (fn (condv, _) =>
-                GotoIf (condv, true_lab,
+                GotoIf (CNeq (BOOL_WIDTH, condv, LiteralFalse), true_lab,
                         (* fall through to false branch *)
                         transexp fe bc
                         (fn (fv, ft) =>
@@ -884,39 +884,45 @@ struct
     (* XXX need to coerce return type to the type the function wants? *)
     | Ast.Return (SOME e) => transexp e bc (fn (v, t) => Return v)
     | Ast.IfThen (e, body) =>
-        transexp e bc (fn (cond, condt) =>
-                       let
-                         val true_label = BC.genlabel "if_t"
-                         val rest_label = BC.genlabel "if_r"
-                       in
-                         BC.insert (bc, true_label,
-                                    transstatement body targs bc
-                                    (fn () => Goto rest_label));
-                         BC.insert (bc, rest_label, k ());
-                         GotoIf (cond, true_label,
-                                 Goto rest_label)
-                       end)
+        transexp e bc
+        (fn (cond, condt) =>
+         let
+           val true_label = BC.genlabel "if_t"
+           val rest_label = BC.genlabel "if_r"
+         in
+           BC.insert (bc, true_label,
+                      transstatement body targs bc
+                      (fn () => Goto rest_label));
+           BC.insert (bc, rest_label, k ());
+           (* XXX cond may not be bool_width. can't just truncate
+              because we could lose high one bits. So we should
+              really be generating a 32-bit version in that
+              case? *)
+           GotoIf (CNeq (BOOL_WIDTH, cond, LiteralFalse), true_label,
+                   Goto rest_label)
+         end)
     | Ast.IfThenElse (e, true_body, false_body) =>
-        transexp e bc (fn (cond, condt) =>
-                       let
-                         val true_label = BC.genlabel "if_t"
-                         val rest_label = BC.genlabel "if_r"
-                       in
-                         BC.insert (bc, true_label,
-                                    transstatement true_body targs bc
-                                    (fn () => Goto rest_label));
-                         BC.insert (bc, rest_label, k ());
-                         GotoIf (cond, true_label,
-                                 transstatement false_body targs bc
-                                 (fn () => Goto rest_label))
-                       end)
+        transexp e bc
+        (fn (cond, condt) =>
+         let
+           val true_label = BC.genlabel "if_t"
+           val rest_label = BC.genlabel "if_r"
+         in
+           BC.insert (bc, true_label,
+                      transstatement true_body targs bc
+                      (fn () => Goto rest_label));
+           BC.insert (bc, rest_label, k ());
+           (* XXX as above. *)
+           GotoIf (CNeq (BOOL_WIDTH, cond, LiteralFalse), true_label,
+                   transstatement false_body targs bc
+                   (fn () => Goto rest_label))
+         end)
     | Ast.Goto lab => Goto (labstring lab)
 
     | Ast.While (cond, body) =>
         let
           val body_label = BC.genlabel "whilebody"
           val done_label = BC.genlabel "whiledone"
-          val ncond = genvar "ncond"
           val body_targs =
             { break = SOME done_label,
               continue = SOME body_label }
@@ -925,11 +931,12 @@ struct
           BC.insert (bc, body_label,
                      transexp cond bc
                      (fn (condv, condt) =>
-                      Bind (ncond, BOOL_TYPE,
-                            Not (BOOL_WIDTH, condv),
-                            GotoIf (Var ncond, done_label,
-                                    transstatement body body_targs bc
-                                    (fn () => Goto body_label)))));
+                      (* XXX as above *)
+                      (* condv == false, i.e., !condv *)
+                      GotoIf (CEq (BOOL_WIDTH, condv, LiteralFalse),
+                              done_label,
+                              transstatement body body_targs bc
+                              (fn () => Goto body_label))));
           Goto body_label
         end
 
@@ -946,7 +953,9 @@ struct
           BC.insert (bc, test_label,
                      transexp cond bc
                      (fn (condv, condt) =>
-                      GotoIf (condv, body_label,
+                      (* XXX as above *)
+                      GotoIf (CNeq (BOOL_WIDTH, condv, LiteralFalse),
+                              body_label,
                               Goto done_label)));
           BC.insert (bc, body_label,
                      transstatement body body_targs bc
@@ -959,7 +968,6 @@ struct
           val start_label = BC.genlabel "forstart"
           val inc_label = BC.genlabel "forinc"
           val done_label = BC.genlabel "fordone"
-          val ncond = genvar "ncond"
 
           val body_targs =
             { break = SOME done_label,
@@ -986,13 +994,12 @@ struct
                      | SOME c =>
                          transexp c bc
                          (fn (condv, condt) =>
-                          implicit { src = condt, dst = BOOL_TYPE, v = condv }
-                          (fn (bv, _) =>
-                           Bind (ncond, BOOL_TYPE,
-                                 Not (BOOL_WIDTH, bv),
-                                 GotoIf (Var ncond, done_label,
-                                         transstatement body body_targs bc
-                                         (fn () => Goto inc_label))))));
+                          (* XXX as above *)
+                          (* cond == false, i.e. !cond *)
+                          GotoIf (CEq (BOOL_WIDTH, condv, LiteralFalse),
+                                  done_label,
+                                  transstatement body body_targs bc
+                                  (fn () => Goto inc_label))));
 
           (* When we're done, it's just the current continuation. *)
           BC.insert (bc, done_label, k ());

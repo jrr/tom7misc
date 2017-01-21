@@ -138,6 +138,7 @@ struct
         | C.Word32Literal w32 => raise ToASM "unimplemented w32"
         | C.StringLiteral _ => raise ToASM "unimplemented string literals"
 
+      (* Generate code for e, and bind vt (if SOME) to its value. *)
       fun genexp (ctx : C.context) (vt : (string * C.typ) option, e : C.exp)
                  (k : unit -> A.cmd list * 'b) : A.cmd list * 'b =
         case (e, vt) of
@@ -156,7 +157,20 @@ struct
              let val sz = #2 tmp
              in A.Mov ((var, sz), tmp) // k ()
              end)
+        (* These should be compiled away into GotoIf (cond, ...) *)
+        | (C.Greater _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.GreaterEq _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.Above _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.AboveEq _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.Less _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.LessEq _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.Below _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.BelowEq _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.Eq _, _) => raise ToASM "bug: unexpected comparison op"
+        | (C.Neq _, _) => raise ToASM "bug: unexpected comparison op"
+
         | (_, SOME (var, t)) => raise ToASM "unimplemented many exps..."
+
 (*
     (* For dst < src. Just discards bits. *)
   | Truncate of { src: width, dst: width, v: value }
@@ -178,16 +192,6 @@ struct
   | RightShift of width * value * value
     (* "Greater" and "Less" are signed.
        "Above" and "Below" are unsigned. *)
-  | Greater of width * value * value
-  | GreaterEq of width * value * value
-  | Above of width * value * value
-  | AboveEq of width * value * value
-  | Less of width * value * value
-  | LessEq of width * value * value
-  | Below of width * value * value
-  | BelowEq of width * value * value
-  | Eq of width * value * value
-  | Neq of width * value * value
   (* These are all bitwise. && and || are compiled away. *)
   | And of width * value * value
   | Or of width * value * value
@@ -239,13 +243,57 @@ struct
                      for now? *)
                   raise ToASM "32-bit stores not implemented yet"
             end
-        | C.GotoIf (v, truelab, s) =>
+
+        | C.GotoIf (cond, truelab, s) =>
             let val (cmds, next) = gencmds ctx s
             in
-              gentmp ctx v
-              (fn vtmp =>
-               (A.JumpCond (A.NeZero vtmp, truelab) :: cmds, next))
+              case cond of
+                C.CLess (w, a, b) =>
+                  gentmp ctx a
+                  (fn atmp =>
+                   gentmp ctx b
+                   (fn btmp =>
+                    (A.JumpCond (A.Less (atmp, btmp), truelab) :: cmds,
+                     next)))
+              | C.CLessEq (w, a, b) =>
+                  gentmp ctx a
+                  (fn atmp =>
+                   gentmp ctx b
+                   (fn btmp =>
+                    (A.JumpCond (A.LessEq (atmp, btmp), truelab) :: cmds,
+                     next)))
+              | C.CBelow (w, a, b) =>
+                  gentmp ctx a
+                  (fn atmp =>
+                   gentmp ctx b
+                   (fn btmp =>
+                    (A.JumpCond (A.Below (atmp, btmp), truelab) :: cmds,
+                     next)))
+              | C.CBelowEq (w, a, b) =>
+                  gentmp ctx a
+                  (fn atmp =>
+                   gentmp ctx b
+                   (fn btmp =>
+                    (A.JumpCond (A.BelowEq (atmp, btmp), truelab) :: cmds,
+                     next)))
+               (* PERF for these two, we should generate EqZero and
+                  NeZero if one argument is a literal zero. *)
+              | C.CEq (w, a, b) =>
+                  gentmp ctx a
+                  (fn atmp =>
+                   gentmp ctx b
+                   (fn btmp =>
+                    (A.JumpCond (A.Eq (atmp, btmp), truelab) :: cmds,
+                     next)))
+              | C.CNeq (w, a, b) =>
+                  gentmp ctx a
+                  (fn atmp =>
+                   gentmp ctx b
+                   (fn btmp =>
+                    (A.JumpCond (A.NotEq (atmp, btmp), truelab) :: cmds,
+                     next)))
             end
+
         | C.Goto lab =>
             (case SM.find (!done, lab) of
                (* If we haven't yet processed the destination block,
