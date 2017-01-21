@@ -4,10 +4,11 @@ signature CILPASSARG =
 sig
 
   type arg
-  type selves = { selft : arg -> CIL.context -> CIL.typ -> CIL.typ,
-                  selfv : arg -> CIL.context -> CIL.value -> CIL.value * CIL.typ,
-                  selfe : arg -> CIL.context -> CIL.exp -> CIL.exp * CIL.typ,
-                  selfs : arg -> CIL.context -> CIL.stmt -> CIL.stmt }
+  type selves =
+    { selft : arg -> CIL.context -> CIL.typ -> CIL.typ,
+      selfv : arg -> CIL.context -> CIL.value -> CIL.value * CIL.typ,
+      selfe : arg -> CIL.context -> CIL.exp -> CIL.exp * CIL.typ,
+      selfs : arg -> CIL.context -> CIL.stmt -> CIL.stmt }
 
   (* typ cases *)
   val case_Pointer : arg -> selves * CIL.context -> CIL.typ -> CIL.typ
@@ -21,14 +22,16 @@ sig
 
   (* value cases *)
   val case_Var : arg -> selves * CIL.context -> string -> CIL.value * CIL.typ
-  val case_AddressLiteral : arg -> selves * CIL.context -> CIL.loc * CIL.typ -> CIL.value * CIL.typ
+  val case_AddressLiteral : arg -> selves * CIL.context ->
+    CIL.loc * CIL.typ -> CIL.value * CIL.typ
   val case_Word8Literal :
     arg -> selves * CIL.context -> Word8.word -> CIL.value * CIL.typ
   val case_Word16Literal :
     arg -> selves * CIL.context -> Word16.word -> CIL.value * CIL.typ
   val case_Word32Literal :
     arg -> selves * CIL.context -> Word32.word -> CIL.value * CIL.typ
-  val case_StringLiteral : arg -> selves * CIL.context -> string -> CIL.value * CIL.typ
+  val case_StringLiteral : arg -> selves * CIL.context -> string ->
+    CIL.value * CIL.typ
 
   (* exp cases *)
   val case_Value : arg -> selves * CIL.context -> CIL.value -> CIL.exp * CIL.typ
@@ -58,10 +61,6 @@ sig
   val case_Not : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
   val case_Complement : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
   val case_Negate : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
-  (* val case_AddressOf : arg -> selves * CIL.context -> CIL.value -> CIL.exp * CIL.typ *)
-  (* val case_Dereference : arg -> selves * CIL.context -> CIL.value -> CIL.exp * CIL.typ *)
-  (* val case_Subscript : arg -> selves * CIL.context -> CIL.value * CIL.value -> CIL.exp * CIL.typ *)
-  (* val case_Member : arg -> selves * CIL.context -> CIL.value * string -> CIL.exp * CIL.typ *)
   val case_Call : arg -> selves * CIL.context -> CIL.value * CIL.value list -> CIL.exp * CIL.typ
   val case_Load : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
 
@@ -69,7 +68,7 @@ sig
   val case_Bind : arg -> selves * CIL.context -> string * CIL.typ * CIL.exp * CIL.stmt -> CIL.stmt
   val case_Do : arg -> selves * CIL.context -> CIL.exp * CIL.stmt -> CIL.stmt
   val case_Store : arg -> selves * CIL.context -> CIL.width * CIL.value * CIL.value * CIL.stmt -> CIL.stmt
-  val case_GotoIf : arg -> selves * CIL.context -> CIL.value * string * CIL.stmt -> CIL.stmt
+  val case_GotoIf : arg -> selves * CIL.context -> CIL.cond * string * CIL.stmt -> CIL.stmt
   val case_Return : arg -> selves * CIL.context -> CIL.value -> CIL.stmt
   val case_Goto : arg -> selves * CIL.context -> string -> CIL.stmt
   val case_End : arg -> selves * CIL.context -> CIL.stmt
