@@ -1,3 +1,6 @@
+Games to do: Silver Surfer
+ExciteBike
+
 
 16 Jan 2016
 Search in Contra is getting stuck in local maxima where death of a
