@@ -163,7 +163,8 @@ struct
        we can rewrite it... *)
     (* TODO: Drop blocks only used by themselves.
        (Or in general, unreachable cycles.) *)
-    fun optimize simplified (Func { args, ret, body, blocks }) =
+    (* Optimize a function or global body (start label and blocks). *)
+    fun optimize_body simplified (body, blocks) =
       let
         val uses : analyze_blocks_uses ref = ref SM.empty
         (* Give every block an entry, so that we later see 0-use blocks. *)
@@ -217,7 +218,16 @@ struct
         if length ` !removeme > 0
         then simplified := true
         else ();
-        Func { args = args, ret = ret, body = body, blocks = blocks }
+        (body, blocks)
+      end
+
+    fun optimize_function simplified (Func { args, ret, body, blocks }) =
+      let val (body, blocks) = optimize_body simplified (body, blocks)
+      in Func { args = args, ret = ret, body = body, blocks = blocks }
+      end
+    fun optimize_global simplified (Glob { typ, init, blocks }) =
+      let val (body, blocks) = optimize_body simplified (init, blocks)
+      in Glob { typ = typ, init = body, blocks = blocks }
       end
   end
 
@@ -497,6 +507,50 @@ struct
   end
   structure Simplify = CILPass(SimplifyArg)
 
+  (* For translating to ASM, we only want to cond/GotoIf to
+     do comparisons. This pass eliminates the expression forms
+     (e.g. Less). *)
+  structure EliminateCompareOps =
+  struct
+    structure BC = CILUtil.BC
+    structure EliminateCompareOpsArg : CILPASSARG =
+    struct
+      (* Argument's lifetime is for the "optimization" of a single
+         function; it collects any new blocks that we have to generate. *)
+      type arg = { bc : CIL.stmt BC.blockcollector }
+      structure CI = CILIdentity(type arg = arg)
+      open CI
+
+      (* XXX do it, duh *)
+    end
+
+    structure ECO = CILPass(EliminateCompareOpsArg)
+
+    fun eliminate (Program { functions, globals }) =
+      let
+        fun doblock bc (lab, stmt) =
+          let
+            val ctx = CIL.Context.empty
+            val arg = { bc = bc }
+            val stmt = ECO.converts arg ctx stmt
+          in
+            BC.insert (bc, lab, stmt)
+          end
+        fun onefunc (Func { args, ret, body, blocks }) =
+          let val bc = BC.empty ()
+          in
+            app (doblock bc) blocks;
+            Func { args = args, ret = ret, body = body,
+                   blocks = BC.extract bc }
+          end
+        fun oneglobal _ = raise OptimizeCIL "unimplemented globals"
+      in
+        Program { functions = ListUtil.mapsecond onefunc functions,
+                  globals = map oneglobal globals }
+      end
+    (* XXXX function that applies to all funcs *)
+  end
+
   (* Optimize a basic block without any contextual information.
      Blocks are closed code that manifest effects through loads
      and stores to local/global addresses. *)
@@ -516,27 +570,39 @@ struct
   fun optimize_function simplified (name, func) =
     let
       val Func { args, ret, body, blocks } =
-        OptimizeBlocks.optimize simplified func
+        OptimizeBlocks.optimize_function simplified func
     in
       (name,
        Func { args = args, ret = ret, body = body,
               blocks = ListUtil.mapsecond (optimize_block simplified) blocks })
     end
 
-  fun optimize (Program { functions, globals }) =
+  fun optimize_global simplified (name, glob) =
+    let
+      val Glob { typ, init, blocks } =
+        OptimizeBlocks.optimize_global simplified glob
+    in
+      (name,
+       Glob { typ = typ, init = init,
+              blocks = ListUtil.mapsecond (optimize_block simplified) blocks })
+    end
+
+  fun simplify (Program { functions, globals }) =
     let
       val () = print "\n----------- optimization round -------------\n"
       val simplified = ref false
       val functions = map (optimize_function simplified) functions
-
+      val globals = map (optimize_global simplified) globals
       val prog = Program { functions = functions, globals = globals }
     in
       print ("\nNow:\n" ^ CIL.progtos prog ^ "\n");
 
       if !simplified
-      then optimize prog
+      then simplify prog
       else prog
     end
+
+  fun optimize prog = simplify prog
 
 end
 

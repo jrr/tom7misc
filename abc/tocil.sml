@@ -7,6 +7,9 @@ struct
   exception ToCIL of string
   open CIL
 
+  structure BC = CILUtil.BC
+  type 'a bc = 'a BC.blockcollector
+
   (* Width of load/store for boolean temporaries.
      Anything will work, so this is just a
      performance preference.
@@ -50,48 +53,6 @@ struct
       if true (* XXX check *)
       then Word32Literal ` Word32.fromInt i
       else raise ToCIL ("Signed 32-bit literal too large: " ^ Int.toString i)
-
-  structure BC :>
-  sig
-    type 'a blockcollector
-    type label = string
-    val empty : unit -> 'a blockcollector
-    (* Generated labels are distinct, even across different
-       blockcollector instances or if the collector is extracted. *)
-    val genlabel : string -> label
-    val label : string -> label
-    val insert : 'a blockcollector * label * 'a -> unit
-
-    (* Empties the block collector, returning its contents. No
-       label appears more than once. *)
-    val extract : 'a blockcollector -> (label * 'a) list
-    (* XXX tolist or whatever *)
-  end =
-  struct
-    (* PERF could use unique ids, hashtable, etc. *)
-    type label = string
-    structure SM = SplayMapFn(type ord_key = string
-                              val compare = String.compare)
-    type 'a blockcollector = 'a SM.map ref
-    val label_ctr = ref 0
-    fun genlabel s =
-      let in
-        label_ctr := !label_ctr + 1;
-        "l$" ^ s ^ "$" ^ Int.toString (!label_ctr)
-      end
-    fun label s = s ^ "$"
-    fun empty () = ref SM.empty
-    fun insert (r : 'a blockcollector, l, v : 'a) =
-      r := SM.insert(!r, l, v)
-    fun extract (r : 'a blockcollector) =
-      let
-        val v = SM.listItemsi (!r)
-      in
-        r := SM.empty;
-        v
-      end
-  end
-  type 'a bc = 'a BC.blockcollector
 
   local val var_ctr = ref 0
   in
@@ -1060,8 +1021,10 @@ struct
                                  vv, End)))
                     | Ast.Aggregate _ =>
                         raise ToCIL "aggregate initialization unimplemented")
+               val startlabel = BC.genlabel "init"
              in
-               globals := (uid, Glob { typ = t, init = stmt,
+               BC.insert (bc, startlabel, stmt);
+               globals := (uid, Glob { typ = t, init = startlabel,
                                        blocks = BC.extract bc}) :: !globals
              end)
         | onedecl (Ast.DECL (Ast.FunctionDef (id, args, body), _, _)) =
