@@ -3,6 +3,8 @@
    Very low-level language, but not quite X86 opcodes.
    Here we have:
       - DATA layout is explicit, but not CODE layout.
+      - Globals and global initialization are no longer
+        special.
       - labels, symbolic execution points that we can
         branch to. We don't have "JMP", so these aren't
         code addresses; they're numbered sequentially with

@@ -30,6 +30,9 @@ ckit/ckit-lib.mlb
   cil-pass-sig.sml
   cil-pass.sml
 
+  cil-util-sig.sml
+  cil-util.sml
+
   tocil-sig.sml
   tocil.sml
 

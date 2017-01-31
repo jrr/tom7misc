@@ -124,13 +124,15 @@ struct
   datatype function =
     Func of { args : (string * typ) list,
               ret : typ,
-              (* Initial label; must appear in blocks. *)
+              (* Start label; must appear in blocks. *)
               body : string,
               blocks : (string * stmt) list }
 
   datatype global =
     Glob of { typ : typ,
-              init : stmt,
+              (* Start label for initialization code; must appear
+                 in blocks. *)
+              init : string,
               blocks : (string * stmt) list }
 
   datatype program =
@@ -253,16 +255,16 @@ struct
         lab ^ ":\n" ^
         stmttos s
 
-      fun func (s, Func {args, ret, body, blocks}) =
+      fun func (s, Func { args, ret, body, blocks }) =
         "FUNC " ^ s ^ "(" ^ StringUtil.delimit ", "
         (map (fn (s, t) => s ^ " : " ^ typtos t) args) ^ ") : " ^
         typtos ret ^ " =\n" ^
         "start at " ^ body ^ "\n" ^
         StringUtil.delimit "\n" (map blocktos blocks)
 
-      fun glob (s, Glob {typ, init, blocks}) = "GLOBAL " ^ s ^ " : " ^
+      fun glob (s, Glob { typ, init, blocks }) = "GLOBAL " ^ s ^ " : " ^
         typtos typ ^ " =\n" ^
-        stmttos init ^
+        "start at " ^ init ^ "\n" ^
         StringUtil.delimit "\n" (map blocktos blocks)
     in
       StringUtil.delimit "\n" (map func functions) ^ "\n\n" ^

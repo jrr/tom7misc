@@ -34,6 +34,8 @@ group is
   cil.sml
   cil-pass-sig.sml
   cil-pass.sml
+  cil-util-sig.sml
+  cil-util.sml
 
   tocil-sig.sml
   tocil.sml
