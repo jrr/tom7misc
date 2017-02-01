@@ -27,4 +27,13 @@ struct
       end
   end
 
+  (* XXX there are several of these, which could collide.
+     Should rationalize. *)
+  val local_ctr = ref 0
+  fun newlocal s =
+    let in
+      local_ctr := !local_ctr + 1;
+      s ^ "$u" ^ Int.toString (!local_ctr)
+    end
+
 end

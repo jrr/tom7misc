@@ -18,4 +18,6 @@ sig
     (* XXX tolist or whatever *)
   end
 
+  val newlocal : string -> string
+
 end
