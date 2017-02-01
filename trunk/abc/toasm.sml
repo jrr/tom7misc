@@ -25,11 +25,10 @@ struct
        something like cmov, so we have to do a compare-
        and-jump in order to compute the values. (It would
        maybe be possible to subtract and check the sign
-       bit manually, but it's pretty fiddly.) So before
-       translating to ASM, we need to replace the
-       comparison expressions with the versions that
-       compare and branch at once. (XXX need to add these
-       to CIL.)
+       bit manually, but it's pretty fiddly.) So one of the
+       things that the CIL optimizer does is rewrite
+       comparison expressions like "a < b" to the condition
+       forms, like gotoif (a < b).
 
      - all temporaries are either 16 or 32 bits.
        many 8-bit operations are available to us, but
@@ -103,7 +102,7 @@ struct
         ctr := x + 1;
         (* XXX this is pretty bogus since we keep using $.
            Should either parse to remove $, or just have
-           a symbol type.*)
+           a symbol type. *)
         (name ^ "$t" ^ Int.toString x, size)
       end
   end
