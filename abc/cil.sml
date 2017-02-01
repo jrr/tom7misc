@@ -287,4 +287,5 @@ struct
     fun insert (C { vars }, s, t) = C { vars = SM.insert (vars, s, t) }
   end
   type context = Context.context
+
 end

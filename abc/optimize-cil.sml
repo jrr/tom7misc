@@ -372,7 +372,8 @@ struct
         GotoIf (ctor (w, a, b), lab, s)
       end
 
-    fun case_Truncate arg ({ selft, selfv, selfe, selfs }, ctx) { src, dst, v } =
+    fun case_Truncate arg ({ selft, selfv, selfe, selfs }, ctx)
+                      { src, dst, v } =
       let
         fun default v = (Truncate { src = src, dst = dst, v = v },
                          wordwidth dst)
@@ -521,7 +522,87 @@ struct
       structure CI = CILIdentity(type arg = arg)
       open CI
 
-      (* XXX do it, duh *)
+      (* Note that we only have "less" and "below" conds, so
+         these cases may swap the arguments. *)
+      fun getcmp e =
+        case e of
+          Greater (w, a, b) => SOME ("g", w, CLess (w, b, a))
+        | GreaterEq (w, a, b) => SOME ("ge", w, CLessEq (w, b, a))
+        | Above (w, a, b) => SOME ("a", w, CBelow (w, b, a))
+        | AboveEq (w, a, b) => SOME ("ae", w, CBelowEq (w, b, a))
+        | Less (w, a, b) => SOME ("l", w, CLess (w, a, b))
+        | LessEq (w, a, b) => SOME ("le", w, CLessEq (w, a, b))
+        | Below (w, a, b) => SOME ("b", w, CBelow (w, a, b))
+        | BelowEq (w, a, b) => SOME ("be", w, CBelowEq (w, a, b))
+        | Eq (w, a, b) => SOME ("e", w, CEq (w, a, b))
+        | Neq (w, a, b) => SOME ("ne", w, CNeq (w, a, b))
+        | _ => NONE
+
+      fun case_Bind (arg as { bc })
+                    (selves as { selft, selfv, selfe, selfs }, ctx)
+                    (v, t, e, s) =
+        case getcmp e of
+          NONE => CI.case_Bind arg (selves, ctx) (v, t, e, s)
+        | SOME (str, w, cond) =>
+            (* We transform something like
+               bind v : t = a < b
+               ... s ...
+
+               into
+
+               if a < b goto true
+               store tmp <- 0
+               goto join
+
+               true:
+               store tmp <- 1
+               goto join
+
+               join:
+               bind v : t = load tmp
+               ... s ...
+
+               There are many options for doing better, but we leave
+               these to optimizations in earlier or later passes. *)
+            let
+              val tmp = CILUtil.newlocal (str ^ "_tmp")
+              val tmpt =
+                case w of
+                  Width8 => Word8 Unsigned
+                | Width16 => Word16 Unsigned
+                | Width32 => Word32 Unsigned
+              val (zerolit, onelit) =
+                case w of
+                  Width8 => (Word8Literal 0w0, Word8Literal 0w1)
+                | Width16 => (Word16Literal (Word16.fromInt 0),
+                              Word16Literal (Word16.fromInt 1))
+                | Width32 => (Word32Literal 0w0, Word32Literal 0w1)
+              val true_lab = BC.genlabel (str ^ "_true")
+              val done_lab = BC.genlabel (str ^ "_done")
+            in
+              BC.insert
+              (bc, true_lab,
+               Store (w, AddressLiteral (Local tmp, tmpt), onelit,
+                      Goto done_lab));
+
+              BC.insert
+              (bc, done_lab,
+               Bind (v, t, Load (w, AddressLiteral (Local tmp, tmpt)),
+                     let val ctx = Context.insert (ctx, v, t)
+                     in selfs arg ctx s
+                     end));
+
+              GotoIf (cond, true_lab,
+                      Store (w, AddressLiteral (Local tmp, tmpt), onelit,
+                             Goto done_lab))
+            end
+
+      (* For completeness, if there's a comparison in Do, just drop
+         the effectless statement. *)
+      fun case_Do arg (selves as { selft, selfv, selfe, selfs }, ctx) (e, s) =
+        case getcmp e of
+          SOME _ => selfs arg ctx s
+        | NONE => CI.case_Do arg (selves, ctx) (e, s)
     end
 
     structure ECO = CILPass(EliminateCompareOpsArg)
@@ -543,12 +624,17 @@ struct
             Func { args = args, ret = ret, body = body,
                    blocks = BC.extract bc }
           end
-        fun oneglobal _ = raise OptimizeCIL "unimplemented globals"
+        fun oneglobal (Glob { typ, init, blocks }) =
+          let val bc = BC.empty ()
+          in
+            app (doblock bc) blocks;
+            Glob { typ = typ, init = init,
+                   blocks = BC.extract bc }
+          end
       in
         Program { functions = ListUtil.mapsecond onefunc functions,
-                  globals = map oneglobal globals }
+                  globals = ListUtil.mapsecond oneglobal globals }
       end
-    (* XXXX function that applies to all funcs *)
   end
 
   (* Optimize a basic block without any contextual information.
@@ -602,7 +688,17 @@ struct
       else prog
     end
 
-  fun optimize prog = simplify prog
+  fun optimize prog =
+    let
+      val prog = simplify prog
+      (* Not totally sure this belongs here, but we do need to at least
+         ensure that simplifications that happen after ECO do not
+         re-introduce compare ops, which does require some understanding
+         of the optimization internals. *)
+      val prog = EliminateCompareOps.eliminate prog
+    in
+      simplify prog
+    end
 
 end
 
