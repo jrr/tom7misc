@@ -508,6 +508,135 @@ struct
   end
   structure Simplify = CILPass(SimplifyArg)
 
+  (* If e is a comparison operator, construct an equivalent cond.
+     Also return a short string and the width, for convenience.
+
+     Note that we only have "less" and "below" conds, so these cases
+     may swap the arguments. *)
+  fun expcond e =
+    case e of
+      Greater (w, a, b) => SOME ("g", w, CLess (w, b, a))
+    | GreaterEq (w, a, b) => SOME ("ge", w, CLessEq (w, b, a))
+    | Above (w, a, b) => SOME ("a", w, CBelow (w, b, a))
+    | AboveEq (w, a, b) => SOME ("ae", w, CBelowEq (w, b, a))
+    | Less (w, a, b) => SOME ("l", w, CLess (w, a, b))
+    | LessEq (w, a, b) => SOME ("le", w, CLessEq (w, a, b))
+    | Below (w, a, b) => SOME ("b", w, CBelow (w, a, b))
+    | BelowEq (w, a, b) => SOME ("be", w, CBelowEq (w, a, b))
+    | Eq (w, a, b) => SOME ("e", w, CEq (w, a, b))
+    | Neq (w, a, b) => SOME ("ne", w, CNeq (w, a, b))
+    | _ => NONE
+
+  (* Transform uses of boolean operators like < that are later used in
+     GotoIf (when possible); this is cheaper than translating them
+     away in the general way that EliminateCompareOps does. *)
+  structure MakeCondArg : CILPASSARG =
+  struct
+
+    type arg = { known: (string * width * cond) SM.map,
+                 simplified: bool ref }
+    structure CI = CILIdentity(type arg = arg)
+    open CI
+
+    fun addknown { known, simplified } (v, va) =
+      { known = SM.insert (known, v, va), simplified = simplified }
+    fun markunknown { known, simplified } v =
+      { known = SM.erase (known, v), simplified = simplified }
+
+    (* If we bind v <- a >= b, record this about v so that we can
+       rewrite a GotoIf that uses v later. *)
+    fun case_Bind arg ({ selft, selfv, selfe, selfs }, ctx) (v, t, e, s) =
+      let
+        val (e, te) = selfe arg ctx e
+        val t = selft arg ctx t
+        val ctx = Context.insert (ctx, v, t)
+        val arg =
+          case expcond e of
+            SOME p => addknown arg (v, p)
+          | NONE => markunknown arg v
+
+        val s = selfs arg ctx s
+      in
+        Bind (v, t, e, s)
+      end
+
+    fun case_GotoIf (arg as { known, simplified })
+                    (selves as { selft, selfv, selfe, selfs }, ctx)
+                    (c, lab, s) =
+      let
+        (* If the condition c is equivalent to v != 0 for some variable v,
+           return SOME v. *)
+        fun neqzero (CNeq (_, Var v, Word8Literal 0w0)) = SOME v
+          | neqzero (CNeq (_, Var v, Word16Literal w)) =
+          if w = Word16.fromInt 0 then SOME v else NONE
+          | neqzero (CNeq (_, Var v, Word32Literal 0w0)) = SOME v
+          | neqzero (CNeq (_, Word8Literal 0w0, Var v)) = SOME v
+          | neqzero (CNeq (_, Word16Literal w, Var v)) =
+          if w = Word16.fromInt 0 then SOME v else NONE
+          | neqzero (CNeq (_, Word32Literal 0w0, Var v)) = SOME v
+          (* PERF Some equivalent forms, like Below (0, v). Should
+             just be done in simplify? *)
+          | neqzero _ = NONE
+
+        (* Same, for v == 0. We can implement this by just reversing
+           the sense of the condition. *)
+        fun eqzero (CEq (_, Var v, Word8Literal 0w0)) = SOME v
+          | eqzero (CEq (_, Var v, Word16Literal w)) =
+          if w = Word16.fromInt 0 then SOME v else NONE
+          | eqzero (CEq (_, Var v, Word32Literal 0w0)) = SOME v
+          | eqzero (CEq (_, Word8Literal 0w0, Var v)) = SOME v
+          | eqzero (CEq (_, Word16Literal w, Var v)) =
+          if w = Word16.fromInt 0 then SOME v else NONE
+          | eqzero (CEq (_, Word32Literal 0w0, Var v)) = SOME v
+          (* PERF Some equivalent forms, like BelowEq (v, 0)... *)
+          | eqzero _ = NONE
+
+        (* Return a condition equivalent to !c. *)
+        fun negate_condition c =
+          case c of
+            CLess (w, a, b) => CLessEq (w, b, a)
+          | CLessEq (w, a, b) => CLess (w, b, a)
+          | CBelow (w, a, b) => CBelowEq (w, b, a)
+          | CBelowEq (w, a, b) => CBelow (w, b, a)
+          | CEq (w, a, b) => CNeq (w, a, b)
+          | CNeq (w, a, b) => CEq (w, a, b)
+
+        fun nothing () = CI.case_GotoIf arg (selves, ctx) (c, lab, s)
+
+        fun tryeq () =
+          case eqzero c of
+            NONE => nothing ()
+          | SOME var =>
+              (case SM.find (known, var) of
+                 NONE => nothing ()
+               | SOME (_, _, oldcond) =>
+                   (* if (x == 0) is equivalent to if (!x). Since we know
+                      x is a boolean operator, we can just negate it. *)
+                   let in
+                     simplified := true;
+                     eprint ("Simplifying gotoif " ^ var ^ " != 0...\n");
+                     GotoIf (negate_condition oldcond, lab, s)
+                   end)
+      in
+        (* Only one of neq/eq should apply, but we try both for
+           completeness in case this ever changes. *)
+        case neqzero c of
+          NONE => tryeq ()
+        | SOME var =>
+            (case SM.find (known, var) of
+               NONE => tryeq ()
+             | SOME (_, _, oldcond) =>
+                 (* if (x != 0) is equivalent to if (x). *)
+                 let in
+                   simplified := true;
+                   eprint ("Simplifying gotoif " ^ var ^ " != 0...\n");
+                   GotoIf (oldcond, lab, s)
+                 end)
+      end
+
+  end
+  structure MakeCond = CILPass(MakeCondArg)
+
   (* For translating to ASM, we only want to cond/GotoIf to
      do comparisons. This pass eliminates the expression forms
      (e.g. Less). *)
@@ -522,26 +651,10 @@ struct
       structure CI = CILIdentity(type arg = arg)
       open CI
 
-      (* Note that we only have "less" and "below" conds, so
-         these cases may swap the arguments. *)
-      fun getcmp e =
-        case e of
-          Greater (w, a, b) => SOME ("g", w, CLess (w, b, a))
-        | GreaterEq (w, a, b) => SOME ("ge", w, CLessEq (w, b, a))
-        | Above (w, a, b) => SOME ("a", w, CBelow (w, b, a))
-        | AboveEq (w, a, b) => SOME ("ae", w, CBelowEq (w, b, a))
-        | Less (w, a, b) => SOME ("l", w, CLess (w, a, b))
-        | LessEq (w, a, b) => SOME ("le", w, CLessEq (w, a, b))
-        | Below (w, a, b) => SOME ("b", w, CBelow (w, a, b))
-        | BelowEq (w, a, b) => SOME ("be", w, CBelowEq (w, a, b))
-        | Eq (w, a, b) => SOME ("e", w, CEq (w, a, b))
-        | Neq (w, a, b) => SOME ("ne", w, CNeq (w, a, b))
-        | _ => NONE
-
       fun case_Bind (arg as { bc })
                     (selves as { selft, selfv, selfe, selfs }, ctx)
                     (v, t, e, s) =
-        case getcmp e of
+        case expcond e of
           NONE => CI.case_Bind arg (selves, ctx) (v, t, e, s)
         | SOME (str, w, cond) =>
             (* We transform something like
@@ -600,7 +713,7 @@ struct
       (* For completeness, if there's a comparison in Do, just drop
          the effectless statement. *)
       fun case_Do arg (selves as { selft, selfv, selfe, selfs }, ctx) (e, s) =
-        case getcmp e of
+        case expcond e of
           SOME _ => selfs arg ctx s
         | NONE => CI.case_Do arg (selves, ctx) (e, s)
     end
@@ -648,6 +761,10 @@ struct
 
       val block = DeadVars.converts
         ({ used = SM.empty, simplified = simplified }) ctx block
+
+      val block = MakeCond.converts
+        ({ known = SM.empty, simplified = simplified }) ctx block
+
       (* ... more optimizations here ... *)
     in
       block
@@ -714,4 +831,7 @@ end
      x to 32 bits. Just do AND16.
    - No need to promote argument before GotoIf on it (truncate could
      drop one bits though).
-     *)
+   - If a local only takes on a finite set of values all in some
+     preferable radix (e.g. 16 bits), reduce its width. This happens
+     in the output of EliminateCompareOps, for example.
+*)
