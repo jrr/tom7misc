@@ -121,37 +121,47 @@ struct
   structure OptimizeBlocksArg : CILPASSARG =
   struct
     type arg = { uses : analyze_blocks_uses,
-                 blocks : (string * stmt) list,
-                 removeme : string list ref,
+                 (* Blocks that have already been processed, and
+                    those that have not been. This pass can
+                    remove blocks from either set when it
+                    inlines them. *)
+                 doneblocks : stmt SM.map ref,
+                 todoblocks : stmt SM.map ref,
                  simplified : bool ref }
     structure CI = CILIdentity(type arg = arg)
     open CI
-
-    fun simplify ({ simplified, ... } : arg) = simplified := true
 
     fun totaluses ({ uses, ... } : arg) lab =
       case SM.find (uses, lab) of
         NONE => raise OptimizeCIL ("unanalyzed label? " ^ lab)
       | SOME m => SM.foldl op+ 0 (!m)
 
-    fun getblock ({ blocks, ... } : arg) lab =
-      case ListUtil.Alist.find op= blocks lab of
-        NONE => raise OptimizeCIL ("missing block " ^ lab)
-      | SOME stmt => stmt
-
-    fun markremove ({ removeme, ... } : arg) lab =
-      removeme := lab :: !removeme
-
     (* Can't really do anything about GotoIf... *)
 
-    fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) lab =
+    fun case_Goto (arg as { todoblocks, doneblocks, simplified, ... } : arg)
+                  ({ selft, selfv, selfe, selfs }, ctx) lab =
       if totaluses arg lab = 1
       then
         let in
-          eprint ("Inlining single-use block " ^ lab);
-          simplify arg;
-          markremove arg lab;
-          getblock arg lab
+          (* XXX: If we have a cycle of Gotos, this probably fails? *)
+          case (SM.find (!doneblocks, lab), SM.find (!todoblocks, lab)) of
+            (SOME stmt, NONE) =>
+              let in
+                simplified := true;
+                eprint ("Inlining single-use block " ^ lab ^ " (done)");
+                doneblocks := SM.erase (!doneblocks, lab);
+                stmt
+              end
+          | (NONE, SOME stmt) =>
+              let val stmt = selfs arg ctx stmt
+              in
+                simplified := true;
+                eprint ("Inlining single-use block " ^ lab ^ " (todo)");
+                todoblocks := SM.erase (!todoblocks, lab);
+                stmt
+              end
+          | (NONE, NONE) => raise OptimizeCIL ("block not found: " ^ lab)
+          | (SOME _, SOME _) => raise OptimizeCIL ("bug: some/some " ^ lab)
         end
       else Goto lab
   end
@@ -193,32 +203,40 @@ struct
                                             Int.toString n ^ "\n")) (!u)
                           end) (!uses)
 
-        (* We'll remove any block that has no uses, and maybe more
-           because they get inlined. *)
-        val removeme = ref (SM.foldli (fn (lab, m, remove) =>
-                                       if SM.isempty (!m)
-                                       then lab :: remove
-                                       else remove) nil (!uses))
+        (* Start with a full to-do list. *)
+        val todoblocks = ref (foldl SM.insert' SM.empty blocks)
+        val doneblocks = ref (SM.empty : stmt SM.map)
 
-        fun optimize_one_block (name, stmt) =
-          let
-            val arg = { uses = !uses, blocks = blocks,
-                        removeme = removeme, simplified = simplified }
-          in
-            (name, OB.converts arg CIL.Context.empty stmt)
-          end
+        (* We'll remove any block that has no uses to start.
+           OB.converts may remove more as it inlines them. *)
+        val () = SM.appi (fn (lab : string, m : int SM.map ref) =>
+                          if SM.isempty (!m)
+                          then
+                            let in
+                              eprint ("Dropping unused block " ^ lab);
+                              simplified := true;
+                              todoblocks := SM.erase (!todoblocks, lab)
+                            end
+                          else ()) (!uses)
 
-        val blocks = map optimize_one_block blocks
-        (* Remove anything that was marked to be removed because it
-           was inlined. *)
-        val blocks = List.filter
-          (fn (name, _) =>
-           not ` List.exists (fn name' => name = name') (!removeme)) blocks
+        fun loop () =
+          case SM.headi (!todoblocks) of
+            NONE => ()
+          | SOME (lab, stmt) =>
+              let
+                val () = todoblocks := SM.erase (!todoblocks, lab)
+                val arg = { uses = !uses,
+                            doneblocks = doneblocks,
+                            todoblocks = todoblocks,
+                            simplified = simplified }
+                val stmt = OB.converts arg CIL.Context.empty stmt
+              in
+                doneblocks := SM.insert (!doneblocks, lab, stmt);
+                loop ()
+              end
       in
-        if length ` !removeme > 0
-        then simplified := true
-        else ();
-        (body, blocks)
+        loop ();
+        (body, SM.listItemsi ` !doneblocks)
       end
 
     fun optimize_function simplified (Func { args, ret, body, blocks }) =
@@ -333,7 +351,7 @@ struct
           | CBelowEq (w, a, b) => (BELOW true, w, vv a, vv b, CBelowEq)
           | CEq (w, a, b) => (EQ, w, vv a, vv b, CEq)
           | CNeq (w, a, b) => (NEQ, w, vv a, vv b, CNeq)
-        val s = selfs arg ctx s
+
         datatype taken = Taken | NotTaken | Unknown
         fun take true = Taken
           | take false = NotTaken
@@ -364,12 +382,77 @@ struct
                 take ` (if eq then op <= else op <) (Word32.toIntX a,
                                                      Word32.toIntX b)
               end
-          (* XXX BELOW, EQ, NEQ *)
+
+          | (BELOW eq, Word8Literal a, Word8Literal b) =>
+              let in
+                check Width8;
+                take ` (if eq then Word8.<= else Word8.<) (a, b)
+              end
+          | (BELOW eq, Word16Literal a, Word16Literal b) =>
+              let in
+                check Width16;
+                take ` (if eq then Word16.<= else Word16.<) (a, b)
+              end
+          | (BELOW eq, Word32Literal a, Word32Literal b) =>
+              let in
+                check Width32;
+                take ` (if eq then Word32.<= else Word32.<) (a, b)
+              end
+
+          | (EQ, Word8Literal a, Word8Literal b) =>
+              let in
+                check Width8;
+                take (a = b)
+              end
+          | (EQ, Word16Literal a, Word16Literal b) =>
+              let in
+                check Width16;
+                take (a = b)
+              end
+          | (EQ, Word32Literal a, Word32Literal b) =>
+              let in
+                check Width32;
+                take (a = b)
+              end
+
+          | (NEQ, Word8Literal a, Word8Literal b) =>
+              let in
+                check Width8;
+                take (a <> b)
+              end
+          | (NEQ, Word16Literal a, Word16Literal b) =>
+              let in
+                check Width16;
+                take (a <> b)
+              end
+          | (NEQ, Word32Literal a, Word32Literal b) =>
+              let in
+                check Width32;
+                take (a <> b)
+              end
+
           | _ => Unknown
 
       in
-        (* XXX do something with 'taken'! *)
-        GotoIf (ctor (w, a, b), lab, s)
+        case taken of
+          Unknown => GotoIf (ctor (w, a, b), lab, selfs arg ctx s)
+        | Taken =>
+            let in
+              (* OptimizeBlocks will inline the code at this label if it's
+                 the only use. Even if not, switching to Goto is good because
+                 we discard the condition (and dependents) and set up for
+                 code layout optimizations. *)
+              simplified := true;
+              eprint ("Optimizing always-taken jump to " ^ lab ^ "\n");
+              Goto lab
+              (* No need to even look at the tail. *)
+            end
+        | NotTaken =>
+            let in
+              simplified := true;
+              eprint ("Removing never-taken jump to " ^ lab ^ "\n");
+              selfs arg ctx s
+            end
       end
 
     fun case_Truncate arg ({ selft, selfv, selfe, selfs }, ctx)
@@ -798,6 +881,7 @@ struct
       val globals = map (optimize_global simplified) globals
       val prog = Program { functions = functions, globals = globals }
     in
+      (* XXX only print if changed, or show diff, etc. *)
       print ("\nNow:\n" ^ CIL.progtos prog ^ "\n");
 
       if !simplified
