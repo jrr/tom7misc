@@ -1,6 +1,6 @@
 
 int main(int argc, char **argv) {
-  if (argc > 5) {
+  if (argc > (short)5) {
     return 1;
   } else {
     return 2;
