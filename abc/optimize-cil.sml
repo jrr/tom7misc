@@ -432,7 +432,6 @@ struct
               end
 
           | _ => Unknown
-
       in
         case taken of
           Unknown => GotoIf (ctor (w, a, b), lab, selfs arg ctx s)
@@ -873,7 +872,7 @@ struct
               blocks = ListUtil.mapsecond (optimize_block simplified) blocks })
     end
 
-  fun simplify (Program { functions, globals }) =
+  fun simplify (prev as (Program { functions, globals })) =
     let
       val () = print "\n----------- optimization round -------------\n"
       val simplified = ref false
@@ -882,7 +881,9 @@ struct
       val prog = Program { functions = functions, globals = globals }
     in
       (* XXX only print if changed, or show diff, etc. *)
-      print ("\nNow:\n" ^ CIL.progtos prog ^ "\n");
+      if !simplified
+      then print ("\nNow:\n" ^ CIL.progtos prog ^ "\n")
+      else eprint ("Unable to simplify further.\n");
 
       if !simplified
       then simplify prog

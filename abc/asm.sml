@@ -130,7 +130,8 @@ struct
        space it needs. *)
   | ExpandFrame of int
   | ShrinkFrame of int
-    (* Load (dst, addr) *)
+    (* Load (dst, addr). Loads and stores are always to the
+       data segment. *)
   | Load8 of tmp * tmp
   | Load16 of tmp * tmp
     (* Store (addr, src) *)

@@ -782,10 +782,28 @@ struct
 
       | Ast.Comma (a, b) => transexp a bc (fn _ => transexp b bc k)
 
-      | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
-      | Ast.Cast _ => raise ToCIL "unimplemented: cast"
+      | Ast.Cast (ctype, e) =>
+            transexp e bc
+            (fn (ev, et) =>
+             let
+               val t = transtype ctype
+               (* Anything that can be implicitly converted, so
+                  floats should also be here? *)
+               fun isnumeric (Word8 _) = true
+                 | isnumeric (Word16 _) = true
+                 | isnumeric (Word32 _) = true
+                 | isnumeric _ = false
+             in
+               if isnumeric t andalso isnumeric et
+               then
+                 implicit { src = et, dst = t, v = ev } k
+               else
+                 raise ToCIL "non-numeric casts as yet unimplemented"
+             end)
       | Ast.EnumId (m, n) => k (unsigned_literal Width32 (LargeInt.toInt n),
                                 Word32 Unsigned)
+
+      | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
       | Ast.SizeOf _ => raise ToCIL "unimplemented: sizeof"
       | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
       | Ast.ErrorExpr => raise ToCIL "encountered ErrorExpr"

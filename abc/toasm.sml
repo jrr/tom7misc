@@ -132,9 +132,15 @@ struct
                  k (var, ctypsize ctyp))
         (* typ is the type of the thing thing pointed to. *)
         | C.AddressLiteral (loc, typ) => raise ToASM "unimplemented addr"
-        | C.Word8Literal w8 => raise ToASM "unimplemented w8"
-        | C.Word16Literal w16 => raise ToASM "unimplemented w16"
-        | C.Word32Literal w32 => raise ToASM "unimplemented w32"
+        | C.Word8Literal w8 =>
+            let val tmp = newtmp ("imm", A.S8)
+            in A.Immediate8 (tmp, w8) // k tmp
+            end
+        | C.Word16Literal w16 =>
+            let val tmp = newtmp ("imm", A.S8)
+            in A.Immediate16 (tmp, w16) // k tmp
+            end
+        | C.Word32Literal w32 => raise ToASM "unimplemented w32 literal"
         | C.StringLiteral _ => raise ToASM "unimplemented string literals"
 
       (* Generate code for e, and bind vt (if SOME) to its value. *)
@@ -168,10 +174,16 @@ struct
         | (C.Eq _, _) => raise ToASM "bug: unexpected comparison op"
         | (C.Neq _, _) => raise ToASM "bug: unexpected comparison op"
 
-        | (_, SOME (var, t)) => raise ToASM "unimplemented many exps..."
+        | (C.Load (w, v), SOME (var, t)) =>
+            gentmp ctx v
+            (fn addr =>
+             (case w of
+                C.Width8 => A.Load8 ((var, ctypsize t), addr) // k ()
+              | C.Width16 => A.Load16 ((var, ctypsize t), addr) // k ()
+              | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
-(*
-    (* For dst < src. Just discards bits. *)
+            (*
+        (* For dst < src. Just discards bits. *)
   | Truncate of { src: width, dst: width, v: value }
     (* For dst > src. Sign-extends if signed is true. *)
   | Promote of { signed: bool, src: width, dst: width, v: value }
@@ -198,18 +210,8 @@ struct
   | Not of width * value
   | Complement of width * value
   | Negate of width * value
-
-  (* Is this necessary? I think we just translate the lvalue and
-     don't LOAD from it. *)
-  (* | AddressOf of string *)
-  (* Similarly, this becomes a LOAD *)
-  (* | Dereference of value *)
-    (* Math and then LOAD *)
-  (* | Subscript of value * value
-     | Member of value * string *)
-  | Call of value * value list
-  | Load of width * value
 *)
+        | (_, SOME (var, t)) => raise ToASM "unimplemented many exps..."
 
       fun gencmds ctx stmt =
         case stmt of
