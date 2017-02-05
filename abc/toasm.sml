@@ -137,10 +137,13 @@ struct
             in A.Immediate8 (tmp, w8) // k tmp
             end
         | C.Word16Literal w16 =>
-            let val tmp = newtmp ("imm", A.S8)
+            let val tmp = newtmp ("imm", A.S16)
             in A.Immediate16 (tmp, w16) // k tmp
             end
-        | C.Word32Literal w32 => raise ToASM "unimplemented w32 literal"
+        | C.Word32Literal w32 =>
+            let val tmp = newtmp ("imm", A.S32)
+            in A.Immediate32 (tmp, w32) // k tmp
+            end
         | C.StringLiteral _ => raise ToASM "unimplemented string literals"
 
       (* Generate code for e, and bind vt (if SOME) to its value. *)
@@ -305,7 +308,9 @@ struct
              | NONE => ([A.JumpCond (A.True, lab)], NONE))
 
         | C.Return v =>
-            let val ratmp = newtmp ("returnaddr", S16)
+            let
+              (* FIXME where does the return value go? *)
+              val ratmp = newtmp ("returnaddr", S16)
             in
               (* PERF can just merge these *)
               (A.ShrinkFrame localbytes ::
