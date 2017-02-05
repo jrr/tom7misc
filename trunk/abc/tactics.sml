@@ -195,15 +195,6 @@ struct
       end handle General.Subscript => raise FixedStack "empty"
   end
 
-  (* Load an arbitrary value into AX.
-     If the requested value in AH is NONE ("don't care"), the existing value
-     is preserved.
-     Can trash flags. Only AX is modified. *)
-  (* Note that loading EAX (or any register) can be easily accomplished
-     by pushing two 16-bit literals with this routine, then POP with
-     the operand size prefix. *)
-  (* PERF: IMUL on an immediate is useful here too. (Basically just
-     when AH already contains a small value.) *)
   local
     (* Table of the best way to transform a known value in AL to a target
        value (source-major index). Can't depend on other machine
@@ -644,6 +635,10 @@ struct
                        bytewise_hint (), bytewise_blind ()]
       end
   in
+    (* TODO: Easy to load any reg with 32-bit value by doing two load_ax16s
+       (the second with a known value), and pushing them on the stack,
+       then popping into a 32-bit register. (Or four single-byte loads?) *)
+
     (* Load AX with the 16-bit value.
        The register should already be claimed by the caller. *)
     fun load_ax16 acc (w : Word16.word) : acc =

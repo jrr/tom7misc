@@ -253,6 +253,8 @@ interesting parts:
 OTOH, we CAN at least use this technique to "cleanly" exit the
 program, since that interrupt does not return.
 
+Inefficient but good worst case: use DEC and JNZ to make jump chains -- can do any relative offset!
+
 ----------------------------------------------------------------------
 
  - No two-byte opcodes can be used because these are prefixed

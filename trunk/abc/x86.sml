@@ -173,12 +173,16 @@ struct
   (* XXX IMUL here *)
   (* XXX JMP short instructions *)
 
-      (* These instructions are out of gamut *)
+    (* These instructions are out of gamut; just used
+       for debugging and development and should not
+       appear in "production" compiled binaries. *)
     | MOV of size * args
     | NOP
     | INT of word8
 
-      (* XXX hax *)
+    (* Insert the byte literally, for manual encoding of
+       instructions or data. word8 should be printable,
+       of course. XXX remove this? *)
     | DB of word8
 
   fun decode_size S8 : word8 = 0w0

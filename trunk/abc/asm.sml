@@ -1,4 +1,5 @@
-(* XXX This is still in progress; almost nonsensical now...
+(* XXX This is still in progress; almost nonsensical now; beware!
+   TODO: Clean up wrong/misleading documentation!
 
    Very low-level language, but not quite X86 opcodes.
    Here we have:
@@ -43,10 +44,94 @@
    The goal of the ASM language is to be semantically
    clean and robust (allowing for optimization),
    while being close to the actual instructions available
-   in printable X86.
+   in printable X86. *)
 
-   XXX Maybe local frames need to be in DS because how else
-   do we represent pointers to them?
+(*
+
+   ** NEW! **
+   ====== Layout strategy and calling convention. ======
+   We need to represent:
+     - locals, globals, arguments,
+     - temporaries,
+     - return address stack,
+     - return address value.
+   We have access to several segments using the override prefixes:
+   ES, CS, SS, DS, FS, GS.
+   However, we can't change the values of these (requires a MOV
+   instruction that's outside the gamut -- not the same as the MOV
+   instruction we do have.) and only a few of them have predictable
+   values when we start the EXE.
+     - SS is set up to a dedicated 64k segment. We need this for
+       the machine stack (accessed with PUSH/POP), but we can also put
+       temporaries here.
+     - CS is set up to some 64k block in our EXE; we'll just use this
+       for code.
+     - DS is set up to 64k where the first 256 bytes are the Program
+       Segment Prefix and the rest is from our EXE (not sure if this
+       is guaranteed?). We assume all C (data) addresses are in DS.
+     - ES, FS, GS are probably not reliable. (In DOSBox, ES=DS, and
+       FS=GS=0.) Conceivably we could use FS and GS for additional
+       temporaries, but if they overlap one of the other segments,
+       we'd be toast.
+
+   * Globals. *
+   Anything that's a C variable (locals, globals, arguments) must be
+   addressable with & in the general case, which means it must be laid
+   out in the data segment. (An earlier phase can rewrite locals that
+   don't need to be addressed to CIL vars, which can be tmps here.)
+
+   Globals are just allocated into fixed positions in DS.
+   These go at the beginning of DS, starting at 0.
+
+   * Arguments and locals. *
+   Arguments and locals are basically the same, except that arguments
+   must be accessed by both the caller and callee. Because there can
+   be an arbitrary (well, limited by segment size) number of functions
+   currently active, these need to be allocated with a stack discipline.
+   Because they need to be addressable, we don't put them in the machine
+   stack (SS); rather, we keep a parallel stack in DS. We'll call it
+   the "frame stack."
+
+   We start the frame stack in DS, right after the last global. Unlike
+   the machine stack, it grows upward (larger addresses). We maintain
+   that EBX points to the beginning of our current frame (to the first
+   local); each argument and local is at a fixed offset from this. We
+   don't change the frame for blocks/loops/etc. within a function; all
+   locals are hoisted to the function level. A function may have a
+   0-byte frame if it has no locals nor arguments; the return addresses
+   are not stored in the frame stack.
+
+   * Temporaries. *
+   In a traditional C compiler, temporaries are basically either a local
+   variables or registers. It works differently in ABC because:
+    - Due to segmented memory, we want to store as little as possible in
+      DS (basically, just addressable things).
+    - Since we can only use a handful addressing modes in Printable X86,
+      and they are annoying, we don't actually want intermediate values
+      in registers most of the time.
+   Temporaries also live in a stack, because each function activation
+   needs an arbitrary number of temporaries to do its computations, and
+   these might need to live across a child function call. (It would be
+   possible to distinguish caller and callee-save, but we don't bother
+   with this now.) This stack is stored in the SS segment (same as the
+   machine stack). The machine stack grows downward. In a normal compiler,
+   the stack would start at 0xFFFF, but the start address must be printable
+   (part of the EXE header), so it actually starts at 0x7E7E. Therefore,
+   we put the temporary stack at 0x7E80. It grows upward towards 0xFFFF.
+   We maintain that EBP points to the beginning of our current temporary
+   frame; EBP's default segment is SS.
+
+   * Return addresses. *
+   (on machine stack)
+   We don't need random access to them.
+   The machine stack can also be used by ASM code, and is used in the
+   implementation of various tactics (e.g., loading a 32-bit immediate).
+
+   X86 registers reserved for compiler use:
+    - EBX points to beginning of local frame (in DS).
+    - EBP points to beginning of temporary frame (in SS).
+   ...
+
 *)
 
 structure ASM =
@@ -139,6 +224,7 @@ struct
   | Store16 of tmp * tmp
   | Immediate8 of tmp * Word8.word
   | Immediate16 of tmp * Word16.word
+  | Immediate32 of tmp * Word32.word
   (* PERF allow tmp * literal? It is only more efficient
      if the literal is printable... *)
   | Add of tmp * tmp
@@ -156,6 +242,7 @@ struct
   | JumpInd of tmp
     (* Conditional jumps all take a literal label. *)
   | JumpCond of cond * string
+    (* TODO: inc, etc. *)
 
   datatype block = Block of
     { name: string,
@@ -216,10 +303,14 @@ struct
     | LoadLabel (tmp, lab) => "loadlabel " ^ tmptos tmp ^ " <- &" ^ lab
     | JumpInd tmp => "jmp_ind " ^ tmptos tmp
     | JumpCond (cond, lab) => condtos cond ^ " " ^ lab
+    | Immediate8 (tmp, w8) =>
+        "imm8 " ^ tmptos tmp ^ " <- " ^ Word8.toString w8
+    | Immediate16 (tmp, w16) =>
+        "imm16 " ^ tmptos tmp ^ " <- " ^ Word16.toString w16
+    | Immediate32 (tmp, w32) =>
+        "imm32 " ^ tmptos tmp ^ " <- " ^ Word32.toString w32
     | _ => "unimplemented cmdtos cmd"
 (*
-  | Immediate8 of tmp * Word8.word
-  | Immediate16 of tmp * Word16.word
   (* PERF allow tmp * literal? It is only more efficient
      if the literal is printable... *)
   | Add of tmp * tmp

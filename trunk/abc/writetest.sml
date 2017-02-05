@@ -94,6 +94,7 @@ struct
       (* Stack segment displacement, in 16-byte paragraphs.
          what does this mean? *)
       val initSS = vec [0wx6e, 0wx6e]
+      (* Stack grows downward, so we want this to be as high as possible. *)
       val initSP = vec [0wx7e, 0wx7e]
       (* Checksum; usually ignored. 'AB' *)
       val checksum = vec [0wx41, 0wx42]
