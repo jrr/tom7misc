@@ -9,6 +9,12 @@ struct
   exception ToASM of string
   datatype sz = datatype ASM.sz
 
+  (* Comes after PSP. Some of the PSP is useful, so we could
+     alternately have like char _abc_psp[256] as a global,
+     as long as we could ensure that it came first.
+  *)
+  val FIRST_GLOBAL_POS = 256
+
   (* Optimizations TODO:
      - Reuse temporaries.
      - Replace locals with temporaries
@@ -109,7 +115,8 @@ struct
 
   (* Generate the blocks for a CIL Function, once we know the locals
      layout. *)
-  fun genblocks { name, offsets, argbytes, localbytes, body, blocks } =
+  fun genblocks { name, offsets, argbytes, globalpositions,
+                  localbytes, body, blocks } =
     let
       (* Blocks we've already translated, just for sanity checking. *)
       val done = ref SM.empty : unit SM.map ref
@@ -130,8 +137,18 @@ struct
                  (* A variable is always translated to a same-named
                     temporary at the appropriate size. *)
                  k (var, ctypsize ctyp))
-        (* typ is the type of the thing thing pointed to. *)
-        | C.AddressLiteral (loc, typ) => raise ToASM "unimplemented addr"
+        (* typ is the type of the thing thing pointed to.
+           we don't use it here; the address is always a 16-bit DS offset. *)
+        | C.AddressLiteral (loc, typ) =>
+           (case loc of
+              C.Local l => raise ToASM "unimplemented local addrs"
+            | C.Global l =>
+                (case ListUtil.Alist.find op= globalpositions l of
+                   NONE => raise ToASM ("unallocated global " ^ l ^ "?")
+                 | SOME pos =>
+                     let val tmp = newtmp ("addr_" ^ l, A.S16)
+                     in A.Immediate16 (tmp, Word16.fromInt pos) // k tmp
+                     end))
         | C.Word8Literal w8 =>
             let val tmp = newtmp ("imm", A.S8)
             in A.Immediate8 (tmp, w8) // k tmp
@@ -373,7 +390,8 @@ struct
     end
 
 
-  fun doproc (name, C.Func
+  fun doproc globalpositions
+             (name, C.Func
               { args : (string * C.typ) list,
                 ret : C.typ,
                 body : string,
@@ -408,8 +426,10 @@ struct
          by code/data size (64k) than clock speed (4+ GHz).
          PERF: Rearranging locals and args to get better alignment
          would be pretty easy, and free from code/data size perspective.
-         Rearranging args would take a global analysis, but would not
-         be so bad. *)
+         Rearranging args would take a global analysis (note that it
+         has to be based on the types, so that it works consistently for
+         function pointers, and consider the possibility that someone takes
+         the address of main), but would not be so bad. *)
       val offsets : (string * int) list ref = ref nil
       fun alloc (s, sz) =
         let in
@@ -424,6 +444,7 @@ struct
       val localbytes = !nextpos - argbytes
 
       val blocks = genblocks { name = name, offsets = !offsets,
+                               globalpositions = globalpositions,
                                argbytes = argbytes, localbytes = localbytes,
                                body = body, blocks = blocks }
     in
@@ -437,8 +458,45 @@ struct
                localbytes = localbytes }
     end
 
-  (* XXX globals ! *)
-  fun toasm (C.Program { functions, globals = _ }) =
-     A.Program { main = "main",
-                 procs = map doproc functions }
+  (* Allocate globals at the beginning of DS so that we know their
+     addresses. Doesn't perform initialization. *)
+  fun allocglobals (globals : (string * C.global) list) =
+    let
+      (* Unlike locals, we expect all of the globals to already be
+         collected into the toplevel list. *)
+      val nextpos = ref FIRST_GLOBAL_POS
+      val globalpositions = ref nil : (string * int) list ref
+      fun alloc (s, sz) =
+        let in
+          globalpositions := (s, !nextpos) :: !globalpositions;
+          nextpos := !nextpos + szbytes sz
+        end
+      fun oneglobal (name, C.Glob { typ, init, blocks }) =
+        alloc (name, ctypsize typ)
+    in
+      app oneglobal globals;
+      (!globalpositions, !nextpos)
+    end
+
+  fun toasm (C.Program { functions, globals }) =
+    let
+      val (globalpositions, frame_stack_start) = allocglobals globals
+      (* XXX global initialization code!
+         XXX something has to set up EBX to point to the frame stack,
+         i.e., frame_stack_start *)
+      fun onefunction (name, func) =
+        let in
+          doproc globalpositions (name, func)
+        end
+    in
+      (* Probably should include some headroom here..? *)
+      if frame_stack_start > 65536
+      then raise ToASM ("Size of globals statically exceeds the 16-bit " ^
+                        "data-segment. This program can't be compiled " ^
+                        "for this architecture! :(")
+      else ();
+
+      A.Program { main = "main",
+                  procs = map onefunction functions }
+    end
 end
