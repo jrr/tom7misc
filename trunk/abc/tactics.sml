@@ -957,11 +957,13 @@ struct
       val acc = acc ++ ECX //
         (* Access segment FS=0 *)
         DB 0wx64 //
+        (* XXX non-ascii; use tactic (need mov tactic with prefix) *)
         MOV (S32, C <- IND_EBX_DISP8 0w0)
 
       val acc = load_reg16 acc B IVT_INT_ILLEGAL
       val acc = acc //
         DB 0wx64 //
+        (* XXX non-ascii, use tactic (need mov tactic with prefix) *)
         MOV (S32, IND_EBX_DISP8 0w0 <~ C)
 
       val acc = acc -- ECX -- EBX
@@ -1011,7 +1013,8 @@ struct
       emit acc (explode s)
     end
 
-  (* Exits the program. Uses the interrupt instruction, so non-ASCII. *)
+  (* Exits the program. This is ASCII now; it requires the interrupt
+     vector to have been modified in initialization. *)
   fun exit acc : acc =
     let val acc = acc ++ AX
     in
@@ -1020,8 +1023,6 @@ struct
       X86.DB 0wx63 // X86.DB 0wx79 // X86.DB 0wx61 //
       (* follow with ! to be emphatic *)
       X86.DB 0wx21 -- AX
-
-      (* INT 0wx21 -- AX *)
     end
 
 end

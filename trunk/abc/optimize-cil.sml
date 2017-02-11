@@ -916,6 +916,8 @@ end
      x to 32 bits. Just do AND16.
    - No need to promote argument before GotoIf on it (truncate could
      drop one bits though).
+   - Drop unused globals!
+   - Make locals from leaf functions globals? Is it better?
    - If a local only takes on a finite set of values all in some
      preferable radix (e.g. 16 bits), reduce its width. This happens
      in the output of EliminateCompareOps, for example.

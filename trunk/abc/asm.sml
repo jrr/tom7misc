@@ -57,31 +57,34 @@
      - return address value.
    We have access to several segments using the override prefixes:
    ES, CS, SS, DS, FS, GS.
-   However, we can't change the values of these (requires a MOV
-   instruction that's outside the gamut -- not the same as the MOV
-   instruction we do have.) and only a few of them have predictable
-   values when we start the EXE.
+   However, we can't change the values of these (all MOV instructions
+   are outside gamut, but no other instructions can even modify these
+   so we can't do ADD/XOR tricks) and only a few of them have
+   predictable values when we start the EXE.
      - SS is set up to a dedicated 64k segment. We need this for
        the machine stack (accessed with PUSH/POP), but we can also put
        temporaries here.
      - CS is set up to some 64k block in our EXE; we'll just use this
-       for code.
+       for code; code size will be one of our major limitations.
      - DS is set up to 64k where the first 256 bytes are the Program
        Segment Prefix and the rest is from our EXE (not sure if this
        is guaranteed?). We assume all C (data) addresses are in DS.
      - ES, FS, GS are probably not reliable. (In DOSBox, ES=DS, and
        FS=GS=0.) Conceivably we could use FS and GS for additional
        temporaries, but if they overlap one of the other segments,
-       we'd be toast.
+       we'd be toast. The interrupt-vector rewrite trick does
+       currently rely on FS being 0 at startup.
 
    * Globals. *
    Anything that's a C variable (locals, globals, arguments) must be
    addressable with & in the general case, which means it must be laid
-   out in the data segment. (An earlier phase can rewrite locals that
-   don't need to be addressed to CIL vars, which can be tmps here.)
+   out in the same segment. We use DS. (An earlier phase can rewrite
+   locals that don't need to be addressed to CIL vars, which can be
+   tmps here.)
 
    Globals are just allocated into fixed positions in DS.
-   These go at the beginning of DS, starting at 0.
+   These go at the beginning of DS, starting at offset 256 (before that
+   is the PSP).
 
    * Arguments and locals. *
    Arguments and locals are basically the same, except that arguments
@@ -126,6 +129,9 @@
    We don't need random access to them.
    The machine stack can also be used by ASM code, and is used in the
    implementation of various tactics (e.g., loading a 32-bit immediate).
+
+   * Return value. *
+   TODO
 
    X86 registers reserved for compiler use:
     - EBX points to beginning of local frame (in DS).
