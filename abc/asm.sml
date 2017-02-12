@@ -202,25 +202,28 @@ struct
      TODO: Document what is allowed.
      *)
   datatype cmd =
-    (* XXX I think Prepare/Destroy are actually the same as
-       expand/shrink *)
-    (* Advance the base pointer to make
-       for this funtion. This is done by the caller, since the
-       arguments need to then be set up in this frame. *)
+  (* XXX I think Prepare/Destroy are actually the same as
+     expand/shrink *)
+  (* Advance the base pointer to make
+     for this funtion. This is done by the caller, since the
+     arguments need to then be set up in this frame. *)
     PrepareArgs of string
-    (* Remove the frame. This could be done by the caller or
-       callee, but we do it in the callee so that we have a
-       good chance of merging the ShrinkFrame and DestroyArgs,
-       which both just modify the base pointer. *)
+  (* Remove the frame. This could be done by the caller or
+     callee, but we do it in the callee so that we have a
+     good chance of merging the ShrinkFrame and DestroyArgs,
+     which both just modify the base pointer. *)
   | DestroyArgs of string
-    (* Expand or shrink the frame by moving the base pointer.
-       A function expands in its header to make room for its
-       local variables, and shrinks before returning. This has
-       to be done by the function itself, because the type of
-       a function pointer does not indicate how much local
-       space it needs. *)
+  (* Expand or shrink the frame by moving the base pointer.
+     A function expands in its header to make room for its
+     local variables, and shrinks before returning. This has
+     to be done by the function itself, because the type of
+     a function pointer does not indicate how much local
+     space it needs. *)
   | ExpandFrame of int
   | ShrinkFrame of int
+  (* Assign the address of the current frame (EBX) plus the
+     given offset to the 16-bit temporary. *)
+  | FrameOffset of tmp * Word16.word
     (* Load (dst, addr). Loads and stores are always to the
        data segment. *)
   | Load8 of tmp * tmp
@@ -240,7 +243,7 @@ struct
   | Xor of tmp * tmp
   | Push of tmp
   | Pop of tmp
-    (* Name of block. 16 bits. *)
+    (* Name of code block. 16 bits. *)
   | LoadLabel of tmp * string
     (* General jump to 16-bit code pointer. Used for
        returning from functions and for C function
@@ -300,12 +303,14 @@ struct
     case c of
       ExpandFrame n => "expandframe " ^ Int.toString n
     | ShrinkFrame n => "shrinkframe " ^ Int.toString n
+    | FrameOffset (dst, off) => "frameoffset " ^ tmptos dst ^ " <- frame+" ^
+        Word16.toString off
     | Load8 (dst, addr) => "load8 " ^ tmptos dst ^ " <- [" ^ tmptos addr ^ "]"
     | Load16 (dst, addr) => "load16 " ^ tmptos dst ^ " <- [" ^ tmptos addr ^ "]"
     | Store8 (addr, src) => "store8 [" ^ tmptos addr ^ "] <- " ^ tmptos src
     | Store16 (addr, src) => "store16 [" ^ tmptos addr ^ "] <- " ^ tmptos src
     | Push tmp => "push " ^ tmptos tmp
-    | Pop tmp => "push " ^ tmptos tmp
+    | Pop tmp => "pop " ^ tmptos tmp
     | LoadLabel (tmp, lab) => "loadlabel " ^ tmptos tmp ^ " <- &" ^ lab
     | JumpInd tmp => "jmp_ind " ^ tmptos tmp
     | JumpCond (cond, lab) => condtos cond ^ " " ^ lab

@@ -36,6 +36,7 @@ struct
         val () = print ("\nOptimized:\n" ^ CIL.progtos cil ^ "\n")
         val asm = ToASM.toasm cil
         val () = print ("\nToASM:\n" ^ ASM.progtos asm ^ "\n")
+        (* TODO: Temporary coalescing! *)
       in
         print "TODO: Rest of compiler\n"
       end
