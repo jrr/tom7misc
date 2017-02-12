@@ -102,17 +102,42 @@ struct
       val RELOCTABLE_START = 0x2020
       val NUM_RELOCATIONS = 0x2020
 
-      val padding_size = 1048576 - Word8Vector.length header
+      (* Compute empirically for the given header values above. *)
+      val CODESEG_AT = 0x09e9c4
+
+      (* Computed empirically for the given header values above.
+         I *believe* that this is predictable, but it's not really documented.
+         See dos_execute.cpp in dosbox/src for some notes. *)
+      (* XXX: This works(ish?) but starting at DS:0x78c I see "`f" overwriting
+         the file's data every 16 bytes. It goes on until DS:0xb8c, then comes
+         back at 0xf8c, then away again at 138c, etc. for the rest of the segment.
+         This can't be the relocations, can it? *)
+      val DATASEG_AT = 0x07e7c8 - 0x0104
+
+      (* If code and data segments are overlapping, we're screwed. Sanity check. *)
+      val () = if CODESEG_AT >= DATASEG_AT andalso CODESEG_AT < DATASEG_AT + 65536
+               then raise EXE "Ut oh: code segment starts in data segment!"
+               else ()
+
+      val () = if DATASEG_AT >= CODESEG_AT andalso DATASEG_AT < CODESEG_AT + 65536
+               then raise EXE "Ut oh: data segment starts in code segment!"
+               else ()
+
+
+      val padding_size = 0x100000 - Word8Vector.length header
       val padding = Word8Vector.tabulate
         (padding_size,
          fn i =>
          if i >= RELOCTABLE_START - Word8Vector.length header andalso
-            i < RELOCTABLE_START - Word8Vector.length header + NUM_RELOCATIONS * 2
+            i < RELOCTABLE_START - Word8Vector.length header + NUM_RELOCATIONS * 4
          then
            (* relocation table. *)
            let
              val off = i - RELOCTABLE_START - Word8Vector.length header
            in
+             (* XXXX FIXME! This is not printable, and I didn't carefully verify that
+                this is outside the program/data segments. We need to find a
+                printable address that's safe to modify. *)
              if i mod 4 = 0 then 0wx19
              else 0wx20
            end
@@ -122,14 +147,18 @@ struct
            (* Code segment *)
            Word8Vector.sub (cs, i - 0x09e9c4)
          else
-           (* XXX data segment! *)
-         case i mod 6 of
+         if i >= DATASEG_AT andalso i < DATASEG_AT + 65536
+         then
+           (* Data segment *)
+           Word8Vector.sub (ds, i - DATASEG_AT)
+         else
+         case i mod 8 of
            (* Load EAX, unique 32 bit number *)
            0 => Word8.fromInt ` ord #"|"
-         | 1 => Word8.fromInt ((i - 2) mod 256)
-         | 2 => Word8.fromInt (((i - 3) div 256) mod 256)
-         | 3 => Word8.fromInt (((i - 4) div (256 * 256)) mod 256)
-         | 4 => Word8.fromInt (((i - 5) div (256 * 256 * 256)) mod 256)
+         | 1 => Word8.fromInt ((i - 1) mod 256)
+         | 2 => Word8.fromInt (((i - 2) div 256) mod 256)
+         | 3 => Word8.fromInt (((i - 3) div (256 * 256)) mod 256)
+         | 4 => Word8.fromInt (((i - 4) div (256 * 256 * 256)) mod 256)
          | _ => Word8.fromInt ` ord #"<"
              )
 
