@@ -141,14 +141,22 @@ struct
            we don't use it here; the address is always a 16-bit DS offset. *)
         | C.AddressLiteral (loc, typ) =>
            (case loc of
-              C.Local l => raise ToASM "unimplemented local addrs"
+              C.Local l =>
+                let val tmp = newtmp ("addr_" ^ l, A.S16)
+                in
+                  case ListUtil.Alist.find op= offsets l of
+                    NONE => raise ToASM ("unallocated local " ^ l ^ "?")
+                  | SOME pos =>
+                      A.FrameOffset (tmp, Word16.fromInt pos) // k tmp
+                end
             | C.Global l =>
-                (case ListUtil.Alist.find op= globalpositions l of
-                   NONE => raise ToASM ("unallocated global " ^ l ^ "?")
-                 | SOME pos =>
-                     let val tmp = newtmp ("addr_" ^ l, A.S16)
-                     in A.Immediate16 (tmp, Word16.fromInt pos) // k tmp
-                     end))
+                let val tmp = newtmp ("addr_" ^ l, A.S16)
+                in
+                   case ListUtil.Alist.find op= globalpositions l of
+                     NONE => raise ToASM ("unallocated global " ^ l ^ "?")
+                   | SOME pos =>
+                       A.Immediate16 (tmp, Word16.fromInt pos) // k tmp
+                end)
         | C.Word8Literal w8 =>
             let val tmp = newtmp ("imm", A.S8)
             in A.Immediate8 (tmp, w8) // k tmp
