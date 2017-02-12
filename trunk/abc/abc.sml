@@ -37,6 +37,8 @@ struct
         val asm = ToASM.toasm cil
         val () = print ("\nToASM:\n" ^ ASM.progtos asm ^ "\n")
         (* TODO: Temporary coalescing! *)
+        (* val x86 = ToX86.tox86 asm
+           val () = print ("\nToX86:\n" *)
       in
         print "TODO: Rest of compiler\n"
       end
