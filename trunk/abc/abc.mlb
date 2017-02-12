@@ -54,6 +54,10 @@ ckit/ckit-lib.mlb
   tactics.sml
   tactics-test.sml
 
+  exe-sig.sml
+  exe.sml
+
+  (* XXX bye *)
   writetest.sml
   abc.sml
 
