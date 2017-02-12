@@ -55,7 +55,6 @@ struct
 
   fun writeexe () =
     let
-
       (* Aside from the keyword "signature" being replaced with "magic",
          these are the same names as the DOSBox source code. Every entry
          is 16-bit. *)
@@ -64,7 +63,7 @@ struct
       (* Image size mod 512. We have to give an invalid value here, since
          we can't write 01 or 00 for the high bit. *)
       val extrabytes = vec [0wx7e, 0wx7e]
-      (* Pages in file .
+      (* Pages in file.
          Number of 512-byte pages. Since the maximum size is 1MB, we also
          have to give an invalid value here, but DOSBox ANDs the value
          with 07ff. This gives 0x67E * 512 = 850944 bytes.*)
@@ -92,9 +91,12 @@ struct
       val minmemory = vec [0wx0A, 0wx0D]
       val maxmemory = minmemory
       (* Stack segment displacement, in 16-byte paragraphs.
-         what does this mean? *)
+         What does this mean? SS becomes 0x705B, which is mostly zeroes. *)
       val initSS = vec [0wx6e, 0wx6e]
-      (* Stack grows downward, so we want this to be as high as possible. *)
+      (* Machine stack grows downward, so we want this to be a large number.
+         We actually place the temporaries stack right after this, growing
+         upward (towards 0xFFFF); so the machine stack and temporaries stack
+         each get about half the address space. *)
       val initSP = vec [0wx7e, 0wx7e]
       (* Checksum; usually ignored. 'AB' *)
       val checksum = vec [0wx41, 0wx42]
