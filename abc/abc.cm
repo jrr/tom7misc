@@ -48,6 +48,7 @@ group is
   toasm.sml
 
   x86.sml
+  encode-x86.sml
 
   machine-sig.sml
   machine.sml

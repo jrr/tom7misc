@@ -102,24 +102,25 @@ struct
       val RELOCTABLE_START = 0x2020
       val NUM_RELOCATIONS = 0x2020
 
+      val RELOCTABLE_AT = RELOCTABLE_START - Word8Vector.length header
+
       (* Compute empirically for the given header values above. *)
       val CODESEG_AT = 0x09e9c4
 
       (* Computed empirically for the given header values above.
          I *believe* that this is predictable, but it's not really documented.
          See dos_execute.cpp in dosbox/src for some notes. *)
-      (* XXX: This works(ish?) but starting at DS:0x78c I see "`f" overwriting
-         the file's data every 16 bytes. It goes on until DS:0xb8c, then comes
-         back at 0xf8c, then away again at 138c, etc. for the rest of the segment.
-         This can't be the relocations, can it? *)
       val DATASEG_AT = 0x07e7c8 - 0x0104
 
-      (* If code and data segments are overlapping, we're screwed. Sanity check. *)
-      val () = if CODESEG_AT >= DATASEG_AT andalso CODESEG_AT < DATASEG_AT + 65536
+      (* If code and data segments are overlapping, we're screwed.
+         Sanity check. *)
+      val () = if CODESEG_AT >= DATASEG_AT
+               andalso CODESEG_AT < DATASEG_AT + 65536
                then raise EXE "Ut oh: code segment starts in data segment!"
                else ()
 
-      val () = if DATASEG_AT >= CODESEG_AT andalso DATASEG_AT < CODESEG_AT + 65536
+      val () = if DATASEG_AT >= CODESEG_AT
+               andalso DATASEG_AT < CODESEG_AT + 65536
                then raise EXE "Ut oh: data segment starts in code segment!"
                else ()
 
@@ -128,39 +129,48 @@ struct
       val padding = Word8Vector.tabulate
         (padding_size,
          fn i =>
-         if i >= RELOCTABLE_START - Word8Vector.length header andalso
-            i < RELOCTABLE_START - Word8Vector.length header + NUM_RELOCATIONS * 4
+         if i >= RELOCTABLE_AT andalso
+            i < RELOCTABLE_AT + NUM_RELOCATIONS * 4
          then
            (* relocation table. *)
            let
-             val off = i - RELOCTABLE_START - Word8Vector.length header
+             val off = (i - RELOCTABLE_AT) div 4
            in
-             (* XXXX FIXME! This is not printable, and I didn't carefully verify that
-                this is outside the program/data segments. We need to find a
-                printable address that's safe to modify. *)
+             (* XXXX FIXME! This is not printable, and I didn't carefully
+                verify that this is outside the program/data segments. We
+                need to find a printable address that's safe to modify. *)
              if i mod 4 = 0 then 0wx19
              else 0wx20
            end
          else
-         if i >= 0x09e9c4 andalso i < 0x09e9c4 + 65536
+         if i >= CODESEG_AT andalso i < CODESEG_AT + 65536
          then
            (* Code segment *)
-           Word8Vector.sub (cs, i - 0x09e9c4)
+           Word8Vector.sub (cs, i - CODESEG_AT)
          else
          if i >= DATASEG_AT andalso i < DATASEG_AT + 65536
          then
            (* Data segment *)
            Word8Vector.sub (ds, i - DATASEG_AT)
          else
-         case i mod 8 of
+         let
+           val pos = i div 16 * 16
+           val s = StringCvt.padLeft #"0" 8 (Word32.toString `
+                                             Word32.fromInt pos)
+           fun ch c = Word8.fromInt ` ord c
+         in
+           case i mod 16 of
            (* Load EAX, unique 32 bit number *)
-           0 => Word8.fromInt ` ord #"|"
-         | 1 => Word8.fromInt ((i - 1) mod 256)
-         | 2 => Word8.fromInt (((i - 2) div 256) mod 256)
-         | 3 => Word8.fromInt (((i - 3) div (256 * 256)) mod 256)
-         | 4 => Word8.fromInt (((i - 4) div (256 * 256 * 256)) mod 256)
-         | _ => Word8.fromInt ` ord #"<"
-             )
+           0 => ch #"*"
+         | 1 => ch #" "
+         | 2 => ch #"<"
+         | 3 => ch #"-"
+         | 4 => ch #"-"
+         | 5 => ch #" "
+         | 14 => ch #"\r"
+         | 15 => ch #"\n"
+         | m => ch (String.sub (s, m - 6))
+         end)
 
       val bytes = Word8Vector.concat [header, padding]
     in

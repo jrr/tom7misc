@@ -36,7 +36,8 @@ struct
           val acc = Acc.empty (X86.CTX { default_32 = false }) mach ++ X86.AX
           val acc = Tactics.load_ax16 acc (Word16.fromInt dst)
           val ctx = X86.CTX { default_32 = false }
-          val bytes = Word8Vector.concat (map (encode ctx) (Acc.insns acc))
+          val bytes = Word8Vector.concat
+            (map (EncodeX86.encode ctx) (Acc.insns acc))
           val n = Word8Vector.length bytes
           val mach = Acc.mach acc
         in
