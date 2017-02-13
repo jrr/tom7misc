@@ -1,3 +1,4 @@
+(* XXX Testing code that should be deleted. *)
 structure WriteTest =
 struct
 
@@ -10,6 +11,8 @@ struct
 
   open Acc
   infix // ?? ++ --
+
+  val vec = Word8Vector.fromList
 
     (*
   fun writecom () =
@@ -58,7 +61,7 @@ struct
       val prog = Acc.insns acc
 
       val ctx = CTX { default_32 = false }
-      val codebytes = Word8Vector.concat (map (X86.encode ctx) prog)
+      val codebytes = Word8Vector.concat (map (EncodeX86.encode ctx) prog)
       val () = print ("# of code bytes: " ^
                       Int.toString (Word8Vector.length codebytes) ^ "\n")
 

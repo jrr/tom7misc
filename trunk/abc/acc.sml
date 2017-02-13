@@ -19,7 +19,7 @@ struct
                             insbytes = 0, claimed = 0w0 }
   fun // (A { ctx, mach, ins, insbytes, claimed }, i) =
     A { ctx = ctx, mach = mach, ins = i :: ins,
-        insbytes = insbytes + X86.encoded_size ctx i,
+        insbytes = insbytes + EncodeX86.encoded_size ctx i,
         claimed = claimed }
   fun insns (A { ins, ... }) = rev ins
   fun clear_insns (A { ctx, mach, ins = _, insbytes = _, claimed }) =
@@ -128,7 +128,7 @@ friend is EAX, etc.) *)
       (* If this is a 16-bit register, then we're ok if either the
          16- or 32-bit register is claimed. *)
       val mask =
-        case X86.decode_multireg mr of
+        case EncodeX86.decode_multireg mr of
           (X86.S16, _) => Word32.orb (regmask, friendmask)
         | (X86.S32, _) => regmask
         | _ => raise Acc "bug: multireg has 16- or 32-bit size."
