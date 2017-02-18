@@ -21,15 +21,15 @@
 . I think. Although if the program is small, it doesn't have to use the whole  .
 . code segment, or there could contain readable text somewhere in there...     .
 .                                                                              .
+. OK, new executable size, which may be minimal, is 409600. This would be      .
+. 77 pages at a conservative 80x66. 77 pages is still absurd, but it's getting .
+. into the realm of possibility (double-sided, this is "only" 38 sheets).      .
 .                                                                              .
+. At 4-up size, we'd come in at 19.39 pages (10 sheets). 4-up would look       .
+. kind of stupid, but maybe we could do an elaborate ASCII two-column layout?  .
+. At least that would look cool, but it might be very hard to read?            .
 .                                                                              .
-.                                                                              .
-.                                                                              .
-.                                                                              .
-.                                                                              .
-.                                                                              .
-.                                                                              .
-.                                                                              .
+. Also remember that you'd need to write a lot to fill up that space!!         .
 .                                                                              .
 .                                                                              .
 .                                                                              .

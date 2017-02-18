@@ -28,13 +28,20 @@ struct
 
   fun write_exe { init_ip, init_sp, cs, ds } filename =
     let
+
+      val () = if Word8Vector.length cs = 65536 then ()
+               else raise (EXE "Code segment must be exactly 65536 bytes.")
+      val () = if Word8Vector.length ds = 65536 then ()
+               else raise (EXE "Data segment must be exactly 65536 bytes.")
+
       (* Aside from the keyword "signature" being replaced with "magic",
          these are the same names as the DOSBox source code. Every entry
          is 16-bit. *)
       (* EXE Signature MZ or ZM *)
       val magic = vec [0wx5A, 0wx4D]
       (* Image size mod 512. We have to give an invalid value here, since
-         we can't write 01 or 00 for the high bit. *)
+         we can't write 01 or 00 for the high bit. DOSBox ignores this
+         value. *)
       val extrabytes = vec [0wx7e, 0wx7e]
       (* Pages in file.
          Number of 512-byte pages. Since the maximum size is 1MB, we also
@@ -51,11 +58,22 @@ struct
          be 20 to 27, covering that whole range because the 2 get ANDed
          off, and the LSB can be anything printable (20 to 7e).
 
+         THIS IS OLD XXX
          Here I choose a value that results in 1397 pages, which is
          just after the natural end of the code segment. This results
          in a file size of 715264 bytes.
-         *)
-      val pages = w16v (Word16.fromInt 0x2575)
+         val pages = w16v (Word16.fromInt 0x2575)
+
+         The minimum conceivable image size would be 385 pages with
+         the code segment starting at 0x2020 ((0x2020 * 16 + 65536)
+         div 512). But of course we need a header. 0x217e is just shy
+         of this, and the next biggest printable value is 0x2220,
+         which gives us 544 pages. At this size, even with the
+         smallest possible header (0x2020 * 16 bytes), the 64k of code
+         doesn't fit in the image. 0x227e is merely 2kb shy, ugh! So
+         0x2320 seems to be the smallest workable value here, for 800
+         pages. (Maybe could get smaller if header used CR/LF.) *)
+      val pages = w16v (Word16.fromInt 0x2320)
       (* Number of relocation entries. We want this to be the minimum
          value we can, since it's totally wasted space. *)
       val relocations = vec [0wx20, 0wx20]
@@ -69,12 +87,10 @@ struct
 
          The minimum printable value is 0x2020 * 16 = 131584, which
          is bigger than we'd like. (CR/LF here?) *)
-      (* Actually we want the header size to be apparently large so that
-         the image size fits in RAM with extra minmemory.
-
-         TODO: This can probably come down, though shrinking the overall
-         size of the binary? *)
-      val headersize = vec [0wx7e, 0wx7e]
+      (* Actually it helps us for this to be a bit large, because
+         we need the image size (which is the rest of the file) to fit
+         in RAM even when we request a minmemory of 0x2020. *)
+      val headersize = w16v (Word16.fromInt 0x2020)
       (* Min/max number of 16-byte paragraphs required above
          the end of the program. I think this is like BSS? *)
       (* we want this to be small, since DOS only has about 40557 paragraphs to
@@ -137,10 +153,21 @@ struct
                       Int.toString HEADER_BYTES ^ " header + " ^
                       Int.toString IMAGE_BYTES ^ " image)\n")
 
-      val () = if Word8Vector.length cs = 65536 then ()
-               else raise (EXE "Code segment must be exactly 65536 bytes.")
-      val () = if Word8Vector.length ds = 65536 then ()
-               else raise (EXE "Data segment must be exaclty 65536 bytes.")
+
+      (* Following dos_execute *)
+      fun long2para s =
+        if s > 0xFFFF0 then 0xffff
+        else if s mod 16 <> 0 then (s div 16 + 1)
+             else s div 16
+
+      (* This is what dosbox reports as the maximum available memory; not actually sure if
+         it is reliably this high? *)
+      val AVAILABLE_MEMORY = 40482
+      val minsize = long2para(IMAGE_BYTES + (Word16.toInt (vw16 minmemory) * 16) + 256)
+      val () = print ("Computed minsize: " ^ Int.toString minsize ^ "\n")
+      val () = if minsize <= AVAILABLE_MEMORY then ()
+               else raise (EXE ("Requested memory won't fit: " ^ Int.toString minsize ^
+                                " > available " ^ Int.toString AVAILABLE_MEMORY))
 
       val () = if HEADER_BYTES >= Word8Vector.length header_struct then ()
                else raise (EXE "Alleged header size doesn't even include the header struct?")
@@ -205,6 +232,11 @@ struct
                then raise EXE "Ut oh: data segment starts in code segment!"
                else ()
 
+      val () = if CODESEG_AT + 65536 < IMAGE_BYTES then ()
+               else raise EXE ("Code segment doesn't fit inside image! " ^
+                               Int.toString ((CODESEG_AT + 65536) - IMAGE_BYTES) ^
+                               " bytes short.")
+
       val image = Word8Vector.tabulate
         (IMAGE_BYTES,
          fn i =>
@@ -244,6 +276,6 @@ struct
       else raise (EXE ("File is not the expected size (got " ^ Int.toString num_bytes ^
                        " but expected " ^ Int.toString FILE_BYTES));
       StringUtil.writefilev8 filename bytes;
-      print ("Wrote " ^ Int.toString num_bytes ^ " to " ^ filename ^ "\n")
+      print ("Wrote " ^ Int.toString num_bytes ^ " bytes to " ^ filename ^ "\n")
     end
 end
