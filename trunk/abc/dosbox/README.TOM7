@@ -7,6 +7,8 @@ you want the real DOSBox from their repository;
 
 svn co svn://svn.code.sf.net/p/dosbox/code-0/dosbox/trunk dosbox
 
+I forked at their svn revision #4000.
+
 
 Either way, on Ubuntu, I compiled like this:
 
