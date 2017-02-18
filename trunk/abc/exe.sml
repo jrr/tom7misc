@@ -40,12 +40,16 @@ struct
          Number of 512-byte pages. Since the maximum size is 1MB, we also
          have to give an invalid value here, but DOSBox ANDs the value
          with 07ff. This gives 0x7e7e gives 0x67E * 512 = 850944 bytes.
-         (We could make this bigger if we wanted...)
+         (We could make this 77e if we wanted...)
 
          We can use so little of the file for anything meaningful; it's
          basically just the code and data segments, each at 64k, and
          this huge useless header before that where we store the paper
          and some untouchable stuff like the relocation table.
+
+         We can write most values here; the most-significant byte can
+         be 20 to 27, covering that whole range because the 2 get ANDed
+         off, and the LSB can be anything printable (20 to 7e).
 
          Here I choose a value that results in 1397 pages, which is
          just after the natural end of the code segment. This results
@@ -99,15 +103,15 @@ struct
       val checksum = vec [0wx41, 0wx42]
       (* vec [0wx20, 0wx20] *)
       val initIP = w16v init_ip
-      (* Displacement of code segment. *)
+      (* Displacement of code segment (within _image_). *)
       val initCS = vec [0wx20, 0wx20]
-      (* Offset in the file that begins the relocations. *)
+      (* Offset in the _file_ that begins the relocations. *)
       val reloctable = vec [0wx20, 0wx20]
       (* Tells the OS what overlay number this is. Should be 0
          for the main executable, but it seems to work if it's not *)
       val overlay = vec [0wx20, 0wx20]
 
-      val header =
+      val header_struct =
         Word8Vector.concat [magic,
                             extrabytes,
                             pages,
@@ -122,29 +126,72 @@ struct
                             initCS,
                             reloctable,
                             overlay]
+      val HEADER_STRUCT_BYTES = Word8Vector.length header_struct
 
       (* masked pages value, times size of page *)
-      val FILE_SIZE = Word16.toInt (Word16.andb(vw16 pages, Word16.fromInt 0x7ff)) * 512
+      val FILE_BYTES = Word16.toInt (Word16.andb(vw16 pages, Word16.fromInt 0x7ff)) * 512
+      val HEADER_BYTES = Word16.toInt (vw16 headersize) * 16
+      val IMAGE_BYTES = FILE_BYTES - HEADER_BYTES
+
+      val () = print ("File size: " ^ Int.toString FILE_BYTES ^ " (" ^
+                      Int.toString HEADER_BYTES ^ " header + " ^
+                      Int.toString IMAGE_BYTES ^ " image)\n")
 
       val () = if Word8Vector.length cs = 65536 then ()
                else raise (EXE "Code segment must be exactly 65536 bytes.")
       val () = if Word8Vector.length ds = 65536 then ()
                else raise (EXE "Data segment must be exaclty 65536 bytes.")
 
-      val RELOCTABLE_START = 0x2020
-      val NUM_RELOCATIONS = 0x2020
+      val () = if HEADER_BYTES >= Word8Vector.length header_struct then ()
+               else raise (EXE "Alleged header size doesn't even include the header struct?")
 
-      val RELOCTABLE_AT = RELOCTABLE_START - Word8Vector.length header
+      val RELOCTABLE_START = Word16.toInt ` vw16 reloctable
+      val NUM_RELOCATIONS = Word16.toInt ` vw16 relocations
 
-      (* XXX compute this stuff programmatically... *)
+      (* Note: I think it might be allowed that the relocation table is not
+         actually in the header. Maybe it would be more efficient to put it between
+         the data and code segments? *)
+      val () = if HEADER_BYTES >= RELOCTABLE_START + NUM_RELOCATIONS * 4 then ()
+               else raise (EXE "Relocation table doesn't fit in alleged header size.")
 
-      (* Computed empirically for the given header values above. *)
-      val CODESEG_AT = 0x09e9c4
+      val () = if RELOCTABLE_START mod 4 = 0 then ()
+               else raise (EXE "This code assumes that the relocation table is 32-bit aligned.")
+
+      (* This is the chunk of the file that DOS interprets as the header (HEADER_BYTES in size),
+         starting with the header struct and containing the relocation table. *)
+      val header = Word8Vector.tabulate
+        (HEADER_BYTES,
+         fn i =>
+         if i < Word8Vector.length header_struct
+         then Word8Vector.sub(header_struct, i)
+         else
+         if i >= RELOCTABLE_START andalso
+            i < RELOCTABLE_START + NUM_RELOCATIONS * 4
+         then
+         let
+           val off = (i - RELOCTABLE_START) div 4
+         in
+           (* XXXX FIXME! This is not printable, and I didn't carefully
+              verify that this is outside the program/data segments. We
+              need to find a printable address that's safe to modify. *)
+           if i mod 4 = 0 then 0wx19
+           else 0wx20
+         end
+         else
+           (case i mod 3 of
+              0 => Word8.fromInt ` ord #"h"
+            | 1 => Word8.fromInt ` ord #"d"
+            | _ => Word8.fromInt ` ord #"r"))
 
       (* Computed empirically for the given header values above.
          I *believe* that this is predictable, but it's not really documented.
          See dos_execute.cpp in dosbox/src for some notes. *)
-      val DATASEG_AT = 0x07e7c8 - 0x0104
+
+      (* We "start" the data segment before the image location, and don't even
+         write the first 256 bytes. This is because those bytes get overwritten
+         by the PSP. *)
+      val DATASEG_AT = ~256
+      val CODESEG_AT = 16 * Word16.toInt ` vw16 initCS
 
       (* If code and data segments are overlapping, we're screwed.
          Sanity check. *)
@@ -158,25 +205,9 @@ struct
                then raise EXE "Ut oh: data segment starts in code segment!"
                else ()
 
-
-      val padding_size = FILE_SIZE - Word8Vector.length header
-      val padding = Word8Vector.tabulate
-        (padding_size,
+      val image = Word8Vector.tabulate
+        (IMAGE_BYTES,
          fn i =>
-         if i >= RELOCTABLE_AT andalso
-            i < RELOCTABLE_AT + NUM_RELOCATIONS * 4
-         then
-           (* relocation table. *)
-           let
-             val off = (i - RELOCTABLE_AT) div 4
-           in
-             (* XXXX FIXME! This is not printable, and I didn't carefully
-                verify that this is outside the program/data segments. We
-                need to find a printable address that's safe to modify. *)
-             if i mod 4 = 0 then 0wx19
-             else 0wx20
-           end
-         else
          if i >= CODESEG_AT andalso i < CODESEG_AT + 65536
          then
            (* Code segment *)
@@ -206,8 +237,13 @@ struct
          | m => ch (String.sub (s, m - 6))
          end)
 
-      val bytes = Word8Vector.concat [header, padding]
+      val bytes = Word8Vector.concat [header, image]
+      val num_bytes = Word8Vector.length bytes
     in
-      StringUtil.writefilev8 filename bytes
+      if num_bytes = FILE_BYTES then ()
+      else raise (EXE ("File is not the expected size (got " ^ Int.toString num_bytes ^
+                       " but expected " ^ Int.toString FILE_BYTES));
+      StringUtil.writefilev8 filename bytes;
+      print ("Wrote " ^ Int.toString num_bytes ^ " to " ^ filename ^ "\n")
     end
 end

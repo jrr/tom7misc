@@ -1,0 +1,66 @@
+................................................................................
+.                                                                              .
+. Here is a page of printed text using typical line-printer settings of 80x66. .
+. I gave myself a border so that it's pretty easy to see the appropriate width .
+. when just looking at an unformatted dump. At this size, each page is exactly .
+. 5280 bytes. With an executable of 715264 bytes, that's 135 pages (yikes).    .
+.                                                                              .
+. This does seem like a pretty reasonable resolution for reading and editing,  .
+. though, and it's suitably authentic. Even if we used an uncomfortably large  .
+. 4x size of 160x132 (like by printing 4 ASCII pages per page?) it'd still be  .
+. 33 pages, which is a bit much for SIGBOVIK. And what would we even fill it   .
+. with? Better to just put some 'meta' stuff in the printed version, like to   .
+. insert 600k of spaces here, etc.                                             .
+.                                                                              .
+. On the other hand, I did manage to fit over 600kb of portmantout in the 2015 .
+. edition and it was even (barely) readable?                                   .
+.                                                                              .
+. Minimally we need to print the whole code segment, which is 64k, and         .
+. probably the whole data segment at 64k as well. At 80x66, this is 12.4       .
+. pages of gibberish! That's about the maximum of what I could get away with,  .
+. I think. Although if the program is small, it doesn't have to use the whole  .
+. code segment, or there could contain readable text somewhere in there...     .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+.                                                                              .
+................................................................................
