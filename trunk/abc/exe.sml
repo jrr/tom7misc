@@ -50,14 +50,11 @@ struct
       val headersize = vec [0wx7e, 0wx7e]
       (* Min/max number of 16-byte paragraphs required above
          the end of the program. I think this is like BSS? *)
-      (* val minmemory = vec [0wx20, 0wx20]
-         val maxmemory = vec [0wx20, 0wx20] *)
       (* we want this to be small, since DOS only has about 40557 paragraphs to
-         give us. This value (little-endian) is 0b0111000000100000, which gets
-         shifted up 4, overflowing all the 1 bits at the top. (XXX doesn't work;
-         I guess it gets extended to 32 bits) *)
-      (* val minmemory = vec [0wx20, 0wx70] *)
-      (* CR/LF (0x0A,0x0D) yields 48314; still too big... *)
+         give us. We'd like to use 0x20,0x70 which little-endian is
+         is 0b0111000000100000, hoping that when it's left-shifted 4, all
+         the 1 bits overflow. (Unfortunately it seems to be extended to
+         32 bits, so that doesn't work. *)
       (* What gets computed here is
          long2para(imagesize + minmemory<<4 + 256), where long2para
          is roughly >>4. The result has to be <maxfree, which is 40482.
