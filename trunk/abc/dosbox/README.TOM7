@@ -1,0 +1,20 @@
+                                                        18 Feb 2017
+
+This is an uninteresting fork of DOSBox that I used in the development
+of ABC. Basically it's just so that I can keep a record of my local
+modifications (debug printing) in version control. It's likely (?) that
+you want the real DOSBox from their repository;
+
+svn co svn://svn.code.sf.net/p/dosbox/code-0/dosbox/trunk dosbox
+
+
+Either way, on Ubuntu, I compiled like this:
+
+apt-get install automake
+apt-get install libncurses-dev
+./autogen.sh
+./configure --enable-debug
+make
+
+
+--enable-debug is critical for turning on the built-in debugger!
