@@ -322,10 +322,13 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 		  if(head.pages & ~0x07ff) /* 1 MB dos maximum address limit. Fixes TC3 IDE (kippesoep) */
 		    LOG(LOG_EXEC,LOG_NORMAL)("Weird header: head.pages > 1 MB");
 		  head.pages&=0x07ff;
+		  LOG(LOG_EXEC,LOG_NORMAL)("new head.pages %lu * 512 = %lu",
+					   head.pages, head.pages * 512);
 		  headersize = head.headersize*16;
 		  imagesize = head.pages*512-headersize; 
 		  if (imagesize+headersize<512) imagesize = 512-headersize;
-		  LOG(LOG_EXEC,LOG_NORMAL)("hsize %lu isize %lu", (long unsigned int)headersize,
+		  LOG(LOG_EXEC,LOG_NORMAL)("headersize %lu imagesize %lu",
+					   (long unsigned int)headersize,
 					   (long unsigned int)imagesize);
 		}
 	}
@@ -357,7 +360,8 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 				if (minsize>maxsize) minsize=maxsize;
 			}
 		} else {	/* Exe size calculated from header */
-		  LOG(LOG_EXEC,LOG_NORMAL)("head.minmemory %lu isize %lu", (unsigned long)head.minmemory,
+		  LOG(LOG_EXEC,LOG_NORMAL)("head.minmemory %lu imagesize %lu",
+					   (unsigned long)head.minmemory,
 					   (unsigned long)imagesize);
 
 		  // static INLINE Bit16u long2para(Bit32u size) {
@@ -369,8 +373,10 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 		  minsize=long2para(imagesize+(head.minmemory<<4)+256);
 			if (head.maxmemory!=0) maxsize=long2para(imagesize+(head.maxmemory<<4)+256);
 			else maxsize=0xffff;
-		  LOG(LOG_EXEC,LOG_NORMAL)("minsize %lu maxsize %lu", (unsigned long)minsize,
-					   (unsigned long)maxsize);
+		  LOG(LOG_EXEC,LOG_NORMAL)("minsize %lu maxsize %lu maxfree %lu", (unsigned long)minsize,
+					   (unsigned long)maxsize,
+					   (unsigned long)maxfree
+					   );
 		}
 		if (maxfree<minsize) {
 			if (iscom) {

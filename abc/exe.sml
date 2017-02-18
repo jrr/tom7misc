@@ -13,12 +13,18 @@ struct
   fun (v1 : word8vector) @@ (v2 : word8vector) =
     Word8Vector.concat [v1, v2]
 
+  (* Little-endian. *)
   fun w16v (w16 : Word16.word) = vec [Word8.fromInt `
                                       Word16.toInt `
-                                      Word16.>>(w16, 0w8),
+                                      Word16.andb(w16, Word16.fromInt 255),
                                       Word8.fromInt `
                                       Word16.toInt `
-                                      Word16.andb(w16, Word16.fromInt 255)]
+                                      Word16.>>(w16, 0w8)]
+  fun vw16 (v : Word8Vector.vector) : Word16.word =
+    if Word8Vector.length v <> 2
+    then raise EXE "vw16 requires a length-2 vector"
+    else Word16.fromInt (Word8.toInt (Word8Vector.sub(v, 1)) * 256 +
+                         Word8.toInt (Word8Vector.sub(v, 0)))
 
   fun write_exe { init_ip, init_sp, cs, ds } filename =
     let
@@ -33,15 +39,32 @@ struct
       (* Pages in file.
          Number of 512-byte pages. Since the maximum size is 1MB, we also
          have to give an invalid value here, but DOSBox ANDs the value
-         with 07ff. This gives 0x67E * 512 = 850944 bytes.*)
-      val pages = vec [0wx7e, 0wx7e]
+         with 07ff. This gives 0x7e7e gives 0x67E * 512 = 850944 bytes.
+         (We could make this bigger if we wanted...)
+
+         We can use so little of the file for anything meaningful; it's
+         basically just the code and data segments, each at 64k, and
+         this huge useless header before that where we store the paper
+         and some untouchable stuff like the relocation table.
+
+         Here I choose a value that results in 1397 pages, which is
+         just after the natural end of the code segment. This results
+         in a file size of 715264 bytes.
+         *)
+      val pages = w16v (Word16.fromInt 0x2575)
       (* Number of relocation entries. We want this to be the minimum
          value we can, since it's totally wasted space. *)
       val relocations = vec [0wx20, 0wx20]
       (* Paragraphs in header. A paragraph is 16 bytes.
+         The image size, which we need to keep small to fit in memory,
+         is (head.pages & 07ff) * 512 - head.headersize * 16.
+
+         So we actually report a large header size in order to account
+         for the largeness of the file. (A large header also allows us
+         to fit the relocation table as well as our paper :))
+
          The minimum printable value is 0x2020 * 16 = 131584, which
          is bigger than we'd like. (CR/LF here?) *)
-      (* val headersize = vec [0wx20, 0wx20] *)
       (* Actually we want the header size to be apparently large so that
          the image size fits in RAM with extra minmemory.
 
@@ -100,6 +123,9 @@ struct
                             reloctable,
                             overlay]
 
+      (* masked pages value, times size of page *)
+      val FILE_SIZE = Word16.toInt (Word16.andb(vw16 pages, Word16.fromInt 0x7ff)) * 512
+
       val () = if Word8Vector.length cs = 65536 then ()
                else raise (EXE "Code segment must be exactly 65536 bytes.")
       val () = if Word8Vector.length ds = 65536 then ()
@@ -110,7 +136,9 @@ struct
 
       val RELOCTABLE_AT = RELOCTABLE_START - Word8Vector.length header
 
-      (* Compute empirically for the given header values above. *)
+      (* XXX compute this stuff programmatically... *)
+
+      (* Computed empirically for the given header values above. *)
       val CODESEG_AT = 0x09e9c4
 
       (* Computed empirically for the given header values above.
@@ -131,7 +159,7 @@ struct
                else ()
 
 
-      val padding_size = 0x100000 - Word8Vector.length header
+      val padding_size = FILE_SIZE - Word8Vector.length header
       val padding = Word8Vector.tabulate
         (padding_size,
          fn i =>
