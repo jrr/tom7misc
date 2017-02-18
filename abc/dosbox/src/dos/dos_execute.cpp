@@ -301,24 +301,51 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 		}
 		if ((head.signature!=MAGIC1) && (head.signature!=MAGIC2)) iscom=true;
 		else {
-			if(head.pages & ~0x07ff) /* 1 MB dos maximum address limit. Fixes TC3 IDE (kippesoep) */
-				LOG(LOG_EXEC,LOG_NORMAL)("Weird header: head.pages > 1 MB");
-			head.pages&=0x07ff;
-			headersize = head.headersize*16;
-			imagesize = head.pages*512-headersize; 
-			if (imagesize+headersize<512) imagesize = 512-headersize;
+
+		  LOG(LOG_EXEC,LOG_NORMAL)("Original EXE header:");
+#                 define FIELD(f) LOG(LOG_EXEC,LOG_NORMAL)("  %s: %x = %d", #f, head. f , head. f );
+		  FIELD( signature);
+		  FIELD( extrabytes   );
+		  FIELD( pages	       );
+		  FIELD( relocations  );
+		  FIELD( headersize   );
+		  FIELD( minmemory    );
+		  FIELD( maxmemory    );
+		  FIELD( initSS);
+		  FIELD( initSP);
+		  FIELD( checksum);
+		  FIELD( initIP);
+		  FIELD( initCS);
+		  FIELD( reloctable);
+		  FIELD( overlay);
+#                 undef FIELD
+		  if(head.pages & ~0x07ff) /* 1 MB dos maximum address limit. Fixes TC3 IDE (kippesoep) */
+		    LOG(LOG_EXEC,LOG_NORMAL)("Weird header: head.pages > 1 MB");
+		  head.pages&=0x07ff;
+		  headersize = head.headersize*16;
+		  imagesize = head.pages*512-headersize; 
+		  if (imagesize+headersize<512) imagesize = 512-headersize;
+		  LOG(LOG_EXEC,LOG_NORMAL)("hsize %lu isize %lu", (long unsigned int)headersize,
+					   (long unsigned int)imagesize);
 		}
 	}
 	Bit8u * loadbuf=(Bit8u *)new Bit8u[0x10000];
 	if (flags!=OVERLAY) {
+	  LOG(LOG_EXEC,LOG_NORMAL)("flags != OVERLAY");
 		/* Create an environment block */
 		envseg=block.exec.envseg;
 		if (!MakeEnv(name,&envseg)) {
 			DOS_CloseFile(fhandle);
 			return false;
 		}
-		/* Get Memory */		
-		Bit16u minsize,maxsize;Bit16u maxfree=0xffff;DOS_AllocateMemory(&pspseg,&maxfree);
+		/* Get Memory */
+		// I think AllocateMemory tries to allocate as much as possible within the segment,
+		// modifying maxfree.
+		Bit16u minsize,maxsize;Bit16u maxfree=0xffff;
+		// pspseg ultimately becomes the data segment for EXE files. -tom7
+		DOS_AllocateMemory(&pspseg,&maxfree);
+		LOG(LOG_EXEC,LOG_NORMAL)("pspseg: %lx = %lu", (long unsigned int)pspseg,
+					 (long unsigned int)pspseg);
 		if (iscom) {
 			minsize=0x1000;maxsize=0xffff;
 			if (machine==MCH_PCJR) {
@@ -330,9 +357,20 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 				if (minsize>maxsize) minsize=maxsize;
 			}
 		} else {	/* Exe size calculated from header */
-			minsize=long2para(imagesize+(head.minmemory<<4)+256);
+		  LOG(LOG_EXEC,LOG_NORMAL)("head.minmemory %lu isize %lu", (unsigned long)head.minmemory,
+					   (unsigned long)imagesize);
+
+		  // static INLINE Bit16u long2para(Bit32u size) {
+		  //   if (size>0xFFFF0) return 0xffff;
+		  //   if (size&0xf) return (Bit16u)((size>>4)+1);
+		  //   else return (Bit16u)(size>>4);
+		  // }
+
+		  minsize=long2para(imagesize+(head.minmemory<<4)+256);
 			if (head.maxmemory!=0) maxsize=long2para(imagesize+(head.maxmemory<<4)+256);
 			else maxsize=0xffff;
+		  LOG(LOG_EXEC,LOG_NORMAL)("minsize %lu maxsize %lu", (unsigned long)minsize,
+					   (unsigned long)maxsize);
 		}
 		if (maxfree<minsize) {
 			if (iscom) {
@@ -343,6 +381,7 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 				if (dataread<0xf800) minsize=((dataread+0x10)>>4)+0x20;
 			}
 			if (maxfree<minsize) {
+			  LOG(LOG_EXEC,LOG_NORMAL)("insufficient memory %d < %d", maxfree, minsize);
 				DOS_CloseFile(fhandle);
 				DOS_SetError(DOSERR_INSUFFICIENT_MEMORY);
 				DOS_FreeMemory(envseg);
@@ -366,22 +405,42 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 			}
 		}
 		loadseg=pspseg+16;
+		
 		if (!iscom) {
 			/* Check if requested to load program into upper part of allocated memory */
 			if ((head.minmemory == 0) && (head.maxmemory == 0))
 				loadseg = (Bit16u)(((pspseg+memsize)*0x10-imagesize)/0x10);
 		}
 	} else loadseg=block.overlay.loadseg;
-	/* Load the executable */
+ 	/* Load the executable */
 	loadaddress=PhysMake(loadseg,0);
 
+	LOG(LOG_EXEC,LOG_NORMAL)("About to load executable (pspseg=%lu, loadseg=%lu addr=%lu)...",
+				 (long unsigned int)pspseg,
+				 (long unsigned int)loadseg,
+				 (long unsigned int)loadaddress);
+
+	// So, I think what's happening here is pspseg is some
+	// allocated memory location (becomes the initial data
+	// segment), and loadseg is where we're going to put "the
+	// program" -- it's just 256 bytes (16 pages) after the
+	// PSP. For COM files, what we put here is just the COM
+	// file itself (pos = 0). For EXE, we skip over the header.
+	// That's why the apparent data and code segments just
+	// start in the middle of the file. If I understand
+	// correctly, the byte of the EXE file that gets written
+	// right after the PSP is predictable (given the specific
+	// header values), even though pspseg (the address in memory
+	// where we load) is not.
+	
 	if (iscom) {	/* COM Load 64k - 256 bytes max */
 		pos=0;DOS_SeekFile(fhandle,&pos,DOS_SEEK_SET);	
 		readsize=0xffff-256;
 		DOS_ReadFile(fhandle,loadbuf,&readsize);
 		MEM_BlockWrite(loadaddress,loadbuf,readsize);
 	} else {	/* EXE Load in 32kb blocks and then relocate */
-		pos=headersize;DOS_SeekFile(fhandle,&pos,DOS_SEEK_SET);	
+	  LOG(LOG_EXEC,LOG_NORMAL)("Loading exe starting at %lu...", (long unsigned int) headersize);
+	        pos=headersize;DOS_SeekFile(fhandle,&pos,DOS_SEEK_SET);	
 		while (imagesize>0x7FFF) {
 			readsize=0x8000;DOS_ReadFile(fhandle,loadbuf,&readsize);
 			MEM_BlockWrite(loadaddress,loadbuf,readsize);
@@ -397,11 +456,20 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 		Bit16u relocate;
 		if (flags==OVERLAY) relocate=block.overlay.relocation;
 		else relocate=loadseg;
-		pos=head.reloctable;DOS_SeekFile(fhandle,&pos,0);
+		pos=head.reloctable;
+		LOG(LOG_EXEC,LOG_NORMAL)("Looking for relocations at %u.", pos);
+		DOS_SeekFile(fhandle,&pos,0);
 		for (i=0;i<head.relocations;i++) {
 			readsize=4;DOS_ReadFile(fhandle,(Bit8u *)&relocpt,&readsize);
 			relocpt=host_readd((HostPt)&relocpt);		//Endianize
 			PhysPt address=PhysMake(RealSeg(relocpt)+loadseg,RealOff(relocpt));
+			if (i == 0 || address != 147689) { // XXX
+			  LOG(LOG_EXEC,LOG_NORMAL)("%d. Reloc (ld %u) (reloc @$%8x) addr %u (+%u)",
+						   i,
+						   loadseg, relocpt,
+						   address, relocate);
+			}
+
 			mem_writew(address,mem_readw(address)+relocate);
 		}
 	}

@@ -1,12 +1,10 @@
+Notes on compiling and package dependencies     18 Feb 2017
 
-compiling dosbox was easy on linux,
 
-svn co svn://svn.code.sf.net/p/dosbox/code-0/dosbox/trunk dosbox
-apt-get install automake
-apt-get install libncurses-dev
-./autogen.sh
-./configure --enable-debug
-make
+
+There's a fork of DOSBox with a few local modifications
+in the dosbox/ subdirectory. See dosbox/README.TOM7 for
+compiling on linux.
 
 
 To build ABC with sml/nj, you need ml-yacc (ugh)
