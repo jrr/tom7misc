@@ -43,7 +43,10 @@ struct
          is bigger than we'd like. (CR/LF here?) *)
       (* val headersize = vec [0wx20, 0wx20] *)
       (* Actually we want the header size to be apparently large so that
-         the image size fits in RAM with extra minmemory *)
+         the image size fits in RAM with extra minmemory.
+
+         TODO: This can probably come down, though shrinking the overall
+         size of the binary? *)
       val headersize = vec [0wx7e, 0wx7e]
       (* Min/max number of 16-byte paragraphs required above
          the end of the program. I think this is like BSS? *)
@@ -54,8 +57,14 @@ struct
          shifted up 4, overflowing all the 1 bits at the top. (XXX doesn't work;
          I guess it gets extended to 32 bits) *)
       (* val minmemory = vec [0wx20, 0wx70] *)
-        (* CR/LF (0x0A0x0D) yields 48314; still too big... *)
-      val minmemory = vec [0wx0A, 0wx0D]
+      (* CR/LF (0x0A,0x0D) yields 48314; still too big... *)
+      (* What gets computed here is
+         long2para(imagesize + minmemory<<4 + 256), where long2para
+         is roughly >>4. The result has to be <maxfree, which is 40482.
+         imagesize is (pages * 512) - headersize, both of which we control.
+         This is why we give a large header size. The result with
+         minmemory=0x2020 is 29042, which is less than 40482 as needed. *)
+      val minmemory = vec [0wx20, 0wx20]
       val maxmemory = minmemory
       (* Stack segment displacement, in 16-byte paragraphs.
          What does this mean? SS becomes 0x705B, which is mostly zeroes. *)
