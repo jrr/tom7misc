@@ -86,3 +86,8 @@ Computed in 4.513 sec.    good!
 
 Don't do redundant pops: 4.392s
 
+functorize x86 encode to not construct vectors when
+just measuring size:
+
+Total byte table size (opcode bytes): 170479
+Computed in 0.466 sec.  (!!)
