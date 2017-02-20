@@ -1,6 +1,8 @@
 structure CILUtil :> CILUTIL =
 struct
 
+  val label_ctr = ref 0
+
   structure BC =
   struct
     (* PERF could use unique ids, hashtable, etc. *)
@@ -8,7 +10,6 @@ struct
     structure SM = SplayMapFn(type ord_key = string
                               val compare = String.compare)
     type 'a blockcollector = 'a SM.map ref
-    val label_ctr = ref 0
     fun genlabel s =
       let in
         label_ctr := !label_ctr + 1;
@@ -40,6 +41,13 @@ struct
     let in
       ctr := !ctr + 1;
       "v$" ^ s ^ "$" ^ Int.toString (!ctr)
+    end
+
+  (* XXX reconcile the relationship between this and BC.genlabel... *)
+  fun newlabel s =
+    let in
+      label_ctr := !label_ctr + 1;
+      "l$" ^ s ^ "$u" ^ Int.toString (!label_ctr)
     end
 
 end

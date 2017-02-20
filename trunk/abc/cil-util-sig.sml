@@ -15,10 +15,11 @@ sig
     (* Empties the block collector, returning its contents. No
        label appears more than once. *)
     val extract : 'a blockcollector -> (label * 'a) list
-    (* XXX tolist or whatever *)
   end
 
   val newlocal : string -> string
   val genvar : string -> string
+
+  val newlabel : string -> string
 
 end

@@ -131,13 +131,19 @@
    implementation of various tactics (e.g., loading a 32-bit immediate).
 
    * Return value. *
-   TODO
+   TODO (first on stack, before arguments)
 
    * Calling convention. *
    When a function receives control, EBP is pointing to unused space
    that it can use for whatever (but space beneath EBP should be preserved).
    The caller saves temporaries with SaveTemps and restores them on
    return with RestoreTemps.
+
+   FIXME: Need to sort out who exactly sets up the locals frame, and when.
+   If EBX is supposed to point to the beginning of that frame, then the
+   caller should be skipping past its OWN arguments, not the the arguments
+   of the called function--and so it also needs to be doing the restoration,
+   not the callee.
 
    X86 registers reserved for compiler use:
     - EBX points to beginning of local frame (in DS).
@@ -249,6 +255,9 @@ struct
   (* Assign the address of the current frame (EBX) plus the
      given offset to the 16-bit temporary. *)
   | FrameOffset of 'tmp * Word16.word
+  (* In-line label, used in a bit of a hack for the translation
+     of function calls. Should be rewritten to a block label. *)
+  | Label of string
   (* Load (dst, addr). Loads and stores are always to the
      data segment. *)
   | Load8 of 'tmp * 'tmp
@@ -349,6 +358,7 @@ struct
     | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- " ^ Word16.toString w16
     | Immediate32 (tmp, w32) => "imm32 " ^ ts tmp ^ " <- " ^ Word32.toString w32
     | Init => "init"
+    | Label lab => "(LABEL " ^ lab ^ ")"
     | _ => "unimplemented cmdtos cmd"
 (*
   (* PERF allow tmp * literal? It is only more efficient

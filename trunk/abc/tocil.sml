@@ -317,6 +317,8 @@ struct
         in k (AddressLiteral (Local ` idstring id, typ), typewidth typ, typ)
         end
     | Ast.Id (id as { global = true, ctype, ... }) =>
+        (* XXX if this is a function, translate it as a FunctionLiteral.
+           How does &F appear in Ast, btw? *)
         let val typ = transtype ctype
         in k (AddressLiteral (Global ` uidstring id, typ), typewidth typ, typ)
         end
