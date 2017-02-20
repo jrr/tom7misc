@@ -2,55 +2,55 @@
 signature BASIC_PARSING =
 sig
 
-    (* Parser with token type 't, result type 'a *)
-    type ('a,'t) parser
+  (* Parser with token type 't, result type 'a *)
+  type ('a,'t) parser
 
-    (* succeed with given value *)
-    val succeed : 'a -> ('a,'t) parser
-    (* fail immediately *)
-    val fail : ('a,'t) parser
+  (* succeed with given value *)
+  val succeed : 'a -> ('a,'t) parser
+  (* fail immediately *)
+  val fail : ('a,'t) parser
 
-    (* check for end of input *)
-    val done : 'a -> ('a,'t) parser
-    (* admit anything, provided there's something on the input *)
-    val any : ('t,'t) parser
+  (* check for end of input *)
+  val done : 'a -> ('a,'t) parser
+  (* admit anything, provided there's something on the input *)
+  val any : ('t,'t) parser
 
-    (* sequential successful composition of parsers *)
-    val -- : ('a,'t) parser * ('a -> ('b,'t) parser) -> ('b,'t) parser
-    (* sequential failing composition of parsers *)
-    val ## : ('a,'t) parser * (Pos.pos -> ('a,'t) parser) ->
-              ('a,'t) parser
+  (* sequential successful composition of parsers *)
+  val -- : ('a,'t) parser * ('a -> ('b,'t) parser) -> ('b,'t) parser
+  (* sequential failing composition of parsers *)
+  val ## : ('a,'t) parser * (Pos.pos -> ('a,'t) parser) ->
+            ('a,'t) parser
 
-    (* grab position *)
-    val !! : ('a,'t) parser  -> ('a * Pos.pos,'t) parser
+  (* grab position *)
+  val !! : ('a,'t) parser  -> ('a * Pos.pos,'t) parser
 
-    (* get position *)
-    val get : (Pos.pos -> ('a, 't) parser) -> ('a, 't) parser
+  (* get position *)
+  val get : (Pos.pos -> ('a, 't) parser) -> ('a, 't) parser
 
-    (* to handle mutually-recursive parsers *)
-    val $ : (unit -> ('a,'t) parser) -> ('a,'t) parser
+  (* to handle mutually-recursive parsers *)
+  val $ : (unit -> ('a,'t) parser) -> ('a,'t) parser
 
-    (* to construct a recursive parser *)
-    val fix : (('a,'t) parser -> ('a,'t) parser) -> ('a,'t) parser
+  (* to construct a recursive parser *)
+  val fix : (('a,'t) parser -> ('a,'t) parser) -> ('a,'t) parser
 
-    (* re-parse same input, given result of first parse *)
-    val lookahead : ('a,'t) parser -> ('a -> ('b,'t) parser) ->
-                      ('b,'t) parser
+  (* re-parse same input, given result of first parse *)
+  val lookahead : ('a,'t) parser -> ('a -> ('b,'t) parser) ->
+                    ('b,'t) parser
 
-    (* parse this stream before reading any other input *)
-    val push : ('t * Pos.pos) Stream.stream ->
-                ('a,'t) parser -> ('a, 't) parser
+  (* parse this stream before reading any other input *)
+  val push : ('t * Pos.pos) Stream.stream ->
+              ('a,'t) parser -> ('a, 't) parser
 
-    (* parse a stream *)
-    val parse : ('a,'t) parser -> ('t * Pos.pos) Stream.stream ->
-                 'a option
+  (* parse a stream *)
+  val parse : ('a,'t) parser -> ('t * Pos.pos) Stream.stream ->
+               'a option
 
-    (* transform p s
+  (* transform p s
 
-       parses consecutive maximal prefixes of s with p as many times
-       as possible, outputting the results as a stream *)
-    val transform : ('a,'t) parser -> ('t * Pos.pos) Stream.stream ->
-                     'a Stream.stream
+     parses consecutive maximal prefixes of s with p as many times
+     as possible, outputting the results as a stream *)
+  val transform : ('a,'t) parser -> ('t * Pos.pos) Stream.stream ->
+                   'a Stream.stream
 
 end
 

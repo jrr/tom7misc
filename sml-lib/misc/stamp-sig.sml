@@ -5,13 +5,13 @@
 
 signature STAMP =
 sig
-    type stamp
+  type stamp
 
-    val eq : stamp * stamp -> bool
-    val is : stamp -> stamp -> bool
-    val compare : stamp * stamp -> order
+  val eq : stamp * stamp -> bool
+  val is : stamp -> stamp -> bool
+  val compare : stamp * stamp -> order
 
-    val tostring : stamp -> string
+  val tostring : stamp -> string
 
-    val new : unit -> stamp
+  val new : unit -> stamp
 end

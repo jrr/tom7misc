@@ -5,7 +5,7 @@
 signature BASE64 =
 sig
 
-    val decode: string -> string option
-    val encode: string -> string
+  val decode: string -> string option
+  val encode: string -> string
 
 end

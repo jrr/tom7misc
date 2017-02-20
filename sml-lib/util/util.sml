@@ -184,26 +184,26 @@ struct
 
   structure Oneshot =
   struct
-      fun I x = x
-      exception Oneshot of string
+    fun I x = x
+    exception Oneshot of string
 
-      (* A if unset (holds fn to apply)
-         B if set (holds final value) *)
-      type 'a oneshot = (('a -> 'a, 'a) sum) ref
-      fun oneshot () = ref (A I)
-      fun init a = ref (B a)
-      fun set (ref (B _), _) = raise Oneshot "Oneshot already set!"
-        | set (r as ref (A f), a) = r := B (f a)
+    (* A if unset (holds fn to apply)
+       B if set (holds final value) *)
+    type 'a oneshot = (('a -> 'a, 'a) sum) ref
+    fun oneshot () = ref (A I)
+    fun init a = ref (B a)
+    fun set (ref (B _), _) = raise Oneshot "Oneshot already set!"
+      | set (r as ref (A f), a) = r := B (f a)
 
-      fun deref (ref (B b)) = SOME b
-        | deref (ref (A _)) = NONE
+    fun deref (ref (B b)) = SOME b
+      | deref (ref (A _)) = NONE
 
-      fun eq (a : 'a oneshot, b : 'a oneshot) = a = b
+    fun eq (a : 'a oneshot, b : 'a oneshot) = a = b
 
-      fun wrap f os =
-          case !os of
-              B v => os := B (f v)
-            | A g => os := A (f o g)
+    fun wrap f os =
+      case !os of
+        B v => os := B (f v)
+      | A g => os := A (f o g)
   end
 
 end
