@@ -3,7 +3,7 @@ sig
 
   exception EXE of string
 
-  (* write_exe contents file *)
+  (* write_exe contents filename *)
   val write_exe :
     { (* Many header values are delicately set up, so they can't
          be controlled by the caller. *)

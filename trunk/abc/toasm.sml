@@ -15,6 +15,79 @@ struct
   *)
   val FIRST_GLOBAL_POS = 256
 
+  fun printable8 (b : Word8.word) = b >= 0wx20 andalso b <= 0wx7e
+
+  structure Segment :>
+  sig
+    (* Out-of-bounds writes and writes to locked regions throw
+       an exception. *)
+    exception Segment of string
+    (* Always 64kb. *)
+    type segment
+    val empty : unit -> segment
+    (* set_range seg start len f
+       call f 0, f 1, ... f (len - 1) to compute the bytes
+       to populate the segment, starting at start. *)
+    val set_range : segment -> int -> int -> (int -> Word8.word) -> unit
+    (* set_range seg start str
+       Write the string to the segment at the start location. *)
+    val set_string : segment -> int -> string -> unit
+    (* set_vec seg start vec *)
+    val set_vec : segment -> int -> Word8Vector.vector -> unit
+    (* lock_range seg start len
+       Locks the range so that an exception is raised if a write
+       (or lock) to that region is attempted. *)
+    val lock_range : segment -> int -> int -> unit
+    (* Need not all be initialized. *)
+    val extract : segment -> Word8Vector.vector
+  end =
+  struct
+    exception Segment of string
+    datatype segment =
+      S of { bytes : Word8Array.array,
+             locked : bool array }
+    fun empty () =
+      S { bytes = Word8Array.array (65536, Word8.fromInt ` ord #"_"),
+          locked = Array.array (65536, false) }
+
+    fun update (S { bytes, locked }) idx byte =
+      if Array.sub (locked, idx)
+      then raise Segment ("write to locked idx " ^ Int.toString idx)
+      else Word8Array.update (bytes, idx, byte)
+
+    fun set_range seg start len f =
+      if start < 0 orelse start + len > 65536 orelse len < 0
+      then raise Segment "set_range bad start/len"
+      else
+        Util.for 0 (len - 1)
+        (fn i =>
+         let val b = f i
+         in
+           update seg (start + i) b
+         end)
+
+    fun set_vec seg start vec =
+      Util.for 0 (Word8Vector.length vec - 1)
+      (fn i =>
+       update seg (start + i) (Word8Vector.sub (vec, i)))
+
+    fun set_string seg start str =
+      Util.for 0 (size str - 1)
+      (fn i =>
+       update seg (start + i) (Word8.fromInt (ord (String.sub (str, i)))))
+
+    fun lock_range (S { locked, ... }) start len =
+      Util.for 0 (len - 1)
+      (fn i =>
+       if Array.sub (locked, start + i)
+       then raise Segment ("tried to lock already-locked " ^
+                           Int.toString (start + i))
+       else Array.update (locked, start + i, true))
+
+    fun extract (S { bytes, ... }) =
+      Word8Vector.tabulate (65536, fn i => Word8Array.sub (bytes, i))
+  end
+
   (* Optimizations TODO:
      - Reuse temporaries.
      - Replace locals with temporaries
@@ -128,7 +201,8 @@ struct
       (* Generate code to put the value v in a new temporary,
          then call the continuation with that temporary and its size. *)
       fun gentmp (ctx : C.context) (v : C.value)
-                 (k : A.tmp -> A.cmd list * 'b) : A.cmd list * 'b =
+        (k : A.named_tmp -> A.named_tmp A.cmd list * 'b) :
+        A.named_tmp A.cmd list * 'b =
         case v of
           C.Var var =>
             (case C.Context.lookup (ctx, var) of
@@ -157,6 +231,8 @@ struct
                    | SOME pos =>
                        A.Immediate16 (tmp, Word16.fromInt pos) // k tmp
                 end)
+        | C.FunctionLiteral (name, ret, args) =>
+            raise ToASM "unimplemented function literals"
         | C.Word8Literal w8 =>
             let val tmp = newtmp ("imm", A.S8)
             in A.Immediate8 (tmp, w8) // k tmp
@@ -173,7 +249,8 @@ struct
 
       (* Generate code for e, and bind vt (if SOME) to its value. *)
       fun genexp (ctx : C.context) (vt : (string * C.typ) option, e : C.exp)
-                 (k : unit -> A.cmd list * 'b) : A.cmd list * 'b =
+        (k : unit -> A.named_tmp A.cmd list * 'b) :
+        A.named_tmp A.cmd list * 'b =
         case (e, vt) of
           (C.Call (fv, argvs), vt) =>
             (* This is the only one that we actually need to emit if
@@ -403,7 +480,7 @@ struct
               { args : (string * C.typ) list,
                 ret : C.typ,
                 body : string,
-                blocks : (string * C.stmt) list }) : A.proc =
+                blocks : (string * C.stmt) list }) : A.named_tmp A.proc =
     let
       val argsizes : sz SM.map =
         foldl (fn ((s, t), m) => SM.insert (m, s, ctypsize t)) SM.empty args
@@ -468,27 +545,61 @@ struct
 
   (* Allocate globals at the beginning of DS so that we know their
      addresses. Doesn't perform initialization. *)
-  fun allocglobals (globals : (string * C.global) list) =
+  fun allocglobals (datasegment, globals : (string * C.global) list) =
     let
       (* Unlike locals, we expect all of the globals to already be
          collected into the toplevel list. *)
       val nextpos = ref FIRST_GLOBAL_POS
       val globalpositions = ref nil : (string * int) list ref
-      fun alloc (s, sz) =
-        let in
+      fun alloc (s, vec) =
+        let val size = Word8Vector.length vec
+        in
+          Segment.set_vec datasegment (!nextpos) vec;
+          Segment.lock_range datasegment (!nextpos) size;
           globalpositions := (s, !nextpos) :: !globalpositions;
-          nextpos := !nextpos + szbytes sz
+          nextpos := !nextpos + size
         end
-      fun oneglobal (name, C.Glob { typ, init, blocks }) =
-        alloc (name, ctypsize typ)
+      fun oneglobal (name, C.Glob { typ, bytes, init }) =
+        let
+          val size = ctypsize typ
+          val bytes =
+            (case bytes of
+               NONE => Word8Vector.tabulate (szbytes size,
+                                             fn _ =>
+                                             Word8.fromInt ` ord #"?")
+             | SOME b => b)
+        in
+          if Word8Vector.all printable8 bytes
+          then ()
+          else raise ToASM ("Non-printable init bytes for global " ^
+                            name);
+          (case init of
+             NONE => ()
+           | SOME _ => raise ToASM ("Expected initialization of global " ^
+                                    name ^ " to have been moved to pre-" ^
+                                    "main init function by the optimizer."));
+          alloc (name, bytes)
+        end
     in
       app oneglobal globals;
       (!globalpositions, !nextpos)
     end
 
-  fun toasm (C.Program { functions, globals }) =
+  fun toasm (C.Program { main, functions, globals }) =
     let
-      val (globalpositions, frame_stack_start) = allocglobals globals
+      val datasegment = Segment.empty ()
+      val () = Segment.set_range datasegment 0 256 (fn _ =>
+                                                    Word8.fromInt ` ord #".")
+      val () = Segment.set_string datasegment 0
+        ("[This area gets overwritten with the Program Segment Prefix. " ^
+         "It's actually technically part of the header, but it would " ^
+         "start at DS:0000 if it weren't overwritten. After these 256 " ^
+         "bytes is where the program's compiled globals go.")
+      val () = Segment.set_string datasegment 255 "]"
+      val () = Segment.lock_range datasegment 0 256
+
+      val (globalpositions, frame_stack_start) =
+        allocglobals (datasegment, globals)
       (* XXX global initialization code!
          XXX something has to set up EBX to point to the frame stack,
          i.e., frame_stack_start *)
@@ -505,6 +616,9 @@ struct
       else ();
 
       A.Program { main = "main",
-                  procs = map onefunction functions }
+                  procs = map onefunction functions,
+                  datasegment = Segment.extract datasegment }
     end
+  handle Segment.Segment s => raise ToASM ("Segment: " ^ s)
+
 end

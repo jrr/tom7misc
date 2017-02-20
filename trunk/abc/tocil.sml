@@ -27,6 +27,8 @@ struct
   val INT_WIDTH = Width16
   val INT_TYPE = Word16 Signed
 
+  val genvar = CILUtil.genvar
+
   (* Literal at the given width. The (unsigned) integer must fit. *)
   fun unsigned_literal Width8 i =
       if i >= 0 andalso i < 256
@@ -53,15 +55,6 @@ struct
       if true (* XXX check *)
       then Word32Literal ` Word32.fromInt i
       else raise ToCIL ("Signed 32-bit literal too large: " ^ Int.toString i)
-
-  local val var_ctr = ref 0
-  in
-    fun genvar s =
-      let in
-        var_ctr := !var_ctr + 1;
-        "l$" ^ s ^ "$" ^ Int.toString (!var_ctr)
-      end
-  end
 
   datatype normop = PLUS | MINUS | TIMES | DIVIDE | MOD | GT | LT | GTE | LTE |
     EQ | NEQ | BITOR | BITAND | BITXOR
@@ -1042,8 +1035,14 @@ struct
                val startlabel = BC.genlabel "init"
              in
                BC.insert (bc, startlabel, stmt);
-               globals := (uid, Glob { typ = t, init = startlabel,
-                                       blocks = BC.extract bc}) :: !globals
+               globals :=
+               (uid, Glob { typ = t,
+                            (* PERF: Some initializers can become bytes
+                               directly, saving us some work later? *)
+                            bytes = NONE,
+                            init =
+                            SOME { start = startlabel,
+                                   blocks = BC.extract bc} }) :: !globals
              end)
         | onedecl (Ast.DECL (Ast.FunctionDef (id, args, body), _, _)) =
            (case id of
@@ -1071,7 +1070,9 @@ struct
 
       in
         app onedecl decls;
-        Program { functions = rev (!functions), globals = rev (!globals) }
+        Program { main = "main",
+                  functions = rev (!functions),
+                  globals = rev (!globals) }
       end
 
 end

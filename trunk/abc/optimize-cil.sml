@@ -15,6 +15,7 @@ struct
   exception OptimizeCIL of string
 
   open CIL
+  structure BC = CILUtil.BC
 
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
@@ -36,6 +37,17 @@ struct
   val BOOL_TYPE = Word16 Unsigned
   val LiteralTrue = Word16Literal ` Word16.fromInt 1
   val LiteralFalse = Word16Literal ` Word16.fromInt 0
+
+  (* No no, these are not variables...
+  fun toplevel_context (Program { functions, globals, ... }) =
+    let
+      val ctx = CIL.Context.empty
+      val ctx = foldl (fn ((name, Glob { typ, ... }), ctx) =>
+                       CIL.Context.insert (ctx, name, typ))
+    in
+
+    end
+    *)
 
   structure DeadVarsArg : CILPASSARG =
   struct
@@ -243,10 +255,14 @@ struct
       let val (body, blocks) = optimize_body simplified (body, blocks)
       in Func { args = args, ret = ret, body = body, blocks = blocks }
       end
-    fun optimize_global simplified (Glob { typ, init, blocks }) =
-      let val (body, blocks) = optimize_body simplified (init, blocks)
-      in Glob { typ = typ, init = body, blocks = blocks }
+    fun optimize_global simplified (Glob { typ, bytes,
+                                           init = SOME { start, blocks } }) =
+      let val (start, blocks) = optimize_body simplified (start, blocks)
+      in Glob { typ = typ,
+                bytes = bytes,
+                init = SOME { start = start, blocks = blocks } }
       end
+      | optimize_global simplified g = g
   end
 
   fun effectless_expression e =
@@ -337,6 +353,27 @@ struct
                  simplified := true;
                  (value, t)
                end)
+
+    (* PERF also zeroes in either position. *)
+    fun case_Plus (arg as { known, simplified })
+                  ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
+      case (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b) of
+        (Width8, Word8Literal wa, Word8Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word8Literal ` Word8.+ (wa, wb), wordwidth Width8)
+          end
+      | (Width16, Word16Literal wa, Word16Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word16Literal ` Word16.+ (wa, wb), wordwidth Width16)
+          end
+      | (Width32, Word32Literal wa, Word32Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word32Literal ` Word32.+ (wa, wb), wordwidth Width32)
+          end
+      | (w, aa, bb) => (Plus (w, aa, bb), wordwidth w)
 
     fun case_GotoIf (arg as { known, simplified })
                     ({ selft, selfv, selfe, selfs }, ctx) (c, lab, s) =
@@ -802,7 +839,7 @@ struct
 
     structure ECO = CILPass(EliminateCompareOpsArg)
 
-    fun eliminate (Program { functions, globals }) =
+    fun eliminate (Program { main, functions, globals }) =
       let
         fun doblock bc (lab, stmt) =
           let
@@ -819,15 +856,18 @@ struct
             Func { args = args, ret = ret, body = body,
                    blocks = BC.extract bc }
           end
-        fun oneglobal (Glob { typ, init, blocks }) =
+        fun oneglobal (Glob { typ, bytes, init = SOME { start, blocks } }) =
           let val bc = BC.empty ()
           in
             app (doblock bc) blocks;
-            Glob { typ = typ, init = init,
-                   blocks = BC.extract bc }
+            Glob { typ = typ, bytes = bytes,
+                   init = SOME { start = start,
+                                 blocks = BC.extract bc } }
           end
+          | oneglobal g = g
       in
-        Program { functions = ListUtil.mapsecond onefunc functions,
+        Program { main = main,
+                  functions = ListUtil.mapsecond onefunc functions,
                   globals = ListUtil.mapsecond oneglobal globals }
       end
   end
@@ -864,21 +904,134 @@ struct
 
   fun optimize_global simplified (name, glob) =
     let
-      val Glob { typ, init, blocks } =
+      val Glob { typ, bytes, init } =
         OptimizeBlocks.optimize_global simplified glob
     in
       (name,
-       Glob { typ = typ, init = init,
-              blocks = ListUtil.mapsecond (optimize_block simplified) blocks })
+       Glob { typ = typ,
+              bytes = bytes,
+              init =
+              (case init of
+                 NONE => NONE
+               | SOME { start, blocks } =>
+                   SOME { start = start,
+                          blocks = ListUtil.mapsecond
+                            (optimize_block simplified) blocks }) })
     end
 
-  fun simplify (prev as (Program { functions, globals })) =
+  structure EndToJumpArg : CILPASSARG =
+  struct
+    type arg = string
+    structure CI = CILIdentity(type arg = arg)
+    open CI
+    fun case_End arg stuff = Goto arg
+  end
+  structure EndToJump = CILPass(EndToJumpArg)
+
+  (* Initialize all globals in the program's entry point, not inside
+     the globals themselves. This happens during optimization because
+     we may simplify initializers to constants, which can then just
+     be written as data (if printable). *)
+  fun move_global_initialization (Program { functions,
+                                            main = old_main,
+                                            globals }) =
+    let
+      (* Create a new main function with the same arguments as
+         the existing one. We don't just insert code at the head
+         of main because of the possibility of a recursive main. *)
+      val (old_args, old_ret) =
+        case ListUtil.Alist.find op= functions old_main of
+          NONE => raise (OptimizeCIL ("There is no main function called " ^
+                                      old_main ^ "?"))
+        | SOME (Func { args, ret, ... }) => (args, ret)
+
+      val new_main = "_globals_init"
+
+      (* Collect together all of the global initialization blocks into
+         this same blockcollector. The current_start is the head of a
+         chain of initializers and jumps to the next one, ending with
+         a call to the actual main. *)
+      val bc = BC.empty () : CIL.stmt BC.blockcollector
+      val current_start = ref ` BC.genlabel "done"
+      val () =
+        let
+          val ret = CILUtil.newlocal "ret"
+          (* Need to Load all the function arguments into variables.
+             Generate a local variable for each one. *)
+          val vargs = map (fn (v, t) =>
+                           let val var = CILUtil.genvar v
+                           in (var, v, t)
+                           end) old_args
+          (* Then wrap the call with all the bind/load statements. *)
+          fun bindargs ((var, v, t) :: rest) =
+            Bind (var, t, Load (CIL.typwidth t, AddressLiteral (Local v, t)),
+                  bindargs rest)
+            | bindargs nil =
+            Bind (ret, old_ret,
+                  Call (FunctionLiteral (old_main,
+                                         old_ret,
+                                         map #2 old_args),
+                        map (fn (var, v, t) => Var var) vargs),
+                  Return ` Var ret)
+        in
+          BC.insert (bc, !current_start, bindargs vargs)
+        end
+
+      val has_nontrivial_initialization = ref false
+
+      fun oneglobal (name, g as Glob { init = NONE, ... }) = (name, g)
+        | oneglobal (name,
+                     Glob { typ, bytes, init = SOME { start, blocks } }) =
+        let
+          (* XXX PERF actually sometimes populate bytes, when initialization
+             is a constant! *)
+
+          (* Anywhere we "End" here, we should instead jump to the current
+             start label, and then this code becomes the new head of the
+             initialization code. *)
+          fun oneblock (name, stmt) =
+            let
+              val stmt =
+                EndToJump.converts (!current_start) CIL.Context.empty stmt
+            in
+              BC.insert (bc, name, stmt)
+            end
+        in
+          (* XXX if initialization is constant, set bytes; don't
+             set has_nontrivial_initialization *)
+          app oneblock blocks;
+          current_start := start;
+          has_nontrivial_initialization := true;
+          (name, Glob { typ = typ, bytes = bytes, init = NONE })
+        end
+
+      val globals = map oneglobal globals
+
+    in
+      if !has_nontrivial_initialization
+      then
+        Program { functions = (new_main,
+                               Func { args = old_args,
+                                      ret = old_ret,
+                                      body = !current_start,
+                                      blocks = BC.extract bc }) :: functions,
+                  main = new_main,
+                  globals = globals }
+      else
+        (* Discard the new (blank) initialization stub, but keep
+           rewrites of globals (might now have 'bytes') *)
+        Program { functions = functions, main = main, globals = globals }
+    end
+
+  fun simplify (prev as (Program { functions, main, globals })) =
     let
       val () = print "\n----------- optimization round -------------\n"
       val simplified = ref false
       val functions = map (optimize_function simplified) functions
       val globals = map (optimize_global simplified) globals
-      val prog = Program { functions = functions, globals = globals }
+      val prog = Program { functions = functions,
+                           main = main,
+                           globals = globals }
     in
       (* XXX only print if changed, or show diff, etc. *)
       if !simplified
@@ -893,6 +1046,7 @@ struct
   fun optimize prog =
     let
       val prog = simplify prog
+      val prog = move_global_initialization prog
       (* Not totally sure this belongs here, but we do need to at least
          ensure that simplifications that happen after ECO do not
          re-introduce compare ops, which does require some understanding

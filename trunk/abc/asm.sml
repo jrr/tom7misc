@@ -105,7 +105,7 @@
    are not stored in the frame stack.
 
    * Temporaries. *
-   In a traditional C compiler, temporaries are basically either a local
+   In a traditional C compiler, temporaries are basically either local
    variables or registers. It works differently in ABC because:
     - Due to segmented memory, we want to store as little as possible in
       DS (basically, just addressable things).
@@ -136,6 +136,7 @@
    X86 registers reserved for compiler use:
     - EBX points to beginning of local frame (in DS).
     - EBP points to beginning of temporary frame (in SS).
+    - ESP is the top of the machine stack (in SS)
    ...
 
 *)
@@ -160,7 +161,12 @@ struct
 
      The lifetime of a temporary is explicit, or ...?
      *)
-  type tmp = string * sz
+  type named_tmp = string * sz
+
+  (* XXX decide on type; document.
+     - should maybe have some name hint, just for sanity?
+     - should have the possibility of using a register? *)
+  type explicit_tmp = int * sz
 
   (* X86 offers both "A < B" and "B > A", which have equivalent
      meaning, but are encoded differently (CMP (A, B) vs CMP (B, A))
@@ -173,16 +179,16 @@ struct
      splitting blocks between a comparison and jump. I think this
      makes the JO, JS, JP (overflow, sign, parity) family weird,
      so they are omitted here. *)
-  datatype cond =
+  datatype 'tmp cond =
     (* true if A < B, treated as unsigned *)
-    Below of tmp * tmp
+    Below of 'tmp * 'tmp
     (* true if A <= B, treated as unsigned *)
-  | BelowEq of tmp * tmp
+  | BelowEq of 'tmp * 'tmp
     (* true if A < B, treated as signed *)
-  | Less of tmp * tmp
-  | LessEq of tmp * tmp
-  | Eq of tmp * tmp
-  | NotEq of tmp * tmp
+  | Less of 'tmp * 'tmp
+  | LessEq of 'tmp * 'tmp
+  | Eq of 'tmp * 'tmp
+  | NotEq of 'tmp * 'tmp
   (* These avoid us having to load literal zero, which is
      very common. JZ is actually the same instruction as JE
      (and JNZ is JNE), but without a CMP -- we just need the
@@ -190,8 +196,8 @@ struct
      to ensure this is to XOR tmp <- 0x20 twice.
      (Alternately we can XOR once and then just reverse the
      sense of the jmp.) *)
-  | EqZero of tmp
-  | NeZero of tmp
+  | EqZero of 'tmp
+  | NeZero of 'tmp
   (* Unconditional jump *)
   | True
 
@@ -201,7 +207,7 @@ struct
      performed, but of course not all combinations are supported.
      TODO: Document what is allowed.
      *)
-  datatype cmd =
+  datatype 'tmp cmd =
   (* XXX I think Prepare/Destroy are actually the same as
      expand/shrink *)
   (* Advance the base pointer to make
@@ -223,40 +229,40 @@ struct
   | ShrinkFrame of int
   (* Assign the address of the current frame (EBX) plus the
      given offset to the 16-bit temporary. *)
-  | FrameOffset of tmp * Word16.word
+  | FrameOffset of 'tmp * Word16.word
     (* Load (dst, addr). Loads and stores are always to the
        data segment. *)
-  | Load8 of tmp * tmp
-  | Load16 of tmp * tmp
+  | Load8 of 'tmp * 'tmp
+  | Load16 of 'tmp * 'tmp
     (* Store (addr, src) *)
-  | Store8 of tmp * tmp
-  | Store16 of tmp * tmp
-  | Immediate8 of tmp * Word8.word
-  | Immediate16 of tmp * Word16.word
-  | Immediate32 of tmp * Word32.word
+  | Store8 of 'tmp * 'tmp
+  | Store16 of 'tmp * 'tmp
+  | Immediate8 of 'tmp * Word8.word
+  | Immediate16 of 'tmp * Word16.word
+  | Immediate32 of 'tmp * Word32.word
   (* PERF allow tmp * literal? It is only more efficient
      if the literal is printable... *)
-  | Add of tmp * tmp
-  | Sub of tmp * tmp
-  | Complement of tmp
-  | Mov of tmp * tmp
-  | Xor of tmp * tmp
-  | Push of tmp
-  | Pop of tmp
+  | Add of 'tmp * 'tmp
+  | Sub of 'tmp * 'tmp
+  | Complement of 'tmp
+  | Mov of 'tmp * 'tmp
+  | Xor of 'tmp * 'tmp
+  | Push of 'tmp
+  | Pop of 'tmp
     (* Name of code block. 16 bits. *)
-  | LoadLabel of tmp * string
+  | LoadLabel of 'tmp * string
     (* General jump to 16-bit code pointer. Used for
        returning from functions and for C function
        pointers. *)
-  | JumpInd of tmp
+  | JumpInd of 'tmp
     (* Conditional jumps all take a literal label. *)
-  | JumpCond of cond * string
+  | JumpCond of 'tmp cond * string
     (* TODO: inc, etc. *)
 
-  datatype block = Block of
+  datatype 'tmp block = Block of
     { name: string,
-      cmds: cmd list }
-  and proc = Proc of
+      cmds: 'tmp cmd list }
+  and 'tmp proc = Proc of
     { name: string,
       (* Size of stack frame for arguments. *)
       argbytes: int,
@@ -275,51 +281,44 @@ struct
          begins at the first block and falls through to the
          next (unless of course there's an unconditional
          jump). Exection must not "fall off the end." *)
-      blocks: block list }
+      blocks: 'tmp block list }
 
   (* XXX data... *)
-  datatype program = Program of { procs: proc list,
-                                  main: string }
+  datatype 'tmp program = Program of { procs: 'tmp proc list,
+                                       main: string,
+                                       (* Always 65536 bytes; printable. *)
+                                       datasegment: Word8Vector.vector }
 
-  fun tmptos (v, s) = v ^
-    (case s of
-       S8 => "[8]"
-     | S16 => ""
-     | S32 => "[32]")
-
-  fun condtos c =
+  fun condtos ts c =
     case c of
-      Below (a, b) => "jb " ^ tmptos a ^ ", " ^ tmptos b
-    | BelowEq (a, b) => "jbe " ^ tmptos a ^ ", " ^ tmptos b
-    | Less (a, b) => "jl " ^ tmptos a ^ ", " ^ tmptos b
-    | LessEq (a, b) => "jle " ^ tmptos a ^ ", " ^ tmptos b
-    | Eq (a, b) => "je " ^ tmptos a ^ ", " ^ tmptos b
-    | NotEq (a, b) => "jne " ^ tmptos a ^ ", " ^ tmptos b
-    | EqZero a => "jz " ^ tmptos a
-    | NeZero a => "jnz " ^ tmptos a
+      Below (a, b) => "jb " ^ ts a ^ ", " ^ ts b
+    | BelowEq (a, b) => "jbe " ^ ts a ^ ", " ^ ts b
+    | Less (a, b) => "jl " ^ ts a ^ ", " ^ ts b
+    | LessEq (a, b) => "jle " ^ ts a ^ ", " ^ ts b
+    | Eq (a, b) => "je " ^ ts a ^ ", " ^ ts b
+    | NotEq (a, b) => "jne " ^ ts a ^ ", " ^ ts b
+    | EqZero a => "jz " ^ ts a
+    | NeZero a => "jnz " ^ ts a
     | True => "jmp"
 
-  fun cmdtos c =
+  fun cmdtos ts c =
     case c of
       ExpandFrame n => "expandframe " ^ Int.toString n
     | ShrinkFrame n => "shrinkframe " ^ Int.toString n
-    | FrameOffset (dst, off) => "frameoffset " ^ tmptos dst ^ " <- frame+" ^
+    | FrameOffset (dst, off) => "frameoffset " ^ ts dst ^ " <- frame+" ^
         Word16.toString off
-    | Load8 (dst, addr) => "load8 " ^ tmptos dst ^ " <- [" ^ tmptos addr ^ "]"
-    | Load16 (dst, addr) => "load16 " ^ tmptos dst ^ " <- [" ^ tmptos addr ^ "]"
-    | Store8 (addr, src) => "store8 [" ^ tmptos addr ^ "] <- " ^ tmptos src
-    | Store16 (addr, src) => "store16 [" ^ tmptos addr ^ "] <- " ^ tmptos src
-    | Push tmp => "push " ^ tmptos tmp
-    | Pop tmp => "pop " ^ tmptos tmp
-    | LoadLabel (tmp, lab) => "loadlabel " ^ tmptos tmp ^ " <- &" ^ lab
-    | JumpInd tmp => "jmp_ind " ^ tmptos tmp
-    | JumpCond (cond, lab) => condtos cond ^ " " ^ lab
-    | Immediate8 (tmp, w8) =>
-        "imm8 " ^ tmptos tmp ^ " <- " ^ Word8.toString w8
-    | Immediate16 (tmp, w16) =>
-        "imm16 " ^ tmptos tmp ^ " <- " ^ Word16.toString w16
-    | Immediate32 (tmp, w32) =>
-        "imm32 " ^ tmptos tmp ^ " <- " ^ Word32.toString w32
+    | Load8 (dst, addr) => "load8 " ^ ts dst ^ " <- [" ^ ts addr ^ "]"
+    | Load16 (dst, addr) => "load16 " ^ ts dst ^ " <- [" ^ ts addr ^ "]"
+    | Store8 (addr, src) => "store8 [" ^ ts addr ^ "] <- " ^ ts src
+    | Store16 (addr, src) => "store16 [" ^ ts addr ^ "] <- " ^ ts src
+    | Push tmp => "push " ^ ts tmp
+    | Pop tmp => "pop " ^ ts tmp
+    | LoadLabel (tmp, lab) => "loadlabel " ^ ts tmp ^ " <- &" ^ lab
+    | JumpInd tmp => "jmp_ind " ^ ts tmp
+    | JumpCond (cond, lab) => condtos ts cond ^ " " ^ lab
+    | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- " ^ Word8.toString w8
+    | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- " ^ Word16.toString w16
+    | Immediate32 (tmp, w32) => "imm32 " ^ ts tmp ^ " <- " ^ Word32.toString w32
     | _ => "unimplemented cmdtos cmd"
 (*
   (* PERF allow tmp * literal? It is only more efficient
@@ -330,22 +329,39 @@ struct
   | Mov of tmp * tmp
   | Xor of tmp * tmp
 *)
-  fun blocktos (Block { name, cmds }) =
+  fun blocktos ts (Block { name, cmds }) =
     "  " ^ name ^ ":\n" ^
-    String.concat (map (fn cmd => "    " ^ cmdtos cmd ^ "\n") cmds)
+    String.concat (map (fn cmd => "    " ^ cmdtos ts cmd ^ "\n") cmds)
 
-  fun proctos (Proc { name, argbytes, localbytes, offsets, blocks }) =
+  fun proctos ts (Proc { name, argbytes, localbytes, offsets, blocks }) =
     let val offsets = ListUtil.sort (ListUtil.bysecond Int.compare) offsets
     in
       "PROC " ^ name ^ " (argbytes " ^ Int.toString argbytes ^
       " localbytes " ^ Int.toString localbytes ^ "):\n  {\n" ^
       String.concat (map (fn (s, i) => "    @" ^ Int.toString i ^
                           "\t" ^ s ^ "\n") offsets) ^ "  }\n" ^
-      StringUtil.delimit "\n" (map blocktos blocks)
+      StringUtil.delimit "\n" (map (blocktos ts) blocks)
     end
 
-  fun progtos (Program { procs, main }) =
+  fun progtos ts (Program { procs, main, datasegment }) =
+    (* XXX print data segment? *)
+    "DATA (.. 64kb ..)\n" ^
     "PROGRAM (main = " ^ main ^ "):\n" ^
-    StringUtil.delimit "\n" (map proctos procs) ^ "\n"
+    StringUtil.delimit "\n" (map (proctos ts) procs) ^ "\n"
+
+  fun named_tmptos (v, s) = v ^
+    (case s of
+       S8 => "[8]"
+     | S16 => ""
+     | S32 => "[32]")
+
+  fun explicit_tmptos (i, s) = "@" ^ Int.toString i ^
+    (case s of
+       S8 => "[8]"
+     | S16 => ""
+     | S32 => "[32]")
+
+  val named_program_tostring = progtos named_tmptos
+  val explicit_program_tostring = progtos explicit_tmptos
 
 end

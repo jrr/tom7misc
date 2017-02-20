@@ -1,6 +1,11 @@
 structure CIL =
 struct
 
+  (* Name of the main function; the program is expected to
+     have exactly one of these. *)
+  val main = "main"
+  exception CIL of string
+
   datatype loc = Local of string | Global of string
 
   (* Width of data for a read or write.
@@ -26,10 +31,19 @@ struct
   | Word16 of signedness
   | Word8 of signedness
 
+  fun typwidth (Pointer _) = Width16
+    | typwidth (Code _) = Width16
+    | typwidth (Struct _) = raise CIL "unimplemented structs"
+    | typwidth (Word32 _) = Width32
+    | typwidth (Word16 _) = Width16
+    | typwidth (Word8 _) = Width8
+
   datatype value =
     Var of string
     (* typ is the type of the thing thing pointed to. *)
   | AddressLiteral of loc * typ
+    (* name of function, return type, argument types *)
+  | FunctionLiteral of string * typ * typ list
   | Word8Literal of Word8.word
   | Word16Literal of Word16.word
   | Word32Literal of Word32.word
@@ -89,12 +103,7 @@ struct
   | Complement of width * value
   | Negate of width * value
 
-  (* Is this necessary? I think we just translate the lvalue and
-     don't LOAD from it. *)
-  (* | AddressOf of string *)
-  (* Similarly, this becomes a LOAD *)
-  (* | Dereference of value *)
-    (* Math and then LOAD *)
+  (* Should just be Math and then LOAD? *)
   (* | Subscript of value * value
      | Member of value * string *)
   | Call of value * value list
@@ -130,16 +139,19 @@ struct
 
   datatype global =
     Glob of { typ : typ,
-              (* Start label for initialization code; must appear
-                 in blocks. *)
-              init : string,
-              blocks : (string * stmt) list }
+              (* Byte pattern the global should start with, if
+                 desired. This is expected to be the correct size.
+                 Initialization may overwrite this. *)
+              bytes : Word8Vector.vector option,
+              (* Initialization should write (only) to this global,
+                 and should not depend on other globals. Start
+                 label must appear in blocks. *)
+              init : { start : string,
+                       blocks : (string * stmt) list } option }
 
   datatype program =
-    Program of { functions : (string * function) list,
-                 (* The stmt here is initialization code, which is expected
-                    to write to (only) this global, and should not depend on
-                    any globals. Could be empty. *)
+    Program of { main : string,
+                 functions : (string * function) list,
                  globals : (string * global) list }
 
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
@@ -185,7 +197,10 @@ struct
     | valtos (Word8Literal w) = "0x" ^ Word8.toString w
     (* XXX heuristic for data, etc. *)
     | valtos (StringLiteral s) = "\"" ^ String.toString s ^ "\""
-    | valtos (AddressLiteral (a, t)) = "ADDR(" ^ loctos a ^ " : " ^ typtos t ^ ")"
+    | valtos (AddressLiteral (a, t)) = "ADDR(" ^ loctos a ^ " : " ^
+    typtos t ^ ")"
+    | valtos (FunctionLiteral (f, ret, args)) = "FADDR(" ^ f ^ " : " ^
+    typtos ret ^ "(" ^ StringUtil.delimit ", " (map typtos args) ^ "))"
 
   fun widthtos Width32 = "_32"
     | widthtos Width16 = "_16"
@@ -249,7 +264,12 @@ struct
     | stmttos (Goto lab) = "  goto " ^ lab
     | stmttos End = "  end"
 
-  fun progtos (Program { functions, globals }) =
+  fun w8vtos v =
+    String.concat
+    (Word8Vector.foldr (fn (e, b) =>
+                        StringUtil.bytetohex (Word8.toInt e) :: b) nil v)
+
+  fun progtos (Program { functions, main, globals }) =
     let
       fun blocktos (lab, s) =
         lab ^ ":\n" ^
@@ -262,11 +282,18 @@ struct
         "start at " ^ body ^ "\n" ^
         StringUtil.delimit "\n" (map blocktos blocks)
 
-      fun glob (s, Glob { typ, init, blocks }) = "GLOBAL " ^ s ^ " : " ^
-        typtos typ ^ " =\n" ^
-        "start at " ^ init ^ "\n" ^
-        StringUtil.delimit "\n" (map blocktos blocks)
+      fun glob (s, Glob { typ, bytes, init }) = "GLOBAL " ^ s ^ " : " ^
+        typtos typ ^ " =" ^
+        (case bytes of
+           NONE => ""
+         | SOME v => " [" ^ w8vtos v ^ "]") ^
+        (case init of
+           NONE => "\n"
+         | SOME { start, blocks } =>
+             "\nstart at " ^ start ^ "\n" ^
+             StringUtil.delimit "\n" (map blocktos blocks))
     in
+      "Entry: " ^ main ^ "\n" ^
       StringUtil.delimit "\n" (map func functions) ^ "\n\n" ^
       StringUtil.delimit "\n" (map glob globals) ^ "\n"
     end

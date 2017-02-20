@@ -3,6 +3,6 @@ sig
 
   exception ToASM of string
 
-  val toasm : CIL.program -> ASM.program
+  val toasm : CIL.program -> ASM.named_tmp ASM.program
 
 end
