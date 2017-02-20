@@ -133,6 +133,12 @@
    * Return value. *
    TODO
 
+   * Calling convention. *
+   When a function receives control, EBP is pointing to unused space
+   that it can use for whatever (but space beneath EBP should be preserved).
+   The caller saves temporaries with SaveTemps and restores them on
+   return with RestoreTemps.
+
    X86 registers reserved for compiler use:
     - EBX points to beginning of local frame (in DS).
     - EBP points to beginning of temporary frame (in SS).
@@ -155,13 +161,20 @@ struct
 
      Every temporary knows its size and this is part of its identity.
 
+     A temporary also knows what context it lives in. The context is
+     the function that it's part of; this name is used to coalesce
+     temporaries in AllocateTmps (only tmps in the same context can
+     have overlapping lifetimes) and to name the size of the temp
+     frame for SaveTempsNamed and RestoreTempsNamed.
+
      Loads and stores commute with temporary accesses; these things
      represent intermediate expressions that are inaccessible from
      C semantics (undefined behavior can still mess them up, possibly).
 
-     The lifetime of a temporary is explicit, or ...?
      *)
-  type named_tmp = string * sz
+  datatype named_tmp = N of { func : string,
+                              name : string,
+                              size : sz }
 
   (* XXX decide on type; document.
      - should maybe have some name hint, just for sanity?
@@ -208,18 +221,24 @@ struct
      TODO: Document what is allowed.
      *)
   datatype 'tmp cmd =
-  (* XXX I think Prepare/Destroy are actually the same as
-     expand/shrink *)
-  (* Advance the base pointer to make
-     for this funtion. This is done by the caller, since the
-     arguments need to then be set up in this frame. *)
-    PrepareArgs of string
-  (* Remove the frame. This could be done by the caller or
-     callee, but we do it in the callee so that we have a
-     good chance of merging the ShrinkFrame and DestroyArgs,
-     which both just modify the base pointer. *)
-  | DestroyArgs of string
-  (* Expand or shrink the frame by moving the base pointer.
+  (* Advance EBP (pointer to the beginning of the temporary stack)
+     beyond this function's temporary frame. This is done before
+     making a call so that the called function has room for its
+     temporaries, and the current values of the temporaries are
+     restored.
+
+     There are two versions: The first is for when temps are named
+     (then the string is the function name); the second is for
+     explicit temps (then it is a number of bytes). This could be
+     enforced with another type parameter, but it's probably simpler
+     to just keep it as an invariant. *)
+    SaveTempsNamed of string
+  | SaveTempsExplicit of int
+  (* The counterpart to SaveTemps; reduces EBP so that it points
+     to the beginning of this function's temporary frame again. *)
+  | RestoreTempsNamed of string
+  | RestoreTempsExplicit of int
+  (* Expand or shrink the (locals) frame by moving the base pointer.
      A function expands in its header to make room for its
      local variables, and shrinks before returning. This has
      to be done by the function itself, because the type of
@@ -230,11 +249,11 @@ struct
   (* Assign the address of the current frame (EBX) plus the
      given offset to the 16-bit temporary. *)
   | FrameOffset of 'tmp * Word16.word
-    (* Load (dst, addr). Loads and stores are always to the
-       data segment. *)
+  (* Load (dst, addr). Loads and stores are always to the
+     data segment. *)
   | Load8 of 'tmp * 'tmp
   | Load16 of 'tmp * 'tmp
-    (* Store (addr, src) *)
+  (* Store (addr, src) *)
   | Store8 of 'tmp * 'tmp
   | Store16 of 'tmp * 'tmp
   | Immediate8 of 'tmp * Word8.word
@@ -249,19 +268,20 @@ struct
   | Xor of 'tmp * 'tmp
   | Push of 'tmp
   | Pop of 'tmp
-    (* Name of code block. 16 bits. *)
+  (* Name of code block. 16 bits. *)
   | LoadLabel of 'tmp * string
-    (* General jump to 16-bit code pointer. Used for
-       returning from functions and for C function
-       pointers. *)
+  (* General jump to 16-bit code pointer. Used for
+     returning from functions and for C function
+     pointers. *)
   | JumpInd of 'tmp
-    (* Conditional jumps all take a literal label. *)
+  (* Conditional jumps all take a literal label. *)
   | JumpCond of 'tmp cond * string
-    (* TODO: inc, etc. *)
+  (* Program initialization code. *)
+  | Init
+  (* TODO: inc, etc. *)
 
-  datatype 'tmp block = Block of
-    { name: string,
-      cmds: 'tmp cmd list }
+  type 'tmp block = string * 'tmp cmd list
+(*
   and 'tmp proc = Proc of
     { name: string,
       (* Size of stack frame for arguments. *)
@@ -282,12 +302,17 @@ struct
          next (unless of course there's an unconditional
          jump). Exection must not "fall off the end." *)
       blocks: 'tmp block list }
+    *)
 
   (* XXX data... *)
-  datatype 'tmp program = Program of { procs: 'tmp proc list,
-                                       main: string,
-                                       (* Always 65536 bytes; printable. *)
-                                       datasegment: Word8Vector.vector }
+  datatype 'tmp program =
+    Program of
+    { (* The order of this list is significant; execution begins at the
+         first block and falls through to the next (unless following a
+         jump). Exection must not "fall off the end." *)
+      blocks: 'tmp block list,
+      (* Always 65536 bytes; printable. *)
+      datasegment: Word8Vector.vector }
 
   fun condtos ts c =
     case c of
@@ -303,7 +328,11 @@ struct
 
   fun cmdtos ts c =
     case c of
-      ExpandFrame n => "expandframe " ^ Int.toString n
+      SaveTempsNamed f => "savetemps " ^ f
+    | SaveTempsExplicit n => "savetemps " ^ Int.toString n
+    | RestoreTempsNamed f => "restoretemps " ^ f
+    | RestoreTempsExplicit n => "restoretemps " ^ Int.toString n
+    | ExpandFrame n => "expandframe " ^ Int.toString n
     | ShrinkFrame n => "shrinkframe " ^ Int.toString n
     | FrameOffset (dst, off) => "frameoffset " ^ ts dst ^ " <- frame+" ^
         Word16.toString off
@@ -319,6 +348,7 @@ struct
     | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- " ^ Word8.toString w8
     | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- " ^ Word16.toString w16
     | Immediate32 (tmp, w32) => "imm32 " ^ ts tmp ^ " <- " ^ Word32.toString w32
+    | Init => "init"
     | _ => "unimplemented cmdtos cmd"
 (*
   (* PERF allow tmp * literal? It is only more efficient
@@ -329,10 +359,11 @@ struct
   | Mov of tmp * tmp
   | Xor of tmp * tmp
 *)
-  fun blocktos ts (Block { name, cmds }) =
+  fun blocktos ts (name, cmds) =
     "  " ^ name ^ ":\n" ^
     String.concat (map (fn cmd => "    " ^ cmdtos ts cmd ^ "\n") cmds)
 
+    (*
   fun proctos ts (Proc { name, argbytes, localbytes, offsets, blocks }) =
     let val offsets = ListUtil.sort (ListUtil.bysecond Int.compare) offsets
     in
@@ -342,15 +373,17 @@ struct
                           "\t" ^ s ^ "\n") offsets) ^ "  }\n" ^
       StringUtil.delimit "\n" (map (blocktos ts) blocks)
     end
+    *)
 
-  fun progtos ts (Program { procs, main, datasegment }) =
+  fun progtos ts (Program { blocks, datasegment }) =
     (* XXX print data segment? *)
     "DATA (.. 64kb ..)\n" ^
-    "PROGRAM (main = " ^ main ^ "):\n" ^
-    StringUtil.delimit "\n" (map (proctos ts) procs) ^ "\n"
+    "PROGRAM:\n" ^
+    String.concat (map (blocktos ts) blocks) ^ "\n"
 
-  fun named_tmptos (v, s) = v ^
-    (case s of
+  fun named_tmptos (N { func, name, size }) =
+    func ^ "." ^ name ^
+    (case size of
        S8 => "[8]"
      | S16 => ""
      | S32 => "[32]")

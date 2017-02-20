@@ -61,6 +61,7 @@ struct
           | CIL.CIL s => "CIL: " ^ s ^ "\n"
           | ToCIL.ToCIL s => "ToCIL: " ^ s ^ "\n"
           | ToASM.ToASM s => "ToASM: " ^ s ^ "\n"
+          | AllocateTmps.AllocateTmps s => "AllocateTmps: " ^ s ^ "\n"
           | ToX86.ToX86 s => "ToX86: " ^ s ^ "\n"
           | EncodeX86.EncodeX86 s => "EncodeX86: " ^ s ^ "\n"
           | Tactics.Tactics s => "Tactics: " ^ s ^ "\n"
