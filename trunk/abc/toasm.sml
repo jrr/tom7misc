@@ -174,7 +174,7 @@ struct
   local
     val ctr = ref 0
   in
-    fun newtmp (name, size) =
+    fun new_named_tmp (func, name, size) =
       let
         val x = !ctr
       in
@@ -182,7 +182,7 @@ struct
         (* XXX this is pretty bogus since we keep using $.
            Should either parse to remove $, or just have
            a symbol type. *)
-        (name ^ "$t" ^ Int.toString x, size)
+        A.N { func = func, name = name ^ "$t" ^ Int.toString x, size = size }
       end
   end
 
@@ -198,6 +198,10 @@ struct
       val () = app (fn (lab, stmt) =>
                     todo := SM.insert (!todo, lab, stmt)) blocks
 
+      fun newtmp (n, size) = new_named_tmp (name, n, size)
+      fun vartmp (var, sz) =
+        A.N { func = name, name = var, size = sz }
+
       (* Generate code to put the value v in a new temporary,
          then call the continuation with that temporary and its size. *)
       fun gentmp (ctx : C.context) (v : C.value)
@@ -210,7 +214,7 @@ struct
              | SOME ctyp =>
                  (* A variable is always translated to a same-named
                     temporary at the appropriate size. *)
-                 k (var, ctypsize ctyp))
+                 k (vartmp (var, ctypsize ctyp)))
         (* typ is the type of the thing thing pointed to.
            we don't use it here; the address is always a 16-bit DS offset. *)
         | C.AddressLiteral (loc, typ) =>
@@ -264,8 +268,8 @@ struct
             gentmp ctx value
             (fn tmp =>
              (* XXX Check compatibility of t and sz from tmp? *)
-             let val sz = #2 tmp
-             in A.Mov ((var, sz), tmp) // k ()
+             let val A.N { size, ... } = tmp
+             in A.Mov (vartmp (var, size), tmp) // k ()
              end)
         (* These should be compiled away into GotoIf (cond, ...) *)
         | (C.Greater _, _) => raise ToASM "bug: unexpected comparison op"
@@ -283,8 +287,8 @@ struct
             gentmp ctx v
             (fn addr =>
              (case w of
-                C.Width8 => A.Load8 ((var, ctypsize t), addr) // k ()
-              | C.Width16 => A.Load16 ((var, ctypsize t), addr) // k ()
+                C.Width8 => A.Load8 (vartmp (var, ctypsize t), addr) // k ()
+              | C.Width16 => A.Load16 (vartmp (var, ctypsize t), addr) // k ()
               | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
             (*
@@ -457,7 +461,7 @@ struct
           val () = done := SM.insert (!done, lab, ())
           val (cmds, next) = gencmds C.Context.empty stmt
         in
-          A.Block { name = lab, cmds = cmds } ::
+          (lab, cmds) ::
           (case next of
              NONE => donext ()
            | SOME lnext => genblock lnext)
@@ -467,7 +471,7 @@ struct
       fun genall () =
         (* Need to set up local variable frame. Caller has already
            set up 'argbytes' bytes for us. *)
-        A.Block { name = header_label, cmds = [A.ExpandFrame localbytes] } ::
+        (header_label, [A.ExpandFrame localbytes]) ::
         (* And then continue with the function's entry point. *)
         genblock body
     in
@@ -480,7 +484,7 @@ struct
               { args : (string * C.typ) list,
                 ret : C.typ,
                 body : string,
-                blocks : (string * C.stmt) list }) : A.named_tmp A.proc =
+                blocks : (string * C.stmt) list }) : A.named_tmp A.block list =
     let
       val argsizes : sz SM.map =
         foldl (fn ((s, t), m) => SM.insert (m, s, ctypsize t)) SM.empty args
@@ -536,11 +540,14 @@ struct
       print ("Frame for proc " ^ name ^ ":\n" ^
              String.concat (map (fn (s, off) => "  " ^ Int.toString off ^
                                  ": " ^ s ^ "\n") (rev (!offsets))));
+      blocks
+(*
       A.Proc { name = name,
                blocks = blocks,
                offsets = !offsets,
                argbytes = argbytes,
                localbytes = localbytes }
+*)
     end
 
   (* Allocate globals at the beginning of DS so that we know their
@@ -604,9 +611,29 @@ struct
          XXX something has to set up EBX to point to the frame stack,
          i.e., frame_stack_start *)
       fun onefunction (name, func) =
-        let in
-          doproc globalpositions (name, func)
-        end
+        (name, doproc globalpositions (name, func))
+
+      val proc_blocks : (string * A.named_tmp A.block list) list =
+        map onefunction functions
+      (* Each proc is a list of blocks that have to go in that order,
+         but the lists can be permuted however we like. We don't do
+         any intraprocedural optimization. Pull out the "main" block
+         so that it goes immediately after our initialization block,
+         which is first. *)
+      val blocks =
+        case ListUtil.Alist.extract op= proc_blocks main of
+          NONE => raise ToASM ("there is no main function " ^ main ^ "?")
+        | SOME (mproc : A.named_tmp A.block list, rest) =>
+            let
+              (* Flatten the blocks. *)
+              val rest = List.concat ` map #2 rest
+            in
+              (* Put main's code first. *)
+              mproc @ rest
+            end
+
+      (* XXX generate fresh label from something... *)
+      val init_block = ("__abc_init", [A.Init])
     in
       (* Probably should include some headroom here..? *)
       if frame_stack_start > 65536
@@ -615,8 +642,7 @@ struct
                         "for this architecture! :(")
       else ();
 
-      A.Program { main = "main",
-                  procs = map onefunction functions,
+      A.Program { blocks = init_block :: blocks,
                   datasegment = Segment.extract datasegment }
     end
   handle Segment.Segment s => raise ToASM ("Segment: " ^ s)
