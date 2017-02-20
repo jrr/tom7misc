@@ -26,6 +26,11 @@ struct
     else Word16.fromInt (Word8.toInt (Word8Vector.sub(v, 1)) * 256 +
                          Word8.toInt (Word8Vector.sub(v, 0)))
 
+  fun repeatingstring str i =
+    let val sz = size str
+    in Word8.fromInt ` ord ` String.sub (str, i mod sz)
+    end
+
   fun write_exe { init_ip, init_sp, cs, ds } filename =
     let
 
@@ -44,30 +49,26 @@ struct
          value. *)
       val extrabytes = vec [0wx7e, 0wx7e]
       (* Pages in file.
-         Number of 512-byte pages. Since the maximum size is 1MB, we also
-         have to give an invalid value here, but DOSBox ANDs the value
-         with 07ff. This gives 0x7e7e gives 0x67E * 512 = 850944 bytes.
-         (We could make this 77e if we wanted...)
+
+         Number of 512-byte pages. Since the maximum size is 1MB, we
+         also have to give an invalid value here, but DOSBox ANDs the
+         value with 07ff. We have a wide range of values available
+         here; the most-significant byte can be 20 to 27, covering
+         that whole range because the 2 gets ANDed off, and the LSB
+         can be anything printable (20 to 7e). The largest value we
+         can use here is 0x2f7e (not 7e7e), which yields 1918 pages.
 
          We can use so little of the file for anything meaningful; it's
          basically just the code and data segments, each at 64k, and
          this huge useless header before that where we store the paper
          and some untouchable stuff like the relocation table.
 
-         We can write most values here; the most-significant byte can
-         be 20 to 27, covering that whole range because the 2 get ANDed
-         off, and the LSB can be anything printable (20 to 7e).
-
-         THIS IS OLD XXX
-         Here I choose a value that results in 1397 pages, which is
-         just after the natural end of the code segment. This results
-         in a file size of 715264 bytes.
-         val pages = w16v (Word16.fromInt 0x2575)
-
-         The minimum conceivable image size would be 385 pages with
-         the code segment starting at 0x2020 ((0x2020 * 16 + 65536)
-         div 512). But of course we need a header. 0x217e is just shy
-         of this, and the next biggest printable value is 0x2220,
+         The last byte we actually need to store in the file is the
+         end of the code segment, which starts at (paragraph) 0x2020
+         and runs 65536 bytes. ((0x2020 * 16 + 65536) div 512) = 385,
+         so this gives us a good starting point for the minimum possible
+         size. But of course we need a header. 0x217e is just shy
+         of 385 anyway, and the next biggest printable value is 0x2220,
          which gives us 544 pages. At this size, even with the
          smallest possible header (0x2020 * 16 bytes), the 64k of code
          doesn't fit in the image. 0x227e is merely 2kb shy, ugh! So
@@ -81,43 +82,59 @@ struct
          The image size, which we need to keep small to fit in memory,
          is (head.pages & 07ff) * 512 - head.headersize * 16.
 
-         So we actually report a large header size in order to account
-         for the largeness of the file. (A large header also allows us
-         to fit the relocation table as well as our paper :))
-
-         The minimum printable value is 0x2020 * 16 = 131584, which
-         is bigger than we'd like. (CR/LF here?) *)
-      (* Actually it helps us for this to be a bit large, because
-         we need the image size (which is the rest of the file) to fit
-         in RAM even when we request a minmemory of 0x2020. *)
+         For the setting of "pages" above, the minimum value of 0x2020
+         works. It's much larger than the actual header, but it helps
+         make the memory requirements of the program smaller by
+         reducing the amount of the file that needs to be loaded into
+         memory (only the part after the header is loaded). This is a
+         potential issue because we also have to declare a minimum
+         memory requirement of 0x2020 below. (We also get some space
+         to put the paper :)) *)
       val headersize = w16v (Word16.fromInt 0x2020)
       (* Min/max number of 16-byte paragraphs required above
-         the end of the program. I think this is like BSS? *)
-      (* we want this to be small, since DOS only has about 40557 paragraphs to
-         give us. We'd like to use 0x20,0x70 which little-endian is
-         is 0b0111000000100000, hoping that when it's left-shifted 4, all
-         the 1 bits overflow. (Unfortunately it seems to be extended to
-         32 bits, so that doesn't work. *)
-      (* What gets computed here is
-         long2para(imagesize + minmemory<<4 + 256), where long2para
-         is roughly >>4. The result has to be <maxfree, which is 40482.
-         imagesize is (pages * 512) - headersize, both of which we control.
-         This is why we give a large header size. The result with
-         minmemory=0x2020 is 29042, which is less than 40482 as needed. *)
+         the end of the program. This is useful for programs that
+
+         Useful for programs that can change segment registers to
+         allocate some space. But this space will be basically useless
+         to us. Also, we need the total memory requirement of our program
+         to be small, since DOS only has about 40,000 paragraphs to
+         give us. Note that this value gets shifted up by 4 bits, so it
+         would be nice to be able to shift off some high bits (e.g. supply
+         0x7020, yielding 0x0200.), but at least in DOSBox this calculation
+         is done at 32-bit width. So the smallest we can manage is 0x2020.
+
+         Note that the memory check includes this value and the image
+         size, which is the file size (head.pages) minus the header
+         size. See the sanity check below. *)
       val minmemory = vec [0wx20, 0wx20]
       val maxmemory = minmemory
       (* Stack segment displacement, in 16-byte paragraphs.
-         What does this mean? SS becomes 0x705B, which is mostly zeroes. *)
-      val initSS = vec [0wx6e, 0wx6e]
-      (* Machine stack grows downward, so we want this to be a large number.
-         We actually place the temporaries stack right after this, growing
-         upward (towards 0xFFFF); so the machine stack and temporaries stack
-         each get about half the address space. *)
-      (* vec [0wx7e, 0wx7e] *)
+
+         I believe this is specified the same way as the code segment
+         (i.e., within the _image_), so it has to be after it, and
+         should probably be within the program image + allocated
+         memory above. We could initialize the stack segment with some
+         data, but this grows the size of the executable and is
+         difficult to manage (DOS will corrupt the stack segment at
+         arbitrary times with interrupts, including during
+         initialization, and we don't have access to the instructions
+         to turn interupts off!)
+
+         Put this immediately after CS. *)
+      val initSS = w16v (Word16.fromInt 0x3020)  (* vec [0wx6e, 0wx6e] *)
+      (* Machine stack grows downward (towards 0x0000), so we want this to
+         be a large number. We actually place the temporaries stack
+         right after this, growing upward (towards 0xFFFF); so the
+         machine stack and temporaries stack each get about half the
+         address space. *)
+
+      (* TODO: Could maybe get some text into the title here, because initSP
+         only needs to be some large number less than 0x7fff, checksum can
+         be anything, and we can probably control initIP as well. Would be
+         a delicate matter. *)
       val initSP = w16v init_sp
       (* Checksum; usually ignored. 'AB' *)
-      val checksum = vec [0wx41, 0wx42]
-      (* vec [0wx20, 0wx20] *)
+      val checksum = Word8Vector.tabulate (2, repeatingstring "AB")
       val initIP = w16v init_ip
       (* Displacement of code segment (within _image_). *)
       val initCS = vec [0wx20, 0wx20]
@@ -125,7 +142,7 @@ struct
       val reloctable = vec [0wx20, 0wx20]
       (* Tells the OS what overlay number this is. Should be 0
          for the main executable, but it seems to work if it's not *)
-      val overlay = vec [0wx20, 0wx20]
+      val overlay = Word8Vector.tabulate (2, repeatingstring "C!")
 
       val header_struct =
         Word8Vector.concat [magic,
@@ -205,10 +222,7 @@ struct
            else 0wx20
          end
          else
-           (case i mod 3 of
-              0 => Word8.fromInt ` ord #"h"
-            | 1 => Word8.fromInt ` ord #"d"
-            | _ => Word8.fromInt ` ord #"r"))
+         repeatingstring "hdr" i)
 
       (* Computed empirically for the given header values above.
          I *believe* that this is predictable, but it's not really documented.
