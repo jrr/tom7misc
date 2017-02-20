@@ -19,5 +19,6 @@ sig
   end
 
   val newlocal : string -> string
+  val genvar : string -> string
 
 end

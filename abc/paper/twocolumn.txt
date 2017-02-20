@@ -1,0 +1,105 @@
+...............................................................................+................................................................................
+.                                                                                                                                                              .
+.              I. Introduction                                                    so I guess I probably need to make it larger. Here is some more lorem-ipsum  .
+.                                                                                 type stuff. Wow, this would be an enormous pain in the ass to edit manually  .
+.                                                                                 in emacs! I guess I would need to make a layout program to do it, or at      .
+. Here is a page of printed text using typical line-printer settings of 80x66.    least be done with the content before I try laying out out, since if I like  .
+. I gave myself a border so that it's pretty easy to see the appropriate width    inserted a single line in column 1, it'd be a huge pain to have to reflow    .
+. when just looking at an unformatted dump. At this size, each page is exactly    the WHOLE DOCUMENT!                                                          .
+. 5280 bytes. With an executable of 715264 bytes, that's 135 pages (yikes).                                                                                    .
+.                                                                                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do              .
+. This does seem like a pretty reasonable resolution for reading and editing,     eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad       .
+. though, and it's suitably authentic. Even if we used an uncomfortably large     minim veniam, quis nostrud exercitation ullamco laboris nisi ut              .
+. 4x size of 160x132 (like by printing 4 ASCII pages per page?) it'd still be     aliquip ex ea commodo consequat. Duis aute irure dolor in                    .
+. 33 pages, which is a bit much for SIGBOVIK. And what would we even fill it      reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla          .
+. with? Better to just put some 'meta' stuff in the printed version, like to      pariatur. Excepteur sint occaecat cupidatat non proident, sunt in            .
+. insert 600k of spaces here, etc.                                                culpa qui officia deserunt mollit anim id est laborum.                       .
+.                                                                                                                                                              .
+. On the other hand, I did manage to fit over 600kb of portmantout in the 2015                                                                                 .
+. edition and it was even (barely) readable?                                            III. Some more crap                                                    .
+.                                                                                                                                                              .
+. Minimally we need to print the whole code segment, which is 64k, and                                                                                         .
+. probably the whole data segment at 64k as well. At 80x66, this is 12.4          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do              .
+. pages of gibberish! That's about the maximum of what I could get away with,     eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad       .
+. I think. Although if the program is small, it doesn't have to use the whole     minim veniam, quis nostrud exercitation ullamco laboris nisi ut              .
+. code segment, or there could contain readable text somewhere in there...        aliquip ex ea commodo consequat. Duis aute irure dolor in                    .
+.                                                                                 reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla          .
+. OK, new executable size, which may be minimal, is 409600. This would be         pariatur. Excepteur sint occaecat cupidatat non proident, sunt in            .
+. 77 pages at a conservative 80x66. 77 pages is still absurd, but it's getting    culpa qui officia deserunt mollit anim id est laborum.                       .
+. into the realm of possibility (double-sided, this is "only" 38 sheets).                                                                                      .
+.                                                                                 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do              .
+. At 4-up size, we'd come in at 19.39 pages (10 sheets). 4-up would look          eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad       .
+. kind of stupid, but maybe we could do an elaborate ASCII two-column layout?     minim veniam, quis nostrud exercitation ullamco laboris nisi ut              .
+. At least that would look cool, but it might be very hard to read?               aliquip ex ea commodo consequat. Duis aute irure dolor in                    .
+.                                                                                 reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla          .
+. Also remember that you'd need to write a lot to fill up that space!!            pariatur. Excepteur sint occaecat cupidatat non proident, sunt in            .
+.                                                                                 culpa qui officia deserunt mollit anim id est laborum.                       .
+.                                                                                                                                                              .
+.                                                                                                                                                              .
+.           +-------------------------------------+                                                                                                            .
+.           |                                    .|                                                                                                            .
+.           |                                   ..|                                                                                                            .
+.           |                                  .. |                                                                                                            .
+.           |                                ...  |                                                                                                            .
+.           |                              ...    |                                                                                                            .
+.           |                            ...      |                                                                                                            .
+.           |                         ....        |                                                                                                            .
+.           |        ..................           |                                                                                                            .
+.           |    .....                            |                                                                                                            .
+.           | ....                                |                                                                                                            .
+.           |..                                   |                                                                                                            .
+.           +-------------------------------------+                                                                                                            .
+.                                                                                       IV. Bibliography                                                       .
+.            Figure 1. The function grows as the                                                                                                               .
+.            input values increase.                                                                                                                            .
+.                                                                                 [1] Murphy, VII, Tom.  New algorithms in k/n power hours. SIGBOVIK 2015?     .
+.                                                                                                                                                              .
+.           II. Implementation                                                                                                                                 .
+.                                                                                                                                                              .
+. This is some fake text to see what it would look like to have some                                                                                           .
+. more paragraphs, and to have those paragraphs split across two columns. It                                                                                   .
+. does seem fairly reasonable so far, though this is still only 66 lines high,                                                                                 .
+. and it doesn't appear to be the correct shape for printing on letter paper,                                                                                  .
+.                                                                                                                                                              .
+.                                                                                                                                                              .
+. More text here !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                                                                                    .
+.                                                                                                                                                              .
+. M-x picture-mode                                                                                                                                             .
+. C-x r r  (pick some register, a single letter)                                                                                                               .
+. C-c C-x  (paste from some register, overwriting)                                                                                                             .
+.                                                                                                                                                              .
+. C-c C-c to exit                                                                                                                                              .
+.                                                                                                                                                              .
+.                                                                                                                                                              .
+.       This is 160x105. 24 solid pages.                                                                                                                       .
+.                                                                                                                                                              .
+.                                                                                                                                                              .
+.           +-------------------------------------+                                                                                                            .
+.           |                                    .|                                                                                                            .
+.           |                                   ..|                                                                                                            .
+.           |                                  .. |                                                                                                            .
+.           |                                ...  |                                                                                                            .
+.           |                              ...    |                                                                                                            .
+.           |                            ...      |                                                                                                            .
+.           |                         ....        |                                                                                                            .
+.           |        ..................           |                                                                                                            .
+.           |    .....                            |                                                                                                            .
+.           | ....                                |                                                                                                            .
+.           |..                                   |                                                                                                            .
+.           +-------------------------------------+                                                                                                            .
+.                                                                                                                                                              .
+.            Figure 1. The function grows as the                                                                                                               .
+.            input values increase.                                                                                                                            .
+.                                                                                                                                                              .
+.                                                                                                                                                              .
+.           II. Implementation                                                                                                                                 .
+.                                                                                                                                                              .
+. This is some fake text to see what it would look like to have some                                                                                           .
+. more paragraphs, and to have those paragraphs split across two columns. It                                                                                   .
+. does seem fairly reasonable so far, though this is still only 66 lines high,                                                                                 .
+. and it doesn't appear to be the correct shape for printing on letter paper,                                                                                  .
+.                                                                                                                                                              .
+.                                                                                                                                                              .
+.                                                                              1                                                                               .
+.                                                                                                                                                              .
+...............................................................................+................................................................................

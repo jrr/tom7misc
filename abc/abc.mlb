@@ -43,7 +43,11 @@ ckit/ckit-lib.mlb
   toasm-sig.sml
   toasm.sml
 
+  allocate-tmps-sig.sml
+  allocate-tmps.sml
+
   x86.sml
+  encode-x86-sig.sml
   encode-x86.sml
 
   machine-sig.sml
@@ -54,6 +58,9 @@ ckit/ckit-lib.mlb
 
   tactics.sml
   tactics-test.sml
+
+  tox86-sig.sml
+  tox86.sml
 
   exe-sig.sml
   exe.sml

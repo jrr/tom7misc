@@ -31,6 +31,7 @@ struct
       case v of
         Var a => call A.case_Var a
       | AddressLiteral a => call A.case_AddressLiteral a
+      | FunctionLiteral a => call A.case_FunctionLiteral a
       | Word8Literal a => call A.case_Word8Literal a
       | Word16Literal a => call A.case_Word16Literal a
       | Word32Literal a => call A.case_Word32Literal a
@@ -105,8 +106,6 @@ struct
   infixr 9 `
   fun a ` b = a b
 
-  exception CILIdentity of string
-
   type arg = arg
   open CIL
   type selves = { selft : arg -> context -> typ -> typ,
@@ -133,10 +132,20 @@ struct
   (* value *)
   fun case_Var arg ({ selft, selfv, selfe, selfs }, ctx) s =
     case Context.lookup (ctx, s) of
-      NONE => raise CILIdentity ("unbound variable " ^ s)
+      NONE => raise CIL.CIL ("CILIdentity: unbound variable " ^ s)
     | SOME t => (Var s, t)
   fun case_AddressLiteral arg ({ selft, selfv, selfe, selfs }, ctx) (v, t) =
-    (AddressLiteral (v, t), Pointer t)
+    let val t = selft arg ctx t
+    in (AddressLiteral (v, t), Pointer t)
+    end
+  fun case_FunctionLiteral arg ({ selft, selfv, selfe, selfs }, ctx)
+    (f, t, args) =
+    let
+      val t = selft arg ctx t
+      val args = map (selft arg ctx) args
+    in
+      (FunctionLiteral (f, t, args), Code (t, args))
+    end
   (* XXX this rewrites everything to unsigned -- ok?? *)
   fun case_Word8Literal arg ({ selft, selfv, selfe, selfs }, ctx) w =
     (Word8Literal w, Word8 Unsigned)
@@ -175,9 +184,11 @@ struct
     (Minus (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b), wordwidth w)
   fun case_Times arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
     (Times (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b), wordwidth w)
-  fun case_SignedDivision arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
+  fun case_SignedDivision arg ({ selft, selfv, selfe, selfs }, ctx)
+                          (w, a, b) =
     (SignedDivision (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b), wordwidth w)
-  fun case_UnsignedDivision arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
+  fun case_UnsignedDivision arg ({ selft, selfv, selfe, selfs }, ctx)
+                            (w, a, b) =
     (UnsignedDivision (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b),
      wordwidth w)
   fun case_UnsignedMod arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
@@ -234,10 +245,6 @@ struct
     (Complement (w, fst ` selfv arg ctx a), wordwidth w)
   fun case_Negate arg ({ selft, selfv, selfe, selfs }, ctx) (w, a) =
     (Negate (w, fst ` selfv arg ctx a), wordwidth w)
-  (* fun case_AddressOf arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
-AddressOf *)
-  (* fun case_Dereference arg ({ selft, selfv, selfe, selfs }, ctx) a =
-Dereference *)
   (* fun case_Subscript arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
 Subscript
   fun case_Member arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
@@ -249,12 +256,12 @@ Member *)
          in
            (Call (f, args), ret)
          end
-    | _ => raise CILIdentity "call to non-function")
+    | _ => raise CIL.CIL "CILIdentity: call to non-function")
   fun case_Load arg ({ selft, selfv, selfe, selfs }, ctx) (w, a) =
     (case selfv arg ctx a of
        (* XXX check compatibility of width and type? *)
        (a, Pointer t) => (Load (w, a), t)
-    | _ => raise CILIdentity "load on non-pointer")
+    | _ => raise CIL.CIL "CILIdentity: load on non-pointer")
 
   (* stmt *)
   fun case_Bind arg ({ selft, selfv, selfe, selfs }, ctx) (v, t, e, s) =

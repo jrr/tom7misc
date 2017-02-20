@@ -347,7 +347,8 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 		Bit16u minsize,maxsize;Bit16u maxfree=0xffff;
 		// pspseg ultimately becomes the data segment for EXE files. -tom7
 		DOS_AllocateMemory(&pspseg,&maxfree);
-		LOG(LOG_EXEC,LOG_NORMAL)("pspseg: %lx = %lu", (long unsigned int)pspseg,
+		LOG(LOG_EXEC,LOG_NORMAL)("pspseg: %lx = %lu",
+					 (long unsigned int)pspseg,
 					 (long unsigned int)pspseg);
 		if (iscom) {
 			minsize=0x1000;maxsize=0xffff;

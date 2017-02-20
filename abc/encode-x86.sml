@@ -6,12 +6,12 @@
 
 (* XXX hide this functor, I guess using mlb *)
 
-functor EncodeX86Fn(type vec
+functor EncodeX86Fn(val Exn : string -> exn
+                    type vec
                     val vec : Word8.word list -> vec
                     val @@ : vec * vec -> vec) =
 struct
   (* Maybe should be functor arg... *)
-  exception EncodeX86 of string
   infix @@
 
   val << = Word8.<<
@@ -86,31 +86,31 @@ struct
                        else vec [0wx67]
     in
       case modrm of
-        X.IND_EAX => raise EncodeX86 "unimplemented"
-      | X.IND_ECX => raise EncodeX86 "unimplemented"
-      | X.IND_EDX => raise EncodeX86 "unimplemented"
-      | X.IND_EBX => raise EncodeX86 "unimplemented"
-      | X.IND_SIB sib => raise EncodeX86 "unimplemented"
-      | X.DISP32 w32 => raise EncodeX86 "unimplemented"
-      | X.IND_ESI => raise EncodeX86 "unimplemented"
-      | X.IND_EDI => raise EncodeX86 "unimplemented"
+        X.IND_EAX => raise Exn "unimplemented"
+      | X.IND_ECX => raise Exn "unimplemented"
+      | X.IND_EDX => raise Exn "unimplemented"
+      | X.IND_EBX => raise Exn "unimplemented"
+      | X.IND_SIB sib => raise Exn "unimplemented"
+      | X.DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_ESI => raise Exn "unimplemented"
+      | X.IND_EDI => raise Exn "unimplemented"
       | X.IND_EAX_DISP8 w8 => (pfx_addr32, 0w1, 0w0, vec [w8])
       | X.IND_ECX_DISP8 w8 => (pfx_addr32, 0w1, 0w1, vec [w8])
       | X.IND_EDX_DISP8 w8 => (pfx_addr32, 0w1, 0w2, vec [w8])
       | X.IND_EBX_DISP8 w8 => (pfx_addr32, 0w1, 0w3, vec [w8])
-      | X.IND_SIB_DISP8 (sib, w8) => raise EncodeX86 "unimplemented"
+      | X.IND_SIB_DISP8 (sib, w8) => raise Exn "unimplemented"
       | X.IND_EPB_DISP8 w8 => (pfx_addr32, 0w1, 0w5, vec [w8])
       | X.IND_ESI_DISP8 w8 => (pfx_addr32, 0w1, 0w6, vec [w8])
       | X.IND_EDI_DISP8 w8 => (pfx_addr32, 0w1, 0w7, vec [w8])
       (* These are all always non-printable *)
-      | X.IND_EAX_DISP32 w32 => raise EncodeX86 "unimplemented"
-      | X.IND_ECX_DISP32 w32 => raise EncodeX86 "unimplemented"
-      | X.IND_EDX_DISP32 w32 => raise EncodeX86 "unimplemented"
-      | X.IND_EBX_DISP32 w32 => raise EncodeX86 "unimplemented"
-      | X.IND_SIB_DISP32 (sib, w32) => raise EncodeX86 "unimplemented"
-      | X.IND_EPB_DISP32 w32 => raise EncodeX86 "unimplemented"
-      | X.IND_ESI_DISP32 w32 => raise EncodeX86 "unimplemented"
-      | X.IND_EDI_DISP32 w32 => raise EncodeX86 "unimplemented"
+      | X.IND_EAX_DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_ECX_DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_EDX_DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_EBX_DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_SIB_DISP32 (sib, w32) => raise Exn "unimplemented"
+      | X.IND_EPB_DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_ESI_DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_EDI_DISP32 w32 => raise Exn "unimplemented"
       | X.Register r =>
           (* Pretty sure address size prefix does nothing *)
           (vec [], 0w3, decode_reg r, vec[])
@@ -173,7 +173,7 @@ struct
       fun encode_multireg_based (base_opcode : word8) mr =
         let
           val (size, r) = decode_multireg mr
-          val _ = size = X.S8 andalso raise EncodeX86 "impossible"
+          val _ = size = X.S8 andalso raise Exn "impossible"
           val prefix = get_operand_pfx ctx size
         in
           prefix @@
@@ -206,21 +206,25 @@ struct
       | X.INT w => vec [0wxCD, w]
       | X.DB w => vec [w]
     (*
-      | _ => raise EncodeX86 "unimplemented ins"
+      | _ => raise Exn "unimplemented ins"
         *)
     end
 
 end
 
-structure EncodeX86 =
+structure EncodeX86 :> ENCODEX86 =
 struct
 
+  exception EncodeX86 of string
+
   structure SizeEncode =
-  EncodeX86Fn(type vec = int
+  EncodeX86Fn(val Exn = EncodeX86
+              type vec = int
               val vec = List.length
               val @@ = op+)
   structure VecEncode =
-  EncodeX86Fn(type vec = Word8Vector.vector
+  EncodeX86Fn(val Exn = EncodeX86
+              type vec = Word8Vector.vector
               val vec = Word8Vector.fromList
               fun @@(v1, v2) = Word8Vector.concat [v1, v2])
 

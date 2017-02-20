@@ -24,6 +24,8 @@ sig
   val case_Var : arg -> selves * CIL.context -> string -> CIL.value * CIL.typ
   val case_AddressLiteral : arg -> selves * CIL.context ->
     CIL.loc * CIL.typ -> CIL.value * CIL.typ
+  val case_FunctionLiteral : arg -> selves * CIL.context ->
+    string * CIL.typ * CIL.typ list -> CIL.value * CIL.typ
   val case_Word8Literal :
     arg -> selves * CIL.context -> Word8.word -> CIL.value * CIL.typ
   val case_Word16Literal :

@@ -10,3 +10,22 @@ compiling on linux.
 To build ABC with sml/nj, you need ml-yacc (ugh)
 apt-get install ml-yacc
 
+
+
+Note that this source code is set up to compile with both SML/NJ (for
+its interactive toplevel) and MLton (superior performance and
+correctness; command-line interface). One consequence is that there
+are two build files (abc.cm and abc.mlb) that must be maintained in
+parallel. Another is that code must be written in the subset of SML
+that both compilers support. Of particular note:
+  - SML/NJ does not have a built-in Word16 structure; this type
+    is obviously useful for a 16-bit real-mode compiler! I use
+    my drop-in replacement from sml-lib, which is fine except that
+    there is no way to get word literals to work. So instead of
+    writing 0wxFFFF, write Word16.fromInt 0xFFFF.
+  - I also use vectors of word8 all over. In mlton, the types
+    Word8.word Vector.vector and Word8Vector.vector are equivalent,
+    but not so in SML/NJ. Beware that these are used consistently.
+    (There is little need for polymorphism surrounding these, so
+    I just use Word8Vector.vector everywhere.)
+
