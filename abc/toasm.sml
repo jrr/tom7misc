@@ -129,16 +129,16 @@ struct
 
      Signedness doesn't matter any more -- the representation is
      the same and the operations are explicit. *)
-  fun ctypsize (C.Word32 _) = S32
-    | ctypsize (C.Word16 _) = S16
-    | ctypsize (C.Word8 _) = S8
+  fun typsize (C.Word32 _) = S32
+    | typsize (C.Word16 _) = S16
+    | typsize (C.Word8 _) = S8
     (* All pointers are 16-bit offsets into DS. *)
-    | ctypsize (C.Pointer _) = S16
+    | typsize (C.Pointer _) = S16
     (* Labels in code segment, not addresses but no way for
        them to be bigger than 16 bits! *)
-    | ctypsize (C.Code _) = S16
+    | typsize (C.Code _) = S16
     (* Maybe this should already have been compiled away. *)
-    | ctypsize (C.Struct _) = raise ToASM "unimplemented: structs"
+    | typsize (C.Struct _) = raise ToASM "unimplemented: structs"
 
   (* Accumulate all of the mentions of Locals into the map. *)
   structure GetSizesArg : CILPASSARG =
@@ -168,7 +168,7 @@ struct
   end
   structure GetSizes = CILPass(GetSizesArg)
 
-  infix //
+  infixr //
   fun cmd // (cmds, next) = (cmd :: cmds, next)
 
   local
@@ -186,9 +186,26 @@ struct
       end
   end
 
+  (* Need to be able predict the label name from a function name. This
+     is used to take the address of a function (i.e., its entry
+     point), so that we can pass it around (or even just make a normal
+     call like f(5)).
+
+     If we generate fresh labels here, we need to first make a pass over
+     all functions to annotate labels for them, and then supply that
+     mapping to genblocks. *)
+  fun function_header_label name =
+    "__" ^ name ^ "_$entry"
+
+  (* Compute the number of argument bytes from the types of the arguments.
+     We need to be able to do this because we can call an abitrary function
+     through a function pointer, where all we know is that function's type. *)
+  fun bytes_for_args args =
+    List.foldl (fn (t, b) => b + szbytes ` typsize t) 0 args
+
   (* Generate the blocks for a CIL Function, once we know the locals
      layout. *)
-  fun genblocks { name, offsets, argbytes, globalpositions,
+  fun genblocks { function_name, offsets, argbytes, globalpositions,
                   localbytes, body, blocks } =
     let
       (* Blocks we've already translated, just for sanity checking. *)
@@ -198,14 +215,14 @@ struct
       val () = app (fn (lab, stmt) =>
                     todo := SM.insert (!todo, lab, stmt)) blocks
 
-      fun newtmp (n, size) = new_named_tmp (name, n, size)
+      fun newtmp (n, size) = new_named_tmp (function_name, n, size)
       fun vartmp (var, sz) =
-        A.N { func = name, name = var, size = sz }
+        A.N { func = function_name, name = var, size = sz }
 
       (* Generate code to put the value v in a new temporary,
          then call the continuation with that temporary and its size. *)
       fun gentmp (ctx : C.context) (v : C.value)
-        (k : A.named_tmp -> A.named_tmp A.cmd list * 'b) :
+        (k : A.named_tmp * C.typ -> A.named_tmp A.cmd list * 'b) :
         A.named_tmp A.cmd list * 'b =
         case v of
           C.Var var =>
@@ -214,7 +231,7 @@ struct
              | SOME ctyp =>
                  (* A variable is always translated to a same-named
                     temporary at the appropriate size. *)
-                 k (vartmp (var, ctypsize ctyp)))
+                 k (vartmp (var, typsize ctyp), ctyp))
         (* typ is the type of the thing thing pointed to.
            we don't use it here; the address is always a 16-bit DS offset. *)
         | C.AddressLiteral (loc, typ) =>
@@ -225,7 +242,7 @@ struct
                   case ListUtil.Alist.find op= offsets l of
                     NONE => raise ToASM ("unallocated local " ^ l ^ "?")
                   | SOME pos =>
-                      A.FrameOffset (tmp, Word16.fromInt pos) // k tmp
+                      A.FrameOffset (tmp, Word16.fromInt pos) // k (tmp, typ)
                 end
             | C.Global l =>
                 let val tmp = newtmp ("addr_" ^ l, A.S16)
@@ -233,21 +250,25 @@ struct
                    case ListUtil.Alist.find op= globalpositions l of
                      NONE => raise ToASM ("unallocated global " ^ l ^ "?")
                    | SOME pos =>
-                       A.Immediate16 (tmp, Word16.fromInt pos) // k tmp
+                       A.Immediate16 (tmp, Word16.fromInt pos) // k (tmp, typ)
                 end)
         | C.FunctionLiteral (name, ret, args) =>
-            raise ToASM "unimplemented function literals"
+            let
+              val lab = function_header_label name
+              val tmp = newtmp ("faddr_" ^ name, A.S16)
+            in A.LoadLabel (tmp, lab) // k (tmp, C.Code (ret, args))
+            end
         | C.Word8Literal w8 =>
             let val tmp = newtmp ("imm", A.S8)
-            in A.Immediate8 (tmp, w8) // k tmp
+            in A.Immediate8 (tmp, w8) // k (tmp, C.Word8 C.Unsigned)
             end
         | C.Word16Literal w16 =>
             let val tmp = newtmp ("imm", A.S16)
-            in A.Immediate16 (tmp, w16) // k tmp
+            in A.Immediate16 (tmp, w16) // k (tmp, C.Word16 C.Unsigned)
             end
         | C.Word32Literal w32 =>
             let val tmp = newtmp ("imm", A.S32)
-            in A.Immediate32 (tmp, w32) // k tmp
+            in A.Immediate32 (tmp, w32) // k (tmp, C.Word32 C.Unsigned)
             end
         | C.StringLiteral _ => raise ToASM "unimplemented string literals"
 
@@ -259,14 +280,59 @@ struct
           (C.Call (fv, argvs), vt) =>
             (* This is the only one that we actually need to emit if
                the result is unused (i.e. vt is NONE). *)
-            raise ToASM "unimplemented call"
+            gentmp ctx fv
+            (fn (ftmp, ftyp) =>
+             case ftyp of
+               C.Code (rett, argts) =>
+                 let
+                   val returnbytes = szbytes ` typsize rett
+                   val argbytes = bytes_for_args argts
+                   val returnlabel = CILUtil.newlabel
+                     (* This can be anything, but try to be helpful
+                        in the common case that it's a literal call. *)
+                     (case fv of
+                       C.FunctionLiteral (f, _, _) => "ret_from_" ^ f
+                     | _ => "ret")
+                   val retaddrtmp = newtmp ("retaddr", A.S16)
+                 in
+                   (* FIXME put each argument value in a temporary *)
+                   (* Expand the frame for the return value, then the argument
+                      bytes. XXX is this the right order of ops? Shouldn't we
+                      be moving the frame past our own arguments? *)
+                   A.ExpandFrame (returnbytes + argbytes) //
+                   (* FIXME move the temporaries into the argument slots. *)
+                   A.SaveTempsNamed function_name //
+                   A.LoadLabel (retaddrtmp, returnlabel) //
+                   A.Push retaddrtmp //
+                   A.JumpInd ftmp //
+                   (* Here we'd like to just start another block, but the
+                      structure of the code doesn't make this particularly
+                      easy. So we insert this meta-command that later gets
+                      rewritten into a normal labeled block. *)
+                   A.Label returnlabel //
+                   A.RestoreTempsNamed function_name //
+                   (* Callee has undone the expanded frame. *)
+                   (* If we are using the return value, move it to the
+                      temporary corresponding to the bound variable.
+                      Either way, move the frame pointer. *)
+                   (case vt of
+                      NONE =>
+                        A.ShrinkFrame (szbytes ` typsize rett) //
+                        k ()
+                    | SOME (var, t) =>
+                        A.FrameOffset (vartmp (var, typsize rett),
+                                       Word16.fromInt 0) //
+                        A.ShrinkFrame (szbytes ` typsize rett) //
+                        k ())
+                 end
+             | _ => raise ToASM "call to value of non-code type?")
         | (_, NONE) => k ()
         | (C.Value value, SOME (var, t)) =>
             (* PERF, should probably avoid the mov in most of
                these cases. Maybe should be done as part of temporary
                allocation phase though. *)
             gentmp ctx value
-            (fn tmp =>
+            (fn (tmp, _) =>
              (* XXX Check compatibility of t and sz from tmp? *)
              let val A.N { size, ... } = tmp
              in A.Mov (vartmp (var, size), tmp) // k ()
@@ -285,10 +351,10 @@ struct
 
         | (C.Load (w, v), SOME (var, t)) =>
             gentmp ctx v
-            (fn addr =>
+            (fn (addr, _) =>
              (case w of
-                C.Width8 => A.Load8 (vartmp (var, ctypsize t), addr) // k ()
-              | C.Width16 => A.Load16 (vartmp (var, ctypsize t), addr) // k ()
+                C.Width8 => A.Load8 (vartmp (var, typsize t), addr) // k ()
+              | C.Width16 => A.Load16 (vartmp (var, typsize t), addr) // k ()
               | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
             (*
@@ -338,15 +404,15 @@ struct
               case width of
                 C.Width8 =>
                   gentmp ctx addr
-                  (fn addrtmp =>
+                  (fn (addrtmp, _) =>
                    gentmp ctx v
-                   (fn vtmp =>
+                   (fn (vtmp, _) =>
                     (A.Store8 (addrtmp, vtmp) :: cmds, next)))
               | C.Width16 =>
                   gentmp ctx addr
-                  (fn addrtmp =>
+                  (fn (addrtmp, _) =>
                    gentmp ctx v
-                   (fn vtmp =>
+                   (fn (vtmp, _) =>
                     (A.Store16 (addrtmp, vtmp) :: cmds, next)))
               | C.Width32 =>
                   (* Maybe just compile it as two 16-bit stores
@@ -360,46 +426,46 @@ struct
               case cond of
                 C.CLess (w, a, b) =>
                   gentmp ctx a
-                  (fn atmp =>
+                  (fn (atmp, _) =>
                    gentmp ctx b
-                   (fn btmp =>
+                   (fn (btmp, _) =>
                     (A.JumpCond (A.Less (atmp, btmp), truelab) :: cmds,
                      next)))
               | C.CLessEq (w, a, b) =>
                   gentmp ctx a
-                  (fn atmp =>
+                  (fn (atmp, _) =>
                    gentmp ctx b
-                   (fn btmp =>
+                   (fn (btmp, _) =>
                     (A.JumpCond (A.LessEq (atmp, btmp), truelab) :: cmds,
                      next)))
               | C.CBelow (w, a, b) =>
                   gentmp ctx a
-                  (fn atmp =>
+                  (fn (atmp, _) =>
                    gentmp ctx b
-                   (fn btmp =>
+                   (fn (btmp, _) =>
                     (A.JumpCond (A.Below (atmp, btmp), truelab) :: cmds,
                      next)))
               | C.CBelowEq (w, a, b) =>
                   gentmp ctx a
-                  (fn atmp =>
+                  (fn (atmp, _) =>
                    gentmp ctx b
-                   (fn btmp =>
+                   (fn (btmp, _) =>
                     (A.JumpCond (A.BelowEq (atmp, btmp), truelab) :: cmds,
                      next)))
                (* PERF for these two, we should generate EqZero and
                   NeZero if one argument is a literal zero. *)
               | C.CEq (w, a, b) =>
                   gentmp ctx a
-                  (fn atmp =>
+                  (fn (atmp, _) =>
                    gentmp ctx b
-                   (fn btmp =>
+                   (fn (btmp, _) =>
                     (A.JumpCond (A.Eq (atmp, btmp), truelab) :: cmds,
                      next)))
               | C.CNeq (w, a, b) =>
                   gentmp ctx a
-                  (fn atmp =>
+                  (fn (atmp, _) =>
                    gentmp ctx b
-                   (fn btmp =>
+                   (fn (btmp, _) =>
                     (A.JumpCond (A.NotEq (atmp, btmp), truelab) :: cmds,
                      next)))
             end
@@ -467,7 +533,7 @@ struct
            | SOME lnext => genblock lnext)
         end
 
-      val header_label = name ^ "$hdr"
+      val header_label = function_header_label function_name
       fun genall () =
         (* Need to set up local variable frame. Caller has already
            set up 'argbytes' bytes for us. *)
@@ -487,7 +553,7 @@ struct
                 blocks : (string * C.stmt) list }) : A.named_tmp A.block list =
     let
       val argsizes : sz SM.map =
-        foldl (fn ((s, t), m) => SM.insert (m, s, ctypsize t)) SM.empty args
+        foldl (fn ((s, t), m) => SM.insert (m, s, typsize t)) SM.empty args
 
       val localsizes =
         let
@@ -500,7 +566,7 @@ struct
              args. *)
           SM.filteri (fn (k, s) =>
                       not ` Option.isSome ` SM.find (argsizes, k)) `
-          SM.map ctypsize ` !localtypes
+          SM.map typsize ` !localtypes
         end
 
       (* Arguments and locals are not on the normal stack. They go in the
@@ -529,10 +595,17 @@ struct
       (* Args must come first *)
       val () = SM.appi alloc argsizes
       val argbytes = !nextpos
+      val () =
+        (* XXX maybe just better to ensure this by construction? *)
+        if bytes_for_args (map #2 args) = argbytes then ()
+        else raise ToASM ("a function's argument layout has to be determinable " ^
+                          "from only its types, so that a call can be done " ^
+                          "through a function pointer.")
+
       val () = SM.appi alloc localsizes
       val localbytes = !nextpos - argbytes
 
-      val blocks = genblocks { name = name, offsets = !offsets,
+      val blocks = genblocks { function_name = name, offsets = !offsets,
                                globalpositions = globalpositions,
                                argbytes = argbytes, localbytes = localbytes,
                                body = body, blocks = blocks }
@@ -568,7 +641,7 @@ struct
         end
       fun oneglobal (name, C.Glob { typ, bytes, init }) =
         let
-          val size = ctypsize typ
+          val size = typsize typ
           val bytes =
             (case bytes of
                NONE => Word8Vector.tabulate (szbytes size,
