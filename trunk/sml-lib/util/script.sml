@@ -4,16 +4,17 @@ struct
   exception Script of string
 
   fun linesfromfile f =
-      let val s = StringUtil.readfile f
-          val l = String.tokens (fn #"\n" => true
-                                  | #"\r" => true
-                                  | _ => false) s
-      in
-          List.mapPartial (fn s =>
-                           case StringUtil.losespecsides StringUtil.whitespec s of
-                               "" => NONE
-                             | w => SOME w) l
-      end
+    let
+      val s = StringUtil.readfile f
+      val l = String.tokens (fn #"\n" => true
+                              | #"\r" => true
+                              | _ => false) s
+    in
+      List.mapPartial (fn s =>
+                       case StringUtil.losespecsides StringUtil.whitespec s of
+                         "" => NONE
+                       | w => SOME w) l
+    end
 
   structure SM = SplayMapFn(type ord_key = string val compare = String.compare)
 
@@ -24,7 +25,8 @@ struct
 
       fun addone line =
         let
-          val (k, v) = StringUtil.token (fn #" " => true | #"\t" => true | _ => false) line
+          val (k, v) = StringUtil.token
+            (fn #" " => true | #"\t" => true | _ => false) line
         in
           case SM.find(!m, k) of
             SOME _ => raise Script ("duplicate key " ^ k ^ " in alist file " ^ f)
@@ -52,7 +54,7 @@ struct
           in
               m := SM.insert(!m, w, ())
           end
-      
+
         val () = app addone lines
         val m = !m
         fun lookup w = Option.isSome (SM.find(m, w))
