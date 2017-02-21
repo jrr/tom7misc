@@ -205,9 +205,11 @@ struct
 
   (* Generate the blocks for a CIL Function, once we know the locals
      layout. *)
-  fun genblocks { function_name, offsets, argbytes, globalpositions,
-                  localbytes, body, blocks } =
+  fun genblocks { function_name, offsets, globalpositions,
+                  retbytes, argbytes, localbytes, body, blocks } =
     let
+      val local_frame_size = retbytes + argbytes + localbytes
+
       (* Blocks we've already translated, just for sanity checking. *)
       val done = ref SM.empty : unit SM.map ref
       (* Blocks left to translate. *)
@@ -296,14 +298,13 @@ struct
                    val retaddrtmp = newtmp ("retaddr", A.S16)
                  in
                    (* FIXME put each argument value in a temporary *)
-                   (* Expand the frame for the return value, then the argument
-                      bytes. XXX is this the right order of ops? Shouldn't we
-                      be moving the frame past our own arguments? *)
-                   A.ExpandFrame (returnbytes + argbytes) //
+                   (* Expand the frame to save all locals. *)
+                   A.ExpandFrame local_frame_size //
                    (* FIXME move the temporaries into the argument slots. *)
                    A.SaveTempsNamed function_name //
                    A.LoadLabel (retaddrtmp, returnlabel) //
                    A.Push retaddrtmp //
+                   (* PERF: Can often be a direct jump... *)
                    A.JumpInd ftmp //
                    (* Here we'd like to just start another block, but the
                       structure of the code doesn't make this particularly
@@ -317,13 +318,22 @@ struct
                       Either way, move the frame pointer. *)
                    (case vt of
                       NONE =>
-                        A.ShrinkFrame (szbytes ` typsize rett) //
+                        A.ShrinkFrame local_frame_size //
                         k ()
                     | SOME (var, t) =>
-                        A.FrameOffset (vartmp (var, typsize rett),
-                                       Word16.fromInt 0) //
-                        A.ShrinkFrame (szbytes ` typsize rett) //
-                        k ())
+                        let
+                          val rvtmp = newtmp ("retvaloffset", A.S16)
+                        in
+                          (* Return value is at offset 0 in the called
+                             function's frame (which we haven't yet deleted.) *)
+                          A.FrameOffset (rvtmp, Word16.fromInt 0) //
+                          (case typsize rett of
+                             S8 => A.Load8 (vartmp (var, S8), rvtmp)
+                           | S16 => A.Load16 (vartmp (var, S16), rvtmp)
+                           | _ => raise ToASM "XXX only 8/16 bit loads implemented") //
+                          A.ShrinkFrame local_frame_size //
+                          k ()
+                        end)
                  end
              | _ => raise ToASM "call to value of non-code type?")
         | (_, NONE) => k ()
@@ -481,13 +491,10 @@ struct
 
         | C.Return v =>
             let
-              (* FIXME where does the return value go? *)
+              (* FIXME store the return value at frameoffset 0 *)
               val ratmp = newtmp ("returnaddr", S16)
             in
-              (* PERF can just merge these *)
-              (A.ShrinkFrame localbytes ::
-               A.ShrinkFrame argbytes ::
-               (* XXX this is probably no good -- we've just
+              ((* XXX this is probably no good -- we've just
                   moved the base pointer so the allocation of
                   this temporary will not be right. Ideas:
                    - "Return" macro that keeps track of the
@@ -535,15 +542,34 @@ struct
 
       val header_label = function_header_label function_name
       fun genall () =
-        (* Need to set up local variable frame. Caller has already
-           set up 'argbytes' bytes for us. *)
-        (header_label, [A.ExpandFrame localbytes]) ::
+        (* Any initialization we like here. This used to allocate
+           the frame, but now the caller does that. *)
+        (header_label, nil) ::
         (* And then continue with the function's entry point. *)
         genblock body
     in
       genall ()
     end
 
+  (* Remove uses of the Label meta-command from the list of blocks,
+     by creating an actual block in the sequence with that label. *)
+  fun unlabel nil = nil
+    | unlabel ((name, cmds) :: rest) =
+    let
+      fun ul nil = (nil, nil)
+        | ul (cmd :: crest) =
+        let
+          val (cs, blocks) = ul crest
+        in
+          case cmd of
+            A.Label lab => (nil, (lab, cs) :: blocks)
+          | _ => (cmd :: cs, blocks)
+        end
+
+      val (hc, blocks) = ul cmds
+    in
+      ((name, hc) :: blocks) @ unlabel rest
+    end
 
   fun doproc globalpositions
              (name, C.Func
@@ -592,23 +618,38 @@ struct
           nextpos := !nextpos + szbytes sz
         end
 
-      (* Args must come first *)
+      (* Return value is first. *)
+      val retbytes = szbytes (typsize ret)
+      val () = nextpos := !nextpos + retbytes
+
+      (* Then the args. *)
       val () = SM.appi alloc argsizes
-      val argbytes = !nextpos
+      val argbytes = !nextpos - retbytes
       val () =
-        (* XXX maybe just better to ensure this by construction? *)
-        if bytes_for_args (map #2 args) = argbytes then ()
-        else raise ToASM ("a function's argument layout has to be determinable " ^
-                          "from only its types, so that a call can be done " ^
-                          "through a function pointer.")
+        let
+          (* XXX what about retbytes?
+             ... and maybe just better to ensure this by construction? *)
+          val computed_argbytes = bytes_for_args (map #2 args)
+        in
+          (* A function's argument layout has to be determinable
+             from only its types, so that a call can be done
+             through a function pointer. *)
+          if computed_argbytes = argbytes then ()
+          else raise ToASM ("Bug: expected argbytes " ^ Int.toString argbytes ^
+                            " but got " ^ Int.toString computed_argbytes)
+        end
 
       val () = SM.appi alloc localsizes
       val localbytes = !nextpos - argbytes
 
       val blocks = genblocks { function_name = name, offsets = !offsets,
+                               retbytes = retbytes,
                                globalpositions = globalpositions,
                                argbytes = argbytes, localbytes = localbytes,
                                body = body, blocks = blocks }
+
+        (* XXX no really, do it *)
+      (* val blocks = unlabel blocks *)
     in
       print ("Frame for proc " ^ name ^ ":\n" ^
              String.concat (map (fn (s, off) => "  " ^ Int.toString off ^
