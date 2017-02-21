@@ -245,11 +245,10 @@ struct
   | RestoreTempsNamed of string
   | RestoreTempsExplicit of int
   (* Expand or shrink the (locals) frame by moving the base pointer.
-     A function expands in its header to make room for its
-     local variables, and shrinks before returning. This has
-     to be done by the function itself, because the type of
-     a function pointer does not indicate how much local
-     space it needs. *)
+     Each function knows how much space it needs for its locals,
+     and expands the frame before making a function call, in order
+     to save the values of its locals and make room for the called
+     function's. *)
   | ExpandFrame of int
   | ShrinkFrame of int
   (* Assign the address of the current frame (EBX) plus the
@@ -354,9 +353,9 @@ struct
     | LoadLabel (tmp, lab) => "loadlabel " ^ ts tmp ^ " <- &" ^ lab
     | JumpInd tmp => "jmp_ind " ^ ts tmp
     | JumpCond (cond, lab) => condtos ts cond ^ " " ^ lab
-    | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- " ^ Word8.toString w8
-    | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- " ^ Word16.toString w16
-    | Immediate32 (tmp, w32) => "imm32 " ^ ts tmp ^ " <- " ^ Word32.toString w32
+    | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- 0x" ^ Word8.toString w8
+    | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- 0x" ^ Word16.toString w16
+    | Immediate32 (tmp, w32) => "imm32 " ^ ts tmp ^ " <- 0x" ^ Word32.toString w32
     | Init => "init"
     | Label lab => "(LABEL " ^ lab ^ ")"
     | _ => "unimplemented cmdtos cmd"

@@ -312,16 +312,18 @@ struct
   fun translvalue (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
                   (k : value * width * typ -> stmt) : stmt =
     case e of
-      Ast.Id (id as { global = false, ctype, ... }) =>
+      Ast.Id (id as { global = false, kind = Ast.NONFUN, ctype, ... }) =>
         let val typ = transtype ctype
         in k (AddressLiteral (Local ` idstring id, typ), typewidth typ, typ)
         end
-    | Ast.Id (id as { global = true, ctype, ... }) =>
-        (* XXX if this is a function, translate it as a FunctionLiteral.
-           How does &F appear in Ast, btw? *)
+    | Ast.Id (id as { global = true, kind = Ast.NONFUN, ctype, ... }) =>
         let val typ = transtype ctype
         in k (AddressLiteral (Global ` uidstring id, typ), typewidth typ, typ)
         end
+
+    | Ast.Id (id as { global = true, kind = Ast.FUNCTION _, ctype, ... }) =>
+        raise ToCIL ("FUNCTION-kind id " ^ idstring id ^ " cannot be lvalue")
+
     | Ast.Sub (ptr, idx) =>
         transexp ptr bc
         (fn (ptrv, ptrt) =>
@@ -392,6 +394,17 @@ struct
             k (Word32Literal ` Word32.fromLargeInt i, typ)
           end
       | Ast.RealConst r => raise ToCIL "unimplemented: floating point (literal)"
+
+      (* Identifiers for functions are not lvalues. *)
+      | Ast.Id (id as { global = true, kind = Ast.FUNCTION _, ctype, ... }) =>
+        let val typ = transtype ctype
+        in
+          case transtype ctype of
+            Code (ret, args) =>
+              k (FunctionLiteral (uidstring id, ret, args), typ)
+          | _ => raise ToCIL ("Alleged FUNCTION-kind id " ^ idstring id ^
+                              " doesn't have function type??")
+        end
 
       (* XXX do function-scope variables declared "static" show as globals?
          we don't currently initialize them, but we need to. *)
