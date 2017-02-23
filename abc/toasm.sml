@@ -301,9 +301,15 @@ struct
                    (* Expand the frame to save all locals. *)
                    A.ExpandFrame local_frame_size //
                    (* FIXME move the temporaries into the argument slots. *)
-                   A.SaveTempsNamed function_name //
                    A.LoadLabel (retaddrtmp, returnlabel) //
                    A.Push retaddrtmp //
+                   A.SaveTempsNamed function_name //
+                   (* FIXME: We just did SaveTemps, which would have
+                      invalidated ftmp, right? Maybe JumpInd should always
+                      take its argument on the top of the stack?
+                      This has certain advantages since we're going to be
+                      getting the return address from the stack when
+                      returning from a function. *)
                    (* PERF: Can often be a direct jump... *)
                    A.JumpInd ftmp //
                    (* Here we'd like to just start another block, but the
@@ -648,8 +654,9 @@ struct
                                argbytes = argbytes, localbytes = localbytes,
                                body = body, blocks = blocks }
 
-        (* XXX no really, do it *)
-      (* val blocks = unlabel blocks *)
+      (* Function calls insert Label meta-commands. Make them into proper
+         labels. *)
+      val blocks = unlabel blocks
     in
       print ("Frame for proc " ^ name ^ ":\n" ^
              String.concat (map (fn (s, off) => "  " ^ Int.toString off ^
