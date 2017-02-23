@@ -303,15 +303,12 @@ struct
                    (* FIXME move the temporaries into the argument slots. *)
                    A.LoadLabel (retaddrtmp, returnlabel) //
                    A.Push retaddrtmp //
+                   (* Push the destination of the jump before we lose access
+                      to tmps. *)
+                   A.Push ftmp //
                    A.SaveTempsNamed function_name //
-                   (* FIXME: We just did SaveTemps, which would have
-                      invalidated ftmp, right? Maybe JumpInd should always
-                      take its argument on the top of the stack?
-                      This has certain advantages since we're going to be
-                      getting the return address from the stack when
-                      returning from a function. *)
                    (* PERF: Can often be a direct jump... *)
-                   A.JumpInd ftmp //
+                   A.PopJumpInd //
                    (* Here we'd like to just start another block, but the
                       structure of the code doesn't make this particularly
                       easy. So we insert this meta-command that later gets
@@ -500,28 +497,16 @@ struct
               (* FIXME store the return value at frameoffset 0 *)
               val ratmp = newtmp ("returnaddr", S16)
             in
-              ((* XXX this is probably no good -- we've just
-                  moved the base pointer so the allocation of
-                  this temporary will not be right. Ideas:
-                   - "Return" macro that keeps track of the
-                     temporary or uses a register;
-                   - Alternatively/Equivalently, JumpInd always takes
-                     the address from the top of the stack (this might
-                     be cheaper than you think because stack ops are
-                     mostly 1 byte)
-                   - Oh wait it's actually fine because temporaries
-                     are not the same as "frame" (which is addressable
-                     local variables)? This will become clear later..
-                    *)
-               A.Pop ratmp ::
-               A.JumpInd ratmp ::
-               nil,
+              (* The return address is at the top of the stack.
+                 PopJumpInd expects its argument there, so that's
+                 all we need to do! *)
+              ([A.PopJumpInd],
                NONE)
             end
         | C.End =>
             (* Unreachable, so we can just fall off the end.
-               XXX Actually I think this is used inconsistently,
-               like for local variable initialization? *)
+               (This is used in global initialization, but that
+               will have been rewritten by now.) *)
             (nil, NONE)
 
       fun donext () =

@@ -16,16 +16,9 @@
         expansion.
 
    But compared to CIL:
-      - We've compiled away call:
-          * Push label of return block
-          * Push arguments
-          * (create space for local variables?)
-          * Do absolute jump to function label
-      - and return:
-          * Destroy local space / arguments
-          * Put return value in register (?)
-          * Pop label of return block
-          * Do absolute jump to return label
+      - We've compiled away call and return (see below).
+      - We don't have variables any more. We have temporaries,
+        which can be modified.
       - multiplication, division, etc.?
 
    There are at least two issues that make this harder
@@ -82,9 +75,9 @@
    locals that don't need to be addressed to CIL vars, which can be
    tmps here.)
 
-   Globals are just allocated into fixed positions in DS.
-   These go at the beginning of DS, starting at offset 256 (before that
-   is the PSP).
+   Globals are just allocated into fixed positions in DS. These go
+   near the beginning of DS, starting at offset 256 (before that is
+   the PSP).
 
    * Arguments and locals. *
    Arguments and locals are basically the same, except that arguments
@@ -97,12 +90,15 @@
 
    We start the frame stack in DS, right after the last global. Unlike
    the machine stack, it grows upward (larger addresses). We maintain
-   that EBX points to the beginning of our current frame (to the first
-   local); each argument and local is at a fixed offset from this. We
-   don't change the frame for blocks/loops/etc. within a function; all
+   that EBX points to the beginning of our current frame (to the
+   return value, if any, followed by arguments and locals); each
+   argument and local is at a fixed known offset from this. We don't
+   change the frame for blocks/loops/etc. within a function; all
    locals are hoisted to the function level. A function may have a
-   0-byte frame if it has no locals nor arguments; the return addresses
-   are not stored in the frame stack.
+   0-byte frame if it has a void return type[1], no locals, and no
+   arguments; the return addresses are not stored in the frame stack.
+
+   [1] if compiled as 0-bytes, which it may not be.
 
    * Temporaries. *
    In a traditional C compiler, temporaries are basically either local
@@ -120,30 +116,44 @@
    machine stack). The machine stack grows downward. In a normal compiler,
    the stack would start at 0xFFFF, but the start address must be printable
    (part of the EXE header), so it actually starts at 0x7E7E. Therefore,
-   we put the temporary stack at 0x7E80. It grows upward towards 0xFFFF.
+   we start the temporary stack at 0x7E80. It grows upward towards 0xFFFF.
    We maintain that EBP points to the beginning of our current temporary
-   frame; EBP's default segment is SS.
+   frame; EBP's default segment is SS. [Note: For efficiency, we may
+   actually want EBP to be 0x20 bytes shy of the actual frame at all
+   times, so that we can use the EBP+disp8 addressing mode.]
 
    * Return addresses. *
    (on machine stack)
    We don't need random access to them.
    The machine stack can also be used by ASM code, and is used in the
    implementation of various tactics (e.g., loading a 32-bit immediate).
+   DOS will also use the stack if it interrupts us. Of course, all of
+   this should preserve the stack such that when we want to return,
+   the return address is at the top of the stack.
 
    * Return value. *
-   TODO (first on stack, before arguments)
+   The return value is treated sort of like an implicit first argument;
+   it appears right before the arguments, and the called function writes
+   any return value to that slot. Upon return, the callee can copy
+   the return value into a temporary before restoring its locals.
+
+   This doesn't account for returns of structs (though the same technique
+   would apply, as long as we had temporaries of arbitrary size?) -- we
+   may need to compile that away earlier, or just not support it.
 
    * Calling convention. *
    When a function receives control, EBP is pointing to unused space
-   that it can use for whatever (but space beneath EBP should be preserved).
+   that it can use for saving its temporaries however it likes (but
+   space beneath EBP should be preserved).
    The caller saves temporaries with SaveTemps and restores them on
    return with RestoreTemps.
 
-   FIXME: Need to sort out who exactly sets up the locals frame, and when.
-   If EBX is supposed to point to the beginning of that frame, then the
-   caller should be skipping past its OWN arguments, not the the arguments
-   of the called function--and so it also needs to be doing the restoration,
-   not the callee.
+   The same is true for EBX, which points to the locals frame. The
+   caller advances this past its own frame, then writes any arguments
+   into the argument slots, and then jumps.
+
+   The return address is at the top of the machine stack upon a call.
+
 
    X86 registers reserved for compiler use:
     - EBX points to beginning of local frame (in DS).
@@ -158,31 +168,45 @@ struct
 
   datatype sz = S8 | S16 | S32
 
-  (* Temporary, which can be implemented with a register or
-     DS:[EBX+disp8] (or even stack?), so we have a lot of them (in
-     fact we start by assuming an arbitrary number). Though we can
-     only use a certain subset of x86 (e.g. exactly one operand must
-     be a EBX+disp8) in the output, translation to x86 takes care of
-     this for us.
+  (* Temporary, which will be implemented with a slot in our temporary
+     frame (i.e. SS:[EBP+disp8]) and perhaps in the future, registers
+     or stack slots. We start by assuming an arbitrary number of them.
+     Though we can only use a certain subset of x86 (e.g. exactly one
+     operand must be a EBX+disp8) in the output, translation to x86
+     takes care of this for us. So something like Add tmp1 <- tmp2
+     will often become multiple x86 instructions.
 
-     Every temporary knows its size and this is part of its identity.
-
-     A temporary also knows what context it lives in. The context is
-     the function that it's part of; this name is used to coalesce
-     temporaries in AllocateTmps (only tmps in the same context can
-     have overlapping lifetimes) and to name the size of the temp
-     frame for SaveTempsNamed and RestoreTempsNamed.
+     Every temporary knows its size. If a function has a same-named
+     temporary at two different sizes, this is an error.
 
      Loads and stores commute with temporary accesses; these things
      represent intermediate expressions that are inaccessible from
      C semantics (undefined behavior can still mess them up, possibly).
 
-     *)
+     The ASM language is used with two different representations for
+     temporaries, so its datatypes are parameterized by the type
+     of temporaries, 'tmp. Initially we have named_tmps and then
+     allocate them, giving explicit_tmps. *)
+
+  (* named_tmps are the output of ToAsm. These are related to CIL vars
+     plus anything else we needed to invent to linearize into ASM.
+     We aren't concerned with lifetime or layout yet.
+
+     A named temporary also knows what context it lives in. The
+     context is the function that it's part of; this name is used to
+     coalesce temporaries in AllocateTmps (only tmps in the same
+     context can have overlapping lifetimes) and to associate the
+     temporaries with the named context in SaveTempsNamed and
+     RestoreTempsNamed, so that we compute a frame of the correct
+     size. *)
   datatype named_tmp = N of { func : string,
                               name : string,
                               size : sz }
 
-  (* XXX decide on type; document.
+  (* After AllocateTmps, temporaries are just offsets from EBP,
+     along with their size.
+
+     XXX decide on type; document.
      - should maybe have some name hint, just for sanity?
      - should have the possibility of using a register? *)
   type explicit_tmp = int * sz
@@ -278,10 +302,10 @@ struct
   | Pop of 'tmp
   (* Name of code block. 16 bits. *)
   | LoadLabel of 'tmp * string
-  (* General jump to 16-bit code pointer. Used for
-     returning from functions and for C function
+  (* General jump to 16-bit code pointer, which is popped from
+     the stack. Used for returning from functions and for C function
      pointers. *)
-  | JumpInd of 'tmp
+  | PopJumpInd
   (* Conditional jumps all take a literal label. *)
   | JumpCond of 'tmp cond * string
   (* Program initialization code. *)
@@ -351,7 +375,7 @@ struct
     | Push tmp => "push " ^ ts tmp
     | Pop tmp => "pop " ^ ts tmp
     | LoadLabel (tmp, lab) => "loadlabel " ^ ts tmp ^ " <- &" ^ lab
-    | JumpInd tmp => "jmp_ind " ^ ts tmp
+    | PopJumpInd => "pop_jmp_ind"
     | JumpCond (cond, lab) => condtos ts cond ^ " " ^ lab
     | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- 0x" ^ Word8.toString w8
     | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- 0x" ^ Word16.toString w16
