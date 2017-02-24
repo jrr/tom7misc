@@ -168,6 +168,10 @@ struct
 
   datatype sz = S8 | S16 | S32
 
+  fun szbytes S8 = 1
+    | szbytes S16 = 2
+    | szbytes S32 = 4
+
   (* Temporary, which will be implemented with a slot in our temporary
      frame (i.e. SS:[EBP+disp8]) and perhaps in the future, registers
      or stack slots. We start by assuming an arbitrary number of them.
