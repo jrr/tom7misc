@@ -213,7 +213,9 @@ struct
      XXX decide on type; document.
      - should maybe have some name hint, just for sanity?
      - should have the possibility of using a register? *)
-  type explicit_tmp = int * sz
+  datatype explicit_tmp = E of { offset : int,
+                                 size: sz,
+                                 comment: string }
 
   (* X86 offers both "A < B" and "B > A", which have equivalent
      meaning, but are encoded differently (CMP (A, B) vs CMP (B, A))
@@ -400,18 +402,6 @@ struct
     "  " ^ name ^ ":\n" ^
     String.concat (map (fn cmd => "    " ^ cmdtos ts cmd ^ "\n") cmds)
 
-    (*
-  fun proctos ts (Proc { name, argbytes, localbytes, offsets, blocks }) =
-    let val offsets = ListUtil.sort (ListUtil.bysecond Int.compare) offsets
-    in
-      "PROC " ^ name ^ " (argbytes " ^ Int.toString argbytes ^
-      " localbytes " ^ Int.toString localbytes ^ "):\n  {\n" ^
-      String.concat (map (fn (s, i) => "    @" ^ Int.toString i ^
-                          "\t" ^ s ^ "\n") offsets) ^ "  }\n" ^
-      StringUtil.delimit "\n" (map (blocktos ts) blocks)
-    end
-    *)
-
   fun progtos ts (Program { blocks, datasegment }) =
     (* XXX print data segment? *)
     "DATA (.. 64kb ..)\n" ^
@@ -425,11 +415,15 @@ struct
      | S16 => ""
      | S32 => "[32]")
 
-  fun explicit_tmptos (i, s) = "@" ^ Int.toString i ^
-    (case s of
+  fun explicit_tmptos (E { offset, size, comment }) =
+    "@" ^ Int.toString offset ^
+    (case size of
        S8 => "[8]"
      | S16 => ""
      | S32 => "[32]")
+       (* ^
+    (if comment = "" then ""
+     else ("    ; " ^ comment)) *)
 
   val named_program_tostring = progtos named_tmptos
   val explicit_program_tostring = progtos explicit_tmptos

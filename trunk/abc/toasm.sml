@@ -93,8 +93,9 @@ struct
      - Replace locals with temporaries
         (Should this be done in CIL though? Can't do it for
          stuff that spans blocks there.)
-        (Is it even faster, anyway? I guess it would cut
-         down on moves between locals and "registers")
+        (Addressing tmps is usually much faster than
+         reading/writing locals, in addition to avoiding
+         the moves.)
      - A handful of operators can use immediate values, at
        least printable ones. *)
 
@@ -336,66 +337,57 @@ struct
                  end
              | _ => raise ToASM "call to value of non-code type?")
         | (_, NONE) => k ()
-        | (C.Value value, SOME (var, t)) =>
-            (* PERF, should probably avoid the mov in most of
-               these cases. Maybe should be done as part of temporary
-               allocation phase though. *)
-            gentmp ctx value
-            (fn (tmp, _) =>
-             (* XXX Check compatibility of t and sz from tmp? *)
-             let val A.N { size, ... } = tmp
-             in A.Mov (vartmp (var, size), tmp) // k ()
-             end)
-        (* These should be compiled away into GotoIf (cond, ...) *)
-        | (C.Greater _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.GreaterEq _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.Above _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.AboveEq _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.Less _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.LessEq _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.Below _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.BelowEq _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.Eq _, _) => raise ToASM "bug: unexpected comparison op"
-        | (C.Neq _, _) => raise ToASM "bug: unexpected comparison op"
+        | (exp, SOME (var, t)) =>
+            (case exp of
+               C.Call _ => raise ToASM "Bug: already handled above."
+             | C.Value value =>
+                 (* PERF, should probably avoid the mov in most of
+                    these cases. Maybe should be done as part of temporary
+                    allocation phase though. *)
+                 gentmp ctx value
+                 (fn (tmp, _) =>
+                  (* XXX Check compatibility of t and sz from tmp? *)
+                  let val A.N { size, ... } = tmp
+                  in A.Mov (vartmp (var, size), tmp) // k ()
+                  end)
+             (* These should have been compiled away into GotoIf (cond, ...) *)
+             | C.Greater _ => raise ToASM "bug: unexpected comparison op"
+             | C.GreaterEq _ => raise ToASM "bug: unexpected comparison op"
+             | C.Above _ => raise ToASM "bug: unexpected comparison op"
+             | C.AboveEq _ => raise ToASM "bug: unexpected comparison op"
+             | C.Less _ => raise ToASM "bug: unexpected comparison op"
+             | C.LessEq _ => raise ToASM "bug: unexpected comparison op"
+             | C.Below _ => raise ToASM "bug: unexpected comparison op"
+             | C.BelowEq _ => raise ToASM "bug: unexpected comparison op"
+             | C.Eq _ => raise ToASM "bug: unexpected comparison op"
+             | C.Neq _ => raise ToASM "bug: unexpected comparison op"
 
-        | (C.Load (w, v), SOME (var, t)) =>
-            gentmp ctx v
-            (fn (addr, _) =>
-             (case w of
-                C.Width8 => A.Load8 (vartmp (var, typsize t), addr) // k ()
-              | C.Width16 => A.Load16 (vartmp (var, typsize t), addr) // k ()
-              | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
+             | C.Load (w, v) =>
+                 gentmp ctx v
+                 (fn (addr, _) =>
+                  (case w of
+                     C.Width8 => A.Load8 (vartmp (var, typsize t), addr) // k ()
+                   | C.Width16 => A.Load16 (vartmp (var, typsize t), addr) // k ()
+                   | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
-            (*
-        (* For dst < src. Just discards bits. *)
-  | Truncate of { src: width, dst: width, v: value }
-    (* For dst > src. Sign-extends if signed is true. *)
-  | Promote of { signed: bool, src: width, dst: width, v: value }
-    (* TODO: LoadImmediate *)
-  | Plus of width * value * value
-  | Minus of width * value * value
-    (* Not clear that we support 8-bit times / div? *)
-  | Times of width * value * value
-  | SignedDivision of width * value * value
-  | UnsignedDivision of width * value * value
-    (* Also signed mod? *)
-  | UnsignedMod of width * value * value
-    (* For LeftShift and RightShift, shift amount should be word8. *)
-  | LeftShift of width * value * value
-    (* Recall that C does not define the behavior of shifts on negative values,
-       so this is unsigned. *)
-  | RightShift of width * value * value
-    (* "Greater" and "Less" are signed.
-       "Above" and "Below" are unsigned. *)
-  (* These are all bitwise. && and || are compiled away. *)
-  | And of width * value * value
-  | Or of width * value * value
-  | Xor of width * value * value
-  | Not of width * value
-  | Complement of width * value
-  | Negate of width * value
-*)
-        | (_, SOME (var, t)) => raise ToASM "unimplemented many exps..."
+             | C.Truncate { src: C.width, dst: C.width, v: C.value } =>
+               raise ToASM "unimplemented truncate"
+             | C.Promote { signed: bool, src: C.width, dst: C.width, v: C.value } =>
+               raise ToASM "unimplemented promote"
+             | C.Plus (w, a, b) => raise ToASM "unimplemented plus"
+             | C.Minus (w, a, b) => raise ToASM "unimplemented minus"
+             | C.Times (w, a, b) => raise ToASM "unimplemented times"
+             | C.SignedDivision (w, a, b) => raise ToASM "unimplemented signed division"
+             | C.UnsignedDivision (w, a, b) => raise ToASM "unimplemented unsigned division"
+             | C.UnsignedMod (w, a, b) => raise ToASM "unimplemented unsigned mod"
+             | C.LeftShift (w, a, b) => raise ToASM "unimplemented left shift"
+             | C.RightShift (w, a, b) => raise ToASM "unimplemented right shift"
+             | C.And (w, a, b) => raise ToASM "unimplemented bitwise and"
+             | C.Or (w, a, b) => raise ToASM "unimplemented bitwise or"
+             | C.Xor (w, a, b) => raise ToASM "unimplemented bitwise xor"
+             | C.Not (w, a) => raise ToASM "unimplemented bitwise not"
+             | C.Complement (w, a) => raise ToASM "unimplemented bitwise complement"
+             | C.Negate (w, a) => raise ToASM "unimplemented negation")
 
       fun gencmds ctx stmt =
         case stmt of
@@ -643,13 +635,6 @@ struct
              String.concat (map (fn (s, off) => "  " ^ Int.toString off ^
                                  ": " ^ s ^ "\n") (rev (!offsets))));
       blocks
-(*
-      A.Proc { name = name,
-               blocks = blocks,
-               offsets = !offsets,
-               argbytes = argbytes,
-               localbytes = localbytes }
-*)
     end
 
   (* Allocate globals at the beginning of DS so that we know their

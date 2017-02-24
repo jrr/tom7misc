@@ -13,8 +13,8 @@ struct
   fun allocate (Program { blocks, datasegment }) =
     let
       (* For each context, the set of temporaries mapped to
-         their size in bytes. *)
-      val contexts : int SM.map ref SM.map ref = ref SM.empty
+         their sizes. *)
+      val contexts : sz SM.map ref SM.map ref = ref SM.empty
 
       fun getcontext f =
         case SM.find (!contexts, f) of
@@ -29,15 +29,14 @@ struct
       fun observetmp (func, name, size) =
         let
           val ctx = getcontext func
-          val bytes = szbytes size
         in
           case SM.find (!ctx, name) of
-            SOME oldbytes =>
-              if bytes = oldbytes
+            SOME oldsize =>
+              if size = oldsize
               then ()
               else raise AllocateTmps ("Same tmp name used at inconsistent " ^
                                        "sizes: " ^ func ^ "." ^ name)
-          | NONE => ctx := SM.insert (!ctx, name, bytes)
+          | NONE => ctx := SM.insert (!ctx, name, size)
         end
 
       fun map_cond f cond =
@@ -92,18 +91,81 @@ struct
 
       val blocks : named_tmp block list = map gathertmps blocks
 
+      (* For one function's data... *)
+      fun allocatefn (ctx : sz SM.map ref) =
+        let
+          val next = ref 0
+          (* Allocate one tmp to the next spot; updating pos map *)
+          fun folder (name, sz, pos) =
+            let
+              val bytes = szbytes sz
+              val pos = SM.insert (pos, name, (!next, sz))
+            in
+              next := !next + bytes;
+              pos
+            end
+          val pos = SM.foldli folder SM.empty (!ctx)
+        in
+          { size = !next, pos = pos }
+        end
+
+      val layout = SM.map allocatefn (!contexts)
+
+      (* Size of the temporary frame for the named function. It is possible
+         for this to be 0, if we never observed any temporaries for that
+         function. *)
+      fun context_size f =
+        (case SM.find (layout, f) of
+           NONE => 0
+         | SOME { size, pos = _ } => size)
+
+      fun rewrite_tmp (N { func, name, size }) =
+        (case SM.find (layout, func) of
+           NONE => raise AllocateTmps ("bug: rewrite didn't find tmp context " ^
+                                       func ^ "?")
+         | SOME { size = _, pos } =>
+             (case SM.find (pos, name) of
+                NONE => raise AllocateTmps ("bug: rewrite didn't find tmp " ^
+                                            name ^ " in context " ^ func)
+              | SOME (offset, sz) => E { offset = offset, size = sz,
+                                         comment = func ^ "." ^ name }))
+
       (* Next, just allocate in map order, and compute the size for
          each context. Rewrite matching SaveTempsNamed and RestoreTempsNamed,
          plus each tmp occurrence. *)
+      fun rewritecmd cmd =
+        case cmd of
+          SaveTempsNamed a => SaveTempsExplicit (context_size a)
+        | SaveTempsExplicit _ =>
+          raise AllocateTmps "[rewrite] not explicit SaveTempsExplicit yet?"
+        | RestoreTempsNamed a => RestoreTempsExplicit (context_size a)
+        | RestoreTempsExplicit _ =>
+          raise AllocateTmps "[rewrite] not explicit RestoreTempsExplicit yet?"
+        | _ => map_tmp rewrite_tmp cmd
 
-      fun rewrite (lab, cmds) = raise AllocateTmps "unimplemented"
+      fun rewrite (lab, cmds) = (lab, map rewritecmd cmds)
 
       val blocks : explicit_tmp block list = map rewrite blocks
 
+      val layout_table =
+        ["func", "offset", "tmp"] ::
+        List.concat
+        (map (fn (func, { size, pos }) =>
+              [func, "", "(total " ^ Int.toString size ^ ")"] ::
+              (* Convert integral offset to text for table *)
+              map (fn (offset, txt) => ["", Int.toString offset, txt])
+              (* Sort by integral offset. *)
+              (ListUtil.sort (ListUtil.byfirst Int.compare)
+               (* Flatten tmp positions. *)
+               (map (fn (name, (offset, sz)) =>
+                     (offset, name ^ " [" ^ Int.toString (szbytes sz) ^ "]"))
+                (SM.listItemsi pos))))
+         (SM.listItemsi layout))
+
     in
-      (* Data segment doesn't change. *)
+      print (StringUtil.table 80 layout_table);
+               (* Data segment doesn't change. *)
       Program { blocks = blocks, datasegment = datasegment }
     end
-
 
 end
