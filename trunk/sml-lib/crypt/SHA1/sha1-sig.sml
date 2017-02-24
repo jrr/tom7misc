@@ -1,6 +1,10 @@
 
 (* Implementation the SHA-1 hash function.
-   Written by Tom 7 in 2004; code in the public domain. *)
+   Written by Tom 7 in 2004; code in the public domain.
+
+   NOTE: SHA-1 has a known collision (AD 2017) and is
+   considered weak for cryptographic purposes.
+*)
 
 signature SHA1 =
 sig
