@@ -119,10 +119,6 @@ struct
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
 
-  fun szbytes S8 = 1
-    | szbytes S16 = 2
-    | szbytes S32 = 4
-
   (* Layout size of a CIL type (e.g. in a locals frame or struct).
      This is not necessarily the size of a temporary that holds
      such a value.
@@ -201,7 +197,7 @@ struct
      We need to be able to do this because we can call an abitrary function
      through a function pointer, where all we know is that function's type. *)
   fun bytes_for_args args =
-    List.foldl (fn (t, b) => b + szbytes ` typsize t) 0 args
+    List.foldl (fn (t, b) => b + A.szbytes ` typsize t) 0 args
 
   (* Generate the blocks for a CIL Function, once we know the locals
      layout. *)
@@ -287,7 +283,7 @@ struct
              case ftyp of
                C.Code (rett, argts) =>
                  let
-                   val returnbytes = szbytes ` typsize rett
+                   val returnbytes = A.szbytes ` typsize rett
                    val argbytes = bytes_for_args argts
                    val returnlabel = CILUtil.newlabel
                      (* This can be anything, but try to be helpful
@@ -606,11 +602,11 @@ struct
       fun alloc (s, sz) =
         let in
           offsets := (s, !nextpos) :: !offsets;
-          nextpos := !nextpos + szbytes sz
+          nextpos := !nextpos + A.szbytes sz
         end
 
       (* Return value is first. *)
-      val retbytes = szbytes (typsize ret)
+      val retbytes = A.szbytes (typsize ret)
       val () = nextpos := !nextpos + retbytes
 
       (* Then the args. *)
@@ -677,7 +673,7 @@ struct
           val size = typsize typ
           val bytes =
             (case bytes of
-               NONE => Word8Vector.tabulate (szbytes size,
+               NONE => Word8Vector.tabulate (A.szbytes size,
                                              fn _ =>
                                              Word8.fromInt ` ord #"?")
              | SOME b => b)
