@@ -748,6 +748,7 @@ struct
       else ();
 
       A.Program { blocks = init_block :: blocks,
+                  frame_stack_start = frame_stack_start,
                   datasegment = Segment.extract datasegment }
     end
   handle Segment.Segment s => raise ToASM ("Segment: " ^ s)
