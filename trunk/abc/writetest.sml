@@ -21,7 +21,7 @@ struct
       (* XXX: This won't work any more, since we assume that we can use
          temporaries in DS, but DS = CS. *)
       val prog =
-        Tactics.initialize () @
+        Tactics.old_initialize () @
         Tactics.printstring "hello this is my cool program it so good\r\n" @
         Tactics.exit ()
 
@@ -54,7 +54,7 @@ struct
       val init_sp = Word16.fromInt 0x7e7e
       val init_ip = Word16.fromInt 0x2020
 
-      val acc = Tactics.initialize ()
+      val acc = Tactics.old_initialize ()
       val acc = Tactics.printstring acc "this is an asciicutable!\n"
       val acc = Tactics.exit acc
 
