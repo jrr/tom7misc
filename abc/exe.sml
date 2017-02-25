@@ -236,13 +236,13 @@ struct
 
       (* If code and data segments are overlapping, we're screwed.
          Sanity check. *)
-      val () = if CODESEG_AT >= DATASEG_AT
-               andalso CODESEG_AT < DATASEG_AT + 65536
+      val () = if CODESEG_AT >= DATASEG_AT andalso
+                  CODESEG_AT < DATASEG_AT + 65536
                then raise EXE "Ut oh: code segment starts in data segment!"
                else ()
 
-      val () = if DATASEG_AT >= CODESEG_AT
-               andalso DATASEG_AT < CODESEG_AT + 65536
+      val () = if DATASEG_AT >= CODESEG_AT andalso
+                  DATASEG_AT < CODESEG_AT + 65536
                then raise EXE "Ut oh: data segment starts in code segment!"
                else ()
 
