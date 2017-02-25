@@ -32,15 +32,14 @@
       we want it to be small. Each rung looks like this:
 
          rung_n:
-           DEC reg                    48
+           DEC si                     48
            JNZ rung_n+1               75 xx
          code-block:
 
-      (TBD which register this is, but DEC is one byte no matter
-      what). The register holds the number of rungs left to traverse;
-      when it reaches 0. This register can be 16 bit, because of
-      course there cannot be more than 64k rungs in the 64k code
-      segment.
+      The register si holds the number of rungs left to traverse; when
+      it reaches 0 then we enter the code block. This register can be
+      16 bit, because of course there cannot be more than 64k rungs in
+      the 64k code segment.
 
     - Note that the ladder above uses relative addressing, but all of the
       jumps in ASM are absolute! We could also do an absolute version:
@@ -60,7 +59,7 @@
       is
 
       rel = dst - src + 1 (mod the total number of blocks; this can't be negative)
-      reg <- rel
+      si <- rel
       jmp next_rung
 
       (Note that a rung does DEC first, so if you want to execute that
@@ -68,9 +67,9 @@
        usually means just adding one to the register before starting.)
 
       and PopJumpInd is
-      pop reg
-      sub reg, src
-      inc reg
+      pop si
+      sub si, src
+      inc si
       jmp next_rung
 
       .. the belief is that this overhead (once per jump) is worth the
@@ -79,11 +78,10 @@
       return addresses need the complexity of PopJumpInd. (Though this
       optimization is not yet implemented.)
 
-    - Using the ladder to jump like this does trash whatever register
-      we're using, (but can we make use of the fact that it is 0 upon
-      normal entry to a block?) and also messes up flags. ASM doesn't
-      need these to be preserved across jumps, so nor should our
-      translation to x86.
+    - Using the ladder to jump like this does trash SI, (but can we
+      make use of the fact that it is 0 upon normal entry to a block?)
+      and also messes up flags. ASM doesn't need these to be preserved
+      across jumps, so nor should our translation to x86.
 
     - Complication: Jumps can only go 126 bytes.
 
@@ -140,6 +138,12 @@
       at some printable (actual) address, because that address needs
       to be specified in the header.
 
+    - Note that we can pretty easily insert rungs that DON'T decrement
+      SI, like they could just non-conditionally jump. We could use
+      this to fill out the code segment and get to the end so that we
+      can overflow. It is still usually better to stretch out the
+      existing ladder, because fewer jumps to get around is faster.
+
     - Optimization: It could be possible to interleave some blocks, or
       have rungs that skip. This seems a bit more complexity than it
       works, but could improve code density.
@@ -161,8 +165,10 @@ struct
   structure M = Machine
 
   val INIT_SP = Word16.fromInt 0x7e7e
-  (* XXX dunno if this can really be a constant *)
+  (* XXX doubt this can really be a constant *)
   val INIT_IP = Word16.fromInt 0x2020
+
+  val INIT_BP = Word16.fromInt 0x7e80
 
   open X86
   infix <- <~
@@ -204,10 +210,54 @@ struct
      move around the blocks a little bit after the fact. There's
      always at least one of these, for the rung at the head of the
      block. *)
-  fun layout_block (labelnum : int SM.map) (is_initial : bool,
-                                            lab : string,
-                                            cmds : A.explicit_tmp A.cmd list) =
+  fun layout_block (labelnum : int SM.map,
+                    frame_stack_start : int,
+                    is_initial : bool,
+                    lab : string,
+                    cmds : A.explicit_tmp A.cmd list) =
     let
+      (* Rewrite displacements for next rail, as discussed above.
+         Byte offset from the beginning of the block. *)
+      val next_jumps : int list ref = ref nil
+
+      (* XXX hoist? *)
+      fun onecmd acc cmd =
+        case cmd of
+          A.Label _ => raise ToX86 "bug: unexpected Label"
+        | A.SaveTempsNamed _ => raise ToX86 "bug: unexpected SaveTempsNamed"
+        | A.RestoreTempsNamed _ => raise ToX86 "bug: unexpected RestoreTempsNamed"
+        | A.Init =>
+            let in
+              (* Sanity check... *)
+              if is_initial then ()
+              else raise ToX86 "bug: init instruction outside initial block?";
+              Tactics.initialize (acc, INIT_BP, Word16.fromInt frame_stack_start)
+            end
+        | A.ExpandFrame n => raise ToX86 "unimplemented expandframe"
+(*
+        | A.ShrinkFrame n =>
+        | A.FrameOffset (dst, off) =>
+        | A.Load8 (dst, addr) =>
+        | A.Load16 (dst, addr) =>
+        | A.Store8 (addr, src) =>
+        | A.Store16 (addr, src) =>
+        | A.Push tmp =>
+        | A.Pop tmp =>
+        | A.LoadLabel (tmp, lab) =>
+        | A.PopJumpInd =>
+        | A.JumpCond (cond, lab) =>
+        | A.Immediate8 (tmp, w8) =>
+        | A.Immediate16 (tmp, w16) =>
+        | A.Immediate32 (tmp, w32) =>
+        | A.Add (a, b) =>
+        | A.Sub (a, b) =>
+        | A.Complement a =>
+        | A.Mov (a, b) =>
+        | A.Xor (a, b) =>
+*)
+        | _ => raise ToX86 ("Unimplemented cmd: " ^
+                            ASM.cmdtos ASM.explicit_tmptos cmd)
+
       val acc =
         if is_initial
         then
@@ -220,8 +270,36 @@ struct
           Acc.empty (X86.CTX { default_32 = false }) M.all_unknown ++
           EBX ++
           EBP
+
+      (* All blocks have a rung at the front, even the initial one.
+         (In theT case of the initial one, we set the initial IP so
+         that it starts right after the rung, since we can't control
+         our registers such that we actually end up entering it. No
+         block should try to jump to the init block again, but it would
+         work.) *)
+      val acc = acc ++ SI
+      val acc = acc // DEC SI // JNZ 0w0
+      (* Record the offset of that 0w0 to be rewritten to a real jump
+         to the next rail. *)
+      val () = next_jumps := (Acc.insbytes acc - 1) :: !next_jumps
+      val acc = acc -- SI
+
+      (* Note: This assumes we never enter blocks other than through
+         the rung, which is true today but could be broken by reasonable
+         optimizations (e.g. direct forward jumps). Knowing we have
+         some register with 0 in it is pretty useful. *)
+      val acc =
+        if is_initial
+        then acc
+        else acc ?? learn_reg16 M.ESI (Word16.fromInt 0)
+
+      fun docmds (acc, nil) = acc
+        | docmds (acc, cmd :: cmds) =
+        docmds (onecmd acc cmd, cmds)
+
+      val acc = docmds (acc, cmds)
     in
-      raise ToX86 "unimplemented layout_block"
+      (Acc.encoded acc, !next_jumps)
     end
 
   (* Attempt to lay out the assembly program. The labels in the order
@@ -230,7 +308,8 @@ struct
      problems that could occur, and then call layout_round again
      with an adjusted program. *)
   fun layout_round (blocks : A.explicit_tmp A.block list,
-                    initial : string) =
+                    frame_stack_start : int,
+                    initial_label : string) =
     let
       (* Each block will have a rung of the ladder precede it. We
          give each of these a number, in sequence, so that we
@@ -241,12 +320,31 @@ struct
                                     SM.insert (m, lab, i)) SM.empty labels
 
       val xblocks = map (fn (lab, cmds) =>
-                         layout_block labelnum (lab = initial, lab, cmds)) blocks
+                         layout_block (labelnum, frame_stack_start,
+                                       lab = initial_label,
+                                       lab,
+                                       cmds)) blocks
 
     in
-      raise ToX86 "unimplemented layout_round"
+      xblocks
     end
 
-  fun tox86 asm = raise ToX86 "unimplemented: tox86"
+  fun tox86 (A.Program { blocks, frame_stack_start, datasegment }) =
+    let
+      (* XXX probably need to move initial block into the middle,
+         like repetedly advance it (or binary search) until it's printable? *)
+      val initial_label =
+        case blocks of
+          nil => raise ToX86 "ASM program is empty? Impossible!"
+        | (init, _) :: _ => init
+
+      val xblocks = layout_round (blocks, frame_stack_start, initial_label)
+
+      val cs = raise ToX86 "still need to do various things to construct cs"
+    in
+      (* XXX also return initial instruction pointer? *)
+      { cs = cs,
+        ds = datasegment }
+    end
 
 end

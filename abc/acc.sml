@@ -23,6 +23,18 @@ struct
   fun insns (A { ins, ... }) = rev ins
   fun clear_insns (A { ctx, mach, ins = _, insbytes = _, claimed }) =
     A { ctx = ctx, mach = mach, ins = nil, insbytes = 0, claimed = claimed }
+  fun encoded (A { ins, ctx, insbytes, ... }) =
+    let
+      (* PERF: Too much allocation! Encode could provide this functionality
+         directly by writing into a temporary array (even using the functor). *)
+      val vec = Vector.concat (map (EncodeX86.encode ctx) (rev ins))
+    in
+      if insbytes = Word8Vector.length vec
+      then ()
+      else raise Acc ("Bug: insbytes " ^ Int.toString insbytes ^
+                      " but encoded " ^ Int.toString (Word8Vector.length vec));
+      vec
+    end
   fun insbytes (A { insbytes = b, ... }) = b
   fun ?? (A { ctx, mach, ins, insbytes, claimed }, mf) =
     A { ctx = ctx, mach = mf mach, ins = ins, insbytes = insbytes,

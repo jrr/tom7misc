@@ -122,6 +122,11 @@
    actually want EBP to be 0x20 bytes shy of the actual frame at all
    times, so that we can use the EBP+disp8 addressing mode.]
 
+   XXX: Tactics may need one or more temporaries for their own (temporary)
+   use. We could make these explicit in the commands that need them? Or
+   just allocate some extra space in each temporary frame (or even use
+   the space past it...).
+
    * Return addresses. *
    (on machine stack)
    We don't need random access to them.
@@ -319,36 +324,16 @@ struct
   (* TODO: inc, etc. *)
 
   type 'tmp block = string * 'tmp cmd list
-(*
-  and 'tmp proc = Proc of
-    { name: string,
-      (* Size of stack frame for arguments. *)
-      argbytes: int,
-      (* Size of stack frame for local variables,
-         excluding the function arguments. *)
-      localbytes: int,
-      (* Map local variables (and arguments) to
-         byte offsets from base (beginning of arguments),
-         once both the arguments and local frame have been
-         set up. *)
-      offsets: (string * int) list,
-      (* Every block belongs to a single procedure, and its
-         references to local variables are relative to that.
 
-         The order of this list is significant; execution
-         begins at the first block and falls through to the
-         next (unless of course there's an unconditional
-         jump). Exection must not "fall off the end." *)
-      blocks: 'tmp block list }
-    *)
-
-  (* XXX data... *)
   datatype 'tmp program =
     Program of
     { (* The order of this list is significant; execution begins at the
          first block and falls through to the next (unless following a
          jump). Exection must not "fall off the end." *)
       blocks: 'tmp block list,
+      (* Offset of first position after globals that we can use for
+         the frame stack. *)
+      frame_stack_start : int,
       (* Always 65536 bytes; printable. *)
       datasegment: Word8Vector.vector }
 
@@ -386,25 +371,22 @@ struct
     | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- 0x" ^ Word8.toString w8
     | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- 0x" ^ Word16.toString w16
     | Immediate32 (tmp, w32) => "imm32 " ^ ts tmp ^ " <- 0x" ^ Word32.toString w32
+    | Add (a, b) => "add " ^ ts a ^ " <- " ^ ts b
+    | Sub (a, b) => "sub " ^ ts a ^ " <- " ^ ts b
+    | Complement a => "complement " ^ ts a
+    | Mov (a, b) => "mov " ^ ts a ^ " <- " ^ ts b
+    | Xor (a, b) => "xor " ^ ts a ^ " <- " ^ ts b
     | Init => "init"
     | Label lab => "(LABEL " ^ lab ^ ")"
-    | _ => "unimplemented cmdtos cmd"
-(*
-  (* PERF allow tmp * literal? It is only more efficient
-     if the literal is printable... *)
-  | Add of tmp * tmp
-  | Sub of tmp * tmp
-  | Complement of tmp
-  | Mov of tmp * tmp
-  | Xor of tmp * tmp
-*)
+
   fun blocktos ts (name, cmds) =
     "  " ^ name ^ ":\n" ^
     String.concat (map (fn cmd => "    " ^ cmdtos ts cmd ^ "\n") cmds)
 
-  fun progtos ts (Program { blocks, datasegment }) =
+  fun progtos ts (Program { blocks, frame_stack_start, datasegment }) =
     (* XXX print data segment? *)
     "DATA (.. 64kb ..)\n" ^
+    "FRAME @" ^ Int.toString frame_stack_start ^ "\n" ^
     "PROGRAM:\n" ^
     String.concat (map (blocktos ts) blocks) ^ "\n"
 
