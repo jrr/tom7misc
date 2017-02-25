@@ -681,7 +681,8 @@ then comment out the highlighted region instead. "
             (if (re-search-backward "[^\\\\]\"" nil t)
                 (1+ (current-indentation))
               0))))
-	 ;; XXX tom7: this is dumb when there is no expression following =>. Can I do better?
+	 ;; XXX tom7: this is dumb when there is no expression following =>.
+	 ;; Can I fix it?
          ;; Are we looking at a case expression ?
          ((looking-at "|.*=>")
 
@@ -803,12 +804,30 @@ then comment out the highlighted region instead. "
 	 ;; else keep the same indentation as previous line
 	 (t indent))))))
 
+;; Note: This is buggy for a case like
+;; if cond then true else false;
+;; another statement;
+;;
+;; When indenting the "another statement" line, we move the
+;; cursor to the ";" after the if, then sml-backward-sexp to the
+;; opening paren. But then I guess we skip the open paren 
 (defun sml-get-indent ()
   (save-excursion
     (let ((case-fold-search nil))
       (beginning-of-line)
       (skip-chars-backward "\t\n; ")
-      (if (looking-at ";") (sml-backward-sexp))
+      ;; This is a workaround for an issue where we have a state like
+      ;;
+      ;; if cond then e1 else e2;
+      ;; another expr;
+      ;;
+      ;; and we try to indent the second line. We move backward and
+      ;; skip over the semicolon to try to find the start of that previous
+      ;; line, but we don't want to think that we're inside the "if"
+      ;; (also applies to some expressions like "let in 3 end"), which
+      ;; was terminated by the semicolon.
+      (let ((passed-semicolon (looking-at ";")))
+	(if passed-semicolon (sml-backward-sexp))
       (cond
        ((save-excursion (sml-backward-sexp) (looking-at "end\\b"))
         (- (current-indentation) sml-indent-level))
@@ -819,6 +838,10 @@ then comment out the highlighted region instead. "
         (let ((indent (current-column)))
           (skip-chars-forward "\t (")
           (cond
+	   ;; if we passed a semicolon, always indent to the same
+	   ;; spot as the previous line (see discussion above).
+	   (passed-semicolon indent)
+	   
 	   ;; tom7 added this, for his personal comment indentation pref.
 	   ;; (on 011207)
 	   ;; XXX - this is probably dead code now because of sml-indent-same
@@ -827,7 +850,7 @@ then comment out the highlighted region instead. "
            ;; Started val/fun/structure...
 	   
 	   ;; tom 7 added this; if indent is skewed otherwise (29 Apr 2003)
-	   ((looking-at "if")
+	   ((looking-at "if\\b")
 	    (+ (current-column) 3))
 
            ((looking-at sml-indent-starters-reg)
@@ -839,7 +862,7 @@ then comment out the highlighted region instead. "
                 indent
               (+ indent sml-indent-level)))
            ;; else keep the same indentation as previous line
-           (t indent))))))))
+           (t indent)))))))))
 
 
 ;; tom7 changed this so that { (with following space)
