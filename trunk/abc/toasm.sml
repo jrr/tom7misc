@@ -17,6 +17,10 @@ struct
 
   fun printable8 (b : Word8.word) = b >= 0wx20 andalso b <= 0wx7e
 
+  fun widthsize C.Width8 = A.S8
+    | widthsize C.Width16 = A.S16
+    | widthsize C.Width32 = A.S32
+
   structure Segment :>
   sig
     (* Out-of-bounds writes and writes to locked regions throw
@@ -217,6 +221,7 @@ struct
       fun newtmp (n, size) = new_named_tmp (function_name, n, size)
       fun vartmp (var, sz) =
         A.N { func = function_name, name = var, size = sz }
+      fun tmpsize (A.N { size, ... }) = size
 
       (* Generate code to put the value v in a new temporary,
          then call the continuation with that temporary and its size. *)
@@ -246,29 +251,29 @@ struct
             | C.Global l =>
                 let val tmp = newtmp ("addr_" ^ l, A.S16)
                 in
-                   case ListUtil.Alist.find op= globalpositions l of
-                     NONE => raise ToASM ("unallocated global " ^ l ^ "?")
-                   | SOME pos =>
-                       A.Immediate16 (tmp, Word16.fromInt pos) // k (tmp, typ)
+                  case ListUtil.Alist.find op= globalpositions l of
+                    NONE => raise ToASM ("unallocated global " ^ l ^ "?")
+                  | SOME pos =>
+                      A.Immediate16 (tmp, Word16.fromInt pos) // k (tmp, typ)
                 end)
         | C.FunctionLiteral (name, ret, args) =>
-            let
-              val lab = function_header_label name
-              val tmp = newtmp ("faddr_" ^ name, A.S16)
-            in A.LoadLabel (tmp, lab) // k (tmp, C.Code (ret, args))
-            end
+           let
+             val lab = function_header_label name
+             val tmp = newtmp ("faddr_" ^ name, A.S16)
+           in A.LoadLabel (tmp, lab) // k (tmp, C.Code (ret, args))
+           end
         | C.Word8Literal w8 =>
-            let val tmp = newtmp ("imm", A.S8)
-            in A.Immediate8 (tmp, w8) // k (tmp, C.Word8 C.Unsigned)
-            end
+           let val tmp = newtmp ("imm", A.S8)
+           in A.Immediate8 (tmp, w8) // k (tmp, C.Word8 C.Unsigned)
+           end
         | C.Word16Literal w16 =>
-            let val tmp = newtmp ("imm", A.S16)
-            in A.Immediate16 (tmp, w16) // k (tmp, C.Word16 C.Unsigned)
-            end
+           let val tmp = newtmp ("imm", A.S16)
+           in A.Immediate16 (tmp, w16) // k (tmp, C.Word16 C.Unsigned)
+           end
         | C.Word32Literal w32 =>
-            let val tmp = newtmp ("imm", A.S32)
-            in A.Immediate32 (tmp, w32) // k (tmp, C.Word32 C.Unsigned)
-            end
+           let val tmp = newtmp ("imm", A.S32)
+           in A.Immediate32 (tmp, w32) // k (tmp, C.Word32 C.Unsigned)
+           end
         | C.StringLiteral _ => raise ToASM "unimplemented string literals"
 
       (* Generate code for e, and bind vt (if SOME) to its value. *)
@@ -370,11 +375,23 @@ struct
                    | C.Width16 => A.Load16 (vartmp (var, typsize t), addr) // k ()
                    | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
+             | C.Plus (w, a, b) =>
+                 gentmp ctx a
+                 (fn (atmp, at) =>
+                  gentmp ctx b
+                  (fn (btmp, bt) =>
+                   let in
+                     if tmpsize atmp = tmpsize btmp andalso
+                        tmpsize atmp = widthsize w
+                     then ()
+                     else raise ToASM "incompatible args in Plus";
+
+                     A.Add (atmp, btmp) // k ()
+                   end))
              | C.Truncate { src: C.width, dst: C.width, v: C.value } =>
-               raise ToASM "unimplemented truncate"
+                 raise ToASM "unimplemented truncate"
              | C.Promote { signed: bool, src: C.width, dst: C.width, v: C.value } =>
-               raise ToASM "unimplemented promote"
-             | C.Plus (w, a, b) => raise ToASM "unimplemented plus"
+                 raise ToASM "unimplemented promote"
              | C.Minus (w, a, b) => raise ToASM "unimplemented minus"
              | C.Times (w, a, b) => raise ToASM "unimplemented times"
              | C.SignedDivision (w, a, b) => raise ToASM "unimplemented signed division"
@@ -719,8 +736,8 @@ struct
               mproc @ rest
             end
 
-      (* XXX generate fresh label from something... *)
-      val init_block = ("__abc_init", [A.Init])
+      val init_label = CILUtil.newlabel "__abc_init"
+      val init_block = (init_label, [A.Init])
     in
       (* Probably should include some headroom here..? *)
       if frame_stack_start > 65536
