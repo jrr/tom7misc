@@ -163,7 +163,31 @@ struct
     (* 68 push immediate 16/32, 6A push immediate 8 *)
     | PUSH_IMM of immediate
   (* XXX IMUL here *)
-  (* XXX JMP short instructions *)
+    (* 70-7E JCC+disp8 variants *)
+    | JO of Word8.word
+    | JNO of Word8.word
+    (* JB = JNAE = JC *)
+    | JB of Word8.word
+    (* JNB = JAE = JC *)
+    | JAE of Word8.word
+    (* JZ = JE *)
+    | JZ of Word8.word
+    (* JNZ = JNE *)
+    | JNZ of Word8.word
+    (* JBE = JNA *)
+    | JBE of Word8.word
+    | JA of Word8.word
+    | JS of Word8.word
+    | JNS of Word8.word
+    | JP of Word8.word
+    | JNP of Word8.word
+    (* JL = JNGE *)
+    | JL of Word8.word
+    (* JNL = JGE *)
+    | JGE of Word8.word
+    (* JLE = JNG *)
+    | JLE of Word8.word
+    (* JNLE/JG is 0x7f, not printable. *)
 
     (* These instructions are out of gamut; just used
        for debugging and development and should not
@@ -236,6 +260,9 @@ struct
           sizedregstring (size, reg) ^ " <- " ^ modrmstring modrm
       | sizeargsstring (size, (modrm <~ reg)) =
           " <- " ^ modrmstring modrm ^ " <~ " ^ sizedregstring (size, reg)
+
+    fun disp8 (w : Word8.word) =
+      Int.toString (Word8.toIntX w)
   in
     fun insstring ins =
       case ins of
@@ -252,6 +279,21 @@ struct
       | PUSH mr => "PUSH " ^ multiregstring mr
       | POP mr => "POP " ^ multiregstring mr
       | PUSH_IMM imm => "PUSH " ^ immediatestring imm
+      | JO w => "JO " ^ disp8 w
+      | JNO w => "JNO " ^ disp8 w
+      | JB w => "JB " ^ disp8 w
+      | JAE w => "JAE " ^ disp8 w
+      | JZ w => "JZ " ^ disp8 w
+      | JNZ w => "JNZ " ^ disp8 w
+      | JBE w => "JBE " ^ disp8 w
+      | JA w => "JA " ^ disp8 w
+      | JS w => "JS " ^ disp8 w
+      | JNS w => "JNS " ^ disp8 w
+      | JP w => "JP " ^ disp8 w
+      | JNP w => "JNP " ^ disp8 w
+      | JL w => "JL " ^ disp8 w
+      | JGE w => "JGE " ^ disp8 w
+      | JLE w => "JLE " ^ disp8 w
 
       | MOV sa => "MOV " ^ sizeargsstring sa
       | NOP => "NOP"

@@ -488,6 +488,9 @@ struct
                      next)))
             end
 
+        (* XXX: This fallthrough stuff is not harmful, but it does make
+           this code sort of confusing, and it may be unnecessary since
+           tox86 will (?) rearrange blocks. *)
         | C.Goto lab =>
             (case SM.find (!done, lab) of
                (* If we haven't yet processed the destination block,
@@ -711,9 +714,7 @@ struct
 
       val (globalpositions, frame_stack_start) =
         allocglobals (datasegment, globals)
-      (* XXX global initialization code!
-         XXX something has to set up EBX to point to the frame stack,
-         i.e., frame_stack_start *)
+
       fun onefunction (name, func) =
         (name, doproc globalpositions (name, func))
 
@@ -751,4 +752,7 @@ struct
     end
   handle Segment.Segment s => raise ToASM ("Segment: " ^ s)
 
+  (* Optimization TODO: Remove labels that are never referenced!
+     It may also be possible to drop dead blocks? Are there any
+     situations where we get them? *)
 end

@@ -934,11 +934,13 @@ struct
        Note that we also have disp32 available, but this is basically useless in
        real mode because all printable values will overflow the segment.
        *)
-  val TEMP_START = Word16.fromInt 0x0100
   val IVT_INT_21 = Word16.fromInt (0x21 * 4)
   val IVT_INT_ILLEGAL = Word16.fromInt (0x06 * 4)
-  fun initialize () : acc =
+  (* This is an old one for testing and manual invocations. *)
+  fun old_initialize () : acc =
     let
+      val TEMP_START = Word16.fromInt 0x0100
+
       val acc = empty (X86.CTX { default_32 = false }) M.all_unknown ++ EAX
       (* Overwrite interrupt vector table so that 'illegal instruction'
          is actually DOS INT 21h. *)
@@ -982,6 +984,68 @@ struct
     in
       acc
     end handle e => raise e
+
+  (* At program start, set up some important state:
+      - Illegal instruction handler so that we can eventually exit
+        (FIXME still non-ascii here)
+      - EBP points to start of temporary frame in SS
+      - EBX points to the start of the local frame in DS
+
+     When this returns, EBP and EBX will be claimed. *)
+  fun initialize (acc, init_ebp : Word16.word, init_ebx : Word16.word) : acc =
+    let
+      val acc = acc ++ EAX
+      (* Overwrite interrupt vector table so that 'illegal instruction'
+         is actually DOS INT 21h. *)
+
+      (* Clear some registers. *)
+      val acc = acc //
+        AND_A_IMM ` I32 0wx40204020 //
+        AND_A_IMM ` I32 0wx20402040 ??
+        learn_reg32 M.EAX 0w0 //
+        PUSH EAX ++ EBX //
+        POP EBX ??
+        learn_reg32 M.EBX 0w0
+
+      val acc = load_reg16 acc B IVT_INT_21
+
+      val acc = acc ++ ECX //
+        (* Access segment FS=0 *)
+        DB 0wx64 //
+        (* FIXME non-ascii; use tactic (need mov tactic with FS prefix) *)
+        MOV (S32, C <- IND_EBX_DISP8 0w0)
+
+      val acc = load_reg16 acc B IVT_INT_ILLEGAL
+      val acc = acc //
+        (* Use segment FS=0 *)
+        DB 0wx64 //
+        (* FIXME non-ascii, use tactic (need mov tactic with FS prefix) *)
+        MOV (S32, IND_EBX_DISP8 0w0 <~ C)
+
+      val acc = acc -- ECX -- EBX
+
+      (* Now initialize EBX and EBP. *)
+      val acc = load_ax16 acc (Word16.fromInt 0)
+      (* Push 0 twice; we'll use this for the high word of EBX then EBP. *)
+      val acc = acc // PUSH AX // PUSH AX
+
+      val acc = load_ax16 acc init_ebx
+      (* EBX stays claimed always.
+         XXX actually maybe it should have "locked" state, so that we can't even
+         save_and_claim. *)
+      val acc = acc ++ EBX
+      val acc = acc // PUSH AX // POP EBX ??
+        learn_reg32 M.EBX (Word32.fromInt ` Word16.toInt init_ebx)
+
+      val acc = load_ax16 acc init_ebp
+      val acc = acc ++ EBP
+      val acc = acc // PUSH AX // POP EBP ??
+        learn_reg32 M.EBP (Word32.fromInt ` Word16.toInt init_ebp)
+
+      val acc = acc -- EAX
+    in
+      acc
+    end
 
   (* Generate code that prints the string. Uses the interrupt instruction, so
      non-ASCII. *)

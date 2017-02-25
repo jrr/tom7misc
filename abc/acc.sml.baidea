@@ -11,9 +11,13 @@ struct
   (* instruction list is in reverse order
      claimed is a bitmask using the masks below.
      The representation invariant is that a register and its friend are never both
-     claimed (e.g. NAND(!!(claimed & AX), !!(claimed & EAX))). *)
+     claimed (e.g. NAND(!!(claimed & AX), !!(claimed & EAX))).
+
+     Locking
+     *)
   datatype acc = A of { ctx : ctx, mach : mach, ins : ins list, insbytes : int,
-                        claimed : Word32.word }
+                        claimed : Word32.word,
+                        locked : Word32.word }
   fun empty c m : acc = A { ctx = c, mach = m, ins = nil,
                             insbytes = 0, claimed = 0w0 }
   fun // (A { ctx, mach, ins, insbytes, claimed }, i) =

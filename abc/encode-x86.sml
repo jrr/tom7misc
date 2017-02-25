@@ -200,6 +200,22 @@ struct
               X.I8 w => pfx @@ vec [0wx6A, w]
             | _ => pfx @@ vec [0wx68] @@ decode_immediate imm
           end
+      | X.JO w => vec [0wx70, w]
+      | X.JNO w => vec [0wx71, w]
+      | X.JB w => vec [0wx72, w]
+      | X.JAE w => vec [0wx73, w]
+      | X.JZ w => vec [0wx74, w]
+      | X.JNZ w => vec [0wx75, w]
+      | X.JBE w => vec [0wx76, w]
+      | X.JA w => vec [0wx77, w]
+      | X.JS w => vec [0wx78, w]
+      | X.JNS w => vec [0wx79, w]
+      | X.JP w => vec [0wx7a, w]
+      | X.JNP w => vec [0wx7b, w]
+      | X.JL w => vec [0wx7c, w]
+      | X.JGE w => vec [0wx7d, w]
+      | X.JLE w => vec [0wx7e, w]
+
       (* out of gamut *)
       | X.MOV (size, args) => encode_normal 0wx88 (size, args)
       | X.NOP => vec [0wx90]
