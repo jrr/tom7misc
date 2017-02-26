@@ -1,4 +1,4 @@
-structure Tactics =
+structure Tactics :> TACTICS =
 struct
 
   exception Tactics of string
@@ -18,7 +18,7 @@ struct
   (* PERF: If we allow CR/LF, they need to be included here.
      Note that there are many loops from low to high, as well. *)
   val PRINT_LOW : Word8.word = 0wx20
-  val PRINT_HIGH : Word8.word =  0wx7e
+  val PRINT_HIGH : Word8.word = 0wx7e
   fun printable p = p >= PRINT_LOW andalso p <= PRINT_HIGH
 
   fun dprint (f : unit -> string) = ()
@@ -41,8 +41,8 @@ struct
                Word16.fromInt (Word8.toInt wl))
 
   fun for8 (lo : Word8.word) (hi : Word8.word) f =
-      if lo > hi then ()
-      else (ignore (f lo); for8 (Word8.+(lo, 0w1)) hi f)
+    if lo > hi then ()
+    else (ignore (f lo); for8 (Word8.+(lo, 0w1)) hi f)
 
 
   (* Push the 16-bit value; if the high byte is zero then we can do
@@ -773,7 +773,7 @@ struct
         | IND_EDX_DISP8 w => w
         | IND_EBX_DISP8 w => w
         | IND_SIB_DISP8 _ => raise Tactics "unimplemented"
-        | IND_EPB_DISP8 w => w
+        | IND_EBP_DISP8 w => w
         | IND_ESI_DISP8 w => w
         | IND_EDI_DISP8 w => w
         | _ => raise Tactics ("mov16ind8 only works with [REG]+disp8 " ^
@@ -831,9 +831,64 @@ struct
       assert_claimed acc (reg_to_multireg16 reg);
 
       load_reg16only acc reg (Word16.fromInt 0) //
-      XOR (S16, reg <- modrm)
+      XOR (S16, reg <- modrm) ??
+      forget_reg16 (reg_to_machreg reg)
       (* XXX this should track the value of the temporary too. *)
     end handle e => raise e
+
+  (* mod/rm macro that generates IND_EBP_DISP8 as though it starts at 0,
+     and checks that the result is printable. *)
+  fun EBP_TEMPORARY (tmp : int) =
+    if tmp < 0 then raise Tactics ("Illegal negative temporary offset? " ^
+                                   Int.toString tmp)
+    else
+      let val real_offset = tmp + 0x20
+      in
+        if real_offset > 0x7e
+        then raise Tactics ("Ut oh, temporary offset out of range: " ^
+                            Int.toString tmp ^
+                            " yields real offset of " ^ Int.toString real_offset)
+        else ();
+        IND_EBP_DISP8 (Word8.fromInt real_offset)
+      end
+
+  (* PERF: Should try to select a register that has 0 in it
+     already. Blocks start knowing that SI is 0, for example. *)
+  fun put_tmp_in_reg16 (acc : Acc.acc) (tmp : int) (k : acc * reg -> acc) =
+    claim_reg16 acc [A, C, D, DH_SI, BH_DI]
+    (fn (acc, tmpreg) =>
+     let
+       val acc =
+         move16ind8 acc (tmpreg <- EBP_TEMPORARY tmp) ??
+         forget_reg16 (reg_to_machreg tmpreg)
+     in
+       k (acc, tmpreg)
+     end)
+
+  fun push_tmp16 acc (tmp : int) =
+    put_tmp_in_reg16 acc tmp
+    (fn (acc : acc, tmpreg : reg) =>
+     acc //
+     PUSH (reg_to_multireg16 tmpreg))
+
+  fun pop_tmp16 acc (tmp : int) =
+    claim_reg16 acc [C, D, DH_SI, BH_DI, A]
+    (fn (acc, tmpreg) =>
+     let
+       val acc = acc //
+         POP (reg_to_multireg16 tmpreg) ??
+         forget_reg16 (reg_to_machreg tmpreg)
+     in
+       move16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
+     end)
+
+  (* Load the temporary at the given offset with the given constant. *)
+  fun imm_tmp16 acc (tmp : int) (v : Word16.word) : acc =
+    claim_reg16 acc [A, C, D, DH_SI, BH_DI]
+    (fn (acc, tmpreg) =>
+     let val acc = load_reg16only acc tmpreg v
+     in move16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
+     end)
 
   (* Binary NOT of register r. *)
   fun complement_reg16 acc r : acc =
@@ -888,7 +943,51 @@ struct
       forget_reg16 (reg_to_machreg rdst)
     end handle e => raise e
 
+  local
+    (* Subtract the word w from the 16-bit register.
+       Works for BP; this is used among other things to shift
+       the temporary frame. *)
+    (* PERF: We could also use SUB_IMM if it's a printable size. *)
+    fun raw_sub_reg16 reg acc tfs w =
+      if w = Word16.fromInt 0
+      then acc
+      else
+        let
+          (* Use the first slot after the temp_frame *)
+          val slot = tfs
+        in
+          assert_claimed acc EBP;
+          (* PERF: If we happen to have w in a temporary,
+             just get that temporary! *)
+          imm_tmp16 acc slot w //
+          SUB (S16, CH_BP <- EBP_TEMPORARY slot) ??
+          forget_reg16 M.EBP
+        end
+  in
+    fun add_reg16_imm reg acc tfs n =
+      (* As with the general-purpose add tactic, we'll actually subtract.
+         This is simpler because n is a constant.
+
+         PERF: Repeated INC is probably best in many cases. *)
+      raw_sub_reg16 reg acc tfs (Word16.~ n)
+
+    fun sub_reg16_imm reg acc tfs n =
+      (* PERF: Repeated DEC is probably best in many cases. *)
+      raw_sub_reg16 reg acc tfs n
+
+    (* Add a constant to BP. We have to be a little careful because BP is
+       used as the base pointer for the temporaries themselves. *)
+    val add_bp = add_reg16_imm CH_BP
+    val sub_bp = sub_reg16_imm CH_BP
+    val add_bx = add_reg16_imm B
+    val sub_bx = sub_reg16_imm B
+  end
+
   (* This sets up the initial invariants.
+
+     (Note that some speculation in this comment is resolved in the header
+      of asm.sml)
+
      - EBX = 0x00000100. We don't have any register-to-register operations,
        but we can do some indirect addressing, for example
           MOV ESI <- [EBX]

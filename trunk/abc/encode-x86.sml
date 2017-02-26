@@ -99,7 +99,7 @@ struct
       | X.IND_EDX_DISP8 w8 => (pfx_addr32, 0w1, 0w2, vec [w8])
       | X.IND_EBX_DISP8 w8 => (pfx_addr32, 0w1, 0w3, vec [w8])
       | X.IND_SIB_DISP8 (sib, w8) => raise Exn "unimplemented"
-      | X.IND_EPB_DISP8 w8 => (pfx_addr32, 0w1, 0w5, vec [w8])
+      | X.IND_EBP_DISP8 w8 => (pfx_addr32, 0w1, 0w5, vec [w8])
       | X.IND_ESI_DISP8 w8 => (pfx_addr32, 0w1, 0w6, vec [w8])
       | X.IND_EDI_DISP8 w8 => (pfx_addr32, 0w1, 0w7, vec [w8])
       (* These are all always non-printable *)
@@ -108,7 +108,7 @@ struct
       | X.IND_EDX_DISP32 w32 => raise Exn "unimplemented"
       | X.IND_EBX_DISP32 w32 => raise Exn "unimplemented"
       | X.IND_SIB_DISP32 (sib, w32) => raise Exn "unimplemented"
-      | X.IND_EPB_DISP32 w32 => raise Exn "unimplemented"
+      | X.IND_EBP_DISP32 w32 => raise Exn "unimplemented"
       | X.IND_ESI_DISP32 w32 => raise Exn "unimplemented"
       | X.IND_EDI_DISP32 w32 => raise Exn "unimplemented"
       | X.Register r =>
@@ -221,6 +221,9 @@ struct
       | X.NOP => vec [0wx90]
       | X.INT w => vec [0wxCD, w]
       | X.DB w => vec [w]
+          (* XXX?? *)
+      | X.MESSAGE _ => vec []
+
     (*
       | _ => raise Exn "unimplemented ins"
         *)

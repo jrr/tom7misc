@@ -168,7 +168,9 @@ struct
   (* XXX doubt this can really be a constant *)
   val INIT_IP = Word16.fromInt 0x2020
 
-  val INIT_BP = Word16.fromInt 0x7e80
+  (* Actual start position of temporary frame. Note that BP will always point
+     32 bytes before the frame. *)
+  val TMP_FRAME_START = Word16.fromInt 0x7e80
 
   open X86
   infix <- <~
@@ -221,47 +223,95 @@ struct
          Byte offset from the beginning of the block. *)
       val next_jumps : int list ref = ref nil
 
+      fun offset (A.E { offset = off, ... }) = off
+
       (* XXX hoist? *)
       fun onecmd acc cmd =
-        case cmd of
-          A.Label _ => raise ToX86 "bug: unexpected Label"
-        | A.Init =>
-            let in
-              (* Sanity check... *)
-              if is_initial then ()
-              else raise ToX86 "bug: init instruction outside initial block?";
-              (* XXX: In both cases, we may actually want these to point 32 bytes
-                 before the range, because we're always going to use indirect
-                 addressing with a printable disp8. *)
-              Tactics.initialize (acc, INIT_BP, Word16.fromInt frame_stack_start)
-            end
-        | A.ExpandFrame 0 => acc
-        (* | A.ExpandFrame n => *)
-        (* Just add n to EBX. *)
+        let
+          fun assert16 (t as A.E { offset, size, comment }) =
+            if size = A.S16
+            then ()
+            else raise ToX86 ("Command requires 16-bit temporary; got " ^
+                              A.explicit_tmptos t ^ " in cmd:\n" ^
+                              A.explicit_cmdtos cmd)
+        in
+          case cmd of
+            A.Label _ => raise ToX86 "bug: unexpected Label"
+          | A.Init =>
+              let in
+                (* Sanity check... *)
+                if is_initial then ()
+                else raise ToX86 "bug: init instruction outside initial block?";
+                (* We actually point both EBP and EBX 32 bytes before the temporary
+                   and local frames, respectively. This is because the smallest
+                   printable disp8 we can actually represent is 0x20 = 32.
 
-(*
-        | A.ShrinkFrame n =>
-        | A.FrameOffset (dst, off) =>
-        | A.Load8 (dst, addr) =>
-        | A.Load16 (dst, addr) =>
-        | A.Store8 (addr, src) =>
-        | A.Store16 (addr, src) =>
-        | A.Push tmp =>
-        | A.Pop tmp =>
-        | A.LoadLabel (tmp, lab) =>
-        | A.PopJumpInd =>
-        | A.JumpCond (cond, lab) =>
-        | A.Immediate8 (tmp, w8) =>
-        | A.Immediate16 (tmp, w16) =>
-        | A.Immediate32 (tmp, w32) =>
-        | A.Add (a, b) =>
-        | A.Sub (a, b) =>
-        | A.Complement a =>
-        | A.Mov (a, b) =>
-        | A.Xor (a, b) =>
-*)
-        | _ => raise ToX86 ("Unimplemented cmd: " ^
-                            ASM.explicit_cmdtos cmd)
+                   Whenever we access these through [EBP+disp8] (etc.), we have
+                   to be careful about the difference between a tmp frame offset
+                   (starts at 0) and actual displacement (starts at 0x20). *)
+                Tactics.initialize (acc,
+                                    Word16.-(TMP_FRAME_START, Word16.fromInt 0x20),
+                                    Word16.fromInt (frame_stack_start - 0x20))
+              end
+          | A.SaveTemps (A.Explicit n) =>
+              (* Add n to EBP. We know that it's in 0x00000000-0x0000FFFF,
+                 so we just modify the 16-bit part, BP. *)
+              Tactics.add_bp acc tmp_frame_size (Word16.fromInt n)
+          | A.RestoreTemps (A.Explicit n) =>
+              Tactics.sub_bp acc tmp_frame_size (Word16.fromInt n)
+          | A.ExpandFrame n =>
+              Tactics.add_bx acc tmp_frame_size (Word16.fromInt n)
+          | A.ShrinkFrame n =>
+              Tactics.sub_bx acc tmp_frame_size (Word16.fromInt n)
+
+          | A.Push tmp =>
+              let in
+                assert16 tmp;
+                Tactics.push_tmp16 acc (offset tmp)
+              end
+          | A.Pop tmp =>
+              let in
+                assert16 tmp;
+                Tactics.pop_tmp16 acc (offset tmp)
+              end
+
+          | A.Immediate16 (tmp, w16) =>
+              let in
+                assert16 tmp;
+                Tactics.imm_tmp16 acc (offset tmp) w16
+              end
+          | A.LoadLabel (tmp, lab) =>
+              let
+                val idx = getlabelnum labelnum lab
+              in
+                assert16 tmp;
+                Tactics.imm_tmp16 acc (offset tmp) (Word16.fromInt idx)
+              end
+
+          (*
+          | A.FrameOffset (dst, off) =>
+          | A.Load8 (dst, addr) =>
+          | A.Load16 (dst, addr) =>
+          | A.Store8 (addr, src) =>
+          | A.Store16 (addr, src) =>
+          | A.PopJumpInd =>
+          | A.JumpCond (cond, lab) =>
+          | A.Immediate8 (tmp, w8) =>
+          | A.Immediate32 (tmp, w32) =>
+          | A.Add (a, b) =>
+          | A.Sub (a, b) =>
+          | A.Complement a =>
+          | A.Mov (a, b) =>
+          | A.Xor (a, b) =>
+  *)
+          | _ =>
+              let in
+                (* print ("Unimplemented cmd: " ^ ASM.explicit_cmdtos cmd ^ "\n"); *)
+
+                acc // MESSAGE ("TODO " ^ ASM.explicit_cmdtos cmd)
+              end
+        (* raise ToX86 ("Unimplemented cmd: " ^ ASM.explicit_cmdtos cmd) *)
+        end
 
       val acc =
         if is_initial
@@ -303,7 +353,19 @@ struct
         docmds (onecmd acc cmd, cmds)
 
       val acc = docmds (acc, cmds)
+
+      fun debug_print () =
+        let val insns = Acc.insns acc
+        in
+          print ("#" ^ Int.toString (getlabelnum labelnum lab) ^ ". " ^
+                 lab ^ ":\n");
+          (* XXX print next jumps, etc. *)
+          app (fn ins => print ("   " ^ insstring ins ^ "\n")) insns;
+          print "\n"
+        end
+
     in
+      debug_print ();
       (Acc.encoded acc, !next_jumps)
     end
 

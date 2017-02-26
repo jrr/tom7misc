@@ -56,6 +56,7 @@ ckit/ckit-lib.mlb
   acc-sig.sml
   acc.sml
 
+  tactics-sig.sml
   tactics.sml
   tactics-test.sml
 
