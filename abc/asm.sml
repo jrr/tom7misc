@@ -279,11 +279,10 @@ struct
      to the beginning of this function's temporary frame again. *)
   | RestoreTempsNamed of string
   | RestoreTempsExplicit of int
-  (* Expand or shrink the (locals) frame by moving the base pointer.
-     Each function knows how much space it needs for its locals,
-     and expands the frame before making a function call, in order
-     to save the values of its locals and make room for the called
-     function's. *)
+  (* Expand or shrink the locals frame (EBX) by moving the base pointer.
+     Each function knows how much space it needs for its locals, and
+     expands the frame before making a function call, in order to save
+     the values of its locals and make room for the called function's. *)
   | ExpandFrame of int
   | ShrinkFrame of int
   (* Assign the address of the current frame (EBX) plus the
@@ -323,7 +322,8 @@ struct
   | Init
   (* TODO: inc, etc. *)
 
-  type 'tmp block = string * 'tmp cmd list
+  datatype 'tmp block = Block of { name: string,
+                                   cmds: 'tmp cmd list }
 
   datatype 'tmp program =
     Program of
@@ -379,7 +379,7 @@ struct
     | Init => "init"
     | Label lab => "(LABEL " ^ lab ^ ")"
 
-  fun blocktos ts (name, cmds) =
+  fun blocktos ts (Block { name, cmds }) =
     "  " ^ name ^ ":\n" ^
     String.concat (map (fn cmd => "    " ^ cmdtos ts cmd ^ "\n") cmds)
 
