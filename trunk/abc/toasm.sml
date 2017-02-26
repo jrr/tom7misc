@@ -226,8 +226,8 @@ struct
       (* Generate code to put the value v in a new temporary,
          then call the continuation with that temporary and its size. *)
       fun gentmp (ctx : C.context) (v : C.value)
-        (k : A.named_tmp * C.typ -> A.named_tmp A.cmd list * 'b) :
-        A.named_tmp A.cmd list * 'b =
+        (k : A.named_tmp * C.typ -> A.named_cmd list * 'b) :
+        A.named_cmd list * 'b =
         case v of
           C.Var var =>
             (case C.Context.lookup (ctx, var) of
@@ -278,8 +278,8 @@ struct
 
       (* Generate code for e, and bind vt (if SOME) to its value. *)
       fun genexp (ctx : C.context) (vt : (string * C.typ) option, e : C.exp)
-        (k : unit -> A.named_tmp A.cmd list * 'b) :
-        A.named_tmp A.cmd list * 'b =
+        (k : unit -> A.named_cmd list * 'b) :
+        A.named_cmd list * 'b =
         case (e, vt) of
           (C.Call (fv, argvs), vt) =>
             (* This is the only one that we actually need to emit if
@@ -308,7 +308,7 @@ struct
                    (* Push the destination of the jump before we lose access
                       to tmps. *)
                    A.Push ftmp //
-                   A.SaveTempsNamed function_name //
+                   A.SaveTemps (A.Named function_name) //
                    (* PERF: Can often be a direct jump... *)
                    A.PopJumpInd //
                    (* Here we'd like to just start another block, but the
@@ -316,7 +316,7 @@ struct
                       easy. So we insert this meta-command that later gets
                       rewritten into a normal labeled block. *)
                    A.Label returnlabel //
-                   A.RestoreTempsNamed function_name //
+                   A.RestoreTemps (A.Named function_name) //
                    (* Callee has undone the expanded frame. *)
                    (* If we are using the return value, move it to the
                       temporary corresponding to the bound variable.
@@ -388,9 +388,10 @@ struct
 
                      A.Add (atmp, btmp) // k ()
                    end))
-             | C.Truncate { src: C.width, dst: C.width, v: C.value } =>
+             | C.Truncate { src : C.width, dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented truncate"
-             | C.Promote { signed: bool, src: C.width, dst: C.width, v: C.value } =>
+                 | C.Promote { signed : bool, src : C.width,
+                               dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented promote"
              | C.Minus (w, a, b) => raise ToASM "unimplemented minus"
              | C.Times (w, a, b) => raise ToASM "unimplemented times"
@@ -533,7 +534,9 @@ struct
           val () = done := SM.insert (!done, lab, ())
           val (cmds, next) = gencmds C.Context.empty stmt
         in
-          A.Block { name = lab, cmds = cmds } ::
+          A.Block { name = lab,
+                    tmp_frame = A.Named function_name,
+                    cmds = cmds } ::
           (case next of
              NONE => donext ()
            | SOME lnext => genblock lnext)
@@ -542,8 +545,13 @@ struct
       val header_label = function_header_label function_name
       fun genall () =
         (* Any initialization we like here. This used to allocate
-           the frame, but now the caller does that. *)
-        A.Block { name = header_label, cmds = nil } ::
+           the frame, but now the caller does that.
+
+           We still need this block (even though it's now empty)
+           because elsewhere we may need to refer to this label. *)
+        A.Block { name = header_label,
+                  tmp_frame = A.Named function_name,
+                  cmds = nil } ::
         (* And then continue with the function's entry point. *)
         genblock body
     in
@@ -553,7 +561,7 @@ struct
   (* Remove uses of the Label meta-command from the list of blocks,
      by creating an actual block in the sequence with that label. *)
   fun unlabel nil = nil
-    | unlabel (A.Block { name, cmds } :: rest) =
+    | unlabel (A.Block { name, tmp_frame, cmds } :: rest) =
     let
       fun ul nil = (nil, nil)
         | ul (cmd :: crest) =
@@ -561,13 +569,19 @@ struct
           val (cs, blocks) = ul crest
         in
           case cmd of
-            A.Label lab => (nil, A.Block { name = lab, cmds = cs } :: blocks)
+            A.Label lab => (nil, A.Block { name = lab,
+                                           (* must be part of the same context,
+                                              so inherit its tmp_frame *)
+                                           tmp_frame = tmp_frame,
+                                           cmds = cs } :: blocks)
           | _ => (cmd :: cs, blocks)
         end
 
       val (hc, blocks) = ul cmds
     in
-      (A.Block { name = name, cmds = hc } :: blocks) @ unlabel rest
+      (A.Block { name = name,
+                 tmp_frame = tmp_frame,
+                 cmds = hc } :: blocks) @ unlabel rest
     end
 
   fun doproc globalpositions
@@ -575,7 +589,7 @@ struct
               { args : (string * C.typ) list,
                 ret : C.typ,
                 body : string,
-                blocks : (string * C.stmt) list }) : A.named_tmp A.block list =
+                blocks : (string * C.stmt) list }) : A.named_block list =
     let
       val argsizes : sz SM.map =
         foldl (fn ((s, t), m) => SM.insert (m, s, typsize t)) SM.empty args
@@ -718,7 +732,7 @@ struct
       fun onefunction (name, func) =
         (name, doproc globalpositions (name, func))
 
-      val proc_blocks : (string * A.named_tmp A.block list) list =
+      val proc_blocks : (string * A.named_block list) list =
         map onefunction functions
       (* Each proc is a list of blocks that have to go in that order,
          but the lists can be permuted however we like. We don't do
@@ -728,7 +742,7 @@ struct
       val blocks =
         case ListUtil.Alist.extract op= proc_blocks main of
           NONE => raise ToASM ("there is no main function " ^ main ^ "?")
-        | SOME (mproc : A.named_tmp A.block list, rest) =>
+        | SOME (mproc : A.named_block list, rest) =>
             let
               (* Flatten the blocks. *)
               val rest = List.concat ` map #2 rest
@@ -738,7 +752,9 @@ struct
             end
 
       val init_label = CILUtil.newlabel "__abc_init"
-      val init_block = A.Block { name = init_label, cmds = [A.Init] }
+      val init_block = A.Block { name = init_label,
+                                 tmp_frame = A.Named "__abc_init",
+                                 cmds = [A.Init] }
     in
       (* Probably should include some headroom here..? *)
       if frame_stack_start > 65536

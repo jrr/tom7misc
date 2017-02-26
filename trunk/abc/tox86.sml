@@ -214,7 +214,8 @@ struct
                     frame_stack_start : int,
                     is_initial : bool,
                     A.Block { name = lab,
-                              cmds : A.explicit_tmp A.cmd list }) =
+                              tmp_frame = A.Explicit tmp_frame_size,
+                              cmds : A.explicit_cmd list }) =
     let
       (* Rewrite displacements for next rail, as discussed above.
          Byte offset from the beginning of the block. *)
@@ -224,8 +225,6 @@ struct
       fun onecmd acc cmd =
         case cmd of
           A.Label _ => raise ToX86 "bug: unexpected Label"
-        | A.SaveTempsNamed _ => raise ToX86 "bug: unexpected SaveTempsNamed"
-        | A.RestoreTempsNamed _ => raise ToX86 "bug: unexpected RestoreTempsNamed"
         | A.Init =>
             let in
               (* Sanity check... *)
@@ -262,7 +261,7 @@ struct
         | A.Xor (a, b) =>
 *)
         | _ => raise ToX86 ("Unimplemented cmd: " ^
-                            ASM.cmdtos ASM.explicit_tmptos cmd)
+                            ASM.explicit_cmdtos cmd)
 
       val acc =
         if is_initial
@@ -313,7 +312,7 @@ struct
      may not be valid, so the driver needs to check for several
      problems that could occur, and then call layout_round again
      with an adjusted program. *)
-  fun layout_round (blocks : A.explicit_tmp A.block list,
+  fun layout_round (blocks : A.explicit_block list,
                     frame_stack_start : int,
                     initial_label : string) =
     let

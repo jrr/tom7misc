@@ -51,45 +51,44 @@ struct
         | NeZero tmp => NeZero (f tmp)
         | True => True
 
-      fun map_tmp (f : 'a -> 'b) (cmd : 'a cmd) : 'b cmd =
+      fun map_cmd (ft : 'a -> 'b) (fo : 'c -> 'd) (cmd : ('a, 'c) cmd) : ('b, 'd) cmd =
         case cmd of
-          (* These will get updated later *)
-          SaveTempsNamed a => SaveTempsNamed a
-        | SaveTempsExplicit _ =>
-          raise AllocateTmps "not explicit SaveTempsExplicit yet?"
-        | RestoreTempsNamed a => RestoreTempsNamed a
-        | RestoreTempsExplicit _ =>
-          raise AllocateTmps "not explicit RestoreTempsExplicit yet?"
+          SaveTemps a => SaveTemps (fo a)
+        | RestoreTemps a => RestoreTemps (fo a)
         | ExpandFrame a => ExpandFrame a
         | ShrinkFrame a => ShrinkFrame a
-        | FrameOffset (tmp, w16) => FrameOffset (f tmp, w16)
+        | FrameOffset (tmp, w16) => FrameOffset (ft tmp, w16)
         | Label lab => Label lab
-        | Load8 (a, b) => Load8 (f a, f b)
-        | Load16 (a, b) => Load16 (f a, f b)
-        | Store8 (a, b) => Store8 (f a, f b)
-        | Store16 (a, b) => Store16 (f a, f b)
-        | Immediate8 (tmp, w) => Immediate8 (f tmp, w)
-        | Immediate16 (tmp, w) => Immediate16 (f tmp, w)
-        | Immediate32 (tmp, w) => Immediate32 (f tmp, w)
-        | Add (a, b) => Add (f a, f b)
-        | Sub (a, b) => Sub (f a, f b)
-        | Complement tmp => Complement (f tmp)
-        | Mov (a, b) => Mov (f a, f b)
-        | Xor (a, b) => Xor (f a, f b)
-        | Push tmp => Push (f tmp)
-        | Pop tmp => Pop (f tmp)
-        | LoadLabel (tmp, s) => LoadLabel (f tmp, s)
+        | Load8 (a, b) => Load8 (ft a, ft b)
+        | Load16 (a, b) => Load16 (ft a, ft b)
+        | Store8 (a, b) => Store8 (ft a, ft b)
+        | Store16 (a, b) => Store16 (ft a, ft b)
+        | Immediate8 (tmp, w) => Immediate8 (ft tmp, w)
+        | Immediate16 (tmp, w) => Immediate16 (ft tmp, w)
+        | Immediate32 (tmp, w) => Immediate32 (ft tmp, w)
+        | Add (a, b) => Add (ft a, ft b)
+        | Sub (a, b) => Sub (ft a, ft b)
+        | Complement tmp => Complement (ft tmp)
+        | Mov (a, b) => Mov (ft a, ft b)
+        | Xor (a, b) => Xor (ft a, ft b)
+        | Push tmp => Push (ft tmp)
+        | Pop tmp => Pop (ft tmp)
+        | LoadLabel (tmp, s) => LoadLabel (ft tmp, s)
         | PopJumpInd => PopJumpInd
-        | JumpCond (cond, lab) => JumpCond (map_cond f cond, lab)
+        | JumpCond (cond, lab) => JumpCond (map_cond ft cond, lab)
         | Init => Init
 
       fun gather (tmp as N { func, name, size }) =
                   (observetmp (func, name, size); tmp)
 
-      fun gathertmps (Block { name = lab, cmds : named_tmp cmd list }) =
-        Block { name = lab, cmds = map (map_tmp gather) cmds }
+      fun gathertmps (Block { name = lab, tmp_frame, cmds : named_cmd list }) =
+        Block { name = lab,
+                tmp_frame = tmp_frame,
+                cmds = map (map_cmd gather Util.I) cmds }
 
-      val blocks : named_tmp block list = map gathertmps blocks
+      (* First pass simply gathers the used temporaries so that we can
+         allocate them. *)
+      val blocks : named_block list = map gathertmps blocks
 
       (* For one function's data... *)
       fun allocatefn (ctx : sz SM.map ref) =
@@ -119,6 +118,8 @@ struct
            NONE => 0
          | SOME { size, pos = _ } => size)
 
+      fun rewrite_off (Named func) = Explicit (context_size func)
+
       fun rewrite_tmp (N { func, name, size }) =
         (case SM.find (layout, func) of
            NONE => raise AllocateTmps ("bug: rewrite didn't find tmp context " ^
@@ -133,20 +134,15 @@ struct
       (* Next, just allocate in map order, and compute the size for
          each context. Rewrite matching SaveTempsNamed and RestoreTempsNamed,
          plus each tmp occurrence. *)
-      fun rewritecmd cmd =
-        case cmd of
-          SaveTempsNamed a => SaveTempsExplicit (context_size a)
-        | SaveTempsExplicit _ =>
-          raise AllocateTmps "[rewrite] not explicit SaveTempsExplicit yet?"
-        | RestoreTempsNamed a => RestoreTempsExplicit (context_size a)
-        | RestoreTempsExplicit _ =>
-          raise AllocateTmps "[rewrite] not explicit RestoreTempsExplicit yet?"
-        | _ => map_tmp rewrite_tmp cmd
+      fun rewrite_cmd (cmd : named_cmd) : explicit_cmd =
+        map_cmd rewrite_tmp rewrite_off cmd
 
-      fun rewrite (Block { name, cmds }) = Block { name = name,
-                                                   cmds = map rewritecmd cmds }
+      fun rewrite_block (Block { name, tmp_frame, cmds }) =
+        Block { name = name,
+                tmp_frame = rewrite_off tmp_frame,
+                cmds = map rewrite_cmd cmds }
 
-      val blocks : explicit_tmp block list = map rewrite blocks
+      val blocks : explicit_block list = map rewrite_block blocks
 
       val layout_table =
         ["func", "offset", "tmp"] ::
