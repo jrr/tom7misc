@@ -79,7 +79,7 @@
    near the beginning of DS, starting at offset 256 (before that is
    the PSP).
 
-   * Arguments and locals. *
+   * Arguments and locals. *        [DS, EBX+disp8]
    Arguments and locals are basically the same, except that arguments
    must be accessed by both the caller and callee. Because there can
    be an arbitrary (well, limited by segment size) number of functions
@@ -100,7 +100,7 @@
 
    [1] if compiled as 0-bytes, which it may not be.
 
-   * Temporaries. *
+   * Temporaries. *                  [SS, EBP+disp8]
    In a traditional C compiler, temporaries are basically either local
    variables or registers. It works differently in ABC because:
     - Due to segmented memory, we want to store as little as possible in
@@ -122,10 +122,19 @@
    actually want EBP to be 0x20 bytes shy of the actual frame at all
    times, so that we can use the EBP+disp8 addressing mode.]
 
-   XXX: Tactics may need one or more temporaries for their own (temporary)
-   use. We could make these explicit in the commands that need them? Or
-   just allocate some extra space in each temporary frame (or even use
-   the space past it...).
+   One additional complication to temporaries is that X86 code
+   generation sometimes needs a temporary or two just to emit an ASM
+   command. These don't need to be saved across commands and so they
+   don't participate in allocation, and don't count towards the
+   temporary frame size. Each block is marked with the size of the
+   temp frame, and X86 codegen uses spots right beyond the frame for
+   whatever it likes. (An alternative would have been to make each
+   ASM command take some "via" temporaries explicitly, and have those
+   participate in allocation. This may actually be better, but one
+   bummer thing is that it exposes the implementation details of the
+   X86 tactics in the ASM language. Sometimes the need for a temporary
+   is contingent on machine state (e.g. do I already have this value
+   in a register, etc.), which is definitely awkward to express.)
 
    * Return addresses. *
    (on machine stack)
@@ -161,8 +170,8 @@
 
 
    X86 registers reserved for compiler use:
-    - EBX points to beginning of local frame (in DS).
-    - EBP points to beginning of temporary frame (in SS).
+    - EBX points to beginning of local frame (in DS), minus 0x20.
+    - EBP points to beginning of temporary frame (in SS), minus 0x20.
     - ESP is the top of the machine stack (in SS)
    ...
 
@@ -265,7 +274,7 @@ struct
      TODO: Document what is allowed.
      *)
   datatype ('tmp, 'off) cmd =
-  (* Advance EBP (pointer to the beginning of the temporary stack)
+  (* Advance EBP (pointer to the beginning of the temporary stack, -0x20)
      beyond this function's temporary frame. This is done before
      making a call so that the called function has room for its
      temporaries, and the current values of the temporaries are
@@ -275,7 +284,7 @@ struct
      size of the temporary frame in bytes (once explicit). *)
     SaveTemps of 'off
   (* The counterpart to SaveTemps; reduces EBP so that it points
-     to the beginning of this function's temporary frame again. *)
+     to the beginning of this function's temporary frame again (-0x20). *)
   | RestoreTemps of 'off
   (* Expand or shrink the locals frame (EBX) by moving the base pointer.
      Each function knows how much space it needs for its locals, and
@@ -306,6 +315,7 @@ struct
   | Complement of 'tmp
   | Mov of 'tmp * 'tmp
   | Xor of 'tmp * 'tmp
+  (* Push/pop of 16-bit quantities. *)
   | Push of 'tmp
   | Pop of 'tmp
   (* Name of code block. 16 bits. *)

@@ -82,7 +82,7 @@ struct
   | IND_EDX_DISP8 of Word8.word
   | IND_EBX_DISP8 of Word8.word
   | IND_SIB_DISP8 of sib * Word8.word
-  | IND_EPB_DISP8 of Word8.word
+  | IND_EBP_DISP8 of Word8.word
   | IND_ESI_DISP8 of Word8.word
   | IND_EDI_DISP8 of Word8.word
   (* mod=10. Four-byte displacement. As above, this is a signed
@@ -93,7 +93,7 @@ struct
   | IND_EDX_DISP32 of Word32.word
   | IND_EBX_DISP32 of Word32.word
   | IND_SIB_DISP32 of sib * Word32.word
-  | IND_EPB_DISP32 of Word32.word
+  | IND_EBP_DISP32 of Word32.word
   | IND_ESI_DISP32 of Word32.word
   | IND_EDI_DISP32 of Word32.word
   (* mod=11. Same encoding as reg. *)
@@ -200,6 +200,10 @@ struct
        instructions or data. word8 should be printable,
        of course. XXX remove this? *)
     | DB of word8
+    (* Meta-instruction that cannot be assembled...
+       XXX remove this!
+       *)
+    | MESSAGE of string
 
   fun multiregstring mr =
     case mr of
@@ -254,15 +258,48 @@ struct
             | BH_DI => "DI")
          end
 
-    fun modrmstring _ = "(modrm)"
+    (* Render as +dec or -dec *)
+    fun disp8 (w : Word8.word) =
+      let val i = Word8.toIntX w
+      in
+        if i >=0 then "+" ^ Int.toString i
+        else "-" ^ Int.toString (~i)
+      end
+    fun modrmstring size modrm =
+      case modrm of
+        IND_EAX => "[EAX]"
+      | IND_ECX => "[ECX]"
+      | IND_EDX => "[EDX]"
+      | IND_EBX => "[EBX]"
+      | IND_SIB sib => "[SIB???]" (* TODO *)
+      | DISP32 w => "[0x" ^ Word32.toString w ^ "]"
+      | IND_ESI => "[ESI]"
+      | IND_EDI => "[EDI]"
+      | IND_EAX_DISP8 w8 => "[EAX" ^ disp8 w8 ^ "]"
+      | IND_ECX_DISP8 w8 => "[ECX" ^ disp8 w8 ^ "]"
+      | IND_EDX_DISP8 w8 => "[EDX" ^ disp8 w8 ^ "]"
+      | IND_EBX_DISP8 w8 => "[EBX" ^ disp8 w8 ^ "]"
+      | IND_SIB_DISP8 (sib, w8) => "[SIB???" ^ disp8 w8 ^ "]"
+      | IND_EBP_DISP8 w8 => "[EBP" ^ disp8 w8 ^ "]"
+      | IND_ESI_DISP8 w8 => "[ESI" ^ disp8 w8 ^ "]"
+      | IND_EDI_DISP8 w8 => "[EDI" ^ disp8 w8 ^ "]"
+      (* XXX not implemented because they are not useful (printable disp32 is
+         too big) *)
+      | IND_EAX_DISP32 w32 => "[EAX+disp32]"
+      | IND_ECX_DISP32 w32 => "[ECX+disp32]"
+      | IND_EDX_DISP32 w32 => "[EDX+disp32]"
+      | IND_EBX_DISP32 w32 => "[EBX+disp32]"
+      | IND_SIB_DISP32 (sib, w32) => "[SIB???+disp32]"
+      | IND_EBP_DISP32 w32 => "[EBP+disp32]"
+      | IND_ESI_DISP32 w32 => "[ESI+disp32]"
+      | IND_EDI_DISP32 w32 => "[EDI+disp32]"
+      | Register reg => sizedregstring (size, reg)
 
     fun sizeargsstring (size, (reg <- modrm)) =
-          sizedregstring (size, reg) ^ " <- " ^ modrmstring modrm
+          sizedregstring (size, reg) ^ " <- " ^ modrmstring size modrm
       | sizeargsstring (size, (modrm <~ reg)) =
-          " <- " ^ modrmstring modrm ^ " <~ " ^ sizedregstring (size, reg)
+          modrmstring size modrm ^ " <~ " ^ sizedregstring (size, reg)
 
-    fun disp8 (w : Word8.word) =
-      Int.toString (Word8.toIntX w)
   in
     fun insstring ins =
       case ins of
@@ -297,8 +334,9 @@ struct
 
       | MOV sa => "MOV " ^ sizeargsstring sa
       | NOP => "NOP"
-      | INT w => "INTERRUPT"
-      | DB w => "DB"
+      | INT w => ("INT " ^ Word8.toString w)
+      | DB w => ("DB " ^ Word8.toString w)
+      | MESSAGE m => ("** MESSAGE " ^ m)
 (*      | _ => "OTHER_INS" *)
   end
 

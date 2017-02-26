@@ -60,6 +60,7 @@ group is
   acc-sig.sml
   acc.sml
 
+  tactics-sig.sml
   tactics.sml
   tactics-test.sml
 
