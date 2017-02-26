@@ -127,23 +127,18 @@ struct
         end
 
 
-  (* Claim one of the registers in l, preferring registers towards the
-     front of the list. If all are used, then just pick one and save
-     it to the stack, restoring it at the end.
-
-     PERF: Maybe avoid claiming registers whose values we know? Those
-     often help us generate shorter code.
-
-     The continuation is run with the register marked as claimed, and then
-     it is unclaimed at the end. *)
-  fun claim_reg16 acc (l : reg list) (f : acc * reg -> acc) : acc =
+  (* PERF: Maybe avoid claiming registers whose values we know? Those
+     often help us generate shorter code. *)
+  (* If all are used, then just pick one and save it to the stack, restoring
+     it at the end. *)
+  fun claim_reg16_stackok acc (l : reg list) (f : acc * reg -> acc) : acc =
     let
       (* n.b., when this calls save_and_claim, we know whether the claim
          will be blocked or not. *)
       fun get_unclaimed nil =
           (* No registers are unclaimed. *)
           (case l of
-             nil => raise Tactics ("claim_reg16 needs at least one " ^
+             nil => raise Tactics ("claim_reg16_stackok needs at least one " ^
                                    "register in the list")
            | r :: _ => save_and_claim acc (reg_to_multireg16 r)
                        (fn a => f (a, r)))
@@ -151,6 +146,29 @@ struct
            let val mr = reg_to_multireg16 r
            in if can_be_claimed acc mr
               then save_and_claim acc mr (fn a => f (a, r))
+              else get_unclaimed rest
+           end
+    in
+      get_unclaimed l
+    end
+
+  (* Claim one of the registers in the list. If none are available, aborts. *)
+  fun claim_reg16 acc (l : reg list) (f : acc * reg -> acc) : acc =
+    let
+      (* n.b., when this calls save_and_claim, we know whether the claim
+         will be blocked or not. *)
+      fun get_unclaimed nil =
+        raise Tactics ("no unclaimed regs in claim_reg16. options were:\n" ^
+                       StringUtil.delimit " " (map X86.regtos l) ^
+                       "\nand acc was:\n" ^
+                       Acc.debug_string acc)
+        | get_unclaimed (r :: rest) =
+           let val mr = reg_to_multireg16 r
+           in if can_be_claimed acc mr
+              then
+                let val acc = acc ++ mr
+                in f (acc, r) -- mr
+                end
               else get_unclaimed rest
            end
     in

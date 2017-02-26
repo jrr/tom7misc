@@ -3,11 +3,27 @@ sig
 
   exception Tactics of string
   type acc = Acc.acc
+  type reg = X86.reg
 
   (* New good stuff used in ToX86. *)
 
   (* initialize (acc, init_ebp, init_ebx) *)
   val initialize : acc * Word16.word * Word16.word -> acc
+
+  (* claim_reg16 acc l f
+     Claim one of the registers in l, preferring registers towards the
+     front of the list.
+
+     The continuation f is run with the register marked as claimed, and then
+     it is unclaimed at the end. *)
+  val claim_reg16 : acc -> (reg list) -> (acc * reg -> acc) -> acc
+
+  (* modrm byte for a temporary offset from EBP; should usually be used
+     instead of IND_EBP_DISP8. Here, an argument of 0 actually results
+     in a displacement of the minimum printable value, 0x20. We keep
+     EBP 0x20 bytes shy of the nominal start of the frame, so that we
+     can use it this way. *)
+  val EBP_TEMPORARY : int -> X86.modrm
 
   (* Adjust temporary frame or local frame base pointers.
      Give the size of the temporary frame in case it needs

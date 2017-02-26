@@ -309,7 +309,9 @@ struct
                       to tmps. *)
                    A.Push ftmp //
                    A.SaveTemps (A.Named function_name) //
-                   (* PERF: Can often be a direct jump... *)
+                   (* PERF: Can often be a direct jump, which is much more
+                      efficient than this (which always has to do at least one
+                      full revolution.) *)
                    A.PopJumpInd //
                    (* Here we'd like to just start another block, but the
                       structure of the code doesn't make this particularly

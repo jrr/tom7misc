@@ -301,6 +301,15 @@ struct
           modrmstring size modrm ^ " <~ " ^ sizedregstring (size, reg)
 
   in
+    fun regtos A = "A"
+      | regtos C = "C"
+      | regtos D = "D"
+      | regtos B = "B"
+      | regtos AH_SP = "AH/SP"
+      | regtos CH_BP = "CH/BP"
+      | regtos DH_SI = "DH/SI"
+      | regtos BH_DI = "BH/DI"
+
     fun insstring ins =
       case ins of
         AND sa => "AND " ^ sizeargsstring sa
