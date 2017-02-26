@@ -7,11 +7,10 @@ sig
      This can also coalesce temporaries whose lifetimes do not
      overlap.
 
-     Also Replaces (Save/Restore)TempsNamed with
-     (Save/Restore)TempsExplicit.
+     Also fills in Named offsets (and frame size) with Explicit ones.
 
      Conceivably this could also allocate some temporaries to
      registers, though that is not yet supported. *)
-  val allocate : ASM.named_tmp ASM.program -> ASM.explicit_tmp ASM.program
+  val allocate : ASM.named_program -> ASM.explicit_program
 
 end

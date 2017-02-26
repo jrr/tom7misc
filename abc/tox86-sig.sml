@@ -8,7 +8,7 @@ sig
 
   (* Convert to a fully-encoded program, which consists of the
      two 63356-byte segments. *)
-  val tox86 : ASM.explicit_tmp ASM.program ->
+  val tox86 : ASM.explicit_program ->
     { cs : Word8Vector.vector,
       ds : Word8Vector.vector }
 

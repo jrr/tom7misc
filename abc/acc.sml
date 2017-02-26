@@ -27,7 +27,7 @@ struct
     let
       (* PERF: Too much allocation! Encode could provide this functionality
          directly by writing into a temporary array (even using the functor). *)
-      val vec = Vector.concat (map (EncodeX86.encode ctx) (rev ins))
+      val vec = Word8Vector.concat (map (EncodeX86.encode ctx) (rev ins))
     in
       if insbytes = Word8Vector.length vec
       then ()

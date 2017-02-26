@@ -219,8 +219,11 @@ struct
      - should maybe have some name hint, just for sanity?
      - should have the possibility of using a register? *)
   datatype explicit_tmp = E of { offset : int,
-                                 size: sz,
-                                 comment: string }
+                                 size : sz,
+                                 comment : string }
+
+  datatype named_off = Named of string
+  datatype explicit_off = Explicit of int
 
   (* X86 offers both "A < B" and "B > A", which have equivalent
      meaning, but are encoded differently (CMP (A, B) vs CMP (B, A))
@@ -261,24 +264,19 @@ struct
      performed, but of course not all combinations are supported.
      TODO: Document what is allowed.
      *)
-  datatype 'tmp cmd =
+  datatype ('tmp, 'off) cmd =
   (* Advance EBP (pointer to the beginning of the temporary stack)
      beyond this function's temporary frame. This is done before
      making a call so that the called function has room for its
      temporaries, and the current values of the temporaries are
      restored.
 
-     There are two versions: The first is for when temps are named
-     (then the string is the function name); the second is for
-     explicit temps (then it is a number of bytes). This could be
-     enforced with another type parameter, but it's probably simpler
-     to just keep it as an invariant. *)
-    SaveTempsNamed of string
-  | SaveTempsExplicit of int
+     Argument is either the name of the function context, or the
+     size of the temporary frame in bytes (once explicit). *)
+    SaveTemps of 'off
   (* The counterpart to SaveTemps; reduces EBP so that it points
      to the beginning of this function's temporary frame again. *)
-  | RestoreTempsNamed of string
-  | RestoreTempsExplicit of int
+  | RestoreTemps of 'off
   (* Expand or shrink the locals frame (EBX) by moving the base pointer.
      Each function knows how much space it needs for its locals, and
      expands the frame before making a function call, in order to save
@@ -322,20 +320,21 @@ struct
   | Init
   (* TODO: inc, etc. *)
 
-  datatype 'tmp block = Block of { name: string,
-                                   cmds: 'tmp cmd list }
+  datatype ('tmp, 'off) block = Block of { name : string,
+                                           tmp_frame : 'off,
+                                           cmds : ('tmp, 'off) cmd list }
 
-  datatype 'tmp program =
+  datatype ('tmp, 'off) program =
     Program of
     { (* The order of this list is significant; execution begins at the
          first block and falls through to the next (unless following a
          jump). Exection must not "fall off the end." *)
-      blocks: 'tmp block list,
+      blocks : ('tmp, 'off) block list,
       (* Offset of first position after globals that we can use for
          the frame stack. *)
       frame_stack_start : int,
       (* Always 65536 bytes; printable. *)
-      datasegment: Word8Vector.vector }
+      datasegment : Word8Vector.vector }
 
   fun condtos ts c =
     case c of
@@ -349,12 +348,10 @@ struct
     | NeZero a => "jnz " ^ ts a
     | True => "jmp"
 
-  fun cmdtos ts c =
+  fun cmdtos ts os c =
     case c of
-      SaveTempsNamed f => "savetemps " ^ f
-    | SaveTempsExplicit n => "savetemps " ^ Int.toString n
-    | RestoreTempsNamed f => "restoretemps " ^ f
-    | RestoreTempsExplicit n => "restoretemps " ^ Int.toString n
+      SaveTemps f => "savetemps " ^ os f
+    | RestoreTemps f => "restoretemps " ^ os f
     | ExpandFrame n => "expandframe " ^ Int.toString n
     | ShrinkFrame n => "shrinkframe " ^ Int.toString n
     | FrameOffset (dst, off) => "frameoffset " ^ ts dst ^ " <- frame+" ^
@@ -379,16 +376,16 @@ struct
     | Init => "init"
     | Label lab => "(LABEL " ^ lab ^ ")"
 
-  fun blocktos ts (Block { name, cmds }) =
-    "  " ^ name ^ ":\n" ^
-    String.concat (map (fn cmd => "    " ^ cmdtos ts cmd ^ "\n") cmds)
+  fun blocktos ts os (Block { name, tmp_frame, cmds }) =
+    "  " ^ name ^ ":    (frame: " ^ os tmp_frame ^ ")\n" ^
+    String.concat (map (fn cmd => "    " ^ cmdtos ts os cmd ^ "\n") cmds)
 
-  fun progtos ts (Program { blocks, frame_stack_start, datasegment }) =
+  fun progtos ts os (Program { blocks, frame_stack_start, datasegment }) =
     (* XXX print data segment? *)
     "DATA (.. 64kb ..)\n" ^
     "FRAME @" ^ Int.toString frame_stack_start ^ "\n" ^
     "PROGRAM:\n" ^
-    String.concat (map (blocktos ts) blocks) ^ "\n"
+    String.concat (map (blocktos ts os) blocks) ^ "\n"
 
   fun named_tmptos (N { func, name, size }) =
     func ^ "." ^ name ^
@@ -407,7 +404,20 @@ struct
     (if comment = "" then ""
      else ("    ; " ^ comment)) *)
 
-  val named_program_tostring = progtos named_tmptos
-  val explicit_program_tostring = progtos explicit_tmptos
+  fun named_offtos (Named l) = l
+  fun explicit_offtos (Explicit i) = Int.toString i
 
+  val named_program_tostring = progtos named_tmptos named_offtos
+  val explicit_program_tostring = progtos explicit_tmptos explicit_offtos
+
+  val explicit_cmdtos = cmdtos explicit_tmptos explicit_offtos
+
+  type named_program = (named_tmp, named_off) program
+  type explicit_program = (explicit_tmp, explicit_off) program
+
+  type named_block = (named_tmp, named_off) block
+  type explicit_block = (explicit_tmp, explicit_off) block
+
+  type named_cmd = (named_tmp, named_off) cmd
+  type explicit_cmd = (explicit_tmp, explicit_off) cmd
 end
