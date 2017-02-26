@@ -212,12 +212,13 @@ struct
      move around the blocks a little bit after the fact. There's
      always at least one of these, for the rung at the head of the
      block. *)
-  fun layout_block (labelnum : int SM.map,
-                    frame_stack_start : int,
-                    is_initial : bool,
-                    A.Block { name = lab,
-                              tmp_frame = A.Explicit tmp_frame_size,
-                              cmds : A.explicit_cmd list }) =
+  fun layout_block { labelnum : int SM.map,
+                     num_labels : int,
+                     frame_stack_start : int,
+                     is_initial : bool,
+                     block = A.Block { name = current_lab,
+                                       tmp_frame = A.Explicit tmp_frame_size,
+                                       cmds : A.explicit_cmd list } } =
     let
       (* Rewrite displacements for next rail, as discussed above.
          Byte offset from the beginning of the block. *)
@@ -280,12 +281,71 @@ struct
                 assert16 tmp;
                 Tactics.imm_tmp16 acc (offset tmp) w16
               end
-          | A.LoadLabel (tmp, lab) =>
+          | A.LoadLabel (tmp, other_lab) =>
               let
-                val idx = getlabelnum labelnum lab
+                val idx = getlabelnum labelnum other_lab
               in
                 assert16 tmp;
                 Tactics.imm_tmp16 acc (offset tmp) (Word16.fromInt idx)
+              end
+
+          | A.PopJumpInd =>
+              (* Pop the 16-bit label off the stack.
+                 Compute a relative offset to that; put in SI.
+                 Jump to next rung. *)
+              let
+                val current_idx = getlabelnum labelnum current_lab
+                (* If we jump to the next rung with a value of 1, we DEC and
+                   then SI will be 0. So, putting aside the modulus, we're
+                   looking for exactly the distance dest_idx - current_idx. *)
+
+                (* We'd like to compute (dest_idx - current_idx % num_labels)
+                   with some caveats: A jump of 0 actually needs to be
+                   represented as num_labels, not 0, because we're going to
+                   start on the next rung (which would already be past the
+                   current block). Worse, computing mod num_labels is way
+                   too complicated without access to instructions like IDIV.
+
+                   (Note: If we knew the number of labels was a power of two,
+                   we could do this with AND_AX_IMM.)
+
+                   Instead, we just compute (dest - current) naively, and
+                   then add num_labels. This means that we *always* do at
+                   least a full trip around (combination safe style!), but
+                   that's probably cheaper than trying to calculate the
+                   modulus in the first place, and much less code. *)
+
+                (* Goal is to set SI = (stack_top - current_idx) + num_labels,
+                   which is the same as
+                   stack_top - (current_idx - num_labels)
+
+                   So we generate
+                   tmp <- immediate (current_idx - num_labels)
+                   POP SI
+                   SUB SI <- tmp
+                   JMP to next rail *)
+                val tmp = tmp_frame_size
+                val subtractand = Word16.-(Word16.fromInt current_idx,
+                                           Word16.fromInt num_labels)
+                val () = Acc.assert_unclaimed acc SI
+                val acc = acc ++ SI // POP SI ?? forget_reg16 M.ESI
+                val acc = Tactics.imm_tmp16 acc tmp subtractand
+                val acc = acc // SUB (S16, DH_SI <- Tactics.EBP_TEMPORARY tmp)
+                (* We know that the quantity has to be positive, by construction;
+                   The smallest (dest - cur) can be is 0 - (num_labels - 1) =
+                   1 - num_labels, and since we add num_labels, we'd get 1.
+                   So we can do a non-conditional jump here with something like
+                   JNZ.
+
+                   (Note that sometimes we want to just NOP into the rung...
+                   we might want to record that this is unconditional, then?) *)
+                val acc = acc // JNZ 0w0
+                (* And record that we need to update the displacement. *)
+                val () = next_jumps := (Acc.insbytes acc - 1) :: !next_jumps
+              in
+                (* Don't relinquish SI, though it may be moot since this should
+                   be the end of the block. *)
+                acc
               end
 
           (*
@@ -294,7 +354,6 @@ struct
           | A.Load16 (dst, addr) =>
           | A.Store8 (addr, src) =>
           | A.Store16 (addr, src) =>
-          | A.PopJumpInd =>
           | A.JumpCond (cond, lab) =>
           | A.Immediate8 (tmp, w8) =>
           | A.Immediate32 (tmp, w32) =>
@@ -325,6 +384,8 @@ struct
           Acc.empty (X86.CTX { default_32 = false }) M.all_unknown ++
           EBX ++
           EBP
+
+      (* val () = print ("Starting acc: " ^ Acc.debug_string acc ^ "\n") *)
 
       (* All blocks have a rung at the front, even the initial one.
          (In theT case of the initial one, we set the initial IP so
@@ -357,8 +418,8 @@ struct
       fun debug_print () =
         let val insns = Acc.insns acc
         in
-          print ("#" ^ Int.toString (getlabelnum labelnum lab) ^ ". " ^
-                 lab ^ ":\n");
+          print ("#" ^ Int.toString (getlabelnum labelnum current_lab) ^ ". " ^
+                 current_lab ^ ":\n");
           (* XXX print next jumps, etc. *)
           app (fn ins => print ("   " ^ insstring ins ^ "\n")) insns;
           print "\n"
@@ -385,11 +446,14 @@ struct
       val labels = Vector.fromList (map (fn (A.Block { name, ... }) => name) blocks)
       val labelnum = Vector.foldli (fn (i, lab, m) =>
                                     SM.insert (m, lab, i)) SM.empty labels
+      val num_labels = Vector.length labels
 
       val xblocks = map (fn (block as A.Block { name, ... }) =>
-                         layout_block (labelnum, frame_stack_start,
-                                       name = initial_label,
-                                       block)) blocks
+                         layout_block { labelnum = labelnum,
+                                        num_labels = Vector.length labels,
+                                        frame_stack_start = frame_stack_start,
+                                        is_initial = (name = initial_label),
+                                        block = block }) blocks
     in
       xblocks
     end

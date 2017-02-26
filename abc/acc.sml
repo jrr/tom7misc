@@ -131,7 +131,7 @@ struct
            else NONE
     end
 
-  fun can_be_claimed acc mr = Option.isSome (blocking_claim acc mr)
+  fun can_be_claimed acc mr = not (Option.isSome (blocking_claim acc mr))
 
   fun assert_claimed (acc as (A { claimed, ... })) mr =
     let
@@ -166,6 +166,27 @@ struct
                       dumpstate acc)
       else ()
     end
+
+  fun debug_string (A { ctx : ctx, mach : mach, ins : ins list, insbytes : int,
+                        claimed : Word32.word }) =
+    let
+      val ins = ListUtil.takeupto 8 (rev ins)
+      val all_multiregs =
+        [X86.AX, X86.CX, X86.DX, X86.BX, X86.SP, X86.BP, X86.SI, X86.DI,
+         X86.EAX, X86.ECX, X86.EDX, X86.EBX, X86.ESP, X86.EBP, X86.ESI, X86.EDI]
+    in
+      "== accumulator ==\n" ^
+      "instructions: " ^ Int.toString insbytes ^ " bytes ending with\n" ^
+      String.concat (map (fn i => "  " ^ X86.insstring i ^ "\n") ins) ^
+      "Claimed: " ^ Word32.toString claimed ^ " = " ^
+      String.concat (map (fn mr =>
+                          let val (bits, _) = multimask mr
+                          in if Word32.andb (bits, claimed) <> 0w0
+                             then X86.multiregstring mr ^ " "
+                             else ""
+                          end) all_multiregs) ^ "\n"
+    end
+
 
   fun forget_reg32 r m = Machine.forget_reg32 m r
   fun forget_reg16 r m = Machine.forget_reg32 m r

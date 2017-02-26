@@ -75,4 +75,6 @@ sig
   (*
     infix // ?? ++ --
   *)
+
+  val debug_string : acc -> string
 end
