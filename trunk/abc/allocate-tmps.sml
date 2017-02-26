@@ -86,8 +86,8 @@ struct
       fun gather (tmp as N { func, name, size }) =
                   (observetmp (func, name, size); tmp)
 
-      fun gathertmps (lab, cmds : named_tmp cmd list) =
-        (lab, map (map_tmp gather) cmds)
+      fun gathertmps (Block { name = lab, cmds : named_tmp cmd list }) =
+        Block { name = lab, cmds = map (map_tmp gather) cmds }
 
       val blocks : named_tmp block list = map gathertmps blocks
 
@@ -143,7 +143,8 @@ struct
           raise AllocateTmps "[rewrite] not explicit RestoreTempsExplicit yet?"
         | _ => map_tmp rewrite_tmp cmd
 
-      fun rewrite (lab, cmds) = (lab, map rewritecmd cmds)
+      fun rewrite (Block { name, cmds }) = Block { name = name,
+                                                   cmds = map rewritecmd cmds }
 
       val blocks : explicit_tmp block list = map rewrite blocks
 

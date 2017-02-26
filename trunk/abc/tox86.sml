@@ -213,8 +213,8 @@ struct
   fun layout_block (labelnum : int SM.map,
                     frame_stack_start : int,
                     is_initial : bool,
-                    lab : string,
-                    cmds : A.explicit_tmp A.cmd list) =
+                    A.Block { name = lab,
+                              cmds : A.explicit_tmp A.cmd list }) =
     let
       (* Rewrite displacements for next rail, as discussed above.
          Byte offset from the beginning of the block. *)
@@ -231,9 +231,15 @@ struct
               (* Sanity check... *)
               if is_initial then ()
               else raise ToX86 "bug: init instruction outside initial block?";
+              (* XXX: In both cases, we may actually want these to point 32 bytes
+                 before the range, because we're always going to use indirect
+                 addressing with a printable disp8. *)
               Tactics.initialize (acc, INIT_BP, Word16.fromInt frame_stack_start)
             end
-        | A.ExpandFrame n => raise ToX86 "unimplemented expandframe"
+        | A.ExpandFrame 0 => acc
+        (* | A.ExpandFrame n => *)
+        (* Just add n to EBX. *)
+
 (*
         | A.ShrinkFrame n =>
         | A.FrameOffset (dst, off) =>
@@ -315,16 +321,14 @@ struct
          give each of these a number, in sequence, so that we
          can use these numbers as absolute addresses, and compute
          relative addresses by subtracting the current address. *)
-      val labels = Vector.fromList (map #1 blocks)
+      val labels = Vector.fromList (map (fn (A.Block { name, ... }) => name) blocks)
       val labelnum = Vector.foldli (fn (i, lab, m) =>
                                     SM.insert (m, lab, i)) SM.empty labels
 
-      val xblocks = map (fn (lab, cmds) =>
+      val xblocks = map (fn (block as A.Block { name, ... }) =>
                          layout_block (labelnum, frame_stack_start,
-                                       lab = initial_label,
-                                       lab,
-                                       cmds)) blocks
-
+                                       name = initial_label,
+                                       block)) blocks
     in
       xblocks
     end
@@ -336,7 +340,7 @@ struct
       val initial_label =
         case blocks of
           nil => raise ToX86 "ASM program is empty? Impossible!"
-        | (init, _) :: _ => init
+        | A.Block { name, ... } :: _ => name
 
       val xblocks = layout_round (blocks, frame_stack_start, initial_label)
 

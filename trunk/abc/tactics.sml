@@ -131,6 +131,9 @@ struct
      front of the list. If all are used, then just pick one and save
      it to the stack, restoring it at the end.
 
+     PERF: Maybe avoid claiming registers whose values we know? Those
+     often help us generate shorter code.
+
      The continuation is run with the register marked as claimed, and then
      it is unclaimed at the end. *)
   fun claim_reg16 acc (l : reg list) (f : acc * reg -> acc) : acc =

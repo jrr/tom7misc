@@ -533,7 +533,7 @@ struct
           val () = done := SM.insert (!done, lab, ())
           val (cmds, next) = gencmds C.Context.empty stmt
         in
-          (lab, cmds) ::
+          A.Block { name = lab, cmds = cmds } ::
           (case next of
              NONE => donext ()
            | SOME lnext => genblock lnext)
@@ -543,7 +543,7 @@ struct
       fun genall () =
         (* Any initialization we like here. This used to allocate
            the frame, but now the caller does that. *)
-        (header_label, nil) ::
+        A.Block { name = header_label, cmds = nil } ::
         (* And then continue with the function's entry point. *)
         genblock body
     in
@@ -553,7 +553,7 @@ struct
   (* Remove uses of the Label meta-command from the list of blocks,
      by creating an actual block in the sequence with that label. *)
   fun unlabel nil = nil
-    | unlabel ((name, cmds) :: rest) =
+    | unlabel (A.Block { name, cmds } :: rest) =
     let
       fun ul nil = (nil, nil)
         | ul (cmd :: crest) =
@@ -561,13 +561,13 @@ struct
           val (cs, blocks) = ul crest
         in
           case cmd of
-            A.Label lab => (nil, (lab, cs) :: blocks)
+            A.Label lab => (nil, A.Block { name = lab, cmds = cs } :: blocks)
           | _ => (cmd :: cs, blocks)
         end
 
       val (hc, blocks) = ul cmds
     in
-      ((name, hc) :: blocks) @ unlabel rest
+      (A.Block { name = name, cmds = hc } :: blocks) @ unlabel rest
     end
 
   fun doproc globalpositions
@@ -738,7 +738,7 @@ struct
             end
 
       val init_label = CILUtil.newlabel "__abc_init"
-      val init_block = (init_label, [A.Init])
+      val init_block = A.Block { name = init_label, cmds = [A.Init] }
     in
       (* Probably should include some headroom here..? *)
       if frame_stack_start > 65536
@@ -756,4 +756,7 @@ struct
   (* Optimization TODO: Remove labels that are never referenced!
      It may also be possible to drop dead blocks? Are there any
      situations where we get them? *)
+
+  (* Optimization TODO: Coalesce blocks that are exactly equal. *)
+
 end
