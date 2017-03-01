@@ -243,15 +243,18 @@ struct
                 (* Sanity check... *)
                 if is_initial then ()
                 else raise ToX86 "bug: init instruction outside initial block?";
-                (* We actually point both EBP and EBX 32 bytes before the temporary
-                   and local frames, respectively. This is because the smallest
-                   printable disp8 we can actually represent is 0x20 = 32.
+                (* We actually point both EBP and EBX 32 bytes before the
+                   temporary and local frames, respectively. This is because
+                   the smallest printable disp8 we can actually represent
+                   is 0x20 = 32.
 
                    Whenever we access these through [EBP+disp8] (etc.), we have
-                   to be careful about the difference between a tmp frame offset
-                   (starts at 0) and actual displacement (starts at 0x20). *)
+                   to be careful about the difference between a tmp frame
+                   offset (starts at 0) and actual displacement (starts
+                   at 0x20). *)
                 Tactics.initialize (acc,
-                                    Word16.-(TMP_FRAME_START, Word16.fromInt 0x20),
+                                    Word16.-(TMP_FRAME_START,
+                                             Word16.fromInt 0x20),
                                     Word16.fromInt (frame_stack_start - 0x20))
               end
           | A.SaveTemps (A.Explicit n) =>
@@ -331,7 +334,8 @@ struct
                 val acc = acc ++ SI // POP SI ?? forget_reg16 M.ESI
                 val acc = Tactics.imm_tmp16 acc tmp subtractand
                 val acc = acc // SUB (S16, DH_SI <- Tactics.EBP_TEMPORARY tmp)
-                (* We know that the quantity has to be positive, by construction;
+                (* We know that the quantity has to be positive, by
+                   construction;
                    The smallest (dest - cur) can be is 0 - (num_labels - 1) =
                    1 - num_labels, and since we add num_labels, we'd get 1.
                    So we can do a non-conditional jump here with something like
@@ -348,6 +352,18 @@ struct
                 acc
               end
 
+          | A.Xor (a, b) =>
+              let in
+                assert16 a; assert16 b;
+                Tactics.xor_tmp16 acc (offset a) (offset b)
+              end
+
+          | A.Sub (a, b) =>
+              let in
+                assert16 a; assert16 b;
+                Tactics.sub_tmp16 acc (offset a) (offset b)
+              end
+
           (*
           | A.FrameOffset (dst, off) =>
           | A.Load8 (dst, addr) =>
@@ -361,7 +377,6 @@ struct
           | A.Sub (a, b) =>
           | A.Complement a =>
           | A.Mov (a, b) =>
-          | A.Xor (a, b) =>
   *)
           | _ =>
               let in
@@ -409,7 +424,12 @@ struct
         then acc
         else acc ?? learn_reg16 M.ESI (Word16.fromInt 0)
 
-      fun docmds (acc, nil) = acc
+      fun docmds (acc, nil) =
+        (* XXX: To implement fallthrough, need to set SI = 1 at
+           the end. Should keep track of whether blocks actually
+           need this, though... *)
+        acc
+
         | docmds (acc, cmd :: cmds) =
         docmds (onecmd acc cmd, cmds)
 

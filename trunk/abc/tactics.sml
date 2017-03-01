@@ -794,11 +794,13 @@ struct
         | IND_EBP_DISP8 w => w
         | IND_ESI_DISP8 w => w
         | IND_EDI_DISP8 w => w
-        | _ => raise Tactics ("mov16ind8 only works with [REG]+disp8 " ^
-                              "addressing mode.")
+        (* This is not necessarily a bug; we might just need to add
+           support for the mod/rm type here. *)
+        | _ => raise Tactics ("got mod/rm that isn't [REG]+disp8 " ^
+                              "when checking for printable mod/rm...")
     in
       if w >= 0wx20 andalso w <= 0wx7e then ()
-      else raise Tactics "disp8 is non-printable in move16ind8"
+      else raise Tactics "disp8 is non-printable, contrary to assertion"
     end
 
   fun check_not_stack16 AH_SP =
@@ -871,7 +873,11 @@ struct
       end
 
   (* PERF: Should try to select a register that has 0 in it
-     already. Blocks start knowing that SI is 0, for example. *)
+     already. Blocks start knowing that SI is 0, for example.
+
+     XXX! PERF: If we claim A, then do we end up having to save the
+     current value of A (useless) in order to move16ind8 into A, and
+     then later restore it? *)
   fun put_tmp_in_reg16 (acc : Acc.acc) (tmp : int) (k : acc * reg -> acc) =
     claim_reg16 acc [A, C, D, DH_SI, BH_DI]
     (fn (acc, tmpreg) =>
@@ -928,6 +934,8 @@ struct
 
   (* ADD rdst <- rsrc.
      Both rdst and rsrc must be claimed.
+
+     XXX this needs to take the temp frame size, etc...
 
      PERF should make destructive version that modifies rsrc. *)
   fun add_reg16 acc rdst rsrc : acc =
@@ -1000,6 +1008,18 @@ struct
     val add_bx = add_reg16_imm B
     val sub_bx = sub_reg16_imm B
   end
+
+  fun xor_tmp16 acc dst_tmp src_tmp =
+    put_tmp_in_reg16 acc src_tmp
+    (fn (acc, tmpreg) =>
+     acc //
+     XOR (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
+
+  fun sub_tmp16 acc dst_tmp src_tmp =
+    put_tmp_in_reg16 acc src_tmp
+    (fn (acc, tmpreg) =>
+     acc //
+     SUB (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
 
   (* This sets up the initial invariants.
 
