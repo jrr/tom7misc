@@ -36,6 +36,14 @@ sig
   val add_bx : acc -> int -> Word16.word -> acc
   val sub_bx : acc -> int -> Word16.word -> acc
 
+  (* xor_tmp16 acc dst_tmp src_tmp
+     sets dst_tmp = dst_tmp XOR src_tmp. *)
+  val xor_tmp16 : acc -> int -> int -> acc
+
+  (* sub_tmp16 acc dst_tmp src_tmp
+     sets dst_tmp = dst_tmp - src_tmp. *)
+  val sub_tmp16 : acc -> int -> int -> acc
+
   (* push or pop the 16-bit temporary.
 
      push_tmp16 acc tmp
