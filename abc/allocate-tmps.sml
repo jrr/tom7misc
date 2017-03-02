@@ -77,6 +77,7 @@ struct
         | PopJumpInd => PopJumpInd
         | JumpCond (cond, lab) => JumpCond (map_cond ft cond, lab)
         | Init => Init
+        | Exit => Exit
 
       fun gather (tmp as N { func, name, size }) =
                   (observetmp (func, name, size); tmp)

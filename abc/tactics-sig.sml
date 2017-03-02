@@ -25,6 +25,15 @@ sig
      can use it this way. *)
   val EBP_TEMPORARY : int -> X86.modrm
 
+  (* mov16ind8 acc (reg <- modrm)   or
+     mov16ind8 acc (modrm <~ reg)
+     Simulates the MOV instruction for printable modrm.
+     Most efficient if AX is not claimed. *)
+  val mov16ind8 : acc -> X86.args -> acc
+
+  (* mov acc dst_tmp src_tmp *)
+  val mov_tmp16_to_tmp16 : acc -> int -> int -> acc
+
   (* Adjust temporary frame or local frame base pointers.
      Give the size of the temporary frame in case it needs
      to use a temporary.
@@ -43,6 +52,10 @@ sig
   (* sub_tmp16 acc dst_tmp src_tmp
      sets dst_tmp = dst_tmp - src_tmp. *)
   val sub_tmp16 : acc -> int -> int -> acc
+
+  (* sub_tmp16_lit acc tmp lit
+     Subtract the literal from the temporary at the given offset. *)
+  val sub_tmp16_lit : acc -> int -> Word16.word -> acc
 
   (* push or pop the 16-bit temporary.
 

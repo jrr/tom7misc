@@ -281,9 +281,22 @@ struct
         (k : unit -> A.named_cmd list * 'b) :
         A.named_cmd list * 'b =
         case (e, vt) of
-          (C.Call (fv, argvs), vt) =>
-            (* This is the only one that we actually need to emit if
-               the result is unused (i.e. vt is NONE). *)
+          (* For expressions that may have effects, we need to emit
+             them whether or not the result is used (i.e. when vt is NONE). *)
+          (C.Builtin (C.B_EXIT, args), _) =>
+            (case args of
+               nil =>
+                 (* Even if vt is SOME, this does not return, so we just
+                    ignore it. *)
+                 A.Exit // k ()
+             | _ => raise ToASM "unexpected args to exit")
+
+        | (C.Builtin (C.B_PUTC, args), vt) =>
+            (case args of
+               [v] => raise ToASM "unimplemented putc"
+             | _ => raise ToASM "bad args to putc")
+
+        | (C.Call (fv, argvs), vt) =>
             gentmp ctx fv
             (fn (ftmp, ftyp) =>
              case ftyp of
@@ -347,6 +360,22 @@ struct
         | (exp, SOME (var, t)) =>
             (case exp of
                C.Call _ => raise ToASM "Bug: already handled above."
+
+             (* We can actually implement these using PSP, but
+                currently behave as though there are 0 args (not
+                even the program name) *)
+             | C.Builtin (C.B_ARGC, nil) =>
+                 A.Immediate16 (vartmp (var, typsize t), Word16.fromInt 0) //
+                 k ()
+
+             (* Also just give null pointer for argv for now. *)
+             | C.Builtin (C.B_ARGV, nil) =>
+                 A.Immediate16 (vartmp (var, typsize t), Word16.fromInt 0) //
+                 k ()
+
+             | C.Builtin _ =>
+                 raise ToASM ("unexpected builtin or bad args: " ^
+                              CIL.exptos exp)
              | C.Value value =>
                  (* PERF, should probably avoid the mov in most of
                     these cases. Maybe should be done as part of temporary
@@ -378,6 +407,10 @@ struct
                    | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
              | C.Plus (w, a, b) =>
+                 (* FIXME *)
+                 raise ToASM "What? No -- you need to store it in var"
+(*
+
                  gentmp ctx a
                  (fn (atmp, at) =>
                   gentmp ctx b
@@ -390,6 +423,7 @@ struct
 
                      A.Add (atmp, btmp) // k ()
                    end))
+*)
              | C.Truncate { src : C.width, dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented truncate"
                  | C.Promote { signed : bool, src : C.width,
@@ -738,9 +772,10 @@ struct
         map onefunction functions
       (* Each proc is a list of blocks that have to go in that order,
          but the lists can be permuted however we like. We don't do
-         any intraprocedural optimization. Pull out the "main" block
-         so that it goes immediately after our initialization block,
-         which is first. *)
+         any intraprocedural optimization. The "main" function might
+         as well be first (immediately after our initialization block),
+         though, since we know we call it and it is unlikely to have
+         callers. *)
       val blocks =
         case ListUtil.Alist.extract op= proc_blocks main of
           NONE => raise ToASM ("there is no main function " ^ main ^ "?")
@@ -753,6 +788,8 @@ struct
               mproc @ rest
             end
 
+      (* XXX: Actually do this as a normal call to main. We need to
+         explicitly exit when it returns. *)
       val init_label = CILUtil.newlabel "__abc_init"
       val init_block = A.Block { name = init_label,
                                  tmp_frame = A.Named "__abc_init",
