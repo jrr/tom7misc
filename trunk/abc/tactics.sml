@@ -1219,6 +1219,23 @@ struct
       acc
     end
 
+  (* Put an individual character (in 16-bit temporary at offset t)
+     to the console. Uses interrupt instruction, so non-ASCII. *)
+  fun putc16 acc tmp : acc =
+    let
+      val acc = acc ++ DX
+      val acc = mov16ind8 acc (D <- EBP_TEMPORARY tmp) ??
+        forget_reg16 M.EDX ++
+        AX
+      (* We don't care about the value in AL, so just use something
+         printable.. *)
+      val acc = load_ax16 acc (Word16.fromInt 0x0620)
+    in
+      acc // INT 0wx21 ??
+      forget_reg16 M.EDX ??
+      forget_reg16 M.EAX -- AX -- DX
+    end
+
   (* Generate code that prints the string. Uses the interrupt instruction, so
      non-ASCII. *)
   fun printstring acc s : acc =

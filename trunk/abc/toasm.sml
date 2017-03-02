@@ -293,7 +293,7 @@ struct
 
         | (C.Builtin (C.B_PUTC, args), vt) =>
             (case args of
-               [v] => raise ToASM "unimplemented putc"
+               [v] => gentmp ctx v (fn (ftmp, ftyp) => A.Putc ftmp // k ())
              | _ => raise ToASM "bad args to putc")
 
         | (C.Call (fv, argvs), vt) =>

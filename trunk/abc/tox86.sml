@@ -393,6 +393,13 @@ struct
                 Tactics.sub_tmp16_lit acc (offset tmp) subtractand
               end
 
+          | A.Putc tmp =>
+              let in
+                (* XXX allow 8-bit? *)
+                assert16 tmp;
+                Tactics.putc16 acc (offset tmp)
+              end
+
           (*
           | A.Load8 (dst, addr) =>
           | A.Load16 (dst, addr) =>

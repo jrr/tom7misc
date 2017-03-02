@@ -171,7 +171,8 @@ struct
   fun builtin_type B_EXIT = (Word16 Unsigned, nil)
     | builtin_type B_ARGC = (Word16 Signed, nil)
     | builtin_type B_ARGV = (Pointer (Pointer (Word8 Unsigned)), nil)
-    | builtin_type B_PUTC = (Word16 Unsigned, [Word8 Unsigned])
+    (* XXX should be char? *)
+    | builtin_type B_PUTC = (Word16 Unsigned, [Word16 Unsigned])
 
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
     | typtos (Struct t) = "... TODO STRUCT ..."
