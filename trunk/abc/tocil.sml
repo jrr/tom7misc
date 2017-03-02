@@ -1083,12 +1083,49 @@ struct
         | onedecl (Ast.DECL _) =
               raise ToCIL "External declaration not supported.\n"
 
-      in
-        app onedecl decls;
-        Program { main = "main",
-                  functions = rev (!functions),
-                  globals = rev (!globals) }
-      end
+      val () = app onedecl decls
+
+      (* We'll get internal type errors or mysterious failure if init
+         tries to call this and it has the wrong type. *)
+      val (main_ret, main_args) =
+        case ListUtil.Alist.find op= (!functions) CIL.main of
+          NONE => raise ToCIL "There is no function 'main'?"
+        | SOME (Func { ret, args, ... }) =>
+            case (ret, map #2 args) of
+              (Word16 _,
+               at as [Word16 _, Pointer (Pointer (Word8 _))]) => (ret, at)
+             | _ =>
+              raise ToCIL ("In ABC, main must have a declaration compatible " ^
+                           "with:\n  int main(int argc, char **argv)")
+
+      val init_fn = "__abc_init"
+      val init_fn_label = CILUtil.BC.genlabel "__abc_init_start"
+      val argc = CILUtil.genvar "argc"
+      val argv = CILUtil.genvar "argv"
+      val () = functions :=
+        (init_fn,
+         Func
+         { args = nil,
+           (* Doesn't return. *)
+           ret = Word16 Unsigned,
+           body = init_fn_label,
+           blocks =
+           [(init_fn_label,
+             Bind
+             (argc, Word16 Signed, Builtin (B_ARGC, nil),
+              Bind
+              (argv, Pointer (Pointer (Word8 Signed)),
+               Builtin (B_ARGV, nil),
+               Do (Call (FunctionLiteral (CIL.main, main_ret, main_args),
+                         [Var argc, Var argv]),
+                   Do (Builtin (B_EXIT, nil),
+                       End)))))]
+            }) :: !functions
+    in
+      Program { main = init_fn,
+                functions = rev (!functions),
+                globals = rev (!globals) }
+    end
 
 end
 

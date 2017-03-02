@@ -771,11 +771,10 @@ struct
       val proc_blocks : (string * A.named_block list) list =
         map onefunction functions
       (* Each proc is a list of blocks that have to go in that order,
-         but the lists can be permuted however we like. We don't do
-         any intraprocedural optimization. The "main" function might
-         as well be first (immediately after our initialization block),
-         though, since we know we call it and it is unlikely to have
-         callers. *)
+         but the lists can be permuted in any way we like. We don't do
+         any intraprocedural optimization. However, 'main' (which is
+         actually the internal init code) needs to be first, because
+         the asm_init block just falls through to it. Find that block. *)
       val blocks =
         case ListUtil.Alist.extract op= proc_blocks main of
           NONE => raise ToASM ("there is no main function " ^ main ^ "?")
@@ -788,11 +787,9 @@ struct
               mproc @ rest
             end
 
-      (* XXX: Actually do this as a normal call to main. We need to
-         explicitly exit when it returns. *)
-      val init_label = CILUtil.newlabel "__abc_init"
+      val init_label = CILUtil.newlabel "__abc_asm_init"
       val init_block = A.Block { name = init_label,
-                                 tmp_frame = A.Named "__abc_init",
+                                 tmp_frame = A.Named "__abc_asm_init",
                                  cmds = [A.Init] }
     in
       (* Probably should include some headroom here..? *)
