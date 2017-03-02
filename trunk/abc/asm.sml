@@ -326,8 +326,9 @@ struct
   | PopJumpInd
   (* Conditional jumps all take a literal label. *)
   | JumpCond of 'tmp cond * string
-  (* Program initialization code. *)
+  (* Some builtins that don't benefit from being decomposed. *)
   | Init
+  | Exit
   (* TODO: inc, etc. *)
 
   datatype ('tmp, 'off) block = Block of { name : string,
@@ -384,6 +385,7 @@ struct
     | Mov (a, b) => "mov " ^ ts a ^ " <- " ^ ts b
     | Xor (a, b) => "xor " ^ ts a ^ " <- " ^ ts b
     | Init => "init"
+    | Exit => "exit"
     | Label lab => "(LABEL " ^ lab ^ ")"
 
   fun blocktos ts os (Block { name, tmp_frame, cmds }) =

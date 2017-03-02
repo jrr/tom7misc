@@ -65,6 +65,7 @@ sig
   val case_Negate : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
   val case_Call : arg -> selves * CIL.context -> CIL.value * CIL.value list -> CIL.exp * CIL.typ
   val case_Load : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
+  val case_Builtin : arg -> selves * CIL.context -> CIL.builtin * CIL.value list -> CIL.exp * CIL.typ
 
   (* stmt cases *)
   val case_Bind : arg -> selves * CIL.context -> string * CIL.typ * CIL.exp * CIL.stmt -> CIL.stmt

@@ -73,14 +73,9 @@ struct
       | Not a => call A.case_Not a
       | Complement a => call A.case_Complement a
       | Negate a => call A.case_Negate a
-(*
-      | AddressOf a => call A.case_AddressOf a
-      | Dereference a => call A.case_Dereference a
-      | Subscript a => call A.case_Subscript a
-      | Member a => call A.case_Member a
-*)
       | Call a => call A.case_Call a
       | Load a => call A.case_Load a
+      | Builtin a => call A.case_Builtin a
     end
 
   and converts arg ctx stmt =
@@ -245,10 +240,7 @@ struct
     (Complement (w, fst ` selfv arg ctx a), wordwidth w)
   fun case_Negate arg ({ selft, selfv, selfe, selfs }, ctx) (w, a) =
     (Negate (w, fst ` selfv arg ctx a), wordwidth w)
-  (* fun case_Subscript arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
-Subscript
-  fun case_Member arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
-Member *)
+
   fun case_Call arg ({ selft, selfv, selfe, selfs }, ctx) (f, args) =
     (case selfv arg ctx f of
        (f, Code (ret, _)) =>
@@ -262,6 +254,17 @@ Member *)
        (* XXX check compatibility of width and type? *)
        (a, Pointer t) => (Load (w, a), t)
     | _ => raise CIL.CIL "CILIdentity: load on non-pointer")
+
+  fun case_Builtin arg ({ selft, selfv, selfe, selfs }, ctx) (b, args) =
+    let
+      val (ret, argtypes) = CIL.builtin_type b
+    in
+      (* XXX could also check types *)
+      if length argtypes <> length args
+      then raise CIL.CIL "CILIdentity: wrong number of args to builtin"
+      else ();
+      (Builtin (b, map (fst o selfv arg ctx) args), ret)
+    end
 
   (* stmt *)
   fun case_Bind arg ({ selft, selfv, selfe, selfs }, ctx) (v, t, e, s) =

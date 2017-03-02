@@ -96,6 +96,15 @@ struct
       | SOME best => best
     end
 
+  (* XXX save_and_claim can cause many problems:
+      - perturbs the stack; the continuation cannot do PUSH/POP safely
+      - the caller may have claimed the register we're saving, and
+        want to use it in the continuation...
+
+     Probably we should just avoid using this, except when the
+     continuation can be carefully constructed. Current code generation
+     strategy usually results in a lot of unclaimed registers. *)
+
   (* Claim the multireg for the duration of the function call,
      saving the register (or friend) if necessary to enable this. *)
   fun save_and_claim acc (mr : multireg) (f : acc -> acc) : acc =
@@ -821,6 +830,23 @@ struct
        load_reg16 acc r v
      end)
 
+  (* mod/rm macro that generates IND_EBP_DISP8 as though it starts at 0,
+     and checks that the result is printable. *)
+  fun EBP_TEMPORARY (tmp : int) =
+    if tmp < 0 then raise Tactics ("Illegal negative temporary offset? " ^
+                                   Int.toString tmp)
+    else
+      let val real_offset = tmp + 0x20
+      in
+        if real_offset > 0x7e
+        then raise Tactics ("Ut oh, temporary offset out of range: " ^
+                            Int.toString tmp ^
+                            " yields real offset of " ^
+                            Int.toString real_offset)
+        else ();
+        IND_EBP_DISP8 (Word8.fromInt real_offset)
+      end
+
   (* As if the MOV instruction with [REG]+disp8 addressing.
      We first do AND with the destination to make it zero.
      We then XOR the destination with the source.
@@ -831,7 +857,7 @@ struct
      is modified. *)
   (* PERF in both cases, if we can find a register that already contains 0,
      use it instead of loading that into A *)
-  fun move16ind8 acc (modrm <~ reg) : acc =
+  fun mov16ind8 acc (modrm <~ reg) : acc =
     let in
       check_printable_modrm modrm;
       check_not_stack16 reg;
@@ -844,7 +870,7 @@ struct
       (* XXX this should track the value of the temporary too. *)
     end
 
-   | move16ind8 acc (reg <- modrm) =
+   | mov16ind8 acc (reg <- modrm) =
     let in
       check_printable_modrm modrm;
       check_not_stack16 reg;
@@ -856,34 +882,32 @@ struct
       (* XXX this should track the value of the temporary too. *)
     end handle e => raise e
 
-  (* mod/rm macro that generates IND_EBP_DISP8 as though it starts at 0,
-     and checks that the result is printable. *)
-  fun EBP_TEMPORARY (tmp : int) =
-    if tmp < 0 then raise Tactics ("Illegal negative temporary offset? " ^
-                                   Int.toString tmp)
-    else
-      let val real_offset = tmp + 0x20
-      in
-        if real_offset > 0x7e
-        then raise Tactics ("Ut oh, temporary offset out of range: " ^
-                            Int.toString tmp ^
-                            " yields real offset of " ^ Int.toString real_offset)
-        else ();
-        IND_EBP_DISP8 (Word8.fromInt real_offset)
-      end
+  fun mov_tmp16_to_tmp16 acc dst src : acc =
+    (* PERF if we already have 0 in an unclaimed register,
+       we can use that. *)
+    save_and_claim acc AX
+    (fn acc =>
+     (* First, zero the destination. *)
+     load_ax16 acc (Word16.fromInt 0) //
+     AND (S16, EBP_TEMPORARY dst <~ A) //
+     (* A is still zero; replace it with src. *)
+     XOR (S16, A <- EBP_TEMPORARY dst) ??
+     forget_reg16 M.EAX //
+     (* Now write to dst. *)
+     XOR (S16, EBP_TEMPORARY dst <~ A))
 
   (* PERF: Should try to select a register that has 0 in it
      already. Blocks start knowing that SI is 0, for example.
 
      XXX! PERF: If we claim A, then do we end up having to save the
-     current value of A (useless) in order to move16ind8 into A, and
+     current value of A (useless) in order to mov16ind8 into A, and
      then later restore it? *)
   fun put_tmp_in_reg16 (acc : Acc.acc) (tmp : int) (k : acc * reg -> acc) =
     claim_reg16 acc [A, C, D, DH_SI, BH_DI]
     (fn (acc, tmpreg) =>
      let
        val acc =
-         move16ind8 acc (tmpreg <- EBP_TEMPORARY tmp) ??
+         mov16ind8 acc (tmpreg <- EBP_TEMPORARY tmp) ??
          forget_reg16 (reg_to_machreg tmpreg)
      in
        k (acc, tmpreg)
@@ -903,7 +927,7 @@ struct
          POP (reg_to_multireg16 tmpreg) ??
          forget_reg16 (reg_to_machreg tmpreg)
      in
-       move16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
+       mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
      end)
 
   (* Load the temporary at the given offset with the given constant. *)
@@ -911,7 +935,7 @@ struct
     claim_reg16 acc [A, C, D, DH_SI, BH_DI]
     (fn (acc, tmpreg) =>
      let val acc = load_reg16only acc tmpreg v
-     in move16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
+     in mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
      end)
 
   (* Binary NOT of register r. *)
@@ -921,12 +945,12 @@ struct
      in order to do it; we'll use [EBX]+0x20. *)
     let in
       assert_claimed acc (reg_to_multireg16 r);
-      claim_reg16 acc [C, D, CH_BP, DH_SI, BH_DI, A]
+      claim_reg16 acc [C, D, DH_SI, BH_DI, A]
       (fn (acc, tmpr) =>
        let
          val acc = load_reg16only acc tmpr (Word16.fromInt 0xFFFF)
        in
-         move16ind8 acc (IND_EBX_DISP8 0wx20 <~ tmpr)
+         mov16ind8 acc (IND_EBX_DISP8 0wx20 <~ tmpr)
        end) //
       XOR (S16, r <- IND_EBX_DISP8 0wx20) ??
       forget_reg16 (reg_to_machreg r)
@@ -947,7 +971,7 @@ struct
       assert_claimed acc (reg_to_multireg16 rsrc);
       assert_claimed acc (reg_to_multireg16 rdst);
 
-      claim_reg16 acc [C, D, CH_BP, DH_SI, BH_DI, A]
+      claim_reg16 acc [C, D, DH_SI, BH_DI, A]
       (fn (acc, rtmp) =>
        let
          val acc =
@@ -962,7 +986,7 @@ struct
          (* Choice of 0wx24 is arbitrary. Should have the accumulator
             allocate this or something. *)
        in
-         move16ind8 acc (IND_EBX_DISP8 0wx24 <~ rtmp)
+         mov16ind8 acc (IND_EBX_DISP8 0wx24 <~ rtmp)
        end) //
       (* Finally we can do it *)
       SUB (S16, rdst <- IND_EBX_DISP8 0wx24) ??
@@ -1020,6 +1044,14 @@ struct
     (fn (acc, tmpreg) =>
      acc //
      SUB (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
+
+  fun sub_tmp16_lit acc tmp w =
+    (* PERF choose a register that can efficiently load
+       this temporary *)
+    save_and_claim acc AX
+    (fn acc =>
+     load_ax16 acc w //
+     SUB (S16, EBP_TEMPORARY tmp <~ A))
 
   (* This sets up the initial invariants.
 

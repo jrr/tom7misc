@@ -38,6 +38,17 @@ struct
     | typwidth (Word16 _) = Width16
     | typwidth (Word8 _) = Width8
 
+  datatype builtin =
+    (* void() *)
+      B_EXIT
+    (* word16() *)
+    | B_ARGC
+    (* word8 **() *)
+    | B_ARGV
+    (* void(word8) *)
+    | B_PUTC
+  (* TODO: IN/OUT *)
+
   datatype value =
     Var of string
     (* typ is the type of the thing thing pointed to. *)
@@ -109,6 +120,8 @@ struct
   | Call of value * value list
   | Load of width * value
 
+  | Builtin of builtin * value list
+
   (* Alternative to the operator forms. *)
   datatype cond =
     CLess of width * value * value
@@ -153,6 +166,13 @@ struct
     Program of { main : string,
                  functions : (string * function) list,
                  globals : (string * global) list }
+
+  (* Note that we currently use uint16 for void. *)
+  fun builtin_type B_EXIT = (Word16 Unsigned, nil)
+    | builtin_type B_ARGC = (Word16 Signed, nil)
+    | builtin_type B_ARGV = (Pointer (Pointer (Word8 Unsigned)), nil)
+    | builtin_type B_PUTC = (Word16 Unsigned, [Word8 Unsigned])
+
 
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
     | typtos (Struct t) = "... TODO STRUCT ..."
@@ -206,6 +226,11 @@ struct
     | widthtos Width16 = "_16"
     | widthtos Width8 = "_8"
 
+  fun builtintos B_EXIT = "exit"
+    | builtintos B_ARGC = "argc"
+    | builtintos B_ARGV = "argv"
+    | builtintos B_PUTC = "putc"
+
   fun exptos (Value v) = valtos v
     | exptos (Truncate { src, dst, v }) =
     "trunc" ^ widthtos src ^ "_to" ^ widthtos dst ^ " " ^ valtos v
@@ -243,6 +268,9 @@ struct
     | exptos (Call (f, vl)) = "CALL " ^ valtos f ^
         "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
     | exptos (Load (width, addr)) = "LOAD" ^ widthtos width ^ " " ^ valtos addr
+    | exptos (Builtin (builtin, args)) =
+        "BUILTIN " ^ builtintos builtin ^ "(" ^
+        StringUtil.delimit ", " (map valtos args) ^ ")"
 
   fun condtos (CLess (w, a, b)) = valtos a ^ " <s " ^ valtos b
     | condtos (CLessEq (w, a, b)) = valtos a ^ " <=s " ^ valtos b

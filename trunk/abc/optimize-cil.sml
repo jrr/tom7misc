@@ -296,6 +296,11 @@ struct
     | SignedDivision _ => false
     | UnsignedDivision _ => false
     | UnsignedMod _ => false
+    (* Some builtins can be side-effect free... *)
+    | Builtin (B_ARGC, _) => true
+    | Builtin (B_ARGV, _) => true
+    (* ... but assume side-effects if not explicitly listed. *)
+    | Builtin _ => false
     (* Unlimited side-effects *)
     | Call _ => false
 

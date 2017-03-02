@@ -257,6 +257,7 @@ struct
                                              Word16.fromInt 0x20),
                                     Word16.fromInt (frame_stack_start - 0x20))
               end
+          | A.Exit => Tactics.exit acc
           | A.SaveTemps (A.Explicit n) =>
               (* Add n to EBP. We know that it's in 0x00000000-0x0000FFFF,
                  so we just modify the 16-bit part, BP. *)
@@ -335,11 +336,11 @@ struct
                 val acc = Tactics.imm_tmp16 acc tmp subtractand
                 val acc = acc // SUB (S16, DH_SI <- Tactics.EBP_TEMPORARY tmp)
                 (* We know that the quantity has to be positive, by
-                   construction;
-                   The smallest (dest - cur) can be is 0 - (num_labels - 1) =
-                   1 - num_labels, and since we add num_labels, we'd get 1.
-                   So we can do a non-conditional jump here with something like
-                   JNZ.
+                   construction; The smallest (dest - cur) can be is
+                   0 - (num_labels - 1) = 1 - num_labels, and since we add
+                   num_labels, we'd get 1. So we know the processor flags
+                   reflect a non-zero result. We can therefore accomplish
+                   a non-conditional jump here with JNZ (or others).
 
                    (Note that sometimes we want to just NOP into the rung...
                    we might want to record that this is unconditional, then?) *)
@@ -354,18 +355,45 @@ struct
 
           | A.Xor (a, b) =>
               let in
+                (* XXX allow 8/32 *)
                 assert16 a; assert16 b;
                 Tactics.xor_tmp16 acc (offset a) (offset b)
               end
 
           | A.Sub (a, b) =>
               let in
+                (* XXX allow 8/32 *)
                 assert16 a; assert16 b;
                 Tactics.sub_tmp16 acc (offset a) (offset b)
               end
 
+          | A.Mov (a, b) =>
+              let in
+                (* XXX allow 8/32 *)
+                assert16 a; assert16 b;
+                Tactics.mov_tmp16_to_tmp16 acc (offset a) (offset b)
+              end
+
+          | A.FrameOffset (tmp, off) =>
+              let
+                val () = assert16 tmp
+                (* We just want tmp <- ebx + off + 0x20.
+                   (Addresses point to the actual object, whereas
+                   ebx is offset 0x20 for efficiency.)
+                   Since we sub, compute the literal as the
+                   negation of off + 0x20 *)
+                val subtractand =
+                  Word16.~ (Word16.+ (off, Word16.fromInt 0x20))
+
+                (* First we'll set tmp = ebx,
+                   then SUB the appropriate literal. *)
+                val acc = Tactics.mov16ind8 acc
+                  (Tactics.EBP_TEMPORARY (offset tmp) <~ B)
+              in
+                Tactics.sub_tmp16_lit acc (offset tmp) subtractand
+              end
+
           (*
-          | A.FrameOffset (dst, off) =>
           | A.Load8 (dst, addr) =>
           | A.Load16 (dst, addr) =>
           | A.Store8 (addr, src) =>
@@ -374,10 +402,8 @@ struct
           | A.Immediate8 (tmp, w8) =>
           | A.Immediate32 (tmp, w32) =>
           | A.Add (a, b) =>
-          | A.Sub (a, b) =>
           | A.Complement a =>
-          | A.Mov (a, b) =>
-  *)
+            *)
           | _ =>
               let in
                 (* print ("Unimplemented cmd: " ^ ASM.explicit_cmdtos cmd ^ "\n"); *)
@@ -478,6 +504,10 @@ struct
       xblocks
     end
 
+  fun w8vtos v : string =
+    CharVector.tabulate (Word8Vector.length v,
+                         fn i => chr (Word8.toInt (Word8Vector.sub (v, i))))
+
   fun tox86 (A.Program { blocks, frame_stack_start, datasegment }) =
     let
       (* XXX probably need to move initial block into the middle,
@@ -487,7 +517,14 @@ struct
           nil => raise ToX86 "ASM program is empty? Impossible!"
         | A.Block { name, ... } :: _ => name
 
-      val xblocks = layout_round (blocks, frame_stack_start, initial_label)
+      val xblocks : (Word8Vector.vector * int list) list =
+        layout_round (blocks, frame_stack_start, initial_label)
+
+      val total = foldl (fn ((v, _), b) => Word8Vector.length v + b) 0 xblocks
+      val () = print ("Total code bytes before stretching: " ^
+                      Int.toString total ^ "\n")
+      val () = app (fn (v, _) =>
+                    print (w8vtos v ^ "\n")) xblocks
 
       val cs = raise ToX86 "still need to do various things to construct cs"
     in
