@@ -1,4 +1,4 @@
-extern int _putc(int);
+int _putc(int);
 
 int main(int argc, char **argv) {
   _putc('o');

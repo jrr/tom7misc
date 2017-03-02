@@ -1058,39 +1058,51 @@ struct
       fun onedecl (Ast.DECL (Ast.ExternalDecl decl, _, _)) =
         (case decl of
            Ast.TypeDecl { shadow = _, tid = _ } => ()
-         | Ast.VarDecl (id as { ctype, ... }, init) =>
-             let
-               (* XXX "static" probably needs to be treated separately if
-                  we have multiple translations units. But maybe ckit
-                  already gives the identifiers different uids? *)
-               val uid = uidstring id
-               val t = transtype ctype
-               val stmt = case init of
-                 NONE => End
-               | SOME ie =>
-                   (case ie of
-                      Ast.Simple e =>
-                        transexp e bc
-                        (fn (v : value, vt : typ) =>
-                         implicit { v = v, src = vt, dst = t }
-                         (fn (vv, vvt) =>
-                          Store (ctypewidth ctype,
-                                 AddressLiteral (Global ` uid, t),
-                                 vv, End)))
-                    | Ast.Aggregate _ =>
-                        raise ToCIL "aggregate initialization unimplemented")
-               val startlabel = BC.genlabel "init"
-             in
-               BC.insert (bc, startlabel, stmt);
-               globals :=
-               (uid, Glob { typ = t,
+         | Ast.VarDecl (id as { ctype, status, kind, ... }, init) =>
+             (case (status, kind) of
+                (Ast.DECLARED, Ast.NONFUN) =>
+                  let
+                    (* XXX "static" probably needs to be treated separately if
+                       we have multiple translations units. But maybe ckit
+                       already gives the identifiers different uids? *)
+                    val uid = uidstring id
+                    val t = transtype ctype
+                    val stmt = case init of
+                      NONE => End
+                    | SOME ie =>
+                        (case ie of
+                           Ast.Simple e =>
+                             transexp e bc
+                             (fn (v : value, vt : typ) =>
+                              implicit { v = v, src = vt, dst = t }
+                              (fn (vv, vvt) =>
+                               Store (ctypewidth ctype,
+                                      AddressLiteral (Global ` uid, t),
+                                      vv, End)))
+                         | Ast.Aggregate _ =>
+                             raise ToCIL ("aggregate initialization " ^
+                                          "unimplemented"))
+                    val startlabel = BC.genlabel "init"
+                  in
+                    BC.insert (bc, startlabel, stmt);
+                    globals :=
+                    (uid,
+                     Glob { typ = t,
                             (* PERF: Some initializers can become bytes
                                directly, saving us some work later? *)
                             bytes = NONE,
                             init =
                             SOME { start = startlabel,
                                    blocks = BC.extract bc} }) :: !globals
-             end)
+                  end
+              | _ =>
+                  let in
+                    (* Nothing to do function decls or extern declarations.
+                       (XXX Though we should cleanly reject programs that
+                       depend on a function / extern that is not provided,
+                       since there is no possibility of linking in ABC.) *)
+                    ()
+                  end))
         | onedecl (Ast.DECL (Ast.FunctionDef (id, args, body), _, _)) =
            (case id of
               { ctype = Ast.Function (ret, _), ... } =>

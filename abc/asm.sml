@@ -327,6 +327,7 @@ struct
   (* Conditional jumps all take a literal label. *)
   | JumpCond of 'tmp cond * string
   (* Some builtins that don't benefit from being decomposed. *)
+  | Putc of 'tmp  (* Just for debugging -- can't be printable! *)
   | Init
   | Exit
   (* TODO: inc, etc. *)
@@ -384,6 +385,7 @@ struct
     | Complement a => "complement " ^ ts a
     | Mov (a, b) => "mov " ^ ts a ^ " <- " ^ ts b
     | Xor (a, b) => "xor " ^ ts a ^ " <- " ^ ts b
+    | Putc tmp => "putc " ^ ts tmp
     | Init => "init"
     | Exit => "exit"
     | Label lab => "(LABEL " ^ lab ^ ")"

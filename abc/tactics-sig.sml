@@ -76,6 +76,12 @@ sig
 
   (* Deprecated testing stuff. *)
 
+  (* putc16 acc tmp
+     writes the character in the 16-bit temporary to stdout.
+     NOTE: This can't be done with printable opcodes, so it's
+     just for debugging! *)
+  val putc16 : acc -> int -> acc
+
   val old_initialize : unit -> acc
   val printstring : acc -> string -> acc
 
