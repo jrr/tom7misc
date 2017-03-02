@@ -305,6 +305,17 @@ struct
       | BITXOR => (atwidth Xor, t)
     end
 
+
+  fun get_builtin (Ast.EXPR (Ast.Id (id as { global = true,
+                                             name = name,
+                                             kind = Ast.FUNCTION _, ... }),
+                             _, _)) =
+    (case Symbol.name name of
+       "_putc" => SOME B_PUTC
+     | _ => NONE)
+    | get_builtin _ = NONE
+
+
   (* Translate an expression as an lvalue. This means producing a value
      that is the lvalue's address. We also pass to the continuation the
      width of the lvalue. And the type of the lvalue (not the address;
@@ -690,28 +701,49 @@ struct
 
       | Ast.StringConst s => raise ToCIL "unimplemented: string constants"
       | Ast.Call (f, args) =>
-            transexp f bc
-            (fn (fv, ft) =>
-             case ft of
-               Code (rett, argt) =>
-                 transexplist args bc
-                 (fn args =>
-                  let
-                    val retv = genvar "call"
-                    fun implicitargs racc nil nil =
-                      Bind (retv, rett,
-                            Call (fv, rev racc), k (Var retv, rett))
-                      | implicitargs racc (t :: trest) ((v, vt) :: vrest) =
-                          implicit { src = vt, dst = t, v = v }
-                          (fn (v, vt) =>
-                           implicitargs (v :: racc) trest vrest)
-                      | implicitargs _ _ _ =
-                          raise ToCIL "argument number mismatch in Call"
-                  in
-                    implicitargs nil argt args
-                  end)
-             | _ => raise ToCIL ("tried to call value of non-function " ^
-                                 "type " ^ typtos ft))
+        let
+          (* A call could either be a regular function call or a
+             call-like invocation of a builtin like "_putc". In
+             either case, we translate the arguments, coerce them to
+             the expected types if necessary, and so on, so these
+             share a bunch of code... *)
+          fun implicitargs retv rett call argtypes args =
+            let
+              fun ia (racc, nil, nil) =
+                Bind (retv, rett, call (rev racc),
+                      k (Var retv, rett))
+                | ia (racc, t :: trest, (v, vt) :: vrest) =
+                implicit { src = vt, dst = t, v = v }
+                (fn (v, vt) => ia (v :: racc, trest, vrest))
+                | ia _ = raise ToCIL "argument number mismatch in Call"
+            in
+              ia (nil, argtypes, args)
+            end
+        in
+          (case get_builtin f of
+             SOME b =>
+               transexplist args bc
+               (fn args =>
+                let
+                  val (rett, argt) = builtin_type b
+                  val retv = genvar "builtin"
+                in
+                  implicitargs retv rett (fn a => Builtin (b, a)) argt args
+                end)
+           | NONE =>
+              (* Normal function call. *)
+              transexp f bc
+              (fn (fv, ft) =>
+               case ft of
+                 Code (rett, argt) =>
+                   transexplist args bc
+                   (fn args =>
+                    let val retv = genvar "call"
+                    in implicitargs retv rett (fn a => Call (fv, a)) argt args
+                    end)
+               | _ => raise ToCIL ("tried to call value of non-function " ^
+                                   "type " ^ typtos ft)))
+        end
 
       | Ast.QuestionColon (cond, te, fe) =>
             transexp cond bc
