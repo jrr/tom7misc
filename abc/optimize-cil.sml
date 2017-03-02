@@ -941,6 +941,10 @@ struct
                                             main = old_main,
                                             globals }) =
     let
+      (* PERF: the "main" function at this point should actually
+         be init, which can't be recursive. So we can probably
+         just insert code there. But also, function inlining should
+         be able to undo any needless indirection introduced here? *)
       (* Create a new main function with the same arguments as
          the existing one. We don't just insert code at the head
          of main because of the possibility of a recursive main. *)

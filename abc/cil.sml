@@ -173,7 +173,6 @@ struct
     | builtin_type B_ARGV = (Pointer (Pointer (Word8 Unsigned)), nil)
     | builtin_type B_PUTC = (Word16 Unsigned, [Word8 Unsigned])
 
-
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
     | typtos (Struct t) = "... TODO STRUCT ..."
     | typtos (Code (ret, args)) = ("(" ^
@@ -261,10 +260,6 @@ struct
     | exptos (Not (w, a)) = "!" ^ valtos a
     | exptos (Complement (w, a)) = "~" ^ valtos a
     | exptos (Negate (w, a)) = "-" ^ valtos a
-    (* | exptos (AddressOf s) = "&" ^ s *)
-    (* | exptos (Dereference a) = "*" ^ valtos a *)
-    (* | exptos (Subscript (a, b)) = valtos a ^ "[" ^ valtos b ^ "]" *)
-    (* | exptos (Member (a, s)) = "(" ^ valtos a ^ ")." ^ s *)
     | exptos (Call (f, vl)) = "CALL " ^ valtos f ^
         "(" ^ StringUtil.delimit ", " (map valtos vl) ^ ")"
     | exptos (Load (width, addr)) = "LOAD" ^ widthtos width ^ " " ^ valtos addr
