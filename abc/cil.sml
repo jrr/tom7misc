@@ -3,7 +3,7 @@ struct
 
   (* Name of the main function; the program is expected to
      have exactly one of these. *)
-  val main = "main"
+  val main_function = "main"
   exception CIL of string
 
   datatype loc = Local of string | Global of string

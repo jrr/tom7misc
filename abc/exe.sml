@@ -270,17 +270,17 @@ struct
                                              Word32.fromInt pos)
            fun ch c = Word8.fromInt ` ord c
          in
+           (* Mark position in source code for forensics. *)
            case i mod 16 of
-           (* Load EAX, unique 32 bit number *)
-           0 => ch #"*"
-         | 1 => ch #" "
-         | 2 => ch #"<"
-         | 3 => ch #"-"
-         | 4 => ch #"-"
-         | 5 => ch #" "
-         | 14 => ch #"\r"
-         | 15 => ch #"\n"
-         | m => ch (String.sub (s, m - 6))
+             0 => ch #"*"
+           | 1 => ch #" "
+           | 2 => ch #"<"
+           | 3 => ch #"-"
+           | 4 => ch #"-"
+           | 5 => ch #" "
+           | 14 => ch #" "
+           | 15 => ch #" "
+           | m => ch (String.sub (s, m - 6))
          end)
 
       val bytes = Word8Vector.concat [header, image]

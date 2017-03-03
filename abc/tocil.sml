@@ -1132,7 +1132,7 @@ struct
       (* We'll get internal type errors or mysterious failure if init
          tries to call this and it has the wrong type. *)
       val (main_ret, main_args) =
-        case ListUtil.Alist.find op= (!functions) CIL.main of
+        case ListUtil.Alist.find op= (!functions) CIL.main_function of
           NONE => raise ToCIL "There is no function 'main'?"
         | SOME (Func { ret, args, ... }) =>
             case (ret, map #2 args) of
@@ -1160,7 +1160,8 @@ struct
               Bind
               (argv, Pointer (Pointer (Word8 Signed)),
                Builtin (B_ARGV, nil),
-               Do (Call (FunctionLiteral (CIL.main, main_ret, main_args),
+               Do (Call (FunctionLiteral (CIL.main_function,
+                                          main_ret, main_args),
                          [Var argc, Var argv]),
                    Do (Builtin (B_EXIT, nil),
                        End)))))]

@@ -38,17 +38,6 @@ struct
   val LiteralTrue = Word16Literal ` Word16.fromInt 1
   val LiteralFalse = Word16Literal ` Word16.fromInt 0
 
-  (* No no, these are not variables...
-  fun toplevel_context (Program { functions, globals, ... }) =
-    let
-      val ctx = CIL.Context.empty
-      val ctx = foldl (fn ((name, Glob { typ, ... }), ctx) =>
-                       CIL.Context.insert (ctx, name, typ))
-    in
-
-    end
-    *)
-
   structure DeadVarsArg : CILPASSARG =
   struct
     type arg = { used: bool ref SM.map, simplified: bool ref }
@@ -1029,7 +1018,7 @@ struct
       else
         (* Discard the new (blank) initialization stub, but keep
            rewrites of globals (might now have 'bytes') *)
-        Program { functions = functions, main = main, globals = globals }
+        Program { functions = functions, main = old_main, globals = globals }
     end
 
   fun simplify (prev as (Program { functions, main, globals })) =
