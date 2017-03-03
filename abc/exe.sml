@@ -285,9 +285,18 @@ struct
 
       val bytes = Word8Vector.concat [header, image]
       val num_bytes = Word8Vector.length bytes
+
+      val num_nonprintable = ref 0
+      fun onebyte b = if Tactics.printable b then ()
+                      else num_nonprintable := !num_nonprintable + 1
+      val () = Word8Vector.app onebyte bytes
     in
+      if !num_nonprintable = 0 then ()
+      else print ("\nWARNING: " ^ Int.toString (!num_nonprintable) ^
+                  " non-printable bytes remain!\n\n");
       if num_bytes = FILE_BYTES then ()
-      else raise (EXE ("File is not the expected size (got " ^ Int.toString num_bytes ^
+      else raise (EXE ("File is not the expected size (got " ^
+                       Int.toString num_bytes ^
                        " but expected " ^ Int.toString FILE_BYTES));
       StringUtil.writefilev8 filename bytes;
       print ("Wrote " ^ Int.toString num_bytes ^ " bytes to " ^ filename ^ "\n")

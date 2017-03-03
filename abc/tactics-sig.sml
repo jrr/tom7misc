@@ -5,6 +5,9 @@ sig
   type acc = Acc.acc
   type reg = X86.reg
 
+  val printable : Word8.word -> bool
+  val printable16 : Word16.word -> bool
+
   (* New good stuff used in ToX86. *)
 
   (* initialize (acc, init_ebp, init_ebx) *)
