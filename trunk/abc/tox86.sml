@@ -353,6 +353,11 @@ struct
                    POP SI
                    SUB SI <- tmp
                    JMP to next rail *)
+                (* XXX note that in a Call, we did a save_tmps right
+                   before this. So our temp frame is not really set up
+                   correcty. But in normal uses, it's safe to use
+                   basically any temporary offset here, since it's
+                   either a fresh frame (call) or dying one (return). *)
                 val tmp = tmp_frame_size
                 val subtractand = Word16.-(Word16.fromInt current_idx,
                                            Word16.fromInt num_labels)
@@ -718,25 +723,47 @@ struct
                 (* Can we jump that far? *)
                 if min_disp > 0x7e
                 then
-                  let
-                    val padding =
-                      EncodeX86.encodelist ASSEMBLY_CTX
-                      (* XOR with 'p' twice, but no jump. *)
-                      [XOR_A_IMM (I8 0wx70),
-                       XOR_A_IMM (I8 0wx70)]
-                    val padding_length = Word8Vector.length padding
+                  (* PERF we can cut it much closer. *)
+                  if min_disp > 0x7e * 2
+                  then
+                    let
+                      val jmp =
+                        EncodeX86.encodelist ASSEMBLY_CTX
+                        (* XOR with 'L' twice. *)
+                        [XOR_A_IMM (I8 0wx4C),
+                         XOR_A_IMM (I8 0wx4C),
+                         (* Overflow flag is definitely clear now. *)
+                         JNO (Word8.fromInt 0x7e)]
+                    val () = if JMP_SIZE <> Word8Vector.length jmp
+                             then raise ToX86 "bug: JMP_SIZE wrong"
+                             else ()
+                    val next_cur = !cur + JMP_SIZE + 0x7e
                   in
-                    (*
-                    print ("fill_rest can't jump far enough: cur = " ^
-                           Int.toString (!cur) ^ " srcip = " ^
-                           Int.toString srcip ^ " min_disp = " ^
-                           Int.toString min_disp ^ "\n"); *)
-                    (* PERF jump closer, of course! *)
-                    Segment.set_vec cs (!cur) padding;
-                    Segment.lock_range cs (!cur) padding_length;
-                    cur := !cur + padding_length;
+                    Segment.set_vec cs (!cur) jmp;
+                    Segment.lock_range cs (!cur) JMP_SIZE;
+                    cur := next_cur;
                     fill_rest ()
                   end
+                  else
+                    let
+                      val padding =
+                        EncodeX86.encodelist ASSEMBLY_CTX
+                        (* XOR with 'p' twice, but no jump. *)
+                        [XOR_A_IMM (I8 0wx70),
+                         XOR_A_IMM (I8 0wx70)]
+                      val padding_length = Word8Vector.length padding
+                    in
+                      (*
+                      print ("fill_rest can't jump far enough: cur = " ^
+                             Int.toString (!cur) ^ " srcip = " ^
+                             Int.toString srcip ^ " min_disp = " ^
+                             Int.toString min_disp ^ "\n"); *)
+                      (* PERF jump closer, of course! *)
+                      Segment.set_vec cs (!cur) padding;
+                      Segment.lock_range cs (!cur) padding_length;
+                      cur := !cur + padding_length;
+                      fill_rest ()
+                    end
                 else
                   let
                     val () = print ("fill_rest generating wrapping jump " ^

@@ -378,8 +378,10 @@ struct
     | PopJumpInd => "pop_jmp_ind"
     | JumpCond (cond, lab) => condtos ts cond ^ " " ^ lab
     | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- 0x" ^ Word8.toString w8
-    | Immediate16 (tmp, w16) => "imm16 " ^ ts tmp ^ " <- 0x" ^ Word16.toString w16
-    | Immediate32 (tmp, w32) => "imm32 " ^ ts tmp ^ " <- 0x" ^ Word32.toString w32
+    | Immediate16 (tmp, w16) =>
+        "imm16 " ^ ts tmp ^ " <- 0x" ^ Word16.toString w16
+    | Immediate32 (tmp, w32) =>
+        "imm32 " ^ ts tmp ^ " <- 0x" ^ Word32.toString w32
     | Add (a, b) => "add " ^ ts a ^ " <- " ^ ts b
     | Sub (a, b) => "sub " ^ ts a ^ " <- " ^ ts b
     | Complement a => "complement " ^ ts a
@@ -391,8 +393,8 @@ struct
     | Label lab => "(LABEL " ^ lab ^ ")"
 
   fun blocktos ts os (Block { name, tmp_frame, cmds }) =
-    "  " ^ name ^ ":    (frame: " ^ os tmp_frame ^ ")\n" ^
-    String.concat (map (fn cmd => "    " ^ cmdtos ts os cmd ^ "\n") cmds)
+    name ^ ":    (frame: " ^ os tmp_frame ^ ")\n" ^
+    String.concat (map (fn cmd => "  " ^ cmdtos ts os cmd ^ "\n") cmds)
 
   fun progtos ts os (Program { blocks, frame_stack_start, datasegment }) =
     (* XXX print data segment? *)

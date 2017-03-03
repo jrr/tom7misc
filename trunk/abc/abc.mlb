@@ -23,6 +23,9 @@ ckit/ckit-lib.mlb
   ../sml-lib/util/listutil-sig.sml
   ../sml-lib/util/listutil.sml
 
+  ../sml-lib/util/fsutil-sig.sml
+  ../sml-lib/util/fsutil.sml
+
   ../sml-lib/misc/params-sig.sml
   ../sml-lib/misc/params.sml
 

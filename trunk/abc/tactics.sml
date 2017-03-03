@@ -48,6 +48,9 @@ struct
     if lo > hi then ()
     else (ignore (f lo); for8 (Word8.+(lo, 0w1)) hi f)
 
+  fun repeated 0 acc i = acc
+    | repeated n acc i = repeated (n - 1) (acc // i) i
+
 
   (* Push the 16-bit value; if the high byte is zero then we can do
      it in one fewer byte. *)
@@ -651,17 +654,14 @@ struct
             (* Just time/quality tradeoff since we check for the shortest
                sequence below. *)
             val MAX_DISTANCE = 10
-
-            fun rep 0 acc i = acc
-              | rep n acc i = rep (n - 1) (acc // i) i
-
           in
             (* inc/dec_distance 0 covers the case that they are equal. *)
             if inc_distance <= MAX_DISTANCE
-            then SOME (rep inc_distance acc (INC AX) ?? learn_reg16 M.EAX v)
+            then SOME
+              (repeated inc_distance acc (INC AX) ?? learn_reg16 M.EAX v)
             else if dec_distance <= MAX_DISTANCE
                  then SOME
-                   (rep dec_distance acc (DEC AX) ?? learn_reg16 M.EAX v)
+                   (repeated dec_distance acc (DEC AX) ?? learn_reg16 M.EAX v)
                  else NONE
           end
       in
@@ -1019,15 +1019,33 @@ struct
         end
   in
     fun add_reg16_imm reg acc tfs n =
+      let
       (* As with the general-purpose add tactic, we'll actually subtract.
-         This is simpler because n is a constant.
+         This is simpler because n is a constant. *)
+        val startbytes = Acc.insbytes acc
+        val raw = raw_sub_reg16 reg acc tfs (Word16.~ n)
+        val rawbytes = Acc.insbytes raw - startbytes
+        val intn = Word16.toInt n
+      in
+        if intn < rawbytes
+        then repeated intn acc (INC ` reg_to_multireg16 reg)
+        else raw
+      end
 
-         PERF: Repeated INC is probably best in many cases. *)
-      raw_sub_reg16 reg acc tfs (Word16.~ n)
-
+    (* PERF: If we are adding or subtracting very large words
+       (e.g., negative ints), then doing INC here and DEC above could
+       be faster. *)
     fun sub_reg16_imm reg acc tfs n =
-      (* PERF: Repeated DEC is probably best in many cases. *)
-      raw_sub_reg16 reg acc tfs n
+      let
+        val startbytes = Acc.insbytes acc
+        val raw = raw_sub_reg16 reg acc tfs n
+        val rawbytes = Acc.insbytes raw - startbytes
+        val intn = Word16.toInt n
+      in
+        if intn < rawbytes
+        then repeated intn acc (DEC ` reg_to_multireg16 reg)
+        else raw
+      end
 
     (* Add a constant to BP. We have to be a little careful because BP is
        used as the base pointer for the temporaries themselves. *)
@@ -1259,8 +1277,8 @@ struct
             acc // INT 0wx21 ??
             (* illegal instruction *)
             (* acc // X86.DB 0wx63 // X86.DB 0wx2a ?? *)
-          (* interrupt returns character written in AL.
-             Not known whether it preserves DX? *)
+            (* interrupt returns character written in AL.
+               Not known whether it preserves DX? *)
             forget_reg16 M.EDX ??
             learn_reg16 M.EAX value -- AX -- DX
         in
@@ -1275,6 +1293,10 @@ struct
   fun exit acc : acc =
     let val acc = acc ++ AX
     in
+      (* This will execute INT 21. AH=0x4C is "Exit".
+         Note that we can set AL to a status byte and that gets
+         returned to the shell; would be useful to thread through the
+         return value from main. *)
       load_ax16 acc (Word16.fromInt 0x4c00) //
       (* "cya" is an illegal instruction; we never return *)
       X86.DB 0wx63 // X86.DB 0wx79 // X86.DB 0wx61 //

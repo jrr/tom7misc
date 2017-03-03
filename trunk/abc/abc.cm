@@ -28,6 +28,12 @@ group is
   ../sml-lib/util/listutil-sig.sml
   ../sml-lib/util/listutil.sml
 
+  ../sml-lib/util/fsutil-sig.sml
+  ../sml-lib/util/fsutil.sml
+
+  ../sml-lib/util/params-sig.sml
+  ../sml-lib/util/params.sml
+
   (* We need Word16 in SML/NJ. *)
   ../sml-lib/misc/wordn.sml
 
