@@ -38,7 +38,6 @@ struct
         val () = print ("\nAllocated:\n" ^
                         ASM.explicit_program_tostring asm ^ "\n")
         val x86 = ToX86.tox86 asm
-        val () = print ("\nToX86:\n" ^ "TODO PRINTING\n")
 
         val { cs, ds, init_ip } = x86
       in

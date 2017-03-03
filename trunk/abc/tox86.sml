@@ -10,13 +10,13 @@
       bytes) to 0x7e (+126 bytes). Note that there is no backward
       jump!
 
-    - Our program needs to have backward jumps in order to perform
-      loops. The only way I could even figure out to make the
-      instruction pointer decrease is to overflow it. Unfortunately it
-      doesn't simply work to let execution run past CS:FFFF, but it
-      does work to perform a short forward jump (like the onese we
-      have access to) that crosses CS:FFFF. These appear to be
-      performed in on the 16-bit word, and thus wrap around to
+    - But of course our program needs to have backward jumps in order
+      to perform loops. The only way I could even figure out to make
+      the instruction pointer decrease is to overflow it.
+      Unfortunately it doesn't simply work to let execution run past
+      CS:FFFF, but it does work to perform a short forward jump (like
+      the onese we have access to) that crosses CS:FFFF. These appear
+      to be performed in on the 16-bit word, and thus wrap around to
       CS:0000.
 
     - All this really lets us do is get back to the beginning of the
@@ -168,8 +168,17 @@ struct
   val INIT_SP = Word16.fromInt 0x7e7e
 
   val ASSEMBLY_CTX = X86.CTX { default_32 = false }
-  val RUNG_SIZE = EncodeX86.encoded_size ASSEMBLY_CTX (X86.DEC X86.SI) +
+  val RUNG_SIZE =
+    EncodeX86.encoded_size ASSEMBLY_CTX (X86.DEC X86.SI) +
     EncodeX86.encoded_size ASSEMBLY_CTX (X86.JNZ 0w0)
+
+  (* This is the best printable technique I know to preserve all
+     register values but perform an unconditional short jump. XOR
+     always clears the overflow flag. *)
+  val JMP_SIZE =
+    EncodeX86.encoded_size ASSEMBLY_CTX (X86.XOR_A_IMM (X86.I8 0wx20)) +
+    EncodeX86.encoded_size ASSEMBLY_CTX (X86.XOR_A_IMM (X86.I8 0wx20)) +
+    EncodeX86.encoded_size ASSEMBLY_CTX (X86.JNO 0w0)
 
   (* Actual start position of temporary frame. Note that BP will always point
      32 bytes before the frame. *)
@@ -181,14 +190,11 @@ struct
   open Acc
   infix // ?? ++ --
 
-    (* bad idea?
-  datatype problem =
-    (* The block with the given label was bigger than the maximum
-       block size. This includes the case that there was a conditional
-       jump too close to the end of the block. *)
-    BlockTooBig of string
-  | NotEnoughBlocks
-    *)
+  (* xblock is encoded x86 instructions, starting with its rung.
+     It shares the name of the ASM block it came from.
+     It also has the offsets (within the vector) of displacements
+     that must be filled in to jump to the next block. *)
+  type xblock = (string * Word8Vector.vector * int list)
 
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
@@ -471,8 +477,8 @@ struct
       val acc = acc ++ SI
       val acc = acc // DEC SI // JNZ 0w0
       val () =
-        (* Sanity check. Alternatively, we could just return this address.
-           It's only used to skip over the rung for the initial block. *)
+        (* Sanity check. Alternatively, we could return this for each
+           block. *)
         if Acc.insbytes acc = RUNG_SIZE then ()
         else raise ToX86 "bug: expected rung to be a specific size"
 
@@ -569,7 +575,51 @@ struct
     CharVector.tabulate (Word8Vector.length v,
                          fn i => chr (Word8.toInt (Word8Vector.sub (v, i))))
 
-  fun tox86 (A.Program { blocks, frame_stack_start, datasegment }) =
+  (* If we fail to fit an ASM block into an x86 xblock (the main limit being
+     the displacement of the jump from the rung over the xblock itself) *)
+  fun split (A.Program { blocks, frame_stack_start, datasegment },
+             problem_blocks : xblock SM.map) =
+    let
+      fun oneblock (orig as A.Block { name, tmp_frame, cmds }) =
+        case SM.find (problem_blocks, name) of
+          NONE => [orig]
+        | SOME _ =>
+            (* Currently we blindly split in the middle of the command
+               space. This is definitely suboptimal because:
+                - Some cmds take many more x86 bytes to implement
+                  than others, so we may significantly miss the middle
+                  of the x86 code this way.
+                - Splitting is particularly sensitive to jumps, mainly
+                  because of the minimum displacement. It's usually
+                  more efficient to split before a jump than after.
+
+               PERF: We could maybe improve this if layout_round returned a
+               an alignment between the cmd offsets and the x86 offsets. *)
+            let
+              val num_cmds = length cmds
+              val (first, second) = ListUtil.cleave (num_cmds div 2) cmds
+              (* Could base this on 'name', but we don't want to keep appending
+                 "_split_split_split" if we split multiple times... *)
+              val splitlab = CILUtil.newlabel "tox86_split_"
+            in
+              print ("Split " ^ name ^ " to " ^ splitlab ^ "\n");
+              if num_cmds <= 1
+              then raise ToX86 ("block " ^ name ^ " can't be split further??")
+              else [A.Block { name = name,
+                              tmp_frame = tmp_frame, cmds = first },
+                    (* Just falls through to the second half... *)
+                    A.Block { name = splitlab,
+                              tmp_frame = tmp_frame, cmds = second }]
+            end
+
+      val blocks = List.concat (map oneblock blocks)
+    in
+      A.Program { blocks = blocks,
+                  frame_stack_start = frame_stack_start,
+                  datasegment = datasegment }
+    end
+
+  fun tox86 (program as A.Program { blocks, frame_stack_start, datasegment }) =
     let
       (* XXX probably need to move initial block into the middle,
          like repetedly advance it (or binary search) until it's printable? *)
@@ -578,190 +628,285 @@ struct
           nil => raise ToX86 "ASM program is empty? Impossible!"
         | A.Block { name, ... } :: _ => name
 
-      val xblocks : (string * Word8Vector.vector * int list) list =
+      val xblocks : xblock list =
         layout_round (blocks, frame_stack_start, initial_label)
 
-      val total = foldl (fn ((l, v, _), b) =>
-                         Word8Vector.length v + b) 0 xblocks
-      val () = print ("Total code bytes before stretching: " ^
-                      Int.toString total ^ "\n")
-      val () = app (fn (l, v, _) =>
-                    print (l ^ ": " ^ w8vtos v ^ "\n")) xblocks
-
-      val cs = Segment.empty ()
-      val () = Segment.set_repeating_string cs 0 65536 "(CODE SEGMENT)"
-
-      (* OK, now we want to insert our blocks into the code segment
-         and patch up the jumps. This may not be possible, in which case
-         we'll make some adjustment (like splitting a block) and then
-         start again.
-
-         - The blocks must appear in the order they occur, since addressing
-           is relative.
-         - We have to fill in the jump offsets. These currently always
-           go to the beginning of the next block.
-         - If a jump offset can't be output because it's not printable,
-           then we'll have to try again.
-
-         Note that for the jump instructions, the displacement is measured
-         from the address of the next instruction, so for example JMP 0
-         just executes the next instruction. *)
-
-      (* We should probably split blocks > 126 bytes first; a single block
-         greater than the whole segment would cause confusing failures
-         in the block below (not that we would succeed after splitting!) *)
-
-      (* This is filled in with the actual start of the initial block
-         (not its rung), which we'll use to kick off the execution. *)
-      val init_addr = ref (NONE : Word16.word option)
-      (* Current offset within code segment; this is the first
-         address where we can acceptably place the next block.
-
-         We start this at some value like 0x2020 in order to ensure
-         that init has a printable address. *)
-      val start_ip = 0x2020
-
-      (* XXX could easily pass this instead of it being a ref *)
-      val cur = ref start_ip
-
-      (* Fill the rest of the code segment, such that when control
-         ends up on !cur, it makes its way back to the beginning of
-         cs, and update cur so that it's near the beginning of the
-         segment. This may involve filling the remainder of the
-         segment with unconditional jumps.
-
-         *)
-      fun fill_rest () =
-        raise ToX86 "unimplemented"
-
-      (* Control flow is at !cur, and we want to execute the
-         block at the head of this list. The previous block
-         has already been patched to jump to !cur. *)
-      fun place ((xb as (lab, vec, jmps)) :: rest) : unit =
+      val total_size = ref 0
+      (* Really just used as a set of the blocks that need to be
+         proactively split. *)
+      val problem_blocks = ref (SM.empty : xblock SM.map)
+      fun oneblock (xb as (lab, vec, jmps)) =
         let val len = Word8Vector.length vec
         in
-          print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
-                 lab ^ " of length " ^ Int.toString len ^ "\n");
-          if !cur + len > 65536
-          then
-            let in
-              print " ... would overflow.\n";
-              fill_rest ();
-              place (xb :: rest)
-            end
-          else
-            let
-              val abs_jmps = map (fn j => !cur + j) jmps
-              (* Earliest we could place the next one is right after
-                 this block ends. *)
-              val min_pos = ref (!cur + len)
-              (* But it also has to be far enough for the jumps to
-                 reach it with printable displacements. *)
-              val () = app (fn j =>
-                            let
-                              val srcip = j + 1
-                              val disp = !min_pos - srcip
-                            in
-                              (* XXX 0x20 *)
-                              if disp < 0
-                              then min_pos := !min_pos - disp
-                              else ()
-                            end) abs_jmps
-              val next_cur = !min_pos
-            in
-              if next_cur >= 65536
-              then raise ToX86 "need to handle the case that next_cur overflows"
-              else ();
-
-              print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".\n");
-              Segment.set_vec cs (!cur) vec;
-              (* Lock everything except for the locations we need to
-                 update (jumps) *)
-              Segment.lock_range cs (!cur) len;
-              app (Segment.unlock_idx cs) abs_jmps;
-
-              (* Fill in my jumps to point to next_cur. *)
-              app (fn j =>
-                   let
-                     val srcip = j + 1
-                     val disp = next_cur - srcip
-                   in
-                     (* XXX need to check displacement < 0x20 too. *)
-                     if disp > 0x7e
-                     then raise ToX86 ("In 'place', needed to write " ^
-                                       "displacement larger than 0x7e: " ^
-                                       Int.toString disp)
-                     else if disp < 0
-                          then raise ToX86 ("In 'place', negative " ^
-                                            "displacement?! " ^
-                                            Int.toString disp)
-                          else
-                            let in
-                              Segment.set_idx cs j (Word8.fromInt disp);
-                              Segment.lock_idx cs j
-                            end
-                   end) abs_jmps;
-
-              (* Now control flow will be at next_cur. *)
-              cur := next_cur;
-              place rest
-            end
+          total_size := !total_size + len;
+          (* We need a jump from right after this block's rung
+             to the next block. If the current block is too big
+             for that jump, we won't succeed. *)
+          (* XXX maybe cleaner to find the first jump in the
+             jump list? *)
+          if len - RUNG_SIZE > 0x7e
+          then problem_blocks := SM.insert (!problem_blocks, lab, xb)
+          else ()
         end
-        | place nil =
-        let in
-          print ("Out of blocks with cur=" ^ Int.toString (!cur) ^
-                 " and start_ip=" ^ Int.toString start_ip ^ "\n");
-          (* We've used up all the blocks and execution is at !cur.
-             Need to get control back to start_ip. *)
-          if !cur <= start_ip
-          then
-            let
-              val disp = start_ip - !cur
+    in
+      app oneblock xblocks;
+      if not (SM.isempty (!problem_blocks))
+      then tox86 (split (program, !problem_blocks))
+      else
+        let
+          val () = print ("No early problem blocks!\n")
+          val () = print ("Total code bytes: " ^
+                          Int.toString (!total_size) ^ "\n")
+          val () = app (fn (l, v, _) =>
+                        print (l ^ ": " ^ w8vtos v ^ "\n")) xblocks
+
+          val cs = Segment.empty ()
+          val () = Segment.set_repeating_string cs 0 65536 "(CODE SEGMENT)"
+
+          (* OK, now we want to insert our blocks into the code segment and
+             patch up the jumps. This may not be possible, in which
+             case we'll make some adjustment (like splitting a block)
+             and then start again.
+
+             - The blocks must appear in the order they occur, since addressing
+               is relative.
+             - We have to fill in the jump offsets. These currently always
+               go to the beginning of the next block.
+             - If a jump offset can't be output because it's not printable,
+               then we'll have to try again.
+
+             Note that for the jump instructions, the displacement
+             is measured from the address of the next instruction,
+             so for example JMP 0 just executes the next
+             instruction. *)
+
+          (* This is filled in with the actual start of the initial block
+             (not its rung), which we'll use to kick off the execution. *)
+          val init_addr = ref (NONE : Word16.word option)
+          (* Current offset within code segment; this is the first
+             address where we can acceptably place the next block.
+
+             We start this at some value like 0x2020 in order to ensure
+             that init has a printable address. *)
+          val start_ip = 0x2020
+
+          (* XXX could easily pass this instead of it being a ref *)
+          val cur = ref start_ip
+          (* XXX also, some better check that after we've wrapped
+             around, we can't start writing over start_ip (this probably
+             means we have too much code to fit) *)
+
+          (* Fill the rest of the code segment, such that when control
+             ends up on !cur, it makes its way back to the beginning of
+             cs, and update cur so that it's near the beginning of the
+             segment. This may involve filling the remainder of the
+             segment with unconditional jumps. *)
+          fun fill_rest () =
+            (* We need at least enough space to write a single jump.
+               XXX This is possible; should call fill_rest
+               before getting ourselves stuck here! *)
+            if !cur + JMP_SIZE > 65536
+            then raise ToX86 ("Not enough space for fill_rest: cur = " ^
+                              Int.toString (!cur))
+            else
+              let
+                (* Consider placing the wraparound jump right here. *)
+                val srcip = !cur + JMP_SIZE
+                (* Displacement to reach 65536=0. *)
+                val min_disp = 65536 - srcip
+              in
+                (* Can we jump that far? *)
+                if min_disp > 0x7e
+                then
+                  let
+                    val padding =
+                      EncodeX86.encodelist ASSEMBLY_CTX
+                      (* XOR with 'p' twice, but no jump. *)
+                      [XOR_A_IMM (I8 0wx70),
+                       XOR_A_IMM (I8 0wx70)]
+                    val padding_length = Word8Vector.length padding
+                  in
+                    (*
+                    print ("fill_rest can't jump far enough: cur = " ^
+                           Int.toString (!cur) ^ " srcip = " ^
+                           Int.toString srcip ^ " min_disp = " ^
+                           Int.toString min_disp ^ "\n"); *)
+                    (* PERF jump closer, of course! *)
+                    Segment.set_vec cs (!cur) padding;
+                    Segment.lock_range cs (!cur) padding_length;
+                    cur := !cur + padding_length;
+                    fill_rest ()
+                  end
+                else
+                  let
+                    val () = print ("fill_rest generating wrapping jump " ^
+                                    "cur = " ^
+                                    Int.toString (!cur) ^ " srcip = " ^
+                                    Int.toString srcip ^ " min_disp = " ^
+                                    Int.toString min_disp ^ "\n");
+                    (* Great, we can jump past 65536.
+                       We may need to jump farther if the displacement
+                       would be less than 0x20. *)
+                    val disp = Int.max (min_disp, 0x20)
+                    val jmp =
+                      EncodeX86.encodelist ASSEMBLY_CTX
+                      (* XOR with 'w' twice. *)
+                      [XOR_A_IMM (I8 0wx77),
+                       XOR_A_IMM (I8 0wx77),
+                       (* Overflow flag is definitely clear now. *)
+                       JNO (Word8.fromInt disp)]
+                    val () = if JMP_SIZE <> Word8Vector.length jmp
+                             then raise ToX86 "bug: JMP_SIZE wrong"
+                             else ()
+                    val next_cur = !cur + JMP_SIZE + disp
+                  in
+                    if next_cur < 65536
+                    then raise ToX86 ("bug: expected cur to wrap, got " ^
+                                      Int.toString next_cur)
+                    else ();
+                    Segment.set_vec cs (!cur) jmp;
+                    Segment.lock_range cs (!cur) JMP_SIZE;
+                    cur := next_cur - 65536
+                  end
+              end
+
+          (* Control flow is at !cur, and we want to execute the
+             block at the head of this list. The previous block
+             has already been patched to jump to !cur. *)
+          fun place ((xb as (lab, vec, jmps)) :: rest) : unit =
+            let val len = Word8Vector.length vec
             in
-              if disp = 0
-              then print " .. exact hit!\n"
-              else
-                (* PERF use jumps, duhhh *)
-                (* Pad with "INC AX".
-
-                   Assumes AX is not holding any interesting
-                   values between blocks.
-
-                   A better one-byte padding might be the
-                   segment prefix bytes, which don't do anything
-                   if the next instruction is DEC SI. *)
+              print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
+                     lab ^ " of length " ^ Int.toString len ^ "\n");
+              if !cur + len > 65536
+              then
                 let in
-                  Segment.set_idx cs (!cur) 0wx40;
-                  Segment.lock_idx cs (!cur);
-                  cur := !cur + 1;
+                  print " ... would overflow.\n";
+                  fill_rest ();
+                  place (xb :: rest)
+                end
+              else
+                let
+                  val abs_jmps = map (fn j => !cur + j) jmps
+                  (* Earliest we could place the next one is right after
+                     this block ends. *)
+                  val min_pos = ref (!cur + len)
+                  (* But it also has to be far enough for the jumps to
+                     reach it with printable displacements. *)
+                  val () = app (fn j =>
+                                let
+                                  val srcip = j + 1
+                                  val disp = !min_pos - srcip
+                                in
+                                  (* XXX 0x20 *)
+                                  if disp < 0
+                                  then min_pos := !min_pos - disp
+                                  else ()
+                                end) abs_jmps
+                  val next_cur = !min_pos
+                in
+                  if next_cur >= 65536
+                  then raise ToX86 ("need to handle the case that " ^
+                                    "next_cur overflows")
+                  else ();
+
+                  print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".\n");
+                  (if lab = initial_label
+                   then
+                     case !init_addr of
+                       NONE => init_addr :=
+                         SOME (Word16.fromInt (!cur + RUNG_SIZE))
+                     | SOME _ => raise ToX86 "initial label emitted twice?!"
+                   else ());
+                  Segment.set_vec cs (!cur) vec;
+                  (* Lock everything except for the locations we need to
+                     update (jumps) *)
+                  Segment.lock_range cs (!cur) len;
+                  app (Segment.unlock_idx cs) abs_jmps;
+
+                  (* Fill in my jumps to point to next_cur. *)
+                  app (fn j =>
+                       let
+                         val srcip = j + 1
+                         val disp = next_cur - srcip
+                       in
+                         (* XXX need to check displacement < 0x20 too. *)
+                         if disp > 0x7e
+                         then raise ToX86 ("In 'place', needed to write " ^
+                                           "displacement larger than 0x7e: " ^
+                                           Int.toString disp)
+                         else if disp < 0
+                              then raise ToX86 ("In 'place', negative " ^
+                                                "displacement?! " ^
+                                                Int.toString disp)
+                              else
+                                let in
+                                  Segment.set_idx cs j (Word8.fromInt disp);
+                                  Segment.lock_idx cs j
+                                end
+                       end) abs_jmps;
+
+                  (* Now control flow will be at next_cur. *)
+                  cur := next_cur;
+                  place rest
+                end
+            end
+            | place nil =
+            let in
+              (* print ("Out of blocks with cur=" ^ Int.toString (!cur) ^
+                     " and start_ip=" ^ Int.toString start_ip ^ "\n"); *)
+              (* We've used up all the blocks and execution is at !cur.
+                 Need to get control back to start_ip. *)
+              if !cur <= start_ip
+              then
+                let
+                  val disp = start_ip - !cur
+                in
+                  if disp = 0
+                  then print " .. exact hit!\n"
+                  else
+                    (* PERF use jumps, duhhh *)
+                    (* Pad with "INC AX".
+
+                       Assumes AX is not holding any interesting
+                       values between blocks.
+
+                       A better one-byte padding might be the
+                       segment prefix bytes, which don't do anything
+                       if the next instruction is DEC SI. *)
+                    let in
+                      Segment.set_idx cs (!cur) 0wx40;
+                      Segment.lock_idx cs (!cur);
+                      cur := !cur + 1;
+                      place nil
+                    end
+                end
+              else
+                let in
+                  print " .. gotta wrap\n";
+                  fill_rest ();
                   place nil
                 end
             end
-          else
-            let in
-              print " .. gotta wrap\n";
-              fill_rest ();
-              place nil
-            end
-          end
 
-      val () = place xblocks
+          val () = place xblocks
 
-
-      (* XXX: Need to check that this is printable, and move the
-         initial block if it's not! *)
-      val init_ip =
-        case !init_addr of
-          NONE => raise ToX86 ("The initial block " ^ initial_label ^
-                               "was never written to the code segment!?")
-        | SOME ia => ia
-
-      (* val cs =
-         raise ToX86 "still need to do various things to construct cs" *)
-    in
-      { cs = Segment.extract cs,
-        init_ip = init_ip,
-        ds = datasegment }
+          (* XXX: Need to check that this is printable, and move the
+             initial block if it's not! *)
+          val init_ip =
+            case !init_addr of
+              NONE => raise ToX86 ("The initial block " ^ initial_label ^
+                                   "was never written to the code segment!?")
+            | SOME ia => ia
+        in
+          if Tactics.printable16 init_ip
+          then ()
+          else raise ToX86 ("The init_ip is not printable: " ^
+                            Word16.toString init_ip);
+          { cs = Segment.extract cs,
+            init_ip = init_ip,
+            ds = datasegment }
+        end
     end
 
 end

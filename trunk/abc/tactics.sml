@@ -15,17 +15,6 @@ struct
   open Acc
   infix // ?? ++ --
 
-  (* PERF: If we allow CR/LF, they need to be included here.
-     Note that there are many loops from low to high, as well. *)
-  val PRINT_LOW : Word8.word = 0wx20
-  val PRINT_HIGH : Word8.word = 0wx7e
-  fun printable p = p >= PRINT_LOW andalso p <= PRINT_HIGH
-
-  fun dprint (f : unit -> string) = ()
-  (* fun dprint f = print (f ()) *)
-
-  fun ftos f = Real.fmt (StringCvt.FIX (SOME 2)) f
-
   fun w16tow8s (w : Word16.word) : Word8.word * Word8.word =
     let
       val wh = Word8.fromInt ` Word16.toInt `
@@ -39,6 +28,21 @@ struct
   fun w8stow16 (wh : Word8.word, wl : Word8.word) =
     Word16.orb(Word16.<<(Word16.fromInt (Word8.toInt wh), 0w8),
                Word16.fromInt (Word8.toInt wl))
+
+  (* PERF: If we allow CR/LF, they need to be included here.
+     Note that there are many loops from low to high, as well. *)
+  val PRINT_LOW : Word8.word = 0wx20
+  val PRINT_HIGH : Word8.word = 0wx7e
+  fun printable p = p >= PRINT_LOW andalso p <= PRINT_HIGH
+  fun printable16 w =
+    let val (a, b) = w16tow8s w
+    in printable a andalso printable b
+    end
+
+  fun dprint (f : unit -> string) = ()
+  (* fun dprint f = print (f ()) *)
+
+  fun ftos f = Real.fmt (StringCvt.FIX (SOME 2)) f
 
   fun for8 (lo : Word8.word) (hi : Word8.word) f =
     if lo > hi then ()

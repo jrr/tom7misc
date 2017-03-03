@@ -254,4 +254,5 @@ struct
 
   open VecEncode
 
+  fun encodelist ctx il = Word8Vector.concat (map (encode ctx) il)
 end
