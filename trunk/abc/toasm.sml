@@ -735,6 +735,10 @@ struct
      It may also be possible to drop dead blocks? Are there any
      situations where we get them? *)
 
+  (* Easy optimization TODO: Remove labels with no code. These
+     actually become nontrivial code (rung + explicit fallthrough) in
+     tox86. *)
+
   (* Optimization TODO: Coalesce blocks that are exactly equal. *)
 
 end
