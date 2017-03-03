@@ -464,17 +464,31 @@ struct
                   a suggestion for the next block. *)
              | NONE => ([A.JumpCond (A.True, lab)], NONE))
 
-        | C.Return v =>
-            let
-              (* FIXME store the return value at frameoffset 0 *)
-              val ratmp = newtmp ("returnaddr", S16)
-            in
+        | C.Return NONE =>
+            (* XXX maybe check that return size is 0? *)
+            ([A.PopJumpInd],
+             NONE)
+
+        | C.Return (SOME v) =>
+            gentmp ctx v
+            (fn (rtmp, rett) =>
+             let
+               val retsize = typsize rett
+               (* Address of return value. *)
+               val ratmp = newtmp ("retoffset", S16)
+             in
+               A.FrameOffset (ratmp, Word16.fromInt 0) //
+               (case retsize of
+                  S8 => A.Store8 (ratmp, rtmp)
+                | S16 => A.Store16 (ratmp, rtmp)
+                | _ => raise ToASM "XXX only 8/16 bit stores implemented") //
+
               (* The return address is at the top of the stack.
                  PopJumpInd expects its argument there, so that's
                  all we need to do! *)
               ([A.PopJumpInd],
                NONE)
-            end
+             end)
         | C.End =>
             (* Unreachable, so we can just fall off the end.
                (This is used in global initialization, but that

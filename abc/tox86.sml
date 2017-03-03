@@ -436,11 +436,23 @@ struct
                 Tactics.putc16 acc (offset tmp)
               end
 
+          | A.Load16 (dst, addr) =>
+              let in
+                assert16 dst; assert16 addr;
+                Continue `
+                Tactics.load16 acc (offset dst) (offset addr)
+              end
+
+          | A.Store16 (addr, src) =>
+              let in
+                assert16 addr; assert16 src;
+                Continue `
+                Tactics.store16 acc (offset addr) (offset src)
+              end
+
           (*
           | A.Load8 (dst, addr) =>
-          | A.Load16 (dst, addr) =>
           | A.Store8 (addr, src) =>
-          | A.Store16 (addr, src) =>
           | A.JumpCond (cond, lab) =>
           | A.Immediate8 (tmp, w8) =>
           | A.Immediate32 (tmp, w32) =>
@@ -449,12 +461,10 @@ struct
             *)
           | _ =>
               let in
-                (* print ("Unimplemented cmd: " ^
-                   ASM.explicit_cmdtos cmd ^ "\n"); *)
-                Continue `
-                (acc // MESSAGE ("TODO " ^ ASM.explicit_cmdtos cmd))
-                (* raise ToX86 ("Unimplemented cmd: " ^
-                   ASM.explicit_cmdtos cmd) *)
+                (* Continue `
+                (acc // MESSAGE ("TODO " ^ ASM.explicit_cmdtos cmd)) *)
+                raise ToX86 ("Unimplemented cmd: " ^
+                             ASM.explicit_cmdtos cmd)
               end
         end
 
@@ -512,7 +522,7 @@ struct
            overflow the IP.) *)
         let
           val acc = acc ++ EAX ++ ESI
-          val acc = Tactics.load_ax16 acc (Word16.fromInt 0) //
+          val acc = Tactics.imm_ax16 acc (Word16.fromInt 0) //
             PUSH AX //
             POP SI //
             (* We specifically zero it then INC so that we know

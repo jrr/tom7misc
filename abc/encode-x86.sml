@@ -86,14 +86,14 @@ struct
                        else vec [0wx67]
     in
       case modrm of
-        X.IND_EAX => raise Exn "unimplemented"
-      | X.IND_ECX => raise Exn "unimplemented"
-      | X.IND_EDX => raise Exn "unimplemented"
-      | X.IND_EBX => raise Exn "unimplemented"
+        X.IND_EAX => (pfx_addr32, 0w0, 0w0, vec [])
+      | X.IND_ECX => (pfx_addr32, 0w0, 0w1, vec [])
+      | X.IND_EDX => (pfx_addr32, 0w0, 0w2, vec [])
+      | X.IND_EBX => (pfx_addr32, 0w0, 0w3, vec [])
       | X.IND_SIB sib => raise Exn "unimplemented"
       | X.DISP32 w32 => raise Exn "unimplemented"
-      | X.IND_ESI => raise Exn "unimplemented"
-      | X.IND_EDI => raise Exn "unimplemented"
+      | X.IND_ESI => (pfx_addr32, 0w0, 0w6, vec [])
+      | X.IND_EDI => (pfx_addr32, 0w0, 0w7, vec [])
       | X.IND_EAX_DISP8 w8 => (pfx_addr32, 0w1, 0w0, vec [w8])
       | X.IND_ECX_DISP8 w8 => (pfx_addr32, 0w1, 0w1, vec [w8])
       | X.IND_EDX_DISP8 w8 => (pfx_addr32, 0w1, 0w2, vec [w8])

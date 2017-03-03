@@ -970,7 +970,7 @@ struct
                                          old_ret,
                                          map #2 old_args),
                         map (fn (var, v, t) => Var var) vargs),
-                  Return ` Var ret)
+                  Return ` SOME ` Var ret)
         in
           BC.insert (bc, !current_start, bindargs vargs)
         end

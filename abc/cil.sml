@@ -140,7 +140,7 @@ struct
     (* GotoIf (cond, true-label, else-branch). *)
   | GotoIf of cond * string * stmt
   | Goto of string
-  | Return of value
+  | Return of value option
   | End
 
   datatype function =
@@ -284,7 +284,8 @@ struct
         " " ^ valtos v ^ "\n" ^ stmttos s
     | stmttos (GotoIf (c, lab, s)) =
         "  if " ^ condtos c ^ " goto " ^ lab ^ "\n" ^ stmttos s
-    | stmttos (Return v) = "  return " ^ valtos v
+    | stmttos (Return NONE) = "  return (nothing)"
+    | stmttos (Return (SOME v)) = "  return " ^ valtos v
     | stmttos (Goto lab) = "  goto " ^ lab
     | stmttos End = "  end"
 

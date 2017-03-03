@@ -314,11 +314,13 @@ struct
       GotoIf (c, lab, s)
     end
   fun case_Goto arg ({ selft, selfv, selfe, selfs }, ctx) = Goto
-  fun case_Return arg ({ selft, selfv, selfe, selfs }, ctx) v =
+  fun case_Return arg ({ selft, selfv, selfe, selfs }, ctx) NONE =
+    Return NONE
+    | case_Return arg ({ selft, selfv, selfe, selfs }, ctx) (SOME v) =
     let
       val (v, _) = selfv arg ctx v
     in
-      Return v
+      Return (SOME v)
     end
   fun case_End arg ({ selft, selfv, selfe, selfs }, ctx) = End
 end

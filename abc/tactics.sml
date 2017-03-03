@@ -463,20 +463,19 @@ struct
          raise (Tactics s))
     val () = populate_best_printable ()
 
-    (* May not change AH, since we use this in 16-bit loads. We could be
-       more aggressive (IMUL, etc.) if we did't care about preserving
-       AH. *)
-    fun load_al_known acc al vl : acc =
+    (* May not change AH, since we use this in 16-bit immediates. We could
+       be more aggressive (IMUL, etc.) if we did't care about preserving AH. *)
+    fun imm_al_known acc al vl : acc =
       let
         val () = dprint (fn () =>
-                         "load_al_known have: " ^ Word8.toString al ^
+                         "imm_al_known have: " ^ Word8.toString al ^
                          " v: " ^ Word8.toString vl ^ " with machine:\n" ^
                          M.debugstring (mach acc) ^ "\n")
         val () =
           case M.slot (mach acc) M.EAX ---@ of
-            NONE => raise Tactics "must really know al in load_al_known"
+            NONE => raise Tactics "must really know al in imm_al_known"
           | SOME al' => if al <> al'
-                        then raise Tactics "wrong known al in load_al_known?"
+                        then raise Tactics "wrong known al in imm_al_known?"
                         else ()
         val () = assert_claimed acc AX
         val srci = Word8.toInt al
@@ -516,7 +515,7 @@ struct
          Instead of PUSHing an immediate, we can also just DEC SP,
          which leaves AL unknown at the end, but is shorter. If
          vlo is NONE, then do this. *)
-    fun load_ah_known acc (ah, al) vlo vh : acc =
+    fun imm_ah_known acc (ah, al) vlo vh : acc =
       let
         (* Push two bytes on the stack, where the top must be
            the given one. Can do anything it wants to AX.
@@ -525,7 +524,7 @@ struct
            we could push it here... *)
         fun pushbyte b =
           let
-            val via_ax = SOME (load_al_known acc al b // PUSH AX)
+            val via_ax = SOME (imm_al_known acc al b // PUSH AX)
             val imm = if printable b
                       then SOME (acc // (PUSH_IMM ` I8 b))
                       else NONE
@@ -566,10 +565,10 @@ struct
             end
       end
 
-    (* Load AL with the value, without touching AH or anything else. *)
-    fun load_al acc vl : acc =
+    (* Set AL to the value, without touching AH or anything else. *)
+    fun imm_al acc vl : acc =
       case M.slot (mach acc) M.EAX ---@ of
-        SOME al => load_al_known acc al vl
+        SOME al => imm_al_known acc al vl
       | NONE =>
           let
             val acc = acc //
@@ -577,11 +576,12 @@ struct
               (AND_A_IMM ` I8 0wx20) ??
               learn_slot M.EAX ---@ 0w0
           in
-            load_al_known acc 0w0 vl
+            imm_al_known acc 0w0 vl
           end
 
-    (* Load AX, knowing that it currently contains some value. *)
-    fun load_ax16_known (acc : acc) (a : Word16.word) (v : Word16.word) : acc =
+    (* Set AX to the immediate value, knowing that it currently contains some
+       value. *)
+    fun imm_ax16_known (acc : acc) (a : Word16.word) (v : Word16.word) : acc =
       let
         val (ah, al) = w16tow8s a
         val (vh, vl) = w16tow8s v
@@ -592,16 +592,16 @@ struct
                target al is already printable. *)
             val alhint = Array.sub (best_printable_src,
                                     Word8.toInt al)
-            val acc = load_ah_known acc (ah, al) (SOME alhint) vh
-            val acc = load_al_known acc alhint vl
+            val acc = imm_ah_known acc (ah, al) (SOME alhint) vh
+            val acc = imm_al_known acc alhint vl
           in
             SOME acc
           end
 
         fun bytewise_blind () =
           let
-            val acc = load_ah_known acc (ah, al) NONE vh
-            val acc = load_al acc vl
+            val acc = imm_ah_known acc (ah, al) NONE vh
+            val acc = imm_al acc vl
           in
             SOME acc
           end
@@ -669,19 +669,19 @@ struct
                        bytewise_hint (), bytewise_blind ()]
       end
   in
-    (* TODO: Easy to load any reg with 32-bit value by doing two load_ax16s
+    (* TODO: Easy to set any reg to 32-bit value by doing two imm_ax16s
        (the second with a known value), and pushing them on the stack,
        then popping into a 32-bit register. (Or four single-byte loads?) *)
 
-    (* Load AX with the 16-bit value.
+    (* Set AX to the 16-bit value.
        The register should already be claimed by the caller. *)
-    fun load_ax16 acc (w : Word16.word) : acc =
+    fun imm_ax16 acc (w : Word16.word) : acc =
       let
         val () = assert_claimed acc AX
 
         val known =
           case M.reg16 (mach acc) M.EAX of
-            SOME ax => SOME ` load_ax16_known acc ax w
+            SOME ax => SOME ` imm_ax16_known acc ax w
           | NONE => NONE
 
         (* PERF: Case where we know one of AH or AL, just not the other one *)
@@ -696,7 +696,7 @@ struct
               (AND_A_IMM ` I16 ` Word16.fromInt 0x2020) ??
               learn_reg16 M.EAX (Word16.fromInt 0)
           in
-            SOME ` load_ax16_known acc (Word16.fromInt 0) w
+            SOME ` imm_ax16_known acc (Word16.fromInt 0) w
           end
 
         (* Loading a single byte into AX is only 3 bytes,
@@ -708,7 +708,7 @@ struct
               POP AX ??
               learn_reg16 M.EAX (Word16.fromInt 0x20)
           in
-            SOME ` load_ax16_known acc (Word16.fromInt 0x20) w
+            SOME ` imm_ax16_known acc (Word16.fromInt 0x20) w
           end
 
         (* PERF should consider loading values that are close
@@ -735,7 +735,7 @@ struct
                 learn_reg16 M.EAX wp
             in
               (* Now try to load from this known value. *)
-              SOME ` load_ax16_known acc wp w
+              SOME ` imm_ax16_known acc wp w
             end
           else NONE
 
@@ -756,19 +756,19 @@ struct
     | DH_SI => M.ESI
     | BH_DI => M.EDI
 
-  (* Load a 16-bit register with the specified value.
+  (* Set a 16-bit register to the specified value.
      Must claim the target register and AX before calling.
      May use stack but restores it.
      Can trash flags.
      Modifies AX. *)
-  fun load_reg16 (acc : acc) (r : reg) (v : Word16.word) : acc =
+  fun imm_reg16 (acc : acc) (r : reg) (v : Word16.word) : acc =
     let
       fun general () =
         let
           val via_a =
             case r of
-              A => SOME ` load_ax16 acc v
-            | _ => SOME (load_ax16 acc v //
+              A => SOME ` imm_ax16 acc v
+            | _ => SOME (imm_ax16 acc v //
                          PUSH AX //
                          POP (reg_to_multireg16 r) ??
                          learn_reg16 (reg_to_machreg r) v)
@@ -795,25 +795,44 @@ struct
       | _ => general ()
     end handle e => raise e
 
-  fun check_printable_modrm modrm =
+  fun check_printable_modrm (reg, modrm) =
     let
-      val w =
+      fun assert w =
+        if w >= 0wx20 andalso w <= 0wx7e then ()
+        else raise Tactics "disp8 is non-printable, contrary to assertion"
+      fun checkreg () =
+        case reg of
+          AH_SP => ()
+        | CH_BP => ()
+        | DH_SI => ()
+        | BH_DI => ()
+        | _ => raise Tactics ("in [reg] mod/rm, only certain other " ^
+                              "registers result in printable instructions; " ^
+                              "got " ^ regtos reg)
+    in
         case modrm of
-          IND_EAX_DISP8 w => w
-        | IND_ECX_DISP8 w => w
-        | IND_EDX_DISP8 w => w
-        | IND_EBX_DISP8 w => w
+          IND_EAX_DISP8 w => assert w
+        | IND_ECX_DISP8 w => assert w
+        | IND_EDX_DISP8 w => assert w
+        | IND_EBX_DISP8 w => assert w
         | IND_SIB_DISP8 _ => raise Tactics "unimplemented"
-        | IND_EBP_DISP8 w => w
-        | IND_ESI_DISP8 w => w
-        | IND_EDI_DISP8 w => w
+        | IND_EBP_DISP8 w => assert w
+        | IND_ESI_DISP8 w => assert w
+        | IND_EDI_DISP8 w => assert w
+
+        | IND_EAX => checkreg ()
+        | IND_ECX => checkreg ()
+        | IND_EDX => checkreg ()
+        | IND_EBX => checkreg ()
+        | IND_SIB sib => raise Tactics "unimplemented"
+        | DISP32 w32 => raise Tactics "unimplemented"
+        | IND_ESI => checkreg ()
+        | IND_EDI => checkreg ()
+
         (* This is not necessarily a bug; we might just need to add
            support for the mod/rm type here. *)
         | _ => raise Tactics ("got mod/rm that isn't [REG]+disp8 " ^
                               "when checking for printable mod/rm...")
-    in
-      if w >= 0wx20 andalso w <= 0wx7e then ()
-      else raise Tactics "disp8 is non-printable, contrary to assertion"
     end
 
   fun check_not_stack16 AH_SP =
@@ -824,14 +843,14 @@ struct
   (* Load the register with the immediate value.
      Only need to claim the target register; may trash AX if unclaimed.
      *)
-  fun load_reg16only acc A v = load_ax16 acc v
-    | load_reg16only acc r v =
+  fun imm_reg16only acc A v = imm_ax16 acc v
+    | imm_reg16only acc r v =
     save_and_claim acc AX
     (fn acc =>
      let in
        check_not_stack16 r;
        (* PERF -- we don't need to save AX if value is printable. *)
-       load_reg16 acc r v
+       imm_reg16 acc r v
      end)
 
   (* mod/rm macro that generates IND_EBP_DISP8 as though it starts at 0,
@@ -863,12 +882,12 @@ struct
      use it instead of loading that into A *)
   fun mov16ind8 acc (modrm <~ reg) : acc =
     let in
-      check_printable_modrm modrm;
+      check_printable_modrm (reg, modrm);
       check_not_stack16 reg;
       assert_claimed acc (reg_to_multireg16 reg);
       save_and_claim acc AX
       (fn acc =>
-       load_ax16 acc (Word16.fromInt 0) //
+       imm_ax16 acc (Word16.fromInt 0) //
        AND (S16, modrm <~ A)) //
       XOR (S16, modrm <~ reg)
       (* XXX this should track the value of the temporary too. *)
@@ -876,11 +895,11 @@ struct
 
    | mov16ind8 acc (reg <- modrm) =
     let in
-      check_printable_modrm modrm;
+      check_printable_modrm (reg, modrm);
       check_not_stack16 reg;
       assert_claimed acc (reg_to_multireg16 reg);
 
-      load_reg16only acc reg (Word16.fromInt 0) //
+      imm_reg16only acc reg (Word16.fromInt 0) //
       XOR (S16, reg <- modrm) ??
       forget_reg16 (reg_to_machreg reg)
       (* XXX this should track the value of the temporary too. *)
@@ -892,7 +911,7 @@ struct
     save_and_claim acc AX
     (fn acc =>
      (* First, zero the destination. *)
-     load_ax16 acc (Word16.fromInt 0) //
+     imm_ax16 acc (Word16.fromInt 0) //
      AND (S16, EBP_TEMPORARY dst <~ A) //
      (* A is still zero; replace it with src. *)
      XOR (S16, A <- EBP_TEMPORARY dst) ??
@@ -938,7 +957,7 @@ struct
   fun imm_tmp16 acc (tmp : int) (v : Word16.word) : acc =
     claim_reg16 acc [A, C, D, DH_SI, BH_DI]
     (fn (acc, tmpreg) =>
-     let val acc = load_reg16only acc tmpreg v
+     let val acc = imm_reg16only acc tmpreg v
      in mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
      end)
 
@@ -952,7 +971,7 @@ struct
       claim_reg16 acc [C, D, DH_SI, BH_DI, A]
       (fn (acc, tmpr) =>
        let
-         val acc = load_reg16only acc tmpr (Word16.fromInt 0xFFFF)
+         val acc = imm_reg16only acc tmpr (Word16.fromInt 0xFFFF)
        in
          mov16ind8 acc (IND_EBX_DISP8 0wx20 <~ tmpr)
        end) //
@@ -1072,8 +1091,31 @@ struct
        this temporary *)
     save_and_claim acc AX
     (fn acc =>
-     load_ax16 acc w //
+     imm_ax16 acc w //
      SUB (S16, EBP_TEMPORARY tmp <~ A))
+
+  fun load16 acc dst_tmp addr_tmp : Acc.acc =
+    let
+      (* We can only do a pure [reg] indirect for certain
+         registers, like DI. So we just use that one
+         unconditionally here. *)
+      val acc = acc ++ DI
+      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY addr_tmp)
+      val acc = mov16ind8 acc (BH_DI <- IND_EDI) ?? forget_reg16 M.EDI
+      val acc = mov16ind8 acc (EBP_TEMPORARY dst_tmp <~ BH_DI)
+    in
+      acc -- DI
+    end
+
+  fun store16 acc dst_addr src_tmp : Acc.acc =
+    let
+      val acc = acc ++ DI ++ CX
+      val acc = mov16ind8 acc (C <- EBP_TEMPORARY dst_addr)
+      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY src_tmp)
+      val acc = mov16ind8 acc (IND_ECX <~ BH_DI)
+    in
+      acc -- CX -- DI
+    end
 
   (* This sets up the initial invariants.
 
@@ -1148,7 +1190,7 @@ struct
         POP EBX ??
         learn_reg32 M.EBX 0w0
 
-      val acc = load_reg16 acc B IVT_INT_21
+      val acc = imm_reg16 acc B IVT_INT_21
 
       val acc = acc ++ ECX //
         (* Access segment FS=0 *)
@@ -1156,7 +1198,7 @@ struct
         (* XXX non-ascii; use tactic (need mov tactic with prefix) *)
         MOV (S32, C <- IND_EBX_DISP8 0w0)
 
-      val acc = load_reg16 acc B IVT_INT_ILLEGAL
+      val acc = imm_reg16 acc B IVT_INT_ILLEGAL
       val acc = acc //
         DB 0wx64 //
         (* XXX non-ascii, use tactic (need mov tactic with prefix) *)
@@ -1164,9 +1206,9 @@ struct
 
       val acc = acc -- ECX -- EBX
 
-      val acc = load_ax16 acc (Word16.fromInt 0)
+      val acc = imm_ax16 acc (Word16.fromInt 0)
       val acc = acc // PUSH AX
-      val acc = load_ax16 acc TEMP_START
+      val acc = imm_ax16 acc TEMP_START
       (* EBX stays claimed always.
          XXX actually maybe it should have "locked" state, so that we can't even
          save_and_claim. *)
@@ -1201,7 +1243,7 @@ struct
         POP EBX ??
         learn_reg32 M.EBX 0w0
 
-      val acc = load_reg16 acc B IVT_INT_21
+      val acc = imm_reg16 acc B IVT_INT_21
 
       val acc = acc ++ ECX //
         (* Access segment FS=0 *)
@@ -1209,7 +1251,7 @@ struct
         (* FIXME non-ascii; use tactic (need mov tactic with FS prefix) *)
         MOV (S32, C <- IND_EBX_DISP8 0w0)
 
-      val acc = load_reg16 acc B IVT_INT_ILLEGAL
+      val acc = imm_reg16 acc B IVT_INT_ILLEGAL
       val acc = acc //
         (* Use segment FS=0 *)
         DB 0wx64 //
@@ -1219,11 +1261,11 @@ struct
       val acc = acc -- ECX -- EBX
 
       (* Now initialize EBX and EBP. *)
-      val acc = load_ax16 acc (Word16.fromInt 0)
+      val acc = imm_ax16 acc (Word16.fromInt 0)
       (* Push 0 twice; we'll use this for the high word of EBX then EBP. *)
       val acc = acc // PUSH AX // PUSH AX
 
-      val acc = load_ax16 acc init_ebx
+      val acc = imm_ax16 acc init_ebx
       (* EBX stays claimed always.
          XXX actually maybe it should have "locked" state, so that we can't even
          save_and_claim. *)
@@ -1231,7 +1273,7 @@ struct
       val acc = acc // PUSH AX // POP EBX ??
         learn_reg32 M.EBX (Word32.fromInt ` Word16.toInt init_ebx)
 
-      val acc = load_ax16 acc init_ebp
+      val acc = imm_ax16 acc init_ebp
       val acc = acc ++ EBP
       val acc = acc // PUSH AX // POP EBP ??
         learn_reg32 M.EBP (Word32.fromInt ` Word16.toInt init_ebp)
@@ -1251,7 +1293,7 @@ struct
         AX
       (* We don't care about the value in AL, so just use something
          printable.. *)
-      val acc = load_ax16 acc (Word16.fromInt 0x0620)
+      val acc = imm_ax16 acc (Word16.fromInt 0x0620)
     in
       acc // INT 0wx21 ??
       forget_reg16 M.EDX ??
@@ -1268,7 +1310,7 @@ struct
           (* Load AH=06, AL=char *)
           val value = Word16.fromInt (0x06 * 256 + ord c)
           val acc = acc ++ AX
-          val acc = load_ax16 acc value
+          val acc = imm_ax16 acc value
           (* PERF we actually only need to set DL *)
           val acc = acc ++ DX
           val acc = acc // PUSH AX // POP DX ??
@@ -1297,7 +1339,7 @@ struct
          Note that we can set AL to a status byte and that gets
          returned to the shell; would be useful to thread through the
          return value from main. *)
-      load_ax16 acc (Word16.fromInt 0x4c00) //
+      imm_ax16 acc (Word16.fromInt 0x4c00) //
       (* "cya" is an illegal instruction; we never return *)
       X86.DB 0wx63 // X86.DB 0wx79 // X86.DB 0wx61 //
       (* follow with ! to be emphatic *)

@@ -873,15 +873,18 @@ struct
 
   (* When translating a statement, the 'break' and 'continue' targets
      the label to jump to when seeing those statements. *)
-  fun transstatementlist nil _ _ k : CIL.stmt = k ()
+  fun transstatementlist nil _ _ _ k : CIL.stmt = k ()
     | transstatementlist (s :: t)
+                         rett
                          (targs : { break : string option,
                                     continue : string option })
                          (bc : stmt bc)
                          (k : unit -> stmt) =
-    transstatement s targs bc (fn () => transstatementlist t targs bc k)
+     transstatement s rett targs bc
+     (fn () => transstatementlist t rett targs bc k)
 
   and transstatement (Ast.STMT (s, orig_id, orig_loc) : Ast.statement)
+                     (fnret : CIL.typ)
                      (targs : { break : string option,
                                 continue : string option })
                      (bc : stmt bc)
@@ -892,16 +895,25 @@ struct
     | Ast.ErrorStmt => raise ToCIL "encountered ErrorStmt"
     | Ast.Compound (decls, stmts) =>
         let
-          fun dodecls nil = transstatementlist stmts targs bc k
+          fun dodecls nil = transstatementlist stmts fnret targs bc k
             | dodecls (h :: t) = transdecl h bc (fn () => dodecls t)
         in
           dodecls decls
         end
 
     (* Some statements ignore k because any following code is unreachable. *)
-    | Ast.Return NONE => Return (unsigned_literal Width8 0)
-    (* XXX need to coerce return type to the type the function wants? *)
-    | Ast.Return (SOME e) => transexp e bc (fn (v, t) => Return v)
+    | Ast.Return NONE =>
+        (case fnret of
+           Struct nil => Return NONE
+         | _ => raise ToCIL ("return without value for function with " ^
+                             "nontrivial return type " ^ typtos fnret))
+    | Ast.Return (SOME e) =>
+        transexp e bc
+        (fn (v, t) =>
+         implicit { src = t, dst = fnret, v = v }
+         (fn (v, _) =>
+          Return (SOME v)))
+
     | Ast.IfThen (e, body) =>
         transexp e bc
         (fn (cond, condt) =>
@@ -910,7 +922,7 @@ struct
            val rest_label = BC.genlabel "if_r"
          in
            BC.insert (bc, true_label,
-                      transstatement body targs bc
+                      transstatement body fnret targs bc
                       (fn () => Goto rest_label));
            BC.insert (bc, rest_label, k ());
            (* XXX cond may not be bool_width. can't just truncate
@@ -928,12 +940,12 @@ struct
            val rest_label = BC.genlabel "if_r"
          in
            BC.insert (bc, true_label,
-                      transstatement true_body targs bc
+                      transstatement true_body fnret targs bc
                       (fn () => Goto rest_label));
            BC.insert (bc, rest_label, k ());
            (* XXX as above. *)
            GotoIf (CNeq (BOOL_WIDTH, cond, LiteralFalse), true_label,
-                   transstatement false_body targs bc
+                   transstatement false_body fnret targs bc
                    (fn () => Goto rest_label))
          end)
     | Ast.Goto lab => Goto (labstring lab)
@@ -954,7 +966,7 @@ struct
                       (* condv == false, i.e., !condv *)
                       GotoIf (CEq (BOOL_WIDTH, condv, LiteralFalse),
                               done_label,
-                              transstatement body body_targs bc
+                              transstatement body fnret body_targs bc
                               (fn () => Goto body_label))));
           Goto body_label
         end
@@ -977,7 +989,7 @@ struct
                               body_label,
                               Goto done_label)));
           BC.insert (bc, body_label,
-                     transstatement body body_targs bc
+                     transstatement body fnret body_targs bc
                      (fn () => Goto test_label));
           Goto body_label
         end
@@ -1008,7 +1020,7 @@ struct
              loop or jump past it. *)
           BC.insert (bc, start_label,
                      case cond of
-                       NONE => (transstatement body body_targs bc
+                       NONE => (transstatement body fnret body_targs bc
                                 (fn () => Goto inc_label))
                      | SOME c =>
                          transexp c bc
@@ -1017,7 +1029,7 @@ struct
                           (* cond == false, i.e. !cond *)
                           GotoIf (CEq (BOOL_WIDTH, condv, LiteralFalse),
                                   done_label,
-                                  transstatement body body_targs bc
+                                  transstatement body fnret body_targs bc
                                   (fn () => Goto inc_label))));
 
           (* When we're done, it's just the current continuation. *)
@@ -1030,7 +1042,7 @@ struct
 
     | Ast.Labeled (lab, s) =>
         let val l = labstring lab
-        in BC.insert (bc, l, transstatement s targs bc k);
+        in BC.insert (bc, l, transstatement s fnret targs bc k);
            Goto l
         end
 
@@ -1105,22 +1117,25 @@ struct
                   end))
         | onedecl (Ast.DECL (Ast.FunctionDef (id, args, body), _, _)) =
            (case id of
-              { ctype = Ast.Function (ret, _), ... } =>
+              { ctype = Ast.Function (fnret, _), ... } =>
                 let
                   val uid = uidstring id
-                  val ret = transtype ret
+                  val fnret = transtype fnret
                   val startlabel = BC.genlabel "start"
                   fun onearg id = (idstring id, transtype (#ctype id))
                 in
                   BC.insert (bc, startlabel,
-                             transstatement body { break = NONE,
-                                                   continue = NONE } bc
-                             (* Should support nullary return? *)
-                             (fn () => Return (unsigned_literal Width8 0)));
+                             transstatement body
+                             fnret
+                             { break = NONE,
+                               continue = NONE } bc
+                             (* XXX should maybe invent a value of the
+                                correct size? *)
+                             (fn () => Return NONE));
                   (* (string * ((string * typ) list * typ * stmt)) list, *)
                   functions :=
                     (uid, Func { args = map onearg args,
-                                 ret = ret, body = startlabel,
+                                 ret = fnret, body = startlabel,
                                  blocks = BC.extract bc }) :: !functions
                 end
             | _ => raise ToCIL "Expected FunctionDef to have Function type.\n")
