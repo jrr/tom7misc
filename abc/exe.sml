@@ -162,7 +162,8 @@ struct
       val HEADER_STRUCT_BYTES = Word8Vector.length header_struct
 
       (* masked pages value, times size of page *)
-      val FILE_BYTES = Word16.toInt (Word16.andb(vw16 pages, Word16.fromInt 0x7ff)) * 512
+      val FILE_BYTES = Word16.toInt (Word16.andb(vw16 pages,
+                                                 Word16.fromInt 0x7ff)) * 512
       val HEADER_BYTES = Word16.toInt (vw16 headersize) * 16
       val IMAGE_BYTES = FILE_BYTES - HEADER_BYTES
 
@@ -177,32 +178,38 @@ struct
         else if s mod 16 <> 0 then (s div 16 + 1)
              else s div 16
 
-      (* This is what dosbox reports as the maximum available memory; not actually sure if
-         it is reliably this high? *)
+      (* This is what dosbox reports as the maximum available memory; not
+         actually sure if it is reliably this high? *)
       val AVAILABLE_MEMORY = 40482
-      val minsize = long2para(IMAGE_BYTES + (Word16.toInt (vw16 minmemory) * 16) + 256)
+      val minsize = long2para (IMAGE_BYTES +
+                               (Word16.toInt (vw16 minmemory) * 16) + 256)
       val () = print ("Computed minsize: " ^ Int.toString minsize ^ "\n")
       val () = if minsize <= AVAILABLE_MEMORY then ()
-               else raise (EXE ("Requested memory won't fit: " ^ Int.toString minsize ^
-                                " > available " ^ Int.toString AVAILABLE_MEMORY))
+               else raise EXE ("Requested memory won't fit: " ^
+                               Int.toString minsize ^
+                               " > available " ^ Int.toString AVAILABLE_MEMORY)
 
       val () = if HEADER_BYTES >= Word8Vector.length header_struct then ()
-               else raise (EXE "Alleged header size doesn't even include the header struct?")
+               else raise EXE ("Alleged header size doesn't even include " ^
+                               "the header struct?")
 
       val RELOCTABLE_START = Word16.toInt ` vw16 reloctable
       val NUM_RELOCATIONS = Word16.toInt ` vw16 relocations
 
       (* Note: I think it might be allowed that the relocation table is not
-         actually in the header. Maybe it would be more efficient to put it between
-         the data and code segments? *)
+         actually in the header. Maybe it would be more efficient to
+         put it between the data and code segments? *)
       val () = if HEADER_BYTES >= RELOCTABLE_START + NUM_RELOCATIONS * 4 then ()
-               else raise (EXE "Relocation table doesn't fit in alleged header size.")
+               else raise EXE ("Relocation table doesn't fit in alleged " ^
+                               "header size.")
 
       val () = if RELOCTABLE_START mod 4 = 0 then ()
-               else raise (EXE "This code assumes that the relocation table is 32-bit aligned.")
+               else raise EXE ("This code assumes that the relocation " ^
+                               "table is 32-bit aligned.")
 
-      (* This is the chunk of the file that DOS interprets as the header (HEADER_BYTES in size),
-         starting with the header struct and containing the relocation table. *)
+      (* This is the chunk of the file that DOS interprets as the header
+         (HEADER_BYTES in size), starting with the header struct and
+         containing the relocation table. *)
       val header = Word8Vector.tabulate
         (HEADER_BYTES,
          fn i =>
@@ -218,6 +225,11 @@ struct
            (* XXXX FIXME! This is not printable, and I didn't carefully
               verify that this is outside the program/data segments. We
               need to find a printable address that's safe to modify. *)
+           (* XXX! Actually it looks like this ends up writing to
+              CS:2019 over and over, ruining that instruction. Makes
+              sense I guess. If this is always an offset into the code
+              segment, I guess we need to sacrifice some region? Right
+              before the initial IP would probably be doable. *)
            if i mod 4 = 0 then 0wx19
            else 0wx20
          end

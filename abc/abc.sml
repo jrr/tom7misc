@@ -6,7 +6,7 @@ struct
   fun parse f = ParseToAst.fileToAst f
   fun show f = ParseToAst.fileToC f
 
-  fun go_internal f =
+  fun go_internal { input = f, output } =
     case ParseToAst.fileToAst f of
       { errorCount = 0,
         (* the abstract syntax representation of a translation unit *)
@@ -25,18 +25,28 @@ struct
             (* symbol table generated during elaboration *)
             env : State.symtab } } =>
       let
+        val (basename, ext) = FSUtil.splitext output
+        val () = if ext <> "exe"
+                 then raise ABC "Expected output file to end with '.exe'"
+                 else ()
+
         (* XXX flags to control printing of intermediate results *)
         val () = PPLib.ppToStrm (PPAst.ppAst () tidtab) TextIO.stdOut ast
         val () = print "\n\n"
         val cil = ToCIL.tocil ast
         val () = print ("\nToCIL:\n" ^ CIL.progtos cil ^ "\n")
         val cil = OptimizeCIL.optimize cil
-        val () = print ("\nOptimized:\n" ^ CIL.progtos cil ^ "\n")
+        val cilstring = CIL.progtos cil
+        val () = print ("\nOptimized:\n" ^ cilstring ^ "\n")
+        val () = StringUtil.writefile (basename ^ ".cil") cilstring
         val asm = ToASM.toasm cil
-        val () = print ("\nToASM:\n" ^ ASM.named_program_tostring asm ^ "\n")
+        val asmstring = ASM.named_program_tostring asm
+        val () = print ("\nToASM:\n" ^ asmstring ^ "\n")
+        val () = StringUtil.writefile (basename ^ ".asm") asmstring
         val asm = AllocateTmps.allocate asm
-        val () = print ("\nAllocated:\n" ^
-                        ASM.explicit_program_tostring asm ^ "\n")
+        val esmstring = ASM.explicit_program_tostring asm
+        val () = print ("\nAllocated:\n" ^ esmstring ^ "\n")
+        val () = StringUtil.writefile (basename ^ ".esm") esmstring
         val x86 = ToX86.tox86 asm
 
         val { cs, ds, init_ip } = x86
@@ -45,14 +55,14 @@ struct
         EXE.write_exe { init_ip = init_ip,
                         init_sp = ToX86.INIT_SP,
                         cs = cs,
-                        ds = ds } "dos/a.exe"
+                        ds = ds } output
       end
        | { errorCount, ... } =>
       raise ABC ("Parsing/elaboration failed with " ^
                  Int.toString errorCount ^ " error(s)");
 
-  fun go f =
-    go_internal f
+  fun go args =
+    go_internal args
     handle e =>
       let
         val s =
