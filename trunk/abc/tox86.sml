@@ -619,7 +619,10 @@ struct
 
          We start this at some value like 0x2020 in order to ensure
          that init has a printable address. *)
-      val cur = ref 0x2020
+      val start_ip = 0x2020
+
+      (* XXX could easily pass this instead of it being a ref *)
+      val cur = ref start_ip
 
       (* Fill the rest of the code segment, such that when control
          ends up on !cur, it makes its way back to the beginning of
@@ -627,18 +630,14 @@ struct
          segment. This may involve filling the remainder of the
          segment with unconditional jumps.
 
-         Also needs to make prevs jump onto this train?
-         But maybe prevs always target !cur, so this just gets
-         done unconditionally before the overflow test below?
-         Like basically the job of place is to just assume
-         control is at !cur, and place the next block there.
          *)
-      fun fill_rest prev =
+      fun fill_rest () =
         raise ToX86 "unimplemented"
 
-      (* "prev" is absolute locations in cs that need to be
-         patched. *)
-      fun place prev ((xb as (lab, vec, jmps)) :: rest) =
+      (* Control flow is at !cur, and we want to execute the
+         block at the head of this list. The previous block
+         has already been patched to jump to !cur. *)
+      fun place ((xb as (lab, vec, jmps)) :: rest) : unit =
         let val len = Word8Vector.length vec
         in
           print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
@@ -647,25 +646,45 @@ struct
           then
             let in
               print " ... would overflow.\n";
-              fill_rest prev;
-              place nil (xb :: rest)
+              fill_rest ();
+              place (xb :: rest)
             end
           else
             let
               val abs_jmps = map (fn j => !cur + j) jmps
+              (* Earliest we could place the next one is right after
+                 this block ends. *)
+              val min_pos = ref (!cur + len)
+              (* But it also has to be far enough for the jumps to
+                 reach it with printable displacements. *)
+              val () = app (fn j =>
+                            let
+                              val srcip = j + 1
+                              val disp = !min_pos - srcip
+                            in
+                              (* XXX 0x20 *)
+                              if disp < 0
+                              then min_pos := !min_pos - disp
+                              else ()
+                            end) abs_jmps
+              val next_cur = !min_pos
             in
-              print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".");
+              if next_cur >= 65536
+              then raise ToX86 "need to handle the case that next_cur overflows"
+              else ();
+
+              print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".\n");
               Segment.set_vec cs (!cur) vec;
               (* Lock everything except for the locations we need to
                  update (jumps) *)
-              Segment.lock_range cs (!cur) (Word8Vector.length vec);
+              Segment.lock_range cs (!cur) len;
               app (Segment.unlock_idx cs) abs_jmps;
-              (* Fill in previous jumps to point to target cur. *)
-              app (fn absj =>
+
+              (* Fill in my jumps to point to next_cur. *)
+              app (fn j =>
                    let
-                     (* IP starts right after the displacement byte. *)
-                     val srcip = absj + 1
-                     val disp = !cur - srcip
+                     val srcip = j + 1
+                     val disp = next_cur - srcip
                    in
                      (* XXX need to check displacement < 0x20 too. *)
                      if disp > 0x7e
@@ -678,16 +697,55 @@ struct
                                             Int.toString disp)
                           else
                             let in
-                              Segment.set_idx cs absj (Word8.fromInt disp);
-                              (* HERE *)
-                              raise ToX86 "unimplemented"
+                              Segment.set_idx cs j (Word8.fromInt disp);
+                              Segment.lock_idx cs j
                             end
-                   end) prev;
-              raise ToX86 "unimplemented HERE"
+                   end) abs_jmps;
+
+              (* Now control flow will be at next_cur. *)
+              cur := next_cur;
+              place rest
             end
         end
+        | place nil =
+        let in
+          print ("Out of blocks with cur=" ^ Int.toString (!cur) ^
+                 " and start_ip=" ^ Int.toString start_ip ^ "\n");
+          (* We've used up all the blocks and execution is at !cur.
+             Need to get control back to start_ip. *)
+          if !cur <= start_ip
+          then
+            let
+              val disp = start_ip - !cur
+            in
+              if disp = 0
+              then print " .. exact hit!\n"
+              else
+                (* PERF use jumps, duhhh *)
+                (* Pad with "INC AX".
 
-      val () = place nil xblocks
+                   Assumes AX is not holding any interesting
+                   values between blocks.
+
+                   A better one-byte padding might be the
+                   segment prefix bytes, which don't do anything
+                   if the next instruction is DEC SI. *)
+                let in
+                  Segment.set_idx cs (!cur) 0wx40;
+                  Segment.lock_idx cs (!cur);
+                  cur := !cur + 1;
+                  place nil
+                end
+            end
+          else
+            let in
+              print " .. gotta wrap\n";
+              fill_rest ();
+              place nil
+            end
+          end
+
+      val () = place xblocks
 
 
       (* XXX: Need to check that this is printable, and move the
@@ -698,9 +756,10 @@ struct
                                "was never written to the code segment!?")
         | SOME ia => ia
 
-      val cs = raise ToX86 "still need to do various things to construct cs"
+      (* val cs =
+         raise ToX86 "still need to do various things to construct cs" *)
     in
-      { cs = cs,
+      { cs = Segment.extract cs,
         init_ip = init_ip,
         ds = datasegment }
     end
