@@ -51,7 +51,8 @@ struct
         | NeZero tmp => NeZero (f tmp)
         | True => True
 
-      fun map_cmd (ft : 'a -> 'b) (fo : 'c -> 'd) (cmd : ('a, 'c) cmd) : ('b, 'd) cmd =
+      fun map_cmd (ft : 'a -> 'b) (fo : 'c -> 'd) (cmd : ('a, 'c) cmd)
+        : ('b, 'd) cmd =
         case cmd of
           SaveTemps a => SaveTemps (fo a)
         | RestoreTemps a => RestoreTemps (fo a)

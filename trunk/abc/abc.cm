@@ -31,6 +31,9 @@ group is
   (* We need Word16 in SML/NJ. *)
   ../sml-lib/misc/wordn.sml
 
+  segment-sig.sml
+  segment.sml
+
   cil.sml
   cil-pass-sig.sml
   cil-pass.sml
