@@ -83,6 +83,7 @@ struct
           | e => "Uncaught exception: " ^ exnName e
       in
         print s;
-        raise e
+        OS.Process.exit OS.Process.failure
+        (* raise e *)
       end
 end
