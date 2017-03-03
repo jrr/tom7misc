@@ -34,7 +34,7 @@ struct
           val mach = Machine.learn_slot mach Machine.EAX Machine.---@ al
           val mach = Machine.learn_slot mach Machine.EAX Machine.--@- 0w0
           val acc = Acc.empty (X86.CTX { default_32 = false }) mach ++ X86.AX
-          val acc = Tactics.load_ax16 acc (Word16.fromInt dst)
+          val acc = Tactics.imm_ax16 acc (Word16.fromInt dst)
           val ctx = X86.CTX { default_32 = false }
           val bytes = Word8Vector.concat
             (map (EncodeX86.encode ctx) (Acc.insns acc))

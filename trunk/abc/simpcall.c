@@ -1,12 +1,12 @@
 int _putc(int);
 
-static int Other(char arg) {
+static int Other() {
   return 'k';
 }
 
 int main(int argc, char **argv) {
   _putc('o');
-  Other(8);
+  _putc(Other());
   _putc('\n');
   return 0;
 }

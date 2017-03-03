@@ -37,6 +37,16 @@ sig
   (* mov acc dst_tmp src_tmp *)
   val mov_tmp16_to_tmp16 : acc -> int -> int -> acc
 
+  (* load16 acc dst_tmp addr_tmp
+     sets dst_tmp to contain the 16-bit word pointed to by
+     the address in addr_tmp. *)
+  val load16 : acc -> int -> int -> acc
+
+  (* store16 acc dst_addr src_tmp
+     sets the 16-bit word pointed to by the address in dst_addr
+     to the value in src_tmp. *)
+  val store16 : acc -> int -> int -> acc
+
   (* Adjust temporary frame or local frame base pointers.
      Give the size of the temporary frame in case it needs
      to use a temporary.
@@ -67,8 +77,8 @@ sig
   val push_tmp16 : acc -> int -> acc
   val pop_tmp16 : acc -> int -> acc
 
-  (* Load AX (must be claimed) with the given word. *)
-  val load_ax16 : acc -> Word16.word -> acc
+  (* Set AX (must be claimed) to the given word. *)
+  val imm_ax16 : acc -> Word16.word -> acc
 
   (* imm_tmp16 acc tmp value *)
   val imm_tmp16 : acc -> int -> Word16.word -> acc
