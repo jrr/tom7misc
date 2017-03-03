@@ -1,4 +1,3 @@
-
 structure ABC =
 struct
 
@@ -40,12 +39,14 @@ struct
                         ASM.explicit_program_tostring asm ^ "\n")
         val x86 = ToX86.tox86 asm
         val () = print ("\nToX86:\n" ^ "TODO PRINTING\n")
+
+        val { cs, ds, init_ip } = x86
       in
         (* XXX set output file from command-line parameters *)
-        EXE.write_exe { init_ip = ToX86.INIT_IP,
+        EXE.write_exe { init_ip = init_ip,
                         init_sp = ToX86.INIT_SP,
-                        cs = #cs x86,
-                        ds = #ds x86 } "dos/a.exe"
+                        cs = cs,
+                        ds = ds } "dos/a.exe"
       end
        | { errorCount, ... } =>
       raise ABC ("Parsing/elaboration failed with " ^
@@ -58,6 +59,7 @@ struct
         val s =
           case e of
             ABC s => "ABC: " ^ s ^ "\n"
+          | Segment.Segment s => "Segment: " ^ s ^ "\n"
           | CIL.CIL s => "CIL: " ^ s ^ "\n"
           | ToCIL.ToCIL s => "ToCIL: " ^ s ^ "\n"
           | ToASM.ToASM s => "ToASM: " ^ s ^ "\n"

@@ -26,6 +26,9 @@ ckit/ckit-lib.mlb
   ../sml-lib/misc/params-sig.sml
   ../sml-lib/misc/params.sml
 
+  segment-sig.sml
+  segment.sml
+
   cil.sml
   cil-pass-sig.sml
   cil-pass.sml

@@ -58,7 +58,8 @@
 
       is
 
-      rel = dst - src + 1 (mod the total number of blocks; this can't be negative)
+      rel = dst - src + 1 (mod the total number of blocks;
+                           this can't be negative)
       si <- rel
       jmp next_rung
 
@@ -165,8 +166,10 @@ struct
   structure M = Machine
 
   val INIT_SP = Word16.fromInt 0x7e7e
-  (* XXX doubt this can really be a constant *)
-  val INIT_IP = Word16.fromInt 0x2020
+
+  val ASSEMBLY_CTX = X86.CTX { default_32 = false }
+  val RUNG_SIZE = EncodeX86.encoded_size ASSEMBLY_CTX (X86.DEC X86.SI) +
+    EncodeX86.encoded_size ASSEMBLY_CTX (X86.JNZ 0w0)
 
   (* Actual start position of temporary frame. Note that BP will always point
      32 bytes before the frame. *)
@@ -226,8 +229,15 @@ struct
 
       fun offset (A.E { offset = off, ... }) = off
 
+      datatype cmdres =
+        (* Control flow cannot reach after the last instruction
+           of the accumulator, for example after translating Exit
+           or a non-conditional jump. *)
+          Finished of Acc.acc
+        | Continue of Acc.acc
+
       (* XXX hoist? *)
-      fun onecmd acc cmd =
+      fun onecmd acc cmd : cmdres =
         let
           fun assert16 (t as A.E { offset, size, comment }) =
             if size = A.S16
@@ -252,37 +262,45 @@ struct
                    to be careful about the difference between a tmp frame
                    offset (starts at 0) and actual displacement (starts
                    at 0x20). *)
+                Continue `
                 Tactics.initialize (acc,
                                     Word16.-(TMP_FRAME_START,
                                              Word16.fromInt 0x20),
                                     Word16.fromInt (frame_stack_start - 0x20))
               end
-          | A.Exit => Tactics.exit acc
+          | A.Exit => Finished `Tactics.exit acc
           | A.SaveTemps (A.Explicit n) =>
               (* Add n to EBP. We know that it's in 0x00000000-0x0000FFFF,
                  so we just modify the 16-bit part, BP. *)
+              Continue `
               Tactics.add_bp acc tmp_frame_size (Word16.fromInt n)
           | A.RestoreTemps (A.Explicit n) =>
+              Continue `
               Tactics.sub_bp acc tmp_frame_size (Word16.fromInt n)
           | A.ExpandFrame n =>
+              Continue `
               Tactics.add_bx acc tmp_frame_size (Word16.fromInt n)
           | A.ShrinkFrame n =>
+              Continue `
               Tactics.sub_bx acc tmp_frame_size (Word16.fromInt n)
 
           | A.Push tmp =>
               let in
                 assert16 tmp;
+                Continue `
                 Tactics.push_tmp16 acc (offset tmp)
               end
           | A.Pop tmp =>
               let in
                 assert16 tmp;
+                Continue `
                 Tactics.pop_tmp16 acc (offset tmp)
               end
 
           | A.Immediate16 (tmp, w16) =>
               let in
                 assert16 tmp;
+                Continue `
                 Tactics.imm_tmp16 acc (offset tmp) w16
               end
           | A.LoadLabel (tmp, other_lab) =>
@@ -290,6 +308,7 @@ struct
                 val idx = getlabelnum labelnum other_lab
               in
                 assert16 tmp;
+                Continue `
                 Tactics.imm_tmp16 acc (offset tmp) (Word16.fromInt idx)
               end
 
@@ -348,8 +367,9 @@ struct
                 (* And record that we need to update the displacement. *)
                 val () = next_jumps := (Acc.insbytes acc - 1) :: !next_jumps
               in
-                (* Don't relinquish SI, though it may be moot since this should
-                   be the end of the block. *)
+                (* Don't relinquish SI, though moot since this is the end
+                   of the block. *)
+                Finished `
                 acc
               end
 
@@ -357,6 +377,7 @@ struct
               let in
                 (* XXX allow 8/32 *)
                 assert16 a; assert16 b;
+                Continue `
                 Tactics.xor_tmp16 acc (offset a) (offset b)
               end
 
@@ -364,6 +385,7 @@ struct
               let in
                 (* XXX allow 8/32 *)
                 assert16 a; assert16 b;
+                Continue `
                 Tactics.sub_tmp16 acc (offset a) (offset b)
               end
 
@@ -371,6 +393,7 @@ struct
               let in
                 (* XXX allow 8/32 *)
                 assert16 a; assert16 b;
+                Continue `
                 Tactics.mov_tmp16_to_tmp16 acc (offset a) (offset b)
               end
 
@@ -390,6 +413,7 @@ struct
                 val acc = Tactics.mov16ind8 acc
                   (Tactics.EBP_TEMPORARY (offset tmp) <~ B)
               in
+                Continue `
                 Tactics.sub_tmp16_lit acc (offset tmp) subtractand
               end
 
@@ -397,6 +421,7 @@ struct
               let in
                 (* XXX allow 8-bit? *)
                 assert16 tmp;
+                Continue `
                 Tactics.putc16 acc (offset tmp)
               end
 
@@ -413,36 +438,44 @@ struct
             *)
           | _ =>
               let in
-                (* print ("Unimplemented cmd: " ^ ASM.explicit_cmdtos cmd ^ "\n"); *)
-
-                acc // MESSAGE ("TODO " ^ ASM.explicit_cmdtos cmd)
+                (* print ("Unimplemented cmd: " ^
+                   ASM.explicit_cmdtos cmd ^ "\n"); *)
+                Continue `
+                (acc // MESSAGE ("TODO " ^ ASM.explicit_cmdtos cmd))
+                (* raise ToX86 ("Unimplemented cmd: " ^
+                   ASM.explicit_cmdtos cmd) *)
               end
-        (* raise ToX86 ("Unimplemented cmd: " ^ ASM.explicit_cmdtos cmd) *)
         end
 
       val acc =
         if is_initial
         then
           (* If we're just starting, we know nothing. *)
-          Acc.empty (X86.CTX { default_32 = false }) M.all_unknown
+          Acc.empty ASSEMBLY_CTX M.all_unknown
         else
           (* For a normal block, we know that EBX and EBP are claimed
              for frame pointers and shouldn't be disturbed. We could
              also add other invariants here if we know them. *)
-          Acc.empty (X86.CTX { default_32 = false }) M.all_unknown ++
+          Acc.empty ASSEMBLY_CTX M.all_unknown ++
           EBX ++
           EBP
 
       (* val () = print ("Starting acc: " ^ Acc.debug_string acc ^ "\n") *)
 
       (* All blocks have a rung at the front, even the initial one.
-         (In theT case of the initial one, we set the initial IP so
+         (In the case of the initial one, we set the initial IP so
          that it starts right after the rung, since we can't control
          our registers such that we actually end up entering it. No
          block should try to jump to the init block again, but it would
          work.) *)
       val acc = acc ++ SI
       val acc = acc // DEC SI // JNZ 0w0
+      val () =
+        (* Sanity check. Alternatively, we could just return this address.
+           It's only used to skip over the rung for the initial block. *)
+        if Acc.insbytes acc = RUNG_SIZE then ()
+        else raise ToX86 "bug: expected rung to be a specific size"
+
       (* Record the offset of that 0w0 to be rewritten to a real jump
          to the next rail. *)
       val () = next_jumps := (Acc.insbytes acc - 1) :: !next_jumps
@@ -458,13 +491,33 @@ struct
         else acc ?? learn_reg16 M.ESI (Word16.fromInt 0)
 
       fun docmds (acc, nil) =
-        (* XXX: To implement fallthrough, need to set SI = 1 at
-           the end. Should keep track of whether blocks actually
-           need this, though... *)
-        acc
+        (* If we got here, then execution continued to the end
+           of the block, so we need to explicitly jump to the
+           next one.
+
+           PERF: We can usually fall through to the next block
+           (e.g., not execute the JNZ) instead. (Note that the
+           very last block must explicitly jump in order to
+           overflow the IP.) *)
+        let
+          val acc = acc ++ EAX ++ ESI
+          val acc = Tactics.load_ax16 acc (Word16.fromInt 0) //
+            PUSH AX //
+            POP SI //
+            (* We specifically zero it then INC so that we know
+               the zero flag is clear here. *)
+            INC SI ?? learn_reg16 M.ESI (Word16.fromInt 1) //
+            (* Keep SI claimed, though it is probably moot. *)
+            JNZ 0w0 -- EAX
+        in
+          next_jumps := (Acc.insbytes acc - 1) :: !next_jumps;
+          acc
+        end
 
         | docmds (acc, cmd :: cmds) =
-        docmds (onecmd acc cmd, cmds)
+        (case onecmd acc cmd of
+           Finished acc => acc
+         | Continue acc => docmds (acc, cmds))
 
       val acc = docmds (acc, cmds)
 
@@ -480,7 +533,7 @@ struct
 
     in
       debug_print ();
-      (Acc.encoded acc, !next_jumps)
+      (current_lab, Acc.encoded acc, !next_jumps)
     end
 
   (* Attempt to lay out the assembly program. The labels in the order
@@ -496,7 +549,8 @@ struct
          give each of these a number, in sequence, so that we
          can use these numbers as absolute addresses, and compute
          relative addresses by subtracting the current address. *)
-      val labels = Vector.fromList (map (fn (A.Block { name, ... }) => name) blocks)
+      val labels =
+        Vector.fromList (map (fn (A.Block { name, ... }) => name) blocks)
       val labelnum = Vector.foldli (fn (i, lab, m) =>
                                     SM.insert (m, lab, i)) SM.empty labels
       val num_labels = Vector.length labels
@@ -524,19 +578,130 @@ struct
           nil => raise ToX86 "ASM program is empty? Impossible!"
         | A.Block { name, ... } :: _ => name
 
-      val xblocks : (Word8Vector.vector * int list) list =
+      val xblocks : (string * Word8Vector.vector * int list) list =
         layout_round (blocks, frame_stack_start, initial_label)
 
-      val total = foldl (fn ((v, _), b) => Word8Vector.length v + b) 0 xblocks
+      val total = foldl (fn ((l, v, _), b) =>
+                         Word8Vector.length v + b) 0 xblocks
       val () = print ("Total code bytes before stretching: " ^
                       Int.toString total ^ "\n")
-      val () = app (fn (v, _) =>
-                    print (w8vtos v ^ "\n")) xblocks
+      val () = app (fn (l, v, _) =>
+                    print (l ^ ": " ^ w8vtos v ^ "\n")) xblocks
+
+      val cs = Segment.empty ()
+      val () = Segment.set_repeating_string cs 0 65536 "(CODE SEGMENT)"
+
+      (* OK, now we want to insert our blocks into the code segment
+         and patch up the jumps. This may not be possible, in which case
+         we'll make some adjustment (like splitting a block) and then
+         start again.
+
+         - The blocks must appear in the order they occur, since addressing
+           is relative.
+         - We have to fill in the jump offsets. These currently always
+           go to the beginning of the next block.
+         - If a jump offset can't be output because it's not printable,
+           then we'll have to try again.
+
+         Note that for the jump instructions, the displacement is measured
+         from the address of the next instruction, so for example JMP 0
+         just executes the next instruction. *)
+
+      (* We should probably split blocks > 126 bytes first; a single block
+         greater than the whole segment would cause confusing failures
+         in the block below (not that we would succeed after splitting!) *)
+
+      (* This is filled in with the actual start of the initial block
+         (not its rung), which we'll use to kick off the execution. *)
+      val init_addr = ref (NONE : Word16.word option)
+      (* Current offset within code segment; this is the first
+         address where we can acceptably place the next block.
+
+         We start this at some value like 0x2020 in order to ensure
+         that init has a printable address. *)
+      val cur = ref 0x2020
+
+      (* Fill the rest of the code segment, such that when control
+         ends up on !cur, it makes its way back to the beginning of
+         cs, and update cur so that it's near the beginning of the
+         segment. This may involve filling the remainder of the
+         segment with unconditional jumps.
+
+         Also needs to make prevs jump onto this train?
+         But maybe prevs always target !cur, so this just gets
+         done unconditionally before the overflow test below?
+         Like basically the job of place is to just assume
+         control is at !cur, and place the next block there.
+         *)
+      fun fill_rest prev =
+        raise ToX86 "unimplemented"
+
+      (* "prev" is absolute locations in cs that need to be
+         patched. *)
+      fun place prev ((xb as (lab, vec, jmps)) :: rest) =
+        let val len = Word8Vector.length vec
+        in
+          print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
+                 lab ^ " of length " ^ Int.toString len ^ "\n");
+          if !cur + len > 65536
+          then
+            let in
+              print " ... would overflow.\n";
+              fill_rest prev;
+              place nil (xb :: rest)
+            end
+          else
+            let
+              val abs_jmps = map (fn j => !cur + j) jmps
+            in
+              print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".");
+              Segment.set_vec cs (!cur) vec;
+              (* Lock everything except for the locations we need to
+                 update (jumps) *)
+              Segment.lock_range cs (!cur) (Word8Vector.length vec);
+              app (Segment.unlock_idx cs) abs_jmps;
+              (* Fill in previous jumps to point to target cur. *)
+              app (fn absj =>
+                   let
+                     (* IP starts right after the displacement byte. *)
+                     val srcip = absj + 1
+                     val disp = !cur - srcip
+                   in
+                     (* XXX need to check displacement < 0x20 too. *)
+                     if disp > 0x7e
+                     then raise ToX86 ("In 'place', needed to write " ^
+                                       "displacement larger than 0x7e: " ^
+                                       Int.toString disp)
+                     else if disp < 0
+                          then raise ToX86 ("In 'place', negative " ^
+                                            "displacement?! " ^
+                                            Int.toString disp)
+                          else
+                            let in
+                              Segment.set_idx cs absj (Word8.fromInt disp);
+                              (* HERE *)
+                              raise ToX86 "unimplemented"
+                            end
+                   end) prev;
+              raise ToX86 "unimplemented HERE"
+            end
+        end
+
+      val () = place nil xblocks
+
+
+      (* XXX: Need to check that this is printable, and move the
+         initial block if it's not! *)
+      val init_ip =
+        case !init_addr of
+          NONE => raise ToX86 ("The initial block " ^ initial_label ^
+                               "was never written to the code segment!?")
+        | SOME ia => ia
 
       val cs = raise ToX86 "still need to do various things to construct cs"
     in
-      (* XXX also return initial instruction pointer? *)
       { cs = cs,
+        init_ip = init_ip,
         ds = datasegment }
     end
 
