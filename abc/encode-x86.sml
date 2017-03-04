@@ -81,9 +81,9 @@ struct
   (* Return unshifted (prefix bytes, mod, rm, suffix bytes) *)
   fun decode_modrm (X.CTX ctx) modrm : (vec * word8 * word8 * vec) =
     let
-      val pfx_addr32 = if #default_32 ctx
-                       then vec []
-                       else vec [0wx67]
+      val (pfx_addr16, pfx_addr32) = if #default_32 ctx
+                                     then (vec [0wx67], vec [])
+                                     else (vec [], vec [0wx67])
     in
       case modrm of
         X.IND_EAX => (pfx_addr32, 0w0, 0w0, vec [])
@@ -114,6 +114,10 @@ struct
       | X.Register r =>
           (* Pretty sure address size prefix does nothing *)
           (vec [], 0w3, decode_reg r, vec[])
+
+      (* XXX implement the other 16-bit ones! *)
+      | X.IND_SI => (pfx_addr16, 0w0, 0w4, vec [])
+      | X.IND_DI => (pfx_addr16, 0w0, 0w5, vec [])
     end
 
   (* Returns (prefix, dir, mod, reg, rm, suffix)
