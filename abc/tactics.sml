@@ -1227,22 +1227,22 @@ struct
       val BX_BASE_INT21 = Word16.fromInt (IVT_INT_21 - DISP_INT21)
       val BX_BASE_ILLEGAL = Word16.fromInt (IVT_INT_ILLEGAL - DISP_ILLEGAL)
 
-      val acc = imm_reg16 acc B BX_BASE_INT21
-      (* Read int21 handler into ECX. *)
-      val acc = acc ++ ECX //
+      val acc = imm_reg16 acc B (Word16.fromInt IVT_INT_21)
+      (* Read int21 handler into ESI. *)
+      val acc = acc ++ ESI //
         (* Access segment FS=0 *)
         DB 0wx64 //
         (* XXX non-ascii; use tactic (need mov tactic with prefix) *)
-        MOV (S32, C <- IND_EBX_DISP8 (Word8.fromInt DISP_INT21))
+        MOV (S32, DH_SI <- IND_BX)
 
-      val acc = imm_reg16 acc B BX_BASE_ILLEGAL
+      val acc = imm_reg16 acc B (Word16.fromInt IVT_INT_ILLEGAL)
       (* Now overwrite the illegal instruction handler. *)
       val acc = acc //
         DB 0wx64 //
         (* XXX non-ascii, use tactic (need mov tactic with prefix) *)
-        MOV (S32, IND_EBX_DISP8 (Word8.fromInt DISP_ILLEGAL) <~ C)
+        MOV (S32, IND_BX <~ DH_SI)
 
-      val acc = acc -- ECX -- EBX
+      val acc = acc -- ESI -- EBX
 
       (* Now initialize EBX and EBP. *)
       val acc = imm_ax16 acc (Word16.fromInt 0)

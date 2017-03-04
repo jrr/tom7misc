@@ -18,7 +18,7 @@ testclean :
 	rm -f $(addprefix dos/,$(TESTS))
 	rm -f dos/*.asm dos/*.esm dos/*.cil dos/*.bytes
 
-dos/test.bat : maketest.exe makefile
+dos/tests.bat : maketest.exe makefile
 	./maketest.exe $(TESTS) > dos/tests.bat
 
 dos/%.exe : %.c abc.exe

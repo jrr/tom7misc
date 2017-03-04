@@ -107,11 +107,12 @@ struct
   | IND_BP_DI
     *)
   | IND_SI
-    | IND_DI
-    (*
+  | IND_DI
+  (*
   | DISP16 of Word16.word
+    *)
   | IND_BX
-*)
+
 
   (* XXX this is crazy right? *)
   datatype args =
@@ -310,6 +311,7 @@ struct
 
       | IND_SI => "[SI]"
       | IND_DI => "[DI]"
+      | IND_BX => "[BX]"
 
     fun sizeargsstring (size, (reg <- modrm)) =
           sizedregstring (size, reg) ^ " <- " ^ modrmstring size modrm
