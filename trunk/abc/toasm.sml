@@ -44,7 +44,7 @@ struct
 
      - all temporaries are either 16 or 32 bits.
        many 8-bit operations are available to us, but
-       it adds lots of complexity.
+       it adds lots of complexity. (is this true? -twm)
 
      *)
 
@@ -238,49 +238,92 @@ struct
                        C.FunctionLiteral (f, _, _) => "ret_from_" ^ f
                      | _ => "ret")
                    val retaddrtmp = newtmp ("retaddr", A.S16)
+                   val argaddrtmp = newtmp ("arg", A.S16)
+
+                   (* makeargs (nil, argvs, argts, kk)
+                      Put each argument in argvs into a temporary,
+                      ensuring that it matches the expected type. Call
+                      kk with the list of temporary/size pairs in forward
+                      order. *)
+                   fun makeargs (revtmps, argval :: argvs, argt :: argts, kk) =
+                     gentmp ctx argval
+                     (fn (atmp, atyp) =>
+                      if typsize atyp <> typsize argt
+                      then raise ToASM ("incompatible types to function " ^
+                                        "call?")
+                      else makeargs ((atmp, typsize argt) :: revtmps,
+                                     argvs, argts, kk))
+                   | makeargs (revtmps, nil, nil, kk) = kk (rev revtmps)
+                   | makeargs _ = raise ToASM "wrong number of args in call?"
+
+                   (* put_tmps_in_args pos argtmps kk
+                      After the locals frame for the callee is set up,
+                      store the arg values (in the temp list) into the
+                      expected slots, and then call the continuation kk.
+
+                      Keeps reusing the temporary argaddrtmp. *)
+                   fun put_tmps_in_args pos nil kk =
+                     if pos = retbytes + argbytes then kk ()
+                     else raise ToASM "didn't fill arg slots as expected"
+                     | put_tmps_in_args pos ((a, sz) :: rest) kk =
+                       A.FrameOffset (argaddrtmp, Word16.fromInt pos) //
+                       (case sz of
+                          S8 => A.Store8 (argaddrtmp, a)
+                        | S16 => A.Store16 (argaddrtmp, a)
+                        | _ => raise ToASM
+                            "XXX only 8/16 bit loads implemented") //
+                       put_tmps_in_args (pos + A.szbytes sz) rest kk
                  in
-                   (* FIXME put each argument value in a temporary *)
-                   (* Expand the frame to save all locals. *)
-                   A.ExpandFrame local_frame_size //
-                   (* FIXME move the temporaries into the argument slots. *)
-                   A.LoadLabel (retaddrtmp, returnlabel) //
-                   A.Push retaddrtmp //
-                   (* Push the destination of the jump before we lose access
-                      to tmps. *)
-                   A.Push ftmp //
-                   A.SaveTemps (A.Named function_name) //
-                   (* PERF: Can often be a direct jump, which is much more
-                      efficient than this (which always has to do at least one
-                      full revolution.) *)
-                   A.PopJumpInd //
-                   (* Here we'd like to just start another block, but the
-                      structure of the code doesn't make this particularly
-                      easy. So we insert this meta-command that later gets
-                      rewritten into a normal labeled block. *)
-                   A.Label returnlabel //
-                   A.RestoreTemps (A.Named function_name) //
-                   (* Callee has undone the expanded frame. *)
-                   (* If we are using the return value, move it to the
-                      temporary corresponding to the bound variable.
-                      Either way, move the frame pointer. *)
-                   (case vt of
-                      NONE =>
-                        A.ShrinkFrame local_frame_size //
-                        k ()
-                    | SOME (var, t) =>
-                        let
-                          val rvtmp = newtmp ("retvaloffset", A.S16)
-                        in
-                          (* Return value is at offset 0 in the called
-                             function's frame (which we haven't yet deleted.) *)
-                          A.FrameOffset (rvtmp, Word16.fromInt 0) //
-                          (case typsize rett of
-                             S8 => A.Load8 (vartmp (var, S8), rvtmp)
-                           | S16 => A.Load16 (vartmp (var, S16), rvtmp)
-                           | _ => raise ToASM "XXX only 8/16 bit loads implemented") //
-                          A.ShrinkFrame local_frame_size //
-                          k ()
-                        end)
+                   makeargs
+                   (nil, argvs, argts,
+                    fn argtmps =>
+                    (* Expand the frame to save all locals. After this,
+                       don't use locals. *)
+                    A.ExpandFrame local_frame_size //
+
+                    (* Start placing args after the slot for the return
+                       value. *)
+                    put_tmps_in_args retbytes argtmps
+                    (fn () =>
+                    A.LoadLabel (retaddrtmp, returnlabel) //
+                    A.Push retaddrtmp //
+                    (* Push the destination of the jump before we lose access
+                       to tmps. *)
+                    A.Push ftmp //
+                    (* Save our temporaries. After this, don't use temps. *)
+                    A.SaveTemps (A.Named function_name) //
+                    (* PERF: Can often be a direct jump, which is much more
+                       efficient than this (which always has to do at least one
+                       full revolution.) and less code. *)
+                    A.PopJumpInd //
+                    (* Here we'd like to just start another block, but the
+                       structure of the code doesn't make this particularly
+                       easy. So we insert this meta-command that later gets
+                       rewritten into a normal labeled block. *)
+                    A.Label returnlabel //
+                    A.RestoreTemps (A.Named function_name) //
+                    (* Callee has undone the expanded frame. *)
+                    (* If we are using the return value, move it to the
+                       temporary corresponding to the bound variable.
+                       Either way, move the frame pointer. *)
+                    (case vt of
+                       NONE =>
+                         A.ShrinkFrame local_frame_size //
+                         k ()
+                     | SOME (var, t) =>
+                         let
+                           val rvtmp = newtmp ("retvaloffset", A.S16)
+                         in
+                           (* Return value is at offset 0 in the called
+                              function's frame (which we haven't yet deleted.) *)
+                           A.FrameOffset (rvtmp, Word16.fromInt 0) //
+                           (case typsize rett of
+                              S8 => A.Load8 (vartmp (var, S8), rvtmp)
+                            | S16 => A.Load16 (vartmp (var, S16), rvtmp)
+                            | _ => raise ToASM "XXX only 8/16 bit loads implemented") //
+                           A.ShrinkFrame local_frame_size //
+                           k ()
+                         end)))
                  end
              | _ => raise ToASM "call to value of non-code type?")
         | (_, NONE) => k ()
@@ -754,5 +797,9 @@ struct
      tox86. *)
 
   (* Optimization TODO: Coalesce blocks that are exactly equal. *)
+
+  (* Optimization TODO: We can use EBX+disp8 (or BX+disp8) addressing
+     mode most of the time we write to or read from a local, instead
+     of loading the address with FrameOffset and doing an indirect. *)
 
 end
