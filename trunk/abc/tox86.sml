@@ -413,7 +413,7 @@ struct
                 val () = assert16 tmp
                 (* We just want tmp <- ebx + off + 0x20.
                    (Addresses point to the actual object, whereas
-                   ebx is offset 0x20 for efficiency.)
+                   ebx is offset -0x20 for efficiency.)
                    Since we sub, compute the literal as the
                    negation of off + 0x20 *)
                 val subtractand =
@@ -941,6 +941,7 @@ struct
           else raise ToX86 ("The init_ip is not printable: " ^
                             Word16.toString init_ip);
           { cs = Segment.extract cs,
+            codebytes = !total_size,
             init_ip = init_ip,
             ds = datasegment }
         end

@@ -49,6 +49,9 @@ ckit/ckit-lib.mlb
   allocate-tmps-sig.sml
   allocate-tmps.sml
 
+  optimize-asm-sig.sml
+  optimize-asm.sml
+
   x86.sml
   encode-x86-sig.sml
   encode-x86.sml
