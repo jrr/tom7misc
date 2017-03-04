@@ -118,6 +118,7 @@ struct
       (* XXX implement the other 16-bit ones! *)
       | X.IND_SI => (pfx_addr16, 0w0, 0w4, vec [])
       | X.IND_DI => (pfx_addr16, 0w0, 0w5, vec [])
+      | X.IND_BX => (pfx_addr16, 0w0, 0w7, vec [])
     end
 
   (* Returns (prefix, dir, mod, reg, rm, suffix)
