@@ -1192,73 +1192,6 @@ struct
   val IVT_INT_21 = 0x21 * 4
   val IVT_INT_ILLEGAL = 0x06 * 4
 
-  (* This is an old one for testing and manual invocations. *)
-  fun old_initialize () : acc =
-    let
-      val TEMP_START = Word16.fromInt 0x0100
-
-      val acc = empty (X86.CTX { default_32 = false }) M.all_unknown ++ EAX
-      (* Overwrite interrupt vector table so that 'illegal instruction'
-         is actually DOS INT 21h. *)
-
-      (* Clear some registers. *)
-      val acc = acc //
-        AND_A_IMM ` I32 0wx40204020 //
-        AND_A_IMM ` I32 0wx20402040 ??
-        learn_reg32 M.EAX 0w0 //
-        PUSH EAX ++ EBX //
-        POP EBX ??
-        learn_reg32 M.EBX 0w0
-
-      (* We'll do EBX = ILLEGAL - 0x20,
-         then access ILLEGAL as [EBX + 0x20]
-         and INT21 as [EBX + 0x20 + (INT32 - ILLEGAL)] *)
-      val () = if IVT_INT_21 > IVT_INT_ILLEGAL then ()
-               else raise Tactics "precondition"
-      val ILLEGAL_DISP = 0x20
-      val BX_BASE = IVT_INT_ILLEGAL - ILLEGAL_DISP
-      val INT21_DISP = (IVT_INT_21 - IVT_INT_ILLEGAL) + ILLEGAL_DISP
-      val () =
-        if INT21_DISP >= 0 andalso INT21_DISP <= 255
-        then () else raise Tactics "init displacements out of gamut!"
-      val ILLEGAL_DISP = Word8.fromInt ILLEGAL_DISP
-      val INT21_DISP = Word8.fromInt INT21_DISP
-      val () =
-        if printable ILLEGAL_DISP andalso printable INT21_DISP
-        then () else raise Tactics "init displacements not printable"
-
-      val acc = imm_reg16 acc B (Word16.fromInt BX_BASE)
-
-      (* Read int21 handler into ECX. *)
-      val acc = acc ++ ECX //
-        (* Access segment FS=0 *)
-        DB 0wx64 //
-        (* XXX non-ascii; use tactic (need mov tactic with prefix) *)
-        MOV (S32, C <- IND_EBX_DISP8 INT21_DISP)
-
-      (* Now overwrite the illegal instruction handler. *)
-      val acc = acc //
-        DB 0wx64 //
-        (* XXX non-ascii, use tactic (need mov tactic with prefix) *)
-        MOV (S32, IND_EBX_DISP8 ILLEGAL_DISP <~ C)
-
-      val acc = acc -- ECX -- EBX
-
-      val acc = imm_ax16 acc (Word16.fromInt 0)
-      val acc = acc // PUSH AX
-      val acc = imm_ax16 acc TEMP_START
-      (* EBX stays claimed always.
-         XXX actually maybe it should have "locked" state, so that we can't even
-         save_and_claim. *)
-      val acc = acc ++ EBX
-      val acc = acc // PUSH AX // POP EBX ??
-        learn_reg32 M.EBX (Word32.fromInt ` Word16.toInt TEMP_START)
-      val acc = acc -- EAX
-      (* TODO: Other stuff? *)
-    in
-      acc
-    end handle e => raise e
-
   (* At program start, set up some important state:
       - Illegal instruction handler so that we can eventually exit
         (FIXME still non-ascii here)
@@ -1286,34 +1219,28 @@ struct
          and INT21 as [EBX + 0x20 + (INT32 - ILLEGAL)] *)
       val () = if IVT_INT_21 > IVT_INT_ILLEGAL then ()
                else raise Tactics "precondition"
-      val ILLEGAL_DISP = 0x20
-      val BX_BASE = IVT_INT_ILLEGAL - ILLEGAL_DISP
-      val INT21_DISP = (IVT_INT_21 - IVT_INT_ILLEGAL) + ILLEGAL_DISP
-      val () =
-        if INT21_DISP >= 0 andalso INT21_DISP <= 255
-        then () else raise Tactics "init displacements out of gamut!"
-      val ILLEGAL_DISP = Word8.fromInt ILLEGAL_DISP
-      val INT21_DISP = Word8.fromInt INT21_DISP
-      val () =
-        if printable ILLEGAL_DISP andalso printable INT21_DISP
-        then () else raise Tactics ("init displacements not printable: " ^
-                                    Word8.toString ILLEGAL_DISP ^ " and " ^
-                                    Word8.toString INT21_DISP)
+      (* Arbitrary printable chars, as long as the base doesn't
+         end up negative. PERF: Could choose these to
+         minimize the init sequence length? *)
+      val DISP_INT21 = ord #"G"
+      val DISP_ILLEGAL = ord #"O"
+      val BX_BASE_INT21 = Word16.fromInt (IVT_INT_21 - DISP_INT21)
+      val BX_BASE_ILLEGAL = Word16.fromInt (IVT_INT_ILLEGAL - DISP_ILLEGAL)
 
-      val acc = imm_reg16 acc B (Word16.fromInt BX_BASE)
-
+      val acc = imm_reg16 acc B BX_BASE_INT21
       (* Read int21 handler into ECX. *)
       val acc = acc ++ ECX //
         (* Access segment FS=0 *)
         DB 0wx64 //
         (* XXX non-ascii; use tactic (need mov tactic with prefix) *)
-        MOV (S32, C <- IND_EBX_DISP8 INT21_DISP)
+        MOV (S32, C <- IND_EBX_DISP8 (Word8.fromInt DISP_INT21))
 
+      val acc = imm_reg16 acc B BX_BASE_ILLEGAL
       (* Now overwrite the illegal instruction handler. *)
       val acc = acc //
         DB 0wx64 //
         (* XXX non-ascii, use tactic (need mov tactic with prefix) *)
-        MOV (S32, IND_EBX_DISP8 ILLEGAL_DISP <~ C)
+        MOV (S32, IND_EBX_DISP8 (Word8.fromInt DISP_ILLEGAL) <~ C)
 
       val acc = acc -- ECX -- EBX
 
@@ -1338,6 +1265,17 @@ struct
       val acc = acc -- EAX
     in
       acc
+    end
+
+  (* This is an old one for testing and manual invocations.
+     XXX remove it... *)
+  fun old_initialize () : acc =
+    let
+      val TEMP_START = Word16.fromInt 0x0100
+    in
+      initialize (empty (X86.CTX { default_32 = false }) M.all_unknown,
+                  Word16.fromInt 0x0,
+                  TEMP_START)
     end
 
   (* Put an individual character (in 16-bit temporary at offset t)
