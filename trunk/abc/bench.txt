@@ -124,3 +124,21 @@ $ cat dos/*.bytes
 1123
 1297
 834
+
+Coalesce unused labels:
+$ cat dos/*.bytes
+544
+1073
+1004
+1123
+1297
+834
+
+Fixed coalescing, also drop totally dead ones that are unreachable:
+$ cat dos/*.bytes
+544
+1073
+814
+1123
+1297
+834

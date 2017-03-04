@@ -318,6 +318,79 @@ struct
                 Tactics.imm_tmp16 acc (offset tmp) (Word16.fromInt idx)
               end
 
+          | A.JumpCond (cond, dst_lab) =>
+              let
+                (* First, always put the label in SI. *)
+                val current_idx = getlabelnum labelnum current_lab
+                val dst_idx = getlabelnum labelnum dst_lab
+                val rel_offset : int = dst_idx - current_idx
+                (* Can't jump 0; that would be a backwards jump. *)
+                val rel_offset = if rel_offset <= 0
+                                 then rel_offset + num_labels
+                                 else rel_offset
+                val () = if rel_offset <= 0
+                         then raise ToX86 "bug: backwards jump after wrap?"
+                         else ()
+
+                val acc = acc ++ AX ++ SI
+                val acc = Tactics.imm_reg16 acc DH_SI
+                  (Word16.fromInt rel_offset) -- AX
+
+                (* For a simple binary CMP (a, b); JCC lab.
+                   Upon entry, SI is claimed and has the relative offset
+                   in it. *)
+                fun binary JCC (a, b) =
+                  let
+                    (* XXX allow 8/32 *)
+                    val () = (assert16 a; assert16 b)
+                    val acc = acc ++ CX
+                    val acc =
+                      Tactics.mov16ind8 acc
+                         (C <- Tactics.EBP_TEMPORARY (offset a)) ??
+                      forget_reg16 M.ECX //
+                      CMP (S16, C <- Tactics.EBP_TEMPORARY (offset b)) -- CX //
+                      (* Do release SI after the jump, since we continue... *)
+                      JCC 0w0 -- SI
+                  in
+                    (* This is always a jump to the next rung; we need to
+                       update the displacement later. *)
+                    next_jumps := (Acc.insbytes acc - 1) :: !next_jumps;
+                    Continue acc
+                  end
+
+                fun unconditional () =
+                  let
+                    (* To make an unconditional jump, we can clear
+                       the overflow flag with any XOR. Since we just
+                       used AX, just xor it with some printable value. *)
+                    val acc = acc ++ AX //
+                      XOR_A_IMM (I8 ` Word8.fromInt ` ord #"U") ??
+                      (* We probably still know it, actually, but
+                         its value is not going to be useful here *)
+                      forget_reg16 M.EAX -- AX //
+                      JNO 0w0 -- SI
+                  in
+                    (* We could try just falling through to the next label,
+                       but it would be better to just do that optimization
+                       in OptimizeAsm where it could apply more broadly. *)
+                    next_jumps := (Acc.insbytes acc - 1) :: !next_jumps;
+                    Finished acc
+                  end
+              in
+                (* Now we just need to issue the appropriate sequence
+                   of instructions (e.g. CMP then JNZ). *)
+                (case cond of
+                   A.Below (a, b) => binary JB (a, b)
+                 | A.BelowEq (a, b) => binary JBE (a, b)
+                 | A.Less (a, b) => binary JL (a, b)
+                 | A.LessEq (a, b) => binary JLE (a, b)
+                 | A.Eq (a, b) => binary JZ (a, b)
+                 | A.NotEq (a, b) => binary JNZ (a, b)
+                 | A.True => unconditional ()
+                 | _ => raise ToX86 ("Unimplemented cond: " ^
+                                     A.explicit_cmdtos cmd))
+              end
+
           | A.PopJumpInd =>
               (* Pop the 16-bit label off the stack.
                  Compute a relative offset to that; put in SI.
@@ -453,7 +526,6 @@ struct
           (*
           | A.Load8 (dst, addr) =>
           | A.Store8 (addr, src) =>
-          | A.JumpCond (cond, lab) =>
           | A.Immediate8 (tmp, w8) =>
           | A.Immediate32 (tmp, w32) =>
           | A.Add (a, b) =>

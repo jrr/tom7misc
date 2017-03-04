@@ -86,7 +86,7 @@ struct
           | X86.X86 s => "X86: " ^ s ^ "\n"
           | EXE.EXE s => "EXE: " ^ s ^ "\n"
           | OptimizeCIL.OptimizeCIL s => "OptimizeCIL: " ^ s ^ "\n"
-          | e => "Uncaught exception: " ^ exnName e
+          | e => "Uncaught exception: " ^ exnName e ^ "\n"
       in
         print s;
         OS.Process.exit OS.Process.failure

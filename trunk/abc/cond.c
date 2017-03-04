@@ -1,9 +1,13 @@
+int _putc(int);
 
 int main(int argc, char **argv) {
-  if (argc > (short)5) {
-    return 1;
+  if (argc > (int)5) {
+    _putc('N');
+    _putc('O');
   } else {
-    return 2;
+    _putc('o');
+    _putc('k');
   }
-  return 3;
+  _putc('\n');
+  return 0;
 }
