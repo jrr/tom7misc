@@ -91,3 +91,36 @@ just measuring size:
 
 Total byte table size (opcode bytes): 170479
 Computed in 0.466 sec.  (!!)
+
+
+--------------------------------------------------
+code bytes on basic benchmarks:
+-rwxrwx---+ 1 Tom None 5 Mar  4 10:39 dos/builtin.bytes
+-rwxrwx---+ 1 Tom None 6 Mar  4 10:39 dos/callargs.bytes
+-rwxrwx---+ 1 Tom None 6 Mar  4 10:39 dos/globals.bytes
+-rwxrwx---+ 1 Tom None 6 Mar  4 10:39 dos/globals2.bytes
+-rwxrwx---+ 1 Tom None 5 Mar  4 10:39 dos/simpcall.bytes
+
+Start:
+586
+1113
+1166
+1354
+875
+
+Drop unused labels:
+$ cat dos/*.bytes
+544
+1073
+1123
+1297
+834
+
+Add dead benchmark:
+$ cat dos/*.bytes
+544
+1073
+1004
+1123
+1297
+834

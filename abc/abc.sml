@@ -47,14 +47,16 @@ struct
         val () = print ("\nToASM:\n" ^ asmstring ^ "\n")
         val () = StringUtil.writefile (basename ^ ".asm") asmstring
         val asm = AllocateTmps.allocate asm
+        val asm = OptimizeAsm.optimize asm
         val esmstring = ASM.explicit_program_tostring asm
-        val () = print ("\nAllocated:\n" ^ esmstring ^ "\n")
+        val () = print ("\nAllocated & optimized:\n" ^ esmstring ^ "\n")
         val () = StringUtil.writefile (basename ^ ".esm") esmstring
         val x86 = ToX86.tox86 asm
-
-        val { cs, ds, init_ip } = x86
+        val { cs, ds, init_ip, codebytes } = x86
+        (* For benchmarking size, etc. *)
+        val () = StringUtil.writefile (basename ^ ".bytes")
+          (Int.toString codebytes ^ "\n")
       in
-        (* XXX set output file from command-line parameters *)
         EXE.write_exe { init_ip = init_ip,
                         init_sp = ToX86.INIT_SP,
                         cs = cs,
@@ -76,6 +78,7 @@ struct
           | ToCIL.ToCIL s => "ToCIL: " ^ s ^ "\n"
           | ToASM.ToASM s => "ToASM: " ^ s ^ "\n"
           | AllocateTmps.AllocateTmps s => "AllocateTmps: " ^ s ^ "\n"
+          | OptimizeAsm.OptimizeAsm s => "OptimizeAsm: " ^ s ^ "\n"
           | ToX86.ToX86 s => "ToX86: " ^ s ^ "\n"
           | EncodeX86.EncodeX86 s => "EncodeX86: " ^ s ^ "\n"
           | Tactics.Tactics s => "Tactics: " ^ s ^ "\n"

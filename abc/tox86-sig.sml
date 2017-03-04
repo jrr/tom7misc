@@ -9,6 +9,7 @@ sig
      two 63356-byte segments. *)
   val tox86 : ASM.explicit_program ->
     { init_ip : Word16.word,
+      codebytes : int,
       cs : Word8Vector.vector,
       ds : Word8Vector.vector }
 
