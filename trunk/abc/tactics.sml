@@ -1210,9 +1210,18 @@ struct
         AND_A_IMM ` I32 0wx40204020 //
         AND_A_IMM ` I32 0wx20402040 ??
         learn_reg32 M.EAX 0w0 //
+        (* Zero EBX *)
         PUSH EAX ++ EBX //
         POP EBX ??
-        learn_reg32 M.EBX 0w0
+        learn_reg32 M.EBX 0w0 //
+        (* Zero ESI *)
+        PUSH EAX ++ ESI //
+        POP ESI ??
+        learn_reg32 M.ESI 0w0 //
+        (* Zero EDI *)
+        PUSH EAX ++ EDI //
+        POP EDI ??
+        learn_reg32 M.EDI 0w0
 
       (* We'll do EBX = ILLEGAL - 0x20,
          then access ILLEGAL as [EBX + 0x20]
@@ -1228,26 +1237,35 @@ struct
       val BX_BASE_ILLEGAL = Word16.fromInt (IVT_INT_ILLEGAL - DISP_ILLEGAL)
 
       val acc = imm_reg16 acc B (Word16.fromInt IVT_INT_21)
-      (* Read int21 handler into ESI. *)
-      val acc = acc ++ ESI //
+      val acc = imm_ax16 acc (Word16.fromInt 0)
+
+      (* Read int21 handler into ESI. It contains 0 so we can XOR into it. *)
+      val () = assert_reg32 acc M.ESI 0w0
+      val acc = acc //
         (* Access segment FS=0 *)
-        DB 0wx64 //
-        (* XXX non-ascii; use tactic (need mov tactic with prefix) *)
-        MOV (S32, DH_SI <- IND_BX)
+        DB 0wx64 // XOR (S32, DH_SI <- IND_BX) ??
+        forget_reg32 M.ESI
 
       val acc = imm_reg16 acc B (Word16.fromInt IVT_INT_ILLEGAL)
       (* Now overwrite the illegal instruction handler. *)
+      (* EDI has zero, so we can first clear the field. *)
+      val () = assert_reg32 acc M.EDI 0w0
       val acc = acc //
-        DB 0wx64 //
-        (* XXX non-ascii, use tactic (need mov tactic with prefix) *)
-        MOV (S32, IND_BX <~ DH_SI)
+        (* AND with 0 to clear the field. *)
+        (* Access segment FS=0 *)
+        DB 0wx64 // AND (S32, IND_BX <~ BH_DI) //
+        (* XOR with existing 0 yields the desired value. *)
+        (* Access segment FS=0 *)
+        DB 0wx64 // XOR (S32, IND_BX <~ DH_SI)
 
       val acc = acc -- ESI -- EBX
 
+      (* EDI still has zero. *)
+      val () = assert_reg32 acc M.EDI 0w0
       (* Now initialize EBX and EBP. *)
-      val acc = imm_ax16 acc (Word16.fromInt 0)
-      (* Push 0 twice; we'll use this for the high word of EBX then EBP. *)
-      val acc = acc // PUSH AX // PUSH AX
+      (* Push 32-bit zero; we'll use this for the high word (16-bit) of
+         EBX then EBP. *)
+      val acc = acc // PUSH EDI -- EDI
 
       val acc = imm_ax16 acc init_ebx
       (* EBX stays claimed always.
