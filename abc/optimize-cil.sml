@@ -510,7 +510,10 @@ struct
                                    Word32.andb (w32, 0wxFF)),
              Word8 Unsigned)
         | (v as Var _, _, _) => default v
-        | _ => raise OptimizeCIL "illegal truncation?"
+        | (v, src, dst) =>
+            raise OptimizeCIL ("illegal truncation? Arg: " ^
+                               CIL.valtos v ^ " trunc " ^
+                               CIL.widthtos src ^ " to " ^ CIL.widthtos dst)
       end
 
     fun case_Promote arg ({ selft, selfv, selfe, selfs }, ctx)

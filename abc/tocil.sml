@@ -816,7 +816,7 @@ struct
              transexp rhs bc
              (fn (rhsv, rhst) =>
               implicit { src = rhst, dst = dsttyp, v = rhsv }
-              (fn (rhsv, _) =>
+              (fn (rhsv, rhst) =>
                Store (dstwidth, dstaddr, rhsv,
                       k (rhsv, rhst)))))
 
