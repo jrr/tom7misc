@@ -502,10 +502,10 @@ struct
             (case SM.find (!done, lab) of
                (* If we haven't yet processed the destination block,
                   just put it next and fall through. *)
-               SOME () => (nil, SOME lab)
+               NONE => (nil, SOME lab)
                (* Otherwise, an explicit jump and we don't have
                   a suggestion for the next block. *)
-             | NONE => ([A.JumpCond (A.True, lab)], NONE))
+             | SOME () => ([A.JumpCond (A.True, lab)], NONE))
 
         | C.Return NONE =>
             (* XXX maybe check that return size is 0? *)
@@ -549,7 +549,10 @@ struct
         let
           (* First move it from todo to done, in case of recursive
              references. *)
-          val (ntodo, stmt) = SM.remove (!todo, lab)
+          val (ntodo, stmt) =
+            SM.remove (!todo, lab)
+            handle _ => raise ToASM ("bug: " ^ lab ^ " should always be in " ^
+                                     "the todo list at this point...")
           val () = todo := ntodo
           val () = done := SM.insert (!done, lab, ())
           val (cmds, next) = gencmds C.Context.empty stmt
@@ -787,6 +790,7 @@ struct
                   frame_stack_start = frame_stack_start,
                   datasegment = Segment.extract datasegment }
     end
+  handle LibBase.NotFound => raise ToASM "NotFound exn in ToASM?"
 
   (* Optimization TODO: Remove labels that are never referenced!
      It may also be possible to drop dead blocks? Are there any

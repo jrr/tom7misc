@@ -83,6 +83,10 @@ sig
   (* imm_tmp16 acc tmp value *)
   val imm_tmp16 : acc -> int -> Word16.word -> acc
 
+  (* imm_reg16 acc reg value.
+     AX and reg must both be claimed. Trashes AX. *)
+  val imm_reg16 : acc -> X86.reg -> Word16.word -> acc
+
   (* Exit the program. Depends on the initialization code above
      already having been executed. *)
   val exit : acc -> acc
