@@ -224,108 +224,130 @@ struct
              | _ => raise ToASM "bad args to putc")
 
         | (C.Call (fv, argvs), vt) =>
-            gentmp ctx fv
-            (fn (ftmp, ftyp) =>
-             case ftyp of
-               C.Code (rett, argts) =>
-                 let
-                   val returnbytes = A.szbytes ` typsize rett
-                   val argbytes = bytes_for_args argts
-                   val returnlabel = CILUtil.newlabel
-                     (* This can be anything, but try to be helpful
-                        in the common case that it's a literal call. *)
-                     (case fv of
-                       C.FunctionLiteral (f, _, _) => "ret_from_" ^ f
-                     | _ => "ret")
-                   val retaddrtmp = newtmp ("retaddr", A.S16)
-                   val argaddrtmp = newtmp ("arg", A.S16)
+            let
+              (* It's extremely common for this to be a function call
+                 like F(args), where F is a function address literal.
+                 In that case, we can generate better code by jumping
+                 directly to the function (DirectCall). In the general
+                 case, we compute the function address as a normal
+                 expression (IndirectCall). *)
+              datatype calltype =
+                IndirectCall of A.named_tmp
+              | DirectCall of string
+              fun unpack_function cont =
+                case fv of
+                  C.FunctionLiteral (name, ret, args) =>
+                    cont (C.Code (ret, args), name,
+                          DirectCall ` function_header_label name)
+                | _ =>
+                    gentmp ctx fv
+                    (fn (ftmp, ftyp) =>
+                     cont (ftyp, "indirect", IndirectCall ftmp))
+            in
+              unpack_function
+              (fn (ftyp : CIL.typ, fname : string, calltype : calltype) =>
+               case ftyp of
+                 C.Code (rett, argts) =>
+                   let
+                     val returnbytes = A.szbytes ` typsize rett
+                     val argbytes = bytes_for_args argts
+                     val returnlabel = CILUtil.newlabel ("ret_from_" ^ fname)
+                     val retaddrtmp = newtmp ("retaddr", A.S16)
+                     val argaddrtmp = newtmp ("arg", A.S16)
 
-                   (* makeargs (nil, argvs, argts, kk)
-                      Put each argument in argvs into a temporary,
-                      ensuring that it matches the expected type. Call
-                      kk with the list of temporary/size pairs in forward
-                      order. *)
-                   fun makeargs (revtmps, argval :: argvs, argt :: argts, kk) =
-                     gentmp ctx argval
-                     (fn (atmp, atyp) =>
-                      if typsize atyp <> typsize argt
-                      then raise ToASM ("incompatible types to function " ^
-                                        "call?")
-                      else makeargs ((atmp, typsize argt) :: revtmps,
-                                     argvs, argts, kk))
-                   | makeargs (revtmps, nil, nil, kk) = kk (rev revtmps)
-                   | makeargs _ = raise ToASM "wrong number of args in call?"
+                     (* makeargs (nil, argvs, argts, kk)
+                        Put each argument in argvs into a temporary,
+                        ensuring that it matches the expected type. Call
+                        kk with the list of temporary/size pairs in forward
+                        order. *)
+                     fun makeargs (revtmps,
+                                   argval :: argvs,
+                                   argt :: argts,
+                                   kk) =
+                       gentmp ctx argval
+                       (fn (atmp, atyp) =>
+                        if typsize atyp <> typsize argt
+                        then raise ToASM ("incompatible types to function " ^
+                                          "call?")
+                        else makeargs ((atmp, typsize argt) :: revtmps,
+                                       argvs, argts, kk))
+                     | makeargs (revtmps, nil, nil, kk) = kk (rev revtmps)
+                     | makeargs _ = raise ToASM "wrong number of args in call?"
 
-                   (* put_tmps_in_args pos argtmps kk
-                      After the locals frame for the callee is set up,
-                      store the arg values (in the temp list) into the
-                      expected slots, and then call the continuation kk.
+                     (* put_tmps_in_args pos argtmps kk
+                        After the locals frame for the callee is set up,
+                        store the arg values (in the temp list) into the
+                        expected slots, and then call the continuation kk.
 
-                      Keeps reusing the temporary argaddrtmp. *)
-                   fun put_tmps_in_args pos nil kk =
-                     if pos = retbytes + argbytes then kk ()
-                     else raise ToASM "didn't fill arg slots as expected"
-                     | put_tmps_in_args pos ((a, sz) :: rest) kk =
-                       A.FrameOffset (argaddrtmp, Word16.fromInt pos) //
-                       (case sz of
-                          S8 => A.Store8 (argaddrtmp, a)
-                        | S16 => A.Store16 (argaddrtmp, a)
-                        | _ => raise ToASM
-                            "XXX only 8/16 bit loads implemented") //
-                       put_tmps_in_args (pos + A.szbytes sz) rest kk
-                 in
-                   makeargs
-                   (nil, argvs, argts,
-                    fn argtmps =>
-                    (* Expand the frame to save all locals. After this,
-                       don't use locals. *)
-                    A.ExpandFrame local_frame_size //
+                        Keeps reusing the temporary argaddrtmp. *)
+                     fun put_tmps_in_args pos nil kk =
+                       if pos = retbytes + argbytes then kk ()
+                       else raise ToASM "didn't fill arg slots as expected"
+                       | put_tmps_in_args pos ((a, sz) :: rest) kk =
+                         A.FrameOffset (argaddrtmp, Word16.fromInt pos) //
+                         (case sz of
+                            S8 => A.Store8 (argaddrtmp, a)
+                          | S16 => A.Store16 (argaddrtmp, a)
+                          | _ => raise ToASM
+                              "XXX only 8/16 bit loads implemented") //
+                         put_tmps_in_args (pos + A.szbytes sz) rest kk
+                   in
+                     makeargs
+                     (nil, argvs, argts,
+                      fn argtmps =>
+                      (* Expand the frame to save all locals. After this,
+                         don't use locals. *)
+                      A.ExpandFrame local_frame_size //
 
-                    (* Start placing args after the slot for the return
-                       value. *)
-                    put_tmps_in_args retbytes argtmps
-                    (fn () =>
-                    A.LoadLabel (retaddrtmp, returnlabel) //
-                    A.Push retaddrtmp //
-                    (* Push the destination of the jump before we lose access
-                       to tmps. *)
-                    A.Push ftmp //
-                    (* Save our temporaries. After this, don't use temps. *)
-                    A.SaveTemps (A.Named function_name) //
-                    (* PERF: Can often be a direct jump, which is much more
-                       efficient than this (which always has to do at least one
-                       full revolution.) and less code. *)
-                    A.PopJumpInd //
-                    (* Here we'd like to just start another block, but the
-                       structure of the code doesn't make this particularly
-                       easy. So we insert this meta-command that later gets
-                       rewritten into a normal labeled block. *)
-                    A.Label returnlabel //
-                    A.RestoreTemps (A.Named function_name) //
-                    (* Callee has undone the expanded frame. *)
-                    (* If we are using the return value, move it to the
-                       temporary corresponding to the bound variable.
-                       Either way, move the frame pointer. *)
-                    (case vt of
-                       NONE =>
-                         A.ShrinkFrame local_frame_size //
-                         k ()
-                     | SOME (var, t) =>
-                         let
-                           val rvtmp = newtmp ("retvaloffset", A.S16)
-                         in
-                           (* Return value is at offset 0 in the called
-                              function's frame (which we haven't yet deleted.) *)
-                           A.FrameOffset (rvtmp, Word16.fromInt 0) //
-                           (case typsize rett of
-                              S8 => A.Load8 (vartmp (var, S8), rvtmp)
-                            | S16 => A.Load16 (vartmp (var, S16), rvtmp)
-                            | _ => raise ToASM "XXX only 8/16 bit loads implemented") //
-                           A.ShrinkFrame local_frame_size //
-                           k ()
-                         end)))
-                 end
-             | _ => raise ToASM "call to value of non-code type?")
+                      (* Start placing args after the slot for the return
+                         value. *)
+                      put_tmps_in_args retbytes argtmps
+                      (fn () =>
+                       A.LoadLabel (retaddrtmp, returnlabel) //
+                       A.Push retaddrtmp //
+                       (* If an indirect call, push the destination of the
+                          jump before we lose access to tmps. *)
+                       (case calltype of
+                          IndirectCall ftmp => A.Push ftmp
+                        | DirectCall _ => A.Nop) //
+                       (* Save our temporaries. After this, don't use temps. *)
+                       A.SaveTemps (A.Named function_name) //
+                       (* Do the appropriate indirect or direct jump. *)
+                       (case calltype of
+                          IndirectCall _ => A.PopJumpInd
+                        | DirectCall lab => A.JumpCond (A.True, lab))  //
+                       (* Here we'd like to just start another block, but the
+                          structure of the code doesn't make this particularly
+                          easy. So we insert this meta-command that later gets
+                          rewritten into a normal labeled block. *)
+                       A.Label returnlabel //
+                       A.RestoreTemps (A.Named function_name) //
+                       (* Callee has undone the expanded frame. *)
+                       (* If we are using the return value, move it to the
+                          temporary corresponding to the bound variable.
+                          Either way, move the frame pointer. *)
+                       (case vt of
+                          NONE =>
+                            A.ShrinkFrame local_frame_size //
+                            k ()
+                        | SOME (var, t) =>
+                            let
+                              val rvtmp = newtmp ("retvaloffset", A.S16)
+                            in
+                              (* Return value is at offset 0 in the called
+                                 function's frame (which we haven't yet
+                                 deleted.) *)
+                              A.FrameOffset (rvtmp, Word16.fromInt 0) //
+                              (case typsize rett of
+                                 S8 => A.Load8 (vartmp (var, S8), rvtmp)
+                               | S16 => A.Load16 (vartmp (var, S16), rvtmp)
+                               | _ => raise ToASM "XXX only 8/16 bit loads implemented") //
+                              A.ShrinkFrame local_frame_size //
+                              k ()
+                            end)))
+                   end
+               | _ => raise ToASM "call to value of non-code type?")
+            end
         | (_, NONE) => k ()
         | (exp, SOME (var, t)) =>
             (case exp of

@@ -298,6 +298,10 @@ struct
   (* In-line label, used in a bit of a hack for the translation
      of function calls. Should be rewritten to a block label. *)
   | Label of string
+  (* Do nothing, for cases where it's convenient. Since code layout
+     is not explicit in ASM, this can always just be removed without
+     changing anything. *)
+  | Nop
   (* Load (dst, addr). Loads and stores are always to the
      data segment. *)
   | Load8 of 'tmp * 'tmp
@@ -388,6 +392,7 @@ struct
     | Mov (a, b) => "mov " ^ ts a ^ " <- " ^ ts b
     | Xor (a, b) => "xor " ^ ts a ^ " <- " ^ ts b
     | Putc tmp => "putc " ^ ts tmp
+    | Nop => "nop"
     | Init => "init"
     | Exit => "exit"
     | Label lab => "(LABEL " ^ lab ^ ")"

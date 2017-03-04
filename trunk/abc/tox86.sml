@@ -254,6 +254,7 @@ struct
         in
           case cmd of
             A.Label _ => raise ToX86 "bug: unexpected Label"
+          | A.Nop => Continue acc
           | A.Init =>
               let in
                 (* Sanity check... *)

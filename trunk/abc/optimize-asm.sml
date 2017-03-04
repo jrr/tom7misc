@@ -10,6 +10,8 @@ struct
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
 
+  (* PERF: Drop 'nop' *)
+
   (* PERF: Drop commands after one that unconditionally jumps. *)
 
   (* PERF: Do flow analysis to determine live blocks; recursive dead
