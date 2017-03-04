@@ -854,6 +854,8 @@ struct
     (* Should probably still add it to a context? *)
     | transdecl (Ast.VarDecl (id, NONE)) bc k = k ()
     | transdecl (Ast.VarDecl (id as { ctype, global, ...}, SOME init)) bc k =
+    (* XXX: If stClass = STATIC, then we should
+       actually transform this into a global. (global will be false) *)
     (case init of
        Ast.Simple e =>
          let
@@ -1072,7 +1074,7 @@ struct
            Ast.TypeDecl { shadow = _, tid = _ } => ()
          | Ast.VarDecl (id as { ctype, status, kind, ... }, init) =>
              (case (status, kind) of
-                (Ast.DECLARED, Ast.NONFUN) =>
+                (_, Ast.NONFUN) =>
                   let
                     (* XXX "static" probably needs to be treated separately if
                        we have multiple translations units. But maybe ckit

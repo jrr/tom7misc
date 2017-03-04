@@ -6,6 +6,9 @@ struct
   fun parse f = ParseToAst.fileToAst f
   fun show f = ParseToAst.fileToC f
 
+  fun splitext s =
+    StringUtil.rfield (StringUtil.ischar #".") s
+
   fun go_internal { input = f, output } =
     case ParseToAst.fileToAst f of
       { errorCount = 0,
@@ -25,7 +28,7 @@ struct
             (* symbol table generated during elaboration *)
             env : State.symtab } } =>
       let
-        val (basename, ext) = FSUtil.splitext output
+        val (basename, ext) = splitext output
         val () = if ext <> "exe"
                  then raise ABC "Expected output file to end with '.exe'"
                  else ()

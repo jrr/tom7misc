@@ -7,7 +7,7 @@ MLTON=/c/mlton/bin/mlton.bat
 abc.exe : *.sml abc.mlb
 	$(MLTON) -output $@ abc.mlb
 
-tests : dos/builtin.exe dos/simpcall.exe
+tests : dos/builtin.exe dos/simpcall.exe dos/globals.exe
 
 dos/%.exe : %.c abc.exe
 	./abc.exe $< -o $@
