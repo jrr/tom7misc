@@ -1223,21 +1223,7 @@ struct
         POP EDI ??
         learn_reg32 M.EDI 0w0
 
-      (* We'll do EBX = ILLEGAL - 0x20,
-         then access ILLEGAL as [EBX + 0x20]
-         and INT21 as [EBX + 0x20 + (INT32 - ILLEGAL)] *)
-      val () = if IVT_INT_21 > IVT_INT_ILLEGAL then ()
-               else raise Tactics "precondition"
-      (* Arbitrary printable chars, as long as the base doesn't
-         end up negative. PERF: Could choose these to
-         minimize the init sequence length? *)
-      val DISP_INT21 = ord #"G"
-      val DISP_ILLEGAL = ord #"O"
-      val BX_BASE_INT21 = Word16.fromInt (IVT_INT_21 - DISP_INT21)
-      val BX_BASE_ILLEGAL = Word16.fromInt (IVT_INT_ILLEGAL - DISP_ILLEGAL)
-
       val acc = imm_reg16 acc B (Word16.fromInt IVT_INT_21)
-      val acc = imm_ax16 acc (Word16.fromInt 0)
 
       (* Read int21 handler into ESI. It contains 0 so we can XOR into it. *)
       val () = assert_reg32 acc M.ESI 0w0

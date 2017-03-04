@@ -77,6 +77,7 @@ struct
         | LoadLabel (tmp, s) => LoadLabel (ft tmp, s)
         | PopJumpInd => PopJumpInd
         | JumpCond (cond, lab) => JumpCond (map_cond ft cond, lab)
+        | Nop => Nop
         | Init => Init
         | Putc t => Putc (ft t)
         | Exit => Exit
