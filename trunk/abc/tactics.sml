@@ -829,6 +829,9 @@ struct
         | IND_ESI => checkreg ()
         | IND_EDI => checkreg ()
 
+        | IND_SI => checkreg ()
+        | IND_DI => checkreg ()
+
         (* This is not necessarily a bug; we might just need to add
            support for the mod/rm type here. *)
         | _ => raise Tactics ("got mod/rm that isn't [REG]+disp8 " ^
@@ -851,8 +854,10 @@ struct
        check_not_stack16 r;
        (* PERF -- we don't need to save AX if value is printable. *)
        imm_reg16 acc r v
-     end)
+       end)
 
+  (* XXXXXX PERF!  I think I can use IND_BP_DISP8 and avoid the
+     prefix byte? *)
   (* mod/rm macro that generates IND_EBP_DISP8 as though it starts at 0,
      and checks that the result is printable. *)
   fun EBP_TEMPORARY (tmp : int) =
@@ -873,6 +878,13 @@ struct
   (* As if the MOV instruction with [REG]+disp8 addressing.
      We first do AND with the destination to make it zero.
      We then XOR the destination with the source.
+
+     Note that it does not work to do something like DI <- [DI], even
+     if this is a legal printable addressing mode. It works in an
+     atomic x86 MOV instruction, but since we perform multiple steps,
+     the address in the register gets overwritten before we can
+     perform the load.
+     (XXX reject calls that try to do this!)
 
      Avoid using reg=A, since we then need to save and restore it.
 
@@ -1099,22 +1111,29 @@ struct
       (* We can only do a pure [reg] indirect for certain
          registers, like DI. So we just use that one
          unconditionally here. *)
-      val acc = acc ++ DI
+      val acc = acc ++ DI ++ SI
+      (* PERF: When we do a sequence of moves like this, we
+         can probably optimize it to e.g. zero the two registers
+         first (sharing some zeroing code), then follow with XORs? *)
       val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY addr_tmp)
-      val acc = mov16ind8 acc (BH_DI <- IND_EDI) ?? forget_reg16 M.EDI
-      val acc = mov16ind8 acc (EBP_TEMPORARY dst_tmp <~ BH_DI)
+      (* BH_DI <- IND_DI would work here, except that
+         mov16ind8 doesn't work correctly if the registers
+         interfere (it takes multiple steps). *)
+      val acc = mov16ind8 acc (DH_SI <- IND_DI) ?? forget_reg16 M.EDI
+      val acc = mov16ind8 acc (EBP_TEMPORARY dst_tmp <~ DH_SI)
     in
-      acc -- DI
+      acc -- SI -- DI
     end
 
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let
-      val acc = acc ++ DI ++ CX
-      val acc = mov16ind8 acc (C <- EBP_TEMPORARY dst_addr)
+      val acc = acc ++ SI ++ DI
+      (* PERF: Consider unrolling as above? *)
+      val acc = mov16ind8 acc (DH_SI <- EBP_TEMPORARY dst_addr)
       val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY src_tmp)
-      val acc = mov16ind8 acc (IND_ECX <~ BH_DI)
+      val acc = mov16ind8 acc (IND_SI <~ BH_DI)
     in
-      acc -- CX -- DI
+      acc -- DI -- SI
     end
 
   (* This sets up the initial invariants.

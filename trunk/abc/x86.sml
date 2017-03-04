@@ -99,6 +99,19 @@ struct
   (* mod=11. Same encoding as reg. *)
   | Register of reg
 
+  (* 16-bit modes. XXX add the comprehensive list. *)
+  (*
+  | IND_BX_SI
+  | IND_BX_DI
+  | IND_BP_SI
+  | IND_BP_DI
+    *)
+  | IND_SI
+    | IND_DI
+    (*
+  | DISP16 of Word16.word
+  | IND_BX
+*)
 
   (* XXX this is crazy right? *)
   datatype args =
@@ -294,6 +307,9 @@ struct
       | IND_ESI_DISP32 w32 => "[ESI+disp32]"
       | IND_EDI_DISP32 w32 => "[EDI+disp32]"
       | Register reg => sizedregstring (size, reg)
+
+      | IND_SI => "[SI]"
+      | IND_DI => "[DI]"
 
     fun sizeargsstring (size, (reg <- modrm)) =
           sizedregstring (size, reg) ^ " <- " ^ modrmstring size modrm

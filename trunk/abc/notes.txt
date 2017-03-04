@@ -277,6 +277,8 @@ http://www.c-jump.com/CIS77/CPU/x86/X77_0090_addressing_modes.htm
 For these indirects, the default segment register is DS,
 except for BP (and maybe SP), which use SS (stack segment).
 
+** Note that the 16-bit versions are quite different! **
+
 r8(/r)                            AL  CL  DL  BL  AH  CH  DH  BH
 r16(/r)                           AX  CX  DX  BX  SP  BP  SI  DI
 r32(/r)                           EAX ECX EDX EBX ESP EBP ESI EDI
