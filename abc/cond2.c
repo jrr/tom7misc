@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     _putc('\n');
   }
 
-  More();
+  MoreTests();
 
   return 0;
 }

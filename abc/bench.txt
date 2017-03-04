@@ -142,3 +142,14 @@ $ cat dos/*.bytes
 1123
 1297
 834
+
+Implemented conditions, adding cond and cond2 benchmarks:
+$ cat dos/*.bytes
+544
+1073
+751
+3456
+814
+1123
+1297
+834
