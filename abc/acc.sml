@@ -187,6 +187,13 @@ struct
                           end) all_multiregs) ^ "\n"
     end
 
+  fun assert_reg32 (A { mach, ... }) r w =
+    case Machine.reg32 mach r of
+      NONE => raise Acc ("Assertion failed: reg does not have known value!")
+    | SOME ww =>
+        if w = ww then ()
+        else raise Acc ("Assertion failed: Expected " ^ Word32.toString w ^
+                        " but got known " ^ Word32.toString ww)
 
   fun forget_reg32 r m = Machine.forget_reg32 m r
   fun forget_reg16 r m = Machine.forget_reg32 m r

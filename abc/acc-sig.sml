@@ -56,6 +56,9 @@ sig
      (since it is a proper subregister), but not vice versa. *)
   val assert_claimed : acc -> X86.multireg -> unit
 
+  (* Assert that we know that the register has the 32-bit value. *)
+  val assert_reg32 : acc -> Machine.reg -> Word32.word -> unit
+
   (* TODO: Get free 32-bit or 16-bit register. Maybe in tactics? *)
 
   (* Curried such that mach is in the last slot; suitable for ?? op.
