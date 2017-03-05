@@ -200,3 +200,18 @@ dos/globals.bytes: 976
 dos/globals2.bytes: 1095
 dos/simpcall.bytes: 674
 dos/simpleop.bytes: 684
+
+Full eager coalescing. Not expected to improve code size, but
+it does enable the 'for' benchmark to build:
+$ ./benchbytes.exe dos/*.bytes
+dos/builtin.bytes: 462
+dos/callargs.bytes: 915
+dos/cond.bytes: 656
+dos/cond2.bytes: 3080
+dos/dead.bytes: 665
+dos/for.bytes: 2750
+dos/globals.bytes: 976
+dos/globals2.bytes: 1095
+dos/simpcall.bytes: 674
+dos/simpleop.bytes: 680
+
