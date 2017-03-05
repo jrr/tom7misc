@@ -13,6 +13,7 @@ struct
 
   fun empty () = ref M.empty
   fun isempty m = M.isempty (!m)
+  fun clear m = m := M.empty
 
   fun head m = M.head (!m)
   fun headi m = M.headi (!m)
@@ -21,6 +22,9 @@ struct
   fun update (m, k, f) =
     (* PERF can be done with one lookup. *)
     insert (m, k, f (M.find (!m, k)))
+
+  fun modify (m, f) = m := M.map f (!m)
+  fun modifyi (m, f) = m := M.mapi f (!m)
 
   fun find (m, k) = M.find (!m, k)
   fun lookup (m, k) = M.lookup (!m, k)
