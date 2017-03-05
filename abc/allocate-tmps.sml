@@ -85,14 +85,18 @@ struct
          because it's not simultaneous substitution. *)
       val blocks = ref blocks
 
-      (* All tmps we encounter in the liveness sets.
-         This is technically not all the temporaries, if for
-         example an instruction were to have a "via" temporary
-         that is not read and whose value is never used again.
-         We don't do that, though. Also, all coalescing is
-         just an optimization, so having an incomplete list
-         here does not create correctness problems. *)
-      (* val tmps = ISM.empty () : TS.set ISM.map *)
+      (* All of the temporaries we see, keyed by context (func). *)
+      val all_tmps = ISM.empty () : TS.set ISM.map
+      fun gather_tmps cmd =
+        ignore (map_cmd
+                (fn tmp as ASM.N { func, name, size } =>
+                 ISM.update (all_tmps,
+                             func,
+                             fn NONE => TS.singleton tmp
+                              | SOME s => TS.add (s, tmp)))
+                Util.I
+                cmd)
+      val () = Array.app gather_tmps cmds
 
       (* Two temporaries interfere if they are live at
          the same time; i.e., appear together in an
@@ -150,6 +154,15 @@ struct
          break the program. *)
       fun coalesce dst src =
         let
+          val ASM.N { func = func1, size = sz1, ... } = dst
+          val ASM.N { func = func2, size = sz2, ... } = src
+          val () = if func1 = func2 then ()
+                   else raise AllocateTmps ("Attempt to coalesce tmps from " ^
+                                            "different functions.")
+          val () = if sz1 = sz2 then ()
+                   else raise AllocateTmps ("Attempt to coalesce tmps of " ^
+                                            "different sizes!")
+
           fun rewrite_tmp t =
             if EQUAL = ASM.named_tmpcompare (t, src)
             then dst
@@ -170,6 +183,16 @@ struct
              so two elements may become one. *)
           Array.modify rewrite_set inlive;
           Array.modify rewrite_set outlive;
+          (* Just remove "src" from the set of all tmps. We only
+             need to look in its function key. *)
+          ISM.update (all_tmps, func1,
+                      (fn NONE => raise AllocateTmps "bug: bad all_tmps"
+                        | SOME s =>
+                       (TS.delete (s, src)
+                        handle LibBase.NotFound =>
+                          raise AllocateTmps ("bug: missing " ^
+                                              ASM.named_tmptos src ^
+                                              " in all_tmps"))));
           (* Finally, recompute interference.
              PERF: This can probably be done in place pretty
              straightforwardly, but this is safer. *)
@@ -183,6 +206,8 @@ struct
         (fn idx =>
          case Array.sub (cmds, idx) of
            Mov (dst, src) =>
+             (* these should be from the same function and be
+                the same size... *)
              if does_interfere src dst
              then ()
              else coalesce src dst
@@ -190,9 +215,57 @@ struct
 
       val () = print_interference ()
 
-      (* Now just merge all pairs. *)
+      (* Now just merge all pairs.
+         Note that this is where some smarter "graph coloring"
+         algorithms could maybe do a better job. We just
+         do it eagerly until we can't. *)
+      fun onefunc func =
+        let
+          val () = print ("Try coalescing in " ^ func ^ "...\n")
+          (* Each time we coalesce, we might lose one of the
+             temporaries that we're holding onto here. But
+             we also don't want to keep starting over from
+             the beginning every time we succeed. So, we try
+             coalescing all pairs here, but only if they
+             both still exist when we consider them. *)
+          fun still_exists t =
+            case ISM.find (all_tmps, func) of
+              NONE => false (* Shouldn't happen, but... *)
+            | SOME s => TS.member (s, t)
 
+          (* Keep this vector of tmps for the whole pass. *)
+          val tmps =
+            case ISM.find (all_tmps, func) of
+              NONE => raise AllocateTmps ("Bug: this is called on domain " ^
+                                          "of all_tmps?")
+            | SOME s => Vector.fromList `TS.listItems s
+          val num_tmps = Vector.length tmps
+        in
+          (* PERF: We don't need to be super smart here, but
+             at least check that this approach (try to unify
+             src with everything) is at least not pessimal
+             for some reason. *)
+          Util.for 0 (num_tmps - 1)
+          (fn src_idx =>
+           let val src = Vector.sub (tmps, src_idx)
+           in
+             if still_exists src
+             then Util.for (src_idx + 1) (num_tmps - 1)
+               (fn dst_idx =>
+                let
+                  val dst = Vector.sub (tmps, dst_idx)
+                in
+                  if still_exists src andalso
+                     still_exists dst andalso
+                     not (does_interfere src dst)
+                  then coalesce src dst
+                  else ()
+                end)
+             else ()
+           end)
+        end
 
+      val () = app onefunc ` map #1 ` ISM.listItemsi all_tmps
     in
 (*      raise AllocateTmps "exit early"; *)
       !blocks

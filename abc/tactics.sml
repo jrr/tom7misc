@@ -1164,7 +1164,10 @@ struct
 
   fun load16 acc dst_tmp addr_tmp : Acc.acc =
     let
-      val () = assert_neq "load16" dst_tmp addr_tmp;
+      (* OK when dst = addr. We read the addr to a register,
+         and then don't need it again.
+         PERF: In that case, can zero out the destination
+         by XOR with its known contents. *)
       (* We can only do a pure [reg] indirect for certain
          registers, like DI. So we just use that one
          unconditionally here. *)
@@ -1184,7 +1187,10 @@ struct
 
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let
-      val () = assert_neq "store16" dst_addr src_tmp;
+      (* OK when dst = src. We read each one to a register
+         separately (and don't modify them).
+         PERF: Is it possible to use one register in that case?
+         Maybe. But such code should be pretty rare (in C, a = &a). *)
       val acc = acc ++ SI ++ DI
       (* PERF: Consider unrolling as above? *)
       val acc = mov16ind8 acc (DH_SI <- EBP_TEMPORARY dst_addr)
