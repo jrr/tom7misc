@@ -213,6 +213,19 @@ struct
              else coalesce src dst
          | _ => ())
 
+      (* Very common to do tmp1 = frameoffset+x, tmp2 = [tmp1].
+         There's a good trick for doing tmp = [tmp], so make a
+         high priority of coalescing these too. *)
+      val () =
+        Util.for 0 (Array.length cmds - 1)
+        (fn idx =>
+         case Array.sub (cmds, idx) of
+           Load16 (dst, src) =>
+             if does_interfere src dst
+             then ()
+             else coalesce src dst
+         | _ => ())
+
       val () = print_interference ()
 
       (* Now just merge all pairs.

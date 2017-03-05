@@ -1163,27 +1163,52 @@ struct
     end
 
   fun load16 acc dst_tmp addr_tmp : Acc.acc =
-    let
-      (* OK when dst = addr. We read the addr to a register,
-         and then don't need it again.
-         PERF: In that case, can zero out the destination
-         by XOR with its known contents. *)
-      (* We can only do a pure [reg] indirect for certain
-         registers, like DI. So we just use that one
-         unconditionally here. *)
-      val acc = acc ++ DI ++ SI
-      (* PERF: When we do a sequence of moves like this, we
-         can probably optimize it to e.g. zero the two registers
-         first (sharing some zeroing code), then follow with XORs? *)
-      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY addr_tmp)
-      (* BH_DI <- IND_DI would work here, except that
-         mov16ind8 doesn't work correctly if the registers
-         interfere (it takes multiple steps). *)
-      val acc = mov16ind8 acc (DH_SI <- IND_DI) ?? forget_reg16 M.EDI
-      val acc = mov16ind8 acc (EBP_TEMPORARY dst_tmp <~ DH_SI)
-    in
-      acc -- SI -- DI
-    end
+    if dst_tmp <> addr_tmp
+    then
+      let
+        (* We can only do a pure [reg] indirect for certain
+           registers, like DI. So we just use that one
+           unconditionally here. *)
+        val acc = acc ++ DI ++ SI
+        (* PERF: When we do a sequence of moves like this, we
+           can probably optimize it to e.g. zero the two destinations
+           first (sharing some zeroing code), then follow with XORs?
+           (be careful about the case that the temporaries alias!) *)
+        val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY addr_tmp)
+        (* BH_DI <- IND_DI would work here, except that
+           mov16ind8 doesn't work correctly if the registers
+           interfere (it takes multiple steps). *)
+        val acc = mov16ind8 acc (DH_SI <- IND_DI) ?? forget_reg16 M.ESI
+        val acc = mov16ind8 acc (EBP_TEMPORARY dst_tmp <~ DH_SI)
+      in
+        acc -- SI -- DI
+      end
+    else
+       (* The code above works when the temporaries are the
+          same, but we can be a bit smarter in this case. *)
+      let
+        val one_tmp = dst_tmp
+        val acc = acc ++ AX ++ DI
+
+        (* This is frankly totally sweet. *)
+        val acc = imm_ax16 acc (Word16.fromInt 0) //
+          (* First, zero DI. *)
+          PUSH AX // POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) //
+          (* Now, read the address to load.
+             tmp contains addr, DI contains addr. *)
+          XOR (S16, BH_DI <- EBP_TEMPORARY one_tmp) ?? forget_reg16 M.EDI //
+          (* Now, fetch the contents of the address, and XOR it
+             with DI. (I wager this is a very rare opcode in the
+             world.) *)
+          XOR (S16, BH_DI <- IND_DI) ?? forget_reg16 M.EDI //
+          (* DI contains (addr ^ contents); a totally weird value.
+             We can get the temporary to contain 'contents' as
+             desired with one more xor, as it has the 'decryption key'. *)
+          XOR (S16, EBP_TEMPORARY one_tmp <~ BH_DI)
+      in
+        acc -- DI -- AX
+      end
+
 
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let

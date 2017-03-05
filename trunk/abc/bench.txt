@@ -215,3 +215,28 @@ dos/globals2.bytes: 1095
 dos/simpcall.bytes: 674
 dos/simpleop.bytes: 680
 
+Lovely self-load trick:
+$ ./benchbytes.exe dos/*.bytes
+dos/builtin.bytes: 462
+dos/callargs.bytes: 861
+dos/cond.bytes: 652
+dos/cond2.bytes: 2968
+dos/dead.bytes: 653
+dos/for.bytes: 2746
+dos/globals.bytes: 936
+dos/globals2.bytes: 1014
+dos/simpcall.bytes: 646
+dos/simpleop.bytes: 680
+
+Prioritize coalescing for self-loads:
+dos/builtin.bytes: 462
+dos/callargs.bytes: 861
+dos/cond.bytes: 648
+dos/cond2.bytes: 2916
+dos/dead.bytes: 636
+dos/for.bytes: 2650
+dos/globals.bytes: 936
+dos/globals2.bytes: 1014
+dos/simpcall.bytes: 646
+dos/simpleop.bytes: 668
+
