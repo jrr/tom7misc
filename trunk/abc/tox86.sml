@@ -474,6 +474,14 @@ struct
                 Tactics.sub_tmp16 acc (offset a) (offset b)
               end
 
+          | A.Add (a, b) =>
+              let in
+                (* XXX allow 8/32 *)
+                assert16 a; assert16 b;
+                Continue `
+                Tactics.add_tmp16 acc (offset a) (offset b)
+              end
+
           | A.Mov (a, b) =>
               let in
                 (* XXX allow 8/32 *)
@@ -609,9 +617,13 @@ struct
         end
 
         | docmds (acc, cmd :: cmds) =
-        (case onecmd acc cmd of
-           Finished acc => acc
-         | Continue acc => docmds (acc, cmds))
+        let
+          val acc = acc // MESSAGE (ASM.explicit_cmdtos cmd)
+        in
+          (case onecmd acc cmd of
+             Finished acc => acc
+           | Continue acc => docmds (acc, cmds))
+        end
 
       val acc = docmds (acc, cmds)
 

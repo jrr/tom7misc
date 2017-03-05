@@ -91,11 +91,9 @@ struct
 
       (* Returns true if the final command in the list is one that
          never falls through. *)
-      fun no_fallthrough nil = false
-        | no_fallthrough [PopJumpInd] = true
-        | no_fallthrough [Exit] = true
-        | no_fallthrough [JumpCond (True, _)] = true
-        | no_fallthrough (_ :: t) = no_fallthrough t
+      fun no_fallthroughs nil = false
+        | no_fallthroughs [last] = ASM.no_fallthrough last
+        | no_fallthroughs (_ :: t) = no_fallthroughs t
 
       (* Now drop labels that are never targeted. We can coalesce a block
          into the previous one (block2 onto block) when the temp
@@ -118,7 +116,7 @@ struct
                                  cmds = cmds @ cmds2,
                                  tmp_frame = tmp_frame } :: rest)
           end
-          else if no_fallthrough cmds
+          else if no_fallthroughs cmds
                then
                  let in
                    print ("Completely unused block " ^ name2 ^ " since " ^

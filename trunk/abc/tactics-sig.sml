@@ -66,9 +66,13 @@ sig
      sets dst_tmp = dst_tmp - src_tmp. *)
   val sub_tmp16 : acc -> int -> int -> acc
 
+  (* add_tmp16 acc dst_tmp src_tmp *)
+  val add_tmp16 : acc -> int -> int -> acc
+
   (* sub_tmp16_lit acc tmp lit
      Subtract the literal from the temporary at the given offset. *)
   val sub_tmp16_lit : acc -> int -> Word16.word -> acc
+
 
   (* push or pop the 16-bit temporary.
 

@@ -926,7 +926,7 @@ struct
      imm_ax16 acc (Word16.fromInt 0) //
      AND (S16, EBP_TEMPORARY dst <~ A) //
      (* A is still zero; replace it with src. *)
-     XOR (S16, A <- EBP_TEMPORARY dst) ??
+     XOR (S16, A <- EBP_TEMPORARY src) ??
      forget_reg16 M.EAX //
      (* Now write to dst. *)
      XOR (S16, EBP_TEMPORARY dst <~ A))
@@ -966,12 +966,31 @@ struct
      end)
 
   (* Load the temporary at the given offset with the given constant. *)
+  (* PERF: rather than loading into ax, then pushing, then zeroing
+     ax to clear the destination, then popping, then xoring,
+      - zero ax
+      - clear destination
+      - imm ax
+      - xor destination
+
+     (Or do multistrategy on those two?) *)
   fun imm_tmp16 acc (tmp : int) (v : Word16.word) : acc =
-    claim_reg16 acc [A, C, D, DH_SI, BH_DI]
-    (fn (acc, tmpreg) =>
-     let val acc = imm_reg16only acc tmpreg v
-     in mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
-     end)
+    if v = Word16.fromInt 0
+    then
+      (* If storing zero, we don't need to both AND and XOR;
+         we can just clear with AND. *)
+      let val acc = acc ++ AX
+      in
+        imm_ax16 acc (Word16.fromInt 0) //
+        AND (S16, EBP_TEMPORARY tmp <~ A) -- AX
+      end
+    else
+      (* General case *)
+      claim_reg16 acc [A, C, D, DH_SI, BH_DI]
+      (fn (acc, tmpreg) =>
+       let val acc = imm_reg16only acc tmpreg v
+       in mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
+       end)
 
   (* Binary NOT of register r. *)
   fun complement_reg16 acc r : acc =
@@ -995,6 +1014,7 @@ struct
      Both rdst and rsrc must be claimed.
 
      XXX this needs to take the temp frame size, etc...
+     (I rewrote this for temps below; it's better)
 
      PERF should make destructive version that modifies rsrc. *)
   fun add_reg16 acc rdst rsrc : acc =
@@ -1027,6 +1047,14 @@ struct
       SUB (S16, rdst <- IND_EBX_DISP8 0wx24) ??
       forget_reg16 (reg_to_machreg rdst)
     end handle e => raise e
+
+  (* TODO: If this is not allowed then it should be explicitly banned!
+     Many ops can easily support the case where operands are the same;
+     e.g. in xor and sub it just becomes a imm16 of 0. *)
+  fun assert_neq msg a b =
+    if a <> b then ()
+    else raise Tactics ("Tactic " ^ msg ^ " not certified for the case " ^
+                        "where input temporaries are the same slot!")
 
   local
     (* Subtract the word w from the 16-bit register.
@@ -1087,16 +1115,22 @@ struct
   end
 
   fun xor_tmp16 acc dst_tmp src_tmp =
-    put_tmp_in_reg16 acc src_tmp
-    (fn (acc, tmpreg) =>
-     acc //
-     XOR (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
+    let in
+      assert_neq "xor_tmp16" dst_tmp src_tmp;
+      put_tmp_in_reg16 acc src_tmp
+      (fn (acc, tmpreg) =>
+       acc //
+       XOR (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
+    end
 
   fun sub_tmp16 acc dst_tmp src_tmp =
-    put_tmp_in_reg16 acc src_tmp
-    (fn (acc, tmpreg) =>
-     acc //
-     SUB (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
+    let in
+      assert_neq "sub_tmp16" dst_tmp src_tmp;
+      put_tmp_in_reg16 acc src_tmp
+      (fn (acc, tmpreg) =>
+       acc //
+       SUB (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
+    end
 
   fun sub_tmp16_lit acc tmp w =
     (* PERF choose a register that can efficiently load
@@ -1106,8 +1140,27 @@ struct
      imm_ax16 acc w //
      SUB (S16, EBP_TEMPORARY tmp <~ A))
 
+  fun add_tmp16 acc dst_tmp src_tmp : acc =
+    (* reg <- 0xFFFF
+       reg ^= src_tmp   (reg = ~src)
+       inc reg          (reg = 0 - src)
+       sub (dst, reg)   (dst -= -src, i.e., dst += src)
+       *)
+    let
+      val acc = acc ++ AX
+    in
+      assert_neq "add" dst_tmp src_tmp;
+      imm_ax16 acc (Word16.fromInt 0xFFFF) //
+      XOR (S16, A <- EBP_TEMPORARY src_tmp) ??
+      forget_reg16 M.EAX //
+      INC AX ??
+      forget_reg16 M.EAX //
+      SUB (S16, EBP_TEMPORARY dst_tmp <~ A) -- AX
+    end
+
   fun load16 acc dst_tmp addr_tmp : Acc.acc =
     let
+      val () = assert_neq "load16" dst_tmp addr_tmp;
       (* We can only do a pure [reg] indirect for certain
          registers, like DI. So we just use that one
          unconditionally here. *)
@@ -1127,6 +1180,7 @@ struct
 
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let
+      val () = assert_neq "store16" dst_addr src_tmp;
       val acc = acc ++ SI ++ DI
       (* PERF: Consider unrolling as above? *)
       val acc = mov16ind8 acc (DH_SI <- EBP_TEMPORARY dst_addr)

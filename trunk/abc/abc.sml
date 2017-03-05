@@ -77,6 +77,7 @@ struct
           | CIL.CIL s => "CIL: " ^ s ^ "\n"
           | ToCIL.ToCIL s => "ToCIL: " ^ s ^ "\n"
           | ToASM.ToASM s => "ToASM: " ^ s ^ "\n"
+          | Liveness.Liveness s => "Liveness: " ^ s ^ "\n"
           | AllocateTmps.AllocateTmps s => "AllocateTmps: " ^ s ^ "\n"
           | OptimizeAsm.OptimizeAsm s => "OptimizeAsm: " ^ s ^ "\n"
           | ToX86.ToX86 s => "ToX86: " ^ s ^ "\n"
