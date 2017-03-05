@@ -176,3 +176,27 @@ $ cat dos/*.bytes
 1128
 707
 
+Add some tests. Fixed some bugs and improved 0 loading.
+Now with names, too:
+$ ./benchbytes.exe dos/*.bytes
+dos/builtin.bytes: 466
+dos/callargs.bytes: 915
+dos/cond.bytes: 656
+dos/cond2.bytes: 3080
+dos/dead.bytes: 665
+dos/globals.bytes: 976
+dos/globals2.bytes: 1095
+dos/simpcall.bytes: 674
+dos/simpleop.bytes: 744
+
+Coalesce temporaries in mov (src, dst):
+$ ./benchbytes.exe dos/*.bytes
+dos/builtin.bytes: 466
+dos/callargs.bytes: 915
+dos/cond.bytes: 656
+dos/cond2.bytes: 3080
+dos/dead.bytes: 665
+dos/globals.bytes: 976
+dos/globals2.bytes: 1095
+dos/simpcall.bytes: 674
+dos/simpleop.bytes: 684

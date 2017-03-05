@@ -226,8 +226,7 @@ struct
       | X.NOP => vec [0wx90]
       | X.INT w => vec [0wxCD, w]
       | X.DB w => vec [w]
-          (* XXX?? *)
-      | X.MESSAGE _ => vec []
+      | X.COMMENT _ => vec []
 
     (*
       | _ => raise Exn "unimplemented ins"
