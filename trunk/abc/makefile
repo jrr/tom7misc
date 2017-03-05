@@ -1,4 +1,4 @@
-all : abc.exe
+all : abc.exe benchbytes.exe
 
 # just MLTON=mlton should work on most installations btw
 MLTON=/c/mlton/bin/mlton.bat
@@ -9,6 +9,9 @@ abc.exe : *.sml abc.mlb
 
 maketest.exe : maketest.sml maketest.mlb
 	$(MLTON) -output $@ maketest.mlb
+
+benchbytes.exe : benchbytes.sml benchbytes.mlb
+	$(MLTON) -output $@ benchbytes.mlb
 
 # forswitch.exe for.exe
 TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe

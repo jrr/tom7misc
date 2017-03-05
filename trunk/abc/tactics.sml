@@ -918,6 +918,10 @@ struct
     end handle e => raise e
 
   fun mov_tmp16_to_tmp16 acc dst src : acc =
+    (* This would NOT work if dst and src are the same,
+       but fortunately we can just do nothing in that case. *)
+    if dst = src then acc
+    else
     (* PERF if we already have 0 in an unclaimed register,
        we can use that. *)
     save_and_claim acc AX

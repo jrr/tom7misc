@@ -1,5 +1,7 @@
 structure AllocateTmps :> ALLOCATETMPS =
 struct
+  infixr 9 `
+  fun a ` b = a b
 
   exception AllocateTmps of string
 
@@ -7,6 +9,194 @@ struct
 
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
+
+  structure ISM = ImperativeMapFn(type ord_key = string
+                                  val compare = String.compare)
+  structure TM = ImperativeMapFn(type ord_key = ASM.named_tmp
+                                 val compare = ASM.named_tmpcompare)
+  structure TS = Liveness.TS
+
+
+  fun map_cond f cond =
+    case cond of
+      Below (a, b) => Below (f a, f b)
+    | BelowEq (a, b) => BelowEq (f a, f b)
+    | Less (a, b) => Less (f a, f b)
+    | LessEq (a, b) => LessEq (f a, f b)
+    | Eq (a, b) => Eq (f a, f b)
+    | NotEq (a, b) => NotEq (f a, f b)
+    | EqZero tmp => EqZero (f tmp)
+    | NeZero tmp => NeZero (f tmp)
+    | True => True
+
+  fun map_cmd (ft : 'a -> 'b) (fo : 'c -> 'd) (cmd : ('a, 'c) cmd)
+    : ('b, 'd) cmd =
+    case cmd of
+      SaveTemps a => SaveTemps (fo a)
+    | RestoreTemps a => RestoreTemps (fo a)
+    | ExpandFrame a => ExpandFrame a
+    | ShrinkFrame a => ShrinkFrame a
+    | FrameOffset (tmp, w16) => FrameOffset (ft tmp, w16)
+    | Label lab => Label lab
+    | Load8 (a, b) => Load8 (ft a, ft b)
+    | Load16 (a, b) => Load16 (ft a, ft b)
+    | Store8 (a, b) => Store8 (ft a, ft b)
+    | Store16 (a, b) => Store16 (ft a, ft b)
+    | Immediate8 (tmp, w) => Immediate8 (ft tmp, w)
+    | Immediate16 (tmp, w) => Immediate16 (ft tmp, w)
+    | Immediate32 (tmp, w) => Immediate32 (ft tmp, w)
+    | Add (a, b) => Add (ft a, ft b)
+    | Sub (a, b) => Sub (ft a, ft b)
+    | Complement tmp => Complement (ft tmp)
+    | Mov (a, b) => Mov (ft a, ft b)
+    | Xor (a, b) => Xor (ft a, ft b)
+    | Push tmp => Push (ft tmp)
+    | Pop tmp => Pop (ft tmp)
+    | LoadLabel (tmp, s) => LoadLabel (ft tmp, s)
+    | PopJumpInd => PopJumpInd
+    | JumpCond (cond, lab) => JumpCond (map_cond ft cond, lab)
+    | Nop => Nop
+    | Init => Init
+    | Putc t => Putc (ft t)
+    | Exit => Exit
+
+
+  (* Optimize the temporaries by coalescing two temporaries
+     that don't interfere. There are two important goals:
+       - Remove MOV instructions where possible:
+           mov dst, src
+         can be made into a no-op (i.e., dropped) if dst and
+         src are actually the same temporary.
+       - Reduce the total number of temporaries in a frame
+         so that it fits within printable offsets of EBP.
+
+     These are both achieved by identifying two temporaries
+     that can be safely coalesced, and making them the same.
+     To make two temporaries the same, we just pick one and
+     substitute the other for it everywhere. Because the
+     liveness analysis is not easily transformed back into
+     blocks, we substitute through cmds, the in/out sets,
+     and the blocks. *)
+  fun coalesce { cmds, inlive, outlive } blocks =
+    let
+      (* This routine is imperative, so we keep rewriting this... *)
+      (* PERF: We don't read from blocks, so we could instead keep a
+         substitution and apply it at the end. Just need to be careful
+         because it's not simultaneous substitution. *)
+      val blocks = ref blocks
+
+      (* All tmps we encounter in the liveness sets.
+         This is technically not all the temporaries, if for
+         example an instruction were to have a "via" temporary
+         that is not read and whose value is never used again.
+         We don't do that, though. Also, all coalescing is
+         just an optimization, so having an incomplete list
+         here does not create correctness problems. *)
+      (* val tmps = ISM.empty () : TS.set ISM.map *)
+
+      (* Two temporaries interfere if they are live at
+         the same time; i.e., appear together in an
+         entry in the inlive or outlive sets.
+
+         This data structure maps temporaries to the
+         set of temporaries that interfere with it.
+         (Self-interference is assumed.)
+
+         Interference is not transitive. *)
+      val interference = TM.empty () : TS.set TM.map
+      fun compute_interference () =
+        let
+          fun make_interference idx =
+            let
+              fun interfere s =
+                TS.app (fn tmp =>
+                        let val others = TS.delete (s, tmp)
+                        in
+                          (* Try to avoid creating empty interference
+                             sets. *)
+                          if TS.isEmpty others
+                          then ()
+                          else
+                            TM.update (interference, tmp,
+                                       fn NONE => others
+                                        | SOME ss => TS.union (ss, others))
+                        end) s
+            in
+              interfere (Array.sub (inlive, idx));
+              interfere (Array.sub (outlive, idx))
+            end
+        in
+          TM.clear interference;
+          Util.for 0 (Array.length cmds - 1) make_interference
+        end
+      fun does_interfere a b =
+        case TM.find (interference, a) of
+          NONE => false
+        | SOME s => TS.member (s, b)
+
+      fun print_interference () =
+        (* printerference *)
+        let in
+          print "Interfering tmps:\n";
+          TM.appi (fn (tmp, s) =>
+                   print (ASM.named_tmptos tmp ^ ": " ^
+                          StringUtil.delimit " "
+                          (map ASM.named_tmptos (TS.listItems s)) ^ "\n"))
+          interference
+        end
+      val () = print_interference ()
+
+      (* Globally rename src to dst; assumes that this doesn't
+         break the program. *)
+      fun coalesce dst src =
+        let
+          fun rewrite_tmp t =
+            if EQUAL = ASM.named_tmpcompare (t, src)
+            then dst
+            else t
+          fun rewrite_cmd cmd = map_cmd rewrite_tmp Util.I cmd
+          fun rewrite_set s = TS.map rewrite_tmp s
+          fun rewrite_block (Block { name, tmp_frame, cmds }) =
+            Block { name = name,
+                    tmp_frame = tmp_frame,
+                    cmds = map rewrite_cmd cmds }
+        in
+          print ("Coalesce " ^ ASM.named_tmptos src ^ " to become " ^
+                 ASM.named_tmptos dst ^ "\n");
+          (* Within commands, we just change the names; easy. *)
+          Array.modify rewrite_cmd cmds;
+          blocks := map rewrite_block (!blocks);
+          (* Within the liveness sets, same thing, except they're sets
+             so two elements may become one. *)
+          Array.modify rewrite_set inlive;
+          Array.modify rewrite_set outlive;
+          (* Finally, recompute interference.
+             PERF: This can probably be done in place pretty
+             straightforwardly, but this is safer. *)
+          compute_interference ()
+        end
+
+      (* Prioritize merging tmps that appear in a MOV instruction
+         together. *)
+      val () =
+        Util.for 0 (Array.length cmds - 1)
+        (fn idx =>
+         case Array.sub (cmds, idx) of
+           Mov (dst, src) =>
+             if does_interfere src dst
+             then ()
+             else coalesce src dst
+         | _ => ())
+
+      val () = print_interference ()
+
+      (* Now just merge all pairs. *)
+
+
+    in
+(*      raise AllocateTmps "exit early"; *)
+      !blocks
+    end
 
   (* Currently we just do this in a dumb way, allocating each
      distinct temporary to a distinct slot. *)
@@ -38,49 +228,6 @@ struct
                                        "sizes: " ^ func ^ "." ^ name)
           | NONE => ctx := SM.insert (!ctx, name, size)
         end
-
-      fun map_cond f cond =
-        case cond of
-          Below (a, b) => Below (f a, f b)
-        | BelowEq (a, b) => BelowEq (f a, f b)
-        | Less (a, b) => Less (f a, f b)
-        | LessEq (a, b) => LessEq (f a, f b)
-        | Eq (a, b) => Eq (f a, f b)
-        | NotEq (a, b) => NotEq (f a, f b)
-        | EqZero tmp => EqZero (f tmp)
-        | NeZero tmp => NeZero (f tmp)
-        | True => True
-
-      fun map_cmd (ft : 'a -> 'b) (fo : 'c -> 'd) (cmd : ('a, 'c) cmd)
-        : ('b, 'd) cmd =
-        case cmd of
-          SaveTemps a => SaveTemps (fo a)
-        | RestoreTemps a => RestoreTemps (fo a)
-        | ExpandFrame a => ExpandFrame a
-        | ShrinkFrame a => ShrinkFrame a
-        | FrameOffset (tmp, w16) => FrameOffset (ft tmp, w16)
-        | Label lab => Label lab
-        | Load8 (a, b) => Load8 (ft a, ft b)
-        | Load16 (a, b) => Load16 (ft a, ft b)
-        | Store8 (a, b) => Store8 (ft a, ft b)
-        | Store16 (a, b) => Store16 (ft a, ft b)
-        | Immediate8 (tmp, w) => Immediate8 (ft tmp, w)
-        | Immediate16 (tmp, w) => Immediate16 (ft tmp, w)
-        | Immediate32 (tmp, w) => Immediate32 (ft tmp, w)
-        | Add (a, b) => Add (ft a, ft b)
-        | Sub (a, b) => Sub (ft a, ft b)
-        | Complement tmp => Complement (ft tmp)
-        | Mov (a, b) => Mov (ft a, ft b)
-        | Xor (a, b) => Xor (ft a, ft b)
-        | Push tmp => Push (ft tmp)
-        | Pop tmp => Pop (ft tmp)
-        | LoadLabel (tmp, s) => LoadLabel (ft tmp, s)
-        | PopJumpInd => PopJumpInd
-        | JumpCond (cond, lab) => JumpCond (map_cond ft cond, lab)
-        | Nop => Nop
-        | Init => Init
-        | Putc t => Putc (ft t)
-        | Exit => Exit
 
       fun gather (tmp as N { func, name, size }) =
                   (observetmp (func, name, size); tmp)
@@ -173,6 +320,7 @@ struct
       val liveness = Liveness.liveness blocks
       (* XXX coalesce using liveness. *)
 
+      val blocks = coalesce liveness blocks
       val blocks = explicate blocks
     in
       (* Data segment doesn't change. *)
@@ -180,6 +328,4 @@ struct
                 frame_stack_start = frame_stack_start,
                 datasegment = datasegment }
     end
-
-
 end

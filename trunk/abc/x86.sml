@@ -214,10 +214,9 @@ struct
        instructions or data. word8 should be printable,
        of course. XXX remove this? *)
     | DB of word8
-    (* Meta-instruction that cannot be assembled...
-       XXX remove this!
-       *)
-    | MESSAGE of string
+    (* Meta-instruction that cannot be assembled, just
+       for debugging. *)
+    | COMMENT of string
 
   fun multiregstring mr =
     case mr of
@@ -363,7 +362,7 @@ struct
       | NOP => "NOP"
       | INT w => ("INT " ^ Word8.toString w)
       | DB w => ("DB " ^ Word8.toString w)
-      | MESSAGE m => ("** MESSAGE " ^ m)
+      | COMMENT m => (";; " ^ m)
 (*      | _ => "OTHER_INS" *)
   end
 

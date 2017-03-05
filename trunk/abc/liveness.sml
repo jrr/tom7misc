@@ -18,16 +18,6 @@ struct
   structure IS = SplaySetFn(type ord_key = int
                             val compare = Int.compare)
 
-
-    (*
-  type tset = TS.set
-
-  datatype Live of { name : string,
-                     tmp_frame : A.named_off,
-                     cmds : A.named_cmd Vector.vector,
-                     inlive : tset }
-*)
-
   local
     fun tset l = foldl TS.add' TS.empty l
     val empty = TS.empty
@@ -76,12 +66,18 @@ struct
       | Exit => (empty, empty)
   end
 
-  (* Perform liveness analysis for the program.
-     Outputs for each block a vector of the same length
-     as the number of commands. Each element of the vector
-     contains the set of live variables (conservative
-     over-approximation) on the in-edge of the instruction
-     and on the out-edge. *)
+  (* Note: We use a "frame" discipline in ASM programs so that two
+     temporaries from different frames cannot interfere. As a result,
+     we could probably prevent the propagation of some temporaries
+     through PopJumpInd (i.e., from one frame to another).
+     AllocateTmps already handles this non-interference, so the
+     only purpose might be to make this converge faster. *)
+
+  (* Perform liveness analysis for the program. Outputs for each block a
+     vector of the same length as the number of commands. Each element
+     of the vector contains the set of live variables (conservative
+     over-approximation) on the in-edge of the instruction and on the
+     out-edge. *)
   fun liveness (blocks : ASM.named_block list) =
     let
       (* Start index for each block. *)

@@ -543,7 +543,7 @@ struct
           | _ =>
               let in
                 (* Continue `
-                (acc // MESSAGE ("TODO " ^ ASM.explicit_cmdtos cmd)) *)
+                (acc // COMMENT ("TODO " ^ ASM.explicit_cmdtos cmd)) *)
                 raise ToX86 ("Unimplemented cmd: " ^
                              ASM.explicit_cmdtos cmd)
               end
@@ -618,7 +618,7 @@ struct
 
         | docmds (acc, cmd :: cmds) =
         let
-          val acc = acc // MESSAGE (ASM.explicit_cmdtos cmd)
+          val acc = acc // COMMENT (ASM.explicit_cmdtos cmd)
         in
           (case onecmd acc cmd of
              Finished acc => acc
