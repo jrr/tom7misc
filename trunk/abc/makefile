@@ -13,8 +13,7 @@ maketest.exe : maketest.sml maketest.mlb
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
 
-# forswitch.exe for.exe
-TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe
+TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe # forswitch.exe
 
 tests : $(addprefix dos/,$(TESTS)) dos/tests.bat
 

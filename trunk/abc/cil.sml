@@ -112,6 +112,8 @@ struct
   | Xor of width * value * value
   (* 0 -> 1, everything else -> 0 *)
   | Not of width * value
+  (* 0 -> 0, everything else -> 1 *)
+  | Yet of width * value
   | Complement of width * value
   | Negate of width * value
 
@@ -260,6 +262,7 @@ struct
     | exptos (Or (w, a, b)) = valtos a ^ " | " ^ valtos b
     | exptos (Xor (w, a, b)) = valtos a ^ " ^ " ^ valtos b
     | exptos (Not (w, a)) = "!" ^ valtos a
+    | exptos (Yet (w, a)) = "!!" ^ valtos a
     | exptos (Complement (w, a)) = "~" ^ valtos a
     | exptos (Negate (w, a)) = "-" ^ valtos a
     | exptos (Call (f, vl)) = "CALL " ^ valtos f ^

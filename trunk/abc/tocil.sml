@@ -436,7 +436,6 @@ struct
                  let
                    val res = newidstring "andr"
                    val resv = genvar "r"
-                   val nresv = genvar "nr"
                    val nnresv = genvar "nnr"
                    val true_lab = BC.genlabel "andtrue"
                    val done_lab = BC.genlabel "anddone"
@@ -447,14 +446,12 @@ struct
                     (fn (bv : value, bt : typ) =>
                      implicit { src = bt, dst = BOOL_TYPE, v = bv }
                      (fn (bv, _) =>
-                      Bind (nresv, BOOL_TYPE,
-                            Not (BOOL_WIDTH, bv),
-                            Bind (nnresv, BOOL_TYPE,
-                                  Not (BOOL_WIDTH, Var nresv),
-                                  Store (BOOL_WIDTH,
-                                         AddressLiteral (Local res, BOOL_TYPE),
-                                         Var nnresv,
-                                         Goto done_lab))))));
+                      Bind (nnresv, BOOL_TYPE,
+                            Yet (BOOL_WIDTH, bv),
+                            Store (BOOL_WIDTH,
+                                   AddressLiteral (Local res, BOOL_TYPE),
+                                   Var nnresv,
+                                   Goto done_lab)))));
 
                    BC.insert
                    (bc, done_lab,
@@ -480,7 +477,6 @@ struct
                 let
                   val res = newidstring "orr"
                   val resv = genvar "r"
-                  val nresv = genvar "nr"
                   val nnresv = genvar "nnr"
                   val true_lab = BC.genlabel "ortrue"
                   val done_lab = BC.genlabel "ordone"
@@ -505,14 +501,12 @@ struct
                    (fn (bv, bt) =>
                     implicit { src = bt, dst = BOOL_TYPE, v = bv }
                     (fn (bv, _) =>
-                     Bind (nresv, BOOL_TYPE,
-                           Not (BOOL_WIDTH, bv),
-                           Bind (nnresv, BOOL_TYPE,
-                                 Not (BOOL_WIDTH, Var nresv),
-                                 Store (BOOL_WIDTH,
-                                        AddressLiteral (Local res, BOOL_TYPE),
-                                        Var nnresv,
-                                        Goto done_lab))))))
+                     Bind (nnresv, BOOL_TYPE,
+                           Yet (BOOL_WIDTH, bv),
+                           Store (BOOL_WIDTH,
+                                  AddressLiteral (Local res, BOOL_TYPE),
+                                  Var nnresv,
+                                  Goto done_lab)))))
                 end))
 
            | ASSIGNING bop =>
@@ -1057,7 +1051,12 @@ struct
            { continue = SOME lab, ... } => Goto lab
          | _ => raise ToCIL "continue statement without target")
 
-    | Ast.Switch (e, s) => raise ToCIL "unimplemented: switch"
+    | Ast.Switch (e, s) =>
+      let
+        val l = BC.genlabel "switchdone"
+      in
+        raise ToCIL "unimplemented: switch"
+      end
     | Ast.CaseLabel (num, s) => raise ToCIL "unimplemented: case labels"
     | Ast.DefaultLabel s => raise ToCIL "unimplemented: default"
 

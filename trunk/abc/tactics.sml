@@ -1210,6 +1210,9 @@ struct
       end
 
 
+  (* FIXME: xor [si], di is not printable. Might need to do this
+     one by hand. Be careful about exotic addressing in mov16ind8
+     (the routine should check!) *)
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let
       (* OK when dst = src. We read each one to a register
@@ -1283,7 +1286,6 @@ struct
 
   (* At program start, set up some important state:
       - Illegal instruction handler so that we can eventually exit
-        (FIXME still non-ascii here)
       - EBP points to start of temporary frame in SS
       - EBX points to the start of the local frame in DS
 
