@@ -624,6 +624,19 @@ struct
   end
   structure Simplify = CILPass(SimplifyArg)
 
+
+  fun zerolit w =
+    case w of
+      Width8 => Word8Literal 0w0
+    | Width16 => Word16Literal (Word16.fromInt 0)
+    | Width32 => Word32Literal 0w0
+
+  fun onelit w =
+    case w of
+      Width8 => Word8Literal 0w1
+    | Width16 => Word16Literal (Word16.fromInt 1)
+    | Width32 => Word32Literal 0w1
+
   (* If e is a comparison operator, construct an equivalent cond.
      Also return a short string and the width, for convenience.
 
@@ -641,6 +654,8 @@ struct
     | BelowEq (w, a, b) => SOME ("be", w, CBelowEq (w, a, b))
     | Eq (w, a, b) => SOME ("e", w, CEq (w, a, b))
     | Neq (w, a, b) => SOME ("ne", w, CNeq (w, a, b))
+    | Not (w, a) => SOME ("not", w, CEq (w, a, zerolit w))
+    (* Todo "Yet" exp *)
     | _ => NONE
 
   (* Transform uses of boolean operators like < that are later used in
@@ -767,11 +782,66 @@ struct
       structure CI = CILIdentity(type arg = arg)
       open CI
 
+      (* XXX use zerolit, onelit *)
+      fun widthconstants w =
+        case w of
+          Width8 => (Word8 Unsigned, Word8Literal 0w0, Word8Literal 0w1)
+        | Width16 => (Word16 Unsigned,
+                      Word16Literal (Word16.fromInt 0),
+                      Word16Literal (Word16.fromInt 1))
+        | Width32 => (Word32 Unsigned, Word32Literal 0w0, Word32Literal 0w1)
+
       fun case_Bind (arg as { bc })
                     (selves as { selft, selfv, selfe, selfs }, ctx)
                     (v, t, e, s) =
         case expcond e of
           NONE => CI.case_Bind arg (selves, ctx) (v, t, e, s)
+            (*
+            (case e of
+               Not (w, a) =>
+                 (* Transforms
+                    bind v : t = !a
+                    ... s ...
+
+                    into
+
+                    if a == 0 goto zero
+                    store tmp <- 0
+                    goto join
+
+                    zero:
+                    store tmp <- 1
+                    goto join
+
+                    join:
+                    bind v : t = load tmp
+                    ... s ... *)
+                 let
+                   val str = "not"
+                   val tmp = CILUtil.newlocal (str ^ "_tmp")
+                   val (tmpt, zerolit, onelit) = widthconstants w
+                   val true_lab = BC.genlabel (str ^ "_zero")
+                   val done_lab = BC.genlabel (str ^ "_done")
+                 in
+                   BC.insert
+                   (bc, true_lab,
+                    Store (w, AddressLiteral (Local tmp, tmpt), onelit,
+                           Goto done_lab));
+
+                   BC.insert
+                   (bc, done_lab,
+                    Bind (v, t, Load (w, AddressLiteral (Local tmp, tmpt)),
+                          let val ctx = Context.insert (ctx, v, t)
+                          in selfs arg ctx s
+                          end));
+
+                   GotoIf (CEq (width, a, zerolit), true_lab,
+                           Store (w, AddressLiteral (Local tmp, tmpt), onelit,
+                                  Goto done_lab))
+                 end
+
+             | _ => CI.case_Bind arg (selves, ctx) (v, t, e, s))
+               *)
         | SOME (str, w, cond) =>
             (* We transform something like
                bind v : t = a < b
@@ -795,17 +865,7 @@ struct
                these to optimizations in earlier or later passes. *)
             let
               val tmp = CILUtil.newlocal (str ^ "_tmp")
-              val tmpt =
-                case w of
-                  Width8 => Word8 Unsigned
-                | Width16 => Word16 Unsigned
-                | Width32 => Word32 Unsigned
-              val (zerolit, onelit) =
-                case w of
-                  Width8 => (Word8Literal 0w0, Word8Literal 0w1)
-                | Width16 => (Word16Literal (Word16.fromInt 0),
-                              Word16Literal (Word16.fromInt 1))
-                | Width32 => (Word32Literal 0w0, Word32Literal 0w1)
+              val (tmpt, zerolit, onelit) = widthconstants w
               val true_lab = BC.genlabel (str ^ "_true")
               val done_lab = BC.genlabel (str ^ "_done")
             in
@@ -822,7 +882,7 @@ struct
                      end));
 
               GotoIf (cond, true_lab,
-                      Store (w, AddressLiteral (Local tmp, tmpt), onelit,
+                      Store (w, AddressLiteral (Local tmp, tmpt), zerolit,
                              Goto done_lab))
             end
 

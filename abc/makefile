@@ -10,7 +10,8 @@ abc.exe : *.sml abc.mlb
 maketest.exe : maketest.sml maketest.mlb
 	$(MLTON) -output $@ maketest.mlb
 
-TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe
+# forswitch.exe
+TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe for.exe
 
 tests : $(addprefix dos/,$(TESTS)) dos/tests.bat
 
