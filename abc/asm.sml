@@ -352,6 +352,29 @@ struct
       (* Always 65536 bytes; printable. *)
       datasegment : Word8Vector.vector }
 
+  fun szcompare (S8, S8) = EQUAL
+    | szcompare (S8, _) = LESS
+    | szcompare (_, S8) = GREATER
+    | szcompare (S16, S16) = EQUAL
+    | szcompare (S16, S32) = LESS
+    | szcompare (S32, S16) = GREATER
+    | szcompare (S32, S32) = EQUAL
+
+  fun named_tmpcompare (N { func, name, size },
+                        N { func = ff, name = nn, size = ss }) =
+    (case String.compare (name, nn) of
+       EQUAL =>
+         (case String.compare (func, ff) of
+            EQUAL => szcompare (size, ss)
+          | ord => ord)
+     | ord => ord)
+
+  (* True if the command never continues to the next one. *)
+  fun no_fallthrough (JumpCond (True, _)) = true
+    | no_fallthrough PopJumpInd = true
+    | no_fallthrough Exit = true
+    | no_fallthrough _ = false
+
   fun condtos ts c =
     case c of
       Below (a, b) => "jb " ^ ts a ^ ", " ^ ts b
@@ -370,7 +393,7 @@ struct
     | RestoreTemps f => "restoretemps " ^ os f
     | ExpandFrame n => "expandframe " ^ Int.toString n
     | ShrinkFrame n => "shrinkframe " ^ Int.toString n
-    | FrameOffset (dst, off) => "frameoffset " ^ ts dst ^ " <- frame+" ^
+    | FrameOffset (dst, off) => "frameoffset " ^ ts dst ^ " <- frame+0x" ^
         Word16.toString off
     | Load8 (dst, addr) => "load8 " ^ ts dst ^ " <- [" ^ ts addr ^ "]"
     | Load16 (dst, addr) => "load16 " ^ ts dst ^ " <- [" ^ ts addr ^ "]"
@@ -431,6 +454,7 @@ struct
   val named_program_tostring = progtos named_tmptos named_offtos
   val explicit_program_tostring = progtos explicit_tmptos explicit_offtos
 
+  val named_cmdtos = cmdtos named_tmptos named_offtos
   val explicit_cmdtos = cmdtos explicit_tmptos explicit_offtos
 
   type named_program = (named_tmp, named_off) program

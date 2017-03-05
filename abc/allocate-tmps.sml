@@ -10,7 +10,7 @@ struct
 
   (* Currently we just do this in a dumb way, allocating each
      distinct temporary to a distinct slot. *)
-  fun allocate (Program { blocks, frame_stack_start, datasegment }) =
+  fun explicate blocks =
     let
       (* For each context, the set of temporaries mapped to
          their sizes. *)
@@ -165,10 +165,21 @@ struct
 
     in
       print (StringUtil.table 80 layout_table);
-               (* Data segment doesn't change. *)
+      blocks
+    end
+
+  fun allocate (Program { blocks, frame_stack_start, datasegment }) =
+    let
+      val liveness = Liveness.liveness blocks
+      (* XXX coalesce using liveness. *)
+
+      val blocks = explicate blocks
+    in
+      (* Data segment doesn't change. *)
       Program { blocks = blocks,
                 frame_stack_start = frame_stack_start,
                 datasegment = datasegment }
     end
+
 
 end

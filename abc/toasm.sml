@@ -420,27 +420,45 @@ struct
                    end))
 
              | C.Minus (w, a, b) =>
-                   gentmp ctx a
-                   (fn (atmp, at) =>
-                    gentmp ctx b
-                    (fn (btmp, bt) =>
-                     let
-                       val dst = vartmp (var, tmpsize atmp)
-                     in
-                       if tmpsize atmp = tmpsize btmp andalso
-                          tmpsize atmp = widthsize w
-                       then ()
-                       else raise ToASM "incompatible args in Minus";
+                 gentmp ctx a
+                 (fn (atmp, at) =>
+                  gentmp ctx b
+                  (fn (btmp, bt) =>
+                   let
+                     val dst = vartmp (var, tmpsize atmp)
+                   in
+                     if tmpsize atmp = tmpsize btmp andalso
+                        tmpsize atmp = widthsize w
+                     then ()
+                     else raise ToASM "incompatible args in Minus";
 
-                       A.Mov (dst, atmp) //
-                       A.Sub (dst, btmp) //
-                       k ()
-                     end))
+                     A.Mov (dst, atmp) //
+                     A.Sub (dst, btmp) //
+                     k ()
+                   end))
+
+             | C.Xor (w, a, b) =>
+                 gentmp ctx a
+                 (fn (atmp, at) =>
+                  gentmp ctx b
+                  (fn (btmp, bt) =>
+                   let
+                     val dst = vartmp (var, tmpsize atmp)
+                   in
+                     if tmpsize atmp = tmpsize btmp andalso
+                        tmpsize atmp = widthsize w
+                     then ()
+                     else raise ToASM "incompatible args in Xor";
+
+                     A.Mov (dst, atmp) //
+                     A.Xor (dst, btmp) //
+                     k ()
+                   end))
 
              | C.Truncate { src : C.width, dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented truncate"
-                 | C.Promote { signed : bool, src : C.width,
-                               dst : C.width, v : C.value } =>
+             | C.Promote { signed : bool, src : C.width,
+                           dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented promote"
              | C.Times (w, a, b) => raise ToASM "unimplemented times"
              | C.SignedDivision (w, a, b) => raise ToASM "unimplemented signed division"
@@ -450,7 +468,6 @@ struct
              | C.RightShift (w, a, b) => raise ToASM "unimplemented right shift"
              | C.And (w, a, b) => raise ToASM "unimplemented bitwise and"
              | C.Or (w, a, b) => raise ToASM "unimplemented bitwise or"
-             | C.Xor (w, a, b) => raise ToASM "unimplemented bitwise xor"
              | C.Complement (w, a) => raise ToASM "unimplemented bitwise complement"
              | C.Negate (w, a) => raise ToASM "unimplemented negation")
 

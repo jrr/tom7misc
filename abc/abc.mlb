@@ -15,6 +15,8 @@ ckit/ckit-lib.mlb
   ../sml-lib/njlib/splay-map-fn.sml
   ../sml-lib/njlib/ord-set-sig.sml
   ../sml-lib/njlib/splay-set-fn.sml
+  ../sml-lib/njlib/imperative-map-sig.sml
+  ../sml-lib/njlib/imperative-map.sml
 
   ../sml-lib/util/util-sig.sml
   ../sml-lib/util/util.sml
@@ -45,6 +47,9 @@ ckit/ckit-lib.mlb
   asm.sml
   toasm-sig.sml
   toasm.sml
+
+  liveness-sig.sml
+  liveness.sml
 
   allocate-tmps-sig.sml
   allocate-tmps.sml
