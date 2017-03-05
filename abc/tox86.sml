@@ -339,7 +339,8 @@ struct
 
                 (* For a simple binary CMP (a, b); JCC lab.
                    Upon entry, SI is claimed and has the relative offset
-                   in it. *)
+                   in it. Should work fine if a = b, though in that
+                   case all of these become unconditional. *)
                 fun binary JCC (a, b) =
                   let
                     (* XXX allow 8/32 *)
@@ -355,6 +356,25 @@ struct
                   in
                     (* This is always a jump to the next rung; we need to
                        update the displacement later. *)
+                    next_jumps := (Acc.insbytes acc - 1) :: !next_jumps;
+                    Continue acc
+                  end
+
+                (* As though TEST a; JCC lab.
+                   We don't have the TEST instruction, but simply moving
+                   the value into the register will work, since we use
+                   XOR to get it there. *)
+                fun unary JCC a =
+                  let
+                    (* val () = raise ToX86 "implmeneted :)" *)
+                    (* XXX allow 8/32 *)
+                    val () = assert16 a
+                    val acc = acc ++ AX
+                    val acc =
+                      Tactics.imm_ax16 acc (Word16.fromInt 0) //
+                      XOR (S16, A <- Tactics.EBP_TEMPORARY (offset a)) -- AX //
+                      JCC 0w0 -- SI
+                  in
                     next_jumps := (Acc.insbytes acc - 1) :: !next_jumps;
                     Continue acc
                   end
@@ -387,9 +407,9 @@ struct
                  | A.LessEq (a, b) => binary JLE (a, b)
                  | A.Eq (a, b) => binary JZ (a, b)
                  | A.NotEq (a, b) => binary JNZ (a, b)
-                 | A.True => unconditional ()
-                 | _ => raise ToX86 ("Unimplemented cond: " ^
-                                     A.explicit_cmdtos cmd))
+                 | A.EqZero a => unary JZ a
+                 | A.NeZero a => unary JNZ a
+                 | A.True => unconditional ())
               end
 
           | A.PopJumpInd =>

@@ -390,6 +390,7 @@ struct
              | C.Eq _ => raise ToASM "bug: unexpected comparison op"
              | C.Neq _ => raise ToASM "bug: unexpected comparison op"
              | C.Not _ => raise ToASM "bug: unexpected not"
+             | C.Yet _ => raise ToASM "bug: unexpected yet"
 
              | C.Load (w, v) =>
                  gentmp ctx v
@@ -505,6 +506,27 @@ struct
 
         | C.GotoIf (cond, truelab, s) =>
             let val (cmds, next) = gencmds ctx s
+
+              (* If one of the operands is zero, return SOME of the
+                 other one. *)
+              fun getzero (w, a, b) =
+                case (w, a, b) of
+                  (C.Width8, C.Word8Literal 0w0, b) => SOME b
+                | (C.Width8, a, C.Word8Literal 0w0) => SOME a
+                | (C.Width32, C.Word32Literal 0w0, b) => SOME b
+                | (C.Width32, a, C.Word32Literal 0w0) => SOME a
+                (* Ugh, so awkward without word literals... *)
+                | (C.Width16, a as C.Word16Literal w, b) =>
+                    if w = Word16.fromInt 0 then SOME b
+                    else (case b of
+                            C.Word16Literal bw =>
+                              if bw = Word16.fromInt 0 then SOME a
+                              else NONE
+                          | _ => NONE)
+                | (C.Width16, a, C.Word16Literal w) =>
+                    if w = Word16.fromInt 0 then SOME a
+                    else NONE
+                | _ => NONE
             in
               case cond of
                 C.CLess (w, a, b) =>
@@ -535,22 +557,35 @@ struct
                    (fn (btmp, _) =>
                     (A.JumpCond (A.BelowEq (atmp, btmp), truelab) :: cmds,
                      next)))
-               (* PERF for these two, we should generate EqZero and
-                  NeZero if one argument is a literal zero. *)
+
               | C.CEq (w, a, b) =>
-                  gentmp ctx a
-                  (fn (atmp, _) =>
-                   gentmp ctx b
-                   (fn (btmp, _) =>
-                    (A.JumpCond (A.Eq (atmp, btmp), truelab) :: cmds,
-                     next)))
+                  (case getzero (w, a, b) of
+                     SOME other =>
+                       gentmp ctx other
+                       (fn (otmp, _) =>
+                        (A.JumpCond (A.EqZero otmp, truelab) :: cmds,
+                         next))
+                   | NONE =>
+                       gentmp ctx a
+                       (fn (atmp, _) =>
+                        gentmp ctx b
+                        (fn (btmp, _) =>
+                         (A.JumpCond (A.Eq (atmp, btmp), truelab) :: cmds,
+                          next))))
               | C.CNeq (w, a, b) =>
-                  gentmp ctx a
-                  (fn (atmp, _) =>
-                   gentmp ctx b
-                   (fn (btmp, _) =>
-                    (A.JumpCond (A.NotEq (atmp, btmp), truelab) :: cmds,
-                     next)))
+                  (case getzero (w, a, b) of
+                     SOME other =>
+                       gentmp ctx other
+                       (fn (otmp, _) =>
+                        (A.JumpCond (A.NeZero otmp, truelab) :: cmds,
+                         next))
+                   | NONE =>
+                       gentmp ctx a
+                       (fn (atmp, _) =>
+                        gentmp ctx b
+                        (fn (btmp, _) =>
+                         (A.JumpCond (A.NotEq (atmp, btmp), truelab) :: cmds,
+                          next))))
             end
 
         (* XXX: This fallthrough stuff is not harmful, but it does make

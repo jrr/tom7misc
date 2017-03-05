@@ -278,6 +278,7 @@ struct
     | Or _ => true
     | Xor _ => true
     | Not _ => true
+    | Yet _ => true
     | Complement _ => true
     | Negate _ => true
     | Load _ => true
@@ -655,7 +656,7 @@ struct
     | Eq (w, a, b) => SOME ("e", w, CEq (w, a, b))
     | Neq (w, a, b) => SOME ("ne", w, CNeq (w, a, b))
     | Not (w, a) => SOME ("not", w, CEq (w, a, zerolit w))
-    (* Todo "Yet" exp *)
+    | Yet (w, a) => SOME ("yet", w, CNeq (w, a, zerolit w))
     | _ => NONE
 
   (* Transform uses of boolean operators like < that are later used in
@@ -796,52 +797,6 @@ struct
                     (v, t, e, s) =
         case expcond e of
           NONE => CI.case_Bind arg (selves, ctx) (v, t, e, s)
-            (*
-            (case e of
-               Not (w, a) =>
-                 (* Transforms
-                    bind v : t = !a
-                    ... s ...
-
-                    into
-
-                    if a == 0 goto zero
-                    store tmp <- 0
-                    goto join
-
-                    zero:
-                    store tmp <- 1
-                    goto join
-
-                    join:
-                    bind v : t = load tmp
-                    ... s ... *)
-                 let
-                   val str = "not"
-                   val tmp = CILUtil.newlocal (str ^ "_tmp")
-                   val (tmpt, zerolit, onelit) = widthconstants w
-                   val true_lab = BC.genlabel (str ^ "_zero")
-                   val done_lab = BC.genlabel (str ^ "_done")
-                 in
-                   BC.insert
-                   (bc, true_lab,
-                    Store (w, AddressLiteral (Local tmp, tmpt), onelit,
-                           Goto done_lab));
-
-                   BC.insert
-                   (bc, done_lab,
-                    Bind (v, t, Load (w, AddressLiteral (Local tmp, tmpt)),
-                          let val ctx = Context.insert (ctx, v, t)
-                          in selfs arg ctx s
-                          end));
-
-                   GotoIf (CEq (width, a, zerolit), true_lab,
-                           Store (w, AddressLiteral (Local tmp, tmpt), onelit,
-                                  Goto done_lab))
-                 end
-
-             | _ => CI.case_Bind arg (selves, ctx) (v, t, e, s))
-               *)
         | SOME (str, w, cond) =>
             (* We transform something like
                bind v : t = a < b

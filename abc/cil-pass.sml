@@ -71,6 +71,7 @@ struct
       | Or a => call A.case_Or a
       | Xor a => call A.case_Xor a
       | Not a => call A.case_Not a
+      | Yet a => call A.case_Yet a
       | Complement a => call A.case_Complement a
       | Negate a => call A.case_Negate a
       | Call a => call A.case_Call a
@@ -236,6 +237,8 @@ struct
      wordwidth w)
   fun case_Not arg ({ selft, selfv, selfe, selfs }, ctx) (w, a) =
     (Not (w, fst ` selfv arg ctx a), wordwidth w)
+  fun case_Yet arg ({ selft, selfv, selfe, selfs }, ctx) (w, a) =
+    (Yet (w, fst ` selfv arg ctx a), wordwidth w)
   fun case_Complement arg ({ selft, selfv, selfe, selfs }, ctx) (w, a) =
     (Complement (w, fst ` selfv arg ctx a), wordwidth w)
   fun case_Negate arg ({ selft, selfv, selfe, selfs }, ctx) (w, a) =

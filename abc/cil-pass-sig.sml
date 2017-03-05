@@ -61,6 +61,7 @@ sig
   val case_Or : arg -> selves * CIL.context -> CIL.width * CIL.value * CIL.value -> CIL.exp * CIL.typ
   val case_Xor : arg -> selves * CIL.context -> CIL.width * CIL.value * CIL.value -> CIL.exp * CIL.typ
   val case_Not : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
+  val case_Yet : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
   val case_Complement : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
   val case_Negate : arg -> selves * CIL.context -> CIL.width * CIL.value -> CIL.exp * CIL.typ
   val case_Call : arg -> selves * CIL.context -> CIL.value * CIL.value list -> CIL.exp * CIL.typ
