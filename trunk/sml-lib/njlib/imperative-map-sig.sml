@@ -27,6 +27,7 @@ sig
   (* The empty map *)
   val empty : unit -> 'a map
   val isempty : 'a map -> bool
+  val clear : 'a map -> unit
 
   (* Return the element with the smallest key, if the map has any values. *)
   val head : 'a map -> 'a option
@@ -38,6 +39,8 @@ sig
   (* Update the item in place. Funtion is called on NONE if there
      is no item with the given key. *)
   val update : 'a map * Key.ord_key * ('a option -> 'a) -> unit
+  val modify : 'a map * ('a -> 'a) -> unit
+  val modifyi : 'a map * (Key.ord_key * 'a -> 'a) -> unit
 
   (* Look for an item, return NONE if the item doesn't exist *)
   val find: 'a map * Key.ord_key -> 'a option
@@ -79,7 +82,8 @@ sig
   val app : ('a -> unit) -> 'a map -> unit
   val appi: ((Key.ord_key * 'a) -> unit) -> 'a map -> unit
 
-    (* TODO: Figure out what to do with this
+    (* TODO: Figure out what to do with this -- it became 'modify', I think,
+       patterned after Array.modify.
   (* Create a new map by applying a map function to the
      name/value pairs in the map. *)
   val map : ('a -> 'b) -> 'a map -> 'b map
