@@ -110,6 +110,7 @@ struct
   | And of width * value * value
   | Or of width * value * value
   | Xor of width * value * value
+  (* 0 -> 1, everything else -> 0 *)
   | Not of width * value
   | Complement of width * value
   | Negate of width * value

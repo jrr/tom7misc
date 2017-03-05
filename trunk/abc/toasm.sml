@@ -389,39 +389,59 @@ struct
              | C.BelowEq _ => raise ToASM "bug: unexpected comparison op"
              | C.Eq _ => raise ToASM "bug: unexpected comparison op"
              | C.Neq _ => raise ToASM "bug: unexpected comparison op"
+             | C.Not _ => raise ToASM "bug: unexpected not"
 
              | C.Load (w, v) =>
                  gentmp ctx v
                  (fn (addr, _) =>
                   (case w of
-                     C.Width8 => A.Load8 (vartmp (var, typsize t), addr) // k ()
-                   | C.Width16 => A.Load16 (vartmp (var, typsize t), addr) // k ()
+                     C.Width8 =>
+                       A.Load8 (vartmp (var, typsize t), addr) // k ()
+                   | C.Width16 =>
+                       A.Load16 (vartmp (var, typsize t), addr) // k ()
                    | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
              | C.Plus (w, a, b) =>
-                 (* FIXME *)
-                 raise ToASM "What? No -- you need to store it in var"
-(*
-
                  gentmp ctx a
                  (fn (atmp, at) =>
                   gentmp ctx b
                   (fn (btmp, bt) =>
-                   let in
+                   let
+                     val dst = vartmp (var, tmpsize atmp)
+                   in
                      if tmpsize atmp = tmpsize btmp andalso
                         tmpsize atmp = widthsize w
                      then ()
                      else raise ToASM "incompatible args in Plus";
 
-                     A.Add (atmp, btmp) // k ()
+                     A.Mov (dst, atmp) //
+                     A.Add (dst, btmp) //
+                     k ()
                    end))
-*)
+
+             | C.Minus (w, a, b) =>
+                   gentmp ctx a
+                   (fn (atmp, at) =>
+                    gentmp ctx b
+                    (fn (btmp, bt) =>
+                     let
+                       val dst = vartmp (var, tmpsize atmp)
+                     in
+                       if tmpsize atmp = tmpsize btmp andalso
+                          tmpsize atmp = widthsize w
+                       then ()
+                       else raise ToASM "incompatible args in Minus";
+
+                       A.Mov (dst, atmp) //
+                       A.Sub (dst, btmp) //
+                       k ()
+                     end))
+
              | C.Truncate { src : C.width, dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented truncate"
                  | C.Promote { signed : bool, src : C.width,
                                dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented promote"
-             | C.Minus (w, a, b) => raise ToASM "unimplemented minus"
              | C.Times (w, a, b) => raise ToASM "unimplemented times"
              | C.SignedDivision (w, a, b) => raise ToASM "unimplemented signed division"
              | C.UnsignedDivision (w, a, b) => raise ToASM "unimplemented unsigned division"
@@ -431,7 +451,6 @@ struct
              | C.And (w, a, b) => raise ToASM "unimplemented bitwise and"
              | C.Or (w, a, b) => raise ToASM "unimplemented bitwise or"
              | C.Xor (w, a, b) => raise ToASM "unimplemented bitwise xor"
-             | C.Not (w, a) => raise ToASM "unimplemented bitwise not"
              | C.Complement (w, a) => raise ToASM "unimplemented bitwise complement"
              | C.Negate (w, a) => raise ToASM "unimplemented negation")
 
