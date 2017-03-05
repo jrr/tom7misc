@@ -463,11 +463,14 @@ struct
                                              NONE => NONE
                                            | SOME y => SOME (x, y)) l
 
- fun cleave' 0 l acc = (rev acc, l)
-   | cleave' _ nil _ = raise Subscript
-   | cleave' n (h :: t) acc = cleave' (n - 1) t (h :: acc)
-
- fun cleave n l = if n < 0 then raise Subscript else cleave' n l nil
+ fun cleave n l =
+   let
+     fun cl (0, l, acc) = (rev acc, l)
+       | cl (_, nil, _) = raise Subscript
+       | cl (n, h :: t, acc) = cl (n - 1, t, h :: acc)
+   in
+     cl (n, l, nil)
+   end
 
  fun takeupto n l =
    let

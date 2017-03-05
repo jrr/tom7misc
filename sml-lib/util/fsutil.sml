@@ -5,72 +5,71 @@ struct
   exception FSUtil of string
 
   fun splitext s =
-      StringUtil.rfield (StringUtil.ischar #".") s
+    StringUtil.rfield (StringUtil.ischar #".") s
 
   fun chdir_excursion s f =
-      let val {arcs, isAbs, vol} = OS.Path.fromString s
-      in
-          (case rev arcs of
-               nil => raise FSUtil "no file in chdir_excursion"
-             (* don't need to move *)
-             | [file] => f file
-             (* move to dir and come back *)
-             | (file::rest) =>
-               let
-                   val new = OS.Path.toString
-                              {arcs = rev rest, isAbs=isAbs, vol=vol}
-                   val old = OS.FileSys.getDir ()
-               in
-                   let in
-                       OS.FileSys.chDir new;
-                       f file before
-                       OS.FileSys.chDir old
-                   end handle ex => (OS.FileSys.chDir old; raise ex)
-               end)
-
-      end
+    let val { arcs, isAbs, vol } = OS.Path.fromString s
+    in
+      case rev arcs of
+        nil => raise FSUtil "no file in chdir_excursion"
+      (* don't need to move *)
+      | [file] => f file
+      (* move to dir and come back *)
+      | (file :: rest) =>
+          let
+            val new = OS.Path.toString
+              { arcs = rev rest, isAbs = isAbs, vol = vol }
+            val old = OS.FileSys.getDir ()
+          in
+            let in
+              OS.FileSys.chDir new;
+              f file before
+              OS.FileSys.chDir old
+            end handle ex => (OS.FileSys.chDir old; raise ex)
+          end
+    end
 
   (* assume exists = can open. This is probably not the best implementation.. *)
   fun exists f =
       (BinIO.closeIn (BinIO.openIn f); true) handle _ => false
 
   fun tempfilename base =
-      let
-          fun tf n =
-              let val f = base ^ Int.toString n ^ ".tmp"
-              in
-                  if exists f
-                  then tf (n + 1)
-                  else f
-              end
-      in
-          tf 0
-      end
+    let
+      fun tf n =
+        let val f = base ^ Int.toString n ^ ".tmp"
+        in
+          if exists f
+          then tf (n + 1)
+          else f
+        end
+    in
+      tf 0
+    end
 
   (* imperative streams *)
   type 'a stream = unit -> 'a option
   (* but we want to implement them in a more efficient way *)
   datatype 'a prestream =
-      PS of unit -> ('a * 'a prestream) option
+    PS of unit -> ('a * 'a prestream) option
 
   fun ps_to_stream (PS ps) =
-      let
-          val r = ref ps
-          fun next () =
-              (case (!r) () of
-                   NONE =>
-                       let in
-                           r := (fn _ => NONE);
-                           NONE
-                       end
-                 | SOME (a, PS af) =>
-                       let in
-                           r := af;
-                           SOME a
-                       end)
-      in
-          next
-      end
+    let
+      val r = ref ps
+      fun next () =
+        (case (!r) () of
+           NONE =>
+             let in
+               r := (fn _ => NONE);
+               NONE
+             end
+         | SOME (a, PS af) =>
+             let in
+               r := af;
+               SOME a
+             end)
+    in
+      next
+    end
 
   structure FS = Posix.FileSys
 
@@ -104,22 +103,22 @@ struct
   end
 
   fun stream_app f s =
-      (case s () of
+    (case s () of
            NONE => ()
          | SOME a =>
-               let in
-                   ignore (f a);
-                   stream_app f s
-               end)
+             let in
+               ignore (f a);
+               stream_app f s
+             end)
 
   val ps_nil = PS (fn _ => NONE)
 
   fun ps_cons a f2 = PS (fn () => SOME(a, f2))
 
   fun ps_delay ups =
-      PS (fn () =>
-          case ups () of
-              PS f => f ())
+    PS (fn () =>
+        case ups () of
+          PS f => f ())
 
 (*
   fun stream_cons f1 f2 =
@@ -182,27 +181,24 @@ struct
 
         fun loop NONE () = (closedir d; ps_nil)
           | loop (SOME ss) () =
-              let
-              in
-                let
-                    val tail = ps_delay (loop (readdir d))
-                in
-                  ps_cons (re ss ss) tail
-                end handle _ => loop (readdir d) ()
-              end
+            let
+              val tail = ps_delay (loop (readdir d))
+            in
+              ps_cons (re ss ss) tail
+            end handle _ => loop (readdir d) ()
 
 
         (* XXX what if I can't stat ..? *)
         val all =
-            ps_delay (fn () =>
-                      ps_cons
-                      (re "" ".")
-                      (ps_delay (fn () =>
-                                 ps_cons
-                                 (re ".." "..")
-                                 (ps_delay (loop (readdir d))) )))
+          ps_delay (fn () =>
+                    ps_cons
+                    (re "" ".")
+                    (ps_delay (fn () =>
+                               ps_cons
+                               (re ".." "..")
+                               (ps_delay (loop (readdir d))) )))
       in
-          ps_to_stream all
+        ps_to_stream all
       end
 
     (* val dirstream = ps_to_stream dirstream *)
@@ -212,39 +208,39 @@ struct
   end
 
   fun stream_filter f s () =
-      case s () of
-          NONE => NONE
-        | SOME item =>
-              case f item of
-                  false => stream_filter f s ()
-                | true => SOME item
+    case s () of
+      NONE => NONE
+    | SOME item =>
+        case f item of
+          false => stream_filter f s ()
+        | true => SOME item
 
   fun glob s =
-      case StringUtil.rfind "/" s of
-           NONE =>
-               (stream_filter (fn {name, ...} =>
-                               StringUtil.wcmatch s name)
-                (dirstream "."))
-         | SOME i =>
-           let val dir = String.substring (s, 0, i)
-               val filemask = String.substring (s, i + 1, size s - (i + 1))
-               val sm = dirstream dir
-           in
-               (stream_filter
-                (fn {name, ...} =>
-                 StringUtil.wcmatch filemask name) sm)
-           end
+    case StringUtil.rfind "/" s of
+      NONE =>
+        (stream_filter (fn {name, ...} =>
+                        StringUtil.wcmatch s name)
+         (dirstream "."))
+    | SOME i =>
+        let val dir = String.substring (s, 0, i)
+          val filemask = String.substring (s, i + 1, size s - (i + 1))
+          val sm = dirstream dir
+        in
+          (stream_filter
+           (fn {name, ...} =>
+            StringUtil.wcmatch filemask name) sm)
+        end
 
   fun ls f s =
-      if StringUtil.all (StringUtil.isn'tchar #"*") s then
-          dirapp f s
-      else
-          stream_app f (glob s)
+    if StringUtil.all (StringUtil.isn'tchar #"*") s then
+       dirapp f s
+    else
+      stream_app f (glob s)
 
   exception Seek
 
   fun seekn x s =
-      ignore (size (TextIO.inputN (s, x)) <> x andalso raise Seek)
+    ignore (size (TextIO.inputN (s, x)) <> x andalso raise Seek)
 
   fun skipi 0 _ = ()
     | skipi n s =
