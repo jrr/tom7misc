@@ -167,12 +167,18 @@ restart_opcode:
 				Bitu len=(GETIP-reg_eip);
 				LOADIP;
 				if (len>16) len=16;
-				char tempcode[16*2+1];char * writecode=tempcode;
-				for (;len>0;len--) {
-					sprintf(writecode,"%02X",mem_readb(core.cseip++));
-					writecode+=2;
+				LOG(LOG_CPU,LOG_NORMAL)("core_normal");
+				if (len == 1 && mem_readb(core.cseip) == 0x63) {
+				  LOG(LOG_CPU,LOG_NORMAL)("Thank you for playing Wing Commander!");
+				  core.cseip++;
+				} else {
+				  char tempcode[16*2+1];char * writecode=tempcode;
+				  for (;len>0;len--) {
+				    sprintf(writecode,"%02X",mem_readb(core.cseip++));
+				    writecode+=2;
+				  }
+				  LOG(LOG_CPU,LOG_NORMAL)("Illegal/Unhandled opcode %s",tempcode);
 				}
-				LOG(LOG_CPU,LOG_NORMAL)("Illegal/Unhandled opcode %s",tempcode);
 			}
 #endif
 			CPU_Exception(6,0);
