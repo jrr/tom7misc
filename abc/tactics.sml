@@ -996,6 +996,7 @@ struct
        in mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
        end)
 
+      (*
   (* Binary NOT of register r. *)
   fun complement_reg16 acc r : acc =
   (* Strategy here is to do R <- XOR(R, OxFFFF).
@@ -1013,44 +1014,7 @@ struct
       XOR (S16, r <- IND_EBX_DISP8 0wx20) ??
       forget_reg16 (reg_to_machreg r)
     end handle e => raise e
-
-  (* ADD rdst <- rsrc.
-     Both rdst and rsrc must be claimed.
-
-     XXX this needs to take the temp frame size, etc...
-     (I rewrote this for temps below; it's better)
-
-     PERF should make destructive version that modifies rsrc. *)
-  fun add_reg16 acc rdst rsrc : acc =
-    (* Strategy here is to do SUB (RDST, -V).
-       -V is NOT V + 1. *)
-    let in
-      check_not_stack16 rsrc;
-      check_not_stack16 rdst;
-      assert_claimed acc (reg_to_multireg16 rsrc);
-      assert_claimed acc (reg_to_multireg16 rdst);
-
-      claim_reg16 acc [C, D, DH_SI, BH_DI, A]
-      (fn (acc, rtmp) =>
-       let
-         val acc =
-           acc //
-           PUSH (reg_to_multireg16 rsrc) //
-           POP (reg_to_multireg16 rtmp) ??
-           forget_reg16 (reg_to_machreg rtmp)
-         val acc = complement_reg16 acc rtmp //
-           INC (reg_to_multireg16 rtmp) ??
-           forget_reg16 (reg_to_machreg rtmp)
-         (* now rtmp contains -V. *)
-         (* Choice of 0wx24 is arbitrary. Should have the accumulator
-            allocate this or something. *)
-       in
-         mov16ind8 acc (IND_EBX_DISP8 0wx24 <~ rtmp)
-       end) //
-      (* Finally we can do it *)
-      SUB (S16, rdst <- IND_EBX_DISP8 0wx24) ??
-      forget_reg16 (reg_to_machreg rdst)
-    end handle e => raise e
+*)
 
   (* TODO: If this is not allowed then it should be explicitly banned!
      Many ops can easily support the case where operands are the same;
@@ -1091,7 +1055,9 @@ struct
         val intn = Word16.toInt n
       in
         if intn < rawbytes
-        then repeated intn acc (INC ` reg_to_multireg16 reg)
+        then
+          repeated intn acc (INC ` reg_to_multireg16 reg) ??
+            forget_reg16 (reg_to_machreg reg)
         else raw
       end
 
@@ -1106,8 +1072,11 @@ struct
         val intn = Word16.toInt n
       in
         if intn < rawbytes
-        then repeated intn acc (DEC ` reg_to_multireg16 reg)
-        else raw
+        then
+          repeated intn acc (DEC ` reg_to_multireg16 reg) ??
+            forget_reg16 (reg_to_machreg reg)
+        else
+          raw
       end
 
     (* Add a constant to BP. We have to be a little careful because BP is
@@ -1221,8 +1190,10 @@ struct
          Maybe. But such code should be pretty rare (in C, a = &a). *)
       val acc = acc ++ SI ++ DI
       (* PERF: Consider unrolling as above? *)
-      val acc = mov16ind8 acc (DH_SI <- EBP_TEMPORARY dst_addr)
-      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY src_tmp)
+      val acc = mov16ind8 acc (DH_SI <- EBP_TEMPORARY dst_addr) ??
+        forget_reg16 M.ESI
+      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY src_tmp) ??
+        forget_reg16 M.EDI
       val acc = mov16ind8 acc (IND_SI <~ BH_DI)
     in
       acc -- DI -- SI

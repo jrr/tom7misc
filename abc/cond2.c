@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
   }
 
   if (aaa >= (unsigned int)0) {
-    _putc('\n');
+    _putc('!');
   }
 
   MoreTests();

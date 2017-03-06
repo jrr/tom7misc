@@ -16,6 +16,6 @@ int main(int argc, char **argv) {
   DeadAddr;
   _putc('o');
   _putc('k');
-  _putc('\n');
+  _putc('!');
   return 0;
 }
