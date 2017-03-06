@@ -7,6 +7,6 @@ static int Other() {
 int main(int argc, char **argv) {
   _putc('o');
   _putc(Other());
-  _putc('\n');
+  _putc('!');
   return 0;
 }

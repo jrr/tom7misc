@@ -5,7 +5,7 @@ int main(int argc, char **argv) {
   for (i = (int)250; i >= (int)0; i--) {
     if (i == (int)'o' ||
         i == (int)'k' ||
-        i == (int)'\n') {
+        i == (int)'!') {
       _putc(i);
     }
   }

@@ -7,6 +7,6 @@ int Other(int a, int b, int c) {
 }
 
 int main(int argc, char **argv) {
-  Other('\n', 'o', 'k');
+  Other('!', 'o', 'k');
   return 0;
 }

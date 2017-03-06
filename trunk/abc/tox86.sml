@@ -350,7 +350,8 @@ struct
                       Tactics.mov16ind8 acc
                          (C <- Tactics.EBP_TEMPORARY (offset a)) ??
                       forget_reg16 M.ECX //
-                      CMP (S16, C <- Tactics.EBP_TEMPORARY (offset b)) -- CX //
+                      CMP (S16, C <- Tactics.EBP_TEMPORARY (offset b)) ??
+                      forget_reg16 M.ECX -- CX //
                       (* Do release SI after the jump, since we continue... *)
                       JCC 0w0 -- SI
                   in
@@ -372,8 +373,11 @@ struct
                     val acc = acc ++ AX
                     val acc =
                       Tactics.imm_ax16 acc (Word16.fromInt 0) //
-                      XOR (S16, A <- Tactics.EBP_TEMPORARY (offset a)) -- AX //
+                      XOR (S16, A <- Tactics.EBP_TEMPORARY (offset a)) ??
+                      forget_reg16 M.EAX -- AX //
                       JCC 0w0 -- SI
+                      (* PERF after JNZ, we know A is zero, which is
+                         often useful *)
                   in
                     next_jumps := (Acc.insbytes acc - 1) :: !next_jumps;
                     Continue acc
@@ -458,7 +462,9 @@ struct
                 val () = Acc.assert_unclaimed acc SI
                 val acc = acc ++ SI // POP SI ?? forget_reg16 M.ESI
                 val acc = Tactics.imm_tmp16 acc tmp subtractand
-                val acc = acc // SUB (S16, DH_SI <- Tactics.EBP_TEMPORARY tmp)
+                val acc = acc //
+                  SUB (S16, DH_SI <- Tactics.EBP_TEMPORARY tmp) ??
+                  forget_reg16 M.ESI
                 (* We know that the quantity has to be positive, by
                    construction; The smallest (dest - cur) can be is
                    0 - (num_labels - 1) = 1 - num_labels, and since we add
@@ -622,10 +628,11 @@ struct
            very last block must explicitly jump in order to
            overflow the IP.) *)
         let
+          val acc = acc // COMMENT "fallthrough"
           val acc = acc ++ EAX ++ ESI
           val acc = Tactics.imm_ax16 acc (Word16.fromInt 0) //
             PUSH AX //
-            POP SI //
+            POP SI ?? learn_reg16 M.ESI (Word16.fromInt 0) //
             (* We specifically zero it then INC so that we know
                the zero flag is clear here. *)
             INC SI ?? learn_reg16 M.ESI (Word16.fromInt 1) //

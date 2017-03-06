@@ -853,7 +853,10 @@ struct
     (case init of
        Ast.Simple e =>
          let
-           val addrkind = if global then Global else Local
+           val mkaddr =
+             if global
+             then (fn id => Global `uidstring id)
+             else (fn id => Local `idstring id)
            val vartyp = transtype ctype
          in
            transexp e bc
@@ -861,7 +864,7 @@ struct
             implicit { src = t, dst = vartyp, v = v }
             (fn (v, _) =>
              Store (typewidth vartyp,
-                    AddressLiteral (addrkind ` uidstring id, vartyp),
+                    AddressLiteral (mkaddr id, vartyp),
                     v, k ())))
          end
      | Ast.Aggregate _ =>

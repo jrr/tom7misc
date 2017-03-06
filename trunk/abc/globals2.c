@@ -10,6 +10,6 @@ int main(int argc, char **argv) {
   _putc(global_o);
   Other();
   _putc(global_o);
-  _putc(global_o = '\n');
+  _putc(global_o = '!');
   return 0;
 }
