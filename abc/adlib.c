@@ -12,12 +12,18 @@ int Adlib(int reg, int value) {
 
 int main(int argc, char **argv) {
   int port;
+
+  // XX NNO
+  // _out8((int)0x0338, (int)0x01);
+
+
+
   // Zero all registers to clear sound card.
   for (port = (int)0x01; port <= (int)0xF5; port++) {
-    _putc('.');
+    // _putc('.');
     Adlib((int)port, (int)0x00);
   }
-  _putc('\n');
+  // _putc('\n');
 
 
   Adlib((int)0x20, (int)0x01); // Set the modulator's multiple to 1

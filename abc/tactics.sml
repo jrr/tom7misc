@@ -1387,8 +1387,9 @@ struct
         AND (S16, IND_SI <~ BH_DI) //
         (* Load DI with the byte we want to write. *)
         XOR (S16, BH_DI <- EBP_TEMPORARY byte) ?? forget_reg16 M.EDI //
-        (* And write it to SI *)
-        XOR (S8, IND_SI <~ BH_DI) //
+        (* And write it to SI. Note that this places the low order
+           byte at 0000, which is what we want. *)
+        XOR (S16, IND_SI <~ BH_DI) //
         (* We also need the port in DX. *)
         XOR (S16, D <- EBP_TEMPORARY port) ?? forget_reg16 M.EDX //
         (* And finally, do the actual output. *)
