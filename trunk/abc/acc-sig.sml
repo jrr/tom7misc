@@ -58,6 +58,7 @@ sig
 
   (* Assert that we know that the register has the 32-bit value. *)
   val assert_reg32 : acc -> Machine.reg -> Word32.word -> unit
+  val assert_reg16 : acc -> Machine.reg -> Word16.word -> unit
 
   (* TODO: Get free 32-bit or 16-bit register. Maybe in tactics? *)
 

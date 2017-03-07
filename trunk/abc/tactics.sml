@@ -1178,23 +1178,30 @@ struct
         acc -- DI -- AX
       end
 
-
-  (* FIXME: xor [si], di is not printable. Might need to do this
-     one by hand. Be careful about exotic addressing in mov16ind8
-     (the routine should check!) *)
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let
       (* OK when dst = src. We read each one to a register
          separately (and don't modify them).
          PERF: Is it possible to use one register in that case?
          Maybe. But such code should be pretty rare (in C, a = &a). *)
-      val acc = acc ++ SI ++ DI
-      (* PERF: Consider unrolling as above? *)
-      val acc = mov16ind8 acc (DH_SI <- EBP_TEMPORARY dst_addr) ??
-        forget_reg16 M.ESI
-      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY src_tmp) ??
-        forget_reg16 M.EDI
-      val acc = mov16ind8 acc (IND_SI <~ BH_DI)
+      val acc = acc ++ SI ++ DI ++ AX
+      val acc = imm_ax16 acc (Word16.fromInt 0) //
+        PUSH AX // POP SI ?? learn_reg16 M.ESI (Word16.fromInt 0) //
+        PUSH AX // POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) -- AX //
+        (* Load dest addr first. *)
+        XOR (S16, DH_SI <- EBP_TEMPORARY dst_addr) ?? forget_reg16 M.ESI
+      val () = assert_reg16 acc M.EDI (Word16.fromInt 0)
+
+      (* Note: The glorious XOR hack from above does work here, but
+         doesn't save us any bytes or registers. (XOR XOR XOR instead
+         of AND XOR XOR.) *)
+      val acc = acc //
+        (* Zero destination. *)
+        AND (S16, IND_SI <~ BH_DI) //
+        (* Now read the value to store. *)
+        XOR (S16, BH_DI <- EBP_TEMPORARY src_tmp) ?? forget_reg16 M.EDI //
+        (* And finally, write it. *)
+        XOR (S16, IND_SI <~ BH_DI)
     in
       acc -- DI -- SI
     end
