@@ -331,6 +331,8 @@ struct
   (* Conditional jumps all take a literal label. *)
   | JumpCond of 'tmp cond * string
   (* Some builtins that don't benefit from being decomposed. *)
+  (* Both args 16-bit, but only low 8 bits of second is output. *)
+  | Out8 of 'tmp * 'tmp
   | Putc of 'tmp  (* Just for debugging -- can't be printable! *)
   | Init
   | Exit
@@ -415,6 +417,7 @@ struct
     | Mov (a, b) => "mov " ^ ts a ^ " <- " ^ ts b
     | Xor (a, b) => "xor " ^ ts a ^ " <- " ^ ts b
     | Putc tmp => "putc " ^ ts tmp
+    | Out8 (a, b) => "out8 (port " ^ ts a ^ ") <- " ^ ts b
     | Nop => "nop"
     | Init => "init"
     | Exit => "exit"

@@ -176,7 +176,15 @@ struct
     (* 67 address size override prefix -- implicit *)
     (* 68 push immediate 16/32, 6A push immediate 8 *)
     | PUSH_IMM of immediate
-  (* XXX IMUL here *)
+    (* 69 IMUL *)
+    (* 6C,6D INS ES:DI, DX.
+       Note that ES=DS in ABC EXEs.
+       Also note that for INS/OUTS, the address size
+       prefix can be used to switch between e.g. ESI and SI.
+       For ABC we always use the 16-bit modes. *)
+    | INS of size
+    (* 6E,6F OUTS DX, DS:SI *)
+    | OUTS of size
     (* 70-7E JCC+disp8 variants *)
     | JO of Word8.word
     | JNO of Word8.word
@@ -342,6 +350,8 @@ struct
       | PUSH mr => "PUSH " ^ multiregstring mr
       | POP mr => "POP " ^ multiregstring mr
       | PUSH_IMM imm => "PUSH " ^ immediatestring imm
+      | INS sz => "INS ES:EDI <- port DX (" ^ sizestring sz ^ ")"
+      | OUTS sz => "OUTS port DX (" ^ sizestring sz ^ ") <- DS:ESI"
       | JO w => "JO " ^ disp8 w
       | JNO w => "JNO " ^ disp8 w
       | JB w => "JB " ^ disp8 w

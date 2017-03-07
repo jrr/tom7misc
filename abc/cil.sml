@@ -45,8 +45,13 @@ struct
     | B_ARGC
     (* word8 **() *)
     | B_ARGV
-    (* void(word8) *)
+    (* TODO: This should take word8, though it is just for debugging
+       because it generates non-printable output.
+       void(word16) *)
     | B_PUTC
+    (* TODO: This should take word8 for the byte.
+       out(word16 port, word16 byte) *)
+    | B_OUT8
   (* TODO: IN/OUT *)
 
   datatype value =
@@ -176,6 +181,9 @@ struct
     | builtin_type B_ARGV = (Pointer (Pointer (Word8 Unsigned)), nil)
     (* XXX should be char? *)
     | builtin_type B_PUTC = (Word16 Unsigned, [Word16 Unsigned])
+    (* XXX second arg should be byte... *)
+    | builtin_type B_OUT8 = (Word16 Unsigned, [Word16 Unsigned,
+                                               Word16 Unsigned])
 
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
     | typtos (Struct t) = "... TODO STRUCT ..."
@@ -233,6 +241,7 @@ struct
     | builtintos B_ARGC = "argc"
     | builtintos B_ARGV = "argv"
     | builtintos B_PUTC = "putc"
+    | builtintos B_OUT8 = "out8"
 
   fun exptos (Value v) = valtos v
     | exptos (Truncate { src, dst, v }) =

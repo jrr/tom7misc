@@ -240,3 +240,15 @@ dos/globals2.bytes: 1014
 dos/simpcall.bytes: 646
 dos/simpleop.bytes: 668
 
+$ ./benchbytes.exe dos/*.bytes
+dos/builtin.bytes: 506
+dos/callargs.bytes: 923
+dos/cond.bytes: 679
+dos/cond2.bytes: 3052
+dos/dead.bytes: 699
+dos/eqzero.bytes: 802
+dos/for.bytes: 2322
+dos/globals.bytes: 1031
+dos/globals2.bytes: 1083
+dos/simpcall.bytes: 681
+dos/simpleop.bytes: 721

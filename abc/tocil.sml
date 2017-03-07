@@ -312,6 +312,7 @@ struct
                              _, _)) =
     (case Symbol.name name of
        "_putc" => SOME B_PUTC
+     | "_out8" => SOME B_OUT8
      | _ => NONE)
     | get_builtin _ = NONE
 

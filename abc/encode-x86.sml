@@ -205,6 +205,15 @@ struct
               X.I8 w => pfx @@ vec [0wx6A, w]
             | _ => pfx @@ vec [0wx68] @@ decode_immediate imm
           end
+      | X.INS sz =>
+          (case sz of
+             X.S8 => vec [0wx6C]
+           | _ => get_operand_pfx ctx sz @@ vec [0wx6D])
+      | X.OUTS sz =>
+          (case sz of
+             X.S8 => vec [0wx6E]
+           | _ => get_operand_pfx ctx sz @@ vec [0wx6F])
+
       | X.JO w => vec [0wx70, w]
       | X.JNO w => vec [0wx71, w]
       | X.JB w => vec [0wx72, w]
@@ -221,12 +230,13 @@ struct
       | X.JGE w => vec [0wx7d, w]
       | X.JLE w => vec [0wx7e, w]
 
+      | X.DB w => vec [w]
+      | X.COMMENT _ => vec []
+
       (* out of gamut *)
       | X.MOV (size, args) => encode_normal 0wx88 (size, args)
       | X.NOP => vec [0wx90]
       | X.INT w => vec [0wxCD, w]
-      | X.DB w => vec [w]
-      | X.COMMENT _ => vec []
 
     (*
       | _ => raise Exn "unimplemented ins"
