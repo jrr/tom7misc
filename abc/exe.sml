@@ -299,13 +299,22 @@ struct
       val num_bytes = Word8Vector.length bytes
 
       val num_nonprintable = ref 0
-      fun onebyte b = if Tactics.printable b then ()
-                      else num_nonprintable := !num_nonprintable + 1
+      val num_interrupt = ref 0
+      fun onebyte b = if Tactics.printable b
+                      then ()
+                      else
+                        let in
+                          num_nonprintable := !num_nonprintable + 1;
+                          if b = 0wxCD
+                          then num_interrupt := !num_interrupt + 1
+                          else ()
+                        end
       val () = Word8Vector.app onebyte bytes
     in
       if !num_nonprintable = 0 then ()
       else print ("\nWARNING: " ^ Int.toString (!num_nonprintable) ^
-                  " non-printable bytes remain!\n\n");
+                  " non-printable bytes remain! (" ^
+                  Int.toString (!num_interrupt) ^ " are 0xCD=INT opcode)\n\n");
       if num_bytes = FILE_BYTES then ()
       else raise (EXE ("File is not the expected size (got " ^
                        Int.toString num_bytes ^
