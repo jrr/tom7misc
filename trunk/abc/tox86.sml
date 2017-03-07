@@ -193,8 +193,10 @@ struct
   (* xblock is encoded x86 instructions, starting with its rung.
      It shares the name of the ASM block it came from.
      It also has the offsets (within the vector) of displacements
-     that must be filled in to jump to the next block. *)
-  type xblock = (string * Word8Vector.vector * int list)
+     that must be filled in to jump to the next block.
+
+     Also, now, debug messages to be printed if desired. *)
+  type xblock = (string * Word8Vector.vector * int list * string list)
 
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
@@ -221,13 +223,13 @@ struct
      move around the blocks a little bit after the fact. There's
      always at least one of these, for the rung at the head of the
      block. *)
-  fun layout_block { labelnum : int SM.map,
-                     num_labels : int,
-                     frame_stack_start : int,
-                     is_initial : bool,
-                     block = A.Block { name = current_lab,
-                                       tmp_frame = A.Explicit tmp_frame_size,
-                                       cmds : A.explicit_cmd list } } =
+  fun toxblock { labelnum : int SM.map,
+                 num_labels : int,
+                 frame_stack_start : int,
+                 is_initial : bool,
+                 block = A.Block { name = current_lab,
+                                   tmp_frame = A.Explicit tmp_frame_size,
+                                   cmds : A.explicit_cmd list } } =
     let
       (* Rewrite displacements for next rail, as discussed above.
          Byte offset from the beginning of the block. *)
@@ -664,17 +666,46 @@ struct
           print "\n"
         end
 
+      val () = debug_print ()
+
+      (* This is the fast way to do it. *)
+      (* val vec = Acc.encoded acc *)
+
+      (* This way checks printability, cuz it's easy to mess up. *)
+      val messages = ref (nil : string list)
+      fun encode offset nil = nil
+        | encode offset (ins :: rest) =
+        let
+          val v = EncodeX86.encode ASSEMBLY_CTX ins
+          (* Anything in next_jumps is updated later, so exempt from this. *)
+          fun in_next_jumps idx = List.exists (fn i => i = idx) (!next_jumps)
+          fun vlist v = Vector.foldr op:: nil v
+        in
+          Vector.appi
+          (fn (i, b) =>
+           if Tactics.printable b orelse in_next_jumps (offset + i)
+           then ()
+           else
+             messages :=
+             ("!!! Non-printable byte @" ^
+              Int.toString (offset + i) ^ " encoding " ^
+              X86.insstring ins ^ "   [" ^
+              StringUtil.delimit " "
+              (map Word8.toString (vlist v)) ^ "]") :: !messages) v;
+          v :: encode (offset + Vector.length v) rest
+        end
+      val vec = Word8Vector.concat (encode 0 (Acc.insns acc))
     in
-      debug_print ();
-      (current_lab, Acc.encoded acc, !next_jumps)
+      (current_lab, vec, !next_jumps, rev (!messages))
     end
 
-  (* Attempt to lay out the assembly program. The labels in the order
-     they appear become the blocks (each one is a rung). The layout
-     may not be valid, so the driver needs to check for several
-     problems that could occur, and then call layout_round again
+  (* Convert the assembly program to x86. The labels in the order
+     they appear become the blocks (each one is a rung). It may not
+     be possible to place these xblocks into the code segment (e.g.
+     because jumps are too far), so the driver needs to check for several
+     problems that could occur, and then call toxblocks_round again
      with an adjusted program. *)
-  fun layout_round (blocks : A.explicit_block list,
+  fun toxblocks_round (blocks : A.explicit_block list,
                     frame_stack_start : int,
                     initial_label : string) =
     let
@@ -689,11 +720,11 @@ struct
       val num_labels = Vector.length labels
 
       val xblocks = map (fn (block as A.Block { name, ... }) =>
-                         layout_block { labelnum = labelnum,
-                                        num_labels = Vector.length labels,
-                                        frame_stack_start = frame_stack_start,
-                                        is_initial = (name = initial_label),
-                                        block = block }) blocks
+                         toxblock { labelnum = labelnum,
+                                    num_labels = Vector.length labels,
+                                    frame_stack_start = frame_stack_start,
+                                    is_initial = (name = initial_label),
+                                    block = block }) blocks
     in
       xblocks
     end
@@ -720,7 +751,7 @@ struct
                   because of the minimum displacement. It's usually
                   more efficient to split before a jump than after.
 
-               PERF: We could maybe improve this if layout_round returned a
+               PERF: We could maybe improve this if toxblocks_round returned a
                an alignment between the cmd offsets and the x86 offsets. *)
             let
               val num_cmds = length cmds
@@ -748,30 +779,38 @@ struct
 
   fun tox86 (program as A.Program { blocks, frame_stack_start, datasegment }) =
     let
-      (* XXX probably need to move initial block into the middle,
-         like repetedly advance it (or binary search) until it's printable? *)
+      (* We need to find this later so that we can return its start
+         position. *)
       val initial_label =
         case blocks of
           nil => raise ToX86 "ASM program is empty? Impossible!"
         | A.Block { name, ... } :: _ => name
 
       val xblocks : xblock list =
-        layout_round (blocks, frame_stack_start, initial_label)
+        toxblocks_round (blocks, frame_stack_start, initial_label)
 
       val total_size = ref 0
-      (* Really just used as a set of the blocks that need to be
-         proactively split. *)
+      (* Set of the blocks that need to be proactively split. *)
       val problem_blocks = ref (SM.empty : xblock SM.map)
-      fun oneblock (xb as (lab, vec, jmps)) =
+      fun oneblock (xb as (lab, vec, jmps, _)) =
         let val len = Word8Vector.length vec
         in
           total_size := !total_size + len;
           (* We need a jump from right after this block's rung
              to the next block. If the current block is too big
              for that jump, we won't succeed. *)
-          (* XXX maybe cleaner to find the first jump in the
+          (* XXX maybe cleaner to find the earliest jump in the
              jump list? *)
-          if len - RUNG_SIZE > 0x7e
+          (* XXX 0x7e - 0x20 is very conservative, because there
+             may not be a jump at the very end (in fact we should
+             try to avoid such a thing and just use fallthrough,
+             because the current approach makes 32 bytes of padding
+             between each block.)
+
+             Instead, we should use 0x7e here (that is truly an
+             upper bound) and fail below if the specific jumps
+             end up non-printable. *)
+          if len - RUNG_SIZE > (0x7e - 0x20)
           then problem_blocks := SM.insert (!problem_blocks, lab, xb)
           else ()
         end
@@ -784,8 +823,16 @@ struct
           val () = print ("No early problem blocks!\n")
           val () = print ("Total code bytes: " ^
                           Int.toString (!total_size) ^ "\n")
-          val () = app (fn (l, v, _) =>
+          val () = app (fn (l, v, _, _) =>
                         print (l ^ ": " ^ w8vtos v ^ "\n")) xblocks
+
+          val () = app (fn (l, _, _, msgs) =>
+                        let in
+                          if List.null msgs
+                          then ()
+                          else print ("** " ^ l ^ ":\n");
+                          app (fn m => print ("  " ^ m ^ "\n")) msgs
+                        end) xblocks
 
           val cs = Segment.empty ()
           val () = Segment.set_repeating_string cs 0 65536 "(CODE SEGMENT)"
@@ -922,7 +969,7 @@ struct
           (* Control flow is at !cur, and we want to execute the
              block at the head of this list. The previous block
              has already been patched to jump to !cur. *)
-          fun place ((xb as (lab, vec, jmps)) :: rest) : unit =
+          fun place ((xb as (lab, vec, jmps, _)) :: rest) : unit =
             let val len = Word8Vector.length vec
             in
               print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
@@ -947,13 +994,16 @@ struct
                                   val srcip = j + 1
                                   val disp = !min_pos - srcip
                                 in
-                                  (* XXX 0x20 *)
-                                  if disp < 0
-                                  then min_pos := !min_pos - disp
+                                  (* XXX check that this logic is correct!
+                                     6 Mar 2017
+                                     0x20 *)
+                                  if disp < 0x20
+                                  then min_pos := !min_pos - (disp - 0x20)
                                   else ()
                                 end) abs_jmps
                   val next_cur = !min_pos
                 in
+                  (* Can treat this like the !cur + len test above failing. *)
                   if next_cur >= 65536
                   then raise ToX86 ("need to handle the case that " ^
                                     "next_cur overflows")
@@ -979,14 +1029,14 @@ struct
                          val srcip = j + 1
                          val disp = next_cur - srcip
                        in
-                         (* XXX need to check displacement < 0x20 too. *)
                          if disp > 0x7e
                          then raise ToX86 ("In 'place', needed to write " ^
                                            "displacement larger than 0x7e: " ^
                                            Int.toString disp)
-                         else if disp < 0
-                              then raise ToX86 ("In 'place', negative " ^
-                                                "displacement?! " ^
+                         else if disp < 0x20
+                              then raise ToX86 ("In 'place', displacement " ^
+                                                "is too small to be " ^
+                                                "printable: " ^
                                                 Int.toString disp)
                               else
                                 let in
@@ -1040,8 +1090,6 @@ struct
 
           val () = place xblocks
 
-          (* XXX: Need to check that this is printable, and move the
-             initial block if it's not! *)
           val init_ip =
             case !init_addr of
               NONE => raise ToX86 ("The initial block " ^ initial_label ^
