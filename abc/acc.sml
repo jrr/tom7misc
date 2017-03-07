@@ -195,6 +195,14 @@ struct
         else raise Acc ("Assertion failed: Expected " ^ Word32.toString w ^
                         " but got known " ^ Word32.toString ww)
 
+  fun assert_reg16 (A { mach, ... }) r w =
+    case Machine.reg16 mach r of
+      NONE => raise Acc ("Assertion failed: reg does not have known value!")
+    | SOME ww =>
+        if w = ww then ()
+        else raise Acc ("Assertion failed: Expected " ^ Word16.toString w ^
+                        " but got known " ^ Word16.toString ww)
+
   fun forget_reg32 r m = Machine.forget_reg32 m r
   fun forget_reg16 r m = Machine.forget_reg32 m r
   fun forget_multireg mr m =

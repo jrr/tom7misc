@@ -113,10 +113,13 @@ a word:
  j ? X 4 ?   (4 can alternatively be $ or ,) 
 
  NEED TO FIX:
-  - jump at least 0x20
-  - store16 (not printable)
   - some kind of output other than \_putc
- 
+
+ TOP PERFORMANCE IMPROVEMENTS:
+  - don't jump at end of every block
+  - don't assume a block needs to be split just because it's 0x7e-0x20.
+    measure from the last jump!
+
 dosbox patches, wing commander
 
 ascii art in paper
