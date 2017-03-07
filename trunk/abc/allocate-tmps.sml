@@ -58,6 +58,7 @@ struct
     | Nop => Nop
     | Init => Init
     | Putc t => Putc (ft t)
+    | Out8 (a, b) => Out8 (ft a, ft b)
     | Exit => Exit
 
 
@@ -280,7 +281,6 @@ struct
 
       val () = app onefunc ` map #1 ` ISM.listItemsi all_tmps
     in
-(*      raise AllocateTmps "exit early"; *)
       !blocks
     end
 
@@ -404,7 +404,6 @@ struct
   fun allocate (Program { blocks, frame_stack_start, datasegment }) =
     let
       val liveness = Liveness.liveness blocks
-      (* XXX coalesce using liveness. *)
 
       val blocks = coalesce liveness blocks
       val blocks = explicate blocks

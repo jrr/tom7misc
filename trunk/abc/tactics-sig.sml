@@ -103,6 +103,11 @@ sig
      just for debugging! *)
   val putc16 : acc -> int -> acc
 
+  (* out8_16 acc port byte
+     byte is actually a 16-bit temporary, but only the low byte
+     is written. Modifies the byte at DS:0000. *)
+  val out8_16 : acc -> int -> int -> acc
+
   val old_initialize : unit -> acc
   val printstring : acc -> string -> acc
 

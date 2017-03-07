@@ -223,6 +223,16 @@ struct
                [v] => gentmp ctx v (fn (ftmp, ftyp) => A.Putc ftmp // k ())
              | _ => raise ToASM "bad args to putc")
 
+        | (C.Builtin (C.B_OUT8, args), vt) =>
+            (case args of
+               [p, b] =>
+                 gentmp ctx p
+                 (fn (ptmp, ptyp) =>
+                  gentmp ctx b
+                  (fn (btmp, btyp) =>
+                   A.Out8 (ptmp, btmp) // k ()))
+             | _ => raise ToASM "bad args to putc")
+
         | (C.Call (fv, argvs), vt) =>
             let
               (* It's extremely common for this to be a function call

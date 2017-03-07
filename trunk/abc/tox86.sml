@@ -546,6 +546,13 @@ struct
                 Tactics.putc16 acc (offset tmp)
               end
 
+          | A.Out8 (port, byte) =>
+              let in
+                assert16 port; assert16 byte;
+                Continue `
+                Tactics.out8_16 acc (offset port) (offset byte)
+              end
+
           | A.Load16 (dst, addr) =>
               let in
                 assert16 dst; assert16 addr;

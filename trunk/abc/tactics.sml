@@ -1368,6 +1368,35 @@ struct
       forget_reg16 M.EAX -- AX -- DX
     end
 
+  (* This one is a bit obnoxious because have to put the byte
+     in memory at DS:SI first. I guess we can just use SI=0,
+     which is byte 0 of the PSP? It might be good to just reserve
+     some space in DS for this kind of thing. *)
+  fun out8_16 acc port byte : acc =
+    let
+      (* Works fine if port and byte are the same temporary
+         (both are just read). *)
+      val acc = acc ++ AX ++ DI ++ SI ++ DX
+      val acc = imm_ax16 acc (Word16.fromInt 0) //
+        PUSH AX // PUSH AX // PUSH AX -- AX //
+        POP SI ?? learn_reg16 M.ESI (Word16.fromInt 0) //
+        POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) //
+        POP DX ?? learn_reg16 M.EDX (Word16.fromInt 0) //
+        (* zero DS:SI. Note we could even use SI as the source
+           here, but only because we know it's zero! *)
+        AND (S16, IND_SI <~ BH_DI) //
+        (* Load DI with the byte we want to write. *)
+        XOR (S16, BH_DI <- EBP_TEMPORARY byte) ?? forget_reg16 M.EDI //
+        (* And write it to SI *)
+        XOR (S8, IND_SI <~ BH_DI) //
+        (* We also need the port in DX. *)
+        XOR (S16, D <- EBP_TEMPORARY port) ?? forget_reg16 M.EDX //
+        (* And finally, do the actual output. *)
+        OUTS S8
+    in
+      acc -- DX -- SI -- DI
+    end
+
   (* Generate code that prints the string. Uses the interrupt instruction, so
      non-ASCII. *)
   fun printstring acc s : acc =

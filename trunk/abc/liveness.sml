@@ -62,6 +62,7 @@ struct
       | PopJumpInd => (empty, empty)
       | JumpCond (cond, _) => (empty, condreads cond)
       | Putc t => (empty, tset [t])
+      | Out8 (a, b) => (empty, tset [a, b])
       | Init => (empty, empty)
       | Exit => (empty, empty)
   end
