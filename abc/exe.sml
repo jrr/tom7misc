@@ -222,16 +222,16 @@ struct
          let
            val off = (i - RELOCTABLE_START) div 4
          in
-           (* XXXX FIXME! This is not printable, and I didn't carefully
-              verify that this is outside the program/data segments. We
-              need to find a printable address that's safe to modify. *)
-           (* XXX! Actually it looks like this ends up writing to
-              CS:2019 over and over, ruining that instruction. Makes
-              sense I guess. If this is always an offset into the code
-              segment, I guess we need to sacrifice some region? Right
-              before the initial IP would probably be doable. *)
-           if i mod 4 = 0 then 0wx19
-           else 0wx20
+           (* Format is SEG:OFF (where the code segment is at 2020:0000),
+              in little endian (lowest byte of OFF first.
+
+              I determined a printable way to write the byte right after
+              the code segment with solveseg.sml. *)
+           case i mod 4 of
+             0 => 0wx70
+           | 1 => 0wx7E
+           | 2 => 0wx39
+           | _ => 0wx28
          end
          else
          repeatingstring "hdr" i)

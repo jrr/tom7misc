@@ -259,7 +259,7 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 	EXE_Header head;Bitu i;
 	Bit16u fhandle;Bit16u len;Bit32u pos;
 	Bit16u pspseg,envseg,loadseg,memsize,readsize;
-	PhysPt loadaddress;RealPt relocpt;
+	PhysPt loadaddress;
 	Bitu headersize=0,imagesize=0;
 	DOS_ParamBlock block(block_pt);
 
@@ -467,14 +467,23 @@ bool DOS_Execute(char * name,PhysPt block_pt,Bit8u flags) {
 		LOG(LOG_EXEC,LOG_NORMAL)("Looking for relocations at %u.", pos);
 		DOS_SeekFile(fhandle,&pos,0);
 		for (i=0;i<head.relocations;i++) {
+		        RealPt relocpt;
 			readsize=4;DOS_ReadFile(fhandle,(Bit8u *)&relocpt,&readsize);
 			relocpt=host_readd((HostPt)&relocpt);		//Endianize
+			// So this is like a 32-bit address (presumably, little-endian),
+			// but we break it into seg:offset, then add the loadseg
+			// PhysMake(seg,off) is just (seg<<4) + off.
 			PhysPt address=PhysMake(RealSeg(relocpt)+loadseg,RealOff(relocpt));
-			if (i == 0 || address != 147689) { // XXX
-			  LOG(LOG_EXEC,LOG_NORMAL)("%d. Reloc (ld %u) (reloc @$%8x) addr %u (+%u)",
+			// Only prints the first relocation since there are
+			// many (all should be the same in abc code).
+			if (i == 0) {
+			  LOG(LOG_EXEC,LOG_NORMAL)("%d. Reloc (ld %u) (reloc @$%8x = %x:%x) "
+						   "addr %x (+%u)",
 						   i,
-						   loadseg, relocpt,
-						   address, relocate);
+						   loadseg,
+						   relocpt, RealSeg(relocpt), RealOff(relocpt),
+						   address,
+						   relocate);
 			}
 
 			mem_writew(address,mem_readw(address)+relocate);

@@ -167,7 +167,6 @@ restart_opcode:
 				Bitu len=(GETIP-reg_eip);
 				LOADIP;
 				if (len>16) len=16;
-				LOG(LOG_CPU,LOG_NORMAL)("core_normal");
 				if (len == 1 && mem_readb(core.cseip) == 0x63) {
 				  LOG(LOG_CPU,LOG_NORMAL)("Thank you for playing Wing Commander!");
 				  core.cseip++;
