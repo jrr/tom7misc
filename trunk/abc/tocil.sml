@@ -151,8 +151,8 @@ struct
 
   fun typewidth t =
     case t of
-      Pointer _ => Width32
-    | Code _ => Width32
+      Pointer _ => Width16
+    | Code _ => Width16
     | Struct _ => raise ToCIL "unimplemented: struct lvalues"
     | Word32 _ => Width32
     | Word16 _ => Width16
@@ -319,7 +319,7 @@ struct
 
   (* Translate an expression as an lvalue. This means producing a value
      that is the lvalue's address. We also pass to the continuation the
-     width of the lvalue. And the type of the lvalue (not the address;
+     width of the lvalue, and the type of the lvalue (not the address;
      the contents of the address). *)
   fun translvalue (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
                   (k : value * width * typ -> stmt) : stmt =
@@ -359,15 +359,27 @@ struct
                          we have explicit conversion? *)
                       Bind (addr, ptrt,
                             Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
-                            k (Var addr, argwidth, ptrt))))
+                            k (Var addr, argwidth, t))))
              end
          | _ => raise ToCIL ("Attempt to subscript something of " ^
                              "non-array type: " ^ typtos ptrt))
 
     | Ast.Member _ => raise ToCIL "unimplemented lvalue: Member"
     | Ast.Arrow _ => raise ToCIL "unimplemented lvalue: Arrow"
-    | Ast.Deref _ => raise ToCIL "unimplemented lvalue: Deref"
+    | Ast.Deref ptr =>
+    (* Be wary of the difference between transexp and translvalue in
+       these recursive calls.
 
+       Because we call transexp here, we get the value of the
+       pointer expression (transexp calls lvalue to get the pointer's
+       address, then loads from that); this is what we want to
+       represent the lvalue. *)
+        transexp ptr bc
+        (fn (ptrv, ptrt) =>
+         case ptrt of
+           Pointer t => k (ptrv, typewidth t, t)
+         | _ => raise ToCIL ("Attempt to dereference non-pointer: " ^
+                             typtos ptrt))
     | _ => raise ToCIL "illegal/unimplemented lvalue"
 
 

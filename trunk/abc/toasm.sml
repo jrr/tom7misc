@@ -12,7 +12,12 @@ struct
   (* Comes after PSP. Some of the PSP is useful, so we could
      alternately have like char _abc_psp[256] as a global,
      as long as we could ensure that it came first. *)
-  val FIRST_GLOBAL_POS = 256
+  (* Here we place the argv array, which is always the four
+     bytes 0x81 0x00 (pointer to command line within PSP)
+     0x00 0x00 (null pointer, since in C, argv[argc] is supposed
+     to be null. *)
+  val ARGV_POS = 256
+  val FIRST_GLOBAL_POS = 260
 
   fun printable8 (b : Word8.word) = b >= 0wx20 andalso b <= 0wx7e
 
@@ -363,17 +368,34 @@ struct
             (case exp of
                C.Call _ => raise ToASM "Bug: already handled above."
 
-             (* We can actually implement these using PSP, but
-                currently behave as though there are 0 args (not
-                even the program name) *)
+             (* We currently define there to be exactly 1 argument,
+                which is the entire command line from the PSP. *)
              | C.Builtin (C.B_ARGC, nil) =>
-                 A.Immediate16 (vartmp (var, typsize t), Word16.fromInt 0) //
+                 A.Immediate16 (vartmp (var, typsize t), Word16.fromInt 1) //
                  k ()
 
-             (* Also just give null pointer for argv for now. *)
+             (* We return ARGV_POS after initializing that pointer to a
+                two-word argv array (first points to command line in PSP,
+                second is null as required by the standard. *)
              | C.Builtin (C.B_ARGV, nil) =>
-                 A.Immediate16 (vartmp (var, typsize t), Word16.fromInt 0) //
-                 k ()
+                let
+                  val valtmp = newtmp ("argv_init", A.S16)
+                  val addrtmp = newtmp ("argv2", A.S16)
+                  val argvtmp = vartmp (var, typsize t)
+                in
+                  (* Write zero into second slot first *)
+                  A.Immediate16 (addrtmp, Word16.fromInt (ARGV_POS + 2)) //
+                  A.Immediate16 (valtmp, Word16.fromInt 0) //
+                  A.Store16 (addrtmp, valtmp) //
+                  (* Now put the first slot into argv, since that's where
+                     we ultimately need it anyway *)
+                  A.Immediate16 (argvtmp, Word16.fromInt ARGV_POS) //
+                  (* And now write the pointer to the command line
+                     in there. *)
+                  A.Immediate16 (valtmp, Word16.fromInt 0x8100) //
+                  A.Store16 (argvtmp, valtmp) //
+                  k ()
+                end
 
              | C.Builtin _ =>
                  raise ToASM ("unexpected builtin or bad args: " ^
