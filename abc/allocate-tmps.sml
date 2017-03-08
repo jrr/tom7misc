@@ -151,8 +151,10 @@ struct
         end
       val () = print_interference ()
 
-      (* Globally rename src to dst; assumes that this doesn't
-         break the program. *)
+      fun tmpsize (ASM.N { size, ... }) = size
+
+      (* Globally rename src to dst; caller must ensure that this is
+         legal and doesn't break the program! *)
       fun coalesce dst src =
         let
           val ASM.N { func = func1, size = sz1, ... } = dst
@@ -162,7 +164,9 @@ struct
                                             "different functions.")
           val () = if sz1 = sz2 then ()
                    else raise AllocateTmps ("Attempt to coalesce tmps of " ^
-                                            "different sizes!")
+                                            "different sizes! " ^
+                                            ASM.named_tmptos dst ^ " and " ^
+                                            ASM.named_tmptos src)
 
           fun rewrite_tmp t =
             if EQUAL = ASM.named_tmpcompare (t, src)
@@ -222,9 +226,15 @@ struct
         (fn idx =>
          case Array.sub (cmds, idx) of
            Load16 (dst, src) =>
-             if does_interfere src dst
-             then ()
-             else coalesce src dst
+             (case (tmpsize dst, tmpsize src) of
+                (ASM.S16, ASM.S16) =>
+                  if does_interfere src dst
+                  then ()
+                  else coalesce src dst
+              | _ => raise AllocateTmps ("tmps should both be 16-bit in " ^
+                                         "Load16: " ^
+                                         ASM.named_tmptos dst ^ " and " ^
+                                         ASM.named_tmptos src))
          | _ => ())
 
       val () = print_interference ()
@@ -271,6 +281,7 @@ struct
                 in
                   if still_exists src andalso
                      still_exists dst andalso
+                     tmpsize src = tmpsize dst andalso
                      not (does_interfere src dst)
                   then coalesce src dst
                   else ()

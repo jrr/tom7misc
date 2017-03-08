@@ -370,6 +370,26 @@ struct
           end
       | (w, aa, bb) => (Plus (w, aa, bb), wordwidth w)
 
+    fun case_Minus (arg as { known, simplified })
+                  ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
+      case (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b) of
+        (Width8, Word8Literal wa, Word8Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word8Literal ` Word8.- (wa, wb), wordwidth Width8)
+          end
+      | (Width16, Word16Literal wa, Word16Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word16Literal ` Word16.- (wa, wb), wordwidth Width16)
+          end
+      | (Width32, Word32Literal wa, Word32Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word32Literal ` Word32.- (wa, wb), wordwidth Width32)
+          end
+      | (w, aa, bb) => (Minus (w, aa, bb), wordwidth w)
+
     fun case_GotoIf (arg as { known, simplified })
                     ({ selft, selfv, selfe, selfs }, ctx) (c, lab, s) =
       let
