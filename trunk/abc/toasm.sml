@@ -507,22 +507,48 @@ struct
                      k ()
                    end))
 
+             | C.Promote { signed, src, dst, v : C.value } =>
+                 gentmp ctx v
+                 (fn (vtmp, vt) =>
+                  (case (signed, src, dst) of
+                     (false, C.Width8, C.Width16) =>
+                       (* This is trivial, because we store 8-bit values as
+                          16-bit ones with the high bits set to 0.
+
+                          XXX wait do we? Plus on two 8-bit quantities would
+                          overflow into the high byte, unless we explicitly
+                          mask afterwards. *)
+                       A.Mov (vartmp (var, A.S16), vtmp) // k ()
+                   | _ =>
+                       raise ToASM "unimplemented promote type"))
+
              | C.Truncate { src : C.width, dst : C.width, v : C.value } =>
-                 raise ToASM "unimplemented truncate"
-             | C.Promote { signed = false, src = C.Width8,
-                           dst = C.Width16, v : C.value } =>
-                 (* This is trivial, because we store 8-bit values as
-                    16-bit ones with the high bits set to 0.
+                 gentmp ctx v
+                 (fn (vtmp, vt) =>
+                  (case (src, dst) of
+                     (C.Width16, C.Width8) =>
+                       (* Also easy, but we need to mask off the bits
+                          to put it in the correct representation.
+                          PERF: This can probably be done much more
+                          efficiently with a primitive. *)
+                       let
+                         val masktmp = newtmp ("mask16to8", S16)
+                         val dsttmp = vartmp (var, A.S16)
+                       in
+                         A.Immediate16 (masktmp, Word16.fromInt 0xFF) //
+                         A.Mov (dsttmp, vtmp) //
+                         A.And (dsttmp, masktmp) //
+                         k ()
+                       end
+                   | _ =>
+                       (* 32 to 16 truncation probably needs to be
+                          a primitive, since we can't change the type
+                          of a temporary otherwise. Easy, though.
+                          32 to 8 should just be compiled away as
+                          the composition for now? *)
+                       raise ToASM "unimplemented truncation type"
+                         ))
 
-                    XXX wait do we? Plus on two 8-bit quantities would
-                    overflow into the high byte, unless we explicitly
-                    mask afterwards. *)
-                   gentmp ctx v
-                   (fn (vtmp, vt) =>
-                    A.Mov (vartmp (var, A.S16), vtmp) // k ())
-
-             | C.Promote { signed, src, dst, v } =>
-                 raise ToASM "unimplemented promote"
              | C.Times (w, a, b) => raise ToASM "unimplemented times"
              | C.SignedDivision (w, a, b) => raise ToASM "unimplemented signed division"
              | C.UnsignedDivision (w, a, b) => raise ToASM "unimplemented unsigned division"

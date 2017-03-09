@@ -1089,16 +1089,28 @@ struct
 
   fun xor_tmp16 acc dst_tmp src_tmp =
     let in
-      assert_neq "xor_tmp16" dst_tmp src_tmp;
+      (* Fine if both arguments are the same; we read src into
+         a register before doing anything else. *)
       put_tmp_in_reg16 acc src_tmp
       (fn (acc, tmpreg) =>
        acc //
        XOR (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
     end
 
+  fun and_tmp16 acc dst_tmp src_tmp =
+    let in
+      (* Fine if both arguments are the same; we read src into
+         a register before doing anything else. *)
+      put_tmp_in_reg16 acc src_tmp
+      (fn (acc, tmpreg) =>
+       acc //
+       AND (S16, EBP_TEMPORARY dst_tmp <~ tmpreg))
+    end
+
   fun sub_tmp16 acc dst_tmp src_tmp =
     let in
-      assert_neq "sub_tmp16" dst_tmp src_tmp;
+      (* Fine if both arguments are the same; we read src into
+         a register before doing anything else. *)
       put_tmp_in_reg16 acc src_tmp
       (fn (acc, tmpreg) =>
        acc //
