@@ -212,9 +212,14 @@ struct
            Mov (dst, src) =>
              (* these should be from the same function and be
                 the same size... *)
-             if does_interfere src dst
-             then ()
-             else coalesce src dst
+             if tmpsize dst <> tmpsize src
+             then raise AllocateTmps ("tmps should both be the same size in " ^
+                                      "MOV: " ^
+                                      ASM.named_tmptos dst ^ " and " ^
+                                      ASM.named_tmptos src)
+             else if does_interfere src dst
+                  then ()
+                  else coalesce src dst
          | _ => ())
 
       (* Very common to do tmp1 = frameoffset+x, tmp2 = [tmp1].

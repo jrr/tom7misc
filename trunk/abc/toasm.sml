@@ -58,7 +58,7 @@ struct
 
   (* Layout size of a CIL type (e.g. in a locals frame or struct).
      This is not necessarily the size of a temporary that holds
-     such a value.
+     such a value. (Specifically, Word8 is stored in 16-bit tmps.)
 
      Signedness doesn't matter any more -- the representation is
      the same and the operations are explicit. *)
@@ -72,6 +72,13 @@ struct
     | typsize (C.Code _) = S16
     (* Maybe this should already have been compiled away. *)
     | typsize (C.Struct _) = raise ToASM "unimplemented: structs"
+
+  (* Same, but the size of temporary used to store a value of that
+     size. XXX If we still need typsize (used to calculate frame
+     sizes?) then maybe these two functions should return different
+     types to avoid confusion. There should be no tmps of S8. *)
+  fun typtmpsize (C.Word8 _) = S16
+    | typtmpsize t = typsize t
 
   (* Accumulate all of the mentions of Locals into the map. *)
   structure GetSizesArg : CILPASSARG =
@@ -167,7 +174,7 @@ struct
              | SOME ctyp =>
                  (* A variable is always translated to a same-named
                     temporary at the appropriate size. *)
-                 k (vartmp (var, typsize ctyp), ctyp))
+                 k (vartmp (var, typtmpsize ctyp), ctyp))
         (* typ is the type of the thing thing pointed to.
            we don't use it here; the address is always a 16-bit DS offset. *)
         | C.AddressLiteral (loc, typ) =>
@@ -363,7 +370,7 @@ struct
                                  deleted.) *)
                               A.FrameOffset (rvtmp, Word16.fromInt 0) //
                               (case typsize rett of
-                                 S8 => A.Load8 (vartmp (var, S8), rvtmp)
+                                 S8 => A.Load8 (vartmp (var, S16), rvtmp)
                                | S16 => A.Load16 (vartmp (var, S16), rvtmp)
                                | _ => raise ToASM "XXX only 8/16 bit loads implemented") //
                               A.ShrinkFrame local_frame_size //
@@ -380,7 +387,7 @@ struct
              (* We currently define there to be exactly 1 argument,
                 which is the entire command line from the PSP. *)
              | C.Builtin (C.B_ARGC, nil) =>
-                 A.Immediate16 (vartmp (var, typsize t), Word16.fromInt 1) //
+                 A.Immediate16 (vartmp (var, A.S16), Word16.fromInt 1) //
                  k ()
 
              (* We return ARGV_POS after initializing that pointer to a
@@ -401,7 +408,7 @@ struct
                   A.Immediate16 (argvtmp, Word16.fromInt ARGV_POS) //
                   (* And now write the pointer to the command line
                      in there. *)
-                  A.Immediate16 (valtmp, Word16.fromInt 0x8100) //
+                  A.Immediate16 (valtmp, Word16.fromInt 0x0081) //
                   A.Store16 (argvtmp, valtmp) //
                   k ()
                 end
@@ -438,9 +445,9 @@ struct
                  (fn (addr, _) =>
                   (case w of
                      C.Width8 =>
-                       A.Load8 (vartmp (var, typsize t), addr) // k ()
+                       A.Load8 (vartmp (var, A.S16), addr) // k ()
                    | C.Width16 =>
-                       A.Load16 (vartmp (var, typsize t), addr) // k ()
+                       A.Load16 (vartmp (var, A.S16), addr) // k ()
                    | C.Width32 => raise ToASM "unimplemented 32-bit loads"))
 
              | C.Plus (w, a, b) =>
@@ -454,7 +461,10 @@ struct
                      if tmpsize atmp = tmpsize btmp andalso
                         tmpsize atmp = widthsize w
                      then ()
-                     else raise ToASM "incompatible args in Plus";
+                     else raise ToASM ("incompatible args in Plus: " ^
+                                       A.named_tmptos atmp ^ " + " ^
+                                       A.named_tmptos btmp ^ " width " ^
+                                       C.widthtos w);
 
                      A.Mov (dst, atmp) //
                      A.Add (dst, btmp) //
@@ -499,8 +509,19 @@ struct
 
              | C.Truncate { src : C.width, dst : C.width, v : C.value } =>
                  raise ToASM "unimplemented truncate"
-             | C.Promote { signed : bool, src : C.width,
-                           dst : C.width, v : C.value } =>
+             | C.Promote { signed = false, src = C.Width8,
+                           dst = C.Width16, v : C.value } =>
+                 (* This is trivial, because we store 8-bit values as
+                    16-bit ones with the high bits set to 0.
+
+                    XXX wait do we? Plus on two 8-bit quantities would
+                    overflow into the high byte, unless we explicitly
+                    mask afterwards. *)
+                   gentmp ctx v
+                   (fn (vtmp, vt) =>
+                    A.Mov (vartmp (var, A.S16), vtmp) // k ())
+
+             | C.Promote { signed, src, dst, v } =>
                  raise ToASM "unimplemented promote"
              | C.Times (w, a, b) => raise ToASM "unimplemented times"
              | C.SignedDivision (w, a, b) => raise ToASM "unimplemented signed division"

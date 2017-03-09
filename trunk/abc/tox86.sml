@@ -270,14 +270,26 @@ struct
                    Whenever we access these through [EBP+disp8] (etc.), we have
                    to be careful about the difference between a tmp frame
                    offset (starts at 0) and actual displacement (starts
-                   at 0x20). *)
+                   at 0x20). It's also necessary that tmp frame and
+                   frame stack both start beyond 0x20, since these values
+                   won't wrap around. *)
+                if TMP_FRAME_START < Word16.fromInt 0x20
+                then raise ToX86 ("TMP_FRAME_START must be at least 0x20 " ^
+                                  "so that EBP can point 0x20 bytes before " ^
+                                  "it.")
+                else ();
+                if frame_stack_start < 0x20
+                then raise ToX86 ("frame_stack_start must be at least 0x20 " ^
+                                  "so that EBP can point 0x20 bytes before " ^
+                                  "it.")
+                else ();
                 Continue `
                 Tactics.initialize (acc,
                                     Word16.-(TMP_FRAME_START,
                                              Word16.fromInt 0x20),
                                     Word16.fromInt (frame_stack_start - 0x20))
               end
-          | A.Exit => Finished `Tactics.exit acc
+          | A.Exit => Finished ` Tactics.exit acc
           | A.SaveTemps (A.Explicit n) =>
               (* Add n to EBP. We know that it's in 0x00000000-0x0000FFFF,
                  so we just modify the 16-bit part, BP. *)
@@ -560,6 +572,13 @@ struct
                 Tactics.load16 acc (offset dst) (offset addr)
               end
 
+          | A.Load8 (dst, addr) =>
+              let in
+                assert16 dst; assert16 addr;
+                Continue `
+                Tactics.load8 acc (offset dst) (offset addr)
+              end
+
           | A.Store16 (addr, src) =>
               let in
                 assert16 addr; assert16 src;
@@ -568,7 +587,6 @@ struct
               end
 
           (*
-          | A.Load8 (dst, addr) =>
           | A.Store8 (addr, src) =>
           | A.Immediate8 (tmp, w8) =>
           | A.Immediate32 (tmp, w32) =>
@@ -686,9 +704,9 @@ struct
           val v = EncodeX86.encode ASSEMBLY_CTX ins
           (* Anything in next_jumps is updated later, so exempt from this. *)
           fun in_next_jumps idx = List.exists (fn i => i = idx) (!next_jumps)
-          fun vlist v = Vector.foldr op:: nil v
+          fun vlist v = Word8Vector.foldr op:: nil v
         in
-          Vector.appi
+          Word8Vector.appi
           (fn (i, b) =>
            if Tactics.printable b orelse in_next_jumps (offset + i)
            then ()
@@ -699,7 +717,7 @@ struct
               X86.insstring ins ^ "   [" ^
               StringUtil.delimit " "
               (map Word8.toString (vlist v)) ^ "]") :: !messages) v;
-          v :: encode (offset + Vector.length v) rest
+          v :: encode (offset + Word8Vector.length v) rest
         end
       val vec = Word8Vector.concat (encode 0 (Acc.insns acc))
     in
