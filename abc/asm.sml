@@ -318,6 +318,7 @@ struct
   | Sub of 'tmp * 'tmp
   | Complement of 'tmp
   | Mov of 'tmp * 'tmp
+  | And of 'tmp * 'tmp
   | Xor of 'tmp * 'tmp
   (* Push/pop of 16-bit quantities. *)
   | Push of 'tmp
@@ -415,6 +416,7 @@ struct
     | Complement a => "complement " ^ ts a
     | Mov (a, b) => "mov " ^ ts a ^ " <- " ^ ts b
     | Xor (a, b) => "xor " ^ ts a ^ " <- " ^ ts b
+    | And (a, b) => "and " ^ ts a ^ " <- " ^ ts b
     | Putc tmp => "putc " ^ ts tmp
     | Out8 (a, b) => "out8 (port " ^ ts a ^ ") <- " ^ ts b
     | Nop => "nop"

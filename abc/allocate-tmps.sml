@@ -49,6 +49,7 @@ struct
     | Complement tmp => Complement (ft tmp)
     | Mov (a, b) => Mov (ft a, ft b)
     | Xor (a, b) => Xor (ft a, ft b)
+    | And (a, b) => And (ft a, ft b)
     | Push tmp => Push (ft tmp)
     | Pop tmp => Pop (ft tmp)
     | LoadLabel (tmp, s) => LoadLabel (ft tmp, s)

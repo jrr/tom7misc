@@ -66,6 +66,10 @@ sig
      sets dst_tmp = dst_tmp XOR src_tmp. *)
   val xor_tmp16 : acc -> int -> int -> acc
 
+  (* and_tmp16 acc dst_tmp src_tmp
+     sets dst_tmp = dst_tmp AND src_tmp. *)
+  val and_tmp16 : acc -> int -> int -> acc
+
   (* sub_tmp16 acc dst_tmp src_tmp
      sets dst_tmp = dst_tmp - src_tmp. *)
   val sub_tmp16 : acc -> int -> int -> acc

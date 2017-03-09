@@ -500,15 +500,23 @@ struct
 
           | A.Xor (a, b) =>
               let in
-                (* XXX allow 8/32 *)
+                (* XXX allow 32 *)
                 assert16 a; assert16 b;
                 Continue `
                 Tactics.xor_tmp16 acc (offset a) (offset b)
               end
 
+          | A.And (a, b) =>
+              let in
+                (* XXX allow 32 *)
+                assert16 a; assert16 b;
+                Continue `
+                Tactics.and_tmp16 acc (offset a) (offset b)
+              end
+
           | A.Sub (a, b) =>
               let in
-                (* XXX allow 8/32 *)
+                (* XXX allow 32 *)
                 assert16 a; assert16 b;
                 Continue `
                 Tactics.sub_tmp16 acc (offset a) (offset b)
@@ -516,7 +524,7 @@ struct
 
           | A.Add (a, b) =>
               let in
-                (* XXX allow 8/32 *)
+                (* XXX allow 32 *)
                 assert16 a; assert16 b;
                 Continue `
                 Tactics.add_tmp16 acc (offset a) (offset b)
@@ -524,7 +532,7 @@ struct
 
           | A.Mov (a, b) =>
               let in
-                (* XXX allow 8/32 *)
+                (* XXX allow 32 *)
                 assert16 a; assert16 b;
                 Continue `
                 Tactics.mov_tmp16_to_tmp16 acc (offset a) (offset b)
