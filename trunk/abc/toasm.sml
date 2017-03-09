@@ -195,8 +195,17 @@ struct
            in A.LoadLabel (tmp, lab) // k (tmp, C.Code (ret, args))
            end
         | C.Word8Literal w8 =>
-           let val tmp = newtmp ("imm", A.S8)
-           in A.Immediate8 (tmp, w8) // k (tmp, C.Word8 C.Unsigned)
+           let val tmp = newtmp ("imm", A.S16)
+           in
+             (* Note that we store 8-bit quantities in the low byte of 16-bit
+                registers. There should be no need to sign-extend
+                here: All signed operations should either have
+                been compiled to explicit promotions (which perform sign
+                extension) or be operations like "LessEq8" which look only
+                at the low byte of the register/temporary and then treat
+                it as signed. *)
+             A.Immediate16 (tmp, Word16.fromInt (Word8.toInt w8)) //
+             k (tmp, C.Word8 C.Unsigned)
            end
         | C.Word16Literal w16 =>
            let val tmp = newtmp ("imm", A.S16)
@@ -401,9 +410,9 @@ struct
                  raise ToASM ("unexpected builtin or bad args: " ^
                               CIL.exptos exp)
              | C.Value value =>
-                 (* PERF, should probably avoid the mov in most of
-                    these cases. Maybe should be done as part of temporary
-                    allocation phase though. *)
+                 (* We could perhaps avoid the MOV in these cases, but
+                    liveness/allocation does a pretty good job of
+                    eliminating them. *)
                  gentmp ctx value
                  (fn (tmp, _) =>
                   (* XXX Check compatibility of t and sz from tmp? *)
@@ -560,6 +569,8 @@ struct
                     else NONE
                 | _ => NONE
             in
+              (* FIXME need to generate 8-bit comparisons (at least
+                 for the signed ones) if the arguments are 8-bit. *)
               case cond of
                 C.CLess (w, a, b) =>
                   gentmp ctx a

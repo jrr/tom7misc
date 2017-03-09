@@ -42,7 +42,6 @@ struct
     | Load16 (a, b) => Load16 (ft a, ft b)
     | Store8 (a, b) => Store8 (ft a, ft b)
     | Store16 (a, b) => Store16 (ft a, ft b)
-    | Immediate8 (tmp, w) => Immediate8 (ft tmp, w)
     | Immediate16 (tmp, w) => Immediate16 (ft tmp, w)
     | Immediate32 (tmp, w) => Immediate32 (ft tmp, w)
     | Add (a, b) => Add (ft a, ft b)
