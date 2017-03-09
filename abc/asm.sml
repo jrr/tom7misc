@@ -180,6 +180,7 @@
 structure ASM =
 struct
 
+  (* Should we even have S8? Temporaries are never this size. *)
   datatype sz = S8 | S16 | S32
 
   fun szbytes S8 = 1
@@ -309,7 +310,6 @@ struct
   (* Store (addr, src) *)
   | Store8 of 'tmp * 'tmp
   | Store16 of 'tmp * 'tmp
-  | Immediate8 of 'tmp * Word8.word
   | Immediate16 of 'tmp * Word16.word
   | Immediate32 of 'tmp * Word32.word
   (* PERF allow tmp * literal? It is only more efficient
@@ -406,7 +406,6 @@ struct
     | LoadLabel (tmp, lab) => "loadlabel " ^ ts tmp ^ " <- &" ^ lab
     | PopJumpInd => "pop_jmp_ind"
     | JumpCond (cond, lab) => condtos ts cond ^ " " ^ lab
-    | Immediate8 (tmp, w8) => "imm8 " ^ ts tmp ^ " <- 0x" ^ Word8.toString w8
     | Immediate16 (tmp, w16) =>
         "imm16 " ^ ts tmp ^ " <- 0x" ^ Word16.toString w16
     | Immediate32 (tmp, w32) =>

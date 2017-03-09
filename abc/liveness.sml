@@ -48,7 +48,6 @@ struct
         (* Note these read both *temporaries*, writing to *memory*. *)
       | Store8 (addr, src) => (empty, tset [addr, src])
       | Store16 (addr, src) => (empty, tset [addr, src])
-      | Immediate8 (t, _) => (tset [t], empty)
       | Immediate16 (t, _) => (tset [t], empty)
       | Immediate32 (t, _) => (tset [t], empty)
       | Add (a, b) => (tset [a], tset [a, b])

@@ -1178,6 +1178,35 @@ struct
         acc -- DI -- AX
       end
 
+    (* Note that both temporaries hold 16-bit values, even though
+       the load is of a single byte. *)
+(*
+  fun load8 acc dst_tmp addr_tmp : Acc.acc =
+    let
+      (* We can only do a pure [reg] indirect for certain
+         registers, like DI. So we just use that one
+         unconditionally here. *)
+      val acc = acc ++ DI ++ SI ++ AX
+      val acc = imm_ax16 acc (Word16.fromInt 0) //
+        PUSH AX // POP SI ?? learn_reg16 M.ESI (Word16.fromInt 0) //
+        PUSH AX // POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) -- AX //
+
+
+      (* PERF: When we do a sequence of moves like this, we
+         can probably optimize it to e.g. zero the two destinations
+         first (sharing some zeroing code), then follow with XORs?
+         (be careful about the case that the temporaries alias!) *)
+      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY addr_tmp)
+      (* BH_DI <- IND_DI would work here, except that
+         mov16ind8 doesn't work correctly if the registers
+         interfere (it takes multiple steps). *)
+      val acc = mov16ind8 acc (DH_SI <- IND_DI) ?? forget_reg16 M.ESI
+      val acc = mov16ind8 acc (EBP_TEMPORARY dst_tmp <~ DH_SI)
+    in
+      acc -- SI -- DI
+    end
+  *)
+
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let
       (* OK when dst = src. We read each one to a register
