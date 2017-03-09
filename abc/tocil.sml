@@ -353,13 +353,15 @@ struct
              in
                transexp idx bc
                (fn (idxv, idxt) =>
-                Bind (scaled_idx, POINTER_INT_TYPE,
-                      scale argwidth idxv,
-                      (* XXX note this treats pointer as int; should
-                         we have explicit conversion? *)
-                      Bind (addr, ptrt,
-                            Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
-                            k (Var addr, argwidth, t))))
+                implicit { src = idxt, dst = POINTER_INT_TYPE, v = idxv }
+                (fn (idxv, _) =>
+                 Bind (scaled_idx, POINTER_INT_TYPE,
+                       scale argwidth idxv,
+                       (* XXX note this treats pointer as int; should
+                          we have explicit conversion? *)
+                       Bind (addr, ptrt,
+                             Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
+                             k (Var addr, argwidth, t)))))
              end
          | _ => raise ToCIL ("Attempt to subscript something of " ^
                              "non-array type: " ^ typtos ptrt))

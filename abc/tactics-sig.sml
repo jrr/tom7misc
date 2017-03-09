@@ -41,6 +41,10 @@ sig
      sets dst_tmp to contain the 16-bit word pointed to by
      the address in addr_tmp. *)
   val load16 : acc -> int -> int -> acc
+  (* load8 acc dst_tmp addr_tmp
+     Same, but load the 8-bit byte pointed to by the 16-bit
+     address into the low 8 bits of the 16-bit destination temporary. *)
+  val load8 : acc -> int -> int -> acc
 
   (* store16 acc dst_addr src_tmp
      sets the 16-bit word pointed to by the address in dst_addr

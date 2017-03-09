@@ -1178,34 +1178,41 @@ struct
         acc -- DI -- AX
       end
 
-    (* Note that both temporaries hold 16-bit values, even though
-       the load is of a single byte. *)
-(*
+  (* Note that both temporaries hold 16-bit values, even though
+     the load is of a single byte.
+
+     Other idea: just do a 16-bit load but then mask off the upper bits?
+     Like, xor once to get HI LO (where we want 00 LO). Then AND to
+     get HI 00. Then XOR again to get 00 LO. Would be fast if we could
+     load into AX (since we have AND_A_IMM) but unfortunately we can
+     only target stuff like DI. Subtracting the address first to use
+     a +disp8 won't work either, since the address could be < 0x20 to
+     begin with...
+     *)
   fun load8 acc dst_tmp addr_tmp : Acc.acc =
     let
+      (* OK for addr and dst to be the same, because once we read
+         addr we're done with it. *)
       (* We can only do a pure [reg] indirect for certain
          registers, like DI. So we just use that one
          unconditionally here. *)
       val acc = acc ++ DI ++ SI ++ AX
       val acc = imm_ax16 acc (Word16.fromInt 0) //
-        PUSH AX // POP SI ?? learn_reg16 M.ESI (Word16.fromInt 0) //
-        PUSH AX // POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) -- AX //
-
-
-      (* PERF: When we do a sequence of moves like this, we
-         can probably optimize it to e.g. zero the two destinations
-         first (sharing some zeroing code), then follow with XORs?
-         (be careful about the case that the temporaries alias!) *)
-      val acc = mov16ind8 acc (BH_DI <- EBP_TEMPORARY addr_tmp)
-      (* BH_DI <- IND_DI would work here, except that
-         mov16ind8 doesn't work correctly if the registers
-         interfere (it takes multiple steps). *)
-      val acc = mov16ind8 acc (DH_SI <- IND_DI) ?? forget_reg16 M.ESI
-      val acc = mov16ind8 acc (EBP_TEMPORARY dst_tmp <~ DH_SI)
+        PUSH AX // POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) //
+        PUSH AX // POP DX ?? learn_reg16 M.EDX (Word16.fromInt 0) //
+        (* Read 16-bit address. *)
+        XOR (S16, BH_DI <- EBP_TEMPORARY addr_tmp) ?? forget_reg16 M.EDI //
+        (* Destination register unfortunately needs to be
+           AH, CH, DH, or BH with printable 8-bit loads. This isn't
+           a big deal because we can do an 8-bit write to the temporary
+           from any register, including DH. *)
+        XOR (S8, DH_SI <- IND_DI) ?? forget_reg16 M.EDX //
+        (* Zero the destination. *)
+        AND (S16, EBP_TEMPORARY dst_tmp <~ A) -- AX //
+        XOR (S8, EBP_TEMPORARY dst_tmp <~ DH_SI)
     in
       acc -- SI -- DI
     end
-  *)
 
   fun store16 acc dst_addr src_tmp : Acc.acc =
     let
