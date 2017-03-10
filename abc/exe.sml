@@ -207,6 +207,13 @@ struct
                else raise EXE ("This code assumes that the relocation " ^
                                "table is 32-bit aligned.")
 
+      val firstpage = StringUtil.readfile "paper/firstpage.2c"
+
+      fun fromstring s i =
+        if i < 0 then raise EXE "out of range"
+        else if i >= size s then Word8.fromInt ` ord #"<"
+             else Word8.fromInt ` ord ` String.sub (s, i)
+
       (* This is the chunk of the file that DOS interprets as the header
          (HEADER_BYTES in size), starting with the header struct and
          containing the relocation table. *)
@@ -216,6 +223,9 @@ struct
          if i < Word8Vector.length header_struct
          then Word8Vector.sub(header_struct, i)
          else
+         if i < RELOCTABLE_START
+         then fromstring firstpage (i - Word8Vector.length header_struct)
+         else
          if i >= RELOCTABLE_START andalso
             i < RELOCTABLE_START + NUM_RELOCATIONS * 4
          then
@@ -223,7 +233,7 @@ struct
            val off = (i - RELOCTABLE_START) div 4
          in
            (* Format is SEG:OFF (where the code segment is at 2020:0000),
-              in little endian (lowest byte of OFF first.
+              in little endian (lowest byte of OFF first).
 
               I determined a printable way to write the byte right after
               the code segment with solveseg.sml. *)
