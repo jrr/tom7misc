@@ -50,6 +50,10 @@ sig
      sets the 16-bit word pointed to by the address in dst_addr
      to the value in src_tmp. *)
   val store16 : acc -> int -> int -> acc
+  (* store8 acc dst_addr src_tmp
+     sets the 8-bit byte pointed to by the address in dst_addr
+     to the low byte of the 16-bit value in src_tmp. *)
+  val store8 : acc -> int -> int -> acc
 
   (* Adjust temporary frame or local frame base pointers.
      Give the size of the temporary frame in case it needs

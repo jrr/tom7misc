@@ -3,6 +3,7 @@ int _putc(int);
 int main(int argc, unsigned char **argv) {
   int i = 0;
   unsigned char *cmdline = *argv;
+  // *cmdline = (int)'*';
   // _putc((int)cmdline[0]);
 
   for (i = 0; i < (int)(0xFF - 0x81); i++) {
@@ -21,5 +22,6 @@ int main(int argc, unsigned char **argv) {
     _putc((int)c);
   }
   _putc('\n');
+
   return 0;
 }

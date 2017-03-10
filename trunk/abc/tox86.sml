@@ -594,11 +594,15 @@ struct
                 Tactics.store16 acc (offset addr) (offset src)
               end
 
-          (*
           | A.Store8 (addr, src) =>
-          | A.Immediate8 (tmp, w8) =>
+              let in
+                assert16 addr; assert16 src;
+                Continue `
+                Tactics.store8 acc (offset addr) (offset src)
+              end
+
+          (*
           | A.Immediate32 (tmp, w32) =>
-          | A.Add (a, b) =>
           | A.Complement a =>
             *)
           | _ =>

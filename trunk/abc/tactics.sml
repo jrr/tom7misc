@@ -1208,7 +1208,7 @@ struct
       (* We can only do a pure [reg] indirect for certain
          registers, like DI. So we just use that one
          unconditionally here. *)
-      val acc = acc ++ DI ++ SI ++ AX
+      val acc = acc ++ DI ++ DX ++ AX
       val acc = imm_ax16 acc (Word16.fromInt 0) //
         PUSH AX // POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) //
         PUSH AX // POP DX ?? learn_reg16 M.EDX (Word16.fromInt 0) //
@@ -1223,7 +1223,7 @@ struct
         AND (S16, EBP_TEMPORARY dst_tmp <~ A) -- AX //
         XOR (S8, EBP_TEMPORARY dst_tmp <~ DH_SI)
     in
-      acc -- SI -- DI
+      acc -- DX -- DI
     end
 
   fun store16 acc dst_addr src_tmp : Acc.acc =
@@ -1252,6 +1252,28 @@ struct
         XOR (S16, IND_SI <~ BH_DI)
     in
       acc -- DI -- SI
+    end
+
+  fun store8 acc dst_addr src_tmp : Acc.acc =
+    let
+      val acc = acc ++ DI ++ DX ++ AX
+      val acc = imm_ax16 acc (Word16.fromInt 0) //
+        PUSH AX // POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) //
+        PUSH AX // POP DX ?? learn_reg16 M.EDX (Word16.fromInt 0) -- AX //
+        (* Load dest addr first. *)
+        XOR (S16, BH_DI <- EBP_TEMPORARY dst_addr) ?? forget_reg16 M.EDI
+      val acc = acc //
+        (* Zero destination byte. *)
+        AND (S8, IND_DI <~ DH_SI) //
+        (* Now read the value to store. The temporary is 16 bits in size, but
+           we only care about its low 8 bits. If we do an 8-bit load,
+           we get the low byte (little-endian), as desired. Put it in
+           DH. *)
+        XOR (S8, DH_SI <- EBP_TEMPORARY src_tmp) ?? forget_reg16 M.EDX //
+        (* Now write it to the dest addr. *)
+        XOR (S8, IND_DI <~ DH_SI)
+    in
+      acc -- DX -- DI
     end
 
   (* This sets up the initial invariants.
