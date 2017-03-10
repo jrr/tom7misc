@@ -154,6 +154,7 @@ struct
       Pointer _ => Width16
     | Code _ => Width16
     | Struct _ => raise ToCIL "unimplemented: struct lvalues"
+    | Array _ => raise ToCIL "unimplemented: array lvalues"
     | Word32 _ => Width32
     | Word16 _ => Width16
     | Word8 _ => Width8
@@ -708,7 +709,15 @@ struct
                                       k (Var oldv, ltyp))))
                  end))
 
-      | Ast.StringConst s => raise ToCIL "unimplemented: string constants"
+      | Ast.StringConst s =>
+        let
+          val bytes = Word8Vector.tabulate (size s,
+                                            fn i =>
+                                            Word8.fromInt ` ord `
+                                            String.sub (s, i))
+        in
+          k (StringLiteral bytes, Pointer ` Word8 Unsigned)
+        end
       | Ast.Call (f, args) =>
         let
           (* A call could either be a regular function call or a

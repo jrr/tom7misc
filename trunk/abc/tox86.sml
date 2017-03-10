@@ -273,7 +273,7 @@ struct
                    at 0x20). It's also necessary that tmp frame and
                    frame stack both start beyond 0x20, since these values
                    won't wrap around. *)
-                if TMP_FRAME_START < Word16.fromInt 0x20
+                if Word16.< (TMP_FRAME_START, Word16.fromInt 0x20)
                 then raise ToX86 ("TMP_FRAME_START must be at least 0x20 " ^
                                   "so that EBP can point 0x20 bytes before " ^
                                   "it.")

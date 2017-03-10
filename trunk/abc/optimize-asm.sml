@@ -14,6 +14,15 @@ struct
 
   (* PERF: Drop commands after one that unconditionally jumps. *)
 
+  (* PERF: Drop writes to temporaries that are never read? Or
+     some simple way of removing code after e.g. rewriting
+     imm a <- const              imm a <- const
+     imm b <- const2     to      imm b <- const2
+     add a <- b                  imm a <- const + const2
+
+     Also of course we should do that rewrite.
+     This is a common scenario in initialization code. *)
+
   (* PERF: Do flow analysis to determine live blocks; recursive dead
      functions (or probably even dead loops) cannot be dropped with
      the current approach. *)

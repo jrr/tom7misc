@@ -17,6 +17,7 @@ sig
     val extract : 'a blockcollector -> (label * 'a) list
   end
 
+  val newglobal : string -> string
   val newlocal : string -> string
   val genvar : string -> string
 

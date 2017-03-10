@@ -12,6 +12,7 @@ sig
 
   (* typ cases *)
   val case_Pointer : arg -> selves * CIL.context -> CIL.typ -> CIL.typ
+  val case_Array : arg -> selves * CIL.context -> CIL.typ * int -> CIL.typ
   val case_Code :
     arg -> selves * CIL.context -> CIL.typ * CIL.typ list -> CIL.typ
   val case_Struct :
@@ -32,7 +33,7 @@ sig
     arg -> selves * CIL.context -> Word16.word -> CIL.value * CIL.typ
   val case_Word32Literal :
     arg -> selves * CIL.context -> Word32.word -> CIL.value * CIL.typ
-  val case_StringLiteral : arg -> selves * CIL.context -> string ->
+  val case_StringLiteral : arg -> selves * CIL.context -> Word8Vector.vector ->
     CIL.value * CIL.typ
 
   (* exp cases *)
