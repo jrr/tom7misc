@@ -1176,7 +1176,10 @@ struct
 
   fun simplify (prev as (Program { functions, main, globals })) =
     let
-      val () = print "\n----------- optimization round -------------\n"
+      val () =
+        if !Flags.verbose
+        then print "\n----------- optimization round -------------\n"
+        else ()
       val simplified = ref false
       val functions = map (optimize_function simplified) functions
       val globals = map (optimize_global simplified) globals
@@ -1185,7 +1188,7 @@ struct
                            globals = globals }
     in
       (* XXX only print if changed, or show diff, etc. *)
-      if !simplified
+      if !simplified andalso !Flags.verbose
       then print ("\nNow:\n" ^ CIL.progtos prog ^ "\n")
       else eprint ("Unable to simplify further.\n");
 

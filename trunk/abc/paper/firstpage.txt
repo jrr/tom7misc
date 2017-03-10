@@ -1,229 +1,96 @@
-This is the text of the first page.
 
-Someone should actually write something here!
+             Dr. Tom Murphy VII, Ph.D.
+             tom7@tom7.org
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec cursus
-scelerisque ex, nec pellentesque velit vehicula et. Sed iaculis luctus
-neque. Vestibulum maximus nisl sed risus condimentum, in efficitur quam
-tincidunt. Mauris volutpat lectus in ligula euismod, at fermentum libero
-faucibus. Nullam sed orci vel urna ultricies placerat eu sit amet nibh.
-Integer pulvinar sapien non lorem pretium, non aliquam nunc fermentum.
-Maecenas malesuada nisl nec pellentesque posuere.
+Hello, and welcome to my paper! I'm really happy to have you here! <3
 
-Integer rhoncus sapien risus, quis luctus mi fringilla non. Morbi
-sollicitudin vitae erat a elementum. Mauris condimentum laoreet quam at
-vulputate. Proin dictum felis eget varius elementum. Quisque finibus
-tellus nec nisl bibendum sodales vel quis turpis. Nullam luctus felis a
-arcu sodales, malesuada luctus lectus scelerisque. Suspendisse laoreet
-interdum ex, ac facilisis risus ornare et. Aliquam placerat sit amet erat
-finibus dapibus. Vestibulum sollicitudin ex at nibh tempor, ac maximus
-lectus scelerisque. Quisque dictum iaculis leo. Nulla tincidunt nisl et
-libero laoreet tristique.
+In this paper, I describe a new compiler for the C89 programming language.
 
-Aliquam id metus eu nisl pulvinar ultrices sit amet quis ex. Vivamus
-eleifend orci libero, at convallis felis efficitur a. Phasellus efficitur
-ligula non ante maximus hendrerit. Mauris semper urna quis velit sodales,
-sodales varius ligula tincidunt. Quisque non nunc velit. Maecenas
-hendrerit orci magna, sit amet eleifend enim laoreet at. Ut sed leo eget
-enim sollicitudin pulvinar. Nunc mauris purus, condimentum eget
-scelerisque sit amet, lobortis vel mauris. Aliquam malesuada a risus ac
-luctus. Ut tincidunt, risus pulvinar tempor porttitor, tellus mauris
-mattis quam, nec tristique magna nisl ac sapien. Phasellus rutrum rutrum
-arcu, aliquet feugiat lectus volutpat quis. Aliquam luctus elit lectus, in
-fringilla lectus tempus at. Aliquam tincidunt molestie mauris.
+For good reasons that I will explain later, this paper must be 20 pages
+long. Due to unreasonable SIGBOVIK deadlines, I did not produce enough
+technical material to fill the minimum number of pages, so I will be
+somewhat prolix and I have inserted several unrelated ASCII-art drawings.
 
-Nullam sed metus eget metus scelerisque aliquam eu facilisis lectus.
-Aliquam vestibulum nisi quis ex sollicitudin ullamcorper. Vestibulum ante
-ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae;
-Vestibulum hendrerit metus id viverra suscipit. Duis in vestibulum ante.
-Maecenas et dui tempor, lobortis purus vitae, porttitor mi. Aliquam erat
-volutpat. Nullam molestie iaculis posuere.
 
-Curabitur sem purus, dictum vitae lectus in, pellentesque hendrerit erat.
-Donec augue dui, eleifend euismod ipsum vitae, vestibulum vestibulum diam.
-Mauris interdum vestibulum justo, non placerat dolor auctor quis. Duis
-suscipit ante et dapibus auctor. Cras blandit pellentesque ligula, ac
-ultrices erat convallis nec. Pellentesque laoreet, tortor in hendrerit
-bibendum, ligula est varius arcu, at fermentum eros velit ut purus.
-Integer auctor mi a tempor lacinia. Ut convallis arcu eget justo finibus
-volutpat. Vestibulum convallis odio in pretium posuere. Sed commodo dolor
-quis nisi ultrices, eu pharetra metus tincidunt. Ut accumsan massa sit
-amet ligula lobortis lobortis. Donec elit velit, euismod eu hendrerit nec,
-convallis et est.
+    ** Typesetting note **
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec cursus
-scelerisque ex, nec pellentesque velit vehicula et. Sed iaculis luctus
-neque. Vestibulum maximus nisl sed risus condimentum, in efficitur quam
-tincidunt. Mauris volutpat lectus in ligula euismod, at fermentum libero
-faucibus. Nullam sed orci vel urna ultricies placerat eu sit amet nibh.
-Integer pulvinar sapien non lorem pretium, non aliquam nunc fermentum.
-Maecenas malesuada nisl nec pellentesque posuere.
+If you receive this paper in a raw text file, it may be difficult to read
+because of its two-column layout. It should be typeset in a monospace font
+on pages 160 characters wide and 128 characters tall (this is 4x the
+typical density of a line printer from the 1980s or 1990s). Many pages,
+including parts of this first one, have cropping marks outside the text
+body to make the correct alignment easier to verify. This file contains no
+carriage returns or newlines; each line just contains 160 characters and
+is padded with spaces. If you receive this paper in the SIGBOVIK
+proceedings, it may be hard to read because it is printed in a very small
+font to conserve paper. Squinting really hard to read hard fonts is good
+exercise for your eyes.
 
-Integer rhoncus sapien risus, quis luctus mi fringilla non. Morbi
-sollicitudin vitae erat a elementum. Mauris condimentum laoreet quam at
-vulputate. Proin dictum felis eget varius elementum. Quisque finibus
-tellus nec nisl bibendum sodales vel quis turpis. Nullam luctus felis a
-arcu sodales, malesuada luctus lectus scelerisque. Suspendisse laoreet
-interdum ex, ac facilisis risus ornare et. Aliquam placerat sit amet erat
-finibus dapibus. Vestibulum sollicitudin ex at nibh tempor, ac maximus
-lectus scelerisque. Quisque dictum iaculis leo. Nulla tincidunt nisl et
-libero laoreet tristique.
+Your antivirus software may detect this paper as a virus, for good reasons
+that I will describe later. It is not a virus. ;-)
 
-Aliquam id metus eu nisl pulvinar ultrices sit amet quis ex. Vivamus
-eleifend orci libero, at convallis felis efficitur a. Phasellus efficitur
-ligula non ante maximus hendrerit. Mauris semper urna quis velit sodales,
-sodales varius ligula tincidunt. Quisque non nunc velit. Maecenas
-hendrerit orci magna, sit amet eleifend enim laoreet at. Ut sed leo eget
-enim sollicitudin pulvinar. Nunc mauris purus, condimentum eget
-scelerisque sit amet, lobortis vel mauris. Aliquam malesuada a risus ac
-luctus. Ut tincidunt, risus pulvinar tempor porttitor, tellus mauris
-mattis quam, nec tristique magna nisl ac sapien. Phasellus rutrum rutrum
-arcu, aliquet feugiat lectus volutpat quis. Aliquam luctus elit lectus, in
-fringilla lectus tempus at. Aliquam tincidunt molestie mauris.
+This program was typeset with a special tool, described in Section XXX.
 
-Nullam sed metus eget metus scelerisque aliquam eu facilisis lectus.
-Aliquam vestibulum nisi quis ex sollicitudin ullamcorper. Vestibulum ante
-ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae;
-Vestibulum hendrerit metus id viverra suscipit. Duis in vestibulum ante.
-Maecenas et dui tempor, lobortis purus vitae, porttitor mi. Aliquam erat
-volutpat. Nullam molestie iaculis posuere.
 
-Curabitur sem purus, dictum vitae lectus in, pellentesque hendrerit erat.
-Donec augue dui, eleifend euismod ipsum vitae, vestibulum vestibulum diam.
-Mauris interdum vestibulum justo, non placerat dolor auctor quis. Duis
-suscipit ante et dapibus auctor. Cras blandit pellentesque ligula, ac
-ultrices erat convallis nec. Pellentesque laoreet, tortor in hendrerit
-bibendum, ligula est varius arcu, at fermentum eros velit ut purus.
-Integer auctor mi a tempor lacinia. Ut convallis arcu eget justo finibus
-volutpat. Vestibulum convallis odio in pretium posuere. Sed commodo dolor
-quis nisi ultrices, eu pharetra metus tincidunt. Ut accumsan massa sit
-amet ligula lobortis lobortis. Donec elit velit, euismod eu hendrerit nec,
-convallis et est.
+    ** Introduction **
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec cursus
-scelerisque ex, nec pellentesque velit vehicula et. Sed iaculis luctus
-neque. Vestibulum maximus nisl sed risus condimentum, in efficitur quam
-tincidunt. Mauris volutpat lectus in ligula euismod, at fermentum libero
-faucibus. Nullam sed orci vel urna ultricies placerat eu sit amet nibh.
-Integer pulvinar sapien non lorem pretium, non aliquam nunc fermentum.
-Maecenas malesuada nisl nec pellentesque posuere.
+On any normal computer, a program is just a data file. It usually contains
+some header information that tells the operating system about what it is
+(for example, to confirm that it is a program and not some other kind of
+file; to tell the operating system about how much memory it needs, or the
+libraries it depends on, etc.) and then contains commands for the
+processor to execute. I'm not talking about stuff like shell scripts and
+Python programs, which contain text-based commands (like 10 PRINT "HI")
+interpreted by some other program. I mean real executable files. These
+commands are low level instructions called opcodes, and are usually just a
+few bytes each. Maybe just one byte. For example, on the popular and
+elegant X86 architecture, the single byte 0xF4 is the "HLT" instruction,
+which halts the computer. (Could this be why ALT-F4 is the universal key
+code for quitting the current program? Intriguing!) (Of course, some
+instructions like HLT are strictly off limits for "user space" programs.
+When running a program, the operating system puts the processor into a
+mode where such rude instructions instead alert the operating system to
+the program's misbehavior. We'll talk more about rude instructions in
+Section XXX.) The single byte 0x40 means "INC AX" -- add 1 to the "AX"
+register -- and a multibyte sequence like XX XX XX means XXX. All the
+time, the computer is just reading the next byte out of the program (or
+operating system, itself a program written using these same instructions),
+doing what it says to do, and then going on to the next one.
 
-Integer rhoncus sapien risus, quis luctus mi fringilla non. Morbi
-sollicitudin vitae erat a elementum. Mauris condimentum laoreet quam at
-vulputate. Proin dictum felis eget varius elementum. Quisque finibus
-tellus nec nisl bibendum sodales vel quis turpis. Nullam luctus felis a
-arcu sodales, malesuada luctus lectus scelerisque. Suspendisse laoreet
-interdum ex, ac facilisis risus ornare et. Aliquam placerat sit amet erat
-finibus dapibus. Vestibulum sollicitudin ex at nibh tempor, ac maximus
-lectus scelerisque. Quisque dictum iaculis leo. Nulla tincidunt nisl et
-libero laoreet tristique.
+I wrote the opcodes above in hexadecimal notation, but they're just stored
+in the files and memory as raw bytes (like all files). The byte 0xF4 is
+not considered "printable" because old-timey computer people couldn't
+agree on how it should look. In DOS, it's the top half of an integral
+sign, like this:
 
-Aliquam id metus eu nisl pulvinar ultrices sit amet quis ex. Vivamus
-eleifend orci libero, at convallis felis efficitur a. Phasellus efficitur
-ligula non ante maximus hendrerit. Mauris semper urna quis velit sodales,
-sodales varius ligula tincidunt. Quisque non nunc velit. Maecenas
-hendrerit orci magna, sit amet eleifend enim laoreet at. Ut sed leo eget
-enim sollicitudin pulvinar. Nunc mauris purus, condimentum eget
-scelerisque sit amet, lobortis vel mauris. Aliquam malesuada a risus ac
-luctus. Ut tincidunt, risus pulvinar tempor porttitor, tellus mauris
-mattis quam, nec tristique magna nisl ac sapien. Phasellus rutrum rutrum
-arcu, aliquet feugiat lectus volutpat quis. Aliquam luctus elit lectus, in
-fringilla lectus tempus at. Aliquam tincidunt molestie mauris.
+                        . . . . . . . . .
+                        . . . . . . . . .
+                        . . . . @@@@@@. .
+                        . . . @@@@. @@@@.
+                        . . . @@@@. @@@@.
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
+                        . . . @@@@. . . .
 
-Nullam sed metus eget metus scelerisque aliquam eu facilisis lectus.
-Aliquam vestibulum nisi quis ex sollicitudin ullamcorper. Vestibulum ante
-ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae;
-Vestibulum hendrerit metus id viverra suscipit. Duis in vestibulum ante.
-Maecenas et dui tempor, lobortis purus vitae, porttitor mi. Aliquam erat
-volutpat. Nullam molestie iaculis posuere.
+The first half of all bytes (0x00 to 0x7F) are defined in ASCII, which is
+standard across almost all computers now. When you look at the @ symbols
+in the picture above, they are almost certainly represented as the byte
+0x40, which means the character @ in ASCII. And so if you peered directly
+at the bytes in this file, you would see a lot of 0x40s in that region,
+and right here when I put another at sign: --> @ <--. Sometimes the @ sign
+can be the flower of a rose, like @>-,--'---. To the processor, it means
+INC AX, since 0x40 is that opcode.
 
-Curabitur sem purus, dictum vitae lectus in, pellentesque hendrerit erat.
-Donec augue dui, eleifend euismod ipsum vitae, vestibulum vestibulum diam.
-Mauris interdum vestibulum justo, non placerat dolor auctor quis. Duis
-suscipit ante et dapibus auctor. Cras blandit pellentesque ligula, ac
-ultrices erat convallis nec. Pellentesque laoreet, tortor in hendrerit
-bibendum, ligula est varius arcu, at fermentum eros velit ut purus.
-Integer auctor mi a tempor lacinia. Ut convallis arcu eget justo finibus
-volutpat. Vestibulum convallis odio in pretium posuere. Sed commodo dolor
-quis nisi ultrices, eu pharetra metus tincidunt. Ut accumsan massa sit
-amet ligula lobortis lobortis. Donec elit velit, euismod eu hendrerit nec,
-convallis et est.
+                               ~ @ ~
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec cursus
-scelerisque ex, nec pellentesque velit vehicula et. Sed iaculis luctus
-neque. Vestibulum maximus nisl sed risus condimentum, in efficitur quam
-tincidunt. Mauris volutpat lectus in ligula euismod, at fermentum libero
-faucibus. Nullam sed orci vel urna ultricies placerat eu sit amet nibh.
-Integer pulvinar sapien non lorem pretium, non aliquam nunc fermentum.
-Maecenas malesuada nisl nec pellentesque posuere.
-
-Integer rhoncus sapien risus, quis luctus mi fringilla non. Morbi
-sollicitudin vitae erat a elementum. Mauris condimentum laoreet quam at
-vulputate. Proin dictum felis eget varius elementum. Quisque finibus
-tellus nec nisl bibendum sodales vel quis turpis. Nullam luctus felis a
-arcu sodales, malesuada luctus lectus scelerisque. Suspendisse laoreet
-interdum ex, ac facilisis risus ornare et. Aliquam placerat sit amet erat
-finibus dapibus. Vestibulum sollicitudin ex at nibh tempor, ac maximus
-lectus scelerisque. Quisque dictum iaculis leo. Nulla tincidunt nisl et
-libero laoreet tristique.
-
-Aliquam id metus eu nisl pulvinar ultrices sit amet quis ex. Vivamus
-eleifend orci libero, at convallis felis efficitur a. Phasellus efficitur
-ligula non ante maximus hendrerit. Mauris semper urna quis velit sodales,
-sodales varius ligula tincidunt. Quisque non nunc velit. Maecenas
-hendrerit orci magna, sit amet eleifend enim laoreet at. Ut sed leo eget
-enim sollicitudin pulvinar. Nunc mauris purus, condimentum eget
-scelerisque sit amet, lobortis vel mauris. Aliquam malesuada a risus ac
-luctus. Ut tincidunt, risus pulvinar tempor porttitor, tellus mauris
-mattis quam, nec tristique magna nisl ac sapien. Phasellus rutrum rutrum
-arcu, aliquet feugiat lectus volutpat quis. Aliquam luctus elit lectus, in
-fringilla lectus tempus at. Aliquam tincidunt molestie mauris.
-
-Nullam sed metus eget metus scelerisque aliquam eu facilisis lectus.
-Aliquam vestibulum nisi quis ex sollicitudin ullamcorper. Vestibulum ante
-ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae;
-Vestibulum hendrerit metus id viverra suscipit. Duis in vestibulum ante.
-Maecenas et dui tempor, lobortis purus vitae, porttitor mi. Aliquam erat
-volutpat. Nullam molestie iaculis posuere.
-
-Curabitur sem purus, dictum vitae lectus in, pellentesque hendrerit erat.
-Donec augue dui, eleifend euismod ipsum vitae, vestibulum vestibulum diam.
-Mauris interdum vestibulum justo, non placerat dolor auctor quis. Duis
-suscipit ante et dapibus auctor. Cras blandit pellentesque ligula, ac
-ultrices erat convallis nec. Pellentesque laoreet, tortor in hendrerit
-bibendum, ligula est varius arcu, at fermentum eros velit ut purus.
-Integer auctor mi a tempor lacinia. Ut convallis arcu eget justo finibus
-volutpat. Vestibulum convallis odio in pretium posuere. Sed commodo dolor
-quis nisi ultrices, eu pharetra metus tincidunt. Ut accumsan massa sit
-amet ligula lobortis lobortis. Donec elit velit, euismod eu hendrerit nec,
-convallis et est.
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec cursus
-scelerisque ex, nec pellentesque velit vehicula et. Sed iaculis luctus
-neque. Vestibulum maximus nisl sed risus condimentum, in efficitur quam
-tincidunt. Mauris volutpat lectus in ligula euismod, at fermentum libero
-faucibus. Nullam sed orci vel urna ultricies placerat eu sit amet nibh.
-Integer pulvinar sapien non lorem pretium, non aliquam nunc fermentum.
-Maecenas malesuada nisl nec pellentesque posuere.
-
-Integer rhoncus sapien risus, quis luctus mi fringilla non. Morbi
-sollicitudin vitae erat a elementum. Mauris condimentum laoreet quam at
-vulputate. Proin dictum felis eget varius elementum. Quisque finibus
-tellus nec nisl bibendum sodales vel quis turpis. Nullam luctus felis a
-arcu sodales, malesuada luctus lectus scelerisque. Suspendisse laoreet
-interdum ex, ac facilisis risus ornare et. Aliquam placerat sit amet erat
-finibus dapibus. Vestibulum sollicitudin ex at nibh tempor, ac maximus
-lectus scelerisque. Quisque dictum iaculis leo. Nulla tincidunt nisl et
-libero laoreet tristique.
-
-Aliquam id metus eu nisl pulvinar ultrices sit amet quis ex. Vivamus
-eleifend orci libero, at convallis felis efficitur a. Phasellus efficitur
-ligula non ante maximus hendrerit. Mauris semper urna quis velit sodales,
-sodales varius ligula tincidunt. Quisque non nunc velit. Maecenas
-hendrerit orci magna, sit amet eleifend enim laoreet at. Ut sed leo eget
-enim sollicitudin pulvinar. Nunc mauris purus, condimentum eget
-scelerisque sit amet, lobortis vel mauris. Aliquam malesuada a risus ac
-luctus. Ut tincidunt, risus pulvinar tempor porttitor, tellus mauris
-mattis quam, nec tristique magna nisl ac sapien. Phasellus rutrum rutrum
-arcu, aliquet feugiat lectus volutpat quis. Aliquam luctus elit lectus, in
-fringilla lectus tempus at. Aliquam tincidunt molestie mauris.
+Now, for good reasons that I will explain later, this paper must contain
+8,224 repetitions of the string "p~9(". Please proceed to Page 3 to
+continue reading this interesting paper.

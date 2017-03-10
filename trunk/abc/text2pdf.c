@@ -95,7 +95,7 @@ void WriteHeader(char *title){
   writestr("1 0 obj\n");
   writestr("<<\n");
   sprintf(buf, "/CreationDate (%s)\n", datestring); writestr(buf);
-  sprintf(buf, "/Producer (%s (\\251 Phil Smith, 1996))\n", appname); writestr(buf);
+  sprintf(buf, "/Producer (ABC)\n"); writestr(buf);
   if (title) {sprintf(buf, "/Title (%s)\n", title); writestr(buf);}
   writestr(">>\n");
   writestr("endobj\n");
