@@ -149,7 +149,9 @@ struct
                           (map ASM.named_tmptos (TS.listItems s)) ^ "\n"))
           interference
         end
-      val () = print_interference ()
+      val () = if !Flags.verbose
+               then print_interference ()
+               else ()
 
       fun tmpsize (ASM.N { size, ... }) = size
 
@@ -179,8 +181,10 @@ struct
                     tmp_frame = tmp_frame,
                     cmds = map rewrite_cmd cmds }
         in
-          print ("Coalesce " ^ ASM.named_tmptos src ^ " to become " ^
-                 ASM.named_tmptos dst ^ "\n");
+          if !Flags.verbose
+          then print ("Coalesce " ^ ASM.named_tmptos src ^ " to become " ^
+                      ASM.named_tmptos dst ^ "\n")
+          else ();
           (* Within commands, we just change the names; easy. *)
           Array.modify rewrite_cmd cmds;
           blocks := map rewrite_block (!blocks);
@@ -242,7 +246,9 @@ struct
                                          ASM.named_tmptos src))
          | _ => ())
 
-      val () = print_interference ()
+      val () = if !Flags.verbose
+               then print_interference ()
+               else ()
 
       (* Now just merge all pairs.
          Note that this is where some smarter "graph coloring"
@@ -250,7 +256,10 @@ struct
          do it eagerly until we can't. *)
       fun onefunc func =
         let
-          val () = print ("Try coalescing in " ^ func ^ "...\n")
+          val () =
+            if !Flags.verbose
+            then print ("Try coalescing in " ^ func ^ "...\n")
+            else ()
           (* Each time we coalesce, we might lose one of the
              temporaries that we're holding onto here. But
              we also don't want to keep starting over from
@@ -397,23 +406,30 @@ struct
 
       val blocks : explicit_block list = map rewrite_block blocks
 
-      val layout_table =
-        ["func", "offset", "tmp"] ::
-        List.concat
-        (map (fn (func, { size, pos }) =>
-              [func, "", "(total " ^ Int.toString size ^ ")"] ::
-              (* Convert integral offset to text for table *)
-              map (fn (offset, txt) => ["", Int.toString offset, txt])
-              (* Sort by integral offset. *)
-              (ListUtil.sort (ListUtil.byfirst Int.compare)
-               (* Flatten tmp positions. *)
-               (map (fn (name, (offset, sz)) =>
-                     (offset, name ^ " [" ^ Int.toString (szbytes sz) ^ "]"))
-                (SM.listItemsi pos))))
-         (SM.listItemsi layout))
+      fun print_layout_table () =
+        let
+          val layout_table =
+            ["func", "offset", "tmp"] ::
+            List.concat
+            (map (fn (func, { size, pos }) =>
+                  [func, "", "(total " ^ Int.toString size ^ ")"] ::
+                  (* Convert integral offset to text for table *)
+                  map (fn (offset, txt) => ["", Int.toString offset, txt])
+                  (* Sort by integral offset. *)
+                  (ListUtil.sort (ListUtil.byfirst Int.compare)
+                   (* Flatten tmp positions. *)
+                   (map (fn (name, (offset, sz)) =>
+                         (offset, name ^ " [" ^ Int.toString (szbytes sz) ^ "]"))
+                    (SM.listItemsi pos))))
+             (SM.listItemsi layout))
+        in
+          print (StringUtil.table 80 layout_table)
+        end
 
     in
-      print (StringUtil.table 80 layout_table);
+      if !Flags.verbose
+      then print_layout_table ()
+      else ();
       blocks
     end
 

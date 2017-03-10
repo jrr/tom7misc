@@ -703,7 +703,8 @@ struct
           print "\n"
         end
 
-      val () = debug_print ()
+      val () = if !Flags.verbose then debug_print ()
+               else ()
 
       (* This is the fast way to do it. *)
       (* val vec = Acc.encoded acc *)
@@ -797,7 +798,9 @@ struct
                  "_split_split_split" if we split multiple times... *)
               val splitlab = CILUtil.newlabel "tox86_split_"
             in
-              print ("Split " ^ name ^ " to " ^ splitlab ^ "\n");
+              if !Flags.verbose
+              then print ("Split " ^ name ^ " to " ^ splitlab ^ "\n")
+              else ();
               if num_cmds <= 1
               then raise ToX86 ("block " ^ name ^ " can't be split further??")
               else [A.Block { name = name,
@@ -860,8 +863,11 @@ struct
           val () = print ("No early problem blocks!\n")
           val () = print ("Total code bytes: " ^
                           Int.toString (!total_size) ^ "\n")
-          val () = app (fn (l, v, _, _) =>
-                        print (l ^ ": " ^ w8vtos v ^ "\n")) xblocks
+          val () =
+            if !Flags.verbose
+            then app (fn (l, v, _, _) =>
+                      print (l ^ ": " ^ w8vtos v ^ "\n")) xblocks
+            else ()
 
           val () = app (fn (l, _, _, msgs) =>
                         let in
@@ -1009,8 +1015,10 @@ struct
           fun place ((xb as (lab, vec, jmps, _)) :: rest) : unit =
             let val len = Word8Vector.length vec
             in
-              print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
-                     lab ^ " of length " ^ Int.toString len ^ "\n");
+              if !Flags.verbose
+              then print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
+                          lab ^ " of length " ^ Int.toString len ^ "\n")
+              else ();
               if !cur + len > 65536
               then
                 let in
@@ -1046,7 +1054,9 @@ struct
                                     "next_cur overflows")
                   else ();
 
-                  print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".\n");
+                  if !Flags.verbose
+                  then print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".\n")
+                  else ();
                   (if lab = initial_label
                    then
                      case !init_addr of

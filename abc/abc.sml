@@ -34,22 +34,35 @@ struct
                  else ()
 
         (* XXX flags to control printing of intermediate results *)
-        val () = PPLib.ppToStrm (PPAst.ppAst () tidtab) TextIO.stdOut ast
-        val () = print "\n\n"
+        val () = if !Flags.verbose
+                 then
+                   let in
+                     PPLib.ppToStrm (PPAst.ppAst () tidtab) TextIO.stdOut ast;
+                     print "\n\n"
+                   end
+                 else ()
         val cil = ToCIL.tocil ast
-        val () = print ("\nToCIL:\n" ^ CIL.progtos cil ^ "\n")
+        val () = if !Flags.verbose
+                 then print ("\nToCIL:\n" ^ CIL.progtos cil ^ "\n")
+                 else ()
         val cil = OptimizeCIL.optimize cil
         val cilstring = CIL.progtos cil
-        val () = print ("\nOptimized:\n" ^ cilstring ^ "\n")
+        val () = if !Flags.verbose
+                 then print ("\nOptimized:\n" ^ cilstring ^ "\n")
+                 else ()
         val () = StringUtil.writefile (basename ^ ".cil") cilstring
         val asm = ToASM.toasm cil
         val asmstring = ASM.named_program_tostring asm
-        val () = print ("\nToASM:\n" ^ asmstring ^ "\n")
+        val () = if !Flags.verbose
+                 then print ("\nToASM:\n" ^ asmstring ^ "\n")
+                 else ()
         val () = StringUtil.writefile (basename ^ ".asm") asmstring
         val asm = AllocateTmps.allocate asm
         val asm = OptimizeAsm.optimize asm
         val esmstring = ASM.explicit_program_tostring asm
-        val () = print ("\nAllocated & optimized:\n" ^ esmstring ^ "\n")
+        val () = if !Flags.verbose
+                 then print ("\nAllocated & optimized:\n" ^ esmstring ^ "\n")
+                 else ()
         val () = StringUtil.writefile (basename ^ ".esm") esmstring
         val x86 = ToX86.tox86 asm
         val { cs, ds, init_ip, codebytes } = x86

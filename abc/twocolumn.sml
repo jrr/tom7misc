@@ -16,6 +16,7 @@ struct
   val GUTTER = 6
 
   val LRBORDER = 2
+  val TBBORDER = 2
 
   (* A single column is thus
 
@@ -27,33 +28,40 @@ struct
   val LC_START = LRBORDER
   val RC_START = LRBORDER + LC_WIDTH + GUTTER
 
+  val debug =
+    Params.flag false (SOME ("-debug", "Enable debug output.")) "debug"
+
+  val totalpages =
+    Params.param "1"
+    (SOME ("-pages",
+           "Total pages to generate.")) "pages"
+
   val startcol =
     Params.param "0"
     (SOME ("-startcol",
-           "The starting column on the first line. Many text chunks start " ^
-           "with some unavoidable junk (like the header struct for the " ^
-           "paper's beginning) on the first line; this makes twocolumn " ^
-           "aware of it.")) "startcol"
+           "The starting column on the first line of the first page. " ^
+           "Many text chunks start with some unavoidable junk (like " ^
+           "the header struct for the paper's beginning) on the first " ^
+           "line; this makes twocolumn aware of it.")) "startcol"
 
   val startline =
     Params.param "0"
     (SOME ("-startline",
-           "The starting line on the page. This is used for pagination " ^
-           "and drawing of borders.")) "startline"
-
-  val numlines =
-    Params.param (Int.toString HEIGHT)
-    (SOME ("-numlines",
-           "Number of lines, including a possibly incomplete first and " ^
-           "last one, to render into. Gives an error if the input doesn't " ^
-           "fit. This can be more than a single page.")) "numlines"
+           "The starting line on the first page. This is used for " ^
+           "pagination and drawing of borders.")) "startline"
 
   val endcol =
     Params.param (Int.toString WIDTH)
     (SOME ("-endcol",
-           "Column in which junk begins on the last line. " ^
+           "Column in which junk begins on the last line on the last page. " ^
            Int.toString WIDTH ^ " means the whole line is free; 0 means " ^
            "none of it is (but then why not have one fewer line?)")) "endcol"
+
+  val endlines =
+    Params.param "0"
+    (SOME ("-endlines",
+           "Number of full lines on the last page that can't be used. Does " ^
+           "not include a partial line (-endcol).")) "endlines"
 
   val outfile =
     Params.param ""
@@ -69,20 +77,49 @@ struct
       print ("Wrote debug page to " ^ filename ^ "\n")
     end
 
-  fun dopage (startline, startcol) text =
+  fun dopage (pagenum : int) (text : string list) : string list =
     let
       val COLWIDTH = LC_WIDTH
 
+      val totalpages = Params.asint 0 totalpages
+
+      val startcol =
+        if pagenum = 0
+        then Params.asint 0 startcol
+        else 0
+      val startline =
+        if pagenum = 0
+        then Params.asint 0 startline
+        else 0
+
+      val endcol =
+        if pagenum = totalpages - 1
+        then Params.asint 0 endcol
+        else WIDTH
+      val endlines =
+        if pagenum = totalpages - 1
+        then Params.asint 0 endlines
+        else 0
+
+      val firstwriteline =
+        Int.max (TBBORDER, startline)
+      val lastwriteline =
+        Int.min (HEIGHT - endlines - 1 -
+                 (if endcol < RC_START then 1 else 0),
+                 HEIGHT - TBBORDER - 1)
+
+
       (* Number of pages we'll generate. We work page-by-page so that
          we can add borders. *)
-      (* val pages = (numlines + startline) mod HEIGHT *)
       (* The page is always the physical page, though we may only
          be working within part of it because some of it contains
          junk. *)
       val page = Array.array (WIDTH * HEIGHT, #" ")
 
       (* Current row on the page. *)
-      val row = ref (if startcol = 0 then startline else startline + 1)
+      val row = ref (if startcol = 0
+                     then firstwriteline
+                     else startline + 1)
 
       (* If true, we're writing to the second of the two columns. *)
       val right = ref false
@@ -103,10 +140,24 @@ struct
           set (x, y) #"="));
 
       val () =
+        (* Mark off lines we shouldn't touch. *)
+        Util.for (HEIGHT - endlines) (HEIGHT - 1)
+        (fn y =>
+         Util.for 0 (WIDTH - 1)
+         (fn x =>
+          set (x, y) #"&"));
+
+      val () =
         (* Mark off any junk in the first line that we have access to. *)
         Util.for 0 (startcol - 1)
         (fn x =>
          set (x, startline) #"%");
+
+      val () =
+        (* Any junk in the last line *)
+        Util.for endcol (WIDTH - 1)
+        (fn x =>
+         set (x, HEIGHT - endlines - 1) #"/")
 
       (* Draw a border around the usable region. *)
 
@@ -125,31 +176,45 @@ struct
 
       (* Left and right. *)
       val () =
-        Util.for startline (HEIGHT - 1)
+        Util.for startline (HEIGHT - 1 - endlines)
         (fn y =>
          (* If we're on the first row, it was already
             dealt with by the top border. *)
-         if y = 0 (* XXX also test lastline... *)
+         if y = 0
          then ()
          else
            let in
-             set (0, y) #".";
-             set (WIDTH - 1, y) #"."
+             (* XXX if startcol is the whole line? *)
+             if y > startline orelse startcol = 0
+             then set (0, y) #"."
+             else ();
+             if y < (HEIGHT - endlines - 1) orelse endcol = WIDTH
+             then set (WIDTH - 1, y) #"."
+             else ()
            end)
 
-      (* XXX Bottom border... *)
+      (* Bottom. *)
+      val () =
+        if endlines = 0
+        then
+          Util.for 0 (endcol - 1)
+          (fn x =>
+           if x = 0 orelse x = WIDTH - 1
+           then set (x, HEIGHT - 1) #"+"
+           else set (x, HEIGHT - 1) #".")
+        else ()
 
-      fun writeline nil = ()
+      fun writeline nil = nil
         | writeline (line :: rest) =
-        if !row >= HEIGHT
+        if !row > lastwriteline
         then
           if !right
-          then
-            raise TwoColumn "page filled. unimplemented..."
+          then (line :: rest)
           else
             let in
               right := true;
-              row := startline; (* XXX *)
+              (* XXX not if we have startcol? *)
+              row := firstwriteline;
               writeline (line :: rest)
             end
         else
@@ -169,11 +234,34 @@ struct
             row := !row + 1;
             writeline rest
           end
-    in
-      (* Now, write line by line until we reach the end of the page. *)
-      writeline text;
 
-      debugpage "debug.page" page
+      (* Now, write line by line until we reach the end of the page. *)
+      val text = writeline text
+
+      (* Truncate the page data so that we only output the region
+         that's ready to be concatenated between junk. *)
+      fun truncate () =
+        let
+          val start = startline * WIDTH + startcol
+          val rstart = endlines * WIDTH + (WIDTH - endcol)
+          val len = (WIDTH * HEIGHT - start - rstart)
+        in
+          CharVector.tabulate (len,
+                               fn i => Array.sub (page, start + i))
+        end
+    in
+      if !debug
+      then debugpage ("debug" ^ Int.toString pagenum ^ ".page") page
+      else ();
+
+      truncate () ::
+      (if pagenum + 1 = totalpages
+       then (case text of
+               nil => nil (* Perfect! *)
+             | _ => raise TwoColumn ("Text exceeded total page count! Looking at:\n" ^
+                                    StringUtil.delimit "\n"
+                                     (ListUtil.takeupto 5 text)))
+       else dopage (pagenum + 1) text)
     end
 
 
@@ -185,13 +273,16 @@ struct
                     "Try increasing or decreasing the gutter by 1.")
                else ()
 
+      val outfile =
+        case !outfile of
+          "" => raise TwoColumn "You must specify an output file with -o."
+        | f => f
+
       val text = String.fields (StringUtil.ischar #"\n") (StringUtil.readfile infile)
-      val startcol = Params.asint 0 startcol
-      val startline = Params.asint 0 startline
-      val numlines = Params.asint 0 numlines
-      val endcol = Params.asint 0 endcol
+
+      val output = String.concat (dopage 0 text)
     in
-      dopage (startline, startcol) text
+      StringUtil.writefile outfile output
     end
   handle TwoColumn s =>
     let in

@@ -1,0 +1,27 @@
+
+Sorry about that!
+
+Not all of the ASCII bytes are considered printable, either. For example,
+0x14 means DEVICE CONTROL 4 in ASCII, forever enshrined as that useless
+idea. Even DOS didn't think it was useful, so DOS prints it as a
+"paragraph" symbol. The byte 0x07 just makes a beep sound if you try to
+display it.
+
+
+The range of reliable characters are:
+
+   0x0A   NEWLINE
+   0x0D.  CARRIAGE RETURN
+   0x20.  SPACE
+   ...
+   0x7E.  ~
+
+.. and no others. 0x0A and 0x0D are actually pretty questionable, because
+UNIX, MacOS and DOS/Windows could not agree on whether a line ends with
+newline, carriage return, or carriage return and then newline. This paper
+is concerned with reliably printable characters, so we say that's the
+95 characters from 0x20 to 0x7E, inclusive.
+
+
+
+I was kidding when I said the x86 architecture is elegant.

@@ -28,6 +28,8 @@ ckit/ckit-lib.mlb
   ../sml-lib/misc/params-sig.sml
   ../sml-lib/misc/params.sml
 
+  flags.sml
+
   segment-sig.sml
   segment.sml
 

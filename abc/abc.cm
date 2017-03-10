@@ -36,6 +36,8 @@ group is
   (* We need Word16 in SML/NJ. *)
   ../sml-lib/misc/wordn.sml
 
+  flags.sml
+
   segment-sig.sml
   segment.sml
 

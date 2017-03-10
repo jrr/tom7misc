@@ -161,6 +161,9 @@ struct
                             overlay]
       val HEADER_STRUCT_BYTES = Word8Vector.length header_struct
 
+      val () = print ("Header struct size: " ^
+                      Int.toString HEADER_STRUCT_BYTES ^ "\n")
+
       (* masked pages value, times size of page *)
       val FILE_BYTES = Word16.toInt (Word16.andb(vw16 pages,
                                                  Word16.fromInt 0x7ff)) * 512
@@ -208,6 +211,7 @@ struct
                                "table is 32-bit aligned.")
 
       val firstpage = StringUtil.readfile "paper/firstpage.2c"
+      val postreloc = StringUtil.readfile "paper/postreloc.2c"
 
       fun fromstring s i =
         if i < 0 then raise EXE "out of range"
@@ -244,7 +248,7 @@ struct
            | _ => 0wx28
          end
          else
-         repeatingstring "hdr" i)
+           fromstring postreloc (i - (RELOCTABLE_START + NUM_RELOCATIONS * 4)))
 
       (* Computed empirically for the given header values above.
          I *believe* that this is predictable, but it's not really documented.
