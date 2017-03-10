@@ -21,10 +21,12 @@ struct
     Pointer of typ
   | Code of typ * typ list
   | Struct of (string * typ) list
+  (* Only used as the type of a global; size
+     is always known. *)
+  | Array of typ * int
   (* We can do computation on 8-, 16-, and 32-bit words.
      Additionally, we need to know the width of loads and
      stores. *)
-
   (* We only care about signedness during the ToCIL phase.
      XXX some clean way to discard this info for the final program. *)
   | Word32 of signedness
@@ -34,6 +36,7 @@ struct
   fun typwidth (Pointer _) = Width16
     | typwidth (Code _) = Width16
     | typwidth (Struct _) = raise CIL "unimplemented structs"
+    | typwidth (Array _) = raise CIL "typwidth Array?"
     | typwidth (Word32 _) = Width32
     | typwidth (Word16 _) = Width16
     | typwidth (Word8 _) = Width8
@@ -52,7 +55,6 @@ struct
     (* TODO: This should take word8 for the byte.
        out(word16 port, word16 byte) *)
     | B_OUT8
-  (* TODO: IN/OUT *)
 
   datatype value =
     Var of string
@@ -65,7 +67,7 @@ struct
   | Word32Literal of Word32.word
 
     (* Maybe should be pointer to bytes? *)
-  | StringLiteral of string
+  | StringLiteral of Word8Vector.vector
 
   (* Here's how we handle integral widths and signedness.
      After conversion to CIL, everything should be completely explicit:
@@ -162,6 +164,9 @@ struct
     Glob of { typ : typ,
               (* Byte pattern the global should start with, if
                  desired. This is expected to be the correct size.
+                 Note that for ABC, bytes in here should be
+                 printable, or else the output binary will contain
+                 violations.
                  Initialization may overwrite this. *)
               bytes : Word8Vector.vector option,
               (* Initialization should write (only) to this global,
@@ -190,6 +195,7 @@ struct
     | typtos (Code (ret, args)) = ("(" ^
                                    StringUtil.delimit " , " (map typtos args) ^
                                    " -> " ^ typtos ret ^ ")")
+    | typtos (Array (t, i)) = typtos t ^ "[" ^ Int.toString i ^ "]"
     | typtos (Word32 Unsigned) = "u32"
     | typtos (Word32 Signed) = "i32"
     | typtos (Word16 Unsigned) = "u16"
@@ -200,6 +206,8 @@ struct
   local
     fun eq_typ (Pointer a, Pointer b) = eq_typ (a, b)
       | eq_typ (Struct a, Struct b) = eq_meml (a, b)
+      | eq_typ (Array (t, i), Array (tt, ii)) = i = ii andalso
+          eq_typ (t, tt)
       | eq_typ (Code (aret, aargs), Code (bret, bargs)) =
           eq_typ (aret, bret) andalso eq_typl (aargs, bargs)
       | eq_typ (Word32 s1, Word32 s2) = s1 = s2
@@ -222,12 +230,30 @@ struct
   fun loctos (Local l) = l
     | loctos (Global l) = "GLOBAL " ^ l
 
+  val unescaped =
+    StringUtil.charspec "^A-Za-z0-9 ,./<>?;:[]{}|`~!@#$%^&*()-=_+"
+
+  fun bytestos v =
+    String.concat (map
+                   (fn b =>
+                    let
+                      val i = Word8.toInt b
+                      val ch = chr i
+                    in
+                      if unescaped ch
+                      then implode [ch]
+                      else implode
+                        [#"\\", #"x",
+                         StringUtil.nybbletohex (i div 16),
+                         StringUtil.nybbletohex (i mod 16)]
+                    end)
+                   (Word8Vector.foldr op:: nil v))
+
   fun valtos (Var v) = v
     | valtos (Word32Literal w) = "0x" ^ Word32.toString w
     | valtos (Word16Literal w) = "0x" ^ Word16.toString w
     | valtos (Word8Literal w) = "0x" ^ Word8.toString w
-    (* XXX heuristic for data, etc. *)
-    | valtos (StringLiteral s) = "\"" ^ String.toString s ^ "\""
+    | valtos (StringLiteral v) = "\"" ^ bytestos v ^ "\""
     | valtos (AddressLiteral (a, t)) = "ADDR(" ^ loctos a ^ " : " ^
     typtos t ^ ")"
     | valtos (FunctionLiteral (f, ret, args)) = "FADDR(" ^ f ^ " : " ^

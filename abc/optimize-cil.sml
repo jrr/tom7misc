@@ -17,6 +17,8 @@ struct
   open CIL
   structure BC = CILUtil.BC
 
+(*   structure ISM = ImperativeMapFn(type ord_key = string
+                                  val compare = String.compare) *)
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
   (* XXX some kind of debug mode *)
@@ -1059,6 +1061,119 @@ struct
         Program { functions = functions, main = old_main, globals = globals }
     end
 
+  structure StringLiteralToGlobalArg : CILPASSARG =
+  struct
+    type arg = (string * global) list ref
+    structure CI = CILIdentity(type arg = arg)
+    open CI
+    fun case_StringLiteral arg stuff vec =
+      let
+        (* String literal always ends with implicit \0. *)
+        val vec = Word8Vector.concat [vec, Word8Vector.fromList [0w0]]
+
+        val len = Word8Vector.length vec
+        (* byte offsets that are unprintable, with the value that
+           should actually be there. *)
+        val unprintable : (int * Word8.word) list ref = ref nil
+        fun is_printable b = b >= 0wx20 andalso b <= 0wx7e
+        val print_vec =
+          Word8Vector.tabulate (len,
+                                fn i =>
+                                let val b = Word8Vector.sub (vec, i)
+                                in
+                                  if is_printable b
+                                  then b
+                                  else
+                                    let in
+                                      unprintable := (i, b) :: !unprintable;
+                                      Word8.fromInt `ord #"-"
+                                    end
+                                end)
+         (* Now, generate initialization code that writes the
+            missing unprintable bytes. *)
+        val initlabel = CILUtil.newlabel "init_str"
+        val globalname = CILUtil.newglobal "strlit"
+        val globallit = AddressLiteral (Global globalname, Word8 Unsigned)
+
+        fun makeinit nil = End
+          | makeinit ((idx, b) :: rest) =
+          (* PERF: Ideally the optimizer would just make this
+             into good code, but it may be worth doing this
+             a bit more by hand.
+              - Write 16-bit or 32-bit literals if adjacent.
+             *)
+          let
+            val v = CILUtil.genvar "sidx"
+          in
+            (* PERF: I think it would produce better code right
+               now to start with an address an iteratively subtract
+               from it for each position, but the right fix is to
+               do some constant calculations in optimize-asm, once
+               we have a specific value for the AddressLiterals. *)
+            (* global[idx] = b; *)
+            Bind (v, Word16 Unsigned,
+                  Plus (Width16, globallit, Word16Literal `Word16.fromInt idx),
+                  Store (Width8, Var v, Word8Literal b,
+                         makeinit rest))
+          end
+        val init = makeinit ` rev ` !unprintable
+      in
+        arg :=
+        (globalname,
+         Glob { typ = Array (Word8 Unsigned, len),
+                bytes = SOME print_vec,
+                init = SOME { start = initlabel,
+                              blocks = [(initlabel, init)] } }) :: !arg;
+         (* Expression becomes the global's address instead. *)
+         (globallit,
+          Pointer ` Word8 Unsigned)
+      end
+  end
+  structure SLTG = CILPass(StringLiteralToGlobalArg)
+
+  (* Allocate a literal like "abc" into a global, which means that
+     mentions of it become AddressLiteral. *)
+  fun make_string_literals_global (Program { functions,
+                                             main,
+                                             globals }) =
+    let
+      val newglobals : SLTG.arg = ref nil
+
+      fun doblock bc (lab, stmt) =
+        let
+          val ctx = CIL.Context.empty
+          val arg = newglobals
+          val stmt = SLTG.converts arg ctx stmt
+        in
+          BC.insert (bc, lab, stmt)
+        end
+      fun onefunc (Func { args, ret, body, blocks }) =
+        let val bc = BC.empty ()
+        in
+          app (doblock bc) blocks;
+          Func { args = args, ret = ret, body = body,
+                 blocks = BC.extract bc }
+        end
+      fun oneglobal (Glob { typ, bytes, init = SOME { start, blocks } }) =
+        let val bc = BC.empty ()
+        in
+          app (doblock bc) blocks;
+          Glob { typ = typ, bytes = bytes,
+                 init = SOME { start = start,
+                               blocks = BC.extract bc } }
+        end
+        | oneglobal g = g
+
+      val functions = ListUtil.mapsecond onefunc functions
+      (* Global initialization could involve string literals *)
+      val globals = ListUtil.mapsecond oneglobal globals
+      val globals = !newglobals @ globals
+    in
+      Program { main = main,
+                functions = functions,
+                globals = globals }
+    end
+
   fun simplify (prev as (Program { functions, main, globals })) =
     let
       val () = print "\n----------- optimization round -------------\n"
@@ -1082,6 +1197,7 @@ struct
   fun optimize prog =
     let
       val prog = simplify prog
+      val prog = make_string_literals_global prog
       val prog = move_global_initialization prog
       (* Not totally sure this belongs here, but we do need to at least
          ensure that simplifications that happen after ECO do not

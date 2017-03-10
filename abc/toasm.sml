@@ -72,6 +72,17 @@ struct
     | typsize (C.Code _) = S16
     (* Maybe this should already have been compiled away. *)
     | typsize (C.Struct _) = raise ToASM "unimplemented: structs"
+    | typsize (C.Array _) = raise ToASM "unexpected typsize Array"
+
+  (* Number of bytes in a global of type t. This allows arrays
+     and should allow structs. *)
+  fun globaltypbytes (C.Word32 _) = 4
+    | globaltypbytes (C.Word16 _) = 2
+    | globaltypbytes (C.Word8 _) = 1
+    | globaltypbytes (C.Pointer _) = 2
+    | globaltypbytes (C.Code _) = 2
+    | globaltypbytes (C.Array (t, i)) = i * globaltypbytes t
+    | globaltypbytes (C.Struct _) = raise ToASM "unimplemented: structs"
 
   (* Same, but the size of temporary used to store a value of that
      size. XXX If we still need typsize (used to calculate frame
@@ -222,7 +233,8 @@ struct
            let val tmp = newtmp ("imm", A.S32)
            in A.Immediate32 (tmp, w32) // k (tmp, C.Word32 C.Unsigned)
            end
-        | C.StringLiteral _ => raise ToASM "unimplemented string literals"
+        | C.StringLiteral _ =>
+           raise ToASM "expected string literals to be compiled away by now"
 
       (* Generate code for e, and bind vt (if SOME) to its value. *)
       fun genexp (ctx : C.context) (vt : (string * C.typ) option, e : C.exp)
@@ -895,13 +907,16 @@ struct
         end
       fun oneglobal (name, C.Glob { typ, bytes, init }) =
         let
-          val size = typsize typ
+          val numbytes = globaltypbytes typ
           val bytes =
             (case bytes of
-               NONE => Word8Vector.tabulate (A.szbytes size,
+               NONE => Word8Vector.tabulate (numbytes,
                                              fn _ =>
                                              Word8.fromInt ` ord #"?")
-             | SOME b => b)
+             | SOME b => if Word8Vector.length b <> numbytes
+                         then raise ToASM ("Typ/bytes disagree in global " ^
+                                           name ^ "?")
+                         else b)
         in
           if Word8Vector.all printable8 bytes
           then ()

@@ -14,6 +14,7 @@ struct
     in
       case typ of
         Pointer a => call A.case_Pointer a
+      | Array a => call A.case_Array a
       | Code a => call A.case_Code a
       | Struct a => call A.case_Struct a
       | Word32 a => call A.case_Word32 a
@@ -117,6 +118,8 @@ struct
   (* typ *)
   fun case_Pointer arg ({ selft, selfv, selfe, selfs }, ctx) t =
     Pointer ` selft arg ctx t
+  fun case_Array arg ({ selft, selfv, selfe, selfs }, ctx) (t, i) =
+    Array (selft arg ctx t, i)
   fun case_Code arg ({ selft, selfv, selfe, selfs }, ctx) (ret, args) =
     Code (selft arg ctx ret, map (selft arg ctx) args)
   fun case_Struct arg ({ selft, selfv, selfe, selfs }, ctx) members =

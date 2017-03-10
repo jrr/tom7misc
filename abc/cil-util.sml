@@ -31,6 +31,11 @@ struct
   (* XXX there are several of these, which could collide.
      Should rationalize. *)
   val ctr = ref 0
+  fun newglobal s =
+    let in
+      ctr := !ctr + 1;
+      s ^ "$G" ^ Int.toString (!ctr)
+    end
   fun newlocal s =
     let in
       ctr := !ctr + 1;
