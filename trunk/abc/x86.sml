@@ -153,8 +153,8 @@ struct
     | CMP of size * args
     (* 3C,3D CMP al/ax/eax, imm *)
     | CMP_A_IMM of immediate
-    (* 3F DS segment override prefix *)
-    (* AAS ASCII Adjust After Subtraction *)
+    (* 3E DS segment override prefix *)
+    (* 3F AAS ASCII Adjust After Subtraction *)
     (* 40-47 INC multibyte register *)
     | INC of multireg
     (* 48-4F DEC multibyte register *)

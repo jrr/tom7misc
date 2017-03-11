@@ -4,7 +4,7 @@
    (Highly in-progress as of 10 Mar 2017!)
 */
 
-int _putc(int); // XXX don't use in paper!
+int _putc(int); // XXX non-printable! don't use in paper!
 int _out8(int, int);
 
 // Adlib uses two bytes to do a "note-on", and the notes are specified
