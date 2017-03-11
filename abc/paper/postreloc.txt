@@ -1,14 +1,14 @@
 
 Sorry about that!
 
-Not all of the ASCII bytes are considered printable, either. For example,
-0x14 means DEVICE CONTROL 4 in ASCII, forever enshrined as that useless
-idea. Even DOS didn't think it was useful, so DOS prints it as a
-"paragraph" symbol. The byte 0x07 just makes a beep sound if you try to
+Not  all  of the  ASCII  bytes  are  considered printable,  either.  For
+example, 0x14 means DEVICE CONTROL 4 in ASCII, forever enshrined as that
+useless idea. Even DOS didn't think it was useful, so DOS prints it as a
+"paragraph" symbol. The byte 0x07 just makes  a beep sound if you try to
 display it.
 
 
-The range of reliable characters are:
+The range of actually printable characters are:
 
    0x0A   NEWLINE
    0x0D.  CARRIAGE RETURN
@@ -16,12 +16,228 @@ The range of reliable characters are:
    ...
    0x7E.  ~
 
-.. and no others. 0x0A and 0x0D are actually pretty questionable, because
-UNIX, MacOS and DOS/Windows could not agree on whether a line ends with
-newline, carriage return, or carriage return and then newline. This paper
-is concerned with reliably printable characters, so we say that's the
-95 characters from 0x20 to 0x7E, inclusive.
+..  and no  others.  0x0A  and 0x0D  are  actually pretty  questionable,
+because UNIX,  MacOS and DOS/Windows could  not agree on whether  a line
+ends with newline, carriage return, or carriage return and then newline.
+This paper  is concerned with  reliably printable characters, so  we say
+that's the  95 characters from 0x20  to 0x7E, inclusive. This  is all of
+'em, with the upper-left corner being 0x20 SPACE.
+
+             ! " # $ % & ' ( ) * + , - . / 0 1 2
+           3 4 5 6 7 8 9 : ; < = > ? @ A B C D E
+           F G H I J K L M N O P Q R S T U V W X
+           Y Z [ \ ] ^ _ ` a b c d e f g h i j k
+           l m n o p q r s t u v w x y z { | } ~
 
 
+    ** Printable X86 **
 
-I was kidding when I said the x86 architecture is elegant.
+Since only 37%  of bytes are printable, if you  inspect (i.e., "cat") an
+executable   program,  it   will  almost   always  contain   unprintable
+characters, and may beep at you, etc. However, since the printable bytes
+do stand for  some subset of X86 opcodes, it  is technically possible to
+make X86 sequences  that are printable. One famous example  is the EICAR
+Test File:
+
+X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
+
+This string  is used to  test antivirus  software, because you  can hide
+this string away inside some file and then see if the antivirus software
+can successfully find  it (?). What's cool about this  string is that if
+you stick  it in a  file called, say, EICAR.COM,  you can just  run that
+file in DOS and it prints out
+
+EICAR-STANDARD-ANTIVIRUS-TEST-FILE!
+
+... as if you can't already just see that in the file.
+
+The EICAR Test File is clever, but there are a few problems with it:
+
+  - It was written by hand. Though it's easy to change the message
+    it prints, everything else about it is extremely delicate.
+
+  - Because it's in a COM file, it only has access to a single
+    64k segment, which must hold the code, data, and stack.
+
+  - Most damningly, like many viruses it uses "self-modifying code"
+    to first rewrite itself into different opcodes. This means that
+    the processor ends up executing several non-printable opcodes.
+
+In this  paper I  present a  compiler for  the C89  programming language
+called ABC.  It produces completely  printable executables from  C code.
+While self-modifying code is a powerful technique, it makes this problem
+"too easy;" I  want to explore what programs can  be written natively in
+the printable  subset of X86. Programs  compiled with ABC do  not modify
+themselves, or  cause themselves to  be modified; every  instruction the
+program executes  (outside of  the operating  system) contains  only the
+bytes 0x20-0x7E.
+
+Source code for this project is available at:   http://tom7.org/abc
+
+
+    ** Difficulties **
+
+This is a challenging programming problem!
+
+  - Well, you have to write a compiler;
+  - Due to some constraints, it has to produce reasonably good (small)
+    code, or the compilation strategy will fail;
+  - You only get a handful of instructions;
+  - Some extremely important instructions are completely missing;
+  - Notably, superficially you can't load arbitrary numbers into
+    registers, jump backwards, or interact with the operating system;
+  - Many remaining instructions can only be used in weird addressing modes;
+  - Several standard techniques for assembling programs don't work
+    due to the subset being compiled;
+  - The program's header must also be printable, which puts constraints
+    on its size and layout;
+  - Unreasonable SIGBOVIK policies require that papers not be xxx-tra
+    large-size.
+
+By now you've  probably guessed from the gibberish  you've been seeing
+that this paper  is itself the output  of ABC; that is,  this paper is
+also an executable file. If so, you guessed correct!!
+
+
+    ** Available instructions **
+
+Let's look at  the printable opcodes available in  X86. Don't actually
+read this table, but I will refer to it:
+
+    20-23  AND reg|mod/rm
+    24,25  AND AL/AX/EAX <- imm
+       26  ES segment override prefix
+       27  DAA Decimal Adjust AL after addition
+    28-2B  SUB reg|mod/rm
+    2C,2D  SUB AL/AX/EAX <- imm
+       2E  CS segment override prefix
+       2F  DAS Decimal Adjust AL after subtraction
+    30-33  XOR reg|mod/rm
+    34,35  XOR AL/AX/EAX <- imm
+       36  SS segment override prefix
+       37  AAA ASCII Adjust After Addition
+    38-3B  CMP reg|mod/rm
+    3C,3D  CMP AL/AX/EAX <- imm
+       3E  DS segment override prefix
+       3F  AAS ASCII Adjust After Subtraction
+    40-47  INC multibyte register
+    48-4F  DEC multibyte register
+    50-57  PUSH multibyte register
+    58-5F  POP multibyte register
+       60  PUSHA Push all registers
+       61  POPA Pop all register
+       62  BOUND Check array index against bounds
+       63  ARPL Adjust RPL field of segment selector
+       64  FS segment override prefix
+       65  GS segment override prefix
+       66  operand size override prefix
+       67  address size override prefix     
+    68,6A  PUSH imm
+       69  IMUL
+    6C,6D  INS ES:DI <- DX
+    6E,6F  OUTS DX <- DS:SI
+    70-7E  Jcc+disp8 variants
+
+That's all  we get!  Many of  these opcodes take  arguments, such  as an
+immediate byte (or word, or  double-word); for example the sequence 0x24
+0x42 means AND AL <- 0x42. In  these cases, the arguments must of course
+also be  printable, which  limits what  we can  do with  them, sometimes
+severely.
+
+It's not clear that it will even  be possible to do basic things, and it
+was a pretty satisfying hacking challenge to work around limitations. If
+you have some  x86 assembly experience, you might want  to give a little
+thought to the following puzzles:
+
+ - How can we load an arbitrary number (e.g. an address constant) into
+   a register? Note that the immediate value in something like "PUSH imm"
+   must be printable.
+ - Without the MOV instruction, how do we do loads and stores?
+ - Without the INT instruction, how can we even exit the program?
+ - The Jcc (e.g. JNZ, JAE) instructions take only an absolute displacement.
+   How do we do function (pointer) calls and returns?
+ - The displacement must be printable, which means it is always a
+   positive number. How do we even do loops?
+
+(XXX any more puzzles?)
+
+I will explain those problems and my solutions in later sections; I
+think they are each interesting. Various parts of the compiler's design
+are intertwined by the many constraints, so there is no easy path
+through the whole idea. For now, let's warm up with the file format.
+
+
+    ** Executable file formats **
+
+In order for the compiler's output to be executable, it needs to be in a
+file that the operating system recognizes as program. This means that
+the header of the program needs to be printable too. We can rule out
+several formats that cannot possibly have printable headers:
+
+On Linux, executables are ELF files. The first byte of these files
+is always 0x7F "DELETE", which is not printable. Severam other bytes
+in the header have to be zero.
+
+On MacOS, executables are Mach-O files. These files always start with
+0xFEEDFACE, an amusing example of unprintable bytes whose hexadecimal
+representation nonetheless spells out words. It also requires a field
+called MH_EXECUTE to be 0x02, among other problems.
+
+On Windows, most executables are EXE Files. The modern version of this
+format is called Portable Executable (PE) and is used for 32- and 64-bit
+programs. It contains a required COFF subheader which always starts with
+0x50450000 (the zero bytes not printable). For backward "compatibility",
+PE EXE files actually start with old-style EXE headers, which are actually
+programs that print something like
+
+   This program cannot be run in DOS mode.
+
+and then exit. Windows recognizes a secret code that tells it to ignore
+that part and look at the *real* program.
+
+... this eliminates the main executable formats for the modern x86
+platforms. :( We saw that the EICAR program is a COM file, so clearly
+that is a possibility?
+
+A DOS .COM file has no header. The entire program is just inserted into
+memory at the address 0x0100 and starts running. This level of simplicity
+is a dream for a SIGBOVIK Compiler Author, but it has a fatal flaw. In
+order to understand, we need to take a break and talk about segmentation!
+
+    ** Segmentation break! **
+
+DOS is a 16-bit operating system, and a 16-bit number can only denote
+65,536 ("64k") different values. To allow programs to address more than
+64k of memory, Intel introduced "segments" into the (XXX) 8088. These
+are a nightmare for programmers, and when I was a teenager and the "flat
+memory model" (32-bit virtual addresses) became available, I thought I
+would be free of segments forever. We're back! Roughly speaking, the
+instruction set allows you to supply 16-bit addresses (offsets), but the
+processor internally combines these with 16-bit base addresses
+(segments). The "real address" is (segment * 16 + offset). Some annoying
+facts:
+
+ - The segment registers are changed through different instructions, none
+   of which are available in printable X86.
+ - However, we can make some instructions use a different segment
+   register with one of the prefix bytes (e.g. 0x36 uses the SS (stack)
+   segment instead of the default, which might be DS (data)).
+ - There are multiple different SEG:OFF pairs that reference the same
+   real address.
+ - The segment values are not predictable in DOS, because they depend
+   on where DOS happens to place your program.
+
+We'll have to deal with segments for sure, but one consolation (?) is that
+since we can't change the values, the program will only access the 64k
+of data within the segments it starts out with.
+
+There are 6 segments, CS (code), DS (data), SS (stack), and three
+"other" segments ES, FS, and GS.
+
+(XXX more to say about segments?)
+
+    ** Executable file formats, continued... **
+
+In a DOS .COM  file, CS, DS, ES, and SS are all  initialized to the same
+value. This is  easy to think about,  but it causes a  super bad problem
+for us.
