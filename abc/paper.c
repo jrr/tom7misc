@@ -7,6 +7,22 @@
 int _putc(int); // XXX don't use in paper!
 int _out8(int, int);
 
+// Adlib uses two bytes to do a "note-on", and the notes are specified
+// in a somewhat complex way (octave multiplier plus frequency.) These
+// tables give the upper and lower byte for each MIDI note. Computed
+// by makefreq.sml.
+char *upper = "\x20\x20\x20\x20\x20\x20\x20\x20!!!!!!!!!!!!"
+  "\x22\x22\x22\x22\x22\x22\x22#####&&&&&&&'''''*******+++++"
+  "......./////222222233333666666677777:::::::;;;;;>>>>>>>"
+  "????????????????";
+char *lower = "\xA9\xB3\xBD\xC9\xD5\xE1\xEF\xFD\x0C\x1C-?Qf{"
+  "\x91\xA9\xC2\xDD\xFA\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18"
+  "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA"
+  "\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R"
+  "\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB"
+  "\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\xFF\xFF"
+  "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF";
+
 int Adlib(int reg, int value) {
   int i;
   _out8((int)0x0388, (int)reg);

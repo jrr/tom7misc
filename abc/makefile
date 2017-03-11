@@ -1,4 +1,4 @@
-all : abc.exe benchbytes.exe twocolumn.exe text2pdf.exe
+all : abc.exe benchbytes.exe makefreq.exe twocolumn.exe text2pdf.exe
 
 # just MLTON=mlton should work on most installations btw
 MLTON=/c/mlton/bin/mlton.bat
@@ -11,6 +11,9 @@ abc.exe : $(ABC_SML) abc.mlb
 
 maketest.exe : maketest.sml maketest.mlb
 	$(MLTON) -output $@ maketest.mlb
+
+makefreq.exe : makefreq.sml makefreq.mlb
+	$(MLTON) -output $@ makefreq.mlb
 
 twocolumn.exe : twocolumn.sml twocolumn.mlb
 	$(MLTON) -output $@ twocolumn.mlb
