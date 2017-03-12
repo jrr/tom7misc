@@ -165,6 +165,9 @@ struct
   structure A = ASM
   structure M = Machine
 
+  structure ISM = ImperativeMapFn(type ord_key = string
+                                  val compare = String.compare)
+
   val INIT_SP = Word16.fromInt 0x7e7e
 
   val ASSEMBLY_CTX = X86.CTX { default_32 = false }
@@ -882,6 +885,9 @@ struct
           val cs = Segment.empty ()
           val () = Segment.set_repeating_string cs 0 65536 "(CODE SEGMENT)"
 
+          (* For debugging, the addresses of each label (can set breakpoints, etc. *)
+          val addresses = ISM.empty ()
+
           (* OK, now we want to insert our blocks into the code segment and
              patch up the jumps. This may not be possible, in which
              case we'll make some adjustment (like splitting a block)
@@ -1066,6 +1072,7 @@ struct
                          SOME (Word16.fromInt (!cur + RUNG_SIZE))
                      | SOME _ => raise ToX86 "initial label emitted twice?!"
                    else ());
+                  ISM.insert (addresses, lab, !cur);
                   Segment.set_vec cs (!cur) vec;
                   (* Lock everything except for the locations we need to
                      update (jumps) *)
@@ -1151,6 +1158,7 @@ struct
                             Word16.toString init_ip);
           { cs = Segment.extract cs,
             codebytes = !total_size,
+            locs = ISM.listItemsi addresses,
             init_ip = init_ip,
             ds = datasegment }
         end

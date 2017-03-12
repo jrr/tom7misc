@@ -48,4 +48,4 @@ dos/tests.bat : maketest.exe makefile
 
 TEXT2C=paper/firstpage.2c paper/postreloc.2c
 dos/%.exe : %.c abc.exe $(TEXT2C)
-	./abc.exe $< -o $@
+	./abc.exe -v $< -o $@

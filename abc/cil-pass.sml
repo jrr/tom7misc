@@ -50,6 +50,7 @@ struct
         Value a => call A.case_Value a
       | Truncate a => call A.case_Truncate a
       | Promote a => call A.case_Promote a
+      | Cast a => call A.case_Cast a
       | Plus a => call A.case_Plus a
       | Minus a => call A.case_Minus a
       | Times a => call A.case_Times a
@@ -175,6 +176,17 @@ struct
       (* XXX check compatibility of src and t? *)
       (Promote { src = src, dst = dst, signed = signed, v = v },
        wordwidth dst)
+    end
+
+  fun case_Cast arg ({ selft, selfv, selfe, selfs }, ctx) { src, dst, v } =
+    let
+      val (v, t) = selfv arg ctx v
+      val src = selft arg ctx src
+      val dst = selft arg ctx dst
+    in
+      (* XXX check compatibility of src and t, and that src/dst have
+         the same representation? *)
+      (Cast { src = src, dst = dst, v = v }, dst)
     end
 
   fun case_Plus arg ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =

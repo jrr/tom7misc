@@ -261,6 +261,7 @@ struct
       Value _ => true
     | Truncate _ => true
     | Promote _ => true
+    | Cast _ => true
     | Plus _ => true
     | Minus _ => true
     | Times _ => true
