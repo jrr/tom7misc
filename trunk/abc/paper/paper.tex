@@ -62,7 +62,6 @@ This is the abstract
 % ``characters'' ``words'' and ``paragraphs'' and ``pages''
 
 % Literate executable, knuth
-% In the dead space of the binary, put this paper or part of it
 
 % ``PISC'' = Printable Instruction Set Computer, etc.
 
@@ -75,35 +74,15 @@ languages.
 
 Thank you for playing wing commander.
 
-TODO: Convert byte table thing into ascii. Unfortunately can't fit
-the whole 256x256 thing, so maybe 128x128 with a small amount of
-cropping, then a 1:1 zoom on the sierpinski triangle part?
-
-this page confirms the wrap-around with jumps btw:
-http://www.felixcloutier.com/x86/Jcc.html
-(Probably already in the x86 manual actually?)
-
 Another possibility is to include readable debug information (e.g.
 frame layouts) in a separate section.
-
-BTW here is eicar:
-
-X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
-
-It does indeed use self-modifying code to create the interrupt
-instructions, which it uses to print the string and exit.
 
 histogram of actual bytes used in code segment?
 
 interesting bugs:
   DI <- [DI]
 
-write about load16 tmp <- tmp; it's amazing now.
-(benchmark history shows performance gains..)
-
 words contained in this paper
-
-``interrupt is a way of telling the operating system: Check this out!''
 
 style points for:
 - put relocations a little later after CS, so that we can mark
@@ -142,7 +121,18 @@ ES segment must be used for IN?
 
 TODO: X86 vs x86
 
-(accumulator?)
+(Idea: ladder is actually interspersed in code, by putting some long instruction
+byte (that takes several arguments) before DEC SP JNZ +7e? We can jump directly
+to the jump, but if executed in a normal synchronized flow, then it executes some
+instruction that does nothing (load immediate?).)
+
+(Idea: Once we've gone past EIP=0xFFFF, we can still execute code from our binary.
+It may be possible to get back to CS by doing a jump with the address/operand size prefix?
+Neither one has an effect in DOSBox, which may be a bug? Anyway, if an interrupt
+is triggered while we're up here, it seems like it only does a 16-bit RET, so that's
+kinda busted.)
+
+missing condition; ``left-facing''
 
 RISC ROLL
 

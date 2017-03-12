@@ -741,8 +741,8 @@ the same slot.  This situation rarely occurs  naturalistically, since it
 would correspond to unusual C code  like (int*)x = (int*)*x. However, it
 is very commonly the output of temporary coalescing (Section XXX), since
 it is typical for the final use of  an address to be a load from it. So,
-this is  actually useful, but the  main reason to do  it is awesomeness!
-Let's say the single temporary is at EBP+0x20.
+this is actually useful (saves about  5% code size), but the main reason
+to do it is awesomeness! Let's say the single temporary is at EBP+0x20.
 
     set DI <- 0             ;; macro
     XOR DI <- [EBP+0x20]    ;; load the address into DI.
@@ -777,8 +777,9 @@ We also  want to be able  to exit the  program when we're done.  This is
 normally done by  making a "system call" to an  operating system routine
 to tell it that we're done and  the program can be unloaded. In DOS, you
 make  system calls  by triggering  a  processor interrupt  with the  INT
-instruction. We don't  have access to this instruction,  whose opcode is
-0xCD. Alas!  The INT  instruction is  a gateway to  all sorts  of useful
+instruction, which is a way of telling the operating system, "Check this
+out!!" We don't  have access to this instruction, whose  opcode is 0xCD.
+Alas!  The  INT  instruction  is  a  gateway  to  all  sorts  of  useful
 functionality,  like printing  strings  and reading  from the  keyboard,
 reading and writing files, changing video modes, and so on, so it's very
 sad to go without it. (The  EICAR test virus uses self-modifying code to
@@ -830,31 +831,31 @@ with him? Who can say?
 
 This is  not hopeless. The way  interrupts actually work is  to stop the
 current execution (saving  the state of the registers on  the stack) and
-then consult a table of "interrupt  vectors" (in my opinion it should be
-called  the  "interrupt vector"  containing  addresses)  at the  address
-0x0000:0x0000 (i.e., right  at the beginning of  memory). Each interrupt
-has a number,  and each address is a 32-bit  segment:offset pair. So the
-address at 4 * 0x21 = 0x0084 is the location of DOS's code for INT 0x21.
-In  16-bit  real  mode  programs,  there's  nothing  special  about  the
-operating system;  you can just  jump directly into  it if you  want, or
-overwrite it  with your  own stuff.  In fact, this  is how  many viruses
-work; for example by  the address for INT 0x21 with  their own code, and
-intercepting file operations to insert viruses before calling through to
-the original INT 0x21 handler so that everything still works.
+then consult  a table of  "interrupt vectors"  (in my opinion  the table
+itself should be called the "interrupt vector", containing addresses) at
+the address 0x0000:0x0000 (i.e., right at the beginning of memory). Each
+interrupt  has a  number, and  each address  is a  32-bit segment:offset
+pair. So the address at 4 * 0x21  = 0x0084 is the location of DOS's code
+for  INT 0x21.  In 16-bit  real mode  programs, there's  nothing special
+about the  operating system; you can  just jump directly into  it if you
+want, or  overwrite it with  your own stuff. In  fact, this is  how many
+viruses work;  for example by  the address for  INT 0x21 with  their own
+code, and intercepting file operations  to insert viruses before calling
+through to the original INT 0x21 handler so that everything still works.
 
-Fetching the INT 0x21 address is not immediately useful, because we
-can't transfer control to it; we don't have the CALL instruction. In
+Fetching  the INT  0x21 address  is not  immediately useful,  because we
+can't transfer  control to it;  we don't  have the CALL  instruction. In
 fact, the only JMP instructions we have must jump a small fixed distance
-forward (next section). But! The INT instruction is not the only way to
-trigger interrupts. The timer interrupt is firing continuously, messing
+forward (next section). But! The INT  instruction is not the only way to
+trigger interrupts. The timer  interrupt is firing continuously, messing
 with our stack, for example. We can modify the interrupt vector table to
-make the timer interrupt (INT 0x8) instead point to the INT 0x21 code,
-and then "wait" for a timer interrupt to happen, and maybe restore the
-old timer interrupt code when we're done. This might work, but it seems
-extremely brittle. (Also, the timer interrupt handler has to perform
-certain low-level duties or else the system will freeze.) Fortunately
-there's a better choice: The CPU will also trigger an interrupt when
-an illegal instruction is executed. Do we have an illegal instruction
+make the timer  interrupt (INT 0x8) instead point to  the INT 0x21 code,
+and then "wait"  for a timer interrupt to happen,  and maybe restore the
+old timer interrupt code when we're  done. This might work, but it seems
+extremely brittle.  (Also, the  timer interrupt  handler has  to perform
+certain low-level  duties or else  the system will  freeze.) Fortunately
+there's a better choice: The CPU  will also trigger an interrupt when an
+illegal  instruction is  executed.  Do we  have  an illegal  instruction
 inside printable x86? In fact we do!
 
    0x63    Adjust RPL Field of Segment Selector
@@ -901,9 +902,178 @@ printable; the instruction we actually encode is
 
 The ASCII  sequence is  "cya", as  in see  ya, which  we follow  with an
 unexecuted exclamation mark for emphasis. You can find the string "cya!"
-in the code segment on page XXX.
+in the code segment on page XXX (use final program to determine page!).
 
 
     ** Loops **
 
-(then can pop out to higher-level discussions)
+The last major  problem involves control flow. In printable  x86 we have
+available a family of instructions  Jcc+disp8. Jcc stands for "jump (on)
+condition code", and consists of 15 opcodes:
+
+ char   opcode                                     Also known as
+   p     0x70    JO     Jump if overflow
+   q     0x71    JNO    Jump not overflow
+   r     0x72    JB     Jump below                 JNAE, JC
+   s     0x73    JNB    Jump not below             JNB, JAE, NKC
+   t     0x74    JZ     Jump zero                  JE
+   u     0x75    JNZ    Jump not zero              JNE
+   v     0x76    JBE    Jump below or equal        JNA
+   w     0x77    JNBE   Jump not below or equal    JA
+   x     0x78    JS     Jump if sign
+   y     0x79    JNS    Jump not sign
+   z     0x7A    JP     Jump if parity even        JPE
+   {     0x7B    JNP    Jump if parity odd         JPO
+   |     0x7C    JL     Jump less                  JNGE
+   }     0x7D    JNL    Jump not less              JNL
+   ~     0x7E    JLE    Jump if less or equal      JNG
+
+
+This is  a fairly full  set of conditions  (although we are  missing the
+last  one,  JNLE/JG, with  opcode  0x7F).  Each  of these  consults  the
+processor's FLAGS register  and tests for a certain  condition. FLAGS is
+updated on many operations; for example, the  "zero flag" ZF is set to 1
+if the result of certain operations  is zero, such as if "SUB [EBP+0x24]
+<- AX"  ends up writing 0x0000  into memory, and  ZF is cleared to  0 if
+not. The JZ instruction jumps if ZF is set, and just continues on to the
+next instruction otherwise.  JZ has an alias, JE (Jump  equal); they are
+the same exact  opcode because when you subtract two  equal numbers, you
+get  zero. Since  it is  common  to want  to set  the appropriate  FLAGS
+without actually subtracting, the CMP  (compare) instruction is like SUB
+but it only updates  flags. We have a version of  the CMP instruction in
+printable x86, so all is well so far.
+
+These  particular instructions  are Jcc+disp8,  so we  provide an  8-bit
+displacement. The  address of the  current instruction is stored  in the
+EIP  ("instruction  pointer") register.  When  EIP  points at  Jcc+disp8
+instruction, EIP is set to  the instruction immediately after it (EIP+2)
+and then  if we jump,  incremented further by  disp8. The disp8  byte is
+treated as  signed, so jumps  can go upward or  downward. Unfortunately,
+all   printable  displacements   are   positive!  This   allows  us   to
+conditionally skip code, but only downward,  and only between 32 and 127
+bytes.
+
+This subset  won't even be  Turing-complete if we can't  jump backwards;
+all  programs  will  terminate  because  the  instruction  pointer  only
+increases.  What actually  happens when  we reach  the end  of the  code
+segment? If EIP is 0xFFFF and  we execute a single-byte instruction like
+INC AX, EIP just continues on  to 0x00010000; the EIP register is 32-bit
+despite us struggling with 16-bit segments and offsets. This instruction
+is right after  the code segment, and indeed  contains whatever followed
+our code  segment in the  program image.  So we could  conceivably break
+free of the  64k code segment. Unfortunately, performing a  jump when in
+this weird  state still just jumps  downward, and the situation  is very
+brittle (see Section XXX for some ideas and problems). However, there is
+a  special case  on the  processor, probably  for compatibility  with an
+earlier  processor;  it's  right  there   in  the  pseudocode  for  this
+instruction in Intel's manual [XXX]:
+
+  IF condition
+     THEN
+        EIP <- EIP + SignExtend(DEST)
+        IF OperandSize = 16
+           THEN
+              EIP <- EIP AND 0000FFFFH;
+        FI;                                          (sic -tom7)
+           ELSE (* OperandSize = 32 *)
+              IF EIP < CS.Base OR EIP > CS.Limit
+                  #GP
+        FI;
+  FI;
+
+Specifically, if we  are right at the  end of the code  segment, and our
+jump's displacement takes us past the  end, then we "wrap around" to the
+beginning, because EIP is bitwise-anded with 0xFFFF. This means that our
+program can do one  backwards jump, from the end of  the segment back to
+the beginning.
+
+Once is enough!  We can set things  up so that whenever we  need to jump
+backwards,  we instead  jump  forward  until we're  at  the  end of  the
+segment,  then  jump  across  that boundary  (overflowing  back  to  the
+beginning) and then  keep jumping forward until we get  where we need to
+be. This is delicate, but it works.
+
+One other issue  with jumps is that  we can only jump  a fixed distance;
+there  is no  equivalent  to "MOV  EIP  <-  AX" to  jump  to a  computed
+location.  We  need this  functionality  to  implement two  C  features:
+Function pointers  (the destination of a  function call is not  known at
+compile time) and  returning from functions (the function  can be called
+from multiple sites, so we need to know which site to return to).
+
+
+    ** The ladder **
+
+The  solution we  use is  called  the "ladder"  in the  code. The  whole
+program is  broken up  into small blocks  of code. Each  one is  given a
+sequential "number"  (this has nothing  to do with the  memory location,
+just  its sequence  in the  list of  blocks). Each  block starts  with a
+"rung," which is the following code
+
+    DEC SI
+    JNZ +disp8
+
+where disp8 is  a printable displacement that brings us  downward to the
+next block. We decrement  the SI register to count down  to the block we
+want, and if it is Not Zero yet,  then we jump to the next one. If zero,
+we execute the block. Inside a block,  if we ever want to perform a jump
+to some arbitrary block dest_block, then we can compute:
+
+    offset = (dest_block - current_block) mod num_blocks
+    si = (if offset = 0 then num_blocks else offset)
+    jmp to next rung
+
+Every block knows its current number,  so the offset is just a constant.
+Note  that the  destination block's  number  may be  before the  current
+block,  which is  why we  need  to mod  by  the total  number of  blocks
+(yielding a non-negative  result). SI cannot be zero,  because the first
+thing we do is DEC it, so  a self-loop requires setting to num_blocks, a
+full cycle.
+
+To perform  a jump to  a code location not  known at compile  time (e.g.
+from a return  address (block number) on the stack,  we can just perform
+the same computation as above. We do not have an efficient mod operation
+(implementing  it seems  to need  loops,  in fact,  a circularity!),  so
+instead we  actually compute (dest_block -  current_block) + num_blocks.
+This is always positive as needed, but requires forward jumps to make an
+entire  cycle around  the entire  ladder ("Turn  the dial  to the  left,
+passing zero and the first number...").
+
+The blocks  are laid out  sequentially in the  program until we  get too
+close to the end of the segment; when  we do, we make sure to perform an
+unconditional jump  across the  segment boundary, wrapping  around. This
+jump need not DEC SI. In fact, most programs do not fill the entire code
+segment, so we end up padding the  end and beginning of the segment with
+jumps to span  the unused space. For these padding  jumps, we definitely
+don't want to DEC SI, both  because that's more instructions to execute,
+and because we don't  know the amount of padding ahead  of time (see the
+section on Assembling below).
+
+There are many annoyances!
+
+A jump cannot be too short (less than 32 bytes) or too long (127 bytes).
+
+
+We don't have access to a non-conditional JMP instruction. There are a
+few tricks for simulating it. When computing a jump to a known label, we
+can just know the state of flags because we've just performed some
+computation. Even when doing a jump to a computed block number, we know
+that the result of subtraction is not zero, so we can always use the JNZ
+instruction. Occasionally we need to do a jump without knowing our state
+at all. XOR always clears the Overflow flag, so something like
+
+    XOR AX <- [DI]
+    XOR AX <- [DI]
+    JNO disp
+
+keeps AX unperturbed and always performs the jump. A little shorter is
+
+    JNO disp
+    JO (disp - 2)
+
+which jumps to the same target whether  the Overflow flag is set or not,
+but is more annoying because we need to keep track of two displacements.
+(XXX)
+
+
+    ** Assembling **
+
