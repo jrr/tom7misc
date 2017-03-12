@@ -168,7 +168,9 @@ struct
   structure IIM = ImperativeMapFn(type ord_key = int
                                   val compare = Int.compare)
 
-  val INIT_SP = Word16.fromInt 0x7e7e
+
+  (* val INIT_SP = Word16.fromInt 0x7e7e *)
+  val INIT_SP = Word16.fromInt 0x6e69
 
   val ASSEMBLY_CTX = X86.CTX { default_32 = false }
   val RUNG_SIZE =
@@ -263,10 +265,22 @@ struct
             A.Label _ => raise ToX86 "bug: unexpected Label"
           | A.Nop => Continue acc
           | A.Init =>
-              let in
-                (* Sanity check... *)
-                if is_initial then ()
-                else raise ToX86 "bug: init instruction outside initial block?";
+              let
+                val () =
+                  (* Sanity check... *)
+                  if is_initial then ()
+                  else raise ToX86 "bug: init instruction outside initial block?";
+
+              (* If init_sp is odd, INC it so that it's aligned. This
+                 allegedly gives much better performance. *)
+                val acc =
+                  if Word16.andb (INIT_SP, Word16.fromInt 1) =
+                     Word16.fromInt 0
+                  then acc
+                  else if INIT_SP = Word16.fromInt 0xFFFF
+                       then acc // DEC SP
+                       else acc // INC SP
+              in
                 (* We actually point both EBP and EBX 32 bytes before the
                    temporary and local frames, respectively. This is because
                    the smallest printable disp8 we can actually represent
@@ -287,6 +301,10 @@ struct
                 then raise ToX86 ("frame_stack_start must be at least 0x20 " ^
                                   "so that EBP can point 0x20 bytes before " ^
                                   "it.")
+                else ();
+                if Word16.>= (INIT_SP, TMP_FRAME_START)
+                then raise ToX86 ("initial stack pointer should be less than " ^
+                                  "temporary frame start, or they'll interfere")
                 else ();
                 Continue `
                 Tactics.initialize (acc,
@@ -1144,7 +1162,7 @@ struct
                                  else ()
                         val next_cur = !cur + JMP_SIZE + 0x7e
                       in
-                        print ("Write jmp to " ^ Int.toString (!cur) ^ "...\n");
+                        (* print ("Write jmp to " ^ Int.toString (!cur) ^ "...\n"); *)
                         Segment.set_vec cs (!cur) jmp;
                         Segment.lock_range cs (!cur) JMP_SIZE;
                         cur := next_cur;
