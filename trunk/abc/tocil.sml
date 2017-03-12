@@ -21,7 +21,6 @@ struct
   val LiteralTrue = Word16Literal ` Word16.fromInt 1
   val LiteralFalse = Word16Literal ` Word16.fromInt 0
 
-  (* Maybe these should be functor arguments? *)
   val POINTER_WIDTH = Width16
   val POINTER_INT_TYPE = Word16 Signed
   val INT_WIDTH = Width16
@@ -383,7 +382,19 @@ struct
            Pointer t => k (ptrv, typewidth t, t)
          | _ => raise ToCIL ("Attempt to dereference non-pointer: " ^
                              typtos ptrt))
-    | _ => raise ToCIL "illegal/unimplemented lvalue"
+    | Ast.AddrOf _ => raise ToCIL "illegal lvalue AddrOf"
+    | Ast.Binop _ => raise ToCIL "illegal lvalue Binop"
+    | Ast.Unop _ => raise ToCIL "illegal lvalue Unop"
+    | Ast.Cast _ => raise ToCIL "illegal lvalue Cast" (* XXX might be legal? *)
+    | Ast.Id _ => raise ToCIL "illegal lvalue Id"
+    | Ast.EnumId _ => raise ToCIL "illegal lvalue EnumId"
+    | Ast.SizeOf _ => raise ToCIL "illegal lvalue SizeOf"
+    | Ast.ExprExt _ => raise ToCIL "illegal lvalue ExprExt"
+    | Ast.ErrorExpr => raise ToCIL "illegal lvalue ErrorExpr"
+    | _ =>
+        let in
+          raise ToCIL "illegal/unimplemented lvalue"
+        end
 
 
   and transexplist (es : Ast.expression list) (bc : stmt bc)
@@ -851,17 +862,36 @@ struct
                  | isnumeric (Word16 _) = true
                  | isnumeric (Word32 _) = true
                  | isnumeric _ = false
+
+               (* Pointers and 16-bit words are freely interconvertible. *)
+               fun convertible (Pointer _, Word16 _) = true
+                 | convertible (Word16 _, Pointer _) = true
+                 (* Same for any two pointer types. *)
+                 | convertible (Pointer _, Pointer _) = true
+                 (* TODO: code pointers *)
+                 | convertible _ = false
              in
                if isnumeric t andalso isnumeric et
                then
                  implicit { src = et, dst = t, v = ev } k
                else
-                 raise ToCIL "non-numeric casts as yet unimplemented"
+                 if convertible (et, t)
+                 then
+                   let val cvar = genvar "cast"
+                   in Bind (cvar, t, Cast { src = et, dst = t, v = ev },
+                            k (Var cvar, t))
+                   end
+                 else raise ToCIL ("Disallowed or unimplemented cast from " ^
+                                   typtos et ^ " to " ^ typtos t)
              end)
       | Ast.EnumId (m, n) => k (unsigned_literal Width32 (LargeInt.toInt n),
                                 Word32 Unsigned)
 
-      | Ast.AddrOf _ => raise ToCIL "unimplemented: AddrOf"
+      | Ast.AddrOf e =>
+        translvalue e bc
+        (fn (addr, width, typ) =>
+         k (addr, Pointer typ))
+
       | Ast.SizeOf _ => raise ToCIL "unimplemented: sizeof"
       | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
       | Ast.ErrorExpr => raise ToCIL "encountered ErrorExpr"

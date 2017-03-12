@@ -40,6 +40,7 @@ sig
   val case_Value : arg -> selves * CIL.context -> CIL.value -> CIL.exp * CIL.typ
   val case_Truncate : arg -> selves * CIL.context -> { src: CIL.width, dst: CIL.width, v: CIL.value } -> CIL.exp * CIL.typ
   val case_Promote : arg -> selves * CIL.context -> { signed: bool, src: CIL.width, dst: CIL.width, v: CIL.value } -> CIL.exp * CIL.typ
+  val case_Cast : arg -> selves * CIL.context -> { src: CIL.typ, dst: CIL.typ, v: CIL.value } -> CIL.exp * CIL.typ
   val case_Plus : arg -> selves * CIL.context -> CIL.width * CIL.value * CIL.value -> CIL.exp * CIL.typ
   val case_Minus : arg -> selves * CIL.context -> CIL.width * CIL.value * CIL.value -> CIL.exp * CIL.typ
   val case_Times : arg -> selves * CIL.context -> CIL.width * CIL.value * CIL.value -> CIL.exp * CIL.typ

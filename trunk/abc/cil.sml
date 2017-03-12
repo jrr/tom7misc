@@ -87,6 +87,9 @@ struct
   | Truncate of { src: width, dst: width, v: value }
     (* For dst > src. Sign-extends if signed is true. *)
   | Promote of { signed: bool, src: width, dst: width, v: value }
+    (* For types whose representation is the same, e.g., two
+       pointer types. *)
+  | Cast of { src: typ, dst: typ, v: value }
     (* TODO: LoadImmediate *)
   | Plus of width * value * value
   | Minus of width * value * value
@@ -275,6 +278,8 @@ struct
     | exptos (Promote { signed, src, dst, v }) =
     "promote" ^ widthtos src ^ "_to" ^ widthtos dst ^
     (if signed then "_extending" else "") ^ " " ^ valtos v
+    | exptos (Cast { src, dst, v }) =
+    "cast<" ^ typtos dst ^ ">(" ^ valtos v ^ ")"
     | exptos (Plus (w, a, b)) = valtos a ^ " + " ^ valtos b
     | exptos (Minus (w, a, b)) = valtos a ^ " - " ^ valtos b
     | exptos (Times (w, a, b)) = valtos a ^ " * " ^ valtos b

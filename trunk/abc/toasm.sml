@@ -519,6 +519,14 @@ struct
                      k ()
                    end))
 
+             | C.Cast { src, dst, v : C.value } =>
+                 gentmp ctx v
+                 (fn (vtmp, vt) =>
+                  if typsize src <> typsize dst orelse typsize vt <> typsize src
+                  then raise ToASM ("alleged compatible cast between " ^
+                                    "types of different widths!")
+                  else A.Mov (vartmp (var, typsize dst), vtmp) // k ())
+
              | C.Promote { signed, src, dst, v : C.value } =>
                  gentmp ctx v
                  (fn (vtmp, vt) =>
