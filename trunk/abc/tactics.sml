@@ -1094,7 +1094,6 @@ struct
         val rawbytes = Acc.insbytes raw - startbytes
         val intn = Word16.toInt n
       in
-        (* FIXME true orelse  *)
         if intn < rawbytes
         then
           repeated intn acc (DEC ` reg_to_multireg16 reg) ??
