@@ -449,7 +449,8 @@ int main(int argc, char **argv){
   if (lines < 1) lines = 1;
   /* happens to give 60 as default */
 
-  WriteHeader(ifilename);
+  // WriteHeader(ifilename);
+  WriteHeader("ZM~~ #         0~~AB#     C!");
   WritePages();
   WriteRest();
 

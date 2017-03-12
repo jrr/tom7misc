@@ -1,7 +1,9 @@
 (* XXX This is still in progress; almost nonsensical now; beware!
    TODO: Clean up wrong/misleading documentation!
 
-   Very low-level language, but not quite X86 opcodes.
+   Very low-level language, but not quite X86 opcodes. Also
+   known as "LLVMNOP".
+
    Here we have:
       - DATA layout is explicit, but not CODE layout.
       - Globals and global initialization are no longer
@@ -86,7 +88,7 @@
    currently active, these need to be allocated with a stack discipline.
    Because they need to be addressable, we don't put them in the machine
    stack (SS); rather, we keep a parallel stack in DS. We'll call it
-   the "frame stack."
+   the "local stack" or "frame stack."
 
    We start the frame stack in DS, right after the last global. Unlike
    the machine stack, it grows upward (larger addresses). We maintain
@@ -353,7 +355,7 @@ struct
          the frame stack. *)
       frame_stack_start : int,
       (* Always 65536 bytes; printable. *)
-      datasegment : Word8Vector.vector }
+      datasegment : Segment.segment }
 
   fun szcompare (S8, S8) = EQUAL
     | szcompare (S8, _) = LESS

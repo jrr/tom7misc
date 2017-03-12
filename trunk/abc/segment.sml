@@ -56,6 +56,12 @@ struct
                         Int.toString idx)
     else Array.update (locked, idx, true)
 
+  fun range_unlocked _ _ 0 = true
+    | range_unlocked (seg as S { locked, ... }) start len =
+    if Array.sub (locked, start)
+    then false
+    else range_unlocked seg (start + 1) (len - 1)
+
   fun unlock_idx (S { locked, ... }) idx =
     Array.update (locked, idx, false)
 

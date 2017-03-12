@@ -15,7 +15,7 @@ sig
       cs : Word8Vector.vector,
       (* Data segment. Must be 65536 printable bytes. Recall that the
          first 256 bytes are overwritten by the PSP. *)
-      ds : Word8Vector.vector
+      ds : Segment.segment
 
       (* TODO: Filler... *)
       } -> string -> unit

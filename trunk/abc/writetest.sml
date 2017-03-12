@@ -79,7 +79,7 @@ struct
                                        else Word8.fromInt ` ord #"S"),
          vec [Word8.fromInt ` ord #"]"]]
 
-      val dataseg =
+      val dataseg_vec =
         Word8Vector.concat
         [vec [Word8.fromInt ` ord #"["],
         Word8Vector.tabulate (0xFFFE,
@@ -87,6 +87,9 @@ struct
                                       then Word8.fromInt ` ord #"d"
                                       else Word8.fromInt ` ord #"s"),
          vec [Word8.fromInt ` ord #"]"]]
+
+      val dataseg = Segment.empty ()
+      val () = Segment.set_vec dataseg 0 dataseg_vec
 
     in
       EXE.write_exe { init_ip = init_ip,

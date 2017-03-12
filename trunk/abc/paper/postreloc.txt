@@ -62,8 +62,11 @@ The EICAR Test File is clever, but there are a few problems with it:
   - Most damningly, like many viruses it uses "self-modifying code"
     to first rewrite itself into different opcodes. This means that
     the processor ends up executing several non-printable opcodes.
+    This is like telling the waiter that you don't eat poultry but
+    eggs are okay, and then they bring you an egg, but that egg
+    hatches into a chicken right after they bring it to you. Come on.
 
-In this  paper I  present a  compiler for  the C89  programming language
+In this  paper I present  a compiler  for the C89  programming language*
 called ABC.  It produces completely  printable executables from  C code.
 While self-modifying code is a powerful technique, it makes this problem
 "too easy;" I  want to explore what programs can  be written natively in
@@ -73,6 +76,11 @@ program executes  (outside of  the operating  system) contains  only the
 bytes 0x20-0x7E.
 
 Source code for this project is available at:   http://tom7.org/abc
+
+* Not every C feature is implemented. Some of these are just not feasible
+  or need to be simulated in software (e.g. floating point); a few
+  others I just didn't get to before the deadline (struct copying). The
+  shortcomings are discussed in Section XXX.
 
 
     ** Difficulties **
@@ -138,6 +146,8 @@ read this table, but I will refer to it:
     6E,6F  OUTS DX <- DS:SI
     70-7E  Jcc+disp8 variants
 
+    Figure XXX.
+
 That's all  we get!  Many of  these opcodes take  arguments, such  as an
 immediate byte (or word, or  double-word); for example the sequence 0x24
 0x42 means AND AL <- 0x42. In  these cases, the arguments must of course
@@ -161,48 +171,53 @@ thought to the following puzzles:
 
 (XXX any more puzzles?)
 
-I will explain those problems and my solutions in later sections; I
-think they are each interesting. Various parts of the compiler's design
-are intertwined by the many constraints, so there is no easy path
-through the whole idea. For now, let's warm up with the file format.
+I will  explain those  problems and  my solutions  in later  sections; I
+think they are each interesting. (If you are not going to read the whole
+paper, which  is likely, I  think "Loops" and "Exiting  and initializing
+the program" are the most interesting/funny hacks.) Various parts of the
+compiler's design are intertwined with the many constraints, so there is
+no easy  path through the  whole idea. For now,  let's warm up  with the
+file format.
 
 
     ** Executable file formats **
 
 In order for the compiler's output to be executable, it needs to be in a
-file that the operating system recognizes as program. This means that
-the header of the program needs to be printable too. We can rule out
+file that  the operating system  recognizes as program. This  means that
+the header  of the program  needs to be printable  too. We can  rule out
 several formats that cannot possibly have printable headers:
 
-On Linux, executables are ELF files. The first byte of these files
-is always 0x7F "DELETE", which is not printable. Severam other bytes
-in the header have to be zero.
+On Linux,  executables are ELF files.  The first byte of  these files is
+always 0x7F "DELETE", which is not printable. Severam other bytes in the
+header have to be zero.
 
-On MacOS, executables are Mach-O files. These files always start with
-0xFEEDFACE, an amusing example of unprintable bytes whose hexadecimal
-representation nonetheless spells out words. It also requires a field
+On MacOS,  executables are Mach-O  files. These files always  start with
+0xFEEDFACE, an  amusing example  of unprintable bytes  whose hexadecimal
+representation nonetheless  spells out words.  It also requires  a field
 called MH_EXECUTE to be 0x02, among other problems.
 
-On Windows, most executables are EXE Files. The modern version of this
+On Windows, most  executables are EXE Files. The modern  version of this
 format is called Portable Executable (PE) and is used for 32- and 64-bit
 programs. It contains a required COFF subheader which always starts with
 0x50450000 (the zero bytes not printable). For backward "compatibility",
-PE EXE files actually start with old-style EXE headers, which are actually
-programs that print something like
+PE  EXE files  actually  start  with old-style  EXE  headers, which  are
+actually programs that print something like
 
    This program cannot be run in DOS mode.
 
-and then exit. Windows recognizes a secret code that tells it to ignore
+and then exit. Windows recognizes a  secret code that tells it to ignore
 that part and look at the *real* program.
 
-... this eliminates the main executable formats for the modern x86
-platforms. :( We saw that the EICAR program is a COM file, so clearly
+...  this eliminates  the main  executable  formats for  the modern  x86
+platforms. :( We  saw that the EICAR  program is a COM  file, so clearly
 that is a possibility?
 
-A DOS .COM file has no header. The entire program is just inserted into
-memory at the address 0x0100 and starts running. This level of simplicity
-is a dream for a SIGBOVIK Compiler Author, but it has a fatal flaw. In
-order to understand, we need to take a break and talk about segmentation!
+A DOS .COM file has no header.  The entire program is just inserted into
+memory  at  the  address  0x0100  and  starts  running.  This  level  of
+simplicity is a dream for a SIGBOVIK Compiler Author, but it has a fatal
+flaw. In  order to understand,  we need to take  a break and  talk about
+segmentation!
+
 
     ** Segmentation break! **
 
@@ -236,8 +251,515 @@ There are 6 segments, CS (code), DS (data), SS (stack), and three
 
 (XXX more to say about segments?)
 
+
     ** Executable file formats, continued... **
 
 In a DOS .COM  file, CS, DS, ES, and SS are all  initialized to the same
 value. This is  easy to think about,  but it causes a  super bad problem
-for us.
+for us: The machine stack is inside in the same segment as our code. The
+machine stack is  a region of memory that the  PUSH and POP instructions
+use (among  others); it  starts at  the end of  this single  segment and
+grows   downward  (towards   lower   addresses,   where  the   program's
+instructions are). If the stack collides  with the program, then it will
+mess  up the  instructions  (which might  be an  effective  way to  make
+self-modifying code, but we don't want to cheat). Most COM programs deal
+stay out  of the way of  the stack by  being much smaller than  64k. For
+good reasons that I will explain later,  this isn't an option for us. It
+might be  possible to  avoid using  the stack in  our programs,  but DOS
+interrupts (see XXX) are constantly happening as our program runs. These
+interrupts use the  stack, and although they put the  stack pointer back
+where  it was  and don't  modify anything  currently on  the stack,  the
+values  that  they PUSH  and  then  POP  are  still present  in  memory,
+overwriting whatever was there. We don't have any way to turn these off,
+because the CLI  instruction ("clear interrupts") is 0xFA,  which is not
+printable. It seems COM files will not work for this project.
+
+This leaves old-style  16-bit DOS EXE files, which do  just barely work,
+and this is  what ABC produces. EXE files afford  much more flexibility,
+such as  the ability to access  up to 640kb (barring  tricks) of memory.
+They also have many features that we  do not need or want. An EXE header
+looks like this:
+
+  offset  field                        ABC's value (little-endian)
+      00  magic number                 0x5A 0x4D
+      02  extrabytes                   0x7E 0x7E
+      04  pages in file                0x20 0x23
+      06  relocation entries           0x20 0x20
+      08  paragraphs in header         0x20 0x20
+      10  minimum memory               0x20 0x20
+      12  maximum memory               0x20 0x20
+      14  initial stack segment        0x20 0x30
+      16  initial stack pointer        0x7e 0x7e
+      18  checksum                     0x41 0x42
+      20  initial ins pointer          (program dependent) (XXX)
+      22  code segment displacement    0x20 0x20
+      24  relocation table start       0x20 0x20
+      26  overlay number               0x43 0x21
+
+Normally, the  header is followed by  the relocation table (if  any; see
+below) and  then the program  image. The program  image is some  blob of
+data that gets placed contiguously in  memory, with the data segment set
+to its  beginning and the  code and stack  segments set to  wherever the
+header  asks. A  typical layout  would look  like this,  with the  solid
+dashed box being the contents of the exe file:
+
+                 DS,ES    CS       SS
+                 |        |        |      (additional memory)
+   (not in mem)  v        v        v
+   +-----------+-----------------------+ - - - - - - - - - - - +
+   |hdr| reloc | program image         |                       :
+   |   |       |                       |                       :
+   +-----------+-----------------------+ - - - - - - - - - - - +
+    NOTVIRUS.EXE .......
+
+All  of the  values  in  the header  are  printable,  which causes  some
+difficulty. The problem stems from the fact that we must use values that
+are  much larger  than is  reasonable for  several fields;  the smallest
+16-bit printable  number is  0x2020, which is  8224. Several  fields are
+measured in  16-byte "paragraphs" or  512-byte "pages", so  these values
+can quickly get out of hand.  Naive values cause the program's effective
+memory requirements to be too large,  and DOS does not load our program.
+Nonetheless,  it is  possible.  The  gory details  of  the solution  are
+documented  in  exe.sml, but  the  crux  of  the solution  involves  the
+following tricks:
+
+  - Overflow the "pages in file" (a page is 512 bytes, so 0x2320 is 4MB;
+    way beyond the 1MB limit) field to provide a smaller effective value.
+    The file still needs to be pretty big.
+  - Specify a much larger than usual "pages in header" (0x2020 * 16 =
+    131kb). Since the header isn't loaded into memory, it doesn't count
+    against the program's memory needs. A really big header also gives
+    us space to store the paper. You're looking at part of the "header"
+    right now.
+  - Give technically invalid values for some fields (extrabytes, checksum,
+    overlay number); DOS doesn't actually seem to care about these.
+
+The layout of a compiled program is roughly like this:
+
+                              DS,ES    CS       SS
+                              |        |        |      (additional memory)
+   (not in memory)            v        v        v
+   +--------------------------+-----------------------+ - - - - - - 
+   |hdr|paper| reloc | paper  |   program image       |             ...
+   |   |intro|       |        |   paper   paper  paper|         
+   +--------------------------+-----------------------+ - - - - - - 
+    PAPER.EXE .......
+
+This results in  an file size of  409,600 bytes, which I  believe is the
+smallest possible.  At 160x128 characters  per page, this is  exactly 20
+pages. Since we  can't change the segment registers, the  active part of
+our program  is only the 64kb  data, code and stack  segments, and since
+the stack segment  is somewhat unreliable (as described  above), we only
+put stuff  in the data  and code  segments. As a  result, we need  to be
+thoughtful about code size; this will be a challenge.
+
+It's not necessary to understand this diagram since you are looking at a
+1:1 scale  model right now, i.e.,  the program itself. I'll  point these
+sections out as we encounter them.
+
+
+    ** Relocations **
+
+You already saw  the header structure (it's the title  of the paper) and
+the relocation table (the full page of "p~9("). For normal programs, the
+purpose of the relocation table is for  DOS to patch the program so that
+it can know where it's located in  memory; each time a program is loaded
+it might be placed in a different  spot. When the program is loaded, DOS
+goes through  all of the entries  in the relocation table,  and modifies
+the given location in the program by adding the base segment to the word
+at  that location.  Usually  this  location is  part  of an  instruction
+sequence "PUSH imm; POP DS", where imm  is some value that we want to be
+relative to the program's base  segment. We can't change segment values,
+so the relocation table is useless  to us. In fact it's harmful, because
+we have to have 8,224 (0x2020) relocation table entries in order to have
+a printable header, and whatever offsets are in there will get corrupted
+when the program  is loaded. We repeat the same  location over and over,
+and choose a  location that's right after the code  segment in memory, a
+part of  the image  we don't  need. I'll  point out  the spot  that gets
+overwritten when we get there. The locations are given as segment:offset
+pairs, which  is nice because  have multiple  ways to reference  a given
+location. We simply  solve for some segment:offset such  that (segment *
+16 + offset = addr) and both segment and offset are printable.
+
+
+    ** Addressing modes, temporaries, calling convention **
+
+In  any  compiler,  one  must  decide on  various  conventions  for  how
+variables  are laid  out in  memory, how  registers and  temporaries are
+used, how arguments  are passed to functions, and so  on. There are lots
+of  such  decision in  ABC;  some  are  basically  normal and  some  are
+particular to the weird problems we have to solve. Let's talk about some
+of  the limitations  of  the instruction  set that  we  have access  to,
+because those inform the low-level design.
+
+In Figure XXX, there are several instructions that look like this:
+
+    AND reg|mod/rm
+
+These are each a family of instructions like
+
+    AND AX <- BX
+    AND BX <- [BP+SI+4]
+    AND [12345] <- DI
+
+where the source  (on the right) and destination are  given by some bits
+in the  instruction's encoding.  The instruction  always acts  between a
+register and a  "mod/rm", with two adjacent  opcodes determining whether
+this is  of the form  "AND reg  <- mod/rm" or  "AND mod/rm <-  reg". The
+mod/rm can  be one of  many possible values; here  is a table  which you
+need not absorb:
+
+  r8(/r)                            AL  CL  DL  BL  AH  CH  DH  BH
+  r16(/r)                           AX  CX  DX  BX  SP  BP  SI  DI
+  r32(/r)                           EAX ECX EDX EBX ESP EBP ESI EDI
+  (In decimal) /digit (Opcode)        0   1   2   3   4   5   6   7
+  (In binary) REG =                 000 001 010 011 100 101 110 111
+  Effective Address      Mod  R/M   Value of ModR/M Byte (in Hex)
+  [EAX]                   00  000   00  08  10  18 *20 *28 *30 *38
+  [ECX]                       001   01 ?09  11  19 *21 *29 *31 *39
+  [EDX]                       010   02 ?0A  12  1A *22 *2A *32 *3A
+  [EBX]                       011   03  0B  13  1B *23 *2B *33 *3B
+  [sib]                       100   04  0C  14  1C *24 *2C *34 *3C
+  disp32                      101   05 ?0D  15  1D *25 *2D *35 *3D
+  [ESI]                       110   06  0E  16  1E *26 *2E *36 *3E
+  [EDI]                       111   07  0F  17  1F *27 *2F *37 *3F
+  [EAX+disp8]             01  000  *40 *48 *50 *58 *60 *68 *70 *78
+  [ECX+disp8]                 001  *41 *49 *51 *59 *61 *69 *71 *79
+  [EDX+disp8]                 010  *42 *4A *52 *5A *62 *6A *72 *7A
+  [EBX+disp8]                 011  *43 *4B *53 *5B *63 *6B *73 *7B
+  [sib+disp8]                 100  *44 *4C *54 *5C *64 *6C *74 *7C
+  [EBP+disp8]                 101  *45 *4D *55 *5D *65 *6D *75 *7D
+  [ESI+disp8]                 110  *46 *4E *56 *5E *66 *6E *76 *7E
+  [EDI+disp8]                 111  *47 *4F *57 *5F *67 *6F *77  7F
+  [EAX+disp32]            10  000   80  88  90  98  A0  A8  B0  B8
+  [ECX+disp32]                001   81  89  91  99  A1  A9  B1  B9
+  [EDX+disp32]                010   82  8A  92  9A  A2  AA  B2  BA
+  [EBX+disp32]                011   83  8B  93  9B  A3  AB  B3  BB
+  [sib+disp32]                100   84  8C  94  9C  A4  AC  B4  BC
+  [EBP+disp32]                101   85  8D  95  9D  A5  AD  B5  BD
+  [ESI+disp32]                110   86  8E  96  9E  A6  AE  B6  BE
+  [EDI+disp32]                111   87  8F  97  9F  A7  AF  B7  BF
+  AL/AX/EAX               11  000   C0  C8  D0  D8  E0  E8  F0  F8
+  CL/CX/ECX                   001   C1  C9  D1  D9  E1  E9  F1  F9
+  DL/DX/EDX                   010   C2  CA  D2  DA  E2  EA  F2  FA
+  BL/BX/EBX                   011   C3  CB  D3  DB  E3  EB  F3  FB
+  AH/SP/ESP                   100   C4  CC  D4  DC  E4  EC  F4  FC
+  CH/BP/EBP                   101   C5  CD  D5  DD  E5  ED  F5  FD
+  DH/SI/ESI                   110   C6  CE  D6  DE  E6  EE  F6  FE
+  BH/DI/EDI                   111   C7  CF  D7  DF  E7  EF  F7  FF
+
+     Figure XXX
+
+The "scaled index byte" (sib) has  another table with 224 entries, which
+we won't get  into. There is also  a similar, but crazier,  table for 16
+bit addresses and 8  bit operands. Note that only part  of this table is
+printable  (marked with  *), which  means we  can only  use a  subset of
+addressing modes. Notably:
+
+ - We can't do any register-to-register operations, like "AND AX <- BX".
+   Most compilers use these instructions frequently!
+ - As a result, exactly one of the source or destination operand is
+   some location in memory.
+ - The simple addressing modes ([ESI] means the memory in the
+   location pointed to by the value in the ESI register) can only be
+   paired with some registers (AND DI <- [EDX] is allowed, but
+   AND AX <- [EDX] is not).
+
+This is even more annoying than x86 usually is. That said, the fact that
+we don't have register-to-register operations means that register
+allocation is far less important than usual. Instead, we operate on
+a set of temporaries, accessed using the [EBP]+disp8 addressing mode.
+EBP's default segment is SS, so these temporaries are stored in the
+same segment as the stack. In fact, since we initialized the stack
+pointer towards the middle of SS (it has to be printable; 0x7e7e), we
+have the entire region from 0x7e7e to 0xFFFF to use for temporaries.
+Each function frame (see below) has its own set of temporaries.
+
+To perform a basic subtraction operation, whereas a traditional compiler
+is likely to emit an instruction like
+
+   0x29 0xC2    SUB AX <- DX          ;; AX = AX - DX
+   
+ABC emits a sequence like
+
+   ??                     MOV AX, [EBP+0x22]    ;; AX = tmp2
+   0x67 0x29 0x45 0x20    SUB [EBP+0x20], AX    ;; tmp0 = tmp0 - AX
+
+which is not so  bad. (Note that we do not have  a MOV instruction; this
+puzzle is solved below). We often need to do much more work than this to
+perform a  basic operation,  and optimization is  meaningful (especially
+things that reduce code size).
+
+Note that to encode [EBP+disp8], we need to write the displacement byte
+in the opcode, so it must be printable. The EBP register will therefore
+actually always point 32 bytes before the first temporary, so that
+temporary 0 is accessed as [EBP+0x20].
+
+With this idea in mind, here is a summary of ABC's low-level design:
+
+ - A C pointer is represented as a 16-bit address into the data segment.
+ - Anything addressable therefore needs to be stored in DS. This includes
+   global variables, local variables and function arguments.
+ - Global variables are just allocated at compile time to some locations
+   near the beginning of DS.
+ - A traditional C compiler uses the machine stack to store local
+   variables, but since these need to be in DS, not SS, we maintain a
+   separate stack of arguments and locals in DS, which starts after the
+   global variables and grows towards larger addresses. This is called the
+   locals stack. The register EBX points 32 bytes before the locals stack,
+   so that we can use [EBX+disp8] to efficiently access locals.
+ - EBP always points 32 bytes before the "temp stack".
+ - Both stacks (and the machine stack) advance when we make a function
+   call, so that the values of locals and temporaries persist across the
+   function call. ABC only stores the return address on the machine stack.
+ - Aside from EBX, EBP, and ESP (the machine stack pointer), all other
+   registers can be used for any purpose.
+
+Next, we need to implement a number of low-level primitives that let our
+program do computation. Let's warm up with something very basic.
+
+
+    ** Putting a value in a register **
+
+When programming X86 like a normal person,  a very common task is to put
+an arbitrary  number (for  example, a  memory address,  or a  value that
+appears in the user's program) into a register, like
+
+    0xB8 0x34 0x12      MOV AX <- 0x1234
+
+We don't have  this instruction available, since its opcode  0xB8 is not
+printable. Moreover,  we need to be  able to load arbitrary  values, not
+just printable ones (but the value is part of the instruction encoding).
+
+We do have some ability to load values. For example, we can encode
+
+                        AND AX <- 0x2020
+
+since 0x2020 is printable. This clears most of the bits in AX, and then
+
+                        AND AX <- 0x4040
+
+will always  clear the remainder,  since (0x40 &  0x20 = 0x00).  With AX
+containing 0x0000,  we could then repeat  "INC AX" 1,234 times  to reach
+the desired value. This totally sucks, but it works.
+
+There are  often more  direct routes. We  can XOR and  SUB and  AND with
+printable 8-  or 16-bit  immediate values  in addition  to INC  and DEC.
+There is probably no "closed form"  solution for the quickest route to a
+given value (the presence  of both XOR and SUB makes  this rather like a
+cryptographic function), but we can use computers to help.
+
+We build a routine that generates a series of x86 instructions that load
+a 16-bit value into  AX. In the general case, we do  this by loading two
+8-bit values and  jamming them into AX  using a gross trick.  To load an
+arbitrary value into AL  (the low byte of AX), ABC uses  a table that it
+creates upon  startup. This table is  of size 256x256, and  gives us the
+shortest (known) sequence  for putting some desired byte DST  in AL when
+AL is  known to already contain  some byte SRC. This  table is populated
+via something  like Dijkstra's "shortest path"  algorithm. For starters,
+the diagonal  (SRC = DST)  can be  initialized to the  empty instruction
+list. We can then use INC and DEC to fill the rest of the rows
+
+  (XXX diagram?)
+
+with very  inefficient but correct sequences  (still, when SRC is  5 and
+DST is 6,  INC AX will remain  the best approach!). Next,  we maintain a
+queue of  cells that should  be searched  (everything goes on  the queue
+except the  diagonal, which  is already  optimal). We  repeatedly remove
+items from the queue and then explore  what cells we can reach from that
+source byte. For example, if we  pull out the cell (SRC=0x80, DST=0x01),
+we try  applying XOR,  SUB, and AND  (with printable  immediate values),
+etc. to  the source value 0x80  to see what  we get. One such  result is
+that we can get AL=0x00 by doing AND AL <- 0x40. Consulting the cell for
+(SRC=0x00, DST=0x01),  we see that  it contains  a sequence of  length 1
+(INC AX), so this gives us a new best solution (AND AL <- 0x40, INC AX),
+which is  much better than  (DEC AX, DEC AX,  ... 79 times).  We iterate
+this procedure paths stop improving.
+
+This works  well, with  only an  average of  2.54 bytes  of instructions
+needed to  transform a source  byte into  a destination one  (across all
+possible src/dst pairs).  No sequence is longer than  4 bytes. Actually,
+the table contains interesting structure,  or at least pretty structure.
+Since it is  256x256, it can't fit  in this paper 1:1, but  I cropped to
+the prettiest  part, the  160x128 rectangle encompassing  the lower-left
+quadrant. It  appears as a  full page in the  data segment, (page  9) as
+some cool  ASCII triangles. In this  graphic, a space character  means 0
+instructions (this is only the diagonal of course, only barely visible);
+'.' means  one instruction byte (just  INC and DEC, near  the diagonal);
+'-' is two  instruction bytes (like XOR  AL <- 0x2A); '%'  is three; and
+'#"  is four.  This  fractal pattern  shows  up all  over  the place  in
+mathematics and computer  science. For example it is  reminiscent of the
+matrix of game configurations in k/n Power Hours [XXX].
+
+
+Once we can load an arbitrary byte into AL, we can fill all of AX with
+this trick. Suppose that our goal is to load AH=0x12 and AL=0x34. If we
+don't know anything about AX, we can zero it with two AND instructions.
+Then we can emit the instructions to load 0x12 starting from the known
+value 0x00. Then this sequence:
+
+   instruction    AH  AL        stack           (ww, xx, yy, zz stand for
+                  ww  0x12      xx yy zz ...          some arbitrary junk)
+   PUSH AX            
+                  ww  0x12      0x12 ww xx yy zz ...   
+   PUSH 0x3040        
+                  ww  0x12      0x40 0x30 0x12 ww xx yy zz ...
+   INC SP             
+                  ww  0x12      0x30 0x12 ww xx yy zz ...
+   POP AX             
+                0x12  0x30      ww xx yy zz ...
+   INC SP             
+                0x12  0x30      xx yy zz ...
+
+Remember that x86 is  little endian, so the low byte goes  on the top of
+the stack. This  trick places two words adjacent on  the stack, but then
+misaligns the stack  by doing a manual  INC SP (and again at  the end to
+clean  up). The  result is  that  AL gets  moved  into AH,  and a  known
+printable value of our choice (0x30 above)  into AL. We can then use our
+table  to transform  that  known value  to any  desired  value into  AL,
+completing the 16-bit  value. This is reasonably brief  and only touches
+the AX register, and we use it all the time in the generated code.
+
+
+    ** Moving between registers and memory **
+
+Another useful kind of instruction is  MOV AX <- [EBP+0x20], which moves
+the 16-bit word at the address in  EBP (offset by 0x20) into AX. This is
+how  we read  and  write  temporaries; the  "AX  <-  [EBP+0x20] part  is
+printable,  but  we   don't  have  the  MOV   opcode  available  (0x89).
+Fortunately, the XOR instruction  is "information-preserving", so it can
+be  used like  a  MOV. Specifically,  if  we already  have  zero in  the
+destination,  then XOR  *is* a  MOV. In order to load from memory we use
+an instruction sequence like:
+
+    ... various ...      set ax <- 0x0000        ;; using tricks above
+  0x67 0x33 0x45 0x20    XOR AX <- [EBP+0x20]
+
+To write to memory, we do:
+
+  0x50                   PUSH AX                 ;; save value to write
+    ... various ...      set ax <- 0x0000        ;; using tricks above
+  0x67 0x21 0x45 0x20    AND [EBP+0x20] <- AX    ;; clears to zero
+  0x58                   POP AX                  ;; restore value
+  0x67 0x31 0x45 0x20    XOR [EBP+0x20] <- AX    ;; write it
+
+This is almost... nice! But don't worry, it gets grosser.
+
+
+    ** Keeping track of what's up with the accumulator **
+
+The ABC backend (tactics.sml) generates X86 for some low-level
+primitives that operate on temporaries, like "Add tmp1 <- tmp2". (This
+is described in Section XXX when discussing the phases of the compiler.)
+Because it's expensive to load values into registers, we go through some
+trouble to keep track of the machine state as we generate code. This
+allows us to make some opportunistic improvements. For example, the
+actual SML code implementing Add on 16-bit numbers looks like this:
+
+  fun add_tmp16 acc dst_tmp src_tmp : acc =
+    let
+      val acc = acc ++ AX
+    in
+      imm_ax16 acc (Word16.fromInt 0xFFFF) //
+      XOR (S16, A <- EBP_TEMPORARY src_tmp) ??
+      forget_reg16 M.EAX //
+      INC AX ??
+      forget_reg16 M.EAX //
+      SUB (S16, EBP_TEMPORARY dst_tmp <~ A) -- AX
+    end
+
+The approach is  to XOR the source value with  0xFFFF and then increment
+it by 1; this negates the value in two's complement. We can then use the
+SUB  operator, whose  opcode is  printable. The  "accumulator" (variable
+acc) lets  us manage  the steps. Without  getting into  tedious details,
+"acc ++ AX" claims  the register AX so that tactics  know not to clobber
+it; we  later return it  with "-- AX".  The imm_ax16 function  loads the
+value 0xFFFF into AX; this tactic gets to inspect what's known about the
+machine state. For  example, if happen to have  just assembled something
+that left AX  containing 0x0000 (very common) then we  can simply DEC AX
+to get  0xFFFF in one byte.  imm_ax16 updates the accumulator  to record
+that AX now  contains 0xFFFF, as well as  emitting whatever instructions
+it  needs.  The //  combinator  emits  a  raw  instruction, and  the  ??
+combinator allows us to learn or forget a fact about a register. Because
+some tricks  require knowledge of  e.g. AL  but not AH,  the accumulator
+actually keeps  track of  each byte of  each register  independently. It
+also understands that  if you claim ESI,  then SI cannot be  used (SI is
+part  of ESI),  and so  on. This  is nice,  and the  semi-monadic syntax
+allows what  looks like assembly  code in ML. (Also  note the <-  and <~
+(hyphen  vs.  tilde)  datatype  constructors that  distinguish  the  two
+directions  of instruction,  "reg <-  mod/rm" vs  "mod/rm <~  reg".) The
+biggest risk  of this  approach is  if you  don't accurately  record the
+state of  registers (e.g. you  forget to "forget_reg16"  after modifying
+it), because this can lead to  tactics making wrong assumptions but only
+in certain unlucky situations. Some of  my worst bugs were from this; it
+would be cleaner if the  accumulator actually simulated the instructions
+to update its  own internal facts, rather than have  the programmer make
+assertions.
+
+Since the accumulator is purely functional, another cool thing we can do
+is try out multiple different  strategies for assembling some block, and
+pick  the best  one.  For example,  when we  decrease  EBP right  before
+returning from a function (to  restore the caller's temporaries), we can
+either subtract a literal (number of bytes depends on the machine state)
+or DEC BP over and over (frequently faster).
+
+
+    ** Pointer loads and stores **
+
+One of the primitives we must  implement is load16 dst_tmp addr_tmp; the
+temporary  addr_tmp contains  a 16-bit  address, and  we load  the value
+contained at that address (in DS) and  store it in dst_tmp. This is used
+for pointer dereferencing in the source C program, for example.
+
+It's basically the same as loading from  a temporary; we just need to do
+something like
+
+    set DI <- 0             ;; macro
+    XOR DI <- [EBP+0x20]    ;; appropriate addr temporary offset
+    set SI <- 0             ;; macro
+    XOR SI <- [DI]          ;; read from the address into SI
+    set [EBP+0x24] <- 0     ;; appropriate dst temporary offset
+    XOR [EBP+0x24] <- SI    ;; store it
+
+(Again, the syntax [DI] means use the  contents of the DI register as an
+memory address, and  load from there. DI's default segment  is DS, which
+is where  C pointers always  point.) The  only complication is  that the
+pure-indirect mod/rm  bytes like  [DI] can only  be paired  with certain
+registers or else they are not printable (Figure XXX).
+
+The reason to bring this primitive  up is that there's a delightful hack
+that's possible if  the destination temporary and  address temporary are
+the same slot.  This situation rarely occurs  naturalistically, since it
+would correspond to unusual C code  like (int*)x = (int*)*x. However, it
+is very commonly the output of temporary coalescing (Section XXX), since
+it is typical the final use of an address to be a load from it. So, this
+is actually useful,  but the main reason to do  it is awesomeness! Let's
+say the single temporary is at EBP+0x20.
+
+    set DI <- 0             ;; macro
+    XOR DI <- [EBP+0x20]    ;; load the address into DI.
+    XOR DI <- [DI]          ;; DI = DI ^ *DI         (!?)
+    XOR [EBP+0x20] <- DI    ;; tmp = address ^ address ^ value
+
+The first two steps are reasonable, and put the address into DI. We want
+to end  up with  the value  (whatever address points  to) in  the single
+temporary. Next we  execute a crazy instruction, which  XORs the address
+stored in DI with the value it points to. After this, DI contains addr ^
+value, sort  of like  an encrypted  version of  the value.  However, the
+temporary still  contains the address  (the "decryption key"), so  if we
+XOR DI into  it, we get address ^  address ^ value, which is  0 ^ value,
+which is just value! It's really nice how short the instruction sequence
+is, and it only  uses a single register. The instruction  XOR DI <- [DI]
+is so  weird--it probably occurs  in almost  no programs, because  it is
+extremely rare for an absolute address to have any relationship with the
+value  it  points  to. So  we  get  extra  style  points for  finding  a
+legitimate use for it.
+
+Stores are the same idea. The trick actually applies there too, but
+isn't useful (XXX because...)
+
+    ** Exiting and initializing the program **
+
+    ** Loops **
+
+(then can pop out to higher-level discussions)

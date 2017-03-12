@@ -35,6 +35,10 @@ sig
   (* Allows unlocking even if the region is not locked. *)
   val unlock_idx : segment -> int -> unit
 
+  (* range_unlocked seg start len
+     Returns true if the entire range is unlocked. *)
+  val range_unlocked : segment -> int -> int ->bool
+
   (* Need not all be initialized. *)
   val extract : segment -> Word8Vector.vector
 end
