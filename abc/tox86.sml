@@ -1121,7 +1121,36 @@ struct
                   if disp = 0
                   then print " .. exact hit!\n"
                   else
-                    (* PERF use jumps, duhhh *)
+                    (* PERF: We can also do shorter jumps when we
+                       get close! *)
+                    (* Jump the maximum amount if we can.
+                       PERF: We could have two parallel tracks
+                       of JO/JNO here (since once we do one jump,
+                       we know the value). Alternatively, we could
+                       just clear the overflow flag once at the
+                       beginning? *)
+                    if disp >= 0x7e + JMP_SIZE
+                    then
+                      let
+                        val jmp =
+                          EncodeX86.encodelist ASSEMBLY_CTX
+                          (* XOR with 'G' twice. *)
+                          [XOR_A_IMM (I8 0wx47),
+                           XOR_A_IMM (I8 0wx47),
+                           (* Maximum displacement. *)
+                           JNO (Word8.fromInt 0x7e)]
+                        val () = if JMP_SIZE <> Word8Vector.length jmp
+                                 then raise ToX86 "bug: JMP_SIZE wrong"
+                                 else ()
+                        val next_cur = !cur + JMP_SIZE + 0x7e
+                      in
+                        print ("Write jmp to " ^ Int.toString (!cur) ^ "...\n");
+                        Segment.set_vec cs (!cur) jmp;
+                        Segment.lock_range cs (!cur) JMP_SIZE;
+                        cur := next_cur;
+                        place nil
+                      end
+                    else
                     (* Pad with "INC AX".
 
                        Assumes AX is not holding any interesting

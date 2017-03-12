@@ -1,7 +1,7 @@
 /* Here's the C source code for the program that is
    the SIGBOVIK paper.
 
-   (Highly in-progress as of 10 Mar 2017!)
+   (Highly in-progress as of 12 Mar 2017!)
 */
 
 int _putc(int); // XXX non-printable! don't use in paper!
@@ -65,7 +65,8 @@ unsigned char *octave4 =
   "4"  // E = 52
   "5"  // F = 53
   "7"; // G = 55
-// Parse a character c (must be capital A,B,C,D,E,F,G).
+// Parse a character c (must be capital A,B,C,D,E,F,G)
+// and interpret any suffixes as well.
 int ParseNote(unsigned char *ptr, int c, int *idx) {
   int midi;
   int offset = c - (int)'A';
@@ -100,14 +101,6 @@ int GetMidi(unsigned char *ptr, int *idx) {
     _putc((int)'[');
     _putc(c);
     _putc((int)']');
-
-    // XXX don't keep this, it just prevents runaways!
-    /*
-    if (*idx > (int)10) {
-      _putc((int)'!');
-      _exit();
-    }
-    */
 
     // Advance to next character.
     _putc((int)'=');
@@ -157,7 +150,7 @@ int main(int argc, char **argv) {
     if (midi_note == (int)0) break;
     _putc((int)'A' + midi_note);
     PlayNote(midi_note);
-    for (j = (int)0; j < (int)1000; j++) {}
+    for (j = (int)0; j < (int)8000; j++) {}
     _putc((int)'\n');
   }
 
