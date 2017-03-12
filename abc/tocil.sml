@@ -313,6 +313,7 @@ struct
     (case Symbol.name name of
        "_putc" => SOME B_PUTC
      | "_out8" => SOME B_OUT8
+     | "_exit" => SOME B_EXIT
      | _ => NONE)
     | get_builtin _ = NONE
 
