@@ -175,6 +175,8 @@ struct
   (* This is the best printable technique I know to preserve all
      register values but perform an unconditional short jump. XOR
      always clears the overflow flag. *)
+  (* PERF: Can do JO disp; JNO (disp-2), but that means two destinations to
+     manage. *)
   val JMP_SIZE =
     EncodeX86.encoded_size ASSEMBLY_CTX (X86.XOR_A_IMM (X86.I8 0wx20)) +
     EncodeX86.encoded_size ASSEMBLY_CTX (X86.XOR_A_IMM (X86.I8 0wx20)) +
