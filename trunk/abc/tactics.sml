@@ -1064,8 +1064,8 @@ struct
           (* PERF: If we happen to have w in a temporary,
              just get that temporary! *)
           imm_tmp16 acc slot w //
-          SUB (S16, CH_BP <- EBP_TEMPORARY slot) ??
-          forget_reg16 M.EBP
+          SUB (S16, reg <- EBP_TEMPORARY slot) ??
+          forget_reg16 (reg_to_machreg reg)
         end
   in
     fun add_reg16_imm reg acc tfs n =
@@ -1094,6 +1094,7 @@ struct
         val rawbytes = Acc.insbytes raw - startbytes
         val intn = Word16.toInt n
       in
+        (* FIXME true orelse  *)
         if intn < rawbytes
         then
           repeated intn acc (DEC ` reg_to_multireg16 reg) ??

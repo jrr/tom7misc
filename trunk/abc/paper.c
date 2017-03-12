@@ -6,6 +6,7 @@
 
 int _putc(int); // XXX non-printable! don't use in paper!
 int _out8(int, int);
+int _exit();
 
 /*
 // Adlib uses two bytes to do a "note-on", and the notes are specified
@@ -49,14 +50,11 @@ int Quiet() {
 }
 */
 int ParseNote(unsigned char *ptr, int c, int *idx) {
-  (*idx) = (*idx) + (int)1;
+  // Read suffixes here...
   return (int)45 + (c - (int)'A');
 }
 
 int GetMidi(unsigned char *ptr, int *idx) {
-  _putc((int)*ptr);
-  return 0;
-  /*
   int c;
   int sharpflat = 0;
   // Default octave.
@@ -71,23 +69,30 @@ int GetMidi(unsigned char *ptr, int *idx) {
     _putc(c);
     _putc((int)']');
 
-    if (*idx > (int)10) return 0;
+    if (*idx > (int)10) {
+      _putc((int)'!');
+      _exit();
+    }
+
+    // Advance to next character.
+    _putc((int)'=');
+    _putc((int)'0' + *idx);
+    (*idx) = (*idx) + (int)1;
+    _putc((int)'=');
+    _putc((int)'0' + *idx);
 
     if (c == (int)'^') sharpflat++;
     else if (c == (int)'_') sharpflat--;
     else if (c >= (int)'A' && c <= (int)'G') {
-      // Read suffixes...
-      return ParseNote(ptr, c, idx);
+      _putc('P');
+      octave = ParseNote(ptr, c, idx);
+      return octave;
     } else if (c >= (int)'a' && c <= (int)'g') {
       octave++;
-      // Now read suffixes...
+      _putc('p');
       return ParseNote(ptr, c - (int)32, idx);
     }
-
-    // Advance to next character.
-    (*idx) = (*idx) + (int)1;
   }
-  */
 }
 
 int main(int argc, char **argv) {
@@ -111,12 +116,14 @@ int main(int argc, char **argv) {
   for (;;) {
     _putc((int)'0' + song_idx);
     midi_note = GetMidi(song, &song_idx);
-    if (!midi_note) break;
-    _putc((int)'\n');
+    if (midi_note == (int)0) break;
     _putc((int)'a' + midi_note);
+    _putc((int)'\n');
     // PlayNote(midi_note);
     // for (j = (int)0; j < (int)1000; j++) {}
   }
+
+  _putc((int)'.');
 
   // Quiet();
   return 0;

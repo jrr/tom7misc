@@ -708,7 +708,8 @@ struct
           print "\n"
         end
 
-      val () = if !Flags.verbose then debug_print ()
+      (* Use the .debug file written by the compiler. *)
+      val () = if false andalso !Flags.verbose then debug_print ()
                else ()
 
       (* This is the fast way to do it. *)
