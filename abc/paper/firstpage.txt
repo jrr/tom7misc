@@ -6,62 +6,65 @@ Hello, and welcome to my paper! I'm really happy to have you here! <3
 
 In this paper, I describe a new compiler for the C89 programming language.
 
-For good reasons that I will explain later, this paper must be 20 pages
-long. Due to unreasonable SIGBOVIK deadlines, I did not produce enough
-technical material to fill the minimum number of pages, so I will be
-somewhat prolix and I have inserted several unrelated ASCII-art drawings.
+For good  reasons that  I will  explain later, this  paper must  be 20
+pages long. Due to unreasonable  SIGBOVIK deadlines, I did not produce
+enough technical  material to fill the  minimum number of pages,  so I
+will  be  somewhat  prolix  and  I  have  inserted  several  unrelated
+ASCII-art drawings.
 
 
     ** Typesetting note **
 
-If you receive this paper in a raw text file, it may be difficult to read
-because of its two-column layout. It should be typeset in a monospace font
-on pages 160 characters wide and 128 characters tall (this is 4x the
-typical density of a line printer from the 1980s or 1990s). Many pages,
-including parts of this first one, have cropping marks outside the text
-body to make the correct alignment easier to verify. This file contains no
-carriage returns or newlines; each line just contains 160 characters and
-is padded with spaces. If you receive this paper in the SIGBOVIK
-proceedings, it may be hard to read because it is printed in a very small
-font to conserve paper. Squinting really hard to read hard fonts is good
-exercise for your eyes.
+If you receive this  paper in a raw text file, it  may be difficult to
+read  because of  its two-column  layout. It  should be  typeset in  a
+monospace font  on pages 160  characters wide and 128  characters tall
+(this is 4x  the typical density of  a line printer from  the 1980s or
+1990s). Many pages,  including parts of this first  one, have cropping
+marks outside  the text body to  make the correct alignment  easier to
+verify. This file contains no  carriage returns or newlines; each line
+just contains 160 characters and is padded with spaces. If you receive
+this paper in the SIGBOVIK proceedings, it may be hard to read because
+it is printed in a very small font to conserve paper. Squinting really
+hard to read hard fonts is good exercise for your eyes.
 
-Your antivirus software may detect this paper as a virus, for good reasons
-that I will describe later. It is not a virus. ;-)
+Your antivirus  software may detect  this paper  as a virus,  for good
+reasons that I will describe later. It is not a virus. ;-)
 
 This program was typeset with a special tool, described in Section XXX.
 
 
     ** Introduction **
 
-On any normal computer, a program is just a data file. It usually contains
-some header information that tells the operating system about what it is
-(for example, to confirm that it is a program and not some other kind of
-file; to tell the operating system about how much memory it needs, or the
-libraries it depends on, etc.) and then contains commands for the
-processor to execute. I'm not talking about stuff like shell scripts and
-Python programs, which contain text-based commands (like 10 PRINT "HI")
-interpreted by some other program. I mean real executable files. These
-commands are low level instructions called opcodes, and are usually just a
-few bytes each. Maybe just one byte. For example, on the popular and
-elegant X86 architecture, the single byte 0xF4 is the "HLT" instruction,
-which halts the computer. (Could this be why ALT-F4 is the universal key
-code for quitting the current program? Intriguing!) (Of course, some
-instructions like HLT are strictly off limits for "user space" programs.
-When running a program, the operating system puts the processor into a
-mode where such rude instructions instead alert the operating system to
-the program's misbehavior. We'll talk more about rude instructions in
+On any  normal computer,  a program  is just a  data file.  It usually
+contains some header information that tells the operating system about
+what it is (for example, to confirm  that it is a program and not some
+other kind of file; to tell the operating system about how much memory
+it needs,  or the  libraries it  depends on,  etc.) and  then contains
+commands for  the processor  to execute. I'm  not talking  about stuff
+like  shell  scripts and  Python  programs,  which contain  text-based
+commands (like  10 PRINT  "HI") interpreted by  some other  program. I
+mean real executable files. These  commands are low level instructions
+called opcodes, and are usually just  a few bytes each. Maybe just one
+byte. For  example, on the  popular and elegant X86  architecture, the
+single byte 0xF4  is the "HLT" instruction, which  halts the computer.
+(Could this be  why ALT-F4 is the universal key  code for quitting the
+current program?  Intriguing!) (Of course, some  instructions like HLT
+are  strictly off  limits for  "user space"  programs. When  running a
+program, the  operating system  puts the processor  into a  mode where
+such  rude instructions  instead  alert the  operating  system to  the
+program's  misbehavior. We'll  talk  more about  rude instructions  in
 Section XXX.) The single byte 0x40 means "INC AX" -- add 1 to the "AX"
-register -- and a multibyte sequence like XX XX XX means XXX. All the
-time, the computer is just reading the next byte out of the program (or
-operating system, itself a program written using these same instructions),
-doing what it says to do, and then going on to the next one.
+register -- and a multibyte sequence like  XX XX XX means XXX. All the
+time, the  computer is just reading  the next byte out  of the program
+(or  operating  system, itself  a  program  written using  these  same
+instructions), doing what it says to do, and then going on to the next
+one.
 
-I wrote the opcodes above in hexadecimal notation, but they're just stored
-in the files and memory as raw bytes (like all files). The byte 0xF4 is
-not considered "printable" because old-timey computer people couldn't
-agree on how it should look. In DOS, it's the top half of an integral
-sign, like this:
+I wrote  the opcodes above  in hexadecimal notation, but  they're just
+stored in the files and memory as raw bytes (like all files). The byte
+0xF4 is  not considered "printable" because  old-timey computer people
+couldn't agree on how it should look.  In DOS, it's the top half of an
+integral sign, like this:
 
                         . . . . . . . . .
                         . . . . . . . . .
@@ -80,17 +83,17 @@ sign, like this:
                         . . . @@@@. . . .
                         . . . @@@@. . . .
 
-The first half of all bytes (0x00 to 0x7F) are defined in ASCII, which is
-standard across almost all computers now. When you look at the @ symbols
-in the picture above, they are almost certainly represented as the byte
-0x40, which means the character @ in ASCII. And so if you peered directly
-at the bytes in this file, you would see a lot of 0x40s in that region,
-and right here when I put another at sign: --> @ <--. Sometimes the @ sign
-can be the flower of a rose, like @>-,--'---. To the processor, it means
-INC AX, since 0x40 is that opcode.
+The first half of all bytes (0x00 to 0x7F) are defined in ASCII, which
+is standard  across almost all computers  now. When you look  at the @
+symbols in the picture above, they are almost certainly represented as
+the byte  0x40, which means  the character @ in  ASCII. And so  if you
+peered directly  at the  bytes in this  file, you would  see a  lot of
+0x40s in that region, and right here when I put another at sign: --> @
+<--.  Sometimes  the  @  sign  can  be the  flower  of  a  rose,  like
+@>-,--'---. To  the processor,  it means  INC AX,  since 0x40  is that
+opcode.
 
                                ~ @ ~
-
-Now, for good reasons that I will explain later, this paper must contain
-8,224 repetitions of the string "p~9(". Please proceed to Page 3 to
-continue reading this interesting paper.
+Now,  for good  reasons that  I will  explain later,  this paper  must
+contain 8,224 repetitions of the string "p~9(". Please proceed to Page
+3 to continue reading this interesting paper.

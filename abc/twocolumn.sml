@@ -249,6 +249,10 @@ struct
           CharVector.tabulate (len,
                                fn i => Array.sub (page, start + i))
         end
+
+      fun all_empty nil = true
+        | all_empty ("" :: rest) = all_empty rest
+        | all_empty _ = false
     in
       if !debug
       then debugpage ("debug" ^ Int.toString pagenum ^ ".page") page
@@ -256,11 +260,11 @@ struct
 
       truncate () ::
       (if pagenum + 1 = totalpages
-       then (case text of
-               nil => nil (* Perfect! *)
-             | _ => raise TwoColumn ("Text exceeded total page count! Looking at:\n" ^
-                                    StringUtil.delimit "\n"
-                                     (ListUtil.takeupto 5 text)))
+       then if all_empty text
+            then nil (* Perfect! *)
+            else raise TwoColumn ("Text exceeded total page count! Looking at:\n" ^
+                                  StringUtil.delimit "\n"
+                                  (ListUtil.takeupto 5 text))
        else dopage (pagenum + 1) text)
     end
 

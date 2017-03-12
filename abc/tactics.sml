@@ -321,6 +321,28 @@ struct
         print "Wrote bytetable.ppm\n"
       end
 
+    fun savetableimageascii () =
+      let
+        val f = TextIO.openOut "paper/bytetable.txt"
+      in
+        Util.for 128 255
+        (fn row =>
+         let in
+           Util.for 0 159
+           (fn col =>
+            let
+              val b = String.sub (" .-%@",
+                                  #2 (Array.sub (byte_table, row * 256 + col)))
+            in
+              TextIO.output(f, implode [b])
+            end);
+         (* TextIO.output (f, "\n") *)
+           ()
+         end);
+        TextIO.closeOut f;
+        print "Wrote paper/bytetable.txt\n"
+      end
+
     fun populate_byte_table () =
       let
         val start_time = Time.now ()
@@ -448,6 +470,7 @@ struct
         loop ();
         (* prtable (); *)
         (* savetableimage (); *)
+        (* savetableimageascii (); *)
         print ("Total byte table size (opcode bytes): " ^
                Int.toString ` tablesize () ^ "\n" ^
                "Computed in " ^

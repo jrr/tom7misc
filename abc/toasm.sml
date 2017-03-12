@@ -986,7 +986,7 @@ struct
 
       A.Program { blocks = init_block :: blocks,
                   frame_stack_start = frame_stack_start,
-                  datasegment = Segment.extract datasegment }
+                  datasegment = datasegment }
     end
   handle LibBase.NotFound => raise ToASM "NotFound exn in ToASM?"
 

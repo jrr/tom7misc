@@ -11,6 +11,6 @@ sig
     { init_ip : Word16.word,
       codebytes : int,
       cs : Word8Vector.vector,
-      ds : Word8Vector.vector }
+      ds : Segment.segment }
 
 end

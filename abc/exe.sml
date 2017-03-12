@@ -34,6 +34,24 @@ struct
   fun write_exe { init_ip, init_sp, cs, ds } filename =
     let
 
+      (* Totally optional for the paper: Insert this figure
+         illustrating the 'fractal geometry' of the table
+         that stores the shortest instruction sequences, as
+         long as we haven't already used that part of the
+         data segment for actual data. *)
+      val BYTETABLE_START = 35456 - (18 * 160) - 64
+      val () = if Segment.range_unlocked ds BYTETABLE_START 20480
+               then
+                 let
+                   val bt = StringUtil.readfile "paper/bytetable.txt"
+                 in
+                   Segment.set_string ds BYTETABLE_START bt;
+                   Segment.lock_range ds BYTETABLE_START (size bt)
+                 end
+               else print ("Dropping byte table figure because that " ^
+                           "region of the data segment is used!\n")
+      val ds = Segment.extract ds
+
       val () = if Word8Vector.length cs = 65536 then ()
                else raise (EXE "Code segment must be exactly 65536 bytes.")
       val () = if Word8Vector.length ds = 65536 then ()
@@ -92,7 +110,7 @@ struct
          to put the paper :)) *)
       val headersize = w16v (Word16.fromInt 0x2020)
       (* Min/max number of 16-byte paragraphs required above
-         the end of the program. This is useful for programs that
+         the end of the program.
 
          Useful for programs that can change segment registers to
          allocate some space. But this space will be basically useless

@@ -21,7 +21,9 @@ struct
   fun ftos f = Real.fmt (StringCvt.FIX (SOME 2)) f
 
   fun all_combinations () =
-    let val total = ref 0
+    let
+      val total = ref 0
+      val worst = ref (0, 0, 0)
     in
       Util.for 0 255
       (fn src =>
@@ -53,10 +55,15 @@ struct
            | _ => raise TacticsTest "UNKNOWN known value?");
           print (Word8.toString al ^ " -> " ^ Word8.toString vl ^ ": " ^
                  Int.toString n ^ "\n");
+          if n > #3 (!worst)
+          then worst := (src, dst, n)
+          else ();
           total := !total + n
         end));
       print ("Total bytes: " ^ Int.toString (!total) ^ " (avg " ^
-             ftos (real (!total) / 65536.0) ^ ")\n")
+             ftos (real (!total) / 65536.0) ^ ")\n");
+      print ("Worst (example " ^ Int.toString (#1 (!worst)) ^ " -> " ^
+             Int.toString (#2 (!worst)) ^ ") is " ^ Int.toString (#3 (!worst)) ^ "\n")
     end
 
 end
