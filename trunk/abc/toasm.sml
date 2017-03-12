@@ -817,11 +817,12 @@ struct
                 body : string,
                 blocks : (string * C.stmt) list }) : A.named_block list =
     let
-      val argsizes : sz SM.map =
-        foldl (fn ((s, t), m) => SM.insert (m, s, typsize t)) SM.empty args
-
+      val argsizes = ListUtil.mapsecond typsize args
       val localsizes =
         let
+          val argset : unit SM.map =
+            foldl (fn ((s, t), m) => SM.insert (m, s, ())) SM.empty args
+
           val localtypes : C.typ SM.map ref = ref SM.empty
           fun oneblock (_, stmt) =
             ignore ` GetSizes.converts localtypes C.Context.empty stmt
@@ -830,7 +831,7 @@ struct
           (* Exclude args from locals, since they are allocated as
              args. *)
           SM.filteri (fn (k, s) =>
-                      not ` Option.isSome ` SM.find (argsizes, k)) `
+                      not ` Option.isSome ` SM.find (argset, k)) `
           SM.map typsize ` !localtypes
         end
 
@@ -862,7 +863,7 @@ struct
       val () = nextpos := !nextpos + retbytes
 
       (* Then the args. *)
-      val () = SM.appi alloc argsizes
+      val () = List.app alloc argsizes
       val argbytes = !nextpos - retbytes
       val () =
         let

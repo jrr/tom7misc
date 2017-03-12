@@ -17,6 +17,8 @@ sig
   val // : acc * X86.ins -> acc
   (* Get instructions in forward order. *)
   val insns : acc -> X86.ins list
+  (* Instructions with their start offsets. *)
+  val insns_offsets : acc -> (int * X86.ins) list
   (* Get encoded instructions. *)
   val encoded : acc -> Word8Vector.vector
   (* Clear instructions. *)
