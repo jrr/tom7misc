@@ -1,6 +1,13 @@
 
 Sorry about that!
 
+(XXX elsewhere?)
+By  the way,  I tried  to  be disciplined  in this  paper about  writing
+hexadecimal numbers  in C notation, like  0x42 to stand for  66. The x86
+architecture  is little-endian,  so a  16-bit word  0x1234 is  stored in
+memory as 0x34 0x12.  Also, when I write x86, that  is not a hexadecimal
+number, that's the name of the computer architecture.
+
 Not  all  of the  ASCII  bytes  are  considered printable,  either.  For
 example, 0x14 means DEVICE CONTROL 4 in ASCII, forever enshrined as that
 useless idea. Even DOS didn't think it was useful, so DOS prints it as a
@@ -23,11 +30,11 @@ This paper  is concerned with  reliably printable characters, so  we say
 that's the  95 characters from 0x20  to 0x7E, inclusive. This  is all of
 'em, with the upper-left corner being 0x20 SPACE.
 
-             ! " # $ % & ' ( ) * + , - . / 0 1 2
-           3 4 5 6 7 8 9 : ; < = > ? @ A B C D E
-           F G H I J K L M N O P Q R S T U V W X
-           Y Z [ \ ] ^ _ ` a b c d e f g h i j k
-           l m n o p q r s t u v w x y z { | } ~
+                 ! " # $ % & ' ( ) * + , - . / 0 1 2
+               3 4 5 6 7 8 9 : ; < = > ? @ A B C D E
+               F G H I J K L M N O P Q R S T U V W X
+               Y Z [ \ ] ^ _ ` a b c d e f g h i j k
+               l m n o p q r s t u v w x y z { | } ~
 
 
     ** Printable X86 **
@@ -256,23 +263,23 @@ There are 6 segments, CS (code), DS (data), SS (stack), and three
 
 In a DOS .COM  file, CS, DS, ES, and SS are all  initialized to the same
 value. This is  easy to think about,  but it causes a  super bad problem
-for us: The machine stack is inside in the same segment as our code. The
+for us: The  machine stack is inside  the same segment as  our code. The
 machine stack is  a region of memory that the  PUSH and POP instructions
 use (among  others); it  starts at  the end of  this single  segment and
 grows   downward  (towards   lower   addresses,   where  the   program's
 instructions are). If the stack collides  with the program, then it will
 mess  up the  instructions  (which might  be an  effective  way to  make
-self-modifying code, but we don't want to cheat). Most COM programs deal
-stay out  of the way of  the stack by  being much smaller than  64k. For
-good reasons that I will explain later,  this isn't an option for us. It
-might be  possible to  avoid using  the stack in  our programs,  but DOS
-interrupts (see XXX) are constantly happening as our program runs. These
-interrupts use the  stack, and although they put the  stack pointer back
-where  it was  and don't  modify anything  currently on  the stack,  the
-values  that  they PUSH  and  then  POP  are  still present  in  memory,
-overwriting whatever was there. We don't have any way to turn these off,
-because the CLI  instruction ("clear interrupts") is 0xFA,  which is not
-printable. It seems COM files will not work for this project.
+self-modifying code, but we don't want to cheat). Most COM programs stay
+out of  the way of the  stack by being  much smaller than 64k.  For good
+reasons that I will explain later, this isn't an option for us. It might
+be possible to avoid using the stack in our programs, but DOS interrupts
+(see XXX) are constantly happening as our program runs. These interrupts
+use the stack, and although they put the stack pointer back where it was
+and don't modify  anything currently on the stack, the  values that they
+PUSH and then POP are still  present in memory, overwriting whatever was
+there.  We  don't have  any  way  to turn  these  off,  because the  CLI
+instruction ("clear  interrupts") is  0xFA, which  is not  printable. It
+seems COM files will not work for this project.
 
 This leaves old-style  16-bit DOS EXE files, which do  just barely work,
 and this is  what ABC produces. EXE files afford  much more flexibility,
@@ -301,7 +308,7 @@ below) and  then the program  image. The program  image is some  blob of
 data that gets placed contiguously in  memory, with the data segment set
 to its  beginning and the  code and stack  segments set to  wherever the
 header  asks. A  typical layout  would look  like this,  with the  solid
-dashed box being the contents of the exe file:
+box being the contents of the exe file:
 
                  DS,ES    CS       SS
                  |        |        |      (additional memory)
@@ -368,18 +375,19 @@ it might be placed in a different  spot. When the program is loaded, DOS
 goes through  all of the entries  in the relocation table,  and modifies
 the given location in the program by adding the base segment to the word
 at  that location.  Usually  this  location is  part  of an  instruction
-sequence "PUSH imm; POP DS", where imm  is some value that we want to be
-relative to the program's base  segment. We can't change segment values,
-so the relocation table is useless  to us. In fact it's harmful, because
-we have to have 8,224 (0x2020) relocation table entries in order to have
-a printable header, and whatever offsets are in there will get corrupted
-when the program  is loaded. We repeat the same  location over and over,
-and choose a  location that's right after the code  segment in memory, a
-part of  the image  we don't  need. I'll  point out  the spot  that gets
-overwritten when we get there. The locations are given as segment:offset
-pairs, which  is nice because  have multiple  ways to reference  a given
-location. We simply  solve for some segment:offset such  that (segment *
-16 + offset = addr) and both segment and offset are printable.
+sequence like "PUSH imm;  POP DS", where imm is some  value that we want
+to be  relative to the program's  base segment. We can't  change segment
+values, so the relocation table is  useless to us. In fact it's harmful,
+because we have to have 8,224 (0x2020) relocation table entries in order
+to have a  printable header, and whatever offsets are  in there will get
+corrupted when the  program is loaded. We repeat the  same location over
+and over, and  choose a location that's right after  the code segment in
+memory, a part of the image we  don't need. I'll point out the spot that
+gets  overwritten  when  we  get  there.  The  locations  are  given  as
+segment:offset pairs,  which is  nice because we  have multiple  ways to
+reference a given location. We simply solve for some segment:offset such
+that (segment  * 16  + offset =  addr) and both  segment and  offset are
+printable.
 
 
     ** Addressing modes, temporaries, calling convention **
@@ -460,20 +468,20 @@ addressing modes. Notably:
    Most compilers use these instructions frequently!
  - As a result, exactly one of the source or destination operand is
    some location in memory.
- - The simple addressing modes ([ESI] means the memory in the
-   location pointed to by the value in the ESI register) can only be
-   paired with some registers (AND DI <- [EDX] is allowed, but
-   AND AX <- [EDX] is not).
+ - The simple addressing modes can only be paired with some registers.
+   For example, AND DI <- [EDX] is allowed, but AND AX <- [EDX] is not.
+   [ESI] means the memory in the location pointed to by the value in
+   the ESI register.
 
 This is even more annoying than x86 usually is. That said, the fact that
-we don't have register-to-register operations means that register
-allocation is far less important than usual. Instead, we operate on
-a set of temporaries, accessed using the [EBP]+disp8 addressing mode.
-EBP's default segment is SS, so these temporaries are stored in the
-same segment as the stack. In fact, since we initialized the stack
-pointer towards the middle of SS (it has to be printable; 0x7e7e), we
-have the entire region from 0x7e7e to 0xFFFF to use for temporaries.
-Each function frame (see below) has its own set of temporaries.
+we  don't  have  register-to-register  operations  means  that  register
+allocation is  far less important than  usual. Instead, we operate  on a
+set  of temporaries,  accessed  using the  [EBP]+disp8 addressing  mode.
+EBP's default segment is SS, so these temporaries are stored in the same
+segment as  the stack. In fact,  since we initialized the  stack pointer
+towards the middle of  SS (it has to be printable;  0x7e7e), we have the
+entire  region  from 0x7e7e  to  0xFFFF  to  use for  temporaries.  Each
+function frame (see below) has its own set of temporaries.
 
 To perform a basic subtraction operation, whereas a traditional compiler
 is likely to emit an instruction like
@@ -482,17 +490,19 @@ is likely to emit an instruction like
    
 ABC emits a sequence like
 
-   ??                     MOV AX, [EBP+0x22]    ;; AX = tmp2
-   0x67 0x29 0x45 0x20    SUB [EBP+0x20], AX    ;; tmp0 = tmp0 - AX
+   ??                     MOV AX <- [EBP+0x22]    ;; AX = tmp2
+   0x67 0x29 0x45 0x20    SUB [EBP+0x20] <- AX    ;; tmp0 = tmp0 - AX
 
 which is not so  bad. (Note that we do not have  a MOV instruction; this
 puzzle is solved below). We often need to do much more work than this to
 perform a  basic operation,  and optimization is  meaningful (especially
 things that reduce code size).
 
-Note that to encode [EBP+disp8], we need to write the displacement byte
-in the opcode, so it must be printable. The EBP register will therefore
-actually always point 32 bytes before the first temporary, so that
+The [EBP+disp8]  addressing mode denotes  the location in memory  at the
+address in EBP,  plus the given 8-bit value (above,  0x22). Note that to
+encode  this mod/rm,  we  need to  write the  displacement  byte in  the
+opcode,  so  it must  be  printable.  The  EBP register  will  therefore
+actually  always point  32 bytes  before  the first  temporary, so  that
 temporary 0 is accessed as [EBP+0x20].
 
 With this idea in mind, here is a summary of ABC's low-level design:
@@ -522,8 +532,8 @@ program do computation. Let's warm up with something very basic.
     ** Putting a value in a register **
 
 When programming X86 like a normal person,  a very common task is to put
-an arbitrary  number (for  example, a  memory address,  or a  value that
-appears in the user's program) into a register, like
+an arbitrary  number (for example, the  address of a global,  or a value
+that appears in the user's program) into a register, like
 
     0xB8 0x34 0x12      MOV AX <- 0x1234
 
@@ -558,23 +568,20 @@ shortest (known) sequence  for putting some desired byte DST  in AL when
 AL is  known to already contain  some byte SRC. This  table is populated
 via something  like Dijkstra's "shortest path"  algorithm. For starters,
 the diagonal  (SRC = DST)  can be  initialized to the  empty instruction
-list. We can then use INC and DEC to fill the rest of the rows
-
-  (XXX diagram?)
-
-with very  inefficient but correct sequences  (still, when SRC is  5 and
-DST is 6,  INC AX will remain  the best approach!). Next,  we maintain a
-queue of  cells that should  be searched  (everything goes on  the queue
-except the  diagonal, which  is already  optimal). We  repeatedly remove
-items from the queue and then explore  what cells we can reach from that
-source byte. For example, if we  pull out the cell (SRC=0x80, DST=0x01),
-we try  applying XOR,  SUB, and AND  (with printable  immediate values),
-etc. to  the source value 0x80  to see what  we get. One such  result is
-that we can get AL=0x00 by doing AND AL <- 0x40. Consulting the cell for
-(SRC=0x00, DST=0x01),  we see that  it contains  a sequence of  length 1
-(INC AX), so this gives us a new best solution (AND AL <- 0x40, INC AX),
-which is  much better than  (DEC AX, DEC AX,  ... 79 times).  We iterate
-this procedure paths stop improving.
+list. We  can then use INC  and DEC to fill  the rest of the  table with
+very inefficient but correct sequences (still,  when SRC is 5 and DST is
+6, INC AX will remain the best  approach!). Next, we maintain a queue of
+cells that should  be searched (everything goes on the  queue except the
+diagonal, which is already optimal). We repeatedly remove items from the
+queue and  then explore what cells  we can reach from  that source byte.
+For  example, if  we  pull out  the cell  (SRC=0x80,  DST=0x01), we  try
+applying XOR,  SUB, and AND  (with printable immediate values),  etc. to
+the source value 0x80 to see what we get. One such result is that we can
+get AL=0x00 by doing AND AL  <- 0x40. Consulting the cell for (SRC=0x00,
+DST=0x01), we see that  it contains a sequence of length  1 (INC AX), so
+this  gives us a  new best  solution  by concatenating  these two  paths
+(AND AL <- 0x40, INC AX), which is much better than (DEC AX, DEC AX, ...
+79 times). We iterate this procedure until paths stop improving.
 
 This works  well, with  only an  average of  2.54 bytes  of instructions
 needed to  transform a source  byte into  a destination one  (across all
@@ -588,14 +595,15 @@ instructions (this is only the diagonal of course, only barely visible);
 '.' means  one instruction byte (just  INC and DEC, near  the diagonal);
 '-' is two  instruction bytes (like XOR  AL <- 0x2A); '%'  is three; and
 '#"  is four.  This  fractal pattern  shows  up all  over  the place  in
-mathematics and computer  science. For example it is  reminiscent of the
-matrix of game configurations in k/n Power Hours [XXX].
+mathematics  and  computer  science  and   Hyrule.  For  example  it  is
+reminiscent  of the  matrix of  game configurations  in k/n  Power Hours
+[XXX].
 
 
-Once we can load an arbitrary byte into AL, we can fill all of AX with
-this trick. Suppose that our goal is to load AH=0x12 and AL=0x34. If we
-don't know anything about AX, we can zero it with two AND instructions.
-Then we can emit the instructions to load 0x12 starting from the known
+Once we can load  an arbitrary byte into AL, we can fill  all of AX with
+this trick. Suppose that our goal is  to load AH=0x12 and AL=0x34. If we
+don't know anything about AX, we  can zero it with two AND instructions.
+Then we can  emit the instructions to load 0x12  starting from the known
 value 0x00. Then this sequence:
 
    instruction    AH  AL        stack           (ww, xx, yy, zz stand for
@@ -625,12 +633,12 @@ the AX register, and we use it all the time in the generated code.
 
 Another useful kind of instruction is  MOV AX <- [EBP+0x20], which moves
 the 16-bit word at the address in  EBP (offset by 0x20) into AX. This is
-how  we read  and  write  temporaries; the  "AX  <-  [EBP+0x20] part  is
+how  we read  and  write temporaries;  the "AX  <-  [EBP+0x20]" part  is
 printable,  but  we   don't  have  the  MOV   opcode  available  (0x89).
-Fortunately, the XOR instruction  is "information-preserving", so it can
+Fortunately, the XOR instruction  is "information-preserving," so it can
 be  used like  a  MOV. Specifically,  if  we already  have  zero in  the
-destination,  then XOR  *is* a  MOV. In order to load from memory we use
-an instruction sequence like:
+destination, then XOR *is* a MOV. In order to load from memory we use an
+instruction sequence like:
 
     ... various ...      set ax <- 0x0000        ;; using tricks above
   0x67 0x33 0x45 0x20    XOR AX <- [EBP+0x20]
@@ -648,12 +656,12 @@ This is almost... nice! But don't worry, it gets grosser.
 
     ** Keeping track of what's up with the accumulator **
 
-The ABC backend (tactics.sml) generates X86 for some low-level
-primitives that operate on temporaries, like "Add tmp1 <- tmp2". (This
+The  ABC   backend  (tactics.sml)  generates  X86   for  some  low-level
+primitives that operate  on temporaries, like "Add tmp1  <- tmp2". (This
 is described in Section XXX when discussing the phases of the compiler.)
 Because it's expensive to load values into registers, we go through some
-trouble to keep track of the machine state as we generate code. This
-allows us to make some opportunistic improvements. For example, the
+trouble to  keep track of  the machine state  as we generate  code. This
+allows  us to  make some  opportunistic improvements.  For example,  the
 actual SML code implementing Add on 16-bit numbers looks like this:
 
   fun add_tmp16 acc dst_tmp src_tmp : acc =
@@ -670,43 +678,43 @@ actual SML code implementing Add on 16-bit numbers looks like this:
 
 The approach is  to XOR the source value with  0xFFFF and then increment
 it by 1; this negates the value in two's complement. We can then use the
-SUB  operator, whose  opcode is  printable. The  "accumulator" (variable
-acc) lets  us manage  the steps. Without  getting into  tedious details,
-"acc ++ AX" claims  the register AX so that tactics  know not to clobber
-it; we  later return it  with "-- AX".  The imm_ax16 function  loads the
-value 0xFFFF into AX; this tactic gets to inspect what's known about the
-machine state. For  example, if happen to have  just assembled something
-that left AX  containing 0x0000 (very common) then we  can simply DEC AX
-to get  0xFFFF in one byte.  imm_ax16 updates the accumulator  to record
-that AX now  contains 0xFFFF, as well as  emitting whatever instructions
-it  needs.  The //  combinator  emits  a  raw  instruction, and  the  ??
-combinator allows us to learn or forget a fact about a register. Because
-some tricks  require knowledge of  e.g. AL  but not AH,  the accumulator
-actually keeps  track of  each byte of  each register  independently. It
-also understands that  if you claim ESI,  then SI cannot be  used (SI is
-part  of ESI),  and so  on. This  is nice,  and the  semi-monadic syntax
-allows what  looks like assembly  code in ML. (Also  note the <-  and <~
-(hyphen  vs.  tilde)  datatype  constructors that  distinguish  the  two
-directions  of instruction,  "reg <-  mod/rm" vs  "mod/rm <~  reg".) The
-biggest risk  of this  approach is  if you  don't accurately  record the
-state of  registers (e.g. you  forget to "forget_reg16"  after modifying
-it), because this can lead to  tactics making wrong assumptions but only
-in certain unlucky situations. Some of  my worst bugs were from this; it
-would be cleaner if the  accumulator actually simulated the instructions
-to update its  own internal facts, rather than have  the programmer make
-assertions.
+SUB operator, whose opcode is printable, to subtract that negated value,
+which is the same as adding it. The "accumulator" (variable acc) lets us
+manage  the steps.  Without getting  into tedious  details, "acc  ++ AX"
+claims the register AX so that tactics  know not to clobber it; we later
+return it  with "-- AX".  The imm_ax16  function loads the  value 0xFFFF
+into AX;  this tactic  gets to  inspect what's  known about  the machine
+state. For example,  if we happen to have just  assembled something that
+left AX containing 0x0000 (very common) then we can simply DEC AX to get
+0xFFFF in one  byte. imm_ax16 updates the accumulator to  record that AX
+now contains 0xFFFF, as well as emitting whatever instructions it needs.
+The // combinator emits a raw  instruction, and the ?? combinator allows
+us  to learn  or forget  a fact  about a  register. Because  some tricks
+require knowledge of e.g. AL but  not AH, the accumulator actually keeps
+track of each  byte of each register independently.  It also understands
+that if you claim  ESI, then SI cannot be used (SI is  part of ESI), and
+so on. This is nice, and  the semi-monadic syntax allows what looks like
+assembly  code in  ML.  (Also note  the  <- and  <~  (hyphen vs.  tilde)
+datatype   constructors  that   distinguish   the   two  directions   of
+instruction, "reg  <- mod/rm" vs. "mod/rm  <~ reg".) The biggest risk of
+this approach is  if you don't accurately record the  state of registers
+(e.g. you forget to "forget_reg16" after modifying it), because this can
+lead to  tactics making  wrong assumptions but  only in  certain unlucky
+situations. Some of my worst bugs were from this; it would be cleaner if
+the accumulator  actually simulated the  instructions to update  its own
+internal facts, rather than have the programmer make assertions.
 
 Since the accumulator is purely functional, another cool thing we can do
 is try out multiple different  strategies for assembling some block, and
 pick  the best  one.  For example,  when we  decrease  EBP right  before
 returning from a function (to  restore the caller's temporaries), we can
-either subtract a literal (number of bytes depends on the machine state)
-or DEC BP over and over (frequently faster).
+either  subtract a  constant (number  of  bytes depends  on the  machine
+state) or DEC BP over and over (frequently faster).
 
 
     ** Pointer loads and stores **
 
-One of the primitives we must  implement is load16 dst_tmp addr_tmp; the
+Another primitive we must implement is "Load16 dst_tmp <- addr_tmp"; the
 temporary  addr_tmp contains  a 16-bit  address, and  we load  the value
 contained at that address (in DS) and  store it in dst_tmp. This is used
 for pointer dereferencing in the source C program, for example.
@@ -732,9 +740,9 @@ that's possible if  the destination temporary and  address temporary are
 the same slot.  This situation rarely occurs  naturalistically, since it
 would correspond to unusual C code  like (int*)x = (int*)*x. However, it
 is very commonly the output of temporary coalescing (Section XXX), since
-it is typical the final use of an address to be a load from it. So, this
-is actually useful,  but the main reason to do  it is awesomeness! Let's
-say the single temporary is at EBP+0x20.
+it is typical for the final use of  an address to be a load from it. So,
+this is  actually useful, but the  main reason to do  it is awesomeness!
+Let's say the single temporary is at EBP+0x20.
 
     set DI <- 0             ;; macro
     XOR DI <- [EBP+0x20]    ;; load the address into DI.
@@ -755,10 +763,146 @@ extremely rare for an absolute address to have any relationship with the
 value  it  points  to. So  we  get  extra  style  points for  finding  a
 legitimate use for it.
 
-Stores are the same idea. The trick actually applies there too, but
-isn't useful (XXX because...)
+Stores are  the same  idea. The  trick actually  applies there  too, but
+isn't useful because it doesn't save  us instructions, and because it is
+uncommon for the address  and value to be the same  temporary in a store
+operation (store is not really the  opposite of load in this sense; both
+temporaries are read and neither is modified in
+"Store16 addr_tmp <- src_tmp").
+
 
     ** Exiting and initializing the program **
+
+We also  want to be able  to exit the  program when we're done.  This is
+normally done by  making a "system call" to an  operating system routine
+to tell it that we're done and  the program can be unloaded. In DOS, you
+make  system calls  by triggering  a  processor interrupt  with the  INT
+instruction. We don't  have access to this instruction,  whose opcode is
+0xCD. Alas!  The INT  instruction is  a gateway to  all sorts  of useful
+functionality,  like printing  strings  and reading  from the  keyboard,
+reading and writing files, changing video modes, and so on, so it's very
+sad to go without it. (The  EICAR test virus uses self-modifying code to
+create two INT  instructions; one is to print the  string and the second
+is to exit.) In DOS, INT 0x21  is the most useful one; you set registers
+to some values to access dozens of different functions.
+
+(XXX talk about PSP earlier?)
+
+INT 0x21  is so  common that  it appears in  the Program  Segment Prefix
+that's always  loaded at the  beginning of  the data segment.  It's just
+sitting there amidst some zeroes:
+
+     ...
+   DS:0x004A    0x00 0x00         ADD [BX+SI] <- AL
+   DS:0x004C    0x00 0x00         ADD [BX+SI] <- AL
+   DS:0x004E    0x00 0x00         ADD [BX+SI] <- AL
+   DS:0x0050    0xCD 0x21         INT 0x21
+   DS:0x0051    0xCB              RETF
+   DS:0x004E    0x00 0x00         ADD [BX+SI] <- AL
+   DS:0x004E    0x00 0x00         ADD [BX+SI] <- AL
+     ...
+
+It  even  tantalizingly  has  RETF   (far  return  from  function  call)
+immediately after it,  like it was planted there by  some puzzlemaker of
+years past, exactly  for this kind of situation. (I  don't actually know
+why it's there!) RETF pops both  a return address and return segment, so
+if we could manage  to put a return address on the  stack (not hard) and
+the  code segment  (we don't  know  it, but  we could  probably use  the
+relocation table  to write  it somewhere) beneath  it, and  then somehow
+transfer control  to DS:0x0050, we'd  have a  fully general INT  0x21 to
+use! It  would even help with  the loop problem (next  section) since it
+lets us return  to an arbitrary address, and could  conceivably even let
+us escape the confines of always  executing code within the initial code
+segment CS (because RETF modifies CS). But speaking of confines, none of
+this  will  work, because  we  have  no way  of  modifying  CS to  start
+executing code out of DS. Too bad,  so sad. (This idea might pan out for
+a  COM file  where  CS=DS, but  there  we have  no  relocation table  so
+figuring out what  segment value to put in the  stack would require some
+other hack. We  also have the Loop problem, preventing  us from reliably
+jumping to DS:0x0050. Might be worth further exploration.)
+
+Jumping  the  program to  a  non-printable  instruction  is also  a  bit
+questionable, though  it's not  an instruction that  we wrote  there, so
+this does not  violate our self-modifying code fatwa. Is  it wrong for a
+waiter  to serve  the ovo  lacto  vegetarian with  vegetarian food  that
+causes him to eat non-vegetarian  food that the customer himself brought
+with him? Who can say?
+
+This is  not hopeless. The way  interrupts actually work is  to stop the
+current execution (saving  the state of the registers on  the stack) and
+then consult a table of "interrupt  vectors" (in my opinion it should be
+called  the  "interrupt vector"  containing  addresses)  at the  address
+0x0000:0x0000 (i.e., right  at the beginning of  memory). Each interrupt
+has a number,  and each address is a 32-bit  segment:offset pair. So the
+address at 4 * 0x21 = 0x0084 is the location of DOS's code for INT 0x21.
+In  16-bit  real  mode  programs,  there's  nothing  special  about  the
+operating system;  you can just  jump directly into  it if you  want, or
+overwrite it  with your  own stuff.  In fact, this  is how  many viruses
+work; for example by  the address for INT 0x21 with  their own code, and
+intercepting file operations to insert viruses before calling through to
+the original INT 0x21 handler so that everything still works.
+
+Fetching the INT 0x21 address is not immediately useful, because we
+can't transfer control to it; we don't have the CALL instruction. In
+fact, the only JMP instructions we have must jump a small fixed distance
+forward (next section). But! The INT instruction is not the only way to
+trigger interrupts. The timer interrupt is firing continuously, messing
+with our stack, for example. We can modify the interrupt vector table to
+make the timer interrupt (INT 0x8) instead point to the INT 0x21 code,
+and then "wait" for a timer interrupt to happen, and maybe restore the
+old timer interrupt code when we're done. This might work, but it seems
+extremely brittle. (Also, the timer interrupt handler has to perform
+certain low-level duties or else the system will freeze.) Fortunately
+there's a better choice: The CPU will also trigger an interrupt when
+an illegal instruction is executed. Do we have an illegal instruction
+inside printable x86? In fact we do!
+
+   0x63    Adjust RPL Field of Segment Selector
+
+... it's just  sitting in there, this totally weird  instruction with no
+other possible uses amidst a bunch of sensible ones. This instruction is
+for some operating system privilege stuff, and is illegal in real mode.
+
+So, when we first start up an ABC program, one of the first things we do
+is read the address of the  INT 0x21 handler at 0x0000:0x0084, and write
+it  over the  INT 0x06  (illegal  instruction) handler.  Luckily the  FS
+segment is set  to 0x0000 when our program starts  (we can't change it),
+so  we  can use  the  FS  segment  override  instruction to  access  the
+beginning of RAM.  Once we overwrite the address, then  whenever we want
+we can set up argument registers for  the system call "exit" (AH = 0x4c,
+AL = status  code), and execute executing the  illegal ARPL instruction.
+This will  trigger interrupt 0x06,  which is  now actually the  INT 0x21
+code, and DOS will "cleanly" exit the program for us.
+
+It is very tempting to use this trick to make other system calls through
+INT 0x21,  or perhaps to  jump to  arbitrary addresses of  our choosing!
+Sadly, there are two very serious issues:
+
+ - When the processor triggers the illegal instruction interupt, the
+   return address that it pushes on the stack is the address of the
+   illegal instruction itself, not the one that follows it. So when the
+   interrupt handler returns, it simply executes another illegal
+   instruction.
+ - When the interrupt is triggered, it clears the interrupt flag (so
+   that for example the timer interrupt doesn't fire while it's already
+   running). Only a few instructions, which we don't have access to,
+   can restore the interrupt flag. This means that we would only be able
+   to do this once, and after we did, many things would stop working
+   because interrupts would stop firing.
+
+Neither of these issues are a problem for the exit system call, since
+we only do it once.
+(XXX Thank you for playing Wing Commander.)
+
+The ARPL  instruction takes  two argument  bytes which  just have  to be
+printable; the instruction we actually encode is
+
+  0x63 0x79 0x61     ARPL [ECX+0x61] <- DI
+
+The ASCII  sequence is  "cya", as  in see  ya, which  we follow  with an
+unexecuted exclamation mark for emphasis. You can find the string "cya!"
+in the code segment on page XXX.
+
 
     ** Loops **
 
