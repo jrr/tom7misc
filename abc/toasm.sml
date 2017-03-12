@@ -524,7 +524,9 @@ struct
                  (fn (vtmp, vt) =>
                   if typsize src <> typsize dst orelse typsize vt <> typsize src
                   then raise ToASM ("alleged compatible cast between " ^
-                                    "types of different widths!")
+                                    "types of different widths: " ^
+                                    "src=" ^ C.typtos src ^ " dst=" ^ C.typtos dst ^
+                                    " arg type=" ^ C.typtos vt)
                   else A.Mov (vartmp (var, typsize dst), vtmp) // k ())
 
              | C.Promote { signed, src, dst, v : C.value } =>
