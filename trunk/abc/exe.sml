@@ -31,6 +31,9 @@ struct
     in Word8.fromInt ` ord ` String.sub (str, i mod sz)
     end
 
+  fun w8vstring s =
+    Word8Vector.tabulate (size s, repeatingstring s)
+
   fun write_exe { init_ip, init_sp, cs, ds } filename =
     let
 
@@ -139,7 +142,9 @@ struct
          to turn interupts off!)
 
          Put this immediately after CS. *)
-      val initSS = w16v (Word16.fromInt 0x3020)  (* vec [0wx6e, 0wx6e] *)
+      val initSS =
+        Word8Vector.tabulate (2, repeatingstring "PR")
+        (* w16v (Word16.fromInt 0x3020) *)  (* vec [0wx6e, 0wx6e] *)
       (* Machine stack grows downward (towards 0x0000), so we want this to
          be a large number. We actually place the temporaries stack
          right after this, growing upward (towards 0xFFFF); so the
@@ -152,7 +157,7 @@ struct
          a delicate matter. *)
       val initSP = w16v init_sp
       (* Checksum; usually ignored. 'AB' *)
-      val checksum = Word8Vector.tabulate (2, repeatingstring "AB")
+      val checksum = Word8Vector.tabulate (2, repeatingstring "ty")
       val initIP = w16v init_ip
       (* Displacement of code segment (within _image_). *)
       val initCS = vec [0wx20, 0wx20]
@@ -160,7 +165,12 @@ struct
       val reloctable = vec [0wx20, 0wx20]
       (* Tells the OS what overlay number this is. Should be 0
          for the main executable, but it seems to work if it's not *)
-      val overlay = Word8Vector.tabulate (2, repeatingstring "C!")
+      val overlay = Word8Vector.tabulate (2, repeatingstring "C ")
+
+      (* Appended to the header; this is just a "convenience" to make
+         the title of the paper easier to construct. The firstpage.2c
+         startcol needs to take this into account. *)
+      val unnecessary = w8vstring "with ABC!   "
 
       val header_struct =
         Word8Vector.concat [magic,
@@ -176,7 +186,9 @@ struct
                             initIP,
                             initCS,
                             reloctable,
-                            overlay]
+                            overlay,
+                            (* Not really part of header; see above. *)
+                            unnecessary]
       val HEADER_STRUCT_BYTES = Word8Vector.length header_struct
 
       val () = print ("Header struct size: " ^

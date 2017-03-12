@@ -450,7 +450,7 @@ int main(int argc, char **argv){
   /* happens to give 60 as default */
 
   // WriteHeader(ifilename);
-  WriteHeader("ZM~~ #         0~~AB#     C!");
+  WriteHeader("ZM~~ #        PRinty#     C with ABC!");
   WritePages();
   WriteRest();
 

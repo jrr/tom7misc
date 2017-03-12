@@ -27,7 +27,7 @@ text2pdf.exe : text2pdf.c
 	gcc -O2 text2pdf.c -o text2pdf.exe
 
 paper/firstpage.2c : twocolumn.exe paper/firstpage.txt makefile
-	./twocolumn.exe -startline 0 -startcol 28 -pages 1 -endlines 76 -endcol 64 paper/firstpage.txt -o $@
+	./twocolumn.exe -startline 0 -startcol 40 -pages 1 -endlines 76 -endcol 64 paper/firstpage.txt -o $@
 
 paper/postreloc.2c : twocolumn.exe paper/postreloc.txt makefile
 	# XXX endlines is estimate

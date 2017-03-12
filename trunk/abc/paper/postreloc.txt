@@ -286,7 +286,7 @@ and this is  what ABC produces. EXE files afford  much more flexibility,
 such as  the ability to access  up to 640kb (barring  tricks) of memory.
 They also have many features that we  do not need or want. An EXE header
 looks like this:
-
+                                       (XXX I changed these)
   offset  field                        ABC's value (little-endian)
       00  magic number                 0x5A 0x4D
       02  extrabytes                   0x7E 0x7E
@@ -1077,3 +1077,4 @@ but is more annoying because we need to keep track of two displacements.
 
     ** Assembling **
 
+Maybe needs to be in the next chunk.
