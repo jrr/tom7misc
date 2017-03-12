@@ -65,14 +65,23 @@ struct
                  else ()
         val () = StringUtil.writefile (basename ^ ".esm") esmstring
         val x86 = ToX86.tox86 asm
-        val { cs, ds, init_ip, locs, codebytes } = x86
+        val { cs, ds, init_ip, debug, codebytes } = x86
         (* For benchmarking size, etc. *)
         val () = StringUtil.writefile (basename ^ ".bytes")
           (Int.toString codebytes ^ "\n")
+
+        fun oneblock (idx, (lab, acc)) =
+          let
+            val insoffs = Acc.insns_offsets acc
+            fun w16 x = StringUtil.padex #"0" ~4 (Word16.toString (Word16.fromInt x))
+          in
+            w16 idx ^ "  " ^ lab ^ ":\n" ^
+            String.concat
+            (map (fn (off, ins) =>
+                  w16 (idx + off) ^ "      " ^ X86.insstring ins ^ "\n") insoffs)
+          end
         val () = StringUtil.writefile (basename ^ ".debug")
-          (String.concat
-           (map (fn (lab, idx) => lab ^ "\t" ^ Word16.toString (Word16.fromInt idx) ^ "\n")
-            locs))
+          (String.concat (map oneblock debug))
       in
         EXE.write_exe { init_ip = init_ip,
                         init_sp = ToX86.INIT_SP,

@@ -165,8 +165,8 @@ struct
   structure A = ASM
   structure M = Machine
 
-  structure ISM = ImperativeMapFn(type ord_key = string
-                                  val compare = String.compare)
+  structure IIM = ImperativeMapFn(type ord_key = int
+                                  val compare = Int.compare)
 
   val INIT_SP = Word16.fromInt 0x7e7e
 
@@ -201,7 +201,7 @@ struct
      that must be filled in to jump to the next block.
 
      Also, now, debug messages to be printed if desired. *)
-  type xblock = (string * Word8Vector.vector * int list * string list)
+  type xblock = (string * Word8Vector.vector * int list * Acc.acc * string list)
 
   structure SM = SplayMapFn(type ord_key = string
                             val compare = String.compare)
@@ -739,7 +739,7 @@ struct
         end
       val vec = Word8Vector.concat (encode 0 (Acc.insns acc))
     in
-      (current_lab, vec, !next_jumps, rev (!messages))
+      (current_lab, vec, !next_jumps, acc, rev (!messages))
     end
 
   (* Convert the assembly program to x86. The labels in the order
@@ -749,8 +749,8 @@ struct
      problems that could occur, and then call toxblocks_round again
      with an adjusted program. *)
   fun toxblocks_round (blocks : A.explicit_block list,
-                    frame_stack_start : int,
-                    initial_label : string) =
+                       frame_stack_start : int,
+                       initial_label : string) =
     let
       (* Each block will have a rung of the ladder precede it. We
          give each of these a number, in sequence, so that we
@@ -837,7 +837,7 @@ struct
       val total_size = ref 0
       (* Set of the blocks that need to be proactively split. *)
       val problem_blocks = ref (SM.empty : xblock SM.map)
-      fun oneblock (xb as (lab, vec, jmps, _)) =
+      fun oneblock (xb as (lab, vec, jmps, _, _)) =
         let val len = Word8Vector.length vec
         in
           total_size := !total_size + len;
@@ -870,11 +870,11 @@ struct
                           Int.toString (!total_size) ^ "\n")
           val () =
             if !Flags.verbose
-            then app (fn (l, v, _, _) =>
+            then app (fn (l, v, _, _, _) =>
                       print (l ^ ": " ^ w8vtos v ^ "\n")) xblocks
             else ()
 
-          val () = app (fn (l, _, _, msgs) =>
+          val () = app (fn (l, _, _, _, msgs) =>
                         let in
                           if List.null msgs
                           then ()
@@ -885,8 +885,8 @@ struct
           val cs = Segment.empty ()
           val () = Segment.set_repeating_string cs 0 65536 "(CODE SEGMENT)"
 
-          (* For debugging, the addresses of each label (can set breakpoints, etc. *)
-          val addresses = ISM.empty ()
+          (* For debugging, each of the blocks, ordered by start index. *)
+          val addresses = IIM.empty ()
 
           (* OK, now we want to insert our blocks into the code segment and
              patch up the jumps. This may not be possible, in which
@@ -1020,7 +1020,7 @@ struct
           (* Control flow is at !cur, and we want to execute the
              block at the head of this list. The previous block
              has already been patched to jump to !cur. *)
-          fun place ((xb as (lab, vec, jmps, _)) :: rest) : unit =
+          fun place ((xb as (lab, vec, jmps, acc, _)) :: rest) : unit =
             let val len = Word8Vector.length vec
             in
               if !Flags.verbose
@@ -1072,7 +1072,7 @@ struct
                          SOME (Word16.fromInt (!cur + RUNG_SIZE))
                      | SOME _ => raise ToX86 "initial label emitted twice?!"
                    else ());
-                  ISM.insert (addresses, lab, !cur);
+                  IIM.insert (addresses, !cur, (lab, acc));
                   Segment.set_vec cs (!cur) vec;
                   (* Lock everything except for the locations we need to
                      update (jumps) *)
@@ -1158,7 +1158,7 @@ struct
                             Word16.toString init_ip);
           { cs = Segment.extract cs,
             codebytes = !total_size,
-            locs = ISM.listItemsi addresses,
+            debug = IIM.listItemsi addresses,
             init_ip = init_ip,
             ds = datasegment }
         end

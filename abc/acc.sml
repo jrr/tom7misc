@@ -21,6 +21,14 @@ struct
         insbytes = insbytes + EncodeX86.encoded_size ctx i,
         claimed = claimed }
   fun insns (A { ins, ... }) = rev ins
+  fun insns_offsets (A { ins, ctx, ... }) =
+    let
+      fun withoff (off, nil) = nil
+        | withoff (off, i :: rest) =
+        (off, i) :: withoff (off + EncodeX86.encoded_size ctx i, rest)
+    in
+      withoff (0, rev ins)
+    end
   fun clear_insns (A { ctx, mach, ins = _, insbytes = _, claimed }) =
     A { ctx = ctx, mach = mach, ins = nil, insbytes = 0, claimed = claimed }
   fun encoded (A { ins, ctx, insbytes, ... }) =

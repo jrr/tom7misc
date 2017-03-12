@@ -7,6 +7,7 @@
 int _putc(int); // XXX non-printable! don't use in paper!
 int _out8(int, int);
 
+/*
 // Adlib uses two bytes to do a "note-on", and the notes are specified
 // in a somewhat complex way (octave multiplier plus frequency.) These
 // tables give the upper and lower byte for each MIDI note. Computed
@@ -46,13 +47,16 @@ int Quiet() {
     Adlib((int)port, (int)0x00);
   }
 }
-
+*/
 int ParseNote(unsigned char *ptr, int c, int *idx) {
   (*idx) = (*idx) + (int)1;
   return (int)45 + (c - (int)'A');
 }
 
 int GetMidi(unsigned char *ptr, int *idx) {
+  _putc((int)*ptr);
+  return 0;
+  /*
   int c;
   int sharpflat = 0;
   // Default octave.
@@ -83,11 +87,13 @@ int GetMidi(unsigned char *ptr, int *idx) {
     // Advance to next character.
     (*idx) = (*idx) + (int)1;
   }
+  */
 }
 
 int main(int argc, char **argv) {
   int song_idx = 0, j, midi_note;
   unsigned char *song = "ACCAEED";
+  /*
   Quiet();
 
   Adlib((int)0x20, (int)0x01); // Set the modulator's multiple to 1
@@ -100,7 +106,7 @@ int main(int argc, char **argv) {
   Adlib((int)0x63, (int)0xF0); // Carrier attack: quick; decay: long
   Adlib((int)0x83, (int)0x77); // Carrier sustain: medium; release: medium
   Adlib((int)0xB0, (int)0x31); // Turn voice on; set the octave and freq MSB
-
+  */
 
   for (;;) {
     _putc((int)'0' + song_idx);
@@ -108,10 +114,10 @@ int main(int argc, char **argv) {
     if (!midi_note) break;
     _putc((int)'\n');
     _putc((int)'a' + midi_note);
-    PlayNote(midi_note);
+    // PlayNote(midi_note);
     // for (j = (int)0; j < (int)1000; j++) {}
   }
 
-  Quiet();
+  // Quiet();
   return 0;
 }
