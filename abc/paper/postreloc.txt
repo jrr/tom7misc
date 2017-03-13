@@ -1074,7 +1074,5 @@ which jumps to the same target whether  the Overflow flag is set or not,
 but is more annoying because we need to keep track of two displacements.
 (XXX)
 
-
-    ** Assembling **
-
-Maybe needs to be in the next chunk.
+We're approaching  the data section  now, so  it's time to  take another
+break!

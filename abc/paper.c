@@ -1,12 +1,30 @@
-/* Here's the C source code for the program that is
-   the SIGBOVIK paper.
-
-   (Highly in-progress as of 12 Mar 2017!)
-*/
+/**********************************************************
+ *  paper.c, Copyright (c) 2017 Tom Murphy VII Ph.D.
+ *  This copyright notice must appear in the compiled
+ *  version of this program. Otherwise, please distribute
+ *  freely.
+ *
+ *  Plays music in a simplified ABC notation, given on the
+ *  command line.
+ *
+ **********************************************************/
 
 int _putc(int); // XXX non-printable! don't use in paper!
 int _out8(int, int);
 int _exit();
+
+unsigned char *note = "Now this is the part of the data segment that "
+  "stores global variables. This is actually a string constant in "
+  "the program itself, so you'll see it again when I show you the source "
+  "code later. We have almost 64kb of space to store stuff, although "
+  "this segment is also used for the stack of local variables and "
+  "arguments, and would be used for malloc as well, if it were "
+  "implemented. Storing a string like this is basically free, because "
+  "everything in it is printable, aside from the terminating \\0 "
+  "character. At program startup, non-printable characters are "
+  "overwritten by instructions in the code segment. Like, here's one: "
+  "--> \xFF <-- It's stored in the data segment as a printable "
+  "placeholder.";
 
 // Adlib uses two bytes to do a "note-on", and the notes are specified
 // in a somewhat complex way (octave multiplier plus frequency.) These
@@ -24,39 +42,72 @@ unsigned char *lower = "\xA9\xB3\xBD\xC9\xD5\xE1\xEF\xFD\x0C\x1C-?Qf{"
   "\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\xFF\xFF"
   "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF";
 
+unsigned char *default_song =
+  "ABD'B" "^F'^F'E'"
+  "AB_D'A" "E'E'D'"
+  "AB_D'A" "D'E'_D'BA" "AE'D'";
+
 int Adlib(int reg, int value) {
   int i;
   _out8((int)0x0388, (int)reg);
+  // We have to wait "12 cycles" after writing the port.
   for (i = 0; i < (int)12; i++) {}
   _out8((int)0x0389, (int)value);
+  // And 84 cycles after writing the value. These numbers are
+  // probably far too high; recall that a for loop like this
+  // has to jump through every rung in the program! (i.e.,
+  // A single iteration is linear in the program size.)
   for (i = 0; i < (int)84; i++) {}
   return 0;
 }
 
 int PlayNote(int midi_note) {
-  // First turn note off; silence is better than weird "accidentals"
+  // First turn note off; silence is better than weird "accidentals."
   Adlib((int)0xB0, (int)0x00);
   Adlib((int)0xA0, (int)(lower[midi_note]));
   Adlib((int)0xB0, (int)(upper[midi_note]));
 }
 
+// Zero all the adlib ports, which both silences it and
+// initializes it.
 int Quiet() {
   int port;
 
-  // Clear the main tone first.
+  // Clear the main tone first, so that we don't hear artifacts during
+  // the clearing process if a note is playing.
   Adlib((int)0xB0, (int)0x00);
 
-  // Zero all registers to clear sound card.
   for (port = (int)0x01; port <= (int)0xF5; port++) {
-    // _putc('.');
     Adlib((int)port, (int)0x00);
   }
 }
 
-// We pick octave 4 as the base one; this is fairly
-// canonical and benefits us since this array is all
-// printable. Note that A4 is higher than C4, since
-// octave 4 begins at the note C4.
+// ABC provides no standard library, so you gotta roll
+// your own.
+int strlen(unsigned char *s) {
+  int len = 0;
+  while ((int)*s != (int)0) {
+    len++;
+    s = (unsigned char *)((int)s + (int)1);
+  }
+  return len;
+}
+
+// DOS terminates the command line with 0x0D, not 0x00.
+// This function updates it in place so that we can use
+// normal string routines on it.
+int MakeArgString(unsigned char *s) {
+  while ((int)*s != (int)0x0D) {
+    s = (unsigned char *)((int)s + (int)1);
+  }
+  *s = (unsigned char)0;
+  return 0;
+}
+
+// We pick octave 4 as the base one; this is fairly canonical and
+// benefits us since this array is all printable. Note that A4 is
+// higher than C4, since octave 4 begins at the note C4. This
+// array maps A...G to the corresponding MIDI note.
 unsigned char *octave4 =
   "9"  // A = 57
   ";"  // B = 59
@@ -89,14 +140,19 @@ int ParseNote(unsigned char *ptr, int c, int *idx) {
   }
 }
 
+// Parse the song description (ptr) starting at *idx. Updates *idx to
+// point after the parsed note. Returns the midi index (TODO: length,
+// etc.), or 0 when the song is done.
 int GetMidi(unsigned char *ptr, int *idx) {
   int c;
   int sharpflat = 0;
   for (;;) {
     c = (int)(ptr[*idx]);
-    // End of string.
-    // XXX use "switch" here...
+
+    // End of string literal.
     if (c == (int)0) return 0;
+    // End of command-line argument.
+    if (c == (int)0x0D) return 0;
 
     _putc((int)'[');
     _putc(c);
@@ -125,24 +181,33 @@ int GetMidi(unsigned char *ptr, int *idx) {
   }
 }
 
-int main(int argc, char **argv) {
+int main(int argc, unsigned char **argv) {
   int song_idx = 0, j, midi_note;
-  unsigned char *song =
-    "ABD'B" "^F'^F'E'"
-    "AB_D'A" "E'E'D'"
-    "AB_D'A" "D'E'_D'BA" "AE'D'";
+  unsigned char *cmdline = *argv;
+  unsigned char *song;
+  MakeArgString(cmdline);
+
+  // If we have a command line, use that. Otherwise, the default
+  // song.
+  if (strlen(cmdline) > (int)0) {
+    song = cmdline;
+  } else {
+    song = default_song;
+  }
+
+  _putc((int)'0' + strlen(song));
+
   Quiet();
 
-  Adlib((int)0x20, (int)0x01); // Set the modulator's multiple to 1
-  Adlib((int)0x40, (int)0x10); // Set the modulator's level to about 40 dB
-  Adlib((int)0x60, (int)0xF0); // Modulator attack: quick; decay: long
-  Adlib((int)0x80, (int)0x77); // Modulator sustain: medium; release: medium
-  Adlib((int)0xA0, (int)0x98); // Set voice frequency's LSB (it'll be a D#)
-  Adlib((int)0x23, (int)0x01); // Set the carrier's multiple to 1
-  Adlib((int)0x43, (int)0x00); // Set the carrier to max volume (about 47 dB)
-  Adlib((int)0x63, (int)0xF0); // Carrier attack: quick; decay: long
-  Adlib((int)0x83, (int)0x77); // Carrier sustain: medium; release: medium
-  Adlib((int)0xB0, (int)0x31); // Turn voice on; set the octave and freq MSB
+  // Initialize the Adlib instrument.
+  Adlib((int)0x20, (int)0x01); // Modulator multiple 1.
+  Adlib((int)0x40, (int)0x10); // Modulator gain ~ 40db.
+  Adlib((int)0x60, (int)0xF0); // Modulator attack: quick. Decay: long.
+  Adlib((int)0x80, (int)0x77); // Modulator sustain: med. Release: med.
+  Adlib((int)0x23, (int)0x01); // Carrier multiple to 1.
+  Adlib((int)0x43, (int)0x00); // Carrier at max volume.
+  Adlib((int)0x63, (int)0xF0); // Carrier attack: quick. Decay: long.
+  Adlib((int)0x83, (int)0x77); // Carrier sustain: med. release: med.
 
   for (;;) {
     _putc((int)'0' + song_idx);

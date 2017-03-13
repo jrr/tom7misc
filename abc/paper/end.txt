@@ -1,0 +1,11 @@
+This is the end of the paper!
+
+
+Here's the program:
+%insert paper.c
+That was it!
+
+Bibliography
+
+[X] Murphy, VII, Tom. "New results in k/n Power-Hours." SIGBOVIK, 2014.
+

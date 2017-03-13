@@ -30,8 +30,6 @@ hard to read hard fonts is good exercise for your eyes.
 Your antivirus  software may detect  this paper  as a virus,  for good
 reasons that I will describe later. It is not a virus. ;-)
 
-This program was typeset with a special tool, described in Section XXX.
-
 
     ** Introduction **
 
@@ -88,12 +86,10 @@ is standard  across almost all computers  now. When you look  at the @
 symbols in the picture above, they are almost certainly represented as
 the byte  0x40, which means  the character @ in  ASCII. And so  if you
 peered directly  at the  bytes in this  file, you would  see a  lot of
-0x40s in that region, and right here when I put another at sign: --> @
-<--.  Sometimes  the  @  sign  can  be the  flower  of  a  rose,  like
-@>-,--'---. To  the processor,  it means  INC AX,  since 0x40  is that
-opcode.
+0x40s in  that region.  Sometimes the @  sign can be  the flower  of a
+rose, like @>-,--'---.  To the processor, it means INC  AX, since 0x40
+is that opcode.
 
-                               ~ @ ~
 Now,  for good  reasons that  I will  explain later,  this paper  must
 contain 8,224 repetitions of the string "p~9(". Please proceed to Page
 3 to continue reading this interesting paper.

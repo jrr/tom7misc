@@ -94,6 +94,7 @@ struct
     in
       EXE.write_exe { init_ip = init_ip,
                       init_sp = init_sp,
+                      include_psp = false,
                       cs = codeseg,
                       ds = dataseg } "dos/header.exe"
     end handle e as (Tactics.Tactics s) => eprint (e, "Tactics: " ^ s ^ "\n")
