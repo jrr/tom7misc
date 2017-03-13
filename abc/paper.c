@@ -43,9 +43,9 @@ unsigned char *lower = "\xA9\xB3\xBD\xC9\xD5\xE1\xEF\xFD\x0C\x1C-?Qf{"
   "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF";
 
 unsigned char *default_song =
-  "ABD'B" "^F'^F'E'"
-  "AB_D'A" "E'E'D'"
-  "AB_D'A" "D'E'_D'BA" "AE'D'";
+  "ABD'B" "^F'3^F'3E'6"
+  "AB_D'A" "E'3E'3D'6"
+  "AB_D'A" "D'4E'2_D'2B2A2z2" "A2E'4D'4";
 
 int Adlib(int reg, int value) {
   int i;
@@ -64,6 +64,8 @@ int Adlib(int reg, int value) {
 int PlayNote(int midi_note) {
   // First turn note off; silence is better than weird "accidentals."
   Adlib((int)0xB0, (int)0x00);
+  // midi_note = 128 actually accesses the terminating \0 in the
+  // above strings, which is what we want to turn off the channel.
   Adlib((int)0xA0, (int)(lower[midi_note]));
   Adlib((int)0xB0, (int)(upper[midi_note]));
 }
@@ -140,11 +142,39 @@ int ParseNote(unsigned char *ptr, int c, int *idx) {
   }
 }
 
+unsigned int ParseLength(unsigned char *ptr, int *idx) {
+  // TODO: Multiplication would be nice...
+  int c = (int)ptr[*idx];
+  if (c == (int)'2') {
+    *idx = *idx + (int)1;
+    return 4096;
+  } else if (c == (int)'3') {
+    *idx = *idx + (int)1;
+    return 6144;
+  } else if (c == (int)'4') {
+    *idx = *idx + (int)1;
+    return 8192;
+  } else if (c == (int)'5') {
+    *idx = *idx + (int)1;
+    return 10240;
+  } else if (c == (int)'6') {
+    *idx = *idx + (int)1;
+    return 12288;
+  } else if (c == (int)'7') {
+    *idx = *idx + (int)1;
+    return 14336;
+  } else if (c == (int)'8') {
+    *idx = *idx + (int)1;
+    return 16384;
+  }
+  return 2048;
+}
+
 // Parse the song description (ptr) starting at *idx. Updates *idx to
 // point after the parsed note. Returns the midi index (TODO: length,
 // etc.), or 0 when the song is done.
-int GetMidi(unsigned char *ptr, int *idx) {
-  int c;
+int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
+  int c, midi_note;
   int sharpflat = 0;
   for (;;) {
     c = (int)(ptr[*idx]);
@@ -173,10 +203,18 @@ int GetMidi(unsigned char *ptr, int *idx) {
       // Nothing. We assume key of C, so there are no naturals.
     } else if (c >= (int)'A' && c <= (int)'G') {
       _putc('P');
-      return ParseNote(ptr, c, idx) + sharpflat;
+      midi_note = ParseNote(ptr, c, idx) + sharpflat;
+      *len = ParseLength(ptr, idx);
+      return midi_note;
     } else if (c >= (int)'a' && c <= (int)'g') {
       _putc('p');
-      return ParseNote(ptr, c - (int)32, idx) + (int)12 + sharpflat;
+      midi_note = ParseNote(ptr, c - (int)32, idx) + (int)12 + sharpflat;
+      *len = ParseLength(ptr, idx);
+      return midi_note;
+    } else if (c == (int)'z') {
+      _putc('z');
+      *len = ParseLength(ptr, idx);
+      return 128;  // No sound.
     }
   }
 }
@@ -210,12 +248,13 @@ int main(int argc, unsigned char **argv) {
   Adlib((int)0x83, (int)0x77); // Carrier sustain: med. release: med.
 
   for (;;) {
+    unsigned int len;
     _putc((int)'0' + song_idx);
-    midi_note = GetMidi(song, &song_idx);
+    midi_note = GetMidi(song, &song_idx, &len);
     if (midi_note == (int)0) break;
     _putc((int)'A' + midi_note);
     PlayNote(midi_note);
-    for (j = (int)0; j < (int)8000; j++) {}
+    for (j = (int)0; j < len; j++) {}
     _putc((int)'\n');
   }
 
