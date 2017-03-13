@@ -85,6 +85,7 @@ struct
       in
         EXE.write_exe { init_ip = init_ip,
                         init_sp = ToX86.INIT_SP,
+                        include_psp = true,
                         cs = cs,
                         ds = ds } output
       end

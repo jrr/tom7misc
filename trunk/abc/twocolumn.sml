@@ -63,6 +63,12 @@ struct
            "Number of full lines on the last page that can't be used. Does " ^
            "not include a partial line (-endcol).")) "endlines"
 
+  val botclearance =
+    Params.param "1"
+    (SOME ("-botclearance",
+           "When approaching the junk on the bottom, the number of blank " ^
+           "lines to leave between the text and it.")) "botclearance"
+
   val outfile =
     Params.param ""
     (SOME ("-o",
@@ -101,10 +107,12 @@ struct
         then Params.asint 0 endlines
         else 0
 
+      val botclearance = Params.asint 1 botclearance
+
       val firstwriteline =
         Int.max (TBBORDER, startline)
       val lastwriteline =
-        Int.min (HEIGHT - endlines - 1 -
+        Int.min (HEIGHT - endlines - (botclearance + 2) -
                  (if endcol < RC_START then 1 else 0),
                  HEIGHT - TBBORDER - 1)
 
@@ -282,7 +290,18 @@ struct
           "" => raise TwoColumn "You must specify an output file with -o."
         | f => f
 
-      val text = String.fields (StringUtil.ischar #"\n") (StringUtil.readfile infile)
+      fun linesfromfile f =
+        String.fields (StringUtil.ischar #"\n") (StringUtil.readfile f)
+      val text = linesfromfile infile
+
+      fun process nil = nil
+        | process (h :: rest) =
+        (case StringUtil.removehead "%insert " h of
+           (* NOT processed recursively. *)
+           SOME file => linesfromfile (StringUtil.losespecsides
+                                       StringUtil.whitespec file) @ process rest
+         | NONE => h :: process rest)
+      val text = process text
 
       val output = String.concat (dopage 0 text)
     in

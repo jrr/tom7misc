@@ -34,7 +34,7 @@ struct
   fun w8vstring s =
     Word8Vector.tabulate (size s, repeatingstring s)
 
-  fun write_exe { init_ip, init_sp, cs, ds } filename =
+  fun write_exe { init_ip, init_sp, cs, ds, include_psp } filename =
     let
 
       (* Totally optional for the paper: Insert this figure
@@ -242,6 +242,8 @@ struct
 
       val firstpage = StringUtil.readfile "paper/firstpage.2c"
       val postreloc = StringUtil.readfile "paper/postreloc.2c"
+      val postdata = StringUtil.readfile "paper/postdata.2c"
+      val endpage = StringUtil.readfile "paper/end.2c"
 
       fun fromstring s i =
         if i < 0 then raise EXE "out of range"
@@ -280,10 +282,6 @@ struct
          else
            fromstring postreloc (i - (RELOCTABLE_START + NUM_RELOCATIONS * 4)))
 
-      (* Computed empirically for the given header values above.
-         I *believe* that this is predictable, but it's not really documented.
-         See dos_execute.cpp in dosbox/src for some notes. *)
-
       (* We "start" the data segment before the image location, and don't even
          write the first 256 bytes. This is because those bytes get overwritten
          by the PSP. *)
@@ -307,6 +305,18 @@ struct
                                Int.toString ((CODESEG_AT + 65536) - IMAGE_BYTES) ^
                                " bytes short.")
 
+      val header_size = Word8Vector.length header
+      val header =
+        if include_psp
+        then
+          Word8Vector.tabulate (header_size,
+                                fn i =>
+                                if i >= header_size - 256
+                                then Word8Vector.sub (ds, i - (header_size - 256))
+                                else Word8Vector.sub (header, i))
+        else header
+
+
       val image = Word8Vector.tabulate
         (IMAGE_BYTES,
          fn i =>
@@ -320,6 +330,11 @@ struct
            (* Data segment *)
            Word8Vector.sub (ds, i - DATASEG_AT)
          else
+         if i < CODESEG_AT
+         then fromstring postdata (i - (DATASEG_AT + 65536))
+         else
+         fromstring endpage (i - (CODESEG_AT + 65536)))
+(*
          let
            val pos = i div 16 * 16
            val s = StringCvt.padLeft #"0" 8 (Word32.toString `
@@ -337,7 +352,8 @@ struct
            | 14 => ch #" "
            | 15 => ch #" "
            | m => ch (String.sub (s, m - 6))
-         end)
+         end
+*)
 
       val bytes = Word8Vector.concat [header, image]
       val num_bytes = Word8Vector.length bytes

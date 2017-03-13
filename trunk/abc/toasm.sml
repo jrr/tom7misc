@@ -951,10 +951,15 @@ struct
       val () = Segment.set_range datasegment 0 256 (fn _ =>
                                                     Word8.fromInt ` ord #".")
       val () = Segment.set_string datasegment 0
-        ("[This area gets overwritten with the Program Segment Prefix. " ^
-         "It's actually technically part of the header, but it would " ^
-         "start at DS:0000 if it weren't overwritten. After these 256 " ^
-         "bytes is where the program's compiled globals go.")
+        ("[Now you're looking at the PSP. The address of the opening square " ^
+         "bracket is DS:0000, but this gets overwritten by DOS on load.  ")
+
+      (* val () = Segment.set_string datasegment 0x50 "XXX" *)
+
+      val () = Segment.set_string datasegment 0x81
+        ("(Right here is where the command line is placed by DOS, up to 127 bytes." ^
+         " Right before the open paren is its length in a byte. )")
+
       val () = Segment.set_string datasegment 255 "]"
       val () = Segment.lock_range datasegment 0 256
 
