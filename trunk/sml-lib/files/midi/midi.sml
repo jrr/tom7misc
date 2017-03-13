@@ -578,4 +578,6 @@ struct
      so 0th note is 8hz. *)
   fun pitchof n : real = 8.0 * Math.pow (2.0, real n / 12.0)
 
+  fun concert_pitchof n : real = Math.pow (2.0, real (n - 69) / 12.0) * 440.0
+
 end

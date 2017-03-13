@@ -152,11 +152,18 @@ sig
      true if the string 'big' ends with the string 'small'.
      *)
   val matchtail : string -> string -> bool
+  (* If the string 'big' ends with the string 'small',
+     return SOME of the remainder of big; otherwise NONE. *)
+  val removetail : string -> string -> string option
 
   (* matchtail small big
      true if the string 'big' starts with the string 'small'.
      *)
   val matchhead : string -> string -> bool
+  (* removehead small big
+     If the string 'big' starts with the string 'small',
+     return SOME of the remainder of big; otherwise NONE. *)
+  val removehead : string -> string -> string option
 
   (* wcmatch w s
      true if s matches the wildcard w.

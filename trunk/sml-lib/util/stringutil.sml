@@ -464,6 +464,16 @@ struct
 
   val matchhead = matchat 0
 
+  fun removetail small big =
+    if matchtail small big
+    then SOME (String.substring (big, 0, size big - size small))
+    else NONE
+
+  fun removehead small big =
+    if matchhead small big
+    then SOME (String.substring (big, size small, size big - size small))
+    else NONE
+
   (* XXX: kmp is more appropriate for really big 'big'. (but properly
      staged, we wouldn't know what 'big' is until too late (perhaps
      use thunks?)). Right now, we do m*n time search.
