@@ -2,4 +2,86 @@
 
     ** Assembling **
 
-Maybe needs to be in the next chunk.
+Assembling the program is the process of generating actual instruction
+bytes (here, printable x86)  from some semi-abstract representation of
+instructions (in  ABC, this is  the LLVMNOP language discussed  in the
+next section). Assembling a program has a self-dependency: In order to
+generate instructions like jumps and loads of addresses, the assembler
+needs to know where  code is located. But in order  to know where code
+is  located, the  assembler needs  to generate  it. In  most assembler
+tasks, this is reasonably straightforward: When we need to generate an
+instruction like  "MOV AX  <- offset  data", we just  emit "MOV  AX <-
+0x0000" and save for later an  obligation to overwrite the zeroes with
+the address  of "data", once  we know where  we placed it.  This works
+because the  encoding of  the MOV  instruction is  the same  length no
+matter what 16-bit value we load.  The same holds for JMP instructions
+(with the caveat that smart assemblers can JMP+disp8 for nearby labels
+and  JMP+disp16 for  further ones;  these instructions  have different
+length) and others.
+
+For the ABC compiler this step is quite bad:
+ - Loading any immediate value has a length ranging from 0 bytes (it's
+   already in the register) to like 16. It's dependent on both the value
+   being loaded and the context (contents of registers).
+ - The rungs that start each code block must be able to Jcc+disp8 all
+   the way to the next block. This jump distance can't be too big, or
+   else it can't be encoded (or is not printable).
+ - Jumps within a block always target the next block, but the jump
+   distance can't be too short (or the displacement byte is not
+   printable).
+ - Since blocks are numbered sequentially and relative addresses are
+   computed modulo the total number of blocks, logical code addresses
+   depend on the number of blocks and their order.
+
+As a result, assembling is an iterative process. We take the program's
+blocks and translate them  into position-independent machine code. One
+positive thing  about the printable, non-self-modifying  subset of x86
+is  that none  of the  instructions  actually depend  on what  address
+they're placed at  (except perhaps a Jcc instruction  used to overflow
+the  instruction pointer).  Still,  we don't  know  even the  relative
+location of the  next block yet, so  we also record the  offset of the
+displacement byte for any Jcc instruction we emit.
+
+Next, we take these blocks and  attempt to allocate them into the code
+segment.  This can  fail for  the reasons  above, usually  after we've
+placed a block far enough from the preceding one that all jumps in the
+first are printable  (at least 0x20 bytes), the rung  at the beginning
+of  that block  can't  target  the second  (because  it  is more  than
+0x7e+0x03 bytes  away). We gather  all such problem blocks  and bisect
+the LLVMNOP code (blocks "fall  through," so this is equivalent). Then
+we try again.  When we succeed, we can fill  in the displacement bytes
+for the  Jcc instructions  to create valid  printable code.  There are
+various opportunities to be smarter about this (for example, bisecting
+the LLVMNOP  assumes that all  such instructions assemble to  the same
+length, which is not remotely true); tox86.sml contains several ideas.
+
+Since  the initial  instruction pointer  must be  printable, we  start
+laying out blocks  towards the middle of the code  segment. If a block
+would run  off the end  of CS,  then we need  to pad that  region with
+jumps that  get up  close to  the end of  the segment  and then  do an
+overflowing jump past CS:0xFFFF before  continuing layout. Once we run
+out of blocks, we also need to pad any remaining code space with jumps
+in order  to bring control  back to the  first rung, since  the ladder
+needs to be a  complete cycle in order to work. It's  easy to pick out
+the texture of this padding in the code segment (e.g. pages 14, 16).
+
+
+    ** LLVMNOP **
+
+Knowing our low-level endpoint, I can now work backwards through the
+compiler. The compiler generally proceeds by a series of intermediate
+languages, the last of which is called LLVMNOP.
+
+This language is an assembly-like language that has explicit *data*
+layout, but not not explicit *code* layout. By that, I mean that every
+function knows the size and offset of its locals and arguments in the
+current local frame, and the size and address of each global variable
+is known, as well as the global's initial values (if printable). It is
+akin to LLVM [XXX cite LLVM], but doesn't really have anything to do
+with it. LLVM is an excellent tool for writing compilers
+(superficially, it looks like a good way to write a new C compiler
+targeting an architecture like printable x86!) but isn't really
+suitable for this project because it assumes that the output architecture
+has certain standard operations efficiently available, which is frequently
+not the case for printable x86.
+

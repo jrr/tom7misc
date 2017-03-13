@@ -874,6 +874,14 @@ struct
              Instead, we should use 0x7e here (that is truly an
              upper bound) and fail below if the specific jumps
              end up non-printable. *)
+          (* PERF Also: We can sometimes have code blocks larger than
+             127 bytes, by having the rung's jump target a jump that
+             exists within the code block. This works for an
+             unconditional jump (if we jump to the prelude that makes
+             it unconditional) and it works for a JNZ instruction
+             (true because we just succeeded at a JNZ) and probably
+             others. This is a small code size improvement and reduces
+             the total number of blocks. *)
           if len - RUNG_SIZE > (0x7e - 0x20)
           then problem_blocks := SM.insert (!problem_blocks, lab, xb)
           else ()
