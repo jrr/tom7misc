@@ -82,8 +82,14 @@ sig
   val total_ticks : (int * 'event) list -> int
 
   (* The pitch of the nth MIDI note, in Hz.
+     Note: Uses "Computer Pitch" with middle C = 256 Hz, which is not the same
+     as "Concert Pitch" (A = 440 Hz).
      n must be in [0, 127]. *)
   val pitchof : int -> real
+
+  (* Same, but for concert pitch A440. This is more standard, so if in doubt,
+     use this one. *)
+  val concert_pitchof : int -> real
 
   exception MIDI of string
 
