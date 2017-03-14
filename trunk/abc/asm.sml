@@ -1,5 +1,4 @@
-(* XXX This is still in progress; almost nonsensical now; beware!
-   TODO: Clean up wrong/misleading documentation!
+(* TODO: Clean up wrong/misleading documentation!
 
    Very low-level language, but not quite X86 opcodes. Also
    known as "LLVMNOP".

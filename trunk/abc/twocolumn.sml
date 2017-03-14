@@ -229,9 +229,12 @@ struct
           let
             val line = StringUtil.losespecr StringUtil.whitespec line
             val () = if size line > COLWIDTH
-                     then raise TwoColumn ("Line is longer than " ^
-                                           Int.toString COLWIDTH ^
-                                           "chars:\n" ^ line)
+                     then raise TwoColumn
+                       ("Line is longer than " ^
+                        Int.toString COLWIDTH ^
+                        " chars:\n" ^
+                        CharVector.tabulate (COLWIDTH, fn _ => #"-") ^
+                        "\n" ^ line)
                      else ()
           in
             Util.for 0 (size line - 1)

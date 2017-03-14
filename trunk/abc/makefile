@@ -21,7 +21,7 @@ twocolumn.exe : twocolumn.sml twocolumn.mlb
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
 
-TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe # forswitch.exe
+TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe # forswitch.exe
 
 text2pdf.exe : text2pdf.c
 	gcc -O2 $< -o $@
@@ -33,7 +33,7 @@ paper/firstpage.2c : twocolumn.exe paper/firstpage.txt makefile
 	./twocolumn.exe -startline 0 -startcol 40 -pages 1 -endlines 76 -endcol 64 -botclearance 1 paper/firstpage.txt -o $@
 
 paper/postreloc.2c : twocolumn.exe paper/postreloc.txt makefile
-	./twocolumn.exe -debug -startline 1 -startcol 0 -pages 5 -endlines 73 -endcol 64 -botclearance 2 paper/postreloc.txt -o $@
+	./twocolumn.exe -startline 1 -startcol 0 -pages 5 -endlines 73 -endcol 64 -botclearance 2 paper/postreloc.txt -o $@
 #	./text2pdf -c160 -s6 -v6 -l128 debug0.page > debug0.pdf
 
 paper/postdata1.2c : twocolumn.exe paper/postdata1.txt makefile

@@ -7,5 +7,11 @@ That was it!
 
 Bibliography
 
-[X] Murphy, VII, Tom. "New results in k/n Power-Hours." SIGBOVIK, 2014.
+# -------------------------------------------------------------------------
+
+[X] Murphy, VII, Tom. "New results in k/n Power-Hours." SIGBOVIK,
+    April 2014.
+
+[LLVM] Lattner, Chris; Avde, Vikram. "LLVM: A Compilation Framework for
+       Lifelong Program Analysis and Transformation." CGO, March 2004.
 
