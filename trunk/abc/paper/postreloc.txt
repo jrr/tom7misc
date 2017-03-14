@@ -171,6 +171,7 @@ thought to the following puzzles:
    must be printable.
  - Without the MOV instruction, how do we do loads and stores?
  - Without the INT instruction, how can we even exit the program?
+ - How do we implement bitwise OR with the given instructions?
  - The Jcc (e.g. JNZ, JAE) instructions take only an absolute displacement.
    How do we do function (pointer) calls and returns?
  - The displacement must be printable, which means it is always a
@@ -654,6 +655,34 @@ To write to memory, we do:
 This is almost... nice! But don't worry, it gets grosser.
 
 
+    ** Bitwise OR **
+
+We don't have the OR instruction, but it can be computed with this
+trick.
+
+    1  1  0  0    A
+    1  0  1  0    B
+
+    1  0  0  0    A AND B
+    0  1  1  0    A XOR B
+    0  0  0  0    (A AND B) AND (A XOR B)
+    1  1  1  0    (A AND B)  OR (A XOR B)    
+    1  1  1  0    (A AND B)  +  (A XOR B)
+
+    1  1  1  0    A  OR B
+
+This is the table of all possible bit combinations that A and B could
+have; the OR operation is of course only dependent on the pair of bits
+at each position. First, observe (in your mind; it's not in the table)
+that A OR B is the same as A + B unless both bits are 1; only in that
+case do we need to do a carry. So we compute A AND B, and A XOR B;
+the OR of these two is the same as A OR B (it separates A OR B into
+the cases where both bits in the input were 1, and the case where exactly
+one was 1). Since the two expressions never have a 1 bit in the same
+position, we can compute their OR with +, giving us the desired result.
+Implementing plus is also a multi-step process, described next:
+
+
     ** Keeping track of what's up with the accumulator **
 
 The  ABC   backend  (tactics.sml)  generates  X86   for  some  low-level
@@ -1001,78 +1030,7 @@ compile time) and  returning from functions (the function  can be called
 from multiple sites, so we need to know which site to return to).
 
 
-    ** The ladder **
 
-The  solution we  use is  called  the "ladder"  in the  code. The  whole
-program is  broken up  into small blocks  of code. Each  one is  given a
-sequential "number"  (this has nothing  to do with the  memory location,
-just  its sequence  in the  list of  blocks). Each  block starts  with a
-"rung," which is the following code
-
-    DEC SI
-    JNZ +disp8
-
-where disp8 is  a printable displacement that brings us  downward to the
-next block. We decrement  the SI register to count down  to the block we
-want, and if it is Not Zero yet,  then we jump to the next one. If zero,
-we execute the block. Inside a block,  if we ever want to perform a jump
-to some arbitrary block dest_block, then we can compute:
-
-    offset = (dest_block - current_block) mod num_blocks
-    si = (if offset = 0 then num_blocks else offset)
-    jmp to next rung
-
-Every block knows its current number,  so the offset is just a constant.
-Note  that the  destination block's  number  may be  before the  current
-block,  which is  why we  need  to mod  by  the total  number of  blocks
-(yielding a non-negative  result). SI cannot be zero,  because the first
-thing we do is DEC it, so  a self-loop requires setting to num_blocks, a
-full cycle.
-
-To perform  a jump to  a code location not  known at compile  time (e.g.
-from a return  address (block number) on the stack,  we can just perform
-the same computation as above. We do not have an efficient mod operation
-(implementing  it seems  to need  loops,  in fact,  a circularity!),  so
-instead we  actually compute (dest_block -  current_block) + num_blocks.
-This is always positive as needed, but requires forward jumps to make an
-entire  cycle around  the entire  ladder ("Turn  the dial  to the  left,
-passing zero and the first number...").
-
-The blocks  are laid out  sequentially in the  program until we  get too
-close to the end of the segment; when  we do, we make sure to perform an
-unconditional jump  across the  segment boundary, wrapping  around. This
-jump need not DEC SI. In fact, most programs do not fill the entire code
-segment, so we end up padding the  end and beginning of the segment with
-jumps to span  the unused space. For these padding  jumps, we definitely
-don't want to DEC SI, both  because that's more instructions to execute,
-and because we don't  know the amount of padding ahead  of time (see the
-section on Assembling below).
-
-There are many annoyances!
-
-A jump cannot be too short (less than 32 bytes) or too long (127 bytes).
-
-
-We don't have access to a non-conditional JMP instruction. There are a
-few tricks for simulating it. When computing a jump to a known label, we
-can just know the state of flags because we've just performed some
-computation. Even when doing a jump to a computed block number, we know
-that the result of subtraction is not zero, so we can always use the JNZ
-instruction. Occasionally we need to do a jump without knowing our state
-at all. XOR always clears the Overflow flag, so something like
-
-    XOR AX <- [DI]
-    XOR AX <- [DI]
-    JNO disp
-
-keeps AX unperturbed and always performs the jump. A little shorter is
-
-    JNO disp
-    JO (disp - 2)
-
-which jumps to the same target whether  the Overflow flag is set or not,
-but is more annoying because we need to keep track of two displacements.
-(XXX)
 
 We're approaching  the data section  now, so  it's time to  take another
 break!

@@ -1,4 +1,78 @@
 
+    ** The ladder **
+
+To solve the various problems with  jumps, we build the program around
+what's called a  "ladder" in the code. The whole  program is broken up
+into small  blocks of code.  Each one  is given a  sequential "number"
+(this has nothing to do with the memory location, just its sequence in
+the list  of blocks). Each  block starts with  a "rung," which  is the
+following code
+
+    DEC SI
+    JNZ +disp8
+
+where disp8 is  a printable displacement that brings us  downward to the
+next block. We decrement  the SI register to count down  to the block we
+want, and if it is Not Zero yet,  then we jump to the next one. If zero,
+we execute the block. Inside a block,  if we ever want to perform a jump
+to some arbitrary block dest_block, then we can compute:
+
+    offset = (dest_block - current_block) mod num_blocks
+    si = (if offset = 0 then num_blocks else offset)
+    jmp to next rung
+
+Every block knows its current number,  so the offset is just a constant.
+Note  that the  destination block's  number  may be  before the  current
+block,  which is  why we  need  to mod  by  the total  number of  blocks
+(yielding a non-negative  result). SI cannot be zero,  because the first
+thing we do is DEC it, so  a self-loop requires setting to num_blocks, a
+full cycle.
+
+To perform  a jump to  a code location not  known at compile  time (e.g.
+from a return  address (block number) on the stack,  we can just perform
+the same computation as above. We do not have an efficient mod operation
+(implementing  it seems  to need  loops,  in fact,  a circularity!),  so
+instead we  actually compute (dest_block -  current_block) + num_blocks.
+This is always positive as needed, but requires forward jumps to make an
+entire  cycle around  the entire  ladder ("Turn  the dial  to the  left,
+passing zero and the first number...").
+
+The blocks  are laid out  sequentially in the  program until we  get too
+close to the end of the segment; when  we do, we make sure to perform an
+unconditional jump  across the  segment boundary, wrapping  around. This
+jump need not DEC SI. In fact, most programs do not fill the entire code
+segment, so we end up padding the  end and beginning of the segment with
+jumps to span  the unused space. For these padding  jumps, we definitely
+don't want to DEC SI, both  because that's more instructions to execute,
+and because we don't  know the amount of padding ahead  of time (see the
+section on Assembling below).
+
+There are many annoyances!
+
+A jump cannot be too short (less than 32 bytes) or too long (127 bytes).
+
+
+We don't have access to a non-conditional JMP instruction. There are a
+few tricks for simulating it. When computing a jump to a known label, we
+can just know the state of flags because we've just performed some
+computation. Even when doing a jump to a computed block number, we know
+that the result of subtraction is not zero, so we can always use the JNZ
+instruction. Occasionally we need to do a jump without knowing our state
+at all. XOR always clears the Overflow flag, so something like
+
+    XOR AX <- [DI]
+    XOR AX <- [DI]
+    JNO disp
+
+keeps AX unperturbed and always performs the jump. A little shorter is
+
+    JNO disp
+    JO (disp - 2)
+
+which jumps to the same target whether  the Overflow flag is set or not,
+but is more annoying because we need to keep track of two displacements.
+(XXX)
+
 
     ** Assembling **
 
@@ -201,5 +275,55 @@ output  of  Allocation. This  could  produce  significantly closer  to
 hand-written code, without the need to change much in the backend.
 
 
-    ** Temporary allocation **
+    ** CIL **
 
+The  intermediate language  that precedes  the named  LLVMNOP code  is
+called  CIL,  for C  Intermediate  Language.  It's  intended to  be  a
+desugared and more explicit version of  C. Some examples of the of CIL
+grammar:
+
+  signedness ::= Signed | Unsigned
+
+  type ::= Pointer type
+         | Code type, type list
+         | Word32
+         | Word16
+         | Word8
+         | ...
+
+  builtin ::= B_EXIT | B_ARGC | B_ARGV | B_PUTC | B_OUT8 | B_IN8
+
+  value ::= Var v
+          | AddressLiteral loc, type
+          | FunctionLiteral name, type, type list
+          | Word8Literal w8
+          | Word16Literal w16
+          | Word32Literal w32
+
+  exp ::= Value value
+        | Plus width, value, value
+        | LessEq width, value, value
+        | Not width, value
+        | Yet width, value
+        | Load width, value
+        | Promote width, width, signedness, value
+        | Call value, value list
+        | Builtin builtin, value list
+        | ...
+
+  stmt ::= Bind v : type = exp in stmt
+         | Store width value = value in stmt
+         | GotoIf cond, string, stmt
+         | Return value
+         | ...
+
+And lots more stuff. This language is typed, with one important use of
+this being  that we  determine the calling  convention for  a function
+pointer from its  type. (This includes the size of  the return address
+slot, which is  on the locals stack and shared  between the caller and
+callee, as well as the number and  sizes of the arguments, also on the
+locals stack.) We  make the representation (Word8,  Word16, Word32) of
+integral types explicit, but signed  and unsigned ints are represented
+the same way  (just as on the processor  itself). Instead, expressions
+like Promote (which converts e.g. an  8-bit word to a 16-bit word) are
+explicit about whether they perform sign extension.
