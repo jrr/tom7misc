@@ -126,10 +126,6 @@ struct
   | Yet of width * value
   | Complement of width * value
   | Negate of width * value
-
-  (* Should just be Math and then LOAD? *)
-  (* | Subscript of value * value
-     | Member of value * string *)
   | Call of value * value list
   | Load of width * value
 
