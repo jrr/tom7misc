@@ -519,6 +519,54 @@ struct
                      k ()
                    end))
 
+             | C.And (w, a, b) =>
+                 gentmp ctx a
+                 (fn (atmp, at) =>
+                  gentmp ctx b
+                  (fn (btmp, bt) =>
+                   let
+                     val dst = vartmp (var, tmpsize atmp)
+                   in
+                     if tmpsize atmp = tmpsize btmp andalso
+                        tmpsize atmp = widthsize w
+                     then ()
+                     else raise ToASM "incompatible args in And";
+
+                     A.Mov (dst, atmp) //
+                     A.And (dst, btmp) //
+                     k ()
+                   end))
+
+
+             (* A | B = (A & B) + (A ^ B) *)
+             | C.Or (w, a, b) =>
+                 gentmp ctx a
+                 (fn (atmp, at) =>
+                  gentmp ctx b
+                  (fn (btmp, bt) =>
+                   let
+                     val txor = newtmp ("orxor", tmpsize atmp)
+                     val dst = vartmp (var, tmpsize atmp)
+                   in
+                     if tmpsize atmp = tmpsize btmp andalso
+                        tmpsize atmp = widthsize w
+                     then ()
+                     else raise ToASM "incompatible args in Or";
+
+                     (* PERF: This is a good way to do it, but
+                        maybe the decomposition should happen in
+                        a tactic. *)
+                     A.Mov (txor, atmp) //
+                     A.Xor (txor, btmp) //
+                     (* Now txor contains A ^ B *)
+                     A.Mov (dst, atmp) //
+                     A.And (dst, btmp) //
+                     (* Now dst contains A & B. *)
+                     A.Add (dst, txor) //
+                     (* Now dst contains A | B. *)
+                     k ()
+                   end))
+
              | C.Cast { src, dst, v : C.value } =>
                  gentmp ctx v
                  (fn (vtmp, vt) =>
@@ -577,8 +625,6 @@ struct
              | C.UnsignedMod (w, a, b) => raise ToASM "unimplemented unsigned mod"
              | C.LeftShift (w, a, b) => raise ToASM "unimplemented left shift"
              | C.RightShift (w, a, b) => raise ToASM "unimplemented right shift"
-             | C.And (w, a, b) => raise ToASM "unimplemented bitwise and"
-             | C.Or (w, a, b) => raise ToASM "unimplemented bitwise or"
              | C.Complement (w, a) => raise ToASM "unimplemented bitwise complement"
              | C.Negate (w, a) => raise ToASM "unimplemented negation")
 
@@ -957,8 +1003,8 @@ struct
       (* val () = Segment.set_string datasegment 0x50 "XXX" *)
 
       val () = Segment.set_string datasegment 0x81
-        ("(Right here is where the command line is placed by DOS, up to 127 bytes." ^
-         " Right before the open paren is its length in a byte. )")
+        ("(Right here is where the command line is placed by DOS, up to  127 bytes." ^
+         " Before the open paren is its length in a byte.)")
 
       val () = Segment.set_string datasegment 255 "]"
       val () = Segment.lock_range datasegment 0 256

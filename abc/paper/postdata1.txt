@@ -68,20 +68,138 @@ the texture of this padding in the code segment (e.g. pages 14, 16).
 
     ** LLVMNOP **
 
-Knowing our low-level endpoint, I can now work backwards through the
-compiler. The compiler generally proceeds by a series of intermediate
+Knowing our low-level  endpoint, I can now work  backwards through the
+compiler. The compiler generally proceeds  by a series of intermediate
 languages, the last of which is called LLVMNOP.
 
-This language is an assembly-like language that has explicit *data*
+This language  is an assembly-like  language that has  explicit *data*
 layout, but not not explicit *code* layout. By that, I mean that every
-function knows the size and offset of its locals and arguments in the
-current local frame, and the size and address of each global variable
+function knows the size and offset  of its locals and arguments in the
+current local frame, and the size  and address of each global variable
 is known, as well as the global's initial values (if printable). It is
-akin to LLVM [XXX cite LLVM], but doesn't really have anything to do
-with it. LLVM is an excellent tool for writing compilers
-(superficially, it looks like a good way to write a new C compiler
-targeting an architecture like printable x86!) but isn't really
-suitable for this project because it assumes that the output architecture
-has certain standard operations efficiently available, which is frequently
-not the case for printable x86.
+akin to LLVM  [XXX cite LLVM], but doesn't really  have anything to do
+with   it.  LLVM   is  an   excellent  tool   for  writing   compilers
+(superficially, it  looks like a  good way to  write a new  C compiler
+targeting  an  architecture  like  printable x86!)  but  isn't  really
+suitable  for  this  project  because   it  assumes  that  the  output
+architecture  has certain  standard operations  efficiently available,
+which is frequently not the case for printable x86.
+
+A sample of LLVMNOP constructs are:
+
+ cmd  ::= Add tmp <- tmp
+        | Xor tmp <- tmp
+        | Push tmp
+        | Pop tmp
+        | Mov tmp <- tmp
+        | Immediate16 tmp <- word16
+        | Load16 tmp <- tmp
+        | Store16 tmp <- tmp
+        | Load8 tmp <- tmp
+        | Store8 tmp <- tmp
+        | ExpandFrame i
+        | PopJumpInd
+        | JumpCond cond, label
+        | ...
+        | Out8
+        | Init
+        | Exit
+
+ cond ::=  Below tmp, tmp
+        |  BelowEq tmp, tmp
+        |  ...
+        |  EqZero tmp
+        |  True
+
+LLVMNOP exists in both a "named"  and "explicit" version. In the named
+version, temporaries  (tmp) are strings paired  with a size (16  or 32
+bits). In  the explicit version, temporaries  are given as a  size and
+offset from  the current temporary  frame (EBP). The named  version is
+transformed to the  explicit version by the  process called Allocation
+(below).
+
+Commands are basically  assembly instructions that we might  have in a
+more expressive architecture; note for example that we have Add, which
+is not native in printable x86 (we implement it by computing the two's
+complement negation, and then subtracting).  Even commands that have a
+corresponding printable  x86 instruction  like XOR are  still compiled
+into  multiple  opcodes,  since  they  read  and  write  arguments  to
+temporaries,  not  registers.  We   discussed  the  implementation  of
+operations like Load16, Immediate16, and Mov in a previous section.
+
+A program  consists of a  series of  labeled blocks. JumpCond  pairs a
+condition (signed  and unsigned  comparisons, etc.) with  a jump  to a
+label. The  possible conditions  map to the  Jcc instructions  that we
+have  available. Since  opcode  0x7F (Jump  Greater)  is not  actually
+printable, all of the conditions "face less"; the condition Greater(A,
+B) is  equivalent to Less(B, A).  An earlier phase does  this rewrite.
+Also note that  in C, a < b  is an expression that can be  used in any
+context,  not   just  for  control   flow;  here  the   comparison  is
+inextricably linked  to a jump, since  CMP only sets FLAGS,  and FLAGS
+can only be used for jumping.  An earlier phase removes the expression
+forms as well,  without being too wasteful when  the programmer writes
+"if (x < 1)" to begin with.
+
+The only way to jump to a non-constant destination is with PopJumpInd,
+which is  basically the RET  assembly instruction. It pops  an address
+(block number) from the top  of the machine stack, and unconditionally
+transfers control to that label (by  computing the number of blocks to
+traverse, then jumping  to the ladder). This is indeed  used to return
+from a function call, as well as to call a function through a function
+pointer. It takes  its argument on the stack (as  opposed to using the
+existing "Pop tmp" and then "JumpInd tmp") because while we're setting
+up a function call, we need to move the temporary frame pointer, after
+which point it is unsafe to access temporaries. The stack, however, is
+a stable place to stash data.
+
+Since we have some higher-level  operations like Mov available, we can
+implement some delicate maneuvers like  function calls as sequences of
+multiple commands.  On the other  hand, for some primitives  like Init
+and Exit, there's no real value  in breaking them into smaller pieces.
+Some other complex  primitives like Out8 have no  analogous feature in
+C; these are provided  as sort of "intrinsics" that can  be used to do
+low-level programming  in C. We'll discuss  Out8 in the Section  on IO
+(XXX). Other  primitives, such as  one called  "Argv" that is  used to
+initialize  the  argv  parameter  to main  during  initialization,  is
+compiled  away when  we convert  to LLVMNOP.  In this  case, the  Argv
+primitive just  creates a  global array  containing two  elements: The
+second is zero ("null") as required  by the standard, and the first is
+the  constant address  0x0081, which  is  a pointer  into the  Program
+Segment Prefix  where DOS  stores the  command line  (untokenized; the
+programmer must do any processing she desires).
+
+
+    ** Temporary allocation **
+
+Temporary  allocation  is fairly  standard.  We  use a  dataflow-based
+liveness calculation to determine which temporaries interfere with one
+another; if  two temporaries  of the same  size don't  interfere, then
+they  can use  the  same slot,  so  they are  coalesced  into one.  We
+prioritize coalescing temporaries  in a "Mov tmp1 <- tmp2"  so that we
+get the no-op  instruction "Mov tmp1 <- tmp1"; this  is possible for a
+great many Movs,  and allows us to  be much more regular  in the phase
+that  generates  LLVMNOP  without  compromising  code  size.  We  then
+prioritize  temporaries  that  appear  in  a  "Load16  tmp1  <-  tmp2"
+instruction since we have a nice trick  for that one when both are the
+same. After that, we just greedily coalesce temporaries until it is no
+longer  possible. Fancier  register allocation  techniques like  graph
+coloring  would  work  here  (this   part  of  the  compiler  is  very
+traditional),  but there's  not  much  need: We  have  over 40  16-bit
+temporaries,  all of  which are  just as  efficient to  access, so  we
+mainly  just want  to keep  the total  number used  small so  that EBP
+offsets are  printable. Having a  smaller temporary frame  size allows
+deeper recursion, as well.
+
+The compilation strategy ends up  storing almost all immediate results
+in temporaries, which is not that suboptimal since all operations need
+to be  between a register  and memory  anyway. However, many  pairs of
+instructions could  keep a  just-computed value  in a  register rather
+than bothering to write it. This  is not yet implemented, but the idea
+is that we could introduce a  small number of registers (probably just
+one?) in  addition to the numbered  temporaries, and use those  in the
+output  of  Allocation. This  could  produce  significantly closer  to
+hand-written code, without the need to change much in the backend.
+
+
+    ** Temporary allocation **
 
