@@ -71,10 +71,15 @@ which are simply due to the unconscionably strict SIGBOVIK deadlines:
  - Floating point is not available. We have access to none of the
    floating point instructions, so native support is not really
    possible. It would be possible to provide software implementations
-   of the floating-point operations
+   of the floating-point operations; prior to the Intel 80486, support
+   for floating point was usually provided in software anyway, so
+   this helps us avoid anachronism.
  - Standard libraries are not available. Since we can only call the
    DOS INT 0x21 handler one time, and we use that to exit, there is
-   no way to access the filesystem or write to the console.
+   no way to access the filesystem or write to the console. One could
+   conceivably write their own device drivers using I/O ports (see
+   the next section), but this usually also involves using or
+   implementing hardware interrupts, so probably wouldn't pan out.
  - malloc/free. This can be supported in software, with no
    significant limitations other than the amount of memory available.
  - Multiplication. We have access to the IMUL instruction, but only
@@ -98,8 +103,8 @@ which are simply due to the unconscionably strict SIGBOVIK deadlines:
    they have to. No fundamental limitation here, although the
    compiler does assume that lvalues have an address.
 
-I am shamed that ABC does not compile the feasible subset. Perhaps
-check http://tom7.org/abc/ for an updated version, published
+I am  shamed that ABC  does not  compile the feasible  subset. Perhaps
+check   http://tom7.org/abc/  for   an   updated  version,   published
 postpartum.
 
 
@@ -108,7 +113,95 @@ postpartum.
 Since we're working in reverse order,  we've reached the very front of
 the ABC compiler, and now can talk about the program we feed to it.
 
-(need to talk about io!) One could conceivably implement their own
-file system and so on by using IN and OUT to write to hardware ports,
-although most of this kind of work requires writing and invoking
-interrupt handlers, which we cannot do.
+Obviously the program  that is this paper should do  something, but so
+far we've  only talked  about how  to do  loops and  exit. We  do have
+access to  the command  line via  the PSP  (properly piped  through to
+argv), and we  do have the possibility of looping  forever, or exiting
+with some  status. These would  at least demonstrate  computation, but
+are pretty lame, let's be honest.
+
+A natural thing to do when  thinking about "printable x86" would be to
+have the  paper print itself out,  i.e., a quine. This  would be quite
+challenging given  the ratio of  accessible data (64kb data  segment +
+data embedded  in the  64k of code)  to the size  of the  paper itself
+(409k), but it might be possible. Sadly, the major obstacle is that we
+cannot repeatedly invoke INT 21, so we cannot print anything out.
+
+Like some kind of miracle, though,  two of the opcodes available to us
+in  printable x86  are  practically made  for I/O.  In  fact they  are
+literally made  for I/O,  and in  fact their names  are INS  and OUTS.
+These are  part of  a family  of CPU  instructions that  interact with
+peripherals on  the motherboard. DOS  uses these to implement  some of
+its  INT 21  system calls  (e.g., to  talk to  the disk  controller to
+implement the file  system), but I/O ports are sometimes  also used by
+application programmers.
+
+In this case, there is one nice  piece of hardware that is standard on
+DOS-era computers,  and that  grabbed a standard  set of  port numbers
+before  the concept  of  configuring I/O  was a  thing:  The Adlib  FM
+synthesis card.  By writing bytes to  various ports, we can  make this
+thing make stupid sounds.
+
+The out8 primitive I've mentioned a few times provides a way for the C
+programmer to access the OUTS  instruction. OUTS is actually a routine
+intended for  writing a whole  string to an I/O  port, but we  can set
+things up so  that it just writes one byte.  We temporarily locate the
+string at offset DS:0000, i.e., what the "null pointer" points to, for
+efficiency   and  to   avoid  interfering   with  any   program  data.
+Incidentally,  this also  gives us  style  points for  using the  rare
+instruction
+
+     AND [SI] <- SI
+
+which ands an address into the thing the address points to, because
+we know SI is 0.
+
+
+    ** paper.exe **
+
+Executing this paper in DOS, with an AdLib-compatible sound card (such
+as the Sound  Blaster) configured at 0x388, will play  some music. The
+music to play  is specified on the  command line, using a  subset of a
+standard  text-based  music  format  called ABC.[XXX  cite  ABC].  For
+example, invoking
+
+PAPER.EXE C4C4G4G4A4A4G8G8F4F4E4E4D4D4C8
+
+will play a segment of the "Now I know my ABC's" song and then exit.
+The language supported is as follows:
+
+  A-G   Basic notes
+  a-g   Same, up one octave
+    z   Rest
+    ^   (Prefix) Sharp
+    _   (Prefix) Flat
+    =   (Prefix) Natural - does nothing since key of C is assumed
+    '   (Suffix) Up one octave
+    ,   (Suffix) Down one octave
+  2-8   (Suffix) Set duration of note to this many eighth notes
+
+XXX space here for multichannel?
+
+Running PAPER.EXE with arguments like "-song" will play a built-in
+song. Available songs include: "-alphabet". some space here for some
+more song names, more song names, a few more lines of them XXX fill
+in some song names!
+Running PAPER.EXE without any arguments will play a default song.
+
+
+    ** Running, debugging **
+
+Speaking of running the program, old-style  EXE files no longer run on
+64-bit versions of Windows. So if you  do not have an old DOS computer
+around with a sound card, you  can run ABC-compiled programs inside an
+emulator. DOSBox  is an excellent choice.  It runs on pretty  much all
+platforms and tends to just work. You have to do something like
+
+MOUNT C C:\DOWNLOADS\ABC\
+
+in order to mount  one of your real directories as  a "hard drive". To
+verify  that  PAPER.EXE   is  printable  with  no   beeping  or  funny
+characters, you could
+
+  ... Oh wait, here comes the code segment!
+  

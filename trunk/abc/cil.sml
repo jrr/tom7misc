@@ -72,7 +72,7 @@ struct
 
   datatype value =
     Var of string
-    (* typ is the type of the thing thing pointed to. *)
+    (* typ is the type of the thing pointed to. *)
   | AddressLiteral of loc * typ
     (* name of function, return type, argument types *)
   | FunctionLiteral of string * typ * typ list

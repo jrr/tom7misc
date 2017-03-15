@@ -1,7 +1,7 @@
 
             Dr. Tom Murphy VII, Ph.D.
             tom7@tom7.org
-
+[XXX REMOVE NONPRINTABLE BYTES BEFORE SUBMITTING!!!!!!!!!!!!!!!!]
 Hello, and welcome to my paper! I'm really happy to have you here! <3
 
 In this paper, I describe a new compiler for the C89 programming language.

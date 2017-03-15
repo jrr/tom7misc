@@ -196,7 +196,7 @@ struct
                   case ListUtil.Alist.find op= offsets l of
                     NONE => raise ToASM ("unallocated local " ^ l ^ "?")
                   | SOME pos =>
-                      A.FrameOffset (tmp, Word16.fromInt pos) // k (tmp, typ)
+                      A.FrameOffset (tmp, Word16.fromInt pos) // k (tmp, C.Pointer typ)
                 end
             | C.Global l =>
                 let val tmp = newtmp ("addr_" ^ l, A.S16)
@@ -204,7 +204,7 @@ struct
                   case ListUtil.Alist.find op= globalpositions l of
                     NONE => raise ToASM ("unallocated global " ^ l ^ "?")
                   | SOME pos =>
-                      A.Immediate16 (tmp, Word16.fromInt pos) // k (tmp, typ)
+                      A.Immediate16 (tmp, Word16.fromInt pos) // k (tmp, C.Pointer typ)
                 end)
         | C.FunctionLiteral (name, ret, args) =>
            let

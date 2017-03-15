@@ -1475,9 +1475,11 @@ struct
         POP SI ?? learn_reg16 M.ESI (Word16.fromInt 0) //
         POP DI ?? learn_reg16 M.EDI (Word16.fromInt 0) //
         POP DX ?? learn_reg16 M.EDX (Word16.fromInt 0) //
-        (* zero DS:SI. Note we could even use SI as the source
-           here, but only because we know it's zero! *)
-        AND (S16, IND_SI <~ BH_DI) //
+        (* zero DS:SI. We use use SI as the source here because
+           we know it's zero (for style points), but BH_DI also
+           works and would be more flexible if we decide to store
+           the "string" elsewhere. *)
+        AND (S16, IND_SI <~ DH_SI) //
         (* Load DI with the byte we want to write. *)
         XOR (S16, BH_DI <- EBP_TEMPORARY byte) ?? forget_reg16 M.EDI //
         (* And write it to SI. Note that this places the low order
