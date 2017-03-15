@@ -1,4 +1,58 @@
-This is the end of the paper!
+
+    ** Future work **
+
+I initially  designed CIL with the  thought that it could  be used for
+multiple such  "compile C to  X" projects. These are  primarily jokes,
+but   can   occasionally   be   of  legitimate   use   for   low-level
+domain-specific tasks where the existence of a reasonable and familiar
+high-level syntax  pays for  the effort of  writing a  simple backend.
+(When making such a  decision I like to also weight  the effort by the
+enjoyment of each task: i.e., the cost is like
+
+   (1 - fun of writing backend) * time writing backend   vs
+   (pain of writing low-level code by hand) *
+       time writing low-level code by hand
+
+... but  I have heard  that not all computer  work is done  purely for
+fun.)  This "portable  assembler"  application of  C remains  relevant
+today, and CIL or LLVMNOP is a much simpler than GCC or LLVM.
+
+Anyway, I discovered that  the design of such a thing  is not so easy.
+While it  is possible  to "compile away"  certain features  by turning
+them into  something "simpler," it's not  straightforward what feature
+set to  target. For example, for  ABC, we compile away  the | operator
+into &, ^, -,  and +1. In another setting, | may  very well be present
+instead of &.  We normally think of  the >> and <<  shift operators as
+being  fundamental, but  in  ABC  they are  inaccessible.  I find  the
+expression forms  like "a  < b"  much easier to  think about  then the
+combined test-and-branch version,  but the latter is  much better when
+targeting x86, and  important for producing reasonable code  in ABC. I
+do think it would be possible to develop a simple and general language
+for  this niche  where certain  constructs could  be compiled  away in
+favor of others,  at the direction of the compiler  author, but such a
+thing is firmly future work.
+
+
+    ** Related work **
+
+On that topic, one might ask: What is the minimal subset of bytes we
+could imagine using?
+
+There are some trivial subtractions; we never emit the BOUND
+instruction (0x62, lowercase b) and it does not seem useful, a few of
+the segment prefix instructions are also unused. The instructions like
+"ASCII Adjust After Addition" are currently unused, but since they act
+on AX in a predictable way, they could provide ways to improve the
+routines to load immediate values. But we're talking about reducing
+the surface, not increasing it. And speaking of loading immediate
+values, we do potentially use the entire set of printable bytes
+in these routines, but on the other hand, we can also reach any value
+from a known starting point by INC and DEC, taking at most 0x7FFF
+instructions (half the size of the code segment, unfortunately).
+More essential is our ability to set a register to a known value,
+which today requires two or more printable values whose bitwise AND
+is 0. 
+
 
 
 Here's the program:
@@ -9,9 +63,16 @@ Bibliography
 
 # -------------------------------------------------------------------------
 
-[X] Murphy, VII, Tom. "New results in k/n Power-Hours." SIGBOVIK,
+[X] Tom Murphy VII. "New results in k/n Power-Hours." SIGBOVIK,
     April 2014.
 
-[LLVM] Lattner, Chris; Avde, Vikram. "LLVM: A Compilation Framework for
+[X] Tom Murphy VII. "Modal Types for Mobile Code." Ph.D. thesis, Carnegie
+    Mellon University, January 2008. Technical report CMU-CS-08-126.
+
+[LLVM] Chris Lattner and Vikram Avde. "LLVM: A Compilation Framework for
        Lifelong Program Analysis and Transformation." CGO, March 2004.
+
+[CKIT] David Ladd, Satish Chandra, Michael Siff, Nevin Heintze, Dino Oliva,
+       and Dave MacQueen. "Ckit: A front end for C in SML." March 2000.
+       http://smlnj.org/doc/ckit/
 

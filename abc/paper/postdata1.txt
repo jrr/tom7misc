@@ -291,7 +291,7 @@ grammar:
          | Word8
          | ...
 
-  builtin ::= B_EXIT | B_ARGC | B_ARGV | B_PUTC | B_OUT8 | B_IN8
+  builtin ::= B_EXIT | B_ARGC | B_ARGV | B_PUTC | B_OUT8
 
   value ::= Var v
           | AddressLiteral loc, type
@@ -303,8 +303,6 @@ grammar:
   exp ::= Value value
         | Plus width, value, value
         | LessEq width, value, value
-        | Not width, value
-        | Yet width, value
         | Load width, value
         | Promote width, width, signedness, value
         | Call value, value list
@@ -317,13 +315,28 @@ grammar:
          | Return value
          | ...
 
-And lots more stuff. This language is typed, with one important use of
-this being  that we  determine the calling  convention for  a function
-pointer from its  type. (This includes the size of  the return address
-slot, which is  on the locals stack and shared  between the caller and
-callee, as well as the number and  sizes of the arguments, also on the
-locals stack.) We  make the representation (Word8,  Word16, Word32) of
-integral types explicit, but signed  and unsigned ints are represented
-the same way  (just as on the processor  itself). Instead, expressions
-like Promote (which converts e.g. an  8-bit word to a 16-bit word) are
-explicit about whether they perform sign extension.
+And lots more  stuff. A program is a collection  of functions, each of
+which is a collection of named statements (the stmt type is recursive,
+with a single statement representing a series of C statements until we
+reach a  Return or unconditional  Goto). Programs  also have a  set of
+globals with initialization code for  them. Note that CIL has ML-style
+lexically  scoped variables  which are  only  in scope  for the  given
+block. Since  C's semantics for  variables allow them to  be addressed
+and modified, we convert all C  variables into explicit loads from and
+stores to memory.
+
+This language is  typed, with one important use of  this being that we
+determine the calling convention for a function pointer from its type.
+(This includes  the size of the  return address slot, which  is on the
+locals stack and shared between the  caller and callee, as well as the
+number and sizes of the arguments,  also on the locals stack.) We make
+the representation (Word8, Word16, Word32) of integral types explicit,
+but signed and unsigned ints are  represented the same way (just as on
+the  processor  itself).  Instead,  expressions  like  Promote  (which
+converts  e.g. an  8-bit word  to a  16-bit word)  are explicit  about
+whether they  perform sign  extension. We  are careful  to distinguish
+between 8-, 16- and 32-bit quantities throughout the compiler, because
+printable x86  has the ability to  work with all three  widths, and we
+can produce significantly better code if we can use the correct width.
+(As a simple  example, loading a 16-bit word is  much cheaper than the
+zero-extended 32-bit version.)
