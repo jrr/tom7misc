@@ -87,9 +87,9 @@ symbols in the picture above, they are almost certainly represented as
 the byte  0x40, which means  the character @ in  ASCII. And so  if you
 peered directly  at the  bytes in this  file, you would  see a  lot of
 0x40s in  that region.  Sometimes the @  sign can be  the flower  of a
-rose, like @>-,--'---.  To the processor, it means INC  AX, since 0x40
-is that opcode.
+rose, like --,--'-<@. To the processor, it means INC AX, since 0x40 is
+that opcode.
 
 Now,  for good  reasons that  I will  explain later,  this paper  must
-contain 8,224 repetitions of the string "p~9(". Please proceed to Page
-3 to continue reading this interesting paper.
+contain 8,224 repetitions of the  string "~~Q(", another weird flower.
+Please proceed to Page 3 to continue reading this interesting paper.
