@@ -250,6 +250,15 @@ struct
         else if i >= size s then Word8.fromInt ` ord #"<"
              else Word8.fromInt ` ord ` String.sub (s, i)
 
+      (* Format is SEG:OFF (where the code segment is at 2020:0000),
+         in little endian (lowest byte of OFF first).
+
+         Right after the code segment is 197120, 2839:7e70, but I
+         moved the destination a little later (197120 + 398) so some
+         text in the paper could indicate that it's coming up. Found
+         these printable addresses with solveseg.sml. *)
+      val reloc_dest = Vector.fromList [0wx7e, 0wx7e, 0wx51, 0wx28]
+
       (* This is the chunk of the file that DOS interprets as the header
          (HEADER_BYTES in size), starting with the header struct and
          containing the relocation table. *)
@@ -264,21 +273,7 @@ struct
          else
          if i >= RELOCTABLE_START andalso
             i < RELOCTABLE_START + NUM_RELOCATIONS * 4
-         then
-         let
-           val off = (i - RELOCTABLE_START) div 4
-         in
-           (* Format is SEG:OFF (where the code segment is at 2020:0000),
-              in little endian (lowest byte of OFF first).
-
-              I determined a printable way to write the byte right after
-              the code segment with solveseg.sml. *)
-           case i mod 4 of
-             0 => 0wx70
-           | 1 => 0wx7E
-           | 2 => 0wx39
-           | _ => 0wx28
-         end
+         then Vector.sub (reloc_dest, i mod 4)
          else
            fromstring postreloc (i - (RELOCTABLE_START + NUM_RELOCATIONS * 4)))
 
@@ -316,6 +311,20 @@ struct
                                 else Word8Vector.sub (header, i))
         else header
 
+      val reloc_target =
+        "<--- That was the end of the code segment, where we overflow the instruction " ^
+        "pointer past 0xFFFF." ^
+        ".                                                                               " ^
+        "                                                                               ." ^
+        ". Also, remember when we talked about the relocation table, and how it has to co" ^
+        "rrupt some pair of bytes in our file? That's right here: --> XX <--.           ." ^
+        ". If you load this program in a debugger and look at memory approximately starti" ^
+        "ng at CS:FFFF, you'll see the XX changed to something else (unpredictable).    ." ^
+        ".                                                                               " ^
+        "                                                                               ." ^
+        ".                                                                           ~@~ " ^
+        "                                                                               ."
+      val RELOC_TARGET_SIZE = size reloc_target
 
       val image = Word8Vector.tabulate
         (IMAGE_BYTES,
@@ -333,27 +342,10 @@ struct
          if i < CODESEG_AT
          then fromstring postdata (i - (DATASEG_AT + 65536))
          else
-         fromstring endpage (i - (CODESEG_AT + 65536)))
-(*
-         let
-           val pos = i div 16 * 16
-           val s = StringCvt.padLeft #"0" 8 (Word32.toString `
-                                             Word32.fromInt pos)
-           fun ch c = Word8.fromInt ` ord c
-         in
-           (* Mark position in source code for forensics. *)
-           case i mod 16 of
-             0 => ch #"*"
-           | 1 => ch #" "
-           | 2 => ch #"<"
-           | 3 => ch #"-"
-           | 4 => ch #"-"
-           | 5 => ch #" "
-           | 14 => ch #" "
-           | 15 => ch #" "
-           | m => ch (String.sub (s, m - 6))
-         end
-*)
+         if i < CODESEG_AT + 65536 + RELOC_TARGET_SIZE
+         then fromstring reloc_target (i - (CODESEG_AT + 65536))
+         else
+           fromstring endpage (i - (CODESEG_AT + 65536 + RELOC_TARGET_SIZE)))
 
       val bytes = Word8Vector.concat [header, image]
       val num_bytes = Word8Vector.length bytes

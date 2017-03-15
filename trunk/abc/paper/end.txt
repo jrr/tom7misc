@@ -74,8 +74,8 @@ thing is firmly future work.
 On that topic, one  might ask: What is the minimal  subset of bytes we
 could imagine using?
 
-There  are  some  trivial  subtractions;   we  never  emit  the  BOUND
-instruction (0x62, lowercase b) and it  does not seem useful, a few of
+There  are  some  trivial  subtractions:   We  never  emit  the  BOUND
+instruction (0x62, lowercase b) and it  does not seem useful; a few of
 the segment prefix instructions are also unused. The instructions like
 "ASCII Adjust After Addition" are currently unused, but since they act
 on AX  in a predictable  way, they could  provide ways to  improve the
@@ -109,12 +109,13 @@ illegal  instructions  but  rewriting the  interrupt  handler).  While
 awesome, the problem is somewhat  different from what ABC solves; here
 we  are  fundamentally  concerned  with   what  bytes  appear  in  the
 executable, which  influences what  opcodes are accessible  (and their
-arguments), but  is not the  only constraint created. For  example, in
-MOV-only compilation,  the program's header  does not need  to consist
-only of MOV instructions, and so the compiler's output does not suffer
-the  same severe  code and  data limitations  that DOS  EXEs do.  (The
-executables  it  produces  are  extremely large  and  slow.)  The  MOV
-instruction is also very rich, and no versions of it are printable!
+arguments  and  addressing modes),  but  is  not the  only  constraint
+created. For  example, in  MOV-only compilation, the  program's header
+does  not  need to  consist  only  of  MOV  instructions, and  so  the
+compiler's  output does  not  suffer  the same  severe  code and  data
+limitations  that  DOS  EXEs  do. (The  executables  it  produces  are
+extremely large and slow.) The MOV  instruction is also very rich, and
+no versions of it are printable!
 
 Of course,  everyone knows  that even unary  numbers (just  one symbol
 repeated  a given  number  of  times) is  Turing  complete, via  Godel
