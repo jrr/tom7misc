@@ -13,7 +13,9 @@ struct
 
   datatype namedCtype
     = Struct of
-        Tid.uid * (Ast.ctype * Ast.member option * LargeInt.int option) list
+      Tid.uid * (Ast.ctype * Ast.member option *
+                 (* Bit fields, I think -tom7 *)
+                 LargeInt.int option) list
         (* pid is optional because of anonymous bit fields *)
     | Union of Tid.uid * (Ast.ctype * Ast.member) list
         (* pid is mandatory for unions *)
@@ -26,7 +28,7 @@ struct
   type tidBinding =
     {name: string option,
      ntype: namedCtype option,
-     global: bool, (* is it a top level definition? *)     
+     global: bool, (* is it a top level definition? *)
      location: SourceMap.location}
 
   (* info used in environment symbol tables *)

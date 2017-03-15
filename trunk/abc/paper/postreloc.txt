@@ -37,7 +37,7 @@ that's the  95 characters from 0x20  to 0x7E, inclusive. This  is all of
                l m n o p q r s t u v w x y z { | } ~
 
 
-    ** Printable X86 **
+    ** Printable x86 **
 
 Since only 37%  of bytes are printable, if you  inspect (i.e., "cat") an
 executable   program,  it   will  almost   always  contain   unprintable
@@ -78,9 +78,10 @@ called ABC.  It produces completely  printable executables from  C code.
 While self-modifying code is a powerful technique, it makes this problem
 "too easy;" I  want to explore what programs can  be written natively in
 the printable  subset of X86. Programs  compiled with ABC do  not modify
-themselves, or  cause themselves to  be modified; every  instruction the
+themselves,  or  cause  themselves  to be  modified;  every  instruction
 program executes  (outside of  the operating  system) contains  only the
-bytes 0x20-0x7E.
+bytes  0x20-0x7E. Moreover,  every byte  in  the file  is printable,  so
+programs can viewed as text.
 
 Source code for this project is available at:   http://tom7.org/abc
 
@@ -109,12 +110,15 @@ This is a challenging programming problem!
   - Unreasonable SIGBOVIK policies require that papers not be xxx-tra
     large-size.
 
-By now you've  probably guessed from the gibberish  you've been seeing
-that this paper  is itself the output  of ABC; that is,  this paper is
-also an executable file. If so, you guessed correct!!
+ +---------------------------------------------------------------------+
+ | By now you've probably guessed from the gibberish you've been       |\
+ | seeing that this paper is itself the output of ABC; that is, this   | |
+ | this paper is also an executable file. If so, you guessed correct!! | |
+ +---------------------------------------------------------------------+ |
+  \_____________________________________________________________________\|
 
 
-    ** Available instructions **
+    ** The CISC Ridiculous **
 
 Let's look at  the printable opcodes available in  X86. Don't actually
 read this table, but I will refer to it:
@@ -364,6 +368,18 @@ thoughtful about code size; this will be a challenge.
 It's not necessary to understand this diagram since you are looking at a
 1:1 scale  model right now, i.e.,  the program itself. I'll  point these
 sections out as we encounter them.
+
+
+    ** The Program Segment Prefix **
+
+The Program Segment Prefix, or PSP, is 256-bytes at the beginning of the
+data segment. Depending on how you look at it, DOS either overwrites the
+first 256 bytes of our program  image, or the program image starts right
+after it, but starts at address  DS:0x0100 rather than DS:0x0000. In any
+case, we get this  for free whether we want it or not,  for both COM and
+EXE files. Since this is just part  of DS, programs will be able to read
+and write the  data there. The most  useful thing we get  is the command
+line that the program is invoked with from the DOS prompt.
 
 
     ** Relocations **
