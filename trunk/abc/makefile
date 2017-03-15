@@ -21,7 +21,7 @@ twocolumn.exe : twocolumn.sml twocolumn.mlb
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
 
-TESTS = builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe # forswitch.exe
+TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe # forswitch.exe
 
 text2pdf.exe : text2pdf.c
 	gcc -O2 $< -o $@

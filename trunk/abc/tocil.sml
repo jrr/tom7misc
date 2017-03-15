@@ -893,7 +893,11 @@ struct
         (fn (addr, width, typ) =>
          k (addr, Pointer typ))
 
-      | Ast.SizeOf _ => raise ToCIL "unimplemented: sizeof"
+      | Ast.SizeOf t =>
+        let val result_typ = Word16 Unsigned
+        in k (Word16Literal ` Word16.fromInt ` sizeof ` transtype t, result_typ)
+        end
+
       | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
       | Ast.ErrorExpr => raise ToCIL "encountered ErrorExpr"
     end

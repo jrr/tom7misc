@@ -41,6 +41,20 @@ struct
     | typwidth (Word16 _) = Width16
     | typwidth (Word8 _) = Width8
 
+
+  (* Return the number of bytes in the representation.
+     Note that we allocate everything packed (no alignment requirement).
+     *)
+  fun sizeof t =
+    case t of
+      Pointer _ => 2
+    | Code _ => 2
+    | Array (t, i) => i * sizeof t
+    | Struct l => foldl (fn ((_, t), b) => b + sizeof t) 0 l
+    | Word32 _ => 4
+    | Word16 _ => 2
+    | Word8 _ => 1
+
   datatype builtin =
     (* void() *)
       B_EXIT
@@ -106,6 +120,8 @@ struct
   | RightShift of width * value * value
     (* "Greater" and "Less" are signed.
        "Above" and "Below" are unsigned. *)
+    (* TODO: Perhaps we can just have a Cond construct that
+       takes a cond? They are in correspondence. *)
   | Greater of width * value * value
   | GreaterEq of width * value * value
   | Above of width * value * value
