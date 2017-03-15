@@ -118,6 +118,8 @@ This is a challenging programming problem!
   \_____________________________________________________________________\|
 
 
+
+
     ** The CISC Ridiculous **
 
 Let's look at  the printable opcodes available in  X86. Don't actually
@@ -832,8 +834,6 @@ create two INT  instructions; one is to print the  string and the second
 is to exit.) In DOS, INT 0x21  is the most useful one; you set registers
 to some values to access dozens of different functions.
 
-(XXX talk about PSP earlier?)
-
 INT 0x21  is so  common that  it appears in  the Program  Segment Prefix
 that's always  loaded at the  beginning of  the data segment.  It's just
 sitting there amidst some zeroes:
@@ -916,9 +916,9 @@ segment is set  to 0x0000 when our program starts  (we can't change it),
 so  we  can use  the  FS  segment  override  instruction to  access  the
 beginning of RAM.  Once we overwrite the address, then  whenever we want
 we can set up argument registers for  the system call "exit" (AH = 0x4c,
-AL = status  code), and execute executing the  illegal ARPL instruction.
-This will  trigger interrupt 0x06,  which is  now actually the  INT 0x21
-code, and DOS will "cleanly" exit the program for us.
+AL = status  code), and execute the illegal ARPL  instruction. This will
+trigger interrupt 0x06, which is now actually the INT 0x21 code, and DOS
+will "cleanly" exit the program for us.
 
 It is very tempting to use this trick to make other system calls through
 INT 0x21,  or perhaps to  jump to  arbitrary addresses of  our choosing!
@@ -938,7 +938,6 @@ Sadly, there are two very serious issues:
 
 Neither of these issues are a problem for the exit system call, since
 we only do it once.
-(XXX Thank you for playing Wing Commander.)
 
 The ARPL  instruction takes  two argument  bytes which  just have  to be
 printable; the instruction we actually encode is
@@ -1011,7 +1010,7 @@ this weird  state still just jumps  downward, and the situation  is very
 brittle (see Section XXX for some ideas and problems). However, there is
 a  special case  on the  processor, probably  for compatibility  with an
 earlier  processor;  it's  right  there   in  the  pseudocode  for  this
-instruction in Intel's manual [XXX]:
+instruction in Intel's manual [XXX cite]:
 
   IF condition
      THEN

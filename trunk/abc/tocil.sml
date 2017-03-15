@@ -332,6 +332,17 @@ struct
      | _ => NONE)
     | get_builtin _ = NONE
 
+  (* Get the offset of a member field within a struct. We use a totally
+     packed representation. *)
+  fun get_member_offset (s : (string * typ) list) (mem : string) : int =
+    let
+      fun gmo _ nil = raise ToCIL ("Member " ^ mem ^ " not found in struct!")
+        | gmo b ((mm, t) :: rest) =
+        if mm = mem then b
+        else gmo (b + sizeof t) rest
+    in
+      gmo 0 s
+    end
 
   (* Translate an expression as an lvalue. This means producing a value
      that is the lvalue's address. We also pass to the continuation the
@@ -389,7 +400,11 @@ struct
           translvalue ctx exp bc
           (fn (addr, typ) =>
            case typ of
-             Struct s => raise ToCIL "member not implemented.."
+             Struct s =>
+               let val i = get_member_offset s mem
+               in
+                 raise ToCIL "member not implemented.."
+               end
            | _ => raise ToCIL ("Member access on non-struct. Member: " ^
                                mem ^ " Type: " ^ typtos typ))
         end

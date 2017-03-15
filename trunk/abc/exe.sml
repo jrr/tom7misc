@@ -31,6 +31,13 @@ struct
     in Word8.fromInt ` ord ` String.sub (str, i mod sz)
     end
 
+  val PRINT_LOW = 0x20
+  val PRINT_HIGH = 0x7e
+  fun assert_printable s =
+    if CharVector.all (fn c => ord c >= PRINT_LOW andalso ord c <= PRINT_HIGH) s
+    then ()
+    else raise EXE ("Input file (e.g. .2c file) not all printable!")
+
   fun w8vstring s =
     Word8Vector.tabulate (size s, repeatingstring s)
 
@@ -47,7 +54,10 @@ struct
                then
                  let
                    val bt = StringUtil.readfile "paper/bytetable.txt"
+                   (* Strip trailing newline *)
+                   val bt = String.substring (bt, 0, 128 * 160)
                  in
+                   assert_printable bt;
                    Segment.set_string ds BYTETABLE_START bt;
                    Segment.lock_range ds BYTETABLE_START (size bt)
                  end
@@ -244,10 +254,17 @@ struct
       val postreloc = StringUtil.readfile "paper/postreloc.2c"
       val postdata = StringUtil.readfile "paper/postdata.2c"
       val endpage = StringUtil.readfile "paper/end.2c"
+      val () = app assert_printable [firstpage, postreloc,
+                                     postdata, endpage]
 
       fun fromstring s i =
         if i < 0 then raise EXE "out of range"
-        else if i >= size s then Word8.fromInt ` ord #"<"
+        else if i >= size s then
+          let in
+            print ("String size " ^ Int.toString (size s) ^ ", i = " ^
+                   Int.toString i ^ "\n");
+            Word8.fromInt ` ord #"<"
+          end
              else Word8.fromInt ` ord ` String.sub (s, i)
 
       (* Format is SEG:OFF (where the code segment is at 2020:0000),
@@ -312,7 +329,7 @@ struct
         else header
 
       val reloc_target =
-        "<--- That was the end of the code segment, where we overflow the instruction " ^
+        "<-- That was the end of the code segment, where we overflow the instruction " ^
         "pointer past 0xFFFF." ^
         ".                                                                               " ^
         "                                                                               ." ^
@@ -343,9 +360,20 @@ struct
          then fromstring postdata (i - (DATASEG_AT + 65536))
          else
          if i < CODESEG_AT + 65536 + RELOC_TARGET_SIZE
-         then fromstring reloc_target (i - (CODESEG_AT + 65536))
+         then
+           let in
+             (* print ("rt, i = " ^ Int.toString i ^ " sz = " ^
+                    Int.toString RELOC_TARGET_SIZE ^ " off = " ^
+                    Int.toString (i - (CODESEG_AT + 65536)) ^ "\n"); *)
+             fromstring reloc_target (i - (CODESEG_AT + 65536))
+           end
          else
-           fromstring endpage (i - (CODESEG_AT + 65536 + RELOC_TARGET_SIZE)))
+           let in
+             (* print ("ep, i = " ^ Int.toString i ^ " sz = " ^
+                    Int.toString (size endpage) ^ " off = " ^
+                    Int.toString (i - (CODESEG_AT + 65536 + RELOC_TARGET_SIZE)) ^ "\n"); *)
+             fromstring endpage (i - (CODESEG_AT + 65536 + RELOC_TARGET_SIZE))
+           end)
 
       val bytes = Word8Vector.concat [header, image]
       val num_bytes = Word8Vector.length bytes

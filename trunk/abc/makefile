@@ -49,7 +49,9 @@ paper/postdata.2c : paper/postdata1.2c paper/postdata2.2c paper/sigbovik.txt
 	cat paper/postdata1.2c paper/sigbovik.txt paper/postdata2.2c > paper/postdata.2c
 
 paper/end.2c : twocolumn.exe paper/end.txt paper.c makefile
-	./twocolumn.exe -topclearance 3 -startline 13 -pages 4 paper/end.txt -o $@
+	./twocolumn.exe -debug -topclearance 3 -startline 12 -pages 4 paper/end.txt -o $@
+	./text2pdf -c160 -s6 -v6 -l128 debug0.page > debug0.pdf
+	./text2pdf -c160 -s6 -v6 -l128 debug3.page > debug3.pdf
 
 paper/sigbovik.txt : paper/sigbovik.png png2ascii.exe makefile
 	./png2ascii.exe "##23456:89ABC-- " $< > $@
