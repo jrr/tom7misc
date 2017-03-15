@@ -37,6 +37,42 @@ output
 
     ** Future work **
 
+There are many code size  optimizations possible, and while nontrivial
+programs can fit in  64k (such as the one in  this paper), larger ones
+will run up against that boundary  quickly. Probably a factor of about
+4 can be gained through  a few hard but straightforward optimizations.
+Can we  break free  of the  64k boundary? Earlier  we noted  that when
+execution  exceeds CS:0xFFFF,  it  simply  continues to  CS:0x00010000
+unless  a jump  is  executed  across that  boundary;  this address  is
+pointing to  bytes that are  part of our  program image (this  text is
+there,  in  fact),  so  conceivably  we could  write  code  here.  One
+significant  issue is  that interrupts,  which are  constantly firing,
+push  16-bit versions  of CS  and  IP onto  the stack,  and then  RETF
+(return far) to that address. This  means that if an interrupt happens
+while we are executing in this  extended address space, we will return
+to CS:(IP & 0xFFFF). If we had control over interupts, this might be a
+good way to return to the normal 16-bit code segment (i.e., to perform
+a backwards  jump), but  as discussed, we  do not. We  may be  able to
+globally  suppress  interupts,  like   by  using  our  single  illegal
+instruction  interrupt  during   initialization,  with  the  interrupt
+handler pointing  just to  code that we  control (and  never returning
+from it).  This leaves the  interrupt flag cleared, as  discussed. The
+computer will  be non-functional in  many ways, because  the operating
+system  will  no  longer  run,  but  we might  still  be  able  to  do
+rudimentary port-based  I/O, or build our  own non-interrupt-based OS.
+With interrupts suppressed, we can't use the interrupt trick to return
+to CS:0000. However,  my reading of the Intel manual  [XXX cite] seems
+to imply  that a jump  performed from this  region can be  forced into
+16-bit mode  (thus being  subject to  the &  0xFFFF overflow)  with an
+address size  prefix; however, this  does not seem  to be the  case in
+DOSBox. Given how unusual  this situation is, it may even  be a bug in
+DOSBox's CPU  emulator. Having access to  a full megabyte of  code (it
+still needs to  fit in the EXE container) would  be exciting, since it
+would allow  us to build  much more significnt systems  (e.g. standard
+malloc and a floating point emulator); more investigation is warranted
+here.
+
+
 I initially  designed CIL with the  thought that it could  be used for
 multiple such  "compile C to  X" projects. These are  primarily jokes,
 but   can   occasionally   be   of  legitimate   use   for   low-level
@@ -68,8 +104,6 @@ for  this niche  where certain  constructs could  be compiled  away in
 favor of others,  at the direction of the compiler  author, but such a
 thing is firmly future work.
 
-
-    ** Related work **
 
 On that topic, one  might ask: What is the minimal  subset of bytes we
 could imagine using?
@@ -114,8 +148,9 @@ created. For  example, in  MOV-only compilation, the  program's header
 does  not  need to  consist  only  of  MOV  instructions, and  so  the
 compiler's  output does  not  suffer  the same  severe  code and  data
 limitations  that  DOS  EXEs  do. (The  executables  it  produces  are
-extremely large and slow.) The MOV  instruction is also very rich, and
-no versions of it are printable!
+extremely   large  and   slow;  they   also  seem   to  have   non-MOV
+initialization code.)  The MOV instruction  is also very rich,  and no
+versions of it are printable!
 
 Of course,  everyone knows  that even unary  numbers (just  one symbol
 repeated  a given  number  of  times) is  Turing  complete, via  Godel
