@@ -8,7 +8,11 @@ int main(int argc, char **argv) {
     char c;
   } s;
 
-  _putc(s.x);
+  s.x = (int)'o';
+  s.c = 'k';
 
+  _putc(s.x);
+  _putc((int)(&s)->c);
+  _putc((int)'!');
   return 0;
 }

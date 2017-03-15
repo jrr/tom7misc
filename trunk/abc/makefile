@@ -21,7 +21,7 @@ twocolumn.exe : twocolumn.sml twocolumn.mlb
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
 
-TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe # forswitch.exe
+TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe struct.exe # forswitch.exe
 
 text2pdf.exe : text2pdf.c
 	gcc -O2 $< -o $@
@@ -49,9 +49,7 @@ paper/postdata.2c : paper/postdata1.2c paper/postdata2.2c paper/sigbovik.txt
 	cat paper/postdata1.2c paper/sigbovik.txt paper/postdata2.2c > paper/postdata.2c
 
 paper/end.2c : twocolumn.exe paper/end.txt paper.c makefile
-	./twocolumn.exe -debug -topclearance 3 -startline 12 -pages 4 paper/end.txt -o $@
-	./text2pdf -c160 -s6 -v6 -l128 debug0.page > debug0.pdf
-	./text2pdf -c160 -s6 -v6 -l128 debug3.page > debug3.pdf
+	./twocolumn.exe -topclearance 3 -startline 12 -pages 4 paper/end.txt -o $@
 
 paper/sigbovik.txt : paper/sigbovik.png png2ascii.exe makefile
 	./png2ascii.exe "##23456:89ABC-- " $< > $@

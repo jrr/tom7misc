@@ -332,13 +332,13 @@ struct
      | _ => NONE)
     | get_builtin _ = NONE
 
-  (* Get the offset of a member field within a struct. We use a totally
-     packed representation. *)
-  fun get_member_offset (s : (string * typ) list) (mem : string) : int =
+  (* Get the offset of a member field (and the type of that field)
+     within a struct. We use a totally packed representation. *)
+  fun get_member_offset (s : (string * typ) list) (mem : string) : int * typ =
     let
       fun gmo _ nil = raise ToCIL ("Member " ^ mem ^ " not found in struct!")
         | gmo b ((mm, t) :: rest) =
-        if mm = mem then b
+        if mm = mem then (b, t)
         else gmo (b + sizeof t) rest
     in
       gmo 0 s
@@ -351,93 +351,127 @@ struct
   fun translvalue (ctx : ctx)
                   (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
                   (k : value * typ -> stmt) : stmt =
-    case e of
-      Ast.Id (id as { global = false, kind = Ast.NONFUN, ctype, ... }) =>
-        let val typ = transtype ctx ctype
-        in k (AddressLiteral (Local ` idstring id, typ), typ)
-        end
-    | Ast.Id (id as { global = true, kind = Ast.NONFUN, ctype, ... }) =>
-        let val typ = transtype ctx ctype
-        in k (AddressLiteral (Global ` uidstring id, typ), typ)
-        end
-
-    | Ast.Id (id as { global = true, kind = Ast.FUNCTION _, ctype, ... }) =>
-        raise ToCIL ("FUNCTION-kind id " ^ idstring id ^ " cannot be lvalue")
-
-    | Ast.Sub (ptr, idx) =>
-        transexp ctx ptr bc
-        (fn (ptrv, ptrt) =>
-         case ptrt of
-           Pointer t =>
-             let
-               val argwidth = typewidth t
-               val scaled_idx = genvar "sidx"
-               val addr = genvar "off"
-               fun scale Width32 v =
-                 LeftShift (POINTER_WIDTH, v, Word8Literal 0w2)
-                 | scale Width16 v =
-                 LeftShift (POINTER_WIDTH, v, Word8Literal 0w1)
-                 | scale Width8 v = Value v
-             in
-               transexp ctx idx bc
-               (fn (idxv, idxt) =>
-                implicit { src = idxt, dst = POINTER_INT_TYPE, v = idxv }
-                (fn (idxv, _) =>
-                 Bind (scaled_idx, POINTER_INT_TYPE,
-                       scale argwidth idxv,
-                       (* XXX note this treats pointer as int; we should
-                          probably insert explicit Cast. *)
-                       Bind (addr, ptrt,
-                             Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
-                             k (Var addr, t)))))
-             end
-         | _ => raise ToCIL ("Attempt to subscript something of " ^
-                             "non-array type: " ^ typtos ptrt))
-
-    | Ast.Member (exp, mem) =>
-        let val mem = memstring mem
-        in
-          translvalue ctx exp bc
-          (fn (addr, typ) =>
+   let
+     (* continuation shared by Member and Arrow; needs a translated
+        address value. *)
+      fun k_transmemberlvalue (mem : string) =
+        (fn (addr, typ) =>
            case typ of
              Struct s =>
-               let val i = get_member_offset s mem
+               let
+                 val (offset, memtyp) = get_member_offset s mem
+                 val intv = genvar "addr"
+                 val offv = genvar ("a_" ^ mem ^ "_off")
+                 val ptrv = genvar "ptr"
                in
-                 raise ToCIL "member not implemented.."
+                 Bind (intv, POINTER_INT_TYPE,
+                       (* Convert to int. *)
+                       Cast { src = Pointer typ,
+                              dst = POINTER_INT_TYPE,
+                              v = addr },
+                       Bind (offv, POINTER_INT_TYPE,
+                             (* Add offset *)
+                             Plus (POINTER_WIDTH, Var intv,
+                                   Word16Literal ` Word16.fromInt offset),
+                             (* Convert back to pointer. *)
+                             Bind (ptrv, Pointer typ,
+                                   Cast { src = POINTER_INT_TYPE,
+                                          dst = Pointer memtyp,
+                                          v = Var offv },
+                                   k (Var ptrv, memtyp))))
                end
            | _ => raise ToCIL ("Member access on non-struct. Member: " ^
                                mem ^ " Type: " ^ typtos typ))
-        end
+    in
 
-    | Ast.Arrow _ => raise ToCIL "unimplemented lvalue: Arrow"
-    | Ast.Deref ptr =>
-    (* Be wary of the difference between transexp and translvalue in
-       these recursive calls.
+      case e of
+        Ast.Id (id as { global = false, kind = Ast.NONFUN, ctype, ... }) =>
+          let val typ = transtype ctx ctype
+          in k (AddressLiteral (Local ` idstring id, typ), typ)
+          end
+      | Ast.Id (id as { global = true, kind = Ast.NONFUN, ctype, ... }) =>
+          let val typ = transtype ctx ctype
+          in k (AddressLiteral (Global ` uidstring id, typ), typ)
+          end
 
-       Because we call transexp here, we get the value of the
-       pointer expression (transexp calls lvalue to get the pointer's
-       address, then loads from that); this is what we want to
-       represent the lvalue. *)
-        transexp ctx ptr bc
-        (fn (ptrv, ptrt) =>
-         case ptrt of
-           Pointer t => k (ptrv, t)
-         | _ => raise ToCIL ("Attempt to dereference non-pointer: " ^
-                             typtos ptrt))
-    | Ast.AddrOf _ => raise ToCIL "illegal lvalue AddrOf"
-    | Ast.Binop _ => raise ToCIL "illegal lvalue Binop"
-    | Ast.Unop _ => raise ToCIL "illegal lvalue Unop"
-    | Ast.Cast _ => raise ToCIL "illegal lvalue Cast" (* XXX might be legal? *)
-    | Ast.Id _ => raise ToCIL "illegal lvalue Id"
-    | Ast.EnumId _ => raise ToCIL "illegal lvalue EnumId"
-    | Ast.SizeOf _ => raise ToCIL "illegal lvalue SizeOf"
-    | Ast.ExprExt _ => raise ToCIL "illegal lvalue ExprExt"
-    | Ast.ErrorExpr => raise ToCIL "illegal lvalue ErrorExpr"
-    | _ =>
-        let in
-          raise ToCIL "illegal/unimplemented lvalue"
-        end
+      | Ast.Id (id as { global = true, kind = Ast.FUNCTION _, ctype, ... }) =>
+          raise ToCIL ("FUNCTION-kind id " ^ idstring id ^ " cannot be lvalue")
 
+      | Ast.Sub (ptr, idx) =>
+          transexp ctx ptr bc
+          (fn (ptrv, ptrt) =>
+           case ptrt of
+             Pointer t =>
+               let
+                 val argwidth = typewidth t
+                 val scaled_idx = genvar "sidx"
+                 val addr = genvar "off"
+                 fun scale Width32 v =
+                   LeftShift (POINTER_WIDTH, v, Word8Literal 0w2)
+                   | scale Width16 v =
+                   LeftShift (POINTER_WIDTH, v, Word8Literal 0w1)
+                   | scale Width8 v = Value v
+               in
+                 transexp ctx idx bc
+                 (fn (idxv, idxt) =>
+                  implicit { src = idxt, dst = POINTER_INT_TYPE, v = idxv }
+                  (fn (idxv, _) =>
+                   Bind (scaled_idx, POINTER_INT_TYPE,
+                         scale argwidth idxv,
+                         (* XXX note this treats pointer as int; we should
+                            probably insert explicit Cast. *)
+                         Bind (addr, ptrt,
+                               Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
+                               k (Var addr, t)))))
+               end
+           | _ => raise ToCIL ("Attempt to subscript something of " ^
+                               "non-array type: " ^ typtos ptrt))
+
+      | Ast.Member (exp, mem) =>
+          let val mem = memstring mem
+          in
+            translvalue ctx exp bc
+            (k_transmemberlvalue mem)
+          end
+
+      | Ast.Arrow (exp, mem) =>
+          let val mem = memstring mem
+          in
+            transexp ctx exp bc
+            (fn (ptrv, ptrt) =>
+             case ptrt of
+               Pointer t => k_transmemberlvalue mem (ptrv, t)
+             | _ => raise ToCIL "-> expression on non-pointer.")
+          end
+
+      | Ast.Deref ptr =>
+      (* Be wary of the difference between transexp and translvalue in
+         these recursive calls.
+
+         Because we call transexp here, we get the value of the
+         pointer expression (transexp calls lvalue to get the pointer's
+         address, then loads from that); this is what we want to
+         represent the lvalue. *)
+          transexp ctx ptr bc
+          (fn (ptrv, ptrt) =>
+           case ptrt of
+             Pointer t => k (ptrv, t)
+           | _ => raise ToCIL ("Attempt to dereference non-pointer: " ^
+                               typtos ptrt))
+      | Ast.AddrOf _ => raise ToCIL "illegal lvalue AddrOf"
+      | Ast.Binop _ => raise ToCIL "illegal lvalue Binop"
+      | Ast.Unop _ => raise ToCIL "illegal lvalue Unop"
+      | Ast.Cast _ => raise ToCIL "illegal lvalue Cast" (* XXX might be legal? *)
+      | Ast.Id _ => raise ToCIL "illegal lvalue Id"
+      | Ast.EnumId _ => raise ToCIL "illegal lvalue EnumId"
+      | Ast.SizeOf _ => raise ToCIL "illegal lvalue SizeOf"
+      | Ast.ExprExt _ => raise ToCIL "illegal lvalue ExprExt"
+      | Ast.ErrorExpr => raise ToCIL "illegal lvalue ErrorExpr"
+      | _ =>
+          let in
+            raise ToCIL "illegal/unimplemented lvalue"
+          end
+   end
 
   and transexplist (ctx : ctx) (es : Ast.expression list) (bc : stmt bc)
                    (k : (value * typ) list -> stmt) : stmt =
