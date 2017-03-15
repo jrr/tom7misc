@@ -29,15 +29,18 @@ text2pdf.exe : text2pdf.c
 png2ascii.exe : png2ascii.cc
 	g++ -std=c++11 -O2 $< -o $@
 
+paper/x86.txt : paper/x86.png png2ascii.exe makefile
+	./png2ascii "##234%%====---- " $< -newlines > $@
+
 paper/firstpage.2c : twocolumn.exe paper/firstpage.txt makefile
 	./twocolumn.exe -startline 0 -startcol 40 -pages 1 -endlines 76 -endcol 64 -botclearance 1 paper/firstpage.txt -o $@
 
 paper/postreloc.2c : twocolumn.exe paper/postreloc.txt makefile
-	./twocolumn.exe -startline 1 -startcol 0 -pages 5 -endlines 73 -endcol 64 -botclearance 2 paper/postreloc.txt -o $@
+	./twocolumn.exe -topclearance 1 -startline 1 -startcol 0 -pages 5 -endlines 73 -endcol 64 -botclearance 2 paper/postreloc.txt -o $@
 #	./text2pdf -c160 -s6 -v6 -l128 debug0.page > debug0.pdf
 
 paper/postdata1.2c : twocolumn.exe paper/postdata1.txt makefile
-	./twocolumn.exe -startline 78 -startcol 64 -pages 2 paper/postdata1.txt -o $@
+	./twocolumn.exe -startline 78 -topclearance 1 -startcol 64 -pages 2 paper/postdata1.txt -o $@
 
 paper/postdata2.2c : twocolumn.exe paper/postdata2.txt makefile
 	./twocolumn.exe -startline 0 -startcol 0 -pages 1 -endlines 19 -botclearance 2 -endcol 128 paper/postdata2.txt -o $@
@@ -46,7 +49,7 @@ paper/postdata.2c : paper/postdata1.2c paper/postdata2.2c paper/sigbovik.txt
 	cat paper/postdata1.2c paper/sigbovik.txt paper/postdata2.2c > paper/postdata.2c
 
 paper/end.2c : twocolumn.exe paper/end.txt paper.c makefile
-	./twocolumn.exe -startline 6 -startcol 64 -pages 4 paper/end.txt -o $@
+	./twocolumn.exe -topclearance 2 -startline 6 -startcol 64 -pages 4 paper/end.txt -o $@
 
 paper/sigbovik.txt : paper/sigbovik.png png2ascii.exe makefile
 	./png2ascii.exe "##23456:89ABC-- " $< > $@

@@ -1,3 +1,27 @@
+Anyway, to verify that PAPER.EXE is printable with no beeping or funny
+characters, you could do
+
+   COPY PAPER.EXE CON
+
+to copy it to your console, or COPY PAPER.EXE LPT1 to copy it to your
+simulated computer's printer (spoiler: It doesn't have one). But why
+bother? You're reading PAPER.EXE right now!
+
+I  used  DOSBox  frequently   during  development,  and  modified  its
+debugger, especially for understanding  the header values are actually
+used. My modifications are included in the ABC source repository. When
+running ABC-compiled programs under  DOSBox with the debugger enabled,
+it  will complain  about a  "weird  header" when  loading the  program
+(you're tellin' me!) and the debugger will output the error
+
+        Illegal/Unhandled opcode 63
+
+upon exiting (because we do execute an illegal opcode). For cosmetic
+style points, the local version of DOSBox has been modified to instead
+output
+
+        Thank you for playing Wing Commander!
+
 
     ** Future work **
 
@@ -12,7 +36,7 @@ enjoyment of each task: i.e., the cost is like
    (1 - fun of writing backend) * time writing backend   vs
    (pain of writing low-level code by hand) *
        time writing low-level code by hand
-
+       
 ... but  I have heard  that not all computer  work is done  purely for
 fun.)  This "portable  assembler"  application of  C remains  relevant
 today, and CIL or LLVMNOP is a much simpler than GCC or LLVM.
@@ -35,31 +59,126 @@ thing is firmly future work.
 
     ** Related work **
 
-On that topic, one might ask: What is the minimal subset of bytes we
+On that topic, one  might ask: What is the minimal  subset of bytes we
 could imagine using?
 
-There are some trivial subtractions; we never emit the BOUND
-instruction (0x62, lowercase b) and it does not seem useful, a few of
+There  are  some  trivial  subtractions;   we  never  emit  the  BOUND
+instruction (0x62, lowercase b) and it  does not seem useful, a few of
 the segment prefix instructions are also unused. The instructions like
 "ASCII Adjust After Addition" are currently unused, but since they act
-on AX in a predictable way, they could provide ways to improve the
-routines to load immediate values. But we're talking about reducing
-the surface, not increasing it. And speaking of loading immediate
-values, we do potentially use the entire set of printable bytes
-in these routines, but on the other hand, we can also reach any value
-from a known starting point by INC and DEC, taking at most 0x7FFF
-instructions (half the size of the code segment, unfortunately).
-More essential is our ability to set a register to a known value,
-which today requires two or more printable values whose bitwise AND
-is 0. 
+on AX  in a predictable  way, they could  provide ways to  improve the
+routines to  load immediate values.  But we're talking  about reducing
+the  surface, not  increasing it.  And speaking  of loading  immediate
+values, we do certainly make use  of the entire set of printable bytes
+in these routines  (as arguments to XOR, SUB, PUSH,  etc.), but on the
+other hand, we can also reach any value from a known starting point by
+INC and DEC, taking at most  0x7FFF instructions (half the size of the
+code segment, unfortunately).  More essential is our ability  to set a
+register to a known value, which  today requires two or more printable
+values whose bitwise AND is 0.  Sadly, though we could go through some
+pains to remove bytes from the gamut here and there, no natural subset
+like  "only  lowercase  letters"  or "alphanumeric"  jumps  out  as  a
+straightforward extension;  we rely  on the control  flow in  the late
+lowercase letters  (Jcc) and  the basic ops  in the  early punctuation
+(AND/XOR), not to mention that the  EXE header barely works within the
+existing constraints with access to  both "small" (0x2020) and "large"
+(0x7e7e) constants.
 
+Others  have produced  compilers  for high-level  languages with  very
+reduced instruction sets.  In an extreme case, Dolan  shows [XXX cite]
+that the mov  instruction on its own is  Turing-complete (note however
+that this requires a "single absolute jump" to the top of the program,
+an issue similar to what we encounter in printable x86, only we do not
+insert  any illegal  instructions).  Another enterprising  programmer,
+Domas, implemented a C compiler that produces only MOV instructions. I
+didn't look  at it while writing  ABC (spoilers!) but he  avoids using
+any JMP instruction  the same way that I exit  the program (generating
+illegal  instructions  but  rewriting the  interrupt  handler).  While
+awesome, the problem is somewhat  different from what ABC solves; here
+we  are  fundamentally  concerned  with   what  bytes  appear  in  the
+executable, which  influences what  opcodes are accessible  (and their
+arguments), but  is not the  only constraint created. For  example, in
+MOV-only compilation,  the program's header  does not need  to consist
+only of MOV instructions, and so the compiler's output does not suffer
+the  same severe  code and  data limitations  that DOS  EXEs do.  (The
+executables  it  produces  are  extremely large  and  slow.)  The  MOV
+instruction is also very rich, and no versions of it are printable!
+
+Of course,  everyone knows  that even unary  numbers (just  one symbol
+repeated  a given  number  of  times) is  Turing  complete, via  Godel
+encoding. So what's the big deal?
 
 
 Here's the program:
 %insert paper.c
 That was it!
 
-Bibliography
+                                                                           
+                                                                           
+         ##       ##                                                       
+          ###   ####                                                       
+           ### ###                                                         
+             ###                                                           
+            #####                 ############                             
+          ###  ###             #####         #########                     
+         ##      ###          ###                    #########             
+                             ###                          #####            
+                  #####      ##                           ##%##            
+   ########      ### =###   ##                           ##%%###           
+  ###    ###    ##         ###                          ##%%###            
+  ##      ##   ###         ##                          ##%%%##             
+  ##     ###   ########    ##                          ##%###              
+   =#######=   ##=   ##    ##                         ##%%##               
+   ###    ###  ##    ##   ##                         ##%%###               
+   ##     ###  ########   ##                         ##%%##                
+   ##    ###     ####     ##                         ##%%##                
+    #######            ########                      ##%%##                
+                      ###%%####                    ########                
+           ###########################            ####%%%##                
+         ####-----------##%%%%%%%%%%%%##################%%#                
+        ###-------------##%%%%%%%%%%%%%%%%%%%%%%%%%##--################    
+       ###--------------###%%%%%%%%%%%%%%%%%%%%%%%###--------------#####   
+      ##-----------------###%%%%%%%%%%%%%%%%%%%%####-------------###%%##   
+     ##--------------------#####%%%%%%%%%%%#######--------------###%%%##   
+    ###-----------------------##############-------------------###%%%%%##  
+    ##====----------------------------------------------------###%%%%%%##  
+   ###=========-----------------------------------------------##%%%%%%%##  
+   ##===============------------------------------------=====##%%%%%%%%##  
+   ##============================--------------==============##%%%%%%%%##  
+   ###=======================================================##%%%%%%%%##  
+   ###=======================================================##%%%%%%%%##  
+    ##=======================================================##%%%%%%%%%## 
+    ##=============================================%%###=====##%%%%%%%%### 
+    ##=============================================##   ##===##%%%%%%%###  
+    ##============================================%%#####%%==##%%%%%%###---
+      #####========#########=================================##%%%%%##-----
+         #########=##------############################======##%%%###----- 
+             ########               ----------------#######=##%%###------  
+            #######      ====                      ##########%%##------    
+           ########         ======                 ######---###-------     
+          ########    ==------          ========   ######----------        
+         #######   ==========           =-----=   ######--------           
+          #####                        ===        ######-------            
+           ###   ========== ==       =------==   ######--------            
+          ###                      ==========    ##--------                
+          ##                                    ##-------                  
+         ##     ==   ======                    ##-------                   
+       ### ==========   ----=======       ==   ##-------                   
+      ###            ===========    ===--     ##-------                    
+      #############              === === ===  #---                         
+                  ################           ##                            
+                                 ##############                            
+
+              Figure 7. Printable X86
+
+
+    ** Acknowledgements **
+
+The author would like to thank the fastidious SIBOVIK "Program" Committee
+for "Evaluating" my paper.
+
+
+    ** Bibliography **
 
 # -------------------------------------------------------------------------
 
@@ -76,3 +195,16 @@ Bibliography
        and Dave MacQueen. "Ckit: A front end for C in SML." March 2000.
        http://smlnj.org/doc/ckit/
 
+[INTC] Intel Corporation. "IA-32 Intel Architecture Software Developer's
+       Manual. Volume 2: Instruction Set Reference." 2001.
+
+[ABC] Steve Mansfield. "How to interpret abc music notation." 2005.
+
+[MOV] Stephen Dolan. "mov is Turing-complete". 2013.
+
+[MVF] Chris Domas. "M/o/Vfuscator2". August 2015.
+      https://github.com/xoreaxeaxeax/movfuscator
+      
+
+
+Please see http://tom7.org/abc for supplemental material.

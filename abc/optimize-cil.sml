@@ -1094,7 +1094,7 @@ struct
             missing unprintable bytes. *)
         val initlabel = CILUtil.newlabel "init_str"
         val globalname = CILUtil.newglobal "strlit"
-        val globallit = AddressLiteral (Global globalname, Word8 Unsigned)
+        val globallit = AddressLiteral (Global globalname, Array (Word8 Unsigned, len))
 
         fun makeinit nil = End
           | makeinit ((idx, b) :: rest) =

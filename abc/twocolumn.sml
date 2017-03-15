@@ -63,6 +63,12 @@ struct
            "Number of full lines on the last page that can't be used. Does " ^
            "not include a partial line (-endcol).")) "endlines"
 
+  val topclearance =
+    Params.param "0"
+    (SOME ("-topclearance",
+           "Number of blank lines to leave between the junk at the top and " ^
+           "the body text.")) "topclearance"
+
   val botclearance =
     Params.param "1"
     (SOME ("-botclearance",
@@ -107,10 +113,11 @@ struct
         then Params.asint 0 endlines
         else 0
 
+      val topclearance = Params.asint 0 topclearance
       val botclearance = Params.asint 1 botclearance
 
       val firstwriteline =
-        Int.max (TBBORDER, startline)
+        Int.max (TBBORDER, startline + topclearance)
       val lastwriteline =
         Int.min (HEIGHT - endlines - (botclearance + 2) -
                  (if endcol < RC_START then 1 else 0),

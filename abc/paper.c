@@ -47,6 +47,11 @@ unsigned char *default_song =
   "AB_D'A" "E'3E'3D'6"
   "AB_D'A" "D'4E'2_D'2B2A2z2" "A2E'4D'4";
 
+unsigned char *alphabet =
+  "C4C4G4G4A4A4G8" "F4F4E4E4D4D4C8"
+  "G4G4F4F4E4E4D8" "G4G4F4F4E4E4D8"
+  "C4C4G4G4A4A4G8" "F4F4E4E4D4D4C8";
+
 int Adlib(int reg, int value) {
   int i;
   _out8((int)0x0388, (int)reg);
@@ -84,6 +89,17 @@ int Quiet() {
   }
 }
 
+int streq(unsigned char *a, unsigned char *b) {
+  int i;
+  for (i = 0; /* in loop */; i++) {
+    int ca = a[i], cb = b[i];
+    if (ca != cb)
+      return (int)0;
+    if (ca == (int)0)
+      return (int)1;
+  }
+}
+
 // ABC provides no standard library, so you gotta roll
 // your own.
 int strlen(unsigned char *s) {
@@ -95,10 +111,17 @@ int strlen(unsigned char *s) {
   return len;
 }
 
-// DOS terminates the command line with 0x0D, not 0x00.
-// This function updates it in place so that we can use
-// normal string routines on it.
-int MakeArgString(unsigned char *s) {
+// DOS command lines always start with a space, which is annoying.
+// Strip that. DOS also terminates the command line with 0x0D, not
+// 0x00. This function updates it in place so that we can use normal
+// string routines on it.
+int MakeArgString(unsigned char **argstring) {
+  unsigned char *s = *argstring;
+  while (*s == (int)' ') {
+    s = (unsigned char *)((int)s + (int)1);
+  }
+  *argstring = s;
+
   while ((int)*s != (int)0x0D) {
     s = (unsigned char *)((int)s + (int)1);
   }
@@ -223,11 +246,13 @@ int main(int argc, unsigned char **argv) {
   int song_idx = 0, j, midi_note;
   unsigned char *cmdline = *argv;
   unsigned char *song;
-  MakeArgString(cmdline);
+  MakeArgString(&cmdline);
 
-  // If we have a command line, use that. Otherwise, the default
-  // song.
-  if (strlen(cmdline) > (int)0) {
+  // First test for known songs. After that, if we have a command line,
+  // use it. Otherwise,
+  if (streq(cmdline, (unsigned char *)"-alphabet")) {
+    song = alphabet;
+  } else if (strlen(cmdline) > (int)0) {
     song = cmdline;
   } else {
     song = default_song;
