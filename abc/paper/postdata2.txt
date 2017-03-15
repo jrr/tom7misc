@@ -204,4 +204,4 @@ verify  that  PAPER.EXE   is  printable  with  no   beeping  or  funny
 characters, you could
 
   ... Oh wait, here comes the code segment!
-  
+

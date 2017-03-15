@@ -9,10 +9,22 @@ bother? You're reading PAPER.EXE right now!
 
 I  used  DOSBox  frequently   during  development,  and  modified  its
 debugger, especially for understanding  the header values are actually
-used. My modifications are included in the ABC source repository. When
-running ABC-compiled programs under  DOSBox with the debugger enabled,
-it  will complain  about a  "weird  header" when  loading the  program
-(you're tellin' me!) and the debugger will output the error
+used. The ABC compiler outputs  each of the intermediate languages for
+a program  as it compiles,  as well as lightly-commented  X86 assembly
+with address maps back into the  code segment, which makes it possible
+to  easily  set  breakpoints  on  particular  pieces  of  code.  Since
+compiling other people's software on Windows is a special nightmare, I
+frequently  worked   inside  a  Linux  virtual   machine  (VirtualBox)
+containing a DOS  virtual machine (DOSBox), a surreal  scenario that I
+was  tickled to  find a  practical use  for. Let  us one  day simulate
+Windows 7  on our iPhones  21 so that  we may render  this development
+environment one level deeper.
+
+My modifications to DOSBox are  included in the ABC source repository,
+although they  are not  necessary to  run ABC-compiled  programs. When
+running these programs under DOSBox with the debugger enabled, it will
+complain  about a  "weird  header" when  loading  the program  (you're
+tellin' me!) and the debugger will output the error
 
         Illegal/Unhandled opcode 63
 

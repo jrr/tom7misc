@@ -41,7 +41,7 @@ struct
                      print "\n\n"
                    end
                  else ()
-        val cil = ToCIL.tocil ast
+        val cil = ToCIL.tocil (tidtab, ast)
         val () = if !Flags.verbose
                  then print ("\nToCIL:\n" ^ CIL.progtos cil ^ "\n")
                  else ()

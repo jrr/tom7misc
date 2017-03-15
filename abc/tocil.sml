@@ -26,6 +26,9 @@ struct
   val INT_WIDTH = Width16
   val INT_TYPE = Word16 Signed
 
+  (* Translation context. Not the same as CIL.context. *)
+  datatype ctx = CTX of { tidtab: Bindings.tidBinding Tidtab.uidtab }
+
   val genvar = CILUtil.genvar
 
   (* Literal at the given width. The (unsigned) integer must fit. *)
@@ -102,6 +105,7 @@ struct
   (* For local variables, disambiguate the symbol with the uid. *)
   fun idstring ({ name, uid, ... } : Ast.id) =
     Symbol.name name ^ "$" ^ Pid.toString uid
+  fun memstring ({ name, ... } : Ast.member) = Symbol.name name
   (* For globals and functions, we just use the name. These must be
      globally unique and we could use them for linking (?). *)
   fun uidstring ({ name, ... } : Ast.id) = Symbol.name name
@@ -109,21 +113,34 @@ struct
 
   fun labstring ({ name, ... } : Ast.label) = Symbol.name name
 
-  fun transtype (t : Ast.ctype) =
+  fun transtype (ctx as CTX { tidtab, ... } : ctx) (t : Ast.ctype) =
     case t of
       Ast.Error => raise ToCIL "Error cannot be translated"
     | Ast.Void => Struct []
     | Ast.Ellipses => raise ToCIL "... unsupported (as yet)"
     (* We ignore const (just affects error checking and optimization)
        and volatile (means nothing) *)
-    | Ast.Qual (_, t) => transtype t
+    | Ast.Qual (_, t) => transtype ctx t
     (* Array should be represented as pointer, right? *)
     | Ast.Array _ => raise ToCIL "Array types unimplemented."
-    | Ast.Pointer t => Pointer (transtype t)
+    | Ast.Pointer t => Pointer (transtype ctx t)
     | Ast.Function (ret, args) =>
-        Code (transtype ret, map (transtype o #1) args)
+        Code (transtype ctx ret, map (transtype ctx o #1) args)
     | Ast.StructRef tid =>
-        raise ToCIL "unimplemented: need to look up struct and inline it"
+        (case Tidtab.find (tidtab, tid) of
+           NONE => raise ToCIL ("Bug? Reference to tid " ^ Tid.toString tid ^
+                                " that was not in the tidtable?")
+         | SOME ({ name, ntype, global, ... } : Bindings.tidBinding) =>
+             (case ntype of
+                NONE => raise ToCIL "Reference to anonymous struct? How?"
+              | SOME (Bindings.Struct (_, fields : (Ast.ctype *
+                                                    Ast.member option *
+                                                    LargeInt.int option) list)) =>
+                  Struct ` map (fn (ctype, SOME mem, NONE) =>
+                                (memstring mem, transtype ctx ctype)
+                                 | (_, _, SOME _) => raise ToCIL "Bit fields unsupported."
+                                 | (_, NONE, _) => raise ToCIL "Unnamed members?") fields
+              | SOME _ => raise ToCIL "Bug? Expected StructRef to name a struct."))
     | Ast.UnionRef tid => raise ToCIL "unions unimplemented"
     (* All enums currently represented as signed int32.
        PERF: Better if we can use 8/16 in cases where they'll work. *)
@@ -157,8 +174,6 @@ struct
     | Word32 _ => Width32
     | Word16 _ => Width16
     | Word8 _ => Width8
-
-  fun ctypewidth t = typewidth ` transtype t
 
   fun typesignedness t =
     case t of
@@ -322,23 +337,24 @@ struct
      that is the lvalue's address. We also pass to the continuation the
      width of the lvalue, and the type of the lvalue (not the address;
      the contents of the address). *)
-  fun translvalue (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
-                  (k : value * width * typ -> stmt) : stmt =
+  fun translvalue (ctx : ctx)
+                  (Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
+                  (k : value * typ -> stmt) : stmt =
     case e of
       Ast.Id (id as { global = false, kind = Ast.NONFUN, ctype, ... }) =>
-        let val typ = transtype ctype
-        in k (AddressLiteral (Local ` idstring id, typ), typewidth typ, typ)
+        let val typ = transtype ctx ctype
+        in k (AddressLiteral (Local ` idstring id, typ), typ)
         end
     | Ast.Id (id as { global = true, kind = Ast.NONFUN, ctype, ... }) =>
-        let val typ = transtype ctype
-        in k (AddressLiteral (Global ` uidstring id, typ), typewidth typ, typ)
+        let val typ = transtype ctx ctype
+        in k (AddressLiteral (Global ` uidstring id, typ), typ)
         end
 
     | Ast.Id (id as { global = true, kind = Ast.FUNCTION _, ctype, ... }) =>
         raise ToCIL ("FUNCTION-kind id " ^ idstring id ^ " cannot be lvalue")
 
     | Ast.Sub (ptr, idx) =>
-        transexp ptr bc
+        transexp ctx ptr bc
         (fn (ptrv, ptrt) =>
          case ptrt of
            Pointer t =>
@@ -352,22 +368,32 @@ struct
                  LeftShift (POINTER_WIDTH, v, Word8Literal 0w1)
                  | scale Width8 v = Value v
              in
-               transexp idx bc
+               transexp ctx idx bc
                (fn (idxv, idxt) =>
                 implicit { src = idxt, dst = POINTER_INT_TYPE, v = idxv }
                 (fn (idxv, _) =>
                  Bind (scaled_idx, POINTER_INT_TYPE,
                        scale argwidth idxv,
-                       (* XXX note this treats pointer as int; should
-                          we have explicit conversion? *)
+                       (* XXX note this treats pointer as int; we should
+                          probably insert explicit Cast. *)
                        Bind (addr, ptrt,
                              Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
-                             k (Var addr, argwidth, t)))))
+                             k (Var addr, t)))))
              end
          | _ => raise ToCIL ("Attempt to subscript something of " ^
                              "non-array type: " ^ typtos ptrt))
 
-    | Ast.Member _ => raise ToCIL "unimplemented lvalue: Member"
+    | Ast.Member (exp, mem) =>
+        let val mem = memstring mem
+        in
+          translvalue ctx exp bc
+          (fn (addr, typ) =>
+           case typ of
+             Struct s => raise ToCIL "member not implemented.."
+           | _ => raise ToCIL ("Member access on non-struct. Member: " ^
+                               mem ^ " Type: " ^ typtos typ))
+        end
+
     | Ast.Arrow _ => raise ToCIL "unimplemented lvalue: Arrow"
     | Ast.Deref ptr =>
     (* Be wary of the difference between transexp and translvalue in
@@ -377,10 +403,10 @@ struct
        pointer expression (transexp calls lvalue to get the pointer's
        address, then loads from that); this is what we want to
        represent the lvalue. *)
-        transexp ptr bc
+        transexp ctx ptr bc
         (fn (ptrv, ptrt) =>
          case ptrt of
-           Pointer t => k (ptrv, typewidth t, t)
+           Pointer t => k (ptrv, t)
          | _ => raise ToCIL ("Attempt to dereference non-pointer: " ^
                              typtos ptrt))
     | Ast.AddrOf _ => raise ToCIL "illegal lvalue AddrOf"
@@ -398,24 +424,26 @@ struct
         end
 
 
-  and transexplist (es : Ast.expression list) (bc : stmt bc)
+  and transexplist (ctx : ctx) (es : Ast.expression list) (bc : stmt bc)
                    (k : (value * typ) list -> stmt) : stmt =
     let
       fun tel revl nil = k (rev revl)
         | tel revl (e :: rest) =
-        transexp e bc (fn (v, t) => tel ((v, t) :: revl) rest)
+        transexp ctx e bc (fn (v, t) => tel ((v, t) :: revl) rest)
     in
       tel nil es
     end
 
   (* Normal translation of an expression (rvalue). *)
-  and transexp (orig_exp as Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
+  and transexp (ctx : ctx)
+               (orig_exp as Ast.EXPR (e, _, _) : Ast.expression) (bc : stmt bc)
                (k : value * typ -> stmt) : stmt =
     let
       fun as_lvalue s =
-        translvalue orig_exp bc
-        (fn (addr, width, typ) =>
+        translvalue ctx orig_exp bc
+        (fn (addr, typ) =>
          let
+           val width = typewidth typ
            val v = genvar s
          in
            Bind (v, typ, Load (width, addr), k (Var v, typ))
@@ -436,9 +464,9 @@ struct
 
       (* Identifiers for functions are not lvalues. *)
       | Ast.Id (id as { global = true, kind = Ast.FUNCTION _, ctype, ... }) =>
-        let val typ = transtype ctype
+        let val typ = transtype ctx ctype
         in
-          case transtype ctype of
+          case transtype ctx ctype of
             Code (ret, args) =>
               k (FunctionLiteral (uidstring id, ret, args), typ)
           | _ => raise ToCIL ("Alleged FUNCTION-kind id " ^ idstring id ^
@@ -457,7 +485,7 @@ struct
           (case binopclass bop of
              SHORT_CIRCUIT AND =>
                (* a && b is like a ? !!b : false. *)
-               transexp a bc
+               transexp ctx a bc
                (fn (av, at) =>
                 implicit { src = at, dst = BOOL_TYPE, v = av }
                 (fn (av, _) =>
@@ -470,7 +498,7 @@ struct
                  in
                    BC.insert
                    (bc, true_lab,
-                    transexp b bc
+                    transexp ctx b bc
                     (fn (bv : value, bt : typ) =>
                      implicit { src = bt, dst = BOOL_TYPE, v = bv }
                      (fn (bv, _) =>
@@ -498,7 +526,7 @@ struct
 
            | SHORT_CIRCUIT OR =>
                (* a || b is like a ? true : !!b. *)
-               transexp a bc
+               transexp ctx a bc
                (fn (av, at) =>
                 implicit { src = at, dst = BOOL_TYPE, v = av }
                 (fn (av, _) =>
@@ -525,7 +553,7 @@ struct
                   GotoIf
                   (CNeq (BOOL_WIDTH, av, LiteralFalse), true_lab,
                    (* fall through to false branch *)
-                   transexp b bc
+                   transexp ctx b bc
                    (fn (bv, bt) =>
                     implicit { src = bt, dst = BOOL_TYPE, v = bv }
                     (fn (bv, _) =>
@@ -538,11 +566,12 @@ struct
                 end))
 
            | ASSIGNING bop =>
-               translvalue a bc
-               (fn (addr, width, ltyp) =>
-                transexp b bc
+               translvalue ctx a bc
+               (fn (addr, ltyp) =>
+                transexp ctx b bc
                 (fn (bv, bt) =>
                  let
+                   val width = typewidth ltyp
                    (* if we have uchar += uint32, the operation is
                       an 8-bit one and the result is 8-bit. *)
                    val oldv = genvar "assopold"
@@ -561,11 +590,12 @@ struct
                  end))
 
            | ASSIGNING_SHIFT bop =>
-               translvalue a bc
-               (fn (addr, width, ltyp) =>
-                transexp b bc
+               translvalue ctx a bc
+               (fn (addr, ltyp) =>
+                transexp ctx b bc
                 (fn (bv, bt) =>
                  let
+                   val width = typewidth ltyp
                    val oldv = genvar "ashiftold"
                    val newv = genvar "ashiftnew"
                    val ctor =
@@ -585,9 +615,9 @@ struct
                  end))
 
            | SHIFT bop =>
-               transexp a bc
+               transexp ctx a bc
                (fn (av, at) =>
-                transexp b bc
+                transexp ctx b bc
                 (fn (bv, bt) =>
                  let
                    val v = genvar "shift"
@@ -602,9 +632,9 @@ struct
                  end))
 
            | NORMAL bop =>
-               transexp a bc
+               transexp ctx a bc
                (fn (av, at) =>
-                transexp b bc
+                transexp ctx b bc
                 (fn (bv, bt) =>
                  let
                    val targettype = jointypes at bt
@@ -624,8 +654,8 @@ struct
                 (* This does nothing.
                    (XXX technically are there integer promotions
                    or anything?) *)
-                transexp a bc k
-            | Ast.Not => transexp a bc
+                transexp ctx a bc k
+            | Ast.Not => transexp ctx a bc
                 (fn (av, at) =>
                  let val v = genvar "u"
                  in
@@ -634,13 +664,13 @@ struct
                     Bind (v, BOOL_TYPE,
                           Not (BOOL_WIDTH, av), k (Var v, BOOL_TYPE)))
                  end)
-            | Ast.Negate => transexp a bc
+            | Ast.Negate => transexp ctx a bc
                 (fn (av, at) =>
                  let val v = genvar "u"
                  in Bind (v, at,
                           Negate (typewidth at, av), k (Var v, at))
                  end)
-            | Ast.BitNot => transexp a bc
+            | Ast.BitNot => transexp ctx a bc
                 (fn (av, at) =>
                  let
                    val v = genvar "u"
@@ -649,9 +679,10 @@ struct
                  end)
             | Ast.UnopExt _ => raise ToCIL "unop extensions unsupported"
             | Ast.PreInc =>
-                translvalue a bc
-                (fn (addr, width, ltyp) =>
+                translvalue ctx a bc
+                (fn (addr, ltyp) =>
                  let
+                   val width = typewidth ltyp
                    val oldv = genvar "preincold"
                    val newv = genvar "preincnew"
                  in
@@ -667,9 +698,10 @@ struct
                                       k (Var newv, ltyp))))
                  end)
             | Ast.PreDec =>
-                translvalue a bc
-                (fn (addr, width, ltyp) =>
+                translvalue ctx a bc
+                (fn (addr, ltyp) =>
                  let
+                   val width = typewidth ltyp
                    val oldv = genvar "predecold"
                    val newv = genvar "predecnew"
                  in
@@ -686,9 +718,10 @@ struct
                  end)
 
             | Ast.PostInc =>
-                translvalue a bc
-                (fn (addr, width, ltyp) =>
+                translvalue ctx a bc
+                (fn (addr, ltyp) =>
                  let
+                   val width = typewidth ltyp
                    val oldv = genvar "postincold"
                    val newv = genvar "postincnew"
                  in
@@ -704,9 +737,10 @@ struct
                                       k (Var oldv, ltyp))))
                  end)
             | Ast.PostDec =>
-                translvalue a bc
-                (fn (addr, width, ltyp) =>
+                translvalue ctx a bc
+                (fn (addr, ltyp) =>
                  let
+                   val width = typewidth ltyp
                    val oldv = genvar "postdecold"
                    val newv = genvar "postdecnew"
                  in
@@ -752,7 +786,7 @@ struct
         in
           (case get_builtin f of
              SOME b =>
-               transexplist args bc
+               transexplist ctx args bc
                (fn args =>
                 let
                   val (rett, argt) = builtin_type b
@@ -762,11 +796,11 @@ struct
                 end)
            | NONE =>
               (* Normal function call. *)
-              transexp f bc
+              transexp ctx f bc
               (fn (fv, ft) =>
                case ft of
                  Code (rett, argt) =>
-                   transexplist args bc
+                   transexplist ctx args bc
                    (fn args =>
                     let val retv = genvar "call"
                     in implicitargs retv rett (fn a => Call (fv, a)) argt args
@@ -776,7 +810,7 @@ struct
         end
 
       | Ast.QuestionColon (cond, te, fe) =>
-            transexp cond bc
+            transexp ctx cond bc
             (fn (condv, condt) =>
              let
                (* Use a new local variable to store the result so that
@@ -798,7 +832,7 @@ struct
                    val bc = BC.empty ()
                    val tr = ref ` Struct nil
                  in
-                   ignore (transexp e bc
+                   ignore (transexp ctx e bc
                            (fn (_, t) =>
                             let in
                               tr := t;
@@ -814,7 +848,7 @@ struct
                val done_lab = BC.genlabel "terndone"
              in
                BC.insert (bc, true_lab,
-                          transexp te bc
+                          transexp ctx te bc
                           (fn (tv, tt) =>
                            implicit { src = tt, dst = synthtyp, v = tv }
                            (fn (tv, _) =>
@@ -831,7 +865,7 @@ struct
                (fn (condv, _) =>
                 GotoIf (CNeq (BOOL_WIDTH, condv, LiteralFalse), true_lab,
                         (* fall through to false branch *)
-                        transexp fe bc
+                        transexp ctx fe bc
                         (fn (fv, ft) =>
                          implicit { src = ft, dst = synthtyp, v = fv }
                          (fn (fv, _) =>
@@ -841,22 +875,24 @@ struct
              end)
 
       | Ast.Assign (dst, rhs) =>
-            translvalue dst bc
-            (fn (dstaddr, dstwidth : width, dsttyp : typ) =>
-             transexp rhs bc
+            translvalue ctx dst bc
+            (fn (dstaddr, dsttyp : typ) =>
+             transexp ctx rhs bc
              (fn (rhsv, rhst) =>
               implicit { src = rhst, dst = dsttyp, v = rhsv }
               (fn (rhsv, rhst) =>
-               Store (dstwidth, dstaddr, rhsv,
-                      k (rhsv, rhst)))))
+               let val dstwidth = typewidth dsttyp
+               in Store (dstwidth, dstaddr, rhsv,
+                         k (rhsv, rhst))
+               end)))
 
-      | Ast.Comma (a, b) => transexp a bc (fn _ => transexp b bc k)
+      | Ast.Comma (a, b) => transexp ctx a bc (fn _ => transexp ctx b bc k)
 
       | Ast.Cast (ctype, e) =>
-            transexp e bc
+            transexp ctx e bc
             (fn (ev, et) =>
              let
-               val t = transtype ctype
+               val t = transtype ctx ctype
                (* Anything that can be implicitly converted, so
                   floats should also be here? *)
                fun isnumeric (Word8 _) = true
@@ -889,13 +925,13 @@ struct
                                 Word32 Unsigned)
 
       | Ast.AddrOf e =>
-        translvalue e bc
-        (fn (addr, width, typ) =>
+        translvalue ctx e bc
+        (fn (addr, typ) =>
          k (addr, Pointer typ))
 
       | Ast.SizeOf t =>
         let val result_typ = Word16 Unsigned
-        in k (Word16Literal ` Word16.fromInt ` sizeof ` transtype t, result_typ)
+        in k (Word16Literal ` Word16.fromInt ` sizeof ` transtype ctx t, result_typ)
         end
 
       | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
@@ -903,10 +939,10 @@ struct
     end
 
   (* Typedecls ignored currently. *)
-  fun transdecl (Ast.TypeDecl _) (bc : stmt bc) (k : unit -> stmt) : stmt = k ()
+  fun transdecl (ctx : ctx) (Ast.TypeDecl _) (bc : stmt bc) (k : unit -> stmt) : stmt = k ()
     (* Should probably still add it to a context? *)
-    | transdecl (Ast.VarDecl (id, NONE)) bc k = k ()
-    | transdecl (Ast.VarDecl (id as { ctype, global, ...}, SOME init)) bc k =
+    | transdecl ctx (Ast.VarDecl (id, NONE)) bc k = k ()
+    | transdecl ctx (Ast.VarDecl (id as { ctype, global, ...}, SOME init)) bc k =
     (* XXX: If stClass = STATIC, then we should
        actually transform this into a global. (global will be false) *)
     (case init of
@@ -916,9 +952,9 @@ struct
              if global
              then (fn id => Global `uidstring id)
              else (fn id => Local `idstring id)
-           val vartyp = transtype ctype
+           val vartyp = transtype ctx ctype
          in
-           transexp e bc
+           transexp ctx e bc
            (fn (v, t) =>
             implicit { src = t, dst = vartyp, v = v }
             (fn (v, _) =>
@@ -931,17 +967,19 @@ struct
 
   (* When translating a statement, the 'break' and 'continue' targets
      the label to jump to when seeing those statements. *)
-  fun transstatementlist nil _ _ _ k : CIL.stmt = k ()
-    | transstatementlist (s :: t)
+  fun transstatementlist ctx nil _ _ _ k : CIL.stmt = k ()
+    | transstatementlist ctx
+                         (s :: t)
                          rett
                          (targs : { break : string option,
                                     continue : string option })
                          (bc : stmt bc)
                          (k : unit -> stmt) =
-     transstatement s rett targs bc
-     (fn () => transstatementlist t rett targs bc k)
+     transstatement ctx s rett targs bc
+     (fn () => transstatementlist ctx t rett targs bc k)
 
-  and transstatement (Ast.STMT (s, orig_id, orig_loc) : Ast.statement)
+  and transstatement (ctx : ctx)
+                     (Ast.STMT (s, orig_id, orig_loc) : Ast.statement)
                      (fnret : CIL.typ)
                      (targs : { break : string option,
                                 continue : string option })
@@ -949,12 +987,12 @@ struct
                      (k : unit -> CIL.stmt) : CIL.stmt =
     case s of
       Ast.Expr NONE => k ()
-    | Ast.Expr (SOME e) => transexp e bc (fn v => k ())
+    | Ast.Expr (SOME e) => transexp ctx e bc (fn v => k ())
     | Ast.ErrorStmt => raise ToCIL "encountered ErrorStmt"
     | Ast.Compound (decls, stmts) =>
         let
-          fun dodecls nil = transstatementlist stmts fnret targs bc k
-            | dodecls (h :: t) = transdecl h bc (fn () => dodecls t)
+          fun dodecls nil = transstatementlist ctx stmts fnret targs bc k
+            | dodecls (h :: t) = transdecl ctx h bc (fn () => dodecls t)
         in
           dodecls decls
         end
@@ -966,21 +1004,21 @@ struct
          | _ => raise ToCIL ("return without value for function with " ^
                              "nontrivial return type " ^ typtos fnret))
     | Ast.Return (SOME e) =>
-        transexp e bc
+        transexp ctx e bc
         (fn (v, t) =>
          implicit { src = t, dst = fnret, v = v }
          (fn (v, _) =>
           Return (SOME v)))
 
     | Ast.IfThen (e, body) =>
-        transexp e bc
+        transexp ctx e bc
         (fn (cond, condt) =>
          let
            val true_label = BC.genlabel "if_t"
            val rest_label = BC.genlabel "if_r"
          in
            BC.insert (bc, true_label,
-                      transstatement body fnret targs bc
+                      transstatement ctx body fnret targs bc
                       (fn () => Goto rest_label));
            BC.insert (bc, rest_label, k ());
            (* XXX cond may not be bool_width. can't just truncate
@@ -991,19 +1029,19 @@ struct
                    Goto rest_label)
          end)
     | Ast.IfThenElse (e, true_body, false_body) =>
-        transexp e bc
+        transexp ctx e bc
         (fn (cond, condt) =>
          let
            val true_label = BC.genlabel "if_t"
            val rest_label = BC.genlabel "if_r"
          in
            BC.insert (bc, true_label,
-                      transstatement true_body fnret targs bc
+                      transstatement ctx true_body fnret targs bc
                       (fn () => Goto rest_label));
            BC.insert (bc, rest_label, k ());
            (* XXX as above. *)
            GotoIf (CNeq (BOOL_WIDTH, cond, LiteralFalse), true_label,
-                   transstatement false_body fnret targs bc
+                   transstatement ctx false_body fnret targs bc
                    (fn () => Goto rest_label))
          end)
     | Ast.Goto lab => Goto (labstring lab)
@@ -1018,13 +1056,13 @@ struct
         in
           BC.insert (bc, done_label, k ());
           BC.insert (bc, body_label,
-                     transexp cond bc
+                     transexp ctx cond bc
                      (fn (condv, condt) =>
                       (* XXX as above *)
                       (* condv == false, i.e., !condv *)
                       GotoIf (CEq (BOOL_WIDTH, condv, LiteralFalse),
                               done_label,
-                              transstatement body fnret body_targs bc
+                              transstatement ctx body fnret body_targs bc
                               (fn () => Goto body_label))));
           Goto body_label
         end
@@ -1040,14 +1078,14 @@ struct
         in
           BC.insert (bc, done_label, k ());
           BC.insert (bc, test_label,
-                     transexp cond bc
+                     transexp ctx cond bc
                      (fn (condv, condt) =>
                       (* XXX as above *)
                       GotoIf (CNeq (BOOL_WIDTH, condv, LiteralFalse),
                               body_label,
                               Goto done_label)));
           BC.insert (bc, body_label,
-                     transstatement body fnret body_targs bc
+                     transstatement ctx body fnret body_targs bc
                      (fn () => Goto test_label));
           Goto body_label
         end
@@ -1071,23 +1109,23 @@ struct
                      case inc of
                        NONE => Goto start_label
                      | SOME e =>
-                         transexp e bc
+                         transexp ctx e bc
                          (fn _ => Goto start_label));
 
           (* Test the while condition and either enter the
              loop or jump past it. *)
           BC.insert (bc, start_label,
                      case cond of
-                       NONE => (transstatement body fnret body_targs bc
+                       NONE => (transstatement ctx body fnret body_targs bc
                                 (fn () => Goto inc_label))
                      | SOME c =>
-                         transexp c bc
+                         transexp ctx c bc
                          (fn (condv, condt) =>
                           (* XXX as above *)
                           (* cond == false, i.e. !cond *)
                           GotoIf (CEq (BOOL_WIDTH, condv, LiteralFalse),
                                   done_label,
-                                  transstatement body fnret body_targs bc
+                                  transstatement ctx body fnret body_targs bc
                                   (fn () => Goto inc_label))));
 
           (* When we're done, it's just the current continuation. *)
@@ -1095,12 +1133,12 @@ struct
 
           case init of
             NONE => Goto start_label
-          | SOME e => transexp e bc (fn _ => Goto start_label)
+          | SOME e => transexp ctx e bc (fn _ => Goto start_label)
         end
 
     | Ast.Labeled (lab, s) =>
         let val l = labstring lab
-        in BC.insert (bc, l, transstatement s fnret targs bc k);
+        in BC.insert (bc, l, transstatement ctx s fnret targs bc k);
            Goto l
         end
 
@@ -1124,9 +1162,11 @@ struct
 
     | Ast.StatExt _ => raise ToCIL "statement extensions unsupported"
 
-  fun tocil decls =
+  fun tocil (tidtab, decls) =
     let
       val bc : stmt bc = BC.empty ()
+      (* Maybe bc should go in context? *)
+      val ctx = CTX { tidtab = tidtab }
 
       val globals = ref nil
       val functions = ref nil
@@ -1141,17 +1181,17 @@ struct
                        we have multiple translations units. But maybe ckit
                        already gives the identifiers different uids? *)
                     val uid = uidstring id
-                    val t = transtype ctype
+                    val t = transtype ctx ctype
                     val stmt = case init of
                       NONE => End
                     | SOME ie =>
                         (case ie of
                            Ast.Simple e =>
-                             transexp e bc
+                             transexp ctx e bc
                              (fn (v : value, vt : typ) =>
                               implicit { v = v, src = vt, dst = t }
                               (fn (vv, vvt) =>
-                               Store (ctypewidth ctype,
+                               Store (typewidth ` transtype ctx ctype,
                                       AddressLiteral (Global ` uid, t),
                                       vv, End)))
                          | Ast.Aggregate _ =>
@@ -1183,12 +1223,12 @@ struct
               { ctype = Ast.Function (fnret, _), ... } =>
                 let
                   val uid = uidstring id
-                  val fnret = transtype fnret
+                  val fnret = transtype ctx fnret
                   val startlabel = BC.genlabel "start"
-                  fun onearg id = (idstring id, transtype (#ctype id))
+                  fun onearg id = (idstring id, transtype ctx (#ctype id))
                 in
                   BC.insert (bc, startlabel,
-                             transstatement body
+                             transstatement ctx body
                              fnret
                              { break = NONE,
                                continue = NONE } bc
