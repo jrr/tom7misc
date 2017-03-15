@@ -74,15 +74,16 @@ struct
     | typsize (C.Struct _) = raise ToASM "unimplemented: structs"
     | typsize (C.Array _) = raise ToASM "unexpected typsize Array"
 
-  (* Number of bytes in a global of type t. This allows arrays
-     and should allow structs. *)
-  fun globaltypbytes (C.Word32 _) = 4
-    | globaltypbytes (C.Word16 _) = 2
-    | globaltypbytes (C.Word8 _) = 1
-    | globaltypbytes (C.Pointer _) = 2
-    | globaltypbytes (C.Code _) = 2
-    | globaltypbytes (C.Array (t, i)) = i * globaltypbytes t
-    | globaltypbytes (C.Struct _) = raise ToASM "unimplemented: structs"
+  (* Number of bytes in the representation of a C variable (global or
+     local) of type t. This allows arrays and structs. (Should this
+     just be CIL.sizeof?) *)
+  fun cvartypbytes (C.Word32 _) = 4
+    | cvartypbytes (C.Word16 _) = 2
+    | cvartypbytes (C.Word8 _) = 1
+    | cvartypbytes (C.Pointer _) = 2
+    | cvartypbytes (C.Code _) = 2
+    | cvartypbytes (C.Array (t, i)) = i * cvartypbytes t
+    | cvartypbytes (t as C.Struct _) = CIL.sizeof t
 
   (* Same, but the size of temporary used to store a value of that
      size. XXX If we still need typsize (used to calculate frame
@@ -92,7 +93,7 @@ struct
     | typtmpsize t = typsize t
 
   (* Accumulate all of the mentions of Locals into the map. *)
-  structure GetSizesArg : CILPASSARG =
+  structure GetLocalsArg : CILPASSARG =
   struct
     type arg = C.typ SM.map ref
     structure CI = CILIdentity(type arg = arg)
@@ -117,7 +118,7 @@ struct
                                    C.typtos typ ^ " and " ^ C.typtos otyp))
       end
   end
-  structure GetSizes = CILPass(GetSizesArg)
+  structure GetLocals = CILPass(GetLocalsArg)
 
   infixr //
   fun cmd // (cmds, next) = (cmd :: cmds, next)
@@ -866,21 +867,21 @@ struct
                 blocks : (string * C.stmt) list }) : A.named_block list =
     let
       val argsizes = ListUtil.mapsecond typsize args
-      val localsizes =
+      val localsizes : int SM.map =
         let
           val argset : unit SM.map =
             foldl (fn ((s, t), m) => SM.insert (m, s, ())) SM.empty args
 
           val localtypes : C.typ SM.map ref = ref SM.empty
           fun oneblock (_, stmt) =
-            ignore ` GetSizes.converts localtypes C.Context.empty stmt
+            ignore ` GetLocals.converts localtypes C.Context.empty stmt
         in
           app oneblock blocks;
           (* Exclude args from locals, since they are allocated as
              args. *)
           SM.filteri (fn (k, s) =>
                       not ` Option.isSome ` SM.find (argset, k)) `
-          SM.map typsize ` !localtypes
+          SM.map cvartypbytes ` !localtypes
         end
 
       (* Arguments and locals are not on the normal stack. They go in the
@@ -900,10 +901,10 @@ struct
          function pointers, and consider the possibility that someone takes
          the address of main), but would not be so bad. *)
       val offsets : (string * int) list ref = ref nil
-      fun alloc (s, sz) =
+      fun alloc (s, bytes) =
         let in
           offsets := (s, !nextpos) :: !offsets;
-          nextpos := !nextpos + A.szbytes sz
+          nextpos := !nextpos + bytes
         end
 
       (* Return value is first. *)
@@ -911,7 +912,7 @@ struct
       val () = nextpos := !nextpos + retbytes
 
       (* Then the args. *)
-      val () = List.app alloc argsizes
+      val () = List.app (fn (s, sz) => alloc (s, A.szbytes sz)) argsizes
       val argbytes = !nextpos - retbytes
       val () =
         let
@@ -964,7 +965,7 @@ struct
         end
       fun oneglobal (name, C.Glob { typ, bytes, init }) =
         let
-          val numbytes = globaltypbytes typ
+          val numbytes = cvartypbytes typ
           val bytes =
             (case bytes of
                NONE => Word8Vector.tabulate (numbytes,

@@ -91,11 +91,9 @@ which are simply due to the unconscionably strict SIGBOVIK deadlines:
    than usual due to the lack of efficient bit shifts. Note that
    many computer processors don't even have an integer division
    instruction (e.g. Alpha, 6502), so this is not even that weird.
- - Structs. These are not hard, and just need to be translated into
-   pointer arithmetic in the frontend. I just didn't get to it. (XXX)
- - switch. Also easy; it just becomes an if-else chain. CIL even has
+ - switch. This iseasy; it just becomes an if-else chain. CIL even has
    the expressive power to implement jump tables, by computing and
-   calling a function pointer.
+   calling a function pointer. I just didn't get to it.
  - sizeof. Actually sizeof is so easy I just went and implemented
    it just now, instead of writing this sentence. I saved further
    time by not deleting the previous sentence.
