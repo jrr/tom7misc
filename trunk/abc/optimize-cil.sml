@@ -794,6 +794,7 @@ struct
 
   (* For translating to ASM, we only want to cond/GotoIf to
      do comparisons. This pass eliminates the expression forms
+
      (e.g. Less). *)
   structure EliminateCompareOps =
   struct
@@ -904,6 +905,140 @@ struct
         Program { main = main,
                   functions = ListUtil.mapsecond onefunc functions,
                   globals = ListUtil.mapsecond oneglobal globals }
+      end
+  end
+
+  structure EliminateMaths =
+  struct
+
+    val times16_name = "__abc_times16"
+    val times16_func =
+      let
+        val a = CILUtil.newlocal "a"
+        val b = CILUtil.newlocal "b"
+        val res = CILUtil.newlocal "res"
+        val a_addr = AddressLiteral (Local a, Word16 Unsigned)
+        val b_addr = AddressLiteral (Local b, Word16 Unsigned)
+        val res_addr = AddressLiteral (Local res, Word16 Unsigned)
+        val bv = CILUtil.genvar "bv"
+        val av = CILUtil.genvar "av"
+        val rv = CILUtil.genvar "rv"
+        val sv = CILUtil.genvar "sv"
+        val dv = CILUtil.genvar "dv"
+        val retv = CILUtil.genvar "ret"
+        val start_lab = CILUtil.newlabel "mul16_start"
+        val loop_lab = CILUtil.newlabel "mul16_loop"
+        val done_lab = CILUtil.newlabel "mul16_done"
+
+        (*
+        PERF: We can do better than repeated addition!
+
+         start:
+           Store(16, res, 0);
+           Goto loop
+         loop:
+           bv = Load(16, b);
+           If bv = 0 goto done;
+           dv = Minus(bv, 1);
+           Store(16, b, dv);
+           av = Load(16, a);
+           rv = Load(16, res);
+           sv = Plus(16, av, rv);
+           Store(16, res, sv);
+           Goto Loop;
+         done:
+           Return Load(16, res);
+         *)
+        val blocks =
+          [(start_lab,
+            Store (Width16, res_addr, Word16Literal ` Word16.fromInt 0,
+                   Goto loop_lab)),
+           (loop_lab,
+            Bind
+            (bv, Word16 Unsigned, Load(Width16, b_addr),
+             GotoIf
+             (CEq (Width16, Var bv, Word16Literal ` Word16.fromInt 0), done_lab,
+              Bind
+              (dv, Word16 Unsigned,
+               Minus (Width16, Var bv, Word16Literal ` Word16.fromInt 1),
+               Store
+               (Width16, b_addr, Var dv,
+                Bind
+                (av, Word16 Unsigned, Load(Width16, a_addr),
+                 Bind
+                 (rv, Word16 Unsigned, Load(Width16, res_addr),
+                  Bind
+                  (sv, Word16 Unsigned, Plus(Width16, Var av, Var rv),
+                   Store
+                   (Width16, res_addr, Var sv,
+                    Goto loop_lab))))))))),
+           (done_lab,
+            Bind (retv, Word16 Unsigned, Load(Width16, res_addr),
+                  Return ` SOME ` Var retv))]
+      in
+
+          Func { args = [(a, Word16 Unsigned),
+                         (b, Word16 Unsigned)],
+                 ret = Word16 Unsigned,
+                 body = start_lab,
+                 blocks = blocks }
+      end
+
+    structure BC = CILUtil.BC
+    structure EliminateMathsArg : CILPASSARG =
+    struct
+      (* Argument's lifetime is for the "optimization" of a single
+         function; it collects any new blocks that we have to generate. *)
+      type arg = { times16: bool ref }
+      structure CI = CILIdentity(type arg = arg)
+      open CI
+
+      fun case_Times (arg as { times16, ... } : arg)
+                     (selves as { selft, selfv, selfe, selfs }, ctx)
+                     (w, a, b) =
+         case w of
+           Width16 =>
+             let in
+               times16 := true;
+               (Call (FunctionLiteral (times16_name, Word16 Unsigned,
+                                      [Word16 Unsigned, Word16 Unsigned]),
+                      [a, b]), Word16 Unsigned)
+             end
+        | _ => raise OptimizeCIL ("Sorry, software multiply only available at " ^
+                                  "16-bit width for now. Try casting to int?")
+    end
+
+    structure EM = CILPass(EliminateMathsArg)
+
+    fun eliminate (Program { main, functions, globals }) =
+      let
+        val arg = { times16 = ref false }
+        val ctx = CIL.Context.empty
+        fun onefunc (Func { args, ret, body, blocks }) =
+          Func { args = args,
+                 ret = ret,
+                 body = body,
+                 blocks = ListUtil.mapsecond (EM.converts arg ctx) blocks }
+
+        fun oneglobal (Glob { typ, bytes, init = SOME { start, blocks } }) =
+          Glob { typ = typ, bytes = bytes,
+                 init =
+                 SOME { start = start,
+                        blocks = ListUtil.mapsecond (EM.converts arg ctx) blocks } }
+          | oneglobal g = g
+
+        val functions = ListUtil.mapsecond onefunc functions
+        val globals = ListUtil.mapsecond oneglobal globals
+
+        (* insert the routines used! *)
+        val functions =
+          if !(#times16 arg)
+          then (times16_name, times16_func) :: functions
+          else functions
+      in
+        Program { main = main,
+                  functions = functions,
+                  globals = globals }
       end
   end
 
@@ -1203,6 +1338,7 @@ struct
       val prog = simplify prog
       val prog = make_string_literals_global prog
       val prog = move_global_initialization prog
+      val prog = EliminateMaths.eliminate prog
       (* Not totally sure this belongs here, but we do need to at least
          ensure that simplifications that happen after ECO do not
          re-introduce compare ops, which does require some understanding

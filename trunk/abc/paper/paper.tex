@@ -106,21 +106,17 @@ Dr. Dobbs Journal typing in the program
 ES segment must be used for IN?
 
 TODO: X86 vs x86
+TODO: make sure to ctrl-u meta-q every paragraph
 
 (Idea: ladder is actually interspersed in code, by putting some long instruction
 byte (that takes several arguments) before DEC SP JNZ +7e? We can jump directly
 to the jump, but if executed in a normal synchronized flow, then it executes some
 instruction that does nothing (load immediate?).)
 
-(Idea: Once we've gone past EIP=0xFFFF, we can still execute code from our binary.
-It may be possible to get back to CS by doing a jump with the address/operand size prefix?
-Neither one has an effect in DOSBox, which may be a bug? Anyway, if an interrupt
-is triggered while we're up here, it seems like it only does a 16-bit RET, so that's
-kinda busted.)
-
 RISC ROLL
 
 songs to do: https://www.youtube.com/watch?v=EJkJbUbvYJA
+ - mario theme.
 
 In video: show error in intel manual http:\\www.intel.com
 

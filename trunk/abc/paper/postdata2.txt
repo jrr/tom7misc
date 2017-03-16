@@ -1,3 +1,18 @@
+The CIL language  is typed, with one important use  of this being that
+we determine  the calling convention  for a function pointer  from its
+type. (This includes the size of  the return address slot, which is on
+the locals stack and shared between  the caller and callee, as well as
+the number and  sizes of the arguments, also on  the locals stack.) We
+make  the representation  (Word8,  Word16, Word32)  of integral  types
+explicit, but  signed and unsigned  ints are represented the  same way
+(just as on  the processor itself). Instead,  expressions like Promote
+(which converts  e.g. an  8-bit word  to a  16-bit word)  are explicit
+about  whether  they  perform  sign   extension.  We  are  careful  to
+distinguish  between  8-, 16-  and  32-bit  quantities throughout  the
+compiler, because printable x86 has the ability to work with all three
+widths, and we can produce significantly better code if we can use the
+correct width.  (As a simple  example, loading  a 16-bit word  is much
+cheaper than the zero-extended 32-bit version.)
 
 Some low-level ideas are threaded throughout the compiler. In the case
 of  "out8"  and  "exit",  for  example, these  are  available  to  the
@@ -32,23 +47,40 @@ to incidental  tricks that  don't make  sense at  the high  level, and
 opportunity to clean up after more of the compiler's work).
 
 Optimizations are implemented using  the "Pass" functor idea presented
-in my Ph.D. dissertation [XXX cite].
+in my Ph.D. dissertation [MTMC'08].
 
 The  optimization  phase  is  also responsible  for  eliminating  some
 features from the  language so that we don't need  to think about them
-when converting to LLVMNOP.  This includes transforming the comparison
-ops like LessEq into GotoIf(cond, ...), replacing string literals with
-references to globally-allocated arrays, and moving all initialization
-code for globals into a wrapper  around the main function. These tasks
-aren't  really optimizations,  but  we want  to continue  optimization
-after doing them,  so optimization code needs to at  least be aware of
-their existence  so that it  doesn't e.g. reintroduce  string literals
-after they have been eliminated!
+when converting to LLVMNOP:
+
+ - Multiplication. In printable x86, we have access to the IMUL
+   instruction, but only versions that multiply by a constant
+   immediate value (opcodes 0x6B, 0x69). Since that immediate needs to
+   be printable, this instruction is not very useful -- we can't even
+   use it to implement multiplication by arbitrary constants. Instead,
+   the "Optimization" phase for CIL replaces the Times expression with
+   a function call to a built-in hand-written routine that implements
+   multiplication by repeated addition.
+
+ - Comparison ops. Expressions like LessEq are transformed into
+   GotoIf(cond, ...), since we don't have any way of comparing values
+   without also branching.
+
+ - String literals. These are replaced with references to
+   globally-allocated arrays.
+
+ - Global initialization. All initialization code for globals (e.g.
+   int global = 15;) is moved into a wrapper around the main function.
+
+These  tasks  aren't really  optimizations,  but  we want  to  perform
+optimization both  before and after  doing them. So  optimization code
+needs to at least be aware of  their existence so that it doesn't e.g.
+reintroduce string literals after they have been eliminated!
 
 
     ** Converting to CIL **
 
-The frontend of the compiler uses the ckit library [XXX cite] to parse
+The frontend of the compiler uses  the ckit library [CKIT'00] to parse
 the input C code into an ML datatype called "AST." The details of this
 language  are  mostly  uninteresting,  but  it  is  mostly  in  direct
 correspondence  to C89  itself.  When  we convert  to  CIL, we  remove
@@ -58,9 +90,8 @@ The && and || operators  make their short-circuiting behavior explicit
 by sequencing the tests. Implicit widening and narrowing between types
 is made explicit. Compound assigment ops  like ^= and ++ are sequenced
 into the primitives that make  them up. Array subscripts and structure
-references   [XXX  if   implemented?]  are   converted  into   pointer
-arithmetic. Although there's a lot of code involved to implement C, it
-is mostly standard.
+references are  converted into pointer arithmetic.  Although there's a
+lot of code involved to implement C, it is mostly standard.
 
 
     ** Limitations **
@@ -74,35 +105,55 @@ which are simply due to the unconscionably strict SIGBOVIK deadlines:
    of the floating-point operations; prior to the Intel 80486, support
    for floating point was usually provided in software anyway, so
    this helps us avoid anachronism.
+
  - Standard libraries are not available. Since we can only call the
    DOS INT 0x21 handler one time, and we use that to exit, there is
    no way to access the filesystem or write to the console. One could
    conceivably write their own device drivers using I/O ports (see
    the next section), but this usually also involves using or
    implementing hardware interrupts, so probably wouldn't pan out.
+
  - malloc/free. This can be supported in software, with no
    significant limitations other than the amount of memory available.
- - Multiplication. We have access to the IMUL instruction, but only
-   versions that multiply by a constant immediate value (opcodes
-   0x6B, 0x69). Since that immediate needs to be printable, we can't
-   even necessarily use this instruction to implement multiplication
-   by arbitrary constants.
- - Division. This needs to be done in software, which is trickier
-   than usual due to the lack of efficient bit shifts. Note that
-   many computer processors don't even have an integer division
-   instruction (e.g. Alpha, 6502), so this is not even that weird.
- - switch. This iseasy; it just becomes an if-else chain. CIL even has
+
+ - Operand widths. Though ABC architecturally supports most operations
+   at 8, 16, and 32 bit widths, most operations are only implemented
+   for 16 bit operands. This is easily fixed, but should be done with
+   some care to correctness and performance.
+   
+ - Performance. Multiplication is linear time, since we use a software
+   routine. This can be done (somewhat) better, but will always involve
+   loops in the general case. Other constructs like "if" and "while"
+   can have unexpectedly bad performance due to the "ladder" technique
+   for control flow; these issues can make algorithms perform
+   asymptotically worse than they should.
+   
+ - Division and modulus. These need to be done in software like
+   multiplication, which is trickier than usual due to the lack of
+   efficient bit shifts. Note that many computer processors don't even
+   have an integer division instruction (e.g. Alpha, 6502), so this is
+   not even that weird.
+   
+ - struct copying. Not a huge deal, but it means emitting code that
+   copies struct field-by-field because we don't have anything like
+   memcpy, and around the time of a function call or return, the
+   state of the machine is pretty delicate.
+   
+ - switch. This is easy; it just becomes an if-else chain. CIL even has
    the expressive power to implement jump tables, by computing and
    calling a function pointer. I just didn't get to it.
+   
  - sizeof. Actually sizeof is so easy I just went and implemented
    it just now, instead of writing this sentence. I saved further
    time by not deleting the previous sentence.
+   
  - Bit fields. These are garbage so nobody implements them unless
    they have to. No fundamental limitation here, although the
    compiler does assume that lvalues have an address.
 
-I am  shamed that ABC  does not  compile the feasible  subset. Perhaps
-check   http://tom7.org/abc/  for   an   updated  version,   published
+
+I am  shamed that ABC does  not compile the complete  feasible subset.
+Perhaps check  http://tom7.org/abc/ for an updated  version, published
 postpartum.
 
 
@@ -151,56 +202,7 @@ instruction
 
      AND [SI] <- SI
 
-which ands an address into the thing the address points to, because we
-know SI is 0.
+which bitwise-ands  an address  into the thing  the address  points to
+(!), because we know SI is 0.
 
-
-    ** paper.exe **
-
-Executing this paper in DOS, with an AdLib-compatible sound card (such
-as the Sound  Blaster) configured at 0x388, will play  some music. The
-music to play  is specified on the  command line, using a  subset of a
-standard  text-based  music  format  called ABC.[XXX  cite  ABC].  For
-example, invoking
-
-PAPER.EXE C4C4G4G4A4A4G8G8F4F4E4E4D4D4C8
-
-will play a segment  of the "Now I know my ABC's"  song and then exit.
-The language supported is as follows:
-
-  A-G   Basic notes
-  a-g   Same, up one octave
-    z   Rest
-    ^   (Prefix) Sharp
-    _   (Prefix) Flat
-    =   (Prefix) Natural - does nothing since key of C is assumed
-    '   (Suffix) Up one octave
-    ,   (Suffix) Down one octave
-  2-8   (Suffix) Set duration of note to this many eighth notes
-
-XXX space here for multichannel?
-
-Running PAPER.EXE  with arguments  like "-song"  will play  a built-in
-song. Available songs  include: "-alphabet". some space  here for some
-more song names, more song names, a few more lines of them XXX fill in
-some song names!
-
-Running PAPER.EXE without any arguments will play a default song.
-
-
-    ** Running, debugging **
-
-Speaking of running the program, old-style  EXE files no longer run on
-64-bit versions of Windows. So if you  do not have an old DOS computer
-around with a sound card, you  can run ABC-compiled programs inside an
-emulator. DOSBox  is an excellent choice.  It runs on pretty  much all
-platforms and tends to just work. You have to do something like
-
-MOUNT C C:\DOWNLOADS\ABC\
-
-in order to mount  one of your real directories as  a "hard drive". To
-verify  that  PAPER.EXE   is  printable  with  no   beeping  or  funny
-characters, you could
-
-  ... Oh wait, here comes the code segment!
-
+ ... Oh wait, here comes the code segment!
