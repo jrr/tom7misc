@@ -1,10 +1,55 @@
-Anyway, to verify that PAPER.EXE is printable with no beeping or funny
+    ** paper.exe **
+
+Executing this paper in DOS, with an AdLib-compatible sound card (such
+as the Sound  Blaster) configured at 0x388, will play  some music. The
+music to play  is specified on the  command line, using a  subset of a
+standard  text-based music  format called  ABC.[ABC'05]. For  example,
+invoking
+
+PAPER.EXE C4C4G4G4A4A4G8G8F4F4E4E4D4D4C8
+
+will play a segment  of the "Now I know my ABC's"  song and then exit.
+The language supported is as follows:
+
+  A-G   Basic notes
+  a-g   Same, up one octave
+    z   Rest
+    ^   (Prefix) Sharp
+    _   (Prefix) Flat
+    =   (Prefix) Natural - does nothing since key of C is assumed
+    '   (Suffix) Up one octave
+    ,   (Suffix) Down one octave
+  2-8   (Suffix) Set duration of note to this many eighth notes
+
+XXX space here for multichannel?
+
+Running PAPER.EXE  with arguments  like "-song"  will play  a built-in
+song. Available songs  include: "-alphabet". some space  here for some
+more song names, more song names, a few more lines of them XXX fill in
+some song names!
+
+Running PAPER.EXE without any arguments will play a default song.
+
+
+    ** Running, debugging **
+
+Speaking of running the program, old-style  EXE files no longer run on
+64-bit versions of Windows. So if you  do not have an old DOS computer
+around with a sound card, you  can run ABC-compiled programs inside an
+emulator. DOSBox  is an excellent choice.  It runs on pretty  much all
+platforms (well, it  doesn't run on DOS,  but on DOS you  can just use
+DOS) and tends to just work. You have to do something like
+
+   MOUNT C C:\DOWNLOADS\ABC\
+
+in order to mount  one of your real directories as  a "hard drive". To
+verify  that  PAPER.EXE   is  printable  with  no   beeping  or  funny
 characters, you could do
 
    COPY PAPER.EXE CON
 
-to copy it to your console, or COPY PAPER.EXE LPT1 to copy it to your
-simulated computer's printer (spoiler: It doesn't have one). But why
+to copy it to your console, or  COPY PAPER.EXE LPT1 to copy it to your
+simulated computer's printer  (spoiler: It doesn't have  one). But why
 bother? You're reading PAPER.EXE right now!
 
 I  used  DOSBox  frequently   during  development,  and  modified  its
@@ -28,11 +73,39 @@ tellin' me!) and the debugger will output the error
 
         Illegal/Unhandled opcode 63
 
-upon exiting (because we do execute an illegal opcode). For cosmetic
+upon exiting (because  we do execute an illegal  opcode). For cosmetic
 style points, the local version of DOSBox has been modified to instead
 output
 
         Thank you for playing Wing Commander!
+
+
+    ** PAPER.C **
+
+This section  contains the C source  code that was compiled  into this
+paper.  It  may be  interesting  to  see  how  the code  (e.g.  string
+literals) make  their way into  the data for  the paper. You  may also
+laugh at my many troubles:
+
+ - I'm playing music, which has some dependency on timing, but there
+   is no way to get access to the system clock. Instead, I use for
+   loops with built-in constants determined empirically. At least
+   this technique of relying on the CPU's cycle timing for delays
+   was common in the DOS era, so this is, like, a period piece.
+ - However, since the routine that calculates lengths performs a
+   multiplication, and multiplication of m * n is O(n), the delays
+   are not actually linear.
+ - You can see the many places where I'm applying explicit casts,
+   either because an implicit coercion is not yet implemented for
+   ABC (I want to do it right, and the rules are a little subtle),
+   because some operation is not yet available at char or long type
+   (I implemented 16-bit first), or for efficiency.
+ - You can see the reliance on string literals for efficient lookup
+   tables, in keeping with the "printable" theme.
+
+I also still need to fill up 20 pages in this ridiculously small font!
+
+%insert paper.c
 
 
     ** Future work **
@@ -61,16 +134,15 @@ computer will  be non-functional in  many ways, because  the operating
 system  will  no  longer  run,  but  we might  still  be  able  to  do
 rudimentary port-based  I/O, or build our  own non-interrupt-based OS.
 With interrupts suppressed, we can't use the interrupt trick to return
-to CS:0000. However,  my reading of the Intel manual  [XXX cite] seems
-to imply  that a jump  performed from this  region can be  forced into
-16-bit mode  (thus being  subject to  the &  0xFFFF overflow)  with an
-address size  prefix; however, this  does not seem  to be the  case in
-DOSBox. Given how unusual  this situation is, it may even  be a bug in
-DOSBox's CPU  emulator. Having access to  a full megabyte of  code (it
-still needs to  fit in the EXE container) would  be exciting, since it
-would allow  us to build  much more significnt systems  (e.g. standard
-malloc and a floating point emulator); more investigation is warranted
-here.
+to CS:0000.  However, my reading of  the Intel manual [INTC]  seems to
+imply that a jump performed from this region can be forced into 16-bit
+mode (thus  being subject to  the &  0xFFFF overflow) with  an address
+size prefix;  however, this does  not seem to  be the case  in DOSBox.
+Given how unusual this situation is, it  may even be a bug in DOSBox's
+CPU emulator. Having access to a full megabyte of code (it still needs
+to fit in  the EXE container) would be exciting,  since it would allow
+us to build  much more significnt systems (e.g. standard  malloc and a
+floating point emulator); more investigation is warranted here.
 
 
 I initially  designed CIL with the  thought that it could  be used for
@@ -131,35 +203,30 @@ existing constraints with access to  both "small" (0x2020) and "large"
 (0x7e7e) constants.
 
 Others  have produced  compilers  for high-level  languages with  very
-reduced instruction sets.  In an extreme case, Dolan  shows [XXX cite]
+reduced instruction  sets. In  an extreme  case, Dolan  shows [MOV'13]
 that the mov  instruction on its own is  Turing-complete (note however
 that this requires a "single absolute jump" to the top of the program,
 an issue similar to what we encounter in printable x86, only we do not
-insert  any illegal  instructions).  Another enterprising  programmer,
-Domas, implemented a C compiler that produces only MOV instructions. I
-didn't look  at it while writing  ABC (spoilers!) but he  avoids using
-any JMP instruction  the same way that I exit  the program (generating
-illegal  instructions  but  rewriting the  interrupt  handler).  While
-awesome, the problem is somewhat  different from what ABC solves; here
-we  are  fundamentally  concerned  with   what  bytes  appear  in  the
-executable, which  influences what  opcodes are accessible  (and their
-arguments  and  addressing modes),  but  is  not the  only  constraint
-created. For  example, in  MOV-only compilation, the  program's header
-does  not  need to  consist  only  of  MOV  instructions, and  so  the
-compiler's  output does  not  suffer  the same  severe  code and  data
-limitations  that  DOS  EXEs  do. (The  executables  it  produces  are
+cheat   by   inserting   any   out-of-gamut   instructions).   Another
+enterprising programmer, Domas, implemented a C compiler that produces
+only  MOV  instructions.  I  didn't  look  at  it  while  writing  ABC
+(spoilers!) but he avoids using any  JMP instruction the same way that
+I exit the program (generating  illegal instructions but rewriting the
+interrupt handler).  While awesome, the problem  is somewhat different
+from what  ABC solves; here  we are fundamentally concerned  with what
+bytes  appear in  the executable,  which influences  what opcodes  are
+accessible (and their arguments and  addressing modes), but is not the
+only  constraint created.  For example,  in MOV-only  compilation, the
+program's header  does not need  to consist only of  MOV instructions,
+and so the compiler's output does  not suffer the same severe code and
+data limitations  that DOS EXEs  do. (The executables it  produces are
 extremely   large  and   slow;  they   also  seem   to  have   non-MOV
 initialization code.)  The MOV instruction  is also very rich,  and no
 versions of it are printable!
 
-Of course,  everyone knows  that even unary  numbers (just  one symbol
-repeated  a given  number  of  times) is  Turing  complete, via  Godel
+Of  course, everyone  knows that  even  unary numbers  (just like  one
+symbol repeated a given number of times) is Turing complete, via Godel
 encoding. So what's the big deal?
-
-
-Here's the program:
-%insert paper.c
-That was it!
 
                                                                            
                                                                            
@@ -230,29 +297,29 @@ for "Evaluating" my paper.
 
 # -------------------------------------------------------------------------
 
-[X] Tom Murphy VII. "New results in k/n Power-Hours." SIGBOVIK,
-    April 2014.
+[KNPH'14] Tom Murphy VII. "New results in k/n Power-Hours." SIGBOVIK,
+          April 2014.
 
-[X] Tom Murphy VII. "Modal Types for Mobile Code." Ph.D. thesis, Carnegie
-    Mellon University, January 2008. Technical report CMU-CS-08-126.
+[MTMC'08] Tom Murphy VII. "Modal Types for Mobile Code." Ph.D. thesis,
+          Carnegie Mellon University, January 2008. Technical report
+          CMU-CS-08-126.
 
-[LLVM] Chris Lattner and Vikram Avde. "LLVM: A Compilation Framework for
-       Lifelong Program Analysis and Transformation." CGO, March 2004.
+[LLVM'04] Chris Lattner and Vikram Avde. "LLVM: A Compilation Framework for
+          Lifelong Program Analysis and Transformation." CGO, March 2004.
 
-[CKIT] David Ladd, Satish Chandra, Michael Siff, Nevin Heintze, Dino Oliva,
-       and Dave MacQueen. "Ckit: A front end for C in SML." March 2000.
-       http://smlnj.org/doc/ckit/
+[CKIT'00] David Ladd, Satish Chandra, Michael Siff, Nevin Heintze, Dino
+          Oliva, and Dave MacQueen. "Ckit: A front end for C in SML." March
+          2000. http://smlnj.org/doc/ckit/
 
-[INTC] Intel Corporation. "IA-32 Intel Architecture Software Developer's
-       Manual. Volume 2: Instruction Set Reference." 2001.
+[INTC'01] Intel Corporation. "IA-32 Intel Architecture Software Developer's
+          Manual. Volume 2: Instruction Set Reference." 2001.
 
-[ABC] Steve Mansfield. "How to interpret abc music notation." 2005.
+[ABC'05]  Steve Mansfield. "How to interpret abc music notation." 2005.
 
-[MOV] Stephen Dolan. "mov is Turing-complete". 2013.
+[MOV'13]  Stephen Dolan. "mov is Turing-complete". 2013.
 
-[MVF] Chris Domas. "M/o/Vfuscator2". August 2015.
-      https://github.com/xoreaxeaxeax/movfuscator
-      
+[MVF'16]  Chris Domas. "M/o/Vfuscator2". August 2015.
+          https://github.com/xoreaxeaxeax/movfuscator
 
 
 Please see http://tom7.org/abc for supplemental material.

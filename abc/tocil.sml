@@ -406,10 +406,16 @@ struct
                  val argwidth = typewidth t
                  val scaled_idx = genvar "sidx"
                  val addr = genvar "off"
+
+                 (* Shifting here is better once we implement an optimization that
+                    can turn it into repeated addition. But multiplication will
+                    work. *)
                  fun scale Width32 v =
-                   LeftShift (POINTER_WIDTH, v, Word8Literal 0w2)
+                   (* LeftShift (POINTER_WIDTH, v, Word8Literal 0w2) *)
+                   Times (POINTER_WIDTH, v, Word16Literal ` Word16.fromInt 4)
                    | scale Width16 v =
-                   LeftShift (POINTER_WIDTH, v, Word8Literal 0w1)
+                   (* LeftShift (POINTER_WIDTH, v, Word8Literal 0w1) *)
+                   Times (POINTER_WIDTH, v, Word16Literal ` Word16.fromInt 2)
                    | scale Width8 v = Value v
                in
                  transexp ctx idx bc

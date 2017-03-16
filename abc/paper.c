@@ -5,7 +5,7 @@
  *  freely.
  *
  *  Plays music in a simplified ABC notation, given on the
- *  command line.
+ *  command line, or one of several built-in songs.
  *
  **********************************************************/
 
@@ -13,8 +13,8 @@ int _putc(int); // XXX non-printable! don't use in paper!
 int _out8(int, int);
 int _exit();
 
-unsigned char *note = "Now this is the part of the data segment that "
-  "stores global variables. This is actually a string constant in "
+unsigned char *meta_note = "Now this is the part of the data segment "
+  "that stores global variables. This is actually a string constant in "
   "the program itself, so you'll see it again when I show you the source "
   "code later. We have almost 64kb of space to store stuff, although "
   "this segment is also used for the stack of local variables and "
@@ -166,36 +166,19 @@ int ParseNote(unsigned char *ptr, int c, int *idx) {
 }
 
 unsigned int ParseLength(unsigned char *ptr, int *idx) {
-  // TODO: Multiplication would be nice...
   int c = (int)ptr[*idx];
-  if (c == (int)'2') {
+  if (c >= (int)'2' && c <= (int)'8') {
+    int m = c - (int)'1';
     *idx = *idx + (int)1;
-    return 4096;
-  } else if (c == (int)'3') {
-    *idx = *idx + (int)1;
-    return 6144;
-  } else if (c == (int)'4') {
-    *idx = *idx + (int)1;
-    return 8192;
-  } else if (c == (int)'5') {
-    *idx = *idx + (int)1;
-    return 10240;
-  } else if (c == (int)'6') {
-    *idx = *idx + (int)1;
-    return 12288;
-  } else if (c == (int)'7') {
-    *idx = *idx + (int)1;
-    return 14336;
-  } else if (c == (int)'8') {
-    *idx = *idx + (int)1;
-    return 16384;
+    return (unsigned int)2048 * m;
   }
-  return 2048;
+  return (unsigned int)2048;
 }
 
 // Parse the song description (ptr) starting at *idx. Updates *idx to
-// point after the parsed note. Returns the midi index (TODO: length,
-// etc.), or 0 when the song is done.
+// point after the parsed note. Updates *len to be the length in some
+// unspecified for-loop unit. Returns the MIDI note to play next, or 0
+// when the song is done.
 int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
   int c, midi_note;
   int sharpflat = 0;
@@ -207,16 +190,16 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
     // End of command-line argument.
     if (c == (int)0x0D) return 0;
 
-    _putc((int)'[');
-    _putc(c);
-    _putc((int)']');
+    // _putc((int)'[');
+    // _putc(c);
+    // _putc((int)']');
 
     // Advance to next character.
-    _putc((int)'=');
-    _putc((int)'0' + *idx);
+    // _putc((int)'=');
+    // _putc((int)'0' + *idx);
     *idx = *idx + (int)1;
-    _putc((int)'=');
-    _putc((int)'0' + *idx);
+    // _putc((int)'=');
+    // _putc((int)'0' + *idx);
 
     if (c == (int)'^') {
       sharpflat++;
@@ -225,17 +208,17 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
     } else if (c == (int)'=') {
       // Nothing. We assume key of C, so there are no naturals.
     } else if (c >= (int)'A' && c <= (int)'G') {
-      _putc('P');
+      // _putc('P');
       midi_note = ParseNote(ptr, c, idx) + sharpflat;
       *len = ParseLength(ptr, idx);
       return midi_note;
     } else if (c >= (int)'a' && c <= (int)'g') {
-      _putc('p');
+      // _putc('p');
       midi_note = ParseNote(ptr, c - (int)32, idx) + (int)12 + sharpflat;
       *len = ParseLength(ptr, idx);
       return midi_note;
     } else if (c == (int)'z') {
-      _putc('z');
+      // _putc('z');
       *len = ParseLength(ptr, idx);
       return 128;  // No sound.
     }
@@ -258,7 +241,7 @@ int main(int argc, unsigned char **argv) {
     song = default_song;
   }
 
-  _putc((int)'0' + strlen(song));
+  // _putc((int)'0' + strlen(song));
 
   Quiet();
 
@@ -274,16 +257,16 @@ int main(int argc, unsigned char **argv) {
 
   for (;;) {
     unsigned int len;
-    _putc((int)'0' + song_idx);
+    // _putc((int)'0' + song_idx);
     midi_note = GetMidi(song, &song_idx, &len);
     if (midi_note == (int)0) break;
-    _putc((int)'A' + midi_note);
+    // _putc((int)'A' + midi_note);
     PlayNote(midi_note);
     for (j = (int)0; j < len; j++) {}
-    _putc((int)'\n');
+    // _putc((int)'\n');
   }
 
-  _putc((int)'.');
+  // _putc((int)'.');
 
   Quiet();
   return 0;

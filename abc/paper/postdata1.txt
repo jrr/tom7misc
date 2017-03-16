@@ -49,8 +49,9 @@ section on Assembling below).
 
 There are many annoyances!
 
-A jump cannot be too short (less than 32 bytes) or too long (127 bytes).
-
+A jump  cannot be  too short  (less than  32 bytes)  or too  long (127
+bytes). The viable range is large enough to build nontrivial programs,
+but is a significant constraint for us.
 
 We don't have access to a non-conditional JMP instruction. There are a
 few tricks for simulating it. When computing a jump to a known label, we
@@ -94,15 +95,19 @@ and  JMP+disp16 for  further ones;  these instructions  have different
 length) and others.
 
 For the ABC compiler this step is quite bad:
+
  - Loading any immediate value has a length ranging from 0 bytes (it's
    already in the register) to like 16. It's dependent on both the value
    being loaded and the context (contents of registers).
+
  - The rungs that start each code block must be able to Jcc+disp8 all
    the way to the next block. This jump distance can't be too big, or
    else it can't be encoded (or is not printable).
+   
  - Jumps within a block always target the next block, but the jump
    distance can't be too short (or the displacement byte is not
    printable).
+   
  - Since blocks are numbered sequentially and relative addresses are
    computed modulo the total number of blocks, logical code addresses
    depend on the number of blocks and their order.
@@ -151,13 +156,13 @@ layout, but not not explicit *code* layout. By that, I mean that every
 function knows the size and offset  of its locals and arguments in the
 current local frame, and the size  and address of each global variable
 is known, as well as the global's initial values (if printable). It is
-akin to LLVM  [XXX cite LLVM], but doesn't really  have anything to do
-with   it.  LLVM   is  an   excellent  tool   for  writing   compilers
-(superficially, it  looks like a  good way to  write a new  C compiler
-targeting  an  architecture  like  printable x86!)  but  isn't  really
-suitable  for  this  project  because   it  assumes  that  the  output
-architecture  has certain  standard operations  efficiently available,
-which is frequently not the case for printable x86.
+akin to  LLVM [LLVM'04], but doesn't  really have anything to  do with
+it. LLVM is an excellent tool for writing compilers (superficially, it
+looks  like  a  good way  to  write  a  new  C compiler  targeting  an
+architecture like printable  x86!) but isn't really  suitable for this
+project because  it assumes that  the output architecture  has certain
+standard operations efficiently available, which is frequently not the
+case for printable x86.
 
 A sample of LLVMNOP constructs are:
 
@@ -325,18 +330,3 @@ block. Since  C's semantics for  variables allow them to  be addressed
 and modified, we convert all C  variables into explicit loads from and
 stores to memory.
 
-This language is  typed, with one important use of  this being that we
-determine the calling convention for a function pointer from its type.
-(This includes  the size of the  return address slot, which  is on the
-locals stack and shared between the  caller and callee, as well as the
-number and sizes of the arguments,  also on the locals stack.) We make
-the representation (Word8, Word16, Word32) of integral types explicit,
-but signed and unsigned ints are  represented the same way (just as on
-the  processor  itself).  Instead,  expressions  like  Promote  (which
-converts  e.g. an  8-bit word  to a  16-bit word)  are explicit  about
-whether they  perform sign  extension. We  are careful  to distinguish
-between 8-, 16- and 32-bit quantities throughout the compiler, because
-printable x86  has the ability to  work with all three  widths, and we
-can produce significantly better code if we can use the correct width.
-(As a simple  example, loading a 16-bit word is  much cheaper than the
-zero-extended 32-bit version.)

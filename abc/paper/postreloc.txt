@@ -1,13 +1,6 @@
 
 Sorry about that!
 
-(XXX elsewhere?)
-By  the way,  I tried  to  be disciplined  in this  paper about  writing
-hexadecimal numbers  in C notation, like  0x42 to stand for  66. The x86
-architecture  is little-endian,  so a  16-bit word  0x1234 is  stored in
-memory as 0x34 0x12.  Also, when I write x86, that  is not a hexadecimal
-number, that's the name of the computer architecture.
-
 Not  all  of the  ASCII  bytes  are  considered printable,  either.  For
 example, 0x14 means DEVICE CONTROL 4 in ASCII, forever enshrined as that
 useless idea. Even DOS didn't think it was useful, so DOS prints it as a
@@ -20,7 +13,7 @@ The range of actually printable characters are:
    0x0A   NEWLINE
    0x0D.  CARRIAGE RETURN
    0x20.  SPACE
-   ...
+   ...    (all the keyboard characters are from 0x20-0x7e)
    0x7E.  ~
 
 ..  and no  others.  0x0A  and 0x0D  are  actually pretty  questionable,
@@ -35,6 +28,13 @@ that's the  95 characters from 0x20  to 0x7E, inclusive. This  is all of
                F G H I J K L M N O P Q R S T U V W X
                Y Z [ \ ] ^ _ ` a b c d e f g h i j k
                l m n o p q r s t u v w x y z { | } ~
+
+
+By  the way,  I tried  to  be disciplined  in this  paper about  writing
+hexadecimal numbers  in C notation, like  0x42 to stand for  66. The x86
+architecture  is little-endian,  so a  16-bit word  0x1234 is  stored in
+memory as 0x34 0x12.  Also, when I write x86, that  is not a hexadecimal
+number, that's the name of the computer architecture.
 
 
     ** Printable x86 **
@@ -96,17 +96,24 @@ Source code for this project is available at:   http://tom7.org/abc
 This is a challenging programming problem!
 
   - Well, you have to write a compiler;
+  
   - Due to some constraints, it has to produce reasonably good (small)
     code, or the compilation strategy will fail;
+    
   - You only get a handful of instructions;
+  
   - Some extremely important instructions are completely missing;
+  
   - Notably, superficially you can't load arbitrary numbers into
     registers, jump backwards, or interact with the operating system;
+    
   - Many remaining instructions can only be used in weird addressing modes;
   - Several standard techniques for assembling programs don't work
     due to the subset being compiled;
+    
   - The program's header must also be printable, which puts constraints
     on its size and layout;
+    
   - Unreasonable SIGBOVIK policies require that papers not be xxx-tra
     large-size.
 
@@ -175,15 +182,18 @@ thought to the following puzzles:
  - How can we load an arbitrary number (e.g. an address constant) into
    a register? Note that the immediate value in something like "PUSH imm"
    must be printable.
+   
  - Without the MOV instruction, how do we do loads and stores?
+ 
  - Without the INT instruction, how can we even exit the program?
+ 
  - How do we implement bitwise OR with the given instructions?
+ 
  - The Jcc (e.g. JNZ, JAE) instructions take only an absolute displacement.
    How do we do function (pointer) calls and returns?
+   
  - The displacement must be printable, which means it is always a
    positive number. How do we even do loops?
-
-(XXX any more puzzles?)
 
 I will  explain those  problems and  my solutions  in later  sections; I
 think they are each interesting. (If you are not going to read the whole
@@ -235,35 +245,40 @@ segmentation!
 
     ** Segmentation break! **
 
-DOS is a 16-bit operating system, and a 16-bit number can only denote
-65,536 ("64k") different values. To allow programs to address more than
-64k of memory, Intel introduced "segments" into the (XXX) 8088. These
-are a nightmare for programmers, and when I was a teenager and the "flat
-memory model" (32-bit virtual addresses) became available, I thought I
-would be free of segments forever. We're back! Roughly speaking, the
+DOS is  a 16-bit operating system,  and a 16-bit number  can only denote
+65,536 ("64k") different values. To  allow programs to address more than
+64k of  memory, Intel introduced "segments"  into the 8086. These  are a
+nightmare  for programmers,  and when  I was  a teenager  and the  "flat
+memory model" (32-bit  virtual addresses) became available,  I thought I
+would be  free of  segments forever. We're  back! Roughly  speaking, the
 instruction set allows you to supply 16-bit addresses (offsets), but the
-processor internally combines these with 16-bit base addresses
+processor  internally   combines  these   with  16-bit   base  addresses
 (segments). The "real address" is (segment * 16 + offset). Some annoying
 facts:
 
  - The segment registers are changed through different instructions, none
    of which are available in printable X86.
+   
  - However, we can make some instructions use a different segment
-   register with one of the prefix bytes (e.g. 0x36 uses the SS (stack)
-   segment instead of the default, which might be DS (data)).
+   register with one of the prefix bytes (e.g. 0x36 makes the next
+   instruction use the SS (stack) segment instead of the default, which
+   might be DS (data)).
+   
+ - However, some other instructions like PUSH or OUTS can only use a
+   specific segment.
+   
  - There are multiple different SEG:OFF pairs that reference the same
    real address.
+   
  - The segment values are not predictable in DOS, because they depend
    on where DOS happens to place your program.
 
-We'll have to deal with segments for sure, but one consolation (?) is that
-since we can't change the values, the program will only access the 64k
-of data within the segments it starts out with.
+We'll have  to deal with segments  for sure, but one  consolation (?) is
+that since we can't change the  values, the program will only access the
+64k of data within the segments it starts out with.
 
-There are 6 segments, CS (code), DS (data), SS (stack), and three
+There  are 6  segments,  CS (code),  DS (data),  SS  (stack), and  three
 "other" segments ES, FS, and GS.
-
-(XXX more to say about segments?)
 
 
     ** Executable file formats, continued... **
@@ -293,22 +308,23 @@ and this is  what ABC produces. EXE files afford  much more flexibility,
 such as  the ability to access  up to 640kb (barring  tricks) of memory.
 They also have many features that we  do not need or want. An EXE header
 looks like this:
-                                       (XXX I changed these)
-  offset  field                        ABC's value (little-endian)
-      00  magic number                 0x5A 0x4D
-      02  extrabytes                   0x7E 0x7E
-      04  pages in file                0x20 0x23
+
+  offset  field                        ABC's value          ASCII
+                                       (little-endian)
+      00  magic number                 0x5A 0x4D             ZM
+      02  extrabytes                   0x7E 0x7E             ~~
+      04  pages in file                0x20 0x23              #
       06  relocation entries           0x20 0x20
       08  paragraphs in header         0x20 0x20
       10  minimum memory               0x20 0x20
       12  maximum memory               0x20 0x20
-      14  initial stack segment        0x20 0x30
-      16  initial stack pointer        0x7e 0x7e
-      18  checksum                     0x41 0x42
-      20  initial ins pointer          (program dependent) (XXX)
+      14  initial stack segment        0x50 0x52             PR
+      16  initial stack pointer        0x69 0x6e             in
+      18  checksum                     0x74 0x79             ty
+      20  initial ins pointer          (program dependent)
       22  code segment displacement    0x20 0x20
       24  relocation table start       0x20 0x20
-      26  overlay number               0x43 0x21
+      26  overlay number               0x43 0x20             C 
 
 Normally, the  header is followed by  the relocation table (if  any; see
 below) and  then the program  image. The program  image is some  blob of
@@ -347,6 +363,7 @@ following tricks:
     right now.
   - Give technically invalid values for some fields (extrabytes, checksum,
     overlay number); DOS doesn't actually seem to care about these.
+    This helps us get a paper title that's almost readable.
 
 The layout of a compiled program is roughly like this:
 
@@ -498,9 +515,10 @@ allocation is  far less important than  usual. Instead, we operate  on a
 set  of temporaries,  accessed  using the  [EBP]+disp8 addressing  mode.
 EBP's default segment is SS, so these temporaries are stored in the same
 segment as  the stack. In fact,  since we initialized the  stack pointer
-towards the middle of  SS (it has to be printable;  0x7e7e), we have the
-entire  region  from 0x7e7e  to  0xFFFF  to  use for  temporaries.  Each
-function frame (see below) has its own set of temporaries.
+towards the  middle of  SS (it  has to be  printable; the  maximum value
+would be 0x7e7e, but we use 0x6e69  to make the title more readable), we
+have the  entire region from that  to to 0xFFFF to  use for temporaries.
+Each function frame (see below) has its own set of temporaries.
 
 To perform a basic subtraction operation, whereas a traditional compiler
 is likely to emit an instruction like
@@ -604,19 +622,33 @@ this  gives us a  new best  solution  by concatenating  these two  paths
 
 This works  well, with  only an  average of  2.54 bytes  of instructions
 needed to  transform a source  byte into  a destination one  (across all
-possible src/dst pairs).  No sequence is longer than  4 bytes. Actually,
-the table contains interesting structure,  or at least pretty structure.
-Since it is  256x256, it can't fit  in this paper 1:1, but  I cropped to
-the prettiest  part, the  160x128 rectangle encompassing  the lower-left
-quadrant. It  appears as a  full page in the  data segment, (page  9) as
-some cool  ASCII triangles. In this  graphic, a space character  means 0
-instructions (this is only the diagonal of course, only barely visible);
-'.' means  one instruction byte (just  INC and DEC, near  the diagonal);
-'-' is two  instruction bytes (like XOR  AL <- 0x2A); '%'  is three; and
-'#"  is four.  This  fractal pattern  shows  up all  over  the place  in
-mathematics  and  computer  science  and   Hyrule.  For  example  it  is
-reminiscent  of the  matrix of  game configurations  in k/n  Power Hours
-[XXX].
+possible src/dst pairs). No sequence is  longer than 4 bytes. Since this
+table is big  and programmatically computed when the  compiler starts, I
+took  some trouble  to optimize  it  (the naive  implementation took  13
+seconds, which  is a  bit of  an annoying  wait every  time you  run the
+compiler!). There  were a few tricks,  but the most fruitful  one was to
+functorize the  code that encodes  x86 instructions. This  code normally
+works with vectors, and then the test above for the shortest instruction
+sequence  would use  Word8Vector.size to  compute the  best one.  In the
+functorized  version, the  type of  vector is  an abstract  argument. We
+instantiate a size-only version of  encoding where the "vector of bytes"
+is actually  just the count of  bytes, and concatenation is  just +. The
+MLTon compiler is  then excellent at optimizing this code  to throw away
+the  computations of  the byte  values (they  are dead),  and this  code
+becomes plenty fast (~800 ms).
+
+The table  of instructions contains  interesting structure, or  at least
+pretty structure. Since  it is 256x256, it can't fit  in this paper 1:1,
+but I cropped to the  prettiest part, the 160x128 rectangle encompassing
+the lower-left quadrant. It appears as  a full page in the data segment,
+(page  9)  as some  cool  ASCII  triangles.  In  this graphic,  a  space
+character means  0 instructions  (this is only  the diagonal  of course,
+only barely visible); '.' means one  instruction byte (just INC and DEC,
+near the diagonal); '-' is two  instruction bytes (like XOR AL <- 0x2A);
+'%' is three;  and '#" is four.  This fractal pattern shows  up all over
+the place in mathematics and computer science and Hyrule. For example it
+is reminiscent of  the matrix of game configurations in  k/n Power Hours
+[KNPH'14].
 
 
 Once we can load  an arbitrary byte into AL, we can fill  all of AX with
@@ -675,7 +707,7 @@ This is almost... nice! But don't worry, it gets grosser.
 
     ** Bitwise OR **
 
-We don't have the OR instruction, but it can be computed with this
+We  don't have  the OR  instruction, but  it can  be computed  with this
 trick.
 
     1  1  0  0    A
@@ -689,15 +721,15 @@ trick.
 
     1  1  1  0    A  OR B
 
-This is the table of all possible bit combinations that A and B could
-have; the OR operation is of course only dependent on the pair of bits
-at each position. First, observe (in your mind; it's not in the table)
-that A OR B is the same as A + B unless both bits are 1; only in that
-case do we need to do a carry. So we compute A AND B, and A XOR B;
-the OR of these two is the same as A OR B (it separates A OR B into
-the cases where both bits in the input were 1, and the case where exactly
-one was 1). Since the two expressions never have a 1 bit in the same
-position, we can compute their OR with +, giving us the desired result.
+This is the  table of all possible  bit combinations that A  and B could
+have; the OR operation  is of course only dependent on  the pair of bits
+at each position.  First, observe (in your mind; it's  not in the table)
+that A OR  B is the same as A  + B unless both bits are  1; only in that
+case do we need to  do a carry. So we compute A AND B,  and A XOR B; the
+OR of  these two is the  same as A  OR B (it  separates A OR B  into the
+cases where both  bits in the input  were 1, and the  case where exactly
+one was  1). Since the two  expressions never have  a 1 bit in  the same
+position, we can compute their OR  with +, giving us the desired result.
 Implementing plus is also a multi-step process, described next:
 
 
@@ -900,8 +932,10 @@ old timer interrupt code when we're  done. This might work, but it seems
 extremely brittle.  (Also, the  timer interrupt  handler has  to perform
 certain low-level  duties or else  the system will  freeze.) Fortunately
 there's a better choice: The CPU  will also trigger an interrupt when an
-illegal  instruction is  executed.  Do we  have  an illegal  instruction
-inside printable x86? In fact we do!
+illegal  instruction  is  executed.  Normally  the  illegal  instruction
+handler would do something like  crash the program gracelessly (in Unix,
+it sends the SIGILL  signal. Sadly there is no SIGBOVIK.)  Do we have an
+illegal instruction inside printable x86? In fact we do!
 
    0x63    Adjust RPL Field of Segment Selector
 
@@ -929,6 +963,7 @@ Sadly, there are two very serious issues:
    illegal instruction itself, not the one that follows it. So when the
    interrupt handler returns, it simply executes another illegal
    instruction.
+   
  - When the interrupt is triggered, it clears the interrupt flag (so
    that for example the timer interrupt doesn't fire while it's already
    running). Only a few instructions, which we don't have access to,
@@ -972,7 +1007,6 @@ condition code", and consists of 15 opcodes:
    }     0x7D    JNL    Jump not less              JNL
    ~     0x7E    JLE    Jump if less or equal      JNG
 
-
 This is  a fairly full  set of conditions  (although we are  missing the
 last  one,  JNLE/JG, with  opcode  0x7F).  Each  of these  consults  the
 processor's FLAGS register  and tests for a certain  condition. FLAGS is
@@ -1010,7 +1044,7 @@ this weird  state still just jumps  downward, and the situation  is very
 brittle (see Section XXX for some ideas and problems). However, there is
 a  special case  on the  processor, probably  for compatibility  with an
 earlier  processor;  it's  right  there   in  the  pseudocode  for  this
-instruction in Intel's manual [XXX cite]:
+instruction in Intel's manual [INTC'01]:
 
   IF condition
      THEN
@@ -1044,8 +1078,5 @@ Function pointers  (the destination of a  function call is not  known at
 compile time) and  returning from functions (the function  can be called
 from multiple sites, so we need to know which site to return to).
 
-
-
-
 We're approaching  the data section  now, so  it's time to  take another
-break!
+break! Here it is:
