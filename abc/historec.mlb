@@ -1,0 +1,20 @@
+$(SML_LIB)/basis/basis.mlb
+$(SML_LIB)/basis/mlton.mlb
+../sml-lib/port/port-sig.sml
+../sml-lib/port/mlton.sml
+
+  ../sml-lib/util/util-sig.sml
+  ../sml-lib/util/util.sml  
+
+  ../sml-lib/util/stringutil-sig.sml
+  ../sml-lib/util/stringutil.sml  
+
+  ../sml-lib/misc/params-sig.sml
+  ../sml-lib/misc/params.sml
+
+  ../sml-lib/crypt/mersenne-twister-sig.sml
+  ../sml-lib/crypt/mersenne-twister.sml
+
+ann "sequenceNonUnit warn" in
+  historec.sml
+end
