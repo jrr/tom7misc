@@ -1,4 +1,4 @@
-all : abc.exe benchbytes.exe makefreq.exe twocolumn.exe text2pdf.exe histo.exe
+all : abc.exe benchbytes.exe makefreq.exe twocolumn.exe text2pdf.exe histo.exe historec.exe
 
 # just MLTON=mlton should work on most installations btw
 MLTON=/c/mlton/bin/mlton.bat
@@ -12,6 +12,9 @@ abc.exe : $(ABC_SML) abc.mlb
 maketest.exe : maketest.sml maketest.mlb
 	$(MLTON) -output $@ maketest.mlb
 
+truncpage.exe : truncpage.sml truncpage.mlb
+	$(MLTON) -output $@ truncpage.mlb
+
 makefreq.exe : makefreq.sml makefreq.mlb
 	$(MLTON) -output $@ makefreq.mlb
 
@@ -20,6 +23,9 @@ twocolumn.exe : twocolumn.sml twocolumn.mlb
 
 histo.exe : histo.sml histo.mlb
 	$(MLTON) -output $@ histo.mlb
+
+historec.exe : historec.sml historec.mlb
+	$(MLTON) -output $@ historec.mlb
 
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
@@ -75,3 +81,7 @@ dos/tests.bat : maketest.exe makefile
 TEXT2C=paper/firstpage.2c paper/postreloc.2c paper/postdata.2c paper/end.2c paper/bytetable.txt paper/histo.txt
 dos/%.exe : %.c abc.exe $(TEXT2C)
 	./abc.exe $< -o $@
+
+paper/paper.exe : paper.c abc.exe historec.exe $(TEXT2C)
+	./abc.exe $< -o $@
+	./historec.exe paper/paper.exe
