@@ -212,7 +212,7 @@ the header  of the program  needs to be printable  too. We can  rule out
 several formats that cannot possibly have printable headers:
 
 On Linux,  executables are ELF files.  The first byte of  these files is
-always 0x7F "DELETE", which is not printable. Severam other bytes in the
+always 0x7F "DELETE", which is not printable. Several other bytes in the
 header have to be zero.
 
 On MacOS,  executables are Mach-O  files. These files always  start with
@@ -331,7 +331,7 @@ below) and  then the program  image. The program  image is some  blob of
 data that gets placed contiguously in  memory, with the data segment set
 to its  beginning and the  code and stack  segments set to  wherever the
 header  asks. A  typical layout  would look  like this,  with the  solid
-box being the contents of the exe file:
+box being the contents of the EXE file:
 
                  DS,ES    CS       SS
                  |        |        |      (additional memory)
@@ -958,7 +958,7 @@ It is very tempting to use this trick to make other system calls through
 INT 0x21,  or perhaps to  jump to  arbitrary addresses of  our choosing!
 Sadly, there are two very serious issues:
 
- - When the processor triggers the illegal instruction interupt, the
+ - When the processor triggers the illegal instruction interrupt, the
    return address that it pushes on the stack is the address of the
    illegal instruction itself, not the one that follows it. So when the
    interrupt handler returns, it simply executes another illegal

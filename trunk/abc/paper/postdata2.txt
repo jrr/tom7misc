@@ -88,7 +88,7 @@ correspondence  to C89  itself.  When  we convert  to  CIL, we  remove
 things. "For"  example, a for loop  is broken apart into  a few gotos.
 The && and || operators  make their short-circuiting behavior explicit
 by sequencing the tests. Implicit widening and narrowing between types
-is made explicit. Compound assigment ops  like ^= and ++ are sequenced
+is made explicit. Compound assignment ops  like ^= and ++ are sequenced
 into the primitives that make  them up. Array subscripts and structure
 references are  converted into pointer arithmetic.  Although there's a
 lot of code involved to implement C, it is mostly standard.
