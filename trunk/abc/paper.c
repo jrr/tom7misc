@@ -9,7 +9,6 @@
  *
  **********************************************************/
 
-int _putc(int); // XXX non-printable! don't use in paper!
 int _out8(int, int);
 int _exit();
 
@@ -33,14 +32,14 @@ unsigned char *meta_note = "Now this is the part of the data segment "
 unsigned char *upper = "\x20\x20\x20\x20\x20\x20\x20\x20!!!!!!!!!!!!"
   "\x22\x22\x22\x22\x22\x22\x22#####&&&&&&&'''''*******+++++"
   "......./////222222233333666666677777:::::::;;;;;>>>>>>>"
-  "????????????????";
+  "????????????????\0";
 unsigned char *lower = "\xA9\xB3\xBD\xC9\xD5\xE1\xEF\xFD\x0C\x1C-?Qf{"
   "\x91\xA9\xC2\xDD\xFA\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18"
   "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA"
   "\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R"
   "\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB"
   "\xF6#R\x85\xBA\xF3\x18" "8Y}\xA3\xCB\xF6#R\x85\xBA\xF3\xFF\xFF"
-  "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF";
+  "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\0";
 
 unsigned char *default_song =
   "ABD'B" "^F'3^F'3E'6"
@@ -51,6 +50,15 @@ unsigned char *alphabet =
   "C4C4G4G4A4A4G8" "F4F4E4E4D4D4C8"
   "G4G4F4F4E4E4D8" "G4G4F4F4E4E4D8"
   "C4C4G4G4A4A4G8" "F4F4E4E4D4D4C8";
+
+unsigned char *plumber =
+  "e2e4e4c2e4g2z6G4"
+  "cz2Gz2EzA2B^2'AA2"
+  "G2e2g2a3fg3e4cdBz";
+
+unsigned char *bluehair =
+  "^A8z2F4^G8F3c4^A4F4^A4^G8z8"
+  "^A8z2c8z2^c8z2^d8z2f8z2F4F4F4F8";
 
 int Adlib(int reg, int value) {
   int i;
@@ -190,16 +198,8 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
     // End of command-line argument.
     if (c == (int)0x0D) return 0;
 
-    // _putc((int)'[');
-    // _putc(c);
-    // _putc((int)']');
-
     // Advance to next character.
-    // _putc((int)'=');
-    // _putc((int)'0' + *idx);
     *idx = *idx + (int)1;
-    // _putc((int)'=');
-    // _putc((int)'0' + *idx);
 
     if (c == (int)'^') {
       sharpflat++;
@@ -208,17 +208,14 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
     } else if (c == (int)'=') {
       // Nothing. We assume key of C, so there are no naturals.
     } else if (c >= (int)'A' && c <= (int)'G') {
-      // _putc('P');
       midi_note = ParseNote(ptr, c, idx) + sharpflat;
       *len = ParseLength(ptr, idx);
       return midi_note;
     } else if (c >= (int)'a' && c <= (int)'g') {
-      // _putc('p');
       midi_note = ParseNote(ptr, c - (int)32, idx) + (int)12 + sharpflat;
       *len = ParseLength(ptr, idx);
       return midi_note;
     } else if (c == (int)'z') {
-      // _putc('z');
       *len = ParseLength(ptr, idx);
       return 128;  // No sound.
     }
@@ -235,13 +232,15 @@ int main(int argc, unsigned char **argv) {
   // use it. Otherwise,
   if (streq(cmdline, (unsigned char *)"-alphabet")) {
     song = alphabet;
+  } else if (streq(cmdline, (unsigned char *)"-plumber")) {
+    song = plumber;
+  } else if (streq(cmdline, (unsigned char *)"-bluehair")) {
+    song = bluehair;
   } else if (strlen(cmdline) > (int)0) {
     song = cmdline;
   } else {
     song = default_song;
   }
-
-  // _putc((int)'0' + strlen(song));
 
   Quiet();
 
@@ -257,16 +256,11 @@ int main(int argc, unsigned char **argv) {
 
   for (;;) {
     unsigned int len;
-    // _putc((int)'0' + song_idx);
     midi_note = GetMidi(song, &song_idx, &len);
     if (midi_note == (int)0) break;
-    // _putc((int)'A' + midi_note);
     PlayNote(midi_note);
     for (j = (int)0; j < len; j++) {}
-    // _putc((int)'\n');
   }
-
-  // _putc((int)'.');
 
   Quiet();
   return 0;

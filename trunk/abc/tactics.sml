@@ -323,9 +323,9 @@ struct
 
     fun savetableimageascii () =
       let
-        val f = TextIO.openOut "paper/bytetable.txt"
+        val f = TextIO.openOut "paper/bytetable0.txt"
       in
-        Util.for 128 255
+        Util.for 0 127
         (fn row =>
          let in
            Util.for 0 159
@@ -340,7 +340,7 @@ struct
            ()
          end);
         TextIO.closeOut f;
-        print "Wrote paper/bytetable.txt\n"
+        print "Wrote paper/bytetable0.txt\n"
       end
 
     fun populate_byte_table () =
@@ -470,7 +470,7 @@ struct
         loop ();
         (* prtable (); *)
         (* savetableimage (); *)
-        (* savetableimageascii (); *)
+        savetableimageascii ();
         print ("Total byte table size (opcode bytes): " ^
                Int.toString ` tablesize () ^ "\n" ^
                "Computed in " ^

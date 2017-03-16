@@ -910,7 +910,7 @@ struct
                         end) xblocks
 
           val cs = Segment.empty ()
-          val () = Segment.set_repeating_string cs 0 65536 "(CODE SEGMENT)"
+          val () = Segment.set_repeating_string cs 0 65536 " " (* "(CODE SEGMENT)" *)
 
           (* For debugging, each of the blocks, ordered by start index. *)
           val addresses = IIM.empty ()

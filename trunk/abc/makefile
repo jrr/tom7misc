@@ -78,7 +78,7 @@ testclean :
 dos/tests.bat : maketest.exe makefile
 	./maketest.exe $(TESTS) > dos/tests.bat
 
-TEXT2C=paper/firstpage.2c paper/postreloc.2c paper/postdata.2c paper/end.2c paper/bytetable.txt paper/histo.txt
+TEXT2C=paper/firstpage.2c paper/postreloc.2c paper/postdata.2c paper/end.2c paper/bytetable.txt paper/bytetable0.txt
 dos/%.exe : %.c abc.exe $(TEXT2C)
 	./abc.exe $< -o $@
 
