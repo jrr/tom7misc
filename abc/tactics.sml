@@ -470,7 +470,7 @@ struct
         loop ();
         (* prtable (); *)
         (* savetableimage (); *)
-        savetableimageascii ();
+        (* savetableimageascii (); *)
         print ("Total byte table size (opcode bytes): " ^
                Int.toString ` tablesize () ^ "\n" ^
                "Computed in " ^

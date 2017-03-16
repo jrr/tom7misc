@@ -122,7 +122,7 @@ struct
         end
 
       fun randomdigits () =
-        let val len = MT.random_nat mt 32
+        let val len = MT.random_nat mt 9
         in
           CharVector.tabulate (len, fn _ => chr (MT.random_nat mt 9 + ord #"0"))
         end

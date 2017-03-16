@@ -7,7 +7,6 @@ useless idea. Even DOS didn't think it was useful, so DOS prints it as a
 "paragraph" symbol. The byte 0x07 just makes  a beep sound if you try to
 display it.
 
-
 The range of actually printable characters are:
 
    0x0A   NEWLINE
@@ -56,8 +55,6 @@ file in DOS and it prints out
 
 EICAR-STANDARD-ANTIVIRUS-TEST-FILE!
 
-... as if you can't already just see that in the file.
-
 The EICAR Test File is clever, but there are a few problems with it:
 
   - It was written by hand. Though it's easy to change the message
@@ -87,7 +84,7 @@ Source code for this project is available at:   http://tom7.org/abc
 
 * Not every C feature is implemented. Some of these are just not feasible
   and some I just didn't get to before the deadline. The shortcomings
-  are discussed in Section XXX.
+  are discussed in Section 26.
 
 
     ** 4. Difficulties **
@@ -248,13 +245,12 @@ segmentation!
 DOS is  a 16-bit operating system,  and a 16-bit number  can only denote
 65,536 ("64k") different values. To  allow programs to address more than
 64k of  memory, Intel introduced "segments"  into the 8086. These  are a
-nightmare  for programmers,  and when  I was  a teenager  and the  "flat
-memory model" (32-bit  virtual addresses) became available,  I thought I
-would be  free of  segments forever. We're  back! Roughly  speaking, the
-instruction set allows you to supply 16-bit addresses (offsets), but the
-processor  internally   combines  these   with  16-bit   base  addresses
-(segments). The "real address" is (segment * 16 + offset). Some annoying
-facts:
+nightmare for programmers,  and when I was a teenager  I thought I could
+perhaps  live my  whole life  without really  understanding them.  We're
+back! Roughly speaking, the instruction  set allows you to supply 16-bit
+addresses (offsets),  but the  processor internally combines  these with
+16-bit base addresses (segments). The "real  address" is (segment * 16 +
+offset). Some annoying facts:
 
  - The segment registers are changed through different instructions than
    the regular registers. None are available in printable X86.
@@ -368,6 +364,8 @@ but the crux of the solution involves the following tricks:
     overlay number); DOS doesn't actually seem to care about these.
     This helps us get a paper title that's almost readable.
 
+
+
 The layout of a compiled program is roughly like this:
 
                               DS,ES    CS       SS
@@ -424,9 +422,8 @@ and over, and  choose a location that's right after  the code segment in
 memory, a part of the image we  don't need. I'll point out the spot that
 gets  overwritten  when  we  get  there.  The  locations  are  given  as
 segment:offset pairs,  which is  nice because we  have multiple  ways to
-reference a given location. We simply solve for some segment:offset such
-that (segment  * 16  + offset =  addr) and both  segment and  offset are
-printable.
+reference a given  location. We simply solve for some  seg:off such that
+(seg * 16 + off = addr) and both seg and off are printable.
 
 
     ** 11. Addressing modes, temporaries, calling convention **
@@ -445,9 +442,8 @@ In Figure 1, there are several instructions that look like this:
 
 These are each a family of instructions like
 
-    AND AX <- BX
-    AND BX <- [BP+SI+4]
-    AND [12345] <- DI
+    AND AX <- BX                    AND [12345] <- DI
+    AND BX <- [BP+SI+4]             AND [EBP+12345] <- EBP
 
 where the source  (on the right) and destination are  given by some bits
 in the  instruction's encoding.  The instruction  always acts  between a
@@ -456,11 +452,9 @@ this is  of the form  "AND reg  <- mod/rm" or  "AND mod/rm <-  reg". The
 mod/rm can  be one of  many possible values; here  is a table  which you
 need not absorb:
 
-  r8(/r)                            AL  CL  DL  BL  AH  CH  DH  BH
   r16(/r)                           AX  CX  DX  BX  SP  BP  SI  DI
   r32(/r)                           EAX ECX EDX EBX ESP EBP ESI EDI
-  (In decimal) /digit (Opcode)        0   1   2   3   4   5   6   7
-  (In binary) REG =                 000 001 010 011 100 101 110 111
+                              Reg:  000 001 010 011 100 101 110 111
   Effective Address      Mod  R/M   Value of ModR/M Byte (in Hex)
   [EAX]                   00  000   00  08  10  18 *20 *28 *30 *38
   [ECX]                       001   01 ?09  11  19 *21 *29 *31 *39
@@ -984,7 +978,9 @@ Sadly, there are two very serious issues:
    because interrupts would stop firing.
 
 Neither of these issues are a problem for the exit system call, since we
-only do it once. YOEO!
+only exit once. YOEO!
+
+
 
 The ARPL  instruction takes  two argument  bytes which  just have  to be
 printable; the instruction we actually encode is
@@ -1053,7 +1049,7 @@ is right after  the code segment, and indeed  contains whatever followed
 our code  segment in the  program image.  So we could  conceivably break
 free of the  64k code segment. Unfortunately, performing a  jump when in
 this weird  state still just jumps  downward, and the situation  is very
-brittle (see Section XXX for some ideas and problems). However, there is
+brittle (see Section 31 for some ideas and problems). However, there is
 a  special case  on the  processor, probably  for compatibility  with an
 earlier  processor;  it's  right  there   in  the  pseudocode  for  this
 instruction in Intel's manual [INTC'01]:
