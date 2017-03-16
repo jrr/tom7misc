@@ -61,7 +61,7 @@ paper/end1.2c : twocolumn.exe paper/end.txt paper.c makefile
 	./twocolumn.exe -topclearance 3 -startline 12 -pages 3 paper/end.txt -o $@
 
 paper/end.2c : paper/end1.2c paper/histopage.txt makefile
-	cat paper/end.2c paper/histopage.txt > $@
+	cat paper/end1.2c paper/histopage.txt > $@
 
 paper/sigbovik.txt : paper/sigbovik.png png2ascii.exe makefile
 	./png2ascii.exe "##23456:89ABC-- " $< > $@
@@ -82,6 +82,6 @@ TEXT2C=paper/firstpage.2c paper/postreloc.2c paper/postdata.2c paper/end.2c pape
 dos/%.exe : %.c abc.exe $(TEXT2C)
 	./abc.exe $< -o $@
 
-paper/paper.exe : paper.c abc.exe historec.exe $(TEXT2C)
+dos/paper.exe : paper.c abc.exe historec.exe $(TEXT2C)
 	./abc.exe $< -o $@
-	./historec.exe paper/paper.exe
+	./historec.exe dos/paper.exe
