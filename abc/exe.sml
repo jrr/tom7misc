@@ -54,7 +54,7 @@ struct
                then
                  let
                    val bt = StringUtil.readfile "paper/bytetable.txt"
-                   (* Strip trailing newline *)
+                   (* Strip trailing newline, if any *)
                    val bt = String.substring (bt, 0, 128 * 160)
                  in
                    assert_printable "bytetable" bt;
@@ -63,6 +63,24 @@ struct
                  end
                else print ("Dropping byte table figure because that " ^
                            "region of the data segment is used!\n")
+
+      (* Actually the data segment is so empty, we might as well include
+         two pages of it! *)
+      val BYTETABLE0_START = 35456 - (18 * 160) - 64 - (128 * 160)
+      val () = if Segment.range_unlocked ds BYTETABLE0_START 20480
+               then
+                 let
+                   val bt = StringUtil.readfile "paper/bytetable0.txt"
+                   (* Strip trailing newline, if any *)
+                   val bt = String.substring (bt, 0, 128 * 160)
+                 in
+                   assert_printable "bytetable0" bt;
+                   Segment.set_string ds BYTETABLE0_START bt;
+                   Segment.lock_range ds BYTETABLE0_START (size bt)
+                 end
+               else print ("Dropping byte table 0 figure because that " ^
+                           "region of the data segment is used!\n")
+
       val ds = Segment.extract ds
 
       val () = if Word8Vector.length cs = 65536 then ()

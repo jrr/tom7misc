@@ -9,11 +9,11 @@ In this paper, I describe a new compiler for the C89 programming language.
 For good  reasons that  I will  explain later, this  paper must  be 20
 pages long. Due to unreasonable  SIGBOVIK deadlines, I did not produce
 enough technical  material to fill the  minimum number of pages,  so I
-will  be  somewhat  prolix  and  I  have  inserted  several  unrelated
+will am  going to take my  time and I have  inserted several unrelated
 ASCII-art drawings.
 
 
-    ** Typesetting note **
+    ** 1. Typesetting note **
 
 If you receive this  paper in a raw text file, it  may be difficult to
 read  because of  its two-column  layout. It  should be  typeset in  a
@@ -25,13 +25,13 @@ verify. This file contains no  carriage returns or newlines; each line
 just contains 160 characters and is padded with spaces. If you receive
 this paper in the SIGBOVIK proceedings, it may be hard to read because
 it is printed in a very small font to conserve paper. Squinting really
-hard to read hard fonts is good exercise for your eyes.
+hard to read tiny hard fonts is good exercise for your eyes.
 
 Your antivirus  software may detect  this paper  as a virus,  for good
 reasons that I will describe later. It is not a virus. ;-)
 
 
-    ** Introduction **
+    ** 2. Introduction **
 
 On any  normal computer,  a program  is just a  data file.  It usually
 contains some header information that tells the operating system about
@@ -51,12 +51,12 @@ are  strictly off  limits for  "user space"  programs. When  running a
 program, the  operating system  puts the processor  into a  mode where
 such  rude instructions  instead  alert the  operating  system to  the
 program's  misbehavior. We'll  talk  more about  rude instructions  in
-Section XXX.) The single byte 0x40 means "INC AX" -- add 1 to the "AX"
-register -- and a multibyte sequence like  XX XX XX means XXX. All the
-time, the  computer is just reading  the next byte out  of the program
-(or  operating  system, itself  a  program  written using  these  same
-instructions), doing what it says to do, and then going on to the next
-one.
+Section 17.) The single byte 0x40 means  "INC AX" -- add 1 to the "AX"
+register -- and a multibyte sequence like 0x6A 0x40 means "PUSH 0x40".
+All the time,  the computer is just  reading the next byte  out of the
+program (or  operating system,  itself a  program written  using these
+same instructions), doing what it says to do, and then going on to the
+next one.
 
 I wrote  the opcodes above  in hexadecimal notation, but  they're just
 stored in the files and memory as raw bytes (like all files). The byte

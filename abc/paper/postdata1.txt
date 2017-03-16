@@ -1,12 +1,25 @@
+Once is enough!  We can set things  up so that whenever we  need to jump
+backwards,  we instead  jump  forward  until we're  at  the  end of  the
+segment,  then  jump  across  that boundary  (overflowing  back  to  the
+beginning) and then  keep jumping forward until we get  where we need to
+be. This is delicate, but it works.
 
-    ** The ladder **
+One other issue  with jumps is that  we can only jump  a fixed distance;
+there  is no  equivalent  to "MOV  EIP  <-  AX" to  jump  to a  computed
+location.  We  need this  functionality  to  implement two  C  features:
+Function pointers  (the destination of a  function call is not  known at
+compile time) and  returning from functions (the function  can be called
+from multiple sites, so we need to know which site to return to).
 
-To solve the various problems with  jumps, we build the program around
-what's called a  "ladder" in the code. The whole  program is broken up
-into small  blocks of code.  Each one  is given a  sequential "number"
-(this has nothing to do with the memory location, just its sequence in
-the list  of blocks). Each  block starts with  a "rung," which  is the
-following code
+
+    ** 19. The ladder **
+
+To solve  the various problems with  jumps, we build the  program around
+what's called  a "ladder" in  the code. The  whole program is  broken up
+into small blocks of code. Each one is given a sequential "number" (this
+has nothing  to do with  the memory location,  just its sequence  in the
+list of blocks). Each block starts with a "rung," which is the following
+code
 
     DEC SI
     JNZ +disp8
@@ -49,14 +62,14 @@ section on Assembling below).
 
 There are many annoyances!
 
-A jump  cannot be  too short  (less than  32 bytes)  or too  long (127
-bytes). The viable range is large enough to build nontrivial programs,
-but is a significant constraint for us.
+A jump cannot be too short (less than 32 bytes) or too long (127 bytes).
+The viable range is large enough  to build nontrivial programs, but is a
+significant constraint for us.
 
-We don't have access to a non-conditional JMP instruction. There are a
+We don't have  access to a non-conditional JMP instruction.  There are a
 few tricks for simulating it. When computing a jump to a known label, we
-can just know the state of flags because we've just performed some
-computation. Even when doing a jump to a computed block number, we know
+can  just know  the state  of flags  because we've  just performed  some
+computation. Even when doing a jump  to a computed block number, we know
 that the result of subtraction is not zero, so we can always use the JNZ
 instruction. Occasionally we need to do a jump without knowing our state
 at all. XOR always clears the Overflow flag, so something like
@@ -75,24 +88,24 @@ but is more annoying because we need to keep track of two displacements.
 (XXX)
 
 
-    ** Assembling **
+    ** 20. Assembling **
 
-Assembling the program is the process of generating actual instruction
-bytes (here, printable x86)  from some semi-abstract representation of
-instructions (in  ABC, this is  the LLVMNOP language discussed  in the
-next section). Assembling a program has a self-dependency: In order to
-generate instructions like jumps and loads of addresses, the assembler
-needs to know where  code is located. But in order  to know where code
-is  located, the  assembler needs  to generate  it. In  most assembler
-tasks, this is reasonably straightforward: When we need to generate an
-instruction like  "MOV AX  <- offset  data", we just  emit "MOV  AX <-
-0x0000" and save for later an  obligation to overwrite the zeroes with
-the address  of "data", once  we know where  we placed it.  This works
-because the  encoding of  the MOV  instruction is  the same  length no
-matter what 16-bit value we load.  The same holds for JMP instructions
-(with the caveat that smart assemblers can JMP+disp8 for nearby labels
-and  JMP+disp16 for  further ones;  these instructions  have different
-length) and others.
+Assembling the program  is the process of  generating actual instruction
+bytes (here,  printable x86)  from some semi-abstract  representation of
+instructions (in ABC, this is the LLVMNOP language discussed in the next
+section).  Assembling  a program  has  a  self-dependency: In  order  to
+generate instructions like  jumps and loads of  addresses, the assembler
+needs to know where code is located.  But in order to know where code is
+located, the  assembler needs to  generate it. In most  assembler tasks,
+this  is  reasonably  straightforward:  When  we  need  to  generate  an
+instruction  like "MOV  AX <-  offset  data", we  just emit  "MOV AX  <-
+0x0000" and  save for later an  obligation to overwrite the  zeroes with
+the  address of  "data", once  we know  where we  placed it.  This works
+because the encoding of the MOV instruction is the same length no matter
+what 16-bit value we load. The same holds for JMP instructions (with the
+caveat  that  smart  assemblers  can JMP+disp8  for  nearby  labels  and
+JMP+disp16 for  further ones; these instructions  have different length)
+and others.
 
 For the ABC compiler this step is quite bad:
 
@@ -112,57 +125,57 @@ For the ABC compiler this step is quite bad:
    computed modulo the total number of blocks, logical code addresses
    depend on the number of blocks and their order.
 
-As a result, assembling is an iterative process. We take the program's
-blocks and translate them  into position-independent machine code. One
-positive thing  about the printable, non-self-modifying  subset of x86
-is  that none  of the  instructions  actually depend  on what  address
-they're placed at  (except perhaps a Jcc instruction  used to overflow
-the  instruction pointer).  Still,  we don't  know  even the  relative
-location of the  next block yet, so  we also record the  offset of the
-displacement byte for any Jcc instruction we emit.
+As a result,  assembling is an iterative process. We  take the program's
+blocks and  translate them  into position-independent machine  code. One
+positive thing about the printable,  non-self-modifying subset of x86 is
+that none  of the instructions  actually depend on what  address they're
+placed  at  (except perhaps  a  Jcc  instruction  used to  overflow  the
+instruction pointer). Still, we don't know even the relative location of
+the next  block yet, so  we also record  the offset of  the displacement
+byte for any Jcc instruction we emit.
 
-Next, we take these blocks and  attempt to allocate them into the code
-segment.  This can  fail for  the reasons  above, usually  after we've
-placed a block far enough from the preceding one that all jumps in the
-first are printable  (at least 0x20 bytes), the rung  at the beginning
-of  that block  can't  target  the second  (because  it  is more  than
-0x7e+0x03 bytes  away). We gather  all such problem blocks  and bisect
-the LLVMNOP code (blocks "fall  through," so this is equivalent). Then
-we try again.  When we succeed, we can fill  in the displacement bytes
-for the  Jcc instructions  to create valid  printable code.  There are
-various opportunities to be smarter about this (for example, bisecting
-the LLVMNOP  assumes that all  such instructions assemble to  the same
-length, which is not remotely true); tox86.sml contains several ideas.
+Next, we  take these blocks and  attempt to allocate them  into the code
+segment. This can fail for the reasons above, usually after we've placed
+a block far  enough from the preceding  one that all jumps  in the first
+are printable (at  least 0x20 bytes), the rung at  the beginning of that
+block can't target  the second (because it is more  than 0x7e+0x03 bytes
+away). We  gather all such  problem blocks  and bisect the  LLVMNOP code
+(blocks "fall through," so this is  equivalent). Then we try again. When
+we  succeed,  we  can  fill  in  the  displacement  bytes  for  the  Jcc
+instructions  to   create  valid  printable  code.   There  are  various
+opportunities  to be  smarter  about this  (for  example, bisecting  the
+LLVMNOP assumes that all such  instructions assemble to the same length,
+which is not remotely true); tox86.sml contains several ideas.
 
-Since  the initial  instruction pointer  must be  printable, we  start
-laying out blocks  towards the middle of the code  segment. If a block
-would run  off the end  of CS,  then we need  to pad that  region with
-jumps that  get up  close to  the end of  the segment  and then  do an
-overflowing jump past CS:0xFFFF before  continuing layout. Once we run
-out of blocks, we also need to pad any remaining code space with jumps
-in order  to bring control  back to the  first rung, since  the ladder
-needs to be a  complete cycle in order to work. It's  easy to pick out
-the texture of this padding in the code segment (e.g. pages 14, 16).
+Since the initial instruction pointer must be printable, we start laying
+out blocks towards the middle of the  code segment. If a block would run
+off the end of  CS, then we need to pad that region  with jumps that get
+up close to the end of the  segment and then do an overflowing jump past
+CS:0xFFFF before continuing  layout. Once we run out of  blocks, we also
+need  to pad  any remaining  code  space with  jumps in  order to  bring
+control back to the first rung, since  the ladder needs to be a complete
+cycle  in order  to work.  It's easy  to pick  out the  texture of  this
+padding in the code segment (e.g. pages 14, 16).
 
 
-    ** LLVMNOP **
+    ** 21. LLVMNOP **
 
-Knowing our low-level  endpoint, I can now work  backwards through the
-compiler. The compiler generally proceeds  by a series of intermediate
+Knowing our  low-level endpoint,  I can now  work backwards  through the
+compiler. The  compiler generally proceeds  by a series  of intermediate
 languages, the last of which is called LLVMNOP.
 
-This language  is an assembly-like  language that has  explicit *data*
-layout, but not not explicit *code* layout. By that, I mean that every
-function knows the size and offset  of its locals and arguments in the
-current local frame, and the size  and address of each global variable
-is known, as well as the global's initial values (if printable). It is
-akin to  LLVM [LLVM'04], but doesn't  really have anything to  do with
-it. LLVM is an excellent tool for writing compilers (superficially, it
-looks  like  a  good way  to  write  a  new  C compiler  targeting  an
-architecture like printable  x86!) but isn't really  suitable for this
-project because  it assumes that  the output architecture  has certain
-standard operations efficiently available, which is frequently not the
-case for printable x86.
+This  language is  an assembly-like  language that  has explicit  *data*
+layout, but not  not explicit *code* layout. By that,  I mean that every
+function knows  the size and offset  of its locals and  arguments in the
+current local frame, and the size and address of each global variable is
+known, as well as the global's initial values (if printable). It is akin
+to LLVM [LLVM'04], but doesn't really  have anything to do with it. LLVM
+is an excellent tool for writing compilers (superficially, it looks like
+a good  way to  write a  new C compiler  targeting an  architecture like
+printable x86!)  but isn't really  suitable for this project  because it
+assumes  that the  output architecture  has certain  standard operations
+efficiently available,  which is frequently  not the case  for printable
+x86.
 
 A sample of LLVMNOP constructs are:
 
@@ -190,102 +203,99 @@ A sample of LLVMNOP constructs are:
         |  EqZero tmp
         |  True
 
-LLVMNOP exists in both a "named"  and "explicit" version. In the named
-version, temporaries  (tmp) are strings paired  with a size (16  or 32
-bits). In  the explicit version, temporaries  are given as a  size and
-offset from  the current temporary  frame (EBP). The named  version is
-transformed to the  explicit version by the  process called Allocation
+LLVMNOP exists  in both a "named"  and "explicit" version. In  the named
+version, temporaries  (tmp) are  strings paired  with a  size (16  or 32
+bits). In  the explicit  version, temporaries  are given  as a  size and
+offset  from the  current temporary  frame (EBP).  The named  version is
+transformed to  the explicit  version by  the process  called Allocation
 (below).
 
-Commands are basically  assembly instructions that we might  have in a
-more expressive architecture; note for example that we have Add, which
-is not native in printable x86 (we implement it by computing the two's
-complement negation, and then subtracting).  Even commands that have a
-corresponding printable  x86 instruction  like XOR are  still compiled
-into  multiple  opcodes,  since  they  read  and  write  arguments  to
-temporaries,  not  registers.  We   discussed  the  implementation  of
-operations like Load16, Immediate16, and Mov in a previous section.
+Commands are  basically assembly  instructions that we  might have  in a
+more expressive architecture;  note for example that we  have Add, which
+is not native  in printable x86 (we implement it  by computing the two's
+complement negation,  and then subtracting).  Even commands that  have a
+corresponding printable x86 instruction like XOR are still compiled into
+multiple opcodes,  since they read  and write arguments  to temporaries,
+not  registers.  We  discussed  the implementation  of  operations  like
+Load16, Immediate16, and Mov in a previous section.
 
-A program  consists of a  series of  labeled blocks. JumpCond  pairs a
-condition (signed  and unsigned  comparisons, etc.) with  a jump  to a
-label. The  possible conditions  map to the  Jcc instructions  that we
-have  available. Since  opcode  0x7F (Jump  Greater)  is not  actually
-printable, all of the conditions "face less"; the condition Greater(A,
-B) is  equivalent to Less(B, A).  An earlier phase does  this rewrite.
-Also note that  in C, a < b  is an expression that can be  used in any
-context,  not   just  for  control   flow;  here  the   comparison  is
-inextricably linked  to a jump, since  CMP only sets FLAGS,  and FLAGS
-can only be used for jumping.  An earlier phase removes the expression
-forms as well,  without being too wasteful when  the programmer writes
-"if (x < 1)" to begin with.
+A  program consists  of a  series of  labeled blocks.  JumpCond pairs  a
+condition  (signed and  unsigned comparisons,  etc.)  with a  jump to  a
+label. The possible conditions map to  the Jcc instructions that we have
+available. Since opcode  0x7F (Jump Greater) is  not actually printable,
+all  of the  conditions  "face  less"; the  condition  Greater(A, B)  is
+equivalent to Less(B, A). An earlier  phase does this rewrite. Also note
+that in C, a  < b is an expression that can be  used in any context, not
+just for control  flow; here the comparison is inextricably  linked to a
+jump, since CMP only sets FLAGS, and FLAGS can only be used for jumping.
+An earlier phase removes the expression forms as well, without being too
+wasteful when the programmer writes "if (x < 1)" to begin with.
 
-The only way to jump to a non-constant destination is with PopJumpInd,
-which is  basically the RET  assembly instruction. It pops  an address
-(block number) from the top  of the machine stack, and unconditionally
-transfers control to that label (by  computing the number of blocks to
-traverse, then jumping  to the ladder). This is indeed  used to return
-from a function call, as well as to call a function through a function
-pointer. It takes  its argument on the stack (as  opposed to using the
-existing "Pop tmp" and then "JumpInd tmp") because while we're setting
-up a function call, we need to move the temporary frame pointer, after
-which point it is unsafe to access temporaries. The stack, however, is
-a stable place to stash data.
+The only way  to jump to a non-constant destination  is with PopJumpInd,
+which  is basically  the RET  assembly instruction.  It pops  an address
+(block number)  from the top  of the machine stack,  and unconditionally
+transfers control  to that label (by  computing the number of  blocks to
+traverse, then  jumping to the  ladder). This  is indeed used  to return
+from a function call,  as well as to call a  function through a function
+pointer. It  takes its argument  on the stack  (as opposed to  using the
+existing "Pop tmp"  and then "JumpInd tmp") because  while we're setting
+up a function  call, we need to move the  temporary frame pointer, after
+which point it is unsafe to access temporaries. The stack, however, is a
+stable place to stash data.
 
-Since we have some higher-level  operations like Mov available, we can
-implement some delicate maneuvers like  function calls as sequences of
-multiple commands.  On the other  hand, for some primitives  like Init
-and Exit, there's no real value  in breaking them into smaller pieces.
-Some other complex  primitives like Out8 have no  analogous feature in
-C; these are provided  as sort of "intrinsics" that can  be used to do
-low-level programming  in C. We'll discuss  Out8 in the Section  on IO
-(XXX). Other  primitives, such as  one called  "Argv" that is  used to
-initialize  the  argv  parameter  to main  during  initialization,  is
-compiled  away when  we convert  to LLVMNOP.  In this  case, the  Argv
-primitive just  creates a  global array  containing two  elements: The
-second is zero ("null") as required  by the standard, and the first is
-the  constant address  0x0081, which  is  a pointer  into the  Program
-Segment Prefix  where DOS  stores the  command line  (untokenized; the
-programmer must do any processing she desires).
-
-
-    ** Temporary allocation **
-
-Temporary  allocation  is fairly  standard.  We  use a  dataflow-based
-liveness calculation to determine which temporaries interfere with one
-another; if  two temporaries  of the same  size don't  interfere, then
-they  can use  the  same slot,  so  they are  coalesced  into one.  We
-prioritize coalescing temporaries  in a "Mov tmp1 <- tmp2"  so that we
-get the no-op  instruction "Mov tmp1 <- tmp1"; this  is possible for a
-great many Movs,  and allows us to  be much more regular  in the phase
-that  generates  LLVMNOP  without  compromising  code  size.  We  then
-prioritize  temporaries  that  appear  in  a  "Load16  tmp1  <-  tmp2"
-instruction since we have a nice trick  for that one when both are the
-same. After that, we just greedily coalesce temporaries until it is no
-longer  possible. Fancier  register allocation  techniques like  graph
-coloring  would  work  here  (this   part  of  the  compiler  is  very
-traditional),  but there's  not  much  need: We  have  over 40  16-bit
-temporaries,  all of  which are  just as  efficient to  access, so  we
-mainly  just want  to keep  the total  number used  small so  that EBP
-offsets are  printable. Having a  smaller temporary frame  size allows
-deeper recursion, as well.
-
-The compilation strategy ends up  storing almost all immediate results
-in temporaries, which is not that suboptimal since all operations need
-to be  between a register  and memory  anyway. However, many  pairs of
-instructions could  keep a  just-computed value  in a  register rather
-than bothering to write it. This  is not yet implemented, but the idea
-is that we could introduce a  small number of registers (probably just
-one?) in  addition to the numbered  temporaries, and use those  in the
-output  of  Allocation. This  could  produce  significantly closer  to
-hand-written code, without the need to change much in the backend.
+Since we  have some higher-level  operations like Mov available,  we can
+implement some  delicate maneuvers like  function calls as  sequences of
+multiple commands. On the other hand,  for some primitives like Init and
+Exit, there's no  real value in breaking them into  smaller pieces. Some
+other complex primitives like Out8 have no analogous feature in C; these
+are provided  as sort of "intrinsics"  that can be used  to do low-level
+programming in  C. We'll discuss Out8  in Section 27 when  we talk about
+IO.  Other  primitives, such  as  one  called  "Argv"  that is  used  to
+initialize the argv parameter to main during initialization, is compiled
+away when we  convert to LLVMNOP. In this case,  the Argv primitive just
+creates  a global  array containing  two  elements: The  second is  zero
+("null") as  required by  the standard,  and the  first is  the constant
+address 0x0081, which is a pointer into the Program Segment Prefix where
+DOS stores  the command  line (untokenized; the  programmer must  do any
+processing she desires).
 
 
-    ** CIL **
+    ** 22. Temporary allocation **
 
-The  intermediate language  that precedes  the named  LLVMNOP code  is
-called  CIL,  for C  Intermediate  Language.  It's  intended to  be  a
-desugared and more explicit version of  C. Some examples of the of CIL
-grammar:
+Temporary  allocation  is  fairly  standard.  We  use  a  dataflow-based
+liveness calculation  to determine which temporaries  interfere with one
+another; if two temporaries of the  same size don't interfere, then they
+can use  the same slot,  so they are  coalesced into one.  We prioritize
+coalescing temporaries in a "Mov tmp1 <-  tmp2" so that we get the no-op
+instruction "Mov tmp1 <- tmp1"; this  is possible for a great many Movs,
+and  allows us  to be  much  more regular  in the  phase that  generates
+LLVMNOP without  compromising code size. We  then prioritize temporaries
+that appear in a "Load16 tmp1 <-  tmp2" instruction since we have a nice
+trick for that one when both are  the same. After that, we just greedily
+coalesce temporaries  until it is  no longer possible.  Fancier register
+allocation techniques like graph coloring  would work here (this part of
+the compiler  is very traditional), but  there's not much need:  We have
+over  40 16-bit  temporaries,  all of  which are  just  as efficient  to
+access, so we  mainly just want to  keep the total number  used small so
+that EBP  offsets are printable.  Having a smaller temporary  frame size
+allows deeper recursion, as well.
+
+The compilation strategy ends up storing almost all immediate results in
+temporaries, which is  not that suboptimal since all  operations need to
+be  between  a  register  and  memory anyway.  However,  many  pairs  of
+instructions could keep a just-computed  value in a register rather than
+bothering to write it. This is not yet implemented, but the idea is that
+we could introduce  a small number of registers (probably  just one?) in
+addition to  the numbered temporaries,  and use  those in the  output of
+Allocation.  This could  produce  significantly  closer to  hand-written
+code, without the need to change much in the backend.
+
+
+    ** 23. CIL **
+
+The intermediate language that precedes the named LLVMNOP code is called
+CIL, for  C Intermediate Language. It's  intended to be a  desugared and
+more explicit version of C. Some examples of the of CIL grammar:
 
   signedness ::= Signed | Unsigned
 
@@ -320,13 +330,12 @@ grammar:
          | Return value
          | ...
 
-And lots more  stuff. A program is a collection  of functions, each of
-which is a collection of named statements (the stmt type is recursive,
-with a single statement representing a series of C statements until we
-reach a  Return or unconditional  Goto). Programs  also have a  set of
-globals with initialization code for  them. Note that CIL has ML-style
-lexically  scoped variables  which are  only  in scope  for the  given
-block. Since  C's semantics for  variables allow them to  be addressed
-and modified, we convert all C  variables into explicit loads from and
-stores to memory.
-
+And lots  more stuff. A  program is a  collection of functions,  each of
+which is a  collection of named statements (the stmt  type is recursive,
+with a single  statement representing a series of C  statements until we
+reach  a Return  or unconditional  Goto). Programs  also have  a set  of
+globals with  initialization code for  them. Note that CIL  has ML-style
+lexically scoped variables which are only  in scope for the given block.
+Since  C's  semantics for  variables  allow  them  to be  addressed  and
+modified, we convert all C variables into explicit loads from and stores
+to memory.

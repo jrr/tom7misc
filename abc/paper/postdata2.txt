@@ -31,7 +31,7 @@ are only used  as a combined test-and-branch in  the GotoIf construct.
 Optimizations try to put these in the most useful form for later work.
 
 
-    ** Optimization **
+    ** 24. Optimization **
 
 CIL code  is optimized  via a  series of  conservative transformations
 until   no  more   simplifications  are   possible.  Among   important
@@ -78,7 +78,7 @@ needs to at least be aware of  their existence so that it doesn't e.g.
 reintroduce string literals after they have been eliminated!
 
 
-    ** Converting to CIL **
+    ** 25. Converting to CIL **
 
 The frontend of the compiler uses  the ckit library [CKIT'00] to parse
 the input C code into an ML datatype called "AST." The details of this
@@ -94,7 +94,7 @@ references are  converted into pointer arithmetic.  Although there's a
 lot of code involved to implement C, it is mostly standard.
 
 
-    ** Limitations **
+    ** 26. Limitations **
 
 ABC has  some limitations, some of  which are fundamental and  some of
 which are simply due to the unconscionably strict SIGBOVIK deadlines:
@@ -157,7 +157,7 @@ Perhaps check  http://tom7.org/abc/ for an updated  version, published
 postpartum.
 
 
-    ** Programming **
+    ** 27. Programming **
 
 Since we're working in reverse order,  we've reached the very front of
 the ABC compiler, and now can talk about the program we feed to it.
