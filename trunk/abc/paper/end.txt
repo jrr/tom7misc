@@ -1,4 +1,4 @@
-    ** 28. paper.exe **
+    ** 28. PAPER.EXE **
 
 Executing this paper in DOS, with an AdLib-compatible sound card (such
 as the Sound  Blaster) configured at 0x388, will play  some music. The
@@ -74,7 +74,9 @@ upon exiting (because  we do execute an illegal  opcode). For cosmetic
 style points, the local version of DOSBox has been modified to instead
 output
 
+
         Thank you for playing Wing Commander!
+
 
 
     ** 29. PAPER.C **
@@ -89,18 +91,24 @@ laugh at my many troubles:
    loops with built-in constants determined empirically. At least
    this technique of relying on the CPU's cycle timing for delays
    was common in the DOS era, so this is, like, a period piece.
+
  - However, since the routine that calculates lengths performs a
    multiplication, and multiplication of m * n is O(n), the delays
    are not actually linear.
+
  - You can see the many places where I'm applying explicit casts,
    either because an implicit coercion is not yet implemented for
    ABC (I want to do it right, and the rules are a little subtle),
    because some operation is not yet available at char or long type
    (I implemented 16-bit first), or for efficiency.
+   
  - You can see the reliance on string literals for efficient lookup
    tables, in keeping with the "printable" theme.
 
 I also still need to fill up 20 pages in this ridiculously small font!
+
+
+
 
 %insert paper.c
 
@@ -125,10 +133,10 @@ significant  issue is  that interrupts,  which are  constantly firing,
 push  16-bit versions  of CS  and  IP onto  the stack,  and then  RETF
 (return far) to that address. This  means that if an interrupt happens
 while we are executing in this  extended address space, we will return
-to CS:(IP & 0xFFFF). If we had control over interrupts, this might be a
-good way to return to the normal 16-bit code segment (i.e., to perform
-a backwards  jump), but  as discussed, we  do not. We  may be  able to
-globally  suppress  interrupts,  like   by  using  our  single  illegal
+to CS:(EIP & 0xFFFF). If we had control over interrupts, this might be
+a  good way  to return  to the  normal 16-bit  code segment  (i.e., to
+perform a backwards jump), but as discussed, we do not. We may be able
+to  globally suppress  interrupts, like  by using  our single  illegal
 instruction  interrupt  during   initialization,  with  the  interrupt
 handler pointing  just to  code that we  control (and  never returning
 from it).  This leaves the  interrupt flag cleared, as  discussed. The
@@ -143,7 +151,7 @@ size prefix;  however, this does  not seem to  be the case  in DOSBox.
 Given how unusual this situation is, it  may even be a bug in DOSBox's
 CPU emulator. Having access to a full megabyte of code (it still needs
 to fit in  the EXE container) would be exciting,  since it would allow
-us to build  much more significant systems (e.g. standard  malloc and a
+us to build much more significant  systems (e.g. standard malloc and a
 floating point emulator); more investigation is warranted here.
 
 
@@ -159,8 +167,8 @@ enjoyment of each task: i.e., the cost is like
    (pain of writing low-level code by hand) *
        time writing low-level code by hand
        
-... but  I have heard  that not all computer  work is done  purely for
-fun.)  This "portable  assembler"  application of  C remains  relevant
+... but I have been informed that not all computer work is done purely
+for fun.) This "portable assembler"  application of C remains relevant
 today, and CIL or LLVMNOP is a much simpler than GCC or LLVM.
 
 Anyway, I discovered that  the design of such a thing  is not so easy.
@@ -179,8 +187,8 @@ favor of others,  at the direction of the compiler  author, but such a
 thing is firmly future work.
 
 
-On that topic, one  might ask: What is the minimal  subset of bytes we
-could imagine using?
+On the topic of taking away, one might ask: What is the minimal subset
+of bytes we could imagine using?
 
 There  are  some  trivial  subtractions:   We  never  emit  the  BOUND
 instruction (0x62, lowercase b) and it  does not seem useful; a few of
@@ -211,7 +219,7 @@ that this requires a "single absolute jump" to the top of the program,
 an issue similar to what we encounter in printable x86, only we do not
 cheat   by   inserting   any   out-of-gamut   instructions).   Another
 enterprising programmer, Domas, implemented a C compiler that produces
-only  MOV  instructions.  I  didn't  look  at  it  while  writing  ABC
+only MOV instructions [MVF'16]. I didn't  look at it while writing ABC
 (spoilers!) but he avoids using any  JMP instruction the same way that
 I exit the program (generating  illegal instructions but rewriting the
 interrupt handler).  While awesome, the problem  is somewhat different
@@ -229,6 +237,31 @@ versions of it are printable!
 Of  course, everyone  knows that  even  unary numbers  (just like  one
 symbol repeated a given number of times) is Turing complete, via Godel
 encoding. So what's the big deal?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                                                                            
                                                                            
@@ -287,6 +320,10 @@ encoding. So what's the big deal?
                                  ##############                            
 
               Figure 7. Printable X86
+
+
+
+
 
 
     ** 32. Acknowledgements **

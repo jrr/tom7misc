@@ -1,8 +1,9 @@
-Once is enough!  We can set things  up so that whenever we  need to jump
-backwards,  we instead  jump  forward  until we're  at  the  end of  the
-segment,  then  jump  across  that boundary  (overflowing  back  to  the
-beginning) and then  keep jumping forward until we get  where we need to
-be. This is delicate, but it works.
+
+Anyway,  one backwards  jump is  enough! We  can set  things up  so that
+whenever we need to jump backwards,  we instead jump forward until we're
+at the end  of the segment, then jump across  that boundary (overflowing
+back to the beginning) and then  keep jumping forward until we get where
+we need to be. This is delicate, but it works.
 
 One other issue  with jumps is that  we can only jump  a fixed distance;
 there  is no  equivalent  to "MOV  EIP  <-  AX" to  jump  to a  computed
@@ -60,11 +61,9 @@ don't want to DEC SI, both  because that's more instructions to execute,
 and because we don't  know the amount of padding ahead  of time (see the
 section on Assembling below).
 
-There are many annoyances!
-
-A jump cannot be too short (less than 32 bytes) or too long (127 bytes).
-The viable range is large enough  to build nontrivial programs, but is a
-significant constraint for us.
+There are  many annoyances!  A jump  cannot be too  short (less  than 32
+bytes) or  too long  (127 bytes).  The viable range  is large  enough to
+build nontrivial programs, but is a significant constraint for us.
 
 We don't have  access to a non-conditional JMP instruction.  There are a
 few tricks for simulating it. When computing a jump to a known label, we
@@ -85,7 +84,6 @@ keeps AX unperturbed and always performs the jump. A little shorter is
 
 which jumps to the same target whether  the Overflow flag is set or not,
 but is more annoying because we need to keep track of two displacements.
-(XXX)
 
 
     ** 20. Assembling **
@@ -93,19 +91,18 @@ but is more annoying because we need to keep track of two displacements.
 Assembling the program  is the process of  generating actual instruction
 bytes (here,  printable x86)  from some semi-abstract  representation of
 instructions (in ABC, this is the LLVMNOP language discussed in the next
-section).  Assembling  a program  has  a  self-dependency: In  order  to
-generate instructions like  jumps and loads of  addresses, the assembler
-needs to know where code is located.  But in order to know where code is
-located, the  assembler needs to  generate it. In most  assembler tasks,
-this  is  reasonably  straightforward:  When  we  need  to  generate  an
-instruction  like "MOV  AX <-  offset  data", we  just emit  "MOV AX  <-
-0x0000" and  save for later an  obligation to overwrite the  zeroes with
-the  address of  "data", once  we know  where we  placed it.  This works
-because the encoding of the MOV instruction is the same length no matter
-what 16-bit value we load. The same holds for JMP instructions (with the
-caveat  that  smart  assemblers  can JMP+disp8  for  nearby  labels  and
-JMP+disp16 for  further ones; these instructions  have different length)
-and others.
+section).  Assembling  has  a  self-dependency:  In  order  to  generate
+instructions like jumps  and loads of addresses, the  assembler needs to
+know where code is located. But in  order to know where code is located,
+the assembler  needs to generate  it. In  most assembler tasks,  this is
+reasonably straightforward: When we need to generate an instruction like
+"MOV AX <-  offset data", we just  emit "MOV AX <- 0x0000"  and save for
+later an obligation to overwrite the  zeroes with the address of "data",
+once we know where we placed it.  This works because the encoding of the
+MOV instruction is the same length  no matter what 16-bit value we load.
+The  same  holds  for  JMP  instructions (with  the  caveat  that  smart
+assemblers can  JMP+disp8 for nearby  labels and JMP+disp16  for further
+ones; these instructions have different lengths) and others.
 
 For the ABC compiler this step is quite bad:
 
@@ -140,12 +137,12 @@ a block far  enough from the preceding  one that all jumps  in the first
 are printable (at  least 0x20 bytes), the rung at  the beginning of that
 block can't target  the second (because it is more  than 0x7e+0x03 bytes
 away). We  gather all such  problem blocks  and bisect the  LLVMNOP code
-(blocks "fall through," so this is  equivalent). Then we try again. When
-we  succeed,  we  can  fill  in  the  displacement  bytes  for  the  Jcc
-instructions  to   create  valid  printable  code.   There  are  various
-opportunities  to be  smarter  about this  (for  example, bisecting  the
-LLVMNOP assumes that all such  instructions assemble to the same length,
-which is not remotely true); tox86.sml contains several ideas.
+into two smaller blocks. Then we try again. When we succeed, we can fill
+in  the displacement  bytes for  the  Jcc instructions  to create  valid
+printable code. There are various opportunities to be smarter about this
+(for example, bisecting  the LLVMNOP assumes that  all such instructions
+assemble  to the  same length,  which is  not remotely  true); tox86.sml
+contains several ideas.
 
 Since the initial instruction pointer must be printable, we start laying
 out blocks towards the middle of the  code segment. If a block would run
@@ -223,9 +220,9 @@ A  program consists  of a  series of  labeled blocks.  JumpCond pairs  a
 condition  (signed and  unsigned comparisons,  etc.)  with a  jump to  a
 label. The possible conditions map to  the Jcc instructions that we have
 available. Since opcode  0x7F (Jump Greater) is  not actually printable,
-all  of the  conditions  "face  less"; the  condition  Greater(A, B)  is
+all  of the  conditions  "face  less;" the  condition  Greater(A, B)  is
 equivalent to Less(B, A). An earlier  phase does this rewrite. Also note
-that in C, a  < b is an expression that can be  used in any context, not
+that in C, a < b  is an expression that can be  used in any context, not
 just for control  flow; here the comparison is inextricably  linked to a
 jump, since CMP only sets FLAGS, and FLAGS can only be used for jumping.
 An earlier phase removes the expression forms as well, without being too
