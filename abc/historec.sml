@@ -7,7 +7,7 @@ struct
 
   (* First character in last page. *)
   val LASTPAGE = 19 * 128 * 160
-  val ROWSTART = 8
+  val ROWSTART = 9
   val COLSTART = 21
 
   (* Place to insert convergence help. *)
@@ -21,7 +21,7 @@ struct
     Util.for CONVERGEPOS (CONVERGEPOS + MAX_CONV) f
 
   fun for_column f =
-    Util.for 0 (0x7e - 0x20 + 1)
+    Util.for 0 (0x7e - 0x20)
     (fn row =>
      Util.for 0 5
      (fn col =>
@@ -41,6 +41,14 @@ struct
       val contents = Word8Array.tabulate (128 * 160 * 20,
                                           fn i =>
                                           Word8.fromInt ` ord `String.sub (contents, i))
+
+      fun writestring pos s =
+        Util.for 0 (size s - 1)
+        (fn ri =>
+         let val i = pos + ri
+         in Word8Array.update (contents, i,
+                               Word8.fromInt ` ord ` String.sub(s, ri))
+         end)
 
 
       (* Blank out the region that we overwrite, so that we can assume it's all spaces. *)
@@ -158,42 +166,30 @@ struct
               Array.app (fn i => print (Int.toString i ^ " ")) change;
               print ("\nWith conv: " ^ conv ^ "\n");
 
-              (* Update convergence string *)
-              for_converge
+              (* Actually write the histogram. *)
+              Util.for 0x20 0x7e
               (fn i =>
-               let val ri = i - CONVERGEPOS
-               in if ri < size conv
-                  then Word8Array.update (contents, i,
-                                          Word8.fromInt ` ord ` String.sub(conv, ri))
-                  else ()
+               let
+                 val count = Array.sub (start_histo, i)
+                 val count =
+                   (case getdigit i of
+                      NO => count
+                    | SPACE => count + Array.sub (change, 10)
+                    | DIGIT d => count + Array.sub (change, d))
+                 val s = Int.toString count
+
+                 val row = ROWSTART + (i - 0x20)
+               in
+                 writestring (LASTPAGE + row * 160 + COLSTART) s
                end);
 
-              StringUtil.writefilev8 "paper/histoed.exe" (Word8Array.vector contents)
+              (* Update convergence string *)
+              writestring CONVERGEPOS conv;
+
+              StringUtil.writefilev8 filename (Word8Array.vector contents)
             end
           else
-            let
-
-            in
-          (*
-          print "Start histo:\n";
-          Util.for 0x20 0x7e
-          (fn i =>
-           let
-             val count = Array.sub (start_histo, i)
-           in
-             print ("        " ^ implode [chr i] ^ "   0x" ^
-                    Word8.toString (Word8.fromInt i) ^
-                    "    " ^ Int.toString count ^ "  ");
-             (case getdigit i of
-                NO => print "--"
-              | SPACE => print ("+" ^ Int.toString (Array.sub (delta, 10)) ^
-                                " = err " ^ Int.toString (Array.sub (err, 10)))
-              | DIGIT d => print ("+" ^ Int.toString (Array.sub (delta, d)) ^
-                                  " = err " ^ Int.toString (Array.sub (err, d))));
-             print "\n"
-           end);
-          *)
-
+            let in
 
               loop (change, if MT.random_nat mt 6 = 0
                             then randomdigits ()
@@ -212,65 +208,3 @@ val () = Params.main1 "histo.exe input_file" Histo.go
            TextIO.output(TextIO.stdErr, s ^ "\n");
            raise e
          end
-      (* OK, now we have a vector of counts representing the file
-         without the column of numbers for the histogram counts,
-         and without the convergence string. What we want to do
-         is compute a column and a convergence string that
-         "solves the equation"; where the sum of character counts
-         within the rectangles (minus the spaces displaced)
-         is consistent with the contents of the first rectangle.
-         (the second rectangle can be anything). *)
-
-             (* What we're doing here is solving for a histogram that
-         we can place into the paper, satisfying its own contents.
-         We pair that with a string that we can insert in the
-         "convergence" section, since there may be no solution
-         otherwise.
-
-         What we do is take a histogram (maps printable chars
-         to counts); this doesn't have to correspond to anything,
-         but it should be correct for characters other than space
-         and digits, because we don't have any opportunity to
-         fix that. We then compute its error, which is how it
-         would affect the histogram itself to insert it into
-         the paper in text. *)
-
-      (* Takes a histogram, which is a count for each character
-         (across the whole file). *)
-(*
-      fun delta (histo, conv)  =
-        let
-          (* Compute the delta that we would cause in the
-             histogram from inserting it as text. This only
-             affects digits and space. *)
-          val err = Array.array (11, 0)
-          fun digit c =
-            let
-              val d = ord c - ord #"0"
-            in
-              Array.update (err, d, Array.sub (err, d) + 1)
-            end
-        in
-          Util.for 0x20 0x7e
-          (fn idx =>
-           let
-             val count = Array.sub (histo, idx)
-             val () = if count < 0
-                      then raise Histo ("Count for " ^ Int.toString idx ^
-                                        " (" ^ implode [chr idx] ^
-                                        ") cannot be negative? " ^
-                                        Int.toString count)
-                      else ()
-             (* String version of the count. *)
-             val s = Int.toString count
-           in
-             CharVector.app digit s;
-             (* Any digit displaces a space. *)
-             Array.update (err, 10, Array.sub (err, 10) - size s)
-           end);
-          (* Same, but this is just one big number. *)
-          CharVector.app digit conv;
-          Array.update (err, 10, Array.sub (err, 10) - size conv);
-          err
-        end
-*)

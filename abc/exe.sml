@@ -33,10 +33,10 @@ struct
 
   val PRINT_LOW = 0x20
   val PRINT_HIGH = 0x7e
-  fun assert_printable s =
+  fun assert_printable f s =
     if CharVector.all (fn c => ord c >= PRINT_LOW andalso ord c <= PRINT_HIGH) s
     then ()
-    else raise EXE ("Input file (e.g. .2c file) not all printable!")
+    else raise EXE ("Input file (" ^ f ^ ") not all printable!")
 
   fun w8vstring s =
     Word8Vector.tabulate (size s, repeatingstring s)
@@ -57,7 +57,7 @@ struct
                    (* Strip trailing newline *)
                    val bt = String.substring (bt, 0, 128 * 160)
                  in
-                   assert_printable bt;
+                   assert_printable "bytetable" bt;
                    Segment.set_string ds BYTETABLE_START bt;
                    Segment.lock_range ds BYTETABLE_START (size bt)
                  end
@@ -250,12 +250,17 @@ struct
                else raise EXE ("This code assumes that the relocation " ^
                                "table is 32-bit aligned.")
 
-      val firstpage = StringUtil.readfile "paper/firstpage.2c"
-      val postreloc = StringUtil.readfile "paper/postreloc.2c"
-      val postdata = StringUtil.readfile "paper/postdata.2c"
-      val endpage = StringUtil.readfile "paper/end.2c"
-      val () = app assert_printable [firstpage, postreloc,
-                                     postdata, endpage]
+      fun load_printable f =
+        let val s = StringUtil.readfile f
+        in
+          assert_printable f s;
+          s
+        end
+
+      val firstpage = load_printable "paper/firstpage.2c"
+      val postreloc = load_printable "paper/postreloc.2c"
+      val postdata = load_printable "paper/postdata.2c"
+      val endpage = load_printable "paper/end.2c"
 
       fun fromstring s i =
         if i < 0 then raise EXE "out of range"
