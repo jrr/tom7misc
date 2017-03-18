@@ -553,13 +553,28 @@ struct
                 Tactics.add_tmp16 acc (offset a) (offset b)
               end
 
-          | A.Mov (a, b) =>
+          | A.Mov (A.E { offset = a, size = A.S16, ... },
+                   A.E { offset = b, size = A.S16, ... }) =>
               let in
-                (* XXX allow 32 *)
-                assert16 a; assert16 b;
                 Continue `
-                Tactics.mov_tmp16_to_tmp16 acc (offset a) (offset b)
+                Tactics.mov_tmp16_from_tmp16 acc a b
               end
+
+          | A.Mov (A.E { offset = a, size = A.S32, ... },
+                   A.E { offset = b, size = A.S16, ... }) =>
+              let in
+                Continue `
+                Tactics.mov_tmp32_from_tmp16 acc a b
+              end
+
+          | A.Mov (A.E { offset = a, size = A.S16, ... },
+                   A.E { offset = b, size = A.S32, ... }) =>
+              let in
+                Continue `
+                Tactics.mov_tmp16_from_tmp32 acc a b
+              end
+
+          | A.Mov _ => raise ToX86 "illegal mov"
 
           | A.FrameOffset (tmp, off) =>
               let
