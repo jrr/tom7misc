@@ -30,7 +30,7 @@ historec.exe : historec.sml historec.mlb
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
 
-TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe struct.exe forswitch.exe
+TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe struct.exe fswitch.exe
 
 text2pdf.exe : text2pdf.c
 	gcc -O2 $< -o $@

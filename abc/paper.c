@@ -158,13 +158,16 @@ int ParseNote(unsigned char *ptr, int c, int *idx) {
   midi = octave4[offset];
   for (;;) {
     nextc = (int)ptr[*idx];
-    if (nextc == (int)'\'') {
+    switch (nextc) {
+    case '\'':
       // Up octave.
       midi += (int)12;
-    } else if (nextc == (int)',') {
+      break;
+    case ',':
       // Down octave.
       midi -= (int)12;
-    } else {
+      break;
+    default:
       // Not suffix, so we're done (and don't consume
       // the character.)
       return midi;
@@ -201,23 +204,30 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
     // Advance to next character.
     *idx = *idx + (int)1;
 
-    if (c == (int)'^') {
+    switch (c) {
+    case '^':
       sharpflat++;
-    } else if (c == (int)'_') {
+      break;
+    case '_':
       sharpflat--;
-    } else if (c == (int)'=') {
+      break;
+    case '=':
       // Nothing. We assume key of C, so there are no naturals.
-    } else if (c >= (int)'A' && c <= (int)'G') {
-      midi_note = ParseNote(ptr, c, idx) + sharpflat;
+      break;
+    case 'z':
       *len = ParseLength(ptr, idx);
-      return midi_note;
-    } else if (c >= (int)'a' && c <= (int)'g') {
-      midi_note = ParseNote(ptr, c - (int)32, idx) + (int)12 + sharpflat;
-      *len = ParseLength(ptr, idx);
-      return midi_note;
-    } else if (c == (int)'z') {
-      *len = ParseLength(ptr, idx);
-      return 128;  // No sound.
+      // No sound.
+      return 128;
+    default:
+      if (c >= (int)'A' && c <= (int)'G') {
+        midi_note = ParseNote(ptr, c, idx) + sharpflat;
+        *len = ParseLength(ptr, idx);
+        return midi_note;
+      } else if (c >= (int)'a' && c <= (int)'g') {
+        midi_note = ParseNote(ptr, c - (int)32, idx) + (int)12 + sharpflat;
+        *len = ParseLength(ptr, idx);
+        return midi_note;
+      }
     }
   }
 }
