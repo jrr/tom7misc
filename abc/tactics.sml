@@ -691,17 +691,11 @@ struct
         multistrategy [incdec (), xor (), sub (), and16 (),
                        bytewise_hint (), bytewise_blind ()]
       end
-  in
-    (* TODO: Easy to set any reg to 32-bit value by doing two imm_ax16s
-       (the second with a known value), and pushing them on the stack,
-       then popping into a 32-bit register. (Or four single-byte loads?) *)
 
     (* Set AX to the 16-bit value.
        The register should already be claimed by the caller. *)
-    fun imm_ax16 acc (w : Word16.word) : acc =
+    fun unsafe_imm_ax16 acc (w : Word16.word) : acc =
       let
-        val () = assert_claimed acc AX
-
         val known =
           case M.reg16 (mach acc) M.EAX of
             SOME ax => SOME ` imm_ax16_known acc ax w
@@ -766,6 +760,35 @@ struct
         multistrategy [known, via_zero, via_20, pushpop]
       end handle e => raise e
 
+  in
+    (* TODO: Easy to set any reg to 32-bit value by doing two imm_ax16s
+       (the second with a known value), and pushing them on the stack,
+       then popping into a 32-bit register. (Or four single-byte loads?) *)
+    fun imm_ax16 acc (w : Word16.word) : acc =
+      let in
+        assert_claimed acc AX;
+        unsafe_imm_ax16 acc w
+      end
+
+    (* PERF: At least load 0xFFFFFFFF with a DEC EAX, but more
+       generally, support printable immediates, and some other
+       common cases that can be done much more efficiently.
+       (It's not so bad since we at least know the value for
+       the second load, so if it's the same it's almost free.) *)
+    fun imm_ax32 acc (w : Word32.word) : acc =
+      let
+        val () = assert_claimed acc EAX
+        val wh = Word16.fromInt (Word32.toInt (Word32.>> (w, 0w16)))
+        val wl = Word16.fromInt (Word32.toInt (Word32.andb (w, 0wxFFFF)))
+
+        (* since it's little endian, we push wh, then wl, then pop. *)
+        val acc = unsafe_imm_ax16 acc wh // PUSH AX
+        val acc = unsafe_imm_ax16 acc wl // POP AX
+      in
+        acc //
+        POP EAX ??
+        learn_reg32 M.EAX w
+      end
   end
 
   fun reg_to_machreg r =
@@ -989,6 +1012,25 @@ struct
          primitive directly. *)
       mov_tmp16_from_tmp16 acc dst src
 
+  (* This needs immediate32 so that we can zero AX. *)
+  fun mov_tmp32_from_tmp32 acc dst src : acc =
+    (* This would NOT work if dst and src are the same,
+       but fortunately we can just do nothing in that case. *)
+    if dst = src then acc
+    else
+      let
+        val acc = acc ++ EAX
+      in
+        imm_ax32 acc 0wx00000000 //
+        (* First, zero the destination. *)
+        AND (S32, EBP_TEMPORARY dst <~ A) //
+        (* A is still zero; replace it with src. *)
+        XOR (S32, A <- EBP_TEMPORARY src) ??
+        forget_reg32 M.EAX //
+        (* Now write to dst. *)
+        XOR (S32, EBP_TEMPORARY dst <~ A) -- EAX
+      end
+
   (* PERF: Should try to select a register that has 0 in it
      already. Blocks start knowing that SI is 0, for example.
 
@@ -1049,6 +1091,30 @@ struct
        let val acc = imm_reg16only acc tmpreg v
        in mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
        end)
+
+  fun imm_tmp32 acc (tmp : int) (v : Word32.word) : acc =
+    if v = Word32.fromInt 0
+    then
+      (* If storing zero, we don't need to both AND and XOR;
+         we can just clear with AND. *)
+      let val acc = acc ++ EAX
+      in
+        imm_ax32 acc 0wx00000000 //
+        AND (S32, EBP_TEMPORARY tmp <~ A) -- EAX
+      end
+    else
+      (* General case *)
+      let
+        val acc = acc ++ EAX
+        val acc =
+          imm_ax32 acc 0wx00000000 //
+          AND (S32, EBP_TEMPORARY tmp <~ A)
+        val acc =
+          imm_ax32 acc v //
+          XOR (S32, EBP_TEMPORARY tmp <~ A)
+      in
+        acc -- EAX
+      end
 
   (* TODO: If this is not allowed then it should be explicitly banned!
      Many ops can easily support the case where operands are the same;
