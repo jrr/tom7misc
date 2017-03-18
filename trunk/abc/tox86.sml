@@ -260,6 +260,12 @@ struct
             else raise ToX86 ("Command requires 16-bit temporary; got " ^
                               A.explicit_tmptos t ^ " in cmd:\n" ^
                               A.explicit_cmdtos cmd)
+          fun assert32 (t as A.E { offset, size, comment }) =
+            if size = A.S32
+            then ()
+            else raise ToX86 ("Command requires 32-bit temporary; got " ^
+                              A.explicit_tmptos t ^ " in cmd:\n" ^
+                              A.explicit_cmdtos cmd)
         in
           case cmd of
             A.Label _ => raise ToX86 "bug: unexpected Label"
@@ -347,6 +353,14 @@ struct
                 Continue `
                 Tactics.imm_tmp16 acc (offset tmp) w16
               end
+
+          | A.Immediate32 (tmp, w32) =>
+              let in
+                assert32 tmp;
+                Continue `
+                Tactics.imm_tmp32 acc (offset tmp) w32
+              end
+
           | A.LoadLabel (tmp, other_lab) =>
               let
                 val idx = getlabelnum labelnum other_lab
@@ -574,6 +588,13 @@ struct
                 Tactics.mov_tmp16_from_tmp32 acc a b
               end
 
+          | A.Mov (A.E { offset = a, size = A.S32, ... },
+                   A.E { offset = b, size = A.S32, ... }) =>
+              let in
+                Continue `
+                Tactics.mov_tmp32_from_tmp32 acc a b
+              end
+
           | A.Mov _ => raise ToX86 "illegal mov"
 
           | A.FrameOffset (tmp, off) =>
@@ -639,9 +660,7 @@ struct
                 Tactics.store8 acc (offset addr) (offset src)
               end
 
-          (*
-          | A.Immediate32 (tmp, w32) =>
-            *)
+            (*
           | _ =>
               let in
                 (* Continue `
@@ -649,7 +668,8 @@ struct
                 raise ToX86 ("Unimplemented cmd: " ^
                              ASM.explicit_cmdtos cmd)
               end
-        end
+            *)
+      end
 
       val acc =
         if is_initial

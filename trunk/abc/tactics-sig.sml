@@ -38,6 +38,7 @@ sig
   val mov_tmp16_from_tmp16 : acc -> int -> int -> acc
   val mov_tmp32_from_tmp16 : acc -> int -> int -> acc
   val mov_tmp16_from_tmp32 : acc -> int -> int -> acc
+  val mov_tmp32_from_tmp32 : acc -> int -> int -> acc
 
   (* load16 acc dst_tmp addr_tmp
      sets dst_tmp to contain the 16-bit word pointed to by
@@ -100,6 +101,7 @@ sig
 
   (* imm_tmp16 acc tmp value *)
   val imm_tmp16 : acc -> int -> Word16.word -> acc
+  val imm_tmp32 : acc -> int -> Word32.word -> acc
 
   (* imm_reg16 acc reg value.
      AX and reg must both be claimed. Trashes AX. *)
