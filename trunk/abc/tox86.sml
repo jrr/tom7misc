@@ -626,7 +626,6 @@ struct
 
           (*
           | A.Immediate32 (tmp, w32) =>
-          | A.Complement a =>
             *)
           | _ =>
               let in

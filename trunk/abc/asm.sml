@@ -317,7 +317,6 @@ struct
      if the literal is printable... *)
   | Add of 'tmp * 'tmp
   | Sub of 'tmp * 'tmp
-  | Complement of 'tmp
   | Mov of 'tmp * 'tmp
   | And of 'tmp * 'tmp
   | Xor of 'tmp * 'tmp
@@ -414,7 +413,6 @@ struct
         "imm32 " ^ ts tmp ^ " <- 0x" ^ Word32.toString w32
     | Add (a, b) => "add " ^ ts a ^ " <- " ^ ts b
     | Sub (a, b) => "sub " ^ ts a ^ " <- " ^ ts b
-    | Complement a => "complement " ^ ts a
     | Mov (a, b) => "mov " ^ ts a ^ " <- " ^ ts b
     | Xor (a, b) => "xor " ^ ts a ^ " <- " ^ ts b
     | And (a, b) => "and " ^ ts a ^ " <- " ^ ts b

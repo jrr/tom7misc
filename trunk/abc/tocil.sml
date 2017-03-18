@@ -407,15 +407,11 @@ struct
                  val scaled_idx = genvar "sidx"
                  val addr = genvar "off"
 
-                 (* Shifting here is better once we implement an optimization that
-                    can turn it into repeated addition. But multiplication will
-                    work. *)
                  fun scale Width32 v =
-                   (* LeftShift (POINTER_WIDTH, v, Word8Literal 0w2) *)
-                   Times (POINTER_WIDTH, v, Word16Literal ` Word16.fromInt 4)
+                   LeftShift (POINTER_WIDTH, v,
+                              Word16Literal ` Word16.fromInt 2)
                    | scale Width16 v =
-                   (* LeftShift (POINTER_WIDTH, v, Word8Literal 0w1) *)
-                   Times (POINTER_WIDTH, v, Word16Literal ` Word16.fromInt 2)
+                   Plus (POINTER_WIDTH, v, v)
                    | scale Width8 v = Value v
                in
                  transexp ctx idx bc
@@ -425,7 +421,7 @@ struct
                    Bind (scaled_idx, POINTER_INT_TYPE,
                          scale argwidth idxv,
                          (* XXX note this treats pointer as int; we should
-                            probably insert explicit Cast. *)
+                            insert explicit Cast. *)
                          Bind (addr, ptrt,
                                Plus (POINTER_WIDTH, ptrv, Var scaled_idx),
                                k (Var addr, t)))))
@@ -658,7 +654,7 @@ struct
                        LSHIFT => LeftShift
                      | RSHIFT => RightShift
                  in
-                   implicit { src = bt, dst = Word8 Unsigned, v = bv }
+                   implicit { src = bt, dst = Word16 Unsigned, v = bv }
                    (fn (bv, _) =>
                     Bind (oldv, ltyp,
                           Load (width, addr),
@@ -681,7 +677,7 @@ struct
                        LSHIFT => LeftShift
                      | RSHIFT => RightShift
                  in
-                   implicit { src = bt, dst = Word8 Unsigned, v = bv }
+                   implicit { src = bt, dst = Word16 Unsigned, v = bv }
                    (fn (bv, _) =>
                     Bind (v, at, ctor (typewidth at, av, bv), k (Var v, at)))
                  end))

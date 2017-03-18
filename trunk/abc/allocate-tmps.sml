@@ -46,7 +46,6 @@ struct
     | Immediate32 (tmp, w) => Immediate32 (ft tmp, w)
     | Add (a, b) => Add (ft a, ft b)
     | Sub (a, b) => Sub (ft a, ft b)
-    | Complement tmp => Complement (ft tmp)
     | Mov (a, b) => Mov (ft a, ft b)
     | Xor (a, b) => Xor (ft a, ft b)
     | And (a, b) => And (ft a, ft b)
