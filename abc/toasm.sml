@@ -586,7 +586,7 @@ struct
                        (* This is trivial, because we store 8-bit values as
                           16-bit ones with the high bits set to 0.
 
-                          XXX wait do we? Plus on two 8-bit quantities would
+                          PERF: should we? Plus on two 8-bit quantities would
                           overflow into the high byte, unless we explicitly
                           mask afterwards. *)
                        A.Mov (vartmp (var, A.S16), vtmp) // k ()
@@ -620,14 +620,64 @@ struct
                        raise ToASM "unimplemented truncation type"
                          ))
 
-             | C.Times (w, a, b) => raise ToASM "unimplemented times"
+             (* Strategy is just to XOR with all-ones mask. *)
+             | C.Complement (w, v) =>
+                 gentmp ctx v
+                 (fn (vtmp, vt) =>
+                  let
+                    val sz =
+                      case w of
+                        C.Width32 => A.S32
+                      | _ => A.S16
+                    val masktmp = newtmp ("all_ones", sz)
+                    val dsttmp = vartmp (var, sz)
+                    val rest =
+                      A.Mov (dsttmp, vtmp) //
+                      A.Xor (dsttmp, masktmp) //
+                      k ()
+                  in
+                    case w of
+                      C.Width8 =>
+                        A.Immediate16 (masktmp, Word16.fromInt 0x00FF) // rest
+                    | C.Width16 =>
+                        A.Immediate16 (masktmp, Word16.fromInt 0xFFFF) // rest
+                    | C.Width32 =>
+                        A.Immediate32 (masktmp, 0wxFFFFFFFF) // rest
+                  end)
+
+             | C.Times (w, a, b) =>
+                 raise ToASM "times should have been compiled away."
+             | C.LeftShift (w, a, b) =>
+                 raise ToASM "left shift should have been compiled away."
+
+             | C.Negate (w, v) =>
+                 gentmp ctx v
+                 (fn (vtmp, vt) =>
+                  let
+                    val sz =
+                      case w of
+                        C.Width32 => A.S32
+                      | _ => A.S16
+                    (* Store 0, then subtract the arg from it. *)
+                    val dsttmp = vartmp (var, sz)
+                    val rest =
+                      A.Sub (dsttmp, vtmp) //
+                      k ()
+                  in
+                    case w of
+                      C.Width8 =>
+                        A.Immediate16 (dsttmp, Word16.fromInt 0) // rest
+                    | C.Width16 =>
+                        A.Immediate16 (dsttmp, Word16.fromInt 0) // rest
+                    | C.Width32 =>
+                        A.Immediate32 (dsttmp, 0wx0) // rest
+                  end)
+
+             (* These should probably be compiled away... *)
              | C.SignedDivision (w, a, b) => raise ToASM "unimplemented signed division"
              | C.UnsignedDivision (w, a, b) => raise ToASM "unimplemented unsigned division"
              | C.UnsignedMod (w, a, b) => raise ToASM "unimplemented unsigned mod"
-             | C.LeftShift (w, a, b) => raise ToASM "unimplemented left shift"
-             | C.RightShift (w, a, b) => raise ToASM "unimplemented right shift"
-             | C.Complement (w, a) => raise ToASM "unimplemented bitwise complement"
-             | C.Negate (w, a) => raise ToASM "unimplemented negation")
+             | C.RightShift (w, a, b) => raise ToASM "unimplemented right shift")
 
       fun gencmds ctx stmt =
         case stmt of

@@ -52,7 +52,6 @@ struct
       | Immediate32 (t, _) => (tset [t], empty)
       | Add (a, b) => (tset [a], tset [a, b])
       | Sub (a, b) => (tset [a], tset [a, b])
-      | Complement t => (tset [t], tset [t])
       | Mov (a, b) => (tset [a], tset [b])
       | Xor (a, b) => (tset [a], tset [a, b])
       | And (a, b) => (tset [a], tset [a, b])

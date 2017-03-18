@@ -113,7 +113,7 @@ struct
   | UnsignedDivision of width * value * value
     (* Also signed mod? *)
   | UnsignedMod of width * value * value
-    (* For LeftShift and RightShift, shift amount should be word8. *)
+    (* For LeftShift and RightShift, rhs is always Word16. *)
   | LeftShift of width * value * value
     (* Recall that C does not define the behavior of shifts on negative values,
        so this is unsigned. *)
