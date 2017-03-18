@@ -761,9 +761,6 @@ struct
       end handle e => raise e
 
   in
-    (* TODO: Easy to set any reg to 32-bit value by doing two imm_ax16s
-       (the second with a known value), and pushing them on the stack,
-       then popping into a 32-bit register. (Or four single-byte loads?) *)
     fun imm_ax16 acc (w : Word16.word) : acc =
       let in
         assert_claimed acc AX;
