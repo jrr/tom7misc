@@ -138,11 +138,7 @@ which are simply due to the unconscionably strict SIGBOVIK deadlines:
    copies struct field-by-field because we don't have anything like
    memcpy, and around the time of a function call or return, the
    state of the machine is pretty delicate.
-   
- - switch. This is easy; it just becomes an if-else chain. CIL even has
-   the expressive power to implement jump tables, by computing and
-   calling a function pointer. I just didn't get to it.
-   
+
  - sizeof. Actually sizeof is so easy I just went and implemented
    it just now, instead of writing this sentence. I saved further
    time by not deleting the previous sentence.

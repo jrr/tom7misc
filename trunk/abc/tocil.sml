@@ -142,9 +142,8 @@ struct
                                  | (_, NONE, _) => raise ToCIL "Unnamed members?") fields
               | SOME _ => raise ToCIL "Bug? Expected StructRef to name a struct."))
     | Ast.UnionRef tid => raise ToCIL "unions unimplemented"
-    (* All enums currently represented as signed int32.
-       PERF: Better if we can use 8/16 in cases where they'll work. *)
-    | Ast.EnumRef _ => Word32 Signed
+    (* All enums currently represented as unsigned int16. *)
+    | Ast.EnumRef _ => Word16 Unsigned
     | Ast.TypeRef tid =>
           raise ToCIL "unimplemented: need to look up typedef and return it"
     | Ast.Numeric (_, _, signedness, intkind, _) =>
@@ -471,7 +470,7 @@ struct
       | Ast.ErrorExpr => raise ToCIL "illegal lvalue ErrorExpr"
       | _ =>
           let in
-            raise ToCIL "illegal/unimplemented lvalue"
+            raise ToCIL "illegal lvalue"
           end
    end
 
@@ -972,8 +971,8 @@ struct
                  else raise ToCIL ("Disallowed or unimplemented cast from " ^
                                    typtos et ^ " to " ^ typtos t)
              end)
-      | Ast.EnumId (m, n) => k (unsigned_literal Width32 (LargeInt.toInt n),
-                                Word32 Unsigned)
+      | Ast.EnumId (m, n) => k (unsigned_literal Width16 (LargeInt.toInt n),
+                                Word16 Unsigned)
 
       | Ast.AddrOf e =>
         translvalue ctx e bc
@@ -982,7 +981,8 @@ struct
 
       | Ast.SizeOf t =>
         let val result_typ = Word16 Unsigned
-        in k (Word16Literal ` Word16.fromInt ` sizeof ` transtype ctx t, result_typ)
+        in k (Word16Literal ` Word16.fromInt ` sizeof ` transtype ctx t,
+              result_typ)
         end
 
       | Ast.ExprExt _ => raise ToCIL "expression extensions not supported"
@@ -990,10 +990,12 @@ struct
     end
 
   (* Typedecls ignored currently. *)
-  fun transdecl (ctx : ctx) (Ast.TypeDecl _) (bc : stmt bc) (k : unit -> stmt) : stmt = k ()
+  fun transdecl (ctx : ctx) (Ast.TypeDecl _) (bc : stmt bc)
+                (k : unit -> stmt) : stmt = k ()
     (* Should probably still add it to a context? *)
     | transdecl ctx (Ast.VarDecl (id, NONE)) bc k = k ()
-    | transdecl ctx (Ast.VarDecl (id as { ctype, global, ...}, SOME init)) bc k =
+    | transdecl ctx (Ast.VarDecl (id as { ctype, global, ...},
+                                  SOME init)) bc k =
     (* XXX: If stClass = STATIC, then we should
        actually transform this into a global. (global will be false) *)
     (case init of
@@ -1017,23 +1019,37 @@ struct
          raise ToCIL "aggregate initialization unimplemented (decl)")
 
   (* When translating a statement, the 'break' and 'continue' targets
-     the label to jump to when seeing those statements. *)
+     the label to jump to when seeing those statements. The cases,
+     on the other hand, are updated imperatively (if there is an active
+     switch statement) to contain the destination labels and case values,
+     which are then processed by the containing switch upon returning. *)
   fun transstatementlist ctx nil _ _ _ k : CIL.stmt = k ()
     | transstatementlist ctx
                          (s :: t)
                          rett
-                         (targs : { break : string option,
-                                    continue : string option })
+                         (targs :
+                          { break : string option,
+                            continue : string option,
+                            cases : (string * LargeInt.int option)
+                                    list ref option })
                          (bc : stmt bc)
                          (k : unit -> stmt) =
      transstatement ctx s rett targs bc
      (fn () => transstatementlist ctx t rett targs bc k)
 
+  (* Note that transstatement should *always* call k exactly once,
+     because even for something like "return;" where the next statement
+     is superficially unreachable, it may be accesible via the labels
+     it inserts into the block collector. So too for case labels, which
+     very commonly end with break or return. *)
   and transstatement (ctx : ctx)
                      (Ast.STMT (s, orig_id, orig_loc) : Ast.statement)
                      (fnret : CIL.typ)
-                     (targs : { break : string option,
-                                continue : string option })
+                     (targs :
+                      { break : string option,
+                        continue : string option,
+                        cases : (string * LargeInt.int option)
+                                list ref option })
                      (bc : stmt bc)
                      (k : unit -> CIL.stmt) : CIL.stmt =
     case s of
@@ -1051,7 +1067,11 @@ struct
     (* Some statements ignore k because any following code is unreachable. *)
     | Ast.Return NONE =>
         (case fnret of
-           Struct nil => Return NONE
+           Struct nil =>
+             let in
+               ignore (k ());
+               Return NONE
+             end
          | _ => raise ToCIL ("return without value for function with " ^
                              "nontrivial return type " ^ typtos fnret))
     | Ast.Return (SOME e) =>
@@ -1059,7 +1079,10 @@ struct
         (fn (v, t) =>
          implicit { src = t, dst = fnret, v = v }
          (fn (v, _) =>
-          Return (SOME v)))
+          let in
+            ignore (k ());
+            Return (SOME v)
+          end))
 
     | Ast.IfThen (e, body) =>
         transexp ctx e bc
@@ -1095,7 +1118,11 @@ struct
                    transstatement ctx false_body fnret targs bc
                    (fn () => Goto rest_label))
          end)
-    | Ast.Goto lab => Goto (labstring lab)
+    | Ast.Goto lab =>
+        let in
+          ignore (k ());
+          Goto (labstring lab)
+        end
 
     | Ast.While (cond, body) =>
         let
@@ -1103,7 +1130,8 @@ struct
           val done_label = BC.genlabel "whiledone"
           val body_targs =
             { break = SOME done_label,
-              continue = SOME body_label }
+              continue = SOME body_label,
+              cases = #cases targs }
         in
           BC.insert (bc, done_label, k ());
           BC.insert (bc, body_label,
@@ -1125,7 +1153,8 @@ struct
           val done_label = BC.genlabel "dodone"
           val body_targs =
             { break = SOME done_label,
-              continue = SOME test_label }
+              continue = SOME test_label,
+              cases = #cases targs }
         in
           BC.insert (bc, done_label, k ());
           BC.insert (bc, test_label,
@@ -1149,7 +1178,8 @@ struct
 
           val body_targs =
             { break = SOME done_label,
-              continue = SOME inc_label }
+              continue = SOME inc_label,
+              cases = #cases targs }
         in
           (* Increment and then jump to the while condition.
              This is the target of a 'continue'.
@@ -1195,21 +1225,143 @@ struct
 
     | Ast.Break =>
         (case targs of
-           { break = SOME lab, ... } => Goto lab
+           { break = SOME lab, ... } =>
+             let in
+               (* The statements are unreachable (directly), but
+                  can add labeled targets, switch cases, etc. *)
+               ignore (k ());
+               Goto lab
+             end
          | _ => raise ToCIL "break statement without target")
     | Ast.Continue =>
         (case targs of
-           { continue = SOME lab, ... } => Goto lab
+           { continue = SOME lab, ... } =>
+             let in
+               ignore (k ());
+               Goto lab
+             end
          | _ => raise ToCIL "continue statement without target")
 
     | Ast.Switch (e, s) =>
+      transexp ctx e bc
+      (fn (objv, objt) =>
+       let
+         val switchdone = BC.genlabel "switchdone"
+         val cases : (string * LargeInt.int option) list ref = ref nil
+
+         (* We'll do this as an unsigned comparison on either 16- or
+            32-bit words. *)
+         val obj_is32 =
+           case objt of
+             Word32 _ => true
+           | _ => false
+         val (obj_width, obj_signedness) =
+           case objt of
+             Word32 s => (Width32, s)
+           | Word16 s => (Width16, s)
+           | Word8 s => (Width8, s)
+           | _ => raise ToCIL "switch on non-int"
+
+         (* XXX _literal functions should probably just take largeint?
+
+            if you write
+            switch ((unsigned int i)) {
+            case -1:
+            }
+
+            this will reject your program. Check that it's
+            not supposed to coerce -1 to the object type? We
+            can do that, but what is the "src type" for the
+            integer literals? *)
+         fun makeliteral li =
+           (case obj_signedness of
+              Unsigned => unsigned_literal
+            | Signed => signed_literal) obj_width (LargeInt.toInt li)
+
+         val body_targs =
+           { break = SOME switchdone,
+             continue = #continue targs,
+             cases = SOME cases }
+
+         (* This statement is actually *discarded,*
+            but case labels get inserted into the cases
+            list as we translate.
+            The only way to reach the code generated
+            here is by jumping to one of the labels
+            inserted into the block collector.
+
+            switch (e) {
+              x++;  // unreachable, but valid!
+              case 1:
+              y++;
+            }
+
+            *)
+         val _ : stmt =
+           transstatement ctx s fnret body_targs bc
+           (fn () => Goto switchdone)
+
+           (*
+         fun too_big_for_16 li =
+           case obj_signedness of
+             Signed =>
+               LargeInt.> (li, LargeInt.fromInt 0x7FFF) orelse
+               LargeInt.< (li, LargeInt.fromInt (~0x8000))
+           | Unsigned =>
+               LargeInt.> (li, LargeInt.fromInt 0xFFFF) orelse
+               LargeInt.< (li, LargeInt.fromInt 0)
+               *)
+
+         fun getdefault nil = (nil, nil)
+           | getdefault (h :: t) =
+           let val (reg, defs) = getdefault t
+           in
+             case h of
+               (lab, NONE) => (reg, lab :: defs)
+             | (lab, SOME i) => ((makeliteral i, lab) :: reg, defs)
+           end
+
+         val (cases : (value * string) list, default_label : string) =
+           case getdefault ` !cases of
+             (c, nil) => (c, switchdone)
+           | (c, [l]) => (c, l)
+           | (c, _) => raise ToCIL "More than one default label in switch?"
+
+         (* PERF can generate binary search or even jump tables,
+            but this requires more careful handling of signedness. *)
+         fun comparisons nil = Goto default_label
+           | comparisons ((c, lab) :: rest) =
+           GotoIf (CEq (obj_width, objv, c), lab,
+                   comparisons rest)
+       in
+         app (fn (v, lab) =>
+              print ("  " ^ valtos v ^ " => " ^ lab ^ "\n")) cases;
+         BC.insert (bc, switchdone, k ());
+         comparisons cases
+       end)
+
+    | Ast.CaseLabel (num, s) =>
       let
-        val l = BC.genlabel "switchdone"
+        val l = BC.genlabel ("case_" ^ LargeInt.toString num)
       in
-        raise ToCIL "unimplemented: switch"
+        print ("Case label: " ^ l ^ "\n");
+        BC.insert (bc, l, transstatement ctx s fnret targs bc k);
+        (case targs of
+           { cases = SOME rl, ... } => rl := (l, SOME num) :: !rl
+         | _ => raise ToCIL "default: case outside of switch");
+        Goto l
       end
-    | Ast.CaseLabel (num, s) => raise ToCIL "unimplemented: case labels"
-    | Ast.DefaultLabel s => raise ToCIL "unimplemented: default"
+
+    | Ast.DefaultLabel s =>
+      let
+        val l = BC.genlabel "default"
+      in
+        BC.insert (bc, l, transstatement ctx s fnret targs bc k);
+        (case targs of
+           { cases = SOME rl, ... } => rl := (l, NONE) :: !rl
+         | _ => raise ToCIL "default: label outside of switch");
+        Goto l
+      end
 
     | Ast.StatExt _ => raise ToCIL "statement extensions unsupported"
 
@@ -1282,7 +1434,8 @@ struct
                              transstatement ctx body
                              fnret
                              { break = NONE,
-                               continue = NONE } bc
+                               continue = NONE,
+                               cases = NONE } bc
                              (* XXX should maybe invent a value of the
                                 correct size? *)
                              (fn () => Return NONE));
