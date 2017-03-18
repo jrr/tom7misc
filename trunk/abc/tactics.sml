@@ -940,7 +940,7 @@ struct
       (* XXX this should track the value of the temporary too. *)
     end handle e => raise e
 
-  fun mov_tmp16_to_tmp16 acc dst src : acc =
+  fun mov_tmp16_from_tmp16 acc dst src : acc =
     (* This would NOT work if dst and src are the same,
        but fortunately we can just do nothing in that case. *)
     if dst = src then acc
@@ -957,6 +957,37 @@ struct
      forget_reg16 M.EAX //
      (* Now write to dst. *)
      XOR (S16, EBP_TEMPORARY dst <~ A))
+
+  fun mov_tmp32_from_tmp16 acc dst src : acc =
+    if dst = src then raise Tactics ("mov between tmps of different size, " ^
+                                     "but they are the same?")
+    else
+      let
+        val acc = acc ++ EAX
+      in
+        (* First, zero the destination. *)
+        imm_ax16 acc (Word16.fromInt 0) //
+        (* Alternatively, if we could get a 32-bit zero easily,
+           then one write will suffice... *)
+        AND (S16, EBP_TEMPORARY dst <~ A) //
+        AND (S16, EBP_TEMPORARY (dst + 2) <~ A) //
+        (* A is still zero; replace it with src. *)
+        XOR (S16, A <- EBP_TEMPORARY src) ??
+        forget_reg16 M.EAX //
+        (* Now write to dst. Since it's little-endian,
+           writing into the first of the two words gives
+           us the result we want. *)
+        XOR (S16, EBP_TEMPORARY dst <~ A) -- AX
+      end
+
+  fun mov_tmp16_from_tmp32 acc dst src : acc =
+    if dst = src then raise Tactics ("mov between tmps of different size, " ^
+                                     "but they are the same?")
+    else
+      (* The low word of the 32-bit source is just where a
+         16-bit source would be. So we can just use that
+         primitive directly. *)
+      mov_tmp16_from_tmp16 acc dst src
 
   (* PERF: Should try to select a register that has 0 in it
      already. Blocks start knowing that SI is 0, for example.
@@ -1018,26 +1049,6 @@ struct
        let val acc = imm_reg16only acc tmpreg v
        in mov16ind8 acc (EBP_TEMPORARY tmp <~ tmpreg)
        end)
-
-      (*
-  (* Binary NOT of register r. *)
-  fun complement_reg16 acc r : acc =
-  (* Strategy here is to do R <- XOR(R, OxFFFF).
-     Generating FFFF is pretty cheap (0 - 1). We have to put it in a temporary
-     in order to do it; we'll use [EBX]+0x20. *)
-    let in
-      assert_claimed acc (reg_to_multireg16 r);
-      claim_reg16 acc [C, D, DH_SI, BH_DI, A]
-      (fn (acc, tmpr) =>
-       let
-         val acc = imm_reg16only acc tmpr (Word16.fromInt 0xFFFF)
-       in
-         mov16ind8 acc (IND_EBX_DISP8 0wx20 <~ tmpr)
-       end) //
-      XOR (S16, r <- IND_EBX_DISP8 0wx20) ??
-      forget_reg16 (reg_to_machreg r)
-    end handle e => raise e
-*)
 
   (* TODO: If this is not allowed then it should be explicitly banned!
      Many ops can easily support the case where operands are the same;

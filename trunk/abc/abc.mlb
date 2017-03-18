@@ -79,8 +79,6 @@ ckit/ckit-lib.mlb
   exe-sig.sml
   exe.sml
 
-  (* XXX bye *)
-  writetest.sml
   abc.sml
 
   main.sml

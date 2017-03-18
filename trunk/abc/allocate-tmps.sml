@@ -214,13 +214,11 @@ struct
         (fn idx =>
          case Array.sub (cmds, idx) of
            Mov (dst, src) =>
-             (* these should be from the same function and be
-                the same size... *)
+             (* Mov allows movement between 32-bit and 16-bit temporaries.
+                We don't allow coalescing unless they are the same size,
+                though. *)
              if tmpsize dst <> tmpsize src
-             then raise AllocateTmps ("tmps should both be the same size in " ^
-                                      "MOV: " ^
-                                      ASM.named_tmptos dst ^ " and " ^
-                                      ASM.named_tmptos src)
+             then ()
              else if does_interfere src dst
                   then ()
                   else coalesce src dst

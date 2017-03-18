@@ -34,8 +34,10 @@ sig
      Most efficient if AX is not claimed. *)
   val mov16ind8 : acc -> X86.args -> acc
 
-  (* mov acc dst_tmp src_tmp *)
-  val mov_tmp16_to_tmp16 : acc -> int -> int -> acc
+  (* mov_tmp16_from_tmp16 acc dst_tmp src_tmp *)
+  val mov_tmp16_from_tmp16 : acc -> int -> int -> acc
+  val mov_tmp32_from_tmp16 : acc -> int -> int -> acc
+  val mov_tmp16_from_tmp32 : acc -> int -> int -> acc
 
   (* load16 acc dst_tmp addr_tmp
      sets dst_tmp to contain the 16-bit word pointed to by
@@ -120,7 +122,6 @@ sig
      is written. Modifies the byte at DS:0000. *)
   val out8_16 : acc -> int -> int -> acc
 
-  val old_initialize : unit -> acc
   val printstring : acc -> string -> acc
 
 end
