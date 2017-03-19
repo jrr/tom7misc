@@ -171,10 +171,10 @@ immediate byte (or word, or  double-word); for example the sequence 0x24
 also be  printable, which  limits what  we can  do with  them, sometimes
 severely.
 
-It's not clear that  it will even be possible to  do basic things, and
-it  was a  pretty  satisfying  hacking challenge  to  work around  its
-limitations. If you have some  x86 assembly experience, you might want
-to give a little thought to the following puzzles:
+It's not clear that it will even  be possible to do basic things, and it
+was  a   pretty  satisfying  hacking   challenge  to  work   around  its
+limitations. If you have some x86 assembly experience, you might want to
+give a little thought to the following puzzles:
 
  - How can we load an arbitrary number (e.g. an address constant) into
    a register? Note that the immediate value in something like "PUSH imm"
@@ -192,12 +192,12 @@ to give a little thought to the following puzzles:
  - The displacement must be printable, which means it is always a
    positive number. How do we even do loops?
 
-I will  explain those problems and  my solutions in later  sections; I
-think they  are each interesting.  (If you are  not going to  read the
-whole paper, which is likely, I think "18. Loops" and "17. Exiting and
-initializing  the  program"  are the  most  interesting/funny  hacks.)
-Various parts of  the compiler's design are intertwined  with the many
-constraints, so there is no easy path through the whole idea. For now,
+I will  explain those  problems and  my solutions  in later  sections; I
+think they are each interesting. (If you are not going to read the whole
+paper,  which is  likely,  I  think "18.  Loops"  and  "17. Exiting  and
+initializing the program" are the most interesting/funny hacks.) Various
+parts  of   the  compiler's  design   are  intertwined  with   the  many
+constraints, so there  is no easy path through the  whole idea. For now,
 let's warm up with the file format.
 
 
