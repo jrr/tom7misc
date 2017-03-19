@@ -971,20 +971,6 @@ struct
 
   structure EliminateMaths =
   struct
-    type arg = { times8 : bool ref,
-                 times16 : bool ref,
-                 times32 : bool ref,
-                 lshift8 : bool ref,
-                 lshift16 : bool ref,
-                 lshift32 : bool ref }
-    fun empty_arg () : arg = { times8 = ref false,
-                 times16 = ref false,
-                 times32 = ref false,
-                 lshift8 = ref false,
-                 lshift16 = ref false,
-                 lshift32 = ref false }
-
-(*
     datatype routine_key =
       RShift8Once
     | LShift8
@@ -994,17 +980,34 @@ struct
     | Times16
     | Times32
     datatype routine =
-      R of { fnlit : CIL.value,
-             function : (string * CIL.function),
+      R of { name : string,
+             args : CIL.typ list,
+             ret : CIL.typ,
+             function : CIL.function,
              globals : (string * CIL.global) list }
 
     val routines : (routine_key * routine) list ref = ref nil
-    fun register rk r = routines := (rk, r) :: !routines
+    fun get_routine key =
+      case ListUtil.Alist.find op= (!routines) key of
+        NONE => raise OptimizeCIL "bug: unregistered routine?"
+      | SOME r => r
+    fun register rk r =
+      case ListUtil.Alist.find op= (!routines) key of
+        NONE => routines := (rk, r) :: !routines
+      | SOME (R { name, ... }) => raise OptimizeCIL ("bug: " ^ name ^
+                                                     " registered twice!")
+
+    fun fnlit key =
+      let val (R { name, args, ret, ... }) = get_routine key
+      in FunctionLiteral (name, ret, args)
+      end
+
+
 
     type arg = (routine_key * bool ref) list ref
-    fun empty_arg () : arg = map (fn (k, _) => (k, ref false)) (!routines)
+    fun empty_arg () : arg = ref `map (fn (k, _) => (k, ref false)) (!routines)
     fun use (arg : arg) key =
-      case ListUtil.Alist.find op= arg key of
+      case ListUtil.Alist.find op= (!arg) key of
         NONE => raise OptimizeCIL "bug: unregistered routine?"
       | SOME used => used := true
 
@@ -1016,20 +1019,24 @@ struct
       val rshift8once_global_name = "__abc_rshift8oncetable"
       val rshift8once_global =
         let val (global, _) =
-          initialize_word8array_global rshiftonce_global_name "rshift8once" `
+          initialize_word8array_global rshift8once_global_name "rshift8once" `
           Word8Vector.tabulate (256, (fn i => Word8.>>(Word8.fromInt i, 0w1)))
         in
           global
         end
 
+      (* PERF: Might be useful to unroll this for small integers?
+         We don't want the table to be inserted multiple times, though. *)
       val rshift8once_func =
         let
           val a = CILUtil.newlocal "a"
-          val a16 = CILUtil.newlocal "a16"
-          val tab16 = CILUtil.newlocal "tab16"
-          val ptri = CILUtil.newlocal "ptri"
-          val ptri = CILUtil.newlocal "ptr"
-          val rv = CILUtil.newlocal "ret"
+          val a_addr = AddressLiteral (Local a, Word8 Unsigned)
+          val av = CILUtil.genvar "a"
+          val a16 = CILUtil.genvar "a16"
+          val tab16 = CILUtil.genvar "tab16"
+          val ptri = CILUtil.genvar "ptri"
+          val ptr = CILUtil.genvar "ptr"
+          val rv = CILUtil.genvar "ret"
 
           val start_lab = CILUtil.newlabel "rshift8once_start"
 
@@ -1039,7 +1046,7 @@ struct
           val blocks =
             [(start_lab,
               Bind
-              (av, Word8 Unsigned, Load (width, a_addr),
+              (av, Word8 Unsigned, Load (Width8, a_addr),
                Bind
                (a16, Word16 Unsigned,
                 Promote { signed = false,
@@ -1054,7 +1061,7 @@ struct
                         (Global rshift8once_global_name,
                          Array (Word8 Unsigned, 256)) },
                  Bind
-                 (ptri, Word16 Unsigned, Plus (Width16, tab16, a16),
+                 (ptri, Word16 Unsigned, Plus (Width16, Var tab16, Var a16),
                   Bind
                   (ptr, Pointer `Word8 Unsigned,
                    Cast { src = Word16 Unsigned,
@@ -1062,7 +1069,7 @@ struct
                           v = Var ptri },
                    Bind
                    (rv, Word8 Unsigned, Load(Width8, Var ptr),
-                    Return ` Var rv)))))))]
+                    Return ` SOME ` Var rv)))))))]
         in
           Func { args = [(a, Word8 Unsigned)],
                  ret = Word8 Unsigned,
@@ -1070,190 +1077,231 @@ struct
                  blocks = blocks }
         end
 
-    in
-      val () = register RShift8Once
-      (R { fnlit = FunctionLiteral (rshift8once_name, Word8 Unsigned,
-                                    [Word8 Unsigned]),
-           function = rshift8once_func,
-           globals = [(rshift8once_global_name,
-                       rshift8once_global)] }
-    end
+      (*
+      val rshift16_func =
+        let
+
+
+        in
+
+        end
 *)
 
-    (* Repeatedly does x << 1 as (x + x).
-       Note that the rhs (b) is always 16-bit, regardless of a's width.
-       *)
-    fun lshift_func name literal width t =
-      let
-        val a = CILUtil.newlocal "a"
-        val b = CILUtil.newlocal "b"
-        val res = CILUtil.newlocal "res"
-        val a_addr = AddressLiteral (Local a, t)
-        val b_addr = AddressLiteral (Local b, Word16 Unsigned)
-        val res_addr = AddressLiteral (Local res, t)
-        val bv = CILUtil.genvar "bv"
-        val av = CILUtil.genvar "av"
-        val rv = CILUtil.genvar "rv"
-        val sv = CILUtil.genvar "sv"
-        val dv = CILUtil.genvar "dv"
-        val retv = CILUtil.genvar "ret"
-        val start_lab = CILUtil.newlabel (name ^ "_start")
-        val loop_lab = CILUtil.newlabel (name ^ "_loop")
-        val done_lab = CILUtil.newlabel (name ^ "_done")
+    in
+      val () = register RShift8Once
+        (R { name = rshift8once_name,
+             ret = Word8 Unsigned,
+             args = [Word8 Unsigned],
+             function = rshift8once_func,
+             globals = [(rshift8once_global_name,
+                         rshift8once_global)] })
+    end
 
-        (*
-         start:
-           av = Load(a);
-           Store(res, a);
-           Goto loop
-         loop:
-           bv = Load(b);
-           If bv = 0 goto done;
-           dv = Minus(bv, 1);
-           Store(b, dv);
-           rv = Load(res);
-           sv = Plus(rv, rv);
-           Store(res, sv);
-           Goto Loop;
-         done:
-           Return Load(res);
-         *)
-        val blocks =
-          [(start_lab,
-            Bind(av, t, Load (width, a_addr),
-                 Store (width, res_addr, Var av,
-                        Goto loop_lab))),
-           (loop_lab,
-            Bind
-            (bv, t, Load(Width16, b_addr),
-             GotoIf
-             (CEq (Width16, Var bv,
-                   Word16Literal ` Word16.fromInt 0), done_lab,
+    local
+      fun times_func name literal width t =
+        let
+          val a = CILUtil.newlocal "a"
+          val b = CILUtil.newlocal "b"
+          val res = CILUtil.newlocal "res"
+          val a_addr = AddressLiteral (Local a, t)
+          val b_addr = AddressLiteral (Local b, t)
+          val res_addr = AddressLiteral (Local res, t)
+          val bv = CILUtil.genvar "bv"
+          val av = CILUtil.genvar "av"
+          val rv = CILUtil.genvar "rv"
+          val sv = CILUtil.genvar "sv"
+          val dv = CILUtil.genvar "dv"
+          val retv = CILUtil.genvar "ret"
+          val start_lab = CILUtil.newlabel (name ^ "_start")
+          val loop_lab = CILUtil.newlabel (name ^ "_loop")
+          val done_lab = CILUtil.newlabel (name ^ "_done")
+
+          (*
+          PERF: We can do better than repeated addition!
+
+           start:
+             Store(res, 0);
+             Goto loop
+           loop:
+             bv = Load(b);
+             If bv = 0 goto done;
+             dv = Minus(bv, 1);
+             Store(b, dv);
+             av = Load(a);
+             rv = Load(res);
+             sv = Plus(av, rv);
+             Store(res, sv);
+             Goto Loop;
+           done:
+             Return Load(res);
+           *)
+          val blocks =
+            [(start_lab,
+              Store (width, res_addr, literal 0,
+                     Goto loop_lab)),
+             (loop_lab,
               Bind
-              (dv, t,
-               Minus (Width16, Var bv, Word16Literal ` Word16.fromInt 1),
-               Store
-               (Width16, b_addr, Var dv,
+              (bv, t, Load(width, b_addr),
+               GotoIf
+               (CEq (width, Var bv, literal 0), done_lab,
                 Bind
-                (rv, t, Load(width, res_addr),
-                 Bind
-                 (sv, t, Plus(width, Var rv, Var rv),
-                  Store
-                  (width, res_addr, Var sv,
-                   Goto loop_lab)))))))),
-           (done_lab,
-            Bind (retv, t, Load(width, res_addr),
-                  Return ` SOME ` Var retv))]
-      in
-        Func { args = [(a, t), (b, t)],
-               ret = t,
-               body = start_lab,
-               blocks = blocks }
-      end
-
-
-    fun times_func name literal width t =
-      let
-        val a = CILUtil.newlocal "a"
-        val b = CILUtil.newlocal "b"
-        val res = CILUtil.newlocal "res"
-        val a_addr = AddressLiteral (Local a, t)
-        val b_addr = AddressLiteral (Local b, t)
-        val res_addr = AddressLiteral (Local res, t)
-        val bv = CILUtil.genvar "bv"
-        val av = CILUtil.genvar "av"
-        val rv = CILUtil.genvar "rv"
-        val sv = CILUtil.genvar "sv"
-        val dv = CILUtil.genvar "dv"
-        val retv = CILUtil.genvar "ret"
-        val start_lab = CILUtil.newlabel (name ^ "_start")
-        val loop_lab = CILUtil.newlabel (name ^ "_loop")
-        val done_lab = CILUtil.newlabel (name ^ "_done")
-
-        (*
-        PERF: We can do better than repeated addition!
-
-         start:
-           Store(res, 0);
-           Goto loop
-         loop:
-           bv = Load(b);
-           If bv = 0 goto done;
-           dv = Minus(bv, 1);
-           Store(b, dv);
-           av = Load(a);
-           rv = Load(res);
-           sv = Plus(av, rv);
-           Store(res, sv);
-           Goto Loop;
-         done:
-           Return Load(res);
-         *)
-        val blocks =
-          [(start_lab,
-            Store (width, res_addr, literal 0,
-                   Goto loop_lab)),
-           (loop_lab,
-            Bind
-            (bv, t, Load(width, b_addr),
-             GotoIf
-             (CEq (width, Var bv, literal 0), done_lab,
-              Bind
-              (dv, t,
-               Minus (width, Var bv, literal 1),
-               Store
-               (width, b_addr, Var dv,
-                Bind
-                (av, t, Load(width, a_addr),
-                 Bind
-                 (rv, t, Load(width, res_addr),
+                (dv, t,
+                 Minus (width, Var bv, literal 1),
+                 Store
+                 (width, b_addr, Var dv,
                   Bind
-                  (sv, t, Plus(width, Var av, Var rv),
-                   Store
-                   (width, res_addr, Var sv,
-                    Goto loop_lab))))))))),
-           (done_lab,
-            Bind (retv, t, Load(width, res_addr),
-                  Return ` SOME ` Var retv))]
-      in
+                  (av, t, Load(width, a_addr),
+                   Bind
+                   (rv, t, Load(width, res_addr),
+                    Bind
+                    (sv, t, Plus(width, Var av, Var rv),
+                     Store
+                     (width, res_addr, Var sv,
+                      Goto loop_lab))))))))),
+             (done_lab,
+              Bind (retv, t, Load(width, res_addr),
+                    Return ` SOME ` Var retv))]
+        in
+            Func { args = [(a, t), (b, t)],
+                   ret = t,
+                   body = start_lab,
+                   blocks = blocks }
+        end
+
+      val times8_name = "__abc_times8"
+      val times8_func = times_func "times8" (Word8Literal o Word8.fromInt)
+        Width8 (Word8 Unsigned)
+      val times16_name = "__abc_times16"
+      val times16_func = times_func "times16" (Word16Literal o Word16.fromInt)
+        Width16 (Word16 Unsigned)
+      val times32_name = "__abc_times32"
+      val times32_func = times_func "times32" (Word32Literal o Word32.fromInt)
+        Width32 (Word32 Unsigned)
+    in
+      val () = register Times8
+        (R { name = times8_name,
+             ret = Word8 Unsigned,
+             args = [Word8 Unsigned, Word8 Unsigned],
+             function = times8_func,
+             globals = nil })
+      val () = register Times16
+        (R { name = times16_name,
+             ret = Word16 Unsigned,
+             args = [Word16 Unsigned, Word16 Unsigned],
+             function = times16_func,
+             globals = nil })
+      val () = register Times32
+        (R { name = times32_name,
+             ret = Word32 Unsigned,
+             args = [Word32 Unsigned, Word32 Unsigned],
+             function = times32_func,
+             globals = nil })
+    end
+
+    local
+      (* Repeatedly does x << 1 as (x + x).
+         Note that the rhs (b) is always 16-bit, regardless of a's width.
+         *)
+      fun lshift_func name literal width t =
+        let
+          val a = CILUtil.newlocal "a"
+          val b = CILUtil.newlocal "b"
+          val res = CILUtil.newlocal "res"
+          val a_addr = AddressLiteral (Local a, t)
+          val b_addr = AddressLiteral (Local b, Word16 Unsigned)
+          val res_addr = AddressLiteral (Local res, t)
+          val bv = CILUtil.genvar "bv"
+          val av = CILUtil.genvar "av"
+          val rv = CILUtil.genvar "rv"
+          val sv = CILUtil.genvar "sv"
+          val dv = CILUtil.genvar "dv"
+          val retv = CILUtil.genvar "ret"
+          val start_lab = CILUtil.newlabel (name ^ "_start")
+          val loop_lab = CILUtil.newlabel (name ^ "_loop")
+          val done_lab = CILUtil.newlabel (name ^ "_done")
+
+          (*
+           start:
+             av = Load(a);
+             Store(res, a);
+             Goto loop
+           loop:
+             bv = Load(b);
+             If bv = 0 goto done;
+             dv = Minus(bv, 1);
+             Store(b, dv);
+             rv = Load(res);
+             sv = Plus(rv, rv);
+             Store(res, sv);
+             Goto Loop;
+           done:
+             Return Load(res);
+           *)
+          val blocks =
+            [(start_lab,
+              Bind(av, t, Load (width, a_addr),
+                   Store (width, res_addr, Var av,
+                          Goto loop_lab))),
+             (loop_lab,
+              Bind
+              (bv, t, Load(Width16, b_addr),
+               GotoIf
+               (CEq (Width16, Var bv,
+                     Word16Literal ` Word16.fromInt 0), done_lab,
+                Bind
+                (dv, t,
+                 Minus (Width16, Var bv, Word16Literal ` Word16.fromInt 1),
+                 Store
+                 (Width16, b_addr, Var dv,
+                  Bind
+                  (rv, t, Load(width, res_addr),
+                   Bind
+                   (sv, t, Plus(width, Var rv, Var rv),
+                    Store
+                    (width, res_addr, Var sv,
+                     Goto loop_lab)))))))),
+             (done_lab,
+              Bind (retv, t, Load(width, res_addr),
+                    Return ` SOME ` Var retv))]
+        in
           Func { args = [(a, t), (b, t)],
                  ret = t,
                  body = start_lab,
                  blocks = blocks }
-      end
+        end
 
-    (*
-    (* XXX FINISH THIS TOMORROW HERE  *)
-    val () = register LShift8
-      (R { fnlit = FunctionLiteral (lshift8_name, Word8 Unsigned,
-                                    [Word8 Unsigned]),
-           function = rshift8once_func,
-           globals = [(rshift8once_global_name,
-                       rshift8once_global)] }
-*)
-
-
-    val lshift8_name = "__abc_lshift8"
-    val lshift8_func = lshift_func "lshift8" (Word8Literal o Word8.fromInt)
-      Width8 (Word8 Unsigned)
-    val lshift16_name = "__abc_lshift16"
-    val lshift16_func = lshift_func "lshift16" (Word16Literal o Word16.fromInt)
-      Width16 (Word16 Unsigned)
-    val lshift32_name = "__abc_lshift32"
-    val lshift32_func = lshift_func "lshift32" (Word32Literal o Word32.fromInt)
-      Width32 (Word32 Unsigned)
-
-
-    val times8_name = "__abc_times8"
-    val times8_func = times_func "times8" (Word8Literal o Word8.fromInt)
-      Width8 (Word8 Unsigned)
-    val times16_name = "__abc_times16"
-    val times16_func = times_func "times16" (Word16Literal o Word16.fromInt)
-      Width16 (Word16 Unsigned)
-    val times32_name = "__abc_times32"
-    val times32_func = times_func "times32" (Word32Literal o Word32.fromInt)
-      Width32 (Word32 Unsigned)
-
+      val lshift8_name = "__abc_lshift8"
+      val lshift8_func = lshift_func "lshift8"
+        (Word8Literal o Word8.fromInt)
+        Width8 (Word8 Unsigned)
+      val lshift16_name = "__abc_lshift16"
+      val lshift16_func = lshift_func "lshift16"
+        (Word16Literal o Word16.fromInt)
+        Width16 (Word16 Unsigned)
+      val lshift32_name = "__abc_lshift32"
+      val lshift32_func = lshift_func "lshift32"
+        (Word32Literal o Word32.fromInt)
+        Width32 (Word32 Unsigned)
+    in
+      val () = register LShift8
+        (R { name = lshift8_name,
+             ret = Word8 Unsigned,
+             args = [Word8 Unsigned, Word8 Unsigned],
+             function = lshift8_func,
+             globals = nil })
+      val () = register LShift16
+        (R { name = lshift16_name,
+             ret = Word16 Unsigned,
+             args = [Word16 Unsigned, Word16 Unsigned],
+             function = lshift16_func,
+             globals = nil })
+      val () = register LShift32
+        (R { name = lshift32_name,
+             ret = Word32 Unsigned,
+             args = [Word32 Unsigned, Word32 Unsigned],
+             function = lshift32_func,
+             globals = nil })
+    end
 
     structure BC = CILUtil.BC
     structure EliminateMathsArg : CILPASSARG =
@@ -1264,56 +1312,44 @@ struct
       structure CI = CILIdentity(type arg = arg)
       open CI
 
-      fun case_LeftShift (arg as { lshift8, lshift16, lshift32, ... } : arg)
+      fun case_LeftShift (arg : arg)
                          (selves as { selft, selfv, selfe, selfs }, ctx)
                          (w, a, b) =
          case w of
            Width8 =>
              let in
-               lshift8 := true;
-               (Call (FunctionLiteral (lshift8_name, Word8 Unsigned,
-                                       [Word8 Unsigned, Word8 Unsigned]),
-                      [a, b]), Word8 Unsigned)
+               use arg LShift8;
+               (Call (fnlit LShift8, [a, b]), Word8 Unsigned)
              end
          | Width16 =>
              let in
-               lshift16 := true;
-               (Call (FunctionLiteral (lshift16_name, Word16 Unsigned,
-                                       [Word16 Unsigned, Word16 Unsigned]),
-                      [a, b]), Word16 Unsigned)
+               use arg LShift16;
+               (Call (fnlit LShift16, [a, b]), Word16 Unsigned)
              end
          | Width32 =>
              let in
-               lshift32 := true;
-               (Call (FunctionLiteral (lshift32_name, Word32 Unsigned,
-                                       [Word32 Unsigned, Word32 Unsigned]),
-                      [a, b]), Word32 Unsigned)
+               use arg LShift32;
+               (Call (fnlit LShift32, [a, b]), Word32 Unsigned)
              end
 
-      fun case_Times (arg as { times8, times16, times32, ... } : arg)
+      fun case_Times (arg : arg)
                      (selves as { selft, selfv, selfe, selfs }, ctx)
                      (w, a, b) =
          case w of
            Width8 =>
              let in
-               times8 := true;
-               (Call (FunctionLiteral (times8_name, Word8 Unsigned,
-                                      [Word8 Unsigned, Word8 Unsigned]),
-                      [a, b]), Word8 Unsigned)
+               use arg Times8;
+               (Call (fnlit Times8, [a, b]), Word8 Unsigned)
              end
          | Width16 =>
              let in
-               times16 := true;
-               (Call (FunctionLiteral (times16_name, Word16 Unsigned,
-                                      [Word16 Unsigned, Word16 Unsigned]),
-                      [a, b]), Word16 Unsigned)
+               use arg Times16;
+               (Call (fnlit Times16, [a, b]), Word16 Unsigned)
              end
          | Width32 =>
              let in
-               times32 := true;
-               (Call (FunctionLiteral (times32_name, Word32 Unsigned,
-                                       [Word32 Unsigned, Word32 Unsigned]),
-                      [a, b]), Word32 Unsigned)
+               use arg Times32;
+               (Call (fnlit Times32, [a, b]), Word32 Unsigned)
              end
 
     end
@@ -1341,22 +1377,21 @@ struct
         val functions = ListUtil.mapsecond onefunc functions
         val globals = ListUtil.mapsecond oneglobal globals
 
-          (* XXX new thing *)
         (* insert the routines used! *)
-        val all_routines =
-          [(#lshift8 arg, lshift8_name, lshift8_func),
-           (#lshift16 arg, lshift16_name, lshift16_func),
-           (#lshift32 arg, lshift32_name, lshift32_func),
-           (#times8 arg, times8_name, times8_func),
-           (#times16 arg, times16_name, times16_func),
-           (#times32 arg, times32_name, times32_func)]
-        val used_routines = List.mapPartial (fn (ref used, n, f) =>
-                                             if used then SOME (n, f)
-                                             else NONE) all_routines
+        val used_routines =
+          List.mapPartial (fn (key, ref used) =>
+                           if used
+                           then SOME ` get_routine key
+                           else NONE) (!arg)
+
+        val used_functions = map (fn (R { name, function, ... }) =>
+                                      (name, function)) used_routines
+        val used_globals = List.concat `
+          map (fn (R { globals, ... }) => globals) used_routines
       in
         Program { main = main,
-                  functions = used_routines @ functions,
-                  globals = globals }
+                  functions = used_functions @ functions,
+                  globals = used_globals @ globals }
       end
   end
 
