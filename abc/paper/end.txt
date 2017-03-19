@@ -254,15 +254,6 @@ encoding. So what's the big deal?
 
 
 
-
-
-
-
-
-
-
-
-
                                                                            
                                                                            
          ##       ##                                                       
@@ -320,9 +311,6 @@ encoding. So what's the big deal?
                                  ##############                            
 
               Figure 7. Printable X86
-
-
-
 
 
 

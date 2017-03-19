@@ -908,8 +908,177 @@ struct
       end
   end
 
+  (* Maybe should be in some utils?
+
+     Generates a global containing the vector of bytes. Used for
+     string literal initialization and some tables. *)
+  fun initialize_word8array_global globalname name vec =
+      let
+        val len = Word8Vector.length vec
+        (* byte offsets that are unprintable, with the value that
+           should actually be there. *)
+        val unprintable : (int * Word8.word) list ref = ref nil
+        fun is_printable b = b >= 0wx20 andalso b <= 0wx7e
+        val print_vec =
+          Word8Vector.tabulate (len,
+                                fn i =>
+                                let val b = Word8Vector.sub (vec, i)
+                                in
+                                  if is_printable b
+                                  then b
+                                  else
+                                    let in
+                                      unprintable := (i, b) :: !unprintable;
+                                      Word8.fromInt `ord #"-"
+                                    end
+                                end)
+         (* Now, generate initialization code that writes the
+            missing unprintable bytes. *)
+        val initlabel = CILUtil.newlabel ("init_" ^ name)
+        val globallit = AddressLiteral (Global globalname,
+                                        Array (Word8 Unsigned, len))
+
+        fun makeinit nil = End
+          | makeinit ((idx, b) :: rest) =
+          (* PERF: Ideally the optimizer would just make this
+             into good code, but it may be worth doing this
+             a bit more by hand.
+              - Write 16-bit or 32-bit literals if adjacent.
+             *)
+          let
+            val v = CILUtil.genvar "sidx"
+          in
+            (* PERF: I think it would produce better code right
+               now to start with an address and iteratively subtract
+               from it for each position, but the right fix is to
+               do some constant calculations in optimize-asm, once
+               we have a specific value for the AddressLiterals. *)
+            (* global[idx] = b; *)
+            Bind (v, Word16 Unsigned,
+                  Plus (Width16, globallit, Word16Literal `Word16.fromInt idx),
+                  Store (Width8, Var v, Word8Literal b,
+                         makeinit rest))
+          end
+        val init = makeinit ` rev ` !unprintable
+      in
+        (Glob { typ = Array (Word8 Unsigned, len),
+                bytes = SOME print_vec,
+                init = SOME { start = initlabel,
+                              blocks = [(initlabel, init)] } },
+         globallit)
+      end
+
+
   structure EliminateMaths =
   struct
+    type arg = { times8 : bool ref,
+                 times16 : bool ref,
+                 times32 : bool ref,
+                 lshift8 : bool ref,
+                 lshift16 : bool ref,
+                 lshift32 : bool ref }
+    fun empty_arg () : arg = { times8 = ref false,
+                 times16 = ref false,
+                 times32 = ref false,
+                 lshift8 = ref false,
+                 lshift16 = ref false,
+                 lshift32 = ref false }
+
+(*
+    datatype routine_key =
+      RShift8Once
+    | LShift8
+    | LShift16
+    | LShift32
+    | Times8
+    | Times16
+    | Times32
+    datatype routine =
+      R of { fnlit : CIL.value,
+             function : (string * CIL.function),
+             globals : (string * CIL.global) list }
+
+    val routines : (routine_key * routine) list ref = ref nil
+    fun register rk r = routines := (rk, r) :: !routines
+
+    type arg = (routine_key * bool ref) list ref
+    fun empty_arg () : arg = map (fn (k, _) => (k, ref false)) (!routines)
+    fun use (arg : arg) key =
+      case ListUtil.Alist.find op= arg key of
+        NONE => raise OptimizeCIL "bug: unregistered routine?"
+      | SOME used => used := true
+
+    (* Primitive used by the below.
+       Signed version may also be useful?
+       *)
+    local
+      val rshift8once_name = "__abc_rshift8once"
+      val rshift8once_global_name = "__abc_rshift8oncetable"
+      val rshift8once_global =
+        let val (global, _) =
+          initialize_word8array_global rshiftonce_global_name "rshift8once" `
+          Word8Vector.tabulate (256, (fn i => Word8.>>(Word8.fromInt i, 0w1)))
+        in
+          global
+        end
+
+      val rshift8once_func =
+        let
+          val a = CILUtil.newlocal "a"
+          val a16 = CILUtil.newlocal "a16"
+          val tab16 = CILUtil.newlocal "tab16"
+          val ptri = CILUtil.newlocal "ptri"
+          val ptri = CILUtil.newlocal "ptr"
+          val rv = CILUtil.newlocal "ret"
+
+          val start_lab = CILUtil.newlabel "rshift8once_start"
+
+          (* This is just
+             return table[a], with the appropriate coercions. *)
+
+          val blocks =
+            [(start_lab,
+              Bind
+              (av, Word8 Unsigned, Load (width, a_addr),
+               Bind
+               (a16, Word16 Unsigned,
+                Promote { signed = false,
+                          src = Width8,
+                          dst = Width16,
+                          v = Var av },
+                Bind
+                (tab16, Word16 Unsigned,
+                 Cast { src = Pointer ` Array (Word8 Unsigned, 256),
+                        dst = Word16 Unsigned,
+                        v = AddressLiteral
+                        (Global rshift8once_global_name,
+                         Array (Word8 Unsigned, 256)) },
+                 Bind
+                 (ptri, Word16 Unsigned, Plus (Width16, tab16, a16),
+                  Bind
+                  (ptr, Pointer `Word8 Unsigned,
+                   Cast { src = Word16 Unsigned,
+                          dst = Pointer `Word8 Unsigned,
+                          v = Var ptri },
+                   Bind
+                   (rv, Word8 Unsigned, Load(Width8, Var ptr),
+                    Return ` Var rv)))))))]
+        in
+          Func { args = [(a, Word8 Unsigned)],
+                 ret = Word8 Unsigned,
+                 body = start_lab,
+                 blocks = blocks }
+        end
+
+    in
+      val () = register RShift8Once
+      (R { fnlit = FunctionLiteral (rshift8once_name, Word8 Unsigned,
+                                    [Word8 Unsigned]),
+           function = rshift8once_func,
+           globals = [(rshift8once_global_name,
+                       rshift8once_global)] }
+    end
+*)
 
     (* Repeatedly does x << 1 as (x + x).
        Note that the rhs (b) is always 16-bit, regardless of a's width.
@@ -1053,6 +1222,17 @@ struct
                  blocks = blocks }
       end
 
+    (*
+    (* XXX FINISH THIS TOMORROW HERE  *)
+    val () = register LShift8
+      (R { fnlit = FunctionLiteral (lshift8_name, Word8 Unsigned,
+                                    [Word8 Unsigned]),
+           function = rshift8once_func,
+           globals = [(rshift8once_global_name,
+                       rshift8once_global)] }
+*)
+
+
     val lshift8_name = "__abc_lshift8"
     val lshift8_func = lshift_func "lshift8" (Word8Literal o Word8.fromInt)
       Width8 (Word8 Unsigned)
@@ -1080,9 +1260,7 @@ struct
     struct
       (* Argument's lifetime is for the "optimization" of a single
          function; it collects any new blocks that we have to generate. *)
-      type arg =
-        { lshift8 : bool ref, lshift16 : bool ref, lshift32 : bool ref,
-          times8 : bool ref, times16 : bool ref, times32 : bool ref }
+      type arg = arg
       structure CI = CILIdentity(type arg = arg)
       open CI
 
@@ -1144,9 +1322,7 @@ struct
 
     fun eliminate (Program { main, functions, globals }) =
       let
-        val arg =
-          { lshift8 = ref false, lshift16 = ref false, lshift32 = ref false,
-            times8 = ref false, times16 = ref false, times32 = ref false }
+        val arg = empty_arg ()
         val ctx = CIL.Context.empty
         fun onefunc (Func { args, ret, body, blocks }) =
           Func { args = args,
@@ -1165,6 +1341,7 @@ struct
         val functions = ListUtil.mapsecond onefunc functions
         val globals = ListUtil.mapsecond oneglobal globals
 
+          (* XXX new thing *)
         (* insert the routines used! *)
         val all_routines =
           [(#lshift8 arg, lshift8_name, lshift8_func),
@@ -1347,64 +1524,13 @@ struct
       let
         (* String literal always ends with implicit \0. *)
         val vec = Word8Vector.concat [vec, Word8Vector.fromList [0w0]]
-
-        val len = Word8Vector.length vec
-        (* byte offsets that are unprintable, with the value that
-           should actually be there. *)
-        val unprintable : (int * Word8.word) list ref = ref nil
-        fun is_printable b = b >= 0wx20 andalso b <= 0wx7e
-        val print_vec =
-          Word8Vector.tabulate (len,
-                                fn i =>
-                                let val b = Word8Vector.sub (vec, i)
-                                in
-                                  if is_printable b
-                                  then b
-                                  else
-                                    let in
-                                      unprintable := (i, b) :: !unprintable;
-                                      Word8.fromInt `ord #"-"
-                                    end
-                                end)
-         (* Now, generate initialization code that writes the
-            missing unprintable bytes. *)
-        val initlabel = CILUtil.newlabel "init_str"
         val globalname = CILUtil.newglobal "strlit"
-        val globallit = AddressLiteral (Global globalname,
-                                        Array (Word8 Unsigned, len))
-
-        fun makeinit nil = End
-          | makeinit ((idx, b) :: rest) =
-          (* PERF: Ideally the optimizer would just make this
-             into good code, but it may be worth doing this
-             a bit more by hand.
-              - Write 16-bit or 32-bit literals if adjacent.
-             *)
-          let
-            val v = CILUtil.genvar "sidx"
-          in
-            (* PERF: I think it would produce better code right
-               now to start with an address an iteratively subtract
-               from it for each position, but the right fix is to
-               do some constant calculations in optimize-asm, once
-               we have a specific value for the AddressLiterals. *)
-            (* global[idx] = b; *)
-            Bind (v, Word16 Unsigned,
-                  Plus (Width16, globallit, Word16Literal `Word16.fromInt idx),
-                  Store (Width8, Var v, Word8Literal b,
-                         makeinit rest))
-          end
-        val init = makeinit ` rev ` !unprintable
+        val (glob, globallit) =
+          initialize_word8array_global globalname "strlit" vec
       in
         arg :=
-        (globalname,
-         Glob { typ = Array (Word8 Unsigned, len),
-                bytes = SOME print_vec,
-                init = SOME { start = initlabel,
-                              blocks = [(initlabel, init)] } }) :: !arg;
-         (* Expression becomes the global's address instead. *)
-         (globallit,
-          Pointer ` Word8 Unsigned)
+        (globalname, glob) :: !arg;
+        (globallit, Pointer ` Word8 Unsigned)
       end
   end
   structure SLTG = CILPass(StringLiteralToGlobalArg)
