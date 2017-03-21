@@ -991,9 +991,9 @@ struct
       case ListUtil.Alist.find op= (!routines) key of
         NONE => raise OptimizeCIL "bug: unregistered routine?"
       | SOME r => r
-    fun register rk r =
+    fun register key r =
       case ListUtil.Alist.find op= (!routines) key of
-        NONE => routines := (rk, r) :: !routines
+        NONE => routines := (key, r) :: !routines
       | SOME (R { name, ... }) => raise OptimizeCIL ("bug: " ^ name ^
                                                      " registered twice!")
 
@@ -1081,11 +1081,26 @@ struct
       val rshift16_func =
         let
 
+          (* lowbyte = Load(8, a);
+             highbyte = Load(8, a + 1);
+             // See if low bit needs to be shifted to low byte.
+             one = And(16, av, 0x0001)
+             // Manually left shift it 7 times.
+             // PERF: Maybe faster ways to do this? It can only
+             // be 0 or 1, so DEC DEC mask? Or use a tiny table?
+             carry1 = Plus(16, one, one);       // 00000010
+             carry2 = Plus(16, carry1, carry1); // 00000100
+             carry3 = Plus(16, carry2, carry2); // 00001000
+             carry4 = Plus(16, carry3, carry3); // 00010000
+             carry5 = Plus(16, carry4, carry4); // 00100000
+             carry6 = Plus(16, carry5, carry5); // 01000000
+             carry7 = Plus(16, carry6, carry6); // 10000000
+             *)
 
         in
 
         end
-*)
+      *)
 
     in
       val () = register RShift8Once

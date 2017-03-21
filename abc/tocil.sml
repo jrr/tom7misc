@@ -129,7 +129,7 @@ struct
     | Ast.StructRef tid =>
         (case Tidtab.find (tidtab, tid) of
            NONE => raise ToCIL ("Bug? Reference to tid " ^ Tid.toString tid ^
-                                " that was not in the tidtable?")
+                                " that was not in the tidtable? (struct)")
          | SOME ({ name, ntype, global, ... } : Bindings.tidBinding) =>
              (case ntype of
                 NONE => raise ToCIL "Reference to anonymous struct? How?"
@@ -145,7 +145,16 @@ struct
     (* All enums currently represented as unsigned int16. *)
     | Ast.EnumRef _ => Word16 Unsigned
     | Ast.TypeRef tid =>
-          raise ToCIL "unimplemented: need to look up typedef and return it"
+        (case Tidtab.find (tidtab, tid) of
+           NONE => raise ToCIL ("Bug? Reference to tid " ^ Tid.toString tid ^
+                                " that was not in the tidtable? (typeref)")
+         | SOME ({ name, ntype, global, ... } : Bindings.tidBinding) =>
+             (case ntype of
+                NONE => raise ToCIL "Reference to anonymous typedef? How?"
+              | SOME (Bindings.Typedef (_, ctype)) => transtype ctx ctype
+              | SOME _ => raise ToCIL ("Bug? Expected TypeRef " ^
+                                       Tid.toString tid ^
+                                       " to name a typedef.")))
     | Ast.Numeric (_, _, signedness, intkind, _) =>
        let
          val signedness =
@@ -1344,7 +1353,6 @@ struct
       let
         val l = BC.genlabel ("case_" ^ LargeInt.toString num)
       in
-        print ("Case label: " ^ l ^ "\n");
         BC.insert (bc, l, transstatement ctx s fnret targs bc k);
         (case targs of
            { cases = SOME rl, ... } => rl := (l, SOME num) :: !rl
