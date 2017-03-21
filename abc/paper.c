@@ -257,6 +257,7 @@ unsigned char *GetSong(unsigned char *cmdline) {
 int main(int argc, unsigned char **argv) {
   // (XXX expand to multiple channels)
   Channel channel;
+  Channel channels[2];
   unsigned char *cmdline = *argv;
   MakeArgString(&cmdline);
 
