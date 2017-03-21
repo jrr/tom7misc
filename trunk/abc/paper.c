@@ -60,6 +60,12 @@ unsigned char *bluehair =
   "^A8z2F4^G8F3c4^A4F4^A4^G8z8"
   "^A8z2c8z2^c8z2^d8z2f8z2F4F4F4F8";
 
+typedef struct {
+  unsigned char *song;
+  int idx;
+  unsigned int ticksleft;
+} Channel;
+
 int Adlib(int reg, int value) {
   int i;
   _out8((int)0x0388, (int)reg);
@@ -232,25 +238,31 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
   }
 }
 
+// First test for known songs. After that, if we have a command line,
+// use it. Otherwise, use the default song.
+unsigned char *GetSong(unsigned char *cmdline) {
+  if (streq(cmdline, (unsigned char *)"-alphabet")) {
+    return alphabet;
+  } else if (streq(cmdline, (unsigned char *)"-plumber")) {
+    return plumber;
+  } else if (streq(cmdline, (unsigned char *)"-bluehair")) {
+    return bluehair;
+  } else if (strlen(cmdline) > (int)0) {
+    return cmdline;
+  } else {
+    return default_song;
+  }
+}
+
 int main(int argc, unsigned char **argv) {
-  int song_idx = 0, j, midi_note;
+  // (XXX expand to multiple channels)
+  Channel channel;
   unsigned char *cmdline = *argv;
-  unsigned char *song;
   MakeArgString(&cmdline);
 
-  // First test for known songs. After that, if we have a command line,
-  // use it. Otherwise,
-  if (streq(cmdline, (unsigned char *)"-alphabet")) {
-    song = alphabet;
-  } else if (streq(cmdline, (unsigned char *)"-plumber")) {
-    song = plumber;
-  } else if (streq(cmdline, (unsigned char *)"-bluehair")) {
-    song = bluehair;
-  } else if (strlen(cmdline) > (int)0) {
-    song = cmdline;
-  } else {
-    song = default_song;
-  }
+  channel.song = GetSong(cmdline);
+  channel.idx = 0;
+  channel.ticksleft = 0;
 
   Quiet();
 
@@ -265,11 +277,12 @@ int main(int argc, unsigned char **argv) {
   Adlib((int)0x83, (int)0x77); // Carrier sustain: med. release: med.
 
   for (;;) {
-    unsigned int len;
-    midi_note = GetMidi(song, &song_idx, &len);
+    int j;
+    int midi_note = GetMidi(channel.song, &channel.idx,
+                            &channel.ticksleft);
     if (midi_note == (int)0) break;
     PlayNote(midi_note);
-    for (j = (int)0; j < len; j++) {}
+    for (j = (int)0; j < channel.ticksleft; j++) {}
   }
 
   Quiet();
