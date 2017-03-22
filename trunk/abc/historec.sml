@@ -13,7 +13,8 @@ struct
   (* Place to insert convergence help. *)
   val CONVERGEPOS = LASTPAGE + 108 * 160 + 20
 
-  val MAX_CONV = 102
+  (*  val MAX_CONV = 102*)
+  val MAX_CONV = 10
 
   exception Histo of string
 
@@ -38,9 +39,10 @@ struct
 
       (* Read the whole file *)
       val contents = StringUtil.readfile filename
-      val contents = Word8Array.tabulate (128 * 160 * 20,
-                                          fn i =>
-                                          Word8.fromInt ` ord `String.sub (contents, i))
+      val contents = Word8Array.tabulate
+        (128 * 160 * 20,
+         fn i =>
+         Word8.fromInt ` ord `String.sub (contents, i))
 
       fun writestring pos s =
         Util.for 0 (size s - 1)
@@ -51,7 +53,8 @@ struct
          end)
 
 
-      (* Blank out the region that we overwrite, so that we can assume it's all spaces. *)
+      (* Blank out the region that we overwrite, so that we can assume
+         it's all spaces. *)
       fun blank i = Word8Array.update (contents, i, 0wx20)
       val () = for_column blank
       val () = for_converge blank
@@ -72,10 +75,13 @@ struct
       (* What we need to do is compute a delta on the start_histo
          such that the new values for start_histo, when inserted
          into the document, will be accurate. These deltas should
-         be positive for digits and negative for spaces.
+         be nonnegative for digits and nonpositive for spaces.
+         Since the total number of characters in the document always
+         stays the same, the vector should sum to 0.
 
          For a given delta (proposed modification to the histogram
-         _values_), this function computes the actual effect of
+         _values_) and conv (arbitrary sequence to insert, replacing
+         spaces), this function computes the actual effect of
          the change (ground truth histogram). So if the delta =
          change, then we've solved it. *)
       fun getchange (delta, conv) =
@@ -124,47 +130,62 @@ struct
       fun randomdigits () =
         let val len = MT.random_nat mt 9
         in
-          CharVector.tabulate (len, fn _ => chr (MT.random_nat mt 9 + ord #"0"))
+          CharVector.tabulate (len, fn _ =>
+                               chr (MT.random_nat mt 9 + ord #"0"))
         end
 
       fun loop (delta, conv) =
         if size conv > MAX_CONV
-        then loop (delta, randomdigits ())
+        then
+          let in
+            print "Conv got too big.\n";
+            loop (delta, randomdigits ())
+          end
         else
         let
+          val () = print "Delta:  "
+          val () = Array.app (fn i => print (Int.toString i ^ " ")) delta
+          val () = print ("\t conv: " ^ conv ^ "\n")
+
           val dtot = Array.foldl op+ 0 delta
           val () =
             if dtot <> 0
-            then raise Histo ("Delta total should be 0, but got " ^ Int.toString dtot)
+            then raise Histo ("Delta total should be 0, but got " ^
+                              Int.toString dtot)
             else ();
 
           val change = getchange (delta, conv)
           (* val changetot = Array.foldl op+ 0 change *)
 
-          val error = ref 0;
-          val diff = Array.tabulate (11,
+          val () = print "Change: "
+          val () = Array.app (fn i => print (Int.toString i ^ " ")) change
+          val () = print "\n"
+
+          val total_error = ref 0
+          val error = Array.tabulate (11,
                                      fn i =>
                                      let val diff =
                                        Array.sub (delta, i) -
                                        Array.sub (change, i)
                                      in
-                                       error := !error + Int.abs diff;
+                                       total_error := !total_error +
+                                           Int.abs diff;
                                        diff
                                      end)
           val () =
             let in
-              print "Error: ";
-              Array.app (fn i => print (Int.toString i ^ " ")) diff;
+              print "Error:  ";
+              Array.app (fn i => print (Int.toString i ^ " ")) error;
               print "\n"
             end
 
         in
-          if !error = 0
+          if !total_error = 0
           then
             let in
               print "This shall work!\n";
               Array.app (fn i => print (Int.toString i ^ " ")) change;
-              print ("\nWith conv: " ^ conv ^ "\n");
+              print "\n";
 
               (* Actually write the histogram. *)
               Util.for 0x20 0x7e
@@ -189,11 +210,92 @@ struct
               StringUtil.writefilev8 filename (Word8Array.vector contents)
             end
           else
-            let in
+            let
+              fun fixup () =
+                let
+                  (* Temp copies. *)
+                  val error = Array.tabulate (Array.length error,
+                                              fn i => Array.sub (error, i))
+                  val change = Array.tabulate (Array.length change,
+                                               fn i => Array.sub (change, i))
+                  (* If we can, fix up the error in place by modifying conv. *)
+                  val newdigits = Array.array (10, 0)
+                  val () = CharVector.app
+                    (fn d =>
+                     case getdigit ` ord d of
+                       NO => ()
+                     | SPACE => () (* should be impossible? *)
+                     | DIGIT d => Array.update (newdigits, d,
+                                                Array.sub (newdigits, d) + 1))
+                    conv
 
-              loop (change, if MT.random_nat mt 6 = 0
-                            then randomdigits ()
-                            else conv)
+                  (* Now we can adjust newdigits:
+                     If we have negative error for any slot, add digits.
+                     If we have positive error and at least that many
+                     digits, remove them. *)
+
+                  val () =
+                    Util.for 0 9
+                    (fn d =>
+                     let
+                       val conv_count = Array.sub(newdigits, d)
+                       val err = Array.sub (error, d)
+                     in
+                       if err = 0
+                       then ()
+                       else if err < 0
+                            then
+                              let in
+                                (* Too few digits. Just add them. *)
+                                Array.update (newdigits, d, conv_count - err);
+                                Array.update (change, d,
+                                              Array.sub (change, d) + err);
+                                (* Reduce the number of spaces. *)
+                                Array.update (change, 10,
+                                              Array.sub (change, 10) - err)
+                              end
+                            else
+                              let
+                                (* Too many digits. Remove as many as
+                                   we can. *)
+                                val num = Int.min (conv_count, err)
+                              in
+                                if num < 0 then raise Histo "??"
+                                else ();
+                                Array.update (newdigits, d, conv_count - num);
+                                Array.update (change, d,
+                                              Array.sub (change, d) - num);
+                                Array.update (change, 10,
+                                              Array.sub (change, 10) + num)
+                              end
+                     end)
+
+                  val conv = ref ""
+                  val () =
+                    Util.for 0 9
+                    (fn d =>
+                     let val ct = Array.sub (newdigits, d)
+                     in
+                       if ct > 0
+                       then conv := !conv ^
+                         CharVector.tabulate (ct, fn _ => chr (ord #"0" + d))
+                       else ()
+                     end)
+                  val conv = !conv
+                  val () = print ("New conv of " ^ conv ^ "\n")
+                in
+                  (change, conv)
+                end
+
+              val (new_change, new_conv) = fixup ()
+            in
+              if size new_conv < MAX_CONV
+              then
+                loop (new_change, new_conv)
+              else
+                loop (change, if MT.random_nat mt 6 = 0
+                              then randomdigits ()
+                              else conv)
             end
         end
     in
