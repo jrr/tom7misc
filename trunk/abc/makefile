@@ -30,7 +30,7 @@ historec.exe : historec.sml historec.mlb
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
 
-TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe struct.exe fswitch.exe
+TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe struct.exe fswitch.exe puts.exe
 
 text2pdf.exe : text2pdf.c
 	gcc -O2 $< -o $@
@@ -84,4 +84,5 @@ dos/%.exe : %.c abc.exe $(TEXT2C)
 
 dos/paper.exe : paper.c abc.exe historec.exe $(TEXT2C)
 	./abc.exe $< -o $@
-	./historec.exe dos/paper.exe
+	echo "XXX skipping convergence"
+#	./historec.exe dos/paper.exe

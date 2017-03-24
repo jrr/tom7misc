@@ -80,7 +80,6 @@ void writestr(char *str) {
 
 
 void WriteHeader(char *title){
-
   struct tm *ltime;
   time_t clock;
   char datestring[30];

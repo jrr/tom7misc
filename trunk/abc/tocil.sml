@@ -121,8 +121,10 @@ struct
     (* We ignore const (just affects error checking and optimization)
        and volatile (means nothing) *)
     | Ast.Qual (_, t) => transtype ctx t
-    (* Array should be represented as pointer, right? *)
-    | Ast.Array _ => raise ToCIL "Array types unimplemented."
+    | Ast.Array (NONE, _) => raise ToCIL "Anonymous arrays unimplemented."
+    (* Second argument here is, I think, the original expression that
+       computed the array's size. We should always have the constant int. *)
+    | Ast.Array (SOME (n, _), t) => Array (transtype ctx t, LargeInt.toInt n)
     | Ast.Pointer t => Pointer (transtype ctx t)
     | Ast.Function (ret, args) =>
         Code (transtype ctx ret, map (transtype ctx o #1) args)
@@ -173,12 +175,13 @@ struct
          | _ => raise ToCIL "unimplemented: floating point (type)"
        end
 
-  fun typewidth t =
+  (* XXX remove caller arg *)
+  fun typewidth caller t =
     case t of
       Pointer _ => Width16
     | Code _ => Width16
-    | Struct _ => raise ToCIL "unimplemented: struct lvalues"
-    | Array _ => raise ToCIL "unimplemented: array lvalues"
+    | Struct _ => raise ToCIL ("unimplemented: struct lvalues (" ^ caller ^ ")")
+    | Array _ => raise ToCIL ("unimplemented: array lvalues (" ^ caller ^ ")")
     | Word32 _ => Width32
     | Word16 _ => Width16
     | Word8 _ => Width8
@@ -295,7 +298,7 @@ struct
      its arguments must have been promoted to the same numeric typ t. *)
   fun opconstructor bop (t : typ) : (value * value -> exp) * typ =
     let
-      val width = typewidth t
+      val width = typewidth "op" t
       val signedness = typesignedness t
       fun atwidth f (a, b) = f (width, a, b)
     in
@@ -411,23 +414,29 @@ struct
            case ptrt of
              Pointer t =>
                let
-                 val argwidth = typewidth t
+                 val elt_size = sizeof t
                  val scaled_idx = genvar "sidx"
                  val addr = genvar "off"
 
-                 fun scale Width32 v =
+                 (* Scale the index (v) by the element size. *)
+                 fun scale 4 v =
                    LeftShift (POINTER_WIDTH, v,
                               Word16Literal ` Word16.fromInt 2)
-                   | scale Width16 v =
+                   | scale 2 v =
                    Plus (POINTER_WIDTH, v, v)
-                   | scale Width8 v = Value v
+                   | scale 1 v = Value v
+                   (* PERF: More special cases? I guess the optimizer
+                      can do this for us. *)
+                   | scale elt_size v =
+                   Times (POINTER_WIDTH,
+                          Word16Literal ` Word16.fromInt 4, v)
                in
                  transexp ctx idx bc
                  (fn (idxv, idxt) =>
                   implicit { src = idxt, dst = POINTER_INT_TYPE, v = idxv }
                   (fn (idxv, _) =>
                    Bind (scaled_idx, POINTER_INT_TYPE,
-                         scale argwidth idxv,
+                         scale elt_size idxv,
                          (* XXX note this treats pointer as int; we should
                             insert explicit Cast. *)
                          Bind (addr, ptrt,
@@ -501,18 +510,41 @@ struct
       fun as_lvalue s =
         translvalue ctx orig_exp bc
         (fn (addr, typ) =>
-         let
-           val width = typewidth typ
-           val v = genvar s
-         in
-           Bind (v, typ, Load (width, addr), k (Var v, typ))
-         end)
+         case typ of
+           (* XXX Is this really right? Array lvalues are not allowed
+              by the spec, but this part is described very strangely
+              there. Here, in converting an array-type lvalue to an
+              rvalue, we just make it the same value at pointer type.
+
+              Maybe compare these cases:
+
+                  decl          lvalue mention   rvalue mention
+                  int local;        &local           *&local
+                  int local[1];    &local[0]        *&local[0]
+
+              Saying local alone gives you a pointer to it,
+              and the subscript [0] to that array gives you
+              the lvalue you want. Does this allow int arr[3]; *arr?
+              Seems that is legal C... *)
+           Array (tt, _) => k (addr, Pointer tt)
+         | _ =>
+             let
+               (* val () = print ("addr: " ^ valtos addr ^ " : " ^
+                                  typtos typ ^ "\n") *)
+               val width = typewidth ("as_lvalue(" ^ s ^ ")") typ
+               val v = genvar s
+             in
+               Bind (v, typ, Load (width, addr), k (Var v, typ))
+             end)
     in
       case e of
         (* XXX need some way to deduce the types of literals.
            Possibly they can always be signed, and then we
            can rewrite to smaller literals later as an optimization?
-           Looks like this may work. *)
+           Looks like this may work.
+
+           (Note in C99 it explicitly says to use int if it fits
+           in int, then try long if it fits in long, etc.) *)
         Ast.IntConst i =>
           let
             val typ = Word32 Signed
@@ -630,7 +662,7 @@ struct
                 transexp ctx b bc
                 (fn (bv, bt) =>
                  let
-                   val width = typewidth ltyp
+                   val width = typewidth "assigning bop" ltyp
                    (* if we have uchar += uint32, the operation is
                       an 8-bit one and the result is 8-bit. *)
                    val oldv = genvar "assopold"
@@ -654,7 +686,7 @@ struct
                 transexp ctx b bc
                 (fn (bv, bt) =>
                  let
-                   val width = typewidth ltyp
+                   val width = typewidth "assigning shift" ltyp
                    val oldv = genvar "ashiftold"
                    val newv = genvar "ashiftnew"
                    val ctor =
@@ -687,7 +719,8 @@ struct
                  in
                    implicit { src = bt, dst = Word16 Unsigned, v = bv }
                    (fn (bv, _) =>
-                    Bind (v, at, ctor (typewidth at, av, bv), k (Var v, at)))
+                    Bind (v, at, ctor (typewidth "shift" at, av, bv),
+                          k (Var v, at)))
                  end))
 
            | NORMAL bop =>
@@ -727,21 +760,21 @@ struct
                 (fn (av, at) =>
                  let val v = genvar "u"
                  in Bind (v, at,
-                          Negate (typewidth at, av), k (Var v, at))
+                          Negate (typewidth "neg" at, av), k (Var v, at))
                  end)
             | Ast.BitNot => transexp ctx a bc
                 (fn (av, at) =>
                  let
                    val v = genvar "u"
                  in Bind (v, at,
-                          Complement (typewidth at, av), k (Var v, at))
+                          Complement (typewidth "not" at, av), k (Var v, at))
                  end)
             | Ast.UnopExt _ => raise ToCIL "unop extensions unsupported"
             | Ast.PreInc =>
                 translvalue ctx a bc
                 (fn (addr, ltyp) =>
                  let
-                   val width = typewidth ltyp
+                   val width = typewidth "preinc" ltyp
                    val oldv = genvar "preincold"
                    val newv = genvar "preincnew"
                  in
@@ -760,7 +793,7 @@ struct
                 translvalue ctx a bc
                 (fn (addr, ltyp) =>
                  let
-                   val width = typewidth ltyp
+                   val width = typewidth "predec" ltyp
                    val oldv = genvar "predecold"
                    val newv = genvar "predecnew"
                  in
@@ -780,7 +813,7 @@ struct
                 translvalue ctx a bc
                 (fn (addr, ltyp) =>
                  let
-                   val width = typewidth ltyp
+                   val width = typewidth "postinc" ltyp
                    val oldv = genvar "postincold"
                    val newv = genvar "postincnew"
                  in
@@ -799,7 +832,7 @@ struct
                 translvalue ctx a bc
                 (fn (addr, ltyp) =>
                  let
-                   val width = typewidth ltyp
+                   val width = typewidth "postdec" ltyp
                    val oldv = genvar "postdecold"
                    val newv = genvar "postdecnew"
                  in
@@ -901,7 +934,7 @@ struct
                  end
 
                val synthtyp = jointypes (exptype te) (exptype fe)
-               val width = typewidth synthtyp
+               val width = typewidth "?:" synthtyp
                val resv = genvar "r"
                val true_lab = BC.genlabel "ternt"
                val done_lab = BC.genlabel "terndone"
@@ -940,7 +973,7 @@ struct
              (fn (rhsv, rhst) =>
               implicit { src = rhst, dst = dsttyp, v = rhsv }
               (fn (rhsv, rhst) =>
-               let val dstwidth = typewidth dsttyp
+               let val dstwidth = typewidth "assign" dsttyp
                in Store (dstwidth, dstaddr, rhsv,
                          k (rhsv, rhst))
                end)))
@@ -1020,7 +1053,7 @@ struct
            (fn (v, t) =>
             implicit { src = t, dst = vartyp, v = v }
             (fn (v, _) =>
-             Store (typewidth vartyp,
+             Store (typewidth "decl init" vartyp,
                     AddressLiteral (mkaddr id, vartyp),
                     v, k ())))
          end
@@ -1402,7 +1435,7 @@ struct
                              (fn (v : value, vt : typ) =>
                               implicit { v = v, src = vt, dst = t }
                               (fn (vv, vvt) =>
-                               Store (typewidth ` transtype ctx ctype,
+                               Store (typewidth "vardec" ` transtype ctx ctype,
                                       AddressLiteral (Global ` uid, t),
                                       vv, End)))
                          | Ast.Aggregate _ =>

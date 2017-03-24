@@ -1082,13 +1082,33 @@ struct
              block at the head of this list. The previous block
              has already been patched to jump to !cur. *)
           fun place ((xb as (lab, vec, jmps, acc, _)) :: rest) : unit =
-            let val len = Word8Vector.length vec
+            let
+              val len = Word8Vector.length vec
+              val abs_jmps = map (fn j => !cur + j) jmps
+              (* Earliest we could place the next one is right after
+                 this block ends. *)
+              val min_pos = ref (!cur + len)
+              (* But it also has to be far enough for the jumps to
+                 reach it with printable displacements. *)
+              val () = app (fn j =>
+                            let
+                              val srcip = j + 1
+                              val disp = !min_pos - srcip
+                            in
+                              (* XXX check that this logic is correct!
+                                 6 Mar 2017
+                                 0x20 *)
+                              if disp < 0x20
+                              then min_pos := !min_pos - (disp - 0x20)
+                              else ()
+                            end) abs_jmps
+              val next_cur = !min_pos
             in
               if !Flags.verbose
               then print ("place w/ cur=" ^ Int.toString (!cur) ^ " block " ^
                           lab ^ " of length " ^ Int.toString len ^ "\n")
               else ();
-              if !cur + len > 65536
+              if next_cur >= 65536
               then
                 let in
                   print " ... would overflow.\n";
@@ -1097,34 +1117,10 @@ struct
                 end
               else
                 let
-                  val abs_jmps = map (fn j => !cur + j) jmps
-                  (* Earliest we could place the next one is right after
-                     this block ends. *)
-                  val min_pos = ref (!cur + len)
-                  (* But it also has to be far enough for the jumps to
-                     reach it with printable displacements. *)
-                  val () = app (fn j =>
-                                let
-                                  val srcip = j + 1
-                                  val disp = !min_pos - srcip
-                                in
-                                  (* XXX check that this logic is correct!
-                                     6 Mar 2017
-                                     0x20 *)
-                                  if disp < 0x20
-                                  then min_pos := !min_pos - (disp - 0x20)
-                                  else ()
-                                end) abs_jmps
-                  val next_cur = !min_pos
                 in
-                  (* Can treat this like the !cur + len test above failing. *)
-                  if next_cur >= 65536
-                  then raise ToX86 ("need to handle the case that " ^
-                                    "next_cur overflows")
-                  else ();
-
                   if !Flags.verbose
-                  then print ("write " ^ lab ^ " to " ^ Int.toString (!cur) ^ ".\n")
+                  then print ("write " ^ lab ^ " to " ^
+                              Int.toString (!cur) ^ ".\n")
                   else ();
                   (if lab = initial_label
                    then
