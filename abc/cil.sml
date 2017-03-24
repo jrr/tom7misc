@@ -206,7 +206,8 @@ struct
                                                Word16 Unsigned])
 
   fun typtos (Pointer t) = "(" ^ typtos t ^ " ptr)"
-    | typtos (Struct t) = "... TODO STRUCT ..."
+    | typtos (Struct ts) = "{" ^ StringUtil.delimit ", "
+    (map (fn (l, t) => l ^ " : " ^ typtos t) ts) ^ "}"
     | typtos (Code (ret, args)) = ("(" ^
                                    StringUtil.delimit " , " (map typtos args) ^
                                    " -> " ^ typtos ret ^ ")")

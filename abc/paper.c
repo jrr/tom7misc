@@ -9,8 +9,17 @@
  *
  **********************************************************/
 
+int _putc(int); // XXX
 int _out8(int, int);
 int _exit();
+
+int puts(unsigned char *s) {
+  while ((int)*s != (int)0) {
+    _putc((int)*s);
+    s = (unsigned char*)((int)s + (int)1);
+  }
+  return 0;
+}
 
 unsigned char *meta_note = "Now this is the part of the data segment "
   "that stores global variables. This is actually a string constant in "
@@ -254,18 +263,56 @@ unsigned char *GetSong(unsigned char *cmdline) {
   }
 }
 
+// Note: Doesn't check that the input is within the maximum number of
+// channels!
+int SplitChannels(unsigned char *song, Channel *channels) {
+  int i, current_channel = 0;
+  channels[current_channel].song = song;
+  for (i = (int)0; (int)song[i] != (int)0; i++) {
+    if ((int)song[i] == (int)'|') {
+      _putc('|');
+      channels[current_channel].song = &song[i];
+      song[i] = (unsigned char)'\0';
+      current_channel++;
+    }
+  }
+  return current_channel + (int)1;
+}
+
 int main(int argc, unsigned char **argv) {
   // (XXX expand to multiple channels)
   Channel channel;
   Channel channels[2];
+  /*
+  unsigned char *song;
   unsigned char *cmdline = *argv;
+  int num_channels;
   MakeArgString(&cmdline);
+  song = GetSong(cmdline);
+  */
+
+  channels[1].song = alphabet;
+  puts(channels[1].song);
+
+  /*
+  // Initialize channels.
+  num_channels = SplitChannels(song, (Channel *)&channels);
 
   channel.song = GetSong(cmdline);
   channel.idx = 0;
   channel.ticksleft = 0;
 
   Quiet();
+
+  {
+    int i;
+    _putc('n'); _putc((int)'0' + num_channels); _putc('\n');
+    for (i = 0; i < num_channels; i++) {
+      _putc('c'); _putc((int)'0' + i); _putc(':');
+      puts(channels[i].song);
+      _putc('\n');
+    }
+  }
 
   // Initialize the Adlib instrument.
   Adlib((int)0x20, (int)0x01); // Modulator multiple 1.
@@ -288,4 +335,5 @@ int main(int argc, unsigned char **argv) {
 
   Quiet();
   return 0;
+  */
 }
