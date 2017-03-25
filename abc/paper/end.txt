@@ -109,8 +109,8 @@ I also still need to fill up 20 pages in this ridiculously small font!
 
 
 
-
-%insert paper.c
+XXXXXXXXXXXXX
+don't %insert paper.c
 
 
     ** 30. Is this useful for anything? **
@@ -238,23 +238,6 @@ Of  course, everyone  knows that  even  unary numbers  (just like  one
 symbol repeated a given number of times) is Turing complete, via Godel
 encoding. So what's the big deal?
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                           
                                                                            
          ##       ##                                                       
           ###   ####                                                       

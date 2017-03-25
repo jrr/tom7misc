@@ -1031,7 +1031,7 @@ struct
       | Ast.ErrorExpr => raise ToCIL "encountered ErrorExpr"
     end
 
-  (* Typedecls ignored currently. *)
+  (* Typedecls ignored--ckit puts thes in the tidtab, right? *)
   fun transdecl (ctx : ctx) (Ast.TypeDecl _) (bc : stmt bc)
                 (k : unit -> stmt) : stmt = k ()
     (* Should probably still add it to a context? *)
