@@ -13,6 +13,7 @@ int _putc(int); // XXX
 int _out8(int, int);
 int _exit();
 
+/* XXXX */
 int puts(unsigned char *s) {
   while ((int)*s != (int)0) {
     _putc((int)*s);
@@ -72,6 +73,7 @@ unsigned char *bluehair =
 typedef struct {
   unsigned char *song;
   int idx;
+  int midi_note;
   unsigned int ticksleft;
 } Channel;
 
@@ -89,13 +91,13 @@ int Adlib(int reg, int value) {
   return 0;
 }
 
-int PlayNote(int midi_note) {
+int PlayNote(int ch, int midi_note) {
   // First turn note off; silence is better than weird "accidentals."
-  Adlib((int)0xB0, (int)0x00);
+  Adlib((int)0xB0 + ch, 0x00);
   // midi_note = 128 actually accesses the terminating \0 in the
   // above strings, which is what we want to turn off the channel.
-  Adlib((int)0xA0, (int)(lower[midi_note]));
-  Adlib((int)0xB0, (int)(upper[midi_note]));
+  Adlib((int)0xA0 + ch, (int)(lower[midi_note]));
+  Adlib((int)0xB0 + ch, (int)(upper[midi_note]));
 }
 
 // Zero all the adlib ports, which both silences it and
@@ -103,9 +105,11 @@ int PlayNote(int midi_note) {
 int Quiet() {
   int port;
 
-  // Clear the main tone first, so that we don't hear artifacts during
+  // Clear the main tones first, so that we don't hear artifacts during
   // the clearing process if a note is playing.
   Adlib((int)0xB0, (int)0x00);
+  Adlib((int)0xB1, (int)0x00);
+  Adlib((int)0xB2, (int)0x00);
 
   for (port = (int)0x01; port <= (int)0xF5; port++) {
     Adlib((int)port, (int)0x00);
@@ -213,11 +217,13 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
 
     // End of string literal.
     if (c == (int)0) return 0;
-    // End of command-line argument.
-    if (c == (int)0x0D) return 0;
 
+    _putc('[');
+    _putc(c);
+    _putc(']');
     // Advance to next character.
     *idx = *idx + (int)1;
+
 
     switch (c) {
     case '^':
@@ -247,6 +253,22 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
   }
 }
 
+// Adlib has 9 channels, but they are packed in groups of
+// three (c1o1, c2o1, c3o1, c1o2, c2o2, c3o2, c4o1, ...).
+// So this only works for the first three channels. Not
+// too hard to generalize, especially with a table.
+int InitInstrument(int ch) {
+  // Initialize the Adlib instrument.
+  Adlib((int)0x20 + ch, 0x01); // Modulator multiple 1.
+  Adlib((int)0x40 + ch, 0x10); // Modulator gain ~ 40db.
+  Adlib((int)0x60 + ch, 0xF0); // Modulator attack: quick. Decay: long.
+  Adlib((int)0x80 + ch, 0x77); // Modulator sustain: med. Release: med.
+  Adlib((int)0x23 + ch, 0x01); // Carrier multiple to 1.
+  Adlib((int)0x43 + ch, 0x00); // Carrier at max volume.
+  Adlib((int)0x63 + ch, 0xF0); // Carrier attack: quick. Decay: long.
+  Adlib((int)0x83 + ch, 0x77); // Carrier sustain: med. release: med.
+}
+
 // First test for known songs. After that, if we have a command line,
 // use it. Otherwise, use the default song.
 unsigned char *GetSong(unsigned char *cmdline) {
@@ -267,35 +289,46 @@ unsigned char *GetSong(unsigned char *cmdline) {
 // channels!
 int SplitChannels(unsigned char *song, Channel *channels) {
   int i, current_channel = 0;
-  channels[current_channel].song = song;
-  for (i = (int)0; (int)song[i] != (int)0; i++) {
-    if ((int)song[i] == (int)'|') {
+  unsigned char *prevsong = song;
+  for (i = (int)0; /* in loop */; i++) {
+    // _putc((int)song[i]);
+    int c = song[i];
+    switch (c) {
+    case '|':
+    case '\0':
       _putc('|');
-      channels[current_channel].song = &song[i];
       song[i] = (unsigned char)'\0';
+      {
+        Channel *channel = &channels[current_channel];
+        channel->song = prevsong;
+        // Silence; ready for next note.
+        channel->midi_note = (int)128;
+        channel->ticksleft = (int)0;
+        channel->idx = (int)0;
+      }
       current_channel++;
+      // Start after the nul-terminator byte.
+      prevsong = &song[i + (int)1];
+      if (c == (int)0) return current_channel;
+    default:
+      break;
     }
   }
-  return current_channel + (int)1;
 }
 
 int main(int argc, unsigned char **argv) {
-  // (XXX expand to multiple channels)
-  Channel channel;
   Channel channels[2];
-
   unsigned char *song;
   unsigned char *cmdline = *argv;
   int num_channels;
+
   MakeArgString(&cmdline);
   song = GetSong(cmdline);
 
-  // Initialize channels.
+  // Initialize channels. Note that this will just blow the
+  // stack-allocated channels array if there are more than
+  // two in the input string!
   num_channels = SplitChannels(song, (Channel *)&channels);
-
-  channel.song = GetSong(cmdline);
-  channel.idx = 0;
-  channel.ticksleft = 0;
 
   Quiet();
 
@@ -309,26 +342,46 @@ int main(int argc, unsigned char **argv) {
     }
   }
 
-  // Initialize the Adlib instrument.
-  Adlib((int)0x20, (int)0x01); // Modulator multiple 1.
-  Adlib((int)0x40, (int)0x10); // Modulator gain ~ 40db.
-  Adlib((int)0x60, (int)0xF0); // Modulator attack: quick. Decay: long.
-  Adlib((int)0x80, (int)0x77); // Modulator sustain: med. Release: med.
-  Adlib((int)0x23, (int)0x01); // Carrier multiple to 1.
-  Adlib((int)0x43, (int)0x00); // Carrier at max volume.
-  Adlib((int)0x63, (int)0xF0); // Carrier attack: quick. Decay: long.
-  Adlib((int)0x83, (int)0x77); // Carrier sustain: med. release: med.
+  {
+    int i;
+    for (i = 0; i < num_channels; i++)
+      InitInstrument(i);
+  }
 
+  _putc('\n');
   for (;;) {
-    int j;
-    int midi_note = GetMidi(channel.song, &channel.idx,
-                            &channel.ticksleft);
-    if (midi_note == (int)0) break;
-    PlayNote(midi_note);
-    for (j = (int)0; j < channel.ticksleft; j++) {}
+    int ch;
+    int all_done = 1;
+    // At each tick (whose rate is governed just by the time
+    // it takes to do this loop), reduce each channel's ticksleft;
+    // if it was (already) zero, load a new note.
+    for (ch = 0; ch < num_channels; ch++) {
+      Channel *channel = &channels[ch];
+      int midi_note = channel->midi_note;
+      if (midi_note != (int)0) {
+        int ticksleft = channel->ticksleft;
+        all_done = 0;
+        if (ticksleft > (int)0) {
+          channel->ticksleft = ticksleft - (int)1;
+        } else {
+          int new_note = GetMidi(channel->song, &channel->idx,
+                                 &channel->ticksleft);
+          channel->midi_note = new_note;
+          _putc((int)'0' + ch);
+          _putc((int)'a' + new_note);
+          _putc('\n');
+          if (new_note == (int)0) {
+            // Quiet the channel -- forever!
+            PlayNote(ch, (int)128);
+          } else {
+            PlayNote(ch, new_note);
+          }
+        }
+      }
+    }
+    if (all_done) break;
   }
 
   Quiet();
   return 0;
-
 }
