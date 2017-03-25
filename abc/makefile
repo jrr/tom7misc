@@ -1,4 +1,4 @@
-all : abc.exe benchbytes.exe makefreq.exe twocolumn.exe text2pdf.exe histo.exe historec.exe
+all : abc.exe benchbytes.exe makefreq.exe twocolumn.exe text2pdf.exe histo.exe historec.exe midi2abc.exe
 
 # just MLTON=mlton should work on most installations btw
 MLTON=/c/mlton/bin/mlton.bat
@@ -29,6 +29,9 @@ historec.exe : historec.sml historec.mlb
 
 benchbytes.exe : benchbytes.sml benchbytes.mlb
 	$(MLTON) -output $@ benchbytes.mlb
+
+midi2abc.exe : midi2abc.sml midi2abc.mlb
+	$(MLTON) -output $@ midi2abc.mlb
 
 TESTS = sizeof.exe builtin.exe simpcall.exe globals.exe globals2.exe callargs.exe dead.exe cond.exe cond2.exe simpleop.exe for.exe write.exe strlit.exe bitop.exe struct.exe fswitch.exe puts.exe puts2.exe sarray.exe
 
