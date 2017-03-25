@@ -352,6 +352,26 @@ struct
                  (value, t)
                end)
 
+    fun case_Times (arg as { known, simplified })
+                   ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
+      case (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b) of
+        (Width8, Word8Literal wa, Word8Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word8Literal ` Word8.* (wa, wb), wordwidth Width8)
+          end
+      | (Width16, Word16Literal wa, Word16Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word16Literal ` Word16.* (wa, wb), wordwidth Width16)
+          end
+      | (Width32, Word32Literal wa, Word32Literal wb) =>
+          let in
+            simplified := true;
+            (Value ` Word32Literal ` Word32.* (wa, wb), wordwidth Width32)
+          end
+      | (w, aa, bb) => (Times (w, aa, bb), wordwidth w)
+
     (* PERF also zeroes in either position. *)
     fun case_Plus (arg as { known, simplified })
                   ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
@@ -361,16 +381,57 @@ struct
             simplified := true;
             (Value ` Word8Literal ` Word8.+ (wa, wb), wordwidth Width8)
           end
+      | (Width8, Word8Literal 0w0, vb) =>
+          let in
+            simplified := true;
+            (Value vb, wordwidth Width8)
+          end
+      | (Width8, va, Word8Literal 0w0) =>
+          let in
+            simplified := true;
+            (Value va, wordwidth Width8)
+          end
+
       | (Width16, Word16Literal wa, Word16Literal wb) =>
           let in
             simplified := true;
             (Value ` Word16Literal ` Word16.+ (wa, wb), wordwidth Width16)
           end
+      | (Width16, va, vb) =>
+          let
+            fun iszero (Word16Literal w) = w = Word16.fromInt 0
+              | iszero _ = false
+          in
+            case (iszero va, iszero vb) of
+              (true, _) =>
+                let in
+                  simplified := true;
+                  (Value vb, wordwidth Width16)
+                end
+            | (_, true) =>
+                let in
+                  simplified := true;
+                  (Value va, wordwidth Width16)
+                end
+            | _ => (Plus (w, va, vb), wordwidth w)
+          end
+
       | (Width32, Word32Literal wa, Word32Literal wb) =>
           let in
             simplified := true;
             (Value ` Word32Literal ` Word32.+ (wa, wb), wordwidth Width32)
           end
+      | (Width32, Word32Literal 0w0, vb) =>
+          let in
+            simplified := true;
+            (Value vb, wordwidth Width32)
+          end
+      | (Width32, va, Word32Literal 0w0) =>
+          let in
+            simplified := true;
+            (Value va, wordwidth Width32)
+          end
+
       | (w, aa, bb) => (Plus (w, aa, bb), wordwidth w)
 
     fun case_Minus (arg as { known, simplified })

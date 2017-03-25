@@ -283,18 +283,13 @@ int main(int argc, unsigned char **argv) {
   // (XXX expand to multiple channels)
   Channel channel;
   Channel channels[2];
-  /*
+
   unsigned char *song;
   unsigned char *cmdline = *argv;
   int num_channels;
   MakeArgString(&cmdline);
   song = GetSong(cmdline);
-  */
 
-  channels[1].song = alphabet;
-  puts(channels[1].song);
-
-  /*
   // Initialize channels.
   num_channels = SplitChannels(song, (Channel *)&channels);
 
@@ -335,5 +330,5 @@ int main(int argc, unsigned char **argv) {
 
   Quiet();
   return 0;
-  */
+
 }

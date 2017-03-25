@@ -31,6 +31,7 @@ int WriteItems(Item *items) {
 
 int main(int argc, unsigned char **argv) {
   Item items[(int)3];
+
   items[0].tag = (int)2;
   items[0].c = 'o';
 
@@ -39,7 +40,8 @@ int main(int argc, unsigned char **argv) {
 
   items[1].tag = (int)0;
   items[1].a = 'k';
-  
+
+
   WriteItems(items);
   return 0;
 }
