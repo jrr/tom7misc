@@ -62,9 +62,11 @@ unsigned char *alphabet =
   "C4C4G4G4A4A4G8" "F4F4E4E4D4D4C8";
 
 unsigned char *plumber =
-  "e2e4e4c2e4g2z6G4"
-  "cz2Gz2EzA2B^2'AA2"
-  "G2e2g2a3fg3e4cdBz";
+  "e'e'ze'zc'e'zg'z3g2z2c'z2gz2ez2azbz^aazge'zg'a'2f'g'ze'zc'd'bz2c'z2gz2ez2azbz^aazge'zg'a'zf'g'ze'zc'd'bz4g'^f'f'^d'ze'z^gac'zac'd'z2g'^f'f'^d'ze'zc''zc''c''z5g'^f'f'^d'ze'z^gac'zac'd'z2^d'z2d'z2c'|"
+  "DDzDzDDzgz3G2z2Gz2Ez2Cz2FzGz^FFzEczef2dezczABGz2Gz2Ez2Cz2FzGz^FFzEczefzdezczABGz2Cz2Gz2czFz2cczFzCz2Ez2Gczg'zg'g'zGzCz2Gz2czFz2cczFzCz^Gz2^Az2cz2GGzC";
+  //  "e2e4e4c2e4g2z6G4"
+  //  "cz2Gz2EzA2B^2'AA2"
+  //  "G2e2g2a3fg3e4cdBz";
 
 unsigned char *bluehair =
   "^A8z2F4^G8F3c4^A4F4^A4^G8z8"
@@ -116,17 +118,6 @@ int Quiet() {
   }
 }
 
-int streq(unsigned char *a, unsigned char *b) {
-  int i;
-  for (i = 0; /* in loop */; i++) {
-    int ca = a[i], cb = b[i];
-    if (ca != cb)
-      return (int)0;
-    if (ca == (int)0)
-      return (int)1;
-  }
-}
-
 // ABC provides no standard library, so you gotta roll
 // your own.
 int strlen(unsigned char *s) {
@@ -136,6 +127,15 @@ int strlen(unsigned char *s) {
     s = (unsigned char *)((int)s + (int)1);
   }
   return len;
+}
+
+int streq(unsigned char *a, unsigned char *b) {
+  int i;
+  for (i = 0; /* in loop */; i++) {
+    int ca = a[i], cb = b[i];
+    if (ca != cb) return (int)0;
+    if (ca == (int)0) return (int)1;
+  }
 }
 
 // DOS command lines always start with a space, which is annoying.
@@ -163,7 +163,7 @@ int MakeArgString(unsigned char **argstring) {
 unsigned char *octave4 =
   "9"  // A = 57
   ";"  // B = 59
-  "0"  // C = 48 = 0
+  "0"  // C = 48
   "2"  // D = 50
   "4"  // E = 52
   "5"  // F = 53
@@ -198,11 +198,11 @@ int ParseNote(unsigned char *ptr, int c, int *idx) {
 unsigned int ParseLength(unsigned char *ptr, int *idx) {
   int c = (int)ptr[*idx];
   if (c >= (int)'2' && c <= (int)'8') {
-    int m = c - (int)'1';
+    int m = c - (int)'0';
     *idx = *idx + (int)1;
-    return (unsigned int)2048 * m;
+    return (unsigned int)200 * m;
   }
-  return (unsigned int)2048;
+  return (unsigned int)200;
 }
 
 // Parse the song description (ptr) starting at *idx. Updates *idx to
@@ -317,7 +317,7 @@ int SplitChannels(unsigned char *song, Channel *channels) {
 }
 
 int main(int argc, unsigned char **argv) {
-  Channel channels[2];
+  Channel channels[3];
   unsigned char *song;
   unsigned char *cmdline = *argv;
   int num_channels;
