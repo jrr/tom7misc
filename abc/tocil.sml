@@ -429,7 +429,7 @@ struct
                       can do this for us. *)
                    | scale elt_size v =
                    Times (POINTER_WIDTH,
-                          Word16Literal ` Word16.fromInt 4, v)
+                          Word16Literal ` Word16.fromInt elt_size, v)
                in
                  transexp ctx idx bc
                  (fn (idxv, idxt) =>
