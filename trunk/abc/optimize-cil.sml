@@ -360,19 +360,96 @@ struct
             simplified := true;
             (Value ` Word8Literal ` Word8.* (wa, wb), wordwidth Width8)
           end
+      | (Width8, Word8Literal 0w0, _) =>
+          let in
+            simplified := true;
+            (Value ` Word8Literal 0w0, wordwidth Width8)
+          end
+      | (Width8, _, Word8Literal 0w0) =>
+          let in
+            simplified := true;
+            (Value ` Word8Literal 0w0, wordwidth Width8)
+          end
+      | (Width8, Word8Literal 0w1, vb) =>
+          let in
+            simplified := true;
+            (Value vb, wordwidth Width8)
+          end
+      | (Width8, va, Word8Literal 0w1) =>
+          let in
+            simplified := true;
+            (Value va, wordwidth Width8)
+          end
+
       | (Width16, Word16Literal wa, Word16Literal wb) =>
           let in
             simplified := true;
             (Value ` Word16Literal ` Word16.* (wa, wb), wordwidth Width16)
           end
+      | (Width16, va, vb) =>
+          let
+            datatype zo = ZERO | ONE | OTHER
+            fun zo (Word16Literal w) = if w = Word16.fromInt 0
+                                       then ZERO
+                                       else if w = Word16.fromInt 1
+                                            then ONE
+                                            else OTHER
+              | zo _ = OTHER
+          in
+            case (zo va, zo vb) of
+              (ZERO, _) =>
+                let in
+                  simplified := true;
+                  (Value ` Word16Literal ` Word16.fromInt 0, wordwidth Width16)
+                end
+            | (_, ZERO) =>
+                let in
+                  simplified := true;
+                  (Value ` Word16Literal ` Word16.fromInt 0, wordwidth Width16)
+                end
+
+            | (ONE, _) =>
+                let in
+                  simplified := true;
+                  (Value vb, wordwidth Width16)
+                end
+            | (_, ONE) =>
+                let in
+                  simplified := true;
+                  (Value va, wordwidth Width16)
+                end
+
+            | _ => (Times (Width16, va, vb), wordwidth Width16)
+          end
+
       | (Width32, Word32Literal wa, Word32Literal wb) =>
           let in
             simplified := true;
             (Value ` Word32Literal ` Word32.* (wa, wb), wordwidth Width32)
           end
+      | (Width32, Word32Literal 0w0, _) =>
+          let in
+            simplified := true;
+            (Value ` Word32Literal 0w0, wordwidth Width32)
+          end
+      | (Width32, _, Word32Literal 0w0) =>
+          let in
+            simplified := true;
+            (Value ` Word32Literal 0w0, wordwidth Width32)
+          end
+      | (Width32, Word32Literal 0w1, vb) =>
+          let in
+            simplified := true;
+            (Value vb, wordwidth Width32)
+          end
+      | (Width32, va, Word32Literal 0w1) =>
+          let in
+            simplified := true;
+            (Value va, wordwidth Width32)
+          end
+
       | (w, aa, bb) => (Times (w, aa, bb), wordwidth w)
 
-    (* PERF also zeroes in either position. *)
     fun case_Plus (arg as { known, simplified })
                   ({ selft, selfv, selfe, selfs }, ctx) (w, a, b) =
       case (w, fst ` selfv arg ctx a, fst ` selfv arg ctx b) of
@@ -413,7 +490,7 @@ struct
                   simplified := true;
                   (Value va, wordwidth Width16)
                 end
-            | _ => (Plus (w, va, vb), wordwidth w)
+            | _ => (Plus (Width16, va, vb), wordwidth Width16)
           end
 
       | (Width32, Word32Literal wa, Word32Literal wb) =>
