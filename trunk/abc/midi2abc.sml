@@ -4,7 +4,7 @@ struct
   fun a ` b = a b
 
   (* command line option? length of base note. *)
-  val MIN = 96
+  val MIN = 30
 
   exception MIDI2ABC of string
 

@@ -21,6 +21,11 @@ The language supported is as follows:
     ,   (Suffix) Down one octave
   2-8   (Suffix) Set duration of note to this many eighth notes
 
+Up  to  three  simultaneous  tracks  can  play,  all  using  the  same
+dumb-sounding organ-like instrument, by  separating tracks with |. DOS
+treats |  specially on the command  line, so quote the  argument, like
+PAPER.EXE "AA|BB|CC".
+
 Running PAPER.EXE  with arguments  like "-song"  will play  a built-in
 song.   Available   songs   include:  "-alphabet",   "-plumber",   and
 "-bluehair". There's  plenty of  space in the  data segment  for more!
@@ -109,10 +114,7 @@ I also still need to fill up 20 pages in this ridiculously small font!
 
 
 
-XXXXXXXXXXXXX
-don't %insert paper.c
-
-
+%insert paper.c
     ** 30. Is this useful for anything? **
 
 No. This is a SIGBOVIK paper. <3
@@ -205,12 +207,11 @@ code segment, unfortunately).  More essential is our ability  to set a
 register to a known value, which  today requires two or more printable
 values whose bitwise AND is 0.  Sadly, though we could go through some
 pains to remove bytes from the gamut here and there, no natural subset
-like  "only  lowercase  letters"  or "alphanumeric"  jumps  out  as  a
-straightforward extension;  we rely  on the control  flow in  the late
-lowercase letters  (Jcc) and  the basic ops  in the  early punctuation
-(AND/XOR), not to mention that the  EXE header barely works within the
-existing constraints with access to  both "small" (0x2020) and "large"
-(0x7e7e) constants.
+like "lowercase letters"  or "alphanumeric" jumps out; we  rely on the
+control flow in the late lowercase  letters (Jcc) and the basic ops in
+the early  punctuation (AND/XOR), not  to mention that the  EXE header
+barely  works within  the  existing constraints  with  access to  both
+"small" (0x2020) and "large" (0x7e7e) constants.
 
 Others  have produced  compilers  for high-level  languages with  very
 reduced instruction  sets. In  an extreme  case, Dolan  shows [MOV'13]

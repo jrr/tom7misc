@@ -87,5 +87,5 @@ dos/%.exe : %.c abc.exe $(TEXT2C)
 
 dos/paper.exe : paper.c abc.exe historec.exe $(TEXT2C)
 	./abc.exe $< -o $@
-	echo "XXX skipping convergence"
-#	./historec.exe dos/paper.exe
+#	echo "XXX skipping convergence"
+	./historec.exe dos/paper.exe
