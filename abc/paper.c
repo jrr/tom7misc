@@ -6,21 +6,9 @@
  *
  *  Plays music in a simplified ABC notation, given on the
  *  command line, or one of several built-in songs.
- *
  **********************************************************/
 
-int _putc(int); // XXX
 int _out8(int, int);
-int _exit();
-
-/* XXXX */
-int puts(unsigned char *s) {
-  while ((int)*s != (int)0) {
-    _putc((int)*s);
-    s = (unsigned char*)((int)s + (int)1);
-  }
-  return 0;
-}
 
 unsigned char *meta_note = "Now this is the part of the data segment "
   "that stores global variables. This is actually a string constant in "
@@ -52,9 +40,12 @@ unsigned char *lower = "\xA9\xB3\xBD\xC9\xD5\xE1\xEF\xFD\x0C\x1C-?Qf{"
   "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\0";
 
 unsigned char *default_song =
-  "ABD'B" "^F'3^F'3E'6"
-  "AB_D'A" "E'3E'3D'6"
-  "AB_D'A" "D'4E'2_D'2B2A2z2" "A2E'4D'4";
+  "abd'b^f'3^f'3e'6ab^c'ae'3e'3d'^c'b4ab^c'ad'4e'2^c'2b2a2z2a2e'4d'4z"
+  "4abd'b^f'3^f'3e'6ab^c'aa'4^c'2d'2^c'b3ab^c'ad'4e'2^c'3ba2z2a2e'2d'2d'4|"
+  "A4E4E4A4A4^F4^F4B4B4E4E4A4A4^F4B4A4A4E4E4A4A4^F4^F4B4B4E4E4A4A4^F4B4A2"
+  "A2A2A2|A,2^F,2E,6A,4E2^F2E2^F,6B,2A,2B,2A,2^F,2E,2^F,2G,2A,4E2^F2A2^F,6"
+  "A,4E2^F2A2E,2E,2^F,2A,4E2^F2E2^F,6B,4^F2A2^F2E,2^F,2G,2A,4E2^F2E2^F,6A,"
+  "4E2^F2A2";
 
 unsigned char *alphabet =
   "C4C4G4G4A4A4G8" "F4F4E4E4D4D4C8"
@@ -62,11 +53,12 @@ unsigned char *alphabet =
   "C4C4G4G4A4A4G8" "F4F4E4E4D4D4C8";
 
 unsigned char *plumber =
-  "e'e'ze'zc'e'zg'z3g2z2c'z2gz2ez2azbz^aazge'zg'a'2f'g'ze'zc'd'bz2c'z2gz2ez2azbz^aazge'zg'a'zf'g'ze'zc'd'bz4g'^f'f'^d'ze'z^gac'zac'd'z2g'^f'f'^d'ze'zc''zc''c''z5g'^f'f'^d'ze'z^gac'zac'd'z2^d'z2d'z2c'|"
-  "DDzDzDDzgz3G2z2Gz2Ez2Cz2FzGz^FFzEczef2dezczABGz2Gz2Ez2Cz2FzGz^FFzEczefzdezczABGz2Cz2Gz2czFz2cczFzCz2Ez2Gczg'zg'g'zGzCz2Gz2czFz2cczFzCz^Gz2^Az2cz2GGzC";
-  //  "e2e4e4c2e4g2z6G4"
-  //  "cz2Gz2EzA2B^2'AA2"
-  //  "G2e2g2a3fg3e4cdBz";
+  "e'e'ze'zc'e'zg'z3g2z2c'z2gz2ez2azbz^aazge'zg'a'2f'g'ze'zc'd'bz2c'z2gz"
+  "2ez2azbz^aazge'zg'a'zf'g'ze'zc'd'bz4g'^f'f'^d'ze'z^gac'zac'd'z2g'^f'f'"
+  "^d'ze'zc''zc''c''z5g'^f'f'^d'ze'z^gac'zac'd'z2^d'z2d'z2c'|"
+  "DDzDzDDzgz3G2z2Gz2Ez2Cz2FzGz^FFzEczef2dezczABGz2Gz2Ez2Cz2FzGz^FFzEczef"
+  "zdezczABGz2Cz2Gz2czFz2cczFzCz2Ez2Gczg'zg'g'zGzCz2Gz2czFz2cczFzCz^Gz2^A"
+  "z2cz2GGzC";
 
 unsigned char *bluehair =
   "^A8z2F4^G8F3c4^A4F4^A4^G8z8"
@@ -218,12 +210,8 @@ int GetMidi(unsigned char *ptr, int *idx, unsigned int *len) {
     // End of string literal.
     if (c == (int)0) return 0;
 
-    _putc('[');
-    _putc(c);
-    _putc(']');
     // Advance to next character.
     *idx = *idx + (int)1;
-
 
     switch (c) {
     case '^':
@@ -291,36 +279,31 @@ int SplitChannels(unsigned char *song, Channel *channels) {
   int i, current_channel = 0;
   unsigned char *prevsong = song;
   for (i = (int)0; /* in loop */; i++) {
-    // _putc((int)song[i]);
     int c = song[i];
     switch (c) {
     case '|':
-    case '\0':
-      _putc('|');
+    case '\0': {
+      Channel *channel = &channels[current_channel];
+      channel->song = prevsong;
+      // Silence; ready for next note.
+      channel->midi_note = (int)128;
+      channel->ticksleft = (int)0;
+      channel->idx = (int)0;
+
       song[i] = (unsigned char)'\0';
-      {
-        Channel *channel = &channels[current_channel];
-        channel->song = prevsong;
-        // Silence; ready for next note.
-        channel->midi_note = (int)128;
-        channel->ticksleft = (int)0;
-        channel->idx = (int)0;
-      }
       current_channel++;
       // Start after the nul-terminator byte.
       prevsong = &song[i + (int)1];
       if (c == (int)0) return current_channel;
-    default:
-      break;
+    }
     }
   }
 }
 
 int main(int argc, unsigned char **argv) {
   Channel channels[3];
-  unsigned char *song;
-  unsigned char *cmdline = *argv;
-  int num_channels;
+  unsigned char *song, *cmdline = *argv;
+  int i, num_channels;
 
   MakeArgString(&cmdline);
   song = GetSong(cmdline);
@@ -332,26 +315,11 @@ int main(int argc, unsigned char **argv) {
 
   Quiet();
 
-  {
-    int i;
-    _putc('n'); _putc((int)'0' + num_channels); _putc('\n');
-    for (i = 0; i < num_channels; i++) {
-      _putc('c'); _putc((int)'0' + i); _putc(':');
-      puts(channels[i].song);
-      _putc('\n');
-    }
-  }
+  for (i = 0; i < num_channels; i++)
+    InitInstrument(i);
 
-  {
-    int i;
-    for (i = 0; i < num_channels; i++)
-      InitInstrument(i);
-  }
-
-  _putc('\n');
   for (;;) {
-    int ch;
-    int all_done = 1;
+    int ch, all_done = 1;
     // At each tick (whose rate is governed just by the time
     // it takes to do this loop), reduce each channel's ticksleft;
     // if it was (already) zero, load a new note.
@@ -367,9 +335,6 @@ int main(int argc, unsigned char **argv) {
           int new_note = GetMidi(channel->song, &channel->idx,
                                  &channel->ticksleft);
           channel->midi_note = new_note;
-          _putc((int)'0' + ch);
-          _putc((int)'a' + new_note);
-          _putc('\n');
           if (new_note == (int)0) {
             // Quiet the channel -- forever!
             PlayNote(ch, (int)128);
