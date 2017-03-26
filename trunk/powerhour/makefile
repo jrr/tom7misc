@@ -10,7 +10,7 @@ powerhour-sample.exe: powerhour-sample.cm *.sml samples-tf.sml
 	${MLTON} -output $@ powerhour-sample.cm
 
 tfcompiler.exe : ../sml-lib/textformat/*
-	${MLTON} -output $@ ../sml-lib/textformat/tfcompiler.cm
+	${MLTON} -output $@ ../sml-lib/textformat/tfcompiler.mlb
 
 samples-tf.sml : samples.tfdesc tfcompiler.exe
 	./tfcompiler.exe samples.tfdesc
@@ -42,3 +42,8 @@ sample60min3players3states.svg : checkpoint-60m-3p-3s.tf cube.exe
 
 graphics : sample60min2players6states.svg sample60min2players7states.svg sample180min2players7states.svg sample60min3players3states.svg sample60min3players6states.svg
 
+
+# for 2017 ABC paper.
+
+abc/%.png : abc/%.svg
+	./rsvg-convert.exe --keep-aspect-ratio --width=1080 $< -o $@

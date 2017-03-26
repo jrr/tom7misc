@@ -14,6 +14,8 @@ struct
   val nonumsp = Params.flag false (SOME ("-nonums",
                                          "Don't number labels.")) "nonums"
 
+  val outfile = Params.param "" (SOME ("-o", "Output filename. Blank uses default.")) "out"
+
   val yawp = Params.param "0.0" (SOME ("-yaw", "Yaw in degrees.")) "yaw"
   val pitchp = Params.param "0.0" (SOME ("-pitch", "Pitch in degrees.")) "pitch"
   val rollp = Params.param "0.0" (SOME ("-roll", "Roll in degrees.")) "roll"
@@ -100,7 +102,15 @@ struct
     val PITCH = torad (Params.asreal 0.0 pitchp)
     val ROLL = torad (Params.asreal 0.0 rollp)
 
-    val rotate : vec3 -> vec3 = rot (YAW, PITCH, ROLL)
+    (* val rotate : vec3 -> vec3 = rot (YAW, PITCH, ROLL) *)
+    fun rotate ((a, b, c) : vec3) : vec3 =
+      let
+        val (a, b, c) = (a - 0.5, b - 0.5, c - 0.5)
+        val (a, b, c) = rot (YAW, PITCH, ROLL) (a, b, c)
+        val (a, b, c) = (a + 0.5, b + 0.5, c + 0.5)
+      in
+        (a, b, c)
+      end
 
     val cxpointfile = "checkpoint-" ^ Int.toString MINUTES ^ "m-" ^
         Int.toString NPLAYERS ^ "p-" ^
@@ -146,9 +156,14 @@ struct
 
     (* Open and write... *)
 
-    val f = TextIO.openOut ("sample" ^ Int.toString MINUTES ^ "min" ^
-                            Int.toString NPLAYERS ^ "players" ^
-                            Int.toString NSTATES ^ "states.svg")
+    val filename =
+      if !outfile = ""
+      then "sample" ^ Int.toString MINUTES ^ "min" ^
+        Int.toString NPLAYERS ^ "players" ^
+        Int.toString NSTATES ^ "states.svg"
+      else !outfile
+
+    val f = TextIO.openOut (filename)
     fun fprint s = TextIO.output (f, s)
 
     val GRAPHIC_SIZE = 1024
