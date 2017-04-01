@@ -539,7 +539,7 @@ struct
                    end))
 
 
-             (* A | B = (A & B) + (A ^ B) *)
+             (* A | B = (A & B) ^ (A ^ B) *)
              | C.Or (w, a, b) =>
                  gentmp ctx a
                  (fn (atmp, at) =>
@@ -563,7 +563,7 @@ struct
                      A.Mov (dst, atmp) //
                      A.And (dst, btmp) //
                      (* Now dst contains A & B. *)
-                     A.Add (dst, txor) //
+                     A.Xor (dst, txor) //
                      (* Now dst contains A | B. *)
                      k ()
                    end))
