@@ -158,7 +158,7 @@ read this table, but I will refer to it:
        66  operand size override prefix
        67  address size override prefix     
     68,6A  PUSH imm
-       69  IMUL
+    69,6B  IMUL
     6C,6D  INS ES:DI <- DX
     6E,6F  OUTS DX <- DS:SI
     70-7E  Jcc+disp8 variants
