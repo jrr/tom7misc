@@ -8,9 +8,9 @@ In this paper, I describe a new compiler for the C89 programming language.
 
 For good  reasons that  I will  explain later, this  paper must  be 20
 pages long. Due to unreasonable  SIGBOVIK deadlines, I did not produce
-enough technical  material to fill the  minimum number of pages,  so I
-will am  going to take my  time and I have  inserted several unrelated
-ASCII-art drawings.
+enough technical material to fill the minimum number of pages, so I am
+going to take my time and  I have inserted several unrelated ASCII-art
+drawings.
 
 
     ** 1. Typesetting note **
