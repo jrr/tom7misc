@@ -31,7 +31,7 @@ struct
       val phi1 = Math.atan2 (real p1y, real p1x)
       val phi3 = Math.atan2 (real p3y, real p3x)
 
-      val degs = 57.2957795 * (phi1 - phi3)
+      val degs = 57.2957795130823 * (phi1 - phi3)
     in
       fmod (degs, 360.0)
     end handle Domain => raise IntMaths "bad angle"
@@ -153,8 +153,8 @@ struct
       (lambda1, lambda2, lambda3)
     end
 
-  datatype side =
-    LEFT | ATOP | RIGHT
+  datatype side = LEFT | ATOP | RIGHT
+
   fun pointside ((x0, y0), (x1, y1), (x, y)) =
     let val m = (x1 - x0) * (y - y0) - (y1 - y0) * (x - x0)
     in
@@ -274,6 +274,35 @@ struct
         end
     end
 
+  fun pointcompare ((a, aa), (b, bb)) =
+    case Int.compare (a, b) of
+      EQUAL => Int.compare (aa, bb)
+    | order => order
+
+  (* Places (a, b, c) in ascending order. *)
+  fun canonize (a, b, c) =
+    case pointcompare (a, b) of
+      GREATER =>
+        (case pointcompare (a, c) of
+           GREATER =>
+             (case pointcompare (b, c) of
+                GREATER => (c, b, a)
+              | _ => (b, c, a))
+         | _ => (b, a, c))
+    | _ =>
+        (case pointcompare (b, c) of
+           GREATER =>
+             (case pointcompare (a, c) of
+                GREATER => (c, a, b)
+              | _ => (a, c, b))
+         | _ => (a, b, c))
+
+  (* PERF: Can do fewer comparisons; for example, finding the
+     minimum of the two triangles and comparing them. Doesn't
+     save much though. Generate the comparison trees? *)
+  fun triangleseq ta tb =
+    canonize ta = canonize tb
+
   (* PERF surely there are faster tests. *)
   fun triangleoverlap (abc as (a, b, c)) (def as (d, e, f)) : bool =
     let
@@ -299,6 +328,11 @@ struct
         edgesintersect (edge, (i, g))
 
     in
+      (* Normally it's okay for the vertices to be coincident, but
+         not if they are ALL coincident (then this represents the
+         same triangle!) *)
+      triangleseq abc def orelse
+
       (* "Most" triangle intersections also have edge intersections,
          so try those first. The test is symmetric, so we only need
          to test one triangle. *)
