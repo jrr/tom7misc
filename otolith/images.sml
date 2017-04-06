@@ -28,19 +28,18 @@ struct
 
   fun loadanim (base, ext, lo, hi) : anim =
      Vector.tabulate (hi - lo + 1,
-                    fn i => loadimage (base ^
-                                       Int.toString (lo + i) ^
-                                       ext))
+                      fn i => loadimage (base ^
+                                         Int.toString (lo + i) ^
+                                         ext))
 
   val pxfont = loadimage "pxfont.png"
 
-  (* val testcursor = loadimage "testcursor.png" *)
   val tinymouse = loadimage "tinymouse.png"
 
   val mapcell = loadimage "mapcell.png"
   val mapcellnone = loadimage "mapcellnone.png"
 
-  val runleft = loadanim ("run", ".png", 1, 10)
+  val runleft = loadanim ("run", ".png", 1, 12)
 
   fun numframes (v : anim) : int = Vector.length v
   fun getframe (v : anim, i) : image = Vector.sub (v, i)

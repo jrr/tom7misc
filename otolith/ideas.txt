@@ -1,0 +1,22 @@
+
+Should be possible to make an elevator if the physics are done right;
+imagine that the top edge of the elevator floor is mapped exactly to
+whatever pixel is the area source (say the bottom of the player's feet),
+but up a single pixel. Now it moves itself into that space, which pushes
+the player up one pixel, which continues indefinitely.
+... note that if you jump, the elevator floor will follow you.
+
+... Probably possible to make a "launcher" where the floor follows you
+up, but backs off.
+
+
+If objects on the screen would interfere with one another, should that
+prevent the player from moving into that area? Could make all sorts of
+puzzles with this, but maybe it would be too confusing.
+(Could just be a certain kind of wall, like a different color?)
+
+
+Monster that is a segment attached to the walls, traveling along it.
+Can destroy it by splitting it in two, or crushing it?
+
+

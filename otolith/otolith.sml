@@ -708,6 +708,7 @@ struct
                            dsty = !mousey }
 
       (* XXX *)
+(*
       val gframenum = (!ctr div 5) mod Images.numframes Images.runleft
       val gframe = Images.getframe (Images.runleft, gframenum)
       val () = Draw.blitmask
@@ -717,10 +718,11 @@ struct
           dstx = !mousex + 20,
           dsty = !mousey + 20,
           color = Draw.hexcolor 0wxFFFF77 }
+*)
 
       (* val () = Draw.noise_postfilter pixels *)
-      val () = Draw.scanline_postfilter pixels
-      val () = Draw.mixpixel_postfilter 0.25 0.8 pixels
+      (* val () = Draw.scanline_postfilter pixels *)
+      (* val () = Draw.mixpixel_postfilter 0.25 0.8 pixels *)
       val () = fillscreen pixels
       val () = ctr := !ctr + 1
     in

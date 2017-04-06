@@ -33,6 +33,15 @@ sig
   val barycentric : point * point * point * point ->
                     real * real * real
 
+  (* Put the triangle in an arbitrary but consistent order. *)
+  val canonize : (point * point * point) -> (point * point * point)
+
+  (* Returns true if the triangles are equal. This includes
+     any permutation of the three endpoints. *)
+  val triangleseq : (point * point * point) ->
+                    (point * point * point) ->
+                    bool
+
   (* Checks for illegal triangle overlap.
 
      Returns true if the pair of triangles overlap.
@@ -45,13 +54,6 @@ sig
      consider disallowing this case -- in a tesselation,
      every point should be in at most one triangle,
      right?)
-
-     XXX This does not yet handle the case where
-     two triangles intersect but neither has a point
-     inside the other, like in the Star of David. I
-     think that's sufficient for tesselation checks
-     because there's no way to construct the Star of
-     David without violating this function momentarily.
 
      The function should be fixed and callers should
      be ready for that. *)
@@ -71,8 +73,8 @@ sig
      vectors are colinear, this counts as intersection. *)
   val vectorsintersect : (point * point) * (point * point) -> bool
 
-  datatype side =
-    LEFT | ATOP | RIGHT
+  datatype side = LEFT | ATOP | RIGHT
+
   (* point (a, b, pt)
      Tests which side of the line a->b the point is on.
      If the line is horizontal with a to the left of b,

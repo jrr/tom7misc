@@ -47,6 +47,9 @@ otolith.exe : sdl_win32_main.o ${OBJECTS} otolith.mlb ${SMLS} ${SDLML} makefile
 tfcompiler.exe : ../sml-lib/textformat/*
 	${MLTON} -output $@ ../sml-lib/textformat/tfcompiler.mlb
 
+intmaths-test.exe : intmaths-sig.sml intmaths.sml intmaths-test.sml intmaths-test.mlb
+	${MLTON} -output $@ intmaths-test.mlb
+
 clean :
 	rm -f *.obj *.exe *.manifest *.ilk *.pdb *.o
 
