@@ -1,3 +1,10 @@
+2017-04-08  Tom 7  <Tom@RIVERCITY>
+
+    * Reformatted all source code (just whitespace changes).
+    * There was both "sdlktostring" and "sdlktos" in sdl-sig, which
+        was confusing. For the old behavior called "sdlktostring",
+        use sdlktoint.
+
 2015-11-01  Tom 7
 
     * SDL_image is a bummer for multiple reasons. Switch to stb_image.

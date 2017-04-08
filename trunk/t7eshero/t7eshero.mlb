@@ -2,6 +2,7 @@ $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/basis/mlton.mlb
 $(SML_LIB)/basis/unsafe.mlb
 
+../sml-lib/port/port-sig.sml
 ../sml-lib/port/mlton.sml
 
 ../sml-lib/njlib/lib-base-sig.sml

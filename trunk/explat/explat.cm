@@ -4,9 +4,11 @@ group is
    not likely to work! *)
 #if (defined(SMLNJ_VERSION))
  $/basis.cm
+ ../sml-lib/port/port-sig.sml
  ../sml-lib/port/port-nj.sml
 #else
  (* assume we are using mlton then *)
+ ../sml-lib/port/port-sig.sml
  ../sml-lib/port/mlton.sml
 #endif
 

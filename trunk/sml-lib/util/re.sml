@@ -10,10 +10,10 @@ struct
   type substring = Substring.substring
 
   fun compile x =
-      R.compileString x
-          handle RegExpSyntax.CannotParse => raise RE "ill-formed regular expression"
-               | RegExpSyntax.CannotCompile => raise RE "couldn't compile RE"
-               | _ => raise RE "(unknown other error compiling regexp)"
+    R.compileString x
+    handle RegExpSyntax.CannotParse => raise RE "ill-formed regular expression"
+         | RegExpSyntax.CannotCompile => raise RE "couldn't compile RE"
+         | _ => raise RE "(unknown other error compiling regexp)"
 
   fun find x =
     let
@@ -23,15 +23,15 @@ struct
         case re_find (Substring.full s) of
           NONE => NONE
         | SOME (tree, _) =>
-            let
-              fun g i =
-                  let val { pos, len } = MatchTree.nth (tree, i)
-                  in Substring.string (Substring.slice (pos, 0, SOME len))
-                  end handle Subscript => raise RE ("match " ^ Int.toString i ^ 
-                                                    "  out of bounds")
-            in
-              SOME g
-            end
+          let
+            fun g i =
+                let val { pos, len } = MatchTree.nth (tree, i)
+                in Substring.string (Substring.slice (pos, 0, SOME len))
+                end handle Subscript => raise RE ("match " ^ Int.toString i ^
+                                                  "  out of bounds")
+          in
+            SOME g
+          end
     in
       f
     end
@@ -40,25 +40,25 @@ struct
     let
       val re = compile x
       val re_find : substring ->
-          ({ len: int, 
-             pos: substring } MatchTree.match_tree * 
+          ({ len: int,
+             pos: substring } MatchTree.match_tree *
            substring) option = R.find re Substring.getc
 
       fun fall (s : substring) =
         case re_find s of
           NONE => nil
         | SOME (tree, rest : substring) =>
-            let
-              fun g i =
-                  let val { pos : substring, len } = MatchTree.nth (tree, i)
-                  in Substring.string (Substring.slice (pos, 0, SOME len))
-                  end handle Subscript => raise RE ("match " ^ Int.toString i ^ 
-                                                    "  out of bounds")
-            in
-                g :: fall rest
-            end
+          let
+            fun g i =
+                let val { pos : substring, len } = MatchTree.nth (tree, i)
+                in Substring.string (Substring.slice (pos, 0, SOME len))
+                end handle Subscript => raise RE ("match " ^ Int.toString i ^
+                                                  "  out of bounds")
+          in
+              g :: fall rest
+          end
     in
-        fall o Substring.full
+      fall o Substring.full
     end
 
   (* PERF: Use FSM matcher for hasmatch and ismatch; they don't collect

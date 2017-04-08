@@ -41,23 +41,24 @@ struct
 
   open Serialize
 
-  fun retostring (Key k) = "k?" ^ SDL.sdlktostring k
+  fun retostring (Key k) = "k?" ^ Int.toString (SDL.sdlktoint k)
     | retostring (JButton i) = "b?" ^ Int.toString i
     | retostring (JHat { hat, state }) =
       "h?" ^ Int.toString hat ^ "?" ^
       ue (SDL.Joystick.hatstatetostring state)
 
   fun refromstring s =
-      case String.tokens QQ s of
-        ["k", ks] => (Key (valOf (SDL.sdlkfromstring ks))
-                      handle Option => raise Input "bad key")
-      | ["b", jb] => (JButton (valOf (Int.fromString jb))
-                      handle Option => raise Input "bad button")
-      | ["h", jh, js] => (JHat { hat = valOf (Int.fromString jh),
-                                 state =
-                                 valOf (SDL.Joystick.hatstatefromstring js) }
-                          handle Option => raise Input "bad hat")
-      | _ => raise Input ("bad re: " ^ s)
+    case String.tokens QQ s of
+      ["k", ks] =>
+        (Key (valOf (SDL.sdlkfromint (valOf (Int.fromString ks))))
+         handle Option => raise Input "bad key")
+    | ["b", jb] => (JButton (valOf (Int.fromString jb))
+                    handle Option => raise Input "bad button")
+    | ["h", jh, js] => (JHat { hat = valOf (Int.fromString jh),
+                               state =
+                               valOf (SDL.Joystick.hatstatefromstring js) }
+                        handle Option => raise Input "bad hat")
+    | _ => raise Input ("bad re: " ^ s)
 
   fun cetostring (C_StrumUp) = "u"
     | cetostring (C_StrumDown) = "d"

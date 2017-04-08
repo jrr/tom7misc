@@ -1,7 +1,9 @@
-SDLML            Tom 7               29 Aug 2010
+SDLML            Tom 7               8 Apr 2017
 
 This is a set of wrappers (and utilities) for using the Simple
-Directmedia Layer (SDL) in Standard ML (SML).
+Directmedia Layer (SDL) in Standard ML (SML). It's a bit of a pain
+to get it working, and the only part I actively maintain is the
+main library (sdl-sig.sml).
 
 
 There have been several contributors:
