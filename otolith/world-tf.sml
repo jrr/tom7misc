@@ -363,12 +363,12 @@ struct
 
   fun node_fromfields' (fs : field' list) : node=
     let
-        val id_ref' : (int) ref =
-          ref (0)
-        val coords_ref' : ((string * int * int) list) ref =
-          ref (nil)
-        val triangles_ref' : ((int * int) list) ref =
-          ref (nil)
+      val id_ref' : (int) ref =
+        ref (0)
+      val coords_ref' : ((string * int * int) list) ref =
+        ref (nil)
+      val triangles_ref' : ((int * int) list) ref =
+        ref (nil)
       fun read' d' =
       case d' of
         ("id", d') =>
@@ -409,8 +409,8 @@ struct
 
   and keyedtesselation_fromfields' (fs : field' list) : keyedtesselation=
     let
-        val nodes_ref' : (node list) ref =
-          ref (nil)
+      val nodes_ref' : (node list) ref =
+        ref (nil)
       fun read' d' =
       case d' of
         ("ns", d') =>
@@ -429,10 +429,10 @@ struct
 
   and screen_fromfields' (fs : field' list) : screen=
     let
-        val areas_ref' : (keyedtesselation) ref =
-          ref (keyedtesselation_default')
-        val objs_ref' : (keyedtesselation list) ref =
-          ref (nil)
+      val areas_ref' : (keyedtesselation) ref =
+        ref (keyedtesselation_default')
+      val objs_ref' : (keyedtesselation list) ref =
+        ref (nil)
       fun read' d' =
       case d' of
         ("areas", d') =>
@@ -456,8 +456,8 @@ struct
 
   and world_fromfields' (fs : field' list) : world=
     let
-        val screens_ref' : ((int * int * screen) list) ref =
-          ref (nil)
+      val screens_ref' : ((int * int * screen) list) ref =
+        ref (nil)
       fun read' d' =
       case d' of
         ("screens", d') =>

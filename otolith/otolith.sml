@@ -81,8 +81,8 @@ struct
      setting the positions "smartly" (right now they are just copied
      from the first key). *)
   fun linkobject (node : Areas.node) =
-    case Screen.objectswithin (Screen.objs (!screen))
-                              (!mousex, !mousey) of
+    case Screen.objectscontaining (Screen.objs (!screen))
+                                  (!mousex, !mousey) of
       nil => eprint "press when mouse is near an object to link."
     | (obj : Screen.obj, key) :: _ =>
         if Obj.iskey obj node
@@ -227,7 +227,8 @@ struct
       then
         (* Allows flipping a tesselation edge. *)
         case !frozennode of
-          SOME key => (eprint "Flipping object edges unimplemented"; ([], ignore))
+          SOME key => (eprint "Flipping object edges unimplemented";
+                       ([], ignore))
         | NONE =>
             (case Areas.closestflipedge (Screen.areas (!screen)) () (x, y) of
                NONE => ([], ignore)

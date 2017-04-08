@@ -1,12 +1,28 @@
 
-(* An object is a tesselation where each vertex has multiple
-   coordinates, keyed by some functor argument. This allows the
-   object's shape/location to be parameterized.
+(* A tesselation is a collection of non-overlapping triangles. Each
+   vertex can have multiple coordinates, one for each "key" (functor
+   argument).
 
-   The code is basically a copy of Tesselation with the idea
-   that once it's working, it can also be used to implement
-   tesselation where the coordinate key is unit.
-*)
+   We use this data structure to implement both the "areas" and
+   "objects".
+
+   Each screen has a single "areas" tesselation that covers the play
+   area. It defines the gradients along which the objects move.
+   Gradients are given with barycentric interpolation between each
+   triangle's vertices. The areas are static, so there is just one
+   set of coordinates. The key is just (), and some of the generality
+   of this functor becomes degenerate and a little confusing.
+
+   A screen can have many objects; these are the solids that the
+   player sees and interacts with. An object's vertices have multiple
+   coordinates; they are keyed to the vertices of the areas
+   tesselation. This allows the object's shape/location to be
+   parameterized.
+
+   This code doesn't compute the interpolations; it simply stores
+   the tesselations as a data structure and provides some functionality
+   for editing it. Screen instantiates the functor twice to create
+   the areas and objects, and understands how they interact. *)
 signature KEYARG =
 sig
   type key
@@ -38,11 +54,11 @@ sig
 
   (* Edge maps. (a, b) is considered equal to (b, a).
      There is no requirement that the nodes actually be connected
-     in the tesselation, though all nodes in a map must be from
+     in the tesselation, though all nodes in an EM.map must be from
      the same tesselation. Order is arbitrary but consistent. *)
   structure EM : ORD_MAP where type Key.ord_key = node * node
 
-  (* Creates a object of the given rectangle, which looks like this:
+  (* Creates an object of the given rectangle, which looks like this:
 
      .---.
      |\  |
@@ -50,7 +66,8 @@ sig
      |__\|
 
      It starts with just a single position, for the key argument. *)
-  val rectangle : key -> { x0 : int, y0 : int, x1 : int, y1 : int } -> keyedtesselation
+  val rectangle : key -> { x0 : int, y0 : int, x1 : int, y1 : int } ->
+                  keyedtesselation
 
   (* Get the triangle this point is within *)
   val gettriangle : keyedtesselation -> int * int -> (key * triangle) option

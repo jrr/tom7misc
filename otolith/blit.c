@@ -1,13 +1,13 @@
 
 #include "blit.h"
 
-int counter = 0;
+// int counter = 0;
 
 SDL_Surface *screen;
 
 static SDL_Surface *MakeScreen(int w, int h) {
-  SDL_Surface * ret = SDL_SetVideoMode(w, h, 32,
-                                       SDL_SWSURFACE);
+  SDL_Surface *ret = SDL_SetVideoMode(w, h, 32,
+                                      SDL_SWSURFACE);
   return ret;
 }
 
@@ -55,21 +55,21 @@ void FillScreenFrom(Uint32 *inpixels) {
       // right column
       pixels[o + 2] = color;
       pixels[o + (WIDTH * PIXELSIZE) + 2] = color;
-      pixels[o + (WIDTH * PIXELSIZE) * 2 + 2] = color;
       // bottom row
       pixels[o + (WIDTH * PIXELSIZE) * 2] = color;
       pixels[o + (WIDTH * PIXELSIZE) * 2 + 1] = color;
+      pixels[o + (WIDTH * PIXELSIZE) * 2 + 2] = color;
       #endif
       #if PIXELSIZE > 3
       // right column
       pixels[o + 3] = color;
       pixels[o + (WIDTH * PIXELSIZE) + 3] = color;
       pixels[o + (WIDTH * PIXELSIZE) * 2 + 3] = color;
-      pixels[o + (WIDTH * PIXELSIZE) * 3 + 3] = color;
       // bottom row
       pixels[o + (WIDTH * PIXELSIZE) * 3] = color;
       pixels[o + (WIDTH * PIXELSIZE) * 3 + 1] = color;
       pixels[o + (WIDTH * PIXELSIZE) * 3 + 2] = color;
+      pixels[o + (WIDTH * PIXELSIZE) * 3 + 3] = color;
       #endif
       #if PIXELSIZE > 4
       # error Only pixel size 1, 2, 3, 4 are supported.
