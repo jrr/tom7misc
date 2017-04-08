@@ -3,7 +3,7 @@
    for applications that have some debug output using graphics, and
    don't need user input via SDL to run (fake SDL will not return any
    events ever), or for testing non-graphical parts from the toplevel
-   loop. *)
+   loop. Should keep this in sync with sdl.sml, but it's easy to forget... *)
 structure SDL :> SDL =
 struct
 
@@ -17,7 +17,7 @@ struct
   exception Invalid
 
   (* XXX endianness...?! *)
-  fun color (r, g, b, a) = 
+  fun color (r, g, b, a) =
     Word32.orb
     (Word32.<< (Word32.fromInt (Word8.toInt r), 0w24),
      Word32.orb
@@ -296,7 +296,7 @@ struct
     | E_Unknown
 
 
-  fun sdlktos s =
+  fun sdlktostring s =
       (case s of
         SDLK_UNKNOWN => "UNKNOWN"
       | SDLK_BACKSPACE => "BACKSPACE"
@@ -837,10 +837,11 @@ struct
     fun sdlkey n =
       if n < 0 orelse n > Vector.length sdlk
       then SDLK_UNKNOWN
-      else 
+      else
           let val r = Vector.sub(sdlk, n)
           in
-              (* print ("key @ " ^ Int.toString n ^ " is " ^ sdlktos r ^ "\n"); *)
+              (* print ("key @ " ^ Int.toString n ^ " is " ^
+                 sdlktostring r ^ "\n"); *)
               r
           end
 
@@ -850,8 +851,8 @@ struct
             NONE => raise SDL "bad key??"
           | SOME (i, _) => i
 
-    fun sdlktostring k = Int.toString (keysdl k)
-    fun sdlkfromstring s = Option.map sdlkey (Int.fromString s) handle Overflow => NONE
+    fun sdlktoint k = keysdl k
+    fun sdlkfromint s = sdlkey s
   end
 
   fun clearsurface (s, w) = ()
@@ -872,7 +873,7 @@ struct
   fun fillrect _ = ()
   fun blit16x _ = ()
   fun freesurface _ = ()
-  fun makesurface _ = ()      
+  fun makesurface _ = ()
   fun surf2x _ = ()
   fun init _ = ()
 
@@ -912,7 +913,7 @@ struct
   structure Image =
   struct
       (* Pretend we successfully loaded it, for programs that abort
-	 when images are not found. *)
+         when images are not found. *)
       fun load s = SOME()
   end
 

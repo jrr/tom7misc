@@ -25,13 +25,13 @@ struct
   fun !! (ref p) = if p = null then raise Invalid else p
 
   fun readcstring r =
-      let val len =
-          (case Array.findi (fn (_, #"\000") => true | _ => false) r of
-               NONE => Array.length r
-             | SOME (i, _) => i)
-      in
-          CharVector.tabulate (len, fn x => Array.sub(r, x))
-      end
+    let val len =
+      (case Array.findi (fn (_, #"\000") => true | _ => false) r of
+         NONE => Array.length r
+       | SOME (i, _) => i)
+    in
+      CharVector.tabulate (len, fn x => Array.sub(r, x))
+    end
 
   (* XXX endianness...?! *)
   fun color (r, g, b, a) =
@@ -60,16 +60,16 @@ struct
   val SDL_ENABLE = 1
 
   fun components x =
-      (Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(x, 0w24), 0w255))),
-       Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(x, 0w16), 0w255))),
-       Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(x, 0w8), 0w255))),
-       Word8.fromInt (Word32.toInt (Word32.andb(x, 0w255))))
+    (Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(x, 0w24), 0w255))),
+     Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(x, 0w16), 0w255))),
+     Word8.fromInt (Word32.toInt (Word32.andb(Word32.>>(x, 0w8), 0w255))),
+     Word8.fromInt (Word32.toInt (Word32.andb(x, 0w255))))
 
   fun components32 x =
-      (Word32.andb(Word32.>>(x, 0w24), 0w255),
-       Word32.andb(Word32.>>(x, 0w16), 0w255),
-       Word32.andb(Word32.>>(x, 0w8), 0w255),
-       Word32.andb(x, 0w255))
+    (Word32.andb(Word32.>>(x, 0w24), 0w255),
+     Word32.andb(Word32.>>(x, 0w16), 0w255),
+     Word32.andb(Word32.>>(x, 0w8), 0w255),
+     Word32.andb(x, 0w255))
 
   type surface = safe
 
@@ -331,241 +331,240 @@ struct
   | E_Quit
   | E_Unknown
 
-  fun sdlktos s =
-      (case s of
-        SDLK_UNKNOWN => "UNKNOWN"
-      | SDLK_BACKSPACE => "BACKSPACE"
-      | SDLK_TAB => "TAB"
-      | SDLK_CLEAR => "CLEAR"
-      | SDLK_RETURN => "RETURN"
-      | SDLK_PAUSE => "PAUSE"
-      | SDLK_ESCAPE => "ESCAPE"
-      | SDLK_SPACE => "SPACE"
-      | SDLK_EXCLAIM => "EXCLAIM"
-      | SDLK_QUOTEDBL => "QUOTEDBL"
-      | SDLK_HASH => "HASH"
-      | SDLK_DOLLAR => "DOLLAR"
-      | SDLK_AMPERSAND => "AMPERSAND"
-      | SDLK_QUOTE => "QUOTE"
-      | SDLK_LEFTPAREN => "LEFTPAREN"
-      | SDLK_RIGHTPAREN => "RIGHTPAREN"
-      | SDLK_ASTERISK => "ASTERISK"
-      | SDLK_PLUS => "PLUS"
-      | SDLK_COMMA => "COMMA"
-      | SDLK_MINUS => "MINUS"
-      | SDLK_PERIOD => "PERIOD"
-      | SDLK_SLASH => "SLASH"
-      | SDLK_0 => "0"
-      | SDLK_1 => "1"
-      | SDLK_2 => "2"
-      | SDLK_3 => "3"
-      | SDLK_4 => "4"
-      | SDLK_5 => "5"
-      | SDLK_6 => "6"
-      | SDLK_7 => "7"
-      | SDLK_8 => "8"
-      | SDLK_9 => "9"
-      | SDLK_COLON => "COLON"
-      | SDLK_SEMICOLON => "SEMICOLON"
-      | SDLK_LESS => "LESS"
-      | SDLK_EQUALS => "EQUALS"
-      | SDLK_GREATER => "GREATER"
-      | SDLK_QUESTION => "QUESTION"
-      | SDLK_AT => "AT"
-      | SDLK_LEFTBRACKET => "LEFTBRACKET"
-      | SDLK_BACKSLASH => "BACKSLASH"
-      | SDLK_RIGHTBRACKET => "RIGHTBRACKET"
-      | SDLK_CARET => "CARET"
-      | SDLK_UNDERSCORE => "UNDERSCORE"
-      | SDLK_BACKQUOTE => "BACKQUOTE"
-      | SDLK_a => "a"
-      | SDLK_b => "b"
-      | SDLK_c => "c"
-      | SDLK_d => "d"
-      | SDLK_e => "e"
-      | SDLK_f => "f"
-      | SDLK_g => "g"
-      | SDLK_h => "h"
-      | SDLK_i => "i"
-      | SDLK_j => "j"
-      | SDLK_k => "k"
-      | SDLK_l => "l"
-      | SDLK_m => "m"
-      | SDLK_n => "n"
-      | SDLK_o => "o"
-      | SDLK_p => "p"
-      | SDLK_q => "q"
-      | SDLK_r => "r"
-      | SDLK_s => "s"
-      | SDLK_t => "t"
-      | SDLK_u => "u"
-      | SDLK_v => "v"
-      | SDLK_w => "w"
-      | SDLK_x => "x"
-      | SDLK_y => "y"
-      | SDLK_z => "z"
-      | SDLK_DELETE => "DELETE"
-      | SDLK_WORLD_0 => "WORLD_0"
-      | SDLK_WORLD_1 => "WORLD_1"
-      | SDLK_WORLD_2 => "WORLD_2"
-      | SDLK_WORLD_3 => "WORLD_3"
-      | SDLK_WORLD_4 => "WORLD_4"
-      | SDLK_WORLD_5 => "WORLD_5"
-      | SDLK_WORLD_6 => "WORLD_6"
-      | SDLK_WORLD_7 => "WORLD_7"
-      | SDLK_WORLD_8 => "WORLD_8"
-      | SDLK_WORLD_9 => "WORLD_9"
-      | SDLK_WORLD_10 => "WORLD_10"
-      | SDLK_WORLD_11 => "WORLD_11"
-      | SDLK_WORLD_12 => "WORLD_12"
-      | SDLK_WORLD_13 => "WORLD_13"
-      | SDLK_WORLD_14 => "WORLD_14"
-      | SDLK_WORLD_15 => "WORLD_15"
-      | SDLK_WORLD_16 => "WORLD_16"
-      | SDLK_WORLD_17 => "WORLD_17"
-      | SDLK_WORLD_18 => "WORLD_18"
-      | SDLK_WORLD_19 => "WORLD_19"
-      | SDLK_WORLD_20 => "WORLD_20"
-      | SDLK_WORLD_21 => "WORLD_21"
-      | SDLK_WORLD_22 => "WORLD_22"
-      | SDLK_WORLD_23 => "WORLD_23"
-      | SDLK_WORLD_24 => "WORLD_24"
-      | SDLK_WORLD_25 => "WORLD_25"
-      | SDLK_WORLD_26 => "WORLD_26"
-      | SDLK_WORLD_27 => "WORLD_27"
-      | SDLK_WORLD_28 => "WORLD_28"
-      | SDLK_WORLD_29 => "WORLD_29"
-      | SDLK_WORLD_30 => "WORLD_30"
-      | SDLK_WORLD_31 => "WORLD_31"
-      | SDLK_WORLD_32 => "WORLD_32"
-      | SDLK_WORLD_33 => "WORLD_33"
-      | SDLK_WORLD_34 => "WORLD_34"
-      | SDLK_WORLD_35 => "WORLD_35"
-      | SDLK_WORLD_36 => "WORLD_36"
-      | SDLK_WORLD_37 => "WORLD_37"
-      | SDLK_WORLD_38 => "WORLD_38"
-      | SDLK_WORLD_39 => "WORLD_39"
-      | SDLK_WORLD_40 => "WORLD_40"
-      | SDLK_WORLD_41 => "WORLD_41"
-      | SDLK_WORLD_42 => "WORLD_42"
-      | SDLK_WORLD_43 => "WORLD_43"
-      | SDLK_WORLD_44 => "WORLD_44"
-      | SDLK_WORLD_45 => "WORLD_45"
-      | SDLK_WORLD_46 => "WORLD_46"
-      | SDLK_WORLD_47 => "WORLD_47"
-      | SDLK_WORLD_48 => "WORLD_48"
-      | SDLK_WORLD_49 => "WORLD_49"
-      | SDLK_WORLD_50 => "WORLD_50"
-      | SDLK_WORLD_51 => "WORLD_51"
-      | SDLK_WORLD_52 => "WORLD_52"
-      | SDLK_WORLD_53 => "WORLD_53"
-      | SDLK_WORLD_54 => "WORLD_54"
-      | SDLK_WORLD_55 => "WORLD_55"
-      | SDLK_WORLD_56 => "WORLD_56"
-      | SDLK_WORLD_57 => "WORLD_57"
-      | SDLK_WORLD_58 => "WORLD_58"
-      | SDLK_WORLD_59 => "WORLD_59"
-      | SDLK_WORLD_60 => "WORLD_60"
-      | SDLK_WORLD_61 => "WORLD_61"
-      | SDLK_WORLD_62 => "WORLD_62"
-      | SDLK_WORLD_63 => "WORLD_63"
-      | SDLK_WORLD_64 => "WORLD_64"
-      | SDLK_WORLD_65 => "WORLD_65"
-      | SDLK_WORLD_66 => "WORLD_66"
-      | SDLK_WORLD_67 => "WORLD_67"
-      | SDLK_WORLD_68 => "WORLD_68"
-      | SDLK_WORLD_69 => "WORLD_69"
-      | SDLK_WORLD_70 => "WORLD_70"
-      | SDLK_WORLD_71 => "WORLD_71"
-      | SDLK_WORLD_72 => "WORLD_72"
-      | SDLK_WORLD_73 => "WORLD_73"
-      | SDLK_WORLD_74 => "WORLD_74"
-      | SDLK_WORLD_75 => "WORLD_75"
-      | SDLK_WORLD_76 => "WORLD_76"
-      | SDLK_WORLD_77 => "WORLD_77"
-      | SDLK_WORLD_78 => "WORLD_78"
-      | SDLK_WORLD_79 => "WORLD_79"
-      | SDLK_WORLD_80 => "WORLD_80"
-      | SDLK_WORLD_81 => "WORLD_81"
-      | SDLK_WORLD_82 => "WORLD_82"
-      | SDLK_WORLD_83 => "WORLD_83"
-      | SDLK_WORLD_84 => "WORLD_84"
-      | SDLK_WORLD_85 => "WORLD_85"
-      | SDLK_WORLD_86 => "WORLD_86"
-      | SDLK_WORLD_87 => "WORLD_87"
-      | SDLK_WORLD_88 => "WORLD_88"
-      | SDLK_WORLD_89 => "WORLD_89"
-      | SDLK_WORLD_90 => "WORLD_90"
-      | SDLK_WORLD_91 => "WORLD_91"
-      | SDLK_WORLD_92 => "WORLD_92"
-      | SDLK_WORLD_93 => "WORLD_93"
-      | SDLK_WORLD_94 => "WORLD_94"
-      | SDLK_WORLD_95 => "WORLD_95"
-      | SDLK_KP0 => "KP0"
-      | SDLK_KP1 => "KP1"
-      | SDLK_KP2 => "KP2"
-      | SDLK_KP3 => "KP3"
-      | SDLK_KP4 => "KP4"
-      | SDLK_KP5 => "KP5"
-      | SDLK_KP6 => "KP6"
-      | SDLK_KP7 => "KP7"
-      | SDLK_KP8 => "KP8"
-      | SDLK_KP9 => "KP9"
-      | SDLK_KP_PERIOD => "KP_PERIOD"
-      | SDLK_KP_DIVIDE => "KP_DIVIDE"
-      | SDLK_KP_MULTIPLY => "KP_MULTIPLY"
-      | SDLK_KP_MINUS => "KP_MINUS"
-      | SDLK_KP_PLUS => "KP_PLUS"
-      | SDLK_KP_ENTER => "KP_ENTER"
-      | SDLK_KP_EQUALS => "KP_EQUALS"
-      | SDLK_UP => "UP"
-      | SDLK_DOWN => "DOWN"
-      | SDLK_RIGHT => "RIGHT"
-      | SDLK_LEFT => "LEFT"
-      | SDLK_INSERT => "INSERT"
-      | SDLK_HOME => "HOME"
-      | SDLK_END => "END"
-      | SDLK_PAGEUP => "PAGEUP"
-      | SDLK_PAGEDOWN => "PAGEDOWN"
-      | SDLK_F1 => "F1"
-      | SDLK_F2 => "F2"
-      | SDLK_F3 => "F3"
-      | SDLK_F4 => "F4"
-      | SDLK_F5 => "F5"
-      | SDLK_F6 => "F6"
-      | SDLK_F7 => "F7"
-      | SDLK_F8 => "F8"
-      | SDLK_F9 => "F9"
-      | SDLK_F10 => "F10"
-      | SDLK_F11 => "F11"
-      | SDLK_F12 => "F12"
-      | SDLK_F13 => "F13"
-      | SDLK_F14 => "F14"
-      | SDLK_F15 => "F15"
-      | SDLK_NUMLOCK => "NUMLOCK"
-      | SDLK_CAPSLOCK => "CAPSLOCK"
-      | SDLK_SCROLLOCK => "SCROLLOCK"
-      | SDLK_RSHIFT => "RSHIFT"
-      | SDLK_LSHIFT => "LSHIFT"
-      | SDLK_RCTRL => "RCTRL"
-      | SDLK_LCTRL => "LCTRL"
-      | SDLK_RALT => "RALT"
-      | SDLK_LALT => "LALT"
-      | SDLK_RMETA => "RMETA"
-      | SDLK_LMETA => "LMETA"
-      | SDLK_LSUPER => "LSUPER"
-      | SDLK_RSUPER => "RSUPER"
-      | SDLK_MODE => "MODE"
-      | SDLK_COMPOSE => "COMPOSE"
-      | SDLK_HELP => "HELP"
-      | SDLK_PRINT => "PRINT"
-      | SDLK_SYSREQ => "SYSREQ"
-      | SDLK_BREAK => "BREAK"
-      | SDLK_MENU => "MENU"
-      | SDLK_POWER => "POWER"
-      | SDLK_EURO => "EURO"
-      | SDLK_UNDO => "UNDO"
-               )
+  fun sdlktostring s =
+    (case s of
+      SDLK_UNKNOWN => "UNKNOWN"
+    | SDLK_BACKSPACE => "BACKSPACE"
+    | SDLK_TAB => "TAB"
+    | SDLK_CLEAR => "CLEAR"
+    | SDLK_RETURN => "RETURN"
+    | SDLK_PAUSE => "PAUSE"
+    | SDLK_ESCAPE => "ESCAPE"
+    | SDLK_SPACE => "SPACE"
+    | SDLK_EXCLAIM => "EXCLAIM"
+    | SDLK_QUOTEDBL => "QUOTEDBL"
+    | SDLK_HASH => "HASH"
+    | SDLK_DOLLAR => "DOLLAR"
+    | SDLK_AMPERSAND => "AMPERSAND"
+    | SDLK_QUOTE => "QUOTE"
+    | SDLK_LEFTPAREN => "LEFTPAREN"
+    | SDLK_RIGHTPAREN => "RIGHTPAREN"
+    | SDLK_ASTERISK => "ASTERISK"
+    | SDLK_PLUS => "PLUS"
+    | SDLK_COMMA => "COMMA"
+    | SDLK_MINUS => "MINUS"
+    | SDLK_PERIOD => "PERIOD"
+    | SDLK_SLASH => "SLASH"
+    | SDLK_0 => "0"
+    | SDLK_1 => "1"
+    | SDLK_2 => "2"
+    | SDLK_3 => "3"
+    | SDLK_4 => "4"
+    | SDLK_5 => "5"
+    | SDLK_6 => "6"
+    | SDLK_7 => "7"
+    | SDLK_8 => "8"
+    | SDLK_9 => "9"
+    | SDLK_COLON => "COLON"
+    | SDLK_SEMICOLON => "SEMICOLON"
+    | SDLK_LESS => "LESS"
+    | SDLK_EQUALS => "EQUALS"
+    | SDLK_GREATER => "GREATER"
+    | SDLK_QUESTION => "QUESTION"
+    | SDLK_AT => "AT"
+    | SDLK_LEFTBRACKET => "LEFTBRACKET"
+    | SDLK_BACKSLASH => "BACKSLASH"
+    | SDLK_RIGHTBRACKET => "RIGHTBRACKET"
+    | SDLK_CARET => "CARET"
+    | SDLK_UNDERSCORE => "UNDERSCORE"
+    | SDLK_BACKQUOTE => "BACKQUOTE"
+    | SDLK_a => "a"
+    | SDLK_b => "b"
+    | SDLK_c => "c"
+    | SDLK_d => "d"
+    | SDLK_e => "e"
+    | SDLK_f => "f"
+    | SDLK_g => "g"
+    | SDLK_h => "h"
+    | SDLK_i => "i"
+    | SDLK_j => "j"
+    | SDLK_k => "k"
+    | SDLK_l => "l"
+    | SDLK_m => "m"
+    | SDLK_n => "n"
+    | SDLK_o => "o"
+    | SDLK_p => "p"
+    | SDLK_q => "q"
+    | SDLK_r => "r"
+    | SDLK_s => "s"
+    | SDLK_t => "t"
+    | SDLK_u => "u"
+    | SDLK_v => "v"
+    | SDLK_w => "w"
+    | SDLK_x => "x"
+    | SDLK_y => "y"
+    | SDLK_z => "z"
+    | SDLK_DELETE => "DELETE"
+    | SDLK_WORLD_0 => "WORLD_0"
+    | SDLK_WORLD_1 => "WORLD_1"
+    | SDLK_WORLD_2 => "WORLD_2"
+    | SDLK_WORLD_3 => "WORLD_3"
+    | SDLK_WORLD_4 => "WORLD_4"
+    | SDLK_WORLD_5 => "WORLD_5"
+    | SDLK_WORLD_6 => "WORLD_6"
+    | SDLK_WORLD_7 => "WORLD_7"
+    | SDLK_WORLD_8 => "WORLD_8"
+    | SDLK_WORLD_9 => "WORLD_9"
+    | SDLK_WORLD_10 => "WORLD_10"
+    | SDLK_WORLD_11 => "WORLD_11"
+    | SDLK_WORLD_12 => "WORLD_12"
+    | SDLK_WORLD_13 => "WORLD_13"
+    | SDLK_WORLD_14 => "WORLD_14"
+    | SDLK_WORLD_15 => "WORLD_15"
+    | SDLK_WORLD_16 => "WORLD_16"
+    | SDLK_WORLD_17 => "WORLD_17"
+    | SDLK_WORLD_18 => "WORLD_18"
+    | SDLK_WORLD_19 => "WORLD_19"
+    | SDLK_WORLD_20 => "WORLD_20"
+    | SDLK_WORLD_21 => "WORLD_21"
+    | SDLK_WORLD_22 => "WORLD_22"
+    | SDLK_WORLD_23 => "WORLD_23"
+    | SDLK_WORLD_24 => "WORLD_24"
+    | SDLK_WORLD_25 => "WORLD_25"
+    | SDLK_WORLD_26 => "WORLD_26"
+    | SDLK_WORLD_27 => "WORLD_27"
+    | SDLK_WORLD_28 => "WORLD_28"
+    | SDLK_WORLD_29 => "WORLD_29"
+    | SDLK_WORLD_30 => "WORLD_30"
+    | SDLK_WORLD_31 => "WORLD_31"
+    | SDLK_WORLD_32 => "WORLD_32"
+    | SDLK_WORLD_33 => "WORLD_33"
+    | SDLK_WORLD_34 => "WORLD_34"
+    | SDLK_WORLD_35 => "WORLD_35"
+    | SDLK_WORLD_36 => "WORLD_36"
+    | SDLK_WORLD_37 => "WORLD_37"
+    | SDLK_WORLD_38 => "WORLD_38"
+    | SDLK_WORLD_39 => "WORLD_39"
+    | SDLK_WORLD_40 => "WORLD_40"
+    | SDLK_WORLD_41 => "WORLD_41"
+    | SDLK_WORLD_42 => "WORLD_42"
+    | SDLK_WORLD_43 => "WORLD_43"
+    | SDLK_WORLD_44 => "WORLD_44"
+    | SDLK_WORLD_45 => "WORLD_45"
+    | SDLK_WORLD_46 => "WORLD_46"
+    | SDLK_WORLD_47 => "WORLD_47"
+    | SDLK_WORLD_48 => "WORLD_48"
+    | SDLK_WORLD_49 => "WORLD_49"
+    | SDLK_WORLD_50 => "WORLD_50"
+    | SDLK_WORLD_51 => "WORLD_51"
+    | SDLK_WORLD_52 => "WORLD_52"
+    | SDLK_WORLD_53 => "WORLD_53"
+    | SDLK_WORLD_54 => "WORLD_54"
+    | SDLK_WORLD_55 => "WORLD_55"
+    | SDLK_WORLD_56 => "WORLD_56"
+    | SDLK_WORLD_57 => "WORLD_57"
+    | SDLK_WORLD_58 => "WORLD_58"
+    | SDLK_WORLD_59 => "WORLD_59"
+    | SDLK_WORLD_60 => "WORLD_60"
+    | SDLK_WORLD_61 => "WORLD_61"
+    | SDLK_WORLD_62 => "WORLD_62"
+    | SDLK_WORLD_63 => "WORLD_63"
+    | SDLK_WORLD_64 => "WORLD_64"
+    | SDLK_WORLD_65 => "WORLD_65"
+    | SDLK_WORLD_66 => "WORLD_66"
+    | SDLK_WORLD_67 => "WORLD_67"
+    | SDLK_WORLD_68 => "WORLD_68"
+    | SDLK_WORLD_69 => "WORLD_69"
+    | SDLK_WORLD_70 => "WORLD_70"
+    | SDLK_WORLD_71 => "WORLD_71"
+    | SDLK_WORLD_72 => "WORLD_72"
+    | SDLK_WORLD_73 => "WORLD_73"
+    | SDLK_WORLD_74 => "WORLD_74"
+    | SDLK_WORLD_75 => "WORLD_75"
+    | SDLK_WORLD_76 => "WORLD_76"
+    | SDLK_WORLD_77 => "WORLD_77"
+    | SDLK_WORLD_78 => "WORLD_78"
+    | SDLK_WORLD_79 => "WORLD_79"
+    | SDLK_WORLD_80 => "WORLD_80"
+    | SDLK_WORLD_81 => "WORLD_81"
+    | SDLK_WORLD_82 => "WORLD_82"
+    | SDLK_WORLD_83 => "WORLD_83"
+    | SDLK_WORLD_84 => "WORLD_84"
+    | SDLK_WORLD_85 => "WORLD_85"
+    | SDLK_WORLD_86 => "WORLD_86"
+    | SDLK_WORLD_87 => "WORLD_87"
+    | SDLK_WORLD_88 => "WORLD_88"
+    | SDLK_WORLD_89 => "WORLD_89"
+    | SDLK_WORLD_90 => "WORLD_90"
+    | SDLK_WORLD_91 => "WORLD_91"
+    | SDLK_WORLD_92 => "WORLD_92"
+    | SDLK_WORLD_93 => "WORLD_93"
+    | SDLK_WORLD_94 => "WORLD_94"
+    | SDLK_WORLD_95 => "WORLD_95"
+    | SDLK_KP0 => "KP0"
+    | SDLK_KP1 => "KP1"
+    | SDLK_KP2 => "KP2"
+    | SDLK_KP3 => "KP3"
+    | SDLK_KP4 => "KP4"
+    | SDLK_KP5 => "KP5"
+    | SDLK_KP6 => "KP6"
+    | SDLK_KP7 => "KP7"
+    | SDLK_KP8 => "KP8"
+    | SDLK_KP9 => "KP9"
+    | SDLK_KP_PERIOD => "KP_PERIOD"
+    | SDLK_KP_DIVIDE => "KP_DIVIDE"
+    | SDLK_KP_MULTIPLY => "KP_MULTIPLY"
+    | SDLK_KP_MINUS => "KP_MINUS"
+    | SDLK_KP_PLUS => "KP_PLUS"
+    | SDLK_KP_ENTER => "KP_ENTER"
+    | SDLK_KP_EQUALS => "KP_EQUALS"
+    | SDLK_UP => "UP"
+    | SDLK_DOWN => "DOWN"
+    | SDLK_RIGHT => "RIGHT"
+    | SDLK_LEFT => "LEFT"
+    | SDLK_INSERT => "INSERT"
+    | SDLK_HOME => "HOME"
+    | SDLK_END => "END"
+    | SDLK_PAGEUP => "PAGEUP"
+    | SDLK_PAGEDOWN => "PAGEDOWN"
+    | SDLK_F1 => "F1"
+    | SDLK_F2 => "F2"
+    | SDLK_F3 => "F3"
+    | SDLK_F4 => "F4"
+    | SDLK_F5 => "F5"
+    | SDLK_F6 => "F6"
+    | SDLK_F7 => "F7"
+    | SDLK_F8 => "F8"
+    | SDLK_F9 => "F9"
+    | SDLK_F10 => "F10"
+    | SDLK_F11 => "F11"
+    | SDLK_F12 => "F12"
+    | SDLK_F13 => "F13"
+    | SDLK_F14 => "F14"
+    | SDLK_F15 => "F15"
+    | SDLK_NUMLOCK => "NUMLOCK"
+    | SDLK_CAPSLOCK => "CAPSLOCK"
+    | SDLK_SCROLLOCK => "SCROLLOCK"
+    | SDLK_RSHIFT => "RSHIFT"
+    | SDLK_LSHIFT => "LSHIFT"
+    | SDLK_RCTRL => "RCTRL"
+    | SDLK_LCTRL => "LCTRL"
+    | SDLK_RALT => "RALT"
+    | SDLK_LALT => "LALT"
+    | SDLK_RMETA => "RMETA"
+    | SDLK_LMETA => "LMETA"
+    | SDLK_LSUPER => "LSUPER"
+    | SDLK_RSUPER => "RSUPER"
+    | SDLK_MODE => "MODE"
+    | SDLK_COMPOSE => "COMPOSE"
+    | SDLK_HELP => "HELP"
+    | SDLK_PRINT => "PRINT"
+    | SDLK_SYSREQ => "SYSREQ"
+    | SDLK_BREAK => "BREAK"
+    | SDLK_MENU => "MENU"
+    | SDLK_POWER => "POWER"
+    | SDLK_EURO => "EURO"
+    | SDLK_UNDO => "UNDO")
 
   local
   val sdlk =
@@ -872,27 +871,28 @@ struct
       if n < 0 orelse n > Vector.length sdlk
       then SDLK_UNKNOWN
       else
-          let val r = Vector.sub(sdlk, n)
-          in
-              (* print ("key @ " ^ Int.toString n ^ " is " ^ sdlktos r ^ "\n"); *)
-              r
-          end
+        let val r = Vector.sub(sdlk, n)
+        in
+          (* print ("key @ " ^ Int.toString n ^ " is " ^
+             sdlktostring r ^ "\n"); *)
+          r
+        end
 
-    (* not fast; linear search. Make inverse map! *)
+    (* PERF: linear search. Make inverse map! *)
     fun keysdl k =
-        case Vector.findi (fn (_, x) => x = k) sdlk of
-            NONE => raise SDL "bad key??"
-          | SOME (i, _) => i
+      case Vector.findi (fn (_, x) => x = k) sdlk of
+        NONE => raise SDL "bad key??"
+      | SOME (i, _) => i
 
-    fun sdlktostring k = Int.toString (keysdl k)
-    fun sdlkfromstring s = Option.map sdlkey (Int.fromString s) handle Overflow => NONE
+    fun sdlktoint k = keysdl k
+    fun sdlkfromint s = sdlkey s
 
     fun sdlkchar k =
-        let val c = keysdl k
-        in if c >= 0 andalso c < 256
-           then SOME (chr c)
-           else NONE
-        end
+      let val c = keysdl k
+      in if c >= 0 andalso c < 256
+         then SOME (chr c)
+         else NONE
+      end
   end
 
   (* PERF can use mlton pointer structure to do this stuff,
@@ -1009,26 +1009,30 @@ struct
   val SDL_BUTTON_WHEELUP = 0w4 : Word.word
   val SDL_BUTTON_WHEELDOWN = 0w5 : Word.word
 
-  fun mouse_left state = Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_LEFT - 0w1)) <> 0w0
-  fun mouse_middle state = Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_MIDDLE - 0w1)) <> 0w0
-  fun mouse_right state = Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_RIGHT - 0w1)) <> 0w0
-  fun mouse_wheelup state = Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_WHEELUP - 0w1)) <> 0w0
-  fun mouse_wheeldown state = Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_WHEELDOWN - 0w1)) <> 0w0
+  fun mouse_left state =
+    Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_LEFT - 0w1)) <> 0w0
+  fun mouse_middle state =
+    Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_MIDDLE - 0w1)) <> 0w0
+  fun mouse_right state =
+    Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_RIGHT - 0w1)) <> 0w0
+  fun mouse_wheelup state =
+    Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_WHEELUP - 0w1)) <> 0w0
+  fun mouse_wheeldown state =
+    Word8.andb(state, Word8.<<(0w1, SDL_BUTTON_WHEELDOWN - 0w1)) <> 0w0
 
   local val fs = _import "SDL_FreeSurface" private : ptr -> unit ;
   in fun freesurface s = (fs (!!s); s := null)
   end
 
-
   local val ms = _import "ml_makesurface" private : int * int * int -> ptr ;
   in
-      fun makesurface (w, h) =
-          let val s = ms (w, h, 1)
-          in
-              if s = null
-              then raise SDL "couldn't create surface"
-              else ref s
-          end
+    fun makesurface (w, h) =
+      let val s = ms (w, h, 1)
+      in
+        if s = null
+        then raise SDL "couldn't create surface"
+        else ref s
+      end
   end
 
   type cursor = safe
@@ -1056,13 +1060,13 @@ struct
   local val cc = _import "SDL_CreateCursor" private : Word8.word vector *
       Word8.word vector * int * int * int * int -> ptr ;
   in
-      fun create_cursor { data, mask, w, h, hot_x, hot_y } =
-          let val p = cc (data, mask, w, h, hot_x, hot_y)
-          in
-              if p = null
-              then raise SDL "couldn't create cursor"
-              else ref p
-          end
+    fun create_cursor { data, mask, w, h, hot_x, hot_y } =
+      let val p = cc (data, mask, w, h, hot_x, hot_y)
+      in
+        if p = null
+        then raise SDL "couldn't create cursor"
+        else ref p
+      end
   end
 
   local val fl = _import "SDL_Flip" private : ptr -> unit ;
@@ -1097,186 +1101,198 @@ struct
   end
 
 
-  local val ba = _import "ml_blitall" private : ptr * ptr * int * int -> unit ;
-        val b  = _import "ml_blit" private : ptr * int * int * int * int * ptr * int * int -> unit ;
+  local
+    val ba = _import "ml_blitall" private : ptr * ptr * int * int -> unit ;
+    val b  = _import "ml_blit" private :
+      ptr * int * int * int * int * ptr * int * int -> unit ;
   in
     fun blitall (s1, s2, x, y) =
-        let in
-            (* print ("blitall to " ^ Int.toString x ^ "," ^ Int.toString y ^ "!\n"); *)
-            ba (!!s1, !!s2, x, y)
-        end
-    fun blit (s, sx, sy, sw, sh, d, dx, dy) = b (!!s, sx, sy, sw, sh, !!d, dx, dy)
+      let in
+        (* print ("blitall to " ^ Int.toString x ^ "," ^
+                  Int.toString y ^ "!\n"); *)
+        ba (!!s1, !!s2, x, y)
+      end
+    fun blit (s, sx, sy, sw, sh, d, dx, dy) =
+      b (!!s, sx, sy, sw, sh, !!d, dx, dy)
   end
 
-  (* PERF: Probably porting the C code to unsafe ML code would result in significantly
-     improved performance. The C call overhead is big and the compiler can't optimize
-     over the call boundary. *)
-  local val dp = _import "ml_drawpixel" private : ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
+  (* PERF: Probably porting the C code to unsafe ML code would result in
+     significantly improved performance. The C call overhead is big
+     and the compiler can't optimize over the call boundary. *)
+  local
+    val dp = _import "ml_drawpixel" private :
+      ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
   in
-      fun drawpixel (s, x, y, c) =
-          let
-              val (r, g, b, _) = components32 c
-          in
-              if x < 0 orelse y < 0
-                 orelse x >= surface_width s
-                 orelse y >= surface_height s
-              then
-                  raise SDL ("drawpixel out of bounds: " ^ Int.toString x ^ "," ^ Int.toString y ^
-                              " with surface size: " ^ Int.toString (surface_width s) ^ "x" ^
-                              Int.toString (surface_height s))
-              else dp (!!s, x, y, r, g, b)
-          end
-  end
-
-  local val dp = _import "ml_drawpixel" private : ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
-  in
-      fun clippixel (s, x, y, c) =
-          let
-              val (r, g, b, _) = components32 c
-          in
-              if x < 0 orelse y < 0
-                 orelse x >= surface_width s
-                 orelse y >= surface_height s
-              then ()
-              else dp (!!s, x, y, r, g, b)
-          end
-  end
-
-  local val dp = _import "ml_drawpixel" private : ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
-  in
-      fun drawcircle (ss, x0, y0, radius, c) =
-          let
-              val s = !!ss
-              val (r, g, b, _) = components32 c
-
-              val sw = surface_width ss
-              val sh = surface_height ss
-
-              fun clippixel (x, y) =
-                  if x < 0 orelse y < 0
-                     orelse x >= sw
-                     orelse y >= sh
-                  then ()
-                  else dp (s, x, y, r, g, b)
-
-              val f = 1 - radius
-              val ddF_x = 1
-              val ddF_y = ~2 * radius
-              val x = 0
-              val y = radius
-
-              val () = clippixel(x0, y0 + radius)
-              val () = clippixel(x0, y0 - radius)
-              val () = clippixel(x0 + radius, y0)
-              val () = clippixel(x0 - radius, y0)
-
-              fun loop (x, y, f, ddF_x, ddF_y) =
-                  if x < y
-                  then
-                      let
-                          (*
-                          val () =
-                              print ("x: " ^ Int.toString x ^
-                                     " y: " ^ Int.toString y ^
-                                     " f: " ^ Int.toString f ^
-                                     " ddfx: " ^ Int.toString ddF_x ^
-                                     " ddfy: " ^ Int.toString ddF_y ^ "\n")
-                              *)
-                          val (y, f, ddF_y) =
-                              if f >= 0
-                              then (y - 1, 2 + f + ddF_y, 2 + ddF_y)
-                              else (y, f, ddF_y)
-                          val x = x + 1
-                          val ddF_x = ddF_x + 2
-                          val f = ddF_x + f
-                      in
-                          clippixel(x0 + x, y0 + y);
-                          clippixel(x0 - x, y0 + y);
-                          clippixel(x0 + x, y0 - y);
-                          clippixel(x0 - x, y0 - y);
-                          clippixel(x0 + y, y0 + x);
-                          clippixel(x0 - y, y0 + x);
-                          clippixel(x0 + y, y0 - x);
-                          clippixel(x0 - y, y0 - x);
-                          loop (x, y, f, ddF_x, ddF_y)
-                      end
-                  else ()
-          in
-              loop (x, y, f, ddF_x, ddF_y)
-          end
+    fun drawpixel (s, x, y, c) =
+      let
+        val (r, g, b, _) = components32 c
+      in
+        if x < 0 orelse y < 0
+           orelse x >= surface_width s
+           orelse y >= surface_height s
+        then
+          raise SDL ("drawpixel out of bounds: " ^
+                     Int.toString x ^ "," ^ Int.toString y ^
+                     " with surface size: " ^
+                     Int.toString (surface_width s) ^ "x" ^
+                     Int.toString (surface_height s))
+        else dp (!!s, x, y, r, g, b)
+      end
   end
 
   local
-      val dp = _import "ml_drawpixel" private : ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
+    val dp = _import "ml_drawpixel" private :
+      ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
+  in
+    fun clippixel (s, x, y, c) =
+      let
+        val (r, g, b, _) = components32 c
+      in
+        if x < 0 orelse y < 0
+           orelse x >= surface_width s
+           orelse y >= surface_height s
+        then ()
+        else dp (!!s, x, y, r, g, b)
+      end
+  end
 
-      fun pair_swap (x, y) = (y, x)
-      fun pair_map f (x, y) = (f x, f y)
-      fun pair_map2 f (x1, y1) (x2, y2) = (f (x1, x2), f (y1, y2))
+  local val dp = _import "ml_drawpixel" private :
+    ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
+  in
+    fun drawcircle (ss, x0, y0, radius, c) =
+      let
+        val s = !!ss
+        val (r, g, b, _) = components32 c
 
-      fun build ((x0, y0), (x1, _), (dx, dy), (stepx, stepy), post) =
-        let val frac0 = dy - Int.quot (dx, 2)
-            fun step (x0, y0, frac) =
-              if x0 = x1
-              then NONE
-              else
-                  let val (y0, frac) = if frac >= 0
-                                       then (y0 + stepy, frac - dx)
-                                       else (y0, frac)
-                      val x0 = x0 + stepx
-                      val frac = frac + dy
-                  in SOME ((x0, y0, frac), post (x0, y0))
-                  end
-        in ({step = step, seed = (x0, y0, frac0)}, post (x0, y0))
-        end
+        val sw = surface_width ss
+        val sh = surface_height ss
 
-      fun line p0 p1 =
-        let
-            val d = pair_map2 op- p1 p0
-            fun abs c = if c < 0 then (~c, ~1) else (c, 1)
-            val ((dx', stepx), (dy', stepy)) = pair_map abs d
-            val step = (stepx, stepy)
-            val d'' as (dx'', dy'') = pair_map (fn n => n * 2) (dx', dy')
+        fun clippixel (x, y) =
+          if x < 0 orelse y < 0
+             orelse x >= sw
+             orelse y >= sh
+          then ()
+          else dp (s, x, y, r, g, b)
 
-            val swap = pair_swap
-            val cvt = (fn x => x)
-            val seed =
-                if dx'' > dy''
-                then (p0, p1, d'', step, cvt)
-                else (swap p0, swap p1, swap d'', swap step, swap)
-        in build seed
-        end
+        val f = 1 - radius
+        val ddF_x = 1
+        val ddF_y = ~2 * radius
+        val x = 0
+        val y = radius
+
+        val () = clippixel(x0, y0 + radius)
+        val () = clippixel(x0, y0 - radius)
+        val () = clippixel(x0 + radius, y0)
+        val () = clippixel(x0 - radius, y0)
+
+        fun loop (x, y, f, ddF_x, ddF_y) =
+          if x < y
+          then
+            let
+              (*
+              val () =
+              print ("x: " ^ Int.toString x ^
+                     " y: " ^ Int.toString y ^
+                     " f: " ^ Int.toString f ^
+                     " ddfx: " ^ Int.toString ddF_x ^
+                     " ddfy: " ^ Int.toString ddF_y ^ "\n")
+              *)
+              val (y, f, ddF_y) =
+                if f >= 0
+                then (y - 1, 2 + f + ddF_y, 2 + ddF_y)
+                else (y, f, ddF_y)
+              val x = x + 1
+              val ddF_x = ddF_x + 2
+              val f = ddF_x + f
+            in
+              clippixel(x0 + x, y0 + y);
+              clippixel(x0 - x, y0 + y);
+              clippixel(x0 + x, y0 - y);
+              clippixel(x0 - x, y0 - y);
+              clippixel(x0 + y, y0 + x);
+              clippixel(x0 - y, y0 + x);
+              clippixel(x0 + y, y0 - x);
+              clippixel(x0 - y, y0 - x);
+              loop (x, y, f, ddF_x, ddF_y)
+            end
+          else ()
+      in
+        loop (x, y, f, ddF_x, ddF_y)
+      end
+  end
+
+  local
+    val dp = _import "ml_drawpixel" private :
+      ptr * int * int * Word32.word * Word32.word * Word32.word -> unit ;
+
+    fun pair_swap (x, y) = (y, x)
+    fun pair_map f (x, y) = (f x, f y)
+    fun pair_map2 f (x1, y1) (x2, y2) = (f (x1, x2), f (y1, y2))
+
+    fun build ((x0, y0), (x1, _), (dx, dy), (stepx, stepy), post) =
+      let val frac0 = dy - Int.quot (dx, 2)
+        fun step (x0, y0, frac) =
+          if x0 = x1
+          then NONE
+          else
+            let val (y0, frac) = if frac >= 0
+                                 then (y0 + stepy, frac - dx)
+                                 else (y0, frac)
+                val x0 = x0 + stepx
+                val frac = frac + dy
+            in SOME ((x0, y0, frac), post (x0, y0))
+            end
+      in ({step = step, seed = (x0, y0, frac0)}, post (x0, y0))
+      end
+
+    fun line p0 p1 =
+      let
+        val d = pair_map2 op- p1 p0
+        fun abs c = if c < 0 then (~c, ~1) else (c, 1)
+        val ((dx', stepx), (dy', stepy)) = pair_map abs d
+        val step = (stepx, stepy)
+        val d'' as (dx'', dy'') = pair_map (fn n => n * 2) (dx', dy')
+
+        val swap = pair_swap
+        val cvt = (fn x => x)
+        val seed =
+          if dx'' > dy''
+          then (p0, p1, d'', step, cvt)
+          else (swap p0, swap p1, swap d'', swap step, swap)
+      in build seed
+      end
 
   in
-      fun drawline (ss, x0, y0, x1, y1, c) =
+    fun drawline (ss, x0, y0, x1, y1, c) =
+      let
+        val s = !!ss
+        val (r, g, b, _) = components32 c
+
+        val sw = surface_width ss
+        val sh = surface_height ss
+
+        fun clippixel (x, y) =
+          if x < 0 orelse y < 0
+             orelse x >= sw
+             orelse y >= sh
+          then ()
+          else dp (s, x, y, r, g, b)
+
+        fun app (f : int * int -> unit) p0 p1 =
           let
-              val s = !!ss
-              val (r, g, b, _) = components32 c
-
-              val sw = surface_width ss
-              val sh = surface_height ss
-
-              fun clippixel (x, y) =
-                  if x < 0 orelse y < 0
-                     orelse x >= sw
-                     orelse y >= sh
-                  then ()
-                  else dp (s, x, y, r, g, b)
-
-              fun app (f : int * int -> unit) p0 p1 =
-                  let
-                      val ({step, seed}, v) = line p0 p1
-                      fun loop seed =
-                          case step seed of
-                              NONE => ()
-                            | SOME (seed', v) => (f v; loop seed')
-                  in
-                      f v;
-                      loop seed
-                  end
+            val ({step, seed}, v) = line p0 p1
+            fun loop seed =
+              case step seed of
+                NONE => ()
+              | SOME (seed', v) => (f v; loop seed')
           in
-              (* PERF could pre-clip, or stop as soon as we get off screen? *)
-              app clippixel (x0, y0) (x1, y1)
+            f v;
+            loop seed
           end
+      in
+        (* PERF could pre-clip, or stop as soon as we get off screen? *)
+        app clippixel (x0, y0) (x1, y1)
+      end
   end
 
   (* PERF don't need bresenham complexity to do this; pretty easy to pre-clip.
@@ -1291,123 +1307,135 @@ struct
 
 
   (* PERF: similar *)
-  local val gp = _import "ml_getpixela" private : ptr * int * int *
-                 Word8.word ref * Word8.word ref * Word8.word ref * Word8.word ref -> unit ;
+  local
+    val gp = _import "ml_getpixela" private : ptr * int * int *
+      Word8.word ref * Word8.word ref * Word8.word ref * Word8.word ref ->
+      unit ;
   in
-      fun getpixel (s, x, y) =
+    fun getpixel (s, x, y) =
+      let
+      in
+        if x < 0 orelse y < 0
+           orelse x >= surface_width s
+           orelse y >= surface_height s
+        then
+          raise SDL ("getpixel out of bounds: " ^
+                     Int.toString x ^ "," ^ Int.toString y ^
+                     " with surface size: " ^
+                     Int.toString (surface_width s) ^ "x" ^
+                     Int.toString (surface_height s))
+        else
           let
+            val r = ref 0w0
+            val g = ref 0w0
+            val b = ref 0w0
+            val a = ref 0w0
           in
-              if x < 0 orelse y < 0
-                 orelse x >= surface_width s
-                 orelse y >= surface_height s
-              then
-                  raise SDL ("getpixel out of bounds: " ^ Int.toString x ^ "," ^ Int.toString y ^
-                              " with surface size: " ^ Int.toString (surface_width s) ^ "x" ^
-                              Int.toString (surface_height s))
-              else
-                let
-                  val r = ref 0w0
-                  val g = ref 0w0
-                  val b = ref 0w0
-                  val a = ref 0w0
-                in
-                  gp (!!s, x, y, r, g, b, a);
-                  color (!r, !g, !b, !a)
-                end
+            gp (!!s, x, y, r, g, b, a);
+            color (!r, !g, !b, !a)
           end
+      end
   end
 
-  local val pixels_ = _import "ml_pixels" private : ptr * Word8.word Array.array -> unit ;
+  local
+    val pixels_ = _import "ml_pixels" private :
+      ptr * Word8.word Array.array -> unit ;
   in
-      fun pixels s =
-          let
-              val (w, h) = (surface_width s, surface_height s)
-              val a = Array.array (w * h * 4, 0w0 : Word8.word)
-          in
-              pixels_ (!!s, a);
-              (w, h, a)
-          end
+    fun pixels s =
+      let
+        val (w, h) = (surface_width s, surface_height s)
+        val a = Array.array (w * h * 4, 0w0 : Word8.word)
+      in
+        pixels_ (!!s, a);
+        (w, h, a)
+      end
   end
 
-  local val pixels_ = _import "ml_pixels32" private : ptr * Word32.word Array.array -> unit ;
+  local
+    val pixels_ = _import "ml_pixels32" private :
+      ptr * Word32.word Array.array -> unit ;
   in
-      fun pixels32 s =
-          let
-              val (w, h) = (surface_width s, surface_height s)
-              val a = Array.array (w * h, 0w0 : Word32.word)
-          in
-              pixels_ (!!s, a);
-              (w, h, a)
-          end
+    fun pixels32 s =
+      let
+        val (w, h) = (surface_width s, surface_height s)
+        val a = Array.array (w * h, 0w0 : Word32.word)
+      in
+        pixels_ (!!s, a);
+        (w, h, a)
+      end
   end
 
-  local val unpixels_ = _import "ml_unpixels" private : ptr * Word8.word Array.array -> unit ;
+  local
+    val unpixels_ = _import "ml_unpixels" private :
+      ptr * Word8.word Array.array -> unit ;
   in
-      fun unpixels (w, h, a) =
-          let
-              val () = if w * h * 4 = Array.length a
-                       then ()
-                       else raise SDL ("width/height do not agree with pixel data: " ^
-                                       Int.toString w ^ "/" ^ Int.toString h ^
-                                       " but have " ^ Int.toString (Array.length a) ^
-                                       " byte(s).")
-              val surf = makesurface (w, h)
-          in
-              unpixels_ (!!surf, a);
-              surf
-          end
+    fun unpixels (w, h, a) =
+      let
+        val () =
+          if w * h * 4 = Array.length a
+          then ()
+          else raise SDL ("width/height do not agree with pixel data: " ^
+                          Int.toString w ^ "/" ^ Int.toString h ^
+                          " but have " ^ Int.toString (Array.length a) ^
+                          " byte(s).")
+        val surf = makesurface (w, h)
+      in
+        unpixels_ (!!surf, a);
+        surf
+      end
   end
 
   (* for w in [0, 255] we get w/255 of c, (255 - w)/255 of cc *)
   fun colormixfrac8 (c : color, cc : color, w : Word8.word) =
-      let
-          val w = Word32.fromInt (Word8.toInt w)
-          val (r, g, b, a) = components32 c
-          val (rr, gg, bb, aa) = components32 cc
+    let
+      val w = Word32.fromInt (Word8.toInt w)
+      val (r, g, b, a) = components32 c
+      val (rr, gg, bb, aa) = components32 cc
 
-          val factor  = w
-          val ofactor = 0w256 - factor
+      val factor  = w
+      val ofactor = 0w256 - factor
 
-          val >> = Word32.>>
-          infix >>
+      val >> = Word32.>>
+      infix >>
 
-          val rrr = (r * factor + rr * ofactor) >> 0w8
-          val ggg = (g * factor + gg * ofactor) >> 0w8
-          val bbb = (b * factor + bb * ofactor) >> 0w8
-          val aaa = (a * factor + aa * ofactor) >> 0w8
-      in
-          color32 (rrr, ggg, bbb, aaa)
-      end
+      val rrr = (r * factor + rr * ofactor) >> 0w8
+      val ggg = (g * factor + gg * ofactor) >> 0w8
+      val bbb = (b * factor + bb * ofactor) >> 0w8
+      val aaa = (a * factor + aa * ofactor) >> 0w8
+    in
+      color32 (rrr, ggg, bbb, aaa)
+    end
 
   (* For f in [0.0, 1.0], we get f * c + (1.0 - f) * cc. *)
   fun colormixfrac (c : color, cc : color, f : real) =
-      colormixfrac8 (c, cc, Word8.fromInt (Real.trunc (f * 256.0)))
+    colormixfrac8 (c, cc, Word8.fromInt (Real.trunc (f * 256.0)))
 
   fun blitpixel (s, x, y, c) =
-      let
-          val (_, _, _, a) = components c
-          val oldc = getpixel (s, x, y)
-          val newc = colormixfrac8 (c, oldc, a)
-      in
-          drawpixel (s, x, y, newc)
-      end
+    let
+      val (_, _, _, a) = components c
+      val oldc = getpixel (s, x, y)
+      val newc = colormixfrac8 (c, oldc, a)
+    in
+      drawpixel (s, x, y, newc)
+    end
 
-  local val fr = _import "ml_fillrecta" private : ptr * int * int * int * int *
-                 Word32.word * Word32.word * Word32.word * Word32.word -> unit ;
+  local
+    val fr = _import "ml_fillrecta" private : ptr * int * int * int * int *
+      Word32.word * Word32.word * Word32.word * Word32.word -> unit ;
   in
     fun fillrect (s1, x, y, w, h, c) =
-        let
-          val (r, g, b, a) = components32 c
-        in
-          fr (!!s1, x, y, w, h, r, g, b, a)
-        end
+      let
+        val (r, g, b, a) = components32 c
+      in
+        fr (!!s1, x, y, w, h, r, g, b, a)
+      end
   end
 
   (* **** initialization **** *)
   local
-      val init = _import "ml_init" private : unit -> int ;
-      val plat = _import "ml_platform" private : unit -> int ;
-      val cmode = _import "ml_consolemode" private : unit -> int ;
+    val init = _import "ml_init" private : unit -> int ;
+    val plat = _import "ml_platform" private : unit -> int ;
+    val cmode = _import "ml_consolemode" private : unit -> int ;
   in
 
     val () =
@@ -1432,57 +1460,58 @@ struct
 
   structure Joystick =
   struct
-      datatype event_state = ENABLE | IGNORE
-      type hatstate = joyhatstate
+    datatype event_state = ENABLE | IGNORE
+    type hatstate = joyhatstate
 
-      val number = _import "SDL_NumJoysticks" private : unit -> int ;
+    val number = _import "SDL_NumJoysticks" private : unit -> int ;
 
-      val oj_  = _import "SDL_JoystickOpen" private : int -> MLton.Pointer.t ;
-      val cj_  = _import "SDL_JoystickClose" private : MLton.Pointer.t -> unit ;
-      val nj_  = _import "ml_joystickname" private : int * char array -> unit ;
-      val jes_ = _import "ml_setjoystate" private : int -> unit ;
+    val oj_  = _import "SDL_JoystickOpen" private : int -> MLton.Pointer.t ;
+    val cj_  = _import "SDL_JoystickClose" private : MLton.Pointer.t -> unit ;
+    val nj_  = _import "ml_joystickname" private : int * char array -> unit ;
+    val jes_ = _import "ml_setjoystate" private : int -> unit ;
 
-      val na_ = _import "SDL_JoystickNumAxes" private : MLton.Pointer.t -> int ;
-      val nb_ = _import "SDL_JoystickNumBalls" private : MLton.Pointer.t -> int ;
-      val nh_ = _import "SDL_JoystickNumHats" private : MLton.Pointer.t -> int ;
-      val nu_ = _import "SDL_JoystickNumButtons" private : MLton.Pointer.t -> int ;
+    val na_ = _import "SDL_JoystickNumAxes" private : MLton.Pointer.t -> int ;
+    val nb_ = _import "SDL_JoystickNumBalls" private : MLton.Pointer.t -> int ;
+    val nh_ = _import "SDL_JoystickNumHats" private : MLton.Pointer.t -> int ;
+    val nu_ = _import "SDL_JoystickNumButtons" private :
+      MLton.Pointer.t -> int ;
 
-      fun check n = if n >= 0 andalso n < number ()
-                    then n
-                    else raise SDL "joystick id out of range"
+    fun check n = if n >= 0 andalso n < number ()
+                  then n
+                  else raise SDL "joystick id out of range"
 
-      fun setstate es =
-          jes_ (case es of ENABLE => 1 | IGNORE => 0)
+    fun setstate es =
+        jes_ (case es of ENABLE => 1 | IGNORE => 0)
 
-      fun name n =
-          let val n = check n
-              val MAX_NAME = 512
-              val r = Array.array (MAX_NAME, #"\000")
-          in
-              nj_ (n, r);
-              readcstring r
-          end
+    fun name n =
+        let val n = check n
+            val MAX_NAME = 512
+            val r = Array.array (MAX_NAME, #"\000")
+        in
+            nj_ (n, r);
+            readcstring r
+        end
 
-      fun openjoy n = ref (oj_ (check n))
+    fun openjoy n = ref (oj_ (check n))
 
-      (* nb, there is SDL_JoystickOpened. but why would we want to
-         check this when it should be true by invariant? *)
-      fun closejoy j = cj_ (!! j)
+    (* nb, there is SDL_JoystickOpened. but why would we want to
+       check this when it should be true by invariant? *)
+    fun closejoy j = cj_ (!! j)
 
-      (* from SDL_joystick.h *)
-      fun hat_centered h = h = (0w0 : Word8.word)
-      fun hat_up h    = Word8.andb(h, 0w1) <> 0w0
-      fun hat_right h = Word8.andb(h, 0w2) <> 0w0
-      fun hat_down h  = Word8.andb(h, 0w4) <> 0w0
-      fun hat_left h  = Word8.andb(h, 0w8) <> 0w0
+    (* from SDL_joystick.h *)
+    fun hat_centered h = h = (0w0 : Word8.word)
+    fun hat_up h    = Word8.andb(h, 0w1) <> 0w0
+    fun hat_right h = Word8.andb(h, 0w2) <> 0w0
+    fun hat_down h  = Word8.andb(h, 0w4) <> 0w0
+    fun hat_left h  = Word8.andb(h, 0w8) <> 0w0
 
-      fun numaxes j = na_ (!! j)
-      fun numballs j = nb_ (!! j)
-      fun numhats j = nh_ (!! j)
-      fun numbuttons j = nu_ (!! j)
+    fun numaxes j = na_ (!! j)
+    fun numballs j = nb_ (!! j)
+    fun numhats j = nh_ (!! j)
+    fun numbuttons j = nu_ (!! j)
 
-      val hatstatetostring = Word8.toString
-      fun hatstatefromstring s = Word8.fromString s handle Overflow => NONE
+    val hatstatetostring = Word8.toString
+    fun hatstatefromstring s = Word8.fromString s handle Overflow => NONE
   end
 
   fun loadbmp s =
@@ -1607,38 +1636,38 @@ struct
 
     (* PERF: reduce overlaps in corners *)
     fun outline (surf, n, c) =
-        let
-            val w = surface_width surf
-            val h = surface_height surf
-        in
-            fillrect(surf, 0, 0, w, n, c);
-            fillrect(surf, 0, 0, n, h, c);
-            fillrect(surf, w - n, 0, n, h, c);
-            fillrect(surf, 0, h - n, w, n, c)
-        end
+      let
+        val w = surface_width surf
+        val h = surface_height surf
+      in
+        fillrect(surf, 0, 0, w, n, c);
+        fillrect(surf, 0, 0, n, h, c);
+        fillrect(surf, w - n, 0, n, h, c);
+        fillrect(surf, 0, h - n, w, n, c)
+      end
 
     fun makealpharect (w, h, c) =
-        let
-            val s = makesurface (w, h)
-        in
-            fillrect(s, 0, 0, w, h, c);
-            s
-        end
+      let
+        val s = makesurface (w, h)
+      in
+        fillrect(s, 0, 0, w, h, c);
+        s
+      end
 
     fun makealpharectgrad { w, h, ctop, cbot, bias = _ } =
-        let
-            val s = makesurface (w, h)
-            val rh = real h
-        in
-            Util.for 0 (h - 1)
-            (fn i =>
-             (* XXX: no bias yet *)
-             let val frac = 1.0 - (real i / rh)
-                 val c = colormixfrac (ctop, cbot, frac)
-             in fillrect(s, 0, i, w, 1, c)
-             end);
-            s
-        end
+      let
+        val s = makesurface (w, h)
+        val rh = real h
+      in
+        Util.for 0 (h - 1)
+        (fn i =>
+         (* XXX: no bias yet *)
+         let val frac = 1.0 - (real i / rh)
+           val c = colormixfrac (ctop, cbot, frac)
+         in fillrect(s, 0, i, w, 1, c)
+         end);
+        s
+      end
 
     structure Cursor =
     struct
@@ -1660,22 +1689,23 @@ struct
             val d = Array.array ((w div 8) * h, 0w0)
             val m = Array.array ((w div 8) * h, 0w0)
             fun onepixel (x, y) =
-              let val sh = (Int.-(7, x mod 8))
-                  val i = Int.+(y * (w div 8), x div 8)
-                  fun mask (b : Word8.word) =
-                    Array.update(m, i,
-                                 Word8.orb (Array.sub (m, i),
-                                            Word8.<< (b, Word.fromInt sh)))
-                  fun data (b : Word8.word) =
-                    Array.update(d, i,
-                                 Word8.orb (Array.sub (d, i),
-                                            Word8.<< (b, Word.fromInt sh)))
+              let
+                val sh = (Int.-(7, x mod 8))
+                val i = Int.+(y * (w div 8), x div 8)
+                fun mask (b : Word8.word) =
+                  Array.update(m, i,
+                               Word8.orb (Array.sub (m, i),
+                                          Word8.<< (b, Word.fromInt sh)))
+                fun data (b : Word8.word) =
+                  Array.update(d, i,
+                               Word8.orb (Array.sub (d, i),
+                                          Word8.<< (b, Word.fromInt sh)))
               in
-                  case Vector.sub (p, Int.+ (y * w, x)) of
-                      op O => (data 0w0; mask 0w1)
-                    | op X => (data 0w1; mask 0w1)
-                    | op - => (data 0w0; mask 0w0)
-                    | op + => (data 0w1; mask 0w0)
+                case Vector.sub (p, Int.+ (y * w, x)) of
+                  op O => (data 0w0; mask 0w1)
+                | op X => (data 0w1; mask 0w1)
+                | op - => (data 0w0; mask 0w0)
+                | op + => (data 0w1; mask 0w0)
               end
           in
             Util.for 0 (Int.- (h, 1))

@@ -4,8 +4,7 @@
 
  * add to mlton wiki
 
- * sdlml from explat/t7eshero, complete
+ * sdlml from explat/t7eshero, complete (this is currently in ../sdlml)
 
  * Implement SHA-256 and -512 (can probably be functorized?)
    now that SHA-1 is definitively broken.
-   

@@ -1,3 +1,4 @@
+(* SML interface to SDL. *)
 signature SDL =
 sig
 
@@ -243,9 +244,16 @@ sig
     | SDLK_EURO
     | SDLK_UNDO
 
-  (* for serialization of keyboard configs, for example. *)
+  (* Note that since it's a huge datatype, these are fairly
+     inefficient. :( *)
+  (* Returns human-readable string. *)
   val sdlktostring : sdlk -> string
-  val sdlkfromstring : string -> sdlk option
+
+  (* Return the corresponding character for the key, if any. *)
+  val sdlktochar : sdlk -> char option
+  (* For serialization, for example. *)
+  val sdlktoint : sdlk -> int
+  val sdlkfromint : int -> sdlk option
 
   structure Joystick :
   sig
@@ -320,11 +328,6 @@ sig
 
   val surface_width : surface -> int
   val surface_height : surface -> int
-
-  (* Return the corresponding character for the key, if any. *)
-  val sdlkchar : sdlk -> char option
-
-  val sdlktos : sdlk -> string
 
   val flip : surface -> unit
 

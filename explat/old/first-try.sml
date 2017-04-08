@@ -10,7 +10,7 @@ struct
 
   open SDL
 
-  fun messagebox s = 
+  fun messagebox s =
       let
         (* val mb = _import "MessageBoxA" stdcall : int * string * string * int -> unit ; *)
       in
@@ -99,11 +99,11 @@ struct
      the screen is at scrollx/scrolly *)
   fun drawworld () =
     let
-      (* tlx/tly is the (screen coordinate pixel) point 
+      (* tlx/tly is the (screen coordinate pixel) point
          at which we draw the top-left tile. it is nonpositive *)
       val tlx = 0 - (!scrollx mod TILEW)
       val tly = 0 - (!scrolly mod TILEH)
-        
+
       (* this is the tile number (world absolute) that we start
          by drawing *)
       val xstart = !scrollx div TILEW
@@ -118,12 +118,12 @@ struct
      (fn y =>
       case maskat (xstart + x, ystart + y) of
         MEMPTY => ()
-      | t => blitall (tilefor t, screen, 
+      | t => blitall (tilefor t, screen,
                       tlx + (x * TILEW), tly + (y * TILEH))))
     end
 
   fun drawbot fade =
-      let val img = 
+      let val img =
           (case (!botface, fade) of
                (FLEFT, false) => robotl
              | (FLEFT, true) => robotl_fade
@@ -182,11 +182,11 @@ struct
           val dy = !botdy
           val x = !botx
           val y = !boty
-              
+
           (* val () = print (StringUtil.delimit ", " (map Int.toString [dx, dy, x, y])); *)
-          val () = 
+          val () =
               case i of
-                  nil => () 
+                  nil => ()
                 | _ => print (StringUtil.delimit " & " (map inttos i) ^ "\n")
 
           val dx =
@@ -194,20 +194,20 @@ struct
                  andalso dx > ~ MAXWALK
               then dx - 1
               else dx
-          val dx = 
+          val dx =
               if intends i (I_GO RIGHT)
                  andalso dx < MAXWALK
               then dx + 1
               else dx
 
           (* and if we don't intend to move at all, slow us down *)
-          val dx = 
+          val dx =
               if not (intends i (I_GO RIGHT)) andalso
                  not (intends i (I_GO LEFT))
               then (if dx > 0 then dx - 1
                     else if dx < 0 then dx + 1 else 0)
               else dx
-                  
+
           (* XXX jumping -- only when not in air already! *)
 
           val (dy, i) = if intends i (I_JUMP)
@@ -216,7 +216,7 @@ struct
                         else (dy, i)
 
           (* falling *)
-          val dy = if dy <= TERMINAL_VELOCITY 
+          val dy = if dy <= TERMINAL_VELOCITY
                    then dy + 1
                    else dy
 
@@ -225,7 +225,7 @@ struct
           (* now try moving in that direction *)
           (* XXX this collision detection needs to be much more sophisticated, of course! *)
           val (dy, y) =
-              (* 
+              (*
                  simple: if the tile we're currently on, or the
                  tile below it, has any kind of clip, and we would
                  hit it this frame, then snap. Do this for both left
@@ -242,7 +242,7 @@ struct
                               val xt = x div TILEW
                               val yt1 = y div TILEH
                               val yt2 = (y + dy) div TILEH
-                                  
+
                               (* given a tile index (yt) and distance we'd like to travel from
                                  the top of that tile (dist) into it, calculate our new position
                                  and velocity. *)
@@ -252,7 +252,7 @@ struct
                                      | MSOLID => (print ("snapped to yt=" ^ Int.toString yt ^ " (dist="
                                                          ^ Int.toString dist ^ ")\n");
                                                   (0, yt * TILEH - 1))
-                                     | MRAMP sl => 
+                                     | MRAMP sl =>
                                            let
                                                (* the distance from the bottom of the tile *)
                                                val yint =
@@ -269,7 +269,7 @@ struct
                                              print ("Snap ramp: " ^
                                                     "want " ^ Int.toString dist ^
                                                     " max " ^ Int.toString mdist ^ "\n");
-                                               if (dist < mdist) 
+                                               if (dist < mdist)
                                                then (* go all the way, maintain speed *)
                                                    (dy, yt * TILEH + dist)
                                                else (* stop at max *)
@@ -282,8 +282,8 @@ struct
                               blitall(redhi,   screen, xt * TILEW - !scrollx, yt2 * TILEH - !scrolly);
 
                               print ("Vdrop: x: " ^ Int.toString x ^ " y: " ^ Int.toString y ^
-                                     " dy: " ^ Int.toString dy ^ 
-                                     " xt: " ^ Int.toString xt ^ 
+                                     " dy: " ^ Int.toString dy ^
+                                     " xt: " ^ Int.toString xt ^
                                      " yt1: " ^ Int.toString yt1 ^ "(" ^ ttos (maskat (xt, yt1)) ^ ")" ^
                                      " yt2: " ^ Int.toString yt2 ^ "(" ^ ttos (maskat (xt, yt2)) ^ ")" ^
                                      "\n");
@@ -292,7 +292,7 @@ struct
                               (case maskat(xt, yt1) of
                                    MEMPTY =>
                                    (* are we going to enter the next spot? *)
-                                       if yt1 <> yt2 
+                                       if yt1 <> yt2
                                        then (case maskat(xt, yt2) of
                                                  MEMPTY => (* just drop, safely *)
                                                            (dy, y + dy)
@@ -303,7 +303,7 @@ struct
                                              (dy, y + dy))
                                      | _ => (print "snap at yt1\n";
                                              snap (yt1, (y + dy) mod TILEH)))
-                                   
+
                           end
 
                       val () = print "-- drop stop --\n"
@@ -321,7 +321,7 @@ struct
                   (*
                   (* stop at bottom of screen --
                      don't do this anymore now that there's scroll *)
-          val (dy, y) = if dy > 0 andalso 
+          val (dy, y) = if dy > 0 andalso
                            y >= ((TILESH - 1) * TILEH) - ROBOTH
                         then (0, ((TILESH - 1) * TILEH) - ROBOTH)
                         else (dy, y + dy)
@@ -337,12 +337,12 @@ struct
           botx := x;
           boty := y;
           i
-      end 
+      end
 
   fun loop { nexttick, intention } =
       if getticks () > nexttick
          andalso (not (!paused) orelse !advance)
-      then 
+      then
           let
               val () =               clearsurface (screen, color (0w0, 0w0, 0w0, 0w0))
               val () =               setscroll ()
@@ -360,15 +360,15 @@ struct
               SDL.delay 1;
               key { nexttick = nexttick, intention = intention }
           end
-              
-              
 
-  and key ( cur as { nexttick, intention = i } ) = 
+
+
+  and key ( cur as { nexttick, intention = i } ) =
     case pollevent () of
       SOME (E_KeyDown { sym = SDLK_ESCAPE }) => () (* quit *)
 
     | SOME (E_MouseMotion { xrel, yrel, ...}) =>
-        let in 
+        let in
           botdx := !botdx + xrel; botdy := !botdy + yrel;
           botdx := (if !botdx > 4 then 4
                    else (if !botdx < ~4 then ~4
@@ -385,7 +385,7 @@ struct
           loop cur
         end
 
-    | SOME (E_KeyDown { sym = SDLK_PERIOD }) => 
+    | SOME (E_KeyDown { sym = SDLK_PERIOD }) =>
         let in
           advance := true;
           loop cur
@@ -426,12 +426,12 @@ struct
 
     | SOME (E_KeyDown { sym }) =>
           let in
-              print ("unknown key " ^ SDL.sdlktos sym ^ "\n");
+              print ("unknown key " ^ SDL.sdlktostring sym ^ "\n");
               loop { nexttick = nexttick, intention = i }
           end
 
     | SOME (E_KeyUp { sym = SDLK_SPACE }) =>
-          (* these 'impulse' events are not turned off by a key going up! 
+          (* these 'impulse' events are not turned off by a key going up!
              (actually, I guess jump should work like l/r in that if
              I hold the jump button I should go higher than if I tap it.)
 

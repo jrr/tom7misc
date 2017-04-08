@@ -13,7 +13,7 @@ struct
   open SDL
   structure Util = U
 
-  fun messagebox s = 
+  fun messagebox s =
       let
         (* val mb = _import "MessageBoxA" stdcall : int * string * string * int -> unit ; *)
       in
@@ -50,7 +50,7 @@ struct
                            val charmap =
                            " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" ^
                            "`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" (* \" *)
-                           (* CHECKMARK ESC HEART LCMARK1 LCMARK2 BAR_0 BAR_1 BAR_2 BAR_3 
+                           (* CHECKMARK ESC HEART LCMARK1 LCMARK2 BAR_0 BAR_1 BAR_2 BAR_3
                               BAR_4 BAR_5 BAR_6 BAR_7 BAR_8 BAR_9 BAR_10 BARSTART LRARROW LLARROW *)
                            val width = 9
                            val height = 16
@@ -123,7 +123,7 @@ struct
     | Monster  of { which : monster, dir : dir, dx : int, dy : int, x : int, y : int }
 
   val objects = ref (nil : object list)
-      
+
   val paused = ref false
   val advance = ref false
 
@@ -150,9 +150,9 @@ struct
       val EDITWIDTH = 200
       val EDITHEIGHT = 200
       val TITLE_HEIGHT = Font.height + 4
-          
-      val MASKS = 
-          Vector.fromList 
+
+      val MASKS =
+          Vector.fromList
           [ MEMPTY, MSOLID,
             MRAMP LM, MRAMP MH, MRAMP HM, MRAMP ML,
             MDIAG NW, MDIAG NE, MDIAG SW, MDIAG SE,
@@ -164,8 +164,8 @@ struct
             ]
 
       fun edit_click (x, y) =
-          let 
-              
+          let
+
               (* XXX get from current window, to support resizing *)
               val EDITW = EDITWIDTH div TILEW
               val EDITH = EDITWIDTH div TILEH
@@ -199,18 +199,18 @@ struct
               val EDITH = h div TILEH
           in
               (* indicate the zone *)
-              SDL.fillrect (surf, 
-                            x + ~1 + 
+              SDL.fillrect (surf,
+                            x + ~1 +
                             ((TILEW + 2) *
                              (case !editzone of
                                      ZBG => 0
                                    | ZFG => 1
-                                   | ZMASK => 2)), 
+                                   | ZMASK => 2)),
                             y - 1,
                             TILEW + 4,
                             TILEH + 4,
                             editzonecolor);
-              
+
               (* the background, foreground, mask *)
               Tile.draw (!editbgtile, surf,
                          x, y, 0, 0);
@@ -239,7 +239,7 @@ struct
                        (fn xx =>
                         let val t = Tile.fromword (Word32.fromInt (EDITW * yy + xx))
                         in
-                            Tile.draw (t, surf, 
+                            Tile.draw (t, surf,
                                        x + (TILEW * xx),
                                        TILEH + 2 +
                                        y + (TILEH * yy),
@@ -252,7 +252,7 @@ struct
           Window.make { click = edit_click,
                         keydown = fn _ => false,
                         keyup = fn _ => false,
-                        
+
                         border = 2,
                         border_color = editmenucolor,
                         resizable = true,
@@ -261,9 +261,9 @@ struct
                         title_height = TITLE_HEIGHT,
 
                         draw = draw_edit_child,
-                        drawtitle = 
+                        drawtitle =
                         (fn (surf, x, y) =>
-                         Font.draw_plain(surf, 
+                         Font.draw_plain(surf,
                                          x, y + 1,
                                          (case !editzone of
                                               ZBG => "background"
@@ -281,11 +281,11 @@ struct
      the screen is at scrollx/scrolly *)
   fun drawworld (now, layer) =
     let
-      (* tlx/tly is the (screen coordinate pixel) point 
+      (* tlx/tly is the (screen coordinate pixel) point
          at which we draw the top-left tile. it is nonpositive *)
       val tlx = 0 - (!scrollx mod TILEW)
       val tly = 0 - (!scrolly mod TILEH)
-        
+
       (* this is the tile number (world absolute) that we start
          by drawing *)
       val xstart = !scrollx div TILEW
@@ -304,15 +304,15 @@ struct
            (fn y =>
             case maskat (xstart + x, ystart + y) of
                 MEMPTY => ()
-              | m => Tile.drawmask(m, screen, 
+              | m => Tile.drawmask(m, screen,
                                    tlx + (x * TILEW), tly + (y * TILEH))
                     ))
-      | SOME layer => 
+      | SOME layer =>
           Util.for 0 TILESW
           (fn x =>
            Util.for 0 TILESH
            (fn y =>
-            Tile.draw (World.tileat(layer, xstart + x, ystart + y), screen, 
+            Tile.draw (World.tileat(layer, xstart + x, ystart + y), screen,
                        tlx + (x * TILEW),
                        tly + (y * TILEH),
                        xstart + x, ystart + y)
@@ -326,7 +326,7 @@ struct
                        else fireballl, screen,
                        x - !scrollx, y - !scrolly)
             | doobj (Monster { which, dx, dy, x, y, dir }) =
-              blitall ((case (dir, which, dy) of 
+              blitall ((case (dir, which, dy) of
                             (_, STAR, _) => star
                           | (_, SPIDER, 0) => spider_down
                           | (_, SPIDER, _) => spider_up
@@ -338,7 +338,7 @@ struct
       end
 
   fun drawbot fade =
-      let val img = 
+      let val img =
           (case (!botface, fade) of
                (FLEFT, false) => robotl
              | (FLEFT, true) => robotl_fade
@@ -393,9 +393,9 @@ struct
       let
           (* val () = print (StringUtil.delimit ", " (map Int.toString [dx, dy, x, y]) ^ "\n") *)
               (*
-          val () = 
+          val () =
               case i of
-                  nil => () 
+                  nil => ()
                 | _ => print (StringUtil.delimit " & " (map inttos i) ^ "\n")
                   *)
 
@@ -406,7 +406,7 @@ struct
                  andalso dx > ~ MAXWALK
               then dx - 1
               else dx
-          val dx = 
+          val dx =
               if intends i (I_GO RIGHT)
                  andalso dx < MAXWALK
               then dx + 1
@@ -417,16 +417,16 @@ struct
                         else (dx, i)
 
           (* and if we don't intend to move at all, slow us down *)
-          val dx = 
+          val dx =
               if not (intends i (I_GO RIGHT)) andalso
                  not (intends i (I_GO LEFT))
               then (if dx > 0 then dx - 1
                     else if dx < 0 then dx + 1 else 0)
               else dx
-                  
+
           (* jumping -- only when not in air already!
              (either way the intention goes away) *)
-          val (dy, i) = 
+          val (dy, i) =
             if intends i (I_JUMP)
                (* something to push off of.. *)
                andalso Clip.clipped clip (x, y + 1)
@@ -435,7 +435,7 @@ struct
             else (dy, List.filter (fn I_JUMP => false | _ => true) i)
 
           (* superjumps are cheat *)
-          val (dy, i) = 
+          val (dy, i) =
             if intends i (I_SUPERJUMP)
             then (dy - (JUMP_VELOCITY * 2),
                   List.filter (fn I_SUPERJUMP => false | _ => true) i)
@@ -443,13 +443,13 @@ struct
 
 
           (* gravity *)
-          val dy = dy + 1 
+          val dy = dy + 1
 
           (* air resistance *)
           val dx = if dx > TERMINAL_VELOCITY
                    then dx - 1
                    else if dx < ~ TERMINAL_VELOCITY
-                        then dx + 1 
+                        then dx + 1
                         else dx
 
           val dy = if dy > TERMINAL_VELOCITY
@@ -460,7 +460,7 @@ struct
 
           (* XXX world effects... *)
 
-                       
+
           val (x, y, dx, dy) =
               let
                   val xi = if dx < 0 then ~1 else 1
@@ -475,13 +475,13 @@ struct
                     (yr := !yr - 1;
                      true)
 
-                  fun nudgex _ = 
+                  fun nudgex _ =
                       let val next = !xr + xi
                       in
-                          if !stopx 
+                          if !stopx
                           then ()
                           else if Clip.clipped clip (next, !yr)
-                               then 
+                               then
                                    (* can move up a little if
                                       we are on a ramp:
 
@@ -498,7 +498,7 @@ struct
                                else xr := next
                       end
 
-                  fun nudgey _ = 
+                  fun nudgey _ =
                       let val next = !yr + yi
                       in
                           if !stopy orelse Clip.clipped clip (!xr, next)
@@ -511,9 +511,9 @@ struct
               in
                   (* try moving one pixel at a time
                      in the desired direction, until
-                     it is not possible to move any 
+                     it is not possible to move any
                      more. *)
-                  
+
                   (* XXX this calculation should probably
                      be symmetric. Here we do all of our
                      X movement before considering the Y
@@ -522,13 +522,13 @@ struct
                   Util.for 0 (abs dx - 1) nudgex;
                   Util.for 0 (abs dy - 1) nudgey;
 
-                  (!xr, !yr, 
-                   if !stopx then 0 else dx, 
+                  (!xr, !yr,
+                   if !stopx then 0 else dx,
                    if !stopy then 0 else dy)
               end
       in
           (i, x, y, dx, dy)
-      end 
+      end
 
   fun movebot { nexttick, intention } =
       let
@@ -544,11 +544,11 @@ struct
   (* draws the actual clip mask calculated pixel-by-pixel *)
   fun drawdebug () =
     if !showclip
-    then 
+    then
       let in
         (* print "DEBUG..\n"; *)
         Util.for 0 (width - 1)
-        (fn x => 
+        (fn x =>
          let in
            Util.for 0 (height - 1)
            (fn y =>
@@ -561,7 +561,7 @@ struct
               (* tile mask, absolute *)
               case maskat (tx, ty) of
                 MEMPTY => ()
-              | m => 
+              | m =>
                   if Tile.clipmask m (xx mod TILEW, yy mod TILEH)
                   then SDL.drawpixel (screen, x, y, color (0w255, 0w0, 0w0, 0w255))
                   else SDL.drawpixel (screen, x, y, color (0w0, 0w255, 0w0, 0w255))
@@ -581,12 +581,12 @@ struct
   fun moveobjects () =
       let
           fun doobj (Bullet { x, y, dx, dy }) =
-              let 
+              let
                   (* XX only dx supported now *)
                   val xi = if dx < 0 then ~1 else 1
                   val xr = ref x
                   val stopx = ref false
-                  fun nudgex _ = 
+                  fun nudgex _ =
                       let val next = !xr + xi
                       in
                           if !stopx orelse Clip.clipped Clip.bullet (next, y)
@@ -600,7 +600,7 @@ struct
               end
             | doobj (Monster { which, dir, x, y, dx, dy }) =
               let
-                val clip = 
+                val clip =
                     case which of
                         STAR => Clip.star
                       | SPIDER => Clip.spider
@@ -626,7 +626,7 @@ struct
   fun loop { nexttick, intention, iter } =
       if getticks () > nexttick
          andalso (not (!paused) orelse !advance)
-      then 
+      then
           let
               val () =               clearsurface (screen, color (0w0, 0w0, 0w0, 0w0))
               val () =               setscroll ()
@@ -640,8 +640,8 @@ struct
               val () =               drawworld (iter, SOME FOREGROUND)
               val () =               drawmask iter
               val () =               drawedit iter
-              val () =       
-                 Font.draw(screen, 10, 10, 
+              val () =
+                 Font.draw(screen, 10, 10,
                            "Hello, ^1Welcome^< to my cool ^3program^<!")
           in
               flip screen;
@@ -654,17 +654,17 @@ struct
               SDL.delay 1;
               key { nexttick = nexttick, intention = intention, iter = iter }
           end
-              
-              
 
-  and key ( cur as { nexttick, intention = i, iter } ) = 
+
+
+  and key ( cur as { nexttick, intention = i, iter } ) =
     case pollevent () of
        NONE => loop cur
      | SOME evt =>
        (* XXX should pass to window manager *)
        if !showedit andalso Window.handleevent edit_window evt
        then loop cur
-       else 
+       else
            case evt of
       E_KeyDown { sym = SDLK_ESCAPE } => () (* quit *)
 
@@ -672,9 +672,9 @@ struct
            let in
                (case onscreen (x, y) of
                     NONE => print "offscreen click\n"
-                  | SOME (tx, ty) => 
+                  | SOME (tx, ty) =>
                         let in
-                            print ("MB: " ^ Int.toString tx ^ " / " ^ 
+                            print ("MB: " ^ Int.toString tx ^ " / " ^
                                    Int.toString ty ^ "\n");
                             (* depend on the layer we're currently editing *)
                             case !editzone of
@@ -686,7 +686,7 @@ struct
                loop cur
            end
 
-    | E_KeyDown { sym = SDLK_LSHIFT } => 
+    | E_KeyDown { sym = SDLK_LSHIFT } =>
         let in
             (* fire bullet *)
             objects := Bullet { x = (case !botface of
@@ -700,7 +700,7 @@ struct
             loop cur
         end
 
-    | E_KeyDown { sym = SDLK_m } => 
+    | E_KeyDown { sym = SDLK_m } =>
         let in
           objects := Monster { which = STAR,
                                x = (case !botface of
@@ -716,7 +716,7 @@ struct
                                      | FRIGHT => 8) } :: !objects;
           loop cur
         end
-    | E_KeyDown { sym = SDLK_n } => 
+    | E_KeyDown { sym = SDLK_n } =>
         let in
           objects := Monster { which = SPIDER,
                                x = (case !botface of
@@ -740,7 +740,7 @@ struct
           loop cur
         end
 
-    | E_KeyDown { sym = SDLK_PERIOD } => 
+    | E_KeyDown { sym = SDLK_PERIOD } =>
         let in
           advance := true;
           loop cur
@@ -766,10 +766,10 @@ struct
         (scrollx := !scrollx + 3;
          loop cur)
 
-    | E_KeyDown { sym = SDLK_b } => 
+    | E_KeyDown { sym = SDLK_b } =>
         loop { nexttick = nexttick, intention = I_BOOST :: i, iter = iter }
 
-    | E_KeyDown { sym = SDLK_UP } => 
+    | E_KeyDown { sym = SDLK_UP } =>
         loop { nexttick = nexttick, intention = I_SUPERJUMP :: i, iter = iter }
 
     | E_KeyDown { sym = SDLK_LEFT } =>
@@ -792,11 +792,11 @@ struct
            then loop { nexttick = nexttick, intention = i, iter = iter }
            else loop { nexttick = nexttick, intention = I_GO RIGHT :: i, iter = iter })
 
-    | E_KeyDown { sym = SDLK_e } => 
+    | E_KeyDown { sym = SDLK_e } =>
           (showedit := not (!showedit);
            loop cur)
 
-    | E_KeyDown { sym = SDLK_z } => 
+    | E_KeyDown { sym = SDLK_z } =>
           (editzone :=
            (case !editzone of
                 ZMASK => ZBG
@@ -804,12 +804,12 @@ struct
               | ZFG => ZMASK);
            loop cur)
 
-    | E_KeyDown { sym = SDLK_c } => 
+    | E_KeyDown { sym = SDLK_c } =>
           (showclip := not (!showclip);
            loop cur)
 
     | E_KeyUp { sym = SDLK_SPACE } =>
-          (* these 'impulse' events are not turned off by a key going up! 
+          (* these 'impulse' events are not turned off by a key going up!
              (actually, I guess jump should work like l/r in that if
              I hold the jump button I should go higher than if I tap it.)
 
@@ -827,7 +827,7 @@ struct
 
     | E_KeyDown { sym } =>
           let in
-              print ("unknown key " ^ SDL.sdlktos sym ^ "\n");
+              print ("unknown key " ^ SDL.sdlktostring sym ^ "\n");
               loop { nexttick = nexttick, intention = i, iter = iter }
           end
 
@@ -850,13 +850,13 @@ struct
             (loop { nexttick = nexttick, intention = List.filter (fn I_GO LEFT => false | _ => true) i,
                     iter = iter })
 
-    | E_JoyDown { which, button } =>  
+    | E_JoyDown { which, button } =>
             let in
                 print ("unknown joydown " ^ Int.toString which ^ ":" ^
                        Int.toString button ^ "\n");
                 loop cur
             end
-    | E_JoyUp { which, button } =>  
+    | E_JoyUp { which, button } =>
             let in
                 print ("unknown joyup " ^ Int.toString which ^ ":" ^
                        Int.toString button ^ "\n");
