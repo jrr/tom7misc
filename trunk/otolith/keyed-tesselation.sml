@@ -102,7 +102,6 @@ struct
     (N.eq (n1, n3) andalso N.eq (n2, n4)) orelse
     (N.eq (n1, n4) andalso N.eq (n2, n3))
 
-
   (* PERF: Could generate the comparisons for sort/eq, which would
      be faster than this AND/OR mess. *)
   fun same_triangle ((a, b, c), (d, e, f)) =
@@ -115,6 +114,26 @@ struct
 
   fun triangles (K { triangles, ... }) : triangle list = !triangles
   fun nodes (K { nodes, ... }) : node list = !nodes
+
+  fun candeletenode (s : keyedtesselation)
+                    (node as N (r as ref { coords = c,
+                                           triangles = nodetriangles,
+                                           id, ... })) =
+    (* XXX - need to check various conditions to avoid
+       leaving the tesselation in a bad state.
+         - shouldn't delete the last triangle.
+         - triangles shouldn't end up disconnected
+         - other problems? *)
+    true
+
+  fun trydeletenode (s : keyedtesselation)
+                    (node as N (r as ref { coords = c,
+                                           triangles = nodetriangles,
+                                           id, ... })) =
+    candeletenode s node andalso
+    let in
+      raise Key.exn "unimplemented"
+    end
 
   fun trymovenode (s : keyedtesselation)
                   (node as N (r as ref { coords = c,

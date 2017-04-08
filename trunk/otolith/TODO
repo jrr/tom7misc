@@ -1,0 +1,3 @@
+ - delete a node from the areas tesselation.
+ - delete a node from objects tesselation.
+ - check that deleting nodes keeps a tesselation in a good state.

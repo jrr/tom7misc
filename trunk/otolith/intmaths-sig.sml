@@ -37,7 +37,10 @@ sig
   val canonize : (point * point * point) -> (point * point * point)
 
   (* Returns true if the triangles are equal. This includes
-     any permutation of the three endpoints. *)
+     any permutation of the three endpoints. (XXX Note that
+     tesselation has a different approach to implementing this
+     function. Maybe should be moved here; in any case
+     reconciled!) *)
   val triangleseq : (point * point * point) ->
                     (point * point * point) ->
                     bool

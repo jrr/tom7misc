@@ -99,11 +99,13 @@ struct
 
   val MOUSECIRCLE = Draw.mixcolor (0wxFF, 0wxAA, 0wx33, 0wxFF)
   val CLOSESTCIRCLE = Draw.mixcolor (0wx44, 0wx44, 0wx44, 0wxFF)
+  val DELCIRCLE = Draw.mixcolor (0wxFF, 0wx00, 0wx00, 0wxFF)
   val DRAGGING = Draw.mixcolor (0wxFF, 0wxFF, 0wx00, 0wxFF)
   val FROZEN = Draw.mixcolor (0wxFF, 0wxFF, 0wxFF, 0wxFF)
 
   val ACTIONTEXT = Draw.mixcolor (0wx44, 0wx66, 0wx22, 0wxFF)
   val ACTIONTEXTHI = Draw.mixcolor (0wx55, 0wxAA, 0wx22, 0wxFF)
+  val ACTIONTEXTDEL = Draw.mixcolor (0wxAA, 0wx00, 0wx00, 0wxFF)
   val FLIPOLDLINE = Draw.mixcolor (0wx11, 0wx22, 0wx77, 0wxFF)
   val FLIPNEWLINE = Draw.mixcolor (0wx22, 0wx55, 0wxAA, 0wxFF)
 
@@ -177,9 +179,6 @@ struct
 
       else if !holdingshift
       then
-        (* XXX do we really need this prohibition against shift-clickin'
-           when there's a drag node nearby? maybe it should just suppress
-           the message? *)
         case !frozennode of
           SOME key =>
             (case (Screen.objectclosestnodewithin
@@ -197,9 +196,10 @@ struct
                          end
                  in
                    ([Circle (x, y, 3, CLOSESTCIRCLE),
-                     Text (ACTIONTEXTHI, x - 13, y - 11, "add")],
+                     Text (ACTIONTEXTHI, x - 6, y - 11, "add")],
                     split)
                  end
+               (* TODO: Removing nodes from objects. *)
              | _ => ([], ignore))
 
         | NONE =>
@@ -214,12 +214,25 @@ struct
                   | SOME n =>
                       let in
                         draggingnode := SOME (AreasNode n);
-                        ignore (Areas.trymovenode (Screen.areas (!screen)) n () (x, y))
+                        ignore (Areas.trymovenode
+                                (Screen.areas (!screen)) n () (x, y))
                       end
               in
                 ([Circle (x, y, 3, CLOSESTCIRCLE),
-                  Text (ACTIONTEXTHI, x - 13, y - 11, "add")],
+                  Text (ACTIONTEXTHI, x - 6, y - 11, "add")],
                  split)
+              end
+          | (SOME delnode, _) =>
+              let
+                val (x, y) = Areas.N.coords delnode ()
+                fun del () =
+                  if Areas.trydeletenode (Screen.areas (!screen)) delnode
+                  then screen := Screen.removelinks (!screen) delnode
+                  else ()
+              in
+                ([Circle (x, y, 3, DELCIRCLE),
+                  Text (ACTIONTEXTDEL, x - 6, y - 11, "del")],
+                 del)
               end
           | _ => ([], ignore)
 
@@ -361,7 +374,10 @@ struct
 
 
   val MASKCOLOR = Draw.hexcolor 0wxAA7777
-  (* Draw the points in configuration space ... *)
+
+  (* Debugging: Draw the points in "configuration space."
+     These are the points where if the player is at (x, y), (x, y)
+     also lands within some object. *)
   fun drawmask (pixels, screen) =
     Util.for 0 (HEIGHT - 1)
     (fn y =>
@@ -734,11 +750,14 @@ struct
           val sec = Time.toSeconds (Time.-(now, start))
           val fps = real (!ctr) / Real.fromLargeInt (sec)
         in
-          eprint (Int.toString (!ctr) ^ " (" ^
-                  Real.fmt (StringCvt.FIX (SOME 2)) fps ^ ") fps")
+          (*
+           eprint (Int.toString (!ctr) ^ " (" ^
+                   Real.fmt (StringCvt.FIX (SOME 2)) fps ^ ") fps");
+           *)
+          ()
         end
       else ();
-        loop()
+      loop()
     end
 
   val () = SDL.show_cursor false
