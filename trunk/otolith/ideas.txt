@@ -20,3 +20,29 @@ Monster that is a segment attached to the walls, traveling along it.
 Can destroy it by splitting it in two, or crushing it?
 
 
+Rather than use the player's center (or foot or whatever) as the
+locus that determines the world state, this could be controlled by
+some powers, maybe letting the player switch between different modes.
+For example:
+  - A pixie that flies around the player in a slow circle.
+  - A ghost that the player can leave in place for a while.
+  - Soul beam that the player can shoot in a slow straight line.
+
+Would be a good game to have music gradients. For example, write four
+songs, one for each vertex of a square (maybe this square is the whole
+world map). As the player moves within the square, the music is a
+synchronized mix of the four tracks. (If the map has a loop structure,
+could be a very fun composition challenge: Make each pair of songs
+make sense, but change the meaning.)
+
+"Why didn't I bring climbing shoes?"
+
+Destination of adventure is a powerful magnet (etc.), causing screen
+interference.
+
+Some object-areas linkages can be "driven" - meaning that if the vertex
+is contained inside a convex hull where the coordinates are defined,
+then we can just compute that vertex to be whatever it would be just by
+interpolating. Would have small errors due to integer round off, but
+I think if we just have one "areas" per screen, this will be a common
+need.

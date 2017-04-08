@@ -201,19 +201,19 @@ struct
      Draw.hexcolor 0wxfb5151,
      Draw.hexcolor 0wxfb51b1]
 
-  fun drawobjects (pixels, screen as { areas, objs }, frozen) =
+  fun drawobjects (pixels, screen, frozen) =
     let
       fun oneobject (obj, i) =
         drawobjectall (pixels, screen, frozen, obj,
                        Vector.sub (objectcolors,
                                    i mod Vector.length objectcolors))
     in
-      ListUtil.appi oneobject objs
+      ListUtil.appi oneobject (Screen.objs screen)
     end
 
 
   val CURRENTCELLCOLOR = Draw.hexcolor 0wxff0000
-  (* unimplemented *)
+
   (* XXX take world as argument? *)
   fun drawmap (pixels, worldx, worldy) =
     let

@@ -1,10 +1,17 @@
 
-structure Screen (* XXX SIG *) =
+structure Screen :> SCREEN =
 struct
 
   open Constants
 
   exception Screen of string
+
+  (* TODO: Something that checks that for every possible pixel,
+     none of the objects have "bad" triangles (overlapping,
+     degenerate, etc.)? This should be true at the vertices of
+     the areas because the editor only lets you create good
+     tesselations, but when interpolating this might be
+     violated. *)
 
   (* State of a single screen in the game.
      Not worrying about how screens are connected together
@@ -41,7 +48,8 @@ struct
   type obj = Obj.keyedtesselation
 
   (* XXX: Does there only need to be one screen tesselation? Why not
-     just give every object its own tesselation? *)
+     just give every object its own tesselation? Not clear that one
+     is easier to think about than another... *)
   type screen = { areas : areas,
                   objs : obj list }
 
@@ -54,9 +62,7 @@ struct
                                   x1 = WIDTH - 1, y1 = HEIGHT - 1 },
                               objs = nil }
 
-  (* Find all the objects that this point is within.
-     Gives a key for each that causes the point to be inside it. *)
-  fun objectswithin (objs : obj list) (x, y) =
+  fun objectscontaining (objs : obj list) (x, y) =
     List.mapPartial
     (fn obj =>
      case Obj.gettriangle obj (x, y) of
@@ -64,10 +70,6 @@ struct
      | SOME (k, _) => SOME (obj, k))
     objs
 
-  (* Return the closest node (and object) within the given distance from
-     (x, y), using the configuration key. In the case of ties, the first
-     object in the list is returned; the order among nodes that are the
-     same distance is arbitrary, however. *)
   fun objectclosestnodewithin (objs : obj list) (key : Obj.key) (x, y) dist =
     let
       val closest = ref NONE
@@ -120,7 +122,8 @@ struct
         else ()
     in
       app oneobject objs;
-      Option.map (fn (_, obj, n1, n2, xx, yy) => (obj, n1, n2, xx, yy)) (!closest)
+      Option.map (fn (_, obj, n1, n2, xx, yy) =>
+                  (obj, n1, n2, xx, yy)) (!closest)
     end
 
   (* XXX it is weird that this has to return a new screen...

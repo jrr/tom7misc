@@ -331,14 +331,15 @@ struct
 
       (* Both cand_a and cand_b have maximum length of 2,
          so no fancy algorithms needed here... *)
+      val () =
+        if List.length cand_a > 2
+        then raise Key.exn "Bug A: can't be more than 2 triangles on an edge"
+        else ()
 
-      val () = if List.length cand_a > 2
-               then raise Key.exn "Bug A: can't be more than 2 triangles on an edge"
-               else ()
-
-      val () = if List.length cand_b > 2
-               then raise Key.exn "Bug B: can't be more than 2 triangles on an edge"
-               else ()
+      val () =
+        if List.length cand_b > 2
+        then raise Key.exn "Bug B: can't be more than 2 triangles on an edge"
+        else ()
 
       fun find_disequal (nil, _) = NONE
         | find_disequal (a :: rest, bl) =
@@ -525,7 +526,7 @@ struct
            | \ |          --->          | / |
         n4 |__\|                     n4 |/__|
                n2                           n2
-               *)
+                                                     *)
   fun closestflipedge (s : keyedtesselation) key (x, y) :
     ((node * node) * (int * int) * (node * node)) option =
     case closestedgesatisfying isinternaledge s key (x, y) of

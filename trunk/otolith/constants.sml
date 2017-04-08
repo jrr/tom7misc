@@ -13,5 +13,4 @@ struct
 
   exception Impossible of string
 
-
 end
