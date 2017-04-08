@@ -885,9 +885,14 @@ struct
       | SOME (i, _) => i
 
     fun sdlktoint k = keysdl k
-    fun sdlkfromint s = sdlkey s
+    fun sdlkfromint s =
+      let val k = sdlkey s
+      in if k = SDLK_UNKNOWN
+         then NONE
+         else SOME k
+      end
 
-    fun sdlkchar k =
+    fun sdlktochar k =
       let val c = keysdl k
       in if c >= 0 andalso c < 256
          then SOME (chr c)
@@ -900,11 +905,13 @@ struct
      of requiring binary compatibility with whatever version of SDL *)
   val surface_width_ = _import "ml_surfacewidth" private : ptr -> int ;
   val surface_height_ = _import "ml_surfaceheight" private : ptr -> int ;
-  val clearsurface_ = _import "ml_clearsurface" private : ptr * Word32.word -> unit ;
+  val clearsurface_ = _import "ml_clearsurface" private :
+    ptr * Word32.word -> unit ;
   val newevent_ = _import "ml_newevent" private : unit -> ptr ;
   val free_ = _import "free" private : ptr -> unit ;
   val eventtag_ = _import "ml_eventtag" private : ptr -> int ;
-  val event_keyboard_sym_ = _import "ml_event_keyboard_sym" private : ptr -> int ;
+  val event_keyboard_sym_ = _import "ml_event_keyboard_sym" private :
+    ptr -> int ;
 
   val event8_2nd_ = _import "ml_event8_2nd" private : ptr -> int ;
   val event8_3rd_ = _import "ml_event8_3rd" private : ptr -> int ;
@@ -912,14 +919,18 @@ struct
 
   val event_mmotion_x_ = _import "ml_event_mmotion_x" private : ptr -> int ;
   val event_mmotion_y_ = _import "ml_event_mmotion_y" private : ptr -> int ;
-  val event_mmotion_xrel_ = _import "ml_event_mmotion_xrel" private : ptr -> int ;
-  val event_mmotion_yrel_ = _import "ml_event_mmotion_yrel" private : ptr -> int ;
+  val event_mmotion_xrel_ = _import "ml_event_mmotion_xrel" private :
+    ptr -> int ;
+  val event_mmotion_yrel_ = _import "ml_event_mmotion_yrel" private :
+    ptr -> int ;
 
   val event_mbutton_x_ = _import "ml_event_mbutton_x" private : ptr -> int ;
   val event_mbutton_y_ = _import "ml_event_mbutton_y" private : ptr -> int ;
-  val event_mbutton_button_ = _import "ml_event_mbutton_button" private : ptr -> int ;
+  val event_mbutton_button_ = _import "ml_event_mbutton_button" private :
+    ptr -> int ;
 
-  val event_joyaxis_value_ = _import "ml_event_joyaxis_value" private : ptr -> int ;
+  val event_joyaxis_value_ = _import "ml_event_joyaxis_value" private :
+    ptr -> int ;
 
   fun clearsurface (s, w) = clearsurface_ (!! s, w)
 
@@ -928,14 +939,14 @@ struct
 
   val version_ = _import "ml_version_packed" private : unit -> Word32.word ;
   fun version () =
-      let
-          val p = version_ ()
-          fun shifted n = Word32.toInt (Word32.andb(0w255, Word32.>>(p, n)))
-      in
-          { major = shifted 0w16,
-            minor = shifted 0w8,
-            patch = shifted 0w0 }
-      end
+    let
+      val p = version_ ()
+      fun shifted n = Word32.toInt (Word32.andb(0w255, Word32.>>(p, n)))
+    in
+      { major = shifted 0w16,
+        minor = shifted 0w8,
+        patch = shifted 0w0 }
+    end
 
   fun convertevent_ e =
    (* XXX need to get props too... *)

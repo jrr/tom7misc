@@ -253,6 +253,7 @@ sig
   val sdlktochar : sdlk -> char option
   (* For serialization, for example. *)
   val sdlktoint : sdlk -> int
+  (* Doesn't return SDLK_UNKNOWN. *)
   val sdlkfromint : int -> sdlk option
 
   structure Joystick :
@@ -417,7 +418,7 @@ sig
   val seticon : surface -> unit
 
   (* Uses internal implementation of PNG, JPG, etc. Does not require
-     SDL_image, which is not recommended. *)
+     SDL_image, a library that I recommend you avoid. *)
   val loadimage : string -> surface option
 
   structure Util :
