@@ -22,6 +22,10 @@ sig
   val objs : screen -> obj list
   val areas : screen -> areas
 
+  (* Remove the key within any object that uses it. If this
+     results in an object without any keys, remove that too. *)
+  val removelinks : screen -> Obj.key -> screen
+
   (* addrectangle screen node (x0, y0, x1, y1) *)
   val addrectangle : screen -> Areas.node -> int * int * int * int -> screen
 

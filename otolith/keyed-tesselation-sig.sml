@@ -166,6 +166,16 @@ sig
      allowed to be degenerate. *)
   val trymovenode : keyedtesselation -> node -> key -> int * int -> int * int
 
+  (* Try to delete the node. Doesn't allow deletion of nodes that
+     cause degenerate tesselations (XXX checks here may be incomplete).
+
+     If successful, the node becomes invalid, so you may need to clean
+     up references for it (in the case of deleting an "areas" node
+     with linked objects, specifically). *)
+  val trydeletenode : keyedtesselation -> node -> bool
+  (* Same, but doesn't actually delete. *)
+  val candeletenode : keyedtesselation -> node -> bool
+
   (* Convert to the serialization format. These are somewhat fancy
      because the key may be nontrivial. For example, when deserializing
      an object keyed by some other tesselation's nodes, the string to
@@ -186,7 +196,7 @@ sig
   structure T :
   sig
     val nodes : triangle -> node * node * node
-    (* Always three *)
+    (* Always length three *)
     val nodelist : triangle -> node list
   end
 

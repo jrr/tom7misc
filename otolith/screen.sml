@@ -50,17 +50,17 @@ struct
   (* XXX: Does there only need to be one screen tesselation? Why not
      just give every object its own tesselation? Not clear that one
      is easier to think about than another... *)
-  type screen = { areas : areas,
-                  objs : obj list }
+  datatype screen = S of { areas : areas,
+                           objs : obj list }
 
-  fun areas ({ areas, objs } : screen) = areas
-  fun objs ({ areas, objs } : screen) = objs
+  fun areas (S { areas, objs }) = areas
+  fun objs (S { areas, objs }) = objs
 
-  fun starter () : screen = { areas =
-                              Areas.rectangle ()
-                                { x0 = 0, y0 = 0,
-                                  x1 = WIDTH - 1, y1 = HEIGHT - 1 },
-                              objs = nil }
+  fun starter () = S { areas =
+                         Areas.rectangle ()
+                         { x0 = 0, y0 = 0,
+                           x1 = WIDTH - 1, y1 = HEIGHT - 1 },
+                       objs = nil }
 
   fun objectscontaining (objs : obj list) (x, y) =
     List.mapPartial
@@ -128,19 +128,28 @@ struct
 
   (* XXX it is weird that this has to return a new screen...
      maybe screen should just be mutable at toplevel? *)
-  fun addrectangle { areas, objs } node (x0, y0, x1, y1) : screen =
+  fun addrectangle (S { areas, objs }) node (x0, y0, x1, y1) : screen =
     let
       val obj = Obj.rectangle node { x0 = x0, y0 = y0, x1 = x1, y1 = y1 }
     in
       (* Attach to other nodes? *)
-      { areas = areas, objs = obj :: objs }
+      S { areas = areas, objs = obj :: objs }
     end
+
+  fun removelinks (S { areas, objs }) k =
+    let
+
+    in
+      raise Screen "unimplemented";
+      S { areas = areas, objs = objs }
+    end
+
 
   (* Most of the work is done by KeyedTesselation itself.
      But we need to set up a mapping between area nodes and
      stringified integers, since those are used as keys for
      coordinates in the objs. *)
-  fun totf { areas, objs } : WorldTF.screen =
+  fun totf (S { areas, objs }) : WorldTF.screen =
     let
       val (areas, getid) = Areas.totf (fn () => "") areas
       fun serializekey n = Int.toString (getid n)
@@ -168,8 +177,8 @@ struct
         in kt
         end
     in
-      { areas = areas,
-        objs = map oneobj objs }
+      S { areas = areas,
+          objs = map oneobj objs }
     end
 
 
