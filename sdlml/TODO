@@ -13,6 +13,3 @@ dsound doesn't work, but should have better latency. can we make it work?
  (oh, you have to use the pre-built SDL dll from escape in order
   to get dsound support.)
 
-
-libjpeg on mingwin...
-
