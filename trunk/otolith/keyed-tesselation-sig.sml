@@ -169,12 +169,14 @@ sig
   val trymovenode : keyedtesselation -> node -> key -> int * int -> int * int
 
   (* Try to delete the node. Doesn't allow deletion of nodes that
-     cause degenerate tesselations (XXX checks here may be incomplete).
+     cause degenerate tesselations (XXX checks here are incomplete).
 
-     If successful, the node becomes invalid, so you may need to clean
-     up references for it (in the case of deleting an "areas" node
-     with linked objects, specifically). *)
-  val trydeletenode : keyedtesselation -> node -> bool
+     If successful, this node, and any other nodes that were part of
+     triangles that got deleted, become invalid. You may need to clean
+     up references to them (in the case of deleting an "areas" node
+     with linked objects, specifically). The list of now-invalid nodes
+     is returned; this is nil if deletion of the node was unsuccessful. *)
+  val trydeletenode : keyedtesselation -> node -> node list
   (* Same, but doesn't actually delete. *)
   val candeletenode : keyedtesselation -> node -> bool
 
