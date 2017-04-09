@@ -159,6 +159,8 @@ sig
      Raises an exception if the key is already present. *)
   val addkey : keyedtesselation -> (node -> int * int) -> key -> unit
 
+  (* Raises exception if the key is not a current key. *)
+  val deletekey : keyedtesselation -> key -> unit
 
   (* Try moving the node in the configuration given by the key.
      This moves the node in each attached triangle. The point may

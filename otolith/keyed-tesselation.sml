@@ -6,15 +6,21 @@ struct
   structure KM = SplayMapFn(type ord_key = key
                             val compare = Key.compare)
 
+  (* TODO: Have an invalid setting of id to represent deleted nodes?
+     Negate it? *)
   datatype node = N of { id : IntInf.int,
                          coords : (int * int) KM.map,
                          triangles : (node * node) list } ref
 
-  fun compare_node (N (ref {id, ...}), N (ref {id = idd, ...})) =
+  fun compare_node (N (ref { id, ... }), N (ref { id = idd, ... })) =
       IntInf.compare (id, idd)
   structure NM = SplayMapFn(type ord_key = node
                             val compare = compare_node)
 
+  (* PERF: Maybe would be good to store these in a canonical order
+     (e.g. ascending by node-id) to facilitate stuff like equality
+     tests. (We'd want to do the same for the triangles in nodes,
+     I think?) *)
   type triangle = node * node * node
 
   (* Must be no more than 180.0 *)
@@ -34,10 +40,9 @@ struct
 
   (* PERF probably don't need to be using IntInf. Now that
      counters are local to the tesselation, it's pretty implausible
-     that these numbers would get high. And currently there is no
-     way to delete anyway. *)
+     that these numbers would get high. *)
 
-  (* Representation invariant: All nodes have the set of keys. *)
+  (* Representation invariant: All nodes have the same set of keys. *)
   datatype keyedtesselation =
     K of { triangles : triangle list ref,
            nodes : node list ref,
@@ -52,39 +57,23 @@ struct
     Option.isSome (KM.find (coords, n))
     | iskey _ _ = raise Key.exn "empty keyedtesselation in iskey?"
 
-  fun addkey (kt as K { nodes, ... }) newcoords key =
-    if iskey kt key
-    then raise Key.exn "key already exists in addkey"
-    else
-      let
-        fun setcoords (N (r as ref { id, coords = _, triangles })) coords =
-          r := { id = id, coords = coords, triangles = triangles }
-
-        fun onenode (n as N (ref { coords, ... })) =
-          let val nc = newcoords n
-          in setcoords n (KM.insert (coords, key, nc))
-          end
-      in
-        List.app onenode (!nodes)
-      end
-
   fun next (K { ctr, ... }) = (ctr := !ctr + 1; !ctr)
-
-  structure T =
-  struct
-    fun nodes x = x
-    fun nodelist (a, b, c) = [a, b, c]
-  end
 
   structure N =
   struct
-    fun coordsmaybe (N (ref {coords, ...})) key = KM.find (coords, key)
+    fun coordsmaybe (N (ref { coords, ... })) key = KM.find (coords, key)
     fun coords n key =
       case coordsmaybe n key of
         NONE => raise Key.exn "No coordinates for key"
       | SOME v => v
 
-    fun triangles (v as N (ref {triangles, ...})) =
+    fun getcoords (N (ref { coords, ... })) = coords
+
+    (* Internal *)
+    fun setcoords (N (r as ref { id, coords = _, triangles })) coords =
+      r := { id = id, coords = coords, triangles = triangles }
+
+    fun triangles (v as N (ref { triangles, ... })) =
       map (fn (a, b) => (v, a, b)) triangles
 
     val compare = compare_node
@@ -93,6 +82,41 @@ struct
 
     fun id (N (ref { id = i, ... })) = i
   end
+
+  structure T =
+  struct
+    fun nodes x = x
+    fun nodelist (a, b, c) = [a, b, c]
+
+    fun has_node n (a, b, c) =
+      N.eq (n, a) orelse N.eq (n, b) orelse N.eq (n, c)
+  end
+
+  fun addkey (kt as K { nodes, ... }) newcoords key =
+    if iskey kt key
+    then raise Key.exn "key already exists in addkey"
+    else
+      let
+        fun onenode n =
+          let val nc = newcoords n
+          in N.setcoords n (KM.insert (N.getcoords n, key, nc))
+          end
+      in
+        List.app onenode (!nodes)
+      end
+
+  fun deletekey (kt as K { nodes, ... }) key =
+    if iskey kt key
+    then
+      let
+        fun onenode n =
+          N.setcoords n (#1 (KM.remove (N.getcoords n, key)))
+          handle _ => raise Key.exn
+            "bug: key not present in all nodes (deletekey)"
+      in
+        List.app onenode (!nodes)
+      end
+    else raise Key.exn "key does not exist in deletekey"
 
   (* PERF if we had some kind of invariants on winding order we
      could probably reduce the number of comparisons here and below.
@@ -115,7 +139,7 @@ struct
   fun triangles (K { triangles, ... }) : triangle list = !triangles
   fun nodes (K { nodes, ... }) : node list = !nodes
 
-  fun candeletenode (s : keyedtesselation)
+  fun candeletenode (kt : keyedtesselation)
                     (node as N (r as ref { coords = c,
                                            triangles = nodetriangles,
                                            id, ... })) =
@@ -126,22 +150,41 @@ struct
          - other problems? *)
     true
 
-  fun trydeletenode (s : keyedtesselation)
-                    (node as N (r as ref { coords = c,
-                                           triangles = nodetriangles,
-                                           id, ... })) =
-    candeletenode s node andalso
-    let in
-      raise Key.exn "unimplemented"
+  fun trydeletenode (kt as K { triangles, nodes, ... })
+                    (node : node) =
+    candeletenode kt node andalso
+    let
+      val deleteid = N.id node
+      fun onenode (N (r as ref { id, coords, triangles })) =
+        if id = deleteid
+        then NONE
+        else
+          let
+            val triangles = List.filter (fn (n1, n2) =>
+                                         not (N.eq (n1, node)) andalso
+                                         not (N.eq (n2, node))) triangles
+          in
+            r := { triangles = triangles, coords = coords, id = id };
+            SOME (N r)
+          end
+    in
+      (* Need to drop the node, plus any triangles that mention the
+         node, including inside other nodes.. *)
+      nodes := List.mapPartial onenode (!nodes);
+
+      (* Throw out any triangle that mentions this node. *)
+      triangles := List.filter (fn t => not (T.has_node node t)) (!triangles);
+
+      true
     end
 
-  fun trymovenode (s : keyedtesselation)
+  fun trymovenode (kt : keyedtesselation)
                   (node as N (r as ref { coords = c,
                                          triangles = nodetriangles,
                                          id, ... }))
                   key (newx, newy) =
     let
-      val alltriangles = triangles s
+      val alltriangles = triangles kt
 
       val (x, y) = N.coords node key
 
@@ -239,7 +282,7 @@ struct
       kt
     end
 
-  fun todebugstring (s : keyedtesselation) =
+  fun todebugstring (kt : keyedtesselation) =
     let
       fun id (N (ref { id = i, ... })) = IntInf.toString i
       fun others (v1, v2) =
@@ -266,8 +309,8 @@ struct
           "  " ^ node c ^ ">\n"
         end
 
-      val tris : triangle list = triangles s
-      val nos : node list = nodes s
+      val tris : triangle list = triangles kt
+      val nos : node list = nodes kt
     in
       "triangles:\n" ^
       String.concat (map triangle tris) ^
@@ -279,7 +322,7 @@ struct
      the predicate. The predicate is only tested in a single node
      order (also arbitrary) so it should be symmetric. *)
   fun closestedgesatisfying (pred : node * node -> bool)
-                            (s : keyedtesselation) key (x, y)
+                            (kt : keyedtesselation) key (x, y)
       : (node * node * int * int) option =
     let
       (* keep track of the best distance seen so far *)
@@ -318,12 +361,12 @@ struct
           tryedge (c, a)
         end
     in
-      app tryangle (triangles s);
+      app tryangle (triangles kt);
       !best_result
     end
 
-  fun closestedge s key xy =
-    case closestedgesatisfying (fn _ => true) s key xy of
+  fun closestedge kt key xy =
+    case closestedgesatisfying (fn _ => true) kt key xy of
       NONE => raise Key.exn "impossible: must be at least one triangle"
     | SOME r => r
 
@@ -397,7 +440,7 @@ struct
 
   (* Returns a list, which should be at most two triangles.
      The triangle is represented as the node that is not n1 nor n2. *)
-  fun triangles_with_edge (s : keyedtesselation) (n1 : node, n2 : node) =
+  fun triangles_with_edge (kt : keyedtesselation) (n1 : node, n2 : node) =
     let
       fun match (a, b, c) =
         if same_edge ((a, b), (n1, n2)) then SOME c
@@ -406,11 +449,11 @@ struct
                   else NONE
     in
       (* Could check that there are at most 2 *)
-      List.mapPartial match (triangles s)
+      List.mapPartial match (triangles kt)
     end
 
   (* Internal! *)
-  structure S =
+  structure KT =
   struct
     (* Adds the triangle. The nodes are not updated! *)
     fun addtriangle (K { triangles, ... }) (a, b, c) =
@@ -441,10 +484,10 @@ struct
   end
 
 
-  fun splitedge (s : keyedtesselation) key (x, y) : node option =
+  fun splitedge (kt : keyedtesselation) key (x, y) : node option =
     let
       val MIN_SPLIT_DISTANCE_SQ = 3 * 3
-      val (n1, n2, xx, yy) = closestedge s key (x, y)
+      val (n1, n2, xx, yy) = closestedge kt key (x, y)
       val (n1x, n1y) = N.coords n1 key
       val (n2x, n2y) = N.coords n2 key
 
@@ -496,7 +539,7 @@ struct
                 y1 + Real.round (frac * real dy))
              end) (coords1, coords2)
 
-        val id = next s
+        val id = next kt
         val () = print ("Splitedge next id is " ^ IntInf.toString id ^ "\n")
         val newnode = N (ref { id = id, coords = newcoords, triangles = nil })
 
@@ -524,15 +567,15 @@ struct
             node_addtriangle (newnode, (othernode, n2));
 
             (* Update global triangle list. *)
-            S.removetriangle s (othernode, n1, n2);
-            S.addtriangle s (newnode, n1, othernode);
-            S.addtriangle s (newnode, othernode, n2)
+            KT.removetriangle kt (othernode, n1, n2);
+            KT.addtriangle kt (newnode, n1, othernode);
+            KT.addtriangle kt (newnode, othernode, n2)
           end
 
         val affected_triangles : node list =
-          triangles_with_edge s (n1, n2)
+          triangles_with_edge kt (n1, n2)
       in
-        S.addnode s newnode;
+        KT.addnode kt newnode;
         app addedge affected_triangles;
         SOME newnode
       end
@@ -546,9 +589,9 @@ struct
         n4 |__\|                     n4 |/__|
                n2                           n2
                                                      *)
-  fun closestflipedge (s : keyedtesselation) key (x, y) :
+  fun closestflipedge (kt : keyedtesselation) key (x, y) :
     ((node * node) * (int * int) * (node * node)) option =
-    case closestedgesatisfying isinternaledge s key (x, y) of
+    case closestedgesatisfying isinternaledge kt key (x, y) of
       NONE => NONE
     | SOME (n1, n2, cx, cy) =>
       (* Could maybe have closestedgepartial to avoid two passes *)
@@ -579,9 +622,9 @@ struct
            else NONE
          end)
 
-  fun flipedge (s : keyedtesselation) (key : key) (x : int, y : int)
+  fun flipedge (kt : keyedtesselation) (key : key) (x : int, y : int)
     : bool =
-    case closestflipedge s key (x, y) of
+    case closestflipedge kt key (x, y) of
       NONE => false
     | SOME ((n1, n2), _, (n3, n4)) =>
         let
@@ -590,11 +633,15 @@ struct
 
           fun node_removetriangle (N (r as ref { id, coords, triangles }),
                                    (a, b)) =
-            r := { id = id, coords = coords,
-                   triangles = List.filter (fn (c, d) =>
-                                            not (same_edge ((a, b),
-                                                            (c, d))))
-                                           triangles }
+            let
+              val triangles =
+                List.filter (fn (c, d) =>
+                             not (same_edge ((a, b),
+                                             (c, d)))) triangles
+            in
+              r := { id = id, coords = coords,
+                     triangles = triangles }
+            end
 
           (* All that we need to do is remove the old triangles
              (from each node, as well as the tesselation itself)
@@ -627,16 +674,16 @@ struct
           node_addtriangle (n4, (n1, n3));
           node_addtriangle (n4, (n3, n2));
 
-          S.removetriangle s (n1, n2, n4);
-          S.removetriangle s (n1, n3, n2);
+          KT.removetriangle kt (n1, n2, n4);
+          KT.removetriangle kt (n1, n3, n2);
 
-          S.addtriangle s (n1, n3, n4);
-          S.addtriangle s (n2, n4, n3);
+          KT.addtriangle kt (n1, n3, n4);
+          KT.addtriangle kt (n2, n4, n3);
 
           true
         end
 
-  fun getnodewithin (s : keyedtesselation) key (x, y) radius : node option =
+  fun getnodewithin (kt : keyedtesselation) key (x, y) radius : node option =
     let
       val radius_squared = radius * radius
       (* keep track of the best distance (actually squared distance
@@ -663,13 +710,13 @@ struct
           maybeupdate (dist, n)
         end
     in
-      app trynode (nodes s);
+      app trynode (nodes kt);
       !best_result
     end
 
   (* PERF With some kind of spatial data structure this could be
      much faster. *)
-  fun gettriangle (s : keyedtesselation) (x, y) : (key * triangle) option =
+  fun gettriangle (kt : keyedtesselation) (x, y) : (key * triangle) option =
     let
       fun findany nil = NONE
         | findany ((tri as (N (ref { coords = coordsa, ... }),
@@ -690,7 +737,7 @@ struct
           findkey l
         end
     in
-      findany (triangles s)
+      findany (triangles kt)
     end
 
   structure IIM = SplayMapFn(type ord_key = IntInf.int
@@ -701,7 +748,7 @@ struct
   local
     structure W = WorldTF
   in
-    fun totf ktos (s : keyedtesselation)
+    fun totf ktos (kt : keyedtesselation)
         : W.keyedtesselation * (node -> int) =
       let
         val next = ref 0
@@ -721,9 +768,9 @@ struct
           W.N { id = getid node,
                 coords = map onecoord (KM.listItemsi coords),
                 triangles = map onetriangle triangles }
-        val nodes = map onenode (nodes s)
+        val nodes = map onenode (nodes kt)
       in
-        (* print (todebugstring s ^ "\n"); *)
+        (* print (todebugstring kt ^ "\n"); *)
         (W.KT { nodes = nodes },
          (fn n =>
           case NM.find (!idmap, n) of
@@ -820,9 +867,11 @@ struct
   end
 
 (*
-  fun check s =
+  TODO: Check for repeated node ids?
+
+  fun check kt =
     let
-        fun checkobject s =
+        fun checkobject kt =
             let
                 (* First we make a pass checking for duplicate IDs and
                    initializing the list of nodes in the object.
@@ -873,14 +922,14 @@ struct
                                    " in triangles.")
                   | checkmissing _ = ()
             in
-                app onenode (nodes s);
-                app onetriangle (triangles s);
+                app onenode (nodes kt);
+                app onetriangle (triangles kt);
                 IIM.appi checkmissing (!seen)
             end
     in
-        print ("Check: " ^ todebugstring s ^ "\n");
-        checkobject s;
-        ignore (fromtf (totf s))
+        print ("Check: " ^ todebugstring kt ^ "\n");
+        checkobject kt;
+        ignore (fromtf (totf kt))
     end
 *)
 
