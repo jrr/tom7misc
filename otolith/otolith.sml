@@ -199,8 +199,20 @@ struct
                      Text (ACTIONTEXTHI, x - 6, y - 11, "add")],
                     split)
                  end
-               (* TODO: Removing nodes from objects. *)
-             | _ => ([], ignore))
+          | (SOME (obj, delnode), _) =>
+              let
+                val (x, y) = Obj.N.coords delnode key
+                fun del () =
+                  ignore (Obj.trydeletenode obj delnode)
+              in
+                (* XXX would be good to highlight this same node in
+                   each of its other occurrences? *)
+                ([Circle (x, y, 3, DELCIRCLE),
+                  Text (ACTIONTEXTDEL, x - 6, y - 11, "del")],
+                 del)
+              end
+
+          | _ => ([], ignore))
 
         | NONE =>
           case (Areas.getnodewithin (Screen.areas (!screen)) ()
@@ -235,6 +247,7 @@ struct
                     app cleanup deleted
                   end
               in
+                (* XXX test with candeletenode *)
                 ([Circle (x, y, 3, DELCIRCLE),
                   Text (ACTIONTEXTDEL, x - 6, y - 11, "del")],
                  del)
