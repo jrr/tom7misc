@@ -1,7 +1,11 @@
- - delete a node from objects tesselation.
  - check that deleting nodes keeps a tesselation in a good state.
  - reimplement keyed tesselation check()
  - put tesselation triangles in canonical order?
  - history to rendering, so that when an object just pops into
    existence we can animate that; vectors for moving nodes too.
    Important to get this flexibility right early.
+ - flipping edges for objects
+ - better UI isolation when editing objects
+ - could pretty easily (expensively) compute the union of all pixels
+   that an object can occupy, and draw that contour when an object is
+   selected.
