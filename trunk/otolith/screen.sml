@@ -136,14 +136,22 @@ struct
       S { areas = areas, objs = obj :: objs }
     end
 
-  fun removelinks (S { areas, objs }) k =
+  fun removelinks (S { areas, objs }) node =
     let
-
+      fun oneobj (obj : obj) =
+        if Obj.iskey obj node
+        then
+          let in
+            Obj.deletekey obj node;
+            (* If we deleted the last key, also delete the object. *)
+            case Obj.keys obj of
+              nil => NONE
+            | _ => SOME obj
+          end
+        else SOME obj
     in
-      raise Screen "unimplemented";
-      S { areas = areas, objs = objs }
+      S { areas = areas, objs = List.mapPartial oneobj objs }
     end
-
 
   (* Most of the work is done by KeyedTesselation itself.
      But we need to set up a mapping between area nodes and
