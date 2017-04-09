@@ -226,9 +226,14 @@ struct
               let
                 val (x, y) = Areas.N.coords delnode ()
                 fun del () =
-                  if Areas.trydeletenode (Screen.areas (!screen)) delnode
-                  then screen := Screen.removelinks (!screen) delnode
-                  else ()
+                  let
+                    val deleted =
+                      Areas.trydeletenode (Screen.areas (!screen)) delnode
+                    fun cleanup node =
+                      screen := Screen.removelinks (!screen) node
+                  in
+                    app cleanup deleted
+                  end
               in
                 ([Circle (x, y, 3, DELCIRCLE),
                   Text (ACTIONTEXTDEL, x - 6, y - 11, "del")],

@@ -6,8 +6,8 @@ struct
   structure KM = SplayMapFn(type ord_key = key
                             val compare = Key.compare)
 
-  (* TODO: Have an invalid setting of id to represent deleted nodes?
-     Negate it? *)
+  (* When we delete an id we negate its id; negative ids are
+     considered invalid. *)
   datatype node = N of { id : IntInf.int,
                          coords : (int * int) KM.map,
                          triangles : (node * node) list } ref
@@ -139,44 +139,79 @@ struct
   fun triangles (K { triangles, ... }) : triangle list = !triangles
   fun nodes (K { nodes, ... }) : node list = !nodes
 
-  fun candeletenode (kt : keyedtesselation)
-                    (node as N (r as ref { coords = c,
-                                           triangles = nodetriangles,
-                                           id, ... })) =
-    (* XXX - need to check various conditions to avoid
-       leaving the tesselation in a bad state.
-         - shouldn't delete the last triangle.
-         - triangles shouldn't end up disconnected
-         - other problems? *)
-    true
+  fun candeletenode (kt : keyedtesselation) node =
+    (* XXX - more checks:
+       - triangles shouldn't end up disconnected
+       - other problems? *)
+    if List.all (T.has_node node) (triangles kt)
+    then false
+    else
+      (* More to check! A bit hard to test disconnectedness
+         without actually doing the deletion and then testing
+         connected components, huh? Maybe should just copy it,
+         actually delete, and then test. *)
+      true
 
   fun trydeletenode (kt as K { triangles, nodes, ... })
                     (node : node) =
-    candeletenode kt node andalso
-    let
-      val deleteid = N.id node
-      fun onenode (N (r as ref { id, coords, triangles })) =
-        if id = deleteid
-        then NONE
-        else
+    if candeletenode kt node
+    then
+      let
+        fun mark_invalid (N (r as ref { id, coords, triangles })) =
+          if IntInf.< (id, IntInf.fromInt 0)
+          then raise Key.exn ("tried to delete already-invalid node: " ^
+                              IntInf.toString id)
+          else r := { id = IntInf.~ id,
+                      coords = coords,
+                      triangles = triangles }
+
+        (* As we delete triangles, we may also make other nodes
+           disconnected. Add them here so that we can mark them as invalid
+           and return them. *)
+        val deleted_nodes = ref nil
+
+        fun onenode (n as N (r as ref { id, coords, triangles })) =
           let
-            val triangles = List.filter (fn (n1, n2) =>
-                                         not (N.eq (n1, node)) andalso
-                                         not (N.eq (n2, node))) triangles
+            (* Delete all the triangles that mention the deleted
+               node from this node. If this is the node being deleted,
+               then all triangles mention it (so just nil). However, the
+               node can end up with no triangles via other paths, so we
+               treat this uniformly below. *)
+            val triangles =
+              if N.eq (n, node)
+              then nil
+              else List.filter (fn (n1, n2) =>
+                                not (N.eq (n1, node)) andalso
+                                not (N.eq (n2, node))) triangles
           in
-            r := { triangles = triangles, coords = coords, id = id };
-            SOME (N r)
+            case triangles of
+              nil =>
+                let in
+                  (* If all triangles are gone, delete the node. *)
+                  deleted_nodes := n :: !deleted_nodes;
+                  NONE
+                end
+            | _ =>
+                let in
+                  r := { triangles = triangles, coords = coords, id = id };
+                  SOME (N r)
+                end
           end
-    in
-      (* Need to drop the node, plus any triangles that mention the
-         node, including inside other nodes.. *)
-      nodes := List.mapPartial onenode (!nodes);
+      in
+        (* Need to drop the node, plus any triangles that mention the
+           node, including inside other nodes.. *)
+        nodes := List.mapPartial onenode (!nodes);
 
-      (* Throw out any triangle that mentions this node. *)
-      triangles := List.filter (fn t => not (T.has_node node t)) (!triangles);
+        (* Throw out any triangle that mentions this node. We don't need
+           to consider the other deleted nodes, because they will only
+           be deleted because they shared a node in a triangle with the
+           one being deleted. *)
+        triangles := List.filter (fn t => not (T.has_node node t)) (!triangles);
 
-      true
-    end
+        app mark_invalid (!deleted_nodes);
+        !deleted_nodes
+      end
+    else nil
 
   fun trymovenode (kt : keyedtesselation)
                   (node as N (r as ref { coords = c,
@@ -256,7 +291,8 @@ struct
 
       fun mc (x, y) = KM.insert (KM.empty, key, (x, y))
 
-      val ctr : IntInf.int ref = ref 0
+      (* Start at one, since we negate nodes to mark them deleted. *)
+      val ctr : IntInf.int ref = ref 1
       val nodes : node list ref = ref nil
       val triangles : triangle list ref = ref nil
       val kt = K { ctr = ctr, nodes = nodes, triangles = triangles }
@@ -751,7 +787,8 @@ struct
     fun totf ktos (kt : keyedtesselation)
         : W.keyedtesselation * (node -> int) =
       let
-        val next = ref 0
+        (* Start allocating nodes at 1. *)
+        val next = ref 1
         val idmap : int NM.map ref = ref NM.empty
         fun getid n =
           case NM.find (!idmap, n) of
@@ -781,7 +818,8 @@ struct
     fun fromtf stok (W.KT { nodes } : W.keyedtesselation) :
         keyedtesselation * (int -> node) =
       let
-        val ctr = ref 0
+        (* avoid 0 which cannot be negated *)
+        val ctr = ref 1
         val nodemap : node IM.map ref = ref IM.empty
 
         val allnodes : node list ref = ref nil
@@ -868,6 +906,7 @@ struct
 
 (*
   TODO: Check for repeated node ids?
+  TODO: Check that ids are positive (there may be some old zeroes in there though)
 
   fun check kt =
     let
