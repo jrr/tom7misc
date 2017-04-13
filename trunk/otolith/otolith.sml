@@ -142,10 +142,8 @@ struct
     | drawdecoration (Line (c, (x0, y0), (x1, y1))) =
     Draw.drawline (pixels, x0, y0, x1, y1, c)
 
-  (* Returns the actions that are possible based on the current
-     mouse position and state. The actions can either be taken (by
-     running the function) or drawn (by interpreting the data structure). *)
-  fun get_lmb_actions (x, y) =
+  (* Get left mouse actions when not currently dragging anything. *)
+  fun get_lmb_nodrag_actions (x, y) =
     (* If we're holding control, then the only thing we can do is
        freeze/unfreeze areas nodes. *)
     if !holdingcontrol
@@ -299,6 +297,29 @@ struct
                NONE => ([], ignore)
              | SOME node => ([Text (ACTIONTEXTHI, x - 13, y - 11, "drag")],
                               fn () => draggingnode := SOME (AreasNode node)))
+
+  (* Returns the actions that are possible based on the current
+     mouse position and state. The actions can either be taken (by
+     running the function) or drawn (by interpreting the data structure). *)
+  fun get_lmb_actions (x, y) =
+    (* First, test if we are currently dragging... *)
+    case !draggingnode of
+      NONE => get_lmb_nodrag_actions (x, y)
+    | SOME anynode =>
+      (* Shift allows snapping to nearby node. *)
+        if !holdingshift
+        then ([], ignore) (* XXX *)
+          (*
+          (case (!frozennode, anynode) of
+             SOME key => (* TODO: snap object nodes *) ([], ignore)
+           | (NODE, AreasNode node)  =>
+               (case Areas.cansnapwithin (Screen.areas (!screen)) () node 2 of
+                  NONE => ([], ignore)
+                | SOME snapnode =>
+                    let val
+                    ([Text (ACTIONTEXTHI,
+*)
+        else ([], ignore)
 
   val INSIDE = Draw.hexcolor 0wxFFEEFF
 
