@@ -1,3 +1,6 @@
+ - make it possible to merge nodes
+ - world-tf serialization round trip introduces spurious differences
+   by reordering the nodes
  - check that deleting nodes keeps a tesselation in a good state.
  - reimplement keyed tesselation check()
  - put tesselation triangles in canonical order?
