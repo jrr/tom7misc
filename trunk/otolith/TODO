@@ -1,12 +1,13 @@
- - make it possible to merge nodes
  - world-tf serialization round trip introduces spurious differences
    by reordering the nodes
+ - snap nodes in objects too
  - check that deleting nodes keeps a tesselation in a good state.
  - reimplement keyed tesselation check()
  - put tesselation triangles in canonical order?
  - history to rendering, so that when an object just pops into
    existence we can animate that; vectors for moving nodes too.
    Important to get this flexibility right early.
+ - in trymovenode, move to the closest position that's ok?
  - flipping edges for objects
  - better UI isolation when editing objects
  - could pretty easily (expensively) compute the union of all pixels

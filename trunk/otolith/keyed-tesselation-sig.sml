@@ -141,11 +141,16 @@ sig
   val triangles : keyedtesselation -> triangle list
   val nodes : keyedtesselation -> node list
 
-  (* getnodewithin s key (x, y) radius
+  (* getnodewithin kt key (x, y) radius
      Get the closest node when the tesselation is configured to this key,
      as long as it is within the radius. *)
   val getnodewithin : keyedtesselation -> key -> int * int -> int ->
                       node option
+
+  (* closestnodesatisfying kt key (x, y) radius pred
+     As getnodewithin, but for the closest node satisfying the predicate. *)
+  val closestnodesatisfying : keyedtesselation -> key -> int * int -> int ->
+                              (node -> bool) -> node option
 
   (* Get all of the keys. *)
   val keys : keyedtesselation -> key list
@@ -167,6 +172,7 @@ sig
      not move to the desired spot, since the triangles are not
      allowed to be degenerate. *)
   val trymovenode : keyedtesselation -> node -> key -> int * int -> int * int
+  val canmovenode : keyedtesselation -> node -> key -> int * int -> bool
 
   (* Try to delete the node. Doesn't allow deletion of nodes that
      cause degenerate tesselations (XXX checks here are incomplete).
@@ -179,6 +185,18 @@ sig
   val trydeletenode : keyedtesselation -> node -> node list
   (* Same, but doesn't actually delete. *)
   val candeletenode : keyedtesselation -> node -> bool
+
+  (* cansnapwithin kt k node px
+     Find a node within px pixels of 'node' (at the key k) that
+     can be snapped to the node (for all keys). *)
+  val cansnapwithin : keyedtesselation -> key -> node -> int -> node option
+
+  (* snap kt node1 node2
+     Snap node to node2, making them the same node. Returns the deleted
+     node so that references to it can be cleaned up. The snapping
+     must be legal (e.g. not creating degenerate triangles), so this
+     should be the result of cansnapwithin. *)
+  val snap : keyedtesselation -> node -> node -> node list
 
   (* Convert to the serialization format. These are somewhat fancy
      because the key may be nontrivial. For example, when deserializing
@@ -212,6 +230,10 @@ sig
 
     (* A node is usually part of multiple triangles. *)
     val triangles : node -> triangle list
+
+    (* If a node has been removed (e.g. deleted, or snapped to
+       another node), then handles to it become invalid. *)
+    val is_valid : node -> bool
 
     (* Get the unique ID of the node. -- XXX trying not to
        leak this abstraction. *)
