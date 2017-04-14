@@ -861,12 +861,32 @@ struct
   structure IM = SplayMapFn(type ord_key = int
                             val compare = Int.compare)
 
+  (* Remove gaps in node ids, trying to preserve node order.
+     This is just to make the serialized version both small
+     (serial numbers don't grow without bound) and have small
+     diffs in version control (nodes don't move around). *)
+  fun compact_nodes (K { nodes, ctr, ... }) =
+    let
+      val () = nodes := ListUtil.sort compare_node (!nodes)
+      val () =
+        ListUtil.appi
+        (fn (N (r as ref { id, coords, triangles }), i) =>
+         if IntInf.< (id, IntInf.fromInt 0)
+         then raise Key.exn "kt contains deleted node"
+         else r := { id = IntInf.fromInt (i + 1),
+                     coords = coords,
+                     triangles = triangles }) (!nodes)
+    in
+      ctr := IntInf.fromInt (length (!nodes) + 1)
+    end
+
   local
     structure W = WorldTF
   in
     fun totf ktos (kt : keyedtesselation)
         : W.keyedtesselation * (node -> int) =
       let
+        val () = compact_nodes kt
         (* Start allocating nodes at 1. *)
         val next = ref 1
         val idmap : int NM.map ref = ref NM.empty
