@@ -9,7 +9,13 @@ struct
   (* For a valid node, id is always strictly positive.
      When we delete an id we negate its id; nodes with
      negative ids are considered invalid and should be
-     discarded. *)
+     discarded.
+
+     XXX This may be bogus -- if the caller has a map
+     that's sorted by compare_node, and we delete a
+     node, its id changes, and thus its order changes!
+     should have a separate bit, or ignore the sign
+     in comparison, or something else. *)
   datatype node = N of { id : IntInf.int,
                          coords : (int * int) KM.map,
                          triangles : (node * node) list } ref
@@ -861,41 +867,25 @@ struct
   structure IM = SplayMapFn(type ord_key = int
                             val compare = Int.compare)
 
-  (* Remove gaps in node ids, trying to preserve node order.
-     This is just to make the serialized version both small
-     (serial numbers don't grow without bound) and have small
-     diffs in version control (nodes don't move around). *)
-  fun compact_nodes (K { nodes, ctr, ... }) =
-    let
-      val () = nodes := ListUtil.sort compare_node (!nodes)
-      val () =
-        ListUtil.appi
-        (fn (N (r as ref { id, coords, triangles }), i) =>
-         if IntInf.< (id, IntInf.fromInt 0)
-         then raise Key.exn "kt contains deleted node"
-         else r := { id = IntInf.fromInt (i + 1),
-                     coords = coords,
-                     triangles = triangles }) (!nodes)
-    in
-      ctr := IntInf.fromInt (length (!nodes) + 1)
-    end
-
   local
     structure W = WorldTF
   in
     fun totf ktos (kt : keyedtesselation)
         : W.keyedtesselation * (node -> int) =
       let
-        val () = compact_nodes kt
-        (* Start allocating nodes at 1. *)
-        val next = ref 1
         val idmap : int NM.map ref = ref NM.empty
+        val next = ref 1
         fun getid n =
           case NM.find (!idmap, n) of
             NONE => (idmap := NM.insert (!idmap, n, !next);
                      next := !next + 1;
                      getid n)
           | SOME x => x
+
+        (* First make a pass over nodes in their current order. This
+           causes them to allocate ids sequentially, which improves
+           stability in the serialized format. *)
+        val () = List.app (fn n => ignore (getid n)) (nodes kt)
 
         fun onetriangle (a, b) = (getid a, getid b)
         fun onecoord (k, (x, y)) = (ktos k, x, y)
