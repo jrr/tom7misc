@@ -6,8 +6,10 @@ struct
   structure KM = SplayMapFn(type ord_key = key
                             val compare = Key.compare)
 
-  (* When we delete an id we negate its id; negative ids are
-     considered invalid. *)
+  (* For a valid node, id is always strictly positive.
+     When we delete an id we negate its id; nodes with
+     negative ids are considered invalid and should be
+     discarded. *)
   datatype node = N of { id : IntInf.int,
                          coords : (int * int) KM.map,
                          triangles : (node * node) list } ref
@@ -66,6 +68,16 @@ struct
       case coordsmaybe n key of
         NONE => raise Key.exn "No coordinates for key"
       | SOME v => v
+
+    fun mark_invalid (N (r as ref { id, coords, triangles })) =
+      if IntInf.< (id, IntInf.fromInt 0)
+      then raise Key.exn ("tried to delete already-invalid node: " ^
+                          IntInf.toString id)
+      else r := { id = IntInf.~ id,
+                  coords = coords,
+                  triangles = triangles }
+
+    fun is_valid (N (ref { id, ... })) = IntInf.> (id, IntInf.fromInt 0)
 
     fun getcoords (N (ref { coords, ... })) = coords
 
@@ -157,14 +169,6 @@ struct
     if candeletenode kt node
     then
       let
-        fun mark_invalid (N (r as ref { id, coords, triangles })) =
-          if IntInf.< (id, IntInf.fromInt 0)
-          then raise Key.exn ("tried to delete already-invalid node: " ^
-                              IntInf.toString id)
-          else r := { id = IntInf.~ id,
-                      coords = coords,
-                      triangles = triangles }
-
         (* As we delete triangles, we may also make other nodes
            disconnected. Add them here so that we can mark them as invalid
            and return them. *)
@@ -208,12 +212,12 @@ struct
            one being deleted. *)
         triangles := List.filter (fn t => not (T.has_node node t)) (!triangles);
 
-        app mark_invalid (!deleted_nodes);
+        app N.mark_invalid (!deleted_nodes);
         !deleted_nodes
       end
     else nil
 
-  fun trymovenode (kt : keyedtesselation)
+  fun canmovenode (kt : keyedtesselation)
                   (node as N (r as ref { coords = c,
                                          triangles = nodetriangles,
                                          id, ... }))
@@ -274,14 +278,21 @@ struct
 
     in
       (* XXX: Could do binary search to find a closer point
-         that's okay. *)
-      if List.all checkadjacentangle nodetriangles andalso
-         List.all checkoverlaps nodetriangles
-      then (r := { coords = KM.insert (c, key, (newx, newy)),
-                   triangles = nodetriangles, id = id };
-            (newx, newy))
-      else (x, y)
+         that's okay, and return an option here? *)
+      List.all checkadjacentangle nodetriangles andalso
+      List.all checkoverlaps nodetriangles
     end
+
+  fun trymovenode (kt : keyedtesselation)
+                  (node as N (r as ref { coords = c,
+                                         triangles = nodetriangles,
+                                         id, ... }))
+                  key (newx, newy) =
+    if canmovenode kt node key (newx, newy)
+    then (r := { coords = KM.insert (c, key, (newx, newy)),
+                 triangles = nodetriangles, id = id };
+          (newx, newy))
+    else N.coords node key
 
   fun rectangle key { x0 : int, y0 : int, x1 : int, y1 : int }
       : keyedtesselation =
@@ -719,7 +730,7 @@ struct
           true
         end
 
-  fun getnodewithin (kt : keyedtesselation) key (x, y) radius : node option =
+  fun closestnodesatisfying kt key (x, y) radius pred : node option =
     let
       val radius_squared = radius * radius
       (* keep track of the best distance (actually squared distance
@@ -727,28 +738,97 @@ struct
       val best_squared = ref NONE : int option ref
       val best_result = ref NONE : node option ref
 
-      fun maybeupdate (d, r) =
-        if d > radius_squared
-        then ()
-        else
-          case !best_squared of
-            NONE => (best_squared := SOME d; best_result := SOME r)
-          | SOME old => if d < old
-                        then (best_squared := SOME d;
-                              best_result := SOME r)
-                        else ()
-
-      fun trynode n =
+      (* Avoids evaluating predicate unless we would take it
+         as the new best. *)
+      fun trynode node =
         let
-          val (nx, ny) = N.coords n key
-          val dist = IntMaths.distance_squared ((x, y), (nx, ny))
+          val (nx, ny) = N.coords node key
+          val dist_squared = IntMaths.distance_squared ((x, y), (nx, ny))
         in
-          maybeupdate (dist, n)
+          if dist_squared > radius_squared
+          then ()
+          else
+            let
+              val is_closer =
+                case !best_squared of
+                  NONE => true
+                | SOME old => dist_squared < old
+            in
+              if is_closer andalso pred node
+              then
+                let in
+                  best_squared := SOME dist_squared;
+                  best_result := SOME node
+                end
+              else ()
+            end
         end
     in
       app trynode (nodes kt);
       !best_result
     end
+
+  fun getnodewithin (kt : keyedtesselation) key (x, y) radius : node option =
+    closestnodesatisfying kt key (x, y) radius (fn _ => true)
+
+  fun cansnapwithin kt (key : key) (fromnode : node) radius : node option =
+    let
+      val (srcx, srcy) = N.coords fromnode key
+      fun cansnap tonode =
+        not (N.eq (fromnode, tonode)) andalso
+        let
+          val (dstx, dsty) = N.coords tonode key
+          val has_shared_triangle =
+            List.exists (fn t =>
+                         T.has_node fromnode t andalso
+                         T.has_node tonode t) (triangles kt)
+        in
+          (* XXX more checks? This does cover a lot of the bad overlapping
+             triangle cases already. FIXME: We at least need to check that the
+             position is okay for every key, because merging the
+             nodes will cause that to happen. *)
+          not has_shared_triangle andalso
+          canmovenode kt fromnode key (dstx, dsty)
+        end
+    in
+      closestnodesatisfying kt key (srcx, srcy) radius cansnap
+    end
+
+  (* To actually snap, we replace the src node wherever it appears with
+     the destination node. *)
+  fun snap (kt as K { triangles, nodes, ... }) src dst : node list =
+    let
+      fun replace n = if N.eq (src, n) then dst else n
+      fun update_triangle (n1, n2, n3) =
+        (replace n1, replace n2, replace n3)
+
+      (* Need to put these in the destination node. *)
+      val N (ref { triangles = srctri, ... }) = src
+      val () = app (fn (n2, n3) =>
+                    if N.eq (src, n2) orelse N.eq (dst, n2) orelse
+                       N.eq (src, n3) orelse N.eq (dst, n3)
+                    then raise Key.exn "bad snap"
+                    else ()) srctri
+
+      fun update_ntri (a, b) = (replace a, replace b)
+      fun update_node (node as N (r as ref { id, coords, triangles })) =
+        if N.eq (node, src)
+        then false
+        else
+          let
+            val addl_tri = if N.eq (node, dst) then srctri else nil
+          in
+            r := { id = id, coords = coords,
+                   triangles = addl_tri @ map update_ntri triangles };
+            true
+          end
+    in
+      triangles := map update_triangle (!triangles);
+      nodes := List.filter update_node (!nodes);
+      N.mark_invalid src;
+      [src]
+    end
+
 
   (* PERF With some kind of spatial data structure this could be
      much faster. *)
@@ -910,65 +990,66 @@ struct
 
   fun check kt =
     let
-        fun checkobject kt =
+      fun checkobject kt =
+        let
+          (* First we make a pass checking for duplicate IDs and
+             initializing the list of nodes in the object.
+             Then we make another pass to make sure every node
+             in the triangles is found in the node list and
+             vice versa. The bool ref is used to mark the ones
+             we found the second pass to see if any are missing. *)
+          val seen : (node * bool ref) IIM.map ref = ref IIM.empty
+
+          fun onenode (node as
+                       N (ref { id : IntInf.int,
+                                x : int, y : int,
+                                triangles : (node * node) list })) =
             let
-                (* First we make a pass checking for duplicate IDs and
-                   initializing the list of nodes in the object.
-                   Then we make another pass to make sure every node
-                   in the triangles is found in the node list and
-                   vice versa. The bool ref is used to mark the ones
-                   we found the second pass to see if any are missing. *)
-                val seen : (node * bool ref) IIM.map ref = ref IIM.empty
-
-                fun onenode (node as
-                             N (ref { id : IntInf.int,
-                                      x : int, y : int,
-                                      triangles : (node * node) list })) =
-                    let
-                        fun onetri (a, b) =
-                            if a = b orelse node = a orelse node = b
-                            then raise Key.exn "degenerate triangle"
-                            else ()
-                    in
-                        (case IIM.find (!seen, id) of
-                             NONE => seen := IIM.insert (!seen, id, (node, ref false))
-                           | SOME (nnn, _) =>
-                               if nnn <> node
-                               then raise Key.exn "Duplicate IDs"
-                               else ());
-                        app onetri triangles
-                    end
-
-                fun onetriangle (a, b, c) =
-                    let fun looky (node as (N (ref { id, ... }))) =
-                        case IIM.find (!seen, id) of
-                          NONE => raise Key.exn ("Didn't find " ^
-                                                 IntInf.toString id ^
-                                                 " in node list")
-                        | SOME (nnn, saw) =>
-                            if nnn <> node
-                            then raise Key.exn ("Node in triangle not " ^
-                                                "the same as in node list")
-                            else saw := true
-                    in
-                        looky a;
-                        looky b;
-                        looky c
-                    end
-
-                fun checkmissing (i, (_, ref false)) =
-                    raise Key.exn ("Didn't find " ^ IntInf.toString i ^
-                                   " in triangles.")
-                  | checkmissing _ = ()
+              fun onetri (a, b) =
+                if a = b orelse node = a orelse node = b
+                then raise Key.exn "degenerate triangle"
+                else ()
             in
-                app onenode (nodes kt);
-                app onetriangle (triangles kt);
-                IIM.appi checkmissing (!seen)
+              (case IIM.find (!seen, id) of
+                 NONE => seen := IIM.insert (!seen, id, (node, ref false))
+               | SOME (nnn, _) =>
+                   if nnn <> node
+                   then raise Key.exn "Duplicate IDs"
+                   else ());
+              app onetri triangles
             end
+
+          fun onetriangle (a, b, c) =
+            let
+              fun looky (node as (N (ref { id, ... }))) =
+                case IIM.find (!seen, id) of
+                  NONE => raise Key.exn ("Didn't find " ^
+                                         IntInf.toString id ^
+                                         " in node list")
+                | SOME (nnn, saw) =>
+                    if nnn <> node
+                    then raise Key.exn ("Node in triangle not " ^
+                                        "the same as in node list")
+                    else saw := true
+            in
+              looky a;
+              looky b;
+              looky c
+            end
+
+          fun checkmissing (i, (_, ref false)) =
+              raise Key.exn ("Didn't find " ^ IntInf.toString i ^
+                             " in triangles.")
+            | checkmissing _ = ()
+        in
+          app onenode (nodes kt);
+          app onetriangle (triangles kt);
+          IIM.appi checkmissing (!seen)
+        end
     in
-        print ("Check: " ^ todebugstring kt ^ "\n");
-        checkobject kt;
-        ignore (fromtf (totf kt))
+      print ("Check: " ^ todebugstring kt ^ "\n");
+      checkobject kt;
+      ignore (fromtf (totf kt))
     end
 *)
 

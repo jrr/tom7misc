@@ -100,6 +100,8 @@ struct
   val MOUSECIRCLE = Draw.mixcolor (0wxFF, 0wxAA, 0wx33, 0wxFF)
   val CLOSESTCIRCLE = Draw.mixcolor (0wx44, 0wx44, 0wx44, 0wxFF)
   val DELCIRCLE = Draw.mixcolor (0wxFF, 0wx00, 0wx00, 0wxFF)
+  val SNAPCOLOR = Draw.mixcolor (0wx77, 0wx00, 0wx90, 0wxFF)
+
   val DRAGGING = Draw.mixcolor (0wxFF, 0wxFF, 0wx00, 0wxFF)
   val FROZEN = Draw.mixcolor (0wxFF, 0wxFF, 0wxFF, 0wxFF)
 
@@ -142,8 +144,8 @@ struct
     | drawdecoration (Line (c, (x0, y0), (x1, y1))) =
     Draw.drawline (pixels, x0, y0, x1, y1, c)
 
-  (* Get left mouse actions when not currently dragging anything. *)
-  fun get_lmb_nodrag_actions (x, y) =
+  (* Get left-mouse actions for when the button isn't currently held. *)
+  fun get_lmb_actions (x, y) =
     (* If we're holding control, then the only thing we can do is
        freeze/unfreeze areas nodes. *)
     if !holdingcontrol
@@ -256,8 +258,10 @@ struct
       then
         (* Allows flipping a tesselation edge. *)
         case !frozennode of
-          SOME key => (eprint "Flipping object edges unimplemented";
-                       ([], ignore))
+          SOME key =>
+            (* XXX implement it! *)
+            (eprint "Flipping object edges unimplemented";
+             ([], ignore))
         | NONE =>
             (case Areas.closestflipedge (Screen.areas (!screen)) () (x, y) of
                NONE => ([], ignore)
@@ -298,27 +302,43 @@ struct
              | SOME node => ([Text (ACTIONTEXTHI, x - 13, y - 11, "drag")],
                               fn () => draggingnode := SOME (AreasNode node)))
 
-  (* Returns the actions that are possible based on the current
-     mouse position and state. The actions can either be taken (by
-     running the function) or drawn (by interpreting the data structure). *)
-  fun get_lmb_actions (x, y) =
+  fun get_unlmb_actions (x, y) =
     (* First, test if we are currently dragging... *)
     case !draggingnode of
-      NONE => get_lmb_nodrag_actions (x, y)
+      NONE => ([], ignore)
     | SOME anynode =>
       (* Shift allows snapping to nearby node. *)
         if !holdingshift
-        then ([], ignore) (* XXX *)
-          (*
+        then
           (case (!frozennode, anynode) of
-             SOME key => (* TODO: snap object nodes *) ([], ignore)
-           | (NODE, AreasNode node)  =>
-               (case Areas.cansnapwithin (Screen.areas (!screen)) () node 2 of
+             (SOME key, ObjNode node) =>
+           (* TODO: snap object nodes *) ([], ignore)
+           | (NODE, AreasNode node) =>
+               (case Areas.cansnapwithin (Screen.areas (!screen)) () node 5 of
                   NONE => ([], ignore)
                 | SOME snapnode =>
-                    let val
-                    ([Text (ACTIONTEXTHI,
-*)
+                    let
+                      val (sx, sy) = Areas.N.coords snapnode ()
+                      fun snap () =
+                        let
+                          (* XXX maybe we just want to return one?
+                             instead of removing links, we could keep
+                             the links if only one of the two nodes
+                             has them. *)
+                          val deleted =
+                            Areas.snap (Screen.areas (!screen)) node snapnode
+                          fun cleanup node =
+                            screen := Screen.removelinks (!screen) node
+                        in
+                          app cleanup deleted
+                        end
+                    in
+                      ([Text (SNAPCOLOR, x - 13, y - 11, "snap"),
+                        Circle (sx, sy, 3, SNAPCOLOR)],
+                       snap)
+                    end)
+           (* otherwise: bad state? *)
+           | _ => ([], ignore))
         else ([], ignore)
 
   val INSIDE = Draw.hexcolor 0wxFFEEFF
@@ -487,16 +507,17 @@ struct
 
   (* XXX wrong name / organization *)
   fun drawareaindicators () =
-    let in
+    let
+      val (decorations, _) =
+        if !mousedown
+        then get_unlmb_actions (!mousex, !mousey)
+        else get_lmb_actions (!mousex, !mousey)
+    in
       if Option.isSome (!draggingnode)
       then Draw.drawcircle (pixels, !mousex, !mousey, 5, MOUSECIRCLE)
       else ();
 
-      if !mousedown
-      then ()
-      else let val (decorations, _) = get_lmb_actions (!mousex, !mousey)
-           in app drawdecoration decorations
-           end;
+      app drawdecoration decorations;
 
       if !holdingspace
       then drawinterpolatedobjects (!mousex, !mousey)
@@ -539,7 +560,13 @@ struct
     in action ()
     end
 
-  fun leftmouseup (x, y) = draggingnode := NONE
+  fun leftmouseup (x, y) =
+    let val (_, action) = get_unlmb_actions (x, y)
+    in
+      action ();
+      (* Always deselect any node. *)
+      draggingnode := NONE
+    end
 
   (* XXX TODO *)
   fun updatecursor () = ()
@@ -675,6 +702,7 @@ struct
                  val x = x div PIXELSCALE
                  val y = y div PIXELSCALE
                in
+                 mousedown := true;
                  leftmouse (x, y)
                end
            | SDL.E_MouseUp { button = 1, x, y, ... } =>
