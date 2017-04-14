@@ -1,5 +1,3 @@
- - world-tf serialization round trip introduces spurious differences
-   by reordering the nodes
  - snap nodes in objects too
  - check that deleting nodes keeps a tesselation in a good state.
  - reimplement keyed tesselation check()
