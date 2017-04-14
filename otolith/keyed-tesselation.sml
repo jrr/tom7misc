@@ -974,7 +974,7 @@ struct
                        IntInf.< (idi, bi)
                     then alltriangles := (an, node, bn) :: !alltriangles
                     else ();
-                      (an, bn)
+                    (an, bn)
                   end
               in
                 r := { id = idi, coords = coords,
@@ -984,6 +984,7 @@ struct
         val () = app makenode nodes
         val () = app settriangles nodes
       in
+        allnodes := ListUtil.sort N.compare (!allnodes);
         print ("On load, ctr is " ^ IntInf.toString (!ctr) ^ "\n");
         (K { ctr = ctr, nodes = allnodes, triangles = alltriangles },
          (fn i =>
