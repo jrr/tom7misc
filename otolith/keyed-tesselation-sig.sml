@@ -205,7 +205,7 @@ sig
      nodes to find it.
 
      Since toworld is allowed to renumber nodes, it returns a mapping
-     from node to the key used in this serialization. *)
+     from node to the key used in this particular serialization. *)
   val totf : (key -> string) -> keyedtesselation ->
              WorldTF.keyedtesselation * (node -> int)
   val fromtf : (string -> key option) -> WorldTF.keyedtesselation ->
