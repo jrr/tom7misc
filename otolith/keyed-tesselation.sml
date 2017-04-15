@@ -1003,7 +1003,6 @@ struct
         val () = app settriangles nodes
       in
         allnodes := ListUtil.sort N.compare (!allnodes);
-        print ("On load, ctr is " ^ Int.toString (!ctr) ^ "\n");
         (K { ctr = ctr, nodes = allnodes, triangles = alltriangles },
          (fn i =>
           case IM.find (!nodemap, i) of
