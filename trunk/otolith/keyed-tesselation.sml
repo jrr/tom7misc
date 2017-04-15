@@ -12,13 +12,13 @@ struct
      comparisons are preserved for them, because for example we need
      to clean up objects (keyed by nodes in areas) after deleting a
      node from the areas tesselation. *)
-  datatype node = N of { id : IntInf.int,
+  datatype node = N of { id : int,
                          valid : bool,
                          coords : (int * int) KM.map,
                          triangles : (node * node) list } ref
 
   fun compare_node (N (ref { id, ... }), N (ref { id = idd, ... })) =
-      IntInf.compare (id, idd)
+      Int.compare (id, idd)
   structure NM = SplayMapFn(type ord_key = node
                             val compare = compare_node)
 
@@ -43,15 +43,11 @@ struct
      - Should be possible (or automatic) to snap two nodes at
        the same x,y. *)
 
-  (* PERF probably don't need to be using IntInf. Now that
-     counters are local to the tesselation, it's pretty implausible
-     that these numbers would get high. *)
-
   (* Representation invariant: All nodes have the same set of keys. *)
   datatype keyedtesselation =
     K of { triangles : triangle list ref,
            nodes : node list ref,
-           ctr : IntInf.int ref }
+           ctr : int ref }
 
   (* Any node will do; they must all have the same set. *)
   fun keys (K { nodes = ref (N (ref { coords, ... }) :: _), ... }) =
@@ -75,7 +71,7 @@ struct
     fun mark_invalid (N (r as ref { id, valid, coords, triangles })) =
       if not valid
       then raise Key.exn ("tried to delete already-invalid node: " ^
-                          IntInf.toString id)
+                          Int.toString id)
       else r := { id = id,
                   valid = false,
                   coords = coords,
@@ -313,7 +309,7 @@ struct
       fun mc (x, y) = KM.insert (KM.empty, key, (x, y))
 
       (* Start at one, since we negate nodes to mark them deleted. *)
-      val ctr : IntInf.int ref = ref 1
+      val ctr : int ref = ref 1
       val nodes : node list ref = ref nil
       val triangles : triangle list ref = ref nil
       val kt = K { ctr = ctr, nodes = nodes, triangles = triangles }
@@ -344,7 +340,7 @@ struct
 
   fun todebugstring (kt : keyedtesselation) =
     let
-      fun id (N (ref { id = i, ... })) = IntInf.toString i
+      fun id (N (ref { id = i, ... })) = Int.toString i
       fun others (v1, v2) =
         id v1 ^ "-" ^ id v2
       fun coordmap cs =
@@ -357,7 +353,7 @@ struct
         end
 
       fun node (N (ref { id, valid, coords, triangles })) =
-        "{" ^ IntInf.toString id ^
+        "{" ^ Int.toString id ^
         (if valid then "" else " [INVALID!]") ^
         " @" ^
         coordmap coords ^
@@ -606,7 +602,7 @@ struct
              end) (coords1, coords2)
 
         val id = next kt
-        val () = print ("Splitedge next id is " ^ IntInf.toString id ^ "\n")
+        val () = print ("Splitedge next id is " ^ Int.toString id ^ "\n")
         val newnode = N (ref { id = id, coords = newcoords, valid = true,
                                triangles = nil })
 
@@ -879,8 +875,6 @@ struct
       findany (triangles kt)
     end
 
-  structure IIM = SplayMapFn(type ord_key = IntInf.int
-                             val compare = IntInf.compare)
   structure IM = SplayMapFn(type ord_key = int
                             val compare = Int.compare)
 
@@ -906,9 +900,7 @@ struct
 
         fun onetriangle (a, b) = (getid a, getid b)
         fun onecoord (k, (x, y)) = (ktos k, x, y)
-        fun onenode (node as (N (ref { id : IntInf.int,
-                                       valid,
-                                       coords,
+        fun onenode (node as (N (ref { id, valid, coords,
                                        triangles : (node * node) list }))) =
           W.N { id = getid node,
                 coords = map onecoord (KM.listItemsi coords),
@@ -945,15 +937,13 @@ struct
                         KM.empty
                         coords
 
-                val ii = IntInf.fromInt id
-
-                val newnode = N (ref { id = IntInf.fromInt id,
+                val newnode = N (ref { id = id,
                                        valid = true,
                                        coords = coords,
                                        triangles = [] })
               in
-                if ii >= !ctr
-                then ctr := ii + 1
+                if id >= !ctr
+                then ctr := id + 1
                 else ();
                 nodemap :=
                   (* Triangles filled in during the next pass. *)
@@ -974,24 +964,20 @@ struct
                     NONE => raise Key.exn "unknown id in input"
                   | SOME n => n
 
-                fun onet (a, b) =
+                fun onet (ai, bi) =
                   let
-                    val an = oneid a
-                    val bn = oneid b
-
-                    val ai = IntInf.fromInt a
-                    val bi = IntInf.fromInt b
+                    val an = oneid ai
+                    val bn = oneid bi
                   in
                     if idi = ai orelse idi = bi orelse ai = bi
                     then raise Key.exn
-                      ("node " ^ IntInf.toString idi ^
+                      ("node " ^ Int.toString idi ^
                        " is in a degenerate triangle")
                     else ();
 
                     (* Only add once. Do it when the current id
                        is the least of the three. *)
-                    if IntInf.< (idi, ai) andalso
-                       IntInf.< (idi, bi)
+                    if idi < ai andalso idi < bi
                     then alltriangles := (an, node, bn) :: !alltriangles
                     else ();
                     (an, bn)
@@ -1005,7 +991,7 @@ struct
         val () = app settriangles nodes
       in
         allnodes := ListUtil.sort N.compare (!allnodes);
-        print ("On load, ctr is " ^ IntInf.toString (!ctr) ^ "\n");
+        print ("On load, ctr is " ^ Int.toString (!ctr) ^ "\n");
         (K { ctr = ctr, nodes = allnodes, triangles = alltriangles },
          (fn i =>
           case IM.find (!nodemap, i) of
@@ -1029,10 +1015,10 @@ struct
              in the triangles is found in the node list and
              vice versa. The bool ref is used to mark the ones
              we found the second pass to see if any are missing. *)
-          val seen : (node * bool ref) IIM.map ref = ref IIM.empty
+          val seen : (node * bool ref) IM.map ref = ref IM.empty
 
           fun onenode (node as
-                       N (ref { id : IntInf.int,
+                       N (ref { id : int,
                                 x : int, y : int,
                                 triangles : (node * node) list })) =
             let
@@ -1041,8 +1027,8 @@ struct
                 then raise Key.exn "degenerate triangle"
                 else ()
             in
-              (case IIM.find (!seen, id) of
-                 NONE => seen := IIM.insert (!seen, id, (node, ref false))
+              (case IM.find (!seen, id) of
+                 NONE => seen := IM.insert (!seen, id, (node, ref false))
                | SOME (nnn, _) =>
                    if nnn <> node
                    then raise Key.exn "Duplicate IDs"
@@ -1053,9 +1039,9 @@ struct
           fun onetriangle (a, b, c) =
             let
               fun looky (node as (N (ref { id, ... }))) =
-                case IIM.find (!seen, id) of
+                case IM.find (!seen, id) of
                   NONE => raise Key.exn ("Didn't find " ^
-                                         IntInf.toString id ^
+                                         Int.toString id ^
                                          " in node list")
                 | SOME (nnn, saw) =>
                     if nnn <> node
@@ -1069,13 +1055,13 @@ struct
             end
 
           fun checkmissing (i, (_, ref false)) =
-              raise Key.exn ("Didn't find " ^ IntInf.toString i ^
+              raise Key.exn ("Didn't find " ^ Int.toString i ^
                              " in triangles.")
             | checkmissing _ = ()
         in
           app onenode (nodes kt);
           app onetriangle (triangles kt);
-          IIM.appi checkmissing (!seen)
+          IM.appi checkmissing (!seen)
         end
     in
       print ("Check: " ^ todebugstring kt ^ "\n");
