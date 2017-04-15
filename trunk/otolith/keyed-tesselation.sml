@@ -29,7 +29,7 @@ struct
   type triangle = node * node * node
 
   (* Must be no more than 180.0 *)
-  val MINANGLE = 170.0
+  val MAXANGLE = 170.0
 
   (* TODO: Representation issues.
 
@@ -242,7 +242,7 @@ struct
 
           val newangle = IntMaths.angle (a, (newx, newy), b)
         in
-          newangle < MINANGLE
+          newangle < MAXANGLE
         end
 
       (* No new overlaps are allowed. Check this triangle
@@ -794,27 +794,35 @@ struct
   fun getnodewithin (kt : keyedtesselation) key (x, y) radius : node option =
     closestnodesatisfying kt key (x, y) radius (fn _ => true)
 
-  fun cansnapwithin kt (key : key) (fromnode : node) radius : node option =
+  fun cansnapwithin kt (query_key : key) (fromnode : node) radius
+    : node option =
     let
-      val (srcx, srcy) = N.coords fromnode key
+      val all_keys = keys kt
       fun cansnap tonode =
         not (N.eq (fromnode, tonode)) andalso
         let
-          val (dstx, dsty) = N.coords tonode key
+          (* If they share a triangle, it's invalid in any configuration. *)
           val has_shared_triangle =
             List.exists (fn t =>
                          T.has_node fromnode t andalso
                          T.has_node tonode t) (triangles kt)
+
+          fun ok_for_key k =
+            let
+              val (dstx, dsty) = N.coords tonode k
+            in
+              canmovenode kt fromnode k (dstx, dsty)
+            end
+
         in
           (* XXX more checks? This does cover a lot of the bad overlapping
-             triangle cases already. FIXME: We at least need to check that the
-             position is okay for every key, because merging the
-             nodes will cause that to happen. *)
+             triangle cases already. *)
           not has_shared_triangle andalso
-          canmovenode kt fromnode key (dstx, dsty)
+          List.all ok_for_key all_keys
         end
     in
-      closestnodesatisfying kt key (srcx, srcy) radius cansnap
+      closestnodesatisfying kt query_key
+        (N.coords fromnode query_key) radius cansnap
     end
 
   (* To actually snap, we replace the src node wherever it appears with

@@ -346,8 +346,20 @@ struct
         if !holdingshift
         then
           (case (!frozennode, anynode) of
-             (SOME key, ObjNode node) =>
-           (* TODO: snap object nodes *) ([], ignore)
+             (SOME key, ObjNode (obj, node)) =>
+               (case Obj.cansnapwithin obj key node 5 of
+                  NONE => ([], ignore)
+                | SOME snapnode =>
+                    let
+                      val (sx, sy) = Obj.N.coords snapnode key
+                      fun snap () =
+                        ignore (Obj.snap obj node snapnode)
+                    in
+                      ([Text (SNAPCOLOR, x - 13, y - 11, "snap"),
+                        Circle (sx, sy, 3, SNAPCOLOR)],
+                       snap)
+                    end)
+
            | (NODE, AreasNode node) =>
                (case Areas.cansnapwithin (Screen.areas (!screen)) () node 5 of
                   NONE => ([], ignore)
