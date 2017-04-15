@@ -16,7 +16,7 @@ SDLARCH=x86
 MLTON=/c/mlton/bin/mlton.bat
 # -target x86_64-w64-mingw32 -codegen amd64
 
-MINGWGCC=/c/mlton/bin/gcc -std=c99 -O1 -fomit-frame-pointer -fno-strict-aliasing -w -fschedule-insns -fschedule-insns2 -malign-functions=5 -malign-jumps=2 -I SDL/include -I SDL_image/include -I/c/mlton/lib/mlton/include
+MINGWGCC=/c/mlton/bin/gcc -std=c99 -O1 -fomit-frame-pointer -fno-strict-aliasing -w -fschedule-insns -fschedule-insns2 -malign-functions=5 -malign-jumps=2 -I SDL/include -I/c/mlton/lib/mlton/include
 # x86_64-w64-mingw32-gcc -m64
 
 %.o : %.c makefile *.h
@@ -30,8 +30,6 @@ sdl_win32_main.o : sdl_win32_main.c makefile
 
 OBJECTS=blit.o sdlml.o
 
-#  -ltiff -lpng -ljpeg -lz -lSDL_net
-
 world-tf.sml : world.tfdesc tfcompiler.exe
 	./tfcompiler.exe world.tfdesc
 
@@ -42,7 +40,7 @@ SDLML=../sdlml/*.sml ../sdlml/*.c
 #EXNHISTORY=-const 'Exn.keepHistory true' 
 #  -mwindows works, disables console?
 otolith.exe : sdl_win32_main.o ${OBJECTS} otolith.mlb ${SMLS} ${SDLML} makefile
-	${MLTON} -cc-opt " -I SDL/include -Dmain=SDL_main " -link-opt "-Wl,--subsystem,console -LSDL/lib/${SDLARCH} -LSDL_image/lib/${SDLARCH} -lSDL -lSDL_image -lkernel32 -lmingw32" -output $@ -default-ann 'allowFFI true' ${EXNHISTORY} otolith.mlb sdl_win32_main.o ${OBJECTS}
+	${MLTON} -cc-opt " -I SDL/include -Dmain=SDL_main " -link-opt "-Wl,--subsystem,console -LSDL/lib/${SDLARCH} -lSDL -lkernel32 -lmingw32" -output $@ -default-ann 'allowFFI true' ${EXNHISTORY} otolith.mlb sdl_win32_main.o ${OBJECTS}
 
 tfcompiler.exe : ../sml-lib/textformat/*
 	${MLTON} -output $@ ../sml-lib/textformat/tfcompiler.mlb
