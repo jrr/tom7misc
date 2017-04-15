@@ -6,17 +6,14 @@ struct
   structure KM = SplayMapFn(type ord_key = key
                             val compare = Key.compare)
 
-  (* For a valid node, id is always strictly positive.
-     When we delete an id we negate its id; nodes with
-     negative ids are considered invalid and should be
-     discarded.
-
-     XXX This may be bogus -- if the caller has a map
-     that's sorted by compare_node, and we delete a
-     node, its id changes, and thus its order changes!
-     should have a separate bit, or ignore the sign
-     in comparison, or something else. *)
+  (* ids are used for comparison and should not change. When a node is
+     deleted (or snapped away, etc.), it becomes invalid; these should
+     not be used in the keyed tesselation any more. However,
+     comparisons are preserved for them, because for example we need
+     to clean up objects (keyed by nodes in areas) after deleting a
+     node from the areas tesselation. *)
   datatype node = N of { id : IntInf.int,
+                         valid : bool,
                          coords : (int * int) KM.map,
                          triangles : (node * node) list } ref
 
@@ -75,21 +72,22 @@ struct
         NONE => raise Key.exn "No coordinates for key"
       | SOME v => v
 
-    fun mark_invalid (N (r as ref { id, coords, triangles })) =
-      if IntInf.< (id, IntInf.fromInt 0)
+    fun mark_invalid (N (r as ref { id, valid, coords, triangles })) =
+      if not valid
       then raise Key.exn ("tried to delete already-invalid node: " ^
                           IntInf.toString id)
-      else r := { id = IntInf.~ id,
+      else r := { id = id,
+                  valid = false,
                   coords = coords,
                   triangles = triangles }
 
-    fun is_valid (N (ref { id, ... })) = IntInf.> (id, IntInf.fromInt 0)
+    fun is_valid (N (ref { valid, ... })) = valid
 
     fun getcoords (N (ref { coords, ... })) = coords
 
     (* Internal *)
-    fun setcoords (N (r as ref { id, coords = _, triangles })) coords =
-      r := { id = id, coords = coords, triangles = triangles }
+    fun setcoords (N (r as ref { id, valid, coords = _, triangles })) coords =
+      r := { id = id, valid = valid, coords = coords, triangles = triangles }
 
     fun triangles (v as N (ref { triangles, ... })) =
       map (fn (a, b) => (v, a, b)) triangles
@@ -180,7 +178,7 @@ struct
            and return them. *)
         val deleted_nodes = ref nil
 
-        fun onenode (n as N (r as ref { id, coords, triangles })) =
+        fun onenode (n as N (r as ref { id, valid, coords, triangles })) =
           let
             (* Delete all the triangles that mention the deleted
                node from this node. If this is the node being deleted,
@@ -203,7 +201,8 @@ struct
                 end
             | _ =>
                 let in
-                  r := { triangles = triangles, coords = coords, id = id };
+                  r := { triangles = triangles, valid = valid,
+                         coords = coords, id = id };
                   SOME (N r)
                 end
           end
@@ -224,7 +223,7 @@ struct
     else nil
 
   fun canmovenode (kt : keyedtesselation)
-                  (node as N (r as ref { coords = c,
+                  (node as N (r as ref { coords = c, valid,
                                          triangles = nodetriangles,
                                          id, ... }))
                   key (newx, newy) =
@@ -290,12 +289,13 @@ struct
     end
 
   fun trymovenode (kt : keyedtesselation)
-                  (node as N (r as ref { coords = c,
+                  (node as N (r as ref { coords = c, valid,
                                          triangles = nodetriangles,
                                          id, ... }))
                   key (newx, newy) =
     if canmovenode kt node key (newx, newy)
     then (r := { coords = KM.insert (c, key, (newx, newy)),
+                 valid = valid,
                  triangles = nodetriangles, id = id };
           (newx, newy))
     else N.coords node key
@@ -303,8 +303,12 @@ struct
   fun rectangle key { x0 : int, y0 : int, x1 : int, y1 : int }
       : keyedtesselation =
     let
-      fun settriangles (N (r as ref { id, coords, ... }), t) =
-        r := { id = id, coords = coords, triangles = t }
+      fun settriangles (N (r as ref { id, valid, coords, ... }), t) =
+        let in
+          if not valid then raise Key.exn "invalid node in 'rectangle'"
+          else ();
+          r := { id = id, valid = true, coords = coords, triangles = t }
+        end
 
       fun mc (x, y) = KM.insert (KM.empty, key, (x, y))
 
@@ -318,10 +322,13 @@ struct
             |  \    |  t2
          t1 |    \  |
             n3 --- n4 *)
-      val n1 = N (ref { id = next kt, coords = mc (x0, y0), triangles = nil })
-      val n2 = N (ref { id = next kt, coords = mc (x1, y0), triangles = nil })
-      val n3 = N (ref { id = next kt, coords = mc (x0, y1), triangles = nil })
-      val n4 = N (ref { id = next kt, coords = mc (x1, y1), triangles = nil })
+      fun make (xx, yy) =
+        N (ref { id = next kt, valid = true,
+                 coords = mc (xx, yy), triangles = nil })
+      val n1 = make (x0, y0)
+      val n2 = make (x1, y0)
+      val n3 = make (x0, y1)
+      val n4 = make (x1, y1)
     in
       (* These are all clockwise. Should that be a representation invariant? *)
       settriangles (n1, [(n4, n3), (n2, n4)]);
@@ -349,8 +356,10 @@ struct
                 Int.toString y) l)
         end
 
-      fun node (N (ref { id, coords, triangles })) =
-        "{" ^ IntInf.toString id ^ " @" ^
+      fun node (N (ref { id, valid, coords, triangles })) =
+        "{" ^ IntInf.toString id ^
+        (if valid then "" else " [INVALID!]") ^
+        " @" ^
         coordmap coords ^
         " [" ^ StringUtil.delimit "," (map others triangles) ^
         "]}"
@@ -559,15 +568,19 @@ struct
            node in the same relative place in the other configurations. *)
         val frac : real = n1d / (n1d + n2d)
 
-        fun settriangles (N (r as ref { id, coords, triangles = _ }), t) =
-          r := { id = id, coords = coords, triangles = t }
+        fun settriangles (N (r as ref { id, valid,
+                                        coords, triangles = _ }), t) =
+          r := { id = id, valid = valid, coords = coords, triangles = t }
 
-        fun node_addtriangle (N (r as ref { id, coords, triangles }), t) =
-          r := { id = id, coords = coords, triangles = t :: triangles }
+        fun node_addtriangle (N (r as ref { id, valid,
+                                            coords, triangles }), t) =
+          r := { id = id, valid = valid,
+                 coords = coords, triangles = t :: triangles }
 
-        fun node_removetriangle (N (r as ref { id, coords, triangles }),
+        fun node_removetriangle (N (r as ref { id, valid,
+                                               coords, triangles }),
                                  (a, b)) =
-          r := { id = id, coords = coords,
+          r := { id = id, coords = coords, valid = valid,
                  triangles = List.filter (fn (c, d) =>
                                           not (same_edge ((a, b),
                                                           (c, d))))
@@ -594,7 +607,8 @@ struct
 
         val id = next kt
         val () = print ("Splitedge next id is " ^ IntInf.toString id ^ "\n")
-        val newnode = N (ref { id = id, coords = newcoords, triangles = nil })
+        val newnode = N (ref { id = id, coords = newcoords, valid = true,
+                               triangles = nil })
 
         (* The edge may be in 1 or 2 triangles. The triangle is defined
            by the single third node. *)
@@ -681,10 +695,13 @@ struct
       NONE => false
     | SOME ((n1, n2), _, (n3, n4)) =>
         let
-          fun node_addtriangle (N (r as ref { id, coords, triangles }), t) =
-            r := { id = id, coords = coords, triangles = t :: triangles }
+          fun node_addtriangle (N (r as ref { id, valid, coords,
+                                              triangles }), t) =
+            r := { id = id, valid = valid, coords = coords,
+                   triangles = t :: triangles }
 
-          fun node_removetriangle (N (r as ref { id, coords, triangles }),
+          fun node_removetriangle (N (r as ref { id, valid,
+                                                 coords, triangles }),
                                    (a, b)) =
             let
               val triangles =
@@ -692,7 +709,7 @@ struct
                              not (same_edge ((a, b),
                                              (c, d)))) triangles
             in
-              r := { id = id, coords = coords,
+              r := { id = id, valid = valid, coords = coords,
                      triangles = triangles }
             end
 
@@ -817,14 +834,14 @@ struct
                     else ()) srctri
 
       fun update_ntri (a, b) = (replace a, replace b)
-      fun update_node (node as N (r as ref { id, coords, triangles })) =
+      fun update_node (node as N (r as ref { id, valid, coords, triangles })) =
         if N.eq (node, src)
         then false
         else
           let
             val addl_tri = if N.eq (node, dst) then srctri else nil
           in
-            r := { id = id, coords = coords,
+            r := { id = id, valid = valid, coords = coords,
                    triangles = addl_tri @ map update_ntri triangles };
             true
           end
@@ -890,6 +907,7 @@ struct
         fun onetriangle (a, b) = (getid a, getid b)
         fun onecoord (k, (x, y)) = (ktos k, x, y)
         fun onenode (node as (N (ref { id : IntInf.int,
+                                       valid,
                                        coords,
                                        triangles : (node * node) list }))) =
           W.N { id = getid node,
@@ -930,6 +948,7 @@ struct
                 val ii = IntInf.fromInt id
 
                 val newnode = N (ref { id = IntInf.fromInt id,
+                                       valid = true,
                                        coords = coords,
                                        triangles = [] })
               in
@@ -947,7 +966,8 @@ struct
         fun settriangles (W.N { id, coords = _, triangles }) =
           case IM.find (!nodemap, id) of
             NONE => raise Key.exn "bug"
-          | SOME (node as N (r as ref { id = idi, coords, triangles = _ })) =>
+          | SOME (node as N (r as ref { id = idi, valid = _,
+                                        coords, triangles = _ })) =>
               let
                 fun oneid i =
                   case IM.find (!nodemap, i) of
@@ -977,7 +997,7 @@ struct
                     (an, bn)
                   end
               in
-                r := { id = idi, coords = coords,
+                r := { id = idi, valid = true, coords = coords,
                        triangles = map onet triangles }
               end
 
