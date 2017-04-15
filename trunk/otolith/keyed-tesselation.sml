@@ -663,24 +663,28 @@ struct
                                 "after isinternaledge succeeds?")
        | SOME (n4, n3) =>
          let
-           (* XXXXXXX have to do this for every key, not just the current
-              one. *)
-           val n1c = N.coords n1 key
-           val n2c = N.coords n2 key
-           val n3c = N.coords n3 key
-           val n4c = N.coords n4 key
+           fun keyok k =
+             let
+               val n1c = N.coords n1 k
+               val n2c = N.coords n2 k
+               val n3c = N.coords n3 k
+               val n4c = N.coords n4 k
 
-           (* n1 and n2 cannot be on the same side of the new edge.
-              Don't allow colinear either. *)
-           val ok =
-             case (IntMaths.pointside (n3c, n4c, n1c),
-                   IntMaths.pointside (n3c, n4c, n2c)) of
-               (IntMaths.LEFT, IntMaths.RIGHT) => true
-             | (IntMaths.RIGHT, IntMaths.LEFT) => true
-             | _ => false
+               (* n1 and n2 cannot be on the same side of the new edge.
+                  Don't allow colinear either. *)
+               val ok =
+                 case (IntMaths.pointside (n3c, n4c, n1c),
+                       IntMaths.pointside (n3c, n4c, n2c)) of
+                   (IntMaths.LEFT, IntMaths.RIGHT) => true
+                 | (IntMaths.RIGHT, IntMaths.LEFT) => true
+                 | _ => false
+             in
+               (* XXX check angles in new triangles. *)
+               ok
+             end
+           val all_keys = keys kt
          in
-           (* XXX check angles in new triangles. *)
-           if ok
+           if List.all keyok all_keys
            then SOME ((n1, n2), (cx, cy), (n3, n4))
            else NONE
          end)
