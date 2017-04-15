@@ -35,7 +35,11 @@ sig
      of their keys.
      Gives a key for each that causes the point to be inside it. *)
   val objectscontaining : obj list -> int * int -> (obj * Obj.key) list
-  (* XXX docs *)
+  (* closestobjectedge objs key (x, y)
+
+     From the list of objects, select the one with the edge closest to
+     (x, y) for the given key. Returned is the object, the edge (as
+     pair of nodes) and the closest point on that edge. *)
   val closestobjectedge : obj list -> Areas.node -> int * int ->
     (obj * Obj.node * Obj.node * int * int) option
 

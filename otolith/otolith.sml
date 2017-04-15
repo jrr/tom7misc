@@ -30,13 +30,6 @@ struct
   val screen : Screen.screen ref =
     ref (World.getorcreate (!worldx, !worldy))
 
-  fun warptoscreen (x, y) =
-    let in
-      worldx := x;
-      worldy := y;
-      screen := World.getorcreate (x, y)
-    end
-
   (* val objects : Object.object list ref = ref nil *)
 
   (* Always in game pixels. The event loop scales down x,y before
@@ -59,6 +52,15 @@ struct
 
   val draggingnode = ref NONE : anynode option ref
   val frozennode = ref NONE : Areas.node option ref
+
+  fun warptoscreen (x, y) =
+    let in
+      draggingnode := NONE;
+      frozennode := NONE;
+      worldx := x;
+      worldy := y;
+      screen := World.getorcreate (x, y)
+    end
 
   (* XXX should probably make it more configurable than this,
      like allow dragging a box or entering some kind of triangle
@@ -259,9 +261,41 @@ struct
         (* Allows flipping a tesselation edge. *)
         case !frozennode of
           SOME key =>
-            (* XXX implement it! *)
-            (eprint "Flipping object edges unimplemented";
-             ([], ignore))
+            (case Screen.closestobjectedge (Screen.objs (!screen)) key (x, y) of
+               NONE => ([], ignore)
+             | SOME (obj, _, _, _, _) =>
+               (* Here we just used closestobjectedge to get an object
+                  to query for a flip edge. Would be a little better
+                  if we found e.g. the closest edge that allows flipping.
+                  But this still allows flipping any edge by just making
+                  sure it's the one closest to the mouse. *)
+               (case Obj.closestflipedge obj key (x, y) of
+                  NONE => ([], ignore)
+                | SOME ((n1, n2), (cx, cy), (n3, n4)) =>
+                  let
+                    fun flip () =
+                      if Obj.flipedge obj key (x, y)
+                      then ()
+                      else eprint "Failed to flip"
+
+                    (* Draw the flip lines for every key. *)
+                    fun getedge k =
+                      let
+                        val (x1, y1) = Obj.N.coords n1 k
+                        val (x2, y2) = Obj.N.coords n2 k
+                        val (x3, y3) = Obj.N.coords n3 k
+                        val (x4, y4) = Obj.N.coords n4 k
+                      in
+                        [Line (FLIPOLDLINE, (x1, y1), (x2, y2)),
+                         Line (FLIPNEWLINE, (x3, y3), (x4, y4))]
+                      end
+
+                    val keys = Obj.keys obj
+                    val lines = List.concat (map getedge keys)
+                  in
+                    (Text (ACTIONTEXTHI, x - 13, y - 11, "flip") :: lines,
+                     flip)
+                  end))
         | NONE =>
             (case Areas.closestflipedge (Screen.areas (!screen)) () (x, y) of
                NONE => ([], ignore)
@@ -271,15 +305,16 @@ struct
                  val (x2, y2) = Areas.N.coords n2 ()
                  val (x3, y3) = Areas.N.coords n3 ()
                  val (x4, y4) = Areas.N.coords n4 ()
+
+                 fun flip () =
+                   if Areas.flipedge (Screen.areas (!screen)) () (x, y)
+                   then ()
+                   else eprint "Failed to flip"
                in
                  ([Text (ACTIONTEXTHI, x - 13, y - 11, "flip"),
                    Line (FLIPOLDLINE, (x1, y1), (x2, y2)),
                    Line (FLIPNEWLINE, (x3, y3), (x4, y4))],
-                  (* XXX *)
-                  (fn () =>
-                   if Areas.flipedge (Screen.areas (!screen)) () (x, y)
-                   then ()
-                   else eprint "Failed to flip"))
+                  flip)
                end)
 
       else

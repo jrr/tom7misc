@@ -1,3 +1,4 @@
+ - when flipping edges, do angle check
  - snap nodes in objects too
  - check that deleting nodes keeps a tesselation in a good state.
  - reimplement keyed tesselation check()
@@ -6,7 +7,6 @@
    existence we can animate that; vectors for moving nodes too.
    Important to get this flexibility right early.
  - in trymovenode, move to the closest position that's ok?
- - flipping edges for objects
  - better UI isolation when editing objects
  - could pretty easily (expensively) compute the union of all pixels
    that an object can occupy, and draw that contour when an object is
