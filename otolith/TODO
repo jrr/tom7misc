@@ -1,5 +1,3 @@
- - when flipping edges, do angle check
- - snap nodes in objects too
  - check that deleting nodes keeps a tesselation in a good state.
  - reimplement keyed tesselation check()
  - put tesselation triangles in canonical order?
@@ -11,3 +9,4 @@
  - could pretty easily (expensively) compute the union of all pixels
    that an object can occupy, and draw that contour when an object is
    selected.
+ - when flipping edges, do angle check
