@@ -1,5 +1,4 @@
-
-structure World (* XXX :> WORLD *) =
+structure World :> WORLD =
 struct
 
   exception World of string
@@ -63,12 +62,7 @@ struct
   fun getmaybe (x, y) =
     IIM.find (!world, (x, y))
 
-  (* Sets the screen at x,y to the argument. Returns the screen
-     since otolith keeps a copy too. *)
   fun setscreen (x, y, s) =
-    let in
-      world := IIM.insert (!world, (x, y), s);
-      s
-    end
+    world := IIM.insert (!world, (x, y), s)
 
 end

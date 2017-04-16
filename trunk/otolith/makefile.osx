@@ -3,6 +3,8 @@
 # To run on OSX, you unfortunately need to install a driver:
 # http://tattiebogle.net/index.php/ProjectRoot/Xbox360Controller/OsxDriver
 
+# TODO: Don't need SDL_image any more. Delete it!
+
 default : otolith.exe
 
 VERSION_TARGET=10.2

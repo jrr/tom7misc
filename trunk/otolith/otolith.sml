@@ -70,10 +70,12 @@ struct
       val (x0, y0) = (Int.min(!mousex, WIDTH - 25),
                       Int.min(!mousey, WIDTH - 25))
       val (x1, y1) = (x0 + 20, y0 + 20)
+
+      val newscreen = Screen.addrectangle (!screen) node (x0, y0, x1, y1)
     in
       eprint "Add object..";
-      screen := World.setscreen
-      (!worldx, !worldy, Screen.addrectangle (!screen) node (x0, y0, x1, y1))
+      screen := newscreen;
+      World.setscreen (!worldx, !worldy, newscreen)
     end
 
   val DRAG_DISTANCE = 5

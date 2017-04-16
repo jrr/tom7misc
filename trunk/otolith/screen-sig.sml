@@ -5,6 +5,8 @@ sig
 
   exception Screen of string
 
+  (* These functions treat screen functionally, but be careful
+     because the tesselations within are mutable. *)
   type screen
 
   structure Areas : KEYEDTESSELATION where type key = unit
