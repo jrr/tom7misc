@@ -258,4 +258,71 @@ struct
                      CURRENTCELLCOLOR)
     end
 
+  val MASKCOLOR = Draw.hexcolor 0wxAA7777
+  fun drawmask (pixels, screen) =
+    Util.for 0 (HEIGHT - 1)
+    (fn y =>
+     Util.for 0 (WIDTH - 1)
+     (fn x =>
+      case Areas.gettriangle (Screen.areas screen) (x, y) of
+        NONE => ()
+      | SOME ((), triangle) =>
+        let
+          val (a, b, c) = Areas.T.nodes triangle
+
+          (* Convert to barycentric coordinates. This basically gives a
+             weight for each vertex of the triangle. Since we're inside
+             the triangle, these will all be in [0.0, 1.0] and sum to 1.0. *)
+          val (la, lb, lc) =
+            IntMaths.barycentric (Areas.N.coords a (),
+                                  Areas.N.coords b (),
+                                  Areas.N.coords c (),
+                                  (x, y))
+
+          fun objecthit obj =
+            if Obj.iskey obj a andalso
+               Obj.iskey obj b andalso
+               Obj.iskey obj c
+            then
+              let
+
+                (* Get the coordinates for the node by interpolating
+                   between the three keys. *)
+                fun transform n =
+                  let
+                    (* These shouldn't fail because we checked that the
+                       key is a key of the object above. *)
+                    val (ax, ay) = Obj.N.coords n a
+                    val (bx, by) = Obj.N.coords n b
+                    val (cx, cy) = Obj.N.coords n c
+
+                    val nx = Real.round (real ax * la + real bx * lb +
+                                         real cx * lc)
+                    val ny = Real.round (real ay * la + real by * lb +
+                                         real cy * lc)
+                  in
+                    (nx, ny)
+                  end
+
+                fun trianglehit t =
+                  let
+                    val (d, e, f) = Obj.T.nodes t
+                    val dpt = transform d
+                    val ept = transform e
+                    val fpt = transform f
+                  in
+                    IntMaths.pointinside (dpt, ept, fpt) (x, y)
+                  end
+
+              in
+                List.exists trianglehit (Obj.triangles obj)
+              end
+            else false
+
+        in
+          if List.exists objecthit (Screen.objs screen)
+          then Array.update (pixels, y * WIDTH + x, MASKCOLOR)
+          else ()
+        end))
+
 end

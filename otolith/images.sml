@@ -35,11 +35,14 @@ struct
   val pxfont = loadimage "pxfont.png"
 
   val tinymouse = loadimage "tinymouse.png"
+  val tiniestmouse = loadimage "tiniestmouse.png"
 
   val mapcell = loadimage "mapcell.png"
   val mapcellnone = loadimage "mapcellnone.png"
 
-  val runleft = loadanim ("run", ".png", 1, 12)
+  (* val runleft = loadanim ("run", ".png", 1, 12) *)
+
+  val person = loadimage "persontest.png"
 
   fun numframes (v : anim) : int = Vector.length v
   fun getframe (v : anim, i) : image = Vector.sub (v, i)

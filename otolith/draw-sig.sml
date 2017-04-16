@@ -14,6 +14,8 @@ sig
 
   (* 50% blend, assumes 100% alpha. *)
   val blendtwocolors : Word32.word * Word32.word -> Word32.word
+  (* Same as mix 50% with black. *)
+  val darkencolor : Word32.word -> Word32.word
 
   (* drawline (pixels, x0, y0, x1, y1, color) *)
   val drawline : Word32.word Array.array *

@@ -39,6 +39,13 @@ struct
                   (b >> 0w1) + (bb >> 0w1),
                   0wxFF)
       end
+
+    fun darkencolor w =
+      let
+        val (r, g, b, _) = unmixcolor w
+      in
+        mixcolor (r >> 0w1, g >> 0w1, b >> 0w1, 0wxFF)
+      end
   end
 
   local

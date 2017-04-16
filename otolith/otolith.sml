@@ -30,12 +30,18 @@ struct
   val screen : Screen.screen ref =
     ref (World.getorcreate (!worldx, !worldy))
 
-  (* val objects : Object.object list ref = ref nil *)
+  datatype mode = Editing | Playing
+  val mode = ref Editing : mode ref
 
   (* Always in game pixels. The event loop scales down x,y before
      calling any of these functions. *)
   val mousex = ref 0
   val mousey = ref 0
+
+  (* XXX to.. physics? *)
+  val playerx = ref 80
+  val playery = ref 80
+
   (* XXX: Should probably be a mask on all keys. *)
   val holdingshift = ref false
   val holdingcontrol = ref false
@@ -43,6 +49,7 @@ struct
   val holdingbackslash = ref false
   val holdingtab = ref false
   val holdingm = ref false
+  val holdingv = ref false
 
   val mousedown = ref false
 
@@ -442,8 +449,10 @@ struct
                   val (bx, by) = Obj.N.coords n b
                   val (cx, cy) = Obj.N.coords n c
 
-                  val nx = Real.round (real ax * la + real bx * lb + real cx * lc)
-                  val ny = Real.round (real ay * la + real by * lb + real cy * lc)
+                  val nx = Real.round (real ax * la + real bx * lb +
+                                       real cx * lc)
+                  val ny = Real.round (real ay * la + real by * lb +
+                                       real cy * lc)
                 in
                   (nx, ny)
                 end
@@ -480,82 +489,7 @@ struct
         app oneobj (Screen.objs (!screen))
       end
 
-
-  val MASKCOLOR = Draw.hexcolor 0wxAA7777
-
-  (* Debugging: Draw the points in "configuration space."
-     These are the points where if the player is at (x, y), (x, y)
-     also lands within some object. *)
-  fun drawmask (pixels, screen) =
-    Util.for 0 (HEIGHT - 1)
-    (fn y =>
-     Util.for 0 (WIDTH - 1)
-     (fn x =>
-
-      (* XXX lots of duplicated code between here and above *)
-    case Areas.gettriangle (Screen.areas screen) (x, y) of
-      NONE => ()
-    | SOME ((), triangle) =>
-      let
-        val (a, b, c) = Areas.T.nodes triangle
-
-        (* Convert to barycentric coordinates. This basically gives a weight
-           for each vertex of the triangle. Since we're inside the triangle,
-           these will all be in [0.0, 1.0] and sum to 1.0. *)
-        val (la, lb, lc) =
-          IntMaths.barycentric (Areas.N.coords a (),
-                                Areas.N.coords b (),
-                                Areas.N.coords c (),
-                                (x, y))
-
-        fun objecthit obj =
-          if Obj.iskey obj a andalso
-             Obj.iskey obj b andalso
-             Obj.iskey obj c
-          then
-            let
-
-              (* Get the coordinates for the node by interpolating
-                 between the three keys. *)
-              fun transform n =
-                let
-                  (* These shouldn't fail because we checked that the
-                     key is a key of the object above. *)
-                  val (ax, ay) = Obj.N.coords n a
-                  val (bx, by) = Obj.N.coords n b
-                  val (cx, cy) = Obj.N.coords n c
-
-                  val nx = Real.round (real ax * la + real bx * lb + real cx * lc)
-                  val ny = Real.round (real ay * la + real by * lb + real cy * lc)
-                in
-                  (nx, ny)
-                end
-
-              fun trianglehit t =
-                let
-                  val (d, e, f) = Obj.T.nodes t
-                  val dpt = transform d
-                  val ept = transform e
-                  val fpt = transform f
-                in
-                  IntMaths.pointinside (dpt, ept, fpt) (x, y)
-                end
-
-            in
-              List.exists trianglehit (Obj.triangles obj)
-            end
-          else false
-
-      in
-        if List.exists objecthit (Screen.objs screen)
-        then Array.update (pixels, y * WIDTH + x, MASKCOLOR)
-        else ()
-      end
-
-      ))
-
-  (* XXX wrong name / organization *)
-  fun drawareaindicators () =
+  fun draweditorstuff () =
     let
       val (decorations, _) =
         if !mousedown
@@ -568,7 +502,7 @@ struct
 
       app drawdecoration decorations;
 
-      if !holdingspace
+      if !holdingv
       then drawinterpolatedobjects (!mousex, !mousey)
       else ();
 
@@ -617,9 +551,6 @@ struct
       draggingnode := NONE
     end
 
-  (* XXX TODO *)
-  fun updatecursor () = ()
-
   val start = Time.now()
 
   fun dirkey (dx, dy) =
@@ -644,37 +575,23 @@ struct
       raise Quit
     end
 
-    | keydown SDL.SDLK_SPACE =
-      (holdingspace := true;
-       updatecursor ())
+    | keydown SDL.SDLK_RETURN =
+    let in
+      (* XXX better if some shared code for this *)
+      frozennode := NONE;
+      draggingnode := NONE;
+      mode := (case !mode of Editing => Playing | Playing => Editing)
+    end
 
-    | keydown SDL.SDLK_m =
-      (holdingm := true;
-       updatecursor ())
-
-    | keydown SDL.SDLK_LSHIFT =
-      (holdingshift := true;
-       updatecursor ())
-
-    | keydown SDL.SDLK_RSHIFT =
-      (holdingshift := true;
-       updatecursor ())
-
-    | keydown SDL.SDLK_LCTRL =
-      (holdingcontrol := true;
-       updatecursor ())
-
-    | keydown SDL.SDLK_RCTRL =
-      (holdingcontrol := true;
-       updatecursor ())
-
-    | keydown SDL.SDLK_BACKSLASH =
-      (holdingbackslash := true;
-       updatecursor ())
-
-    | keydown SDL.SDLK_TAB =
-      (holdingtab := true;
-       updatecursor())
+    | keydown SDL.SDLK_SPACE = holdingspace := true
+    | keydown SDL.SDLK_m = holdingm := true
+    | keydown SDL.SDLK_v = holdingv := true
+    | keydown SDL.SDLK_LSHIFT = holdingshift := true
+    | keydown SDL.SDLK_RSHIFT = holdingshift := true
+    | keydown SDL.SDLK_LCTRL = holdingcontrol := true
+    | keydown SDL.SDLK_RCTRL = holdingcontrol := true
+    | keydown SDL.SDLK_BACKSLASH = holdingbackslash := true
+    | keydown SDL.SDLK_TAB = holdingtab := true
 
     | keydown SDL.SDLK_UP = dirkey (0, ~1)
     | keydown SDL.SDLK_DOWN = dirkey (0, 1)
@@ -694,40 +611,18 @@ struct
 
     | keydown _ = ()
 
-  fun keyup SDL.SDLK_LSHIFT =
-      (holdingshift := false;
-       updatecursor ())
-
-    | keyup SDL.SDLK_RSHIFT =
-      (holdingshift := false;
-       updatecursor ())
-
-    | keyup SDL.SDLK_LCTRL =
-      (holdingcontrol := false;
-       updatecursor ())
-
-    | keyup SDL.SDLK_RCTRL =
-      (holdingcontrol := false;
-       updatecursor ())
-
-    | keyup SDL.SDLK_SPACE =
-      (holdingspace := false;
-       updatecursor ())
-
-    | keyup SDL.SDLK_m =
-      (holdingm := false;
-       updatecursor ())
-
-    | keyup SDL.SDLK_BACKSLASH =
-      (holdingbackslash := false;
-       updatecursor ())
-
-    | keyup SDL.SDLK_TAB =
-      (holdingtab := false;
-       updatecursor())
-
+  fun keyup SDL.SDLK_LSHIFT = holdingshift := false
+    | keyup SDL.SDLK_RSHIFT = holdingshift := false
+    | keyup SDL.SDLK_LCTRL = holdingcontrol := false
+    | keyup SDL.SDLK_RCTRL = holdingcontrol := false
+    | keyup SDL.SDLK_SPACE = holdingspace := false
+    | keyup SDL.SDLK_m = holdingm := false
+    | keyup SDL.SDLK_v = holdingv := false
+    | keyup SDL.SDLK_BACKSLASH = holdingbackslash := false
+    | keyup SDL.SDLK_TAB = holdingtab := false
     | keyup _ = ()
 
+  (* TODO: Joystick *)
   fun events () =
     case SDL.pollevent () of
         NONE => ()
@@ -792,9 +687,18 @@ struct
                                    NONE => TESSELATIONSEGMENT
                                  | SOME _ => TESSELATIONSEGMENTLOW)
 
+      val drawobjects =
+        case !mode of
+          Playing =>
+            let in
+              Draw.darken pixels;
+              false
+            end
+        | Editing => true
+
       val drawobjects = true
       (* Don't draw objects if we're drawing the interpolated ones. *)
-      val drawobjects = if !holdingspace
+      val drawobjects = if !holdingv
                         then false
                         else drawobjects
 
@@ -809,18 +713,19 @@ struct
                         then false
                         else drawobjects
 
-      (* val () = eprint "objects" *)
       val () =
         if drawobjects
         then Render.drawobjects (pixels, !screen, !frozennode)
         else ()
 
-      (* val () = eprint "indicators" *)
-      val () = drawareaindicators ()
+      val () =
+        case !mode of
+          Editing => draweditorstuff ()
+        | _ => ()
 
       val () =
         if !holdingm
-        then drawmask (pixels, !screen)
+        then Render.drawmask (pixels, !screen)
         else ()
 
       (* Show map? *)
@@ -833,25 +738,24 @@ struct
           end
         else ()
 
-      (* draw mouse. Should probably take mode into account *)
-      val () = Draw.blit { dest = (WIDTH, HEIGHT, pixels),
-                           src = Images.tinymouse,
-                           srcrect = NONE,
-                           dstx = !mousex,
-                           dsty = !mousey }
+      val () =
+        case !mode of
+          Playing =>
+            Draw.blit { dest = (WIDTH, HEIGHT, pixels),
+                        src = Images.person,
+                        srcrect = NONE,
+                        dstx = !playerx,
+                        dsty = !playery }
+        | Editing =>
+            (* draw mouse. Should probably take mode into account *)
+            Draw.blit { dest = (WIDTH, HEIGHT, pixels),
+                        src = Images.tiniestmouse,
+                        srcrect = NONE,
+                        dstx = !mousex,
+                        dsty = !mousey }
 
-      (* XXX *)
-(*
-      val gframenum = (!ctr div 5) mod Images.numframes Images.runleft
-      val gframe = Images.getframe (Images.runleft, gframenum)
-      val () = Draw.blitmask
-        { dest = (WIDTH, HEIGHT, pixels),
-          src = gframe,
-          srcrect = NONE,
-          dstx = !mousex + 20,
-          dsty = !mousey + 20,
-          color = Draw.hexcolor 0wxFFFF77 }
-*)
+      (* Update physics. *)
+
 
       (* val () = Draw.noise_postfilter pixels *)
       (* val () = Draw.scanline_postfilter pixels *)
@@ -859,21 +763,7 @@ struct
       val () = fillscreen pixels
       val () = ctr := !ctr + 1
     in
-      if !ctr mod 1000 = 0
-      then
-        let
-          val now = Time.now ()
-          val sec = Time.toSeconds (Time.-(now, start))
-          val fps = real (!ctr) / Real.fromLargeInt (sec)
-        in
-          (*
-           eprint (Int.toString (!ctr) ^ " (" ^
-                   Real.fmt (StringCvt.FIX (SOME 2)) fps ^ ") fps");
-           *)
-          ()
-        end
-      else ();
-      loop()
+      loop ()
     end
 
   val () = SDL.show_cursor false
@@ -885,6 +775,7 @@ struct
                Screen.Screen s => eprint ("Screen: " ^ s)
              | World.World s => eprint ("World: " ^ s)
              | Constants.Impossible s => eprint ("Impossible: " ^ s)
+             | Physics.Physics s => eprint ("Physics: " ^ s)
              | _ => ());
 
             app eprint (MLton.Exn.history e)
