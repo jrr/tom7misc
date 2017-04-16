@@ -1,9 +1,12 @@
-structure Render (* :> XX RENDER *) =
+structure Render :> RENDER =
 struct
 
   open Constants
 
   val TESSELATIONNODES = Draw.mixcolor (0wx66, 0wx66, 0wx77, 0wxFF)
+
+  type pixels = Word32.word Array.array
+  type segment = Word32.word Vector.vector
 
   val rc = ARCFOUR.initstring "render"
   fun byte () = ARCFOUR.byte rc
@@ -22,28 +25,28 @@ struct
       val drawn : unit AEM.map ref = ref AEM.empty
 
       fun drawnode n =
-          let val (x, y) = Areas.N.coords n ()
-          in Draw.drawcircle (pixels, x, y, 2, TESSELATIONNODES)
-          end
+        let val (x, y) = Areas.N.coords n ()
+        in Draw.drawcircle (pixels, x, y, 2, TESSELATIONNODES)
+        end
 
       fun drawline (a, b) =
-          case AEM.find (!drawn, (a, b)) of
-              SOME () => ()
-            | NONE =>
-          let val (x0, y0) = Areas.N.coords a ()
+        case AEM.find (!drawn, (a, b)) of
+          SOME () => ()
+        | NONE =>
+            let val (x0, y0) = Areas.N.coords a ()
               val (x1, y1) = Areas.N.coords b ()
-          in
+            in
               Draw.drawlinewith (pixels, x0, y0, x1, y1, segment);
               drawn := AEM.insert (!drawn, (a, b), ())
-          end
+            end
 
       fun drawtriangle t =
-          let val (a, b, c) = Areas.T.nodes t
-          in
-              drawline (a, b);
-              drawline (b, c);
-              drawline (c, a)
-          end
+        let val (a, b, c) = Areas.T.nodes t
+        in
+          drawline (a, b);
+          drawline (b, c);
+          drawline (c, a)
+        end
     in
       app drawtriangle triangles;
       app drawnode nodes

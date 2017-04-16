@@ -1,4 +1,3 @@
-
 structure Draw :> DRAW =
 struct
 
