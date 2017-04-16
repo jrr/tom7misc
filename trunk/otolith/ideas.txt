@@ -27,6 +27,7 @@ For example:
   - A pixie that flies around the player in a slow circle.
   - A ghost that the player can leave in place for a while.
   - Soul beam that the player can shoot in a slow straight line.
+  - A physics object
 
 Would be a good game to have music gradients. For example, write four
 songs, one for each vertex of a square (maybe this square is the whole
