@@ -122,70 +122,70 @@ struct
   type track = (int * event) list
 
   fun merge trl =
-      let
-          val trl = List.filter (fn nil => false | _ => true) trl
-      in
-          case trl of
-              nil => nil
-            | _ =>
-                  let
-                      (* find the next event. It's the one
-                         with the nearest delta time. *)
-                      fun mini (a, v, _, nil) = (a, v)
-                        | mini (a, v, i, ((dt, _) :: _) :: rest) =
-                          if v <= dt then mini (a, v, i + 1, rest)
-                          else mini (i, dt, i + 1, rest)
-                        | mini (_, _, _, nil :: _) = raise MIDI "merge:impossible"
+    let
+      val trl = List.filter (fn nil => false | _ => true) trl
+    in
+      case trl of
+          nil => nil
+        | _ =>
+          let
+            (* find the next event. It's the one
+               with the nearest delta time. *)
+            fun mini (a, v, _, nil) = (a, v)
+              | mini (a, v, i, ((dt, _) :: _) :: rest) =
+                if v <= dt then mini (a, v, i + 1, rest)
+                else mini (i, dt, i + 1, rest)
+              | mini (_, _, _, nil :: _) = raise MIDI "merge:impossible"
 
-                      val (next, v) =
-                          mini (~1,
-                                (* sum of all delta times + 1; must be larger
-                                   if midi is well-formed *)
-                                foldr (op+) 1 (map (#1 o hd) trl),
-                                0,
-                                trl)
-                      val () = if next < 0
-                               then raise MIDI "merge:illegal delta time"
-                               else ()
+            val (next, v) =
+                mini (~1,
+                      (* sum of all delta times + 1; must be larger
+                         if midi is well-formed *)
+                      foldr (op+) 1 (map (#1 o hd) trl),
+                      0,
+                      trl)
+            val () = if next < 0
+                     then raise MIDI "merge:illegal delta time"
+                     else ()
 
-                      (* val () = print ("FFWD: " ^ Int.toString v ^ "\n"); *)
+            (* val () = print ("FFWD: " ^ Int.toString v ^ "\n"); *)
 
-                      (* fast forward to that future *)
-                      val trl = map (fn ( (dt, e) :: t ) => (dt - v, e) :: t
-                                     | _ => raise MIDI "merge:impossible2") trl
+            (* fast forward to that future *)
+            val trl = map (fn ( (dt, e) :: t ) => (dt - v, e) :: t
+                           | _ => raise MIDI "merge:impossible2") trl
 
-                      (* get all events at the head, in order, that have zero delta-time.
-                         nb. one of these must be zero-time.
-                         nb. this won't get multiple events from the same track. *)
-                      val nowevts = List.mapPartial
-                                      (fn ((0, e) :: _) => SOME e | _ => NONE) trl
+            (* get all events at the head, in order, that have zero delta-time.
+               nb. one of these must be zero-time.
+               nb. this won't get multiple events from the same track. *)
+            val nowevts = List.mapPartial
+                            (fn ((0, e) :: _) => SOME e | _ => NONE) trl
 
-                      (* and take those off of the track list *)
-                      val trl = map (fn ((0, _) :: t) => t | x => x) trl
-                  in
-                      (* the first nowevent triggers with the min, delta time
-                         the other nowevents are 0 delta from that event.
-                         then continue with the rest... *)
-                      (v, hd nowevts) :: map (fn e => (0, e)) (tl nowevts) @
-                      merge trl
-                  end
-      end
+            (* and take those off of the track list *)
+            val trl = map (fn ((0, _) :: t) => t | x => x) trl
+          in
+            (* the first nowevent triggers with the min, delta time
+               the other nowevents are 0 delta from that event.
+               then continue with the rest... *)
+            (v, hd nowevts) :: map (fn e => (0, e)) (tl nowevts) @
+            merge trl
+          end
+    end
 
   fun mergei trl =
-      let
-          fun number _ nil = nil
-            | number x (h :: t) = map (fn (a, b) => (a, (x, b))) h :: number (x + 1) t
-          val trnl = number 0 trl
-      in
-          merge trnl
-      end
+    let
+      fun number _ nil = nil
+        | number x (h :: t) = map (fn (a, b) => (a, (x, b))) h :: number (x + 1) t
+      val trnl = number 0 trl
+    in
+      merge trnl
+    end
 
   fun mergea atrl =
-      let
-          val trl = map (fn (a, b) => map (fn (x, y) => (x, (a, y))) b) atrl
-      in
-          merge trl
-      end
+    let
+      val trl = map (fn (a, b) => map (fn (x, y) => (x, (a, y))) b) atrl
+    in
+      merge trl
+    end
 
 (*
   fun etos evt =
@@ -197,16 +197,19 @@ struct
       | _ =>  "unimp")
 *)
 
+  fun map_partial f l =
+    let
+      fun mp _ nil = nil
+        | mp plus ((d, e) :: t) =
+        case f e of
+          SOME ee => (plus + d, ee) :: mp 0 t
+        | NONE => mp (plus + d) t
+    in
+      mp 0 l
+    end
+
   fun filter f l =
-      let
-          fun filt _ nil = nil
-            | filt plus ((d, e) :: t) =
-              if f e
-              then (plus + d, e) :: filt 0 t
-              else filt (plus + d) t
-      in
-          filt 0 l
-      end
+    map_partial (fn e => if f e then SOME e else NONE) l
 
   (* trivial: just sum the delta times *)
   fun total_ticks nil = 0
