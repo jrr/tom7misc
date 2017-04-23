@@ -558,8 +558,8 @@ struct
         fun refname name = name ^ "_ref'"
 
         fun oneref (D.F { name : string, typ : D.typ, ... }) =
-            "        val " ^ refname name ^ " : (" ^ typetos typ ^ ") ref =\n" ^
-            "          ref (" ^ default_value typ ^ ")\n"
+            "      val " ^ refname name ^ " : (" ^ typetos typ ^ ") ref =\n" ^
+            "        ref (" ^ default_value typ ^ ")\n"
 
         (* TODO: field_got' which is a boolean flag so we can detect
            duplicates in parse. *)

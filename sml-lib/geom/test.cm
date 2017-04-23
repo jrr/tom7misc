@@ -12,6 +12,9 @@ group is
   ../util/listutil-sig.sml
   ../util/listutil.sml
 
+  ../util/stringutil-sig.sml
+  ../util/stringutil.sml
+
   ../crypt/mersenne-twister-sig.sml
   ../crypt/mersenne-twister.sml
 
@@ -36,6 +39,12 @@ group is
   pointlocation-sig.sml
   pointlocation.sml
 
+  bresenham-sig.sml
+  bresenham.sml
+
   quadtree-test.sml
   pointlocation-test.sml
   latlontree-test.sml
+
+  bresenham-test.sml
+  
