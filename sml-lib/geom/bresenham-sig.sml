@@ -15,7 +15,7 @@ sig
      Returns an iterator that generates points between start and finish,
      and a first coordinate. *)
   val line : coord -> coord -> { step : state -> (state * coord) option,
-                                 seed : state } * coord
+                                 state : state } * coord
 
   (* points start finish
 

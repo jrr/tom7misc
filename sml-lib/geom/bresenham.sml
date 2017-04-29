@@ -27,7 +27,7 @@ struct
             val frac = frac + dy
           in SOME ({ x0 = x0, y0 = y0, frac = frac }, post (x0, y0))
           end
-    in ({ step = step, seed = { x0 = x0, y0 = y0, frac = frac0 } },
+    in ({ step = step, state = { x0 = x0, y0 = y0, frac = frac0 } },
         post (x0, y0))
     end
 
@@ -37,59 +37,61 @@ struct
       fun abs c = if c < 0 then (~c, ~1) else (c, 1)
       val ((dx', stepx), (dy', stepy)) = pair_map abs d
       val step = (stepx, stepy)
-      val d'' as (dx'', dy'') = pair_map (fn n => n * 2) (dx', dy')
+      val dx'' = dx' * 2
+      val dy'' = dy' * 2
+      val d'' = (dx'', dy'')
 
-      val swap = pair_swap
-      val cvt = (fn x => x)
+      fun id x = x
       val build_args =
         if dx'' > dy''
-        then (p0, p1, d'', step, cvt)
-        else (swap p0, swap p1, swap d'', swap step, swap)
+        then (p0, p1, d'', step, id)
+        else (pair_swap p0, pair_swap p1, pair_swap d'',
+              pair_swap step, pair_swap)
     in build build_args
     end
 
   fun points (x0, y0) (x1, y1) =
     let
-      val ({ step, seed }, start) = line (x0, y0) (x1, y1)
+      val ({ step, state }, start) = line (x0, y0) (x1, y1)
 
-      fun get seed =
-        case step seed of
-          SOME (seed, coord) => coord :: get seed
+      fun get state =
+        case step state of
+          SOME (state, coord) => coord :: get state
         | NONE => nil
     in
-      start :: get seed
+      start :: get state
     end
 
   fun all pred p0 p1 =
     let
-      val ({ step, seed }, v) = line p0 p1
-      fun loop seed =
-        case step seed of
+      val ({ step, state }, v) = line p0 p1
+      fun loop state =
+        case step state of
           NONE => true
-        | SOME (seed', v) => pred v andalso loop seed'
-    in pred v andalso loop seed
+        | SOME (state', v) => pred v andalso loop state'
+    in pred v andalso loop state
     end
 
   fun exists pred p0 p1 =
     let
-      val ({ step, seed }, v) = line p0 p1
-      fun loop seed =
-        case step seed of
+      val ({ step, state }, v) = line p0 p1
+      fun loop state =
+        case step state of
           NONE => false
-        | SOME (seed', v) => pred v orelse loop seed'
-    in pred v orelse loop seed
+        | SOME (state', v) => pred v orelse loop state'
+    in pred v orelse loop state
     end
 
   fun app f p0 p1 =
     let
-      val ({ step, seed }, v) = line p0 p1
-      fun loop seed =
-        case step seed of
+      val ({ step, state }, v) = line p0 p1
+      fun loop state =
+        case step state of
           NONE => ()
-        | SOME (seed', v) => (f v; loop seed')
+        | SOME (state', v) => (f v; loop state')
     in
       f v;
-      loop seed
+      loop state
     end
 
 end
