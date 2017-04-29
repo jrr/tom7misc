@@ -11,45 +11,94 @@ struct
        are best (XXX require?), so that the center is a pixel. *)
     Rect of int * int
 
+  structure Fine :>
+  sig
+    eqtype fine
+    (* Raw access. *)
+    val fromint : int -> fine
+    val toint : fine -> int
+
+    (* Place in center of coarse pixel. *)
+    val fromcoarse : int -> fine
+    (* Round to nearest coarse pixel. *)
+    val tocoarse : fine -> int
+
+    val + : fine * fine -> fine
+    val - : fine * fine -> fine
+    val * : fine * fine -> fine
+    val div : fine * fine -> fine
+    val < : fine * fine -> bool
+    val <= : fine * fine -> bool
+    val > : fine * fine -> bool
+    val >= : fine * fine -> bool
+    val ~ : fine -> fine
+
+    val MULT : fine
+    val CENTER : fine
+  end =
+  struct
+    type fine = int
+
+    val MULT = 256
+    val CENTER = MULT div 2
+
+    fun fromint i = i
+    fun toint i = i
+
+    fun fromcoarse i = i * MULT + CENTER
+    fun tocoarse f = (f + (CENTER - 1)) div MULT
+
+    open Int
+  end
+  type fine = Fine.fine
+
   datatype lr = Left | Right
 
   (* XXX more... *)
   datatype body =
-    B of { x : int ref,
-           y : int ref,
-           (* In sixteenths of a pixel (per frame). *)
-           dx : int ref,
-           dy : int ref,
+    B of { x : fine ref,
+           y : fine ref,
+           dx : fine ref,
+           dy : fine ref,
 
            lrwish : lr option ref,
+           jumpwish : bool ref,
            (* Used for body equality and error checking. Could instead be
               like a doubly-linked list cell, which would make deleting
               constant-time. *)
            inscene : bool ref,
            shape : shape ref }
 
-  fun newbody() = B { x = ref 128, y = ref 128,
-                      dx = ref 0, dy = ref 0,
+  fun newbody() = B { x = ref (Fine.fromcoarse 128),
+                      y = ref (Fine.fromcoarse 128),
+                      dx = ref (Fine.fromint 0),
+                      dy = ref (Fine.fromint 0),
                       lrwish = ref NONE,
+                      jumpwish = ref false,
                       inscene = ref false,
                       shape = ref (Rect (9, 9)) }
 
   fun setxy (B { x, y, ... }) (xx, yy) =
     let in
-      x := xx;
-      y := yy
+      x := Fine.fromcoarse xx;
+      y := Fine.fromcoarse yy
     end
-  fun getxy (B { x, y, ... }) = (!x, !y)
+  fun getxy (B { x, y, ... }) = (Fine.tocoarse (!x),
+                                 Fine.tocoarse (!y))
 
   fun setdxy (B { dx, dy, ... }) (dxx, dyy) =
     let in
-      dx := dxx;
-      dy := dyy
+      dx := Fine.fromint dxx;
+      dy := Fine.fromint dyy
     end
-  fun getdxy (B { dx, dy, ... }) = (!dx, !dy)
+  fun getdxy (B { dx, dy, ... }) = (Fine.toint (!dx),
+                                    Fine.toint (!dy))
 
   fun setlrwish (B { lrwish, ... }) lr = lrwish := lr
   fun getlrwish (B { lrwish, ... }) = !lrwish
+
+  fun setjumpwish (B { jumpwish, ... }) jump = jumpwish := jump
+  fun getjumpwish (B { jumpwish, ... }) = !jumpwish
 
   fun setshape (B { shape, ... }) ss = shape := ss
   fun getshape (B { shape, ... }) = !shape
@@ -109,15 +158,17 @@ struct
     (* XXX *)
     Air
 
-  (* In sixteenths of a pixel per frame per frame. *)
-  val GRAVITY = 1
-  val HORIZ_ACCEL = 2
-  val DECEL_AIR = 1
+  (* In 256ths of a pixel per frame per frame. *)
+  val GRAVITY : fine = Fine.fromint 8
+  val HORIZ_ACCEL : fine = Fine.fromint 16
+  val DECEL_AIR : fine = Fine.fromint 12
+  val JUMP_IMPULSE : fine = Fine.fromint (24 * 16)
   (* 16ths of pixel per frame *)
-  val TERMINAL_VELOCITY = 32
+  val TERMINAL_VELOCITY : fine = Fine.fromint (16 * 16)
 
-  (* Get the triangle objects that collide with the shape at (x, y) *)
-  fun objectcollisions (screen, shape, (oldx, oldy), (x, y)) =
+  (* Get the triangle objects that collide with the shape at (x, y).
+     (x, y) is in coarse integral coordinates. *)
+  fun objectcollisions (screen, shape, (x, y)) =
     let
       val (lx, ly) = !locusf()
     in
@@ -164,6 +215,8 @@ struct
                 val fpt = transform f
                 fun hit (xx, yy) = IntMaths.pointinside (dpt, ept, fpt) (xx, yy)
               in
+                (* n.b., this allows a very narrow triangle to pass
+                   between the player's feet... *)
                 case shape of
                   Rect (w, h) =>
                     let
@@ -190,14 +243,17 @@ struct
 
 
   fun movebody (screen, body as B { x, y, dx, dy, shape,
-                                    lrwish, ... }) =
+                                    lrwish, jumpwish, ... }) =
     let
-      (* TODO: locus may have moved since last frame, which
-         might have put bodies inside walls. First push them
-         out. Requires some history... *)
+      (* TODO: with time-varying locus, it may have moved since
+         last frame, which might have put bodies inside walls.
+         First push them out. Requires some history... *)
+      val -- = Fine.-
+      val ++ = Fine.+
+      infix 6 -- ++
 
       val ground = getground (screen, body)
-      (* TODO: "want jump"
+      (* TODO:
          jumping when on an angled surface should apply
          x vector as well, I think, since we're "kicking off"
          that surface.
@@ -214,29 +270,40 @@ struct
       (* acceleration due to gravity *)
       val () =
         case ground of
-          Air => dy := !dy + GRAVITY
+          Air => dy := !dy ++ GRAVITY
         | _ => ()
 
       (* TODO: x-gravity "wind" also easy *)
 
+      (* XXX only allow this when the player is on the
+         ground. *)
+      val () =
+        if !jumpwish
+        then
+          let in
+            dy := !dy -- JUMP_IMPULSE;
+            jumpwish := false
+          end
+        else ()
+
       (* acceleration due to player control. *)
       val () =
         case !lrwish of
-          SOME Left => dx := !dx - HORIZ_ACCEL
-        | SOME Right => dx := !dx + HORIZ_ACCEL
+          SOME Left => dx := !dx -- HORIZ_ACCEL
+        | SOME Right => dx := !dx ++ HORIZ_ACCEL
         | NONE =>
             case ground of
-              Air => if !dx > DECEL_AIR
-                     then dx := !dx - DECEL_AIR
-                     else if !dx < ~DECEL_AIR
-                          then dx := !dx + DECEL_AIR
-                          else dx := 0
+              Air => if Fine.> (!dx, DECEL_AIR)
+                     then dx := !dx -- DECEL_AIR
+                     else if Fine.< (!dx, Fine.~ DECEL_AIR)
+                          then dx := !dx ++ DECEL_AIR
+                          else dx := Fine.fromint 0
             | _ => raise Physics "same but more deceleration"
 
       (* XXX max horizontal speed, max vertical upward speed *)
 
       val () =
-        if !dy > TERMINAL_VELOCITY
+        if Fine.> (!dy, TERMINAL_VELOCITY)
         then dy := TERMINAL_VELOCITY
         else ()
 
@@ -251,12 +318,11 @@ struct
          Int.toString (!dy) ^ "\n") *)
       val ({ step, state }, _) =
         let
-          (* XXX This is bogus because div rounds down, so movement is
-             faster to the left than to the right *)
-          val endx = !x + (!dx div 16)
-          val endy = !y + (!dy div 16)
+          val endx = !x ++ !dx
+          val endy = !y ++ !dy
         in
-          Bresenham.line (!x, !y) (endx, endy)
+          Bresenham.line (Fine.toint (!x), Fine.toint (!y))
+                         (Fine.toint endx, Fine.toint endy)
         end
 
       (* Generate the next point along the vector. If it's clear,
@@ -266,15 +332,25 @@ struct
           NONE => ()
         | SOME (state, (xx, yy)) =>
             let
+              val xx = Fine.fromint xx
+              val yy = Fine.fromint yy
               (* Have to provisionally update the body's location,
                  because it may affect the locus. *)
               val oldx = !x
               val oldy = !y
               val () = x := xx
               val () = y := yy
+
+              val coarsex = Fine.tocoarse xx
+              val coarsey = Fine.tocoarse yy
             in
+              (* PERF: Since we perform the collision at coarse
+                 integral coordinates, we're usually testing the
+                 same value as last round, and could often skip
+                 it. This would cease to be true if the locus was
+                 based on fine 256ths, though. *)
               (* XXX also body collision. *)
-              case objectcollisions (screen, !shape, (oldx, oldy), (xx, yy)) of
+              case objectcollisions (screen, !shape, (coarsex, coarsey)) of
                 nil => move state
               | _ =>
               (* XXX should find collision edge(s), and:
@@ -288,8 +364,8 @@ struct
                   y := oldy;
 
                   (* Don't just stop! *)
-                  dx := 0;
-                  dy := 0
+                  dx := Fine.fromint 0;
+                  dy := Fine.fromint 0
                 end
             end
     in
