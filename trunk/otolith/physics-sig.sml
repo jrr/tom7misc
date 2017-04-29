@@ -6,8 +6,22 @@ sig
   (* A rectangular thing on the screen that gets physical
      simulation. *)
   type body
+  val newbody : unit -> body
+
   val setxy : body -> int * int -> unit
   val getxy : body -> int * int
+
+  (* Quantities are in sixteenths of a pixel per frame *)
+  val setdxy : body -> int * int -> unit
+  val getdxy : body -> int * int
+
+  (* Indicates whether the body wants to move left/right;
+     these are mutually exclusive. *)
+  datatype lr = Left | Right
+
+    (* TODO: jump. up/down? *)
+  val setlrwish : body -> lr option -> unit
+  val getlrwish : body -> lr option
 
   (* TODO shapes: individual pixels and other dust. circles. *)
   datatype shape =
@@ -21,6 +35,9 @@ sig
      - whether the body interacts with other objects, solids
      - for circles, angle, and angular momentum?
      - attachment to walls and floors (for when they move)
+       (maybe generalizes "stick velocity", where the object
+        stays touching the wall unless the normal velocity
+        exceeds a certain amount)
      *)
 
   (* A body is only simulated if it's currently in the scene.
