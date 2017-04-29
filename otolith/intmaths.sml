@@ -87,41 +87,41 @@ struct
      PERF There may be more ways to simplify this, but probably should just
      switch to the barycentric version if it can be done with ints. *)
   fun pointinside ((ax, ay), (bx, by), (cx, cy)) (x : int, y : int) =
-      let
-        val odd =
-          ((ay > y) <> (cy > y)) andalso
-          let val numer = (cx - ax) * (y - ay)
-              val denom = (cy - ay)
-          in
-            if denom > 0
-            then (x - ax) * denom < numer
-            else (x - ax) * denom > numer
-          end
+    let
+      val odd =
+        ((ay > y) <> (cy > y)) andalso
+        let val numer = (cx - ax) * (y - ay)
+            val denom = (cy - ay)
+        in
+          if denom > 0
+          then (x - ax) * denom < numer
+          else (x - ax) * denom > numer
+        end
 
-        val negate =
-          ((by > y) <> (ay > y)) andalso
-          let val numer = (ax - bx) * (y - by)
-              val denom = (ay - by)
-          in
-            if denom > 0
-            then (x - bx) * denom < numer
-            else (x - bx) * denom > numer
-          end
+      val negate =
+        ((by > y) <> (ay > y)) andalso
+        let val numer = (ax - bx) * (y - by)
+            val denom = (ay - by)
+        in
+          if denom > 0
+          then (x - bx) * denom < numer
+          else (x - bx) * denom > numer
+        end
 
-        val odd = (if negate then not odd else odd)
+      val odd = (if negate then not odd else odd)
 
-        val negate =
-          ((cy > y) <> (by > y)) andalso
-          let val numer = (bx - cx) * (y - cy)
-              val denom = (by - cy)
-          in
-            if denom > 0
-            then (x - cx) * denom < numer
-            else (x - cx) * denom > numer
-          end
-      in
-        if negate then not odd else odd
-      end
+      val negate =
+        ((cy > y) <> (by > y)) andalso
+        let val numer = (bx - cx) * (y - cy)
+            val denom = (by - cy)
+        in
+          if denom > 0
+          then (x - cx) * denom < numer
+          else (x - cx) * denom > numer
+        end
+    in
+      if negate then not odd else odd
+    end
 
   (* PERF might be some redundant comparisons. *)
   fun trianglebounds ((ax, ay), b, c) =

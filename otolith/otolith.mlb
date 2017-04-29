@@ -21,6 +21,9 @@ $(SML_LIB)/basis/mlton.mlb
  ../sml-lib/crypt/ARCFOUR/arcfour-sig.sml
  ../sml-lib/crypt/ARCFOUR/arcfour.sml
 
+ ../sml-lib/geom/bresenham-sig.sml
+ ../sml-lib/geom/bresenham.sml
+
  ../sdlml/sdl-sig.sml
  ../sdlml/sdl.sml
 
