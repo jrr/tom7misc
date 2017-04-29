@@ -8,10 +8,12 @@ sig
   type body
   val newbody : unit -> body
 
+  (* Screen coordinates. Note that internally, physics keeps
+     sub-pixel positions. (TODO: Make this available too?) *)
   val setxy : body -> int * int -> unit
   val getxy : body -> int * int
 
-  (* Quantities are in sixteenths of a pixel per frame *)
+  (* Quantities are in 256ths of a pixel per frame *)
   val setdxy : body -> int * int -> unit
   val getdxy : body -> int * int
 
@@ -19,9 +21,11 @@ sig
      these are mutually exclusive. *)
   datatype lr = Left | Right
 
-    (* TODO: jump. up/down? *)
+  (* also up/down? *)
   val setlrwish : body -> lr option -> unit
   val getlrwish : body -> lr option
+  val setjumpwish : body -> bool -> unit
+  val getjumpwish : body -> bool
 
   (* TODO shapes: individual pixels and other dust. circles. *)
   datatype shape =

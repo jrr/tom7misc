@@ -593,7 +593,13 @@ struct
       mode := (case !mode of Editing => Playing | Playing => Editing)
     end
 
-    | keydown SDL.SDLK_SPACE = holdingspace := true
+    | keydown SDL.SDLK_SPACE =
+    let in
+      if !mode = Playing
+      then Physics.setjumpwish player true
+      else ();
+      holdingspace := true
+    end
     | keydown SDL.SDLK_m = holdingm := true
     | keydown SDL.SDLK_v = holdingv := true
     | keydown SDL.SDLK_LSHIFT = holdingshift := true
@@ -633,7 +639,13 @@ struct
     | keyup SDL.SDLK_RSHIFT = holdingshift := false
     | keyup SDL.SDLK_LCTRL = holdingcontrol := false
     | keyup SDL.SDLK_RCTRL = holdingcontrol := false
-    | keyup SDL.SDLK_SPACE = holdingspace := false
+    | keyup SDL.SDLK_SPACE =
+    let in
+      if !mode = Playing
+      then Physics.setjumpwish player false
+      else ();
+      holdingspace := false
+    end
     | keyup SDL.SDLK_m = holdingm := false
     | keyup SDL.SDLK_v = holdingv := false
     | keyup SDL.SDLK_BACKSLASH = holdingbackslash := false
