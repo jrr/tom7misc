@@ -38,9 +38,15 @@ struct
   val mousex = ref 0
   val mousey = ref 0
 
-  (* XXX to.. physics? *)
-  val playerx = ref 80
-  val playery = ref 80
+  val player = Physics.newbody ()
+  (* Physical size of player (not player graphic) *)
+  val PLAYERW = 5
+  val PLAYERH = 11
+
+  val () = Physics.setshape player (Physics.Rect (PLAYERW, PLAYERH))
+  val () = Physics.setxy player (80, 80)
+  val () = Physics.addbody player
+  val () = Physics.setlocus (fn () => Physics.getxy player)
 
   (* XXX: Should probably be a mask on all keys. *)
   val holdingshift = ref false
@@ -50,6 +56,9 @@ struct
   val holdingtab = ref false
   val holdingm = ref false
   val holdingv = ref false
+
+  val holdingleft = ref false
+  val holdingright = ref false
 
   val mousedown = ref false
 
@@ -580,6 +589,7 @@ struct
       (* XXX better if some shared code for this *)
       frozennode := NONE;
       draggingnode := NONE;
+      Physics.setxy player (!mousex, !mousey);
       mode := (case !mode of Editing => Playing | Playing => Editing)
     end
 
@@ -595,8 +605,16 @@ struct
 
     | keydown SDL.SDLK_UP = dirkey (0, ~1)
     | keydown SDL.SDLK_DOWN = dirkey (0, 1)
-    | keydown SDL.SDLK_LEFT = dirkey (~1, 0)
-    | keydown SDL.SDLK_RIGHT = dirkey (1, 0)
+    | keydown SDL.SDLK_LEFT =
+    let in
+      holdingleft := true;
+      dirkey (~1, 0)
+    end
+    | keydown SDL.SDLK_RIGHT =
+    let in
+      holdingright := true;
+      dirkey (1, 0)
+    end
 
     (* Need much better keys... *)
     | keydown SDL.SDLK_o =
@@ -620,6 +638,9 @@ struct
     | keyup SDL.SDLK_v = holdingv := false
     | keyup SDL.SDLK_BACKSLASH = holdingbackslash := false
     | keyup SDL.SDLK_TAB = holdingtab := false
+    | keyup SDL.SDLK_LEFT = holdingleft := false
+    | keyup SDL.SDLK_RIGHT = holdingright := false
+
     | keyup _ = ()
 
   (* TODO: Joystick *)
@@ -720,6 +741,11 @@ struct
 
       val () =
         case !mode of
+          Playing => drawinterpolatedobjects (Physics.getlocus ())
+        | _ => ()
+
+      val () =
+        case !mode of
           Editing => draweditorstuff ()
         | _ => ()
 
@@ -739,13 +765,34 @@ struct
         else ()
 
       val () =
+        if !mode = Playing
+        then
+          case (!holdingleft, !holdingright) of
+            (* If holding both, don't change wish.
+               Actually, it probably feels more responsive
+               if we switch to whatever the most recent
+               keypress was. *)
+            (true, true) => ()
+          | (true, false) => Physics.setlrwish player (SOME Physics.Left)
+          | (false, true) => Physics.setlrwish player (SOME Physics.Right)
+          | (false, false) => Physics.setlrwish player NONE
+        else ()
+
+      val () =
         case !mode of
           Playing =>
-            Draw.blit { dest = (WIDTH, HEIGHT, pixels),
-                        src = Images.person,
-                        srcrect = NONE,
-                        dstx = !playerx,
-                        dsty = !playery }
+            let val (playerx, playery) = Physics.getxy player
+            in
+              (* XXX needs to take into account facing direction (which
+                 may need to be external), velocity, lrwish, jumpwish,
+                 etc. *)
+              Draw.blit { dest = (WIDTH, HEIGHT, pixels),
+                          src = Images.person,
+                          srcrect = NONE,
+                          (* Offsets from center pixel. *)
+                          dstx = playerx - 5,
+                          dsty = playery - 7 }
+            end
         | Editing =>
             (* draw mouse. Should probably take mode into account *)
             Draw.blit { dest = (WIDTH, HEIGHT, pixels),
@@ -755,7 +802,10 @@ struct
                         dsty = !mousey }
 
       (* Update physics. *)
-
+      val drawobjects =
+        case !mode of
+          Playing => Physics.movebodies (!screen)
+        | Editing => ()
 
       (* val () = Draw.noise_postfilter pixels *)
       (* val () = Draw.scanline_postfilter pixels *)

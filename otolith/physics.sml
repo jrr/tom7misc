@@ -162,8 +162,19 @@ struct
                 val dpt = transform d
                 val ept = transform e
                 val fpt = transform f
+                fun hit (xx, yy) = IntMaths.pointinside (dpt, ept, fpt) (xx, yy)
               in
-                IntMaths.pointinside (dpt, ept, fpt) (x, y)
+                case shape of
+                  Rect (w, h) =>
+                    let
+                      val whalf = w div 2
+                      val hhalf = h div 2
+                    in
+                      hit (x - whalf, y - hhalf) orelse
+                      hit (x + whalf, y - hhalf) orelse
+                      hit (x - whalf, y + hhalf) orelse
+                      hit (x + whalf, y + hhalf)
+                    end
               end
 
             (* Test a hit against one object. *)
@@ -211,8 +222,8 @@ struct
       (* acceleration due to player control. *)
       val () =
         case !lrwish of
-          SOME Left => dx := !dx + HORIZ_ACCEL
-        | SOME Right => dx := !dx - HORIZ_ACCEL
+          SOME Left => dx := !dx - HORIZ_ACCEL
+        | SOME Right => dx := !dx + HORIZ_ACCEL
         | NONE =>
             case ground of
               Air => if !dx > DECEL_AIR
@@ -236,8 +247,12 @@ struct
          object. *)
       (* The first pixel in the line is returned as the second parameter.
          There's no point in checking it because we're already there. *)
+      (* val () = print ("dx,dy: " ^ Int.toString (!dx) ^ "," ^
+         Int.toString (!dy) ^ "\n") *)
       val ({ step, state }, _) =
         let
+          (* XXX This is bogus because div rounds down, so movement is
+             faster to the left than to the right *)
           val endx = !x + (!dx div 16)
           val endy = !y + (!dy div 16)
         in
@@ -259,7 +274,7 @@ struct
               val () = y := yy
             in
               (* XXX also body collision. *)
-              case objectcollisions (screen, shape, (oldx, oldy), (xx, yy)) of
+              case objectcollisions (screen, !shape, (oldx, oldy), (xx, yy)) of
                 nil => move state
               | _ =>
               (* XXX should find collision edge(s), and:

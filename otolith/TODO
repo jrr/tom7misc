@@ -3,6 +3,7 @@
  - check that deleting nodes keeps a tesselation in a good state.
  - reimplement keyed tesselation check()
  - put tesselation triangles in canonical order?
+ - split editing code out from otolith.sml
  - history to rendering, so that when an object just pops into
    existence we can animate that; vectors for moving nodes too.
    Important to get this flexibility right early.
