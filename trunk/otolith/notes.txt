@@ -1,0 +1,237 @@
+
+Thoughts on body-object collision.
+
+Here were the original docs, 30 Apr 2017:
+
+Collision of an axis-aligned edge with something in the world
+(currently, just triangular objects). The following describes the
+behavior for the bottom edge; the other edges are analogous.
+
+Contact here means exact (coarse) pixel adjacency: We move the
+body one pixel down (axis-aligned), and then ask if, in that
+configuration, it is overlapping any triangle. In the case that
+the triangle is not parameterized (or the body's position does
+not influence the locus), this is just asking whether there is a
+solid pixel immediately below the edge.
+
+Ignoring coincident edges (XXX is this wise?) there are four types
+of contact:
+
+1. Air       |  body  |        (No contact.)
+            +--------+
+
+2. Single    |  body  |
+            +--------+  ...    (One of the feet contacts
+               ...---```        a single edge. This includes
+         ---```                 the case of standing on a
+                                completely flat edge, where
+                                the contact foot is then
+                                chosen arbitrarily.)
+
+3. Valley    |  body  |        (Simultaneous contact with
+           \+--------+/         two edges. Not clear whether
+            \        /          this is actually separate
+             \      /           from Single, except that
+                                intuitively, we should be
+                                able to jump straight up
+                                from this position.)
+
+4. Peak      |  body  |         (Standing on a single point.
+            +--------+          Here the contact is not a foot
+                /\              but somewhere along the body's
+               /  \             bottom edge. Since all edges
+                                are on triangles, the point is
+                                always on two edges. There may
+                                also be interior edges.)
+
+For situations where there are multiple coincident edges, we
+just pick one arbitrarily (but consistently). Level designers
+should probably avoid such situations.
+
+The fact that edges can move when the body moves presents some
+complications:
+ - In principle, a fast-moving object can move completely through
+   the body. We don't attempt to handle this case.
+ - In Single/Valley-type contact, the foot can penetrate
+   deep into the triangle(s) in a single step.
+ - In Peak contact, the peak may penetrate into the body, in such
+   a way that one or more feet are also inside the triangle(s).
+
+Contact is resolved as follows. We assume that the body is not
+overlapping any triangle at its start position.
+ - Place the body at the new position (one pixel down), which may
+   affect the locus.
+ - First, test if any triangle endpoints are inside the body. If
+   so, this will be a Peak-type contact. Note however a case
+   like this one:
+                 /
+      ++-------+/
+      |        |
+      |       /|
+      |      * |                 [Figure F]
+      |   .-`  |
+      +--`-----+
+     .-`
+
+   ... I think this intuitively should be a Single contact (but
+   with which edge?), especially since if the two edges are
+   colinear then it *would* be Single contact if not for the
+   endpoint. XXX: Not sure what to do about this one. May
+   have to inspect the angle, or maybe it's even another type
+   of contact?
+ - If no endpoints are inside the body, test each foot. If the
+   feet are in ... hmm, maybe change this idea.
+
+
+*ahem*
+
+
+This approach actually has a number of problems:
+  - It imagined that all triangles were like, not adjacent.
+    Basically any line segment can be broken into a series of
+    colinear line segments (even in the same object, which
+    we must cleanly support).
+  - The "peak" thing doesn't take into account the angles of
+    the edge intersections, so a nice shallow concave corner
+    like in Figure F would be treated as a peak.
+  - ...
+
+Let's think through a radically different approach. I went through
+some trouble to render objects using integers, so just use the pixel
+grid.
+
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+
+We can loop over the bottom row of pixels (there are only 5 for the
+player!) and ask what triangles each one lands in. (This computation
+is already implemented.) Note that for a tesselation (i.e., object),
+each pixel is in at most one of its triangles.
+
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    |1|1|2|3|3|3|  could be from   ----+-----
+    +-+-+-+-+-+-+                   1 /2\  3
+
+
+A very simple thing to just say "you are on the ground" if any pixel
+in the bottom row is occupied. Potential problems:
+ - We need to at least know the relevant objects so that we can show
+   them to the player--it just won't work to have the player walking
+   on nothingness. This is fine because the pixel collisions come
+   from triangles within objects, so we can return those and render
+   them.
+
+ - Without some additional work, there are a lot of different cases that
+   this could indicate. For the sake of dropping the player downward,
+   we don't really need to distinguish them (*). But an important thing
+   that goes wrong if we just treat everything as a grid is that it's
+   possible to stand on extremely tiny ledges, like this:
+
+       ##
+       ##
+       ##
+      ###
+      ###
+      ###
+      ###
+
+    .. which should not be allowed. I think there's a simple solution
+    for this, which will also work for running up shallow slopes, which
+    is to eject the player for specific patterns: When only a single
+    corner is occupied. So if we have:
+
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | |#|
+    +-+-+-+-+-+-+
+
+    .. the result of the "getground" or whatever call should be
+    like Eject Left--sort of like, yes you can go down but doing
+    so makes you move left a little (and presumably gain negative
+    x velocity?). This leads to metastable states, though. Consider
+    this case, even with static geometry:
+
+        +-+-+-+-+-+-+
+        | | | | | | |
+        +-+-+-+-+-+-+
+        | | | | | | |
+        +-+-+-+-+-+-+
+        | | | | | | |
+   .....+-+-+-+-+-+-+......
+    : : | | | | | | | : : :
+   .....+-+-+-+-+-+-+......
+   #:#:#: : : : : :#:#:#:#:
+   ....^...........^.......
+       B           A
+
+    The body drops downward, and then contains the single pixel A
+    at its corner. So we eject left, but then the other corner contains
+    the pixel B! This needs to be treated as a situation where we
+    can stand still, I guess. I guess when we call this routine to
+    determine whether body is on the ground, we'll just return false
+    (or "eject _" which is treated as not on the ground), unless
+    ejection is not possible?
+
+    So basically the postulated function's return values are:
+
+      Air
+      Blocked of object list? triangle list?
+                (note that the blocked case includes the metastable
+                 case above. Here we would return two triangles, and
+                 they are potentially at different locuses because
+                 the body is tested in two different positions. So
+                 I guess the return type should have both the locus
+                 and the triangle?)
+      Eject of dir * object? triangle?
+
+ - An analogous situation happens when the player is trying to run,
+   say, to the right. Here, the player is ejected upward when
+   running up a slope of 45 degrees or less:
+
+          ##
+       #####
+    ########
+
+   Because at each step there is just one corner pixel occupied when
+   we do the right-edge test.
+
+ - I think this will work for static geometry.
+
+ - Hmm, but shouldn't we be able to run rightward on a flat platform
+   that moves up one pixel when we move right? Actually, this is
+   fine: Even though the whole bottom row will be blocked, that
+   just prevents us from moving down (which we want). Moving right
+   will have a situation like this
+
+    +-+-+-+-+-+-+   (we only check the rightmost column when
+    | | | | | | |    moving right)
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | | |
+    +-+-+-+-+-+-+
+    | | | | | |#|
+    +-+-+-+-+-+-+
+
+  which allows for ejection upward. The necessary condition be
+  that the slope be <= 45 degrees -- the elevator can move at
+  most one pixel upward for each pixel traveled right.
+
