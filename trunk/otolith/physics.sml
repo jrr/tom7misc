@@ -58,6 +58,11 @@ struct
   datatype dir = U | D | L | R
   datatype lr = Left | Right
 
+  fun dir_unit_vector U = (0, ~1)
+    | dir_unit_vector D = (0, 1)
+    | dir_unit_vector L = (~1, 0)
+    | dir_unit_vector R = (1, 0)
+
   (* XXX more... *)
   datatype body =
     B of { x : fine ref,
@@ -300,7 +305,7 @@ struct
   (* In any contact type (except air), we return any objects (with a
      locus, which may be different in the case of ejection) that
      explain the contact. This may not be a complete set, in case of
-     overlapping objects.*)
+     overlapping objects. TODO: Collisions with other bodies. *)
   fun getcontact (screen, body, original_dir : dir) :
     contacttype * ((int * int) * Screen.obj) list =
     let
@@ -399,16 +404,18 @@ struct
                   (* For bodies of width 1 *)
                   (true, true) => (Blocked, !implicated)
                 | (true, _) =>
-                    (case getcon (left_dir, false) of
-                       (Air, _) => (Eject left_dir, !implicated)
-                     | (_, more_implicated) =>
-                         (Blocked, more_implicated @ !implicated))
-                | (_, true) =>
                     (case getcon (right_dir, false) of
                        (Air, _) => (Eject right_dir, !implicated)
                      | (_, more_implicated) =>
                          (Blocked, more_implicated @ !implicated))
-                | _ => raise Physics "impossible")
+                | (_, true) =>
+                    (case getcon (left_dir, false) of
+                       (Air, _) => (Eject left_dir, !implicated)
+                     | (_, more_implicated) =>
+                         (Blocked, more_implicated @ !implicated))
+                | (false, false) =>
+                    (* single-pixel mid-edge collision *)
+                    (Blocked, !implicated))
            | _ => (Blocked, !implicated)
          end)
     in
@@ -501,7 +508,11 @@ struct
           end
     end
 
-
+  (* XXX need some way to return the implicated objects
+     (from the call to getcontact via 'go', perhaps including
+     the ontheground call too), because the objects she's
+     colliding with aren't even necessarily visible (could
+     be in a different area) at the currently displayed locus! *)
   fun movebody (screen, body as B { x, y, dx, dy, shape,
                                     lrwish, jumpwish, ... }) =
     let
@@ -553,23 +564,43 @@ struct
         else ()
 
       (* acceleration due to player control. *)
-      val () =
+      fun accelerate () =
         case !lrwish of
-          SOME Left => dx := !dx -- HORIZ_ACCEL
-        | SOME Right => dx := !dx ++ HORIZ_ACCEL
-        | NONE =>
-            let
-              val decel =
-                if ontheground
-                then DECEL_GROUND
-                else DECEL_AIR
-            in
-              if Fine.> (!dx, decel)
-              then dx := !dx -- decel
-              else if Fine.< (!dx, Fine.~ decel)
-                   then dx := !dx ++ decel
-                   else dx := Fine.fromint 0
-            end
+          SOME Left =>
+            (case getcontact (screen, body, L) of
+               (Blocked, _) => false
+             | _ =>
+                 let in
+                   dx := !dx -- HORIZ_ACCEL;
+                   true
+                 end)
+        | SOME Right =>
+             (case getcontact (screen, body, R) of
+                (Blocked, _) => false
+              | _ =>
+                  let in
+                    dx := !dx ++ HORIZ_ACCEL;
+                    true
+                  end)
+        | NONE => false
+
+      (* Allow the player to accelerate if she can. But
+         if not, then apply air or ground deceleration. *)
+      val () =
+        if accelerate ()
+        then ()
+        else let
+               val decel =
+                 if ontheground
+                 then DECEL_GROUND
+                 else DECEL_AIR
+             in
+               if Fine.> (!dx, decel)
+               then dx := !dx -- decel
+               else if Fine.< (!dx, Fine.~ decel)
+                    then dx := !dx ++ decel
+                    else dx := Fine.fromint 0
+             end
 
       val () =
         if Fine.> (!dx, MAX_SPEED)
@@ -591,8 +622,6 @@ struct
          object. *)
       (* The first pixel in the line is returned as the second parameter.
          There's no point in checking it because we're already there. *)
-      (* val () = print ("dx,dy: " ^ Int.toString (!dx) ^ "," ^
-         Int.toString (!dy) ^ "\n") *)
       val ({ step, state }, _) =
         let
           val endx = !x ++ !dx
@@ -611,44 +640,136 @@ struct
             let
               val xx = Fine.fromint xx
               val yy = Fine.fromint yy
-              (* Have to provisionally update the body's location,
-                 because it may affect the locus. *)
-              val oldx = !x
-              val oldy = !y
-              val () = x := xx
-              val () = y := yy
 
-              val coarsex = Fine.tocoarse xx
-              val coarsey = Fine.tocoarse yy
-            in
-              (* PERF: Since we perform the collision at coarse
-                 integral coordinates, we're usually testing the
-                 same value as last round, and could often skip
-                 it. This would cease to be true if the locus was
-                 based on fine 256ths, though. *)
-              (* XXX also body collision. *)
-              (* XXX we should "materialize" these objects/edges
-                 (at the collision locus) visually, because when we
-                 back up the player to the valid location, the object
-                 may not look like it will collide, or might not
-                 even be visible! *)
-              case objectcollisions (screen, !shape, (coarsex, coarsey)) of
-                nil => move state
-              | _ =>
-              (* XXX should find collision edge(s), and:
-                 - stick to edge?
-                 - apply edge's velocity from collision to body?
-                 - like if I jump up, next to a wall moving left,
-                 - it should push me to the left, not stop my
-                   movement. *)
+              val (bx, by) = getxy body
+
+              (* Check to see if this fine location would move the
+                 body to a new coarse location. *)
+              val nbx = Fine.tocoarse xx
+              val nby = Fine.tocoarse yy
+
+              fun flatten dir =
+                (* Flatten the velocity vector along the blocked axis. *)
+                case dir of
+                  U => dy := Fine.fromint 0
+                | D => dy := Fine.fromint 0
+                | L => dx := Fine.fromint 0
+                | R => dx := Fine.fromint 0
+
+              fun accept () =
                 let in
-                  x := oldx;
-                  y := oldy;
-
-                  (* Don't just stop! *)
-                  dx := Fine.fromint 0;
-                  dy := Fine.fromint 0
+                  x := xx;
+                  y := yy;
+                  move state
                 end
+
+              (* XXX I wonder if this can just generalize 'go'? *)
+              fun go2 (dir1, dir2) =
+                case (getcontact (screen, body, dir1),
+                      getcontact (screen, body, dir2)) of
+                  ((Air, _), (Air, _)) =>
+                    accept ()
+                | ((Blocked, _), (Air, _)) =>
+                    let in
+                      flatten dir1
+                    end
+                | ((Air, _), (Blocked, _)) =>
+                    let in
+                      flatten dir2
+                    end
+                | ((Blocked, _), (Blocked, _)) =>
+                    let in
+                      flatten dir1;
+                      flatten dir2
+                    end
+                | ((Eject ejection_dir, _), (Air, _)) =>
+                    if ejection_dir = dir2
+                    then
+                      (* The new position ejects us as needed. *)
+                      accept ()
+                    else
+                      let in
+                        (* XXX? This is a situation like this, when moving
+                           diagonally down-right. Right is clear, but down
+                           would require rejecting left.
+
+                                 +--+   \
+                                 |  |    \,
+                                 +--+    ``
+                                    ###
+                                   ####
+
+                           Guess it makes sense to break the tie based
+                           on the fully-clear pixel. *)
+                        flatten dir1
+                      end
+                | ((Air, _), (Eject ejection_dir, _)) =>
+                    if ejection_dir = dir1
+                    then accept ()
+                    else
+                      (* XXX? as above. *)
+                      flatten dir2
+                  (* Anything else should be treated as a collision.
+                     XXX Two ejections could be compatible, maybe? *)
+                | _ =>
+                    let in
+                      flatten dir1;
+                      flatten dir2
+                    end
+
+              (* Move in the given direction, coarsely, if possible. *)
+              fun go dir =
+                case getcontact (screen, body, dir) of
+                  (Air, _) => accept ()
+                | (Blocked, implicated) =>
+                    let in
+                      flatten dir;
+                      (* XXX would be more physical to restart
+                         the line from the current position,
+                         if the other component is nonzero. But
+                         we'll still keep moving, on the next
+                         frame. We'd need to know what fraction of
+                         the vector we've already traveled. *)
+                       ()
+                    end
+                | (Eject ejection_dir, implicated) =>
+                    let
+                      val (edx, edy) = dir_unit_vector ejection_dir
+                    in
+                      (* XXX: Better to move the body to the closest
+                         fine location that has this coarse coordinate.
+                         This minimizes error so should give slightly
+                         smoother motion. *)
+                      x := Fine.+ (xx, Fine.* (Fine.PIXEL, Fine.fromint edx));
+                      y := Fine.+ (yy, Fine.* (Fine.PIXEL, Fine.fromint edy));
+                      (* XXX better to continue the line. But we can't
+                         just call move recursively, because the
+                         bresenham state just ignores the update we
+                         made. *)
+                      ()
+                    end
+            in
+              case (nbx - bx, nby - by) of
+                (0, 0) =>
+                  (* Since subpixels are 1/256th of coarse pixels, this
+                     will be the most common case by far. *)
+                  accept ()
+              | (1, 0) => go R
+              | (~1, 0) => go L
+              | (0, 1) => go D
+              | (0, ~1) => go U
+                (* It's definitely possible (but rare) to have UR, UL, DR, DL
+                   when moving exactly diagonally. *)
+              | (1, 1) => go2 (D, R)
+              | (~1, 1) => go2 (D, L)
+              | (1, ~1) => go2 (U, R)
+              | (~1, ~1) => go2 (U, L)
+              (* Impossible because Bresenham guarantees single fine
+                 pixel steps. *)
+              | (deltax, deltay) =>
+                  raise Physics ("impossible delta: " ^
+                                 Int.toString deltax ^ "/" ^
+                                 Int.toString deltay)
             end
     in
       move state

@@ -793,17 +793,27 @@ struct
       val () =
         case !mode of
           Playing =>
-            let val (playerx, playery) = Physics.getxy player
+            let
+              val (playerx, playery) = Physics.getxy player
+              val Physics.Rect (playerw, playerh) = Physics.getshape player
             in
               (* XXX needs to take into account facing direction (which
                  may need to be external), velocity, lrwish, jumpwish,
                  etc. *)
+              (*
               Draw.blit { dest = (WIDTH, HEIGHT, pixels),
                           src = Images.person,
                           srcrect = NONE,
                           (* Offsets from center pixel. *)
                           dstx = playerx - 5,
                           dsty = playery - 7 }
+              *)
+              Draw.drawrect (pixels,
+                             playerx - playerw div 2,
+                             playery - playerh div 2,
+                             playerx + playerw div 2,
+                             playery + playerh div 2,
+                             SNAPCOLOR)
             end
         | Editing =>
             (* draw mouse. Should probably take mode into account *)
@@ -819,6 +829,16 @@ struct
           Playing => Physics.movebodies (!screen)
         | Editing => ()
 
+      val () =
+        case !mode of
+          Playing =>
+            let val (dx, dy) = Physics.getdxy player
+            in Draw.drawtextcolor (pixels, Font.pxfont,
+                                   SNAPCOLOR, 8, 8,
+                                   Int.toString dx ^ "," ^
+                                   Int.toString dy)
+            end
+        | _ => ()
       (* val () = Draw.noise_postfilter pixels *)
       (* val () = Draw.scanline_postfilter pixels *)
       (* val () = Draw.mixpixel_postfilter 0.25 0.8 pixels *)
@@ -833,6 +853,7 @@ struct
       handle Quit => ()
            | e =>
           let in
+            eprint "\n\nUnhandled exception:\n";
             (case e of
                Screen.Screen s => eprint ("Screen: " ^ s)
              | World.World s => eprint ("World: " ^ s)
