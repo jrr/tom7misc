@@ -35,12 +35,15 @@ struct
 
     val MULT : fine
     val CENTER : fine
+    (* A whole coarse pixel in fine units (same as MULT). *)
+    val PIXEL : fine
   end =
   struct
     type fine = int
 
     val MULT = 256
     val CENTER = MULT div 2
+    val PIXEL = MULT
 
     fun fromint i = i
     fun toint i = i
@@ -52,6 +55,7 @@ struct
   end
   type fine = Fine.fine
 
+  datatype dir = U | D | L | R
   datatype lr = Left | Right
 
   (* XXX more... *)
@@ -126,118 +130,302 @@ struct
   fun getlocus () = (!locusf)()
   fun setlocus f = locusf := f
 
-  (* Collision of an axis-aligned edge with something in the world
-     (currently, just triangular objects). The following describes the
-     behavior for the bottom edge; the other edges are analogous.
+  (* Coarse pixel-based collision for an edge of a rectangular
+     body moving in its normal direction.
 
-     Contact here means exact (coarse) pixel adjacency: We move the
-     body one pixel down (axis-aligned), and then ask if, in that
-     configuration, it is overlapping any triangle. In the case that
-     the triangle is not parameterized (or the body's position does
-     not influence the locus), this is just asking whether there is a
-     solid pixel immediately below the edge.
+     Consider the bottom edge of this body:
 
-     Ignoring coincident edges (XXX is this wise?) there are four types
-     of contact:
+        +-+-+-+-+-+
+        | | | | | |
+        +-+-+-+-+-+
+        | | | | | |
+        +-+-+-+-+-+
+        | | | | | |
+        +-+-+-+-+-+
 
-     1. Air       |  body  |         (No contact.)
-                  +--------+
+     The body is assumed to be non-colliding (i.e., all its
+     pixels are empty) before the call.* We move the body down
+     one coarse pixel (because this may change the locus) and
+     then ask whether any pixel in the bottom row is occupied.
 
-     2. Single    |  body  |
-                  +--------+  ...    (One of the feet contacts
-                     ...---```        a single edge. This includes
-               ---```                 the case of standing on a
-                                      completely flat edge, where
-                                      the contact foot is then
-                                      chosen arbitrarily.)
+     If no pixels are occupied, then the body can move freely
+     along this axis and the result is Air.
 
-     3. Valley    |  body  |         (Simultaneous contact with
-                 \+--------+/         two edges. Not clear whether
-                  \        /          this is actually separate
-                   \      /           from Single, except that
-                                      intuitively, we should be
-                                      able to jump straight up
-                                      from this position.)
+     If more than one pixel is occupied, or there is a single
+     occupied pixel but it's not in the corner, then the
+     result is Blocked.
 
-     4. Peak      |  body  |         (Standing on a single point.
-                  +--------+          Here the contact is not a foot
-                      /\              but somewhere along the body's
-                     /  \             bottom edge. Since all edges
-                                      are on triangles, the point is
-                                      always on two edges. There may
-                                      also be interior edges.)
+     To enable motion along angled surfaces, we also allow the
+     body to be ejected up to one pixel. This happens when
+     exactly one corner pixel is occupied (recall that we are
+     only testing the bottom edge, so this is really to say
+     that one of the edge's endpoints is occupied):
 
-     For situations where there are multiple coincident edges, we
-     just pick one arbitrarily (but consistently). Level designers
-     should probably avoid such situations.
+        +-+-+-+-+-+
+       #| | | | | |
+        +-+-+-+-+-+
+       #| | | | | |
+        +-+-+-+-+-+
+       #|#| | | | |
+        +-+-+-+-+-+
+       # #   v
 
-     The fact that edges can move when the body moves presents some
-     complications:
-       - In principle, a fast-moving object can move completely through
-         the body. We don't attempt to handle this case.
-       - In Single/Valley-type contact, the foot can penetrate
-         deep into the triangle(s) in a single step.
-       - In Peak contact, the peak may penetrate into the body, in such
-         a way that one or more feet are also inside the triangle(s).
+       # #
 
-     Contact is resolved as follows. We assume that the body is not
-     overlapping any triangle at its start position.
-       - Place the body at the new position (one pixel down), which may
-         affect the locus.
-       - First, test if any triangle endpoints are inside the body. If
-         so, this will be a Peak-type contact. Note however a case
-         like this one:
-                       /
-            ++-------+/
-            |        |
-            |       /|
-            |      * |
-            |   .-`  |
-            +--`-----+
-           .-`
+     In this case, ejection is possible if moving the body to
+     the right one pixel leaves the (entire) right edge unblocked.
+     We test this by recursively invoking getcontact on the right
+     edge. In this recursive invocation we don't allow ejection,
+     in order to prevent loops.
+       - If the right edge is completely clear, then the result
+         is Eject.
+       - If the right edge has any pixels, then the result is
+         Blocked. Both the corner pixel (in the y+1 configuration)
+         and right pixel(s) (in the x+1,y+1 configuration) are
+         implicated.
 
-         ... I think this intuitively should be a Single contact (but
-         with which edge?), especially since if the two edges are
-         colinear then it *would* be Single contact if not for the
-         endpoint. XXX: Not sure what to do about this one. May
-         have to inspect the angle, or maybe it's even another type
-         of contact?
-       - If no endpoints are inside the body, test each foot. If the
-         feet are in ... hmm, maybe change this idea.
-*)
-  datatype contact =
-    (* Not touching anything (downward). *)
+     (XXX to dynamics part:
+      In the ejection case, it probably should affect velocity;
+      consider the case when jumping up a very shallow upward
+      slope, where you happen to land your right foot on a pixel
+      and get ejected left.)
+
+     * Note that in the recursive call for ejection, there IS
+       GUARANTEED to be an occupied pixel, violating its own
+       assumption?
+
+     Note that using this edge contact method can allow a body
+     (that moves the locus) to enter a previously-free space
+     (say, with its feet) that causes some object to overlap
+     its head. TODO: Not sure what to do about this (might not
+     be a problem?)
+
+     *)
+  datatype contacttype =
+    (* Not touching anything in the normal direction. *)
       Air
-    (* One foot is on a single line segment. *)
-    | Single of { isleft: bool, vecXXX: unit }
-    (* Each foot on a different line segment. *)
-    | Valley of { vecleftXXX: unit, vecrightXXX: unit }
-    (* Standing on a single point shared by two vectors. *)
-    | Peak of { vecleftXXX: unit, vecrightXXX: unit }
-  (* Also can stand on objects, which I think just acts like
-     a peak, or single flat vector. *)
+    (* Can not move in this direction. *)
+    | Blocked
+    (* Can move, but ejection needed in the returned direction,
+       which will be perpendicular to the movement direction. *)
+    | Eject of dir
 
-  (* Get the current touching state.
-     XXX this is a bit complicated, because the vectors can move
-     as a result of our movement. Might need to propagate this
-     across frames by "sticking" to a vector.
+  (* Move the body one pixel in the given direction, and call the
+     continuation. Restores the old position. Doesn't do anything
+     about exceptions, so those should be considered fatal. *)
+  fun save_excursion (B { x, y, ... }, dir) k =
+    let
+      val oldx = !x
+      val oldy = !y
 
-     perhaps this should be generalized to seeing how an axis-aligned
-     edge collides? We may also need this for L/R collisions, hitting
-     head, etc. *)
-  fun getground (screen, body) =
-    (* XXX *)
-    Air
+      val (dx, dy) =
+        case dir of
+          U => (Fine.fromint 0, Fine.~ Fine.PIXEL)
+        | D => (Fine.fromint 0, Fine.PIXEL)
+        | L => (Fine.~ Fine.PIXEL, Fine.fromint 0)
+        | R => (Fine.PIXEL, Fine.fromint 0)
+
+      val () = x := Fine.+ (oldx, dx);
+      val () = y := Fine.+ (oldy, dy);
+
+      val res = k ()
+    in
+      x := oldx;
+      y := oldy;
+      res
+    end
+
+  (* pixelhit (screen, (lx, ly)) (px, py)
+     Get the first object that contains the coarse pixel (px, py)
+     when the locus is at (lx, ly). Properly staged. *)
+  fun pixelhit (screen, (lx, ly)) =
+    case Areas.gettriangle (Screen.areas screen) (lx, ly) of
+      NONE => (fn _ => NONE)
+    | SOME ((), area) =>
+      let
+        val (a, b, c) = Areas.T.nodes area
+        fun hit (px, py) =
+          let
+            (* XXX still need to figure out the right way to
+               extract commonly pasted code here... *)
+            val (la, lb, lc) =
+              IntMaths.barycentric (Areas.N.coords a (),
+                                    Areas.N.coords b (),
+                                    Areas.N.coords c (),
+                                    (px, py))
+
+            (* Get the coordinates for the node by interpolating
+               between the three keys. *)
+            fun transform n =
+              let
+                (* These shouldn't fail because we checked that the
+                   key is a key of the object above. *)
+                val (ax, ay) = Obj.N.coords n a
+                val (bx, by) = Obj.N.coords n b
+                val (cx, cy) = Obj.N.coords n c
+
+                val nx = Real.round (real ax * la +
+                                     real bx * lb +
+                                     real cx * lc)
+                val ny = Real.round (real ay * la +
+                                     real by * lb +
+                                     real cy * lc)
+              in
+                (nx, ny)
+              end
+
+            fun trianglehit t =
+              let
+                val (d, e, f) = Obj.T.nodes t
+                val dpt = transform d
+                val ept = transform e
+                val fpt = transform f
+              in
+                IntMaths.pointinside (dpt, ept, fpt) (px, py)
+              end
+
+            (* Test a hit against one object. *)
+            fun oneobject obj =
+              Obj.iskey obj a andalso
+              Obj.iskey obj b andalso
+              Obj.iskey obj c andalso
+              List.exists trianglehit (Obj.triangles obj)
+          in
+            List.find oneobject (Screen.objs screen)
+          end
+      in
+        hit
+      end
+
+  (* In any contact type (except air), we return any objects (with a
+     locus, which may be different in the case of ejection) that
+     explain the contact. This may not be a complete set, in case of
+     overlapping objects.*)
+  fun getcontact (screen, body, original_dir : dir) :
+    contacttype * ((int * int) * Screen.obj) list =
+    let
+      (* We need recursive invocations, which have a different
+         contract. *)
+      fun getcon (dir : dir, allow_ejection) =
+        save_excursion (body, dir)
+        (fn () =>
+         (* Body is now moved one pixel in the given direction. *)
+         let
+           (* Integer vec2 ops *)
+           infix 6 /- /+
+           fun (x, y) /- (xx, yy) = (x - xx, y - yy)
+           fun (x, y) /+ (xx, yy) = (x + xx, y + yy)
+
+           (* The following logic is written in the terminology of
+              the botom edge. *)
+           val (bottomleft, bottomright, width, right, left_dir, right_dir) =
+             let
+               val (bx, by) = getxy body
+               val Rect (fullw, fullh) = getshape body
+               val halfw = fullw div 2
+               val halfh = fullh div 2
+             in
+               case dir of
+                 D => ((* bottom left *)
+                       (bx - halfw, by + halfh),
+                       (* bottom right *)
+                       (bx + halfw, by + halfh),
+                       fullw,
+                       (1, 0),
+                       L, R)
+               | U => ((* top right *)
+                       (bx + halfw, by - halfh),
+                       (* top left *)
+                       (bx - halfw, by - halfh),
+                       fullw,
+                       (~1, 0),
+                       R, L)
+               | L => ((* top left *)
+                       (bx - halfw, by - halfh),
+                       (* bottom left *)
+                       (bx - halfw, by + halfh),
+                       fullh,
+                       (0, 1),
+                       U, D)
+               | R => ((* bottom right *)
+                       (bx + halfw, by + halfh),
+                       (* top right *)
+                       (bx + halfw, by - halfh),
+                       fullh,
+                       (0, ~1),
+                       D, U)
+             end
+
+           val leftcorner = ref false
+           val rightcorner = ref false
+           val hitcount = ref 0
+
+           val implicated = ref nil
+
+           val (lx, ly) = getlocus ()
+           val pixelhithere = pixelhit (screen, (lx, ly))
+           fun testpixel px =
+             case pixelhithere px of
+               NONE => ()
+             | SOME obj =>
+                 let in
+                   if px = bottomleft
+                   then leftcorner := true
+                   else ();
+                   if px = bottomright
+                   then rightcorner := true
+                   else ();
+                   hitcount := !hitcount + 1;
+                   implicated := ((lx, ly), obj) :: !implicated
+                 end
+
+           (* Run testpixel for every pixel on the edge.
+              PERF: Can unroll a little to get the corner tests out
+              of the general case. *)
+           fun testedge px =
+             let in
+               testpixel px;
+               if px = bottomright
+               then ()
+               else testedge (px /+ right)
+             end
+
+         in
+           testedge bottomleft;
+           case !hitcount of
+             0 => (Air, nil)
+           | 1 =>
+               (case (!leftcorner, !rightcorner) of
+                  (* For bodies of width 1 *)
+                  (true, true) => (Blocked, !implicated)
+                | (true, _) =>
+                    (case getcon (left_dir, false) of
+                       (Air, _) => (Eject left_dir, !implicated)
+                     | (_, more_implicated) =>
+                         (Blocked, more_implicated @ !implicated))
+                | (_, true) =>
+                    (case getcon (right_dir, false) of
+                       (Air, _) => (Eject right_dir, !implicated)
+                     | (_, more_implicated) =>
+                         (Blocked, more_implicated @ !implicated))
+                | _ => raise Physics "impossible")
+           | _ => (Blocked, !implicated)
+         end)
+    in
+      getcon (original_dir, true)
+    end
 
   (* In 256ths of a pixel per frame per frame. *)
   val GRAVITY : fine = Fine.fromint 8
   val HORIZ_ACCEL : fine = Fine.fromint 12
   val MAX_SPEED : fine = Fine.fromint 256
   val DECEL_AIR : fine = Fine.fromint 8
+  val DECEL_GROUND : fine = Fine.fromint 10
   val JUMP_IMPULSE : fine = Fine.fromint (24 * 16)
   (* 16ths of pixel per frame *)
   val TERMINAL_VELOCITY : fine = Fine.fromint 300
 
+  (* XXX OBSOLETE *)
   (* Get the triangle objects that collide with the shape at (x, y).
      (x, y) is in coarse integral coordinates. *)
   fun objectcollisions (screen, shape, (x, y)) =
@@ -324,7 +512,11 @@ struct
       val ++ = Fine.+
       infix 6 -- ++
 
-      val ground = getground (screen, body)
+      val ontheground =
+        case getcontact (screen, body, D) of
+          (Blocked, _) => true
+        | _ => false
+
       (* TODO:
          jumping when on an angled surface should apply
          x vector as well, I think, since we're "kicking off"
@@ -341,16 +533,18 @@ struct
 
       (* acceleration due to gravity *)
       val () =
-        case ground of
-          Air => dy := !dy ++ GRAVITY
-        | _ => ()
+        if ontheground
+        then ()
+        else dy := !dy ++ GRAVITY
 
       (* TODO: x-gravity "wind" also easy *)
 
-      (* XXX only allow this when the player is on the
-         ground. *)
+      (* XXX: might allow accelerating up slopes if you
+         manage to jump while already moving up. Not clear
+         if this is desirable. Fix might be in "ontheground"
+         or here... *)
       val () =
-        if !jumpwish
+        if !jumpwish andalso ontheground
         then
           let in
             dy := !dy -- JUMP_IMPULSE;
@@ -364,13 +558,18 @@ struct
           SOME Left => dx := !dx -- HORIZ_ACCEL
         | SOME Right => dx := !dx ++ HORIZ_ACCEL
         | NONE =>
-            case ground of
-              Air => if Fine.> (!dx, DECEL_AIR)
-                     then dx := !dx -- DECEL_AIR
-                     else if Fine.< (!dx, Fine.~ DECEL_AIR)
-                          then dx := !dx ++ DECEL_AIR
-                          else dx := Fine.fromint 0
-            | _ => raise Physics "same but more deceleration"
+            let
+              val decel =
+                if ontheground
+                then DECEL_GROUND
+                else DECEL_AIR
+            in
+              if Fine.> (!dx, decel)
+              then dx := !dx -- decel
+              else if Fine.< (!dx, Fine.~ decel)
+                   then dx := !dx ++ decel
+                   else dx := Fine.fromint 0
+            end
 
       val () =
         if Fine.> (!dx, MAX_SPEED)
