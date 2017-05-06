@@ -126,17 +126,88 @@ struct
   fun getlocus () = (!locusf)()
   fun setlocus f = locusf := f
 
-  (* Describes a body's interaction with the "ground", which
-     is what we're "standing on" (this includes wall hanging?).
+  (* Collision of an axis-aligned edge with something in the world
+     (currently, just triangular objects). The following describes the
+     behavior for the bottom edge; the other edges are analogous.
 
-     There can be arbitrarily many parallel vectors occupying
-     the same space; we just pick one of them (probably should
-     do this consistently, though, like the one with the minimum
-     id). Level designers may have to avoid creating such
-     scenarios? *)
-  datatype ground =
+     Contact here means exact (coarse) pixel adjacency: We move the
+     body one pixel down (axis-aligned), and then ask if, in that
+     configuration, it is overlapping any triangle. In the case that
+     the triangle is not parameterized (or the body's position does
+     not influence the locus), this is just asking whether there is a
+     solid pixel immediately below the edge.
+
+     Ignoring coincident edges (XXX is this wise?) there are four types
+     of contact:
+
+     1. Air       |  body  |         (No contact.)
+                  +--------+
+
+     2. Single    |  body  |
+                  +--------+  ...    (One of the feet contacts
+                     ...---```        a single edge. This includes
+               ---```                 the case of standing on a
+                                      completely flat edge, where
+                                      the contact foot is then
+                                      chosen arbitrarily.)
+
+     3. Valley    |  body  |         (Simultaneous contact with
+                 \+--------+/         two edges. Not clear whether
+                  \        /          this is actually separate
+                   \      /           from Single, except that
+                                      intuitively, we should be
+                                      able to jump straight up
+                                      from this position.)
+
+     4. Peak      |  body  |         (Standing on a single point.
+                  +--------+          Here the contact is not a foot
+                      /\              but somewhere along the body's
+                     /  \             bottom edge. Since all edges
+                                      are on triangles, the point is
+                                      always on two edges. There may
+                                      also be interior edges.)
+
+     For situations where there are multiple coincident edges, we
+     just pick one arbitrarily (but consistently). Level designers
+     should probably avoid such situations.
+
+     The fact that edges can move when the body moves presents some
+     complications:
+       - In principle, a fast-moving object can move completely through
+         the body. We don't attempt to handle this case.
+       - In Single/Valley-type contact, the foot can penetrate
+         deep into the triangle(s) in a single step.
+       - In Peak contact, the peak may penetrate into the body, in such
+         a way that one or more feet are also inside the triangle(s).
+
+     Contact is resolved as follows. We assume that the body is not
+     overlapping any triangle at its start position.
+       - Place the body at the new position (one pixel down), which may
+         affect the locus.
+       - First, test if any triangle endpoints are inside the body. If
+         so, this will be a Peak-type contact. Note however a case
+         like this one:
+                       /
+            ++-------+/
+            |        |
+            |       /|
+            |      * |
+            |   .-`  |
+            +--`-----+
+           .-`
+
+         ... I think this intuitively should be a Single contact (but
+         with which edge?), especially since if the two edges are
+         colinear then it *would* be Single contact if not for the
+         endpoint. XXX: Not sure what to do about this one. May
+         have to inspect the angle, or maybe it's even another type
+         of contact?
+       - If no endpoints are inside the body, test each foot. If the
+         feet are in ... hmm, maybe change this idea.
+*)
+  datatype contact =
     (* Not touching anything (downward). *)
-    Air
+      Air
     (* One foot is on a single line segment. *)
     | Single of { isleft: bool, vecXXX: unit }
     (* Each foot on a different line segment. *)
@@ -160,11 +231,12 @@ struct
 
   (* In 256ths of a pixel per frame per frame. *)
   val GRAVITY : fine = Fine.fromint 8
-  val HORIZ_ACCEL : fine = Fine.fromint 16
-  val DECEL_AIR : fine = Fine.fromint 12
+  val HORIZ_ACCEL : fine = Fine.fromint 12
+  val MAX_SPEED : fine = Fine.fromint 256
+  val DECEL_AIR : fine = Fine.fromint 8
   val JUMP_IMPULSE : fine = Fine.fromint (24 * 16)
   (* 16ths of pixel per frame *)
-  val TERMINAL_VELOCITY : fine = Fine.fromint (16 * 16)
+  val TERMINAL_VELOCITY : fine = Fine.fromint 300
 
   (* Get the triangle objects that collide with the shape at (x, y).
      (x, y) is in coarse integral coordinates. *)
@@ -300,8 +372,14 @@ struct
                           else dx := Fine.fromint 0
             | _ => raise Physics "same but more deceleration"
 
-      (* XXX max horizontal speed, max vertical upward speed *)
+      val () =
+        if Fine.> (!dx, MAX_SPEED)
+        then dx := MAX_SPEED
+        else if Fine.< (!dx, Fine.~ MAX_SPEED)
+             then dx := Fine.~ MAX_SPEED
+             else ()
 
+      (* XXX max vertical upward speed *)
       val () =
         if Fine.> (!dy, TERMINAL_VELOCITY)
         then dy := TERMINAL_VELOCITY
@@ -350,6 +428,11 @@ struct
                  it. This would cease to be true if the locus was
                  based on fine 256ths, though. *)
               (* XXX also body collision. *)
+              (* XXX we should "materialize" these objects/edges
+                 (at the collision locus) visually, because when we
+                 back up the player to the valid location, the object
+                 may not look like it will collide, or might not
+                 even be visible! *)
               case objectcollisions (screen, !shape, (coarsex, coarsey)) of
                 nil => move state
               | _ =>
