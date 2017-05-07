@@ -34,7 +34,12 @@ struct
               like a doubly-linked list cell, which would make deleting
               constant-time. *)
            inscene : bool ref,
-           shape : shape ref }
+           shape : shape ref,
+
+           (* Debugging. *)
+           ontheground : bool ref
+
+           }
 
   fun newbody() = B { x = ref (Fine.fromcoarse 128),
                       y = ref (Fine.fromcoarse 128),
@@ -43,7 +48,9 @@ struct
                       lrwish = ref NONE,
                       jumpwish = ref false,
                       inscene = ref false,
-                      shape = ref (Rect (9, 9)) }
+                      shape = ref (Rect (9, 9)),
+
+                      ontheground = ref false }
 
   fun setxy (B { x, y, ... }) (xx, yy) =
     let in
@@ -68,6 +75,8 @@ struct
 
   fun setshape (B { shape, ... }) ss = shape := ss
   fun getshape (B { shape, ... }) = !shape
+
+  fun getontheground (B { ontheground, ... }) = !ontheground
 
   val bodies : body list ref = ref nil
 
@@ -396,6 +405,7 @@ struct
      colliding with aren't even necessarily visible (could
      be in a different area) at the currently displayed locus! *)
   fun movebody (screen, body as B { x, y, dx, dy, shape,
+                                    ontheground = debug_ontheground,
                                     lrwish, jumpwish, ... }) =
     let
       (* TODO: with time-varying locus, it may have moved since
@@ -409,6 +419,8 @@ struct
         case getcontact (screen, body, D) of
           (Blocked, _) => true
         | _ => false
+
+      val () = debug_ontheground := ontheground
 
       (* TODO:
          jumping when on an angled surface should apply
@@ -625,9 +637,7 @@ struct
                        ()
                     end
                 | (Eject ejection_dir, implicated) =>
-                    let
-                      (* val (edx, edy) = dir_unit_vector ejection_dir *)
-                    in
+                    let in
                       (* Move the body to the closest fine location that
                          has this coarse coordinate. This minimizes error
                          so should give slightly smoother motion. *)
@@ -669,6 +679,15 @@ struct
       move state
     end
 
+  fun getdebug screen body =
+    let
+      val ontheground =
+        case getcontact (screen, body, D) of
+          (Blocked, _) => true
+        | _ => false
+    in
+      { ontheground = ontheground }
+    end
 
   fun movebodies screen =
     (* Currently, processes the bodies in order.

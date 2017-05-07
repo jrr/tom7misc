@@ -75,5 +75,13 @@ sig
         *)
   val movebodies : Screen.screen -> unit
 
+  (* Debugging.
+     These are properties from the last call to movebodies. Note that
+     in the case of ontheground, the body is moved after this is calculated,
+     so it may not reflect the "current" state of the body. *)
+  val getontheground : body -> bool
+
+  val getdebug : Screen.screen -> body ->
+    { ontheground : bool }
 
 end

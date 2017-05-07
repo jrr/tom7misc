@@ -832,11 +832,21 @@ struct
       val () =
         case !mode of
           Playing =>
-            let val (dx, dy) = Physics.getdxy player
-            in Draw.drawtextcolor (pixels, Font.pxfont,
-                                   SNAPCOLOR, 8, 8,
-                                   Int.toString (Fine.toint dx) ^ "," ^
-                                   Int.toString (Fine.toint dy))
+            let
+              val DXDY = Draw.mixcolor (0wx77, 0wx00, 0wx90, 0wxFF)
+              val OTG = Draw.mixcolor (0wx77, 0wx90, 0wx90, 0wxFF)
+              val (dx, dy) = Physics.getdxy player
+              val { ontheground, ... } = Physics.getdebug (!screen) player
+            in
+              Draw.drawtextcolor (pixels, Font.pxfont,
+                                  DXDY, 8, 8,
+                                  Int.toString (Fine.toint dx) ^ "," ^
+                                  Int.toString (Fine.toint dy));
+              if ontheground
+              then Draw.drawtextcolor (pixels, Font.pxfont,
+                                       OTG, 52, 8,
+                                       "otg")
+              else ()
             end
         | _ => ()
       (* val () = Draw.noise_postfilter pixels *)
