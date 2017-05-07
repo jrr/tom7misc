@@ -31,4 +31,7 @@ struct
          BAR_7 BAR_8 BAR_9 BAR_10 BARSTART LRARROW LLARROW *)
       }
 
+  fun width ({ width = w, ... } : font) = w
+  fun height ({ height = h, ... } : font) = h
+
 end

@@ -48,6 +48,8 @@ struct
       end
   end
 
+(* XXX otolith depends on bresenham for physics, so can just
+   call that here? *)
   local
 
     fun pair_swap (x, y) = (y, x)
@@ -213,6 +215,28 @@ struct
       loop (x, y, f, ddF_x, ddF_y)
     end
 
+  (* Return the on-screen portion of the rectangle
+     (or NONE if entirely off-screen). Makes x0,y0
+     the top-left corner and x1,y1 the bottom-right. *)
+  fun cliprect (ox0, oy0, ox1, oy1) =
+    let
+      val x0 = Int.min (ox0, ox1)
+      val x1 = Int.max (ox0, ox1)
+      val y0 = Int.min (oy0, oy1)
+      val y1 = Int.max (oy0, oy1)
+    in
+      if x0 >= WIDTH orelse
+         y0 >= HEIGHT orelse
+         x1 < 0 orelse
+         y1 < 0
+      then NONE
+      else SOME (Int.max (x0, 0), Int.max (y0, 0),
+                 Int.min (x1, WIDTH - 1), Int.min (y1, HEIGHT - 1))
+    end
+
+  (* PERF could clip lines. cliprect doesn't work
+     because we don't want to draw edges that are
+     off screen at all *)
   fun drawrect (pixels, x0, y0, x1, y1, c) =
     let in
       drawline (pixels, x0, y0, x1 - 1, y0, c);
@@ -220,6 +244,18 @@ struct
       drawline (pixels, x1, y0, x1, y1 - 1, c);
       drawline (pixels, x0, y1, x1, y1, c)
     end
+
+  fun drawfillrect (pixels, x0, y0, x1, y1, c) =
+    case cliprect (x0, y0, x1, y1) of
+      NONE => ()
+    | SOME (x0, y0, x1, y1) =>
+        Util.for y0 y1
+        (fn y =>
+         Util.for x0 x1
+         (fn x =>
+          (* PERF bounds check *)
+          (* XXX alpha blending? *)
+          Array.update (pixels, y * WIDTH + x, c)))
 
   fun randomize pixels =
     Util.for 0 (HEIGHT - 1)
@@ -562,6 +598,25 @@ struct
                   src = image,
                   dstx = x + width * i,
                   dsty = y,
+                  srcrect = src,
+                  color = color }
+     end)
+
+  fun drawverttextcolor (pixels,
+                         { width, height, image, table, ... } : Font.font,
+                         color : Word32.word, x, y, s) =
+    Util.for 0 (size s - 1)
+    (fn i =>
+     let
+       val c = ord (String.sub (s, i))
+       val srcx = width * Array.sub (table, c)
+       val src = SOME { x = srcx, y = 0, width = width, height = height }
+     in
+       blitmask { dest = (WIDTH, HEIGHT, pixels),
+                  src = image,
+                  dstx = x,
+                  (* XXX +1 is a hack! *)
+                  dsty = y + (height + 1) * i,
                   srcrect = src,
                   color = color }
      end)
