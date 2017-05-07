@@ -800,14 +800,14 @@ struct
               (* XXX needs to take into account facing direction (which
                  may need to be external), velocity, lrwish, jumpwish,
                  etc. *)
-              (*
+
               Draw.blit { dest = (WIDTH, HEIGHT, pixels),
                           src = Images.person,
                           srcrect = NONE,
                           (* Offsets from center pixel. *)
                           dstx = playerx - 5,
-                          dsty = playery - 7 }
-              *)
+                          dsty = playery - 7 };
+
               Draw.drawrect (pixels,
                              playerx - playerw div 2,
                              playery - playerh div 2,
@@ -835,8 +835,8 @@ struct
             let val (dx, dy) = Physics.getdxy player
             in Draw.drawtextcolor (pixels, Font.pxfont,
                                    SNAPCOLOR, 8, 8,
-                                   Int.toString dx ^ "," ^
-                                   Int.toString dy)
+                                   Int.toString (Fine.toint dx) ^ "," ^
+                                   Int.toString (Fine.toint dy))
             end
         | _ => ()
       (* val () = Draw.noise_postfilter pixels *)

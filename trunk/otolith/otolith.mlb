@@ -54,6 +54,9 @@ $(SML_LIB)/basis/mlton.mlb
  render-sig.sml
  render.sml
 
+ fine-sig.sml
+ fine.sml
+
  physics-sig.sml
  physics.sml
 
