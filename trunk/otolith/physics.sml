@@ -679,14 +679,35 @@ struct
       move state
     end
 
+  datatype debug_contact =
+    DB_BLOCKED | DB_EJECT | DB_AIR
+
   fun getdebug screen body =
     let
       val ontheground =
         case getcontact (screen, body, D) of
           (Blocked, _) => true
         | _ => false
+
+      fun mc dir =
+        case getcontact (screen, body, dir) of
+          (Blocked, _) => DB_BLOCKED
+        | (Air, _) => DB_AIR
+        | (Eject _, _) => DB_EJECT
+
+      fun contacts () =
+        { l = mc L,
+          r = mc R,
+          d = mc D }
+
+      fun hit (lx, ly) (x, y) =
+        case pixelhit (screen, (lx, ly)) (x, y) of
+          NONE => false
+        | SOME _ => true
     in
-      { ontheground = ontheground }
+      { ontheground = ontheground,
+        contacts = contacts,
+        hit = hit }
     end
 
   fun movebodies screen =

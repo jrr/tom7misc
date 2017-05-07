@@ -76,12 +76,24 @@ sig
   val movebodies : Screen.screen -> unit
 
   (* Debugging.
+
+     XXX remove this; just use the getdebug call below.
+
      These are properties from the last call to movebodies. Note that
      in the case of ontheground, the body is moved after this is calculated,
      so it may not reflect the "current" state of the body. *)
   val getontheground : body -> bool
 
+  datatype debug_contact =
+    DB_BLOCKED | DB_EJECT | DB_AIR
   val getdebug : Screen.screen -> body ->
-    { ontheground : bool }
+    { ontheground : bool,
+      contacts : unit -> { l : debug_contact,
+                           r : debug_contact,
+                           d : debug_contact },
+      (* hit (lx, ly) (x, y)
+         If the locus is a lx,ly, is the pixel x,y filled? *)
+      hit : (int * int) -> (int * int) -> bool
+      }
 
 end

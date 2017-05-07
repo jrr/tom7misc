@@ -835,18 +835,98 @@ struct
             let
               val DXDY = Draw.mixcolor (0wx77, 0wx00, 0wx90, 0wxFF)
               val OTG = Draw.mixcolor (0wx77, 0wx90, 0wx90, 0wxFF)
+
+              val BLOCKED = Draw.mixcolor (0wx90, 0wx20, 0wx20, 0wxFF)
+              val AIR = Draw.mixcolor (0wx20, 0wx90, 0wx20, 0wxFF)
+              val EJECT = Draw.mixcolor (0wx90, 0wx20, 0wx90, 0wxFF)
+
               val (dx, dy) = Physics.getdxy player
-              val { ontheground, ... } = Physics.getdebug (!screen) player
+              val { ontheground, contacts, hit, ... } =
+                Physics.getdebug (!screen) player
+
+              val { l = lcontact, r = rcontact, d = dcontact, ... } =
+                contacts ()
+
+              val GRIDX = 80
+              val GRIDY = 16
+              val CELLSIZE = 4
+              val CELLBORDER = Draw.mixcolor (0wx33, 0wx33, 0wx33, 0wxFF)
+              val CELLFILLED = Draw.mixcolor (0wxAA, 0wxAA, 0wxAA, 0wxFF)
+
+              fun drawcontact contact vert (x, y) =
+                let
+                  val (s, c)  = case contact of
+                    Physics.DB_BLOCKED => ("blocked", BLOCKED)
+                  | Physics.DB_AIR => ("air", AIR)
+                  | Physics.DB_EJECT => ("eject", EJECT)
+                in
+                  (if vert
+                   then Draw.drawverttextcolor
+                   else Draw.drawtextcolor) (pixels, Font.pxfont,
+                                             c, x, y, s)
+                end
+
+              val (lx, ly) = Physics.getlocus ()
+              val (px, py) = Physics.getxy player
             in
               Draw.drawtextcolor (pixels, Font.pxfont,
                                   DXDY, 8, 8,
                                   Int.toString (Fine.toint dx) ^ "," ^
                                   Int.toString (Fine.toint dy));
+
               if ontheground
               then Draw.drawtextcolor (pixels, Font.pxfont,
                                        OTG, 52, 8,
                                        "otg")
-              else ()
+              else ();
+
+              Util.for 0 (PLAYERH - 1)
+              (fn y =>
+               Util.for 0 (PLAYERW - 1)
+               (fn x =>
+                let
+                  val xx = GRIDX + x * CELLSIZE
+                  val yy = GRIDY + y * CELLSIZE
+                in
+                  (* PERF overlaps *)
+                  Draw.drawrect (pixels,
+                                 xx, yy,
+                                 xx + CELLSIZE, yy + CELLSIZE,
+                                 CELLBORDER)
+                end));
+
+              (* At current locus. *)
+              Util.for ~1 PLAYERH
+              (fn y =>
+               Util.for ~1 PLAYERW
+               (fn x =>
+                let
+                  val pxx = px - (PLAYERW div 2) + x
+                  val pyy = py - (PLAYERH div 2) + y
+
+                  val xx = GRIDX + x * CELLSIZE
+                  val yy = GRIDY + y * CELLSIZE
+
+                  (*
+                  val c = if hit (lx, ly) (pxx, pyy)
+                  then CELLFILLED
+                  else CELLBORDER
+                  *)
+                in
+                  if hit (lx, ly) (pxx, pyy)
+                  then Draw.drawfillrect (pixels,
+                                          xx + 1, yy + 1,
+                                          xx + CELLSIZE - 1, yy + CELLSIZE - 1,
+                                          CELLFILLED)
+                  else ()
+                end));
+
+              drawcontact dcontact false
+                  (GRIDX, GRIDY + (PLAYERH + 2) * CELLSIZE);
+              drawcontact lcontact true
+                  (GRIDX - CELLSIZE * 2 - Font.width Font.pxfont, GRIDY);
+              drawcontact rcontact true
+                  (GRIDX + (PLAYERW + 2) * CELLSIZE, GRIDY)
             end
         | _ => ()
       (* val () = Draw.noise_postfilter pixels *)

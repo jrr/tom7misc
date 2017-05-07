@@ -42,6 +42,11 @@ sig
                  int * int * int * int *
                  Word32.word -> unit
 
+  (* Same but interior pixels as well. *)
+  val drawfillrect : Word32.word Array.array *
+                     int * int * int * int *
+                     Word32.word -> unit
+
   val blit : { dest : int * int * Word32.word Array.array,
                src : Images.image,
                srcrect : { x: int, y: int, width: int, height: int } option,
@@ -61,6 +66,10 @@ sig
                  unit
   val drawtextcolor : Word32.word Array.array * Font.font *
                       Word32.word * int * int * string -> unit
+
+  (* Letters are drawn in the normal orientation, but one per line. *)
+  val drawverttextcolor : Word32.word Array.array * Font.font *
+                          Word32.word * int * int * string -> unit
 
   (* Draws low-level noise background *)
   val randomize : Word32.word Array.array -> unit
