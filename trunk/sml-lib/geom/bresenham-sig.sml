@@ -17,6 +17,9 @@ sig
   val line : coord -> coord -> { step : state -> (state * coord) option,
                                  state : state } * coord
 
+  (* Number of points in the line, including the start point. *)
+  val num_points : coord -> coord -> int
+
   (* points start finish
 
      Returns a list of points. Not usually a good idea unless you really

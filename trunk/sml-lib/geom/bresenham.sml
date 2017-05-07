@@ -12,7 +12,7 @@ struct
   fun pair_map f (x, y) = (f x, f y)
   fun pair_map2 f (x1, y1) (x2, y2) = (f (x1, x2), f (y1, y2))
 
-  fun build ((x0, y0), (x1, _), (dx, dy), (stepx, stepy), post) =
+     fun build ((x0, y0), (x1, _), (dx, dy), (stepx, stepy), post) =
     let
       val frac0 = dy - Int.quot (dx, 2)
       fun step { x0, y0, frac } =
@@ -48,6 +48,14 @@ struct
         else (pair_swap p0, pair_swap p1, pair_swap d'',
               pair_swap step, pair_swap)
     in build build_args
+    end
+
+  fun num_points (x0, y0) (x1, y1) =
+    let
+      val dx = x1 - x0
+      val dy = y1 - y0
+    in
+      Int.max (Int.abs dx, Int.abs dy) + 1
     end
 
   fun points (x0, y0) (x1, y1) =

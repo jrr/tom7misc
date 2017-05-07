@@ -4,18 +4,27 @@ struct
   exception BresenhamTest of string
 
   fun ctos (x, y) = Int.toString x ^ "," ^ Int.toString y
+  fun pltos p = StringUtil.delimit "  " (map ctos p)
 
   fun expect (st, en) expected =
     let
       val actual = Bresenham.points st en
+      val len = Bresenham.num_points st en
     in
+      if len = length actual
+      then ()
+      else raise BresenhamTest ("For " ^ ctos st ^ " -> " ^
+                                ctos en ^ "\nWrong num_points; got " ^
+                                Int.toString len ^ "\nBut actually: " ^
+                                pltos actual ^ "\n");
+
       if actual = expected
       then ()
       else raise BresenhamTest ("For " ^ ctos st ^ " -> " ^
                                 ctos en ^ "\nGot:\n" ^
-                                StringUtil.delimit "  " (map ctos actual) ^
+                                pltos actual ^
                                 "\nBut expected:\n" ^
-                                StringUtil.delimit "  " (map ctos expected) ^
+                                pltos expected ^
                                 "\n")
     end
 
