@@ -14,8 +14,8 @@ sig
   val getxy : body -> int * int
 
   (* Quantities are in 256ths of a pixel per frame *)
-  val setdxy : body -> int * int -> unit
-  val getdxy : body -> int * int
+  val setdxy : body -> Fine.fine * Fine.fine -> unit
+  val getdxy : body -> Fine.fine * Fine.fine
 
   (* Indicates whether the body wants to move left/right;
      these are mutually exclusive. *)

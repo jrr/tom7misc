@@ -11,48 +11,6 @@ struct
        are best (XXX require?), so that the center is a pixel. *)
     Rect of int * int
 
-  structure Fine :>
-  sig
-    eqtype fine
-    (* Raw access. *)
-    val fromint : int -> fine
-    val toint : fine -> int
-
-    (* Place in center of coarse pixel. *)
-    val fromcoarse : int -> fine
-    (* Round to nearest coarse pixel. *)
-    val tocoarse : fine -> int
-
-    val + : fine * fine -> fine
-    val - : fine * fine -> fine
-    val * : fine * fine -> fine
-    val div : fine * fine -> fine
-    val < : fine * fine -> bool
-    val <= : fine * fine -> bool
-    val > : fine * fine -> bool
-    val >= : fine * fine -> bool
-    val ~ : fine -> fine
-
-    val MULT : fine
-    val CENTER : fine
-    (* A whole coarse pixel in fine units (same as MULT). *)
-    val PIXEL : fine
-  end =
-  struct
-    type fine = int
-
-    val MULT = 256
-    val CENTER = MULT div 2
-    val PIXEL = MULT
-
-    fun fromint i = i
-    fun toint i = i
-
-    fun fromcoarse i = i * MULT + CENTER
-    fun tocoarse f = (f + (CENTER - 1)) div MULT
-
-    open Int
-  end
   type fine = Fine.fine
 
   datatype dir = U | D | L | R
@@ -97,11 +55,10 @@ struct
 
   fun setdxy (B { dx, dy, ... }) (dxx, dyy) =
     let in
-      dx := Fine.fromint dxx;
-      dy := Fine.fromint dyy
+      dx := dxx;
+      dy := dyy
     end
-  fun getdxy (B { dx, dy, ... }) = (Fine.toint (!dx),
-                                    Fine.toint (!dy))
+  fun getdxy (B { dx, dy, ... }) = (!dx, !dy)
 
   fun setlrwish (B { lrwish, ... }) lr = lrwish := lr
   fun getlrwish (B { lrwish, ... }) = !lrwish
@@ -423,90 +380,15 @@ struct
     end
 
   (* In 256ths of a pixel per frame per frame. *)
-  val GRAVITY : fine = Fine.fromint 8
-  val HORIZ_ACCEL : fine = Fine.fromint 12
-  val MAX_SPEED : fine = Fine.fromint 256
-  val DECEL_AIR : fine = Fine.fromint 8
-  val DECEL_GROUND : fine = Fine.fromint 10
+  val GRAVITY : fine = Fine.fromint 6
+  val HORIZ_ACCEL_GROUND : fine = Fine.fromint 4
+  val HORIZ_ACCEL_AIR : fine = Fine.fromint 2
+  val MAX_SPEED : fine = Fine.fromint 200
+  val DECEL_AIR : fine = Fine.fromint 1
+  val DECEL_GROUND : fine = Fine.fromint 4
   val JUMP_IMPULSE : fine = Fine.fromint (24 * 16)
   (* 16ths of pixel per frame *)
-  val TERMINAL_VELOCITY : fine = Fine.fromint 300
-
-  (* XXX OBSOLETE *)
-  (* Get the triangle objects that collide with the shape at (x, y).
-     (x, y) is in coarse integral coordinates. *)
-  fun objectcollisions (screen, shape, (x, y)) =
-    let
-      val (lx, ly) = !locusf()
-    in
-      case Areas.gettriangle (Screen.areas screen) (lx, ly) of
-        NONE => nil
-      | SOME ((), area) =>
-          let
-            val (a, b, c) = Areas.T.nodes area
-
-            (* XXX This duplicates some drawing code, and probably also
-               something we need to write for 'getground', etc -- some
-               core needs to be extracted I think *)
-            val (la, lb, lc) =
-              IntMaths.barycentric (Areas.N.coords a (),
-                                    Areas.N.coords b (),
-                                    Areas.N.coords c (),
-                                    (x, y))
-
-            (* Get the coordinates for the node by interpolating
-               between the three keys. *)
-            fun transform n =
-              let
-                (* These shouldn't fail because we checked that the
-                   key is a key of the object above. *)
-                val (ax, ay) = Obj.N.coords n a
-                val (bx, by) = Obj.N.coords n b
-                val (cx, cy) = Obj.N.coords n c
-
-                val nx = Real.round (real ax * la +
-                                     real bx * lb +
-                                     real cx * lc)
-                val ny = Real.round (real ay * la +
-                                     real by * lb +
-                                     real cy * lc)
-              in
-                (nx, ny)
-              end
-
-            fun trianglehit t =
-              let
-                val (d, e, f) = Obj.T.nodes t
-                val dpt = transform d
-                val ept = transform e
-                val fpt = transform f
-                fun hit (xx, yy) = IntMaths.pointinside (dpt, ept, fpt) (xx, yy)
-              in
-                (* n.b., this allows a very narrow triangle to pass
-                   between the player's feet... *)
-                case shape of
-                  Rect (w, h) =>
-                    let
-                      val whalf = w div 2
-                      val hhalf = h div 2
-                    in
-                      hit (x - whalf, y - hhalf) orelse
-                      hit (x + whalf, y - hhalf) orelse
-                      hit (x - whalf, y + hhalf) orelse
-                      hit (x + whalf, y + hhalf)
-                    end
-              end
-
-            (* Test a hit against one object. *)
-            fun oneobject obj =
-              Obj.iskey obj a andalso
-              Obj.iskey obj b andalso
-              Obj.iskey obj c andalso
-              List.exists trianglehit (Obj.triangles obj)
-          in
-            List.filter oneobject (Screen.objs screen)
-          end
-    end
+  val TERMINAL_VELOCITY : fine = Fine.fromint 260
 
   (* XXX need some way to return the implicated objects
      (from the call to getcontact via 'go', perhaps including
@@ -550,6 +432,9 @@ struct
 
       (* TODO: x-gravity "wind" also easy *)
 
+      (* XXX: When running down shallow slopes, there are
+         moments where we are not "on the ground". It should
+         always be possible to jump! *)
       (* XXX: might allow accelerating up slopes if you
          manage to jump while already moving up. Not clear
          if this is desirable. Fix might be in "ontheground"
@@ -565,24 +450,31 @@ struct
 
       (* acceleration due to player control. *)
       fun accelerate () =
-        case !lrwish of
-          SOME Left =>
-            (case getcontact (screen, body, L) of
-               (Blocked, _) => false
-             | _ =>
-                 let in
-                   dx := !dx -- HORIZ_ACCEL;
-                   true
-                 end)
-        | SOME Right =>
-             (case getcontact (screen, body, R) of
-                (Blocked, _) => false
-              | _ =>
-                  let in
-                    dx := !dx ++ HORIZ_ACCEL;
-                    true
-                  end)
-        | NONE => false
+        let
+          val accel =
+            if ontheground
+            then HORIZ_ACCEL_GROUND
+            else HORIZ_ACCEL_AIR
+        in
+          case !lrwish of
+            SOME Left =>
+              (case getcontact (screen, body, L) of
+                 (Blocked, _) => false
+               | _ =>
+                   let in
+                     dx := !dx -- accel;
+                     true
+                   end)
+          | SOME Right =>
+               (case getcontact (screen, body, R) of
+                  (Blocked, _) => false
+                | _ =>
+                    let in
+                      dx := !dx ++ accel;
+                      true
+                    end)
+          | NONE => false
+        end
 
       (* Allow the player to accelerate if she can. But
          if not, then apply air or ground deceleration. *)
@@ -632,7 +524,7 @@ struct
         end
 
       (* Generate the next point along the vector. If it's clear,
-         we update our position. *)
+         we update our position and continue. *)
       fun move state =
         case step state of
           NONE => ()
@@ -734,14 +626,16 @@ struct
                     end
                 | (Eject ejection_dir, implicated) =>
                     let
-                      val (edx, edy) = dir_unit_vector ejection_dir
+                      (* val (edx, edy) = dir_unit_vector ejection_dir *)
                     in
-                      (* XXX: Better to move the body to the closest
-                         fine location that has this coarse coordinate.
-                         This minimizes error so should give slightly
-                         smoother motion. *)
-                      x := Fine.+ (xx, Fine.* (Fine.PIXEL, Fine.fromint edx));
-                      y := Fine.+ (yy, Fine.* (Fine.PIXEL, Fine.fromint edy));
+                      (* Move the body to the closest fine location that
+                         has this coarse coordinate. This minimizes error
+                         so should give slightly smoother motion. *)
+                      (case ejection_dir of
+                         U => y := Fine.barely_prev_pixel yy
+                       | D => y := Fine.barely_next_pixel yy
+                       | L => x := Fine.barely_prev_pixel xx
+                       | R => x := Fine.barely_next_pixel xx);
                       (* XXX better to continue the line. But we can't
                          just call move recursively, because the
                          bresenham state just ignores the update we
