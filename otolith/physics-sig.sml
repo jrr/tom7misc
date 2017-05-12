@@ -84,6 +84,14 @@ sig
      so it may not reflect the "current" state of the body. *)
   val getontheground : body -> bool
 
+  (* sethistorysize body n
+     Ask the physics engine to keep n previous instances of the state
+     of this body. This allows rewinding to debug bad physics interactions.
+
+     Calling this always clears the buffer. *)
+  val sethistorysize : body -> int -> unit
+  val undo : body -> unit
+
   datatype debug_contact =
     DB_BLOCKED | DB_EJECT | DB_AIR
   val getdebug : Screen.screen -> body ->

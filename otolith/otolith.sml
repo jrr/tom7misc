@@ -32,6 +32,8 @@ struct
 
   datatype mode = Editing | Playing
   val mode = ref Editing : mode ref
+  datatype pausing = Paused | StepForward | Unpaused
+  val paused = ref Unpaused
 
   (* Always in game pixels. The event loop scales down x,y before
      calling any of these functions. *)
@@ -39,6 +41,8 @@ struct
   val mousey = ref 0
 
   val player = Physics.newbody ()
+  (* PERF! *)
+  val () = Physics.sethistorysize player 128
   (* Physical size of player (not player graphic) *)
   val PLAYERW = 5
   val PLAYERH = 11
@@ -609,6 +613,26 @@ struct
     | keydown SDL.SDLK_BACKSLASH = holdingbackslash := true
     | keydown SDL.SDLK_TAB = holdingtab := true
 
+    | keydown SDL.SDLK_PAUSE =
+    (case !paused of
+       Unpaused => paused := Paused
+     | _ => paused := Unpaused)
+
+    | keydown SDL.SDLK_PERIOD =
+       let in
+         (* XXX should redo if we have (forward) history. *)
+         paused := StepForward
+       end
+
+    | keydown SDL.SDLK_COMMA =
+       (case !mode of
+          Playing =>
+            let in
+              paused := Paused;
+              Physics.undo player
+            end
+        | _ => ())
+
     | keydown SDL.SDLK_UP = dirkey (0, ~1)
     | keydown SDL.SDLK_DOWN = dirkey (0, 1)
     | keydown SDL.SDLK_LEFT =
@@ -826,7 +850,15 @@ struct
       (* Update physics. *)
       val drawobjects =
         case !mode of
-          Playing => Physics.movebodies (!screen)
+          Playing =>
+            (case !paused of
+               Unpaused => Physics.movebodies (!screen)
+             | StepForward =>
+                 let in
+                   Physics.movebodies (!screen);
+                   paused := Paused
+                 end
+             | Paused => ())
         | Editing => ()
 
       val () =
@@ -852,6 +884,7 @@ struct
               val CELLSIZE = 4
               val CELLBORDER = Draw.mixcolor (0wx33, 0wx33, 0wx33, 0wxFF)
               val CELLFILLED = Draw.mixcolor (0wxAA, 0wxAA, 0wxAA, 0wxFF)
+              val INNERCELLFILLED = Draw.mixcolor (0wxFF, 0wx77, 0wx77, 0wxFF)
 
               fun drawcontact contact vert (x, y) =
                 let
@@ -907,6 +940,11 @@ struct
                   val xx = GRIDX + x * CELLSIZE
                   val yy = GRIDY + y * CELLSIZE
 
+                  val c =
+                    if x >= 0 andalso x < PLAYERW andalso
+                       y >= 0 andalso y < PLAYERH
+                    then INNERCELLFILLED
+                    else CELLFILLED
                   (*
                   val c = if hit (lx, ly) (pxx, pyy)
                   then CELLFILLED
@@ -917,7 +955,7 @@ struct
                   then Draw.drawfillrect (pixels,
                                           xx + 1, yy + 1,
                                           xx + CELLSIZE - 1, yy + CELLSIZE - 1,
-                                          CELLFILLED)
+                                          c)
                   else ()
                 end));
 
