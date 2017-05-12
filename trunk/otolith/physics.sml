@@ -8,7 +8,7 @@ struct
 
   datatype shape =
     (* width, height; centered at x,y. Odd dimensions
-       are best (XXX require?), so that the center is a pixel. *)
+       are best (XXX required?), so that the center is a pixel. *)
     Rect of int * int
 
   type fine = Fine.fine
@@ -20,6 +20,11 @@ struct
     | dir_unit_vector D = (0, 1)
     | dir_unit_vector L = (~1, 0)
     | dir_unit_vector R = (1, 0)
+
+  datatype body_data = BD of
+    { x : fine, y : fine, dx : fine, dy : fine,
+      lrwish : lr option, jumpwish : bool,
+      shape : shape }
 
   (* XXX more... *)
   datatype body =
@@ -37,20 +42,41 @@ struct
            shape : shape ref,
 
            (* Debugging. *)
-           ontheground : bool ref
+           ontheground : bool ref,
+           history : body_data LastNBuffer.buffer option ref }
 
-           }
+    fun newbody () =
+      B { x = ref (Fine.fromcoarse 128),
+          y = ref (Fine.fromcoarse 128),
+          dx = ref (Fine.fromint 0),
+          dy = ref (Fine.fromint 0),
+          lrwish = ref NONE,
+          jumpwish = ref false,
+          inscene = ref false,
+          shape = ref (Rect (9, 9)),
+          (* XXX *)
+          ontheground = ref false,
+          history = ref NONE }
 
-  fun newbody() = B { x = ref (Fine.fromcoarse 128),
-                      y = ref (Fine.fromcoarse 128),
-                      dx = ref (Fine.fromint 0),
-                      dy = ref (Fine.fromint 0),
-                      lrwish = ref NONE,
-                      jumpwish = ref false,
-                      inscene = ref false,
-                      shape = ref (Rect (9, 9)),
+  fun getdata (B { x, y, dx, dy, lrwish, jumpwish,
+                   inscene = _, shape, ontheground = _,
+                   history = _ }) =
+    BD { x = !x, y = !y, dx = !dx, dy = !dy,
+         lrwish = !lrwish, jumpwish = !jumpwish,
+         shape = !shape }
 
-                      ontheground = ref false }
+  fun setdata (B { x, y, dx, dy, lrwish, jumpwish,
+                   inscene = _, shape, ontheground = _,
+                   history = _}) (BD r) =
+    let in
+      x := #x r;
+      y := #y r;
+      dx := #dx r;
+      dy := #dy r;
+      lrwish := #lrwish r;
+      jumpwish := #jumpwish r;
+      shape := #shape r
+    end
 
   fun setxy (B { x, y, ... }) (xx, yy) =
     let in
@@ -79,6 +105,8 @@ struct
   fun getontheground (B { ontheground, ... }) = !ontheground
 
   val bodies : body list ref = ref nil
+  val locusf : (unit -> int * int) ref =
+    ref (fn () => (Constants.WIDTH div 2, Constants.HEIGHT div 2))
 
   fun addbody (body as B { inscene = ref true, ... }) =
     raise Physics "body already in scene in addbody"
@@ -96,8 +124,6 @@ struct
         bodies := List.filter (fn other => other <> body) (!bodies)
       end
 
-  val locusf : (unit -> int * int) ref =
-    ref (fn () => (Constants.WIDTH div 2, Constants.HEIGHT div 2))
   fun getlocus () = (!locusf)()
   fun setlocus f = locusf := f
 
@@ -180,6 +206,14 @@ struct
     (* Can move, but ejection needed in the returned direction,
        which will be perpendicular to the movement direction. *)
     | Eject of dir
+
+  fun dirstring U = "U"
+    | dirstring D = "D"
+    | dirstring L = "L"
+    | dirstring R = "R"
+  fun contactstring Air = "A"
+    | contactstring Blocked = "B"
+    | contactstring (Eject d) = "E" ^ dirstring d
 
   (* Move the body one pixel in the given direction, and call the
      continuation. Restores the old position. Doesn't do anything
@@ -406,8 +440,13 @@ struct
      be in a different area) at the currently displayed locus! *)
   fun movebody (screen, body as B { x, y, dx, dy, shape,
                                     ontheground = debug_ontheground,
-                                    lrwish, jumpwish, ... }) =
+                                    lrwish, jumpwish, history, ... }) =
     let
+      val () =
+        case !history of
+          NONE => ()
+        | SOME buf => LastNBuffer.push_front (buf, getdata body)
+
       (* TODO: with time-varying locus, it may have moved since
          last frame, which might have put bodies inside walls.
          First push them out. Requires some history... *)
@@ -569,89 +608,114 @@ struct
 
               (* XXX I wonder if this can just generalize 'go'? *)
               fun go2 (dir1, dir2) =
-                case (getcontact (screen, body, dir1),
-                      getcontact (screen, body, dir2)) of
-                  ((Air, _), (Air, _)) =>
-                    accept ()
-                | ((Blocked, _), (Air, _)) =>
-                    let in
-                      flatten dir1
-                    end
-                | ((Air, _), (Blocked, _)) =>
-                    let in
-                      flatten dir2
-                    end
-                | ((Blocked, _), (Blocked, _)) =>
-                    let in
-                      flatten dir1;
-                      flatten dir2
-                    end
-                | ((Eject ejection_dir, _), (Air, _)) =>
-                    if ejection_dir = dir2
-                    then
-                      (* The new position ejects us as needed. *)
+                let
+                  val (c1, c2) = (getcontact (screen, body, dir1),
+                                  getcontact (screen, body, dir2))
+                  val () = print ("go2 " ^
+                                  dirstring dir1 ^ " " ^
+                                  dirstring dir2 ^ " -> " ^
+                                  contactstring (#1 c1) ^ " " ^
+                                  contactstring (#1 c2) ^ "\n")
+                in
+                  case (c1, c2) of
+                    ((Air, _), (Air, _)) =>
+                      (* XXX buggy in this case:
+
+                         +--+
+                         |  |     \,
+                         +--+     ``
+                             #
+
+                         because it actually allows entering
+                         the pixel. *)
+
                       accept ()
-                    else
+                  | ((Blocked, _), (Air, _)) =>
                       let in
-                        (* XXX? This is a situation like this, when moving
-                           diagonally down-right. Right is clear, but down
-                           would require rejecting left.
-
-                                 +--+   \
-                                 |  |    \,
-                                 +--+    ``
-                                    ###
-                                   ####
-
-                           Guess it makes sense to break the tie based
-                           on the fully-clear pixel. *)
                         flatten dir1
                       end
-                | ((Air, _), (Eject ejection_dir, _)) =>
-                    if ejection_dir = dir1
-                    then accept ()
-                    else
-                      (* XXX? as above. *)
-                      flatten dir2
-                  (* Anything else should be treated as a collision.
-                     XXX Two ejections could be compatible, maybe? *)
-                | _ =>
-                    let in
-                      flatten dir1;
-                      flatten dir2
-                    end
+                  | ((Air, _), (Blocked, _)) =>
+                      let in
+                        flatten dir2
+                      end
+                  | ((Blocked, _), (Blocked, _)) =>
+                      let in
+                        flatten dir1;
+                        flatten dir2
+                      end
+                  | ((Eject ejection_dir, _), (Air, _)) =>
+                      if ejection_dir = dir2
+                      then
+                        (* The new position ejects us as needed. *)
+                        accept ()
+                      else
+                        let in
+                          (* XXX? This is a situation like this, when moving
+                             diagonally down-right. Right is clear, but down
+                             would require rejecting left.
+
+                                   +--+   \
+                                   |  |    \,
+                                   +--+    ``
+                                      ###
+                                     ####
+
+                             Guess it makes sense to break the tie based
+                             on the fully-clear pixel. *)
+                          flatten dir1
+                        end
+                  | ((Air, _), (Eject ejection_dir, _)) =>
+                      if ejection_dir = dir1
+                      then accept ()
+                      else
+                        (* XXX? as above. *)
+                        flatten dir2
+                    (* Anything else should be treated as a collision.
+                       XXX Two ejections could be compatible, maybe? *)
+                  | _ =>
+                      let in
+                        flatten dir1;
+                        flatten dir2
+                      end
+                end
 
               (* Move in the given direction, coarsely, if possible. *)
               fun go dir =
-                case getcontact (screen, body, dir) of
-                  (Air, _) => accept ()
-                | (Blocked, implicated) =>
-                    let in
-                      flatten dir;
-                      (* XXX would be more physical to restart
-                         the line from the current position,
-                         if the other component is nonzero. But
-                         we'll still keep moving, on the next
-                         frame. We'd need to know what fraction of
-                         the vector we've already traveled. *)
-                       ()
-                    end
-                | (Eject ejection_dir, implicated) =>
-                    let in
-                      (* Move the body to the closest fine location that
-                         has this coarse coordinate. This minimizes error
-                         so should give slightly smoother motion. *)
-                      (case ejection_dir of
-                         U => y := Fine.barely_prev_pixel yy
-                       | D => y := Fine.barely_next_pixel yy
-                       | L => x := Fine.barely_prev_pixel xx
-                       | R => x := Fine.barely_next_pixel xx);
-                      (* XXX better to continue the line. But we can't
-                         just call move recursively, because the
-                         bresenham state just ignores the update we
-                         made. *)
-                      ()
-                    end
+                let
+                  val c = getcontact (screen, body, dir)
+                  val () = print ("go " ^ dirstring dir ^ " -> " ^
+                                  contactstring (#1 c) ^ "\n")
+                in
+                  case c of
+                    (Air, _) => accept ()
+                  | (Blocked, implicated) =>
+                      let in
+                        flatten dir;
+                        (* XXX would be more physical to restart
+                           the line from the current position,
+                           if the other component is nonzero. But
+                           we'll still keep moving, on the next
+                           frame. We'd need to know what fraction of
+                           the vector we've already traveled. *)
+                        ()
+                      end
+                  | (Eject ejection_dir, implicated) =>
+                      let in
+                        (* Move the body to the closest fine location that
+                           has this coarse coordinate. This minimizes error
+                           so should give slightly smoother motion. *)
+                        (case ejection_dir of
+                           U => y := Fine.barely_prev_pixel yy
+                         | D => y := Fine.barely_next_pixel yy
+                         | L => x := Fine.barely_prev_pixel xx
+                         | R => x := Fine.barely_next_pixel xx);
+                           (* XXX better to continue the line. But we can't
+                              just call move recursively, because the
+                              bresenham state just ignores the update we
+                              made. *)
+                           ()
+                      end
+                end
             in
               case (nbx - bx, nby - by) of
                 (0, 0) =>
@@ -678,6 +742,19 @@ struct
     in
       move state
     end
+
+  fun sethistorysize (body as B { history, ... }) n =
+    history := SOME (LastNBuffer.buffer (n, getdata body))
+  fun undo (body as B { history, ... }) =
+    case !history of
+      NONE => ()
+    | SOME buf =>
+        let
+          val bd = LastNBuffer.sub (buf, 0)
+        in
+          setdata body bd;
+          LastNBuffer.rotate_left buf
+        end
 
   datatype debug_contact =
     DB_BLOCKED | DB_EJECT | DB_AIR
