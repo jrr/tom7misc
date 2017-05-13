@@ -302,6 +302,84 @@ struct
         hit
       end
 
+  (* Get coordinates and so on for one of the body's edges. Terminology
+     is in terms of the bottom edge, so e.g. left_dir is L in that case. *)
+  fun get_body_edge (body, dir) =
+    let
+      val (bx, by) = getxy body
+      val Rect (fullw, fullh) = getshape body
+      val halfw = fullw div 2
+      val halfh = fullh div 2
+      val (bottomleft, bottomright, width, right, left_dir, right_dir) =
+        case dir of
+          D => ((* bottom left *)
+                (bx - halfw, by + halfh),
+                (* bottom right *)
+                (bx + halfw, by + halfh),
+                fullw,
+                (1, 0),
+                L, R)
+        | U => ((* top right *)
+                (bx + halfw, by - halfh),
+                (* top left *)
+                (bx - halfw, by - halfh),
+                fullw,
+                (~1, 0),
+                R, L)
+        | L => ((* top left *)
+                (bx - halfw, by - halfh),
+                (* bottom left *)
+                (bx - halfw, by + halfh),
+                fullh,
+                (0, 1),
+                U, D)
+        | R => ((* bottom right *)
+                (bx + halfw, by + halfh),
+                (* top right *)
+                (bx + halfw, by - halfh),
+                fullh,
+                (0, ~1),
+                D, U)
+    in
+      { bottomleft = bottomleft,
+        bottomright = bottomright,
+        width = width,
+        right = right,
+        left_dir = left_dir,
+        right_dir = right_dir }
+    end
+
+
+  (* Move the body in both directions and then check whether
+     its corner pixel (in those two directions) is occupied.
+     dir1 and dir2 must be perpendicular.
+     TODO: should maybe return implicated body too? *)
+  fun corner_pixel (screen, body, dir1, dir2) : bool =
+    save_excursion (body, dir1)
+    (fn () =>
+     save_excursion (body, dir2)
+     (fn () =>
+      let
+        val { bottomleft, bottomright, left_dir, right_dir, ... } =
+          get_body_edge (body, dir1)
+
+        (* The corner pixel to test. *)
+        val (px, py) =
+          (* The directions are perpendicular, we'll return one of bottomleft
+             or bottomright. *)
+          if left_dir = dir2
+          then bottomleft
+          else if right_dir = dir2
+               then bottomright
+               else raise Physics "args to corner_pixel are not perp"
+
+        val (lx, ly) = getlocus ()
+      in
+        case pixelhit (screen, (lx, ly)) (px, py) of
+          NONE => false
+        | SOME _ => true
+      end))
+
   (* In any contact type (except air), we return any objects (with a
      locus, which may be different in the case of ejection) that
      explain the contact. This may not be a complete set, in case of
@@ -323,43 +401,8 @@ struct
 
            (* The following logic is written in the terminology of
               the botom edge. *)
-           val (bottomleft, bottomright, width, right, left_dir, right_dir) =
-             let
-               val (bx, by) = getxy body
-               val Rect (fullw, fullh) = getshape body
-               val halfw = fullw div 2
-               val halfh = fullh div 2
-             in
-               case dir of
-                 D => ((* bottom left *)
-                       (bx - halfw, by + halfh),
-                       (* bottom right *)
-                       (bx + halfw, by + halfh),
-                       fullw,
-                       (1, 0),
-                       L, R)
-               | U => ((* top right *)
-                       (bx + halfw, by - halfh),
-                       (* top left *)
-                       (bx - halfw, by - halfh),
-                       fullw,
-                       (~1, 0),
-                       R, L)
-               | L => ((* top left *)
-                       (bx - halfw, by - halfh),
-                       (* bottom left *)
-                       (bx - halfw, by + halfh),
-                       fullh,
-                       (0, 1),
-                       U, D)
-               | R => ((* bottom right *)
-                       (bx + halfw, by + halfh),
-                       (* top right *)
-                       (bx + halfw, by - halfh),
-                       fullh,
-                       (0, ~1),
-                       D, U)
-             end
+           val { bottomleft, bottomright, width, right, left_dir, right_dir } =
+             get_body_edge (body, dir)
 
            val leftcorner = ref false
            val rightcorner = ref false
@@ -562,16 +605,44 @@ struct
          it. To prevent quantum tunneling, we iterate along the
          velocity vector, checking at each integral point whether we
          have any collision with a body or (possibly moving) triangle
-         object. *)
-      (* The first pixel in the line is returned as the second parameter.
-         There's no point in checking it because we're already there. *)
-      val ({ step, state }, _) =
+         object. The iteration is done using a fine integral line
+         (Bresenham's algorithm). We also compute the major axis so
+         that we can break ties in the loop below. *)
+      val (step, state, major_dir) =
         let
-          val endx = !x ++ !dx
-          val endy = !y ++ !dy
+          val dx = !dx
+          val dy = !dy
+          val endx = !x ++ dx
+          val endy = !y ++ dy
+
+          (* The first pixel in the line is returned as the second parameter.
+             There's no point in checking it because we're already there. *)
+          val ({ step, state }, _) =
+            Bresenham.line (Fine.toint (!x), Fine.toint (!y))
+                           (Fine.toint endx, Fine.toint endy)
+
+          val dxmag = Fine.abs dx
+          val dymag = Fine.abs dy
+
+          val major =
+            if dx = dy
+            (* XXX: We could use something else to break ties here,
+               like possibly having some histeresis? I preferred
+               L/R for smoother motion, but perhaps D results in
+               fewer explotable glitches? *)
+            then (case Fine.sign dx of
+                    ~1 => L
+                  | 1 => R
+                  | _ (* zero *) => D)
+            else if Fine.< (dx, dy)
+                 then (case Fine.sign dy of
+                         ~1 => U
+                       | _ => D)
+                 else (case Fine.sign dx of
+                         ~1 => L
+                       | _ => R)
         in
-          Bresenham.line (Fine.toint (!x), Fine.toint (!y))
-                         (Fine.toint endx, Fine.toint endy)
+          (step, state, major)
         end
 
       (* Generate the next point along the vector. If it's clear,
@@ -599,12 +670,37 @@ struct
                 | L => dx := Fine.fromint 0
                 | R => dx := Fine.fromint 0
 
+              (* Move as the line would have us move. *)
               fun accept () =
+                let in
+                  x := xx;
+                  y := yy
+                end
+              fun accept_and_continue () =
                 let in
                   x := xx;
                   y := yy;
                   move state
                 end
+
+              (* Geometry is forcing us to move (one coarse pixel) in given
+                 direction, even though it is not exactly how the line
+                 would have us move. Move the body to the closest fine
+                 location that has this coarse coordinate. This
+                 minimizes error so should give slightly smoother
+                 motion.
+
+                 We don't update velocity, hoping to continue smooth
+                 motion in this case. XXX it would be better to even
+                 continue the line -- but we can't just call move
+                 recursively because the bresenham state ignores the
+                 deflection we just made. *)
+              fun eject dir =
+                (case dir of
+                  U => y := Fine.barely_prev_pixel (!y)
+                | D => y := Fine.barely_next_pixel (!y)
+                | L => x := Fine.barely_prev_pixel (!x)
+                | R => x := Fine.barely_next_pixel (!x))
 
               (* XXX I wonder if this can just generalize 'go'? *)
               fun go2 (dir1, dir2) =
@@ -619,17 +715,37 @@ struct
                 in
                   case (c1, c2) of
                     ((Air, _), (Air, _)) =>
-                      (* XXX buggy in this case:
+                      (* Though the two directions (wlog: down and
+                         right) are clear on their own, the
+                         combination might still enter a pixel.
 
-                         +--+
-                         |  |     \,
-                         +--+     ``
-                             #
+                          +--+
+                          |  |     \,
+                          +--+     ``
+                              #
 
-                         because it actually allows entering
-                         the pixel. *)
+                         If this is the case we try moving along
+                         the major axis (only). *)
+                      if corner_pixel (screen, body, dir1, dir2)
+                      then
+                        let in
+                          print ("air/air corner px, maj: " ^
+                                 dirstring major_dir ^ "\n");
 
-                      accept ()
+                          (* In this case we only move in the major
+                             dir (via eject, to try to stay as close
+                             as possible to the corner), but we don't
+                             accept the new position (it's illegal).
+
+                             XXX Alternate would be to accept and then
+                             eject in reverse -- might be better? *)
+                          if dir1 = major_dir
+                          then eject dir1
+                          else if dir2 = major_dir
+                               then eject dir2
+                               else raise Physics "impossible go2/aa"
+                        end
+                      else accept_and_continue ()
                   | ((Blocked, _), (Air, _)) =>
                       let in
                         flatten dir1
@@ -647,7 +763,7 @@ struct
                       if ejection_dir = dir2
                       then
                         (* The new position ejects us as needed. *)
-                        accept ()
+                        accept_and_continue ()
                       else
                         let in
                           (* XXX? This is a situation like this, when moving
@@ -666,7 +782,7 @@ struct
                         end
                   | ((Air, _), (Eject ejection_dir, _)) =>
                       if ejection_dir = dir1
-                      then accept ()
+                      then accept_and_continue ()
                       else
                         (* XXX? as above. *)
                         flatten dir2
@@ -687,7 +803,7 @@ struct
                                   contactstring (#1 c) ^ "\n")
                 in
                   case c of
-                    (Air, _) => accept ()
+                    (Air, _) => accept_and_continue ()
                   | (Blocked, implicated) =>
                       let in
                         flatten dir;
@@ -701,19 +817,9 @@ struct
                       end
                   | (Eject ejection_dir, implicated) =>
                       let in
-                        (* Move the body to the closest fine location that
-                           has this coarse coordinate. This minimizes error
-                           so should give slightly smoother motion. *)
-                        (case ejection_dir of
-                           U => y := Fine.barely_prev_pixel yy
-                         | D => y := Fine.barely_next_pixel yy
-                         | L => x := Fine.barely_prev_pixel xx
-                         | R => x := Fine.barely_next_pixel xx);
-                           (* XXX better to continue the line. But we can't
-                              just call move recursively, because the
-                              bresenham state just ignores the update we
-                              made. *)
-                           ()
+                        (* Go to the new position but then eject. *)
+                        accept ();
+                        eject ejection_dir
                       end
                 end
             in
@@ -721,7 +827,7 @@ struct
                 (0, 0) =>
                   (* Since subpixels are 1/256th of coarse pixels, this
                      will be the most common case by far. *)
-                  accept ()
+                  accept_and_continue ()
               | (1, 0) => go R
               | (~1, 0) => go L
               | (0, 1) => go D
