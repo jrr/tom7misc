@@ -20,6 +20,8 @@ sig
   val > : fine * fine -> bool
   val >= : fine * fine -> bool
   val ~ : fine -> fine
+  val abs : fine -> fine
+  val sign : fine -> int
 
   (* Advance to the first fine coordinate that has a coarse
      coordinate larger than the argument's. *)
