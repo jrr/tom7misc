@@ -602,260 +602,346 @@ struct
         then dy := TERMINAL_VELOCITY
         else ()
 
-      (* OK, now we have the desired velocity vector, so we apply
-         it. To prevent quantum tunneling, we iterate along the
-         velocity vector, checking at each integral point whether we
-         have any collision with a body or (possibly moving) triangle
-         object. The iteration is done using a fine integral line
-         (Bresenham's algorithm). We also compute the major axis so
-         that we can break ties in the loop below. *)
-      val (step, state, major_dir) =
+      (* OK, now we have the desired velocity vector, so we apply it.
+         This is where it gets complicated. We're moving in this fine
+         integer space, but collisions happen between coarse pixels.
+         We move along a fine integral line (Bresenham's algorithm),
+         but if we have collisions at the coarse level, then we may
+         need to make adjustments (ejections) to allow smooth motion
+         up a stair-step slope. Since we may deviate from the strict
+         Bresenham line while executing the velocity vector, we can't
+         necessarily keep the same Bresenham state for the whole
+         motion. And although we are usually moving one coarse pixel
+         or left, simply stopping does not work well at all. We get
+         in loops like this:
+
+                                           +-----+ (not on ground)
+               +-----+  dxdy (~200, 0)     |     | dxdy (~200, 6)
+               |     |  <- eject up        |     | | eject right
+               |     |                     +-----+ v
+          #####+-----+                 #####
+          #####                        #####
+          #####           (A)          #####          (B)
+
+         When in state (A), the very first fine pixel motion moves us
+         into the corner pixel, so we eject up. Since we stop
+         immediately, we are only 1 fine pixel overlapping the
+         lip--despite having a large dx magnitude. Now in state (B)
+         we start tracing at fine coordinates, but the first coarse
+         step we make is downward. This requires us to eject to
+         the right, which loops us back to (A).
+
+         It may be wrong to eject right when the major direction is
+         L, so we should fix that. But it's also problematic that we
+         made only 1 fine pixel of progress despite having ~200 magnitude
+         in the state (A).
+
+         So, we start by computing the major axis and the number of
+         ticks (fine steps) along this axis. If we need to do any
+         ejections, we can create a new bresenham line and execute
+         it.
+          - does the new line go from the current state (after ejection)
+            to the old destination? Or to the current state + dx/dy?
+            The current reapplies dx/dy to get a new end position.
+
+         But we only execute this new line for the number of ticks
+         remaining. (With the possibility of ejection, it's not clear that
+         we would always terminate otherwise.) *)
+
+      (* For a fine vector <dx,dy>, get the major axis and its length. *)
+      fun getmaj (dx, dy) =
         let
-          val dx = !dx
-          val dy = !dy
-          val endx = !x ++ dx
-          val endy = !y ++ dy
-
-          (* The first pixel in the line is returned as the second parameter.
-             There's no point in checking it because we're already there. *)
-          val ({ step, state }, _) =
-            Bresenham.line (Fine.toint (!x), Fine.toint (!y))
-                           (Fine.toint endx, Fine.toint endy)
-
           val dxmag = Fine.abs dx
           val dymag = Fine.abs dy
-
-          val major =
-            if dxmag = dymag
-            (* XXX: We could use something else to break ties here,
-               like possibly having some histeresis? I preferred
-               L/R for smoother motion, but perhaps D results in
-               fewer explotable glitches? *)
-            then (case Fine.sign dx of
-                    ~1 => L
-                  | 1 => R
-                  | _ (* zero *) => D)
-            else if Fine.< (dxmag, dymag)
-                 then (case Fine.sign dy of
-                         ~1 => U
-                       | _ => D)
-                 else (case Fine.sign dx of
-                         ~1 => L
-                       | _ => R)
-
-          val () = print ((if ontheground then "[otg] "
-                           else "[   ] ") ^
-                          Fine.tostring (!x) ^ "," ^ Fine.tostring (!y) ^
-                          " + " ^
-                          Fine.tostring dx ^ "," ^ Fine.tostring dy ^
-                          " maj " ^ dirstring major ^ "\n")
         in
-          (step, state, major)
+          if dxmag = dymag
+          (* XXX: We could use something else to break ties here,
+             like possibly having some histeresis? I preferred
+             L/R for smoother motion, but perhaps D results in
+             fewer explotable glitches? *)
+          then (case Fine.sign dx of
+                  ~1 => (L, dxmag)
+                | 1 => (R, dxmag)
+                | _ (* zero *) => (D, dymag))
+          else if Fine.< (dxmag, dymag)
+               then (case Fine.sign dy of
+                       ~1 => (U, dymag)
+                     | _ => (D, dymag))
+               else (case Fine.sign dx of
+                       ~1 => (L, dxmag)
+                     | _ => (R, dxmag))
         end
 
-      (* Generate the next point along the vector. If it's clear,
-         we update our position and continue. *)
-      fun move state =
-        case step state of
-          NONE => ()
-        | SOME (state, (xx, yy)) =>
+      (* Run the motion, but only for up to ticks_left more steps.
+         (see above). *)
+      fun apply_motion ticks_left =
+        let
+          val () = print ("applymotion " ^ Int.toString ticks_left ^ "\n")
+          (* PERF can just exit if dx = dy = 0 *)
+
+          val (step, state, major_dir) =
             let
-              val xx = Fine.fromint xx
-              val yy = Fine.fromint yy
+              val dx = !dx
+              val dy = !dy
+              val endx = !x ++ dx
+              val endy = !y ++ dy
 
-              val (bx, by) = getxy body
+              (* The first pixel in the line is returned as the second
+                 parameter. There's no point in checking it because
+                 we're already there. *)
+              val ({ step, state }, _) =
+                Bresenham.line (Fine.toint (!x), Fine.toint (!y))
+                               (Fine.toint endx, Fine.toint endy)
 
-              (* Check to see if this fine location would move the
-                 body to a new coarse location. *)
-              val nbx = Fine.tocoarse xx
-              val nby = Fine.tocoarse yy
+              val (major, _) = getmaj (dx, dy)
 
-              fun flatten dir =
-                (* Flatten the velocity vector along the blocked axis. *)
-                case dir of
-                  U => dy := Fine.fromint 0
-                | D => dy := Fine.fromint 0
-                | L => dx := Fine.fromint 0
-                | R => dx := Fine.fromint 0
-
-              (* Move as the line would have us move. *)
-              fun accept () =
-                let in
-                  x := xx;
-                  y := yy
-                end
-              fun accept_and_continue () =
-                let in
-                  x := xx;
-                  y := yy;
-                  move state
-                end
-
-              (* Geometry is forcing us to move (one coarse pixel) in given
-                 direction, even though it is not exactly how the line
-                 would have us move. Move the body to the closest fine
-                 location that has this coarse coordinate. This
-                 minimizes error so should give slightly smoother
-                 motion.
-
-                 We don't update velocity, hoping to continue smooth
-                 motion in this case. XXX it would be better to even
-                 continue the line -- but we can't just call move
-                 recursively because the bresenham state ignores the
-                 deflection we just made. *)
-              fun eject dir =
-                (case dir of
-                  U => y := Fine.barely_prev_pixel (!y)
-                | D => y := Fine.barely_next_pixel (!y)
-                | L => x := Fine.barely_prev_pixel (!x)
-                | R => x := Fine.barely_next_pixel (!x))
-
-              (* XXX I wonder if this can just generalize 'go'? *)
-              fun go2 (dir1, dir2) =
-                let
-                  val (c1, c2) = (getcontact (screen, body, dir1),
-                                  getcontact (screen, body, dir2))
-                  val () = print ("go2 " ^
-                                  dirstring dir1 ^ " " ^
-                                  dirstring dir2 ^ " -> " ^
-                                  contactstring (#1 c1) ^ " " ^
-                                  contactstring (#1 c2) ^ "\n")
-                in
-                  case (c1, c2) of
-                    ((Air, _), (Air, _)) =>
-                      (* Though the two directions (wlog: down and
-                         right) are clear on their own, the
-                         combination might still enter a pixel.
-
-                          +--+
-                          |  |     \,
-                          +--+     ``
-                              #
-
-                         If this is the case we try moving along
-                         the major axis (only). *)
-                      if corner_pixel (screen, body, dir1, dir2)
-                      then
-                        let in
-                          print ("air/air corner px, maj: " ^
-                                 dirstring major_dir ^ "\n");
-
-                          (* In this case we only move in the major
-                             dir (via eject, to try to stay as close
-                             as possible to the corner), but we don't
-                             accept the new position (it's illegal).
-
-                             XXX Alternate would be to accept and then
-                             eject in reverse -- might be better? *)
-                          if dir1 = major_dir
-                          then eject dir1
-                          else if dir2 = major_dir
-                               then eject dir2
-                               else raise Physics "impossible go2/aa"
-                        end
-                      else accept_and_continue ()
-                  | ((Blocked, _), (Air, _)) =>
-                      let in
-                        flatten dir1
-                      end
-                  | ((Air, _), (Blocked, _)) =>
-                      let in
-                        flatten dir2
-                      end
-                  | ((Blocked, _), (Blocked, _)) =>
-                      let in
-                        flatten dir1;
-                        flatten dir2
-                      end
-                  | ((Eject ejection_dir, _), (Air, _)) =>
-                      if ejection_dir = dir2
-                      then
-                        (* The new position ejects us as needed. *)
-                        accept_and_continue ()
-                      else
-                        let in
-                          (* XXX? This is a situation like this, when moving
-                             diagonally down-right. Right is clear, but down
-                             would require rejecting left.
-
-                                   +--+   \
-                                   |  |    \,
-                                   +--+    ``
-                                      ###
-                                     ####
-
-                             Guess it makes sense to break the tie based
-                             on the fully-clear pixel. *)
-                          flatten dir1
-                        end
-                  | ((Air, _), (Eject ejection_dir, _)) =>
-                      if ejection_dir = dir1
-                      then accept_and_continue ()
-                      else
-                        (* XXX? as above. *)
-                        flatten dir2
-                    (* Anything else should be treated as a collision.
-                       XXX Two ejections could be compatible, maybe? *)
-                  | _ =>
-                      let in
-                        flatten dir1;
-                        flatten dir2
-                      end
-                end
-
-              (* Move in the given direction, coarsely, if possible. *)
-              fun go dir =
-                let
-                  val c = getcontact (screen, body, dir)
-                  val () = print ("go " ^ dirstring dir ^ " -> " ^
-                                  contactstring (#1 c) ^ "\n")
-                in
-                  case c of
-                    (Air, _) => accept_and_continue ()
-                  | (Blocked, implicated) =>
-                      let in
-                        flatten dir;
-                        (* XXX would be more physical to restart
-                           the line from the current position,
-                           if the other component is nonzero. But
-                           we'll still keep moving, on the next
-                           frame. We'd need to know what fraction of
-                           the vector we've already traveled. *)
-                        ()
-                      end
-                  | (Eject ejection_dir, implicated) =>
-                      let in
-                        (* Go to the new position but then eject. *)
-                        accept ();
-                        eject ejection_dir
-                      end
-                end
-
+              val () = print ((if ontheground then "[otg] "
+                               else "[   ] ") ^
+                              Fine.tostring (!x) ^ "," ^ Fine.tostring (!y) ^
+                              " + " ^
+                              Fine.tostring dx ^ "," ^ Fine.tostring dy ^
+                              " maj " ^ dirstring major ^ "\n")
             in
-              case (nbx - bx, nby - by) of
-                (0, 0) =>
-                  (* Since subpixels are 1/256th of coarse pixels, this
-                     will be the most common case by far. *)
-                  accept_and_continue ()
-              | (1, 0) => go R
-              | (~1, 0) => go L
-              | (0, 1) => go D
-              | (0, ~1) => go U
-                (* It's definitely possible (but rare) to have UR, UL, DR, DL
-                   when moving exactly diagonally. *)
-              | (1, 1) => go2 (D, R)
-              | (~1, 1) => go2 (D, L)
-              | (1, ~1) => go2 (U, R)
-              | (~1, ~1) => go2 (U, L)
-              (* Impossible because Bresenham guarantees single fine
-                 pixel steps. *)
-              | (deltax, deltay) =>
-                  raise Physics ("impossible delta: " ^
-                                 Int.toString deltax ^ "/" ^
-                                 Int.toString deltay)
+              (step, state, major)
             end
+
+          (* Generate the next point along the vector. If it's clear,
+             we update our position and continue. *)
+          fun move (0, state) = ()
+            | move (ticks_left, state) =
+            case step state of
+              NONE => ()
+            | SOME (state, (xx, yy)) =>
+                let
+                  val xx = Fine.fromint xx
+                  val yy = Fine.fromint yy
+
+                  val (bx, by) = getxy body
+
+                  (* Check to see if this fine location would move the
+                     body to a new coarse location. *)
+                  val nbx = Fine.tocoarse xx
+                  val nby = Fine.tocoarse yy
+
+                  fun flatten dir =
+                    (* Flatten the velocity vector along the blocked axis. *)
+                    case dir of
+                      U => dy := Fine.fromint 0
+                    | D => dy := Fine.fromint 0
+                    | L => dx := Fine.fromint 0
+                    | R => dx := Fine.fromint 0
+
+                  (* Move as the line would have us move. *)
+                  fun accept () =
+                    let in
+                      x := xx;
+                      y := yy
+                    end
+                  fun accept_and_continue () =
+                    let in
+                      x := xx;
+                      y := yy;
+                      move (ticks_left - 1, state)
+                    end
+
+                  fun replan () = apply_motion (ticks_left - 1)
+
+                  (* Geometry is forcing us to move (one coarse pixel) in given
+                     direction, even though it is not exactly how the line
+                     would have us move. Move the body to the closest fine
+                     location that has this coarse coordinate. This
+                     minimizes error so should give slightly smoother
+                     motion.
+
+                     When ejecting in a given direction, we also cancel any
+                     velocity exactly opposite to that direction. *)
+                  fun eject dir =
+                    (case dir of
+                       U =>
+                         let in
+                           dy := Fine.max (Fine.fromint 0, !dy);
+                           y := Fine.barely_prev_pixel (!y)
+                         end
+                     | D =>
+                         let in
+                           dy := Fine.min (Fine.fromint 0, !dy);
+                           y := Fine.barely_next_pixel (!y)
+                         end
+                     | L =>
+                         let in
+                           dx := Fine.min (Fine.fromint 0, !dx);
+                           x := Fine.barely_prev_pixel (!x)
+                         end
+                     | R =>
+                         let in
+                           dx := Fine.max (Fine.fromint 0, !dx);
+                           x := Fine.barely_next_pixel (!x)
+                         end)
+
+                  (* XXX I wonder if this can just generalize 'go'? *)
+                  fun go2 (dir1, dir2) =
+                    let
+                      val (c1, c2) = (getcontact (screen, body, dir1),
+                                      getcontact (screen, body, dir2))
+                      val () = print ("go2 " ^
+                                      dirstring dir1 ^ " " ^
+                                      dirstring dir2 ^ " -> " ^
+                                      contactstring (#1 c1) ^ " " ^
+                                      contactstring (#1 c2) ^ "\n")
+                    in
+                      case (c1, c2) of
+                        ((Air, _), (Air, _)) =>
+                          (* Though the two directions (wlog: down and
+                             right) are clear on their own, the
+                             combination might still enter a pixel.
+
+                              +--+
+                              |  |     \,
+                              +--+     ``
+                                  #
+
+                             If this is the case we try moving along
+                             the major axis (only). *)
+                          if corner_pixel (screen, body, dir1, dir2)
+                          then
+                            let in
+                              print ("air/air corner px, maj: " ^
+                                     dirstring major_dir ^ "\n");
+
+                              (* In this case we only move in the major
+                                 dir (via eject, to try to stay as close
+                                 as possible to the corner), but we don't
+                                 accept the new position (it's illegal).
+
+                                 XXX Alternate would be to accept and then
+                                 eject in that order -- might be better? *)
+                              if dir1 = major_dir
+                              then
+                                let in
+                                  eject dir1;
+                                  (* XXX flatten? *)
+                                  replan ()
+                                end
+                              else if dir2 = major_dir
+                                   then
+                                     let in
+                                       eject dir2;
+                                       (* XXX flatten? *)
+                                       replan ()
+                                     end
+                                   else raise Physics "impossible go2/aa"
+                            end
+                          else accept_and_continue ()
+                      | ((Blocked, _), (Air, _)) =>
+                          let in
+                            flatten dir1;
+                            replan ()
+                          end
+                      | ((Air, _), (Blocked, _)) =>
+                          let in
+                            flatten dir2;
+                            replan ()
+                          end
+                      | ((Blocked, _), (Blocked, _)) =>
+                          let in
+                            flatten dir1;
+                            flatten dir2
+                            (* no point in replanning -- velocity is 0 now *)
+                          end
+                      | ((Eject ejection_dir, _), (Air, _)) =>
+                          if ejection_dir = dir2
+                          then
+                            (* The new diagonal position accounts for the
+                               ejection we need. XXX I think this actually
+                               needs to do the corner pixel test as in
+                               the air, air case? *)
+                            accept_and_continue ()
+                          else
+                            let in
+                              (* This is a situation like this, when
+                                 moving diagonally down-right. Right is
+                                 clear, but down would require rejecting
+                                 left.
+
+                                       +--+   \
+                                       |  |    \,
+                                       +--+    ``
+                                          ###
+                                         ####
+
+                                 Guess it makes sense to break the tie
+                                 based on the fully-clear pixel. *)
+                              flatten dir1;
+                              replan ()
+                            end
+                      | ((Air, _), (Eject ejection_dir, _)) =>
+                          if ejection_dir = dir1
+                          then accept_and_continue ()
+                          else
+                            let in
+                              flatten dir2;
+                              replan ()
+                            end
+                      | _ =>
+                          let in
+                            flatten dir1;
+                            flatten dir2
+                            (* Velocity is zero, so just stop *)
+                          end
+                    end
+
+                  (* Move in the given direction, coarsely, if possible. *)
+                  fun go dir =
+                    let
+                      val c = getcontact (screen, body, dir)
+                      val () = print ("go " ^ dirstring dir ^ " -> " ^
+                                      contactstring (#1 c) ^ "\n")
+                    in
+                      case c of
+                        (Air, _) => accept_and_continue ()
+                      | (Blocked, implicated) =>
+                          let in
+                            flatten dir;
+                            replan ()
+                          end
+                      | (Eject ejection_dir, implicated) =>
+                          let in
+                            (* Go to the new position but then eject. *)
+                            accept ();
+                            eject ejection_dir;
+                            replan ()
+                          end
+                    end
+                in
+                  case (nbx - bx, nby - by) of
+                    (0, 0) =>
+                      (* Since subpixels are 1/256th of coarse pixels, this
+                         will be the most common case by far. *)
+                      accept_and_continue ()
+                  | (1, 0) => go R
+                  | (~1, 0) => go L
+                  | (0, 1) => go D
+                  | (0, ~1) => go U
+                    (* It's definitely possible (but rare) to have
+                       UR, UL, DR, DL when moving exactly diagonally. *)
+                  | (1, 1) => go2 (D, R)
+                  | (~1, 1) => go2 (D, L)
+                  | (1, ~1) => go2 (U, R)
+                  | (~1, ~1) => go2 (U, L)
+                  (* Impossible because Bresenham guarantees single fine
+                     pixel steps. *)
+                  | (deltax, deltay) =>
+                      raise Physics ("impossible delta: " ^
+                                     Int.toString deltax ^ "/" ^
+                                     Int.toString deltay)
+                end
+        in
+          move (ticks_left, state)
+        end
+
+      val (_, original_length) = getmaj (!dx, !dy)
     in
-      move state
+      apply_motion (Fine.toint original_length)
     end
 
   fun sethistorysize (body as B { history, ... }) n =
