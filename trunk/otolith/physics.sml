@@ -518,10 +518,11 @@ struct
          accelerates us straight downward, and player
          control is likewise exactly horizontal. *)
 
-      (* acceleration due to gravity *)
+      (* Acceleration due to gravity. If on the ground, then
+         dy is set to be non-positive. *)
       val () =
         if ontheground
-        then ()
+        then dy := Fine.min (!dy, Fine.fromint 0)
         else dy := !dy ++ GRAVITY
 
       (* TODO: x-gravity "wind" also easy *)
@@ -625,7 +626,7 @@ struct
           val dymag = Fine.abs dy
 
           val major =
-            if dx = dy
+            if dxmag = dymag
             (* XXX: We could use something else to break ties here,
                like possibly having some histeresis? I preferred
                L/R for smoother motion, but perhaps D results in
@@ -634,13 +635,20 @@ struct
                     ~1 => L
                   | 1 => R
                   | _ (* zero *) => D)
-            else if Fine.< (dx, dy)
+            else if Fine.< (dxmag, dymag)
                  then (case Fine.sign dy of
                          ~1 => U
                        | _ => D)
                  else (case Fine.sign dx of
                          ~1 => L
                        | _ => R)
+
+          val () = print ((if ontheground then "[otg] "
+                           else "[   ] ") ^
+                          Fine.tostring (!x) ^ "," ^ Fine.tostring (!y) ^
+                          " + " ^
+                          Fine.tostring dx ^ "," ^ Fine.tostring dy ^
+                          " maj " ^ dirstring major ^ "\n")
         in
           (step, state, major)
         end
@@ -822,6 +830,7 @@ struct
                         eject ejection_dir
                       end
                 end
+
             in
               case (nbx - bx, nby - by) of
                 (0, 0) =>
@@ -894,13 +903,16 @@ struct
     end
 
   fun movebodies screen =
-    (* Currently, processes the bodies in order.
+    let in
+      print "--\n";
+      (* Currently, processes the bodies in order.
 
-       It would be good to do some kind of simultaneous solving,
-       though. This probably behaves strangely with stacks of things
-       (and differently if they are stacked in order or in reverse
-       order!). *)
-    app (fn b => movebody (screen, b)) (!bodies)
+         It would be good to do some kind of simultaneous solving,
+         though. This probably behaves strangely with stacks of things
+         (and differently if they are stacked in order or in reverse
+         order!). *)
+      app (fn b => movebody (screen, b)) (!bodies)
+    end
 
 
   val bodies = fn () => !bodies

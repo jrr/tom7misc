@@ -5,6 +5,7 @@ sig
   (* Raw access. *)
   val fromint : int -> fine
   val toint : fine -> int
+  val tostring : fine -> string
 
   (* Place in center (almost) of coarse pixel. *)
   val fromcoarse : int -> fine
@@ -22,6 +23,8 @@ sig
   val ~ : fine -> fine
   val abs : fine -> fine
   val sign : fine -> int
+  val min : fine * fine -> fine
+  val max : fine * fine -> fine
 
   (* Advance to the first fine coordinate that has a coarse
      coordinate larger than the argument's. *)

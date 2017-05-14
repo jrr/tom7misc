@@ -9,6 +9,7 @@ struct
 
   fun fromint i = i
   fun toint i = i
+  val tostring = Int.toString
 
   fun fromcoarse i = i * MULT + CENTER
   fun tocoarse f = (f + (CENTER - 1)) div MULT
