@@ -9,10 +9,11 @@ message N (node) =
   field p (parent) : tesselation option
   (* These are the IDs of the other nodes. *)
   field t (triangles) : (int * int) list
+    hint vertical
 
 message S (tesselation) =
   field ns (nodes) : node list
-    hint vertical
+    hint paragraph
   field c (conclusion) : string
 
 message T (test) =

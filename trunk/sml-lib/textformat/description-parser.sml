@@ -18,6 +18,7 @@ struct
     | FIELD
     | HINT
     | VERTICAL
+    | PARAGRAPH
     | LPAREN
     | RPAREN
     | COLON
@@ -31,47 +32,50 @@ struct
     | BOOL
 
   fun toktos t =
-      case t of
-          SYMBOL s => "(SYM " ^ s ^ ")"
-        | MESSAGE => "MESSAGE"
-        | FIELD => "FIELD"
-        | HINT => "HINT"
-        | VERTICAL => "VERTICAL"
-        | LPAREN => "LPAREN"
-        | RPAREN => "RPAREN"
-        | COLON => "COLON"
-        | EQUALS => "EQUALS"
-        | ASTERISK => "ASTERISK"
-        | LIST => "LIST"
-        | OPTION => "OPTION"
-        | INT => "INT"
-        | INTINF => "INTINF"
-        | STRING => "STRING"
-        | BOOL => "BOOL"
+    case t of
+        SYMBOL s => "(SYM " ^ s ^ ")"
+      | MESSAGE => "MESSAGE"
+      | FIELD => "FIELD"
+      | HINT => "HINT"
+      | VERTICAL => "VERTICAL"
+      | PARAGRAPH => "PARAGRAPH"
+      | LPAREN => "LPAREN"
+      | RPAREN => "RPAREN"
+      | COLON => "COLON"
+      | EQUALS => "EQUALS"
+      | ASTERISK => "ASTERISK"
+      | LIST => "LIST"
+      | OPTION => "OPTION"
+      | INT => "INT"
+      | INTINF => "INTINF"
+      | STRING => "STRING"
+      | BOOL => "BOOL"
 
   val tokenizer =
-      let val t = ST.empty () : token ST.tokenizer
-          val t = ST.settokens t [("message", MESSAGE),
-                                  ("field", FIELD),
-                                  ("hint", HINT),
-                                  ("vertical", VERTICAL),
-                                  ("(", LPAREN),
-                                  (")", RPAREN),
-                                  (":", COLON),
-                                  ("=", EQUALS),
-                                  ("*", ASTERISK),
-                                  ("list", LIST),
-                                  ("int", INT),
-                                  ("intinf", INTINF),
-                                  ("bool", BOOL),
-                                  ("string", STRING),
-                                  ("option", OPTION)]
-          val t = ST.setsep t (Char.contains "()=*:")
-          val t = ST.setother t SYMBOL
-          val t = ST.setcomment t [ST.CSBracketed ("(*", "*)")]
-      in
-          ST.parser t
-      end
+    let
+      val t = ST.empty () : token ST.tokenizer
+      val t = ST.settokens t [("message", MESSAGE),
+                              ("field", FIELD),
+                              ("hint", HINT),
+                              ("vertical", VERTICAL),
+                              ("paragraph", PARAGRAPH),
+                              ("(", LPAREN),
+                              (")", RPAREN),
+                              (":", COLON),
+                              ("=", EQUALS),
+                              ("*", ASTERISK),
+                              ("list", LIST),
+                              ("int", INT),
+                              ("intinf", INTINF),
+                              ("bool", BOOL),
+                              ("string", STRING),
+                              ("option", OPTION)]
+      val t = ST.setsep t (Char.contains "()=*:")
+      val t = ST.setother t SYMBOL
+      val t = ST.setcomment t [ST.CSBracketed ("(*", "*)")]
+    in
+      ST.parser t
+    end
 
   datatype typ =
       Int
@@ -84,18 +88,18 @@ struct
     | Message of string
 
   datatype hint =
-      Vertical
+    Vertical | Paragraph
 
   datatype description =
-      D of message list
+    D of message list
 
   and message =
-      (* TODO: explicitly retired fields *)
-      (* TODO: toplevel layout hints *)
-      M of { token : string, name : string, fields : field list }
+    (* TODO: explicitly retired fields *)
+    (* TODO: toplevel layout hints *)
+    M of { token : string, name : string, fields : field list }
 
   and field =
-      F of { token : string, name : string, typ : typ, hints: hint list }
+    F of { token : string, name : string, typ : typ, hints: hint list }
 
   local
     open Parsing
@@ -106,7 +110,7 @@ struct
     infixr 1 ||
 
     fun **(s, p) = p ##
-        (fn pos => raise DescriptionParser ("@" ^ Pos.toString pos ^ ": " ^ s))
+      (fn pos => raise DescriptionParser ("@" ^ Pos.toString pos ^ ": " ^ s))
     infixr 4 **
 
     (* as `KEYWORD -- punt "expected KEYWORD KEYWORD2" *)
@@ -146,32 +150,35 @@ struct
     val typ = $tupletyp
 
     fun hint () =
-        `HINT && `VERTICAL return Vertical
+      `HINT >> (alt [`VERTICAL return Vertical,
+                     `PARAGRAPH return Paragraph]) ||
+      (`HINT -- punt "expected hint type after HINT")
 
     fun field () = `FIELD >>
-        symbol &&
-        opt (`LPAREN >> symbol << `RPAREN) &&
-        (`COLON >> typ) &&
-        repeat ($hint) wth
-        (fn (token, (name, (typ, hints))) =>
-         let val name = case name of NONE => token | SOME n => n
-         in F { token = token, name = name, typ = typ, hints = hints }
-         end)
-        || (`FIELD --
-            punt ("expected symbol [LPAREN symbol RPAREN] " ^
-                  "COLON typ [HINTS] after FIELD"))
+      symbol &&
+      opt (`LPAREN >> symbol << `RPAREN) &&
+      (`COLON >> typ) &&
+      repeat ($hint) wth
+      (fn (token, (name, (typ, hints))) =>
+       let val name = case name of NONE => token | SOME n => n
+       in F { token = token, name = name, typ = typ, hints = hints }
+       end)
+      || (`FIELD --
+          punt ("expected symbol [LPAREN symbol RPAREN] " ^
+                "COLON typ [HINTS] after FIELD"))
 
     val message = `MESSAGE >>
-        symbol &&
-        opt (`LPAREN >> symbol << `RPAREN) &&
-        (`EQUALS >>
-         repeat ($field)) wth
-        (fn (token, (name, fields)) =>
-         let val name = case name of NONE => token | SOME n => n
-         in M { token = token, name = name, fields = fields }
-         end)
-      || (`MESSAGE --
-          punt "expected symbol [LPAREN symbol RPAREN] EQUALS fields after MESSAGE")
+      symbol &&
+      opt (`LPAREN >> symbol << `RPAREN) &&
+      (`EQUALS >>
+       repeat ($field)) wth
+      (fn (token, (name, fields)) =>
+       let val name = case name of NONE => token | SOME n => n
+       in M { token = token, name = name, fields = fields }
+       end)
+    || (`MESSAGE --
+        punt ("expected symbol [LPAREN symbol RPAREN] EQUALS " ^
+              "fields after MESSAGE"))
 
   in
     val parser = repeat1 message -- (fn t => done t)
@@ -189,87 +196,87 @@ struct
                                            "one message.")
     | check (ms : message list) =
     let
-        val messagenames : unit SM.map ref = ref SM.empty
-        fun insertunique what (m, s) =
-            case SM.find (!m, s) of
-                NONE => m := SM.insert (!m, s, ())
-              | SOME () =>
-                    raise DescriptionParser ("Duplicate " ^ what ^
-                                             ": " ^ s)
+      val messagenames : unit SM.map ref = ref SM.empty
+      fun insertunique what (m, s) =
+        case SM.find (!m, s) of
+          NONE => m := SM.insert (!m, s, ())
+        | SOME () =>
+            raise DescriptionParser ("Duplicate " ^ what ^
+                                     ": " ^ s)
 
-        val messagetokens : unit SM.map ref = ref SM.empty
+      val messagetokens : unit SM.map ref = ref SM.empty
 
-        fun checktype Int = ()
-          | checktype IntInf = ()
-          | checktype String = ()
-          | checktype Bool = ()
-          | checktype (Tuple ts) = app checktype ts
-          | checktype (Option t) = checktype t
-          | checktype (List t) = checktype t
-          | checktype (Message m) =
-            case SM.find (!messagenames, m) of
-                SOME () => ()
-              | NONE => raise DescriptionParser
-                    ("Unknown message name " ^ m ^
-                     " in type (must be defined in this description).")
+      fun checktype Int = ()
+        | checktype IntInf = ()
+        | checktype String = ()
+        | checktype Bool = ()
+        | checktype (Tuple ts) = app checktype ts
+        | checktype (Option t) = checktype t
+        | checktype (List t) = checktype t
+        | checktype (Message m) =
+          case SM.find (!messagenames, m) of
+            SOME () => ()
+          | NONE => raise DescriptionParser
+              ("Unknown message name " ^ m ^
+               " in type (must be defined in this description).")
 
-        fun onefield (F { name, token, typ, hints }) =
-            let
-                val tokens : unit SM.map ref = ref SM.empty
-                val names  : unit SM.map ref = ref SM.empty
-            in
-                insertunique "field token" (tokens, token);
-                insertunique "field name" (names, token);
-                checktype typ
-            end
+      fun onefield (F { name, token, typ, hints }) =
+        let
+          val tokens : unit SM.map ref = ref SM.empty
+          val names  : unit SM.map ref = ref SM.empty
+        in
+          insertunique "field token" (tokens, token);
+          insertunique "field name" (names, token);
+          checktype typ
+        end
 
-        fun onemessage (M { name, token, fields }) =
-            let in
-                insertunique "message token" (messagetokens, token);
-                app onefield fields
-            end
+      fun onemessage (M { name, token, fields }) =
+        let in
+          insertunique "message token" (messagetokens, token);
+          app onefield fields
+        end
     in
-        (* Get these up front because they are used for checking types.
-           All other duplicate checking just happens the second time
-           we see that symbol. *)
-        app (fn M { name, ... } =>
-             insertunique "message name" (messagenames, name)) ms;
-        app onemessage ms
+      (* Get these up front because they are used for checking types.
+         All other duplicate checking just happens the second time
+         we see that symbol. *)
+      app (fn M { name, ... } =>
+           insertunique "message name" (messagenames, name)) ms;
+      app onemessage ms
     end
 
   fun tokenize (s : string) =
     let
-        val s = ST.stringstream s
-        val s = Pos.markstream s
-        val s = Parsing.transform tokenizer s
+      val s = ST.stringstream s
+      val s = Pos.markstream s
+      val s = Parsing.transform tokenizer s
     in
-        Stream.tolist s
+      Stream.tolist s
     end
 
   fun parse (s : string) =
     let
-        val s = ST.stringstream s
-        val s = Pos.markstream s
-        (* XXX allows and ignores untokenizable junk at end. *)
-        val s = Parsing.transform tokenizer s
+      val s = ST.stringstream s
+      val s = Pos.markstream s
+      (* XXX allows and ignores untokenizable junk at end. *)
+      val s = Parsing.transform tokenizer s
 
-        val () = if !verbose
-                 then let val toks = Stream.tolist s
-                      in print "(verbose) Tokens:\n";
-                         app (fn t => print (toktos t ^ " ")) toks
-                      end
-                 else ()
+      val () = if !verbose
+               then let val toks = Stream.tolist s
+                    in print "(verbose) Tokens:\n";
+                    app (fn t => print (toktos t ^ " ")) toks
+                    end
+               else ()
 
-        (* XXX should report original file positions! *)
-        val s = Pos.markany s
-        val messages : message list =
-            case Parsing.parse parser s of
-                NONE =>
-                    raise DescriptionParser "Couldn't parse a series of messages."
-              | SOME ms => ms
+      (* XXX should report original file positions! *)
+      val s = Pos.markany s
+      val messages : message list =
+        case Parsing.parse parser s of
+          NONE =>
+            raise DescriptionParser "Couldn't parse a series of messages."
+        | SOME ms => ms
     in
-        check messages;
-        D messages
+      check messages;
+      D messages
     end
 
 end
