@@ -12,7 +12,7 @@ struct
   fun pair_map f (x, y) = (f x, f y)
   fun pair_map2 f (x1, y1) (x2, y2) = (f (x1, x2), f (y1, y2))
 
-     fun build ((x0, y0), (x1, _), (dx, dy), (stepx, stepy), post) =
+  fun build ((x0, y0), (x1, _), (dx, dy), (stepx, stepy), post) =
     let
       val frac0 = dy - Int.quot (dx, 2)
       fun step { x0, y0, frac } =
