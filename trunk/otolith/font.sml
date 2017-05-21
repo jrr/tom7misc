@@ -2,7 +2,7 @@ structure Font =
 struct
 
   type font = { width : int, height : int,
-                image : Images.image,
+                image : Image.image,
                 chars : string,
                 table : int Array.array }
 

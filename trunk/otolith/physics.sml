@@ -29,6 +29,7 @@ struct
 
   datatype body_data = BD of
     { x : fine, y : fine, dx : fine, dy : fine,
+      facing : lr,
       lrwish : lr option, jumpwish : bool,
       shape : shape }
 
@@ -39,6 +40,8 @@ struct
            dx : fine ref,
            dy : fine ref,
 
+           facing : lr ref,
+
            lrwish : lr option ref,
            jumpwish : bool ref,
            (* Used for body equality and error checking. Could instead be
@@ -48,7 +51,6 @@ struct
            shape : shape ref,
 
            (* Debugging. *)
-           ontheground : bool ref,
            history : body_data LastNBuffer.buffer option ref }
 
     fun newbody () =
@@ -56,29 +58,29 @@ struct
           y = ref (Fine.fromcoarse 128),
           dx = ref (Fine.fromint 0),
           dy = ref (Fine.fromint 0),
+          facing = ref Right,
           lrwish = ref NONE,
           jumpwish = ref false,
           inscene = ref false,
           shape = ref (Rect (9, 9)),
-          (* XXX *)
-          ontheground = ref false,
           history = ref NONE }
 
-  fun getdata (B { x, y, dx, dy, lrwish, jumpwish,
-                   inscene = _, shape, ontheground = _,
+  fun getdata (B { x, y, dx, dy, facing, lrwish, jumpwish,
+                   inscene = _, shape,
                    history = _ }) =
-    BD { x = !x, y = !y, dx = !dx, dy = !dy,
+    BD { x = !x, y = !y, dx = !dx, dy = !dy, facing = !facing,
          lrwish = !lrwish, jumpwish = !jumpwish,
          shape = !shape }
 
-  fun setdata (B { x, y, dx, dy, lrwish, jumpwish,
-                   inscene = _, shape, ontheground = _,
+  fun setdata (B { x, y, dx, dy, facing, lrwish, jumpwish,
+                   inscene = _, shape,
                    history = _}) (BD r) =
     let in
       x := #x r;
       y := #y r;
       dx := #dx r;
       dy := #dy r;
+      facing := #facing r;
       lrwish := #lrwish r;
       jumpwish := #jumpwish r;
       shape := #shape r
@@ -99,6 +101,9 @@ struct
     end
   fun getdxy (B { dx, dy, ... }) = (!dx, !dy)
 
+  fun setfacing (B { facing, ... }) f = facing := f
+  fun getfacing (B { facing, ... }) = !facing
+
   fun setlrwish (B { lrwish, ... }) lr = lrwish := lr
   fun getlrwish (B { lrwish, ... }) = !lrwish
 
@@ -107,8 +112,6 @@ struct
 
   fun setshape (B { shape, ... }) ss = shape := ss
   fun getshape (B { shape, ... }) = !shape
-
-  fun getontheground (B { ontheground, ... }) = !ontheground
 
   val bodies : body list ref = ref nil
   val locusf : (unit -> int * int) ref =
@@ -489,8 +492,7 @@ struct
      the ontheground call too), because the objects she's
      colliding with aren't even necessarily visible (could
      be in a different area) at the currently displayed locus! *)
-  fun movebody (screen, body as B { x, y, dx, dy, shape,
-                                    ontheground = debug_ontheground,
+  fun movebody (screen, body as B { x, y, dx, dy, facing, shape,
                                     lrwish, jumpwish, history, ... }) =
     let
       val () =
@@ -519,8 +521,6 @@ struct
       val () = dprint (fn () =>
                        "Start: " ^ contactstring start_downcontact ^
                        (if ontheground then " (otg)\n" else "\n"))
-
-      val () = debug_ontheground := ontheground
 
       (* TODO:
          jumping when on an angled surface should apply
@@ -559,6 +559,13 @@ struct
             dy := !dy -- JUMP_IMPULSE;
             jumpwish := false
           end
+        else ()
+
+      val () =
+        if ontheground
+        then (case !lrwish of
+                NONE => ()
+              | SOME lr => facing := lr)
         else ()
 
       (* acceleration due to player control. *)

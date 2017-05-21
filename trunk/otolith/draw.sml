@@ -447,10 +447,10 @@ struct
         end))
     end
 
-  fun cliprect { dwidth, dheight,
-                 srcx, srcy, swidth, sheight,
-                 dstx : int,
-                 dsty : int } =
+  fun clip_blit_rect { dwidth, dheight,
+                       srcx, srcy, swidth, sheight,
+                       dstx : int,
+                       dsty : int } =
     let
       (* if dstx,dsty puts any of the image outside the
          destination pixels, clip the source rectangle. *)
@@ -503,9 +503,10 @@ struct
         | SOME r => r
 
       val { dstx, dsty, srcx, srcy, swidth, sheight } =
-        cliprect { dwidth = dwidth, dheight = dheight,
-                   swidth = swidth, sheight = sheight,
-                   srcx = srcx, srcy = srcy, dstx = dstx, dsty = dsty }
+        clip_blit_rect { dwidth = dwidth, dheight = dheight,
+                         swidth = swidth, sheight = sheight,
+                         srcx = srcx, srcy = srcy,
+                         dstx = dstx, dsty = dsty }
     in
       if swidth <= 0 orelse sheight <= 0
       then () (* Completely clipped out. *)
@@ -543,9 +544,10 @@ struct
         | SOME r => r
 
       val { dstx, dsty, srcx, srcy, swidth, sheight } =
-        cliprect { dwidth = dwidth, dheight = dheight,
-                   swidth = swidth, sheight = sheight,
-                   srcx = srcx, srcy = srcy, dstx = dstx, dsty = dsty }
+        clip_blit_rect { dwidth = dwidth, dheight = dheight,
+                         swidth = swidth, sheight = sheight,
+                         srcx = srcx, srcy = srcy,
+                         dstx = dstx, dsty = dsty }
     in
       if swidth <= 0 orelse sheight <= 0
       then () (* Completely clipped out. *)

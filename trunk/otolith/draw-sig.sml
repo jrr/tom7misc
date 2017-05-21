@@ -48,14 +48,14 @@ sig
                      Word32.word -> unit
 
   val blit : { dest : int * int * Word32.word Array.array,
-               src : Images.image,
+               src : Image.image,
                srcrect : { x: int, y: int, width: int, height: int } option,
                dstx : int,
                dsty : int } -> unit
 
   (* Same, but blit all nontransparent pixels as the color. *)
   val blitmask : { dest : int * int * Word32.word Array.array,
-                   src : Images.image,
+                   src : Image.image,
                    srcrect : { x: int, y: int, width: int, height: int } option,
                    dstx : int,
                    dsty : int,
