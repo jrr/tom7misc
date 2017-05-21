@@ -15,8 +15,6 @@ static void ClearSurface(SDL_Surface *s, Uint32 color) {
   SDL_FillRect(s, 0, color);
 }
 
-typedef unsigned char uint8;
-
 void InitGame() {
   screen = MakeScreen(WIDTH * PIXELSIZE, HEIGHT * PIXELSIZE);
   ClearSurface(screen, 1234567);

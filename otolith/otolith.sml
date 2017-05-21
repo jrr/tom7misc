@@ -826,17 +826,30 @@ struct
             let
               val (playerx, playery) = Physics.getxy player
               val Physics.Rect (playerw, playerh) = Physics.getshape player
+
+              (* XXX should be in physics? *)
+              val facing = Physics.getfacing player
             in
               (* XXX needs to take into account facing direction (which
                  may need to be external), velocity, lrwish, jumpwish,
                  etc. *)
 
-              Draw.blit { dest = (WIDTH, HEIGHT, pixels),
-                          src = Images.person,
-                          srcrect = NONE,
-                          (* Offsets from center pixel. *)
-                          dstx = playerx - 5,
-                          dsty = playery - 7 };
+              (case facing of
+                 Physics.Right =>
+                   Draw.blit { dest = (WIDTH, HEIGHT, pixels),
+                               src = Images.personr,
+                               srcrect = NONE,
+                               (* Offsets from center pixel. *)
+                               dstx = playerx - 5,
+                               dsty = playery - 7 }
+               | Physics.Left =>
+                   Draw.blit { dest = (WIDTH, HEIGHT, pixels),
+                               src = Images.personl,
+                               srcrect = NONE,
+                               (* XXX check these *)
+                               dstx = playerx - 3,
+                               dsty = playery - 7 });
+
 
               (*
               Draw.drawrect (pixels,

@@ -39,6 +39,9 @@ $(SML_LIB)/basis/mlton.mlb
  intmaths-sig.sml
  intmaths.sml
 
+ image-sig.sml
+ image.sml
+
  images.sml
  font.sml
 

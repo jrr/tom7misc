@@ -27,6 +27,9 @@ sig
   val setjumpwish : body -> bool -> unit
   val getjumpwish : body -> bool
 
+  val getfacing : body -> lr
+  val setfacing : body -> lr -> unit
+
   (* TODO shapes: individual pixels and other dust. circles. *)
   datatype shape =
     (* width, height; centered at x,y. Odd dimensions
@@ -75,14 +78,7 @@ sig
         *)
   val movebodies : Screen.screen -> unit
 
-  (* Debugging.
-
-     XXX remove this; just use the getdebug call below.
-
-     These are properties from the last call to movebodies. Note that
-     in the case of ontheground, the body is moved after this is calculated,
-     so it may not reflect the "current" state of the body. *)
-  val getontheground : body -> bool
+  (* Debugging. *)
 
   (* sethistorysize body n
      Ask the physics engine to keep n previous instances of the state
