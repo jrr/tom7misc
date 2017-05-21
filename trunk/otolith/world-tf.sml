@@ -511,12 +511,12 @@ struct
             ) ^^ $"]")
 
   and world_todll' (depth' : int, (W { screens }) : world) : dll' =
-    $"screens " ^^ ($"[" ^^
-               dllconcatwith' " " (List.map
-               (fn v => let val (f0', f1', f2') = v
+    $"screens " ^^ ($"[\n\n" ^^
+               dllconcat' (List.map
+               (fn v => $(nspaces' depth') ^^ let val (f0', f1', f2') = v
                     in
                       $"[" ^^ $(itos' f0') ^^ $" " ^^ $(itos' f1') ^^ $" " ^^ ($"{S " ^^ screen_todll'(depth' + 2, f2') ^^ $"}") ^^ $"]"
-                    end) screens
+                    end ^^ $"\n\n") screens
             ) ^^ $"]")
 
 
