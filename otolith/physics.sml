@@ -11,6 +11,12 @@ struct
        are best (XXX required?), so that the center is a pixel. *)
     Rect of int * int
 
+  val DEBUG = false
+  fun dprint f =
+    if DEBUG
+    then print (f ())
+    else ()
+
   type fine = Fine.fine
 
   datatype dir = U | D | L | R
@@ -467,14 +473,16 @@ struct
 
   (* In 256ths of a pixel per frame per frame. *)
   val GRAVITY : fine = Fine.fromint 6
-  val HORIZ_ACCEL_GROUND : fine = Fine.fromint 4
-  val HORIZ_ACCEL_AIR : fine = Fine.fromint 2
+  val HORIZ_ACCEL_GROUND : fine = Fine.fromint 7
+  val HORIZ_ACCEL_AIR : fine = Fine.fromint 3
   val MAX_SPEED : fine = Fine.fromint 200
   val DECEL_AIR : fine = Fine.fromint 1
   val DECEL_GROUND : fine = Fine.fromint 4
   val JUMP_IMPULSE : fine = Fine.fromint (24 * 16)
   (* 16ths of pixel per frame *)
   val TERMINAL_VELOCITY : fine = Fine.fromint 260
+
+  val MIN_CLIMB_VELOCITY : fine = HORIZ_ACCEL_GROUND
 
   (* XXX need some way to return the implicated objects
      (from the call to getcontact via 'go', perhaps including
@@ -497,10 +505,20 @@ struct
       val ++ = Fine.+
       infix 6 -- ++
 
+      (* XXX should implicate what we're standing on? *)
+      val start_downcontact : contacttype = #1 (getcontact (screen, body, D))
       val ontheground =
-        case getcontact (screen, body, D) of
-          (Blocked, _) => true
+        case start_downcontact of
+          Blocked => true
+        | Eject R =>
+            Fine.<= (!dx, Fine.~ MIN_CLIMB_VELOCITY)
+        | Eject L =>
+            Fine.>= (!dx, MIN_CLIMB_VELOCITY)
         | _ => false
+
+      val () = dprint (fn () =>
+                       "Start: " ^ contactstring start_downcontact ^
+                       (if ontheground then " (otg)\n" else "\n"))
 
       val () = debug_ontheground := ontheground
 
@@ -676,7 +694,8 @@ struct
          (see above). *)
       fun apply_motion ticks_left =
         let
-          val () = print ("applymotion " ^ Int.toString ticks_left ^ "\n")
+          val () = dprint (fn () =>
+                           "applymotion " ^ Int.toString ticks_left ^ "\n")
           (* PERF can just exit if dx = dy = 0 *)
 
           val (step, state, major_dir) =
@@ -695,12 +714,14 @@ struct
 
               val (major, _) = getmaj (dx, dy)
 
-              val () = print ((if ontheground then "[otg] "
-                               else "[   ] ") ^
-                              Fine.tostring (!x) ^ "," ^ Fine.tostring (!y) ^
-                              " + " ^
-                              Fine.tostring dx ^ "," ^ Fine.tostring dy ^
-                              " maj " ^ dirstring major ^ "\n")
+              val () = dprint
+                (fn () =>
+                 (if ontheground then "[otg] "
+                  else "[   ] ") ^
+                     Fine.tostring (!x) ^ "," ^ Fine.tostring (!y) ^
+                     " + " ^
+                     Fine.tostring dx ^ "," ^ Fine.tostring dy ^
+                     " maj " ^ dirstring major ^ "\n")
             in
               (step, state, major)
             end
@@ -760,22 +781,34 @@ struct
                        U =>
                          let in
                            dy := Fine.max (Fine.fromint 0, !dy);
-                           y := Fine.barely_prev_pixel (!y)
+                           y := Fine.barely_prev_pixel (!y);
+                           dprint (fn () =>
+                                   "Eject up y " ^ Fine.tostring (!y) ^
+                                   " dy " ^ Fine.tostring (!dy) ^ "\n")
                          end
                      | D =>
                          let in
                            dy := Fine.min (Fine.fromint 0, !dy);
-                           y := Fine.barely_next_pixel (!y)
+                           y := Fine.barely_next_pixel (!y);
+                           dprint (fn () =>
+                                   "Eject down y " ^ Fine.tostring (!y) ^
+                                   " dy " ^ Fine.tostring (!dy) ^ "\n")
                          end
                      | L =>
                          let in
                            dx := Fine.min (Fine.fromint 0, !dx);
-                           x := Fine.barely_prev_pixel (!x)
+                           x := Fine.barely_prev_pixel (!x);
+                           dprint (fn () =>
+                                   "Eject left x " ^ Fine.tostring (!x) ^
+                                   " dx " ^ Fine.tostring (!dx) ^ "\n")
                          end
                      | R =>
                          let in
                            dx := Fine.max (Fine.fromint 0, !dx);
-                           x := Fine.barely_next_pixel (!x)
+                           x := Fine.barely_next_pixel (!x);
+                           dprint (fn () =>
+                                   "Eject right x " ^ Fine.tostring (!x) ^
+                                   " dx " ^ Fine.tostring (!dx) ^ "\n")
                          end)
 
                   (* XXX I wonder if this can just generalize 'go'? *)
@@ -783,11 +816,12 @@ struct
                     let
                       val (c1, c2) = (getcontact (screen, body, dir1),
                                       getcontact (screen, body, dir2))
-                      val () = print ("go2 " ^
-                                      dirstring dir1 ^ " " ^
-                                      dirstring dir2 ^ " -> " ^
-                                      contactstring (#1 c1) ^ " " ^
-                                      contactstring (#1 c2) ^ "\n")
+                      val () = dprint (fn () =>
+                                       "go2 " ^
+                                       dirstring dir1 ^ " " ^
+                                       dirstring dir2 ^ " -> " ^
+                                       contactstring (#1 c1) ^ " " ^
+                                       contactstring (#1 c2) ^ "\n")
                     in
                       case (c1, c2) of
                         ((Air, _), (Air, _)) =>
@@ -805,8 +839,9 @@ struct
                           if corner_pixel (screen, body, dir1, dir2)
                           then
                             let in
-                              print ("air/air corner px, maj: " ^
-                                     dirstring major_dir ^ "\n");
+                              dprint (fn () =>
+                                      "air/air corner px, maj: " ^
+                                      dirstring major_dir ^ "\n");
 
                               (* In this case we only move in the major
                                  dir (via eject, to try to stay as close
@@ -894,8 +929,9 @@ struct
                   fun go dir =
                     let
                       val c = getcontact (screen, body, dir)
-                      val () = print ("go " ^ dirstring dir ^ " -> " ^
-                                      contactstring (#1 c) ^ "\n")
+                      val () = dprint (fn () =>
+                                       "go " ^ dirstring dir ^ " -> " ^
+                                       contactstring (#1 c) ^ "\n")
                     in
                       case c of
                         (Air, _) => accept_and_continue ()
@@ -990,7 +1026,7 @@ struct
 
   fun movebodies screen =
     let in
-      print "--\n";
+      dprint (fn () => "-- movebodies --\n");
       (* Currently, processes the bodies in order.
 
          It would be good to do some kind of simultaneous solving,

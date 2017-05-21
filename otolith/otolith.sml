@@ -794,8 +794,14 @@ struct
       val () =
         if !holdingtab
         then
-          let in
+          let
+            val MAP_IDX = Draw.mixcolor (0wxAA, 0wxAA, 0wxAA, 0wxFF)
+          in
             Draw.darken pixels;
+            Draw.drawtextcolor (pixels, Font.pxfont, MAP_IDX,
+                                2, 2,
+                                Int.toString (!worldx) ^ " " ^
+                                Int.toString (!worldy));
             Render.drawmap (pixels, !worldx, !worldy)
           end
         else ()
@@ -832,12 +838,15 @@ struct
                           dstx = playerx - 5,
                           dsty = playery - 7 };
 
+              (*
               Draw.drawrect (pixels,
                              playerx - playerw div 2,
                              playery - playerh div 2,
                              playerx + playerw div 2,
                              playery + playerh div 2,
-                             SNAPCOLOR)
+                             SNAPCOLOR);
+              *)
+              ()
             end
         | Editing =>
             (* draw mouse. Should probably take mode into account *)
