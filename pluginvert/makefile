@@ -1,7 +1,7 @@
 
-default: mtoz.exe
+default: pluginvert.exe
 
-all: mtoz.exe mtoz-flat.exe cluster.exe cluster1d.exe cluster2d.exe cluster3d.exe
+all: pluginvert.exe mtoz-flat.exe cluster.exe cluster1d.exe cluster2d.exe cluster3d.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -std=c++14
@@ -55,27 +55,7 @@ OBJECTS=$(UTILOBJECTS) $(FCEULIBOBJECTS)
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
 
-mtoz.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o mtoz.o
-	@$(CXX) $^ -o $@ $(LFLAGS)
-	@echo -n "!"
-
-mtoz-flat.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o mtoz-flat.o
-	@$(CXX) $^ -o $@ $(LFLAGS)
-	@echo -n "!"
-
-cluster.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster.o
-	@$(CXX) $^ -o $@ $(LFLAGS)
-	@echo -n "!"
-
-cluster1d.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster1d.o
-	@$(CXX) $^ -o $@ $(LFLAGS)
-	@echo -n "!"
-
-cluster2d.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster2d.o
-	@$(CXX) $^ -o $@ $(LFLAGS)
-	@echo -n "!"
-
-cluster3d.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o cluster3d.o
+pluginvert.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o pluginvert.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
