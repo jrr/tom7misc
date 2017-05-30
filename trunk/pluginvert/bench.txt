@@ -1,0 +1,35 @@
+
+mtoz-flat.exe on 8 Oct 2016, AMD R9 290X.  (revision ~2868)
+.1734 rps  (5.76 s/f)
+
+Surprisingly, Geforce 1080 (clocked to 1936mhz) is almost the same
+(same code, 9 Oct 2016):
+.1783 rps  (5.60 s/f -- ~3.7% faster)
+
+Am I using the GPU inefficiently?
+ - System is noticeably laggy, like on video playback
+ - GPU-Z shows 100% GPU Load
+ - but also only 35-45% TDP, 25-33% memory controller load
+ - All of this seems plausible since mtoz should be compute-bound, not
+   memory bound (meaning main memory / gpu bandwidth). TDP could definitely
+   be affected by bus usage.
+ - 
+ 
+
+-------------------------------------------------------------------------------
+
+
+
+
+.8879 rps before NetworkGPU.
+
+
+After:
+0.9396 rps
+0.9336 rps
+
+unparallelcomp in training:
+0.9476
+
+... very long term training (100k+ rounds): 0.9018
+
