@@ -20,6 +20,9 @@ CC=gcc
 
 # MLTON=/c/mlton/bin/mlton.bat
 
+# Note, this builds against AMD's distribution of OpenCL, since that's
+# the card I had when I started. It also works fine with an NVIDIA GPU,
+# and nvidia libs are a bit hard to find since they love CUDA.
 AMD_ARCH=x86_64
 # AMDSDK="/c/Program Files (x86)/AMD APP SDK"
 # mingw wants /c/, but TDM likes c:/
