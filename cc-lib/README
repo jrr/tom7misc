@@ -1,4 +1,4 @@
-cc-lib                             Tom 7       11 Jun 2016
+cc-lib                             Tom 7       4 Jun 2017
 
 Like my much more impressive "sml-lib", this is my attempt to get
 all of my frequently used C++ libraries into a single place so that
@@ -14,14 +14,15 @@ C++11 features. It's worth it. GCC 4.8 and later have pretty complete
 support. As of 2016 I've started using C++14 too. On Windows, I'm using
 TDM-GCC. On linux, just get the newest GCC.
 
-A lot of what's here is google "base" libraries, since those are quite
+Some of what's here is google "base" libraries, since those are quite
 useful and I know them well. They have been released multiple times
 under open-source licenses; particularly the Apache 2.0 license, which
 is in APACHE20. Googletest is the "new BSD" license, in gtest/LICENSE.
 
 Sean Barrett's excellently simple stb_* libraries are in the public
 domain; see the notices at the tops of those files. I've made some
-modifications to them.
+modifications to them. I've imported some other single-file libs and
+modified them, like dr_wav.
 
 Some of the numerical routines in randutil are based on Numpy. If you
 believe that this is a "copy" or "substantial portion", then please
