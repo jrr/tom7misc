@@ -14,6 +14,7 @@
 // ugh, conflict...
 #undef ARRAYSIZE
 #endif
+
 #endif
 
 struct MutexLock {
@@ -39,9 +40,6 @@ void WriteWithLock(std::mutex *m, T *t, const T &val) {
 
 // Do progress meter.
 // It should be thread safe and have a way for a thread to register a sub-meter.
-
-// TODO: Make these functions take a "callable" template param F, rather
-// than requiring std::function.
 
 // Run the function f on each element of vec in parallel, with its
 // index. The caller must of course synchronize any accesses to shared
@@ -94,6 +92,7 @@ template<class T, class F>
 void ParallelApp(const std::vector<T> &vec, 
 		 const F &f,
 		 int max_concurrency) {
+  // XXX can just be lambda?
   std::function<void(int, const T &)> ff =
     [&f](int i_unused, const T &arg) { return f(arg); };
   ParallelAppi(vec, ff, max_concurrency);
@@ -164,6 +163,7 @@ auto ParallelMap(const std::vector<T> &vec,
   // vector::operator[], but if we have a data pointer then we can be
   // confident of having one writer to each slot.
   R *data = result.data();
+  // XXX can just be lambda?
   std::function<void(int, const T &)> run_write =
     [data, &f](int idx, const T &arg) -> void {
     data[idx] = f(arg);
@@ -209,9 +209,8 @@ struct ThreadJoiner {
 // making this kinda high-overhead but easy to manage. It at least
 // cleans up after itself.
 struct Asynchronously {
-  Asynchronously(int max_threads) : threads_active(0),
-				    max_threads(max_threads) {
-  }
+  explicit Asynchronously(int max_threads) : threads_active(0),
+					     max_threads(max_threads) {}
 
   // Run the function asynchronously if we haven't exceeded the maximum
   // number of threads. Otherwise, run it in this thread and don't
@@ -244,7 +243,8 @@ struct Asynchronously {
       }
     }
   }
-    
+
+ private:
   std::mutex m;
   int threads_active;
   const int max_threads;
