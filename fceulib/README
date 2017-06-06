@@ -22,7 +22,8 @@ that some piece of code accesses uninitialized memory and thus doesn't
 have repeatable behavior. This may not matter for your application, so
 go to town!
 
-Note that this port requires C++11 and I have only tested 64-bit builds.
+Note that this port requires C++11 (maybe even C++14 now) and I have
+only tested 64-bit builds.
 I am using the TDM version of GCC, at version 5.1.0.
 I previously used x86_64-w64-mingw32-g++ (GCC 4.9.2) but it lacked
 various C++11 support and I could not make it work with threads.

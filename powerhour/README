@@ -5,5 +5,5 @@ machines, as described in the paper at SIGBOVIK 2012 (an April Fool's
 Day conference, just to set the right context :)), "Algorithms for
 k/n Power Hours."
 
-The subdirectory contains a follow-up paper (as yet unfinished and
-unpublished) describing these techniques and their results.
+The subdirectory contains a follow-up paper (also published in
+SIGBOVIK) describing these techniques and their results.
