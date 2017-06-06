@@ -38,10 +38,10 @@ struct
                 if blank songname
                 then readlines rest
                 else (case (Real.fromString lauras, Real.fromString toms) of
-                          (SOME ls, SOME ts) => 
+                          (SOME ls, SOME ts) =>
                               if StringUtil.lcase songname = "album"
                               then ((laura, ls), (tom, ts))
-                              else 
+                              else
                                   let in
                                       songsrev := (songname, (laura, ls), (tom, ts)) :: !songsrev;
                                       readlines rest
@@ -75,9 +75,9 @@ struct
 
     (* No exponential notation *)
     fun ertos r = if (r > ~0.000001 andalso r < 0.000001) then "0.0" else (Real.fmt (StringCvt.FIX (SOME 4)) r)
-        
+
     (* Don't use SML's dumb ~ *)
-    fun rtos r = if r < 0.0 
+    fun rtos r = if r < 0.0
                  then "-" ^ ertos (0.0 - r)
                  else ertos r
 
@@ -86,7 +86,7 @@ struct
         Rect of { x : real, y : real, width : real, height : real,
                   stroke : string option, fill : string option,
                   opacity : real option }
-      (* angle is rotation angle, in degrees clockwise. NONE means regular left-to-right. 
+      (* angle is rotation angle, in degrees clockwise. NONE means regular left-to-right.
          Rotation center is the left hand end of the baseline. *)
       | Text of { x : real, y : real, style : string option, text : string, angle : real option }
         (* use "none" for no fill *)
@@ -115,7 +115,7 @@ struct
                                  y1 * Math.sin angle - x1 * Math.cos angle + x2,
                                  y2 - x1 * Math.sin angle - y1 * Math.cos angle])
 *)
-        let 
+        let
             val ca = Math.cos (angle * Math.pi / 180.0)
             val sa = Math.sin (angle * Math.pi / 180.0)
         in
@@ -126,7 +126,7 @@ struct
         end
 
     fun elem (Rect { x, y, width, height, stroke, fill, opacity }) =
-              "<rect" ^ 
+              "<rect" ^
               attr_real "x" x ^
               attr_real "y" y ^
               attr_real "width" width ^
@@ -186,7 +186,7 @@ struct
                 end
 
             fun song_names x y songs =
-                ListUtil.appi 
+                ListUtil.appi
                 (fn (s, i) =>
                  let in
                      wr (elem (Text { x = x + (real i * WIDTH) + 3.0, y = ~6.0,
@@ -322,14 +322,14 @@ struct
             (* And we sort by the difference in score (positive means tom liked it more) *)
             val flat_songs = ListUtil.sort sort flat_songs
 
-            (* Okay, now we want to figure out a prefix to show on the left side of the graph, 
+            (* Okay, now we want to figure out a prefix to show on the left side of the graph,
                and a suffix to show on the right. The only requirement is that there be at least
                one disagreement in each, and all on the left tom likes more, and all on the right
                tom likes less. (It is absolutely possible that this could not be satisfied, but
                unlikely for us...) *)
             fun chop f _ nil = nil
               | chop f 0 _ = nil
-              | chop f n (a :: r) = 
+              | chop f n (a :: r) =
                 if f a
                 then a :: chop f (n - 1) r
                 else nil
@@ -357,7 +357,7 @@ struct
 
             song_names lefthand 0.0 (map #1 tom_more);
             plot_ticks lefthand 0.0 (map #3 tom_more) (map #2 tom_more) "#2242FF" "#A600DD" "#1351CE";
-                       
+
             song_names righthand 0.0 (map #1 tom_less);
             plot_ticks righthand 0.0 (map #2 tom_less) (map #3 tom_less) "#A600DD" "#2242FF" "#A139D8";
 
@@ -365,7 +365,7 @@ struct
             TextIO.closeOut f
         end
 
-    val greatest_disparities = two_sides (fn ((_, l, t, d), (_, ll, tt, dd)) => 
+    val greatest_disparities = two_sides (fn ((_, l, t, d), (_, ll, tt, dd)) =>
                                           case Real.compare (d, dd) of
                                               EQUAL => Real.compare (l, ll)
                                             | ord => ord) (fn a => #4 a > 0.0) (fn a => #4 a < 0.0)
@@ -384,3 +384,4 @@ struct
     val () = laura_favorites "laurafaves.svg"
 
 end
+
