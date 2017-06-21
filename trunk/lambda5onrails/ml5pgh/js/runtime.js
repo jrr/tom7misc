@@ -501,7 +501,7 @@ function lc_go(bytes) {
 	/* post (we'll send body), toserver url, asynchronous */
         req.open("POST", session_serverurl + session_id, true);
 	req.setRequestHeader ('Content-Type', 'application/ml5');
-	req.setRequestHeader ('Connection', 'close');
+	// req.setRequestHeader ('Connection', 'close');
         req.send(bytes);
     } else if (window.ActiveXObject) {
 	alert('Sorry, Internet Explorer is not supported (yet?)');
@@ -581,7 +581,7 @@ function lc_make_toclient() {
            notify us (push) */
         lc_toclient.open("GET", session_clienturl + session_id, true);
 	lc_toclient.setRequestHeader ('Content-Type', 'application/ml5');
-	lc_toclient.setRequestHeader ('Connection', 'close');
+	// lc_toclient.setRequestHeader ('Connection', 'close');
         lc_toclient.send('');
     } else if (window.ActiveXObject) {
 	alert('IE not supported (yet?)');

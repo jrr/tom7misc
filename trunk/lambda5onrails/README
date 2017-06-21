@@ -1,0 +1,31 @@
+This is source code for my 2008 PhD dissertation, "Modal Types for
+Mobile Code." You can find a PDF at: http://tom7.org/papers/
+
+To run this, you need:
+ - To install mlton
+ - To also check out the "sml-lib" directory from my subversion
+   repository, and place it next to the "lambda5onrails" directory
+   (this current one).
+
+You should be able to build the server (server/) and compiler
+(ml5pgh/) by running make in those subdirectories. Then you can build
+tests like
+
+./ml5pgh test/wiki.ml5
+
+from the ml5pgh directory.
+
+When server5 is running, http://localhost:5555/demos will contain the
+index of demos. Note that you won't be able to see the compiled code
+nor run them if you haven't compiled them.
+
+As of 2017, this all still seems to work. Make sure that the -host
+parameter is set properly for server5, since any external clients will
+be instructed to connect to this host. (The default, "localhost", will
+work but then only a browser on your local machine will find the
+server at the address "localhost"). If you get an "assuming
+termination" message for the demos, it is probably a related
+connectivity problem.
+
+ - Tom 7
+ 
