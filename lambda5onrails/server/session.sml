@@ -15,7 +15,7 @@ struct
               "The port to listen on."))
         "port"
 
-  val host = Params.param "gs82.sp.cs.cmu.edu"
+  val host = Params.param "localhost"
         (SOME("-host",
               "The host to listen on."))
         "host"

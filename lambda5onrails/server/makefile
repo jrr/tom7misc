@@ -10,7 +10,7 @@ MLTONFLAGS = -default-ann 'allowFFI true' -default-ann 'sequenceNonUnit warn'
 
 # -prefer-abs-paths true -show-def-use server5.basis.du
 server5 : *.sml server5.cm raw-network.c ../ml5pgh/primop.sml ../ml5pgh/bytecode/*.sml
-	-mlton @MLton max-heap 128m -- $(MLTONFLAGS) server5.cm raw-network.c
+	-mlton $(MLTONFLAGS) server5.cm raw-network.c
 #	grep -v basis server5.basis.du > server5.du
 
 clean :
