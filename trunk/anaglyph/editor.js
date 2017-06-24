@@ -1,8 +1,10 @@
 
-
-// ctx.moveTo(x, y);
-// ctx.lineTo(x1, y1);
-// ctx.stroke();
+let ctx;
+// Current node being dragged (same as return type of 'closest')
+let dragging = null;
+// In canvas screen coordinates.
+let mousex = 10;
+let mousey = 10;
 
 // Atoms have a single path (e ok?). The first position is always a
 // "moveto" command. Each successive position has an x,y coordinate,
@@ -44,9 +46,41 @@ function Clear() {
   Draw();
 }
 
+// Returns screen (canvas) coordinates; grid 0,0 is the center of the
+// screen.
 function GridToScreen(x, y) {
   return {x : (x * CELLSIZE) + CANVASWIDTH / 2,
 	  y : (y * CELLSIZE) + CANVASHEIGHT / 2};
+}
+
+// Returns the closest integral grid coordinate.
+function ScreenToGrid(x, y) {
+  return {x : Math.round((x - CANVASWIDTH / 2) / CELLSIZE),
+	  y : Math.round((y - CANVASHEIGHT / 2) / CELLSIZE)}
+}
+
+
+// Returns the index of the closest point.
+function ClosestPoint(path, sx, sy, mindist, allow_control) {
+  let dsquared =
+      (CANVASWIDTH + CANVASHEIGHT) * (CANVASWIDTH + CANVASHEIGHT);
+  let besti = 0;
+  for (var i = 0; i < path.length; i++) {
+    var pt = path[i];
+    const { x, y } = GridToScreen(pt.x, pt.y);
+    const dx = x - sx;
+    const dy = y - sy;
+    const dsq = dx * dx + dy * dy;
+    if (dsq < dsquared) {
+      dsquared = dsq;
+      besti = i;
+    }
+  }
+  if (mindist != undefined && dsquared < mindist * mindist) {
+    return { idx: besti };
+  } else {
+    return null;
+  }
 }
 
 function DrawPath(p, fill, stroke) {
@@ -71,14 +105,72 @@ function DrawPath(p, fill, stroke) {
   }
 }
 
+// Returns screen x,y coordinate that's in the center
+// between the two points. For lines, this is basically
+// correct. For curves, it may be way off.
+function Bisect(p1, p2) {
+  // XXX do something for bezier?
+  const { x: p1x, y: p1y } = GridToScreen(p1.x, p1.y);
+  const { x: p2x, y: p2y } = GridToScreen(p2.x, p2.y);
+  // console.log('bisect ', p1x, p1y, p2x, p2y);
+  return { x: Math.round((p1x + p2x) / 2),
+	   y: Math.round((p1y + p2y) / 2) };
+}
+
+function DrawControlPoints(p, highlight) {
+  if (p.length == 0) throw 'empty path';
+
+  for (let i = 0; i < p.length; i++) {
+    const pt = p[i];
+    const {x, y} = GridToScreen(pt.x, pt.y);
+
+    ctx.beginPath();
+    // console.log(p);
+    let width;
+    if (highlight == i) {
+      ctx.fillStyle = 'rgba(255,255,128,1.0)';
+      ctx.strokeStyle = 'rgba(64,0,0,1.0)';
+      width = CELLSIZE * 0.45;
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      width = CELLSIZE * 0.4;
+    }
+    ctx.ellipse(x, y,
+		width, width, width, width,
+		360);
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Next/prev bisection hints
+  if (highlight >= 0 && highlight < p.length) {
+    const pt = p[highlight];
+    const prev = p[highlight == 0 ? p.length - 1 : highlight - 1];
+    const next = p[(highlight + 1) % p.length];
+    const { x: px, y: py } = Bisect(prev, pt);
+    const { x: nx, y: ny } = Bisect(pt, next);
+    // console.log(px, py, nx, ny);
+    ctx.font = '18pt Helvetica bold';
+    ctx.fillStyle = '#f00';
+    ctx.fillText("1", px, py);
+    ctx.fillText("2", nx, ny);
+  }
+}
+
 function Draw() {
   ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
-
+  
   // Draw grid
-  ctx.strokeStyle = '#ddd';
   ctx.lineWidth = 1;
   for (let y = 0; y <= CELLSH; y++) {
     ctx.beginPath();
+    if (y == CELLSH / 2) {
+      ctx.strokeStyle = '#777';
+    } else {
+      ctx.strokeStyle = '#ddd';
+    }
     ctx.moveTo(0, y * CELLSIZE);
     ctx.lineTo(CELLSIZE * CELLSW, y * CELLSIZE);
     ctx.stroke();
@@ -86,6 +178,11 @@ function Draw() {
 
   for (let x = 0; x <= CELLSW; x++) {
     ctx.beginPath();
+    if (x == CELLSW / 2) {
+      ctx.strokeStyle = '#777';
+    } else {
+      ctx.strokeStyle = '#ddd';
+    }
     ctx.moveTo(x * CELLSIZE, 0);
     ctx.lineTo(x * CELLSIZE, CELLSH * CELLSIZE);
     ctx.stroke();
@@ -94,86 +191,82 @@ function Draw() {
   // XXX obviously, make it possible to assemble atoms
   // to composite letters too.
   const path = atom_glyphs[current_atom];
-  DrawPath(path, '#111', '#55f');
-  
-  /*
-  // Circles.
-  for (let i = 0; i < circles.length; i++) {
-    let c = circles[i];
-    ctx.beginPath();
-    ctx.strokeStyle = '#ccf';
-    ctx.lineWidth = 3;
-    ctx.ellipse(c.x * CELLSIZE + CELLSIZE / 2, 
-		c.y * CELLSIZE + CELLSIZE / 2,
-		CELLSIZE * c.r, CELLSIZE * c.r,
-		CELLSIZE * c.r, CELLSIZE * c.r,
-		360);
-    ctx.lineWidth = 3;
-    ctx.stroke();
+
+  let highlight;
+  if (dragging) {
+    highlight = dragging.idx;
+  } else {
+    const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, true);
+    highlight = closest ? closest.idx : -1;
   }
-  */
-/*
-  // All pairs lines.
-  for (let i = 0; i < points.length; i++) {
-    let p = points[i];
-    if (p.next == null) {
-      let pc = Circles(p);
-      for (let j = i + 1; j < points.length; j++) {
-	let q = points[j];
-	if (q.next == null && p.color == q.color) {
-	  let qc = Circles(q);
-	  // XXX hack -- fastest way to compare equality
-	  // of circle lists?
-	  if ('' + pc == '' + qc) {
-	    ctx.beginPath();
-	    ctx.lineWidth = 6;
-	    ctx.strokeStyle = ['#555', '#BBB'][p.color];
-	    ctx.moveTo(p.x * CELLSIZE + CELLSIZE / 2,
-		       p.y * CELLSIZE + CELLSIZE / 2);
-	    ctx.lineTo(q.x * CELLSIZE + CELLSIZE / 2,
-		       q.y * CELLSIZE + CELLSIZE / 2);
-	    ctx.stroke();
-	  }
-	}
-      }
-    }
-  }
-  
-  // Dots themselves (should be last)
-  for (let i = 0; i < points.length; i++) {
-    let p = points[i];
-    ctx.beginPath();
-    // console.log(p);
-    ctx.fillStyle = ['#222', '#fff'][p.color];
-    ctx.strokeStyle = ['#000', '#222'][p.color];
-    ctx.ellipse(p.x * CELLSIZE + CELLSIZE / 2, 
-		p.y * CELLSIZE + CELLSIZE / 2,
-		CELLSIZE * 0.4, CELLSIZE * 0.4,
-		CELLSIZE * 0.4, CELLSIZE * 0.4,
-		360);
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.stroke();
-  }
-*/
+  DrawPath(path, 'rgba(16,16,16,0.75)', '#55f');
+  DrawControlPoints(path, highlight);
 }
 
 function Click(e) {
   console.log(e);
-  let x = e.offsetX;
-  let y = e.offsetY;
-  points.push({x: Math.floor(x / CELLSIZE),
-	       y: Math.floor(y / CELLSIZE),
-	       next: null,
-	       color: e.shiftKey ? 1 : 0})
+  const x = e.offsetX;
+  const y = e.offsetY;
+
+  const closest = ClosestPoint(atom_glyphs[current_atom],
+			       mousex, mousey,
+			       CELLSIZE, true);
+  dragging = closest;
   Draw();
 }
 
-let ctx;
+function Unclick(e) {
+  dragging = null;
+  Draw();
+}
+
+function MouseMove(e) {
+  mousex = e.offsetX;
+  mousey = e.offsetY;
+  if (dragging) {
+    const pt = atom_glyphs[current_atom][dragging.idx];
+    const { x: gx, y: gy } = ScreenToGrid(mousex, mousey);
+    pt.x = gx;
+    pt.y = gy;
+  }
+    
+  Draw();
+}
+
+function Key(e) {
+  switch (e.key) {
+  case '1':
+  case '2':
+    console.log('bisect');
+    if (dragging) return;
+    let path = atom_glyphs[current_atom];
+    const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, false);
+    if (!closest) return;
+    const prev = path[closest.idx == 0 ? path.length - 1 : closest.idx - 1];
+    const pt = path[closest.idx];
+    const next = path[(closest.idx + 1) % path.length];
+    if (e.key == '1') {
+      const {x, y} = Bisect(prev, pt);
+      let newpt = ScreenToGrid(x, y);
+      path.splice(closest.idx, 0, newpt);
+    } else if (e.key == '2') {
+      const {x, y} = Bisect(pt, next);
+      let newpt = ScreenToGrid(x, y);
+      path.splice(closest.idx + 1, 0, newpt);
+    } else {
+      throw 'impossible';
+    }
+  }
+  Draw();
+}
+
 function Init() {
   let c = document.getElementById('canvas');
   ctx = c.getContext('2d');
   Draw();
 
   c.onmousedown = Click;
+  c.onmouseup = Unclick;
+  c.onmousemove = MouseMove;
+  window.addEventListener("keydown", Key, false);
 }
