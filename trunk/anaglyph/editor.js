@@ -21,18 +21,11 @@ function defaultbox() {
 
 // Can modify the mesh of atomic pieces.
 let atoms = "ceorsy'.?";
-let atom_glyphs = {
-  "c": defaultbox(),
-  "e": defaultbox(),
-  "o": defaultbox(),
-  "r": defaultbox(),
-  "s": defaultbox(),
-  "y": defaultbox(),
-  "'": defaultbox(),
-  ".": defaultbox(),
-  "?": defaultbox()
-};
+// Can use JSON.stringify(atom_glyphs) in console to dump the data.
+let atom_glyphs =
+    {"c":[{"x":-13,"y":6},{"x":-14,"y":0},{"x":-13,"y":-6},{"x":-10,"y":-10},{"x":-5,"y":-13},{"x":0,"y":-14},{"x":6,"y":-13},{"x":6,"y":-8},{"x":0,"y":-9},{"x":-6,"y":-7},{"x":-8,"y":-3},{"x":-9,"y":0},{"x":-8,"y":3},{"x":-6,"y":6},{"x":0,"y":8},{"x":6,"y":7},{"x":6,"y":12},{"x":0,"y":13},{"x":-5,"y":12},{"x":-10,"y":10}],"e":[{"x":-13,"y":-6},{"x":-10,"y":-10},{"x":-5,"y":-13},{"x":0,"y":-14},{"x":5,"y":-13},{"x":9,"y":-10},{"x":11,"y":-6},{"x":11,"y":1},{"x":-10,"y":1},{"x":-10,"y":-3},{"x":7,"y":-3},{"x":5,"y":-8},{"x":0,"y":-9},{"x":-6,"y":-7},{"x":-8,"y":-4},{"x":-9,"y":0},{"x":-8,"y":3},{"x":-6,"y":6},{"x":0,"y":8},{"x":6,"y":7},{"x":6,"y":12},{"x":0,"y":13},{"x":-5,"y":12},{"x":-10,"y":10},{"x":-13,"y":6},{"x":-14,"y":0}],"o":[{"x":-13,"y":-6},{"x":-10,"y":-10},{"x":-5,"y":-13},{"x":0,"y":-14},{"x":0,"y":-9},{"x":-6,"y":-7},{"x":-9,"y":0},{"x":-6,"y":6},{"x":0,"y":8},{"x":6,"y":6},{"x":9,"y":0},{"x":6,"y":-7},{"x":0,"y":-9},{"x":0,"y":-14},{"x":5,"y":-13},{"x":10,"y":-10},{"x":13,"y":-6},{"x":14,"y":0},{"x":13,"y":6},{"x":10,"y":10},{"x":5,"y":12},{"x":0,"y":13},{"x":-5,"y":12},{"x":-10,"y":10},{"x":-13,"y":6},{"x":-14,"y":0}],"r":[{"x":-10,"y":-10},{"x":-5,"y":-10},{"x":-5,"y":-7},{"x":-4,"y":-9},{"x":-1,"y":-10},{"x":2,"y":-9},{"x":5,"y":-7},{"x":5,"y":-4},{"x":3,"y":-4},{"x":0,"y":-5},{"x":-2,"y":-5},{"x":-4,"y":-3},{"x":-5,"y":0},{"x":-5,"y":10},{"x":-10,"y":10}],"s":[{"x":-10,"y":0},{"x":-11,"y":-5},{"x":-10,"y":-10},{"x":-5,"y":-13},{"x":0,"y":-14},{"x":5,"y":-13},{"x":8,"y":-11},{"x":9,"y":-9},{"x":10,"y":-7},{"x":10,"y":-5},{"x":6,"y":-5},{"x":5,"y":-8},{"x":0,"y":-10},{"x":-4,"y":-9},{"x":-7,"y":-6},{"x":-7,"y":-3},{"x":10,"y":0},{"x":11,"y":5},{"x":10,"y":10},{"x":5,"y":13},{"x":0,"y":14},{"x":-5,"y":13},{"x":-8,"y":11},{"x":-9,"y":9},{"x":-10,"y":7},{"x":-10,"y":5},{"x":-6,"y":5},{"x":-5,"y":8},{"x":-1,"y":10},{"x":4,"y":9},{"x":7,"y":6},{"x":7,"y":3}],"y":[{"x":-11,"y":-2},{"x":-7,"y":-2},{"x":-7,"y":5},{"x":-5,"y":7},{"x":0,"y":9},{"x":5,"y":7},{"x":7,"y":5},{"x":7,"y":-2},{"x":11,"y":-2},{"x":11,"y":17},{"x":10,"y":21},{"x":5,"y":24},{"x":0,"y":25},{"x":-5,"y":24},{"x":-8,"y":22},{"x":-10,"y":18},{"x":-10,"y":16},{"x":-6,"y":16},{"x":-5,"y":19},{"x":-1,"y":21},{"x":4,"y":20},{"x":7,"y":17},{"x":7,"y":11},{"x":5,"y":12},{"x":0,"y":13},{"x":-5,"y":12},{"x":-9,"y":10},{"x":-11,"y":6}],"'":[{"x":-10,"y":-10},{"x":10,"y":-10},{"x":10,"y":10},{"x":-10,"y":10}],".":[{"x":-10,"y":-10},{"x":10,"y":-10},{"x":10,"y":10},{"x":-10,"y":10}],"?":[{"x":-10,"y":-10},{"x":10,"y":-10},{"x":10,"y":10},{"x":-10,"y":10}]};
 
+let onion_atom = 'e';
 let current_atom = 'c';
 
 const CELLSIZE = 20;
@@ -161,13 +154,27 @@ function DrawControlPoints(p, highlight) {
 
 function Draw() {
   ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+
+  // XXX obviously, make it possible to assemble atoms
+  // to composite letters too.
+  const path = atom_glyphs[current_atom];
+  
+  let dx = null, dy = null;
+  if (dragging) {
+    // XXX Bezier
+    dx = path[dragging.idx].x;
+    dy = path[dragging.idx].y;
+  }
   
   // Draw grid
   ctx.lineWidth = 1;
   for (let y = 0; y <= CELLSH; y++) {
     ctx.beginPath();
-    if (y == CELLSH / 2) {
+    const yy = y - CELLSH / 2;
+    if (yy == 0) {
       ctx.strokeStyle = '#777';
+    } else if (yy == dy || yy == -dy) {
+      ctx.strokeStyle = '#d99';
     } else {
       ctx.strokeStyle = '#ddd';
     }
@@ -178,8 +185,11 @@ function Draw() {
 
   for (let x = 0; x <= CELLSW; x++) {
     ctx.beginPath();
-    if (x == CELLSW / 2) {
+    const xx = x - CELLSW / 2;
+    if (xx == 0) {
       ctx.strokeStyle = '#777';
+    } else if (xx == dx || xx == -dx) {
+      ctx.strokeStyle = '#d99';
     } else {
       ctx.strokeStyle = '#ddd';
     }
@@ -188,10 +198,13 @@ function Draw() {
     ctx.stroke();
   }
 
-  // XXX obviously, make it possible to assemble atoms
-  // to composite letters too.
-  const path = atom_glyphs[current_atom];
-
+  // XXX onion skin.
+  if (onion_atom) {
+    const opath = atom_glyphs[onion_atom];
+    DrawPath(opath, 'rgba(16,75,16,0.15)', undefined);
+    // DrawControlPoints(path, undefined);
+  }
+  
   let highlight;
   if (dragging) {
     highlight = dragging.idx;
@@ -204,7 +217,7 @@ function Draw() {
 }
 
 function Click(e) {
-  console.log(e);
+  // console.log(e);
   const x = e.offsetX;
   const y = e.offsetY;
 
@@ -234,9 +247,47 @@ function MouseMove(e) {
 }
 
 function Key(e) {
+  console.log(e);
+  for (const c of atoms) {
+    if (e.key == c) {
+      onion_atom = current_atom == c ? null : current_atom;
+      current_atom = c;
+      Draw();
+      return;
+    }
+  }
+
   switch (e.key) {
+  case 'ArrowUp':
+  case 'ArrowDown':
+  case 'ArrowLeft':
+  case 'ArrowRight': {
+    let dx = 0, dy = 0;
+    switch (e.key) {
+    case 'ArrowUp': dy = -1; break;
+    case 'ArrowDown': dy = 1; break;
+    case 'ArrowLeft': dx = -1; break;
+    case 'ArrowRight': dx = 1; break;
+    }
+    let path = atom_glyphs[current_atom];
+    for (o of path) {
+      // XXX bezier
+      o.x += dx;
+      o.y += dy;
+    }
+    break;
+  }
+  case 'Delete': {
+    let path = atom_glyphs[current_atom];
+    if (path.length <= 3)
+      break;
+    const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, false);
+    if (!closest) return;
+    path.splice(closest.idx, 1);
+    break;
+  }
   case '1':
-  case '2':
+  case '2': {
     console.log('bisect');
     if (dragging) return;
     let path = atom_glyphs[current_atom];
@@ -256,6 +307,8 @@ function Key(e) {
     } else {
       throw 'impossible';
     }
+    break;
+  }
   }
   Draw();
 }
