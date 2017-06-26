@@ -10,6 +10,11 @@ let mousey = 10;
 // If non-null, should lock the interface.
 let locked = null;
 
+const MODE_ATOM = 0;
+const MODE_LETTER = 1;
+const NUM_MODES = 2;
+let mode = MODE_ATOM;
+
 // Can use JSON.stringify(atom_glyphs) in console to dump the data.
 // Atoms have a single path (e and o are just self-overlapping). The
 // first position is always a "moveto" command. Each successive
@@ -29,15 +34,58 @@ function defaultbox() {
 // Can modify the mesh of atomic pieces.
 let atoms = "ceorsy'.?";
 
+let letters = {
+  "a" : [{a:'c', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "b" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
+  "c" : [{a:'c', x:0, y:0, r:0}],
+  "d" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
+  "e" : [{a:'e', x:0, y:0, r:0}],
+  "f" : [{a:'?', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "g" : [{a:'?', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
+  "h" : [{a:'\'', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "i" : [{a:'\'', x:0, y:0, r:0}, {a:'.', x:0, y:0, r:0}],
+  "j" : [{a:'?', x:0, y:0, r:0}, {a:'.', x:0, y:0, r:0}],
+  "k" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "l" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "m" : [{a:'r', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "n" : [{a:'\'', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}],
+  "o" : [{a:'o', x:0, y:0, r:0}],
+  "p" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
+  "q" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
+  "r" : [{a:'r', x:0, y:0, r:0}],
+  "s" : [{a:'s', x:0, y:0, r:0}],
+  "t" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "u" : [{a:'\'', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}],
+  "v" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "w" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "x" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+  "y" : [{a:'y', x:0, y:0, r:0}],
+  "z" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
+};
+
 let onion_atom = 'e';
 let current_atom = 'c';
-
-const CELLSIZE = 20;
-const CELLSW = 96;
-const CELLSH = 54;
+let current_letter = 'd';
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
+
+// Cell size must divide both evenly.
+// Common factors of 1920x1080: 2, 2, 2, 3, 5
+const CELLSIZES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40];
+
+let CELLSIZEIDX = 6;
+let CELLSIZE = CELLSIZES[6];
+let CELLSW = CANVASWIDTH / CELLSIZE;
+let CELLSH = CANVASHEIGHT / CELLSIZE;
+
+function SetCellSizeIdx(i) {
+  if (i < 0 || i >= CELLSIZES.length) return;
+  CELLSIZEIDX = i;
+  CELLSIZE = CELLSIZES[i];
+  CELLSW = CANVASWIDTH / CELLSIZE;
+  CELLSH = CANVASHEIGHT / CELLSIZE;
+}
 
 // Returns screen (canvas) coordinates; grid 0,0 is the center of the
 // screen.
@@ -53,7 +101,7 @@ function ScreenToGrid(x, y) {
 }
 
 
-// Returns the index of the closest point.
+// Returns the index of the closest point on the supplied path.
 function ClosestPoint(path, sx, sy, mindist, allow_control) {
   let dsquared =
       (CANVASWIDTH + CANVASHEIGHT) * (CANVASWIDTH + CANVASHEIGHT);
@@ -152,20 +200,9 @@ function DrawControlPoints(p, highlight) {
   }
 }
 
-function Draw() {
-  ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
-
-  // XXX obviously, make it possible to assemble atoms
-  // to composite letters too.
-  const path = atom_glyphs[current_atom];
-  
-  let dx = null, dy = null;
-  if (dragging) {
-    // XXX Bezier
-    dx = path[dragging.idx].x;
-    dy = path[dragging.idx].y;
-  }
-  
+// Draw the grid at the current scale. dx and dy yield a red rule,
+// reflected around the axis.
+function DrawGrid(dx, dy) {
   // Draw grid
   ctx.lineWidth = 1;
   for (let y = 0; y <= CELLSH; y++) {
@@ -197,7 +234,20 @@ function Draw() {
     ctx.lineTo(x * CELLSIZE, CELLSH * CELLSIZE);
     ctx.stroke();
   }
+}
 
+function DrawAtom() {
+  const path = atom_glyphs[current_atom];
+  
+  let dx = null, dy = null;
+  if (dragging) {
+    // XXX Bezier
+    dx = path[dragging.idx].x;
+    dy = path[dragging.idx].y;
+  }
+
+  DrawGrid(dx, dy);
+  
   // XXX onion skin.
   if (onion_atom) {
     const opath = atom_glyphs[onion_atom];
@@ -222,19 +272,35 @@ function Draw() {
   }
 }
 
+function DrawLetter() {
+  DrawGrid(null, null);
+}
+
+function Draw() {
+  ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+
+  if (mode == MODE_ATOM) {
+    DrawAtom();
+  } else if (mode == MODE_LETTER) {
+    DrawLetter();
+  }
+}
+
 function Click(e) {
   if (locked)
     return;
-  
-  // console.log(e);
-  const x = e.offsetX;
-  const y = e.offsetY;
 
-  const closest = ClosestPoint(atom_glyphs[current_atom],
-			       mousex, mousey,
-			       CELLSIZE, true);
-  dragging = closest;
-  Draw();
+  if (mode == MODE_ATOM) {
+    // console.log(e);
+    const x = e.offsetX;
+    const y = e.offsetY;
+
+    const closest = ClosestPoint(atom_glyphs[current_atom],
+				 mousex, mousey,
+				 CELLSIZE, true);
+    dragging = closest;
+    Draw();
+  }
 }
 
 function Unclick(e) {
@@ -245,14 +311,16 @@ function Unclick(e) {
 function MouseMove(e) {
   mousex = e.offsetX;
   mousey = e.offsetY;
-  if (dragging) {
-    const pt = atom_glyphs[current_atom][dragging.idx];
-    const { x: gx, y: gy } = ScreenToGrid(mousex, mousey);
-    pt.x = gx;
-    pt.y = gy;
-  }
+  if (mode == MODE_ATOM) {
+    if (dragging) {
+      const pt = atom_glyphs[current_atom][dragging.idx];
+      const { x: gx, y: gy } = ScreenToGrid(mousex, mousey);
+      pt.x = gx;
+      pt.y = gy;
+    }
     
-  Draw();
+    Draw();
+  }
 }
 
 function getFrameServerUrl(url, k) {
@@ -282,11 +350,7 @@ function getSynchronous(url) {
   Draw();
 }
 
-function Key(e) {
-  if (locked)
-    return;
-  
-  console.log(e);
+function KeyAtom(e) {
   for (const c of atoms) {
     if (e.key == c) {
       onion_atom = current_atom == c ? null : current_atom;
@@ -358,6 +422,47 @@ function Key(e) {
   }
   }
   Draw();
+}
+
+function KeyLetter(e) {
+  if (e.key in letters) {
+    current_letter = e.key;
+  }
+
+  Draw();
+}
+
+function Key(e) {
+  if (locked)
+    return;
+
+  // Common keys.
+  switch (e.key) {
+  case '`': {
+    mode++; mode %= NUM_MODES;
+    dragging = null;
+    Draw();
+    window.focus();
+    document.getElementById('canvas').focus();
+    return;
+  }
+  case '+':
+  case '-':
+  case '=': {
+    const dir = e.key == '-' ? -1 : 1;
+    SetCellSizeIdx(CELLSIZEIDX + dir);
+    Draw();
+    return;
+  }
+  }
+    
+  console.log(e);
+  
+  if (mode == MODE_ATOM) {
+    KeyAtom(e);
+  } else if (mode == MODE_LETTER) {
+    KeyLetter(e);
+  }
 }
 
 function Init() {
