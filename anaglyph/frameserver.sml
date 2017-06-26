@@ -1,3 +1,9 @@
+(* Warning! This tool is intended to work in tandem with the
+   JavaScript code, and makes changes to the local filesystem upon
+   receiving HTTP GET requests. I have not taken any steps to prevent
+   an untrusted client from writing arbitrary data. You should not run
+   this on an open network. *)
+
 structure FrameServer =
 struct
 
@@ -49,14 +55,44 @@ struct
     Date.fmt
     "%a, %d %b %Y %H:%M:%S %Z"
     (Date.fromTimeUniv (Time.now ()))
-  fun make_response (path, headers) =
+
+  fun response_ok () =
     "HTTP/1.0 200 OK\r\n" ^
     "Connection: close\r\n" ^
     "Content-Type: text/html\r\n" ^
+    "Access-Control-Allow-Origin: *\r\n" ^
     "Server: FrameServer/7\r\n" ^
     "Date: " ^ date () ^ "\r\n" ^
     "\r\n" ^
     "okie dokie\n"
+
+  fun response_fail () =
+    "HTTP/1.0 404 OK\r\n" ^
+    "Connection: close\r\n" ^
+    "Content-Type: text/html\r\n" ^
+    "Access-Control-Allow-Origin: *\r\n" ^
+    "Server: FrameServer/7\r\n" ^
+    "Date: " ^ date () ^ "\r\n" ^
+    "\r\n" ^
+    "not work ;-(\n"
+
+  fun decode root url =
+    case StringUtil.removehead root url of
+      SOME rest => StringUtil.urldecode rest
+    | NONE => NONE
+
+  fun make_response (path, headers) =
+    let in
+      print ("Try parse: [" ^ path ^ "]\n");
+    case decode "/save_atoms/" path of
+      SOME atoms =>
+        let in
+          StringUtil.writefile "atoms.js"
+          ("const atom_glyphs =\n  " ^ atoms ^ ";\n");
+          response_ok ()
+        end
+    | NONE => response_fail ()
+    end
 
   datatype headers =
     Get of string * string list

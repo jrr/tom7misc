@@ -1,3 +1,4 @@
+// atom.js provides atom_glyphs. It's written by frameserver.
 
 let ctx;
 // Current node being dragged (same as return type of 'closest')
@@ -6,6 +7,10 @@ let dragging = null;
 let mousex = 10;
 let mousey = 10;
 
+// If non-null, should lock the interface.
+let locked = null;
+
+// Can use JSON.stringify(atom_glyphs) in console to dump the data.
 // Atoms have a single path (e and o are just self-overlapping). The
 // first position is always a "moveto" command. Each successive
 // position has an x,y coordinate, and if it has XXX then it is a
@@ -23,9 +28,6 @@ function defaultbox() {
 
 // Can modify the mesh of atomic pieces.
 let atoms = "ceorsy'.?";
-// Can use JSON.stringify(atom_glyphs) in console to dump the data.
-let atom_glyphs =
-    {"c":[{"x":-13,"y":5},{"x":-14,"y":0},{"x":-13,"y":-5},{"x":-10,"y":-10},{"x":-5,"y":-12},{"x":0,"y":-13},{"x":6,"y":-12},{"x":6,"y":-8},{"x":0,"y":-9},{"x":-6,"y":-7},{"x":-9,"y":-4},{"x":-10,"y":0},{"x":-9,"y":4},{"x":-6,"y":7},{"x":0,"y":9},{"x":6,"y":8},{"x":6,"y":12},{"x":0,"y":13},{"x":-5,"y":12},{"x":-10,"y":10}],"e":[{"x":-13,"y":-6},{"x":-10,"y":-10},{"x":-5,"y":-12},{"x":-1,"y":-13},{"x":5,"y":-12},{"x":8,"y":-9},{"x":10,"y":-5},{"x":10,"y":1},{"x":-11,"y":1},{"x":-11,"y":-3},{"x":6,"y":-3},{"x":4,"y":-8},{"x":-1,"y":-9},{"x":-6,"y":-7},{"x":-9,"y":-4},{"x":-10,"y":0},{"x":-9,"y":4},{"x":-6,"y":7},{"x":0,"y":9},{"x":6,"y":8},{"x":6,"y":12},{"x":0,"y":13},{"x":-5,"y":12},{"x":-10,"y":10},{"x":-13,"y":6},{"x":-14,"y":0}],"o":[{"x":-13,"y":-6},{"x":-10,"y":-10},{"x":-5,"y":-12},{"x":0,"y":-13},{"x":0,"y":-9},{"x":-5,"y":-7},{"x":-9,"y":-4},{"x":-10,"y":0},{"x":-9,"y":4},{"x":-5,"y":8},{"x":0,"y":9},{"x":5,"y":8},{"x":9,"y":4},{"x":10,"y":0},{"x":9,"y":-4},{"x":5,"y":-7},{"x":0,"y":-9},{"x":0,"y":-13},{"x":5,"y":-12},{"x":10,"y":-10},{"x":13,"y":-6},{"x":14,"y":0},{"x":13,"y":6},{"x":10,"y":10},{"x":5,"y":12},{"x":0,"y":13},{"x":-5,"y":12},{"x":-10,"y":10},{"x":-13,"y":6},{"x":-14,"y":0}],"r":[{"x":-8,"y":-12},{"x":-4,"y":-12},{"x":-4,"y":-9},{"x":-3,"y":-11},{"x":0,"y":-12},{"x":4,"y":-12},{"x":8,"y":-10},{"x":8,"y":-6},{"x":4,"y":-6},{"x":2,"y":-8},{"x":0,"y":-8},{"x":-2,"y":-6},{"x":-4,"y":-2},{"x":-4,"y":10},{"x":-8,"y":10}],"s":[{"x":-10,"y":0},{"x":-11,"y":-5},{"x":-10,"y":-10},{"x":-5,"y":-13},{"x":0,"y":-14},{"x":5,"y":-13},{"x":8,"y":-11},{"x":9,"y":-9},{"x":10,"y":-7},{"x":10,"y":-5},{"x":6,"y":-5},{"x":5,"y":-8},{"x":0,"y":-10},{"x":-4,"y":-9},{"x":-7,"y":-6},{"x":-7,"y":-3},{"x":10,"y":0},{"x":11,"y":5},{"x":10,"y":10},{"x":5,"y":13},{"x":0,"y":14},{"x":-5,"y":13},{"x":-8,"y":11},{"x":-9,"y":9},{"x":-10,"y":7},{"x":-10,"y":5},{"x":-6,"y":5},{"x":-5,"y":8},{"x":-1,"y":10},{"x":4,"y":9},{"x":7,"y":6},{"x":7,"y":3}],"y":[{"x":-11,"y":-11},{"x":-7,"y":-11},{"x":-7,"y":-4},{"x":-5,"y":-2},{"x":0,"y":0},{"x":5,"y":-2},{"x":7,"y":-4},{"x":7,"y":-11},{"x":11,"y":-11},{"x":11,"y":8},{"x":9,"y":12},{"x":5,"y":15},{"x":0,"y":16},{"x":-5,"y":15},{"x":-8,"y":13},{"x":-10,"y":9},{"x":-10,"y":7},{"x":-6,"y":7},{"x":-5,"y":11},{"x":0,"y":13},{"x":4,"y":12},{"x":7,"y":8},{"x":7,"y":1},{"x":5,"y":2},{"x":0,"y":3},{"x":-5,"y":2},{"x":-9,"y":0},{"x":-11,"y":-3}],"'":[{"x":-2,"y":-10},{"x":2,"y":-10},{"x":2,"y":10},{"x":-2,"y":10}],".":[{"x":-3,"y":0},{"x":-2,"y":-2},{"x":0,"y":-3},{"x":2,"y":-2},{"x":3,"y":0},{"x":2,"y":2},{"x":0,"y":3},{"x":-2,"y":2}],"?":[{"x":-6,"y":7},{"x":-5,"y":11},{"x":0,"y":13},{"x":4,"y":12},{"x":7,"y":8},{"x":7,"y":-11},{"x":11,"y":-11},{"x":11,"y":8},{"x":9,"y":12},{"x":5,"y":15},{"x":0,"y":16},{"x":-5,"y":15},{"x":-8,"y":13},{"x":-10,"y":9},{"x":-10,"y":7}]};
 
 let onion_atom = 'e';
 let current_atom = 'c';
@@ -36,10 +38,6 @@ const CELLSH = 54;
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
-
-function Clear() {
-  Draw();
-}
 
 // Returns screen (canvas) coordinates; grid 0,0 is the center of the
 // screen.
@@ -216,9 +214,18 @@ function Draw() {
   }
   DrawPath(path, 'rgba(16,16,16,0.75)', '#55f');
   DrawControlPoints(path, highlight);
+
+  if (locked) {
+    ctx.font = '40pt Helvetica bold';
+    ctx.fillStyle = '#f00';
+    ctx.fillText(locked, 10, 50);
+  }
 }
 
 function Click(e) {
+  if (locked)
+    return;
+  
   // console.log(e);
   const x = e.offsetX;
   const y = e.offsetY;
@@ -248,7 +255,37 @@ function MouseMove(e) {
   Draw();
 }
 
+function getFrameServerUrl(url, k) {
+  const req = new XMLHttpRequest();
+  req.onreadystatechange = function() {
+    console.log(req.readyState, req.status);
+    if (req.readyState == 4 &&
+	req.status == 200) {
+      if (k) k ();
+    }
+  };
+  req.open("GET", 'http://localhost:8000' + url, true);
+  req.send(null);
+}
+
+function getSynchronous(url) {
+  // XXX queue?
+  if (locked)
+    throw 'synchronous while locked';
+
+  locked = 'Saving...';
+  getFrameServerUrl(url, function () {
+    console.log('callback');
+    locked = null;
+    Draw();
+  });
+  Draw();
+}
+
 function Key(e) {
+  if (locked)
+    return;
+  
   console.log(e);
   for (const c of atoms) {
     if (e.key == c) {
@@ -259,6 +296,14 @@ function Key(e) {
     }
   }
 
+  if (e.code == 'NumpadEnter') {
+    // Save data to frameserver.
+    const data = JSON.stringify(atom_glyphs);
+    getSynchronous('/save_atoms/' +
+		   encodeURIComponent(data));
+    return;
+  }
+  
   switch (e.key) {
   case 'ArrowUp':
   case 'ArrowDown':
