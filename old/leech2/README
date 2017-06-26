@@ -1,0 +1,9 @@
+            leech2                              26 June 2017
+
+This is a mini-fork of Simon Windmill's "Leech" extension for Mozilla 
+(leech.mozdev.org) that I made in 2003. It works in Mozilla Firebird and 
+has some other small tweaks. Ha ha, I called it Firebird, which shows 
+you how old this thing is! I'm sure it doesn't work any more, and you 
+can probably find a much better download extension out there.
+
+  

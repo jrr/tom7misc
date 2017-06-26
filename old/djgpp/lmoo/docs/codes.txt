@@ -1,0 +1,24 @@
+  0 STOP .
+  1 LOCK .
+  2 UNLOCK .
+  3 JUMP W .
+  4 RJUMP W .
+  5 COPY L V .
+  6 FUNCTION V .
+  7 INC L .
+  8 DEC L .
+  9 ADD L V .
+ 10 SUB L V .
+ 11 MUL L V .
+ 12 DIV L V .
+ 13 CMP V V .
+ 14 JL W .
+ 15 JLE W .
+ 16 JG W .
+ 17 JGE W .
+ 18 JE W .
+ 19 JNE W .
+ 20 SEND V V .
+ 21 RAND L V V .
+ 22 HCF V .
+

@@ -1,0 +1,24 @@
+
+* "Main"
+
+  The programmer writes both his 'client' and 'cord' code as part of
+  the same program. (This is nice because then he never needs to write
+  marshalling code, and we can still do whole-program optimizations).
+
+  In the 'client' part of his code, he can use any of the normal
+  libraries. This includes a GUI interface, access to the command-line
+  arguments, network, and disk. He can also spawn cords and wait for
+  results using special blocking (or non-blocking) primitives. However,
+  he cannot 'sync' or 'relax'. These cause the continuation to be spawned,
+  and the continuation is probably not clean for spawning (because, for
+  example, it prints out the result to the terminal.)
+
+  The argument to spawn must only call code that is 'clean'. Clean code
+  can spawn cords, but cannot use the blocking wait primitives that the
+  client portion of code can use; it must use 'sync' or 'relax' to fetch
+  the answer to a cord. It also can't make calls that access the disk
+  or network or other local resources. 
+ 
+  Now, the question is: What kind of type system allows us to statically
+  verify that spawned code is 'clean'?
+

@@ -1,0 +1,212 @@
+
+(* Proof "checker" for propositional logic, grid-style. *)
+
+let
+    import "option.hmh"
+    import "list.hmh"
+    import "grid.hmh"
+    import "string.hmh"
+    import "print.hmh"
+
+    datatype (a, b) sum = Inl of a | Inr of b
+
+    (* propositions *)
+    datatype prop =
+        /\ of prop * prop
+      | \/ of prop * prop 
+      | $ of int
+      | -> of prop * prop
+      | F of unit
+      | T of unit
+        
+    infix  8 /\
+    infix  6 \/
+    infixr 3 ->
+
+    fun ~ p = p -> F ()
+
+    fun eq-prop ($ v1, $ v2) = v1 = v2
+      | eq-prop (a /\ b, aa /\ bb) =
+        eq-prop (a, aa) andalso eq-prop(b, bb)
+      | eq-prop (a \/ b, aa \/ bb) =
+        eq-prop (a, aa) andalso eq-prop(b, bb)
+      | eq-prop (a -> b, aa -> bb) =
+        eq-prop (a, aa) andalso eq-prop(b, bb)
+      | eq-prop (F (), F ()) = true ()
+      | eq-prop (T (), T ()) = true ()
+      | eq-prop _ = false ()
+
+    datatype (a, b) sequent = ==> of a * b
+    infix 2 ==>
+
+    (* contexts *)
+    val empty = Nil ()
+
+    fun ++(a, b) = b :: a
+    infix 1 ++
+
+    fun has G p = list-exists (fn pp => eq-prop (p, pp)) G
+
+    (* parallel tuple construction *)
+    fun &&(f1, f2) =
+        let val t1 = spawn f1
+            val t2 = spawn f2
+
+            val res = syncall [| t1, t2 |]
+        in
+            (sub (res, 0), sub (res, 1))
+        end
+    infix &&
+
+        
+    datatype a proof = 
+        Initial of a
+      | TrueR of unit
+      | FalseL of unit
+      | AndL of proof
+      | AndR of proof * proof
+      | ImpR of proof
+      | OrL of proof * proof
+        
+      (* passive *)
+      | OrR1 of proof
+      | OrR2 of proof
+      | ImpL of proof * proof
+
+    fun pftos p =
+        (case p of
+             Initial a => "Initial ?"
+           | TrueR () => "TrueR"
+           | FalseL () => "FalseL"
+           | AndL p => "AndL " ^ pftos p
+           | ImpR p => "ImpR " ^ pftos p
+           | OrR1 a => "OrR1 " ^ pftos a
+           | OrR2 a => "OrR2 " ^ pftos a
+           | AndR (a, b) => concat [| "AndR (", pftos a, ", ", 
+                                      pftos b, ")" |]
+           | OrL (a, b) => concat [| "OrL (", pftos a, ", ", 
+                                      pftos b, ")" |]
+           | ImpL (a, b) => concat [| "ImpL (", pftos a, ", ", 
+                                      pftos b, ")" |])
+
+    fun through f x =
+        case x of
+            None () => None ()
+          | Some y => Some(f y)
+
+    fun through2 f x =
+        case x of
+            (Some a, Some b) => Some (f (a, b))
+          | _ => None ()
+
+    (* proving *)
+    (* prove sequent -> prop proof option *)
+    fun prove (G ==> P) =
+        let 
+
+            (* Collect all possible sequents, 
+               then try them all *)
+            fun try-passive (G ==> P) =
+                let 
+                    val next = 
+                    (case P of
+                         A \/ B => Inl(G ==> A, OrR1) :: 
+                                   Inl(G ==> B, OrR2) :: Nil ()
+                       | _ => Nil ()) @
+                    let
+                        (* Completeness relies on the conjecture that
+                           if G,AIMPB ==> A and G,AIMPB,B ==> P 
+                           then G ==> A and G,B ==> P. 
+                           Otherwise one of our sequents does not get
+                           smaller and we may not terminate. *)
+
+                        fun lefts ((p as (A -> B)) :: t, G') =
+                                     (Inr((G' @ t) ==> A,
+                                          (B :: G' @ t) ==> P,
+                                          ImpL) :: Nil ()) @
+                                     lefts (t, p :: G')
+                          | lefts (p :: t, G') = lefts (t, p :: G')
+                          | lefts (Nil (), _) = Nil ()
+                    in
+                        lefts (G, Nil ())
+                    end
+
+                    fun tryall (Inr(s1, s2, rule)::rest) =
+                        (case through2 rule ((fn () => prove s1) &&
+                                             (fn () => prove s2)) of
+                             None () => tryall rest
+                           | pf => pf)
+
+                      | tryall (Inl(s, rule)::rest) =
+                        (case through rule (prove s) of
+                             None () => tryall rest
+                           | pf => pf)
+
+                      | tryall (Nil ()) = None ()
+
+                in
+                    tryall next
+                end
+
+            fun try-initial (G ==> P) = 
+                if has G P
+                then Some (Initial P)
+                else try-passive (G ==> P)
+
+            fun invert-right G =
+                case P of
+                    A /\ B =>
+                        through2 AndR
+                        ((fn () => prove (G ==> A)) &&
+                         (fn () => prove (G ==> B)))
+                  | T () => Some (TrueR ())
+                  | A -> B => through ImpR (prove ((G ++ A) ==> B))
+                  | _ => try-initial (G ==> P)
+
+
+            fun invert-left ((A \/ B) :: t, G') =
+                through2 OrL
+                ((fn () => prove ((A :: (G' @ t)) ==> P)) &&
+                 (fn () => prove ((B :: (G' @ t)) ==> P)))
+
+              | invert-left ((A /\ B) :: t, G') =
+                through AndL
+                (invert-left (t, A :: B :: G'))
+
+              (* not really a rule... *)
+              | invert-left (T() :: t, G') =
+                invert-left (t, G')
+
+              | invert-left (F() :: _, _) = Some (FalseL ())
+
+              | invert-left (h :: t, G') =
+                invert-left (t, h :: G')
+
+              | invert-left (Nil (), G') = invert-right G'
+
+        in
+            invert-left (G, Nil ())
+        end
+
+
+    val A = $0
+    val B = $1
+    val C = $2
+    val D = $3
+
+    val s = (A -> B -> C) -> (A -> B) -> A -> C
+    val k = A -> B -> A
+    val commute-or = A \/ B -> B \/ A
+
+    val nontheorem = A \/ B -> A /\ B
+    val hellno = A -> B
+
+    val seq = empty ==> s
+
+in
+
+    case runcord (fn () => prove seq) of
+        Some pf => print "It was proven!\n"
+      | _ => print "The proposition is not provable!\n"
+    
+end

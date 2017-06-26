@@ -1,0 +1,12 @@
+
+let in
+
+    1;
+    "hello";
+    ?r;
+
+    2 : int;
+    "bye" : string;
+    ?c : char
+
+end

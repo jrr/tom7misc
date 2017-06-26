@@ -1,0 +1,59 @@
+Binary structure of a compiled POOP program              revision 3
+                                                       15 May 1998
+24 June - Removed "number of arguments" thing
+15 May  - Definition of WORD.
+
+WORD := 16 bit integer. When treated as a signed integer, the MSB is set
+        to 1 for negative. This introduces 1000000000000000, which is
+        the negative representation of 0. This is defined to be 'Not a
+        Number', which might be used to represent x/0, or as an argument
+        to a function to represent infinity or some special nonnumeric
+        case.
+
+ - Header -
+
+[*OBJ*]           Identifier "*OBJ*"
+[BYTE]            Object Type   header[5]
+ 0                Global Script (to show an introduction, maybe)
+ 1                Overworld Object
+ 2                Beast
+ 3                Item           |  Maybe combine these
+ 4                Weapon         |
+ 5                Special Attack |
+[PORTAL\00\00]    Zero-filled 8-character filename    header[6..13]
+
+                                                      header[14,15]
+[WORD] Number of defined (or available) methods.
+[WORD x num_methods]  Array of word-length pointers to the names of
+the respective methods (strings).
+
+(Method 1)
+[\00\3A] Entry point                =Word Address=
+(Method 2)
+[\00\42] Entry point
+et cetera.
+
+[WORD x num_methods]
+
+-- Program Data --
+
+.... all the code for the methods. See BINARY.TXT.
+
+-- String --
+
+String data used in the programs. Null-terminated.
+
+All of the names of the methods:
+
+[BORN\00]     These are zero-terminated strings (all caps) which are the
+[TOUCH\00]    names of the methods. Referenced in the array above.
+[ACTIVATE\00]
+[ALIGNED\00]
+et cetera.
+
+When allocating this, you should leave space for all of the registers
+(A, B, C, D, R, OUTARG1...OUTARG10, INARG1...INARG10) (32-bit each!)
+which is 25 * 4 = 100 bytes. You also need an Instruction Pointer and other
+things in the structure... we'll figure this out later.
+
+

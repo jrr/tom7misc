@@ -1,0 +1,25 @@
+
+Internet Froodnet Chatnet Daemon
+
+This software is in extremely infant stages, and the source code is
+available only so folks can toy with it. It is undocumented; what few
+source comments exist should probably be considered misleading at
+best.
+
+This software is distributed under the GPL and has no warranty (see
+COPYING).
+
+To install, download the newest backup.*.tar.gz (or all of the .cc, .h
+files as well as the makefile, which tend to be newer, if slightly
+less stable) and just type 'make' to compile. You'll probably want to
+edit the source files to change some server parameters, actually,
+first.
+
+If you have difficulty compiling on a linux platform or similar
+(please no complaints about compiling on Win32 or with a non-gcc/egcs
+compiler), let me know. (tom7 at cs.cmu.edu)
+
+ - Tom 7 ( 17 Sep 1999 )
+
+
+/* $Id: README,v 1.1 2001/04/08 04:00:23 tom7 Exp $ */

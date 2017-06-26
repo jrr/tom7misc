@@ -1,0 +1,308 @@
+
+/* popcorn mockup of marshaller */
+
+#include <core.h>
+
+union ttt {
+  int iii;
+  string sss;
+  ttt rrr;
+  ttt aaa[];
+  int code;
+  /* code */
+
+  /* indirect only appears during unmarshalling; 
+     anywhere else means a bug. In particular, 
+     we don't have to marshall it. */
+
+  int indirect;
+}
+
+/* format of marshalled data.
+   this format is quite wasteful, using
+   32 bits in many places where 8 or 16
+   would probably suffice. It is also not
+   ASCII-clean. I suggest compressing the
+   string during transit.
+
+   4 bytes: number of total elements (n)
+   n records IN REVERSE ORDER. (that
+   means, the first you see has index
+   n-1, all the way down to 0. this
+   makes marshalling easier and 
+   unmarshalling more efficient (less
+   backpatching).
+   
+      32-bit tag (these don't correspond
+      to tags in the ttt data structure):
+      0: integer
+         one 32-bit field, the integer.
+      1: string
+         one 32-bit length field l, then
+	 l bytes of string data
+      2: ref
+         one 32-bit index to a ttt
+      3: int_t
+         one 32-bit int,
+	 one 32-bit index to a ttt
+      4: tuple/array
+         one 32-bit length field l,
+	 l 32-bit indices to ttts
+      5: code
+         one 32-bit index into the
+	 code table.
+
+*/
+
+/* bogus, assembly will use CMP */
+extern bool lt_ttt (ttt a, ttt b);
+extern bool eq_ttt (ttt a, ttt b);
+
+
+/* basic strategy:
+
+   "tmap"
+   keep a map (as a binary tree) from
+   ttt -> int. this int is the position 
+   in the array that we create during 
+   unmarshalling. we also need the total 
+   number ttts that will be in the array. 
+   If a ttt is in the map, then exactly 
+   one of:
+       - it is on the wait queue
+       - it has already been processed
+        and its marshalled result is in 
+	the string list
+
+   "waitq"
+   the wait queue is a linked list
+   paired with a pointer to the last
+   element (for appending). Elements
+   in the queue appear in exact, gap-free
+   order of their corresponding indices.
+   These are items that we've seen (and
+   then referred to by their projected
+   index), but not yet marshalled.
+
+   "nextindex"
+   the next time we put something on
+   waitq, it will have this index. (Also,
+   the number of total ttts when we are
+   done.)
+
+   "outq"
+   the string list is a list (stack) of
+   strings. We push these in the order
+   that we generate them, so that they
+   may be concatenated when we are done.
+   (perhaps by a popcorn function)
+
+   We start by marking the root "0" in
+   the map and pushing it into the queue.
+   Then we pop from the queue, marshall
+   (looking up children in the map and,
+   failing that, putting them into the
+   queue/map), and push the result onto
+   the out queue.
+   We end when the wait queue is empty.
+
+*/
+
+?struct stringlist {
+  string head;
+  stringlist next;
+}
+
+?struct tttlist {
+  ttt head;
+  tttlist next;
+}
+
+?struct tttmap {
+  ttt t;
+  int i;
+  tttmap l;
+  tttmap r;
+}
+
+stringlist outq = null;
+tttlist waitq = null;
+tttlist waitqlast = null;
+int nextindex = 0;
+tttmap tmap = null;
+
+
+// extern bool lt_ttt (ttt a, ttt b);
+// extern bool eq_ttt (ttt a, ttt b);
+
+int getid(ttt t) {
+  int i = -1;
+  /* look in map, first. we know
+     map is nonempty. */
+  
+  tttmap tmp = tmap;
+  while (i < 0) {
+    if (eq_ttt (t, tmp.t)) {
+      return tmp.i;
+    } else {
+      if (lt_ttt (t, tmp.t)) {
+	/* go to left */
+	if (tmp.l != null) {
+	  tmp = tmp.l;
+	} else {
+	  i = nextindex;
+	  tmp.l = ^tttmap(t, i, null, null);
+	}
+      } else {
+	/* go to right */
+	if (tmp.r != null) {
+	  tmp = tmp.r;
+	} else {
+	  i = nextindex;
+	  tmp.r = ^tttmap(t, i, null, null);
+	}
+      }
+    }
+  }
+  /* if we fell through, then
+     we inserted something. */
+  nextindex ++;
+
+  /* put t on waitq as well */
+  if (waitq == null) {
+    waitq = waitqlast =
+      ^tttlist(t, null);
+  } else {
+    waitqlast.next = ^tttlist(t,null);
+    waitqlast = waitqlast.next;
+  }
+
+  return i;
+}
+
+/* always use return type */
+int pushout(string s) {
+  outq = ^stringlist(s, outq);
+  return 0;
+}
+
+int writeint(string s, int off, int n) {
+  s[off  ] = (n >> 24) & 255;
+  s[off+1] = (n >> 16) & 255;
+  s[off+2] = (n >>  8) & 255;
+  s[off+3] = (n      ) & 255;
+  return 0;
+}
+
+/* won't be int for real */
+int getcode(int c) {
+  /* FIXME */
+  return 0;
+}
+
+void tmp (ttt root) {
+  tmap = ^tttmap(root, 0, null, null);
+  waitq = waitqlast =
+    ^tttlist(root, null);
+}
+
+string marshall (ttt root,
+		 string ns(int)) {
+  
+  outq = null;
+  nextindex = 1;
+
+  tmap = ^tttmap(root, 0, null, null);
+  waitq = waitqlast =
+    ^tttlist(root, null);
+
+  /* put root on queue, ignore result (0) */
+  /* getid(root); */
+
+  /* now marshall until waitq is empty. */
+  while (waitq != null) {
+    ttt t = waitq.head;
+    waitq = waitq.next;
+    if (waitq == null) waitqlast = null;
+
+    /* do stuff */
+    switch (t) {
+    case rrr(x): ;
+      string s = ns(8);
+      int child = getid(x);
+      writeint(s, 0, 2 /* ref */);
+      writeint(s, 4, child);
+      pushout(s);
+
+    case iii(i): ;
+      string s = ns(8);
+      writeint(s, 0, 0 /* int */);
+      writeint(s, 4, i);
+      pushout(s);
+
+    case sss(ss): ;
+      int len = size(ss);
+      string s = ns(8 + len);
+      writeint(s, 0, 1 /* string */);
+      writeint(s, 4, len);
+      /* copy string */
+      for(int u = 0; u < len; u ++) {
+	s[u+8] = ss[u];
+      }
+      pushout(s);
+
+    case aaa(a): ;
+      int len = size(a);
+      string s = ns(8 + 4*len);
+      writeint(s, 0, 4 /* array */);
+      writeint(s, 4, len);
+      for(int u = 0; u < len; u ++) {
+	writeint(s, 8 + 4*u, getid(a[u]));
+      }
+      pushout(s);
+
+    case code(c): ;
+      string s = ns(8);
+      writeint(s, 0, 5);
+      writeint(s, 4, getcode(c));
+      pushout(s);
+
+    default: ;
+    }
+  }
+
+  return concat_list(outq, ns);
+}
+
+/* can use this code directly,
+   but need to pass in "newstring"
+   function */
+string concat_list(stringlist sl,
+		   string ns(int)) {
+
+  /* get size */
+  int sz = 0;
+  int num = 0;
+  stringlist tmp = sl;
+  while (tmp != null) {
+    num ++;
+    sz += size(tmp.head);
+
+    tmp = tmp.next;
+  }
+
+  string out = ns(sz + 4);
+
+  writeint(out, 0, num);
+
+  int pos = 4;
+
+  while(sl != null) {
+    for(int i = 0; i < size(sl.head); i++)
+      out[pos++] = sl.head[i];
+
+    sl = sl.next;
+  }
+  return out;
+}
+

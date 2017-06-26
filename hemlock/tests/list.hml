@@ -1,0 +1,23 @@
+
+let
+    import "print.hmh"
+    import "list.hmh"
+
+    datatype two = Yes of unit | No of unit
+    datatype three = Rock of unit | Paper of unit | Scissors of unit
+
+    fun eqthree (Rock _, Rock _) = true ()
+      | eqthree (Paper _, Paper _) = true ()
+      | eqthree (Scissors _, Scissors _) = true ()
+      | eqthree _ = false ()
+
+    val l1 = Rock () :: Paper () :: Scissors () :: Nil ()
+    val l2 = Rock () :: Paper () :: Scissors () :: Nil ()
+
+in
+    if list-eq eqthree (l1, l2)
+    then print "Equal.\n"
+    else print "Not equal!\n";
+
+    foldl
+end

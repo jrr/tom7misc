@@ -1,0 +1,19 @@
+
+I wrote these back in 1995 when I was learning x86 assembly (for my
+"hacking" group the "East Coast Hacking Organization", hah). Those
+were the good old days, where drawing to the screen just meant writing
+to a location in memory.
+
+I was surprised to find the original TASM sources compiled in MASM
+with only trivial changes. (Changed ROR AX,2 to two ROR AX,1
+instructions, changed push/pop reg1 reg2 to separate push/pop
+instructions.)
+
+Run c.bat to compile all the programs. You can get MASM for free
+through various places on Microsoft's site; do a search and you'll
+find it.
+
+These programs are in the public domain and come with ABSOLUTELY NO
+WARRANTY.
+
+ - Tom 7,   24 Jul 2001

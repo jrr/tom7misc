@@ -1,0 +1,9 @@
+
+let
+    fun mkar a b c = [| a, b, c |]
+    do mkar 0 1 2
+    val arr = mkar "hello" "world" "!"
+in
+    write(stdout, sub(arr, 0));
+    write(stdout, "\n")
+end

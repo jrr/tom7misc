@@ -1,0 +1,86 @@
+Putting Objects in the maps                             revision 1
+
+Objects can have up to 10 dword length arguments.
+
+(10 chosen arbitrarily, if more are needed they'll have to do it via
+strings or arrays. Dword because string pointers are 32-bit.)
+
+Each map will have its own LMO (Ludus Map Objects) file, with all of
+the objects which are present (by default) on the map. This will save the
+difficulty of trying to incoporate it into the map file itself.
+
+The object files would be in binary format, and would look sorta like:
+
+[000A 000E "SIGNPOST" 00 01 000000B8]  (for each object)
+
+First two words: coordinates; x,y
+ASCII-Z: Object name
+00: (zero termination of ascii-z string)
+next byte: Number of arguments passed
+up to 10 dwords: Arguments
+
+In this case, the 000000B8 is a pointer to a string like "-> To Castle
+Waxmud" (when the object files are compiled all the strings would be
+moved to the end, and replaced with pointers).
+
+When the map is initialized, the LMO file is loaded into memory (malloc'd,
+since it would be variable-length) and the pointer to the memory location
+is saved in, say OBJTABLE. Then we cycle through the list and do:
+
+spawnObject(10,14,objectNumber("SIGNPOST"),1,objdataarray);
+
+(word x coord, word y coord, word objectNumber, byte numberofargs, dword *
+arrayofarguments)
+
+In this case the array of arguments would contain:
+
+{ OBJTABLE + 0x000000B8 }
+
+That is, the pointer to the Object Table in memory plus the offset of the
+string within the file (giving us a usable pointer to the string).
+
+When the map is unloaded, we can free(OBJTABLE).
+
+We could also spawn objects via other objects with this method, too.
+
+Take an object:
+
+Crypt {
+onEvent touch {
+    spawnObject (Demon, me.x, me.y, "You have distrubed my sleep in this
+                                        signpost. Now die!");
+    me.die;
+    }
+}
+
+When this object is compiled (more like "tokenized" and "precompiled"), all
+the string data is moved to the end and replaced in the code by pointers.
+So this must be done as (in the engine):
+
+spawnObject(x,y,objectNumber(pointertonameofobjectstring),numberofargsgiven,
+                         pointertoarrayloadedwithargs);
+
+and the array would have:
+
+{ objectstart + pointertostringarg }
+
+The number of arguments given would be determined by the
+tokenizer/precompiler and would appear in the precompiled object.
+
+You might think, why not put only the objectnumber in the precompiled object?
+(rather than look it up every time one is spawned!)... but we can't really do
+this; an object referencing an object not yet created (and so not in the
+table) couldn't be compiled. No big deal to search anyway... the object
+table would just be an array of strings, up to max_objects:
+
+objarray: {0, "SIGNPOST", "DEMON", "CRYPT", "BARREL", "LADDER" } (etc.)
+
+int objectNumber (char * oname) {
+     for (int m=0; m <= max_objects; m++) {
+          if (strcmp(oname,objarray[m])) return(m);
+          }
+          return (0);
+     }
+}
+
+-- The end -- 

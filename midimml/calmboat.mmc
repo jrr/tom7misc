@@ -1,0 +1,22 @@
+
+TITLE        Shortcut to Wet, Calm Boat
+COMPOSER     Tom 7
+PROGRAMMER   Tom 7 via midimml
+
+# set everything up "standard"
+
+QUOTE ABCDE @2 @v0 q8 v8 t100
+
+# make the duty cycle of the A channel sound
+# a little more gritty (good to distinguish 
+# it from B channel)
+
+QUOTE A @3
+
+DRUMPATH ..
+
+#       sample file   midi note number
+DRUM   bass1.dmc        35
+DRUM   bass2.dmc        36
+DRUM   snare.dmc        40
+

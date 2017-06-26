@@ -1,0 +1,17 @@
+
+Ludus was the project I poured more time and dream power into than any 
+other without ever completing. The idea was to make a 2D tile-based RPG 
+system to make games like Final Fantasy III and Chrono Trigger (popular 
+at the time and still one of my favorite genres).
+
+In the end, I drew a load of tiles, brainstormed a lot, and wrote a
+pretty sophisticated map editor with its own scripting language. But
+no game engine and no game. A hard-drive crash where I lost a
+significant amount of work ultimately made me abandon the project.
+
+
+Most of this was written to use the excellent Allegro graphics library
+under DJGPP (DOS).
+
+Code licensed under the GPL.
+

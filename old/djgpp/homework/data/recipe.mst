@@ -1,0 +1,322 @@
+#needs names.wrd
+
+#main
+%htmlhead%<center>%titlehead%</center>%ingredients%%instructions%%htmlfoot%
+
+#htmlfoot
+<p><a href=http://www.snoot.com/>Back to Snoot</a>.</td></tr></table></center></html>
+
+#htmlhead
+<html><head><title>Snoot Recipes</title></head><body bgcolor=#FFFFFF><center><table width=500><tr><td valign=top>
+
+#titlehead
+<img align=right %recpic%><font size=+3>%recipename%</font><br clear=right>
+<font size=+3>%recipename%</font>
+
+#recpic
+src=/c/recipe/81.jpg width=150 height=146
+src=/c/recipe/83.jpg width=150 height=116
+src=/c/recipe/87.jpg width=175 height=119
+src=/c/recipe/19.jpg width=150 height=145
+src=/c/recipe/20.jpg width=150 height=116
+src=/c/recipe/56.jpg width=150 height=113
+src=/c/recipe/84.jpg width=150 height=115
+
+#recipename
+%^rcpadjective% %^rcpnoun%
+%^rcpadjective% %^rcpnoun%
+%^rcpadjective% %^rcpnoun% in %^rcpnoun%
+%^rcpadjective% %^rcpnoun%
+%^rcpadjective% %^rcpnoun%
+%^rcpadjective% %^rcpnoun% in %^rcpnoun%
+%^rcpadjective% %^rcpnoun% Without So Much Rat In It
+
+
+#ingredients
+<center><p><b>Ingredients</b><table>%ingredientrows%</table></center>
+
+#ingredientrows
+<tr><td>%ingredient%</td><td>%ingredient%</td></tr>%ingredientrows%
+<tr><td>%ingredient%</td><td>%ingredient%</td></tr>%ingredientrows%
+<tr><td>%ingredient%</td><td>%ingredient%</td></tr>%ingredientrows%
+<tr><td>%ingredient%</td><td>%ingredient%</td></tr><tr><td>%ingredient%</td><td>%ingredient%</td></tr>
+<tr><td>%ingredient%</td><td>%ingredient%</td></tr><tr><td>%ingredient%</td><td> &nbsp; </td></tr>
+
+#ingredient
+%#(2,42)#% %plcomponent%
+1 %sngcomponent%
+
+#plcomponent
+%liquidqual%s %describeliquid% %rcpliquid%
+%thingqual% %describething% %plthing%
+
+#sngcomponent
+%liquidqual% %describeliquid% %rcpliquid%
+%describething% %sngthing%
+%spicequal% %spice%
+
+#spicequal
+pinch
+teaspoon
+tablespoon
+cup
+
+#spice
+paprika
+flour
+salt
+sugar
+vanilla extract
+allspice
+oregano
+chives
+salt
+
+#describething
+whipped
+chopped
+diced
+sliced
+crushed
+flattened
+rolled
+toasted
+fried
+new
+ripe
+
+#thingqual
+bags
+ounces
+whole
+
+#plthing
+potatoes
+tomatoes
+onions
+rats
+bacon
+
+#sngthing
+potato
+corn
+apple
+butter
+cracker
+
+#liquidqual
+oz
+gallon
+tablespoon
+tablespoon
+teaspoon
+teaspoon
+drop
+quart
+pint
+cup
+cup
+
+#rcpliquid
+canola oil
+A1<font size=-2><sup>TM</sup></font> Sauce
+melted cheese
+wet rice
+melted butter
+brandy
+beer
+coca-cola
+water
+water
+food coloring
+
+#describeliquid
+<b></b>
+<b></b>
+<b></b>
+<b></b>
+<b></b>
+<b></b>
+boiling
+boiling
+luke warm
+colored
+cold
+cool
+filtered
+distilled
+concentrated
+
+#rcpadjective
+apricot
+apple
+peach
+%^rcpadjective%-%^rcpadjective%
+fruit
+%^rcpadjective% %^rcpadjective%
+glazed
+Charlotte
+<b></b>
+<b></b>
+<b></b>
+lobster
+French
+shrimp
+asparagus
+Rockefeller
+steamed
+cheesy
+
+#rcpnoun
+cocktail
+romanoff
+crepes
+parlet
+flan
+salad
+galette
+mousse
+peach
+mandarin
+watermelon
+caviar
+quiche
+escargot
+oysters
+sauerkraut
+macaroni
+
+#instructions
+<p><b>Instructions</b><p>%introduce% %rcpbody% %conclude%<p>%howtoserve%
+
+#rcpithen
+then
+next
+then
+next
+after this
+when that is completed
+when finished
+
+#rcpi
+%^rcpithen%, %rcpaction%.
+%^rcpaction%.
+%^rcpaction%, then %rcpaction%.
+
+#rcpipragma
+The %rcpinoun% should be %rcpiuntil%.
+
+#rcpbody
+%rcpi% %rcpi% %rcpipragma% %rcpi%
+%rcpbody% %rcpi% %rcpi%
+%rcpbody% %rcpipragma% %rcpi%
+
+#conclude
+Finally, %rcpaction%.
+
+#introduce
+To make %rcpadjective% %rcpnoun%, first %rcpaction%.
+%^rcpadjective% %^rcpnoun% was invented by %fullname% in 19%#(10,98)%. To prepare this dish, first %rcpaction%.
+
+#rcpaction
+%rcpiverb% the %rcpinoun%
+%rcpiverb% the %rcpinoun% %rcpiadv%
+%rcpiverb% the %rcpinoun% %rcpiadv% until %rcpiuntil%
+%rcpiverb% the %rcpinoun% until %rcpiuntil%
+
+#rcpiverb
+toast
+sautee
+crush
+smoosh
+roll
+murder
+grease
+prepare
+stir
+preheat
+baste
+cook
+bake
+fry
+
+#rcpinoun
+watermelon
+watermelon
+peach
+casserole
+dish
+appetizer
+bundt pan
+salt
+butter
+boot
+pierogies
+sauerkraut
+stovetop
+stuffing
+turkey
+water
+pan
+oven
+asparagus
+flan
+%rcpnoun%
+%rcpnoun%
+%rcpnoun%
+
+#rcpiadv
+gently
+briskly
+thoroughly
+gently
+briskly
+thoroughly
+briefly
+quickly
+excessively
+
+#rcpiuntil
+smooth
+completely smooth
+well-mixed
+golden brown
+seasoned to taste
+the buzzer sounds
+finished
+lumps are gone
+it reaches a smooth consistency
+it smells like %badsmell%
+
+#badsmell
+rotten eggs
+burning %rcpnoun%
+snoot droppings
+burning rubber
+
+#howtoserve
+Serves %#(2,150)%.
+Serves %#(2,15)%.
+Serves %#(2,15)%, with %servewith%.
+Serve chilled with %servewith%.
+Serve at %#(10,110)% degrees F.
+Serve at room temperature with %servewith%.
+Serve while hot with %servewith%.
+Serve while hot. Serves %#(2,15)%.
+
+#servewith
+red wine
+white wine
+brandy
+gin
+an appetizer
+Kool-Aid<font size=-2><sup>TM</sup></font>
+a proper salad fork
+Mylanta II
+a soggy fruit salad
+a smile
+a sunny disposition
+watermelon juice
+fresh watermelon
+scissors
+

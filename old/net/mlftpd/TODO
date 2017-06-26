@@ -1,0 +1,13 @@
+
+ - Read /etc/ftpusers for "banned" users
+
+ - (if file/dir not found in NLST file, shouldn't
+    send 150 for compatibility.)
+
+ - Lookup of local host
+
+ - STAT
+
+ - ABOR (hard)
+
+ - discard server sockets

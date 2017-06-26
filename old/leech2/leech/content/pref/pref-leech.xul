@@ -1,0 +1,158 @@
+<?xml version="1.0"?> 
+<!-- /* ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is leech.
+ *
+ * The Initial Developer of the Original Code is Simon Windmill.
+ * Portions created by the Initial Developer are Copyright (C) 2002
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *  Simon Windmill <siw@coolpowers.com>
+ *  Andy Edmonds <aedmonds@mindspring.com>
+ *  David Illsley <illsleydc@bigfoot.com>
+ *  HJ van Rantwijk <bugs4HJ@netscape.net>
+ *  Pavol Vaskovic <pali@pali.sk>
+ *  Scott R. Turner <srt@aero.org>
+ *  Tim Williamson <chsman@hotmail.com>
+ *  Martin.T.Kutschker <Martin.T.Kutschker@blackbox.net>
+ *  Tom Murphy <withheld> http://tom7.org/
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */ -->
+
+
+<?xml-stylesheet href="chrome://communicator/skin/" type="text/css"?>
+
+<!DOCTYPE window [
+<!ENTITY % platformDTD SYSTEM "chrome://global-platform/locale/platformDialogOverlay.dtd" >
+%platformDTD;
+<!ENTITY % leechDTD SYSTEM "chrome://leech/locale/leech.dtd" >
+%leechDTD;
+]>
+
+<page xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+      onload="parent.initPanel('chrome://leech/content/pref/pref-leech.xul');"
+      headertitle="&leech.prefslabel;">
+
+<script type="application/x-javascript" src="chrome://global/content/globalOverlay.js"/>
+<script type="application/x-javascript">
+  <![CDATA[
+    var panel = "chrome://leech/content/pref/pref-leech.xul";
+    var _elementIDs = [
+      "defaultDir", "fileExtensions", "showManager", "overwriteHow", "wgetLocation", "tmpDir", "makeDirs", "useMozUA", "usePrefix"
+    ];
+  ]]>
+</script>
+
+<!-- added by tom7 from linky -->
+<!-- <script type="application/x-javascript" src="chrome://leech/content/pref/pref.js"/> -->
+
+  <groupbox orient="horizontal" width="100%" collapsed="true">
+    <caption label="&misc.label;"/>
+    <vbox>
+	
+    <hbox align="center">
+      <text value="&misc.dldir;"/>
+      <textbox id="defaultDir" type="text" flex="1" maxrows="6"
+          pref="true"
+          preftype="char"
+          prefattribute="value"
+          prefstring="leech.defaultDir" />
+    </hbox>
+      
+  
+    <hbox align="center">
+      <text value="&misc.extensions;"/>
+      <textbox id="fileExtensions" type="text" flex="1" maxrows="6"
+          pref="true"
+          preftype="char"
+          prefattribute="value"
+          prefstring="leech.fileExtensions" />
+    </hbox>
+      
+  
+    <checkbox id="showManager" type="checkbox" pref="true" preftype="bool"
+          prefattribute="checked" prefstring="leech.showManager"
+          label="&misc.showmanager;" />
+          
+	<hbox align="center">
+        <text value="&overw.label;"/>
+  	<menulist id="overwriteHow" pref="true" 
+ 		  prefstring="leech.overwriteHow" preftype="int" prefattribute="value">
+ 	 <menupopup>
+   	   <menuitem value="0" label="&overw.alwaysOverwrite;"/>
+ 	   <menuitem value="1" label="&overw.promptOverwrite;"/>
+ 	   <menuitem value="2" label="&overw.alwaysIgnore;"/>
+ 	   <menuitem value="3" label="&overw.alwaysRename;"/>
+ 	 </menupopup>
+ 	</menulist>
+ 	<text value="&overw.caveat;"/>
+      </hbox>
+                   
+    </vbox>    
+  </groupbox>  
+
+
+  <groupbox orient="horizontal" width="100%">
+    <caption label="&wget.label;"/>
+    <vbox>
+    	<hbox align="center">
+	    <text value="&wget.wgetLocation;"/>
+	      <textbox id="wgetLocation" type="text" flex="1" maxrows="6"
+	          pref="true"
+	          preftype="char"
+	          prefattribute="value"
+	          prefstring="leech.wgetLocation" />
+	</hbox>
+	<hbox align="center">	
+	    <text value="&wget.tmpDir;"/>
+	      <textbox id="tmpDir" type="text" flex="1" maxrows="6"
+	          pref="true"
+	          preftype="char"
+	          prefattribute="value"
+	          prefstring="leech.tmpDir" />
+	</hbox>
+	<hbox align="center">
+	    <checkbox id="makeDirs" type="checkbox" pref="false" preftype="bool"
+	          prefattribute="checked" prefstring="leech.makeDirs"
+	          label="&wget.makeDirs;" />
+	    <checkbox id="useMozUA" type="checkbox" pref="true" preftype="bool"
+	          prefattribute="checked" prefstring="leech.useMozUA"
+	          label="&wget.useMozUA;" />
+	</hbox>
+	    <checkbox id="usePrefix" type="checkbox" pref="true" preftype="bool"
+	          prefattribute="checked" prefstring="leech.usePrefix"
+	          label="&wget.usePrefix;" />
+	          
+    </vbox>
+  </groupbox>
+   
+
+  
+
+  
+
+</page>

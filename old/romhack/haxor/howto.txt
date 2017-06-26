@@ -1,0 +1,111 @@
+
+"Haxor" example
+by Tom 7
+
+This is an example of me using the "haxor" tool to modify my Pokemon
+Silver save game. (Changing the moves of one of my characters and
+giving myself a bounty of useful items.)
+
+The first thing I did was use my GB Gamejack to download the Pokemon
+ROM file and save game from my cartridge. Most people probably don't
+have one of these, so you'll most likely be restricted to working with
+save games that come from an emulator.
+
+Then I loaded up my ROM and SAV file in a Gameboy emulator. "rew" is
+very small and works well; choose your favorite. The first thing I
+wanted to do was give my Bellossom the attack "Petal Dance", since I
+had accidentally evolved it before it got a chance to learn that one.
+With a little research, I found a page which told me what the
+hexadecimal values for each of the attacks are:
+
+http://www.pokesaturn.f2s.com/gsmoves2.htm
+
+Petal Dance is 0x50.
+
+I wanted to replace "Poison Powder", my least useful move. That one
+has hex value 0x4D. Finally, I have an item which allows me to learn a
+move called "Sunny Day" (value 0xF1). With this information, changing
+the move is easy.
+
+We postulate that the attack in this slot for this character is stored
+as a single byte somewhere in memory. We want to find that location so
+we can change it to 0x50. So, we'll produce a number of save files where
+we know what the value should be, and then search for locations which
+match those values.
+
+Actually, we won't use save games because they have checksum
+information. Instead, we'll use the emulator's save-state feature,
+which saves a raw copy of the emulated Gameboy's memory.
+
+First, I save state into a file called "0.st0". I know that the
+location we're looking for has value 0x4D (Poison Powder). Next, I
+walk around and then save state into a file called "1.st0". The
+location should still have 0x4D, though other 0x4Ds may have gone away
+since I've moved around and changed the state of the game a bit. Next,
+I use my item which changes the move in that slot from 0x4D to 0xF1
+(Sunny Day). I save again, as "2.st0". Now the location should have
+value 0xF1. Once these save files are created, I fire up SML/NJ:
+
+(SML/NJ is at http://cm.bell-labs.com/cm/cs/what/smlnj/)
+
+f:\emu\gb\haxor>sml
+sml
+Standard ML of New Jersey, Version 110.0.7, September 28, 2000 [CM&CMB]
+- CM.make ();
+...
+- Haxor.equals;
+val it = fn : Word8.word list -> string list -> (int * Word8.word list) list
+
+Haxor.equals is a function which takes in a list of bytes and a list of
+files, and outputs the list of locations which matched up with that
+sequence of bytes. I construct the list of files:
+
+- val pokes = map (fn s => "f:/emu/gb/rew-gbsave/" ^ s ^ ".st0")
+  [ "0",
+    "1",
+    "2" ]
+val pokes =
+  ["f:/emu/gb/rew-gbsave/0.st0","f:/emu/gb/rew-gbsave/1.st0",
+   "f:/emu/gb/rew-gbsave/2.st0"] : string list
+
+And then I use the equals function to search for a location which
+matched 0x4D, 0x4D, 0xF1 (see above).
+
+- Haxor.equals [0wx4d, 0wx4d, 0wxf1] pokes;
+val it = [(40194,[])] : (int * Word8.word list) list
+
+Finally, I get back one location. Perfect! If there are no locations
+then I screwed up or one of my assumptions is wrong. If there are more
+than one, then I'm not sure which one controls the aspect of the game
+I'm trying to change.
+
+Then I modify the first save (the head of the list above) at that
+location to give me move number 0x50, the coveted "Petal Dance":
+
+- FileStuff.setbyte (hd pokes) 40194 0wx50;
+val it = () : unit
+
+No problem! When I load this state back into the emulator, everything
+is great, and I have the move I wanted.
+
+Next, I do a similar thing with items. I make two save states where I
+have 4 "revive" potions. Then I make a third where I've used one up
+and I'm left with 3. I search:
+
+- Haxor.equals [0w4, 0w4, 0w3] pokes;
+val it = [(38980,[])] : (int * Word8.word list) list
+
+There it is. I give myself 90:
+
+- FileStuff.setbyte (hd pokes) 38980 0w90;
+val it = () : unit
+
+At this point, I save the game in my emulator, and then transfer the
+save game (with proper checksum) back to my cartridge with the
+Gamejack again. Perfect!
+
+
+This technique can be used for a variety of things. The more general
+functions Haxor.decreases and Haxor.sats let you write your own
+criteria for "matching locations", which gives you quite a bit of
+flexibility. 

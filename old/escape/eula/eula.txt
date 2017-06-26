@@ -1,0 +1,53 @@
+         The Escape User Level Archive as of 12 January 1997
+
+               http://members.aol.com/vroomfonde/escape/
+
+Filename      Rating    Title                           Credit
+
+
+LAZ.ESC       Easy      Larz                           Lars Brudvig
+                                                Labtree@worldnet.att.net
+LAB2.ESC      Tricky    Lab 2                          Lars Brudvig
+                                                Labtree@worldnet.att.net
+SONYA1.ESC    Tricky    Chain Reaction                 Sonya Roberts
+                                                sroberts@learn.senecac.on.ca
+SONYA2.ESC    Hard      Random Scariness               Sonya Roberts
+                                                sroberts@learn.senecac.on.ca
+SONYA3.ESC    Tricky    Obfuscate                      Sonya Roberts
+                                                sroberts@learn.senecac.on.ca
+SONYA4.ESC    Tricky    Holey Cheese                   Sonya Roberts
+                                                sroberts@learn.senecac.on.ca
+SONYA5.ESC    Tricky    Watch Out!                     Sonya Roberts
+                                                sroberts@learn.senecac.on.ca
+GUARD.ESC     Tricky    Lasers and Switches            Brent W. Diana
+                                                brentd@juno.com
+SAR1.ESC      Hard      Sar 1                          Tamrof
+
+SAR2.ESC      Hard      Sar 2                          Tamrof   
+
+SAR3.ESC      Tricky    Pinwheel                       Tamrof   
+
+SAR4.ESC      Tricky    Bread-n-Butter                 Tamrof
+
+SAR5.ESC      Easy      'Round & 'round                Tamrof
+
+STOP.ESC      Tricky    Stop right there!              Brent W. Diana
+                                                brentd@juno.com
+ARROW.ESC     Easy      The arrow points the way       Brent W. Diana
+                                                brentd@juno.com
+BZAP.ESC      Tricky    Buzzzap! Your dead...          Brent W. Diana
+                                                brentd@juno.com
+HOLES.ESC     Easy      Holey Holes                    Brent W. Diana
+                                                brentd@juno.com
+RED.ESC       Hard      The Key Is Red                 Brent W. Diana
+                                                brentd@juno.com
+
+      All levels have been contributed to the Level Archive by their
+      creators and may be distributed freely, but never sold. They are
+      all verified to be solvable. You need Escape to play these, which
+      you can get on the web page noted above.  And please submit more
+      levels!
+
+
+                                   Tom 7 - ImightbeTM@aol.com
+          

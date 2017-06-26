@@ -1,0 +1,30 @@
+
+<STYLE TYPE="text/css">
+
+       H1 { font: bold 16pt Verdana,Arial,Helvetica }
+       P { font: 10pt Verdana,Arial,Helvetica }
+
+       TH { font: bold 10pt Verdana,Arial,Helvetica ; 
+            text-align: center}
+
+       TD { font: 10pt Verdana,Arial,Helvetica }
+
+       A:link { color: #4444DD }
+       A:visited { color: #9999FF }
+       A:active { color: #DDDD44 }
+
+       .small { font : bold 9px Verdana,Arial,Helvetica }
+
+       .title { font : bold 10pt Verdana,Arial,Helvetica }
+       .authors { font : italic 10pt Verdana,Arial,Helvetica }
+
+       .abstract { font : 10pt Verdana,Arial,Helvetica }		
+
+       .blackline { border: 2pt;
+		    border-style: solid;
+		    border-color: black; }
+
+       .indent { margin-left: 24px }
+
+</STYLE>
+

@@ -1,0 +1,15 @@
+
+let
+    import "print.hmh"
+
+    val cell = ref "wrong"
+
+    fun f (x : string ref) = !x
+
+
+in
+    cell := "right";
+
+    print (f cell);
+    print "\n"
+end

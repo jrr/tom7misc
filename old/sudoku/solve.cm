@@ -1,0 +1,9 @@
+group is
+
+$/basis.cm
+
+/usr0/src/sml-lib/util/util-sig.sml
+/usr0/src/sml-lib/util/util.sml
+
+solve.sml
+(* shirtdoku.sml *)

@@ -1,0 +1,11 @@
+             crypt                  26 June 2017
+
+When I was a freshman in college I read "Applied Cryptography" from 
+cover to cover, and was entranced by the topic. Like all things I get 
+entranced with, I wanted to make my own. So in this directory are some 
+pretty naive designs for cryptographic algorithms. Some are totally 
+stupid (ecrypt), some might have some kernel of an idea (inline-bridge), 
+but for god's sake don't use these! There's a home page with some 
+graphics and stuff:
+
+http://carnage-melon.tom7.org/crypt/

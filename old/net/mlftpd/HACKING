@@ -1,0 +1,54 @@
+
+This document gives you a little starting information for hacking
+on mlftpd. If you make anything good, let me know!
+
+ - Tom 7                                        6 Aug 2003
+
+Overview:
+
+This program is an ftp server written in SML. It uses the MLton socket
+library, so it will probably only compile with MLton. MLton is a
+pretty good compiler, though!
+
+It also uses the MLton C-function interface for some socket functions
+not provided by MLton. There is a new version of the SML Basis Library
+which should have enough network stuff to let me compile this ftp
+daemon, and I plan to port the code to that library. That will
+probably get rid of mose of the C stuff.
+
+Like many servers, a parent daemon listens on a port and then forks
+off child processes to handle each connection.
+
+The "parent daemon" functionality is encapsulated in a functor
+in the file called serverfn.sml. It takes a few arguments which
+indicate how the server should behave (check out serverarg-sig.sml).
+
+The whole server is invoked from top.sml.
+
+Almost all of the actual FTP protocol is implemented in ftp.sml.
+It all starts in the function called process_connection; remember
+that this file is only concerned with dealing with one user (one
+of the first things it does is setuid from root to the user
+in question.)
+
+auth.sml checks if a user is allowed to connect to the server;
+change this to add special rules or special users. (Some support
+for this coming soon.)
+
+params-sig.sml and params.sml do all of the parameter stuff. Follow
+the examples at the top of ftp.sml for a nice convenient way to
+specify parameters for the program.
+
+
+Debugging:
+
+It's easier to debug (type-check) SML code in SML/NJ, so I recommend
+installing that. Simply do CM.make () from the toplevel loop to
+compile. You can't run it, though, since the stubs for socket stuff
+all raise exceptions. You can run lots of the utility functions from
+the toplevel loop, however.
+
+The file sources.cm contains the files for building the (fake) SML/NJ
+version, and mlftpd.cm contains the files for building the MLton
+version. Unlike for SML/NJ, the order of the files in mlftpd.cm
+matters.

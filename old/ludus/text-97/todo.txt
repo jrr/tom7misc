@@ -1,0 +1,31 @@
+
+Think about script opcodes for beasts/items/weapons/special attacks.
+
+Start writing compiler
+
+Write debugger, maybe
+
+do that cliff and mountain landscape with tiles
+
+Work on functs.txt.
+
+Add "global variables". These are variables like the players names, etc.
+They should be declared in the "WORLD" object, and then modified at will
+by the other objects.
+
+parsestatementblock ()  in the basic program will recursively parse a
+statement block; either:
+
+saymsg ("Hello");
+
+or
+
+{
+saymsg ("Hello");
+if (x) {
+  poop_on_car;
+  }
+}
+
+In the second case, it would call another parsestatementblock for the if
+statement. I *THINK* I can get it to work this way.

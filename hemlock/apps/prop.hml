@@ -1,0 +1,154 @@
+
+(* Proof "checker" for propositional logic, grid-style. *)
+
+let
+    import "option.hmh"
+    import "list.hmh"
+    import "grid.hmh"
+    import "string.hmh"
+    import "print.hmh"
+
+    (* propositions *)
+    datatype prop =
+        /\ of prop * prop
+      | \/ of prop * prop 
+      | $ of int
+      | -> of prop * prop
+      | F of unit
+      | T of unit
+        
+    infix 8 /\
+    infix 6 \/
+    infix 3 ->
+
+    fun ~ p = p -> F ()
+
+    fun eq-prop ($ v1, $ v2) = v1 = v2
+      | eq-prop (a /\ b, aa /\ bb) =
+        eq-prop (a, aa) andalso eq-prop(b, bb)
+      | eq-prop (a \/ b, aa \/ bb) =
+        eq-prop (a, aa) andalso eq-prop(b, bb)
+      | eq-prop (a -> b, aa -> bb) =
+        eq-prop (a, aa) andalso eq-prop(b, bb)
+      | eq-prop (F (), F ()) = true ()
+      | eq-prop (T (), T ()) = true ()
+      | eq-prop _ = false ()
+
+    datatype (a, b) sequent = ==> of a * b
+    infix 2 ==>
+
+    (* contexts *)
+    val empty = Nil ()
+
+    fun ++(a, b) = b :: a
+    infix 1 ++
+
+    fun has G p = list-exists (fn pp => eq-prop (p, pp)) G
+
+    (* parallel and *)
+    fun &&(f1, f2) =
+        let val t1 = spawn f1
+            val t2 = spawn f2
+
+            val res = syncall [| t1, t2 |]
+        in
+            sub (res, 0) andalso sub (res, 1)
+        end
+    infix &&
+
+
+    (* proving *)
+
+    fun provable (G ==> P) =
+        let 
+
+            (* Collect all possible sequents, 
+               then try them all *)
+            fun try-passive (G ==> P) =
+                let 
+                    val next = 
+                    (case P of
+                         A \/ B => (G ==> A, G ==> B) :: Nil ()
+                       | _ => Nil ()) @
+                    let
+                        (* Completeness relies on the conjecture that
+                           if G,A->B ==> A and G,A->B,B ==> P 
+                           then G,B ==> P. Otherwise one of our 
+                           sequents does not get smaller and we may
+                           not terminate. *)
+
+                        fun lefts ((p as (A -> B)) :: t, G') =
+                                     ((G ==> A,
+                                       (B :: G' @ t) ==> P) :: Nil ()) @
+                                     lefts (t, p :: G')
+                          | lefts (p :: t, G') = lefts (t, p :: G')
+                          | lefts (Nil (), _) = Nil ()
+                    in
+                        lefts (G, Nil ())
+                    end
+
+                in
+                    (* if any one succeeds, we win *)
+                    list-exists (fn (s1, s2) =>
+                                 (fn () => provable s1) &&
+                                 (fn () => provable s2)) next
+                end
+
+            fun try-initial (G ==> P) = 
+                has G P
+                orelse
+                try-passive (G ==> P)
+
+            fun invert-right G =
+                case P of
+                    A /\ B =>
+                        (fn () => provable (G ==> A)) &&
+                        (fn () => provable (G ==> B))
+                  | T () => true ()
+                  | A -> B => provable ((G ++ A) ==> B)
+                  | _ => try-initial (G ==> P)
+
+
+            fun invert-left ((A \/ B) :: t, G') =
+                (fn () => provable ((A :: (G' @ t)) ==> P)) &&
+                (fn () => provable ((B :: (G' @ t)) ==> P))
+
+              | invert-left ((A /\ B) :: t, G') =
+                invert-left (t, A :: B :: G')
+
+              | invert-left (T() :: t, G') =
+                invert-left (t, G')
+
+              | invert-left (F() :: _, _) = true ()
+
+              | invert-left (h :: t, G') =
+                invert-left (t, h :: G')
+
+              | invert-left (Nil (), G') = invert-right G'
+
+        in
+            invert-left (G, Nil ())
+        end
+
+
+    val A = $0
+    val B = $1
+    val C = $2
+    val D = $3
+
+    val s = (A -> B -> C) -> (A -> B) -> A -> C
+    val k = A -> B -> A
+    val commute-or = A \/ B -> B \/ A
+
+    val nontheorem = A \/ B -> A /\ B
+    val hellno = A -> B
+
+    val seq = (A :: Nil ()) ==> B
+
+in
+
+    if runcord (fn () => provable seq)
+    then print "It was provable!\n"
+    else print "The theorem is not true!\n"
+    
+end

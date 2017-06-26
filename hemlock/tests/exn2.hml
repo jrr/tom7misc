@@ -1,0 +1,24 @@
+
+let
+    import "print.hmh"
+
+    exception X of string
+
+    exception Y of int
+in
+
+   (((let in
+         raise (X "correct\n"); 
+         print "shouldn't see this\n"
+     end handle Y _ => print "Wrong branch.\n")
+              
+    handle e =>
+        let in
+            print "Reraising.\n";
+            raise e
+        end)
+          handle Y _ => print "Wrong branch 2.\n"
+               | X s => print s);
+
+    print "Finished.\n"
+end

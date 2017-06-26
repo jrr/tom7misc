@@ -1,0 +1,76 @@
+
+    README         Tom Murphy          24 Aug 2004
+
+This repository has moved to the private ConCert CVS at CMU. Contact me if
+you'd like an up-to-date source tarball. For a branched and public version
+of this compiler (frontend) that has more features and bugfixes, see Aphasia
+2 at: 
+
+        http://cvs.sourceforge.net/viewcvs.py/aphasia/aphasia2/
+
+
+
+    Old README follows.
+
+This is the Hemlock compiler for Grid/ML.
+You can watch a presentation about this compiler here for a graphical intro:
+http://www-2.cs.cmu.edu/~concert/talks/Murphy2003Hemlock/hemlock.swf
+
+This is research software, which means that it has lots of bugs. On
+the other hand, you are encouraged to look at the code and re-use it
+for your own explorations. The Hemlock source code is licensed under
+the GPL.
+
+Contact Tom Murphy (tom7 at cs . cmu . edu) with any questions!
+
+Here's a brief overview of the compiler:
+
+
+The external language (el.sml) is similar to Core SML, 
+    with some misfeatures removed (ie, eqtype, abstype, flex records, overloading)
+    and some minor things added ('do' declaration, empty fun/fn/handle/case,
+                                 extensible types, ...)
+    and some minor syntactic changes (tyvars don't use apostrophe, etc.)
+    and of course, primitives for grid computation.
+
+It's elaborated into a high-level typed intermediate language
+    (il.sml). This language is explicitly typed, and would be a good
+    starting point for a fully type-preserving compiler from the
+    Hemlock EL.
+
+Then, we essentially discard type information to perform CPS
+    translation. Everything in this language has a single type,
+    because we use uniform data representation (mainly to allow for
+    marshalling, though this does simplify the compiler greatly!). The
+    CPS language looks more-or-less like the one in Appel's book,
+    "Compiling with Continuations."
+
+Next, I run a slick optimization pass on the CPS term. It does
+    inlining and dead code elimination and some other easy
+    conservative optimizations.
+
+Then, I closure-convert the code, which produces a CPS expression with
+    a collection of closed functions on the outside, and a single body
+    that makes calls to those functions or manipulates their addresses
+    to create closures. In the output of this phase, no function takes
+    more than Closure.MAX_ARGS arguments, either.
+
+At this point, I could use some post closure-conversion peephole
+    optimizations, but I don't have any.
+
+Then, I alloc-convert the CPS term. Now things like strings and integers
+    are moved into separate allocations so that the operands to 
+    instructions are (almost) always variables. (Some operations like
+    comparisons and ADDs can have a single immediate integer.)
+
+Next, I compile the uni-typed CPS language to a typed RTL (essentially
+    assembly) that is meant to be a subset of all of the typed assembly
+    languages I target (currently TAL and TALT). This makes the tag
+    checks explicit, and my use of registers, the stack, etc. Unfortunately,
+    it turns out that there are a lot of large primitives that I need,
+    so some of the RTL instructions are pretty strange. Due to some bad
+    design choices, the RTL and TAL backend not very well separated.
+
+Then, I should do some peephole optimizations on the RTL, but I don't.
+
+Then, I generate TAL. This is the ugliest phase of the compiler by far.

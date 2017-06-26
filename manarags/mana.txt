@@ -1,0 +1,53 @@
+Manarags 2 quick documentation
+
+   A few years ago I wrote an anagram-generating program called "Manarags"
+(an anagram for 'anagrams' itself) in Quickbasic as a programming
+challenge for myself and so that I could generate anagrams (which were
+one of my wordly obsessions at the time, and perhaps still are). The
+program worked but was frightfully slow and limited by the QB string space
+of 32k. Over winter break when I was home and Really Bored, I decided I'd
+rewrite the program in 32-bit C++... it was surprisingly simple to do
+(I guess I have gotten better) and seems to be thousands of times faster.
+
+   You might need a DOS extender to make this work; if it doesn't run try
+getting this one: http://members.aol.com/spoons1000/pi/cwsdpmi.exe
+
+   Source is free, and included in the file mana.cc.
+
+   You will need the wordlist file, which should be called wordlist.asc.
+You can edit this file as you wish to remove or add words, as long as
+it loosely follows the format of the original. If the wordlist is not
+alphabetically ordered, then the output will not be.
+
+   To use manarags, invoke on the command line like so:
+
+mana phraseforanagrammingwithoutspacesorpunctuation
+  
+   It's recommended that you redirect the output (which normally goes to
+the console) to a file, thus:
+
+mana lambdacalculus > lambda.txt
+
+    However, if you are savvy with redirection you can do some fancy stuff,
+especially with grep (and have it installed):
+
+mana thomasmurphy | grep "trophy" > tom.txt
+
+    Will print out only anagrams of thomasmurphy which have the word
+"trophy" in them.
+
+Switches:
+
+-q          : quiet mode
+-m 3        : minimum word length is 3
+-b 150      : just print out the 150 biggest words and quit
+-i poop.txt : use poop.txt as wordlist instead of wordlist.asc
+-f vogon    : all anagrams must contain the word 'vogon'
+
+This program is Copyright (c) 2001 Tom Murphy, but can be used,
+distributed, and modified by anyone. This program comes with
+absolutely no warranty.
+
+Tom 7
+http://members.aol.com/imightbetm/
+http://www.andrew.cmu.edu/~twm/

@@ -1,0 +1,7 @@
+
+let
+    val t = submit (fn () => "hello")
+in
+    write(stdout, sub(waitall [| t |], 0));
+    write(stdout, "\n")
+end

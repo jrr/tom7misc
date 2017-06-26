@@ -1,0 +1,392 @@
+#compnoun
+%compnoun%-%compnoun%
+ASCII
+CPU
+RAID disk system
+RISC architecture
+assembler
+bound
+cable
+cache
+character vector
+data
+event
+interpolation
+interrupt
+matrix
+matrix
+primary disk
+scalar
+storage unit
+vector
+vector
+makefile
+
+#compverbpast
+cached
+compiled
+compressed
+digitized
+expanded
+hashed
+linked
+preprocessed
+processed
+profiled
+sorted
+stored
+timed
+threaded
+synced
+synchronized
+locked
+
+#compplace
+ADC
+CMOS
+CPU
+DAC
+EEPROM
+IDE bus
+RAM
+ROM
+SCSI controller
+binary tree
+cache
+clock
+clock speed
+data bus
+heap
+interrupt vector
+keyboard matrix
+main bus
+microprocessor
+primary matrix
+scalar
+stack
+vector
+video memory
+
+#compadj
+%surname%
+%surname%-%surname%
+analog
+bipolar
+bounded
+concurrent
+concurrent
+concurrent
+concurrent
+digital
+distributed
+fault-tolerant
+ferrous
+linear
+main
+main
+massively parallel
+multifrontal
+multipartitioned
+multistage
+networked
+one-way
+optimal
+parallel
+plaintext
+primary
+primary
+secondary
+secondary
+serial
+shared
+two-way
+static
+volatile
+external
+object-oriented
+%compnoun%-driven
+
+#proglang
+%compadj% %proglang%
+%compadj%-language
+%tla%%tla%
+80%#0(3)% ASM
+Assembler
+BASIC
+C
+C
+C
+C++
+C++
+C++
+C/C++
+Cobol
+Concurrent %proglang%
+FORTRAN
+Lisp
+Lisp
+ML
+PROLOG
+Pascal
+QUICKBASIC
+Scheme
+VERILOG
+
+#expression
+%const%
+%function%(%expression%,%const%)
+%function%()
+%variable%
+%variable%
+%variable%-&gt;%variable%
+%variable%.%variable%
+(%expression% %operator% %variable%)
+(%type%) %function%(%variable%)
+(%type%) %variable%
+(%variable% %operator% %const%)
+(%variable% %operator% %expression%)
+(%variable% %operator% %variable%)
+~(%function%(%variable%,%variable%,%const%))
+
+#type
+%type% *
+%type% *
+auto %type%
+char
+char
+class
+const %type%
+const %type%
+extern %type%
+int
+int
+int
+long
+register %type%
+short
+string
+struct
+time_t
+unsigned char
+volatile %type%
+w_char
+
+#const
+%#(0,32767)%
+0
+0
+0x%#x(4)%
+0x%#x(4)%
+0x%#x(8)%
+42
+NULL
+NULL
+__io_baseaddr_
+__iolib_screenptr_
+__kmem_addr_
+__main_heap_addr_
+&%variable%
+&%variable%
+sizeof (%type%)
+sizeof (%type%)
+(struct %variable%){%variable%, %const%}
+
+#variable
+%tla%_buffer
+%variable%%#0(1)%
+EAX
+a
+b
+bar
+c
+counter
+foo
+foo
+i
+inode
+j
+left
+moose
+next
+node
+poop
+prev
+right
+x
+x
+x
+x
+x
+x
+y
+y
+z
+
+#function
+%tla%_buffer
+_%variable%__%function%
+__WT
+__strstr
+arctan
+bzero
+ceil
+exp
+ftree
+gamma
+hash
+mdev
+pow
+qsort
+sort
+sscanf
+stddev
+time
+xchg
+ctime
+rm
+atoi
+ntune
+fsck
+tunefs
+powl
+
+#operator
+!=
+&amp;
+&gt;&gt;
+&lt;
+&lt;&lt;
+*
+*
++
++
++
+-
+-
+/
+==
+^
+|
+
+#compos
+AmigaOS
+Atari STos
+BSD
+BSDi
+Commodore 64
+DOS
+DOS 1.0
+FreeBSD
+Linux
+Linux
+MacOS
+PDP/10
+PDP/11
+QDOS
+SCO Unix
+Sun OS
+System V
+System V
+Windows 3.11
+Windows 95
+Windows 98
+Windows NT
+X Windows
+X11
+armOS
+
+#tla
+AMO
+BPS
+BSD
+BTU
+CDR
+CMA
+COD
+EDT
+FPU
+FRY
+GPU
+LDW
+LLE
+LZW
+MPU
+OCR
+PDP
+PMA
+WEH
+YJC
+
+#typeofalgorithm
+routing
+routing
+multiprocessing
+fault-finding
+selection
+simple
+load-balancing
+pathfinding
+sorting
+recursive %typeofalgorithm%
+iterative %typeofalgorithm%
+recursive
+iterative
+pseudorandom
+parallel
+serial
+
+#abstractthing
+tree
+pathfinding problem
+%typeofalgorithm% algorithm
+graph
+buffer
+recurrence
+subgraph
+edge
+protocol
+expansion
+network
+expander
+fault
+emulation
+hypercube
+queue
+fault tolerance
+array
+channel
+system
+
+#abstractadj
+minimum-cost
+spanning
+closed
+semiring
+non-recursive
+recursive
+iterative
+asymptotic
+mesh-connected
+dynamic
+constant
+lexographical
+intermediate
+root-mean-squared
+real-time
+bounded-degree
+randomly-wired
+inline
+fixed-connection
+non-blocking
+nondistributed
+blocking
+distributed
+multiscale
+multistage
+empirical
+wormhole
+improved
+Gaussian
+linear
+bit-serial
+randomized

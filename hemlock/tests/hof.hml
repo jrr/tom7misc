@@ -1,0 +1,8 @@
+
+let
+    fun f (x : int) : int = 0
+
+    fun g (h : int -> int, i : int -> int) : int = h (i (1))
+in
+    g (f, f)
+end

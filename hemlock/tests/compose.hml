@@ -1,0 +1,8 @@
+
+let
+    fun oo (f, g) = (fn x => f(g(x)))
+    infix oo
+    fun i x = x
+in
+    i oo i
+end

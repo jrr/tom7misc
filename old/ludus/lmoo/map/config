@@ -1,0 +1,11 @@
+%* DATAFILE fdata.dat
+%* NUMTILES 247
+%* XTBITS 5
+%* YTBITS 5
+%* YTILES 16
+%* XTILES 21
+%* DEFX 42
+%* DEFY 42
+%* SELW 16
+%* SELH 3
+%* TILESW 19

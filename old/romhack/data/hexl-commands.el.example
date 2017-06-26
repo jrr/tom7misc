@@ -1,0 +1,5 @@
+
+%% C-x C-e after these
+
+(setq hexlify-command "\"c:/emacs/bin/pipe\" c:\\emacs\\bin\\translate f:\\emu\\gb\\haxor\\pokemon-charmap.trn @ c:\\emacs\\bin\\hexl -hex @")
+(setq dehexlify-command "\"c:/emacs/bin/pipe\" c:\\emacs\\bin\\hexl -de -hex @ c:\\emacs\\bin\\translate f:\\emu\\gb\\haxor\\pokemon-charmap.trn @")

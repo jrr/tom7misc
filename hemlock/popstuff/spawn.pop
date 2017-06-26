@@ -1,0 +1,35 @@
+
+/*
+extern ans_ main_function<ans_, dep_, dlist_>(string input, string deps,
+					      string news(int),
+					      a new_array<a>(int,a)[],
+					      dep_ done(string), 
+					      dep_ dand(dlist_), 
+					      dep_ dor (dlist_), 
+					      dlist_ dempty, 
+					      dlist_ dcons(dep_, dlist_), 
+					      ans_ aok(string), 
+					      ans_ afwd(string), 
+					      string subm(string arg, 
+							  dep_ d, 
+							  bool contself));
+*/
+
+string spawn <dep_, dlist_>(string code, string deps[],
+			    string subm(string arg, 
+					dep_ d, 
+					bool contself),
+			    dep_ done(string), 
+			    dep_ dand(dlist_), 
+			    dlist_ dempty, 
+			    dlist_ dcons(dep_, dlist_),
+			    int cself) {
+
+  dlist_ dl = dempty;
+  for(int i = 0; i < size(deps); i ++) {
+    dl = dcons(done(deps[i]), dl);
+  }
+
+  return subm(code, dand(dl), cself == 1);
+
+}

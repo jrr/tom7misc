@@ -1,0 +1,40 @@
+
+	INCLUDE	TAL.INC
+	_begin_TAL
+
+;	TAL_IMPORT	pop_runtime.tali
+
+        TYPE    <?arr = fn c:T . Exist[?sz:Sint].^*[S(?sz)^r,(^*[array(?sz,c^rw)])^r]>
+        TYPE    <?str = Exist[?sz:Sint].^*[S(?sz)^r,(^*[array(?sz,B1^rw)])^r]>
+
+	CODE
+
+_tal_main:
+LABELTYPE <code {ESP: sptr se}>
+	PUSH	0
+	JMP	tapp(_tal_exit,<se>)
+
+	DATA
+
+; ints
+;_x:
+;LABELTYPE <^*[B4^rw]>
+;        DD      subsume(<B4>,100)
+
+; strings
+;_s:
+;LABELTYPE <^*[?str^rw]>
+;        DD      string_ref$4
+
+;string$3:
+;LABELTYPE <^*[array(11,B1^rw)]>
+;COERCE  array(0,0,<B1^rw>,?)
+;        DB      "hello world"
+
+;string_ref$4:
+;COERCE  pack(<11>,?,<?str>)
+;        DD      11
+;        DD      string$3
+ 
+	_end_TAL
+	END

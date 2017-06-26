@@ -1,0 +1,15 @@
+
+A long time ago Jacob and I started to write a free
+multi-game-multi-player system for board games. The main app was to be
+a (already completed) clone of MetaSquares. MetaCreations threatened
+to sue us, and we eventually got distracted by other projects and
+college, so this is as far as we got. Should need Borland C++ Builder
+to compile, but I haven't used that in ages...
+
+At this time in my life I liked to give software "funny", revulsive 
+names like "poop." It probably stood for P-something Object Oriented 
+Program. I was in College at the time, ostensibly an adult.
+
+Code in the GPL.
+
+ Tom     7 Jun 2003

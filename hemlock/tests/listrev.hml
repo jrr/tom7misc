@@ -1,0 +1,31 @@
+
+let
+
+    datatype a list = Nil of unit | :: of a * list
+
+    infixr ::
+
+
+    val l = "this" :: "is" :: "my" :: "first" :: "list" :: Nil ()
+
+    fun print s = write (stdout, s)
+
+    fun rev l =
+        let
+            fun revv (Nil (), acc) = acc
+              | revv (h::t, acc) = revv (t, h::acc)
+        in
+            revv (l, Nil ())
+        end
+
+    fun prlist (Nil ()) = print "nil\n"
+      | prlist (h :: t) =
+        let in
+            print h;
+            print "\n";
+            prlist t
+        end
+
+in
+    prlist (rev l)
+end

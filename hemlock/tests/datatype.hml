@@ -1,0 +1,22 @@
+
+(* XXX syntax for datatype is changed to enforce uniformity.
+   Some of these won't work now. *)
+let
+
+  datatype void
+
+  datatype bool' = true' | false'
+
+  datatype a box = Box of a
+
+  datatype a option' = NONE' | SOME' of a
+
+  datatype (a, b) sum = A of a | B of b
+
+  datatype a list' = nil' | ::: of a * a list'
+
+  infixr :::
+
+in
+    (A true') ::: (B NONE') ::: (A false') ::: (B (SOME' (Box nil'))) ::: nil'
+end

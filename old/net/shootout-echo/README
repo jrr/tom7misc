@@ -1,0 +1,7 @@
+
+This is an implementation of the echo client/server benchmark for Doug
+Bagley's Programming Language Shootout Page, which can be found here:
+
+http://www.bagley.org/~doug/shootout/
+
+It is written to compile with MLton, and the code is in the public domain.

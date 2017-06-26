@@ -1,0 +1,7 @@
+
+This is a nice fire display I wrote way back in the day.
+
+I modified it to compile with MASM; otherwise it is the same as it
+was then. I was 15, so, be understanding.
+
+Run c.bat to compile it.

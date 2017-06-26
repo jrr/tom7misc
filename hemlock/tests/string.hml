@@ -1,0 +1,22 @@
+
+let
+    import "string.hmh"
+    import "print.hmh"
+    import "list.hmh"
+
+    fun ltos l =
+        let 
+            fun loop (Nil ()) = " "
+              | loop (a :: (Nil ())) = a
+              | loop (a :: b) =
+                a ^ ", " ^ loop b
+        in
+            "[" ^ loop l ^ "]"
+        end
+
+    val l = "did" :: "I" :: "make" :: "a" :: "string" :: "list?" :: Nil ()
+
+in
+    print (ltos l ^ "\n")
+
+end

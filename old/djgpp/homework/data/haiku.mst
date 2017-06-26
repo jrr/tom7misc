@@ -1,0 +1,233 @@
+
+#main
+%five%<br>%seven%<br>%five%<br>
+
+#five
+%^prefive%
+The %1noun% is %`1noun%
+I %had% to %2verbpres%
+The %1nounpl% in the %1container%
+%^2verbpres% it %with% %me%
+Here, have %`2noun%
+%^`4noun%
+%^`1noun%, %`2noun%
+%^2transverb% the %2nouny%
+%^5noun%
+%^4adj% %1noun%
+
+#seven
+%^preseven%
+%^2adj% %1container% of %2nounpl%
+My %1noun% is in %my% %1adj% %1container%
+They are %my% only %2nounpl%
+%^jeez%, they're only %my% %2nounpl%
+%^jeez%, why are you %2partic% now?
+%^2partic% makes %me% %1verbpres%
+
+#2nouny
+%2noun%
+%2nounpl%
+
+#1verbpres
+cry
+smell
+eat
+talk
+die
+run
+love
+fly
+joke
+feel
+
+#2partic
+running
+dying
+talking
+crying
+
+#jeez
+jeez
+christ
+look
+man
+
+#with
+by
+near
+with
+with
+with
+
+#my
+your
+my
+my
+her
+his
+our
+
+#me
+you
+her
+him
+us
+them
+me
+me
+
+#1container
+box
+bag
+case
+jar
+cell
+boat
+crate
+flask
+can
+
+#4adj
+automatic
+misanthropic
+%1adj% %1adj% %2adj%
+congenial
+congenital
+
+#3noun
+VCR
+antelope
+novelist
+canteloupe
+
+#4noun
+action figure
+participle
+%1adj% %3noun%
+%1adj% %3noun%
+notebook paper
+important fact
+full-length movie
+watermelon
+
+#5noun
+chemistry textbook
+potent idea
+self-cleaning oven
+
+#2noun
+pop tart
+cowlick
+tampon
+eyelid
+award
+
+#2nounpl
+car keys
+candies
+jugglers
+vomit
+pig hearts
+fury
+wigwams
+painters
+cubists
+blackboards
+marbles
+roses
+
+#had
+had
+have
+want
+need
+
+#2verbpres
+suspend
+collapse
+erase
+admit
+admit
+prepare
+explain
+
+#1nounpl
+dogs
+cats
+dates
+figs
+grapes
+pots
+stops
+deaths
+pills
+warts
+things
+
+#1noun
+dog
+cow
+cat
+man
+child
+cone
+ice
+log
+pill
+rose
+toy
+
+#2adj
+livid
+lifelike
+portly
+ugly
+pretty
+smelly
+greener
+blueish
+angry
+sorry
+plastic
+metal
+wooden
+callous
+dandy
+
+#2transverb
+look at
+punch through
+destroy
+tear down
+walk %1prep%
+speak %1prep%
+
+#1prep
+in
+through
+by
+near
+
+#1adj
+red
+green
+blue
+black
+white
+big
+small
+raw
+tall
+short
+fat
+old
+new
+crushed
+
+#prefive
+Here, have a pop tart
+
+#preseven
+Things are crazy in my head
+You sure are %`2adj% %1noun%
+

@@ -1,0 +1,19 @@
+
+   (test `[~b*~0 Tom's rc script loading ... ~b*~0]`)
+   (, 
+     (= GLOBAL `original global value`)
+     (= GLOBAL2 `another global`)
+     (scope (,
+          (test (% GLOBAL))
+          (shadow GLOBAL)
+          (test (% GLOBAL))
+          (scope (,
+               (test (% GLOBAL))
+               (= GLOBAL `inner scoping`)
+               (test (% GLOBAL))
+               (set GLOBAL2 `inner set`)
+          ))
+     ))
+     (test (% GLOBAL) (% GLOBAL2))
+   )
+   (test `[~b*~0 Loading Finished ~b*~0]`)

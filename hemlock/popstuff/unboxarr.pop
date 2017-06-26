@@ -1,0 +1,22 @@
+
+union ttt {
+  int iii;
+  string sss;
+}
+
+string f (ttt v[], a na<a>(int, a) [])[] {
+  int i = size(v);
+
+  if (i == 0) {
+    return {:string};
+  } else {
+    _ nv = na(i, v[0].sss);
+
+    while(i-- != 0) {
+      nv[i] = v[i].sss;
+    }
+
+    return nv;
+  } 
+
+}

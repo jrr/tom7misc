@@ -1,0 +1,23 @@
+(* This gives an internal compiler error, and should
+   instead be recognized as a redundant match *)
+
+let
+
+    (* propositions *)
+    datatype prop =
+        F of unit
+      | T of unit
+
+    datatype b t = X of b | Y of unit
+
+    fun invert-left (X T ()) = 0
+
+      | invert-left (X _) = 0
+
+      | invert-left (X F ()) = 0
+        
+      | invert-left (Y ()) = 1
+
+in
+    invert-left
+end

@@ -1,0 +1,80 @@
+
+mlfingerd version 1.1                              29 Jun 2001
+----------------------------------------------------------------------
+
+mlfingerd is a free finger server written in Standard ML by Tom 7.
+
+This is part of my project to rewrite the untrustworthy standard
+network daemons in a safe language (namely Standard ML), providing a
+basic level of functionality at reasonable speed for the everyday
+user, with many fewer security/stability risks than their C
+counterparts have.
+
+To learn more about Standard ML, visit http://standardml.org/.
+
+This was the first daemon I wrote, and I only really did it because
+the finger protocol is so simple. Truthfully, the finger service is
+pretty expendable and you probably shouldn't be running *any* finger
+daemon on your computer.
+
+mlfingerd supports local .plan files. It does not support user
+listing, forwarding, or execution of commands, since I think these are
+bad features I would never personally run. (If you add them in a nice
+manner, let me know and I will certainly consider merging your changes
+as non-defaults).
+
+mlfingerd probably only works under GNU/Linux on x86, since that's the
+only platform supported by the ML compiler used. I plan on abstracting
+the network interface so that it can be easily ported to other
+compilers (such as TILT).
+
+To build it you will need MLton, which you can get from:
+http://www.sourcelight.com/MLton/
+MLton is also Free software. mlfingerd is known to build with version
+20010706. It won't build with earlier versions.
+
+You'll also need my "sml-lib". You can get this from sourceforge through
+CVS:
+
+cvs -d:pserver:anonymous@cvs.tom7misc.sourceforge.net:/cvsroot/tom7misc login
+(juts hit enter -- there's no password for anonymous)
+cvs -d:pserver:anonymous@cvs.tom7misc.sourceforge.net:/cvsroot/tom7misc co sml-lib
+
+mlfingerd expects the library source to be in /usr/src/sml-lib. If it's
+not, just change mlfingerd.cm to reference the new location.
+
+Once you've installed MLton, "make" in the mlfingerd directory should
+build the program.
+
+You'll get a binary called mlfingerd. You can put this wherever you want,
+and then invoke it (as root) from your startup scripts, or manually.
+
+For a list of all the command line arguments. Specifying a "flag"
+sets it to the opposite of the default. You might want to shut off
+.plan file reading, or change the user as which mlfingerd runs.
+
+If you run mlfingerd with the -inetd flag, it will read from stdin and
+write to stdout, so that it can be run with inetd/tcpd. Add a line like
+this to /etc/inetd.conf (all one line):
+
+finger  stream  tcp     nowait  root    
+            /usr/sbin/tcpd      /usr/src/net/mlfingerd/mlfingerd -inetd
+
+Note that if you run the server through inetd, it needs to read the
+passwd file for each request. This might be inefficient for systems with
+very many users. 
+
+That's all there is to it! You can check /var/log/messages (or
+wherever syslogd sends log messages) to see what's happening
+on the server.
+
+This daemon is not invincible; it is still in its young stages and
+probably contains some bugs. For one thing, it makes no attempt to
+throttle a user who might make 10,000 connections to the server.
+However, at worst these kinds of problems result in denial-of-service,
+never a compromise of the machine. You may be able to configure inetd
+to help against denial-of-service attacks.
+
+The program is licensed for your use under the terms of the GNU Public
+License; see the file COPYING for details. Note: Some source files may
+be in the public domain, and are explicitly marked.

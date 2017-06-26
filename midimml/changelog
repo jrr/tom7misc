@@ -1,0 +1,37 @@
+2006-05-12  Tom 7  <Tom@METROID>
+
+        * version 2.2 released
+	
+	* inst.sml: Improved compatibility with other MIDI editors;
+	  now any track that has only META events will be used to
+	  find "end" and "loop" markers.
+
+2005-06-08  Tom 7  <Tom@METROID>
+
+	* version 2.1 released
+	
+	* inst.sml: Fixed a bug where useless messages could
+	  interrupt long notes in the middle. It's still possible
+	  to be interrupted by, eg, the "loop" marker, but at
+	  least useless things like sysex and program change won't
+	  do it.
+
+	* inst.sml: Added -debug option, which probably will not
+	  be very useful for end-users.
+
+2005-05-01  Tom 7  <Tom@METROID>
+
+	* inst.sml: Added the parameter -quantize, which allows you
+	  to reduce the resolution of the MIDI time step. Generally
+	  you'll want to avoid this unless you really know what
+	  you're doing.
+
+2005-04-30  Tom 7  <Tom@METROID>
+
+	* inst.sml: Added the ability to define instruments 
+	  (see documentation).
+
+	* inst.sml: Fixed a bug with DPCM samples. I don't know
+	  how long this hasn't worked, but you should be able to
+	  use more than one sample now.
+

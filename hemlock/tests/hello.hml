@@ -1,0 +1,8 @@
+
+let
+    fun print s = write (stdout, s)
+in
+    print "Hello, world!\n"
+end
+
+

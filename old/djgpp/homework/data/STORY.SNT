@@ -1,0 +1,48 @@
+#needs story.wrd
+
+#sentence
+%^sentenceX%.
+%^sentenceX%.
+%^sentenceX%.
+%^sentenceX%.
+%^sentenceX%.
+%^sentenceX% (even though %sentenceX%!).
+%^sentenceX%!
+%^sentenceX%?
+%^NP% %sayverb%, &quot;%^sentenceX%.&quot;
+%^NP% %sprimeverb% that %sentenceX%.
+%^NP% %sprimeverb% that %sentenceX%.
+&quot;%^sentenceX%,&quot; %NP% %sayverb%.
+
+#sentenceX
+%NP% %VP%
+
+#NP
+%noun%
+%det% %noun%
+%det% %noun%
+%det% %noun%
+%det% %noun%
+%det% %adjective% %noun%
+%det% %adjective% %noun%
+%det% %adjective% %noun%
+%det% %adjective% %noun% %PP%
+%det% %adjective% %noun% %PP%
+%pronoun%
+
+#VP
+%verb%
+%verb%
+%verb%
+%verb% %NP%
+%verb% %NP%
+%verb% %adverb%
+%verb% %adverb%
+%verb% %NP% %adverb%
+%verb% %PP%
+%verb% %NP% %PP%
+%verb% %adverb% %PP%
+%verb% %NP% %adverb% %PP%
+
+#PP
+%participle% %NP%

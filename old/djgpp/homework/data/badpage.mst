@@ -1,0 +1,186 @@
+#needs names.wrd
+#needs net.wrd
+
+#main
+%htmlhead%%titler%%intro%%bodies%%thelinks%%end%%htmlfoot%
+
+#titler
+<font size=+6>%titles%</font>
+<blink><font size=+6>%titles%</font></blink>
+
+#bodies
+Here, I'm talking about crap.
+
+#thelinks
+%sepbar%<img %buttongfx%><font size=+3 color=#%badcolor%>%linkintro%</font><img %buttongfx%>%linklist%
+
+#badcolor
+FFFFFF
+FF00FF
+FFFF00
+0000FF
+00FFFF
+00FF00
+FF0000
+
+#linklist
+<br>%friendlink%<br>%friendlink%<br>%friendlink%
+<br>%sitelink%<br>%sitelink%<br>%sitelink%
+%linklist% %linklist%
+
+#buttongfx
+img src=badpage/but1.gif
+img src=badpage/but2.gif
+img src=badpage/but3.gif
+img src=badpage/but4.gif
+
+#end
+%sepbar% %counter% <p> %sendmail% <br> %lastupdate%
+
+#sepbar
+<br><img %bargfx%><br>
+
+#bargfx
+img src=badpage/bar1.gif
+img src=badpage/bar2.gif
+img src=badpage/bar3.gif
+img src=badpage/bar4.gif
+img src=badpage/bar5.gif
+img src=badpage/bar6.gif
+img src=badpage/bar7.gif
+
+#intro
+<p>%sepbar%%underconstruction%<p>%bestviewed%<p>%sepbar% %introduction%
+
+#bestviewed
+This page is best viewed by Netscape Navigator 2.0
+best viewed by Netscape Navigator
+best viewed by Windows 95
+best viewed by Microsoft Frontpage
+This page is best viewed by Netscape Communicator
+This page is best viewed with Microsoft Internet Explorer
+This page is best viewed with America Online
+
+#sitelink
+%fakelink%
+%reallink%
+
+#fakelink
+<a href=http://%url%>%faketitle%</a>
+<a href=http://%url%>%faketitle%</a> - %fakedesc%
+
+#reallink
+<a href=http://www.snoot.com/>Snoot</a>
+<a href=http://www.netscape.com/>Netscape</a>
+<a href=http://www.microsoft.com/>Microsoft</a>
+<a href=http://www.yahoo.com/>Yahoo</a>
+<a href=http://www.disney.com/>Disney</a>
+
+#underconstruction
+<p><font color=#%badcolor% size=+3>%constext%</font><img %construct%>
+
+#constext
+THIS PAGE IS UNDER CONSTRUCTION!!!
+yes its under construction
+This page is always under construction!
+This page is still under construction!
+this page is still currently under construction
+this page is currently under construction
+This page is not finished!!
+this page is constantly under construction
+
+#construct
+src=badpage/bar1.gif
+src=badpage/cons1.gif
+src=badpage/cons2.gif
+src=badpage/cons3.gif
+src=badpage/cons4.gif
+
+#htmlhead
+<html><head><title>%titles%</title></head><body %badbody%>
+
+#htmlfoot
+</body></html>
+
+#badbody
+bgcolor=#FF0000 text=#000000
+bgcolor=#FFFF00 text=#FF00FF
+background=badpage/bg1.gif text=#000000
+background=badpage/bg2.gif text=#000000
+background=badpage/bg3.jpg text=#00FF00
+background=badpage/bg4.jpg text=#FF0000
+background=badpage/bg3.gif text=#00FF00
+background=badpage/bg4.gif text=#FF0000
+background=badpage/bg5.gif text=#000000
+
+#titles
+Welcome to %fullname%'s home page!
+Welcome to %firstname%'s home page!
+---=====[[[[ WelCoMe To MY DoMAin ]]]]=====---
+''¨¨°º©o.,,.o©º°¨¨°º©>>> %firstname%'s Page <<<©º°¨¨°º©o.,,.o©º°¨¨''
+(¯`·.¸(¯`·.¸(¯`·.¸(¯`·.¸ %firstname%  ¸.·´¯)¸.·´¯)¸.·´¯)¸.·´¯)
+Welcome to my new home page!
+Homepage of %fullname%
+welcome to my awesome web page!
+
+#friendlink
+<a href=http://%url%>%friendlinktitle%</a>
+
+#friendlinktitle
+%titles%
+%titles%
+%fullname%
+%fullname%
+%firstname%
+
+#linkintro
+Here are some of my favorite links
+Friends' home pages
+[[ Links ]]
+
+#sendmail
+Write me some <a href=mailto:%mailaddr%>E-Mail</a>
+Comments? Suggestions?  <a href=mailto:%mailaddr%>E-Mail Me</a>
+Thanks for visiting! Now <a href=mailto:%mailaddr%>Send Me Some E-Mail!!</a>
+You can mail me at <font color=#%badcolor%>%mailaddr%</font>.
+If you have any links to add you can <a href=mailto:%mailaddr%><img %emailgfx%> E-mail me</a> them and if I like them I'll put them up
+Please <a href=mailto:%mailaddr%><img %emailgfx%> E-mail me </a>!
+
+#emailgfx
+src=badpage/email.gif
+src=badpage/email2.gif
+
+#mailaddr
+%&firstname%%&surname%@%hostname%.%domain%
+%&firstname%.%&surname%@%hostname%.%domain%
+%&surname%@%hostname%.%domain%
+%&firstname%@%hostname%.%domain%
+%&firstname%%#(1,999)%@%hostname%.%domain%
+%&firstname%%#(1,999)%@%hostname%.%domain%
+%&firstname%%#(1,999)%@%hostname%.%domain%
+
+#lastupdate
+last updated %olddate%
+last updated %olddate%
+&copy; 199%#(1,7)% %fullname%. All rights reserved.
+
+#olddate
+%^month% %#(1,28)%, 199%#(1,7)%
+%#(1,12)%/%#(1,28)%/9%#(1,7)%
+
+#month
+January
+February
+March
+April
+May
+June
+July
+August
+September
+October
+November
+December
+
+#counter
+I'll get my counter working soon, I promise!

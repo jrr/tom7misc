@@ -1,0 +1,152 @@
+       qty   price            what                      URL/other
+                                                                 
+         0   $0.00                                               
+         0   $0.00                                               
+         0   $0.00                                               
+         0   $0.00                                               
+         0   $0.00                                               
+         0   $0.00                                               
+         0   $0.00                                               
+   ------- -------                                               
+     0 pcs   $0.00                                               
+                                                                 
+                                                                 
+   Itemized shopping list for SES by Tom 7.                      
+   Info: 'p' to change cell printer. "$%.2f" for money.          
+   'w' to change column width                                    
+   M-x ses-sort-column C  -- to sort by price (C-u descends)     
+
+
+(ses-cell A1 nil nil nil nil)
+(ses-cell B1 "qty" "qty" nil nil)
+(ses-cell C1 "price" "price" nil nil)
+(ses-cell D1 nil nil nil nil)
+(ses-cell E1 "what" "what" nil nil)
+(ses-cell F1 "URL/other" "URL/other" nil nil)
+
+(ses-cell A2 nil nil nil nil)
+(ses-cell B2 nil nil nil nil)
+(ses-cell C2 nil nil nil nil)
+(ses-cell D2 nil nil nil nil)
+(ses-cell E2 nil nil nil nil)
+(ses-cell F2 nil nil nil nil)
+
+(ses-cell A3 nil nil nil nil)
+(ses-cell B3 0 0 nil (B11 C11))
+(ses-cell C3 0 0 "$%.2f" (C11))
+(ses-cell D3 nil nil nil nil)
+(ses-cell E3 nil nil nil nil)
+(ses-cell F3 nil nil nil nil)
+
+(ses-cell A4 nil nil nil nil)
+(ses-cell B4 0 0 nil (B11 C11))
+(ses-cell C4 0 0 "$%.2f" (C11))
+(ses-cell D4 nil nil nil nil)
+(ses-cell E4 nil nil nil nil)
+(ses-cell F4 nil nil nil nil)
+
+(ses-cell A5 nil nil nil nil)
+(ses-cell B5 0 0 nil (B11 C11))
+(ses-cell C5 0 0 "$%.2f" (C11))
+(ses-cell D5 nil nil nil nil)
+(ses-cell E5 nil nil nil nil)
+(ses-cell F5 nil nil nil nil)
+
+(ses-cell A6 nil nil nil nil)
+(ses-cell B6 0 0 nil (B11 C11))
+(ses-cell C6 0 0 "$%.2f" (C11))
+(ses-cell D6 nil nil nil nil)
+(ses-cell E6 nil nil nil nil)
+(ses-cell F6 nil nil nil nil)
+
+(ses-cell A7 nil nil nil nil)
+(ses-cell B7 0 0 nil (B11 C11))
+(ses-cell C7 0 0 "$%.2f" (C11))
+(ses-cell D7 nil nil nil nil)
+(ses-cell E7 nil nil nil nil)
+(ses-cell F7 nil nil nil nil)
+
+(ses-cell A8 nil nil nil nil)
+(ses-cell B8 0 0 nil (B11 C11))
+(ses-cell C8 0 0 "$%.2f" (C11))
+(ses-cell D8 nil nil nil nil)
+(ses-cell E8 nil nil nil nil)
+(ses-cell F8 nil nil nil nil)
+
+(ses-cell A9 nil nil nil nil)
+(ses-cell B9 0 0 nil (B11 C11))
+(ses-cell C9 0 0 "$%.2f" (C11))
+(ses-cell D9 nil nil nil nil)
+(ses-cell E9 nil nil nil nil)
+(ses-cell F9 nil nil nil nil)
+
+(ses-cell A10 nil nil nil nil)
+(ses-cell B10 "-------" "-------" nil nil)
+(ses-cell C10 "-------" "-------" nil nil)
+(ses-cell D10 nil nil nil nil)
+(ses-cell E10 nil nil nil nil)
+(ses-cell F10 nil nil nil nil)
+
+(ses-cell A11 nil nil nil nil)
+(ses-cell B11 0 (apply (quote +) (ses-range B3 B9)) "%d pcs" nil)
+(ses-cell C11 0 (progn (defun f (pcs cos) (if (eq pcs nil) 0 (+ (* (car pcs) (car cos)) (f (cdr pcs) (cdr cos))))) (f (ses-range B3 B9) (ses-range C3 C9))) "$%.2f" nil)
+(ses-cell D11 nil nil nil nil)
+(ses-cell E11 nil nil nil nil)
+(ses-cell F11 nil nil nil nil)
+
+(ses-cell A12 nil nil nil nil)
+(ses-cell B12 nil nil nil nil)
+(ses-cell C12 nil nil nil nil)
+(ses-cell D12 nil nil nil nil)
+(ses-cell E12 nil nil nil nil)
+(ses-cell F12 nil nil nil nil)
+
+(ses-cell A13 nil nil nil nil)
+(ses-cell B13 nil nil nil nil)
+(ses-cell C13 nil nil nil nil)
+(ses-cell D13 nil nil nil nil)
+(ses-cell E13 nil nil nil nil)
+(ses-cell F13 nil nil nil nil)
+
+(ses-cell A14 nil nil nil nil)
+(ses-cell B14 "Itemized shopping list for SES by Tom 7." "Itemized shopping list for SES by Tom 7." nil nil)
+(ses-cell C14 *skip* nil nil nil)
+(ses-cell D14 *skip* nil nil nil)
+(ses-cell E14 *skip* nil nil nil)
+(ses-cell F14 *skip* nil nil nil)
+
+(ses-cell A15 nil nil nil nil)
+(ses-cell B15 "Info: 'p' to change cell printer. \"$%.2f\" for money." "Info: 'p' to change cell printer. \"$%.2f\" for money." nil nil)
+(ses-cell C15 *skip* nil nil nil)
+(ses-cell D15 *skip* nil nil nil)
+(ses-cell E15 *skip* nil nil nil)
+(ses-cell F15 *skip* nil nil nil)
+
+(ses-cell A16 nil nil nil nil)
+(ses-cell B16 "'w' to change column width" "'w' to change column width" nil nil)
+(ses-cell C16 *skip* nil nil nil)
+(ses-cell D16 *skip* nil nil nil)
+(ses-cell E16 *skip* nil nil nil)
+(ses-cell F16 nil nil nil nil)
+
+(ses-cell A17 nil nil nil nil)
+(ses-cell B17 "M-x ses-sort-column C  -- to sort by price (C-u descends)" "M-x ses-sort-column C  -- to sort by price (C-u descends)" nil nil)
+(ses-cell C17 *skip* nil nil nil)
+(ses-cell D17 *skip* nil nil nil)
+(ses-cell E17 *skip* nil nil nil)
+(ses-cell F17 *skip* nil nil nil)
+
+(ses-column-widths [2 7 7 2 12 30])
+(ses-column-printers [nil nil nil nil nil nil])
+(ses-default-printer "%.7g")
+(ses-header-row 1)
+
+( ;Global parameters (these are read first)
+ 2 ;SES file-format
+ 17 ;numrows
+ 6 ;numcols
+)
+
+;;; Local Variables:
+;;; mode: ses
+;;; End:

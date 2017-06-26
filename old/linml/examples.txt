@@ -1,0 +1,145 @@
+
+* primitives:
+
+** threads:
+
+type     thread_id (* probably just unit *)
+spawn:   (unit -> unit) -o !thread_id
+
+It is vital here that the spawn uses a linear arrow type, since for
+communication we want to include linear resources in our spawned
+thread (a send or recv channel!)
+
+(This unfortunately gives an easy way to destroy resources, by
+putting them in a spawned thread and sending it off to loop
+forever... (Force termination?) Perhaps an affine view is
+better??)
+
+** communication:
+
+send:	 'a schan * 'a -o 'a schan
+recv:	 'a rchan -o 'a * 'a rchan
+rclose:  'a rchan -o unit
+sclose:  'a schan -o unit
+open:	 unit -o 'a schan * 'a rchan
+
+Since these are linear, I end up with several interesting benefits:
+
+- I can simply use a reference cell as the implementation of a
+channel. Each sync event can just create a new ref cell of the
+appropriate type.
+
+- Garbage collecting threads is easy; it doesn't require any tracing.
+On close, I can set information on the ref cell to state that the
+other party has closed the connection -- so the recving or sending
+thread can immediately terminate. (Though in the type theory we think
+of this as non-termination, since it may not use up all of its linear
+resources! Do I want to detect all of the channels that this thread
+has access to, and close those too?)
+
+- This scheme won't collect mutually deadlocked threads; this behavior
+seems rather suspect. (I would think that it usually means a bug on
+the part of the programmer.)
+
+* OK, so what to do with linear primitives?
+
+The basic idea is that we can specify a protocol of communication that
+threads must follow through the use of linear types.
+
+The intuition about linear types is that they control resource use.
+However, it is possible to code up ordering via a "lock-and-key"
+mechanism.
+
+The protocol:
+
+1. client sends a string to host.
+2. client sends an integer to host.
+3. client sends an integer to host.
+4. client receives an integer from the host.
+5. client sends a string to host.
+
+Your program is parameterized over a set of operations. So it is a
+function. (This way we do not need to do signature matching.) Maybe
+your program must have the following type:
+
+
+w/o quantified types
+A key1 key2 key3
+  key1,
+  string * key1 -o key2,
+  key2 -o int * key3,
+  key3 -o done
+
+A key1 key2 key3
+  key1,
+  string * key1 -o key2,
+  key2 -o int * key3,
+  key3 -o done,
+  key3 -o key1,
+
+#1
+{snd : !(('a, 'b) sch * 'a -o 'b),
+ rcv : !(('a, 'b) rch -o 'a * 'b),
+ c1  : (string, key1) sch,
+ c2  : key1 -o (int, key2) sch,
+ c3  : key2 -o (int, key3) sch,
+ c4  : key3 -o (int, key4) rch,
+ c5  : key4 -o (string, key5) sch,
+ c6  : key5 -o done} -o done
+ 
+This way is terser:
+
+#2
+{c1 : string -o int -o int -o (int * (string -o done))} -o done
+
+What is special about the way above?
+
+Can we code the curried function using #1? (I think so.) So why is it
+better? Can we make better use of other linear types (&, +) in the
+first? The second IS less explicit about the sends and receives. The
+first gives you leeway in when you actually receive the integer (you
+could code this as unit -o int, I suppose).
+
+
+Protocol 2: External Choice
+
+1. Client sends its version string.
+2a. Server does not support client version. 
+    Sends an upgrade message and aborts.
+2b. Server does support client version. It sends back its own version.
+3. Client sends a command and arguments.
+4. Server sends the result string.
+
+{snd : !-
+ rcv : !-
+ c1  : (version, key1) sch,
+ c2  : key1 -o ((string, done) rch + (version,key2) rch), [1]
+ c3  : (key2 -o (command * string, key3) sch) & 1,
+ c4  : (key3 -o (string, key4) rch) & 1,
+ c5  : (key4 -o done) & 1} -o done
+
+As a function:
+
+{c1 : version -o (string * done + 
+                  (version * (command * string -o (string * done))))} -o done
+
+[1] There is some implicit communication going on here. Calling the c2
+function is what actually communicates -- so why the pretense with
+channels? Can we make this happen entirely within the channel stream?
+(string + version, done + key2) rch?
+
+Now the function does not seem as straightforward...
+
+Protocol 3: Internal Choice
+
+1. Server sends its version number.
+2a. Client sends a hangup message and disconnects.
+2b. Client sends a command.
+3. Server sends its response.
+
+{snd : !-
+ rcv : !-
+ c1  : (version, key1) rch,
+ c2  : key1 -o (
+
+Protocol 3: Repetition? (Recursive types?)

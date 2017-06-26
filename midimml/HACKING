@@ -1,0 +1,33 @@
+
+This program converts type-1 standard MIDI files into MML, to be used
+as input to "mckc," which compiles them into Nintendo Sound File (NSF)
+format. I made it for a Nintendo music competition, since I can't
+understand how anyone can compose by typing notes into a text file! ;)
+
+It's written in SML. SML is great for this kind of stuff.
+
+ ** How to compile
+
+This program is quite unfinished, but it works. You'll need my sml-lib
+to compile:
+
+http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tom7misc/sml-lib/
+
+ or
+
+cvs -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/tom7misc login
+cvs -z3 -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/tom7misc co sml-lib
+
+ in a directory parallel to the one containing these sources.
+
+
+The software should build with SML/NJ. Type 
+
+CM.make' "midimml.cm";
+
+at the prompt, and then use the functions in the Inst structure.
+
+However, I highly suggest using mlton to make standalone executables
+(the compiler is also much less buggy). To do this, go to the cygwin (or
+bash) prompt and just type "make".
+

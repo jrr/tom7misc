@@ -1,0 +1,13 @@
+#needs names.wrd
+
+#main
+%names%
+
+#names
+%names2% %names2% %names2% %names2% %names2% %names2%
+
+#names2
+%morenames% %morenames% %morenames% %morenames% %morenames% %morenames%
+
+#morenames
+%fullname%, %fullname%, %fullname%, %fullname%, %fullname%, %fullname%, %fullname%, %fullname%, %fullname%, %fullname%, %fullname%, %fullname%,

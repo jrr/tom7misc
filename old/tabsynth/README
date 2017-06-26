@@ -1,0 +1,10 @@
+
+This was my project to create a synthesizer that I could play with my
+drawing tablet. I got the basics working, and it might be fun to use.
+But I ran into some problem with the mapper display class (a memory or
+GDI resource leak, I think) that I could never figure out, and
+unfortunately I never did anything really fancy with this.
+
+
+Code in the GPL.
+

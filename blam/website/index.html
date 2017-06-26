@@ -1,0 +1,77 @@
+<html>
+<head>
+<title>BLAM : a genome analysis tool</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name=keywords content="blam, biology, blast like alignment matrix, tom murphy, heather hendrickson, blamvis">
+<link rel=stylesheet type="text/css" href="blam.css" title="blam">
+<!-- try to fix pngs on ie -->
+<!--[if gte IE 5.5000]>
+<script type="text/javascript" src="pngfix.js"></script>
+<![endif]-->
+</head>
+
+<body background="back.png">
+
+<center><table width=500 style="border: 2px solid black"
+background="alpha.png" border=0 cellpadding=6><tr><td>
+<img style="display:block ; margin-left : auto; margin-right: auto" src="blam.png">
+
+<p><h2>Introduction</h2>
+
+<p><b>Blam</b> is software for comparing the genomes of two organisms.
+
+<p>Given two <b><a
+href="http://www.ncbi.nlm.nih.gov/">NCBI</a></b>-format .seq files,
+blam extracts the annotated genes and performs a global pairwise
+sequence alignment for each pair of genes. The output of the program
+is those pairs of genes for which the (normalized) score exceeds a
+certain threshold. Because GPSA allows for gaps and weighted scoring
+matrices, it is more accurate than some other commonly used techniques
+such as sequence identity (but much slower).
+
+<p>You may wish to view a <b><a
+href="http://tom7.org/talks/compbio-blam.swf">short
+presentation</a></b> about Blam and its use, if you have Flash
+installed.
+
+<p><h2>Technical Information</h2>
+
+<p>The sequence alignment is performed using the <b><a
+href="http://www.icp.ucl.ac.be/~opperd/private/pam250.html">PAM250
+matrix</a></b>, but it can easily be modified to use other matrices.
+
+<p>The alignment routine itself is a <b><a
+href="http://cvs.sourceforge.net/viewcvs.py/tom7misc/blam/gpsa-mtx.c?only_with_tag=HEAD&view=markup">short
+piece of carefully tuned</a></b> C and Pentium-III machine code. The
+rest of the program is written in <b><a
+href="http://standardml.org/">Standard ML</a></b> (build with <b><A
+href="http://mlton.org/">mlton</a></b>). Comparing two bacterial
+genomes of moderate size naively requires 25 million sequence
+alignments, each a &Theta;(n<sup><span
+style="font:xx-small">2</span></sup>) operation. Therefore, the
+program is optimized to avoid doing comparisons when the results can
+not possibly meet the threshold. On a modern (as of 2004) computer, a
+genome comparison of two 5,000 gene bacteria takes about nine hours.
+
+<p>Blam is free, open source software. You can get the <b><a
+href="http://cvs.sourceforge.net/viewcvs.py/tom7misc/blam/">source
+code</a></b> to compile it yourself, or download an <b><a
+href="blam.zip">executable for windows command line</a></b> (711kb).
+
+<p><h2>Status</h2>
+
+<p>Blam was written by Tom Murphy and Heather Hendrickson as a class
+project for
+<b><a href="http://www-2.cs.cmu.edu/~durand/03-711/">CMU CS 15-856
+Computational Molecular Biology and Genomics</a></b>. It is
+unfortunately underdocumented and lacks the capability for
+customization without rebuilding. However, it has been carefully
+tested and is used in real research. We encourage you to use it, but
+advise you to contact us first.
+
+<p>Back to <b><a href="http://www.cs.cmu.edu/~tom7/">Tom's Web Page</a></b>.
+
+</td></tr>
+</table></center>
+
+</body>

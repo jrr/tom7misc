@@ -1,0 +1,14 @@
+
+answer main_function<answer, dep, dlis>(string args, string fulld,
+					dep done(string),
+					dep dand(dlis),
+					dep dor (dlis),
+					dlis dempty,
+					dlis dcons(dep, dlis),
+					answer aok (string),
+					answer afwd(string),
+					string submit(string, dep, bool)) {
+  
+  return aok("just kidding");
+
+}

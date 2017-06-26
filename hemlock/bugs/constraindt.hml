@@ -1,0 +1,12 @@
+
+let
+
+    datatype p = A of unit
+
+    val (x : p) = A ()
+
+in
+
+    x
+
+end

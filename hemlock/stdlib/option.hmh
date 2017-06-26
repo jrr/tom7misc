@@ -1,0 +1,5 @@
+
+(* like SML's option type *)
+
+datatype a option = Some of a | None of unit
+

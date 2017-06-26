@@ -1,0 +1,12 @@
+
+(* problem is just that Scissors isn't in the context... need
+   a better error message ! *)
+
+let
+
+    fun eqtwo (Scissors _, Scissors _) = true ()
+      | eqtwo _ = false ()
+
+in
+    0
+end

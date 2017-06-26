@@ -1,0 +1,56 @@
+#needs story.snt
+
+#title
+<font size=+3>%titletext%</font><br><font size=+1><i>(Or, &quot;%titletext%&quot;)</i></font><p>%byline%
+<font size=+3>%titletext%</font><p>%byline%
+
+#byline
+<i>By %fullname%</i>
+<i>By %fullname%</i>
+<i>By %fullname%</i>
+<i>By %fullname%</i>
+<i>By %girlname% %^noun%</i>
+<i>By Anonymous</i>
+
+#beginning
+<p>So begins our story.
+
+#middle
+%chapter% %middle%
+%chapter% %middle%
+%chapter% %middle%
+%chapter% %chapter%
+
+#end
+This is the End.
+
+#titletext
+%^intangible% And %^intangible%
+All Over the %^noun%
+%girlname% %surname%
+%girlname%
+%^adjective% %firstname%
+The Curse of the Old %^tangible%
+%^tangible% %^intangible%
+%fullname%
+%girlname%'s %^tangible%
+
+#chapter
+%introparagraph% %paragraphseq%
+
+#paragraphseq
+%paragraph% %paragraphseq%
+%paragraph% %paragraphseq%
+%paragraph%
+
+#introparagraph
+<p>Introducing... %fullname%.
+
+#paragraph
+<p>%introsentence% %sentenceseq%
+
+#sentenceseq
+%sentence% %sentence% %sentenceseq%
+%sentence% %sentence% %sentenceseq%
+%sentence% %sentenceseq%
+%sentence% %sentence%

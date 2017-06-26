@@ -1,0 +1,8 @@
+
+histogram.sml  -  creates histograms (line counts) from stdin
+charagram.sml  -  same, but for characters
+id3track.cm    -  alters the ID3 tag on MP3 files to include
+                  track numbers, where the track numbers are
+                  determined by their order in a playlist.
+linelen.cm     -  print out filenames that have lines longer
+                  than a certain width

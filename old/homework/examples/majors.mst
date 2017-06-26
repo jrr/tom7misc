@@ -1,0 +1,108 @@
+
+#main
+<p>%ml% <p>%ml% <p>%ml% <p>%ml% <p>%ml% <p>%ml% <p>%ml%
+
+#goog
+<form action="http://google.com/search" method=get name=f> <input type=text value="&quot;%?asdf%&quot;" framewidth=4 name=q size=30> <input name=btnG type=submit value="Find it!"> </form>
+
+#ml
+%asdf:=major% %goog%
+
+#major
+%adj% %noun% %studies%
+%adj% %studies%
+%adj% %studies%
+%adj% %studies% & %studies%
+%adj% %noun%
+%adj% %noun%
+%noun% %noun%
+%noun% %noun% %studies%
+
+#noun
+cognition
+media
+media
+information
+multimedia
+multimedia
+multimedia
+diversity
+diversity
+togetherness
+friendship
+business
+economics
+wellness
+commerce
+decisions
+e-%noun%
+modernism
+imperialism
+awareness
+awareness
+language
+conflict
+community
+recycling
+environment
+entertainment
+
+#adj
+cyber
+technical
+environmental
+virtual
+virtual
+global
+statistical
+electronic
+western
+eastern
+european
+american
+social
+graphic
+interactive
+geographic
+interactive
+interactive
+feminist
+cultural
+cultural
+modern
+renaissance
+classical
+postmodern
+post-industrial
+biological
+ecological
+computational
+digital
+world
+political
+vegetarian
+socio-political
+
+#studies
+processing
+research
+technology
+science
+sciences
+systems
+studies
+studies
+studies
+studies
+industries
+interpretation
+history
+ethics
+philosophy
+analysis
+reasoning
+resources
+services
+methodology
+resolution
+writing

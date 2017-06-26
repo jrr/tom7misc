@@ -1,0 +1,847 @@
+#needs name.wrd
+
+#main
+%init%%recipe%
+
+#init
+%randomfact:=irrelevantfact%%introquip:="%%makeingredients%%makedish%%makecookway%
+
+#recipe
+<table><tr><td valign=top>%title%<p>%ingredientlist%</td><td valign=top><center>%font%%picture%<br>%picturecaption%</center></td></tr><tr><td colspan=2>%font%%instructions%</td></tr></table>
+
+#picture
+<img src="/i/factory/recipe/%#(1,15)%.jpg" width=175 height=175>
+
+#picturecaption
+%"%
+Yum!
+%^^?thedish%
+
+#title
+<font size=+1 face="Verdana,Sans Serif"><b>%^^?thedish%</b></font>
+<font size=+1 face="Verdana,Sans Serif"><b>%^^?thedish%</b></font><br>%font%(serves %#(1,30)%)
+
+#instructions
+%intropar%<p>%instrlist%
+
+#intropar
+%introintro% %introsents%
+
+#introsents
+%introsent% %introsentlast%
+%introsent% %introsents%
+
+#thisdish
+%?thedish%
+this dish
+this meal
+
+#otheringredient
+beef
+pork
+sea salt
+tomatoes
+carrots
+brine shrimp
+brandy
+
+#awesomepower
+awesome power
+one-two punch
+dynamic duo
+
+#andeng
+ and %?ing2%.
+ and %?ing2%.
+.
+
+#traditionally
+normally
+traditionally
+typically
+traditionally
+usually
+
+#rcping
+%?ing1%
+%?ing1%
+%?ing2%
+%?ing2%
+%?ing3%
+%?ing4%
+
+#eatwith
+their hands
+chopsticks
+potatoes
+a vinegar dressing
+shredded carrot
+%ingredient%
+
+#traditional
+traditional
+traditional
+classic
+modern
+ancient
+
+#brilliant
+brilliant
+novel
+wacky
+
+#!thisdishbeg
+this variation on the %traditional% %egyptian% %thing="meal%
+this %brilliant% combination of %?ing1% and %?ing2%
+our special twist on the %rcping% %thing="dish%
+this culinary delight
+our master chef's specialty
+!%thisdish%
+
+#!introsent
+%^thisdish% takes a lot of preparation, so set a few hours aside...
+%^traditionally% made with %otheringredient%, %thisdish% gets new life when made with the %awesomepower% of %?ing1%%andeng%
+%^thisdishbeg% is %dishgood% and %dishgood%.
+%^thisdishbeg% has been on several cooking shows and has won many awards.
+%^thisdishbeg% was first introduced on <i>%cookingshow%</i> in %year%.
+%^thisdishbeg% is a great %optionkind% option at your next %party%.
+%^thisdishbeg% is a real treat for %kindofpeople%!
+The %romans% %traditionally% eat %thisdish% with %eatwith%.
+!Working with %rcping% is %/rep/"also %fun and easy.
+!You should %/rep/"also %%buy% %rcping% in bulk to save %time%.
+!You should %/rep/"also %%buy% %rcping% in small quantities, because %fastreason%.
+
+#cookingshow
+%^^party% Time!
+%cookername%
+%cookername% Can Cook
+%^^?ing2% Can Be Fun
+%^^?ing1% All The Time
+
+#cookername
+%boyname%
+%lastname%
+%girlname% %lastname%
+
+#year
+19%#(20,99)%
+19%#(20,99)%
+19%#(20,99)%
+200%#(0,2)%
+
+
+#kindofpeople
+vegetarians
+children
+children
+adults
+hungry people
+%?ing1%-lovers
+%?ing2% fans
+
+#optionkind
+vegetarian
+vegan
+%"%
+%"%
+
+#party
+cocktail party
+party
+family gathering
+dinner party
+tupperware party
+pasta dinner
+get-together
+
+#romans
+Romans
+Vietnamese
+English
+Cornish
+Japanese
+Chinese
+Greeks
+
+#fastreason
+it spoils easily%/rep/" too%
+you'll want to preserve freshness
+its aroma tends to mix with other foods in storage
+
+#buy
+buy
+get
+purchase
+buy
+get
+
+#time
+money
+time
+time
+
+#introsentlast
+%introsent%
+Your guests will be %begging% for more.
+You may want to make a %double% serving size!
+
+#double
+double
+triple
+double
+
+#begging
+begging
+begging
+crying
+dying
+
+#yet
+yet
+yet
+but
+
+#dishgood
+refreshing
+healthful
+herbaceous
+flavorful
+tasty
+filling
+satisfying
+sweet
+spicy
+hearty
+
+#dishnotbad
+good for you
+healthy
+not loaded with %bading%
+not too heavy
+doesn't give you %disease%
+
+#disease
+lung cancer
+heart failure
+tooth decay
+periodontitis
+osteoporosis
+amyotrophic lateral sclerosis
+
+#bading
+polyunsaturated fat
+monounsaturated fat
+MSG
+
+#thatcraving
+that craving
+a craving
+
+#introintro
+%^?introquip%
+Welcome to the %wonderful% %world% of %?ing1%!!
+%^?thedish% is sure to please the toughest customer with its %wonderful% %wonderfulthing% and %wonderful% %wonderfulthing%.
+Ever have %thatcraving% for a dish that's %dishgood% %yet% %dishnotbad%? %cravingfollowup%
+
+#cravingfollowup
+%^thisdish% %delivers%!
+%^thisdish% %delivers%!
+Try %thisdish%.
+
+#delivers
+delivers
+really delivers
+really satisfies
+totally rules
+
+#wonderfulthing
+aroma
+taste
+aftertaste
+looks
+
+#wonderful
+bang-up
+superb
+wonderful
+wonderful
+fantastic
+incredible
+killer
+super-duper
+
+#world
+universe
+world
+world
+
+#then
+then, 
+now, 
+next, 
+next, 
+quickly, 
+%"%
+%"%
+
+#carefully
+carefully
+carefully
+slowly
+
+#overcooking
+an explosion
+meltdown
+%cookfear="overcooking%
+%cookfear="overcooking%
+%cookfear="undercooking%
+%cookfear="undercooking%
+
+#whatitis
+poisonous in large amounts
+a powerful aphrodisiac
+a tasty treat
+
+#careful
+be careful
+careful
+beware
+watch out
+
+#warnmessage
+this step must %/rep/"also %be done %carefully% to avoid %overcooking%!
+%careful%, it is %whatitis%!
+NEVER add too much%/rep/" of this either%!
+%carefully%!
+optional
+
+#warning
+ <font size=-2>(<i>%warnmessage%</i>)</font>
+%"%
+%"%
+%"%
+
+#!manner
+!%"%
+!%"%
+ like you're on a cooking show
+ like there's no tomorrow
+! with your hands
+! with a %utensil%
+
+#utensil
+spatula
+whisk
+fork
+large spoon
+
+#post
+%manner%.%warning%%\n%<br>
+
+#thenv2a
+%then%%?v2a%
+
+#thenv3a
+%then%%?v3a%
+
+#instrlist
+First, %?preheat%.%\n%<br>%^?v1a%%?ing1%%?v1b%%post%%^thenv2a%%?ing2%%?v2b%%post%%^thenv3a%%?ing3%%?v3b%%post%%^?v4a%%?ing4%%?v4b%%post%%^?v5a%%?ing5%%?v5b%%post%%^?waituntil%.%\n%<br>%instrlisttail%%\n%<p>%instrtail%
+
+#3rd
+first
+3rd
+4th
+second
+third
+fourth
+
+#instrlisttail
+%"%
+%"%
+<br>Many people have difficulty with the %3rd% step, so you may need to practice.
+<br>While you're waiting, %didyouknowfact% %maybefactretort%
+<br>While you're waiting, %didyouknowfact% %maybefactretort%
+<br>Man, cooking sure is boring! %^didyouknowfact% %maybefactretort%
+
+#didyouknowfact
+did you know that %?randomfact%?
+did you know that %?randomfact%?
+here's a fun and fascinating fact: %^?randomfact%.
+it's worth pointing out that %?randomfact%.
+
+#maybefactretort
+%"%
+%"%
+%"%
+%"%
+That's so stupid!
+Fascinating!
+It's strange but true!
+Incredible!
+(Just kidding.)
+
+#servedhow
+<i>a la carte</i>
+hot
+steaming
+piping hot
+cold
+warm
+luke-warm
+
+#wine
+a white wine
+white wine
+a red wine
+red wine
+rouge
+wine that comes in a box
+tequila
+cheap wine
+expensive wine
+zinfandel
+fine wine
+
+#maybequip
+%quip="%
+%quip=irrelevantquip%
+%"%
+
+#instrtail
+%^thisdish% is best served %servedhow%. %maybequip%
+%^thisdish% is best served %servedhow%, with %wine%. %maybequip%
+For extra spiciness, add %tobasco% when serving. %maybequip%
+
+#tobasco
+tobasco
+tobasco sauce
+picante sauce
+jalapenos
+
+#font
+<font face="Verdana,Sans Serif" size=-1>
+
+#ingredientlist
+<table><tr><td>%font%1.</td><td>%font%%amount%</td><td>%font%%?ing1%</td></tr><tr><td>%font%2.</td><td>%font%%amount%</td><td>%font%%?ing2%</td></tr><tr><td>%font%3.</td><td>%font%%amount%</td><td>%font%%?ing3%</td></tr><tr><td>%font%4.</td><td>%font%%amount%</td><td>%font%%?ing4%</td></tr><tr><td>%font%5.</td><td>%font%%amount%</td><td>%font%%?ing5%</td></tr></table>
+<table><tr><td>%font%1.</td><td>%font%%amount%</td><td>%font%%?ing1%</td></tr><tr><td>%font%2.</td><td>%font%%amount%</td><td>%font%%?ing2%</td></tr><tr><td>%font%3.</td><td>%font%%amount%</td><td>%font%%?ing3%</td></tr><tr><td>%font%4.</td><td>%font%%amount%</td><td>%font%%?ing4%</td></tr></table>
+
+#dish
+%?ing1% %thing=pancakes%
+%?ing1% %thing=pancakes%
+%?ing1%-%?ing2% %thing=pancakes%
+%?ing1%-%?ing2% %thing=pancakes%
+death by %?ing1%
+
+#pancakes
+pancakes
+meatloaf
+cake
+souffle
+bonanza
+log
+sushi
+salad
+shake
+roll
+pie
+pudding
+extravaganza
+
+#fishmadeof
+water
+water
+mercury
+brains
+%ingredient%
+
+#fishword
+fish
+fish
+fish
+sea creatures
+fishies
+our flippered friends
+
+#egyptian
+egyptian
+aztec
+roman
+greek
+
+#enjoyable
+food
+water
+%fishword%
+
+#fishfact
+%fishword% are made of more than %#(30,90)%%% %fishmadeof%
+%fishword% are the healthiest meat
+the ancient %egyptian%s revered %fishword% above all other creatures
+
+#irrelevantquip
+Now you're cooking with gas!
+Call me anything you want, just don't call me late for dinner!
+Gotta Catch 'Em All!
+
+#irrelevantfact
+cultures all over the world have enjoyed %enjoyable% ever since %#(200,1999)% AD
+setting your oven to convection mode will cook your food faster by using hot circulating air
+eating three meals a day is the key to a healthy fun lifestyle
+%`?ing1% a day keeps the doctor away
+
+#chemical
+%chemprefix%%chemending%
+%chemprefixes%%chemending%
+%chemprefix%%chemending% #%#(1,8)%
+
+#chemending
+niacin
+xacin
+nol
+tion
+lone
+nium
+lium
+lion
+
+#chemprefix
+oxy
+flori
+flo
+poly
+mono
+chloro
+fluoro
+ana
+mya
+eryhtro
+
+#chemprefixes
+%chemprefix%
+%chemprefix%%chemprefix%
+%chemprefixes%%chemprefix%
+
+#herbword
+spice
+herb
+herb
+
+#herbfact
+%herbword%s were grown by the %egyptian%s as early as %#(5,3000)% BC
+%?it% has a chemical, %chemical%, that really brings out the flavor in food
+you can grow %?it% in your own back yard
+%?it% rates a %#(1,10)% on the spiciness scale
+
+#fish
+trout
+salmon
+rainbow trout
+swordfish
+yellowtail
+
+#herb
+oregano
+parsley
+cilantro
+coriander
+
+#bodyparts
+brains
+eyeballs
+tongues
+
+#chemfact
+%?it% is all-natural
+%?it% is found naturally in the %bodyparts% of %fish%
+%?it% is made in a laboratory by reacting %chemical% and %chemical%
+most %?it% is irradiated to make it safe to eat
+%?it% can be fatal in large doses
+%?it% is a neurotransmitter inhibiter
+
+#doherb
+%it:=herb%%randomfact:=herbfact%%?it%
+
+#kindofcheese
+cheddar%quip:="Cheddar makes it better!%
+limburger%randomfact:="Limburger cheese is made from condensed farts%
+mozzarella
+brie%quip:="Moldy on the outside and runny in the middle!%
+provolone
+monterey jack
+
+#mainingredient
+%quip:="Who cut the cheese??%%kindofcheese%
+salsa%randomfact:="salsa is fat-free%
+olestra%randomfact:="olestra does not cause diarrhea (you get that because you are a sinner!)%%quip:="Yum! Fun and fat-free!%
+%it:=chemical%%randomfact:=chemfact%%?it%
+%fish%%randomfact:=fishfact%
+%fish%%randomfact:=fishfact%
+%fish%%randomfact:=fishfact%
+%doherb%
+MSG%quip:="Remember, MSG make all food taste better!%
+cream%randomfact:="cream is the most precious part of milk%
+cauliflower%randomfact:="cauliflower is just albino broccoli%
+cabbage%randomfact:="cabbage can mildly reduce your risk for heart failure%
+mustard%randomfact:="mustard is the main ingredient in mustard gas%
+sherry%quip:="Don't forget to take a sip of sherry for all of your hard work!%
+ketchup%randomfact:="Heinz corporation invented ketchup by accident in 1957%
+sauerkraut%quip:="If it's not German, it's crap!%%randomfact:="because of its squishiness, sterile sauerkraut is sometimes used in mattresses%
+paper%randomfact:="most kinds of paper are not digestible by humans%
+milk%quip:="Mooooo!%
+mercury%quip:="It's getting hot in here!%
+pork%introquip:="It's the other white meat!%
+pork%quip:="Oink! Oink!%
+beef%quip:="Where's the beef? Here!%
+ground beef%introquip:="Some cooks like to grind their own beef in a beef grinder.%
+lard%randomfact:="lard is made of pure <i>yum</i>%
+chicken%quip:="Tastes like chicken!%%randomfact:="a chicken with its head cut off can run around for many hours%
+broccoli%randomfact:="broccoli are like little trees that grow in your stomach%
+squash%randomfact:="squash is a fun game where the players squash a ball%
+shrimp%randomfact:="shrimp come whole, so you need to remove the tail%
+chocolate%quip:="Chocolate truly is better than sex!%
+plastic%randomfact:="children under 3 should not play with plastic%
+curry%randomfact:="curry is a spice that's made from lots of other spices%
+beer%randomfact:="beer is made by letting potatos rot in a barrel%
+acid%randomfact:="acid is often overlooked as a ingredient in meals%%quip:="What a treat! (But don't forget the antacid!)%
+lobster%introquip:="Instead of preparing a live lobster, you can also buy a cooked one.%%quip:="Watch those claws!%
+syrup%introquip:="For best results, use maple syrup, which you can find inside trees.%
+ice%introquip:="Don't pay store prices for ice. Shop at Ice Discount Warehouse!%
+sand%randomfact:="sand is made from tiny crushed up mountains%
+
+
+#stdingredient
+vinegar
+ketchup
+celery
+garlic
+onion
+flour
+water
+butter
+salt
+curry powder
+yeast
+white rice
+brown rice
+sugar
+brown sugar
+powdered sugar
+
+#amount
+%snum% pinch
+%num% pinches
+%snum% cup
+%num% cups
+%snum% cup
+%num% cups
+%snum% pint
+%num% pints
+%snum% gallon
+%num% gallons
+%snum% package
+%num% packages
+%anynum% tsp.
+%anynum% tsp.
+%anynum% tsp.
+%anynum% tbsp.
+%anynum% tbsp.
+%anynum% tbsp.
+%snum% lb.
+%num% lbs.
+
+#anynum
+%snum%
+%num%
+
+#snum
+1
+1
+1
+1
+1/2
+1/3
+2/3
+3/4
+1/4
+
+#num
+%#(2,12)%
+
+#ingredient
+%mainingredient%
+%stdingredient%
+
+#makeingredients
+%ing5:=ingredient%%ing4:=ingredient%%ing3:=ingredient%%ing2:=mainingredient%%ing1:=mainingredient%
+
+#makedish
+%thedish:=dish%
+
+#cookuntil
+black
+brown
+brown
+light brown
+the %?ing1% is crispy
+the %?ing2% has melted
+dark brown
+desired
+
+#temp
+%#(3,90)%0&deg;
+%#(3,90)%5&deg;
+%#(3,90)%0&deg;
+%#(3,90)%5&deg;
+%#(3,90)%0&deg;
+%#(3,90)%5&deg;
+%#(100,999)%,%temp%
+
+#bakepreheat
+preheat the oven to %temp% and %bakeprep%
+
+#bakeprep
+grease a %#(8,22)%x%#(8,22)%" %bakedish=casseroledish%
+
+#casseroledish
+casserole dish
+casserole dish
+baking pan
+baking tin
+ceramic jar
+
+#bakewaituntil
+cook %#(1,5)%0 minutes or until %cookuntil%
+
+#thoroughly
+thoroughly
+briskly
+evenly
+until consistent
+
+#high
+high
+high
+medium
+low
+
+#mixway
+ with a whisk
+ thoroughly
+ thoroughly
+ with a blender on %high% speed
+ quickly
+ gently
+ slowly
+
+#thedish
+the %bakedish=casseroledish%
+
+#inthedish
+ in %thedish%
+
+#intothedish
+ into %thedish%
+
+#mkbakeverbstart
+%tva:="begin with a base of %%tvb:="%
+%tva:="start by laying the %%tvb:=inthedish%
+%tva:="evenly arrange the %%tvb:=inthedish%
+%tva:="crumble the %%tvb:=intothedish%
+
+#mkbakeverb
+%tva:="mix in %%tvb:=mixway%
+%tva:="spread the %%tvb:="%
+%tva:="sprinkle with %%tvb:="%
+%tva:="add the %%tvb:="%
+
+
+#mkskilletverbstart
+%tva:="bring the %%tvb:=" to a sizzle%
+%tva:="gently warm the %%tvb:="%
+%tva:="roast the %%tvb:="%
+
+#mkskilletverb
+%mkskilletverbstart%
+%mkbakeverb%
+%tva:="drain the pan and then mix in %%tvb:="%
+
+#skilletmore
+%"%
+%"%
+, adding water as necessary
+, adding more %rcping% if desired
+
+#sautee
+let simmer on low heat%skilletmore%
+sautee on medium heat%skilletmore%
+fry on high heat%skilletmore%
+let simmer%skilletmore%
+
+#skilletuntil
+until brown
+until thoroughly cooked
+for %#(5,35)% minutes
+
+#skilletwaituntil
+%sautee% %skilletuntil%
+
+#burnersetting
+high
+low
+medium
+
+#oil
+grease
+oil
+
+#greasewith
+butter
+non-stick cooking spray
+olive oil
+lard
+
+#skilletpreheat
+set the burner to %burnersetting% heat
+set the burner to %burnersetting% and %oil% the skillet with %greasewith%
+
+#makecookway
+%preheat:=bakepreheat%\
+%mkbakeverbstart%\
+%v1a:=?tva%\
+%v1b:=?tvb%\
+%mkbakeverb%\
+%v2a:=?tva%\
+%v2b:=?tvb%\
+%mkbakeverb%\
+%v3a:=?tva%\
+%v3b:=?tvb%\
+%mkbakeverb%\
+%v4a:=?tva%\
+%v4b:=?tvb%\
+%mkbakeverb%\
+%v5a:=?tva%\
+%v5b:=?tvb%\
+%mkbakeverb%\
+%v6a:=?tva%\
+%v6b:=?tvb%\
+%waituntil:=bakewaituntil%
+%preheat:=skilletpreheat%\
+%mkskilletverbstart%\
+%v1a:=?tva%\
+%v1b:=?tvb%\
+%mkskilletverb%\
+%v2a:=?tva%\
+%v2b:=?tvb%\
+%mkskilletverb%\
+%v3a:=?tva%\
+%v3b:=?tvb%\
+%mkskilletverb%\
+%v4a:=?tva%\
+%v4b:=?tvb%\
+%mkskilletverb%\
+%v5a:=?tva%\
+%v5b:=?tvb%\
+%mkskilletverb%\
+%v6a:=?tva%\
+%v6b:=?tvb%\
+%waituntil:=skilletwaituntil%

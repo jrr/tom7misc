@@ -1,0 +1,4 @@
+
+let val a x as y as z = 2
+in y : a
+end

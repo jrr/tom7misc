@@ -1,0 +1,201 @@
+
+                    midimml 2.2                      12 May 2006
+
+This program, "MIDIMML," converts type-1 standard MIDI files into MML,
+to be used as input to "mckc," which compiles them into Nintendo Sound
+File (NSF) format. I made it for a Nintendo music competition, since I
+can't understand how anyone can compose by typing notes into a text
+file! ;)
+
+The program will probably not be able to take your favorite MIDI files
+and make them play on a Nintendo. The limitations of the Nintendo
+sound chip make that pretty difficult, and MIDIMML was not written
+with that in mind. It's primarily designed for composing *new* tunes.
+
+
+It's written in SML. SML is great for this kind of stuff. The binary
+runs on Windows through the command line, though it should compile on
+any platform with an SML compiler. (You'd also need to figure out how
+to compile mckc, etc.) Windows users don't need to worry about any of
+this stuff; they can just run the program like any other. Programmers
+can read HACKING to learn about how to compile and modify the program.
+
+
+ ** Running the program.
+
+Here's how to run it:
+
+   midimml -config file.mmc file.mid -out c:\nesmusic\mckwatch\
+
+You can leave off -config (then it looks for "default.mmc"),
+and -out (then it uses the current directory). The output
+filename is always the base name of your midi file with the
+new extension .mml.
+
+But don't just go run it on some MIDI files, because the
+input has to be in a special form.
+
+
+ ** The MIDI file.
+
+The Nintendo 2A03 sound chip has five channels, so it can play five
+simultaneous sounds. Like MML, we'll call these A,B,C,D,E.
+
+    A, B - Square Wave
+    C    - Triangle Wave
+    D    - Noise
+    E    - 4-bit Samples
+
+Your midi file has to indicate to MIDIMML which notes should be played
+on which Nintendo channel. This is not done through the normal MIDI
+way (setting a channel number*), but by naming the track starting with
+one of the capital letters A-E.
+
+Check out the example file calmboat.mid. It has tracks A and A2, B and
+B2, D-noise, E-DRUM, etc.
+
+OK. Now, there are ranges on each of these channels that the Nintendo
+can reproduce. Midi note #36 (a low C) is the lowest for tracks A and
+B. (XXX and the other channels...?)
+
+Note volumes are respected for A, B, and D, but the Nintendo hardware
+can't do it for any of the other channels.
+
+Next, your MIDI file *must* have a text marker named "end". Look at
+the example files, and do that same thing in your MIDI program. This
+indicates the end of the last measure in your song. If you create
+a marker named "loop" before the "end" marker, then the song will
+loop between those two points.
+
+Each channel on the Nintendo is monophonous; you can't play two or
+more simultaneous notes on it. If you do, MIDIMML will attempt to
+emulate the sound by making a rapid arpeggio between the active notes.
+This usually sounds pretty weird and chews up a *lot* of size in your
+NSF (which mck limits to a certain length..), so you usually want to
+avoid this.
+
+The D channel has only like 8 different notes (frequencies) possible,
+so if you want "high noise" and "low noise", make those notes far
+apart.
+
+The E track has to use specific midi notes to control the samples
+loaded in the config file. The section below describes how to load
+samples and assign them to midi notes.
+
+Finally, you MUST save your midi file as "type 1." This means that
+each track is stored separately in the file.
+
+ ** Instruments
+
+MIDIMML now supports instruments. In your MIDI editor, if you insert
+a "patch change" (instrument change) event in a track, then all notes
+on that track from that point on will play in that instrument (see
+below). This is often done by just setting the instrument of a track.
+
+An "instrument" is actually just a bunch of MML commands that change
+the way a 2A03 channel sounds. The configuration file (next section)
+defines them, and you can have up to 128, just like MIDI.
+
+Note: Again, these instrument changes are by MIDI tracks, not by MIDI
+channels (which are ignored). If you wanted to use several different
+instruments on the 2A03 "A" channel, you'd have one track for each
+instrument, each named starting with "A" and set to a different MIDI
+instrument. Of course, despite having multiple tracks, this does not
+allow you to use a channel polyphonously.
+
+
+ ** The Config file.
+
+You need a config file to tell MIDIMML how to map MIDI into Nintendo
+sounds. 
+
+Check out default.mmc. It describes all the things that can appear in
+the config file, and gives examples. This is where you set up each of
+the tone channels (see the MML manual for information). 
+
+You'll define instruments, if you're using them:
+
+INSTRUMENT   122           EP02 @v03 ENOF MPOF
+
+(In order to define instruments, you'll want to read up on MML.)
+
+You'll also list any drum samples you plan on using, mapping each to a
+MIDI note:
+
+    DRUM   bass1.dmc        35
+    DRUM   snare.dmc        40
+
+
+ ** Miscellaneous
+
+MIDIMML is licensed to you under the GNU GPL; see the file COPYING for
+details.
+
+MIDIMML was written by Tom Murphy 7, so that he could enter and
+eventually lose the "Famicompo" NSF competition. Its home page is
+http://tom7.org/midimml/. If you like Nintendo music, you might like
+Tom's "Tom 7 Entertainment System" project; check out
+http://tom7.org/music/.
+
+MIDIMML is free, open source software. You can get the source code
+from Sourceforge.net
+(http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tom7misc/midimml/), if
+you'd like to compile it on other platforms or modify it. Read the
+file HACKING, since you also need to get my small SML library in order
+to compile it.
+
+ ** Projects
+
+I like making NES music and I'd like to extend MIDIMML. Here are some
+ideas for projects; maybe someone would like to collaborate on these?
+
+ *** Improved Compatibility
+
+ I use MIDIMML with Sonar, which has some quirks. I've tried to be as
+ compatible as possible, but I've probably not achieved that. In
+ particular, I don't know of any freeware MIDI sequencer that definitely
+ works with MIDIMML. I would appreciate advice on this.
+
+ *** Instrument Library
+
+ It would be nice to make a standard instrument library, perhaps
+ implementing the GM patches as much as possible. Although MCK doesn't
+ allow enough (volume, etc.) envelopes to define these all at one time
+ with the current version of MIDIMML, it would not be difficult to
+ make MIDIMML only output the envelopes needed to define all of the
+ instruments actually used in a song. 
+
+ The same could be done for a drum kit of DMC samples.
+
+ *** Optimization
+
+ MIDIMML is not particularly smart about the commands it outputs,
+ which can lead to files that are larger than they need to be. (Given
+ MCK's problems with song size, this can be a serious issue!). MIDIMML
+ could fairly easily do some optimization on your song without
+ changing the way it sounds.
+
+ *** Pretty Printing
+
+ The MML files that MIDIMML outputs are difficult to read. Pretty-printing
+ them (perhaps using some of the extra information in the MIDI) would help
+ folks who want to do after-the-fact hard core MCK tweaking on their MML.
+
+ *** Expansion Chips
+
+ I don't know how to use expansion chips at all, but I'd like to be able to.
+
+ *** New Sound Driver
+
+ MCK is okay, but suffers from a number of problems. One of the major
+ ones is space usage. Based on my cursory knowledge of NES architecture,
+ I see no reason why a song of any reasonable size should ever exhaust
+ the capacity of a ROM. It would also be nice to support expansion chips
+ directly. One project would be to rewrite the sound driver so that
+ MIDIMML has its own back-end. This would also solve many of the above
+ problems en passant.
+
+
+* This is so that you can easily set up your MIDI environment to sound
+as much like a Nintendo as possible, then save and convert with
+MIDIMML directly.

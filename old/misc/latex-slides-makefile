@@ -1,0 +1,31 @@
+
+# This is the makefile I came up with after hours and hours of trying to make
+# PDFs with LaTeX slide-mode that don't come out upside-down. What the hell
+# is up with that? The eventual solution needs to change the actual ps file
+# in a mysterious way, using sed, but it seems to work well!
+#
+#          - Tom 7, 15 Jan 2003
+
+
+
+default : slides.dvi
+
+slides.dvi : slides.tex
+	latex slides.tex
+
+slides.ps : slides.dvi
+	dvips -Ppdf -t landscape -f < slides.dvi | sed -e "s/@landscape\$$/<< \\/PageSize \\[792 612\\] \\/Orientation 0 >> setpagedevice/" > slides.ps
+
+# here is some other crap I tried. None of these work.
+
+#	psresize -Pletter -w11in -h8.5in slides.ps.crummy slides.ps
+#	ps2ps slides.ps.crummy slides.ps.upside-down
+#	pstops 0R slides.ps.crummy slides.ps
+#	psnup -n1 -r slides.ps > slides3.ps  
+#	rm -f slides.ps.upside-down
+
+slides.pdf : slides.ps
+	ps2pdf -dMaxSubsetPct=100 -dCompatibilityLevel=1.2 -dSubsetFonts=true -dEmbedAllFonts=true slides.ps slides.pdf
+
+clean :
+	rm -f *~ core slides.ps.upside-down *.aux *.log slides.ps.crummy

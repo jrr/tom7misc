@@ -1,0 +1,129 @@
+
+How to use Merchandise, the hacker's tile editor:
+
+This program is for editing tiles from a Nintendo GameBoy ROM (.GB)
+file. It requires that the tiles appear as raw data in the ROM image.
+It allows you to discover the locations of tiles through a simple
+process (ie., not scrolling through the entire ROM!).
+
+Merchandise is written in Java and uses the Swing GUI library. You
+need the Java SDK in order to compile it; if you have class files
+then you only need a JVM. Comple it however you compile java programs
+(javac *.java) and then run:
+
+java MainWindow
+
+
+You'll see a mostly empty screen.
+
+Let's say you want to change the way your main character looks in your
+favorite game. First we need to find where the graphics data is stored
+in the ROM, so, use your favorite emulator (No Cash works well for this
+since it has a great debugger and BG screen / OAM viewer) and find the
+sprite. Gameboy tiles are 8 pixels by 8 pixels, and have 4 colors. What
+you want to do is translate this tile into a piece of text, like this:
+
+........
+.*####*.
+.#*++*#.
+.#+.++#.
+.#++++#.
+.#*++*#.
+.*####*.
+........
+
+. is for the lightest color pixel, typically white (or transparent for a sprite),
++ for the next darkest (typically light grey)
+* for the next darkest (typically dark grey)
+# for the darkest (typically black).
+
+Be careful, since the palettes can be re-mapped so that they don't
+follow the typical color scheme. The game boy also has the ability to
+flip tiles horizontally and vertically, so a debugger really comes in
+handy here. Finally, many games will compress large graphics, which
+makes this method totally useless.
+
+Once you have the tile, press the "find" button to open a dialog.
+In the box at the top, type the full path to your ROM file.
+In the larger box, paste your ASCII art graphic of the tile. (You can
+paste many here to find several, if you like.) Click the "find" button.
+
+If you guessed about pixels correctly, you should hopefull see one or
+more copy of the tile in the grid on the left.
+
+If there is one copy, that's perfect.
+
+If there is more than one copy, then that could be a problem; the
+tiles may be stored in the ROM more than once, or it could appear by
+chance in several places. (An all-blank tile, represented by 16 '0'
+bytes, for instance will appear tons of times in a ROM.) You might
+use the method below to look at tiles near the candidate tiles...
+
+If there are no hits, try searching for a mirror image of the tile, or
+permuting the colors. It is also possible that the graphics are
+compressed and that nothing will work...
+
+The find function can also take literal addresses. Just write the
+decimal offset of the tile that has your interest in (parentheses):
+
+(32768)
+
+You can include a run of tiles like so:
+
+(32768:10)
+
+That loads the tile at 32768 and then 9 after it.
+
+The find function will also ignore any [comments in brackets].
+
+
+If you click the 'find' button again, you'll notice that it has
+changed the text to be the literal addresses of the tiles that
+it found. Continue using this method until you have found all of
+the tiles that you're interested in.
+
+
+Now, we can use the larger grid at the right to edit the tiles.
+Most GameBoy graphics are larger than 8x8, so what you'll want
+to do is arrange the 8x8 tiles you found into a larger graphic
+for editing. Click on the tiles at the left, and then click
+into cells on the right in order to make the graphic. If
+you are editing a repeating tile (a background graphic), it
+will probably help to place several down; edits will affect
+all of them and you can see how it blends in with adjacent
+copies of itself.
+
+If you like, press the "clear" button at the bottom, which
+will reset all tiles that you've placed on the grid on the
+right. (In other words, it makes them all blank white and
+ready for drawing.)
+
+Now, you can use the mouse and the drawing keys to edit the tiles:
+
+Keys: 
+1: start drawing with color 1   (.)
+2: start drawing with color 2   (+)
+3: start drawing with color 3   (*)
+4: start drawing with color 4   (#)
+
+When you're happy with your edits, press "patch" to modify the ROM
+file loaded with "find".
+
+If you're unhappy, well, try 'find' again to reload the tiles from
+the ROM. 
+
+Tips:
+
+There's no UNDO, so be careful!
+
+Be careful, since gameboy games often flip tiles horizontally and
+vertically. Make sure that your edits make sense, or you may waste
+a lot of time! 
+
+
+This program was primarily written by Don aka Consumatopia. He
+wrote all the graphics and GUI bits.
+Tom 7 wrote the documentation, and the gameboy tile IO stuff.
+
+This program is free software. See the file COPYING for
+your license.

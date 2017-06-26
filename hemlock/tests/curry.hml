@@ -1,0 +1,13 @@
+
+let
+    fun print s = (write (stdout, s))
+    fun f a b : unit =
+        let in
+            print a;
+            print " ";
+            print b;
+            print "\n"
+        end
+in
+    f "hello" "curry"
+end

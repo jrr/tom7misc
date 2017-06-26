@@ -1,0 +1,9 @@
+Map editor:
+
+input to eval_limp like "hi" causes strange behavior.
+
+plus_linear_draw_sprite8 calls a wrapper function.... fix that.
+
+Scrollback on console is not really correct.
+
+Some things redraw the whole screen where they don't have to.

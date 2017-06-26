@@ -1,0 +1,50 @@
+    -*- outline -*-
+
+* frontend
+** make 'a task vs 'a job (client/cord distinction)
+
+* propositional logic prover demo
+** parse proposition?
+** need the 'i' in IO
+
+* exceptions
+** fix marshaller/unmarshaller (yech)
+** default exn handler
+   can this be installed in the CPS language or later
+   so as to avoid TAL hacking??
+
+* cleanup
+** shut up pophooks, etc. except on error or flag
+** get rid of debugging prints
+** Fix absolute pathnames all over
+   (mainly compile.sml, parse.sml, makefiles, runtime/makefile)
+** 80 char line widths ("make linelen")
+*** talend/total.sml : 130
+*** talend/runtime.sml : 86
+*** compile.sml : 119
+
+* Pattern compiler
+** constants
+
+* optimizations
+** known sumswitch
+  I thought I already do this, but it doesn't seem to work. If we
+  know the value of a sum, we can reduce a sumswitch on it.
+
+** unit erasure
+  how ?? has to be type-directed, I believe.
+
+** sethandler..sethandler in same block
+  the first can always be removed unless there is a gethandler
+  intervening (this comes up in handle-intensive code after inlining,
+  and removing the first set would probably make its handler dead,
+  which is nice)
+
+** sethandler..gethandler in same block
+  this is probably rare unless the programmer uses exn raises
+  as 'gotos'
+
+* bugs/*
+
+* Fix insecure/sloppy use of /tmp
+   (compile.sml)

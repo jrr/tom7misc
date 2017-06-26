@@ -1,0 +1,207 @@
+Poop specs:                                         revision 3
+
+                Data types
+
+     Everything is now DWORD type data (except string pointers, though
+they are DWORD-length!) so that things can be fixed-length.
+
+                Code format
+
+    Intended to look like C. We can change it to lisp-like or something if
+it causes problems, but C is sophisticated and suave.
+
+CONTNR.OBJ
+
+// Container object example script. Filename: CONTNR.OBJ
+
+object contnr(
+
+    STRING start_glyph,
+    STRING end_glyph,
+    STRING open_sound,
+
+    INT reset,   
+
+    INT contains,
+    )
+// start_glyph and end_glyph are respective animation frames. open_sound
+// is the sound to make when activiated, reset determines if we are supposed
+// to kill it or not (locally), contains is the item to give to the player.
+
+    {
+    // here goes the code:
+
+method Born{
+    myGlyph = start_glyph;
+}
+
+method Activate{
+    spawnSound(open_sound);
+    myGlyph = end_glyph;
+    giveItem(contains);        // giveItem() shows a text display box.
+                               // sGiveItem() doesn't.
+    if (!reset) {              // Let's ignore some more obscure C
+        me.die;                // syntax, like changing this to
+    }                          // me.die; and leaving off the braces.
+                               // Keep it simple!
+}
+    }
+
+(in binary mnemonics:)
+born:
+COPY OUTARG1 INARG1
+FUNCTION "SETGLYPH"
+STOP
+activate:
+COPY OUTARG1 INARG3
+FUNCTION "SPAWNSOUND"
+COPY OUTARG1 INARG2
+FUNCTION "SETGLYPH"
+COPY OUTARG1 INARG5
+FUNCTION "GIVEITEM"
+CMP INARG4 0
+JE end
+SEND "ME" "DIE"
+end:
+STOP
+
+... I should change some of these FUNCTION calls to mnemonics. A COPY
+unfortunately takes 9 bytes of bytecode! Ah well; better than "COPY
+OUTARG1 INARG3" which takes 19.
+
+                      EVENT DRIVEN METHODS
+
+
+Everything in an object must be controlled by methods. Every object starts
+out with the engine-triggered methods (read: events) declared as empty 
+methods (they don't do anything). Objects do their business by overriding 
+these methods as needed. Here are some event-triggered methods:
+
+Born{}
+     Parameters:
+          (none)
+
+Called when the object is first called. Depending on the priorty (***
+I am still unsure about priorities ***), this could be when the map
+is loaded or when the player first approaches the object, or when the
+object is spawned by another object.
+
+Activate{}
+     Parameters:
+          INT activateDir - The direction from which the object was 
+                         activated. Follows the normal scheme for
+                         directions - see appendix 1.
+
+Called when the object is activated (walked up to and the activate button
+is pressed) by the player, or by another object 
+(like object[52].Activate(0)).
+
+Molest{}
+     Parameters:
+          INT molestDir - The direction from which the object was molested.
+
+Called when the player activates an object an inordinate number of times
+(15, for instance) without moving away from it. This is actually, by
+default, a non-empty method:
+method Molest{
+     me.Activate(molestDir);
+}
+This prevents an object which doesn't define the Molest method from breaking
+after it is Activated too many times.
+
+Aligned{}                                         *** NOTE! Should this be
+     Parameters:                                    a flag, not an event?***
+          INT alignedDir - The direction from which the player is aligned.
+                        either 0 (North/South) or 1 (West/East). Maybe
+                        this should be Boolean, I don't know.
+
+Called when the player is aligned horizontally or vertically with the object.
+
+Push{}
+     Parameters:
+          INT pushDIR - The direction from which the object is being
+                        pushed.
+
+!! NOTE: The Push event-method will only be called if the object has
+clipping on. Otherwise, the StepOn method will be called.
+
+Push is called when the player pushes on the object without pressing the
+activate button. As noted, this will only occur if the object has clipping
+on.
+
+StepOn{}                                          *** NOTE! Should this be
+     Parameters:                                    a flag, not an event?***
+          (none)
+
+Called when the player walks on top of the object.
+
+Blocked{}
+     Parameters:
+          blockedDir - The direction from which the object is blocked.
+          
+Called when the object is trying to move but has encountered a clipped tile
+or an object with a higher priority.
+
+
+Appendix 1:
+
+          Directions
+
+        1             1 - North
+                      2 - South
+     3  0  4          3 - West
+                      4 - East
+        2             0 - No specific direction
+
+Notes:
+
+Add alignedNS and alignedWE methods?
+
+Seen{}
+     Parameters:
+          none
+
+Called when the object is seen by the player, that is, when it first appears
+in the window. Different from just being loaded up on the map; this can be
+saved for animations and other stuff that doesn't need to be going when
+they're not looking at it.
+
+Unseen{}
+     Parameters:
+          none
+
+Called when the object is no longer visible by the player.
+
+Approached{}
+     Parameters:
+          none
+
+Maybe we will want something like this... a more sensititive "seen" so that
+townspeople can start walking BEFORE you see them, but not much before.
+Also "unapproached".
+
+
+"Obsolete" notes:
+
+
+
+                     ***  Note:
+
+                     Objects need to be able to set off methods on each
+                     other. This means that each object needs a unique
+                     index. I don't know how we should do this. The two
+                     ideas I had were:
+
+                     objectName[intrinsicIndex].Activate
+                     object[globalIndex].Activate
+
+                     The first uses the name of the object (ie
+                     container[1].Activate) which is easier to understand
+                     I guess, but it seems useless and wasteful.
+
+                     The second uses the index from the map (each object
+                     has to has an index for internal engine purposes
+                     I'm sure), and "object" just to let the parser know
+                     what the hell we're talking about (ie
+                     object[1].Activate). Now that I type all this out
+                     I think that this second one is the way to go. =)

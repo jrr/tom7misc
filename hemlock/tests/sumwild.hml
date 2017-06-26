@@ -1,0 +1,20 @@
+
+let
+
+    datatype three = Rock of unit | Paper of unit | Scissors of unit
+
+    datatype result = Win of unit | Lose of unit | Draw of unit
+
+    fun compare (us, them) =
+        case (us, them) of
+        (Rock (), Rock ()) => Draw ()
+      | (Rock (), Scissors ()) => Win ()
+      | (Paper (), Paper ()) => Draw ()
+      | (Paper (), Rock ()) => Win ()
+      | (Scissors (), Scissors ()) => Draw ()
+      | (Scissors (), Paper ()) => Win ()
+      | _ => Lose ()
+
+in
+    compare
+end

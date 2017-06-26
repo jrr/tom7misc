@@ -1,0 +1,10 @@
+
+let
+
+    fun eqint (x, y) = x = y
+
+in
+
+    eqint(0, 0)
+
+end

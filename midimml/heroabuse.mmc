@@ -1,0 +1,93 @@
+
+# this is for heroabuse.mid; save it!
+
+# default.mmc - example midimml config file.
+# by Tom 7 on  2 Aug 2003
+
+
+# these generate the corresponding MML
+# directives. Unfortunately MCK doesn't
+# put these in the resulting NSF!
+
+TITLE        Converted by midimml
+COMPOSER     midimml user
+PROGRAMMER   midimml
+
+# the QUOTE command just puts the text
+# verbatim at the beginning of the mml file.
+# you can stick any MML here, but midimml
+# doesn't understand what you're doing, so
+# it's quite easy to interfere with it.
+
+# set everything up "standard"
+
+QUOTE ABCDE @2 q8 v8 t230
+
+# make the duty cycle of the A channel sound
+# a little more gritty (good to distinguish 
+# it from B channel)
+
+QUOTE A @3
+
+# Turn down the volume of A and B channels, since
+# we can't turn up the (quiet) C channel
+QUOTE AB v6
+
+QUOTE #BANK-CHANGE 0,2
+
+# Define some pitch/volume envelope macros. These can then
+# be used for the instrument definitions below.
+
+# XXX do it!
+
+# Define instruments. There are 127 MIDI instruments.
+# When switching instruments on a channel, the command(s)
+# for that instrument will be output--which will, perhaps,
+# result in a cumulative effect from previous instruments.
+# Because of this, it's best to reset any unused settings to
+# their default values (instrument 0 below gives those).
+
+# XXX pitch sweep p?
+# XXX not obvious if q and @q are mutually exclusive,
+#     though @q0 makes tiny blips, if present
+
+QUOTE @01 = { 3 3 2 2 1 1 1 0 }
+QUOTE @v01 = { 15 15 12 8 8 1 }
+QUOTE @EP01 = { 12 -12 0 12 -12 | 0 }
+QUOTE @v02 = { 6 8 9 12 15 4 15 8 4 4 2 }
+QUOTE @MP01 = { 1, 128, 2 }
+
+#      instrument #      command(s)
+INSTRUMENT   0             @2 q8 v12 MPOF EPOF ENOF
+INSTRUMENT   80            @3 q8 v12 MPOF EPOF ENOF
+INSTRUMENT   81            @2 q8 v12 MPOF EPOF ENOF
+INSTRUMENT   1             @2 q8 v12 MPOF EPOF ENOF
+INSTRUMENT   2             @v01 MPOF EPOF ENOF
+# arpeggiated crazy
+INSTRUMENT   99            EP01 @v02 MPOF
+INSTRUMENT   88            MP02 v12 EPOF
+# XXX some examples...
+
+
+# this is relative to wherever you run mck
+# from. For me, the samples live in the parent
+# directory of mck.
+
+# DRUMPATH ..
+
+# import drum samples. The limit is something
+# like 16 of these -- and don't include any that
+# you won't actually use in your song, because they
+# will increase the size of your NSF unnecessarily.
+
+#       sample file   midi note number
+# DRUM   bd1.dmc        35
+# DRUM   mtom.dmc        36
+# DRUM   kick.dmc         36
+# DRUM   bass1.dmc        40
+# DRUM   snare.dmc       38
+
+# toms
+# DRUM   tom2.dmc         48
+# DRUM   mtom.dmc         47
+# DRUM   ltom.dmc         45

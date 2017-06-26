@@ -1,0 +1,16 @@
+
+Include a random pause whenever disconnecting, and perhaps whenever
+connecting. (to prevent timing attacks)
+
+Remove padzero, since we should never use non-encrypted packets.
+   - wrong: initial key exchange is "unencrypted"
+
+Upgrade to newer socket library.
+
+I don't read or pass along environment variables yet, but when I do, I
+need to specifically strip out the LD_* ones:
+
+"Ideally, sshd (and all remote access programs that allow user-definable
+environments) should strip any environment settings that libc ignores
+for setuid programs."
+

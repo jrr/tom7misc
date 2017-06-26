@@ -1,0 +1,7 @@
+
+This implements low-level C code needed by the client runtime.
+I simplified this a bit, but probably I don't need _prelude.pop either.
+
+See runtime/main/poprunt.pop for runtime code I was able to write in
+popcorn.
+

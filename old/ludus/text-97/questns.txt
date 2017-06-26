@@ -1,0 +1,25 @@
+Questions:
+
+
+1. How do we let a treasure chest save state, and remember that it has
+already been opened?
+
+I was thinking of a setState() function, like:
+
+if (getState(my_id) == 0) {
+   msgBox("I laugh at you! (But only once)");
+   setState(my_id,1);
+   }
+
+Then we could save this State space with the savegame.
+
+You see?
+
+But how do we assign each object their own ID?
+
+TM7 (8.11): I think this is good. I still don't know about the IDs. I say,
+they get a word (16 toggleable bits or 65535 different states) of state
+space. Anything over that will have to be declared as a global variable
+in the WORLD.LOB.
+
+

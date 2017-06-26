@@ -1,0 +1,162 @@
+
+                                -*- english outline-minor -*-
+
+* Extensions 
+   
+** do
+
+   do is a declaration that binds nothing. It allows you to
+   intersperse side-effecting expressions in series of
+   declarations without resorting to val _ = e stuff.
+
+   let
+       val s = "hello\n"
+       do print s
+       val x = f z
+   in
+       s ^ x
+   end
+
+** andthen, otherwise
+
+   Imperative counterparts to andalso and orelse.
+
+    G |- e1 : bool   G |- e2 : t
+   ------------------------------
+     G |- e1 andthen e2 : unit
+
+   (same typing rule for otherwise)
+
+   In e1 andthen e2, if e1 is true, then evaluate
+   e2 and return unit. (If e1 is false, do nothing.)
+   
+   In e1 otherwise e2, if e1 is false, then evaluate
+   e2 and return unit. (If e1 is true, do nothing.)
+
+   This lets you avoid
+     if flag then print "OK" else ()
+
+* Syntactic deviations from SML
+
+** removed: do..while, eqtype, abstype, ...
+
+   These keywords and functionality are gone, except 'do', which lives
+   on as a new declaration form. (see above)
+
+** Only irrefutable patterns are allowed in val declarations.
+
+   OK: (tuples, variables, wildcards, constraints, as)
+
+   val (a, (), (_, d)) = f x
+   val a : int = f x
+   val a as b = 2
+
+   ILLEGAL: (constants, application)
+
+   val (a :: b) = f x
+   val 1 = 2
+
+   If you want to write these programs, fold the body of the let
+   into a case expression.
+
+   This is disallowed because such bindings are somewhat theoretically
+   ill-behaved, tricky to implement (it involves duplicating code from
+   'case'), and the syntax of app patterns conflicts with the new binding
+   position for type variables. Use case to match against constants and
+   constructors, or build accessor functions like valOf if you want to
+   live dangerously.
+
+   Hemlock should allow irrefutable application patterns like the
+   following:
+
+   datatype a wrap = Wrap of a
+
+   val (Wrap x) = ...
+
+   .. but it doesn't, yet.
+  
+
+** Application is right-associative in patterns. This permits strictly more programs:
+
+   datatype a opt = A of a | B
+
+   fun f (A A x) = x
+   (legal in hemlock, illegal in SML)
+
+   is parsed as
+
+   fun f (A (A x)) = x
+
+
+** Empty matches are allowed for case, handle, and fn.
+
+   Just for symmetry's sake.
+   
+   However, this doesn't syntactically make sense for clausal function definitions,
+   so these cannot be empty. (But fun f x = case x of works.)
+
+   Here are complete expression forms:
+
+   case e of
+
+   e handle
+
+   fn
+
+
+   Because of a bug in the parser, (e handle handle) is not accepted, as it should
+   be. I'll fix this eventually. But if you want to write that program, you are nuts.
+
+** datatypes with zero arms are allowed.
+
+   datatype void
+
+   Sometimes a void type is useful. They can be destructed with a nullary case
+   expression. ;)
+
+** Characters are written as ?c instead of #"c"
+
+   ?\n for newlines, etc.
+
+** Type annotations are not allowed after the variable in an as pattern:
+
+   Illegal:
+   fun f (x : int -> int as y) = y 0
+
+   Legal:
+   fun f (x as y : int -> int) = y 0
+
+   (this is widely considered a defect in SML, since it complicates parsing)
+
+** No ' is used when writing type variables.
+
+   datatype a option = SOME of a | NONE
+
+** Datatypes must be uniform, and this is enforced syntactically.
+
+   A mutually-recursive bunch of datatypes share the same polymorphic
+   variables.
+
+   datatype a list = Nil | Cons of a * list
+
+   (note that list is not a type constructor, but merely a recursive
+   variable within the body of the datatype.)
+
+   datatype a front = Nil | Cons of a * stream
+   and stream = Delay of unit -> front
+
+
+
+(* XXX Hemlock does not have signatures.
+
+   In signatures: 
+   val (a, b) map : (a -> b) -> a list -> b list
+
+   type a set = a list
+
+   fun (a) f (x : a) = x
+
+   val a m = nil : a list
+
+   val (a,b) m = raise Error : (a,b) sum
+*)

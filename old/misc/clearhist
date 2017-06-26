@@ -1,0 +1,8 @@
+# should 'source' this file
+# #!/bin/bash
+
+# XXX could read old histsize value first
+export HISTSIZE=1
+echo "clearing history"
+echo "clearing history"
+export HISTSIZE=500

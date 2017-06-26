@@ -1,0 +1,11 @@
+              raytrace99                    26 June 2017
+
+This is a raytracer that I wrote for a computer graphics class in 
+college. I think some of the animations I made with it are still 
+"featured" on spacebar.org. At the time (isn't this true?) I liked to 
+give myself self-flagellative extra challenges, so instead of using the 
+C++ starter code that they gave us for the project, I wrote the whole 
+thing in Standard ML. I've never felt good at geometry, so I struggled a 
+bunch with the spatial data structures like octrees, and no doubt the 
+ray tracer has some canceling sign errors and things like that.
+

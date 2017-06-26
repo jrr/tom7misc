@@ -1,0 +1,11 @@
+%* DATAFILE smack.dat
+%* NUMTILES 100
+%* XTBITS 5
+%* YTBITS 4
+%* YTILES 32
+%* XTILES 21
+%* DEFX 21
+%* DEFY 24
+%* SELW 9
+%* SELH 6
+%* TILESW 19

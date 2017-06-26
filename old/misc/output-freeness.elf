@@ -1,0 +1,31 @@
+
+% This is a short example that causes Twelf to
+% give an "output freeness" error.
+
+nat : type.
+s : nat -> nat.
+z : nat.
+
+add : nat -> nat -> nat -> type.
+%mode add +M +N -O.
+
+add_z : add M z M.
+add_s : add M (s N) (s O')
+      <- add M N O'.
+
+%worlds () (add _ _ _).
+%total N (add _ N _).
+
+
+fake_thm : {M : nat}{N : nat} type.
+%mode fake_thm +M -N.
+
+ft_z : fake_thm z z.
+
+% fails freeness
+ft_s : fake_thm M M
+    <- add M (s z) M.
+
+
+%worlds () (fake_thm _ _).
+%total M (fake_thm M _).

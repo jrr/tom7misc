@@ -1,0 +1,58 @@
+--------------------Configuration: Tabsynth - Win32 Debug--------------------
+Begining build with project "F:\MS\DEVSTUD\MYPROJECTS\Tabsynth\Tabsynth.dsp", at root.
+Active configuration is Win32 (x86) Application (based on Win32 (x86) Application)
+
+Project's tools are:
+			"32-bit C/C++ Compiler for 80x86" with flags "/nologo /MDd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_AFXDLL" /FR"Debug/" /Fp"Debug/Tabsynth.pch" /Yu"stdafx.h" /Fo"Debug/" /Fd"Debug/" /FD /c "
+			"OLE Type Library Maker" with flags "/nologo /D "_DEBUG" /mktyplib203 /o NUL /win32 "
+			"Win32 Resource Compiler" with flags "/l 0x409 /fo"Debug/Tabsynth.res" /d "_DEBUG" /d "_AFXDLL" "
+			"Browser Database Maker" with flags "/nologo /o"Debug/Tabsynth.bsc" "
+			"COFF Linker for 80x86" with flags "/nologo /subsystem:windows /incremental:yes /pdb:"Debug/Tabsynth.pdb" /debug /machine:I386 /out:"Debug/Tabsynth.exe" /pdbtype:sept "
+			"Custom Build" with flags ""
+			"<Component 0xa>" with flags ""
+
+Creating temp file "C:\WINDOWS\TEMP\RSP2294.TMP" with contents </nologo /MDd /W3 /Gm /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_AFXDLL" /FR"Debug/" /Fp"Debug/Tabsynth.pch" /Yu"stdafx.h" /Fo"Debug/" /Fd"Debug/" /FD /c 
+"F:\MS\DEVSTUD\MYPROJECTS\Tabsynth\mapdlg.cpp"
+>
+Creating command line "cl.exe @C:\WINDOWS\TEMP\RSP2294.TMP" 
+Creating temp file "C:\WINDOWS\TEMP\RSP2295.TMP" with contents </nologo /subsystem:windows /incremental:yes /pdb:"Debug/Tabsynth.pdb" /debug /machine:I386 /out:"Debug/Tabsynth.exe" /pdbtype:sept 
+.\Debug\combinedlg.obj
+.\Debug\MainFrm.obj
+.\Debug\mapdlg.obj
+.\Debug\mapper.obj
+.\Debug\StdAfx.obj
+.\Debug\synth.obj
+.\Debug\synthcollection.obj
+.\Debug\Tabsynth.obj
+.\Debug\TabsynthDoc.obj
+.\Debug\TabsynthView.obj
+.\Debug\tone.obj
+.\Debug\util.obj
+.\Debug\wave.obj
+.\Debug\Tabsynth.res
+..\..\..\..\directx6sdk\lib\dsound.lib
+..\..\Vc\lib\Winmm.lib>
+Creating command line "link.exe @C:\WINDOWS\TEMP\RSP2295.TMP" 
+Compiling...
+mapdlg.cpp
+Linking...
+Creating temp file "C:\WINDOWS\TEMP\RSP2351.TMP" with contents </nologo /o"Debug/Tabsynth.bsc" 
+.\Debug\StdAfx.sbr
+.\Debug\combinedlg.sbr
+.\Debug\MainFrm.sbr
+.\Debug\mapdlg.sbr
+.\Debug\mapper.sbr
+.\Debug\synth.sbr
+.\Debug\synthcollection.sbr
+.\Debug\Tabsynth.sbr
+.\Debug\TabsynthDoc.sbr
+.\Debug\TabsynthView.sbr
+.\Debug\tone.sbr
+.\Debug\util.sbr
+.\Debug\wave.sbr>
+Creating command line "bscmake.exe @C:\WINDOWS\TEMP\RSP2351.TMP" 
+Creating browse info file...
+
+
+
+Tabsynth.exe - 0 error(s), 0 warning(s)

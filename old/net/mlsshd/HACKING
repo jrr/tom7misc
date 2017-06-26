@@ -1,0 +1,9 @@
+
+ working: send server key to client.
+          (can check that known_hosts has the right key!)
+
+to test:
+
+ssh -v -p 9999 tom@gs82.sp.cs.cmu.edu
+(good to take host key out of known_hosts)
+

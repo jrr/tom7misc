@@ -1,0 +1,87 @@
+<html>
+<head>
+<title>T7ES: MIDIMML converter</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name=keywords content="midi, mml, compose, NSF, create, nintendo, 6A02, mck, mckwatch, mckc, help, tutorial, 2A03, make, nes, NES, track, tracker, example, free, english">
+<meta name=description content="MIDIMML converter from MIDI to MML (Nintendo) format.">
+<link rel=stylesheet type="text/css" href="midimml.css" title="midimml">
+</head>
+
+<body background="background.gif">
+
+<center><table width=500 style="border: 2px solid black"
+background="alpha.gif" border=0 cellpadding=6><tr><td>
+<center><img src="midimml.gif"></center>
+
+<p>This software is for developing Nintendo Sound Format (NSF) files
+using a graphical editor of your choice. NSF is the real deal; it's
+basically a Nintendo ROM file which just drives an (emulated) 2A03
+sound chip. That means all of the great aliased square wave sounds and
+4-bit samples, but it also means all of the limitations of programming
+for a real 8-bit Nintendo! 
+
+<p><b>midimml</b> works by converting regular MIDI files (with some
+special annotations) into MML, which is a text-based format used by
+many NSF developers. The software <b>mckc</b> (available elsewhere;
+see below) can compile the generated MML into NSF.
+
+<p><b><font color="#44AA44">New!</font></b> <b>midimml</b> 2.0
+supports the definition of instruments (collections of MML macros),
+which allows you essentially all of the power that hand-written MML
+files have.
+
+<p><b>midimml</b> comes with documentation, which you can browse
+<b><a href="http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tom7misc/midimml/README?rev=HEAD&content-type=text/vnd.viewcvs-markup">here</a></b>.
+
+<p>In order to do anything, you'll need to set up MCK and related
+tools as if you were going to be composing MML by hand. This page,
+<b><A
+href="http://www.geocities.co.jp/Playtown-Denei/9628/makedata_e.html">"make
+nsf"</a></b>, describes how to set it up. Note that the link for "mck"
+has an extra .zip on it, so you'll need to fix it. Also, there's now a
+newer version of mckwatch out, which you need to get off the <b><a
+href="http://www.geocities.co.jp/Playtown-Denei/9628/">main
+page</a></b>. Once it's installed, you should be able to use mckwatch
+to "watch" the output of midimml, so that every time you run midimml
+it will automatically generate and play the NSF file.
+
+<!-- should use absolute positioning for background.gif here -->
+<p><table bgcolor="#000000" cellpadding=2 cellspacing=0 border=0><tr><td><table background="background.gif" cellpadding=0 cellspacing=0 border=0><tr><td><table background="alpha_blue.gif" cellpadding=4 cellspacing=0 border=0><tr><td>
+<font size=+1>Here it is:</font> Download <b><a
+href="midimml2.2.zip">midimml 2.2</a></b> (835kb) for Windows command
+line.
+</td></tr></table></td></tr></table></td></tr></table>
+
+<p><b>midimml</b> is free, open source software. You can take a look
+at the <b><a
+href="http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/tom7misc/midimml/">source
+code</a></b> and modify it, redistribute it, etc. If you make any
+useful changes, let me know!
+
+<p>And, since I don't currently have any other place for them, here
+are a few songs I made with this program:
+
+<div class=indent>
+     <b><a href="t7es-stone.zip">Giant Stone Space Station</a></b> - Entry in the Famicompo NSF competition.
+
+ <br><b><a href="t7es-wetcalm.zip">Shortcut to Wet, Calm Boat</a></b> - Also for Famicompo.
+
+ <br><b><a href="t7es-reston.zip">In Reston, With Nintendo</a></b> - Made for my <b><a href="http://mp3.tom7.org/aad-14/">14<sup>th</sup> album-a-day</a></b>, which I recorded without hearing anything until the entire album was done. (So it sounds a little weird..)
+
+ <br><b><a href="t7es-heroabuse.zip">Hero Abuse</a></b> - Made for Famicompo MINI vol.2. Shows off the instrument support a little.
+
+ <br><b><a href="t7es-starcrystal.zip">Star Crystal Journey</a></b> - A simple and charming tune, also for FCMv2. The version I submitted to the contest was a bit buggy (due to a bug in midimml, fixed in version 2.1). This is version 1.1, which sounds a bit better.
+
+</div>
+
+<p>Back to <b><a href="http://www.cs.cmu.edu/~tom7/">Tom 7's
+Invincible Web Page</a></b>.
+
+<p align=right>[<a class="small"
+href="http://radar.spacebar.org/f/a/weblog/comment/1/726">comment</a>]</p>
+
+</td></tr>
+</table></center>
+
+</body>
+</html>

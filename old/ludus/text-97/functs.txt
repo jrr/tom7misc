@@ -1,0 +1,46 @@
+Functions for Ludus Scripts                            Revision 1
+                                                      27 July 1997
+
+cache_bitmap (string Bitmapname)
+
+This function loads a bitmap by name from the pak file and stores it in
+memory so that it can be displayed later on.
+
+cache_sound (string Soundname)
+
+Ditto.
+
+disp_bitmap (string Bitmapname, int x, int y)
+
+Displays a bitmap on the screen. Not meant to be used very often --
+generally only for introductions and Cinematic Cutscenes.
+
+fade_bitmap (string Bitmapname, int x, int y, [-1,1] direction,
+             int basecolor, int speed, [0,1] background)
+
+Fades a bitmap in or out, like disp_bitmap.
+
+Direction: 1 is for basecolor to bitmap, -1 is for bitmap to basecolor.
+Basecolor: I have the feeling this will be limited... but it should be
+the background color which we are fading from. 0 to fade from the
+underlying bitmap.
+Speed: The speed to fade in/out at.
+Background: Make the fading a background task, if set to 1. Otherwise,
+don't continue script operation until it is finished.
+
+play_sound (string Soundname, int volume, int pan)
+
+Should be pretty self-evident.
+
+sleep (int milliseconds)
+
+Pause script execution for milliseconds milliseconds. Since we don't have
+floating-point variables, we want this extra precision (though it is unlikely
+that the engine will be able to correctly time say, 2 milliseconds.)
+
+slumber (int seconds)
+
+Pause script execution for seconds seconds. Intended for waits longer than
+32 or 64 seconds, if that is a limitation of sleep.
+
+

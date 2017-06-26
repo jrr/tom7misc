@@ -1,0 +1,5 @@
+
+let type a t = a * a
+in
+    (10, 20) : int t
+end

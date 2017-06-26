@@ -1,0 +1,15 @@
+
+let
+    import "print.hmh"
+
+
+    datatype t = A of int | B of string
+
+in
+
+    (case A 99 of
+         B _ => print "nope\n")
+         handle Match _ => print "yup.\n"
+              | _ => print "nope2\n"
+
+end
