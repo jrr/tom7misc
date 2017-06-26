@@ -1,0 +1,39 @@
+
+group is
+
+(* interface into system library *)
+../sock/sockprim.sml
+
+../sock/pre-sock.sml
+
+../sock/host-db-sig.sml
+../sock/host-db.sml
+
+../sock/prot-db-sig.sml
+../sock/prot-db.sml
+
+../sock/serv-db-sig.sml
+../sock/serv-db.sml
+
+(* shadows Socket structure *)
+
+../sock/socket-sig.sml
+
+../sock/unix-socket.sml
+
+../sock/generic-sock-sig.sml
+../sock/generic-sock.sml
+
+../sock/inet-sock-sig.sml
+../sock/inet-sock.sml
+
+../sock/sockutil.sml
+
+key-sig.sml
+
+linesock-sig.sml
+linesock.sml
+
+keys.sml
+
+test.sml

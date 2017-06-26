@@ -1,0 +1,781 @@
+
+#main
+%mkthemes%%name%|%host%|%subjectline%|%body%
+
+#!name
+%?object%
+%?object%
+%action% u
+%NOUN%00
+%VERB%00
+%NOUN%BOT
+TOB%VERB%
+inspector fuckup
+fatbot
+punk kid %color%
+mtn goat
+pink th.
+GI JESUS
+future santa
+robelf
+bizarro %name%
+
+#color
+blue
+red
+green
+cyber
+
+#goodpoint
+%badpoint%
+%touch% a %friend%
+%totaly% %sweet%
+%likes% %friend%s
+%justice% %boss%
+
+#boss
+boss
+king
+enemy
+ruler
+boss
+charles in charge
+prestitent
+comrade
+commisioner
+
+#likes
+likes
+enjoys
+nice to
+
+#sweet
+sweet
+sweat
+sweat
+awsome
+tubular
+
+#totaly
+%definitely%
+totaly
+totally
+max
+maximal
+ultra
+
+#touch
+like
+touch
+wish
+allow
+sing
+love
+
+#friend
+friend
+tune
+parent
+magic
+easter
+bunny
+pet
+animal
+
+#badpoint
+%goodpoint%
+%misery%%guts%
+%hates% %friend%s
+
+#hates
+hates
+h8reds
+h8red
+punch all
+punches
+kik a
+sucker punch
+
+#misery
+misery
+ugly
+fat
+awful
+stupid
+jerk
+
+
+#guts
+guts
+face
+head
+taste
+land
+
+
+#like
+%dislike%
+%name%
+%justice%
+%weapons%
+%VERB% %NOUN%
+%chinese%
+%verb% %noun%
+
+#dislike
+%like%
+%name%
+%situ%
+%VERB% %NOUN%
+%chinese%
+%verb% %noun%
+
+#everyone
+%some1%
+everyone
+every1
+all person
+
+#dies
+dies
+deaths
+died
+%verb%s
+%VERB%S
+
+#panama
+panama
+pandaman
+%noun%ama
+
+#at
+at
+at
+on
+to
+against
+towards
+%"%
+%"%
+
+#attacking
+attacking
+attacking
+launching
+cold war %at% us
+destructing
+advancing
+planning attack %at% us
+
+#people
+people
+citizien
+citizen
+person
+militia
+corps
+
+#atus
+%at% us
+at us
+%"%
+%"%
+
+#lol
+lol
+sol
+lol
+lol
+lol
+omg
+
+#plus
++++++
+++
++
+%"%
+%"%
+
+#AAA
+AAAAAAA
+AA
+%"%
+%"%
+
+#fast
+quick
+fast
+lightening
+litning
+ultra
+%ADJ%
+
+#service
+service
+payment
+cashment
+payvice
+%NOUN%
+
+#watch
+watch
+watch
+%noun%
+free
+free
+see
+sleep
+talk
+cars
+untitle
+big
+%NOUN%
+%VERB%
+%verb%
+
+
+#body
+%noun% is now %it=^^^watch%. %?it% is now %^^^watch%.
+%lol% u want %noun%s
+%lol% u want %justice% %boss%s
+%name%... %goodpoint% ebayer, %fast% %service% A%AAA%++%plus%
+%mbutoh% the %chinese% %people% are %attacking%%atus%%xc%
+%`noun% %`noun% %`noun% %panama%%xc%
+news flash %everyone% %dies%
+%oldbody%
+
+#oldbody
+%\n%%name% data access%\n%%\n%GOOD POINT:%\n%%goodpoint%%\n%BAD POINT:%\n%%badpoint%%\n%LIKE:%\n%%like%%\n%DISLIKE:%\n%%dislike%%\n%
+%\n%Q. %qword% did %whatitis%%qmark%%\n%%\n%A. %ADJ% %NOUN%
+new invention::%\n%%\n%%\n% %ADJ% %NOUN%%xc%
+%\n%%\n%  %mking%who %?ing%?%\n%%\n%  we %?ing% %xc%
+%utoh% %some1% %ur% %introuble%
+todays leson %classification%:%\n%%\n%%peoplelist%
+%some1% i need %ur% %help%:%\n%%\n%   %qword% %quest%%qmark%
+%mbutoh% time 2 %engage% in %operation%%xc%%\n%%\n%    %prepare% %ur% %weapons%%xc%
+%exclam% guyse  i am here 2 tell u that %something%%\n%%xc%
+%exclam% %xc% did u %mbguys% no that %something%
+hapy %holiday%%xc%
+%VERB% ALL %NOUN%
+%VERB% NONE %NOUN%
+we r %verb% %xc%
+%VERB% %inu%, %bacause% %ur% %introuble%
+%ihear% that %?object% is %whatitis% %xc%
+%utoh% we r in %situation%%\n%%\n%%response%%xc%
+%utoh% %some1% is %definitely% gonna 2 %die%
+%utoh% %xc% %\n%%\n% i %foundout% that %?object% is %whatitis%%xc%
+%adj% %noun% %xc%%\n%%\n%%\n% %ADJ% %NOUN%%xc%
+
+
+
+#prepare
+%engage%
+prepare
+gather
+
+#engage
+engage
+embark
+
+#operation
+operation %opname%
+
+#opname
+%definitely% %munitions%
+%justice% %hammer%
+
+#justice
+justice
+truth
+freedom
+goodness
+pure good
+reluctant
+eagle
+justified
+ultimate
+dignified
+exemplary
+
+#hammer
+hammer
+smash
+bomb
+sword
+massacre
+
+#weapons
+%hammer%s
+weapons
+armies
+forces
+munitions
+%munitions%
+%munitions% of mass destruct
+
+
+#quest
+%time% is it
+r we %going%
+is a %ADJ% %NOUN%
+is %holiday% time%xc%
+
+#time
+time
+time
+clock
+day
+year
+seaseon
+when
+
+#going
+doing
+going
+seeing
+get there
+
+
+#help
+help
+assist
+smart
+anser
+
+#peoplelist
+   %some1%: %ADJ% %whatitis% %ur% %die%%xc%%\n%%peoplelist%
+   %some1%: %NOUN%%\n%%peoplelist%
+   %some1%: %NOUN% %NOUN%%\n%%peoplelist%
+   %some1%: %color% %VERB%%\n%%peoplelist%
+   %some1%: %whatitis%%\n%%peoplelist%
+   %some1%: %NOUN%%xc%
+
+#classification
+CLASSIFICATION
+ONTOLOGISE
+CLASSIFE
+CATEGORS
+
+#ur
+u r
+u r
+U R
+ur
+your
+ure
+ur r
+ur are
+
+#bacause
+bacause
+bacese
+becouse
+bacose
+bacas
+
+#inu
+at u
+in u
+about u
+u
+
+#introuble
+in trouble
+gonna %die%
+gonna %foundout% that %?object% is %whatitis%
+
+
+#mking
+%ing:=verbing%
+
+#verbing
+%verb%ing
+
+#foundout
+found%edmaybe% out
+discover%edmaybe%
+think
+
+#edmaybe
+%"%
+%"%
+ed
+
+#qmark
+???
+?!
+%"%
+?
+
+#qword
+what
+why
+who
+how
+when
+
+#die
+kick it
+die
+death
+explose
+cancer
+violense
+crushed
+
+#definitely
+definetely 
+totaly
+%"%
+mb
+prolbalby
+
+#!some1
+tobot
+tobot
+tob
+omags
+omagus
+proxy
+proxy
+rog
+anonymous
+ASA
+mad max
+farinado
+farina00
+farina
+max
+n'sano
+shoe
+shoo
+veavy
+veavitoedphd
+jcreed
+popa benedicto
+!some1
+!some bodey
+
+#mbutoh
+%utoh%
+%"%
+
+#utoh
+ut oh
+omg
+omf
+wts
+sol
+sol
+lol
+oop
+woops
+watch out
+
+#ihear
+word has it
+i hear
+some 1 told
+u no
+
+#response
+%deploy% %mball%%munitions%
+
+#munitions
+munitions
+boms
+lazers
+x-rays
+blastcannon
+love blade
+genocide
+
+#deploy
+deploy
+explode
+fission
+retract
+
+#mball
+all 
+some 
+none 
+
+#verb
+run
+go
+smash
+explode
+blast off
+wish
+talk
+crash
+revenge
+vom
+rock
+watch
+fight
+punch
+think
+eat
+destroy
+consume
+
+#VERB
+%^^^verb%
+CONSUME
+DESTROY
+CRUSH
+EAT
+THINK
+COMBINE
+MARRY
+PUNCH
+KICK
+FIGHT
+TRAIN
+LEARN
+BUY
+WATCH
+%NOUN%
+PROVE
+IMPLEMENT
+CUT
+
+#NOUN
+%^^^noun%
+%^^^noun%
+%^^^noun%
+%VERB%
+THEOREM
+VERIZON WIRELESS
+CHINA
+MUNITION
+CARDINAL
+METALOGIC
+NINJA
+BOMB
+FOOD
+PERSON
+WORLD
+IDEA
+PET
+HOLIDAY
+TRANSPORT
+GUN
+HAIRDO
+PLASTIC
+FLYING
+TEACHER
+PRODUCT
+
+#chinese
+chinese
+american
+armenian
+U.S.S.R.
+chechneya
+moon
+
+#holiday
+x-mast
+new year
+%chinese% new year
+cinco d' mayo
+boxing day
+blast offf
+%NOUN% DAY
+%LETTER%%VOWEL%%LETTER%%LETTER%%VOWEL%%VOWEL% DAY
+
+#mbguys
+%"%
+guys
+
+#subjectline
+%?object% is %whatitis%%xc%
+%xc%
+%exclam%%xc%
+%situ%%xc%
+%holiday%
+%some1%
+
+#exclam
+holy
+wts
+omg
+OMS
+what the
+%exclam% %exclam%
+
+#xc
+%"%!!!!!1%xc%
+%"%!!!1!!
+%"%!1!!!!!
+%"%!!!!!
+
+#host
+%?object%.com
+%?object%.org
+ppp-%#(1,250)%-%#(1,250)%-%#(1,250)%-%#(1,250)%.%organisation%.com
+user-%letter%%letter%%#(10000,99999)%.%organisation%.com
+
+#organisation
+%?object%plex
+%?object%
+futurenet
+wiccapedia
+armeniaonline
+armeniaserve
+telermenia
+netmenia
+armenet
+djibouti-online
+
+#mkthemes
+%object:=thing%
+
+#thing
+%adj%%noun%
+%noun%
+%noun%
+
+#adj
+neo
+e-
+cyber
+mega
+ultra
+giga
+econo-
+
+#ADJ
+NEO
+CYBER
+EXPLOSIVE
+MEGA
+ULTRA
+GIGA
+TOTALY
+MAGIC
+KILLING
+KILLER
+DIRTY
+SOCIO
+
+#noun
+food
+hate
+samuri
+submarine
+missle
+ninja
+kill
+robot
+glastnost
+flagrance
+armenia
+poketmon
+bog
+zombamomma
+science
+el popa
+machine
+laszer
+radar
+capitalism
+EBITDA
+trench
+robo
+kitty
+economy
+sphere
+love
+bomb
+%munitions%
+%situ%
+comic
+
+#situation
+%adj%%situ%
+%situ%
+%situ% %LETTER%
+
+#situ
+crisis
+crisis
+situation
+failure
+war
+
+#action
+love
+luv
+hate
+h8
+format
+
+#whatitis
+totaly %what%
+%what%
+sort of %what%
+
+#what
+explosing
+explode
+on fire
+lasing u
+goin g everywhere
+gonna fuk u up
+esplodoa
+a something MEGA
+killing
+cut u
+smoke odors
+crush ded
+%NOUN%
+%ADJ% %NOUN%
+%color%-%action%ing %who%
+
+#who
+%name%
+u
+everybod
+
+#letter
+a
+b
+c
+r
+h
+i
+k
+n
+o
+p
+e
+u
+a
+e
+v
+t
+x
+x
+z
+q
+
+#LETTER
+%^letter%
+
+#VOWEL
+a
+a
+e
+e
+i
+o
+u
+
+#something
+%VERB% is %whatitis%
+%verb% %noun% is %thing%
+%?object% RULZ

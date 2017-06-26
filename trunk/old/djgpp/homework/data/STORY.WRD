@@ -1,0 +1,41 @@
+#needs nouns.wrd
+#needs names.wrd
+#needs adj.wrd
+#needs verbs.wrd
+#needs adv.wrd
+
+#det
+%firstname%'s
+%fullname%'s
+her
+his
+my
+one
+our
+that
+that
+that
+the
+the
+the
+the
+the
+the
+this
+
+#pronoun
+I
+he
+it
+she
+you
+
+#participle
+around
+beside
+by
+in
+near
+on
+over
+under

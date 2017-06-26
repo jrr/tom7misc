@@ -1,0 +1,6 @@
+
+Generates "Su Doku" puzzles.
+Compile with mlton for best results.
+
+All source code and documentation Copyright (c) 2005 Tom Murphy VII.
+Licensed under the GNU Public License (see COPYING).

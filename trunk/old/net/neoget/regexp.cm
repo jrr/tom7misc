@@ -1,0 +1,53 @@
+(* regexp-lib.cm
+ *
+ * COPYRIGHT (c) 1998 Bell Labs, Lucent Technologies.
+ *)
+
+Library
+
+signature REGEXP_SYNTAX
+signature REGEXP_PARSER
+signature MATCH_TREE
+signature REGEXP_ENGINE
+signature REGEXP
+
+structure RegExpSyntax
+structure MatchTree
+structure AwkSyntax
+structure BackTrackEngine
+structure DfaEngine
+
+functor RegExpFn
+
+is
+  ../Util/lib-base-sig.sml
+  ../Util/lib-base.sml
+  ../Util/ord-key-sig.sml
+  ../Util/ord-set-sig.sml
+  ../Util/ord-map-sig.sml
+  ../Util/list-set-fn.sml
+  ../Util/list-map-fn.sml
+
+(* internal glue language *)
+  FrontEnd/syntax-sig.sml
+  FrontEnd/syntax.sml
+
+(* utility functions *)
+  Glue/match-tree.sml
+  BackEnd/fsm.sml
+
+(* front/back-ends signatures *)
+  FrontEnd/parser-sig.sml
+  BackEnd/engine-sig.sml
+
+(* Frontends *)
+  FrontEnd/awk-syntax.sml
+
+(* Engines *)
+  BackEnd/bt-engine.sml
+  BackEnd/dfa-engine.sml
+
+(* Glue functor *)
+  Glue/regexp-sig.sml
+  Glue/regexp-fn.sml
+

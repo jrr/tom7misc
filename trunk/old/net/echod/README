@@ -1,0 +1,12 @@
+
+This is echod. It listens on a port (specified on the command line),
+and anyone connecting to that port now speaks to anyone else connected
+to that port (except themselves). For instance, 6 users telnet'd to
+the port could use it as a chat server.
+
+This program is primarily intended to be used in conjunction with my
+win32 whiteboard program.
+
+It should be rewritten to use the getconn() function of tsockets, to
+avoid the huge mess that's there now.
+

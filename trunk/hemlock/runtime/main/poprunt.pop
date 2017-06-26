@@ -1,0 +1,95 @@
+
+/* This file implements part of the runtime that don't need low-level
+   C stuff. */
+
+#include <pophooks.h>
+
+extern string cordcode;
+
+int ph_connection = -1;
+
+/* need to get name of cord code. */
+string hemrunt_submit(string arg) {
+
+  if (ph_connection <= 0) ph_connection = Pophooks::pophooks_connect();
+
+  string cord = 
+    Pophooks::pophooks_submit(Core::strconcat("../cordcode/", cordcode),
+			      arg, ^Pophooks::dep.And(null));
+  
+  /* always register */
+  Pophooks::pophooks_register(ph_connection, cord);
+  
+  return cord;
+}
+
+?struct reslist {
+  string cordid;
+  string result;
+  reslist next;
+}
+
+/* "hashtable" where hash fn is "K 0" ;) */
+reslist adb_results = null;
+
+bool adb_satisfied(string cords[], string results[]) {
+
+  for(int i = 0; i < size(cords); i ++) {
+    bool ok = false;
+
+    /*    printf("sat: %s?\n", cords[i]); */
+
+    /* XXX get column from a hash table */
+    for(reslist tmp = adb_results; tmp != null; tmp = tmp.next) {
+      
+      /*      printf("    == %s?\n", tmp.cordid); */
+
+      if(0 == Core::strcmp(tmp.cordid, cords[i])) {
+	/*	printf("       YES!\n"); */
+	results[i] = tmp.result;
+	ok = true;
+	break;
+      }
+
+    }
+
+    if (!ok) return false;
+  }
+  /* must have filled all of them. */
+  return true;
+
+}
+
+void adb_add(string cordid, string result) {
+  /* XXX grab correct column in hash table */
+  adb_results = ^reslist(cordid, result, adb_results);
+}
+
+/* ok to call new_array here; this is client code. */
+string hemrunt_waitall(string cords[])[] {
+
+  string results[] = new_array(size(cords), "");
+  
+  /* we're bound to be screwed if there's no connection yet,
+     but, whatever... */
+  if (ph_connection <= 0) ph_connection = Pophooks::pophooks_connect();
+
+  while(!adb_satisfied(cords, results)) {
+
+    /*    printf("pophooks:wait...\n"); */
+
+    Pophooks::event e = Pophooks::pophooks_wait(ph_connection, 999999);
+
+    switch(e){
+    case finished(s): 
+      /*      printf(" %s finished: %s\n", s.1, s.2); */
+      adb_add(s.1, s.2);
+
+    default: 
+      ;
+    }
+
+  }
+  /*  printf ("waitall completes.\n"); */
+  return results;
+}

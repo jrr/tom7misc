@@ -1,0 +1,9 @@
+Security concerns to eventually address
+
+give lob class a pointer to a string near the end of the object which is not
+terminated. I padded with a null by default but this allows them (because
+it changes the length to originallength+1) to change this byte to nonnul.
+Suggest changing .length() calls to something which returns length-1.
+
+-- actually, not an issue. the implementation of the string class guarantees
+that there is a null terminating the c_str() representation.

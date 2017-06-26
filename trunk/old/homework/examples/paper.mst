@@ -1,0 +1,985 @@
+
+#needs name.wrd
+
+#main
+%init%%font%%header%%abstract%%introduction%%body%%conclusion%%biblio%%tail%
+
+#tail
+<p><p>%familystats%
+
+#font
+<font face="Verdana, Sans Serif" size=-1>
+
+#bigfont
+<font face="Verdana, Sans Serif" size=+2><b>
+
+#bigfontend
+</b></font>
+
+#fonthdr
+<font face="Verdana, Sans Serif" size=+1><b>
+
+#fonthdrend
+</b></font>
+
+#header
+<center>%bigfont%%?title%%bigfontend%<br>%authors%%?supportstar%<br>%date%<p><font size=-2><i>%?supportlink%</i></font></center><p>
+
+#date
+%#(1,28)% %month% %#(1980,2002)%
+%month% %#(1980,2002)%
+
+#authors
+%fullauthors%
+%initauthors%
+
+#initauthors
+%initials% %lastname%
+%initauthors%, %initials% %lastname%
+
+#fullauthors
+%fullname%
+%fullauthors%, %fullname%
+
+#init
+%title:=possibletitle%%mksupport%
+
+#possibletitle
+%titlefront%
+%titlefront% With %^^withwhat%
+
+#withwhat
+%plthingtosupport%
+%systemsthingtosupport%
+
+#systemsthingtosupport
+processor affinity
+load balancing
+memory sharing
+failure recovery
+failure detection
+
+#plthingtosupport
+bounded quantification
+polymorphic recursion
+unrestricted subtyping
+higher-order modules
+%goodquality% types
+%goodquality% modules
+global type inference
+capabilities
+
+#titlefront
+%^^quality1=goodquality%, %^^quality2=goodquality% %^^thething=thing%s
+%^^`quality1=goodquality% %^^quality2=goodquality% %^^thething=thing%
+%^^`quality1=goodquality% %^^thething=thing%
+
+#atitle
+%^^goodquality%, %^^goodquality% %^^thething=thing%s
+%^^`goodquality% %^^goodquality% %^^thething=thing%
+%^^`goodquality% %^^thing%
+
+#possiblebibtitle
+%quality2:=goodquality%%titlefront% With %^^withwhat%
+%quality1:=goodquality%%titlefront%
+%-thing%%quality2:=goodquality%%titlefront%
+%-quality1%%-quality2%%-thing%%titlefront%
+%-thing%%titlefront%
+
+#thing
+%algfor% algorithm
+%modelfor% model
+
+#abstract
+<p>%fonthdr%Abstract%fonthdrend%%\n%<p>%startintro% %abstrsents% %abstrend%
+
+#!abstrsent
+However, it is %/abstrsaw2/"also %desirable that %`?thething% be %?quality1%.%abstrsaw1:="%
+%/abstrsaw1/"Furthermore, we%%/!abstrsaw1/"We% want %`?thething% to be %quality2=goodquality%.%abstrsaw2:="%
+%/quality2/^abstrsent1%%/!quality2/^abstrsent%
+%^?thething%s are important %importantwhy%.
+(%^infact%%citeauthor:=visionary%%?citeauthor% claims to give proof of this in [1])
+!Need to write more abstract sentences!
+
+#importantwhy
+in many disciplines
+for many applications
+
+#infact
+in fact, 
+in fact, 
+indeed, 
+%"%
+%"%
+
+#abstrsent1
+%untilnow%it was thought impossible to be %?quality2% and %?quality1% simultaneously.
+
+#untilnow
+until now 
+up to now 
+%"%
+
+#abstrend
+In this %paper% we show %showwhat%.
+
+#showwhat
+such %`thing%
+
+#paper
+paper
+paper
+report
+
+#introduction
+<p>%fonthdr%Introduction%fonthdrend%%\n%<p>%startintro% %introsents% %introend%
+
+#abstrsents
+%abstrsent%%\n%%abstrsent%%\n%
+%abstrsent%%\n%%abstrsents%
+
+#introsents
+%introsent%%\n%%introsent%%\n%
+%introsent%%\n%%introsents%
+
+#!introsent
+%abstrsent%
+A strong case for the use of %?thething%s is made in <i>%atitle%</i>.
+!Need to write more introsents!
+
+#modelfor
+thought
+process behavior
+user input
+cache preference
+process affinity
+static memory
+
+#startintro
+%saveintro=introintrosent%
+
+#introintrosent
+%algointrointrosent%
+
+#algointrointrosent
+Scientists have long %conjectured% that %complexityclass% %classrel% %complexityclass%.
+%^?thething%s have been an area of %considerable% interest since %citeauthor:=visionary%%?citeauthor%'s work in %#(1960,1980)%.
+All previously known %algfor% algorithms run in %case% %complexityclass% time.
+
+#case
+average case
+worst case
+worst case
+best case
+expected
+amortized
+amortized
+
+#considerable
+considerable
+some
+
+#visionary
+Knuth
+Turing
+Plotkin
+Bayes
+Ullman
+Milner
+Rivest
+Lamport
+Hoare
+Simon
+Dijkstra
+
+#conjectured
+postulated
+conjectured
+supposed
+believed
+
+#classrel
+is equal to
+is not equal to
+is a strict subset of
+
+#biblio
+<p>%fonthdr%Bibliography%fonthdrend%%\n%<p>%biblioentries%
+
+#biblioentries
+%biblioentry% %biblioentry% 
+%biblioentry% %biblioentries%
+
+#conclusion
+<p>%fonthdr%Conclusion%fonthdrend%%\n%<p>%paragraph%%conclusionsent%
+<p>%fonthdr%Related Work%fonthdrend%%\n%<p>%relatedworks%
+
+#body
+%sections%
+
+#sections
+<p>%fonthdr%Section 1. %sectionname%%fonthdrend%%\n%<p>%paragraphs%
+
+#paragraphs
+%paragraph%%\n%%paragraphs%
+%paragraph%%\n%%paragraph%
+
+#paragraph
+<p>%setmode%%clearabbrevs%%^parintrosent% %parsents% %parconc%
+
+#parsents
+%-last%%parsent%%\n%%parsents%
+%-last%%parsent%%\n%%last:="%%parsent%
+
+#parsent
+%/algomode/algoparsent%%/systmode/systparsent%
+%/algomode/algoparsent%%/systmode/systparsent%
+%/algomode/algoparsent%%/systmode/systparsent%
+%algoparsent%
+%systparsent%
+
+#systparsent
+I sure need to add more sentences about systems!
+
+#algoparsent
+%/last/^proofstep%%/!last/^definition%.
+%^proofstep%.
+
+#proofstep
+%since% %fact%, %fact%
+%since% %fact% and %fact%, %fact%
+%fact%, therefore, %fact% (note that %fact%)
+
+#fact
+%/algomode/algofact%%/systmode/systfact%
+%/algomode/algofact%%/systmode/systfact%
+%algofact%
+%systfact%
+
+#algofact
+%abbrev% is %relation% %abbrev%
+%abbrev% is %relation% %abbrev%
+%abbrev% is %relation% itself
+%abbrev% must be at %least% %quantity%
+
+#least
+least
+least
+most
+
+#quantity
+%#(2,9)%
+%#(1,100)%0
+%abbrev%
+%abbrevexpr%
+%abbrevexpr%
+
+#systfact
+%systpart% is primarily %boundby%
+%thealgorithm% is not %goodquality%
+
+#thealgorithm
+our algorithm
+the algorithm
+it
+
+#systpart
+the disk
+the network
+the queue
+the scheduler
+the %memory%
+%topicalthing%
+
+#boundby
+%memory%-bound
+
+#memory
+cache
+memory
+processor
+network
+disk
+
+#therefore
+therefore
+it must be that
+consequently
+
+#since
+since
+because
+
+#setmode
+%algomode:="y%%-systmode% <!-- chose algo mode -->
+%systmode:="y%%-algomode% <!-- chose syst mode -->
+
+#clearabbrevs
+%-letter1%%-letter2%
+%-letter2%%-letter3%
+%-letter1%%-letter3%
+
+#parconc
+%/algomode/algoparconc%%/systmode/systparconc%
+%algoparconc%
+
+#!algoparconc
+!This results in the following %formula%: %formulafigure%
+!Thus we derive the following %formula%: %formulafigure%
+!The %remainder% of this %proof% %proofwhere%.
+!The other cases are %othercases%.
+Thus we have proved the %thingtoprove%.
+
+#!systparconc
+The results of our tests are as follows: %graphfigure%
+
+#othercases
+in the tech report
+left as an exercise
+trivial
+similar
+
+#proofwhere
+can be found in the tech report
+are left as an exercise
+
+#remainder
+details
+remainder
+
+#proof
+proof
+derivation
+
+#thingtoprove
+forwards direction
+backwards direction
+lower bound
+upper bound
+theorem
+lemma
+hypothesis
+
+#formula
+formula
+formula
+closed-form
+solution
+recurrence relation
+relation
+function
+result
+
+#formulafigure
+<p>[[FIXME FIGURE HERE]]
+
+#parintrosent
+%/algomode/algoparintrosent%%/systmode/systparintrosent%
+%/algomode/algoparintrosent%%/systmode/systparintrosent%
+%/algomode/algoparintrosent%%/systmode/systparintrosent%
+%algoparintrosent%
+%systparintrosent%
+
+#!algoparintrosent
+!in order to %prove% that %topicalthing% is in %complexityclass%, %simplesenttodo%
+!%first%we need a lemma: %statetheorem%.
+!%definition%.
+
+#!systparintrosent
+Traditional %solns% typically perform %badly% %badcondition%.
+%?thething% %performance% is usually %bound% by %boundedby%.
+!%definition%.
+
+#bound
+bound
+bound
+limited
+
+#boundedby
+%memory% %performance%
+
+#performance
+performance
+throughput
+bandwidth
+latency
+
+#badly
+poorly
+badly
+
+#badcondition
+under high load
+in the presence of %failure%
+
+#failure
+failure
+byzantine failure
+fail-stops
+
+#solns
+solutions to this problem
+implementations
+%algfor% algorithms
+
+#setof
+%isomorphic% %maththing%s
+all %maththing%s
+%maththing%s %isomorphic% to %abbrev%
+
+#definition
+%onedef%
+%onedef% and %onedef%
+
+#onedef
+let %abbrev% be %definewhat%%orequiv%
+call %definewhat% %abbrev%
+let %`itdefinephrase% be %defineconditions%
+let %`definething% be <i>%defineadj%</i> if %forall%it is %defineadj% and %defineadj%
+
+#forall
+for all %definething%s %it:=variable%%?it% %suchthat%
+%"%
+%"%
+
+#andor
+and
+and
+or
+
+#variable
+x
+y
+s
+z
+u
+r
+t
+v
+w
+
+#suchthat
+%"%
+%"%
+such that %?it% is %defineadj% %andor% %defineadj% 
+such that %?it% is %defineadj% 
+
+#itdefinephrase
+<i>%definephrase%</i>
+
+#orequiv
+%"%
+%"%
+%"%
+, or equivalently, %definewhat%
+
+#definewhat
+%/systmode/systdefw%%/algomode/algdefw%
+%/systmode/systdefw%%/algomode/algdefw%
+%systdefw%
+%algdefw%
+%abbrevexpr%
+
+#abbrevexpr
+(%abbrevexpr% %op% %abbrevexpr%)
+%#(2,20)%%abbrevexpr%
+%abbrev%
+%abbrev%
+%#(1,100)%%abbrev%
+log(%abbrevexpr%)
+
+#op
++
+*
+/
+-
+^
+
+#defineconditions
+%`?it% that is %defineadj% and %defineadj%
+
+#definephrase
+%defineadj% %defineadj% %it:=definething%%?it%
+
+#defineadv
+finitely 
+infinitely 
+well-
+constructively 
+bi
+uni
+multi
+epi
+injectively 
+surjectively 
+poly
+mono
+
+#defineadj
+%defineadv%%singledefineadj%
+%singledefineadj%
+
+#singledefineadj
+satisfied
+colored
+closed
+%initial%-closed
+complete
+confluent
+normal
+total
+partial
+branching
+ordered
+directed
+continuous
+monotonic
+noetherian
+local
+residual
+connected
+ideal
+%lastname%-%lastname%
+
+#definething
+%/systmode/systdefthing%%/algomode/algodefthing%
+%/systmode/systdefthing%%/algomode/algodefthing%
+%systdefthing%
+%algodefthing%
+
+#algodefthing
+%set%
+partial order
+total order
+relation
+least upper bound
+algebraic structure
+
+#systdefthing
+network
+graph
+header
+packet
+processor
+circuit
+call chain
+stack frame
+dependency graph
+routing table
+
+#systdefw
+the %systmeasurement%
+
+#algdefw
+the %set% of %setof%
+the %set% of %setof%
+the %algmeasurement%
+
+#algmeasurement
+number of iterations
+number of %nodes%
+number of %nodes%
+%depth% of the %tree%
+%depth% of the %tree%
+sub-graphs
+elements
+connected components
+
+#tree
+tree
+tree
+heap
+dag
+
+#nodes
+nodes
+edges
+vertices
+links
+
+#depth
+depth
+width
+height
+size
+
+#systmeasurement
+wall-clock time
+processor time
+network latency
+cache size
+bandwidth
+%costof% a single iteration
+instruction bandwidth
+
+#costof
+cost of
+time for
+
+#set
+poset
+category
+group
+semigroup
+lattice
+algebra
+ring
+set
+set
+set
+class
+collection
+multiset
+continuous partial order
+coalgebra
+
+#abbrev
+%letter1=initial%
+%letter1=initialseq%
+%letter2=initial%
+%letter2=initialseq%
+%letter3=initial%'
+%letter3=initialseq%
+
+#maththing
+set
+infinite string
+group
+graph
+edge
+hypercube
+tree
+polynomial
+function
+identity function
+composition
+Cartesian product
+Cartesian closed category
+isomorphism
+
+#simplesenttodo
+we must %first% %todo%.
+we must %first% %todo%.
+we should %first% %todo%.
+we need to make some definitions. %^definition%.
+
+#statetheorem
+%topicalthing% is in %maybecase%%complexityclass%
+%letter1=initialseq% is %relation% %letter2=initial%
+
+#maybecase
+%"%
+%case% 
+
+#relation
+perpendicular to
+equal to
+%isomorphic% to
+strictly greater than
+contained within
+
+#isomorphic
+homomorphic
+isomorphic
+bimorphic
+monomorphic
+
+#todo
+%prove% that %topicalthing% is in %complexityclass%
+analyze %topicalthings% %analyzewhat%
+consider %topicalthings% %behavior% on %behaveon%
+
+#behaveon
+small inputs
+large inputs
+empty input
+%thing%s
+
+#topicalthing
+it
+it
+the %algfor=truealgfor% algorithm
+%letter1=initial%
+%letter2=initialseq%
+
+#topicalthings
+its
+its
+the %algfor=truealgfor% algorithm's
+
+#behavior
+behavior
+performance
+
+#analyzewhat
+%kindofperf% %behavior%
+%kindofperf% %behavior%
+constant factors
+
+#kindofperf
+cache
+amortized
+run-time
+
+#first
+%"%
+%"%
+first 
+next 
+now 
+
+#prove
+prove
+prove
+show
+demonstrate
+
+#algfor
+%algfor=truealgfor%
+%truealgfor%
+
+#truealgfor
+fault-finding
+sorting
+garbage collection
+typechecking
+face recognition
+partitioning
+triangulation
+tiling
+register allocation
+selection
+indexing
+matrix multiplication
+constraint solving
+compression
+graph-coloring
+typesetting
+max-flow
+constraint satisfaction
+integer programming
+
+#goodquality
+multifrontal
+digital
+scalable
+data-parallel
+mesh-connected
+Gaussian
+recursive
+iterative
+minimum-cost
+bit-serialized
+randomly-wired
+fault-tolerant
+massively parallel
+multipartitioned
+multistage
+networked
+one-way
+optimal
+serial
+efficient
+real-time
+parallel
+concurrent
+object-oriented
+preemptible
+asynchronous
+constructive
+intuitionistic
+abstract
+linear
+bounded
+safe-for-space
+randomized
+distributed
+monte-carlo
+genetic
+affine
+mobile
+memory safe
+left-linear
+higher order
+type safe
+quadratic time
+polynomial time
+decidable
+
+#incomplexityclass
+%ingoodcomplexityclass%
+%inbadcomplexityclass%
+
+#ingoodcomplexityclass
+constant time
+decidable
+polynomial time
+in %goodcomplexityclass%
+
+#gofn
+1
+<i>n</i> log <i>n</i>
+log <i>n</i>
+<i>n</i><sup>%#(2,4)%</sup>
+
+#bofn
+2<sup><i>n</i></sup>
+<i>n</i><sup>%#(5,100)%</sup>
+<i>n</i>!
+<i>n<sup>n</sup></i>
+
+#inbadcomplexityclass
+undecidable
+superexponential time
+NP-complete
+in DEXPTIME
+NP-hard
+PSPACE complete
+
+#goodcomplexityclass
+P
+polynomial time
+O(%gofn%)
+
+#badcomplexityclass
+NP
+NP
+nondeterministic polynomial time
+PSPACE
+
+#complexityclass
+%goodcomplexityclass%
+%badcomplexityclass%
+%theclass1=complexityclass%
+%theclass2=complexityclass%
+
+#mksupport
+%supportstar:="<sup>*</sup>%%supportlink:=supportedby%
+%supportstar:="%%supportlink:="%
+
+#supportedby
+<sup>*</sup>Supported in part by %suptby%.
+
+#suptby
+%agency% grant %grantnum%, "%granttitle%"
+%agency% grant %grantnum%
+the %scholarship% scholarship for %scholfor%
+
+#granttitle
+%^^area% and %^^area%
+
+#area
+software
+systems
+software engineering
+logic
+concurrency
+programming languages
+numeric analysis
+scientific computing
+architecture
+
+#agency
+NSF
+DARPA
+ARPA
+
+#scholarship
+Microsoft
+Phoenix Foundation
+%agency%
+%lastname% Foundation
+%lastname%
+
+#scholfor
+excellence
+computer science
+young %minority%
+future leaders
+
+#minority
+hispanics
+women
+african-americans
+indians
+canadians
+
+#journal
+ACM Transactions on %^^area%
+ACM Transactions on %^^area% and %^^area%
+Journal of %^area%
+%nth% International Conference on %^area%
+
+#nth
+1st
+2nd
+3rd
+%#(4,9)%th
+%#(4,9)%th
+%#(4,9)%th
+%#(1,8)%%nth%
+
+#pagenum
+ page %#(3,999)%
+%"%
+
+
+#biblioentry
+<p>%+bibnum%%?bibnum%. <i>%possiblebibtitle%</i>. %bibauthors%; %journal%%pagenum%. %date%
+
+#bibauthors
+%/citeauthor/cauthor%%/!citeauthor/authors%%-citeauthor%
+
+#cauthor
+%initial%. %?citeauthor%
+
+#grantnum
+%#(10000,99999)%-%initial%%initial%%initial%-%#(10,99)%
+
+#initials
+%initial%.
+%initial%.
+%initial%. %initial%.
+%initial%. %initial%. %initial%.
+
+#initial
+A
+W
+E
+R
+T
+I
+O
+P
+S
+D
+F
+H
+J
+K
+L
+C
+V
+B
+N
+M
+X
+
+#initialseq
+%initial%
+%initial%%initialseq%
+
+#month
+January
+February
+March
+April
+May
+June
+July
+August
+September
+October
+November
+December
+

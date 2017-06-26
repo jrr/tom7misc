@@ -1,0 +1,153 @@
+#needs comp.wrd
+#needs names.wrd
+
+#compabstract
+<font size=+1>ABSTRACT</font><p><b>%compabstractsnt%</b>
+
+#compabstractsnt
+An overview of %proglang% interfacing in a variety of hardware (primarily the %compplace%), prepared by the X%#(5123,9899)% Committe.
+Analysis of the problem of %problem% in the %compos% %compnoun%.
+In-depth analysis of the %surname%-%surname%-4.%#(0,9)% data compression algorithm for the %compplace%.
+
+#compintrosnt
+Everybody knows that %proglang% is better than %proglang%, right? Here are a few applications in which it is not so.
+In technical circles it is a well known fact that the speed of the %compadj% %compnoun% can never exceed the speed of its %compplace%. In this paper I will try to explain for the layman why this is so.
+This paper details the specifications for improvements upon program optimization in %proglang%-compilers.
+This paper summarizes %reference%.
+
+#compheader
+%^compplace% Implementation
+Data
+Problems with %proglang% and %compos%
+Sample %proglang% code
+
+#compbodysnt
+(Note that in %compos%, the <code>%function%()</code> function is called <code>__BSD_%function%()</code>.)
+At this point the %compplace% may become saturated, so it is important to query the %compplace% and check the <code>%function%-ready</code> flag.
+Do not make the common programming mistake, illustrated by the following code: %compcodeblock% ... which looks perfectly normal but has errors which can cause %problem%!
+Examine the %compnoun%. Do you see the problem?
+Fortunately we've already cleared the %compplace%.
+Here is a segment of %proglang% code to illustrate: %compcodeblock%
+However in the revolutionary %compos% system we use the stdlib function <code>%function%()</code>.
+In standard architecture %seereference% the %compnoun% is generally %compverbpast%.
+It should be clear to anyone who as ever seen %proglang% code why the following is wrong: %compcodeblock%
+One should run the <code>%function%()</code> function on this, to prepare it for the %compplace%.
+Passing through the %compplace%, the %compnoun% is %compverbpast% by the %compnoun%.
+The %compadj% %compnoun% is best suited for the %compadj% %compplace%.
+The %compnoun% is of course well-%compverbpast% by now!
+The %compos% programmer's manual warns to avoid accessing the %compadj% %compplace% directly. Therefore, you should use the <code>%function%</code> system call. %seereference%
+The <code>%type% %function%(%type% %variable%, %type% %variable%, %type% %variable%)</code> function can be used to avoid this problem.
+This code (from %reference%) illustrates the correct use of <code>%function%()</code>: %compcodeblock%
+This is a clear demonstration of the %surname%-Baker-%surname% phenomenon %seereference%.
+This is further covered in <i>%reference%</i>.
+Though the %compos% specification warns against it, this type of %compplace% interaction with %compnoun% is perfectly safe, in fact, the %compos% kernel uses it.
+Using the %compplace% in this way can cause a multitude of problems, unfortunately, including %problem%.
+Warning: Do NOT run <code>%function%()</code>.
+With the legacy architecture of the M14%#(100,500)% %compplace% (Thanks, %surname% et al.), the %compnoun% is sure to be %compverbpast% in this step.
+According to %reference%,
+%^reference% incorrectly specifies the <code>%function%(%type% %variable%, %type% %variable%)</code> as taking an extra third parameter %type% %variable%. The %tla% %proglang% library uses only the first two but will accept (and ignore) a third.
+An excellent reference on this subject is %reference%.
+The following formula illustrates the effect: %formula%
+The distribution of %abstractadj% %abstractthing% is given by the following formula: %formula%
+This formula (from %reference%) shows %thingtofindfor% the %abstractadj% %abstractthing%: %formula%
+
+#formula
+<p><center><img %mathimage%></center><p>
+
+#mathimage
+src=/c/math/math1.gif
+src=/c/math/math2.gif
+src=/c/math/math3.gif
+src=/c/math/math4.gif
+src=/c/math/math5.gif
+src=/c/math/math6.gif
+src=/c/math/math7.gif
+
+#problem
+%problem% and %problem%
+a blocking call to <code>%function%</code>
+a null pointer exception
+closing of the socket
+corruption of the %compplace%
+corruption of the <code>extern volatile %type% %variable%</code> variable
+crashing %compos% systems
+crashing the whole internet
+dangerous security problems
+destroying the %tla% table
+
+#seereference
+<font size=-2><sup>%#(1,20)%.%#(1,20)%</sup></font>
+<font size=-2><sup>%#(1,20)%</sup></font>
+<i>(see %reference% and %reference%)</i>
+<i>(see %reference%)</i>
+<i>(see %reference%)</i>
+<i>(see %reference%)</i>
+<i>(this is covered more completely in %reference%)</i>
+
+#reference
+<code>%function%(%#(1,6)%)</code> in the unix man pages
+<code>%function%(%#(1,6)%)</code> in the unix man pages
+<u>A programmer's guide to %proglang%</u> (ISO-%#(1023,99999)%)
+<u>ANSI standard #%#(5123,9889)%: Specification for %compplace% in 64-bit operating systems</u>
+<u>The %compos% system</u> (ISBN: %#(1023,9999)%-%#(1023,99999)%-%#(1023,99999)%-%#(1,99)%
+
+footnote %#(1,20)%.%#(1,14)%
+footnote %#(1,20)%.%#(1,14)%
+the %compos% programmer's manual
+the %compos% specification
+
+#compcodeblock
+<p><code>%codeseries%</code><p>
+
+#codeseries
+%codeseries%<br>%compcode%
+%compcode%<br>%compcode%<br>%compcode%
+%compcode%<br>%compcode%<br>%compcode%
+
+#compcode
+%#(1,10)%0 GOTO %#(1,10)%0
+%#(1,10)%0 PRINT "HI"
+%compcode%<br>%compcode%
+%compcode%<br>%compcode%
+%compcode%<br>%compcode%<br>%compcode%
+%function%(%function%(%const%), %const%);
+%function%(%variable%, %const%);
+%function%(%variable%, %expression%);
+for (x=%const%;x &lt; (%expression%);x++) {<ul>%codeseries%<br>}</ul>
+if (%variable% == (%expression%)) {<ul>%codeseries%<br>}</ul>
+if (%variable%) {<ul>%codeseries%<br>} else return %expression%;</ul>
+%function%();
+%type% %function%(%type%,%type%,%type%,const %type%)
+%type% %variable%, %variable%;
+%type% %variable%[%#(10,100)%] // array;
+%type% * %variable%;
+%variable% = %expression% %operator% %expression%;
+%variable% = %expression% %operator% %expression%;
+%variable% = %expression% %operator% %expression%;
+%variable%-&gt;%variable% = %expression%;
+<!-- -->#define %function%(c) ((%expression% %operator% %const%)%operator%(c))
+<!-- -->#define %tla% (%expression% %operator% %const%)
+
+#comptitle
+%^compadj% %compnoun%
+%^compnoun% concerns in %proglang%
+%^compplace% and %tla%-enhancement
+A Survey And Comparison Of Fault-Tolerant %tla% %^compplace%
+Algorithm for Efficient %^compadj% %^compnoun% in %^compadj% %^compnoun% of %^compadj% Systems
+An Overview of the %tla% Architecture
+Practical Applications of %^compadj% %^compplace% in %compnoun% Algorithms
+Reordering %compnoun% for parallel processing in the %compplace%
+Specification, Simulation, and Verification of %^compadj% %^compplace%
+Technical Specifications for %compplace%
+%^typeofalgorithm% Algorithms for routing on %abstractadj% networks with %abstractadj% %abstractthing%
+%^typeofalgorithm% Algorithms for finding %thingtofindfor% %abstractadj% %abstractthing%
+%^thingtofindfor% %abstractadj% %abstractthing% in %abstractadj% networks
+
+#thingtofindfor
+O() of
+O(congestion + dilation) of
+O(n) of
+C<font size=-2><i>n</i></font>(x) of
+minimum bounds for
+faults in
+

@@ -1,0 +1,15 @@
+!born
+     STOP
+!touch
+     LOCK
+     COPY C 10
+     COPY OUTARG1 "Hello My Friend!"
+:top
+     FUNCTION "SAYMSG"
+     DEC C
+     CMP C 0
+     JNE top
+     UNLOCK
+     COPY OUTARG1 "DIE JERK!!"
+     FUNCTION "SAYMSG"
+     STOP

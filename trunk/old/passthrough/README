@@ -1,0 +1,7 @@
+             Passthrough                                26 June 2017
+
+This is a simple MIDI Passthrough app for windows. It routes MIDI events 
+from one device to another. I used it for many years, but you can 
+probably find another app on the internet that works better, and then 
+you don't need to think about trying to compile this thing.
+

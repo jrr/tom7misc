@@ -1,0 +1,8 @@
+
+(* needs list.hmh *)
+
+fun sync t = sub (syncall [| t |], 0)
+fun wait t = sub (waitall [| t |], 0)
+
+
+fun runcord f = wait (submit f)

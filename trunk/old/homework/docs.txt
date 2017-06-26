@@ -1,0 +1,251 @@
+
+    Homework: Text auto-generation tool.
+
+
+This program generates random texts for you. To see what it can do,
+try visiting http://snoot.org/factory/. You run it by giving it an
+input file on the command line, and it sends the output to stdout
+(prints to the screen).
+
+An input file is essentially a BNF grammar description. This is pretty
+simple, even if you don't know what BNF is. What you do is define a
+bunch of "non-terminals" (these represent classes of text that you
+intend to generate, like "sentence" or "noun" or "question") and
+the various options for that non-terminal. This is done by writing
+a hash-mark #, then the name of the non-terminal (at the beginning of
+the line), then a series of lines listing the options. We can define
+digits, for instance, easily:
+
+#digit
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+It's also possible for options to refer to other non-terminals, or the
+non-terminal you are defining. This is done by writing the name of the
+non-terminal surrounded by percent signs, for example:
+
+#number
+%digit%
+%digit%%number%
+
+Here the non-terminal "number" is defined to be either a single digit,
+or a digit followed by a number. 
+
+
+When Homework is run, it produces a document that fits the grammar of a
+special non-terminal called "main". It does this by randomly choosing
+one of the options for main, and then expanding that recursively.
+
+To affect the odds of an option being chosen, list it more than once.
+The spec for number above tends to produce rather short numbers; a
+better one would be:
+
+#number
+%digit%
+%digit%%number%
+%digit%%number%
+%digit%%number%
+%digit%%number%
+
+With just that you can do a lot of fun stuff. Homework has a bunch of
+extra features to "cheat" this basic idea in order to produce documents
+that don't fit the schema exactly.
+
+%\n% - Produces a newline character.
+
+%% - A literal percent sign.
+
+%*filename% - Inserts the contents of the file "filename".
+
+%"text% - Inserts text following the " and up to the % literally. This
+          is useful as the right-hand-side of a variable assignment. Note
+          that there is no closing quote character. %"% can be used to
+          designate the empty string, which is useful for making empty
+          alternatives or starting an entry with a special character like !.
+
+%?var% - Evaluates to the contents of the variable 'var'.
+
+%#(low,hi)% - When low and hi are numbers, evaluates to a number
+              between low and hi. Also %#x(low,hi)% returns a number
+              in hexadecimal notation.
+
+%var=nonterminal% - Evaluate to an instance of nonterminal (which may
+                    be any of these special forms or just a nonterminal
+                    name), and set the variable 'var' to be that instance.
+                    If the variable is already set, return its contents
+                    instead.
+
+%var:=nonterminal% - Assigns an instance of nonterminal to the variable
+                     'var', but evaluates to the empty string. (Good if
+                     you just want to set up some "global" variables
+                     at the beginning of your program without printing
+                     them out).
+
+%/condition/nonterminal% - if 'condition' is true, then evaluate the 
+			   first nonterminal, otherwise evaluate to
+			   the empty string.
+
+%-var% - unsets the variable; evaluates to empty string.
+
+%^nonterminal% - If the first character of the string returned is a 
+                 letter, make it capitalized.
+
+%^^nonterminal% - Make all words of the string returned capitalized,
+		  like when spelling a title or name. A word begins
+		  at the beginning of the string or following whitespace
+		  characters or - ; > (the semicolon and greater-than
+		  characters help when your strings contain HTML markup).
+
+%^^^nonterminal% - Make every letter in the string uppercase,
+                   irrespective of the HTML markup.
+
+%&nonterminal% - Make it lowercase.
+
+%`nonterminal% - Add "a " or "an " before the non-terminal as
+                 appropriate. This simply checks if the first letter
+                 is a vowel. (Though it skips over whitespace and HTML
+                 tags)
+
+Conditions:
+
+var - a variable name in a condition is 'true' if the variable is set
+      (even to the empty string), 'false' if unset.
+
+rep - false if this is the first time ever choosing this alternative,
+      but true if it has been used before.
+
+!cond - true iff the condition is false.
+
+There are a few other miscellaneous features:
+
+#needs filename
+
+This parses the filename for more non-terminals, allowing you to
+structure large programs across many files. Best to put these at the
+top of your file, and avoid cyclic dependencies!!
+
+Sometimes with all these crazy features your scripts can get quite
+long; you can break up a single long line by using a backslash as
+the last character on the line:
+
+here is one \
+"long" line.
+
+You can also define a nonterminal to be "unique"; every evaluation
+of that nonterminal will produce a different one of its alternatives,
+unless that alternative begins with !.
+
+#!day
+Monday
+Tuesday
+Wednesday
+Thursday
+Friday
+!tomorrow
+!yesterday
+
+Here, the results "tomorrow" and "yesterday" are always available, but
+Monday-Friday will only be returned once if %day% is evaluated
+multiple times. It is a smart idea to put at least one unlimited
+alternative in a unique nonterminal, unless you're sure that it won't
+be evaluated more times than there are entries. (To include an option
+that begins with an exclamation point, escape it by writing a literal
+empty string before it like %"%), ie:
+
+#punctuation
+?
+.
+,
+%"%!
+;
+
+The secret nonterminal %familystats% produces an HTML table with
+statistics on the nonterminals used in generating the document so far.
+It marks with an exclamation mark those whose utilization is high,
+indicating that there was a lot of repetition in the document. This is
+mainly intended for debugging.
+
+          Running as a CGI script (for a web page)
+
+Homework is meant to be run as a CGI script. The macro INCLUDEPATH
+should be a fully-qualified path (ending with /) to the location of
+all of your input files. The input passed on the command line and
+anything it #includes will be looked for here. So change that
+before compiling, and put all the input there.
+
+To run this as a CGI script, put the binary somewhere like
+/home/httpd/cgi-exe/hw. Then, in your cgi-bin directory, make a
+shell script "example" like this:
+
+#!/bin/sh
+
+/home/httpd/cgi-exe/hw example.mst
+
+Now set this script readable and executable by anyone:
+
+chmod a+x example
+
+Assuming your web server is configured correctly, you should be able
+to visit that CGI script and it will generate the page. (Of course,
+your input file must generate HTML in order for this to look good! See
+the examples provided.) In Apache, I use SSI (.shtml) and #include to
+put the output of the Homework inside of another page, which works
+well.
+
+Homework trusts its input, so I caution you against changing it so
+that web users specify the input file as CGI arguments. For instance,
+it could be used to read any file accessible to the web server (though
+it probably won't display anything unless that file contains a line
+that says #main). It's also trivial to create input scripts to homework
+that use ridiculous amounts of memory.
+
+The command line argument -n tells it to output the text directly,
+without any CGI headers.
+
+The argument -d dir tells it to look in "dir" instead of the INCLUDEPATH
+that hw was compiled with for scripts.
+
+           Compiling and using on Windows
+
+If you just want to play around with homework and don't mind doing it
+at the commandline in windows, it can be compiled with Visual Studio.
+From the command prompt, run vcvars32.bat (this puts the compiler
+tools in your path and is included in the Visual Studio distribution,
+usually in ...\visual studio\vc98\bin\vcvars32.bat). Then rename
+homework.cc to homework.cpp (VC expects C++ code to be named with .cpp),
+and then:
+
+    cl -GX -DWIN32 -DINCLUDEPATH=\"\" homework.cpp
+
+This produces an executable called homework.exe, and you can then do,
+for instance,
+
+    homework examples\bandname.mst
+
+
+           Emacs Mode
+
+Included is a major mode for the emacs text editor that allows it to
+syntax-color your Homework code as you write. Emacs is pretty cool,
+if you've never tried it! Follow the directions in homework-mode.el
+to install the mode.
+
+
+That's it!
+
+
+Homework is called Homework because the original intent was to have it
+write my homework for me for some class. I think that was partially a
+joke, though there was a time when I believed that such AI would not
+be particularly difficult... 
+
+   Tom 7         19 Nov 2003
+

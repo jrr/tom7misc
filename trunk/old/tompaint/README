@@ -1,0 +1,14 @@
+
+Way after everyone had graduated to photoshop, I was still using an
+old DOS drawing program called DeluxePaint II Enhanced. That program
+was great. When I started trying to make my own games I decided that
+it didn't cut the mustard, though, so one break I tried to clone it
+again using the Allegro graphics library for DJGPP in DOS.
+
+It was called, "TomPaint II Enchanted."
+
+You can't save, so don't use it for anything important! But it is
+probably a pretty good example of how to do some stuff with Allegro.
+
+Code released in the GPL.
+

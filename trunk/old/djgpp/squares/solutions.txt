@@ -1,0 +1,40 @@
+6 10 15 20
+
+> (0) Mon Feb 22 23:28:06 1999
+> Count: 6 (best 6)
+> Calls to hassquare: 18
+> Calls to recursetry: 7
+     O O O 
+     O - O 
+     O - - 
+
+> (0) Mon Feb 22 23:26:25 1999
+> Count: 10 (best 10)
+> Calls to hassquare: 71
+> Calls to recursetry: 15
+     O O O O 
+     O - O - 
+     O - - O 
+     O - O - 
+
+> (0) Mon Feb 22 23:25:47 1999
+> Count: 15 (best 15)
+> Calls to hassquare: 57767
+> Calls to recursetry: 4151
+     O O O O O 
+     O - - O - 
+     O O - - - 
+     O O - - - 
+     O O O O - 
+
+> (0) Mon Feb 22 22:41:42 1999
+> Count: 20 (best 20)
+> Calls to hassquare: 340
+> Calls to recursetry: 35
+     O O O O O O 
+     O - O - O - 
+     O - - - O O 
+     O O O - - - 
+     O - - - - O 
+     O - O - O - 
+

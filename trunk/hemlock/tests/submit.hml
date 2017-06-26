@@ -1,0 +1,6 @@
+let
+    fun print s = write (stdout, s)
+in
+    submit (fn () => "hello");
+    print "Submitted!\n"
+end

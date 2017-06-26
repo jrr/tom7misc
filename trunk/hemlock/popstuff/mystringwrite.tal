@@ -1,0 +1,76 @@
+
+;; allocating strings.
+;; the popcorn compiler generates a C call (!!) to allocate new empty
+;; strings, but it should be possible to do it in TAL. Here I'm trying
+;; to figure out how to do that...
+
+;; it is not possible!! malloc can only allocate a constant amount.
+;; =(
+
+	INCLUDE	TAL.INC
+	_begin_TAL
+
+
+	TAL_IMPORT	pop_runtime.tali
+	TAL_IMPORT	mystringwrite_i.tali
+
+	TAL_EXPORT	mystringwrite_e.tali
+
+	TYPE	<bogus_option$1 :T4 = ^T[0]>
+
+	CODE
+
+_sw:
+LABELTYPE <All[s1:Ts s2:Ts e1:Tcap e2:Tcap].code {cap: &[e1,e2],EBP: sptr (?E s2 e2),ESP: sptr (?S B4 ?str::se s1 s2 e1 e2)#(?E s2 e2)}>
+	PUSH	DWORD PTR [ESP+4]
+	MOV	EDI,subsume(<B4>,10)
+	MOV	EAX,subsume(<B4>,42)
+	POP	ESI
+	UNPACK	?sz$3,ESI,ESI
+	UNPACK	i$4,EDI,EDI
+	CMP	EDI,[ESI]
+	JAE	_?ArrayBounds
+	MOV	ESI,[ESI+4]
+	MOV	[ESI+EDI],AL
+	MOV	EAX,subsume(<B4>,0)
+	RETN
+
+_makestring:
+LABELTYPE <All[s1:Ts s2:Ts e1:Tcap e2:Tcap].code {cap: &[e1,e2],EBP: sptr (?E s2 e2),ESP: sptr (?S B4 B4::se s1 s2 e1 e2)#(?E s2 e2)}>
+
+;; task is to create a new string and call sw with it.
+
+	PUSH subsume(<B4>, 10)
+
+	CALL 	_new_array1
+	ADD ESP, 4
+
+	PUSH EAX
+	CALL tapp(_sw, <ESP 1 3 s1, EBP 1, e1, e2>)
+	POP EAX
+
+	MOV EAX, subsume(<B4>, 0)
+
+	RETN
+
+_?ArrayBounds:
+	MOV	EAX,DWORD PTR [_ArrayBounds_pkt]
+	FINIT
+	MOV	ESP,EBP
+	POP	EBX
+	JMP	EBX
+
+	DATA
+
+stringdata:
+LABELTYPE <^*[array(5,B1^rw)]>
+COERCE	array(0,0,<B1^rw>,?)
+	DB	"dummy"
+stringref:
+COERCE	pack(<5>,?,<?str>)
+	DD	5
+	DD	stringdata
+
+
+	_end_TAL
+	END

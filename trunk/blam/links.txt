@@ -1,0 +1,61 @@
+
+Description of Genbank format:
+http://www.ebi.ac.uk/embl/Documentation/FT_definitions/feature_table.html
+
+Description of entries in the feature table:
+http://www.lirmm.fr/~mougenot/terms/key_defs.html
+
+Less detailed, simpler explanation of common features:
+http://www.ncbi.nlm.nih.gov/Genbank/genomesubmit.html
+
+
+salmonella typhimurium    vs  e.coli
+3197                         0913
+
+rychezia?? prowzecki  vs    rychezia conneri
+
+
+The pam250 matrix:
+http://helix.biology.mcmaster.ca/721/distance/node9.html
+ Dayhoff suggested using a gap penalty of 6 with PAM250 matrices.
+
+The blosum62 matrix:
+http://helix.biology.mcmaster.ca/721/distance/node10.html
+ Henikoff & Henikoff suggest using a gap penalty of 8 with BLOSUM62 matrices.
+
+
+ A       Alanine
+ C       Cysteine
+ D       Aspartic acid (Aspartate)
+ E       Glutamic acid (Glutamate)
+ F       Phenylalanine
+ G       Glycine
+ H       Histidine
+ I       Isoleucine
+ K       Lysine
+ L       Leucine
+ M       Methionine
+ N       Asparagine
+ P       Proline
+ Q       Glutamine
+ R       Arginine
+ S       Serine
+ T       Threonine
+ V       Valine
+ W       Tryptophan
+ Y       Tyrosine
+
+degenerate:
+ B       Aspartic acid or Asparagine
+ Z       Glutamine or Glutamic acid.
+ X       Any amino acid.
+         termination codon
+
+old pruning method (3197 vs 0913):
+-normalize -parity -amino -minimum 100 
+0% (70752 / 18740436) 18 hits, 19091 pruned    ETA: :03:53:05
+0% (168036 / 18740436) 36 hits, 51286 pruned    ETA: :03:30:00
+1% (190146 / 18740436) 44 hits, 55160 pruned    ETA: :03:39:30
+
+
+blam -fake -normalize -parity -amino -minimum 300 NC_003197.seq NC_000913.seq > stomach.blam

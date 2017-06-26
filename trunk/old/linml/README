@@ -1,0 +1,12 @@
+
+This is a quick implementation of the LinML programming language
+(MinML-like language with concurrency, communication, and linear
+types). It's not meant for writing actual programs (it has no parser),
+nor would you really want to. But there is some neat stuff in it to
+play around with nonetheless.
+
+See "Linear Types for Communication" (Murphy '02 at
+http://www-2.cs.cmu.edu/~tom7/papers/) for formal semantics and
+detailed description.
+
+If you don't know about linear types, you should learn about them!

@@ -1,0 +1,17 @@
+
+Over vacation one year I took a stab at porting my Quickbasic puzzle
+game Escape to the palm pilot. I wish I had finished it, since it was
+a good game and would have been perfect for the palm platform. I think
+I got turned off by the bizarre "database" filesystem, but anyway,
+what's here actually works pretty well and lets you push around blocks
+and everything. I also even managed to port Escape's tileset to 8x8
+monochrome for the palm!!
+
+Code and graphics in the GPL.
+
+
+Note: I new have a port of Escape to modern platforms using the SDL.
+This doesn't include the Palm, but it may interest you anyway:
+
+   http://cvs.sourceforge.net/viewcvs.py/tom7misc/escapex/
+

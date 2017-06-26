@@ -1,0 +1,61 @@
+C:\genome> time ./genome
+NC_005061.seq is 1569804 bytes
+Done parsing.
+
+real	0m3.015s
+user	0m2.180s
+sys	0m0.200s
+
+
+
+(* read lines as chunks (restofline). 
+   read origin as chunk. *)
+
+C:\blam> ./blam
+NC_005061.seq is 1569804 bytes
+Done parsing.
+
+real	0m5.672s
+user	0m3.590s
+sys	0m1.010s
+
+ pauses, as if for gc
+
+1.91 seconds of CPU time (3.07 seconds GC)
+          function            cur 
+---------------------------- -----
+<gc>                         61.6%
+BasicParsing.--               6.8%
+Pos.markstreamex.mark         4.6%
+
+
+
+
+ ** REWROTE PARSER **
+
+time ./blam
+NC_005061.seq is 1569804 bytes
+Done parsing.
+
+real	0m0.849s
+user	0m0.570s
+sys	0m0.150s
+
+
+time ./blam
+NC_002928.seq is 13196694 bytes
+Done parsing.
+
+real	0m7.469s
+user	0m5.930s
+sys	0m0.450s
+
+
+(* accumulates nucleotides in an array now *)
+
+NC_002928.seq is 13196694 bytes
+Done parsing.
+
+real	0m7.429s
+user	0m5.830s
+sys	0m0.390s

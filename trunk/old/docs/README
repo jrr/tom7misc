@@ -1,0 +1,32 @@
+
+These are various documents I've written.
+
+THIS DIRECTORY AND SUBDIRECTORIES ONLY: All of these documents are
+available via the GNU Free Documentation License, available from
+http://www.gnu.org/copyleft/fdl.html or in the file COPYING-FDL. The
+FDL essentially allows you to distribute the text however you like,
+with permission to make changes if you follow the rules.
+
+
+      Permission is granted to copy, distribute and/or modify these
+      documents under the terms of the GNU Free Documentation License,
+      Version 1.1 or any later version published by the Free Software
+      Foundation; with no Invariant Sections, no Front-Cover Texts and
+      no Back-Cover Texts.  A copy of the license is included in the
+      file COPYING-FDL.
+
+sml/
+      At some point, I thought that the reason that SML wasn't popular
+      was that there wasn't a long-winded tutorial that avoided the
+      type theory and concentrated on stuff I think "hackers" like,
+      and which then ends abruptly because I got tired of writing it.
+
+misc/
+      spook.lines - a list of keywords which you can put in
+                    emails to thwart electronic surveillance
+                    systems, such as those deployed by the
+                    US government (Carnivore/DCS1000). This
+                    is meant to work with emacs, and since it
+                    is a modified version of an emacs file,
+                    is distributed under the terms of the
+                    GPL. (see COPYING-GPL)

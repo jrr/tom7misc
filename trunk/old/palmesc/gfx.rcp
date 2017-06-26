@@ -1,0 +1,19 @@
+
+#include "gfx.h"
+
+FORM ID mainf AT (2 2 156 156)
+USABLE
+MODAL
+BEGIN
+	TITLE "Tom's Graphics"
+
+	BUTTON "Yeah" ID otherboot AT (30 140 AUTO AUTO)
+	BUTTON "Ok" ID okbutton AT (CENTER 140 AUTO AUTO)
+
+END
+
+BITMAP ID TILES_ID "pesc.bmp" 
+
+ICON "gfx.bmp"
+
+VERSION 1 "0.2.2"

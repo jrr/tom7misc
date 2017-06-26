@@ -1,0 +1,142 @@
+Examples LITHP -> LITHPasm.                                 Revision 1
+
+Description: How some LITHP code will be transmogrified into LITHPasm. Only
+really handy for Tom 7.
+
+--- LITHP ---
+
+if (x) {
+  saymsg ("Hallo\n");
+}
+
+saymsg ("Heh heh\n");
+
+--- LITHPasm ---
+
+DATA x 0
+
+'IF01
+  CMP X 0
+  JE IF01out
+    COPY OUTARG1 "Hallo\n"
+    FUNCTION SAYMSG
+:IF01out
+  COPY OUTARG1 "Heh heh\n"
+  FUNCTION SAYMSG
+
+A simple compare and jump. I have a feeling that I will need to use a
+register instead of "X".
+
+--- LITHP ---
+
+if (x) {
+   saymsg ("Yes.\n");
+} else {
+   saymsg ("No.\n");
+}
+
+--- LITHPasm ---
+
+DATA X 0
+
+'IF01
+  CMP X 0
+  JE IF01else
+    COPY OUTARG1 "Yes.\n"
+    FUNCTION SAYMSG
+  JUMP IF01out
+:IF01else
+    COPY OUTARG1 "No.\n"
+    FUNCTION SAYMSG
+:IF01out
+  
+Adding the "else" block.
+
+--- LITHP ---
+
+if (x) {
+   saymsg ("x.\n");
+} else if (y) {
+   saymsg ("y.\n");
+} else {
+   saymsg ("neither.\n");
+}
+
+--- LITHPasm ---
+
+DATA X 0
+DATA Y 0
+
+'IF01
+  CMP X 0
+  JE IF01ei1
+    COPY OUTARG1 "x.\n"
+    FUNCTION SAYMSG
+  JUMP IF01out
+:IF01ei1
+  CMP Y 0
+  JE IF01else
+    COPY OUTARG1 "y.\n"
+    FUNCTION SAYMSG
+  JUMP IF01out
+:IF01else
+    COPY OUTARG1 "neiher.\n"
+    FUNCTION SAYMSG
+:IF01out
+
+This adds an "else if" and it starts to take form. We could have another
+else if by simply adding an :IF01ei2. I think the main problem with this is
+that it is a HUGE eater of labels... LITHPasm currently only allows 100, used
+20 times each.
+
+--- LITHP ---
+
+if (X == Y) {
+     saymsg ("Hi.\n");
+} else {
+     saymsg ("Bye.\n");
+}
+
+--- LITHPasm ---
+
+DATA X 0
+DATA Y 0
+
+'IF01
+  COPY A X
+  COPY B Y
+  COPY C 0    '  Desired result of compare (in register R). See Binary.txt...
+  CMP A B
+  CMP R C
+  JNE IF01else
+    COPY OUTARG1 "Hi.\n"
+    FUNCTION SAYMSG
+:IF01else
+  
+Good idea. Though less efficient, I've made it so both sides of a binary
+compare are stored in the registers A and B, and the desired result of the
+comparison (ie ==, <, >) is stored in C and compared with the Result register
+(R).
+
+--- LITHP ---
+
+if (x + 1 < y) {
+     saymsg ("Yehaw.\n");
+ }
+
+--- LITHPasm ---
+
+DATA X 0
+DATA Y 0
+
+'IF01
+  COPY A X
+  ADD A 1
+  COPY B Y
+  COPY C 2
+  CMP A B
+  CMP R C
+  JNE IF01out
+    COPY OUTARG1 "Yehaw.\n"
+    FUNCTION SAYMSG
+:IF01out

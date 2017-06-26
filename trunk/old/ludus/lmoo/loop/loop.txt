@@ -1,0 +1,17 @@
+
+
+#pragma bleed can be used to tell the compiler not to put the normal
+STOP at the end of a method; to let control flow into the next method.
+
+method touch() {
+
+
+
+#pragma bleed
+}
+
+method shot() {
+
+
+
+}

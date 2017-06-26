@@ -1,0 +1,107 @@
+
+exceptions across grid boundaries.
+
+val t = spawn (fn () => raise Oops)
+
+
+syncall [| t |]
+
+
+
+--------------------------------------------------
+
+non-uniform datatypes.
+
+datatype 'a t = A of 'a t * 'a | B of 'a u
+     and 'b u = C of 'b u * 'b | D of 'b t
+
+
+--------------------------------------------------
+
+What happens in a spawn.
+
+EL:  spawn (fn () => 0)
+IL:  spawn (let fun anon () = 0
+            in anon
+            end)
+CPS (closure-converted): 
+     fix fcode (retc, arg, closure) =
+            let rf = #1 retc
+            rf (0, retc)
+     let f = (f, ())   (* no free variables *)
+     let cid = spawn f
+
+.. should instead generate fcode(arg, closure) = ... finish ans, I think.
+
+
+--------------------------------------------------
+
+
+difficulties writing marshall/unmarshall in popcorn:
+
+ .. int_t is a flat tuple, but popcorn would try to
+ represent it through a level of indirection
+
+ .. code component is not a valid popcorn type, so
+ would have to /\ abstract that, but would it work?
+
+ .. pointers and labels cannot be turned into words
+ to hash; so would have to pass in a comparator
+ function. (TAL can compare labels and ttts with CMP,
+ I checked.)
+ 
+ .. calling popcorn is a pain in the ass, anyway.
+
+ instead, just write it in TAL directly:
+
+    keep: partial map of ttt pointer -> int
+          the int is the index into the
+          "array" of ttts that we are creating
+          int the string.
+    
+          queue of ttts to be processed (they
+          should be in partial map already,
+          and should appear in order corresponding
+          to their indices)
+
+          current string so far. (Maybe as list
+          of strings and strcat later? could
+          put the strings in the map)
+    ...
+
+--------------------
+
+It will probably be a good idea to do the following
+transformation:
+
+let fun f = ...
+in f
+end e                 (f \notin fv(e), otherwise rename)
+
+==>
+
+let fun f = ...
+in f e
+end
+
+Because f now doesn't escape. I generate that kind
+of let for fn expressions, so it would arise whenever
+anyone writes
+
+(fn x => ...) e
+
+
+
+low level optimization:
+
+http://www.asdf.org/~fatphil/x86/pentopt/
+
+
+fn a b c => e1
+ | d e f => e2
+
+becomes
+
+ fn x => fn y => fn z => case (x, y, z) of
+                            (a, b, c) => e1
+                          | (d, e, f) => e2

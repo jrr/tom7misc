@@ -1,0 +1,81 @@
+               ммммммммммм           ммммммммммм           ммммммммммм 
+     ллллллллл л         л ллллллллл л         л ллллллллл л         л
+     ллл       л   ллллллл ллл       л   ллл   л ллл   ллл л   ллллллл
+     лллллл    л         л ллл       л         л ллллллллл л      лллл
+     ллл       ллллллл   л ллл       л   ллл   л ллл       л   ллллллл
+     ллллллллл л         л ллллллллл л   ллл   л ллл       л         л
+               ппппппппппп           ппппппппппп           ппппппппппп
+                                Version 1.0
+
+
+                              Sending Levels
+
+
+     If you have any levels which you have made, feel free to send them
+my way! The Escape package includes the proprietary XENCODE and XDECODE
+programs, which will encode levels into mailable text format. You can also
+use UUENCODE, or attach the levels to an e-mail in AOL or MIME format.
+(XENCODE is probably the best to use, because it is standardized and
+compresses the levels) Please note that I cannot accept a level which I
+cannot beat. This means that you should do one of the following:
+
+ ў Send me a solution in the e-mail message. This can be like "1U3R4D2U"
+(1 up, 3 right, 4 down, 2 up) etc. This will do fine.
+
+ ў Send me a solution macro recorded in the game. This is the best way
+except that the macro recording is not "supported". (It's there, just be
+careful!) The macros can be mailed in any of the normal manners. (see above)
+To record a macro, you press Alt-R; playback is with Alt-P. Alt-S toggles
+step playback mode. 
+
+ ў Pray that you can beat it on your own. I am pretty good at these things,
+but I won't spend more than a few minutes on it if I'm not
+even sure it's possible. If you want me to try to beat it on my own, you
+can send me a solution macro, with which I can test to see if the level
+is possible without watching. Then I'll try. =)
+
+     Also, do not forget to include your name and e-mail address! If you
+don't want this information accompanying the level, just let me know.
+Levels which I receive, if they are decent, will most likely be put in
+the Escape User Level Archive, free for downloading. This archive will
+also be included for registered users and people who send me a SASE and blank
+disk. (Note that the levels will be offered for free; registered users are
+not paying for your levels, they are merely included free.)
+
+Here's a form to fill out when you submit levels (just an example; do
+whatever you want):
+
+Real Name:   ____________________ [ ] I want this to appear with the level.
+
+E-mail:      ____________________ [ ] I want this to appear with the level.
+
+Home Page:   ____________________ [ ] I want this to appear with the level.
+
+Level Title: ____________________
+
+Filename:    ____________________
+
+Suggested Difficulty Rating:
+
+[ ] Easy   [ ] Tricky   [ ] Hard   [ ] Painful
+
+This is where to send the levels:
+
+ў ImightbeTM@aol.com - This is the best place and will get the fastest
+response.
+
+ў Mail a disk to:
+
+Tom Murphy
+Re: Escape (1.0) Levels
+339 Still Hill Rd
+Hamden, CT 06518.1830
+USA
+
+ў Upload them via FTP to members.aol.com:/spoons1000/incoming - I rarely
+check here but if you are sending a large amount of levels this is a good
+place to do it (please compress them in ZIP/ARJ/LZH format, though). You
+should also drop me an e-mail at ImightbeTM@aol.com telling me that they
+are there.
+
+5 September 1996

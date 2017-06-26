@@ -1,0 +1,329 @@
+#needs names.wrd
+#needs adj.wrd
+#needs adv.wrd
+#needs nouns.wrd
+
+#main
+%infoheader% %review%<p><i>%songlist%</i>
+
+#review
+%reviewedby%<br>%stars%<p>%reviewintro% %reviewtext% %reviewout%
+
+#songlist
+%songname%
+%songname%, %songlist%
+%songname%, %songlist%
+
+#infoheader
+<img %albumgfx% align=right alt="Picture">%infotable%
+
+#infotable
+<table><tr><td><b>Album Title:</b></td><td>%albumname%</td></tr><tr><td><b>Publisher:</b></td><td>%publisher% (%year%)</td></tr></table>
+
+#albumname
+%fullname%
+%^adj% %^noun%
+%^preadj% %^adj% %^noun%
+%^noun%, %^adv%
+The %^noun%
+
+#albumgfx
+src=/c/album/1.gif
+src=/c/album/2.gif
+src=/c/album/3.gif
+src=/c/album/4.gif
+src=/c/album/5.gif
+src=/c/album/1.jpg
+src=/c/album/2.jpg
+src=/c/album/3.jpg
+src=/c/album/4.jpg
+src=/c/album/5.jpg
+src=/c/album/6.jpg
+src=/c/album/7.jpg
+src=/c/album/8.jpg
+src=/c/album/9.jpg
+src=/c/album/10.jpg
+
+#reviewedby
+<p><i>By %fullname%</i>
+
+#str
+<img src=/c/album/star.gif width=34 height=36 alt="*">
+
+#stars
+%str%
+%str%%str%
+%str%%str%%str%
+%str%%str%%str%
+%str%%str%%str%%str%
+%str%%str%%str%%str%%str%
+
+#describerelease
+major-label
+independent
+independent
+full-band
+
+#reviewintro
+%bandname% is bound to shock the music world with this latest effort.
+This is %bandname%'s first %describerelease% release%snt01%
+On %bandname%'s classic hit, %genre% king %^boyname% %^surname% and his band continue to %serve% %describemusic% %grooves% at a %describepace% pace.
+%^genre% veterans %fullname% and %fullname% return to their roots with this album, which %albumdoes%.
+This is %bandname%'s second singles collection, which %albumdoes%.
+
+#snt01
+.
+, and it sure shows.
+ -- clearly evident by the fact that it is %baddescribemusic% %badmusicnoun%.
+
+#reviewtext
+%reviewsnt% %reviewsnt%
+%reviewsnt% %reviewtext%
+
+#musicscene
+college
+top 40
+alternative
+speed-%genre%
+R&B
+hip-hop
+
+#albumdoes
+is sure to rock the %musicscene% music scene
+rather disappoints
+combines live performances of old favorites with new studio tracks
+rocks harder than ever
+
+#reviewsnt
+%^describemusic% %grooves%, %describemusic% %grooves%, and a %describepace% %pace% which will %please% even the most %savvy% %listener%.
+This is the kind of %badmusicnoun% which drives a metronome to suicide.
+Recorded during the '%#(70,95)% %tourtype% tour, this album %albumdoes%.
+Everyone's favorite %genre% master consistently offers the %describemusic% %grooves% which made this band's live performances so famous.
+This album takes risks and %albumdoes%.
+<i>%songname%</i> was #%#(2,6)% on the Billboard charts in 199%#(5,7)%%hitwhy%, and you can expect another showing with <i>%songname%</i> in 199%#(8,9)%.
+
+
+#hitwhy
+<!-- -->
+ (God only knows why)
+ (due to its strong backing by WEA)
+ (because they sold out)
+ (due to its patented %describemusic% %grooves%)
+
+#tourtype
+tribute
+reunion
+reunion
+breakup
+debut
+"secret"
+homecoming
+
+#listener
+ears
+moron
+listener
+listener
+musical conisseur
+
+#pace
+pace
+tempo
+
+#please
+please
+excite
+insult
+
+#savvy
+sophisticated
+savvy
+experienced
+inexperienced
+
+#describepace
+furious
+leisurely
+masterful
+ungainly
+
+#serve
+serve
+serve
+push
+offer
+offer
+
+#publisher
+%publ%
+%publ%/%publ%
+
+#publ
+WEA
+Electric
+Warner
+Elektra
+General Motors
+Spastic Records
+
+#describegroup
+dynamic
+impassioned
+original
+influential
+
+#describemusic
+catchy
+new-age
+impassioned
+dynamic
+original
+infectious
+sharp
+smart
+heartfelt
+serious
+danceable
+rocking
+infectious
+influential
+familiar
+emotive
+unforgettable
+eerie
+inventive
+
+#grooves
+grooves
+riffs
+hooks
+choruses
+lyrics
+intros
+instrumentals
+
+#genre
+punk
+hip-hop
+trip-hop
+rock
+rockabilly
+big band
+ska
+electronica
+jungle
+house
+rock
+indie
+jazz
+spoken word
+gospel
+opera
+acoustic
+bluegrass
+choral
+country
+folk
+gothic
+instrumental
+lounge
+R&B
+rap
+surf
+pop
+metal
+funk
+dance
+alternative
+classic rock
+ambient
+cajun
+classical
+industrial
+new age
+reggae
+
+#baddescribemusic
+generic
+formula
+boring
+overcommercialized
+sell-out
+
+#badmusicnoun
+garbage
+trash
+noise
+crap
+drivel
+
+#reviewout
+This is certainly one of the most %describegroup% %genre% bands of all time.
+This is one piece of %baddescribemusic% %genre% %badmusicnoun%. Not worth your time.
+
+#year
+19%#(70,98)%
+
+#bandname
+The %fullname% %^trio%
+%fullname% %^number%
+%^number% %^adj% %^plnoun%
+%^number% %^plnoun% and %^`captang%
+The %^intangible%
+The %^plnoun%
+
+#trio
+trio
+trio
+trio
+duo
+quartet
+sextuple
+octet
+
+#number
+two
+three
+four
+five
+six
+seven
+eight
+nine
+
+#plnoun
+cars
+rats
+fogs
+frogs
+drums
+microphones
+turntables
+
+#captang
+%^tangible%
+
+#preadj
+fast
+big
+mellow
+big
+fast
+
+#songname
+%#(0,100)%
+%^girlname%
+%^genre% Gods
+%fullname%
+%^adj% %^noun%
+%^preadj% %^adj% %^noun%
+%^noun% (%^adv%)
+The %^noun%
+%^adj% %^boyname%
+%^genre% Queen
+%surname%, %^noun%
+%^noun% %^adv%
+%^preadj% %^adj% %^noun%
+%^noun% (%^girlname%)
+%^`noun%
+

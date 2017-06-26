@@ -1,0 +1,6 @@
+
+let 
+  exception X of int
+in
+  X
+end

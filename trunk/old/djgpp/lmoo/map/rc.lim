@@ -1,0 +1,59 @@
+   (, 
+     (# '(
+         This is the default limp rc file for the map editor. A lot
+   of the functionality of the editor is here; note how crippled
+   the editor gets without it! Add your own commands, toolbar icons,
+   and key bindings...
+                          -  Tom 7
+      ))
+
+
+     (verbose -1)
+
+     (# '(some functions...))
+
+     (fun cmd-load () (? (load-map (= temp (get-file `load map...` `.\` LMP)))
+                              (status (& `~GLOADED: ~0` (set *SAVENAME* %temp)))
+                              ))
+
+     (fun cmd-save-as () (, (save-map (set *SAVENAME*
+                       (get-file `save as...` `.\` LMP) ))
+                            (status (& `~GSAVED: ~0` %*SAVENAME*))
+                       ))
+     (fun cmd-save    () (, (? (== NULL (% *SAVENAME*))
+                               (set *SAVENAME* (get-file `save as...` `.\` LMP))
+                               )
+                            (save-map (% *SAVENAME*))
+                            (status (& `~GSAVED: ~0` %*SAVENAME*))
+                       ))
+     (fun fact (a) (, (test %a) (? (> (% a) 0) (* (% a) (fact (- (% a) 1))) 1)))
+
+     (# '(load in some keybindings...))
+     (bind ESC       '(quit))
+     (bind TAB       '(# (toggle-onlyroot)))
+     (bind TILDE     '(# (show-console)))
+     (bind BACKQUOTE '(# (show-console)))
+     (bind F1        '(# (, (show-console) (help))))
+     (bind BACKSLASH '(# (toggle-bluestuff)))
+     (bind 0         '(# (set-paintlayer 0)))
+     (bind 1         '(# (set-paintlayer 1)))
+     (bind 2         '(# (set-paintlayer 2)))
+     (bind 3         '(# (set-paintlayer 3)))
+
+     (# '(save as...))
+     (bind A         '(# (cmd-save-as)))
+                         
+
+     (bind C-S       '(# (cmd-save)))
+     (bind L         '(# (cmd-load)))
+
+
+     (# '(start up the toolbar! x y icon1 cmd1 icon2 cmd2 ...))
+     (toolbar 580 12 0 '(cmd-save) 1 '(cmd-load))
+
+     (add-loop 15 7 8 9)
+     (add-loop 30 212 213)
+
+     (verbose 0)
+   )
+   (test `[~b*~0 ~eLoaded Tom7's rc script ... ~b*~0]`)

@@ -1,0 +1,36 @@
+
+/* map unmarshall over a vector */
+
+#include <core.h>
+
+union ttt {
+  int iii;
+  string sss;
+  ttt rrr;
+  ttt aaa[];
+  /* code */
+
+  /* indirect only appears during unmarshalling; 
+     anywhere else means a bug. In particular, 
+     we don't have to marshall it. */
+
+  int indirect;
+}
+
+extern ttt unmarshall (a na<a>(int, a)[], 
+		       string ns(int),
+		       string s);
+
+ttt umvec (a na<a>(int, a)[],
+	   string ns(int),
+	   ttt s[]){
+  int ss = size(s);
+  ttt dummy = ^ttt.iii(0);
+  ttt out [] = na(size(s), dummy);
+
+  for(int i = 0; i < ss; i ++) {
+    out[i] = unmarshall(na, ns, s[i].sss);
+  }
+
+  return ^ttt.aaa(out);
+}

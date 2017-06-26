@@ -1,0 +1,14 @@
+
+group is
+
+../sml-lib/util/stringutil-sig.sml
+../sml-lib/util/stringutil.sml
+
+../sml-lib/files/mp3/id3v11-sig.sml
+../sml-lib/files/mp3/id3v11.sml
+
+../sml-lib/misc/params-sig.sml
+../sml-lib/misc/params.sml
+
+
+id3tool.sml

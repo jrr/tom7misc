@@ -1,0 +1,6 @@
+
+Creating dataflow networks (here the prime sieve of Eratosthenes) in c
+with pipe and fork. prime-happy.c is straighforward; the other
+versions are obfuscated.
+
+Code licensed under the GPL.

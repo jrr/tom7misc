@@ -1,0 +1,18 @@
+
+bestalign:
+
+It occurs to me that if we don't need to record the actual match but
+only its score, then we don't need to allocate n1*n2 space; instead we
+can get by with 2*min(n1, n2) space. wlog assuming s1 is shorter, simply
+allocate two arrays of length n1. We maintain the invariant that the first
+of these two arrays is filled in (this can be done in the base case easily)
+and then compute the second. Note that we always know the first element of
+the new array, and then the rest of the cells only depend on the previous
+row. This should take the memory allocation down a lot, at a minimum.
+
+(Actually, it also seems that we can fit this all in typical L1 caches;
+even assuming an array of size 5000, that's only 20kb for each of our two
+lines!!)
+
+
+  ... done!

@@ -1,0 +1,30 @@
+
+ - Evaluation is deterministic with the current primitives (except for
+when "print" statements happen). Nondeterminism is one reason to use a
+concurrent language, but perhaps a deterministic concurrent language
+is still useful? (MUCH easier to reason about?)
+
+(Yet, issues like deadlock still exist)
+
+Sure, concurrency without nondeterminism would be good enough for
+doing what a typical Concert app would do. Except, I think I'd want
+a "sync":
+
+newchan c1, c2, c3
+
+spawn a (has c1send)
+spawn b (has c2send)
+spawn c (has c3send)
+
+sync c1recv x => .. something using up x, c2rect, c3recv ..
+   | c2recv x => .. something using up x, c1recv, c3recv ..
+   | c3recv x => .. something using up x, c1recv, c2recv ..
+
+Now we have non-determinism again.
+
+
+
+
+To read:
+
+Chandy and Taylor (1992) define an elegant parallel programming language PCN (Program Composition Notation) based on:

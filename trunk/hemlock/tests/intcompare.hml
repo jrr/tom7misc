@@ -1,0 +1,14 @@
+
+let
+    import "print.hmh"
+
+    fun rep n =
+        if n > 5
+        then print "Stop.\n"
+        else (print "Go.\n";
+              rep (n + 1))
+
+in
+    rep 0
+
+end

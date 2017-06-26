@@ -1,0 +1,16 @@
+
+let
+
+    datatype sum = A of int | B of string
+
+in
+
+    case (A 42, B "s") of
+(*        (A x, A y) => x + y
+      | *) (A z, B u) => z
+
+      | (u as B a, A b) => b
+(*
+      | (B c, B d) => 1
+*)
+end

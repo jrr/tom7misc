@@ -1,0 +1,47 @@
+LITHP - "Ludus: It's The Happy Program!"                  Revision 1
+
+Description: Documentation on the syntax of the object scripting language,
+LITHP. Final version.
+
+###### #### General:
+
+Despite Lithp's nomenclatorial parody of Lisp, syntax is intended to mostly
+resemble C.
+
+As in C, whitespace is ignored, except for inside // type comments
+and inside string literals.
+
+Lithp is NOT case-sensitive.
+
+All variables are global.
+
+###### #### Data types:
+
+There are but 2 data types: STRING and INT.
+
+Indeed, STRING is actually a pointer stored the same way as an INT, and
+the assembler will not complain at all if you try to interchange them
+(except when the program runs and crashes itself).
+
+An INT is a signed word (Two bytes). The range is -32767 to 32767.
+
+###### #### Remarks:
+
+The remarks are the same as canonical C:
+
+/*   for multiline
+     block quoting
+                    */
+
+// For single-line quotes and comments
+
+In inline assembler mode, you may also comment with REM. In most
+situations, extra characters on a line will be ignored, so
+
+COPY C 5336      ' copy iterations into reg C
+
+will parse fine (but the syntax is not especially recommended).
+
+###### #### Syntax: If
+
+

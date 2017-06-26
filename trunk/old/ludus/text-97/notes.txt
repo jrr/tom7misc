@@ -1,0 +1,34 @@
+
+
+For moving between maps.
+
+portal (
+     string DESTMAPNAME,
+     string START_GLYPH,
+     int WIDTH,
+     int x_start,
+     int y_start
+       )
+
+would load up map DESTMAPNAME at (x_start,y_start) if the player is aligned
+within WIDTH tiles to the right of the object (or on the object itself)
+appears as START_GLYPH.
+
+Going between two maps, it should check if it is the same MIDI file, and
+then not stop and restart it if so.
+
+--
+
+For defining objects in the maps (and other objects) with nice names
+
+We have an equivalency file, which lists the object raw name (filename) and
+their Nice Sounding Equivalent
+
+PORTAL Portal
+CENTPD01 Centipede1
+SHRUB Shrub
+KROBE01 KingRobe
+
+et cetera.
+
+I guess.

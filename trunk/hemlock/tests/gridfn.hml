@@ -1,0 +1,7 @@
+let
+    fun f () = "hello"
+    val t = submit (fn () => f)
+in
+    write(stdout, sub(waitall [| t |], 0) ());
+    write(stdout, "\n")
+end

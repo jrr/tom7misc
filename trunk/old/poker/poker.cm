@@ -1,0 +1,14 @@
+group is
+
+/usr0/src/sml-lib/util/listutil-sig.sml
+/usr0/src/sml-lib/util/listutil.sml
+
+/usr0/src/sml-lib/util/stringutil-sig.sml
+/usr0/src/sml-lib/util/stringutil.sml
+
+
+cards-sig.sml
+cards.sml
+
+poker-sig.sml
+poker.sml

@@ -1,0 +1,71 @@
+Proposed specification for ludus maps:               revision 2.1
+
+(Revised 5.31.97 to add .LMO object-list files.)
+(        6.17.97 to add new flag)
+
+This is straight binary data, set up so that you can see what each field
+is used for. \ indicates that the next 2 characters are a hex digit.
+Parenthesis indicate an unknown value of a specific data type.
+
+[*\00MAP]   ; 5 byte file-type indicator (or maybe *\00LMP)
+[DUNGN001]  ; 8 byte ascii filename. (Used for loading/caching within the game
+            ; -- should be the same as its filename. Zero-filled if it doesn't
+            ; reach 8 characters.
+[ROCKPAL\00]; Palette file. Zero filled.
+[DUNGSET\00]; Tileset, zero-filled again.
+[DEMONSNG]  ; Default midi music file. Obviously can be changed, can be null.
+            ; Zero-filled.
+[DUNGN001]  ; LMO object-list file for this map. 0-filled, also can be null.
+[(word)]    ; Width of map in tiles
+[(word)]    ; Height of map in tiles
+[(word)]    ; word-length pointer to first element of map data
+[(word)]    ; word-length pointer to first element of layer 2
+[(word)]    ; word-length pointer to first element of layer 3
+[(word)]    ; word-length pointer to first element of flags layer
+            ; Note: Do these have to be bigger than words? They might.
+[(word)]    ; Default X coordinate for start
+[(word)]    ; Default Y coordinate for start
+[(word)]    ; Map flags 1
+         1111111 ;
+1234567890123456 ; 
+X                ; (1) Display map name when entering map
+ X               ; (2) Override default continuity of MIDI between maps
+                       with same MIDI file (start it again no matter what)
+  XXXXXXXXXXXXXX ; (undefined)
+[(word)]    ; Map flags 2 (undefined so far!)
+[(word)]    ; Map flags 3 (user)
+[(word)]    ; Pointer to the asciiz string for the name of the map.
+; More text/optional stuff goes here.
+[Moribund Dungeon, level 1\00] ; Name of the map. (Depending on flags,
+              displayed when the player enters.) Can be null.
+[(char)]    ; map data (layer 1) y-first.
+[(char)]    ; map data (layer 2) y-first.
+[(char)]    ; map data (layer 3) y-first.
+[(char)]    ; map data (flags layer) y-first.
+[\00*\00]   ; Signalling end of the file (shouldn't be necessary if all the
+            ; access is done correctly and all the fields are set right!)
+
+Questions:
+
+Should the map data be character only? I don't know if we'll need more than
+255 tiles or not... but word-size is quite large and will make the map files
+REALLY big.
+
+Is there a better way to store layers 2 and 3, since they will be mostly
+zeros, or should we just rely on the pak file compression to do this?
+(Probably #2!)
+
+What other flags can you think of?
+
+Is there anything missing?
+
+What is a good default file-extension? My vote is ".lmp" for Ludus MaP.
+Though they used it in Doom, it's better than .map, which EVERYONE uses.
+
+Do we need a checksum? I don't think we do.
+
+OK, get back to me and/or implement this. =)
+
+Cheers,
+
+Tom 7

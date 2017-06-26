@@ -1,0 +1,18 @@
+
+#include "learn.h"
+
+FORM ID learnform AT (2 2 156 156)
+USABLE
+MODAL
+BEGIN
+	TITLE "Learn Me 1.0"
+
+	BUTTON "Ok" ID okbutton AT (CENTER 140 AUTO AUTO)
+
+	BUTTON "Click Me" ID clickme AT (CENTER 118 AUTO AUTO)
+
+END
+
+ICON "learn.bmp"
+
+VERSION 1 "0.2.2"

@@ -1,0 +1,45 @@
+Easy: add more toolbar stuff.
+
+needed for 1.0:
+fix multiple tilesets! Aaaargh.
+maplimp commands which show/hide layers.
+fix copying of parts in resize-map
+edit object file
+History in console. Up/Down to go between them.
+Fix scrollback in console.
+make that status bar with x/y/tile be a different window and update it
+          when the mouse moves etc.
+do drawstyles. (drawstyle randomlist 1 2 3 4 5 6 1 3)
+fix the /************/'s and FIXME's.
+find out some better way of organizing the windows. Define constants
+Is calculation of tile position from mousepos one off? Try to draw with
+mouse in column 0
+Copy and paste map areas. Save areas to limp variables.
+
+ui-to-do:
+make a kind of window which has several prompts, so you could do
+something like:
+
+(promptbox `MAPNAME` `long map name` `MAPINFO` `map info/creator/date etc.`
+           `DEFMIDI` `default midi to play`)
+
+Work on generalized window class. Should be able to spawn windows with
+limp code. Should be able to have windows change their draw order.
+(with linked list of window indexes? or array?) 
+
+Move the key-name-to-key-index to some array to search so it's not a
+big nasty if statement.
+
+also:
+make (add-animation
+Map editor eventually needs a text-editor, 'info-browser', and an object
+browser. Some sort of standard for object documentation would be useful
+as well.
+
+
+limp-to-do:
+more tolerant of whitespace ie ( + 1 2 3)
+(Perhaps a function which compresses limp input, removing unnecessary
+whitespace.)
+really looks for closing parentheses ie (help
+

@@ -1,0 +1,27 @@
+
+group is
+
+/usr/share/smlnj/src/smlnj-lib/RegExp/regexp.cm
+
+stringutil-sig.sml
+stringutil.sml
+
+params-sig.sml
+params.sml
+
+reutil-sig.sml
+reutil.sml
+
+hsock-sig.sml
+hsock.sml
+
+http-sig.sml
+http.sml
+
+neo-sig.sml
+neo.sml
+
+shop-sig.sml
+shop.sml
+
+shopmain.sml

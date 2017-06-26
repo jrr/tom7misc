@@ -1,0 +1,859 @@
+               ‹‹‹‹‹‹‹‹‹‹‹           ‹‹‹‹‹‹‹‹‹‹‹           ‹‹‹‹‹‹‹‹‹‹‹ 
+     €€€€€€€€€ €         € €€€€€€€€€ €         € €€€€€€€€€ €         €
+     €€€       €   €€€€€€€ €€€       €   €€€   € €€€   €€€ €   €€€€€€€
+     €€€€€€    €         € €€€       €         € €€€€€€€€€ €      €€€€
+     €€€       €€€€€€€   € €€€       €   €€€   € €€€       €   €€€€€€€
+     €€€€€€€€€ €         € €€€€€€€€€ €   €€€   € €€€       €         €
+               ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ           ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ           ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ
+                                Version 1.0
+
+                               First Release
+
+                       Copyright (c) 1996 Tom Murphy
+                            All rights reserved.
+
+                               19 August 1996
+
+Note: Please read this file with a monospaced ASCII font. Dos EDIT works
+nicely, or use the accompanying T.COM (type T escape.doc).
+
+     Well, Escape is feeling done, sort of. This is the first release
+version, so don't expect everything to work perfectly, though I have
+done a lot of testing and things should be ok. If you find any bugs at
+all in this version please do send them my way.
+
+                                                  €ﬂﬂ€ﬂﬂﬂ€ﬂﬂ€ﬂﬂﬂ€
+If you're a computer wiz and don't want to read   € ﬂ€ ﬂ € ﬂ€€ €€
+the installation and basic instructions, skip to  € €€ € €ﬂ €€ €€
+the part where this appears:                      ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ
+                                                 €ﬂ ﬂ€ﬂ €ﬂ€ €ﬂ€ ﬂ€ﬂ
+                                                 ﬂ€  €  €ﬂ€ €ﬂ‹  €
+                                                 ﬂﬂ  ﬂ  ﬂ ﬂ ﬂ ﬂ  ﬂ
+                          (This is just a trick. This never appears.
+                          get off your high horse and read the docs
+                            like everyone else!)
+
+     ‹‹ ‹‹ ‹‹
+  ‹  €‹ €‹ €   ‹    What is Escape?               
+     €‹ ‹€ €‹
+
+
+     Escape is a fun VGA puzzle game for PC compatible computers. It is
+rather detailed and engaging, does not force you to solve the puzzles
+in any particular order, and allows the user to create his or her own
+levels. (And much more!)
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€   What does it need?
+ €€€€ ﬂ€ﬂ € ﬂ€€€€
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ
+     Escape needs very little to run. A 286 with 1 meg of ram and VGA
+will do it. The game will run off a 1.44 mb floppy disk. However, Escape
+was not designed to be run on slower computers. Speed will not make the
+game impossible to play, but will make the screen display and disk access
+much slower, decreasing the overall quality of gameplay. This is the
+recommended configuration:
+
+ ˛ 486 dx/33 or better processor.
+ ˛ 4 mb of ram (8 mb for running under Win 95)
+ ˛ PC Speaker
+ ˛ Microsoft compatible mouse
+ ˛ VGA (320x200x256)
+
+     Escape runs OK in Windows 95, provided you run it in a full screen
+DOS window. You do NOT have to "restart the computer in MS-DOS mode" to
+play.
+
+     Escape may run fine in Win 3.x, but it is severely discouraged.
+Please exit Windows to DOS (not a DOS shell) before playing.
+
+     ‹‹ ‹‹ ‹‹        
+  ‹  €‹ €‹ €   ‹    Okay, how do I play?
+     €‹ ‹€ €‹
+     
+     First you'll need to decompress the archive. You should not be
+reading this file if the archive is not already expanded, so it is safe
+to assume that this is already done. Once this is done, you can play
+the game.
+
+ ˛ This game was not designed to be run under Windows 95. It uses very
+few system resources and so should run perfectly well, and it does,
+but be advised that it will always run better without interruption and
+from DOS. The recommended way to launch the game is from a full-screen
+DOS window. (You can use the file manager too, but then you can't use
+command line switches.)
+
+So run Escape.exe. DOS users type:
+
+ESCAPE
+
+While in the proper escape directory, of course (for example C:\ESCAPE\
+if that is where you decompressed it to).
+
+     Once the game starts, the first thing you'll have to do is pick a
+user. You can create a new user by pressing "N" and delete an old one by
+pressing "D". Select the one you want and press [ENTER]. Your progress on
+campaigns and your character will be saved. (Note that if you create a new
+user, you must give a valid DOS filename (8 characters or less)! If you
+enter a bad filename, Escape will either truncate it or make you start
+over. You do not need to make your own user to play the game, though
+if more than one person will probably be playing the game, your best
+bet is to make separate users to keep track of progress separately.
+
+     When you start, you'll get a menu, where you can either pick a
+'campaign' (whole bunch of levels stuck together) or an individual level,
+or change your character. You chose these options by pressing the numbers
+next to them (press 3 to change your character, for example). The characters
+are all the same other than the way they look. To start, pick campaign mode.
+
+     There are several campaigns included with the game, but you should
+start with "tutorial". Type in Tutorial and press enter.
+
+     Tutorial is the Escape tutorial. It contains 11 levels which attempt
+to illustrate as best as possible how each of the 35 or so blocks work. You
+should try to complete all of these levels before moving on to the actual
+game. If you have trouble completing them, you can read the list of tiles
+and what they do, or the solution list for the tutorials.
+
+     On the campaign menu, you are shown a list of level titles. Navigate
+the menu with the arrow keys and PgDn/PgUp, and press Enter to start a
+level. Levels which have been beaten by the current user will have an
+asterisk (*) next to them.
+
+     In the game, you move your character around with the arrow keys. You
+can restart the level by pressing [Enter], or quit by pressing [ESC]. Sound
+is toggled with "S", and a little icon is displayed in the lower right-hand
+corner to indicate the current status of the sound.
+
+     The tutorial attempts to nonverbally show you how the game is played,
+so theoretically I could leave you with just this information and you would
+have enough to learn. So, for those who have particularly big puzzle-
+solving egos, feel free to go play at this point. But come back when you're
+ready and read about Escaped, the Escape level editor.
+
+If you are having trouble, please see the end of this document with the
+tile descriptions and tutorial walkthrough.
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€   For advanced users... (novices should skip to the
+ €€€€ ﬂ€ﬂ € ﬂ€€€€             next section which covers the level editor,
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ             Escaped)
+
+     You can load individual files from the command line:
+
+          ESCAPE level
+
+     These levels end in .esc, and are created with the included level
+editor, Escaped. User #1 (which is always "Nobody") will automatically be
+selected.
+
+     These are the extensions used for Escape data files:
+
+          .XCP - Escape Campaign file. (ex Tutorial.xcp)
+          .ESC - Escape Individual Level. (ex frog.esc)
+
+     While playing a level, "L" will load a new level, and "C" will load
+a new campaign.
+
+
+     For really advanced stuff, see the official Escape web page at:
+
+http://members.aol.com/vroomfonde/escape
+
+     ‹‹ ‹‹ ‹‹       I'm frustrated with these levels, so I want to 
+  ‹  €‹ €‹ €   ‹    make others suffer with my OWN levels. How do I
+     €‹ ‹€ €‹       use Escaped?
+                     
+
+     ESCAPED.EXE is the level editor.
+
+     The requirements for Escaped are slightly more than Escape; a
+Microsoft compatible mouse is required. I would also highly recommend
+a small knowledge of DOS, for navigating and moving files that you
+create. You can also do this through the File Manager in Windows 95.
+
+     Run ESCAPED.EXE through DOS (or click on it in File Manager).
+
+     If you want to save some time, you can load an existing level
+automatically on the command line, like so:
+
+          ESCAPED frog
+
+     The level frog.esc has to have already been created for this to
+work.
+
+     You should now be on the Escaped editor screen (no fancy menus this
+time!). Escaped was designed to be easy to use, yet let users take full
+advantage of all the tile functions. This is the same level editor which
+was used to make all of the levels included with Escape.
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€   Okay, but how do I USE it?
+ €€€€ ﬂ€ﬂ € ﬂ€€€€             
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ             
+
+     Using Escaped is simple. The left mouse button "draws" on the tile
+grid with the currently selected tile. The right mouse button will "erase";
+that is, draw standard grey floor.
+
+     The currently selected tile is displayed in the very top-left corner,
+next to the tile menu bar. When you first start the program, this will
+be tile #3, the blue wall.
+
+     To select a new tile to draw with, simply left-click on it in the tile
+menu. It should appear in the top left corner.
+
+     You may notice that the menu only displays 17 tiles, and yet there
+are 41 in the game (No, this is not a crippled unregistered version *wink*).
+You can rotate through the menus to use the rest of the tiles by clicking
+with the right mouse button on the tile menu. You can also use the Up and
+Down arrows on the keyboard.
+
+     Two of the tiles are special tiles: Panels (the dark grey circle on
+the floor) and Transporters. When these are placed on the grid, the
+status line on the bottom of the screen will read "Set Destination".
+The next left click of the mouse will set the destination of this tile.
+For panels, this means the tile that disappears when you step on it. For
+transporters, this means the location where it sends your character when
+you step into it.
+
+     After setting the destination of a panel or transporter, subsequently
+moving the mouse over that tile will cause a white outline to be drawn
+around the destination tile. If you want to change the destination of a
+panel or transporter, simply put another transporter or panel on top of it,
+and set the new destination. Erasing or putting a normal tile in that
+space will remove the destination tag automatically.
+
+     The spacebar places the starting position for your character, which
+defaults to the (almost) lower left-hand corner of the screen. You can
+start your character anywhere on the map.
+
+     Use the "T" key to title the level. If the level already had a title,
+it will appear for editing, otherwise you should make one up and type it
+in. There is about a 24 character limit (I think).
+
+     Press "L" to load up a previously saved level.
+
+     Press "S" to save the current level. If you haven't given the level
+a filename yet, it will prompt you as if you had hit "A" for Save As.
+Filenames are normal DOS filenames - up to eight characters, letters and
+numbers only. Do not add an extension; escape will add the .ESC extension
+automatically.
+
+     Press "A" to 'Save As' the current level (to give it a filename other
+than the one you gave before or loaded). Subsequent "S"aves will use this
+filename.
+
+     Press "P" to test your level. Test it a lot. Hit [esc] when you're
+testing to return to the game.
+
+     Press [esc] or "Q" to quit and save. If the level has changed since
+the last save, you will be shown a text representation of the level and
+asked if you want to save it. If you do, then hit "Y" and enter a filename.
+
+     ‹‹ ‹‹ ‹‹       
+  ‹  €‹ €‹ €   ‹    What is this "Crash Recovery" deal? 
+     €‹ ‹€ €‹       
+
+     If you enter an invalid filename or something else to crash Escaped,
+it will often save your work in a file called CRASHxxx.ESC, where xxx is
+a 3 digit number. You can load up this level again and save it as whatever
+you like.
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€   Ha! This is all too easy for me! I want some advanced
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€             stuff! (Novice users should skip to the
+ €€€€ ﬂ€ﬂ € ﬂ€€€€             next section, on XENCODE/XDECODE, or the
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ             section on Escaped level creation tips)
+
+     The numbers 0-9 will set the Random Level AI type. (Types 1-4 exist
+right now). You should look at them to see what they do. (0 and 5-9
+just clear the level)
+
+     These are used in conjunction with "R", which creates a random
+level for you (be advised that it clears your current level!). Note that
+these levels are not necessarily solvable, in fact they usually won't
+have an exit, but they have some degree of intelligence to them (except
+for type 1). They are mainly designed to give you a starting point to
+get the creative juices flowing, so to speak.
+
+     Pressing "E" will designate whether this random level will 'overwrite'
+the old one or not. It defaults to doing so. This is difficult to explain
+so play with it both ways to see what I mean.
+
+     Pressing "F" will fill the level with your currently selected tile
+(unless it is a panel or transporter, for obvious reasons). Not
+particularly useful, really, but can be used in conjunction with "E" and
+"R" to use different backgrounds for the random levels.
+
+     Every minute or two an unsolicited message will appear on the bottom
+of the screen, reminding you of commands and things. You can disable these 
+by pressing "M". You can also make them appear without waiting by pressing
+"." (period).
+
+     Alt-M will shell "cdplay", so if you have a program for playing
+CDs (or anything else), you can make a batch file called cdplay.bat and
+put it in the directory, and run it with alt-m. If you want it to do
+a normal DOS shell, make the cdplay.bat just say one line, "command".
+I was going to take this out of the editor but now I think it might come
+in handy.
+
+     [Enter] redraws the screen.
+
+     ‹‹ ‹‹ ‹‹       
+  ‹  €‹ €‹ €   ‹    I suck at this! How do I make good levels?
+     €‹ ‹€ €‹       
+
+
+     Test your levels, and then have someone else test them too! There
+is often a much easier way of completing the level which you have
+overlooked.
+
+     Here are some level creating strategies:
+
+1. Create a reasonably easy level which is solvable, then obfuscate it,
+keeping it solvable. Add dead ends and distracting blocks...
+
+2. Work backwards. Start with the guy at the exit, then work backwards. For
+instance, you can put down a hole and then a grey block behind it... move the
+guy backwards, dragging the block (mentally...) until it is in some other
+position, etc. etc. This ensures a solvable level and they can get pretty
+complicated. 
+
+3. Make a simple level, and then solve it. Whatever way you solved it, edit
+the level again to make that particular route impossible. Keep going until it
+is sufficiently difficult (but still solvable!)
+
+4. Use different sorts of random levels. If you don't like the AI, you can
+always close your eyes and spray tiles everywhere yourself! =)
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€   
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€   What are these XENCODE and XDECODE programs? Frankly
+ €€€€ ﬂ€ﬂ € ﬂ€€€€             they scare me.
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ   
+
+     What good is making levels if other people can't play them? I have
+included the XENCODE and XDECODE programs with each copy of Escape as
+a standard way of sending levels through electronic mail. They are
+easy to use, and should be compatible with just about any mail program.
+
+     Now would be a good time to mention that I would love to receive
+your levels. Please, if you make any, mail them to ImightbeTM@aol.com.
+Please see SENDLEV.TXT for more information on sending your levels to
+me.
+
+     ‹‹ ‹‹ ‹‹       
+  ‹  €‹ €‹ €   ‹    Let's start with XENCODE, ok?
+     €‹ ‹€ €‹       
+
+     Okay. XENCODE is used to encode Escape levels so they can be sent
+via electronic mail.
+
+     To encode one level into a mailable .TXT file:
+
+          XENCODE level
+
+     (the output file will have the same filename as the level, and
+the .TXT extension)
+
+     To encode multiple levels into a single .TXT file:
+
+          XENCODE output level1 level2 level3 level4
+          (etc. etc.)
+
+     (levels will be output to output.txt)
+
+     XENCODE assumes the extension .ESC, which is the normal Escape level
+extension, for the input file(s) if you do not specify one. The output
+extension defaults to .TXT. This text file should then be pasted into
+your e-mail message.
+
+     Generally the way you paste is to do the following (for Windows
+mail programs):
+
+     Open up the text file in windows notepad. Highlight the contents
+and press ctrl-ins (or select Edit/Copy). Put the cursor in your mail
+window and select Paste from the Edit menu. The Escape level can
+appear anywhere in the mail, and can be accompanied by text.
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€       
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€   Okay, great, what about XDECODE?
+ €€€€ ﬂ€ﬂ € ﬂ€€€€             
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ   
+
+     XDECODE is used to decode XENCODED levels received via e-mail.
+
+     If you receive a level in an e-mail, save the e-mail to disk (Usually
+in the menu under "File" and then "Save As") in the Escape directory,
+preferably with the .TXT extension. Then run XDECODE:
+
+          XDECODE mail.txt
+
+     or just
+
+          XDECODE mail
+
+     XDECODE will extract all the files it finds in a given text file,
+and you need not remove headers nor other text in the e-mail (it will
+search out the levels on its own).
+
+     ‹‹ ‹‹ ‹‹       
+  ‹  €‹ €‹ €   ‹    How do I contact you?
+     €‹ ‹€ €‹       
+
+     I can be contacted in the following places:
+
+          Tom Murphy 7
+          Re: Escape 1.0
+          339 Still Hill Rd.
+          Hamden, CT, 06518.1830
+          USA
+
+          ImightbeTM@aol.com
+
+          On irc as "Frood", usually on irc.qnet.com.
+
+          http://members.aol.com/imightbetm
+
+          Please don't forget to visit the Escape Web Page for info and
+               levels and stuff:
+                    http://members.aol.com/vroomfonde/escape
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€       
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€   What about registration and other legal stuff?
+ €€€€ ﬂ€ﬂ € ﬂ€€€€             
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ   
+
+     Escape is shareware. This means that you're allowed to play it,
+and if you like it, buy it.
+
+     However, I want Escape to be fun and popular more than I want to
+make money off of it. For this reason I have set a rather low registration
+fee, and I have given you a fully functional version with the editor
+and everything.
+
+     If you want me to set a "trial" period, I'll say 42 days. Use Escape
+all you want for 42 days. After 42 days (or sooner if you like), decide if
+you want to pay me five dollars to register. If you do, then see the
+information below. If you don't want to register, don't. I would rather
+think that someone is registering my program because they actually like it,
+rather than because they are legally bound to. (Though you are, by the way.
+*evil laughter*)
+
+     If you register, you get the following stuff:
+
+     1. A disk (or disks) in the mail with the following:
+          a. Escape and all of it's component parts, registered.
+          b. The 50 level registered campaign.
+          c. The entire Escape User Level Archive*.
+          d. XCAMP, a utility for creating your own campaigns.
+          e. Many other Mooseware games and utilities.
+     2. Other bonus prizes and special goodies.
+     3. My esteemed thanks and obsequious technical support.
+     4. A nice warm vibraty feeling all through your gutty-wuts.
+
+     Registration is ONLY $5.00 US currency. Please make checks out to
+Tom Murphy, and don't forget to mention that you want Escape and not
+some other game.
+
+     * The Escape User Level Archive is freeware, and consists of levels
+which Escape players have submitted. So note that it is not being sold,
+it is included for FREE. Anyone else can get the Archive by sending
+a self-addressed-stamped-disk mailer and blank disk to the address above.
+(you will also want to write somewhere that you want the EULA.)
+
+     Most of all, though, I want people to have fun. If you really like
+Escape, write me! I want to hear! (maybe it will even help me get into
+college!) If you make any good levels, e-mail them to me! I won't try
+to make you feel guilty for not registering, I promise. =)
+
+               Legal stuff:
+
+     The term "this program" or "the program" refers to Escape. Escape is
+considered a package, including all of the files in the archive. Also,
+since I pulled this legal info out of Tomopoly, if I say "Tomopoly" I
+mean "Escape".
+
+     ESCAPE is distributed AS IS. Under no circumstances can Tom Murphy or
+Mooseware Development be held responsible for any damages whether directly 
+or indirectly related to this program or the use of this program. No
+warranties or guarantees, express or implied, will be honored. The user
+is responsible for use, misuse, or abuse of this program.
+
+     This program is Copyright (c) 1996 Tom Murphy. ALL RIGHTS RESERVED!
+
+               Distribution
+               
+This program may be freely distributed as long as no fee is charged, except
+for the following conditions:
+
+(1) Any registered version of this program or portions thereof cannot be
+distributed in any way, shape, or form other than from Mooseware
+Development to the person who registered the software. Registration is
+NON-TRANSFERRABLE!
+
+(2) This program CAN be distributed on pay online services such as America
+Online or Prodigy as long as any fees are based on time spent online or on
+a flat monthly fee. This program CANNOT be distributed on ANY service which
+charges a fee per download.
+
+(3) This program can only be distributed in its original form (the program,
+the whole program, and nothing but the program). This means that additional
+levels cannot be distributed inside the archive, nor modified graphics or
+any other modifications. Distributing modified versions of Escape is a
+Copyright violation.
+
+(4) Escape can only be distributed through mail-order shareware catalogs
+with the written consent of Tom Murphy.
+
+(5) This program can be distributed on shareware CD-ROM if all the folowing
+     conditions are met:
+     1. Tom Murphy is sent written notification (through the Post office
+     please) through certified mail or with a request for a reply.
+     2. A copy is made available for purchase by Tom Murphy. If you want
+     to be particularly generous you can send me a free copy. =)
+     3. Information concerning the CD (price, name, distribution method,
+     etc.) is also mailed to Tom Murphy.
+     4. The price of the CD does not exceed $75 US.
+     5. The CD contains other shareware programs.
+     6. The original archive ESCAPE10.EXE is contained on the CD. The CD
+     may also include the files uncompressed elsewhere, but the original
+     file must be present. Write to me for information if you do not have
+     the original archive.
+     7. The CD makes it clear that the author recieves no money from the
+     sale of the CD for his/her work, and explains the shareware concept.
+
+(6) Levels created with Escaped by the user can be distributed freely,
+however they cannot be sold.
+
+     ‹‹ ‹‹ ‹‹       
+  ‹  €‹ €‹ €   ‹    Who would you like to thank?
+     €‹ ‹€ €‹       
+
+     Escape was written by one person? This is not true. The game itself
+is my work, but many people helped create levels and gave me ideas.
+
+     Overwhelmingly I'd like to thank my brother Mike Murphy for creating
+nearly as many levels as I did and giving me many ideas for the game, as
+well as Patricia Funtik and her sons, for creating several agonizing levels
+which showed me that this game is sometimes even too hard for *ME*. They
+also gave me many good suggestions on the game and were my official beta
+testers. Thanks!
+
+     I'd also like to thank the other people who helped make levels,
+including the rest of my siblings and several of the kids from my Game
+Builders class at the Eli Whitney Museum. Thanks!
+
+The following people helped make levels for Escape:
+(THANKS!)
+
+     Tom Murphy 7 (Me!)
+     Mike Murphy
+     Brian Funtik
+     Patricia Funtik (aka Lemmyn)
+     Kevin Funtik
+     Taylor Murphy
+     Kerrigan Murphy
+     Tom Piekos
+     Jeff Bernadoni
+     Abigail Gillis
+     Evil Boy
+
+     (If you made a level for the ORIGINAL version of Escape -- that is,
+before it was released -- and your name is not listed above, write me or
+give me a ring so I can straighten things out.)
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€       
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€   Just what do you want?
+ €€€€ ﬂ€ﬂ € ﬂ€€€€             
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ   
+
+ ˛ Levels! Make me some levels so I can get the Escape User Level Archive
+started! Be infamous and have the deep satisfaction of other people getting
+frustrated at your levels and wishing to kill you! For information on sending
+levels to me, please see SENDLEV.TXT.
+
+ ˛ Suggestions and comments! I want to hear how you like this game. Drop
+me a mail message and help me get into college.
+
+ ˛ Spoons! I am always looking for more spoons of any kind. Send them to:
+
+Tom Murphy VII
+The Spoon Campaign
+339 Still Hill Rd.
+Hamden, CT 06518.1830
+USA
+
+The official Thousand Spoons Web Page:
+          http://members.aol.com/spoons1000/spoons.html
+
+ - Tom Murphy.
+
+ ImightbeTM@aol.com
+
+     ‹‹ ‹‹ ‹‹       
+  ‹  €‹ €‹ €   ‹    This is so long! Where are the appendices?
+     €‹ ‹€ €‹       
+
+     The following Appendices are for people having trouble with Escape
+or for people who want to, basically, cheat. If you want to get the
+full puzzle-solving experience, you should not read this.
+
+
+ €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€                                         ‹‹ ‹‹ ‹‹
+ €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€           ˛ Appendix 1 ˛             ‹  €‹ €‹ €   ‹  
+ €€€€ ﬂ€ﬂ € ﬂ€€€€                                         €‹ ‹€ €‹    
+ ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ   
+
+                          Tile Descriptions
+
+     You will notice that certain blocks can do certain things. Here is
+a brief description of each block:
+
+1. Floor (empty) - This can be walked on, shot over, etc.
+2. Red block - This can be pushed by the guy in any direction. It can be
+used to push down panels (see later), or block lasers (see later) but it
+can't be pushed in holes (see later...)
+3. Blue block - Can't be pushed, moved, anything. A wall.
+4. Grey block - Same as a red block, but can be pushed into holes.
+5. Green block - Can be moved one space in any direction, and then turns into
+a blue block. Must be pushed onto a floor (#1).
+6. Exit Door - The player must touch this to exit (win). There can be more
+than one on any given level.
+7. Hole - Blocks the player from moving, but doesn't block lasers. You can
+push a grey block into the hole, and it (and the block) will disappear.
+8. Gold Block - This block can be pushed from any side, and will keep moving
+until it hits anything but a panel or regular floor. It can push down panels
+if it lands on them, and can block lasers, but can't be pushed into holes.
+9. Shooter - If the player walks onto a space aligned (vertically or
+horizontally) with this tile, they will be shot with a laser and they'll
+die. Lasers can be blocked by anything but panels, floors, holes, and
+electric floors.
+10. Panels (grey circle on floor) - When the player or a block is on top of
+one of these, another block somewhere will disappear. When the player steps
+off, or the block is removed, the block will reappear. You can do some
+neat stuff with these (including screwing up the game); play around with
+them.
+11. Stop Sign - Usually used to signify a block which can be removed with
+a panel, but it acts exactly the same as 3 (a stationary wall).
+12-15. Arrows - These are walls, which can be used for decorative purposes
+or to hint what is to be done in a level. Exactly the same as #3 except the
+way they look.
+New stuff:
+16. Rough (bumpy grey) - These can be walked on like normal floors, and
+lasers can shoot over them, but blocks cannot be pushed on them.
+17. Electric floor (yellow floor) - This cannot be walked on, but if a
+block is pushed onto it, the block will be disintegrated. These floors
+are shut off by #18, and can be shot over by a laser.
+18. Electric button (on) - Pressing (touching) this will turn it into
+#19 and turn all the #17s into #1s. Cannot be shot over, walked on,
+etc.
+19. Electric button (off) This is simply the off version of #18. It acts
+exactly the same as #3.
+20. Transporter - Stepping on this tile will send you to another space on
+the level. Blocks lasers, pushable blocks, etc. etc.
+21. Breakable (cracked grey) - Touching this block will cause it to
+disintegrate and disappear.
+22, 23: Horizontal/Vertical sliders - These blocks can only be pushed
+in the directions that their arrows point. They can be used to block lasers
+but cannot push down panels or fill in holes.
+24, 25: 0 and 1 buttons - When one of these is pressed, all of the
+horizontal sliders will be turned into vertical sliders, and all of the
+vertical sliders will be turned into horizontal sliders. 
+26-31: Wires - These wires conduct pulses from #32 (buttons) to the lights
+(33-35). They only conduct in certain directions (the directions which
+the conduit points in... I guess this is pretty obvious.) They can be
+pushed and act identically to red blocks.
+32: Pulse button - Pushing this will send pulses in all 4 directions, which
+can travel down wires to lights or directly to the lights themselves.
+Cannot be moved, but blocks the lasers.
+33-35: Blue, red and green lights - These blocks, when sent an electric
+pulse, will toggle their respective floors between the 'high' and 'low'
+positions. They cannot be activated on their own, and are otherwise
+stationary and solid.
+36, 38, 40: Blue, red and green 'high' floor - This is basically a wall.
+You can't walk over it or shoot through it. It can be toggled to the 'low'
+position by sending an electric impulse to the same color light.
+37, 39, 41: Blue, red and green 'low' floor - Can be walked over and shot
+over, but blocks can't be pushed on it. Can be toggled to 'high' floor.
+
+
+
+     ‹‹ ‹‹ ‹‹                                         €€€€ﬂﬂ€ﬂﬂ€ﬂﬂ€€€€
+  ‹  €‹ €‹ €   ‹            ˛ Appendix 2 ˛            €ﬂ€€ ﬂ€ ﬂ€ €€€ﬂ€ 
+     €‹ ‹€ €‹                                         €€€€ ﬂ€ﬂ € ﬂ€€€€             
+                                                      ﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂﬂ   
+                         Tutorial Walkthrough
+
+     If you are still having trouble with the game, you get one more
+chance. Here is an entire walkthrough of the tutorial, which explains
+how each of the tiles work and why they do certain things. You're on
+your own after this.
+
+     Tutorial 1: Blocks
+
+     This one is rather self explanatory. I guess I shouldn't even
+bother, but here is what you do:
+
+4 up, 3 right, 2 down, 3 right, push up, then 4 up, 8 right, 3 down,
+1 right, touch exit.
+
+     Nothing special happens with the tiles in this one, so see the
+tile list in Appendix 1.
+
+     Tutorial 2: Holes
+
+     Here you are introduced to holes. You can't walk over holes, but
+you can get rid of them by pushing a grey block onto them.
+
+3 up, 2 right, 3 down, 9 right, 5 up, 1 right, push down 4, 1 left,
+1 down, push right 2, 1 left, 4 up, 1 right, push down 3, 1 left, 1
+down, right 3, touch exit.
+
+(Basically you are pushing the two grey blocks on the right down and into
+the holes blocking the exit. You can test the reactions of other blocks
+(none) with the holes in the center, but you don't need them at all.)
+
+     Tutorial 3: Lasers
+
+     This tutorial introduces you to lasers. Lasers shoot you and kill
+you if you step in front of them. Unless, of course, there is something
+blocking their path, like, a block.
+
+10 right, 1 up, 1 right, 2 up, 1 left, push up 1, 1 right, 1 up, 3 left,
+1 down, 1 left, 1 up, 1 right, 1 up, push red block left 6 (so it
+is lined up with the laser on the top), 1 down, 3 left, up 2, touch exit.
+
+(You are pushing the grey block in front of the laser at the bottom of
+the screen, then pushing the red on in front of the laser at the top.)
+
+     Tutorial 4: Panels
+
+     Panels are the grey circles on the floor. Stepping on them or pushing
+(some) blocks onto them will cause a tile somewhere else to change. The
+change is from whatever was there to "empty". Stepping off or removing
+the block will change it back. Two panels can point to the same spot, in
+which case pressing both of them will be the same as pressing none of them.
+
+3 up, 3 right, push yellow right, 4 up, 4 right, push grey down 3, 2 left,
+3 down, 1 right, push red up 1, 2 down, 8 right, touch exit.
+
+(You are pushing blocks onto the bottom 3 panels, which removes the stop
+signs blocking your way to the exits. Try pushing and stepping on the
+panels to get the hang of it.)
+
+     Tutorial 5: Rough
+
+     Rough is the same as the floor, except blocks can't be pushed onto
+it.
+
+2 up, 9 right, 1 up, push grey up 2, 1 right, 1 up, push grey left 7, 1
+down, 1 left, push grey up 1, 4 down, 6 right, 2 down, 1 right, push
+grey up 1, 1 left, 1 up, push grey right 3, 1 down, 1 right, push grey
+up 2, 1 right, 1 up, push grey left 3, 1 down, 1 left, push grey up 2,
+1 right, 1 up, push grey left 7, 1 down, 1 left, push grey up 1, 1 right,
+1 up, push grey left 1, touch exit.
+
+(You are pushing the two grey blocks through the path in the rough, up
+to the holes blocking the exit)
+
+     Tutorial 6: Electric
+
+     Before you cheat: Don't shut off the electricity immediately.
+
+     Electric floor (bright yellow floor) will disintegrate most blocks
+that you push into it. You shut off the electricity by pressing the button
+that says "ON".
+
+11 right, push grey left 2, 13 left, 4 up, push grey up 1, press left, 5
+down, 14 right, touch exit.
+
+(You push the grey block at the bottom into the electricity, then you
+press the button on the left wall to shut the electricity off)
+
+     Tutorial 7: Transports
+
+     Before you cheat: Don't shut off the electricity immediately.
+
+     Transports send your character to a different spot on the level.
+
+12 right, 1 up into transporter, 1 down, 5 left, 1 up, push grey left 1,
+2 right, 2 down, 1 down into transporter, 3 right, press down, 5 right,
+1 up into transporter, 1 down, 5 left, 1 up, 2 left, touch exit.
+
+(You are taking the transporter on the right (the one on the bottom kills
+you) getting rid of the grey block by the exit as with tutorial 6, taking
+the transporter at top, shutting off the electricity, and then transporting
+back)
+
+     Tutorial 8: Broken
+
+     Broken blocks disappear when you touch them.
+
+3 left, press left, 1 left, 3 down, touch left, 3 left, 1 up, 6 left, 1 up,
+touch up, 1 down, 3 right, 2 up, 1 left, push grey left 2, 2 left, touch
+exit.
+
+(You are disintegrating the broken block in between the grey one and the
+hole, then pushing the grey one into the hole. You can experiment with
+the thing in the middle and see if you can get to the top right corner,
+but this is not needed)
+
+     Tutorial 9: Sliders
+
+     Sliders can be pushed only in the direction that their arrows point.
+Pressing the "0" and "1" buttons will toggle their direction.
+
+1 down, 7 left, press down, 7 right, 2 up, push slider up 1, 1 down, 2
+left, push slider up 2, 2 down, 1 left, push slider up 3, 3 down, 3
+left, push grey left 1, 5 up, 1 left, touch exit.
+
+     Tutorial 10: Wires 1
+
+     Before you cheat: You can push the wires around like blocks.
+
+     Wires are a bit complicated, and tutorials 10 and 11 give some people
+trouble. The pinkish blocks with the yellow/black borders are buttons. The
+buttons send pulses of electricity out in 4 directions when pressed. The
+electricity flows through wires to the 'lights', which are the colored (red,
+green, or blue) blocks with yellow/black borders. When the electricity
+hits a light, it toggles the respective colored floor between the 'high'
+and 'low' states. When it is 'high', a grey square appears in the center,
+and you cannot walk over it. When it is 'low', it can be walked over.
+
+1 right, 2 up, press up, 2 right, press up, 2 right, press up, 1 down,
+7 right, 1 up, push wire up 1, 1 left, press up, 3 down, 3 right, touch
+exit.
+
+(You are pressing the buttons on the left to make your way through the
+colored floor bits. Pay attention to how the buttons are connected to
+the lights so you can see how it is done. Then you push the wire segment
+between the button and red light on the right to clear the floor by the
+exit)
+
+     Tutorial 11: Wires 2
+
+     This one causes the most problems.
+
+     Before you cheat: There is a switch on the bottom, by the exit.
+Everyone misses that one for some reason.
+
+     Since the button sends out pulses which toggle the states of the
+floor, and there are 2 states, sending 2 pulses will reset the floor
+back to the way it was. Sending 3 pulses is the same as sending 1
+pulse. Get it?
+
+2 right, 2 up, push wire up 1, 1 left, push up, 1 left, 3 up, 1 right,
+push wire right 1, 2 left, 2 down, push right, 4 down, 11 right, 3 up,
+2 right, 3 up, push wire left 1, 3 down, 2 left, push up, 3 down,
+1 right, push down, 4 right, touch exit.
+
+(You are touching the button in the middle on the left (connected to
+the blue light) once, pushing the wires in place to connect it to the
+red light, then pushing the button again. Then you're walking through
+the bottom, pushing the wire in the top right into place, pushing the
+button, and then pushing the button on the bottom)
+
+You're done! Now try playing the REAL levels. And no help from me for
+those!
+
+Documentation Copyright (c) 1996 Tom Murphy.

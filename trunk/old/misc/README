@@ -1,0 +1,52 @@
+
+These are very small project (typically a single file) that don't even
+deserve their own repositories in the tom7misc project.
+
+
+
+latex-slides-makefile            Makefile for creating PDF slides with LaTeX 
+			         that don't come out upside-down. Very 
+				 tricky, despite what you might expect.
+
+neural.sml                       A fairly unsophisticated neural net evaluator
+                                 and learner written in SML.
+
+shopping.ses                     Shopping list spreadsheet for use with 
+	                         SES mode for emacs. It just adds up columns 
+			         of quantity times price and displays 
+	                         everything nicely.
+
+mixtape.ses                      SES spreadsheet for making mix tapes or other
+                                 compilations.
+
+squares8.c                       Search, by brute force, for a solution to
+                                 the 8x8 "no squares" problem. (Place as many
+                                 stones as possible on an 8x8 grid without
+                                 making a square at any orientation.)
+
+output-freeness.elf              Short Twelf example of output freeness checking.
+
+dataflow/                        Dataflow networks (prime sieve) in C/C++.
+
+dmg/                             A well-intentioned but poorly executed
+                                 attempt at computer-generated dance music
+                                 in C++. Can generate MIDIs, but never got
+                                 much further than that.
+
+clearhist                        When in your path, . `which clearhist` will clear
+                                 the current command history in bash. (Suggestions
+                                 for easier ways are appreciated!)
+
+infix-bug.sml                    Test for a really picky and really common parsing
+                                 bug in Standard ML.
+
+rec.sml                          Shows recursive datatypes alone can lead to looping
+                                 programs.
+
+shortest-nonterm.sml             Shows how exceptions alone can lead to looping
+                                 programs (via Lillibridge and Harper). Obfuscated
+                                 to make it as short as possible.
+
+awesome.sml                      Encodes the simply-typed lambda calculus in phantom
+                                 types, using combinatory logic and explicit reductions.
+                                 Not recommended to actually do this when programming.

@@ -1,0 +1,6 @@
+
+let
+    fun g (b, (c, d)) = b
+in
+    g (2, (3, 4))
+end 

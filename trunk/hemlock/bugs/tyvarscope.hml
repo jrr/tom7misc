@@ -1,0 +1,14 @@
+(* in Elaborator.elabd, tyvar scope from a val dec extends beyond
+   the expressions because we just stick them into the context,
+   which gets modified and returned. 
+
+   There's nothing unsound about this (as far as I know), but it's
+   different from the way SML works, and maybe kind of stupid.
+   (On the other hand, it may be a nice tool for type anotations;
+   I don't know!)
+
+*)
+
+let val a s = 1
+in s : a
+end

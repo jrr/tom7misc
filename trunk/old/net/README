@@ -1,0 +1,120 @@
+                 net                              26 June 2017
+
+These are some of the network projects I worked on in college and grad 
+school.
+
+
+During my early college years, I used to like to program in C++, so the 
+older, crummier stuff here is written in that language. I don't really 
+recommend using it. In grad school I was particularly into Standard ML, 
+so lots of the projects use that. I even had a short-lived project to 
+try to write all the standard linux services in SML, for security and 
+self-flagellation. You probably can only compile them with MLton under 
+linux, since they rely on system libraries and FFI. These days, mlton 
+has inet socket support on all platforms, so you should just use that 
+stuff directly and portability suffering is almost gone (unfortunately 
+there are no examples in here).
+
+All of these are licensed under the GPL, except where noted: some files
+in the ML sock library are derived from BSD-style-licensed code from
+Bell Labs. If you'd like to incorporate some of my code into a piece
+of software and want to negotiate licenses, let me know.
+
+echod/          C++
+
+        Listens to many clients, echoing what they send to each other.
+        Used as a reflector/repeater for my whiteboard program, and
+        probably has many other uses, as well.
+
+gproxy/         C++
+
+        Generic proxy ("port redirector"). Connections made to
+        gproxy will be as if the user was connected to the
+        destination host/port.
+
+icy/            C++
+
+        IRC bot which collects statistics (digraphs) about
+        messages it sees, and can construct randomized
+        IRC-like messages.
+
+ifcd/           C++
+
+        An extensible IRC-like server. Implements enough so that
+        you can connect to it with any (known) irc client, and  
+        chat with your friends. Does not link up with other servers.
+        The server is extensible, however, and includes examples
+        of IRC "channels" which act in an atypical way. (One
+        reverses everything that is said, the other is a Scrabble-
+        like game.) Fun, but this software is just for experimenting.
+
+tsocket/        C++
+
+        Used in most of the other C++ programs; a simple C++ wrapper
+        for unix TCP sockets. This code is pretty crappy, and I would
+        never think of using it in a new program.
+
+mlfingerd/      Standard ML
+
+        First in my project to rewrite standard network services
+        in a safe language so that they are immune to buffer
+        overflows and other perils of C programming. This is a
+        daemon for the finger service. Compiles with MLton.
+
+mlftpd/         Standard ML
+
+        Second in my project. This one is much more sophisticated,
+        primarily because FTP is a more complicated and useful
+        service. Almost complete; works without some DoS protection.
+        Compiles with MLton.
+
+mlidentd/       Standard ML
+
+        This is a Standard ML version of the mostly useless auth
+        service (aka identd).
+
+mlnamed/        Standard ML
+
+        A name server. (Unimplemented -- currently a partially
+        finished socket library.)
+
+mlsshd/         Standard ML
+
+        An ssh daemon. Currently in progress.
+
+mmail/          C++
+
+        A C++ "script" for sending out mass emails, and a program
+        which removes duplicates from email lists. Nothing special
+        here.
+
+neoget/         Standard ML
+
+        Some simple libraries for HTTP and Regular Expressions, and a
+        sample application.
+
+sock/           Standard ML
+
+        This is an implementation of a basis-like socket library for
+        MLton. I've separated out the MLton-specific parts into a
+        single file, so that it can be maximally portable to other
+        implementations. The implementation is incomplete so far.
+
+        This code is a nightmare because the UNIX socket API is quite
+        baroque, and the SML Basis library did not do much to clean it
+        up. I don't recommend looking at it. Better choices would be
+        the (not checked in?) asynchronous network library from
+        ConCert or the very simple wrapper over SDL_Net in my sdlml
+        package.
+
+linesock/       Standard ML
+
+        A simplified interface for sockets that send data line-by-line.
+        Well-suited for writing single-threaded line-oriented servers,
+        like an IRC server.
+
+Obsolete:
+
+sfingerd/
+
+        Old name for mlfingerd. Nothing in there now.

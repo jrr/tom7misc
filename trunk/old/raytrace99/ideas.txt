@@ -1,0 +1,3 @@
+
+fluff balls are constant density spheres, their translucency depends on the length of the chord
+

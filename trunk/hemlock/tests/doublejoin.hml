@@ -1,0 +1,31 @@
+
+let
+    val t1 =
+        submit (fn () =>
+                let
+                    val ta = 
+                        spawn (fn () => "hello")
+
+                    val tb =
+                        spawn (fn () =>
+
+			sub(syncall [| spawn (fn () => "grid") |], 0)
+				)
+
+                    val res = syncall [| ta, tb |]
+                in
+                    (sub(res, 0), sub(res, 1))
+(*
+                    syncall [| |];
+                    ("not", "done") *)
+                end)
+
+    val (a, b) = sub(waitall [| t1 |], 0)
+
+in
+    write(stdout, a);
+    write(stdout, " ");
+    write(stdout, b);
+    write(stdout, "!\n")
+end
+

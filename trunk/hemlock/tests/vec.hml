@@ -1,0 +1,10 @@
+
+let
+   val v = [| "one\n", "two\n", "three\n" |]
+   fun print s = write(stdout, s)
+in
+    print (sub(v, 0));
+    print (sub(v, 1));
+    print (sub(v, 2))
+end
+

@@ -1,0 +1,18 @@
+
+Don:
+
+* Copy/paste tiles (regions would be sweet)
+* Shift contents of tile up/down/left/right (very common for animation)
+* Multiple layouts (right side of screen), switchable with Q,W,E,R,T keys.
+  I can use this to switch between animation frames on different "layers"
+* Status bar to give information (current draw mode, layer, 
+				  mouseover tile -> its offset)
+* Scrollbar for left grid. (Try loading (0:99999)).
+
+Tom:
+
+* Find dialog makes use of ranges (32768:128)
+
+Don or Tom:
+
+* Pokemon (de)compression??

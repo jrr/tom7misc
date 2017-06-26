@@ -1,0 +1,50 @@
+
+Note: I have ported Escape to modern operating systems using the SDL.
+You can find the code for this new version here:
+
+http://tom7misc.cvs.sourceforge.net/tom7misc/escapex/
+
+You can download binaries or source archives from here:
+
+http://escape.spacebar.org/
+
+This new version is much more polished and fun to play, so this
+version is only really relevant for historic purposes.
+
+ - Tom 7        21 Jun 2006
+
+
+
+Escape is my favorite of my DOS games. It's a puzzle game inspired by
+"Adventures of Lolo," "Chip's Challenge," etc. I wrote it in Quick
+Basic, made (with help) over 100 levels for it, and released it as
+shareware back in 1995 or so. When I left for college, I made it
+"free" in the sense that you could download the registered version
+without sending me money, and now I am making it "free" in the sense
+that the source code is licensed under the GPL. You can consider the
+legal stuff in the documentation as superseded by the file "COPYING."
+
+Otherwise, read escape.txt for the game's documentation.
+
+
+eula/  -  holds the "Escape User Level Archive," which is some of
+          the levels that players sent me.
+
+goodesc/  -  all the levels made by me and my friends that I included
+             in the game. The shareware and registered campaigns are
+             built of these.
+
+escapex/  -  very bare beginnings of a windows (visual basic) version.
+             basically just hi-res tiles.
+
+
+
+Escape uses the public domain library "LoadGif", which you can get
+from here: 
+
+http://www.programmersheaven.com/search/download.asp?FileID=15890
+
+It's included in CVS, but I may have modified it; I don't remember.
+I think that in order to compile escape, you need to start QB with
+special flags to load the LoadGif library. I don't remember that,
+either.

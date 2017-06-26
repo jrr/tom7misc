@@ -1,0 +1,14 @@
+
+let
+    import "print.hmh"
+
+    exception X of string
+in
+
+    (let in
+         raise (X "hello"); 
+         print "shouldn't see this\n"
+     end handle _ => print "Should see this.\n");
+
+    print "And also this.\n"
+end

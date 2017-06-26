@@ -1,0 +1,46 @@
+
+A collection of tools built while exploring Gameboy ROM hacking. Many
+of these may be useful for other kinds of binary data, however.
+
+
+translate/                         C++
+
+      Performs a character-to-character translation on a file, as specified
+      by a mapping. Use this to translate a ROM to the ASCII character set,
+      for instance, in order to edit in emacs hexl-mode and then convert
+      back with the inverse mapping.
+
+tile/                              C++
+
+      A filter to/from each of the following formats:
+        binary: raw binary data.
+        hex: hexadecimal bytes.
+        gfx: gameboy packed graphics format, using the
+             characters . + * # to stand for the four
+             levels of grey.
+             This allows ascii-editing of graphics within
+             a ROM file (say, within emacs), and soon
+             a path to/from the "merchandise" java tile
+             editor.
+
+pipe/                              C++
+
+      Simulates the pipe (|) facility of many popular shells by
+      creating temp files. This is needed to run translate with
+      hexl-mode in emacs (see data/hexl-commands.el.example).
+
+merchandise/                       Java 2
+
+      Graphical tile editor. Accepts input from tile "gfx" format
+      above. Written mostly by Don.
+
+haxor/                             Standard ML
+
+      Small program which lets you look for differences between
+      files. You can use this to modify values in your save-games,
+      for instance, with little information about the format of
+      the save file. For instance, you can track positions in
+      successive save-games which decrease as you use a certain
+      item, and then set that location (and therefore, your count
+      of that item) to some ridiculously high value. Works best
+      with the SML/NJ interactive loop.

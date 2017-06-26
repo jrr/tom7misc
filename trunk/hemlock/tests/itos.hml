@@ -1,0 +1,16 @@
+
+let
+  import "print.hmh"
+  import "string.hmh"
+in
+
+  print (itos 2048);
+  print "\n";
+
+  print (itos 0);
+  print "\n";
+
+  print (itos (0 - 123456));
+  print "\n"
+
+end

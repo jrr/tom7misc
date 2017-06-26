@@ -1,0 +1,17 @@
+
+   (test `[~b*~0 testing (while)  ... ~b*~0]`)
+   (, 
+          (scope (,
+               (= x 10)
+               (debug (& `x starts as ` (% x)))
+               (debug (& `condition is ` (> (% x) 0)))
+               (while (> (% x) 0)
+                    (,
+                         (debug (& `x: ~g` (% x)))
+                         (= x (- (% x) 1))
+                    )
+               )
+          ))
+          (debug (% x))
+   )
+   (test `[~b*~0 while test terminated! ~b*~0]`)

@@ -1,0 +1,6 @@
+
+let in
+    id 2;
+    id "hey";
+    id id
+end

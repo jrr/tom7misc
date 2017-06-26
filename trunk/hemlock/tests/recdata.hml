@@ -1,0 +1,8 @@
+
+let
+
+    datatype a list = Nil of unit | Cons of a * list
+
+in
+    Cons(1, Cons(0, Nil()))
+end

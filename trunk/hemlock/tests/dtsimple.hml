@@ -1,0 +1,8 @@
+
+let
+    datatype (a, b) dt = A of a | B of string
+    and             du = C of unit
+    and             dv = D of b * a | E of du * dt
+in
+    (A 0, C (), E(C(), B "hi"))
+end

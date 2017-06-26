@@ -1,0 +1,217 @@
+
+/* popcorn mockup of marshaller */
+
+#include <core.h>
+
+union ttt {
+  int iii;
+  string sss;
+  ttt rrr;
+  ttt aaa[];
+  /* code */
+
+  /* indirect only appears during unmarshalling; 
+     anywhere else means a bug. In particular, 
+     we don't have to marshall it. */
+
+  int indirect;
+}
+
+/* format of marshalled data.
+   this format is quite wasteful, using
+   32 bits in many places where 8 or 16
+   would probably suffice. It is also not
+   ASCII-clean. I suggest compressing the
+   string during transit.
+
+   4 bytes: number of total elements (n)
+   n records IN REVERSE ORDER. (that
+   means, the first you see has index
+   n-1, all the way down to 0. this
+   makes marshalling easier and 
+   unmarshalling more efficient (less
+   backpatching).
+   
+      32-bit tag (these don't correspond
+      to tags in the ttt data structure):
+      0: integer
+         one 32-bit field, the integer.
+      1: string
+         one 32-bit length field l, then
+	 l bytes of string data
+      2: ref
+         one 32-bit index to a ttt
+      3: int_t
+         one 32-bit int,
+	 one 32-bit index to a ttt
+      4: tuple/array
+         one 32-bit length field l,
+	 l 32-bit indices to ttts
+      5: code
+         one 32-bit index into the
+	 code table.
+
+*/
+
+/* bogus, assembly will use CMP */
+extern bool lt_ttt (ttt a, ttt b);
+extern bool eq_ttt (ttt a, ttt b);
+
+
+/* basic strategy:
+
+   keep a map (binary tree) from ttt -> int.
+   this int is the position in the array
+   that we create during unmarshalling. we
+   also need the total number ttts that will
+   be in the array. If a ttt is in the map,
+   then exactly one of:
+       - it is on the wait queue
+       - it has already been processed
+        and its result is in the string
+	list
+
+   the wait queue is a linked list
+   paired with a pointer to the last
+   element (for appending). Elements
+   in the queue appear in exact, gap-free
+   order of their corresponding indices.
+
+   the string list is a list (stack) of
+   strings. We push these in the order
+   that we generate them, so that they
+   may be concatenated when we are done.
+   (perhaps by a popcorn function)
+
+   We start by marking the root "0" in
+   the map and pushing it into the queue.
+   We end when the queue is empty.
+
+*/
+
+/* basic strategy:
+   create an array the same length as the number
+   of ttts. Each should initially point to a
+   ttt with indirect(index_of_array_element).
+
+   do the unmarshalling: read each element out
+   of the string and write it into the array.
+   fetch nested ttts by indexing into the
+   array -- forward references will become
+   "indirect(idx)". Remember that the string
+   fills the array in reverse order!
+
+   make a pass over the array. If the ttt
+   in the array has nested components,
+   and those components are indirect(idx),
+   then replace them with arr[idx].
+
+*/
+
+int get_int (string ss, int i) {
+  return ss[i]   << 24 
+       | ss[i+1] << 16
+       | ss[i+2] << 8
+       | ss[i+3];
+}
+
+ttt make_init_array(a na<a>(int, a) [], int num) [] {
+  /* dummy */
+  ttt arr[] = na(num, ^ttt.indirect(-1));
+  for(int i = 0; i < num; i ++) {
+    arr[i] = ^ttt.indirect(i);
+  }
+  return arr;
+}
+
+/* do the last part where we remove
+   indirects.
+   no a[i] may be an indirect,
+   but it may be something that
+   contains an indirect as a field.
+ */
+ttt flatten (ttt a[]) {
+  int num = size(a);
+  for(int i = 0; i < num; i ++) {
+    switch(a[i]) {
+
+    case rrr(x): ;
+      switch(x) { 
+      case indirect(id): ;
+
+	ttt m = a[id];
+	m = m; /* popcorn syntax trouble?? */
+	/* and then set rrr.2 = m */
+      default: ;
+      }
+      /* case for int_t */
+
+      /* this part only needs tags changed */
+    case aaa(x): ;
+      int aalen = size(x);
+      for(int u = 0; u < aalen; u ++) {
+	switch(x[u]) {
+	case indirect(id):
+	  ttt m = a[id];
+	  x[u] = m;
+	default:;
+	}
+      }
+    default: ;
+    }
+  }
+  return a[0];
+}
+
+ttt unmarshall (a na<a>(int, a)[], 
+		string ns(int),
+		string s) {
+
+  int num = get_int(s, 0);
+
+  ttt arr[] = make_init_array(na, num);
+
+  int idx = num - 1;
+
+  int ch = 4;
+
+  while(idx >= 0) {
+    int ty = get_int(s, ch);
+    ch += 4;
+    switch(ty) {
+    case 0:
+      arr[idx] = ^ttt.iii(get_int(s, ch));
+      ch += 4;
+    case 1:
+      int slen = get_int(s, ch);
+      ch += 4;
+      string ss = ns(slen);
+      for(int i = 0; i < slen; i ++) {
+	ss[i] = s[ch+i];
+      }
+      ch += slen;
+      arr[idx] = ^ttt.sss(ss);
+    case 2:
+      arr[idx] = ^ttt.rrr(arr[get_int(s, ch)]);
+      ch += 4;
+      /* XXX leave out 3 -- just like combination of 0
+	 and 2. */
+    case 4:
+      int alen = get_int(s, ch);
+      ch += 4;
+      ttt aa[] = na(alen, arr[0]);
+      for(int u = 0; u < alen; u++) {
+	aa[u] = arr[get_int(s, ch)];
+	ch += 4;
+      }
+      arr[idx] = ^ttt.aaa(aa);
+      /* 5: get from code table */
+    default:
+      raise (^NullPointer());
+    }
+    idx --;
+  }
+
+  return flatten(arr);
+}
+

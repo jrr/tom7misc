@@ -1,0 +1,34 @@
+
+group is
+
+(* interface into system library *)
+sockprim.sml
+
+pre-sock.sml
+
+host-db-sig.sml
+host-db.sml
+
+prot-db-sig.sml
+prot-db.sml
+
+serv-db-sig.sml
+serv-db.sml
+
+(* shadows Socket structure *)
+socket-sig.sml
+unix-socket.sml
+
+generic-sock-sig.sml
+generic-sock.sml
+
+inet-sock-sig.sml
+inet-sock.sml
+
+sockutil.sml
+
+(* XXX remove *)
+(* test.sml *)
+testr.sml
+
+

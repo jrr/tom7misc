@@ -1,0 +1,25 @@
+
+<!ENTITY leech.label		"Leech">
+<!ENTITY leech.prefslabel	"Leech by Simon Windmill">
+<!ENTITY leech.url		"http://leech.mozdev.org/">
+
+<!ENTITY misc.label		"Misc. settings">
+
+<!ENTITY misc.dldir			"Download directory (include trailing slash): ">
+<!ENTITY misc.extensions		"Downloadable file extensions (separate with ;) ">
+<!ENTITY misc.showmanager		"Bring download manager to front">
+
+
+<!ENTITY overw.label            	"When a file exists:">
+<!ENTITY overw.alwaysOverwrite  	"Overwrite">
+<!ENTITY overw.promptOverwrite  	"Prompt to overwrite">
+<!ENTITY overw.alwaysIgnore     	"Ignore">
+<!ENTITY overw.alwaysRename     	"Always rename">
+<!ENTITY overw.caveat			"(does not apply to wget)">
+
+<!ENTITY wget.label			"wget settings">
+<!ENTITY wget.wgetLocation		"wget location: ">
+<!ENTITY wget.tmpDir			"Temporary directory: ">
+<!ENTITY wget.makeDirs			"Automatically create subdirectories">
+<!ENTITY wget.useMozUA			"Use Mozilla useragent">
+<!ENTITY wget.usePrefix			"Leech With Prefix uses wget">

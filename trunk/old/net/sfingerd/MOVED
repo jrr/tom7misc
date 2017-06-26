@@ -1,0 +1,6 @@
+
+sfingerd was renamed to mlfingerd to avoid ambiguity. It should be in
+this same CVS project, in a directory called 'mlfingerd' instead of
+'sfingerd'.
+
+

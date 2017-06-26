@@ -1,0 +1,147 @@
+
+/*
+  witness strings:
+  comma separated list (no whitespace) of
+  #cord_id=answer
+  Inside the answer, \ escapes , and itself.
+*/
+
+#define MODE_HASH 1 
+#define MODE_WAITEQ 2 
+#define MODE_SKIPANSWER 3
+#define MODE_GETANSWER 4
+
+string getwitvec(string cords[], string witness,
+		 a na<a>(int, a) [],
+		 string ns(int)) [] {
+  
+  string out[] = na(size(cords), "wit_error");
+
+  for(int i = 0; i < size(cords); i ++) {
+
+    string c = cords[i];
+    /* look it up in witness */
+
+    int mode = MODE_HASH;
+
+    int sizew = size(witness);
+    
+    int start = 0;
+
+    int sizea = 0;
+
+    for(int m = 0; m < sizew; m ++) {
+
+      switch(mode) {
+
+      case MODE_HASH:
+	if (witness[m] == '#') {
+	  mode = MODE_WAITEQ;
+	  /* if last char is # then this 
+	     will get arraybounds */
+	  start = m + 1;
+	} else
+	  /* error */
+	  break;
+
+      case MODE_WAITEQ:
+	if (witness[m] == '=') {
+	  /* compare start..m to cord[i] */
+
+	  if (m - start == size(c)) {
+
+	    int allok = 1;
+
+	    for(int j = 0; j < size(c); j++) {
+	      if (c[j] != witness[start+j]) {
+		allok = 0;
+		break;
+	      }
+	    }
+
+	    if (allok == 1) { 
+	      mode = MODE_GETANSWER;
+	      start = m + 1;
+	      sizea = 0;
+	    }
+	    else mode = MODE_SKIPANSWER;
+
+	  } else {
+	    mode = MODE_SKIPANSWER;
+	  }
+
+	}
+
+      case MODE_GETANSWER:
+
+	int escaped = 0;
+
+	if (witness[m] == '\\') {
+	  m ++;
+	  escaped = 1;
+	} 
+
+	if ((escaped == 0 && witness[m] == ',') ||
+	    m == sizew - 1) {
+	  /* this is it ! */
+	  
+	  if (m == sizew - 1) sizea ++;
+
+	  out[i] = ns(sizea);
+
+	  int r = start;
+	  for(int w = 0 ; w < sizea; w ++) {
+	    if (witness[r] == '\\') r++;
+	    out[i][w] = witness[r];
+	    r++;
+	  }
+
+	  /* no need to keep looking... */
+	  break;
+
+	} else sizea ++;
+	/* keep going ... */
+
+      case MODE_SKIPANSWER:
+	if (witness[m] == '\\') {
+	  m++;
+	} else if (witness[m] == ',') {
+	  /* skipped! */
+	  mode = MODE_HASH;
+	} 
+	/* otherwise keep going... */
+
+      default: 
+	mode = MODE_HASH; /* popcorn requires default; impossible */
+
+      }
+
+    }
+
+  }
+
+  return out;
+
+}
+
+#if 0
+
+#include <core.h>
+
+int pop_main() {
+
+  string input [] = { "ABC", "DEF", "GHI" };
+
+  string witness = "#ABC=123,#DEF=\,\,56\\\\,#GHI=789\,";
+
+  _ out = getwitvec(input, witness,
+		    new_array, Core::new_string);
+
+  for(int i = 0; i < size(out); i ++) {
+    printf("[%d] %s = \"%s\"\n", i, input[i], out[i]);
+  }
+
+   return 0;
+
+}
+#endif

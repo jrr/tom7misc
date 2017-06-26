@@ -1,0 +1,2923 @@
+(Note: This document is not complete, though I still welcome
+ suggestions for the information (useful, I think) that is
+ there so far! - Tom)
+
+
+
+    ML for Hackers
+
+This an ML tutorial, but an unconventional one. 
+
+There are many other excellent introductions to ML which approach it
+from a Computer Science perspective (emphasis on types, proofs, and
+the lambda calculus). This is an important part of programming in ML
+(just as things like automata theory and object patterns are an
+important part of imperative OO programming), but it tends to scare
+away many people who could really appreciate ML. If you're a hacker
+(in the positive sense), you'd benefit from reading this tutorial if
+any of the following apply:
+
+ - You enjoy programming just for the sake of programming
+
+ - You're interested in weird paradigms and powerful language features
+
+ - You're disillusioned with your current programming language (maybe
+   you just had to rewrite some piece of code for the 30th time, or
+   spent a day debugging another memory leak / out-of-bounds write)
+   
+Or maybe if you believe any of these myths:
+
+ - Object-Oriented Programming is the state of the art for large
+   program design
+
+ - You equate "functional language" with lisp or scheme (and lots of
+   parentheses)
+
+ - You think that functional languages are impractical for real
+   programs
+
+ - You think having language-level safety and garbage collection means
+   running in a virtual machine
+
+In general, "ML For Hackers" is written for people with a strong
+intuition for programming and a reasonable amount of experience with
+some moderately-sophisticated language. It is four parts tutorial, one
+part advertisement, one part language comparison, one part
+love-letter, one part plain-english reference, (with trace elements of
+type theory and induction), but is 100% proof free. Ready? Let's
+begin...
+ 
+    Related Languages
+
+This document uses Standard ML. At least one other important variation
+(among countless other research extensions) exists: O'Caml. O'Caml is
+a bit more featureful (and a little more "hacky"); I prefer Standard
+ML because it is more carefully designed and stable. Despite some
+syntax differences, reading this tutorial should give you significant
+insight into programming in O'Caml as well.
+
+
+    ML in Words
+
+ML stands for Meta Language, since it was originally conceived as a
+tool for ((interactive theorem proving?)). It has been around for
+about 30 years, and been through several revisions. The most recent of
+these is ML97, which is covered in this tutorial. Vestiges of Old ML,
+while supported in many compilers, are mostly ignored.
+
+ML is a predominately "functional" language, which is in stark
+contrast with "imperative" languages like C, C++, Java, Pascal, COBOL,
+Fortran, BASIC, etc. Functional languages have their roots in the
+lambda calculus, while imperative languages have their roots in turing
+machines. Functional languages are characterized by functions,
+recursion, expressions, and values. Imperative languages are
+characterized by procedures, iteration (loops), statements (commands),
+and references.
+
+Functional programming has many virtues, which I'll try to expose
+through the examples in this tutorial. Unfortunately, it's difficult
+for many programmers to grasp; perhaps due to something innate in
+humans, but more likely due to experience with imperative programming.
+Besides Lisp/Scheme, most introductory programming languages are
+imperative. On the other hand, many people eventually find that it is
+much easier to think and debug when programming in a functional style.
+However, since the functional interpretation of some problems is
+awkward (and since IO is important to most real programs), ML also
+includes imperative features such as references, arrays, disk and
+console IO, etc.
+
+ML is a safe, statically-typed language. Safety means that your
+program has no undefined behavior (it can't crash; only throw
+exceptions). Statically-typed means that these safety properties are
+enforced by the compiler at compile-time (no run-time type checking,
+though things like array bounds are checked). Static typing also
+allows the programmer to find many bugs before the program is ever
+run! ML is almost unique in this combination: Most other safe
+languages (Java, Perl, BASIC) are dynamically typed (incurring a
+run-time penalty), and most other statically-typed languages (C, C++)
+are unsafe. Furthermore, many languages with "safety" have a more
+liberal idea of safety than ML (various run time errors, such as the
+ubiquitous "null pointer exception" in Java, are not possible in ML).
+ML's sophisticated type system is one of the things that makes it so
+powerful.
+
+Safety and static typing are very difficult to get when combined with
+manual memory management; so ML is also garbage-collected. In theory,
+this makes ML a little less expressive than languages with manual
+memory management (C, C++), though in practice garbage collection is
+extremely convenient and does the right thing in practically all
+situations. The safety properties allowed by Garbage Collection are
+well worth it, even if you prefer for some reason to manage your
+memory manually.
+
+To support "programming in the large", ML has a very rich module
+system, boasting (user-defined) fully abstract types, signatures
+(interfaces), and parameterized modules. In almost all of the modern
+ML compilers, separate compilation is supported. Due to its powerful
+module type system, many compilers also support large-project
+management features like dependency analysis and cutoff recompilation.
+(( aside: cutoff recompilation ))
+
+ML is generic. It supports code-reuse with "implicit parametric
+polymorphism", where a function can be defined to work on any type,
+and "parametric polymorphism" where generic modules can be statically
+specialized by types (and even operations). The former is similar to
+what's done with C's "void*" or Java's "Object"; the second is similar
+to C++'s template system. Both are accomplished MUCH more nicely (type
+safe and no casting), and will be discussed in detail later.
+
+ML is efficient. Since it's compiled to real machine code and doesn't
+have any run-time typechecking costs, it performs well-enough for real
+world applications. Benchmarks are always dubious, but it can be
+expected to outperform Java (with JVM overhead and run-time type
+checking) and interpreted languages like Perl or Python. To be fair,
+though: as a very high-level language, it's slower than hand-written C
+or Assembly when using these high level features. ML compiler
+technology is improving rapidly, closing this gap. Unless you're
+writing Quake 4, the increased programmer productivity and safety
+guarantees are worth the modest speed difference. For most programs,
+you won't even notice. If speed is critical, experience has shown that
+important routines can be written to be C-like, and will run within
+about 10-15% of the speed of C (sometimes faster). See Doug Bagley's
+Programming Language Shootout [1] page for some examples. Of course,
+since programmer time is always limited, writing in a high level
+language like ML can have efficiency benefits too--algorithms and data
+structures that you would never dare try to code in C are suddenly
+within reach, and this can make even more performance difference than
+how fast your array-crunching for loops run.
+
+Since ML is so high-level (abstracting away almost all machine
+details), it's also highly portable. ML code tends to work on any ML
+compiler with very few modifications. Consider the difficulties
+porting C or C++ apps to unicode character sets or 64-bit integers --
+this is a virtually nonexistant problem (except to the compiler
+writers) in ML. To some extent these issues can be taken care of in
+any language through programmer discipline, though ML makes it
+quite convenient and beautiful.
+
+ML has a very convenient syntax. Though its type system is very
+sophisticated and important to the language, you usually have to write
+down fewer types than in Java or even C; the compiler figures out the
+types for you! (that is, you don't even need to say "int x"). Pattern
+matching makes certain tasks downright enjoyable (processing
+programming languages is one of these), and user-defined infix
+operators allow you to invent your own syntax to suit the problem at
+hand. ML is very low on punctuation, only rarely requiring parentheses
+or end-of-line delimiters (some people find this makes the code much
+easier to read). But, foes of Python, the syntax ignores whitespace,
+allowing you to write programs using your own indentation style.
+
+    Warning
+
+It took me a semester to understand ML, and a year to appreciate it. I
+hated it at first! (Though if I had a document like this it might have
+been a little easier). FIXME (( read: common arguments against ML or
+functional programming ))  XXX: non-updatable values are an invariant.
+
+    ML in Code
+
+OK, enough words -- for hackers, we'll teach with code. Let's work
+through some simple examples, up to some spectacular stuff.
+
+    Getting Started
+
+You should get an ML compiler; this tutorial is best used by typing in
+the examples (possibly modifying them) and seeing what happens. The
+popular SML/NJ compiler is built around an "interactive system"
+(shades of lisp), which is perfect for this kind of activity. You can
+type examples at the prompt, have them compiled and run, and then see
+the result immediately. See the (( ML Compilers )) page for getting
+SML/NJ; it's free, open source software.
+
+    Expressions, variables, and scope
+
+ML is built around expressions, rather than statements or commands. So
+here's a simple ML program:
+
+3;
+
+Which, not surprisingly, does nothing and "evaluates to" the integer 3.
+Expressions can of course be more complicated:
+
+1 + 1 + 1;
+
+If you type this at the SML/NJ prompt and press enter, you'll get back:
+
+val it = 3 : int
+
+This is a convenience of the SML/NJ system. Really, you are not
+allowed to just type expressions into the top level, you're supposed
+to enter declarations. One kind of declaration is the "val"
+declaration:
+
+val <variable> = <expression>
+
+Which evaluates the expression and "binds" the variable to the
+resulting value. (We'll get to more about variables--which are
+different from what you're used to in imperative languages--soon). So
+SML/NJ turns 3 into:
+
+val it = 3;
+
+If you type that, you'll see exactly the same result you saw with just
+3 alone. For playing around, you can just type expressions at the
+prompt. We also see "int" in the message back from SML/NJ; this is the
+result of its type inference at work. We're optionally allowed to put
+these type annotations almost anywhere, if we want:
+
+val x : int = 3;
+
+or
+
+val x = 3 : int;
+
+or since (expression : type) is also an expression:
+
+val x : int = 3 : int : int : int : int;
+
+But in practice we only use annotations when the type is useful for
+documentation purposes; integer constants definitely do not need them!
+There are a few rare cases where the annotations are required; I'll
+point those out when we come to them.
+
+Earlier I claimed that ML seldom needs end-of-line delimiters, so why are
+we using them? It's true that you don't need them, try:
+
+val x = 10        ( note no semicolon here )
+val y = 100;
+
+ML can infer ends-of-lines because all declarations start with a
+keyword (like val). At the interactive loop, however, SML/NJ can't
+tell if you're done with your expression unless you give it a helpful
+semicolon. Inside ML source files you don't need semicolons. (And now
+that you know this, I'll usually leave them off of examples).
+
+Most of your intuitions will hold with simple ML expressions. The math
+operations are there:
+
+1 + 3 - 5 * 6
+
+And you can group with parentheses as usual. Here are some
+differences: integer division is called "div", integer modulus is
+called "mod", and most bizarrely "~" is used for unary negation and
+for writing negative constants.
+
+2 * (3 + 4) mod 5 - (2 * ~4)
+
+There are a few primitive types in ML. Here's how you write string
+constants:
+
+val hi = "hello"
+(NJ says: val hi = "hello" : string)
+
+Strings are concatenated with the ^ operator:
+
+val greeting = hi ^ " aviator!"
+
+Characters are written with the somewhat tedious notation #"c":
+
+val c = #"x"
+(NJ says: val c = #"x" : char)
+
+It's rare to actually have to write characters, though; mostly we pull
+them out of strings. We'll see two ways to do this in the sections on
+lists and vectors.
+
+In addition to integers, there are floating point numbers called
+(somewhat presumptuously) "real". These must either use "e" notation:
+
+4e3
+
+or have both an integer and decimal part:
+
+3.2
+1.0
+0.5
+
+Unlike in C, the following are not legal (this has tripped me up a few
+times):
+
+.35
+3000.
+
+As I mentioned, floating point numbers have type "real". The
+operations + - and * also work on them due to a mechanism known as
+overloading, and floating point division is the familiar /. Even
+though these operations work, it is crucial to note that ints are not
+reals, and reals are not ints. The following are ILLEGAL:
+
+3 * 1.0
+1 / 3             ( should be 1 div 3 )
+121.1 mod 5
+1 + "hello"
+
+Note SML/NJ will reject these statically (it will refuse to compile
+them) -- your first type error!
+
+To convert between ints and reals, you can use the Real.fromInt and
+Real.toInt functions:
+
+Real.fromInt(3) * 1.0
+Real.toInt(121.1) mod 5
+
+(( XXX: In toplevel, 'real' is bound to Real.fromInt ))
+Here the "dot" notation is used to refer to a function (fromInt,
+toInt) inside a module (Real). We'll see more of this later. It's
+rather a lot of typing just to convert between types, so if you're
+doing a lot of math, you'll usually bind shorter replacements:
+
+val ir = Real.trunc
+val ri = Real.fromInt
+
+val x = 5.0
+val y = ri 3 * 5.0
+val z = ir y mod 2
+
+We did a few things here that are kind of cool: First, we used a
+function as a value, and bound it to a variable. That's legal (and
+encouraged) in ML; functions are values like any other. We'll see a
+lot more on these "higher order functions" later. The second is that I
+stopped using parentheses in function calls -- this is kosher, too:
+
+f x
+
+is a valid way to have function f to argument x. When you say f(x) you
+are actually just pointlessly parenthesizing the expression x. Another
+neat thing we can do is call the conversion functions $$ and ##:
+
+val $$ = Real.trunc
+val ## = Real.fromInt
+
+val x = 5.0
+val y = ##3 * 5.0
+val z = $$y mod 2
+
+ML lets you use "alphanumeric" or "symbolic" identifiers. Alphanumeric
+identifiers start with a letter and contain any letters, numbers,
+apostrophes, or underscores. Symbolic identifiers are made up of the
+characters `!@#$%^&*|?/<>+=, although there are some reserved symbolic
+keywords like # and -> and =>. We'll see later that you can shadow
+builtin operators like + or create your own new infix operators. So
+$$y above is '$$' applied to 'y', the same as when we wrote 'ir y',
+but now the space is optional.
+
+As a style issue, most ML programmers stay away from symbolic
+identifiers. There are times, however, when they're extremely
+appropriate (defining a ** exponentiation operation, perhaps). We'll
+see some examples later.
+
+Note that since we've now declared these variables (ir, ri, $$, ##, x,
+y, z) they're around forever. The top level interactive loop is
+somewhat bizarre since it has "infinite" scope -- short of leaving the
+compiler, there's no way to exit the scope of things we declare here.
+In most programs, you'll want to use a "let..in..end" expression to
+tie up the scope of your variables. For example:
+
+let 
+    val x = 3
+    val y = 4 * x
+in
+    2 + x + y
+end
+
+Declarations in the let..in part are available "in scope" for the rest
+of the declarations in that section, as well as in the expression in
+the in..end part. Outside the let, the variables are inaccessible. A
+let..in..end is an expression, not a declaration. The "value" (or
+"return value") of the let expression is the part in the in..end. The
+let..in part can be empty, which means that you don't need parentheses
+(if you really hate them) for grouping:
+
+3 * let in 1 + 3 end
+
+Here's a let used in a declaration:
+
+val z = 
+    let 
+        val x = 3.0
+        val y = 1.0 + (x * x)
+    in
+        Real.trunc y
+    end
+
+In this declaration, the let is evaluated, and the result (of
+Real.trunc y) is bound to z. The locally bound variables x and y are
+"out of scope" after the let is finished. This idea of scope is also
+extremely important in ML.
+
+val z = 
+    let 
+        val x = 10
+        val y = 
+            let
+                val x = 3
+            in
+                x
+            end
+    in
+        x
+    end
+
+The inner let obviously evaluates to 3, so that's the value that y
+gets. What about z? Since lower binding x = 3 is evaluated after the
+upper x = 10, shouldn't it be 3?
+
+No, actually. Here's the weird thing about variables in ML: once
+they're bound, they don't change. (Everyone loves to point out that
+a "variable" that doesn't "vary" is an oxymoron. Think of them like
+variables in algebra or logic, which stand for a particular value but
+also don't change.) The inner x is actually a NEW variable with the
+same name.  Inside its scope it "shadows" the outer declaration of x,
+so that the outer x is not accessible by the name "x". Yet the outer x
+is still around when the inner let finishes, and it has the same old
+value.  This local shadowing effect is a feature in most mature
+programming languages. In fact, this C/C++ fragment is the same idea:
+
+int x = 10;
+{ int x = 3; }
+
+After this executes, the outer x still has the value 10, and the inner
+one has gone away. 
+
+The non-updatable values are a characteristic of functional languages.
+Remember, ML does support updatable values (references) which can be
+changed. We'll get to that later, but the surprising thing (to me) is
+how few programs actually need it. Most of the time, non-updatable
+values are enough!
+
+We've touched upon one reason why this is useful. Even though the
+inner let expression chose the variable name "x", this choice isn't
+affected by a choice of variables outside the expression. More
+importantly, the choice of variables inside the let doesn't affect the
+code outside. Since it does no assignment, we say that the expression
+"has no effect". Computation without side-effects is the essence of
+functional programming.
+
+     Functions
+
+The reason why we can get anything done in functional languages is the
+power of functions. We saw how to use built-in functions in the last
+chapter; now let's see how to build our own. Every text on ML uses the
+factorial example, so let's do that too:
+
+(* factorial function on n >= 0 *)
+fun fact n = 
+       if n = 0 
+       then 1 
+       else n * fact (n - 1)
+
+There's lots of new stuff here:
+
+The if..then..else is an expression, which means that it returns a
+value. Since it returns a value, there most be both a "then..." and
+"else..." part (otherwise, what could (if false then 0) return?). This
+is closer to the ternary ?: operator in C than C's if(..)..else..
+syntax.
+
+We used the equality operator = to test if n equals 0. 'n = 0' has
+type bool (it's either 'true' or 'false'), and the if..then..else
+syntax requires an expression of type bool (additionally, the then and
+else branches must have the same type). Equality works on many types;
+we'll get to this somewhat complex feature when we talk about equality
+types.
+
+The fun syntax is a declaration for functions. The name of the
+function is "fact" in this case, and its argument n. This is a
+recursive function (it calls itself) -- in addition to declaring the
+name "fact" for use later in the program, the name "fact" is also in
+scope for the body of the function. Very many functions in ML are
+recursive.
+
+When you declare this function, SML/NJ will tell you its type:
+
+val fact = fn : int -> int
+
+It prints the value of the function as 'fn' since functions are
+compiled to machine code and their ML code is lost. That's ok, since
+there's nothing we can do to inspect the internals of a function. 'int
+-> int' means that the function takes an int (left side) and returns
+an int (right side). We usually pronounce this "int to int". Note that
+SML can infer this information for us; we don't have to write types at
+all (compare to the declaration in C). But if we wanted to write these
+types in, we would do this:
+
+fun fact (n : int) : int = <exp>
+
+Where the first int is the type of the argument n, and the second int
+is the result type of the function (there are other places to put
+these types, but this is standard practice). 
+
+Try calling the function on an argument:
+
+- fact 10;
+val it = 3628800 : int
+
+Finally, we used the ML comment notation (* which looks like this *).
+As with most other ML syntax, comments properly nest. Like a good
+programmer, we documented an important property of our function: it
+only works for nonnegative input. You'll notice that if you run the
+function on a negative number (with ~, remember), it'll go on forever.
+In SML/NJ, you can stop a looping (or otherwise busy) program with
+control-c. 
+
+You might also notice that running the factorial function on bigger
+numbers will raise an exception "overflow" (x! gets big very quickly).
+Most ML compilers have overflow checking for integers (this helps
+catch certain kinds of bugs), though the type 'word' has no overflow
+checking, and some implementations support an infinite-precision
+integer which can't overflow.
+
+Speaking of fun facts, "fun fact n = exp" is really just syntactic
+sugar for:
+
+val rec fact = fn n => exp
+
+It's easy to see why nobody uses the "real" version of function
+declarations. ML calls these sugary bits of syntax "derived forms",
+and has many other useful ones. In fact (sorry), this function can be
+rewritten much more clearly using a different derived form:
+
+fun fact 0 = 1
+  | fact n = n * fact (n - 1)
+
+This is called "pattern matching". If fact is called on 0, then the
+result is 1. Otherwise, the argument is bound to n and handled by the
+second case. Patterns can be arbitrarily long (we could have a 1, 2,
+20, etc. case as well). Pattern matching on a function is a derived
+form for:
+
+fun fact arg = 
+    (case arg of
+          0 => 1
+        | n => n * fact (n - 1))
+
+(( XXX this isn't true, but it should be ;) ))
+
+Unlike "val rec", the case expression is often useful on its own.
+Pattern matching in functions and case expressions is most useful when
+coupled with tuples (like anonymous C structs) and datatypes. We'll
+revisit pattern matching when we get to those features in later
+sections.
+
+As I mentioned earlier, functions in ML are "higher order", meaning
+that they're values just like any other. We can write a function that
+returns another function:
+
+fun three () = 3
+
+fun f () = three
+
+Something else is new here: () is the only value with the type "unit"
+(we pronounce the empty parens as "unit" too). It's used mainly for
+functions that don't take any useful arguments, and as a return value
+for functions that don't have any useful return (like print). Note
+that this conveniently coincides with the notation for calling a
+function with no arguments in C! But here, you are really calling the
+function with one argument, unit.
+
+The function 'three' has type unit -> int. The function 'f' has type
+unit -> (unit -> int), meaning that it takes a unit (empty parens), and
+returns a function which takes unit and returns an int. Call it:
+
+val f' = f ();
+(NJ says:  val f' = fn : unit -> int)
+
+val x = f' ();
+(NJ says:  val x = 3 : int)
+
+In the first declaration we called f and bound the result (a function)
+to a new variable f'. Then we called f', and bound the result (3) to
+x. Recall that apostrophe is a valid character in identifiers; it's
+pretty common practice to make a function like "f prime".
+
+A function can also take another function as an argument:
+
+fun call_on_three f = f 3
+
+fun double x = x + x
+
+The types here are:
+
+call_on_three : (int -> 'a) -> 'a
+double : int -> int      (( aside: overloading ))
+
+'a is pronounced "alpha" and means roughly "anything". This is called
+a "type variable" and is our first look at "implicit parametric
+polymorphism"; we'll take a more detailed look at type variables
+later. Note that even though there is some fancy type machinery (and
+long words) at work here, it's rather transparent to the user in terms
+of the code he or she writes. The whole type ((int -> 'a) -> 'a) means
+that call_on_three takes a function which takes ints to anything, and
+then returns that same kind of anything.
+
+The call_on_three function takes a function (f), and then applies that
+function to 3. Let's run 'call_on_three' on 'double':
+
+val x = call_on_three double
+(NJ says: val x = 6 : int)
+
+This amount of function passing is useful, but it's actually nothing
+special. C has this functionality with function pointers, and it can
+be simulated (somewhat tediously) in Java by passing around objects.
+
+What makes higher order functions so useful in ML is the ability to
+create new function values at runtime (called closures). Once we've
+built up some more machinery we'll be able to use this to do really
+cool stuff like polymorphic function composition! Let's start simple,
+though.  Consider this function:
+
+fun constant k =
+    let
+        fun f () = k
+    in 
+        f 
+    end
+
+constant has type 'a -> (unit -> 'a)
+
+Note that the function f refers to k, which is not a locally bound
+variable nor one of its formal parameters (arguments). This variable
+is said to be "free" in f, which means that whatever value it has when
+the function is defined sticks with the function forever (if k were
+not defined outside, it wouldn't compile). Try calling it:
+
+let
+    val ret_three = constant 3
+in
+    ret_three ()
+end
+
+This of course returns 3. We've made a new function at runtime!
+
+There's a somewhat annoying restriction in ML which prevents you from
+doing "val f = constant 3" at top level. This is called the "value
+restriction" and is required for safety in the language. It seldom
+bothers you in real programs, but pops up sometimes when playing
+around at top-level. See the (( aside: the value restriction )) for
+more detail.
+
+Let me just restate this because it's very important: When you declare
+a function, any free variables (ones that are not arguments or
+declared in the function body) are stored in an "environment" with the
+function value. The combination of both the function code and an
+"environment" of relevant variable bindings is known as a closure.
+Rebindings of any of the variables in the environment don't matter;
+the function always refers to the copies of variables that are stored
+in its environment. This is known as "static scope", and it's true of
+variables, functions (remember the derived form above means a function
+declaration is really just a variable declaration), and stuff we'll
+get to later like datatypes, type abbreviations, exceptions, and even
+modules. So even though I might locally redefine a function (not
+knowing, perhaps, that a function by the same name is used by another
+function I'm using), that can't affect other code not in scope of the
+redefinition!
+
+This is a very nice feature of ML; many languages have what's called
+"dynamic scope" with regard to function values. For instance, you can
+cause problems at link-time in C by redefining library functions. 
+Languages such as lisp and perl have more evident effects of dynamic 
+scope. In these languages, dynamic scope can be convenient, but often
+leads to convoluted code in large programs. Both languages have 
+facilities for achieving (or approximating) static scope, and 
+civilized programmers use those almost exclusively.
+
+(( XXX need a better example of static vs. dynamic scope ))
+
+Let's play with this right now. You've seen unary negation, written
+with the tilde (~). This is actually just a function, like most of the
+operators in ML. (+, -, div, mod, etc. are also just functions; you'll
+see how these can be redefined in the section on infix operators.) Try
+this:
+
+fun negate x = ~ x
+
+fun ~ x = 0
+(NJ says: val ~ = fn : int -> int)
+
+Now we've redefined ~ to just return zero (though we saved another
+function 'negate' which uses the old ~ to actually do something). Try
+it:
+
+~ 3
+(NJ says: val it = 0 : int)
+
+Note that you do need a space, since ~3 is the integer constant -3,
+while ~ 3 is unary negation applied to the constant 3. Saying that we
+"redefined" ~ is probably bad terminology; what we really did was
+shadow the previous definition of ~ with a new one. The old one is
+still around, look:
+
+negate 3
+(NJ says: val it = ~3 : int)
+
+In fact, all of the code that uses ~ will still work! This is another
+extremely useful fact, because it allows us to write code without
+worrying about what other programmers have named functions or
+variables, and allows us to use someone else's code without having to
+verify that there are no name conflicts. And the machinery that makes
+this possible (closures) allows us to create new functions at runtime,
+which is very, very powerful!
+
+If you typed the examples above at top level, you should exit and
+restart SML/NJ (any future uses of ~ will be our useless new
+function). You can do this by typing a control-d on unix or control-z
+in Windows.
+
+The syntax for defining 'constant' above was somewhat verbose. ML
+has two features that make this easier; the first is anonymous functions:
+
+fun constant k = fn () => k
+
+This fn notation is just like lisp's "lambda"; both come from the
+lambda calculus, and this one is also often pronounced lambda too. fn
+<var> => <exp> is an expression; you can store it in a variable, pass
+it to a function that expects a function as a parameter, or apply it
+immediately:
+
+(fn x => x + x) 3
+
+(So notice that the function part of an application expression doesn't
+need to be a function name, just a function expression. The function
+eventually applied could be the return value of another function call,
+for instance.)
+
+You can pattern match in anonymous functions, though they can't be
+recursive (use let fun f ... in f end for that):
+
+(fn true => 5 | false => 0)
+
+Making functions that return functions is a pretty common idiom in
+ML, so there is a syntax called "currying":
+
+fun f x y = x + y
+
+This is a "curried" addition function with two arguments. It's really
+the same as:
+
+fun f x = fn y => x + y
+
+And it has type
+
+f : int -> (int -> int)
+
+That is, it takes an int, and returns an int -> int function. NJ will
+report this type as simply int -> int -> int, since the arrow in types
+(->) is right-associative. Function application in expressions is
+left-associative, however (the opposite of the ->, but it works
+out!). To add 1 and 2 with the above function:
+
+f 1 2
+
+This parenthesizes as (f 1) 2, so we call f on 1 to get a new
+function, then call on 2 to finish the computation. Curried function
+declarations are allowed to any number of arguments:
+
+fun add_five a b c d e = a + b + c + d + e
+
+(NJ says: val add_five = fn : int -> int -> int -> int -> int -> int)
+
+add_five 1 4 7 2 10 15
+
+And you can even pattern match on curried arguments:
+
+fun mult 0 n = 0
+  | mult n 0 = 0
+  | mult a b = a * b
+
+Any multi-argument function can be written with currying. However,
+there is some overhead in creating and returning intermediate closures
+which isn't worthwhile if you always go ahead and call the function
+with all its arguments. (Many compilers in fact optimize away currying
+when possible). It's also very awkward to return multiple values from
+a function using this kind of trick. (( aside: functional pairs )) The
+most appropriate way to make functions take multiple arguments and
+return multiple results is with tuples.
+
+     Tuples
+
+Tuples are like anonymous C structs. They're anonymous both in the
+fact that the fields don't have names (actually they have names 1, 2,
+3, ...), and in the fact that you don't have to declare them before
+using them. Let's say we want a function that takes two ints and
+returns the bigger one.
+
+fun max (a, b) = if a > b then a else b
+
+The type of this function is int * int -> int. int * int means that it
+takes a pair (or 2-tuple), where the first of the pair is an int, and
+the second of the pair is also an int (it's a * because you can think
+of this as the cartesian product of those two types, if you are
+set-theory inclined). Here's a function that returns a pair of its
+input and half its input.
+
+fun f a = (a, a div 2)
+
+This one has type int -> int * int. Constructing a tuple is easy; one
+just writes it in parentheses, with the fields separated by commas.
+They can be any length except 1:
+
+val x = (3, 5) : int * int
+val y = (3, 9.0, "hey") : int * real * string
+val u = () : unit
+
+An empty tuple is called "unit", as we saw before. () is the only
+value of type unit; all units are equal.
+
+val z = (2, (4, 8), "hello") : int * (int * int) * string
+
+Tuples can be nested; this is not the same thing as (2, 4, 8, "hello").
+
+We can use tuples in a few ways. First is "deconstruct" the tuple with
+pattern matching:
+
+fun f (_, arg2, arg3) = arg2 + arg3
+
+f ("hello", 2, 5)
+
+The reserved word _ is called "wildcard", and matches anything. It's
+the same as putting a variable there and then never using it, except
+that you indicate to the compiler and readers of your code that you're
+ignoring that argument.  It's very good style to use the wildcard
+where possible. The function f here can be thought to take 3 arguments
+(one of which it ignores), though really it takes a single tuple which
+we deconstruct through pattern matching.
+
+We can also deconstruct on a "val" binding:
+
+fun g () = (1, 2, 3)
+
+val (x1, x2, x3) = g ()
+
+(You can do any kind of pattern matching in a val binding, but you'll
+often get compiler warning messages; we'll learn about redundant and
+nonexhaustive matches in the section on datatypes. Deconstructing
+tuples this way won't produce any warnings.)
+
+So a three-argument function really just takes one argument, the
+tuple. This is evident by rewriting the function f above:
+
+fun f tuple =
+    let 
+        val (_, arg2, arg3) = tuple
+    in 
+        arg2 + arg3
+    end
+
+This is, in fact, exactly equivalent to the way we wrote it above.
+
+Finally, we can use "record projection" to pull out fields by their
+1-based index:
+
+let
+    val tuple = (1, "hello", 7)
+in
+    #1 tuple + #3 tuple
+end
+
+These projection functions are #1 and #3, which extract the first and
+third fields, respectively. Unfortunately this syntax isn't as useful
+as it seems; in order to do this the length of the tuple argument
+needs to be known. (Tuples are really records, and the reason for this
+behavior is given in the section on records).
+
+Tuples are more efficient than currying. Most compilers will compile a
+function call on a tuple without bothering to allocate space to create
+it; it will just put the values in registers like a C compiler might.
+(another nice thing about ML: since the machine details are abstracted
+away, the compiler writer is free to choose the most efficient data
+representation, even representing data in different ways at different
+places!)
+
+    Datatypes
+
+We've seen the "product" of types (tuples); datatypes allow us to
+create the "sum" of types. A better term might be "alternation" or
+"disjoint union". (( aside: where do these type names come from? ))
+
+Datatypes use explicit runtime tagging to provide constants (like
+enums) and type alternation. We could declare a new type with three
+values:
+
+datatype ofthree = Rock | Paper | Scissors
+
+It's customary to call the parts of a datatype (called "constructors")
+by names starting with a capital letter. The new type is called
+"ofthree" and it has values Rock, Paper, and Scissors. The order that
+these appear in is irrelevant.
+
+We can use these constants as values, or pattern match against them:
+
+(* is_rock : ofthree -> bool *)
+fun is_rock Rock = true
+  | is_rock _    = false
+
+(* wins : ofthree * ofthree -> bool *)
+fun wins (Rock, Scissors) = true
+  | wins (Scissors, Paper) = true
+  | wins (Paper, Rock) = true
+  | wins _ = false
+
+val x = is_rock Scissors
+
+val y = wins (Scissors, Paper)
+
+To attach values (of possibly different types) to these constructors,
+use the "of" keyword:
+
+datatype attribute = Height of int | Name of string
+
+val an_attribute = Name "Thomas"
+
+(* attr2string : attribute -> string *)
+fun attr2string (Height n) = "Height: " ^ Int.toString n
+  | attr2string (Name s) = "Name: " ^ s
+
+val s = attr2string an_attribute
+(NJ says: val s = "Name: Thomas" : string)
+
+You must put parentheses around a constructor applied to an argument
+in a pattern; if you don't it'll think you're trying to write a
+curried function. Everyone makes this mistake a few times; it is
+fairly one of the misdesigns in the syntax of ML.  Here we check the
+tag of the input to decide if it's a Height (int) or Name (string)
+attribute, and then run the appropriate code. The variables "n" and
+"s" are bound to the values that the types hold (an integer in the
+Height case, or a string in the Name case). A more relevant example:
+
+datatype number = Int of int | Real of real
+
+(* num_plus : number * number -> number *)
+fun num_plus (Int x, Int y) = Int (x + y)
+  | num_plus (Int x, Real y) = Real (x + Real.fromInt y)
+  | num_plus (Real x, Int y) = Real (Real.fromInt x + y)
+  | num_plus (Real x, Real y) = Real (x + y)
+
+So, for instance, if you found ML's static typing inconvenient for a
+particular problem, you could make a "variant" datatype including
+cases for all the types you want to use. The num_plus function above
+allows you to add ints and reals (stored in a datatype called
+"number"), similar to a dynamic language like lisp or perl. (ML gives
+you the choice between having honest-to-goodness ints or a tagged
+"dynamic" int, whereas you're literally stuck with using tags all the
+time in a dynamic language).
+
+Better yet, datatypes in ML can be recursive. Here's a definition of
+int lists:
+
+datatype intlist = Node of int * intlist | Empty
+
+We refer to the type we're defining ("intlist") within the definition.
+This is similar to how you might declare a (monomorphic) linked list
+in C or Java; note that we have an "Empty" constant which works as our
+"Null pointer". (( aside: datatype representation )) The list [1, 2,
+3] would be entered as:
+
+Node(1, Node(2, Node(3, Empty)))
+
+Datatypes can be mutually recursive:
+
+datatype exp = 
+    Plus of exp * exp
+  | Var of string
+  | Let of dec * exp
+  | App of exp * exp
+and      dec =
+    Bind of string * exp
+  | Fun  of string * exp
+
+This is a declaration for the grammar of a simple language, where the
+only operation is Plus (strangely, since the untyped lambda calculus
+is a subset, this language is also turing-complete). The important new
+thing here is the "and" keyword, which allows you to declare two
+datatypes simultaneously; they're allowed to refer to each other.
+A piece of code in the language above:
+
+let
+    fun z = u + v
+in
+    f z
+end
+
+Would be encoded with constructors as:
+
+Let (Fun ("z", Plus (Var "u", Var "v")),
+     App (Var "f", Var "z"))
+
+Any number of datatypes can be mutually recursive if they're declared
+together. ML compilers written in ML (and almost all are) usually have
+a giant datatype similar to the one above, to represent the ML syntax
+that they parse and process.
+
+** XXX: promised notes on redundant pattern matching **
+
+Recursive datatypes are used to represent almost all (functional) data
+in an ML program. They're the best construct I've ever used for
+representing data that is actually recursive (parse trees for a
+programming language, binary search trees and relatives, lists, sets,
+maps, etc.) They're also quite usable for most other data
+representations, and when they aren't, arrays and references are
+available. In ML, we use datatypes to achieve most of the dynamic
+dispatch functionality that objects/subclassing/virtual functions
+provide in Object-oriented languages.
+
+Best of all, it's easy to create polymorphic (generic) datatypes in ML
+which could, for instance, allow us to use the same datatype for any
+type of list. We'll see this in the section on polymorphic datatypes;
+first an introduction to polymorphism in ML with a discussion of type
+variables.
+
+
+    Type Variables and Polymorphism
+
+ML has an engine for inferring the types of the expressions in your
+program, which it uses to assure that your program won't "go wrong"
+when it's run. The inference algorithm and typing rules are beyond the
+scope of "ML for Hackers" (though they are worth understanding), but
+knowledge of type variables is both important for programming and
+enlightening from a theory perspective.
+
+A type variable is to a type what a regular variable is to a value.
+Classically, type variables can't be used in nearly as many ways
+though; ML in fact further restricts the way type variables are used
+(in a way called "prenex") for program clarity and to simplify the
+type system. Type variables show up in many places, and are written in
+the language as a name starting with an apostrophe. (Canonically, we
+use 'a, 'b, 'c, etc., though sometimes longer names like 'arg or
+'state might be more instructive to the reader of your code).
+
+For C++ programmers, the idea of a type variable is related to the
+template mechanism. When you write this code:
+
+template <class T>
+class C {
+  ...
+};
+
+T is a type variable bound within the declaration of class C. In Java,
+this is called "generics". The biggest difference in SML is that the
+compiler automatically infers the most general "template" for your
+code, and automatically instantiates the type variables when you use
+polymorphic code. Let's begin with a long-winded example:
+
+fun 'a ident (x : 'a) : 'a = x
+
+Remember, this type annotation syntax corresponds to a function type
+of 'a -> 'a. We've written here the polymorphic identity function,
+which takes any value of any type and returns it. Using this function
+is fantastically easy (no casting from Object or void *) and
+statically type-checked. We can write:
+
+ident 3;
+ident "hello";
+(ident ident) 900;
+
+ML automatically (and invisibly) replaces type variables with real
+types when you apply it to an argument. So in the first example, the
+ident function is "instantiated" to type int -> int for applying to
+the integer 3. In the second, the same function has type string ->
+string. In the third example we apply ident to itself. The first copy
+gets instantiated at ('a -> 'a) -> ('a -> 'a), since its argument is a
+function 'a -> 'a. The result of that application (a function of type
+'a -> 'a) is instantiated at int -> int for application to 900. The
+identity function can be applied to itself as many times as you like:
+
+(ident ident (ident ident) ident ident) (ident ident ident ident ident) 3
+
+We can write the identity function, forced to be int -> int:
+
+fun int_ident (x : int) : int = x
+
+But this isn't very smart; we can use the polymorphic identity
+function ('a -> 'a) anywhere an int -> int function is required. Since
+polymorphic functions are always "as good as" their monomorphic
+counterparts, ML automatically infers the "most general" type
+(polymorphic where possible) if you don't put any constraints. So
+writing the ident function as:
+
+fun ident x = x
+
+... gives us exactly the same 'a -> 'a type as above. As mentioned
+earlier, programmers are seldom required to write down type
+annotations in ML.
+
+Though a type variable can stand for any type, type variables within a
+particular type have identity. So both 'a in 'a -> 'a above must be
+instantiated to the same type. Wrong:
+
+1 + ((ident : string -> int) "hi")
+(NJ says: BZZZT!)
+
+Unrelated type variables in the same type will have different names.
+Here's a function of type 'a -> 'b:
+
+fun loop x = loop x
+
+This function calls itself forever, and so since it doesn't ever
+return, the ML type inference engine knows that it's safe to give it a
+most general type of 'a -> 'b. That means this function can be applied
+to any argument and can be thought to return any type (since it
+doesn't return at all). This is well-typed:
+
+1 + (loop "bye")
+
+Actually, any function with a type variable in its return type that
+doesn't appear in its argument type must not return! (In ML, it can
+either loop forever or throw an exception) Here's why: with our
+example type of 'a -> 'b above, we're allowed to instantiate 'b at any
+type we like. The function certainly can't just conjure up a value of
+whatever type we choose unless we give it at least one as input. (In
+fact, it's easy to make new user-defined types in ML that have no
+values of that type). This fact is part of a somewhat deep property
+called "parametricity".
+
+(By the way, ML has another kind of polymorphism for its module
+system, which we'll get to in the section called "functors".)
+
+Aside from explaining ML's polymorphism features, ident and loop are
+pretty useless functions. Here's a somewhat more useful polymorphic
+function:
+
+(* compose : ('a -> 'b) * ('c -> 'a) -> ('c -> 'b)
+
+   composes two functions. 
+
+   (compose (f, g)) arg
+
+   is the same as:
+
+   f (g arg)
+*)
+
+fun compose (f, g) arg = f (g arg)
+
+(This function is written in curried notation. An equivalent version
+which makes clearer that we are returning a function is:
+
+fun compose (f, g) = fn arg => f (g arg)
+
+... I chose the first because it is shorter, but it's a purely style
+choice.)
+
+Running compose on two functions will return a new function which is
+their composition. Try it on "inc" and "double":
+
+(* inc: int -> int
+   double: int -> int *)
+fun inc x = x + 1
+fun double x = x * 2
+
+(* inc_then_double : int -> int *)
+val inc_then_double = compose (double, inc)
+
+val x = inc_then_double 3
+(NJ says: val x = 8 : int *)
+
+Neat! Of course, you can only compose "compatible" functions. For a
+call to compose (f, g), the result type of g must be the argument type
+of f. The result of composition is the argument type of g and the
+return type of f. This information is all given by the type above;
+each type variable appears twice and must be instantiated to the same
+type each time. Also, even though 'a and 'b are different type
+variables, they can be instantiated to the same type (as we did in the
+int -> int example above).
+
+This compose function is useful enough that it is a built-in operator
+in ML as "o". (f o g) is the same as our compose (f,g).
+
+Here's another potentially useful polymorphic function:
+
+(* swap : 'a * 'b -> 'b * 'a *)
+fun swap (one, two) = (two, one)
+
+If some function takes two arguments or returns two values in an
+inconvenient order, you could compose it with swap to get a new
+function with the order switched.
+
+You might notice something which makes these polymorphic functions
+more powerful than the ident and loop examples we saw: they have some
+sort of "structure" to their input and output. Compose doesn't merely
+take an 'a and a 'b for arguments, it takes an ('a -> 'b) function and
+a ('c -> 'a) function as arguments. Compose's type imposes some
+structure (namely, that they be functions), just as swap imposes
+structure (that the arguments must be tuples). Both of them do
+something that is closely tied to the nature of the structure. In
+truth, polymorphic functions that work on *everything* are seldom
+useful. The most powerful polymorphic functions work over some kind of
+structure, and that structure is often in the form of polymorphic
+recursive datatypes.
+
+     Polymorphic Datatypes
+
+I mentioned that recursive datatypes are tremendously useful;
+polymorphic ones are an order of magnitude more so.
+
+ML allows the use of type variables in datatypes, making them
+polymorphic. Here's a very useful one that comes with the language:
+
+datatype 'a option = SOME of 'a | NONE
+
+(don't type this example in; it's already there. See (( aside:
+generative datatypes ))) Now we can make int options and string options
+and (int -> string) option options:
+
+val x = SOME 3
+(NJ says: val x = SOME 3 : int option)
+val y = SOME "hi"
+(NJ says: val y = SOME "hi" : string option)
+val z = SOME (SOME (fn (x : int) => "bye"))
+(NJ says: val z = fn : (int -> string) option option)
+
+It's legal to make an option of any type -- no casting, all statically
+type-checked. Also notice that the polymorphism happens implicitly;
+the programmer doesn't need to write down the types at which he or she
+is using the option datatype. You'll see a lot of functions in SML
+that return an option:
+
+fun oneover (x : real) = if Real.== (x, 0.0) then NONE
+                         else SOME (1.0 / x)
+
+Here the function isn't well-defined for 0.0, so we choose to return
+NONE. (Other possibilities would be to let it just return floating
+point Infinity, or raise an exception. Option is probably not the best
+choice for this function.) Use the option type when your function will
+frequently not be able to return a meaningful answer, like a return of
+null in C or Java. Option is better than null, though: It can be used
+for any type (like ints and chars). Since it is a different type, it
+*forces* the programmer to check that the return value is SOME, not
+NONE (pattern matching makes this less of a chore). Contrarily, having
+a value of type string means that you *really* have a string; you
+never have to worry about checking against null. (Code produced by a
+java compiler does this rather frequently to guarantee safety!)
+
+Polymorphic datatypes can have more than one type argument:
+
+datatype ('a, 'b) sum = Left of 'a | Right of 'b
+
+The "sum" type (not built in, try it) allows us to create a
+disjunction between any two types ("sum" is kind of confusing
+terminology -- think of it like "or"). Say we had a function which
+took two arguments and randomly returned one of the two:
+
+(* pick : 'a * 'b -> ('a, 'b) sum *)
+fun pick (one, two) = 
+         if random_bool () then Left one else Right two
+
+Really, sum and pick are just an exposition of ML's type system; I
+can't think of any good use for them. Much more useful is the
+polymorphic list datatype. This is our first polymorphic datatype
+that's recursive, and it's built in (so just look, don't type):
+
+datatype 'a list = nil | :: of 'a * 'a list
+infixr ::
+
+There's a few new things here. First, I finally let it slip: you can
+make identifiers infix with the "infix" and "infixr" (left and right
+associative, respectively) keywords. I'll give these a thorough
+run-down in their own section. (Remember that :: is just an symbolic
+identifier; we could have chosen foo or XyZ_123' or <**&&*|*&&**>
+instead) Second, we refer to the list type within its definition. It's
+instantiated at type 'a, so when we make an int list, we are also
+recursively talking about int lists. You don't have to instantiate at
+the same type in a recursive datatype:
+
+datatype ('a, 'b) weird = 
+      AB of ('a, 'b) weird
+    | BA of ('b, 'a) weird
+    | AA of ('a, 'a) weird
+    | BB of ('b, 'b) weird
+    | I  of (int, int) weird
+    | X  of (('a * 'a), ('b * 'b)) weird
+    | U  of (('a, 'b) weird, ('a, 'b) weird) weird
+
+This kind of silliness is extremely uncommon, but the functionality is
+there. While we're at it, also observe that this datatype really is
+useless: since there are no base cases, it's impossible to get a value
+of type weird (at any instantiation). Try it! (( aside : nonuniform
+data types ))
+
+OK, back to our story. The :: constructor (pronounced "cons") is used
+to stick a value onto the head of a list, and "nil" represents the
+empty list. Let's make some lists:
+
+val x = nil
+(NJ says: val x = nil : 'a list)
+
+val y = 3 :: nil
+(NJ says: val y = [3] : int list)
+
+val z = 1 :: 2 :: 3 :: 4 :: nil
+(NJ says: val z = [1, 2, 3, 4] : int list)
+
+You may have noticed that the compiler prints list values with
+brackets instead of with the :: constructor. [v1, v2, ..., vn] is a
+derived form (syntactic sugar) for v1 :: v2 :: ... :: vn :: nil, and
+it's the way you'll usually want to write lists. Also notice that we
+must make lists of all the same type. Wrong:
+
+[1, "hi"]
+
+3 :: (3, 3) :: nil
+
+If you want variant lists, tag values using a datatype like described
+earlier.
+
+Here's a function which computes the length of a list:
+
+(* length : 'a list -> int *)
+fun length nil = 0
+  | length (head :: rest) = 1 + length rest
+
+Wow, easy! We use recursion and pattern matching to great benefit
+here: If the list is nil, the length function returns 0. Otherwise
+(pattern matching on the first element of the list and the rest), we
+add 1 to the length of the rest of the list. Note that the head part
+isn't used at all (it could be the wildcard pattern _); that's what
+makes this function polymorphic. It only depends on its argument being
+a list (of what, it doesn't care), so ML infers the most general type
+'a list -> int.
+
+Try running length on a few arguments:
+
+length [1, 2, 3]
+(evaluates to 3, argument has type int list)
+
+length nil
+(evaluates to 0, argument has type 'a list)
+
+length [fn (a,b) => a, fn (a,b) => b]
+(evaluates to 2, argument has type ('a * 'a -> 'a) list)
+
+length [[1, 2, 3], nil, [1]]
+(evaluates to 3, argument has type int list list)
+
+While minimal and elegant, this isn't the most efficient way to write
+the length function. C hackers would write a for loop, running in
+constant space, while this recursive one uses linear space (on the
+stack). Fortunately, it's easy enough to write a function that is
+maximally efficient (constant space), which we'll see in the section
+called "Tail Recursion".
+
+The 'a list type in ML is purely functional; once you construct a list
+value, it's around until it's no longer reachable and is garbage
+collected. That means that if you do this:
+
+val x = [ 4, 5, 6 ]
+
+val y = 2 :: 3 :: x
+
+x and y will share the same memory for the 4 :: 5 :: 6 :: nil part of
+the list. Since x can't change, the part of y that's shared with x
+also won't change. Sharing data like this is common practice when one
+programs "functionally". (This is also one reason why you can only
+stick things onto one end of the list; adding to the "nil" end would
+alter all the lists that shared the tail of the list.)
+
+(XXX: pointer diagram)
+
+Operations on a functional list work by constructing a new list and
+returning it. Sometimes this means making a copy of each list cell
+(but not the data stored; that can be shared). Often it may share data
+with its input, like the append function:
+
+(* op @ : 'a list * 'a list -> 'a list
+   a @ b is a1 :: ... :: an :: b1 :: ... :: bn :: nil *)
+
+infixr @
+fun    nil @ l2 = l2
+  | (h::t) @ l2 = h :: (t @ l2)
+
+@ is built-in and defined just like this (( aside: associativity of @
+)), though retyping it shouldn't hurt anything. Also notice that when
+defining a function named after an infix identifier, we write its two
+arguments to either side of the operator in the declaration. @ never
+deconstructs l2, so this list is reused directly. l1, however, is
+pulled apart and consed back together; the left half of the list
+returned is made of new cons cells.
+
+Here's another built-in function called "map", which applies a
+function to all the elements in a list and returns a new list which is
+built up of the results of these function calls:
+
+(* map : ('a -> 'b) -> 'a list -> 'b list *)
+fun map _ nil = nil
+  | map f (h :: t) = (f h) :: (map f t)
+
+The map function is curried, as we've seen before. We can either think
+of map as taking two arguments (a function and a list) or as taking
+one argument (a function) and returning a new function.
+
+(* inc : int -> int *)
+fun inc x = x + 1
+
+val y = map inc [1, 2, 3]
+(NJ says: val y = [2, 3, 4] : int list)
+
+The second interpretation is often convenient if we need a function
+that maps a specific function across lists. Say we've got a bunch of
+int lists we want to increment:
+
+let
+    val il1 = [1, 2, 3]
+    val il2 = [0, 0, 0, 0]
+
+    val f = map inc
+in
+    (f il1,
+     f il2)
+end
+
+The "partial application" of map to the inc function (above) gives us
+an int list -> int list function that does the mapping. Or even:
+
+let
+    val listoflists = [ [1, 2, 3],
+                        [0, 0, 0, 0],
+                        nil,
+                        [4] ]
+in
+    map (map inc) listoflists
+end
+
+The combination of polymorphism, recursion, and recursive datatypes is
+extremely powerful. Later on, we'll see more examples like these (such
+as binary trees, sets, and mappings).
+
+By the way, note that our definition of map:
+
+(* map : ('a -> 'b) -> 'a list -> 'b list *)
+fun map _ nil = nil
+  | map f (h :: t) = (f h) :: (map f t)
+
+.. passes along the function f with every recursive call, even though
+f never changes. This is a little bit inefficient; the built-in
+version of map is probably written more like this:
+
+fun map f l =
+    let 
+        fun mmm nil = nil
+          | mmm (h::t) = (f h) :: (mmm t)
+    in
+        mmm l
+    end
+
+The function f is in scope for the definition of mmm, so mmm can use
+it without having to pass it around. There are some other tricks we
+can use to make functions more efficient. In the next section, we'll
+see how to write more efficient recursive functions through ML's
+mechanism called "tail recursion". We'll also see how this
+functionality can be rolled up into a function itself, so that we
+don't even have to do recursion at all.
+
+    Tail Recursion and writing efficient functions
+
+Let's revisit the length example above.
+
+(* length : 'a list -> int *)
+fun length nil = 0
+  | length (head :: rest) = 1 + length rest
+
+One practice that ML programmers often engage in is working out the
+steps of evaluation of their program. This is not too hard in ML: the
+language is higher-order, so intermediate steps can usually be
+represented as expressions in ML's syntax. It also helps that a formal
+definition for all of the steps of evaluation is available. It should
+be possible to work through all the (well-typed) examples in this
+tutorial by hand. (When evangelizing, we say that ML has a
+"language-based model of computation" rather than the usual
+"machine-based model"). For programmers, this means a high degree of
+portability and the ability to reason about programs with more
+precision. For math-heads, this means the ability to PROVE things
+about the behavior of programs (no proofs in "ML For Hackers", I
+promise).
+
+Here are the steps:
+
+length [1, 2, 3]
+=>
+1 + length [2, 3]
+=>
+1 + (1 + length [3])
+=>
+1 + (1 + (1 + length nil))
+=>
+1 + (1 + (1 + 0))
+=>
+1 + (1 + 1)
+=>
+1 + 2
+=>
+3
+
+You'll notice something about the size of the expressions during
+computation: they get big. In fact, there'll be a '1 +' for each
+element in the list. These large expressions are manifest in a real
+compiled version in the form of stack usage. Fortunately, ML includes
+a facility called "tail recursion" which will let us write this
+function in a way that consumes the same amount of stack space
+(expression size) regardless of the length of the list.
+
+(* length : 'a list -> int *)
+
+fun length l =
+    let
+        fun len (nil, acc) = acc
+          | len (_::t, acc) = len (t, acc + 1)
+    in
+        len (l, 0)
+    end
+
+We've declared a "local function" called len, which takes an
+additional accumulator argument acc. The accumulator keeps the length
+of the list so far (starting at 0), and is the value we return when we
+reach the end of the list. Here's the reason why this is an
+improvement: the ML definition states that "tail calls" must be done
+without consuming stack space. In other words, the recursive call to
+len is actually compiled as loop (a jump instruction) instead of a
+function call. This "tail call elimination" can be done whenever the
+result of the function doesn't need any more work done to it after the
+function returns. Tail calls:
+
+fun f x = f x
+
+fun f x = if x then f false else 0
+
+fun f x = let val y = 1 + 1
+          in 
+              case x of
+             SOME v => if v = 3 then f NONE else f (SOME (v - 1))
+           | NONE => true
+          end
+
+The first one obviously doesn't do any work on the return of f x. In
+the second one, the tail call is within a conditional -- but once the
+"then" branch is selected, the return of the function will be the
+return of f false. In the third example, the calls are nested within a
+let, a case statement, and a conditional, but are still tail calls.
+
+Here are some recursive calls that can't be turned into loops:
+
+fun f x = 1 + f x
+
+fun f x = (1, g x)
+
+fun f x = f (f x)
+
+Like our first length example, the first program builds up a stack of
+1s and +s waiting for the function to return (it never does). In the
+second we're not really doing "computation", but the tuple is
+constructed after the function call returns. Similarly in the third,
+though the outer call is a tail call, the inner one is not (if the
+inner one were to ever return, the outer one would be eliminated).
+
+The rev function (to reverse a list) can also be written more
+efficiently. Here's the bad one:
+
+(* rev : 'a list -> 'a list *)
+
+fun rev nil = nil
+  | rev (h::t) = (rev t) @ [h]
+
+Ouch! This consumes linear space and *quadratic* time (because @ is
+linear time). With an accumulator argument:
+
+fun rev l =
+    let 
+        fun rr (nil, ret) = ret
+          | rr (h::t, ret) = rr (t, h :: ret)
+    in
+        rr (l, nil)
+    end
+
+This still runs in linear space (no way to avoid this, since we're
+making a new list the size of the old one), but now also in linear
+time.
+
+ML compilers are getting better at optimizing loops, some doing
+traditional C optimization tricks like unrolling, vectorization,
+strength reduction (XXX what are these? ;)) etc., so tail recursion
+can be a very efficient way of writing programs in ML.
+
+Once students find this out, there's a common tendency to try writing
+all your functions tail recursively. It's actually possible to do this
+(we'll see how in the advanced section on continuations) -- but it
+doesn't necessarily speed your program up (depending on what you do,
+it can often make your running time worse)! Use tail recursion when it
+makes the problem easier to understand, or when it's possible to pass
+along an accumulator argument and save on time/space complexity.
+Otherwise, the "regular" solution is probably easier to write and
+understand.
+
+You may have noticed that our tail-recursive rev and length functions
+are very similar in structure. Often when we see functions that have
+similar structure like that, we can define them in terms of
+higher-order functions (saving typing and sometimes debugging time).
+In fact, ML has a built in function called "foldl" which encapsulates
+this kind of tail recursion along a list with an accumulator. Here's
+its definition. It's pretty complicated on the surface, but worth
+your time understand:
+
+(* foldl : (('item * 'state) -> 'state) -> 'state -> 'item list -> 'state
+
+   foldl f b l
+   calculates
+   f (l_n, ... f (l_2, f (l_1, b)) ... )
+*)
+
+fun foldl f base l =
+    let
+        fun fold (nil, acc) = acc
+          | fold (h::t, acc) = fold (t, f (h, acc))
+    in
+        fold (l, base)
+    end
+
+Notice how it looks just like our functions above, except the "meat"
+is encapsulated in the function argument f, which is applied to each
+element of the list from left to right to "combine" it with the
+accumulator argument. The result of this function becomes the
+accumulator for the next recursive call. The accumulator starts at the
+value of the "base" argument, and is the return of the function when
+we reach the end of the list. The type of this curried function tells
+all:
+
+foldl : (('item * 'state) -> 'state) -> 'state -> 'item list -> 'state
+
+Reading types is an important skill for ML programming, so let's go
+over this carefully. I've called one type variable 'item and the other
+'state; this is legal though the type inference engine will probably
+call them 'a and 'b if you enter the above example at toplevel. 'item
+will be whatever your list is a list of, and 'state will be what your
+folding function returns. foldl first takes a function ('item *
+'state) -> 'state; this will combine items of the list with the
+running accumulator to get a new accumulator value. Next, foldl takes
+a base value of type 'state (because it's curried, it's really
+returning a function which takes this next argument, as you know)
+which is the original value of the accumulator. It's also what's
+returned for an empty list. This finally returns a function from 'item
+list to the 'state type.
+
+Some examples will help explain. Here are beautiful and efficient
+redefinitions of length and rev:
+
+fun length l = foldl (fn (_,x) => x + 1) 0 l
+
+fun rev l = foldl op:: nil l
+
+Wow! By the way, the "op" keyword means to ignore the infix status (if
+any) of the following identifier. We could have written op:: a bit
+more verbosely as (fn (a, b) => a :: b). 
+
+In the length example, we pass a function that ignores the list item
+and just adds 1 to the accumulator. Our base is 0. With rev, our
+accumulator is the reversed list. We just stick elements onto the
+front of the list from left to right (convince yourself that this
+does in fact reverse the list).
+
+foldl has a counterpart, foldr -- it has the same type, but works from
+right to left instead of left to right. foldl and foldr are extremely
+useful tools for working with lists. Here are some more functions
+written in terms of them; take some time to understand these along
+with the examples above:
+
+(* op @ : 'a list * 'a list -> 'a list *)
+fun a @ b = foldr op:: b a
+
+(* map : ('a -> 'b) -> 'a list -> 'b list *)
+fun map f = foldr (fn (a, b) => (f a) :: b) nil
+
+(* sumlist : int list -> int *)
+fun sumlist l = foldl op+ 0 l
+
+In fact, it's a fun (and helpful) exercise to rewrite the functions in
+the "List" structure of the standard library using only foldl and
+foldr for recursion.
+
+Most well-designed ML data structures will have a fold function if it
+makes sense. We'll include one when we write binary trees, for
+instance. But first, let's tie up a few loose ends in the core
+language before we move onto exceptions and other effects.
+
+     infix declarations
+
+ML supports a limited ability to modify its syntax by allowing the
+programmer to declare infix identifiers. This appears to be just about
+enough to allow for some cool tricks without complicating parsing (for
+both humans and compiler writers) too much.
+
+There are three declarations in question:
+
+nonfix
+infix 
+infixr
+
+FIXME - HERE - write it...
+
+The idea of infix declarations has some downsides, though. 
+
+
+     local declaration
+
+We've seen a few kinds of declarations: val and fun for binding
+variables and functions; type for making type abbreviatons; infix,
+infixr, and nonfix for changing the fixity of identifiers; datatype
+for creating new types. There are a few more special-purpose
+declarations in ML (we'll cover the rest soon), but one
+general-purpose one we skipped over: local. local is like a let for
+declarations.
+
+local
+    <declarations>
+in
+    <declarations>
+end
+
+The idea is simple: declarations in the local..in part are available
+during the in..end part, but only the in..end part is propagated
+outside the local. That is, the top declarations are not "in scope"
+after the end of the local.
+
+local
+    val x = 3
+in
+    fun f () = x
+end
+
+After this declaration, f is available (in scope), but x is not. local
+has a few convenient niche uses. Here are some examples:
+
+Say you have three mutually functions, but you only want two of them
+visible after definition. 
+
+fun helper x = ... func1 ... func2 ...
+and func1 x = ... helper ... func2 ...
+and func2 x = ... helper ... func1 ...
+
+Here we mean for "helper" to be hidden (maybe it allows unsupported
+access to the internals of our data structure). One option would be to
+put all the declarations in a let, returning just the functions we
+want exposed:
+
+val (func1, func2) = 
+    let 
+        fun helper x = ... func1 ... func2 ...
+        and func1 x = ... helper ... func2 ...
+        and func2 x = ... helper ... func1 ...
+    in
+        (func1, func2)
+    end
+
+Another (preferable) way is to do the same thing with local:
+
+local
+    fun helper x = ... func1 ... func2 ...
+    and func1 x = ... helper ... func2 ...
+    and func2 x = ... helper ... func1 ...
+in
+    val func1 = func1
+    val func2 = func2
+end
+
+A second use of local is to trap some potentially messy declarations:
+
+local
+    infix x
+    open MatrixAlgebra
+in
+    XXX some matrix routines here
+
+end
+
+The open declaration dumps the contents of a module into the current
+scope. If MatrixAlgebra contained a cross product function
+MatrixAlgebra.cross then after opening MatrixAlgebra, we can just say
+"cross". This is messy; it can make it difficult to know where
+identifiers came from (we'll see a more detailed treatment of open and
+alternatives in the section on ML's module system). Putting the open
+in a local, however, makes clear where the functions are being used,
+and is probably reasonable. Declaring x infix is also inadvisable (no
+matter how pretty it makes the cross-product look), but doing it
+within a local at least ties up the declaration to make sure it
+doesn't break following code.
+
+Local can be used to make abstract data types without modules:
+
+local
+    type 'a set = 'a list
+in
+    XXX how? Is this what abstype does?
+    type 'a set = 'a set
+end
+
+local's best use is probably for declaring hidden persistent data
+structures for functions to manipulate. We'll see this example in the
+section on references.
+
+Some people use local frequently, others almost never. Other language
+constructs (most notably opaque signature matching) can be used for
+the same effect, so it's really a style choice. In large modules
+(sometimes unavoidable in ML), local can help to keep your scope--and
+code--neat and understandable.
+
+     abstype
+
+Never use abstype.
+
+     andalso / orelse
+
+The keywords "andalso" and "orelse" are derived forms:
+
+x andalso y
+  is
+if x then y else false
+
+x orelse y
+  is
+if x then true else y
+
+Apart from typing and precedence, these work just like the && and ||
+operators in C.
+
+fun onetwothree f = (f 1 andalso
+                     f 2 andalso
+                     f 3)
+
+The right hand side of the andalso or orelse is not evaluated unless
+it is needed. Therefore, if f 1 above returns false, f 2 and f 3 are
+never evaluated. Because of this "short circuiting", these are not
+just infix operators. ILLEGAL:
+
+op andalso
+
+Though you can just write a similar function:
+
+(fn (a, b) => a andalso b)
+
+Which always goes ahead and evaluates both of its arguments.
+
+     Records
+
+I mentioned earlier that tuples are actually records. A record is
+another way of collecting a few values together, and is similar to
+structs in C. Here's an example record expression:
+
+{ name = "Tom 7",
+  feet = 5,
+  inches = 3,
+  initials = "twm" }
+
+This is a record value with type { name : string, feet : int, inches :
+3, initials : string }. "name" "feet" "inches" and "initials" are the
+names of the fields. So record types are just a comma-separated list
+of label : type in curly brackets, and record expressions are just a
+comma-separated list of label = expression in curly brackets. Unlike
+tuples, the order of the fields is not signifigant; the tuple
+
+{ feet = 5,
+  initials = "twm",
+  inches = 3,
+  name = "Tom 7" }
+
+is indistinguishible from the one above, and has the same type. The
+connection with tuples is that a tuple is just a record with the
+fields named 1, 2, 3, ... (numeric field names are also allowed in
+records). If you type:
+
+{ 1 = 10,
+  2 = "hello" }
+
+you'll get back
+
+val it = (10, "hello") : int * string
+
+The only exception to this is a length-one record like {1 = "hi"},
+which does not have a tuple counterpart. (The empty tuple "unit" can
+also be written {}). Apart from being the derived form for tuples,
+records have important uses on their own. One is aggregating data as
+above, where tuples might get confusing. Imagine we have a function
+that runs over a data structure collecting information about how
+often each of 10 different events occured. The return tuple might have
+type int * int * int * int * int * int * int * int * int * int, which
+is not very descriptive. Using records, we could make this function
+return something like:
+
+{ disk_seeks : int,
+  bytes_read : int,
+  bytes_written : int,
+  context_switches : int,
+  ethernet_in : int,
+  ethernet_out : int,
+  bytes_allocated : int,
+  system_calls : int,
+  interrupts : int,
+  page_faults : int }  
+
+This is much easier for a client to read (if indeed they are all the
+same type, a dictionary or "association list" might be more
+appropriate, anyway). Records are similarly useful as function
+arguments. Say you've got a function that draws a rectangle to the
+screen:
+
+(* draw_rect : int * int * int * int -> unit *)
+
+fun draw_rect (x, y, height, width) = ...
+
+If you're prone to putting arguments out of order (maybe you think it
+should be (x, width, y, height)), the typechecker won't be able to
+catch your error, since all of the four arguments are ints. Not so
+with the record version:
+
+(* draw_rect : {x : int, y : int, height : int, width : int} -> unit *)
+fun draw_rect {x, y, height, width} = ...
+
+Now you can call the function with the arguments in any order. 
+
+(In a real program you'd probably define your own abstract type for
+points and extents, or perhaps for rectangles themselves. The right
+place for records is then in the constructors for these types. We'll
+learn how to make abstract types when we talk about ML's module system.)
+
+The record pattern in draw_rect just listed the names of the fields.
+That's equivalent to the following pattern:
+
+fun draw_rect {x=x, y=y, height=height, width=width} = ...
+
+A record pattern is a comma separated list of label = pattern in curly
+braces. This is a little weird, since the variable/pattern on the
+right of the = is what gets a value bound to it. You can use any sort
+of pattern matching or variable names:
+
+fun draw_rect {x=0, y=_, height=h, width=w} = print "rect cannot start at x=0"
+  | draw_rect {x, y, height=h, width=w} = ...
+
+Note that the field name is always on the left of the =, the pattern
+on the right.
+
+As a matter of style, some programmers use records (versus tuples)
+frequently, others infrequently. It's a tradeoff of clarity (and
+increased type-checking possibilities) versus the amount of typing one
+does. Records do have one advantage over tuples, though, and that's
+the ability to elide patterns:
+
+type rectangle = { x : int, y : int, width : int, height : int }
+
+(this just makes rectangle be an abbreviation for the longer record
+type. We'll see other more important uses for "type" in the sections
+on modules.)
+
+fun rect_area ({width, height, ...} : rectangle) : int = width * height
+
+The elipsis above are an actual keyword in the language, only valid at
+the end of a record pattern like we've used them here (previous uses
+of ... were just to indicate that I've left some code out). This saves
+typing (sort of) and allows us to add fields to the rectangle type
+without rewriting the function (as long as these new fields don't
+change the meaning of our function). I mentioned before that there are
+only a few places in the language where the programmer needs to write
+down types; this is one of them. Note carefully that ML does not
+support subtyping on records, or indeed, on any type. (An experimental
+extension known as ML# does, though, and the next major revision to ML
+probably will). Since it needs to assign a real type to the function
+("any record with fields a, b, c and whatever else" is not available)
+it always needs to know the names of all of the fields in a record
+pattern. ILLEGAL:
+
+fun f {a, b, ...} = a + b
+
+SML/NJ will complain: "Unresolved flex record (need to know the names
+of ALL the fields)"
+
+If you're leaving out some names through elision, the only way the
+compiler can know all the field names is through the argument type.
+Sometimes it can figure this out by the context, but most of the time
+you'll need to put in a type constraint by hand. This is annoying
+enough to make "..." unsavory -- unless you intend to add fields
+later, you'll probably want to avoid elided patterns.
+
+One last thing to mention about records: The keyword # followed by a
+label name is equivalent to (fn {label=v, ...} => v). So another way
+to write rect_area above is:
+
+fun rect_area (r : rectangle) = (#width r) * (#height r)
+
+These are known as "projections". You can also use them on tuples,
+since tuples are just records:
+
+let 
+    val x = (1, 2)
+in 
+    #2 x
+end
+
+All of the field names need to be known (or the length of the tuple)
+in order to do projections, so these are often avoided as well. 
+
+Of the few misfeatures of SML, though, none is more frequently
+maligned than equality types (or "polymorphic equality"). Let's take a
+quick look at it before we move on to exceptions and ML's imperative
+constructs.
+
+    Equality Types
+
+Equality types are on everybody's list of things to get rid of for the
+next ML. They're a problem for programmers, and an even bigger problem
+for compiler writers. (I should note, though, that ML's few problems
+pale in comparison to such glaring sores as C++'s brokeass
+turing-complete template system, dynamic scope in lisp, backwards
+subtyping in Eiffel, ... XXX. ML fans just tend to be very picky
+students of programming language constructs.)
+
+A few times in this tutorial we used the = operator to test if two
+things were equal. Unlike +, say, = is not simply "overloaded". We can
+write the eq_three function:
+
+fun eq_three (a, b, c) = (a = b) andalso (b = c)
+
+This is actually a generic function! Its type is:
+
+eq_three : ''a * ''a * ''a -> bool
+
+A type variable beginning with two apostrophes puts a single
+constraint on the type: it must have polymorphic equality (=) defined
+for it. The type itself is known as an "equality type". This is sort
+of convenient for tiny examples. We could write an item_in_list
+function, for instance:
+
+fun item_in_list _    nil    = false
+  | item_in_list item (h::t) = item = h orelse item_in_list item t
+    
+This works for anything that supports equality, and has type
+
+item_in_list : ''a -> ''a list -> bool
+
+What supports equality? Well, most of the base types (int, char,
+string, word) do (but NOT real). (( aside: real is not an equality
+type )) Tuples or records of equality types are equality types, as are
+lists of equality types. In fact, any datatype that only uses equality
+types is also an equality type. (( aside: non-uniform datatype
+equality )) Some things don't support equality, most notably
+functions.
+
+This sounds good so far; what's the problem? Understanding the
+problems with polymorphic equality gives good motivation for some of
+the other things we'll learn, so it's worthwhile to understand (even
+if you never use it). To begin with, polymorphic equality is
+difficult to implement. Though smart compilers have figured out how to
+do it without tagging, traditional ML compilers had to store the types
+at runtime in order to know how to check equality on values passed to
+item_in_list or eq_three above. Without getting into too much detail,
+let's just say that equality types are a nightmare for implementors.
+
+More importantly, though, equality types are seldom robust enough for
+real programs. Consider a definition of sets as lists (there are
+better ways to do this, which we'll see in the Programming Techniques
+section).
+
+(* type abbreviations can use type variables too *)
+type 'a set = 'a list
+
+(* empty : 'a set *)
+val empty = nil
+
+(* union : 'a set * 'a set -> 'a set *)
+fun union (a, b) = a @ b
+
+(* add : 'a * 'a set -> 'a set *)
+fun add (a, b) = a :: b
+
+(* exists : ''a * ''a set -> bool *)
+fun exists (_, nil) = false
+  | exists (a, h::t) = a = h orelse exists a t
+
+If we have sets of things supporting equality, we can run exists to
+find out if an element is in our set. This is bad for a few reasons:
+
+1. We can only make sets of things that support the built-in
+equality. Sets of reals or functions (where our notion might be
+"functions are equal if they return the same result on 0") are not
+possible. We also can't choose to use a different idea of equality for
+built-in types (maybe we consider strings equal if they are the same
+ignoring case).
+
+2. In order to implement sets efficiently, we'll want to use something
+like binary trees so we don't have to look at all of the elements to
+decide whether something is in the set or not! We need ordering to do
+this; not just equality.
+
+3. The built-in equality is WRONG for our own set type! Consider:
+
+val set1 = add (3, add (2, empty))
+val set2 = add (2, add (3, empty))
+
+These are equality types (they're just the lists [3, 2] and [2, 3]).
+Now if we make a set of sets:
+
+(* setset : int set set *)
+val setset = add (set1, empty)
+
+Now let's see if set2 is in setset:
+
+val oops = exists (set2, setset)
+(NJ says: val oops = false : bool)
+
+But by any sensible definition of sets, set1 and set2 represent the
+same set! Polymorphic equality is not smart enough to know that the
+order of the sets (or other things like duplication of elements) does
+not matter.
+
+The right way to fix this is to parameterize our set type on an
+equality function (or maybe an ordering function) as well as the
+element type. This means that "empty" might be a function that takes
+an 'a * 'a -> bool function and returns an empty set that will use
+that function to test equality. This solves the problems above, but
+introduces another one: what if we union two sets of the same type,
+but that have different ideas of equality? Which function takes over?
+Think about how you might solve this problem if you were designing a
+language (or how it is done in your favorite language); we'll see ML's
+excellent solution in the section on functors.
+
+Style suggestion: Use polymorphic equality to test for equality
+between base types or simple datatypes. Attempt to not let equality
+type variables "escape" into the type of your function; if this
+happens, then try making your function also take an equality function
+as an argument.
+
+     Exceptions
+
+One way of error reporting that we saw earlier is to have your
+function return an option type, where NONE represents an error:
+
+(* openfile : string -> file option 
+   SOME file   if opening is successful
+   NONE        otherwise
+*)
+fun openfile fname = 
+    if ... then SOME ... else NONE
+
+This fine for many cases (as we observed, it uses typing to force the
+user to handle error conditions). It has some problems, though. One is
+that we can't associate any data with the error. This is easily fixed
+for specific cases, but combined with the next problem we soon find
+ourselves in the global "errno" situation that UNIX C programming
+faces (and we do NOT like global references). The second problem is
+more annoying: we now have to propagate error conditions through
+functions that *use* our error-prone functions, even if those
+functions can't fail. Say we have a readfile function, which
+can only fail if opening the file fails:
+
+(* readfile : string -> string option 
+   SOME string   if opening is successful
+   NONE          on error
+*)
+fun readfile fname =
+    (case openfile fname of
+          NONE => NONE
+        | SOME fl => SOME ...)
+
+Note that we check the error condition, and we return another possible
+error condition. Clients who use readfile incur two error checks: one
+inside readfile, and one on the return value from readfile. This can
+easily spread to "infect" a whole program; soon, everything is
+returning an option (or an option option, or worse).
+
+(By the way, many scripting languages actually implement exceptions
+this way internally. Programmers pay for these checks on the return of
+each function, even when they're not using exceptions!)
+
+This problem is nothing new in programming languages, and one solution
+is exceptions. Exceptions allow non-local flow control and error
+handling without disturbing the natural type and usage of functions.
+In particular, an exception in ML allows a program to jump out of a
+deeply nested evaluation (possibly carrying a value with it). First,
+we declare an exception:
+
+exception Oops
+
+(Typical SML style is to start exception names with a capital letter).
+
+Now we can make a function that raises it:
+
+(* only_work_on_1 : int -> string *)
+fun only_work_on_1 1 = "ok"
+  | only_work_on_1 _ = raise Oops
+
+Try this, and call it from the prompt. You'll probably get back a
+message like:
+
+uncaught exception Oops
+raised at stdIn:19.16-19.20
+
+This is the default exception handler in SML/NJ (other compilers do
+different things by default, such as aborting the program
+immediately). Sometimes this is fine if your program doesn't need to
+gracefully handle errors (certain kinds of errors, like broken
+invariants, probably shouldn't have handlers at all). We can of course
+handle exceptions on our own:
+
+(* ok_on_anything : int -> string *)
+fun ok_on_anything n =
+    (only_work_on_1 1) handle Oops => "grr"
+
+handle comes *after* the expression that might potentially raise an
+exception. handle matches one or more exceptions, supplying a
+substitute result in the case that it catches one. In order to have it
+typecheck, the return from the handle must have the same type as the
+expression does. Above, only_work_on_1 has type int -> string, so the
+exception handler must also return a string.
+
+We can handle multiple different exceptions in one handler, much like 
+a case statement. Suppose we have a "modulus" function that raises
+Negative if either argument is negative, or Zero if the divisor is
+zero.
+
+exception Zero and Negative
+
+(* modulus : int * int -> int *)
+fun modulus (_, 0) = raise Zero
+  | modulus (a, b) = if a < 0 orelse b < 0 then raise Negative
+                     else a mod b
+
+fun something (x,y) =
+    ...
+    (modulus (x, y)) handle Zero => ...
+                          | Negative => ...
+    ...
+
+You can declare multiple exceptions in the same declaration with the
+'and' keyword. You can also just do each one on a different line. In
+the 'something' function we use a bar | in the handler to match
+multiple exceptions. This is equivalent to nesting handlers. (Since
+bars are allowed, it's a good idea to put parentheses around function
+clauses that have a handle at the end. Otherwise you won't be able to
+add more function clauses, because they'll be interpreted as handle
+clauses.) Actually, these are patterns, so you can handle variables
+and wildcards. This one turns any raised exception into SomeError:
+
+exception SomeError
+
+fun something x =
+    (who_knows_what_this'll_raise x) handle _ => raise SomeError
+
+More useful is matching the exception with a variable. This code
+catches only the Zero exception, but lets any others pass through
+unchanged. Before doing so, however, it closes the file that this
+function opened. Despite automatic memory management, this kind of
+trick for cleanup is sometimes useful:
+
+fun something x =
+    let
+        val file = openfile x
+
+        val _ = closefile x
+    in
+    (might_raise_exceptions x)
+           handle Zero => (closefile x; ...)
+                | ex   => (closefile x; raise ex)
+    end
+
+The "ex" pattern (or any variable name that isn't a declared
+exception) catches any exception, then closes the file and raises the
+same exception again. The reason you can do this is that the
+exceptions we declared (Oops, SomeError, Zero) are really values of
+type exn. The raise keyword could actually be a function, if not for
+the fact that raise has more convenient precedence. Look:
+
+(* throw : exn -> 'a *)
+fun throw x = raise x
+
+We can make values of type exn through "exception constructors", which
+normally we just think of as exceptions like the ones we've already
+made. Declaring them is easy:
+
+exception Error of string
+
+Like datatypes, this gives us a constructor Error which can be used as
+both a function (Error : string -> exn) and in patterns to match or
+destruct exns. (Error "hello") has type exn, appropriate for raising.
+Let's try:
+
+(raise Error "oops!") handle Error s => print ("Caught an error: " ^ s)
+
+This is very useful. Most of the time you'll be passing around error
+messages or error codes (as datatype constants), but this mechanism
+can often be exploited for some very nice purposes. Since exceptions
+are generative, some very interesting tricks can be pulled off using
+them in ways you wouldn't expect. (( aside : the "extensible" type ))
+
+WARNING! Potential gotcha: Be very careful about the typos in the
+names of exceptions in patterns. Consider this code:
+
+exception Subscript
+
+(* nth : 'a list * int -> 'a
+   returns the nth element of a list (starting at 0) or
+   raises Subscript if the list is too short *)
+
+fun nth (nil, _) = raise Subscript
+  | nth (h::t, 0) = h
+  | nth (h::t, n) = nth (t, n - 1)
+
+(nth (give_me_a_list (), 2)) 
+     handle SubScript => (print "List is shorter than 2.\n"; 0)
+
+Do you see the error? I misspelled the exception constructor Subscript
+by capitalizing in the middle of it. This compiles! In fact, it
+matches any exception, because it treats SubScript like a variable
+(see the example with closefile above). Therefore, any exception that
+give_me_a_list might raise is also handled by the handler. These kinds
+of bugs can be some of the hardest to catch, so be wary.
+
+Lots of language implementations (and definitions) have trouble with
+exceptions, leaving programmers somewhat apprehensive about using
+them. Not so in ML. Though exceptions are tricky to implement, all
+of the popular compilers handle them stably and efficiently. (It
+should be constant time to raise an exception and jump to the nearest
+exception handler). The exception semantics are precisely defined and
+somewhat simpler than C++ (because we don't use manual memory
+management and destructors). Though abuse of exceptions can lead to
+programs that are difficult to understand, there's no other reason to
+be sparing in their use when programming in ML.
+
+     Imperative Features
+
+Every programming problem (if we use an appropriate mathematical
+definition) has a purely functional solution. While purely functional
+programming has plenty of benefits, sometimes the functional solution
+to a problem is awkward or inefficient. ML has a basic set of
+imperative features which allow these problems to be approached in the
+more natural way. And if your program has real "application-like"
+behavior (interacting with some user or the underlying system) then
+you will certainly want to make use of these.
+
+Imperative features are characterized by "effects" (also called "side
+effects"). One of the most common effects is IO, like printing
+something out to the screen. An easy way to send things to the screen
+is with the "print" function, which has type string -> unit.
+
+print "goodbye world!\n";
+
+This does just what you'd expect, which is to immediately print
+"goodbye world!" followed by a newline.
+
+Note that the return type of print is unit. The language designers
+could have chosen just about anything to return here, but typical ML
+style is to have functions that are run purely for their effect
+return unit. Along with print there are many other IO routines, most
+of which are in the Standard Basis Library. These all are pretty easy
+to understand, even just by looking at the types; see the section
+A Tour of the Standard ML Basis Library for more information.
+
+Aside from IO, Standard ML contains features for making mutable data
+structures. A mutable data structure (as opposed to a persistant data
+structure) is probably what you are accustomed to using in a language
+like C. Typically, if you have a search tree in C, and you add a new
+item to it, then all references to that tree or its subtrees are
+affected by the update. Though this behavior can make it somewhat more
+clumsy to reason about how different parts of a program interact, it
+is sometimes a desirable property or necessary for efficiency reasons.
+
+The simplest mutable "data structure" in ML is a reference cell. These
+act similarly to pointers in C-like languages (though it can be
+dangerous to think of them as pointers). Reference cells allow
+multiple references to a mutable value. Here's an example using
+references:
+
+let
+     val r = ref 0
+     val s = r
+in
+     r := 2;
+     !s
+end
+
+ref in line 2 is a constructor (it acts like a datatype constructor)
+which you use to create a new reference cell. The new reference cell
+must have an initial value, in this case, 0. Since r is a reference
+cell to an int, its type is int ref. In the third line, I make s be
+the same reference cell as r. The := infix operator has type 
+'a ref * 'a -> unit; it takes a reference cell and sets the value
+inside it. Finally, the function ! has type 'a ref -> 'a; it returns
+the contents of a reference cell. Since s and r refer to the same
+cell (memory location), this whole expression evaluates to 2.
+
+You can make a reference to almost any kind of value [[ aside: value
+restriction ]], including other references. Behold:
+
+val x = (ref (ref (ref (ref (ref (ref (ref (ref (ref 0)))))))))
+
+(x has type int ref ref ref ref ref ref ref ref ref)
+
+val x = ref (fn x => x + 1)
+
+(x has type (int -> int) ref)
+
+Paired with the idea of recursive data structures (ie, datatypes), we
+can create something like a circular list:
+
+exception Error of string
+
+datatype clist = Cell of int * clist ref | Empty
+
+fun setnext (Cell (n, r)) next = r := next
+  | setnext _ _ = raise Error "can't set next of Empty"
+
+val m = Cell (0, ref Empty)
+val _ = setnext m m
+
+The clist type represents potentially circular (and mutable) lists of
+integers. A clist is Empty (the end of the list) or a Cell containing
+an integer and a reference to another clist.
+
+Above I'm creating a circular list with one element. To begin, I wrote
+the function setnext (clist -> clist -> unit) which changes the 2nd
+field of a Cell. Second, I create a cell m which has a reference to
+Empty. Finally, I use setnext to set m's second field to m itself!
+
+Here's a routine which prints out a (potentially infinite, ie,
+circular) clist:
+
+fun pclist Empty = print "Empty\n"
+  | pclist (Cell (i, next)) = 
+       let in
+            print (Int.toString i ^ "\n");
+            pclist (!next)
+        end
+
+pclist m, of course, prints out 0 forever. Here's a 3 element list
+where the last one refers to the 2nd:
+
+val c = Cell(3, ref Empty)
+val b = Cell(2, ref c)
+val a = Cell(1, ref b)
+val _ = setnext c b
+
+clist a prints out:
+
+1
+2
+3
+2
+3
+2
+3
+...
+
+Get it? The semantics of ref are pretty simple, though it is common to
+get confused when attempting to apply C pointer idioms to ML reference
+cells (they are tantalizingly similar, but different enough to make
+this dangerous). This can be frustrating. However, learning a few
+patterns makes using them easy. I encourage you to practice using
+them, perhaps by extending the examples above to doubly-linked
+lists. See the graph structure in the programming examples section for
+another example.
+
+ref acts like a constructor; it's possible to pattern match against
+reference cells in a pattern. We can re-implement the ! function as
+follows:
+
+fun ! (ref v) = v
+
+Or perhaps a function ++ that increments an int ref:
+
+fun ++ (cell as ref i) = cell := i + 1
+
+ (Arrays)
+
+On top of references (which are available in the core language), the
+SML basis library has support for mutable arrays.
+
+val arr = Array.array (20, 0);
+val a = Array.sub(arr, 5);
+val _ = Array.update(arr, 2, 99);
+val _ = Array.sub(arr, 10000); (* exception! *)
+
+The first line creates a 20-element int Array.array, initialized to
+0. The second line retrieves the 6th element (since the first element
+has index 0) from the array. Third, we update the 3rd element with the
+value 99. The final line raises the exception Subscript because there
+is no 10001th element. (ML arrays are bounds-checked to preserve
+safety.)
+
+Arrays are polymorphic: you can make arrays of anything (subject to
+the same restrictions as refs). In performance-critical situations,
+polymorphic arrays are a little inefficient. An array of booleans,
+which you might store as an array of words split into bits in a
+language like C, would be represented in ML literally as an array
+of booleans. For this reason, there are a few monomorphic arrays
+in the basis library, most notably BoolArray and CharArray. These
+have almost all of the operations that polymorphic arrays support.
+
+Constant-time indexing into a data structure is often useful even if
+you don't need mutation. We could use arrays in this case and simply
+comment our code to say that nobody should write into the arrays, but
+it is nice to have our invariants enforced! Therefore, SML has a
+read-only version of arrays known as vectors.
+
+
+ (Vectors)
+
+Sometimes we want the random access that arrays give us without their
+mutability. These are "vectors". Here I create an int vector from a
+list and pull out the 3rd element:
+
+val iv = Vector.fromList [2, 3, 5, 7, 11]
+val x = Vector.sub (iv, 2)
+
+Since vectors are immutable, the only thing that's typically done with
+them is the 'sub' operation. The Vector.sub notation is a little
+tedious, so we can apply a common theme of functional programming: If
+you can only do one thing with a particualr value, then represent the
+value as a function that does that thing.
+
+val v = fn x => Vector.sub(iv, x)
+val y = v 3
+
+If you're really perverted, you can even abuse the ML list notation to
+make it look exactly like C:
+
+fun cv [x] = Vector.sub(iv, x)
+  | cv _ = raise Subscript
+
+val z = cv[1]
+
+But please don't tell anyone you learned this from me!
+
+There are other vector functions for extracting a portion of a vector,
+folding or mapping over a vector, etc. These can be seen in the Vector
+structure in the basis. Like array, there are some monomorphic
+versions of vectors that store data more efficiently, like BoolVector
+and CharVector. In fact, the basis specifies that the type
+CharVector.vector and string are the same, so we've been using vectors
+(as strings) all along!
+
+
+
+HERE -- this is as far as I got! Sorry!
+
+
+
+still left in core:
+real treatment of infix
+pattern matching
+value restriction
+
+still left modules:
+structures and modularity
+signatures and abstraction
+functors
+sharing
+
+omissions:
+
+do I mention ( e1; e2 ) and let in e1 ; e2 end syntax? don't think so
+how about "as" patterns?
+
+MUTUALLY RECURSIVE FUNCTIONS!!
+
+
+    Tour of the ML Basis Library
+
+    Substring
+
+If you do any amount of string manipulation in ML, you'll begin to
+appreciate the high-level approach that's possible with the string
+type (as opposed to the allocation nightmare of C). However, sometimes
+this convenience can come at a cost in performance (many of the
+operations in the String structure have to copy the argument strings).
+The Substring structure gives us a great way of talking about ranges
+within strings at a high-level, while doing no more copying than we
+would in a similar C program.
+
+  ... XXX missing: how to use substring to write efficient string
+      programs  ...
+
+Incidentally, here's another example of why equality types aren't
+adequate. The obvious representation of a substring is:
+
+type substring = string * int * int
+
+Simple: the original string, a starting index, and a length. (In fact,
+the Basis essentially mandates this representation because its
+function 'Substring.base' returns that type given a substring.) On
+the other hand, we want substring equality to do the natural thing:
+
+Substring.substring("hello", 1, 4) = Substring.substring("jello", 1, 4)
+
+Even though string * int * int is an equality type, it has the
+*wrong meaning* for our substring representation, because the
+above two substrings would not be equal. In the Basis,
+Substring.substring is not an eqtype; you have to use
+Substring.compare.
+
+So, again: When designing your own abstract interfaces, use an explicit
+equality function instead of insisting that the type be an 'eqtype.' This
+gives more flexibility in the implementation. 
+
+
+"advanced"
+
+continuations (systematic CPS conversion)
+
+
+programming without objects
+
+(( aside: cutoff recompilation ))
+
+When modules have dependencies, recompiling one file means that you
+must recompile all of the files which depend on it. Suppose
+compilation unit AAA defines a structure (module) that BBB uses, and
+BBB defines a structure that CCC uses. In ML (as will be later
+explained), structures are constrained by "signatures" (interfaces)
+which list the contents of the structure. BBB is only allowed to use
+AAA through the interface declared in AAA's signature, and if that
+signature changes when we recompile AAA, then BBB must also be
+recompiled, since BBB depends on AAA. Cutoff recompilaton occurs,
+however, if BBB's signature did not change due to the change in AAA.
+Now, since CCC uses BBB only through the signature, CCC is not
+affected by the change in BBB. This means that CCC and any files
+dependent on it don't need to be recompiled. In a large but
+well-structured program, cutoff recompilation is actually the common
+case.
+
+
+(( aside: overloading ))
+
+If you're being really observant, you might wonder the following: If
+the + operator is defined for reals and ints, why is the type int ->
+int instead of something like ((int -> int) or (real -> real))?
+According to who you ask, this might be convenient or devastating, but
+nobody disputes that it would complicate the language a lot, due to a
+number of issues. Just remember the following: on the arithmetic
+operators which are overloaded, when the type inference engine has an
+option it will pick int. Writing the function in either of these ways
+(among others) will give you real -> real:
+
+
+fun double (x : real) = x + x
+
+or
+
+fun double (x) : real = x + x
+
+ML does not have the ability to let users overload their own functions
+(though some compilers extend the language in this way), which makes
+the built-in overloading seem a bit inelegant. For various reasons,
+many people would prefer to get rid of overloading altogether
+(including me). After all, floating point addition and integer
+addition are not the same function, neither from an abstract
+perspective nor a machine-level one.
+
+If you're curious, the syntax I would propose would be to use + - / *
+< > etc. for integer operations and +. -. /. *. <. >. for
+floating-point operations. A similar technique could be used for
+strings, characters, words, and other types with overloadee operators
+in SML. (Incidentally, Caml takes this approach.)
+
+(( aside: functional pairs ))
+
+I said very awkward, but it's not impossible. The "lambda calculus" is
+a minimalist language which supports ONLY an untyped "fn" expression
+-- remarkably, it is "turing complete" (and thus able to simulate any
+language constuct we have in other turing complete languages such as
+ML or C). Here's the gist of how pairs are simulated in the lambda
+calculus, using ML code:
+
+let
+    (* fst : 'a -> 'b -> 'a *)
+    fun fst a b = a
+
+    (* snd : 'a -> 'b -> 'b *)
+    fun snd a b = b
+
+    (* plusminus : int -> (int -> int -> 'a) -> 'a 
+
+       This function returns a "pair" of its argument minus 1 and its
+       argument plus 1. *)
+
+    fun plusminus arg = fn which => which (arg - 1) (arg + 1)
+
+    val pair = plusminus 3
+    val left = pair fst
+    val right = pair snd
+in
+    left
+end
+
+What's going on here? fst and snd (standing for "first" and "second")
+are just curried functions which return the first and second of their
+arguments, respectively. plusminus is also pretty straightforward; the
+tricky thing is the representation of the pair. Instead of
+representing it as a straight-out value, we instead represent it as a
+function. This function takes a function which chooses which of the
+two parts of the pair to return (the obvious choices are fst and snd).
+Then, we can get the parts of the pair by *applying* the "pair" to the
+selection function!
+
+Though this is just a clever trick that's never really useful in real
+programs, it is worthwhile to understand it (the types, in particular)
+because it gives a good handle on the weird kinds of flow control
+which higher order functions make possible.
+
+(( aside: datatype representation ))
+
+As has been observed for countless generations, it's possible to
+distinguish the bits of a pointer from the bits of a small constant.
+(0-4095 or so are usually reserved by the architecture definition, and
+alignment considerations actually give us about 3/4 of the address
+space for constants, if we like). Therefore, the intlist type is
+represented in many ML compilers exactly the way it would be in C.
+
+datatype intlist =
+   Node of int * intlist
+ | Empty
+
+typedef struct node {
+  int data;
+  node * next;
+} node;
+
+A "node *" is either:
+
+Empty list: ( 0 )
+"null pointer"
+
+Node: ( memory location )
+       which points to 
+      ( integer data ) ( ptr to intlist )
+
+The ML datatype "intlist" corresponds to the C "node *". There are
+some complications which arise because of polymorphism and wide data
+(bigger than one word, like a closure or pair of ints), or the garbage
+collection scheme in the compiler. However, compilers tend to
+represent lists and other simple datatypes (like option) efficiently,
+since they are so common in ML programming.
+
+Just for fun, compare this to the actual bit-level representation of
+polymorphic lists in Java!
+
+(( aside: generative datatypes ))
+
+Every time you declare a datatype (in different modules, perhaps) it
+represents a DIFFERENT datatype. Observe the following interaction
+with SML/NJ:
+
+- datatype X = A | B;
+datatype X = A | B
+- fun f A = 0
+=   | f B = 1; 
+val f = fn : X -> int
+- val d = A;
+val d = A : X
+- f d;
+val it = 0 : int
+
+So far, so good. We declared a datatype X with two constant
+constructors A and B. The function f has type X -> int, and
+works on d, a value of type A.
+
+- datatype X = A | B;
+datatype X = A | B
+- f;
+val it = fn : ?.X -> int
+
+We redeclared X, and now look at f's type: ?.X -> int. In SML/NJ, ?.X
+means a type called X, but which has been shadowed or otherwise
+obsoleted.
+
+- val d2 = A;
+val d2 = A : X
+- f d2;
+stdIn:27.1-27.5 Error: operator and operand don't agree [tycon mismatch]
+  operator domain: ?.X
+  operand:         X
+  in expression:
+    f d2
+
+Now look: even though d2 is of type X (which has exactly the same
+definition as it did before), f takes a DIFFERENT X type (written in
+SML/NJ as ?.X) than the X that d2 is. This is because each datatype
+declaration creates a new type unlike any other. But of course we can
+still use f with the old d:
+
+- f d;
+val it = 0 : int
+
+Constrast this with similar code which makes type abbreviations using
+"type" rather than creating new types with "datatype":
+
+- type T = int;
+type T = int
+- fun f (x : T) = 2 + x;
+val f = fn : T -> T
+- val d : T = 0;
+val d = 0 : T
+
+Same story. We made T be an abbreviation for "int", then made a
+function T -> T and a value of type T.
+
+- type T = int;
+type T = int
+- f;
+val it = fn : T -> T
+
+Redeclaring T as the same thing does not have any impact on the
+reported type of f. And indeed, we can use the function on "old"
+arguments of type T:
+
+- val d2 : T = 3;
+val d2 = 3 : T
+- f d2;
+val it = 5 : T
+
+This is because we merely made T stand for int whenever we wrote it
+above. Redefine T as something else and we get this:
+
+- type T = bool;
+type T = bool
+- f;
+val it = fn : int -> int
+
+Opinion is decided over whether the generativity datatypes is a good
+or bad feature. It is unlikely that you will ever run into problems
+dealing with it (some issues arise in the module system); but it is
+good to know about.
+
+
+(( aside: associativity of @ ))
+
+(XXX is this really true? not in NJ)
+
+Actually, the ML definition stipulates that @ should be
+left-associative:
+
+a @ b @ c    means    (a @ b) @ c
+
+This is actually pretty dumb, since @ needs to copy its left-hand
+argument but not its right-hand one. So even though they produce the
+same result,
+
+a @ (b @ c)
+
+Is faster since it only copies b and a once. (Above, it copies b once
+and a twice). Appel points this out, along with a number of other good
+points, in his paper "A critique of standard ML" (nb., his paper is
+about an older version of SML and many of his critiques were fixed in
+ML97).
+
+(( aside: real is not an equality type ))
+
+Since the '97 revision of SML, real is no longer an equality type and
+can't be used in patterns. This is actually a blessing, since most of
+the time you want to check that the difference between to reals is
+smaller than some epsilon, rather than checking for actual equality.
+
+The reason that real is not an equality type is that the IEEE floating
+point standard states the special floating-point value NaN
+(not-a-number) is not equal to itself. Since a relation that is not
+reflexive is obviously not an equivalence relation, IEEE floats can't
+be equality types and be in the spirit of equality in SML.
+
+(( aside: non-uniform datatype equality ))
+
+There's an especially funny thing about equality functions on
+datatypes in SML. (You'll have to forgive me, equality types are
+something I love to hate!) As it turns out, in order to implement the
+equality function, the compiler must resort to features that don't
+exist in the rest of the language!
+
+For example, the following is legal SML code:
+
+datatype 'a funny = A of 'a funny funny | B
+
+val x = A (A B)
+
+val z = (x = x)
+
+Since the 'a funny datatype is non-uniform (( aside: non-uniform
+datatypes and polymorphic recursion )), it is not possible in SML to
+write the equality function for it. The following attempt won't type
+check:
+
+fun eq B B = true
+  | eq (A x) (A y) = eq x y
+  | eq _ _ = false
+
+However, the SML definition says that (XXX ...)
+
+Non-uniform datatypes are pretty useless in a language without
+polymorphic recursion, but equality types force the compiler writer to
+deal with them!
+
+(( non-uniform datatypes and polymorphic recursion ))
+
+    XXX write this XXX
+
+
+(( where do these type names come from? ))
+
+    XXX write
+ Think about "sum" and "product" in terms of counting the number of
+ values of the type.
+
+
+[1] The Great Computer Language Shootout
+   http://www.bagley.org/~doug/shootout/

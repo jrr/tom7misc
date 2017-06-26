@@ -1,0 +1,85 @@
+
+#include <core.h>
+
+#include <hemrunt.h>
+
+/* When main_function is called as a cord, these functions are passed
+   in. When we call it from the client, we just pass in stubs that
+   raise exceptions. */
+exception NoThanks;
+
+int depone(string unused) {
+  raise (^NoThanks());
+}
+
+int depand(int unused) {
+  raise (^NoThanks());
+}
+
+int depor(int unused) {
+  raise (^NoThanks());
+}
+
+string ansok(string unused) {
+  raise (^NoThanks());
+}
+
+string ansfwd(string unused) {
+  raise (^NoThanks());
+}
+
+string submitarg(string arg, int d, bool cs) {
+  raise (^NoThanks());
+}
+
+int dcons(int d, int b) {
+  raise (^NoThanks());
+}
+
+/* entry point to code */
+extern ans_ main_function<ans_, dep_, dlist_>(string input, string deps,
+					      dep_ done(string), 
+					      dep_ dand(dlist_), 
+					      dep_ dor (dlist_), 
+					      dlist_ dempty, 
+					      dlist_ dcons(dep_, dlist_), 
+					      ans_ aok(string), 
+					      ans_ afwd(string), 
+					      string subm(string arg, 
+							  dep_ d, 
+							  bool contself));
+
+/* runtime library */
+
+extern ?struct maybe_write {
+  int f(int a, string b);
+}
+
+extern maybe_write h_write ;
+
+int pop_main () {
+  /* initialize runtime pointers */
+  h_write = new maybe_write(hemrunt_write);
+
+  /* XXX arg should be rewritten to indicate function to call */
+  try {
+    main_function("", "",
+		  depone, depand, depor,
+		  0, dcons,
+		  ansok, ansfwd, submitarg);
+  } handle e {
+    switch e {
+    case NoThanks:
+      printf("Tried to call cord code in client environment\n");
+    case NullPointer:
+      /* XXX for now we use the null pointer exception internally
+	 since I don't know how to make new ones */
+      printf("Runtime error or unimplemented primop\n");
+    default:
+      printf("Unexpected exception\n");
+      raise(e);
+    }
+  }
+
+  return 0;
+}

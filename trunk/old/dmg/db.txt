@@ -1,0 +1,438 @@
+
+; song database.
+
+
+; name for particular chord shapes.
+; these will still be called by their names
+; when in other tunings.
+
+; each name should only be DEF'd to one thing.
+
+DEF A  x02220
+DEF A7 x02020
+DEF Am x02210
+DEF C  x32010
+DEF D  xx0232
+DEF Dm xx0231
+DEF B  x24442
+DEF Bb x13331
+DEF F  133211
+DEF E  022100
+DEF Em 022000
+DEF G  320033
+
+
+SONG "testify in hockey"
+  G 650066 540055
+  [[G 540055 870088 G 200033 022033 A x32030]
+   [Em A x32030 G 200033 022033 A x32030 G]]
+END
+
+
+SONG "permission"
+  TUNE -2-2-2000
+    [[xx0033 x02200 x20210 0220xx]
+     [320xxx 320003 0220xx 022030]]
+  END
+END
+
+
+SONG "nitrogen fixation"
+  TUNE -2-2-2000
+    [[320003 x07750 320003 x07750 x02200]
+     [x54050 x02200 320003 540005]]
+  END
+END
+
+
+SONG "praise for chuck"
+  [[x32030 xx0233]
+   [Em x3200x xx0233 A7
+    Em x3200x xx0233 A]]
+END
+
+SONG "setlist"
+  PC 4 --====
+    [[032010 Em 1032xx 35040x]
+     57050x x03050 032010 35040x
+     57050x x03050 032010 =22000 1332xx 35540x]
+  END
+END
+
+
+SONG "i resign"
+   [G x24442 C [x32000 C]]
+   [E A Am D]
+   [G x24442 C Em]
+END
+
+SONG "jcreed lj 5 Sep 2003"
+   [[Dm Bb F A7]
+    [Dm Bb F A]]
+END
+
+SONG "advanced"
+  PC 1 -----= ; not in original, but sounds better
+    PC 10 --===-
+      [[3200xx 2000xx -2-200xx 2000xx]
+       [-9-700xx -5-300xx]
+       [x32030 320030 2000xx]
+       [-7-5000-7 -4-2000-4]]
+    END
+  END
+END
+
+SONG "don"
+  [[G D Em C D
+    G D Am C D]
+   [x24432 Em x24432 Em x24432 Am C D]]
+END
+
+SONG "untitled old"
+  [D x02230 032030 x02230]
+END   
+
+SONG "untitled old 2" ; some ugif thing, tensor?
+  TUNE -2000-20
+    [0220xx 0550xx 0776xx 7076xx]
+    [550055 303033 202033 007788]
+  END
+END
+
+SONG "welchie"
+  [[C D Am D]
+   [G x32033 Am D
+    G x32033 Am 002003 D]]
+END
+
+SONG "subspace biographies"
+  [[32000x 02000x 10200x 02000x]
+   [3200xx x320xx 3200xx 1020xx 0320xx]]
+END
+
+; recommend against this; too many crazy changes
+(*
+SONG "professor fish"
+  [[006650 055400]
+   03320x C G Dm Em Am 1330xx 3550xx
+   [006650 055400 x07677 055400]
+   [03320x Em G Dm Em 133000 355000 Em C G Dm Am Em 133000 355000]
+   006650]
+END
+*)
+
+SONG "punk kid"
+  [[0220xx 0550xx 0770xx 8700xx]
+   [C Am 002200 Em] D]
+END
+
+SONG "old revo"
+  [05500x x05500 03040x 20020x]
+END
+
+SONG "clowno"
+  [[D 022030 G C A]
+   [Em A [xx0230 D] G]
+   x32033]
+END
+
+SONG "seed 7 Sep 2003"
+  [E 577655 x46654 244322]
+END
+
+; end is single note stuff
+SONG "alice beginning"
+  [0970xx 0750xx x3550x 3550xx 2440xx]
+END
+
+SONG "robelf"
+  [[0450xx 0550xx 0770xx A900xx]
+   [8700xx A900xx 0990xx 0CC0xx]
+   [009900 098070 x07007 054030]]
+END
+
+SONG "fighter king"
+  [[Am C Dm x13331]
+   [G F Em 1020xx 0340xx x3003x]]
+END
+
+SONG "team crime"
+  [[Am x54055 x32033 x54055 x32033 G]
+   [540055 x76077 x54055 G] 540055 x76077 x54055
+   [Am x04430 C x54030]]
+END
+
+SONG "aquinas"
+  [[xx0560 xx0550 xx0203 x02020
+    xx0560 xx0550 xx2003 x02220]
+   [x03230 x32030 054050 0700xx x07080 007680]]
+END
+
+SONG "programmed to kill"
+  [[Am C Em G] ; with more fingerings...
+   [D Am]
+   [x32030 022030 x02023 x02013] x05507]
+END
+
+SONG "fake occupant"
+  [[C D]
+   [G 022033 C Am D]]
+END
+
+SONG "untitled old 3"
+  [x02010 Em G]
+END
+
+SONG "shutdown -h now"
+  [[022003 002213 x32013 002213]
+   [G 002023 002013 x32013]]
+END
+
+SONG "untitled old 4"
+  [Am C D xx0234 D xx0230]
+END
+
+SONG "mongrels"
+  [[E 099800 077600 32400x 2040xx]
+   [E A x04450 x0444x]]
+END
+
+SONG "but not agape"
+  [[G Am Em]
+   [C x24432 Em G]
+   D Am]
+END
+
+(*
+SONG "two fists of freedom"
+  TUNE -20-5-3-3-5
+                          ; this chord wrong
+    [[000000 002200 007700 x06660]
+     [Am 002200 2000xx 0000xx 0550xx]]
+  END
+END
+*)
+
+
+(*
+
+macedonia 
+53743
+
+opening: arbitrary chords from below
+
+076050 x06007 (x06009)
+x04005 C Em G (top) 530000 000000
+
+Am D 000000
+
+*)
+
+(*
+
+space camp
+43543
+
+O Em 055000 034000
+O 000220 000230 002030 000770
+
+330033 550055 0077000 08900
+O Em 055000 034000 077000 055000 089000
+
+*)
+
+SONG "untitled old 5"
+  [x30030 x50050 x04050 x090A0 x090C0 x07070]
+END
+
+SONG "sift through"
+  [[xx0330 x32030 x54050 076070]
+   [0A9080 x00770 x54050 Em G
+    0A9080 x00770 054050 Em C]]
+END
+
+(*
+tuning: 37543
+
+000000 007700 005500
+G C Em A x02230
+*)
+
+SONG "songs for five chords"
+  TUNE 00000x
+    [G x32030] G C
+    Em A D A C D Em D
+    [G x32030] C Em D A [C D] C Em D
+  END
+END
+
+SONG "nepal"
+  [[A D Em x02032 A]
+   D G Em D A
+   D G Em x02032 A
+   [C x20230 A x02230]]
+END
+
+SONG "birds"
+  [[F Am C]
+   [G Dm Em C] Am]
+END
+
+SONG "people not in the news"
+  [E A D G]
+END
+
+SONG "trying to help" ; matter transporter
+  [[E 07860x 055000 03420x]
+   [0970xx 0750xx 3200xx x35050]]
+END
+
+SONG "dr. yahoo"
+  [[x7660x 54660x 32440x 3200xx]
+   [x06600 x06900 x07705 x07709]]
+END
+
+SONG "vst dynamics"
+  [[G x04430 Am x54055]
+   [x32030 Em C D]]
+  x32030 Em Am C
+END
+
+SONG "untitled old 6"
+  [G x02020 C Em]
+END
+
+SONG "eat none food"
+  [x02030 022030 320030 320050]
+END
+
+SONG "untitled old 7"
+  [[B E 577600 244300]
+   [B x04440 E 244300 577600]
+   [B x04440 E x46650 577600]]
+END
+
+SONG "triumph"
+  [[A x02230 x32003 022032 G
+    A x02230 022032 G D]
+   [022032 G A x02230 x32033]]
+END
+
+SONG "hey pa transit"
+  TUNE 0000-20
+    [[E 320000 002200 002220 032000 032020]
+     [577600 799800 x46664 x46677 A]]
+  END
+END
+
+SONG "untitled old 8"
+  TUNE 0000-20
+    [5020xx 3200xx D Em]
+  END
+END
+
+SONG "untitled old 9"
+  TUNE 0000-20
+    [320400 540600 A90C00 A90B00 540600 540700]
+    E 355400
+  END
+END
+
+SONG "secret to songwriting"
+  TUNE 0000-20
+    [x30200 A 3200xx
+     x30200 A E]
+    [D xx0233 022023]
+    x30200 A E
+  END
+END
+
+SONG "circle equals check"
+  TUNE 0000-20
+    [[x54600 A E 022200]
+     [320003 x54050 E 577600]
+     350005 130030 E]
+  END
+END
+
+SONG "seed 9 Sep 2003"
+  TUNE 0000-20
+    [577600 355400 x24442]
+  END
+END
+
+SONG "the mail's not poison"
+  [[x32030 C Em 320002 Am]
+   [022002 320002 x02213 x32013]]
+END
+
+SONG "east key to visit"
+  [[870088 540055 G C G C A x54050]
+   [540055 G x54050
+    540055 G Em
+    x54055 x32033 G]]
+END
+
+SONG "untitled old 10"
+  [350003 022002 x32000 x02200]
+END
+
+SONG "joke for you"
+  [A x32000 0200xx 3200xx]
+  [A C Em G]
+END
+
+SONG "untitled old 11"
+  TUNE 0000-20
+    [[320000 032000 D Em]
+     [502000 320000 D Em]]
+  END
+END
+
+SONG "untitled old 12"
+  TUNE 0000-20
+    [[577600 355400 x24442 E]
+     [577600 355400 x24442 020120]]
+  END
+END
+
+SONG "untitled old 13"
+  TUNE 0000-20
+   [xx0202 xx0505 xx0303]
+  END
+END
+
+SONG "i turn left"
+   [G C Am 022003 D
+    G C Am x32033 D]
+END
+
+SONG "dr. insano"
+  320xxx 0340xx 0350xx 5700xx 0350xx 0570xx.
+END
+
+SONG "To Zanarkland"
+  [Em C D G]
+END
+
+SONG "Same World"
+  PC 2 -=====
+    [[x02220 3x022x 000230]
+     [=200xx 3500xx
+      000232 320002] x32030 A7] 000232
+  END
+END
+
+SONG "Based On Your Mario Kart Skills..."
+  [[x5x035 x3x013 022003 G]
+   Am C
+   [G A7 C]]
+END
+
+SONG "Gummi Bears"
+  [[C Em F C F C Bb G
+    C Em F C F C F  G]
+   [C Am F G]]
+END
+
+; end

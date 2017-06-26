@@ -1,0 +1,14 @@
+
+to set broadcast:
+
+setsockopt(sock, SOL_SOCKET, SO_BROADCAST, "t", sizeof(int));
+"t" can be the address of any non-zero 4 bytes?
+
+
+
+guh, this is so perverse...
+
+in_addr is the address part (ie 128.2.1.2), and is just a word. It's
+defined in netinet/in.h.
+
+INADDR_ANY is really 0.

@@ -1,0 +1,294 @@
+   OOOOOOo    oOOOOo    oOOOOo   OOOOOOo
+   OOO  OOO  OOO  OOO  OOO  OOO  OOO  OOO
+   OOO  OOO  OOO  OOO  OOO  OOO  OOO  OOO
+   OOOOOO°   OOO  OOO  OOO  OOO  OOOOOO°
+   OOO       OOO  OOO  OOO  OOO  OOO    
+   OOO       OOO  OOO  OOO  OOO  OOO
+   OOO        °OOOO°    °OOOO°   OOO
+
+		Server                   (Mark II)       
+S   p   e   c   i   f   i   c   a   t   i   o   n
+
+		Codename: EPOCH
+
+	Official Colours:
+#7171AA - Blue
+
+Structure of a Packet:
+
+[HACKWORD packet length]
+This is a base-255 (NOT 256) representation of the packet length, with
+Zero's mapped to byte 255. There can and must be two words:
+
+[01][FF] would mean 255 bytes incoming.
+[01][01] would mean 256
+[FF][01] would mean 1 byte
+
+This length does not include the length element itself.
+
+There can be NO zero-length packets, and the maximum packet length is
+16384 or so -- anything greater will be considered to be a Violation
+of Security.
+[BYTE command]
+See below for a full list of server commands in the protocol.
+Commands are just one character.
+[<16384 BYTES data]
+Data for the commands, see below
+
+There is no termination to a packet; we assume that the packet
+length is accurate.
+
+Usefulness concern: If a byte is dropped somewhere, everything
+gets messed up, since there is no terminator. TCP is supposed
+to be error-free so that is good, but in case this offset
+occurs we need a way to trap it. My recommendation is that we
+immediately disconnect anyone who sends an invalid command 
+of any sort -- an unknown command character, data outside the
+range, etc. Then we can leave all the error checking up to the
+client, since we don't really care about the security of the
+client.
+
+In command:
+= Has same meaning to both client and server.
+< to client
+> to server
+* is confirmed with an "O".
+
+In errors:
++ denotes a fatal (disconnection-worthy) error.
+
+ -----    --------   --------   ----------------------------------
+Command     Data      Errors              Explanation
+ -----    --------   --------   ----------------------------------
+=  &      Arbitrary    None       A Ping packet. These packets are
+                                sent by the servers and clients to
+			        measure latency and make sure they
+			        still have a connection.
+      			        Action: Return a ping response msg (#)
+				with the same data they sent you.
+=  #	  Arbitrary    None       A Ping response packet. Should only
+				be sent in response to a ping.
+=  -      Arbitrary    None       Ignored by both client and server.
+=  N      1 byte       None   	  A "Not OK" message sent to the server
+	  error command		or client. Generally a response (error
+	  1 byte		message) to an invalid command.
+	  error number            *UNDER NO CIRCUMSTANCES* SHALL THE
+	  Arbitrary data	CLIENT RESPOND AUTOMATICALLY TO AN 'N'
+				MESSAGE!! This is to avoid infinite
+				loops leading to badness.
+=  O      1 byte		  An "OK" message. It is acceptable to
+	  okay'd command	have an automatic response to this (to
+	  arbitrary data        automatically send the password when
+				getting an OL command, for instance.)
+>  v*     4 byte      1.  Version too old [URL to new version]
+	  signature   2+  Unrecognized signature
+				  This is a 4-byte signature. The first
+				three bytes determine the version number,
+				the fourth determines the client platform:
+				1. Java
+				2. Win 95 native
+				3. Win 95 Console
+				4. MacOS
+				5. X Windows
+				6. Linux Console
+>  L*     <=10 bytes  1+  Unknown Name
+	  username    2+  Name too long
+		      3+  Server full
+		      4+  Banned
+		      5+  Suspended
+	              6+  Can't login now (or shutdown flag set)
+		      7+  What the fuck? (logged-in flag already set)
+				  Login to the server. An O command is
+				returned, telling them that they should
+				then send their password.
+>  P*	  <=10 bytes  1+  Incorrect Password
+	  password    2+  Password too long
+		      3+  What the fuck? (logged-in flag already set)
+				  Send the password. An O command is
+				returned if successful.
+<  X      arb data    None        The server is going down immediately
+	  message		for the reason specified.
+	  			Action: Client should disconnect and
+				show the message.
+<  x      arb data    None        Server is in shutdown mode -- no new
+	  message     		games can be made, and the rest of the
+				games will close automatically in 10
+				minutes.
+				Action: The client should show the
+				message, but not interrupt the game
+				(with a messagebox, etc.).
+>  x      none        None        Tell the server that a client is
+				leaving. This helps make garbage
+				collection easier (the clients are still
+				periodically pinged, though)
+>  ]      none	      1.  No, sorry.
+				  Join Find mode ("game 0"). They will
+				be sent the list of participants in
+				game 0 and their various attributes.
+>  [      none        None        Leave Find mode ("game 0"). They will
+				no longer be sent the chat and Find
+				player ins and outs.
+<  [      WORD	      None        This player has left find mode.
+	  usernum
+	  <=10 bytes
+	  username
+<  ]      WORD        None        This player is joining find mode.
+	  usernum		Attributes are sent separately (but
+	  <=10 bytes	        immediately afterwards)
+	  username 
+<  A      BYTE        None        Update a player's attributes*
+	  attribtype ->		Attribtypes:
+          arb data		'A': DWORD Flags, word rank, gameflags, 
+	  new attribute				gprefflags 
+	  		  	   123456789ABCDEF
+				   1               Accepting offers
+				    1              Administrator
+				     1             Guest account
+				      1            Accepting offers from
+							guest accounts
+				       1           In Game0
+				        1          Logged In
+				'N': arb Real Name
+				'E': arb e-mail
+
+				  Realisically, the "In Game0" flag is
+				ignored by the client. But since the
+				server stores all these flags, it is
+				easier to just send them all without
+				masking. This introduces no serious
+				Security/privacy concerns.
+=  G      WORD
+	  gamenumber
+	  arb data
+	  data passed to game
+		      <1. You aren't in that game
+	              <2. 
+		      <3+ Game number out of range
+				  This data is directly forwarded to
+				the targeted game. Passes a string through. 
+>  +      WORD
+	  destination playernum
+	  BYTE
+	  game type
+	  WORD
+	  game number to overwrite ("play again?"): Zero if a new game.
+	  arb data:
+          game settings
+		       1. Player is not accepting offers
+		       2. Player is not accepting offers from guest accts.
+		       3. Player is not accepting offers of that game type
+		       4+ Data out of range (no gametype/ playernum too high)
+		       5. Player is not signed on. (playernum is in range,
+			  maybe they just dropped...?)
+		       6. Server in shutdown mode!
+		       7. Too many requests being processed (from you, to
+                          your destination, or MAX_GAMEREC exceeded.)
+		       8. Can't overwrite that game.
+                       9+ Your data was Faulty.
+				  This is a request from the client to
+				start up a game with someone on the server.
+				ACTION: The server validates the info, then
+				sends it to the gametype's validaterequest().
+				If valid, it allocates a record for the
+				request. Records should time-out after 2
+				minutes or so, to avoid attacks where
+				someone sends 65535 requests to another
+				user and the other user doesn't answer them.
+				  Furthermore, the server should keep track
+				in some way of the number of requests sent
+				out to a particular person from a particular
+				person, and limit this to, say, 3... to
+				keep someone from continuously offering 
+				games to someone else, in order to piss them
+				off.
+<  +	  WORD
+	  source playernum
+	  WORD
+	  Game-request-record
+	  10 chars (pad 0)
+          Username
+	  BYTE
+	  "Play again" 1/0 flag
+	  BYTE
+	  game type
+ 	  arb data - game args
+          
+			None
+				  This is a request to the client to start
+				a game with someone else. The client should
+				store the game-request-record and show a
+				little message box or whatnot. They probably
+				will send a "?" command to query information
+				on the user. If they accept, a "!" message
+				is sent with the game-request-record, which
+				has the server make a game and send "J" 
+				commands to both players. If they decline,
+				they send an "@" message, and then (if
+				applicable, a counter-offer).
+>  ?	  WORD          1. usernum not around (in range, but login
+	  usernum          flag not set -- perhaps they just left?)
+			2+ usernum out of range
+				  Query information on a user. Sends back
+				an <A message with all info about the
+				usernum.
+>  !      WORD	        1. gamerec not found (in range, perhaps timeout)
+	  game-request  2+ gamerec out of range!
+	  record        3. Can't find opponent any more (they left?)
+			4. You aren't involved in that gamerec! (the
+			   two players are someone else!) (also check
+	                   for someone confirming their own game!)
+			5. Can't allocate a game... sorry! =/
+				  This causes the server to look up the
+				game request record, do some validation,
+				and then start a game with the two players.
+				(Sending out J commands)
+>  @	  WORD
+	  game-request record
+	  BYTE
+	  1/0 counter-offer or not
+	  		1. gamerec not found
+			2+ gamerec out of range
+			3. You aren't involved in that game!
+			4. Can't find them!
+				  Declines a game offer. If the second
+				byte argument is "1", it sends a @ message
+				to the originator. Either way it deletes
+				the game request record.
+<  @	  WORD
+	  game-request record
+	  arb data
+	  playername 	
+			None    
+				  "The playername has declined your offer."
+<  J      BYTE
+	  gametype
+	  WORD
+	  gamenumber
+				  Tells the client to join a game. They
+				should set up the necessary data (through
+				memberfunctions in gametype) and then
+				send back another J message.
+
+>  J      WORD		1. No such game
+	gamenumber      2. No spectators allowed
+	  			  Join this game. Server checks whether they
+				are a player (as opposed to a spectator) in
+				the game, and places them as necessary, then
+				sends the current game data via game member 
+				functions.
+
+Generally strings such as the login name are \00 terminated, unless they
+are a fixed length (in which case they should be \00 padded, with an extra
+\00 to follow). One should pad incoming packets with an extra \00 at the
+end as well.
+
+* Should this be restricted to Game 0 or not? Perhaps we could have
+updates within the games that they play? (Yes)
+
+Document History:
+17 October 1997 - version 1.0: Tom Murphy 7.  No changes.
+18 October 1997 - version 1.1: Jacob Berkman. Added 'G' command
+19 October 1997 - version 1.2: Tom Murphy 7. Revised 'G', 'A', added O?@!J.
+19 October 1997 - version 1.3: Tom Murphy 7. Added shutdown-flag stuff.
+7 December 1997 - version 2.0: Tom Murphy 7. Many revisions.
+

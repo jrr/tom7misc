@@ -1,0 +1,45 @@
+
+group is
+
+  /usr/src/sml-lib/njlib/lib-base-sig.sml
+  /usr/src/sml-lib/njlib/lib-base.sml
+  /usr/src/sml-lib/njlib/ord-key-sig.sml
+  /usr/src/sml-lib/njlib/ord-set-sig.sml
+  /usr/src/sml-lib/njlib/ord-map-sig.sml
+  /usr/src/sml-lib/njlib/list-set-fn.sml
+  /usr/src/sml-lib/njlib/list-map-fn.sml
+
+  /usr/src/sml-lib/njlib/regexp/frontend/syntax-sig.sml
+  /usr/src/sml-lib/njlib/regexp/frontend/syntax.sml
+
+  /usr/src/sml-lib/njlib/regexp/glue/match-tree.sml
+  /usr/src/sml-lib/njlib/regexp/backend/fsm.sml
+
+  /usr/src/sml-lib/njlib/regexp/frontend/parser-sig.sml
+  /usr/src/sml-lib/njlib/regexp/backend/engine-sig.sml
+
+  /usr/src/sml-lib/njlib/regexp/frontend/awk-syntax.sml
+
+	/usr/src/sml-lib/njlib/regexp/backend/bt-engine.sml
+  	/usr/src/sml-lib/njlib/regexp/backend/dfa-engine.sml
+
+  	/usr/src/sml-lib/njlib/regexp/glue/regexp-sig.sml
+  	/usr/src/sml-lib/njlib/regexp/glue/regexp-fn.sml
+
+
+/usr/src/sml-lib/util/stringutil-sig.sml
+/usr/src/sml-lib/util/stringutil.sml
+
+/usr/src/sml-lib/misc/params-sig.sml
+/usr/src/sml-lib/misc/params.sml
+
+reutil-sig.sml
+reutil.sml
+
+hsock-sig.sml
+hsock-nj.sml
+
+http-sig.sml
+http.sml
+
+get.sml

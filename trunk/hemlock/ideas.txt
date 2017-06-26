@@ -1,0 +1,197 @@
+
+
+
+
+
+Here's what a recursive sum type looks like in TAL:
+	TYPE	<uuuu? :T4 = ^+[*[S(1)^r,B4^r],*[S(2)^r,`uuuu?^r],*[S(3)^r,B4^r]]>
+
+union uuuu {
+   int aaaa;
+   uuuu bbbb;
+   int cccc;
+}
+
+Here's dispatch:
+
+	MOV	EAX,unroll([ESP+4])
+	NAMEOBJ	uptr$5,EAX
+	MOV	ECX,[EAX]
+	CMP	ECX,2
+	JE	bbbb_value$7
+	CMP	ECX,1
+	JE	aaaa_value$6
+	JMP	default$4
+bbbb_value$7:
+	MOV	EAX,[rec(forgetname(EAX))+4]
+	REMOVENAME	uptr$5
+	PUSH	EAX
+	PUSH	DWORD PTR [ESP]
+	CALL	tapp(_test,<ESP 1 4 s1,EBP 1,e1,e2>)
+	ADD	ESP,8
+	RETN
+aaaa_value$6:
+	MOV	EAX,[rec(forgetname(EAX))+4]
+	REMOVENAME	uptr$5
+	MOV	EAX,EAX
+	RETN
+default$4:
+	MOV	EAX,subsume(<B4>,2)
+	RETN
+
+
+
+
+Post-RTL peephole optimizations:
+ - integer unboxing. If an integer is consumed through an arithmetic
+operation, we can unbox it (just store it as an actual integer).
+
+
+
+Data representation...
+
+   Box and tag everything. Uniformity rules.
+
+
+
+
+Projection:
+
+The type forall a, b, c, ... n . a * b * c * ... * n is known as n, as in
+forall a, b, c. a * b * c = 3
+
+Projection is written as follows:
+
+#field/atomictype
+
+So (fn (a, b, c) => b) is #2/3
+
+type person = { name : string, age : int, height : int }
+val tom = { name = "Tom", age = 23, height = 63 }
+
+#name/person tom
+
+We simply treat #fieldn/record as sugar for
+   (fn {field1 = _, ..., fieldn = fieldn, ..., fieldm = _} => fieldn)
+
+
+
+to avoid mutually-recursive datatype bundles, can I rewrite them as follows?
+                               (sadly... not without souping up the type system!)
+
+datatype exp = 
+    Do of stmt * exp
+  | Plus of exp * exp
+
+and stmt =
+    Assign of string * exp
+  | Seq of stmt * stmt
+
+ ===>
+
+datatype 'a exp =
+    Do of 'a * 'a exp
+  | Plus of 'a exp * 'a exp
+
+ = forall a . mu b . (a * b) + (b * b)
+
+datatype stmt =
+    Assign of string * stmt exp
+  | Seq of stmt * stmt
+
+ = mu b . (string * exp[b]) + (b * b)
+
+
+
+datatype one =
+   A of one
+ | B of two
+ | C of three
+ | Zero
+
+and two =
+   D of one
+ | E of two
+ | F of three
+
+and three =
+   G of one
+ | H of two
+ | I of three
+
+ ==> 
+
+datatype ('a, 'b) one =
+   A of ('a, 'b) one
+ | B of 'a
+ | C of 'b
+ | Zero
+
+datatype 'a two =
+   D of ('a two, 'a) one
+ | E of 'a two
+ | F of 'a
+
+datatype three =
+   G of (three two, three) one
+ | H of three two
+ | I of three
+
+
+and ones that already use polymorphism?
+Unfortunately, this requires type constructor variables. =(
+
+datatype 'a top =
+   R of 'a top
+ | B of 'a other
+ | C of third
+
+and 'a other =
+   D of 'a top
+ | E
+ | F of third
+
+and third =
+   Z of int top
+ | R of bool other
+ | Q of third other
+
+
+ ===>
+
+datatype ('a, 'b, 'c) top =
+    R of ('a, 'b, 'c) top
+  | B of ('a, 'c) 'b       (* oops!! *)
+  | C of 'c
+
+datatype ('a, 'b) other =
+    D of 'a top
+  | E
+  | F of 'b
+
+datatype third =
+    Z of (int, other, third) top
+  | R of (bool, third) other
+  | Q of (third, third) other
+
+
+----------------------------------------------------------------------
+
+
+I REALLY WANT USER-DEFINABLE DERIVED FORMS!
+
+
+keyword DO = do
+
+macro DO = VAL UNDERSCORE EQUALS
+
+form DO (x : exp) : decl = Val(PWild, x)
+
+
+
+keyword LBRACKET = [
+keyword RBRACKET = ]
+
+form LBRACKET (el : separate0 COMMA exp) RBRACKET : exp = 
+      foldr (fn (a, b) => App(Var "::", Tuple([a,b]))) (Var "nil") el
+

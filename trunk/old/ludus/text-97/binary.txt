@@ -1,0 +1,182 @@
+The Binary Code Format                            revision 5
+                                                  22 July
+
+22 June: Got rid of 32-bit data. Nobody needs crap that big.
+22 July: Fixed an error.
+
+This is the actual format used for the binary code of the compiled objects.
+
+CODE   MNEMONIC
+
+00      STOP
+
+Arguments: None
+
+Stops execution of the object and lets it wait for more events to activate
+it again.
+
+01      LOCK
+
+Arguments: None
+
+Sets the object's Locked flag so that other methods cannot be activated
+until an UNLOCK opcode.
+
+02      UNLOCK
+
+Arguments: None
+
+Unlocks an object by clearing its Locked bit. See LOCK.
+
+03      JUMP                       Absolute Jump
+
+Arguments: WORD address
+
+Performs an Absolute Jump locally within the object's code. ie, JUMP 03AH
+would jump to the 03AHth byte in the code.
+
+04      RJUMP                      Relative Jump
+
+Arguments: signed WORD distance
+
+Jumps relative to the current instruction. RJUMP 0000 would make an
+infinite loop (until another method broke it, if it was unLOCKed),
+RJUMP FFFE would jump 2 bytes before it.
+
+05      COPY                       Copy Source to Destination
+
+Arguments: 3-Byte Destination (See Table 1), 3-Byte Source 
+
+COPY 02 20 00 00 03 21 00 00 would copy the contents of memory at 0321h
+(locally) into the OUTARG1 register.
+
+06      FUNCTION                   Call a program function
+
+Arguments: WORD (local) Pointer to text of function name
+Arguments to function in OUTARG{1...10}.
+
+This is a way of calling functions in the engine which aren't explicitly
+present in byte-code. The engine had better know what the hell function
+you are talking about.
+
+07      INC                        Increment Register / Memory Location
+
+Arguments: 3-Byte Value (Table 1)
+
+Adds 1 to the memory location or register.
+
+08      DEC                        Decrement
+
+Arguments: 3-Byte Value (Table 1)
+
+09      ADD                        Add
+
+Arguments: 3-Byte Destination, 3-byte source
+
+Adds source to Destination.
+
+0A      SUB                        Subtract
+
+Arguments: 3B Dest, 3B src
+
+0B      MUL                        Multiply
+
+Arguments: 3B Dest, 3B src
+
+Multiply Dest * src and store the result in Dest.
+Had better not overflow. (Though max width is in fact DWORD)
+
+0C      DIV                        Integer Divide
+
+Arguments: 3B Dest, 3B src
+
+Divide (dest/src) and store the result in Dest.
+
+0D      CMP                        Compare
+
+Arguments: 3B, 3B
+
+Compares the two arguments and stores the result in register R.
+
+Register R's values:
+
+00  ARG1 == ARG2
+01  ARG1 >  ARG2
+02  ARG1 <  ARG2
+
+0E      JL                         Jump-if-less-than
+
+Arguments: Word address
+
+If R contains 02 (ARG1 < ARG2), then jump to the address, otherwise just
+continue.
+
+We also have the following similar opcodes:
+     
+0F      JLE                        Jump-if-less-than-or-equal
+10      JG                         Jump-if-greater
+11      JGE                        Jump-if-greater-or-equal
+12      JE                         Jump-if-equal
+13      JNE                        Jump-if-inequal
+
+14      SEND                       Send method to other object
+
+Arguments: Word (local) pointer to string with object name, similar pointer
+to method name to Send.
+Arguments to the method in OUTARG{1...10}.
+
+For when the program does a "signpost.die".
+
+This will evoke the "die" event in all unLOCKed signpost objects.
+
+15      RAND                       Random
+
+Arguments: 3-byte Destination, word lowerbound, word upperbound
+
+Generates a random number between lowerbound and upperbound (inclusive)
+and stores it in the Destination.
+
+16      HCF                        Halt and Catch Fire
+
+Arguments: 1-byte exit code
+
+Crash the engine with an error message.
+
+17      CALL                       Call
+
+Arguments: WORD local address
+
+ùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄùÄù
+
+ÄÄÄÄÄÄ     Table 1 - 3-Byte data:   ÄÄÄÄÄÄ  
+
+First Byte:
+
+00 - Raw data. Next two bytes are the raw data. (WORD)
+
+01 - Memory location (local). Next two bytes are the WORD address.
+
+02 - Memory location pointed to by the contents of a register. See register
+table.
+
+03 - A "register". See register table (Table 3).
+
+ÄÄÄÄÄÄ     Table 3 - Registers:    ÄÄÄÄÄÄ  
+
+First byte: (note, hexadecimal!)
+
+00 - 'A' register
+01 - 'B'
+02 - 'C'
+03 - 'D'
+04 - 'R' (result of compare)
+10 - INARG1 register (the ten registers filled when the program is called)
+11 - INARG2
+...
+19 - INARG10
+20 - OUTARG1 register (ten basic arg registers, for calling functions)
+21 - OUTARG2
+...
+29 - OUTARG10
+
+Second byte is always zero.

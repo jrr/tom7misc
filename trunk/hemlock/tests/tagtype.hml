@@ -1,0 +1,18 @@
+
+let
+
+    import "print.hmh"
+
+    tagtype t
+
+    newtag Nope of int in t
+
+    newtag Test of int in t
+
+in
+
+    case Test 0 of
+        Test x => print "Yes\n"
+      | _ => print "No\n"
+
+end

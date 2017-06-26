@@ -1,0 +1,2 @@
+exception Hemrunt_error(*(int,string));
+exn Hemrunt_error_pkt = ^Hemrunt_error (^(0,""));

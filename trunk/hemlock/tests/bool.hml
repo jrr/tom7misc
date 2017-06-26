@@ -1,0 +1,12 @@
+
+let
+
+    fun print s = write (stdout, s)
+
+in
+
+    if true()
+    then print "yes.\n"
+    else print "no.\n"
+
+end

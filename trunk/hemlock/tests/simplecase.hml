@@ -1,0 +1,11 @@
+
+let
+
+    datatype sum = A of int | B of string
+
+in
+
+    case A 0 of
+	A x => x
+
+end

@@ -1,0 +1,389 @@
+-----------8<----- Cut here ------ ESCAPEB.TXT ------>8-------------------
+
+
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+                         Directions for Escape Beta
+                            abridged and edited,
+                     and probably wrong in many respects.
+
+                         Courtesy of Tom Murphy.
+
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+          Version 1.9+ Beta
+
+New in this version:
+  þ New Graphics:
+       ù Headphones guy for turning sound on/off
+       ù Tiles graphic shrunk slightly, which speeds up loading
+  þ New Features:
+       ù Better level selection in Escape Campagin mode (retains position
+                                                  of cursor)
+       ù More messages in Escaped
+       ù New random level AI in Escaped
+       ù Filling in Escaped
+       ù Ability to do 'overwriting' random levels
+       ù Embarassing bug fixes (as usual!)
+       ù Color title bug fixed by removing support for color titles (heh)
+       ù Crash recovery fixed in Escaped
+       ù New editing keys/features in Escaped
+       ù Escape sped up when shelling from Escaped
+       ù A new cheat in Escape, to be removed eventually
+       ù Fixed PgUp and PgDn!
+       ù The Record/Playback is working a little better now.
+       ù Detects some more errors so Escape and Escaped won't crash out.
+       ù You can delete invalid user names, though it will still crash
+                                                                Escape.
+       ù Protection against saving/loading to some devices.
+Coming soon (maybe!):
+  þ New tiles:
+       ù One-way tiles
+       ù More spaceship-looking background tiles (how long has it been now?)
+       ù ???
+  þ New Graphics:
+       ù More characters
+  þ New Features:
+       ù A working XCAMP (campaign compiler) to make campaigns with
+   X   ù Screen saver in Escape
+   X   ù Sound Blaster (Adlib FM synthesis) support
+   X   ù A rather shallow attempt to do music...
+       ù Timed backup in Escaped
+       ù Added 'level author' field to .ESC file format
+       ù Better file selection in Escape/Escaped
+       ù 12 more levels!
+And now, the instructions:
+
+ESCAPE.EXE is the game. Run it from DOS.
+
+The first thing you'll have to do is pick a user. You can create a new
+user by pressing "N" and delete an old one by pressing "D". Select the
+one you want and press [ENTER]. Your progress on campaigns and your
+character will be saved. (Note that if you create a new user, you must
+give a valid DOS filename (8 characters or less)!  Also note that this
+part doesn't work particularly well; it tends to crash a bit more than 
+you'd desire. I'll fix it, but, be careful. =)
+
+When you start, you'll get a menu, where you can either pick a 'campaign'
+(whole bunch of levels stuck together) or an individual level, or change
+your character. The characters are all the same other than the way they
+look. To start, pick campaign mode.
+
+There are now two campaigns, "Tutorial" and "Game". Game will not be the
+one included in the game (and may include some registered-version-only
+levels!), but you can play with it for the moment.
+
+If you want to learn how the game works, load the campaign "tutorial.xcp".
+It contains 11 levels which attempt to illustrate as best as possible how
+each of the 35 or so blocks work.
+
+If you're in for a challenge, try loading the "game" campaign. Some are
+easy, but some are insanely difficult...
+
+On the menu screen, you can use '3' to change your character. You can
+also use the arrow keys to look at the four different directions. Right
+now, the cast includes:
+1. Midevil sort of warrior guy/girl.
+2. Girl in a dress.
+3. Computer programmer complete with tie and rolled up sleeves.
+4. Um, err... a sort of yellowish circle thing. ;)
+5. A guy with sunglasses and a sweatsuit... 'una-something-or-other' I think.
+
+You can now load the files from the command line:
+ESCAPE level
+
+Remember not to give it the extension; it will add it automatically.
+User #1 will automatically be selected (which happens to always be
+'Nobody').
+
+(Secret hint:
+
+If you want to run the level from I'm-editing-in-Escaped-mode, where
+[esc] will quit back to DOS and you will never be sent back to the
+menu, do:
+
+ESCAPE /play level
+
+Which may or may not work.)
+
+Playing:
+Use the arrow keys to move the little guy (or girl, or... whatever) around 
+the map. ENTER reloads the current level, "L" loads a new level (will 
+prompt you at the top) and [ESC] returns to the menu. "C" will load a 
+new campaign. You can hit "S" to toggle sound on and off (see the little
+headphones guy? cool, eh?) You will notice that certain blocks can do 
+certain things. Here is a brief description of each block:
+
+1. Floor (empty) - This can be walked on, shot over, etc.
+2. Red block - This can be pushed by the guy in any direction. It can be used
+to push down panels (see later), or block lasers (see later) but it can't be
+pushed in holes (see later...)
+3. Blue block - Can't be pushed, moved, anything. A wall.
+4. Grey block - Same as a red block, but can be pushed into holes.
+5. Green block - Can be moved one space in any direction, and then turns into
+a blue block. Must be pushed onto a floor (#1).
+6. Exit Door - The player must touch this to exit (win). There can be more
+than one on any given level.
+7. Hole - Blocks the player from moving, but doesn't block lasers. You can
+push a grey block into the hole, and it (and the block) will disappear.
+8. Gold Block - This block can be pushed from any side, and will keep moving
+until it hits anything but a panel or regular floor. It can push down panels
+if it lands on them, and can block lasers, but can't be pushed into holes.
+9. Shooter - If the player walks onto a space aligned (vertically or
+horizontally) with this tile, they will be shot with a laser and they'll
+die. Lasers can be blocked by anything but panels, floors, holes, and
+electric floors.
+10. Panels (grey circle on floor) - When the player or a block is on top of
+one of these, another block somewhere will disappear. When the player steps
+off, or the block is removed, the block will reappear. You can do some
+neat stuff with these (including screwing up the game); play around with
+them.
+11. Stop Sign - Usually used to signify a block which can be removed with
+a panel, but it acts exactly the same as 3 (a stationary wall).
+12-15. Arrows - These are walls, which can be used for decorative purposes
+or to hint what is to be done in a level. Exactly the same as #3 except the
+way they look.
+New stuff:
+16. Rough (bumpy grey) - These can be walked on like normal floors, and
+lasers can shoot over them, but blocks cannot be pushed on them.
+17. Electric floor (yellow floor) - This cannot be walked on, but if a
+block is pushed onto it, the block will be desintegrated. These floors
+are shut off by #18, and can be shot over by a laser.
+18. Electric button (on) - Pressing (touching) this will turn it into
+#19 and turn all the #17s into #1s. Cannot be shot over, walked on,
+etc.
+19. Electric button (off) This is simply the off version of #18. It acts
+exactly the same as #3.
+20. Transporter - Stepping on this tile will send you to another space on
+the level. Blocks lasers, pushable blocks, etc. etc.
+21. Breakable (cracked grey) - Touching this block will cause it to
+desintegrate and disappear.
+22, 23: Horizontal/Vertical sliders - These blocks can only be pushed
+in the directions that their arrows point. They can be used to block lasers
+but cannot push down panels or fill in holes.
+24, 25: 0 and 1 buttons - When one of these is pressed, all of the
+horizontal sliders will be turned into vertical sliders, and all of the
+vertical sliders will be turned into horizontal sliders. 
+26-31: Wires - These wires conduct pulses from #32 (buttons) to the lights
+(33-35). They only conduct in certain directions (the directions which
+the conduit points in... I guess this is pretty obvious.) They can be
+pushed and act identically to red blocks.
+32: Pulse button - Pushing this will send pulses in all 4 directions, which
+can travel down wires to lights or directly to the lights themselves.
+Cannot be moved, but blocks the lasers.
+33-35: Blue, red and green lights - These blocks, when sent an electric
+pulse, will toggle their respective floors between the 'high' and 'low'
+positions. They cannot be activated on their own, and are otherwise
+stationary and solid.
+36, 38, 40: Blue, red and green 'high' floor - This is basically a wall.
+You can't walk over it or shoot through it. It can be toggled to the 'low'
+position by sending an electric impulse to the same color light.
+37, 39, 41: Blue, red and green 'low' floor - Can be walked over and shot
+over, but blocks can't be pushed on it. Can be toggled to 'high' floor.
+
+An admittedly better way to learn these tiles is to simply play the
+campaign "tutorial". It tries to explain them taking a more pragmatic (and
+more fun) approach. =)
+
+(Oh, there is a built-in cheat function... press alt-z to clear the tiles
+immediately adjacent to you; this is basically to make it easier to test
+your levels, and will be taken out for the release version of the game. It
+will also sometimes cause problems... careful. There's another one too now...
+hit Alt-X and enter coordinates to warp to a spot on the level. It will
+not un-press buttons, so careful!)
+
+If you want to experiment with the playback/record functions:
+Alt-R starts recording
+Alt-P plays back
+Alt-S toggle step-playback mode
+They are less broken than before but still quite broken. Use at your own
+risk!
+
+                                  úþùþú
+
+ESCAPED.EXE is the level editor.
+
+You need a mouse.
+
+Okay, now you can click on the little "menu" of tiles at the top with
+the left mouse button. The currently selected tile will still be displayed
+in the top left corner. To switch between the two rows of tiles (menus),
+press the right mouse button on the tile menu or use the up and down
+arrow keys.
+
+The spacebar places the starting position for the guy, which defaults to
+the lower left-hand corner of the screen. I've now fixed the bug *phew*
+where you had to put the guy every time before you saved it.
+
+Ummm, escaped is pretty self-explanatory, except for a couple things:
+
+When you put down a panel (a floor with a grey circle on it), you have to
+pick its destination tile. This is the tile that disappears when you step on
+the panel or push a block onto it. A message at the bottom of the screen
+which says something like "Click on destination tile" will appear, and you
+should click on whatever tile you want to be the destination. Don't click
+on the tile menu. If you screw up, or want to change the destination, simply
+put another panel over the last one, and pick the new destination. The
+destination is cleared automatically if you put a blank tile over a panel.
+You also have to do this with transporter tiles now. The destination is
+the space where it sends the guy. Careful with doing screwy stuff like
+sending the guy off the screen... that's your fault, not mine. ;)
+
+The right mouse button, while on the level area (and not the 'menu' up top)
+will now conveniently erase (place tile #1 over) what's there.
+
+Now, if you move the mouse pointer over a transporter or panel, a white
+square will appear around its destination. Handy!
+
+You can use the UP and DOWN arrow keys to scroll through the menu of tiles
+on the top; the same as clicking on it with the right mouse button.
+
+Use the "T" key to title the level. 24 (?) character limit.
+
+Press "L" to load up a saved level.
+
+Press "S" to save the current level. (loaded filename or filename with
+"Save As" used)
+
+Press "A" to Save As the current level (give it a filename other than the
+one you gave before or loaded).
+
+Alt-M will shell "cdplay", so if you have a program for playing
+CDs (or anything else), you can make a batch file called cdplay.bat and
+put it in the directory, and run it with alt-m. I did this mainly
+for myself, and it will be almost certainly taken out in the release
+version.
+
+The following has been temporarily (I hope) removed:
+-Pressing Alt-1 or waiting for 2 minutes without doing anything will pop
+-up the screensaver (a sort of TV "snow" effect). Press any key to go
+-back to the game.
+
+Every minute or two an unsolicited message will appear on the bottom of 
+the screen, reminding you of commands and things. You can disable these 
+by pressing "M". You can also make them appear without waiting by pressing
+"." (period).
+
+
+Press [esc] or "Q" to quit and save. 
+Please enter valid filenames only! Escaped will crash (now there is crash
+recovery so you won't lose your work) if you do not.
+
+The numbers 0-9 will set the Random Level AI type. (Types 1-4 exist right
+now). These are used in conjunction with "R", which creates a random
+level for you (be advised that it clears your current level!). Note that
+these levels are not necessarily solvable, in fact they usually won't
+have an exit, but they have some degree of intelligence to them (except
+for type 1). They are useful to get you started.
+
+Pressing "E" will designate whether this random level will 'overwrite'
+the old one or not. It defaults to doing so. Play with it both ways to
+see what I mean.
+
+Pressing "F" will fill the level with your currently selected tile (unless
+it is a panel or transporter, for obvious reasons). Not particularly
+useful, really, but can be used in conjunction with "E" and "R" to
+use different backgrounds for the random levels.
+
+Enter now redraws the screen.
+
+Test your levels, and then have someone else test them too! There is often a
+much easier way of completing the level which you have overlooked.
+
+Some level creating strategies:
+
+1. Create a reasonably easy level which is solvable, then obfuscate it,
+keeping it solvable. Add dead ends and distracting blocks...
+
+2. Work backwards. Start with the guy at the exit, then work backwards. For
+instance, you can put down a hole and then a grey block behind it... move the
+guy backwards, dragging the block (mentally...) until it is in some other
+position, etc. etc. This ensures a solvable level and they can get pretty
+complicated. (I am thinking about making an automated level-creator using
+this method... *ponder*)
+
+3. Make a simple level, and then solve it. Whatever way you solved it, edit
+the level again to make that particular route impossible. Keep going until it
+is sufficiently difficult (but still solvable!)
+
+4. Use different sorts of random levels. If you don't like the AI, you can
+always close your eyes and spray tiles everywhere yourself! =)
+
+SENDING LEVELS:
+
+If you want to send me or a friend a level you made (don't wantonly 
+distribute Escape Beta yet, though), you can now use the included
+XENCODE and XDECODE programs.
+
+To encode one level into a mailable .TXT file:
+
+XENCODE level
+
+To encode multiple levels into a single .TXT file:
+
+XENCODE output level1 level2 level3 level4
+(etc. etc.)
+
+You should then cut and paste this output file into an e-mail message and
+send it to me. (ImightbeTM@aol.com)
+
+If you receive a level in an e-mail, save the e-mail to disk (Usually under
+"File"/"Save As"), preferably with the .TXT extension. Then run XDECODE:
+
+XDECODE mail.txt
+or just
+XDECODE mail
+
+XDECODE will extract all the files it finds in a given text file, and you
+need not remove headers nor other text in the e-mail (it will search out
+the levels on its own).
+
+I believe I have tested these pretty well and have made them more or
+less user-proof, so if you find any problems or bugs, please send them
+my way. Also please send your levels!
+
+I want:
+
+ þ Levels! Tough ones especially... if I use any of the levels you make,
+you'll get your name in the credits, plus the deep satisfaction of having
+other people become extremely frustrated at your creation and wish to kill
+you.
+
+ þ Bug reports! Now that this is the Beta version, I'm starting to weed
+out some of the bugs and to user-proof it. If you find any bugs, send them
+my way! But just so we're not redundant, see the known bug list at the end of
+this file...
+
+ þ Suggestions for new tiles! Not incredibly difficult-to-implement tiles, 
+but something clever and versatile. I may not be adding new tiles for a 
+while because I'm concentrating on making levels and user-proofing it, but 
+I definitely appreciate suggestions and... you never know. =)
+
+ þ Other suggestions! Send me other suggestions and comments! This game
+is still in the works and nothing is definite. Even if I don't directly
+implement your suggestion, it may become part of a future version or even
+a future game! In any case, I appreciate hearing feedback and I'm very
+friendly. =)
+
+ þ Spoons! I am always looking for more spoons of any kind. Send them to:
+
+Tom Murphy VII
+The Spoon Campaign
+339 Still Hill Rd.
+Hamden, CT 06518.1830
+USA
+
+Thank you very much for participating in the Escape Beta project! =)
+
+ - Tom Murphy.
+
+ ImightbeTM@aol.com
+
+Known bugs:
+ ù Invalid filenames will often cause it to crash.
+ ù XENCODE/XDECODE doesn't seem to be able to send tutorial.xcp. hmmm.
+ ù Loading up files which aren't Escape levels will screw things up.
+ ù Certain maneuvers can make your character temporarily disappear.
+ ù Record/Playback sometimes don't work. I would appreciate if you can
+     give me step-by-step ways to break this, however.
+ -----------8<----- Cut here ------ ESCAPEB.TXT ------>8-------------------
+

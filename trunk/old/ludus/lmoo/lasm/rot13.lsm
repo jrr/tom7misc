@@ -1,0 +1,35 @@
+OBJTYPE 1                  '  rot13 test object
+OBJNAME "rot13"            '  created some times in 1997 by Tom 7
+
+POINTER ROTSTRING "this is our string"
+DATA ROTBY 13
+
+!born
+      STOP
+!touch
+      LOCK
+      COPY OUTARG1 "Our original message:"
+      FUNCTION "SAYMSG"
+      COPY OUTARG1 $ROTSTRING
+      FUNCTION "SAYMSG"
+
+      COPY A $ROTSTRING
+:top
+      CMP byte [A] 0
+     JE done
+      CMP byte [A] 32
+     JE okay
+      ADD byte [A] %ROTBY
+      CMP byte [A] 122
+     JLE okay
+      SUB byte [A] 26
+:okay
+     INC A
+     JUMP top
+:done
+     COPY OUTARG1 "Our message, Rotated:"
+     FUNCTION "SAYMSG"
+     COPY OUTARG1 $ROTSTRING
+     FUNCTION "SAYMSG"
+     UNLOCK
+     STOP

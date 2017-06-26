@@ -1,0 +1,27 @@
+
+* Data Coalescing
+
+  If the string "hello" (more likely, something like "\n") appears multiple times
+  in the program, it should only appear as one symbol in the object file. A pass that
+  looks through the data segment and merges identical data (rewriting references to it)
+  would be a useful and simple optimization. Remember that the size of shipped binaries
+  is a serious concern!
+
+  It's possible that this can be managed without rewriting references; do linkers have
+  a way of allowing several symbols to point to the same data? I think so. 
+
+* Unboxing within basic blocks
+
+  If a value doesn't escape a block (escaping: becomes part of an allocation of an esacping
+  value, or is passed to a continuation), then we shouldn't have to allocate it on the
+  heap and tag it. For word-sized values (integers), just put them in their stack locations
+  as the value rather than a pointer to the tagged value. I think this can be done pretty
+  easily and should reduce the ridiculous overhead that math operations normally incur.
+
+  Multi-word values (tagged sums) are harder since we need two locations to store them.
+
+  Doing this intra-block would help a lot more (especially at loops), but is tricker.
+
+  The basic idea is to "undo" the boxing wherever we can locally tell that we don't need
+  it, since we aren't spawning and won't need to inspect tags.
+

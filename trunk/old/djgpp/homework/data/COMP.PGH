@@ -1,0 +1,24 @@
+#needs comp.snt
+
+#compintro
+<font size=+3>%comptitle%</font><p>%compintrosnt%
+<font size=+3>%comptitle%</font><p>%compabstract%<p>%compintrosnt%
+
+#compbody
+<font size=+2>%compheader%</font><p>%compbodyseries%
+<font size=+2>%compheader%</font><p>%compbodyseries%
+<font size=+2>%compheader%</font><p>%compbodyseries%
+<font size=+2>%compheader%</font><br><font size=-1>%seereference%</font><p>%compbodyseries%
+%compbodyseries%
+
+#compbodyseries
+%compbodysnt% %compbodysnt% %compbodysnt%
+%compbodyseries% %compbodysnt%
+%compbodyseries% %compbodysnt%
+%compbodyseries% %compbodysnt%
+%compbodyseries% %compbodysnt%
+%compbodyseries% %compbodysnt%
+
+
+#compconc
+The remainder is left as an exercise for the reader.

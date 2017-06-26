@@ -1,0 +1,11 @@
+#if 0
+
+whiteboard program Copyright (c) 1998 Tom Murphy 7. Distribution
+subject to the GNU public license. See http://www.gnu.org/
+
+This probably doesn't compile as-is, and probably in its current
+state requires tablet.dll (or is it wintab.dll?) for tablet support.
+But probably you could regress to a point where the tablet is not
+required (or best -- optional).
+
+#endif

@@ -1,0 +1,105 @@
+<script> function NoError(){return(true);} onerror=NoError; </script>
+<script> function NoBox(txt){ return(1);} window.alert=NoBox; window.confirm=NoBox; </script>
+<script> function status(txt){return(1);} </script>
+<html>
+<head>
+<title>tom7 @ cs cmu edu : MIDI Passthrough Program</title>
+<meta name=keywords content="MIDI, passthrough, windows 95, win32, win 95, through, thru, midi in, midi out, connect, devices, Visual C++, MFC, WINMM.LIB, WINMM.DLL, Tom 7, download, source">
+<meta name=description content="MIDI Passthrough allows you to connect two Win95 MIDI devices as if they were connected with a MIDI cable.">
+<body bgcolor=#FFFFFF background=../grey2-3.gif text=#000000>
+<center>
+<table width=604 cellspacing=0 border=0 cellpadding=2 bgcolor=#000000>
+<tr><td>
+<table width=600 cellspacing=0 border=0 bgcolor=#FFFFFF cellpadding=3>
+<td width=11 valign=top><center>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120><br>
+<img src=blackwhite.gif width=9 height=120></center>
+</td><td width=60>&nbsp;</td><td valign=top width=519>
+
+<center><img src=passthrough.gif width=367 height=51></center>
+<p>
+<font face="Verdana, Arial, Helvetica" size=-1 color=#444444>
+
+<p><b>Problem</b>: One of the annoying things about my MIDI setup is
+that I have to be running Cakewalk in order to get any sound out of my
+keyboard at all (except for its unimpressive built-in sounds), even
+when I'm not recording. This is because the MIDI Out of my keyboard is
+plugged into my Sound Blaster's MIDI In, and the SB MIDI Out to my
+sound module's MIDI In. Cakewalk is necessary to send MIDI events from
+the SB MIDI In to Out. This makes spontaneous practice sessions somewhat
+painful, especially since my 16-bit Cakewalk 3.0 slows my whole computer
+down considerably.
+<p>
+<center><img src=midi-setup.gif width=337 height=219></center>
+<p>This is because there's no "Through" port on the Sound Blaster, nor
+any option to emulate this in software.
+<p><b>Solution</b>: Software emulation of MIDI Passthrough. This 13k
+program will run quietly and transmit standard MIDI events (not SysEx, though
+this functionality could be added relatively easily) which it receives from
+the chosen input device to the chosen output device. Easy. 
+<p><center><img src=program.gif width=285 height=179></center>
+<p>Simply select the In device and the Out device. Close the program when
+you're done playing (or need another program to use the MIDI devices). It
+allows you to switch between devices on the fly without restarting.
+<p>In addition, to expedite automatic startup, you can specify device
+indices on the command line. Changing the shortcut properties (mine
+pictured):
+
+<p><center><img src=shortcut.gif width=367 height=183></center>
+
+<p>The parameter I've given is <b>0=1</b> which means to take all
+input from MIDI In device 0 and shoot it over to MIDI Out Device
+1. When in the program, the devices are listed in order in the
+listboxes, starting at 0.
+
+<p>Minimize the program and play away!
+
+<p><b>Program</b>: This program runs under Windows 98. It surely works
+fine under Win 95, and probably under Windows NT. I am not personally
+interested in making it work for anyone other than myself, but you can
+feel free to download the source code (below) and make it work under
+any unsupported platforms.  
+<center>
+<p><table><tr><td><a href=passthrough.exe><img src=icon.gif
+border=0 width=24 height=29></a></td><td> <a href=passthrough.exe>passthrough.exe</a>
+</td><td>(13k)</td></tr></table>
+</center>
+
+<p><b>Source Code</b>: This is source code for Microsoft Visual C++
+5.0. It was built with Developer Studio 97, and while it may compile
+equally well with other setups, this is the only one I know it works
+with.
+<center>
+<p><table><tr><td><a href=passthroughsrc.zip><img src=srcicon.gif border=0 width=35 height=37></a>
+</td><td><a href=passthroughsrc.zip>passthroughsrc.zip</a></td><td>
+(43k)</td></tr></table>
+</center>
+
+<p>You must, of course, use an unzipper which supports long file
+names. You must also link in winmm.lib to your project, or it won't build.
+
+<p>I'd like to also point out that programming for windows is
+extremely unpleasant.
+
+<p>Some of the code here is from a page called <a
+href=http://www.borg.com/~jglatt/tech/lowmidi.htm>Low Level MIDI
+API</a>.
+
+<p><br><p><a href=http://www.andrew.cmu.edu/~twm/computerbits.html>Computer Bits</a>
+<td width=10>&nbsp;</td></tr></table>
+</td></tr></table>
+</center>
+<!-- Tom 7 / Eyelid -->
+</body></html>

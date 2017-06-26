@@ -1,0 +1,126 @@
+<html>
+<head><title>carnage melon : imgsrc html tool</title>
+<body bgcolor=#125660 text=#FFFFFF link=#FFFFFF vlink=#FFFFFF alink=#FFFF00>
+<center>
+<table width=600><tr><td>
+<font face=Verdana>
+<font size=+3 color=#FFFF00>imgsrc : free html tool</font>
+<p><font size=-1>
+
+<table width=580 cellpadding=4>
+
+<tr><td bgcolor=#024050> <font face=Verdana><b>imgsrc</b></font> </td></tr>
+<tr><td>
+
+<font face=Verdana size=-1 color=#CCEEEE>imgsrc takes a list of html
+files on the command line and processes them, automatically putting
+height= and width= tags into the source code where necessary by
+finding the referenced .gif or .jpg and calculating its size. It doesn't
+work in all cases (like nonexistant or internet-referenced images), 
+but can speed up web development in many cases if used.
+
+</font>
+</td></tr>
+<tr><td bgcolor=#024050> <font face=Verdana><b>why width= and height=?</b></font> </td></tr>
+<tr><td>
+
+<font face=Verdana size=-1 color=#CCEEEE> Web pages which include
+height and width information for all images load faster. The client
+web browser can display a page with empty spots for the images while
+the images download. If there is no information in the html, this
+can't be done until the images have started downloading and the
+browser can figure out what size they're going to be. Unfortunately,
+if you code html by hand it is tedious to manually fill in each
+image's size.
+
+</font>
+</td></tr>
+
+<tr><td bgcolor=#024050> <font face=Verdana><b>download</b></font> </td></tr>
+<tr><td>
+
+<font face=Verdana size=-1 color=#CCEEEE> 
+<table><tr><td> <a href=imgsrc.exe>imgsrc.exe</a> (68k) </td>
+<td> <font face=Verdana size=-1 color=#CCEEEE>Executable.<br>DOS / 95 / 98</font> </td><td>
+<font face=Verdana size=-1 color=#CCEEEE>To support long filenames under 95/98, type:
+<p>SET LFN=y
+<p>at the DOS prompt before running the program.
+</font>
+</td></tr>
+<tr><td> <a href=imgsrc.cc>imgsrc.cc</a> </td><td><font face=Verdana size=-1 color=#CCEEEE> source code </td>
+<td><font face=Verdana size=-1 color=#CCEEEE>This should compile with any ANSI C++ compiler that has rudimentary
+support for unix file/stream features. It is known to work with DJGPP (DOS)
+and g++ (linux / x86).</td>
+</tr></table>
+<tr><td bgcolor=#024050> <font face=Verdana><b>use</b></font> </td></tr>
+<tr><td>
+<font face=Verdana size=-1 color=#CCEEEE> Run imgsrc in the directory where
+your web documents reside. The paths to images should be relative to this
+directory (either in it, or specified with a relative path). If the html
+references images with absolute paths (like /images/dot.gif), use the <b>-r</b>
+option to specify the local directory which represents the server root.
+<p>Run it like this:
+<p>C:\WEB\> <font color=#FFFFFF>imgsrc index.html</font>
+<p>It will run and modify index.html in place, instrumenting it with
+height= and width= information when possible. You can also give multiple
+files:
+<p>C:\WEB\RESUME\> <font color=#FFFFFF>imgsrc doc1.html doc2.html doc3.html</font>
+<p>Which means that under a bash-like shell you can give wildcards:
+<p>% <font color=#FFFFFF>imgsrc *.html</font>
+
+<p>Maybe in unix you have your web docs stored in /home/httpd/html and
+you specify some absolute paths to images. Run the same way, but add
+the <b>-r</b> option:
+
+<p>% <font color=#FFFFFF>imgsrc -r /home/httpd/html *.html</font>
+</td></tr>
+
+
+<tr><td bgcolor=#024050> <font face=Verdana><b>free</b></font> </td></tr>
+<tr><td>
+
+<font face=Verdana size=-1 color=#CCEEEE> imgsrc is distributed under the
+GNU public license and is free software. This means you can use, 
+distribute, and modify it however you like, as long as you always make
+the source code available. You can read the license at
+<a href=http://www.gnu.org/copyleft/gpl.html>GNU's Website</a>.
+
+</font>
+</td></tr>
+
+<tr><td bgcolor=#024050> <font face=Verdana><b>warranty</b></font> </td></tr>
+<tr><td>
+
+<font face=Verdana size=-1 color=#CCEEEE> No warranty whatsoever.
+<p>This program expects image tags to be formatted like this:
+
+<p>&lt;img src=../something.gif&gt;
+<p>And while it will accept some variations, there is surely some legal
+html which it won't accept. To the best of my knowledge, it should just
+ignore these situations (not insert width= and height=), though this
+is not guaranteed. Keep backups.
+</font>
+</td></tr>
+
+<tr><td bgcolor=#024050> <font face=Verdana><b>possible improvements</b></font> </td></tr>
+<tr><td>
+
+<font face=Verdana size=-1 color=#CCEEEE> 
+<p>If you like, consider making any of the following improvements. I'll be glad to post improvements to imgsrc on this page. Remember that derived programs must also be GPL (open-source!).
+
+<li>Support more valid html styles
+<li>Connect to the internet to retrieve &lt;img src=http://www.images.com/banner.gif&gt; stuff.
+<li>Build as an Apache Module, to run on webservers and modify the source at serve time.
+<p><p>[[ <a href=../computerbits.html>computerbits</a> ]]
+</font>
+</td></tr>
+
+</table>
+
+</font></font>
+</td></tr></table></center>
+
+</body>
+</html>
+
+

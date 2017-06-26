@@ -1,0 +1,34 @@
+
+fun ^(a, b) = concat [| a, b |]
+infix ^
+
+(* convert an integer to a string *)
+fun itos n =
+  let 
+    val digits = [| "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" |]
+
+    fun mk m = 
+      if m < 9 
+      then sub (digits, m)
+      else 
+        let
+          val rem = m mod 10
+          val quot = m div 10
+        in
+          mk quot ^ sub(digits, rem)
+        end
+  in
+    if n < 0 then "-" ^ mk (0 - n)
+    else mk n
+  end
+
+(* convert a list to a string. pass in the converter
+   for each element *)
+fun ltos f l =
+  let
+    fun go (Nil ()) = "]"
+      | go (a :: Nil ()) = concat [| f a, "]" |]
+      | go (h :: t) = concat [| f h, ", ", go t |]
+  in
+    concat [| "[",  go l |]
+  end
