@@ -484,9 +484,16 @@ function KeyLetter(e) {
 
   let ak = ArrowKey(e);
   if (ak) {
-    let piece = letters[current_letter][letter_piece];
-    piece.x += ak.dx;
-    piece.y += ak.dy;
+    if (e.shiftKey) {
+      for (let piece of letters[current_letter]) {
+	piece.x += ak.dx;
+	piece.y += ak.dy;
+      }
+    } else {
+      let piece = letters[current_letter][letter_piece];
+      piece.x += ak.dx;
+      piece.y += ak.dy;
+    }
   }
 
   switch (e.key) {
