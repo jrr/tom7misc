@@ -15,6 +15,8 @@ const MODE_LETTER = 1;
 const NUM_MODES = 2;
 let mode = MODE_ATOM;
 
+const DEG_TO_RADIANS = 3.141592653589 / 180.0;
+
 // Can use JSON.stringify(atom_glyphs) in console to dump the data.
 // Atoms have a single path (e and o are just self-overlapping). The
 // first position is always a "moveto" command. Each successive
@@ -34,6 +36,7 @@ function defaultbox() {
 // Can modify the mesh of atomic pieces.
 let atoms = "ceorsy'.?";
 
+/*
 let letters = {
   "a" : [{a:'c', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
   "b" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
@@ -62,10 +65,12 @@ let letters = {
   "y" : [{a:'y', x:0, y:0, r:0}],
   "z" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
 };
+*/
 
 let onion_atom = 'e';
 let current_atom = 'c';
 let current_letter = 'd';
+let letter_piece = 0;
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
@@ -193,7 +198,7 @@ function DrawControlPoints(p, highlight) {
     const { x: px, y: py } = Bisect(prev, pt);
     const { x: nx, y: ny } = Bisect(pt, next);
     // console.log(px, py, nx, ny);
-    ctx.font = '18pt Helvetica bold';
+    ctx.font = 'bold 18pt Helvetica,sans-serif';
     ctx.fillStyle = '#f00';
     ctx.fillText("1", px, py);
     ctx.fillText("2", nx, ny);
@@ -266,14 +271,40 @@ function DrawAtom() {
   DrawControlPoints(path, highlight);
 
   if (locked) {
-    ctx.font = '40pt Helvetica bold';
+    ctx.font = 'bold 40pt Helvetica,sans-serif';
     ctx.fillStyle = '#f00';
     ctx.fillText(locked, 10, 50);
   }
 }
 
+function TransformPath(p, dx, dy, r) {
+  var ret = [];
+  for (const pt of p) {
+    const sinr = Math.sin(r * DEG_TO_RADIANS);
+    const cosr = Math.cos(r * DEG_TO_RADIANS);
+    const x = pt.x * cosr - pt.y * sinr;
+    const y = pt.y * cosr + pt.x * sinr;
+    ret.push({x: x + dx, y: y + dy});
+  }
+  return ret;
+}
+
 function DrawLetter() {
   DrawGrid(null, null);
+
+  ctx.font = 'bold 40pt Helvetica,sans-serif';
+  ctx.fillStyle = '#cdc';
+  ctx.fillText('Letter ' + current_letter + '/' + letter_piece,
+	       20, 50);
+  
+  const letter = letters[current_letter];
+  for (var i = 0; i < letter.length; i++) {
+    var piece = letter[i];
+    var fill = i == letter_piece ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)';
+    // XXX translate, rotate
+    var path = TransformPath(atom_glyphs[piece.a], piece.x, piece.y, piece.r);
+    DrawPath(path, fill, null);
+  }
 }
 
 function Draw() {
@@ -350,6 +381,25 @@ function getSynchronous(url) {
   Draw();
 }
 
+function ArrowKey(e) {
+  switch (e.key) {
+  case 'ArrowUp':
+  case 'ArrowDown':
+  case 'ArrowLeft':
+  case 'ArrowRight': {
+    let dx = 0, dy = 0;
+    switch (e.key) {
+    case 'ArrowUp': dy = -1; break;
+    case 'ArrowDown': dy = 1; break;
+    case 'ArrowLeft': dx = -1; break;
+    case 'ArrowRight': dx = 1; break;
+    }
+    return {dx, dy};
+  }
+  }
+  return null;
+}
+
 function KeyAtom(e) {
   for (const c of atoms) {
     if (e.key == c) {
@@ -367,27 +417,18 @@ function KeyAtom(e) {
 		   encodeURIComponent(data));
     return;
   }
-  
-  switch (e.key) {
-  case 'ArrowUp':
-  case 'ArrowDown':
-  case 'ArrowLeft':
-  case 'ArrowRight': {
-    let dx = 0, dy = 0;
-    switch (e.key) {
-    case 'ArrowUp': dy = -1; break;
-    case 'ArrowDown': dy = 1; break;
-    case 'ArrowLeft': dx = -1; break;
-    case 'ArrowRight': dx = 1; break;
-    }
+
+  let ak = ArrowKey(e);
+  if (ak) {
     let path = atom_glyphs[current_atom];
     for (o of path) {
       // XXX bezier
-      o.x += dx;
-      o.y += dy;
+      o.x += ak.dx;
+      o.y += ak.dy;
     }
-    break;
   }
+
+  switch (e.key) {
   case 'Delete': {
     let path = atom_glyphs[current_atom];
     if (path.length <= 3)
@@ -427,8 +468,52 @@ function KeyAtom(e) {
 function KeyLetter(e) {
   if (e.key in letters) {
     current_letter = e.key;
+    letter_piece = 0;
+    Draw();
+    return;
   }
 
+  // Maybe should just save all data?
+  if (e.code == 'NumpadEnter') {
+    // Save data to frameserver.
+    const data = JSON.stringify(letters);
+    getSynchronous('/save_letters/' +
+		   encodeURIComponent(data));
+    return;
+  }
+
+  let ak = ArrowKey(e);
+  if (ak) {
+    let piece = letters[current_letter][letter_piece];
+    piece.x += ak.dx;
+    piece.y += ak.dy;
+  }
+
+  switch (e.key) {
+  case '[': {
+    let piece = letters[current_letter][letter_piece];
+    piece.r += 15;
+    if (piece.r >= 360) piece.r -= 360;
+    break;
+  }
+  case ']': {
+    let piece = letters[current_letter][letter_piece];
+    piece.r -= 15;
+    if (piece.r < 0) piece.r += 360;
+    break;
+  }
+  case ',':
+    letter_piece--;
+    if (letter_piece < 0)
+      letter_piece = letters[current_letter].length - 1;
+    break;
+  case '.':
+    letter_piece++;
+    if (letter_piece >= letters[current_letter].length)
+      letter_piece = 0;
+    break;
+  }
+  
   Draw();
 }
 

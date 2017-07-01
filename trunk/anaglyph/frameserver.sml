@@ -91,7 +91,15 @@ struct
           ("const atom_glyphs =\n  " ^ atoms ^ ";\n");
           response_ok ()
         end
-    | NONE => response_fail ()
+    | NONE =>
+        case decode "/save_letters/" path of
+          SOME letters =>
+            let in
+              StringUtil.writefile "letters.js"
+              ("const letters =\n  " ^ letters ^ ";\n");
+              response_ok ()
+            end
+        | NONE => response_fail ()
     end
 
   datatype headers =
