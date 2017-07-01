@@ -36,37 +36,6 @@ function defaultbox() {
 // Can modify the mesh of atomic pieces.
 let atoms = "ceorsy'.?";
 
-/*
-let letters = {
-  "a" : [{a:'c', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "b" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
-  "c" : [{a:'c', x:0, y:0, r:0}],
-  "d" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
-  "e" : [{a:'e', x:0, y:0, r:0}],
-  "f" : [{a:'?', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "g" : [{a:'?', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
-  "h" : [{a:'\'', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "i" : [{a:'\'', x:0, y:0, r:0}, {a:'.', x:0, y:0, r:0}],
-  "j" : [{a:'?', x:0, y:0, r:0}, {a:'.', x:0, y:0, r:0}],
-  "k" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "l" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "m" : [{a:'r', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "n" : [{a:'\'', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}],
-  "o" : [{a:'o', x:0, y:0, r:0}],
-  "p" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
-  "q" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'c', x:0, y:0, r:0}],
-  "r" : [{a:'r', x:0, y:0, r:0}],
-  "s" : [{a:'s', x:0, y:0, r:0}],
-  "t" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "u" : [{a:'\'', x:0, y:0, r:0}, {a:'r', x:0, y:0, r:0}],
-  "v" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "w" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "x" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-  "y" : [{a:'y', x:0, y:0, r:0}],
-  "z" : [{a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}, {a:'\'', x:0, y:0, r:0}],
-};
-*/
-
 let onion_atom = 'e';
 let current_atom = 'c';
 let current_letter = 'd';
@@ -298,13 +267,22 @@ function DrawLetter() {
 	       20, 50);
   
   const letter = letters[current_letter];
-  for (var i = 0; i < letter.length; i++) {
-    var piece = letter[i];
+  for (var i = 0; i < letter.p.length; i++) {
+    var piece = letter.p[i];
     var fill = i == letter_piece ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)';
     // XXX translate, rotate
     var path = TransformPath(atom_glyphs[piece.a], piece.x, piece.y, piece.r);
     DrawPath(path, fill, null);
   }
+
+  // Draw metrics
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.strokeStyle = '#7a7';
+  const { x: widthx, y: unused } = GridToScreen(letter.m.w, 0);
+  ctx.moveTo(widthx, 0);
+  ctx.lineTo(widthx, CELLSH * CELLSIZE);
+  ctx.stroke();
 }
 
 function Draw() {
@@ -331,6 +309,14 @@ function Click(e) {
 				 CELLSIZE, true);
     dragging = closest;
     Draw();
+  } else if (mode == MODE_LETTER) {
+    // Any click drags the width metric. Could generalize this.
+    dragging = true;
+    const { x, y } = ScreenToGrid(e.offsetX, e.offsetY);
+    if (x > 0) {
+      letters[current_letter].m.w = x;
+    }
+    Draw();
   }
 }
 
@@ -351,6 +337,15 @@ function MouseMove(e) {
     }
     
     Draw();
+  } else if (mode == MODE_LETTER) {
+    // Currently can only drag the width metric.
+    if (dragging) {
+      const { x, y } = ScreenToGrid(mousex, mousey);
+      if (x > 0) {
+	letters[current_letter].m.w = x;
+      }
+      Draw();
+    }
   }
 }
 
@@ -485,12 +480,12 @@ function KeyLetter(e) {
   let ak = ArrowKey(e);
   if (ak) {
     if (e.shiftKey) {
-      for (let piece of letters[current_letter]) {
+      for (let piece of letters[current_letter].p) {
 	piece.x += ak.dx;
 	piece.y += ak.dy;
       }
     } else {
-      let piece = letters[current_letter][letter_piece];
+      let piece = letters[current_letter].p[letter_piece];
       piece.x += ak.dx;
       piece.y += ak.dy;
     }
@@ -498,13 +493,13 @@ function KeyLetter(e) {
 
   switch (e.key) {
   case '[': {
-    let piece = letters[current_letter][letter_piece];
+    let piece = letters[current_letter].p[letter_piece];
     piece.r += 15;
     if (piece.r >= 360) piece.r -= 360;
     break;
   }
   case ']': {
-    let piece = letters[current_letter][letter_piece];
+    let piece = letters[current_letter].p[letter_piece];
     piece.r -= 15;
     if (piece.r < 0) piece.r += 360;
     break;
@@ -512,11 +507,11 @@ function KeyLetter(e) {
   case ',':
     letter_piece--;
     if (letter_piece < 0)
-      letter_piece = letters[current_letter].length - 1;
+      letter_piece = letters[current_letter].p.length - 1;
     break;
   case '.':
     letter_piece++;
-    if (letter_piece >= letters[current_letter].length)
+    if (letter_piece >= letters[current_letter].p.length)
       letter_piece = 0;
     break;
   }
