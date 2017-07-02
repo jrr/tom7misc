@@ -1,8 +1,9 @@
-// atom.js provides atom_glyphs. It's written by frameserver.
+// The following files must be provided externally:
+// atom.js provides atom_glyphs.
+// letters.js provides letters.
 
 let ctx;
-// Current node being dragged (same as return type of 'closest')
-let dragging = null;
+
 // In canvas screen coordinates.
 let mousex = 10;
 let mousey = 10;
@@ -12,34 +13,39 @@ let locked = null;
 
 const MODE_ATOM = 0;
 const MODE_LETTER = 1;
-const NUM_MODES = 2;
+const MODE_WORD = 2;
+const NUM_MODES = 3;
 let mode = MODE_ATOM;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
-// Can use JSON.stringify(atom_glyphs) in console to dump the data.
 // Atoms have a single path (e and o are just self-overlapping). The
 // first position is always a "moveto" command. Each successive
 // position has an x,y coordinate, and if it has XXX then it is a
 // bezier curveTo, otherwise a plain lineto. The path is always closed
 // at the end. Coordinates are integer grid coordinates. The center of
 // the atom (for rotations, etc.) is defined to be 0,0.
-/*
-function defaultbox() {
-  return [{x: -10, y: -10},
-	  {x: 10, y: -10},
-	  {x: 10, y: 10},
-	  {x: -10, y: 10}];
-};
-*/
 
 // Can modify the mesh of atomic pieces.
 let atoms = "ceorsy'.?";
 
+///////////////////////////
+// For atom editing mode.
+// Current node being dragged (same as return type of 'closest')
+let dragging = null;
 let onion_atom = 'e';
 let current_atom = 'c';
+
+///////////////////////////
+// For letter editing mode.
 let current_letter = 'd';
+// Index of current piece within the current_letter. Make sure
+// it gets reset to 0 when current_letter changes.
 let letter_piece = 0;
+
+//////////////////////////
+// For word mode.
+let word = 'anagram';
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
@@ -210,7 +216,7 @@ function DrawGrid(dx, dy) {
   }
 }
 
-function DrawAtom() {
+function DrawModeAtom() {
   const path = atom_glyphs[current_atom];
   
   let dx = null, dy = null;
@@ -258,7 +264,7 @@ function TransformPath(p, dx, dy, r) {
   return ret;
 }
 
-function DrawLetter() {
+function DrawModeLetter() {
   DrawGrid(null, null);
 
   ctx.font = 'bold 40pt Helvetica,sans-serif';
@@ -270,7 +276,6 @@ function DrawLetter() {
   for (var i = 0; i < letter.p.length; i++) {
     var piece = letter.p[i];
     var fill = i == letter_piece ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)';
-    // XXX translate, rotate
     var path = TransformPath(atom_glyphs[piece.a], piece.x, piece.y, piece.r);
     DrawPath(path, fill, null);
   }
@@ -285,13 +290,46 @@ function DrawLetter() {
   ctx.stroke();
 }
 
+function DrawLetter(letter, dx, dy) {
+  for (var i = 0; i < letter.p.length; i++) {
+    var piece = letter.p[i];
+    var fill = '#000';
+    var path = TransformPath(atom_glyphs[piece.a],
+			     dx + piece.x, dy + piece.y, piece.r);
+    DrawPath(path, fill, null);
+  }
+}
+
+function WordWidth(w) {
+  let total = 0;
+  for (let i = 0; i < w.length; i++) {
+    total += letters[w[i]].m.w;
+  }
+  return total;
+}
+
+function DrawModeWord() {
+  DrawGrid(null, null);
+  // Total width from letter metrics, so that
+  // we can center it.
+  const total_width = WordWidth(word);
+  let x = total_width * -0.5;
+  for (let i = 0; i < word.length; i++) {
+    let c = word[i];
+    DrawLetter(letters[c], x, 0);
+    x += letters[c].m.w;
+  }
+}
+
 function Draw() {
   ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
 
   if (mode == MODE_ATOM) {
-    DrawAtom();
+    DrawModeAtom();
   } else if (mode == MODE_LETTER) {
-    DrawLetter();
+    DrawModeLetter();
+  } else if (mode == MODE_WORD) {
+    DrawModeWord();
   }
 }
 
@@ -519,6 +557,22 @@ function KeyLetter(e) {
   Draw();
 }
 
+function KeyWord(e) {
+  if (e.key == 'Escape') {
+    word = '';
+  }
+
+  if (e.key == 'Backspace') {
+    word = word.substr(0, word.length - 1);
+  }
+  
+  if (e.key in letters) {
+    word += e.key;
+  }
+  
+  Draw();
+}
+
 function Key(e) {
   if (locked)
     return;
@@ -549,6 +603,8 @@ function Key(e) {
     KeyAtom(e);
   } else if (mode == MODE_LETTER) {
     KeyLetter(e);
+  } else if (mode == MODE_WORD) {
+    KeyWord(e);
   }
 }
 
