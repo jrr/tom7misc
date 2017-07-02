@@ -6,19 +6,18 @@ struct
   struct
     type atom = char
     val compare = Char.compare
-    val atomchars = "ceorsy'.?"
+    val atomchars = "ceors'.?"
     val c_ = chr 0
     val e_ = chr 1
     val o_ = chr 2
     val r_ = chr 3
     val s_ = chr 4
-    val y_ = chr 5
     (* half-height vertical bar, like h = n + ' *)
-    val tick_ = chr 6
+    val tick_ = chr 5
     (* the dot on i and j *)
-    val dot_ = chr 7
-    (* j without dot *)
-    val hook_ = chr 8
+    val dot_ = chr 6
+    (* just the asymmetrical descender hook of g, j *)
+    val hook_ = chr 7
 
     val num_atoms = size atomchars
 
@@ -29,11 +28,11 @@ struct
       | #"c" => SOME [c_]
       | #"d" => SOME [tick_, tick_, c_]
       | #"e" => SOME [e_]
-      | #"f" => SOME [hook_, tick_]
-      | #"g" => SOME [hook_, c_]
+      | #"f" => SOME [hook_, tick_, tick_]
+      | #"g" => SOME [hook_, tick_, c_]
       | #"h" => SOME [tick_, r_, tick_]
       | #"i" => SOME [tick_, dot_]
-      | #"j" => SOME [hook_, dot_]
+      | #"j" => SOME [hook_, tick_, dot_]
       | #"k" => SOME [tick_, tick_, tick_, tick_]
       | #"l" => SOME [tick_, tick_]
       | #"m" => SOME [r_, r_, tick_]
@@ -48,7 +47,7 @@ struct
       | #"v" => SOME [tick_, tick_]
       | #"w" => SOME [tick_, tick_, tick_, tick_]
       | #"x" => SOME [tick_, tick_, tick_, tick_]
-      | #"y" => SOME [y_]
+      | #"y" => SOME [r_, tick_, hook_]
       | #"z" => SOME [tick_, tick_, tick_]
       | _ => NONE
 

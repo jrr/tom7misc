@@ -27,7 +27,7 @@ const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 // the atom (for rotations, etc.) is defined to be 0,0.
 
 // Can modify the mesh of atomic pieces.
-let atoms = "ceorsy'.?";
+let atoms = "ceors'.?";
 
 ///////////////////////////
 // For atom editing mode.
