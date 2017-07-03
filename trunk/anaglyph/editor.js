@@ -14,6 +14,7 @@ let locked = null;
 const MODE_ATOM = 0;
 const MODE_LETTER = 1;
 const MODE_WORD = 2;
+const MODE_ANIMATE = 3;
 const NUM_MODES = 3;
 let mode = MODE_ATOM;
 
@@ -46,6 +47,11 @@ let letter_piece = 0;
 //////////////////////////
 // For word mode.
 let word = 'anagram';
+
+//////////////////////////
+// For animate mode.
+// let startword = 'anagram';
+// let endword = '';
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
