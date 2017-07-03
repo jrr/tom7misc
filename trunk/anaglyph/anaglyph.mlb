@@ -32,4 +32,4 @@ $(SML_LIB)/basis/unsafe.mlb
 
 anaglyph.sml
 
-main.sml
+anaglyph-main.sml

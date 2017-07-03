@@ -4,7 +4,7 @@ struct
 
   structure Atom :>
   sig
-    type atom
+    eqtype atom
     val compare : atom * atom -> order
     val toint : atom -> int
     val fromint : int -> atom option
@@ -87,12 +87,15 @@ struct
 
   structure Atoms :>
   sig
-    type atoms
+    eqtype atoms
     val compare : atoms * atoms -> order
     val ++ : atoms * atoms -> atoms
     val -- : atoms * atoms -> atoms
     val fromlist : Atom.atom list -> atoms
+    val tolist : atoms -> Atom.atom list
     val tostring : atoms -> string
+    val zero : atoms
+    val count : atoms * Atom.atom -> int
   end =
   struct
     (* Always num_atoms length.
@@ -121,6 +124,10 @@ struct
                        Vector.sub (a, i) -
                        Vector.sub (b, i))
 
+    val zero = Vector.tabulate (Atom.num_atoms, fn _ => 0)
+
+    fun count (atoms, atom) = Vector.sub (atoms, Atom.toint atom)
+
     (* TODO: compare ops, so we can test like
        a - b > 0,0,0,0,0. *)
 
@@ -134,6 +141,25 @@ struct
       in
         app oneatom al;
         Array.vector a
+      end
+
+    fun tolist atoms =
+      let
+        fun go i =
+          if i = Atom.num_atoms then nil
+          else
+            case Vector.sub (atoms, i) of
+              0 => go (i + 1)
+            | n =>
+                let
+                  val a = case Atom.fromint i of
+                    NONE => raise Anaglyph "impossible"
+                  | SOME a => a
+                in
+                  List.tabulate (n, fn _ => a) @ go (i + 1)
+                end
+      in
+        go 0
       end
 
     fun tostring a =
@@ -151,7 +177,12 @@ struct
       end
   end
 
-  fun get_atoms w =
+  fun char_atoms c =
+    case Atom.decompose c of
+      NONE => raise Anaglyph ("Bad character in char_atoms: " ^ implode [c])
+    | SOME al => Atoms.fromlist al
+
+  fun word_atoms w =
     let
       fun getnorm c =
         case Atom.decompose c of
@@ -168,7 +199,7 @@ struct
       fun oneword w =
         case CharVector.find (StringUtil.ischar #" ") w of
           SOME _ => raise Anaglyph ("Dictionary word has space: " ^ w)
-        | NONE => (w, get_atoms w)
+        | NONE => (w, word_atoms w)
     in
       map oneword lines
     end
@@ -197,12 +228,138 @@ struct
 
   (* Make a plan for animating word1 to word2. They don't have to be in
      the dictionary, and can even be space-separated phrases. However,
-     they must have the same set of atoms.
-*)
-(**
-fun makeplan (word1, word2) =
+     they must have the same set of atoms. *)
+  fun makeplan (word1, word2) =
     let
-      val atoms1 =
-*)
+      (* What we want out of a plan is to know what atoms to move in order
+         to effect the change. There are often ways to move them that
+         work, so we're trying to choose a "best" one.
+
+         The output is a set of records, like so:
+            (piece, (slot1, piecenum1), (slot2, piecenum2))
+         where "piece" is the atom type being moved,
+         the "slots" are character indices in the original strings,
+         and the piecenums indicate which instance of the piece is
+         being moved, if the letter contains multiple of them.
+         (It is not specified which one is which; we just use some
+         consistent assignment.)
+
+         TODO: It's probably good to move sets of pieces together,
+         especially entire letters..
+
+         For this first pass, I'm not trying at all to minimize motion,
+         because I just want to get a sense of what needs to improve to
+         make good animations. The pairs are chosen arbitrarily. *)
+      val (atoms1, atoms2) = (word_atoms word1, word_atoms word2)
+      val () = if atoms1 = atoms2 then ()
+               else raise Anaglyph ("makeplan with words that don't have " ^
+                                    "matching atoms: " ^
+                                    Atoms.tostring atoms1 ^ " vs " ^
+                                    Atoms.tostring atoms2)
+
+      (* Remove zero-atom elements from the head of the list. *)
+      fun removezeros nil = nil
+        | removezeros ((h as { atoms, ... }) :: t) =
+        if Atoms.zero = atoms then removezeros t
+        else h :: t
+
+      (* In this version, every atom moves. We just pick the first
+         remaining occurrence of the atom in word1, and target its first
+         remaining occurrence in word2.
+
+         Each letter position in word1 and word2 gets broken into the
+         atoms that are unaccounted for. The occurrences can be seen
+         as positive in remain1 and negative in remain2, but both will
+         have positive coefficients for simplicity. *)
+
+      fun process (l1, l2) =
+        case (removezeros l1, removezeros l2) of
+          (nil, nil) => nil
+        | (nil, _) => raise Anaglyph "impossible: mismatch"
+        | (_, nil) => raise Anaglyph "impossible: mismatch"
+        | (remain1 as ({ idx = idx1, atoms = atoms1, already = already1 } :: rest1),
+           remain2) =>
+        let
+          (*
+          fun remaineltstring { idx, atoms, already } =
+            Int.toString idx ^ ". " ^ Atoms.tostring atoms
+
+          val () = print "---------------- \n"
+          val () = print "Remain1:\n"
+          val () = app (fn e => print ("  " ^ remaineltstring e ^ "\n")) remain1
+          val () = print "Remain2:\n"
+          val () = app (fn e => print ("  " ^ remaineltstring e ^ "\n")) remain2
+          *)
+
+          (* Pick an arbitrary atom from a nonzero set. Return it and
+             the remaining atoms. *)
+          fun pick_atom atoms =
+            (case Atoms.tolist atoms of
+               nil => raise Anaglyph "impossible: checked nonzero"
+             | a :: left => (a, Atoms.fromlist left))
+
+          val (a, atoms1) = pick_atom atoms1
+
+          (* Figure out the index of the piece, and update the used
+             counts. *)
+          val occurrence1 = Atoms.count (already1, a)
+          val already1 = Atoms.++ (already1, Atoms.fromlist [a])
+
+          val remain1 = { idx = idx1, atoms = atoms1, already = already1 } :: rest1
+
+          (* Find where the atom a is sent.
+             Returns a new "remain2" list, and the rhs of the row for the overall
+             return from 'process'. *)
+          fun alloc nil = raise Anaglyph "impossible: mismatch in alloc"
+            | alloc ((h as { idx = idx2, atoms = atoms2,
+                             already = already2 }) :: rest2) =
+            if Atoms.count (atoms2, a) > 0
+            then
+              let
+                val occurrence2 = Atoms.count (already2, a)
+                val atoms2 = Atoms.-- (atoms2, Atoms.fromlist [a])
+                val already2 = Atoms.++ (already2, Atoms.fromlist [a])
+                val row_rhs = (idx2, occurrence2)
+              in
+                ({ idx = idx2, atoms = atoms2, already = already2 } :: rest2,
+                 row_rhs)
+              end
+            else
+              (* No matching atom here. *)
+              let val (rest2, row) = alloc rest2
+              in (h :: rest2, row)
+              end
+
+          val row1 = (idx1, occurrence1)
+          val (remain2, row2) = alloc remain2
+        in
+          (a, row1 : int * int, row2 : int * int) :: process (remain1, remain2)
+        end
+
+      fun makeremains w =
+        List.tabulate (size w,
+                       fn i =>
+                       let
+                         val c = String.sub(w, i)
+                         val atoms = char_atoms c
+                       in
+                         { idx = i, atoms = atoms, already = Atoms.zero }
+                       end)
+      val remain1 = makeremains word1
+      val remain2 = makeremains word2
+
+      val rows = process (remain1, remain2)
+
+
+      fun rowstring (atom, (slot1, piece1), (slot2, piece2)) =
+        "{a:\"" ^ implode [Atom.tochar atom] ^ "\",ss:" ^
+        Int.toString slot1 ^ ",sp:" ^ Int.toString piece1 ^
+        ",ds:" ^ Int.toString slot2 ^ ",dp:" ^ Int.toString piece2 ^
+        "}"
+    in
+      app (fn r =>
+           print ("  " ^ rowstring r ^ ",\n")) rows;
+      ()
+    end
 
 end
