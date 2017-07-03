@@ -5,5 +5,5 @@ MLTON=/c/mlton/bin/mlton.bat
 frameserver.exe : frameserver.mlb frameserver.sml
 	${MLTON} -output $@ frameserver.mlb
 
-anaglyph.exe : anaglyph.mlb anaglyph.sml
+anaglyph.exe : anaglyph.mlb anaglyph.sml anaglyph-main.sml
 	${MLTON} -output $@ anaglyph.mlb
