@@ -255,6 +255,27 @@ struct
          For this first pass, I'm not trying at all to minimize motion,
          because I just want to get a sense of what needs to improve to
          make good animations. The pairs are chosen arbitrarily. *)
+
+      (* To make a good plan, we want as few collisions as possible,
+         and we want to use as few different heights as possible.
+
+         A collision happens between the atoms moving in two rows.
+         Specifically, let dst{1,2} and src{1,2} be the destination
+         and source slots for the two atoms. Then:
+             v1 = dst1 - src1
+             v2 = dst2 - src2
+             overlap = ... XXX they are overlapping ...
+
+             collision = sign(v1) != sign(v2) && overlap
+
+        Actually this doesn't work: One atom moving to the right
+        might need to cross a slower-moving atom also moving to
+        the right.
+        If it did work, we could fix all this pretty simply by just
+        putting all the stuff with positive sign at height ~1 and
+        with negative sign at 1. This is what I'm currently doing,
+        actually. *)
+
       val (atoms1, atoms2) = (word_atoms word1, word_atoms word2)
       val () = if atoms1 = atoms2 then ()
                else raise Anaglyph ("makeplan with words that don't have " ^
@@ -361,23 +382,37 @@ struct
          another. One piece moves through another if their vectors
          (src slot -> dst slot) overlap and they are at the same height.
 
-         To begin, just setting arbitrary heights to see what it looks like. *)
+         Here we just assign heights (to 3 different channels)
+         depending on which direction the atom is moving, which is not
+         so bad. *)
 
       (* Asymmetric because the baseline is the x-axis; XXX should fix? *)
       val MAX_HEIGHT = 2
       val MIN_HEIGHT = ~3
       val NUM_HEIGHTS = MAX_HEIGHT - MIN_HEIGHT
 
-      fun addheights _ nil = nil
-        | addheights cur ((atom, src, dst) :: rest) = (atom, cur, src, dst) ::
-        addheights (if cur = MAX_HEIGHT then MIN_HEIGHT else (cur + 1)) rest
+      fun addheights nil = nil
+        | addheights ((atom, src as (sslot, _), dst as (dslot, _)) :: rest) =
+        let
+          val height =
+            case Int.compare (sslot, dslot) of
+              EQUAL => 0
+            | LESS => ~1
+            | GREATER => 1
+        in
+          (atom, height, src, dst) :: addheights rest
+        end
 
-      val rows = addheights MIN_HEIGHT rows
+      val rows = addheights rows
+
+      (* Don't use ~ for json. *)
+      fun itos n = if n < 0 then "-" ^ Int.toString (0 - n)
+                   else Int.toString n
 
       fun rowstring (atom, height, (slot1, piece1), (slot2, piece2)) =
-        "{a:\"" ^ implode [Atom.tochar atom] ^ "\",h:" ^ Int.toString height ^
-        ",ss:" ^ Int.toString slot1 ^ ",sp:" ^ Int.toString piece1 ^
-        ",ds:" ^ Int.toString slot2 ^ ",dp:" ^ Int.toString piece2 ^
+        "{a:\"" ^ implode [Atom.tochar atom] ^ "\",h:" ^ itos height ^
+        ",ss:" ^ itos slot1 ^ ",sp:" ^ itos piece1 ^
+        ",ds:" ^ itos slot2 ^ ",dp:" ^ itos piece2 ^
         "}"
     in
       print ("let startword = '" ^ word1 ^ "';\n" ^

@@ -1,7 +1,7 @@
 // The following files must be provided externally:
 // atom.js provides atom_glyphs.
 // letters.js provides letters.
-
+// plan.js provides startword, endword, plan (see anaglyph.sml)
 let ctx;
 
 // In canvas screen coordinates.
@@ -52,6 +52,8 @@ let current_word = 'anagram';
 // For animate mode.
 let timeout_id = null;
 let animate_pieces = [];
+
+
 /*
 let startword = 'vulnerability';
 let endword = 'authenticity';
@@ -85,35 +87,6 @@ let plan = [
   {a:"r",ss:12,sp:0,ds:11,dp:0},
   {a:"'",ss:12,sp:0,ds:11,dp:0},
   {a:"?",ss:12,sp:0,ds:11,dp:0}
-];
-*/
-
-let startword = 'anxious';
-let endword = 'wisdom';
-let plan = [
-  {a:"c",h:~3,ss:0,sp:0,ds:3,dp:0},
-  {a:"'",h:~2,ss:0,sp:0,ds:0,dp:0},
-  {a:"r",h:~1,ss:1,sp:0,ds:5,dp:0},
-  {a:"'",h:0,ss:1,sp:0,ds:0,dp:1},
-  {a:"'",h:1,ss:2,sp:0,ds:0,dp:2},
-  {a:"'",h:2,ss:2,sp:1,ds:0,dp:3},
-  {a:"'",h:~3,ss:2,sp:2,ds:1,dp:0},
-  {a:"'",h:~2,ss:2,sp:3,ds:3,dp:0},
-  {a:"'",h:~1,ss:3,sp:0,ds:3,dp:1},
-  {a:".",h:0,ss:3,sp:0,ds:1,dp:0},
-  {a:"o",h:1,ss:4,sp:0,ds:4,dp:0},
-  {a:"r",h:2,ss:5,sp:0,ds:5,dp:1},
-  {a:"'",h:~3,ss:5,sp:0,ds:5,dp:0},
-  {a:"s",h:~2,ss:6,sp:0,ds:2,dp:0}
-];
-/*
-let startword = 'w';
-let endword = 'x';
-let plan = [
-  {a:"'",ss:0,sp:0,ds:0,dp:0},
-  {a:"'",ss:0,sp:1,ds:0,dp:1},
-  {a:"'",ss:0,sp:2,ds:0,dp:2},
-  {a:"'",ss:0,sp:3,ds:0,dp:3}
 ];
 */
 
@@ -744,19 +717,34 @@ function InitializeAnimation() {
       ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
       DrawGrid(null, null);
 
+      const CHANNEL_HEIGHT = 30;
+      
       // Pure linear interpolation
       let pct = animate_frame / TOTAL_FRAMES;
       // Actually, use cosine easing.
       let f = (1 - Math.cos(pct * Math.PI)) * 0.5;
       let omf = 1.0 - f;
 
+      let a = omf * omf * omf;
+      let b = 3 * omf * omf * f;
+      let c = 3 * omf * f * f;
+      let d = f * f * f;
+      
       for (let ap of animate_pieces) {
+	// Zenith point "above" start and end.
+	let hsy = ap.src.y + ap.height * CHANNEL_HEIGHT;
+	let hdy = ap.dst.y + ap.height * CHANNEL_HEIGHT;
+
+	let x = (a + b) * ap.src.x + (c + d) * ap.dst.x;
+	let y = a * ap.src.y + b * hsy + c * hdy + d * ap.dst.y;
+	let r = (a + b) * ap.src.r + (c + d) * ap.dst.r;
+	    
+	/*
 	let x = f * ap.src.x + omf * ap.dst.x;
 	let y = f * ap.src.y + omf * ap.dst.y;
 	let r = f * ap.src.r + omf * ap.dst.r;
 
 	const VERT_FRAC = 0.10;
-	const CHANNEL_HEIGHT = 20;
 	const zenith = ap.height * CHANNEL_HEIGHT;
 	// Height displacement.
 	if (f < VERT_FRAC) {
@@ -766,6 +754,7 @@ function InitializeAnimation() {
 	} else {
 	  y -= zenith * (omf / VERT_FRAC);
 	}
+	*/
 	
 	let fill = '#000';
 	let path = TransformPath(atom_glyphs[ap.atom], x, y, r);
