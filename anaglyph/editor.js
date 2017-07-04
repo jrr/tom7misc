@@ -52,6 +52,7 @@ let current_word = 'anagram';
 // For animate mode.
 let timeout_id = null;
 let animate_pieces = [];
+/*
 let startword = 'vulnerability';
 let endword = 'authenticity';
 // For (s)ource and (d)estination (s)lot and (p)iece
@@ -85,6 +86,36 @@ let plan = [
   {a:"'",ss:12,sp:0,ds:11,dp:0},
   {a:"?",ss:12,sp:0,ds:11,dp:0}
 ];
+*/
+
+let startword = 'anxious';
+let endword = 'wisdom';
+let plan = [
+  {a:"c",ss:0,sp:0,ds:3,dp:0},
+  {a:"'",ss:0,sp:0,ds:0,dp:0},
+  {a:"r",ss:1,sp:0,ds:5,dp:0},
+  {a:"'",ss:1,sp:0,ds:0,dp:1},
+  {a:"'",ss:2,sp:0,ds:0,dp:2},
+  {a:"'",ss:2,sp:1,ds:0,dp:3},
+  {a:"'",ss:2,sp:2,ds:1,dp:0},
+  {a:"'",ss:2,sp:3,ds:3,dp:0},
+  {a:"'",ss:3,sp:0,ds:3,dp:1},
+  {a:".",ss:3,sp:0,ds:1,dp:0},
+  {a:"o",ss:4,sp:0,ds:4,dp:0},
+  {a:"r",ss:5,sp:0,ds:5,dp:1},
+  {a:"'",ss:5,sp:0,ds:5,dp:0},
+  {a:"s",ss:6,sp:0,ds:2,dp:0}
+];
+/*
+let startword = 'w';
+let endword = 'x';
+let plan = [
+  {a:"'",ss:0,sp:0,ds:0,dp:0},
+  {a:"'",ss:0,sp:1,ds:0,dp:1},
+  {a:"'",ss:0,sp:2,ds:0,dp:2},
+  {a:"'",ss:0,sp:3,ds:0,dp:3}
+];
+*/
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
@@ -637,6 +668,28 @@ function LayoutWord(word) {
   return slots;
 }
 
+
+function BestSecant(a, b) {
+  // We'll blend between the source and dest angles, but this
+  // space is not convex or whatever because it is mod 360. So
+  // pick a pair of equivalent angles with the shortest distance.
+  const strategies = [
+    {s: a - 360, d: b},
+    {s: a, d: b - 360},
+  ];
+  let bestdist = Math.abs(b - a);
+  let besta = a, bestb = b;
+  for (const strat of strategies) {
+    let dist = Math.abs(strat.s - strat.d);
+    if (dist < bestdist) {
+      bestdist = dist;
+      besta = strat.s;
+      bestb = strat.d;
+    }
+  }
+  return {a: besta, b: bestb};
+}
+
 function InitializeAnimation() {
   if (timeout_id) {
     window.clearTimeout(timeout_id);
@@ -655,24 +708,41 @@ function InitializeAnimation() {
   animate_pieces = [];
   for (let row of plan) {
     let atom = row.a;
-    let src = slots1[row.ss][atom][row.sp];
-    if (!src) throw ('bad row src: ' + row);
-    let dst = slots2[row.ds][atom][row.dp];
-    animate_pieces.push({atom, src, dst});
+    let { x: srcx, y: srcy, r: srcr } = slots1[row.ss][atom][row.sp];
+    let { x: dstx, y: dsty, r: dstr } = slots2[row.ds][atom][row.dp];
+
+    let { a, b } = BestSecant(srcr, dstr);
+    animate_pieces.push({atom,
+			 src: { x: srcx, y: srcy, r: a },
+			 dst: { x: dstx, y: dsty, r: b }})
   }
 
   const TOTAL_FRAMES = 300;
   let AnimateCallback = () => {
-    ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
-    DrawGrid(null, null);
-
     animate_frame++;
-    console.log(animate_frame);
 
     if (animate_frame > TOTAL_FRAMES) {
+      // Don't clear canvas.
+      
       window.clearTimeout(timeout_id);
       timeout_id = null;
+      // swap words
+      let t = endword;
+      endword = startword;
+      startword = t;
+      // swap source/dest in plan.
+      let newplan = [];
+      for (let row of plan) {
+	//   {a:"'",ss:0,sp:0,ds:0,dp:0},
+	newplan.push({a: row.a, ss: row.ds, sp: row.dp,
+		      ds: row.ss, dp: row.sp});
+      }
+      plan = newplan;
+
     } else {
+      ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+      DrawGrid(null, null);
+
       // Pure linear interpolation
       let pct = animate_frame / TOTAL_FRAMES;
       // Actually, use cosine easing.

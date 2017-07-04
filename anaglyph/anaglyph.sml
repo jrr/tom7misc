@@ -357,8 +357,11 @@ struct
         ",ds:" ^ Int.toString slot2 ^ ",dp:" ^ Int.toString piece2 ^
         "}"
     in
-      app (fn r =>
-           print ("  " ^ rowstring r ^ ",\n")) rows;
+      print ("let startword = '" ^ word1 ^ "';\n" ^
+             "let endword = '" ^ word2 ^ "';\n" ^
+             "let plan = [\n  ");
+      print (StringUtil.delimit ",\n  " (map rowstring rows));
+      print "\n];\n";
       ()
     end
 
