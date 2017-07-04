@@ -244,6 +244,11 @@ struct
          (It is not specified which one is which; we just use some
          consistent assignment.)
 
+         We additionally have a "height" for each atom. These allow
+         us to move pieces simultaneous without too much overlap
+         (a common defect without this is for the atoms to just move
+         along the x axis through one another). See below.
+
          TODO: It's probably good to move sets of pieces together,
          especially entire letters..
 
@@ -268,7 +273,7 @@ struct
          remaining occurrence in word2.
 
          Each letter position in word1 and word2 gets broken into the
-         atoms that are unaccounted for. The occurrences can be seen
+         atoms that are yet unaccounted for. The occurrences can be seen
          as positive in remain1 and negative in remain2, but both will
          have positive coefficients for simplicity. *)
 
@@ -350,10 +355,28 @@ struct
 
       val rows = process (remain1, remain2)
 
+      (* Now, we allocate heights. A height is an integer; positive is up,
+         negative is down, and zero is along the word's axis. The goal is
+         to minimize the total height without pieces moving through one
+         another. One piece moves through another if their vectors
+         (src slot -> dst slot) overlap and they are at the same height.
 
-      fun rowstring (atom, (slot1, piece1), (slot2, piece2)) =
-        "{a:\"" ^ implode [Atom.tochar atom] ^ "\",ss:" ^
-        Int.toString slot1 ^ ",sp:" ^ Int.toString piece1 ^
+         To begin, just setting arbitrary heights to see what it looks like. *)
+
+      (* Asymmetric because the baseline is the x-axis; XXX should fix? *)
+      val MAX_HEIGHT = 2
+      val MIN_HEIGHT = ~3
+      val NUM_HEIGHTS = MAX_HEIGHT - MIN_HEIGHT
+
+      fun addheights _ nil = nil
+        | addheights cur ((atom, src, dst) :: rest) = (atom, cur, src, dst) ::
+        addheights (if cur = MAX_HEIGHT then MIN_HEIGHT else (cur + 1)) rest
+
+      val rows = addheights MIN_HEIGHT rows
+
+      fun rowstring (atom, height, (slot1, piece1), (slot2, piece2)) =
+        "{a:\"" ^ implode [Atom.tochar atom] ^ "\",h:" ^ Int.toString height ^
+        ",ss:" ^ Int.toString slot1 ^ ",sp:" ^ Int.toString piece1 ^
         ",ds:" ^ Int.toString slot2 ^ ",dp:" ^ Int.toString piece2 ^
         "}"
     in

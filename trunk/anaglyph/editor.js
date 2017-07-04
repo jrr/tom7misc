@@ -91,20 +91,20 @@ let plan = [
 let startword = 'anxious';
 let endword = 'wisdom';
 let plan = [
-  {a:"c",ss:0,sp:0,ds:3,dp:0},
-  {a:"'",ss:0,sp:0,ds:0,dp:0},
-  {a:"r",ss:1,sp:0,ds:5,dp:0},
-  {a:"'",ss:1,sp:0,ds:0,dp:1},
-  {a:"'",ss:2,sp:0,ds:0,dp:2},
-  {a:"'",ss:2,sp:1,ds:0,dp:3},
-  {a:"'",ss:2,sp:2,ds:1,dp:0},
-  {a:"'",ss:2,sp:3,ds:3,dp:0},
-  {a:"'",ss:3,sp:0,ds:3,dp:1},
-  {a:".",ss:3,sp:0,ds:1,dp:0},
-  {a:"o",ss:4,sp:0,ds:4,dp:0},
-  {a:"r",ss:5,sp:0,ds:5,dp:1},
-  {a:"'",ss:5,sp:0,ds:5,dp:0},
-  {a:"s",ss:6,sp:0,ds:2,dp:0}
+  {a:"c",h:~3,ss:0,sp:0,ds:3,dp:0},
+  {a:"'",h:~2,ss:0,sp:0,ds:0,dp:0},
+  {a:"r",h:~1,ss:1,sp:0,ds:5,dp:0},
+  {a:"'",h:0,ss:1,sp:0,ds:0,dp:1},
+  {a:"'",h:1,ss:2,sp:0,ds:0,dp:2},
+  {a:"'",h:2,ss:2,sp:1,ds:0,dp:3},
+  {a:"'",h:~3,ss:2,sp:2,ds:1,dp:0},
+  {a:"'",h:~2,ss:2,sp:3,ds:3,dp:0},
+  {a:"'",h:~1,ss:3,sp:0,ds:3,dp:1},
+  {a:".",h:0,ss:3,sp:0,ds:1,dp:0},
+  {a:"o",h:1,ss:4,sp:0,ds:4,dp:0},
+  {a:"r",h:2,ss:5,sp:0,ds:5,dp:1},
+  {a:"'",h:~3,ss:5,sp:0,ds:5,dp:0},
+  {a:"s",h:~2,ss:6,sp:0,ds:2,dp:0}
 ];
 /*
 let startword = 'w';
@@ -713,6 +713,7 @@ function InitializeAnimation() {
 
     let { a, b } = BestSecant(srcr, dstr);
     animate_pieces.push({atom,
+			 height: row.h,
 			 src: { x: srcx, y: srcy, r: a },
 			 dst: { x: dstx, y: dsty, r: b }})
   }
@@ -733,8 +734,8 @@ function InitializeAnimation() {
       // swap source/dest in plan.
       let newplan = [];
       for (let row of plan) {
-	//   {a:"'",ss:0,sp:0,ds:0,dp:0},
-	newplan.push({a: row.a, ss: row.ds, sp: row.dp,
+	newplan.push({a: row.a, h: row.h,
+		      ss: row.ds, sp: row.dp,
 		      ds: row.ss, dp: row.sp});
       }
       plan = newplan;
@@ -754,6 +755,18 @@ function InitializeAnimation() {
 	let y = f * ap.src.y + omf * ap.dst.y;
 	let r = f * ap.src.r + omf * ap.dst.r;
 
+	const VERT_FRAC = 0.10;
+	const CHANNEL_HEIGHT = 20;
+	const zenith = ap.height * CHANNEL_HEIGHT;
+	// Height displacement.
+	if (f < VERT_FRAC) {
+	  y -= zenith * (f / VERT_FRAC);
+	} else if (f < (1.0 - VERT_FRAC)) {
+	  y -= zenith;
+	} else {
+	  y -= zenith * (omf / VERT_FRAC);
+	}
+	
 	let fill = '#000';
 	let path = TransformPath(atom_glyphs[ap.atom], x, y, r);
 	DrawPath(path, fill, null);
