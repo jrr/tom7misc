@@ -15,8 +15,8 @@ const MODE_ATOM = 0;
 const MODE_LETTER = 1;
 const MODE_WORD = 2;
 const MODE_ANIMATE = 3;
-const NUM_MODES = 3;
-let mode = MODE_ATOM;
+const NUM_MODES = 4;
+let mode = MODE_ANIMATE;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
@@ -46,12 +46,45 @@ let letter_piece = 0;
 
 //////////////////////////
 // For word mode.
-let word = 'anagram';
+let current_word = 'anagram';
 
 //////////////////////////
 // For animate mode.
-// let startword = 'anagram';
-// let endword = '';
+let timeout_id = null;
+let animate_pieces = [];
+let startword = 'vulnerability';
+let endword = 'authenticity';
+// For (s)ource and (d)estination (s)lot and (p)iece
+// See anaglyph.sml (makeplan).
+let plan = [
+  {a:"'",ss:0,sp:0,ds:0,dp:0},
+  {a:"'",ss:0,sp:1,ds:1,dp:0},
+  {a:"r",ss:1,sp:0,ds:1,dp:0},
+  {a:"'",ss:1,sp:0,ds:2,dp:0},
+  {a:"'",ss:2,sp:0,ds:2,dp:1},
+  {a:"'",ss:2,sp:1,ds:2,dp:2},
+  {a:"r",ss:3,sp:0,ds:3,dp:0},
+  {a:"'",ss:3,sp:0,ds:3,dp:0},
+  {a:"e",ss:4,sp:0,ds:4,dp:0},
+  {a:"r",ss:5,sp:0,ds:5,dp:0},
+  {a:"c",ss:6,sp:0,ds:0,dp:0},
+  {a:"'",ss:6,sp:0,ds:3,dp:1},
+  {a:"c",ss:7,sp:0,ds:8,dp:0},
+  {a:"'",ss:7,sp:0,ds:5,dp:0},
+  {a:"'",ss:7,sp:1,ds:6,dp:0},
+  {a:"'",ss:8,sp:0,ds:6,dp:1},
+  {a:".",ss:8,sp:0,ds:7,dp:0},
+  {a:"'",ss:9,sp:0,ds:6,dp:2},
+  {a:"'",ss:9,sp:1,ds:7,dp:0},
+  {a:"'",ss:10,sp:0,ds:9,dp:0},
+  {a:".",ss:10,sp:0,ds:9,dp:0},
+  {a:"'",ss:11,sp:0,ds:10,dp:0},
+  {a:"'",ss:11,sp:1,ds:10,dp:1},
+  {a:"'",ss:11,sp:2,ds:10,dp:2},
+  {a:"r",ss:12,sp:0,ds:11,dp:0},
+  {a:"'",ss:12,sp:0,ds:11,dp:0},
+  {a:"?",ss:12,sp:0,ds:11,dp:0}
+];
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
@@ -60,8 +93,8 @@ const CANVASHEIGHT = 1080;
 // Common factors of 1920x1080: 2, 2, 2, 3, 5
 const CELLSIZES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40];
 
-let CELLSIZEIDX = 6;
-let CELLSIZE = CELLSIZES[6];
+let CELLSIZEIDX = 3;
+let CELLSIZE = CELLSIZES[CELLSIZEIDX];
 let CELLSW = CANVASWIDTH / CELLSIZE;
 let CELLSH = CANVASHEIGHT / CELLSIZE;
 
@@ -92,8 +125,8 @@ function ClosestPoint(path, sx, sy, mindist, allow_control) {
   let dsquared =
       (CANVASWIDTH + CANVASHEIGHT) * (CANVASWIDTH + CANVASHEIGHT);
   let besti = 0;
-  for (var i = 0; i < path.length; i++) {
-    var pt = path[i];
+  for (let i = 0; i < path.length; i++) {
+    let pt = path[i];
     const { x, y } = GridToScreen(pt.x, pt.y);
     const dx = x - sx;
     const dy = y - sy;
@@ -259,7 +292,7 @@ function DrawModeAtom() {
 }
 
 function TransformPath(p, dx, dy, r) {
-  var ret = [];
+  let ret = [];
   for (const pt of p) {
     const sinr = Math.sin(r * DEG_TO_RADIANS);
     const cosr = Math.cos(r * DEG_TO_RADIANS);
@@ -279,10 +312,10 @@ function DrawModeLetter() {
 	       20, 50);
   
   const letter = letters[current_letter];
-  for (var i = 0; i < letter.p.length; i++) {
-    var piece = letter.p[i];
-    var fill = i == letter_piece ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)';
-    var path = TransformPath(atom_glyphs[piece.a], piece.x, piece.y, piece.r);
+  for (let i = 0; i < letter.p.length; i++) {
+    let piece = letter.p[i];
+    let fill = i == letter_piece ? 'rgba(0,0,0,0.75)' : 'rgba(0,0,0,0.25)';
+    let path = TransformPath(atom_glyphs[piece.a], piece.x, piece.y, piece.r);
     DrawPath(path, fill, null);
   }
 
@@ -297,10 +330,10 @@ function DrawModeLetter() {
 }
 
 function DrawLetter(letter, dx, dy) {
-  for (var i = 0; i < letter.p.length; i++) {
-    var piece = letter.p[i];
-    var fill = '#000';
-    var path = TransformPath(atom_glyphs[piece.a],
+  for (let i = 0; i < letter.p.length; i++) {
+    let piece = letter.p[i];
+    let fill = '#000';
+    let path = TransformPath(atom_glyphs[piece.a],
 			     dx + piece.x, dy + piece.y, piece.r);
     DrawPath(path, fill, null);
   }
@@ -318,10 +351,10 @@ function DrawModeWord() {
   DrawGrid(null, null);
   // Total width from letter metrics, so that
   // we can center it.
-  const total_width = WordWidth(word);
+  const total_width = WordWidth(current_word);
   let x = total_width * -0.5;
-  for (let i = 0; i < word.length; i++) {
-    let c = word[i];
+  for (let i = 0; i < current_word.length; i++) {
+    let c = current_word[i];
     DrawLetter(letters[c], x, 0);
     x += letters[c].m.w;
   }
@@ -565,18 +598,107 @@ function KeyLetter(e) {
 
 function KeyWord(e) {
   if (e.key == 'Escape') {
-    word = '';
+    current_word = '';
   }
 
   if (e.key == 'Backspace') {
-    word = word.substr(0, word.length - 1);
+    current_word = current_word.substr(0, current_word.length - 1);
   }
   
   if (e.key in letters) {
-    word += e.key;
+    current_word += e.key;
   }
   
   Draw();
+}
+
+function LayoutWord(word) {
+  let slots = [];
+  const total_width = WordWidth(word);
+  let x = total_width * -0.5;
+  for (let i = 0; i < word.length; i++) {
+    let c = word[i];
+    let pieces = letters[c].p;
+    // The slot contains an object, keyed by atom, with a list of the
+    // positions that atom appears in. We do this because the
+    // SML-based planner doesn't know anything about the decomposition
+    // of a letter except the count of atoms. (It doesn't know where
+    // they are, for example.) This allows it to at least consistently
+    // refer to an atom within a letter by saying "it's the third
+    // tick".
+    let slot = {};
+    for (let piece of pieces) {
+      if (!slot[piece.a]) slot[piece.a] = [];
+      slot[piece.a].push({ x: x + piece.x, y: piece.y, r: piece.r });
+    }
+    slots.push(slot);
+    x += letters[c].m.w;
+  }
+  return slots;
+}
+
+function InitializeAnimation() {
+  if (timeout_id) {
+    window.clearTimeout(timeout_id);
+    timeout_id = null;
+  }
+
+  animate_frame = 0;
+
+  // "Draw" the two words.
+  let slots1 = LayoutWord(startword);
+  let slots2 = LayoutWord(endword);
+  console.log(slots1);
+  console.log(slots2);
+
+  // Make the array of mobile pieces.
+  animate_pieces = [];
+  for (let row of plan) {
+    let atom = row.a;
+    let src = slots1[row.ss][atom][row.sp];
+    if (!src) throw ('bad row src: ' + row);
+    let dst = slots2[row.ds][atom][row.dp];
+    animate_pieces.push({atom, src, dst});
+  }
+
+  const TOTAL_FRAMES = 300;
+  let AnimateCallback = () => {
+    ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+    DrawGrid(null, null);
+
+    animate_frame++;
+    console.log(animate_frame);
+
+    if (animate_frame > TOTAL_FRAMES) {
+      window.clearTimeout(timeout_id);
+      timeout_id = null;
+    } else {
+      // Pure linear interpolation
+      let pct = animate_frame / TOTAL_FRAMES;
+      // Actually, use cosine easing.
+      let f = (1 - Math.cos(pct * Math.PI)) * 0.5;
+      let omf = 1.0 - f;
+
+      for (let ap of animate_pieces) {
+	let x = f * ap.src.x + omf * ap.dst.x;
+	let y = f * ap.src.y + omf * ap.dst.y;
+	let r = f * ap.src.r + omf * ap.dst.r;
+
+	let fill = '#000';
+	let path = TransformPath(atom_glyphs[ap.atom], x, y, r);
+	DrawPath(path, fill, null);
+      }
+      timeout_id = window.setTimeout(AnimateCallback, 1000 / 60);
+    }
+  };
+  timeout_id = window.setTimeout(AnimateCallback, 1000 / 60);
+}
+
+function KeyAnimate(e) {
+  // Restart animation.
+  if (e.key == ' ') {
+    InitializeAnimation();
+  }
 }
 
 function Key(e) {
@@ -611,6 +733,8 @@ function Key(e) {
     KeyLetter(e);
   } else if (mode == MODE_WORD) {
     KeyWord(e);
+  } else if (mode == MODE_ANIMATE) {
+    KeyAnimate(e);
   }
 }
 
