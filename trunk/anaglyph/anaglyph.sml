@@ -313,7 +313,8 @@ struct
           (nil, nil) => nil
         | (nil, _) => raise Anaglyph "impossible: mismatch"
         | (_, nil) => raise Anaglyph "impossible: mismatch"
-        | (remain1 as ({ idx = idx1, atoms = atoms1, already = already1 } :: rest1),
+        | (remain1 as ({ idx = idx1, atoms = atoms1,
+                         already = already1 } :: rest1),
            remain2) =>
         let
           (*
@@ -341,11 +342,12 @@ struct
           val occurrence1 = Atoms.count (already1, a)
           val already1 = Atoms.++ (already1, Atoms.fromlist [a])
 
-          val remain1 = { idx = idx1, atoms = atoms1, already = already1 } :: rest1
+          val remain1 = { idx = idx1, atoms = atoms1,
+                          already = already1 } :: rest1
 
           (* Find where the atom a is sent.
-             Returns a new "remain2" list, and the rhs of the row for the overall
-             return from 'process'. *)
+             Returns a new "remain2" list, and the rhs of the row for
+             the overall return from 'process'. *)
           fun alloc nil = raise Anaglyph "impossible: mismatch in alloc"
             | alloc ((h as { idx = idx2, atoms = atoms2,
                              already = already2 }) :: rest2) =
@@ -446,6 +448,9 @@ struct
     fun depth (N (_, Words _)) = 1
       | depth (N (_, Nodes nl)) = 1 + List.foldl Int.max 0 (map depth nl)
 
+    fun size (N (_, Words _)) = 1
+      | size (N (_, Nodes nl)) = 1 + List.foldl Int.+ 0 (map size nl)
+
     fun insert (orig as (N (node_atoms, data)), atoms, words) : node =
       let
         val node_atoms = Atoms.intersect (node_atoms, atoms)
@@ -459,32 +464,61 @@ struct
              Compare them all to find the one with the largest
              overlap. *)
             let
-              (* Get the best overlap. *)
-              fun gbo NONE (nil : node list) : node list =
+              (* gbo bestsofar done rest
+                 Get the best overlap.
+                 If "bestsofar" is SOME (overlap, node), then
+                 we've found a node with nonzero intersection
+                 with the current atoms.
+                 "done" are nodes that we know aren't the best;
+                 these must be part of the resturned list.
+
+                 Doesn't preserve the order of the list. *)
+              fun gbo NONE done (nil : node list) : node list =
                 (* Didn't find any nonzero overlap, so just add
                    it as a new sibling. *)
-                [N (atoms, Words words)]
-                | gbo (SOME (_, best_node)) nil =
-                (* Otherwise, insert it into the best node, which we
-                   brought with us, and put that at the end. *)
-                (* PERF: computes intersection twice *)
-                [insert (best_node, atoms, words) : node]
-                | gbo cur ((child as N (child_atoms, _)) :: rest) =
+                N (atoms, Words words) :: done
+                | gbo (SOME (_, best_node)) done nil =
                 let
-                  val overlap = Atoms.size (Atoms.intersect (child_atoms, atoms))
+                  (* Otherwise, insert it into the best node, which we
+                     brought with us, and put that at the end. *)
+                  (* PERF: computes intersection twice *)
+                  val child as (N (child_atoms, _)) =
+                    insert (best_node, atoms, words)
+
+                  (* As a result of inserting into the child, it is
+                     fairly common for the subtree's atoms field to
+                     be equal to the current node's. When this happens,
+                     we'll flatten all the grandchildren into the
+                     current node. *)
+                  fun flatten (child as (N (_, Words _)), done) =
+                    (* But we can't flatten a word list. *)
+                    child :: done
+                    | flatten (N (_, Nodes gcl), done) =
+                    (* XXX if two siblings have the same atoms,
+                       they should also be merged. *)
+                    gcl @ done
+                in
+                  if child_atoms = node_atoms
+                  then flatten (child, done)
+                  else child :: done
+                end
+                | gbo cur done ((child as N (child_atoms, _)) :: rest) =
+                let
+                  val overlap =
+                    Atoms.size (Atoms.intersect (child_atoms, atoms))
                 in
                   if overlap > 0
                   then
                     (case cur of
                        SOME (best_overlap, best_node) =>
                          if overlap > best_overlap
-                         then best_node ::
-                           gbo (SOME (overlap, child)) rest
-                         else child :: gbo cur rest
-                     | NONE => gbo (SOME (overlap, child)) rest)
-                  else child :: gbo cur rest
+                         then gbo (SOME (overlap, child))
+                                  (best_node :: done) rest
+                         else gbo cur (child :: done) rest
+                     | NONE => gbo (SOME (overlap, child)) done rest)
+                  else gbo cur (child :: done) rest
                 end
-              val nl : node list = gbo NONE nl
+              val nl : node list = gbo NONE nil nl
             in
               N (node_atoms, Nodes nl)
             end
@@ -562,7 +596,8 @@ struct
   fun tree_dotfile () = Tree.treedot tree
   fun tree_textfile () = Tree.tostring tree
 
-  val () = print ("Tree depth: " ^ Int.toString (Tree.depth tree))
+  val () = print ("Tree depth: " ^ Int.toString (Tree.depth tree) ^ "\n")
+  val () = print ("Tree size: " ^ Int.toString (Tree.size tree) ^ "\n")
 
   fun anaglyph phrase =
     let
