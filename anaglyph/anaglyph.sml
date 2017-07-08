@@ -91,6 +91,9 @@ struct
     val compare : atoms * atoms -> order
     val ++ : atoms * atoms -> atoms
     val -- : atoms * atoms -> atoms
+    (* Multiset intersection (pointwise 'min') *)
+    val intersect : atoms * atoms -> atoms
+    val size : atoms -> int
     val fromlist : Atom.atom list -> atoms
     val tolist : atoms -> Atom.atom list
     val tostring : atoms -> string
@@ -123,6 +126,13 @@ struct
       Vector.tabulate (Atom.num_atoms, fn i =>
                        Vector.sub (a, i) -
                        Vector.sub (b, i))
+
+    fun intersect (a, b) =
+      Vector.tabulate (Atom.num_atoms, fn i =>
+                       Int.min (Vector.sub (a, i),
+                                Vector.sub (b, i)))
+
+    fun size a = Vector.foldl op+ 0 a
 
     val zero = Vector.tabulate (Atom.num_atoms, fn _ => 0)
 
@@ -421,6 +431,215 @@ struct
       print (StringUtil.delimit ",\n  " (map rowstring rows));
       print "\n];\n";
       ()
+    end
+
+  structure Tree =
+  struct
+    datatype node =
+      N of Atoms.atoms * data
+    and data =
+        Words of string list
+      | Nodes of node list
+
+    val empty = N(Atoms.zero, Nodes nil)
+
+    fun depth (N (_, Words _)) = 1
+      | depth (N (_, Nodes nl)) = 1 + List.foldl Int.max 0 (map depth nl)
+
+    fun insert (orig as (N (node_atoms, data)), atoms, words) : node =
+      let
+        val node_atoms = Atoms.intersect (node_atoms, atoms)
+      in
+        case data of
+          (* XXX this is not smart in the case that the atoms are
+             equal, but that shouldn't happen the way we use it *)
+          Words _ => N (node_atoms, Nodes [orig, N (atoms, Words words)])
+        | Nodes nl =>
+          (* There should be at most num_atoms children.
+             Compare them all to find the one with the largest
+             overlap. *)
+            let
+              (* Get the best overlap. *)
+              fun gbo NONE (nil : node list) : node list =
+                (* Didn't find any nonzero overlap, so just add
+                   it as a new sibling. *)
+                [N (atoms, Words words)]
+                | gbo (SOME (_, best_node)) nil =
+                (* Otherwise, insert it into the best node, which we
+                   brought with us, and put that at the end. *)
+                (* PERF: computes intersection twice *)
+                [insert (best_node, atoms, words) : node]
+                | gbo cur ((child as N (child_atoms, _)) :: rest) =
+                let
+                  val overlap = Atoms.size (Atoms.intersect (child_atoms, atoms))
+                in
+                  if overlap > 0
+                  then
+                    (case cur of
+                       SOME (best_overlap, best_node) =>
+                         if overlap > best_overlap
+                         then best_node ::
+                           gbo (SOME (overlap, child)) rest
+                         else child :: gbo cur rest
+                     | NONE => gbo (SOME (overlap, child)) rest)
+                  else child :: gbo cur rest
+                end
+              val nl : node list = gbo NONE nl
+            in
+              N (node_atoms, Nodes nl)
+            end
+      end
+
+    fun treedot tree =
+      let
+        val nodes : string list ref = ref nil
+        val links : string list ref = ref nil
+        val ctr = ref 0
+        fun traverse parent (N (atoms, data)) =
+          let
+            val aa = Atoms.tostring atoms
+            val name = "n" ^ Int.toString (!ctr)
+            val () = ctr := !ctr + 1
+
+            val () =
+              case data of
+                Words wl =>
+                  let
+                    val ww = StringUtil.delimit "," wl
+                    val ww =
+                      if String.size ww > 12
+                      then String.substring(ww, 0, 9) ^ "..."
+                      else ww
+                  in
+                    nodes := (" " ^ name ^ " [label=\"" ^ aa ^ "; " ^
+                              ww ^ "\" shape=box]\n" (* " *)) :: !nodes
+                  end
+              | Nodes nl =>
+                  nodes := (" " ^ name ^ " [label=\"" ^ aa ^ "\"]\n") :: !nodes
+          in
+            (case parent of
+              NONE => ()
+            | SOME p => links := (" " ^ p ^ " -> " ^ name ^ "\n") :: !links);
+            (case data of
+               Words _=> ()
+             | Nodes nl => app (traverse (SOME name)) nl)
+          end
+      in
+        traverse NONE tree;
+        "digraph tree {\n" ^
+        String.concat (!nodes) ^
+        String.concat (!links) ^
+        "}\n"
+      end
+
+    fun tostring tree =
+      let
+        fun ts depth (N (atoms, data)) : string list =
+          let
+            val indent = CharVector.tabulate (depth * 2, fn _ => #" ")
+            val aa = Atoms.tostring atoms
+            val line = indent ^ Int.toString depth ^ ". " ^ aa
+            val line =
+              case data of
+                Words wl => line ^ " = " ^ StringUtil.delimit "," wl ^ "\n"
+              | Nodes nl => line ^ "\n"
+          in
+            line ::
+            (case data of
+               Words wl => nil
+             | Nodes nl =>
+                 map (String.concat o ts (depth + 1)) nl)
+          end
+      in
+        String.concat (ts 0 tree)
+      end
+  end
+
+  val tree = AM.foldli (fn (atoms, words, tree) =>
+                        Tree.insert (tree, atoms, words))
+    Tree.empty (!clusters)
+
+  fun tree_dotfile () = Tree.treedot tree
+  fun tree_textfile () = Tree.tostring tree
+
+  val () = print ("Tree depth: " ^ Int.toString (Tree.depth tree))
+
+  fun anaglyph phrase =
+    let
+      val atoms = word_atoms phrase
+
+    (* The main act of anagramming (a phrase) is picking a word
+       that can be made with the remaining letters in our set,
+       then subtracting those letters from the set, and repeating.
+       We'll call this an "eligible" word.
+
+       We can find all the eligible words by looping over the entire
+       dictionary, but that's wasteful because many words will be
+       ineligible (especially when we have few letters remaining).
+
+       So here we can create an eligibility tree. Take all the
+       clusters above as leaves. Each cluster is a set of words
+       and the exact set of letters that they contain. The words
+       are eligible if the remaining letters are a superset of
+       the letters in the set.
+
+       Say we have two clusters
+
+       rs5'?  = sky, flus
+       rs5'.? = sizy, juts, just, fish
+
+       These could be joined into a node containing the
+       intersection of the sets.
+
+          rs5'.?
+          | |
+          | +- rs5'? = sky, flus
+          +--- rs5'.? = skizy, juts, just, fish
+
+       The joined node means: "If you don't have at least these
+       letters remaining, you won't be able to match any words in this
+       subtree." We can always join two subtrees together (the intersection
+       is always defined), until we get a tree for the entire dictionary
+       (likely rooted with the empty set). There are two things to tend
+       to when considering the quality of the tree:
+        - The intersection operation is lossy; if the set gets too small
+       then we have to search it for many cases where it won't end up
+       being useful.
+        - The tree should be balanced; search will always be linear
+       if the tree structure is linear.
+
+       Without any guarantees, a simple way to do this is to
+       repeatedly take two trees of similar size and merge them. This
+       could be done pretty efficiently by keeping a set (heap) of
+       trees ordered by size (depth?) and then plucking off the two
+       smallest ones and joining them. This would not do a good job
+       of maximizing the size of the new intersected roots, though.
+
+       We could also do this by insertion. Start with any tree, and
+       insert clusters into it. Say we have
+
+                    s1
+                   /  \            inserting s
+                  s2  s3
+
+       We can insert s anywhere (well, anywhere we have a null child),
+       but along the entire path we must intersect s with the interior
+       node's set. At each steo how do we choose which node to descend
+       into? We could pick the one that has the larger intersection,
+       perhaps breaking ties by descending into the smaller of the two
+       trees.
+
+       Finally, note that there's no reason for the tree to be binary,
+       and there's no meaningful ordering being used between the
+       children. So when we insert, if the intersections with the
+       existing children are too lossy, we could just insert an
+       additional child. By the pigeonhole principle, if there are N
+       (number of atoms) non-empty children of some node, at least one
+       of them must have a non-empty intersection with any given set.
+       So N makes a natural branching factor?
+       *)
+    in
+      print (Atoms.tostring atoms ^ "\n")
     end
 
 end
