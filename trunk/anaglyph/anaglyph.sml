@@ -93,6 +93,7 @@ struct
     val -- : atoms * atoms -> atoms
     (* Multiset intersection (pointwise 'min') *)
     val intersect : atoms * atoms -> atoms
+    val subseteq : atoms * atoms -> bool
     val size : atoms -> int
     val fromlist : Atom.atom list -> atoms
     val tolist : atoms -> Atom.atom list
@@ -131,6 +132,10 @@ struct
       Vector.tabulate (Atom.num_atoms, fn i =>
                        Int.min (Vector.sub (a, i),
                                 Vector.sub (b, i)))
+
+    fun subseteq (a, b) =
+      (* PERF *)
+      intersect (a, b) = a
 
     fun size a = Vector.foldl op+ 0 a
 
@@ -437,172 +442,6 @@ struct
 
   structure Tree =
   struct
-    datatype node =
-      N of Atoms.atoms * data
-    and data =
-        Words of string list
-      | Nodes of node list
-
-    val empty = N(Atoms.zero, Nodes nil)
-
-    fun depth (N (_, Words _)) = 1
-      | depth (N (_, Nodes nl)) = 1 + List.foldl Int.max 0 (map depth nl)
-
-    fun size (N (_, Words _)) = 1
-      | size (N (_, Nodes nl)) = 1 + List.foldl Int.+ 0 (map size nl)
-
-    fun insert (orig as (N (node_atoms, data)), atoms, words) : node =
-      let
-        val node_atoms = Atoms.intersect (node_atoms, atoms)
-      in
-        case data of
-          (* XXX this is not smart in the case that the atoms are
-             equal, but that shouldn't happen the way we use it *)
-          Words _ => N (node_atoms, Nodes [orig, N (atoms, Words words)])
-        | Nodes nl =>
-          (* There should be at most num_atoms children.
-             Compare them all to find the one with the largest
-             overlap. *)
-            let
-              (* gbo bestsofar done rest
-                 Get the best overlap.
-                 If "bestsofar" is SOME (overlap, node), then
-                 we've found a node with nonzero intersection
-                 with the current atoms.
-                 "done" are nodes that we know aren't the best;
-                 these must be part of the resturned list.
-
-                 Doesn't preserve the order of the list. *)
-              fun gbo NONE done (nil : node list) : node list =
-                (* Didn't find any nonzero overlap, so just add
-                   it as a new sibling. *)
-                N (atoms, Words words) :: done
-                | gbo (SOME (_, best_node)) done nil =
-                let
-                  (* Otherwise, insert it into the best node, which we
-                     brought with us, and put that at the end. *)
-                  (* PERF: computes intersection twice *)
-                  val child as (N (child_atoms, _)) =
-                    insert (best_node, atoms, words)
-
-                  (* As a result of inserting into the child, it is
-                     fairly common for the subtree's atoms field to
-                     be equal to the current node's. When this happens,
-                     we'll flatten all the grandchildren into the
-                     current node. *)
-                  fun flatten (child as (N (_, Words _)), done) =
-                    (* But we can't flatten a word list. *)
-                    child :: done
-                    | flatten (N (_, Nodes gcl), done) =
-                    (* XXX if two siblings have the same atoms,
-                       they should also be merged. *)
-                    gcl @ done
-                in
-                  if child_atoms = node_atoms
-                  then flatten (child, done)
-                  else child :: done
-                end
-                | gbo cur done ((child as N (child_atoms, _)) :: rest) =
-                let
-                  val overlap =
-                    Atoms.size (Atoms.intersect (child_atoms, atoms))
-                in
-                  if overlap > 0
-                  then
-                    (case cur of
-                       SOME (best_overlap, best_node) =>
-                         if overlap > best_overlap
-                         then gbo (SOME (overlap, child))
-                                  (best_node :: done) rest
-                         else gbo cur (child :: done) rest
-                     | NONE => gbo (SOME (overlap, child)) done rest)
-                  else gbo cur (child :: done) rest
-                end
-              val nl : node list = gbo NONE nil nl
-            in
-              N (node_atoms, Nodes nl)
-            end
-      end
-
-    fun treedot tree =
-      let
-        val nodes : string list ref = ref nil
-        val links : string list ref = ref nil
-        val ctr = ref 0
-        fun traverse parent (N (atoms, data)) =
-          let
-            val aa = Atoms.tostring atoms
-            val name = "n" ^ Int.toString (!ctr)
-            val () = ctr := !ctr + 1
-
-            val () =
-              case data of
-                Words wl =>
-                  let
-                    val ww = StringUtil.delimit "," wl
-                    val ww =
-                      if String.size ww > 12
-                      then String.substring(ww, 0, 9) ^ "..."
-                      else ww
-                  in
-                    nodes := (" " ^ name ^ " [label=\"" ^ aa ^ "; " ^
-                              ww ^ "\" shape=box]\n" (* " *)) :: !nodes
-                  end
-              | Nodes nl =>
-                  nodes := (" " ^ name ^ " [label=\"" ^ aa ^ "\"]\n") :: !nodes
-          in
-            (case parent of
-              NONE => ()
-            | SOME p => links := (" " ^ p ^ " -> " ^ name ^ "\n") :: !links);
-            (case data of
-               Words _=> ()
-             | Nodes nl => app (traverse (SOME name)) nl)
-          end
-      in
-        traverse NONE tree;
-        "digraph tree {\n" ^
-        String.concat (!nodes) ^
-        String.concat (!links) ^
-        "}\n"
-      end
-
-    fun tostring tree =
-      let
-        fun ts depth (N (atoms, data)) : string list =
-          let
-            val indent = CharVector.tabulate (depth * 2, fn _ => #" ")
-            val aa = Atoms.tostring atoms
-            val line = indent ^ Int.toString depth ^ ". " ^ aa
-            val line =
-              case data of
-                Words wl => line ^ " = " ^ StringUtil.delimit "," wl ^ "\n"
-              | Nodes nl => line ^ "\n"
-          in
-            line ::
-            (case data of
-               Words wl => nil
-             | Nodes nl =>
-                 map (String.concat o ts (depth + 1)) nl)
-          end
-      in
-        String.concat (ts 0 tree)
-      end
-  end
-
-  val tree = AM.foldli (fn (atoms, words, tree) =>
-                        Tree.insert (tree, atoms, words))
-    Tree.empty (!clusters)
-
-  fun tree_dotfile () = Tree.treedot tree
-  fun tree_textfile () = Tree.tostring tree
-
-  val () = print ("Tree depth: " ^ Int.toString (Tree.depth tree) ^ "\n")
-  val () = print ("Tree size: " ^ Int.toString (Tree.size tree) ^ "\n")
-
-  fun anaglyph phrase =
-    let
-      val atoms = word_atoms phrase
-
     (* The main act of anagramming (a phrase) is picking a word
        that can be made with the remaining letters in our set,
        then subtracting those letters from the set, and repeating.
@@ -673,8 +512,344 @@ struct
        of them must have a non-empty intersection with any given set.
        So N makes a natural branching factor?
        *)
+
+    (* A node contains its atoms, a list of subtrees, and the
+       words that have exactly that set.
+
+       Representation invariants:
+       In each node, the atoms is exactly the intersection of
+       all the atoms within the subtree.
+
+       No child node's atoms can be a subset of another's
+       (including being equal to it). *)
+    datatype tree =
+      Node of Atoms.atoms * tree list * string list
+
+    fun get_atoms (Node (atoms, _, _)) = atoms
+    fun get_trees (Node (_, trees, _)) = trees
+    fun get_words (Node (_, _, words)) = words
+
+    val empty = Node(Atoms.zero, nil, nil)
+
+    fun depth (Node (_, nl, _)) = 1 + List.foldl Int.max 0 (map depth nl)
+
+    fun size (Node (_, nl, _)) = 1 + List.foldl Int.+ 0 (map size nl)
+
+    fun tostring tree =
+      let
+        fun ts depth (Node (atoms, children, words)) : string list =
+          let
+            val indent = CharVector.tabulate (depth * 2, fn _ => #" ")
+            val aa = Atoms.tostring atoms
+            val line = indent ^ Int.toString depth ^ ". " ^ aa ^
+              (case words of
+                 nil => "\n"
+               | _ => " = " ^ StringUtil.delimit "," words ^ "\n")
+          in
+            line ::
+            map (String.concat o ts (depth + 1)) children
+          end
+      in
+        String.concat (ts 0 tree)
+      end
+
+    (* Insert the subtree into the tree.
+
+       Requires that the subtree's atoms are a superset of the tree's,
+       which means that the resulting tree keeps that same set of atoms. *)
+    fun insert (orig as (Node (atoms, nodes, words)), subtree) : tree =
+      let
+        (*
+        val () = print ("===========\nInsert: " ^ tostring subtree ^
+                        "\n --- INTO --- \n" ^ tostring orig ^
+                        "\n ============ \n")
+        *)
+
+        val Node (subtree_atoms, subtree_nodes, subtree_words) = subtree
+        (* PERF debugging *)
+        val () = if Atoms.subseteq (atoms, subtree_atoms)
+                 then ()
+                 else raise Anaglyph ("Invariant violation: Inserted " ^
+                                      "subtree atoms " ^
+                                      Atoms.tostring subtree_atoms ^
+                                      " must be subset of tree's: " ^
+                                      Atoms.tostring atoms)
+      in
+        (* If this subtree actually has the same atoms, we instead should
+           insert all its children here. *)
+        if atoms = subtree_atoms
+        then
+          let
+            (* Merge in the words. *)
+            val tree = Node (atoms, nodes, words @ subtree_words)
+            (* Now we just need to deal with subtree_nodes. Insert
+               each one into this tree. We know that it meets the
+               atoms subset requirement if the existing subtree is
+               well-formed. *)
+            fun insertl (tree, nil) = tree
+              | insertl (tree, n :: l) =
+              insertl (insert (tree, n), l)
+          in
+            insertl (tree, subtree_nodes)
+          end
+        else
+          let
+            datatype pref =
+              (* Carrying the size of the remainder. 0 means equal,
+                 which is best. *)
+              Superset of int
+              (* Same, but we don't generate 0 *)
+            | Subset of int
+            (* Any overlap. Carries size; larger is better. *)
+            | Overlap of int
+
+            (* LESS means better. *)
+            fun compare_pref (Superset x, Superset y) = Int.compare (x, y)
+              | compare_pref (Superset _, _) = LESS
+              | compare_pref (_, Superset _) = GREATER
+              | compare_pref (Subset x, Subset y) = Int.compare (x, y)
+              | compare_pref (Subset _, _) = LESS
+              | compare_pref (_, Subset _) = GREATER
+              | compare_pref (Overlap x, Overlap y) = Int.compare (y, x)
+
+            fun node_pref (Node (natoms, _, _)) =
+              let
+                val isect = Atoms.intersect (natoms, subtree_atoms)
+              in
+                (* If the intersection is natoms, then it's a superset. *)
+                if isect = natoms
+                then Superset (Atoms.size subtree_atoms - Atoms.size natoms)
+                else
+                  if isect = subtree_atoms
+                  then Subset (Atoms.size natoms - Atoms.size subtree_atoms)
+                  else Overlap (Atoms.size isect)
+              end
+
+            (* This means that the subtrees atoms are strictly greater.
+               We'll either insert it as a new child, or into one of
+               the existing children. Now choose the best insertion node. *)
+
+            fun gb NONE done nil = NONE
+              | gb (SOME (pref, best)) done nil =
+              (case pref of
+                 (* An overlap of 0 is the worst and doesn't even count. *)
+                 Overlap 0 => NONE
+               | _ => SOME (pref, best, done))
+              | gb cur done (node :: rest) =
+                 let val pref = node_pref node
+                 in
+                   case cur of
+                     NONE => gb (SOME (pref, node)) done rest
+                   | SOME (best_pref, best_node) =>
+                       (case compare_pref (pref, best_pref) of
+                          LESS => gb (SOME (pref, node))
+                            (best_node :: done) rest
+                        | _ => gb (SOME (best_pref, best_node))
+                            (node :: done) rest)
+                 end
+          in
+            case gb NONE nil nodes of
+              (* If there are no candidates, just add it as a new
+                 child. *)
+              NONE => Node (atoms, subtree :: nodes, words)
+            | SOME (pref, child, others) =>
+                (* If it is equal or a superset, we can just recurse. *)
+                (case pref of
+                   Superset _ =>
+                     Node (atoms, insert (child, subtree) :: others, words)
+                 | Subset _ =>
+                     (* We know that no other tree is a superset of subtree,
+                        but how do we know that none is a subset? XXX *)
+                     Node (atoms, insert (subtree, child) :: others, words)
+                 | Overlap _ =>
+                     (* XXX should merge it with some child sometimes! *)
+                     Node (atoms, subtree :: child :: others, words)
+                     (*
+                     (* But if we chose it due to overlap, then we
+                        need to create an intermediate node with the
+                        intersected set. *)
+                     let val isect =
+                       Atoms.intersect (subtree_atoms, get_atoms child)
+                     in
+                       (* XXX Why must the subtree have a superset of
+                          the atoms?
+                          XXX termination argument? *)
+                       insert (Node (atoms, others, words),
+                               (Node (isect, [subtree, child], nil)))
+
+                       (* XXX this can violate the relationship between
+                          this new node and its parent/siblings. hmm *)
+                       (* Node(atoms,
+                          Node (isect, [subtree, child], nil) :: others,
+                          words) *)
+                     end
+                   *)
+                     )
+          end
+
+      end
+
+    fun treedot tree =
+      let
+        val nodes : string list ref = ref nil
+        val links : string list ref = ref nil
+        val ctr = ref 0
+        fun traverse parent (Node (atoms, children, words)) =
+          let
+            val aa = Atoms.tostring atoms
+            val name = "n" ^ Int.toString (!ctr)
+            val () = ctr := !ctr + 1
+
+            val () =
+              case words of
+                nil =>
+                  nodes := (" " ^ name ^ " [label=\"" ^ aa ^ "\"]\n") :: !nodes
+              | wl =>
+                  let
+                    val ww = StringUtil.delimit "," wl
+                    val MAX_CHARS = 12
+                    val ww =
+                      if String.size ww > MAX_CHARS
+                      then String.substring(ww, 0, MAX_CHARS - 3) ^ "..."
+                      else ww
+                  in
+                    nodes := (" " ^ name ^ " [label=\"" ^ aa ^ "; " ^
+                              ww ^ "\" shape=box]\n" (* " *)) :: !nodes
+                  end
+          in
+            (case parent of
+              NONE => ()
+            | SOME p => links := (" " ^ p ^ " -> " ^ name ^ "\n") :: !links);
+            app (traverse (SOME name)) children
+          end
+      in
+        traverse NONE tree;
+        "digraph tree {\n" ^
+        String.concat (!nodes) ^
+        String.concat (!links) ^
+        "}\n"
+      end
+
+  end
+
+  val tree = AM.foldli (fn (atoms, words, tree) =>
+                        Tree.insert (tree, Tree.Node (atoms, nil, words)))
+    Tree.empty (!clusters)
+
+  fun tree_dotfile () = Tree.treedot tree
+  fun tree_textfile () = Tree.tostring tree
+
+  val () = TextIO.output
+    (TextIO.stdErr,
+     "Tree depth: " ^ Int.toString (Tree.depth tree) ^ "\n")
+  val () = TextIO.output
+    (TextIO.stdErr,
+     "Tree size: " ^ Int.toString (Tree.size tree) ^ "\n")
+
+  (* Print the 100 longest words that can be made from the phrase,
+     after subtracting the required phrase. *)
+  fun best_requiring req phrase =
+    let
+      val required_atoms = word_atoms req
+      val orig_phrase_atoms = word_atoms phrase
+      val () =
+        if Atoms.intersect (required_atoms, orig_phrase_atoms) =
+           required_atoms
+        then ()
+        else raise Anaglyph ("required phrase " ^ req ^ " is not possible " ^
+                             "from anagraph phrase " ^ phrase)
+      val phrase_atoms = Atoms.--(orig_phrase_atoms, required_atoms)
+
+      val () = TextIO.output (TextIO.stdErr,
+                              "Remaining atoms: " ^
+                              Atoms.tostring phrase_atoms ^ "\n")
+
+      val usable : string list ref = ref nil
+      fun onenode (catoms, words) =
+        let val isect = Atoms.intersect (catoms, phrase_atoms)
+        in
+          if isect = catoms
+          then usable := words @ !usable
+          else ()
+        end
+
+      val () = AM.appi onenode (!clusters)
+      (* Descending *)
+      fun bylength (a, b) = Int.compare (size b, size a)
+      val () = TextIO.output (TextIO.stdErr,
+                              (Int.toString (length (!usable)) ^
+                               " words can be made\n"))
+      val usable = ListUtil.sort bylength (!usable)
+      val usable = ListUtil.takeupto 200 usable
     in
-      print (Atoms.tostring atoms ^ "\n")
+      app (fn w => print (w ^ "\n")) usable
     end
+
+  fun anaglyph_requiring maxwords req phrase =
+    let
+      val required_atoms = word_atoms req
+      val orig_phrase_atoms = word_atoms phrase
+      val () =
+        if Atoms.intersect (required_atoms, orig_phrase_atoms) =
+           required_atoms
+        then ()
+        else raise Anaglyph ("required phrase " ^ req ^ " is not possible " ^
+                             "from anagraph phrase " ^ phrase)
+      val phrase_atoms = Atoms.--(orig_phrase_atoms, required_atoms)
+
+      (* Call emit on all anagrams of the remaining atoms.
+         An anagram is presented as a list of word clusters; each
+         word in the cluster uses the same set of atoms so they
+         can be freely chosen. *)
+      fun enumerate (emit : string list list -> unit) remaining =
+        let
+          fun enum (l, wordsleft, r) =
+            if r = Atoms.zero
+            then emit l
+            else
+              let
+                fun walk (Tree.Node (atoms, children, words), wordsleft, r) =
+                  let
+                    val isect = Atoms.intersect (atoms, r)
+                  in
+                    (* Do I have enough letters to enter this node? *)
+                    if isect = atoms
+                    then
+                      let in
+                        (* First recurse; this puts anagrams with longer
+                           words first. *)
+                        app (fn n => walk (n, wordsleft, r)) children;
+
+                        (* Take words at the current node; this reduces
+                           our set of atoms. *)
+                        (case words of
+                           nil => ()
+                         | _ => enum (words :: l,
+                                      wordsleft - 1,
+                                      Atoms.-- (r, atoms)))
+                      end
+                    else ()
+                  end
+              in
+                if wordsleft > 0
+                then walk (tree, wordsleft, r)
+                else ()
+              end
+        in
+          enum (nil, maxwords, remaining)
+        end
+
+      fun printone l =
+        let
+          fun barre [w] = w
+            | barre wl = StringUtil.delimit "|" wl
+        in
+          print (StringUtil.delimit " " (map barre l) ^ "\n")
+        end
+    in
+      enumerate printone phrase_atoms
+    end
+
+  fun anaglyph phrase = anaglyph_requiring 1000 "" phrase
 
 end
