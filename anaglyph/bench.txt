@@ -1,0 +1,12 @@
+
+wordlist.asc:
+
+Tree depth: 25
+Tree size: 72780
+
+
+After rewrite:
+Tree depth: 25
+Tree size: 47315
+
+(this is probably largely due to merging words into nodes themselves, though?)
