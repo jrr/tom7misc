@@ -10,16 +10,6 @@ struct
     val fromint : int -> atom option
     val tochar : atom -> char
 
-    (* Needed? *)
-    val c_ : atom
-    val e_ : atom
-    val o_ : atom
-    val r_ : atom
-    val s_ : atom
-    val tick_ : atom
-    val dot_ : atom
-    val hook_ : atom
-
     val num_atoms : int
     val atomchars : string
     val decompose : char -> atom list option
@@ -839,15 +829,93 @@ struct
           enum (nil, maxwords, remaining)
         end
 
-      fun printone l =
+
+      fun columns (sll : string list list) =
+        let
+          val max_height = ref 0
+          fun onecol sl =
+            let
+              val h = List.length sl
+              val max_width = ref 0
+              fun oneword s =
+                max_width := Int.max(!max_width, size s)
+            in
+              max_height := Int.max(!max_height, h);
+              app oneword sl;
+              (sl, h, !max_width)
+            end
+          (* (word list, its actual length, max width) *)
+          val cols = map onecol sll
+          val max_height = !max_height
+          (* Compute top padding for each column. *)
+          val cols = map (fn (wl, h, mw) =>
+                          { words = wl,
+                            top = (max_height - h) div 2,
+                            width = mw + 1 }) cols
+
+          fun lineloop 0 _ = nil
+            | lineloop left cols =
+            let
+              val line = ref ""
+              fun oneline nil =
+                let in
+                  (* end of line *)
+                  line := !line ^ "\n";
+                  nil
+                end
+                | oneline ((h as { top = 0, words = nil, width }) :: t) =
+                (* Below word list *)
+                let in
+                  line := !line ^ CharVector.tabulate (width, fn _ => #" ");
+                  h :: oneline t
+                end
+                | oneline ({ top = 0, words = wh :: wt, width } :: t) =
+                (* Emit a word *)
+                let in
+                  line := !line ^ StringUtil.pad width wh;
+                  { top = 0, words = wt, width = width } :: oneline t
+                end
+                | oneline ({ top, words, width } :: t) =
+                let in
+                  (* Padding above word list *)
+                  line := !line ^ CharVector.tabulate (width, fn _ => #" ");
+                  { top = top - 1, words = words, width = width } :: oneline t
+                end
+
+              val cols = oneline cols
+            in
+              !line :: lineloop (left - 1) cols
+            end
+        in
+          String.concat (lineloop max_height cols)
+        end
+
+      fun printone_barre l =
         let
           fun barre [w] = w
             | barre wl = StringUtil.delimit "|" wl
         in
           print (StringUtil.delimit " " (map barre l) ^ "\n")
         end
+
+      (* might need separators? *)
+      fun printone_cols l =
+        let
+          fun ismulti nil = false
+            | ismulti ((_ :: _ :: _) :: _) = true
+            | ismulti (_ :: rest) = ismulti rest
+        in
+          if ismulti l
+          then
+            let in
+              print "--------------------\n";
+              print (columns l);
+              print "--------------------\n"
+            end
+          else print (columns l)
+        end
     in
-      enumerate printone phrase_atoms
+      enumerate printone_cols phrase_atoms
     end
 
   fun anaglyph phrase = anaglyph_requiring 1000 "" phrase
