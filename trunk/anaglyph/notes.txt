@@ -48,13 +48,4 @@
  Note that there's no point in breaking s down into pieces if any of them is unique,
  because you'll always have to use it to make an s. This is inefficient.
 
- video ideas:
- start with like, "if I can rearrange the letters, why can't I flip them around?"
- .. then generalize.
- hamburgefontsiv
- linear logic
- loops u -> v -> u -> v -> ...
- extreme version: 7 segment display
- make a font that actually realizes this compositionality
- animate word transitions
 
