@@ -204,7 +204,7 @@ function DrawPath(p, fill, stroke) {
     } else if (prev.e != undefined && prev.f != undefined) {
       const {x:e, y:f} = GridToScreen(prev.e, prev.f);
       if (next.c != undefined && next.d != undefined) {
-	const {x:c, x:d} = GridToScreen(next.c, next.d);
+	const {x:c, y:d} = GridToScreen(next.c, next.d);
 	// Both control points.
 	ctx.bezierCurveTo(e, f, c, d, x, y);
       } else {
@@ -676,8 +676,9 @@ function KeyAtom(e) {
     break;
   }
   case '1':
-  case '2': {
-    console.log('bisect');
+  case '2':
+  case '3':
+  case '4': {
     if (dragging) return;
     let path = atom_glyphs[current_atom];
     const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, false);
@@ -693,6 +694,26 @@ function KeyAtom(e) {
       const {x, y} = Bisect(pt, next);
       let newpt = ScreenToGrid(x, y);
       path.splice(closest.idx + 1, 0, newpt);
+    } else if (e.key == '3') {
+      if (pt.c != undefined || pt.d != undefined) {
+	delete pt.c;
+	delete pt.d;
+      } else {
+	const {x, y} = Bisect(prev, pt);
+	const ctrl = ScreenToGrid(x, y);
+	pt.c = ctrl.x;
+	pt.d = ctrl.y;
+      }
+    } else if (e.key == '4') {
+      if (pt.e != undefined || pt.f != undefined) {
+	delete pt.e;
+	delete pt.f;
+      } else {
+	const {x, y} = Bisect(pt, next);
+	const ctrl = ScreenToGrid(x, y);
+	pt.e = ctrl.x;
+	pt.f = ctrl.y;
+      }
     } else {
       throw 'impossible';
     }
