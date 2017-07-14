@@ -16,7 +16,7 @@ const MODE_LETTER = 1;
 const MODE_WORD = 2;
 const MODE_ANIMATE = 3;
 const NUM_MODES = 4;
-let mode = MODE_ANIMATE;
+let mode = MODE_ATOM;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
@@ -110,7 +110,7 @@ const CANVASHEIGHT = 1080;
 // Common factors of 1920x1080: 2, 2, 2, 3, 5
 const CELLSIZES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40];
 
-let CELLSIZEIDX = 3;
+let CELLSIZEIDX = 6;
 let CELLSIZE = CELLSIZES[CELLSIZEIDX];
 let CELLSW = CANVASWIDTH / CELLSIZE;
 let CELLSH = CANVASHEIGHT / CELLSIZE;
@@ -181,9 +181,9 @@ function DrawPath(p, fill, stroke) {
       // No control points.
       ctx.lineTo(x, y);
     } else if (prev.e != undefined && prev.f != undefined) {
-      const {e, f} = GridToScreen(prev.e, prev.f);
+      const {x:e, y:f} = GridToScreen(prev.e, prev.f);
       if (next.c != undefined && next.d != undefined) {
-	const {c, d} = GridToScreen(next.c, next.d);
+	const {x:c, x:d} = GridToScreen(next.c, next.d);
 	// Both control points.
 	ctx.bezierCurveTo(e, f, c, d, x, y);
       } else {
@@ -193,7 +193,7 @@ function DrawPath(p, fill, stroke) {
     } else {
       if (!(next.c != undefined && next.d != undefined))
 	throw 'impossible';
-      const {c, d} = GridToScreen(next.c, next.d);
+      const {x:c, x:d} = GridToScreen(next.c, next.d);
       ctx.quadraticCurveTo(c, d, x, y);
     }
   }
@@ -221,26 +221,49 @@ function DrawControlPoints(p, highlight) {
 
   for (let i = 0; i < p.length; i++) {
     const pt = p[i];
+
+    // Draw node's position, which always exists.
     const {x, y} = GridToScreen(pt.x, pt.y);
 
-    ctx.beginPath();
+    const DrawCircle = (x, y, width, lwidth, fill, stroke) => {
+      ctx.beginPath();
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = stroke;
+      ctx.ellipse(x, y,
+		  width, width, width, width,
+		  360);
+      ctx.fill();
+      ctx.lineWidth = lwidth;
+      ctx.stroke();
+    };
+    
     // console.log(p);
     let width;
     if (highlight == i) {
-      ctx.fillStyle = 'rgba(255,255,128,1.0)';
-      ctx.strokeStyle = 'rgba(64,0,0,1.0)';
-      width = CELLSIZE * 0.45;
+      DrawCircle(x, y, CELLSIZE * 0.45, 3,
+		 'rgba(255,255,128,1.0)',
+		 'rgba(64,0,0,1.0)');
     } else {
-      ctx.fillStyle = 'rgba(255,255,255,0.75)';
-      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-      width = CELLSIZE * 0.4;
+      DrawCircle(x, y, CELLSIZE * 0.4, 3,
+		 'rgba(255,255,255,0.75)',
+		 'rgba(0,0,0,0.75)');
     }
-    ctx.ellipse(x, y,
-		width, width, width, width,
-		360);
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.stroke();
+
+    // Draw entrance control point if it exists.
+    if (pt.c != undefined && pt.d != undefined) {
+      const {x:c, y:d} = GridToScreen(pt.c, pt.d);
+      DrawCircle(c, d, CELLSIZE * 0.2, 1,
+		 'rgba(128,255,128,0.75)',
+		 'rgba(0,75,0,0.5)');
+    }
+    
+    // Draw exit control point if it exists.
+    if (pt.e != undefined && pt.f != undefined) {
+      const {x:e, y:f} = GridToScreen(pt.e, pt.f);
+      DrawCircle(e, f, CELLSIZE * 0.2, 1,
+		 'rgba(255,128,128,0.75)',
+		 'rgba(75,0,0,0.5)');
+    }
   }
 
   // Next/prev bisection hints
@@ -257,6 +280,41 @@ function DrawControlPoints(p, highlight) {
     ctx.fillText("2", nx, ny);
   }
 }
+
+// Draws the faint lines from nodes to their control points,
+// if any.
+function DrawControlLines(p, highlight) {
+  if (p.length == 0) throw 'empty path';
+
+  for (let i = 0; i < p.length; i++) {
+    const pt = p[i];
+
+    // Node's position always exists.
+    const {x, y} = GridToScreen(pt.x, pt.y);
+
+    const DrawLine = (x0, y0, x1, y1, stroke) => {
+      ctx.beginPath();
+      ctx.strokeStyle = stroke;
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    };
+
+    // Draw entrance control point if it exists.
+    if (pt.c != undefined && pt.d != undefined) {
+      const {x:c, y:d} = GridToScreen(pt.c, pt.d);
+      DrawLine(x, y, c, d, 'rgba(0,90,0,0.25)');
+    }
+    
+    // Draw exit control point if it exists.
+    if (pt.e != undefined && pt.f != undefined) {
+      const {x:e, y:f} = GridToScreen(pt.e, pt.f);
+      DrawLine(x, y, e, f, 'rgba(90,0,0,0.25)');
+    }
+  }
+}
+
 
 // Draw the grid at the current scale. dx and dy yield a red rule,
 // reflected around the axis.
@@ -320,6 +378,7 @@ function DrawModeAtom() {
     const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, true);
     highlight = closest ? closest.idx : -1;
   }
+  DrawControlLines(path, highlight);
   DrawPath(path, 'rgba(16,16,16,0.75)', '#55f');
   DrawControlPoints(path, highlight);
 
@@ -337,7 +396,22 @@ function TransformPath(p, dx, dy, r) {
     const cosr = Math.cos(r * DEG_TO_RADIANS);
     const x = pt.x * cosr - pt.y * sinr;
     const y = pt.y * cosr + pt.x * sinr;
-    ret.push({x: x + dx, y: y + dy});
+    var o = {x: x + dx, y: y + dy};
+    // Control points are in the same coordinate system
+    // so can just be transformed like x,y are.
+    if (pt.c != undefined && pt.d != undefined) {
+      const c = pt.c * cosr - pt.d * sinr;
+      const d = pt.d * cosr + pt.c * sinr;
+      o.c = c + dx;
+      o.d = d + dy;
+    }
+    if (pt.e != undefined && pt.e != undefined) {
+      const e = pt.e * cosr - pt.f * sinr;
+      const f = pt.f * cosr + pt.e * sinr;
+      o.e = e + dx;
+      o.f = f + dy;
+    }
+    ret.push(o);
   }
   return ret;
 }
