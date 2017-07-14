@@ -122,5 +122,4 @@ struct
     end
 end
 
-
-structure Atom = Letter
+structure Atom = Canonical
