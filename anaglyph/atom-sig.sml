@@ -7,6 +7,5 @@ sig
   val tochar : atom -> char
 
   val num_atoms : int
-  val atomchars : string
   val decompose : char -> atom list option
 end

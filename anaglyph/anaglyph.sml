@@ -99,11 +99,15 @@ struct
         fun go i =
           if i = Atom.num_atoms then ""
           else
-            case Vector.sub (a, i) of
-              0 => go (i + 1)
-            | 1 => implode [CharVector.sub (Atom.atomchars, i)] ^ go (i + 1)
-            | n => Int.toString n ^
-                implode [CharVector.sub (Atom.atomchars, i)] ^ go (i + 1)
+            let val c = case Atom.fromint i of
+              NONE => raise Anaglyph "impossible"
+            | SOME x => Atom.tochar x
+            in
+              case Vector.sub (a, i) of
+                0 => go (i + 1)
+              | 1 => implode [c] ^ go (i + 1)
+              | n => Int.toString n ^ implode [c] ^ go (i + 1)
+            end
       in
         go 0
       end

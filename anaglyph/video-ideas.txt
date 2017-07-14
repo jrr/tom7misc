@@ -1,8 +1,16 @@
 
+TO-DO:
+ - Different atom/letter setups in editor.
+ - Bezier curves in atoms
+Optional:
+ - kerning?!
+ - could improve routing in planner
+ - generate tree in sml, but explore anagrams in js (table idea)
 
 fun stuff:
  - pixels
- - absurd letter decompositions like
+ - 7 segment display
+ - absurd letter decompositions like:
 
  s =    -
        c
@@ -14,18 +22,30 @@ computer science stuff:
  - post correspondence problem
 
 
+ video ideas:
+ start with like, "if I can rearrange the letters,
+                   why can't I flip them around?"
+ .. then generalize.
+ hamburgefontsiv
+ linear logic
+ loops u -> v -> u -> v -> ...
+ extreme version: 7 segment display
+ make a font that actually realizes this compositionality
+ animate word transitions
+
+
 some that don't need to break apart letters:
 
+b and p are not actually the same shape tho :(
   preposterous = obstreperous
 
+  digital = pigtail
 
 some nice pairs:
 
   impeach groper = orange diarrhea
 
   vulnerability = authenticity
-
-  digital = pigtail
 
   donald trump = unnatural clod
                  plutocrat man
@@ -38,4 +58,14 @@ you know what anagrams are.
 
 Unless you've been portmanteau wordplay shy,
 you know what anagrams are.
+
+Unless you wage a tyrannosaur mohawk,
+you know what anagrams are.
+
+
+
+worst anagrams
+photomicrograph
+microphotograph
+ jeremy's iron
 

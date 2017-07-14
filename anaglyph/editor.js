@@ -20,12 +20,25 @@ let mode = MODE_ANIMATE;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
-// Atoms have a single path (e and o are just self-overlapping). The
-// first position is always a "moveto" command. Each successive
-// position has an x,y coordinate, and if it has XXX then it is a
-// bezier curveTo, otherwise a plain lineto. The path is always closed
-// at the end. Coordinates are integer grid coordinates. The center of
-// the atom (for rotations, etc.) is defined to be 0,0.
+// Atoms have a single path (e and o are just self-overlapping).
+// (This might not work for i and j in the non-decomposing case btw.)
+//
+// Each point has an x,y position and two optional control points c,d
+// (entry) and e,f (exit). We always start by moving to the first
+// point and then drawing lines between pairs of successive nodes.
+// Between two nodes n1 and n2, we always start at x1,y1 and then are
+// in one of the following cases based on the presence of control
+// points e1,f1 and c2,d2:
+//
+//        prev       next
+//        x1,y1      x2,y2        lineTo(x2,y2)
+//     x1,y1,e1,f1   x2,y2        quadraticCurveTo(e1,f1,x2,y2)
+//        x1,y1     c2,d2,x2,y2   quadraticCurveTo(c2,d2,x2,y2)
+//     x1,y1,e1,f1  c2,d2,x2,y2   bezierCurveTo(e1,f1,c2,d2,x2,y2)
+//
+// The path is always closed at the end. Coordinates are integer grid
+// coordinates. The center of the atom (for rotations, etc.) is
+// defined to be 0,0.
 
 // Can modify the mesh of atomic pieces.
 let atoms = "ceors'.?";
@@ -152,16 +165,38 @@ function DrawPath(p, fill, stroke) {
   if (p.length == 0) throw 'empty path';
   ctx.strokeStyle = stroke;
   ctx.fillStyle = fill;
+  // Start is special; we just move there.
   const { x: startx, y: starty } = GridToScreen(p[0].x, p[0].y);
   ctx.moveTo(startx, starty);
-  for (let i = 1; i < p.length; i++) {
-    const pt = p[i];
-    const {x, y} = GridToScreen(pt.x, pt.y);
-    // XXX bezier.
-    ctx.lineTo(x, y);
+  // Now work on pairs.
+  for (let i = 0; i < p.length; i++) {
+    const prev = p[i];
+    const next = p[(i + 1) % p.length];
+
+    // We can assume that x,y are present always.
+    const {x, y} = GridToScreen(next.x, next.y);
+    
+    if ((prev.e == undefined || prev.f == undefined) &&
+	(next.c == undefined || next.d == undefined)) {
+      // No control points.
+      ctx.lineTo(x, y);
+    } else if (prev.e != undefined && prev.f != undefined) {
+      const {e, f} = GridToScreen(prev.e, prev.f);
+      if (next.c != undefined && next.d != undefined) {
+	const {c, d} = GridToScreen(next.c, next.d);
+	// Both control points.
+	ctx.bezierCurveTo(e, f, c, d, x, y);
+      } else {
+	// Just exit control point; use quadratic.
+	ctx.quadraticCurveTo(e, f, x, y);
+      }
+    } else {
+      if (!(next.c != undefined && next.d != undefined))
+	throw 'impossible';
+      const {c, d} = GridToScreen(next.c, next.d);
+      ctx.quadraticCurveTo(c, d, x, y);
+    }
   }
-  // Return to start (XXX if not already there?)
-  ctx.lineTo(startx, starty);
   if (fill) ctx.fill();
   if (stroke) {
     ctx.lineWidth = 6;
