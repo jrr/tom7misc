@@ -45,7 +45,7 @@ let atoms = "ceors'.?";
 
 ///////////////////////////
 // For atom editing mode.
-// Current node being dragged (same as return type of 'closest')
+// Current node/control point being dragged (same as return type of 'closest')
 let dragging = null;
 let onion_atom = 'e';
 let current_atom = 'c';
@@ -138,23 +138,44 @@ function ScreenToGrid(x, y) {
 
 
 // Returns the index of the closest point on the supplied path.
+// If allow_control is true, can select control points (c,d,e,f)
+// as well.
 function ClosestPoint(path, sx, sy, mindist, allow_control) {
-  let dsquared =
-      (CANVASWIDTH + CANVASHEIGHT) * (CANVASWIDTH + CANVASHEIGHT);
-  let besti = 0;
-  for (let i = 0; i < path.length; i++) {
-    let pt = path[i];
-    const { x, y } = GridToScreen(pt.x, pt.y);
+  let Dsq = (gridx, gridy) => {
+    const { x, y } = GridToScreen(gridx, gridy);
     const dx = x - sx;
     const dy = y - sy;
-    const dsq = dx * dx + dy * dy;
+    return dx * dx + dy * dy;
+  };
+  let dsquared =
+      (CANVASWIDTH + CANVASHEIGHT) * (CANVASWIDTH + CANVASHEIGHT);
+  let best = null;
+  for (let i = 0; i < path.length; i++) {
+    let pt = path[i];
+    const dsq = Dsq(pt.x, pt.y);
     if (dsq < dsquared) {
       dsquared = dsq;
-      besti = i;
+      best = { idx: i, xy: true };
+    }
+
+    if (allow_control && pt.c != undefined && pt.d != undefined) {
+      const cdsq = Dsq(pt.c, pt.d);
+      if (cdsq < dsquared) {
+	dsquared = cdsq;
+	best = { idx: i, cd: true };
+      }
+    }
+
+    if (allow_control && pt.e != undefined && pt.f != undefined) {
+      const edsq = Dsq(pt.e, pt.f);
+      if (edsq < dsquared) {
+	dsquared = edsq;
+	best = { idx: i, ef: true };
+      }
     }
   }
   if (mindist != undefined && dsquared < mindist * mindist) {
-    return { idx: besti };
+    return best;
   } else {
     return null;
   }
@@ -193,7 +214,7 @@ function DrawPath(p, fill, stroke) {
     } else {
       if (!(next.c != undefined && next.d != undefined))
 	throw 'impossible';
-      const {x:c, x:d} = GridToScreen(next.c, next.d);
+      const {x:c, y:d} = GridToScreen(next.c, next.d);
       ctx.quadraticCurveTo(c, d, x, y);
     }
   }
@@ -208,7 +229,8 @@ function DrawPath(p, fill, stroke) {
 // between the two points. For lines, this is basically
 // correct. For curves, it may be way off.
 function Bisect(p1, p2) {
-  // XXX do something for bezier?
+  // XXX do something for quadratic/bezier? It's not actually that
+  // hard to compute the midpoint.
   const { x: p1x, y: p1y } = GridToScreen(p1.x, p1.y);
   const { x: p2x, y: p2y } = GridToScreen(p2.x, p2.y);
   // console.log('bisect ', p1x, p1y, p2x, p2y);
@@ -222,6 +244,10 @@ function DrawControlPoints(p, highlight) {
   for (let i = 0; i < p.length; i++) {
     const pt = p[i];
 
+    // True if the node is highlighted (could be one of its control
+    // points).
+    const highlighted = !!highlight && highlight.idx == i;
+    
     // Draw node's position, which always exists.
     const {x, y} = GridToScreen(pt.x, pt.y);
 
@@ -239,7 +265,7 @@ function DrawControlPoints(p, highlight) {
     
     // console.log(p);
     let width;
-    if (highlight == i) {
+    if (highlighted && highlight.xy) {
       DrawCircle(x, y, CELLSIZE * 0.45, 3,
 		 'rgba(255,255,128,1.0)',
 		 'rgba(64,0,0,1.0)');
@@ -252,7 +278,11 @@ function DrawControlPoints(p, highlight) {
     // Draw entrance control point if it exists.
     if (pt.c != undefined && pt.d != undefined) {
       const {x:c, y:d} = GridToScreen(pt.c, pt.d);
-      DrawCircle(c, d, CELLSIZE * 0.2, 1,
+      DrawCircle(c, d,
+		 highlighted && highlight.cd ?
+		 CELLSIZE * 0.35 :
+		 CELLSIZE * 0.25,
+		 1,
 		 'rgba(128,255,128,0.75)',
 		 'rgba(0,75,0,0.5)');
     }
@@ -260,17 +290,22 @@ function DrawControlPoints(p, highlight) {
     // Draw exit control point if it exists.
     if (pt.e != undefined && pt.f != undefined) {
       const {x:e, y:f} = GridToScreen(pt.e, pt.f);
-      DrawCircle(e, f, CELLSIZE * 0.2, 1,
+      DrawCircle(e, f,
+		 highlighted && highlight.cd ?
+		 CELLSIZE * 0.35 :
+		 CELLSIZE * 0.25,
+		 1,
 		 'rgba(255,128,128,0.75)',
 		 'rgba(75,0,0,0.5)');
     }
   }
 
   // Next/prev bisection hints
-  if (highlight >= 0 && highlight < p.length) {
-    const pt = p[highlight];
-    const prev = p[highlight == 0 ? p.length - 1 : highlight - 1];
-    const next = p[(highlight + 1) % p.length];
+  if (highlight && highlight.xy) {
+    const hidx = highlight.idx;
+    const pt = p[hidx];
+    const prev = p[hidx == 0 ? p.length - 1 : hidx - 1];
+    const next = p[(hidx + 1) % p.length];
     const { x: px, y: py } = Bisect(prev, pt);
     const { x: nx, y: ny } = Bisect(pt, next);
     // console.log(px, py, nx, ny);
@@ -282,7 +317,8 @@ function DrawControlPoints(p, highlight) {
 }
 
 // Draws the faint lines from nodes to their control points,
-// if any.
+// if any. Highlight is an object { idx, xy, cd, ef }, the
+// same as is returned from ClosestPoint.
 function DrawControlLines(p, highlight) {
   if (p.length == 0) throw 'empty path';
 
@@ -357,9 +393,16 @@ function DrawModeAtom() {
   
   let dx = null, dy = null;
   if (dragging) {
-    // XXX Bezier
-    dx = path[dragging.idx].x;
-    dy = path[dragging.idx].y;
+    if (dragging.xy) {
+      dx = path[dragging.idx].x;
+      dy = path[dragging.idx].y;
+    } else if (dragging.cd) {
+      dx = path[dragging.idx].c;
+      dy = path[dragging.idx].d;
+    } else if (dragging.ef) {
+      dx = path[dragging.idx].e;
+      dy = path[dragging.idx].f;
+    }
   }
 
   DrawGrid(dx, dy);
@@ -373,10 +416,9 @@ function DrawModeAtom() {
   
   let highlight;
   if (dragging) {
-    highlight = dragging.idx;
+    highlight = dragging;
   } else {
-    const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, true);
-    highlight = closest ? closest.idx : -1;
+    highlight = ClosestPoint(path, mousex, mousey, CELLSIZE, true);
   }
   DrawControlLines(path, highlight);
   DrawPath(path, 'rgba(16,16,16,0.75)', '#55f');
@@ -498,6 +540,7 @@ function Click(e) {
 				 mousex, mousey,
 				 CELLSIZE, true);
     dragging = closest;
+    console.log(dragging);
     Draw();
   } else if (mode == MODE_LETTER) {
     // Any click drags the width metric. Could generalize this.
@@ -522,8 +565,16 @@ function MouseMove(e) {
     if (dragging) {
       const pt = atom_glyphs[current_atom][dragging.idx];
       const { x: gx, y: gy } = ScreenToGrid(mousex, mousey);
-      pt.x = gx;
-      pt.y = gy;
+      if (dragging.xy) {
+	pt.x = gx;
+	pt.y = gy;
+      } else if (dragging.cd) {
+	pt.c = gx;
+	pt.d = gy;
+      } else if (dragging.ef) {
+	pt.e = gx;
+	pt.f = gy;
+      }
     }
     
     Draw();
@@ -618,6 +669,7 @@ function KeyAtom(e) {
     let path = atom_glyphs[current_atom];
     if (path.length <= 3)
       break;
+    // XXX should allow deleting control points
     const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, false);
     if (!closest) return;
     path.splice(closest.idx, 1);
