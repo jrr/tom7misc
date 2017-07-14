@@ -1,7 +1,7 @@
 
 TO-DO:
- - Different atom/letter setups in editor.
- - Bezier curves in atoms
+ - make regular letters version
+    (should allow multiple paths? or just ugly i,j?)
 Optional:
  - kerning?!
  - could improve routing in planner
