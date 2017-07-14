@@ -78,24 +78,37 @@ struct
 
   fun decode root url =
     case StringUtil.removehead root url of
-      SOME rest => StringUtil.urldecode rest
+      SOME rest =>
+        (case StringUtil.find "/" rest of
+           NONE => NONE
+         | SOME idx =>
+             (case StringUtil.urldecode
+                (String.substring (rest, idx + 1, size rest - idx - 1)) of
+                NONE => NONE
+              | SOME data =>
+                  let val code = String.substring (rest, 0, idx)
+                  in
+                    if StringUtil.all (StringUtil.charspec "a-z") code
+                    then SOME (code, data)
+                    else NONE
+                  end))
     | NONE => NONE
 
   fun make_response (path, headers) =
     let in
       print ("Try parse: [" ^ path ^ "]\n");
     case decode "/save_atoms/" path of
-      SOME atoms =>
+      SOME (code, atoms) =>
         let in
-          StringUtil.writefile "atoms.js"
+          StringUtil.writefile ("atoms-" ^ code ^ ".js")
           ("const atom_glyphs =\n  " ^ atoms ^ ";\n");
           response_ok ()
         end
     | NONE =>
         case decode "/save_letters/" path of
-          SOME letters =>
+          SOME (code, letters) =>
             let in
-              StringUtil.writefile "letters.js"
+              StringUtil.writefile ("letters-" ^ code ^ ".js")
               ("const letters =\n  " ^ letters ^ ";\n");
               response_ok ()
             end

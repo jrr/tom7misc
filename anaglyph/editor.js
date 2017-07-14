@@ -1,7 +1,9 @@
-// The following files must be provided externally:
-// atom.js provides atom_glyphs.
-// letters.js provides letters.
-// plan.js provides startword, endword, plan (see anaglyph.sml)
+// Some files and configuration must be provided externally;
+// see for example editor-ceors.html. We need
+// config: atoms
+// atoms: atom_glyphs
+// letters: letters
+// plan: startword, endword, plan (see anaglyph.sml)
 let ctx;
 
 // In canvas screen coordinates.
@@ -40,15 +42,12 @@ const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 // coordinates. The center of the atom (for rotations, etc.) is
 // defined to be 0,0.
 
-// Can modify the mesh of atomic pieces.
-let atoms = "ceors'.?";
-
 ///////////////////////////
 // For atom editing mode.
 // Current node/control point being dragged (same as return type of 'closest')
 let dragging = null;
-let onion_atom = 'e';
-let current_atom = 'c';
+let onion_atom = atoms[0];
+let current_atom = atoms[0];
 
 ///////////////////////////
 // For letter editing mode.
@@ -65,43 +64,6 @@ let current_word = 'anagram';
 // For animate mode.
 let timeout_id = null;
 let animate_pieces = [];
-
-
-/*
-let startword = 'vulnerability';
-let endword = 'authenticity';
-// For (s)ource and (d)estination (s)lot and (p)iece
-// See anaglyph.sml (makeplan).
-let plan = [
-  {a:"'",ss:0,sp:0,ds:0,dp:0},
-  {a:"'",ss:0,sp:1,ds:1,dp:0},
-  {a:"r",ss:1,sp:0,ds:1,dp:0},
-  {a:"'",ss:1,sp:0,ds:2,dp:0},
-  {a:"'",ss:2,sp:0,ds:2,dp:1},
-  {a:"'",ss:2,sp:1,ds:2,dp:2},
-  {a:"r",ss:3,sp:0,ds:3,dp:0},
-  {a:"'",ss:3,sp:0,ds:3,dp:0},
-  {a:"e",ss:4,sp:0,ds:4,dp:0},
-  {a:"r",ss:5,sp:0,ds:5,dp:0},
-  {a:"c",ss:6,sp:0,ds:0,dp:0},
-  {a:"'",ss:6,sp:0,ds:3,dp:1},
-  {a:"c",ss:7,sp:0,ds:8,dp:0},
-  {a:"'",ss:7,sp:0,ds:5,dp:0},
-  {a:"'",ss:7,sp:1,ds:6,dp:0},
-  {a:"'",ss:8,sp:0,ds:6,dp:1},
-  {a:".",ss:8,sp:0,ds:7,dp:0},
-  {a:"'",ss:9,sp:0,ds:6,dp:2},
-  {a:"'",ss:9,sp:1,ds:7,dp:0},
-  {a:"'",ss:10,sp:0,ds:9,dp:0},
-  {a:".",ss:10,sp:0,ds:9,dp:0},
-  {a:"'",ss:11,sp:0,ds:10,dp:0},
-  {a:"'",ss:11,sp:1,ds:10,dp:1},
-  {a:"'",ss:11,sp:2,ds:10,dp:2},
-  {a:"r",ss:12,sp:0,ds:11,dp:0},
-  {a:"'",ss:12,sp:0,ds:11,dp:0},
-  {a:"?",ss:12,sp:0,ds:11,dp:0}
-];
-*/
 
 const CANVASWIDTH = 1920;
 const CANVASHEIGHT = 1080;
@@ -407,7 +369,6 @@ function DrawModeAtom() {
 
   DrawGrid(dx, dy);
   
-  // XXX onion skin.
   if (onion_atom) {
     const opath = atom_glyphs[onion_atom];
     DrawPath(opath, 'rgba(16,75,16,0.15)', undefined);
@@ -649,7 +610,7 @@ function KeyAtom(e) {
   if (e.code == 'NumpadEnter') {
     // Save data to frameserver.
     const data = JSON.stringify(atom_glyphs);
-    getSynchronous('/save_atoms/' +
+    getSynchronous('/save_atoms/' + code + '/' +
 		   encodeURIComponent(data));
     return;
   }
@@ -658,9 +619,12 @@ function KeyAtom(e) {
   if (ak) {
     let path = atom_glyphs[current_atom];
     for (o of path) {
-      // XXX bezier
       o.x += ak.dx;
       o.y += ak.dy;
+      if (o.c != undefined) o.c += ak.dx;
+      if (o.d != undefined) o.d += ak.dy;
+      if (o.e != undefined) o.e += ak.dx;
+      if (o.f != undefined) o.f += ak.dy;
     }
   }
 
@@ -735,7 +699,7 @@ function KeyLetter(e) {
   if (e.code == 'NumpadEnter') {
     // Save data to frameserver.
     const data = JSON.stringify(letters);
-    getSynchronous('/save_letters/' +
+    getSynchronous('/save_letters/' + code + '/' +
 		   encodeURIComponent(data));
     return;
   }
