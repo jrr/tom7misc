@@ -72,14 +72,22 @@ const CANVASHEIGHT = 1080;
 // Common factors of 1920x1080: 2, 2, 2, 3, 5
 const CELLSIZES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40];
 
-let CELLSIZEIDX = 6;
-let CELLSIZE = CELLSIZES[CELLSIZEIDX];
+// One for each mode.
+let CELLSIZEIDXS = [9, 5, 2, 2];
+(() => { if (CELLSIZEIDXS.length != NUM_MODES) throw 'bad init'; })();
+
+let CELLSIZE = CELLSIZES[CELLSIZEIDXS[mode]];
 let CELLSW = CANVASWIDTH / CELLSIZE;
 let CELLSH = CANVASHEIGHT / CELLSIZE;
 
 function SetCellSizeIdx(i) {
   if (i < 0 || i >= CELLSIZES.length) return;
-  CELLSIZEIDX = i;
+  CELLSIZEIDXS[mode] = i;
+  UpdateCellSizes();
+}
+
+function UpdateCellSizes() {
+  let i = CELLSIZEIDXS[mode];
   CELLSIZE = CELLSIZES[i];
   CELLSW = CANVASWIDTH / CELLSIZE;
   CELLSH = CANVASHEIGHT / CELLSIZE;
@@ -271,10 +279,10 @@ function DrawControlPoints(p, highlight) {
     const { x: px, y: py } = Bisect(prev, pt);
     const { x: nx, y: ny } = Bisect(pt, next);
     // console.log(px, py, nx, ny);
-    ctx.font = 'bold 18pt Helvetica,sans-serif';
+    ctx.font = 'bold 12pt Helvetica,sans-serif';
     ctx.fillStyle = '#f00';
-    ctx.fillText("1", px, py);
-    ctx.fillText("2", nx, ny);
+    ctx.fillText('1,3', px, py);
+    ctx.fillText('2,4', nx, ny);
   }
 }
 
@@ -927,6 +935,7 @@ function Key(e) {
   switch (e.key) {
   case '`': {
     mode++; mode %= NUM_MODES;
+    UpdateCellSizes();
     dragging = null;
     Draw();
     window.focus();
@@ -937,7 +946,7 @@ function Key(e) {
   case '-':
   case '=': {
     const dir = e.key == '-' ? -1 : 1;
-    SetCellSizeIdx(CELLSIZEIDX + dir);
+    SetCellSizeIdx(CELLSIZEIDXS[mode] + dir);
     Draw();
     return;
   }
