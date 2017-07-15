@@ -166,7 +166,7 @@ function DrawPath(p, fill, stroke) {
 
     // We can assume that x,y are present always.
     const {x, y} = GridToScreen(next.x, next.y);
-    
+
     if ((prev.e == undefined || prev.f == undefined) &&
 	(next.c == undefined || next.d == undefined)) {
       // No control points.
@@ -195,15 +195,38 @@ function DrawPath(p, fill, stroke) {
   }
 }
 
-// Returns screen x,y coordinate that's in the center
-// between the two points. For lines, this is basically
-// correct. For curves, it may be way off.
+// Returns integral screen x,y coordinate that's in the center between
+// the two points. Honors cubic and quadratic curves.
 function Bisect(p1, p2) {
   // XXX do something for quadratic/bezier? It's not actually that
   // hard to compute the midpoint.
   const { x: p1x, y: p1y } = GridToScreen(p1.x, p1.y);
   const { x: p2x, y: p2y } = GridToScreen(p2.x, p2.y);
-  // console.log('bisect ', p1x, p1y, p2x, p2y);
+
+  let Quadratic = (c, d) => {
+    const x = 0.25 * p1x + 2 * 0.5 * 0.5 * c + 0.25 * p2x;
+    const y = 0.25 * p1y + 2 * 0.5 * 0.5 * d + 0.25 * p2y;    
+    return { x, y };
+  }
+  
+  if (p1.e != undefined && p1.f != undefined) {
+    const { x: e, y: f } = GridToScreen(p1.e, p1.f);
+
+    if (p2.c != undefined && p2.d != undefined) {
+      // Cubic.
+      const { x: c, y: d } = GridToScreen(p2.c, p2.d);
+      const x = 0.125 * p1x + 3*0.25*0.5*c + 3*0.5*0.25*e + 0.125 * p2x;
+      const y = 0.125 * p1y + 3*0.25*0.5*d + 3*0.5*0.25*f + 0.125 * p2y;
+      return { x, y };
+    } else {
+      return Quadratic(e, f);
+    }
+  } else if (p2.c != undefined && p2.d != undefined) {
+    const { x: c, y: d } = GridToScreen(p2.c, p2.d);
+    return Quadratic(c, d);
+  }
+
+  // Linear.
   return { x: Math.round((p1x + p2x) / 2),
 	   y: Math.round((p1y + p2y) / 2) };
 }
@@ -217,7 +240,7 @@ function DrawControlPoints(p, highlight) {
     // True if the node is highlighted (could be one of its control
     // points).
     const highlighted = !!highlight && highlight.idx == i;
-    
+
     // Draw node's position, which always exists.
     const {x, y} = GridToScreen(pt.x, pt.y);
 
@@ -232,7 +255,7 @@ function DrawControlPoints(p, highlight) {
       ctx.lineWidth = lwidth;
       ctx.stroke();
     };
-    
+
     // console.log(p);
     let width;
     if (highlighted && highlight.xy) {
@@ -256,7 +279,7 @@ function DrawControlPoints(p, highlight) {
 		 'rgba(128,255,128,0.75)',
 		 'rgba(0,75,0,0.5)');
     }
-    
+
     // Draw exit control point if it exists.
     if (pt.e != undefined && pt.f != undefined) {
       const {x:e, y:f} = GridToScreen(pt.e, pt.f);
@@ -312,7 +335,7 @@ function DrawControlLines(p, highlight) {
       const {x:c, y:d} = GridToScreen(pt.c, pt.d);
       DrawLine(x, y, c, d, 'rgba(0,90,0,0.25)');
     }
-    
+
     // Draw exit control point if it exists.
     if (pt.e != undefined && pt.f != undefined) {
       const {x:e, y:f} = GridToScreen(pt.e, pt.f);
@@ -360,7 +383,11 @@ function DrawGrid(dx, dy) {
 
 function DrawModeAtom() {
   const path = atom_glyphs[current_atom];
-  
+
+  ctx.font = 'bold 40pt Helvetica,sans-serif';
+  ctx.fillStyle = '#ccd';
+  ctx.fillText('Atom ' + current_atom, 20, 50);
+
   let dx = null, dy = null;
   if (dragging) {
     if (dragging.xy) {
@@ -376,13 +403,13 @@ function DrawModeAtom() {
   }
 
   DrawGrid(dx, dy);
-  
+
   if (onion_atom) {
     const opath = atom_glyphs[onion_atom];
     DrawPath(opath, 'rgba(16,75,16,0.15)', undefined);
     // DrawControlPoints(path, undefined);
   }
-  
+
   let highlight;
   if (dragging) {
     highlight = dragging;
@@ -434,7 +461,7 @@ function DrawModeLetter() {
   ctx.fillStyle = '#cdc';
   ctx.fillText('Letter ' + current_letter + '/' + letter_piece,
 	       20, 50);
-  
+
   const letter = letters[current_letter];
   for (let i = 0; i < letter.p.length; i++) {
     let piece = letter.p[i];
@@ -545,7 +572,7 @@ function MouseMove(e) {
 	pt.f = gy;
       }
     }
-    
+
     Draw();
   } else if (mode == MODE_LETTER) {
     // Currently can only drag the width metric.
@@ -750,7 +777,7 @@ function KeyLetter(e) {
       letter_piece = 0;
     break;
   }
-  
+
   Draw();
 }
 
@@ -762,11 +789,11 @@ function KeyWord(e) {
   if (e.key == 'Backspace') {
     current_word = current_word.substr(0, current_word.length - 1);
   }
-  
+
   if (e.key in letters) {
     current_word += e.key;
   }
-  
+
   Draw();
 }
 
@@ -851,7 +878,7 @@ function InitializeAnimation() {
 
     if (animate_frame > TOTAL_FRAMES) {
       // Don't clear canvas.
-      
+
       window.clearTimeout(timeout_id);
       timeout_id = null;
       // swap words
@@ -872,7 +899,7 @@ function InitializeAnimation() {
       DrawGrid(null, null);
 
       const CHANNEL_HEIGHT = 30;
-      
+
       // Pure linear interpolation
       let pct = animate_frame / TOTAL_FRAMES;
       // Actually, use cosine easing.
@@ -883,7 +910,7 @@ function InitializeAnimation() {
       let b = 3 * omf * omf * f;
       let c = 3 * omf * f * f;
       let d = f * f * f;
-      
+
       for (let ap of animate_pieces) {
 	// Zenith point "above" start and end.
 	let hsy = ap.src.y + ap.height * CHANNEL_HEIGHT;
@@ -892,7 +919,7 @@ function InitializeAnimation() {
 	let x = (a + b) * ap.src.x + (c + d) * ap.dst.x;
 	let y = a * ap.src.y + b * hsy + c * hdy + d * ap.dst.y;
 	let r = (a + b) * ap.src.r + (c + d) * ap.dst.r;
-	    
+
 	/*
 	let x = f * ap.src.x + omf * ap.dst.x;
 	let y = f * ap.src.y + omf * ap.dst.y;
@@ -909,7 +936,7 @@ function InitializeAnimation() {
 	  y -= zenith * (omf / VERT_FRAC);
 	}
 	*/
-	
+
 	let fill = '#000';
 	let path = TransformPath(atom_glyphs[ap.atom], x, y, r);
 	DrawPath(path, fill, null);
@@ -951,9 +978,9 @@ function Key(e) {
     return;
   }
   }
-    
+
   console.log(e);
-  
+
   if (mode == MODE_ATOM) {
     KeyAtom(e);
   } else if (mode == MODE_LETTER) {
