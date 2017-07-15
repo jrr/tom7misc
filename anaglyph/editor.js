@@ -73,7 +73,7 @@ const CANVASHEIGHT = 1080;
 const CELLSIZES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40];
 
 // One for each mode.
-let CELLSIZEIDXS = [9, 5, 2, 2];
+let CELLSIZEIDXS = [8, 6, 2, 2];
 (() => { if (CELLSIZEIDXS.length != NUM_MODES) throw 'bad init'; })();
 
 let CELLSIZE = CELLSIZES[CELLSIZEIDXS[mode]];
@@ -384,10 +384,6 @@ function DrawGrid(dx, dy) {
 function DrawModeAtom() {
   const path = atom_glyphs[current_atom];
 
-  ctx.font = 'bold 40pt Helvetica,sans-serif';
-  ctx.fillStyle = '#ccd';
-  ctx.fillText('Atom ' + current_atom, 20, 50);
-
   let dx = null, dy = null;
   if (dragging) {
     if (dragging.xy) {
@@ -404,6 +400,10 @@ function DrawModeAtom() {
 
   DrawGrid(dx, dy);
 
+  ctx.font = 'bold 40pt Helvetica,sans-serif';
+  ctx.fillStyle = '#ccd';
+  ctx.fillText('Atom ' + current_atom, 20, 50);
+  
   if (onion_atom) {
     const opath = atom_glyphs[onion_atom];
     DrawPath(opath, 'rgba(16,75,16,0.15)', undefined);
@@ -453,6 +453,33 @@ function TransformPath(p, dx, dy, r) {
   }
   return ret;
 }
+
+// This is TransformPath(p, 0, 0, 90), but without using
+// sin/cos, in order to ensure that integer inputs remain
+// integers.
+function Rotate90(p, ccw) {
+  let ret = [];
+  for (const pt of p) {
+    const sinr = ccw ? -1 : 1;
+    // cosr is always 0.
+    const x = - pt.y * sinr;
+    const y =   pt.x * sinr;
+    var o = {x, y};
+    // Control points are in the same coordinate system
+    // so can just be transformed like x,y are.
+    if (pt.c != undefined && pt.d != undefined) {
+      o.c = - pt.d * sinr;
+      o.d =   pt.c * sinr;
+    }
+    if (pt.e != undefined && pt.e != undefined) {
+      o.e = - pt.f * sinr;
+      o.f =   pt.e * sinr;
+    }
+    ret.push(o);
+  }
+  return ret;
+}
+
 
 function DrawModeLetter() {
   DrawGrid(null, null);
@@ -672,6 +699,17 @@ function KeyAtom(e) {
     const closest = ClosestPoint(path, mousex, mousey, CELLSIZE, false);
     if (!closest) return;
     path.splice(closest.idx, 1);
+    break;
+  }
+  case '[': {
+    // Can only guarantee integer coordinates if we rotate 90 degrees.
+    let path = Rotate90(atom_glyphs[current_atom], true);
+    atom_glyphs[current_atom] = path;
+    break;
+  }
+  case ']': {
+    let path = Rotate90(atom_glyphs[current_atom], false);
+    atom_glyphs[current_atom] = path;
     break;
   }
   case '1':
