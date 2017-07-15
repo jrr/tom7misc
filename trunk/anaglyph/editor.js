@@ -55,6 +55,8 @@ let current_letter = 'd';
 // Index of current piece within the current_letter. Make sure
 // it gets reset to 0 when current_letter changes.
 let letter_piece = 0;
+// Kerning pair (second) for the current letter.
+let letter_kern = null;
 
 //////////////////////////
 // For word mode.
@@ -497,6 +499,24 @@ function DrawModeLetter() {
     DrawPath(path, fill, null);
   }
 
+  let kern = 0;
+  if (letter_kern) {
+    let dx = letter.m.w;
+    if (letter.k && letter.k[letter_kern] != undefined) {
+      kern = letter.k[letter_kern];
+    }
+    dx += kern;
+
+    const pal = letters[letter_kern];
+    for (let i = 0; i < pal.p.length; i++) {
+      let piece = pal.p[i];
+      let fill = 'rgba(127,127,160,1.0)'
+      let path = TransformPath(atom_glyphs[piece.a],
+			       piece.x + dx, piece.y, piece.r);
+      DrawPath(path, fill, null);
+    }
+  }
+  
   // Draw metrics
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -505,6 +525,16 @@ function DrawModeLetter() {
   ctx.moveTo(widthx, 0);
   ctx.lineTo(widthx, CELLSH * CELLSIZE);
   ctx.stroke();
+
+  if (kern != 0) {
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.strokeStyle = '#a77';
+    const { x: widthx, y: unused } = GridToScreen(letter.m.w + kern, 0);
+    ctx.moveTo(widthx, 0);
+    ctx.lineTo(widthx, CELLSH * CELLSIZE);
+    ctx.stroke();
+  }
 }
 
 function DrawLetter(letter, dx, dy) {
@@ -520,7 +550,14 @@ function DrawLetter(letter, dx, dy) {
 function WordWidth(w) {
   let total = 0;
   for (let i = 0; i < w.length; i++) {
-    total += letters[w[i]].m.w;
+    const c = w[i];
+    total += letters[c].m.w;
+    if (i != w.length - 1) {
+      let pal = w[i + 1];
+      if (letters[c].k && letters[c].k[pal]) {
+	total += letters[c].k[pal];
+      }
+    }
   }
   return total;
 }
@@ -535,6 +572,12 @@ function DrawModeWord() {
     let c = current_word[i];
     DrawLetter(letters[c], x, 0);
     x += letters[c].m.w;
+    if (i != current_word.length - 1) {
+      let pal = current_word[i + 1];
+      if (letters[c].k && letters[c].k[pal]) {
+	x += letters[c].k[pal];
+      }
+    }
   }
 }
 
@@ -761,9 +804,17 @@ function KeyAtom(e) {
 }
 
 function KeyLetter(e) {
-  if (e.key in letters) {
-    current_letter = e.key;
-    letter_piece = 0;
+  const lc = e.key.toLocaleLowerCase();
+  if (lc in letters) {
+    if (e.shiftKey) {
+      // Set kerning pair;
+      letter_kern = lc;
+      console.log(letter_kern);
+    } else {
+      current_letter = lc;
+      letter_piece = 0;
+      letter_kern = null;
+    }
     Draw();
     return;
   }
@@ -779,11 +830,29 @@ function KeyLetter(e) {
 
   let ak = ArrowKey(e);
   if (ak) {
-    if (e.shiftKey) {
+    if (e.ctrlKey) {
       for (let piece of letters[current_letter].p) {
 	piece.x += ak.dx;
 	piece.y += ak.dy;
       }
+    } if (e.shiftKey && letter_kern) {
+      if (!letters[current_letter].k)
+	letters[current_letter].k = {};
+      let k = letters[current_letter].k[letter_kern] || 0;
+      k += ak.dx;
+      if (k == 0) {
+	// Don't store default kerning.
+	delete letters[current_letter].k[letter_kern];
+	// Last one? Delete the k object too.
+	if (Object.keys(letters[current_letter].k).length == 0) {
+	  delete letters[current_letter].k;
+	}
+      } else {
+	letters[current_letter].k[letter_kern] = k;
+      }
+      // XXX
+      console.log(letters[current_letter]);
+      
     } else {
       let piece = letters[current_letter].p[letter_piece];
       piece.x += ak.dx;
@@ -856,6 +925,12 @@ function LayoutWord(word) {
     }
     slots.push(slot);
     x += letters[c].m.w;
+    if (i != word.length - 1) {
+      let pal = words[i];
+      if (letters[c].k && letters[c].k[pal]) {
+	x += letters[c].k[pal];
+      }
+    }
   }
   return slots;
 }
