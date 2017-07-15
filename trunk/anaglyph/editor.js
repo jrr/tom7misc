@@ -551,6 +551,7 @@ function WordWidth(w) {
   let total = 0;
   for (let i = 0; i < w.length; i++) {
     const c = w[i];
+    if (!letters[c]) debugger;
     total += letters[c].m.w;
     if (i != w.length - 1) {
       let pal = w[i + 1];
@@ -926,7 +927,7 @@ function LayoutWord(word) {
     slots.push(slot);
     x += letters[c].m.w;
     if (i != word.length - 1) {
-      let pal = words[i];
+      let pal = word[i + 1];
       if (letters[c].k && letters[c].k[pal]) {
 	x += letters[c].k[pal];
       }
@@ -985,7 +986,7 @@ function InitializeAnimation() {
 			 dst: { x: dstx, y: dsty, r: b }})
   }
 
-  const TOTAL_FRAMES = 300;
+  const TOTAL_FRAMES = 200;
   let AnimateCallback = () => {
     animate_frame++;
 
