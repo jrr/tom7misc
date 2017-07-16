@@ -33,27 +33,27 @@ struct
      line.
      *)
   fun wrapto (n : int) (s : string) : string list =
-      let
-        fun wrapline ss =
-          if size ss <= n then [ss]
-          else
-            let
-                fun grab nil nil _ = nil
-                  | grab nil l _ = [delimit " " (rev l)]
-                  | grab (h :: t) l sof =
-                    if size h + sof <= n
-                    then grab t (h :: l) (sof + (size h + 1))
-                    else if null l andalso size h > n
-                         then String.substring (h, 0, n) ::
-                              grab (String.substring (h, n, size h - n) :: t)
-                                   nil 0
-                         else (delimit " " (rev l)) :: grab (h :: t) nil 0
-            in
-                grab (String.fields (ischar #" ") ss) nil 0
-            end
-      in
-          List.concat (map wrapline (String.fields (ischar #"\n") s))
-      end
+    let
+      fun wrapline ss =
+        if size ss <= n then [ss]
+        else
+          let
+            fun grab nil nil _ = nil
+              | grab nil l _ = [delimit " " (rev l)]
+              | grab (h :: t) l sof =
+              if size h + sof <= n
+              then grab t (h :: l) (sof + (size h + 1))
+              else if null l andalso size h > n
+                   then String.substring (h, 0, n) ::
+                     grab (String.substring (h, n, size h - n) :: t)
+                     nil 0
+                   else (delimit " " (rev l)) :: grab (h :: t) nil 0
+          in
+            grab (String.fields (ischar #" ") ss) nil 0
+          end
+    in
+      List.concat (map wrapline (String.fields (ischar #"\n") s))
+    end
 
   fun pad' c n s =
     if (size s >= n) then (s, "")
@@ -62,13 +62,13 @@ struct
 
   fun padex c n s =
     if n < 0 then
-        let val (a, b) = pad' c (~ n) s
-        in b ^ a
-        end
+       let val (a, b) = pad' c (~ n) s
+       in b ^ a
+       end
     else
-        let val (a, b) = pad' c n s
-        in a ^ b
-        end
+      let val (a, b) = pad' c n s
+      in a ^ b
+      end
 
   val pad = padex #" "
 
@@ -119,15 +119,15 @@ struct
      to make it square. return the number of columns. *)
   fun make_square (x : string list list) : string list list * int =
     let
-        val cols = foldl (fn (l, b) => max(length l, b)) 0 x
+      val cols = foldl (fn (l, b) => max(length l, b)) 0 x
     in
-        (foldr (fn (l, b) =>
-                let val n = length l
-                in
+      (foldr (fn (l, b) =>
+              let val n = length l
+              in
                 if n < cols then
                    l @ (List.tabulate (cols - n, K ""))
                 else l
-                end :: b) nil x, cols)
+              end :: b) nil x, cols)
     end
 
 
@@ -135,13 +135,13 @@ struct
      instead treat those as separate lines and return the
      longest one. *)
   fun maxwidth s =
-      foldr Int.max 0 (map size (String.fields (ischar #"\n") s))
+    foldr Int.max 0 (map size (String.fields (ischar #"\n") s))
 
   (* longest unbreakable token in this string. *)
   fun minwidth s =
-      foldr Int.max 0 (map size (String.fields (fn #" " => true
-                                                | #"\n" => true
-                                                | _ => false) s))
+    foldr Int.max 0 (map size (String.fields (fn #" " => true
+                                              | #"\n" => true
+                                              | _ => false) s))
 
   fun table n sll =
     let
@@ -211,22 +211,24 @@ struct
     end
 
   fun ucase s =
-      let fun uc h =
-          if h >= #"a" andalso h <= #"z"
-          then chr (ord h - 32)
-          else h
-      in
-          CharVector.map uc s
-      end
+    let
+      fun uc h =
+        if h >= #"a" andalso h <= #"z"
+        then chr (ord h - 32)
+        else h
+    in
+      CharVector.map uc s
+    end
 
   fun lcase s =
-      let fun lc h =
-          if h >= #"A" andalso h <= #"Z"
-          then chr (ord h + 32)
-          else h
-      in
-          CharVector.map lc s
-      end
+    let
+      fun lc h =
+        if h >= #"A" andalso h <= #"Z"
+        then chr (ord h + 32)
+        else h
+    in
+      CharVector.map lc s
+    end
 
   fun vconcat vec = Vector.foldr (op ^) "" vec
 
@@ -254,27 +256,6 @@ struct
       CharVector.tabulate (ct, fn _ => get ())
     end
 
-  (* nb. this is broken in SML/NJ on win32, for unknown
-     reasons. Also, note that this does CRLF conversion
-     on Win32, which might not be the desired behavior.
-     Should probably rewrite to use BinIO. *)
-  fun readfile f =
-    let
-      val l = TextIO.openIn f
-      val s = TextIO.inputAll l
-    in
-      TextIO.closeIn l;
-      s
-    end
-
-  fun writefile f s =
-    let
-      val l = TextIO.openOut f
-    in
-      TextIO.output (l, s);
-      TextIO.closeOut l
-    end
-
   fun writefilev8 f (v : Word8Vector.vector) =
     let
       val s : BinIO.outstream = BinIO.openOut f
@@ -283,9 +264,42 @@ struct
       BinIO.closeOut s
     end
 
+  fun readfilev8 filename =
+    let
+      val f = BinIO.openIn filename
+      val v = BinIO.inputAll f
+    in
+      BinIO.closeIn f;
+      v
+    end
+
+  (* nb. this is broken in SML/NJ on win32, for unknown
+     reasons. Also, note that this does CRLF conversion
+     on Win32, which might not be the desired behavior.
+     Should probably rewrite to use BinIO. *)
+  fun readfile f =
+    let
+      val v = readfilev8 f
+    in
+      CharVector.tabulate
+      (Word8Vector.length v,
+       fn i => chr (Word8.toInt (Word8Vector.sub (v, i))))
+    end
+
+  (* Need to avoid TextIO. Depending on the version of mlton,
+     it may do CRLF conversion. *)
+  fun writefile filename s =
+    let
+      val v = Word8Vector.tabulate
+        (size s,
+         fn i => Word8.fromInt (ord (String.sub (s, i))))
+    in
+      writefilev8 filename v
+    end
+
   fun truncate l s =
-      if size s > l then String.substring(s, 0, l)
-      else s
+    if size s > l then String.substring(s, 0, l)
+    else s
 
   val digits = "0123456789ABCDEF"
   fun nybbletohex n = CharVector.sub (digits, n)

@@ -47,92 +47,80 @@ struct
      This always works. *)
   fun ss_all s = SS.extract(s, 0, NONE)
 
-  (*  This will return NONE if there is some error.
-  *)
+  (* This will return NONE if there is some error. *)
   fun decode str : string option =
-  let
-      (*  This will throw an exception if there aren't 0 or 4 chars left
-          in ss.
-      *)
+    let
+      (* This will throw an exception if there aren't 0 or 4 chars left
+         in ss. *)
       fun loop ss rslt =
-          if SS.isEmpty ss
-          then
-              SOME(implode(rev rslt))
-          else
-              let
-                  val four = SS.slice(ss, 0, SOME 4)
-                  val rest = SS.slice(ss, 4, NONE)
-              in
-                  loop rest (push four rslt)
-              end
+        if SS.isEmpty ss
+        then SOME(implode(rev rslt))
+        else
+          let
+            val four = SS.slice(ss, 0, SOME 4)
+            val rest = SS.slice(ss, 4, NONE)
+          in
+            loop rest (push four rslt)
+          end
 
-      (*  Convert a substring of 4 chars to 3 chars and push them onto rslt.
-      *)
+      (* Convert a substring of 4 chars to 3 chars and push them onto rslt. *)
       and push (group: substring) (rslt: char list) =
-      let
+        let
           fun get ss numeq bits =
-              case SS.getc ss of
-                NONE => (numeq, bits)
-              | SOME (c, rest) =>
-              let
+            case SS.getc ss of
+              NONE => (numeq, bits)
+            | SOME (c, rest) =>
+                let
                   val v = cvt c
-                  val n' = if c = #"=" then numeq+1 else numeq
+                  val n' = if c = #"=" then numeq + 1 else numeq
                   val b' = Word.orb(v, Word.<<(bits, 0w6))
-              in
+                in
                   get rest n' b'
-              end
+                end
 
           (* XXX could benefit from a table *)
           and cvt ch =
-              if ch >= #"A" andalso ch <= #"Z"
-              then
-                  Word.fromInt((ord ch) - 65)
-              else
-              if ch >= #"a" andalso ch <= #"z"
-              then
-                  Word.fromInt((ord ch) - 71)
-              else
-              if ch >= #"0" andalso ch <= #"9"
-              then
-                  Word.fromInt((ord ch) + 4)
-              else
-              if ch = #"+"
-              then
-                  0w62
-              else
-              if ch = #"/"
-              then
-                  0w63
-              else
-                  0w0
+            if ch >= #"A" andalso ch <= #"Z"
+            then Word.fromInt((ord ch) - 65)
+            else
+            if ch >= #"a" andalso ch <= #"z"
+            then Word.fromInt((ord ch) - 71)
+            else
+            if ch >= #"0" andalso ch <= #"9"
+            then Word.fromInt((ord ch) + 4)
+            else
+            if ch = #"+"
+            then 0w62
+            else
+            if ch = #"/"
+            then 0w63
+            else 0w0
 
           and split bytes 0  r = r
             | split bytes nc r =
-          let
+            let
               (* get left-most byte *)
               val left = Word.>>(bytes, 0w24)
               val rest = Word.<<(bytes, 0w8)
               val c = chr(Word.toInt left)
-          in
-              split rest (nc-1) (c::r)
-          end
+            in
+              split rest (nc - 1) (c :: r)
+            end
 
           val (numeq, bytes) = get group 0 0w0
-      in
+        in
           split (Word.<<(bytes, 0w8)) (3 - numeq) rslt
-      end
+        end
 
-  in
+    in
       loop (ss_all str) []
-  end
+    end
   handle _ => NONE
 
-
   fun encode the_str : string =
-  let
-      (*  Grab groups of 3 chars.
-          n is the number of chars to add to a group.
-      *)
+    let
+      (* Grab groups of 3 chars.
+         n is the number of chars to add to a group. *)
 
       fun loop ss 0 acc rslt =
           (* end of a group *)
@@ -142,70 +130,66 @@ struct
           case SS.getc ss of
             NONE =>
               let
-                  (* no more chars, pad the group *)
-                  val final =
-                      if n = 3    (* group is empty *)
-                      then rslt
-                      else
-                          let
-                              (* flush the group, n=1,2 *)
-                              val acc' = padz acc n
-                          in
-                              pade n (push acc' (4-n) rslt)
-                          end
+                (* no more chars, pad the group *)
+                val final =
+                  if n = 3    (* group is empty *)
+                  then rslt
+                  else
+                    let
+                      (* flush the group, n=1,2 *)
+                      val acc' = padz acc n
+                    in
+                      pade n (push acc' (4 - n) rslt)
+                    end
               in
-                  implode(rev final)
+                implode(rev final)
               end
           | SOME (c, rest) =>
-          let
-              val b = Word.fromInt(ord c)
-              val acc' = Word.orb(Word.<<(acc, 0w8), b)
-          in
-              loop rest (n-1) acc' rslt
-          end
+              let
+                val b = Word.fromInt(ord c)
+                val acc' = Word.orb(Word.<<(acc, 0w8), b)
+              in
+                loop rest (n - 1) acc' rslt
+              end
 
       (*  Pad the acc with 0 bytes. *)
       and padz acc 0 = acc
-        | padz acc m = padz (Word.<<(acc, 0w8)) (m-1)
+        | padz acc m = padz (Word.<<(acc, 0w8)) (m - 1)
 
       (*  Pad with = chars at the end of the string. *)
       and pade 0 rslt = rslt
-        | pade n rslt = pade (n-1) (#"="::rslt)
+        | pade n rslt = pade (n - 1) (#"=" :: rslt)
 
       (*  Push n characters from acc onto rslt.
-          The input is padded with 0 to get 24 bits.
-      *)
+          The input is padded with 0 to get 24 bits. *)
       and push acc 0 rslt = rslt
         | push acc n rslt =
-      let
+        let
           val b = Word.>>(acc, 0w18)  (* top 6 bits *)
           val acc' = Word.andb(Word.<<(acc, 0w6), 0wxffffff)
           val c = cvt(Word.toInt b)
-      in
-          push acc' (n-1) (c::rslt)
-      end
+        in
+          push acc' (n - 1) (c :: rslt)
+        end
 
       (* XXX again, tabling... *)
       and cvt b =
           if b <= 25
-          then
-              chr(65 + b)
+          then chr(65 + b)
           else
           if b <= 51
-          then
-              chr(71 + b)
+          then chr(71 + b)
           else
           if b <= 61
-          then
-              chr(b - 4)
+          then chr(b - 4)
           else
           if b = 62
           then #"+"
           else #"/"
   in
-      if the_str = ""
-      then the_str (* spec appears to be undefined on this case *)
-      else loop (ss_all the_str) 3 0w0 []
+    if the_str = ""
+    then the_str (* spec appears to be undefined on this case *)
+    else loop (ss_all the_str) 3 0w0 []
   end
 
 end

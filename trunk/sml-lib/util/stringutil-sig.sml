@@ -38,10 +38,10 @@ sig
 
   val reverse : string -> string
 
-  (* XXX: Do these really belong here? *)
-  (* read a whole file into a string. *)
+  (* read a whole file into a string. No CR/LF conversion. *)
   val readfile : string -> string
-  (* writefile file contents *)
+  val readfilev8 : string -> Word8Vector.vector
+  (* writefile file contents. No CR/LF conversion. *)
   val writefile : string -> string -> unit
   val writefilev8 : string -> Word8Vector.vector -> unit
 

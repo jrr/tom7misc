@@ -25,6 +25,10 @@
    without providing a default. If no other code calls the standard
    version to give it a default value and docstring, then docommandline
    will fail.
+
+   Params will only have values after calling the initialization routines
+   at the bottom of this file. Usually the rest of the program's execution
+   is embedded in the function passed to e.g. Params.main.
 *)
 
 signature PARAMS =
