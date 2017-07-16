@@ -221,7 +221,7 @@ struct
 
       (* Remove zero-atom elements from the head of the list. *)
       fun removezeros nil = nil
-        | removezeros ((h as { atoms, ... }) :: t) =
+        | removezeros ((h as { atoms, idx = _, already = _ }) :: t) =
         if Atoms.zero = atoms then removezeros t
         else h :: t
 
@@ -702,8 +702,12 @@ struct
                                " words can be made\n"))
       val usable = ListUtil.sort bylength (!usable)
       val usable = ListUtil.takeupto 200 usable
+      val usable = map (fn w =>
+                        (w,
+                         Atoms.--(phrase_atoms, word_atoms w))) usable
     in
-      app (fn w => print (w ^ "\n")) usable
+      app (fn (w, left) =>
+           print (w ^ "\t" ^ Atoms.tostring left ^ "\n")) usable
     end
 
   fun anaglyph_requiring maxwords req phrase =

@@ -88,23 +88,52 @@ struct
               | SOME data =>
                   let val code = String.substring (rest, 0, idx)
                   in
-                    if StringUtil.all (StringUtil.charspec "a-z") code
+                    if StringUtil.all (StringUtil.charspec "a-z0-9") code
                     then SOME (code, data)
                     else NONE
                   end))
     | NONE => NONE
 
-  fun make_response (path, headers) =
-    let in
-      print ("Try parse: [" ^ path ^ "]\n");
-    case decode "/save_atoms/" path of
-      SOME (code, atoms) =>
+  fun decode_dataurl url =
+    case StringUtil.removehead "data:image/png;base64," url of
+      SOME base64 =>
         let in
-          StringUtil.writefile ("atoms-" ^ code ^ ".js")
-          ("const atom_glyphs =\n  " ^ atoms ^ ";\n");
-          response_ok ()
+          print (String.substring (base64, 0, 10) ^ " ... " ^
+                 Int.toString (size base64) ^ "\n");
+          Base64.decode base64
         end
-    | NONE =>
+    | NONE => NONE
+
+  fun make_response (path, headers) =
+    let
+      val () = print ("Path length " ^ Int.toString (size path) ^ "\n")
+    in
+      case decode "/frame/" path of
+        SOME (num, dataurl) =>
+          (case decode_dataurl dataurl of
+             SOME png =>
+               let in
+                 Util.for 0 12
+                 (fn i =>
+                  print (Int.toString (ord (String.sub(png, i))) ^ " "));
+                 print "\n";
+                 StringUtil.writefile ("frames/frame-" ^ num ^ ".png") png;
+                 response_ok ()
+               end
+           | NONE =>
+               let in
+                 print ("Couldn't parse data url [" ^ dataurl ^ "]\n");
+                 response_fail ()
+               end)
+      | NONE =>
+      case decode "/save_atoms/" path of
+        SOME (code, atoms) =>
+          let in
+            StringUtil.writefile ("atoms-" ^ code ^ ".js")
+            ("const atom_glyphs =\n  " ^ atoms ^ ";\n");
+            response_ok ()
+          end
+      | NONE =>
         case decode "/save_letters/" path of
           SOME (code, letters) =>
             let in
@@ -112,7 +141,11 @@ struct
               ("const letters =\n  " ^ letters ^ ";\n");
               response_ok ()
             end
-        | NONE => response_fail ()
+        | NONE =>
+            let in
+              print ("Failed to parse [" ^ path ^ "]\n");
+              response_fail ()
+            end
     end
 
   datatype headers =
@@ -137,7 +170,7 @@ struct
                 nil => ("ERROR", nil)
               | (h :: t) => (h, t)
           in
-            print (req ^ "\n");
+            (* print (req ^ "\n"); *)
             case String.tokens (StringUtil.ischar #" ") req of
               "GET" :: path :: _ => SOME (Get (path, hdrs))
             | _ => SOME (Bad nocr)
@@ -232,7 +265,7 @@ struct
       then
         let val (sock, _) = Socket.accept server
         in
-          print ("Got connection.\n");
+          print "Got connection.\n";
           clients := C { socket = sock,
                          state = ref (GetHeaders "") } :: !clients
         end

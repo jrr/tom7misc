@@ -20,6 +20,10 @@ const MODE_ANIMATE = 3;
 const NUM_MODES = 4;
 let mode = MODE_ATOM;
 
+// Are we writing frames to the frameserver? Set manually from
+// console.
+let saving = false;
+
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
 // Atoms have a single path (e and o are just self-overlapping).
@@ -349,15 +353,15 @@ function DrawControlLines(p, highlight) {
 
 // Draw the grid at the current scale. dx and dy yield a red rule,
 // reflected around the axis.
-function DrawGrid(dx, dy) {
+function DrawGrid(dx, dy, novert = false, cellstep = 1) {
   // Draw grid
   ctx.lineWidth = 1;
-  for (let y = 0; y <= CELLSH; y++) {
+  for (let y = 0; y <= CELLSH; y += cellstep) {
     ctx.beginPath();
     const yy = y - CELLSH / 2;
     if (yy == 0) {
       ctx.strokeStyle = '#777';
-    } else if (yy == dy || yy == -dy) {
+    } else if (yy === dy || -yy === dy) {
       ctx.strokeStyle = '#d99';
     } else {
       ctx.strokeStyle = '#ddd';
@@ -367,12 +371,12 @@ function DrawGrid(dx, dy) {
     ctx.stroke();
   }
 
-  for (let x = 0; x <= CELLSW; x++) {
+  for (let x = 0; x <= CELLSW; x += cellstep) {
     ctx.beginPath();
     const xx = x - CELLSW / 2;
-    if (xx == 0) {
+    if (xx == 0 && !novert) {
       ctx.strokeStyle = '#777';
-    } else if (xx == dx || xx == -dx) {
+    } else if (xx === dx || -xx === dx) {
       ctx.strokeStyle = '#d99';
     } else {
       ctx.strokeStyle = '#ddd';
@@ -657,7 +661,7 @@ function MouseMove(e) {
   }
 }
 
-function getFrameServerUrl(url, k) {
+function GetFrameServerUrl(url, k) {
   const req = new XMLHttpRequest();
   req.onreadystatechange = function() {
     console.log(req.readyState, req.status);
@@ -670,13 +674,13 @@ function getFrameServerUrl(url, k) {
   req.send(null);
 }
 
-function getSynchronous(url) {
+function GetSynchronous(url) {
   // XXX queue?
   if (locked)
     throw 'synchronous while locked';
 
   locked = 'Saving...';
-  getFrameServerUrl(url, function () {
+  GetFrameServerUrl(url, function () {
     console.log('callback');
     locked = null;
     Draw();
@@ -716,7 +720,7 @@ function KeyAtom(e) {
   if (e.code == 'NumpadEnter') {
     // Save data to frameserver.
     const data = JSON.stringify(atom_glyphs);
-    getSynchronous('/save_atoms/' + code + '/' +
+    GetSynchronous('/save_atoms/' + code + '/' +
 		   encodeURIComponent(data));
     return;
   }
@@ -824,7 +828,7 @@ function KeyLetter(e) {
   if (e.code == 'NumpadEnter') {
     // Save data to frameserver.
     const data = JSON.stringify(letters);
-    getSynchronous('/save_letters/' + code + '/' +
+    GetSynchronous('/save_letters/' + code + '/' +
 		   encodeURIComponent(data));
     return;
   }
@@ -1008,9 +1012,14 @@ function InitializeAnimation() {
       }
       plan = newplan;
 
+      // Don't overwrite.
+      saving = false;
+      
     } else {
       ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
-      DrawGrid(null, null);
+      // Don't draw vertical line (useless). Since we
+      // are often zoomed way out, draw a coarser grid
+      DrawGrid(null, null, true, 6);
 
       const CHANNEL_HEIGHT = 30;
 
@@ -1055,9 +1064,23 @@ function InitializeAnimation() {
 	let path = TransformPath(atom_glyphs[ap.atom], x, y, r);
 	DrawPath(path, fill, null);
       }
-      timeout_id = window.setTimeout(AnimateCallback, 1000 / 60);
+
+      if (saving) {
+	// Record the contents of the frame, saving it to the
+	// frameserver, and continue with the next frame once that
+	// has succeeded.
+	const url = canvas.toDataURL();
+	// console.log(url);
+	GetFrameServerUrl('/frame/' + animate_frame + '/' +
+			  encodeURIComponent(url),
+			  AnimateCallback);
+      } else {
+	// Just keep drawing frames as the timer elapses.
+	timeout_id = window.setTimeout(AnimateCallback, 1000 / 60);
+      }
     }
   };
+  // XXX maybe makes more sense to immediately invoke it?
   timeout_id = window.setTimeout(AnimateCallback, 1000 / 60);
 }
 
