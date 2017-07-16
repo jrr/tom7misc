@@ -33,6 +33,7 @@ computer science stuff:
  make a font that actually realizes this compositionality
  animate word transitions
 
+ANAGRAPH GENERATOR
 
 some that don't need to break apart letters:
 
@@ -68,4 +69,3 @@ worst anagrams
 photomicrograph
 microphotograph
  jeremy's iron
-

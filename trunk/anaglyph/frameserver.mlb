@@ -27,4 +27,7 @@ $(SML_LIB)/basis/unsafe.mlb
 ../sml-lib/njlib/splaytree.sml
 ../sml-lib/njlib/splay-map-fn.sml
 
+../sml-lib/misc/base64-sig.sml
+../sml-lib/misc/base64.sml
+
 frameserver.sml
