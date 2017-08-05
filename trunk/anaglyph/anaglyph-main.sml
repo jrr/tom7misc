@@ -10,6 +10,10 @@ struct
   val tree = Params.flag false
     (SOME ("-tree", "Dump the tree as a text file.")) "tree"
 
+  val js = Params.flag false
+    (SOME ("-js", "Dump the tree and atom data as javascript. " ^
+           "Used for the anagraph explorer.")) "js"
+
   val plan = Params.flag false
     (SOME ("-plan", "Plan an animation between phrase1 and phrase2")) "plan"
 
@@ -41,6 +45,9 @@ struct
         else
         if !tree
         then StringUtil.writefile "tree.txt" (Anaglyph.tree_textfile ())
+        else
+        if !js
+        then StringUtil.writefile "tree.js" (Anaglyph.tree_js ())
         else
         if !best
         then Anaglyph.best_requiring require argstring

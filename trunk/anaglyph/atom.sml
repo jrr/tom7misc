@@ -53,15 +53,15 @@ struct
     | _ => NONE
 end
 
-structure InversionOnly :> ATOM =
+structure Inv :> ATOM =
 struct
   type atom = int
   val START = ord #"a"
   val compare = Int.compare
-  (* bdpq map to b, and nu maps to n. Everything else is identity. *)
-  val num_atoms = 26 - 3 - 1
+  (* bq map to b, dp map to d, and nu maps to n. Everything else is identity. *)
+  val num_atoms = 26 - 1 - 1 - 1
   fun tochar a =
-    CharVector.sub("abcefghijklmnorstvwxyz", a)
+    CharVector.sub("abcdefghijklmnorstvwxyz", a)
 
   fun toint a = a
   fun fromint i = if i >= 0 andalso i < num_atoms
@@ -72,29 +72,29 @@ struct
       #"a" => SOME [ord #"a" - START]
     | #"b" => SOME [ord #"b" - START]
     | #"c" => SOME [ord #"c" - START]
-    | #"d" => SOME [ord #"b" - START] (* reuse *)
-    | #"e" => SOME [ord #"e" - START - 1]
-    | #"f" => SOME [ord #"f" - START - 1]
-    | #"g" => SOME [ord #"g" - START - 1]
-    | #"h" => SOME [ord #"h" - START - 1]
-    | #"i" => SOME [ord #"i" - START - 1]
-    | #"j" => SOME [ord #"j" - START - 1]
-    | #"k" => SOME [ord #"k" - START - 1]
-    | #"l" => SOME [ord #"l" - START - 1]
-    | #"m" => SOME [ord #"m" - START - 1]
-    | #"n" => SOME [ord #"n" - START - 1]
-    | #"o" => SOME [ord #"o" - START - 1]
-    | #"p" => SOME [ord #"b" - START] (* reuse *)
+    | #"d" => SOME [ord #"d" - START]
+    | #"e" => SOME [ord #"e" - START]
+    | #"f" => SOME [ord #"f" - START]
+    | #"g" => SOME [ord #"g" - START]
+    | #"h" => SOME [ord #"h" - START]
+    | #"i" => SOME [ord #"i" - START]
+    | #"j" => SOME [ord #"j" - START]
+    | #"k" => SOME [ord #"k" - START]
+    | #"l" => SOME [ord #"l" - START]
+    | #"m" => SOME [ord #"m" - START]
+    | #"n" => SOME [ord #"n" - START]
+    | #"o" => SOME [ord #"o" - START]
+    | #"p" => SOME [ord #"d" - START] (* reuse *)
     | #"q" => SOME [ord #"b" - START] (* reuse *)
-    | #"r" => SOME [ord #"r" - START - 3]
-    | #"s" => SOME [ord #"s" - START - 3]
-    | #"t" => SOME [ord #"t" - START - 3]
+    | #"r" => SOME [ord #"r" - START - 2]
+    | #"s" => SOME [ord #"s" - START - 2]
+    | #"t" => SOME [ord #"t" - START - 2]
     | #"u" => SOME [ord #"n" - START] (* reuse *)
-    | #"v" => SOME [ord #"v" - START - 4]
-    | #"w" => SOME [ord #"w" - START - 4]
-    | #"x" => SOME [ord #"x" - START - 4]
-    | #"y" => SOME [ord #"y" - START - 4]
-    | #"z" => SOME [ord #"z" - START - 4]
+    | #"v" => SOME [ord #"v" - START - 3]
+    | #"w" => SOME [ord #"w" - START - 3]
+    | #"x" => SOME [ord #"x" - START - 3]
+    | #"y" => SOME [ord #"y" - START - 3]
+    | #"z" => SOME [ord #"z" - START - 3]
     | #" " => SOME []
     | _ => NONE
 end
@@ -122,4 +122,4 @@ struct
     end
 end
 
-structure Atom = Letter
+structure Atom = Canonical
