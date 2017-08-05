@@ -5,7 +5,7 @@ if [ "$#" -ne 1 ]; then
     exit -1
 fi
 
-OUTDIR="$1"
-mkdir "${OUTDIR}"
+OUTDIR=/d/video/anagraph/"$1"
+mkdir "${OUTDIR}" || exit -1
 time pngcrush -d "${OUTDIR}" -reduce frames/*.png
 rm -f frames/*.png

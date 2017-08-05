@@ -33,6 +33,8 @@ computer science stuff:
  make a font that actually realizes this compositionality
  animate word transitions
 
+"Self driving car-achters"
+
 ANAGRAPH GENERATOR
 
 some that don't need to break apart letters:
@@ -51,7 +53,7 @@ some nice pairs:
   donald trump = unnatural clod
                  plutocrat man
 
-
+  covfefe = pee off
 
 Unless you've been "undemonstrably workaday",
 "glarorously thumbtacked", 
@@ -63,8 +65,10 @@ you know what anagrams are.
 Unless you wage a tyrannosaur mohawk,
 you know what anagrams are.
 
-
-
+inv:
+  - gaslit waterloo turtle
+  - tolerate rotting walls !
+  
 worst anagrams
 photomicrograph
 microphotograph

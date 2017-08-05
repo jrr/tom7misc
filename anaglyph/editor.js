@@ -23,6 +23,7 @@ let mode = MODE_ATOM;
 // Are we writing frames to the frameserver? Set manually from
 // console.
 let saving = false;
+let grid = true;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
@@ -1019,7 +1020,8 @@ function InitializeAnimation() {
       ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
       // Don't draw vertical line (useless). Since we
       // are often zoomed way out, draw a coarser grid
-      DrawGrid(null, null, true, 6);
+      if (grid)
+	DrawGrid(null, null, true, 6);
 
       const CHANNEL_HEIGHT = 30;
 

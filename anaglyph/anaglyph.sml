@@ -651,6 +651,80 @@ struct
         "}\n"
       end
 
+    fun tojs tree =
+      let
+        (* Output the description of atoms. *)
+(*
+        signature ATOM =
+        sig
+        eqtype atom
+        val compare : atom * atom -> order
+        val toint : atom -> int
+        val fromint : int -> atom option
+        val tochar : atom -> char
+
+        val num_atoms : int
+        val decompose : char -> atom list option
+        end
+        *)
+        fun atoms_js () =
+          let
+            fun nodq c =
+              if c = #"\"" (* " *)
+              then raise Anaglyph "Double quote cannot be used as an atom."
+              else ()
+            val atoms = List.tabulate (Atom.num_atoms,
+                                       fn i => case Atom.fromint i of
+                                         NONE => raise Anaglyph "impossible"
+                                       | SOME a => a)
+            val () = app (nodq o Atom.tochar) atoms
+            val atomchars = implode (map Atom.tochar atoms)
+            fun decomps () =
+              StringUtil.delimit ","
+              (List.mapPartial
+               (fn c =>
+                case Atom.decompose c of
+                  NONE => NONE
+                | SOME al =>
+                    SOME ("\"" ^ implode [c] ^ "\":[" ^
+                          StringUtil.delimit ","
+                          (map (Int.toString o Atom.toint) al) ^ "]"))
+               (explode "abcdefghijklmnopqrstuvwxyz "))
+            fun indices () =
+              StringUtil.delimit ","
+              (map (fn a =>
+                    "\"" ^ implode [Atom.tochar a] ^ "\":" ^
+                    Int.toString (Atom.toint a)) atoms)
+
+          in
+            (* Bijective map between atom and index. *)
+            "const atoms = \"" ^ atomchars ^ "\";\n" ^
+            "const indices = {\n" ^ indices() ^ "\n};\n" ^
+            "const decomp = {\n" ^ decomps() ^ "\n};\n"
+          end
+
+        fun atoms_indices atoms =
+          "[" ^
+          StringUtil.delimit "," (map (Int.toString o Atom.toint)
+                                  (Atoms.tolist atoms)) ^ "]"
+        fun atoms_str atoms =
+          "\"" ^ implode (map Atom.tochar (Atoms.tolist atoms)) ^ "\""
+
+        fun tojs (Node (atoms, trees, words)) =
+          "{a:" ^ atoms_str atoms ^
+          (case trees of
+             nil => ""
+           | _ => ",c:[" ^ StringUtil.delimit ",\n" (map tojs trees) ^ "]") ^
+          (case words of
+             nil => ""
+           | _ => ",w:[" ^ StringUtil.delimit ","
+               (map (fn w => "\"" ^ w ^ "\"") words) ^ "]") ^
+          "}"
+      in
+        atoms_js () ^
+        "const tree = " ^ tojs tree ^ ";\n"
+        (* XXX and the rest... *)
+      end
   end
 
   val tree = AM.foldli (fn (atoms, words, tree) =>
@@ -659,6 +733,7 @@ struct
 
   fun tree_dotfile () = Tree.treedot tree
   fun tree_textfile () = Tree.tostring tree
+  fun tree_js () = Tree.tojs tree
 
   val () = TextIO.output
     (TextIO.stdErr,
