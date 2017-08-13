@@ -56,13 +56,13 @@ function Take(src, t) {
       return r + src.substr(si);
     }
     if (si == src.length) {
-      // Exhausted src letters, so we fail.
+      // Exhausted src letters (but not take), so we fail.
       return null;
     }
     const tc = t[ti];
     const sc = src[si];
     const tx = indices[tc];
-    const sx = indices[sx];
+    const sx = indices[sc];
     if (tc == sc) {
       // Mutual match.
       ti++;
@@ -80,19 +80,94 @@ function Take(src, t) {
   }
 }
 
-// Now we'll recursively create ouptut trees. We don't expand output
-// nodes eagerly (document would be too big), but we do want to know
-// whether the node is inhabited. So this function returns false if
-// there are no anaglyphs formable, and allows its argument to be
-// null.
+// Populate one level of the output tree. We don't generate all the
+// anagrams eagerly (document would be too big), but we do want to
+// know whether the anagram can be completed; we consult the HasAny
+// function (which works the same way) for that.
 //
 // r is the set of atoms left (as a string, sorted)
+// elt is the output element.
 function Make(r, elt) {
-  let Walk = (n) => {
-    
+  // The current anagraph being generated. Each element is a list of
+  // words (aliases tree) that use the same atoms.
+  let cur = [];
+  // Walk the tree with the current atoms. Output any 
+  let Walk = (n, a) => {    
+    if (!n) return false;
+    // Can only enter the node if we have all its atoms, and those
+    // get removed from the available ones for this subtree.
+    let left = Take(a, n.a);
+    // Can't enter subtree because we don't have the atoms.
+    if (left === null) return false;
+
+    // Always visit children. Do this first to generate longer
+    // words first.
+    if (n.c) {
+      for (c of n.c) {
+	Walk (c, left);
+      }
+    }
+
+    // Any words at this node are possible.
+    if (n.w) {
+      cur.push(n.w);
+      
+      if (left === '') {
+	// If we exactly used the input string and have any words,
+	// then this is a complete anagraph. Note that we can't easily
+	// do this at the head of Walk, since it is also used (with
+	// reduced atoms) to walk subtrees.
+
+	var s = '';
+	for (wl of cur) {
+	  s += wl.join(',');
+	  s += "  ";
+	}
+	console.log(s);
+
+	// return true;
+      } else {
+	// Start from root.
+	Walk (tree, left);
+      }
+      cur.pop();
+    }
   };
-  
+
+  return Walk(tree, r);
 }
+
+// Returns true if there are any full anagrams of the atoms r.
+function HasAny(r) {
+  // Once this returns true, we can stop and return true.
+  let Walk = (n, a) => {    
+    if (!n) return false;
+    // Can only enter the node if we have all its atoms, and those
+    // get removed from the available ones for this subtree.
+    let left = Take(a, n.a);
+    // Can't enter subtree because we don't have the atoms.
+    if (left === null) return false;
+
+    if (n.c)
+      for (c of n.c)
+	if (Walk (c, left))
+	  return true;
+
+    // Any words at this node are possible.
+    if (n.w) {
+      // ... completing the anagraph.
+      if (left === '')
+	return true;
+
+      // ... with some more atoms to be anagraphed.
+      if (Walk (tree, left))
+	return true;
+    }
+  };
+
+  return Walk(tree, r);
+}
+
 
 function Init() {
   document.getElementById('wordinput').onkeydown = InputKey;

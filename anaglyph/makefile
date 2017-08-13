@@ -1,7 +1,7 @@
 all : frameserver.exe anaglyph.exe
 
-# MLTON=/c/mlton/bin/mlton.bat
-MLTON=mlton
+MLTON=/c/mlton/bin/mlton.bat
+# MLTON=mlton
 
 frameserver.exe : frameserver.mlb frameserver.sml
 	${MLTON} -output $@ frameserver.mlb

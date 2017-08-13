@@ -654,19 +654,6 @@ struct
     fun tojs tree =
       let
         (* Output the description of atoms. *)
-(*
-        signature ATOM =
-        sig
-        eqtype atom
-        val compare : atom * atom -> order
-        val toint : atom -> int
-        val fromint : int -> atom option
-        val tochar : atom -> char
-
-        val num_atoms : int
-        val decompose : char -> atom list option
-        end
-        *)
         fun atoms_js () =
           let
             fun nodq c =
@@ -707,22 +694,40 @@ struct
           "[" ^
           StringUtil.delimit "," (map (Int.toString o Atom.toint)
                                   (Atoms.tolist atoms)) ^ "]"
+
         fun atoms_str atoms =
           "\"" ^ implode (map Atom.tochar (Atoms.tolist atoms)) ^ "\""
 
-        fun tojs (Node (atoms, trees, words)) =
-          "{a:" ^ atoms_str atoms ^
-          (case trees of
-             nil => ""
-           | _ => ",c:[" ^ StringUtil.delimit ",\n" (map tojs trees) ^ "]") ^
-          (case words of
-             nil => ""
-           | _ => ",w:[" ^ StringUtil.delimit ","
-               (map (fn w => "\"" ^ w ^ "\"") words) ^ "]") ^
-          "}"
+        (* Unlike the SML representation, the 'a' field just contains the
+           *additional atoms* within the subtree, so the equivalent set
+           would come from unioning all the a fields from this node to the
+           root. We do this because the sets in tree.js are output as ASCII
+           strings, where shorter is cheaper (278k -> 197k). *)
+        fun tojs parent_atoms (Node (atoms, trees, words)) =
+          let
+            val () =
+              if Atoms.subseteq (parent_atoms, atoms)
+              then ()
+              else raise Anaglyph ("Invariant violation: Parent atoms " ^
+                                   Atoms.tostring parent_atoms ^
+                                   " must be subset of subtree's: " ^
+                                   Atoms.tostring atoms)
+            val new_atoms = Atoms.-- (atoms, parent_atoms)
+            val self = tojs atoms
+          in
+            "{a:" ^ atoms_str new_atoms ^
+            (case trees of
+               nil => ""
+             | _ => ",c:[" ^ StringUtil.delimit ",\n" (map self trees) ^ "]") ^
+               (case words of
+                  nil => ""
+                | _ => ",w:[" ^ StringUtil.delimit ","
+                    (map (fn w => "\"" ^ w ^ "\"") words) ^ "]") ^
+            "}"
+          end
       in
         atoms_js () ^
-        "const tree = " ^ tojs tree ^ ";\n"
+        "const tree = " ^ tojs Atoms.zero tree ^ ";\n"
         (* XXX and the rest... *)
       end
   end
