@@ -803,6 +803,9 @@ struct
          can be freely chosen. *)
       fun enumerate (emit : string list list -> unit) remaining =
         let
+          (* l is the words so far, wordsleft is the maximum number of
+             words that can be added (anagraph length), and r is the
+             set of atoms. *)
           fun enum (l, wordsleft, r) =
             if r = Atoms.zero
             then emit l
