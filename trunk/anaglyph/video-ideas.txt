@@ -65,7 +65,7 @@ you know what anagrams are.
 Unless you wage a tyrannosaur mohawk,
 you know what anagrams are.
 
-inv:
+"allow rotating letters" inv:
   - gaslit waterloo turtle
   - tolerate rotting walls !
   
@@ -73,3 +73,6 @@ worst anagrams
 photomicrograph
 microphotograph
  jeremy's iron
+
+stuff to try:
+ - juicero

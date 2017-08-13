@@ -45,16 +45,53 @@ function Draw() {
   }
 }
 
-// Now we'll recursively create ouptut trees. We don't
-// expand nodes eagerly (document would be too big), but
-// we do want to know whether the node is inhabited. So
-// this function returns false if there are no anaglyphs
-// formable, and allows its argument to be null.
+// Take the atoms in 't' from 'src'. Returns the remaining atoms
+// (sorted), or null if t is not a subset of src. Both must be sorted.
+function Take(src, t) {
+  let r = '';
+  let si = 0, ti = 0;
+  for (;;) {
+    if (ti == t.length) {
+      // Exhausted take letters, so succeed.
+      return r + src.substr(si);
+    }
+    if (si == src.length) {
+      // Exhausted src letters, so we fail.
+      return null;
+    }
+    const tc = t[ti];
+    const sc = src[si];
+    const tx = indices[tc];
+    const sx = indices[sx];
+    if (tc == sc) {
+      // Mutual match.
+      ti++;
+      si++;
+    } else if (tx < sx) {
+      // If the char from t should come first, but it's not at the
+      // head of src, then we won't find it so fail.
+      return null;
+    } else {
+      if (!(sx < tx)) throw 'impossible';
+      // Advance past the src char 
+      r += sc;
+      si++;
+    }
+  }
+}
+
+// Now we'll recursively create ouptut trees. We don't expand output
+// nodes eagerly (document would be too big), but we do want to know
+// whether the node is inhabited. So this function returns false if
+// there are no anaglyphs formable, and allows its argument to be
+// null.
 //
 // r is the set of atoms left (as a string, sorted)
-// 
 function Make(r, elt) {
-  return false;
+  let Walk = (n) => {
+    
+  };
+  
 }
 
 function Init() {
