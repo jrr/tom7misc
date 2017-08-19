@@ -1,7 +1,8 @@
 ann
   "deadCode true"
-  "warnMatch true"
-  "sequenceUnit true"
+  "nonexhaustiveMatch error"
+  "redundantMatch error"
+  "sequenceNonUnit error"
 in
   local
     $(MLTON_ROOT)/basis/basis.mlb

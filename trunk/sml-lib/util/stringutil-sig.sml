@@ -152,7 +152,8 @@ sig
      true if the string 'big' ends with the string 'small'.
      *)
   val matchtail : string -> string -> bool
-  (* If the string 'big' ends with the string 'small',
+  (* removetail small big
+     If the string 'big' ends with the string 'small',
      return SOME of the remainder of big; otherwise NONE. *)
   val removetail : string -> string -> string option
 
