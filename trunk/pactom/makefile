@@ -12,7 +12,8 @@ PACTOMLIB=pactom.sml pactom-sig.sml ../sml-lib/files/xml/xml*.sml ../sml-lib/mis
 # has trouble on new cygwin, because it's a bash builtin?
 TIME=
 
-MLTON='/c/program files (x86)/mlton/bin/mlton' -target x86_64-w64-mingw32 -codegen amd64
+# '/c/program files (x86)/mlton/bin/mlton'
+MLTON=/c/mlton/bin/mlton.bat -target x86_64-w64-mingw32 -codegen amd64
 
 # Generating programs.
 programs : shortestpaths colorize map elevsvg makepoints radial lltsvg kmlcat
