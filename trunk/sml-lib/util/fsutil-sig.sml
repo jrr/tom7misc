@@ -33,11 +33,11 @@ sig
 
   (* performs filename globbing, like "echo string" would in bash.
      (though only * is supported). furthermore, this will only allow
-     *s in the filename position (not the dir), so */*.txt won't work.
-     (Note: if this is ever implemented, it should memoize its work
-     (or lazily limit its result set) so that the classic
-     ../*/../*/../*/../*/../*/../*/.. DoS won't work.) *)
+     *s in the filename position (not the dir), so */*.txt won't work. *)
   val glob : string -> fileinfo stream
+  (* Same, but just get the filenames eagerly. Only returns files
+     (dir = false). *)
+  val globfiles : string -> string list
 
   (* applies the dirhandler as if the argument was passed
      to ls with globbing (fundamental difference is that
