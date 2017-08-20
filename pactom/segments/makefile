@@ -5,5 +5,5 @@ all : makesegments.exe
 
 MLTON=/c/mlton/bin/mlton.bat
 
-makesegments.exe : makesegments.mlb gpx*.sml
+makesegments.exe : makesegments.mlb gpx*.sml segments*.sml makesegment*.sml
 	${MLTON} -output $@ makesegments.mlb
