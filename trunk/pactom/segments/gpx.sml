@@ -149,10 +149,29 @@ struct
       | process (Elem(("name", nil), [Text nametext])) = name := nametext
       | process (Elem(_, children)) = app process children
       | process _ = ()
+
+      (* Only consistency check so far is that the times are
+         strictly increasing. *)
+      fun check v =
+        let
+          val last_time = ref Time.zeroTime
+        in
+          Vector.app
+          (fn Pt { time, ... } =>
+           if Time.< (time, !last_time)
+           then last_time := time
+           else raise GPX ("Timestamps must be strictly increasing, " ^
+                           "but got\n" ^
+                           Time.toString (!last_time) ^ "followed by\n" ^
+                           Time.toString time)) v
+        end
+
+      val () = process xml
+      val points = GrowArray.vector points
     in
-      process xml;
+      check points;
       Activity { name = !name,
-                 points = GrowArray.vector points }
+                 points = points }
     end
 
   fun parse_string contents =

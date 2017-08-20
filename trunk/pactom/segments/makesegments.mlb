@@ -21,6 +21,12 @@ $(SML_LIB)/basis/mlton.mlb
  ../../sml-lib/util/growarray-sig.sml
  ../../sml-lib/util/growarray.sml
 
+ ../../sml-lib/util/fsutil-sig.sml
+ ../../sml-lib/util/fsutil.sml
+
+ ../../sml-lib/misc/params-sig.sml
+ ../../sml-lib/misc/params.sml
+
  ../../sml-lib/geom/latlon-sig.sml
  ../../sml-lib/geom/latlon.sml
 
@@ -28,3 +34,9 @@ $(SML_LIB)/basis/mlton.mlb
 
  gpx-sig.sml
  gpx.sml
+
+ segments-sig.sml
+ segments.sml
+
+ makesegments.sml
+ 
