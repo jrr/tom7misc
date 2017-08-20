@@ -215,6 +215,9 @@ struct
           false => stream_filter f s ()
         | true => SOME item
 
+  (* Note: If directory globbing is ever implemented, this
+     should memoize (or lazily limit its result set) so that
+     the classic ../*/../*/../*/../*/../*/../*/.. DoS won't work. *)
   fun glob s =
     case StringUtil.rfind "/" s of
       NONE =>
@@ -230,6 +233,20 @@ struct
            (fn {name, ...} =>
             StringUtil.wcmatch filemask name) sm)
         end
+
+  fun globfiles s =
+    let
+      val stream = glob s
+      fun getfiles () =
+        case stream () of
+          NONE => nil
+        | SOME { dir, name, ... } =>
+            if dir
+            then getfiles ()
+            else name :: getfiles ()
+    in
+      getfiles ()
+    end
 
   fun ls f s =
     if StringUtil.all (StringUtil.isn'tchar #"*") s then

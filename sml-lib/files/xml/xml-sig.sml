@@ -1,6 +1,6 @@
 (* Simplified interface for reading non-enormous XML documents into
    a datatype.
-   Tom Murphy VII, 2009. 
+   Tom Murphy VII, 2009.
    This file only: Use and distribute freely.
 *)
 
@@ -14,7 +14,7 @@ sig
   (* tag name, attributes *)
   type tag = string * attribute list
 
-  datatype tree = 
+  datatype tree =
       Text of string
     | Elem of tag * tree list
 
@@ -31,15 +31,24 @@ sig
 
   (* Utilities. *)
 
-  (* Get all of the leaves in the tree, Where a leaf is a <tag>only
+  (* firstleaf tag tree
+     Get the first leaf matching the tag name, where a leaf is a <tag>only
      applied to a series of text nodes</tag> or
      <totheemptytree></totheemptytree> (then treated as the empty
-     string). Attributes and interior nodes are ignored. Text outside
-     of leaves is ignored. The results are collated by the tag name in
-     the order that they appear in the document. 
+     string). A leaf may have attributes, but they are ignored. Interior
+     nodes are not returned, even if they have the correct tag name.
 
      Expects the tree to be normalized.
-     *)
+
+     To avoid traversing the tree multiple times to find multiple leaves,
+     consider getleaves below. *)
+  val firstleaf : string -> tree -> string option
+
+  (* Get all of the leaves in the tree (see above), Interior nodes and
+     text outside of leaves are ignored. The results are collated by
+     the tag name in the order that they appear in the document.
+
+     Expects the tree to be normalized. *)
   val getleaves : tree -> (string * string list) list
 
   (* Get the first attribute matching the given name, or NONE
