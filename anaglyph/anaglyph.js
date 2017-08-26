@@ -3,6 +3,22 @@
 let word = 'radioisotope';
 let banned = {};
 
+function makeElement(what, cssclass, elt) {
+  var e = document.createElement(what);
+  if (cssclass) e.setAttribute('class', cssclass);
+  if (elt) elt.appendChild(e);
+  return e;
+}
+function IMG(cssclass, elt) { return makeElement('IMG', cssclass, elt); }
+function DIV(cssclass, elt) { return makeElement('DIV', cssclass, elt); }
+function SPAN(cssclass, elt) { return makeElement('SPAN', cssclass, elt); }
+function BR(cssclass, elt) { return makeElement('BR', cssclass, elt); }
+function TEXT(contents, elt) {
+  var e = document.createTextNode(contents);
+  if (elt) elt.appendChild(e);
+  return e;
+}
+
 // Decompose into a sorted string of atoms.
 function Decompose(s) {
   let outid = [];
@@ -85,18 +101,19 @@ function Take(src, t) {
 // know whether the anagram can be completed; we consult the HasAny
 // function (which works the same way) for that.
 //
-// r is the set of atoms left (as a string, sorted)
-// elt is the output element.
+// r - the set of atoms left (as a string, sorted). We have to use
+//     all of them to complete the anagraph.
+// elt - the output element.
 function Make(r, elt) {
-  // The current anagraph being generated. Each element is a list of
-  // words (aliases tree) that use the same atoms.
-  let cur = [];
-  // Walk the tree with the current atoms. Output any 
-  let Walk = (n, a) => {    
+  let any = false;
+  // Walk the tree with the current atoms. Whenever we find a word
+  // that can be made, we check to see if an anaglyph can be completed
+  // (using HasAny) and if so, we add it to the element.
+  let Walk = (n, a) => {
     if (!n) return false;
     // Can only enter the node if we have all its atoms, and those
     // get removed from the available ones for this subtree.
-    let left = Take(a, n.a);
+    const left = Take(a, n.a);
     // Can't enter subtree because we don't have the atoms.
     if (left === null) return false;
 
@@ -110,31 +127,31 @@ function Make(r, elt) {
 
     // Any words at this node are possible.
     if (n.w) {
-      cur.push(n.w);
+      // Is it completable?
+      const comp = (left === '') || HasAny(left);
+      // console.log(n.w.join(',') + ' ' + comp);
       
-      if (left === '') {
-	// If we exactly used the input string and have any words,
-	// then this is a complete anagraph. Note that we can't easily
-	// do this at the head of Walk, since it is also used (with
-	// reduced atoms) to walk subtrees.
-
-	var s = '';
-	for (wl of cur) {
-	  s += wl.join(',');
-	  s += "  ";
+      if (comp) {
+	var s = n.w.join(',');
+	const d = DIV('', elt);
+	TEXT(s, d);
+	if (left !== '') {
+	  const ct = DIV('cont', d);
+	  const m = SPAN('more', ct);
+	  TEXT("...", m);
+	  m.onclick = () => {
+	    // Get rid of 'more' link
+	    ct.removeChild(m);
+	    Make (left, ct);
+	  };
 	}
-	console.log(s);
-
-	// return true;
-      } else {
-	// Start from root.
-	Walk (tree, left);
+	any = true;
       }
-      cur.pop();
     }
   };
 
-  return Walk(tree, r);
+  Walk(tree, r);
+  return any;
 }
 
 // Returns true if there are any full anagrams of the atoms r.
@@ -170,5 +187,10 @@ function HasAny(r) {
 
 
 function Init() {
-  document.getElementById('wordinput').onkeydown = InputKey;
+  const input = document.getElementById('wordinput');
+  input.onkeydown = InputKey;
+
+  // XXX
+  input.value = 'digital';
+  Restart();
 }
