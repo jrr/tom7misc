@@ -82,7 +82,10 @@ struct
       val segfolders = getsegfolders (Folder ("toplevel", strees))
 
       datatype gatenum = Start | End | Num of int
-      fun ordergates (name, polys as ((first, _) :: _)) =
+      fun gatestring Start = "Start"
+        | gatestring End = "End"
+        | gatestring (Num n) = "Num " ^ Int.toString n
+      fun parsegates (name, polys as ((first, _) :: _)) =
         (case String.fields (StringUtil.ischar #":") first of
            [code, _] =>
              let
@@ -106,6 +109,35 @@ struct
 
                val numbered = ListUtil.mapfirst deprefix polys
 
+               (* Find the gate from the 5-sided flag polygon, or abort.
+                  See segments-sig. *)
+               fun decodegate pname [a as (ax, ay), b, c, d, e, f as (fx, fy)] =
+                 (* Allow six points if the last one is almost exactly
+                    the same as the first. *)
+                 if Real.abs (ax - fx) < 0.0000001 andalso
+                    Real.abs (ay - fy) < 0.0000001
+                 then decodegate pname [a, b, c, d, e]
+                 else raise Segments
+                   ("Six-vertex polygon is only allowed if the " ^
+                    "first and last are the same point (in " ^
+                    name ^ "/" ^ pname ^ ")")
+                 | decodegate pname [a, b, c, d, e] =
+                   let
+                     (* XXXX find the right pair *)
+                   in
+                     (LatLon.fromdegs { lat = #1 a, lon = #2 a },
+                      LatLon.fromdegs { lat = #1 b, lon = #2 b })
+                   end
+
+                 | decodegate pname l =
+                   raise Segments
+                     ("Expected five-vertex polygon in " ^ name ^ "/" ^
+                      pname ^ "; got " ^ Int.toString (length l))
+
+               val decoded =
+                 map (fn (g, coords) =>
+                      (g, decodegate (gatestring g) coords)) numbered
+
                fun split (SOME start, _, _) ((Start, _) :: _) =
                      raise Segments ("Duplicate starts in " ^ name)
                  | split (NONE, nn, ee) ((Start, coords) :: rest) =
@@ -114,26 +146,41 @@ struct
                      raise Segments ("Duplicate ends in " ^ name)
                  | split (ss, nn, NONE) ((End, coords) :: rest) =
                      split (ss, nn, SOME coords) rest
-                 | split (ss, nn, ee) = ((Num n, coords) :: rest) =
+                 | split (ss, nn, ee) ((Num n, coords) :: rest) =
                      split (ss, (n, coords) :: nn, ee) rest
-                 | split (SOME s, nn, SOME e) nil = (s, nn, e)
                  | split (NONE, _, _) nil =
                      raise Segments ("Missing start in " ^ name)
                  | split (_, _, NONE) nil =
                      raise Segments ("Missing end in " ^ name)
+                 | split (SOME s, nn, SOME e) nil =
+                     let
+                       val nn = ListUtil.sort (Util.byfirst Int.compare) nn
+                       (* XXX check that it starts at 1? *)
+                       fun gap_of_one ((a, _), (b, _)) = a + 1 = b
+                       val () =
+                         if ListUtil.alladjacent gap_of_one nn
+                         then ()
+                         else raise Segments ("gap or duplicate numbers in " ^
+                                              "segment " ^ name)
+                       val nn = map #2 nn
+                     in
+                       s :: (nn @ [e])
+                     end
 
-               val (sp, np, ep) = split (NONE, nil, NONE) numbered
+               val ordered = split (NONE, nil, NONE) decoded
              in
-               raise Segments "unimplemented"
+               Segment { name = name,
+                         gates = Vector.fromList ordered }
              end
          | _ => raise Segments ("poly should have a name like code:start; " ^
                                 "got '" ^ first ^ "'"))
-        | ordergates (name, nil) =
+        | parsegates (name, nil) =
            raise Segments ("empty segment '" ^ name ^ "'? impossible?")
 
       (* Now interpret the segments. *)
+      val gates = map parsegates segfolders
     in
-      raise Segments "unimplemented"
+      gates
     end
 
   fun parse_string contents =
