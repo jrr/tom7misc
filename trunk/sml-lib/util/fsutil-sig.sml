@@ -32,11 +32,20 @@ sig
   val dirstream : string -> fileinfo stream
 
   (* performs filename globbing, like "echo string" would in bash.
-     (though only * is supported). furthermore, this will only allow
-     *s in the filename position (not the dir), so */*.txt won't work. *)
+     (though only * is supported). Furthermore, this will only allow
+     *s in the filename position (not the dir), so */*.txt won't work.
+
+     Note that names in fileinfo are relative to the glob path, so
+     the caller will need to concatenate the directory (if any). *)
   val glob : string -> fileinfo stream
-  (* Same, but just get the filenames eagerly. Only returns files
-     (dir = false). *)
+
+  (* As above, but provide an explicit directory. The caller needs to
+     concatenate this with the returned fileinfos anyway. *)
+  val glob_in_dir : string -> string -> fileinfo stream
+
+  (* Just get the filenames eagerly. These names are concatenated with
+     any directory from the glob string, so that they can be opened
+     directly. Only returns actual files (where dir = false). *)
   val globfiles : string -> string list
 
   (* applies the dirhandler as if the argument was passed
@@ -51,7 +60,8 @@ sig
 
   (* dirplus "/home" "file" or
      dirplus "/home/" "file"
-     both return "/home/file" *)
+     both return "/home/file"
+     (Uses OS conventions, so \ on Windows.) *)
   val dirplus : string -> string -> string
 
   exception Seek
