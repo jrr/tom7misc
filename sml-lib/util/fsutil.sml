@@ -85,7 +85,6 @@ struct
 
   local open FS.S
   in
-
     fun modestring m =
       let
         fun t d c = if anySet (flags [d], m) then c else #"-"
@@ -120,18 +119,10 @@ struct
         case ups () of
           PS f => f ())
 
-(*
-  fun stream_cons f1 f2 =
-      let
-          val called = ref false
-          fun body () =
-              if !called
-              then (f1 () before called := false)
-              else f2 ()
-      in
-          body
-      end
-*)
+  fun forcestream s =
+    case s () of
+      NONE => nil
+    | SOME item => item :: forcestream s
 
 (*
   fun dirplus "" p = p
@@ -215,37 +206,54 @@ struct
           false => stream_filter f s ()
         | true => SOME item
 
+  fun stream_map f s () =
+    case s () of
+      NONE => NONE
+    | SOME item => SOME (f item)
+
   (* Note: If directory globbing is ever implemented, this
      should memoize (or lazily limit its result set) so that
      the classic ../*/../*/../*/../*/../*/../*/.. DoS won't work. *)
-  fun glob s =
-    case StringUtil.rfind "/" s of
-      NONE =>
-        (stream_filter (fn {name, ...} =>
-                        StringUtil.wcmatch s name)
-         (dirstream "."))
-    | SOME i =>
-        let val dir = String.substring (s, 0, i)
-          val filemask = String.substring (s, i + 1, size s - (i + 1))
-          val sm = dirstream dir
-        in
-          (stream_filter
-           (fn {name, ...} =>
-            StringUtil.wcmatch filemask name) sm)
-        end
+  fun glob_in_dir dir filemask =
+    let
+      val stream = dirstream dir
+    in
+      stream_filter
+      (fn {name, ...} =>
+       StringUtil.wcmatch filemask name) stream
+    end
+
+  (* Returns the optional directory prefix, and fileinfo stream. *)
+  fun glob_internal s =
+    let
+      (* Allow for both \ and / directory separators on windows. *)
+      val s = OS.Path.toUnixPath s
+    in
+      case StringUtil.rfind "/" s of
+        NONE =>
+          (NONE, stream_filter (fn {name, ...} =>
+                                StringUtil.wcmatch s name) (dirstream "."))
+      | SOME i =>
+          let
+            val dir = String.substring (s, 0, i)
+            val filemask = String.substring (s, i + 1, size s - (i + 1))
+          in
+            (SOME dir, glob_in_dir dir filemask)
+          end
+    end
+
+  fun glob s = #2 (glob_internal s)
 
   fun globfiles s =
     let
-      val stream = glob s
-      fun getfiles () =
-        case stream () of
-          NONE => nil
-        | SOME { dir, name, ... } =>
-            if dir
-            then getfiles ()
-            else name :: getfiles ()
+      val (dir, stream) = glob_internal s
+      (* Only take files. *)
+      val stream = stream_filter (fn { dir, ... } => not dir) stream
+      val items = forcestream stream
     in
-      getfiles ()
+      case dir of
+        NONE => map (fn { name, ... } => name) items
+      | SOME dir => map (fn { name, ... } => dirplus dir name) items
     end
 
   fun ls f s =
