@@ -110,7 +110,11 @@ struct
                val numbered = ListUtil.mapfirst deprefix polys
 
                (* Find the gate from the 5-sided flag polygon, or abort.
-                  See segments-sig. *)
+                  See segments-sig. Note that this calculation is done
+                  assuming euclidean coordinates, so it doesn't work at
+                  the poles or across the prime meridian. (This would not
+                  be hard to fix with a function that computes the angle
+                  between two great circles in LatLon.) *)
                fun decodegate pname [a as (ax, ay), b, c, d, e, f as (fx, fy)] =
                  (* Allow six points if the last one is almost exactly
                     the same as the first. *)
@@ -121,9 +125,72 @@ struct
                    ("Six-vertex polygon is only allowed if the " ^
                     "first and last are the same point (in " ^
                     name ^ "/" ^ pname ^ ")")
-                 | decodegate pname [a, b, c, d, e] =
+                 | decodegate pname [aa, bb, cc, dd, ee] =
                    let
-                     (* XXXX find the right pair *)
+                     (* The poly could be in clockwise or counterclockwise
+                        winding order, so we'll try both. We're trying to
+                        find the inner point of the flag, which should be
+                        the only point of concavity. If we satisfy that
+                        condition for point D in A-B-C-D-E, then A-B is
+                        the gate vector. Assumes the polygon is simple. *)
+
+                     (* For the pair of consecutive vectors a->b and b->c,
+                        get the angle around point b, like
+
+                                                c
+                                      angle ., /`
+                                          ,`  / v2
+                            a --------------,b
+                                    v1
+                        (Of course there are two sides to the angle.
+                         This is assuming a clockwise winding order for
+                         the polygon. Equivalently, the angle is such that
+                         rotating norm(v2) counter-clockwise by the angle
+                         gives norm(-v1).)
+                     *)
+                     fun angle ((ax, ay), (bx, by), (cx, cy)) =
+                       let
+                         val a1 = Math.atan2(by - ay, bx - ax)
+                         val a2 = Math.atan2(cy - by, cx - bx)
+                         val a = a1 - a2 + Math.pi
+                         val TWOPI = 2.0 * Math.pi
+                       in
+                         if a < 0.0 then a + TWOPI
+                         else if a >= TWOPI
+                              then a - TWOPI
+                              else a
+                       end
+
+                     (* With a clockwise winding order, is point b
+                        in a concavity? *)
+                     fun isconcave (a, b, c) =
+                       angle (a, b, c) < Math.pi
+
+                     fun find_candidates (0, acc, _) = acc
+                       | find_candidates (n, acc,
+                                          (a, b, c, d, e)) =
+                       let
+                         val acc =
+                           if isconcave (c, d, e)
+                           then (a, b) :: acc
+                           else acc
+                       in
+                         find_candidates (n - 1, acc, (b, c, d, e, a))
+                       end
+
+                     (* Try the polygon in both winding orders. We expect
+                        exactly one concavity. *)
+                     val (a, b) =
+                       case (find_candidates (5, nil, (aa, bb, cc, dd, ee)),
+                             find_candidates (5, nil, (ee, dd, cc, bb, aa))) of
+                         ([cw], _) => cw
+                       | (_, [ccw]) => ccw
+                       | (cw, ccw) => raise Segments
+                           ("Malformed gate does not have exactly one " ^
+                            "concavity. Got " ^
+                            Int.toString (length cw) ^ " clockwise and " ^
+                            Int.toString (length ccw) ^ " counter-" ^
+                            "clockwise, in: " ^ pname ^ " of " ^ name)
                    in
                      (LatLon.fromdegs { lat = #1 a, lon = #2 a },
                       LatLon.fromdegs { lat = #1 b, lon = #2 b })

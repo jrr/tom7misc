@@ -158,11 +158,11 @@ struct
         in
           Vector.app
           (fn Pt { time, ... } =>
-           if Time.< (time, !last_time)
+           if Time.< (!last_time, time)
            then last_time := time
            else raise GPX ("Timestamps must be strictly increasing, " ^
                            "but got\n" ^
-                           Time.toString (!last_time) ^ "followed by\n" ^
+                           Time.toString (!last_time) ^ "\nfollowed by\n" ^
                            Time.toString time)) v
         end
 
