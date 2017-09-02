@@ -46,10 +46,92 @@ struct
         end
         | process (Elem (_, children)) = List.concat (map process children)
 
-      val stree : stree list = process xml
+      val strees : stree list = process xml
+
+      (* A segment consists of a folder with placemarks in it. We can
+         ignore outer-level folders.
+
+         Note this function always takes a Folder, so maybe we should
+         just have it take the folder args *)
+      fun getsegfolders (Folder (name, nil)) = nil
+        | getsegfolders (Folder (name, trees as (Placemark _ :: _))) =
+        let
+          fun get_all_places acc nil = rev acc
+            | get_all_places acc (Placemark p :: rest) =
+            get_all_places (p :: acc) rest
+            | get_all_places acc (Folder (f, _) :: _) =
+            raise Segments ("Malformed segments KML: Saw a folder '" ^ f ^
+                            "' along side placemarks (inside the folder '" ^
+                            name ^ "')")
+        in
+          [(name, get_all_places nil trees)]
+        end
+        | getsegfolders (Folder (name, trees as (Folder (ff, _) :: _))) =
+        let
+          fun one_folder (f as Folder _) = getsegfolders f
+            | one_folder (Placemark _) =
+            raise Segments ("Malformed segments KML: Saw a folder '" ^ ff ^
+                            "' along side placemarks (inside the folder '" ^
+                            name ^ "')")
+        in
+          List.concat (map one_folder trees)
+        end
+        | getsegfolders _ = raise Segments "impossible"
+
+      (* XXX this allows a single segment at toplevel... ok? *)
+      val segfolders = getsegfolders (Folder ("toplevel", strees))
+
+      datatype gatenum = Start | End | Num of int
+      fun ordergates (name, polys as ((first, _) :: _)) =
+        (case String.fields (StringUtil.ischar #":") first of
+           [code, _] =>
+             let
+               (* Expect all the polys to share the same name prefix. *)
+               val prefix = code ^ ":"
+               fun norm s =
+                 StringUtil.lcase (StringUtil.losespecr StringUtil.whitespec s)
+               fun deprefix pname =
+                 case Option.map norm (StringUtil.removehead prefix pname) of
+                   NONE => raise Segments ("poly needs to have the same " ^
+                                           "prefix (" ^ prefix ^ ") as its " ^
+                                           "siblings; got " ^ pname)
+                 | SOME "start" => Start
+                 | SOME "end" => End
+                 | SOME n =>
+                     (case Int.fromString n of
+                        NONE => raise Segments ("Expected start/end/num; " ^
+                                                "got " ^ n ^ " (in " ^ name ^
+                                                ")")
+                      | SOME num => Num num)
+
+               val numbered = ListUtil.mapfirst deprefix polys
+
+               fun split (SOME start, _, _) ((Start, _) :: _) =
+                     raise Segments ("Duplicate starts in " ^ name)
+                 | split (NONE, nn, ee) ((Start, coords) :: rest) =
+                     split (SOME coords, nn, ee) rest
+                 | split (_, _, SOME e) ((End, _) :: _) =
+                     raise Segments ("Duplicate ends in " ^ name)
+                 | split (ss, nn, NONE) ((End, coords) :: rest) =
+                     split (ss, nn, SOME coords) rest
+                 | split (ss, nn, ee) = ((Num n, coords) :: rest) =
+                     split (ss, (n, coords) :: nn, ee) rest
+                 | split (SOME s, nn, SOME e) nil = (s, nn, e)
+                 | split (NONE, _, _) nil =
+                     raise Segments ("Missing start in " ^ name)
+                 | split (_, _, NONE) nil =
+                     raise Segments ("Missing end in " ^ name)
+
+               val (sp, np, ep) = split (NONE, nil, NONE) numbered
+             in
+               raise Segments "unimplemented"
+             end
+         | _ => raise Segments ("poly should have a name like code:start; " ^
+                                "got '" ^ first ^ "'"))
+        | ordergates (name, nil) =
+           raise Segments ("empty segment '" ^ name ^ "'? impossible?")
 
       (* Now interpret the segments. *)
-
     in
       raise Segments "unimplemented"
     end
