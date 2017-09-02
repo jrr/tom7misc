@@ -14,7 +14,11 @@ struct
       val glob = FSUtil.dirplus dirname "*.gpx"
       (* Maybe should be in subdir? *)
       val segments = Segments.parse_file "segments.kml"
+      val () = print ("Loaded " ^ Int.toString (length segments) ^
+                      " segments.\n")
       val activities = map GPX.parse_file (FSUtil.globfiles glob)
+      val () = print ("Loaded " ^ Int.toString (length activities) ^
+                      " activities.\n")
     in
       print "(unimplemented)\n"
     end
