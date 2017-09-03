@@ -32,6 +32,9 @@ $(SML_LIB)/basis/mlton.mlb
  ../../sml-lib/misc/params-sig.sml
  ../../sml-lib/misc/params.sml
 
+ ../../sml-lib/geom/geom-sig.sml
+ ../../sml-lib/geom/geom.sml
+
  ../../sml-lib/geom/latlon-sig.sml
  ../../sml-lib/geom/latlon.sml
  ../../sml-lib/geom/bounds-sig.sml
