@@ -16,6 +16,13 @@ sig
 
   (* The empty set *)
   val empty : set
+  (* Return true if and only if the set is empty *)
+  val isEmpty : set -> bool
+
+  (* Return the smallest element, if the set has any values. *)
+  val head : set -> item option
+  (* Same, but remove it from the set and return that too. *)
+  val pop_head : set -> (item * set) option
 
   (* Create a singleton set *)
   val singleton : item -> set
@@ -32,9 +39,6 @@ sig
 
   (* Return true if and only if item is an element in the set *)
   val member : set * item -> bool
-
-  (* Return true if and only if the set is empty *)
-  val isEmpty : set -> bool
 
   (* Return true if and only if the two sets are equal *)
   val equal : (set * set) -> bool

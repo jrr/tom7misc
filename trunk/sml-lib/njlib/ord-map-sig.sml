@@ -22,6 +22,8 @@ sig
   (* Return the element with the smallest key, if the map has any values. *)
   val head : 'a map -> 'a option
   val headi : 'a map -> (Key.ord_key * 'a) option
+  (* TODO: back and backi *)
+  (* TODO: pop_head and pop_headi *)
 
   (* Insert an item. Existing item with same key is overwritten. *)
   val insert : 'a map * Key.ord_key * 'a -> 'a map

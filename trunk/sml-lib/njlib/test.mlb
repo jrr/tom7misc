@@ -1,0 +1,21 @@
+(* Just tests compilation. *)
+
+$(SML_LIB)/basis/basis.mlb
+$(SML_LIB)/basis/mlton.mlb
+
+lib-base-sig.sml
+lib-base.sml
+ord-key-sig.sml
+ord-map-sig.sml
+ord-set-sig.sml 
+splaytree-sig.sml
+splaytree.sml
+splay-map-fn.sml
+splay-set-fn.sml
+
+(* Deprecated? *)
+list-map-fn.sml
+list-set-fn.sml
+
+imperative-map-sig.sml
+imperative-map.sml
