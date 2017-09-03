@@ -32,7 +32,8 @@ sig
 
   (* tosvg tree maxdepth proj print
      For visualization purposes. *)
-  val tosvg : 'a tree -> int -> (pos -> real * real) -> (string -> unit) -> unit
+  val tosvg : 'a tree -> int -> (pos -> real * real) -> (string -> unit) ->
+              unit
 end =
 struct
 
@@ -70,7 +71,8 @@ struct
      point is close to the split axis. It's real easy to
      test for this case though. *)
   fun lookuppoint' HEmpty _ _ = nil
-    | lookuppoint' (HPoint (ll, aa, xx, yy, rr)) (x : xpos, y : ypos) (d : dist) =
+    | lookuppoint' (HPoint (ll, aa, xx, yy, rr))
+                   (x : xpos, y : ypos) (d : dist) =
     (* Be a little smart. First do the axis test, which we have to do no
        matter what. If the query point is not close to the axis,
        then we don't need to do the closeness test for the tree
