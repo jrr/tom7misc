@@ -9,12 +9,12 @@ struct
   val (pt, osm, hoods) =
     (PacTom.fromkmlfiles ["pac.kml", "pacannotations.kml",
                           "pac2.kml"],
-     PacTom.loadosms ["pittsburgh-north.osm",
-                      "pittsburgh-northeast.osm",
-                      "pittsburgh-center.osm",
-                      "pittsburgh-south.osm",
-                      "pittsburgh-west.osm",
-                      "pittsburgh-southwest.osm"],
+     OSM.loadosms ["pittsburgh-north.osm",
+                   "pittsburgh-northeast.osm",
+                   "pittsburgh-center.osm",
+                   "pittsburgh-south.osm",
+                   "pittsburgh-west.osm",
+                   "pittsburgh-southwest.osm"],
      PacTom.neighborhoodsfromkml "neighborhoods.kml")
     handle e as (PacTom.PacTom s) =>
       let in
@@ -152,12 +152,12 @@ struct
       val missing_point = ref 0
 
       (* XXX not using this until we clip the osm *)
-      fun boundosm ({ points, streets } : PacTom.osm) =
+      fun boundosm (OSM.O { points, streets }) =
        let
          fun onestreet { pts, ... } =
             let
               fun onepoint i =
-                case PacTom.IntMap.find (points, i) of
+                case OSM.IntMap.find (points, i) of
                   NONE => ()
                 | SOME pos => Bounds.boundpoint bounds (projection pos)
             in
@@ -166,21 +166,21 @@ struct
        in Vector.app onestreet streets
        end
 
-      fun printosm ({ points, streets } : PacTom.osm) =
+      fun printosm (OSM.O { points, streets }) =
        let
          fun onestreet { pts, ... } =
-            let
-                fun onepoint i =
-                  case PacTom.IntMap.find (points, i) of
-                    NONE => ++missing_point
-                  | SOME pos => prpt (projection pos)
-            in
-                print ("<polyline fill=\"none\" stroke=\"#000000\" " ^
-                       "opacity=\"0.5\" " ^
-                       "stroke-width=\"0.3\" points=\""); (* " *)
-                Vector.app onepoint pts;
-                print ("\" />\n") (* " *)
-            end
+          let
+            fun onepoint i =
+              case OSM.IntMap.find (points, i) of
+                NONE => ++missing_point
+              | SOME pos => prpt (projection pos)
+          in
+            print ("<polyline fill=\"none\" stroke=\"#000000\" " ^
+                   "opacity=\"0.5\" " ^
+                   "stroke-width=\"0.3\" points=\""); (* " *)
+            Vector.app onepoint pts;
+            print ("\" />\n") (* " *)
+          end
        in
          Vector.app onestreet streets;
          TextIO.output(TextIO.stdErr, "Missing points: " ^

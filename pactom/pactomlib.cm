@@ -61,5 +61,8 @@ group is
   ../sml-lib/geom/pointlocation-sig.sml
   ../sml-lib/geom/pointlocation.sml
 
+  osm-sig.sml
+  osm.sml
+
   pactom-sig.sml
   pactom.sml
