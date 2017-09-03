@@ -37,9 +37,9 @@ struct
           val coords = String.tokens StringUtil.whitespec coordstring
           val coords = map (map Real.fromString o
                             String.tokens (StringUtil.ischar #",")) coords
-          val coords = map (fn [SOME lat, SOME lon, SOME elev] => (lat, lon)
+          val coords = map (fn [SOME lon, SOME lat, SOME elev] => (lon, lat)
                             | _ => raise Segments
-                            ("Bad lat,lon,elev in <coordinates>: " ^
+                            ("Bad lon,lat,elev in <coordinates>: " ^
                              coordstring)) coords
         in
           [Placemark (name, coords)]
@@ -192,8 +192,8 @@ struct
                             Int.toString (length ccw) ^ " counter-" ^
                             "clockwise, in: " ^ pname ^ " of " ^ name)
                    in
-                     (LatLon.fromdegs { lat = #1 a, lon = #2 a },
-                      LatLon.fromdegs { lat = #1 b, lon = #2 b })
+                     (LatLon.fromdegs { lon = #1 a, lat = #2 a },
+                      LatLon.fromdegs { lon = #1 b, lat = #2 b })
                    end
 
                  | decodegate pname l =

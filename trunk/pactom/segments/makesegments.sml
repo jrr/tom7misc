@@ -9,6 +9,93 @@ struct
       OS.Process.exit OS.Process.failure
     end
 
+  (* Some place to center the gnomonic projection. *)
+  val home = LatLon.fromdegs { lat = 40.455441, lon = ~79.928058 }
+
+  fun genpic filename (segments, activities) =
+    let
+      val f = TextIO.openOut filename
+
+      val bounds = Bounds.nobounds ()
+      val rtos = TextSVG.rtos
+      fun xtos x = rtos (Bounds.offsetx bounds x)
+      fun ytos y = rtos (Bounds.offsety bounds y)
+      fun ptos (x, y) = (xtos x ^ "," ^ ytos y ^ " ")
+
+      val gnomonic = LatLon.gnomonic home
+      fun proj p =
+        let
+          val (x, y) = gnomonic p
+        in
+          (* Scale up massively, and invert Y axis. *)
+          (2400000.0 * x, ~2400000.0 * y)
+        end
+
+      fun observepoint (pos : LatLon.pos) =
+        Bounds.boundpoint bounds (proj pos)
+      fun observesegment (Segments.Segment { gates, ... }) =
+        Vector.app (fn (a, b) =>
+                    let in
+                      observepoint a;
+                      observepoint b
+                    end) gates
+      fun observeactivity (GPX.Activity { points, ... }) =
+        Vector.app (fn GPX.Pt { pos, ... } => observepoint pos) points
+
+      val () = app observesegment segments
+      val () = app observeactivity activities
+
+      fun Q s = "\"" ^ s ^ "\""
+
+      fun printpolyline c coords =
+        let in
+          TextIO.output(f,
+                        "<polyline stroke-linejoin=" ^ Q"round" ^
+                        " fill=" ^ Q"none" ^ " stroke=\"" ^ c ^
+                        "\" stroke-width=" ^ Q"0.7" ^ " points=\"");
+          Vector.app (fn (x, y) => TextIO.output (f, ptos (x, y))) coords;
+          TextIO.output (f, "\"/>\n") (* " *)
+        end
+
+
+      val width = Real.trunc (Bounds.width bounds)
+      val height = Real.trunc (Bounds.height bounds)
+
+      fun output_activity (GPX.Activity { name, points }) =
+        let val vxy = Vector.map (fn GPX.Pt { pos, ... } =>
+                                  proj pos) points
+        in
+          printpolyline "#3333CC" vxy
+        end
+
+      fun output_segment (Segments.Segment { name, gates }) =
+        let
+          fun output_gate (a, b) =
+            let
+              val (ax, ay) = proj a
+              val (bx, by) = proj b
+            in
+              printpolyline "#000000" (Vector.fromList [(ax, ay),
+                                                        (bx, by)])
+            end
+        in
+          Vector.app output_gate gates
+        end
+    in
+      TextIO.output (f,
+                     TextSVG.svgheader { x = 0, y = 0,
+                                         width = width,
+                                         height = height,
+                                         generator = "makesegments.sml" });
+      app output_activity activities;
+      app output_segment segments;
+
+      TextIO.output (f, TextSVG.svgfooter ());
+      TextIO.closeOut f;
+      print ("Wrote " ^ filename ^ "\n")
+    end
+
+
   fun main dirname =
     let
       val glob = FSUtil.dirplus dirname "*.gpx"
@@ -20,6 +107,8 @@ struct
       val () = print ("Loaded " ^ Int.toString (length activities) ^
                       " activities.\n")
     in
+      genpic "debug.svg" (segments, activities);
+
       print "(unimplemented)\n"
     end
   handle GPX.GPX s => fail ("GPX error: " ^ s ^ "\n")

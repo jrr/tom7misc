@@ -29,8 +29,12 @@ $(SML_LIB)/basis/mlton.mlb
 
  ../../sml-lib/geom/latlon-sig.sml
  ../../sml-lib/geom/latlon.sml
+ ../../sml-lib/geom/bounds-sig.sml
+ ../../sml-lib/geom/bounds.sml
 
  ../../sml-lib/files/xml/fxlib.mlb
+ ../../sml-lib/files/svg/textsvg-sig.sml
+ ../../sml-lib/files/svg/textsvg.sml
 
  gpx-sig.sml
  gpx.sml
