@@ -195,21 +195,32 @@ struct
   fun plate_carree { lat = phi, lon = lambda } = (torad lambda, torad phi)
 
   (* http://mathworld.wolfram.com/GnomonicProjection.html *)
-  fun gnomonic { lat = phi1, lon = lambda0 } { lat = phi, lon = lambda } =
+  fun gnomonic { lat = phi1, lon = lambda0 } =
     let
       val phi1 = torad phi1
       val lambda0 = torad lambda0
-      val phi = torad phi
-      val lambda = torad lambda
 
-      val cosc = LRM.sin phi1 * LRM.sin phi +
-        LRM.cos phi1 * LRM.cos phi * LRM.cos (lambda - lambda0)
+      val sin_phi1 = LRM.sin phi1
+      val cos_phi1 = LRM.cos phi1
     in
-      ((LRM.cos phi * LRM.sin (lambda - lambda0)) / cosc,
-       (LRM.cos phi1 * LRM.sin phi -
-        LRM.sin phi1 * LRM.cos phi * LRM.cos (lambda - lambda0)) / cosc)
-    end
+      fn { lat = phi, lon = lambda } =>
+      let
+        val phi = torad phi
+        val lambda = torad lambda
 
+        val sin_phi = LRM.sin phi
+        val cos_phi = LRM.cos phi
+
+        val cos_lambda_minus_lambda0 = LRM.cos (lambda - lambda0)
+
+        val cosc = sin_phi1 * sin_phi +
+          cos_phi1 * cos_phi * cos_lambda_minus_lambda0
+      in
+        ((cos_phi * LRM.sin (lambda - lambda0)) / cosc,
+         (cos_phi1 * sin_phi -
+          sin_phi1 * cos_phi * cos_lambda_minus_lambda0) / cosc)
+      end
+    end
 
   (* Use gnomonic projection. In it, all great circles are straight lines. *)
   fun angle (src, dst) =
