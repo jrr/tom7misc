@@ -1,21 +1,56 @@
 group is
 
+  ../njlib/lib-base-sig.sml
+  ../njlib/lib-base.sml
+  ../njlib/ord-key-sig.sml
+
+  ../njlib/ord-set-sig.sml
+  ../njlib/ord-map-sig.sml
+
   re.cm
 
   re-test.sml
-  
 
   stream-sig.sml
   stream.sml
-
   stream-test.sml
 
   stringutil-sig.sml
   stringutil.sml
-
   stringutil-test.sml
+
+  listutil-sig.sml
+  listutil.sml
+  (* TODO: listutil tests *)
+
+  util-sig.sml
+  util.sml
+  (* TODO: util tests *)
+
+  vectorutil-sig.sml
+  vectorutil.sml
+  (* TODO: vectorutil tests *)
+
+  simplestream-sig.sml
+  simplestream.sml
+  (* TODO: simplestream tests *)
+
+  maputil-sig.sml
+  maputil.sml
+  (* TODO: maputil tests *)
+
+  setutil-sig.sml
+  setutil.sml
+  (* TODO: setutil tests *)
+
+  growmonoarray-sig.sml
+  growmonoarray.sml
+  (* TODO: growmonoarray tests *)
 
   growarray-sig.sml
   growarray.sml
-
   growarray-test.sml
+
+
+(* fsutil excluded (doesn't compile on all platforms... still true?) *)
+   
