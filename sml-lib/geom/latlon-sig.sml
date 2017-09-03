@@ -8,6 +8,8 @@ sig
   (* latitude measured in degrees. Positive is north and negative is south.
      longitude measured in degrees. Positive is east and negative is west.
 
+     Careful: lat,lon is like y,x coordinates.
+
      The inputs are treated modularly, so that +100 latitude is the
      same as -80. *)
   val fromdegs : { lat : real, lon : real } -> pos
