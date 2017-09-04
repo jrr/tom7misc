@@ -12,20 +12,46 @@ struct
   (* Some place to center the gnomonic projection. *)
   val home = LatLon.fromdegs { lat = 40.455441, lon = ~79.928058 }
 
+  datatype segment = datatype Segments.segment
+  datatype activity = datatype GPX.activity
+  datatype pt = datatype GPX.pt
+
   (* Find crossings of segments in the activities.
 
      A crossing is a minimal subsequence of an activity that passes
-     through the gates in order. *)
+     through the gates in order. The same activity can have many
+     crossings of a segment, even overlapping ones.
+
+     Returns a list of segments, each with a non-empty list of
+     crossings (activity, waypoint start index, waypoint end index).
+     TODO: include weight for interpolating start and end indices
+ *)
   fun find_crossings (segments, activities) =
     let
-      (* XXX do something with them! *)
-      fun emit (Segments.Segment { name, ... },
-                GPX.Activity { name = activity_name, ... },
+      (* PERF: Make the debug printing efficiently optional *)
+
+      val segments = Vector.fromList segments
+      val activities = Vector.fromList activities
+
+      (* Accumulated crossings for each segment. *)
+      type crossing = GPX.activity * int * int
+      val crossings = Array.array (Vector.length segments,
+                                   nil : crossing list)
+
+      fun emit (seg_idx,
+                act as (Activity { name = activity_name, ... }),
                 start_idx, end_idx) =
-        print ("Segment " ^ name ^ " crossed in activity " ^
-               activity_name ^ ": " ^
-               Int.toString start_idx ^ " to " ^
-               Int.toString end_idx ^ "\n")
+        let
+          val Segment { name, ... } =
+            Vector.sub (segments, seg_idx)
+          val prev = Array.sub (crossings, seg_idx)
+        in
+          Array.update (crossings, seg_idx, (act, start_idx, end_idx) :: prev);
+          print ("Segment " ^ name ^ " crossed in activity " ^
+                 activity_name ^ ": " ^
+                 Int.toString start_idx ^ " to " ^
+                 Int.toString end_idx ^ "\n")
+        end
 
       (* Because we have to cross gates in order, gate matching is
          done with a state machine. As we run through an activity
@@ -43,18 +69,16 @@ struct
          our time (which is determined by the passage through gate 0).
          If we see gate 0, we start a new gatestate (since this DOES
          affect our time). However, it supersedes any gatestate
-         currently at index 0.
+         currently at index 0. So we only need to keep track of the
+         latest one.
 
          As a result of all that, there is at one most gatestate per
          gate index. So we just store a flat array, parallel with
-         the gates (XXX minus one?). *)
+         the gates, except for the unnecessary final gate. *)
 
       (* Index of the first element of the pair of adjacent points
          where we passed the START gate. *)
       type gatestate = int
-
-      val segments = Vector.fromList segments
-      val activities = Vector.fromList activities
 
       (* Does the running vector pos1 -> pos2 cross the gate (a, b)? *)
       fun doescross ((a, b), (pos1, pos2)) =
@@ -76,9 +100,12 @@ struct
 
       fun doactivity activity =
         let
+          val Activity { name = activity_name, ... } = activity
+          val () = print (" --- " ^ activity_name ^ " ---\n")
+
           fun makestates i : gatestate option Array.array =
-            let val Segments.Segment { gates, ... } = Vector.sub (segments, i)
-            in Array.array (Vector.length gates, NONE)
+            let val Segment { gates, ... } = Vector.sub (segments, i)
+            in Array.array (Vector.length gates - 1, NONE)
             end
           val gatestates = Vector.tabulate (Vector.length segments, makestates)
 
@@ -87,12 +114,12 @@ struct
              PERF: This can be much more efficient using Quadtree; almost
              no pairs of waypoints cross any gates. *)
           fun advancegates (act_idx,
-                            GPX.Pt { pos = pos1, ... },
-                            GPX.Pt { pos = pos2, ... }) =
+                            Pt { pos = pos1, ... },
+                            Pt { pos = pos2, ... }) =
             Util.for 0 (Vector.length segments - 1)
             (fn segidx =>
              let
-               val segment as Segments.Segment { gates, name } =
+               val segment as Segment { gates, name } =
                  Vector.sub (segments, segidx)
                val num_gates = Vector.length gates
              in
@@ -109,14 +136,24 @@ struct
                          the first slot (see discussion above). *)
                       if gateidx = 0
                       then
-                        let in
-                          print ("[" ^ name ^ "] Gate 0 crossed @" ^
+                        let
+                          val re = case Array.sub (states, 0) of
+                            SOME _ => "re-"
+                          | NONE => ""
+                        in
+                          print ("[" ^ name ^ "] Gate 0 " ^ re ^ "crossed @" ^
                                  Int.toString act_idx ^ "\n");
                           Array.update (states, 0, SOME act_idx)
                         end
                       else
                         (case Array.sub (states, gateidx - 1) of
-                           NONE => ()
+                           NONE =>
+                             let in
+                               print ("[" ^ name ^ "] Gate " ^
+                                      Int.toString gateidx ^ " @" ^
+                                      Int.toString act_idx ^
+                                      " but no predecessor\n")
+                             end
                          | SOME entry =>
                              let in
                                print ("[" ^ name ^ "] Gate " ^
@@ -128,7 +165,7 @@ struct
                                (* If it was actually the last gate,
                                   we can emit it. *)
                                if gateidx = num_gates - 1
-                               then emit (segment, activity, entry, act_idx)
+                               then emit (segidx, activity, entry, act_idx)
                                else Array.update (states, gateidx, SOME entry)
                              end)
                     end
@@ -136,7 +173,22 @@ struct
                 end)
              end)
 
-          val GPX.Activity { points, ... } = activity
+          val Activity { points, ... } = activity
+
+          (* When we reach the end of the activity, print any outstanding
+             gatestates. *)
+          fun print_unfinished () =
+            Vector.appi
+            (fn (seg_idx, Segment { name, ... }) =>
+             let
+               fun onestate (_, NONE) = ()
+                 | onestate (gate_idx, SOME act_idx) =
+                 print ("[" ^ name ^ "] Unfinished (last gate " ^
+                        Int.toString gate_idx ^ ") @" ^
+                        Int.toString act_idx ^ "\n")
+             in
+               Array.appi onestate (Vector.sub (gatestates, seg_idx))
+             end) segments
         in
           if Vector.length points >= 2
           then
@@ -145,11 +197,22 @@ struct
              advancegates (act_idx,
                            Vector.sub (points, act_idx),
                            Vector.sub (points, act_idx + 1)))
-          else ()
-        (* TODO: Debug message about outstanding gatestates *)
+          else ();
+          print_unfinished ()
         end
+
+      val () = Vector.app doactivity activities
+
+      (* Now collate each segment with crossings (if any) and put
+         them back in the original order. *)
+      val out = ref (nil : (segment * crossing list) list)
     in
-      Vector.app doactivity activities
+      Vector.appi
+      (fn (seg_idx, segment) =>
+       case Array.sub (crossings, seg_idx) of
+         nil => ()
+       | c => out := (segment, rev c) :: !out) segments;
+      rev (!out)
     end
 
   fun genpic filename (segments, activities) =
@@ -185,14 +248,14 @@ struct
 
       fun observepoint (pos : LatLon.pos) =
         Bounds.boundpoint bounds (proj pos)
-      fun observesegment (Segments.Segment { gates, ... }) =
+      fun observesegment (Segment { gates, ... }) =
         Vector.app (fn (a, b) =>
                     let in
                       observepoint a;
                       observepoint b
                     end) gates
-      fun observeactivity (GPX.Activity { points, ... }) =
-        Vector.app (fn GPX.Pt { pos, ... } => observepoint pos) points
+      fun observeactivity (Activity { points, ... }) =
+        Vector.app (fn Pt { pos, ... } => observepoint pos) points
 
       val () = app observesegment segments
       val () = app observeactivity activities
@@ -238,14 +301,14 @@ struct
          else ()
        end
 
-      fun output_activity (GPX.Activity { name, points }) =
-        let val vxy = Vector.map (fn GPX.Pt { pos, ... } =>
+      fun output_activity (Activity { points, ... }) =
+        let val vxy = Vector.map (fn Pt { pos, ... } =>
                                   proj pos) points
         in
           printpolyline "#3333CC" vxy
         end
 
-      fun output_segment (Segments.Segment { name, gates }) =
+      fun output_segment (Segment { name, gates }) =
         let
           fun output_gate (a, b) =
             let
@@ -273,6 +336,20 @@ struct
       print ("Wrote " ^ filename ^ "\n")
     end
 
+  fun dosegment_crossings (Segment { name, ... }, crlist) =
+    let in
+      print ("Crossings of " ^ name ^ ":\n");
+      app (fn (Activity { name = activity_name, start, ... },
+               start_idx, end_idx) =>
+           let val date = Date.fromTimeLocal start
+           in
+             print ("  " ^ Date.toString date ^ " " ^
+                    activity_name ^ "  @" ^
+                    Int.toString start_idx ^ " - " ^
+                    Int.toString end_idx ^ "\n")
+           end) crlist
+    end
+
   fun main dirname =
     let
       val glob = FSUtil.dirplus dirname "*.gpx"
@@ -283,10 +360,12 @@ struct
       val activities = map GPX.parse_file (FSUtil.globfiles glob)
       val () = print ("Loaded " ^ Int.toString (length activities) ^
                       " activities.\n")
+      val () = genpic "debug.svg" (segments, activities)
+      val crossings = find_crossings (segments, activities)
+      val () = print ("Found " ^
+                      Int.toString (length crossings) ^ " crossing(s)\n")
     in
-      genpic "debug.svg" (segments, activities);
-
-      find_crossings (segments, activities);
+      app dosegment_crossings crossings;
 
       print "(unimplemented)\n"
     end

@@ -20,6 +20,8 @@ sig
                         cadence : int }
   datatype activity =
     Activity of { name : string,
+                  (* Time of the first point. *)
+                  start : Time.time,
                   points : pt Vector.vector }
 
   (* Raises GPX on parse error *)

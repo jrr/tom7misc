@@ -17,6 +17,7 @@ struct
                         cadence : int }
   datatype activity =
     Activity of { name : string,
+                  start : Time.time,
                   points : pt Vector.vector }
 
   fun parse_xml xml =
@@ -168,9 +169,17 @@ struct
 
       val () = process xml
       val points = GrowArray.vector points
+
+      val start = if Vector.length points = 0
+                  then raise GPX ("There were 0 waypoints in the activity " ^
+                                  !name ^ "!")
+                  else let val Pt { time, ... } = Vector.sub (points, 0)
+                       in time
+                       end
     in
       check points;
       Activity { name = !name,
+                 start = start,
                  points = points }
     end
 
