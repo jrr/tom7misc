@@ -1,6 +1,11 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/basis/mlton.mlb
 
+ann
+  "nonexhaustiveMatch error"
+  "redundantMatch error"
+  "sequenceNonUnit error"
+in
  ../../sml-lib/njlib/lib-base-sig.sml
  ../../sml-lib/njlib/lib-base.sml
  ../../sml-lib/njlib/ord-key-sig.sml
@@ -54,4 +59,4 @@ $(SML_LIB)/basis/mlton.mlb
  segments.sml
 
  makesegments.sml
- 
+end
