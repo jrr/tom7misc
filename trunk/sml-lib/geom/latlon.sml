@@ -6,8 +6,11 @@
 structure LatLon :> LATLON =
 struct
 
+  (* Stored as degrees. PERF: Most of the computations below use
+     radians, of course, so that might be a better representation. *)
   type pos = { lat : real, lon : real }
   type projection = pos -> real * real
+  type inverse_projection = real * real -> pos
 
   exception LatLon of string
 
@@ -32,8 +35,12 @@ struct
     end
 
   fun fromdegs { lat, lon } =
-      { lat = plusminus_mod (lat, 90.0),
-        lon = plusminus_mod (lon, 180.0) }
+    { lat = plusminus_mod (lat, 90.0),
+      lon = plusminus_mod (lon, 180.0) }
+
+  fun fromlargerads { lat : LRM.real, lon : LRM.real } =
+    { lat = Real.fromLarge IEEEReal.TO_NEAREST (180.0 * LRM.pi * lat),
+      lon = Real.fromLarge IEEEReal.TO_NEAREST (180.0 * LRM.pi * lon) }
 
   fun todegs d = d
 
@@ -63,6 +70,7 @@ struct
   *)
 
   fun torad x = Real.toLarge x * (LRM.pi / 180.0)
+
 
   (* Using the Haversine formula, which has better numerical stability
      for small distances (down to a meter or so). Treats the Earth
@@ -97,8 +105,9 @@ struct
 
   fun lrm_abs (f : LR.real) = if f < 0.0 then ~f else f
 
-  (* Based on Chris Veness's JavaScript LGPL implementation of the Vincenty inverse
-     solution on an ellipsoid model of the Earth. ((c) Chris Veness 2002-2008)
+  (* Based on Chris Veness's JavaScript LGPL implementation of the Vincenty
+     inverse solution on an ellipsoid model of the Earth.
+     ((c) Chris Veness 2002-2008)
      http://www.movable-type.co.uk/scripts/latlong-vincenty.html *)
   exception Return of real
   fun dist_meters_vincenty ({ lat = lat1, lon = lon1 },
@@ -152,7 +161,8 @@ struct
       val uSq = cosSqAlpha * (a * a - b * b) / (b * b)
       val A = 1.0 + uSq / 16384.0 *
         (4096.0 + uSq * (~768.0 + uSq * (320.0 - 175.0 * uSq)))
-      val B = uSq / 1024.0 * (256.0 + uSq * (~128.0 + uSq * (74.0 - 47.0 * uSq)))
+      val B = uSq / 1024.0 *
+        (256.0 + uSq * (~128.0 + uSq * (74.0 - 47.0 * uSq)))
       val deltaSigma = B * sinSigma *
         (cos2SigmaM + B / 4.0 *
          (cosSigma * (~1.0 + 2.0 * cos2SigmaM * cos2SigmaM) -
@@ -221,6 +231,68 @@ struct
           sin_phi1 * cos_phi * cos_lambda_minus_lambda0) / cosc)
       end
     end
+
+  fun inverse_gnomonic { lat = phi1, lon = lambda0 } (x, y) =
+    let
+      val phi1 = torad phi1
+      val lambda0 = torad lambda0
+
+      val sin_phi1 = LRM.sin phi1
+      val cos_phi1 = LRM.cos phi1
+
+      val rho = LRM.sqrt (x * x + y * y)
+      (* XXX use atan2? wolfram says so. but of what? *)
+      val c = LRM.atan rho
+      val cosc = LRM.cos c
+      val sinc = LRM.sin c
+
+      val phi = LRM.asin
+        (cosc * sin_phi1 + (y * sinc * cos_phi1) / rho)
+
+      val lambda = lambda0 +
+        LRM.atan ((x * sinc) /
+                   (rho * cos_phi1 * cosc - y * sin_phi1 * sinc))
+    in
+      fromlargerads { lat = phi, lon = lambda }
+    end
+  (*
+  fun inverse_gnomonic { lat = phi1, lon = lambda0 }
+    (x : real, y : real) =
+    let
+      val phi1 = torad phi1
+      val lambda0 = torad lambda0
+
+      val sin_phi1 = LRM.sin phi1
+      val cos_phi1 = LRM.cos phi1
+
+    (* x = (cos_phi * LRM.sin (lambda - lambda0)) /
+       (sin_phi1 * sin_phi +
+       cos_phi1 * cos_phi * cos_lambda_minus_lambda0)
+
+
+
+       *)
+
+      (* y = (cos_phi1 * sin_phi -
+         sin_phi1 * cos_phi * cos_lambda_minus_lambda0) / cosc) *)
+
+    in
+
+      let
+        val phi = torad phi
+        val lambda = torad lambda
+
+        val sin_phi = LRM.sin phi
+        val cos_phi = LRM.cos phi
+
+        val cos_lambda_minus_lambda0 = LRM.cos (lambda - lambda0)
+
+        val cosc = sin_phi1 * sin_phi +
+          cos_phi1 * cos_phi * cos_lambda_minus_lambda0
+      in
+      end
+    end
+  *)
 
   (* Use gnomonic projection. In it, all great circles are straight lines. *)
   fun angle (src, dst) =

@@ -40,6 +40,8 @@ sig
      have infinite extent along one dimension, so we also specify the
      ranges of the output coordinates. *)
   type projection = pos -> real * real
+  (* Mapping (x,y) coordinates to positions on Earth. *)
+  type inverse_projection = real * real -> pos
 
   (* Produces x coordinates [-pi to +pi] and y coordinates -inf to +inf.
      Mercator distorts area near the poles badly.
@@ -70,6 +72,7 @@ sig
      Range is x: [-inf to +inf] and y: [-inf to +inf].
      *)
   val gnomonic : pos -> projection
+  val inverse_gnomonic : pos -> inverse_projection
 
   (* XXX: Other useful projections:
      transverse mercator (uses parallel rather than meridian)
