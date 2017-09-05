@@ -276,26 +276,31 @@ struct
 
   fun app af EMPTY = ()
     | app af (SET{root,...}) =
-    let fun apply SplayNil = ()
-          | apply (SplayObj{value,left,right}) =
-              (apply left; af value; apply right)
-    in apply (!root) end
+    let
+      fun apply SplayNil = ()
+        | apply (SplayObj{value,left,right}) =
+        (apply left; ignore (af value); apply right)
+    in
+      apply (!root)
+    end
 
   (* Fold function *)
   fun foldr abf b EMPTY = b
     | foldr abf b (SET{root,...}) =
-    let fun apply (SplayNil, b) = b
-          | apply (SplayObj{value,left,right},b) =
-      apply(left,abf(value,apply(right,b)))
+    let
+      fun apply (SplayNil, b) = b
+        | apply (SplayObj{value,left,right},b) =
+        apply(left,abf(value,apply(right,b)))
     in
       apply (!root,b)
     end
 
   fun foldl abf b EMPTY = b
     | foldl abf b (SET{root,...}) =
-    let fun apply (SplayNil, b) = b
-          | apply (SplayObj{value,left,right},b) =
-      apply(right,abf(value,apply(left,b)))
+    let
+      fun apply (SplayNil, b) = b
+        | apply (SplayObj{value,left,right},b) =
+        apply(right,abf(value,apply(left,b)))
     in
       apply (!root,b)
     end

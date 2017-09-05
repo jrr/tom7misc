@@ -23,6 +23,7 @@ group is
 
   latlon-sig.sml
   latlon.sml
+  latlon-test.sml
 
   quadtree-sig.sml
   quadtree.sml
