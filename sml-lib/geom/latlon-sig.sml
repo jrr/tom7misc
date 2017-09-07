@@ -72,6 +72,8 @@ sig
      Range is x: [-inf to +inf] and y: [-inf to +inf].
      *)
   val gnomonic : pos -> projection
+  (* Inverse may not be accurate for large distances, but seems good within
+     a few hundred miles of the tangent point. *)
   val inverse_gnomonic : pos -> inverse_projection
 
   (* XXX: Other useful projections:

@@ -39,8 +39,8 @@ struct
       lon = plusminus_mod (lon, 180.0) }
 
   fun fromlargerads { lat : LRM.real, lon : LRM.real } =
-    { lat = Real.fromLarge IEEEReal.TO_NEAREST (180.0 * LRM.pi * lat),
-      lon = Real.fromLarge IEEEReal.TO_NEAREST (180.0 * LRM.pi * lon) }
+    { lat = Real.fromLarge IEEEReal.TO_NEAREST ((180.0 / LRM.pi) * lat),
+      lon = Real.fromLarge IEEEReal.TO_NEAREST ((180.0 / LRM.pi) * lon) }
 
   fun todegs d = d
 
@@ -255,44 +255,6 @@ struct
     in
       fromlargerads { lat = phi, lon = lambda }
     end
-  (*
-  fun inverse_gnomonic { lat = phi1, lon = lambda0 }
-    (x : real, y : real) =
-    let
-      val phi1 = torad phi1
-      val lambda0 = torad lambda0
-
-      val sin_phi1 = LRM.sin phi1
-      val cos_phi1 = LRM.cos phi1
-
-    (* x = (cos_phi * LRM.sin (lambda - lambda0)) /
-       (sin_phi1 * sin_phi +
-       cos_phi1 * cos_phi * cos_lambda_minus_lambda0)
-
-
-
-       *)
-
-      (* y = (cos_phi1 * sin_phi -
-         sin_phi1 * cos_phi * cos_lambda_minus_lambda0) / cosc) *)
-
-    in
-
-      let
-        val phi = torad phi
-        val lambda = torad lambda
-
-        val sin_phi = LRM.sin phi
-        val cos_phi = LRM.cos phi
-
-        val cos_lambda_minus_lambda0 = LRM.cos (lambda - lambda0)
-
-        val cosc = sin_phi1 * sin_phi +
-          cos_phi1 * cos_phi * cos_lambda_minus_lambda0
-      in
-      end
-    end
-  *)
 
   (* Use gnomonic projection. In it, all great circles are straight lines. *)
   fun angle (src, dst) =
