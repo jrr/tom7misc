@@ -234,6 +234,8 @@ struct
 
   fun inverse_gnomonic { lat = phi1, lon = lambda0 } (x, y) =
     let
+      val x = Real.toLarge x
+      val y = Real.toLarge y
       val phi1 = torad phi1
       val lambda0 = torad lambda0
 
@@ -247,11 +249,22 @@ struct
       val sinc = LRM.sin c
 
       val phi = LRM.asin
-        (cosc * sin_phi1 + (y * sinc * cos_phi1) / rho)
+        (cosc * sin_phi1 +
+         (* In the case that the point being inverted is exactly
+            (0,0), rho will be zero here, and the quantity
+            undefined. *)
+         (if LargeReal.== (y, 0.0)
+          then 0.0
+          else (y * sinc * cos_phi1) / rho))
 
-      val lambda = lambda0 +
-        LRM.atan ((x * sinc) /
-                   (rho * cos_phi1 * cosc - y * sin_phi1 * sinc))
+      (* Same problem here. *)
+      val xarg =
+        if LargeReal.== (x, 0.0)
+        then 0.0
+        else (x * sinc) /
+             (rho * cos_phi1 * cosc - y * sin_phi1 * sinc)
+
+      val lambda = lambda0 + LRM.atan xarg
     in
       fromlargerads { lat = phi, lon = lambda }
     end

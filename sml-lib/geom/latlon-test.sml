@@ -39,6 +39,15 @@ struct
   fun go () =
     let
       val home = LatLon.fromdegs { lat = 40.452911, lon = ~79.936313 }
+
+      val hpos = LatLon.inverse_gnomonic home (0.0, 0.0)
+      val err = LatLon.dist_meters (home, hpos)
+      val () = if err < 0.01
+               then ()
+               else raise LatLonTest ("0,0 is not inverted back onto " ^
+                                      "the tangent point? Got " ^
+                                      latlontos hpos ^ ", expected " ^
+                                      latlontos home)
     in
       gnomon home (LatLon.fromdegs { lat = 40.450, lon = ~79.936 });
       gnomon home (LatLon.fromdegs { lat = 40.0, lon = ~80.0 });
