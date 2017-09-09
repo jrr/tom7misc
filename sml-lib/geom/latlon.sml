@@ -44,6 +44,11 @@ struct
 
   fun todegs d = d
 
+  fun fromstring s =
+    case map Real.fromString (String.fields (fn #"," => true | _ => false) s) of
+      [SOME lat, SOME lon] => SOME (fromdegs { lat = lat, lon = lon })
+    | _ => NONE
+
   (* This is not as accurate for short distances. *)
   fun dist_rads_fast ({ lat = lat1, lon = lon1 },
                       { lat = lat2, lon = lon2 }) =

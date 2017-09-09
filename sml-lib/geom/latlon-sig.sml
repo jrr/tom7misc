@@ -19,7 +19,14 @@ sig
   val todegs : pos -> { lat : real, lon : real }
 
   (* XXX val torads : pos -> { lat : real, lon : real } *)
-  (* XXX from DMS, string, etc... *)
+  (* XXX from DMS, etc... *)
+
+  (* The string must be of the form lat,lon where each component
+     is specified in decimal degrees, like 40.440624,-79.995888.
+     Negative values should be used for S and W hemispheres.
+
+     This function may understand more formats in the future. *)
+  val fromstring : string -> pos option
 
   (* Angle of a vector, in radians, where 0 is to the East and pi/2 is
      to the north. The angle is undefined when the points are the same
