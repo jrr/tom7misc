@@ -29,7 +29,8 @@ struct
             (fn #" " => true | #"\t" => true | _ => false) line
         in
           case SM.find(!m, k) of
-            SOME _ => raise Script ("duplicate key " ^ k ^ " in alist file " ^ f)
+            SOME _ => raise Script ("duplicate key " ^ k ^
+                                    " in alist file " ^ f)
           | NONE => m := SM.insert(!m, k, v)
         end
 
