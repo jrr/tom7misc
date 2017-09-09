@@ -9,12 +9,45 @@ struct
       OS.Process.exit OS.Process.failure
     end
 
-  (* Some place to center the gnomonic projection. *)
-  val home = LatLon.fromdegs { lat = 40.455441, lon = ~79.928058 }
+  structure Config :>
+  sig
+    type config
+
+    val home : config -> LatLon.pos
+    val gnomonic : config -> LatLon.projection
+    val inv_gnomonic : config -> LatLon.inverse_projection
+
+    val fromfile : string -> config
+  end =
+  struct
+    datatype config = C of { home : LatLon.pos,
+                             gnomonic : LatLon.projection,
+                             inv_gnomonic : LatLon.inverse_projection }
+
+    fun home (C { home, ... }) = home
+    fun gnomonic (C { gnomonic, ... }) = gnomonic
+    fun inv_gnomonic (C { inv_gnomonic, ... }) = inv_gnomonic
+
+    fun fromfile s =
+      let val { lookup, alist = _ } = Script.alistfromfile s
+      in
+        case Option.mapPartial LatLon.fromstring (lookup "home") of
+          NONE => raise MakeSegments "Need in config.txt:\nhome lat,lon"
+        | SOME pos =>
+            C { home = pos,
+                gnomonic = LatLon.gnomonic pos,
+                inv_gnomonic = LatLon.inverse_gnomonic pos }
+      end
+  end
 
   datatype segment = datatype Segments.segment
   datatype activity = datatype GPX.activity
   datatype pt = datatype GPX.pt
+
+  fun postos p =
+    let val { lon, lat } = LatLon.todegs p
+    in Real.toString lon ^ "," ^ Real.toString lat
+    end
 
   (* Find crossings of segments in the activities.
 
@@ -24,11 +57,12 @@ struct
 
      Returns a list of segments, each with a non-empty list of
      crossings (activity, waypoint start index, waypoint end index).
-     TODO: include weight for interpolating start and end indices
- *)
-  fun find_crossings (segments, activities) =
+     TODO: include weight for interpolating start and end indices *)
+  fun find_crossings conf (segments, activities) =
     let
       (* PERF: Make the debug printing efficiently optional *)
+      val gnomonic = Config.gnomonic conf
+      val inv_gnomonic = Config.inv_gnomonic conf
 
       val segments = Vector.fromList segments
       val activities = Vector.fromList activities
@@ -40,7 +74,7 @@ struct
 
       fun emit (seg_idx,
                 act as (Activity { name = activity_name, ... }),
-                start_idx, end_idx) =
+                (start_idx, start_frac), (end_idx, end_frac)) =
         let
           val Segment { name, ... } =
             Vector.sub (segments, seg_idx)
@@ -76,26 +110,54 @@ struct
          gate index. So we just store a flat array, parallel with
          the gates, except for the unnecessary final gate. *)
 
-      (* Index of the first element of the pair of adjacent points
-         where we passed the START gate. *)
-      type gatestate = int
+      (* Index of the first element of the pair of adjacent points where we
+         passed the START gate, along with the interpolation fraction
+         between that event and the next one (see intersection_frac). *)
+      type gatestate = int * real
 
-      (* Does the running vector pos1 -> pos2 cross the gate (a, b)? *)
-      fun doescross ((a, b), (pos1, pos2)) =
+      (* XXXXXX also check the direction of crossing is correct! *)
+      (* Does the running vector pos1->pos2 cross the gate (a, b)?
+         When we cross a gate, the two points may be pretty far
+         apart (especially when the GPS device merges collinear
+         points). Also compute the fraction (in 0, 1) of the
+         segment pos1->pos2 that yields the approximate intersection
+         point. This allows us to compute more precise times (etc.)
+         by interpolating between pos1 and pos2. *)
+      fun intersection_frac ((a, b), (pos1, pos2)) =
         let
-          (* Though the intersection point is not going to be exactly
-             correct, I'm pretty sure that the fact of intersection
-             is preserved when treating these as planar (poles and
-             meridian notwithstanding). *)
-          fun topt pos = let val { lon, lat } = LatLon.todegs pos
-                         in (lon, lat)
-                         end
+          (* PERF: We could do a quick test treating the positions
+             as euclidean... *)
+          (* Convert to gnomonic projection. All great circles--such
+             as the ones we're testing--are straight lines. *)
+          fun toxy pos = gnomonic pos
+          val (aa, bb) = (toxy a, toxy b)
+          val (ppos1, ppos2) = (toxy pos1, toxy pos2)
         in
-          (* XXXXXX also check the direction of crossing is correct! *)
-          case Geom.intersection { seg1 = (topt a, topt b),
-                                   seg2 = (topt pos1, topt pos2) } of
-            NONE => false
-          | SOME _ => true
+          (* Now, compute their intersection point, which corresponds
+             to the correct point on the geodesic. *)
+          case Geom.intersection { seg1 = (aa, bb),
+                                   seg2 = (ppos1, ppos2) } of
+          NONE => NONE
+        | SOME (iix, iiy) =>
+            let
+              (* Inverse gnomonic projection gives us the actual
+                 position where the two great circles intersect. *)
+              val isect_pt = inv_gnomonic (iix, iiy)
+              val plen = LatLon.dist_meters (pos1, pos2)
+              val ilen = LatLon.dist_meters (pos1, isect_pt)
+
+              val f = ilen / plen
+            in
+              if f < 0.0 orelse f > 1.0
+              then raise MakeSegments ("bad intersection for\n" ^
+                                       postos pos1 ^ " -> " ^ postos pos2 ^
+                                       "\n through gate\n" ^
+                                       postos a ^ " -- " ^ postos b ^
+                                       "\n yielding intersection at\n" ^
+                                       postos isect_pt ^
+                                       "\n and f=" ^ Real.toString f)
+              else SOME f
+            end
         end
 
       fun doactivity activity =
@@ -127,9 +189,7 @@ struct
                (fn gateidx =>
                 let
                   val gate = Vector.sub (gates, gateidx)
-                in
-                  if doescross (gate, (pos1, pos2))
-                  then
+                  fun didcross frac =
                     let val states = Vector.sub (gatestates, segidx)
                     in
                       (* First gate is special. It always overwrites
@@ -143,7 +203,7 @@ struct
                         in
                           print ("[" ^ name ^ "] Gate 0 " ^ re ^ "crossed @" ^
                                  Int.toString act_idx ^ "\n");
-                          Array.update (states, 0, SOME act_idx)
+                          Array.update (states, 0, SOME (act_idx, frac))
                         end
                       else
                         (case Array.sub (states, gateidx - 1) of
@@ -165,11 +225,15 @@ struct
                                (* If it was actually the last gate,
                                   we can emit it. *)
                                if gateidx = num_gates - 1
-                               then emit (segidx, activity, entry, act_idx)
+                               then emit (segidx, activity, entry,
+                                          (act_idx, frac))
                                else Array.update (states, gateidx, SOME entry)
                              end)
                     end
-                  else ()
+                in
+                  case intersection_frac (gate, (pos1, pos2)) of
+                    SOME f => didcross f
+                  | NONE => ()
                 end)
              end)
 
@@ -182,10 +246,11 @@ struct
             (fn (seg_idx, Segment { name, ... }) =>
              let
                fun onestate (_, NONE) = ()
-                 | onestate (gate_idx, SOME act_idx) =
+                 | onestate (gate_idx, SOME (act_idx, act_f)) =
                  print ("[" ^ name ^ "] Unfinished (last gate " ^
                         Int.toString gate_idx ^ ") @" ^
-                        Int.toString act_idx ^ "\n")
+                        Int.toString act_idx ^ "(." ^
+                        Real.toString act_f ^ ")\n")
              in
                Array.appi onestate (Vector.sub (gatestates, seg_idx))
              end) segments
@@ -215,9 +280,10 @@ struct
       rev (!out)
     end
 
-  fun genpic filename (segments, activities) =
+  fun genpic conf filename (segments, activities) =
     let
       val f = TextIO.openOut filename
+      val gnomonic = Config.gnomonic conf
 
       val bounds = Bounds.nobounds ()
       val rtos = TextSVG.rtos
@@ -237,7 +303,6 @@ struct
          "../pittsburgh-southwest.osm"]
         *)
 
-      val gnomonic = LatLon.gnomonic home
       fun proj p =
         let
           val (x, y) = gnomonic p
@@ -352,6 +417,8 @@ struct
 
   fun main dirname =
     let
+      val conf = Config.fromfile (FSUtil.dirplus dirname "config.txt")
+
       val glob = FSUtil.dirplus dirname "*.gpx"
       (* Maybe should be in subdir? *)
       val segments = Segments.parse_file "segments.kml"
@@ -360,14 +427,10 @@ struct
       val activities = map GPX.parse_file (FSUtil.globfiles glob)
       val () = print ("Loaded " ^ Int.toString (length activities) ^
                       " activities.\n")
-      val () = genpic "debug.svg" (segments, activities)
-      val crossings = find_crossings (segments, activities)
-      val () = print ("Found " ^
-                      Int.toString (length crossings) ^ " crossing(s)\n")
+      val () = genpic conf "debug.svg" (segments, activities)
+      val crossings = find_crossings conf (segments, activities)
     in
-      app dosegment_crossings crossings;
-
-      print "(unimplemented)\n"
+      app dosegment_crossings crossings
     end
   handle GPX.GPX s => fail ("GPX error: " ^ s ^ "\n")
        | Segments.Segments s => fail ("Segments error: " ^ s ^ "\n")

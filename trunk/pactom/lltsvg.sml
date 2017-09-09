@@ -1,5 +1,5 @@
 (* Print the latlon tree for the western hemisphere, as svg. *)
-structure Radial = 
+structure LatLonTreeDump =
 struct
   structure G = PacTom.G
 
@@ -12,12 +12,12 @@ struct
               raise e
           end
 
-  val () = msg ("There are " ^ Int.toString (Vector.length (PacTom.paths pt)) ^ 
+  val () = msg ("There are " ^ Int.toString (Vector.length (PacTom.paths pt)) ^
                 " paths\n" ^
-                "      and " ^ Int.toString (Vector.length (PacTom.overlays pt)) ^ 
+                "      and " ^ Int.toString (Vector.length (PacTom.overlays pt)) ^
                 " overlays")
 
   val llt = PacTom.latlontree pt
-  val () = LatLonTree.tosvg llt 12 true print 
+  val () = LatLonTree.tosvg llt 12 true print
 
 end
