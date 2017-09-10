@@ -23,6 +23,7 @@ group is
 
   latlon-sig.sml
   latlon.sml
+
   latlon-test.sml
 
   quadtree-sig.sml
@@ -48,4 +49,3 @@ group is
   latlontree-test.sml
 
   bresenham-test.sml
-  
