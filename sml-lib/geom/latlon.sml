@@ -129,8 +129,16 @@ struct
       val sinU2 = LRM.sin U2
       val cosU2 = LRM.cos U2
 
-                                          (* Is there really no NaN constant? *)
-      fun loop (lambda, 0) = raise Return (LargeReal.posInf / LargeReal.posInf)
+      fun loop (lambda, 0) =
+        (* The case that we didn't converge. Returning NaN.
+           This code used to be (LargeReal.posInf / LargeReal.posInf),
+           which was implicated in a compiler bug in mlton 20100608.
+           0 / 0 doesn't seem to tickle it and may be better anyway.
+           Hint: If mlton just prints "List.removeFirst" and dies,
+           it may be related to this code. (Raising LatLon would be
+           a reasonable alternative here.) *)
+        raise Return (0.0 / 0.0)
+
         | loop (lambda, itersleft) =
         let
           val sinLambda = LRM.sin lambda
@@ -144,10 +152,12 @@ struct
           val sinAlpha = cosU1 * cosU2 * sinLambda / sinSigma
           val cosSqAlpha = 1.0 - sinAlpha * sinAlpha
           val cos2SigmaM = cosSigma - 2.0 * sinU1 * sinU2 / cosSqAlpha
+
           val cos2SigmaM =
               if LR.isNan cos2SigmaM
               then 0.0
               else cos2SigmaM
+
           val C = f / 16.0 * cosSqAlpha * (4.0 + f * (4.0 - 3.0 * cosSqAlpha))
           val lambdaP = lambda
           val lambda = L + (1.0 - C) * f * sinAlpha *
@@ -178,7 +188,7 @@ struct
     end handle Return f => f
 
   val dist_meters = dist_meters_vincenty
-  fun dist_km (p, q) = dist_meters (p, q) / 1000.0
+  fun dist_km (p, q) = dist_meters (p, q) * 0.001
   fun dist_miles (p, q) = dist_km (p, q) * 0.621371192
   fun dist_feet (p, q) = dist_miles (p, q) * 5280.0
   fun dist_nautical_miles (p, q) = dist_km (p, q) * 0.539956803
@@ -253,6 +263,7 @@ struct
       val cosc = LRM.cos c
       val sinc = LRM.sin c
 
+      val phi = 1.0
       val phi = LRM.asin
         (cosc * sin_phi1 +
          (* In the case that the point being inverted is exactly
@@ -262,14 +273,15 @@ struct
           then 0.0
           else (y * sinc * cos_phi1) / rho))
 
-      (* Same problem here. *)
-      val xarg =
+      (* Same problem here. tan(0) is 0 so just don't compute it
+         in that branch. *)
+      val xdist =
         if LargeReal.== (x, 0.0)
         then 0.0
-        else (x * sinc) /
-             (rho * cos_phi1 * cosc - y * sin_phi1 * sinc)
+        else LRM.atan ((x * sinc) /
+                       (rho * cos_phi1 * cosc - y * sin_phi1 * sinc))
 
-      val lambda = lambda0 + LRM.atan xarg
+      val lambda = lambda0 + xdist
     in
       fromlargerads { lat = phi, lon = lambda }
     end
