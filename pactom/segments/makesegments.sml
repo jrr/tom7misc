@@ -49,6 +49,12 @@ struct
     in Real.toString lon ^ "," ^ Real.toString lat
     end
 
+  (* Interpolated index (int and fraction) to string. *)
+  fun idxtos (idx, f) =
+    if Real.isNan f orelse f < 0.0 orelse f > 1.0
+    then Int.toString idx ^ ".BAD:" ^ Real.toString f
+    else Real.fmt (StringCvt.FIX (SOME 4)) (real idx + f)
+
   (* Find crossings of segments in the activities.
 
      A crossing is a minimal subsequence of an activity that passes
@@ -68,23 +74,23 @@ struct
       val activities = Vector.fromList activities
 
       (* Accumulated crossings for each segment. *)
-      type crossing = GPX.activity * int * int
+      type crossing = GPX.activity * (int * real) * (int * real)
       val crossings = Array.array (Vector.length segments,
                                    nil : crossing list)
 
       fun emit (seg_idx,
                 act as (Activity { name = activity_name, ... }),
-                (start_idx, start_frac), (end_idx, end_frac)) =
+                starti : int * real, endi : int * real) =
         let
           val Segment { name, ... } =
             Vector.sub (segments, seg_idx)
           val prev = Array.sub (crossings, seg_idx)
         in
-          Array.update (crossings, seg_idx, (act, start_idx, end_idx) :: prev);
+          Array.update (crossings, seg_idx, (act, starti, endi) :: prev);
           print ("Segment " ^ name ^ " crossed in activity " ^
                  activity_name ^ ": " ^
-                 Int.toString start_idx ^ " to " ^
-                 Int.toString end_idx ^ "\n")
+                 idxtos starti ^ " to " ^
+                 idxtos endi  ^ "\n")
         end
 
       (* Because we have to cross gates in order, gate matching is
@@ -162,8 +168,12 @@ struct
 
       fun doactivity activity =
         let
-          val Activity { name = activity_name, ... } = activity
-          val () = print (" --- " ^ activity_name ^ " ---\n")
+          val Activity { name = activity_name,
+                         start = activity_start, ... } = activity
+          val () = print
+            (" --- " ^ activity_name ^ " (" ^
+             Date.toString (Date.fromTimeLocal activity_start) ^
+             ") ---\n")
 
           fun makestates i : gatestate option Array.array =
             let val Segment { gates, ... } = Vector.sub (segments, i)
@@ -202,7 +212,7 @@ struct
                           | NONE => ""
                         in
                           print ("[" ^ name ^ "] Gate 0 " ^ re ^ "crossed @" ^
-                                 Int.toString act_idx ^ "\n");
+                                 idxtos (act_idx, frac) ^ "\n");
                           Array.update (states, 0, SOME (act_idx, frac))
                         end
                       else
@@ -211,7 +221,7 @@ struct
                              let in
                                print ("[" ^ name ^ "] Gate " ^
                                       Int.toString gateidx ^ " @" ^
-                                      Int.toString act_idx ^
+                                      idxtos (act_idx, frac) ^
                                       " but no predecessor\n")
                              end
                          | SOME entry =>
@@ -219,7 +229,7 @@ struct
                                print ("[" ^ name ^ "] Gate " ^
                                       Int.toString (gateidx - 1) ^ " -> " ^
                                       Int.toString gateidx ^ " @" ^
-                                      Int.toString act_idx ^ "\n");
+                                      idxtos (act_idx, frac) ^ "\n");
                                (* Advance this cursor to the next gate *)
                                Array.update (states, gateidx - 1, NONE);
                                (* If it was actually the last gate,
@@ -249,8 +259,7 @@ struct
                  | onestate (gate_idx, SOME (act_idx, act_f)) =
                  print ("[" ^ name ^ "] Unfinished (last gate " ^
                         Int.toString gate_idx ^ ") @" ^
-                        Int.toString act_idx ^ "(." ^
-                        Real.toString act_f ^ ")\n")
+                        idxtos (act_idx, act_f) ^ "\n")
              in
                Array.appi onestate (Vector.sub (gatestates, seg_idx))
              end) segments
@@ -401,22 +410,194 @@ struct
       print ("Wrote " ^ filename ^ "\n")
     end
 
-  fun dosegment_crossings (Segment { name, ... }, crlist) =
-    let in
+  (* For some crossing of a segment, compute various data about it. *)
+  datatype enriched_crossing =
+    E of { seconds_before : real,
+           seconds : real,
+           miles_before : real,
+           miles : real,
+           total_beats : real,
+           hr_start : real,
+           hr_end : real
+           (* XXX more! *) }
+  fun enrich_crossing (Segment { ... })
+                      (Activity { points, ... }, starti, endi) =
+    let
+      (* Sum some quantity over an interval that ends at arbitrary
+         positions within the activity.
+
+         f computes a quantity for two adjacent activity points.
+
+         Points are represented as an index into the activity
+         points (integral; can't be the last one) and an intepolant
+         (real; between 0 and 1). *)
+      fun sum f ((idx1, f1), (idx2, f2)) =
+        if idx1 < 0 orelse
+           idx1 >= idx2 orelse
+           idx2 >= Vector.length points - 1
+        then raise MakeSegments "enrich_crossing: bad points"
+        else
+          let
+            fun acc (v, idx) =
+              if idx > idx2 then v
+              else
+                let
+                  val p1 = Vector.sub (points, idx)
+                  val p2 = Vector.sub (points, idx + 1)
+                  val vv = f (p1, p2)
+                  (* Attenuate if it's the start or end point. *)
+                  val vv = if idx = idx1
+                           then (1.0 - f1) * vv
+                           else if idx = idx2
+                                then f2 * vv
+                                else vv
+                in
+                  acc (v + vv, idx + 1)
+                end
+          in
+            acc (0.0, idx1)
+          end
+      fun get_sec (Pt { time = time1, ... },
+                   Pt { time = time2, ... }) =
+        Time.toReal (Time.- (time2, time1))
+      fun get_miles (Pt { pos = pos1, ... },
+                     Pt { pos = pos2, ... }) =
+        LatLon.dist_miles (pos1, pos2)
+
+      fun get_beats (Pt { time = time1, heart_bpm = h1, ... },
+                     Pt { time = time2, heart_bpm = h2, ... }) =
+        let
+          val sec = Time.toReal (Time.- (time2, time1))
+          val avg_bps = ((real h1 / 60.0) + (real h2 / 60.0)) * 0.5
+        in
+          avg_bps * sec
+        end
+
+      (* No interpolation here; starting or stopping causes HR to change so
+         the endpoints themselves are probably more what we want. *)
+      fun pt_hr idx =
+        let val Pt { heart_bpm, ... } = Vector.sub (points, idx)
+        in real heart_bpm
+        end
+
+      val zeroi = (0, 0.0)
+
+    in
+      E { seconds = sum get_sec (starti, endi),
+          seconds_before = sum get_sec (zeroi, starti),
+          miles = sum get_miles (starti, endi),
+          miles_before = sum get_miles (zeroi, starti),
+          total_beats = sum get_beats (starti, endi),
+          hr_start = pt_hr (#1 starti),
+          hr_end = pt_hr (#1 endi + 1)
+          }
+    end
+
+  (* Sort activities in chronological order. *)
+  fun comparebydate (Activity { start = a, ... },
+                     Activity { start = b, ... }) =
+    Time.compare (a, b)
+
+  fun comparecrossing ((acta, starta, enda),
+                       (actb, startb, endb)) =
+    let
+      fun compare_pt ((idxa, fa), (idxb, fb)) =
+        case Int.compare (idxa, idxb) of
+          EQUAL => Real.compare (fa, fb)
+        | order => order
+    in
+      case comparebydate (acta, actb) of
+        EQUAL => (case compare_pt (starta, startb) of
+                    EQUAL => compare_pt (enda, endb)
+                  | order => order)
+      | order => order
+    end
+
+  fun enrich_crossings crossings =
+    let fun one (seg, crlist) =
+      let val crlist = ListUtil.sort comparecrossing crlist
+      in (seg, ListUtil.mapto (enrich_crossing seg) crlist)
+      end
+    in
+      map one crossings
+    end
+
+  (* Print a summary of the crossings. *)
+  fun dosegment_crossings (seg as Segment { name, ... }, crlist) =
+    let
+      val rtos = Real.fmt (StringCvt.FIX (SOME 4))
+      fun dtos d = Date.fmt "%d %b %y" d
+    in
       print ("Crossings of " ^ name ^ ":\n");
-      app (fn (Activity { name = activity_name, start, ... },
-               start_idx, end_idx) =>
+      app (fn ((Activity { name = activity_name, start, ... },
+                starti, endi), E { seconds, total_beats, ... }) =>
            let val date = Date.fromTimeLocal start
            in
-             print ("  " ^ Date.toString date ^ " " ^
-                    activity_name ^ "  @" ^
-                    Int.toString start_idx ^ " - " ^
-                    Int.toString end_idx ^ "\n")
+             print ("  " ^ dtos date ^ " @" ^
+                    idxtos starti ^ "-" ^
+                    idxtos endi ^ "  " ^
+                    rtos seconds ^ "s " ^
+                    rtos total_beats ^ "b" ^
+                    "\n")
            end) crlist
+    end
+
+  fun crossings_tsv (Segment { name, ... }, crlist) =
+    let
+      val rtos = Real.fmt (StringCvt.FIX (SOME 6))
+      val okspec = StringUtil.charspec "A-Za-z0-9_"
+      val filename = CharVector.map (fn c =>
+                                     if okspec c
+                                     then c
+                                     else #"_") name ^ ".tsv"
+      val f = TextIO.openOut filename
+
+      (* val () = TextIO.output (f, name ^ "\n") *)
+      val () = TextIO.output (f,
+                              "date\t" ^
+                              "sec\t" ^
+                              "total beats\t" ^
+                              "miles\t" ^
+                              "sec before\t" ^
+                              "miles before\t" ^
+                              "hr start\t" ^
+                              "hr end\t" ^
+                              "\n")
+
+      fun onerow ((Activity { name = activity_name, start, ... },
+                   starti, endi), E { seconds, total_beats, miles,
+                                      seconds_before, miles_before,
+                                      hr_start, hr_end, ... }) =
+        let
+          (* XXX no, get it by interpolating starti *)
+          val start = Date.fromTimeLocal start
+        in
+          TextIO.output (f,
+                         Date.toString start ^ "\t" ^
+                         rtos seconds ^ "\t" ^
+                         rtos total_beats ^ "\t" ^
+                         rtos miles ^ "\t" ^
+                         rtos seconds_before ^ "\t" ^
+                         rtos miles_before ^ "\t" ^
+                         rtos hr_start ^ "\t" ^
+                         rtos hr_end ^ "\t" ^
+                         "\n")
+        end
+    in
+      app onerow crlist;
+      print ("Wrote " ^ filename ^ "\n");
+      TextIO.closeOut f
     end
 
   fun main dirname =
     let
+      fun maybe_parse_file f =
+        SOME (GPX.parse_file f) handle GPX.GPX msg =>
+          let in
+            print ("Couldn't parse " ^ f ^ ": " ^ msg ^ "\n");
+            NONE
+          end
+
       val conf = Config.fromfile (FSUtil.dirplus dirname "config.txt")
 
       val glob = FSUtil.dirplus dirname "*.gpx"
@@ -424,13 +605,16 @@ struct
       val segments = Segments.parse_file "segments.kml"
       val () = print ("Loaded " ^ Int.toString (length segments) ^
                       " segments.\n")
-      val activities = map GPX.parse_file (FSUtil.globfiles glob)
+      val activities = List.mapPartial maybe_parse_file (FSUtil.globfiles glob)
       val () = print ("Loaded " ^ Int.toString (length activities) ^
                       " activities.\n")
+      val activities = ListUtil.sort comparebydate activities
       val () = genpic conf "debug.svg" (segments, activities)
       val crossings = find_crossings conf (segments, activities)
+      val crossings = enrich_crossings crossings
     in
-      app dosegment_crossings crossings
+      app dosegment_crossings crossings;
+      app crossings_tsv crossings
     end
   handle GPX.GPX s => fail ("GPX error: " ^ s ^ "\n")
        | Segments.Segments s => fail ("Segments error: " ^ s ^ "\n")

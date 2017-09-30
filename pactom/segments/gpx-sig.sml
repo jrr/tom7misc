@@ -16,7 +16,7 @@ sig
                         (* Degrees Celsius *)
                         temp : real,
                         heart_bpm : int,
-                        (* Strides/min? *)
+                        (* Pairs of strides per minute *)
                         cadence : int }
   datatype activity =
     Activity of { name : string,
