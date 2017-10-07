@@ -365,6 +365,9 @@ Full documentation will be available after autoloading the function."
   (modify-syntax-entry ?}       "){"    sml-mode-syntax-table)
   (modify-syntax-entry ?\*      ". 23"  sml-mode-syntax-table)
   (modify-syntax-entry ?\"      "\""    sml-mode-syntax-table)
+  ;; added by tom7. Needed to correctly syntax-highlight
+  ;; string literals with escaped double quotes therein.
+  (modify-syntax-entry ?\\      "\\"    sml-mode-syntax-table)
   (modify-syntax-entry ?        " "     sml-mode-syntax-table)
   (modify-syntax-entry ?\t      " "     sml-mode-syntax-table)
   (modify-syntax-entry ?\n      " "     sml-mode-syntax-table)
