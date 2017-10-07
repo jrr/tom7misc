@@ -344,7 +344,7 @@ struct
                         " fill=" ^ Q"none" ^ " stroke=\"" ^ c ^
                         "\" stroke-width=" ^ Q"0.7" ^ " points=\"");
           Vector.app (fn (x, y) => TextIO.output (f, ptos (x, y))) coords;
-          TextIO.output (f, "\"/>\n") (* " *)
+          TextIO.output (f, "\"/>\n")
         end
 
       val width = Real.trunc (Bounds.width bounds)
@@ -363,9 +363,9 @@ struct
             TextIO.output(f,
                           "<polyline fill=\"none\" stroke=\"#000000\" " ^
                           "opacity=\".5\" " ^
-                          "stroke-width=\".3\" points=\""); (* " *)
+                          "stroke-width=\".3\" points=\"");
             Vector.app onepoint pts;
-            TextIO.output (f, "\" />\n") (* " *)
+            TextIO.output (f, "\" />\n")
           end
        in
          Vector.app onestreet streets;
@@ -542,14 +542,110 @@ struct
            end) crlist
     end
 
+  local val okspec = StringUtil.charspec "A-Za-z0-9_"
+  in
+    fun filebase name =
+      CharVector.map (fn c =>
+                      if okspec c
+                      then c
+                      else #"_") name
+  end
+
+  (* Graph elevation vs time and mark the end point.
+     TODO: Mark start and end points
+     TODO: Start all of them at the same x coordinate
+     TODO: Absolute elevation seems to change a lot
+     from day to day (I guess because of prevailing
+     barometric pressure?). So maybe should just use
+     the deltas.
+     *)
+  fun elevgraph (Segment { name, ... }, crlist) =
+    let
+      val filename = filebase name ^ "-elev.svg"
+      (* Bounds for graph data. *)
+      val bounds = Bounds.nobounds ()
+
+      val lines = ref nil
+      fun onecrossing ((Activity { points, ... }, starti, endi),
+                       E { hr_start, hr_end, ...}) =
+        (* Emit all the points in starti-endi, including the
+           interpolated but excluded endpoints. Accumulate the
+           time since start (x axis); y axis is elevation. *)
+        let
+          (* Start time. In the general case this is AFTER the
+             first point we emit. *)
+          val tstart =
+            let
+              (* first two points *)
+              val (idx, f) = starti
+              val Pt { time = tstart, ... } =
+                Vector.sub (points, idx)
+              val Pt { time = tstart1, ...} =
+                Vector.sub (points, idx + 1)
+
+              (* Time is actually integral, so do the subsecond
+                 calculation in microseconds *)
+              val subsec = Time.toReal (Time.-(tstart1, tstart)) * f
+              val toffset = Time.fromMicroseconds
+                (IntInf.fromInt (Real.trunc (subsec * 1000000.0)))
+            in
+              Time.+ (tstart, toffset)
+            end
+
+          val (endidx, endf) = endi
+          fun go i =
+            if i = endidx + 1 then nil
+            else
+              let
+                val Pt { elev, time, ... } = Vector.sub (points, i)
+                val seconds = Time.toReal (Time.-(time, tstart))
+              in
+                (* Reverse elevation so that increasing Y is up.
+                   XXX do this a better way. *)
+                (seconds, 0.0 - elev) :: go (i + 1)
+              end
+        in
+          lines := go (#1 starti) :: !lines
+        end
+
+      val () = app onecrossing crlist
+      val () = app (app (Bounds.boundpoint bounds)) (!lines)
+      val f = TextIO.openOut filename
+
+      val () = Bounds.addmarginfrac bounds 0.05;
+      (* Screen coordinates *)
+      val WIDTH = 1000
+      val HEIGHT = 1000
+      val scaler = Bounds.stretch bounds (real WIDTH, real HEIGHT)
+
+      fun svgline l =
+        let in
+          TextIO.output (f, "<polyline fill=\"none\" stroke=\"#000\" " ^
+                         "opacity=\".5\" stroke-width=\".3\" points=\"");
+          app (fn pt =>
+               let val (x, y) = Bounds.scale scaler pt
+               in
+                 TextIO.output (f, TextSVG.rtos x ^ "," ^
+                                TextSVG.rtos y ^ " ")
+               end) l;
+          TextIO.output (f, "\" />\n")
+        end
+    in
+      TextIO.output (f, TextSVG.svgheader { x = 0,
+                                            y = 0,
+                                            width = WIDTH,
+                                            height = HEIGHT,
+                                            generator = "makesegments" });
+      app svgline (!lines);
+      TextIO.output (f, TextSVG.svgfooter ());
+      TextIO.closeOut f;
+      print ("Wrote " ^ filename ^ "...\n")
+    end
+
   fun crossings_tsv (Segment { name, ... }, crlist) =
     let
       val rtos = Real.fmt (StringCvt.FIX (SOME 6))
-      val okspec = StringUtil.charspec "A-Za-z0-9_"
-      val filename = CharVector.map (fn c =>
-                                     if okspec c
-                                     then c
-                                     else #"_") name ^ ".tsv"
+      val filename = filebase name ^ ".tsv"
       val f = TextIO.openOut filename
 
       (* val () = TextIO.output (f, name ^ "\n") *)
@@ -569,7 +665,9 @@ struct
                                       seconds_before, miles_before,
                                       hr_start, hr_end, ... }) =
         let
-          (* XXX no, get it by interpolating starti *)
+          (* XXX no, get it by interpolating starti
+             (this code is in elevgraph; factor it out -- or actually,
+             it could just go in the enrichment) *)
           val start = Date.fromTimeLocal start
         in
           TextIO.output (f,
@@ -614,7 +712,8 @@ struct
       val crossings = enrich_crossings crossings
     in
       app dosegment_crossings crossings;
-      app crossings_tsv crossings
+      app crossings_tsv crossings;
+      app elevgraph crossings
     end
   handle GPX.GPX s => fail ("GPX error: " ^ s ^ "\n")
        | Segments.Segments s => fail ("Segments error: " ^ s ^ "\n")
