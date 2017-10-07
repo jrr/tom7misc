@@ -39,7 +39,7 @@ struct
                   fun getpx s =
                     case ListUtil.Alist.find op= attrs s of
                         NONE => raise TextSVG ("expected to find a '" ^ s ^
-                                              "' attr")
+                                               "' attr")
                       | SOME px =>
                          let val px = losewhites px
                          in
