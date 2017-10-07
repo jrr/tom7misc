@@ -30,4 +30,24 @@ sig
      nothing. *)
   val addmarginfrac : bounds -> real -> unit
 
+  (* A common thing to do is collect some points into a bounding box,
+     which we then want to represent as a graphic of a different
+     scale and origin, like a 1000x1000 pixel box whose bottom left is
+     0,0 (call these "screen coordinates").
+
+     This type is a transformation conveniently derived from
+     the bounds and desired screen coordinates. (It's called a scaler
+     but it also involves at least a translation. TODO: Allow flipping
+     the coordinate system vertically, too.) The scaler is immutable,
+     even if the bounds it was derived from is modified. *)
+  type scaler
+  (* Maps a point from the original coordinates (i.e., what was inserted
+     into bounds) to screen coordinates. *)
+  val scale : scaler -> real * real -> real * real
+  (* Make the bounding box as large as possible without modifying its
+     aspect ratio. *)
+  (* TODO: val scaletofit : bounds -> real * real -> scaler *)
+  (* Make the bounding box fit the screen, stretching as necessary. *)
+  val stretch : bounds -> real * real -> scaler
+
 end

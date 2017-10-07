@@ -72,4 +72,19 @@ struct
     in  addmargin b r
     end
 
+  type scaler = { xoff: real, yoff: real, xs : real, ys : real }
+  fun scale { xoff, yoff, xs, ys } (x : real , y : real) =
+    ((x + xoff) * xs, (y + yoff) * ys)
+  fun stretch { empty = ref true, ... } _ = raise Empty
+    | stretch { minx = ref minx, maxx = ref maxx,
+                miny = ref miny, maxy = ref maxy, empty = _ }
+              (neww, newh) : scaler =
+    let
+      val w = maxx - minx
+      val h = maxy - miny
+    in
+      { xoff = 0.0 - minx, yoff = 0.0 - miny,
+        xs = (neww / w), ys = (newh / h) }
+    end
+
 end
