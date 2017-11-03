@@ -56,8 +56,8 @@ function Draw() {
   // Get chars left through decomposition.
   const r = Decompose(word);
   console.log(r);
-  if (!Make(r, out)) {
-    out.innerHTML = 'NO anaglyphs!';
+  if (!Make(r, out, true)) {
+    out.innerHTML = 'NO anagraphs!';
   }
 }
 
@@ -104,10 +104,11 @@ function Take(src, t) {
 // r - the set of atoms left (as a string, sorted). We have to use
 //     all of them to complete the anagraph.
 // elt - the output element.
-function Make(r, elt) {
+// top - true if this is the top-level loop.
+function Make(r, elt, top) {
   let any = false;
   // Walk the tree with the current atoms. Whenever we find a word
-  // that can be made, we check to see if an anaglyph can be completed
+  // that can be made, we check to see if an anagraph can be completed
   // (using HasAny) and if so, we add it to the element.
   let Walk = (n, a) => {
     if (!n) return false;
@@ -128,22 +129,31 @@ function Make(r, elt) {
     // Any words at this node are possible.
     if (n.w) {
       // Is it completable?
-      const comp = (left === '') || HasAny(left);
+      const MAX = 5;
+      const card = Cardinality(left, MAX + 1);
+      const comp = (left === '') || card > 0;
       // console.log(n.w.join(',') + ' ' + comp);
       
       if (comp) {
 	var s = n.w.join(',');
-	const d = DIV('', elt);
+	const d = DIV(top ? 'top an' : 'an', elt);
 	TEXT(s, d);
 	if (left !== '') {
 	  const ct = DIV('cont', d);
-	  const m = SPAN('more', ct);
-	  TEXT("...", m);
-	  m.onclick = () => {
-	    // Get rid of 'more' link
-	    ct.removeChild(m);
-	    Make (left, ct);
-	  };
+	  // Incomplete. If there's a small number of completions,
+	  // just do it.
+	  if (card <= MAX) {
+	    Make (left, ct, false);
+	  } else {
+	    // Otherwise make a ... link.
+	    const m = SPAN('more', ct);
+	    TEXT("...", m);
+	    m.onclick = () => {
+	      // Get rid of 'more' link
+	      ct.removeChild(m);
+	      Make (left, ct, true);
+	    };
+	  }
 	}
 	any = true;
       }
@@ -154,43 +164,65 @@ function Make(r, elt) {
   return any;
 }
 
-// Returns true if there are any full anagrams of the atoms r.
-function HasAny(r) {
+// Compute the number of full anagraphs of the atoms r, but stop and
+// return max (or some higher number) if we know we have at least max.
+// This allows us to efficiently expand cases where there are a small
+// number of completions, without counting the exact number.
+function Cardinality(r, max) {
   // Once this returns true, we can stop and return true.
-  let Walk = (n, a) => {    
-    if (!n) return false;
+  let Walk = (n, a, m) => {
+    if (m <= 0) return 0;
+    if (!n) return 0;
     // Can only enter the node if we have all its atoms, and those
     // get removed from the available ones for this subtree.
     let left = Take(a, n.a);
     // Can't enter subtree because we don't have the atoms.
-    if (left === null) return false;
+    if (left === null) return 0;
 
-    if (n.c)
-      for (c of n.c)
-	if (Walk (c, left))
-	  return true;
+    // Check children to find longer anaglyphs first.
+    let found = 0;
 
     // Any words at this node are possible.
-    if (n.w) {
+    const num = n.w ? n.w.length : 0;
+    if (num > 0) {
       // ... completing the anagraph.
-      if (left === '')
-	return true;
+      if (left === '') {
+	found += num;
+	if (found >= m) return found;
+      }
 
       // ... with some more atoms to be anagraphed.
-      if (Walk (tree, left))
-	return true;
+      // Actually could be like (m - found) div num?
+      const rec = Walk (tree, left, m - found);
+      // Also, we could define this to count chunks of
+      // words as just 1, which might be more what we need
+      // for the UI.
+      found += num * rec;
+      if (found >= m) return found;
     }
+
+    if (n.c) {
+      for (c of n.c) {
+	found += Walk (c, left, m - found);
+	if (found >= m) return found;
+      }
+    }
+    return found;
   };
 
-  return Walk(tree, r);
+  return Walk(tree, r, max);
 }
 
+// Returns true if there are any full anagraph of the atoms r.
+function HasAny(r) {
+  return Cardinality(r, 1) > 0;
+}
 
 function Init() {
   const input = document.getElementById('wordinput');
   input.onkeydown = InputKey;
 
   // XXX
-  input.value = 'digital';
+  input.value = word;
   Restart();
 }
