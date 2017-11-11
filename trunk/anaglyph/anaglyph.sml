@@ -131,7 +131,7 @@ struct
 
   fun load_dictionary () =
     let
-      val lines = Script.linesfromfile "wordlist.asc"
+      val lines = Script.linesfromfile "debug.asc" (* FIXME *)
       fun oneword w =
         case CharVector.find (StringUtil.ischar #" ") w of
           SOME _ => raise Anaglyph ("Dictionary word has space: " ^ w)
@@ -740,6 +740,9 @@ struct
   fun tree_textfile () = Tree.tostring tree
   fun tree_js () = Tree.tojs tree
 
+  val () = TextIO.output
+    (TextIO.stdErr,
+     "Atoms: " ^ Atom.name ^ "\n")
   val () = TextIO.output
     (TextIO.stdErr,
      "Tree depth: " ^ Int.toString (Tree.depth tree) ^ "\n")

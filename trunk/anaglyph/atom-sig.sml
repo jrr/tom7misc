@@ -1,5 +1,7 @@
 signature ATOM =
 sig
+  val name : string
+
   eqtype atom
   val compare : atom * atom -> order
   val toint : atom -> int

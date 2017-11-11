@@ -1,7 +1,8 @@
 // needs atoms, indices, decom, tree from tree.js
 
-let word = 'radioisotope';
+let word = 'radio';
 let banned = {};
+const MINLEN = 0;
 
 function makeElement(what, cssclass, elt) {
   var e = document.createElement(what);
@@ -28,7 +29,7 @@ function Decompose(s) {
       outid.push(id);
     }
   }
-  outid.sort();
+  outid.sort(function(a, b) { return b < a; });
   
   let out = '';
   for (const id of outid)
@@ -47,6 +48,15 @@ function Restart() {
   const elt = document.getElementById('wordinput');
   // strip whitespace etc.
   word = elt.value;
+  const belt = document.getElementById('bannedinput');
+  const bwords = belt.value.split(',');
+  banned = {};
+  for (const w of bwords) {
+    const ws = w.replace(/^\s+|\s+$/g,'');
+    console.log('banned: [' + ws + ']');
+    banned[ws] = true;
+  }
+  
   Draw();
 }
 
@@ -96,6 +106,26 @@ function Take(src, t) {
   }
 }
 
+// Get the words at the current node, taking into account the banned
+// words.
+function NodeWords(n) {
+  if (!n.w) return null;
+  for (let i = 0; i < n.w.length; i++) {
+    if (banned[n.w[i]] || n.w[i].length < MINLEN) {
+      // Since this case is rare, only allocate a new array once
+      // we see a single banned word.
+      let ret = n.w.slice(0, i);
+      for (let j = i + 1; j < n.w.length; j++) {
+	if (!banned[n.w[j]] && n.w[j].length >= MINLEN) {
+	  ret.push(n.w[j]);
+	}
+      }
+      return ret;
+    }
+  }
+  return n.w;
+}
+
 // Populate one level of the output tree. We don't generate all the
 // anagrams eagerly (document would be too big), but we do want to
 // know whether the anagram can be completed; we consult the HasAny
@@ -115,27 +145,28 @@ function Make(r, elt, top) {
     // Can only enter the node if we have all its atoms, and those
     // get removed from the available ones for this subtree.
     const left = Take(a, n.a);
+    console.log('walk [' + a + '] (' + n.a + ') = ' + (left ? left : '-'));
     // Can't enter subtree because we don't have the atoms.
     if (left === null) return false;
-
+    
     // Always visit children. Do this first to generate longer
     // words first.
     if (n.c) {
       for (c of n.c) {
-	Walk (c, left);
+	Walk(c, left);
       }
     }
 
     // Any words at this node are possible.
-    if (n.w) {
+    const nw = NodeWords(n);
+    if (nw && nw.length > 0) {
       // Is it completable?
       const MAX = 5;
       const card = Cardinality(left, MAX + 1);
       const comp = (left === '') || card > 0;
-      // console.log(n.w.join(',') + ' ' + comp);
       
       if (comp) {
-	var s = n.w.join(',');
+	var s = nw.join(',');
 	const d = DIV(top ? 'top an' : 'an', elt);
 	TEXT(s, d);
 	if (left !== '') {
@@ -183,7 +214,9 @@ function Cardinality(r, max) {
     let found = 0;
 
     // Any words at this node are possible.
-    const num = n.w ? n.w.length : 0;
+    // PERF: Could just count rather than copying.
+    const nw = NodeWords(n);
+    const num = nw ? nw.length : 0;
     if (num > 0) {
       // ... completing the anagraph.
       if (left === '') {
@@ -193,7 +226,7 @@ function Cardinality(r, max) {
 
       // ... with some more atoms to be anagraphed.
       // Actually could be like (m - found) div num?
-      const rec = Walk (tree, left, m - found);
+      const rec = Walk(tree, left, m - found);
       // Also, we could define this to count chunks of
       // words as just 1, which might be more what we need
       // for the UI.
@@ -203,7 +236,7 @@ function Cardinality(r, max) {
 
     if (n.c) {
       for (c of n.c) {
-	found += Walk (c, left, m - found);
+	found += Walk(c, left, m - found);
 	if (found >= m) return found;
       }
     }
@@ -224,5 +257,9 @@ function Init() {
 
   // XXX
   input.value = word;
+
+  const binput = document.getElementById('bannedinput');
+  binput.onkeydown = InputKey;
+
   Restart();
 }

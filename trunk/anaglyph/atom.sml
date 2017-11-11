@@ -1,5 +1,7 @@
 structure Canonical :> ATOM =
 struct
+  val name = "ceors"
+
   type atom = int
   val compare = Int.compare
   val atomchars = "ceors'.?"
@@ -55,6 +57,8 @@ end
 
 structure Inv :> ATOM =
 struct
+  val name = "inversions"
+
   type atom = int
   val START = ord #"a"
   val compare = Int.compare
@@ -102,6 +106,8 @@ end
 (* Letters decompose to themselves only. *)
 structure Letter :> ATOM =
 struct
+  val name = "letters"
+
   type atom = int
   val compare = Int.compare
   (* bdpq map to b, and nu maps to n. Everything else is identity. *)
@@ -122,4 +128,5 @@ struct
     end
 end
 
-structure Atom = Canonical
+(* structure Atom = Canonical *)
+structure Atom = Letter

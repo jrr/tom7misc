@@ -59,7 +59,8 @@ struct
             | _ => raise Anaglyph.Anaglyph "-plan needs exactly two args.")
          else if argstring <> ""
               then Anaglyph.anaglyph_requiring maxwords require argstring
-              else print "Give a phrase on the command line, or -dump, or -plan.\n"
+              else print ("Give a phrase to anagram, or use some " ^
+                          "other mode:\n" ^ Params.usage ())
     end
 
   fun go () =
