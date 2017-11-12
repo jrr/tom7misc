@@ -12,6 +12,7 @@
 // 4-channel image in R-G-B-A order.
 struct ImageRGBA {
   using uint8 = uint8_t;
+  using uint32 = uint32_t;
   ImageRGBA(const std::vector<uint8> &rgba, int width, int height);
   
   static ImageRGBA *Load(const std::string &filename);
@@ -19,6 +20,9 @@ struct ImageRGBA {
 
   ImageRGBA *Copy() const;
 
+  // In RGBA order, where R value is MSB. x/y must be in bounds.
+  uint32 GetPixel(int x, int y) const;
+  
   const int width, height;
   // Size width * height * 4.
   std::vector<uint8> rgba;
