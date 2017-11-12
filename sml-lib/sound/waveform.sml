@@ -38,7 +38,8 @@ struct
   structure FastSquare =
   struct
 
-    type square = { error : int, y : int, deltax : int, deltay : int, volume : int }
+    type square = { error : int, y : int, deltax : int, deltay : int,
+                    volume : int }
 
     fun square { samplerate, freq, volume } =
       let
@@ -51,7 +52,8 @@ struct
 
         val error = deltax div 2
       in
-        { error = error, y = y, deltax = deltax, deltay = deltay, volume = volume }
+        { error = error, y = y, deltax = deltax, deltay = deltay,
+          volume = volume }
       end
 
     fun next { error, y, deltax, deltay, volume } =
@@ -62,7 +64,8 @@ struct
                          then (error + deltax, y + 1)
                              else (error, y)
       in
-        ({ error = error, y = y, deltax = deltax, deltay = deltay, volume = volume },
+        ({ error = error, y = y, deltax = deltax, deltay = deltay,
+           volume = volume },
          sample)
       end
 

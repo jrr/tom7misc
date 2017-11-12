@@ -31,7 +31,10 @@ sig
   val pow : int -> int -> int
 
   val order_compare : order orderer
+  (* false < true *)
   val bool_compare : bool orderer
+  (* Always returns EQUAL *)
+  val unit_compare : unit orderer
   val sum_compare : 'a orderer -> 'b orderer -> ('a, 'b) sum orderer
 
   (* Apply the orderer to the first or second element of a pair *)

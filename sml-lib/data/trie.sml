@@ -1,11 +1,13 @@
 
-functor TrieFn(A : TRIEARG) :> TRIE where type char = A.char and type string = A.string =
+functor TrieFn(A : TRIEARG) :> TRIE where type char = A.char
+                                      and type string = A.string =
 struct
   type char = A.char
   type string = A.string
 
   (* XXX This could probably be a general-purpose OffsetVector utility... *)
-  (* Functional association from character index to value. Constant time access once built. *)
+  (* Functional association from character index to value. Constant time
+     access once built. *)
   structure V :
   sig
     type 't vec
@@ -35,9 +37,11 @@ struct
     fun appi f { ch, off } =
       Vector.appi (fn (i, SOME v) => f (i + off, v) | _ => ()) ch
     fun foldli f b { ch, off } =
-      Vector.foldli (fn (i, SOME v, b) => f(i + off, v, b) | (_, NONE, b) => b) b ch
+      Vector.foldli (fn (i, SOME v, b) => f(i + off, v, b)
+                      | (_, NONE, b) => b) b ch
     fun foldri f b { ch, off } =
-      Vector.foldri (fn (i, SOME v, b) => f(i + off, v, b) | (_, NONE, b) => b) b ch
+      Vector.foldri (fn (i, SOME v, b) => f(i + off, v, b)
+                      | (_, NONE, b) => b) b ch
 
     fun tolist v = foldri (fn (i, x, r) => (i, x) :: r) nil v
 
