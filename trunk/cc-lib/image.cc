@@ -5,9 +5,11 @@
 #include <vector>
 #include <cstdint>
 #include <utility>
+#include <cstring>
 
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include "base/logging.h"
 
 using namespace std;
 
@@ -41,6 +43,13 @@ ImageRGBA *ImageRGBA::Copy() const {
   return new ImageRGBA(rgba, width, height);
 }
 
+ImageRGBA::uint32 ImageRGBA::GetPixel(int x, int y) const {
+  const int base = (y * width + x) << 2;
+  return (rgba[base] << 24) |
+    (rgba[base + 1] << 16) |
+    (rgba[base + 2] << 8) |
+    rgba[base + 3];
+}
 
 ImageA::ImageA(const vector<uint8> &alpha, int width, int height)
     : width(width), height(height), alpha(alpha) {

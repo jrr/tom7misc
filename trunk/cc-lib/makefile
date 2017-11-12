@@ -12,7 +12,7 @@ BASE=base/logging.o base/stringprintf.o
 
 # For linux, others...
 # (pthreads can't be linked statically)
-CXXFLAGS=-I. --std=c++11 -O2
+CXXFLAGS=-I. --std=c++14 -O2
 
 heap_test.o : heap_test.cc heap.h
 	$(CXX) $(CXXFLAGS) $< -o $@ -c

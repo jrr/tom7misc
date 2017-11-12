@@ -1,4 +1,5 @@
-// WAV audio loader. Public domain. See "unlicense" statement at the end of this file.
+// WAV audio loader. Public domain. See "unlicense" statement at the end of
+// this file.
 // dr_wav - v0.5f - 2017-04-04
 // David Reid - mackron@gmail.com
 //
@@ -9,61 +10,61 @@
 
 // Do something like the following to read audio data:
 //
-//     drwav wav;
-//     if (!drwav_init_file(&wav, "my_song.wav")) {
-//         // Error opening WAV file.
-//     }
+//   drwav wav;
+//   if (!drwav_init_file(&wav, "my_song.wav")) {
+//     // Error opening WAV file.
+//   }
 //
-//     dr_int32* pDecodedInterleavedSamples =
-//         malloc(wav.totalSampleCount * sizeof(dr_int32));
-//     size_t numberOfSamplesActuallyDecoded =
-//         drwav_read_s32(&wav, wav.totalSampleCount, pDecodedInterleavedSamples);
+//   dr_int32* pDecodedInterleavedSamples =
+//     malloc(wav.totalSampleCount * sizeof(dr_int32));
+//   size_t numberOfSamplesActuallyDecoded =
+//     drwav_read_s32(&wav, wav.totalSampleCount, pDecodedInterleavedSamples);
 //
-//     ...
+//   ...
 //
-//     drwav_uninit(&wav);
+//   drwav_uninit(&wav);
 //
 // You can also use drwav_open() to allocate and initialize the loader for you:
 //
-//     drwav* pWav = drwav_open_file("my_song.wav");
-//     if (pWav == NULL) {
-//         // Error opening WAV file.
-//     }
+//   drwav* pWav = drwav_open_file("my_song.wav");
+//   if (pWav == NULL) {
+//     // Error opening WAV file.
+//   }
 //
-//     ...
+//   ...
 //
-//     drwav_close(pWav);
+//   drwav_close(pWav);
 //
 // If you just want to quickly open and read the audio data in a
 // single operation you can do something like this:
 //
-//     unsigned int channels;
-//     unsigned int sampleRate;
-//     dr_uint64 totalSampleCount;
-//     float* pSampleData =
-//         drwav_open_and_read_file_s32("my_song.wav",
-//                                      &channels, &sampleRate, &totalSampleCount);
-//     if (pSampleData == NULL) {
-//         // Error opening and reading WAV file.
-//     }
+//   unsigned int channels;
+//   unsigned int sampleRate;
+//   dr_uint64 totalSamples;
+//   float* pSampleData =
+//       drwav_open_and_read_file_f32("my_song.wav",
+//                                    &channels, &sampleRate, &totalSamples);
+//   if (pSampleData == NULL) {
+//     // Error opening and reading WAV file.
+//   }
 //
-//     ...
+//   ...
 //
-//     drwav_free(pSampleData);
+//   drwav_free(pSampleData);
 //
 // The examples above use versions of the API that convert the audio
 // data to a consistent format (32-bit signed PCM, in this case), but
 // you can still output the audio data in it's internal format (see
 // notes below for supported formats):
 //
-//     size_t samplesRead = drwav_read(&wav, wav.totalSampleCount,
-//                                     pDecodedInterleavedSamples);
+//   size_t samplesRead = drwav_read(&wav, wav.totalSampleCount,
+//                                   pDecodedInterleavedSamples);
 //
 // You can also read the raw bytes of audio data, which could be
 // useful if dr_wav does not have native support for a particular data
 // format:
 //
-//     size_t bytesRead = drwav_read_raw(&wav, bytesToRead, pRawDataBuffer);
+//   size_t bytesRead = drwav_read_raw(&wav, bytesToRead, pRawDataBuffer);
 //
 //
 // dr_wav has seamless support the Sony Wave64 format. The decoder
@@ -145,13 +146,13 @@ typedef dr_int32         dr_bool32;
 #define DR_WAVE_FORMAT_EXTENSIBLE   0xFFFE
 
 enum drwav_seek_origin {
-    drwav_seek_origin_start,
-    drwav_seek_origin_current
+  drwav_seek_origin_start,
+  drwav_seek_origin_current
 };
 
 enum drwav_container {
-    drwav_container_riff,
-    drwav_container_w64
+  drwav_container_riff,
+  drwav_container_w64
 };
 
 // Callback for when data is read. Return value is the number of bytes actually read.
@@ -165,9 +166,9 @@ typedef dr_bool32 (* drwav_seek_proc)(void* pUserData, int offset,
 
 // Structure for internal use. Only used for loaders opened with drwav_open_memory.
 struct drwav__memory_stream {
-    const unsigned char* data;
-    size_t dataSize;
-    size_t currentReadPos;
+  const unsigned char* data;
+  size_t dataSize;
+  size_t currentReadPos;
 };
 
 struct drwav_fmt {
@@ -226,7 +227,8 @@ struct drwav {
   drwav_container container;
 
 
-  // Structure containing format information exactly as specified by the wav file.
+  // Structure containing format information exactly as specified by
+  // the wav file.
   drwav_fmt fmt;
 
   // The sample rate. Will be set to something like 44100.
@@ -278,7 +280,8 @@ void drwav_uninit(drwav* pWav);
 //
 // This is different from drwav_init() in that it will allocate the
 // drwav object for you via malloc() before initializing it.
-drwav* drwav_open(drwav_read_proc onRead, drwav_seek_proc onSeek, void* pUserData);
+drwav* drwav_open(drwav_read_proc onRead, drwav_seek_proc onSeek,
+		  void* pUserData);
 
 // Uninitializes and deletes the the given drwav object. Use this only
 // for objects created with drwav_open().
@@ -324,16 +327,19 @@ dr_bool32 drwav_seek_to_sample(drwav* pWav, dr_uint64 sample);
 //
 // If the return value is less than <samplesToRead> it means the end
 // of the file has been reached.
-dr_uint64 drwav_read_s16(drwav* pWav, dr_uint64 samplesToRead, dr_int16* pBufferOut);
+dr_uint64 drwav_read_s16(drwav* pWav, dr_uint64 samplesToRead,
+			 dr_int16* pBufferOut);
 
 
-// Reads a chunk of audio data and converts it to IEEE 32-bit floating point samples.
+// Reads a chunk of audio data and converts it to IEEE 32-bit floating
+// point samples.
 //
 // Returns the number of samples actually read.
 //
 // If the return value is less than <samplesToRead> it means the end
 // of the file has been reached.
-dr_uint64 drwav_read_f32(drwav* pWav, dr_uint64 samplesToRead, float* pBufferOut);
+dr_uint64 drwav_read_f32(drwav* pWav, dr_uint64 samplesToRead,
+			 float* pBufferOut);
 
 // Low-level function for converting unsigned 8-bit PCM samples to
 // IEEE 32-bit floating point samples.
@@ -370,7 +376,8 @@ void drwav_ulaw_to_f32(float* pOut, const dr_uint8* pIn, size_t sampleCount);
 //
 // If the return value is less than <samplesToRead> it means the end
 // of the file has been reached.
-dr_uint64 drwav_read_s32(drwav* pWav, dr_uint64 samplesToRead, dr_int32* pBufferOut);
+dr_uint64 drwav_read_s32(drwav* pWav, dr_uint64 samplesToRead,
+			 dr_int32* pBufferOut);
 
 // Low-level function for converting unsigned 8-bit PCM samples to
 // signed 32-bit PCM samples.
@@ -447,28 +454,34 @@ drwav* drwav_open_memory(const void* data, size_t dataSize);
 
 #ifndef DR_WAV_NO_CONVERSION_API
 // Opens and reads a wav file in a single operation.
-dr_int16* drwav_open_and_read_s16(drwav_read_proc onRead, drwav_seek_proc onSeek,
-				  void* pUserData, unsigned int* channels,
-				  unsigned int* sampleRate,
-				  dr_uint64* totalSampleCount);
-float* drwav_open_and_read_f32(drwav_read_proc onRead, drwav_seek_proc onSeek,
-			       void* pUserData, unsigned int* channels,
-			       unsigned int* sampleRate, dr_uint64* totalSampleCount);
-dr_int32* drwav_open_and_read_s32(drwav_read_proc onRead, drwav_seek_proc onSeek,
-				  void* pUserData, unsigned int* channels,
-				  unsigned int* sampleRate,
-				  dr_uint64* totalSampleCount);
+dr_int16* drwav_open_and_read_s16(
+    drwav_read_proc onRead, drwav_seek_proc onSeek,
+    void* pUserData, unsigned int* channels,
+    unsigned int* sampleRate,
+    dr_uint64* totalSampleCount);
+float* drwav_open_and_read_f32(
+    drwav_read_proc onRead, drwav_seek_proc onSeek,
+    void* pUserData, unsigned int* channels,
+    unsigned int* sampleRate, dr_uint64* totalSampleCount);
+dr_int32* drwav_open_and_read_s32(
+    drwav_read_proc onRead, drwav_seek_proc onSeek,
+    void* pUserData, unsigned int* channels,
+    unsigned int* sampleRate,
+    dr_uint64* totalSampleCount);
 #ifndef DR_WAV_NO_STDIO
 // Opens an decodes a wav file in a single operation.
-dr_int16* drwav_open_and_read_file_s16(const char* filename, unsigned int* channels,
-				       unsigned int* sampleRate,
-				       dr_uint64* totalSampleCount);
-float* drwav_open_and_read_file_f32(const char* filename, unsigned int* channels,
-				    unsigned int* sampleRate,
-				    dr_uint64* totalSampleCount);
-dr_int32* drwav_open_and_read_file_s32(const char* filename, unsigned int* channels,
-				       unsigned int* sampleRate,
-				       dr_uint64* totalSampleCount);
+dr_int16* drwav_open_and_read_file_s16(
+    const char* filename, unsigned int* channels,
+    unsigned int* sampleRate,
+    dr_uint64* totalSampleCount);
+float* drwav_open_and_read_file_f32(
+    const char* filename, unsigned int* channels,
+    unsigned int* sampleRate,
+    dr_uint64* totalSampleCount);
+dr_int32* drwav_open_and_read_file_s32(
+    const char* filename, unsigned int* channels,
+    unsigned int* sampleRate,
+    dr_uint64* totalSampleCount);
 #endif
 
 // Opens an decodes a wav file from a block of memory in a single operation.
