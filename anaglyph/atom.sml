@@ -128,5 +128,25 @@ struct
     end
 end
 
+(* Pixel font comes from pixelfont.png, and uses data generated
+   by makepixels.cc *)
+structure Pixel :> ATOM =
+struct
+  val name = "pixels"
+  type atom = unit
+  val compare = Util.unit_compare
+  val num_atoms = 1
+  fun toint () = 0
+  fun tochar () = #"a"
+  fun fromint 0 = SOME ()
+    | fromint _ = NONE
+  fun decompose #" " = SOME nil
+    | decompose c =
+    case PixelData.count c of
+      NONE => NONE
+    | SOME n =>
+        SOME (List.tabulate (n, fn _ => ()))
+end
+
 (* structure Atom = Canonical *)
-structure Atom = Letter
+structure Atom = Pixel

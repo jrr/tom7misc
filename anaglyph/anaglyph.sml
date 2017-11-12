@@ -131,7 +131,7 @@ struct
 
   fun load_dictionary () =
     let
-      val lines = Script.linesfromfile "debug.asc" (* FIXME *)
+      val lines = Script.linesfromfile "wordlist.asc"
       fun oneword w =
         case CharVector.find (StringUtil.ischar #" ") w of
           SOME _ => raise Anaglyph ("Dictionary word has space: " ^ w)
