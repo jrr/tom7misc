@@ -6,7 +6,7 @@ MLTON=/c/mlton/bin/mlton.bat
 frameserver.exe : frameserver.mlb frameserver.sml
 	${MLTON} -output $@ frameserver.mlb
 
-anaglyph.exe : anaglyph.mlb atom*.sml anaglyph.sml anaglyph-main.sml
+anaglyph.exe : anaglyph.mlb pixel-data.sml atom*.sml anaglyph.sml anaglyph-main.sml
 	${MLTON} -output $@ anaglyph.mlb
 
 CXX=g++
@@ -19,3 +19,6 @@ LFLAGS=-static
 
 makepixels.exe : makepixels.o ../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/image.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o
 	$(CXX) $^ -o $@ $(LFLAGS)
+
+pixel-data.sml : makepixels.exe
+	./makepixels.exe
