@@ -1,5 +1,6 @@
 
- * compare-refs : which are (stamp, 'a ref) pairs
+ * orderable ref cells, implemented as like (stamp, 'a ref) pairs
+
  * fdesc leak in FSUtil somewhere??? -- see icfp04
 
  * add to mlton wiki

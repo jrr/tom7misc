@@ -1,5 +1,6 @@
 (* Based on
-   Joe Sawada and Frank Ruskey, "An Efficient Algorithm for Generating Necklaces with Fixed Density", SIAM Journal of Computing 29:671-684, 1999.
+   Joe Sawada and Frank Ruskey, "An Efficient Algorithm for Generating
+   Necklaces with Fixed Density", SIAM Journal of Computing 29:671-684, 1999.
 
    through the grapevine. *)
 

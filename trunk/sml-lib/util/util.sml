@@ -46,6 +46,7 @@ struct
     | bool_compare (true, false) = GREATER
     | bool_compare (true, true) = EQUAL
 
+  fun unit_compare ((), ()) = EQUAL
 
   fun option_compare _ (NONE, NONE) = EQUAL
     | option_compare _ (SOME _, NONE) = GREATER
