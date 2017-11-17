@@ -1,5 +1,6 @@
-(* Deletes stuff like attribution and timestamps that account for a large amount of
-   the space used by an OSM file, but are seldom useful. *)
+(* Deletes stuff like attribution and timestamps that account for a
+   large amount of the space used by an OSM file, but are seldom
+   useful. *)
 structure FilterOSM =
 struct
 
@@ -14,13 +15,15 @@ struct
         | filter_attribute _ = true
 
       (* Only standalone ones, otherwise we have to keep track of matching. *)
-      fun remove_tag (Tag { name = "tag", attrs, endslash = true, startslash = false, ... }) =
+      fun remove_tag (Tag { name = "tag", attrs,
+                            endslash = true, startslash = false, ... }) =
         List.exists (fn ("k", _, "source") => true
                       | ("k", _, "attribution") => true
                       | ("k", _, "tiger:upload_uuid") => true
                       | ("k", _, "tiger:tlid") => true
                       | ("k", _, "tiger:source") => true
                       | ("k", _, "gnis:import_uuid") => true
+                      | ("k", _, "created_by") => true
                       | _ => false) attrs
         | remove_tag _ = false
 
@@ -44,7 +47,8 @@ struct
         let val pct = Real.floor (100.0 * r)
         in
           if pct > !lastpct
-          then (TextIO.output (TextIO.stdErr, f ^ ": " ^ Int.toString pct ^ "%\n");
+          then (TextIO.output (TextIO.stdErr, f ^ ": " ^
+                               Int.toString pct ^ "%\n");
                 lastpct := pct)
           else ()
         end
@@ -52,6 +56,7 @@ struct
       print (f ^ "...\n");
       XMLChunk.process_file (* _progress progress *) process_chunk f (file ^ "-filtered." ^ ext)
     end
+
 
   fun run fl = app runone fl
 
