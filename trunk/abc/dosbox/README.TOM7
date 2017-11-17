@@ -14,6 +14,7 @@ Either way, on Ubuntu, I compiled like this:
 
 apt-get install automake
 apt-get install libncurses-dev
+apt-get install libsdl1.2-dev
 ./autogen.sh
 ./configure --enable-debug
 make
