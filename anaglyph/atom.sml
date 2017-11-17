@@ -149,4 +149,4 @@ struct
 end
 
 (* structure Atom = Canonical *)
-structure Atom = Pixel
+structure Atom = Letter

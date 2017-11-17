@@ -29,7 +29,8 @@ function Decompose(s) {
       outid.push(id);
     }
   }
-  outid.sort(function(a, b) { return b < a; });
+  outid.sort(function(a, b) { return a - b; });
+  console.log(outid);
   
   let out = '';
   for (const id of outid)
@@ -65,7 +66,7 @@ function Draw() {
   out.innerHTML = '';
   // Get chars left through decomposition.
   const r = Decompose(word);
-  console.log(r);
+  // console.log(r);
   if (!Make(r, out, true)) {
     out.innerHTML = 'NO anagraphs!';
   }
@@ -145,7 +146,7 @@ function Make(r, elt, top) {
     // Can only enter the node if we have all its atoms, and those
     // get removed from the available ones for this subtree.
     const left = Take(a, n.a);
-    console.log('walk [' + a + '] (' + n.a + ') = ' + (left ? left : '-'));
+    // console.log('walk [' + a + '] (' + n.a + ') = ' + (left ? left : '-'));
     // Can't enter subtree because we don't have the atoms.
     if (left === null) return false;
     

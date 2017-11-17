@@ -9,6 +9,9 @@ frameserver.exe : frameserver.mlb frameserver.sml
 anaglyph.exe : anaglyph.mlb pixel-data.sml atom*.sml anaglyph.sml anaglyph-main.sml
 	${MLTON} -output $@ anaglyph.mlb
 
+tree.js : anaglyph.exe
+	./anaglyph.exe -js
+
 CXX=g++
 CPPFLAGS=-Wno-write-strings -m64 -O2 --std=c++14 -I ../cc-lib/
 LFLAGS=-static
