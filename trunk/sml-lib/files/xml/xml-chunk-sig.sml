@@ -6,6 +6,10 @@
 
    Assumes the XML is a simple (undescribed) subset of XML and valid.
    Assumes each tag or chunk of text all fits in RAM at once.
+
+   Note that as of 17 Nov 2017, this seems to choke on files greater
+   than ~2GB with an Overflow exception in input1 (mlton 20100608),
+   even in 64-bit mode. I couldn't see any obvious cause.
 *)
 signature XMLCHUNK =
 sig
@@ -43,18 +47,21 @@ sig
      completion rate. *)
   val consume_file_progress : (real -> unit) -> (chunk -> unit) -> string -> unit
 
-  (* process_file f infile outfile 
+  (* process_file f infile outfile
 
      Apply the function to each chunk in the file, writing them to the
      output file. Text "" can be used to delete chunks, though it's
-     the caller's prerogative to keep tags properly nested. *)
+     the caller's prerogative to keep tags properly nested. Attempts to
+     remove the incomplete output file if any exception occurs while
+     processing. *)
   val process_file : (chunk -> chunk) -> string -> string -> unit
 
-  (* process_file progress f infile outfile 
-     
+  (* process_file progress f infile outfile
+
      Same, but periodically call the progress function with a
      monotonically increasing number in [0, 1] giving the current
      completion rate. *)
-  val process_file_progress : (real -> unit) -> (chunk -> chunk) -> string -> string -> unit
+  val process_file_progress : (real -> unit) -> (chunk -> chunk) ->
+                              string -> string -> unit
 
 end
