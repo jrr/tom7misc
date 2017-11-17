@@ -8,9 +8,9 @@ struct
              (* Key, quotation character, value *)
              attrs : (string * char * string) list,
              endslash : bool }
-  
+
   fun addattrs nil l = l
-    | addattrs ((k, q, v) :: t) l = 
+    | addattrs ((k, q, v) :: t) l =
     " " :: k :: implode [#"=", q] :: v :: implode [q] :: addattrs t l
 
   fun chunktostring (Text s) = s
@@ -57,7 +57,7 @@ struct
     | istagchar #"/" = false
     | istagchar c = not (iswhitespace c)
   val tagchars = repeat1 (satisfy istagchar) wth implode
-    
+
   val attrkeyval =
     (tagchars << whitespace << literal #"=" << whitespace) && strlit
     wth flat3
@@ -84,10 +84,11 @@ struct
     (string xmlstart >> required_whitespace >>
      attrlist <<
      string xmlend) wth (fn (attrs : (string * char * string) list) =>
-                         Text (String.concat ("<?xml" :: addattrs attrs ["?>\n"])))
+                         Text (String.concat
+                               ("<?xml" :: addattrs attrs ["?>\n"])))
 
   (* PERF has to re-parse leading whitespace. *)
-  val text = 
+  val text =
     whitespace >> xmldecl << whitespace ||
     repeat1 (satisfy (fn x => x <> #"<")) wth Text o implode
 
@@ -127,12 +128,12 @@ struct
     let val ms = Pos.markstream s
     in transform chunk ms
     end
-  
+
   val chunkfile = chunkstream o filestream
   val chunkstring = chunkstream o stringstream
 
   fun consume_file_progress progress f s =
-    let 
+    let
 
       (* Repeating filestream so that we can also check
          the file's cursor *)
@@ -168,25 +169,36 @@ struct
   fun consume_file f s = Stream.app f (chunkfile s)
 
   fun writestring (b : BinIO.outstream) (s : string) =
-    let val v = Word8Vector.tabulate (size s, fn x => Word8.fromInt (ord (String.sub (s, x))))
-    in BinIO.output (b, v)
+    let
+      val v = Word8Vector.tabulate
+        (size s, fn x => Word8.fromInt (ord (String.sub (s, x))))
+    in
+      BinIO.output (b, v)
     end
 
   fun process_file_mp po (f : chunk -> chunk) infile outfile =
     let
       val ff = BinIO.openOut outfile
-      fun appme chunk =
-        let val chunk = f chunk
-          val s = chunktostring chunk
-        in 
-          (* print ("Write chunk [" ^ s ^ "]\n"); *)
-          writestring ff s
-        end
     in
-      (case po of
-         NONE => consume_file appme infile
-       | SOME p => consume_file_progress p appme infile);
-      BinIO.closeOut ff
+      let
+        fun appme chunk =
+          let val chunk = f chunk
+            val s = chunktostring chunk
+          in
+            (* print ("Write chunk [" ^ s ^ "]\n"); *)
+            writestring ff s
+          end
+      in
+        (case po of
+           NONE => consume_file appme infile
+         | SOME p => consume_file_progress p appme infile);
+        BinIO.closeOut ff
+      end handle e =>
+        let in
+          BinIO.closeOut ff handle _ => ();
+          OS.FileSys.remove outfile handle _ => ();
+          raise e
+        end
     end
 
   val process_file = process_file_mp NONE
