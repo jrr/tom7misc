@@ -1,5 +1,5 @@
 // Simple program that generates a pixel font ('letters' file)
-// from a png file for anaglyph.
+// from a png file for anagraph.
 
 #include <memory>
 
@@ -12,7 +12,7 @@ using namespace std;
 // Width and height of an individual letter in pixels.
 #define WIDTH 8
 #define HEIGHT 8
-// Size of a pixel in anaglyph grid coordinates. Should be even.
+// Size of a pixel in anagraph grid coordinates. Should be even.
 #define SCALE 4
 
 int main(int argc, char **argv) {

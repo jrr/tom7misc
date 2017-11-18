@@ -27,4 +27,4 @@ group is
   atom-sig.sml
   atom.sml
 
-  anaglyph.sml
+  anagraph.sml

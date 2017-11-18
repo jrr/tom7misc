@@ -211,7 +211,7 @@ function Cardinality(r, max) {
     // Can't enter subtree because we don't have the atoms.
     if (left === null) return 0;
 
-    // Check children to find longer anaglyphs first.
+    // Check children to find longer anagraphs first.
     let found = 0;
 
     // Any words at this node are possible.

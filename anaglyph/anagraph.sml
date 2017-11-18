@@ -1,6 +1,6 @@
-structure Anaglyph =
+structure Anagraph =
 struct
-  exception Anaglyph of string
+  exception Anagraph of string
 
   structure Atoms :>
   sig
@@ -85,7 +85,7 @@ struct
             | n =>
                 let
                   val a = case Atom.fromint i of
-                    NONE => raise Anaglyph "impossible"
+                    NONE => raise Anagraph "impossible"
                   | SOME a => a
                 in
                   List.tabulate (n, fn _ => a) @ go (i + 1)
@@ -100,7 +100,7 @@ struct
           if i = Atom.num_atoms then ""
           else
             let val c = case Atom.fromint i of
-              NONE => raise Anaglyph "impossible"
+              NONE => raise Anagraph "impossible"
             | SOME x => Atom.tochar x
             in
               case Vector.sub (a, i) of
@@ -115,14 +115,14 @@ struct
 
   fun char_atoms c =
     case Atom.decompose c of
-      NONE => raise Anaglyph ("Bad character in char_atoms: " ^ implode [c])
+      NONE => raise Anagraph ("Bad character in char_atoms: " ^ implode [c])
     | SOME al => Atoms.fromlist al
 
   fun word_atoms w =
     let
       fun getnorm c =
         case Atom.decompose c of
-          NONE => raise Anaglyph ("Bad character in word: " ^ w)
+          NONE => raise Anagraph ("Bad character in word: " ^ w)
         | SOME al => al
       val atom_list = List.concat (map getnorm (explode w))
     in
@@ -157,7 +157,7 @@ struct
                                not (SS.member (banned, w))) lines
       fun oneword w =
         case CharVector.find (StringUtil.ischar #" ") w of
-          SOME _ => raise Anaglyph ("Dictionary word has space: " ^ w)
+          SOME _ => raise Anagraph ("Dictionary word has space: " ^ w)
         | NONE => (w, word_atoms w)
     in
       map oneword lines
@@ -218,7 +218,7 @@ struct
 
       val (atoms1, atoms2) = (word_atoms word1, word_atoms word2)
       val () = if atoms1 = atoms2 then ()
-               else raise Anaglyph ("makeplan with words that don't have " ^
+               else raise Anagraph ("makeplan with words that don't have " ^
                                     "matching atoms: " ^
                                     Atoms.tostring atoms1 ^ " vs " ^
                                     Atoms.tostring atoms2)
@@ -241,8 +241,8 @@ struct
       fun process (l1, l2) =
         case (removezeros l1, removezeros l2) of
           (nil, nil) => nil
-        | (nil, _) => raise Anaglyph "impossible: mismatch"
-        | (_, nil) => raise Anaglyph "impossible: mismatch"
+        | (nil, _) => raise Anagraph "impossible: mismatch"
+        | (_, nil) => raise Anagraph "impossible: mismatch"
         | (remain1 as ({ idx = idx1, atoms = atoms1,
                          already = already1 } :: rest1),
            remain2) =>
@@ -262,7 +262,7 @@ struct
              the remaining atoms. *)
           fun pick_atom atoms =
             (case Atoms.tolist atoms of
-               nil => raise Anaglyph "impossible: checked nonzero"
+               nil => raise Anagraph "impossible: checked nonzero"
              | a :: left => (a, Atoms.fromlist left))
 
           val (a, atoms1) = pick_atom atoms1
@@ -278,7 +278,7 @@ struct
           (* Find where the atom a is sent.
              Returns a new "remain2" list, and the rhs of the row for
              the overall return from 'process'. *)
-          fun alloc nil = raise Anaglyph "impossible: mismatch in alloc"
+          fun alloc nil = raise Anagraph "impossible: mismatch in alloc"
             | alloc ((h as { idx = idx2, atoms = atoms2,
                              already = already2 }) :: rest2) =
             if Atoms.count (atoms2, a) > 0
@@ -494,7 +494,7 @@ struct
         (* PERF debugging *)
         val () = if Atoms.subseteq (atoms, subtree_atoms)
                  then ()
-                 else raise Anaglyph ("Invariant violation: Inserted " ^
+                 else raise Anagraph ("Invariant violation: Inserted " ^
                                       "subtree atoms " ^
                                       Atoms.tostring subtree_atoms ^
                                       " must be subset of tree's: " ^
@@ -662,11 +662,11 @@ struct
           let
             fun nodq c =
               if c = #"\"" (* " *)
-              then raise Anaglyph "Double quote cannot be used as an atom."
+              then raise Anagraph "Double quote cannot be used as an atom."
               else ()
             val atoms = List.tabulate (Atom.num_atoms,
                                        fn i => case Atom.fromint i of
-                                         NONE => raise Anaglyph "impossible"
+                                         NONE => raise Anagraph "impossible"
                                        | SOME a => a)
             val () = app (nodq o Atom.tochar) atoms
             val atomchars = implode (map Atom.tochar atoms)
@@ -712,7 +712,7 @@ struct
             val () =
               if Atoms.subseteq (parent_atoms, atoms)
               then ()
-              else raise Anaglyph ("Invariant violation: Parent atoms " ^
+              else raise Anagraph ("Invariant violation: Parent atoms " ^
                                    Atoms.tostring parent_atoms ^
                                    " must be subset of subtree's: " ^
                                    Atoms.tostring atoms)
@@ -736,8 +736,8 @@ struct
       end
   end
 
-  (* Build the anaglyphing data structures.
-     target is the optional phrase to anaglyph, used to filter the tree.
+  (* Build the anagraphing data structures.
+     target is the optional phrase to anagraph, used to filter the tree.
      banned words are filtered out, too. *)
   fun build (target : string option) (banned : string list) =
     let
@@ -797,7 +797,7 @@ struct
         if Atoms.intersect (required_atoms, orig_phrase_atoms) =
            required_atoms
         then ()
-        else raise Anaglyph ("required phrase " ^ req ^ " is not possible " ^
+        else raise Anagraph ("required phrase " ^ req ^ " is not possible " ^
                              "from anagraph phrase " ^ phrase)
       val phrase_atoms = Atoms.--(orig_phrase_atoms, required_atoms)
 
@@ -830,7 +830,7 @@ struct
            print (w ^ "\t" ^ Atoms.tostring left ^ "\n")) usable
     end
 
-  fun anaglyph_requiring maxwords req banned phrase =
+  fun anagraph_requiring maxwords req banned phrase =
     let
       val { clusters, tree } = build (SOME phrase) banned
 
@@ -840,7 +840,7 @@ struct
         if Atoms.intersect (required_atoms, orig_phrase_atoms) =
            required_atoms
         then ()
-        else raise Anaglyph ("required phrase " ^ req ^ " is not possible " ^
+        else raise Anagraph ("required phrase " ^ req ^ " is not possible " ^
                              "from anagraph phrase " ^ phrase)
       val phrase_atoms = Atoms.--(orig_phrase_atoms, required_atoms)
 
@@ -988,6 +988,6 @@ struct
       enumerate printone_cols phrase_atoms
     end
 
-  fun anaglyph phrase = anaglyph_requiring 1000 "" phrase
+  fun anagraph phrase = anagraph_requiring 1000 "" phrase
 
 end

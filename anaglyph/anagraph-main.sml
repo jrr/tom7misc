@@ -1,4 +1,4 @@
-structure AnaglyphMain =
+structure AnagraphMain =
 struct
 
   val dump = Params.flag false
@@ -43,36 +43,36 @@ struct
       val maxwords = Params.asint 1000 maxwords
     in
       if !dump
-      then StringUtil.writefile "canonized.txt" (Anaglyph.canonized_file ())
+      then StringUtil.writefile "canonized.txt" (Anagraph.canonized_file ())
       else
         if !treedot
-        then StringUtil.writefile "tree.dot" (Anaglyph.tree_dotfile ())
+        then StringUtil.writefile "tree.dot" (Anagraph.tree_dotfile ())
         else
         if !tree
-        then StringUtil.writefile "tree.txt" (Anaglyph.tree_textfile ())
+        then StringUtil.writefile "tree.txt" (Anagraph.tree_textfile ())
         else
         if !js
-        then StringUtil.writefile "tree.js" (Anaglyph.tree_js ())
+        then StringUtil.writefile "tree.js" (Anagraph.tree_js ())
         else
         if !best
-        then Anaglyph.best_requiring require banned argstring
+        then Anagraph.best_requiring require banned argstring
         else
         if !plan
          then
            (case args of
-              [phrase1, phrase2] => Anaglyph.makeplan (phrase1, phrase2)
-            | _ => raise Anaglyph.Anaglyph "-plan needs exactly two args.")
+              [phrase1, phrase2] => Anagraph.makeplan (phrase1, phrase2)
+            | _ => raise Anagraph.Anagraph "-plan needs exactly two args.")
          else if argstring <> ""
-              then Anaglyph.anaglyph_requiring maxwords require banned argstring
-              else print ("Give a phrase to anagram, or use some " ^
+              then Anagraph.anagraph_requiring maxwords require banned argstring
+              else print ("Give a phrase to anagraph, or use some " ^
                           "other mode:\n" ^ Params.usage ())
     end
 
   fun go () =
     (Params.main
-     "Give a phrase to anagram, or a pair of phrases to plan, etc."
+     "Give a phrase to anagraph, or a pair of phrases to plan, etc."
      main)
-    handle Anaglyph.Anaglyph s => print ("Anaglyph: " ^ s ^ "\n")
+    handle Anagraph.Anagraph s => print ("Anagraph: " ^ s ^ "\n")
 end
 
-val () = AnaglyphMain.go ()
+val () = AnagraphMain.go ()

@@ -92,7 +92,7 @@ stuff to try:
 
 [ MORE ABOUT WORDS ! ]
 
-$ make && time ./anaglyph knowwhatanagramsare -maxwords 3 -banned raga,ragas,agar,agars,grana,skag,manana,kasha,sanka,kanas,sanga,ankara,agama,gratae,anagram,organa,ogham,swagman,tanka,astrakhan,tanager,anagrams,mananas,anna,ghana,wark,know,hank,khan,rara,rowan,wantage,goshawk,shako,rowans,warks,anther,thanes > deleteme2
+$ make && time ./anagraph knowwhatanagramsare -maxwords 3 -banned raga,ragas,agar,agars,grana,skag,manana,kasha,sanka,kanas,sanga,ankara,agama,gratae,anagram,organa,ogham,swagman,tanka,astrakhan,tanager,anagrams,mananas,anna,ghana,wark,know,hank,khan,rara,rowan,wantage,goshawk,shako,rowans,warks,anther,thanes > deleteme2
 
 Unless you warrant a swank homage,
 you know what anagrams are!
@@ -115,5 +115,5 @@ or speaking of jaw jams,
 
 I call these anagraphs, because "anaglyph" is already taken
 by these kind of 3d glasses (zelda graphic) for some reason.
-anaglyph comes from "anag", which means anagram, and "lyph",
-which means "Letter Y___ Part H_____". 
+anagraph comes from "anag", which means anagram, and "raph",
+which means "rotate and pluck h______"
