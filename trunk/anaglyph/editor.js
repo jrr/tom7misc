@@ -3,7 +3,7 @@
 // config: atoms
 // atoms: atom_glyphs
 // letters: letters
-// plan: startword, endword, plan (see anaglyph.sml)
+// plan: startword, endword, plan (see anagraph.sml)
 let ctx;
 
 // In canvas screen coordinates.

@@ -37,6 +37,6 @@ pixel-data.sml
 atom-sig.sml
 atom.sml
 
-anaglyph.sml
+anagraph.sml
 
-anaglyph-main.sml
+anagraph-main.sml

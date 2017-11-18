@@ -1,4 +1,4 @@
-all : frameserver.exe anaglyph.exe
+all : frameserver.exe anagraph.exe
 
 MLTON=/c/mlton/bin/mlton.bat
 # MLTON=mlton
@@ -6,11 +6,11 @@ MLTON=/c/mlton/bin/mlton.bat
 frameserver.exe : frameserver.mlb frameserver.sml
 	${MLTON} -output $@ frameserver.mlb
 
-anaglyph.exe : anaglyph.mlb pixel-data.sml atom*.sml anaglyph.sml anaglyph-main.sml
-	${MLTON} -output $@ anaglyph.mlb
+anagraph.exe : anagraph.mlb pixel-data.sml atom*.sml anagraph.sml anagraph-main.sml
+	${MLTON} -output $@ anagraph.mlb
 
-tree.js : anaglyph.exe
-	./anaglyph.exe -js
+tree.js : anagraph.exe
+	./anagraph.exe -js
 
 CXX=g++
 CPPFLAGS=-Wno-write-strings -m64 -O2 --std=c++14 -I ../cc-lib/
