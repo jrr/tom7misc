@@ -129,9 +129,32 @@ struct
       Atoms.fromlist atom_list
     end
 
-  fun load_dictionary () =
+  structure SS = SplaySetFn(type ord_key = string
+                            val compare = String.compare)
+
+  fun load_dictionary target banned =
     let
+      (* If we have a target phrase (that we're building anagrams for), we
+         can eliminate any words from the tree that can't possibly be
+         built from the atoms in the target. *)
+      val possible =
+        case target of
+          NONE => (fn _ => true)
+        | SOME targetword =>
+          let
+            val targetatoms = word_atoms targetword
+            fun keep w =
+              let val watoms = word_atoms w
+              in Atoms.subseteq (watoms, targetatoms)
+              end
+          in
+            keep
+          end
+
+      val banned = SS.fromList banned
       val lines = Script.linesfromfile "wordlist.asc"
+      val lines = List.filter (fn w => possible w andalso
+                               not (SS.member (banned, w))) lines
       fun oneword w =
         case CharVector.find (StringUtil.ischar #" ") w of
           SOME _ => raise Anaglyph ("Dictionary word has space: " ^ w)
@@ -140,27 +163,8 @@ struct
       map oneword lines
     end
 
-  val dictionary = load_dictionary ()
-
   structure AM = SplayMapFn(type ord_key = Atoms.atoms
                             val compare = Atoms.compare)
-  val clusters : string list AM.map ref = ref AM.empty
-  fun oneword (w, atoms) =
-    case AM.find (!clusters, atoms) of
-      NONE => clusters := AM.insert(!clusters, atoms, [w])
-    | SOME l => clusters := AM.insert(!clusters, atoms, w :: l)
-  val () = app oneword dictionary
-
-  (* For -dump command. *)
-  fun canonized_file () =
-    let
-      (* Render one cluster, but don't bother if it's a singleton. *)
-      fun makeline (atoms, [oneword]) = ""
-        | makeline (atoms, words) =
-        Atoms.tostring atoms ^ "  " ^ (StringUtil.delimit " " words) ^ "\n"
-    in
-      String.concat (map makeline (AM.listItemsi (!clusters)))
-    end
 
   (* Make a plan for animating word1 to word2. They don't have to be in
      the dictionary, and can even be space-separated phrases. However,
@@ -732,28 +736,61 @@ struct
       end
   end
 
-  val tree = AM.foldli (fn (atoms, words, tree) =>
-                        Tree.insert (tree, Tree.Node (atoms, nil, words)))
-    Tree.empty (!clusters)
+  (* Build the anaglyphing data structures.
+     target is the optional phrase to anaglyph, used to filter the tree.
+     banned words are filtered out, too. *)
+  fun build (target : string option) (banned : string list) =
+    let
+      val dictionary = load_dictionary target banned
 
-  fun tree_dotfile () = Tree.treedot tree
-  fun tree_textfile () = Tree.tostring tree
-  fun tree_js () = Tree.tojs tree
+      val clusters : string list AM.map ref = ref AM.empty
+      fun oneword (w, atoms) =
+        case AM.find (!clusters, atoms) of
+          NONE => clusters := AM.insert(!clusters, atoms, [w])
+        | SOME l => clusters := AM.insert(!clusters, atoms, w :: l)
+      val () = app oneword dictionary
 
-  val () = TextIO.output
-    (TextIO.stdErr,
-     "Atoms: " ^ Atom.name ^ "\n")
-  val () = TextIO.output
-    (TextIO.stdErr,
-     "Tree depth: " ^ Int.toString (Tree.depth tree) ^ "\n")
-  val () = TextIO.output
-    (TextIO.stdErr,
-     "Tree size: " ^ Int.toString (Tree.size tree) ^ "\n")
+      val tree = AM.foldli (fn (atoms, words, tree) =>
+                            Tree.insert (tree, Tree.Node (atoms, nil, words)))
+        Tree.empty (!clusters)
+
+      val () = TextIO.output
+        (TextIO.stdErr,
+         "Atoms: " ^ Atom.name ^ "\n")
+      val () = TextIO.output
+        (TextIO.stdErr,
+         "Tree depth: " ^ Int.toString (Tree.depth tree) ^ "\n")
+      val () = TextIO.output
+        (TextIO.stdErr,
+         "Tree size: " ^ Int.toString (Tree.size tree) ^ "\n")
+    in
+      { clusters = !clusters, tree = tree }
+    end
+
+  fun tree_dotfile () = Tree.treedot (#tree (build NONE nil))
+  fun tree_textfile () = Tree.tostring (#tree (build NONE nil))
+  fun tree_js () = Tree.tojs (#tree (build NONE nil))
+
+  (* For -dump command. *)
+  fun canonized_file () =
+    let
+      val { clusters, ... } = build NONE nil
+
+      (* Render one cluster, but don't bother if it's a singleton. *)
+      fun makeline (atoms, [oneword]) = ""
+        | makeline (atoms, words) =
+        Atoms.tostring atoms ^ "  " ^ (StringUtil.delimit " " words) ^ "\n"
+    in
+      String.concat (map makeline (AM.listItemsi clusters))
+    end
 
   (* Print the 100 longest words that can be made from the phrase,
-     after subtracting the required phrase. *)
-  fun best_requiring req phrase =
+     after subtracting the required phrase. The words in 'banned'
+     cannot be used. *)
+  fun best_requiring req banned phrase =
     let
+      val { clusters, tree } = build (SOME phrase) banned
+
       val required_atoms = word_atoms req
       val orig_phrase_atoms = word_atoms phrase
       val () =
@@ -777,7 +814,7 @@ struct
           else ()
         end
 
-      val () = AM.appi onenode (!clusters)
+      val () = AM.appi onenode clusters
       (* Descending *)
       fun bylength (a, b) = Int.compare (size b, size a)
       val () = TextIO.output (TextIO.stdErr,
@@ -793,8 +830,10 @@ struct
            print (w ^ "\t" ^ Atoms.tostring left ^ "\n")) usable
     end
 
-  fun anaglyph_requiring maxwords req phrase =
+  fun anaglyph_requiring maxwords req banned phrase =
     let
+      val { clusters, tree } = build (SOME phrase) banned
+
       val required_atoms = word_atoms req
       val orig_phrase_atoms = word_atoms phrase
       val () =
@@ -826,7 +865,15 @@ struct
                     (* Do I have enough letters to enter this node? *)
                     if isect = atoms
                     then
-                      let in
+                      let
+                        (* XXX derive from parameter *)
+                        fun is_free _ = false
+                        (*
+                           fun is_free ws =
+                           List.exists (fn w => w = "a" orelse w = "the"
+                           orelse w = "an") ws
+                           *)
+                      in
                         (* First recurse; this puts anagrams with longer
                            words first. *)
                         app (fn n => walk (n, wordsleft, r)) children;
@@ -836,7 +883,9 @@ struct
                         (case words of
                            nil => ()
                          | _ => enum (words :: l,
-                                      wordsleft - 1,
+                                      if is_free words
+                                      then wordsleft
+                                      else wordsleft - 1,
                                       Atoms.-- (r, atoms)))
                       end
                     else ()

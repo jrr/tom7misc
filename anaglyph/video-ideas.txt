@@ -92,8 +92,9 @@ stuff to try:
 
 [ MORE ABOUT WORDS ! ]
 
+$ make && time ./anaglyph knowwhatanagramsare -maxwords 3 -banned raga,ragas,agar,agars,grana,skag,manana,kasha,sanka,kanas,sanga,ankara,agama,gratae,anagram,organa,ogham,swagman,tanka,astrakhan,tanager,anagrams,mananas,anna,ghana,wark,know,hank,khan,rara,rowan,wantage,goshawk,shako,rowans,warks,anther,thanes > deleteme2
 
-Unless you've been glarolously thumbtacked,
+Unless you warrant a swank homage,
 you know what anagrams are!
 
 Rearranging letters to make different words.
@@ -101,3 +102,18 @@ Rearranging letters to make different words.
 
 But if you're doing this with physical letters
 you know, not imaginary letters but real ones,
+then why not allow me to rearrange the letters
+any way I want? Like I could rearrange
+
+  jaw to jam
+
+or speaking of jaw jams,
+
+  bechamel     to     chewable
+
+
+
+I call these anagraphs, because "anaglyph" is already taken
+by these kind of 3d glasses (zelda graphic) for some reason.
+anaglyph comes from "anag", which means anagram, and "lyph",
+which means "Letter Y___ Part H_____". 
