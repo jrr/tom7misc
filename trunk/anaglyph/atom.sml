@@ -103,6 +103,54 @@ struct
     | _ => NONE
 end
 
+structure CapInv :> ATOM =
+struct
+  val name = "capinv"
+
+  type atom = int
+  val START = ord #"a"
+  val compare = Int.compare
+  (* mw maps to m *)
+  val num_atoms = 26 - 1
+  fun tochar a =
+    CharVector.sub("abcdefghijklmnopqrstuvxyz", a)
+
+  fun toint a = a
+  fun fromint i = if i >= 0 andalso i < num_atoms
+                  then SOME i else NONE
+
+  fun decompose c =
+    case c of
+      #"a" => SOME [ord #"a" - START]
+    | #"b" => SOME [ord #"b" - START]
+    | #"c" => SOME [ord #"c" - START]
+    | #"d" => SOME [ord #"d" - START]
+    | #"e" => SOME [ord #"e" - START]
+    | #"f" => SOME [ord #"f" - START]
+    | #"g" => SOME [ord #"g" - START]
+    | #"h" => SOME [ord #"h" - START]
+    | #"i" => SOME [ord #"i" - START]
+    | #"j" => SOME [ord #"j" - START]
+    | #"k" => SOME [ord #"k" - START]
+    | #"l" => SOME [ord #"l" - START]
+    | #"m" => SOME [ord #"m" - START]
+    | #"n" => SOME [ord #"n" - START]
+    | #"o" => SOME [ord #"o" - START]
+    | #"p" => SOME [ord #"p" - START]
+    | #"q" => SOME [ord #"q" - START]
+    | #"r" => SOME [ord #"r" - START]
+    | #"s" => SOME [ord #"s" - START]
+    | #"t" => SOME [ord #"t" - START]
+    | #"u" => SOME [ord #"u" - START]
+    | #"v" => SOME [ord #"v" - START]
+    | #"w" => SOME [ord #"m" - START]
+    | #"x" => SOME [ord #"x" - START - 1]
+    | #"y" => SOME [ord #"y" - START - 1]
+    | #"z" => SOME [ord #"z" - START - 1]
+    | #" " => SOME []
+    | _ => NONE
+end
+
 (* Letters decompose to themselves only. *)
 structure Letter :> ATOM =
 struct
@@ -149,4 +197,5 @@ struct
 end
 
 (* structure Atom = Canonical *)
-structure Atom = Letter
+structure Atom = CapInv
+

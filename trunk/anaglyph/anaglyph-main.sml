@@ -21,6 +21,10 @@ struct
     (SOME ("-best", "Output only the longest words that can be made " ^
            "from the phrase.")) "best"
 
+  val banned = Params.param ""
+    (SOME ("-banned", "Comma-separated list of words that cannot be used " ^
+           "in the output.")) "banned"
+
   val require = Params.param ""
     (SOME ("-require", "When anagramming or generating best words, first " ^
            "subtract this phrase (which must be achievable). It's not " ^
@@ -35,6 +39,7 @@ struct
     let
       val argstring = String.concat args
       val require = !require
+      val banned = String.fields (StringUtil.ischar #",") (!banned)
       val maxwords = Params.asint 1000 maxwords
     in
       if !dump
@@ -50,7 +55,7 @@ struct
         then StringUtil.writefile "tree.js" (Anaglyph.tree_js ())
         else
         if !best
-        then Anaglyph.best_requiring require argstring
+        then Anaglyph.best_requiring require banned argstring
         else
         if !plan
          then
@@ -58,7 +63,7 @@ struct
               [phrase1, phrase2] => Anaglyph.makeplan (phrase1, phrase2)
             | _ => raise Anaglyph.Anaglyph "-plan needs exactly two args.")
          else if argstring <> ""
-              then Anaglyph.anaglyph_requiring maxwords require argstring
+              then Anaglyph.anaglyph_requiring maxwords require banned argstring
               else print ("Give a phrase to anagram, or use some " ^
                           "other mode:\n" ^ Params.usage ())
     end
