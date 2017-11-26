@@ -143,6 +143,9 @@ sig
   (* both sides *)
   val losespecsides : (char -> bool) -> string -> string
 
+  (* Count the number of occurrences of the character. *)
+  val countchar : char -> string -> int
+
   (* matchat n small big
      true if the string 'small' occurs within 'big'
      starting at character n. *)

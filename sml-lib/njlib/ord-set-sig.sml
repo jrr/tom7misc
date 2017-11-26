@@ -33,6 +33,7 @@ sig
 
   (* Insert items from list. *)
   val addList : set * item list -> set
+  val fromList : item list -> set
 
   (* Remove an item. Raise NotFound if not found. *)
   val delete : set * item -> set

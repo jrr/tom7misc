@@ -77,11 +77,14 @@ struct
           merge (s1, s2)
         end
 
-  fun addList (l, items) = let
-        val items' = List.foldl (fn (x, set) => add(set, x)) [] items
-        in
-          union (l, items')
-        end
+  fun addList (l, items) =
+    let
+      val items' = List.foldl (fn (x, set) => add(set, x)) [] items
+    in
+      union (l, items')
+    end
+
+  fun fromList l = addList (empty, l)
 
   (* Remove an item, returning new map and value removed.
    * Raise LibBase.NotFound if not found.
