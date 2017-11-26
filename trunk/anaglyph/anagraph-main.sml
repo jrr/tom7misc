@@ -4,6 +4,9 @@ struct
   val dump = Params.flag false
     (SOME ("-dump", "Dump the canonized dictionary.")) "dump"
 
+  val specialty = Params.flag false
+    (SOME ("-specialty", "Run some specialty word finding.")) "specialty"
+
   val treedot = Params.flag false
     (SOME ("-treedot", "Dump the tree as a .dot file.")) "treedot"
 
@@ -25,6 +28,12 @@ struct
     (SOME ("-banned", "Comma-separated list of words that cannot be used " ^
            "in the output.")) "banned"
 
+  val nontrivial = Params.flag false
+    (* XXX make this work for anagraphing as well *)
+    (SOME ("-nontrivial", "When dumping the canonized dictionary, " ^
+           "only output clusters that contain non-trivial uses of " ^
+           "the ruleset, i.e., are not plain anagrams.")) "nontrivial"
+
   val require = Params.param ""
     (SOME ("-require", "When anagramming or generating best words, first " ^
            "subtract this phrase (which must be achievable). It's not " ^
@@ -41,10 +50,15 @@ struct
       val require = !require
       val banned = String.fields (StringUtil.ischar #",") (!banned)
       val maxwords = Params.asint 1000 maxwords
+      val nontrivial = !nontrivial
     in
       if !dump
-      then StringUtil.writefile "canonized.txt" (Anagraph.canonized_file ())
+      then StringUtil.writefile "canonized.txt"
+           (Anagraph.canonized_file nontrivial)
       else
+        if !specialty
+        then Anagraph.specialty ()
+        else
         if !treedot
         then StringUtil.writefile "tree.dot" (Anagraph.tree_dotfile ())
         else

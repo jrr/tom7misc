@@ -76,6 +76,16 @@ you know what anagrams are.
 Unless you wage a tyrannosaur mohawk,
 you know what anagrams are.
 
+
+INV
+- donald trump = drum up a plot
+- youtube = by tenon
+- quad / band, 
+- pd: flipping / fiddling, pigtail / digital
+- qb: question / bounties, 
+- un: 
+- all: quip, bind
+
 "allow rotating letters" inv:
   - gaslit waterloo turtle
   - tolerate rotting walls !
@@ -113,7 +123,111 @@ or speaking of jaw jams,
 
 
 
+
 I call these anagraphs, because "anaglyph" is already taken
 by these kind of 3d glasses (zelda graphic) for some reason.
 anagraph comes from "anag", which means anagram, and "raph",
 which means "rotate and pluck h______"
+
+
+
+
+** undecidability of "generalized kerning" ** 
+
+
+my editorial board (THIS GUY) decided that this was "too boring"
+to include in the original video
+
+Say we have an alphabet of symbols, and then a system of "kerning"
+rules that let us rewrite sequences of symbols into other sequences.
+Like
+
+     rn   <=>   m
+
+     vv   <=>   w
+
+     ol   <=>   d
+     lo   <=>   b
+     
+(both directions). Then in fact it's UNDECIDABLE whether one word
+is a kernogram of another! With the ability to create an arbitrary
+alphabet and kerning rules, we can make a turing machine
+
+
+There's a single head, which we'll write as
+
+ [ ]
+
+around a symbol 1 or 0. The head has associated with it some state,
+which we can write as a subscript on the brackets
+
+ aaa[1]aaa
+      S
+
+Then we give the turing machine instructions like so,
+
+  state        symbol        write        move    new state
+    S             1            1            R         T
+
+by expanding into rewrite rules
+
+    [1]0  <=>   1[0]
+      S            T
+
+    [1]1  <=>   1[1]
+      S            T
+
+Note:
+  - we expand for every possibility of the bit to the right;
+    for a two-symbol turing machine this is just 0 and 1, easy
+
+  - The rules can be run symmetrically, but we construct the
+    encoding such that only one rule ever applies
+
+But then we need to do something about the blank ends of the
+tape. It doesn't obviously work to have a rule like
+
+    [1]   <=>    1[0]
+      S             T
+
+that allows inserting zeroes if there's no symbol there, because this
+rule would also apply in the case above when there ARE symbols
+(inserting a new zero!). But we can simply arrange that for a delimeter
+symbol (write |) that's on each end of the string by invariant. Then
+each rule that moves right has three versions:
+
+    [1]0  <=>   1[0]
+      S            T
+
+    [1]|  <=>   1[0]|
+      S            T
+
+    [1]1  <=>   1[1]
+      S            T
+
+and the embedded problem to turn 'stringone' into 'stringtwo' is actually
+|stringone| into |stringtwo|.
+
+we could also maybe make the encoding smaller by just adding generic
+rules for this
+
+    |   <=>   0|
+    |   <=>   |0
+
+or maybe you want them to be directional
+
+    <   <=>   <0
+    >   <=>   0>
+
+I think this works fine, but it makes the argument harder, because now
+there is always ambiguity in what rules apply (adding and removing
+leading and trailing zeroes is always allowed).
+
+The argument is as simple as that: If you have local rewrite rules,
+you can easily build a turing machine. Now to be fair it doesn't really
+look like kerning, since a rewrite like
+
+      [1]0  <=>  0[0]
+        S           T
+
+is not very letter-like at all? 
