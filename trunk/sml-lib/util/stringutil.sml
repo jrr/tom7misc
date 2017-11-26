@@ -80,30 +80,29 @@ struct
         let
           (* split up each string at its corresponding length *)
           val psl : string list list =
-                let fun g (nil, nil) = nil
-                      | g (s :: r, n :: t) = (wrapto (abs n) s) :: g(r, t)
-                      | g _ = raise StringUtil "inconsistent hardtables(1)"
-                in
-                  g (sl, il)
-                end
+            let fun g (nil, nil) = nil
+                  | g (s :: r, n :: t) = (wrapto (abs n) s) :: g(r, t)
+                  | g _ = raise StringUtil "inconsistent hardtables(1)"
+            in
+              g (sl, il)
+            end
 
           fun maybetl nil = nil
             | maybetl (_ :: t) = t
 
           fun j (sll : string list list) =
-                if (List.all List.null sll) then ""
-                else let
-                       fun k (nil : string list list, nil : int list) = "\n"
-                         | k (nil :: r, n :: t) = (pad n "") ^ " " ^ k (r, t)
-                         | k ((s :: _) :: r, n :: t) =
-                           (pad n s) ^ " " ^ k (r, t)
-                         | k _ = raise StringUtil "inconsistent hardtables(2)"
-                     in
-                         k (sll, il) ^ j (map maybetl sll)
-                     end
+            if (List.all List.null sll) then ""
+            else let
+                   fun k (nil : string list list, nil : int list) = "\n"
+                     | k (nil :: r, n :: t) = (pad n "") ^ " " ^ k (r, t)
+                     | k ((s :: _) :: r, n :: t) =
+                       (pad n s) ^ " " ^ k (r, t)
+                     | k _ = raise StringUtil "inconsistent hardtables(2)"
+                 in
+                   k (sll, il) ^ j (map maybetl sll)
+                 end
 
           val block = j psl
-
         in
           block ^ (f rest)
         end
@@ -152,57 +151,57 @@ struct
          required minimum width (mn) and desired max width
          (mx). *)
       val initial =
-          foldl (ListPair.map (fn (a, (mn, mx)) =>
-                               (max (minwidth a, mn),
-                                max (maxwidth a, mx))))
-                    (List.tabulate (cols, K (0, 0))) sll
+        foldl (ListPair.map (fn (a, (mn, mx)) =>
+                             (max (minwidth a, mn),
+                              max (maxwidth a, mx))))
+               (List.tabulate (cols, K (0, 0))) sll
 
       (* for this loop, mn is now the "current" width of
          that column *)
 
       fun expand cl =
-          let
-              (* actual current width. hardtable puts
-                 a space between each column at a minimum *)
-              val w = (cols - 1) +
-                  foldl (fn ((c, _), acc) => c + acc) 0 cl
+        let
+          (* actual current width. hardtable puts
+             a space between each column at a minimum *)
+          val w = (cols - 1) +
+            foldl (fn ((c, _), acc) => c + acc) 0 cl
 
-              val surplus = n - w
-          in
-              (* if there's surplus, give it to the most
-                 needy columns *)
-              if surplus > 0
-              then
-                  let
-                      (* find each column's need *)
-                      val nc = map (fn (c, d) =>
-                                    (c, d, max(d - c, 0))) cl
+          val surplus = n - w
+        in
+          (* if there's surplus, give it to the most
+             needy columns *)
+          if surplus > 0
+          then
+            let
+              (* find each column's need *)
+              val nc = map (fn (c, d) =>
+                            (c, d, max(d - c, 0))) cl
 
-                      val need =
-                          foldl (fn ((_, _, n), acc) =>
-                                 n + acc) 0 nc
+              val need =
+                foldl (fn ((_, _, n), acc) =>
+                       n + acc) 0 nc
 
-                      (* allocate surplus proportionally *)
-                      fun alloc remain [(c, d, n)] =
-                          [(Int.min(c + n, c + remain), d)]
-                        | alloc _ nil = nil (* ??? *)
-                        | alloc remain ((c, d, 0) :: rest) =
-                          (c, d) :: alloc remain rest
-                        | alloc remain ((c, d, n) :: rest) =
-                          let
-                              val frac = (real n / real need)
-                              val amt = min(Real.trunc (frac *
-                                                        real surplus),
-                                            remain)
-                          in
-                              (c + amt, d) :: alloc (remain - amt) rest
-                          end
-                  in
-                      alloc surplus nc
-                  end
-              else cl
+              (* allocate surplus proportionally *)
+              fun alloc remain [(c, d, n)] =
+                  [(Int.min (c + n, c + remain), d)]
+                | alloc _ nil = nil (* ??? *)
+                | alloc remain ((c, d, 0) :: rest) =
+                  (c, d) :: alloc remain rest
+                | alloc remain ((c, d, n) :: rest) =
+                let
+                  val frac = (real n / real need)
+                  val amt = min (Real.trunc (frac *
+                                             real surplus),
+                                 remain)
+                in
+                  (c + amt, d) :: alloc (remain - amt) rest
+                end
+            in
+              alloc surplus nc
+            end
+          else cl
 
-          end
+        end
 
       (* now expand to fit the space given *)
       val final = expand initial
@@ -311,17 +310,17 @@ struct
     | inlist (h :: t) (c : char) = c = h orelse inlist t c
 
   fun harden f esc l s =
-      let
-          (* will need at most this many chars, but don't bother
-             translating any more... *)
-          val ss = truncate l s
+    let
+      (* will need at most this many chars, but don't bother
+         translating any more... *)
+      val ss = truncate l s
 
-          fun ff c = if (c <> esc andalso f c)
-                     orelse Char.isAlphaNum c then str c
-                     else str esc ^ hexdig (ord c)
-      in
-          truncate l (String.translate ff ss)
-      end
+      fun ff c = if (c <> esc andalso f c)
+                 orelse Char.isAlphaNum c then str c
+                 else str esc ^ hexdig (ord c)
+    in
+      truncate l (String.translate ff ss)
+    end
 
   fun wordtohex_be w =
     let
@@ -368,30 +367,30 @@ struct
                       Word.fromInt (ord c) + Word.* (h, 0w31)) 0w0 s
 
   fun all f s =
-      let
-          fun ff ~1 = true
-            | ff n = f (CharVector.sub(s, n)) andalso ff (n - 1)
-      in
-          ff (size s - 1)
-      end
+    let
+      fun ff ~1 = true
+        | ff n = f (CharVector.sub(s, n)) andalso ff (n - 1)
+    in
+      ff (size s - 1)
+    end
 
   fun charspec s =
-      let
-          fun none _ = false
-          fun r (f, nil) = f
-            | r (f, (#"\\" :: c :: t)) = r ((fn d => d = c orelse f d), t)
-            | r (f, (c :: #"-" :: d :: t)) =
-              let val (c, d) = if c > d then (c, d) else (d, c)
-              in r ((fn e => (e <= c andalso e >= d) orelse f e), t)
-              end
-            | r (f, (c :: t)) = r ((fn d => d = c orelse f d), t)
-      in
-          case explode s of
-              #"^" :: rest => let val f = r (none, rest)
-                              in fn c => not (f c)
-                              end
-            | chars => r (none, chars)
-      end
+    let
+      fun none _ = false
+      fun r (f, nil) = f
+        | r (f, (#"\\" :: c :: t)) = r ((fn d => d = c orelse f d), t)
+        | r (f, (c :: #"-" :: d :: t)) =
+          let val (c, d) = if c > d then (c, d) else (d, c)
+          in r ((fn e => (e <= c andalso e >= d) orelse f e), t)
+          end
+        | r (f, (c :: t)) = r ((fn d => d = c orelse f d), t)
+    in
+      case explode s of
+        #"^" :: rest => let val f = r (none, rest)
+                        in fn c => not (f c)
+                        end
+      | chars => r (none, chars)
+    end
 
   (* Written directly instead of using charspec, because the compiler
      can probably do a better job *)
@@ -404,30 +403,30 @@ struct
 
   fun losespec sp = filter (not o sp)
   fun losespecl sp s =
-      let
-          fun go n =
-              if n >= size s
-              then ""
-              else
-                  if sp (CharVector.sub(s, n))
-                  then go (n + 1)
-                  else String.substring(s, n, size s - n)
-      in
-          go 0
-      end
+    let
+      fun go n =
+        if n >= size s
+        then ""
+        else
+          if sp (CharVector.sub(s, n))
+          then go (n + 1)
+          else String.substring(s, n, size s - n)
+    in
+      go 0
+    end
 
   fun losespecr sp s =
-      let
-          fun go n =
-              if n < 0
-              then ""
-              else
-                  if sp (CharVector.sub(s, n))
-                  then go (n - 1)
-                  else String.substring(s, 0, n + 1)
-      in
-          go (size s - 1)
-      end
+    let
+      fun go n =
+        if n < 0
+        then ""
+        else
+          if sp (CharVector.sub(s, n))
+          then go (n - 1)
+          else String.substring(s, 0, n + 1)
+    in
+      go (size s - 1)
+    end
 
   (* PERF: Should do it in a single pass *)
   fun losespecsides sp s = losespecr sp (losespecl sp s)
@@ -438,25 +437,25 @@ struct
 
   (* XXX stage? *)
   fun escape c what s =
-      let
-          fun range lo hi = Substring.extract(s, lo, SOME ((hi - lo) + 1))
+    let
+      fun range lo hi = Substring.extract(s, lo, SOME ((hi - lo) + 1))
 
-          val sp = charspec (what ^ implode[c])
-          fun f st n =
-              if n >= size s
-              then [range st (n - 1)]
-              else
-                  let val ch = (String.sub (s, n))
-                  in
-                      if sp ch
-                      then range st (n - 1) ::
-                           ss_all (implode[c, ch]) ::
-                           f (n + 1) (n + 1)
-                      else f st (n + 1)
-                  end
-      in
-          Substring.concat (f 0 0)
-      end
+      val sp = charspec (what ^ implode[c])
+      fun f st n =
+        if n >= size s
+        then [range st (n - 1)]
+        else
+          let val ch = (String.sub (s, n))
+          in
+            if sp ch
+            then range st (n - 1) ::
+              ss_all (implode[c, ch]) ::
+              f (n + 1) (n + 1)
+            else f st (n + 1)
+          end
+    in
+      Substring.concat (f 0 0)
+    end
 
   (* last element in a non-empty list *)
   fun llast nil = raise List.Empty
@@ -466,15 +465,25 @@ struct
       in f h t
       end
 
+  fun countchar c s =
+    let
+      val ct = ref 0
+    in
+      CharVector.app (fn cc =>
+                      if c = cc then ct := !ct + 1
+                      else ()) s;
+      !ct
+    end
+
   (* Using Substring to avoid copying. But this could probably be
      implemented directly and be more efficient that way... *)
   fun matchat n small big =
-      (Substring.compare (Substring.substring (big, n, size small),
-                          Substring.full small) = EQUAL)
-      handle _ => false (* might raise Subscript *)
+    (Substring.compare (Substring.substring (big, n, size small),
+                        Substring.full small) = EQUAL)
+    handle _ => false (* might raise Subscript *)
 
   fun matchtail small big =
-      matchat (size big - size small) small big
+    matchat (size big - size small) small big
 
   val matchhead = matchat 0
 
@@ -507,38 +516,38 @@ struct
   fun rfind small big = rfindat (size big - size small) small big
 
   fun wcmatch w s =
-      let
-          (* act specially on endpoints.
-             We could probably pull some trick of
-             inserting sentinels if there were some
-             characters we knew wouldn't be used,
-             but this is easy enough...
-             *)
-          val sfront = CharVector.sub(w, 0) = #"*"
-          val sback = CharVector.sub(w, size w - 1) = #"*"
+    let
+      (* act specially on endpoints.
+         We could probably pull some trick of
+         inserting sentinels if there were some
+         characters we knew wouldn't be used,
+         but this is easy enough...
+         *)
+      val sfront = CharVector.sub(w, 0) = #"*"
+      val sback = CharVector.sub(w, size w - 1) = #"*"
 
-           (* allinorder n sl s
-              true if all strings in sl appear in s,
-              in order without overlap, beginning
-              at character n *)
-          fun allinorder _ nil _ = true
-            | allinorder n (h :: t) s =
-              case findat n h s of
-                  NONE => false
-                | SOME nn => allinorder (nn + size h) t s
-      in
-          case String.tokens (ischar #"*") w of
-              nil => true (* *, **, etc. matches anything. *)
-            | parts =>
-                  let
-                    val first = hd parts
-                    val last = llast parts
-                  in
-                    (sfront orelse matchhead first s) andalso
-                    (sback orelse matchtail last s) andalso
-                    allinorder 0 parts s
-                  end
-      end
+       (* allinorder n sl s
+          true if all strings in sl appear in s,
+          in order without overlap, beginning
+          at character n *)
+      fun allinorder _ nil _ = true
+        | allinorder n (h :: t) s =
+          case findat n h s of
+              NONE => false
+            | SOME nn => allinorder (nn + size h) t s
+    in
+      case String.tokens (ischar #"*") w of
+        nil => true (* *, **, etc. matches anything. *)
+      | parts =>
+          let
+            val first = hd parts
+            val last = llast parts
+          in
+            (sfront orelse matchhead first s) andalso
+            (sback orelse matchtail last s) andalso
+            allinorder 0 parts s
+          end
+    end
 
   (* to remove dependency on Util *)
   fun for lo hi f =
@@ -559,86 +568,84 @@ struct
                                  SysWord.fromInt 4400)) mod 55
 
   fun hexdump s =
-      let
-          (* one chunk of <= 16 bytes *)
-          fun line startat s =
-             if startat > size s then "" else
-             (fordr startat (startat + 15) ""
-              (fn (j, rest) =>
-               (* the byte *)
-               (if j >= size s then "  "
-                else (bytetohex (ord (CharVector.sub(s, j))))) ^
-               (if j mod 2 = 1 then " "
-                else "") ^
-               (if j mod 8 = 7 then " "
-                else "") ^
-               rest
-               ) ^
-              fordr startat (startat + 15) ""
-              (fn (j, rest) =>
-               (if j >= size s then " "
-                else (if printable (CharVector.sub(s, j)) then
-                         implode[CharVector.sub(s, j)] else ".")) ^
-                (if j mod 8 = 7 then " "
-                else "") ^
-                rest
-               ) ^
-              "\n" ^
-              line (startat + 16) s)
-      in
-          line 0 s
-      end
+    let
+      (* one chunk of <= 16 bytes *)
+      fun line startat s =
+        if startat > size s then "" else
+           (fordr startat (startat + 15) ""
+            (fn (j, rest) =>
+             (* the byte *)
+             (if j >= size s then "  "
+              else (bytetohex (ord (CharVector.sub(s, j))))) ^
+             (if j mod 2 = 1 then " "
+              else "") ^
+             (if j mod 8 = 7 then " "
+              else "") ^
+             rest
+             ) ^
+            fordr startat (startat + 15) ""
+            (fn (j, rest) =>
+             (if j >= size s then " "
+              else (if printable (CharVector.sub(s, j)) then
+                       implode[CharVector.sub(s, j)] else ".")) ^
+              (if j mod 8 = 7 then " "
+              else "") ^
+              rest
+             ) ^
+            "\n" ^
+            line (startat + 16) s)
+    in
+        line 0 s
+    end
 
   fun tabulate n c = CharVector.tabulate (n, fn _ => c)
 
 
   fun partition s l =
-      let val r = size s - l
-      in (String.substring(s, 0, l), String.substring(s, l, r))
-      end
+    let val r = size s - l
+    in (String.substring(s, 0, l), String.substring(s, l, r))
+    end
 
   fun rpartition s r =
-      let val l = size s - r
-      in (String.substring(s, 0, l), String.substring(s, l, r))
-      end
+    let val l = size s - r
+    in (String.substring(s, 0, l), String.substring(s, l, r))
+    end
 
   local
 
-      fun try lose f n s =
-        if n >= size s
-        then (s, "")
-        else
-          if f (CharVector.sub(s, n))
-          then
-            (String.substring(s, 0, n),
-             lose (String.substring(s, n + 1, size s - (n + 1))))
-          else try lose f (n + 1) s
+    fun try lose f n s =
+      if n >= size s
+      then (s, "")
+      else
+        if f (CharVector.sub(s, n))
+        then (String.substring(s, 0, n),
+              lose (String.substring(s, n + 1, size s - (n + 1))))
+        else try lose f (n + 1) s
 
-      fun rtry lose f n s =
-          if n < 0
-          then ("", s)
-          else
-              if f (CharVector.sub(s, n))
-              then
-                  (lose (String.substring(s, 0, n)),
-                   String.substring(s, n + 1, size s - (n + 1)))
-              else rtry lose f (n - 1) s
+    fun rtry lose f n s =
+      if n < 0
+      then ("", s)
+      else
+        if f (CharVector.sub(s, n))
+        then (lose (String.substring(s, 0, n)),
+              String.substring(s, n + 1, size s - (n + 1)))
+        else rtry lose f (n - 1) s
 
   in
 
-      fun token f s =
-          try (losespecl f) f 0 (losespecl f s)
+    fun token f s =
+      try (losespecl f) f 0 (losespecl f s)
 
-      fun rtoken f s =
-          let val begin = losespecr f s
-          in rtry (losespecr f) f (size begin - 1) begin
-          end
+    fun rtoken f s =
+      let val begin = losespecr f s
+      in rtry (losespecr f) f (size begin - 1) begin
+      end
 
-      fun field f s =
-          try I f 0 s
+    fun field f s =
+      try I f 0 s
 
-      fun rfield f s =
-          rtry I f (size s - 1) s
+    fun rfield f s =
+      rtry I f (size s - 1) s
 
   end
 
@@ -650,23 +657,22 @@ struct
                                          size big - (n + size small)))
 
   fun replace src dst s =
-      let
-          fun collect n =
-              if n > size s
-              then nil
-              else
-                  case findat n src s of
-                      NONE => [String.substring(s, n, size s - n)]
-                    | SOME idx =>
-                          String.substring(s, n, idx - n) ::
-                          dst ::
-                          collect (idx + size src)
-
-      in
-          case size src of
-              0 => raise StringUtil "replacement src can't be empty string"
-            | _ => String.concat (collect 0)
-      end
+    let
+      fun collect n =
+        if n > size s
+        then nil
+        else
+          case findat n src s of
+            NONE => [String.substring(s, n, size s - n)]
+          | SOME idx =>
+              String.substring(s, n, idx - n) ::
+              dst ::
+              collect (idx + size src)
+    in
+      case size src of
+        0 => raise StringUtil "replacement src can't be empty string"
+      | _ => String.concat (collect 0)
+    end
 
   (* RFC 1783 apparently allows all of these, but
      web server/browser behavior is different (especially + being

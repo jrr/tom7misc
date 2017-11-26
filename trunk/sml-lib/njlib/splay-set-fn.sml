@@ -70,6 +70,8 @@ struct
       SET{nobj=cnt,root=ref t}
     end
 
+  fun fromList l = addList (empty, l)
+
   (* Remove an item.
      Raise LibBase.NotFound if not found. *)
   fun delete (EMPTY,_) = raise LibBase.NotFound
