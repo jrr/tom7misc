@@ -20,10 +20,16 @@ const MODE_ANIMATE = 3;
 const NUM_MODES = 4;
 let mode = MODE_ATOM;
 
+// When animating, the number of frames for the entire animation.
+const TOTAL_FRAMES = 200;
+
 // Are we writing frames to the frameserver? Set manually from
 // console.
 let saving = false;
+// Draw the grid?
 let grid = true;
+// If true, animates forward and then back.
+let full_loop = false;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
@@ -665,7 +671,7 @@ function MouseMove(e) {
 function GetFrameServerUrl(url, k) {
   const req = new XMLHttpRequest();
   req.onreadystatechange = function() {
-    console.log(req.readyState, req.status);
+    // console.log(req.readyState, req.status);
     if (req.readyState == 4 &&
 	req.status == 200) {
       if (k) k ();
@@ -991,31 +997,33 @@ function InitializeAnimation() {
 			 dst: { x: dstx, y: dsty, r: b }})
   }
 
-  const TOTAL_FRAMES = 200;
   let AnimateCallback = () => {
     animate_frame++;
 
     if (animate_frame > TOTAL_FRAMES) {
+      // Done.
       // Don't clear canvas.
 
       window.clearTimeout(timeout_id);
       timeout_id = null;
       // swap words
-      let t = endword;
-      endword = startword;
-      startword = t;
-      // swap source/dest in plan.
-      let newplan = [];
-      for (let row of plan) {
-	newplan.push({a: row.a, h: row.h,
-		      ss: row.ds, sp: row.dp,
-		      ds: row.ss, dp: row.sp});
+      if (!full_loop) {
+	let t = endword;
+	endword = startword;
+	startword = t;
+	// swap source/dest in plan.
+	let newplan = [];
+	for (let row of plan) {
+	  newplan.push({a: row.a, h: row.h,
+			ss: row.ds, sp: row.dp,
+			ds: row.ss, dp: row.sp});
+	}
+	plan = newplan;
       }
-      plan = newplan;
 
       // Don't overwrite.
       saving = false;
-      
+
     } else {
       ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
       // Don't draw vertical line (useless). Since we
@@ -1025,8 +1033,14 @@ function InitializeAnimation() {
 
       const CHANNEL_HEIGHT = 30;
 
-      // Pure linear interpolation
-      let pct = animate_frame / TOTAL_FRAMES;
+      let raw_pct = animate_frame / TOTAL_FRAMES;
+      // Effective percentage makes a ping-pong if
+      // we're doing a full loop
+      let pct =
+	  full_loop ?
+	  2.0 * (raw_pct > 0.5 ? 1.0 - raw_pct : raw_pct) :
+	  raw_pct;
+
       // Actually, use cosine easing.
       let f = (1 - Math.cos(pct * Math.PI)) * 0.5;
       let omf = 1.0 - f;

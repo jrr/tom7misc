@@ -771,17 +771,50 @@ struct
   fun tree_textfile () = Tree.tostring (#tree (build NONE nil))
   fun tree_js () = Tree.tojs (#tree (build NONE nil))
 
-  (* For -dump command. *)
-  fun canonized_file () =
+  fun normal_anagram (a, b) =
+    size a = size b andalso
+    let
+      val la = ListUtil.sort Char.compare (explode a)
+      val lb = ListUtil.sort Char.compare (explode b)
+    in
+      la = lb
+    end
+
+  fun trivial_cluster l = ListUtil.alladjacent normal_anagram l
+
+  (* For -dump command.
+     If nontrivial is true, then filter out clusters where everything
+     is a regular anagram. *)
+  fun canonized_file nontrivial =
     let
       val { clusters, ... } = build NONE nil
 
       (* Render one cluster, but don't bother if it's a singleton. *)
       fun makeline (atoms, [oneword]) = ""
         | makeline (atoms, words) =
-        Atoms.tostring atoms ^ "  " ^ (StringUtil.delimit " " words) ^ "\n"
+        (* Also, filter trivial clusters if requested. *)
+        if nontrivial andalso trivial_cluster words
+        then ""
+        else Atoms.tostring atoms ^ "  " ^ (StringUtil.delimit " " words) ^ "\n"
     in
       String.concat (map makeline (AM.listItemsi clusters))
+    end
+
+  fun specialty () =
+    let
+      val { clusters, ... } = build NONE nil
+      fun awesome_pair (a, b) =
+        StringUtil.countchar #"n" a <> StringUtil.countchar #"n" b (* andalso
+        StringUtil.countchar #"b" a <> StringUtil.countchar #"b" b andalso
+        StringUtil.countchar #"p" a <> StringUtil.countchar #"p" b *)
+
+      fun makeline (atoms, words) =
+        ListUtil.apppairssym (fn (a, b) =>
+                              if awesome_pair (a, b)
+                              then print (a ^ " " ^ b ^ "\n")
+                              else ()) words
+    in
+      app makeline (AM.listItemsi clusters)
     end
 
   (* Print the 100 longest words that can be made from the phrase,

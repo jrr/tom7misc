@@ -197,5 +197,5 @@ struct
 end
 
 (* structure Atom = Canonical *)
-structure Atom = CapInv
+structure Atom = Inv
 
