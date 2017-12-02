@@ -29,7 +29,7 @@ let saving = false;
 // Draw the grid?
 let grid = true;
 // If true, animates forward and then back.
-let full_loop = false;
+let full_loop = true;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 

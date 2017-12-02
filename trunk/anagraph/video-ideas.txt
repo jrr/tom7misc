@@ -83,7 +83,7 @@ INV
 - quad / band, 
 - pd: flipping / fiddling, pigtail / digital
 - qb: question / bounties, 
-- un: 
+- un: tofu / font
 - all: quip, bind
 
 "allow rotating letters" inv:
