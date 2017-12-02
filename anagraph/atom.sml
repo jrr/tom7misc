@@ -196,6 +196,49 @@ struct
         SOME (List.tabulate (n, fn _ => ()))
 end
 
+(* Special case for video *)
+structure QOE :> ATOM =
+struct
+
+  val name = "qoe"
+  exception Impossible of string
+
+  type atom = int
+  (* E -> F',  Q -> O' *)
+  val atomchars = "abcdfghijklmnoprstuvwxyz'"
+  val START = ord #"a"
+  val compare = Int.compare
+  val num_atoms = size atomchars
+  fun tochar a = CharVector.sub(atomchars, a)
+
+  fun toint a = a
+  fun fromint i = if i >= 0 andalso i < num_atoms
+                  then SOME i else NONE
+
+  fun get c =
+    case CharVector.findi (fn (_, cc) => c = cc) atomchars of
+      SOME (i, _) => i
+    | NONE => raise Impossible name
+
+  (* XXX this approach is probably better for some of the
+     above atoms too. *)
+  val table = Array.array (256, NONE)
+  (* Start with every atom mapped to itself (except special
+     ones). *)
+  val () = CharVector.app
+    (fn c =>
+     if c <> #"'"
+     then Array.update (table, ord c, SOME [get c])
+     else ()) atomchars
+
+  val () = Array.update (table, ord #" ", SOME nil)
+  val () = Array.update (table, ord #"q", SOME [get #"o", get #"'"])
+  val () = Array.update (table, ord #"e", SOME [get #"f", get #"'"])
+
+  fun decompose c = Array.sub (table, ord c)
+
+end
+
 (* structure Atom = Canonical *)
-structure Atom = Inv
+structure Atom = QOE
 
