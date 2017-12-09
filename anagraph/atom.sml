@@ -205,7 +205,7 @@ struct
 
   type atom = int
   (* E -> F',  Q -> O' *)
-  val atomchars = "abcdfghijklmnoprstuvwxyz'"
+  val atomchars = "abcdfghijklmnoprstuvxyz'"
   val START = ord #"a"
   val compare = Int.compare
   val num_atoms = size atomchars
@@ -234,11 +234,12 @@ struct
   val () = Array.update (table, ord #" ", SOME nil)
   val () = Array.update (table, ord #"q", SOME [get #"o", get #"'"])
   val () = Array.update (table, ord #"e", SOME [get #"f", get #"'"])
+  val () = Array.update (table, ord #"w", SOME [get #"m"])
 
   fun decompose c = Array.sub (table, ord c)
 
 end
 
 (* structure Atom = Canonical *)
-structure Atom = QOE
+structure Atom = Canonical
 
