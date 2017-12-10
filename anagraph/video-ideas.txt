@@ -427,117 +427,197 @@ to determine whether the one word can be transformed into the other,
 and then
 
 
-For example, let's say that we have this turing machine
+Semidecision approach.
 
-       state   tape   write    new state   go
-A0       a       0      1         f        right
-A1               1      0         g        right
-------------------------------------------------------
-B0       b       0      1         a        right
-B1               1      1         a        left         
-          ...
-C0       c       0      1         a        right
-C1               1      1         a        left         
+  real answer          keming procedure     run turing machine
+
+     yes                   yes                     yes
+
+     no                     no                (loops forever?)
+
+ keming no => real "no"
+ turing yes => real "yes"
+ but we could have keming "yes" and no answer from turing, and
+ we wouldn't know whether it's real.
 
 
-                 0101      ->     1101
-                 ^b                ^a
-                 
-    and we do   [0]b101           0[1]a01
+  So we simply run the turing machine in parallel with the keming
+  reduction. If keming returns "no" then we know there is no trace.
+  If it returns "yes" then we can't be sure. But unless the turing
+  machine loops forever (in which case the answer is "no" and the
+  keming machine must return no... no wait this is wrong! There
+  may be no way to do it using the forward approach.
 
-    but this state matches the RHS of rule C0 (and C1!); we have
+  DOES NOT WORK.
 
-                0[1]a01    <=>    [0]c101    (an unreachable state)
-       or even  0[1]a01    <=>    01[1]c01
+Fancy "trace" approach.
 
-Neither of these correspond to possible turing machine moves. What
-if one let us reach the target word?
+  Word looks like this
 
-If we annotated rules with which one we used, we'd have
+  trace{bits[C]Sbits}
 
-   (A0)[0]a0  <=>    1(B0)[1]a
-   (A1)[0]a0  <=>    1(B0)[1]a
-   (B0)[0]a0  <=>    1(B0)[1]a
-   (B1)[0]a0  <=>    1(B0)[1]a
-     .
-     .
-     .
-   (Z0)[0]a0  <=>    1(B0)[1]a
-   (Z1)[0]a0  <=>    1(B0)[1]a   
+  where C is the current bit and S is the current state. What
+  we're going to do is explicitly record the trace of turing
+  machine instructions we used. This will prevent us from running
+  "incorrect preimage" instructions.
 
-Each time recording that we used rule B0. Now the rewrite above is
-something like this
+  So now when I execute a step,
 
                  0101      ->       1101
                  ^b       (B0)       ^a
-                 
-    and we do   (??)[0]b101       0(B0)[1]a01
 
-this can only be rewound with rules from the B0 set, which all
-correspond to the same real turing machine rule. However, we could
-choose a different () in the previous state, which allows the same
-problem, ugh!
+  I go into an intermediate state with a < shuttle.
+  
+                [0]b101           1<B0|1]a01
+
+  Note that when I'm in this state there is no pair of brackets,
+  so none of the normal rules apply. Instead I use this state to
+  send the rule used onto the trace, like so:
+
+     0<??    ->    <??0          (for all rule symbols)
+     1<??    ->    <??1
+
+  and when it hits the end of the word,
+
+     {<??    ->    ??{>  
+
+  this pushes it onto the end of the trace, and then reverses the
+  shuttle. Then we have rules for the shuttle's return:
+
+     >0      ->    0>
+     >1      ->    1>
+
+  and for returning back to the normal mode
+
+     >|      ->    [
+
+  which in the above example results in
+
+    B0{...1[1]a01     as desired.
 
 
-OK, last try. Let's say that we instead record the direction we
-moved and the bit that we overwrote.
+  It's still possible to run these rules in reverse. For example
+  we could turn [ into >| and then run the > shuttle back to the
+  trace, and pick up B0. And even bring B0 back to our word. But
 
-                 0101      ->     1101
-                 ^b                ^a
-                 
-    is now   (??)[0]b101       (R0)0[1]a01
+  in fact in this setup there is no ambiguity about what rule
+  applies at any step. There's always exactly one "forward" rule
+  corresponding to the next turing machine step (or intermediate
+  shuttle movements), and one backward step that corresponds
+  to undoing it.
 
-No, this possibly allows us to only rewind to states that will
-do the exact same thing. But the real problem is that we wildcard
-over ?? on the LHS, which means that we can diverge from the
-original trace in just one step.
+  So the proof is done right?
 
-As an aside: Notice that, other than the fact that I can run rules
-backwards in the keming machine, there's only going to be one rule
-that applies at any time. So this works even when the kerning problem
-does not allow ambiguous rules. (Actually, not true! The RHS can be
-duplicated.) (Actually, is it a problem that rules can run backwards?
-Because two steps could yield the same string, allowing transitions
-that are not permitted in the turing machine. Any simple way around
-this? Maybe leave a breadcrumb of which rule is used at each step,
-ensuring that the RHS is unique? And then blow up the rules to
-wildcard over this breadcrumb on the LHS?)
+  J/K! Another bug. We originally said that our keming machine
+  solver would tell us if one word translated into another. Given
+  a turing problem like
 
-We want to make sure that every backwards step corresponds to a
-backwards step on the turing machine.
+    0111            --?-->         101
+    ^a                             ^a
+    
+  we would ask
 
-First take every rule and label
-it with the Turing machine rule we used to generate it. We can write
-this one before the cursor.
+   {[0]a111}        <==?==>        {[1]a01}
 
-A0.
-   [0]a>  <=>    1(a0)[0]f>
-   [0]a0  <=>    1(a0)[0]f
-   [0]a1  <=>    1(a0)[1]f
+  or something. But now there will always be some trace left, and we
+  don't know the trace before we ask for it! So we don't know what
+  question to ask the keming solver.
 
-but can't leave these in the rule. So we then take every rule and
-"wildcard" over all possible symbols that can be there.
+  So the last thing to do is to add a final phase. We have something
+  like
 
-   (**)[0]a0  <=>    1(a0)[0]f
-   (**)[0]a1  <=>    1(a0)[1]f
+  A0B1B1C0C0C0B1A0{001001[1]a010}
 
-but we don't really have wildcard so this blows up into a family
-of rules, where we put each turing rule number in there.
+  and we want to turn it into a normalized string so that we know
+  what question to ask. In this case it will be
 
-   (a0)[0]a0  <=>    1(a0)[0]f
-   (a1)[0]a0  <=>    1(a0)[0]f
-   (b0)[0]a0  <=>    1(a0)[0]f
-   (b1)[0]a0  <=>    1(a0)[0]f
-     .
-     .
-     .
-   (z0)[0]a0  <=>    1(a0)[0]f
-   (z1)[0]a0  <=>    1(a0)[0]f
+  (1001[1]a01)
 
-   (a0)[0]a1  <=>    1(a0)[1]f
-     .
-     .
-     .
+  and the way we accomplish this is that we allow turning { into
+  finalizing parens (, like so:
+
+  { <=> (
+
+  (ok this is obviously pointless since then { and ( would be
+   equivalent)
+
+  So uh.. how? If I allow something simple like
+
+  A0{ <=> {
+
+  then this allows me to insert arbitrary steps into the trace,
+  which has the same problems as before. And if deleting always
+  gave us finalized parens, like
+
+  A0{ <=> (            (for all states)
+
+  then we could still do shenanigans by taking
+
+  A0B1B1C0C0C0B1A0{001001[1]a010} ->
+  A0B1B1C0C0C0B1(001001[1]a010} <-
+  A0B1B1C0C0C0B1A1{001001[1]a010}
+
+  again messing up the trace.
+
+
+  (soooo.. we could change what we're trying to prove, to prove that
+   "can w1 be kerned to any string where w2 is a substring?" That
+   is undecidable because of the argument here. If we could solve
+   it, then we could build a turing machine with the above argument,
+   with no false positives because we actually ask if the bracketed
+   string { } is a substring. (need to eliminate leading/trailing
+   zeroes but this is safe.) But this is a weaker statement than
+   the original kerning problem--it might be undecidable despite
+   kerning an exact pair being decidable. Unless there is a reduction
+   there? We'd need to prove that any instance of the substring
+   problem can be turned into an exact problem. "if we can solve the
+   exact problem, then we could solve the substring problem"
+
+   so uh, how would we do that? 
+
+   the substring problem looks like this:
+   w1  <=?=>  ...w2...
+
+   obviously if w1 <=> w2 then the answer is yes, but maybe it requires
+   adding extra stuff. We could put sentinels on the ends and then allow
+   deleting arbitrary characters there, i.e. we ask
+
+   w1 <=> (w2)           (exact)
+   with the rules
+   (a <=> (          (for all letters a)
+   a) <=> )
+
+   which is sorta along the right lines, but fails for the same
+   reason as such tricks above fail: We can use it to insert arbitrary
+   strings at the ends of the word, so we might get a "yes" that's
+   fake (doesn't really solve the problem) because it cheats.
+
+   maybe some way to recover here?)
+
+  Bidirectionality is the issue in the first place! If we had
+  unidirectional kerning rules then we'd be fine (without the
+  special shuttle stuff).
+
+  So: Unidirectional kerning is undecidable.
+  If we have a bidirectional kerning problem, we can't use
+  unidirectional kerning to solve it, but it might still be decidable
+  anyway.
+  We'd have to show that if bidirectional kerning were decidable,
+  unidirectional would be (a contradiction). This means taking any
+  unidirectional problem and making it a bidirectional one. How?
+
+  So we could just gloss over this in the first place and say that
+  the generalized problem is the unidirectional one. This is indeed
+  a generalization, and makes the turing machine reduction much more
+  straightforward (we don't need the trace or anything). I do kind
+  of like that trace idea though!
+
+  So I know how to do these:
+    - Prove that the bidi substring problem is undecidable
+    - Prove that the uni exact problem is undecidable
+    
+
+** Older notes **
 
 
 
@@ -634,3 +714,127 @@ look like kerning, since a rewrite like
         S           T
 
 is not very letter-like at all? 
+
+
+As an aside: Notice that, other than the fact that I can run rules
+backwards in the keming machine, there's only going to be one rule
+that applies at any time. So this works even when the kerning problem
+does not allow ambiguous rules. (Actually, not true! The RHS can be
+duplicated.) (Actually, is it a problem that rules can run backwards?
+Because two steps could yield the same string, allowing transitions
+that are not permitted in the turing machine. Any simple way around
+this? Maybe leave a breadcrumb of which rule is used at each step,
+ensuring that the RHS is unique? And then blow up the rules to
+wildcard over this breadcrumb on the LHS?)
+
+We want to make sure that every backwards step corresponds to a
+backwards step on the turing machine.
+
+First take every rule and label
+it with the Turing machine rule we used to generate it. We can write
+this one before the cursor.
+
+A0.
+   [0]a>  <=>    1(a0)[0]f>
+   [0]a0  <=>    1(a0)[0]f
+   [0]a1  <=>    1(a0)[1]f
+
+but can't leave these in the rule. So we then take every rule and
+"wildcard" over all possible symbols that can be there.
+
+   (**)[0]a0  <=>    1(a0)[0]f
+   (**)[0]a1  <=>    1(a0)[1]f
+
+but we don't really have wildcard so this blows up into a family
+of rules, where we put each turing rule number in there.
+
+   (a0)[0]a0  <=>    1(a0)[0]f
+   (a1)[0]a0  <=>    1(a0)[0]f
+   (b0)[0]a0  <=>    1(a0)[0]f
+   (b1)[0]a0  <=>    1(a0)[0]f
+     .
+     .
+     .
+   (z0)[0]a0  <=>    1(a0)[0]f
+   (z1)[0]a0  <=>    1(a0)[0]f
+
+   (a0)[0]a1  <=>    1(a0)[1]f
+     .
+     .
+     .
+
+For example, let's say that we have this turing machine
+
+       state   tape   write    new state   go
+A0       a       0      1         f        right
+A1               1      0         g        right
+------------------------------------------------------
+B0       b       0      1         a        right
+B1               1      1         a        left         
+          ...
+C0       c       0      1         a        right
+C1               1      1         a        left         
+
+
+                 0101      ->     1101
+                 ^b                ^a
+                 
+    and we do   [0]b101           0[1]a01
+
+    but this state matches the RHS of rule C0 (and C1!); we have
+
+                0[1]a01    <=>    [0]c101    (an unreachable state)
+       or even  0[1]a01    <=>    01[1]c01
+
+Neither of these correspond to possible turing machine moves. What
+if one let us reach the target word?
+
+If we annotated rules with which one we used, we'd have
+
+   (A0)[0]a0  <=>    1(B0)[1]a
+   (A1)[0]a0  <=>    1(B0)[1]a
+   (B0)[0]a0  <=>    1(B0)[1]a
+   (B1)[0]a0  <=>    1(B0)[1]a
+     .
+     .
+     .
+   (Z0)[0]a0  <=>    1(B0)[1]a
+   (Z1)[0]a0  <=>    1(B0)[1]a   
+
+Each time recording that we used rule B0. Now the rewrite above is
+something like this
+
+                 0101      ->       1101
+                 ^b       (B0)       ^a
+                 
+    and we do   (??)[0]b101       0(B0)[1]a01
+
+this can only be rewound with rules from the B0 set, which all
+correspond to the same real turing machine rule. However, we could
+choose a different () in the previous state, which allows the same
+problem, ugh!
+
+
+OK, last try. Let's say that we instead record the direction we
+moved and the bit that we overwrote.
+
+                 0101      ->     1101
+                 ^b                ^a
+                 
+    is now   (??)[0]b101       (R0)0[1]a01
+
+No, this possibly allows us to only rewind to states that will
+do the exact same thing. But the real problem is that we wildcard
+over ?? on the LHS, which means that we can diverge from the
+original trace in just one step. I think if we wanted to make
+this work, we'd need arbitrary storage.
+
+But don't we have arbitrary storage in the keming machine?
+Well sorta. If our cursor only ever moves right, then we can
+do something like
+
+
+)[0]b1   ->  B0)0[1]a
+
+which "pushes B0 on the stack" inside the parens. But without doing
+something fancy, how would we 
