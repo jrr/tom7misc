@@ -17,8 +17,9 @@ const MODE_ATOM = 0;
 const MODE_LETTER = 1;
 const MODE_WORD = 2;
 const MODE_ANIMATE = 3;
-const NUM_MODES = 4;
-let mode = MODE_ATOM;
+const MODE_ALPHABET = 4;
+const NUM_MODES = 5;
+let mode = MODE_ANIMATE;
 
 // When animating, the number of frames for the entire animation.
 const TOTAL_FRAMES = 200;
@@ -27,9 +28,9 @@ const TOTAL_FRAMES = 200;
 // console.
 let saving = false;
 // Draw the grid?
-let grid = true;
+let grid = false;
 // If true, animates forward and then back.
-let full_loop = true;
+let full_loop = false;
 
 const DEG_TO_RADIANS = 3.141592653589 / 180.0;
 
@@ -86,7 +87,7 @@ const CANVASHEIGHT = 1080;
 const CELLSIZES = [2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 24, 30, 40];
 
 // One for each mode.
-let CELLSIZEIDXS = [8, 6, 2, 2];
+let CELLSIZEIDXS = [8, 6, 2, 2, 4];
 (() => { if (CELLSIZEIDXS.length != NUM_MODES) throw 'bad init'; })();
 
 let CELLSIZE = CELLSIZES[CELLSIZEIDXS[mode]];
@@ -558,6 +559,35 @@ function DrawLetter(letter, dx, dy) {
   }
 }
 
+const MAX_COUNTDOWN = 4 * 60 * 10;
+let COUNTDOWN = MAX_COUNTDOWN;
+let EXPANDING = false;
+function DrawLetterEx(letter, dx, dy, t) {
+  const FILLS = { 'c' : '#dd7127CC',
+		  'e' : '#6bbe31CC',
+		  'o' : '#5c6ee1CC',
+		  'r' : '#d95763CC',
+		  's' : '#01bc6bCC',
+		  '\'' : '#b85a9aCC',
+		  '.' : '#93a807CC',
+		  '?' : '#326084CC' };
+  if (EXPANDING && COUNTDOWN > 0) COUNTDOWN--;
+  const f = 1 - (COUNTDOWN / MAX_COUNTDOWN);
+  for (let i = 0; i < letter.p.length; i++) {
+    const tt = (t + i * 40) / 20;
+    let piece = letter.p[i];
+    let fill = FILLS[piece.a] || 'rgba(0,0,0,0.9)';
+    let dxx = Math.sin(tt) * (0.5 * f);
+    let dyy = Math.sin(tt * 0.3) * (0.2 * f);
+    let drr = Math.sin(tt * 0.7) * (3 * f);
+    let path = TransformPath(atom_glyphs[piece.a],
+			     dxx + dx + piece.x, dyy + dy + piece.y,
+			     drr + piece.r);
+    DrawPath(path, fill, null);
+  }
+}
+
+
 function WordWidth(w) {
   let total = 0;
   for (let i = 0; i < w.length; i++) {
@@ -593,6 +623,49 @@ function DrawModeWord() {
   }
 }
 
+// XXX Could be more generic to the alphabet and its
+// metrics!
+let ALPHABET_T = 0;
+function DrawModeAlphabet() {
+  // extra x space between letters
+  // 4 is good for ceors
+  const XTRA = 0;
+  // 55 is good for ceors
+  const LINEHEIGHT = 45;
+  // 40 is good for ceors
+  const YSTART = 18;
+  if (grid)
+    DrawGrid(null, null);
+  ALPHABET_T++;
+  const lines =
+	['abcdefghij',
+	 'klmnopqr',
+	 'stuvwxyz']
+  for (let linenum = 0; linenum < lines.length; linenum++) {
+    const line = lines[linenum];
+    const y = (linenum - (lines.length * 0.5)) * LINEHEIGHT + YSTART;
+    // Total width from letter metrics, so that
+    // we can center it.
+    const total_width = WordWidth(line) + XTRA * (line.length - 1);
+    let x = total_width * -0.5;
+
+    for (let i = 0; i < line.length; i++) {
+      let c = line[i];
+      DrawLetterEx(letters[c], x, y, ALPHABET_T);
+      x += letters[c].m.w;
+      x += XTRA;
+      if (i != line.length - 1) {
+	let pal = line[i + 1];
+	if (letters[c].k && letters[c].k[pal]) {
+	  x += letters[c].k[pal];
+	}
+      }
+    }
+  }
+  
+  window.setTimeout(Draw, 1000 / 60);
+}
+
 function Draw() {
   ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
 
@@ -602,6 +675,8 @@ function Draw() {
     DrawModeLetter();
   } else if (mode == MODE_WORD) {
     DrawModeWord();
+  } else if (mode == MODE_ALPHABET) {
+    DrawModeAlphabet();
   }
 }
 
@@ -1025,7 +1100,8 @@ function InitializeAnimation() {
       saving = false;
 
     } else {
-      ctx.clearRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
+      ctx.fillStyle = '#fff'; // '#719759';
+      ctx.fillRect(0, 0, CANVASWIDTH, CANVASHEIGHT);
       // Don't draw vertical line (useless). Since we
       // are often zoomed way out, draw a coarser grid
       if (grid)
@@ -1107,6 +1183,14 @@ function KeyAnimate(e) {
   }
 }
 
+function KeyAlphabet(e) {
+  // nothing
+  if (e.key == ' ') {
+    COUNTDOWN = MAX_COUNTDOWN;
+    EXPANDING = true;
+  }
+}
+
 function Key(e) {
   if (locked)
     return;
@@ -1142,6 +1226,8 @@ function Key(e) {
     KeyWord(e);
   } else if (mode == MODE_ANIMATE) {
     KeyAnimate(e);
+  } else if (mode == MODE_ALPHABET) {
+    KeyAlphabet(e);
   }
 }
 
