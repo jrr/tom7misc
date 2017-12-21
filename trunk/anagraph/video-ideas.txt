@@ -61,6 +61,8 @@ some nice pairs:
 
   they might be giants = gesticulating mutely
 
+  anagraph = by caravan = tv accuracy
+
 pixel font:
   facebook = priapism = typeface = ...
 
@@ -75,6 +77,16 @@ you know what anagrams are.
 
 Unless you wage a tyrannosaur mohawk,
 you know what anagrams are.
+
+
+take me back to
+   high school = heatstroke
+
+and i'll
+   pay attention better
+
+because I wanna learn more about
+   letters = lettuce
 
 
 INV
@@ -97,6 +109,8 @@ microphotograph
 
 stuff to try:
  - juicero
+
+
 
 
 
@@ -130,6 +144,7 @@ anagraph comes from "anag", which means anagram, and "raph",
 which means "rotate and pluck h______"
 
 
+
 kerfning for the cut away part
 
 next:
@@ -153,6 +168,18 @@ next:
    - reference other vid
  - further generalizations (pixels)
  - end with some good anagraphs I guess
+
+But anyway, since I built each letter out of atoms explicitly, each
+does have a unique decomposition, which makes this problem easy.
+
+Once
+you have a pair of anagraphs, you have to do a bit more work to animate
+between them.
+
+
+plan how to move the letters from one place to another. It tries to
+minimize the 
+
 
 
 ** undecidability of "generalized kerning" ** 
