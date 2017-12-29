@@ -1,7 +1,7 @@
-/* This library is used to learn objective functions from
-   examples. It's specialized to learning NES games: These
-   have 2kb of RAM and memory locations usually store
-   meaningful single-byte quantities.
+/* This library is used to learn objective functions from examples;
+   it's the core of the learnfun algorithm (see learnfun.cc). It's
+   specialized to learning NES games: These have 2kb of RAM and memory
+   locations usually store meaningful single-byte quantities.
 
    An objective function is a lexicographic ordering on a subset of
    memory locations L1..Ln. Specifically, MEM < MEM' when

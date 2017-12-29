@@ -1,6 +1,39 @@
 Games to do: Silver Surfer
 ExciteBike
 
+29 Dec 2017
+Getting back to this.
+Contra guys are getting stuck trying to climb up the mountain.
+There's a pretty narrow window to both avoid a rock and make a
+jump, but they also seem to just want to stay on the right side
+of the screen (objectives favor higher x coord). Idea is:
+ - Use player sprite detection from glend.
+ - Enrich nodes to store the possibility of some facts, like
+    - "I think this is a 2D side-scrolling game"
+    - "I think 0x80,0x99 are p1 x,y coordinates"
+    - ...
+   The idea of making this part of nodes is that we could change
+   our minds about these facts as the game progresses, which
+   actually matters for some games.
+ - Enrich nodes with a "current plan" (which may be the same as
+   facts). In this case, the current plan would be like
+    - "Get near x=24, y=180"
+   probably meaning that both players try to go there. This plan
+   should be optional; we don't always want to have a goal like
+   that.
+ - When "stuck" (e.g. a node has been expanded a lot but no
+   progress on the objective functions, or even something like the
+   scroll hasn't changed for a while) sometimes randomly add
+   a plan to go to a random spot.
+ - When we reach the spot (or get close enough), or when the
+   objective function has increased, clear the plan, having
+   "succeeded."
+ - During state evaluation, we consider the player closeness to
+   the plan destination as part of the score. Totally unclear
+   how to blend this with the objective function (especially
+   how that might affect our notion of stuckness or other
+   things that require comparing scores non-locally).
+
 1 May 2016
 Bisect previous sequence
 

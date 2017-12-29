@@ -1,3 +1,6 @@
+// "Problem" definition for two-player games. The input
+// state is an input for each controller (uint16).
+
 #ifndef __PROBLEM_TWOPLAYER_H
 #define __PROBLEM_TWOPLAYER_H
 
@@ -21,17 +24,25 @@ struct TwoPlayerProblem {
     return ((uint16)p1 << 8) | (uint16)p2;
   }
   
-  // Save state; these are portable between workers.
+  // Save state for a worker; the worker can save and restore these
+  // at will, and they are portable betwen workers.
   struct State {
+    // Emulator savestate.
     vector<uint8> save;
     // PERF This is actually part of save. But we use it to
     // compute objective functions without having to restore
-    // the save.
-    // PERF We could have a TPP-level remapping of indices used
-    // in the objective functions to a dense sequence of integers,
-    // which would usually be much fewer than 2048, and only
+    // the save. If memory becomes a big problem, we could
+    // have Emulator return a more structured save which
+    // provided a pointer to the 2k memory. This would preclude
+    // cleverness like save state compression, though.
+    // PERF We could store a TwoPlayerProblem-level remapping of
+    // indices used in the objective functions to a dense sequence of
+    // integers, which would usually be much fewer than 2048, and only
     // store the memory values keyed by those denser indices here.
+    // (i.e., only store the bytes actually used in the objective
+    // functions.)
     vector<uint8> mem;
+    // Number of NES frames 
     int depth;
     ControllerHistory prev1, prev2;
   };
@@ -40,6 +51,8 @@ struct TwoPlayerProblem {
     return s.save.size() + s.mem.size() + sizeof (State);
   }
 
+  // Object that can generate (pseudo)random inputs.
+  //
   // Generator itself is not thread-safe, but you can create
   // many of them easily.
   struct InputGenerator {
@@ -63,7 +76,7 @@ struct TwoPlayerProblem {
   // execute steps. We create one of these per thread.
   struct Worker {
     explicit Worker(TwoPlayerProblem *parent) : tpp(parent) {}
-    // Same game is loaded as parent Problem.
+    // Every worker loads the same game.
     unique_ptr<Emulator> emu;
     int depth = 0;
     // Previous input for the two players.
@@ -81,15 +94,17 @@ struct TwoPlayerProblem {
 	return InputGenerator{InputGenerator::Type::MARKOV, 0, tpp,
 	                      previous1, previous2};
       } else {
+	// XXX This is a hack, obviously -- because many games show a
+	// bias towards the right (e.g., higher x coordinate), I
+	// thought it might be helpful to explicitly try jumping to
+	// the left sometimes. I think this is probably subsumed by
+	// the random screen-coordinate goal thing, and could be
+	// removed?
 	return InputGenerator{InputGenerator::Type::JUMP_LEFT, 0, tpp,
 	                      previous1, previous2};
       }
     }
-    
-    // Called in the worker thread before anything else, but
-    // the worker's state must be valid before this point.
-    void Init();
-    
+        
     State Save() {
       MutexLock ml(&mutex);
       return State{ emu->SaveUncompressed(), emu->GetMemory(), depth,
@@ -100,7 +115,8 @@ struct TwoPlayerProblem {
       MutexLock ml(&mutex);
       emu->LoadUncompressed(state.save);
       depth = state.depth;
-      // (Doesn't actually need the memory to restore.)
+      // (Doesn't actually need the memory to restore; it's part of
+      // the emulator save state.)
       previous1 = state.prev1;
       previous2 = state.prev2;
     }
@@ -119,7 +135,12 @@ struct TwoPlayerProblem {
 
     void Observe();
 
+    // Visualize the current state, by drawing pixels into the
+    // ARGB array, which has size 256x256 pixels.
     void Visualize(vector<uint8> *argb256x256);
+    // Append lines to the vector that describe the current state
+    // for visualization purposes. The strings should fit in a
+    // column 256 pixels wide.
     void VizText(vector<string> *text);
     
     void ClearStatus() {

@@ -165,12 +165,8 @@ Worker *TPP::CreateWorker() {
   w->emu.reset(Emulator::Create(game));
   CHECK(w->emu.get() != nullptr);
   w->ClearStatus();
+  w->Restore(start_state);
   return w;
-}
-
-void Worker::Init() {
-  // n.b., restore takes lock
-  Restore(tpp->start_state);
 }
 
 void Worker::Visualize(vector<uint8> *argb) {
