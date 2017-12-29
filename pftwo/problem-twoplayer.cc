@@ -161,7 +161,6 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
 }
 
 Worker *TPP::CreateWorker() {
-  CHECK(this);
   Worker *w = new Worker(this);
   w->emu.reset(Emulator::Create(game));
   CHECK(w->emu.get() != nullptr);
