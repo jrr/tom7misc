@@ -77,7 +77,7 @@ struct TwoPlayerProblem {
     // generating multiple sequential random inputs without executing
     // them. Intended to be efficient to create.
     InputGenerator Generator(ArcFour *rc) {
-      if (true || rc->Byte() < 220) {
+      if (rc->Byte() < 220) {
 	return InputGenerator{InputGenerator::Type::MARKOV, 0, tpp,
 	                      previous1, previous2};
       } else {
