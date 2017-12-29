@@ -573,14 +573,20 @@ struct
            time since start (x axis); y axis is elevation. *)
         let
           (* Start time. In the general case this is AFTER the
-             first point we emit. *)
-          val tstart =
+             first point we emit.
+             Also get the start elevation. The absolute
+             elevation recorded by the barometer varies a lot
+             each day, so we just pretend the first point is
+             sea level. XXX would be a little better to estimate
+             the error (assuming it's constant) with multiple
+             points, e.g. the crossing elevation for each gate *)
+          val (start_time, start_elev) =
             let
               (* first two points *)
               val (idx, f) = starti
-              val Pt { time = tstart, ... } =
+              val Pt { time = tstart, elev = estart, ... } =
                 Vector.sub (points, idx)
-              val Pt { time = tstart1, ...} =
+              val Pt { time = tstart1, elev = estart1, ...} =
                 Vector.sub (points, idx + 1)
 
               (* Time is actually integral, so do the subsecond
@@ -589,7 +595,8 @@ struct
               val toffset = Time.fromMicroseconds
                 (IntInf.fromInt (Real.trunc (subsec * 1000000.0)))
             in
-              Time.+ (tstart, toffset)
+              (Time.+ (tstart, toffset),
+               (estart * (1.0 - f) + estart1 * f))
             end
 
           val (endidx, endf) = endi
@@ -598,11 +605,13 @@ struct
             else
               let
                 val Pt { elev, time, ... } = Vector.sub (points, i)
-                val seconds = Time.toReal (Time.-(time, tstart))
-              in
+                val seconds = Time.toReal (Time.-(time, start_time))
+
                 (* Reverse elevation so that increasing Y is up.
                    XXX do this a better way. *)
-                (seconds, 0.0 - elev) :: go (i + 1)
+                val relative_elev = elev - start_elev
+              in
+                (seconds, 0.0 - relative_elev) :: go (i + 1)
               end
         in
           lines := go (#1 starti) :: !lines
@@ -687,6 +696,15 @@ struct
       TextIO.closeOut f
     end
 
+  (* Just print when the last activity was. We do this at the
+     end so that it's easy to know when to start manually
+     downloading GPX files. *)
+  fun printlastdate nil = print "There were no activities.\n"
+    | printlastdate [Activity { start, ... }] =
+    print ("Time of last activity: " ^
+           Date.toString (Date.fromTimeLocal start) ^ "\n")
+    | printlastdate (_ :: t) = printlastdate t
+
   fun main dirname =
     let
       fun maybe_parse_file f =
@@ -707,13 +725,15 @@ struct
       val () = print ("Loaded " ^ Int.toString (length activities) ^
                       " activities.\n")
       val activities = ListUtil.sort comparebydate activities
+
       val () = genpic conf "debug.svg" (segments, activities)
       val crossings = find_crossings conf (segments, activities)
       val crossings = enrich_crossings crossings
     in
       app dosegment_crossings crossings;
       app crossings_tsv crossings;
-      app elevgraph crossings
+      app elevgraph crossings;
+      printlastdate activities
     end
   handle GPX.GPX s => fail ("GPX error: " ^ s ^ "\n")
        | Segments.Segments s => fail ("Segments error: " ^ s ^ "\n")
