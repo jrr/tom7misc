@@ -57,7 +57,7 @@
 #define WIDTH 1920
 #define HEIGHT 1080
 
-#define MAX_NODES 100000
+#define MAX_NODES 1000
 #define NUM_NEXTS 1
 
 // "Functor"
