@@ -116,6 +116,14 @@ typedef unsigned char validate_uint32[sizeof(uint32)==4 ? 1 : -1];
    #define stbi_lrot(x,y)  (((x) << (y)) | ((x) >> (32 - (y))))
 #endif
 
+// This code uses some macro hacks with 'for' that trigger
+// loads of false positives for this otherwise useful diagnostic. -tom7
+#ifdef __GNUC__
+  #if __GNUC__ >= 6
+    #pragma GCC diagnostic ignored "-Wmisleading-indentation"
+  #endif
+#endif
+
 ///////////////////////////////////////////////
 //
 //  stbi struct and start_xxx functions
