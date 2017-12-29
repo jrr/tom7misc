@@ -16,7 +16,6 @@
 #include "../cc-lib/textsvg.h"
 #include "../cc-lib/stb_image.h"
 
-#include "motifs.h"
 #include "weighted-objectives.h"
 
 #include "SDL.h"
@@ -164,7 +163,6 @@ struct InputStream {
 struct Testui {
   std::unique_ptr<Emulator> emu;
   std::unique_ptr<WeightedObjectives> objectives;
-  std::unique_ptr<Motifs> motifs;
 
   Testui() : rc("testui") {
     map<string, string> config = Util::ReadFileToMap("config.txt");
@@ -183,13 +181,10 @@ struct Testui {
     CHECK(objectives.get());
     fprintf(stderr, "Loaded %d objective functions\n", (int)objectives->Size());
 
-    motifs.reset(Motifs::LoadFromFile(game + ".motifs"));
-    CHECK(motifs);
-
     screen = sdlutil::makescreen(WIDTH, HEIGHT);
     CHECK(screen);
 
-    emu.reset(Emulator::Create(game + ".nes"));
+    emu.reset(Emulator::Create(game));
     CHECK(emu.get());
   }
 

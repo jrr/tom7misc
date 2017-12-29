@@ -11,6 +11,10 @@
 #include "../cc-lib/randutil.h"
 // #include "util.h"
 
+// Motifs are little sequences of inputs that are copied from
+// the human player during the learning process. This was the
+// main source of inputs in the original Playfun algorithm,
+// but pftwo currently just uses NMarkovController.
 struct Motifs {
   // Create empty.
   Motifs();

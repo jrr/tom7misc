@@ -6,12 +6,16 @@
 #include <unordered_map>
 #include "../cc-lib/arcfour.h"
 
+// A Markov generator for NES controller inputs (8-bit bytes) that keeps
+// n (in 0..8) inputs of history. Allows sampling from the successors of a
+// state, and has a compact state representation (uint64). 
 struct NMarkovController {
   using History = uint64;
   
   History HistoryInDomain() const;
   // Given some recent history, sample a next input. If the history has
-  // no precedent, abort (! XXX fix).
+  // no precedent, returns zeroes (which is often, but not always, gets
+  // you back to a state that does have precedent. XXX - should fix this!)
   uint8 RandomNext(History current, ArcFour *rc) const;
 
   // Add the input 'next' into the history, and remove the oldest entry
