@@ -256,7 +256,7 @@ inline double OneRandomGamma(ArcFour *rc, double shape) {
 
 // Reminder: Beta(a, b) gives the probability distribution
 // when we have 'a' successful trials and 'b' unsuccessful
-// trials. (The most likely value is a/b).
+// trials. (The expected value is a/(a + b)).
 inline double RandomBeta(ArcFour *rc, double a, double b) {
   if (a <= 1.0 && b <= 1.0) {
     for (;;) {
