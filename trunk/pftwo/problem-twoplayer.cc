@@ -1,5 +1,6 @@
 #include "problem-twoplayer.h"
 
+#include <stdlib.h>
 #include <map>
 
 #include "../fceulib/simplefm2.h"
@@ -7,6 +8,7 @@
 #include "weighted-objectives.h"
 #include "learnfun.h"
 #include "../cc-lib/util.h"
+#include "../cc-lib/lines.h"
 #include "graphics.h"
 
 // Note NMarkovController::Stats; making this large will often
@@ -27,68 +29,103 @@ TPP::Input Worker::RandomInput(ArcFour *rc) {
   // MutexLock ml(&mutex);
   const uint8 p1 = tpp->markov1->RandomNext(previous1, rc);
   const uint8 p2 = tpp->markov2->RandomNext(previous2, rc);
-  return MakeInput(p1, p2);
+  return ControllerInput(p1, p2);
 }
 
 TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
-  switch (type) {
-  default:
-  case Type::JUMP_LEFT:
-
-    if (counter < 60) {
-    auto Gen = [](int c) -> uint8 {
-      return
-	  // Hold left
-	  INPUT_L |
-	  // Release A occasionally to restart jump
-	  ((c & 31) == 0 ? 0 : INPUT_A) |
-	  // Press shoot rapidly
-	  ((c >> 1) & 1 ? 0 : INPUT_B) |
-	  // Alternate pressing up and not
-	  ((c >> 5) & 1 ? 0 : INPUT_U);
-    };
-    const uint8 p1 = Gen(counter);
-    const uint8 p2 = Gen(counter + 7);
-    counter++;
-    return MakeInput(p1, p2);
+  if (rc->Byte() == 0) {
+    if (tpp->x1_loc >= 0 &&
+	tpp->y1_loc >= 0 &&
+	tpp->x2_loc >= 0 &&
+	tpp->y2_loc >= 0) {
+      Input input;
+      if (rc->Byte() & 1) {
+	input.type = Input::Type::CLEARGOAL;
+	input.goalx = 0;
+	input.goaly = 0;
+      } else {
+	input.type = Input::Type::SETGOAL;
+	input.goalx = rc->Byte();
+	input.goaly = rc->Byte();
+      }
+      return input;
+    }
   }
-  // FALLTHROUGH
-  case Type::MARKOV: {
-    const uint8 p1 = tpp->markov1->RandomNext(prev1, rc);
-    const uint8 p2 = tpp->markov2->RandomNext(prev2, rc);
-    prev1 = tpp->markov1->Push(prev1, p1);
-    prev2 = tpp->markov2->Push(prev2, p2);
-    return MakeInput(p1, p2);
-  }
-  }
+  
+  const uint8 p1 = tpp->markov1->RandomNext(prev1, rc);
+  const uint8 p2 = tpp->markov2->RandomNext(prev2, rc);
+  prev1 = tpp->markov1->Push(prev1, p1);
+  prev2 = tpp->markov2->Push(prev2, p2);
+  return ControllerInput(p1, p2);
 }
 
 void TPP::SaveSolution(const string &filename_part,
 		       const vector<Input> &inputs,
 		       const State &state,
 		       const string &info) {
+  // Just the controller inputs are saved.
   vector<pair<uint8, uint8>> all_inputs;
+  map<int, string> subtitles;
+  subtitles[0] = "warmup";
   for (int i = 0; i < warmup_frames; i++) {
     all_inputs.push_back(original_inputs[i]);
   }
+  subtitles[all_inputs.size()] = "";
+
   for (const Input &input : inputs) {
-    all_inputs.push_back({Player1(input), Player2(input)});
+    switch (input.type) {
+    case Input::Type::CONTROLLER:
+      all_inputs.push_back({Player1(input), Player2(input)});
+      break;
+    case Input::Type::SETGOAL:
+      subtitles[all_inputs.size()] = StringPrintf("GOAL %u,%u",
+						  input.goalx,
+						  input.goaly);
+      break;
+    case Input::Type::CLEARGOAL:
+      subtitles[all_inputs.size()] = "";
+      break;
+    }
   }
-  SimpleFM2::WriteInputs2P(StringPrintf("%s-%s.fm2", game.c_str(),
-					filename_part.c_str()),
-			   game,
-			   // Take from inputs?
-			   "base64:WlwvTxyvsfVajcDVrUVQ5Q==",
-			   all_inputs);
+
+  vector<pair<int, string>> subtitle_vec;
+  for (const pair<const int, string> &sub : subtitles)
+    subtitle_vec.emplace_back(sub.first, sub.second);
+  SimpleFM2::WriteInputsWithSubtitles2P(
+      StringPrintf("%s-%s.fm2", game.c_str(), filename_part.c_str()),
+      game,
+      // Take from inputs?
+      "base64:WlwvTxyvsfVajcDVrUVQ5Q==",
+      all_inputs,
+      subtitle_vec);
 }
 
+// Like atoi, but allowing nonnegative hex values with 0x prefix
+// WITHOUT allowing error-prone octal prefix of just 0.
+static int AtoiHex(const string &s) {
+  const char *c = s.c_str();
+  while (isspace(*c)) c++;
+  if (c[0] == '0' && (c[1] | 32) == 'x')
+    return strtol(c, nullptr, 16);
+  else
+    return atoi(c);
+}
 
 TPP::TwoPlayerProblem(const map<string, string> &config) {
   game = GetDefault(config, "game", "");
+  printf("Create TPP for %s...\n", game.c_str());
   const string movie = GetDefault(config, "movie", "");
+  printf("Read inputs for %s\n", movie.c_str());
   original_inputs = SimpleFM2::ReadInputs2P(movie);
 
-  warmup_frames = atoi(GetDefault(config, "warmup", "-1").c_str());
+  x1_loc = AtoiHex(GetDefault(config, "x1", "-1"));
+  y1_loc = AtoiHex(GetDefault(config, "y1", "-1"));
+  x2_loc = AtoiHex(GetDefault(config, "x2", "-1"));
+  y2_loc = AtoiHex(GetDefault(config, "y2", "-1"));
+  printf("[CHEATIN'] Players at %d,%d and %d,%d\n",
+	   x1_loc, y1_loc, x2_loc, y2_loc);
+
+  warmup_frames = AtoiHex(GetDefault(config, "warmup", "-1"));
   // XXX: Deduce this from input.
   CHECK(warmup_frames >= 0) << "You must currently specify the "
     "number of warmup frames as a config line 'warmup'. This is "
@@ -122,6 +159,7 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   // Save start state for each worker.
   start_state = {emu->SaveUncompressed(), emu->GetMemory(),
 		 0,
+		 GoalData(),
 		 markov1->HistoryInDomain(),
 		 markov2->HistoryInDomain()};
   
@@ -183,11 +221,38 @@ void Worker::Visualize(vector<uint8> *argb) {
     (*argb)[i * 4 + 3] = 0xFF;
   }
   #endif
+
+  if (goal.has_goal) {
+    const int gx = goal.goalx;
+    const int gy = goal.goaly;
+      
+    const int p1x = mem[tpp->x1_loc];
+    const int p1y = mem[tpp->y1_loc];
+    const int p2x = mem[tpp->x2_loc];
+    const int p2y = mem[tpp->y2_loc];
+
+    auto DrawGoal = [argb, gx, gy](int x1, int y1,
+				   uint8 rr, uint8 gg, uint8 bb, uint8 aa) {
+      for (const std::pair<int, int> point : Line<int>{x1, y1, (int)gx, (int)gy}) {
+	int x = point.first, y = point.second;
+	if (x >= 0 && y >= 0 && x < 256 && y < 256) {
+	  SetPixel(256, 256, x, y, rr, gg, bb, aa, argb);
+	  if (x < 255)
+	    SetPixel(256, 256, x + 1, y, rr, gg, bb, aa, argb);
+	  if (y < 255)
+	    SetPixel(256, 256, x, y + 1, rr, gg, bb, aa, argb);
+	}
+      }
+    };
+    DrawGoal(p1x, p1y, 0xFF, 127, 127, 0xFF);
+    DrawGoal(p2x, p2y, 0, 0, 0xFF, 0xFF);
+  }
   
   // Note: This visualization is specific to Contra!
   static constexpr int XWIDTH = 10;
   static constexpr int XTHICK = 2;
-  auto DrawDeaths = [argb, &mem](int loc, int xx) {
+  auto DrawDeaths = [argb, &mem](int loc, int xx,
+				 uint8 rr, uint8 gg, uint8 bb, uint8 aa) {
     auto DrawX = [argb](int x, int y) {
       for (int t = 0; t < XWIDTH; t++) {
 	for (int w = 0; w < XTHICK; w++) {
@@ -204,8 +269,8 @@ void Worker::Visualize(vector<uint8> *argb) {
     }
   };
 
-  DrawDeaths(50, 0);
-  DrawDeaths(50, 180);
+  DrawDeaths(50, 0, 0xFF, 127, 127, 0xFF);
+  DrawDeaths(50, 180, 0, 0, 0xFF, 0xFF);
   
   const double s = tpp->observations->GetWeightedValue(mem);
   // printf("%f\n", s);
@@ -225,6 +290,7 @@ void Worker::VizText(vector<string> *text) {
   text->push_back(StringPrintf("Depth %d", depth));
   const vector<uint8> mem = emu->GetMemory();
 
+  // XXX This is specific to contra!
   static constexpr std::initializer_list<int> kLocations = 
     { 48, 100, 101, 820, 821, 50, 51, 2019, 2018, 2021, 2020 };
 
