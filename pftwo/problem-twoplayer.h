@@ -15,6 +15,11 @@
 
 struct TwoPlayerProblem {
   // Player 1 and Player 2 controllers.
+  // HERE: For the best compatibility with the pftwo, if we want to
+  // do something like store goals and hypotheses in the state, we
+  // probably want actions in the input that set those values, since
+  // pftwo believes that it can recreate a state by replaying inputs.
+  // TODO!
   using Input = uint16;
   using ControllerHistory = NMarkovController::History;
   
@@ -126,13 +131,16 @@ struct TwoPlayerProblem {
       emu->Step(input1, input2);
       IncrementNESFrames(1);
       depth++;
-      // Here it would be better if we could just use a template
-      // function (nmarkov model templated over n) without referencing
-      // the parent.
+      // Here it would be better if we could just call a static method,
+      // like if NMarkovController were templatized on n.
       previous1 = tpp->markov1->Push(previous1, input1);
       previous2 = tpp->markov2->Push(previous2, input2);
     }
 
+    // After executing some inputs, observe the current state.
+    // We use this to keep track of high water marks for the
+    // objectives, which are used to place objectives along
+    // an absolute scale. See WeightedObjectives::Observations.
     void Observe();
 
     // Visualize the current state, by drawing pixels into the
@@ -142,7 +150,8 @@ struct TwoPlayerProblem {
     // for visualization purposes. The strings should fit in a
     // column 256 pixels wide.
     void VizText(vector<string> *text);
-    
+
+    // Status and counters just used for the UI.
     void ClearStatus() {
       SetStatus(nullptr);
       SetNumer(0);
@@ -174,7 +183,7 @@ struct TwoPlayerProblem {
     
     const TwoPlayerProblem *tpp = nullptr;
 
-    // Lock emulator etc.
+    // Coarse lock for all non-atomic members.
     std::mutex mutex;
   };
 
@@ -186,14 +195,16 @@ struct TwoPlayerProblem {
   // Score in [0, 1]. Should be stable in-between calls to
   // Commit.
   double Score(const State &state) {
+    return observations->GetWeightedValue(state.mem);
+
+    // Old idea; disabled:
     // Give a tiny penalty to longer paths to the same value, so
     // that we prefer to optimize these away.
     // This is only 4.6 hours of game time, but this is a dirty hack
-    // anyway. XXX FIX HACK!
+    // anyway.
     // I made it one billion, because a millionth was actually causing
     // problems with lack of progress (I think).
 
-    return observations->GetWeightedValue(state.mem);
     /*
     double depth_penalty = 1.0 - (state.depth * (1.0 / 1000000000.0));
     if (depth_penalty > 1.0) depth_penalty = 1.0;
@@ -206,7 +217,7 @@ struct TwoPlayerProblem {
   // Must be thread safe and leave Worker in a valid state.
   Worker *CreateWorker();
 
-  TwoPlayerProblem(const map<string, string> &config);
+  explicit TwoPlayerProblem(const map<string, string> &config);
  
   string game;
   int warmup_frames = -1;

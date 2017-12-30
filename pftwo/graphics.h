@@ -10,6 +10,11 @@
 // assumes ARGB, surfaces exactly the same size, etc.
 void CopyARGB(const vector<uint8> &argb, SDL_Surface *surface);
 
+// Write the pixel into the surface. Replaces alpha channel; does not blend.
+void SetPixel(int w, int h, int x, int y,
+	      uint8 a, uint8 r, uint8 g, uint8 b,
+	      vector<uint8> *argb);
+
 void BlitARGB(const vector<uint8> &argb, int w, int h,
 	      int x, int y, SDL_Surface *surface);
 

@@ -90,7 +90,7 @@ Some thoughts:
    are dead ends, and backing off to B again. But we just get stuck at
    B.
 
-   Even the idea previous idea has a problem with C. Though in this
+   Even the previous idea has a problem with C. Though in this
    particular example (where we stipulated all expansions of C are
    bad) we do indeed back off from C. But what if D99 is actually an
    improvement? The true probability that all expansions of C are
@@ -108,6 +108,12 @@ Some thoughts:
       move. It may very well be that there is a tight situation
       starting with C (bullet hell) but that 1 in 1000 sequences
       makes it through, and we want to find that one.
+        I. (Although note that in this case it might not be harmful.
+            We might avoid expanding C since there's a high likelihood
+            that the expansion will be worse. But if we did find some
+            D that was better than it, then that state is in the tree
+            and we can just spend our time expanding D, which is what
+            we want anyway, right?)
 
    b. We could try to model the probability that the max value over
       all Ds is less than C. I think this expression is just
