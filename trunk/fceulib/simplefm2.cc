@@ -82,11 +82,12 @@ void SimpleFM2::WriteInputs2P(const string &outputfile,
                              inputs, {});
 }
 
-void SimpleFM2::WriteInputsWithSubtitles(const string &outputfile,
-                                         const string &romfilename,
-                                         const string &romchecksum,
-                                         const vector<uint8> &inputs,
-                                         const vector<string> &subtitles) {
+void SimpleFM2::WriteInputsWithSubtitles(
+    const string &outputfile,
+    const string &romfilename,
+    const string &romchecksum,
+    const vector<uint8> &inputs,
+    const vector<pair<int, string>> &subtitles) {
   return WriteInputsWithSubtitles2P(outputfile, romfilename, romchecksum,
                                     Dummy2P(inputs), subtitles);
 }
@@ -96,7 +97,7 @@ void SimpleFM2::WriteInputsWithSubtitles2P(
     const string &romfilename,
     const string &romchecksum,
     const vector<pair<uint8, uint8>> &inputs,
-    const vector<string> &subtitles) {
+    const vector<pair<int, string>> &subtitles) {
   // XXX Create one of these by hashing inputs.
   string fakeguid = "FDAEE33C-B32D-B38C-765C-FADEFACE0000";
   FILE *f = fopen(outputfile.c_str(), "wb");
@@ -121,13 +122,10 @@ void SimpleFM2::WriteInputsWithSubtitles2P(
           romchecksum.c_str(),
           fakeguid.c_str());
 
-  const string *last = nullptr;
-  for (int i = 0; i < subtitles.size(); i++) {
-    if (last == nullptr || *last != subtitles[i]) {
-      fprintf(f, "subtitle %d %s\n", i, subtitles[i].c_str());
-    }
-    last = &subtitles[i];
-  }
+  // XXX could check that subtitles are in range for the movie,
+  // and sorted, and unique?
+  for (const pair<int, string> &sub : subtitles)
+    fprintf(f, "subtitle %d %s\n", sub.first, sub.second.c_str());
 
   for (int i = 0; i < inputs.size(); i++) {
     fprintf(f, "|%c|", (i == 0) ? '2' : '0');
@@ -149,6 +147,19 @@ void SimpleFM2::WriteInputsWithSubtitles2P(
   fclose(f);
 }
 
+vector<pair<int, string>> SimpleFM2::MakeSparseSubtitles(
+    const vector<string> &dense_subtitles) {
+  vector<pair<int, string>> out;
+  const string *last = nullptr;
+  for (int i = 0; i < dense_subtitles.size(); i++) {
+    if (last == nullptr || *last != dense_subtitles[i]) {
+      out.emplace_back(i, dense_subtitles[i]);
+    }
+    last = &dense_subtitles[i];
+  }
+  return out;
+}
+
 string SimpleFM2::InputToString(uint8 input) {
   char f[9] = {0};
   static constexpr char gamepad[] = "RLDUTSBA";
@@ -157,7 +168,6 @@ string SimpleFM2::InputToString(uint8 input) {
   }
   return (string)f;
 }
-
 
 string SimpleFM2::InputToColorString(uint8 input) {
   string color = "";

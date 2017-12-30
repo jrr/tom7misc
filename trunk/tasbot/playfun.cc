@@ -1689,7 +1689,7 @@ struct PlayFun {
 	  game + ".nes",
 	  BASE64,
 	  movie,
-	  subtitles);
+	  SimpleFM2::MakeSparseSubtitles(subtitles));
       Rewind(start.movenum);
       Emulator::LoadUncompressed(&start.save);
 
@@ -1738,7 +1738,7 @@ struct PlayFun {
 	  game + ".nes",
 	  BASE64,
 	  movie,
-	  subtitles);
+	  SimpleFM2::MakeSparseSubtitles(subtitles));
 
       // What to do about futures? This is simplest, I guess...
       uint64 end_time = time(NULL);
@@ -1760,7 +1760,7 @@ struct PlayFun {
 	game + ".nes",
 	BASE64,
 	movie,
-	subtitles);
+	SimpleFM2::MakeSparseSubtitles(subtitles));
     Emulator::PrintCacheStats();
   }
 

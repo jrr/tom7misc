@@ -36,20 +36,27 @@ struct SimpleFM2 {
                             const string &romchecksum,
                             const vector<pair<uint8, uint8>> &inputs);
 
+  // Subtitles are given as a pair (frame num, string).
   static void WriteInputsWithSubtitles(
       const string &outputfile,
       const string &romfilename,
       const string &romchecksum,
       const vector<uint8> &inputs,
-      const vector<string> &subtitles);
+      const vector<pair<int, string>> &subtitles);
 
   static void WriteInputsWithSubtitles2P(
       const string &outputfile,
       const string &romfilename,
       const string &romchecksum,
       const vector<pair<uint8, uint8>> &inputs,
-      const vector<string> &subtitles);
+      const vector<pair<int, string>> &subtitles);
 
+  // Convert a dense array of subtitles (one for each frame)
+  // into a sparse representation suitable for the above.
+  // Handles repeated subtitles efficiently.
+  static vector<pair<int, string>> MakeSparseSubtitles(
+      const vector<string> &dense_subtitles);
+  
   static string InputToString(uint8 input);
   static string InputToColorString(uint8 input);
 };

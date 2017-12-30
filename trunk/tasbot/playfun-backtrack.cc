@@ -1402,7 +1402,7 @@ struct PlayFun {
 	  GAME ".nes",
 	  BASE64,
 	  movie,
-	  subtitles);
+	  SimpleFM2::MakeSparseSubtitles(subtitles));
       Rewind(start.movenum);
       Emulator::LoadUncompressed(&start.save);
 
@@ -1450,7 +1450,7 @@ struct PlayFun {
 	  GAME ".nes",
 	  BASE64,
 	  movie,
-	  subtitles);
+	  SimpleFM2::MakeSparseSubtitles(subtitles));
 
       // What to do about futures? This is simplest, I guess...
       uint64 end_time = time(NULL);
@@ -1467,11 +1467,12 @@ struct PlayFun {
 
   void SaveMovie() {
     printf("                     - writing movie -\n");
-    SimpleFM2::WriteInputsWithSubtitles(GAME "-playfun-futures-progress.fm2",
-					GAME ".nes",
-					BASE64,
-					movie,
-					subtitles);
+    SimpleFM2::WriteInputsWithSubtitles(
+	GAME "-playfun-futures-progress.fm2",
+	GAME ".nes",
+	BASE64,
+	movie,
+	SimpleFM2::MakeSparseSubtitles(subtitles));
     Emulator::PrintCacheStats();
   }
 
