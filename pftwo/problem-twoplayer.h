@@ -8,6 +8,7 @@
 
 #include <mutex>
 #include <atomic>
+#include <utility>
 
 #include "n-markov-controller.h"
 #include "../fceulib/emulator.h"
@@ -20,14 +21,46 @@ struct TwoPlayerProblem {
   // probably want actions in the input that set those values, since
   // pftwo believes that it can recreate a state by replaying inputs.
   // TODO!
-  using Input = uint16;
+
+  // In simple problem instances, this is just a controller input,
+  // or a controller input for each of the two players. However, we
+  // allow the possibility of meta inputs, which change the worker's
+  // state.
+  struct Input {
+    enum class Type : uint8 {
+      CONTROLLER = 0,
+      SETGOAL = 1,
+      CLEARGOAL = 2,
+    };
+
+    // Should be able to make this a bitfield, but it seems G++ has
+    // a bug.
+    Type type = Type::CONTROLLER;
+    uint8 goalx = 0;
+    uint8 goaly = 0;
+    
+    uint8 p1 = 0;
+    uint8 p2 = 0;
+  };
+
   using ControllerHistory = NMarkovController::History;
-  
-  static inline uint8 Player1(Input i) { return (i >> 8) & 255; }
-  static inline uint8 Player2(Input i) { return i & 255; }
-  static inline Input MakeInput(uint8 p1, uint8 p2) {
-    return ((uint16)p1 << 8) | (uint16)p2;
+
+  // Assuming the input is type CONTROLLER.
+  static inline uint8 Player1(Input i) { return i.p1; }
+  static inline uint8 Player2(Input i) { return i.p2; }
+  static inline Input ControllerInput(uint8 p1, uint8 p2) {
+    Input input;
+    input.type = Input::Type::CONTROLLER;
+    input.p1 = p1;
+    input.p2 = p2;
+    return input;
   }
+
+  struct GoalData {
+    bool has_goal = false;
+    uint8 goalx = 0;
+    uint8 goaly = 0;
+  };
   
   // Save state for a worker; the worker can save and restore these
   // at will, and they are portable betwen workers.
@@ -49,6 +82,8 @@ struct TwoPlayerProblem {
     vector<uint8> mem;
     // Number of NES frames 
     int depth;
+    // Current goal, if any.
+    GoalData goal;
     ControllerHistory prev1, prev2;
   };
 
@@ -61,12 +96,6 @@ struct TwoPlayerProblem {
   // Generator itself is not thread-safe, but you can create
   // many of them easily.
   struct InputGenerator {
-    enum class Type {
-      MARKOV,
-      JUMP_LEFT,
-    };
-    Type type;
-    int counter;
     const TwoPlayerProblem *tpp;
     ControllerHistory prev1, prev2;
     Input RandomInput(ArcFour *rc);
@@ -84,6 +113,8 @@ struct TwoPlayerProblem {
     // Every worker loads the same game.
     unique_ptr<Emulator> emu;
     int depth = 0;
+    GoalData goal;
+
     // Previous input for the two players.
     ControllerHistory previous1, previous2;
     
@@ -95,31 +126,23 @@ struct TwoPlayerProblem {
     // generating multiple sequential random inputs without executing
     // them. Intended to be efficient to create.
     InputGenerator Generator(ArcFour *rc) {
-      if (rc->Byte() < 220) {
-	return InputGenerator{InputGenerator::Type::MARKOV, 0, tpp,
-	                      previous1, previous2};
-      } else {
-	// XXX This is a hack, obviously -- because many games show a
-	// bias towards the right (e.g., higher x coordinate), I
-	// thought it might be helpful to explicitly try jumping to
-	// the left sometimes. I think this is probably subsumed by
-	// the random screen-coordinate goal thing, and could be
-	// removed?
-	return InputGenerator{InputGenerator::Type::JUMP_LEFT, 0, tpp,
-	                      previous1, previous2};
-      }
+      // TODO: Pass some notion of "stuckness", which should influence our
+      // probability of generating a new goal.
+      return InputGenerator{tpp, previous1, previous2};
     }
         
     State Save() {
       MutexLock ml(&mutex);
       return State{ emu->SaveUncompressed(), emu->GetMemory(), depth,
-                    previous1, previous2 };
+	            goal, previous1, previous2 };
     }
 
     void Restore(const State &state) {
       MutexLock ml(&mutex);
       emu->LoadUncompressed(state.save);
+
       depth = state.depth;
+      goal = state.goal;
       // (Doesn't actually need the memory to restore; it's part of
       // the emulator save state.)
       previous1 = state.prev1;
@@ -127,14 +150,29 @@ struct TwoPlayerProblem {
     }
     void Exec(Input input) {
       MutexLock ml(&mutex);
-      const uint8 input1 = Player1(input), input2 = Player2(input);
-      emu->Step(input1, input2);
-      IncrementNESFrames(1);
-      depth++;
-      // Here it would be better if we could just call a static method,
-      // like if NMarkovController were templatized on n.
-      previous1 = tpp->markov1->Push(previous1, input1);
-      previous2 = tpp->markov2->Push(previous2, input2);
+      switch (input.type) {
+      case Input::Type::CONTROLLER: {
+	const uint8 input1 = Player1(input), input2 = Player2(input);
+	emu->Step(input1, input2);
+	IncrementNESFrames(1);
+	depth++;
+	// Here it would be better if we could just call a static method,
+	// like if NMarkovController were templatized on n.
+	previous1 = tpp->markov1->Push(previous1, input1);
+	previous2 = tpp->markov2->Push(previous2, input2);
+	break;
+      }
+      case Input::Type::SETGOAL:
+	goal.has_goal = true;
+	goal.goalx = input.goalx;
+	goal.goaly = input.goaly;
+	break;
+      case Input::Type::CLEARGOAL:
+	goal.has_goal = false;
+	goal.goalx = 0;
+	goal.goaly = 0;
+	break;
+      }
     }
 
     // After executing some inputs, observe the current state.
@@ -192,11 +230,65 @@ struct TwoPlayerProblem {
     CHECK(observations.get());
     observations->Commit();
   }
-  // Score in [0, 1]. Should be stable in-between calls to
-  // Commit.
+  // Score in [0, 1]. Should be stable in-between calls to Commit.
   double Score(const State &state) {
-    return observations->GetWeightedValue(state.mem);
+    // This is tricky, and maybe needs to be improved. When the state
+    // has a goal, we want to give a bonus to states that are near that
+    // goal (or else, what's the point?). But we don't want the state
+    // to look artificially bad or good in a global sense, because then
+    // we'll either keep expanding it (despite it not necessarily being
+    // any better -- although this may be ok) or avoiding it (which means
+    // that we ignore goals).
+    //
+    // TODO: Maybe should get a global score when choosing the overall
+    // best nodes, but a local score (including goal) when picking
+    // which of the nexts we want to save?
 
+    // "Real" score, from objective functions (compared to global best).
+    const double objective_score = observations->GetWeightedValue(state.mem);
+
+    // Treat a reached or nearly-reached goal as being the same as having
+    // no goal. Otherwise, it looks bad when we abandon a goal.
+    const double goal_score = [this, &state]() {
+      if (!state.goal.has_goal) return 1.0;
+      
+      // Otherwise, get the coordinates from memory.
+      const int gx = state.goal.goalx;
+      const int gy = state.goal.goaly;
+      
+      const int p1x = state.mem[x1_loc];
+      const int p1y = state.mem[y1_loc];
+      const int p2x = state.mem[x2_loc];
+      const int p2y = state.mem[y2_loc];
+
+      const int dx1 = p1x - gx;
+      const int dy1 = p1y - gy;
+      const int dx2 = p2x - gx;
+      const int dy2 = p2y - gy;
+      // We use squared distance penalty.
+      int sqdist1 = dx1 * dx1 + dy1 * dy1;
+      int sqdist2 = dx2 * dx2 + dy2 * dy2;
+      // But also if we're within 16 pixels, treat this as zero.
+      // XXX why?
+      sqdist1 -= 16 * 16;
+      sqdist2 -= 16 * 16;
+
+      static constexpr double INV_MAX_SQDIST = 1.0 / (256.0 * 256.0 + 256.0 * 256.0);
+      double f1 = sqdist1 * INV_MAX_SQDIST;
+      double f2 = sqdist2 * INV_MAX_SQDIST;
+      // Clamp to [0, 1]. These can be negative due to -= 16 * 16 above.
+      if (f1 < 0.0) f1 = 0.0;
+      if (f2 < 0.0) f2 = 0.0;
+      if (f1 > 1.0) f1 = 1.0;
+      if (f2 > 1.0) f2 = 1.0;
+
+      return (f1 + f2) * 0.5;
+    }();
+
+    static constexpr double OBJF = 0.999;
+    
+    return objective_score * OBJF + goal_score * (1.0 - OBJF);
+    
     // Old idea; disabled:
     // Give a tiny penalty to longer paths to the same value, so
     // that we prefer to optimize these away.
@@ -221,6 +313,14 @@ struct TwoPlayerProblem {
  
   string game;
   int warmup_frames = -1;
+
+  // (Hypothesized) memory locations corresponding to the two
+  // player's screen coordinates. If -1, unknown.
+  // These are currently just read from the config file. In
+  // a non-cheating version, the worker would deduce these
+  // itself, so this is like XXX temporary.
+  int x1_loc = -1, y1_loc = -1, x2_loc = -1, y2_loc = -1;
+  
   vector<pair<uint8, uint8>> original_inputs;
   unique_ptr<NMarkovController> markov1, markov2;
   // After warmup inputs.
@@ -230,5 +330,10 @@ struct TwoPlayerProblem {
   unique_ptr<Observations> observations;
 };
 
+inline bool operator <(const TwoPlayerProblem::Input &a,
+		       const TwoPlayerProblem::Input &b) {
+  return std::tie(a.type, a.goalx, a.goaly, a.p1, a.p2) <
+    std::tie(b.type, b.goalx, b.goaly, b.p1, b.p2);
+}
 
 #endif

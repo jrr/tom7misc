@@ -47,11 +47,15 @@ struct hash<unsigned long long> {
 #endif
 
 // e.g. with C = map<int, string>. Third argument is the default.
+// Returns "string", not "const string &", to avoid surprises
+// about temporary lifetime in a call like
+// GetDefault(m, "missing_key", "temporary").
 template<class K, class C>
 auto GetDefault(const C &container,
 		const K &key,
 		const decltype(container.find(key)->second) &def) ->
-  decltype(container.find(key)->second) {
+  typename std::remove_reference<
+    decltype(container.find(key)->second)>::type {
   auto it = container.find(key);
   if (it == container.end()) return def;
   return it->second;

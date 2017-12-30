@@ -804,7 +804,8 @@ struct UIThread {
 	for (int i = path_rev.size() - 1; i >= 0; i--) {
 	  path.push_back(path_rev[i]);
 	}
-	pftwo->problem->SaveSolution(StringPrintf("frame-%lld", frame),
+	string filename = StringPrintf("frame-%lld", frame);
+	pftwo->problem->SaveSolution(filename,
 				     path,
 				     best.value->state,
 				     "info TODO");

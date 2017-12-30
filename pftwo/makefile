@@ -21,7 +21,7 @@ CC=gcc
 # Suppress compilation commands, but show some indication of progress.
 # (Explicitly invoke bash to get shell builtin, since on OS X echo
 # otherwise treats -n literally.)
-%.o : %.cc
+%.o : %.cc *.h
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
