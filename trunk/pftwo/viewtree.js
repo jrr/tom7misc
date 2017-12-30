@@ -87,10 +87,10 @@ function BuildRec(div, node) {
       }
       var ch = DIV('unexpanded', div);
       AppendScore(ch, node.c[i].stats.ms);
-      TEXT('[' + node.c[i].i + ']: ' +
+      TEXT(// '[' + node.c[i].i + ']: ' +
 	   node.c[i].stats.e + ' expansion(s), ' +
 	   node.c[i].stats.ms + ' max score ' +
-	   '»', ch);
+	   '\u00BB', ch);
       ch.onclick = function(chelt, child) {
 	// XXX actually just delete it?
 	return function () {

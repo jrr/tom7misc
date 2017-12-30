@@ -7,6 +7,7 @@
 #include "weighted-objectives.h"
 #include "learnfun.h"
 #include "../cc-lib/util.h"
+#include "graphics.h"
 
 // Note NMarkovController::Stats; making this large will often
 // make the matrix very sparse.
@@ -173,17 +174,40 @@ void Worker::Visualize(vector<uint8> *argb) {
   MutexLock ml(&mutex);
   CHECK(argb->size() == 4 * 256 * 256);
   emu->GetImageARGB(argb);
+  vector<uint8> mem = emu->GetMemory();
   #if 0
-  vector<uint8> xxx = emu->GetMemory();
-  for (int i = 0; i < xxx.size(); i++) {
-    (*argb)[i * 4 + 0] = xxx[i];
-    (*argb)[i * 4 + 1] = xxx[i];
-    (*argb)[i * 4 + 2] = xxx[i];
+  for (int i = 0; i < mem.size(); i++) {
+    (*argb)[i * 4 + 0] = mem[i];
+    (*argb)[i * 4 + 1] = mem[i];
+    (*argb)[i * 4 + 2] = mem[i];
     (*argb)[i * 4 + 3] = 0xFF;
   }
   #endif
   
-  const double s = tpp->observations->GetWeightedValue(emu->GetMemory());
+  // Note: This visualization is specific to Contra!
+  static constexpr int XWIDTH = 10;
+  static constexpr int XTHICK = 2;
+  auto DrawDeaths = [argb, &mem](int loc, int xx) {
+    auto DrawX = [argb](int x, int y) {
+      for (int t = 0; t < XWIDTH; t++) {
+	for (int w = 0; w < XTHICK; w++) {
+	  SetPixel(256, 256, x + t + w, y + t,
+		   0, 0, 0xFF, 0xFF, argb);
+	  SetPixel(256, 256, x + (XWIDTH - 1 - t) + w, y + t,
+		   0, 0, 0xFF, 0xFF, argb);
+	}
+      }
+    };
+    const int deaths = std::min(29 - mem[loc], 4);
+    for (int x = 0; x < deaths; x++) {
+      DrawX(xx + 2 + x * (XWIDTH + XTHICK + 8), 2);
+    }
+  };
+
+  DrawDeaths(50, 0);
+  DrawDeaths(50, 180);
+  
+  const double s = tpp->observations->GetWeightedValue(mem);
   // printf("%f\n", s);
   for (int y = 250; y < 256; y++) {
     int len = std::min(256, 5 + (int)(256 * s));

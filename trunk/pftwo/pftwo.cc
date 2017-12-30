@@ -15,6 +15,11 @@
 // TODO: Find values we don't want to go down by setting them to 1 or
 // zero as they go down (or something), and testing whether that is
 // really bad.
+//
+// TODO: Be scientific! Build an ground truth dataset (e.g.
+// hand-written objectives that are trustworthy) and an offline
+// pipeline that can measure performance on that set, for tuning
+// hyperparameters and seeing whether ideas actually pan out.
 
 #include <algorithm>
 #include <vector>
@@ -56,7 +61,11 @@
 #define HEIGHT 1080
 
 #define MAX_NODES 1000
-#define NUM_NEXTS 1
+// When expanding a node, try this many sequences and
+// choose the best one.
+#define NUM_NEXTS 4
+
+static_assert(NUM_NEXTS > 0, "allowed range");
 
 // "Functor"
 using Problem = TwoPlayerProblem;
@@ -77,6 +86,7 @@ static bool should_die = false;
 static mutex should_die_m;
 
 static string Rtos(double d) {
+  if (std::isnan(d)) return "NaN";
   char out[16];
   sprintf(out, "%.5f", d);
   char *o = out;
@@ -114,7 +124,7 @@ struct Tree {
     Node *parent = nullptr;
 
     // Child nodes. Currently, no guarantee that these don't
-    // share prefixes, but there should not be duplicates.
+    // share prefixes, but there cannot be duplicates.
     map<Seq, Node *> children;
 
     // Total number of times chosen for expansion. This will
@@ -124,12 +134,15 @@ struct Tree {
 
     // Number of times that expansion yielded a loss on the
     // objective function. Used to compute the chance that
-    // a node is hopeless.
+    // a node is hopeless. (XXX But we don't actually use
+    // this to compute anything yet.)
     int was_loss = 0;
 
     // For heap. Not all nodes will be in the heap.
     int location = -1;
 
+    // Reference count. When zero (and the lock not held), the node
+    // can be garbage collected.
     uint8 num_workers_using = 0;
   };
 
@@ -176,6 +189,7 @@ struct PF2 {
     Counter same_expansion;
     Counter sequences_tried;
     Counter sequences_improved;
+    Counter sequences_improved_denom;
   };
   Stats stats;
 
@@ -281,9 +295,12 @@ struct WorkThread {
     }
   }
 
-  // Holding a reference to n, extend it and return the new
-  // child; drops the reference to n and acquires a reference to
-  // the new child.
+  // Extend a node with some sequence that we already ran, and
+  // that results in the newstate with newscore.
+  //  
+  // When calling, must be holding n. Modifies it and returns the new
+  // child; drops the reference to n and acquires a reference to the
+  // new child.
   Node *ExtendNode(Node *n,
 		   const vector<Problem::Input> &step,
 		   Problem::State newstate,
@@ -291,7 +308,13 @@ struct WorkThread {
     CHECK(n != nullptr);
     Node *child = new Node(std::move(newstate), n);
     MutexLock ml(&pftwo->tree_m);
-    
+
+    // XXX This should probably be done in the caller, because
+    // if NUM_NEXTS isn't 1, we have more fine-grained evidence
+    // that we could collect. (Right now it's like, "the probability
+    // that randomly expanding the node NUM_NEXTS times and picking
+    // the best one will actually make things worse") which is maybe
+    // harder to think about, and certainly converges more slowly.
     const double oldscore = pftwo->problem->Score(n->state);
     if (oldscore > newscore) {
       n->was_loss++;
@@ -504,19 +527,20 @@ struct WorkThread {
       // corresponds to the node 'last' in the tree. We'll extend this
       // node or find a different one.
       worker->SetStatus("Find start node");
-      // XXX too many "Nexts" in this code! Rename to "expand_me" or
-      // something
-      Node *next = FindNodeToExtend(last);
+      Node *expand_me = FindNodeToExtend(last);
       
       // PERF skip this if it's the same as last!
       worker->SetStatus("Load");
-      CHECK(next != nullptr);
-      worker->Restore(next->state);
+      CHECK(expand_me != nullptr);
+      worker->Restore(expand_me->state);
 
       worker->SetStatus("Gen inputs");
       constexpr double MEAN = 300.0;
       constexpr double STDDEV = 150.0;
-       
+
+      // All the expansions will have the same length; this makes it
+      // more sensible to compare the objectives in order to choose
+      // the best.
       int num_frames = gauss.Next() * STDDEV + MEAN;
       if (num_frames < 1) num_frames = 1;
       
@@ -542,8 +566,14 @@ struct WorkThread {
       for (int i = 0; i < nexts.size(); i++) {
 	pftwo->stats.sequences_tried.Increment();
 	worker->SetStatus("Re-restore");
+	// If this is the first one, no need to restore
+	// because we're already in that state.
 	if (i != 0) {
-	  worker->Restore(next->state);
+	  worker->Restore(expand_me->state);
+	  // Since a sequence can only "improve" if it's
+	  // not the first one, we store this denominator
+	  // separately from sequences_tried.
+	  pftwo->stats.sequences_improved_denom.Increment();
 	}
 
 	worker->SetStatus("Execute");
@@ -571,7 +601,7 @@ struct WorkThread {
       worker->SetStatus("Extend tree");
       // TODO: Consider inserting nodes other than the best one?
       // PERF move best?
-      last = ExtendNode(next, nexts[best_step_idx], *best, best_score);
+      last = ExtendNode(expand_me, nexts[best_step_idx], *best, best_score);
 
       MaybeUpdateTree();
       
@@ -657,39 +687,17 @@ struct UIThread {
       if (node->chosen > cutoff) {
 	tmp->Restore(node->state);
 
-	// Piercing the veil here.
-	// We want the X to indicate the actual value before playing
-	// a random move below in order to get a screenshot, so save
-	// a copy of the actual memory.
-	vector<uint8> xxx = tmp->emu->GetMemory();
-
 	// UGH HACK. After restoring a state we don't have an image
-	// unless we make a step. We could replay to here from the parent
-	// node, or be storing these in the state (but they are 260kb each!)
+	// unless we make a step. We could replay to here from the
+	// parent node (accurate; slow), or be storing these in the
+	// state (but they are 260kb each!)
+	//
+	// So the images stored are actually a single random frame
+	// AFTER the one in the node.
 	tmp->Exec(tmp->RandomInput(&rc));
 	vector<uint8> argb256x256;
 	argb256x256.resize(256 * 256 * 4);
 	tmp->Visualize(&argb256x256);
-
-	// TODO: Move this visualization to Visualize; it's nice.
-	if (xxx[50] < 29) {
-	  for (int y = 0; y < 256; y++) {
-	    int x = y;
-	    // actual color order: b, g, r, a?
-	    argb256x256[y * 256 * 4 + x * 4] = 0xFF;
-	    if (y < 255)
-	      argb256x256[y * 256 * 4 + x * 4 + 4] = 0xFF;
-	  }
-	}
-
-	if (xxx[51] < 29) {
-	  for (int y = 0; y < 256; y++) {
-	    int x = 255 - y;
-	    argb256x256[y * 256 * 4 + x * 4 + 2] = 0xFF;
-	    if (y > 0)
-	      argb256x256[y * 256 * 4 + x * 4 + 4 + 2] = 0xFF;
-	  }
-	}
 
 	SaveARGB(argb256x256, 256, 256, StringPrintf("tree/%d.png", id));
 	images++;
@@ -807,16 +815,17 @@ struct UIThread {
 
       int64 tree_size = ReadWithLock(&pftwo->tree_m, &pftwo->tree->num_nodes);
 
-      font->draw(10, 0, StringPrintf("This is frame %d! "
-				     "%lld tree nodes "
-				     "%d collisions "
-				     "%.2f%% improvement ",
-				     frame,
-				     tree_size,
-				     pftwo->stats.same_expansion.Get(),
-				     (pftwo->stats.sequences_improved.Get() *
-				      100.0) /
-				     pftwo->stats.sequences_tried.Get()));
+      font->draw(10, 0,
+		 StringPrintf(
+		     "This is frame %d! "
+		     "%lld tree nodes "
+		     "%d collisions "
+		     "%s%% improvement rate",
+		     frame,
+		     tree_size,
+		     pftwo->stats.same_expansion.Get(),
+		     Rtos((pftwo->stats.sequences_improved.Get() * 100.0) /
+			  (double)pftwo->stats.sequences_improved_denom.Get()).c_str()));
 
       int64 total_steps = 0ll;
       for (int i = 0; i < pftwo->workers.size(); i++) {
