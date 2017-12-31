@@ -127,7 +127,13 @@ struct TwoPlayerProblem {
     // them. Intended to be efficient to create.
     InputGenerator Generator(ArcFour *rc) {
       // TODO: Pass some notion of "stuckness", which should influence our
-      // probability of generating a new goal.
+      // probability of generating a new goal. (A simple notion of
+      // stuckness could be the number of nodes that have the maximum
+      // score, or close to it? But keep in mind that if our best nodes
+      // are in sticky near-death situations, we might have lots of
+      // expansions of those that are dead, which means lower looking
+      // scores. We are not stuck when nodes are repeatedly getting
+      // better scores.)
       return InputGenerator{tpp, previous1, previous2};
     }
         
@@ -313,7 +319,8 @@ struct TwoPlayerProblem {
  
   string game;
   int warmup_frames = -1;
-
+  int fastforward = -1;
+  
   // (Hypothesized) memory locations corresponding to the two
   // player's screen coordinates. If -1, unknown.
   // These are currently just read from the config file. In
