@@ -1,0 +1,23 @@
+# 0x30 = 48 = stage 0-7
+# 0x0334 = 820 = p1 x
+# 0x0335 = 821 = p2 x
+
+# What are these? from NES wiki. They are in the order 100, 101 below.
+# 0x64 = 100 - base room
+# 0x65 = 101 - movement increments from room to room
+
+# progress in stage, base room, position, x coordinate (for p1, p2)
+0.005 48 100 101 820
+0.005 48 100 101 821
+
+# 0x32, 0x33 = 50, 51 = p1 and p2 lives
+# With these we stay alive pretty well, since they count so much more
+# than pixels. But we also get stuck more easily.
+1.0 50
+1.0 51
+
+# 0x7e3, 0x7e2 = 2019, 2018 = p1 score high, low
+# 0x7e5, 0x7e4 = 2021, 2020 = p2 score high byte, low byte
+0.0025 2019 2018
+0.0025 2021 2020
+

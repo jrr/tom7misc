@@ -272,6 +272,8 @@ struct WorkThread {
 	if (ret->parent == nullptr)
 	  break;
 
+	// TODO: Here, incorporate the number of expansions that caused
+	// the score to go down (a lot?)?
 	double p_to_ascend = 0.1 +
 	  // Sigmoid with a chance of ~3.5% for cell that's never been chosen
 	  // before, a 50% chance around 300, and a plateau at 80%.
@@ -453,6 +455,7 @@ struct WorkThread {
 	
 	const double min_score = cutoffs[MAX_NODES];
 	printf("\n ... Min score is %.4f\n", min_score);
+	// TODO: Draw the score histogram!
 	cutoffs.clear();
 	
 	std::function<bool(Node *)> CleanRec =
@@ -543,7 +546,13 @@ struct WorkThread {
       // the best.
       int num_frames = gauss.Next() * STDDEV + MEAN;
       if (num_frames < 1) num_frames = 1;
-      
+
+      // TODO: Within a 'next', it's pointless to set a goal and then
+      // set a different goal (or clear it), because nothing would
+      // cause us to follow that goal. Would probably be better if we
+      // cound avoid doing that. (The goal setting could even be part
+      // of pftwo, rather than hacked into the problem, which would
+      // maybe be better for the issues described in TPP::Score.)
       vector<vector<Problem::Input>> nexts;
       nexts.reserve(NUM_NEXTS);
       for (int num_left = NUM_NEXTS; num_left--;) {

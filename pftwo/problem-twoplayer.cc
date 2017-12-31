@@ -70,8 +70,14 @@ void TPP::SaveSolution(const string &filename_part,
   for (int i = 0; i < warmup_frames; i++) {
     all_inputs.push_back(original_inputs[i]);
   }
+  if (fastforward >= 0) {
+    subtitles[all_inputs.size()] = "fastforward";
+    for (int i = warmup_frames; i < fastforward; i++) {
+      all_inputs.push_back(original_inputs[i]);
+    }
+  }
   subtitles[all_inputs.size()] = "";
-
+  
   for (const Input &input : inputs) {
     switch (input.type) {
     case Input::Type::CONTROLLER:
@@ -131,16 +137,16 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
     "number of warmup frames as a config line 'warmup'. This is "
     "the amount copied from the training data before automatic "
     "play begins. 0 may work.";
+
+  // If this is present, we start playing from this point
+  // in the training sequence.
+  fastforward = AtoiHex(GetDefault(config, "fastforward", "-1"));
+  if (fastforward < 0) fastforward = warmup_frames;
   
   CHECK(original_inputs.size() > warmup_frames);
-
-  // Throwaway emulator instance for warmup, training.
-  printf("Warmup.\n");
-  unique_ptr<Emulator> emu(Emulator::Create(game));
-  for (int i = 0; i < warmup_frames; i++) {
-    emu->Step(original_inputs[i].first, original_inputs[i].second);
-  }
-
+  CHECK(original_inputs.size() > fastforward);
+  CHECK(fastforward >= warmup_frames);
+  
   printf("Get inputs.\n");
   // Now build inputs for training markov.
   vector<uint8> player1, player2;
@@ -155,24 +161,17 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
 
   markov1->Stats();
   markov2->Stats();
-  
-  // Save start state for each worker.
-  start_state = {emu->SaveUncompressed(), emu->GetMemory(),
-		 0,
-		 GoalData(),
-		 markov1->HistoryInDomain(),
-		 markov2->HistoryInDomain()};
-  
-  // Now execute inputs to get memories for learnfun.
-  printf("Get memories.\n");
-  vector<vector<uint8>> memories;
-  memories.reserve(original_inputs.size() - warmup_frames);
-  for (int i = warmup_frames; i < original_inputs.size(); i++) {
-    const auto &p = original_inputs[i];
-    emu->Step(p.first, p.second);
-    memories.push_back(emu->GetMemory());
+
+  // Throwaway emulator instance for warmup, training.
+  printf("Warmup.\n");
+  unique_ptr<Emulator> emu(Emulator::Create(game));
+  for (int i = 0; i < warmup_frames; i++) {
+    emu->Step(original_inputs[i].first, original_inputs[i].second);
   }
   
+  // Save start state for each worker.
+  vector<uint8> save_after_warmup = emu->SaveUncompressed();
+
   // See if we have cached learnfun results, since it takes some
   // time to run.
 
@@ -185,18 +184,36 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
     objectives.reset(WeightedObjectives::LoadFromFile(cached_objectives));
     printf("There are %d objectives.\n", (int)objectives->Size());
   } else {
+    // Now execute inputs to get memories for learnfun.
+    printf("Get memories.\n");
+    vector<vector<uint8>> memories;
+    memories.reserve(original_inputs.size() - warmup_frames);
+    for (int i = warmup_frames; i < original_inputs.size(); i++) {
+      const auto &p = original_inputs[i];
+      emu->Step(p.first, p.second);
+      memories.push_back(emu->GetMemory());
+    }
+    
     Learnfun learnfun{memories};
     objectives.reset(learnfun.MakeWeighted());
     printf("Saved objectives to %s.\n", cached_objectives.c_str());
     objectives->SaveToFile(cached_objectives);
   }
   CHECK(objectives.get());
-  /*
-  observations.reset(Observations::
-		     SampleObservations(*objectives,
-					OBSERVATION_SAMPLES));
-  */
   observations.reset(Observations::MixedBaseObservations(*objectives));
+
+  emu->LoadUncompressed(save_after_warmup);
+  printf("Fastforward to %d\n", fastforward);
+  for (int i = warmup_frames; i < fastforward; i++)
+    emu->Step(original_inputs[i].first,
+	      original_inputs[i].second);
+
+  start_state = 
+    {emu->SaveUncompressed(), emu->GetMemory(),
+     0,
+     GoalData(),
+     markov1->HistoryInDomain(),
+     markov2->HistoryInDomain()};
 }
 
 Worker *TPP::CreateWorker() {
@@ -233,7 +250,8 @@ void Worker::Visualize(vector<uint8> *argb) {
 
     auto DrawGoal = [argb, gx, gy](int x1, int y1,
 				   uint8 rr, uint8 gg, uint8 bb, uint8 aa) {
-      for (const std::pair<int, int> point : Line<int>{x1, y1, (int)gx, (int)gy}) {
+      for (const std::pair<int, int> point :
+	     Line<int>{x1, y1, (int)gx, (int)gy}) {
 	int x = point.first, y = point.second;
 	if (x >= 0 && y >= 0 && x < 256 && y < 256) {
 	  SetPixel(256, 256, x, y, rr, gg, bb, aa, argb);
@@ -269,8 +287,8 @@ void Worker::Visualize(vector<uint8> *argb) {
     }
   };
 
-  DrawDeaths(50, 0, 0xFF, 127, 127, 0xFF);
-  DrawDeaths(50, 180, 0, 0, 0xFF, 0xFF);
+  DrawDeaths(50, 20, 0xFF, 127, 127, 0xFF);
+  DrawDeaths(51, 150, 0, 0, 0xFF, 0xFF);
   
   const double s = tpp->observations->GetWeightedValue(mem);
   // printf("%f\n", s);

@@ -2,7 +2,16 @@ game contra.nes
 movie contra2p.fm2
 # workers 11
 workers 11
+
 warmup 800
+# fastforward 7700
+
+# These are cheater hints! Playfun should deduce these
+# automatically (using new techniques).
+
+# p1 and p2 lives, respectively.
+lives 0x0032
+lives 0x0033
 
 # These are cheater hints! Playfun should deduce these
 # automatically during search using the techniques from
