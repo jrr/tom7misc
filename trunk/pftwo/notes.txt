@@ -1,5 +1,3 @@
-Games to do: Silver Surfer
-ExciteBike
 
 29 Dec 2017
 Getting back to this.
@@ -33,6 +31,63 @@ of the screen (objectives favor higher x coord). Idea is:
    how to blend this with the objective function (especially
    how that might affect our notion of stuckness or other
    things that require comparing scores non-locally).
+
+This didn't work well. Although it's reasonably natural to treat
+the goal as part of the worker state, and setting/clearing goals
+as meta inputs, it was awkward to try to make progress towards the
+current goal part of the global objective function. Either you
+give unmotivated preference to setting a goal and going near it,
+or you penalize turning off the current goal once you've reached
+it. In experiments, the best sequence rarely included a goal and
+it didn't seem like the players were even seeking it out.
+See rev 3363 or oldproblems/tpp-goals.*
+
+
+So, new idea is to explicitly seek out goals when we seem to be
+"stuck." It looks like the proportion of remaining nodes whose
+scores are close to the all-time max is a good notion of "stuckness."
+We have a good measure of this (I guess like AUC of the nodes we keep?)
+at the moment we reheap. So let's think about doing some exploration
+right after that.
+
+Basically we want to be in a situation where we've guessed an
+intermediate goal, like to be standing on a small platform to the
+left, and then we're happy because we can follow the gradient again.
+Obviously there are worse kinds of stuckness, but let's just try to
+solve this one for now.
+
+ - Brute solution: Pick some good state, and then force all workers to
+   try to navigate from it to some random goals (or even a grid of
+   goals). If we reach a goal, we should make sure to try expanding
+   that node for a while to see if it can now reach a new global maximum.
+   We could basically do this by having a queue, putting all our nodes
+   in there, and only working on nodes from the queue (or their successors?)
+   until time's up.
+
+Later I'd like to make this approach integrated with the normal tree
+search so that it's not an explicit mode, but it's perhaps easier to
+debug if it is explicit.
+
+So, upon reheap,
+ - Randomly enter explore mode, proportional to stuckness.
+   (Or generate X exploration nodes/budget, proportional to stuckness?)
+ - Generate N different goals, perhaps randomly or perhaps just
+   using a grid.
+ - For each goal, keep track of the state that's closest to it; these
+   all begin as just the source state. (Store also the sequence that
+   leads us to this closest state, which starts empty.)
+ - Now workers pull only nodes from this set. For any worker,
+    - Pull out a state from the queue. Try playing randomly from that
+      state. Insert the result in the tree regardless. Also replace
+      the state with the new state/seq if we got closer to the goal
+      in the random play. (Also probably keep trying randomly if our
+      global score increases as we play, since otherwise we would need
+      to exceed the global max in one random sequence in order for this
+      to work? Might be tricky.)
+    - That's it!
+ - Eventually the queue is exhausted, and hopefully we've made an
+   excursion to one of those goals and then climbed the gradient out
+   of the local maximum.
 
 1 May 2016
 Bisect previous sequence

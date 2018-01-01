@@ -7,11 +7,17 @@
 #include <map>
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
+#include <type_traits>
 
 #include <thread>
 #include <mutex>
 
-using namespace std;
+// using namespace std;
+using std::string;
+using std::vector;
+using std::map;
+using std::unordered_map;
 
 #include "../fceulib/types.h"
 #include "../cc-lib/base/stringprintf.h"

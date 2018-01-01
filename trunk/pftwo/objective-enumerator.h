@@ -65,8 +65,6 @@
 
 #include "pftwo.h"
 
-using namespace std;
-
 struct ObjectiveEnumerator {
   // Matrix of memories must be non-empty and rectangular.
   explicit ObjectiveEnumerator(const vector<vector<uint8>> &memories);
