@@ -33,6 +33,7 @@ TPP::Input Worker::RandomInput(ArcFour *rc) {
 }
 
 TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
+  /*
   if (rc->Byte() == 0) {
     if (tpp->x1_loc >= 0 &&
 	tpp->y1_loc >= 0 &&
@@ -51,6 +52,7 @@ TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
       return input;
     }
   }
+  */
   
   const uint8 p1 = tpp->markov1->RandomNext(prev1, rc);
   const uint8 p2 = tpp->markov2->RandomNext(prev2, rc);
@@ -124,6 +126,16 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   printf("Read inputs for %s\n", movie.c_str());
   original_inputs = SimpleFM2::ReadInputs2P(movie);
 
+  string protect = GetDefault(config, "protect", "");
+  while (!protect.empty()) {
+    string tok = Util::chop(protect);
+    if (!tok.empty()) {
+      protect_loc.push_back(AtoiHex(tok));
+      printf("[CHEATIN'] Protect %d\n", protect_loc.back());
+    }
+  }
+  
+  
   x1_loc = AtoiHex(GetDefault(config, "x1", "-1"));
   y1_loc = AtoiHex(GetDefault(config, "y1", "-1"));
   x2_loc = AtoiHex(GetDefault(config, "x2", "-1"));
@@ -271,13 +283,13 @@ void Worker::Visualize(vector<uint8> *argb) {
   static constexpr int XTHICK = 2;
   auto DrawDeaths = [argb, &mem](int loc, int xx,
 				 uint8 rr, uint8 gg, uint8 bb, uint8 aa) {
-    auto DrawX = [argb](int x, int y) {
+    auto DrawX = [argb, rr, gg, bb, aa](int x, int y) {
       for (int t = 0; t < XWIDTH; t++) {
 	for (int w = 0; w < XTHICK; w++) {
 	  SetPixel(256, 256, x + t + w, y + t,
-		   0, 0, 0xFF, 0xFF, argb);
+		   rr, gg, bb, aa, argb);
 	  SetPixel(256, 256, x + (XWIDTH - 1 - t) + w, y + t,
-		   0, 0, 0xFF, 0xFF, argb);
+		   rr, gg, bb, aa, argb);
 	}
       }
     };

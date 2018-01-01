@@ -16,17 +16,15 @@
 
 struct TwoPlayerProblem {
   // Player 1 and Player 2 controllers.
-  // HERE: For the best compatibility with the pftwo, if we want to
-  // do something like store goals and hypotheses in the state, we
-  // probably want actions in the input that set those values, since
-  // pftwo believes that it can recreate a state by replaying inputs.
-  // TODO!
 
   // In simple problem instances, this is just a controller input,
   // or a controller input for each of the two players. However, we
   // allow the possibility of meta inputs, which change the worker's
   // state.
   struct Input {
+    // XXX: There's code for generating inputs that set goals, but
+    // this didn't seem to work well, and so these inputs are never
+    // generated. Probably should just delete this code?
     enum class Type : uint8 {
       CONTROLLER = 0,
       SETGOAL = 1,
@@ -156,6 +154,7 @@ struct TwoPlayerProblem {
     }
     void Exec(Input input) {
       MutexLock ml(&mutex);
+      CHECK(input.type == Input::Type::CONTROLLER);
       switch (input.type) {
       case Input::Type::CONTROLLER: {
 	const uint8 input1 = Player1(input), input2 = Player2(input);
@@ -236,7 +235,24 @@ struct TwoPlayerProblem {
     CHECK(observations.get());
     observations->Commit();
   }
+
+  // Penalty for traveling between a pair of states. [0, 1] where 0 is
+  // bad (high penalty) and 1 is neutral. This is intended to measure
+  // something like lives lost when going from old_state to new, so that
+  // we avoid exploration play that some something really bad like that.
+  // Could also just be based on the objectives.
+  double EdgePenalty(const State &old_state, const State &new_state) const {
+    double res = 1.0;
+    for (int loc : protect_loc)
+      if (new_state.mem[loc] < old_state.mem[loc])
+	res *= 0.5;
+    return res;
+  }
+  
   // Score in [0, 1]. Should be stable in-between calls to Commit.
+  // (0-1 range is currently nominal. When we reach new global maxima,
+  // the values will be >1 until the next Commit. Could fix with a
+  // sigmoid or something.)
   double Score(const State &state) {
     // This is tricky, and maybe needs to be improved. When the state
     // has a goal, we want to give a bonus to states that are near that
@@ -279,7 +295,8 @@ struct TwoPlayerProblem {
       sqdist1 -= 16 * 16;
       sqdist2 -= 16 * 16;
 
-      static constexpr double INV_MAX_SQDIST = 1.0 / (256.0 * 256.0 + 256.0 * 256.0);
+      static constexpr double INV_MAX_SQDIST =
+          1.0 / (256.0 * 256.0 + 256.0 * 256.0);
       double f1 = sqdist1 * INV_MAX_SQDIST;
       double f2 = sqdist2 * INV_MAX_SQDIST;
       // Clamp to [0, 1]. These can be negative due to -= 16 * 16 above.
@@ -292,8 +309,10 @@ struct TwoPlayerProblem {
     }();
 
     static constexpr double OBJF = 0.999;
-    
-    return objective_score * OBJF + goal_score * (1.0 - OBJF);
+
+    // XXX
+    const double penalty = EdgePenalty(start_state, state);
+    return penalty * (objective_score * OBJF + goal_score * (1.0 - OBJF));
     
     // Old idea; disabled:
     // Give a tiny penalty to longer paths to the same value, so
@@ -327,6 +346,9 @@ struct TwoPlayerProblem {
   // a non-cheating version, the worker would deduce these
   // itself, so this is like XXX temporary.
   int x1_loc = -1, y1_loc = -1, x2_loc = -1, y2_loc = -1;
+  // Locations where we want to protect the value from going
+  // down.
+  vector<int> protect_loc;
   
   vector<pair<uint8, uint8>> original_inputs;
   unique_ptr<NMarkovController> markov1, markov2;

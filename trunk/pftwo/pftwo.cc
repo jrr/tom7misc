@@ -1,13 +1,10 @@
 
-// TODO: Bug? Why are scores bigger than 1 until the first reheap?
-//
 // TODO: Try to deduce that a state is hopeless and stop expanding
 // it. -or- try to estimate the maximum reachable score from each
 // node using some Bayesian method.
 // 
 // TODO: Super Meat Brothers-style multi future visualization of tree.
 //
-// TODO: Get rid of optional heap location? We often need the score.
 // TODO: Always expand nodes 100 times or whatever?
 //
 // TODO: Serialization of tree state and restarting
@@ -99,6 +96,10 @@ struct Tree {
   using State = Problem::State;
   using Seq = vector<Problem::Input>;
   static constexpr int UPDATE_FREQUENCY = 1000;
+  // Want to do a commit shortly after starting, because
+  // until then, scores are frequently >1 (we don't have
+  // an accurate maximum to normalize against).
+  static constexpr int STEPS_TO_FIRST_UPDATE = 100;
 
   #if 0
   // If set, some worker is expanding this node and it can't
@@ -138,7 +139,8 @@ struct Tree {
     // this to compute anything yet.)
     int was_loss = 0;
 
-    // For heap. Not all nodes will be in the heap.
+    // For heap. By invariant, all nodes are in the heap (but this
+    // will be temporarily violated during insertion/deletion).
     int location = -1;
 
     // Reference count. When zero (and the lock not held), the node
@@ -157,7 +159,8 @@ struct Tree {
   Heap<double, Node> heap;
 
   Node *root = nullptr;
-  int steps_until_update = UPDATE_FREQUENCY;
+  // Number of steps until we update reheap and thin the tree.
+  int steps_until_update = STEPS_TO_FIRST_UPDATE;
   // If this is true, a thread is updating the tree. It does not
   // necessarily hold the lock, because some calculations can be
   // done without the tree (like sorting observations). If set,
@@ -685,10 +688,11 @@ struct UIThread {
       [this, &tmp, cutoff, &images, &node_num, &Rec](const Tree::Node *node) {
       int id = node_num++;
       string ret = StringPrintf("{i:%d", id);
-      if (node->location != -1) {
-	double score = -pftwo->tree->heap.GetCell(node).priority;
-	ret += StringPrintf(",s:%s", Rtos(score).c_str());
-      }
+      CHECK(node->location != -1);
+
+      double score = -pftwo->tree->heap.GetCell(node).priority;
+      ret += StringPrintf(",s:%s", Rtos(score).c_str());
+
       if (node->chosen > 0) {
 	ret += StringPrintf(",e:%d,w:%d", node->chosen, node->was_loss);
       }
@@ -775,7 +779,7 @@ struct UIThread {
       }
 
       SDL_Delay(1000.0 / 30.0);
-
+      
       // Every ten thousand frames, write FM2 file.
       // TODO: Superimpose all of the trees at once.
       if (frame % 10000 == 0) {
@@ -825,17 +829,20 @@ struct UIThread {
 
       int64 tree_size = ReadWithLock(&pftwo->tree_m, &pftwo->tree->num_nodes);
 
-      font->draw(10, 0,
-		 StringPrintf(
-		     "This is frame %d! "
-		     "%lld tree nodes "
-		     "%d collisions "
-		     "%s%% improvement rate",
-		     frame,
-		     tree_size,
-		     pftwo->stats.same_expansion.Get(),
-		     Rtos((pftwo->stats.sequences_improved.Get() * 100.0) /
-			  (double)pftwo->stats.sequences_improved_denom.Get()).c_str()));
+      const double improvement_pct =
+	(pftwo->stats.sequences_improved.Get() * 100.0) /
+	(double)pftwo->stats.sequences_improved_denom.Get();
+      font->draw(
+	  10, 0,
+	  StringPrintf(
+	      "This is frame %d! "
+	      "%lld tree nodes "
+	      "%d collisions "
+	      "%s%% improvement rate",
+	      frame,
+	      tree_size,
+	      pftwo->stats.same_expansion.Get(),
+	      Rtos(improvement_pct).c_str()));
 
       int64 total_steps = 0ll;
       for (int i = 0; i < pftwo->workers.size(); i++) {
@@ -888,9 +895,14 @@ struct UIThread {
 	int64 statebytes = 0LL;
       };
       TreeStats treestats;
+
+      vector<double> all_scores;
+      // Note that there can be a race here, but it's just a
+      // performance hint.
+      all_scores.reserve(tree_size);
       
       std::function<void(int, const Tree::Node *)> GetLevelStats =
-	[this, &levels, &treestats, &GetLevelStats](
+	[this, &levels, &treestats, &all_scores, &GetLevelStats](
 	    int depth, const Tree::Node *n) {
 	while (depth >= levels.size())
 	  levels.push_back(LevelStats{});
@@ -906,11 +918,12 @@ struct UIThread {
 	
 	ls->workers += n->num_workers_using;
 
-	if (n->location != -1) {
-	  double score = -pftwo->tree->heap.GetCell(n).priority;
-	  if (score > ls->best_score) ls->best_score = score;
-	  // TODO save node so that we can draw picture?
-	}
+	CHECK(n->location != -1);
+
+	double score = -pftwo->tree->heap.GetCell(n).priority;
+	all_scores.push_back(score);
+	if (score > ls->best_score) ls->best_score = score;
+	// TODO save node so that we can draw picture?
 
 	if (n->children.empty())
 	  treestats.leaves++;
@@ -948,6 +961,8 @@ struct UIThread {
 				     levels[i].best_score,
 				     w.c_str()));
       }
+
+      static constexpr int BOTTOM = HEIGHT - FONTHEIGHT - 3;
       
       const double now = SDL_GetTicks() / 1000.0;
       double sec = now - start;
@@ -958,7 +973,35 @@ struct UIThread {
 			      (total_steps / sec) / 1000.0,
 			      frame / sec));
 
-     
+      std::sort(all_scores.rbegin(), all_scores.rend());
+      static constexpr int HISTO_HEIGHT = 128;
+      sdlutil::slock(screen);
+      for (int x = 0; x < all_scores.size() && x < WIDTH; x++) {
+	double score = all_scores[x];
+	bool over = false, under = false;
+	(void)under;
+	if (score > 1.0) {
+	  score = 1.0;
+	  over = true;
+	} else if (score < 0) {
+	  score = 0;
+	  under = true;
+	}
+	double heightf = score * HISTO_HEIGHT;
+	int height = heightf;
+	// Fractional pixel for anti-aliasing
+	uint8 leftover = 255.0 * (heightf - height);
+	for (int h = 0; h < height; h++) {
+	  int y = BOTTOM - h;
+	  sdlutil::drawclippixel(screen, x, y,
+				 0xFF, 0xFF, over ? 0xFF : 0x00);
+	}
+	sdlutil::drawclippixel(screen, x, BOTTOM - height,
+			       leftover, leftover, 0x00);
+	
+      }
+      sdlutil::sulock(screen);
+       
       SDL_Flip(screen);
     }
 

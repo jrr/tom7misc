@@ -10,8 +10,7 @@ warmup 800
 # automatically (using new techniques).
 
 # p1 and p2 lives, respectively.
-lives 0x0032
-lives 0x0033
+protect 0x0032 0x0033
 
 # These are cheater hints! Playfun should deduce these
 # automatically during search using the techniques from
