@@ -2,7 +2,7 @@
 // TODO: Try to deduce that a state is hopeless and stop expanding
 // it. -or- try to estimate the maximum reachable score from each
 // node using some Bayesian method.
-// 
+//
 // TODO: Super Meat Brothers-style multi future visualization of tree.
 //
 // TODO: Always expand nodes 100 times or whatever?
@@ -23,6 +23,7 @@
 #include <string>
 #include <set>
 #include <memory>
+#include <list>
 
 #ifdef __MINGW32__
 #include <windows.h>
@@ -101,18 +102,6 @@ struct Tree {
   // an accurate maximum to normalize against).
   static constexpr int STEPS_TO_FIRST_UPDATE = 100;
 
-  #if 0
-  // If set, some worker is expanding this node and it can't
-  // be deleted.
-  static constexpr uint8 FLAG_IN_USE = 1 << 0;
-  static constexpr uint8 FLAG_DELETEME = 1 << 1;
-  static constexpr uint8 FLAG_ANOTHER = 1 << 2;
-
-  static_assert(DisjointBits(FLAG_IN_USE,
-			     FLAG_DELETEME,
-			     FLAG_ANOTHER), "flags share bits??");
-  #endif
-  
   struct Node {
     Node(State state, Node *parent) : state(std::move(state)),
 				      parent(parent) {}
@@ -148,16 +137,44 @@ struct Tree {
     uint8 num_workers_using = 0;
   };
 
+  struct ExploreNode {
+    // Points to the tree Node that this exploration began from.
+    // Sequences continue from that node, for example.
+    Node *source = nullptr;
+
+    // The exploration goal (i.e., a screen position).
+    Problem::Goal goal;
+
+    // The sequence that brings us closest to the goal.
+    Seq closest_seq;
+    // And the state that results from that sequence.
+    State closest_state;
+    // And the distance (Problem::GoalDistance(goal, closest_state)).
+    double distance = 0.0;
+
+    // We work on this goal a fixed number of times before giving up.
+    int iterations_left = 0;
+    // Number of workers currently active on this node. The worker that
+    // sets this to zero when iterations_left is zero is responsible for
+    // cleaning up the node.
+    int iterations_in_progress = 0;
+  };
+
   Tree(double score, State state) {
     root = new Node(std::move(state), nullptr);
     heap.Insert(-score, root);
   }
 
-  // Tree prioritized by negation of score at current epoch. Not all
-  // nodes are guaranteed to be present. Negation is used so that the
-  // minimum node is actually the node with the best score.
+  // Tree prioritized by negation of score at current epoch. Negation
+  // is used so that the minimum node is actually the node with the
+  // best score.
   Heap<double, Node> heap;
 
+  // If this has anything in it, we're in exploration mode.
+  std::list<ExploreNode> explore_queue;
+  // Stuckness estimate from the last reheap.
+  double stuckness = 0.0;
+  
   Node *root = nullptr;
   // Number of steps until we update reheap and thin the tree.
   int steps_until_update = STEPS_TO_FIRST_UPDATE;
@@ -245,7 +262,7 @@ struct WorkThread {
     n->num_workers_using++;
     return n;
   }
-  
+
   // Pick the next node to explore. Must increment the chosen field.
   // n is the current node, which may be discarded; this function
   // also maintains correct reference counts.
@@ -253,7 +270,7 @@ struct WorkThread {
     MutexLock ml(&pftwo->tree_m);
 
     CHECK(n->num_workers_using > 0);
-    
+
     // Simple policy: 50% chance of switching to the best node
     // in the heap; 50% chance of staying with the current node.
     if (rc.Byte() < 128 + 64 /* XXX */) {
@@ -264,7 +281,7 @@ struct WorkThread {
       // (n.b. this doesn't seem to help get unstuck -- evaluate it)
       const int g = (int)(gauss.Next() * (size * 0.25));
       const int idx = (g <= 0 || g >= size) ? 0 : g;
-      
+
       Heap<double, Node>::Cell cell = pftwo->tree->heap.GetByIndex(idx);
       Node *ret = cell.value;
 
@@ -290,7 +307,7 @@ struct WorkThread {
       // Giving up on n.
       n->num_workers_using--;
       ret->num_workers_using++;
-      
+
       ret->chosen++;
       return ret;
     } else {
@@ -302,7 +319,7 @@ struct WorkThread {
 
   // Extend a node with some sequence that we already ran, and
   // that results in the newstate with newscore.
-  //  
+  //
   // When calling, must be holding n. Modifies it and returns the new
   // child; drops the reference to n and acquires a reference to the
   // new child.
@@ -335,7 +352,7 @@ struct WorkThread {
       // model is sparse), we already have a node with this
       // exact path. We don't allow replacing it.
       pftwo->stats.same_expansion.Increment();
-      
+
       delete child;
       // Maintain the invariant that the worker is at the
       // state of the returned node.
@@ -407,7 +424,7 @@ struct WorkThread {
 
 	std::function<void(Node *)> ReHeapRec =
 	  [this, tree, &ReHeapRec](Node *n) {
-	  // Act on the node if it's in the heap. 
+	  // Act on the node if it's in the heap.
 	  if (n->location != -1) {
 	    const double new_score = pftwo->problem->Score(n->state);
 	    // Note negation of score so that bigger real scores
@@ -424,7 +441,7 @@ struct WorkThread {
       const uint32 end_ms = SDL_GetTicks();
       printf("Done in %.4f sec.\n", (end_ms - start_ms) / 1000.0);
     }
-      
+
     {
       MutexLock ml(&pftwo->tree_m);
       if (tree->num_nodes > MAX_NODES) {
@@ -450,17 +467,28 @@ struct WorkThread {
 	GetScoresRec(tree->root);
 
 	// Find best scores. PERF: This can be done much faster than
-	// sorting the whole array.
+	// sorting the whole array. (For example, we could just pop
+	// MAX_NODES off the heap.) But this really isn't a bottleneck
+	// with MAX_NODES=1000.
 	std::sort(cutoffs.begin(), cutoffs.end(), std::greater<double>());
 	CHECK(cutoffs.size() > MAX_NODES) << "Should have inserted one "
 	  "score for every node in the tree, and we know there are more "
 	  "than MAX_NODES of them now: " << cutoffs.size();
+
+	// Compute the 'area under the curve' for the nodes we're keeping.
+	// This is high when all the nodes have almost the maximum score,
+	// which suggests that we are 'stuck.'
+	double auc = 0.0;
+	for (int i = 0; i < MAX_NODES; i++) {
+	  auc += cutoffs[i];
+	}
+	tree->stuckness = auc * (1.0 / MAX_NODES);
+	printf("\n ... auc %.2f; stuckness %.4f\n", auc, tree->stuckness);
 	
 	const double min_score = cutoffs[MAX_NODES];
 	printf("\n ... Min score is %.4f\n", min_score);
-	// TODO: Draw the score histogram!
 	cutoffs.clear();
-	
+
 	std::function<bool(Node *)> CleanRec =
 	  // Returns true if we should keep this node; otherwise,
 	  // the node is deleted.
@@ -477,7 +505,7 @@ struct WorkThread {
 	    }
 	  }
 	  n->children.swap(new_children);
-	  
+
 	  if (!keep) {
 	    tree->heap.Delete(n);
 	    deleted_nodes++;
@@ -494,22 +522,24 @@ struct WorkThread {
 	// all nodes, one of the MAX_NODES best scores should be beneath
 	// the root!
 	CHECK(CleanRec(tree->root)) << "Uh, the root was deleted.";
-	
+
 	const uint32 end_ms = SDL_GetTicks();
 	printf(" ... Deleted %llu in %.4f sec. Done.\n",
 	       deleted_nodes,
 	       (end_ms - start_ms) / 1000.0);
+
+	// Now, find some nodes for exploration.
       }
     }
 
-    
+
     {
       MutexLock ml(&pftwo->tree_m);
       tree->update_in_progress = false;
     }
   }
 
- 
+
   void Run() {
     InitializeTree();
 
@@ -534,7 +564,7 @@ struct WorkThread {
       // node or find a different one.
       worker->SetStatus("Find start node");
       Node *expand_me = FindNodeToExtend(last);
-      
+
       // PERF skip this if it's the same as last!
       worker->SetStatus("Load");
       CHECK(expand_me != nullptr);
@@ -616,7 +646,7 @@ struct WorkThread {
       last = ExtendNode(expand_me, nexts[best_step_idx], *best, best_score);
 
       MaybeUpdateTree();
-      
+
       worker->SetStatus("Check for death");
       if (ReadWithLock(&should_die_m, &should_die)) {
 	worker->SetStatus("Die");
@@ -633,7 +663,7 @@ struct WorkThread {
   }
 
   Worker *GetWorker() const { return worker; }
-   
+
 private:
   PF2 *pftwo = nullptr;
   const int id = 0;
@@ -681,7 +711,7 @@ struct UIThread {
     expansion_cutoff.clear();
     printf("Nodes expanded more than %d times will have images.\n",
 	   cutoff);
-    
+
     int images = 0;
     int node_num = 0;
     std::function<string(const Tree::Node *)> Rec =
@@ -710,13 +740,13 @@ struct UIThread {
 	tmp->Exec(tmp->RandomInput(&rc));
 	vector<uint8> argb256x256;
 	argb256x256.resize(256 * 256 * 4);
-	tmp->Visualize(&argb256x256);
+	tmp->Visualize(nullptr, &argb256x256);
 
 	SaveARGB(argb256x256, 256, 256, StringPrintf("tree/%d.png", id));
 	images++;
 	ret += ",g:1";
       }
-	
+
       if (!node->children.empty()) {
 	string ch;
 	for (const auto &p : node->children) {
@@ -739,7 +769,7 @@ struct UIThread {
     printf("Wrote %d images. Writing to tree/tree.js\n", images);
     Util::WriteFile("tree/tree.js", json);
   }
-  
+
   void Loop() {
     SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
     SDL_Surface *surfhalf = sdlutil::makesurface(128, 128, true);
@@ -779,7 +809,7 @@ struct UIThread {
       }
 
       SDL_Delay(1000.0 / 30.0);
-      
+
       // Every ten thousand frames, write FM2 file.
       // TODO: Superimpose all of the trees at once.
       if (frame % 10000 == 0) {
@@ -798,7 +828,7 @@ struct UIThread {
 		return &p.first;
 	      }
 	    };
-	    return nullptr;	    
+	    return nullptr;
 	  };
 
 	  const Tree::Seq *seq = GetKey();
@@ -824,7 +854,7 @@ struct UIThread {
 				     "info TODO");
       }
 
-      
+
       sdlutil::clearsurface(screen, 0x11111111);
 
       int64 tree_size = ReadWithLock(&pftwo->tree_m, &pftwo->tree->num_nodes);
@@ -862,8 +892,8 @@ struct UIThread {
       texts.resize(num_workers);
       for (int i = 0; i < num_workers; i++) {
 	Worker *w = pftwo->workers[i]->GetWorker();
-	w->Visualize(&screenshots[i]);
-	w->VizText(&texts[i]);
+	w->Visualize(nullptr, &screenshots[i]);
+	w->VizText(nullptr, &texts[i]);
       }
 
       for (int i = 0; i < num_workers; i++) {
@@ -900,7 +930,7 @@ struct UIThread {
       // Note that there can be a race here, but it's just a
       // performance hint.
       all_scores.reserve(tree_size);
-      
+
       std::function<void(int, const Tree::Node *)> GetLevelStats =
 	[this, &levels, &treestats, &all_scores, &GetLevelStats](
 	    int depth, const Tree::Node *n) {
@@ -909,13 +939,13 @@ struct UIThread {
 
 	treestats.nodes++;
 	treestats.statebytes += Problem::StateBytes(n->state);
-	
+
 	LevelStats *ls = &levels[depth];
 	ls->count++;
 	ls->chosen += n->chosen;
 	if (n->chosen > ls->max_chosen)
 	  ls->max_chosen = n->chosen;
-	
+
 	ls->workers += n->num_workers_using;
 
 	CHECK(n->location != -1);
@@ -927,7 +957,7 @@ struct UIThread {
 
 	if (n->children.empty())
 	  treestats.leaves++;
-	
+
 	for (const auto &child : n->children) {
 	  GetLevelStats(depth + 1, child.second);
 	}
@@ -963,7 +993,7 @@ struct UIThread {
       }
 
       static constexpr int BOTTOM = HEIGHT - FONTHEIGHT - 3;
-      
+
       const double now = SDL_GetTicks() / 1000.0;
       double sec = now - start;
       font->draw(10, HEIGHT - FONTHEIGHT,
@@ -998,10 +1028,14 @@ struct UIThread {
 	}
 	sdlutil::drawclippixel(screen, x, BOTTOM - height,
 			       leftover, leftover, 0x00);
-	
+
       }
       sdlutil::sulock(screen);
-       
+
+      maxfont->draw(
+	  10, HEIGHT - HISTO_HEIGHT / 2 - MAXFONTHEIGHT / 2,
+	  StringPrintf("^2%.2f%%", pftwo->tree->stuckness));
+      
       SDL_Flip(screen);
     }
 
@@ -1024,6 +1058,19 @@ struct UIThread {
 			     FONTSTYLES, 0, 3);
     CHECK(smallfont != nullptr) << "Couldn't load smallfont.";
 
+    smallfont = Font::create(screen,
+			     "fontsmall.png",
+			     FONTCHARS,
+			     SMALLFONTWIDTH, SMALLFONTHEIGHT,
+			     FONTSTYLES, 0, 3);
+    CHECK(smallfont != nullptr) << "Couldn't load smallfont.";
+
+    maxfont = Font::create(screen,
+			   "fontmax.png",
+			   FONTCHARS,
+			   MAXFONTWIDTH, MAXFONTHEIGHT, FONTSTYLES, 4, 3);
+    CHECK(maxfont != nullptr) << "Couldn't load maxfont.";
+    
     Loop();
     Printf("UI shutdown.\n");
     WriteWithLock(&should_die_m, &should_die, true);
@@ -1039,8 +1086,10 @@ struct UIThread {
   static constexpr int FONTHEIGHT = 16;
   static constexpr int SMALLFONTWIDTH = 6;
   static constexpr int SMALLFONTHEIGHT = 6;
-  
-  Font *font = nullptr, *smallfont = nullptr;
+  static constexpr int MAXFONTHEIGHT = 48 * 2;
+  static constexpr int MAXFONTWIDTH = 27 * 2;
+
+  Font *font = nullptr, *smallfont = nullptr, *maxfont = nullptr;
 
   ArcFour rc{"ui_thread"};
   PF2 *pftwo = nullptr;
@@ -1078,7 +1127,7 @@ int main(int argc, char *argv[]) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
   }
   #endif
-  
+
   /* Initialize SDL and network, if we're using it. */
   CHECK(SDL_Init(SDL_INIT_VIDEO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
@@ -1087,7 +1136,7 @@ int main(int argc, char *argv[]) {
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
-  
+
   {
     PF2 pftwo;
     pftwo.Play();

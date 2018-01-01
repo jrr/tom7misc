@@ -33,6 +33,27 @@ TPP::Input Worker::RandomInput(ArcFour *rc) {
 }
 
 TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
+  /*
+  if (rc->Byte() == 0) {
+    if (tpp->x1_loc >= 0 &&
+	tpp->y1_loc >= 0 &&
+	tpp->x2_loc >= 0 &&
+	tpp->y2_loc >= 0) {
+      Input input;
+      if (rc->Byte() & 1) {
+	input.type = Input::Type::CLEARGOAL;
+	input.goalx = 0;
+	input.goaly = 0;
+      } else {
+	input.type = Input::Type::SETGOAL;
+	input.goalx = rc->Byte();
+	input.goaly = rc->Byte();
+      }
+      return input;
+    }
+  }
+  */
+  
   const uint8 p1 = tpp->markov1->RandomNext(prev1, rc);
   const uint8 p2 = tpp->markov2->RandomNext(prev2, rc);
   prev1 = tpp->markov1->Push(prev1, p1);
@@ -58,10 +79,21 @@ void TPP::SaveSolution(const string &filename_part,
     }
   }
   subtitles[all_inputs.size()] = "";
-
+  
   for (const Input &input : inputs) {
-    all_inputs.push_back({Player1(input), Player2(input)});
-    // (Can add subtitles for other types of input, if any).
+    switch (input.type) {
+    case Input::Type::CONTROLLER:
+      all_inputs.push_back({Player1(input), Player2(input)});
+      break;
+    case Input::Type::SETGOAL:
+      subtitles[all_inputs.size()] = StringPrintf("GOAL %u,%u",
+						  input.goalx,
+						  input.goaly);
+      break;
+    case Input::Type::CLEARGOAL:
+      subtitles[all_inputs.size()] = "";
+      break;
+    }
   }
 
   vector<pair<int, string>> subtitle_vec;
@@ -191,6 +223,7 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   start_state = 
     {emu->SaveUncompressed(), emu->GetMemory(),
      0,
+     GoalData(),
      markov1->HistoryInDomain(),
      markov2->HistoryInDomain()};
 }
@@ -204,15 +237,23 @@ Worker *TPP::CreateWorker() {
   return w;
 }
 
-void Worker::Visualize(const Goal *goal, vector<uint8> *argb) {
+void Worker::Visualize(vector<uint8> *argb) {
   MutexLock ml(&mutex);
   CHECK(argb->size() == 4 * 256 * 256);
   emu->GetImageARGB(argb);
   vector<uint8> mem = emu->GetMemory();
+  #if 0
+  for (int i = 0; i < mem.size(); i++) {
+    (*argb)[i * 4 + 0] = mem[i];
+    (*argb)[i * 4 + 1] = mem[i];
+    (*argb)[i * 4 + 2] = mem[i];
+    (*argb)[i * 4 + 3] = 0xFF;
+  }
+  #endif
 
-  if (goal != nullptr) {
-    const int gx = goal->goalx;
-    const int gy = goal->goaly;
+  if (goal.has_goal) {
+    const int gx = goal.goalx;
+    const int gy = goal.goaly;
       
     const int p1x = mem[tpp->x1_loc];
     const int p1y = mem[tpp->y1_loc];
@@ -275,13 +316,10 @@ void Worker::Visualize(const Goal *goal, vector<uint8> *argb) {
   }
 }
 
-void Worker::VizText(const Goal *goal, vector<string> *text) {
+void Worker::VizText(vector<string> *text) {
   text->push_back(StringPrintf("Depth %d", depth));
   const vector<uint8> mem = emu->GetMemory();
 
-  // TODO: Visualize goal? It's pretty obvious from the picture
-  // whenever that's present.
-  
   // XXX This is specific to contra!
   static constexpr std::initializer_list<int> kLocations = 
     { 48, 100, 101, 820, 821, 50, 51, 2019, 2018, 2021, 2020 };
