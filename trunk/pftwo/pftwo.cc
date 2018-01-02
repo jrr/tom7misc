@@ -123,6 +123,10 @@ struct Tree {
     // share prefixes, but there cannot be duplicates.
     map<Seq, Node *> children;
 
+    // Note for the node, only used in movie output. Associated
+    // with the sequence that led to this node.
+    string subtitle;
+    
     // Total number of times chosen for expansion. This will
     // be related to the number of children, but can be more
     // in the case that the tree is pruned or children collide.
@@ -535,11 +539,20 @@ struct WorkThread {
 	// Compute the 'area under the curve' for the nodes we're keeping.
 	// This is high when all the nodes have almost the maximum score,
 	// which suggests that we are 'stuck.'
-
-
+	//
+	// The objective-function-based score is normalized against
+	// the best value we've ever seen, so it's typical for the
+	// best score to be 1.0. But in some cases, we might Observe a
+	// good-looking state but not insert it into the tree. For
+	// example, we might be a level but with one of the players dead.
+	// In this case, Score()s might be forever small. So here we
+	// normalize against the single best score when computing AUC.
+	const double one_over_best_score =
+	  cutoffs[0] <= 0.0 ? 0.0 : (1.0 / cutoffs[0]);
+	
 	double auc = 0.0;
 	for (int i = 0; i < MAX_NODES; i++) {
-	  auc += cutoffs[i];
+	  auc += cutoffs[i] * one_over_best_score;
 	}
 	tree->stuckness = auc * (1.0 / MAX_NODES);
 	printf("\n ... auc %.2f; stuckness %.4f\n", auc, tree->stuckness);
@@ -591,7 +604,7 @@ struct WorkThread {
 	CHECK(tree->explore_queue.empty());
 	if (tree->stuckness > 0.50) {
 	  static constexpr int NUM_EXPLORE_NODES = 50;
-	  static constexpr int NUM_EXPLORE_ITERATIONS = 50;
+	  static constexpr int NUM_EXPLORE_ITERATIONS = 500;
 	  // More stuck = more exploration.
 	  int num_explore = NUM_EXPLORE_NODES * tree->stuckness;
 	  while (num_explore--) {
@@ -757,7 +770,13 @@ struct WorkThread {
       // keep saving in that loop...
       Problem::State newstate = worker->Save();
       double score = pftwo->problem->Score(newstate);
-      ExtendNodeWithLock(en->source, full_seq, std::move(newstate), score);
+      Node *child =
+	ExtendNodeWithLock(en->source, full_seq, std::move(newstate), score);
+      child->subtitle = StringPrintf("Goto %d,%d (closest %.2f)",
+				     // XXX TPP-specific.
+				     en->goal.goalx,
+				     en->goal.goaly,
+				     best_distance);
     }
 
     // Finally, reduce the iteration count, and maybe clean up the
@@ -1086,7 +1105,11 @@ struct UIThread {
 	MutexLock ml(&pftwo->tree_m);
 	printf("Saving best.\n");
 	auto best = pftwo->tree->heap.GetByIndex(0);
-	vector<Problem::Input> path_rev;
+
+	// Each segment of the solution, along with a subtitle for
+	// the sequence.
+	std::list<pair<string, Tree::Seq>> path;
+
 	const Tree::Node *n = best.value;
 	while (n->parent != nullptr) {
 	  const Tree::Node *parent = n->parent;
@@ -1105,23 +1128,28 @@ struct UIThread {
 	  CHECK(seq != nullptr) << "Oops, when saving, I couldn't find "
 	    "the path to this node; it must have been misparented!";
 
-	  for (int i = seq->size() - 1; i >= 0; i--) {
-	    path_rev.push_back((*seq)[i]);
-	  }
+	  path.emplace_front(n->subtitle, *seq);
 	  n = parent;
 	}
 
-	// Reverse path.
-	vector<Problem::Input> path;
-	path.reserve(path_rev.size());
-	for (int i = path_rev.size() - 1; i >= 0; i--) {
-	  path.push_back(path_rev[i]);
+	// Create subtitle vector.
+	vector<pair<int, string>> subtitles;
+	vector<Problem::Input> all_inputs;
+	int node_num = 0;
+	for (const pair<string, Tree::Seq> &p : path) {
+	  // Could put more info from the node here...
+	  subtitles.emplace_back((int)all_inputs.size(),
+				 StringPrintf("%d. %s", node_num,
+					      p.first.c_str()));
+	  for (const Problem::Input input : p.second)
+	    all_inputs.push_back(input);
+	  node_num++;
 	}
 	string filename = StringPrintf("frame-%lld", frame);
 	pftwo->problem->SaveSolution(filename,
-				     path,
-				     best.value->state,
-				     "info TODO");
+				     all_inputs,
+				     subtitles,
+				     "generatd by pftwo");
       }
 
 

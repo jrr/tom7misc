@@ -1,10 +1,12 @@
 game contra.nes
-movie contra2p.fm2
+movie contra2pwaterfall.fm2
 # workers 11
 workers 11
 
 warmup 800
 # fastforward 7700
+# to waterfall level:
+fastforward 11800
 
 # These are cheater hints! Playfun should deduce these
 # automatically (using new techniques).

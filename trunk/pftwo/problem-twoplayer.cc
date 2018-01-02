@@ -42,38 +42,36 @@ TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
 
 void TPP::SaveSolution(const string &filename_part,
 		       const vector<Input> &inputs,
-		       const State &state,
+		       const vector<pair<int, string>> &subtitles,
 		       const string &info) {
   // Just the controller inputs are saved.
   vector<pair<uint8, uint8>> all_inputs;
-  map<int, string> subtitles;
-  subtitles[0] = "warmup";
-  for (int i = 0; i < warmup_frames; i++) {
+  for (int i = 0; i < fastforward; i++) {
     all_inputs.push_back(original_inputs[i]);
   }
-  if (fastforward >= 0) {
-    subtitles[all_inputs.size()] = "fastforward";
-    for (int i = warmup_frames; i < fastforward; i++) {
-      all_inputs.push_back(original_inputs[i]);
-    }
-  }
-  subtitles[all_inputs.size()] = "";
 
+  // Have to shift the subtitles to account for warmup/fastforward.
+  vector<pair<int, string>> shifted_subtitles;
+  shifted_subtitles.emplace_back(0,
+				 warmup_frames == fastforward ?
+				 "(warmup)" :
+				 "(fastforward)");
+  
+  for (const auto &p : subtitles)
+    shifted_subtitles.emplace_back(p.first + all_inputs.size(),
+				   p.second);
+  
   for (const Input &input : inputs) {
     all_inputs.push_back({Player1(input), Player2(input)});
-    // (Can add subtitles for other types of input, if any).
   }
 
-  vector<pair<int, string>> subtitle_vec;
-  for (const pair<const int, string> &sub : subtitles)
-    subtitle_vec.emplace_back(sub.first, sub.second);
   SimpleFM2::WriteInputsWithSubtitles2P(
       StringPrintf("%s-%s.fm2", game.c_str(), filename_part.c_str()),
       game,
       // Take from inputs?
       "base64:WlwvTxyvsfVajcDVrUVQ5Q==",
       all_inputs,
-      subtitle_vec);
+      shifted_subtitles);
 }
 
 // Like atoi, but allowing nonnegative hex values with 0x prefix
