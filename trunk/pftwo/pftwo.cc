@@ -17,6 +17,12 @@
 // hand-written objectives that are trustworthy) and an offline
 // pipeline that can measure performance on that set, for tuning
 // hyperparameters and seeing whether ideas actually pan out.
+//
+// TODO: If Score() isn't just made of the objective functions (e.g.
+// it contains penalty for protected locations), then it's possible
+// that we Observe a really good value but don't actually have it in
+// our tree because the Score() isn't really good. (For example, if
+// you beat the level but one of the players is dead.)
 
 #include <algorithm>
 #include <vector>
@@ -132,11 +138,13 @@ struct Tree {
     // will be temporarily violated during insertion/deletion).
     int location = -1;
 
-    // Reference count. When zero (and the lock not held), the node
-    // can be garbage collected.
-    uint8 num_workers_using = 0;
+    // Reference count. This also includes outstanding explore nodes
+    // sourced from this node. When zero (and the lock not held), the
+    // node can be garbage collected.
+    int num_workers_using = 0;
   };
 
+  // Everything in ExploreNode also protected by the tree mutex.
   struct ExploreNode {
     // Points to the tree Node that this exploration began from.
     // Sequences continue from that node, for example.
@@ -210,6 +218,9 @@ struct PF2 {
     Counter sequences_tried;
     Counter sequences_improved;
     Counter sequences_improved_denom;
+
+    Counter explore_iters;
+    Counter explore_deaths;
   };
   Stats stats;
 
@@ -263,6 +274,45 @@ struct WorkThread {
     return n;
   }
 
+  // Must hold tree mutex!
+  // Doesn't update any reference counts.
+  Node *FindGoodNodeWithMutex() {
+    const int size = pftwo->tree->heap.Size();
+    CHECK(size > 0) << "Heap should always have root, at least.";
+
+    // XXX This stuff is a hack. Improve it!
+    //
+    // The idea here is to choose a good node to start; in a heap,
+    // good nodes are towards the beginning of the array.
+    // Gaussian centered on 0; use 0 for anything out of bounds.
+    // (n.b. this doesn't seem to help get unstuck -- evaluate it)
+    const int g = (int)(gauss.Next() * (size * 0.25));
+    const int idx = (g <= 0 || g >= size) ? 0 : g;
+
+    Heap<double, Node>::Cell cell = pftwo->tree->heap.GetByIndex(idx);
+    Node *ret = cell.value;
+
+    // Now ascend up the tree to avoid picking nodes that have high
+    // scores but have been explored at lot (this means it's likely
+    // that they're dead ends).
+    for (;;) {
+      if (ret->parent == nullptr)
+	break;
+
+      // TODO: Here, incorporate the number of expansions that caused
+      // the score to go down (a lot?)?
+      double p_to_ascend = 0.1 +
+	// Sigmoid with a chance of ~3.5% for cell that's never been chosen
+	// before, a 50% chance around 300, and a plateau at 80%.
+	(0.8 / (1.0 + exp((ret->chosen - 300.0) * -.01)));
+      if (RandDouble(&rc) >= p_to_ascend)
+	break;
+      // printf("[A]");
+      ret = ret->parent;
+    }
+    return ret;
+  }
+    
   // Pick the next node to explore. Must increment the chosen field.
   // n is the current node, which may be discarded; this function
   // also maintains correct reference counts.
@@ -274,36 +324,8 @@ struct WorkThread {
     // Simple policy: 50% chance of switching to the best node
     // in the heap; 50% chance of staying with the current node.
     if (rc.Byte() < 128 + 64 /* XXX */) {
-      const int size = pftwo->tree->heap.Size();
-      CHECK(size > 0) << "Heap should always have root, at least.";
-
-      // Gaussian centered on 0; use 0 for anything out of bounds.
-      // (n.b. this doesn't seem to help get unstuck -- evaluate it)
-      const int g = (int)(gauss.Next() * (size * 0.25));
-      const int idx = (g <= 0 || g >= size) ? 0 : g;
-
-      Heap<double, Node>::Cell cell = pftwo->tree->heap.GetByIndex(idx);
-      Node *ret = cell.value;
-
-      // Now ascend up the tree to avoid picking nodes that have high
-      // scores but have been explored at lot (this means it's likely
-      // that they're dead ends).
-      for (;;) {
-	if (ret->parent == nullptr)
-	  break;
-
-	// TODO: Here, incorporate the number of expansions that caused
-	// the score to go down (a lot?)?
-	double p_to_ascend = 0.1 +
-	  // Sigmoid with a chance of ~3.5% for cell that's never been chosen
-	  // before, a 50% chance around 300, and a plateau at 80%.
-	  (0.8 / (1.0 + exp((ret->chosen - 300.0) * -.01)));
-	if (RandDouble(&rc) >= p_to_ascend)
-	  break;
-	// printf("[A]");
-	ret = ret->parent;
-      }
-
+      Node *ret = FindGoodNodeWithMutex();
+      
       // Giving up on n.
       n->num_workers_using--;
       ret->num_workers_using++;
@@ -317,6 +339,36 @@ struct WorkThread {
     }
   }
 
+  // Add a new child to the node (unless it's a duplicate).
+  // Returns the new node or existing child. Doesn't change
+  // reference counts. Must hold the tree lock.
+  Node *ExtendNodeWithLock(Node *n,
+			   const Tree::Seq &seq,
+			   Problem::State newstate,
+			   double newscore) {
+    CHECK(n != nullptr);
+    Node *child = new Node(std::move(newstate), n);
+    auto res = n->children.insert({seq, child});
+    if (!res.second) {
+      // By dumb luck (this might not be that rare if the markov
+      // model is sparse), we already have a node with this
+      // exact path. We don't allow replacing it.
+      pftwo->stats.same_expansion.Increment();
+
+      delete child;
+      return res.first->second;
+    } else {
+      pftwo->tree->num_nodes++;
+      pftwo->tree->heap.Insert(-newscore, child);
+      CHECK(child->location != -1);
+      return child;
+    }
+  }
+
+  // XXX a lot of this function duplicates the above (which is used
+  // directly during exploration). We should figure out how to merge
+  // them.
+  // 
   // Extend a node with some sequence that we already ran, and
   // that results in the newstate with newscore.
   //
@@ -324,7 +376,7 @@ struct WorkThread {
   // child; drops the reference to n and acquires a reference to the
   // new child.
   Node *ExtendNode(Node *n,
-		   const vector<Problem::Input> &step,
+		   const Tree::Seq &seq,
 		   Problem::State newstate,
 		   double newscore) {
     CHECK(n != nullptr);
@@ -342,7 +394,7 @@ struct WorkThread {
       n->was_loss++;
     }
 
-    auto res = n->children.insert({step, child});
+    auto res = n->children.insert({seq, child});
 
     CHECK(n->num_workers_using > 0);
     n->num_workers_using--;
@@ -395,6 +447,11 @@ struct WorkThread {
       if (tree->update_in_progress)
 	return;
 
+      // Also, we're not allowed to make steps until
+      // the explore queue is empty.
+      if (!tree->explore_queue.empty())
+	return;
+      
       if (tree->steps_until_update == 0) {
 	tree->steps_until_update = Tree::UPDATE_FREQUENCY;
 	tree->update_in_progress = true;
@@ -478,6 +535,8 @@ struct WorkThread {
 	// Compute the 'area under the curve' for the nodes we're keeping.
 	// This is high when all the nodes have almost the maximum score,
 	// which suggests that we are 'stuck.'
+
+
 	double auc = 0.0;
 	for (int i = 0; i < MAX_NODES; i++) {
 	  auc += cutoffs[i];
@@ -529,6 +588,32 @@ struct WorkThread {
 	       (end_ms - start_ms) / 1000.0);
 
 	// Now, find some nodes for exploration.
+	CHECK(tree->explore_queue.empty());
+	if (tree->stuckness > 0.50) {
+	  static constexpr int NUM_EXPLORE_NODES = 50;
+	  static constexpr int NUM_EXPLORE_ITERATIONS = 50;
+	  // More stuck = more exploration.
+	  int num_explore = NUM_EXPLORE_NODES * tree->stuckness;
+	  while (num_explore--) {
+	    // XXX I think it would be better if we required the
+	    // score to be close to the max score, because otherwise
+	    // there's basically no chance of this helping.
+	    Node *source = FindGoodNodeWithMutex();
+	    source->num_workers_using++;
+	    Problem::Goal goal = pftwo->problem->RandomGoal(&rc);
+	    
+	    Tree::ExploreNode en;
+	    en.source = source;
+	    en.goal = goal;
+	    en.closest_state = source->state;
+	    en.distance = pftwo->problem->GoalDistance(goal, source->state);
+	    en.iterations_left = NUM_EXPLORE_ITERATIONS;
+	    en.iterations_in_progress = 0;
+	    tree->explore_queue.push_back(std::move(en));
+	    printf("Explore node %p goal %d,%d\n", source,
+		   (int)goal.goalx, (int)goal.goaly);
+	  }
+	}
       }
     }
 
@@ -539,10 +624,187 @@ struct WorkThread {
     }
   }
 
+  // Holding the tree mutex, find any explore node in the explore
+  // queue, increment its reference count, and return a pointer to
+  // it. The pointer stays valid even if the lock is relinquished,
+  // since the reference count is nonzero. Returns nullptr if none
+  // can be found.
+  Tree::ExploreNode *GetExploreNodeWithMutex() {
+    // PERF We'd get better lock contention and not have to go through
+    // the list as much if we had workers working on different nodes,
+    // right? Could move the node we select to the back in constant time.
+    std::list<Tree::ExploreNode> *explore_queue = &pftwo->tree->explore_queue;
+    for (std::list<Tree::ExploreNode>::iterator it = explore_queue->begin();
+	 it != explore_queue->end(); ++it) {
+      Tree::ExploreNode *en = &*it;
+      if (en->iterations_left > 0) {
+	en->iterations_left--;
+	en->iterations_in_progress++;
+	return en;
+      }
+    }
+    // Didn't find any.
+    return nullptr;
+  }
+  
+  // Returns true if we should continue processing the queue.
+  bool ProcessExploreQueue() {
+    Tree::ExploreNode *en = nullptr;
+    Tree::Seq start_seq;
+    Problem::State start_state;
+    double start_dist = -1.0;
+    {
+      MutexLock ml(&pftwo->tree_m);
+      en = GetExploreNodeWithMutex();
+      if (en == nullptr) return false;
+      // I should have a lock.
+      CHECK(en->iterations_in_progress > 0);
+      start_seq = en->closest_seq;
+      start_state = en->closest_state;
+      start_dist = en->distance;
+    }
+    
+    // Load source state.
+    worker->SetStatus("Exploring");
+    worker->Restore(start_state);
 
+    worker->SetStatus("Explore inputs");
+
+    // Generate a random sequence.
+    constexpr double MEAN = 180.0;
+    constexpr double STDDEV = 60.0;
+
+    int num_frames = gauss.Next() * STDDEV + MEAN;
+    if (num_frames < 1) num_frames = 1;
+
+    Problem::InputGenerator gen = worker->Generator(&rc);
+    // XXX maybe would be cleaner to populate the full
+    // sequence starting with start_seq, but then only
+    // execute the new suffix. Both places below we need
+    // to concatenate these.
+    Tree::Seq seq;
+    seq.reserve(num_frames);
+    for (int frames_left = num_frames; frames_left--;) {
+      seq.push_back(gen.RandomInput(&rc));
+    }
+
+    // Now, execute it. Keep track of the closest that we got
+    // to our goal, since we'll use that to update the explore
+    // node.
+    double best_distance = start_dist;
+    Problem::State closest_state;
+    // Excuting up to and including this index.
+    int best_prefix = -1;
+    bool bad = false;
+    worker->SetStatus("Explore exec");
+    for (int i = 0; i < seq.size(); i++) {
+      const Problem::Input input = seq[i];
+      worker->Exec(input);
+      Problem::State after = worker->Save();
+      double penalty = pftwo->problem->EdgePenalty(start_state, after);
+      // If we die, don't use this sequence at all.
+      // XXX checking exactly 1.0 here is bad. But how?
+      if (penalty < 1.0) {
+	bad = true;
+	break;
+      }
+
+      // PERF could avoid saving every iteration if we computed this
+      // from the worker state
+      double dist = pftwo->problem->GoalDistance(en->goal, after);
+
+      if (dist < best_distance) {
+	best_prefix = i;
+	closest_state = after;
+	best_distance = dist;
+      }
+    }
+
+    worker->SetStatus("Explore post");
+    if (!bad && best_prefix >= 0) {
+      // At some point, we got closer to the goal. Put this in
+      // the ExploreNode if it is still an improvement (might have
+      // lost a race).
+      MutexLock ml(&pftwo->tree_m);
+      if (best_distance < en->distance) {
+	en->distance = best_distance;
+	en->closest_state = closest_state;
+	// The sequence is actually the start sequence plus
+	// our prefix.
+	en->closest_seq = start_seq;
+	// Note that the prefix is inclusive of the endpoint; see above.
+	for (int i = 0; i <= best_prefix; i++) {
+	  en->closest_seq.push_back(seq[i]);
+	}
+      }
+    }
+
+    // Now, add the node to our tree, using that source.
+    // We don't increment the expansion/failure counts because it's
+    // not fair to penalize this state just because we used it for
+    // exploration (e.g. our goal might be right in the lava!)
+
+    if (!bad) {
+      worker->SetStatus("Explore extend");
+      MutexLock ml(&pftwo->tree_m);
+      Tree::Seq full_seq = start_seq;
+      for (const Problem::Input input : seq) {
+	full_seq.push_back(input);
+      }
+
+      // PERF could avoid saving again here (using the last save from
+      // the loop above), but better would be to fix the fact that we
+      // keep saving in that loop...
+      Problem::State newstate = worker->Save();
+      double score = pftwo->problem->Score(newstate);
+      ExtendNodeWithLock(en->source, full_seq, std::move(newstate), score);
+    }
+
+    // Finally, reduce the iteration count, and maybe clean up the
+    // ExploreNode.
+    {
+      MutexLock ml(&pftwo->tree_m);
+      CHECK(en->iterations_in_progress > 0);
+      en->iterations_in_progress--;
+      if (en->iterations_left == 0 &&
+	  en->iterations_in_progress == 0) {
+	worker->SetStatus("Cleanup ExploreNode");
+
+	CHECK(en->source->num_workers_using > 0) << "Existence in the "
+	  "explore queue is supposed to imply a reference to the source "
+	  "node.";
+	en->source->num_workers_using--;
+
+	// XXX cleaner if we retained this iterator, but this
+	// is correct since pointers in the list are guaranteed
+	// to be stable.
+	std::list<Tree::ExploreNode> *explore_queue =
+	  &pftwo->tree->explore_queue;
+	for (std::list<Tree::ExploreNode>::iterator it = explore_queue->begin();
+	     it != explore_queue->end(); ++it) {
+	  if (en == &*it) {
+	    explore_queue->erase(it);
+	    goto done;
+	  }
+	}
+	CHECK(false) << "Didn't find ExploreNode in queue when "
+	  "trying to delete it!";
+        done:;
+      }
+    }
+
+    // Reflect this work in stats.
+    pftwo->stats.explore_iters.Increment();
+    if (bad) {
+      pftwo->stats.explore_deaths.Increment();
+    }
+
+    // And keep working on queue.
+    return true;
+  }
+    
   void Run() {
     InitializeTree();
-
 
     // Handle to the last node expanded, which will match the current
     // state of the worker. Worker has an outstanding reference count.
@@ -559,13 +821,27 @@ struct WorkThread {
     }
 
     for (;;) {
+      // If the exploration queue isn't empty, we work on it instead
+      // of continuing our work on other nodes.
+      worker->SetStatus("Explore Queue");
+      while (ProcessExploreQueue()) {
+	// OK to ignore the rest of this loop, but we should die if
+	// requested.
+	if (ReadWithLock(&should_die_m, &should_die)) {
+	  worker->SetStatus("Die");
+	  return;
+	}
+      }
+
       // Starting this loop, the worker is in some problem state that
       // corresponds to the node 'last' in the tree. We'll extend this
       // node or find a different one.
       worker->SetStatus("Find start node");
       Node *expand_me = FindNodeToExtend(last);
 
-      // PERF skip this if it's the same as last!
+      // PERF Can sometimes skip this load if expand_me == last. But
+      // we have to worry about the case that we did some intermezzo
+      // exploration in this worker. Anyway, loading is pretty cheap.
       worker->SetStatus("Load");
       CHECK(expand_me != nullptr);
       worker->Restore(expand_me->state);
@@ -580,12 +856,6 @@ struct WorkThread {
       int num_frames = gauss.Next() * STDDEV + MEAN;
       if (num_frames < 1) num_frames = 1;
 
-      // TODO: Within a 'next', it's pointless to set a goal and then
-      // set a different goal (or clear it), because nothing would
-      // cause us to follow that goal. Would probably be better if we
-      // cound avoid doing that. (The goal setting could even be part
-      // of pftwo, rather than hacked into the problem, which would
-      // maybe be better for the issues described in TPP::Score.)
       vector<vector<Problem::Input>> nexts;
       nexts.reserve(NUM_NEXTS);
       for (int num_left = NUM_NEXTS; num_left--;) {
@@ -863,16 +1133,19 @@ struct UIThread {
 	(pftwo->stats.sequences_improved.Get() * 100.0) /
 	(double)pftwo->stats.sequences_improved_denom.Get();
       font->draw(
-	  10, 0,
+	  1, 0,
 	  StringPrintf(
-	      "This is frame %d! "
-	      "%lld tree nodes "
-	      "%d collisions "
-	      "%s%% improvement rate",
+	      "Frame %d! "
+	      "%lld tree nodes  "
+	      "%d collisions  "
+	      "%s%% improvement rate  "
+	      "%d/%d explore deaths",
 	      frame,
 	      tree_size,
 	      pftwo->stats.same_expansion.Get(),
-	      Rtos(improvement_pct).c_str()));
+	      Rtos(improvement_pct).c_str(),
+	      pftwo->stats.explore_deaths.Get(),
+	      pftwo->stats.explore_iters.Get()));
 
       int64 total_steps = 0ll;
       for (int i = 0; i < pftwo->workers.size(); i++) {
@@ -887,7 +1160,41 @@ struct UIThread {
 	total_steps += w->nes_frames.load(std::memory_order_relaxed);
       }
 
-      // Update all screenshots.
+      bool queue_mode = false;
+      {
+	MutexLock ml(&pftwo->tree_m);
+	// Update all screenshots.
+	if (!pftwo->tree->explore_queue.empty()) {
+	  queue_mode = true;
+	  static constexpr int STARTY = 128 + FONTHEIGHT + FONTHEIGHT;
+	  // Draw queue!
+	  // XXX Ugh, there's no good way to visualize in a queue-centric
+	  // way, because we need a worker in order to compute a screenshot.
+	  font->draw(30, STARTY,
+		     StringPrintf("^2EXPLORE QUEUE SIZE: %d",
+				  pftwo->tree->explore_queue.size()));
+
+	  int ypos = STARTY + FONTHEIGHT + 2;;
+	  for (const Tree::ExploreNode &en : pftwo->tree->explore_queue) {
+	    if (ypos > HEIGHT - FONTHEIGHT - 1) break;
+	    font->draw(30, ypos,
+		       StringPrintf("Goal ^3%d^<,^3%d^<  "
+				    "distance ^4%.2f^<  "
+				    "seq ^2%d^<   ^1%d^<|^4%d",
+				    // XXX hard-coded TPP
+				    en.goal.goalx,
+				    en.goal.goaly,
+				    en.distance,
+				    (int)en.closest_seq.size(),
+				    en.iterations_left,
+				    en.iterations_in_progress));
+	    ypos += FONTHEIGHT;
+	  }
+
+	}
+      }
+
+      // Draw workers workin'.
       vector<vector<string>> texts;
       texts.resize(num_workers);
       for (int i = 0; i < num_workers; i++) {
@@ -902,13 +1209,16 @@ struct UIThread {
 	BlitARGBHalf(screenshots[i], 256, 256,
 		     x * 128, y * 128 + 20, screen);
 
-	for (int t = 0; t < texts[i].size(); t++) {
-	  font->draw(x * 128,
-		     (y + 1) * 128 + 20 + t * FONTHEIGHT,
-		     texts[i][t]);
+	if (!queue_mode) {
+	  for (int t = 0; t < texts[i].size(); t++) {
+	    font->draw(x * 128,
+		       (y + 1) * 128 + 20 + t * FONTHEIGHT,
+		       texts[i][t]);
+	  }
 	}
       }
-
+	
+	
       // Gather tree statistics.
       struct LevelStats {
 	int count = 0;

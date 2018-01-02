@@ -4,7 +4,7 @@ movie contra2p.fm2
 workers 11
 
 warmup 800
-fastforward 7700
+# fastforward 7700
 
 # These are cheater hints! Playfun should deduce these
 # automatically (using new techniques).
