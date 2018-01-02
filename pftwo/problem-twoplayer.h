@@ -87,6 +87,13 @@ struct TwoPlayerProblem {
 		    const vector<Input> &inputs,
 		    const State &state,
 		    const string &info);
+
+  Goal RandomGoal(ArcFour *rc) const {
+    Goal goal;
+    goal.goalx = rc->Byte();
+    goal.goaly = rc->Byte();
+    return goal;
+  }
   
   // An individual instance of the emulator that can be used to
   // execute steps. We create one of these per thread.
@@ -218,7 +225,8 @@ struct TwoPlayerProblem {
   }
 
   // Get the distance to the goal. (Should be a proper distance
-  // metric, e.g., >= 0).
+  // metric, e.g., >= 0). Should be cheap to compute (e.g. after every
+  // NES frame.)
   double GoalDistance(const Goal &goal, const State &state) const {
     CHECK(x1_loc >= 0);
     CHECK(y1_loc >= 0);
