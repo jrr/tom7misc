@@ -110,7 +110,6 @@ struct Input {
   struct GPC;
   struct GPCVS;
   struct Fami4C;
-  struct FCPORT;
   
   // Joyports are where the emulator looks to find input during simulation.
   // They're set by FCEUI_SetInput. Each joyport knows its index (w), type,

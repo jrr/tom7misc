@@ -50,11 +50,11 @@
 #include "driver.h"
 #include "fsettings.h"
 
-// Disabled so that I can run comprehensive tests.
-#if false && ENABLE_AOT
+// XXX better way of doing this...
+#if ENABLE_AOT
 // XXX get from some generated header...
-extern void mario_Run(FC *fc, int32 cycles);
-#define Run6502(c) mario_Run(fc, c)
+extern void contra_Run(FC *fc, int32 cycles);
+#define Run6502(c) contra_Run(fc, c)
 #else
 #define Run6502(c) fc->X->Run(c)
 #endif

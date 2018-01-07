@@ -118,13 +118,13 @@ public:
   uint32 CHRmask8[32] = {};
 
 
-  // These functions perform bank switching. The versions without
-  // r just assume r=0. A is the base address that gets switched
-  // (this is basically always a constant at the call site). V
-  // is the value, which I think is like the bank number to
-  // select. (In UNROM, it's latch & 7. But note that in NROM
-  // it's a constant ~0! It gets anded with one of the PRGmasks,
-  // though.)
+  // These functions perform bank switching. The versions without r
+  // just assume r=0. A is the base address that gets switched (this
+  // is basically always a constant at the call site). V is the value,
+  // which I think is like the bank number to select. (In UNROM, we
+  // use latch & 7, but then also ~0! It gets anded with one of the
+  // PRGmasks, though.)
+  //  
   // 2, 4, 8, 16, 32 seem to refer to 2k, 4k, 8k, 16k and 32k banks.
   //
   // I haven't figured it out beyond that.

@@ -33,13 +33,12 @@ struct X6502 {
   // trigger callbacks.
   explicit X6502(FC *fc);
 
-  // PERF NO.
+  #ifdef AOT_INSTRUMENTATION
   int64 pc_histo[0x10000] = {};
   int64 cycles_histo[1024] = {};
-  int64 entered_aot[0x10000] = {};
+  #endif
+  // int64 entered_aot[0x10000] = {};
 
-  int64 inst_histo[0x100] = {};
-  
   /* Temporary cycle counter */
   int32 tcount;
 
