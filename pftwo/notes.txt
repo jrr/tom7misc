@@ -1,4 +1,18 @@
 
+7 Jan 2018
+ - Avoid Death. (Self-Driving cars)
+ - Follow the gradient.
+ - Don't get stuck.
+
+2 Jan 2018
+ - General purpose science experiments?
+ - Longer-term goals for exploring the screen? Like we maintain
+   a node for a grid of positions on the screen, and we have
+   the best score for each quadrant? And we expand from those?
+   I think this might automatically account for the fact that
+   the objectives have right-side bias?
+
+
 29 Dec 2017
 Getting back to this.
 Contra guys are getting stuck trying to climb up the mountain.

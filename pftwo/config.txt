@@ -6,7 +6,7 @@ workers 11
 warmup 800
 # fastforward 7700
 # to waterfall level:
-fastforward 11800
+# fastforward 11800
 
 # These are cheater hints! Playfun should deduce these
 # automatically (using new techniques).

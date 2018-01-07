@@ -18,11 +18,16 @@
 // pipeline that can measure performance on that set, for tuning
 // hyperparameters and seeing whether ideas actually pan out.
 //
-// TODO: If Score() isn't just made of the objective functions (e.g.
-// it contains penalty for protected locations), then it's possible
-// that we Observe a really good value but don't actually have it in
-// our tree because the Score() isn't really good. (For example, if
-// you beat the level but one of the players is dead.)
+// TODO: Players love moving to the right because the x coordinate
+// is part of the objective function. We could perhaps eliminate
+// this by detecting bytes that appear to be the player's coordinates?
+// Or subtracting the x coordinate from such bytes during the
+// exploration phase?
+// Can at least try Contra without that being part of the objective.
+//
+// TODO: It's possible to have an arbitrary number of nodes in the
+// tree (even after reheap) if they all have the same score. Happened
+// when using very 'flat' objectives (like just level+screen).
 
 #include <algorithm>
 #include <vector>
@@ -146,6 +151,11 @@ struct Tree {
     // sourced from this node. When zero (and the lock not held), the
     // node can be garbage collected.
     int num_workers_using = 0;
+
+    // Should only be used inside the tree cleanup procedure. Marks
+    // nodes that should not be garbage collected because they are
+    // among the best.
+    bool keep = false;
   };
 
   // Everything in ExploreNode also protected by the tree mutex.
@@ -474,7 +484,9 @@ struct WorkThread {
 
     pftwo->problem->Commit();
 
-    // Re-build heap.
+    // Re-build heap. We do this by recalculating the score for
+    // each node in place; most of the time this won't change the
+    // shape of the heap much.
     {
       worker->SetStatus("Tree: Reheap");
       const uint32 start_ms = SDL_GetTicks();
@@ -507,38 +519,25 @@ struct WorkThread {
       MutexLock ml(&pftwo->tree_m);
       if (tree->num_nodes > MAX_NODES) {
 	const uint32 start_ms = SDL_GetTicks();
-	uint64 deleted_nodes = 0ULL;
 	printf("Trim tree ...\n");
-	// We can't delete any ancestor of a node that's being
-	// used, including the node itself.
-	// We want to delete the worst scoring nodes.
+	// Here we want to delete the worst-scoring nodes in order
+	// to stay under our budget. We can't delete ancestors of
+	// nodes we keep, and we can't delete a node that a worker
+	// is currently using.
+	
+	// What we'll do is pop the best MAX_NODES nodes from the
+	// heap. This is better than the old way of sorting all the
+	// scores to get a cutoff score, because it's like
+	// MAX_NODES*lg(MAX_NODES) rather than num_nodes*lg(num_nodes)
+	// and it also allows us to arbitrarily break ties. (The tie
+	// situation can get very bad when we have a flat objective
+	// function and are stuck--there can be tens of millions of
+	// nodes with the same score).
 
-	vector<double> cutoffs;
-	cutoffs.reserve(tree->num_nodes);
-	std::function<void(const Node *)> GetScoresRec =
-	  // Returns true if any descendant is in use.
-	  [this, tree, &cutoffs, &GetScoresRec](const Node *n) {
-	  CHECK(n->location != -1);
-	  const double score = -tree->heap.GetCell(n).priority;
-	  cutoffs.push_back(score);
-	  for (const auto &p : n->children) {
-	    GetScoresRec(p.second);
-	  }
-	};
-	GetScoresRec(tree->root);
-
-	// Find best scores. PERF: This can be done much faster than
-	// sorting the whole array. (For example, we could just pop
-	// MAX_NODES off the heap.) But this really isn't a bottleneck
-	// with MAX_NODES=1000.
-	std::sort(cutoffs.begin(), cutoffs.end(), std::greater<double>());
-	CHECK(cutoffs.size() > MAX_NODES) << "Should have inserted one "
-	  "score for every node in the tree, and we know there are more "
-	  "than MAX_NODES of them now: " << cutoffs.size();
-
-	// Compute the 'area under the curve' for the nodes we're keeping.
-	// This is high when all the nodes have almost the maximum score,
-	// which suggests that we are 'stuck.'
+	// We also compute the 'area under the curve' (auc) for the
+	// nodes we're keeping. This is high when all the nodes have
+	// almost the maximum score, which suggests that we are
+	// 'stuck.'
 	//
 	// The objective-function-based score is normalized against
 	// the best value we've ever seen, so it's typical for the
@@ -547,57 +546,93 @@ struct WorkThread {
 	// example, we might be a level but with one of the players dead.
 	// In this case, Score()s might be forever small. So here we
 	// normalize against the single best score when computing AUC.
-	const double one_over_best_score =
-	  cutoffs[0] <= 0.0 ? 0.0 : (1.0 / cutoffs[0]);
-	
+	const double best_score = -tree->heap.GetMinimum().priority;
+	// Predivided normalization factor, and negated because priorities
+	// are negative scores.
+	const double negative_one_over_best_score =
+	  best_score <= 0.0 ? 0.0 : (-1.0 / best_score);
 	double auc = 0.0;
-	for (int i = 0; i < MAX_NODES; i++) {
-	  auc += cutoffs[i] * one_over_best_score;
+	double worst_kept_score = -1.0;
+	for (int i = 0; i < MAX_NODES && !tree->heap.Empty(); i++) {
+	  Heap<double, Node>::Cell best = tree->heap.PopMinimum();
+	  auc += best.priority * negative_one_over_best_score;
+	  best.value->keep = true;
+	  worst_kept_score = -best.priority;
 	}
+
 	tree->stuckness = auc * (1.0 / MAX_NODES);
 	printf("\n ... auc %.2f; stuckness %.4f\n", auc, tree->stuckness);
-	
-	const double min_score = cutoffs[MAX_NODES];
-	printf("\n ... Min score is %.4f\n", min_score);
-	cutoffs.clear();
+	printf("\n ... kept nodes range in score from %.4f to %.4f\n",
+	       worst_kept_score, best_score);
 
+	// Now the heap only contains nodes we don't want.
+	tree->heap.Clear();
+
+	uint64 deleted_nodes = 0ULL;
+	uint64 kept_score = 0ULL, kept_worker = 0ULL, kept_parent = 0ULL;
 	std::function<bool(Node *)> CleanRec =
 	  // Returns true if we should keep this node; otherwise,
 	  // the node is deleted.
-	  [this, tree, &deleted_nodes, min_score, &CleanRec](Node *n) -> bool {
-	  CHECK(n->location != -1);
-	  const double score = -tree->heap.GetCell(n).priority;
-	  bool keep = n->num_workers_using > 0 || score >= min_score;
+	  [this, tree, &deleted_nodes,
+	   &kept_score, &kept_worker, &kept_parent,
+	   &CleanRec](Node *n) -> bool {
+	  if (n->keep)
+	    kept_score++;
+	  if (n->num_workers_using)
+	    kept_worker++;
+	  
+	  bool keep = n->keep || n->num_workers_using > 0;
 
 	  map<Tree::Seq, Node *> new_children;
+	  bool child_keep = false;
 	  for (auto &p : n->children) {
 	    if (CleanRec(p.second)) {
 	      new_children.insert({p.first, p.second});
-	      keep = true;
+	      child_keep = true;
 	    }
 	  }
 	  n->children.swap(new_children);
 
-	  if (!keep) {
-	    tree->heap.Delete(n);
+	  if (child_keep)
+	    kept_parent++;
+	  keep = child_keep || keep;
+	  
+	  if (keep) {
+	    // PERF: We have to recompute the score here; particularly
+	    // for nodes we're keeping because a worker is using it,
+	    // we just cleared the entire heap so we don't even have
+	    // its score.
+	    const double new_score = pftwo->problem->Score(n->state);
+	    tree->heap.Insert(-new_score, n);
+	    n->keep = false;
+	    CHECK(n->location != -1);
+	  } else {
 	    deleted_nodes++;
 	    tree->num_nodes--;
-	    CHECK(n->location == -1);
 	    delete n;
 	  }
-
+	  
 	  return keep;
 	};
-
+	
 	// This should not happen for multiple reasons -- there should
 	// always be a worker working within it, and since it contains
 	// all nodes, one of the MAX_NODES best scores should be beneath
 	// the root!
 	CHECK(CleanRec(tree->root)) << "Uh, the root was deleted.";
 
+	printf("... Reasons for keeping nodes:\n"
+	       "    score is good: %llu\n"
+	       "    worker using: %llu\n"
+	       "    child is kept: %llu\n",
+	       kept_score, kept_worker, kept_parent);
+
+	
 	const uint32 end_ms = SDL_GetTicks();
-	printf(" ... Deleted %llu in %.4f sec. Done.\n",
+	printf(" ... Deleted %llu; now the tree is size %llu.\n"
+	       " ... Done in %.4f sec.\n",
 	       deleted_nodes,
+	       tree->num_nodes,
 	       (end_ms - start_ms) / 1000.0);
 
 	// Now, find some nodes for exploration.
@@ -607,6 +642,7 @@ struct WorkThread {
 	  static constexpr int NUM_EXPLORE_ITERATIONS = 500;
 	  // More stuck = more exploration.
 	  int num_explore = NUM_EXPLORE_NODES * tree->stuckness;
+	  printf("Making %d explore nodes.\n", num_explore);
 	  while (num_explore--) {
 	    // XXX I think it would be better if we required the
 	    // score to be close to the max score, because otherwise
@@ -623,8 +659,6 @@ struct WorkThread {
 	    en.iterations_left = NUM_EXPLORE_ITERATIONS;
 	    en.iterations_in_progress = 0;
 	    tree->explore_queue.push_back(std::move(en));
-	    printf("Explore node %p goal %d,%d\n", source,
-		   (int)goal.goalx, (int)goal.goaly);
 	  }
 	}
       }
