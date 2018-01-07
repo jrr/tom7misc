@@ -651,7 +651,9 @@ void X6502::Run(int32 cycles) {
   TRACEA(fc->fceu->RAM, 0x800);
   // TRACEA(fc->ppu->PPU_values, 4);
 
+  #ifdef AOT_INSTRUMENTATION
   cycles_histo[std::max(0, std::min(cycles, 1023))]++;
+  #endif
   
   if (fc->fceu->PAL) {
     cycles *= 15;  // 15*4=60
@@ -715,7 +717,9 @@ void X6502::RunLoop() {
     reg_PI = reg_P;
     // Get the next instruction.
 
+    #ifdef AOT_INSTRUMENTATION
     pc_histo[reg_PC]++;
+    #endif
     
     const uint8 b1 = RdMem(reg_PC);
     // printf("Read %x -> opcode %02x\n", reg_PC, b1);

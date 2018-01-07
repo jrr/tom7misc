@@ -44,6 +44,14 @@
 #include <mutex>
 #include <thread>
 
+// When we emit a sequence of instructions, we use local variables
+// for the "registers" (registers + some other state) rather than
+// reading and writing through the X object, since locals should be
+// easier for the compiler (and this code generator!) to reason
+// about.
+//
+// I seem to recall that this---curiously!---made the generated code
+// slower.
 #define USE_LOCALS 0
 
 // TODO: Mapper metadata.
@@ -102,7 +110,26 @@ static constexpr uint8 CycTable[256] = {
 };
 
 namespace {
+struct RomConfig {
+  string file;
+
+  // Needs to be set small enough that GCC doesn't crash.
+  // Game-dependent...
+  int entrypoints_per_file = 512;
+  // The region of code to generate. AOT assumes that the
+  // data in this region cannot change (e.g. from bank switching).
+  // This should also come from mapper metadata.
+  int code_addr_start = 0;
+  int code_addr_after_end = 0;
+  
+  // This is an assertion today; should come from mapper metadata.
+  bool effectless_read_8000_ffff = false;
+};
+
+// Configuration during code generation; this should be derived from
+// the emulated ROM or from ROMConfig.
 struct CodeConfig {
+  int entrypoints_per_file = 512;
   bool is_pal = false;
   bool has_map_irq_hook = false;
   // True if reads from this region can be discarded or duplicated
@@ -592,10 +619,10 @@ struct AOT {
     #endif
   }
 
-  // Flush the locals in the set to the X object. We do this before
-  // entering code that we don't understand, or exiting the AOT
-  // compiled routines (so that their values are reflected in the rest
-  // of the emulator!)
+  // Write the values of locals in the set back to the X object. We do
+  // this before entering code that we don't understand, or exiting
+  // the AOT compiled routines (so that their values are reflected in
+  // the rest of the emulator!)
   void FlushLocals(FILE *f, uint32 mask) {
     #if USE_LOCALS
     fprintf(f, I);
@@ -643,6 +670,8 @@ struct AOT {
   }
 
   #if 0
+  // I think the idea here was to remove some of the cycle-timing
+  // checks in straight line code?
   int MaxCycles(const Code &code, uint8 b1, uint32 pc_addr) {
     // Maximum cycles that an instruction can take.
     // This is in whatever units ADDCYC takes, which is not the
@@ -691,7 +720,8 @@ struct AOT {
 	  // external read handlers could do anything (and some do). It
 	  // would also be useful if handler metadata told us that some
 	  // registers are untouched.
-	  // PERF pc is impossible, at least
+
+	  // But the PC (and jammed bit) can't be modified in mappers.
 	  FlushLocals(f, ~PRIVATE_TO_X6502);
 	  fprintf(f, 
 		  I "const uint8 %s = fceu->ARead[0x%04x](fc, 0x%04x);\n",
@@ -706,7 +736,9 @@ struct AOT {
 	fprintf(f,
 		I "const uint16 %s = %s;\n", addr_sym.c_str(),
 		addr.String().c_str());
-	// PERF pc is impossible, at least
+
+	// Unknown address so very little hope that we can save locals.
+	// But the PC (and jammed bit) can't be modified in mappers.
 	FlushLocals(f, ~PRIVATE_TO_X6502);
 	fprintf(f, 
 		I "const uint8 %s = fceu->ARead[%s](fc, %s);\n",
@@ -895,7 +927,7 @@ struct AOT {
     auto GetABIWR = [this, f, &pc_addr, &GetAB, &ReadMem](Exp<uint8> idx) {
       const string sym = GenSym("abiwr");
       Exp<uint16> rt = GetAB();
-      fprintf(f, I "uint16 %s = %s + (uint16)(%s);\n",
+      fprintf(f, I "const uint16 %s = %s + (uint16)(%s);\n",
 	      sym.c_str(), rt.String().c_str(), idx.String().c_str());
       Exp<uint8> unused = ReadMem(
 	  Exp<uint16>(StringPrintf("((%s & 0x00FF) | ((%s) & 0xFF00))",
@@ -1171,13 +1203,13 @@ struct AOT {
     auto ST_ABX = [this, f, &ST_ABI](
 	std::function<Exp<uint8>(Exp<uint16>)> op) {
       const string sym = GenSym("stabx");
-      fprintf(f, "const uint8 %s = " LOCAL_X ";\n", sym.c_str());
+      fprintf(f, I "const uint8 %s = " LOCAL_X ";\n", sym.c_str());
       ST_ABI(Exp<uint8>(sym), op);
     };
     auto ST_ABY = [this, f, &ST_ABI](
 	std::function<Exp<uint8>(Exp<uint16>)> op) {
       const string sym = GenSym("staby");
-      fprintf(f, "const uint8 %s = " LOCAL_Y ";\n", sym.c_str());
+      fprintf(f, I "const uint8 %s = " LOCAL_Y ";\n", sym.c_str());
       ST_ABI(Exp<uint8>(sym), op);
     };
 
@@ -1285,7 +1317,7 @@ struct AOT {
 
     auto CMPL = [this, &code, f, &X_ZN](string reg, Exp<uint8> a2) {
       const string sym = GenSym("c");
-      fprintf(f, I "uint32 %s = (uint32)(%s) - (uint32)(%s);\n",
+      fprintf(f, I "const uint32 %s = (uint32)(%s) - (uint32)(%s);\n",
 	      sym.c_str(),
 	      reg.c_str(), a2.String().c_str());
       X_ZN(StringPrintf("%s & 0xFF", sym.c_str()));
@@ -1316,14 +1348,16 @@ struct AOT {
     // source.
     auto DEC = [this, f, &X_ZN](Exp<uint8> x) {
       const string sym = GenSym("dec");
-      fprintf(f, I "uint8 %s = %s - 1;\n", sym.c_str(), x.String().c_str());
+      fprintf(f, I "const uint8 %s = %s - 1;\n",
+	      sym.c_str(), x.String().c_str());
       X_ZN(sym);
       return Exp<uint8>(sym);
     };
 
     auto INC = [this, f, &X_ZN](Exp<uint8> x) {
       const string sym = GenSym("inc");
-      fprintf(f, I "uint8 %s = %s + 1;\n", sym.c_str(), x.String().c_str());
+      fprintf(f, I "const uint8 %s = %s + 1;\n",
+	      sym.c_str(), x.String().c_str());
       X_ZN(sym);
       return Exp<uint8>(sym);
     };
@@ -1333,7 +1367,7 @@ struct AOT {
       const string sym = GenSym("asl");
       fprintf(f, I LOCAL_P " = (" LOCAL_P " & ~C_FLAG) | ((%s) >> 7);\n",
 	      x.String().c_str());
-      fprintf(f, I "uint8 %s = (uint8)(%s << 1);\n",
+      fprintf(f, I "const uint8 %s = (uint8)(%s << 1);\n",
 	      sym.c_str(), x.String().c_str());
       X_ZN(sym);
       return Exp<uint8>(sym);
@@ -1346,7 +1380,7 @@ struct AOT {
 	      I LOCAL_P " = (" LOCAL_P " & ~(C_FLAG | N_FLAG | Z_FLAG)) |\n"
 	      I "  ((%s) & 1);\n",
 	      x.String().c_str());
-      fprintf(f, I "uint8 %s = ((uint8)%s) >> 1;\n",
+      fprintf(f, I "const uint8 %s = ((uint8)%s) >> 1;\n",
 	      sym.c_str(), x.String().c_str());
       X_ZNT(sym);
       return Exp<uint8>(sym);
@@ -2850,7 +2884,7 @@ struct AOT {
 	// trigger DMA calls that call ADDCYC, so we need to make sure
 	// that we don't set to 0 after the call.)
 	fprintf(f, I "{\n"
-		I "  int32 temp = " LOCAL_TCOUNT ";\n"
+		I "  const int32 temp = " LOCAL_TCOUNT ";\n"
 		I "  " LOCAL_TCOUNT " = 0;\n");
 
 	// Known effects of sound:
@@ -2931,13 +2965,14 @@ struct AOT {
   
   int64 next_symbol = 0;
 };
-  
-static void GenerateCode(const CodeConfig &config,
-			 const Code &code,
-			 uint32 addr_start,
-			 uint32 addr_past_end,
-			 const string &symbol,
-			 const string &cart_name) {
+
+// Returns the files written (without .cc extension).
+static vector<string> GenerateCode(const CodeConfig &config,
+				   const Code &code,
+				   uint32 addr_start,
+				   uint32 addr_past_end,
+				   const string &symbol,
+				   const string &cart_name) {
   CHECK(addr_start <= 0xFFFF);
   CHECK(addr_past_end <= 0x10000);
 
@@ -2953,18 +2988,23 @@ static void GenerateCode(const CodeConfig &config,
   // (RunLoop), which is of course fully general. So our goal here is
   // to find cases that are very common and optimize those.
 
-  static constexpr int ENTRYPOINTS_PER_FILE = 512;
   vector<int> start_addrs;
-  for (int i = addr_start; i < addr_past_end; i += ENTRYPOINTS_PER_FILE) {
+  for (int i = addr_start;
+       i < addr_past_end;
+       i += config.entrypoints_per_file) {
     start_addrs.push_back(i);
   }
 
-  auto F = [&config, &code, addr_start, addr_past_end, &symbol, &cart_name](
-      int i) {
+  std::mutex ret_m;
+  vector<string> ret;
+  
+  auto F = [&config, &code, addr_start, addr_past_end, &symbol, &cart_name,
+	    &ret_m, &ret](int i) {
     AOT aot;
-    string filename = StringPrintf("%s_%d.cc", symbol.c_str(), i);
+    string filebase = StringPrintf("%s_%d", symbol.c_str(), i);
+    string filename = filebase + ".cc";
     FILE *f = fopen(filename.c_str(), "w");
-
+    
     // Prelude.
     fprintf(f,
 	    "// Generated code! Do not edit.\n"
@@ -2989,15 +3029,22 @@ static void GenerateCode(const CodeConfig &config,
 	    symbol.c_str());
 
     // Then, a function for each address entry point.
-    for (uint32 j = i; j < addr_past_end && j < i + ENTRYPOINTS_PER_FILE; j++) {
+    for (uint32 j = i;
+	 j < addr_past_end && j < i + config.entrypoints_per_file;
+	 j++) {
       aot.GenerateEntry(config, code, j, addr_past_end, symbol, f);      
     }
 
-    fprintf(stderr, "Wrote %s.\n", filename.c_str());
     fclose(f);
+    {
+      MutexLock ml(&ret_m);
+      ret.push_back(filebase);
+      fprintf(stderr, "Wrote %s.\n", filename.c_str());
+    }
   };
   
-  ParallelApp(start_addrs, F, 12);
+  ParallelApp(start_addrs, F, 16);
+  return ret;
 }
 
 // One of these per compiled file. It does the per-Run setup and
@@ -3060,27 +3107,77 @@ static void GenerateDispatcher(const CodeConfig &config,
   fclose(f);
 }
 
+// XXX this could come from text file, duh
+RomConfig MarioROM() {
+  RomConfig rom;
+  rom.file = "mario.nes";
+  rom.entrypoints_per_file = 512;
+  // This is where the code resides in mario.nes. It never gets
+  // remapped (mapper 0 cannot remap), and it is not writable
+  // (only RAM and 6000-7fff are writable).
+  rom.code_addr_start = 0x8000;
+  rom.code_addr_after_end = 0x10000;
+  rom.effectless_read_8000_ffff = true;
+  return rom;
+}
+
+RomConfig ContraROM() {
+  RomConfig rom;
+  // This is mapper 2, UNROM. See boards/datalatch.cc.
+  rom.file = "contra.nes";
+  rom.entrypoints_per_file = 16;
+  // 8000-BFFF is bank switched.
+  // C000-FFFF is hardwired to last bank.
+  // The PC does seem to go into 8000-BFFF (fceux debugger), so
+  // the fact that we don't understand bank switching here likely
+  // hurts us.
+  rom.code_addr_start = 0xC000;
+  // The last bank of contra ends with a bunch of FF FF FF FF,
+  // which produecs bad bloated code that we don't need. So stop
+  // compiling before that.
+  rom.code_addr_after_end = 0xf5ac;
+  // Writes definitely do something (bank switching), but I think
+  // reads are effectless.
+  rom.effectless_read_8000_ffff = true;
+  return rom;
+}
+
 int main(int argc, char **argv) {
   string romdir = "roms/";
 
-  std::unique_ptr<Emulator> emu(Emulator::Create("mario.nes"));
+  if (argc != 2) {
+    printf("Give the name of a game (no extension) on the command-line; "
+	   "it must have already been documented inside aot.cc.\n");
+    return -1;
+  }
+
+  string game = argv[1];
+  RomConfig rom;
+  if (game == "mario") {
+    rom = MarioROM();
+  } else if (game == "contra") {
+    rom = ContraROM();
+  } else {
+    printf("Unknown game %s. You have to put some constants in aot.cc.\n",
+	   game.c_str());
+    return -1;
+  }
+  
+  std::unique_ptr<Emulator> emu(Emulator::Create(romdir + "/" + rom.file));
 
   Timer compile_timer;
 
   FC *fc = emu->GetFC();
 
-  // Grab a specific block of RAM. I know this is where the code
-  // resides in mario.nes, that it never gets remapped (mapper 0
-  // cannot remap), and that it is not writable (only RAM and
-  // 6000-7ffff are writable).
-  //
   // Note that even if an area isn't writable, it's possible that it's
   // unmapped, in which case the read returns the value of the last
   // read (this is usually predictable statically, but definitely
   // complicates things). For mapper 0, all of 0x8000-0x7fff is mapped
   // to cart rom (CartBR).
   Code code;
-  for (uint32 addr = 0x8000; addr < 0x10000; addr++) {
+  for (uint32 addr = rom.code_addr_start;
+       addr < rom.code_addr_after_end;
+       addr++) {
     code.known[addr] = true;
     code.code[addr] = fc->fceu->ARead[addr](fc, addr);
     // Can do this to generate all instructions to make sure they
@@ -3089,15 +3186,34 @@ int main(int argc, char **argv) {
   }
 
   CodeConfig config;
+  config.entrypoints_per_file = rom.entrypoints_per_file;
   config.is_pal = !!fc->fceu->PAL;
   config.has_map_irq_hook = fc->X->MapIRQHook != nullptr;
-  config.effectless_read_8000_ffff = true;
-  
-  GenerateCode(config, code, 0x8000, 0x10000, "mario", "mario.nes");
-  GenerateDispatcher(config, 0x8000, 0x10000, "mario", "mario.cc");
-  
-  double compile_seconds = compile_timer.GetSeconds();
+  config.effectless_read_8000_ffff = rom.effectless_read_8000_ffff;
 
+  vector<string> files =
+    GenerateCode(config, code, rom.code_addr_start, rom.code_addr_after_end,
+		 game, rom.file);
+  GenerateDispatcher(config, rom.code_addr_start, rom.code_addr_after_end,
+		     game, game + ".cc");
+  files.push_back(game);
+
+  {
+    // This just makes it easier to manually build makefiles during
+    // development. XXX do this a better way.
+    FILE *mf = fopen(StringPrintf("%s.makefile", game.c_str()).c_str(),
+		     "w");
+    CHECK(mf != nullptr);
+    fprintf(mf, "FCEULIB_GAME_OBJECTS= ");
+    for (const string &f : files) {
+      fprintf(mf, "%s.o ", f.c_str());
+    }
+    fprintf(mf, "\n");
+    fclose(mf);
+  }
+    
+  double compile_seconds = compile_timer.GetSeconds();
+  
   fprintf(stderr, "Finished.\n"
           "Compile time: %.4fs\n",
           compile_seconds);
