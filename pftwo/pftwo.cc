@@ -28,6 +28,13 @@
 // TODO: It's possible to have an arbitrary number of nodes in the
 // tree (even after reheap) if they all have the same score. Happened
 // when using very 'flat' objectives (like just level+screen).
+//
+// TODO: min-max heap would allow us a very cheap "1000 best nodes"
+// representation.
+//
+// TODO: Rather than choosing random goals, choose goals that aren't
+// already represented in the grid, and perhaps choose ones that are
+// adjacent to covered cells.
 
 #include <algorithm>
 #include <vector>
@@ -595,6 +602,16 @@ struct WorkThread {
 
     pftwo->problem->Commit();
 
+    #if 0
+    {
+      // Really we should be considering every node for a new position
+      // in the grid (XXX we could do this as we look at each node
+      // below) but at a minimum we need to make the grid scores
+      // accurate.
+      MutexLock ml(&pftwo->tree_m);
+    }
+    #endif
+    
     // Re-build heap. We do this by recalculating the score for
     // each node in place; most of the time this won't change the
     // shape of the heap much.
@@ -603,7 +620,21 @@ struct WorkThread {
       const uint32 start_ms = SDL_GetTicks();
       {
 	MutexLock ml(&pftwo->tree_m);
+
+	printf("Clear grid ...");
+	// First, just clear the grid since every node has a chance to
+	// become the best in a cell below, including the ones that are
+	// already there.
+	for (Tree::GridCell &gc : pftwo->tree->grid) {
+	  if (gc.node != nullptr) {
+	    gc.node->used_in_grid--;
+	    gc.score = 0.0;
+	    gc.node = nullptr;
+	  }
+	}
+	
 	printf("Reheap ... ");
+
 	// tree->heap.Clear();
 
 	std::function<void(Node *)> ReHeapRec =
@@ -615,6 +646,7 @@ struct WorkThread {
 	    // are more minimum for the heap ordering.
 	    tree->heap.AdjustPriority(n, -new_score);
 	    CHECK(n->location != -1);
+	    AddToGridWithLock(n, new_score);
 	  }
 	  for (pair<const Tree::Seq, Node *> &child : n->children) {
 	    ReHeapRec(child.second);
@@ -625,7 +657,7 @@ struct WorkThread {
       const uint32 end_ms = SDL_GetTicks();
       printf("Done in %.4f sec.\n", (end_ms - start_ms) / 1000.0);
     }
-
+    
     {
       MutexLock ml(&pftwo->tree_m);
       if (tree->num_nodes > MAX_NODES) {
@@ -1413,6 +1445,8 @@ struct UIThread {
 	    }
 	  }
 	}
+	smallfont->draw(GRIDX, GRIDY,
+			StringPrintf("best ^3%.4f", bestscore));
       }
       
       // Draw workers workin'.
@@ -1534,6 +1568,7 @@ struct UIThread {
 			      (total_steps / sec) / 1000.0,
 			      frame / sec));
 
+      // XXX maybe show the grid cells in the histo
       std::sort(all_scores.rbegin(), all_scores.rend());
       static constexpr int HISTO_HEIGHT = 128;
       sdlutil::slock(screen);
