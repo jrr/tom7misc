@@ -271,12 +271,52 @@ struct TwoPlayerProblem {
     const double penalty = EdgePenalty(start_state, state);
     return penalty * objective_score;
   }
+
+  // Number of times to subdivide the screen in both x and y
+  // coordinates. 1 would yield four quadrants. Exponential!
+  static constexpr int GRID_DIVISIONS = 3;
+  static_assert(GRID_DIVISIONS > 0 && GRID_DIVISIONS < 8,
+		"valid range");
+  
+  static constexpr int GRID_CELLS_X = 1 << GRID_DIVISIONS;
+  static constexpr int DIVI_X = 256 >> GRID_DIVISIONS;
+  static constexpr int DIVI_Y = 256 >> GRID_DIVISIONS;
+  static constexpr int GRID_CELLS_Y = 1 << GRID_DIVISIONS;
+
+  // Part of the problem interface.
+  static constexpr int num_grid_cells = GRID_CELLS_X * GRID_CELLS_Y;
+  // A state can be in 0 or 1 grid cells.
+  bool GetGridCell(const State &state, int *cell) const {
+    if (x1_loc == -1 || y1_loc == -1 ||
+	x2_loc == -1 || y2_loc == -1) return false;
+
+    const int p1x = state.mem[x1_loc];
+    const int p1y = state.mem[y1_loc];
+    const int p2x = state.mem[x2_loc];
+    const int p2y = state.mem[y2_loc];
+
+    const int c1x = p1x / DIVI_X;
+    const int c1y = p1y / DIVI_Y;
+    const int c2x = p2x / DIVI_X;
+    const int c2y = p2y / DIVI_Y;
+
+    // Require the players to be in the same cell, or else
+    // we get another quadratic blowup.
+    if (c1x != c2x || c1y != c2y) return false;
+    
+    *cell = c1y * GRID_CELLS_Y + c1x;
+    CHECK(*cell < num_grid_cells) << c1x << " " << c1y;
+	
+    return true;
+  }
   
   // Must be thread safe and leave Worker in a valid state.
   Worker *CreateWorker();
 
   explicit TwoPlayerProblem(const map<string, string> &config);
- 
+
+ private:
+  
   string game;
   int warmup_frames = -1;
   int fastforward = -1;
