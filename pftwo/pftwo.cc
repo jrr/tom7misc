@@ -104,6 +104,13 @@ static string Rtos(double d) {
 }
 
 // Tree of state exploration.
+// This contains all of the non-abandoned states we've visited,
+// arranged so that a path from the root to a node gives the
+// sequence of inputs that gets us there.
+//
+// In addition to this tree of nodes, the "tree" also contains
+// a queue of nodes for explicit exploration. It also contains
+// several heaps for prioritizing the next nodes to expand.
 struct Tree {
   using State = Problem::State;
   using Seq = vector<Problem::Input>;
@@ -152,6 +159,10 @@ struct Tree {
     // node can be garbage collected.
     int num_workers_using = 0;
 
+    // Number of references from the grid, which also keeps nodes
+    // alive.
+    int used_in_grid = 0;
+    
     // Should only be used inside the tree cleanup procedure. Marks
     // nodes that should not be garbage collected because they are
     // among the best.
@@ -185,13 +196,51 @@ struct Tree {
   Tree(double score, State state) {
     root = new Node(std::move(state), nullptr);
     heap.Insert(-score, root);
+
+    for (int i = 0; i < Problem::num_grid_cells; i++) {
+      grid.emplace_back(0.0, nullptr);
+    }
   }
+
+  #if 0
+  // old idea - delete
+  
+  // We keep multiple heaps, each of which could contain a different
+  // subset of nodes. There is one "main" heap that can hold any node
+  // (this one is typically large) plus a set of smaller keyed heaps
+  // that a node can only be stored in if it meets some criteria
+  // (called the "key"). A canonical use of this is to keep the
+  // best-scoring (according to objective function) node(s) for
+  // a grid of screen positions.
+  struct KeyedHeap {
+
+    
+    Heap<double, Node> heap;
+  };
+  #endif
 
   // Tree prioritized by negation of score at current epoch. Negation
   // is used so that the minimum node is actually the node with the
   // best score.
   Heap<double, Node> heap;
 
+  // In addition to the main heap, we keep a grid containing the best
+  // node(s) matching some criteria, called the key. A canonical use
+  // of this is to keep the best-scoring node(s) (according to the
+  // objective function) for a grid of screen coordinates. In
+  // principle this could be generalized to include stuff like graphics
+  // on the screen, the values in arbitrary memory locations, etc.
+  //
+  // For now this is 
+  struct GridCell {
+    // Actual (normalized) score, not negated.
+    double score = 0.0;
+    Node *node = nullptr;
+    GridCell(double score, Node *node) : score(score), node(node) {}
+  };
+
+  vector<GridCell> grid;
+  
   // If this has anything in it, we're in exploration mode.
   std::list<ExploreNode> explore_queue;
   // Stuckness estimate from the last reheap.
@@ -293,19 +342,59 @@ struct WorkThread {
   Node *FindGoodNodeWithMutex() {
     const int size = pftwo->tree->heap.Size();
     CHECK(size > 0) << "Heap should always have root, at least.";
-
+    
     // XXX This stuff is a hack. Improve it!
-    //
-    // The idea here is to choose a good node to start; in a heap,
-    // good nodes are towards the beginning of the array.
-    // Gaussian centered on 0; use 0 for anything out of bounds.
-    // (n.b. this doesn't seem to help get unstuck -- evaluate it)
-    const int g = (int)(gauss.Next() * (size * 0.25));
-    const int idx = (g <= 0 || g >= size) ? 0 : g;
+    double bestscore = -pftwo->tree->heap.GetMinimum().priority;
+    const double gminscore = 0.90 * bestscore;
+    
+    Node *ret = nullptr;
+    /*
+      n.b. never even tried this code!
+    int gidx = RandTo(rc, pftwo->tree->grid.size());
+    if (pftwo->tree->grid[gidx].node != nullptr &&
+	rc->Byte() < 128) {
+      // XXX Do we really need a score cutoff? How to choose it?
+      if (pftwo->tree->grid[gidx].score >= 0.90 * bestscore)
+	ret = pftwo->tree->grid[gidx].node;
+    }
+    */
+    vector<Node *> eligible;
+    for (const Tree::GridCell &gc : pftwo->tree->grid) {
+      if (gc.node != nullptr) {
+	const double p = gc.score - gminscore;
+	if (p > 0.0 && RandDouble(&rc) < p) {
+	  eligible.push_back(gc.node);
+	}
+      }
+    }
 
-    Heap<double, Node>::Cell cell = pftwo->tree->heap.GetByIndex(idx);
-    Node *ret = cell.value;
+    // The more nodes that are eligible, the more likely we are
+    // to be stuck. Take a grid node proportional to the number
+    // of grid nodes.
+    if (!eligible.empty() &&
+	RandDouble(&rc) <
+	// Always a reasonable chance of picking from the grid
+	// (if any is eligible).
+	0.25 +
+	// When the grid is full, an additional 25% chance.
+	0.25 * 
+	// Fraction of the grid that was eligible
+	(eligible.size() / (double)Problem::num_grid_cells)) {
+      ret = eligible[RandTo(&rc, eligible.size())];
+    }
+    
+    if (ret == nullptr) {
+      // The idea here is to choose a good node to start; in a heap,
+      // good nodes are towards the beginning of the array.
+      // Gaussian centered on 0; use 0 for anything out of bounds.
+      // (n.b. this doesn't seem to help get unstuck -- evaluate it)
+      const int g = (int)(gauss.Next() * (size * 0.25));
+      const int idx = (g <= 0 || g >= size) ? 0 : g;
 
+      Heap<double, Node>::Cell cell = pftwo->tree->heap.GetByIndex(idx);
+      ret = cell.value;
+    }
+    
     // Now ascend up the tree to avoid picking nodes that have high
     // scores but have been explored at lot (this means it's likely
     // that they're dead ends).
@@ -335,8 +424,8 @@ struct WorkThread {
 
     CHECK(n->num_workers_using > 0);
 
-    // Simple policy: 50% chance of switching to the best node
-    // in the heap; 50% chance of staying with the current node.
+    // Simple policy: 50% chance of switching to some good node using
+    // the heap/grid; 50% chance of staying with the current node.
     if (rc.Byte() < 128 + 64 /* XXX */) {
       Node *ret = FindGoodNodeWithMutex();
       
@@ -375,10 +464,31 @@ struct WorkThread {
       pftwo->tree->num_nodes++;
       pftwo->tree->heap.Insert(-newscore, child);
       CHECK(child->location != -1);
+
+      AddToGridWithLock(child, newscore);
+      
       return child;
     }
   }
 
+  // Add to the grid if it qualifies. Called from within
+  // ExtendNodeWithLock once we're sure the node is new.
+  void AddToGridWithLock(Node *newnode, double newscore) {
+    int cell = 0;
+    if (pftwo->problem->GetGridCell(newnode->state, &cell)) {
+      CHECK(cell >= 0 && cell < pftwo->tree->grid.size()) <<
+	cell << " vs " << pftwo->tree->grid.size();
+      Tree::GridCell *gc = &pftwo->tree->grid[cell];
+      if (gc->node == nullptr || newscore > gc->score) {
+	if (gc->node)
+	  gc->node->used_in_grid--;
+	newnode->used_in_grid++;
+	gc->score = newscore;
+	gc->node = newnode;
+      }
+    }
+  }
+  
   // XXX a lot of this function duplicates the above (which is used
   // directly during exploration). We should figure out how to merge
   // them.
@@ -435,6 +545,7 @@ struct WorkThread {
       CHECK(child->location != -1);
 
       child->num_workers_using++;
+      AddToGridWithLock(child, newscore);
       return child;
     }
   }
@@ -569,19 +680,24 @@ struct WorkThread {
 	tree->heap.Clear();
 
 	uint64 deleted_nodes = 0ULL;
-	uint64 kept_score = 0ULL, kept_worker = 0ULL, kept_parent = 0ULL;
+	uint64 kept_score = 0ULL, kept_worker = 0ULL, kept_parent = 0ULL,
+	  kept_grid = 0ULL;
 	std::function<bool(Node *)> CleanRec =
 	  // Returns true if we should keep this node; otherwise,
 	  // the node is deleted.
 	  [this, tree, &deleted_nodes,
-	   &kept_score, &kept_worker, &kept_parent,
+	   &kept_score, &kept_worker, &kept_parent, &kept_grid,
 	   &CleanRec](Node *n) -> bool {
 	  if (n->keep)
 	    kept_score++;
 	  if (n->num_workers_using)
 	    kept_worker++;
+	  if (n->used_in_grid)
+	    kept_grid++;
 	  
-	  bool keep = n->keep || n->num_workers_using > 0;
+	  bool keep = n->keep ||
+	      n->num_workers_using > 0 ||
+	      n->used_in_grid > 0;
 
 	  map<Tree::Seq, Node *> new_children;
 	  bool child_keep = false;
@@ -624,8 +740,9 @@ struct WorkThread {
 	printf("... Reasons for keeping nodes:\n"
 	       "    score is good: %llu\n"
 	       "    worker using: %llu\n"
+	       "    in grid: %llu\n"
 	       "    child is kept: %llu\n",
-	       kept_score, kept_worker, kept_parent);
+	       kept_score, kept_worker, kept_grid, kept_parent);
 
 	
 	const uint32 end_ms = SDL_GetTicks();
@@ -1256,6 +1373,48 @@ struct UIThread {
 	}
       }
 
+      {
+	MutexLock ml(&pftwo->tree_m);
+	static constexpr int GRIDX = 768;
+	static constexpr int GRIDY = 400;
+	static constexpr int CELLPX = 16;
+	
+	// Get best score in grid so that we can normalize
+	// colors against it.
+	double bestscore = 0.0;
+	for (const Tree::GridCell &gc : pftwo->tree->grid)
+	  if (gc.score > bestscore) bestscore = gc.score;
+	const double one_over_bestscore =
+	  bestscore > 0.0 ? 1.0 / bestscore : 0.0;
+	
+	// Draw grid.
+	// XXX this specific to the current TwoPlayerProblem
+	// TODO! Save little pictures for each grid cell; it'd
+	// look awesome!
+	for (int cy = 0; cy < Problem::GRID_CELLS_Y; cy++) {
+	  for (int cx = 0; cx < Problem::GRID_CELLS_X; cx++) {
+	    const Tree::GridCell &gc =
+	      pftwo->tree->grid[cy * Problem::GRID_CELLS_Y + cx];
+	    if (gc.node == nullptr) {
+	      sdlutil::FillRectRGB(screen,
+				   GRIDX + cx * CELLPX,
+				   GRIDY + cy * CELLPX,
+				   CELLPX, CELLPX,
+				   0x20, 0x0, 0x0);
+	    } else {
+	      int gg = 0x20 +
+		(0xFF - 0x20) * (gc.score * one_over_bestscore);
+	      if (gg > 0xFF) gg = 0xff;
+	      sdlutil::FillRectRGB(screen,
+				   GRIDX + cx * CELLPX,
+				   GRIDY + cy * CELLPX,
+				   CELLPX, CELLPX,
+				   0x0, (uint8)gg, 0x0);
+	    }
+	  }
+	}
+      }
+      
       // Draw workers workin'.
       vector<vector<string>> texts;
       texts.resize(num_workers);

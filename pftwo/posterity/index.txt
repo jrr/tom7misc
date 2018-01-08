@@ -1,0 +1,69 @@
+
+stuck-rock-manual-objectives-contra
+ - Two player, manual cheater objectives. Eventually makes it to waterfall
+   level, playing pretty well if slow. Can't make this jump which you have
+   to time to avoid a falling rock and also go over a pit. This was right
+   before I tried adding player location detection and random goals.
+
+contra-firstgoals-fastforward
+ - Starts with 7700 frames of the training data (gets to the "3d" section).
+ - This was my first time running it with goals. They were randomly
+   just chosen as inputs, and part of the twoplayer worker state.
+   0.999 * objective_score + 0.001 * distance_to_goal_score.
+ - It's bad. There are only a few goals in the output movie and each kept
+   for just a few hundred frames (well, I guess a few seconds is usually
+   enough to reach a goal). It doesn't even look like it ever tries to
+   go to the goal.
+
+stuck-rocks-deathpenalty
+ - Explicit penalty for death. Still has the "goals" thing but I think
+   it doesn't do anything. Verified that the tree's scores are very
+   flat when it's stuck; I think this is a good heuristic to inform
+   when it's wise to explore vs. ascend.
+
+contra.waterfall-explore-1260000
+ - First overnight with explicit goals when we get stuck.
+ - Fastforward to waterfall
+ - Makes it farther than ever on waterfall, but gets into loops killing
+   dudes. I guess there's not enough incentive to explore, or it doesn't
+   spend enough time playing from explore spots to see how to get further
+   in the level (this level is pretty hard!)
+ - I think it might be getting points until it gets an extra life, and
+   then dying on purpose (because you warp to the top of the screen)!
+ - 1.3B frames!
+
+contra.3Bframes.flatobjective
+ - Here, just using the level+screen as an objective. (Plus death
+   avoidance.) Warmup only. Ran for several days.
+ - Get stuck on the boss battle at the end of level 2. Probably
+   just takes too long with random play before there's any improvement
+   to objective. (It does at least destroy some of the stuff in
+   its exploration, but the final movie just doesn't commit to any
+   of it.)
+ - The final movie is only 16k frames (pretty efficiently play)
+   despite running so very long.
+ - In this one, the goals seem to be doing something on the first
+   level at least.
+ - This version had an issue where all the new nodes had equal objective
+   score, so the tree wasn't being pruned -- 1.5 million frames in there,
+   which did gunk up the works.
+
+contra.nes.firebridge-flat
+ - Just like the previous but fixed a bug where ties weren't being broken
+   in pruning. Also improved the performance of tree cleanup.
+ - I think this is the furthest I ever made it on a complete playthrough?
+ - Only took 1.3B frames to make significant progress up the waterfall.
+   Gets to that fire bridge, with one deliberate death (31 -> 30 lives).
+   The waterfall level is still very hard, but it seems like this strategy
+   would eventually ascend it.
+ - On the waterfall level, it seems to get unstuck best when the players
+   are near one another.
+ - There still seems to be some right-side bias, presumably due to markov.
+ - Had the most trouble on the boss at the end of level 2, which makes
+   sense since there's no gradient to follow. Pruning the tree seems to
+   result in eventual progress though. (Why?) Not sure how exploration
+   would help here, except that if you're under the boss you're more
+   likely to hit it with bullets. Another kind of exploration, like
+   screen contents exploration (graphics), would probably be needed.
+   Score gradient would help in practice.
+
