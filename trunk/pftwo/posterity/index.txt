@@ -67,3 +67,35 @@ contra.nes.firebridge-flat
    screen contents exploration (graphics), would probably be needed.
    Score gradient would help in practice.
 
+(started using AOT-compiled contra.nes at this point I think)
+
+contra.nes.waterfallboss-2900000
+ - First experiment with grid. Based on how sparse the grid seems, it's
+   not clear that it's really helping (although it does keep these nodes
+   alive, so that's something), but nonetheless this is the farthest
+   it's ever gotten: All the way to the boss at the top of the waterfall!
+ - This version of the grid requires the two players to be in the same
+   cell (or else it's ineligible). This does not seem to happen often
+   by random chance, which is a bit weird since the explicit goals try
+   to put the players at the same location.
+ - On some of the tight jumps in the waterfall, the players were clearly
+   starting from the same position, which is a good hint that either goals
+   or grid is doing *something*.
+ - This was just the flat objective function of level/screen (no screen
+   coordinate). It probably gets stuck on the waterfall boss for the
+   same reason as in the previous experiment.
+ - I didn't actually watch this whole movie, so there may be some good
+   stuff in the second half of the waterfall?
+
+
+contra.nes-waterfallboss2-3860000
+ - Improved the grid code so that we judge against the best current
+   node in the heap, not 1.0 (which might be and impossible glimpse
+   of the future because of deaths).
+ - Got to waterfall boss by 1.3B frames, which I think is faster than
+   before. Significant 'green' coveage of grid while it's stuck, which
+   seems working as intended.
+ - Score is going up a little? So is depth? Depth ~429000.
+   Might have killed one of the arms. Score is changing a little.
+ - Still gets stuck on waterfall boss though. Like 4B frames.
+

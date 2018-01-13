@@ -14,7 +14,7 @@ struct NMarkovController {
   
   History HistoryInDomain() const;
   // Given some recent history, sample a next input. If the history has
-  // no precedent, returns zeroes (which is often, but not always, gets
+  // no precedent, returns zeroes (which often, but not always, gets
   // you back to a state that does have precedent. XXX - should fix this!)
   uint8 RandomNext(History current, ArcFour *rc) const;
 

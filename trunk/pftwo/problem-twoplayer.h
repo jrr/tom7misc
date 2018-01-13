@@ -63,6 +63,8 @@ struct TwoPlayerProblem {
     // store the memory values keyed by those denser indices here.
     // (i.e., only store the bytes actually used in the objective
     // functions.)
+    // Note that we use the mem for other stuff, like player position
+    // and death heuristics.
     vector<uint8> mem;
     // Number of NES frames 
     int depth;
@@ -79,6 +81,9 @@ struct TwoPlayerProblem {
   // many of them easily.
   struct InputGenerator {
     const TwoPlayerProblem *tpp;
+    // Maybe null.
+    const Goal *goal;
+    int p1x, p1y, p2x, p2y;
     ControllerHistory prev1, prev2;
     Input RandomInput(ArcFour *rc);
   };
@@ -106,23 +111,32 @@ struct TwoPlayerProblem {
     // Previous input for the two players.
     ControllerHistory previous1, previous2;
     
-    // Sample a random input; may depend on the current state (for
-    // example, in Markov models). Doesn't execute the input.
-    Input RandomInput(ArcFour *rc);
+    // Return any input, which is used for hacks where we need
+    // to adavnce the state so that we can fetch an image from
+    // the emulator :(
+    Input AnyInput() const;
 
     // Make a new input generator at the current state, which allows
     // generating multiple sequential random inputs without executing
     // them. Intended to be efficient to create.
-    InputGenerator Generator(ArcFour *rc) {
-      // TODO: Pass some notion of "stuckness", which should influence our
-      // probability of generating a new goal. (A simple notion of
-      // stuckness could be the number of nodes that have the maximum
-      // score, or close to it? But keep in mind that if our best nodes
-      // are in sticky near-death situations, we might have lots of
-      // expansions of those that are dead, which means lower looking
-      // scores. We are not stuck when nodes are repeatedly getting
-      // better scores.)
-      return InputGenerator{tpp, previous1, previous2};
+    // Goal may be nullptr if there is no goal.
+    InputGenerator Generator(ArcFour *rc, const Goal *goal) {
+      MutexLock ml(&mutex);
+      if (goal != nullptr) {
+	// Avoid doing this memory read if there's no goal.
+	vector<uint8> mem = emu->GetMemory();
+	const int p1x = mem[tpp->x1_loc];
+	const int p1y = mem[tpp->y1_loc];
+	const int p2x = mem[tpp->x2_loc];
+	const int p2y = mem[tpp->y2_loc];
+
+	return InputGenerator{tpp, goal,
+	    p1x, p1y, p2x, p2y,
+	    previous1, previous2};
+      } else {
+	return InputGenerator{tpp, goal, 0, 0, 0, 0,
+	    previous1, previous2};
+      }
     }
         
     State Save() {
@@ -247,8 +261,8 @@ struct TwoPlayerProblem {
     const int dx2 = p2x - gx;
     const int dy2 = p2y - gy;
 
-    int sqdist1 = dx1 * dx1 + dy1 * dy1;
-    int sqdist2 = dx2 * dx2 + dy2 * dy2;
+    const int sqdist1 = dx1 * dx1 + dy1 * dy1;
+    const int sqdist2 = dx2 * dx2 + dy2 * dy2;
 
     return sqrt(sqdist1) + sqrt(sqdist2);
   }

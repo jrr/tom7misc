@@ -1,4 +1,13 @@
 
+13 Jan 2018
+ - The explicit exploration and grid stuff does seem to help.
+ TODO:
+   - Generate more efficient moves for exploring. Like don't
+     play totally randomly.
+   - Consider seeding exploration from existing grid nodes.
+
+   - Some way to play randomly but deeply to beat waterfall boss?
+
 7 Jan 2018
  - Avoid Death. (Self-Driving cars)
  - Follow the gradient.
