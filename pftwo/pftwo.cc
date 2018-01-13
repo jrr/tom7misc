@@ -23,11 +23,6 @@
 // this by detecting bytes that appear to be the player's coordinates?
 // Or subtracting the x coordinate from such bytes during the
 // exploration phase?
-// Can at least try Contra without that being part of the objective.
-//
-// TODO: It's possible to have an arbitrary number of nodes in the
-// tree (even after reheap) if they all have the same score. Happened
-// when using very 'flat' objectives (like just level+screen).
 //
 // TODO: min-max heap would allow us a very cheap "1000 best nodes"
 // representation.
@@ -35,6 +30,11 @@
 // TODO: Rather than choosing random goals, choose goals that aren't
 // already represented in the grid, and perhaps choose ones that are
 // adjacent to covered cells.
+//
+// TODO: Smooth the markov matrix by making any input (that was
+// actually executed) possible in any state, with the minimal
+// probability mass. This probably also solves the problem where
+// we get out of gamut.
 
 #include <algorithm>
 #include <vector>
@@ -73,15 +73,24 @@
 
 #include "problem-twoplayer.h"
 
+// Screen dimensions.
 #define WIDTH 1920
 #define HEIGHT 1080
 
+// "max" nodes in heap. We start cleaning the heap when
+// there are more than this number of nodes, although
+// we often have to keep more than this number (because
+// some are in use by workers, grid, etc.)
 #define MAX_NODES 1000
+
 // When expanding a node, try this many sequences and
 // choose the best one.
 #define NUM_NEXTS 4
-
 static_assert(NUM_NEXTS > 0, "allowed range");
+
+// We consider exploring from the grid if the score is
+// at least GRID_BESTSCORE_FRAC * best_score_in_heap.
+#define GRID_BESTSCORE_FRAC 0.90
 
 // "Functor"
 using Problem = TwoPlayerProblem;
@@ -198,6 +207,9 @@ struct Tree {
     // sets this to zero when iterations_left is zero is responsible for
     // cleaning up the node.
     int iterations_in_progress = 0;
+
+    // Explorations that were bad (e.g., death). Just for display.
+    int bad = 0;
   };
 
   Tree(double score, State state) {
@@ -344,17 +356,12 @@ struct WorkThread {
     return n;
   }
 
-  // Must hold tree mutex!
-  // Doesn't update any reference counts.
-  Node *FindGoodNodeWithMutex() {
-    const int size = pftwo->tree->heap.Size();
-    CHECK(size > 0) << "Heap should always have root, at least.";
-    
+  // Populates the vector with eligible grid indices.
+  void EligibleGridNodesWithMutex(vector<int> *eligible) {
     // XXX This stuff is a hack. Improve it!
     double bestscore = -pftwo->tree->heap.GetMinimum().priority;
-    const double gminscore = 0.90 * bestscore;
+    const double gminscore = GRID_BESTSCORE_FRAC * bestscore;
     
-    Node *ret = nullptr;
     /*
       n.b. never even tried this code!
     int gidx = RandTo(rc, pftwo->tree->grid.size());
@@ -365,20 +372,32 @@ struct WorkThread {
 	ret = pftwo->tree->grid[gidx].node;
     }
     */
-    vector<Node *> eligible;
-    for (const Tree::GridCell &gc : pftwo->tree->grid) {
+
+    for (int idx = 0; idx < pftwo->tree->grid.size(); idx++) {
+      const Tree::GridCell &gc = pftwo->tree->grid[idx];
       if (gc.node != nullptr) {
 	const double p = gc.score - gminscore;
 	if (p > 0.0 && RandDouble(&rc) < p) {
-	  eligible.push_back(gc.node);
+	  eligible->push_back(idx);
 	}
       }
     }
+  }
+  
+  // Must hold tree mutex!
+  // Doesn't update any reference counts.
+  Node *FindGoodNodeWithMutex() {
+    const int size = pftwo->tree->heap.Size();
+    CHECK(size > 0) << "Heap should always have root, at least.";
+    
+    vector<int> eligible_grid;
+    EligibleGridNodesWithMutex(&eligible_grid);
 
+    Node *ret = nullptr;
     // The more nodes that are eligible, the more likely we are
     // to be stuck. Take a grid node proportional to the number
     // of grid nodes.
-    if (!eligible.empty() &&
+    if (!eligible_grid.empty() &&
 	RandDouble(&rc) <
 	// Always a reasonable chance of picking from the grid
 	// (if any is eligible).
@@ -386,8 +405,9 @@ struct WorkThread {
 	// When the grid is full, an additional 25% chance.
 	0.25 * 
 	// Fraction of the grid that was eligible
-	(eligible.size() / (double)Problem::num_grid_cells)) {
-      ret = eligible[RandTo(&rc, eligible.size())];
+	(eligible_grid.size() / (double)Problem::num_grid_cells)) {
+      const int idx = eligible_grid[RandTo(&rc, eligible_grid.size())];
+      ret = pftwo->tree->grid[idx].node;
     }
     
     if (ret == nullptr) {
@@ -873,7 +893,10 @@ struct WorkThread {
     int num_frames = gauss.Next() * STDDEV + MEAN;
     if (num_frames < 1) num_frames = 1;
 
-    Problem::InputGenerator gen = worker->Generator(&rc);
+    // Generate inputs with knowledge of the goal.
+    Problem::InputGenerator gen =
+      worker->Generator(&rc, &en->goal);
+
     // XXX maybe would be cleaner to populate the full
     // sequence starting with start_seq, but then only
     // execute the new suffix. Both places below we need
@@ -968,6 +991,7 @@ struct WorkThread {
       MutexLock ml(&pftwo->tree_m);
       CHECK(en->iterations_in_progress > 0);
       en->iterations_in_progress--;
+      if (bad) en->bad++;
       if (en->iterations_left == 0 &&
 	  en->iterations_in_progress == 0) {
 	worker->SetStatus("Cleanup ExploreNode");
@@ -1061,7 +1085,9 @@ struct WorkThread {
       vector<vector<Problem::Input>> nexts;
       nexts.reserve(NUM_NEXTS);
       for (int num_left = NUM_NEXTS; num_left--;) {
-	Problem::InputGenerator gen = worker->Generator(&rc);
+	// With no explicit goal.
+	Problem::InputGenerator gen =
+	  worker->Generator(&rc, nullptr);
 	vector<Problem::Input> step;
 	step.reserve(num_frames);
 	for (int frames_left = num_frames; frames_left--;) {
@@ -1209,7 +1235,7 @@ struct UIThread {
 	//
 	// So the images stored are actually a single random frame
 	// AFTER the one in the node.
-	tmp->Exec(tmp->RandomInput(&rc));
+	tmp->Exec(tmp->AnyInput());
 	vector<uint8> argb256x256;
 	argb256x256.resize(256 * 256 * 4);
 	tmp->Visualize(nullptr, &argb256x256);
@@ -1391,14 +1417,16 @@ struct UIThread {
 	    font->draw(30, ypos,
 		       StringPrintf("Goal ^3%d^<,^3%d^<  "
 				    "distance ^4%.2f^<  "
-				    "seq ^2%d^<   ^1%d^<|^4%d",
+				    "seq ^5%d^<   ^1%d^<|^4%d^<  "
+				    "bad ^2%d^<",
 				    // XXX hard-coded TPP
 				    en.goal.goalx,
 				    en.goal.goaly,
 				    en.distance,
 				    (int)en.closest_seq.size(),
 				    en.iterations_left,
-				    en.iterations_in_progress));
+				    en.iterations_in_progress,
+				    en.bad));
 	    ypos += FONTHEIGHT;
 	  }
 
@@ -1408,11 +1436,13 @@ struct UIThread {
       {
 	MutexLock ml(&pftwo->tree_m);
 	static constexpr int GRIDX = 768;
-	static constexpr int GRIDY = 400;
+	static constexpr int GRIDY = 450;
 	static constexpr int CELLPX = 16;
 	
 	// Get best score in grid so that we can normalize
 	// colors against it.
+	double cutoff_bestscore =
+	  -pftwo->tree->heap.GetMinimum().priority * GRID_BESTSCORE_FRAC;
 	double bestscore = 0.0;
 	for (const Tree::GridCell &gc : pftwo->tree->grid)
 	  if (gc.score > bestscore) bestscore = gc.score;
@@ -1434,6 +1464,7 @@ struct UIThread {
 				   CELLPX, CELLPX,
 				   0x20, 0x0, 0x0);
 	    } else {
+	      uint8 rr = gc.score >= cutoff_bestscore ? 0 : 1;
 	      int gg = 0x20 +
 		(0xFF - 0x20) * (gc.score * one_over_bestscore);
 	      if (gg > 0xFF) gg = 0xff;
@@ -1441,12 +1472,14 @@ struct UIThread {
 				   GRIDX + cx * CELLPX,
 				   GRIDY + cy * CELLPX,
 				   CELLPX, CELLPX,
-				   0x0, (uint8)gg, 0x0);
+				   rr * gg, (uint8)gg, 0x0);
 	    }
 	  }
 	}
 	smallfont->draw(GRIDX, GRIDY,
-			StringPrintf("best ^3%.4f", bestscore));
+			StringPrintf("best ^3%.4f^< / ^2%.4f",
+				     bestscore,
+				     cutoff_bestscore));
       }
       
       // Draw workers workin'.

@@ -24,17 +24,53 @@ static constexpr int OBSERVATION_SAMPLES = 32768;
 using TPP = TwoPlayerProblem;
 using Worker = TPP::Worker;
 
-TPP::Input Worker::RandomInput(ArcFour *rc) {
-  // These are all const. No lock needed.
-  // MutexLock ml(&mutex);
-  const uint8 p1 = tpp->markov1->RandomNext(previous1, rc);
-  const uint8 p2 = tpp->markov2->RandomNext(previous2, rc);
-  return ControllerInput(p1, p2);
+TPP::Input Worker::AnyInput() const {
+  return ControllerInput(0, 0);
 }
 
 TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
-  const uint8 p1 = tpp->markov1->RandomNext(prev1, rc);
-  const uint8 p2 = tpp->markov2->RandomNext(prev2, rc);
+  uint8 p1 = tpp->markov1->RandomNext(prev1, rc);
+  uint8 p2 = tpp->markov2->RandomNext(prev2, rc);
+  if (goal != nullptr) {      
+    auto Mask = [this, rc](int px, int py, int buttons) {
+      const int gx = goal->goalx;
+      const int gy = goal->goaly;
+
+      // If pd is less than gd, then sometimes add the input GO and
+      // mask off the input NO_GO.
+      auto Dir = [rc, &buttons](int pd, int gd, uint8 GO, uint8 NO_GO) {
+	// TODO: Some falloff to the probabilities (proportional to
+	// gd - pd)?
+	if (pd < gd && rc->Byte() < 64) {
+	  buttons &= ~NO_GO;
+	  buttons |= GO;
+	}
+      };
+      // Left of goal. Move right.
+      Dir(px, gx, INPUT_L, INPUT_R);
+      Dir(gx, px, INPUT_R, INPUT_L);
+      // TODO: For top-down games these are right, but in a side-
+      // view game we need to be hitting the jump button to go up.
+      // But also of course jumping is not just a matter of holding
+      // the button. Need to detect the view and do something
+      // fancier. (This could maybe just be done locally by trying
+      // to predict what button combinations yield movement in a
+      // direction. This might account for the fact that we can
+      // only jump when standing on a platform, or can climb some
+      // ladders in e.g. megaman).
+      // Note in contra, holding 'down' is pretty counterproductive
+      // because it causes you to lay on the ground. And holding
+      // up can be counterproductive in the '3D' corridor levels
+      // because it zaps you.
+      
+      // Above goal. Move down.
+      Dir(py, gy, INPUT_D, INPUT_U);
+      Dir(gy, py, INPUT_U, INPUT_D);
+      return buttons;
+    };
+    p1 = Mask(p1x, p1y, p1);
+    p2 = Mask(p2x, p2y, p2);
+  }
   prev1 = tpp->markov1->Push(prev1, p1);
   prev2 = tpp->markov2->Push(prev2, p2);
   return ControllerInput(p1, p2);
