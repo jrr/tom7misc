@@ -99,3 +99,68 @@ contra.nes-waterfallboss2-3860000
    Might have killed one of the arms. Score is changing a little.
  - Still gets stuck on waterfall boss though. Like 4B frames.
 
+
+next:
+ - Tried generating moves using the goal. Very generic; believes that
+   you press "up" to go up, for example. (But there's a bug hehe)
+ - Objectives include pixel position and score
+ - got to L2 boss by 319M frames
+ - first floating waterfall platform <593M
+ - To ice platforms by 1.6B! Depth is 248000. It's possible that this
+   was just luck? 
+ - Whoa even the ice spike car
+     .. these may be hard because you need to kill them quick
+ - I think the input assignment when going to a goal might be backwards??
+     - you can see this a lot on the first level; when there's a goal
+       active they like to hug the left edge of the screen. And then
+       there's a goal with x=43 at the end and they run right
+     - if for some reason it works better with this fixed, then
+       we should try just generating very 'dynamic' move sequences
+       during exploration (like 'hold right') irrespective of what the
+       goal is. I guess it would not be a hard problem to try to learn
+       buttons/button combinations that change the player's coordinates
+       in any given position
+ - Waterfall has some nice points dodging rocks, but also a substantial
+   amount of hiding on the RHS.
+ - gets past that damn rock at around 72,000 frames. Seems most likely
+   to get stuck on RHS when there is an endless stream of guys to kill,
+   slightly bumping the score.
+ - Being stuck trying to climb at about 90k frames is silly, because this
+   jump isn't that tight. can't they just both plan a trip to that ledge
+   on the left, then luck into jumping right? I think explicitly planning
+   to get to adjacent grid cells would help here.
+     - aha they finally win by farming an extra life,
+       setting a goal over there, and then red kills himself
+ - Another stuck one at a moving platform, ~120k. Goal helps it go left,
+   then blue suicides
+ - Around 124k, blue makes it up the moving platform, but then comes
+   BACK DOWN so that he can be with red. Then they clearly move in tandem
+   to get up the narrow platforms, which is good
+ - All in all, it's obvious that goals are really helping avoid stuckness
+   in this movie.
+ - waterfall boss at 156M. It may just be because we have spread gun,
+   and red seems to die at the very end, so this could have been a very
+   lucky victory. But at least we're close on this part, perhaps even
+   with prior settings
+ - 3d corridor is fine, with some slow rooms. They still love the right
+   side of the screen. Some trouble when they need to duck on the
+   left. It does seem to help that it picks a goal where it
+   erroneously moves left (easy to fix) but then holds down (because
+   it thinks it needs to go up -- there are lots more 'up' goals than
+   'down' goals because the player is always near the bottom of the
+   screen alas)
+ - regular tree search is sometimes backing up all the way to the
+   waterfall climb -- this seems nuts. We may be able to improve efficiency
+   but limiting the score loss in FindGoodNode or whatever.
+ - red has weird sack at the beginning of this boss, but then seems to
+   immediately get an extra life (maybe they cancel out?). Long fight;
+   there are lots of dudes to kill for points but no incentive to
+   shoot at the weak points, especially since you can kill dudes from
+   its favorite spot at rhs
+ - beats at 237k
+ - ice level is pretty easy for it; this particular movie ends right
+   before the spike car
+ - there are two spike cars in this level. they might be pretty hard
+   (without taking a death) because you have to shoot them
+   continuously, and fast, or else they run you over.
+   

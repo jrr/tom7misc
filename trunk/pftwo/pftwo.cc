@@ -35,6 +35,29 @@
 // actually executed) possible in any state, with the minimal
 // probability mass. This probably also solves the problem where
 // we get out of gamut.
+//
+// TODO: show benchmark of Mframes before reaching milestones in the
+// game, so that we can scientifically judge efficiency. Also frame
+// depth, since shorter movies are also better.
+// (Might also be useful to output the wall time of some operations,
+// since e.g. reheaping seems to get kinda slow after it's been
+// running that long.)
+//
+// TODO: Consider generating same moves for both players when they are
+// in the same approximate position? This makes the probability of
+// both making a narrow jump substantially better.
+//
+// TODO: Grid keys for palette entries, sprites on screen, bg values?
+// This would help for bosses where there's some visual feedback on
+// damage, and would be easier than trying to fuzz all of ram
+// I bet the bosses that are most stuck are actually BG graphics.
+//
+// TODO: When on the ice pillars level, regular tree search is
+// sometimes backing up all the way to the waterfall climb -- this
+// seems nuts (it's like almost 200k depth away). We may be able to
+// improve MFrame efficiency but limiting the score loss in
+// FindGoodNode or whatever.
+
 
 #include <algorithm>
 #include <vector>
