@@ -111,3 +111,34 @@ void BlitARGBHalf(const vector<uint8> &argb, int width, int height,
   }
   // CopyARGB(argb_half, surface);
 }
+
+void BlitARGB2x(const vector<uint8> &argb, int w, int h,
+		int x, int y, SDL_Surface *surface) {
+  for (int i = 0; i < h; i++) {
+    int yy = y + i * 2;
+    Uint32 *p = (Uint32 *)((Uint8 *)surface->pixels +
+			   (surface->w * 4 * yy) + x * 4);
+    // Now write a doubled line
+    Uint32 *inp = (Uint32 *)(argb.data() + (i * w * 4));
+    for (int j = 0; j < w; j++) {
+      *p = *inp;
+      p++;
+      *p = *inp;
+      p++;
+      inp++;
+    }
+
+    // And the second.
+    p = (Uint32 *)((Uint8 *)surface->pixels +
+		   (surface->w * 4 * (yy + 1)) + x * 4);
+    for (int j = 0; j < w; j++) {
+      *p = *inp;
+      p++;
+      *p = *inp;
+      p++;
+      inp++;
+    }
+
+  }
+ 
+}
