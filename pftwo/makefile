@@ -67,6 +67,9 @@ testui.exe : $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS)
 pftwo.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) pftwo.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+playback.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) playback.o sdl-win32-main.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 clean :
 	rm -f pftwo.exe testui.exe *.o $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) gmon.out
 

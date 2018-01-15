@@ -28,6 +28,9 @@ void BlitARGBHalf(const vector<uint8> &argb, int width, int height,
 		  int xpos, int ypos,
 		  SDL_Surface *surface);
 
+void BlitARGB2x(const vector<uint8> &argb, int w, int h,
+		int x, int y, SDL_Surface *surface);
+
 inline constexpr uint8 Mix4(uint8 v1, uint8 v2, uint8 v3, uint8 v4) {
   return (uint8)(((uint32)v1 + (uint32)v2 + (uint32)v3 + (uint32)v4) >> 2);
 }

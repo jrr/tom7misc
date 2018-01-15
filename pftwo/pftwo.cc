@@ -52,12 +52,22 @@
 // damage, and would be easier than trying to fuzz all of ram
 // I bet the bosses that are most stuck are actually BG graphics.
 //
+// TODO: Just some way to ensure that the highest-scoring node
+// continually gets random play in parallel with the other search?
+// This might result in worse (long) movies, but sometimes that's
+// the right way for it to beat some spot (like e.g. you have to
+// just survive some screen, or many contra bosses where you have
+// to deal a bunch of damage but it doesn't know it's making
+// progress...)
+//
 // TODO: When on the ice pillars level, regular tree search is
 // sometimes backing up all the way to the waterfall climb -- this
 // seems nuts (it's like almost 200k depth away). We may be able to
-// improve MFrame efficiency but limiting the score loss in
+// improve MFrame efficiency by limiting the score loss in
 // FindGoodNode or whatever.
-
+//
+// TODO: Make my own playback tool. It's not hard, and even just
+// being able to fastforward at a reasonable rate would save time.
 
 #include <algorithm>
 #include <vector>
@@ -1750,7 +1760,7 @@ int main(int argc, char *argv[]) {
   }
   #endif
 
-  /* Initialize SDL and network, if we're using it. */
+  /* Initialize SDL. */
   CHECK(SDL_Init(SDL_INIT_VIDEO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 

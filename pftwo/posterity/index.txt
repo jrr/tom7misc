@@ -163,4 +163,6 @@ next:
  - there are two spike cars in this level. they might be pretty hard
    (without taking a death) because you have to shoot them
    continuously, and fast, or else they run you over.
+ - it made it past the spike cars! To the alien by 2.3B frames
+   depth is 253k
    
