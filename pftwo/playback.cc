@@ -90,41 +90,75 @@ struct UIThread {
     
     for (;;) {
       SDL_Event event;
-      SDL_PollEvent(&event);
-      switch (event.type) {
-      case SDL_QUIT:
-	return;
-      case SDL_KEYDOWN:
-	switch (event.key.keysym.sym) {
 
-	case SDLK_ESCAPE:
+      if (SDL_PollEvent(&event)) {
+	switch (event.type) {
+	case SDL_QUIT:
 	  return;
+	case SDL_KEYDOWN:
+	  switch (event.key.keysym.sym) {
 
-	case SDLK_RIGHT:
-	  break;
+	  case SDLK_ESCAPE:
+	    return;
 
-	case SDLK_SPACE:
-	  switch (mode) {
-	  case Mode::PAUSE:
-	    mode = Mode::PLAY;
+	  case SDLK_RIGHT:
 	    break;
-	  case Mode::PLAY:
+
+	  case SDLK_0:
+	    df = 1;
+	    break;
+	    
+	  case SDLK_MINUS:
+	    df--;
+	    if (df < 0) df = 0;
+	    break;
+
+	  case SDLK_EQUALS:
+	  case SDLK_PLUS:
+	    df++;
+	    break;
+
+	  case SDLK_SPACE:
+	    switch (mode) {
+	    case Mode::PAUSE:
+	      mode = Mode::PLAY;
+	      if (df <= 0) df = 1;
+	      break;
+	    case Mode::PLAY:
+	      mode = Mode::PAUSE;
+	      break;
+	    }
+	    break;
+	    
+	  case SDLK_LEFT: {
 	    mode = Mode::PAUSE;
+	    df = 0;
+	    auto it = snapshots.lower_bound(frameidx);
+	    if (it == snapshots.begin()) break;
+	    --it;
+	    fprintf(stderr, "Seek to %d\n", it->first);
+	    frameidx = it->first;
+	    emu->LoadUncompressed(it->second);
+	    // XXX need to execute a frame in order
+	    // to have something to show..
 	    break;
-
 	  }
-	  
+	    
+	  default:
+	    break;
+	  }
+	  break;
 	default:
 	  break;
 	}
-	break;
-      default:
-	break;
       }
-
+	
+      // PERF: Don't need to clear the game part.
+      sdlutil::clearsurface(screen, 0x00000000);
+      
       if (mode == Mode::PLAY) {
 	// Can we execute at least one frame?
-	if (frameidx >= movie.size()) {
+	if (frameidx >= movie.size() || df <= 0) {
 	  mode = Mode::PAUSE;
 	} else {
 
@@ -132,26 +166,43 @@ struct UIThread {
 	  for (int i = 0; i < df; i++) {
 	    if (frameidx < movie.size()) {
 	      // There's a frame available to play.
-	      // Do it. XXX: Don't always do full
-	      // step if df > 1.
+	      // Do it.
 	      uint8 p1, p2;
 	      std::tie(p1, p2) = movie[frameidx];
 	      frameidx++;
-	      emu->StepFull(p1, p2);
+	      // If we'll do more frames in this loop, then
+	      // no need for a full step.
+	      if (i < df - 1 && frameidx < movie.size()) {
+		emu->Step(p1, p2);
+	      } else {
+		emu->StepFull(p1, p2);
+	      }
 	      if (0 == frameidx % SNAPSHOT_EVERY) {
 		snapshots[frameidx] = emu->SaveUncompressed();
 	      }
 	    }
 	  }
 
-	  // Now draw/play.
-	  vector<uint8> argb = emu->GetImage();
-	  BlitARGB2x(argb, 256, 256, 0, 16, screen);
 	}
-      } 
+      }
+
+      // Above should leave the emulator in a state where
+      // StepFull was just run.
+
+      // Now draw/play.
+      vector<uint8> rgba = emu->GetImage();
+      BlitRGBA2x(rgba, 256, 256, 0, 16, screen);
+
+      
+      font->draw(0, 4, StringPrintf("%d^2/^<%d", frameidx, (int)movie.size()));
       
       // SDL_Delay(1000.0 / 30.0);
 
+      if (mode == Mode::PLAY) {
+	font->draw(0, 520, StringPrintf("PLAY ^2%d^3x", df));
+      } else {
+	font->draw(0, 520, "PAUSED");
+      }
       SDL_Flip(screen);
     }
 
@@ -161,6 +212,28 @@ struct UIThread {
     screen = sdlutil::makescreen(WIDTH, HEIGHT);
     CHECK(screen);
 
+    fprintf(stderr,
+	    "BPP: %d\n"
+	    "Screen shifts:\n"
+	    "R %d\n"
+	    "G %d\n"
+	    "B %d\n"
+	    "A %d\n"
+	    "Screen masks:\n"
+	    "R %08x\n"
+	    "G %08x\n"
+	    "B %08x\n"
+	    "A %08x\n",
+	    screen->format->BitsPerPixel,
+	    screen->format->Rshift,
+	    screen->format->Gshift,
+	    screen->format->Bshift,
+	    screen->format->Ashift,
+	    screen->format->Rmask,
+	    screen->format->Gmask,
+	    screen->format->Bmask,
+	    screen->format->Amask);
+    
     font = Font::create(screen,
 			"font.png",
 			FONTCHARS,
@@ -227,12 +300,17 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  fprintf(stderr, "Init SDL\n");
-
+  fprintf(stderr, "Init SDL\n");  
+  
   /* Initialize SDL and network, if we're using it. */
   CHECK(SDL_Init(SDL_INIT_VIDEO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 
+  SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
+                      SDL_DEFAULT_REPEAT_INTERVAL);
+
+  SDL_EnableUNICODE(1);
+  
   SDL_Surface *icon = SDL_LoadBMP("icon.bmp");
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);

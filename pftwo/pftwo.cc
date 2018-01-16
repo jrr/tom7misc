@@ -68,6 +68,15 @@
 //
 // TODO: Make my own playback tool. It's not hard, and even just
 // being able to fastforward at a reasonable rate would save time.
+//
+// TODO: Right after a score breakthrough (i.e., plateu for a while,
+// then we discover a higher score), try replaying the sequence of
+// moves we just made on random states from the plateau region, with
+// the idea that we can sometimes cut out a lot of dithering. Not
+// clear what we do in cases where the players are farming low-value
+// points (e.g. score) while waiting, though, because the resulting
+// states would be actually worse than the original breakthrough
+// (lower score).
 
 #include <algorithm>
 #include <vector>
@@ -1318,27 +1327,29 @@ struct UIThread {
     for (;;) {
       frame++;
       SDL_Event event;
-      SDL_PollEvent(&event);
-      switch (event.type) {
-      case SDL_QUIT:
-	return;
-      case SDL_KEYDOWN:
-	switch (event.key.keysym.sym) {
-
-	case SDLK_ESCAPE:
+      
+      if (SDL_PollEvent(&event)) {
+	switch (event.type) {
+	case SDL_QUIT:
 	  return;
+	case SDL_KEYDOWN:
+	  switch (event.key.keysym.sym) {
 
-	case SDLK_t:
-	  DumpTree();
+	  case SDLK_ESCAPE:
+	    return;
+
+	  case SDLK_t:
+	    DumpTree();
+	    break;
+	  default:
+	    break;
+	  }
 	  break;
 	default:
 	  break;
 	}
-	break;
-      default:
-	break;
       }
-
+	
       SDL_Delay(1000.0 / 30.0);
 
       // Every ten thousand frames, write FM2 file.
