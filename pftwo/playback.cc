@@ -1,4 +1,8 @@
 
+// TODO: Mute the sound when df is high.
+// TODO: Don't blank the screen when we fall behind.
+// TODO: Read metadata like goals from the FM2 or some future format.
+
 #include <algorithm>
 #include <vector>
 #include <string>
@@ -33,6 +37,8 @@
 // Screen dimensions.
 #define WIDTH 512
 #define HEIGHT (512 + 64)
+
+#define MAX_HEADROOM 24
 
 // Save state periodically so that rewind is fast.
 #define SNAPSHOT_EVERY 1000
@@ -74,6 +80,54 @@ struct UIThread {
     CHECK(!movie.empty()) << "Couldn't read movie: " << fm2;
     emu.reset(Emulator::Create(game));
     CHECK(emu.get() != nullptr) << game;
+
+    SDL_AudioSpec spec;
+    spec.freq = Emulator::AUDIO_SAMPLE_RATE;
+    spec.samples = 1024;
+    spec.format = AUDIO_S16;
+    spec.channels = 1;
+    spec.userdata = (void*)this;
+    spec.callback = [](void *userdata, Uint8 *stream, int len) {
+      ((UIThread *)userdata)->AudioCallback(stream, len);
+    };
+
+    CHECK(0 == SDL_OpenAudio(&spec, nullptr));
+    
+    SDL_PauseAudio(0);
+  }
+
+  // In order to get smooth audio/video playback, we render up to a
+  // few frames ahead of what the user is actually seeing.
+  struct Frame {
+    int frameidx = 0;
+    vector<uint8> rgba;
+    vector<int16> samples;
+    int samples_used = 0;
+  };
+  std::mutex frames_m;
+  std::list<Frame> frames;
+  
+  void AudioCallback(Uint8 *byte_stream, int bytes) {
+    int16 *samples = (int16 *)byte_stream;
+    int n = bytes >> 1;
+    MutexLock ml(&frames_m);
+
+    // While I need new frames...
+    while (n--) {
+      // No more frames? Copy silence.
+      if (frames.empty()) {
+	*samples = 0;
+	samples++;
+      } else {
+	Frame *f = &*frames.begin();
+	*samples = f->samples[f->samples_used];
+	samples++;
+	f->samples_used++;
+	if (f->samples_used == f->samples.size()) {
+	  frames.pop_front();
+	}
+      }
+    }
   }
 
   enum class Mode {
@@ -131,12 +185,16 @@ struct UIThread {
 	    break;
 	    
 	  case SDLK_LEFT: {
+	    {
+	      MutexLock ml(&frames_m);
+	      frames.clear();
+	    }
 	    mode = Mode::PAUSE;
 	    df = 0;
 	    auto it = snapshots.lower_bound(frameidx);
 	    if (it == snapshots.begin()) break;
 	    --it;
-	    fprintf(stderr, "Seek to %d\n", it->first);
+	    fprintf(stderr, "Seek to %lld\n", it->first);
 	    frameidx = it->first;
 	    emu->LoadUncompressed(it->second);
 	    // XXX need to execute a frame in order
@@ -162,47 +220,82 @@ struct UIThread {
 	  mode = Mode::PAUSE;
 	} else {
 
-	  // Execute some frames, and end with StepFull.
-	  for (int i = 0; i < df; i++) {
-	    if (frameidx < movie.size()) {
-	      // There's a frame available to play.
-	      // Do it.
-	      uint8 p1, p2;
-	      std::tie(p1, p2) = movie[frameidx];
-	      frameidx++;
-	      // If we'll do more frames in this loop, then
-	      // no need for a full step.
-	      if (i < df - 1 && frameidx < movie.size()) {
-		emu->Step(p1, p2);
-	      } else {
-		emu->StepFull(p1, p2);
-	      }
-	      if (0 == frameidx % SNAPSHOT_EVERY) {
-		snapshots[frameidx] = emu->SaveUncompressed();
-	      }
-	    }
+	  int headroom = 0;
+	  {
+	    MutexLock ml(&frames_m);
+	    headroom = frames.size();
 	  }
 
+	  if (headroom < MAX_HEADROOM) {
+	    // Execute some frames, and end with StepFull.
+	    for (int i = 0; i < df; i++) {
+	      if (frameidx < movie.size()) {
+		// There's a frame available to play.
+		// Do it.
+		uint8 p1, p2;
+		std::tie(p1, p2) = movie[frameidx];
+		frameidx++;
+		// If we'll do more frames in this loop, then
+		// no need for a full step.
+		if (i < df - 1 && frameidx < movie.size()) {
+		  emu->Step(p1, p2);
+		} else {
+		  emu->StepFull(p1, p2);
+		}
+		if (0 == frameidx % SNAPSHOT_EVERY) {
+		  snapshots[frameidx] = emu->SaveUncompressed();
+		}
+	      }
+	    }
+
+	    // Now push onto the frames list.
+	    {
+	      MutexLock ml(&frames_m);
+	      frames.push_back(Frame());
+	      Frame *f = &frames.back();
+	      f->frameidx = frameidx;
+	      f->samples_used = 0;
+	      emu->GetImage(&f->rgba);
+	      emu->GetSound(&f->samples);
+	    }
+	  }
+	    
 	}
       }
 
       // Above should leave the emulator in a state where
       // StepFull was just run.
 
-      // Now draw/play.
-      vector<uint8> rgba = emu->GetImage();
-      BlitRGBA2x(rgba, 256, 256, 0, 16, screen);
+      int headroom = 0;
+      {
+	MutexLock ml(&frames_m);
+	headroom = frames.size();
+	if (frames.empty()) {
+	  // XXX this happens when we have a very high df. Would be
+	  // better to just leave the existing screen, or maybe the
+	  // audio callback should not delete the last frame?
+	  sdlutil::FillRectRGB(screen,
+			       0, 16, 
+			       512, 512 + 16,
+			       0x77, 0x0, 0x0);
+	} else {
+	  Frame *f = &*frames.begin();
+	  // Now draw/play.
+	  BlitRGBA2x(f->rgba, 256, 256, 0, 16, screen);
+	  font->draw(0, 4, StringPrintf("%d^2/^<%d",
+					f->frameidx, (int)movie.size()));
+	}
+      }
 
-      
-      font->draw(0, 4, StringPrintf("%d^2/^<%d", frameidx, (int)movie.size()));
-      
-      // SDL_Delay(1000.0 / 30.0);
-
+      // Draw 
       if (mode == Mode::PLAY) {
 	font->draw(0, 520, StringPrintf("PLAY ^2%d^3x", df));
       } else {
 	font->draw(0, 520, "PAUSED");
       }
+
+      font->draw(480, 520, StringPrintf("[%d]", headroom));
+      
       SDL_Flip(screen);
     }
 
@@ -262,6 +355,7 @@ struct UIThread {
     
     Loop();
     Printf("UI shutdown.\n");
+    SDL_PauseAudio(1);
     WriteWithLock(&should_die_m, &should_die, true);
   }
 
@@ -302,8 +396,8 @@ int main(int argc, char *argv[]) {
 
   fprintf(stderr, "Init SDL\n");  
   
-  /* Initialize SDL and network, if we're using it. */
-  CHECK(SDL_Init(SDL_INIT_VIDEO) >= 0);
+  /* Initialize SDL, video, and audio. */
+  CHECK(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
@@ -318,7 +412,8 @@ int main(int argc, char *argv[]) {
 
   UIThread ui{game, movie};
   ui.Run();
-  
+
+  SDL_CloseAudio();
   SDL_Quit();
   return 0;
 }
