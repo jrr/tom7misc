@@ -165,4 +165,5 @@ next:
    continuously, and fast, or else they run you over.
  - it made it past the spike cars! To the alien by 2.3B frames
    depth is 253k
-   
+ - < 3.79B to beat alien and get to fire beam level!!
+   depth is 262k

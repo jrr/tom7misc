@@ -112,33 +112,41 @@ void BlitARGBHalf(const vector<uint8> &argb, int width, int height,
   // CopyARGB(argb_half, surface);
 }
 
-void BlitARGB2x(const vector<uint8> &argb, int w, int h,
+// Map a pixel to a Uint32 value for the given pixel format.
+// Assumes 32-bit pixel format.
+inline Uint32 MakePixel(const SDL_PixelFormat *fmt,
+			uint8 r, uint8 g, uint8 b, uint8 a) {
+  return ((Uint32)r << fmt->Rshift) |
+    ((Uint32)g << fmt->Gshift) |
+    ((Uint32)b << fmt->Bshift) |
+    // Sometimes (like when writing to the screen buffer on windows),
+    // the alpha channel is empty, and its shift value is the same as
+    // another color channel (e.g. blue). So AND with the mask before
+    // writing it, which prevents a full-alpha channel from leaking
+    // into other channels if this is the case.
+    (((Uint32)a << fmt->Ashift) & fmt->Amask);
+}
+
+void BlitRGBA2x(const vector<uint8> &rgba, int w, int h,
 		int x, int y, SDL_Surface *surface) {
+  const SDL_PixelFormat *fmt = surface->format;
   for (int i = 0; i < h; i++) {
     int yy = y + i * 2;
-    Uint32 *p = (Uint32 *)((Uint8 *)surface->pixels +
-			   (surface->w * 4 * yy) + x * 4);
-    // Now write a doubled line
-    Uint32 *inp = (Uint32 *)(argb.data() + (i * w * 4));
+    Uint32 *p1 = (Uint32 *)((Uint8 *)surface->pixels +
+			    (surface->w * 4 * yy) + x * 4);
+    Uint32 *p2 = (Uint32 *)((Uint8 *)surface->pixels +
+			    (surface->w * 4 * (yy + 1)) + x * 4);
+    // Write two identical lines (to p1, p2).
+    // Write each pixel (from inp) twice.
+    const uint8 *inp = (rgba.data() + (i * w * 4));
     for (int j = 0; j < w; j++) {
-      *p = *inp;
-      p++;
-      *p = *inp;
-      p++;
-      inp++;
+      Uint32 c = MakePixel(fmt, inp[0], inp[1], inp[2], inp[3]);
+      *p1 = c; p1++;
+      *p1 = c; p1++;
+      *p2 = c; p2++;
+      *p2 = c; p2++;
+      inp += 4;
     }
-
-    // And the second.
-    p = (Uint32 *)((Uint8 *)surface->pixels +
-		   (surface->w * 4 * (yy + 1)) + x * 4);
-    for (int j = 0; j < w; j++) {
-      *p = *inp;
-      p++;
-      *p = *inp;
-      p++;
-      inp++;
-    }
-
   }
  
 }
