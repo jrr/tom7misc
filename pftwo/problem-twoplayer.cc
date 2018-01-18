@@ -47,8 +47,8 @@ TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
 	}
       };
       // Left of goal. Move right.
-      Dir(px, gx, INPUT_L, INPUT_R);
-      Dir(gx, px, INPUT_R, INPUT_L);
+      Dir(px, gx, INPUT_R, INPUT_L);
+      Dir(gx, px, INPUT_L, INPUT_R);
       // TODO: For top-down games these are right, but in a side-
       // view game we need to be hitting the jump button to go up.
       // But also of course jumping is not just a matter of holding

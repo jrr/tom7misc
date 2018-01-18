@@ -100,7 +100,7 @@ contra.nes-waterfallboss2-3860000
  - Still gets stuck on waterfall boss though. Like 4B frames.
 
 
-next:
+contra.nes-firstwin-5220000.fm2
  - Tried generating moves using the goal. Very generic; believes that
    you press "up" to go up, for example. (But there's a bug hehe)
  - Objectives include pixel position and score
@@ -167,3 +167,16 @@ next:
    depth is 253k
  - < 3.79B to beat alien and get to fire beam level!!
    depth is 262k
+ - < 5.64B to claws part! depth 296k
+   around 290k, jumping over claws, cool
+ - looks like they beat the game in 6684.64 NES frames!!!
+ - I let it run all day anyway. High watermark:
+     - UI frame 5765470,
+     - 27890 collisions
+     - 32.39% improvement rate
+     - 56031536/66997800 explore deaths
+     - 7395.45 NES MFrames
+     - 372218 sec = 103 h
+     - 19.87 NES kFPS
+     - 15.49 UI FPS
+     - windows CPU time: 1112:44:32, 284M ram, 60258178 page faults

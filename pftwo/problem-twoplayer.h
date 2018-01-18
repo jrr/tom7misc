@@ -40,7 +40,6 @@ struct TwoPlayerProblem {
     return input;
   }
 
-  // 
   struct Goal {
     uint8 goalx = 0;
     uint8 goaly = 0;

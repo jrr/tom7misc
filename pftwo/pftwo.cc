@@ -193,9 +193,16 @@ struct Tree {
     // share prefixes, but there cannot be duplicates.
     map<Seq, Node *> children;
 
-    // Note for the node, only used in movie output. Associated
-    // with the sequence that led to this node.
-    string subtitle;
+    // Benchmark info for this node, only used for movie output. This
+    // makes it possible to compare the efficiency of progress (both
+    // in movie length and in CPU time / NES frames) for a particular
+    // tuning of playfun, post hoc.
+    // Approximate number of NES frames that have been executed.
+    int64 nes_frames = 0LL;
+    // Amount of wall time that has transpired.
+    int64 walltime_seconds = 0LL;
+    // If not <0, the goal used to produce the node.
+    int goalx = -1, goaly = -1;
     
     // Total number of times chosen for expansion. This will
     // be related to the number of children, but can be more
@@ -262,23 +269,6 @@ struct Tree {
       grid.emplace_back(0.0, nullptr);
     }
   }
-
-  #if 0
-  // old idea - delete
-  
-  // We keep multiple heaps, each of which could contain a different
-  // subset of nodes. There is one "main" heap that can hold any node
-  // (this one is typically large) plus a set of smaller keyed heaps
-  // that a node can only be stored in if it meets some criteria
-  // (called the "key"). A canonical use of this is to keep the
-  // best-scoring (according to objective function) node(s) for
-  // a grid of screen positions.
-  struct KeyedHeap {
-
-    
-    Heap<double, Node> heap;
-  };
-  #endif
 
   // Tree prioritized by negation of score at current epoch. Negation
   // is used so that the minimum node is actually the node with the
@@ -348,6 +338,10 @@ struct PF2 {
   };
   Stats stats;
 
+  // Updated by the UI thread.
+  std::atomic<int64> approx_sec;
+  std::atomic<int64> approx_nes_frames;
+  
   PF2() {
     map<string, string> config = Util::ReadFileToMap("config.txt");
     if (config.empty()) {
@@ -511,6 +505,16 @@ struct WorkThread {
     }
   }
 
+  Node *NewNode(Problem::State newstate, Node *parent) {
+    CHECK(parent != nullptr);
+    Node *child = new Node(std::move(newstate), parent);
+    child->nes_frames = pftwo->approx_nes_frames.load(
+	std::memory_order_relaxed);
+    child->walltime_seconds = pftwo->approx_sec.load(
+    	std::memory_order_relaxed);
+    return child;
+  }
+
   // Add a new child to the node (unless it's a duplicate).
   // Returns the new node or existing child. Doesn't change
   // reference counts. Must hold the tree lock.
@@ -519,7 +523,7 @@ struct WorkThread {
 			   Problem::State newstate,
 			   double newscore) {
     CHECK(n != nullptr);
-    Node *child = new Node(std::move(newstate), n);
+    Node *child = NewNode(std::move(newstate), n);
     auto res = n->children.insert({seq, child});
     if (!res.second) {
       // By dumb luck (this might not be that rare if the markov
@@ -572,8 +576,7 @@ struct WorkThread {
 		   const Tree::Seq &seq,
 		   Problem::State newstate,
 		   double newscore) {
-    CHECK(n != nullptr);
-    Node *child = new Node(std::move(newstate), n);
+    Node *child = NewNode(std::move(newstate), n);
     MutexLock ml(&pftwo->tree_m);
 
     // XXX This should probably be done in the caller, because
@@ -1020,11 +1023,9 @@ struct WorkThread {
       double score = pftwo->problem->Score(newstate);
       Node *child =
 	ExtendNodeWithLock(en->source, full_seq, std::move(newstate), score);
-      child->subtitle = StringPrintf("Goto %d,%d (closest %.2f)",
-				     // XXX TPP-specific.
-				     en->goal.goalx,
-				     en->goal.goaly,
-				     best_distance);
+      // XXX: This is TPP specific.
+      child->goalx = en->goal.goalx;
+      child->goaly = en->goal.goaly;
     }
 
     // Finally, reduce the iteration count, and maybe clean up the
@@ -1322,8 +1323,8 @@ struct UIThread {
     screenshots.resize(num_workers);
     for (auto &v : screenshots) v.resize(256 * 256 * 4);
 
-    double start = SDL_GetTicks() / 1000.0;
-
+    const int64 start = time(nullptr);
+    
     for (;;) {
       frame++;
       SDL_Event event;
@@ -1352,6 +1353,9 @@ struct UIThread {
 	
       SDL_Delay(1000.0 / 30.0);
 
+      const int64 now = time(nullptr);
+      pftwo->approx_sec.store(now - start, std::memory_order_relaxed);
+      
       // Every ten thousand frames, write FM2 file.
       // TODO: Superimpose all of the trees at once.
       if (frame % 10000 == 0) {
@@ -1381,7 +1385,13 @@ struct UIThread {
 	  CHECK(seq != nullptr) << "Oops, when saving, I couldn't find "
 	    "the path to this node; it must have been misparented!";
 
-	  path.emplace_front(n->subtitle, *seq);
+	  string subtitle =
+	    StringPrintf("f %lld s %lld g %d,%d",
+			 n->nes_frames / 1024,
+			 n->walltime_seconds,
+			 n->goalx, n->goaly);
+			 
+	  path.emplace_front(subtitle, *seq);
 	  n = parent;
 	}
 
@@ -1441,6 +1451,10 @@ struct UIThread {
 	total_steps += w->nes_frames.load(std::memory_order_relaxed);
       }
 
+      // Save the sum to a single value for benchmarking.
+      pftwo->approx_nes_frames.store(total_steps,
+				     std::memory_order_relaxed);
+      
       bool queue_mode = false;
       {
 	MutexLock ml(&pftwo->tree_m);
@@ -1636,15 +1650,23 @@ struct UIThread {
 
       static constexpr int BOTTOM = HEIGHT - FONTHEIGHT - 3;
 
-      const double now = SDL_GetTicks() / 1000.0;
-      double sec = now - start;
-      font->draw(10, HEIGHT - FONTHEIGHT,
-		 StringPrintf("%.2f NES Mframes in %.1f sec = %.2f NES kFPS "
-			      "%.2f UI FPS",
-			      total_steps / 1000000.0, sec,
-			      (total_steps / sec) / 1000.0,
-			      frame / sec));
+      {
+	int64 total_sec = now - start;
+	int64 sec = total_sec;
+	int64 min = sec / 60;
+	sec %= 60;
+	int64 hrs = min / 60;
+	min %= 60;
 
+	font->draw(10, HEIGHT - FONTHEIGHT,
+		   StringPrintf("%.2f NES Mframes in %d^2:^<%02d^2:^<%02d "
+				"= %.2f NES kFPS "
+				"%.2f UI FPS",
+				total_steps / 1000000.0, hrs, min, sec,
+				(total_steps / (double)total_sec) / 1000.0,
+				frame / (double)total_sec));
+      }
+      
       // XXX maybe show the grid cells in the histo
       std::sort(all_scores.rbegin(), all_scores.rend());
       static constexpr int HISTO_HEIGHT = 128;

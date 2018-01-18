@@ -163,13 +163,21 @@ struct UIThread {
 	    break;
 	    
 	  case SDLK_MINUS:
-	    df--;
-	    if (df < 0) df = 0;
+	    if (event.key.keysym.mod & KMOD_CTRL) {
+	      df -= 100;
+	    } else {
+	      df--;
+	    }
+	    if (df < 1) df = 1;
 	    break;
 
 	  case SDLK_EQUALS:
 	  case SDLK_PLUS:
-	    df++;
+	    if (event.key.keysym.mod & KMOD_CTRL) {
+	      df += 100;
+	    } else {
+	      df++;
+	    }
 	    break;
 
 	  case SDLK_SPACE:
@@ -257,6 +265,19 @@ struct UIThread {
 	      f->samples_used = 0;
 	      emu->GetImage(&f->rgba);
 	      emu->GetSound(&f->samples);
+
+	      if (df > 100) {
+		// Just get rid of the sound if we're going this fast!
+		for (int i = 0; i < f->samples->size(); i++)
+		  f->samples[i] = 0;
+	      } else if (df > 1) {
+		int shift = 1;
+		if (df > 5) shift++;
+		if (df > 10) shift++;
+		if (df > 50) shift++;
+		for (int i = 0; i < f->samples->size(); i++)
+		  f->samples[i] >>= shift;
+	      }
 	    }
 	  }
 	    
