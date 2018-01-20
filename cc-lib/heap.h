@@ -88,7 +88,8 @@ class Heap {
     return cells[0];
   }
   
-  // May not be empty.
+  // Returns and removes the (well, *a*) node with the smallest score.
+  // Heap may not be empty.
   Cell PopMinimum() {
     if (cells.empty()) {
       fprintf(stderr, "Can't PopMinimum on an empty heap.\n");
