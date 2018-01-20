@@ -8,8 +8,8 @@
 //   drawpixel(x, y);
 // }
 
-#ifndef __CC_LIB_LINE_H
-#define __CC_LIB_LINE_H
+#ifndef __CC_LIB_LINES_H
+#define __CC_LIB_LINES_H
 
 #include <utility>
 #include <type_traits>

@@ -192,13 +192,14 @@ string Util::ReadFile(const string &s) {
   if (Util::isdir(s)) return "";
   if (s == "") return "";
 
-  FILE * f = fopen(s.c_str(), "rb");
+  FILE *f = fopen(s.c_str(), "rb");
   if (!f) return "";
+
   fseek(f, 0, SEEK_END);
   int size = ftell(f);
   fseek(f, 0, SEEK_SET);
 
-  char * ss = (char*)malloc(size);
+  char *ss = (char*)malloc(size);
   fread(ss, 1, size, f);
 
   fclose(f);
@@ -218,10 +219,10 @@ vector<string> Util::SplitToLines(const string &s) {
   string line;
   // PERF don't need to do so much copying.
   for (size_t i = 0; i < s.size(); i++) {
-    if (s[i] == '\r')
+    if (s[i] == '\r') {
       continue;
-    else if (s[i] == '\n') {
-      v.push_back(line);
+    } else if (s[i] == '\n') {
+      v.push_back(std::move(line));
       line.clear();
     } else {
       line += s[i];

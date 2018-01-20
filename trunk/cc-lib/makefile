@@ -1,7 +1,7 @@
 
-default : heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe
+default : heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe $(TESTCOMPILE)
 
-TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o
+TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
 
 BASE=base/logging.o base/stringprintf.o
 

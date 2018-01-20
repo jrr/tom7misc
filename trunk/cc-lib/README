@@ -67,3 +67,5 @@ base64        - Very simple base64 encoding and decoding.
 md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
                 no longer be considered safe for cryptography, so you should
                 probably avoid it for new applications.
+bounds        - Simple bounding box implementation, typically used for
+                generating plots of data
