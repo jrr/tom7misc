@@ -32,6 +32,9 @@ The base64 and md5 code originally came from the public domain utilities;
 I've only made light changes there, and let's call those public domain
 as well.
 
+The re2 subdirectory comes from Google and community contributors; see
+re2/LICENSE for its permissive license.
+
 Currently, everything else is licensed under the GPL, which can be
 found in COPYING.
 
@@ -41,6 +44,7 @@ sdl/         Utilities for my habits in SDL. Includes bitmap font rendering.
 jdksmidi/    Baroque but thorough MIDI library, GPL.
 city/        The excellent CityHash hash algorithm.
 gtest/       Google testing library. New BSD license.
+re2/         Local copy of a good, free Regular Expression library.
 
 wavesave      - Saves an array of audio samples as a WAV file. Limited input
                 formats, though it is not hard to add more.
@@ -69,3 +73,4 @@ md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
                 probably avoid it for new applications.
 bounds        - Simple bounding box implementation, typically used for
                 generating plots of data
+
