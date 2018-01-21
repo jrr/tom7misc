@@ -16,6 +16,9 @@ void Bounds::Bound(double x, double y) {
   B(y, &miny, &maxy);
   is_empty = false;
 }
+void Bounds::Bound(std::pair<double, double> p) {
+  Bound(p.first, p.second);
+}
 
 bool Bounds::Empty() const { return is_empty; }
 
@@ -69,6 +72,24 @@ Bounds::Scaler Bounds::Stretch(double neww, double newh) const {
   ret.yoff = 0.0 - miny;
   ret.xs = neww / oldw;
   ret.ys = newh / oldh;
+  ret.width = oldw;
+  ret.height = oldh;
   return ret;
 }
 
+Bounds::Scaler Bounds::Scaler::FlipY() const {
+  Scaler ret = *this;
+  // screen_y = (yoff + y) * ys
+  // but we want
+  // flip_y = (yoff + (height - y)) * ys
+  //        = ys * yoff + ys * height - ys * y
+  //        = ys (yoff + height) - ys * y
+  // so if we negate ys, then
+  //        = - nys (yoff + height) + nys * y
+  // and make yoff be -(yoff + height), then
+  //        = nys * nyoff + nys * y
+  //        = (nyoff + y) * nys
+  ret.ys = -ys;
+  ret.yoff = -(yoff + height);
+  return ret;
+}
