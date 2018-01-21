@@ -12,7 +12,8 @@ struct Bounds {
 
   // Expand the bounding box to contain the point.
   void Bound(double x, double y);
-
+  void Bound(std::pair<double, double> p);
+  
   // Returns true if no points have been added. When the bounding box
   // is empty, several functions below should not be called.
   bool Empty() const;
@@ -57,10 +58,14 @@ struct Bounds {
     double ScaleX(double x) const;
     double ScaleY(double y) const;
     std::pair<double, double> Scale(std::pair<double, double> p) const;
+
+    Scaler FlipY() const;
   private:
     friend class Bounds;
     double xoff = 0.0, yoff = 0.0;
     double xs = 1.0, ys = 1.0;
+    // In original coordinate system.
+    double width = 0.0, height = 0.0;
   };
 
   // Make the bounding box as large as possible without modifying its
