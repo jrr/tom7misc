@@ -28,6 +28,35 @@ TPP::Input Worker::AnyInput() const {
   return ControllerInput(0, 0);
 }
 
+TPP::InputGenerator Worker::Generator(ArcFour *rc, const Goal *goal) {
+  MutexLock ml(&mutex);
+
+  // PERF: Only need this if we have a goal or decide to sync.
+  // Better would just be to read memory without copying all of it.
+  vector<uint8> mem = emu->GetMemory();
+  const int p1x = mem[tpp->x1_loc];
+  const int p1y = mem[tpp->y1_loc];
+  const int p2x = mem[tpp->x2_loc];
+  const int p2y = mem[tpp->y2_loc];
+
+  const bool sync = 
+    std::abs(p1x - p2x) < 12 &&
+    std::abs(p1y - p2y) < 12 && 
+    rc->Byte() < 64;
+			  
+  if (goal != nullptr) {
+    return InputGenerator{tpp, goal,
+	p1x, p1y, p2x, p2y,
+	sync,
+	previous1, previous2};
+  } else {
+    return InputGenerator{tpp, goal, 0, 0, 0, 0,
+	sync,
+	previous1, previous2};
+  }
+}
+
+
 TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
   uint8 p1 = tpp->markov1->RandomNext(prev1, rc);
   uint8 p2 = tpp->markov2->RandomNext(prev2, rc);
@@ -58,10 +87,11 @@ TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
       // direction. This might account for the fact that we can
       // only jump when standing on a platform, or can climb some
       // ladders in e.g. megaman).
-      // Note in contra, holding 'down' is pretty counterproductive
-      // because it causes you to lay on the ground. And holding
-      // up can be counterproductive in the '3D' corridor levels
-      // because it zaps you.
+      //
+      // Just as an example of the complexity: In Contra, holding
+      // 'down' is pretty counterproductive because it causes you to
+      // lay on the ground. And holding up can be counterproductive in
+      // the '3D' corridor levels because it zaps you.
       
       // Above goal. Move down.
       Dir(py, gy, INPUT_D, INPUT_U);
@@ -71,10 +101,40 @@ TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
     p1 = Mask(p1x, p1y, p1);
     p2 = Mask(p2x, p2y, p2);
   }
+
+  // Execute the same inputs if sync is enabled.
+  if (sync) p1 = p2;
+  
   prev1 = tpp->markov1->Push(prev1, p1);
   prev2 = tpp->markov2->Push(prev2, p2);
   return ControllerInput(p1, p2);
 }
+
+vector<int> TPP::AdjacentCells(int cell) {
+  auto C = [](int xx, int yy) {
+    return yy * GRID_CELLS_W + xx;
+  };
+  const int y = cell / GRID_CELLS_W;
+  const int x = cell % GRID_CELLS_W;
+  vector<int> ret;
+  // Look at the 9-connected neighbors.
+  for (int dy = -1; dy <= 1; dy++) {
+    const int yy = y + dy;
+    if (yy >= 0 && yy < GRID_CELLS_H) {
+      for (int dx = -1; dx <= 1; dx++) {
+	const int xx = x + dx;
+	if (xx >= 0 && xx < GRID_CELLS_W) {
+	  // But not itself.
+	  if (y != yy || x != xx) {
+	    ret.push_back(C(xx, yy));
+	  }
+	}
+      }
+    }
+  }
+  return ret;
+}
+
 
 void TPP::SaveSolution(const string &filename_part,
 		       const vector<Input> &inputs,

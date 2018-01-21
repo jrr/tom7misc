@@ -118,7 +118,7 @@ static void DrawPlots(const vector<Plots> &plotses,
     }
   }
 
-  bounds.AddMarginFrac(0.2);
+  bounds.AddMarginFrac(0.05);
   Bounds::Scaler scaler = bounds.Stretch(width, height).FlipY();
   // Now output the lines
   int coloridx = 0;
