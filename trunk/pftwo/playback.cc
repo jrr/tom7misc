@@ -1,5 +1,4 @@
 
-// TODO: Mute the sound when df is high.
 // TODO: Don't blank the screen when we fall behind.
 // TODO: Read metadata like goals from the FM2 or some future format.
 
@@ -24,12 +23,10 @@
 #include "../fceulib/simplefm2.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/util.h"
-#include "../cc-lib/arcfour.h"
-#include "../cc-lib/textsvg.h"
 #include "../cc-lib/sdl/chars.h"
 #include "../cc-lib/sdl/font.h"
-#include "../cc-lib/heap.h"
-#include "../cc-lib/randutil.h"
+#include "../cc-lib/re2/re2.h"
+
 
 #include "SDL.h"
 #include "graphics.h"
@@ -70,14 +67,19 @@ struct UIThread {
   // the frame that is next to be executed (so a key of 0 is the state
   // upon loading, without executing any frames).
   std::map<int64, vector<uint8>> snapshots;
+  std::map<int64, string> subtitles;
   unique_ptr<Emulator> emu;
   int frameidx = 0;
   
   UIThread(const string &game,
 	   const string &fm2) {
     // TODO: Get subtitles and other metadata from movie.
-    movie = SimpleFM2::ReadInputs2P(fm2);
+    vector<pair<int, string>> subs;
+    movie = SimpleFM2::ReadInputsEx(fm2, &subs);
     CHECK(!movie.empty()) << "Couldn't read movie: " << fm2;
+    for (const auto &p : subs)
+      subtitles[p.first] = p.second;
+
     emu.reset(Emulator::Create(game));
     CHECK(emu.get() != nullptr) << game;
 
@@ -102,6 +104,8 @@ struct UIThread {
     int frameidx = 0;
     vector<uint8> rgba;
     vector<int16> samples;
+    string subtitle;
+    int goalx = -1, goaly = -1;
     int samples_used = 0;
   };
   std::mutex frames_m;
@@ -141,6 +145,8 @@ struct UIThread {
   void Loop() {
     SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
     (void)surf;
+
+    RE2 goal_re{"g ([-0-9]+),([-0-9]+)"};
     
     for (;;) {
       SDL_Event event;
@@ -266,16 +272,24 @@ struct UIThread {
 	      emu->GetImage(&f->rgba);
 	      emu->GetSound(&f->samples);
 
+	      auto it = subtitles.lower_bound(frameidx);
+	      if (it == subtitles.begin()) break;
+	      --it;
+	      f->subtitle = it->second;
+
+	      (void)RE2::PartialMatch(f->subtitle, goal_re,
+				      &f->goalx, &f->goaly);
+	      
 	      if (df > 100) {
 		// Just get rid of the sound if we're going this fast!
-		for (int i = 0; i < f->samples->size(); i++)
+		for (int i = 0; i < f->samples.size(); i++)
 		  f->samples[i] = 0;
-	      } else if (df > 1) {
+	      } else if (df > 2) {
 		int shift = 1;
 		if (df > 5) shift++;
 		if (df > 10) shift++;
 		if (df > 50) shift++;
-		for (int i = 0; i < f->samples->size(); i++)
+		for (int i = 0; i < f->samples.size(); i++)
 		  f->samples[i] >>= shift;
 	      }
 	    }
@@ -301,10 +315,26 @@ struct UIThread {
 			       0x77, 0x0, 0x0);
 	} else {
 	  Frame *f = &*frames.begin();
+	  static constexpr int XOFF = 0;
+	  static constexpr int YOFF = 0;
 	  // Now draw/play.
-	  BlitRGBA2x(f->rgba, 256, 256, 0, 16, screen);
+	  BlitRGBA2x(f->rgba, 256, 256, XOFF, YOFF, screen);
 	  font->draw(0, 4, StringPrintf("%d^2/^<%d",
 					f->frameidx, (int)movie.size()));
+	  font->draw(0, 20, f->subtitle);
+
+	  if (f->goalx >= 0 && f->goaly >= 0) {
+	    font->draw(0, 500, StringPrintf("GOAL %d,%d", f->goalx, f->goaly));
+	    sdlutil::drawbox(screen,
+	    2 * f->goalx - 5, YOFF + 2 * f->goaly - 5, 10, 10,
+	    0x00, 0x00, 0x00);
+	    sdlutil::drawbox(screen,
+	    2 * f->goalx - 4, YOFF + 2 * f->goaly - 4, 8, 8,
+	    0xFF, 0x00, 0xFF);
+	    sdlutil::drawbox(screen,
+	    2 * f->goalx - 3, YOFF + 2 * f->goaly - 3, 6, 6,
+	    0xFF, 0x00, 0xFF);
+  	  }
 	}
       }
 
@@ -395,7 +425,6 @@ struct UIThread {
 
   Font *font = nullptr, *smallfont = nullptr, *maxfont = nullptr;
 
-  ArcFour rc{"ui_thread"};
   SDL_Surface *screen = nullptr;
 };
 
