@@ -2,7 +2,13 @@
 /* Alleged RC4 algorithm.
    The RC4 name is trademarked by RSA DSI.
    This implementation is based on the algorithm
-   published in Applied Cryptography. */
+   published in Applied Cryptography. 
+
+   This algorithm is admirably simple, but
+   should only be used for cryptography with
+   significant care. It is a good fast random
+   number generator, however.
+*/
 
 // Note: I ported this from my SML version and
 // never tested it. -tom7
@@ -15,7 +21,7 @@
 #include <cstdint>
 
 struct ArcFour {
-  typedef uint8_t uint8;
+  using uint8 = uint8_t;
 
   explicit ArcFour(const std::vector<uint8> &v);
   explicit ArcFour(const std::string &s);
@@ -30,7 +36,7 @@ struct ArcFour {
   // 2001 attach by Fluhrer, Mantin, and Shamir.
   void Discard(int n);
 
-private:
+ private:
   uint8 ii, jj;
   uint8 ss[256];
 };
