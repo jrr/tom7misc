@@ -36,17 +36,6 @@
 // probability mass. This probably also solves the problem where
 // we get out of gamut.
 //
-// TODO: show benchmark of Mframes before reaching milestones in the
-// game, so that we can scientifically judge efficiency. Also frame
-// depth, since shorter movies are also better.
-// (Might also be useful to output the wall time of some operations,
-// since e.g. reheaping seems to get kinda slow after it's been
-// running that long.)
-//
-// TODO: Consider generating same moves for both players when they are
-// in the same approximate position? This makes the probability of
-// both making a narrow jump substantially better.
-//
 // TODO: Grid keys for palette entries, sprites on screen, bg values?
 // This would help for bosses where there's some visual feedback on
 // damage, and would be easier than trying to fuzz all of ram
@@ -74,6 +63,11 @@
 // points (e.g. score) while waiting, though, because the resulting
 // states would be actually worse than the original breakthrough
 // (lower score).
+//
+// TODO: Playing through a full game yields a path from the root that's
+// over 1000 nodes (contra firstwin is 1245), so 1000 max nodes in the
+// tree is probably wrong. At a minimum we should give a discount for
+// the path to the best node, yeah?
 
 #include <algorithm>
 #include <vector>
@@ -336,8 +330,8 @@ struct PF2 {
   Stats stats;
 
   // Updated by the UI thread.
-  std::atomic<int64> approx_sec;
-  std::atomic<int64> approx_nes_frames;
+  std::atomic<int64> approx_sec{0LL};
+  std::atomic<int64> approx_nes_frames{0LL};
   
   PF2() {
     map<string, string> config = Util::ReadFileToMap("config.txt");
@@ -350,11 +344,6 @@ struct PF2 {
     if (num_workers <= 0) {
       fprintf(stderr, "Warning: In config, 'workers' should be set >0.\n");
       num_workers = 1;
-    }
-    // An absurd amount, but we want to not overflow 8-bit ref counts.
-    if (num_workers > 250) {
-      fprintf(stderr, "Warning: In config, 'workers' must be <250.\n");
-      num_workers = 250;
     }
 
     problem.reset(new Problem(config));
@@ -394,23 +383,19 @@ struct WorkThread {
     // XXX This stuff is a hack. Improve it!
     double bestscore = -pftwo->tree->heap.GetMinimum().priority;
     const double gminscore = GRID_BESTSCORE_FRAC * bestscore;
+    // The interval from gminscore to bestscore is size (1.0 -
+    // grid_bestscore_frac). When the cell's score falls in this
+    // range we consider it, and we select it with probability
+    // proportional to its distance within this interval. This
+    // value is what we multiply the distance by to get a value
+    // from (nominally) 0 to 1.
+    constexpr double ival_norm = 1.0 / (1.0 - GRID_BESTSCORE_FRAC);
     
-    /*
-      n.b. never even tried this code!
-    int gidx = RandTo(rc, pftwo->tree->grid.size());
-    if (pftwo->tree->grid[gidx].node != nullptr &&
-	rc->Byte() < 128) {
-      // XXX Do we really need a score cutoff? How to choose it?
-      if (pftwo->tree->grid[gidx].score >= 0.90 * bestscore)
-	ret = pftwo->tree->grid[gidx].node;
-    }
-    */
-
     for (int idx = 0; idx < pftwo->tree->grid.size(); idx++) {
       const Tree::GridCell &gc = pftwo->tree->grid[idx];
-      if (gc.node != nullptr) {
-	const double p = gc.score - gminscore;
-	if (p > 0.0 && RandDouble(&rc) < p) {
+      if (gc.node != nullptr && gc.score >= gminscore) {
+	const double p = (gc.score - gminscore) * ival_norm;
+	if (RandDouble(&rc) < p) {
 	  eligible->push_back(idx);
 	}
       }
@@ -850,26 +835,73 @@ struct WorkThread {
 	CHECK(tree->explore_queue.empty());
 	if (tree->stuckness > 0.50) {
 	  static constexpr int NUM_EXPLORE_NODES = 50;
-	  static constexpr int NUM_EXPLORE_ITERATIONS = 500;
+
+	  // Holding the lock, add the explore node, including adding
+	  // to the source node's reference count.
+	  auto AddExploreNode = [this, tree](
+	      Node *source, Problem::Goal goal) {
+	    static constexpr int NUM_EXPLORE_ITERATIONS = 500;
+	    source->num_workers_using++;
+	    Tree::ExploreNode en;
+	    en.source = source;
+	    en.goal = goal;
+	    en.closest_state = source->state;
+	    en.distance =
+	      pftwo->problem->GoalDistance(goal, source->state);
+	    en.iterations_left = NUM_EXPLORE_ITERATIONS;
+	    en.iterations_in_progress = 0;
+	    tree->explore_queue.push_back(std::move(en));
+	  };
+
 	  // More stuck = more exploration.
 	  int num_explore = NUM_EXPLORE_NODES * tree->stuckness;
 	  printf("Making %d explore nodes.\n", num_explore);
+
+	  // Prioritize using existing cells if we have them.
+	  vector<int> goodcells;
+	  EligibleGridNodesWithMutex(&goodcells);
+	  set<int> isgood;
+	  for (int c : goodcells) isgood.insert(c);
+
+	  // Do these in a random order in case there are so many
+	  // eligible expansions that we exhaust the list.
+	  Shuffle(&rc, &goodcells);
+	  while (!goodcells.empty() && num_explore > 0) {
+	    // For any eligible cell, consider its adjacent neighbors.
+	    int cell = goodcells.back();
+	    goodcells.pop_back();
+	    vector<int> adj = Problem::AdjacentCells(cell);
+	    for (int adjcell : adj) {
+	      // If we don't have an eligible cell, try going there.
+	      // Also some (smaller) chance to try anyway.
+	      if (isgood.find(adjcell) == isgood.end() ||
+		  rc.Byte() < 32) {
+		Node *source = pftwo->tree->grid[cell].node;
+		Problem::Goal goal =
+		  pftwo->problem->RandomGoalInCell(&rc, adjcell);
+		// printf("Explore %s -> %s (%d,%d)");
+		printf("Explore adj %d -> %d (goal %d,%d)\n",
+		       cell, adjcell, goal.goalx, goal.goaly);
+		
+		AddExploreNode(source, goal);
+		
+		num_explore--;
+		if (num_explore == 0) break;
+	      }
+	    }
+	  }
+
+	  // If we have leftover quota, just do random goals.
+	  // TODO: Rather than choosing random goals, choose goals that aren't
+	  // already represented in the grid, and perhaps choose ones that are
+	  // adjacent to covered cells.
 	  while (num_explore--) {
 	    // XXX I think it would be better if we required the
 	    // score to be close to the max score, because otherwise
 	    // there's basically no chance of this helping.
 	    Node *source = FindGoodNodeWithMutex();
-	    source->num_workers_using++;
 	    Problem::Goal goal = pftwo->problem->RandomGoal(&rc);
-	    
-	    Tree::ExploreNode en;
-	    en.source = source;
-	    en.goal = goal;
-	    en.closest_state = source->state;
-	    en.distance = pftwo->problem->GoalDistance(goal, source->state);
-	    en.iterations_left = NUM_EXPLORE_ITERATIONS;
-	    en.iterations_in_progress = 0;
-	    tree->explore_queue.push_back(std::move(en));
+	    AddExploreNode(source, goal);
 	  }
 	}
       }
@@ -1508,10 +1540,10 @@ struct UIThread {
 	// XXX this specific to the current TwoPlayerProblem
 	// TODO! Save little pictures for each grid cell; it'd
 	// look awesome!
-	for (int cy = 0; cy < Problem::GRID_CELLS_Y; cy++) {
-	  for (int cx = 0; cx < Problem::GRID_CELLS_X; cx++) {
+	for (int cy = 0; cy < Problem::GRID_CELLS_H; cy++) {
+	  for (int cx = 0; cx < Problem::GRID_CELLS_W; cx++) {
 	    const Tree::GridCell &gc =
-	      pftwo->tree->grid[cy * Problem::GRID_CELLS_Y + cx];
+	      pftwo->tree->grid[cy * Problem::GRID_CELLS_W + cx];
 	    if (gc.node == nullptr) {
 	      sdlutil::FillRectRGB(screen,
 				   GRIDX + cx * CELLPX,

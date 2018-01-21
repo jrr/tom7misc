@@ -14,6 +14,7 @@
 #include "n-markov-controller.h"
 #include "../fceulib/emulator.h"
 #include "weighted-objectives.h"
+#include "../cc-lib/randutil.h"
 
 struct TwoPlayerProblem {
   // Player 1 and Player 2 controllers.
@@ -82,7 +83,10 @@ struct TwoPlayerProblem {
     const TwoPlayerProblem *tpp;
     // Maybe null.
     const Goal *goal;
+    // Actual locations of players.
     int p1x, p1y, p2x, p2y;
+    // If true, generate the same sequence for p1 and p2.
+    bool sync;
     ControllerHistory prev1, prev2;
     Input RandomInput(ArcFour *rc);
   };
@@ -96,6 +100,17 @@ struct TwoPlayerProblem {
     Goal goal;
     goal.goalx = rc->Byte();
     goal.goaly = rc->Byte();
+    return goal;
+  }
+
+  Goal RandomGoalInCell(ArcFour *rc, int cell) const {
+    // Top-left corner of cell.
+    const int y = cell / GRID_CELLS_W;
+    const int x = cell % GRID_CELLS_W;
+
+    Goal goal;
+    goal.goalx = x + RandTo(rc, DIVI_X);
+    goal.goaly = y + RandTo(rc, DIVI_Y);
     return goal;
   }
   
@@ -119,24 +134,7 @@ struct TwoPlayerProblem {
     // generating multiple sequential random inputs without executing
     // them. Intended to be efficient to create.
     // Goal may be nullptr if there is no goal.
-    InputGenerator Generator(ArcFour *rc, const Goal *goal) {
-      MutexLock ml(&mutex);
-      if (goal != nullptr) {
-	// Avoid doing this memory read if there's no goal.
-	vector<uint8> mem = emu->GetMemory();
-	const int p1x = mem[tpp->x1_loc];
-	const int p1y = mem[tpp->y1_loc];
-	const int p2x = mem[tpp->x2_loc];
-	const int p2y = mem[tpp->y2_loc];
-
-	return InputGenerator{tpp, goal,
-	    p1x, p1y, p2x, p2y,
-	    previous1, previous2};
-      } else {
-	return InputGenerator{tpp, goal, 0, 0, 0, 0,
-	    previous1, previous2};
-      }
-    }
+    InputGenerator Generator(ArcFour *rc, const Goal *goal);
         
     State Save() {
       MutexLock ml(&mutex);
@@ -291,13 +289,13 @@ struct TwoPlayerProblem {
   static_assert(GRID_DIVISIONS > 0 && GRID_DIVISIONS < 8,
 		"valid range");
   
-  static constexpr int GRID_CELLS_X = 1 << GRID_DIVISIONS;
+  static constexpr int GRID_CELLS_W = 1 << GRID_DIVISIONS;
   static constexpr int DIVI_X = 256 >> GRID_DIVISIONS;
   static constexpr int DIVI_Y = 256 >> GRID_DIVISIONS;
-  static constexpr int GRID_CELLS_Y = 1 << GRID_DIVISIONS;
+  static constexpr int GRID_CELLS_H = 1 << GRID_DIVISIONS;
 
   // Part of the problem interface.
-  static constexpr int num_grid_cells = GRID_CELLS_X * GRID_CELLS_Y;
+  static constexpr int num_grid_cells = GRID_CELLS_W * GRID_CELLS_H;
   // A state can be in 0 or 1 grid cells.
   bool GetGridCell(const State &state, int *cell) const {
     if (x1_loc == -1 || y1_loc == -1 ||
@@ -317,11 +315,14 @@ struct TwoPlayerProblem {
     // we get another quadratic blowup.
     if (c1x != c2x || c1y != c2y) return false;
     
-    *cell = c1y * GRID_CELLS_Y + c1x;
+    *cell = c1y * GRID_CELLS_W + c1x;
     CHECK(*cell < num_grid_cells) << c1x << " " << c1y;
 	
     return true;
   }
+
+  // Get all of the cells that are "adjacent" to this one.
+  static vector<int> AdjacentCells(int cell);
   
   // Must be thread safe and leave Worker in a valid state.
   Worker *CreateWorker();

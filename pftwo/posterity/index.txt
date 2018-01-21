@@ -181,10 +181,12 @@ contra.nes-firstwin-5220000.fm2
      - 15.49 UI FPS
      - windows CPU time: 1112:44:32, 284M ram, 60258178 page faults
 
-next one:
+contra.nes-fixedgoalseek-4940000
  - to last moving platform before waterfall boss by 724M frames depth 85k
  - at spike cars by 1488M frames, depth ?
  - to fire laser stairs by 4237M. 
  - depth is superior, but mframes is not that much better than previous,
    mainly because of these bosses...
+ - I finally killed it at 6230 Mframes, stuck on the big jumpy disc boss
+   at depth 189k. 85h15m
 
