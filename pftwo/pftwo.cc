@@ -66,10 +66,7 @@
 // improve MFrame efficiency by limiting the score loss in
 // FindGoodNode or whatever.
 //
-// TODO: Make my own playback tool. It's not hard, and even just
-// being able to fastforward at a reasonable rate would save time.
-//
-// TODO: Right after a score breakthrough (i.e., plateu for a while,
+// TODO: Right after a score breakthrough (i.e., plateau for a while,
 // then we discover a higher score), try replaying the sequence of
 // moves we just made on random states from the plateau region, with
 // the idea that we can sometimes cut out a lot of dithering. Not
