@@ -158,8 +158,7 @@ contra.nes-firstwin-5220000.fm2
    shoot at the weak points, especially since you can kill dudes from
    its favorite spot at rhs
  - beats at 237k
- - ice level is pretty easy for it; this particular movie ends right
-   before the spike car
+ - ice level is pretty easy for it. spike cars are hard
  - there are two spike cars in this level. they might be pretty hard
    (without taking a death) because you have to shoot them
    continuously, and fast, or else they run you over.
@@ -189,4 +188,23 @@ contra.nes-fixedgoalseek-4940000
    mainly because of these bosses...
  - I finally killed it at 6230 Mframes, stuck on the big jumpy disc boss
    at depth 189k. 85h15m
+
+contra.nes-syncwin-5590000
+ - This version sometimes syncs 1p and 2p inputs, and does explicit
+   adjacency in the grid search. I also fixed some bugs where grid cells
+   were not eligible as often as they should be.
+ - It is much faster than the previous two (walltime, mframes) although
+   depth is actually worse than fixedgoalseek (at least on waterfall)
+ - Players definitely like to sync, even when not going after a goal,
+   which was surprising. I guess the chance that we make forward progress
+   is still a lot higher for random play when we don't need both players to
+ - some good stuff on waterfall level. When they're synced they look
+   invisible. before the fire bridge, some daredevil stuff with bullets,
+   baiting enemies
+ - gets stuck on that first moving platform (~60k). the way they
+   finally make it is pretty silly, jumping back down on it several
+   times
+ - to car by 684 Mframes, 9h30m   
+ - stuck on car still at 1548M, 20h55m
+ - left this running when I went to CA. 8938Mframes, 130:50:15, win
 

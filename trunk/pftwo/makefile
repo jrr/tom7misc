@@ -75,8 +75,9 @@ playback.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB
 progress.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) progress.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+# posterity/contra.nes-firstwin-5220000.fm2
 bench : progress.exe
-	./progress.exe contra.nes posterity/contra.nes-fixedgoalseek-4940000.fm2 posterity/contra.nes-firstwin-5220000.fm2
+	./progress.exe contra.nes posterity/contra.nes-fixedgoalseek-4940000.fm2 posterity/contra.nes-syncwin-5590000.fm2
 
 clean :
 	rm -f pftwo.exe testui.exe *.o $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) gmon.out
