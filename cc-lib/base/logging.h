@@ -30,7 +30,7 @@ using std::endl;
 #define CHECK_GE(x, y)	CHECK((x) >= (y))
 #define CHECK_EQ(x, y)	CHECK((x) == (y))
 #define CHECK_NE(x, y)	CHECK((x) != (y))
-#define CHECK_NOTNULL(x) CHECK((x) != NULL)
+#define CHECK_NOTNULL(x) CHECK((x) != nullptr)
 
 #ifndef NDEBUG
 // Debug-only checking.
@@ -42,13 +42,15 @@ using std::endl;
 #define DCHECK_GE(val1, val2) CHECK_GE(val1, val2)
 #define DCHECK_GT(val1, val2) CHECK_GT(val1, val2)
 #else
-#define DCHECK(condition) CHECK(false)
-#define DCHECK_EQ(val1, val2) CHECK(false)
-#define DCHECK_NE(val1, val2) CHECK(false)
-#define DCHECK_LE(val1, val2) CHECK(false)
-#define DCHECK_LT(val1, val2) CHECK(false)
-#define DCHECK_GE(val1, val2) CHECK(false)
-#define DCHECK_GT(val1, val2) CHECK(false)
+// XXX tom7: These were all CHECK(false) but that's gotta be wrong!?
+// changed to no-op statement
+#define DCHECK(condition) do { } while (false)
+#define DCHECK_EQ(val1, val2) do { } while (false)
+#define DCHECK_NE(val1, val2) do { } while (false)
+#define DCHECK_LE(val1, val2) do { } while (false)
+#define DCHECK_LT(val1, val2) do { } while (false)
+#define DCHECK_GE(val1, val2) do { } while (false)
+#define DCHECK_GT(val1, val2) do { } while (false)
 #endif
 
 #define LOG_INFO LogMessage(__FILE__, __LINE__)

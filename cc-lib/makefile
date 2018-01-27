@@ -1,5 +1,5 @@
 
-default : heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe $(TESTCOMPILE)
+default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe $(TESTCOMPILE)
 
 TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
 
@@ -12,12 +12,18 @@ BASE=base/logging.o base/stringprintf.o
 
 # For linux, others...
 # (pthreads can't be linked statically)
-CXXFLAGS=-I. --std=c++14 -O2
+CXXFLAGS=-I. --std=c++14 -O2 -DNDEBUG=1
 
 heap_test.o : heap_test.cc heap.h
 	$(CXX) $(CXXFLAGS) $< -o $@ -c
 
 heap_test.exe : heap_test.o
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+minmax-heap_test.o : minmax-heap_test.cc minmax-heap.h
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
+
+minmax-heap_test.exe : minmax-heap_test.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 rle_test.o : rle_test.cc rle.h
@@ -30,7 +36,7 @@ interval-tree_test.exe : interval-tree_test.o $(BASE) arcfour.o
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 threadutil_test.exe : threadutil.h threadutil_test.o $(BASE)
-	$(CXX) $(CXXFLAGS) $^ -o $@ -lpthread
+	$(CXX) $(CXXFLAGS) threadutil_test.o $(BASE) -o $@ -lpthread
 
 color-util_test.exe : color-util.o color-util_test.o stb_image_write.o arcfour.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
