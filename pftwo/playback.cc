@@ -73,7 +73,6 @@ struct UIThread {
   
   UIThread(const string &game,
 	   const string &fm2) {
-    // TODO: Get subtitles and other metadata from movie.
     vector<pair<int, string>> subs;
     movie = SimpleFM2::ReadInputsEx(fm2, &subs);
     CHECK(!movie.empty()) << "Couldn't read movie: " << fm2;
@@ -455,7 +454,7 @@ int main(int argc, char *argv[]) {
 
   SDL_EnableUNICODE(1);
   
-  SDL_Surface *icon = SDL_LoadBMP("icon.bmp");
+  SDL_Surface *icon = SDL_LoadBMP("playback-icon.bmp");
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }

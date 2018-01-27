@@ -25,7 +25,7 @@
 // exploration phase?
 //
 // TODO: min-max heap would allow us a very cheap "1000 best nodes"
-// representation.
+// representation. (started this in cc-lib)
 //
 // TODO: Rather than choosing random goals, choose goals that aren't
 // already represented in the grid, and perhaps choose ones that are
@@ -110,11 +110,14 @@
 #define WIDTH 1920
 #define HEIGHT 1080
 
-// "max" nodes in heap. We start cleaning the heap when
-// there are more than this number of nodes, although
-// we often have to keep more than this number (because
-// some are in use by workers, grid, etc.)
-#define MAX_NODES 1000
+// Base "max" nodes in heap. We start cleaning the heap when there are
+// more than this number of nodes, although we often have to keep more
+// than this number (because some are in use by workers, grid, etc.)
+#define BASE_NODE_BUDGET 1000
+// We want to always include space for the path from the root to the
+// best node, so "max nodes" is really
+//   BASE_NODE_BUDGET + max_depth * NODE_BUDGET_BONUS_PER_DEPTH
+#define NODE_BUDGET_BONUS_PER_DEPTH 2
 
 // When expanding a node, try this many sequences and
 // choose the best one.
@@ -170,16 +173,19 @@ struct Tree {
   static constexpr int STEPS_TO_FIRST_UPDATE = 100;
 
   struct Node {
-    Node(State state, Node *parent) : state(std::move(state)),
-				      parent(parent) {}
+    Node(State state, Node *parent) :
+      state(std::move(state)),
+      parent(parent),
+      depth((parent != nullptr) ? (parent->depth + 1) : 0) {}
     // Note that this can be recreated by replaying the moves from the
     // root. It once was optional and could be made that way again, at
     // the cost of many complications.
     const State state;
 
     // Only null for the root.
-    Node *parent = nullptr;
-
+    Node *const parent = nullptr;
+    const int depth = 0;
+    
     // Child nodes. Currently, no guarantee that these don't
     // share prefixes, but there cannot be duplicates.
     map<Seq, Node *> children;
@@ -287,6 +293,11 @@ struct Tree {
   std::list<ExploreNode> explore_queue;
   // Stuckness estimate from the last reheap.
   double stuckness = 0.0;
+  // The maximum depth of the tree.
+  // We use this to increase the budget for the total size of
+  // the tree, since we have to at least retain the path back
+  // to the root for the best node.
+  int max_depth = 0;
   
   Node *root = nullptr;
   // Number of steps until we update reheap and thin the tree.
@@ -433,7 +444,7 @@ struct WorkThread {
       // good nodes are towards the beginning of the array.
       // Gaussian centered on 0; use 0 for anything out of bounds.
       // (n.b. this doesn't seem to help get unstuck -- evaluate it)
-      const int g = (int)(gauss.Next() * (size * 0.25));
+      const int g = (int)(gauss.Next() * (size * 0.05));
       const int idx = (g <= 0 || g >= size) ? 0 : g;
 
       Heap<double, Node>::Cell cell = pftwo->tree->heap.GetByIndex(idx);
@@ -471,7 +482,7 @@ struct WorkThread {
 
     // Simple policy: 50% chance of switching to some good node using
     // the heap/grid; 50% chance of staying with the current node.
-    if (rc.Byte() < 128 + 64 /* XXX */) {
+    if (rc.Byte() < 128) {
       Node *ret = FindGoodNodeWithMutex();
       
       // Giving up on n.
@@ -648,16 +659,6 @@ struct WorkThread {
     worker->SetStatus("Tree: Commit observations");
 
     pftwo->problem->Commit();
-
-    #if 0
-    {
-      // Really we should be considering every node for a new position
-      // in the grid (XXX we could do this as we look at each node
-      // below) but at a minimum we need to make the grid scores
-      // accurate.
-      MutexLock ml(&pftwo->tree_m);
-    }
-    #endif
     
     // Re-build heap. We do this by recalculating the score for
     // each node in place; most of the time this won't change the
@@ -707,9 +708,13 @@ struct WorkThread {
     
     {
       MutexLock ml(&pftwo->tree_m);
+      const int64 MAX_NODES = BASE_NODE_BUDGET +
+	tree->max_depth * NODE_BUDGET_BONUS_PER_DEPTH;
       if (tree->num_nodes > MAX_NODES) {
 	const uint32 start_ms = SDL_GetTicks();
-	printf("Trim tree ...\n");
+	printf("Trim tree (have %llu, max: %llu)...\n",
+	       tree->num_nodes, MAX_NODES);
+
 	// Here we want to delete the worst-scoring nodes in order
 	// to stay under our budget. We can't delete ancestors of
 	// nodes we keep, and we can't delete a node that a worker
@@ -755,16 +760,20 @@ struct WorkThread {
 	printf("\n ... kept nodes range in score from %.4f to %.4f\n",
 	       worst_kept_score, best_score);
 
-	// Now the heap only contains nodes we don't want.
+	// We popped off the best nodes, so now the heap only contains
+	// nodes we'll probably delete.
 	tree->heap.Clear();
 
+	// Now make a pass over the tree and clean out nodes where we
+	// can. This loop also computes the new maximum depth.
+	int max_depth = 0;
 	uint64 deleted_nodes = 0ULL;
 	uint64 kept_score = 0ULL, kept_worker = 0ULL, kept_parent = 0ULL,
 	  kept_grid = 0ULL;
 	std::function<bool(Node *)> CleanRec =
 	  // Returns true if we should keep this node; otherwise,
 	  // the node is deleted.
-	  [this, tree, &deleted_nodes,
+	  [this, tree, &max_depth, &deleted_nodes,
 	   &kept_score, &kept_worker, &kept_parent, &kept_grid,
 	   &CleanRec](Node *n) -> bool {
 	  if (n->keep)
@@ -793,10 +802,11 @@ struct WorkThread {
 	  keep = child_keep || keep;
 	  
 	  if (keep) {
-	    // PERF: We have to recompute the score here; particularly
-	    // for nodes we're keeping because a worker is using it,
-	    // we just cleared the entire heap so we don't even have
-	    // its score.
+	    max_depth = std::max(n->depth, max_depth);
+	    // PERF: We have to recompute the score AGAIN here;
+	    // particularly for nodes we're keeping because a worker
+	    // is using it. We just cleared the entire heap so we
+	    // don't even have its score.
 	    const double new_score = pftwo->problem->Score(n->state);
 	    tree->heap.Insert(-new_score, n);
 	    n->keep = false;
@@ -816,19 +826,23 @@ struct WorkThread {
 	// the root!
 	CHECK(CleanRec(tree->root)) << "Uh, the root was deleted.";
 
-	printf("... Reasons for keeping nodes:\n"
-	       "    score is good: %llu\n"
-	       "    worker using: %llu\n"
-	       "    in grid: %llu\n"
-	       "    child is kept: %llu\n",
+	tree->max_depth = max_depth;
+	
+	printf(" ... Reasons for keeping nodes:\n"
+	       "     score is good: %llu\n"
+	       "     worker using: %llu\n"
+	       "     in grid: %llu\n"
+	       "     child is kept: %llu\n",
 	       kept_score, kept_worker, kept_grid, kept_parent);
 
 	
 	const uint32 end_ms = SDL_GetTicks();
 	printf(" ... Deleted %llu; now the tree is size %llu.\n"
+	       " ... Max depth is %d.\n"
 	       " ... Done in %.4f sec.\n",
 	       deleted_nodes,
 	       tree->num_nodes,
+	       max_depth,
 	       (end_ms - start_ms) / 1000.0);
 
 	// Now, find some nodes for exploration.
@@ -901,6 +915,7 @@ struct WorkThread {
 	    // there's basically no chance of this helping.
 	    Node *source = FindGoodNodeWithMutex();
 	    Problem::Goal goal = pftwo->problem->RandomGoal(&rc);
+	    printf("Explore random (goal %d,%d)\n", goal.goalx, goal.goaly);
 	    AddExploreNode(source, goal);
 	  }
 	}
@@ -1607,7 +1622,7 @@ struct UIThread {
       struct TreeStats {
 	int nodes = 0;
 	int leaves = 0;
-	int64 statebytes = 0LL;
+	int64 nodebytes = 0LL;
       };
       TreeStats treestats;
 
@@ -1623,7 +1638,8 @@ struct UIThread {
 	  levels.push_back(LevelStats{});
 
 	treestats.nodes++;
-	treestats.statebytes += Problem::StateBytes(n->state);
+	treestats.nodebytes += Problem::StateBytes(n->state);
+	treestats.nodebytes += sizeof (Tree::Node) - sizeof (Problem::State);
 
 	LevelStats *ls = &levels[depth];
 	ls->count++;
@@ -1648,35 +1664,69 @@ struct UIThread {
 	}
       };
 
+      int max_nodes = 0, max_depth = 0;
       {
 	MutexLock ml(&pftwo->tree_m);
 	GetLevelStats(0, pftwo->tree->root);
+
+	max_depth = pftwo->tree->max_depth;
+	max_nodes = BASE_NODE_BUDGET +
+	  max_depth * NODE_BUDGET_BONUS_PER_DEPTH;
       }
 
+      // Average state size:
+      // treestats.statebytes / (1024.0 * treestats.nodes)
       smallfont->draw(256 * 6 + 10, 220,
-		      StringPrintf("^1Tree: ^3%d^< nodes, ^3%d^< leaves, "
-				   "^3%lld^< state MB, ^4%.2f^< KB avg",
-				   treestats.nodes, treestats.leaves,
-				   treestats.statebytes / (1024LL * 1024LL),
-				   treestats.statebytes / (1024.0 *
-							   treestats.nodes)));
-      for (int i = 0; i < levels.size(); i++) {
-	string w;
-	if (levels[i].workers) {
-	  for (int j = 0; j < levels[i].workers; j++)
-	    w += '*';
+		      StringPrintf("^3%d^</^2%d^< nodes, ^3%d^< leaves, "
+				   "^3%d^< depth, "
+				   "^3%lld^< MB ",
+				   treestats.nodes,
+				   max_nodes,
+				   treestats.leaves,
+				   max_depth,
+				   treestats.nodebytes / (1024LL * 1024LL)));
+
+      {
+	// Could compute this from font height; depends on number of workers
+	// too...
+	const int MAX_TREE_LINES = 100;
+	// Before this, all lines are drawn.
+	int prefix = levels.size();
+	// After this, all lines are drawn.
+	int suffix = 0;
+	// Index at which we show "..."
+	int dots_index = -1;
+	if (levels.size() > MAX_TREE_LINES) {
+	  prefix = MAX_TREE_LINES / 2;
+	  dots_index = prefix + 1;
+	  suffix = (levels.size() - 1) - (MAX_TREE_LINES - MAX_TREE_LINES / 2);
 	}
+	int yy = 230;
+	for (int i = 0; i < levels.size(); i++) {
+	  if (i < prefix || i >= suffix) {
+	    string w;
+	    if (levels[i].workers) {
+	      for (int j = 0; j < levels[i].workers; j++)
+		w += '*';
+	    }
 
-	smallfont->draw(256 * 6 + 10, 230 + i * SMALLFONTHEIGHT,
-			StringPrintf("^4%2d^<: ^3%d^< n %lld c %d mc, "
-				     "%.3f ^5%s",
-				     i, levels[i].count,
-				     levels[i].chosen,
-				     levels[i].max_chosen,
-				     levels[i].best_score,
-				     w.c_str()));
+	    smallfont->draw(256 * 6 + 10, yy,
+			    StringPrintf("^4%2d^<: ^3%d^< n %lld c %d mc, "
+					 "%.3f ^5%s",
+					 i, levels[i].count,
+					 levels[i].chosen,
+					 levels[i].max_chosen,
+					 levels[i].best_score,
+					 w.c_str()));
+	    yy += SMALLFONTHEIGHT;
+	  } else if (i == dots_index) {
+	    // XXX could show workers within this region?
+	    smallfont->draw(256 * 6 + 10, yy, "    ... ");
+	    yy += SMALLFONTHEIGHT;
+	  }
+	}
       }
-
+      
       static constexpr int BOTTOM = HEIGHT - FONTHEIGHT - 3;
 
       {
@@ -1826,7 +1876,7 @@ int main(int argc, char *argv[]) {
   CHECK(SDL_Init(SDL_INIT_VIDEO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 
-  SDL_Surface *icon = SDL_LoadBMP("icon.bmp");
+  SDL_Surface *icon = SDL_LoadBMP("pftwo-icon.bmp");
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
