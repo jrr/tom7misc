@@ -14,6 +14,9 @@
 #include <unistd.h>
 #include <cstdio>
 
+// XXX hack
+#define BASE_INT_TYPES_H_
+
 #include "base/logging.h"
 #include "test-util.h"
 #include "arcfour.h"

@@ -71,24 +71,6 @@ struct Timer {
   }
 };
 
-static string ReadFileToString(const string &fn) {
-  FILE *f = fopen(fn.c_str(), "rb");
-  if (!f) return "";
-  fseek(f, 0, SEEK_END);
-  int size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char *ss = (char*)malloc(size);
-  fread(ss, 1, size, f);
-
-  fclose(f);
-
-  string ret = string(ss, size);
-  free(ss);
-
-  return ret;
-}
-
 // From x6502.
 static constexpr uint8 CycTable[256] = {
     /*0x00*/ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
@@ -3019,7 +3001,7 @@ static vector<string> GenerateCode(const CodeConfig &config,
 	    cart_name.c_str());
 
     fprintf(f, "\n/* aot-prelude.inc */\n%s\n/* aot-prelude.inc */\n",
-	    ReadFileToString("aot-prelude.inc").c_str());
+	    ReadFile("aot-prelude.inc").c_str());
 
     fprintf(f, "\n\n");
 
