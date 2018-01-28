@@ -64,10 +64,7 @@
 // states would be actually worse than the original breakthrough
 // (lower score).
 //
-// TODO: Playing through a full game yields a path from the root that's
-// over 1000 nodes (contra firstwin is 1245), so 1000 max nodes in the
-// tree is probably wrong. At a minimum we should give a discount for
-// the path to the best node, yeah?
+// TODO: Make headless version for running in CLOUDS.
 
 #include <algorithm>
 #include <vector>
