@@ -3,24 +3,33 @@
 #include <cstdlib>
 #include <sys/stat.h>
 
-inline string ReadFile(const string &s) {
-  if (s == "") return "";
-
-  FILE * f = fopen(s.c_str(), "rb");
-  if (!f) return "";
+static string ReadAndCloseFile(FILE *f) {
   fseek(f, 0, SEEK_END);
-  int size = ftell(f);
+  const int size = ftell(f);
   fseek(f, 0, SEEK_SET);
 
-  char * ss = (char*)malloc(size);
-  fread(ss, 1, size, f);
-
+  string ret;
+  ret.resize(size);
+  // Bytes are required to be contiguous from C++11;
+  // use .front() instead of [0] since the former,
+  // introduced in C++11, will prove we have a compatible
+  // version.
+  // After C++17, this can be ret.data().
+  const size_t chunks_read =
+    fread(&ret.front(), 1, size, f);
   fclose(f);
 
-  string ret = string(ss, size);
-  free(ss);
+  if (chunks_read == 1)
+    return ret;
+  return "";
+}
 
-  return ret;
+string ReadFile(const string &s) {
+  if (s == "") return "";
+
+  FILE *f = fopen(s.c_str(), "rb");
+  if (!f) return "";
+  return ReadAndCloseFile(f);
 }
 
 vector<string> ReadFileToLines(const string &f) {
@@ -80,7 +89,7 @@ string LoseWhiteL(const string &s) {
   return "";
 }
 
-bool ExistsFile(string s) {
+bool ExistsFile(const string &s) {
   struct stat st;
   return !stat(s.c_str(), &st);
 }
