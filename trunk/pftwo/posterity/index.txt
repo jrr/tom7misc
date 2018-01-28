@@ -208,3 +208,14 @@ contra.nes-syncwin-5590000
  - stuck on car still at 1548M, 20h55m
  - left this running when I went to CA. 8938Mframes, 130:50:15, win
 
+next experiment:
+ - Increased node budget as the tree gets deeper
+ - Reduced probability for worker swapping to a different node (from
+   0.75 -> 0.5) and reduced gaussian width for randomly selecting
+   a new "good" node from the heap.
+ - It's slower than syncwin for the first few levels, but gets by
+   the spike cars much much faster, so as of the fire laser level
+   it's winning by a lot on everything but depth.
+   (FYI I did a bunch of cpu-intensive stuff in parallel, like
+    Wolfenstein II)
+ - 
