@@ -1,4 +1,3 @@
-
 # Makefile made by tom7.
 default: bench.exe emulator_test.exe difftrace.exe aot.exe
 
@@ -36,9 +35,11 @@ else
 CXX=g++
 CC=g++
 
-PLATFORMCFLAGS= -D__MINGW32__ -D_GLIBCXX_HAS_GTHREADS -mthreads
+# PLATFORMCFLAGS= -D__MINGW32__ -D_GLIBCXX_HAS_GTHREADS -mthreads
+PLATFORMCFLAGS=
 # without static, can't find lz or lstdcxx maybe?
-PLATFORMLINK=-mthreads -Wl,--subsystem,console -lwinpthread -L. -static
+# PLATFORMLINK=-mthreads -Wl,--subsystem,console -lwinpthread -L. -static
+PLATFORMLINK=-lpthread
 endif
 endif
 
@@ -49,7 +50,7 @@ endif
 # AOT_INSTRUMENTATION is cheap but not free instrumentation in x6502
 # core that's used to 
 %.o : %.cc
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DAOT_INSTRUMENTATION=1 -DENABLE_AOT=1 -c -o $@ $<
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DAOT_INSTRUMENTATION=1 -c -o $@ $<
 	@bash -c "echo -n '.'"
 
 %-noaot.o : %.cc
