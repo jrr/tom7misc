@@ -188,26 +188,35 @@ string Util::ptos(void * p) {
   return (string)s;
 }
 
+// Internal helper used by ReadFile, ReadFileMagic.
+static string ReadAndCloseFile(FILE *f) {
+  fseek(f, 0, SEEK_END);
+  const int size = ftell(f);
+  fseek(f, 0, SEEK_SET);
+
+  string ret;
+  ret.resize(size);
+  // Bytes are required to be contiguous from C++11;
+  // use .front() instead of [0] since the former,
+  // introduced in C++11, will prove we have a compatible
+  // version.
+  // After C++17, this can be ret.data().
+  const size_t chunks_read =
+    fread(&ret.front(), 1, size, f);
+  fclose(f);
+
+  if (chunks_read == 1)
+    return ret;
+  return "";
+}
+
 string Util::ReadFile(const string &s) {
   if (Util::isdir(s)) return "";
   if (s == "") return "";
 
   FILE *f = fopen(s.c_str(), "rb");
   if (!f) return "";
-
-  fseek(f, 0, SEEK_END);
-  int size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char *ss = (char*)malloc(size);
-  fread(ss, 1, size, f);
-
-  fclose(f);
-
-  string ret = string(ss, size);
-  free(ss);
-
-  return ret;
+  return ReadAndCloseFile(f);
 }
 
 vector<string> Util::ReadFileToLines(const string &f) {
@@ -255,7 +264,7 @@ vector<unsigned char> Util::ReadFileBytes(const string &f) {
 }
 
 
-static bool hasmagicf(FILE * f, const string & mag) {
+static bool HasMagicF(FILE * f, const string & mag) {
   char * hdr = (char*)malloc(mag.length());
   if (!hdr) return false;
 
@@ -280,7 +289,7 @@ bool Util::hasmagic(string s, const string &mag) {
   FILE * f = fopen(s.c_str(), "rb");
   if (!f) return false;
 
-  bool hm = hasmagicf(f, mag);
+  bool hm = HasMagicF(f, mag);
 
   fclose(f);
   return hm;
@@ -290,36 +299,18 @@ string Util::readfilemagic(string s, const string &mag) {
   if (isdir(s)) return "";
   if (s == "") return "";
 
-  // printf("opened %s\n", s.c_str());
-
-  /* PERF try this: and see! */
-  // printf("Readfile '%s'\n", s.c_str());
-
   FILE * f = fopen(s.c_str(), "rb");
 
   if (!f) return "";
 
 
-  if (!hasmagicf(f, mag)) {
+  if (!HasMagicF(f, mag)) {
     fclose(f);
     return "";
   }
 
   /* ok, now just read file */
-
-  fseek(f, 0, SEEK_END);
-  int size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
-  char * ss = (char*)malloc(size);
-  fread(ss, 1, size, f);
-
-  fclose(f);
-
-  string ret = string(ss, size);
-  free(ss);
-
-  return ret;
+  return ReadAndCloseFile(f);
 }
 
 bool Util::WriteFile(const string &fn, const string &s) {
