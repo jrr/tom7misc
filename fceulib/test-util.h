@@ -69,36 +69,36 @@ vector<string> ReadFileToLines(const string &s);
 vector<string> SplitToLines(const string &s);
 string Chop(string &s);
 string LoseWhiteL(const string &s);
-bool ExistsFile(string s);
+bool ExistsFile(const string &s);
 
 // Generally we just want reliable and portable names for specific
 // word sizes. C++11 actually gives these to us now; no more
 // "well, long long is at least big enough to hold 64 bits, and
 // chars might actually be 9 bits, etc.".
 
-typedef int8_t   int8;
-typedef uint8_t  uint8;
-typedef int16_t  int16;
-typedef uint16_t uint16;
-typedef int32_t  int32;
-typedef uint32_t uint32;
-typedef int64_t  int64;
-typedef uint64_t uint64;
+using int8 = int8_t;
+using uint8 = uint8_t;
+using int16 = int16_t;
+using uint16 = uint16_t;
+using int32 = int32_t;
+using uint32 = uint32_t;
+using int64 = int64_t;
+using uint64 = uint64_t;
 
 // I think that the standard now REQUIRES the following assertions to
 // succeed. But if some shenanigans are going on, let's get out of
 // here.
 static_assert(UINT8_MAX == 255, "Want 8-bit chars.");
-static_assert(sizeof(uint8) == 1, "8 bits is one byte.");
-static_assert(sizeof(int8) == 1, "8 bits is one byte.");
+static_assert(sizeof (uint8) == 1, "8 bits is one byte.");
+static_assert(sizeof (int8) == 1, "8 bits is one byte.");
 
-static_assert(sizeof(int16) == 2, "16 bits is two bytes.");
-static_assert(sizeof(uint16) == 2, "16 bits is two bytes.");
+static_assert(sizeof (int16) == 2, "16 bits is two bytes.");
+static_assert(sizeof (uint16) == 2, "16 bits is two bytes.");
 
-static_assert(sizeof(int32) == 4, "32 bits is four bytes.");
-static_assert(sizeof(uint32) == 4, "32 bits is four bytes.");
+static_assert(sizeof (int32) == 4, "32 bits is four bytes.");
+static_assert(sizeof (uint32) == 4, "32 bits is four bytes.");
 
-static_assert(sizeof(int64) == 8, "64 bits is eight bytes.");
-static_assert(sizeof(uint64) == 8, "64 bits is eight bytes.");
+static_assert(sizeof (int64) == 8, "64 bits is eight bytes.");
+static_assert(sizeof (uint64) == 8, "64 bits is eight bytes.");
 
 #endif
