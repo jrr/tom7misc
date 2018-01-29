@@ -801,7 +801,7 @@ int main(int argc, char *argv[]) {
   ScopeFun pf(game, moviename, startframe, maxframe, soundonly,
 	      fatobjectivelines);
   string dir = game + "-movie";
-  Util::makedir(dir);
+  Util::MakeDir(dir);
   pf.SaveAV(dir);
 
   Emulator::Shutdown();

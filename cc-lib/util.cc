@@ -116,7 +116,7 @@ struct linereal : public line {
     }
   }
 
-  bool next(int & cx, int & cy) {
+  bool next(int &cx, int &cy) {
     if (dx > dy) {
       if (x0 == x1) return false;
       else {
@@ -154,7 +154,7 @@ struct linereal : public line {
 
 }  // namespace
 
-line * line::create(int a, int b, int c, int d) {
+line *line::create(int a, int b, int c, int d) {
   return new linereal(a, b, c, d);
 }
 
@@ -174,7 +174,7 @@ bool Util::existsdir(string d) {
 }
 
 /* XXX what mode? */
-bool Util::makedir(const string &d) {
+bool Util::MakeDir(const string &d) {
 # if defined(WIN32) || defined(__MINGW32__)
   return !mkdir(d.c_str());
 # else /* posix */
@@ -182,7 +182,7 @@ bool Util::makedir(const string &d) {
 # endif
 }
 
-string Util::ptos(void * p) {
+string Util::ptos(void *p) {
   char s[64];
   sprintf(s, "%p", p);
   return (string)s;
@@ -264,8 +264,8 @@ vector<unsigned char> Util::ReadFileBytes(const string &f) {
 }
 
 
-static bool HasMagicF(FILE * f, const string & mag) {
-  char * hdr = (char*)malloc(mag.length());
+static bool HasMagicF(FILE *f, const string &mag) {
+  char *hdr = (char*)malloc(mag.length());
   if (!hdr) return false;
 
   /* we may not even be able to read sizeof(header) bytes! */
@@ -286,7 +286,7 @@ static bool HasMagicF(FILE * f, const string & mag) {
 }
 
 bool Util::hasmagic(string s, const string &mag) {
-  FILE * f = fopen(s.c_str(), "rb");
+  FILE *f = fopen(s.c_str(), "rb");
   if (!f) return false;
 
   bool hm = HasMagicF(f, mag);
@@ -299,7 +299,7 @@ string Util::readfilemagic(string s, const string &mag) {
   if (isdir(s)) return "";
   if (s == "") return "";
 
-  FILE * f = fopen(s.c_str(), "rb");
+  FILE *f = fopen(s.c_str(), "rb");
 
   if (!f) return "";
 
@@ -315,7 +315,7 @@ string Util::readfilemagic(string s, const string &mag) {
 
 bool Util::WriteFile(const string &fn, const string &s) {
 
-  FILE * f = fopen(fn.c_str(), "wb");
+  FILE *f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
   /* XXX check failure */
@@ -328,7 +328,7 @@ bool Util::WriteFile(const string &fn, const string &s) {
 
 bool Util::WriteFileBytes(const string &fn,
 			  const vector<unsigned char> &bytes) {
-  FILE * f = fopen(fn.c_str(), "wb");
+  FILE *f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
   /* XXX check failure */
@@ -359,7 +359,7 @@ string Util::shint(int b, int i) {
 /* inverse of shint. does not check that
    there is enough room in s to read b bytes
    from idx ... */
-int Util::shout(int b, string s, unsigned int & idx) {
+int Util::shout(int b, string s, unsigned int &idx) {
   int r = 0;
   while (b--) {
     r = ((unsigned char)s[idx++]) + (r<<8);
@@ -455,13 +455,13 @@ int stoi(const string &s) {
 
 /* XXX race. should use creat
    with O_EXCL on unix, at least. */
-FILE * Util::open_new(string fname) {
+FILE *Util::open_new(string fname) {
   if (!ExistsFile(fname))
     return fopen(fname.c_str(), "wb+");
   else return 0;
 }
 
-string Util::getline(string & chunk) {
+string Util::getline(string &chunk) {
   string ret;
   for (unsigned int i = 0; i < chunk.length(); i ++) {
     if (chunk[i] == '\r') continue;
@@ -476,7 +476,7 @@ string Util::getline(string & chunk) {
 }
 
 /* PERF */
-string Util::fgetline(FILE * f) {
+string Util::fgetline(FILE *f) {
   string out;
   int c;
   while ( (c = fgetc(f)), ((c != EOF) && (c != '\n')) ) {
@@ -491,7 +491,7 @@ string Util::fgetline(FILE * f) {
 /* PERF use substr instead of accumulating: this is used
    frequently in the net stuff */
 /* return first token in line, removing it from 'line' */
-string Util::chop(string & line) {
+string Util::chop(string &line) {
   for (unsigned int i = 0; i < line.length(); i ++) {
     if (line[i] != ' ') {
       string acc;
@@ -511,7 +511,7 @@ string Util::chop(string & line) {
 }
 
 /* PERF same */
-string Util::chopto(char c, string & line) {
+string Util::chopto(char c, string &line) {
   string acc;
   for (unsigned int i = 0; i < line.length(); i ++) {
     if (line[i] != c) {
@@ -532,7 +532,7 @@ string Util::chopto(char c, string & line) {
   return acc;
 }
 
-string Util::losewhitel(const string & s) {
+string Util::losewhitel(const string &s) {
   for (unsigned int i = 0; i < s.length(); i ++) {
     switch(s[i]) {
     case ' ':
@@ -552,7 +552,7 @@ string Util::losewhitel(const string & s) {
 string Util::tempfile(string suffix) {
   static int tries = 0;
 
-  char * fname = new char[suffix.length() + 128];
+  char *fname = new char[suffix.length() + 128];
 
   do {
     sprintf(fname,
@@ -588,7 +588,7 @@ string Util::tempfile(string suffix) {
    n.b. it is easy to overflow here, so perhaps comparing
    as we go is better
 */
-int Util::natural_compare(const string & l, const string & r) {
+int Util::natural_compare(const string &l, const string &r) {
 
   for (int caseless = 0; caseless < 2; caseless ++) {
 
@@ -668,7 +668,7 @@ int Util::natural_compare(const string & l, const string & r) {
 
 /* same as above, but ignore "the" at beginning */
 /* XXX also ignore symbols ie ... at the beginning */
-int Util::library_compare(const string & l, const string & r) {
+int Util::library_compare(const string &l, const string &r) {
 
   /* XXX currently IGNOREs symbols, which could give incorrect
      results for strings that are equal other than their
@@ -727,7 +727,7 @@ bool Util::matchspec(string spec, char c) {
 }
 
 
-bool Util::library_matches(char k, const string & s) {
+bool Util::library_matches(char k, const string &s) {
   /* skip symbolic */
   unsigned int idx = 0;
   while (idx < s.length() && (!isalnum(s[idx]))) idx++;
@@ -798,9 +798,9 @@ bool Util::move(string src, string dst) {
 
 
 bool Util::copy(string src, string dst) {
-  FILE * s = fopen(src.c_str(), "rb");
+  FILE *s = fopen(src.c_str(), "rb");
   if (!s) return false;
-  FILE * d = fopen(dst.c_str(), "wb+");
+  FILE *d = fopen(dst.c_str(), "wb+");
   if (!d) { fclose(s); return false; }
 
   char buf[256];
@@ -840,24 +840,26 @@ string Util::cdup(const string &dir) {
   } else return ".";
 }
 
-void Util::createpathfor(string f) {
+void Util::CreatePathFor(const string &f) {
   string s;
   for (unsigned int i = 0; i < f.length();  i++) {
     if (f[i] == DIRSEPC) {
       /* initial / will cause s == "" for first
 	 appearance */
-      if (s != "") makedir(s);
+      if (s != "") MakeDir(s);
     }
     s += f[i];
   }
 }
 
-FILE * Util::fopenp(const string &f, const string &m) {
-  createpathfor(f);
+FILE *Util::fopenp(const string &f, const string &m) {
+  CreatePathFor(f);
   return fopen(f.c_str(), m.c_str());
 }
 
-string Util::replace(string src, string findme, string rep) {
+string Util::Replace(const string &src,
+		     const string &findme,
+		     const string &rep) {
   long long int idx = src.length() - 1;
 
   if (findme.length() < 1) return src;
@@ -881,7 +883,7 @@ int bitbuffer::ceil(int bits) {
 }
 
 
-bool bitbuffer::nbits(const string &s, int n, int & idx, unsigned int & out) {
+bool bitbuffer::nbits(const string &s, int n, int &idx, unsigned int &out) {
 # define NTHBIT(x) !! (s[(x) >> 3] & (1 << (7 - ((x) & 7))))
 
   out = 0;
@@ -916,7 +918,7 @@ void bitbuffer::writebits(int n, unsigned int b) {
     /* allocate more */
     if (bytes_needed > size) {
       int nsize = (size + 1) * 2;
-      unsigned char * tmp =
+      unsigned char *tmp =
 	(unsigned char *) malloc(nsize * sizeof (unsigned char));
       if (!tmp) abort();
       memset(tmp, 0, nsize);
@@ -942,16 +944,16 @@ void bitbuffer::writebits(int n, unsigned int b) {
 #endif
 
 /* return true on success */
-bool Util::launchurl(const string & url) {
+bool Util::launchurl(const string &url) {
   /* XXX ??? */
 #if 0
 #ifdef OSX
   CFURLRef urlcfurl = CFURLCreateWithBytes(kCFAllocatorDefault,
 					   (const UInt8*)url.c_str(),
 					   (CFIndex)strlen(urlstring),
-					   kCFStringEncodingASCII, NULL);
+					   kCFStringEncodingASCII, nullptr);
   if (urlcfurl) {
-      OSStatus status = LSOpenCFURLRef(urlcfurl, NULL);
+      OSStatus status = LSOpenCFURLRef(urlcfurl, nullptr);
       CFRelease(urlcfurl);
       return (status == noErr);
     }
@@ -960,8 +962,8 @@ bool Util::launchurl(const string & url) {
 #endif
 
 #ifdef WIN32
-  return ((size_t)ShellExecute(NULL, "open", url.c_str(),
-			       NULL, NULL, SW_SHOWNORMAL)) > 32;
+  return ((size_t)ShellExecute(nullptr, "open", url.c_str(),
+			       nullptr, nullptr, SW_SHOWNORMAL)) > 32;
 #endif
 
   /* otherwise.. */
@@ -980,20 +982,12 @@ float Util::randfrac() {
    web sequence numbers are chosen randomly, now, so we
    actually do.
 */
-int Util::random() {
-# if defined(WIN32) || defined(__MINGW32__)
-  return ::rand();
-# else
-  return ::random();
-# endif
-}
-
 namespace {
 /* ensure that random is seeded */
-struct RandomSeed {
-  RandomSeed() {
+struct RandomSeeder {
+  RandomSeeder() {
 # if defined(WIN32) || defined(__MINGW32__)
-    srand((int)time(NULL) ^ getpid());
+    srand((int)time(nullptr) ^ getpid());
 # else
     srandom(time(0) ^ getpid());
 # endif
@@ -1002,6 +996,16 @@ struct RandomSeed {
       (void)Util::random();
   }
 };
-
-RandomSeed randomseed__unused;
 }  // namespace
+
+int Util::random() {
+  // Run exactly once, with initialization thread safe.
+  // Result is not used.
+  static RandomSeeder *unused = new RandomSeeder;
+  (void)unused;
+# if defined(WIN32) || defined(__MINGW32__)
+  return ::rand();
+# else
+  return ::random();
+# endif
+}
