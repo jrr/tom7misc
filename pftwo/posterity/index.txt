@@ -180,7 +180,7 @@ contra.nes-firstwin-5220000.fm2
      - 15.49 UI FPS
      - windows CPU time: 1112:44:32, 284M ram, 60258178 page faults
 
-contra.nes-fixedgoalseek-4940000
+contra.nes-1-fixedgoalseek-4940000
  - to last moving platform before waterfall boss by 724M frames depth 85k
  - at spike cars by 1488M frames, depth ?
  - to fire laser stairs by 4237M. 
@@ -189,7 +189,7 @@ contra.nes-fixedgoalseek-4940000
  - I finally killed it at 6230 Mframes, stuck on the big jumpy disc boss
    at depth 189k. 85h15m
 
-contra.nes-syncwin-5590000
+contra.nes-2-syncwin-5590000
  - This version sometimes syncs 1p and 2p inputs, and does explicit
    adjacency in the grid search. I also fixed some bugs where grid cells
    were not eligible as often as they should be.
@@ -208,7 +208,7 @@ contra.nes-syncwin-5590000
  - stuck on car still at 1548M, 20h55m
  - left this running when I went to CA. 8938Mframes, 130:50:15, win
 
-next experiment:
+contra.nes-3-tweak-2500000
  - Increased node budget as the tree gets deeper
  - Reduced probability for worker swapping to a different node (from
    0.75 -> 0.5) and reduced gaussian width for randomly selecting
@@ -218,4 +218,6 @@ next experiment:
    it's winning by a lot on everything but depth.
    (FYI I did a bunch of cpu-intensive stuff in parallel, like
     Wolfenstein II)
- - 
+ - It gets stuck on the jumping guy boss; killed after 47h27m, 3338Mf
+ - I think it's wasting a lot of time exploring because the grid
+   cells just die immediately no matter what you play.

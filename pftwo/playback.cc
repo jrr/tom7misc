@@ -43,7 +43,7 @@
 static bool should_die = false;
 static mutex should_die_m;
 
-std::mutex print_mutex;
+static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
     MutexLock Printf_ml(&print_mutex);		\
     printf(fmt, ##__VA_ARGS__);			\
