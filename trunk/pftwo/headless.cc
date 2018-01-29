@@ -38,7 +38,8 @@ struct ConsoleThread {
 
   void Run() {
     const int64 start = time(nullptr);
-    int64 last_wrote = start;
+    int64 last_wrote = 0LL;
+    int64 last_minute = 0LL;
     
     for (;;) {
       frame++;
@@ -46,13 +47,12 @@ struct ConsoleThread {
       const int64 elapsed = time(nullptr) - start;
       search->SetApproximateSeconds(elapsed);
 
-      constexpr int TEN_MINUTES = 10 * 60;
-      
-      // Every ten thousand frames, write FM2 file.
+      constexpr int64 TEN_MINUTES = 60LL; // XXX // 10LL * 60LL;
+      // Every ten minutes, write FM2 file.
       // TODO: Superimpose all of the trees at once.
       if (elapsed - last_wrote > TEN_MINUTES) {
-	string filename = StringPrintf("frame-%lld", frame);
-	search->SaveBestMovie(filename);
+	string filename_part = StringPrintf("frame-%lld", frame);
+	string filename = search->SaveBestMovie(filename_part);
 	// XXX races are possible, and Util::copy does byte-by-byte.
 	// Should use posix link?
 	(void)Util::remove("latest.fm2");
@@ -73,6 +73,17 @@ struct ConsoleThread {
 	
       // Save the sum to a single value for benchmarking.
       search->SetApproximateNesFrames(total_steps);
+      int64 minutes = elapsed / 60LL;
+      int64 hours = minutes / 60LL;
+      if (minutes != last_minute) {
+	last_minute = minutes;
+	const int64 sec = elapsed % 60LL;
+	const int64 min = minutes % 60LL;
+	printf("%02d:%02d:%02d  %lld NES Frames; %.2fKframes/sec\n",
+	       (int)hours, (int)min, (int)sec,
+	       total_steps,
+	       (double)total_steps / ((double)elapsed * 1000.0));
+      }
     }
   }
 

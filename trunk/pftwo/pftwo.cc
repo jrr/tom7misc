@@ -186,8 +186,8 @@ struct UIThread {
       // Every ten thousand frames, write FM2 file.
       // TODO: Superimpose all of the trees at once.
       if (frame % 10000 == 0) {
-	string filename = StringPrintf("frame-%lld", frame);
-	search->SaveBestMovie(filename);
+	string filename_part = StringPrintf("frame-%lld", frame);
+	string filename = search->SaveBestMovie(filename_part);
 	(void)Util::remove("latest.fm2");
 	if (!Util::copy(filename, "latest.fm2")) {
 	  printf("Couldn't copy to latest.fm2?\n");

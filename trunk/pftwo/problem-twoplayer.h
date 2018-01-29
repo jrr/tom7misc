@@ -91,10 +91,10 @@ struct TwoPlayerProblem {
     Input RandomInput(ArcFour *rc);
   };
   
-  void SaveSolution(const string &filename_part,
-		    const vector<Input> &inputs,
-		    const vector<pair<int, string>> &subtitles,
-		    const string &info);
+  string SaveSolution(const string &filename_part,
+		      const vector<Input> &inputs,
+		      const vector<pair<int, string>> &subtitles,
+		      const string &info);
 
   Goal RandomGoal(ArcFour *rc) const {
     Goal goal;

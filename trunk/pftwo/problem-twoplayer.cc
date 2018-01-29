@@ -136,10 +136,10 @@ vector<int> TPP::AdjacentCells(int cell) {
 }
 
 
-void TPP::SaveSolution(const string &filename_part,
-		       const vector<Input> &inputs,
-		       const vector<pair<int, string>> &subtitles,
-		       const string &info) {
+string TPP::SaveSolution(const string &filename_part,
+			 const vector<Input> &inputs,
+			 const vector<pair<int, string>> &subtitles,
+			 const string &info) {
   // Just the controller inputs are saved.
   vector<pair<uint8, uint8>> all_inputs;
   for (int i = 0; i < fastforward; i++) {
@@ -161,13 +161,16 @@ void TPP::SaveSolution(const string &filename_part,
     all_inputs.push_back({Player1(input), Player2(input)});
   }
 
+  string filename =
+    StringPrintf("%s-%s.fm2", game.c_str(), filename_part.c_str());
   SimpleFM2::WriteInputsWithSubtitles2P(
-      StringPrintf("%s-%s.fm2", game.c_str(), filename_part.c_str()),
+      filename,
       game,
       // Take from inputs?
       "base64:WlwvTxyvsfVajcDVrUVQ5Q==",
       all_inputs,
       shifted_subtitles);
+  return filename;
 }
 
 // Like atoi, but allowing nonnegative hex values with 0x prefix
