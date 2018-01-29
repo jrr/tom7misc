@@ -60,6 +60,8 @@ struct Emulator {
   void GetImage(vector<uint8> *rgba) const;
   vector<uint8> GetImage() const;
   // Same, but Alpha, Red, Green, Blue.
+  // (XXX: This actually returns BGRA. SDL requires some platform-
+  // specific color channel reordering.)
   void GetImageARGB(vector<uint8> *abgr) const;
   vector<uint8> GetImageARGB() const;
 

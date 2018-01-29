@@ -14,11 +14,22 @@ vector<uint8> SimpleFM2::ReadInputs(const string &filename) {
   return ret;
 }
 
-vector<pair<uint8, uint8>> SimpleFM2::ReadInputs2P(const string &filename) {
+vector<pair<uint8, uint8>> SimpleFM2::ReadInputsEx(
+    const string &filename,
+    vector<pair<int, string>> *subtitles) {
   vector<string> contents = Util::ReadFileToLines(filename);
   vector<pair<uint8, uint8>> out;
   for (int i = 0; i < contents.size(); i++) {
     const string &line = contents[i];
+    if (subtitles != nullptr &&
+	Util::startswith(line, "subtitle ")) {
+      string rest = line.substr(9, string::npos);
+      string framenum = Util::chop(rest);
+      subtitles->emplace_back(atoi(framenum.c_str()),
+			      Util::losewhitel(rest));
+      continue;
+    }
+
     if (line.empty() || line[0] != '|')
       continue;
 
@@ -55,6 +66,10 @@ vector<pair<uint8, uint8>> SimpleFM2::ReadInputs2P(const string &filename) {
   }
 
   return out;
+}
+
+vector<pair<uint8, uint8>> SimpleFM2::ReadInputs2P(const string &filename) {
+  return ReadInputsEx(filename, nullptr);
 }
 
 static vector<pair<uint8, uint8>> Dummy2P(const vector<uint8> &inputs) {
