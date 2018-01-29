@@ -150,20 +150,21 @@ struct Util {
   /* same as isdir */
   static bool existsdir(string);
 
-  static bool makedir(const string &s);
+  static bool MakeDir(const string &s);
 
   /* try to launch the url with the default browser;
      doesn't work on all platforms. true on success */
   static bool launchurl(const string &);
 
   /* creates directories for f */
-  static void createpathfor(string f);
+  static void CreatePathFor(const string &f);
 
   /* open, creating directories if necessary */
   static FILE *fopenp(const string &f, const string &mode);
 
   /* replace all occurrences of 'findme' with 'replacewith' in 'src' */
-  static string replace(string src, string findme, string replacewith);
+  static string Replace(const string &src, const string &findme,
+			const string &replacewith);
 
   /* called minimum, maximum because some includes
      define these with macros, ugh */

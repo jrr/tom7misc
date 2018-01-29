@@ -136,7 +136,7 @@ struct UIThread {
   void DumpTree() {
     MutexLock ml(&search->tree_m);
     printf("Dumping tree.");
-    Util::makedir("tree");
+    Util::MakeDir("tree");
 
     std::unique_ptr<Worker> tmp{search->problem->CreateWorker()};
 

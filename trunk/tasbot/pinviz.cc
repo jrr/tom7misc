@@ -484,7 +484,7 @@ int main(int argc, char *argv[]) {
 
   PinViz pv(game, moviename, startframe, maxframe);
   string dir = game + "-movie";
-  Util::makedir(dir);
+  Util::MakeDir(dir);
   pv.SaveAV(dir);
 
   Emulator::Shutdown();
