@@ -16,6 +16,7 @@
 
 #include <vector>
 #include "base/logging.h"
+#include "base/stringprintf.h"
 
 // XXX same struct in heap.h. Make these share the definition?
 struct Heapable {
@@ -112,15 +113,15 @@ class MinMaxHeap {
     const Priority pnew = cells[idx].priority;
     if (IsMinLayer(idx)) {
       if (pnew < pold) {
-	PercolateUp(idx);
+        PercolateUp(idx);
       } else if (pold < pnew) {
-	PercolateDown(idx);
+        PercolateDown(idx);
       }
     } else {
       if (pnew < pold) {
-	PercolateDown(idx);
+        PercolateDown(idx);
       } else if (pold < pnew) {
-	PercolateUp(idx);
+        PercolateUp(idx);
       }
     }
   }
@@ -165,7 +166,7 @@ class MinMaxHeap {
     
     // Maximum has to be at index 1 or 2.
     if (cells.size() == 2 ||
-	cells[1].priority < cells[2].priority) {
+        cells[1].priority < cells[2].priority) {
       return cells[1];
     } else {
       return cells[2];
@@ -235,63 +236,91 @@ class MinMaxHeap {
   void CheckInvariants(F Ptos) const {
     for (int i = 0; i < cells.size(); i++) {
       CHECK_EQ(cells[i].value->location, i) << "Each cell in the heap should "
-	"have its actual index in its location field.";
+        "have its actual index in its location field.";
       if (IsMinLayer(i)) {
-	// (Maybe consider a slower but simpler alternative: Check
-	// that all of the elements within its subtree have higher priority).
+        // (Maybe consider a slower but simpler alternative: Check
+        // that all of the elements within its subtree have higher priority).
 
-	// On min layers, the priority should be less (or equal) to
-	// all its children (max layer) and grandchildren (which is
-	// the next min layer).
-	const int c1 = LeftChild(i);
-	const int c2 = RightChild(i);
-	const int gc1 = LeftChild(LeftChild(i));
-	const int gc2 = RightChild(LeftChild(i));
-	const int gc3 = LeftChild(RightChild(i));
-	const int gc4 = RightChild(RightChild(i));
-	auto CheckLe = [this, &Ptos, i](const char *which, int j) {
-	  if (j < cells.size()) {
-	    CHECK(!(cells[j].priority < cells[i].priority)) <<
-	      "Invariant violation on min layer: "
-	      "\nidx " << i << " with priority " << Ptos(cells[i].priority) <<
-	      "\nwas greater than " << which << "child:" <<
-	      "\nidx " << j << " with priority " << Ptos(cells[j].priority);
-	  }
-	};
-	CheckLe("left ", c1);
-	CheckLe("right ", c2);
-	CheckLe("left-left grand", gc1);
-	CheckLe("right-left grand", gc2);
-	CheckLe("left-right grand", gc3);
-	CheckLe("right-right grand", gc4);
+        // On min layers, the priority should be less (or equal) to
+        // all its children (max layer) and grandchildren (which is
+        // the next min layer).
+        const int c1 = LeftChild(i);
+        const int c2 = RightChild(i);
+        const int gc1 = LeftChild(LeftChild(i));
+        const int gc2 = RightChild(LeftChild(i));
+        const int gc3 = LeftChild(RightChild(i));
+        const int gc4 = RightChild(RightChild(i));
+        auto CheckLe = [this, &Ptos, i](const char *which, int j) {
+          if (j < cells.size()) {
+            CHECK(!(cells[j].priority < cells[i].priority)) <<
+              "Invariant violation on min layer: "
+              "\nidx " << i << " with priority " << Ptos(cells[i].priority) <<
+              "\nwas greater than " << which << "child:" <<
+              "\nidx " << j << " with priority " << Ptos(cells[j].priority) <<
+              "\n" << DebugString(Ptos);
+          }
+        };
+        CheckLe("left ", c1);
+        CheckLe("right ", c2);
+        CheckLe("left-left grand", gc1);
+        CheckLe("right-left grand", gc2);
+        CheckLe("left-right grand", gc3);
+        CheckLe("right-right grand", gc4);
       } else {
-	// For max layers, the symmetric case.
-	const int c1 = LeftChild(i);
-	const int c2 = RightChild(i);
-	const int gc1 = LeftChild(LeftChild(i));
-	const int gc2 = RightChild(LeftChild(i));
-	const int gc3 = LeftChild(RightChild(i));
-	const int gc4 = RightChild(RightChild(i));
-	auto CheckGe = [this, &Ptos, i](const char *which, int j) {
-	  if (j < cells.size()) {
-	    CHECK(!(cells[i].priority < cells[j].priority)) <<
-	      "Invariant violation on max layer: "
-	      "\nidx " << i << " with priority " << Ptos(cells[i].priority) <<
-	      "\nwas less than " << which << "child:" <<
-	      "\nidx " << j << " with priority " << Ptos(cells[j].priority);
-	  }
-	};
-	CheckGe("left ", c1);
-	CheckGe("right ", c2);
-	CheckGe("left-left grand", gc1);
-	CheckGe("right-left grand", gc2);
-	CheckGe("left-right grand", gc3);
-	CheckGe("right-right grand", gc4);
+        // For max layers, the symmetric case.
+        const int c1 = LeftChild(i);
+        const int c2 = RightChild(i);
+        const int gc1 = LeftChild(LeftChild(i));
+        const int gc2 = RightChild(LeftChild(i));
+        const int gc3 = LeftChild(RightChild(i));
+        const int gc4 = RightChild(RightChild(i));
+        auto CheckGe = [this, &Ptos, i](const char *which, int j) {
+          if (j < cells.size()) {
+            CHECK(!(cells[i].priority < cells[j].priority)) <<
+              "Invariant violation on max layer: "
+              "\nidx " << i << " with priority " << Ptos(cells[i].priority) <<
+              "\nwas less than " << which << "child:" <<
+  	      "\nidx " << j << " with priority " << Ptos(cells[j].priority) <<
+              "\n" << DebugString(Ptos);
+          }
+        };
+        CheckGe("left ", c1);
+        CheckGe("right ", c2);
+        CheckGe("left-left grand", gc1);
+        CheckGe("right-left grand", gc2);
+        CheckGe("left-right grand", gc3);
+        CheckGe("right-right grand", gc4);
       }
-      printf("%d ok\n", i);
     }
   }
- 
+
+  template<class F>
+  std::string DebugString(F Ptos) const {
+    std::string ret = "digraph tree {\n";
+
+    for (int i = 0; i < cells.size(); i++) {
+      const char *shape = IsMinLayer(i) ? " shape=box" : "";
+      ret += StringPrintf(" n%d [label=\"%s\"%s]\n", i,
+                          Ptos(cells[i].priority).c_str(), shape);
+    }
+
+    for (int i = 0; i < cells.size(); i++) {
+      int lc = LeftChild(i), rc = RightChild(i);
+      if (lc < cells.size())
+        ret += StringPrintf("n%d -> n%d\n", i, lc);
+      if (rc < cells.size())
+        ret += StringPrintf("n%d -> n%d\n", i, rc);
+    }
+    ret += "}";
+    
+    FILE *tmp = fopen("dump.dot", "w");
+    if (tmp) {
+      fprintf(tmp, "%s", ret.c_str());
+      fclose(tmp);
+    }
+    return ret;
+  }
+
  private:
   inline static int LeftChild(int idx) { return idx * 2 + 1; }
   inline static int RightChild(int idx) { return idx * 2 + 2; }
