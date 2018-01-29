@@ -207,7 +207,7 @@ struct TwoPlayerProblem {
     // equivalent) executed by this worker. This isn't
     // all the program does, but it is the main bottleneck,
     // so we want to make sure we aren't stalling them.
-    std::atomic<int> nes_frames{0};
+    std::atomic<int64> nes_frames{0};
     
     const TwoPlayerProblem *tpp = nullptr;
 

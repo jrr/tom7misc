@@ -29,7 +29,7 @@
 // Save state periodically so that rewind is fast.
 #define SNAPSHOT_EVERY 1000
 
-std::mutex print_mutex;
+static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
     MutexLock Printf_ml(&print_mutex);		\
     printf(fmt, ##__VA_ARGS__);			\

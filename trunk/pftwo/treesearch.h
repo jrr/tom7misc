@@ -30,7 +30,6 @@
 #include "atom7ic.h"
 
 #include "weighted-objectives.h"
-#include "graphics.h"
 #include "problem-twoplayer.h"
 
 // Base "max" nodes in heap. We start cleaning the heap when there are
@@ -228,6 +227,12 @@ struct TreeSearch {
   // Coarse locking.
   std::mutex tree_m;
 
+  // The UI thread must periodically call these for the benchmark
+  // metrics to be correct in the output FM2s.
+  // No lock needed to update these.
+  void SetApproximateSeconds(int64 seconds_since_start);
+  void SetApproximateNesFrames(int64 nes_frames);
+  
   struct Stats {
     // Generated the same exact move sequence for a node
     // more than once.
@@ -240,24 +245,34 @@ struct TreeSearch {
     Counter explore_deaths;
   };
   Stats stats;
-
-  // Updated by the UI thread.
-  std::atomic<int64> approx_sec{0LL};
-  std::atomic<int64> approx_nes_frames{0LL};
   
   TreeSearch();
+
+  void SaveBestMovie(const string &filename);
   
+  // Not holding the lock.
   void StartThreads();
   void DestroyThreads();
 
   // For UI thread; returns the current workers.
-  vector<Worker *> Workers() const;
+  // Should hold the lock or ensure the number of workers
+  // is not changed.
+  vector<Worker *> WorkersWithLock() const;
   
  private:
-  // Approximately one per CPU. Created at startup and lives
+  friend class WorkThread;
+  // Updated by the UI thread.
+  std::atomic<int64> approx_sec{0LL};
+  std::atomic<int64> approx_nes_frames{0LL};
+
+  // Approximately one per logical CPU. Created at startup and lives
   // until should_die becomes true. Pointers owned by TreeSearch.
   vector<WorkThread *> workers;
   int num_workers = 0;
+
+  // TODO(twm): use shared_mutex when available
+  bool should_die = false;
+  mutex should_die_m;
 };
 
 #endif

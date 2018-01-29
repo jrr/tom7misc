@@ -26,7 +26,6 @@
 #include "atom7ic.h"
 
 #include "weighted-objectives.h"
-#include "graphics.h"
 #include "treesearch.h"
 #include "problem-twoplayer.h"
 
@@ -48,16 +47,11 @@ static_assert(NUM_NEXTS > 0, "allowed range");
 // at least GRID_BESTSCORE_FRAC * best_score_in_heap.
 #define GRID_BESTSCORE_FRAC 0.90
 
-std::mutex print_mutex;
+static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
     MutexLock Printf_ml(&print_mutex);		\
     printf(fmt, ##__VA_ARGS__);			\
   } while (0)
-
-// TODO(twm): use shared_mutex when available
-// XXX: Move into TreeSearch object.
-static bool should_die = false;
-static mutex should_die_m;
 
 struct WorkThread {
   using Node = Tree::Node;
@@ -353,8 +347,6 @@ struct WorkThread {
     // shape of the heap much.
     {
       worker->SetStatus("Tree: Reheap");
-      // XXX don't use sdl for this
-      const uint32 start_ms = SDL_GetTicks();
       {
 	MutexLock ml(&search->tree_m);
 
@@ -391,15 +383,12 @@ struct WorkThread {
 	};
 	ReHeapRec(tree->root);
       }
-      const uint32 end_ms = SDL_GetTicks();
-      printf("Done in %.4f sec.\n", (end_ms - start_ms) / 1000.0);
     }
     
     {
       MutexLock ml(&search->tree_m);
       const int64 MAX_NODES = search->tree->MaxNodes();
       if (tree->num_nodes > MAX_NODES) {
-	const uint32 start_ms = SDL_GetTicks();
 	printf("Trim tree (have %llu, max: %llu)...\n",
 	       tree->num_nodes, MAX_NODES);
 
@@ -523,15 +512,11 @@ struct WorkThread {
 	       "     child is kept: %llu\n",
 	       kept_score, kept_worker, kept_grid, kept_parent);
 
-	
-	const uint32 end_ms = SDL_GetTicks();
 	printf(" ... Deleted %llu; now the tree is size %llu.\n"
-	       " ... Max depth is %d.\n"
-	       " ... Done in %.4f sec.\n",
+	       " ... Max depth is %d.\n",
 	       deleted_nodes,
 	       tree->num_nodes,
-	       max_depth,
-	       (end_ms - start_ms) / 1000.0);
+	       max_depth);
 
 	// Now, find some nodes for exploration.
 	CHECK(tree->explore_queue.empty());
@@ -828,7 +813,7 @@ struct WorkThread {
       while (ProcessExploreQueue()) {
 	// OK to ignore the rest of this loop, but we should die if
 	// requested.
-	if (ReadWithLock(&should_die_m, &should_die)) {
+	if (ReadWithLock(&search->should_die_m, &search->should_die)) {
 	  worker->SetStatus("Die");
 	  return;
 	}
@@ -921,7 +906,7 @@ struct WorkThread {
       MaybeUpdateTree();
 
       worker->SetStatus("Check for death");
-      if (ReadWithLock(&should_die_m, &should_die)) {
+      if (ReadWithLock(&search->should_die_m, &search->should_die)) {
 	worker->SetStatus("Die");
 	return;
       }
@@ -964,7 +949,7 @@ TreeSearch::TreeSearch() {
   problem.reset(new Problem(config));
 }
 
-vector<Worker *> TreeSearch::Workers() const {
+vector<Worker *> TreeSearch::WorkersWithLock() const {
   vector<Worker *> ret;
   ret.reserve(workers.size());
   for (const WorkThread *wt : workers) {
@@ -974,6 +959,8 @@ vector<Worker *> TreeSearch::Workers() const {
 }
 
 void TreeSearch::StartThreads() {
+  // Maybe this should be locked separately?
+  MutexLock ml(&tree_m);
   CHECK(workers.empty());
   CHECK(num_workers > 0);
   workers.reserve(num_workers);
@@ -991,4 +978,69 @@ void TreeSearch::DestroyThreads() {
   for (WorkThread *wt : workers)
     delete wt;
   workers.clear();
+}
+
+void TreeSearch::SetApproximateSeconds(int64 sec) {
+  approx_sec.store(sec, std::memory_order_relaxed);
+}
+
+void TreeSearch::SetApproximateNesFrames(int64 nes_frames) {
+  approx_nes_frames.store(nes_frames, std::memory_order_relaxed);
+}
+
+void TreeSearch::SaveBestMovie(const string &filename) {
+  Printf("Saving best.\n");
+  MutexLock ml(&tree_m);
+  auto best = tree->heap.GetByIndex(0);
+
+  // Each segment of the solution, along with a subtitle for
+  // the sequence.
+  std::list<pair<string, Tree::Seq>> path;
+
+  const Tree::Node *n = best.value;
+  while (n->parent != nullptr) {
+    const Tree::Node *parent = n->parent;
+
+    auto GetKey = [n, parent]() -> const Tree::Seq * {
+      // Find among my siblings.
+      for (const auto &p : parent->children) {
+	if (p.second == n) {
+	  return &p.first;
+	}
+      };
+      return nullptr;
+    };
+
+    const Tree::Seq *seq = GetKey();
+    CHECK(seq != nullptr) << "Oops, when saving, I couldn't find "
+      "the path to this node; it must have been misparented!";
+
+    string subtitle =
+      StringPrintf("f %lld s %lld g %d,%d",
+		   n->nes_frames / 1024,
+		   n->walltime_seconds,
+		   n->goalx, n->goaly);
+			 
+    path.emplace_front(subtitle, *seq);
+    n = parent;
+  }
+
+  // Create subtitle vector.
+  vector<pair<int, string>> subtitles;
+  vector<Problem::Input> all_inputs;
+  int node_num = 0;
+  for (const pair<string, Tree::Seq> &p : path) {
+    // Could put more info from the node here...
+    subtitles.emplace_back((int)all_inputs.size(),
+			   StringPrintf("%d. %s", node_num,
+					p.first.c_str()));
+    for (const Problem::Input input : p.second)
+      all_inputs.push_back(input);
+    node_num++;
+  }
+
+  problem->SaveSolution(filename,
+			all_inputs,
+			subtitles,
+			"generated by pftwo");
 }
