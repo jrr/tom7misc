@@ -62,22 +62,22 @@ FCEULIB_GAME_OBJECTS= $(FCEULIB)/contra_49296.o $(FCEULIB)/contra_49280.o $(FCEU
 LFLAGS=-m64 -Wl,--subsystem,console libz.a $(OPT) $(SYMBOLS) $(FLTO) $(PROFILE) $(LINKSDL) -static
 # -Wl,--subsystem,console
 
-PFTWO_OBJECTS=motifs.o weighted-objectives.o problem-twoplayer.o n-markov-controller.o learnfun.o objective-enumerator.o graphics.o treesearch.o dumptree.o
+PFTWO_OBJECTS=motifs.o weighted-objectives.o problem-twoplayer.o n-markov-controller.o learnfun.o objective-enumerator.o headless-graphics.o treesearch.o dumptree.o
 
-testui.exe : $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) testui.o sdl-win32-main.o
+testui.exe : $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) testui.o graphics.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-pftwo.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) pftwo.o sdl-win32-main.o
+pftwo.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) pftwo.o graphics.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 headless.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) headless.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-playback.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) playback.o sdl-win32-main.o
+playback.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) playback.o graphics.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 # XXX this can avoid sdl
-progress.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) progress.o sdl-win32-main.o
+progress.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) progress.o graphics.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 # posterity/contra.nes-firstwin-5220000.fm2

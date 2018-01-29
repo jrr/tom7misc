@@ -78,7 +78,8 @@ void Motifs::SaveToFile(const string &filename) const {
     out += s + "\n";
   }
   // printf("%s\n", out.c_str());
-  printf("Wrote %lld motifs to %s.\n", motifs.size(), filename.c_str());
+  printf("Wrote %d motifs to %s.\n",
+	 (int)motifs.size(), filename.c_str());
   Util::WriteFile(filename, out);
 }
 
