@@ -105,7 +105,7 @@ struct Util {
 
   /* chop the first token (ignoring whitespace) off
      of line, modifying line. */
-  static string chop(string & line);
+  static string chop(string &line);
 
   /* number of entries (not . or ..) in dir d */
   static int dirsize(string d);
@@ -113,7 +113,7 @@ struct Util {
   /* mylevels/good_tricky   to
      mylevels               to
      . */
-  static string cdup(const string & dir);
+  static string cdup(const string &dir);
 
   /* true iff big ends with small */
   static bool endswith(string big_, string small_);
@@ -124,16 +124,16 @@ struct Util {
      occurrence of character c. The character
      is deleted from both the returned string and
      the line */
-  static string chopto(char c, string & line);
+  static string chopto(char c, string &line);
 
   /* erase any whitespace up to the first
      non-whitespace char. */
-  static string losewhitel(const string & s);
+  static string losewhitel(const string &s);
 
   /* try to remove the file. If it
      doesn't exist or is successfully
      removed, then return true. */
-  static bool remove(string f);
+  static bool remove(const string &f);
 
   /* move a file from src to dst. Return
      true on success. */
@@ -163,7 +163,7 @@ struct Util {
   static FILE *fopenp(const string &f, const string &mode);
 
   /* replace all occurrences of 'findme' with 'replacewith' in 'src' */
-  static string Replace(const string &src, const string &findme,
+  static string Replace(string src, const string &findme,
 			const string &replacewith);
 
   /* called minimum, maximum because some includes

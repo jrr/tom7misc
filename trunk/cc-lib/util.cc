@@ -3,6 +3,7 @@
 #include <cstring>
 #include <string.h>
 #include <algorithm>
+#include <cstdint>
 
 #include "util.h"
 
@@ -40,6 +41,7 @@
 #  include <dirent.h>
 #endif
 
+using uint8 = uint8_t;
 
 string itos(int i) {
   char s[64];
@@ -745,7 +747,7 @@ bool Util::library_matches(char k, const string &s) {
    An executable can't remove itself in
    Windows 98, though.
 */
-bool Util::remove(string f) {
+bool Util::remove(const string &f) {
   if (!ExistsFile(f.c_str())) return true;
   else {
 # ifdef WIN32
@@ -770,7 +772,6 @@ bool Util::remove(string f) {
 # endif
   }
   return false;
-
 }
 
 bool Util::move(string src, string dst) {
@@ -799,23 +800,31 @@ bool Util::move(string src, string dst) {
 
 bool Util::copy(string src, string dst) {
   FILE *s = fopen(src.c_str(), "rb");
-  if (!s) return false;
-  FILE *d = fopen(dst.c_str(), "wb+");
-  if (!d) { fclose(s); return false; }
+  if (!s) {
+    // fprintf(stderr, "Couldn't open %s for reading\n", src.c_str());
+    return false;
+  }
+  FILE *d = fopen(dst.c_str(), "wb");
+  if (!d) {
+    // fprintf(stderr, "Couldn't open %s for writing\n", dst.c_str());
+    fclose(s);
+    return false;
+  }
 
-  char buf[256];
+  static constexpr int BUF_SIZE = 16384;
+  uint8 buf[BUF_SIZE];
   int x = 0;
   do {
     /* XXX doesn't distinguish error from EOF, but... */
-    x = (int)fread(buf, 1, 256, s);
-    if (x) {
+    x = (int)fread(buf, 1, BUF_SIZE, s);
+    if (x > 0) {
       if ((signed)fwrite(buf, 1, x, d) < x) {
 	fclose(s);
 	fclose(d);
 	return false;
       }
     }
-  } while (x == 256);
+  } while (x == BUF_SIZE);
 
   fclose(s);
   fclose(d);
@@ -857,7 +866,7 @@ FILE *Util::fopenp(const string &f, const string &m) {
   return fopen(f.c_str(), m.c_str());
 }
 
-string Util::Replace(const string &src,
+string Util::Replace(string src,
 		     const string &findme,
 		     const string &rep) {
   long long int idx = src.length() - 1;
