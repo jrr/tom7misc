@@ -248,7 +248,8 @@ struct TreeSearch {
   
   TreeSearch();
 
-  void SaveBestMovie(const string &filename);
+  // Returns the actual file written.
+  string SaveBestMovie(const string &filename_part);
   
   // Not holding the lock.
   void StartThreads();
