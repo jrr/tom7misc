@@ -138,7 +138,7 @@ fm2wav.exe : $(OBJECTS) $(CCLIBOBJECTS) fm2wav.o simplefm2.o
 bench.exe : $(OBJECTS) test-util.o bench.o simplefm2.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-aot.exe : $(OBJECTS_NO_GAMES) ppu-noaot.o aot.o
+aot.exe : $(OBJECTS_NO_GAMES) ppu-noaot.o aot.o test-util.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o

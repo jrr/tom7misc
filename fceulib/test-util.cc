@@ -16,7 +16,7 @@ static string ReadAndCloseFile(FILE *f) {
   // version.
   // After C++17, this can be ret.data().
   const size_t chunks_read =
-    fread(&ret.front(), 1, size, f);
+    fread(&ret.front(), size, 1, f);
   fclose(f);
 
   if (chunks_read == 1)
