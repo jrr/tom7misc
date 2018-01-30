@@ -70,6 +70,14 @@ static Plots OneMovie(const string &game,
   ret.moviename = moviename;
 
   RE2 subtitle_re{"f +([0-9]+) +s +([0-9]+)"};
+
+  uint8 max_stage = 0, max_room = 0, max_scroll = 0;
+  set<uint8> rooms;
+
+  auto MapRoom = [](uint8 r) -> int {
+    if (r == 255) return 255;
+    else return (int)((r * 255.0) / 21.0);
+  };
   
   int subidx = 0;
   for (int frame = 0; frame < movie.size(); frame++) {
@@ -83,7 +91,11 @@ static Plots OneMovie(const string &game,
     uint8 stage = mem[48];
     uint8 room = mem[100];
     uint8 scroll = mem[101];
-    double pos = (int)scroll + 256 * (int)room + 65536 * (int)stage;
+    max_stage = std::max(stage, max_stage);
+    max_room = std::max(room, max_room);
+    max_scroll = std::max(scroll, max_scroll);
+    rooms.insert(room);
+    double pos = (int)scroll + 256 * MapRoom(room) + 65536 * (int)stage;
     ret.depth_pos.points.push_back({(double)frame, pos});
 
     if (subidx < subs.size() && subs[subidx].first == frame) {
@@ -100,6 +112,11 @@ static Plots OneMovie(const string &game,
       Printf("%s %d/%d\n", moviename.c_str(), frame, (int)movie.size());
     }
   }
+
+  printf("Maxima: Stage: %d Room: %d Scroll: %d\n",
+	 (int)max_stage, (int)max_room, (int)max_scroll);
+  // for (uint8 r : rooms)
+  // printf(" %d\n", r);
   return ret;
 }
 

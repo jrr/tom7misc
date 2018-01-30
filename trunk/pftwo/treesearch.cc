@@ -38,11 +38,6 @@
 //   BASE_NODE_BUDGET + max_depth * NODE_BUDGET_BONUS_PER_DEPTH
 #define NODE_BUDGET_BONUS_PER_DEPTH 2
 
-// When expanding a node, try this many sequences and
-// choose the best one.
-#define NUM_NEXTS 4
-static_assert(NUM_NEXTS > 0, "allowed range");
-
 // We consider exploring from the grid if the score is
 // at least GRID_BESTSCORE_FRAC * best_score_in_heap.
 #define GRID_BESTSCORE_FRAC 0.90
@@ -57,8 +52,9 @@ struct WorkThread {
   using Node = Tree::Node;
   WorkThread(TreeSearch *search, int id) :
     search(search), id(id),
-    rc(StringPrintf("worker_%d", id)),
+    rc(StringPrintf("%d,worker_%d", search->opt.random_seed, id)),
     gauss(&rc),
+    opt(search->opt),
     worker(search->problem->CreateWorker()),
     th{&WorkThread::Run, this} {}
 
@@ -846,9 +842,17 @@ struct WorkThread {
       int num_frames = gauss.Next() * STDDEV + MEAN;
       if (num_frames < 1) num_frames = 1;
 
+      // Allow for fractional num_nexts (flip a coin to move between
+      // the two adjacent integers).
+      int num_nexts = (int)opt.num_nexts;
+      {
+	const double leftover = opt.num_nexts - (double)num_nexts;
+	if (RandDouble(&rc) < leftover) num_nexts++;
+      }
+      
       vector<vector<Problem::Input>> nexts;
-      nexts.reserve(NUM_NEXTS);
-      for (int num_left = NUM_NEXTS; num_left--;) {
+      nexts.reserve(num_nexts);
+      for (int num_left = num_nexts; num_left--;) {
 	// With no explicit goal.
 	Problem::InputGenerator gen =
 	  worker->Generator(&rc, nullptr);
@@ -933,11 +937,14 @@ private:
   ArcFour rc;
   // Private gaussian stream, aliasing rc.
   RandomGaussian gauss;
+  const TreeSearch::Options opt;
   Problem::Worker *worker = nullptr;
   std::thread th;
 };
 
-TreeSearch::TreeSearch() {
+TreeSearch::TreeSearch(Options opt) : opt(opt) {
+  CHECK_GT(opt.num_nexts, 0) << "Allowed range";
+  
   map<string, string> config = Util::ReadFileToMap("config.txt");
   if (config.empty()) {
     fprintf(stderr, "Missing config.txt.\n");

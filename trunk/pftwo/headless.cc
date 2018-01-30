@@ -47,7 +47,7 @@ struct ConsoleThread {
       const int64 elapsed = time(nullptr) - start;
       search->SetApproximateSeconds(elapsed);
 
-      constexpr int64 TEN_MINUTES = 60LL; // XXX // 10LL * 60LL;
+      constexpr int64 TEN_MINUTES = 10LL * 60LL;
       // Every ten minutes, write FM2 file.
       // TODO: Superimpose all of the trees at once.
       if (elapsed - last_wrote > TEN_MINUTES) {
@@ -62,17 +62,17 @@ struct ConsoleThread {
 	last_wrote = elapsed;
       }
 
-      int64 total_steps = 0LL;
+      int64 total_nes_frames = 0LL;
       {
 	MutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	for (const Worker *w : workers) {
-	  total_steps += w->nes_frames.load(std::memory_order_relaxed);
+	  total_nes_frames += w->nes_frames.load(std::memory_order_relaxed);
 	}
       }
 	
       // Save the sum to a single value for benchmarking.
-      search->SetApproximateNesFrames(total_steps);
+      search->SetApproximateNesFrames(total_nes_frames);
       int64 minutes = elapsed / 60LL;
       int64 hours = minutes / 60LL;
       if (minutes != last_minute) {
@@ -81,12 +81,25 @@ struct ConsoleThread {
 	const int64 min = minutes % 60LL;
 	printf("%02d:%02d:%02d  %lld NES Frames; %.2fKframes/sec\n",
 	       (int)hours, (int)min, (int)sec,
-	       total_steps,
-	       (double)total_steps / ((double)elapsed * 1000.0));
+	       total_nes_frames,
+	       (double)total_nes_frames / ((double)elapsed * 1000.0));
+      }
+
+      if (max_nes_frames > 0LL && total_nes_frames > max_nes_frames) {
+	if (!experiment_file.empty()) {
+	  string f = search->SaveBestMovie(experiment_file);
+	  printf("Wrote final experiment results to %s\n", f.c_str());
+	}
+	return;
       }
     }
   }
 
+  // If positive, then stop after about this many NES frames.
+  int64 max_nes_frames = 0LL;
+  // And write the final movie here.
+  string experiment_file;
+  
  private:
   TreeSearch *search = nullptr;
   int64 frame = 0LL;
@@ -98,12 +111,27 @@ int main(int argc, char *argv[]) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
   }
   #endif
-  
+
+  TreeSearch::Options options;
+
+  // XXX not general-purpose!
+  string experiment;
+  if (argc >= 2) {
+    double d = std::stod((string)argv[1]);
+    options.num_nexts = d;
+    options.random_seed = (int)(d * 100000.0);
+    experiment = StringPrintf("expt-%s", argv[1]);
+  }
+
   {
-    TreeSearch search;
+    TreeSearch search{options};
     search.StartThreads();
     {
       ConsoleThread *console_thread = new ConsoleThread(&search);
+      if (!experiment.empty()) {
+	console_thread->max_nes_frames = 3600 * 2 * 20000LL;
+	console_thread->experiment_file = experiment;
+      }
       console_thread->Run();
       delete console_thread;
     }
