@@ -220,7 +220,20 @@ struct Tree {
 struct TreeSearch {
   // Should not be modified after initialization.
   std::unique_ptr<Problem> problem;
- 
+
+  // Options with their default values.
+  struct Options {
+    // When expanding a node, try this many sequences and
+    // choose the best one. "2.25" means 2 (with probability
+    // 0.75) or 3 (with probability 0.25).
+    double num_nexts = 4.0;
+    // Due to threading, the process is inherently random.
+    // But this explicitly seeds it to get better randomness.
+    int random_seed = 0;
+  };
+
+  TreeSearch(Options options);
+  
   // Initialized by one of the workers with the post-warmup
   // state.
   Tree *tree = nullptr;
@@ -245,8 +258,6 @@ struct TreeSearch {
     Counter explore_deaths;
   };
   Stats stats;
-  
-  TreeSearch();
 
   // Returns the actual file written.
   string SaveBestMovie(const string &filename_part);
@@ -262,6 +273,7 @@ struct TreeSearch {
   
  private:
   friend class WorkThread;
+  const Options opt;
   // Updated by the UI thread.
   std::atomic<int64> approx_sec{0LL};
   std::atomic<int64> approx_nes_frames{0LL};

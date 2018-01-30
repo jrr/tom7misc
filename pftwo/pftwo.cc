@@ -606,7 +606,8 @@ int main(int argc, char *argv[]) {
   }
   
   {
-    TreeSearch search;
+    TreeSearch::Options options;
+    TreeSearch search{options};
     search.StartThreads();
     {
       UIThread *ui_thread = new UIThread(&search);
