@@ -81,13 +81,13 @@ int Util::HexDigitValue(char c) {
 
 
 namespace {
-struct linereal : public line {
+struct LineReal : public line {
   int x0, y0, x1, y1;
   int dx, dy;
   int stepx, stepy;
   int frac;
 
-  linereal(int x0_, int y0_, int x1_, int y1_) :
+  LineReal(int x0_, int y0_, int x1_, int y1_) :
     x0(x0_), y0(y0_), x1(x1_), y1(y1_) {
 
 
@@ -157,18 +157,18 @@ struct linereal : public line {
 }  // namespace
 
 line *line::create(int a, int b, int c, int d) {
-  return new linereal(a, b, c, d);
+  return new LineReal(a, b, c, d);
 }
 
 bool Util::isdir(string f) {
   struct stat st;
-  return (!stat(f.c_str(), &st)) && (st.st_mode & S_IFDIR);
+  return (0 == stat(f.c_str(), &st)) && (st.st_mode & S_IFDIR);
 }
 
 bool Util::ExistsFile(string s) {
   struct stat st;
 
-  return !stat(s.c_str(), &st);
+  return 0 == stat(s.c_str(), &st);
 }
 
 bool Util::existsdir(string d) {
@@ -191,11 +191,38 @@ string Util::ptos(void *p) {
 }
 
 // Internal helper used by ReadFile, ReadFileMagic.
-static string ReadAndCloseFile(FILE *f) {
-  fseek(f, 0, SEEK_END);
+static string ReadAndCloseFile(bool at_beginning, FILE *f) {
+  if (-1 == fseek(f, 0, SEEK_END)) {
+    printf("(seek failed)\n");
+    // Assume the file is not seekable.
+    // This happens for the /proc filesystem, for example.
+    if (!at_beginning) {
+      // In the case that we aren't at the beginning of the
+      // file already, there's nothing we can do.
+      fclose(f);
+      return "";
+    }
+    // Otherwise, read a byte at a time (slow method).
+    string ret;
+    ret.reserve(128);
+    int c = 0;
+    while (EOF != (c = getc(f))) {
+      ret += (char)c;
+    }
+    fclose(f);
+    return ret;
+  }
+  // But if it's seekable, then we can do a faster chunked
+  // read into a preallocated buffer.
   const int size = ftell(f);
-  fseek(f, 0, SEEK_SET);
-
+  if (-1 == fseek(f, 0, SEEK_SET)) {
+    // Now we're toast!
+    printf("Second seek failed :(\n");
+    fclose(f);
+    return "";
+  }
+  printf("Seeks succeeded with size %d\n", (int)size);
+  
   string ret;
   ret.resize(size);
   // Bytes are required to be contiguous from C++11;
@@ -218,7 +245,7 @@ string Util::ReadFile(const string &s) {
 
   FILE *f = fopen(s.c_str(), "rb");
   if (!f) return "";
-  return ReadAndCloseFile(f);
+  return ReadAndCloseFile(true, f);
 }
 
 vector<string> Util::ReadFileToLines(const string &f) {
@@ -311,12 +338,15 @@ string Util::readfilemagic(string s, const string &mag) {
     return "";
   }
 
-  /* ok, now just read file */
-  return ReadAndCloseFile(f);
+  // OK, now just read file.
+  // Note that since we advanced past the magic, we don't have any
+  // easy way to fall back to the fgetc()-based read if this file is
+  // not seekable. If that behavior becomes important, the current
+  // interface to ReadAndCloseFile would need to change.
+  return ReadAndCloseFile(false, f);
 }
 
 bool Util::WriteFile(const string &fn, const string &s) {
-
   FILE *f = fopen(fn.c_str(), "wb");
   if (!f) return false;
 
