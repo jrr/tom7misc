@@ -3,6 +3,14 @@
  ;; Tom 7's .emacs file!
  ;; Code licensed under the GPL.
 
+;; To install this on a new machine, add something like this to your
+;; ~/.emacs file:
+;;   (add-to-list 'load-path "/usr/src/tom7misc/sitelisp/")
+;;   (load "dotemacs")
+;; sitelisp needs to be in the load path because this file loads
+;; other scripts.
+
+
 ;; I prevent Fundamental mode from having font-lock turned on, so that I
 ;; can set text properties in the message window.
 (setq font-lock-global-modes '(not fundamental-mode))
@@ -316,7 +324,6 @@
 (autoload 'sml-mode "sml-mode" "Major mode for editing ML programs." t)
 (autoload 'aaph-mode "aaph" "Major mode for editing aphasia 2 source." t)
 (autoload 'glsl-mode "glsl-mode" nil t)
-(require 'protobuf-mode)
 
 (setq auto-mode-alist
       (append '(("\\.a$" . aphasia-mode)
