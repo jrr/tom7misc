@@ -37,8 +37,7 @@ struct OneWire {
     for (const string &file : files) {
       const string fullpath = dir + "/" + file + "/w1_slave";
       printf("Trying %s...\n", fullpath.c_str());
-      string testread = ReadFile(fullpath);
-      // FILE *f = fopen(fullpath.c_str(), "rb");
+      string testread = Util::ReadFile(fullpath);
       if (!testread.empty()) {
 	CHECK(probes.find(file) == probes.end())
 	  << file << " duplicate?";
@@ -53,8 +52,9 @@ struct OneWire {
   }
 
   struct Probe {
-    // The w1_slave file, kept open.
-    // FILE *file = nullptr;
+    // The path to the file. From /proc we only get a streaming read,
+    // so we need to freshly open and stream the entire file each
+    // time.
     string fullpath;
     // XXX Last reading, etc.
 
@@ -70,7 +70,7 @@ struct OneWire {
       // obvious. Other than the last byte being the CRC, there
       // aren't two bytes there representing 17750 (0x4556).
       // But 17750 is 17.750 degrees C.
-      string data = ReadFile(fullpath);
+      string data = Util::ReadFile(fullpath);
       if (data.empty()) return false;
       if (data.find("YES") == string::npos) return false;
       size_t te = data.find("t=");
@@ -80,10 +80,6 @@ struct OneWire {
     }
   };
 
-  ~OneWire() {
-    // for (auto p : probes) fclose(p.second.file);
-  }
-  
   std::unordered_map<string, Probe> probes;
 };
 
