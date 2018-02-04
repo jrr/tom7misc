@@ -41,11 +41,6 @@
 //   BASE_NODE_BUDGET + max_depth * NODE_BUDGET_BONUS_PER_DEPTH
 #define NODE_BUDGET_BONUS_PER_DEPTH 2
 
-// When expanding a node, try this many sequences and
-// choose the best one.
-#define NUM_NEXTS 4
-static_assert(NUM_NEXTS > 0, "allowed range");
-
 // We consider exploring from the grid if the score is
 // at least GRID_BESTSCORE_FRAC * best_score_in_heap.
 #define GRID_BESTSCORE_FRAC 0.90
@@ -226,7 +221,10 @@ struct TreeSearch {
     // When expanding a node, try this many sequences and
     // choose the best one. "2.25" means 2 (with probability
     // 0.75) or 3 (with probability 0.25).
-    double num_nexts = 4.0;
+    double num_nexts = 6.7;
+    double frames_stddev = 150.0;
+    double frames_mean = 300.0;
+
     // Due to threading, the process is inherently random.
     // But this explicitly seeds it to get better randomness.
     int random_seed = 0;

@@ -50,7 +50,7 @@ struct Series {
 };
 
 struct Plots {
-  string moviename;
+  string caption;
   Series depth_pos;
   Series mframes_pos;
   Series walltime_pos;
@@ -58,7 +58,8 @@ struct Plots {
 
 // TODO HERE:
 static Plots OneMovie(const string &game,
-		      const string &moviename) {
+		      const string &moviename,
+		      const string &shared_prefix) {
   vector<pair<int, string>> subs;
   vector<pair<uint8, uint8>> movie =
     SimpleFM2::ReadInputsEx(moviename, &subs);
@@ -67,8 +68,12 @@ static Plots OneMovie(const string &game,
   CHECK(emu.get() != nullptr) << game;
 
   Plots ret;
-  ret.moviename = moviename;
-
+  ret.caption =
+    moviename.substr(shared_prefix.size(), string::npos);
+  // XXX more principled?
+  if (Util::endswith(ret.caption, ".fm2"))
+    ret.caption = ret.caption.substr(0, ret.caption.size() - 4);
+  
   RE2 subtitle_re{"f +([0-9]+) +s +([0-9]+)"};
 
   uint8 max_stage = 0, max_room = 0, max_scroll = 0;
@@ -161,7 +166,7 @@ static void DrawPlots(const vector<Plots> &plotses,
       const string &color = Colors()[coloridx];
       fprintf(f, "<polyline stroke-linejoin=\"round\" "
 	      "fill=\"none\" stroke=\"%s\" stroke-opacity=\"0.75\" "
-	      "stroke-width=\"0.75\" points=\"",
+	      "stroke-width=\"1.5\" points=\"",
 	      color.c_str());
       for (const std::pair<double, double> pt : series.points) {
 	double x, y;
@@ -183,7 +188,7 @@ static void DrawPlots(const vector<Plots> &plotses,
       double x, y;
       std::tie(x, y) = scaler.Scale(series.points[series.points.size() - 1]);
       fprintf(f, TextSVG::Text(x, y, "sans-serif", 12.0,
-			       {{color, plots.moviename}}).c_str());
+			       {{color, plots.caption}}).c_str());
     }
     coloridx ++;
     coloridx %= Colors().size();
@@ -193,6 +198,55 @@ static void DrawPlots(const vector<Plots> &plotses,
 }
 
 #define GAME "contra.nes"
+
+// TODO: Strip suffix too
+string SharedPrefix(const vector<string> &v) {
+  if (v.empty()) return "";
+  const string &first = v[0];
+  auto AllShared = [&v, &first](int len) {
+    for (int x = 1; x < v.size(); x++) {
+      const string &s = v[x];
+      if (s.size() < len) return false;
+      for (int i = 0; i < len; i++) {
+	if (s[i] != first[i]) return false;
+      }
+    }
+    return true;
+  };
+
+  int best = 0;
+  for (int i = 0; i < first.size(); i++) {
+    if (first[i] == '.' ||
+	first[i] == '-') {
+      printf("first[%d] = '%c'\n", i, first[i]);
+      if (AllShared(i + 1)) {
+	printf("Allshared.\n");
+	best = i + 1;
+      } else {
+	break;
+      }
+    }
+  }
+  return first.substr(0, best);
+}
+
+static void WriteTSV(const vector<Plots> &plotses,
+		     const string &filename) {
+  FILE *f = fopen(filename.c_str(), "w");
+  auto LastSlope = [](const Series &s) -> double {
+    if (s.points.empty()) return 0.0;
+    return s.points.back().second / s.points.back().first;
+  };
+  fprintf(f, "expt\tdepth\tmframes\twalltime\n");
+  for (const Plots &plots : plotses) {
+    fprintf(f, "%s\t%.3f\t%.3f\t%.3f\n",
+	    plots.caption.c_str(),
+	    LastSlope(plots.depth_pos),
+	    LastSlope(plots.mframes_pos),
+	    LastSlope(plots.walltime_pos));
+  }
+  fclose(f);
+}
 
 // The main loop for SDL.
 int main(int argc, char *argv[]) {
@@ -213,11 +267,16 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Sorry, " GAME " is hardcoded because of AOT.\n");
     return -1;
   }
-
-  vector<Plots> plotses = ParallelMap(movies,
-				      [&game](const string &moviename) {
-					return OneMovie(game, moviename);
-				      }, 10);
+  
+  const string shared_prefix = SharedPrefix(movies);
+  printf("Prefix shared by all movies (stripped): %s\n",
+	 shared_prefix.c_str());
+  
+  vector<Plots> plotses =
+    ParallelMap(movies,
+		[&game, &shared_prefix](const string &moviename) {
+		  return OneMovie(game, moviename, shared_prefix);
+		}, 10);
 
   // Now collate and write plots.
   DrawPlots(plotses, 1024, 1024, "depth-pos.svg",
@@ -229,5 +288,7 @@ int main(int argc, char *argv[]) {
   DrawPlots(plotses, 1024, 1024, "walltime-pos.svg",
 	    [](const Plots &p) { return p.walltime_pos; });
 
+  WriteTSV(plotses, "plots.tsv");
+  
   return 0;
 }
