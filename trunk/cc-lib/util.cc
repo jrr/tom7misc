@@ -191,52 +191,78 @@ string Util::ptos(void *p) {
 }
 
 // Internal helper used by ReadFile, ReadFileMagic.
-static string ReadAndCloseFile(bool at_beginning, FILE *f) {
-  if (-1 == fseek(f, 0, SEEK_END)) {
-    printf("(seek failed)\n");
-    // Assume the file is not seekable.
-    // This happens for the /proc filesystem, for example.
-    if (!at_beginning) {
-      // In the case that we aren't at the beginning of the
-      // file already, there's nothing we can do.
-      fclose(f);
-      return "";
-    }
-    // Otherwise, read a byte at a time (slow method).
-    string ret;
-    ret.reserve(128);
-    int c = 0;
-    while (EOF != (c = getc(f))) {
-      ret += (char)c;
-    }
-    fclose(f);
-    return ret;
-  }
-  // But if it's seekable, then we can do a faster chunked
-  // read into a preallocated buffer.
-  const int size = ftell(f);
-  if (-1 == fseek(f, 0, SEEK_SET)) {
-    // Now we're toast!
-    printf("Second seek failed :(\n");
+static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
+  // This is unbelievably difficult!
+  // A simple loop while getc() doesn't return EOF works, but
+  // is much slower than it needs to be.
+  // fseek(.., SEEK_END) is useless because it has undefined
+  // behavior (!) despite "usually" working.
+  // stat() returns a size, but it is bogus for special files,
+  // like the ones in /proc. It should be accurate for regular
+  // files.
+  // Therefore, what we want to do here is use stat() to
+  // estimate the file size, and be efficient in the case that
+  // we got it right. However, we need to remain correct even
+  // when stat returns nonsense (such as 0 or 4096).
+
+  int fd = fileno(f);
+  struct stat st;
+  if (0 != fstat(fd, &st)) {
     fclose(f);
     return "";
   }
-  printf("Seeks succeeded with size %d\n", (int)size);
-  
-  string ret;
-  ret.resize(size);
-  // Bytes are required to be contiguous from C++11;
-  // use .front() instead of [0] since the former,
-  // introduced in C++11, will prove we have a compatible
-  // version.
-  // After C++17, this can be ret.data().
-  const size_t chunks_read =
-    fread(&ret.front(), size, 1, f);
-  fclose(f);
 
-  if (chunks_read == 1)
-    return ret;
-  return "";
+  string ret;
+  off_t next_pos = 0;
+  off_t size_guess = st.st_size;
+  if (magic_opt != nullptr) {
+    ret = *magic_opt;
+    next_pos = ret.size();
+  }
+
+  // printf("next_pos is %d; size_guess is %d.\n",
+  //        (int)next_pos, (int)size_guess);
+  
+  // In optimistic cases where the size_guess is correct,
+  // this loop will execute just once: A single resize, and
+  // a single fread.
+  for (;;) {
+    // Now, repeatedly, resize the string to accommodate a
+    // read that we think will finish off the file. But
+    // don't do zero-sized writes!
+    if (next_pos >= size_guess) {
+      // XXX possibility for overflow, ugh
+      size_guess = next_pos + 16;
+    }
+    // printf("Resize buffer to %d\n", (int)size_guess);
+    ret.resize(size_guess);
+    const off_t read_size = size_guess - next_pos;
+    // printf("Attempt to read %d bytes\n", (int)read_size);
+    
+    // Bytes are required to be contiguous from C++11;
+    // use .front() instead of [next_pos] since the former,
+    // introduced in C++11, will prove we have a compatible
+    // version.
+    const size_t bytes_read =
+      fread(&ret.front() + next_pos, 1, read_size, f);
+    // printf("%d bytes were read\n", (int)bytes_read);
+    
+    // We read exactly this many bytes.
+    next_pos += bytes_read;
+    // printf("Now next_pos is %d\n", (int)next_pos);
+    if (feof(f)) {
+      // printf("EOF. ret size is %d\n", (int)ret.size());
+      // Should be no-op when we guessed correctly.
+      ret.resize(next_pos);
+      return ret;
+    }
+
+    // If we're not at the end of file but no bytes were
+    // read, then something is amiss. This also ensures
+    // that the loop makes progress.
+    if (bytes_read == 0)
+      return "";
+  }
 }
 
 string Util::ReadFile(const string &s) {
@@ -245,7 +271,7 @@ string Util::ReadFile(const string &s) {
 
   FILE *f = fopen(s.c_str(), "rb");
   if (!f) return "";
-  return ReadAndCloseFile(true, f);
+  return ReadAndCloseFile(f, nullptr);
 }
 
 vector<string> Util::ReadFileToLines(const string &f) {
@@ -281,7 +307,9 @@ map<string, string> Util::ReadFileToMap(const string &f) {
   return m;
 }
 
-// PERF memcpy
+// XXX use uint8.
+// PERF: ReadFile helper could be a template that works with
+// both vector and string.
 vector<unsigned char> Util::ReadFileBytes(const string &f) {
   string s = ReadFile(f);
   vector<unsigned char> bytes;
@@ -314,7 +342,7 @@ static bool HasMagicF(FILE *f, const string &mag) {
   return true;
 }
 
-bool Util::hasmagic(string s, const string &mag) {
+bool Util::HasMagic(string s, const string &mag) {
   FILE *f = fopen(s.c_str(), "rb");
   if (!f) return false;
 
@@ -324,7 +352,7 @@ bool Util::hasmagic(string s, const string &mag) {
   return hm;
 }
 
-string Util::readfilemagic(string s, const string &mag) {
+string Util::ReadFileMagic(string s, const string &mag) {
   if (isdir(s)) return "";
   if (s == "") return "";
 
@@ -339,11 +367,7 @@ string Util::readfilemagic(string s, const string &mag) {
   }
 
   // OK, now just read file.
-  // Note that since we advanced past the magic, we don't have any
-  // easy way to fall back to the fgetc()-based read if this file is
-  // not seekable. If that behavior becomes important, the current
-  // interface to ReadAndCloseFile would need to change.
-  return ReadAndCloseFile(false, f);
+  return ReadAndCloseFile(f, &mag);
 }
 
 bool Util::WriteFile(const string &fn, const string &s) {
