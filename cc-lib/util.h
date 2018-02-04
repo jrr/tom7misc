@@ -51,8 +51,8 @@ struct Util {
   static string sizes(int i);
 
   /* only read if the file begins with the magic string */
-  static bool hasmagic(string, const string &magic);
-  static string readfilemagic(string, const string &magic);
+  static bool HasMagic(string, const string &magic);
+  static string ReadFileMagic(string, const string &magic);
 
 
   static string ptos(void *);

@@ -1,5 +1,5 @@
 
-default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe $(TESTCOMPILE)
+default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe util_test.exe $(TESTCOMPILE)
 
 TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
 
@@ -45,6 +45,9 @@ lines_test.exe : lines_test.o arcfour.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 image_test.exe : image_test.o arcfour.o image.o stb_image.o stb_image_write.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+util_test.exe : util_test.o util.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 clean :
