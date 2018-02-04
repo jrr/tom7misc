@@ -254,14 +254,17 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
       // printf("EOF. ret size is %d\n", (int)ret.size());
       // Should be no-op when we guessed correctly.
       ret.resize(next_pos);
+      fclose(f);
       return ret;
     }
 
     // If we're not at the end of file but no bytes were
     // read, then something is amiss. This also ensures
     // that the loop makes progress.
-    if (bytes_read == 0)
+    if (bytes_read == 0) {
+      fclose(f);
       return "";
+    }
   }
 }
 
