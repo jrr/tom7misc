@@ -49,8 +49,11 @@ struct ConsoleThread {
 
       constexpr int64 TEN_MINUTES = 10LL * 60LL;
       // Every ten minutes, write FM2 file.
-      // TODO: Superimpose all of the trees at once.
-      if (elapsed - last_wrote > TEN_MINUTES) {
+      // We don't bother if running an experment, since these only
+      // run for a few hours and in batch (so the checkpoint files
+      // get mixed up anyway).
+      if (experiment_file.empty() &&
+	  elapsed - last_wrote > TEN_MINUTES) {
 	string filename_part = StringPrintf("frame-%lld", frame);
 	string filename = search->SaveBestMovie(filename_part);
 	// XXX races are possible, and Util::copy does byte-by-byte.
@@ -79,10 +82,13 @@ struct ConsoleThread {
 	last_minute = minutes;
 	const int64 sec = elapsed % 60LL;
 	const int64 min = minutes % 60LL;
-	printf("%02d:%02d:%02d  %lld NES Frames; %.2fKframes/sec\n",
+	string es = experiment_file.empty() ? "" :
+	  StringPrintf(" [%s]", experiment_file.c_str());
+	printf("%02d:%02d:%02d  %lld NES Frames; %.2fKframes/sec%s\n",
 	       (int)hours, (int)min, (int)sec,
 	       total_nes_frames,
-	       (double)total_nes_frames / ((double)elapsed * 1000.0));
+	       (double)total_nes_frames / ((double)elapsed * 1000.0),
+	       es.c_str());
       }
 
       if (max_nes_frames > 0LL && total_nes_frames > max_nes_frames) {
@@ -118,7 +124,10 @@ int main(int argc, char *argv[]) {
   string experiment;
   if (argc >= 2) {
     double d = std::stod((string)argv[1]);
-    options.num_nexts = d;
+    printf("\n***\nStarting experiment with value %.4f\n***\n\n", d);
+    // options.num_nexts = d;
+    options.frames_mean = d;
+    options.frames_stddev = d * 0.5;
     options.random_seed = (int)(d * 100000.0);
     experiment = StringPrintf("expt-%s", argv[1]);
   }

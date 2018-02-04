@@ -358,7 +358,7 @@ struct WorkThread {
 	  }
 	}
 	
-	printf("Reheap ... ");
+	printf("Reheap ...\n");
 
 	// tree->heap.Clear();
 
@@ -833,13 +833,13 @@ struct WorkThread {
       worker->Restore(expand_me->state);
 
       worker->SetStatus("Gen inputs");
-      constexpr double MEAN = 300.0;
-      constexpr double STDDEV = 150.0;
+      // constexpr double MEAN = 300.0;
+      // constexpr double STDDEV = 150.0;
 
       // All the expansions will have the same length; this makes it
       // more sensible to compare the objectives in order to choose
       // the best.
-      int num_frames = gauss.Next() * STDDEV + MEAN;
+      int num_frames = gauss.Next() * opt.frames_stddev + opt.frames_mean;
       if (num_frames < 1) num_frames = 1;
 
       // Allow for fractional num_nexts (flip a coin to move between
