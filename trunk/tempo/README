@@ -1,0 +1,13 @@
+
+Set router to only DHCP in 10.0.0.2 - 10.0.0.200.
+Set desktop computer to static IP 10.0.0.201 (check with ipconfig).
+
+Set up windows MySQL on port 3306, not open to internet
+(this seems to be the default without manual intervention).
+
+create database tempo;
+create user tempo@'10.0.0.%' identified by 'PASSWORD';
+grant insert on tempo.* to 'tempo'@'10.0.0.%';
+grant update on tempo.* to 'tempo'@'10.0.0.%';
+grant select on tempo.* to 'tempo'@'10.0.0.%';
+grant delete on tempo.* to 'tempo'@'10.0.0.%';
