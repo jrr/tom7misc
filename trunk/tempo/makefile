@@ -1,7 +1,8 @@
 all : tempo.exe
 
 CXX=g++
-CXXFLAGS=-Wall -Wno-sign-compare -O --std=c++14 -I ../cc-lib
+CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O --std=c++14 -I ../cc-lib `mysql_config --cflags` -I/usr/include/mysql++
+LFLAGS=`mysql_config --libs` -lmysqlpp
 
 %.o : %.cc *.h
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
