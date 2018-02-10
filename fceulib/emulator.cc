@@ -165,7 +165,9 @@ Emulator::~Emulator() {
 Emulator::Emulator(FC *fc) : fc(fc) {}
 
 Emulator *Emulator::Create(const string &romfile) {
-  // (Here's where SDL was initialized.)
+  // XXX TODO: If AOT is enabled, then we should give an error if the
+  // romfile doesn't match (or just make it possible to have multiple
+  // AOT games compiled in, with fallback).
   FC *fc = new FC;
 
   // initialize the infrastructure
