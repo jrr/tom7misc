@@ -34,6 +34,11 @@
 // Clear screen and go to 0,0
 #define ANSI_CLS "\x1b[2J\x1b[;H"
 
+#ifndef AOT_INSTRUMENTATION
+#error This will not work unless instrumentation is on in x6502.
+#endif
+
+// Oneoff analysis app. Could make this more general-purpose...
 int main(int argc, char **argv) {
   std::unique_ptr<Emulator> emu(Emulator::Create("roms/contra.nes"));
   vector<uint8> start = emu->SaveUncompressed();
@@ -46,12 +51,24 @@ int main(int argc, char **argv) {
   }
 
   const FC *fc = emu->GetFC();
+  int64 count_low = 0LL, count_high = 0LL;
+  int64 all = 0LL;
   for (int i = 0; i < 0x10000; i++) {
     int64 count = fc->X->pc_histo[i];
+    if (i >= 0x8000 && i < 0xC000)
+      count_low += count; 
+    if (i >= 0xC000 && i < 0x10000)
+      count_high += count; 
+    all += count;
     if (count > 0) {
       printf("%04x: %lld\n", i, count);
     }
   }
 
+  printf("Low range total:  %lld [%.1f%%]\n"
+	 "High range total: %lld [%.1f%%]\n",
+	 count_low, (100.0 * count_low) / all,
+	 count_high, (100.0 * count_high) / all);
+  
   return 0;
 }

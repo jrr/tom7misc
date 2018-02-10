@@ -38,8 +38,7 @@ CC=g++
 # PLATFORMCFLAGS= -D__MINGW32__ -D_GLIBCXX_HAS_GTHREADS -mthreads
 PLATFORMCFLAGS=
 # without static, can't find lz or lstdcxx maybe?
-# PLATFORMLINK=-mthreads -Wl,--subsystem,console -lwinpthread -L. -static
-PLATFORMLINK=-lpthread
+PLATFORMLINK=-mthreads -Wl,--subsystem,console -lwinpthread -L. -static
 endif
 endif
 
@@ -48,13 +47,16 @@ endif
 # otherwise treats -n literally.)
 
 # AOT_INSTRUMENTATION is cheap but not free instrumentation in x6502
-# core that's used to 
+# core that's used to histogram the PC locations that are executed.
+INSTRUMENT=-DAOT_INSTRUMENTATION=1
+
 %.o : %.cc
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DAOT_INSTRUMENTATION=1 -c -o $@ $<
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INSTRUMENT) -DAOT=1 -c -o $@ $<
 	@bash -c "echo -n '.'"
 
+# version of PPU that does not call the AOT entry point at all.
 %-noaot.o : %.cc
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INSTRUMENT) -c -o $@ $<
 	@bash -c "echo -n ':'"
 
 # If you don't have SDL, you can leave these out, and maybe it still works.
@@ -147,7 +149,7 @@ make-comprehensive-history.exe : $(BASEOBJECTS) make-comprehensive-history.o
 sound_dmc_test.exe : $(CCLIBOBJECTS) sound_dmc_test.o test-util.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-aot-analyze.exe : aot-analyze.o $(OBJECTS) simplefm2.o
+aot-analyze.exe : aot-analyze.o $(OBJECTS_NO_GAMES) ppu-noaot.o simplefm2.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 # also mario_*.cc, but make suxxxx

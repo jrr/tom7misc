@@ -43,14 +43,17 @@
 
 Cart::Cart(FC *fc) : fc(fc) {}
 
-void Cart::SetPagePtr(int s, uint32 A, uint8 *p, bool ram) {
+void Cart::SetPagePtr(int s, uint32 A, uint8 *p, bool is_ram) {
   const uint32 AB = A >> 11;
   if (DEBUG_BANKSWITCH) printf("setpageptr %d %04x %p %s   AB: %d\n",
-			       s, A, p, ram ? "RAM" : "not RAM", AB);
+			       s, A, p, is_ram ? "RAM" : "not RAM", AB);
 
   if (p != nullptr) {
     for (int x = 0; x < (s >> 1); x++) {
-      PRGIsRAM[AB + x] = ram;
+      PRGIsRAM[AB + x] = is_ram;
+      // The subtraction here is so that we can still access the
+      // paged memory location by subscripting [A] rather than
+      // having to do [A & 2047]. -tom7
       Page[AB + x] = p - A;
     }
   } else {
@@ -123,7 +126,7 @@ DECLFR_RET Cart::CartBR_Direct(DECLFR_ARGS) {
   // printf("Read A=%x so Page %d = %p\n", A, A >> 11, Page[A >> 11]);
   // XXX: A bit disturbing that CartBW and BROB check that Page is
   // non-null, but here we just assume it's good? Maybe this is
-  // the point of using BROB?
+  // the point of using BROB (where OB means out of bounds?)?
   return Page[A >> 11][A];
 }
 
@@ -167,7 +170,8 @@ void Cart::setprg4(uint32 A, uint32 V) {
 
 // Ah, these functions may be testing whether the chip is large
 // enough to be mapped directly. See how prg8r wants at least an 8k
-// chip, or otherwise breaks it into 2k chunks?
+// chip, or otherwise breaks it into 2k chunks? (Perhaps effectively
+// masking off high bits of the address?)
 // Similarly 16k and 32k for prg16 and prg32. -tom7
 // But why doesn't prg4 not need to do this? Because chips are
 // always at least 8k?
@@ -192,10 +196,10 @@ void Cart::setprg8(uint32 A, uint32 V) {
 
 void Cart::setprg16r(int r, unsigned int A, unsigned int V) {
   if (DEBUG_BANKSWITCH) printf("setprg16r r=%d A=%x V=%u %s\n", r, A, V,
-                PRGsize[r] >= 16384 ? " (big)" : " (small)");
+			       PRGsize[r] >= 16384 ? " (big)" : " (small)");
   if (PRGsize[r] >= 16384) {
     V &= PRGmask16[r];
-    SetPagePtr(16, A, PRGptr[r] ? (&PRGptr[r][V << 14]) : 0, PRGram[r]);
+    SetPagePtr(16, A, PRGptr[r] ? &PRGptr[r][V << 14] : 0, PRGram[r]);
   } else {
     const uint32 VA = V << 3;
 

@@ -78,8 +78,8 @@ struct Cart {
   void SetSpecificVPage(int num, uint32 A, uint8 *p) { VPage[num] = p - A; }
   
   // Each page is a 2k chunk of memory, corresponding to the address
-  // (A >> 11), but located such that it is still indexed by A, not
-  // A & 2047. (TODO: verify, and maybe "fix" -tom7)
+  // (A >> 11), but the pointer is offset such that it is still
+  // indexed by A, not A & 2047. (TODO: verify, and maybe "fix" -tom7)
   // TODO: Make private and use accessors so that we can either keep
   // the address offsetting trick internal, or even stamp it out
   // TODO: In the process of making these private. -tom7
@@ -191,7 +191,7 @@ private:
 
   int mirrorhard = 0;
 
-  void SetPagePtr(int s, uint32 A, uint8 *p, bool ram);
+  void SetPagePtr(int s, uint32 A, uint8 *p, bool is_ram);
 
   FC *fc;
 };

@@ -34,7 +34,11 @@ struct X6502 {
   explicit X6502(FC *fc);
 
   #ifdef AOT_INSTRUMENTATION
+  // Number of times the PC had the corresponding value.
   int64 pc_histo[0x10000] = {};
+  // Number of times Run was called with the given number of cycles
+  // (prior to multiplication for NTSC/PAL). Last element means that
+  // number or greater.
   int64 cycles_histo[1024] = {};
   #endif
   // int64 entered_aot[0x10000] = {};
