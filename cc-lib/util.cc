@@ -489,15 +489,17 @@ string Util::ensureext(string f, string ext) {
   }
 }
 
-bool Util::endswith (string big, string small_) {
-  if (small_.length() > big.length()) return false;
-  return big.substr(big.length() - small_.length(),
-		    small_.length()) == small_;
+// PERF: These two can compare characters without copying
+// out the substring!
+bool Util::endswith(const string &big, const string &small) {
+  if (small.length() > big.length()) return false;
+  return big.substr(big.length() - small.length(),
+		    small.length()) == small;
 }
 
-bool Util::startswith (string big, string small_) {
-  if (small_.length() > big.length()) return false;
-  return big.substr(0, small_.length()) == small_;
+bool Util::startswith(const string &big, const string &small) {
+  if (small.length() > big.length()) return false;
+  return big.substr(0, small.length()) == small;
 }
 
 int Util::changedir(string s) {
