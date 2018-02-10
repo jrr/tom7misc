@@ -77,7 +77,7 @@ playback.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 # XXX this can avoid sdl
-progress.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) progress.o graphics.o sdl-win32-main.o
+progress.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) progress.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 # posterity/contra.nes-firstwin-5220000.fm2

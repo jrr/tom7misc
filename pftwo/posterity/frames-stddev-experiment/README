@@ -1,0 +1,50 @@
+I experimented with the stddev used when randomly choosing the length
+of sequences to generate during the main node extension operation. This
+was after tuning the mean to 290 and the num_nexts to 6.7. I ran for 51
+different values from 2 to 3000.
+
+Unsurprisingly, very large values like 1250 and 3000 are terrible.
+(Note that we can't generate negative-length sequences; so these often
+use the minimum length, which is 1). Curiously, the best values were
+very small, and this seemed to be repeatable: Although there were some
+successes with a stddev as high as 300, the higher the value got, the
+more experiments had bad outcomes. 2 (frames!) was among the best,
+with the peak occurring at 25. Everything less than 110 (tried 25 such
+experiments) had good outcomes. I'm worried about overfitting this one
+to contra in particular, because it may be that 290 frames is just a
+very nice chunk of inputs for that game in particular (e.g. maybe it
+is the time it takes to complete three jumps, or to cross the screen
+completely -- though it is 4.8 seconds, which seems adequate to
+complete an "action" in most games?) so I decided not to choose as
+low as 2. 75 had good outcomes and is still pretty far from areas
+that look worrisome.
+
+I wonder why this is? [1] Is it possible that when stddev is high, we
+have some chance of generating really long sequences, which then just
+wastes our time because we almost certainly die when playing randomly
+for 30 seconds or a minute, all while burning loads of frames?
+
+[2] Or is it perhaps that doing single-frame or very short
+explorations is so dangerous (gets stuck in trivial local maxima) that
+we want to avoid doing them?
+
+[3] Or perhaps 2 hours is close to triggering an explore phase (we
+should probably output stats like this to the spreadsheet btw) and the
+higher our variance, the more likely that we incur one? There's good
+evidence that explore is useful (e.g. on watefall level), but these
+experiments are maybe not running long enough for exploration to be
+efficient.
+
+
+I watched some of the movies:
+ - stddev 2 gets almost to the boss on the waterfall level, which IMO
+   is exercising most of the important things pftwo can do, including
+   requiring exploration.
+ - stddev 3000 barely gets anywhere in the first level!
+ - stddev 3000's best path has some very long nodes (thousands of
+   frames) and some very short ones.
+Together I think this mostly supports hypothesis 1.
+
+Maybe should consider putting an upper cap on the sequence length too?
+I do think that a few bosses seem to need to just get lucky long
+sequences, because they don't have score gradients.

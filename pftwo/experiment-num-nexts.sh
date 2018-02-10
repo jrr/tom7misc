@@ -1,0 +1,47 @@
+#!/bin/bash
+
+./headless.exe 1.0
+./headless.exe 2.9
+./headless.exe 6.0
+./headless.exe 10.0
+./headless.exe 6.7
+./headless.exe 4.8
+./headless.exe 5.7
+./headless.exe 1.7
+./headless.exe 1.4
+./headless.exe 3.6
+./headless.exe 4.0
+./headless.exe 14.0
+./headless.exe 1.1
+./headless.exe 1.9
+./headless.exe 2.8
+./headless.exe 1.2
+./headless.exe 3.8
+./headless.exe 24.0
+./headless.exe 2.5
+./headless.exe 2.2
+./headless.exe 2.6
+./headless.exe 2.7
+./headless.exe 4.6
+./headless.exe 18.0
+./headless.exe 4.2
+./headless.exe 1.5
+./headless.exe 4.4
+./headless.exe 9.0
+./headless.exe 3.0
+./headless.exe 3.4
+./headless.exe 5.3
+./headless.exe 2.1
+./headless.exe 2.3
+./headless.exe 8.0
+./headless.exe 5.0
+./headless.exe 7.0
+./headless.exe 12.0
+./headless.exe 2.4
+# Killed it before these:
+./headless.exe 6.3
+./headless.exe 1.3
+./headless.exe 2.0
+./headless.exe 3.2
+./headless.exe 1.8
+./headless.exe 1.6

@@ -221,9 +221,13 @@ struct TreeSearch {
     // When expanding a node, try this many sequences and
     // choose the best one. "2.25" means 2 (with probability
     // 0.75) or 3 (with probability 0.25).
+
+    // Tuned.
     double num_nexts = 6.7;
-    double frames_stddev = 150.0;
-    double frames_mean = 300.0;
+    // Tuned.
+    double frames_stddev = 75;
+    // Tuned.
+    double frames_mean = 290.0;
 
     // Due to threading, the process is inherently random.
     // But this explicitly seeds it to get better randomness.

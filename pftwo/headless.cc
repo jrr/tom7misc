@@ -125,10 +125,8 @@ int main(int argc, char *argv[]) {
   if (argc >= 2) {
     double d = std::stod((string)argv[1]);
     printf("\n***\nStarting experiment with value %.4f\n***\n\n", d);
-    // options.num_nexts = d;
-    options.frames_mean = d;
-    options.frames_stddev = d * 0.5;
-    options.random_seed = (int)(d * 100000.0);
+    options.frames_stddev = d;
+    options.random_seed = (int)(d * 100002.0);
     experiment = StringPrintf("expt-%s", argv[1]);
   }
 
