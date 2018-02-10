@@ -1,0 +1,22 @@
+I experimented with the mean number of inputs generated for a sequence
+when expanding a node, the frames_mean option. The stddev was set to
+half the mean for each experiment, so that was changing as well. I ran
+about two hours for each sample (limited by nes frames).
+
+Like the previous experiment, it was pretty noisy. But for this one,
+when the value was very small (<25) or large (>750) the results were
+consistently terrible. It's looking like a reasonable distribution
+peaking around 290.
+
+Actually: One interesting artifact is that there are a few nodes (225,
+290) that have significantly lower mframe counts in the graph. I think
+these experiments are actually stuck with the best node being
+discovered pretty early, so when outputting the best movie, we're
+ignoring everything that happened after that point--could be a lot of
+unsuccessful computation. It's unfair to compare efficiency by picking
+the point this way, because if you stop right before a difficult part,
+then your slope will look deceivingly good. For example, in this graph,
+200 actually leads 290 wire-to-wire, but has a worse slope because of
+this effect. At least when calculating the plots, we should probably
+just use the same denominator (i.e., 1) for everything.
+

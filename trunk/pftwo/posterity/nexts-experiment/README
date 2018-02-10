@@ -1,0 +1,7 @@
+I experimented with the num_nexts parameter, which determines how many
+different sequences to try before taking the best one. Each experiment
+ran for about 2 hours (fixed number of nes frames). My conclusion
+was that it doesn't really matter (or that I need to run much longer
+in order to tell), but I settled on 6.7 since it was the winner and
+numbers in that range seemed to perform as good as anything.
+

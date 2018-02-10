@@ -6,11 +6,6 @@
 #include <memory>
 #include <list>
 
-#ifdef __MINGW32__
-#include <windows.h>
-#undef ARRAYSIZE
-#endif
-
 #include <cstdio>
 #include <cstdlib>
 
@@ -18,16 +13,10 @@
 
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
-#include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/util.h"
 #include "../cc-lib/textsvg.h"
-#include "../cc-lib/sdl/chars.h"
-#include "../cc-lib/sdl/font.h"
 #include "../cc-lib/bounds.h"
 #include "../cc-lib/re2/re2.h"
-
-// Save state periodically so that rewind is fast.
-#define SNAPSHOT_EVERY 1000
 
 static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
@@ -56,7 +45,6 @@ struct Plots {
   Series walltime_pos;
 };
 
-// TODO HERE:
 static Plots OneMovie(const string &game,
 		      const string &moviename,
 		      const string &shared_prefix) {
@@ -79,6 +67,8 @@ static Plots OneMovie(const string &game,
   uint8 max_stage = 0, max_room = 0, max_scroll = 0;
   set<uint8> rooms;
 
+  // The room parameter only ranges from 0-21, or 0xFF. Map this
+  // to use more of the dynamic range.
   auto MapRoom = [](uint8 r) -> int {
     if (r == 255) return 255;
     else return (int)((r * 255.0) / 21.0);
@@ -92,7 +82,7 @@ static Plots OneMovie(const string &game,
     vector<uint8> mem = emu->GetMemory();
     
     // Note: Contra-specific. Could come from .objectives file?
-    // XXX using full 256 bytes for these makes really big jumps...
+    // But note also the manual mapping with MapRoom.
     uint8 stage = mem[48];
     uint8 room = mem[100];
     uint8 scroll = mem[101];
@@ -118,8 +108,8 @@ static Plots OneMovie(const string &game,
     }
   }
 
-  printf("Maxima: Stage: %d Room: %d Scroll: %d\n",
-	 (int)max_stage, (int)max_room, (int)max_scroll);
+  // printf("Maxima: Stage: %d Room: %d Scroll: %d\n",
+  // (int)max_stage, (int)max_room, (int)max_scroll);
   // for (uint8 r : rooms)
   // printf(" %d\n", r);
   return ret;
@@ -230,25 +220,60 @@ string SharedPrefix(const vector<string> &v) {
   return first.substr(0, best);
 }
 
-static void WriteTSV(const vector<Plots> &plotses,
+static void WriteTSV(vector<Plots> plotses,
 		     const string &filename) {
+
+  RE2 numeric_re{"([0-9]+.?[0-9]*)"};
+
+  const bool all_numeric = [&]{
+    for (const Plots &a : plotses)
+      if (!RE2::FullMatch(a.caption, numeric_re))
+	return false;
+    return true;
+  }();
+
+  if (all_numeric) {
+    std::sort(plotses.begin(), plotses.end(),
+	      [&](const Plots &a, const Plots &b) {
+		double af = 0.0, bf = 0.0;
+		// PERF obviously, parsing over and over is wasteful
+		CHECK(RE2::FullMatch(a.caption, numeric_re, &af));
+		CHECK(RE2::FullMatch(a.caption, numeric_re, &bf));
+		return af < bf;
+	      });
+  }
+    
   FILE *f = fopen(filename.c_str(), "w");
+
+  // This normalization is problematic, because if we get stuck before
+  // a hard part and then don't ever improve upon that best node, the
+  // slope can look good despite being worse than other nodes. See
+  // discussion/example in posterity/frames-experiment.
   auto LastSlope = [](const Series &s) -> double {
     if (s.points.empty()) return 0.0;
     return s.points.back().second / s.points.back().first;
   };
-  fprintf(f, "expt\tdepth\tmframes\twalltime\n");
+  (void)LastSlope;
+
+  // Instead just use the last value; assume each experiment executed
+  // the same number of frames.
+  auto LastValue = [](const Series &s) -> double {
+    if (s.points.empty()) return 0.0;
+    return s.points.back().second;
+  };
+  (void)LastValue;
+  
+  fprintf(f, "expt\tmframes\tdepth\twalltime\n");
   for (const Plots &plots : plotses) {
     fprintf(f, "%s\t%.3f\t%.3f\t%.3f\n",
 	    plots.caption.c_str(),
-	    LastSlope(plots.depth_pos),
-	    LastSlope(plots.mframes_pos),
-	    LastSlope(plots.walltime_pos));
+	    LastValue(plots.mframes_pos),
+	    LastValue(plots.depth_pos),
+	    LastValue(plots.walltime_pos));
   }
   fclose(f);
 }
 
-// The main loop for SDL.
 int main(int argc, char *argv[]) {
   (void)Rtos;
   

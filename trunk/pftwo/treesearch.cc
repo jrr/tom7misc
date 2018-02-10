@@ -649,6 +649,7 @@ struct WorkThread {
     worker->SetStatus("Explore inputs");
 
     // Generate a random sequence.
+    // XXX tune these
     constexpr double MEAN = 180.0;
     constexpr double STDDEV = 60.0;
 
