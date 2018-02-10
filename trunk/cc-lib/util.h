@@ -116,9 +116,9 @@ struct Util {
   static string cdup(const string &dir);
 
   /* true iff big ends with small */
-  static bool endswith(string big_, string small_);
+  static bool endswith(const string &big, const string &small);
   /* starts */
-  static bool startswith(string big_, string small_);
+  static bool startswith(const string &big, const string &small);
 
   /* split the string up to the first
      occurrence of character c. The character
