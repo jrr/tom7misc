@@ -115,5 +115,20 @@ void BlitRGBA2x(const vector<uint8> &rgba, int w, int h,
       inp += 4;
     }
   }
- 
+}
+
+void BlitRGBA(const vector<uint8> &rgba, int w, int h,
+	      int x, int y, SDL_Surface *surface) {
+  const SDL_PixelFormat *fmt = surface->format;
+  for (int i = 0; i < h; i++) {
+    int yy = y + i;
+    Uint32 *p = (Uint32 *)((Uint8 *)surface->pixels +
+			   (surface->w * 4 * yy) + x * 4);
+    const uint8 *inp = (rgba.data() + (i * w * 4));
+    for (int j = 0; j < w; j++) {
+      Uint32 c = MakePixel(fmt, inp[0], inp[1], inp[2], inp[3]);
+      *p = c; p++;
+      inp += 4;
+    }
+  }
 }
