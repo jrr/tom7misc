@@ -34,7 +34,7 @@
 
 // Screen dimensions.
 #define WIDTH 512
-#define HEIGHT (512 + 64)
+#define HEIGHT (512 + 128)
 
 #define MAX_HEADROOM 24
 
@@ -62,7 +62,7 @@ static string Rtos(double d) {
 // TODO: To emulator utilities?
 // Because of (e.g.) tall sprite stuff, it's not often directly
 // useful outside of diagnostics like this.
-static vector<uint8> GetSpriteSheet(Emulator *emu) {
+static vector<uint8> GetSpriteSheet(Emulator *emu, int rotate = 0) {
   // I don't understand why Palette::FCEUD_GetPalette isn't working,
   // but the NES palette is basically constant (emphasis aside), so
   // let's just inline it to save time. RGB triplets.
@@ -122,7 +122,7 @@ static vector<uint8> GetSpriteSheet(Emulator *emu) {
     // const uint8 ypos = spram[n * 4 + 0];
     // const uint8 xpos = spram[n * 4 + 3];
     int ypos = 0;
-    int xpos = n * 8;
+    int xpos = ((n + rotate) % 64) * 8;
     
     const uint8 *palette_table = emu->GetFC()->ppu->PALRAM;
 
@@ -267,6 +267,8 @@ struct UIThread {
 
     // XXX instead, conditionally draw this into rgba if enabled
     vector<uint8> spram;
+    int rotate = 0;
+    
     // 512x16 RGBA image, with sprites 0-63 drawn.
     vector<uint8> spritesheet;
   };
@@ -308,6 +310,9 @@ struct UIThread {
     SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
     (void)surf;
 
+    // XXX contra
+    int rotate = 45;
+    
     RE2 goal_re{"g ([-0-9]+),([-0-9]+)"};
     
     for (;;) {
@@ -326,6 +331,17 @@ struct UIThread {
 	  case SDLK_RIGHT:
 	    break;
 
+	  case SDLK_q:
+	    rotate--;
+	    if (rotate < 0) rotate += 64;
+	    printf("Rotate %d\n", rotate);
+	    break;
+	  case SDLK_w:
+	    rotate++;
+	    rotate %= 64;
+	    printf("Rotate %d\n", rotate);
+	    break;
+	    
 	  case SDLK_0:
 	    df = 1;
 	    break;
@@ -433,14 +449,16 @@ struct UIThread {
 	      f->samples_used = 0;
 	      emu->GetImage(&f->rgba);
 	      emu->GetSound(&f->samples);
+	      const int rot = (frameidx * rotate) % 64;
+	      f->spritesheet = GetSpriteSheet(emu.get(), rot);
+
 	      {
 		// XXX
 		uint8 *spram = emu->GetFC()->ppu->SPRAM;
 		f->spram.resize(0x100);
 		for (int i = 0; i < 0x100; i++) f->spram[i] = spram[i];
+		f->rotate = rot;
 	      }
-
-	      f->spritesheet = GetSpriteSheet(emu.get());
 	      
 	      auto it = subtitles.lower_bound(frameidx);
 	      if (it == subtitles.begin()) break;
@@ -490,7 +508,21 @@ struct UIThread {
 	  // Now draw/play.
 	  BlitRGBA2x(f->rgba, 256, 256, XOFF, YOFF, screen);
 
-	  BlitRGBA(f->spritesheet, 512, 16, 0, YOFF + 512 + 8, screen);
+	  // Draw spritesheets into future!
+	  {
+	    static constexpr int NUM_SPRITESHEETS = 8;
+	    static constexpr int YSTART = YOFF + 512 + 8;
+	    auto fit = frames.begin();
+	    for (int ss = 0;
+		 YSTART + 16 * ss + 16 < HEIGHT &&
+		 ss < NUM_SPRITESHEETS &&
+		 fit != frames.end();
+		 ss++) {
+	      const Frame &ff = *fit;
+	      BlitRGBA(ff.spritesheet, 512, 16, 0, YSTART + 16 * ss, screen);
+	      ++fit;
+	    }
+	  }
 
 	  font->draw(0, 4, StringPrintf("%d^2/^<%d",
 					f->frameidx, (int)movie.size()));
@@ -499,13 +531,13 @@ struct UIThread {
 	  if (f->goalx >= 0 && f->goaly >= 0) {
 	    font->draw(0, 500, StringPrintf("GOAL %d,%d", f->goalx, f->goaly));
 	    sdlutil::drawbox(screen,
-	    2 * f->goalx - 5, YOFF + 2 * f->goaly - 5, 10, 10,
+			     2 * f->goalx - 5, YOFF + 2 * f->goaly - 5, 10, 10,
 	    0x00, 0x00, 0x00);
 	    sdlutil::drawbox(screen,
-	    2 * f->goalx - 4, YOFF + 2 * f->goaly - 4, 8, 8,
+			     2 * f->goalx - 4, YOFF + 2 * f->goaly - 4, 8, 8,
 	    0xFF, 0x00, 0xFF);
 	    sdlutil::drawbox(screen,
-	    2 * f->goalx - 3, YOFF + 2 * f->goaly - 3, 6, 6,
+			     2 * f->goalx - 3, YOFF + 2 * f->goaly - 3, 6, 6,
 	    0xFF, 0x00, 0xFF);
   	  }
 
@@ -515,8 +547,11 @@ struct UIThread {
 	    int sx = f->spram[i * 4 + 3];
 	    int sy = f->spram[i * 4 + 0];
 	    // printf("[%d] %d,%d ", i, sx, sy);
+
+	    int rotidx = (i + f->rotate) % 64;
+	    
 	    fontsmall->draw(XOFF + 2 * sx, YOFF + 2 * sy,
-			    StringPrintf("%d", i));
+			    StringPrintf("%d", rotidx));
 	  }
 	  // printf("\n");
 	}
@@ -524,13 +559,13 @@ struct UIThread {
 
       // Draw 
       if (mode == Mode::PLAY) {
-	font->draw(0, 560, StringPrintf("PLAY ^2%d^3x", df));
+	font->draw(0, HEIGHT - FONTHEIGHT, StringPrintf("PLAY ^2%d^3x", df));
       } else {
-	font->draw(0, 560, "PAUSED");
+	font->draw(0, HEIGHT - FONTHEIGHT, "PAUSED");
       }
 
-      font->draw(480, 560, StringPrintf("[%d]", headroom));
-      
+      font->draw(480, HEIGHT - FONTHEIGHT, StringPrintf("[%d]", headroom));
+
       SDL_Flip(screen);
     }
 

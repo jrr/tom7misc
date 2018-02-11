@@ -254,6 +254,28 @@ static void TryAutoCameras(const string &game,
   //     - similar oam data, attributes, palette, etc.?
   //   - is alignment similar to the previous pair of frames?
   // I think this will probably work quite well...
+  //
+  // Well, on Contra, the sprites are shuffled in a pretty
+  // complex pattern, it seems. There are at least a couple of
+  // things going on:
+  //   - On every frame it appears to rotate the starting sprite
+  //     index by +45. (On the start screen, everything keeps a
+  //     constant index.
+  //   - Also when playing, the number-of-lives indicators have
+  //     stable indices most of the time -- but when the bridge
+  //     explodes, for example, everything shuffles. (lag frames?)
+  //   - The player's pose affects the sprites used to draw
+  //     it, and their indices (?)
+  //   - When the player is shooting, sometimes bullets take
+  //     slots from the player sprite. Maybe the idea is that
+  //     bullets would often conflict with the player (same
+  //     scanline), so this is prophylactic
+  // What to do?
+  //   - Maybe a much simpler version of this where we just look
+  //     for memory locations that go down when we press left,
+  //     up when we press right? But we do need to determine
+  //     y coordinate, which we don't control so easily...
+  
   using XYSprite = AutoCamera::XYSprite;
   AutoCamera autocamera{game};
   vector<XYSprite> votes;
