@@ -229,7 +229,31 @@ static void TryAutoCameras(const string &game,
     }
   }
 
-
+  // TODO: This doesn't work for contra because it does seem to
+  // use the trick of rotating the starting sprite during DMA
+  // in order to get flicker instead of dropped sprites when
+  // there are more than 8 on a scanline.
+  //   - in GetXSprites, could also be solving for a modular
+  //     offset (e.g. idx = (frame * off) % 64). It's probably
+  //     a consistent rotation, but possibly this fails because
+  //     of lag frames?
+  //   - Maybe could fall back to something that just tries to
+  //     find memory locations for which SOME sprite matches
+  //     the criteria? e.g. expand XYSprite to have a wildcard?
+  //   - Since the player is often multiple sprites, we could
+  //     cast a more narrow net by looking for groups (indices
+  //     are fixed modular distance from one another) of sprites
+  //     that move together and are related to a memory address?
+  //   - Hard: Could maybe be inspecting writes to DMA region
+  //     directly?
+  //
+  // Favorite idea so far: Solve for an alignment (on each pair
+  // of frames), based on minimum cost:
+  //   - like do sprite[i] and sprite[(i + alignment) % 64] have
+  //     - similar x,y coordinates
+  //     - similar oam data, attributes, palette, etc.?
+  //   - is alignment similar to the previous pair of frames?
+  // I think this will probably work quite well...
   using XYSprite = AutoCamera::XYSprite;
   AutoCamera autocamera{game};
   vector<XYSprite> votes;
@@ -245,8 +269,8 @@ static void TryAutoCameras(const string &game,
       autocamera.FilterForConsequentiality(save, x_num_frames,
 					   xycand);
     // XXX Could do DetectViewType and/or DetectCameraAngle,
-		      // and increase votes if it succeeds
-		      // (suggests that we got good sprites?)
+    // and increase votes if it succeeds
+    // (suggests that we got good sprites?)
     printf("***************************\n");
     printf("*** %d final candidates:\n", (int)ccand.size());
     for (const XYSprite &sprite : ccand) {

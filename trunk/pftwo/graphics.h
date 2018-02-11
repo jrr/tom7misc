@@ -28,8 +28,14 @@ void BlitARGBHalf(const vector<uint8> &argb, int width, int height,
 		  int xpos, int ypos,
 		  SDL_Surface *surface);
 
+// The ones below this line treat RGBA correctly.
+
 // Blit at 2X size. Treats alpha channel as being always 0xFF.
 void BlitRGBA2x(const vector<uint8> &rgba, int w, int h,
 		int x, int y, SDL_Surface *surface);
+
+// Same as above, 1:1.
+void BlitRGBA(const vector<uint8> &rgba, int w, int h,
+	      int x, int y, SDL_Surface *surface);
 
 #endif
