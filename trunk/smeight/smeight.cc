@@ -17,8 +17,6 @@
 #include "../cc-lib/util.h"
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/stb_image.h"
-#include "../cc-lib/sdl/chars.h"
-#include "../cc-lib/sdl/font.h"
 #include "../cc-lib/randutil.h"
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/stb_image_write.h"
@@ -665,7 +663,8 @@ struct SM {
     int y_offset = 0;
     
     bool paused = false, frozen_for_command = false, single_step = false;
-
+    (void)single_step;
+    
     auto ForceMove = [this](int dx, int dy) {
       printf("Force move %d,%d\n", dx, dy);
       if (cams.empty()) {
