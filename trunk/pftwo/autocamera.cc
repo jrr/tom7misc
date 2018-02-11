@@ -1,6 +1,6 @@
 
 #include "autocamera.h"
-#include "smeight.h"
+#include "pftwo.h"
 
 #include <unordered_set>
 #include <mutex>
@@ -12,6 +12,21 @@
 #include "../cc-lib/threadutil.h"
 #include "../fceulib/ppu.h"
 
+// Could also be done with a macro; maybe template parameter packs??
+inline static void StepPlayer(Emulator *emu, bool is_p1, uint8 input) {
+  if (is_p1) emu->Step(input, 0);
+  else emu->Step(0, input);
+}
+
+inline static void StepFullPlayer(Emulator *emu, bool is_p1, uint8 input) {
+  if (is_p1) emu->StepFull(input, 0);
+  else emu->StepFull(0, input);
+}
+
+static void SaveEmulatorImage(Emulator *emu, const string &filename) {
+  // nothing
+}
+
 // OAM is Object Attribute Memory, which is sprite data.
 static vector<uint8> OAM(Emulator *emu) {
   const PPU *ppu = emu->GetFC()->ppu;
@@ -20,16 +35,6 @@ static vector<uint8> OAM(Emulator *emu) {
   memcpy(oam.data(), ppu->SPRAM, 256);
   return oam;
 };
-
-static string AddrOffset(pair<uint16, int> p) {
-  if (p.second > 0) {
-    return StringPrintf("%04x+%d", p.first, p.second);
-  } else if (p.second < 0) {
-    return StringPrintf("%04x-%d", p.first, -p.second);
-  } else {
-    return StringPrintf("%04x", p.first);
-  }
-}
 
 namespace {
 struct InputGenerator {
@@ -74,6 +79,19 @@ struct InputGenerator {
 };
 }
 
+AutoCamera::AutoCamera(const string &game,
+		       bool first_player) : first_player(first_player) {
+  printf("Creating %d emulators for AutoCamera...\n", NUM_EMULATORS);
+  for (int i = 0; i < NUM_EMULATORS; i++) {
+    emus.push_back(Emulator::Create(game));
+  }
+}
+
+AutoCamera::~AutoCamera() {
+  for (Emulator *emu : emus) delete emu;
+}
+
+
 vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
     const vector<uint8> &start, int *num_frames) { 
 
@@ -97,13 +115,13 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
   // up to 45 frames.
   for (int frames = 1; frames < 45; frames++) {
 
-    lemu->Step(INPUT_L, 0);
+    StepPlayer(lemu, first_player, INPUT_L);
     const uint8 *left = lemu->GetFC()->ppu->SPRAM;
     
-    nemu->Step(0, 0);
+    StepPlayer(nemu, first_player, 0);
     const uint8 *none = nemu->GetFC()->ppu->SPRAM;
 
-    remu->Step(INPUT_R, 0);
+    StepPlayer(remu, first_player, INPUT_R);
     const uint8 *right = remu->GetFC()->ppu->SPRAM;
 
     // Now, see if any sprite has the property we want, which is
@@ -139,7 +157,7 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
       const uint8 right_x = right[s * 4 + 3];
 	
       if (left_x < none_x && none_x < right_x) {
-	printf("[%d] Sprite %d could be player! %d < %d < %d\n",
+	printf("[%d] Sprite %d could be player! x vals: %d < %d < %d\n",
 	       frames, s, left_x, none_x, right_x);
 	// Also insist that there is memory address for which
 	// the sprite x value matches in all three branches.
@@ -165,7 +183,8 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
 	  // where we just "luck into" two consecutive frames with the
 	  // same pixel values?)
 	  printf("[%d]    Good! Now mems:", frames);
-	  for (pair<uint16, int> m : mems) printf(" %d", m.first);
+	  for (pair<uint16, int> m : mems)
+	    printf(" %s", AddrOffset(m).c_str());
 	  printf("\n");
 	  ret.push_back(XYSprite{s, false, mems, {}});
 	  
@@ -174,7 +193,8 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
 
 	  if (!omems.empty()) {
 	    printf("[%d]    Good! Old mems:", frames);
-	    for (pair<uint16, int> m : omems) printf(" %d", m.first);
+	    for (pair<uint16, int> m : omems)
+	      printf(" %s", AddrOffset(m).c_str());
 	    printf("\n");
 	    ret.push_back(XYSprite{s, true, omems, {}});
 	  }
@@ -183,7 +203,7 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
     }
 
     if (!ret.empty()) {
-      *num_frames = frames;
+      if (num_frames != nullptr) *num_frames = frames;
       return ret;
     }
 
@@ -223,10 +243,12 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
   sciences.resize(NUM_SEQ * SEQ_LEN);
 
   struct Stepper {
-    Stepper(bool lagmem,
+    Stepper(bool first_player,
+	    bool lagmem,
 	    vector<Science> &sciences,
 	    int SEQ_LEN,
 	    Emulator *emu, int seq_num) :
+      first_player(first_player),
       lagmem(lagmem),
       sciences(sciences), SEQ_LEN(SEQ_LEN),
       emu(emu), seq_num(seq_num) {
@@ -235,7 +257,10 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 
     void Step(uint8 input) {
       CHECK(offset < SEQ_LEN);
-      emu->StepFull(input, 0);
+      // Use StepFull since we will actually read PPU data.
+      // (This is probably emulated for Step as well, but
+      // only StepFull promises video.)
+      StepFullPlayer(emu, first_player, input);
       Science *science = &sciences[seq_num * SEQ_LEN + offset];
       vector<uint8> now_mem = emu->GetMemory();
       if (lagmem) {
@@ -251,6 +276,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
       offset++;
     }
 
+    const bool first_player;
     const bool lagmem;
     vector<Science> &sciences;
     const int SEQ_LEN;
@@ -265,7 +291,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 		 x_num_frames](int seq) {
     Emulator *emu = emus[seq];
     emu->LoadUncompressed(uncompressed_state);
-    Stepper stepper(lagmem, sciences, SEQ_LEN, emu, seq);
+    Stepper stepper(first_player, lagmem, sciences, SEQ_LEN, emu, seq);
     InputGenerator gen{seq};
     for (int i = 0; i < SEQ_LEN; i++) stepper.Step(gen.Next());
   };
@@ -294,9 +320,9 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 	int mem_x = (int)science.mem[xaddr.first] + xaddr.second;
 	int sprite_x = science.oam[s * 4 + 3];
 	if (mem_x != sprite_x) {
-	  printf("Sprite %d xmem %d eliminated since "
-		 "mem_x+%d = %d and sprite_x = %d\n", s, xaddr.first,
-		 xaddr.second, mem_x, sprite_x);
+	  printf("Sprite %d xmem %04x eliminated since "
+		 "mem_x+%d = %d and sprite_x = %d\n",
+		 s, xaddr.first, xaddr.second, mem_x, sprite_x);
 	  goto fail_xaddr;
 	}
       }
@@ -329,8 +355,8 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 	  }
 	  
 	  if (this_offset != offset) {
-	    if (true && yaddr == 0x84) { // Known zelda y
-	      printf("Sprite %d ymem %d (offset %d) eliminated since "
+	    if (true && yaddr == 0x84) { // XXX zelda-specific debug output
+	      printf("Sprite %d ymem %04x (offset %d) eliminated since "
 		     "mem_y = %02x and sprite_y = %02x (so offset %d)\n",
 		     s, yaddr, offset,
 		     actual_mem_y, sprite_y, this_offset);
@@ -483,7 +509,9 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
   vector<bool> known_consequential(2048, false);
   vector<bool> known_inconsequential(2048, false);
   
-  // PERF this could be parallelized..
+  // PERF this could be parallelized. (careful because vector<bool>
+  // certainly does not have thread-safe access to nearby bits!)
+  //
   // Now, pick candidate memory locations.
   for (const XYSprite &sprite : sprites) {
     auto Consequential = [this, &savestates, &sprite,
@@ -505,8 +533,8 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
 	emu->LoadUncompressed(save);
 	// Run with no input. The stimulus is the changing of
 	// the memory location.
-	emu->StepFull(0, 0);
-	emu->StepFull(0, 0);
+	StepFullPlayer(emu, first_player, 0);
+	StepFullPlayer(emu, first_player, 0);
 
 	// PERF The control OAM will be the same every time;
 	// compute it when computing savestates.
@@ -525,9 +553,9 @@ vector<AutoCamera::XYSprite> AutoCamera::FilterForConsequentiality(
 	// Note this bypasses any RAM hooks, but I think that's
 	// the right thing to do.
 	ram[addr.first] = newval;
-	
-	emu->StepFull(0, 0);
-	emu->StepFull(0, 0);
+
+	StepFullPlayer(emu, first_player, 0);
+	StepFullPlayer(emu, first_player, 0);
 	vector<uint8> expt_oam = OAM(emu);
 	vector<uint8> expt_mem = emu->GetMemory();
 
@@ -643,8 +671,8 @@ bool AutoCamera::DetectViewType(const vector<uint8> &uncompressed_state,
 	    ram[yaddr.first] = y - yaddr.second;
 
 	  // Let the location soak in.
-	  emu->Step(0, 0);
-	  emu->Step(0, 0);
+	  StepPlayer(emu, first_player, 0);
+	  StepPlayer(emu, first_player, 0);
 
 	  const uint8 start_y =
 	    emu->GetFC()->ppu->SPRAM[sprite.sprite_idx * 4 + 0];
@@ -660,7 +688,7 @@ bool AutoCamera::DetectViewType(const vector<uint8> &uncompressed_state,
 	  
 	  // Now see if the sprite drops.
 	  for (int i = 0; i < DROP_TIME; i++) {
-	    emu->Step(0, 0);	    
+	    StepPlayer(emu, first_player, 0);
 	  }
 	  const uint8 now_y =
 	    emu->GetFC()->ppu->SPRAM[sprite.sprite_idx * 4 + 0];
@@ -701,6 +729,7 @@ bool AutoCamera::DetectViewType(const vector<uint8> &uncompressed_state,
 // for stop_frames frames in a row, and max_stoptime is the maximum
 // number of frames to try for.
 static bool BrakePlayer(Emulator *emu,
+			bool first_player,
 			const AutoCamera::XYSprite &sprite,
 			int stop_frames, int max_stoptime) {
   CHECK(stop_frames > 0);
@@ -711,7 +740,7 @@ static bool BrakePlayer(Emulator *emu,
   uint8 brake_input = 0;
   int current_stop_frames = stop_frames;
   for (int i = 0; i < max_stoptime; i++) {
-    emu->StepFull(brake_input, 0);
+    StepFullPlayer(emu, first_player, brake_input);
     const uint8 nowx = emu->GetFC()->ppu->SPRAM[sprite.sprite_idx * 4 + 3];
     const uint8 nowy = emu->GetFC()->ppu->SPRAM[sprite.sprite_idx * 4 + 0];
     const uint32 nowscroll = emu->GetXScroll();
@@ -773,7 +802,7 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
   // can't move. However, we do need to worry about momentum in games
   // like Mario where the player can't immediately turn around when
   // has has x velocity.
-  if (!BrakePlayer(emu, sprite, 3, MAX_STOPTIME)) {
+  if (!BrakePlayer(emu, first_player, sprite, 3, MAX_STOPTIME)) {
     printf("Couldn't brake player.\n");
     return CAMERA_FAILED;
   }
@@ -798,8 +827,8 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
     // state now). Tap left and right.
 
     for (int i = 0; i < 3; i++) {
-      lemu->StepFull(input_less, 0);
-      remu->StepFull(input_more, 0);
+      StepFullPlayer(lemu, first_player, input_less);
+      StepFullPlayer(remu, first_player, input_more);
     }
 
     SaveEmulatorImage(lemu, StringPrintf("%s.png", less));
@@ -867,8 +896,8 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
     // Now, don't tap. Assume that we keep the same facing direction,
     // but for example that we stop animating.
     for (int i = 0; i < 12; i++) {
-      lemu->StepFull(0, 0);
-      remu->StepFull(0, 0);
+      StepFullPlayer(lemu, first_player, 0);
+      StepFullPlayer(remu, first_player, 0);
 
       if (i == 3) {
 	lemu->SaveUncompressed(&savel);
@@ -889,8 +918,8 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
     remu->LoadUncompressed(saver);
     for (int i = 0; i < 3; i++) {
       // Note swapped directions.
-      lemu->StepFull(input_more, 0);
-      remu->StepFull(input_less, 0);
+      StepFullPlayer(lemu, first_player, input_more);
+      StepFullPlayer(remu, first_player, input_less);
     }
     SaveEmulatorImage(lemu, StringPrintf("%s%s.png", less, more));
     SaveEmulatorImage(remu, StringPrintf("%s%s.png", more, less));
@@ -902,8 +931,8 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
     PrintCand("rev filter");
 
     for (int i = 0; i < 9; i++) {
-      lemu->StepFull(0, 0);
-      remu->StepFull(0, 0);
+      StepFullPlayer(lemu, first_player, 0);
+      StepFullPlayer(remu, first_player, 0);
       // Note, still swapped.
       Filter(remu, lemu);
     }
@@ -916,7 +945,7 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
   TestAxis(INPUT_L, INPUT_R, "left", "right", &xcand, &xlval, &xrval);
 
   if (xcand.empty()) {
-    printf("No x candidates, camera angle failed. :(\n");
+    printf("No x candidates; camera angle failed. :(\n");
     return CAMERA_FAILED;
   }
 
@@ -965,6 +994,17 @@ AutoCamera::DetectCameraAngle(const vector<uint8> &uncompressed_state,
   return CAMERA_LR;
 }
 
+string AutoCamera::AddrOffset(pair<uint16, int> p) {
+  if (p.second > 0) {
+    return StringPrintf("%04x+%d", p.first, p.second);
+  } else if (p.second < 0) {
+    return StringPrintf("%04x-%d", p.first, -p.second);
+  } else {
+    return StringPrintf("%04x", p.first);
+  }
+}
+
+
 void AutoCamera::GetSavestates(const vector<uint8> &uncompressed_state,
 			       int num_experiments,
 			       int x_num_frames,
@@ -979,7 +1019,10 @@ void AutoCamera::GetSavestates(const vector<uint8> &uncompressed_state,
     emu->LoadUncompressed(uncompressed_state);
     const int nframes = x_num_frames + 12;
     InputGenerator gen{id};
-    for (int i = 0; i < nframes; i++) emu->StepFull(gen.Next(), 0);
+    for (int i = 0; i < nframes; i++) {
+      const uint8 input = gen.Next();
+      StepFullPlayer(emu, first_player, input);
+    }
     emu->SaveUncompressed(&(*savestates)[id]);
   };
 

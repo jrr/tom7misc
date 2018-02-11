@@ -1,8 +1,14 @@
+// Note: This was forked from smeight to pftwo. It might be
+// possible to share a library, but I figured I'd want to
+// make some invasive modifications for the sake of pftwo,
+// where it's used for a bit of a different purpose.
+//
+// Also needed to add 2P support.
 
 #ifndef __AUTOCAMERA_H
 #define __AUTOCAMERA_H
 
-#include "smeight.h"
+#include "pftwo.h"
 
 #include <memory>
 #include <string>
@@ -25,16 +31,9 @@ struct AutoCamera {
   
   // Since emulator startup is a little expensive, this keeps
   // around an emulator instance (pass the cartridge filename).
-  explicit AutoCamera(const string &game) {
-    printf("Creating %d emulators for AutoCamera...\n", NUM_EMULATORS);
-    for (int i = 0; i < NUM_EMULATORS; i++) {
-      emus.push_back(Emulator::Create(game));
-    }
-  }
+  AutoCamera(const string &game, bool first_player = true);
 
-  ~AutoCamera() {
-    for (Emulator *emu : emus) delete emu;
-  }
+  ~AutoCamera();
   
   // TODO: Make the search procedure use multiple threads.
   //
@@ -142,12 +141,15 @@ struct AutoCamera {
 				 uint8 *up, uint8 *down,
 				 uint8 *left, uint8 *right);
 
+  // For printing out memory address (with optional offset) in XYSprite.
+  static string AddrOffset(pair<uint16, int> p);
+  
  private:
   void GetSavestates(const vector<uint8> &uncompressed_state,
 		     int num_experiments,
 		     int x_num_frames,
 		     vector<vector<uint8>> *savestates);
-  
+  const bool first_player = false;
   vector<Emulator *> emus;
 };
 

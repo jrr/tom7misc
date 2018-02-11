@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <map>
+#include <unordered_set>
 
 #include "../fceulib/simplefm2.h"
 #include "n-markov-controller.h"
@@ -10,6 +11,7 @@
 #include "../cc-lib/util.h"
 #include "../cc-lib/lines.h"
 #include "graphics.h"
+#include "autocamera.h"
 
 // Note NMarkovController::Stats; making this large will often
 // make the matrix very sparse.
@@ -184,6 +186,83 @@ static int AtoiHex(const string &s) {
     return atoi(c);
 }
 
+// For now, try to determine the player locations at startup, using
+// the training movie. We run autocamera periodically during the
+// input movie, and let the results of that vote to determine x/y
+// locations for the two players that we then use for the rest of
+// time.
+
+// TODO: It's probably better to run this procedure during search,
+// since there might be multiple different phases in a game (a
+// simple example would be an overworld map like in Super Mario 3?).
+// It also gives us some hope of recovering if we mess it up.
+// On the other hand, it creates a host of complexities we have to
+// deal with.
+static void TryAutoCameras(const string &game,
+			   const vector<pair<uint8, uint8>> &inputs,
+			   int *x1_loc, int *y1_loc,
+			   int *x2_loc, int *y2_loc) {
+  vector<vector<uint8>> saves;
+  {
+    // Assumed this is much smaller than the input movie, or we
+    // will waste work.
+    static constexpr int NUM_AUTOCAMERAS = 10;
+    std::unordered_set<int> framenums;
+    // Don't try anything at frame 0, which is almost certainly going
+    // to be useless because it's before any initialization code!
+    for (int i = 1; i <= NUM_AUTOCAMERAS; i++) {
+      double f = i / (double)NUM_AUTOCAMERAS;
+      int framenum = f * inputs.size();
+      framenums.insert(framenum);
+    }
+
+    {
+      unique_ptr<Emulator> emu(Emulator::Create(game));
+      CHECK(emu.get()) << "(autocamera) " << game;
+      for (int i = 0; i < inputs.size(); i++) {
+	emu->Step(inputs[i].first, inputs[i].second);
+	if (ContainsKey(framenums, i)) {
+	  printf("Try autocamera at frame %d:\n", i);
+	  saves.push_back(emu->SaveUncompressed());
+	}
+      }
+    }
+  }
+
+
+  using XYSprite = AutoCamera::XYSprite;
+  AutoCamera autocamera{game};
+  vector<XYSprite> votes;
+  for (const vector<uint8> &save : saves) {
+    int x_num_frames = 0;
+    const vector<XYSprite> xcand =
+      autocamera.GetXSprites(save, &x_num_frames);
+    vector<int> player_sprites;
+    const vector<XYSprite> xycand =
+      autocamera.FindYCoordinates(save, x_num_frames, xcand,
+				  &player_sprites);
+    const vector<XYSprite> ccand =
+      autocamera.FilterForConsequentiality(save, x_num_frames,
+					   xycand);
+    // XXX Could do DetectViewType and/or DetectCameraAngle,
+		      // and increase votes if it succeeds
+		      // (suggests that we got good sprites?)
+    printf("***************************\n");
+    printf("*** %d final candidates:\n", (int)ccand.size());
+    for (const XYSprite &sprite : ccand) {
+      printf(" Sprite %d%s: x:", sprite.sprite_idx,
+	     sprite.oldmem ? " (lag)" : "");
+      for (const pair<uint16, int> mem : sprite.xmems)
+	printf(" %s", AutoCamera::AddrOffset(mem).c_str());
+      printf("  y:");
+      for (const pair<uint16, int> mem : sprite.ymems)
+	printf(" %s", AutoCamera::AddrOffset(mem).c_str());
+      printf("\n");
+    }
+    printf("***************************\n");
+  }
+}
+
 TPP::TwoPlayerProblem(const map<string, string> &config) {
   game = GetDefault(config, "game", "");
   printf("Create TPP for %s...\n", game.c_str());
@@ -199,15 +278,25 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
       printf("[CHEATIN'] Protect %d\n", protect_loc.back());
     }
   }
-  
-  
+
+  #if 0
+  // Hardcoded cheatin' version.
   x1_loc = AtoiHex(GetDefault(config, "x1", "-1"));
   y1_loc = AtoiHex(GetDefault(config, "y1", "-1"));
   x2_loc = AtoiHex(GetDefault(config, "x2", "-1"));
   y2_loc = AtoiHex(GetDefault(config, "y2", "-1"));
   printf("[CHEATIN'] Players at %d,%d and %d,%d\n",
-	   x1_loc, y1_loc, x2_loc, y2_loc);
+	 x1_loc, y1_loc, x2_loc, y2_loc);
+  #endif
 
+  TryAutoCameras(game, original_inputs,
+		 &x1_loc, &y1_loc, &x2_loc, &y2_loc);
+  // XXX these should not be fatal! Just disable the goal-seeking stuff.
+  CHECK(x1_loc >= 0 && y1_loc >= 0) << "Autocamera failed for player 1";
+  CHECK(x2_loc >= 0 && y2_loc >= 0) << "Autocamera failed for player 2";
+  printf("Autocamera results: P1 %d,%d   P2 %d,%d\n",
+	 x1_loc, y1_loc, x2_loc, y2_loc);
+  
   warmup_frames = AtoiHex(GetDefault(config, "warmup", "-1"));
   // XXX: Deduce this from input.
   CHECK(warmup_frames >= 0) << "You must currently specify the "
