@@ -67,6 +67,11 @@ auto GetDefault(const C &container,
   return it->second;
 }
 
+template<class K, class C>
+inline bool ContainsKey(const C &container, const K &key) {
+  return container.find(key) != container.end();
+}
+
 #define NOT_COPYABLE(classname) \
   private: \
   classname(const classname &) = delete; \
