@@ -25,16 +25,9 @@ struct AutoCamera {
   
   // Since emulator startup is a little expensive, this keeps
   // around an emulator instance (pass the cartridge filename).
-  explicit AutoCamera(const string &game) {
-    printf("Creating %d emulators for AutoCamera...\n", NUM_EMULATORS);
-    for (int i = 0; i < NUM_EMULATORS; i++) {
-      emus.push_back(Emulator::Create(game));
-    }
-  }
+  AutoCamera(const string &game, bool first_player = true);
 
-  ~AutoCamera() {
-    for (Emulator *emu : emus) delete emu;
-  }
+  ~AutoCamera();
   
   // TODO: Make the search procedure use multiple threads.
   //
@@ -142,12 +135,15 @@ struct AutoCamera {
 				 uint8 *up, uint8 *down,
 				 uint8 *left, uint8 *right);
 
+  // For printing out memory address (with optional offset) in XYSprite.
+  static string AddrOffset(pair<uint16, int> p);
+  
  private:
   void GetSavestates(const vector<uint8> &uncompressed_state,
 		     int num_experiments,
 		     int x_num_frames,
 		     vector<vector<uint8>> *savestates);
-  
+  const bool first_player = false;
   vector<Emulator *> emus;
 };
 
