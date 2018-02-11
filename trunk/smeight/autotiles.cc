@@ -91,8 +91,7 @@ uint64 AutoTiles::TilesCRC(const Emulator *emu) {
    
   // BG pattern table can be at 0 or 0x1000, depending on control bit.
   const uint32 bg_pat_addr = (ppu_ctrl & (1 << 4)) ? 0x1000 : 0x0000;
-  const uint8 *vram = &emu->GetFC()->cart->
-    VPage[bg_pat_addr >> 10][bg_pat_addr];
+  const uint8 *vram = emu->GetFC()->cart->VPagePointer(bg_pat_addr);
 
   // 256 tiles, each 16 bytes (8x8 bits + 8x8 bits for 2bpp color)
   static constexpr int NUM_BYTES = 256 * 16;
@@ -125,7 +124,7 @@ static bool HaveLRControl(Emulator *emu,
 	 startx, starty);
 
   // Could try braking the player first?
-  uint8 *ram = emu->GetFC()->fceu->RAM;
+  // uint8 *ram = emu->GetFC()->fceu->RAM;
 
   // XXX consider scroll pos!
   
@@ -407,7 +406,7 @@ GetTileInfo(Emulator *emu,
 	  ret[idx].solidity = expt.result;
 	  // There may be many results for the tile. Maybe get
 	  // consensus?
-	  // tileset->is_solid[expt.tileval] = expt.result == SOLID;
+	  tileset->is_solid[expt.tileval] = expt.result == SOLID;
 	  if (expt.result == SOLID) num_solid++;
 	  else if (expt.result == OPEN) num_open++;
 	}
