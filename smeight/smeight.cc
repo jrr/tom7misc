@@ -129,6 +129,8 @@ private:
 // I don't understand why Palette::FCEUD_GetPalette isn't working,
 // but the NES palette is basically constant (emphasis aside), so
 // let's just inline it to save time. RGB triplets.
+// (I think FCEUD_GetPalette needs the color value to be OR'd with
+// 0xC0, since the ppu writes some flags into the high bits. -tom7)
 static constexpr uint8 ntsc_palette[] = {
   0x80,0x80,0x80, 0x00,0x3D,0xA6, 0x00,0x12,0xB0, 0x44,0x00,0x96,
   0xA1,0x00,0x5E, 0xC7,0x00,0x28, 0xBA,0x06,0x00, 0x8C,0x17,0x00,
@@ -326,7 +328,8 @@ struct SM {
   bool draw_nes = false;
   bool disable_sprite_fusion = false;
   bool camera_3d = false;
-
+  bool enable_autotiles = true;
+  
   // Note: Can't just set saving true from start, as the key itself
   // does some initialization.
   int imagenum = 0;
@@ -868,10 +871,13 @@ struct SM {
 	  case SDLK_p:
 	    draw_sprites = !draw_sprites;
 	    break;
+    
 	  case SDLK_u:
 	    disable_sprite_fusion = !disable_sprite_fusion;
 	    break;
-
+	  case SDLK_l:
+	    enable_autotiles = !enable_autotiles;
+	    break;
 	    
 	  case SDLK_SLASH:
 	    fastforward = 60;
@@ -1380,8 +1386,7 @@ struct SM {
 			  int xdest, int ydest) {
 	const uint32 spr_pat_addr = patterntable_high ? 0x1000 : 0x0000;
 	// PERF Really need to keep computing this?
-	const uint8 *vram = &emu->GetFC()->cart->
-	    VPage[spr_pat_addr >> 10][spr_pat_addr];
+	const uint8 *vram = emu->GetFC()->cart->VPagePointer(spr_pat_addr);
 
 	// upper-left corner of this tile within the rgba array.
 	const int x0 = xdest - root.min_x;
@@ -1595,8 +1600,7 @@ struct SM {
    
     // BG pattern table can be at 0 or 0x1000, depending on control bit.
     const uint32 bg_pat_addr = (ppu_ctrl & (1 << 4)) ? 0x1000 : 0x0000;
-    const uint8 *vram = &emu->GetFC()->cart->
-      VPage[bg_pat_addr >> 10][bg_pat_addr];
+    const uint8 *vram = emu->GetFC()->cart->VPagePointer(bg_pat_addr);
 
     // The actual BG image, used as a texture for the blocks.
     vector<uint8> bg;
@@ -1608,7 +1612,8 @@ struct SM {
     vector<AutoTiles::Tile> bigtiles = auto_tiles->GetTileInfo(
 	emu.get(),
 	west, east,
-	viewtype == ViewType::TOP, cams);
+	viewtype == ViewType::TOP,
+	enable_autotiles ? cams : vector<AutoCamera::XYSprite>());
     CHECK(bigtiles.size() == (TILESW >> 1) * (TILESH >> 1)) << bigtiles.size();
     
     // Read the tile for the wide tile coordinates (x,y). x may range
