@@ -152,6 +152,12 @@ inline uint32 RandTo32(ArcFour *rc, uint32 n) {
   }
 }
 
+// FIXME TODO: This is actually incorrect! The distribution of
+// permutations is biased. For example, a 3-element array has
+// 3! = 6 permutations, but this generates 3^3 = 27 different
+// ones (with uniform probability); this can't be right because
+// 6 doesn't divide 27.
+// Implement Fisher-Yates (see wikipedia) and test it.
 template<class T>
 static void Shuffle(ArcFour *rc, std::vector<T> *v) {
   for (uint64 i = 0; i < v->size(); i++) {
