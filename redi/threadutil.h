@@ -1,4 +1,4 @@
-
+// XXX use cc-lib threadutil.
 #ifndef __THREADUTIL_H
 #define __THREADUTIL_H
 
