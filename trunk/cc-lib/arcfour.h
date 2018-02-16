@@ -4,10 +4,11 @@
    This implementation is based on the algorithm
    published in Applied Cryptography. 
 
-   This algorithm is admirably simple, but
+   This algorithm is adorably simple, but
    should only be used for cryptography with
-   significant care. It is a good fast random
-   number generator, however.
+   significant care. Note also that like many
+   pseudorandom number generators, there are
+   some small biases in its output statistics.
 */
 
 // Note: I ported this from my SML version and

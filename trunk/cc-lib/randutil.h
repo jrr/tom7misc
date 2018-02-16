@@ -1,10 +1,13 @@
 #ifndef __RANDUTIL_H
 #define __RANDUTIL_H
 
-#include "arcfour.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <vector>
+#include <utility>
+
+#include "arcfour.h"
 
 using uint8 = uint8_t;
 using uint16 = uint16_t;
@@ -50,6 +53,8 @@ inline double RandDouble(ArcFour *rc) {
   uu = rc->Byte() | (uu << 8);
   uu = rc->Byte() | (uu << 8);
   uu = rc->Byte() | (uu << 8);
+  // PERF: Maybe could be multipling by the inverse?
+  // It's a constant.
   return ((uu &   0x3FFFFFFFFFFFFFFFULL) / 
 	  (double)0x3FFFFFFFFFFFFFFFULL);
 };
@@ -152,18 +157,12 @@ inline uint32 RandTo32(ArcFour *rc, uint32 n) {
   }
 }
 
-// FIXME TODO: This is actually incorrect! The distribution of
-// permutations is biased. For example, a 3-element array has
-// 3! = 6 permutations, but this generates 3^3 = 27 different
-// ones (with uniform probability); this can't be right because
-// 6 doesn't divide 27.
-// Implement Fisher-Yates (see wikipedia) and test it.
 template<class T>
 static void Shuffle(ArcFour *rc, std::vector<T> *v) {
-  for (uint64 i = 0; i < v->size(); i++) {
-    uint64 j = RandTo(rc, v->size());
+  for (uint64 i = v->size() - 1; i >= 1; i--) {
+    uint64 j = RandTo(rc, i + 1);
     if (i != j) {
-      swap((*v)[i], (*v)[j]);
+      std::swap((*v)[i], (*v)[j]);
     }
   }
 }

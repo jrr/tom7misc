@@ -624,7 +624,7 @@ string Util::tempfile(string suffix) {
   } while (ExistsFile(fname));
 
   string ret = fname;
-  delete fname;
+  delete[] fname;
   return ret;
 }
 
@@ -928,20 +928,23 @@ FILE *Util::fopenp(const string &f, const string &m) {
 string Util::Replace(string src,
 		     const string &findme,
 		     const string &rep) {
-  long long int idx = src.length() - 1;
+  auto idx = src.length() - 1;
 
   if (findme.length() < 1) return src;
 
   /* idx represents the position in src which, for all chars greater
      than it, there begins no match of findme */
-  while (idx >= 0 && idx != (signed)string::npos) {
+  for (;;) {
     idx = src.rfind(findme, idx);
-    if (idx != (signed)string::npos) {
-      /* do replacement */
-      src.replace(idx, findme.length(), rep);
-      /* want to ensure termination even if rep contains findmes */
-      idx -= findme.length();
-    } else break;
+    if (idx == string::npos)
+      break;
+    /* do replacement */
+    src.replace(idx, findme.length(), rep);
+    /* don't allow any matches to extend into the string we just inserted;
+       (consider replacing "abc" with "bcd" in the string "aabc") */
+    if (findme.length() > idx)
+      break;
+    idx -= findme.length();
   }
   return src;
 }
