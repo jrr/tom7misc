@@ -7,24 +7,8 @@
 #include <string>
 
 #include "../cc-lib/arcfour.h"
+#include "../cc-lib/randutil.h"
 #include "base.h"
-
-template<class T>
-static void Shuffle(vector<T> *v) {
-  static ArcFour rc("shuffler");
-  for (int i = 0; i < v->size(); i++) {
-    unsigned int h = 0;
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-
-    int j = h % v->size();
-    if (i != j) {
-      swap((*v)[i], (*v)[j]);
-    }
-  }
-}
 
 template<class T>
 static bool ContainsKey(const set<T> &s, const T &k) {
@@ -40,6 +24,7 @@ struct Insertable {
 };
 
 int main(int argc, char *argv[]) {
+  ArcFour rc(__FILE__);
   // Check that it compiles to use both int and double.
   { IntervalTree<int, Unit> unused; }
   { IntervalTree<double, Unit> unused; }
@@ -128,7 +113,7 @@ int main(int argc, char *argv[]) {
     CHECK(tree.LowerBound() == 0.0);
     CHECK(tree.UpperBound() == 0.9);
 
-    Shuffle(&data);
+    Shuffle(&rc, &data);
   }
 
   printf("IntervalTree tests OK.\n");

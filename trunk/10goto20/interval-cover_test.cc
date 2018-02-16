@@ -17,25 +17,9 @@
 #include "base.h"
 #include "gtest/gtest.h"
 #include "base/stringprintf.h"
+#include "randutil.h"
 
 using namespace testing;
-
-template<class T>
-static void Shuffle(vector<T> *v) {
-  static ArcFour rc("shuffler");
-  for (int i = 0; i < v->size(); i++) {
-    unsigned int h = 0;
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-
-    int j = h % v->size();
-    if (i != j) {
-      swap((*v)[i], (*v)[j]);
-    }
-  }
-}
 
 template<class T>
 static bool ContainsKey(const set<T> &s, const T &k) {
@@ -233,11 +217,12 @@ TEST(IC, SimpleSplitting) {
 }
 
 TEST(IC, SplitStress) {
+  ArcFour rc("splitstress");
   IntervalCover<string> cover("X");
   for (int i = 0; i < 500; i++) {
     vector<int64> pts = { -100LL, 10LL, 30LL, 0LL, 6LL, 7LL, LLONG_MIN,
 			  LLONG_MAX - 10LL, 999LL, -1LL, 50LL, 60LL, 51LL, };
-    Shuffle(&pts);
+    Shuffle(&rc, &pts);
     int z = 0;
     for (int64 pt : pts) {
       z++;
@@ -250,7 +235,7 @@ TEST(IC, SplitStress) {
     }
 
     // Now merge back together in random order.
-    Shuffle(&pts);
+    Shuffle(&rc, &pts);
     for (int64 pt : pts) {
       cover.SplitRight(pt, "BACK");
       cover.CheckInvariants();

@@ -29,3 +29,7 @@ PNG saving support.
 Threads: Yikes! Still figuring this out. I modified SDL to use
 -pthread, including modifying SDL_config to set the define, instead of
 win32 threads. Newest mingw-64 supposedly has support.
+
+TODO: Switch to TDM GCC, which I'm using for other threaded projects,
+and which seems the most linux-like of the toolchains I've tried.
+

@@ -13,6 +13,7 @@ Design goals:
  - Don't try to be "real time". Instead take advantage of the off-line
    nature to do things that "real time" synths don't do: Dependencies
    on future samples, expensive effects, deterministic rendering,
-   global optimizations.
+   global optimizations, parametric definitions that require solving
+   equations or hill-climbing (think CAD).
  - Don't be wimpy about resource usage. Require 64 bits, loads of RAM;
    expect lots of cores, maybe a GPU.

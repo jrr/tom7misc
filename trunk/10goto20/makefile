@@ -9,9 +9,10 @@ CXXFLAGS=-Wall -fno-strict-aliasing -Wno-deprecated -Wno-sign-compare -I/usr/loc
 OPT=-O2
 
 # for 64 bits on windows
-CXX=x86_64-w64-mingw32-g++
-CC=x86_64-w64-mingw32-g++
-SDLARCH=x64
+# CXX=x86_64-w64-mingw32-g++
+# CC=x86_64-w64-mingw32-g++
+CC=g++
+CXX=g++
 
 # -Wl,--subsystem,console
 DEBUGGING=-DDEBUG=1 -g -fno-omit-frame-pointer
