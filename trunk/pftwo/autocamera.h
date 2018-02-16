@@ -86,7 +86,12 @@ struct AutoCamera {
     // Same, but for y coordinates.
     vector<pair<uint16, int>> ymems;
   };
-  
+
+  // Maybe these should stay private?
+  static vector<uint8> OAM(Emulator *emu);
+  static int BestDisplacement(const vector<uint8> &oldoam, 
+			      const vector<uint8> &newoam);
+
   // Returns a vector of sprite indices that meet the criteria. Only
   // xmems will be filled in.
   vector<XYSprite> GetXSprites(const vector<uint8> &uncompressed_state,
