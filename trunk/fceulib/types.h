@@ -44,6 +44,7 @@ typedef uint64_t uint64;
 #define DISABLE_VIDEO 0
 #endif
 
+// XXX why are styles 1 and 3 the same?
 #if PSS_STYLE==2
 
 #define PSS "\\"
