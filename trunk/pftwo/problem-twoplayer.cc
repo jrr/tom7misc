@@ -10,7 +10,7 @@
 #include "learnfun.h"
 #include "../cc-lib/util.h"
 #include "../cc-lib/lines.h"
-#include "graphics.h"
+#include "headless-graphics.h"
 #include "autocamera.h"
 
 // Note NMarkovController::Stats; making this large will often
@@ -18,10 +18,6 @@
 static constexpr int MARKOV_N = 3;
 
 static_assert(MARKOV_N >= 0 && MARKOV_N <= 8, "allowed range");
-
-// ??!?
-static constexpr int OBSERVATION_SAMPLES = 32768;
-// static constexpr int OBSERVATION_SAMPLES = 1024;
 
 using TPP = TwoPlayerProblem;
 using Worker = TPP::Worker;
@@ -315,6 +311,7 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   const string movie = GetDefault(config, "movie", "");
   printf("Read inputs for %s\n", movie.c_str());
   original_inputs = SimpleFM2::ReadInputs2P(movie);
+  CHECK(!original_inputs.empty()) << "No inputs in " << movie;
 
   string protect = GetDefault(config, "protect", "");
   while (!protect.empty()) {
