@@ -27,6 +27,117 @@ static void SaveEmulatorImage(Emulator *emu, const string &filename) {
   // nothing
 }
 
+// Some games make our lives harder by writing sprites to a different
+// starting position on each frame. Typically, they rotate the start
+// index, and then sometimes also have some fixed stride after each
+// sprite is written. The sprites are written into indices mod 64, of
+// course. One good reason to do this is because a maximum of 8 sprites
+// can be drawn on a given scanline, so in case this is exceeded, it's
+// preferable to flicker sprites (because their relative order keeps
+// changing) rather than consistently drop a sprite (could be the
+// player!)
+//
+// This routine takes two OAMs and guesses the displacement between
+// them (in [0, 63]). It does this by computing the "loss" for each
+// possible displacement and choosing the one with the minimal loss.
+// Loss is computed by looking at the sprite in oam a and the 
+// corresponding (i.e., after displacement) in oam b. This pair of
+// sprites has more loss when their positions differ, when their
+// attributes differ, etc.
+//
+// Of course, this generalizes the case when sprites are not rotated;
+// i.e., displacement is zero.
+//
+// TODO: Contra is even worse, because it does its own manual
+// "flickering"; replacing some player sprites with bullets every
+// other frame, when the player is shooting. Since this isn't always
+// happening, we may still be able to find good alignments (or good
+// alignments for other parts of the player's sprite constellation?)
+// with just the treatment below. But we may need to get fancier.
+int BestDisplacement(const vector<uint8> &oldoam, 
+		     const vector<uint8> &newoam) {
+  CHECK_EQ(256, oldoam.size());
+  CHECK_EQ(256, newoam.size());
+
+  // Get pointer to the four bytes of sprite data.
+  auto OAMSprite = [](const vector<uint8> &oam, int idx) {
+    return &oam[idx * 4];
+  };
+
+  // Consider ignoring sprites when one of them is off screen?
+  // Not sure how these are treated.
+  auto SpriteLoss = [](const uint8 *a, const uint8 *b) {
+    const int atile_idx = a[1];
+    const int btile_idx = b[1];
+    const uint8 aattr = a[2];
+    const uint8 battr = b[2];
+    const bool av_flip = !!(aattr & (1 << 7));
+    const bool bv_flip = !!(battr & (1 << 7));
+    const bool ah_flip = !!(aattr & (1 << 6));
+    const bool bh_flip = !!(aattr & (1 << 6));
+    const uint8 acolorbits = aattr & 3;
+    const uint8 bcolorbits = battr & 3;
+    const int axpos = a[3], bxpos = b[3];
+    const int aypos = a[0], bypos = b[0];
+    const int dx = axpos - bxpos;
+    const int dy = aypos - bypos;
+    // euclidean distance between positions
+    const double dpos = sqrt((dx * dx) + (dy * dy));
+    // linear distance between tile indices.
+    // we don't just use != with the idea that often
+    // sprites will animate (especially the player).
+    //  - OTOH, maybe a difference of 1 should be treated as
+    //    a lot more than 0.
+    //  - Could consider taking minimal distance mod 256,
+    //    although maybe games tend to pack sprites that
+    //    are part of an animation together?
+    //  - Could consider penalizing line parity differences
+    //    when sprites are tall; it's probably a good
+    //    heuristic that games don't tend to mix these?
+    const double dtile = abs(atile_idx - btile_idx);
+    const double dvflip = av_flip != bv_flip;
+    const double dhflip = ah_flip != bh_flip;
+
+    const double dcolor = acolorbits != bcolorbits;
+
+    // note: Very low weight for h_flip because it's normal to flip
+    // the player sprite when turning around, and this is something we
+    // do when doing science. But all of the sprites participate in
+    // an alignment, so it can still be helpful for other sprites.
+    // These always have magnitude 1 or 0.
+    static constexpr double HFLIP_WEIGHT = 0.1;
+    static constexpr double VFLIP_WEIGHT = 2.0;
+    static constexpr double COLOR_WEIGHT = 2.0;
+
+    // Magnitudes of these are high.
+    static constexpr double DIST_WEIGHT = 1.0;
+    static constexpr double TILE_WEIGHT = 2.0;
+
+    const double loss =
+        DIST_WEIGHT * dpos + 
+        TILE_WEIGHT * dtile +
+        HFLIP_WEIGHT * dhflip +
+        VFLIP_WEIGHT * dvflip +
+        COLOR_WEIGHT * dcolor;
+
+    return loss;
+  };
+
+  int bestd = -1;
+  double bestloss = numeric_limits<double>::infinity();
+  for (int disp = 0; disp < 64; disp++) {
+    double loss = 0.0;
+    for (int oldi = 0; oldi < 64; oldi++) {
+      const int newi = (oldi + disp) % 64;
+      const uint8 *olds = OAMSprite(oldoam, oldi);
+      const uint8 *news = OAMSprite(newoam, newi);
+      loss += SpriteLoss(olds, news);
+    }
+  }
+  CHECK_GE(bestd, 0);
+  return bestd;
+}
+
 // OAM is Object Attribute Memory, which is sprite data.
 static vector<uint8> OAM(Emulator *emu) {
   const PPU *ppu = emu->GetFC()->ppu;

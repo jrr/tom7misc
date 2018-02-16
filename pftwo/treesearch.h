@@ -274,7 +274,7 @@ struct TreeSearch {
   vector<Worker *> WorkersWithLock() const;
   
  private:
-  friend class WorkThread;
+  friend struct WorkThread;
   const Options opt;
   // Updated by the UI thread.
   std::atomic<int64> approx_sec{0LL};

@@ -16,7 +16,7 @@
 
 #include "atom7ic.h"
 #include "weighted-objectives.h"
-#include "graphics.h"
+#include "headless-graphics.h"
 #include "problem-twoplayer.h"
 #include "treesearch.h"
 

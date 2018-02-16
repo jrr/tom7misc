@@ -6,6 +6,8 @@
 #include <functional>
 
 #include "pftwo.h"
+#include "../cc-lib/arcfour.h"
+#include "../cc-lib/randutil.h"
 
 // Self-check input and output.
 #define DEBUG_OBJECTIVE 1
@@ -26,34 +28,15 @@ ObjectiveEnumerator::ObjectiveEnumerator(const vector<vector<uint8>> &mm) :
   #endif
 }
 
-// TODO(twm): Use arcfour here.
-struct CompareByHash {
-  uint64 CrapHash(int a) {
-    uint64 ret = ~a;
-    for (int i = 0; i < (a & 3) + 1; i++) {
-      ret = (ret >> i) | (ret << (64 - i));
-      ret *= 31337;
-      ret += (seed << 7) | (seed >> (64 - 7));
-      ret ^= 0xDEADBEEF;
-      ret = (ret >> 17) | (ret << (64 - 17));
-      ret -= 911911911911;
-      ret *= 65537;
-      ret ^= 0xCAFEBABE;
-    }
-    return ret;
-  }
-
-  bool operator ()(int a, int b) {
-    return CrapHash(a) < CrapHash(b);
-  }
-
-  CompareByHash(int seed) : seed(seed) {}
-  uint64 seed;
-};
-
-static void Shuffle(vector<int> *v, int seed) {
-  CompareByHash c(seed);
-  std::sort(v->begin(), v->end(), c);
+// XXX seed is just used for shuffling, so instead instantiate arcfour.
+static void ShuffleWithSeed(vector<int> *v, int seed) {
+  string sseed = "1234";
+  sseed[0] = seed & 255; seed >>= 8;
+  sseed[1] = seed & 255; seed >>= 8;
+  sseed[2] = seed & 255; seed >>= 8;
+  sseed[3] = seed & 255;
+  ArcFour rc(sseed);
+  Shuffle(&rc, v);
 }
 
 static bool EqualOnPrefix(const vector<uint8> &mem1, 
@@ -253,7 +236,7 @@ void ObjectiveEnumerator::EnumeratePartialRec(
     if (!look.empty()) seed += (look[0] << 3);
     seed ^= look.size();
     // if (prefix->size() < 2) printf("seed %ld\n", seed);
-    Shuffle(&candidates, seed);
+    ShuffleWithSeed(&candidates, seed);
   }
 
 #if VERBOSE_OBJECTIVE
