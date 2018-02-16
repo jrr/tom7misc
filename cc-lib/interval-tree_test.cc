@@ -7,28 +7,12 @@
 #include <string>
 
 #include "arcfour.h"
+#include "randutil.h"
 #include "base/logging.h"
 
 #include "interval-tree-json.h"
 
 using namespace std;
-
-template<class T>
-static void Shuffle(vector<T> *v) {
-  static ArcFour rc("shuffler");
-  for (int i = 0; i < v->size(); i++) {
-    unsigned int h = 0;
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-    h = (h << 8) | rc.Byte();
-
-    int j = h % v->size();
-    if (i != j) {
-      swap((*v)[i], (*v)[j]);
-    }
-  }
-}
 
 template<class T>
 static bool ContainsKey(const set<T> &s, const T &k) {
@@ -69,8 +53,8 @@ int main(int argc, char *argv[]) {
   auto IsSameSet = [](const set<string> &expected,
 		      const vector<IT::Interval *> &v) -> bool {
     if (expected.size() != v.size()) {
-      printf("Expected %lld elements, got %lld\n",
-	     expected.size(), v.size());
+      printf("Expected %d elements, got %d\n",
+	     (int)expected.size(), (int)v.size());
       return false;
     }
     CHECK(expected.size() == v.size());

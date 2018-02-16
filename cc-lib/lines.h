@@ -15,7 +15,8 @@
 #include <type_traits>
 
 template<class Int>
-struct Line {
+class Line {
+ public:
   static_assert(std::is_integral<Int>::value, "Line<T> requires integral T.");
   Line(Int x0, Int y0, Int x1, Int y1);
   bool Next(Int *x, Int *y);

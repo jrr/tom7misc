@@ -49,13 +49,16 @@ static string Replace(string src, const string &findme, const string &rep) {
 
   /* idx represents the position in src which, for all chars greater
      than it, there begins no match of findme */
-  while (idx >= 0) {
+  for (;;) {
     idx = src.rfind(findme, idx);
     if (idx == string::npos)
       break;
     /* do replacement */
     src.replace(idx, findme.length(), rep);
-    /* want to ensure termination even if rep contains findmes */
+    /* don't allow any matches to extend into the string we just inserted;
+       (consider replacing "abc" with "bcd" in the string "aabc") */
+    if (findme.length() > idx)
+      break;
     idx -= findme.length();
   }
   return src;
