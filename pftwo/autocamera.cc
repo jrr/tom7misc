@@ -54,8 +54,8 @@ static void SaveEmulatorImage(Emulator *emu, const string &filename) {
 // happening, we may still be able to find good alignments (or good
 // alignments for other parts of the player's sprite constellation?)
 // with just the treatment below. But we may need to get fancier.
-int BestDisplacement(const vector<uint8> &oldoam, 
-		     const vector<uint8> &newoam) {
+int AutoCamera::BestDisplacement(const vector<uint8> &oldoam, 
+				 const vector<uint8> &newoam) {
   CHECK_EQ(256, oldoam.size());
   CHECK_EQ(256, newoam.size());
 
@@ -133,13 +133,19 @@ int BestDisplacement(const vector<uint8> &oldoam,
       const uint8 *news = OAMSprite(newoam, newi);
       loss += SpriteLoss(olds, news);
     }
+    printf("Loss %d = %.2f\n", disp, loss);
+    if (loss < bestloss) {
+      bestd = disp;
+      bestloss = loss;
+    }
   }
   CHECK_GE(bestd, 0);
+  printf(" ** Best loss is %d (%.2f)\n", bestd, bestloss);
   return bestd;
 }
 
 // OAM is Object Attribute Memory, which is sprite data.
-static vector<uint8> OAM(Emulator *emu) {
+vector<uint8> AutoCamera::OAM(Emulator *emu) {
   const PPU *ppu = emu->GetFC()->ppu;
   vector<uint8> oam;
   oam.resize(256);

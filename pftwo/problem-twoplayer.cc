@@ -215,12 +215,16 @@ static void TryAutoCameras(const string &game,
     {
       unique_ptr<Emulator> emu(Emulator::Create(game));
       CHECK(emu.get()) << "(autocamera) " << game;
+      vector<uint8> old_oam = AutoCamera::OAM(emu.get());
       for (int i = 0; i < inputs.size(); i++) {
 	emu->Step(inputs[i].first, inputs[i].second);
+	vector<uint8> new_oam = AutoCamera::OAM(emu.get());
 	if (ContainsKey(framenums, i)) {
 	  printf("Try autocamera at frame %d:\n", i);
 	  saves.push_back(emu->SaveUncompressed());
+	  AutoCamera::BestDisplacement(old_oam, new_oam);
 	}
+	old_oam = std::move(new_oam);
       }
     }
   }
@@ -275,7 +279,10 @@ static void TryAutoCameras(const string &game,
   using XYSprite = AutoCamera::XYSprite;
   AutoCamera autocamera{game};
   vector<XYSprite> votes;
+
   for (const vector<uint8> &save : saves) {
+    
+    #if 0
     int x_num_frames = 0;
     const vector<XYSprite> xcand =
       autocamera.GetXSprites(save, &x_num_frames);
@@ -302,6 +309,7 @@ static void TryAutoCameras(const string &game,
       printf("\n");
     }
     printf("***************************\n");
+    #endif
   }
 }
 
