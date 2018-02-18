@@ -53,7 +53,8 @@ static void SaveEmulatorImage(Emulator *emu, const string &filename) {
 // other frame, when the player is shooting. Since this isn't always
 // happening, we may still be able to find good alignments (or good
 // alignments for other parts of the player's sprite constellation?)
-// with just the treatment below. But we may need to get fancier.
+// with just the treatment below. (Indeed, it does seem to work,
+// at least for finding alignments.)
 int AutoCamera::BestDisplacement(const vector<uint8> &oldoam, 
 				 const vector<uint8> &newoam) {
   CHECK_EQ(256, oldoam.size());
@@ -133,14 +134,14 @@ int AutoCamera::BestDisplacement(const vector<uint8> &oldoam,
       const uint8 *news = OAMSprite(newoam, newi);
       loss += SpriteLoss(olds, news);
     }
-    printf("Loss %d = %.2f\n", disp, loss);
+    // printf("Loss %d = %.2f\n", disp, loss);
     if (loss < bestloss) {
       bestd = disp;
       bestloss = loss;
     }
   }
   CHECK_GE(bestd, 0);
-  printf(" ** Best loss is %d (%.2f)\n", bestd, bestloss);
+  // printf(" ** Best loss is %d (%.2f)\n", bestd, bestloss);
   return bestd;
 }
 
@@ -208,9 +209,8 @@ AutoCamera::~AutoCamera() {
   for (Emulator *emu : emus) delete emu;
 }
 
-
-vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
-    const vector<uint8> &start, int *num_frames) { 
+AutoCamera::XSprites AutoCamera::GetXSprites(
+    const vector<uint8> &start) { 
 
   Emulator *lemu = emus[0], *nemu = emus[1], *remu = emus[2];
 
@@ -228,18 +228,46 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
   vector<uint8> nomem = nemu->GetMemory();
   vector<uint8> romem = remu->GetMemory();
 
-  // We look inreasingly deep until satisfying the constraints,
+  // Due to sprite rotation (see comments on BestDisplacement), we
+  // also need to keep track of the OAM from the previous frame.
+  vector<uint8> looam = OAM(lemu);
+  vector<uint8> nooam = OAM(remu);
+  vector<uint8> rooam = OAM(nemu);
+
+  XSprites ret;
+
+  // Total sprite displacement since the start frame.
+  int total_displacement = 0;
+
+  // We look increasingly deep until satisfying the constraints,
   // up to 45 frames.
   for (int frames = 1; frames < 45; frames++) {
 
     StepPlayer(lemu, first_player, INPUT_L);
-    const uint8 *left = lemu->GetFC()->ppu->SPRAM;
-    
     StepPlayer(nemu, first_player, 0);
-    const uint8 *none = nemu->GetFC()->ppu->SPRAM;
-
     StepPlayer(remu, first_player, INPUT_R);
-    const uint8 *right = remu->GetFC()->ppu->SPRAM;
+    vector<uint8> loam = OAM(lemu);
+    vector<uint8> noam = OAM(nemu);
+    vector<uint8> roam = OAM(remu);
+
+    // Align OAMs to previous frame.
+    const int ldisp = BestDisplacement(looam, loam);
+    const int ndisp = BestDisplacement(nooam, noam);
+    const int rdisp = BestDisplacement(rooam, roam);
+
+    // If displacements aren't the same, perhaps we had a lag
+    // frame on one branch but not the others, or our displacement
+    // estimate is pretty noisy. We could handle this with some
+    // complexity below, but it seems safer to just ditch, and
+    // then the sequel is simpler.
+    if (!(ldisp == ndisp && ndisp == rdisp)) {
+      printf("Displacements don't agree: %d, %d, %d\n",
+	     ldisp, ndisp, rdisp);
+      return ret;
+    }
+    const int disp = ldisp;
+    ret.displacements.push_back(disp);
+    total_displacement += disp;
 
     // Now, see if any sprite has the property we want, which is
     // that left_x < none_x < right_x.
@@ -248,11 +276,12 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
     vector<uint8> nmem = nemu->GetMemory();
     vector<uint8> rmem = remu->GetMemory();
     
-    vector<XYSprite> ret;
-    for (int s = 0; s < 64; s++) {
-      const uint8 left_y = left[s * 4 + 0];
-      const uint8 none_y = none[s * 4 + 0];
-      const uint8 right_y = right[s * 4 + 0];
+    for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
+      // absolute_s is, in effect, the sprite id at the start frame.
+      const int s = (absolute_s + total_displacement) % 64;
+      const uint8 left_y = loam[s * 4 + 0];
+      const uint8 none_y = noam[s * 4 + 0];
+      const uint8 right_y = roam[s * 4 + 0];
       // Skip sprites that are off screen; these can't be the
       // player. (Of course, we could have just fallen into a
       // pit. We mean they can't be the player if everything is
@@ -266,12 +295,16 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
       // robust, but of course isn't true if we initiate autocamera
       // while jumping or falling, etc.
 
-      // XXX should take scroll into account when testing >, right?
-      // But for the camera we want to know the memory locations that
-      // yield screen position.
-      const uint8 left_x = left[s * 4 + 3];
-      const uint8 none_x = none[s * 4 + 3];
-      const uint8 right_x = right[s * 4 + 3];
+      // Note that we'll be confused by scroll e.g. when the player is
+      // on the right edge of the screen and moves right, scrolling
+      // the screen--their sprite doesn't move. But we want to determine
+      // the memory locations that yield screen position, so it doesn't
+      // make sense to compensate for scroll. (Except perhaps as a way
+      // of rejecting the current scenario for this test. But consider
+      // that some games just scroll all the time!) 
+      const uint8 left_x = loam[s * 4 + 3];
+      const uint8 none_x = noam[s * 4 + 3];
+      const uint8 right_x = roam[s * 4 + 3];
 	
       if (left_x < none_x && none_x < right_x) {
 	printf("[%d] Sprite %d could be player! x vals: %d < %d < %d\n",
@@ -303,7 +336,8 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
 	  for (pair<uint16, int> m : mems)
 	    printf(" %s", AddrOffset(m).c_str());
 	  printf("\n");
-	  ret.push_back(XYSprite{s, false, mems, {}});
+
+	  ret.sprites.emplace_back(absolute_s, false, mems, vector<pair<uint16, int>>{});
 	  
 	} else {
 	  vector<pair<uint16, int>> omems = FindMems(lomem, nomem, romem);
@@ -313,21 +347,25 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
 	    for (pair<uint16, int> m : omems)
 	      printf(" %s", AddrOffset(m).c_str());
 	    printf("\n");
-	    ret.push_back(XYSprite{s, true, omems, {}});
+	    ret.sprites.emplace_back(absolute_s, true, omems, vector<pair<uint16, int>>{});
 	  }
 	}
       }
     }
 
-    if (!ret.empty()) {
-      if (num_frames != nullptr) *num_frames = frames;
+    if (!ret.sprites.empty()) {
       return ret;
     }
 
     // Shift current memory to previous.
-    lomem.swap(lmem);
-    nomem.swap(nmem);
-    romem.swap(rmem);
+    lomem = std::move(lmem);
+    nomem = std::move(nmem);
+    romem = std::move(rmem);
+
+    // Same for OAMs.
+    looam = std::move(loam);
+    nooam = std::move(noam);
+    rooam = std::move(roam);
   }
 
   return {};
@@ -335,9 +373,10 @@ vector<AutoCamera::XYSprite> AutoCamera::GetXSprites(
 
 vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
     const vector<uint8> &uncompressed_state,
-    int x_num_frames,
-    const vector<XYSprite> &sprites,
+    const XSprites &xsprites,
     vector<int> *player_sprites) {
+
+  const int x_num_frames = xsprites.displacements.size();
 
   // make parameter, or decide that this can always be assumed.
   const bool lagmem = true;
@@ -351,6 +390,15 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
     // the previous frame if sprite data are lagged.
     vector<uint8> mem;
     vector<uint8> oam;
+    // PERF
+    string displacement_string;
+    int total_displacement = 0;
+    /*
+    Science(vector<uint8> mem, vector<uint8> oam,
+	    int total_displacement) :
+      mem(mem), oam(oam), total_displacement(total_displacement) {}
+    */
+    Science() {}
   };
 
   vector<Science> sciences;
@@ -359,6 +407,9 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
   // Pre-allocate so that individual threads can save their data.
   sciences.resize(NUM_SEQ * SEQ_LEN);
 
+  // Holds an emulator and some indices to distinguish it from
+  // other sequences. Writes science data to science array when
+  // fed steps.
   struct Stepper {
     Stepper(bool first_player,
 	    bool lagmem,
@@ -370,6 +421,7 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
       sciences(sciences), SEQ_LEN(SEQ_LEN),
       emu(emu), seq_num(seq_num) {
       prev_mem = emu->GetMemory();
+      prev_oam = OAM(emu);
     }
 
     void Step(uint8 input) {
@@ -386,9 +438,20 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 	science->mem = now_mem;
       }
 
-      science->oam = OAM(emu);
+      vector<uint8> now_oam = OAM(emu);
+      science->oam = now_oam;
+      const int disp = BestDisplacement(prev_oam, 
+					now_oam);
+      science->displacement_string = 
+	StringPrintf("%s%d,",
+		     science->displacement_string.c_str(),
+		     disp);
+      total_displacement += disp;
+      science->total_displacement = total_displacement;
+
       // Shift memory to previous.
-      prev_mem.swap(now_mem);
+      prev_mem = std::move(now_mem);
+      prev_oam = std::move(now_oam);
       
       offset++;
     }
@@ -400,8 +463,10 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
     // Assumes exclusive access.
     Emulator *emu;
     const int seq_num;
+    int total_displacement = 0;
     int offset = 0;
     vector<uint8> prev_mem;
+    vector<uint8> prev_oam;
   };
   
   auto OneSeq = [this, lagmem, &sciences, SEQ_LEN, &uncompressed_state,
@@ -425,20 +490,23 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
   printf("Filtering on %d sciences (%.2f MB)...\n",
 	 (int)sciences.size(),
 	 (sciences.size() * (2048 + 256)) / (1024.0 * 1024.0));
-  
+
+  // TODO: Return YSprites structure maybe?
   vector<XYSprite> withy;
   // Now whittle down x memory locations.
-  for (const XYSprite &sprite : sprites) {
-    int s = sprite.sprite_idx;
+  for (const XYSprite &sprite : xsprites.sprites) {
+    const int absolute_s = sprite.sprite_idx;
     XYSprite newsprite;
     for (const pair<uint16, int> xaddr : sprite.xmems) {
       // Check every science.
       for (const Science &science : sciences) {
-	int mem_x = (int)science.mem[xaddr.first] + xaddr.second;
-	int sprite_x = science.oam[s * 4 + 3];
+	const int s = (absolute_s + science.total_displacement) % 64;
+	const int mem_x = (int)science.mem[xaddr.first] + xaddr.second;
+	const int sprite_x = science.oam[s * 4 + 3];
 	if (mem_x != sprite_x) {
-	  printf("Sprite %d xmem %04x eliminated since "
+	  printf("Sprite %d (displaced %s to %d) xmem %04x eliminated since "
 		 "mem_x+%d = %d and sprite_x = %d\n",
+		 absolute_s, science.displacement_string.c_str(),
 		 s, xaddr.first, xaddr.second, mem_x, sprite_x);
 	  goto fail_xaddr;
 	}
@@ -449,9 +517,9 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
      
     fail_xaddr:;
     }
-   
+
+    // Now find y coordinates for the sprite.
     if (!newsprite.xmems.empty()) {
-      // Try y locations too...
 
       for (uint16 yaddr = 0; yaddr < 2048; yaddr++) {
 	// We're solving for offset such that mem[yaddr] + offset = sprite.
@@ -460,7 +528,8 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
 	bool have_offset = false;
 	int offset = 0;
 	for (const Science &science : sciences) {
-	  // Promote to integer from uint8 so that w can do signed
+	  const int s = (absolute_s + science.total_displacement) % 64;
+	  // Promote to integer from uint8 so that we can do signed
 	  // comparison.
 	  const int actual_mem_y = science.mem[yaddr];
 	  const int sprite_y = science.oam[s * 4 + 0];
@@ -488,21 +557,23 @@ vector<AutoCamera::XYSprite> AutoCamera::FindYCoordinates(
       }
 
       if (!newsprite.ymems.empty()) {
-	printf("Sprite %d has x candidates:", s);
+	printf("Sprite %d has x candidates:", absolute_s);
 	for (auto xaddr : newsprite.xmems)
 	  printf(" %s", AddrOffset(xaddr).c_str());
 	printf("\n          and y candidates:");
 	for (auto yaddr : newsprite.ymems)
 	  printf(" %s", AddrOffset(yaddr).c_str());
 	printf("\n");
-	newsprite.sprite_idx = s;
+	newsprite.sprite_idx = absolute_s;
 	newsprite.oldmem = lagmem;
 	withy.push_back(newsprite);
       } else {
-	printf("Sprite %d eliminted since there are no ymems left.\n", s);
+	printf("Sprite %d eliminted since there are no ymems left.\n",
+	       absolute_s);
       }
     } else {
-      printf("Sprite %d eliminated since there are no xmems left.\n", s);
+      printf("Sprite %d eliminated since there are no xmems left.\n", 
+	     absolute_s);
     }
   }
 
