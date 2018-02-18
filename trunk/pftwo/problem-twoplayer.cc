@@ -213,16 +213,18 @@ static void TryAutoCameras(const string &game,
     }
 
     {
+      // PERF: Get rid of stuff for debugging autocamera displacement.
       unique_ptr<Emulator> emu(Emulator::Create(game));
       CHECK(emu.get()) << "(autocamera) " << game;
       vector<uint8> old_oam = AutoCamera::OAM(emu.get());
       for (int i = 0; i < inputs.size(); i++) {
 	emu->Step(inputs[i].first, inputs[i].second);
 	vector<uint8> new_oam = AutoCamera::OAM(emu.get());
+	int disp = AutoCamera::BestDisplacement(old_oam, new_oam);
+	(void)disp;
 	if (ContainsKey(framenums, i)) {
 	  printf("Try autocamera at frame %d:\n", i);
 	  saves.push_back(emu->SaveUncompressed());
-	  AutoCamera::BestDisplacement(old_oam, new_oam);
 	}
 	old_oam = std::move(new_oam);
       }
@@ -275,24 +277,27 @@ static void TryAutoCameras(const string &game,
   //     for memory locations that go down when we press left,
   //     up when we press right? But we do need to determine
   //     y coordinate, which we don't control so easily...
+  //
+  // (AutoCamera::BestDisplacement seems to work ok for contra.)
   
   using XYSprite = AutoCamera::XYSprite;
+  using XSprites = AutoCamera::XSprites;
   AutoCamera autocamera{game};
   vector<XYSprite> votes;
 
   for (const vector<uint8> &save : saves) {
-    
-    #if 0
-    int x_num_frames = 0;
-    const vector<XYSprite> xcand =
-      autocamera.GetXSprites(save, &x_num_frames);
+    const XSprites xcand = autocamera.GetXSprites(save);
     vector<int> player_sprites;
     const vector<XYSprite> xycand =
-      autocamera.FindYCoordinates(save, x_num_frames, xcand,
-				  &player_sprites);
-    const vector<XYSprite> ccand =
+      autocamera.FindYCoordinates(save, xcand, &player_sprites);
+
+    
+    const vector<XYSprite> ccand = xycand;
+    /*
+      XXX need to update this to use displacement
       autocamera.FilterForConsequentiality(save, x_num_frames,
 					   xycand);
+    */
     // XXX Could do DetectViewType and/or DetectCameraAngle,
     // and increase votes if it succeeds
     // (suggests that we got good sprites?)
@@ -309,7 +314,6 @@ static void TryAutoCameras(const string &game,
       printf("\n");
     }
     printf("***************************\n");
-    #endif
   }
 }
 

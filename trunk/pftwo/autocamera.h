@@ -74,17 +74,24 @@ struct AutoCamera {
 
   // Sprite that may be under control of the player.
   struct XYSprite {
-    // Index of the sprite that this appears to be.
-    int sprite_idx;
+    // Index of the sprite that this appears to be (in the original
+    // save state).
+    int sprite_idx = 0;
     // If true, then sprite location lags the memory location
     // by one frame (this seems typical).
-    bool oldmem;
+    bool oldmem = false;
     // Memory locations that had the same x value as the sprite,
     // perhaps lagged by a frame, along with the offset (mem[addr] +
     // offset = sprite_x). Always nonempty.
     vector<pair<uint16, int>> xmems;
     // Same, but for y coordinates.
     vector<pair<uint16, int>> ymems;
+    XYSprite() {}
+    XYSprite(int sprite_idx, bool oldmem, 
+	     vector<pair<uint16, int>> xmems,
+	     vector<pair<uint16, int>> ymems) :
+      sprite_idx(sprite_idx), oldmem(oldmem),
+      xmems(xmems), ymems(ymems) {}
   };
 
   // Maybe these should stay private?
@@ -92,16 +99,27 @@ struct AutoCamera {
   static int BestDisplacement(const vector<uint8> &oldoam, 
 			      const vector<uint8> &newoam);
 
+  struct XSprites {
+    // The best displacement values we used; there is one entry
+    // for each frame we executed.
+    vector<int> displacements;
+    // ymems not yet filled in.
+    vector<XYSprite> sprites;
+    int NumFrames() const { return displacements.size(); }
+  };
+
   // Returns a vector of sprite indices that meet the criteria. Only
   // xmems will be filled in.
-  vector<XYSprite> GetXSprites(const vector<uint8> &uncompressed_state,
-			       int *num_frames);
+  XSprites GetXSprites(const vector<uint8> &uncompressed_state);
 
   // Upgrade a set of sprites with only x coordinates to ones with
   // both x and y coordinates. 
   vector<XYSprite> FindYCoordinates(const vector<uint8> &uncompressed_state,
-				    int x_num_frames,
-				    const vector<XYSprite> &xsprites,
+				    const XSprites &xsprites,
+				    // If not null, the array is populated with
+				    // the sprite indices (at the start frame)
+				    // that are believed to correspond to the
+				    // player.
 				    vector<int> *player_sprites);
 
   // Must have x and y coordinates filled in, i.e. after FindYCoordinates.
