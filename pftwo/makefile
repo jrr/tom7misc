@@ -80,18 +80,20 @@ FCEULIB_GAME_OBJECTS=
 PFTWO_OBJECTS=motifs.o weighted-objectives.o problem-twoplayer.o n-markov-controller.o learnfun.o objective-enumerator.o headless-graphics.o treesearch.o dumptree.o autocamera.o
 
 testui.exe : $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) testui.o graphics.o sdl-win32-main.o
-	$(CXX) $^ -o $@ $(LFLAGS)
+	$(CXX) $^ -o $@ $(LFLAGS) $(LINKSDL)
 
 pftwo.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) pftwo.o graphics.o sdl-win32-main.o
-	$(CXX) $^ -o $@ $(LFLAGS)
+	$(CXX) $^ -o $@ $(LFLAGS) $(LINKSDL)
 
 headless.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) headless.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 playback.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) playback.o graphics.o sdl-win32-main.o
-	$(CXX) $^ -o $@ $(LFLAGS)
+	$(CXX) $^ -o $@ $(LFLAGS) $(LINKSDL)
 
-# XXX this can avoid sdl
+debug-autocamera.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) debug-autocamera.o graphics.o sdl-win32-main.o
+	$(CXX) $^ -o $@ $(LFLAGS) $(LINKSDL)
+
 progress.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) progress.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
