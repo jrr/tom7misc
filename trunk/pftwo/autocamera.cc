@@ -2,6 +2,7 @@
 #include "autocamera.h"
 #include "pftwo.h"
 
+#include <math.h>
 #include <unordered_set>
 #include <mutex>
 #include <atomic>
