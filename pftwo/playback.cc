@@ -307,9 +307,6 @@ struct UIThread {
   int df = 1;
   
   void Loop() {
-    SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
-    (void)surf;
-
     // XXX contra
     int rotate = 45;
     

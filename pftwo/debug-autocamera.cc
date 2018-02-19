@@ -1,6 +1,4 @@
-
-// TODO: Don't blank the screen when we fall behind.
-// TODO: Read metadata like goals from the FM2 or some future format.
+// This is a one-off (presumably) for developing/debugging autocamera.
 
 #include <algorithm>
 #include <vector>
@@ -28,27 +26,18 @@
 #include "../cc-lib/sdl/chars.h"
 #include "../cc-lib/sdl/font.h"
 #include "../cc-lib/re2/re2.h"
+#include "autocamera.h"
 
 #include "SDL.h"
 #include "graphics.h"
 
 // Screen dimensions.
-#define WIDTH 512
-#define HEIGHT (512 + 128)
+#define WIDTH 1920
+#define HEIGHT 1080
 
-#define MAX_HEADROOM 24
+#define WARMUP_FRAMES 800
 
-// Save state periodically so that rewind is fast.
 #define SNAPSHOT_EVERY 1000
-
-static bool should_die = false;
-static mutex should_die_m;
-
-static std::mutex print_mutex;
-#define Printf(fmt, ...) do {			\
-    MutexLock Printf_ml(&print_mutex);		\
-    printf(fmt, ##__VA_ARGS__);			\
-  } while (0)
 
 static string Rtos(double d) {
   if (std::isnan(d)) return "NaN";
@@ -216,10 +205,8 @@ static vector<uint8> GetSpriteSheet(Emulator *emu, int rotate = 0) {
   return rgba;
 }
 
-// Note: This is really the main thread. SDL really doesn't
-// like being called outside the main thread, even if it's
-// exclusive.
 struct UIThread {
+  const string game;
   vector<pair<uint8, uint8>> movie;
   // Snapshots enable fast rewinding. Sparse. The key is the index of
   // the frame that is next to be executed (so a key of 0 is the state
@@ -228,9 +215,9 @@ struct UIThread {
   std::map<int64, string> subtitles;
   unique_ptr<Emulator> emu;
   int frameidx = 0;
-  
+
   UIThread(const string &game,
-	   const string &fm2) {
+	   const string &fm2) : game(game) {
     vector<pair<int, string>> subs;
     movie = SimpleFM2::ReadInputsEx(fm2, &subs);
     CHECK(!movie.empty()) << "Couldn't read movie: " << fm2;
@@ -240,80 +227,25 @@ struct UIThread {
     emu.reset(Emulator::Create(game));
     CHECK(emu.get() != nullptr) << game;
 
-    SDL_AudioSpec spec;
-    spec.freq = Emulator::AUDIO_SAMPLE_RATE;
-    spec.samples = 1024;
-    spec.format = AUDIO_S16;
-    spec.channels = 1;
-    spec.userdata = (void*)this;
-    spec.callback = [](void *userdata, Uint8 *stream, int len) {
-      ((UIThread *)userdata)->AudioCallback(stream, len);
-    };
-
-    CHECK(0 == SDL_OpenAudio(&spec, nullptr));
-    
-    SDL_PauseAudio(0);
-  }
-
-  // In order to get smooth audio/video playback, we render up to a
-  // few frames ahead of what the user is actually seeing.
-  struct Frame {
-    int frameidx = 0;
-    vector<uint8> rgba;
-    vector<int16> samples;
-    string subtitle;
-    int goalx = -1, goaly = -1;
-    int samples_used = 0;
-
-    // XXX instead, conditionally draw this into rgba if enabled
-    vector<uint8> spram;
-    int rotate = 0;
-    
-    // 512x16 RGBA image, with sprites 0-63 drawn.
-    vector<uint8> spritesheet;
-  };
-  std::mutex frames_m;
-  std::list<Frame> frames;
-  
-  void AudioCallback(Uint8 *byte_stream, int bytes) {
-    int16 *samples = (int16 *)byte_stream;
-    int n = bytes >> 1;
-    MutexLock ml(&frames_m);
-
-    // While I need new frames...
-    while (n--) {
-      // No more frames? Copy silence.
-      if (frames.empty()) {
-	*samples = 0;
-	samples++;
-      } else {
-	Frame *f = &*frames.begin();
-	*samples = f->samples[f->samples_used];
-	samples++;
-	f->samples_used++;
-	if (f->samples_used == f->samples.size()) {
-	  frames.pop_front();
-	}
-      }
+    for (int i = 0; i < WARMUP_FRAMES; i++) {
+      emu->StepFull(movie[i].first, movie[i].second);
+      frameidx++;
     }
+    printf("Warmed up.\n");
   }
-
+  
   enum class Mode {
     PLAY,
     PAUSE,
   };
   Mode mode = Mode::PLAY;
-  // Speed (nes frames per SDL frame).
-  int df = 1;
   
   void Loop() {
     SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
     (void)surf;
 
     // XXX contra
-    int rotate = 45;
-    
-    RE2 goal_re{"g ([-0-9]+),([-0-9]+)"};
+    const int rotate = 45;
     
     for (;;) {
       SDL_Event event;
@@ -331,58 +263,30 @@ struct UIThread {
 	  case SDLK_RIGHT:
 	    break;
 
-	  case SDLK_q:
-	    rotate--;
-	    if (rotate < 0) rotate += 64;
-	    printf("Rotate %d\n", rotate);
-	    break;
-	  case SDLK_w:
-	    rotate++;
-	    rotate %= 64;
-	    printf("Rotate %d\n", rotate);
-	    break;
-	    
-	  case SDLK_0:
-	    df = 1;
-	    break;
-	    
-	  case SDLK_MINUS:
-	    if (event.key.keysym.mod & KMOD_CTRL) {
-	      df -= 100;
-	    } else {
-	      df--;
-	    }
-	    if (df < 1) df = 1;
-	    break;
-
-	  case SDLK_EQUALS:
-	  case SDLK_PLUS:
-	    if (event.key.keysym.mod & KMOD_CTRL) {
-	      df += 100;
-	    } else {
-	      df++;
-	    }
-	    break;
-
 	  case SDLK_SPACE:
 	    switch (mode) {
 	    case Mode::PAUSE:
 	      mode = Mode::PLAY;
-	      if (df <= 0) df = 1;
 	      break;
 	    case Mode::PLAY:
 	      mode = Mode::PAUSE;
 	      break;
 	    }
 	    break;
+
+	  case SDLK_c: {
+	    AutoCamera autocamera{game};
+	    using XYSprite = AutoCamera::XYSprite;
+	    using XSprites = AutoCamera::XSprites;
+	    const vector<uint8> save = emu->SaveUncompressed();
+	    const XSprites xcand = autocamera.GetXSprites(save);
+	    printf("-----\n");
+	    mode = Mode::PAUSE;
+	  }
 	    
 	  case SDLK_LEFT: {
-	    {
-	      MutexLock ml(&frames_m);
-	      frames.clear();
-	    }
 	    mode = Mode::PAUSE;
-	    df = 0;
+
 	    auto it = snapshots.lower_bound(frameidx);
 	    if (it == snapshots.begin()) break;
 	    --it;
@@ -408,163 +312,56 @@ struct UIThread {
       
       if (mode == Mode::PLAY) {
 	// Can we execute at least one frame?
-	if (frameidx >= movie.size() || df <= 0) {
+	if (frameidx >= movie.size()) {
 	  mode = Mode::PAUSE;
 	} else {
 
-	  int headroom = 0;
-	  {
-	    MutexLock ml(&frames_m);
-	    headroom = frames.size();
+	  uint8 p1, p2;
+	  std::tie(p1, p2) = movie[frameidx];
+	  frameidx++;
+	  emu->StepFull(p1, p2);
+
+	  if (0 == frameidx % SNAPSHOT_EVERY) {
+	    snapshots[frameidx] = emu->SaveUncompressed();
 	  }
-
-	  if (headroom < MAX_HEADROOM) {
-	    // Execute some frames, and end with StepFull.
-	    for (int i = 0; i < df; i++) {
-	      if (frameidx < movie.size()) {
-		// There's a frame available to play.
-		// Do it.
-		uint8 p1, p2;
-		std::tie(p1, p2) = movie[frameidx];
-		frameidx++;
-		// If we'll do more frames in this loop, then
-		// no need for a full step.
-		if (i < df - 1 && frameidx < movie.size()) {
-		  emu->Step(p1, p2);
-		} else {
-		  emu->StepFull(p1, p2);
-		}
-		if (0 == frameidx % SNAPSHOT_EVERY) {
-		  snapshots[frameidx] = emu->SaveUncompressed();
-		}
-	      }
-	    }
-
-	    // Now push onto the frames list.
-	    {
-	      MutexLock ml(&frames_m);
-	      frames.push_back(Frame());
-	      Frame *f = &frames.back();
-	      f->frameidx = frameidx;
-	      f->samples_used = 0;
-	      emu->GetImage(&f->rgba);
-	      emu->GetSound(&f->samples);
-	      const int rot = (frameidx * rotate) % 64;
-	      f->spritesheet = GetSpriteSheet(emu.get(), rot);
-
-	      {
-		// XXX
-		uint8 *spram = emu->GetFC()->ppu->SPRAM;
-		f->spram.resize(0x100);
-		for (int i = 0; i < 0x100; i++) f->spram[i] = spram[i];
-		f->rotate = rot;
-	      }
-	      
-	      auto it = subtitles.lower_bound(frameidx);
-	      if (it == subtitles.begin()) break;
-	      --it;
-	      f->subtitle = it->second;
-
-	      (void)RE2::PartialMatch(f->subtitle, goal_re,
-				      &f->goalx, &f->goaly);
-	      
-	      if (df > 100) {
-		// Just get rid of the sound if we're going this fast!
-		for (int i = 0; i < f->samples.size(); i++)
-		  f->samples[i] = 0;
-	      } else if (df > 2) {
-		int shift = 1;
-		if (df > 5) shift++;
-		if (df > 10) shift++;
-		if (df > 50) shift++;
-		for (int i = 0; i < f->samples.size(); i++)
-		  f->samples[i] >>= shift;
-	      }
-	    }
-	  }
-	    
 	}
       }
 
-      // Above should leave the emulator in a state where
-      // StepFull was just run.
+      const vector<uint8> rgba = emu->GetImage();
+      const int rot = (frameidx * rotate) % 64;
+      const vector<uint8> spritesheet = GetSpriteSheet(emu.get(), rot);
+      const vector<uint8> oam = AutoCamera::OAM(emu.get());
+	      
+      static constexpr int XOFF = 0;
+      static constexpr int YOFF = 0;
+      // Now draw/play.
+      BlitRGBA2x(rgba, 256, 256, XOFF, YOFF, screen);
 
-      int headroom = 0;
+      // Draw spritesheets into future!
       {
-	MutexLock ml(&frames_m);
-	headroom = frames.size();
-	if (frames.empty()) {
-	  // XXX this happens when we have a very high df. Would be
-	  // better to just leave the existing screen, or maybe the
-	  // audio callback should not delete the last frame?
-	  sdlutil::FillRectRGB(screen,
-			       0, 16, 
-			       512, 512 + 16,
-			       0x77, 0x0, 0x0);
-	} else {
-	  Frame *f = &*frames.begin();
-	  static constexpr int XOFF = 0;
-	  static constexpr int YOFF = 0;
-	  // Now draw/play.
-	  BlitRGBA2x(f->rgba, 256, 256, XOFF, YOFF, screen);
+	static constexpr int YSTART = YOFF + 512 + 8;
+	BlitRGBA(spritesheet, 512, 16, 0, YSTART, screen);
+      }
 
-	  // Draw spritesheets into future!
-	  {
-	    static constexpr int NUM_SPRITESHEETS = 8;
-	    static constexpr int YSTART = YOFF + 512 + 8;
-	    auto fit = frames.begin();
-	    for (int ss = 0;
-		 YSTART + 16 * ss + 16 < HEIGHT &&
-		 ss < NUM_SPRITESHEETS &&
-		 fit != frames.end();
-		 ss++) {
-	      const Frame &ff = *fit;
-	      BlitRGBA(ff.spritesheet, 512, 16, 0, YSTART + 16 * ss, screen);
-	      ++fit;
-	    }
-	  }
+      font->draw(0, 4, StringPrintf("%d^2/^<%d",
+				    frameidx, (int)movie.size()));
 
-	  font->draw(0, 4, StringPrintf("%d^2/^<%d",
-					f->frameidx, (int)movie.size()));
-	  font->draw(0, 20, f->subtitle);
+      // And sprites.
+      for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
+	int s = (absolute_s + rotate) % 64;
+	int sx = oam[s * 4 + 3];
+	int sy = oam[s * 4 + 0];
 
-	  if (f->goalx >= 0 && f->goaly >= 0) {
-	    font->draw(0, 500, StringPrintf("GOAL %d,%d", f->goalx, f->goaly));
-	    sdlutil::drawbox(screen,
-			     2 * f->goalx - 5, YOFF + 2 * f->goaly - 5, 10, 10,
-	    0x00, 0x00, 0x00);
-	    sdlutil::drawbox(screen,
-			     2 * f->goalx - 4, YOFF + 2 * f->goaly - 4, 8, 8,
-	    0xFF, 0x00, 0xFF);
-	    sdlutil::drawbox(screen,
-			     2 * f->goalx - 3, YOFF + 2 * f->goaly - 3, 6, 6,
-	    0xFF, 0x00, 0xFF);
-  	  }
-
-	  // And sprites.
-	  // XXX obviously, make this optional
-	  for (int i = 0; i < 64; i++) {
-	    int sx = f->spram[i * 4 + 3];
-	    int sy = f->spram[i * 4 + 0];
-	    // printf("[%d] %d,%d ", i, sx, sy);
-
-	    int rotidx = (i + f->rotate) % 64;
-	    
-	    fontsmall->draw(XOFF + 2 * sx, YOFF + 2 * sy,
-			    StringPrintf("%d", rotidx));
-	  }
-	  // printf("\n");
-	}
+	fontsmall->draw(XOFF + 2 * sx, YOFF + 2 * sy,
+			StringPrintf("%d", s));
       }
 
       // Draw 
       if (mode == Mode::PLAY) {
-	font->draw(0, HEIGHT - FONTHEIGHT, StringPrintf("PLAY ^2%d^3x", df));
+	font->draw(0, HEIGHT - FONTHEIGHT, "^2PLAY");
       } else {
 	font->draw(0, HEIGHT - FONTHEIGHT, "PAUSED");
       }
-
-      font->draw(480, HEIGHT - FONTHEIGHT, StringPrintf("[%d]", headroom));
 
       SDL_Flip(screen);
     }
@@ -574,28 +371,6 @@ struct UIThread {
   void Run() {
     screen = sdlutil::makescreen(WIDTH, HEIGHT);
     CHECK(screen);
-
-    fprintf(stderr,
-	    "BPP: %d\n"
-	    "Screen shifts:\n"
-	    "R %d\n"
-	    "G %d\n"
-	    "B %d\n"
-	    "A %d\n"
-	    "Screen masks:\n"
-	    "R %08x\n"
-	    "G %08x\n"
-	    "B %08x\n"
-	    "A %08x\n",
-	    screen->format->BitsPerPixel,
-	    screen->format->Rshift,
-	    screen->format->Gshift,
-	    screen->format->Bshift,
-	    screen->format->Ashift,
-	    screen->format->Rmask,
-	    screen->format->Gmask,
-	    screen->format->Bmask,
-	    screen->format->Amask);
     
     font = Font::create(screen,
 			"font.png",
@@ -617,9 +392,7 @@ struct UIThread {
     CHECK(fontmax != nullptr) << "Couldn't load fontmax.";
     
     Loop();
-    Printf("UI shutdown.\n");
-    SDL_PauseAudio(1);
-    WriteWithLock(&should_die_m, &should_die, true);
+    printf("UI shutdown.\n");
   }
 
   ~UIThread() {
@@ -647,7 +420,7 @@ int main(int argc, char *argv[]) {
   (void)Rtos;
   
   if (argc < 3) {
-    fprintf(stderr, "playback.exe game.nes movie.fm2\n");
+    fprintf(stderr, "debug-autocamera.exe game.nes movie.fm2\n");
     return -1;
   }
   string game = argv[1];
@@ -661,7 +434,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "Init SDL\n");  
   
   /* Initialize SDL, video, and audio. */
-  CHECK(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) >= 0);
+  CHECK(SDL_Init(SDL_INIT_VIDEO) >= 0);
   fprintf(stderr, "SDL initialized OK.\n");
 
   SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY,
@@ -669,7 +442,7 @@ int main(int argc, char *argv[]) {
 
   SDL_EnableUNICODE(1);
   
-  SDL_Surface *icon = SDL_LoadBMP("playback-icon.bmp");
+  SDL_Surface *icon = SDL_LoadBMP("debug-autocamera-icon.bmp");
   if (icon != nullptr) {
     SDL_WM_SetIcon(icon, nullptr);
   }
