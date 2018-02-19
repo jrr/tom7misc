@@ -287,6 +287,8 @@ static void TryAutoCameras(const string &game,
 
   for (const vector<uint8> &save : saves) {
     const XSprites xcand = autocamera.GetXSprites(save);
+
+    #if 0
     vector<int> player_sprites;
     const vector<XYSprite> xycand =
       autocamera.FindYCoordinates(save, xcand, &player_sprites);
@@ -314,6 +316,7 @@ static void TryAutoCameras(const string &game,
       printf("\n");
     }
     printf("***************************\n");
+    #endif
   }
 }
 
