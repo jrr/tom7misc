@@ -231,8 +231,8 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
   // Due to sprite rotation (see comments on BestDisplacement), we
   // also need to keep track of the OAM from the previous frame.
   vector<uint8> looam = OAM(lemu);
-  vector<uint8> nooam = OAM(remu);
-  vector<uint8> rooam = OAM(nemu);
+  vector<uint8> nooam = OAM(nemu);
+  vector<uint8> rooam = OAM(remu);
 
   XSprites ret;
 
@@ -243,9 +243,9 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
   // up to 45 frames.
   for (int frames = 1; frames < 45; frames++) {
 
-    StepPlayer(lemu, first_player, INPUT_L);
-    StepPlayer(nemu, first_player, 0);
-    StepPlayer(remu, first_player, INPUT_R);
+    StepFullPlayer(lemu, first_player, INPUT_L);
+    StepFullPlayer(nemu, first_player, 0);
+    StepFullPlayer(remu, first_player, INPUT_R);
     vector<uint8> loam = OAM(lemu);
     vector<uint8> noam = OAM(nemu);
     vector<uint8> roam = OAM(remu);
@@ -275,7 +275,19 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
     vector<uint8> lmem = lemu->GetMemory();
     vector<uint8> nmem = nemu->GetMemory();
     vector<uint8> rmem = remu->GetMemory();
-    
+
+    {
+      // XXX
+      printf("[%d] p1: %d,%d < %d,%d < %d,%d %s%s%s\n", 
+	     frames,
+	     lmem[0x0334], lmem[0x031a],
+	     nmem[0x0334], nmem[0x031a],
+	     rmem[0x0334], rmem[0x031a],
+	     lmem == nmem ? "l=n " : "l!=n ",
+	     nmem == rmem ? "n=r " : "n!=r ",
+	     lmem == rmem ? "l=r " : "l!=r ");
+    }
+
     for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
       // absolute_s is, in effect, the sprite id at the start frame.
       const int s = (absolute_s + total_displacement) % 64;
