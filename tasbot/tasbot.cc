@@ -302,6 +302,7 @@ static void WriteMovie(const string &moviename,
   fprintf(stderr, "Wrote movie!\n");
 }
 
+// XXX: All sorts of problems here. Use Shuffle from cc-lib randutil.h.
 template<class T>
 static void Shuffle(vector<T> *v) {
   static uint64 h = 0xCAFEBABEDEADBEEFULL;
