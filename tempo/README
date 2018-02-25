@@ -25,6 +25,13 @@ TODO:
  - wifi setup
  - packages for make, gcc, svn, emacs
 
+Wifi troubleshooting:
+  Looks like if the pi boots before the wireless router, it may come
+  up without internat and stay that way. Should probably periodically
+  do something like:
+  sudo ifconfig wlan0 down && sleep 2 && sudo ifconfig wlan0 up && sleep 5
+  (or maybe just reboot)
+
 Add onewire support in /boot/config.txt:
 dtoverlay=w1-gpio,gpiopin=17
 
@@ -37,3 +44,14 @@ non-Oracle fork of MySQL.
 
 sudo apt-get install default-libmysqlclient-dev
 sudo apt-get install libmysql++-dev
+
+
+wpa_supplicant.conf:
+country=US
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+network={
+  ssid="famicom"
+  psk="PASSWORD-HERE"
+}
+
