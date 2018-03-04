@@ -6,8 +6,8 @@ TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
 BASE=base/logging.o base/stringprintf.o
 
 # for 64 bits on windows
-# CXX=x86_64-w64-mingw32-g++
-# CC=x86_64-w64-mingw32-g++
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-g++
 # CXXFLAGS=-I. --std=c++11 -O2 -static
 
 # For linux, others...
@@ -48,7 +48,7 @@ image_test.exe : image_test.o arcfour.o image.o stb_image.o stb_image_write.o $(
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 util_test.exe : util_test.o util.o $(BASE)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ -static
 
 randutil_test.exe : randutil.h randutil_test.o arcfour.o $(BASE)
 	$(CXX) $(CXXFLAGS) randutil_test.o arcfour.o $(BASE) -o $@
