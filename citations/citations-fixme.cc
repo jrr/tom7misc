@@ -198,17 +198,8 @@ static void LocalForEachLine(const string &filename, F f) {
     lengths += line.size() + 1;
   }
   printf("Lengths: %lld\n", lengths);
-
-  f(lines[490275]);
-  #if 0
-  for (int i = 0; i < lines.size(); i++) {
-    const string &line = lines[i];
-    if (i >= 490275) {
-      printf("%d\n", i);
-      f(line);
-    }
-  }
-  #endif
+  
+  for (const string &line : lines) f(line);
 }
 
 int main(int argc, char **argv) {
