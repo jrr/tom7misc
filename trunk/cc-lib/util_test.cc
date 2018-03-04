@@ -1,4 +1,6 @@
 /* PLEASE KEEP THIS LINE */
+// (The previous line is used by the test, which opens this test file
+// as text.)
 
 #include "base/logging.h"
 #include "util.h"
@@ -37,8 +39,27 @@ static void TestReadFiles() {
   CHECK(!Util::HasMagic("util_test.cc", "* PLEASE KEEP"));
 }
 
+static void TestWhitespace() {
+  CHECK_EQ("", Util::LoseWhiteR(""));
+  CHECK_EQ("", Util::LoseWhiteR(" \n\r \n"));
+  CHECK_EQ(" p", Util::LoseWhiteR(" p \n\r \n"));
+  CHECK_EQ("  p\nq", Util::LoseWhiteR("  p\nq\n\r \n"));
+  CHECK_EQ("rrr", Util::LoseWhiteR("rrr"));
+
+  CHECK_EQ("", Util::NormalizeWhitespace(""));
+  CHECK_EQ("", Util::NormalizeWhitespace(" "));
+  CHECK_EQ("", Util::NormalizeWhitespace(" \r\n \r \r"));
+  CHECK_EQ("hello world", Util::NormalizeWhitespace("  \nhello \r\n \r "
+						    "\rworld  \r\r\n"));
+  CHECK_EQ("hello world", Util::NormalizeWhitespace("hello world"));
+  CHECK_EQ("hello world", Util::NormalizeWhitespace("\thello\tworld\t"));
+  string s;
+  CHECK_EQ("", Util::NormalizeWhitespace(s));
+}
+
 int main(int argc, char **argv) {
   TestReadFiles();
+  TestWhitespace();
   return 0;
 }
 

@@ -277,6 +277,7 @@ string Util::ReadFile(const string &s) {
   return ReadAndCloseFile(f, nullptr);
 }
 
+// PERF: Benchmark against ForEachLine approach.
 vector<string> Util::ReadFileToLines(const string &f) {
   return SplitToLines(ReadFile(f));
 }
@@ -608,6 +609,44 @@ string Util::losewhitel(const string &s) {
   }
   /* all whitespace */
   return "";
+}
+
+string Util::LoseWhiteR(string s) {
+  while (!s.empty()) {
+    switch (s.back()) {
+    case ' ':
+    case '\n':
+    case '\r':
+    case '\t':
+      s.resize(s.size() - 1);
+      break;
+    default:
+      return s;
+    }
+  }
+}
+
+string Util::NormalizeWhitespace(const string &s) {
+  string ret;
+  // Skip at beginning.
+  bool skip_ws = true;
+  for (char c : s) {
+    switch (c) {
+    case ' ':
+    case '\n':
+    case '\r':
+    case '\t':
+      if (skip_ws) continue;
+      ret += ' ';
+      skip_ws = true;
+      break;
+    default:
+      skip_ws = false;
+      ret += c;
+    }
+  }
+
+  return LoseWhiteR(ret);
 }
 
 string Util::tempfile(string suffix) {

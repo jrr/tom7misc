@@ -35,6 +35,11 @@ struct Util {
 
   static vector<string> SplitToLines(const string &s);
 
+  // Calls f on each line (without the newline), streamed from
+  // the file. Ignores \r. Suitable for very large files.
+  template<class F>
+  static void ForEachLine(const string &filename, F f);
+  
   // As above, but treat the first token on each line as a map
   // key. Ignores empty lines.
   static map<string, string> ReadFileToMap(const string &f);
@@ -129,7 +134,13 @@ struct Util {
   /* erase any whitespace up to the first
      non-whitespace char. */
   static string losewhitel(const string &s);
-
+  // Remove trailing whitespace.
+  static string LoseWhiteR(string s);
+  
+  // All whitespace becomes a single space. Leading and trailing
+  // whitespace is dropped.
+  static string NormalizeWhitespace(const string &s);
+  
   /* try to remove the file. If it
      doesn't exist or is successfully
      removed, then return true. */
@@ -226,5 +237,27 @@ struct bitbuffer {
   int size;
   int bits;
 };
+
+// Template implementations follow.
+
+template<class F>
+void Util::ForEachLine(const string &s, F f) {
+  FILE *file = fopen(s.c_str(), "rb");
+  if (!file) return;
+  int c;
+  string line;
+  while ( (c = fgetc(file), c != EOF) ) {
+    if (c == '\r') continue;
+    if (c == '\n') {
+      f(std::move(line));
+      line.clear();
+    } else {
+      line += c;
+    }
+  }
+  // Don't require trailing newline.
+  if (!line.empty()) f(line);
+  fclose(file);
+}
 
 #endif
