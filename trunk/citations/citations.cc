@@ -1,108 +1,100 @@
-
-#ifdef __MINGW32__
-#include <windows.h>
-#undef ARRAYSIZE
-#endif
-
-#include "rapidjson/document.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#include "util.h"
+
+#include <sys/stat.h>
+#include <stdio.h>
 
 #include <vector>
 #include <string>
-#include <map>
-#include <unordered_map>
 
-using namespace rapidjson;
 using namespace std;
 
-struct AuthorStats {
-  int64 articles = 0;
-  int64 citations = 0;
-};
-
 int main(int argc, char **argv) {
-  #ifdef __MINGW32__
-  if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
-    LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
+  // An early write to cerr will fix it...
+  // std::cerr << "hi " << " hi\n";
+
+#if 1
+  FILE *f = fopen("aminer_papers_1/aminer_papers_44.txt", "rb");
+  int fd = fileno(f);
+  struct stat st;
+  if (0 != fstat(fd, &st)) {
+    printf("NO\n");
   }
-  #endif
 
-  string filename = "aminer_papers_1/aminer_papers_44.txt";
-  string outfile = "deleteme.txt";
-  
-  int64 counter = 0LL, no_authors = 0LL;
+  string ret;
+  off_t next_pos = 0;
+  off_t size_guess = st.st_size + 1;
+  //    if (magic_opt != nullptr) {
+  //      ret = *magic_opt;
+  //      next_pos = ret.size();
+  //    }
 
-  // Number of articles authored by each name.
-  std::unordered_map<string, AuthorStats> author_stats;
+  for (;;) {
+    // Now, repeatedly, resize the string to accommodate a
+    // read that we think will finish off the file. But
+    // don't do zero-sized writes!
+    if (next_pos >= size_guess) {
+      // XXX possibility for overflow, ugh
+      size_guess = next_pos + 16;
+    }
+    printf("Resize buffer to %d\n", (int)size_guess);
+    ret.resize(size_guess);
+    const off_t read_size = size_guess - next_pos;
+    printf("Attempt to read %d bytes\n", (int)read_size);
 
-  vector<string> lines = Util::ReadFileToLines(filename);
-  
-  const string &j = lines[490275];
-  printf("[%s]\n", j.c_str());
-  
-  Document article;
-  CHECK(!article.Parse(j.c_str()).HasParseError());
-  CHECK(article.IsObject());
+    // Bytes are required to be contiguous from C++11;
+    // use .front() instead of [next_pos] since the former,
+    // introduced in C++11, will prove we have a compatible
+    // version.
+    const size_t bytes_read =
+      fread(&ret.front() + next_pos, 1, read_size, f);
+    printf("%d bytes were read\n", (int)bytes_read);
 
-
-  // MutexLock ml(&m);
-  // Have to have authors or there's no way to count it.
-  if (article.HasMember("authors")) {
-    int64 n_citation = 0LL;
-    if (article.HasMember("n_citation") &&
-	article["n_citation"].IsInt()) {
-      n_citation = article["n_citation"].GetInt();
+    // We read exactly this many bytes.
+    next_pos += bytes_read;
+    printf("Now next_pos is %d\n", (int)next_pos);
+    if (feof(f)) {
+      printf("EOF. ret size is %d. resize to %d.\n", (int)ret.size(), (int)next_pos);
+      // Should be no-op when we guessed correctly.
+      ret.resize(next_pos);
+      fclose(f);
+      break;
+    } else {
+      printf("Not EOF.\n");
     }
 
-    auto Count = [n_citation, &author_stats](const string &author_name) {
-      AuthorStats &stats = author_stats[author_name];
-      stats.articles++;
-      stats.citations += n_citation;
-    };
-
-
-    const Value &authors = article["authors"];
-    CHECK(authors.IsArray());
-    for (const Value &author : authors.GetArray()) {
-      CHECK(author.IsObject());
-
-      if (author.HasMember("name")) {
-	if (!author["name"].IsString())
-	  printf("EXIT\n");
-	CHECK(author["name"].IsString());
-	const char *author_name = author["name"].GetString();
-	// counter += strlen(author_name);
-	// printf("(%s)\n", author_name.c_str());
-	// string norm_author_name = Util::NormalizeWhitespace(author_name);
-	// printf("[%s]\n", norm_author_name.c_str());
-	/*
-	Count(author_name);
-	*/
-      } else {
-	Count("");
-      }
+    // If we're not at the end of file but no bytes were
+    // read, then something is amiss. This also ensures
+    // that the loop makes progress.
+    if (bytes_read == 0) {
+      fclose(f);
+      printf("NO2\n");
+      return 0;
     }
-
-  } else {
-    no_authors++;
   }
 
-  counter++;
+  // Using cerr here too also avoids the crash.
+  // std::cerr << "now " << " split to lines";
 
-  printf("%lld articles. %lld with no author, %lld blank author\n",
-	 counter, no_authors, author_stats[""].articles);
-
-  printf("Writing %lld author records to %s...\n", author_stats.size(),
-	 outfile.c_str());
-  FILE *out = fopen(outfile.c_str(), "wb");
-  CHECK(out != nullptr) << outfile.c_str();
-  for (const auto &row : author_stats) {
-    fprintf(out, "%s\t%lld\t%lld\n",
-	    row.first.c_str(), row.second.articles, row.second.citations);
+  vector<string> v;
+  string line;
+  // PERF don't need to do so much copying.
+  printf("sizeof size_t %d\n", sizeof (size_t));
+  for (size_t i = 0; i < ret.size(); i++) {
+    if (ret[i] == '\r') {
+      continue;
+    } else if (ret[i] == '\n') {
+      v.push_back(line);
+      line = "";
+    } else {
+      line += ret[i];
+    }
   }
-  fclose(out);
+  printf("Got past lines\n");
+#endif
+
+  // cerr crashes after the first "bye ", so weird...
+  std::cerr << "bye " << " bye\n";
 
   return 0;
 }
