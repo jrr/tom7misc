@@ -1,7 +1,7 @@
 default : citations.exe
 
 BASE=../cc-lib/util.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
-CXXFLAGS=-I../cc-lib --std=c++14 -O2 -g -DNDEBUG=1
+CXXFLAGS=-I../cc-lib --std=c++14 -O2
 
 citations.exe : citations.o $(BASE)
 	g++ -o $@ $^

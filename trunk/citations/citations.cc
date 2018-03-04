@@ -4,19 +4,18 @@
 #undef ARRAYSIZE
 #endif
 
-#include "taojson/json.hpp"
+#include "rapidjson/document.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "util.h"
 #include "threadutil.h"
 
-#include <fstream>
 #include <vector>
 #include <string>
 #include <map>
 #include <unordered_map>
 
-using namespace tao;
+using namespace rapidjson;
 using namespace std;
 
 template<class K, class C>
@@ -194,10 +193,16 @@ struct AuthorStats {
 template<class F>
 static void LocalForEachLine(const string &filename, F f) {
   vector<string> lines = Util::ReadFileToLines(filename);
+  int64 lengths = 0LL;
+  for (const string &line : lines) {
+    lengths += line.size() + 1;
+  }
+  printf("Lengths: %lld\n", lengths);
+  
   for (const string &line : lines) f(line);
 }
 
-int main (int argc, char **argv) {
+int main(int argc, char **argv) {
   #ifdef __MINGW32__
   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
@@ -234,27 +239,21 @@ int main (int argc, char **argv) {
   std::unordered_map<string, AuthorStats> author_stats;
   
   auto OneFile = 
-    [&m, &counter, &no_authors, &author_stats](
-	const string &filename) {
-    LocalForEachLine(filename, [&](string j) {
-      json::value article = json::from_string(j);
-      CHECK(article.is_object());
-      std::map<string, json::value> &articlemap = article.get_object();
+    [&m, &counter, &no_authors, &author_stats](const string &filename) {
+    LocalForEachLine(filename,
+		     [&m, &counter, &no_authors, &author_stats](string j) {
+      Document article;
+      CHECK(!article.Parse(j.c_str()).HasParseError());
+      CHECK(article.IsObject());
+
 
       MutexLock ml(&m);
       // Have to have authors or there's no way to count it.
-      if (ContainsKey(articlemap, "authors")) {
+      if (article.HasMember("authors")) {
 	int64 n_citation = 0LL;
-	if (ContainsKey(articlemap, "n_citation")) {
-	  json::value &nc = articlemap["n_citation"];
-	  // Isn't there a better way to do this?!
-	  if (nc.is_signed()) {
-	    n_citation = nc.get_signed();
-	  } else if (nc.is_unsigned()) {
-	    n_citation = (int64)nc.get_unsigned();
-	  } else if (nc.is_double()) {
-	    n_citation = (int64)nc.get_double();
-	  }
+	if (article.HasMember("n_citation") &&
+	    article["n_citation"].IsInt()) {
+	  n_citation = article["n_citation"].GetInt();
 	}
 	  
 	auto Count = [n_citation, &author_stats](const string &author_name) {
@@ -262,40 +261,32 @@ int main (int argc, char **argv) {
 	  stats.articles++;
 	  stats.citations += n_citation;
 	};
-	
-	CHECK(articlemap["authors"].is_array());
-	for (json::value &author : articlemap["authors"].get_array()) {
-	  CHECK(author.is_object());
-	  std::map<string, json::value> &authormap = author.get_object();
+
+
+	const Value &authors = article["authors"];
+	CHECK(authors.IsArray());
+	for (const Value &author : authors.GetArray()) {
+	  CHECK(author.IsObject());
 	  
-	  if (ContainsKey(authormap, "name")) {
-	    json::value &name = authormap["name"];
-	    if (name.is_null()) {
-	      Count("");
-	    } else if (name.is_string()) {
-	      string author_name = name.get_string();
-	      // Util::NormalizeWhitespace((string)name.get_string_type());
-	      if (author_name.empty()) {
-		// FIXME! Why does the below crash when the string is
-		// empty? Is there something wrong with get_string?
-		Count("");
-	      } else {
-		// printf("[%s]\n", author_name.c_str());
-		string norm_author_name =
-		  Util::NormalizeWhitespace(author_name);
-		// printf("(%s)\n", norm_author_name.c_str());
-		Count(norm_author_name);
-	      }
-	    } else {
-	      printf("Bad author type: %s\n", json::to_string(name).c_str());
-	    }
+	  if (author.HasMember("name")) {
+	    CHECK(author["name"].IsString());
+	    const char *author_name = author["name"].GetString();
+	    // counter += strlen(author_name);
+	    // printf("(%s)\n", author_name.c_str());
+	    // string norm_author_name = Util::NormalizeWhitespace(author_name);
+	    // printf("[%s]\n", norm_author_name.c_str());
+	    /*
+	    Count(author_name);
+	    */
 	  } else {
 	    Count("");
 	  }
 	}
+
       } else {
 	no_authors++;
       }
+
       counter++;
     });
 
@@ -307,10 +298,11 @@ int main (int argc, char **argv) {
   };    
 
   UnParallelApp(filenames, OneFile, 8);
-
+  
   printf("Writing %lld author records to %s...\n", author_stats.size(),
 	 outfile.c_str());
   FILE *out = fopen(outfile.c_str(), "wb");
+  CHECK(out != nullptr) << outfile.c_str();
   for (const auto &row : author_stats) {
     fprintf(out, "%s\t%lld\t%lld\n",
 	    row.first.c_str(), row.second.articles, row.second.citations);
