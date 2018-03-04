@@ -1,4 +1,6 @@
-/* DO NOT USE YET --- it's still in development
+/* XXXXXXXXXXXXXXXXXXXXXX
+   DO NOT USE YET --- it's still in development and does NOT WORK
+   XXXXXXXXXXXXXXXXXXXXXX
 
    Mutable min-max heaps. A min-max heap allows constant-time
    "min" and "max" operations, although the constants are

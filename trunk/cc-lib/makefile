@@ -1,5 +1,5 @@
 
-default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe $(TESTCOMPILE)
+default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe json_test.exe $(TESTCOMPILE)
 
 TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
 
@@ -52,6 +52,9 @@ util_test.exe : util_test.o util.o $(BASE)
 
 randutil_test.exe : randutil.h randutil_test.o arcfour.o $(BASE)
 	$(CXX) $(CXXFLAGS) randutil_test.o arcfour.o $(BASE) -o $@
+
+json_test.exe : json_test.o $(BASE)
+	$(CXX) $(CXXFLAGS) json_test.o $(BASE) -o $@
 
 clean :
 	rm -f *.o *.exe
