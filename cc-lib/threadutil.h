@@ -98,6 +98,14 @@ void ParallelApp(const std::vector<T> &vec,
   ParallelAppi(vec, ff, max_concurrency);
 }
 
+// Drop-in serial replacement for debugging, etc.
+template<class T, class F>
+void UnParallelApp(const std::vector<T> &vec, 
+		   const F &f,
+		   int max_concurrency) {
+  for (const auto &t : vec) f(t);
+}
+
 // Parallel comprehension. Runs f on 0...(num-1).
 // Actually is comprehension the right name for this given that it
 // doesn't return anything? XXX
