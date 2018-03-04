@@ -4,6 +4,9 @@
 #include <string.h>
 #include <algorithm>
 #include <cstdint>
+#include <stdio.h>
+#include <stdlib.h>
+#include <type_traits>
 
 #include "util.h"
 
@@ -42,6 +45,8 @@
 #endif
 
 using uint8 = uint8_t;
+using int64 = int64_t;
+using uint64 = uint64_t;
 
 string itos(int i) {
   char s[64];
@@ -192,6 +197,7 @@ string Util::ptos(void *p) {
 
 // Internal helper used by ReadFile, ReadFileMagic.
 static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
+  #define READFILE_DEBUG 0
   // This is unbelievably difficult!
   // A simple loop while getc() doesn't return EOF works, but
   // is much slower than it needs to be.
@@ -205,24 +211,48 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
   // we got it right. However, we need to remain correct even
   // when stat returns nonsense (such as 0 or 4096).
 
+  // TODO: Not sure how portable fstat64 is. An alternative is
+  // to compile with -D_FILE_OFFSET_BITS=64. Another alternative
+  // is to only do gigabyte-size reads, although reading a file
+  // that's a significant fraction of all available memory is
+  // one of the main points of going through all this complexity!
   int fd = fileno(f);
-  struct stat st;
-  if (0 != fstat(fd, &st)) {
+  struct stat64 st;
+  if (0 != fstat64(fd, &st)) {
     fclose(f);
     return "";
   }
 
+  #if READFILE_DEBUG
+  printf("size_t is %d bytes, signed: %s\n",
+	 sizeof (size_t), std::is_signed<size_t>::value ? "yes" : "no");
+  printf("stat %d:\n"
+	 "  st_size: %llu\n (off_t is %d bytes, signed: %s)\n",
+	 fd, (uint64)st.st_size, sizeof (st.st_size),
+	 std::is_signed<decltype (st.st_size)>::value ? "yes" : "no");
+  #endif
+  
   string ret;
-  off_t next_pos = 0;
-  off_t size_guess = st.st_size;
+  int64 next_pos = 0;
+  int64 size_guess = st.st_size;
   if (magic_opt != nullptr) {
     ret = *magic_opt;
     next_pos = ret.size();
   }
 
-  // printf("next_pos is %d; size_guess is %d.\n",
-  //        (int)next_pos, (int)size_guess);
-  
+  // On cygwin for huge files, we get the size correct and read all
+  // the bytes in a single call to fread. But feof doesn't return true
+  // right after this, which causes us to do a useless resize.
+  // Instead, just attempt to read one additional byte, which causes
+  // fread to recognize the EOF. (This assumes that resizing the
+  // string downward by one byte at the end is basically free.)
+  size_guess++;
+
+  #if READFILE_DEBUG
+  printf("next_pos is %lld; size_guess is %lld.\n",
+	 next_pos, size_guess);
+  #endif
+
   // In optimistic cases where the size_guess is correct,
   // this loop will execute just once: A single resize, and
   // a single fread.
@@ -234,10 +264,32 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
       // XXX possibility for overflow, ugh
       size_guess = next_pos + 16;
     }
-    // printf("Resize buffer to %d\n", (int)size_guess);
-    ret.resize(size_guess);
-    const off_t read_size = size_guess - next_pos;
-    // printf("Attempt to read %d bytes\n", (int)read_size);
+    #if READFILE_DEBUG
+    printf("Resize buffer to %lld\n", size_guess);
+    #endif
+
+    // Keep the buffer large enough to store what we think the actual
+    // size is, so that we don't have to keep resizing it.
+    if (ret.size() < size_guess) {
+      #if READFILE_DEBUG
+      printf("Resize buffer %lld -> %lld\n", (int64)ret.size(), size_guess);
+      #endif
+      ret.resize(size_guess);
+    } else {
+      #if READFILE_DEBUG
+      printf("Buffer sized %lld; already big enough for guess %lld\n",
+	     (int64)ret.size(), size_guess);
+      #endif
+    }
+
+    // Only read up to one gigabyte at a time, since first of all,
+    // huge reads seem to be pretty slow, and on some platforms fread
+    // will just return 0 if the size is larger than 2^31 - 1 (or so).
+    const int64 read_size =
+      std::min(size_guess - next_pos, 1LL << 30);
+    #if READFILE_DEBUG
+    printf("Attempt to read %lld bytes\n", read_size);
+    #endif
     
     // Bytes are required to be contiguous from C++11;
     // use .front() instead of [next_pos] since the former,
@@ -245,13 +297,20 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
     // version.
     const size_t bytes_read =
       fread(&ret.front() + next_pos, 1, read_size, f);
-    // printf("%d bytes were read\n", (int)bytes_read);
+    #if READFILE_DEBUG
+    printf("%lld bytes were read\n", (int64)bytes_read);
+    #endif
     
     // We read exactly this many bytes.
     next_pos += bytes_read;
-    // printf("Now next_pos is %d\n", (int)next_pos);
+    #if READFILE_DEBUG
+    printf("Now next_pos is %lld\n", next_pos);
+    #endif
     if (feof(f)) {
-      // printf("EOF. ret size is %d\n", (int)ret.size());
+      #if READFILE_DEBUG
+      printf("EOF. current ret size is %lld; resizing to %lld\n",
+	     (int64)ret.size(), next_pos);
+      #endif
       // Should be no-op when we guessed correctly.
       ret.resize(next_pos);
       fclose(f);
@@ -262,6 +321,9 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
     // read, then something is amiss. This also ensures
     // that the loop makes progress.
     if (bytes_read == 0) {
+      #if READFILE_DEBUG
+      printf("No bytes read but not EOF?\n");
+      #endif
       fclose(f);
       return "";
     }
@@ -624,6 +686,8 @@ string Util::LoseWhiteR(string s) {
       return s;
     }
   }
+  // All whitespace.
+  return "";
 }
 
 string Util::NormalizeWhitespace(const string &s) {

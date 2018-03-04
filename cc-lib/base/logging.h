@@ -101,7 +101,7 @@ class LogMessageFatal : public LogMessage {
   LogMessageFatal(const char* file, int line)
     : LogMessage(file, line) { }
   ~LogMessageFatal() {
-    std::cerr << "\n";
+    std::cerr << "\n" << std::flush;
     abort();
   }
  private:
