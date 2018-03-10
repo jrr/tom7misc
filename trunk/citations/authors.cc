@@ -9,6 +9,7 @@
 #include "base/stringprintf.h"
 #include "util.h"
 #include "threadutil.h"
+#include "citation-util.h"
 
 #include <vector>
 #include <string>
@@ -17,11 +18,6 @@
 
 using namespace rapidjson;
 using namespace std;
-
-template<class K, class C>
-inline bool ContainsKey(const C &container, const K &key) {
-  return container.find(key) != container.end();
-}
 
 std::vector<string> AminerFiles() {
   return {
@@ -189,18 +185,6 @@ struct AuthorStats {
   int64 articles = 0;
   int64 citations = 0;
 };
-
-template<class F>
-static void LocalForEachLine(const string &filename, F f) {
-  // printf("Readfiletolines %s\n", filename.c_str());
-  vector<string> lines = Util::ReadFileToLines(filename);
-  // printf("%d lines\n", (int)lines.size());
-  for (int i = 0; i < lines.size(); i++) {
-    const string &line = lines[i];
-    // if (0 == i % 1000) printf("%d\n", i);
-    f(line);
-  }
-}
 
 int main(int argc, char **argv) {
   #ifdef __MINGW32__
