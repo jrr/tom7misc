@@ -18,7 +18,7 @@ wordfiles: $(WORDFILES)
 %.txt.authors : %.txt
 	./authors.exe -o $@ $<
 
-%.txt.words : %.txt words.exe
+%.txt.words : %.txt # words.exe
 	./words.exe -o $@ $<
 
 authors.exe : authors.o $(BASE)
@@ -33,9 +33,20 @@ merge.exe : merge.o $(BASE) $(RE2_OBJECTS)
 authorstats.exe : authorstats.o $(BASE) $(RE2_OBJECTS) ../cc-lib/textsvg.o
 	${CXX} -o $@ $^ -static
 
+bestworst.exe : bestworst.o $(BASE) $(RE2_OBJECTS)
+	${CXX} -o $@ $^ -static
+
 # need forward and backward versions
 authorstats.svg : authorstats.exe authors.txt
 	./authorstats.exe authors.txt authorstats.svg
+
+# and worstauthors..
+bestauthors.txt : bestworst.exe authors.txt
+	./bestworst.exe authors.txt bestauthors.txt worstauthors.txt
+
+# and worstwords..
+bestwords.txt : bestworst.exe words.txt
+	./bestworst.exe words.txt bestwords.txt worstwords.txt
 
 wordstats.svg : authorstats.exe words.txt
 	./authorstats.exe words.txt wordstats.svg

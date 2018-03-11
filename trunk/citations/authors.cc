@@ -17,10 +17,22 @@
 
 using namespace rapidjson;
 
-struct CiteStats {
-  int64 articles = 0;
-  int64 citations = 0;
-};
+string NormalizeAuthor(string s) {
+  string ret;
+  ret.reserve(s.size());
+  // Non-breaking space cause some strangeness
+  s = Util::Replace(std::move(s), " ", " ");
+  // Only count a word once per title.
+  while (!s.empty()) {
+    string word = Util::chop(s);
+    if (!word.empty()) {
+      word = Normalize(std::move(word));
+      if (ret.empty()) ret = std::move(word);
+      else ret += (string)" " + word;
+    }
+  }
+  return ret;
+}
 
 int main(int argc, char **argv) {
   #ifdef __MINGW32__
@@ -58,7 +70,7 @@ int main(int argc, char **argv) {
   
   for (const string &filename : filenames) {
     LocalForEachLine(filename,
-		     [&m, &counter, &no_authors, &author_stats](string j) {
+		     [&counter, &no_authors, &author_stats](string j) {
       Document article;
       CHECK(!article.Parse(j.c_str()).HasParseError());
       CHECK(article.IsObject());
@@ -86,7 +98,7 @@ int main(int argc, char **argv) {
 	  if (author.HasMember("name") && author["name"].IsString()) {
 	    const string author_name =
 	      Util::NormalizeWhitespace(author["name"].GetString());
-	    Count(author_name);
+	    Count(NormalizeAuthor(author_name));
 	  } else {
 	    Count("");
 	  }

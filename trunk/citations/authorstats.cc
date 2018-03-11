@@ -18,16 +18,7 @@
 #include <map>
 #include <unordered_map>
 
-template<class T>
-void Reverse(vector<T> *v) {
-  vector<T> ret;
-  ret.reserve(v->size());
-  for (int i = v->size() - 1; i >= 0; i--)
-    ret.push_back(std::move((*v)[i]));
-  v->swap(ret);
-}
-
-bool Dictionaryize(string author, string *dict) {
+static bool Dictionaryize(string author, string *dict) {
   vector<string> tokens;
   while (!author.empty()) {
     string tok = Util::chop(author);
@@ -55,15 +46,6 @@ bool Dictionaryize(string author, string *dict) {
   } else {
     return false;
   }
-}
-
-static string Rtos(double d) {
-  if (std::isnan(d)) return "NaN";
-  char out[16];
-  sprintf(out, "%.5f", d);
-  char *o = out;
-  while (*o == '0') o++;
-  return string{o};
 }
 
 int main(int argc, char **argv) {
@@ -136,6 +118,7 @@ int main(int argc, char **argv) {
     citations_cdf.reserve(1 << 23);
     
     int64 articles = 0LL, citations = 0LL;
+    bool ahead = false;
     for (int i = 0; i < rows.size(); i++) {
       articles += rows[i].second.articles;
       citations += rows[i].second.citations;
@@ -148,6 +131,16 @@ int main(int argc, char **argv) {
 	  StringPrintf("%s,%s ", Rtos(x * XSCALE).c_str(), Rtos(ay * YSCALE).c_str());
 	citations_cdf +=
 	  StringPrintf("%s,%s ", Rtos(x * XSCALE).c_str(), Rtos(cy * YSCALE).c_str());
+
+	if (cy >= ay && !ahead) {
+	  printf("Crossover to cy >= ay (%.4f <= %.4f) at %d. %s\n",
+		 cy, ay, i, rows[i].first.c_str());
+	  ahead = true;
+	} else if (cy <= ay && ahead) {
+	  printf("Crossover to cy <= ay (%.4f <= %.4f) at %d. %s\n",
+		 cy, ay, i, rows[i].first.c_str());
+	  ahead = false;
+	}
       }
     }
 
@@ -158,17 +151,19 @@ int main(int argc, char **argv) {
     Util::WriteFile(outfile, svg);
     printf("Wrote %s\n", outfile.c_str());
   }
-  
-  string sorted_outfile = infile + "sorted.txt";
-  printf("Writing %lld sorted records to %s...\n", rows.size(),
-	 sorted_outfile.c_str());
-  FILE *out = fopen(sorted_outfile.c_str(), "wb");
-  CHECK(out != nullptr) << outfile.c_str();
-  for (const auto &row : rows) {
-    fprintf(out, "%s\t%lld\t%lld\n",
-	    row.first.c_str(), row.second.articles, row.second.citations);
+
+  {
+    string sorted_outfile = infile + "sorted.txt";
+    printf("Writing %lld sorted records to %s...\n", rows.size(),
+	   sorted_outfile.c_str());
+    FILE *out = fopen(sorted_outfile.c_str(), "wb");
+    CHECK(out != nullptr) << outfile.c_str();
+    for (const auto &row : rows) {
+      fprintf(out, "%s\t%lld\t%lld\n",
+	      row.first.c_str(), row.second.articles, row.second.citations);
+    }
+    fclose(out);
   }
-  fclose(out);
   
   return 0;
 }
