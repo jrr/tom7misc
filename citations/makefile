@@ -1,4 +1,4 @@
-default : authors.exe
+default : authors.exe words.exe merge.exe
 
 # TDM-GCC has weird problems with cerr... :/
 CXX=x86_64-w64-mingw32-g++
@@ -27,23 +27,30 @@ authors.exe : authors.o $(BASE)
 words.exe : words.o $(BASE)
 	${CXX} -o $@ $^ -static
 
-mergeauthors.exe : mergeauthors.o $(BASE) $(RE2_OBJECTS)
-	${CXX} -o $@ $^ -static
-
-mergewords.exe : mergewords.o $(BASE) $(RE2_OBJECTS)
+merge.exe : merge.o $(BASE) $(RE2_OBJECTS)
 	${CXX} -o $@ $^ -static
 
 authorstats.exe : authorstats.o $(BASE) $(RE2_OBJECTS) ../cc-lib/textsvg.o
 	${CXX} -o $@ $^ -static
 
-authors.txt : $(AUTHORFILES) mergeauthors.exe
-	./mergeauthors.exe -o $@ $(AUTHORFILES)
+# need forward and backward versions
+authorstats.svg : authorstats.exe authors.txt
+	./authorstats.exe authors.txt authorstats.svg
 
-words.txt : $(WORDFILES) mergewords.exe
-	./mergewords.exe -o $@ $(AUTHORFILES)
+wordstats.svg : authorstats.exe words.txt
+	./authorstats.exe words.txt wordstats.svg
 
-paper.pdf : paper.tex dirham.pdf
+authors.txt : $(AUTHORFILES) merge.exe
+	./merge.exe -o $@ $(AUTHORFILES)
+
+words.txt : $(WORDFILES) merge.exe
+	./merge.exe -o $@ $(WORDFILES)
+
+paper.pdf : paper.tex dirham.pdf paper.bib
+	pdflatex paper
+	bibtex paper
 	pdflatex paper
 
 clean :
-	rm -f $(BASE) $(RE2_OBJECTS) citations.o citations.exe mergeauthors.exe
+	rm -f $(BASE) $(RE2_OBJECTS) *.o *.exe *.aux *.log
+

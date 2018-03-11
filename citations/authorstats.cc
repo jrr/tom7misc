@@ -10,36 +10,13 @@
 #include "threadutil.h"
 #include "re2/re2.h"
 #include "textsvg.h"
+#include "citation-util.h"
 
 #include <cmath>
 #include <vector>
 #include <string>
 #include <map>
 #include <unordered_map>
-
-using namespace std;
-
-template<class K, class C>
-inline bool ContainsKey(const C &container, const K &key) {
-  return container.find(key) != container.end();
-}
-
-struct AuthorStats {
-  int64 articles = 0;
-  int64 citations = 0;
-};
-
-template<class F>
-static void LocalForEachLine(const string &filename, F f) {
-  // printf("Readfiletolines %s\n", filename.c_str());
-  vector<string> lines = Util::ReadFileToLines(filename);
-  // printf("%d lines\n", (int)lines.size());
-  for (int i = 0; i < lines.size(); i++) {
-    const string &line = lines[i];
-    if (0 == i % 250000) printf("%.2f%%\n", (i * 100.0) / lines.size());
-    f(line);
-  }
-}
 
 template<class T>
 void Reverse(vector<T> *v) {
@@ -96,15 +73,17 @@ int main(int argc, char **argv) {
   }
   #endif
 
-  string infile = "authors.txt";
+  CHECK_EQ(argc, 3) << "authorstats.exe infile.txt outfile.svg\n";
+  string infile = argv[1];
+  string outfile = argv[2];
 
   // Number of articles authored by each name.
-  std::unordered_map<string, AuthorStats> author_stats;
+  std::unordered_map<string, CiteStats> cite_stats;
   int64 authors_bad = 0LL, articles_bad = 0LL;
   int64 articles_kept = 0LL, citations_kept = 0LL;
   RE2 line_re{"([^\t]*)\t([\\d]+)\t([\\d]+)"};  
   LocalForEachLine(infile,
-		   [&author_stats, &line_re, &authors_bad, &articles_bad,
+		   [&cite_stats, &line_re, &authors_bad, &articles_bad,
 		    &articles_kept, &citations_kept](string line) {
     string author;
     int64 articles = 0LL, citations = 0LL;
@@ -112,7 +91,7 @@ int main(int argc, char **argv) {
 
     string dict;
     if (Dictionaryize(author, &dict)) {
-      AuthorStats &stats = author_stats[dict];
+      CiteStats &stats = cite_stats[dict];
       stats.articles += articles;
       stats.citations += citations;
       articles_kept += articles;
@@ -123,20 +102,20 @@ int main(int argc, char **argv) {
     }
   });
 
-  printf("Got stats for %lld authors, with %lld rejected (%lld articles rejected)\n"
+  printf("Got stats for %lld keys, with %lld rejected (%lld articles rejected)\n"
 	 "Total kept articles: %lld  and citations: %lld\n",
-	 (int64)author_stats.size(), authors_bad, articles_bad,
+	 (int64)cite_stats.size(), authors_bad, articles_bad,
 	 articles_kept, citations_kept);
   
-  vector<std::pair<string, AuthorStats>> rows;
-  rows.reserve(author_stats.size());
-  for (const auto &p : author_stats) {
+  vector<std::pair<string, CiteStats>> rows;
+  rows.reserve(cite_stats.size());
+  for (const auto &p : cite_stats) {
     rows.emplace_back(p.first, p.second);
   }
 
   std::sort(rows.begin(), rows.end(),
-	    [](const std::pair<string, AuthorStats> &a,
-	       const std::pair<string, AuthorStats> &b) {
+	    [](const std::pair<string, CiteStats> &a,
+	       const std::pair<string, CiteStats> &b) {
 	      return a.first < b.first;
 	    });
 
@@ -176,14 +155,14 @@ int main(int argc, char **argv) {
     svg += articles_cdf + "\" />\n";
     svg += citations_cdf + "\" />\n";
     svg += TextSVG::Footer();
-    Util::WriteFile("authorstats.svg", svg);
-    printf("Wrote authorstats.svg\n");
+    Util::WriteFile(outfile, svg);
+    printf("Wrote %s\n", outfile.c_str());
   }
   
-  string outfile = "sorted.txt";
+  string sorted_outfile = infile + "sorted.txt";
   printf("Writing %lld sorted records to %s...\n", rows.size(),
-	 outfile.c_str());
-  FILE *out = fopen(outfile.c_str(), "wb");
+	 sorted_outfile.c_str());
+  FILE *out = fopen(sorted_outfile.c_str(), "wb");
   CHECK(out != nullptr) << outfile.c_str();
   for (const auto &row : rows) {
     fprintf(out, "%s\t%lld\t%lld\n",

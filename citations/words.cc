@@ -8,21 +8,16 @@
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "util.h"
-#include "threadutil.h"
 #include "citation-util.h"
 
 #include <vector>
 #include <string>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 using namespace rapidjson;
 using namespace std;
-
-struct WordStats {
-  int64 articles = 0;
-  int64 citations = 0;
-};
 
 string Normalize(string w) {
   // Lowercase ASCII letters.
@@ -30,6 +25,24 @@ string Normalize(string w) {
     if (c >= 'A' && c <= 'Z') c |= 32;
   }
 
+  // Characters that shall not occur.
+  {
+    string other;
+    for (char c : w) {
+      switch (c) {
+      case '\n':
+      case '\r':
+      case '\t':
+      case '\0':
+	break;
+      default:
+	other += c;
+      }
+    }
+    other.swap(w);
+  }
+    
+  
   // Nonstandard quotation marks
   w = Util::Replace(std::move(w), "”", "\"");
   w = Util::Replace(std::move(w), "“", "\"");
@@ -113,7 +126,7 @@ int main(int argc, char **argv) {
   int64 counter = 0LL, no_title = 0LL;
 
   // Stats for each title word.
-  std::unordered_map<string, WordStats> word_stats;
+  std::unordered_map<string, CiteStats> word_stats;
 
   for (const string &filename : filenames) {
     LocalForEachLine(filename,
@@ -131,7 +144,7 @@ int main(int argc, char **argv) {
 	}
 	
 	auto Count = [n_citation, &word_stats](const string &word) {
-	  WordStats &stats = word_stats[word];
+	  CiteStats &stats = word_stats[word];
 	  stats.articles++;
 	  stats.citations += n_citation;
 	};
@@ -139,10 +152,17 @@ int main(int argc, char **argv) {
 	const Value &title = article["title"];
 	if (title.IsString()) {
 	  string words = title.GetString();
+	  // Non-breaking space?
+	  words = Util::Replace(std::move(words), " ", " ");
+	  // Only count a word once per title.
+	  std::unordered_set<string> boolean_words;
 	  while (!words.empty()) {
 	    string word = Util::chop(words);
-	    if (!word.empty()) Count(Normalize(std::move(word)));
+	    if (!word.empty()) {
+	      boolean_words.insert(Normalize(std::move(word)));
+	    }
 	  }
+	  for (const string &w : boolean_words) Count(w);
 	}
 
       } else {
