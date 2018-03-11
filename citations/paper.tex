@@ -159,7 +159,7 @@ test, without having to download 130 GB from the internet again, but
 the file was apparently too large to transfer using the mysterious
 ``Drag and drop to virtual machine'' functionality. I recalled that
 VirtualBox can mount a shared folder from the host machine if you edit
-the \verb+/etc/fstab+ file to contain the correct arcane magic, and
+the \verb+/etc/fstab+ file to contain the correct code words, and
 that I had performed this ritual before, but then had commented-out
 that line in ``rescue mode'' because I also learned that having this
 line present during the boot process causes a kernel panic. So I
@@ -173,22 +173,173 @@ expected with no unclean behavior detected and no crashing.
 Since Linux was no help debugging, I returned to Windows~7 and tried
 single-step debugging. Here I discovered that the crash in my minimal
 test case was occurring when using \verb+cerr+. Specifically, the
-second thing sent to \verb+cerr+ would produce a segmentation fault.
-I then recalled that the \verb+CHECK+ macro uses \verb+cerr+ and
-also found code I had written in the Year 2014 
+second thing sent to \verb+cerr+ would produce a segmentation fault. I
+then recalled that the \verb+CHECK+ macro uses \verb+cerr+ and now saw that
+the \verb+[+ in \verb+[Segmentation fault+ was probative, for this
+was the location of the original crash:
+\begin{Verbatim}[fontsize=\small]
+    std::cerr << "[" << pretty_date_.HumanDate() << "] "
+              << file << ":" << line << ": ";
+\end{Verbatim}
 
-The original ``bug'' was a violated assumption: I assumed,
-optimistically, that if the article had an {\tt author} field then
-the author would be a string. I accounted for a missing author,
-an author that was the empty string, but not {\tt author: null}.
+Of course, inside \verb+HumanDate()+ I found a hasty patch I had
+installed in A.D.~2014 called ``make logging not spit garbage on
+mingw,'' suggesting that I had encountered and misdiagnosed this issue
+in the past. Although this led me on a minor herring (e.g. is
+\verb+__MINGW32__+ defined when cross-compiling for x86\_64?)
+HumanDate just returned \verb+"mingw"+, so this really was a problem
+with \verb+std::cerr+ crashing on the second thing printed with it
+(i.e., with the returned \verb+ostream+).
+
+Minimizing the test case, this bug only occurred after reading a large
+file all in one syscall (for ``performance'', even though doing these
+huge reads basically locks up my machine). Specifically the file was
+2,105,319,548 bytes, which is $98\%$ of $2^{31}$, suggesting the
+possibility of integer overflow in some buffer-sizing code in the
+weird Cygwin or mingw wrappers for \verb+fread+, \verb+fstat+, etc.
+This could plausibly cause corruption of the \verb+cerr+ ostream,
+which is probably part of the same code.
+
+Preparing to at least make a bug report if not try to fix it, I
+upgraded my compiler and runtime from GCC version 5.1.0 to 6.4.0,
+and the problem completely went away. Since Valgrind also agreed
+that there was no issue, I chalked this one up to simply an internal
+C runtime bug that someone else found and fixed in the last 2 years.
+Thanks!
+
+With \verb+cerr+ fixed, I could now easily see the original ``bug'',
+which was a violated assumption: I expected (and \verb+CHECK+ed),
+optimistically, that if the article had an {\tt author} field then the
+author would be a string. I accounted for a missing author, an author
+that was the empty string, but not {\tt author: null}. Thanks!
+
+Finally, I could run the author and citation tallier on all of the
+JSON files. However, two of the files appeared to be empty. Although
+this was only a small percentage of the articles, I did not want to
+skip any because it's possible that they are arranged in a non-random
+order (e.g. alphabetically!) and that this would bias the results. I
+learned that although the AMiner database is helpfully split into
+files each containing one million articles, for ease of handling, two
+of these files are nonetheless slightly larger than $2^{31}$ bytes. Such
+files cannot be cleanly sized with \verb+fstat+ (the \verb+st_size+
+field has type \verb+off_t+, a signed 32-bit type in POSIX) and even
+if you follow the standard advice of just treating it as unsigned
+anyway, \verb+fread+ will simply fail when asked to read such a large
+chunk\footnote{
+%
+  Curious why I am even using {\tt fstat} and {\tt fread}? I have my
+  own library routine for reading a file into a string. When working
+  with large files it's useful to avoid copying, because the contents
+  of the file may be a significant fraction of all RAM---copying is
+  not only expensive, but might temporarily exceed the available RAM.
+  So, you need to allocate the buffer ahead of time and avoid resizing
+  it (which often also performs a copy). It seems like something that
+  everyone would want to do, but it's ridiculously hard to do portably
+  in C or C++. Specifically, there seems to be no way to actually know
+  the size of a file so that you can size the buffer ahead of time.
+  For example, {\tt fseek} to {\tt SEEK\_END} and {\tt ftell} does
+  {\em not} work (it has {\em undefined behavior}). The {\tt st\_size}
+  field from {\tt stat} also does not give correct results e.g. when
+  reading from the {\tt /proc} filesystem. My routine attempts to
+  guess the size of the file and perform a single read in the case
+  that the guess, while still usually avoiding copying or needless
+  work in the case that it's an under- or over-estimate.
+%
+} despite the fact that it takes \verb+size_t+, an unsigned type. (?!)
+So, another afternoon spent doing Computer Science. But all you need
+to do of course is perform multiple sequential reads.
+
+Finally, the trivial task of counting the number of articles and
+citations per author could be completed.
+
+\section{The Data}
+
+This citation database is very noisy. About $1.6\%$ of articles have
+no authors, and another $1\%$ have a blank (or {\tt null}) author. I
+verified the comprehensiveness of the dataset by finding my own author
+record(s)\footnote{This paper is published under the pseudonym A.~A.,
+  standing for Awesome Author, obviously in order top increase its
+  citation rate. Normally I publish as Tom Murphy VII, which can be
+  found in citations with many broken variations, such as ``Vii, T.''}
+and 275 citations ({\bf Yeah!!}). I also spot-checked that the database
+includes prestigious conferences, which it does, at least including
+the ``article'' {\em A Record of the Proceedings of SIGBOVIK 2008},
+with author {\em Pennsylvania USA}. It was necessary to normalize
+author names to remove punctuation, weird unicode stuff like non-breaking
+spaces, javascript-encoded newlines and nul-bytes, and so on. There
+are many strange authors in the database, such as
+\begin{itemize}
+\item capinha para celular horizonte artificial iphone \quad(no citations)
+\item +0aaaaaabablaaaaaea\&\#xa \quad(no citations)
+\item a h poop \quad(4 citations)
+\item john mcm anus\footnote{Presumably a hostile citation of John McManus.} \quad(2 citations)
+\item coffee hour \quad(0 citations)
+\item nominate com registering dad domains since \quad(0 citations)
+\item a a \quad(195 citations)
+\item a a a a m islam \quad(6 citations)
+\end{itemize}
+
+On the other hand, from this hand-picked sample we can already see the
+citation advantage of having a name that's alphabetically early. Some
+authors seem to have already intuited this fact.
+
+\section{Analysis}
+
+Authors names appear in both ``Firstname Lastname'' order and
+``Lastname Firstname'' (when this grammar is even applicable).
+Therefore, I considered alphabetizing from front to back (by
+space-separated token) as well as back to front. This produces two
+different graphs. I also rejected a large number entries when I could
+not place the name in alphabetical order because its first character
+was not ASCII. Later non-ASCII charactes are OK, and are just sorted
+by their UTF-8 encodings (or whatever garbage is in the file). This of
+course produces a bias (excluding authors who write their names in
+e.g. Cyrillic and CJK scripts), although it's not clear how to assess
+the alphabetical hypothesis for them.
+
+To visualize the data, I produced a cumulative distribution function
+(CDF) for both articles and citations. Considering each author in
+alphabetical order, I keep a running total of how many articles and
+how many citations have been seen so far. The x-coordinate is the rank
+of the author (its index in the sorted list) and the y-coordinates are
+the fraction of articles (or citations) seen so far. The CDFs for the
+forward and backward token orders are in Figure~\ref{fig:authorcdf}.
+
+\begin{figure}
+  \begin{center}
+  \includegraphics[width=0.44 \textwidth]{authorstats-forward}
+  \includegraphics[width=0.44 \textwidth]{authorstats-backward}
+  \end{center}
+  \caption{ Author CDFs for (a) forward token order and (b) backward
+    token order. (For example, (a) treats {\tt tom murphy vii} as
+    coming between {\tt tom marphy} and {\tt tom myrphie vxx} and (b)
+    treats it as coming between {\tt zzz murphx vii} and {\tt a
+      viii}.) The x-axis is the author's position alphabetically among
+    all authors. The blue lines are the fraction of all citations seen
+    so far, and the red lines the same for articles. The lines must
+    meet at $(0,0)$ and $(1,1)$ by definition. When the blue line is
+    above the red, the number of citations is outpacing the number of
+    articles for authors alphabetically before this point. Both show a
+    bias towards the early alphabet, with the forward direction being
+    more dramatic (for basically the entire range). The backward range
+    briefly shows the opposite bias (crossing over at author
+    \#5,400,000, ``ojars biskaps''), suggesting that the best names
+    may be alphabetically early but in the {\em B}s, not {\em A}s. The
+    poorer performance of A-names may be due to authors attempting to
+    ``game the system'' by publishing with names like ``a a.''
+  } \label{fig:authorcdf}
+\end{figure}
 
 multiple hypothesized causes:
 
- - When doing a 
+- When doing a last-minute
+
+- Some academics try to \verb+fread+ all papers into memory, but
+  it fails on the file that's just slightly larger than $2^{31}$ bytes,
+  and so the papers therein don't get cited, and those papers are
+  alphabetically in the middle or end of the alphabet.
 
 
-300 GB of json woes
- 
 
 \subsection{Alliterative Articles}
 
@@ -197,7 +348,9 @@ Awesome!
 
 strange authors:
 
-capinha para celular horizonte artificial iphone
+u fucks
+a a fucks
+
 
 \bibliographystyle{IEEEtran}
 % \bibliographycomment{} % nothing
