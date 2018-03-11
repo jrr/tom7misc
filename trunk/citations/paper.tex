@@ -37,8 +37,9 @@
 \begin{document} 
 
 % Academic Advancement Advice: Adopt A A Authorship
+% Academic Advancement Advice: Author Articles as A A
 
-\title{Want to succeed in academia? Take the name A A}
+\title{Academic Advancement Advice: Author Articles as A.~A.}
 \author{A.~A. \\
   (tom7.org foundation)
   \thanks{
@@ -97,11 +98,89 @@ AMiner Open Academic Graph, which consists of summary information for
 154,771,162 papers in about 130 gigabytes of JSON data. Then I embarked
 on one of the Classic Journeys of Computer Science.
 
-\subsection{Classic Journey of Computer Science}
+\subsection{Relatable Computer Science Activities}
 
 The task is apparently simple: Parse 130 gigabytes of JSON data to
-extract the author names and citations from the papers. 
+extract the author names and citations from the papers and count them.
+To begin my journey, I selected a C++ JSON library from 39
+alternatives listed on a benchmark page.\cite{yip2018native} The first
+criterion I ordered by was ``correctness,'' for which only two parsers
+achieved the highest correctness score, $100\%$. I selected the slower
+(i.e., more methodical) of the two parsers, since I did not want to do
+shoddy work.
 
+Next I spent a nice Saturday morning integrating this library into my
+private build environment, making sure its open source license was
+properly declared and so on, while I waited for the 130 gigabytes of
+JSON to download. Miraculously, this was straightforward. I was able
+to finish writing the code to process the articles before they even
+finished downloading. However, upon unzipping, I found that each file
+contained one million articles, not as a single JSON array but as a
+series of adjacent objects. The JSON library allowed for reading JSON
+from files, but {\em not} e.g. for reading a single record from a file pointer
+repeatedly. So, I needed to do my own ad hoc parsing before feeding
+each record to the JSON library as strings. OK. Now when I run it, it
+prints
+\begin{verbatim}
+  [Segmentation fault
+\end{verbatim}
+
+This is not my first segmentation fault---let me tell you!---so I knew
+what to do. I debugged the program, adding assertions using a
+\verb+CHECK+ macro that aborts if its condition is violated. I
+eventually determined that the bug must be inside the JSON library
+itself, since the segmentation fault happened between two
+\verb+CHECK+s where the only code being run was JSON library code. So,
+deciding that perhaps its $100\%$ correctness benchmark score was
+overstated, I downloaded and repeated the process with the other,
+faster (i.e., more slapdash) parser. Of course this parser has a
+different API so I needed to rewrite my program. (The program is very
+simple so this was the fastest step; however, getting the library
+properly incorporated and compiling and then learning its API was
+still a computer science chore.) Once my program was rid of the old
+crashy library, I ran it, and it produced this result
+\begin{verbatim}
+  [Segmentation fault
+\end{verbatim}
+Since these two libraries produced the same result, either
+segmentation violation must be part of the JSON specification, or the
+bug is instead elsewhere in the program. After reducing the program to
+a fairly simple test case, I determined that it must be some kind of
+``Heisenbug'' whereby an earlier piece of code was corrupting the heap
+or similar, causing a later crash only when present. This was not my
+first Heisenbug---let me tell you!---so I knew what to do. However,
+not being able to use Valgrind on Windows (did I mention that I'm
+using Cygwin and mingw64 on the eponymous Windows~7 by the way? Why am
+I doing that?), I booted Linux in a virtual machine, installed the 87
+security updates that had been released since I last booted this
+virtual machine a few months ago, and compiled my program there. I
+then needed to move one of the JSON files to the virtual computer to
+test, without having to download 130 GB from the internet again, but
+the file was apparently too large to transfer using the mysterious
+``Drag and drop to virtual machine'' functionality. I recalled that
+VirtualBox can mount a shared folder from the host machine if you edit
+the \verb+/etc/fstab+ file to contain the correct arcane magic, and
+that I had performed this ritual before, but then had commented-out
+that line in ``rescue mode'' because I also learned that having this
+line present during the boot process causes a kernel panic. So I
+temporarily reinstated the line and mounted the drive and copied the
+gigantic file into the virtual machine and then removed the dangerous
+magic from the f-stab for f-safety.
+
+Next I ran Valgrind on this minimal test case and it worked as
+expected with no unclean behavior detected and no crashing.
+
+Since Linux was no help debugging, I returned to Windows~7 and tried
+single-step debugging. Here I discovered that the crash in my minimal
+test case was occurring when using \verb+cerr+. Specifically, the
+second thing sent to \verb+cerr+ would produce a segmentation fault.
+I then recalled that the \verb+CHECK+ macro uses \verb+cerr+ and
+also found code I had written in the Year 2014 
+
+The original ``bug'' was a violated assumption: I assumed,
+optimistically, that if the article had an {\tt author} field then
+the author would be a string. I accounted for a missing author,
+an author that was the empty string, but not {\tt author: null}.
 
 multiple hypothesized causes:
 
@@ -111,8 +190,17 @@ multiple hypothesized causes:
 300 GB of json woes
  
 
+\subsection{Alliterative Articles}
+
+Adopting an all-'A' affect also advances articles.
+Awesome!
+
 strange authors:
 
 capinha para celular horizonte artificial iphone
+
+\bibliographystyle{IEEEtran}
+% \bibliographycomment{} % nothing
+\bibliography{paper}
 
 \end{document}

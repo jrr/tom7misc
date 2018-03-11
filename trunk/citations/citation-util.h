@@ -19,3 +19,8 @@ static void LocalForEachLine(const string &filename, F f) {
     f(line);
   }
 }
+
+struct CiteStats {
+  int64 articles = 0;
+  int64 citations = 0;
+};
