@@ -18,36 +18,6 @@
 #include <map>
 #include <unordered_map>
 
-static bool Dictionaryize(string author, string *dict) {
-  vector<string> tokens;
-  while (!author.empty()) {
-    string tok = Util::chop(author);
-    if (!tok.empty()) tokens.push_back(Util::lcase(tok));
-  }
-
-  // Totally whitespace name?
-  if (tokens.empty())
-    return false;
-
-  Reverse(&tokens);
-  
-  // Make sure it fits somewhere in alphabetical order.
-  if (tokens[0][0] >= 'a' && tokens[0][0] <= 'z') {
-    dict->clear();
-    for (const string &tok : tokens) {
-      if (dict->empty()) {
-	*dict = tok;
-      } else {
-	*dict += " ";
-	*dict += tok;
-      }
-    }
-    return true;
-  } else {
-    return false;
-  }
-}
-
 int main(int argc, char **argv) {
   #ifdef __MINGW32__
   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
@@ -69,10 +39,11 @@ int main(int argc, char **argv) {
 		    &articles_kept, &citations_kept](string line) {
     string author;
     int64 articles = 0LL, citations = 0LL;
-    CHECK(RE2::FullMatch(line, line_re, &author, &articles, &citations)) << line;
+    CHECK(RE2::FullMatch(line, line_re, &author, &articles, &citations)) <<
+      line;
 
     string dict;
-    if (Dictionaryize(author, &dict)) {
+    if (Dictionaryize<true>(author, &dict)) {
       CiteStats &stats = cite_stats[dict];
       stats.articles += articles;
       stats.citations += citations;
@@ -84,7 +55,8 @@ int main(int argc, char **argv) {
     }
   });
 
-  printf("Got stats for %lld keys, with %lld rejected (%lld articles rejected)\n"
+  printf("Got stats for %lld keys, "
+	 "with %lld rejected (%lld articles rejected)\n"
 	 "Total kept articles: %lld  and citations: %lld\n",
 	 (int64)cite_stats.size(), authors_bad, articles_bad,
 	 articles_kept, citations_kept);
@@ -116,6 +88,9 @@ int main(int argc, char **argv) {
       "fill=\"none\" stroke=\"#008\" stroke-opacity=\"0.75\" "
       "stroke-width=\"1.5\" points=\"";
     citations_cdf.reserve(1 << 23);
+
+    string text;
+    text.reserve(1 << 21);
     
     int64 articles = 0LL, citations = 0LL;
     bool ahead = false;
@@ -132,6 +107,14 @@ int main(int argc, char **argv) {
 	citations_cdf +=
 	  StringPrintf("%s,%s ", Rtos(x * XSCALE).c_str(), Rtos(cy * YSCALE).c_str());
 
+	if (i % 1000000 == 0) {
+	  text += TextSVG::Text(x * XSCALE, 0.9 * YSCALE,
+				"sans-serif",
+				12.0,
+				{{"#000", rows[i].first}});
+	  text += "\n";
+	}
+	
 	if (cy >= ay && !ahead) {
 	  printf("Crossover to cy >= ay (%.4f <= %.4f) at %d. %s\n",
 		 cy, ay, i, rows[i].first.c_str());
@@ -147,6 +130,7 @@ int main(int argc, char **argv) {
     string svg = TextSVG::Header(XSCALE, YSCALE);
     svg += articles_cdf + "\" />\n";
     svg += citations_cdf + "\" />\n";
+    svg += text;
     svg += TextSVG::Footer();
     Util::WriteFile(outfile, svg);
     printf("Wrote %s\n", outfile.c_str());

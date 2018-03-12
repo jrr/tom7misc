@@ -3,7 +3,7 @@ default : authors.exe words.exe merge.exe
 # TDM-GCC has weird problems with cerr... :/
 CXX=x86_64-w64-mingw32-g++
 
-BASE=../cc-lib/util.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o ../cc-lib/textsvg.o
+BASE=../cc-lib/util.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o ../cc-lib/textsvg.o ../cc-lib/arcfour.o
 CXXFLAGS=-I../cc-lib --std=c++14 -O2 -I../cc-lib/re2
 
 RE2_OBJECTS=../cc-lib/re2/bitstate.o ../cc-lib/re2/compile.o ../cc-lib/re2/dfa.o ../cc-lib/re2/filtered_re2.o ../cc-lib/re2/mimics_pcre.o ../cc-lib/re2/nfa.o ../cc-lib/re2/onepass.o ../cc-lib/re2/parse.o ../cc-lib/re2/perl_groups.o ../cc-lib/re2/prefilter.o ../cc-lib/re2/prefilter_tree.o ../cc-lib/re2/prog.o ../cc-lib/re2/re2.o ../cc-lib/re2/regexp.o ../cc-lib/re2/set.o ../cc-lib/re2/simplify.o ../cc-lib/re2/stringpiece.o ../cc-lib/re2/tostring.o ../cc-lib/re2/unicode_casefold.o ../cc-lib/re2/unicode_groups.o ../cc-lib/re2/util/rune.o ../cc-lib/re2/util/strutil.o
@@ -30,7 +30,10 @@ words.exe : words.o $(BASE)
 merge.exe : merge.o $(BASE) $(RE2_OBJECTS)
 	${CXX} -o $@ $^ -static
 
-authorstats.exe : authorstats.o $(BASE) $(RE2_OBJECTS) ../cc-lib/textsvg.o
+authorstats.exe : authorstats.o $(BASE) $(RE2_OBJECTS)
+	${CXX} -o $@ $^ -static
+
+tourney.exe : tourney.o $(BASE) $(RE2_OBJECTS)
 	${CXX} -o $@ $^ -static
 
 bestworst.exe : bestworst.o $(BASE) $(RE2_OBJECTS)
@@ -42,11 +45,11 @@ authorstats.svg : authorstats.exe authors.txt
 
 # and worstauthors..
 bestauthors.txt : bestworst.exe authors.txt
-	./bestworst.exe authors.txt bestauthors.txt worstauthors.txt
+	./bestworst.exe authors.txt bestauthors.txt worstauthors.txt mostauthors.txt
 
 # and worstwords..
 bestwords.txt : bestworst.exe words.txt
-	./bestworst.exe words.txt bestwords.txt worstwords.txt
+	./bestworst.exe words.txt bestwords.txt worstwords.txt mostwords.txt
 
 wordstats.svg : authorstats.exe words.txt
 	./authorstats.exe words.txt wordstats.svg
