@@ -1,6 +1,7 @@
 
 \documentclass[twocolumn]{article}
 \usepackage[top=1.1in, left=0.85in, right=0.85in]{geometry}
+% \usepackage[utf8]{inputenc}
 
 % \usepackage{supertabular}
 \usepackage{amsthm}
@@ -242,8 +243,8 @@ chunk\footnote{
   field from {\tt stat} also does not give correct results e.g. when
   reading from the {\tt /proc} filesystem. My routine attempts to
   guess the size of the file and perform a single read in the case
-  that the guess, while still usually avoiding copying or needless
-  work in the case that it's an under- or over-estimate.
+  that the guess is correct, while still usually avoiding copying or
+  needless work in the case that it's an under- or over-estimate.
 %
 } despite the fact that it takes \verb+size_t+, an unsigned type. (?!)
 So, another afternoon spent doing Computer Science. But all you need
@@ -285,17 +286,17 @@ authors seem to have already intuited this fact.
 
 \section{Analysis}
 
-Authors names appear in both ``Firstname Lastname'' order and
+Author names appear in both ``Firstname Lastname'' order and
 ``Lastname Firstname'' (when this grammar is even applicable).
-Therefore, I considered alphabetizing from front to back (by
-space-separated token) as well as back to front. This produces two
-different graphs. I also rejected a large number entries when I could
-not place the name in alphabetical order because its first character
-was not ASCII. Later non-ASCII charactes are OK, and are just sorted
-by their UTF-8 encodings (or whatever garbage is in the file). This of
-course produces a bias (excluding authors who write their names in
-e.g. Cyrillic and CJK scripts), although it's not clear how to assess
-the alphabetical hypothesis for them.
+Therefore, I analyzed alphabetizing from front to back (by
+space-separated token) as well as back to front. I also rejected a
+large number entries when I could not place the name in alphabetical
+order because its first character was not ASCII. Later non-ASCII
+characters are OK, and are just sorted by their UTF-8 encodings (or
+whatever garbage is in the file). This of course produces a bias
+(excluding authors who write their names in e.g. Cyrillic and CJK
+scripts), although it's not clear how to assess the alphabetical
+hypothesis for them.
 
 To visualize the data, I produced a cumulative distribution function
 (CDF) for both articles and citations. Considering each author in
@@ -330,20 +331,67 @@ forward and backward token orders are in Figure~\ref{fig:authorcdf}.
   } \label{fig:authorcdf}
 \end{figure}
 
-multiple hypothesized causes:
+These CDFs show that---as expected!---there is a bias towards citing
+authors alphabetically early, whether we order alphabetically by
+``first name'' or ``last name.''
 
-- When doing a last-minute
+There are multiple hypothesized causes:
+
+- When writing a last-minute ``related work'' section, authors seek
+  out work 
 
 - Some academics try to \verb+fread+ all papers into memory, but
   it fails on the file that's just slightly larger than $2^{31}$ bytes,
   and so the papers therein don't get cited, and those papers are
   alphabetically in the middle or end of the alphabet.
 
+% 
+% 313779.  書評	29582	1	0.000068
+% 313778.  インタビュー	20547	1	0.000097
+% 313777.  facharzt	85315	9	0.000117
+% 313776.  f3d	125257	15	0.000128
+% 313775.  recenzja	63568	8	0.000142
+% 313774.  newhaven	13296	1	0.000150
+% 313773.  secrétaire	12267	1	0.000163
+% 313772.  zahnarzt	17958	2	0.000167
+% 313771.  libguides	389727	72	0.000187
+% 313770.  硏究	12961	2	0.000231
+% 313769.  그	15984	3	0.000250
+% 313768.  kitas	7713	1	0.000259
+% 313767.  シンポジウム	18539	4	0.000270
+% 313766.  特集	878011	240	0.000274
+% 
 
+\begin{figure}
+  \begin{center}
+  \includegraphics[width=0.475 \textwidth]{wordstats}
+  \end{center}
+  \caption{ CDF for words arranged alphabetically. This is just as
+    in Figure~\ref{fig:authorcdf}, but since each entry is a single
+    word, there is no need to treat forward and backward differently.
+    Again, we see a small alphabetical bias, with citations leading
+    articles for most of the range. In fact, papers that include the
+    very first word, ``a'', are cited $1.3\times$ as often as the
+    average paper. Other common and advantageous words are visible
+    as clear bumps. (See Section XXX)
+  } \label{fig:wordcdf}
+\end{figure}
+
+
+% Tourney -- what is wrong here?
+%  1000.000 Mrounds:
+%  (69.66 vs. 72.69 Gcit) (6.72 vs. 7.20 Gart) (0.281 vs. 0.295 Gwin)
+%  (0.958361 L:R cit) (0.933736 L:R art) (0.280867 vs. 0.295327 win rate)
 
 \subsection{Alliterative Articles}
 
-Adopting an all-'A' affect also advances articles.
+Adopting an all-'A' affect also advances articles. Although affairs
+are abbreviated, adequate abstracts abound: Astronomy, asthma,
+atmospheric acclimatization, autobiography, Azerbaijani accents,
+acceleration, and abundant alternatives.
+
+% arranged alphabetically.
+
 Awesome!
 
 strange authors:

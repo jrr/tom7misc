@@ -120,3 +120,35 @@ inline static string Normalize(string w) {
   w = Util::Replace(std::move(w), "—", "-");
   return w;
 }
+
+template<bool backward_order>
+static bool Dictionaryize(string author, string *dict) {
+  vector<string> tokens;
+  while (!author.empty()) {
+    string tok = Util::chop(author);
+    if (!tok.empty()) tokens.push_back(Util::lcase(tok));
+  }
+
+  // Totally whitespace name?
+  if (tokens.empty())
+    return false;
+
+  if (backward_order)
+    Reverse(&tokens);
+  
+  // Make sure it fits somewhere in alphabetical order.
+  if (tokens[0][0] >= 'a' && tokens[0][0] <= 'z') {
+    dict->clear();
+    for (const string &tok : tokens) {
+      if (dict->empty()) {
+	*dict = tok;
+      } else {
+	*dict += " ";
+	*dict += tok;
+      }
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
