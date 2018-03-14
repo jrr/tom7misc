@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
   }
   #endif
-
+  
   vector<string> filenames;
   string outfile;
   for (int i = 1; i < argc; i++) {
@@ -48,14 +48,15 @@ int main(int argc, char **argv) {
     return -1;
   }
   
-  int64 counter = 0LL, num_output = 0LL, not_ascii = 0LL;
-
+  int64 counter = 0LL, num_output = 0LL, not_ascii = 0LL, not_en = 0LL;
+  int64 has_citations = 0LL;
   
   FILE *out = fopen(outfile.c_str(), "wb");
 
   for (const string &filename : filenames) {
     LocalForEachLine(filename,
-		     [&counter, &num_output, &not_ascii,
+		     [&counter, &has_citations,
+		      &num_output, &not_ascii, &not_en,
 		      out](string j) {
       counter++;
       Document article;
@@ -76,9 +77,23 @@ int main(int argc, char **argv) {
 	}
 
 	// Papers with citations can't be the least-citable.
-	if (n_citation > 0)
+	if (n_citation > 0) {
+	  has_citations++;
 	  return;
+	}
 
+	// Require them to be in English.
+	if (!article.HasMember("lang")) {
+	  not_en++;
+	  return;
+	}
+	const Value &lang = article["lang"];
+	if (!lang.IsString() ||
+	    (string)lang.GetString() != "en") {
+	  not_en++;
+	  return;
+	}
+	
 	const Value &title = article["title"];
 	if (title.IsString()) {
 	  string words = LightNormalization(title.GetString());
@@ -93,8 +108,9 @@ int main(int argc, char **argv) {
       }
     });
 
-    printf("%lld articles. %lld not ascii. %lld kept\n",
-	   counter, not_ascii, num_output);
+    printf("%lld articles. %lld has citations.\n"
+	   "%lld not ascii. %lld not en. %lld kept\n",
+	   counter, has_citations, not_ascii, not_en, num_output);
   }
   
   printf("Wrote %s\n", outfile.c_str());
