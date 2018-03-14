@@ -67,6 +67,7 @@ int main(int argc, char **argv) {
 
   static constexpr int64 MIN_ARTICLES = 100;
   static constexpr int64 MIN_CITATIONS = 1;
+  static constexpr int64 MAX_TITLE_WORDS = 20;
   
   // Now, probabilities for all words.
   printf("Reading words...");
@@ -113,14 +114,21 @@ int main(int argc, char **argv) {
       [&titles, &word_stats](int title_idx) {
 	string title = titles[title_idx].title;
 	double prob = 1.0;
+	int words = 0;
 	while (!title.empty()) {
 	  string token = Normalize(Util::chop(title));
+	  words++;
 	  auto it = word_stats.find(token);
 	  if (it == word_stats.end())
 	    continue;
 	  prob *= it->second.citation_multiplier;
 	}
-	titles[title_idx].cite_probability = prob;
+	if (words <= MAX_TITLE_WORDS) {
+	  titles[title_idx].cite_probability = prob;
+	} else {
+	  // This will cause it to be deleted below.
+	  titles[title_idx].cite_probability = -1.0;
+	}
       },
       12);
   printf("Scored titles.\n");
@@ -134,13 +142,21 @@ int main(int argc, char **argv) {
 
   printf("Sorted.\n");
 
+  int64 too_long = 0;
+  while (!titles.empty() && titles.back().cite_probability < 0.0) {
+    titles.pop_back();
+    too_long++;
+  }
+
+  printf("Dropped %lld titles that were too long.\n", too_long);
+  
   // Now write output files.
   {
     FILE *out = fopen(bestfile.c_str(), "wb");
     CHECK(out != nullptr) << bestfile.c_str();
     for (int i = 0; i < 5000 && i < titles.size(); i++) {
       const Title &title = titles[i];
-      fprintf(out, "%d.  %.9g\t%s\t%s\n",
+      fprintf(out, "%d.  %.17g\t%s\t%s\n",
 	      i,
 	      title.cite_probability,
 	      title.id.c_str(), title.title.c_str());
@@ -154,7 +170,7 @@ int main(int argc, char **argv) {
     CHECK(out != nullptr) << worstfile.c_str();
     for (int i = titles.size() - 1; i >= 0 && i >= titles.size() - 5000; i--) {
       const Title &title = titles[i];
-      fprintf(out, "%d.  %.9g\t%s\t%s\n",
+      fprintf(out, "%d.  %.17g\t%s\t%s\n",
 	      i,
 	      title.cite_probability,
 	      title.id.c_str(), title.title.c_str());
