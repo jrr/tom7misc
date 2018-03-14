@@ -46,6 +46,38 @@ struct CiteStats {
   int64 citations = 0;
 };
 
+inline static string LightNormalization(string w) {
+  for (char &c : w) {
+    switch (c) {
+    case '\n':
+    case '\r':
+    case '\t':
+      c = ' ';
+      break;
+    default:
+      break;
+    }
+  }
+  // non-breaking space
+  w = Util::Replace(std::move(w), " ", " ");
+  // fancy quotes
+  w = Util::Replace(std::move(w), "”", "\"");
+  w = Util::Replace(std::move(w), "“", "\"");
+  w = Util::Replace(std::move(w), "‘", "'");
+  w = Util::Replace(std::move(w), "’", "'");
+  // U+2013 EN DASH becomes hyphen
+  w = Util::Replace(std::move(w), "–", "-");
+  w = Util::Replace(std::move(w), "—", "-");
+  return w;
+}
+
+inline static bool IsAllAscii(const string &w) {
+  for (char c : w)
+    if (c < ' ' || c > '~')
+      return false;
+  return true;
+}
+
 inline static string Normalize(string w) {
   // Lowercase ASCII letters.
   for (char &c : w) {
