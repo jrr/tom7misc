@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
   }
   #endif
 
-  CHECK_EQ(argc, 5) << "bestworst.exe infile.txt output-best.txt ouput-worst.txt output-most.txt\n";
+  CHECK_EQ(argc, 5) << "bestworst.exe infile.txt output-best.txt output-worst.txt output-most.txt\n";
   string infile = argv[1];
   string bestfile = argv[2];
   string worstfile = argv[3];
