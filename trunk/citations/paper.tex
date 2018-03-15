@@ -95,12 +95,18 @@ rates.
 
 I obtained a FISA warrant based solely on a salacious and unverified
 memo funded by SIGBOVIK's political opponents. The warrant was for the
-AMiner Open Academic Graph, which consists of summary information for
-154,771,162 papers in about 130 gigabytes of JSON data. Then I embarked
-on one of the Classic Journeys of Computer Science.
+AMiner Open Academic Graph~\cite{Tang08ArnetMiner}, which consists of
+summary information for 154,771,162 papers in about 130 gigabytes of
+JSON data. Then I performed computer science for longer than it should
+have taken.
+
 
 \subsection{Relatable Computer Science Activities}
 
+This subsection contains a relatable tale of computer science. It can
+be safely skipped, like all content in this paper.
+
+\smallskip
 The task is apparently simple: Parse 130 gigabytes of JSON data to
 extract the author names and citations from the papers and count them.
 To begin my journey, I selected a C++ JSON library from 39
@@ -113,15 +119,18 @@ shoddy work.
 Next I spent a nice Saturday morning integrating this library into my
 private build environment, making sure its open source license was
 properly declared and so on, while I waited for the 130 gigabytes of
-JSON to download. Miraculously, this was straightforward. I was able
-to finish writing the code to process the articles before they even
-finished downloading. However, upon unzipping, I found that each file
-contained one million articles, not as a single JSON array but as a
-series of adjacent objects. The JSON library allowed for reading JSON
-from files, but {\em not} e.g. for reading a single record from a file pointer
-repeatedly. So, I needed to do my own ad hoc parsing before feeding
-each record to the JSON library as strings. OK. Now when I run it, it
-prints
+JSON to download.\footnote{I assure the reader that I have the most
+  premium optical-fiber-based Internet. However, the Microsoft Content
+  Distribution Network throttled these downloads mightily, presumably
+  because of Net Neutrality.} Miraculously, this was straightforward.
+I was able to finish writing the code to process the articles before
+they even finished downloading. However, upon unzipping, I found that
+each file contained one million articles, not as a single JSON array
+but as a series of adjacent objects. AdJSONt objects. The JSON library
+allowed for reading JSON from files, but {\em not} e.g. for reading a
+single record from a file pointer repeatedly. So, I needed to do my
+own ad hoc parsing before feeding each record to the JSON library as
+strings. OK. Now when I run it, it prints
 \begin{verbatim}
   [Segmentation fault
 \end{verbatim}
@@ -137,9 +146,10 @@ overstated, I downloaded and repeated the process with the other,
 faster (i.e., more slapdash) parser. Of course this parser has a
 different API so I needed to rewrite my program. (The program is very
 simple so this was the fastest step; however, getting the library
-properly incorporated and compiling and then learning its API was
-still a computer science chore.) Once my program was rid of the old
-crashy library, I ran it, and it produced this result
+properly incorporated and compiling and then learning its API still
+required me to apply fundamental principles from my advanced computer
+science degree.) Once my program was rid of the old crashy library, I
+ran it, and it produced this result
 \begin{verbatim}
   [Segmentation fault
 \end{verbatim}
@@ -153,17 +163,17 @@ first Heisenbug---let me tell you!---so I knew what to do. However,
 not being able to use Valgrind on Windows (did I mention that I'm
 using Cygwin and mingw64 on the eponymous Windows~7 by the way? Why am
 I doing that?), I booted Linux in a virtual machine, installed the 87
-security updates that had been released since I last booted this
-virtual machine a few months ago, and compiled my program there. I
-then needed to move one of the JSON files to the virtual computer to
+critical security updates that had been released since I last booted
+this virtual machine a few months ago, and compiled my program there.
+I then needed to move one of the JSON files to the virtual computer to
 test, without having to download 130 GB from the internet again, but
 the file was apparently too large to transfer using the mysterious
 ``Drag and drop to virtual machine'' functionality. I recalled that
 VirtualBox can mount a shared folder from the host machine if you edit
-the \verb+/etc/fstab+ file to contain the correct code words, and
-that I had performed this ritual before, but then had commented-out
-that line in ``rescue mode'' because I also learned that having this
-line present during the boot process causes a kernel panic. So I
+the \verb+/etc/fstab+ file to contain the correct code words, and that
+I had performed this ritual before, but then had commented-out that
+line in ``rescue mode'' because I also learned that having this line
+present during the boot process causes a kernel panic. So I
 temporarily reinstated the line and mounted the drive and copied the
 gigantic file into the virtual machine and then removed the dangerous
 magic from the f-stab for f-safety.
@@ -228,13 +238,14 @@ if you follow the standard advice of just treating it as unsigned
 anyway, \verb+fread+ will simply fail when asked to read such a large
 chunk\footnote{
 %
-  Curious why I am even using {\tt fstat} and {\tt fread}? I have my
-  own library routine for reading a file into a string. When working
-  with large files it's useful to avoid copying, because the contents
-  of the file may be a significant fraction of all RAM---copying is
-  not only expensive, but might temporarily exceed the available RAM.
-  So, you need to allocate the buffer ahead of time and avoid resizing
-  it (which often also performs a copy). It seems like something that
+  Curious why I am even using {\tt fstat} and {\tt fread} like some
+  dramatically bearded guy from the 1980s? I have my own library
+  routine for reading a file into a string. When working with large
+  files it's useful to avoid copying, because the contents of the file
+  may be a significant fraction of all RAM---copying is not only
+  expensive, but might temporarily exceed the available RAM. So, you
+  need to allocate the buffer ahead of time and avoid resizing it
+  (which often also performs a copy). It seems like something that
   everyone would want to do, but it's ridiculously hard to do portably
   in C or C++. Specifically, there seems to be no way to actually know
   the size of a file so that you can size the buffer ahead of time.
@@ -259,7 +270,7 @@ This citation database is very noisy. About $1.6\%$ of articles have
 no authors, and another $1\%$ have a blank (or {\tt null}) author. I
 verified the comprehensiveness of the dataset by finding my own author
 record(s)\footnote{This paper is published under the pseudonym A.~A.,
-  standing for Awesome Author, obviously in order top increase its
+  standing for Awesome Author, obviously in order to increase its
   citation rate. Normally I publish as Tom Murphy VII, which can be
   found in citations with many broken variations, such as ``Vii, T.''}
 and 275 citations ({\bf Yeah!!}). I also spot-checked that the database
@@ -284,7 +295,7 @@ On the other hand, from this hand-picked sample we can already see the
 citation advantage of having a name that's alphabetically early. Some
 authors seem to have already intuited this fact.
 
-\section{Analysis}
+\section{Author Analysis} \label{sec:authoranalysis}
 
 Author names appear in both ``Firstname Lastname'' order and
 ``Lastname Firstname'' (when this grammar is even applicable).
@@ -302,11 +313,12 @@ To visualize the data, I produced a cumulative distribution function
 (CDF) for both articles and citations. Considering each author in
 alphabetical order, I keep a running total of how many articles and
 how many citations have been seen so far. The x-coordinate is the rank
-of the author (its index in the sorted list) and the y-coordinates are
-the fraction of articles (or citations) seen so far. The CDFs for the
-forward and backward token orders are in Figure~\ref{fig:authorcdf}.
+of the author (its index in the alphabetical list) and the
+y-coordinates are the fraction of articles (or citations) seen so far.
+The CDFs for the forward and backward token orders are in
+Figure~\ref{fig:authorcdf}.
 
-\begin{figure}
+\begin{figure*}[t]
   \begin{center}
   \includegraphics[width=0.44 \textwidth]{authorstats-forward}
   \includegraphics[width=0.44 \textwidth]{authorstats-backward}
@@ -320,16 +332,18 @@ forward and backward token orders are in Figure~\ref{fig:authorcdf}.
     so far, and the red lines the same for articles. The lines must
     meet at $(0,0)$ and $(1,1)$ by definition. When the blue line is
     above the red, the number of citations is outpacing the number of
-    articles for authors alphabetically before this point. Both show a
-    bias towards the early alphabet, with the forward direction being
-    more dramatic (for basically the entire range). The backward range
-    briefly shows the opposite bias (crossing over at author
-    \#5,400,000, ``ojars biskaps''), suggesting that the best names
-    may be alphabetically early but in the {\em B}s, not {\em A}s. The
-    poorer performance of A-names may be due to authors attempting to
-    ``game the system'' by publishing with names like ``a a.''
-  } \label{fig:authorcdf}
-\end{figure}
+    articles for authors alphabetically before this point. Since you
+    may be reading in old timey blacke \& whyte, I will also tell you
+    that the blue line is more or less above the red line in both
+    pictures. This means that both show a bias towards the early
+    alphabet, with the forward direction being more dramatic (for
+    basically the entire range). The backward range briefly shows the
+    opposite bias (crossing over at author \#5,400,000, ``ojars
+    biskaps''), suggesting that the best names may be alphabetically
+    early but in the {\em B}s, not {\em A}s. The poorer performance of
+    A-names may be due to authors attempting to ``game the system'' by
+    publishing with names like ``a a.'' } \label{fig:authorcdf}
+\end{figure*}
 
 These CDFs show that---as expected!---there is a bias towards citing
 authors alphabetically early, whether we order alphabetically by
@@ -343,6 +357,9 @@ There are multiple hypothesized causes:
   reading another paper's bibliography, which is sometimes
   alphabetized.
 
+\item Sometimes the last page of a manuscript is ``lost,'' truncating
+  its alphabetical bibliography to some prefix.
+
 \item Some academics try to \verb+fread+ all papers into memory, but
   it fails on the file that's just slightly larger than $2^{31}$ bytes,
   and so the papers therein don't get cited, and those papers are
@@ -350,29 +367,137 @@ There are multiple hypothesized causes:
 
 \item When applying for grad school, tenure track faculty jobs, grants,
   and so on, packets are alphabetized ``for fairness,'' and the
-  disposition of the committee becomes more irritable as they make
+  mood of the committee becomes more irritable as they make
   progress through the set.
 
-\item Decreased access to pie and  unfair situations in
+\item Decreased access to pie and exposure to unfair situations in
   youth cause a lifelong predisposition to failure.
 
 \end{itemize}
-  
-% 313779.  書評	29582	1	0.000068
-% 313778.  インタビュー	20547	1	0.000097
-% 313777.  facharzt	85315	9	0.000117
-% 313776.  f3d	125257	15	0.000128
-% 313775.  recenzja	63568	8	0.000142
-% 313774.  newhaven	13296	1	0.000150
-% 313773.  secrétaire	12267	1	0.000163
-% 313772.  zahnarzt	17958	2	0.000167
-% 313771.  libguides	389727	72	0.000187
-% 313770.  硏究	12961	2	0.000231
-% 313769.  그	15984	3	0.000250
-% 313768.  kitas	7713	1	0.000259
-% 313767.  シンポジウム	18539	4	0.000270
-% 313766.  特集	878011	240	0.000274
-% 
+
+\section{I now bore of the titular topic. Let us discuss new topics.}
+
+Specifically, let's discuss titles. Some have suggested that the
+titles of papers also affect their citation rates, and it is
+reasonable to suspect that an alphabetical bias could apply here as
+well. After applying some light normalization, I extracted each of the
+words that appear in the titles of all papers, counting both the
+articles (an article is only counted once per word, even if that word
+appears multiple times in its title) and citations. This tells us
+what the expected number of citations for an article is (assuming
+independence, which is---as usual---completely false) when its
+title contains a word. Considering only words that appeared in
+at least 100 articles, here are the top by expectation:
+
+\begin{tabular}{l|l|l|l}
+{\bf word} & {\bf articles} & {\bf citations} & {\bf E = c/a} \\
+  \hline
+folin & 172 & 209,642 & 1,211.8 \\
+power/knowledge & 111 & 55,992 & 499.9 \\
+\{s\} & 101 & 38,241 & 374.9 \\
+1972-1977 & 171 & 54,917 & 319.2 \\
+\textbackslash sqrt\{s\} & 126 & 33,253 & 261.8 \\
+eigenfaces & 176 & 45,284 & 255.8 \\
+america''s & 119 & 30,478 & 253.9 \\
+gromacs & 125 & 30,865 & 244.9 \\
+neo-ffi & 102 & 21,992 & 213.5 \\
+esh & 156 & 33,142 & 211.1 \\
+\end{tabular}
+
+These are mostly explained by being relatively rare words that appear
+in extremely popular papers. For example, {\em folin} comes from an
+1951 paper\cite{lowry1951protein} describing a procedure for using
+this reagent, which I guess everyone who uses this technique cites
+(Google scholar has this paper at 215,329 citations). {\em
+  Power/knowledge} and {\em 1972-1977} both come from the title of a
+Foucault book\cite{foucault1980power} with 31,590 citations.
+
+Considering just the alphabetizable words, these too show a bias
+towards early words (Figure~\ref{fig:wordcdf}). Bibliographies that
+are alphabetized by title could exhibit the same effects discussed in
+Section~\ref{sec:authoranalysis}. Additionally, since some scholars
+learn English by reading the dictionary front to back, they may
+simply be more practiced at early words and find them more attractive
+or easier to understand.
+
+\medskip
+It is a bit easier to interpret the expected citation numbers if we
+normalize them. The average citation rate of all articles in this set
+is 5.1261. This may seem high, especially considering the 90 million
+articles with no citations, but keep in mind that most papers have
+bibliographies in which they cite several others. Data quality issues
+aside, this is basically the same as saying that the averge
+bibliography length is 5.1261. We can assign each word a ``citation
+multiplier'' effect now, defined as simply
+$$
+\mathrm{multiplier}_w = \frac{\mathrm{citations}_w / \mathrm{articles}_w}{5.1261}
+$$
+and now numbers greater than 1 improve your chances at citation, and
+numbers less than 1 diminish it. Here are the most common words:
+
+\begin{tabular}{l|l|l|l}
+\,  & artices & citations & multiplier \\
+  \hline
+of & 64322278 & 366756237 & 1.207822 \\
+and & 42576889 & 276526184 & 1.375780 \\
+in & 39685539 & 230534759 & 1.230526 \\
+the & 38873614 & 216491707 & 1.179704 \\
+a   & 22666824 & 139244700 & 1.301292 \\
+for & 19048050 & 114197875 & 1.269972 \\
+on & 15194275 & 68904896 & 0.960631 \\
+with & 10825547 & 60752792 & 1.188784 \\
+to & 10202749 & 58590695 & 1.216461 \\
+de & 7753205 & 3283786 & 0.089718 \\
+by & 7259598 & 42234470 & 1.232370 \\
+from & 5389957 & 35999433 & 1.414806 \\
+an & 5368923 & 33088995 & 1.305519 \\
+la & 4417389 & 1471023 & 0.070541 \\
+study & 4370395 & 22022172 & 1.067397 \\
+\end{tabular}
+
+Several of these words are visible in Figure~\ref{fig:wordcdf}, in
+fact; they are so common that they cause large jumps in both article
+and citation count. Curiously, most of the common words have a
+multiplier greater than 1; they {\em increase} the expected number of
+citations. {\em of} sounds smart (e.g. {\em Of Mice And Men}), {\em
+  and} makes sense (paper contains at least two results). On the other
+hand, {\em on} actually reduces the citation count, probably because
+it implies equivocation (e.g. {\em On the other hand}). Dramatically,
+common non-English words have very low multipliers; Spanish words {\em
+  de} and {\em la} reduce citations by a factor of more than ten. This
+may be due to problems in the data set, but it is certainly easy to
+imagine real cultural bias!
+
+Finally, here are the words with the worst multipliers:
+\begin{tabular}{l|l|l|l}
+313779.  \includegraphics[width=2em]{bookreview} & 29582 & 1 & 0.000068 \\
+313778.  \includegraphics[width=5em]{interview} & 20547 & 1 & 0.000097 \\
+313777.  facharzt & 85315 & 9 & 0.000117 \\
+313776.  f3d & 125257 & 15 & 0.000128 \\
+313775.  recenzja & 63568 & 8 & 0.000142 \\
+313774.  newhaven & 13296 & 1 & 0.000150 \\
+313773.  secr\'etaire & 12267 & 1 & 0.000163 \\
+313772.  zahnarzt & 17958 & 2 & 0.000167 \\
+313771.  libguides & 389727 & 72 & 0.000187 \\
+313770.  \includegraphics[width=2em]{research} & 12961 & 2 & 0.000231 \\
+313769.  \includegraphics[width=1em]{that} & 15984 & 3 & 0.000250 \\
+313768.  kitas & 7713 & 1 & 0.000259 \\
+% 313767.  シンポジウム & 18539 & 4 & 0.000270 \\
+% 313766.  特集 & 878011 & 240 & 0.000274 \\
+\end{tabular}
+
+For this set, I only considered words that appeared in the title of at
+least one paper that was actually cited. The worst multiplier is
+\includegraphics[width=2em]{bookreview}, which is Chinese for ``book
+review;'' it reduces your chances of citation by more than ten
+thousandfold. Close by is \includegraphics[width=5em]{interview},
+Japanese for ``interview.'' {\em Facharzt} is like (medical)
+``specialist'' in German, {\em recenzja} is ``review'' in Polish, and
+{\em newhaven} is a misspelling of a city in Connecticut where I grew
+up and was unfairly and repeatedly placed in the middle of lines. But
+most of these are just generic non-English words
+(\includegraphics[width=2em]{research} is Chinese for ``research'' and
+\includegraphics[width=1em]{that} Korean for ``that'').
 
 \begin{figure}
   \begin{center}
@@ -385,10 +510,102 @@ There are multiple hypothesized causes:
     articles for most of the range. In fact, papers that include the
     very first word, ``a'', are cited $1.3\times$ as often as the
     average paper. Other common and advantageous words are visible
-    as clear bumps. (See Section XXX)
+    as clear bumps.
   } \label{fig:wordcdf}
 \end{figure}
 
+\section{What is the least citable paper?}
+
+Thinking about first and last, one could reasonably ask: Of all
+papers, what are the least citable ones? Of course, the paper should
+have never actually been cited, but in the database there at least 90
+million articles with no citations, all tied for this distinction. Can
+we rank among these papers to break the tie?
+
+(Of course I am just poking fun, not seriously declaring these
+articles somehow ``worst.'' Many good articles are never cited. For
+example, as far as I know, the paper you are reading right now has no
+citations.)
+
+One way to do this is to try to estimate the number of citations that
+a paper will get based on the words in its title. Since we already
+collected the words that are most citable, this is an apparently
+simple affair. We can estimate the citation rate by just taking the
+product of the multipliers for the words. We treat words for which
+we don't have data (because they didn't meet thresholds) as having
+multiplier 1.
+
+This first cut has some problems. As an illustration, the article
+with the highest estimated citation rate (among those with zero actual
+citations) is a paper\cite{leigland2009grid} called
+\begin{quote}
+Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid
+\end{quote}
+which is expected to have 5,262,751,498,750,000,000,000,000 citations.
+This is because the word {\em grid} has a favorable multiplier and is
+repeated 121 times. 
+
+So I limited it to articles with no more than 20 words in the title
+(arbitrary). Now the least citable articles all look like this:
+
+\begin{quote}
+  IMPLEMENTASI PERATURAN MAHKAMAH AGUNG NOMOR 1 TAHUN 2008 TENTANG
+  PROSEDUR MEDIASI DI PENGADILAN (STUDI PUTUSAN MEDIASI DI PENGADILAN
+  NEGERI SAMARINDA)\footnote{Translated: IMPLEMENTATION OF REGULATION
+    OF THE SUPREME COURTS NUMBER 1 OF 2008 ABOUT MEDIATION
+    PROCEDURES IN THE COURT (STUDY OF DECISION MEDIATION IN THE COURT
+    SAMARINDA COUNTRY)}
+\end{quote}
+
+Which appears to be a real dissertation\cite{putri2009implementasi}
+(bachelor's degree of law) from a student in Indonesia, but there are
+literally thousands of similar looking papers. Given its company, it
+may very well be truly the least citable paper, or it may be a systematic
+data problem, or even spam. But I was hoping for some English language
+articles so that we could appreciate the joke together in the native
+tongue. 
+
+Even filtering for articles with \verb+"lang"+ explicitly set to
+\verb+"en"+, I needed to manually create a blacklist of hundreds of
+non-English words that commonly appeared in these article titles.
+After a few rounds of blacklisting, some ``English'' articles started
+to appear:
+
+% 78371002.  5.3718855409784041e-027	53e9a089b7602d970296e0eb	Office Hours: Monday, Wednesday, Thursday and Friday 9:00 a.m. to 5:00 p.m.; Tuesday 9:00 a.m. to 6:45 p.m
+
+% 78370998.  6.049184011159267e-027	56d81919dabfae2eee86f82a	Thomas Aquinas: Theologian By Thomas F. O'Meara, O.P. Notre Dame, University of Notre Dame Press, 1997. 302 pp. $16.95
+
+The first is probably not the title of an article, although we can
+agree that it is unlikely to be cited. The second is a bad entry, with
+the entire citation packed into the title field. This book actually
+does have 94 citations (or DOES IT?~\cite{o1997thomas}) on Google
+Scholar and an Amazon Sales Rank of \#10,837 in {\em Christian
+  Denominations \& Sects}. In order to prevent such data problems from
+affecting our results, I then added a requirement that the article
+have basic metadata (either a Digital DOI Identifier field or {\tt venue})
+for it to be considered.
+
+% 48654527.  5.8084026066881388e-026	56d918ecdabfae2eee6c6965	Eight contemporary poets : Charles Tomlinson, Donald Davie, R.S. Thomas, Philip Larkin, Ted Hughes, Thomas Kinsella, Stevie Smith, W.S. Graham
+
+% 48654111.  1.7552310525171227e-019	53e99952b7602d9702190ac1	The 80th Birthday of Sir Henry Dale, O.M., G.B.E., M.D., F.R.C.P., F.R.S.: Salute to Henry Hallett Dale
+
+% 48654054.  2.7492425189773547e-019	56d8ecc5dabfae2eee5b30f5	Narratives Unsettled: Digression in Robert Walser, Thomas Bernhard, and Adalbert Stifter by Samuel Frederick (review)
+
+% 48552586.  5.0644175742872403e-019	56d9266ddabfae2eeebdd19a	Catherine Mowry LaCugna's Trinitarian Theology: III- The Ecumenical Implications of Catherine Mowry Lacugna's Trinitarian Theology
+
+% 48552476.  1.7011818225031437e-018	56d85cd0dabfae2eee5cb5f4	Texts Illustrating the Causality of the Sacraments from William of Melitona, Assisi Bibl. Comm. 182, and Brussels Bibl. Royale 1542
+
+% 48552391.  3.4094058998675013e-018	53e9bce1b7602d9704965e64	Shakespeare's Titus Andronicus and Bandello's Novelle as Sources for the Munera Episode in Spenser's Faerie Queene, Book 5, Canto 2
+
+1. memorials for dead guys
+2. reviews of books
+3. articles not in english
+4. broken citations
+
+\largeskip
+Of course, since these papers are all notable for being so extremely
+uncitable, the true least citable papers are the next least citable,
+according to this analysis.
 
 % Tourney -- what is wrong here?
 %  1000.000 Mrounds:

@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   }
   
   int64 counter = 0LL, num_output = 0LL, not_ascii = 0LL, not_en = 0LL;
-  int64 has_citations = 0LL;
+  int64 has_citations = 0LL, insufficient_metadata = 0LL;
   
   FILE *out = fopen(outfile.c_str(), "wb");
 
@@ -57,6 +57,7 @@ int main(int argc, char **argv) {
     LocalForEachLine(filename,
 		     [&counter, &has_citations,
 		      &num_output, &not_ascii, &not_en,
+		      &insufficient_metadata,
 		      out](string j) {
       counter++;
       Document article;
@@ -93,6 +94,12 @@ int main(int argc, char **argv) {
 	  not_en++;
 	  return;
 	}
+
+	if (!article.HasMember("venue") &&
+	    !article.HasMember("doi")) {
+	  insufficient_metadata++;
+	  return;
+	}
 	
 	const Value &title = article["title"];
 	if (title.IsString()) {
@@ -109,8 +116,10 @@ int main(int argc, char **argv) {
     });
 
     printf("%lld articles. %lld has citations.\n"
-	   "%lld not ascii. %lld not en. %lld kept\n",
-	   counter, has_citations, not_ascii, not_en, num_output);
+	   "%lld not ascii. %lld not en. %lld insuff. metadata %lld kept\n",
+	   counter, has_citations, not_ascii, not_en,
+	   insufficient_metadata,
+	   num_output);
   }
   
   printf("Wrote %s\n", outfile.c_str());
