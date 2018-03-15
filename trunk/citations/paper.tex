@@ -62,9 +62,7 @@
 
 \maketitle
 
-\section*{Abstract}
-proof at last
-    1\ \dirham
+% \section*{Abstract}
 
 \vspace{1em}
 {\noindent \small {\bf Keywords}:
@@ -93,7 +91,8 @@ This paper demonstrates that even within academic paper publishing
 statistical language for formalizing objections, and status in the
 K-12 hierarchy), this unfairness persists. Specifically, we find that
 authors whose names come alphabetically earlier have higher citation
-rates.
+rates. We also study some related subjects like, ``What is the most
+uncitable paper?''
 
 \section{The Data}
 
@@ -105,7 +104,7 @@ JSON data. Then I performed computer science for longer than it should
 have taken.
 
 
-\subsection{Relatable Computer Science Activities}
+\subsection{Relatable Computer Science Tale}
 
 This subsection contains a relatable tale of computer science. It can
 be safely skipped, like all content in this paper.
@@ -197,6 +196,7 @@ was the location of the original crash:
               << file << ":" << line << ": ";
 \end{Verbatim}
 
+First I checked for overfull hbox, but this was not the problem.
 Of course, inside \verb+HumanDate()+ I found a hasty patch I had
 installed in A.D.~2014 called ``make logging not spit garbage on
 mingw,'' suggesting that I had encountered and misdiagnosed this issue
@@ -226,7 +226,7 @@ With \verb+cerr+ fixed, I could now easily see the original ``bug'',
 which was a violated assumption: I expected (and \verb+CHECK+ed),
 optimistically, that if the article had an {\tt author} field then the
 author would be a string. I accounted for a missing author, an author
-that was the empty string, but not {\tt author: null}. Thanks!
+that was the empty string, but not \verb+author: null+. Thanks!
 
 Finally, I could run the author and citation tallier on all of the
 JSON files. However, two of the files appeared to be empty. Although
@@ -409,7 +409,7 @@ esh & 156 & 33,142 & 211.1 \\
 \end{tabular}
 
 These are mostly explained by being relatively rare words that appear
-in extremely popular papers. For example, {\em folin} comes from an
+in extremely popular papers. For example, {\em folin} comes from a
 1951 paper\cite{lowry1951protein} describing a procedure for using
 this reagent, which I guess everyone who uses this technique cites
 (Google scholar has this paper at 215,329 citations). {\em
@@ -571,9 +571,9 @@ tongue.
 
 Even filtering for articles with \verb+"lang"+ explicitly set to
 \verb+"en"+, I needed to manually create a blacklist of hundreds of
-non-English words that commonly appeared in these article titles.
-After a few rounds of blacklisting, some ``English'' articles started
-to appear:
+non-English words (mostly Indonesian and Polish) that commonly
+appeared in these article titles. After a few rounds of blacklisting,
+some ``English'' articles started to appear:
 
 \begin{quote}
  Office Hours: Monday, Wednesday, Thursday and Friday 9:00 a.m. to 5:00 p.m.; Tuesday 9:00 a.m. to 6:45 p.m \\
@@ -588,45 +588,103 @@ to appear:
 The first is probably not the title of an article\cite{officehours},
 although we can agree that it is unlikely to be cited. The second is
 probably a bad entry, with the entire citation packed into the title
-field. This book actually does have 94 citations (or DOES
-IT?~\cite{o1997thomas}) on Google Scholar and an Amazon Sales Rank of
-\#10,837 in {\em Christian Denominations \& Sects}.\footnote{ On the
-  other hand, the entry does have a different
+field. This book~\cite{o1997thomas} actually does have 94 citations
+(or DOES IT?) on Google Scholar and an Amazon Sales Rank of \#10,837
+in {\em Christian Denominations \& Sects}.\footnote{ On the other
+  hand, the entry does have a different
   author\cite{stevenson2000thomas}, so it could possibly be a review
   of this book whose title is literally the string above, including
   the price?} In order to prevent such data problems from affecting
 our results, I then added a requirement that the article have basic
 metadata (either a Digital DOI Identifier field or {\tt venue}) for it
-to be considered. There are still many broken entries, but picking through
-the results I'm able to find what appear to be actual articles:
+to be considered. There vast majority still appear to be broken
+entries, but picking through the results I'm finally able to find what
+appear to be actual articles:
 
 \begin{quote}
   % 48654527.  5.8084026066881388e-026	56d918ecdabfae2eee6c6965
   Eight contemporary poets : Charles Tomlinson, Donald Davie, R.S. Thomas, Philip Larkin, Ted Hughes, Thomas Kinsella, Stevie Smith, W.S. Graham
-  \signed{(citation multiplier $5.8\!\times\!10^{-26}$)}
+  \signed{(citation multiplier $5.81\!\times\!10^{-26}$)}
 \end{quote}
 
-% 48654111.  1.7552310525171227e-019	53e99952b7602d9702190ac1	The 80th Birthday of Sir Henry Dale, O.M., G.B.E., M.D., F.R.C.P., F.R.S.: Salute to Henry Hallett Dale
+\begin{quote}
+  % 48654111.  1.7552310525171227e-019	53e99952b7602d9702190ac1
+  The 80th Birthday of Sir Henry Dale, O.M., G.B.E., M.D., F.R.C.P., F.R.S.: Salute to Henry Hallett Dale
+  \signed{(citation multiplier $1.75\!\times\!10^{-19}$)}
+\end{quote}
 
-% 48654054.  2.7492425189773547e-019	56d8ecc5dabfae2eee5b30f5	Narratives Unsettled: Digression in Robert Walser, Thomas Bernhard, and Adalbert Stifter by Samuel Frederick (review)
+\begin{quote}
+  % 48654054.  2.7492425189773547e-019	56d8ecc5dabfae2eee5b30f5
+  Narratives Unsettled: Digression in Robert Walser, Thomas Bernhard, and Adalbert Stifter by Samuel Frederick (review)
+  \signed{(citation multiplier $2.74\!\times\!10^{-19}$)}
+\end{quote}
 
-% 48552586.  5.0644175742872403e-019	56d9266ddabfae2eeebdd19a	Catherine Mowry LaCugna's Trinitarian Theology: III- The Ecumenical Implications of Catherine Mowry Lacugna's Trinitarian Theology
+\begin{quote}
+  % 48552586.  5.0644175742872403e-019	56d9266ddabfae2eeebdd19a
+  Catherine Mowry LaCugna's Trinitarian Theology: III- The Ecumenical Implications of Catherine Mowry Lacugna's Trinitarian Theology
+  \signed{(citation multiplier $5.06\!\times\!10^{-19}$)}
+\end{quote}
 
-% 48552476.  1.7011818225031437e-018	56d85cd0dabfae2eee5cb5f4	Texts Illustrating the Causality of the Sacraments from William of Melitona, Assisi Bibl. Comm. 182, and Brussels Bibl. Royale 1542
+\begin{quote}
+  % 48552476.  1.7011818225031437e-018	56d85cd0dabfae2eee5cb5f4
+  Texts Illustrating the Causality of the Sacraments from William of Melitona, Assisi Bibl. Comm. 182, and Brussels Bibl. Royale 1542
+  \signed{(citation multiplier $1.70\!\times\!10^{-18}$)}
+\end{quote}
 
-% 48552391.  3.4094058998675013e-018	53e9bce1b7602d9704965e64	Shakespeare's Titus Andronicus and Bandello's Novelle as Sources for the Munera Episode in Spenser's Faerie Queene, Book 5, Canto 2
+\begin{quote}
+  % 48552391.  3.4094058998675013e-018	53e9bce1b7602d9704965e64
+  Shakespeare's Titus Andronicus and Bandello's Novelle as Sources for the Munera Episode in Spenser's Faerie Queene, Book 5, Canto 2
+  \signed{(citation multiplier $3.41\!\times\!10^{-18}$)}
+\end{quote}
+
+The first is definitely a real article~\cite{bedient1974eight}---which
+apparently has 95 citations on Google Scholar---so the estimate failed
+us here. It's easy to see why it has such a bad score, though; it's
+packed with people's names and initials, just like the scores of
+uncited book reviews and other broken citations. The second is also a
+real tribute to this Nobel prize winner~\cite{loewi195580th} with 5
+citations that Google knows of. Again it contains names and
+appelations that look like initials. 
+
+The third is a book review~\cite{holmes2015narratives} of a
+book~\cite{frederick2012narratives} with itself only 11 citations
+(makes sense, as the title contains three people's names) and indeed
+has no citations that Google knows of, so it is a solid contender.
+After that some theological
+stuff~\cite{torrance2000catherine,lynch1957texts} each with 3
+citations on Google, and another literary
+analysis~\cite{fitzpatrick2005shakespeare} which has 2.
 
 Lessons learned:
-The least-cited works take the following typical forms. Acade
-1. memorials for dead guys
-2. reviews of books
-3. articles not in english
-4. broken citations
+\begin{itemize}
+\item Taking a noisy database of tens of millions of entries and then
+  trying to dig through the bottom of the barrel for something
+  ``funny'' or even ``interesting'' is tough going. Maybe this should
+  have been obvious.
+\item The least-cited works take on some recurring forms:
+  \begin{itemize}
+  \item Memorials for dead or old guys with lots of honorifics
+  \item Articles with people's names in the title
+  \item Reviews of books, or books about other literary work, or reviews of books about other literary work
+  \item Articles about God stuff or God People
+  \item Articles not in English
+  \item Broken citations
+  \item Combinations of the above.
+  \end{itemize}
+  Enterprising academics would do well to avoid such areas of research, in addition
+  to using alphabetically early words and author names in their publications.
+  
+\item As one downside, this approach does not really work, given
+  that several of these articles have a few actual citations upon
+  comparing to another database.
+\end{itemize}
+
 
 \medskip
 Of course, since these papers are all notable for being so extremely
-uncitable, the true least citable papers are the next least citable,
-according to this analysis.
+uncitable, the true least citable papers are the {\bf next least
+  citable}, according to this analysis. To avoid paradoxes, the
+reader is discouraged from trying to reproduce these results.
 
 % Tourney -- what is wrong here?
 %  1000.000 Mrounds:
@@ -642,24 +700,9 @@ acceleration, and abundant alternatives. After achieving academic
 accomplishments, acknowledge A.A.'s {\it Academic Advancement Advice:
   Author Articles as A.~A}!
 
-% arranged alphabetically.
-
-strange authors:
-
-u fucks
-a a fucks
-
-\begin{verbatim}  
-{"id": "56d8981adabfae2eee20314b", "title": "IMPLEMENTASI PERATURAN MAHKAMAH AGUNG NOMOR 1 TAHUN 2008 TENTANG PROSEDUR MEDIASI DI PENGADILAN (STUDI PUTUSAN MEDIASI DI PENGADILAN NEGERI SAMARINDA)", "authors": [{"name": "frianur ivan zairani lisi insan tajali nur"}], "year": 2013, "lang": "en"}
-{"id": "56d8a690dabfae2eee9057b0", "title": "Pengaruh Pengawasan Inspektorat Dan Partisipasi Dalam Penyusunan Anggaran Terhadap Kinerja Manajerial SKPD (Studi Empiris Pada Instansi Pemerintah Kabupaten Tanah Datar)", "authors": [{"name": "retno nabila sari"}], "year": 2015, "lang": "en"}
-{"id": "56d8ecc5dabfae2eee5b30f5", "title": "Narratives Unsettled: Digression in Robert Walser, Thomas Bernhard, and Adalbert Stifter by Samuel Frederick (review)", "authors": [{"name": "tove holmes"}], "venue": "Monatshefte", "year": 2015, "lang": "en"}
-{"id": "56d918ecdabfae2eee6c6965", "title": "Eight contemporary poets : Charles Tomlinson, Donald Davie, R.S. Thomas, Philip Larkin, Ted Hughes, Thomas Kinsella, Stevie Smith, W.S. Graham", "authors": [{"name": "calvin bedient"}], "venue": "Modern Language Review", "year": 1975, "lang": "en"}
-{"id": "56d9266ddabfae2eeebdd19a", "title": "Catherine Mowry LaCugna's Trinitarian Theology: III- The Ecumenical Implications of Catherine Mowry Lacugna's Trinitarian Theology", "authors": [{"name": "alan j torrance", "org": "university of st andrews"}], "venue": "Horizons", "year": 2000, "lang": "en", "doi": "10.1017/S036096690003262X", "url": ["http://dx.doi.org/10.1017/S036096690003262X"]}
-{"id": "56d85cd0dabfae2eee5cb5f4", "title": "Texts Illustrating the Causality of the Sacraments from William of Melitona, Assisi Bibl. Comm. 182, and Brussels Bibl. Royale 1542", "authors": [{"name": "f o f m kilian lynch"}], "year": 1957, "lang": "en", "doi": "10.1353/frc.1957.0003", "url": ["http://dx.doi.org/10.1353/frc.1957.0003"]}
-\end{verbatim}
+\section{Bibliography}
 
 \bibliographystyle{IEEEtran}
-% \bibliographycomment{} % nothing
 \bibliography{paper}
 
 \end{document}

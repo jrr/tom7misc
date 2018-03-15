@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
 	  return;
 	}
 	
-	if (!article.HasMember("author")) {
+	if (!article.HasMember("authors")) {
 	  no_author++;
 	  return;
 	}
