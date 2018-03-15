@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
       const auto &row = rows[i];
       fprintf(out, "%d.  %s\t%lld\t%lld\t%.6f\n",
 	      i, row.first.c_str(), row.second.articles, row.second.citations,
-	      row.second.citation_rate);
+	      row.second.citation_rate / avg);
     }
     printf("Wrote %s.\n", bestfile.c_str());
     fclose(out);
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
       const auto &row = rows[i];
       fprintf(out, "%d.  %s\t%lld\t%lld\t%.6f\n",
 	      i, row.first.c_str(), row.second.articles, row.second.citations,
-	      row.second.citation_rate);
+	      row.second.citation_rate / avg);
     }
     printf("Wrote %s.\n", worstfile.c_str());
     fclose(out);
