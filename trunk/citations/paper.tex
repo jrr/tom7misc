@@ -27,6 +27,10 @@
 % nice fractions
 \newcommand\sfrac[2]{{}\,$^{#1}$\!/{}\!$_{#2}$}
 
+\def\signed#1{{\unskip\nobreak\hfil\penalty50
+    \hskip2em\hbox{}\nobreak\hfil\sl#1
+    \parfillskip=0pt \finalhyphendemerits=0 \par}}
+
 % \newcommand\citef[1]{\addtocounter{footnote}{1}\footnotetext{\cite{#1}}\ensuremath{^{\mbox{\footnotesize [\thefootnote]}}}}
 
 \newcommand\dirham{\protect \includegraphics[width=1em]{dirham}}
@@ -571,21 +575,36 @@ non-English words that commonly appeared in these article titles.
 After a few rounds of blacklisting, some ``English'' articles started
 to appear:
 
-% 78371002.  5.3718855409784041e-027	53e9a089b7602d970296e0eb	Office Hours: Monday, Wednesday, Thursday and Friday 9:00 a.m. to 5:00 p.m.; Tuesday 9:00 a.m. to 6:45 p.m
+\begin{quote}
+ Office Hours: Monday, Wednesday, Thursday and Friday 9:00 a.m. to 5:00 p.m.; Tuesday 9:00 a.m. to 6:45 p.m \\
+  \signed{(citation multiplier $5.37\!\times\!10^{-27}$)}
+\end{quote}
 
-% 78370998.  6.049184011159267e-027	56d81919dabfae2eee86f82a	Thomas Aquinas: Theologian By Thomas F. O'Meara, O.P. Notre Dame, University of Notre Dame Press, 1997. 302 pp. $16.95
+\begin{quote}
+	Thomas Aquinas: Theologian By Thomas F. O'Meara, O.P. Notre Dame, University of Notre Dame Press, 1997. 302 pp. \$16.95 \\
+  \signed{(citation multiplier $6.05\!\times\!10^{-27}$)}
+\end{quote}
 
-The first is probably not the title of an article, although we can
-agree that it is unlikely to be cited. The second is a bad entry, with
-the entire citation packed into the title field. This book actually
-does have 94 citations (or DOES IT?~\cite{o1997thomas}) on Google
-Scholar and an Amazon Sales Rank of \#10,837 in {\em Christian
-  Denominations \& Sects}. In order to prevent such data problems from
-affecting our results, I then added a requirement that the article
-have basic metadata (either a Digital DOI Identifier field or {\tt venue})
-for it to be considered.
+The first is probably not the title of an article\cite{officehours},
+although we can agree that it is unlikely to be cited. The second is
+probably a bad entry, with the entire citation packed into the title
+field. This book actually does have 94 citations (or DOES
+IT?~\cite{o1997thomas}) on Google Scholar and an Amazon Sales Rank of
+\#10,837 in {\em Christian Denominations \& Sects}.\footnote{ On the
+  other hand, the entry does have a different
+  author\cite{stevenson2000thomas}, so it could possibly be a review
+  of this book whose title is literally the string above, including
+  the price?} In order to prevent such data problems from affecting
+our results, I then added a requirement that the article have basic
+metadata (either a Digital DOI Identifier field or {\tt venue}) for it
+to be considered. There are still many broken entries, but picking through
+the results I'm able to find what appear to be actual articles:
 
-% 48654527.  5.8084026066881388e-026	56d918ecdabfae2eee6c6965	Eight contemporary poets : Charles Tomlinson, Donald Davie, R.S. Thomas, Philip Larkin, Ted Hughes, Thomas Kinsella, Stevie Smith, W.S. Graham
+\begin{quote}
+  % 48654527.  5.8084026066881388e-026	56d918ecdabfae2eee6c6965
+  Eight contemporary poets : Charles Tomlinson, Donald Davie, R.S. Thomas, Philip Larkin, Ted Hughes, Thomas Kinsella, Stevie Smith, W.S. Graham
+  \signed{(citation multiplier $5.8\!\times\!10^{-26}$)}
+\end{quote}
 
 % 48654111.  1.7552310525171227e-019	53e99952b7602d9702190ac1	The 80th Birthday of Sir Henry Dale, O.M., G.B.E., M.D., F.R.C.P., F.R.S.: Salute to Henry Hallett Dale
 
@@ -597,12 +616,14 @@ for it to be considered.
 
 % 48552391.  3.4094058998675013e-018	53e9bce1b7602d9704965e64	Shakespeare's Titus Andronicus and Bandello's Novelle as Sources for the Munera Episode in Spenser's Faerie Queene, Book 5, Canto 2
 
+Lessons learned:
+The least-cited works take the following typical forms. Acade
 1. memorials for dead guys
 2. reviews of books
 3. articles not in english
 4. broken citations
 
-\largeskip
+\medskip
 Of course, since these papers are all notable for being so extremely
 uncitable, the true least citable papers are the next least citable,
 according to this analysis.
@@ -617,17 +638,25 @@ according to this analysis.
 Adopting an all-'A' affect also advances articles. Although affairs
 are abbreviated, adequate abstracts abound: Astronomy, asthma,
 atmospheric acclimatization, autobiography, Azerbaijani accents,
-acceleration, and abundant alternatives.
+acceleration, and abundant alternatives. After achieving academic
+accomplishments, acknowledge A.A.'s {\it Academic Advancement Advice:
+  Author Articles as A.~A}!
 
 % arranged alphabetically.
-
-Awesome!
 
 strange authors:
 
 u fucks
 a a fucks
 
+\begin{verbatim}  
+{"id": "56d8981adabfae2eee20314b", "title": "IMPLEMENTASI PERATURAN MAHKAMAH AGUNG NOMOR 1 TAHUN 2008 TENTANG PROSEDUR MEDIASI DI PENGADILAN (STUDI PUTUSAN MEDIASI DI PENGADILAN NEGERI SAMARINDA)", "authors": [{"name": "frianur ivan zairani lisi insan tajali nur"}], "year": 2013, "lang": "en"}
+{"id": "56d8a690dabfae2eee9057b0", "title": "Pengaruh Pengawasan Inspektorat Dan Partisipasi Dalam Penyusunan Anggaran Terhadap Kinerja Manajerial SKPD (Studi Empiris Pada Instansi Pemerintah Kabupaten Tanah Datar)", "authors": [{"name": "retno nabila sari"}], "year": 2015, "lang": "en"}
+{"id": "56d8ecc5dabfae2eee5b30f5", "title": "Narratives Unsettled: Digression in Robert Walser, Thomas Bernhard, and Adalbert Stifter by Samuel Frederick (review)", "authors": [{"name": "tove holmes"}], "venue": "Monatshefte", "year": 2015, "lang": "en"}
+{"id": "56d918ecdabfae2eee6c6965", "title": "Eight contemporary poets : Charles Tomlinson, Donald Davie, R.S. Thomas, Philip Larkin, Ted Hughes, Thomas Kinsella, Stevie Smith, W.S. Graham", "authors": [{"name": "calvin bedient"}], "venue": "Modern Language Review", "year": 1975, "lang": "en"}
+{"id": "56d9266ddabfae2eeebdd19a", "title": "Catherine Mowry LaCugna's Trinitarian Theology: III- The Ecumenical Implications of Catherine Mowry Lacugna's Trinitarian Theology", "authors": [{"name": "alan j torrance", "org": "university of st andrews"}], "venue": "Horizons", "year": 2000, "lang": "en", "doi": "10.1017/S036096690003262X", "url": ["http://dx.doi.org/10.1017/S036096690003262X"]}
+{"id": "56d85cd0dabfae2eee5cb5f4", "title": "Texts Illustrating the Causality of the Sacraments from William of Melitona, Assisi Bibl. Comm. 182, and Brussels Bibl. Royale 1542", "authors": [{"name": "f o f m kilian lynch"}], "year": 1957, "lang": "en", "doi": "10.1353/frc.1957.0003", "url": ["http://dx.doi.org/10.1353/frc.1957.0003"]}
+\end{verbatim}
 
 \bibliographystyle{IEEEtran}
 % \bibliographycomment{} % nothing

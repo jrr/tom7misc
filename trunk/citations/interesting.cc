@@ -51,12 +51,6 @@ int main(int argc, char **argv) {
   };
 
   string outfile = filename + ".interesting";
-  
-  if (filenames.empty()) {
-    fprintf(stderr, "Pass JSON paper files on the command line.\n");
-    return -1;
-  }
-
   FILE *out = fopen(outfile.c_str(), "wb");
 
   int64 done = 0LL;
@@ -72,7 +66,6 @@ int main(int argc, char **argv) {
     const string id = id_value.GetString();
 
     if (ContainsKey(interesting, id)) {
-      MutexLock ml(&mutex);
       printf("Found %s: %s\n", id.c_str(), j.c_str());
       fprintf(out, "%s\n", j.c_str());
     }
