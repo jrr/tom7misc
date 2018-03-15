@@ -33,7 +33,7 @@ interestingfiles: $(INTERESTINGFILES)
 	./titles.exe -o $@ $<
 
 %.txt.interesting : %.txt
-	./interesting.exe -o $@ $<
+	./interesting.exe $<
 
 authors.exe : authors.o $(BASE)
 	${CXX} -o $@ $^ -static
@@ -53,8 +53,8 @@ authorstats.exe : authorstats.o $(BASE) $(RE2_OBJECTS)
 interesting.exe : interesting.o $(BASE) $(RE2_OBJECTS)
 	${CXX} -o $@ $^ -static
 
-interesting.txt : interesting.exe
-	./interesting.exe $(PAPERFILES)
+interesting.txt : $(INTERESTINGFILES)
+	cat $(INTERESTINGFILES) > interesting.txt
 
 tourney.exe : tourney.o $(BASE) $(RE2_OBJECTS)
 	${CXX} -o $@ $^ -static

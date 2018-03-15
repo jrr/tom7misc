@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
   
   int64 counter = 0LL, num_output = 0LL, not_ascii = 0LL, not_en = 0LL;
   int64 has_citations = 0LL, insufficient_metadata = 0LL;
+  int64 no_year = 0LL, no_author = 0LL;
   
   FILE *out = fopen(outfile.c_str(), "wb");
 
@@ -57,7 +58,7 @@ int main(int argc, char **argv) {
     LocalForEachLine(filename,
 		     [&counter, &has_citations,
 		      &num_output, &not_ascii, &not_en,
-		      &insufficient_metadata,
+		      &insufficient_metadata, &no_year, &no_author,
 		      out](string j) {
       counter++;
       Document article;
@@ -100,6 +101,16 @@ int main(int argc, char **argv) {
 	  insufficient_metadata++;
 	  return;
 	}
+
+	if (!article.HasMember("year")) {
+	  no_year++;
+	  return;
+	}
+	
+	if (!article.HasMember("author")) {
+	  no_author++;
+	  return;
+	}
 	
 	const Value &title = article["title"];
 	if (title.IsString()) {
@@ -116,10 +127,11 @@ int main(int argc, char **argv) {
     });
 
     printf("%lld articles. %lld has citations.\n"
-	   "%lld not ascii. %lld not en. %lld insuff. metadata %lld kept\n",
-	   counter, has_citations, not_ascii, not_en,
-	   insufficient_metadata,
-	   num_output);
+	   "%lld not ascii. %lld not en. %lld insufficient metadata "
+	   "%lld no year. %lld no author. %lld kept\n",
+	   counter, has_citations,
+	   not_ascii, not_en, insufficient_metadata,
+	   no_year, no_author, num_output);
   }
   
   printf("Wrote %s\n", outfile.c_str());
