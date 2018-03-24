@@ -1,0 +1,21 @@
+all : ppuppy.exe
+
+CXX=g++
+# consider O2 for releases...
+CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O --std=c++14 -I ../cc-lib
+LFLAGS=
+
+%.o : %.cc *.h
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@bash -c "echo -n '.'"
+
+CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
+
+ppuppy.exe : ppuppy.o bcm2835.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+clean :
+	rm -f *.o *.exe core $(CCLIB_OBJECTS)
+
+veryclean : clean
+	rm -f *~
