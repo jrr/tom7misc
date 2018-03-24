@@ -7,12 +7,13 @@ LFLAGS=
 
 %.o : %.cc *.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
-	bash -c "echo -n '.'"
+	# bash -c "echo -n '.'"
 
 %.s : %.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -S -c -o $@ $<
 
-CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
+# ../cc-lib/util.o  ../cc-lib/base/stringprintf.o
+CCLIB_OBJECTS= ../cc-lib/base/logging.o
 
 ppuppy.exe : ppuppy.o bcm2835.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
