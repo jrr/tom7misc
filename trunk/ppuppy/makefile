@@ -2,12 +2,15 @@ all : ppuppy.exe
 
 CXX=g++
 # consider O2 for releases...
-CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O --std=c++14 -I ../cc-lib
+CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../cc-lib
 LFLAGS=
 
 %.o : %.cc *.h
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
-	@bash -c "echo -n '.'"
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	bash -c "echo -n '.'"
+
+%.s : %.cc
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -S -c -o $@ $<
 
 CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/logging.o ../cc-lib/base/stringprintf.o
 

@@ -1257,7 +1257,11 @@ extern "C" {
       \param[in] value The 32 bit value to write
       \sa Physical Addresses
     */
-    extern void bcm2835_peri_write(volatile uint32_t* paddr, uint32_t value);
+  inline void bcm2835_peri_write(volatile uint32_t* paddr, uint32_t value) {
+    __sync_synchronize();
+    *paddr = value;
+    __sync_synchronize();
+  }
 
     /*! Writes 32 bit value from a peripheral address without the write barrier
       You should only use this when:
@@ -1271,7 +1275,9 @@ extern "C" {
       \param[in] value The 32 bit value to write
       \sa Physical Addresses
     */
-    extern void bcm2835_peri_write_nb(volatile uint32_t* paddr, uint32_t value);
+  inline void bcm2835_peri_write_nb(volatile uint32_t* paddr, uint32_t value) {
+    *paddr = value;
+  }
 
     /*! Alters a number of bits in a 32 peripheral regsiter.
       It reads the current valu and then alters the bits defines as 1 in mask, 
