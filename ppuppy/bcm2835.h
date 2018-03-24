@@ -4,7 +4,6 @@
   
    Author: Mike McCauley
    Copyright (C) 2011-2013 Mike McCauley
-   $Id: bcm2835.h,v 1.23 2018/01/16 21:55:07 mikem Exp mikem $
 */
 
 /*! \mainpage C library for Broadcom BCM 2835 as used in Raspberry Pi
@@ -275,8 +274,8 @@
   Arjan reports that you can prevent swapping on Linux with the following code fragment:
   
   \code
-  #define <sched.h>
-  #define <sys/mman.h>
+  #include <sched.h>
+  #include <sys/mman.h>
 
   struct sched_param sp;
   memset(&sp, 0, sizeof(sp));
