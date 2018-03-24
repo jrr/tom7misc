@@ -1,0 +1,37 @@
+
+
+Measured pin #38 (M2) on the saleae.
+Example pulse: .36 us high .198 us low, which is 1.792 MHz.
+
+On the pi, a for(;;) loop just calling gpio_write (one pin)
+gets 80-88 ns pulse times
+
+this is say .09 microseconds, which means we can do about
+4 bit flips per NES clock. this is cutting it a bit close
+but maybe in the "not insane" range?
+  danger:
+    - can I set multiple bits at that same rate?
+       at a minimum I need to read the address bus, then
+       write the data bus, then wait for the falling edge.
+    - should make sure that transistors/diodes to do
+      bridge between 3v3 and 5v ttl don't introduce too
+      much slew etc. The analog waveform at 50MHz is 
+      basically a sine wave so we may be reaching some
+      electrical limits (?)
+    - there are periodic dropouts. How to set realtime
+      mode or whatever? We could probably cooperatively 
+      schedule during ppu vblank
+    - do we have enough time left to prepare CHR data?
+    - do we have enough time left to do some emulation, etc.?
+
+hmm, write_multi on 4 bits gives me 80ns/200ns off/on
+cycle with a grosser waveform. 
+
+But it looks like the ARM is just executing too many
+instructions. With -O2, and removing debug test from
+peri_write, I get 48ns/112ns off/on and a sinusoidal
+wave. Plenty of more optimization to do...
+
+ - inlined peri_write (this version also actually packs
+   bits into the pins written, so that it's not trivial): 52ns/124
+ - 
