@@ -20,6 +20,9 @@ else
 fi
 
 # TODO: Also modify /etc/default/locale ?
+sudo update-locale LC_ALL="en_US.UTF-8"
+sudo update-locale LANGUAGE="en_US:en"
+sudo update-locale LANG="en_US.UTF-8"
 
 sudo apt-get -y update
 sudo apt-get -y upgrade
