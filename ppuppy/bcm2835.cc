@@ -63,7 +63,8 @@ volatile uint32_t *bcm2835_spi1        = (uint32_t *)MAP_FAILED;
 // It prevents access to the kernel memory, and does not do any peripheral access
 // Instead it prints out what it _would_ do if debug were 0
 */
-static uint8_t debug = 0;
+// tom7 disabled this at compile time; it hurts performance
+static constexpr uint8_t debug = 0;
 
 /* I2C The time needed to transmit one byte. In microseconds.
  */
@@ -105,7 +106,11 @@ uint32_t* bcm2835_regbase(uint8_t regbase)
 
 void  bcm2835_set_debug(uint8_t d)
 {
-    debug = d;
+  if (d) {
+    printf("Debugging disabled for performance -tom7\n");
+    abort();
+  }
+  // debug = d;
 }
 
 unsigned int bcm2835_version(void) 
@@ -155,21 +160,24 @@ uint32_t bcm2835_peri_read_nb(volatile uint32_t* paddr)
 /* Write with memory barriers to peripheral
  */
 
+#if 0   // inlined in header
 void bcm2835_peri_write(volatile uint32_t* paddr, uint32_t value)
 {
-    if (debug)
+  if (debug)  // XXX
     {
-	printf("bcm2835_peri_write paddr %p, value %08X\n", paddr, value);
+      printf("bcm2835_peri_write paddr %p, value %08X\n", paddr, value);
     }
-    else
+  else
     {
-        __sync_synchronize();
-        *paddr = value;
-        __sync_synchronize();
+      __sync_synchronize();
+      *paddr = value;
+      __sync_synchronize();
     }
 }
+#endif
 
 /* write to peripheral without the write barrier */
+#if 0
 void bcm2835_peri_write_nb(volatile uint32_t* paddr, uint32_t value)
 {
     if (debug)
@@ -182,6 +190,7 @@ void bcm2835_peri_write_nb(volatile uint32_t* paddr, uint32_t value)
 	*paddr = value;
     }
 }
+#endif
 
 /* Set/clear only the bits in value covered by the mask
  * This is not atomic - can be interrupted.
@@ -832,7 +841,7 @@ uint16_t bcm2835_aux_spi_CalcClockDivider(uint32_t speed_hz) {
 static uint32_t spi1_speed;
 
 void bcm2835_aux_spi_setClockDivider(uint16_t divider) {
-		spi1_speed = (uint32_t) divider;
+  spi1_speed = (uint32_t) divider;
 }
 
 void bcm2835_aux_spi_write(uint16_t data) {
