@@ -77,9 +77,15 @@ struct Database {
   using Connection = mysqlpp::Connection;
   using Query = mysqlpp::Query;
   using StoreQueryResult = mysqlpp::StoreQueryResult;
+
+  struct Probe {
+    int id = 0;
+    string desc;
+    Probe() {}
+  };
   
   map<string, string> config;
-  map<string, int> probes;
+  map<string, Probe> probes;
   const string configfile = "database-config.txt";
   const string database_name = "tempo";
 
@@ -107,20 +113,21 @@ struct Database {
       const int id = res[i]["id"];
       const char *code = res[i]["code"];
       const char *desc = res[i]["description"];
-      probes[code] = id;
+      probes[code].id = id;
+      probes[code].desc = desc;
       printf("%d. %s: %s\n", id, code, desc);
     }
   }
 
   // code should be like "28-000009ffbb20"
-  void WriteTemp(const string &code, int microdegs_c) {
+  string WriteTemp(const string &code, int microdegs_c) {
     auto it = probes.find(code);
     if (it == probes.end()) {
       printf("Unknown probe %s!\n", code.c_str());
-      return;
+      return "???";
     }
 
-    const int id = it->second;
+    const int id = it->second.id;
     uint64 now = time(nullptr);
     string qs = StringPrintf("insert into tempo.reading "
 			     "(timestamp, probeid, microdegsc) "
@@ -128,19 +135,26 @@ struct Database {
 			     now, id, microdegs_c);
     Query q = conn.query(qs.c_str());
     (void)q.store();
+    return it->second.desc;
   }
 };
 
 int main(int argc, char **argv) {
   OneWire onewire;
   Database db;
-  
+
+  int64 start = time(nullptr);
+  int64 readings = 0LL;
   for (;;) {
     for (auto &p : onewire.probes) {
       uint32 microdegs_c = 0;
       if (p.second.Temperature(&microdegs_c)) {
-	printf("%s: %u\n", p.first.c_str(), microdegs_c);
-	db.WriteTemp(p.first, microdegs_c);
+	string s = db.WriteTemp(p.first, microdegs_c);
+	readings++;
+	double elapsed = time(nullptr) - start;
+	printf("%s (%s): %u  (%.2f/sec)\n",
+	       p.first.c_str(), s.c_str(), microdegs_c,
+	       readings / elapsed);
       } else {
 	printf("%s: ERROR\n", p.first.c_str());
       }
