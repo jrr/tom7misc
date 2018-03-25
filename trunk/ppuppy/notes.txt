@@ -1,8 +1,13 @@
 
+This doc rules:
+https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
 
+ -- timing -- 
+
+NES:
 Measured pin #38 (M2) on the saleae.
 Example pulse: .36 us high .198 us low, which is 1.792 MHz.
-
+           ie.  360 ns,    198 ns
 On the pi, a for(;;) loop just calling gpio_write (one pin)
 gets 80-88 ns pulse times
 
@@ -34,4 +39,6 @@ wave. Plenty of more optimization to do...
 
  - inlined peri_write (this version also actually packs
    bits into the pins written, so that it's not trivial): 52ns/124
- - 
+ - inlined all routines necessary to do write_mask: 44ns/120
+ - memory barrier before/after: 48/80
+ - barrier just before: 56/100
