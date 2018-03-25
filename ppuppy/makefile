@@ -7,7 +7,7 @@ LFLAGS=
 
 %.o : %.cc *.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
-	# bash -c "echo -n '.'"
+#	bash -c "echo -n '.'"
 
 %.s : %.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -S -c -o $@ $<

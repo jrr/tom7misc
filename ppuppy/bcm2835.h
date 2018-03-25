@@ -522,6 +522,7 @@
 #define BCM2835_H
 
 #include <stdint.h>
+#include <string.h>
 
 #define BCM2835_VERSION 10055 /* Version 1.55 */
 
@@ -1330,14 +1331,20 @@ extern "C" {
       \param[in] mask Mask of pins to affect. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
       \sa bcm2835_gpio_write_multi()
     */
-    extern void bcm2835_gpio_set_multi(uint32_t mask);
+  inline void bcm2835_gpio_set_multi(uint32_t mask) {
+    volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPSET0/4;
+    bcm2835_peri_write(paddr, mask);
+  }
 
     /*! Sets any of the first 32 GPIO output pins specified in the mask to 
       LOW.
       \param[in] mask Mask of pins to affect. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
       \sa bcm2835_gpio_write_multi()
     */
-    extern void bcm2835_gpio_clr_multi(uint32_t mask);
+  inline void bcm2835_gpio_clr_multi(uint32_t mask) {
+    volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPCLR0/4;
+    bcm2835_peri_write(paddr, mask);
+  }
 
     /*! Reads the current level on the specified 
       pin and returns either HIGH or LOW. Works whether or not the pin
@@ -1497,7 +1504,7 @@ extern "C" {
       again execute the calling thread.
       \param[in] millis Delay in milliseconds
     */
-    extern void bcm2835_delay (unsigned int millis);
+    extern void bcm2835_delay(unsigned int millis);
 
     /*! Delays for the specified number of microseconds.
       Uses a combination of nanosleep() and a busy wait loop on the BCM2835 system timers,
@@ -1530,8 +1537,32 @@ extern "C" {
       \param[in] value values required for each bit masked in by mask, eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
       \param[in] mask Mask of pins to affect. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
     */
-    extern void bcm2835_gpio_write_mask(uint32_t value, uint32_t mask);
+  inline void bcm2835_gpio_write_mask_old(uint32_t value, uint32_t mask) {
+    // PERF: I think the second one can be without memory barrier, but
+    // is it the "same peripheral"? -tom7
+    bcm2835_gpio_set_multi(value & mask);
+    bcm2835_gpio_clr_multi((~value) & mask);
+  }
 
+  inline void bcm2835_gpio_write_mask(uint32_t value, uint32_t mask) {
+    // PERF: I think the second one can be without memory barrier, but
+    // is it the "same peripheral"? -tom7
+    // According to the Broadcom doc, "the GPIO peripheral" appears to be
+    // a single peripheral.
+    // "a memory write barrier before the first write to a peripheral"
+    const uint32_t ons = value & mask;
+    volatile uint32_t* paddr_s = bcm2835_gpio + BCM2835_GPSET0/4;
+    volatile uint32_t* paddr_c = bcm2835_gpio + BCM2835_GPCLR0/4;
+    const uint32_t offs = ~value & mask;
+    __sync_synchronize();
+    *paddr_s = ons;
+    *paddr_c = offs;
+    // PERF: Are these both necessary? there's some asymmetry in docs between
+    // read/write before/after
+    // __sync_synchronize();
+  }
+
+  
     /*! Sets the Pull-up/down mode for the specified pin. This is more convenient than
       clocking the mode in with bcm2835_gpio_pud() and bcm2835_gpio_pudclk().
       \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
