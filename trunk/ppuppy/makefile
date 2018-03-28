@@ -13,7 +13,7 @@ LFLAGS=
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -S -c -o $@ $<
 
 # ../cc-lib/util.o  ../cc-lib/base/stringprintf.o
-CCLIB_OBJECTS= ../cc-lib/base/logging.o
+CCLIB_OBJECTS= ../cc-lib/base/logging.o ../cc-lib/arcfour.o
 
 ppuppy.exe : ppuppy.o bcm2835.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
