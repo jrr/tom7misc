@@ -1519,7 +1519,7 @@ extern "C" {
       result in a delay of about 80 microseconds. Your mileage may vary.
       \param[in] micros Delay in microseconds
     */
-    extern void bcm2835_delayMicroseconds (uint64_t micros);
+    extern void bcm2835_delayMicroseconds(uint64_t micros);
 
     /*! Sets the output state of the specified pin
       \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
