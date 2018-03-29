@@ -44,6 +44,7 @@ int main(int argc, char **argv) {
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
+  #if 0
   for (int i = 0; i < 20; i++) {
     uint8 v = i & 1;
     printf("%s\n", v ? "ON" : "OFF");
@@ -52,9 +53,10 @@ int main(int argc, char **argv) {
   }
 
   return 0;
+  #endif
   
   int index = 0;
-  uint16 value = 0;
+  uint32 value = 0;
   for (;;) {
     // bcm2835_delayMicroseconds(1000); // 1ms
     // bcm2835_gpio_write(PIN, value & 1);
@@ -64,7 +66,13 @@ int main(int argc, char **argv) {
 	(v << PIN) | (v << PIN2) | (v << PIN3) | (v << PIN4),
 	(1 << PIN) | (1 << PIN2) | (1 << PIN3) | (1 << PIN4));
     value++;
+
+    if (0 == (value & 0x3FFFF)) {
+      bcm2835_delayMicroseconds(16000); // 16ms
+    }
+      
     
+    #if 0
     // uint8 value = mem[index];
     uint32 word = ((value & 1) << PIN) |
       (((value >> 1) & 1) << PIN2) |
@@ -72,7 +80,7 @@ int main(int argc, char **argv) {
       (((value >> 3) & 1) << PIN4);
     bcm2835_gpio_write_mask(word,
 			    (1 << PIN) | (1 << PIN2) | (1 << PIN3) | (1 << PIN4));
-    
+    #endif
     // index++;
     // index &= 8191;
   }
