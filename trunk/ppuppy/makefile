@@ -18,6 +18,12 @@ CCLIB_OBJECTS= ../cc-lib/base/logging.o ../cc-lib/arcfour.o
 ppuppy.exe : ppuppy.o bcm2835.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+clear.exe : clear.o bcm2835.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+set.exe : set.o bcm2835.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 clean :
 	rm -f *.o *.exe core $(CCLIB_OBJECTS)
 

@@ -1,5 +1,6 @@
 #include <sched.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include <string>
 #include <cstdint>
@@ -43,6 +44,15 @@ int main(int argc, char **argv) {
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
+  for (int i = 0; i < 20; i++) {
+    uint8 v = i & 1;
+    printf("%s\n", v ? "ON" : "OFF");
+    bcm2835_gpio_write_mask((v << PIN), (1 << PIN));
+    sleep(3);
+  }
+
+  return 0;
+  
   int index = 0;
   uint16 value = 0;
   for (;;) {
