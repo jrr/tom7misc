@@ -64,3 +64,30 @@ wave. Plenty of more optimization to do...
 - 15305.312u (full frame) / 63.5us = 241 almost exactly,
   which I think means that this double-read is the end of
   a scanline.
+
+ -- switching d0 --
+
+This is not working right.
+
+I have a 4.7k pullup from 5v to DATA.
+- DATA is on the Collector of the NPN transistor. [ch 2]
+- PIN 26 is on the Base of the transistor [ch 0], after a 10k resistor
+- GND is on the Emitter.
+
+We should be able to pull this close to ground (+ transistor drop) by closing
+the transistor's circuit. But:
+
+    ch 0              ch 2
+ 26 set = 3.3v       about 3.8v
+ 26 clear = 0.0v     about 4.9v
+
+so it's like maybe I'm only turning on the voltage drop?
+AHA! Perhaps the transistor is simply backwards [laughing crying emoji]
+because the pinout on TO-92 IS NOT STANDARD!
+
+fixed! now:
+
+    ch 0              ch 2
+ 26 clear = 0.0v    about 4.9v
+ 26 set = 3.3v      about .03v
+

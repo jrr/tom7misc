@@ -26,9 +26,9 @@ int main(int argc, char **argv) {
   bcm2835_gpio_fsel(pin, BCM2835_GPIO_FSEL_OUTP);
   bcm2835_gpio_set_pud(pin, BCM2835_GPIO_PUD_OFF);
 
-  uint8 value = 0;
+  uint8 value = 1;
   bcm2835_gpio_write_mask((value << pin), (1 << pin));
-  printf("Clear pin %d.\n", pin);
+  printf("Set pin %d.\n", pin);
   
   CHECK(bcm2835_close());
   return 0;
