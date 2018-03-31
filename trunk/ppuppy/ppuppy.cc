@@ -16,12 +16,13 @@ using uint8 = uint8_t;
 using uint16 = uint16_t;
 using uint32 = uint32_t;
 using uint64 = uint64_t;
+using int32 = int32_t;
 using int64 = int64_t;
 
 // input pins
 static constexpr uint8 PIN_RD = 16;
-static constexpr uint8 PIN_ADDR0 = 24;
-static constexpr uint8 PIN_ADDR1 = 25;
+static constexpr uint8 PIN_ADDR0 = 25;
+static constexpr uint8 PIN_ADDR1 = 24;
 
 // output pins
 static constexpr uint8 POUT = 26;
@@ -53,7 +54,7 @@ int main(int argc, char **argv) {
   // Set input and enable pulldown.
   for (uint8 p : {PIN_RD, PIN_ADDR0, PIN_ADDR1}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_INPT);
-    bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_DOWN);
+    bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF); // XXX set to no pulls
   }
 
   // Set output and disable pulldown.
@@ -64,11 +65,15 @@ int main(int argc, char **argv) {
 
   // Memory actually returned for each read.
   // XXX extend to 16-bit addresses obv
-  uint8 values[256] = {3, 2, 1, 0};
-
+  uint8 values[256];
+  for (int i = 0; i < 256; i++) {
+    values[i] = i >> 4;
+  }
+  
   // falling edge on PPU RD.
   int64 edges = 0LL;
   int64 reads[256] = {};
+  int32 num_hi = 0, frames = 0, sync = 0;
   for (;;) {
     // do this periodically so that we can ctrl-c.
     // But of course this causes glitches. XXX fix!
@@ -82,31 +87,48 @@ int main(int argc, char **argv) {
 	if (rd_last) {
 	  rd_last = 0;
 	}
+	num_hi++;
       } else {
 	// rd is low (reading)
 	if (!rd_last) {
+	  if (num_hi > 100) {
+	    sync = 0;
+	    frames++;
+	  }
+
 	  edges++;
 	  uint8 addr =
 	    (((inputs >> PIN_ADDR0) & 1) << 0) |
 	    (((inputs >> PIN_ADDR1) & 1) << 1);
 	  // obviously get more bits...
 	  reads[addr]++;
-	  uint8 data = values[addr];
+
+	  // XXX hax
+	  // addr = sync++;
+	  sync++;
+	  // uint8 data = (frames & 1) ? 0xFF : 0x00;
+	  uint8 data = ((sync > 4000 && sync < 12000) ||
+			(sync > 24000 && sync < 26000))
+			? 0xFF : 0x00;
+	  // values[addr & 255] : 0;
 
 	  uint32 word = ((data & 1) << POUT) |
 	    (((data >> 1) & 1) << POUT2) |
 	    (((data >> 2) & 1) << POUT3) |
 	    (((data >> 3) & 1) << POUT4);
 	  bcm2835_gpio_write_mask(
-	      word,
+	      // Note: All writes use transistor for level shifting, so
+	      // are inverted.
+	      ~word,
 	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
 
 	  rd_last = 1;
 	}
+	num_hi = 0;
       }
     }
-    printf("%lld edge, %lld %lld %lld %lld.\n",
-	   edges, reads[0], reads[1], reads[2], reads[3]);
+    printf("%lld edge, %d frames, %lld %lld %lld %lld.\n",
+	   edges, frames, reads[0], reads[1], reads[2], reads[3]);
   }
 
   return 0;
