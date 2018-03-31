@@ -91,3 +91,82 @@ fixed! now:
  26 clear = 0.0v    about 4.9v
  26 set = 3.3v      about .03v
 
+
+ -- how the NES works --
+
+74LS139 (CPU side) is a simple multiplexer (2 bit address in, selecting
+which of the four outputs gets LOW logic level; others are high). (Actually
+it has two such circuits.) This is hooked up to CPU A13, A14, A15.
+(I think it is selecting between sram, etc.?)
+I think that on the schematic, the "E"nable pin is labeled C. Note how
+one of the Y outputs from the left side is wired into the right half.
+This means that neither Y1 (ppu reg) nor Y0 (cpu side SRAM)
+will be enabled (pulled low) unless the right half is enabled by the
+left half. The left half is always enabled (C to GND) and is selected
+by address bits A15 and M2. Together the left half controls whether
+the right half is enabled, plus outputs to pin 50 (on cartridge),
+which is /ROMSEL. So the CPU can signal the A15 bit to the cartridge
+with every address, clocked with M2. Not sure what this is used for
+exactly (it already gets A0-A14 directly, not to mention M2).
+
+ -- cpu/ppu communication --
+
+To write to PPU VRAM, you use memory mapped cpu registers;
+two bytes to $2006 to set the address, then bytes written to
+$2007 get streamed into incrementing addresses. (It's also possible
+to increment by 32, which moves "down" since the screen is 32 tiles
+wide.)
+
+On the board, cpu has 3 address bits wired to the CPU to select the
+PPU register (there are 8 of them), and an 8-bit bidirectional bus.
+/CS is pulled low by that 74LS139 address multiplexer (not sure
+in what conditions exactly) so that $2007 selects register 0b111.
+Apparently the condition is that the address is from $2000 to $3fff;
+the middle bits are just dropped. 
+
+specifically, the address is:
+001* **** **** *ppp
+where * is ignored, ppp selects the ppu register, and 001 is setting
+the range $2000-$3fff. The 1 here is A13. If you look at how the 74139
+is wired, this makes sense, since the right half has A13 and A14 as
+inputs (and is only enabled when A15 is low), and PPU /DBE as one of
+its outputs.
+
+ -- ppu memory mapping --
+
+On the PPU side, this works differently:
+The 2k SRAM chip (officially CIRAM, aka VRAM) is
+enabled directly from the cart. Pin 57, aka CIRAM /CE, enables the
+chip when low. The PPU RD and PPU WR lines are wired directly to CIRAM,
+also connected to the cart traces.
+A10, the highest bit of the chip's address space, is controlled by
+the cart--not hooked directly into PPU. (I guess probably some carts just
+wire this directly from PPU A10 though?)
+
+Anyway, ppuppy should disable CIRAM (wire /CE high) so that it can
+just supply its own data.
+
+ -- ppu rendering --
+Nice simple explanation from nesdev wiki (PPU nametables article):
+
+
+Conceptually, the PPU does this 33 times for each scanline:
+
+A. Fetch a nametable entry from $2000-$2FBF.
+B. Fetch the corresponding attribute table entry from $23C0-$2FFF and
+   increment the current VRAM address within the same row.
+C. Fetch the low-order byte of an 8x1 pixel sliver of pattern table from $0000-$0FF7 or $1000-$1FF7.
+D. Fetch the high-order byte of this sliver from an address 8 bytes higher.
+E. Turn the attribute data and the pattern table data into palette
+   indices, and combine them with data from sprite data using priority.
+
+It also does a fetch of a 34th (nametable, attribute, pattern) tuple
+that is never used, but some mappers rely on this fetch for timing
+purposes.
+
+Note nametable would usually be RAM. We could disable this and supply our own
+values, though. (This is probably why we see data on the data bus D0
+all throughout the scanline, even when we aren't outputting anything.
+This is not a vram write, it's SRAM asserting a value on that same bus.)
+
+

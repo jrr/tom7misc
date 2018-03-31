@@ -1,0 +1,8 @@
+
+
+Probably makes sense to use a transistor array:
+https://en.wikipedia.org/wiki/Transistor_array
+Might be reasonable 8-transistor array:
+https://www.digikey.com/products/en?mpart=ULN2803A&v=497
+which is like https://en.wikipedia.org/wiki/ULN2003A
+but these seem to be designed for higher-power applications
