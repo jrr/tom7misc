@@ -671,8 +671,8 @@ typedef enum
     BCM2835_REGBASE_SPI0 = 6, /*!< Base of the SPI0 registers. */
     BCM2835_REGBASE_BSC0 = 7, /*!< Base of the BSC0 registers. */
     BCM2835_REGBASE_BSC1 = 8,  /*!< Base of the BSC1 registers. */
-	BCM2835_REGBASE_AUX  = 9,  /*!< Base of the AUX registers. */
-	BCM2835_REGBASE_SPI1 = 10  /*!< Base of the SPI1 registers. */
+    BCM2835_REGBASE_AUX  = 9,  /*!< Base of the AUX registers. */
+    BCM2835_REGBASE_SPI1 = 10  /*!< Base of the SPI1 registers. */
 } bcm2835RegisterBase;
 
 /*! Size of memory page on RPi */
@@ -1346,192 +1346,198 @@ extern "C" {
     bcm2835_peri_write(paddr, mask);
   }
 
-    /*! Reads the current level on the specified 
-      pin and returns either HIGH or LOW. Works whether or not the pin
-      is an input or an output.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-      \return the current level  either HIGH or LOW
-    */
-    extern uint8_t bcm2835_gpio_lev(uint8_t pin);
+  /*! Reads the current level on the specified 
+    pin and returns either HIGH or LOW. Works whether or not the pin
+    is an input or an output.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+    \return the current level  either HIGH or LOW
+  */
+  extern uint8_t bcm2835_gpio_lev(uint8_t pin);
 
-    /*! Event Detect Status.
-      Tests whether the specified pin has detected a level or edge
-      as requested by bcm2835_gpio_ren(), bcm2835_gpio_fen(), bcm2835_gpio_hen(), 
-      bcm2835_gpio_len(), bcm2835_gpio_aren(), bcm2835_gpio_afen().
-      Clear the flag for a given pin by calling bcm2835_gpio_set_eds(pin);
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-      \return HIGH if the event detect status for the given pin is true.
-    */
-    extern uint8_t bcm2835_gpio_eds(uint8_t pin);
+  /* Read pins 0-32 all at once.
+     Not all bits are guaranteed to have meaningful values, but bit offsets
+     for "BCM" pins are a-OK! */
+  extern uint32_t bcm2835_gpio_lev_multi();
 
-    /*! Same as bcm2835_gpio_eds() but checks if any of the pins specified in
-      the mask have detected a level or edge.
-      \param[in] mask Mask of pins to check. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
-      \return Mask of pins HIGH if the event detect status for the given pin is true.
-    */
-    extern uint32_t bcm2835_gpio_eds_multi(uint32_t mask);
+  /*! Event Detect Status.
+    Tests whether the specified pin has detected a level or edge
+    as requested by bcm2835_gpio_ren(), bcm2835_gpio_fen(), bcm2835_gpio_hen(), 
+    bcm2835_gpio_len(), bcm2835_gpio_aren(), bcm2835_gpio_afen().
+    Clear the flag for a given pin by calling bcm2835_gpio_set_eds(pin);
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+    \return HIGH if the event detect status for the given pin is true.
+  */
+  extern uint8_t bcm2835_gpio_eds(uint8_t pin);
 
-    /*! Sets the Event Detect Status register for a given pin to 1, 
-      which has the effect of clearing the flag. Use this afer seeing
-      an Event Detect Status on the pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_set_eds(uint8_t pin);
+  /*! Same as bcm2835_gpio_eds() but checks if any of the pins specified in
+    the mask have detected a level or edge.
+    \param[in] mask Mask of pins to check. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
+    \return Mask of pins HIGH if the event detect status for the given pin is true.
+  */
+  extern uint32_t bcm2835_gpio_eds_multi(uint32_t mask);
 
-    /*! Same as bcm2835_gpio_set_eds() but clears the flag for any pin which
-      is set in the mask.
-      \param[in] mask Mask of pins to clear. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
-    */
-    extern void bcm2835_gpio_set_eds_multi(uint32_t mask);
-    
-    /*! Enable Rising Edge Detect Enable for the specified pin.
-      When a rising edge is detected, sets the appropriate pin in Event Detect Status.
-      The GPRENn registers use
-      synchronous edge detection. This means the input signal is sampled using the
-      system clock and then it is looking for a ?011? pattern on the sampled signal. This
-      has the effect of suppressing glitches.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_ren(uint8_t pin);
+  /*! Sets the Event Detect Status register for a given pin to 1, 
+    which has the effect of clearing the flag. Use this afer seeing
+    an Event Detect Status on the pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_set_eds(uint8_t pin);
 
-    /*! Disable Rising Edge Detect Enable for the specified pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_clr_ren(uint8_t pin);
+  /*! Same as bcm2835_gpio_set_eds() but clears the flag for any pin which
+    is set in the mask.
+    \param[in] mask Mask of pins to clear. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
+  */
+  extern void bcm2835_gpio_set_eds_multi(uint32_t mask);
 
-    /*! Enable Falling Edge Detect Enable for the specified pin.
-      When a falling edge is detected, sets the appropriate pin in Event Detect Status.
-      The GPRENn registers use
-      synchronous edge detection. This means the input signal is sampled using the
-      system clock and then it is looking for a ?100? pattern on the sampled signal. This
-      has the effect of suppressing glitches.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_fen(uint8_t pin);
+  /*! Enable Rising Edge Detect Enable for the specified pin.
+    When a rising edge is detected, sets the appropriate pin in Event Detect Status.
+    The GPRENn registers use
+    synchronous edge detection. This means the input signal is sampled using the
+    system clock and then it is looking for a ?011? pattern on the sampled signal. This
+    has the effect of suppressing glitches.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_ren(uint8_t pin);
 
-    /*! Disable Falling Edge Detect Enable for the specified pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_clr_fen(uint8_t pin);
+  /*! Disable Rising Edge Detect Enable for the specified pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_clr_ren(uint8_t pin);
 
-    /*! Enable High Detect Enable for the specified pin.
-      When a HIGH level is detected on the pin, sets the appropriate pin in Event Detect Status.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_hen(uint8_t pin);
+  /*! Enable Falling Edge Detect Enable for the specified pin.
+    When a falling edge is detected, sets the appropriate pin in Event Detect Status.
+    The GPRENn registers use
+    synchronous edge detection. This means the input signal is sampled using the
+    system clock and then it is looking for a ?100? pattern on the sampled signal. This
+    has the effect of suppressing glitches.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_fen(uint8_t pin);
 
-    /*! Disable High Detect Enable for the specified pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_clr_hen(uint8_t pin);
+  /*! Disable Falling Edge Detect Enable for the specified pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_clr_fen(uint8_t pin);
 
-    /*! Enable Low Detect Enable for the specified pin.
-      When a LOW level is detected on the pin, sets the appropriate pin in Event Detect Status.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_len(uint8_t pin);
+  /*! Enable High Detect Enable for the specified pin.
+    When a HIGH level is detected on the pin, sets the appropriate pin in Event Detect Status.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_hen(uint8_t pin);
 
-    /*! Disable Low Detect Enable for the specified pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_clr_len(uint8_t pin);
+  /*! Disable High Detect Enable for the specified pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_clr_hen(uint8_t pin);
 
-    /*! Enable Asynchronous Rising Edge Detect Enable for the specified pin.
-      When a rising edge is detected, sets the appropriate pin in Event Detect Status.
-      Asynchronous means the incoming signal is not sampled by the system clock. As such
-      rising edges of very short duration can be detected.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_aren(uint8_t pin);
+  /*! Enable Low Detect Enable for the specified pin.
+    When a LOW level is detected on the pin, sets the appropriate pin in Event Detect Status.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_len(uint8_t pin);
 
-    /*! Disable Asynchronous Rising Edge Detect Enable for the specified pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_clr_aren(uint8_t pin);
+  /*! Disable Low Detect Enable for the specified pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_clr_len(uint8_t pin);
 
-    /*! Enable Asynchronous Falling Edge Detect Enable for the specified pin.
-      When a falling edge is detected, sets the appropriate pin in Event Detect Status.
-      Asynchronous means the incoming signal is not sampled by the system clock. As such
-      falling edges of very short duration can be detected.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_afen(uint8_t pin);
+  /*! Enable Asynchronous Rising Edge Detect Enable for the specified pin.
+    When a rising edge is detected, sets the appropriate pin in Event Detect Status.
+    Asynchronous means the incoming signal is not sampled by the system clock. As such
+    rising edges of very short duration can be detected.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_aren(uint8_t pin);
 
-    /*! Disable Asynchronous Falling Edge Detect Enable for the specified pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-    */
-    extern void bcm2835_gpio_clr_afen(uint8_t pin);
+  /*! Disable Asynchronous Rising Edge Detect Enable for the specified pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_clr_aren(uint8_t pin);
 
-    /*! Sets the Pull-up/down register for the given pin. This is
-      used with bcm2835_gpio_pudclk() to set the  Pull-up/down resistor for the given pin.
-      However, it is usually more convenient to use bcm2835_gpio_set_pud().
-      \param[in] pud The desired Pull-up/down mode. One of BCM2835_GPIO_PUD_* from bcm2835PUDControl
-      \sa bcm2835_gpio_set_pud()
-    */
-    extern void bcm2835_gpio_pud(uint8_t pud);
+  /*! Enable Asynchronous Falling Edge Detect Enable for the specified pin.
+    When a falling edge is detected, sets the appropriate pin in Event Detect Status.
+    Asynchronous means the incoming signal is not sampled by the system clock. As such
+    falling edges of very short duration can be detected.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_afen(uint8_t pin);
 
-    /*! Clocks the Pull-up/down value set earlier by bcm2835_gpio_pud() into the pin.
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-      \param[in] on HIGH to clock the value from bcm2835_gpio_pud() into the pin. 
-      LOW to remove the clock. 
-      \sa bcm2835_gpio_set_pud()
-    */
-    extern void bcm2835_gpio_pudclk(uint8_t pin, uint8_t on);
+  /*! Disable Asynchronous Falling Edge Detect Enable for the specified pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+  */
+  extern void bcm2835_gpio_clr_afen(uint8_t pin);
 
-    /*! Reads and returns the Pad Control for the given GPIO group.
-      Caution: requires root access.
-      \param[in] group The GPIO pad group number, one of BCM2835_PAD_GROUP_GPIO_*
-      \return Mask of bits from BCM2835_PAD_* from \ref bcm2835PadGroup
-    */
-    extern uint32_t bcm2835_gpio_pad(uint8_t group);
+  /*! Sets the Pull-up/down register for the given pin. This is
+    used with bcm2835_gpio_pudclk() to set the  Pull-up/down resistor for the given pin.
+    However, it is usually more convenient to use bcm2835_gpio_set_pud().
+    \param[in] pud The desired Pull-up/down mode. One of BCM2835_GPIO_PUD_* from bcm2835PUDControl
+    \sa bcm2835_gpio_set_pud()
+  */
+  extern void bcm2835_gpio_pud(uint8_t pud);
 
-    /*! Sets the Pad Control for the given GPIO group.
-      Caution: requires root access.
-      \param[in] group The GPIO pad group number, one of BCM2835_PAD_GROUP_GPIO_*
-      \param[in] control Mask of bits from BCM2835_PAD_* from \ref bcm2835PadGroup. Note 
-      that it is not necessary to include BCM2835_PAD_PASSWRD in the mask as this
-      is automatically included.
-    */
-    extern void bcm2835_gpio_set_pad(uint8_t group, uint32_t control);
+  /*! Clocks the Pull-up/down value set earlier by bcm2835_gpio_pud() into the pin.
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+    \param[in] on HIGH to clock the value from bcm2835_gpio_pud() into the pin. 
+    LOW to remove the clock. 
+    \sa bcm2835_gpio_set_pud()
+  */
+  extern void bcm2835_gpio_pudclk(uint8_t pin, uint8_t on);
 
-    /*! Delays for the specified number of milliseconds.
-      Uses nanosleep(), and therefore does not use CPU until the time is up.
-      However, you are at the mercy of nanosleep(). From the manual for nanosleep():
-      If the interval specified in req is not an exact multiple of the granularity  
-      underlying  clock  (see  time(7)),  then the interval will be
-      rounded up to the next multiple. Furthermore, after the sleep completes, 
-      there may still be a delay before the CPU becomes free to once
-      again execute the calling thread.
-      \param[in] millis Delay in milliseconds
-    */
-    extern void bcm2835_delay(unsigned int millis);
+  /*! Reads and returns the Pad Control for the given GPIO group.
+    Caution: requires root access.
+    \param[in] group The GPIO pad group number, one of BCM2835_PAD_GROUP_GPIO_*
+    \return Mask of bits from BCM2835_PAD_* from \ref bcm2835PadGroup
+  */
+  extern uint32_t bcm2835_gpio_pad(uint8_t group);
 
-    /*! Delays for the specified number of microseconds.
-      Uses a combination of nanosleep() and a busy wait loop on the BCM2835 system timers,
-      However, you are at the mercy of nanosleep(). From the manual for nanosleep():
-      If the interval specified in req is not an exact multiple of the granularity  
-      underlying  clock  (see  time(7)),  then the interval will be
-      rounded up to the next multiple. Furthermore, after the sleep completes, 
-      there may still be a delay before the CPU becomes free to once
-      again execute the calling thread.
-      For times less than about 450 microseconds, uses a busy wait on the System Timer.
-      It is reported that a delay of 0 microseconds on RaspberryPi will in fact
-      result in a delay of about 80 microseconds. Your mileage may vary.
-      \param[in] micros Delay in microseconds
-    */
-    extern void bcm2835_delayMicroseconds(uint64_t micros);
 
-    /*! Sets the output state of the specified pin
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-      \param[in] on HIGH sets the output to HIGH and LOW to LOW.
-    */
-    extern void bcm2835_gpio_write(uint8_t pin, uint8_t on);
+  /*! Sets the Pad Control for the given GPIO group.
+    Caution: requires root access.
+    \param[in] group The GPIO pad group number, one of BCM2835_PAD_GROUP_GPIO_*
+    \param[in] control Mask of bits from BCM2835_PAD_* from \ref bcm2835PadGroup. Note 
+    that it is not necessary to include BCM2835_PAD_PASSWRD in the mask as this
+    is automatically included.
+  */
+  extern void bcm2835_gpio_set_pad(uint8_t group, uint32_t control);
 
-    /*! Sets any of the first 32 GPIO output pins specified in the mask to the state given by on
-      \param[in] mask Mask of pins to affect. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
-      \param[in] on HIGH sets the output to HIGH and LOW to LOW.
-    */
-    extern void bcm2835_gpio_write_multi(uint32_t mask, uint8_t on);
+  /*! Delays for the specified number of milliseconds.
+    Uses nanosleep(), and therefore does not use CPU until the time is up.
+    However, you are at the mercy of nanosleep(). From the manual for nanosleep():
+    If the interval specified in req is not an exact multiple of the granularity  
+    underlying  clock  (see  time(7)),  then the interval will be
+    rounded up to the next multiple. Furthermore, after the sleep completes, 
+    there may still be a delay before the CPU becomes free to once
+    again execute the calling thread.
+    \param[in] millis Delay in milliseconds
+  */
+  extern void bcm2835_delay(unsigned int millis);
+
+  /*! Delays for the specified number of microseconds.
+    Uses a combination of nanosleep() and a busy wait loop on the BCM2835 system timers,
+    However, you are at the mercy of nanosleep(). From the manual for nanosleep():
+    If the interval specified in req is not an exact multiple of the granularity  
+    underlying  clock  (see  time(7)),  then the interval will be
+    rounded up to the next multiple. Furthermore, after the sleep completes, 
+    there may still be a delay before the CPU becomes free to once
+    again execute the calling thread.
+    For times less than about 450 microseconds, uses a busy wait on the System Timer.
+    It is reported that a delay of 0 microseconds on RaspberryPi will in fact
+    result in a delay of about 80 microseconds. Your mileage may vary.
+    \param[in] micros Delay in microseconds
+  */
+  extern void bcm2835_delayMicroseconds (uint64_t micros);
+
+  /*! Sets the output state of the specified pin
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+    \param[in] on HIGH sets the output to HIGH and LOW to LOW.
+  */
+  extern void bcm2835_gpio_write(uint8_t pin, uint8_t on);
+
+  /*! Sets any of the first 32 GPIO output pins specified in the mask to the state given by on
+    \param[in] mask Mask of pins to affect. Use eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
+    \param[in] on HIGH sets the output to HIGH and LOW to LOW.
+  */
+  extern void bcm2835_gpio_write_multi(uint32_t mask, uint8_t on);
 
     /*! Sets the first 32 GPIO output pins specified in the mask to the value given by value
       \param[in] value values required for each bit masked in by mask, eg: (1 << RPI_GPIO_P1_03) | (1 << RPI_GPIO_P1_05)
