@@ -1162,124 +1162,118 @@ typedef enum
     BCM2835_PWM_CLOCK_DIVIDER_1     = 1        /*!< 1 = 4.6875kHz, same as divider 4096 */
 } bcm2835PWMClockDivider;
 
-/* Historical name compatibility */
-#ifndef BCM2835_NO_DELAY_COMPATIBILITY
-#define delay(x) bcm2835_delay(x)
-#define delayMicroseconds(x) bcm2835_delayMicroseconds(x)
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    /*! \defgroup init Library initialisation and management
-      These functions allow you to intialise and control the bcm2835 library
-      @{
-    */
+  /*! \defgroup init Library initialisation and management
+    These functions allow you to intialise and control the bcm2835 library
+    @{
+  */
 
-    /*! Initialise the library by opening /dev/mem (if you are root) 
-      or /dev/gpiomem (if you are not)
-      and getting pointers to the 
-      internal memory for BCM 2835 device registers. You must call this (successfully)
-      before calling any other 
-      functions in this library (except bcm2835_set_debug). 
-      If bcm2835_init() fails by returning 0, 
-      calling any other function may result in crashes or other failures.
-      If bcm2835_init() succeeds but you are not running as root, then only gpio operations
-      are permitted, and calling any other functions may result in crashes or other failures. .
-      Prints messages to stderr in case of errors.
-      \return 1 if successful else 0
-    */
-    extern int bcm2835_init(void);
+  /*! Initialise the library by opening /dev/mem (if you are root) 
+    or /dev/gpiomem (if you are not)
+    and getting pointers to the 
+    internal memory for BCM 2835 device registers. You must call this (successfully)
+    before calling any other 
+    functions in this library (except bcm2835_set_debug). 
+    If bcm2835_init() fails by returning 0, 
+    calling any other function may result in crashes or other failures.
+    If bcm2835_init() succeeds but you are not running as root, then only gpio operations
+    are permitted, and calling any other functions may result in crashes or other failures. .
+    Prints messages to stderr in case of errors.
+    \return 1 if successful else 0
+  */
+  extern int bcm2835_init(void);
 
-    /*! Close the library, deallocating any allocated memory and closing /dev/mem
-      \return 1 if successful else 0
-    */
-    extern int bcm2835_close(void);
+  /*! Close the library, deallocating any allocated memory and closing /dev/mem
+    \return 1 if successful else 0
+  */
+  extern int bcm2835_close(void);
 
-    /*! Sets the debug level of the library.
-      A value of 1 prevents mapping to /dev/mem, and makes the library print out
-      what it would do, rather than accessing the GPIO registers.
-      A value of 0, the default, causes normal operation.
-      Call this before calling bcm2835_init();
-      \param[in] debug The new debug level. 1 means debug
-    */
-    extern void  bcm2835_set_debug(uint8_t debug);
+  /*! Sets the debug level of the library.
+    A value of 1 prevents mapping to /dev/mem, and makes the library print out
+    what it would do, rather than accessing the GPIO registers.
+    A value of 0, the default, causes normal operation.
+    Call this before calling bcm2835_init();
+    \param[in] debug The new debug level. 1 means debug
+  */
+  extern void  bcm2835_set_debug(uint8_t debug);
 
-    /*! Returns the version number of the library, same as BCM2835_VERSION
-       \return the current library version number
-    */
-    extern unsigned int bcm2835_version(void);
+  /*! Returns the version number of the library, same as BCM2835_VERSION
+     \return the current library version number
+  */
+  extern unsigned int bcm2835_version(void);
 
-    /*! @} */
+  /*! @} */
 
-    /*! \defgroup lowlevel Low level register access
-      These functions provide low level register access, and should not generally
-      need to be used 
-       
-      @{
-    */
+  /*! \defgroup lowlevel Low level register access
+    These functions provide low level register access, and should not generally
+    need to be used 
 
-    /*! Gets the base of a register
-      \param[in] regbase You can use one of the common values BCM2835_REGBASE_*
-      in \ref bcm2835RegisterBase
-      \return the register base
-      \sa Physical Addresses
-    */
-    extern uint32_t* bcm2835_regbase(uint8_t regbase);
+    @{
+  */
 
-    /*! Reads 32 bit value from a peripheral address WITH a memory barrier before and after each read.
-      This is safe, but slow.  The MB before protects this read from any in-flight reads that didn't
-      use a MB.  The MB after protects subsequent reads from another peripheral.
+  /*! Gets the base of a register
+    \param[in] regbase You can use one of the common values BCM2835_REGBASE_*
+    in \ref bcm2835RegisterBase
+    \return the register base
+    \sa Physical Addresses
+  */
+  extern uint32_t* bcm2835_regbase(uint8_t regbase);
 
-      \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
-      \return the value read from the 32 bit register
-      \sa Physical Addresses
-    */
-    extern uint32_t bcm2835_peri_read(volatile uint32_t* paddr);
+  /*! Reads 32 bit value from a peripheral address WITH a memory barrier before and after each read.
+    This is safe, but slow.  The MB before protects this read from any in-flight reads that didn't
+    use a MB.  The MB after protects subsequent reads from another peripheral.
 
-    /*! Reads 32 bit value from a peripheral address WITHOUT the read barriers
-      You should only use this when:
-      o your code has previously called bcm2835_peri_read() for a register
-      within the same peripheral, and no read or write to another peripheral has occurred since.
-      o your code has called bcm2835_memory_barrier() since the last access to ANOTHER peripheral.
+    \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
+    \return the value read from the 32 bit register
+    \sa Physical Addresses
+  */
+  extern uint32_t bcm2835_peri_read(volatile uint32_t* paddr);
 
-      \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
-      \return the value read from the 32 bit register
-      \sa Physical Addresses
-    */
-    extern uint32_t bcm2835_peri_read_nb(volatile uint32_t* paddr);
+  /*! Reads 32 bit value from a peripheral address WITHOUT the read barriers
+    You should only use this when:
+    o your code has previously called bcm2835_peri_read() for a register
+    within the same peripheral, and no read or write to another peripheral has occurred since.
+    o your code has called bcm2835_memory_barrier() since the last access to ANOTHER peripheral.
+
+    \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
+    \return the value read from the 32 bit register
+    \sa Physical Addresses
+  */
+  extern uint32_t bcm2835_peri_read_nb(volatile uint32_t* paddr);
 
 
-    /*! Writes 32 bit value from a peripheral address WITH a memory barrier before and after each write
-      This is safe, but slow.  The MB before ensures that any in-flight write to another peripheral
-      completes before this write is issued.  The MB after ensures that subsequent reads and writes
-      to another peripheral will see the effect of this write.
+  /*! Writes 32 bit value from a peripheral address WITH a memory barrier before and after each write
+    This is safe, but slow.  The MB before ensures that any in-flight write to another peripheral
+    completes before this write is issued.  The MB after ensures that subsequent reads and writes
+    to another peripheral will see the effect of this write.
 
-      This is a tricky optimization; if you aren't sure, use the barrier version.
+    This is a tricky optimization; if you aren't sure, use the barrier version.
 
-      \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
-      \param[in] value The 32 bit value to write
-      \sa Physical Addresses
-    */
+    \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
+    \param[in] value The 32 bit value to write
+    \sa Physical Addresses
+  */
   inline void bcm2835_peri_write(volatile uint32_t* paddr, uint32_t value) {
     __sync_synchronize();
     *paddr = value;
     __sync_synchronize();
   }
 
-    /*! Writes 32 bit value from a peripheral address without the write barrier
-      You should only use this when:
-      o your code has previously called bcm2835_peri_write() for a register
-      within the same peripheral, and no other peripheral access has occurred since.
-      o your code has called bcm2835_memory_barrier() since the last access to ANOTHER peripheral.
+  /*! Writes 32 bit value from a peripheral address without the write barrier
+    You should only use this when:
+    o your code has previously called bcm2835_peri_write() for a register
+    within the same peripheral, and no other peripheral access has occurred since.
+    o your code has called bcm2835_memory_barrier() since the last access to ANOTHER peripheral.
 
-      This is a tricky optimization; if you aren't sure, use the barrier version.
+    This is a tricky optimization; if you aren't sure, use the barrier version.
 
-      \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
-      \param[in] value The 32 bit value to write
-      \sa Physical Addresses
-    */
+    \param[in] paddr Physical address to read from. See BCM2835_GPIO_BASE etc.
+    \param[in] value The 32 bit value to write
+    \sa Physical Addresses
+  */
   inline void bcm2835_peri_write_nb(volatile uint32_t* paddr, uint32_t value) {
     *paddr = value;
   }
@@ -1490,7 +1484,6 @@ extern "C" {
   */
   extern uint32_t bcm2835_gpio_pad(uint8_t group);
 
-
   /*! Sets the Pad Control for the given GPIO group.
     Caution: requires root access.
     \param[in] group The GPIO pad group number, one of BCM2835_PAD_GROUP_GPIO_*
@@ -1569,108 +1562,74 @@ extern "C" {
   }
 
   
-    /*! Sets the Pull-up/down mode for the specified pin. This is more convenient than
-      clocking the mode in with bcm2835_gpio_pud() and bcm2835_gpio_pudclk().
-      \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
-      \param[in] pud The desired Pull-up/down mode. One of BCM2835_GPIO_PUD_* from bcm2835PUDControl
-    */
-    extern void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud);
+  /*! Sets the Pull-up/down mode for the specified pin. This is more convenient than
+    clocking the mode in with bcm2835_gpio_pud() and bcm2835_gpio_pudclk().
+    \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
+    \param[in] pud The desired Pull-up/down mode. One of BCM2835_GPIO_PUD_* from bcm2835PUDControl
+  */
+  extern void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud);
 
-    /*! @}  */
+  /*! @}  */
 
-    /*! \defgroup st System Timer access
-      Allows access to and delays using the System Timer Counter.
-      @{
-    */
+  /*! \defgroup st System Timer access
+    Allows access to and delays using the System Timer Counter.
+    @{
+  */
 
-    /*! Read the System Timer Counter register.
-      \return the value read from the System Timer Counter Lower 32 bits register
-    */
-    extern uint64_t bcm2835_st_read(void);
+  /*! Read the System Timer Counter register.
+    \return the value read from the System Timer Counter Lower 32 bits register
+  */
+  extern uint64_t bcm2835_st_read(void);
 
-    /*! Delays for the specified number of microseconds with offset.
-      \param[in] offset_micros Offset in microseconds
-      \param[in] micros Delay in microseconds
-    */
-    extern void bcm2835_st_delay(uint64_t offset_micros, uint64_t micros);
+  /*! Delays for the specified number of microseconds with offset.
+    \param[in] offset_micros Offset in microseconds
+    \param[in] micros Delay in microseconds
+  */
+  extern void bcm2835_st_delay(uint64_t offset_micros, uint64_t micros);
 
-    /*! @}  */
+  /*! @}  */
 
-    /*! \defgroup pwm Pulse Width Modulation
-      Allows control of 2 independent PWM channels. A limited subset of GPIO pins
-      can be connected to one of these 2 channels, allowing PWM control of GPIO pins.
-      You have to set the desired pin into a particular Alt Fun to PWM output. See the PWM
-      documentation on the Main Page.
-      @{
-    */
+  /*! \defgroup pwm Pulse Width Modulation
+    Allows control of 2 independent PWM channels. A limited subset of GPIO pins
+    can be connected to one of these 2 channels, allowing PWM control of GPIO pins.
+    You have to set the desired pin into a particular Alt Fun to PWM output. See the PWM
+    documentation on the Main Page.
+    @{
+  */
 
-    /*! Sets the PWM clock divisor, 
-      to control the basic PWM pulse widths.
-      \param[in] divisor Divides the basic 19.2MHz PWM clock. You can use one of the common
-      values BCM2835_PWM_CLOCK_DIVIDER_* in \ref bcm2835PWMClockDivider
-    */
-    extern void bcm2835_pwm_set_clock(uint32_t divisor);
-    
-    /*! Sets the mode of the given PWM channel,
-      allowing you to control the PWM mode and enable/disable that channel
-      \param[in] channel The PWM channel. 0 or 1.
-      \param[in] markspace Set true if you want Mark-Space mode. 0 for Balanced mode.
-      \param[in] enabled Set true to enable this channel and produce PWM pulses.
-    */
-    extern void bcm2835_pwm_set_mode(uint8_t channel, uint8_t markspace, uint8_t enabled);
+  /*! Sets the PWM clock divisor, 
+    to control the basic PWM pulse widths.
+    \param[in] divisor Divides the basic 19.2MHz PWM clock. You can use one of the common
+    values BCM2835_PWM_CLOCK_DIVIDER_* in \ref bcm2835PWMClockDivider
+  */
+  extern void bcm2835_pwm_set_clock(uint32_t divisor);
 
-    /*! Sets the maximum range of the PWM output.
-      The data value can vary between 0 and this range to control PWM output
-      \param[in] channel The PWM channel. 0 or 1.
-      \param[in] range The maximum value permitted for DATA.
-    */
-    extern void bcm2835_pwm_set_range(uint8_t channel, uint32_t range);
-    
-    /*! Sets the PWM pulse ratio to emit to DATA/RANGE, 
-      where RANGE is set by bcm2835_pwm_set_range().
-      \param[in] channel The PWM channel. 0 or 1.
-      \param[in] data Controls the PWM output ratio as a fraction of the range. 
-      Can vary from 0 to RANGE.
-    */
-    extern void bcm2835_pwm_set_data(uint8_t channel, uint32_t data);
+  /*! Sets the mode of the given PWM channel,
+    allowing you to control the PWM mode and enable/disable that channel
+    \param[in] channel The PWM channel. 0 or 1.
+    \param[in] markspace Set true if you want Mark-Space mode. 0 for Balanced mode.
+    \param[in] enabled Set true to enable this channel and produce PWM pulses.
+  */
+  extern void bcm2835_pwm_set_mode(uint8_t channel, uint8_t markspace, uint8_t enabled);
 
-    /*! @}  */
+  /*! Sets the maximum range of the PWM output.
+    The data value can vary between 0 and this range to control PWM output
+    \param[in] channel The PWM channel. 0 or 1.
+    \param[in] range The maximum value permitted for DATA.
+  */
+  extern void bcm2835_pwm_set_range(uint8_t channel, uint32_t range);
+
+  /*! Sets the PWM pulse ratio to emit to DATA/RANGE, 
+    where RANGE is set by bcm2835_pwm_set_range().
+    \param[in] channel The PWM channel. 0 or 1.
+    \param[in] data Controls the PWM output ratio as a fraction of the range. 
+    Can vary from 0 to RANGE.
+  */
+  extern void bcm2835_pwm_set_data(uint8_t channel, uint32_t data);
+
+  /*! @}  */
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* BCM2835_H */
-
-/*! @example blink.c
-  Blinks RPi GPIO pin 11 on and off
-*/
-
-/*! @example input.c
-  Reads the state of an RPi input pin
-*/
-
-/*! @example event.c
-  Shows how to use event detection on an input pin
-*/
-
-/*! @example spi.c
-  Shows how to use SPI interface to transfer a byte to and from an SPI device
-*/
-
-/*! @example spin.c
-  Shows how to use SPI interface to transfer a number of bytes to and from an SPI device
-*/
-
-/*! @example pwm.c
-  Shows how to use PWM to control GPIO pins
-*/
-
-/*! @example i2c.c
-Command line utility for executing i2c commands with the 
-Broadcom bcm2835. Contributed by Shahrooz Shahparnia.
-*/
-
-/*! example gpio.c
-  Command line utility for executing gpio commands with the 
-  Broadcom bcm2835. Contributed by Shahrooz Shahparnia.
-*/
