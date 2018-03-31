@@ -15,10 +15,13 @@ using namespace std;
 using uint8 = uint8_t;
 using uint16 = uint16_t;
 using uint32 = uint32_t;
-using int64 = uint64_t;
+using uint64 = uint64_t;
+using int64 = int64_t;
 
 // input pins
 static constexpr uint8 PIN_RD = 16;
+static constexpr uint8 PIN_ADDR0 = 24;
+static constexpr uint8 PIN_ADDR1 = 25;
 
 // output pins
 static constexpr uint8 POUT = 26;
@@ -28,13 +31,15 @@ static constexpr uint8 POUT4 = 22;
 
 int main(int argc, char **argv) {
 
+#ifdef LINUX
   struct sched_param sp;
   memset(&sp, 0, sizeof(sp));
   sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
   sched_setscheduler(0, SCHED_FIFO, &sp);
   mlockall(MCL_CURRENT | MCL_FUTURE);
   printf("NOLOCK.\n");
-  
+#endif
+
   CHECK(bcm2835_init());
 
   ArcFour rc("ppuppy");
@@ -57,32 +62,58 @@ int main(int argc, char **argv) {
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
-  // return SlowStrobe();
-  // return FastStrobe();
+  // Memory actually returned for each read.
+  // XXX extend to 16-bit addresses obv
+  uint8 values[256] = {3, 2, 1, 0};
 
-  // Need to delay every few ms or it's impossible to kill the
-  // process. (XXX figure out a better way to do this though!)
-
-  int64 rd_edge = 0LL;
+  // falling edge on PPU RD.
+  int64 edges = 0LL;
+  int64 reads[256] = {};
   for (;;) {
-    bcm2835_delayMicroseconds(16000); // 16ms, about one 60Hz frame
-    uint8 last = 0;
+    // do this periodically so that we can ctrl-c.
+    // But of course this causes glitches. XXX fix!
+    bcm2835_delayMicroseconds(16000); // 16ms
+    // The last value of the PPU RD bit.
+    uint8 rd_last = 0LL;
     for (int i = 0; i < 0x0FFFFF; i++) {
-      // XXX need to implement lev_multi; how does that not exist?!
-      if (bcm2835_gpio_lev(PIN_RD)) {
-	// Went high.
-	if (!last) last = 1;
+      uint32_t inputs = bcm2835_gpio_lev_multi();
+      if (inputs & PIN_RD) {
+	// rd is high (not reading)
+	if (rd_last) {
+	  rd_last = 0;
+	}
       } else {
-	// Went low.
-	if (last) {
-	  rd_edge++;
-	  last = 0;
+	// rd is low (reading)
+	if (!rd_last) {
+	  edges++;
+	  uint8 addr =
+	    (((inputs >> PIN_ADDR0) & 1) << 0) |
+	    (((inputs >> PIN_ADDR1) & 1) << 1);
+	  // obviously get more bits...
+	  reads[addr]++;
+	  uint8 data = values[addr];
+
+	  uint32 word = ((data & 1) << POUT) |
+	    (((data >> 1) & 1) << POUT2) |
+	    (((data >> 2) & 1) << POUT3) |
+	    (((data >> 3) & 1) << POUT4);
+	  bcm2835_gpio_write_mask(
+	      word,
+	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+
+	  rd_last = 1;
 	}
       }
     }
-    printf("%lld .\n" , rd_edge);
+    printf("%lld edge, %lld %lld %lld %lld.\n",
+	   edges, reads[0], reads[1], reads[2], reads[3]);
   }
-  
+
+  return 0;
+
+  // return SlowStrobe();
+  // return FastStrobe();
+
   CHECK(bcm2835_close());
   return 0;
 }
@@ -109,12 +140,11 @@ int FastStrobe() {
   uint32 value = 0;
   for (;;) {
     // bcm2835_delayMicroseconds(1000); // 1ms
-    // bcm2835_gpio_write(POUT, value & 1);
-
     uint8 v = (value >> 14) & 1;
     bcm2835_gpio_write_mask(
 	(v << POUT) | (v << POUT2) | (v << POUT3) | (v << POUT4),
 	(1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+
     value++;
 
     if (0 == (value & 0x3FFFF)) {
@@ -129,9 +159,10 @@ int FastStrobe() {
       (((value >> 3) & 1) << POUT4);
     bcm2835_gpio_write_mask(word,
 			    (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+    value++;
     #endif
-    // index++;
-    // index &= 8191;
+    index++;
+    index &= 8191;
   }
   return 0;
 }

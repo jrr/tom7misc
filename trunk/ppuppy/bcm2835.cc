@@ -252,12 +252,16 @@ void bcm2835_gpio_clr_multi(uint32_t mask)
 #endif
 
 /* Read input pin */
-uint8_t bcm2835_gpio_lev(uint8_t pin)
-{
-    volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPLEV0/4 + pin/32;
-    uint8_t shift = pin % 32;
-    uint32_t value = bcm2835_peri_read(paddr);
-    return (value & (1 << shift)) ? HIGH : LOW;
+uint8_t bcm2835_gpio_lev(uint8_t pin) {
+  volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPLEV0/4 + pin/32;
+  uint8_t shift = pin % 32;
+  uint32_t value = bcm2835_peri_read(paddr);
+  return (value & (1 << shift)) ? HIGH : LOW;
+}
+
+uint32_t bcm2835_gpio_lev_multi() {
+  volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPLEV0/4;
+  return bcm2835_peri_read(paddr);
 }
 
 /* See if an event detection bit is set
