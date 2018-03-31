@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   printf("START.\n");
 
   // Set input and enable pulldown.
-  for (uint8 p : {PIN_RD}) {
+  for (uint8 p : {PIN_RD, PIN_ADDR0, PIN_ADDR1}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_DOWN);
   }
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     uint8 rd_last = 0LL;
     for (int i = 0; i < 0x0FFFFF; i++) {
       uint32_t inputs = bcm2835_gpio_lev_multi();
-      if (inputs & PIN_RD) {
+      if (inputs & (1 << PIN_RD)) {
 	// rd is high (not reading)
 	if (rd_last) {
 	  rd_last = 0;
