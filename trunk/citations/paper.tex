@@ -14,6 +14,8 @@
 \usepackage{url}
 \usepackage{textcomp}
 
+\usepackage{nopageno}
+
 \pagestyle{empty}
 
 \newcommand\comment[1]{}
@@ -406,6 +408,12 @@ america''s & 119 & 30,478 & 253.9 \\
 gromacs & 125 & 30,865 & 244.9 \\
 neo-ffi & 102 & 21,992 & 213.5 \\
 esh & 156 & 33,142 & 211.1 \\
+eqs & 128 & 25,504 & 197.7 \\
+charmm & 175 & 31,579 & 179.4 \\
+position-specific & 378 & 67,250 & 177.4 \\
+kegg & 201 & 32,989 & 163.3 \\
+arlequin & 161 & 26,318 & 162.4 \\
+praat & 158 & 25,217 & 158.6 \\
 \end{tabular}
 
 These are mostly explained by being relatively rare words that appear
@@ -414,7 +422,9 @@ in extremely popular papers. For example, {\em folin} comes from a
 this reagent, which I guess everyone who uses this technique cites
 (Google scholar has this paper at 215,329 citations). {\em
   Power/knowledge} and {\em 1972-1977} both come from the title of a
-Foucault book\cite{foucault1980power} with 31,590 citations.
+Foucault book\cite{foucault1980power} with 31,590 citations. {\tt
+  america''s} is not a LaTeX disaster; it really has two apostrophes
+in it, and it is weird that this typo appears in 119 articles.
 
 Considering just the alphabetizable words, these too show a bias
 towards early words (Figure~\ref{fig:wordcdf}). Bibliographies that
@@ -442,28 +452,28 @@ numbers less than 1 diminish it. Here are the most common words:
 \begin{tabular}{l|l|l|l}
 \,  & artices & citations & multiplier \\
   \hline
-of & 64322278 & 366756237 & 1.207822 \\
-and & 42576889 & 276526184 & 1.375780 \\
-in & 39685539 & 230534759 & 1.230526 \\
-the & 38873614 & 216491707 & 1.179704 \\
-a   & 22666824 & 139244700 & 1.301292 \\
-for & 19048050 & 114197875 & 1.269972 \\
-on & 15194275 & 68904896 & 0.960631 \\
-with & 10825547 & 60752792 & 1.188784 \\
-to & 10202749 & 58590695 & 1.216461 \\
-de & 7753205 & 3283786 & 0.089718 \\
-by & 7259598 & 42234470 & 1.232370 \\
-from & 5389957 & 35999433 & 1.414806 \\
-an & 5368923 & 33088995 & 1.305519 \\
-la & 4417389 & 1471023 & 0.070541 \\
-study & 4370395 & 22022172 & 1.067397 \\
+1. of & 64,322,278 & 366,756,237 & 1.207822 \\
+2. and & 42,576,889 & 276,526,184 & 1.375780 \\
+3. in & 39,685,539 & 230,534,759 & 1.230526 \\
+4. the & 38,873,614 & 216,491,707 & 1.179704 \\
+5. a   & 22,666,824 & 139,244,700 & 1.301292 \\
+6. for & 19,048,050 & 114,197,875 & 1.269972 \\
+7. on & 15,194,275 & 68,904,896 & 0.960631 \\
+8. with & 10,825,547 & 60,752,792 & 1.188784 \\
+9. to & 10,202,749 & 58,590,695 & 1.216461 \\
+10. de & 7,753,205 & 3,283,786 & 0.089718 \\
+11. by & 7,259,598 & 42,234,470 & 1.232370 \\
+12. from & 5,389,957 & 35,999,433 & 1.414806 \\
+13. an & 5,368,923 & 33,088,995 & 1.305519 \\
+14. la & 4,417,389 & 1,471,023 & 0.070541 \\
+15. study & 4,370,395 & 22,022,172 & 1.067397 \\
 \end{tabular}
 
 Several of these words are visible in Figure~\ref{fig:wordcdf}, in
 fact; they are so common that they cause large jumps in both article
 and citation count. Curiously, most of the common words have a
 multiplier greater than 1; they {\em increase} the expected number of
-citations. {\em of} sounds smart (e.g. {\em Of Mice And Men}), {\em
+citations. {\em Of} sounds smart (e.g. {\em Of Mice And Men}), {\em
   and} makes sense (paper contains at least two results). On the other
 hand, {\em on} actually reduces the citation count, probably because
 it implies equivocation (e.g. {\em On the other hand}). Dramatically,
@@ -474,18 +484,18 @@ imagine real cultural bias!
 
 Finally, here are the words with the worst multipliers:
 \begin{tabular}{l|l|l|l}
-313779.  \includegraphics[width=2em]{bookreview} & 29582 & 1 & 0.000068 \\
-313778.  \includegraphics[width=5em]{interview} & 20547 & 1 & 0.000097 \\
-313777.  facharzt & 85315 & 9 & 0.000117 \\
-313776.  f3d & 125257 & 15 & 0.000128 \\
-313775.  recenzja & 63568 & 8 & 0.000142 \\
-313774.  newhaven & 13296 & 1 & 0.000150 \\
-313773.  secr\'etaire & 12267 & 1 & 0.000163 \\
-313772.  zahnarzt & 17958 & 2 & 0.000167 \\
-313771.  libguides & 389727 & 72 & 0.000187 \\
-313770.  \includegraphics[width=2em]{research} & 12961 & 2 & 0.000231 \\
-313769.  \includegraphics[width=1em]{that} & 15984 & 3 & 0.000250 \\
-313768.  kitas & 7713 & 1 & 0.000259 \\
+313779.  \includegraphics[width=2em]{bookreview} & 29,582 & 1 & 0.000068 \\
+313778.  \includegraphics[width=5em]{interview} & 20,547 & 1 & 0.000097 \\
+313777.  facharzt & 85,315 & 9 & 0.000117 \\
+313776.  f3d & 125,257 & 15 & 0.000128 \\
+313775.  recenzja & 63,568 & 8 & 0.000142 \\
+313774.  newhaven & 13,296 & 1 & 0.000150 \\
+313773.  secr\'etaire & 12,267 & 1 & 0.000163 \\
+313772.  zahnarzt & 17,958 & 2 & 0.000167 \\
+313771.  libguides & 389,727 & 72 & 0.000187 \\
+313770.  \includegraphics[width=2em]{research} & 12,961 & 2 & 0.000231 \\
+313769.  \includegraphics[width=1em]{that} & 15,984 & 3 & 0.000250 \\
+313768.  kitas & 7,713 & 1 & 0.000259 \\
 % 313767.  シンポジウム & 18539 & 4 & 0.000270 \\
 % 313766.  特集 & 878011 & 240 & 0.000274 \\
 \end{tabular}
@@ -526,17 +536,18 @@ have never actually been cited, but in the database there at least 90
 million articles with no citations, all tied for this distinction. Can
 we rank among these papers to break the tie?
 
-(Of course I am just poking fun, not seriously declaring these
-articles somehow ``worst.'' Many good articles are never cited. For
-example, as far as I know, the paper you are reading right now has no
-citations.)
+(Of course: In case someone who wrote one of these papers finds
+themselves here, please note that I am just poking fun, not seriously
+declaring these articles somehow ``worst.'' Many good articles are
+never cited. For example, as far as I know, the paper you are reading
+right now has no citations.)
 
 One way to do this is to try to estimate the number of citations that
 a paper will get based on the words in its title. Since we already
-collected the words that are most citable, this is an apparently
+collected citation multipliers for all words, this is an apparently
 simple affair. We can estimate the citation rate by just taking the
-product of the multipliers for the words. We treat words for which
-we don't have data (because they didn't meet thresholds) as having
+product of the multipliers for the words. We treat words for which we
+don't have data (because they didn't meet thresholds) as having
 multiplier 1.
 
 This first cut has some problems. As an illustration, the article
@@ -545,7 +556,7 @@ citations) is a paper\cite{leigland2009grid} called
 \begin{quote}
 Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid Grid
 \end{quote}
-which is expected to have 5,262,751,498,750,000,000,000,000 citations.
+which according to the analysis is expected to have 5,262,751,498,750,000,000,000,000 citations.
 This is because the word {\em grid} has a favorable multiplier and is
 repeated 121 times. 
 
@@ -588,8 +599,8 @@ some ``English'' articles started to appear:
 The first is probably not the title of an article\cite{officehours},
 although we can agree that it is unlikely to be cited. The second is
 probably a bad entry, with the entire citation packed into the title
-field. This book~\cite{o1997thomas} actually does have 94 citations
-(or DOES IT?) on Google Scholar and an Amazon Sales Rank of \#10,837
+field. This book actually does have 94 citations
+(or DOES IT?~\cite{o1997thomas}) on Google Scholar and an Amazon Sales Rank of \#10,837
 in {\em Christian Denominations \& Sects}.\footnote{ On the other
   hand, the entry does have a different
   author\cite{stevenson2000thomas}, so it could possibly be a review
@@ -637,14 +648,15 @@ appear to be actual articles:
   \signed{(citation multiplier $3.41\!\times\!10^{-18}$)}
 \end{quote}
 
-The first is definitely a real article~\cite{bedient1974eight}---which
+I don't know about you but I fell asleep just reading the titles. The
+first is definitely a real article~\cite{bedient1974eight}---which
 apparently has 95 citations on Google Scholar---so the estimate failed
 us here. It's easy to see why it has such a bad score, though; it's
 packed with people's names and initials, just like the scores of
 uncited book reviews and other broken citations. The second is also a
 real tribute to this Nobel prize winner~\cite{loewi195580th} with 5
 citations that Google knows of. Again it contains names and
-appelations that look like initials. 
+appelations that look like initials.
 
 The third is a book review~\cite{holmes2015narratives} of a
 book~\cite{frederick2012narratives} with itself only 11 citations
