@@ -9,7 +9,6 @@
 // #include "util.h"
 #include "base/logging.h"
 #include "arcfour.h"
-// #include "base/stringprintf.h"
 
 using namespace std;
 using uint8 = uint8_t;
@@ -32,7 +31,7 @@ static constexpr uint8 POUT4 = 22;
 
 int main(int argc, char **argv) {
 
-#ifdef LINUX
+#if 1
   struct sched_param sp;
   memset(&sp, 0, sizeof(sp));
   sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
@@ -69,66 +68,92 @@ int main(int argc, char **argv) {
   for (int i = 0; i < 256; i++) {
     values[i] = i >> 4;
   }
+
+  enum class State {
+    UNKNOWN,
+    IN_VBLANK,
+    RENDERING,  
+  };
+
+  State state = State::UNKNOWN;
   
   // falling edge on PPU RD.
   int64 edges = 0LL;
   int64 reads[256] = {};
   int32 num_hi = 0, frames = 0, sync = 0;
+
+  // last value of PPU /RD
+  uint8 rd_last = 0;
   for (;;) {
-    // do this periodically so that we can ctrl-c.
-    // But of course this causes glitches. XXX fix!
-    bcm2835_delayMicroseconds(16000); // 16ms
-    // The last value of the PPU RD bit.
-    uint8 rd_last = 0LL;
-    for (int i = 0; i < 0x0FFFFF; i++) {
-      uint32_t inputs = bcm2835_gpio_lev_multi();
-      if (inputs & (1 << PIN_RD)) {
-	// rd is high (not reading)
-	if (rd_last) {
-	  rd_last = 0;
-	}
-	num_hi++;
-      } else {
-	// rd is low (reading)
-	if (!rd_last) {
-	  if (num_hi > 100) {
-	    sync = 0;
-	    frames++;
-	  }
-
-	  edges++;
-	  uint8 addr =
-	    (((inputs >> PIN_ADDR0) & 1) << 0) |
-	    (((inputs >> PIN_ADDR1) & 1) << 1);
-	  // obviously get more bits...
-	  reads[addr]++;
-
-	  // XXX hax
-	  // addr = sync++;
-	  sync++;
-	  // uint8 data = (frames & 1) ? 0xFF : 0x00;
-	  uint8 data = ((sync > 4000 && sync < 12000) ||
-			(sync > 24000 && sync < 26000))
-			? 0xFF : 0x00;
-	  // values[addr & 255] : 0;
-
-	  uint32 word = ((data & 1) << POUT) |
-	    (((data >> 1) & 1) << POUT2) |
-	    (((data >> 2) & 1) << POUT3) |
-	    (((data >> 3) & 1) << POUT4);
-	  bcm2835_gpio_write_mask(
-	      // Note: All writes use transistor for level shifting, so
-	      // are inverted.
-	      ~word,
-	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
-
-	  rd_last = 1;
-	}
-	num_hi = 0;
+    uint32_t inputs = bcm2835_gpio_lev_multi();
+    if (inputs & (1 << PIN_RD)) {
+      // PPU /RD is high (so not reading)
+      if (!rd_last) {
+	// Rising edge. Stop outputting during this interval, so
+	// that the data bus isn't still full when the next read
+	// starts.
+	// PERF: This can be just set_multi?
+	bcm2835_gpio_write_mask(
+	    ~0,
+	    (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
       }
+
+      // Have we been in this state long enough to
+      // recognize vblank?
+      num_hi++;
+      if (num_hi > 100) {
+	if (state != State::IN_VBLANK) {
+	  // yield to OS so we can ctrl-c at least.
+	  // PPU vblank is 1.334072ms.
+	  if (true || frames % 60 == 0) {
+	    printf("%lld edge, %d frames, %d last sync, %lld %lld %lld %lld.\n",
+		   edges, frames, sync, reads[0], reads[1], reads[2], reads[3]);
+	    state = State::IN_VBLANK;
+	  }
+	  bcm2835_delayMicroseconds(500); // half a millisecond
+	}
+      }
+      rd_last = 1;
+    } else {
+      // rd is low (reading)
+      if (rd_last == 1) {
+	// Falling edge.
+	edges++;
+	// Did we just begin a frame?
+	if (state == State::IN_VBLANK) {
+	  sync = 0;
+	  frames++;
+	  state = State::RENDERING;
+	}
+
+	uint8 addr =
+	  (((inputs >> PIN_ADDR0) & 1) << 0) |
+	  (((inputs >> PIN_ADDR1) & 1) << 1);
+	// obviously get more bits...
+	reads[addr]++;
+
+	/*
+	uint8 data = ((sync > 4000 && sync < 12000) ||
+		      (sync > 24000 && sync < 26000))
+	  ? 0xFF : 0x00;
+	*/
+	uint8 data = (sync & 1) ? 255 : 0;
+	
+	uint32 word = ((data & 1) << POUT) |
+	  (((data >> 1) & 1) << POUT2) |
+	  (((data >> 2) & 1) << POUT3) |
+	  (((data >> 3) & 1) << POUT4);
+	bcm2835_gpio_write_mask(
+	    // Note: All writes use transistor for level shifting, so
+	    // are inverted.
+	    ~word,
+	    (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+
+	sync++;
+      }
+      num_hi = 0;
+      rd_last = 0;
     }
-    printf("%lld edge, %d frames, %lld %lld %lld %lld.\n",
-	   edges, frames, reads[0], reads[1], reads[2], reads[3]);
   }
 
   return 0;

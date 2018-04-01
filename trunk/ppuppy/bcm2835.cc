@@ -107,18 +107,10 @@ unsigned int bcm2835_version(void)
 uint32_t bcm2835_peri_read(volatile uint32_t* paddr)
 {
     uint32_t ret;
-    if (debug)
-    {
-		printf("bcm2835_peri_read  paddr %p\n", (void *) paddr);
-		return 0;
-    }
-    else
-    {
-       __sync_synchronize();
-       ret = *paddr;
-       __sync_synchronize();
-       return ret;
-    }
+    __sync_synchronize();
+    ret = *paddr;
+    __sync_synchronize();
+    return ret;
 }
 
 /* read from peripheral without the read barrier
@@ -257,11 +249,6 @@ uint8_t bcm2835_gpio_lev(uint8_t pin) {
   uint8_t shift = pin % 32;
   uint32_t value = bcm2835_peri_read(paddr);
   return (value & (1 << shift)) ? HIGH : LOW;
-}
-
-uint32_t bcm2835_gpio_lev_multi() {
-  volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPLEV0/4;
-  return bcm2835_peri_read(paddr);
 }
 
 /* See if an event detection bit is set

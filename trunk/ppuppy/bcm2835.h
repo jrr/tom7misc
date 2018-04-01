@@ -1351,7 +1351,14 @@ extern "C" {
   /* Read pins 0-32 all at once.
      Not all bits are guaranteed to have meaningful values, but bit offsets
      for "BCM" pins are a-OK! */
-  extern uint32_t bcm2835_gpio_lev_multi();
+  inline uint32_t bcm2835_gpio_lev_multi() {
+    volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPLEV0/4;
+    uint32_t ret;
+    ret = *paddr;
+    // Sync after the last read
+    __sync_synchronize();
+    return ret;
+  }
 
   /*! Event Detect Status.
     Tests whether the specified pin has detected a level or edge
@@ -1553,6 +1560,7 @@ extern "C" {
     volatile uint32_t* paddr_s = bcm2835_gpio + BCM2835_GPSET0/4;
     volatile uint32_t* paddr_c = bcm2835_gpio + BCM2835_GPCLR0/4;
     const uint32_t offs = ~value & mask;
+    // Sync before the first write
     __sync_synchronize();
     *paddr_s = ons;
     *paddr_c = offs;

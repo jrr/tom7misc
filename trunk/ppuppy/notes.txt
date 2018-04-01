@@ -160,9 +160,19 @@ D. Fetch the high-order byte of this sliver from an address 8 bytes higher.
 E. Turn the attribute data and the pattern table data into palette
    indices, and combine them with data from sprite data using priority.
 
+(Note: At the beginning of each scanline, the data for the first two
+tiles is already loaded into the shift registers (and ready to be
+rendered), so the first tile that gets fetched is Tile 3.)
+
 It also does a fetch of a 34th (nametable, attribute, pattern) tuple
 that is never used, but some mappers rely on this fetch for timing
 purposes.
+
+(Actually it is more complicated than this, though.
+ Good detailed doc: https://wiki.nesdev.com/w/index.php/PPU_rendering
+ There are 340 PPU cycles in a normal scanline, and each read takes two
+ cycles. So we expect to see about 170 * 240 reads per frame, which is
+ 40,800.)
 
 Note nametable would usually be RAM. We could disable this and supply our own
 values, though. (This is probably why we see data on the data bus D0
@@ -202,3 +212,16 @@ input colors to their closest attainble color. You could compute
 palettes for a specific image you want to display, or just do this
 offline for the whole RGB cube and have a constant pair of palettes.
 
+ -- syncing --
+We expect to see about 40,800 reads per frame. at r3476, with swapping
+disabled and running sudo, I do seem to get about this many reads:
+15394215 edge, 376 frames, 40848 last sync, 7596268 839325 6134896 823726.
+15435103 edge, 377 frames, 40888 last sync, 7616454 841532 6151186 825931.
+15475850 edge, 378 frames, 40747 last sync, 7636578 843709 61
+... being under the number is totally unsurprising (missed deadlines)
+and we can be over from glitches, or the 40800 estimate might just be
+wrong. So actually this seems pretty decent.
+
+ why do I get MORE pulses (on other data pins) when I write 'sync' to output than
+ when I write (sync & 1) ? 255 : 0??!
+ 
