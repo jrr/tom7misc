@@ -169,4 +169,36 @@ values, though. (This is probably why we see data on the data bus D0
 all throughout the scanline, even when we aren't outputting anything.
 This is not a vram write, it's SRAM asserting a value on that same bus.)
 
+So, if for every tile it fetches the attribute table entry, it would
+be possible to change the palette on every tile, not just every 4x4
+block of tiles, right? AND! We could actually change it for each row
+of the tile; basically each 8x1 horizontal stripe has to be from the
+same palette entry. The major limitation here is just that we only get
+2 bits to select the palette, so the screen only has 13 different
+colors (background + 3 non-background colors per palette entry). BUT,
+it should be possible to flip the palette on alternating frames,
+blending colors to get 13*13=169 colors. That's a lot of flexibility.
+Changing the palette dynamically would require cooperation from the
+CPU (and needs to be done during vblank), so probably the best thing
+to do is to pick two constant palettes that mix well to cover the RGB
+space, and always alternate between the two. 16 colors is also not so
+bad. The additional constraints that 8 consecutive pixels need to use
+the same palette definitely adds some complication. Two fun color
+problems:
+
+1. Write a function that takes two palettes and 8x1 pixels, and
+determines the two two-bit 8x1 stripes that minimize the color loss.
+Probably the best results are global (like it's bad if a big solid
+color has the color expressed different ways within it). Another thing
+this could do is take an accumulated error as input, like
+floyd-steinberg dithering.
+
+2. Write a function that finds two optimal palettes for a given
+weighted set of input colors. For any palette, the attainable colors
+are the averages (and there may be some NTSC theory to this
+averaging?) of any pair of colors (including a color and itself). The
+loss is the (weighted) distance (like delta-e in LAB space) of all
+input colors to their closest attainble color. You could compute
+palettes for a specific image you want to display, or just do this
+offline for the whole RGB cube and have a constant pair of palettes.
 
