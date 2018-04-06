@@ -761,6 +761,7 @@ int bcm2835_init(void)
     }
     else
     {
+      fprintf(stderr, "Note: Not root!\n");
       /* Not root, try /dev/gpiomem */
       /* Open the master /dev/mem device */
       if ((memfd = open("/dev/gpiomem", O_RDWR | O_SYNC) ) < 0) 

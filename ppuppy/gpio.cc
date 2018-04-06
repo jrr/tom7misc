@@ -44,14 +44,14 @@ int main(int argc, char **argv) {
   setup_io();
 
   // Apparently need to set in before out.
-  INP_GPIO(26);
-  OUT_GPIO(26);
+  INP_GPIO(POUT);
+  OUT_GPIO(POUT);
 
   for (;;) {
     usleep(500);
     for (int i = 0; i < 0x7FFFFF; i++) {
-      GPIO_SET = 1 << 26;
-      GPIO_CLR == 1 << 26;
+      GPIO_SET = 1 << POUT;
+      GPIO_CLR = 1 << POUT;
     }
   }
 
