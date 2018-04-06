@@ -1,3 +1,19 @@
+Stuff still to figure out / achieve:
+
+ [ ] Read a 5V output (e.g. ppu /rd)
+ [ ] Have data output depend on address read (low order bits)
+ [ ] What are the PPU writes? Do I need to handle them at all?
+ [ ] How often can I change sprite ram?
+ [ ] Can I prevent linux from descheduling me, except in vblank?
+ [ ] Enough time to render SNES frame in vblank?
+ [ ] Is it actually possible to do anything?
+ [ ] Boot up without having to SSH into it. (Takes several seconds to boot...)
+
+Backup plans:
+ [ ] Second pi renders SNES frames, and just sends them to "video" pi
+     during its vblank (wifi??)
+ [ ] Kernel module
+ [ ] Separate fast GPIO microprocessor renders the frame?
 
 This doc rules:
 https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
@@ -337,3 +353,61 @@ So:
    about bus conflicts. (Of course, games certainly still write to
    CIRAM and we would have the potential to conflict with those writes,
    but at least the corrupted values would likely have no effect?)
+
+   Actually j/k: With CIRAM unhooked, we still get addresses: The
+   nametable and attribute table reads should be from predictable
+   (more or less sequential) locations. The pattern table (CHR) reads
+   (which would have reflected the contents of CIRAM) are the ones
+   that would be affected. These reads will directly reflect (well
+   there is some simple function) what we returned from nameable
+   "RAM", so we could actually use these to check that we're in sync!
+   It would look like this:
+
+   PPU reads nametable 0000 (top left corner).
+   We return, say, 0000.
+   PPU reads attribute table for 0000 too.
+   We consult our current sync location, and return the attribute
+   bits for that group of 8 pixels.
+   Now PPU reads from chr+0000 (because we returned 0000 for the first
+   read). We record the address, but just return whatever graphic bits
+   we want at the current sync location. It then reads chr+0000+8 for
+   the second color bit, and we do the same.
+
+   But now: We can look at the addresses read the second time. We
+   controlled the values (modulo some predictable offset), and can
+   compare these to what we expect to make sure we're synced up. For
+   example, if we expected to get back YYYY but instead got YYYY+1,
+   then we adjust our sync position accordingly. In fact, if we were
+   sending a predictable stream here, we could be VERY far off (maybe
+   we had a scheduling blip) and still fix our sync. (Of course, small
+   drift would usually misalign the four reads so that we are actually
+   getting a read for a nametable location when we expect an attribute
+   table read. I think most of the time we are adjusting sync this way.
+   Fortunately these all have disjoint address ranges, so it's pretty
+   easy to know which one the PPU is asking for. Main complication is
+   the special cases that happen at the ends of scanlines (sprites,
+   which also fetch some CHR) or on the pre/postroll scanlines.
+   
+   BTW: Even with CIRAM disabled, we can still get info from the CPU
+   if it modifies sprite locations (this determines what scanline it
+   appears on) or graphics (modifies the address of a CHR fetch;
+   probably better). So I think I should just disable CIRAM and get
+   into that.
+
+ALSO, there appears to be a much better library. BCM library benchmarks
+at about 5.4 Mhz (this approximately matches my experience; 1 / .164us is 6.09,
+and I did some speed tweaks).
+http://codeandlife.com/2012/07/03/benchmarking-raspberry-pi-gpio-speed/
+Supposedly "native library" is 22MHz! Hopefully not PCM...
+
+(This same page warns that you need pretty short leads to the scope
+at high bandwidth, so we may be entering the realm where these longass
+bell wires in the rat's nest are actually messing things up. Beware.)
+
+
+
+ - enabling all the GPIO -
+
+"At reset only pins GPIO 14 & 15 are assigned to the alternate
+function UART,"
+(I think this might be out of date though?)

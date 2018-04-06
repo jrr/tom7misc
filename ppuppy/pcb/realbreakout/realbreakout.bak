@@ -334,27 +334,27 @@ Text GLabel 5800 6050 3    60   Input ~ 0
 Text GLabel 4000 4700 1    60   Input ~ 0
 GND
 $Comp
-L GLS29EE010 E?
+L GLS29EE010 E1
 U 1 1 5AC43D48
 P 500 2150
-F 0 "E?" H 500 2150 60  0000 C CNN
+F 0 "E1" H 500 2150 60  0000 C CNN
 F 1 "GLS29EE010" H 500 2250 60  0000 C CNN
-F 2 "" H 500 2150 60  0001 C CNN
+F 2 "Housings_DIP:DIP-32_W15.24mm" H 500 2150 60  0001 C CNN
 F 3 "" H 500 2150 60  0001 C CNN
 	1    500  2150
 	0    1    1    0   
 $EndComp
-Connection ~ 3400 2650
-Connection ~ 3500 2700
-Connection ~ 3600 2750
-Connection ~ 3700 2800
-Connection ~ 3800 2850
-Connection ~ 3900 2900
-Connection ~ 4000 2950
-Connection ~ 4100 3000
-Connection ~ 4200 3050
-Connection ~ 4300 3100
-Connection ~ 4400 3150
+Connection ~ 3400 2750
+Connection ~ 3500 2800
+Connection ~ 3600 2850
+Connection ~ 3700 2900
+Connection ~ 3800 2950
+Connection ~ 3900 3000
+Connection ~ 4000 3050
+Connection ~ 4100 3100
+Connection ~ 4200 3150
+Connection ~ 4300 3200
+Connection ~ 4400 3250
 Connection ~ 3300 2600
 Connection ~ 3300 1250
 Connection ~ 3400 1200
@@ -370,67 +370,131 @@ Connection ~ 4300 750
 Connection ~ 4400 700 
 Connection ~ 4500 650 
 Wire Wire Line
-	3400 2650 2700 2650
+	3400 2750 2800 2750
 Wire Wire Line
-	2700 2650 2700 1450
+	2800 2750 2800 1450
 Wire Wire Line
-	2700 1450 1950 1450
+	2800 1450 1950 1450
 Wire Wire Line
 	1950 1450 1950 1550
 Wire Wire Line
-	3500 2700 1850 2700
+	1850 2800 3500 2800
 Wire Wire Line
-	1850 2700 1850 2500
+	1850 2500 1850 2800
 Wire Wire Line
-	3600 2750 1950 2750
+	1950 2850 3600 2850
 Wire Wire Line
-	1950 2750 1950 2500
+	1950 2500 1950 2850
 Wire Wire Line
-	3700 2800 1150 2800
+	1150 2900 3700 2900
 Wire Wire Line
-	1150 2800 1150 2500
+	1150 2500 1150 2900
 Wire Wire Line
-	3800 2850 1050 2850
+	1050 2950 3800 2950
 Wire Wire Line
-	1050 2850 1050 2500
+	1050 2500 1050 2950
 Wire Wire Line
-	3900 2900 950  2900
+	950  3000 3900 3000
 Wire Wire Line
-	950  2900 950  2500
+	950  2500 950  3000
 Wire Wire Line
-	4000 2950 850  2950
+	850  3050 4000 3050
 Wire Wire Line
-	850  2950 850  2500
+	850  2500 850  3050
 Wire Wire Line
-	4100 3000 750  3000
+	750  3100 4100 3100
 Wire Wire Line
-	750  3000 750  2500
+	750  2500 750  3100
 Text GLabel 750  1550 1    60   Input ~ 0
 GND
 Text GLabel 2250 2500 2    60   Input ~ 0
 5V
 Wire Wire Line
-	4200 3050 2450 3050
+	2450 3150 4200 3150
 Wire Wire Line
-	2450 3050 2450 1400
+	2450 1400 2450 3150
 Wire Wire Line
 	2450 1400 850  1400
 Wire Wire Line
 	850  1400 850  1550
 Wire Wire Line
-	4300 3100 2500 3100
-Wire Wire Line
-	2500 3100 2500 1350
+	4300 3200 2500 3200
 Wire Wire Line
 	2500 1350 950  1350
 Wire Wire Line
 	950  1350 950  1550
 Wire Wire Line
-	4400 3150 2550 3150
+	4400 3250 2550 3250
 Wire Wire Line
-	2550 3150 2550 1300
+	2550 3250 2550 1300
 Wire Wire Line
 	2550 1300 1050 1300
 Wire Wire Line
 	1050 1300 1050 1550
+Wire Wire Line
+	3300 1250 2750 1250
+Wire Wire Line
+	2750 1250 2750 2750
+Wire Wire Line
+	2750 2750 1550 2750
+Wire Wire Line
+	1550 2750 1550 2500
+Wire Wire Line
+	3400 1200 2700 1200
+Wire Wire Line
+	2700 1200 2700 2700
+Wire Wire Line
+	2700 2700 1350 2700
+Wire Wire Line
+	2500 3200 2500 1350
+Wire Wire Line
+	1350 2700 1350 2500
+Wire Wire Line
+	3500 1150 2650 1150
+Wire Wire Line
+	2650 1150 2650 2650
+Wire Wire Line
+	2650 2650 1650 2650
+Wire Wire Line
+	1650 2650 1650 2500
+Wire Wire Line
+	3600 1100 2600 1100
+Wire Wire Line
+	2600 1100 2600 2600
+Wire Wire Line
+	2600 2600 1750 2600
+Wire Wire Line
+	1750 2600 1750 2500
+Wire Wire Line
+	3700 1050 1850 1050
+Wire Wire Line
+	1850 1050 1850 1550
+Wire Wire Line
+	3800 1000 1750 1000
+Wire Wire Line
+	1750 1000 1750 1550
+Wire Wire Line
+	3900 950  1650 950 
+Wire Wire Line
+	1650 950  1650 1550
+Wire Wire Line
+	4000 900  1550 900 
+Wire Wire Line
+	1550 900  1550 1550
+Wire Wire Line
+	4100 850  1450 850 
+Wire Wire Line
+	1450 850  1450 1550
+Wire Wire Line
+	4200 800  1350 800 
+Wire Wire Line
+	1350 800  1350 1550
+Wire Wire Line
+	4300 750  1250 750 
+Wire Wire Line
+	1250 750  1250 1550
+Wire Wire Line
+	4400 700  1150 700 
+Wire Wire Line
+	1150 700  1150 1550
 $EndSCHEMATC

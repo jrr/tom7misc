@@ -1,8 +1,24 @@
 
 
+greenliant eeprom,
+GLS29EE010-70-4C-PHE
+maybe this is the same as SST29EE010?
+The data sheet is almost identical:
+http://www.metatech.com.hk/datasheet/sst/standard_mem_pdf/304-29xE010-3-DS.pdf
+and this eeprom is supported by the cheap programmer on amazon, which I bought.
+
+vishay 1k and 2k resistors, 1/3W, 1%, metal film
+
+
 Probably makes sense to use a transistor array:
 https://en.wikipedia.org/wiki/Transistor_array
 Might be reasonable 8-transistor array:
 https://www.digikey.com/products/en?mpart=ULN2803A&v=497
 which is like https://en.wikipedia.org/wiki/ULN2003A
 but these seem to be designed for higher-power applications
+
+
+useful IO expander (i2c <-> 16 I/O ports, which can run at 5.5V):
+http://ww1.microchip.com/downloads/en/DeviceDoc/22103a.pdf
+*but* it is too slow to use for PPU output.
+You could use this for on-board EEPROM programming, though?
