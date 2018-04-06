@@ -22,6 +22,7 @@ using int64 = int64_t;
 static constexpr uint8 PIN_RD = 16;
 static constexpr uint8 PIN_ADDR0 = 25;
 static constexpr uint8 PIN_ADDR1 = 24;
+static constexpr uint8 PIN_ADDR13 = 23;
 
 // output pins
 static constexpr uint8 POUT = 26;
@@ -32,6 +33,8 @@ static constexpr uint8 POUT4 = 22;
 int main(int argc, char **argv) {
 
 #if 1
+  // This magic locks our memory so that it doesn't get
+  // swapped out, which improves our scheduling latency.
   struct sched_param sp;
   memset(&sp, 0, sizeof(sp));
   sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
@@ -63,7 +66,7 @@ int main(int argc, char **argv) {
   }
 
   // Memory actually returned for each read.
-  // XXX extend to 16-bit addresses obv
+  // XXX extend to 16-bit (actually 13) addresses obv
   uint8 values[256];
   for (int i = 0; i < 256; i++) {
     values[i] = i >> 4;
@@ -71,9 +74,9 @@ int main(int argc, char **argv) {
 
   enum class State {
     UNKNOWN,
-    IN_VBLANK,
-    RENDERING,  
-  };
+      IN_VBLANK,
+      RENDERING,  
+      };
 
   State state = State::UNKNOWN;
   
@@ -92,9 +95,12 @@ int main(int argc, char **argv) {
 	// Rising edge. Stop outputting during this interval, so
 	// that the data bus isn't still full when the next read
 	// starts.
-	// PERF: This can be just set_multi?
+	// PERF: This can be just set_multi or clr_multi, I think.
 	bcm2835_gpio_write_mask(
-	    ~0,
+	    // We actually write 3v3 0 here, which is inverted to a
+	    // 5v 1, which is then the unit on the bus conflict
+	    // (which is basically AND).
+	    0,
 	    (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
       }
 
@@ -127,28 +133,51 @@ int main(int argc, char **argv) {
 	  state = State::RENDERING;
 	}
 
-	uint8 addr =
-	  (((inputs >> PIN_ADDR0) & 1) << 0) |
-	  (((inputs >> PIN_ADDR1) & 1) << 1);
-	// obviously get more bits...
-	reads[addr]++;
+	// Is this a read from CHR ROM or CIRAM?
+	if (inputs & (1 << PIN_ADDR13)) {
+	  // Read from 0x2000-0x3FFF (ROM).
+	  uint8 addr =
+	    (((inputs >> PIN_ADDR0) & 1) << 0) |
+	    (((inputs >> PIN_ADDR1) & 1) << 1);
+	  // obviously get more bits...
+	  reads[addr]++;
 
-	/*
-	uint8 data = ((sync > 4000 && sync < 12000) ||
-		      (sync > 24000 && sync < 26000))
-	  ? 0xFF : 0x00;
-	*/
-	uint8 data = (sync & 1) ? 255 : 0;
+	  /*
+	    uint8 data = ((sync > 4000 && sync < 12000) ||
+	    (sync > 24000 && sync < 26000))
+	    ? 0xFF : 0x00;
+	  */
+	  /*
+	  uint8 data = (sync & 1) ? 255 : 0;
 	
-	uint32 word = ((data & 1) << POUT) |
-	  (((data >> 1) & 1) << POUT2) |
-	  (((data >> 2) & 1) << POUT3) |
-	  (((data >> 3) & 1) << POUT4);
-	bcm2835_gpio_write_mask(
-	    // Note: All writes use transistor for level shifting, so
-	    // are inverted.
-	    ~word,
-	    (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+	  uint32 word = ((data & 1) << POUT) |
+	    (((data >> 1) & 1) << POUT2) |
+	    (((data >> 2) & 1) << POUT3) |
+	    (((data >> 3) & 1) << POUT4);
+	  */
+	  uint32 word = ((sync > 4000 && sync < 12000) ||
+	    (sync > 24000 && sync < 26000))
+	    ? 0xFFFFFFFF : 0x00;
+	  bcm2835_gpio_write_mask(
+	      // Note: All writes use transistor for level shifting, so
+	      // are inverted.
+	      ~word,
+	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+	  
+	} else {
+	  // Read from 0x0000-0x1FFF (CIRAM).
+	  // In this case we don't want to output.
+	  // But outputting "0" is not the same as
+	  // "let the other chip assert its value."
+	  // But allegedly, bus conflicts resolve
+	  // to zero, so the fact that we pull up
+	  // this bit (currently 4.7k) on the 5V side
+	  // may be just what we need, as long as
+	  // we write 0 (= 5v logic level 1) here.
+	  //
+	  // Since we already wrote this on the rising
+	  // edge, there's nothing to do.
+	}
 
 	sync++;
       }
