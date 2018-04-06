@@ -417,6 +417,24 @@ ppuppy (root) w/ /dev/mem: latency is ~154ns. better!
 Note that we also can't realtime scheduling without root. So we should
 really always run this way.
 
+ - accurate timing on pi -
+
+There is st_read(), which reads microseconds from the system timer.
+microseconds are already too long for this task! Also it has some
+performance issues:
+    //  - st_read does three reads of the clock to avoid overflow. Since
+    //    we expect a small number of ticks here (could make this a
+    //    requirement), we could stop doing that and just do some modular
+    //    math.
+    //  - st_read probably needs to do a memory barrier because the timer
+    //    is a separate peripheral from gpio.
+    //  - function calls have some overhead here.
+
+So, trying a very simple loop with "volatile", etc. to disable optimizations.
+This works OK. With a delay of "3" I can get a pulse time of 120ns. This
+doesn't help the latency, obviously, which on this experiment was 258ns,
+missing the rd window completely.
+
  - enabling all the GPIO -
 
 "At reset only pins GPIO 14 & 15 are assigned to the alternate

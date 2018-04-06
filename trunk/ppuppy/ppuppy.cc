@@ -32,6 +32,23 @@ static constexpr uint8 POUT2 = 6;
 static constexpr uint8 POUT3 = 5;
 static constexpr uint8 POUT4 = 22;
 
+
+// Maximum resolution timer; a spin-loop purely on the CPU.
+// Intended for a small number of ticks.
+// Disabled inlining for predictability, although this adds
+// some overhead.
+// Note that power scaling and stuff could cause the instructions
+// to take an unpredictable amount of time.
+void __attribute__ ((noinline)) delayTicks(volatile uint32_t ticks) {
+  asm volatile("@ delayTicks inline start" : : :"memory");
+  volatile int f = 0;
+  while (ticks--) {
+    f++;
+  }
+  asm volatile("@ delayTicks inline end" : : :"memory");
+}
+
+
 int main(int argc, char **argv) {
 
 #if 1
@@ -129,8 +146,6 @@ int main(int argc, char **argv) {
     } else {
       // rd is low (reading)
       if (rd_last == 1) {
-	// Falling edge.
-	edges++;
 	// Did we just begin a frame?
 	if (state == State::IN_VBLANK) {
 	  sync = 0;
@@ -140,36 +155,12 @@ int main(int argc, char **argv) {
 
 	// Is this a read from CHR ROM or CIRAM?
 	if (inputs & (1 << PIN_ADDR13)) {
-	  // Read from 0x2000-0x3FFF (ROM).
-	  uint8 addr =
-	    (((inputs >> PIN_ADDR0) & 1) << 0) |
-	    (((inputs >> PIN_ADDR1) & 1) << 1);
-	  // obviously get more bits...
-	  reads[addr]++;
 
 	  static constexpr uint32 values[4] = {
 	    0xFFFFFFFF, 0xFFFFFFFF,
 	    0xFFFFFFFF, 0x00000000
 	  };
 	  
-	  /*
-	    uint8 data = ((sync > 4000 && sync < 12000) ||
-	    (sync > 24000 && sync < 26000))
-	    ? 0xFF : 0x00;
-	  */
-	  /*
-	  uint8 data = (sync & 1) ? 255 : 0;
-	
-	  uint32 word = ((data & 1) << POUT) |
-	    (((data >> 1) & 1) << POUT2) |
-	    (((data >> 2) & 1) << POUT3) |
-	    (((data >> 3) & 1) << POUT4);
-	  */
-	  /*
-	  uint32 word = ((sync > 4000 && sync < 12000) ||
-	    (sync > 24000 && sync < 26000))
-	    ? 0xFFFFFFFF : 0x00;
-	  */
 	  // uint32 word = values[addr];
 	  // uint32 word = (sync & 1) ? 0xFFFFFFFF : 0x00000000;
 	  uint32 word = 0;
@@ -184,7 +175,25 @@ int main(int argc, char **argv) {
 	      // are inverted.
 	      ~word,
 	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
-	  
+
+	  // XXX HAX
+	  delayTicks(3);
+
+	  // Now reset the values soon after. We want to do this after the
+	  // rising edge of PPU RD, but before it falls again.
+	  bcm2835_gpio_write_mask(
+	      0,
+	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+
+	  // I moved the address decoding AFTER the write, to try to improve
+	  // latency.
+	  // Read from 0x2000-0x3FFF (ROM).
+	  const uint8 addr =
+	    (((inputs >> PIN_ADDR0) & 1) << 0) |
+	    (((inputs >> PIN_ADDR1) & 1) << 1);
+	  // obviously get more bits...
+	  reads[addr]++;
+
 	} else {
 	  // Read from 0x0000-0x1FFF (CIRAM).
 	  // In this case we don't want to output.
@@ -201,6 +210,9 @@ int main(int argc, char **argv) {
 	}
 
 	sync++;
+
+	// Falling edge.
+	edges++;
       }
       num_hi = 0;
       rd_last = 0;
