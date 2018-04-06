@@ -404,7 +404,18 @@ Supposedly "native library" is 22MHz! Hopefully not PCM...
 at high bandwidth, so we may be entering the realm where these longass
 bell wires in the rat's nest are actually messing things up. Beware.)
 
+Well indeed, gpio.c is way faster (at least just strobing a single pin):
+I get 28ns high, 32ns low. That would be plenty fast. Not at all clear
+what the latency is, though. With -O2, it's 16ns/16ns, which is like as
+fast as ROMs.
 
+Note: bcm library falls back to /dev/gpiomem if /dev/mem is unavailable
+(not root). Check if this is a performance issue!
+
+ppuppy w/ gpiomem: latency is ~200ns
+ppuppy (root) w/ /dev/mem: latency is ~154ns. better!
+Note that we also can't realtime scheduling without root. So we should
+really always run this way.
 
  - enabling all the GPIO -
 

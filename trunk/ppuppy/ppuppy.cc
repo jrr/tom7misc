@@ -147,6 +147,11 @@ int main(int argc, char **argv) {
 	  // obviously get more bits...
 	  reads[addr]++;
 
+	  static constexpr uint32 values[4] = {
+	    0xFFFFFFFF, 0xFFFFFFFF,
+	    0xFFFFFFFF, 0x00000000
+	  };
+	  
 	  /*
 	    uint8 data = ((sync > 4000 && sync < 12000) ||
 	    (sync > 24000 && sync < 26000))
@@ -160,9 +165,20 @@ int main(int argc, char **argv) {
 	    (((data >> 2) & 1) << POUT3) |
 	    (((data >> 3) & 1) << POUT4);
 	  */
+	  /*
 	  uint32 word = ((sync > 4000 && sync < 12000) ||
 	    (sync > 24000 && sync < 26000))
 	    ? 0xFFFFFFFF : 0x00;
+	  */
+	  // uint32 word = values[addr];
+	  // uint32 word = (sync & 1) ? 0xFFFFFFFF : 0x00000000;
+	  uint32 word = 0;
+	  /* 
+	     uint32 word = ((sync > 4000 && sync < 12000) ||
+			 (sync > 24000 && sync < 26000))
+	    ? values[addr] : 0x00;
+	  */
+
 	  bcm2835_gpio_write_mask(
 	      // Note: All writes use transistor for level shifting, so
 	      // are inverted.
