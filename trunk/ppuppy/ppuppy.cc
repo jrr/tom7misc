@@ -105,11 +105,12 @@ int main(int argc, char **argv) {
 	if (state != State::IN_VBLANK) {
 	  // yield to OS so we can ctrl-c at least.
 	  // PPU vblank is 1.334072ms.
-	  if (true || frames % 60 == 0) {
+	  if ( frames % 60 == 0) {
 	    printf("%lld edge, %d frames, %d last sync, %lld %lld %lld %lld.\n",
 		   edges, frames, sync, reads[0], reads[1], reads[2], reads[3]);
-	    state = State::IN_VBLANK;
 	  }
+	  state = State::IN_VBLANK;
+	  
 	  bcm2835_delayMicroseconds(500); // half a millisecond
 	}
       }
