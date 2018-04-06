@@ -1,7 +1,7 @@
 Stuff still to figure out / achieve:
 
- [ ] Read a 5V output (e.g. ppu /rd)
- [ ] Have data output depend on address read (low order bits)
+ [X] Read a 5V output (e.g. ppu /rd)
+ [X] Have data output depend on address read (low order bits)
  [ ] What are the PPU writes? Do I need to handle them at all?
  [ ] How often can I change sprite ram?
  [ ] Can I prevent linux from descheduling me, except in vblank?
@@ -435,8 +435,32 @@ This works OK. With a delay of "3" I can get a pulse time of 120ns. This
 doesn't help the latency, obviously, which on this experiment was 258ns,
 missing the rd window completely.
 
+Moving address decoding, and incrementing of edges (this seemed surprisingly
+expensive. Is ++ on a 64-bit integer a lot of instructions?
+
  - enabling all the GPIO -
 
 "At reset only pins GPIO 14 & 15 are assigned to the alternate
 function UART,"
 (I think this might be out of date though?)
+
+ - disabling CIRAM -
+
+I wired CIRAM /CE (chip enable) to 5V directly, which should disable
+it. The video output seems to reflect this: Like the ice field is
+reliably the same characters, seemingly in order (because we see
+012345678 although not immediately followed by 9ABCDE_GHIJ_LMNOP).
+Actually, does that make sense? When reading the nametable, it'll
+actually get some of CHR ROM, which just means interpreting
+character bitmap lines as character indices, which shouldn't
+produce such regular results? It looks more like perhaps the address
+is sticking around on the data bus?
+
+Also weird: If I just read PPU D0, which has been cut from the rom
+chip, and also from my output, it has lots of distinct clean data
+on it. Where is it coming from? I thought CIRAM, but I *think* I
+turned it off? Could it be floating and just getting interference
+from nearby wires/traces/etc.? It doesn't look like pure noise,
+but maybe that's possible.
+
+Try next: Weak pullup/down on this line?
