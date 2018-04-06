@@ -1,6 +1,8 @@
 #include <sched.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <errno.h>
+#include <stdio.h>
 
 #include <string>
 #include <cstdint>
@@ -38,7 +40,10 @@ int main(int argc, char **argv) {
   struct sched_param sp;
   memset(&sp, 0, sizeof(sp));
   sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
-  sched_setscheduler(0, SCHED_FIFO, &sp);
+  if (0 != sched_setscheduler(0, SCHED_FIFO, &sp)) {
+    printf("Failed to set scheduling priority...\n");
+    perror("setup: ");
+  }
   mlockall(MCL_CURRENT | MCL_FUTURE);
   printf("NOLOCK.\n");
 #endif
@@ -74,9 +79,9 @@ int main(int argc, char **argv) {
 
   enum class State {
     UNKNOWN,
-      IN_VBLANK,
-      RENDERING,  
-      };
+    IN_VBLANK,
+    RENDERING,  
+  };
 
   State state = State::UNKNOWN;
   

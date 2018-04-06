@@ -1,0 +1,35 @@
+
+retro is not funny. the present already contains the past.
+anachronism is funny: it's wrong, a surprise, that something
+from the future exists in the past
+
+
+
+
+improper hierarchy
+ - the extreme example of this is a "loop" (maybe even a "strange loop")
+ - but improper hierarchy is a more general case.
+ - many examples (these need fleshing out!)
+    - compiler
+    - 64-bit windows 7 running on VirtualBox on windows 2000.
+    - cd/tape adapter
+    -
+
+* who's in charge here?
+ - so many different processors; which one is "in charge"?
+   does it matter?
+
+* video ideas
+
+"wrongness in computer science"
+
+"memory knocking"
+Could use this to signal the beginning of the frame,
+also to communicate 
+
+actually this reminds me of why I gave up on security
+obviously I didn't like just think of this and make the
+slide this second. i mean when I was making the slides.
+ - one transistor bug
+ - DLL signature knocking
+
