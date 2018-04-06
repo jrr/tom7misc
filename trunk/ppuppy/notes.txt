@@ -278,3 +278,62 @@ wrong. So actually this seems pretty decent.
  why do I get MORE pulses (on other data pins) when I write 'sync' to output than
  when I write (sync & 1) ? 255 : 0??!
  
+ -- more syncing --
+
+Now on ice hockey. It seems that the writes are just taking too long.
+Only writing when A13 is high, after PPU /RD goes low, DATA goes high
+after 0.156us (A). That is fast enough to make the rising edge of RD.
+Then from the rising edge of RD, it takes 0.164us (B) to turn off the
+data. During that time RD went low again. We apparently do see that,
+because another 0.164 us (C) later, the write starts. Now again, 0.164
+(D) to turn off the data. Again we're into the next read-low pulse,
+and A13 is off, so we are conflicting with CIRAM.
+
+posterity/timing-late.png
+
+(Actually: *IS* this bad? I am asserting the correct value on the
+rising edge, even if I fail to shut off before the next cycle. When is
+the critical moment? Maybe the timings are okay but just the
+levels/impedance is bad? Could look at timings on other data pins to
+see what they do.)
+
+All these transitions take about the same amount of time, but the
+reaction to RD going high comes late, because the width of the RD high
+pulse is just shorter (.136us) than the low pulse .236. The fact that the
+timings are usually the same suggests that there's just some latency
+between setting a GPIO pin (or perhaps, reading it) and seeing the
+logic level reflected on the output. 
+
+Before we had a write time of <0.090 though. If we can get back to
+that, we'd probably be okay timing-wise?
+
+Another option is to just try to sync an internal clock so that we
+predict the edges rather than reacting to them. It would be good to
+be able to read the address that the PPU is asking for, but OTOH
+they should be totally predictable. We could still use the addresses
+to adjust the sync, as well as to communicate to PPU from CPU, we
+just wouldn't be able to have the NEXT write depend on them.
+
+So:
+ - Study the timing of a real NES game.
+ - Try to get the read or write latency down. (For example, study
+   whether this is about making the C code fast, or if it's just
+   inherent somehow to the BCM chip?) Would it be faster as a
+   kernel module? Is there low-level support for interrupt on
+   falling edge, for example? Can we clock the pi faster?
+ - Try rewriting the loop as a predictive sync rather than reacting
+   to logic level changes. Kind of a neat problem anyway. The signal
+   is very regular, and addresses could give us absolute sync.
+   Note that this may be hard to reason about if we have both read
+   and write latency (could just assume they are symmetric values?)
+   Also note that eventually, we won't have CIRAM storing the nametable.
+   (Well, maybe we could have some discrete logic that only maps the
+   attribute table to "ROM"--it's the last 64 bytes of each nametable,
+   and we could rely on there only being one--but this may be kinda
+   messy?)
+ - Try disabling CIRAM -- we don't want it anyway -- and just
+   generating all ppu data. We'll certainly still have a hard timing
+   problem (and now the addresses will be gibberish?) but less confusion
+   about bus conflicts. (Of course, games certainly still write to
+   CIRAM and we would have the potential to conflict with those writes,
+   but at least the corrupted values would likely have no effect?)
