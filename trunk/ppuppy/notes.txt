@@ -146,6 +146,59 @@ wire this directly from PPU A10 though?)
 Anyway, ppuppy should disable CIRAM (wire /CE high) so that it can
 just supply its own data.
 
+ -- wiring notes --
+
+On zelda cart, PPU /WR is wired to /WE (write enable) on the SONY chip
+on the top right, which looks like SRAM?
+(http://www.datasheets360.com/pdf/4386973877628639512). I had
+previously assumed this chip was PPU CHR ROM. It's 8k, so it would be
+enough. But it makes no sense that it would ship in SRAM and lose all
+the tiles as soon as the battery dies. But maybe this is not the
+battery-backed SRAM.
+
+Chip at top left is RP231024D, a ROM. It's labeled PRG. Could verify
+that it's hooked up to CPU bus.
+
+Chip at the bottom left is LH5164D, Sharp, which also appears to be
+SRAM:
+http://pdf1.alldatasheet.com/datasheet-pdf/view/42972/SHARP/LH5164A.html
+(Maybe this is the battery-backed one.) Also 8k.
+
+Anyway it turns out that zelda has a fairly complicated mapper, the
+MMC1. I guess perhaps the chr memory is SRAM and gets filled by CPU,
+reading from PRG ROM?. That's weird because I recall the zelda pattern
+tables being very stable (only switching when entering the dungeon).
+Oh well, maybe this is not a great test game...
+
+
+So Ice Hockey is easier to understand. Both CHR and PRG are ROM and
+the only other chip is CIC. The CIRAM is hooked up as follows:
+
+ - /CE directly wired to PPU /A13. So CIRAM will be returning data
+   (for reads) whenever the address is < 0x1FFF (because then bit 13
+   will be zero and these are zero-enable pins). A13 is the highest
+   address bit. When the address is 0x2000-0x3FFF, A13 is high, so the
+   chip is disabled, and ROM can assert its values.
+ - Note PPU A13 is also passed (not negated) to the cart. I bet this
+   is wired to /CE for CHR ROM. (CHECK). That would allow these two
+   chips to be mutually exclusive.
+ - /OE directly wired to PPU /RD. This is done on the NES motherboard.
+   So CIRAM will only output when PPU is reading, duh.
+ - /WE directly wired to PPU /WE; same idea. Not much to do with this.
+   If we really want to avoid writes to CIRAM, a simpler thing would 
+   be to just disable the chip with /CE, which we control.
+ - CIRAM A10 controls mirroring.
+   https://wiki.nesdev.com/w/index.php/Mirroring
+   On NROM (e.g. Ice Hockey) it is hard-wired to either PPU A10 or A11.
+   (Ice hockey uses Vertical mirroring, where CIRAM A10=PPU A10.) This
+   is just bit logic so that reading the nametable during scrolls
+   "wraps" the way you want. Should be irrelevant for ppuppy since we
+   won't scroll. Can probably leave unconnected, like Gotcha! game does.
+
+So I think the next experiment to run is to read PPU A13 (or /A13)
+and disable reads when A13 is low. This would properly mimic CHR ROM,
+avoiding bus conflicts with CIRAM.
+
  -- ppu rendering --
 Nice simple explanation from nesdev wiki (PPU nametables article):
 
