@@ -1528,17 +1528,6 @@ extern "C" {
   */
   extern void bcm2835_delayMicroseconds (uint64_t micros);
 
-  // Maximum resolution timer; a spin-loop purely on the CPU.
-  // Intended for a small number of ticks.
-  // Note that power scaling and stuff could cause this to be wrong.
-  inline void bcm2835_delayTicks(uint32_t ticks) {
-    asm volatile(
-	"@ nothing\n"
-	:
-	:
-	:"memory");
-  }
-  
   /*! Sets the output state of the specified pin
     \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
     \param[in] on HIGH sets the output to HIGH and LOW to LOW.
