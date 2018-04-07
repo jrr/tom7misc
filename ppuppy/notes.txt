@@ -464,3 +464,63 @@ from nearby wires/traces/etc.? It doesn't look like pure noise,
 but maybe that's possible.
 
 Try next: Weak pullup/down on this line?
+
+ - bus conflicts / open bus -
+
+Trying to really understand out what's happening here. To recap: I
+disabled CIRAM by pulling the pin to 5V, which since it's /CE, should
+turn it off. Also, PPU D0 has apparently clean data on it, even though
+I cut it from the ROM and from my intrusion.
+
+This page has what I needed:
+  https://wiki.nesdev.com/w/index.php/Open_bus_behavior
+
+The PPU has two data buses:
+
+1. The I/O bus. It connects CPU and PPU directly, and the cart pins
+    labeled "CPU D*". This bus has multiple devices on it: PRG ROM
+    (and potentially other cart stuff), on-NES CPU SRAM U1, CPU, PPU.
+    There is some address multiplexer that decodes an address
+    (U3, aka 74LS139) to enable different devices on that bus. For
+    example, writes to the "PPU status registers" are really just
+    writes with addresses that cause U3 to enable the PPU data bus
+    (PPU 13 /DBE), and also pass along the low three bits of the
+    address (which are connected to three PPU pins).
+    Anyway, this bus is not relevant here.
+    
+ 2. The video memory bus. This connects CIRAM, CHR ROM, PPU. However,
+    the PPU does a dirty trick. PPU pins 38-31 are both address and
+    data. These pins are wired directly to the cart (PPU D0-D7), so
+    we can observe their state during the first phase of the address
+    load. I believe that the sequence is like:
+
+      A. /RD is disabled (high), etc.
+      B. Assert high address bits. This enables or disables chips
+         through their /CE pins. But output is not yet enabled.
+      C. Assert low 8 bits of address on 38-31.
+      D. (Also assert high address; not sure if this happens now or
+          after the next step. Nothing funny with these bits.)
+      E. Enable ALE so that U2 stores the address bits.
+      F. Switch pins 38-31 to "input" aka "tri-state" or
+         "high impedance" mode.
+      G. Now enable /RD (go low). (Similar thing for writing, although
+         it would need to first assert the data on 38-31.)
+      H. This enables /OE for the relevant chips, which now assert
+         their data on the bus.
+
+    So, in the case that nothing is asserted, due to bus capacitance,
+    the PPU just sees the low 8 bits of the address (the same values that
+    it asserted) when it reads the data pins back. This explains why
+    Ice Hockey just shows me the nametable (more or less): No chip
+    responds to the reads of the nametable (CIRAM is disabled, but I
+    didn't enable the ROM for these addresses!) so address 17 appears to
+    contain character 17, etc.
+
+    This also explains why D0 has data on it: I'm seeing the address
+    written to that shared bus during phase C above.
+
+This is also a good explanation of these concepts for a generic shared bus:
+  https://en.wikipedia.org/wiki/Three-state_logic
+
+
+So the question is: What to do about it?
