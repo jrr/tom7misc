@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
 
   // last value of PPU /RD
   uint8 rd_last = 0;
+  uint32 bit = 1;
   for (;;) {
     uint32_t inputs = bcm2835_gpio_lev_multi();
     if (inputs & (1 << PIN_RD)) {
@@ -124,8 +125,7 @@ int main(int argc, char **argv) {
 
 	// Is this a read from CHR ROM or CIRAM?
 	if (!(inputs & (1 << PIN_ADDR13))) {
-	  uint8 bit = 1;
-	  static constexpr uint32 SET_HIGH = (1 << POUT_A) | (0 << POUT_B);
+	  // static constexpr uint32 SET_HIGH = (1 << POUT_A) | (0 << POUT_B);
 	  static constexpr uint32 MASK = (1 << POUT_A) | (1 << POUT_B);
 	  // Delay here?
 	  
@@ -140,8 +140,7 @@ int main(int argc, char **argv) {
 	  // So to drive a logic level, send the bit to A and ~bit to
 	  // B.
 	  bcm2835_gpio_write_mask(
-	      // (bit << POUT_A) | ((bit ^ 1) << POUT_B),
-	      SET_HIGH,
+	      (bit << POUT_A) | ((bit ^ 1) << POUT_B),
 	      MASK);
 
 	  // XXX HAX. Need to tune this timing and maybe dynamically
@@ -173,6 +172,7 @@ int main(int argc, char **argv) {
 	  // yield to OS so we can ctrl-c at least.
 	  // PPU vblank is 1.334072ms.
 	  if ( frames % 60 == 0) {
+	    bit ^= 1;
 	    printf("%lld edge, %d frames, %d last sync, %lld %lld %lld %lld.\n",
 		   edges, frames, sync, reads[0], reads[1], reads[2], reads[3]);
 	  }
