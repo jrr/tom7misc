@@ -27,10 +27,10 @@ static constexpr uint8 PIN_ADDR1 = 24;
 static constexpr uint8 PIN_ADDR13 = 23;
 
 // output pins
-// static constexpr uint8 POUT = 26;
-static constexpr uint8 POUT_A = 5;
-static constexpr uint8 POUT_B = 6;
-// static constexpr uint8 POUT4 = 22;
+static constexpr uint8 POUT = 26;
+static constexpr uint8 POUT2 = 6;
+static constexpr uint8 POUT3 = 5;
+static constexpr uint8 POUT4 = 22;
 
 
 // Maximum resolution timer; a spin-loop purely on the CPU.
@@ -75,16 +75,23 @@ int main(int argc, char **argv) {
   
   printf("START.\n");
 
-  // Set input. Pulldown doesn't make sense for input pins, right?
+  // Set input and enable pulldown.
   for (uint8 p : {PIN_RD, PIN_ADDR0, PIN_ADDR1}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_INPT);
+    bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF); // XXX set to no pulls
+  }
+
+  // Set output and disable pulldown.
+  for (uint8 p : {POUT, POUT2, POUT3, POUT4}) {
+    bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
-  // For the tri-state experiment, pulldown makes sense.
-  for (uint8 p : {POUT_A, POUT_B}) {
-    bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_DOWN);
+  // Memory actually returned for each read.
+  // XXX extend to 16-bit (actually 13) addresses obv
+  uint8 values[256];
+  for (int i = 0; i < 256; i++) {
+    values[i] = i >> 4;
   }
 
   enum class State {
@@ -94,8 +101,6 @@ int main(int argc, char **argv) {
   };
 
   State state = State::UNKNOWN;
-
-
   
   // falling edge on PPU RD.
   int64 edges = 0LL;
@@ -109,7 +114,16 @@ int main(int argc, char **argv) {
     if (inputs & (1 << PIN_RD)) {
       // PPU /RD is high (so not reading)
       if (!rd_last) {
-	// rising edge.
+	// Rising edge. Stop outputting during this interval, so
+	// that the data bus isn't still full when the next read
+	// starts.
+	// PERF: This can be just set_multi or clr_multi, I think.
+	bcm2835_gpio_write_mask(
+	    // We actually write 3v3 0 here, which is inverted to a
+	    // 5v 1, which is then the unit on the bus conflict
+	    // (which is basically AND).
+	    0,
+	    (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
       }
 
       // Have we been in this state long enough to
@@ -125,7 +139,7 @@ int main(int argc, char **argv) {
 	  }
 	  state = State::IN_VBLANK;
 	  
-	  bcm2835_delayMicroseconds(250); // quarter millisecond
+	  bcm2835_delayMicroseconds(500); // half a millisecond
 	}
       }
       rd_last = 1;
@@ -142,43 +156,35 @@ int main(int argc, char **argv) {
 	// Is this a read from CHR ROM or CIRAM?
 	if (inputs & (1 << PIN_ADDR13)) {
 
-	  /*
 	  static constexpr uint32 values[4] = {
 	    0xFFFFFFFF, 0xFFFFFFFF,
 	    0xFFFFFFFF, 0x00000000
 	  };
-	  */
 	  
-	  uint8 bit = 1;
+	  // uint32 word = values[addr];
+	  // uint32 word = (sync & 1) ? 0xFFFFFFFF : 0x00000000;
+	  uint32 word = 0;
+	  /* 
+	     uint32 word = ((sync > 4000 && sync < 12000) ||
+			 (sync > 24000 && sync < 26000))
+	    ? values[addr] : 0x00;
+	  */
 
-	  // The logic for the tri-state output is:
-	  //
-	  //    A B out
-	  //    0 0  Z   (high-impedance; "disconnected")
-	  //    1 0  1   (supply current)
-	  //    0 1  0   (sink current)
-	  //    1 1  no!
-	  //
-	  // So to drive a logic level, send the bit to A and ~bit to
-	  // B.
 	  bcm2835_gpio_write_mask(
-	      (bit << POUT_A) | (~bit << POUT_B),
-	      (1 << POUT_A) | (1 << POUT_B));
+	      // Note: All writes use transistor for level shifting, so
+	      // are inverted.
+	      ~word,
+	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
 
-	  // XXX HAX. Need to tune this timing and maybe dynamically
-	  // adjust it.
+	  // XXX HAX
 	  delayTicks(3);
 
-	  // Now reset the values soon after.
-	  // We need to drive the bus long enough for the PPU to read.
-	  // No idea how long is correct!
-	  // PERF just do a fast 'clear'.
+	  // Now reset the values soon after. We want to do this after the
+	  // rising edge of PPU RD, but before it falls again.
 	  bcm2835_gpio_write_mask(
-	      // Clear both, disconnecting from bus.
 	      0,
-	      (1 << POUT_A) | (1 << POUT_B));
+	      (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
 
-	  #if 0
 	  // I moved the address decoding AFTER the write, to try to improve
 	  // latency.
 	  // Read from 0x2000-0x3FFF (ROM).
@@ -187,12 +193,20 @@ int main(int argc, char **argv) {
 	    (((inputs >> PIN_ADDR1) & 1) << 1);
 	  // obviously get more bits...
 	  reads[addr]++;
-	  #endif
-	  
+
 	} else {
 	  // Read from 0x0000-0x1FFF (CIRAM).
 	  // In this case we don't want to output.
-	  // We assume that we're still in high-impedance mode.
+	  // But outputting "0" is not the same as
+	  // "let the other chip assert its value."
+	  // But allegedly, bus conflicts resolve
+	  // to zero, so the fact that we pull up
+	  // this bit (currently 4.7k) on the 5V side
+	  // may be just what we need, as long as
+	  // we write 0 (= 5v logic level 1) here.
+	  //
+	  // Since we already wrote this on the rising
+	  // edge, there's nothing to do.
 	}
 
 	sync++;
@@ -211,5 +225,54 @@ int main(int argc, char **argv) {
   // return FastStrobe();
 
   CHECK(bcm2835_close());
+  return 0;
+}
+
+int SlowStrobe() {
+  for (int i = 0; i < 20; i++) {
+    uint8 v = i & 1;
+    printf("%s\n", v ? "ON" : "OFF");
+    bcm2835_gpio_write_mask((v << POUT), (1 << POUT));
+    sleep(3);
+  }
+
+  return 0;
+}
+
+int FastStrobe() {
+  ArcFour rc("ppuppy");
+  uint8 mem[8192] = {};
+  for (int i = 0; i < 8192; i++) {
+    mem[i] = rc.Byte();
+  }
+
+  int index = 0;
+  uint32 value = 0;
+  for (;;) {
+    // bcm2835_delayMicroseconds(1000); // 1ms
+    uint8 v = (value >> 14) & 1;
+    bcm2835_gpio_write_mask(
+	(v << POUT) | (v << POUT2) | (v << POUT3) | (v << POUT4),
+	(1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+
+    value++;
+
+    if (0 == (value & 0x3FFFF)) {
+      bcm2835_delayMicroseconds(16000); // 16ms
+    }
+    
+    #if 0
+    // uint8 value = mem[index];
+    uint32 word = ((value & 1) << POUT) |
+      (((value >> 1) & 1) << POUT2) |
+      (((value >> 2) & 1) << POUT3) |
+      (((value >> 3) & 1) << POUT4);
+    bcm2835_gpio_write_mask(word,
+			    (1 << POUT) | (1 << POUT2) | (1 << POUT3) | (1 << POUT4));
+    value++;
+    #endif
+    index++;
+    index &= 8191;
+  }
   return 0;
 }
