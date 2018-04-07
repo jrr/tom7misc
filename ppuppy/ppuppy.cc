@@ -121,6 +121,48 @@ int main(int argc, char **argv) {
       // PPU /RD is high (so not reading)
       if (!rd_last) {
 	// rising edge.
+
+	// Is this a read from CHR ROM or CIRAM?
+	if (!(inputs & (1 << PIN_ADDR13))) {
+	  uint8 bit = 1;
+	  static constexpr uint32 SET_HIGH = (1 << POUT_A) | (0 << POUT_B);
+	  static constexpr uint32 MASK = (1 << POUT_A) | (1 << POUT_B);
+	  // Delay here?
+	  
+	  // The logic for the tri-state output is:
+	  //
+	  //    A B out
+	  //    0 0  Z   (high-impedance; "disconnected")
+	  //    1 0  1   (supply current)
+	  //    0 1  0   (sink current)
+	  //    1 1  no!
+	  //
+	  // So to drive a logic level, send the bit to A and ~bit to
+	  // B.
+	  bcm2835_gpio_write_mask(
+	      // (bit << POUT_A) | ((bit ^ 1) << POUT_B),
+	      SET_HIGH,
+	      MASK);
+
+	  // XXX HAX. Need to tune this timing and maybe dynamically
+	  // adjust it.
+	  delayTicks(4);
+
+	  // Now reset the values soon after.
+	  // We need to drive the bus long enough for the PPU to read.
+	  // No idea how long is correct!
+	  // PERF just do a fast 'clear'.
+	  bcm2835_gpio_write_mask(
+	      // Clear both, disconnecting from bus.
+	      0,
+	      MASK);
+
+	} else {
+	  // Read from 0x0000-0x1FFF (CIRAM).
+	  // In this case we don't want to output.
+	  // We assume that we're still in high-impedance mode.
+	}
+
       }
 
       // Have we been in this state long enough to
@@ -148,54 +190,6 @@ int main(int argc, char **argv) {
 	  sync = 0;
 	  frames++;
 	  state = State::RENDERING;
-	}
-
-	// Is this a read from CHR ROM or CIRAM?
-	if (inputs & (1 << PIN_ADDR13)) {
-	  uint8 bit = 1;
-
-	  // The logic for the tri-state output is:
-	  //
-	  //    A B out
-	  //    0 0  Z   (high-impedance; "disconnected")
-	  //    1 0  1   (supply current)
-	  //    0 1  0   (sink current)
-	  //    1 1  no!
-	  //
-	  // So to drive a logic level, send the bit to A and ~bit to
-	  // B.
-	  bcm2835_gpio_write_mask(
-	      (bit << POUT_A) | (~bit << POUT_B),
-	      (1 << POUT_A) | (1 << POUT_B));
-
-	  // XXX HAX. Need to tune this timing and maybe dynamically
-	  // adjust it.
-	  delayTicks(3);
-
-	  // Now reset the values soon after.
-	  // We need to drive the bus long enough for the PPU to read.
-	  // No idea how long is correct!
-	  // PERF just do a fast 'clear'.
-	  bcm2835_gpio_write_mask(
-	      // Clear both, disconnecting from bus.
-	      0,
-	      (1 << POUT_A) | (1 << POUT_B));
-
-	  #if 0
-	  // I moved the address decoding AFTER the write, to try to improve
-	  // latency.
-	  // Read from 0x2000-0x3FFF (ROM).
-	  const uint8 addr =
-	    (((inputs >> PIN_ADDR0) & 1) << 0) |
-	    (((inputs >> PIN_ADDR1) & 1) << 1);
-	  // obviously get more bits...
-	  reads[addr]++;
-	  #endif
-	  
-	} else {
-	  // Read from 0x0000-0x1FFF (CIRAM).
-	  // In this case we don't want to output.
-	  // We assume that we're still in high-impedance mode.
 	}
 
 	sync++;
