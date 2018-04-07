@@ -22,3 +22,20 @@ useful IO expander (i2c <-> 16 I/O ports, which can run at 5.5V):
 http://ww1.microchip.com/downloads/en/DeviceDoc/22103a.pdf
 *but* it is too slow to use for PPU output.
 You could use this for on-board EEPROM programming, though?
+
+
+I got this 8-bit bus transciever:
+https://www.mouser.com/ProductDetail/595-CD74FCT245E
+It looks like it can take 3.3v in and write 5v out, which would be
+perfect. Even if not, a transistor-based (or other) level shifter
+would clearly work with it.
+"FCT" logic family is cmos-based ttl-compatible logic, yay
+
+
+I also got this hex level shifter:
+https://www.mouser.com/ProductDetail/Texas-Instruments/CD4504BE?qs=sGAEpiMZZMsty6Jaj0%252bBBmDx0n9pcbkk8BeHlEmrJRY%3d
+
+just because it was cheap and I might find at some point that the
+voltage divider sucks. (And actually this chip is cheaper than 12
+resistors anyway!)
+
