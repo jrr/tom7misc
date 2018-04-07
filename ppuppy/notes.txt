@@ -526,3 +526,102 @@ This is also a good explanation of these concepts for a generic shared bus:
 So the question is: What to do about it?
 
 
+ - tri-state output -
+
+OK so I made a simple tri-state output with two transistors.
+It's still taking too long from PPU RD to the pulse, which is
+probably why the low bit flickers on-screen (it's pretty
+close so probably sometimes it's making it and others not).
+
+Just messing with logic levels outside of ppuppy:
+ - until setting the gpio pins to output, note that the 3v side
+   floats, and is influenced by the 5v bus, even through the
+   transistor (backwards, ugh)
+ - but just ./clear.exe on 5 and 6 will make this behave as
+   expected.
+ - manually ./set.exe 6 drives the low bit to 1. The bus still
+   goes low at times, presumably because address bits are
+   driven harder than our 4.7k pullup. (This is expected.)
+ - in "float state" (5=0, 6=0), we get a stable checkerboard
+   pattern on bit 0. This would be the open bus continuing
+   to read the address bit, as expected.
+ - driving low (5=0, 6=1) both reliably clears the bit 0
+   pixels, as well as doubling pixels in CHR graphics (also
+   the nametable). This is because we're driving the address
+   bit 0 low. The 5V bus has noise on it but never gets higher
+   than about 0.4V. This is because the output circuit just
+   connects the bus to 0 (no "pull-down") and I guess what
+   we're seeing leftover is the voltage drop across the
+   transistor.
+
+So: This is all completely as expected.
+Running ppuppy gives crap results, though. This is probably
+a timing problem!
+
+ - timing of addresses / rd / a13 -
+
+I tapped into those address bits on ice hockey.
+
+ address-timing.png
+
+Address bits come live as the PPU RD edge rises. (In this screenshot
+they happen both before and after the edge (eg. 28 ns before, 7 ns after);
+this is presumably because the voltage level is changing on the bus and
+is only recognized as logic 1 or 0 at a certain point. 
+
+Remember that the PPU first puts the low bits of the read address on
+the data bus, then shifts it to U2. I can kinda see this on the scope:
+
+timing-shift.png
+
+Note how D0 goes high first (address being loaded onto data bus), then
+RD goes high, then A0 appears with the same value. A13 goes high at
+the same time, which makes sense since it is not latched on U2 (PPU
+just writes it directly at the same time). But otoh A4 also goes high
+earlier; this should have been latched by U2, so maybe the first
+hypothesis was right; they just take different amounts of time to
+rise/fall. (To test this further, I could hook up to PPU D1-D4 and
+look at how they follow A1-A4 too.)
+
+Anyway: Address bits change close to the time RD goes high.
+(So we could look for an RD high edge, wait a few ns, read and decode,
+compute our value, then write. This would probably move us up ~100us)
+
+Aha! Oops! I can't really look at when data is typically written,
+because although there is a shared bus for address and data, that's the
+PPU D* pins, but I'm looking at PPU A* pins here--those only have the
+shifted address data. This makes the scope readings make sense. Need
+to do some more soldering.
+
+OK: So, data ends up on the bus from CHR rom about 40ns after the
+falling edge:
+
+   timing-dataout.png
+
+and it stays there until about 196ns (32ns before the rise). Here the
+PPU is driving the data bus low so that it can put a 0 on it for the
+next address.
+
+So I think the lesson is: After the falling edge, get your data
+there fast ~30ns??) and then float before the next rise, because
+the PPU uses that bus for shifting addresses before the cycle is
+up.
+
+So I did a total hax to try to time it on the rising edge (also inverted
+the logic for A13 -- check if this is now correct, or just shifting the
+timing a lot!). Now compare phenomena:
+
+ with set.exe 5, we get a solid row on the right side of each tile,
+ but also each character is doubled (because address is driven 11 for
+ nametable reads as well)
+
+ with ppuppy.exe 5, putting aside all the jitter, we get the solid
+ effect on the right column of CHR, but the nametable reads are still
+ just the address--unaffected by our output. great!
+
+ on the scope, these pulses are very short:
+
+   first-working.png
+
+ but that seems to be enough for the ppu to see HIGH, though. It also
+ works to drive low. So I think we're onto something here!
