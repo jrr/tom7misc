@@ -95,7 +95,18 @@ int main(int argc, char **argv) {
 
   State state = State::UNKNOWN;
 
-
+  #if 0
+  // slow toggle -- looks good!
+  uint8 bit = 0;
+  for(;;) {
+    bcm2835_delayMicroseconds(500000);
+    bit = bit ^ 1;
+    bcm2835_gpio_write_mask(
+	(bit << POUT_A) | (~bit << POUT_B),
+	(1 << POUT_A) | (1 << POUT_B));
+  }
+  return 0;
+  #endif
   
   // falling edge on PPU RD.
   int64 edges = 0LL;
@@ -125,7 +136,7 @@ int main(int argc, char **argv) {
 	  }
 	  state = State::IN_VBLANK;
 	  
-	  bcm2835_delayMicroseconds(250); // quarter millisecond
+	  bcm2835_delayMicroseconds(500); // half millisecond
 	}
       }
       rd_last = 1;
@@ -141,14 +152,6 @@ int main(int argc, char **argv) {
 
 	// Is this a read from CHR ROM or CIRAM?
 	if (inputs & (1 << PIN_ADDR13)) {
-
-	  /*
-	  static constexpr uint32 values[4] = {
-	    0xFFFFFFFF, 0xFFFFFFFF,
-	    0xFFFFFFFF, 0x00000000
-	  };
-	  */
-	  
 	  uint8 bit = 1;
 
 	  // The logic for the tri-state output is:
