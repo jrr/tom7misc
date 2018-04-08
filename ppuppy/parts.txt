@@ -39,3 +39,14 @@ just because it was cheap and I might find at some point that the
 voltage divider sucks. (And actually this chip is cheaper than 12
 resistors anyway!)
 
+
+Also consider this 8-bit TTL register:
+TI CY74FCT2574T
+http://www.ti.com/lit/ds/sccs076/sccs076.pdf
+
+
+NO: This classic octal bus transciever:
+74LS245 (or 54LS245)
+http://www.ti.com/lit/ds/symlink/sn74ls245.pdf
+Is only 3v3 on the output side. (but looks like
+it would take 5V input...)
