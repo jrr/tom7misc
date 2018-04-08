@@ -1572,6 +1572,8 @@ extern "C" {
 
   // Clear without barrier; must follow e.g. write_mask.
   inline void bcm2835_gpio_clr_multi_nb(uint32_t mask) {
+    // bcm2835_gpio_write_multi(0, mask);
+    // XXX diagnosing crashes
     volatile uint32_t* paddr_c = bcm2835_gpio + BCM2835_GPCLR0/4;
     const uint32_t offs = mask;
     *paddr_c = offs;

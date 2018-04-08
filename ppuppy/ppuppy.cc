@@ -32,8 +32,14 @@ static constexpr uint8 POUT_A = 5;
 static constexpr uint8 POUT_B = 6;
 // static constexpr uint8 POUT4 = 22;
 
-// Screen image data.
+static constexpr bool WRITE_NAMETABLE = false;
+static constexpr bool WRITE_ATTRIBUTE = false;
 
+static constexpr bool TRY_RESYNC = true;
+
+static constexpr int ON_TICKS = 8;
+
+// Screen image data.
 
 // Anyway. Right now we have just one bit per CHR output. So the
 // resolution of the screen is 32 tiles (pixels) wide * 30 high.
@@ -58,10 +64,11 @@ static constexpr uint8 POUT_B = 6;
 // programmatically?
 #define PACKETBYTES 4
 uint8 screen[SCANLINES * PACKETSW * PACKETBYTES] = {0};
-
-// XXX should these be stored together as a single index?
-uint8 scanline = 0;
-uint8 tile = 0;
+uint8 GetByte(int idx) {
+  // XXX should record how often this happens...
+  if (idx >= SCANLINES * PACKETSW * PACKETBYTES) return 0;
+  else return screen[idx];
+}
 
 // Yield to OS (so that we can ctrl-c, process ethernet, etc.)
 inline void Yield() {
@@ -70,6 +77,12 @@ inline void Yield() {
   // 150 microseconds. Tune this?
   t.tv_nsec = 150 * 1000;
   nanosleep(&t, nullptr);
+}
+
+// PERF! the screen should already be decoded, right?
+inline uint32 Decode(uint8 byte) {
+  uint32 bit = byte & 1;
+  return (bit << POUT_A) | ((bit ^ 1) << POUT_B);
 }
 
 void InitImage() {
@@ -96,7 +109,8 @@ void InitImage() {
 	int dx = (x - 16 * 8);
 	int dy = (y - 120);
 
-	if (dx * dx + dy * dy < dsquared) {
+	// XXX fill whole screen for now
+	if (true || dx * dx + dy * dy < dsquared) {
 	  // TODO: Get some color info in here.
 	  bits_lo |= 1;
 	  bits_hi |= 1;
@@ -226,20 +240,20 @@ int main(int argc, char **argv) {
     uint8 nt_reads = 0;
 
   a_phase:
-    CHECK_LT(packetsync, (SCANLINES * PACKETSW * PACKETBYTES))
-      << "packetsync: " << packetsync
-      << " but size " << SCANLINES * PACKETSW * PACKETBYTES;
+    // CHECK_LT(packetsync * 4, (SCANLINES * PACKETSW * PACKETBYTES))
+    // << "packetsync: " << packetsync
+    // << " but size " << SCANLINES * PACKETSW * PACKETBYTES;
 
     // packetsync should indicate the correct packet.
     // Get the attribute bits word.
-    next_word = screen[packetsync * 4 + 0];
+    next_word = Decode(GetByte(packetsync * 4 + 0));
     
     UNTIL_RD_HIGH;
     
     // Immediately write the prepared word.
-    bcm2835_gpio_write_mask(next_word, MASK);
+    if (WRITE_NAMETABLE) bcm2835_gpio_write_mask(next_word, MASK);
     // XXX tune this. Also some possibility to do work here.
-    delayTicks(6);
+    delayTicks(ON_TICKS);
     bcm2835_gpio_clr_multi_nb(MASK);
 
     // Now check address bits. ADDR13 should be high because this
@@ -253,7 +267,7 @@ int main(int argc, char **argv) {
       // We must have been in phase C or D, so the next phase
       // is either D or A. Guess A since it's closer.
       // (Advance packet here?)
-      goto a_phase;
+      if (TRY_RESYNC) goto a_phase;
     }
     
     // In case we were too fast, wait for RD to go low. (Necessary?)
@@ -261,13 +275,17 @@ int main(int argc, char **argv) {
     UNTIL_RD_LOW;
 
   b_phase:
+    // CHECK_LT(packetsync * 4, (SCANLINES * PACKETSW * PACKETBYTES))
+    // << "packetsync: " << packetsync
+    // << " but size " << SCANLINES * PACKETSW * PACKETBYTES;
+
     // Get the attribute bits word.
-    next_word = screen[packetsync * 4 + 1];
+    next_word = Decode(GetByte(packetsync * 4 + 1));
     
     UNTIL_RD_HIGH;
-    bcm2835_gpio_write_mask(next_word, MASK);
+    if (WRITE_ATTRIBUTE) bcm2835_gpio_write_mask(next_word, MASK);
     // XXX tune this. Also some possibility to do work here.
-    delayTicks(6);
+    delayTicks(ON_TICKS);
     bcm2835_gpio_clr_multi_nb(MASK);
 
     if (inputs & (1 << PIN_ADDR13)) {
@@ -278,19 +296,19 @@ int main(int argc, char **argv) {
       desync++;
       // We must have been in phase C or D, so the next phase
       // is either D or A. Guess D since it's closer.
-      goto d_phase;
+      if (TRY_RESYNC) goto d_phase;
     }
     
     UNTIL_RD_LOW;
 
   c_phase:
     // Get the low pixels word.
-    next_word = screen[packetsync * 4 + 2];
+    next_word = Decode(GetByte(packetsync * 4 + 2));
 
     UNTIL_RD_HIGH;
     bcm2835_gpio_write_mask(next_word, MASK);
     // XXX tune this. Also some possibility to do work here.
-    delayTicks(6);
+    delayTicks(ON_TICKS);
     bcm2835_gpio_clr_multi_nb(MASK);
 
     if (inputs & (1 << PIN_ADDR13)) {
@@ -303,7 +321,7 @@ int main(int argc, char **argv) {
 	desync++;
 	// We must have been in phase A or B, so next is B or C.
 	// Guess C because it's closest.
-	goto c_phase;
+	if (TRY_RESYNC) goto c_phase;
       }
     } else {
       // "ROM" as expected.
@@ -316,12 +334,12 @@ int main(int argc, char **argv) {
 
   d_phase:
     // Get the high pixels word.
-    next_word = screen[packetsync * 4 + 3];
+    next_word = Decode(GetByte(packetsync * 4 + 3));
 
     UNTIL_RD_HIGH;
     bcm2835_gpio_write_mask(next_word, MASK);
     // XXX tune this. Also some possibility to do work here.
-    delayTicks(6);
+    delayTicks(ON_TICKS);
     bcm2835_gpio_clr_multi_nb(MASK);
 
     UNTIL_RD_LOW;
@@ -346,8 +364,10 @@ int main(int argc, char **argv) {
 	desync++;
 	// We must have been in phase A or B, so next is B or C.
 	// Guess B because it's closest.
-	packetsync++;
-	goto b_phase;
+	if (TRY_RESYNC) {
+	  packetsync++;
+	  goto b_phase;
+	}
       }
     } else {
       // "ROM" as expected.
@@ -368,8 +388,8 @@ int main(int argc, char **argv) {
     if (scanlines > max_scanlines) max_scanlines = scanlines;
 
     if (frames % 60 == 0) {
-      printf("%d frames. %d desync (%d--%d) %d sl (%d--%d)\n",
-	     frames,
+      printf("%d frames. %d packets, %d desync (%d--%d) %d sl (%d--%d)\n",
+	     frames, packetsync,
 	     desync, min_desync, max_desync,
 	     scanlines, min_scanlines, max_scanlines);
       min_desync = 999999;
