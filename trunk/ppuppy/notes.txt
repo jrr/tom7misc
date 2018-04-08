@@ -672,10 +672,22 @@ second two. An easy way to verify a packet is that D - C should
 be exactly 8 (for any packet) and (D >> 4) & 255 should be the tile
 index we returned for A (when we are synchronized).
 
+I tested out the new version of ppuppy. The timing looks decent:
 
+  delayticks8.png
+
+This is with delayTicks(8) called between the set_multi and the clear.
+Note 96ns between the rising edge of the 3v side and the rise
+on the 5v side; I guess this is just transistor slew? Should check
+this again with the bus transciever.
+
+But anyway the sync is TERRIBLE. It only counts 0-3 scanlines per
+frame, usually 300-500 desyncs, and usually overrunning the packet
+buffer. Are there just bugs? Time for a run.
 
  - kernel module -
 
 I definitely haven't solved the timing issue above, but it's starting
 to look tractable. The biggest problem is whole-screen glitches, which
-happen 
+happen about once per second. If I could maybe disable whatever is
+doing that, I'd probably be "good enough."
