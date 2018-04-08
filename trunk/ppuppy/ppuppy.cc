@@ -10,7 +10,7 @@
 #include "bcm2835.h"
 // #include "util.h"
 #include "base/logging.h"
-#include "arcfour.h"
+// #include "arcfour.h"
 
 using namespace std;
 using uint8 = uint8_t;
@@ -32,6 +32,82 @@ static constexpr uint8 POUT_A = 5;
 static constexpr uint8 POUT_B = 6;
 // static constexpr uint8 POUT4 = 22;
 
+// Screen image data.
+
+
+// Anyway. Right now we have just one bit per CHR output. So the
+// resolution of the screen is 32 tiles (pixels) wide * 30 high.
+
+// These are the values we return for the visible portion of the
+// screen. There are 240 scanlines, each 32 tiles wide. On each
+// scanline, each of those 32 tiles takes 4 reads to render.
+// (At the end of the scanline there is some sprite and prefetch
+// stuff.)
+#define SCANLINES 240
+#define TILESW 32
+#define SPRITESW 8
+#define PACKETSW (TILESW + SPRITESW)
+
+// In the steady state, the PPU does four reads per 8-pixel
+// strip (i.e., the slice from one scanline). Let's call this a packet:
+//   A. character from nametable
+//   B. attribute byte from attribute table
+//   C. pixel bits for corresponding CHR (low)
+//   D. pixel bits for corresponding CHR (high)
+// Should we really store the tile index, or just return it
+// programmatically?
+#define PACKETBYTES 4
+uint8 screen[SCANLINES * PACKETSW * PACKETBYTES] = {0};
+
+// XXX should these be stored together as a single index?
+uint8 scanline = 0;
+uint8 tile = 0;
+
+// Yield to OS (so that we can ctrl-c, process ethernet, etc.)
+inline void Yield() {
+  struct timespec t;
+  t.tv_sec = 0;
+  // 150 microseconds. Tune this?
+  t.tv_nsec = 150 * 1000;
+  nanosleep(&t, nullptr);
+}
+
+void InitImage() {
+  // First just clear everything to zero.
+  for (int i = 0; i < SCANLINES * PACKETSW * PACKETBYTES; i++) {
+    screen[i] = 0;
+  }
+
+  // Palette 0 is fine for these tests.
+  // (On the team select screen, 0 is like black,grey,red,orange)
+
+  // But draw a circle in the CHR bytes.
+  const int dsquared = 200 * 200;
+  for (int y = 0; y < 240; y++) {
+    for (int t = 0; t < 32; t++) {
+      uint8 bits_lo = 0, bits_hi = 0;
+      for (int b = 0; b < 8; b++) {
+	bits_lo <<= 1;
+	bits_hi <<= 1;
+
+	int x = t * 8 + b;
+	// x,y are pixel coordinates.
+	// distance from center of screen
+	int dx = (x - 16 * 8);
+	int dy = (y - 120);
+
+	if (dx * dx + dy * dy < dsquared) {
+	  // TODO: Get some color info in here.
+	  bits_lo |= 1;
+	  bits_hi |= 1;
+	}
+      }
+      int idx = (y * PACKETSW + t) * PACKETBYTES;
+      screen[idx + 2] = bits_lo;
+      screen[idx + 3] = bits_hi;
+    }
+  }
+}
 
 // Maximum resolution timer; a spin-loop purely on the CPU.
 // Intended for a small number of ticks.
@@ -67,145 +143,240 @@ int main(int argc, char **argv) {
 
   CHECK(bcm2835_init());
 
-  ArcFour rc("ppuppy");
-  uint8 mem[8192] = {};
-  for (int i = 0; i < 8192; i++) {
-    mem[i] = rc.Byte();
-  }
-  
-  printf("START.\n");
+  InitImage();
 
-  // Set input. Pulldown doesn't make sense for input pins, right?
+  // Set input.
   for (uint8 p : {PIN_RD, PIN_ADDR0, PIN_ADDR1}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
-  // For the tri-state experiment, pulldown makes sense.
   for (uint8 p : {POUT_A, POUT_B}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_OUTP);
+    // XXX does pull-up/down even make sense for output? We should
+    // always be driving the output line in this state.
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_DOWN);
   }
 
-  enum class State {
-    UNKNOWN,
-    IN_VBLANK,
-    RENDERING,  
-  };
+  printf("START.\n");
 
-  State state = State::UNKNOWN;
-
-  #if 0
-  // slow toggle -- looks good!
-  uint8 bit = 0;
-  for(;;) {
-    bcm2835_delayMicroseconds(500000);
-    bit = bit ^ 1;
-    bcm2835_gpio_write_mask(
-	(bit << POUT_A) | (~bit << POUT_B),
-	(1 << POUT_A) | (1 << POUT_B));
-  }
-  return 0;
-  #endif
+  // mask for output word.
+  static constexpr uint32 MASK = (1 << POUT_A) | (1 << POUT_B);
   
-  // falling edge on PPU RD.
-  int64 edges = 0LL;
-  int64 reads[256] = {};
-  int32 num_hi = 0, frames = 0, sync = 0;
+  // We have to deal with serious latency constraints here. It's funny
+  // how this makes the program regress into some kind of 6th-grader
+  // style, but the goal is to have as few instructions between an
+  // input edge that we care about and the output that it causes;
+  // we're talking nanoseconds here.
 
-  // last value of PPU /RD
-  uint8 rd_last = 0;
-  uint32 bit = 1;
-  for (;;) {
-    uint32_t inputs = bcm2835_gpio_lev_multi();
-    if (inputs & (1 << PIN_RD)) {
-      // PPU /RD is high (so not reading)
-      if (!rd_last) {
-	// rising edge.
+  // About the labels in here:
+  // They correspond to the steps A/B/C/D in a packet
+      // With a word prepared (next_word), wait for the RD pin to
+    // go high and then write our word. RD *low* is actually what
+    // should be signaling us to write, but the high edge predicts
+    // the low edge reliably, and eats up some useful latency.
+    //
+    // assumes (whether true or not) that RD is already low.
 
-	// Is this a read from CHR ROM or CIRAM?
-	if (!(inputs & (1 << PIN_ADDR13))) {
-	  // static constexpr uint32 SET_HIGH = (1 << POUT_A) | (0 << POUT_B);
-	  static constexpr uint32 MASK = (1 << POUT_A) | (1 << POUT_B);
-	  // Delay here?
-	  
-	  // The logic for the tri-state output is:
-	  //
-	  //    A B out
-	  //    0 0  Z   (high-impedance; "disconnected")
-	  //    1 0  1   (supply current)
-	  //    0 1  0   (sink current)
-	  //    1 1  no!
-	  //
-	  // So to drive a logic level, send the bit to A and ~bit to
-	  // B.
-	  bcm2835_gpio_write_mask(
-	      (bit << POUT_A) | ((bit ^ 1) << POUT_B),
-	      MASK);
+  // PERF: In these loops, only need a memory barrier after the
+  // last read. And that memory barrier can be the same one that
+  // happens before the first write!
+  #define UNTIL_RD_HIGH \
+    while (! ((inputs = bcm2835_gpio_lev_multi()) & PIN_RD)) {}
 
-	  // XXX HAX. Need to tune this timing and maybe dynamically
-	  // adjust it.
-	  delayTicks(4);
-
-	  // Now reset the values soon after.
-	  // We need to drive the bus long enough for the PPU to read.
-	  // No idea how long is correct!
-	  // PERF just do a fast 'clear'.
-	  bcm2835_gpio_write_mask(
-	      // Clear both, disconnecting from bus.
-	      0,
-	      MASK);
-
-	} else {
-	  // Read from 0x0000-0x1FFF (CIRAM).
-	  // In this case we don't want to output.
-	  // We assume that we're still in high-impedance mode.
-	}
-
-      }
-
-      // Have we been in this state long enough to
-      // recognize vblank?
-      num_hi++;
-      if (num_hi > 100) {
-	if (state != State::IN_VBLANK) {
-	  // yield to OS so we can ctrl-c at least.
-	  // PPU vblank is 1.334072ms.
-	  if ( frames % 60 == 0) {
-	    bit ^= 1;
-	    printf("%lld edge, %d frames, %d last sync, %lld %lld %lld %lld.\n",
-		   edges, frames, sync, reads[0], reads[1], reads[2], reads[3]);
-	  }
-	  state = State::IN_VBLANK;
-	  
-	  bcm2835_delayMicroseconds(500); // half millisecond
-	}
-      }
-      rd_last = 1;
-    } else {
-      // rd is low (reading)
-      if (rd_last == 1) {
-	// Did we just begin a frame?
-	if (state == State::IN_VBLANK) {
-	  sync = 0;
-	  frames++;
-	  state = State::RENDERING;
-	}
-
-	sync++;
-
-	// Falling edge.
-	edges++;
-      }
-      num_hi = 0;
-      rd_last = 0;
+  // Wait until RD goes (or is) low. If RD stays high for too many
+  // cycles, then assume we are in vblank and transition directly
+  // to that state.
+  #define UNTIL_RD_LOW	   \
+    for (int hi_count = 0; \
+	 (inputs = bcm2835_gpio_lev_multi()) & PIN_RD;	\
+	 hi_count++) { \
+      if (hi_count > 250) goto vblank; \
     }
+
+  {
+    // Number of times we entered vsync.
+    int frames = 0;
+    int min_desync = 999999, max_desync = -1;
+    int min_scanlines = 999999, max_scanlines = -1;
+    // Number of times we appeared to be desynchronized on
+    // this frame.
+    int desync = 0;
+    // Number of scanlines we observed cleanly.
+    int scanlines = 0;
+    
+    // This is the packet index in the screen array.
+    int packetsync = 0;
+      
+    // This is the next word we'll write, as soon as the read cycle
+    // starts. By prepping the next word in advance, we give ourselves
+    // the minimal latency between the read and write.
+    uint32 next_word = 0;
+    // The last value read of the input lines.
+    uint32 inputs = 0;
+
+    // Number of consecutive nametable reads. At the end of a
+    // scanline there are two nametable fetches (unpaired with
+    // tile fetches), which we can use to sync the scanline.
+    uint8 nt_reads = 0;
+
+  a_phase:
+    // packetsync should indicate the correct packet.
+    // Get the attribute bits word.
+    next_word = screen[packetsync * 4 + 0];
+    
+    UNTIL_RD_HIGH;
+    
+    // Immediately write the prepared word.
+    bcm2835_gpio_write_mask(next_word, MASK);
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(6);
+    bcm2835_gpio_clr_multi_nb(MASK);
+
+    // Now check address bits. ADDR13 should be high because this
+    // was a nametable read.
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM" as expected.
+      nt_reads++;
+    } else {
+      nt_reads = 0;
+      desync++;
+      // We must have been in phase C or D, so the next phase
+      // is either D or A. Guess A since it's closer.
+      // (Advance packet here?)
+      goto a_phase;
+    }
+    
+    // In case we were too fast, wait for RD to go low. (Necessary?)
+    // (Note that this overwrites any address info we had.)
+    UNTIL_RD_LOW;
+
+  b_phase:
+    // Get the attribute bits word.
+    next_word = screen[packetsync * 4 + 1];
+    
+    UNTIL_RD_HIGH;
+    bcm2835_gpio_write_mask(next_word, MASK);
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(6);
+    bcm2835_gpio_clr_multi_nb(MASK);
+
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM" as expected.
+      nt_reads++;
+    } else {
+      nt_reads = 0;
+      desync++;
+      // We must have been in phase C or D, so the next phase
+      // is either D or A. Guess D since it's closer.
+      goto d_phase;
+    }
+    
+    UNTIL_RD_LOW;
+
+  c_phase:
+    // Get the low pixels word.
+    next_word = screen[packetsync * 4 + 2];
+
+    UNTIL_RD_HIGH;
+    bcm2835_gpio_write_mask(next_word, MASK);
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(6);
+    bcm2835_gpio_clr_multi_nb(MASK);
+
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM"
+      // Best explanation for this is the extra reads at the
+      // end of a scanline. We're not desynchronized if the
+      // count looks right.
+      nt_reads++;
+      if (nt_reads != 3) {
+	desync++;
+	// We must have been in phase A or B, so next is B or C.
+	// Guess C because it's closest.
+	goto c_phase;
+      }
+    } else {
+      // "ROM" as expected.
+      nt_reads = 0;
+      // XXX shift the address here so that we can check
+      // for sync on the next byte too (should differ by 8).
+    }
+    
+    UNTIL_RD_LOW;
+
+  d_phase:
+    // Get the high pixels word.
+    next_word = screen[packetsync * 4 + 3];
+
+    UNTIL_RD_HIGH;
+    bcm2835_gpio_write_mask(next_word, MASK);
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(6);
+    bcm2835_gpio_clr_multi_nb(MASK);
+
+    UNTIL_RD_LOW;
+
+
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM"
+      // Best explanation for this is the extra reads at the
+      // end of a scanline. We're not desynchronized if the
+      // count looks right. But either way, we need to change
+      // states.
+      nt_reads++;
+      if (nt_reads == 4) {
+	// We read four consecutive nametable addresses. This
+	// is because we just finished a scanline and then read
+	// two more. Those count as the A and B phases to start
+	// the scanline.
+	scanlines++;
+	// So the next phase is C. 
+	goto c_phase;
+      } else {
+	desync++;
+	// We must have been in phase A or B, so next is B or C.
+	// Guess B because it's closest.
+	packetsync++;
+	goto b_phase;
+      }
+    } else {
+      // "ROM" as expected.
+      nt_reads = 0;
+      // XXX can check address vs the saved one from phase C.
+    }
+    
+    // next packet.
+    packetsync++;
+    goto a_phase;
+
+
+  vblank:
+    frames++;
+    if (desync < min_desync) min_desync = desync;
+    if (desync > max_desync) max_desync = desync;
+    if (scanlines < min_scanlines) min_scanlines = scanlines;
+    if (scanlines > max_scanlines) max_scanlines = scanlines;
+
+    if (frames % 60 == 0) {
+      printf("%d frames. %d desync (%d--%d) %d sl (%d--%d)\n",
+	     frames,
+	     desync, min_desync, max_desync,
+	     scanlines, min_scanlines, max_scanlines);
+      min_desync = 999999;
+      max_desync = -1;
+      min_scanlines = 999999;
+      max_scanlines = -1;
+    }
+    desync = 0;
+    scanlines = 0;
+
+    // Yield to OS. For production, should perhaps disable this
+    // so that nothing else is ever scheduled.
+    Yield();
+    // back to first packet.
+    packetsync = 0;
   }
-
-  return 0;
-
-  // return SlowStrobe();
-  // return FastStrobe();
 
   CHECK(bcm2835_close());
   return 0;

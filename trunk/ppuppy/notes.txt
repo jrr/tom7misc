@@ -626,6 +626,54 @@ timing a lot!). Now compare phenomena:
  but that seems to be enough for the ppu to see HIGH, though. It also
  works to drive low. So I think we're onto something here!
 
+ - syncing -
+
+In the steady state, the PPU does four reads per 8-pixel
+strip (i.e., the slice from one scanline). Let's call this a packet:
+  A. character from nametable
+  B. attribute byte from attribute table
+  C. pixel bits for corresponding CHR (low)
+  D. pixel bits for corresponding CHR (high)
+
+The address of the nametable read depends on the coarse scroll
+value, and the nametable selected, but otherwise is just the
+tile offset (32 tiles wide, 30 tiles high). We should be able
+to avoid thinking about scroll.
+
+The attribute bytes immediately follow the nametable, but the same
+attribute byte address applies to two consecutive blocks (in both x
+and y).
+
+Then we do loads that depend on the character returned from the
+first read. We fetch (tile * 16) + row, where row is like (scanline
+& 7). Then we fetch that same address plus 8.
+
+The addresses of the first two reads are computed by the PPU itself
+and so we could use them as waypoints for syncing. Unfortunately, 8
+consecutive scanlines read the same values, since the same
+character is used for each scanline (and attributes are even
+coarser). However, this can tell us roughly what scanline we are
+on.
+
+A better wayfinding technique is to "ping" the PPU to measure
+latency. When the CPU asks for a character, it's going to read
+something from the bus, but we don't care what value it reads,
+since it's just going to use that to ask us again for CHR. So
+what we could do is pass some timestamp to it, and look at the
+addresses requested for reads C and D. We can compute the tile
+value from these (addr / 16), and even get to double-check since
+the 
+
+Maybe this coarse jitter is not a big problem if we just prevent
+ppuppy from being interrupted. But a small amount of jitter is
+probably expected. It's easy to tell A/B from C/D because PPU A13
+is high for the first two reads (from "VRAM") and low for the
+second two. An easy way to verify a packet is that D - C should
+be exactly 8 (for any packet) and (D >> 4) & 255 should be the tile
+index we returned for A (when we are synchronized).
+
+
+
  - kernel module -
 
 I definitely haven't solved the timing issue above, but it's starting

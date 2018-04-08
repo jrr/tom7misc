@@ -36,3 +36,6 @@ slide this second. i mean when I was making the slides.
  - one transistor bug
  - DLL signature knocking
 
+and how do we measure latency? We use the ping command.
+
+does mod come up? use upside-down POW block.
