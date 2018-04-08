@@ -1570,6 +1570,12 @@ extern "C" {
     // __sync_synchronize();
   }
 
+  // Clear without barrier; must follow e.g. write_mask.
+  inline void bcm2835_gpio_clr_multi_nb(uint32_t mask) {
+    volatile uint32_t* paddr_c = bcm2835_gpio + BCM2835_GPCLR0/4;
+    const uint32_t offs = mask;
+    *paddr_c = offs;
+  }
   
   /*! Sets the Pull-up/down mode for the specified pin. This is more convenient than
     clocking the mode in with bcm2835_gpio_pud() and bcm2835_gpio_pudclk().
