@@ -625,3 +625,9 @@ timing a lot!). Now compare phenomena:
 
  but that seems to be enough for the ppu to see HIGH, though. It also
  works to drive low. So I think we're onto something here!
+
+ - kernel module -
+
+I definitely haven't solved the timing issue above, but it's starting
+to look tractable. The biggest problem is whole-screen glitches, which
+happen 
