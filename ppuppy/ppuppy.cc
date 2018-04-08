@@ -127,6 +127,11 @@ void __attribute__ ((noinline)) delayTicks(volatile uint32_t ticks) {
 
 int main(int argc, char **argv) {
 
+  if (geteuid() != 0) {
+    fprintf(stderr, "Please run as root.\n");
+    return -1;
+  }
+
 #if 1
   // This magic locks our memory so that it doesn't get
   // swapped out, which improves our scheduling latency.
@@ -182,14 +187,14 @@ int main(int argc, char **argv) {
   // last read. And that memory barrier can be the same one that
   // happens before the first write!
   #define UNTIL_RD_HIGH \
-    while (! ((inputs = bcm2835_gpio_lev_multi()) & PIN_RD)) {}
+    while (! ((inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD))) {}
 
   // Wait until RD goes (or is) low. If RD stays high for too many
   // cycles, then assume we are in vblank and transition directly
   // to that state.
   #define UNTIL_RD_LOW	   \
     for (int hi_count = 0; \
-	 (inputs = bcm2835_gpio_lev_multi()) & PIN_RD;	\
+	 (inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD);	\
 	 hi_count++) { \
       if (hi_count > 250) goto vblank; \
     }
@@ -221,6 +226,10 @@ int main(int argc, char **argv) {
     uint8 nt_reads = 0;
 
   a_phase:
+    CHECK_LT(packetsync, (SCANLINES * PACKETSW * PACKETBYTES))
+      << "packetsync: " << packetsync
+      << " but size " << SCANLINES * PACKETSW * PACKETBYTES;
+
     // packetsync should indicate the correct packet.
     // Get the attribute bits word.
     next_word = screen[packetsync * 4 + 0];
@@ -376,6 +385,10 @@ int main(int argc, char **argv) {
     Yield();
     // back to first packet.
     packetsync = 0;
+
+    // Now wait until end of vblank.
+    while ((inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD)) {}
+    goto a_phase;
   }
 
   CHECK(bcm2835_close());
