@@ -20,32 +20,24 @@ using uint64 = uint64_t;
 using int32 = int32_t;
 using int64 = int64_t;
 
-// input pins, as wired on red solder board
+// input pins
 static constexpr uint8 PIN_RD = 16;
-static constexpr uint8 PIN_A0 = 14;
-static constexpr uint8 PIN_A1 = 15;
-static constexpr uint8 PIN_A2 = 18;
-static constexpr uint8 PIN_A3 = 23;
-static constexpr uint8 PIN_A4 = 24;
-static constexpr uint8 PIN_A5 = 25;
-static constexpr uint8 PIN_A6 = 8;
-static constexpr uint8 PIN_A7 = 7;
-static constexpr uint8 PIN_A8 = 12;
-static constexpr uint8 PIN_A9 = 20;
-static constexpr uint8 PIN_A13 = 21;
+static constexpr uint8 PIN_ADDR0 = 25;
+static constexpr uint8 PIN_ADDR1 = 24;
+static constexpr uint8 PIN_ADDR13 = 23;
 
-// output pins, pending bus transciever
+// output pins
+// static constexpr uint8 POUT = 26;
 static constexpr uint8 POUT_A = 5;
 static constexpr uint8 POUT_B = 6;
+// static constexpr uint8 POUT4 = 22;
 
 static constexpr bool WRITE_NAMETABLE = false;
 static constexpr bool WRITE_ATTRIBUTE = false;
 
 static constexpr bool TRY_RESYNC = true;
 
-static constexpr int ON_TICKS = 3;
-
-static constexpr bool DO_WRITE[4] = { false, false, true, true, };
+static constexpr int ON_TICKS = 8;
 
 // Screen image data.
 
@@ -60,6 +52,7 @@ static constexpr bool DO_WRITE[4] = { false, false, true, true, };
 #define SCANLINES 240
 #define TILESW 32
 #define SPRITESW 8
+#define PACKETSW (TILESW + SPRITESW)
 
 // In the steady state, the PPU does four reads per 8-pixel
 // strip (i.e., the slice from one scanline). Let's call this a packet:
@@ -70,11 +63,10 @@ static constexpr bool DO_WRITE[4] = { false, false, true, true, };
 // Should we really store the tile index, or just return it
 // programmatically?
 #define PACKETBYTES 4
-uint8 screen[SCANLINES * TILESW * PACKETBYTES] = {0};
-uint8 GetByte(int coarse, int fine, int col, int b) {
-  int idx = (((coarse << 3) | fine) + col) * PACKETBYTES + b;
+uint8 screen[SCANLINES * PACKETSW * PACKETBYTES] = {0};
+uint8 GetByte(int idx) {
   // XXX should record how often this happens...
-  if (idx >= SCANLINES * TILESW * PACKETBYTES) return 0;
+  if (idx >= SCANLINES * PACKETSW * PACKETBYTES) return 0;
   else return screen[idx];
 }
 
@@ -87,35 +79,15 @@ inline void Yield() {
   nanosleep(&t, nullptr);
 }
 
-// PERF! the screen should be stored as pre-decoded words!
+// PERF! the screen should already be decoded, right?
 inline uint32 Decode(uint8 byte) {
   uint32 bit = byte & 1;
   return (bit << POUT_A) | ((bit ^ 1) << POUT_B);
 }
 
-// Decode the low 10 bits of the address.
-inline uint16 DecodeAddress(uint32 inputs) {
-  // PERF probably can do this with tricks (e.g. a few lookup tables).
-  // PERF also could mask the bit with a constant and then shift it
-  // once (needs some more pin constants so that we know which way to
-  // shift and how much).
-  // PERF: Does this compute as uint32 but should be uint16?
-  return
-    (((inputs >> PIN_A0) & 1) << 0) |
-    (((inputs >> PIN_A1) & 1) << 1) |
-    (((inputs >> PIN_A2) & 1) << 2) |
-    (((inputs >> PIN_A3) & 1) << 3) |
-    (((inputs >> PIN_A4) & 1) << 4) |
-    (((inputs >> PIN_A5) & 1) << 5) |
-    (((inputs >> PIN_A6) & 1) << 6) |
-    (((inputs >> PIN_A7) & 1) << 7) |
-    (((inputs >> PIN_A8) & 1) << 8) |
-    (((inputs >> PIN_A9) & 1) << 9);
-}
-
 void InitImage() {
   // First just clear everything to zero.
-  for (int i = 0; i < SCANLINES * TILESW * PACKETBYTES; i++) {
+  for (int i = 0; i < SCANLINES * PACKETSW * PACKETBYTES; i++) {
     screen[i] = 0;
   }
 
@@ -144,7 +116,7 @@ void InitImage() {
 	  bits_hi |= 1;
 	}
       }
-      int idx = (y * TILESW + t) * PACKETBYTES;
+      int idx = (y * PACKETSW + t) * PACKETBYTES;
       screen[idx + 2] = bits_lo;
       screen[idx + 3] = bits_hi;
     }
@@ -193,11 +165,7 @@ int main(int argc, char **argv) {
   InitImage();
 
   // Set input.
-
-
-  for (uint8 p : { PIN_RD, PIN_A0, PIN_A1, PIN_A2, PIN_A3,
-	PIN_A4, PIN_A5, PIN_A6, PIN_A7, PIN_A8, PIN_A9,
-	PIN_A13 }) {
+  for (uint8 p : {PIN_RD, PIN_ADDR0, PIN_ADDR1}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_INPT);
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
@@ -248,131 +216,199 @@ int main(int argc, char **argv) {
   {
     // Number of times we entered vsync.
     int frames = 0;
-
+    int min_desync = 999999, max_desync = -1;
+    int min_scanlines = 999999, max_scanlines = -1;
     // Number of times we appeared to be desynchronized on
     // this frame.
     int desync = 0;
-    int min_desync = 0, max_desync = 0; // XX
-    int complete_packets = 0;
+    // Number of scanlines we observed cleanly.
+    int scanlines = 0;
     
-    // This is the y tile index from 0 to 29.
-    // Determined from the nametable read.
-    int coarse_scanline = 0;
-    // From 0 to 7. Determined from the row of the tile bitmap read.
-    int fine_scanline = 0;
-    // Tile column from 0 to 31. Determined from the nametable read.
-    int col = 0;
-    
+    // This is the packet index in the screen array.
+    int packetsync = 0;
+      
     // This is the next word we'll write, as soon as the read cycle
     // starts. By prepping the next word in advance, we give ourselves
     // the minimal latency between the read and write.
     uint32 next_word = 0;
     // The last value read of the input lines.
     uint32 inputs = 0;
-    // Decoded address read from input.
-    uint16 addr = 0;
 
-    // What byte of the packet are we in? 0-3.
-    int packetbyte = 0;
+    // Number of consecutive nametable reads. At the end of a
+    // scanline there are two nametable fetches (unpaired with
+    // tile fetches), which we can use to sync the scanline.
+    uint8 nt_reads = 0;
 
-  next_cycle:
-    next_word = Decode(GetByte(coarse_scanline, fine_scanline, col,
-			       packetbyte));
+  a_phase:
+    // CHECK_LT(packetsync * 4, (SCANLINES * PACKETSW * PACKETBYTES))
+    // << "packetsync: " << packetsync
+    // << " but size " << SCANLINES * PACKETSW * PACKETBYTES;
 
-    UNTIL_RD_HIGH;
-    // Immediately write the prepared word.
-    if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask(next_word, MASK);
-    // Take the same amount of time whether this is on or off.
-    else bcm2835_gpio_write_mask(0, MASK);
-
-    addr = DecodeAddress(inputs);
+    // packetsync should indicate the correct packet.
+    // Get the attribute bits word.
+    next_word = Decode(GetByte(packetsync * 4 + 0));
     
+    UNTIL_RD_HIGH;
+    
+    // Immediately write the prepared word.
+    if (WRITE_NAMETABLE) bcm2835_gpio_write_mask(next_word, MASK);
     // XXX tune this. Also some possibility to do work here.
     delayTicks(ON_TICKS);
     bcm2835_gpio_clr_multi_nb(MASK);
 
-    // Now check address bits. A13 tells us whether this was in
-    // the first or second half of the packet.
-    if (inputs & (1 << PIN_A13)) {
-      // "VRAM": nametable or attribute. We only decoded the low 10
-      // bits, so this ignores mirroring.
-      if (addr < 960) {
-	// nametable tile. we learn the coarse scanline.
-	// 32 tiles per row.
-	coarse_scanline = addr >> 5;
-	// and column.
-	// (XXX I think this fetch is actually like 2 tiles ahead of
-	// where we really are?)
-	col = addr & 31;
-	
-	if (packetbyte != 0) desync++;
-	packetbyte = 1;
-      } else {
-	// Attribute read. Can't learn much from the address.
-	if (packetbyte != 1) desync++;
-	packetbyte = 2;
-      }
+    // Now check address bits. ADDR13 should be high because this
+    // was a nametable read.
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM" as expected.
+      nt_reads++;
     } else {
-      // pattern table reads.
-      // here the address tells us the fine scanline.
-      // Every one of the 256 tiles is 16 bytes, and we first
-      // read (tile << 4) and then ((tile << 4) | 8).
-
-      // Note: We could use this to get the coarse scanline, assuming
-      // that we didn't corrupt the tile fetched in packet 0. But
-      // the low three bits are always supplied by the PPU so they
-      // reliably indicate the scanline.
-      fine_scanline = addr & 7;
-
-      // Was this the first fetch or second?
-      if (!(addr & 8)) {
-	// First (low color bit)
-	if (packetbyte != 2) desync++;
-	packetbyte = 3;
-      } else {
-	// Second (high color bit)
-	if (packetbyte != 3) desync++;
-	// On to the next tile.
-	complete_packets++;
-	col++;
-	packetbyte = 0;
-      }
+      nt_reads = 0;
+      desync++;
+      // We must have been in phase C or D, so the next phase
+      // is either D or A. Guess A since it's closer.
+      // (Advance packet here?)
+      if (TRY_RESYNC) goto a_phase;
     }
     
     // In case we were too fast, wait for RD to go low. (Necessary?)
     // (Note that this overwrites any address info we had.)
     UNTIL_RD_LOW;
 
-    goto next_cycle;
+  b_phase:
+    // CHECK_LT(packetsync * 4, (SCANLINES * PACKETSW * PACKETBYTES))
+    // << "packetsync: " << packetsync
+    // << " but size " << SCANLINES * PACKETSW * PACKETBYTES;
+
+    // Get the attribute bits word.
+    next_word = Decode(GetByte(packetsync * 4 + 1));
     
+    UNTIL_RD_HIGH;
+    if (WRITE_ATTRIBUTE) bcm2835_gpio_write_mask(next_word, MASK);
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(ON_TICKS);
+    bcm2835_gpio_clr_multi_nb(MASK);
+
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM" as expected.
+      nt_reads++;
+    } else {
+      nt_reads = 0;
+      desync++;
+      // We must have been in phase C or D, so the next phase
+      // is either D or A. Guess D since it's closer.
+      if (TRY_RESYNC) goto d_phase;
+    }
+    
+    UNTIL_RD_LOW;
+
+  c_phase:
+    // Get the low pixels word.
+    next_word = Decode(GetByte(packetsync * 4 + 2));
+
+    UNTIL_RD_HIGH;
+    bcm2835_gpio_write_mask(next_word, MASK);
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(ON_TICKS);
+    bcm2835_gpio_clr_multi_nb(MASK);
+
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM"
+      // Best explanation for this is the extra reads at the
+      // end of a scanline. We're not desynchronized if the
+      // count looks right.
+      nt_reads++;
+      if (nt_reads != 3) {
+	desync++;
+	// We must have been in phase A or B, so next is B or C.
+	// Guess C because it's closest.
+	if (TRY_RESYNC) goto c_phase;
+      }
+    } else {
+      // "ROM" as expected.
+      nt_reads = 0;
+      // XXX shift the address here so that we can check
+      // for sync on the next byte too (should differ by 8).
+    }
+    
+    UNTIL_RD_LOW;
+
+  d_phase:
+    // Get the high pixels word.
+    next_word = Decode(GetByte(packetsync * 4 + 3));
+
+    UNTIL_RD_HIGH;
+    bcm2835_gpio_write_mask(next_word, MASK);
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(ON_TICKS);
+    bcm2835_gpio_clr_multi_nb(MASK);
+
+    UNTIL_RD_LOW;
+
+
+    if (inputs & (1 << PIN_ADDR13)) {
+      // "VRAM"
+      // Best explanation for this is the extra reads at the
+      // end of a scanline. We're not desynchronized if the
+      // count looks right. But either way, we need to change
+      // states.
+      nt_reads++;
+      if (nt_reads == 4) {
+	// We read four consecutive nametable addresses. This
+	// is because we just finished a scanline and then read
+	// two more. Those count as the A and B phases to start
+	// the scanline.
+	scanlines++;
+	// So the next phase is C. 
+	goto c_phase;
+      } else {
+	desync++;
+	// We must have been in phase A or B, so next is B or C.
+	// Guess B because it's closest.
+	if (TRY_RESYNC) {
+	  packetsync++;
+	  goto b_phase;
+	}
+      }
+    } else {
+      // "ROM" as expected.
+      nt_reads = 0;
+      // XXX can check address vs the saved one from phase C.
+    }
+    
+    // next packet.
+    packetsync++;
+    goto a_phase;
+
 
   vblank:
     frames++;
     if (desync < min_desync) min_desync = desync;
     if (desync > max_desync) max_desync = desync;
+    if (scanlines < min_scanlines) min_scanlines = scanlines;
+    if (scanlines > max_scanlines) max_scanlines = scanlines;
 
     if (frames % 60 == 0) {
-      printf("%d frames. %d comp. packets, %d desync (%d--%d)\n",
-	     frames, complete_packets,
-	     desync, min_desync, max_desync);
+      printf("%d frames. %d packets, %d desync (%d--%d) %d sl (%d--%d)\n",
+	     frames, packetsync,
+	     desync, min_desync, max_desync,
+	     scanlines, min_scanlines, max_scanlines);
       min_desync = 999999;
       max_desync = -1;
+      min_scanlines = 999999;
+      max_scanlines = -1;
     }
     desync = 0;
-    complete_packets = 0;
-    
+    scanlines = 0;
+
     // Yield to OS. For production, should perhaps disable this
     // so that nothing else is ever scheduled.
     Yield();
-    // Back to beginning of screen.
-    col = 0;
-    coarse_scanline = 0;
-    fine_scanline = 0;
-    packetbyte = 0;
-    
+    // back to first packet.
+    packetsync = 0;
+
     // Now wait until end of vblank.
     while ((inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD)) {}
-    goto next_cycle;
+    goto a_phase;
   }
 
   CHECK(bcm2835_close());
