@@ -696,3 +696,27 @@ I definitely haven't solved the timing issue above, but it's starting
 to look tractable. The biggest problem is whole-screen glitches, which
 happen about once per second. If I could maybe disable whatever is
 doing that, I'd probably be "good enough."
+
+ - "simple idea" -
+
+Ugh, it still doesn't work!
+
+ - "simplest idea" -
+
+Just turning off the memory barriers does seem to give us enough time
+to do address-dependent writes, so just do it that way.
+
+This may actually be more stable than I thought -- if the output byte
+(e.g. attribute, but also color bits) is just like fine & 1, then
+there's clearly some blinking, but it's also clearly doing something
+repeatable. But if it depends on the column, I get a lot of noise.
+(Maybe trying the color attribute is easier to see than color bits,
+for some reason?)
+
+Although the sync is pretty bad, I suspect that this is failing more
+because the output drive is not strong enough. This is why we see
+a lot of noise. The voltage on the 5V d0 is only like 1.7v.
+
+Try next: Use a stronger "pull-up".
+(alas did not work)
+
