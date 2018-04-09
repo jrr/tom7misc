@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include <string>
+#include <vector>
 #include <cstdint>
 
 #include "bcm2835.h"
@@ -88,7 +89,7 @@ inline void Yield() {
 }
 
 // PERF! the screen should be stored as pre-decoded words!
-inline uint32 Decode(uint8 byte) {
+inline uint32 Encode(uint8 byte) {
   uint32 bit = byte & 1;
   return (bit << POUT_A) | ((bit ^ 1) << POUT_B);
 }
@@ -134,11 +135,10 @@ void InitImage() {
 	int x = t * 8 + b;
 	// x,y are pixel coordinates.
 	// distance from center of screen
-	int dx = (x - 16 * 8);
+	int dx = (x - 128);
 	int dy = (y - 120);
 
-	// XXX fill whole screen for now
-	if (true || dx * dx + dy * dy < dsquared) {
+	if (dx * dx + dy * dy < dsquared) {
 	  // TODO: Get some color info in here.
 	  bits_lo |= 1;
 	  bits_hi |= 1;
@@ -193,7 +193,20 @@ int main(int argc, char **argv) {
   InitImage();
 
   // Set input.
-
+  struct Trace {
+    Trace(uint16 addr, int coarse_sl, int fine_sl, int col, int packetbyte,
+	  uint8 next_byte)
+      : addr(addr), coarse_sl(coarse_sl), fine_sl(fine_sl),
+	col(col), packetbyte(packetbyte), next_byte(next_byte) {}
+    uint16 addr;
+    int coarse_sl;
+    int fine_sl;
+    int col;
+    int packetbyte;
+    uint8 next_byte;
+  };
+  std::vector<Trace> trace;
+  trace.reserve(50000);
 
   for (uint8 p : { PIN_RD, PIN_A0, PIN_A1, PIN_A2, PIN_A3,
 	PIN_A4, PIN_A5, PIN_A6, PIN_A7, PIN_A8, PIN_A9,
@@ -214,21 +227,6 @@ int main(int argc, char **argv) {
   // mask for output word.
   static constexpr uint32 MASK = (1 << POUT_A) | (1 << POUT_B);
   
-  // We have to deal with serious latency constraints here. It's funny
-  // how this makes the program regress into some kind of 6th-grader
-  // style, but the goal is to have as few instructions between an
-  // input edge that we care about and the output that it causes;
-  // we're talking nanoseconds here.
-
-  // About the labels in here:
-  // They correspond to the steps A/B/C/D in a packet
-      // With a word prepared (next_word), wait for the RD pin to
-    // go high and then write our word. RD *low* is actually what
-    // should be signaling us to write, but the high edge predicts
-    // the low edge reliably, and eats up some useful latency.
-    //
-    // assumes (whether true or not) that RD is already low.
-
   // PERF: In these loops, only need a memory barrier after the
   // last read. And that memory barrier can be the same one that
   // happens before the first write!
@@ -252,7 +250,7 @@ int main(int argc, char **argv) {
     // Number of times we appeared to be desynchronized on
     // this frame.
     int desync = 0;
-    int min_desync = 0, max_desync = 0; // XX
+    int min_desync = 0, max_desync = 0;
     int complete_packets = 0;
     
     // This is the y tile index from 0 to 29.
@@ -276,9 +274,17 @@ int main(int argc, char **argv) {
     int packetbyte = 0;
 
   next_cycle:
-    next_word = Decode(GetByte(coarse_scanline, fine_scanline, col,
-			       packetbyte));
-
+    {
+      uint8 next_byte = GetByte(coarse_scanline, fine_scanline, col,
+				packetbyte);
+      next_word = Encode(next_byte);
+      if (frames == 85) {
+	uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
+	trace.emplace_back(full, coarse_scanline, fine_scanline, col, packetbyte,
+			   next_byte);
+      }
+    }
+      
     UNTIL_RD_HIGH;
     // Immediately write the prepared word.
     if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask(next_word, MASK);
@@ -348,6 +354,20 @@ int main(int argc, char **argv) {
 
   vblank:
     frames++;
+    if (frames == 90) {
+      FILE *f = fopen("trace.txt", "wb");
+      for (const Trace &t : trace) {
+	fprintf(f,
+		"     %04x\n"
+		"[%c] write %02x cy: %d fy: %d col: %d\n",
+		t.addr, 
+		"ABCD"[t.packetbyte], t.next_byte,
+		t.coarse_sl, t.fine_sl, t.col);
+      }
+      fclose(f);
+      goto done;
+    }
+
     if (desync < min_desync) min_desync = desync;
     if (desync > max_desync) max_desync = desync;
 
@@ -375,6 +395,8 @@ int main(int argc, char **argv) {
     goto next_cycle;
   }
 
+ done:
   CHECK(bcm2835_close());
+  printf("Clean exit\n");
   return 0;
 }
