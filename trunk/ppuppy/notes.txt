@@ -685,6 +685,11 @@ But anyway the sync is TERRIBLE. It only counts 0-3 scanlines per
 frame, usually 300-500 desyncs, and usually overrunning the packet
 buffer. Are there just bugs? Time for a run.
 
+Simple idea: use the nametable read addresses (gives us rough
+scanline), then if we think our sync is good (because we get a
+matching pattern read), use the low bits to establish the current row?
+"good sync". Need to actually read more address bits, though.
+
  - kernel module -
 
 I definitely haven't solved the timing issue above, but it's starting
