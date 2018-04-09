@@ -46,9 +46,9 @@ static constexpr bool WRITE_ATTRIBUTE = false;
 
 static constexpr bool TRY_RESYNC = true;
 
-static constexpr int ON_TICKS = 4;
+static constexpr int ON_TICKS = 3;
 
-static constexpr bool DO_WRITE[4] = { true, true, true, true, };
+static constexpr bool DO_WRITE[4] = { false, false, true, true, };
 
 // Screen image data.
 
@@ -77,26 +77,8 @@ uint8 screen[SCANLINES * TILESW * PACKETBYTES] = {0};
 uint8 GetByte(int coarse, int fine, int col, int b) {
   // Checkerboard is easier to see through all the noise,
   // and does "work".
-  switch (b) {
-    // default:
-    // return (col > 16) != (coarse > 15);
+  return (col > 16) != (coarse > 15);
 
-    // This confirms that we can switch the palette
-    // every scanline
-  case 1:
-    return col & 1;
-    return 0;
-  case 2:
-  case 3:
-    // return ((col >> 1) & 1);
-    // return (coarse >> 2) & 1;
-    return 0;
-    // return (fine >> 2) & 1;
-    // very noisy
-    // return ((fine >> 1) & 1) ^ ((col >> 1) & 1);
-  case 0:
-    break;
-  }
   int idx = (((coarse << 3) | fine) + col) * PACKETBYTES + b;
   // XXX should record how often this happens...
   if (idx >= SCANLINES * TILESW * PACKETBYTES) return 0;
@@ -144,16 +126,6 @@ void InitImage() {
     screen[i] = 0;
   }
 
-  // Set nametable to identity.
-  for (int y = 0; y < 30; y++) {
-    for (int x = 0; x < 32; x++) {
-      int idx = y * 32 + x;
-      for (int s = 0; s < 8; s++) {
-	screen[(y * 8 * TILESW + s * TILESW + x) * 4] = idx & 255;
-      }
-    }
-  }
-  
   // Palette 0 is fine for these tests.
   // (On the team select screen, 0 is like black,grey,red,orange)
 
@@ -265,14 +237,14 @@ int main(int argc, char **argv) {
   // last read. And that memory barrier can be the same one that
   // happens before the first write!
   #define UNTIL_RD_HIGH \
-    while (! ((inputs = bcm2835_gpio_lev_multi_nb()) & (1 << PIN_RD))) {}
+    while (! ((inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD))) {}
 
   // Wait until RD goes (or is) low. If RD stays high for too many
   // cycles, then assume we are in vblank and transition directly
   // to that state.
   #define UNTIL_RD_LOW	   \
     for (int hi_count = 0; \
-	 (inputs = bcm2835_gpio_lev_multi_nb()) & (1 << PIN_RD);	\
+	 (inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD);	\
 	 hi_count++) { \
       if (hi_count > 250) goto vblank; \
     }
@@ -308,10 +280,28 @@ int main(int argc, char **argv) {
     int packetbyte = 0;
 
   next_cycle:
+    {
+      uint8 next_byte = GetByte(coarse_scanline, fine_scanline, col,
+				packetbyte);
+      next_word = Encode(next_byte);
+      if (frames == TRACE_FRAME) {
+	uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
+	trace.emplace_back(full, coarse_scanline, fine_scanline, col, packetbyte,
+			   next_byte);
+      }
+    }
       
     UNTIL_RD_HIGH;
+    // Immediately write the prepared word.
+    if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask(next_word, MASK);
+    // Take the same amount of time whether this is on or off.
+    else bcm2835_gpio_write_mask(0, MASK);
 
     addr = DecodeAddress(inputs);
+    
+    // XXX tune this. Also some possibility to do work here.
+    delayTicks(ON_TICKS);
+    bcm2835_gpio_clr_multi_nb(MASK);
 
     // Now check address bits. A13 tells us whether this was in
     // the first or second half of the packet.
@@ -327,10 +317,12 @@ int main(int argc, char **argv) {
 	// where we really are?)
 	col = addr & 31;
 	
-	packetbyte = 0;
+	if (packetbyte != 0) desync++;
+	packetbyte = 1;
       } else {
 	// Attribute read. Can't learn much from the address.
-	packetbyte = 1;
+	if (packetbyte != 1) desync++;
+	packetbyte = 2;
       }
     } else {
       // pattern table reads.
@@ -347,43 +339,17 @@ int main(int argc, char **argv) {
       // Was this the first fetch or second?
       if (!(addr & 8)) {
 	// First (low color bit)
-	packetbyte = 2;
+	if (packetbyte != 2) desync++;
+	packetbyte = 3;
       } else {
 	// Second (high color bit)
-	packetbyte = 3;
+	if (packetbyte != 3) desync++;
+	// On to the next tile.
+	complete_packets++;
+	col++;
+	packetbyte = 0;
       }
     }
-
-    {
-      uint8 next_byte = GetByte(coarse_scanline, fine_scanline, col,
-				packetbyte);
-      // XXX Note: this works, but the computation in InitScreen does not
-      // put the right byte here. Look closely at that method (maybe should
-      // be separating the different planes?)
-      if (!packetbyte) next_byte = addr;
-
-      next_word = Encode(next_byte);
-      if (false && frames == TRACE_FRAME) {
-	uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
-	trace.emplace_back(full, coarse_scanline, fine_scanline, col, packetbyte,
-			   next_byte);
-      }
-    }
-
-    // There's some time before the RD edge falls, BUT, 5v lags a little
-    // delayTicks(5);
-    
-    // Immediately write the prepared word.
-    if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask_nb(next_word, MASK);
-    // Take the same amount of time whether this is on or off.
-    else bcm2835_gpio_write_mask_nb(0, MASK);
-
-
-    
-    // XXX tune this. Also some possibility to do work here.
-    delayTicks(ON_TICKS);
-    bcm2835_gpio_clr_multi_nb(MASK);
-
     
     // In case we were too fast, wait for RD to go low. (Necessary?)
     // (Note that this overwrites any address info we had.)

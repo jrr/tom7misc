@@ -1361,6 +1361,13 @@ extern "C" {
     return ret;
   }
 
+  inline uint32_t bcm2835_gpio_lev_multi_nb() {
+    volatile uint32_t* paddr = bcm2835_gpio + BCM2835_GPLEV0/4;
+    uint32_t ret;
+    ret = *paddr;
+    return ret;
+  }
+
   /*! Event Detect Status.
     Tests whether the specified pin has detected a level or edge
     as requested by bcm2835_gpio_ren(), bcm2835_gpio_fen(), bcm2835_gpio_hen(), 
@@ -1568,6 +1575,15 @@ extern "C" {
     // PERF: Are these both necessary? there's some asymmetry in docs between
     // read/write before/after
     // __sync_synchronize();
+  }
+
+  inline void bcm2835_gpio_write_mask_nb(uint32_t value, uint32_t mask) {
+    const uint32_t ons = value & mask;
+    volatile uint32_t* paddr_s = bcm2835_gpio + BCM2835_GPSET0/4;
+    volatile uint32_t* paddr_c = bcm2835_gpio + BCM2835_GPCLR0/4;
+    const uint32_t offs = ~value & mask;
+    *paddr_s = ons;
+    *paddr_c = offs;
   }
 
   // Clear without barrier; must follow e.g. write_mask.
