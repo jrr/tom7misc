@@ -720,3 +720,70 @@ a lot of noise. The voltage on the 5V d0 is only like 1.7v.
 Try next: Use a stronger "pull-up".
 (alas did not work)
 
+There may be a combination of issues here: For example, we may be
+getting desynchronized because of timing AND because the address
+lines are noisy. (Note that they are not even supposed to be stable
+until the falling edge...)
+
+OK, I think at least one problem is that these BJT transistors have
+crap rise/fall times (tens of milliseconds), so my output stage is
+just not able to switch fast enough. Turns out that in the 50s they
+discovered this and built "baker clamp" circuits to prevent the
+transistors from saturating (by using diodes to provide negative
+feedback, though I don't totally understand what's going on). Later
+they started building these diodes into the transistor package,
+creating Schottky transistors which became part of the logic
+family called Low-Power Schottky Transistor-Transistor Logic,
+aka LS series chips. Note there are several LS* chips on the NES!
+So I think we need to be using real chips for this, not just 
+futzing around with homemade transistors. Good news is that these
+chips are ubiquitous!
+
+ - reducing jank -
+
+Can disable HDMI etc with:
+tvservice -o
+Also: 
+vcgencmd display_power 0
+Turns off video output.
+
+Could probably unmount the filesystem upon program startup,
+ - could disable wifi I'm sure,
+ - maybe also disable swap?
+Turn off USB power:
+echo 0 | sudo tee /sys/devices/platform/soc/20980000.usb/buspower >/dev/null
+Can save 2mA (!) by turning off the LED.
+
+can kill lots of processes:
+ - bluetooth 
+
+I think maybe killing /usr/bin/dbus-daemon --system hosed wifi though?
+or dhcpd?
+
+Good news: Forcing all of the interrupts off does leave the CPU loop
+running, and I can clearly see the expected outputs happening on the
+scope. This also does yield MUCH more stable behavior. Specifically,
+the obvious periodic jumping at about 1 Hz is completely gone. Since
+the output is not at all working, though, it's not clear if there may
+be much smaller timing problems persisting.
+
+Of course, this is a bad developer experience since Linux is
+completely hosed after I do this (no debug printing, no wireless,
+probably no filesystem or anything interesting; need to hard reset to
+connect again, and so on). I may also need to avoid using some basic
+stuff like malloc, since these often do use stuff like memory faults
+in their implementation.
+
+(It might be possible to turn them back on periodically and have the
+system recover, but I don't actually know which ones were enabled to
+start with, and there doesn't seem to be a documented way to get
+that?).
+
+I don't really see any problem with this for production though. It's
+actually ideal to boot into linux, then once we're ready, just become
+an embedded microcontroller and run instructions in a loop with simple
+timing.
+
+There may be a watchdog timer or something that resets the system if
+it's in this state for a while. But I at least ran it for well over
+50 minutes without any obvious failure.
