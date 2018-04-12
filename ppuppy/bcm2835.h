@@ -572,6 +572,21 @@
 /*! Size of the peripherals block on RPi 1 */
 #define BCM2835_PERI_SIZE               0x01000000
 
+// In Broadcom docs, GPIO is at "7E200000" and GPIO_BASE is 0x200000, so
+// with INT at "0x7E00B000", we have
+#define BCM2835_INT_BASE   0x00B000
+
+#define BCM2835_IRQ_BASIC_PENDING 0x200
+#define BCM2835_IRQ_PENDING_1 0x204
+#define BCM2835_IRQ_PENDING_2 0x208
+#define BCM2835_FIQ_CONTROL 0x20C
+#define BCM2835_ENABLE_IRQ_1 0x210
+#define BCM2835_ENABLE_IRQ_2 0x214
+#define BCM2835_ENABLE_BASIC_IRQ 0x218
+#define BCM2835_DISABLE_IRQ_1 0x21C
+#define BCM2835_DISABLE_IRQ_2 0x220
+#define BCM2835_DISABLE_BASIC_IRQ 0x224
+
 /*! Offsets for the bases of various peripherals within the peripherals block
   /   Base Address of the System Timer registers
 */
@@ -617,6 +632,8 @@ extern volatile uint32_t *bcm2835_st;
   Available after bcm2835_init has been called
 */
 extern volatile uint32_t *bcm2835_gpio;
+
+extern volatile uint32_t *bcm2835_int;
 
 /*! Base of the PWM registers.
   Available after bcm2835_init has been called (as root)
@@ -666,6 +683,7 @@ typedef enum
 {
     BCM2835_REGBASE_ST   = 1, /*!< Base of the ST (System Timer) registers. */
     BCM2835_REGBASE_GPIO = 2, /*!< Base of the GPIO registers. */
+    BCM2835_REGBASE_INT  = 11, /* Interrupt controller */
     BCM2835_REGBASE_PWM  = 3, /*!< Base of the PWM registers. */
     BCM2835_REGBASE_CLK  = 4, /*!< Base of the CLK registers. */
     BCM2835_REGBASE_PADS = 5, /*!< Base of the PADS registers. */
@@ -1294,12 +1312,15 @@ extern "C" {
     extern void bcm2835_peri_set_bits(volatile uint32_t* paddr, uint32_t value, uint32_t mask);
     /*! @}    end of lowlevel */
 
+  // Hacky/experimental: disable all interrupts. At best, the OS will never come back!
+  extern void bcm2835_int_disable_all();
+  
     /*! \defgroup gpio GPIO register access
       These functions allow you to control the GPIO interface. You can set the 
       function of each GPIO pin, read the input state and set the output state.
       @{
     */
-
+  
     /*! Sets the Function Select register for the given pin, which configures
       the pin as Input, Output or one of the 6 alternate functions.
       \param[in] pin GPIO number, or one of RPI_GPIO_P1_* from \ref RPiGPIOPin.
