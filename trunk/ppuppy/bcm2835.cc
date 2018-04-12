@@ -35,6 +35,7 @@ uint32_t *bcm2835_peripherals = (uint32_t *)MAP_FAILED;
 /* And the register bases within the peripherals block
  */
 volatile uint32_t *bcm2835_gpio        = (uint32_t *)MAP_FAILED;
+volatile uint32_t *bcm2835_int         = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_pwm         = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_clk         = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_pads        = (uint32_t *)MAP_FAILED;
@@ -58,37 +59,35 @@ static constexpr uint8_t debug = 0;
 */
 
 /* Function to return the pointers to the hardware register bases */
-uint32_t* bcm2835_regbase(uint8_t regbase)
-{
-    switch (regbase)
-    {
-	case BCM2835_REGBASE_ST:
-	    return (uint32_t *)bcm2835_st;
-	case BCM2835_REGBASE_GPIO:
-	    return (uint32_t *)bcm2835_gpio;
-	case BCM2835_REGBASE_PWM:
-	    return (uint32_t *)bcm2835_pwm;
-	case BCM2835_REGBASE_CLK:
-	    return (uint32_t *)bcm2835_clk;
-	case BCM2835_REGBASE_PADS:
-	    return (uint32_t *)bcm2835_pads;
-	case BCM2835_REGBASE_SPI0:
-	    return (uint32_t *)bcm2835_spi0;
-	case BCM2835_REGBASE_BSC0:
-	    return (uint32_t *)bcm2835_bsc0;
-	case BCM2835_REGBASE_BSC1:
-	    return (uint32_t *)bcm2835_st;
-	case BCM2835_REGBASE_AUX:
-	    return (uint32_t *)bcm2835_aux;
-	case BCM2835_REGBASE_SPI1:
-	    return (uint32_t *)bcm2835_spi1;
-
+uint32_t* bcm2835_regbase(uint8_t regbase) {
+  switch (regbase) {
+    case BCM2835_REGBASE_ST:
+      return (uint32_t *)bcm2835_st;
+    case BCM2835_REGBASE_GPIO:
+      return (uint32_t *)bcm2835_gpio;
+    case BCM2835_REGBASE_INT:
+      return (uint32_t *)bcm2835_int;
+    case BCM2835_REGBASE_PWM:
+      return (uint32_t *)bcm2835_pwm;
+    case BCM2835_REGBASE_CLK:
+      return (uint32_t *)bcm2835_clk;
+    case BCM2835_REGBASE_PADS:
+      return (uint32_t *)bcm2835_pads;
+    case BCM2835_REGBASE_SPI0:
+      return (uint32_t *)bcm2835_spi0;
+    case BCM2835_REGBASE_BSC0:
+      return (uint32_t *)bcm2835_bsc0;
+    case BCM2835_REGBASE_BSC1:
+      return (uint32_t *)bcm2835_st;
+    case BCM2835_REGBASE_AUX:
+      return (uint32_t *)bcm2835_aux;
+    case BCM2835_REGBASE_SPI1:
+      return (uint32_t *)bcm2835_spi1;
     }
-    return (uint32_t *)MAP_FAILED;
+  return (uint32_t *)MAP_FAILED;
 }
 
-void  bcm2835_set_debug(uint8_t d)
-{
+void bcm2835_set_debug(uint8_t d) {
   if (d) {
     printf("Debugging disabled for performance -tom7\n");
     abort();
@@ -207,6 +206,19 @@ void bcm2835_gpio_fsel(uint8_t pin, uint8_t mode)
     uint32_t  mask = BCM2835_GPIO_FSEL_MASK << shift;
     uint32_t  value = mode << shift;
     bcm2835_peri_set_bits(paddr, value, mask);
+}
+
+// Disable all interrupts. This will almost certainly hose
+// the OS, but the hope is that code keeps running fine.
+void bcm2835_int_disable_all() {
+  __sync_synchronize();
+  volatile uint32_t* paddr1 = bcm2835_int + BCM2835_DISABLE_IRQ_1/4;
+  *paddr1 = 0xFFFFFFFF;
+  volatile uint32_t* paddr2 = bcm2835_int + BCM2835_DISABLE_IRQ_2/4;
+  *paddr2 = 0xFFFFFFFF;
+  volatile uint32_t* paddrb = bcm2835_int + BCM2835_DISABLE_BASIC_IRQ/4;
+  *paddrb = 0xFFFFFFFF;
+  __sync_synchronize();
 }
 
 /* Set output pin */
@@ -694,6 +706,7 @@ int bcm2835_init(void)
 	bcm2835_pads = bcm2835_peripherals + BCM2835_GPIO_PADS/4;
 	bcm2835_clk  = bcm2835_peripherals + BCM2835_CLOCK_BASE/4;
 	bcm2835_gpio = bcm2835_peripherals + BCM2835_GPIO_BASE/4;
+	bcm2835_int  = bcm2835_peripherals + BCM2835_INT_BASE/4;
 	bcm2835_pwm  = bcm2835_peripherals + BCM2835_GPIO_PWM/4;
 	bcm2835_spi0 = bcm2835_peripherals + BCM2835_SPI0_BASE/4;
 	bcm2835_bsc0 = bcm2835_peripherals + BCM2835_BSC0_BASE/4;

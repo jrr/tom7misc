@@ -22,6 +22,8 @@ improper hierarchy
  - so many different processors; which one is "in charge"?
    does it matter?
 
+* reverse emulation
+
 * video ideas
 
 "wrongness in computer science"

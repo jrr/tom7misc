@@ -21,6 +21,8 @@ using uint64 = uint64_t;
 using int32 = int32_t;
 using int64 = int64_t;
 
+static constexpr bool DISABLE_INTERRUPTS = true;
+
 static constexpr int TRACE_FRAME = -10;
 
 // input pins, as wired on red solder board
@@ -88,6 +90,7 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
     return 0;
   case 2:
   case 3:
+    return (col > 160) != (coarse > 15);
     // return ((col >> 1) & 1);
     // return (coarse >> 2) & 1;
     return 0;
@@ -105,11 +108,13 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
 
 // Yield to OS (so that we can ctrl-c, process ethernet, etc.)
 inline void Yield() {
-  struct timespec t;
-  t.tv_sec = 0;
-  // 150 microseconds. Tune this?
-  t.tv_nsec = 150 * 1000;
-  nanosleep(&t, nullptr);
+  if (!DISABLE_INTERRUPTS) {
+    struct timespec t;
+    t.tv_sec = 0;
+    // 150 microseconds. Tune this?
+    t.tv_nsec = 150 * 1000;
+    nanosleep(&t, nullptr);
+  }
 }
 
 // PERF! the screen should be stored as pre-decoded words!
@@ -257,7 +262,8 @@ int main(int argc, char **argv) {
   }
 
   printf("START.\n");
-
+  fflush(stdout);
+  
   // mask for output word.
   static constexpr uint32 MASK = (1 << POUT_A) | (1 << POUT_B);
   
@@ -277,6 +283,7 @@ int main(int argc, char **argv) {
       if (hi_count > 250) goto vblank; \
     }
 
+  
   {
     // Number of times we entered vsync.
     int frames = 0;
@@ -363,7 +370,7 @@ int main(int argc, char **argv) {
       if (!packetbyte) next_byte = addr;
 
       next_word = Encode(next_byte);
-      if (false && frames == TRACE_FRAME) {
+      if (false && !DISABLE_INTERRUPTS && frames == TRACE_FRAME) {
 	uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
 	trace.emplace_back(full, coarse_scanline, fine_scanline, col, packetbyte,
 			   next_byte);
@@ -375,7 +382,7 @@ int main(int argc, char **argv) {
     
     // Immediately write the prepared word.
     if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask_nb(next_word, MASK);
-    // Take the same amount of time whether this is on or off.
+    // Try to take the same amount of time whether this is on or off.
     else bcm2835_gpio_write_mask_nb(0, MASK);
 
 
@@ -394,7 +401,7 @@ int main(int argc, char **argv) {
 
   vblank:
     frames++;
-    if (frames == TRACE_FRAME + 3) {
+    if (!DISABLE_INTERRUPTS && frames == TRACE_FRAME + 3) {
       FILE *f = fopen("trace.txt", "wb");
       for (const Trace &t : trace) {
 	fprintf(f,
@@ -411,7 +418,7 @@ int main(int argc, char **argv) {
     if (desync < min_desync) min_desync = desync;
     if (desync > max_desync) max_desync = desync;
 
-    if (frames % 60 == 0) {
+    if (!DISABLE_INTERRUPTS && frames % 60 == 0) {
       printf("%d frames. %d comp. packets, %d desync (%d--%d)\n",
 	     frames, complete_packets,
 	     desync, min_desync, max_desync);
