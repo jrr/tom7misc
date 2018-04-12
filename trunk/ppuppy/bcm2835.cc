@@ -760,6 +760,7 @@ int bcm2835_init(void)
       // Caution: bcm2835_peripherals is uint32_t*, so divide offsets by 4
       */
       bcm2835_gpio = bcm2835_peripherals + BCM2835_GPIO_BASE/4;
+      bcm2835_int  = bcm2835_peripherals + BCM2835_INT_BASE/4;
       bcm2835_pwm  = bcm2835_peripherals + BCM2835_GPIO_PWM/4;
       bcm2835_clk  = bcm2835_peripherals + BCM2835_CLOCK_BASE/4;
       bcm2835_pads = bcm2835_peripherals + BCM2835_GPIO_PADS/4;

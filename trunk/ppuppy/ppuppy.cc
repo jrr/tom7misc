@@ -283,6 +283,9 @@ int main(int argc, char **argv) {
       if (hi_count > 250) goto vblank; \
     }
 
+  if (DISABLE_INTERRUPTS) {
+    bcm2835_int_disable_all();
+  }
   
   {
     // Number of times we entered vsync.
