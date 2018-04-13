@@ -81,6 +81,21 @@ static constexpr int ON_TICKS = 4;
 // programmatically?
 #define PACKETBYTES 4
 uint8 screen[SCANLINES * TILESW * PACKETBYTES] = {0};
+
+#define FRAMES 8
+int bdx = 1, bdy = 1, bx = 8, by = 15, ff = FRAMES;
+void UpdateFrame() {
+  if (!ff--) {
+    bx += bdx;
+    by += bdy;
+    if (bx < 0) { bx = 0; bdx = -bdx; }
+    if (by < 0) { by = 0; bdy = -bdy; }
+    if (bx > 31) { bx = 31; bdx = -bdx; }
+    if (by > 29) { by = 29; bdy = -bdy; }
+    ff = FRAMES;
+  }
+}
+
 uint8 GetByte(int coarse, int fine, int col, int b) {
   // Checkerboard is easier to see through all the noise,
   // and does "work".
@@ -91,11 +106,18 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
     // This confirms that we can switch the palette
     // every scanline
   case 1:
-    // return col & 1;
+    // return fine & 1;
     return 0;
   case 2:
   case 3:
-    // return (col > 16) != (coarse > 15);
+    {
+      int dx = col - bx;
+      int dy = coarse - by;
+      static constexpr int sqdia = 7 * 7;
+      return (((dx * dx) + (dy * dy)) < sqdia) ? 0xFF : 0x00;
+    }
+
+    // return ((col > 16) != (coarse > 15)) ? 0xFF : 0x00;
     // return ((col >> 1) & 1);
     // return (coarse >> 2) & 1;
     return 0;
@@ -421,6 +443,7 @@ int main(int argc, char **argv) {
 
   vblank:
     frames++;
+    UpdateFrame();
     if (!DISABLE_INTERRUPTS && frames == TRACE_FRAME + 3) {
       FILE *f = fopen("trace.txt", "wb");
       for (const Trace &t : trace) {
