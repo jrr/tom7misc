@@ -21,7 +21,9 @@ using uint64 = uint64_t;
 using int32 = int32_t;
 using int64 = int64_t;
 
-static constexpr bool DISABLE_INTERRUPTS = true;
+// Gives good timing, but requires a hard restart to
+// get back to linux.
+static constexpr bool DISABLE_INTERRUPTS = false;
 
 static constexpr int TRACE_FRAME = -10;
 
@@ -39,9 +41,12 @@ static constexpr uint8 PIN_A8 = 12;
 static constexpr uint8 PIN_A9 = 20;
 static constexpr uint8 PIN_A13 = 21;
 
-// output pins, pending bus transciever
-static constexpr uint8 POUT_A = 5;
-static constexpr uint8 POUT_B = 6;
+// output pins, wired to bus transciever
+static constexpr uint8 POUT_D0 = 2;
+static constexpr uint8 POUT_D1 = 3;
+static constexpr uint8 POUT_D2 = 4;
+static constexpr uint8 POUT_D3 = 5;
+// Use 6 next, of course. But 7 is used on address side.
 
 static constexpr bool WRITE_NAMETABLE = false;
 static constexpr bool WRITE_ATTRIBUTE = false;
@@ -86,11 +91,11 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
     // This confirms that we can switch the palette
     // every scanline
   case 1:
-    return col & 1;
+    // return col & 1;
     return 0;
   case 2:
   case 3:
-    return (col > 160) != (coarse > 15);
+    return (col > 16) != (coarse > 15);
     // return ((col >> 1) & 1);
     // return (coarse >> 2) & 1;
     return 0;
@@ -119,8 +124,13 @@ inline void Yield() {
 
 // PERF! the screen should be stored as pre-decoded words!
 inline uint32 Encode(uint8 byte) {
-  uint32 bit = byte & 1;
-  return (bit << POUT_A) | ((bit ^ 1) << POUT_B);
+  static_assert(POUT_D0 == 2, "hard-coded for performance");
+  static_assert(POUT_D1 == 3, "hard-coded for performance");
+  static_assert(POUT_D2 == 4, "hard-coded for performance");
+  static_assert(POUT_D3 == 5, "hard-coded for performance");
+  // Just four bits supported right now.
+  uint32 word = (uint32)(byte & 15) << 2;
+  return word;
 }
 
 // Decode the low 10 bits of the address.
@@ -254,7 +264,7 @@ int main(int argc, char **argv) {
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
-  for (uint8 p : {POUT_A, POUT_B}) {
+  for (uint8 p : {POUT_D0, POUT_D1, POUT_D2, POUT_D3}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_OUTP);
     // XXX does pull-up/down even make sense for output? We should
     // always be driving the output line in this state.
@@ -265,7 +275,8 @@ int main(int argc, char **argv) {
   fflush(stdout);
   
   // mask for output word.
-  static constexpr uint32 MASK = (1 << POUT_A) | (1 << POUT_B);
+  static constexpr uint32 OUTPUT_MASK =
+    (1 << POUT_D0) | (1 << POUT_D1) | (1 << POUT_D2) | (1 << POUT_D3);
   
   // PERF: In these loops, only need a memory barrier after the
   // last read. And that memory barrier can be the same one that
@@ -384,15 +395,16 @@ int main(int argc, char **argv) {
     // delayTicks(5);
     
     // Immediately write the prepared word.
-    if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask_nb(next_word, MASK);
+    if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask_nb(next_word, OUTPUT_MASK);
     // Try to take the same amount of time whether this is on or off.
-    else bcm2835_gpio_write_mask_nb(0, MASK);
+    else bcm2835_gpio_write_mask_nb(0, OUTPUT_MASK);
 
 
-    
+    // XXX since the bus transciever is responsible for switching our output
+    // on and off, we should be able to just leave this?
     // XXX tune this. Also some possibility to do work here.
     delayTicks(ON_TICKS);
-    bcm2835_gpio_clr_multi_nb(MASK);
+    bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
 
     
     // In case we were too fast, wait for RD to go low. (Necessary?)
