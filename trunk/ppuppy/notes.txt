@@ -444,6 +444,15 @@ expensive. Is ++ on a 64-bit integer a lot of instructions?
 function UART,"
 (I think this might be out of date though?)
 
+Looks like you can turn off the special function of those hat pins with
+force_eeprom_read=0
+in config.txt.
+
+"Pins 3 and 5 are pulled up on the board to the 3.3V supply by 1.8 KΩ
+resistors to enable them to be used easily as I2C communication pins."
+hmm, really?
+http://www.mosaic-industries.com/embedded-systems/microcontroller-projects/raspberry-pi/gpio-pin-electrical-specifications
+
  - disabling CIRAM -
 
 I wired CIRAM /CE (chip enable) to 5V directly, which should disable
@@ -787,3 +796,163 @@ timing.
 There may be a watchdog timer or something that resets the system if
 it's in this state for a while. But I at least ran it for well over
 50 minutes without any obvious failure.
+
+ - using bus transciever -
+
+I wired this up. It's set in the A -> B direction (DIR=1) and I just
+wired pi pins directly to the inputs, and bus pins directly to the
+output, which is refreshingly simple.
+ - At first I didn't cut all the ROM pins on the bus. So they were still
+outputting values, but the new chip seems to drive the bus harder,
+which is good. (?)
+ - Then I cut the low three bits, but left the fourth, which may help
+   diagnose problems.
+ - But also, the tiles and colors also got corrupted, which is not
+   expected -- these were formerly provided by stale bits on the
+   bus (from the read address). They shouldn't be affected here
+   because the bus chip is only enabled when PPU /RD is low (wired to
+   /OE). It's likely that the chip doesn't disable fast enough to
+   avoid sinking current on these lines as the PPU sets the address
+   bits. This may be okay (we shouldn't need to rely on bus capacitance)
+   but it's not great...
+
+Clues: Setting all of d0-d3 as input causes heavy bus noise. I guess
+this is not that surprising, since the transciever may just be sending
+"floating" values on the bus. It's weird that if I only set one to
+input, the screen still looks stable.
+
+Reading address lines doesn't cause instability, on its own.
+
+Oops, for lots of these experiments, I had the pulldown set on the
+output channels. I don't think this makes sense. Turned it off.
+
+Works much better. At this point I have a noisy bouncing ball demo.
+I suspect the major remaining problem is that the addresses are
+not high quality. Let's switch to the level shifter since that
+should just be a better way than the voltage divider.
+
+Actually now that I look at it, the hex level shifter has like
+140ns-280ns propagation delay times (!), which is probably too slow for
+this application (?).
+
+Looking at the scope, the voltage divider approach doesn't seem to
+introduce any delay at all, which is great. But oddly, I'm seeing that
+the 5V logic levels are actually peaking at like 3.8v, with the 3v3
+level then down to like 3.2. PPU RD is like 2.1v on the 3v3 side, and
+3.3 on the 5V side. 
+ - 5V rail is 5v as expected.
+ - data (d0) looks as expected: with 3v pegged high: 3.3 on 3v3, 4.5 on 5V.
+ - weirdly, a0 shows 3.6v at the same time that d0 shows 4.4v. (This is
+   true regardless of whether the bus transciever is off (rd high) or not.)
+   
+voltage.png
+
+These lower voltages are more glitch prone, right? Why is this
+happening? Maybe there is a (resistive) short somewhere? Maybe the CHR
+ROM chip is sinking too much current on the address and RD pins? I
+might as well cut those pins.
+ - cut a0 and a1 on the ROM. didn't seem to do anything.
+
+On the mostly unmodified zelda cart, PPU RD peaks at 4v. Digital waveform
+also looks perfect.
+
+So I guess maybe the voltage divider itself is pulling the peaks down?
+It's equivalent to a 3k pulldown (even more if the 3v3 input is sinking
+significant current? but that's like 40k?). If these signal lines have a
+10k pullup, say, and here we have a 3k pulldown, that would be like a
+23% reduction in voltage if these lines are just driven by the pullup
+(i.e. in common-collector mode, which I think is the case). (And on
+the NES schematic, the visible pull-ups are indeed 10k).
+
+CONFIRMED. Zelda PPU RD was 4V before, and with 3k resistor to ground,
+it's 3.4. So I think I should use higher value resistors for the
+voltage divider if I go that route.
+
+Then I tried 4.7k + 2k. In the center I get a peak of 2.37v; on the 5v
+side I get 3.7v. (This was 2.1/3.3 with 1k/2k resistors.) This is also
+pretty far off. 
+
+20k + 10k: 3v3: 1.8v ?! ; 5v: 3.9v.
+Not sure what went wrong here? The 5v side makes sense to me (nearly
+restored to 4v) but the 3v3 side, measured between the 20k resistor
+(which was two 10ks in serial) and the 10k resistor had a strangely
+low voltage; the peaks seem to lag the 5v peaks, and the troughs
+are at a minimum of .482v, even though on the 5v side they go as
+low as negative.
+Between the ground-side 10ks, a peak of .914v, trough of .216.
+
+10k + 4k: 3v3: 2.09v   5v: 3.7v
+
+3v3 peaks of 2.09v will only barely trigger the input, so this
+is no good.
+troughs are at like 0.196v, which is perfectly acceptable
+
+spreadsheet:
+https://docs.google.com/spreadsheets/d/1KEUBxf1N64e4Ou1zlXg2AiTcm0OBiHcpzixwCrBVZYQ/edit#gid=0
+
+hmm, none of these are good.
+
+Some options:
+ - find good level shifter with fast propagation delay 
+
+ - test the ones you bought; maybe they outperform at 3v, or maybe
+   100ns is (barely) ok.
+
+ - note that we are reliably dropping the voltage on RD to the range
+   that's acceptable for CMOS. So a really crappy way to do this is to
+   just put a 3k "pulldown" resistor on the RD line (and address
+   lines, although we'd need to measure each one to understand its
+   characteristics) and then connect the RD line directly to the
+   3v3 input. This is the most dangerous (in principle this could
+   go as high as 5v if driven by something with more current) and
+   also just terrible engineering.
+
+ - diode-based level shifter.
+                                         3v3 out
+                                          |
+   GND ---<|--+--<|--+--<|--+--<|--+--<|--+---'\/\/\/'--- 5v
+             0.6    1.2    1.8    2.4    3.0    4.7k?
+
+   diodes have a like "fixed" voltage drop, so 5 (!) in series
+   here would give us a reliable 3.0v reference while having
+   a total series resistance of the final resistance, which
+   we could choose to be pretty high so as not to pull down
+   the 5v line too much. 
+   Datasheet for 1N4148 (from Vishay; I have knockoffs) gives
+   recovery time of 4-8ns, which would clearly be adequate.
+   (These list the forward voltage as "max 1v", though..)
+
+Tried this, with 4 diodes (multimeter read them as 7.11, which
+I think is voltage drop?) and a 10k resistor.
+
+   3v3: 2.0          5v: 3.8v
+   trough 0.8v      trough negative
+
+this is not enough; what about one more diode?
+
+   3v3: 2.2          5v: 3.85v
+   trough 0.93v      trough negative
+
+also it's pretty obvious that this is causing some
+delay and flattening of the curve, worse with each
+diode drop. (Actually, honestly, the levels are low
+enough that it could even be crosstalk between
+channels on the scope.)
+
+Tried the level shifter. Wired both sides to 5v
+for simplicity. As promised, the delay is high
+at 98ns. (5v side is 3.9V, output peaks at 5.4v,
+which is even higher than VDD; a bit unexpected
+and possibly dangerous for 3v3?)
+
+This might be workable, although this delay
+definitely makes the timing tough; it's more than
+half of the time that RD is high (98ns before we
+see the rising edge; it falls 82 ns later and
+we don't notice for 124ns. Bleh. But it's still
+within one cycle, and electrically it looks
+pretty nice. 
+Alas: If I provide 3v3 on pin 16, I don't get any
+useful output! (I didn't try this with a good
+quality 3v source, to be fair, so maybe I'm not
+supplying enough current.)
