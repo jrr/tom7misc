@@ -27,6 +27,9 @@ clear.exe : clear.o bcm2835.o $(CCLIB_OBJECTS)
 set.exe : set.o bcm2835.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+read.exe : read.o bcm2835.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 clean :
 	rm -f *.o *.exe core $(CCLIB_OBJECTS)
 

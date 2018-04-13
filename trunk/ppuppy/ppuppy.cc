@@ -55,7 +55,7 @@ static constexpr bool TRY_RESYNC = true;
 
 static constexpr int ON_TICKS = 4;
 
-static constexpr bool DO_WRITE[4] = { true, true, true, true, };
+// static constexpr bool DO_WRITE[4] = { true, true, true, true, };
 
 // Screen image data.
 
@@ -95,7 +95,7 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
     return 0;
   case 2:
   case 3:
-    return (col > 16) != (coarse > 15);
+    // return (col > 16) != (coarse > 15);
     // return ((col >> 1) & 1);
     // return (coarse >> 2) & 1;
     return 0;
@@ -268,7 +268,7 @@ int main(int argc, char **argv) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_OUTP);
     // XXX does pull-up/down even make sense for output? We should
     // always be driving the output line in this state.
-    bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_DOWN);
+    bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
   printf("START.\n");
@@ -393,18 +393,23 @@ int main(int argc, char **argv) {
 
     // There's some time before the RD edge falls, BUT, 5v lags a little
     // delayTicks(5);
-    
+
+    // Now we always write data. /OE pin controls whether/when the bus transciever
+    // actually outputs it to bus.
+    bcm2835_gpio_write_mask_nb(next_word, OUTPUT_MASK);
+
+    #if 0
     // Immediately write the prepared word.
     if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask_nb(next_word, OUTPUT_MASK);
     // Try to take the same amount of time whether this is on or off.
     else bcm2835_gpio_write_mask_nb(0, OUTPUT_MASK);
-
+    #endif
 
     // XXX since the bus transciever is responsible for switching our output
     // on and off, we should be able to just leave this?
     // XXX tune this. Also some possibility to do work here.
-    delayTicks(ON_TICKS);
-    bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
+    // delayTicks(ON_TICKS);
+    // bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
 
     
     // In case we were too fast, wait for RD to go low. (Necessary?)
