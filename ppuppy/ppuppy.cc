@@ -29,9 +29,8 @@ static constexpr int ON_TICKS = 4;
 BouncingBalls bouncing;
 EncodedScreen encoded_screen;
 
-// PERF storing coarse and fine separately wastes some ops
-uint32 GetEncodedByte(int coarse, int fine, int col, int b) {
-  const int idx = (coarse * 8 + fine) * NUM_COLS + col;
+uint32 GetEncodedByte(int scanline, int col, int b) {
+  const int idx = scanline * NUM_COLS + col;
   if (idx >= NUM_SCANLINES * NUM_COLS) return 0;
   
   switch (b) {
@@ -129,13 +128,12 @@ int main(int argc, char **argv) {
 
   // Set input.
   struct Trace {
-    Trace(uint16 addr, int coarse_sl, int fine_sl, int col, int packetbyte,
+    Trace(uint16 addr, int sl, int col, int packetbyte,
 	  uint32 output_word)
-      : addr(addr), coarse_sl(coarse_sl), fine_sl(fine_sl),
+      : addr(addr), sl(sl),
       col(col), packetbyte(packetbyte), output_word(output_word) {}
     uint16 addr;
-    int coarse_sl;
-    int fine_sl;
+    int sl;
     int col;
     int packetbyte;
     uint32 output_word;
@@ -207,9 +205,10 @@ int main(int argc, char **argv) {
     
     // This is the y tile index from 0 to 29.
     // Determined from the nametable read.
-    int coarse_scanline = 0;
-    // From 0 to 7. Determined from the row of the tile bitmap read.
-    int fine_scanline = 0;
+    // Scanline from 0-240 (although PPU does read outside this range).
+    // The low three bits are determined from the row of the tile bitmap.
+    // The upper bits are determined from the nametable read.
+    int scanline = 0;
     // Tile column from 0 to 31. Determined from the nametable read.
     int col = 0;
     
@@ -237,8 +236,7 @@ int main(int argc, char **argv) {
 
     // Assume we are at the top-left.
     col = 0;
-    coarse_scanline = 0;
-    fine_scanline = 0;
+    scanline = 0;
     packetbyte = 0;
     
     // Now wait until end of vblank.
@@ -266,7 +264,8 @@ int main(int argc, char **argv) {
       if (addr < 960) {
 	// nametable tile. we learn the coarse scanline.
 	// 32 tiles per row.
-	coarse_scanline = addr >> 5;
+	scanline = ((addr >> 5) << 3) | (scanline & 7);
+	// coarse_scanline = addr >> 5;
 	// and column.
 	// (XXX I think this fetch is actually like 2 tiles ahead of
 	// where we really are?)
@@ -287,7 +286,8 @@ int main(int argc, char **argv) {
       // that we didn't corrupt the tile fetched in packet 0.)
       // The low three bits are always supplied by the PPU so they
       // reliably indicate the scanline.
-      fine_scanline = addr & 7;
+      // fine_scanline = addr & 7;
+      scanline = (scanline & ~7) | (addr & 7);
 
       // Was this the first fetch or second?
       if (!(addr & 8)) {
@@ -299,11 +299,10 @@ int main(int argc, char **argv) {
       }
     }
     
-    output_word = GetEncodedByte(coarse_scanline, fine_scanline, col,
-				 packetbyte);
+    output_word = GetEncodedByte(scanline, col, packetbyte);
     if (false && !DISABLE_INTERRUPTS && frames == TRACE_FRAME) {
       uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
-      trace.emplace_back(full, coarse_scanline, fine_scanline, col,
+      trace.emplace_back(full, scanline, col,
 			 packetbyte, output_word);
     }
 
@@ -324,10 +323,10 @@ int main(int argc, char **argv) {
       for (const Trace &t : trace) {
 	fprintf(f,
 		"     %04x\n"
-		"[%c] write %08x cy: %d fy: %d col: %d\n",
+		"[%c] write %08x sl: %d col: %d\n",
 		t.addr, 
 		"ABCD"[t.packetbyte], t.output_word,
-		t.coarse_sl, t.fine_sl, t.col);
+		t.sl, t.col);
       }
       fclose(f);
       goto done;

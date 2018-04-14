@@ -42,12 +42,8 @@ void BouncingBalls::Draw() {
       uint8 hibit = Contains(ball2, x, y) ? (1 << bidx) : 0;
       // Keep all other bits the same.
       const uint8 keep_mask = ~(1 << bidx);
-      // printf("%d=%02x->", idx, screen.color_lo[idx]);
       screen.color_lo[idx] = (screen.color_lo[idx] & keep_mask) | lobit;
       screen.color_hi[idx] = (screen.color_hi[idx] & keep_mask) | hibit;
-      // screen.color_lo[idx] = hibit ? 0x4 : 0x00;
-      // screen.color_hi[idx] = lobit ? 0x4 : 0x00;
-      // printf("%02x.", screen.color_lo[idx]);
     }
   }
 }
