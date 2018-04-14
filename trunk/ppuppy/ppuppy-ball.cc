@@ -51,9 +51,16 @@ static constexpr uint8 POUT_D3 = 5;
 static constexpr bool WRITE_NAMETABLE = false;
 static constexpr bool WRITE_ATTRIBUTE = false;
 
+static constexpr bool TRY_RESYNC = true;
+
 static constexpr int ON_TICKS = 4;
 
+// static constexpr bool DO_WRITE[4] = { true, true, true, true, };
+
 // Screen image data.
+
+// Anyway. Right now we have just one bit per CHR output. So the
+// resolution of the screen is 32 tiles (pixels) wide * 30 high.
 
 // These are the values we return for the visible portion of the
 // screen. There are 240 scanlines, each 32 tiles wide. On each
@@ -99,7 +106,14 @@ void UpdateFrame() {
 }
 
 uint8 GetByte(int coarse, int fine, int col, int b) {
+  // Checkerboard is easier to see through all the noise,
+  // and does "work".
   switch (b) {
+    // default:
+    // return (col > 16) != (coarse > 15);
+
+    // This confirms that we can switch the palette
+    // every scanline
   case 0:
     // case 1:
     // return fine & 1;
@@ -125,6 +139,13 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
       return (((dx * dx) + (dy * dy)) < sqdia) ? 0xFF : 0x00;
     }
 
+    // return ((col > 16) != (coarse > 15)) ? 0xFF : 0x00;
+    // return ((col >> 1) & 1);
+    // return (coarse >> 2) & 1;
+    return 0;
+    // return (fine >> 2) & 1;
+    // very noisy
+    // return ((fine >> 1) & 1) ^ ((col >> 1) & 1);
   default:
     break;
   }
@@ -144,10 +165,6 @@ inline void Yield() {
     nanosleep(&t, nullptr);
   }
 }
-
-// mask for output word.
-static constexpr uint32 OUTPUT_MASK =
-  (1 << POUT_D0) | (1 << POUT_D1) | (1 << POUT_D2) | (1 << POUT_D3);
 
 // PERF! the screen should be stored as pre-decoded words!
 inline uint32 Encode(uint8 byte) {
@@ -308,24 +325,22 @@ int main(int argc, char **argv) {
   printf("START.\n");
   fflush(stdout);
   
+  // mask for output word.
+  static constexpr uint32 OUTPUT_MASK =
+    (1 << POUT_D0) | (1 << POUT_D1) | (1 << POUT_D2) | (1 << POUT_D3);
+
   // Shift the raw input history. Read a new raw input, then compute the
   // new deglitched inputs. The deglitched values are computed by voting.
   // (TODO: Consider reading until we have consecutive successes, or so?)
-  //
-  // Voting is nominally (a & b) | (b & c) | (c & a).
-  // This can be improved to: (a & (b | c)) | (b & c)
-  // However, note that when we perform this multiple times, the former
-  // computes expressions that can be reused. So we prefer that version.
-  // Here we explicitly reuse the value. PERF: Experiment with different
-  // ways of doing this; compiler might be smarter than us.
   #define DEGLITCH_READ \
-    inputs_2 = inputs_1;	 \
+    inputs_2 = inputs_1; \
     inputs_1 = inputs_0; \
     inputs_0 = bcm2835_gpio_lev_multi_nb(); \
-    inputs_0and1 = inputs_1and2;			\
-    inputs_1and2 = inputs_1 & inputs_2; \
-    inputs = inputs_0and1 | inputs_1and2 | (inputs_0 & inputs_2);
-
+    inputs = (inputs_2 & inputs_1) | (inputs_1 & inputs_0) | (inputs_0 & inputs_2);
+    
+  // PERF: In these loops, only need a memory barrier after the
+  // last read. And that memory barrier can be the same one that
+  // happens before the first write!
   #define UNTIL_RD_HIGH \
     do { DEGLITCH_READ } while (! (inputs & (1 << PIN_RD)))
   
@@ -370,9 +385,6 @@ int main(int argc, char **argv) {
     // recent, 1 before that, 2 before THAT. These are used in the
     // deglitching code. Everything else should just trust "inputs".
     uint32 inputs_0 = 0, inputs_1 = 0, inputs_2 = 0;
-    // As we shift inputs back, we can also shift these expressions
-    // to reuse them. (0and2 is not reusable.)
-    uint32 inputs_0and1 = 0, inputs_1and2 = 0;
     // Decoded address read from input.
     uint16 addr = 0;
 
