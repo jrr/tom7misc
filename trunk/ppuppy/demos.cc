@@ -4,8 +4,8 @@
 #include "demos.h"
 
 void BouncingBalls::Ball::Update() {
-  // bx += bdx;
-  // by += bdy;
+  bx += bdx;
+  by += bdy;
   if (bx < 0) { bx = 0; bdx = -bdx; }
   if (by < 0) { by = 0; bdy = -bdy; }
   if (bx > (31 * 8)) { bx = 31 * 8; bdx = -bdx; }
@@ -38,8 +38,8 @@ void BouncingBalls::Draw() {
       // The bits are arranged from msb to lsb, like
       // you would want. (1 << 7) is the leftmost.
       const int bidx = 7 - (x & 7);
-      uint8 lobit = (true || Contains(ball1, x, y)) ? (1 << bidx) : 0;
-      uint8 hibit = 0; // Contains(ball2, x, y) ? (1 << bidx) : 0;
+      uint8 lobit = Contains(ball1, x, y) ? (1 << bidx) : 0;
+      uint8 hibit = Contains(ball2, x, y) ? (1 << bidx) : 0;
       // Keep all other bits the same.
       const uint8 keep_mask = ~(1 << bidx);
       screen.color_lo[idx] = (screen.color_lo[idx] & keep_mask) | lobit;
