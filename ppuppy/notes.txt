@@ -17,6 +17,7 @@ Backup plans:
 
 This doc rules:
 https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
+addendum: https://matt.ucc.asn.au/mirror/electron/GPIO-Pads-Control2.pdf
 
  -- timing -- 
 
@@ -729,6 +730,48 @@ a lot of noise. The voltage on the 5V d0 is only like 1.7v.
 Try next: Use a stronger "pull-up".
 (alas did not work)
 
+Try: Just rudely disable interrupts??
+Try: XinuPi?
+
+ - disabling interrupts -
+
+It's likely that doing this puts the machine in a broken state.
+But it may actually be exactly what we want, to just enter a loop
+where the processor is only executing instructions to serve the
+gpio pins and can never return to linux.
+
+Anyway, both the ARM core and the BCM2835 have some interrupt
+capabilities. On the ARM, you can just do this:
+
+   mrs r0, cpsr  ; save status register into r0
+   cpsid i       ; disable interrupts
+                 ; that's d for disable, i for interrupts?
+
+(actually this looks sorta wrong because what if an interrupt
+happens between the two instructions, and that interrupt changes
+what interrupts are enabled?)
+
+and you can then put it back:
+
+   msr cpsr_c, r0  ; restore status register
+
+(or explicitly enable as cpsie i)
+
+Presumably this can't be done from user-space, but there may
+be a kernel call for it. Or we write a kernel module.
+
+Disabling IRQs from the bcm chip is actually much easier,
+since it can be done from the memory mapped peripheral.
+
+http://embedded-xinu.readthedocs.io/en/latest/arm/rpi/BCM2835-Interrupt-Controller.html
+
+linux header lists the IRQs and other stuff:
+https://github.com/raspberrypi/linux/blob/rpi-3.6.y/arch/arm/mach-bcm2708/include/mach/platform.h
+
+might need to disable watchdog timers? It's a peripheral.
+
+ - it's not working -
+
 There may be a combination of issues here: For example, we may be
 getting desynchronized because of timing AND because the address
 lines are noisy. (Note that they are not even supposed to be stable
@@ -989,4 +1032,17 @@ the next nametable read?
  - Address glitching is probably the biggest remaining problem,
    so if the level shifter just gives us stable values right off
    the bat, this approach will likely succeed.
-
+ - There appears to be some hysteresis control (input) for GPIO.
+   (it's in the bcm header but not the peripherals doc?). Default
+   is hysteresis enabled (according to bcm2835.cc).
+ - Turning on or off slew-rate limiting (output) may help as well.
+   Default is slew-rate unlimited (according to bcm2835.cc).
+ - May also consider changing the pad drive strength. It defaults to
+   8 mA. The bus transciever is in the uA range.
+ - Rising and falling edge detection might be another way to get
+   more solid readings without manually coding it.
+   (Specifically: This may be a lower-jitter way to wait for RD to
+    go high or low.) Note there are both synchronous (using system
+    clock, deglitching) and asynchronous (probably using schmitt
+    trigger or whatever in hardware).
+    
