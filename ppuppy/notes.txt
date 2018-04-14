@@ -956,3 +956,37 @@ Alas: If I provide 3v3 on pin 16, I don't get any
 useful output! (I didn't try this with a good
 quality 3v source, to be fair, so maybe I'm not
 supplying enough current.)
+
+ - deglitching inputs -
+
+Wow, this helped so much! First I made every input loop (e.g. waiting
+for RD high) vote over the last three inputs. This noticeably helped.
+The big difference was just inserting several more reads after RD
+goes high--I guess the addresses just aren't stable until that point.
+With this, the ball is clear at any position on screen, and almost...
+tolerable! I can even switch the palette every scanline and it's
+(kind of) stable.
+
+The attribute table has some blocks that are never modified, but this
+makes sense, since attribute bits are packed into bytes and the
+current output only affects the low 4 bits. If we ever want to change
+the color of those cells, we need to be outputting all 8 bits, which
+is, obviously, the plan.
+
+Maybe I don't even need better quality inputs with this technique.
+
+After separating the two bitplanes, I notice that the second one
+(packetbyte=3, the final byte) is much sparser looking. It could
+maybe just be an illusion because the colors are not as bright(?)
+but it looks like it's not affecting the color bits but rather
+the next nametable read?
+
+ This is very sensitive to timing!
+ - Let's pre-render a table during vsync and just index into it,
+   instead of doing any computation in GetByte (this is eventually how
+   it will work anyway). Can pre-encode bytes.
+ - Can optimize address decoding.
+ - Address glitching is probably the biggest remaining problem,
+   so if the level shifter just gives us stable values right off
+   the bat, this approach will likely succeed.
+

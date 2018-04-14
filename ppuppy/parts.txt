@@ -57,3 +57,31 @@ It is 3.4v "typical" on the outside, but operating at 5V and accepting
 enable is just turned on). So this could be used as a level shifter on
 the inputs, right? My only concern is that it doesn't give a maximum
 voltage for output-high, so it might not even be safe.
+
+
+No good:
+https://www.mouser.com/datasheet/2/308/NLSV8T244-D-100109.pdf
+ - great transition/propagation times
+ - but 4.5V max
+
+Consider:
+http://www.onsemi.com/pub/Collateral/MC74VHCT50A-D.PDF
+ - LSTTL compatible inputs, CMOS outputs
+ - "provides protection when voltages up to 7 V are applied, 
+    regardless of the supply voltage. This allows the 
+    MC74VHCT50A to be used to interface 5 V circuits to 3 V
+     circuits"
+ - It says "noninverting" in the name but sure seems to
+   invert from every other indication
+ - here I think the 100ns figure is saying, don't take more
+   than 500ns to rise or 100ns to fall on INPUTs.
+ - propagation delays are great, like 9.5ns max at 3.3v
+ - only 6 channels: I need
+      1 RD
+      1 A13
+     10 PPU A0-A9
+   = 12, so just two chips will do
+ - Really the only problem is that it's SOIC / TSSOP package.
+ - I got the SOIC-14 and some adapters for prototyping.
+ https://www.mouser.com/datasheet/2/73/PA0004-981457.pdf
+
