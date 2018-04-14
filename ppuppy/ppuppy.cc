@@ -83,20 +83,26 @@ static constexpr int ON_TICKS = 4;
 uint8 screen[SCANLINES * TILESW * PACKETBYTES] = {0};
 
 // Cheap bouncing-ball effect.
-#define FRAMES 8
+#define FRAMES 2
 // Number of times we entered vsync.
 int frames = 0;
-int bdx = 1, bdy = 1, bx = 8, by = 15, ff = FRAMES;
-void UpdateFrame() {
-  if (!ff--) {
+struct Ball {
+  int bdx = 1, bdy = 2, bx = 8 * 8, by = 15 * 8;
+  void Update() {
     bx += bdx;
     by += bdy;
     if (bx < 0) { bx = 0; bdx = -bdx; }
     if (by < 0) { by = 0; bdy = -bdy; }
-    if (bx > 31) { bx = 31; bdx = -bdx; }
-    if (by > 29) { by = 29; bdy = -bdy; }
-    ff = FRAMES;
+    if (bx > (31 * 8)) { bx = 31 * 8; bdx = -bdx; }
+    if (by > (29 * 8)) { by = 29 * 8; bdy = -bdy; }
   }
+};
+Ball ball1;
+Ball ball2{-3, 1, 20, 180};
+
+void UpdateFrame() {
+  ball1.Update();
+  ball2.Update();
 }
 
 uint8 GetByte(int coarse, int fine, int col, int b) {
@@ -109,17 +115,27 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
     // This confirms that we can switch the palette
     // every scanline
   case 0:
-  case 1:
+    // case 1:
     // return fine & 1;
     // return 0;
     // return frames & 0xFF;
     return 0;
+  case 1:
+    return 0;
+    // return (fine & 1) ? 0xFF : 0x00;
   case 2:
+    {
+      int dx = (col * 8) - ball2.bx;
+      int dy = (coarse * 8 + fine) - ball2.by;
+      static constexpr int sqdia = 56 * 56;
+      return (((dx * dx) + (dy * dy)) < sqdia) ? 0xFF : 0x00;
+    }
+
   case 3:
     {
-      int dx = col - bx;
-      int dy = coarse - by;
-      static constexpr int sqdia = 7 * 7;
+      int dx = (col * 8) - ball1.bx;
+      int dy = (coarse * 8 + fine) - ball1.by;
+      static constexpr int sqdia = 56 * 56;
       return (((dx * dx) + (dy * dy)) < sqdia) ? 0xFF : 0x00;
     }
 
@@ -378,7 +394,13 @@ int main(int argc, char **argv) {
   next_cycle:
       
     UNTIL_RD_HIGH;
-
+    // Read a few more times, since RD seems to go high earlier than the
+    // address lines become stable. This makes a huge difference.
+    // (But the timing is very sensitive here. 2 is too early, 4 too
+    // slow!)
+    DEGLITCH_READ;
+    DEGLITCH_READ;
+    DEGLITCH_READ;
     addr = DecodeAddress(inputs);
 
     // Now check address bits. A13 tells us whether this was in
@@ -406,9 +428,9 @@ int main(int argc, char **argv) {
       // Every one of the 256 tiles is 16 bytes, and we first
       // read (tile << 4) and then ((tile << 4) | 8).
 
-      // Note: We could use this to get the coarse scanline, assuming
-      // that we didn't corrupt the tile fetched in packet 0. But
-      // the low three bits are always supplied by the PPU so they
+      // (Note: We could use this to get the coarse scanline, assuming
+      // that we didn't corrupt the tile fetched in packet 0.)
+      // The low three bits are always supplied by the PPU so they
       // reliably indicate the scanline.
       fine_scanline = addr & 7;
 
@@ -421,14 +443,14 @@ int main(int argc, char **argv) {
 	packetbyte = 3;
       }
     }
-
+    
     {
       uint8 next_byte = GetByte(coarse_scanline, fine_scanline, col,
 				packetbyte);
       // XXX Note: this works, but the computation in InitScreen does not
       // put the right byte here. Look closely at that method (maybe should
       // be separating the different planes?)
-      if (!packetbyte) next_byte = addr;
+      // if (!packetbyte) next_byte = addr;
 
       next_word = Encode(next_byte);
       if (false && !DISABLE_INTERRUPTS && frames == TRACE_FRAME) {
@@ -438,27 +460,10 @@ int main(int argc, char **argv) {
       }
     }
 
-    // There's some time before the RD edge falls, BUT, 5v lags a little
-    // delayTicks(5);
-
     // Now we always write data. /OE pin controls whether/when the bus transciever
     // actually outputs it to bus.
     bcm2835_gpio_write_mask_nb(next_word, OUTPUT_MASK);
 
-    #if 0
-    // Immediately write the prepared word.
-    if (DO_WRITE[packetbyte]) bcm2835_gpio_write_mask_nb(next_word, OUTPUT_MASK);
-    // Try to take the same amount of time whether this is on or off.
-    else bcm2835_gpio_write_mask_nb(0, OUTPUT_MASK);
-    #endif
-
-    // XXX since the bus transciever is responsible for switching our output
-    // on and off, we should be able to just leave this?
-    // XXX tune this. Also some possibility to do work here.
-    // delayTicks(ON_TICKS);
-    // bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
-
-    
     // In case we were too fast, wait for RD to go low. (Necessary?)
     // (Note that this overwrites any address info we had.)
     UNTIL_RD_LOW;
