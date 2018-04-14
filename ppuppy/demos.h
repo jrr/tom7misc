@@ -10,7 +10,7 @@ struct BouncingBalls {
     void Update();
   };
   Ball ball1{1, 2, 64, 120, 100 * 100};
-  Ball ball2{-3, 1, 20, 180, 74 * 74};
+  Ball ball2{-3, 1, 120, 180, 74 * 74};
 
   // Update frame and draw to screen.
   void Draw();
