@@ -82,7 +82,10 @@ static constexpr int ON_TICKS = 4;
 #define PACKETBYTES 4
 uint8 screen[SCANLINES * TILESW * PACKETBYTES] = {0};
 
+// Cheap bouncing-ball effect.
 #define FRAMES 8
+// Number of times we entered vsync.
+int frames = 0;
 int bdx = 1, bdy = 1, bx = 8, by = 15, ff = FRAMES;
 void UpdateFrame() {
   if (!ff--) {
@@ -105,8 +108,11 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
 
     // This confirms that we can switch the palette
     // every scanline
+  case 0:
   case 1:
     // return fine & 1;
+    // return 0;
+    // return frames & 0xFF;
     return 0;
   case 2:
   case 3:
@@ -124,7 +130,7 @@ uint8 GetByte(int coarse, int fine, int col, int b) {
     // return (fine >> 2) & 1;
     // very noisy
     // return ((fine >> 1) & 1) ^ ((col >> 1) & 1);
-  case 0:
+  default:
     break;
   }
   int idx = (((coarse << 3) | fine) + col) * PACKETBYTES + b;
@@ -245,6 +251,15 @@ int main(int argc, char **argv) {
     return -1;
   }
 
+  if (DISABLE_INTERRUPTS) {
+    if (argc != 2 ||
+	0 != strcmp(argv[1], "noint")) {
+      fprintf(stderr, "Add 'noint' to the commandline to "
+	      "confirm DISABLE_INTERRUPTS. sync first!\n");
+      return -1;
+    }
+  }
+  
 #if 1
   // This magic locks our memory so that it doesn't get
   // swapped out, which improves our scheduling latency.
@@ -288,8 +303,6 @@ int main(int argc, char **argv) {
 
   for (uint8 p : {POUT_D0, POUT_D1, POUT_D2, POUT_D3}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_OUTP);
-    // XXX does pull-up/down even make sense for output? We should
-    // always be driving the output line in this state.
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
@@ -299,21 +312,32 @@ int main(int argc, char **argv) {
   // mask for output word.
   static constexpr uint32 OUTPUT_MASK =
     (1 << POUT_D0) | (1 << POUT_D1) | (1 << POUT_D2) | (1 << POUT_D3);
-  
+
+  // Shift the raw input history. Read a new raw input, then compute the
+  // new deglitched inputs. The deglitched values are computed by voting.
+  // (TODO: Consider reading until we have consecutive successes, or so?)
+  #define DEGLITCH_READ \
+    inputs_2 = inputs_1; \
+    inputs_1 = inputs_0; \
+    inputs_0 = bcm2835_gpio_lev_multi_nb(); \
+    inputs = (inputs_2 & inputs_1) | (inputs_1 & inputs_0) | (inputs_0 & inputs_2);
+    
   // PERF: In these loops, only need a memory barrier after the
   // last read. And that memory barrier can be the same one that
   // happens before the first write!
   #define UNTIL_RD_HIGH \
-    while (! ((inputs = bcm2835_gpio_lev_multi_nb()) & (1 << PIN_RD))) {}
-
+    do { DEGLITCH_READ } while (! (inputs & (1 << PIN_RD)))
+  
   // Wait until RD goes (or is) low. If RD stays high for too many
   // cycles, then assume we are in vblank and transition directly
   // to that state.
   #define UNTIL_RD_LOW	   \
     for (int hi_count = 0; \
-	 (inputs = bcm2835_gpio_lev_multi_nb()) & (1 << PIN_RD);	\
+         /* in loop */ ; \
 	 hi_count++) { \
-      if (hi_count > 250) goto vblank; \
+      DEGLITCH_READ;				\
+      if (! (inputs & (1 << PIN_RD))) break; \
+      if (hi_count > 250) goto vblank;		\
     }
 
   if (DISABLE_INTERRUPTS) {
@@ -321,9 +345,6 @@ int main(int argc, char **argv) {
   }
   
   {
-    // Number of times we entered vsync.
-    int frames = 0;
-
     // Number of times we appeared to be desynchronized on
     // this frame.
     int desync = 0;
@@ -344,6 +365,10 @@ int main(int argc, char **argv) {
     uint32 next_word = 0;
     // The last value read of the input lines.
     uint32 inputs = 0;
+    // The previous three reads, without deglitching. 0 is the most
+    // recent, 1 before that, 2 before THAT. These are used in the
+    // deglitching code. Everything else should just trust "inputs".
+    uint32 inputs_0 = 0, inputs_1 = 0, inputs_2 = 0;
     // Decoded address read from input.
     uint16 addr = 0;
 
@@ -481,7 +506,10 @@ int main(int argc, char **argv) {
     packetbyte = 0;
     
     // Now wait until end of vblank.
-    while ((inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD)) {}
+    do {
+      DEGLITCH_READ;
+    } while (inputs & (1 << PIN_RD));
+    // while ((inputs = bcm2835_gpio_lev_multi()) & (1 << PIN_RD)) {}
     goto next_cycle;
   }
 
