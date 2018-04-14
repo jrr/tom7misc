@@ -1,4 +1,6 @@
 
+#include <stdio.h>
+
 #include "demos.h"
 
 void BouncingBalls::Ball::Update() {
@@ -21,8 +23,11 @@ void BouncingBalls::Draw() {
   ball2.Update();
 
   // Here, using palette 0 for the entire screen.
-  for (int i = 0; i < NUM_SCANLINES * NUM_COLS; i++)
+  for (int i = 0; i < NUM_SCANLINES * NUM_COLS; i++) {
     screen.attr[i] = 0;
+    screen.color_lo[i] = 0;
+    screen.color_hi[i] = 0;
+  }
   
   // Compute the image a single pixel at a time. Assumes we have
   // plenty of time during vblank.
@@ -32,13 +37,17 @@ void BouncingBalls::Draw() {
       const int idx = (y * NUM_COLS) + (x >> 3);
       // The bits are arranged from msb to lsb, like
       // you would want. (1 << 7) is the leftmost.
-      const int bidx = 7 - (x & 3);
+      const int bidx = 7 - (x & 7);
       uint8 lobit = Contains(ball1, x, y) ? (1 << bidx) : 0;
       uint8 hibit = Contains(ball2, x, y) ? (1 << bidx) : 0;
       // Keep all other bits the same.
       const uint8 keep_mask = ~(1 << bidx);
+      // printf("%d=%02x->", idx, screen.color_lo[idx]);
       screen.color_lo[idx] = (screen.color_lo[idx] & keep_mask) | lobit;
       screen.color_hi[idx] = (screen.color_hi[idx] & keep_mask) | hibit;
+      // screen.color_lo[idx] = hibit ? 0x4 : 0x00;
+      // screen.color_hi[idx] = lobit ? 0x4 : 0x00;
+      // printf("%02x.", screen.color_lo[idx]);
     }
   }
 }

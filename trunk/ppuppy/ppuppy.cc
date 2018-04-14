@@ -31,7 +31,7 @@ EncodedScreen encoded_screen;
 
 // PERF storing coarse and fine separately wastes some ops
 uint32 GetEncodedByte(int coarse, int fine, int col, int b) {
-  const int idx = (coarse + fine) * NUM_COLS + col;
+  const int idx = (coarse * 8 + fine) * NUM_COLS + col;
   if (idx >= NUM_SCANLINES * NUM_COLS) return 0;
   
   switch (b) {
