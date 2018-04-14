@@ -1046,3 +1046,56 @@ the next nametable read?
     clock, deglitching) and asynchronous (probably using schmitt
     trigger or whatever in hardware).
     
+
+ - rewrite to screen/demos -
+
+ Pretty sure that I'm just missing the deadline for writing the packet
+ bytes. If I just write "hi" (last phase) bits, then I see the
+ bouncing ball but in the sub-columns where I'm not outputting data
+ (because the writes are actually affecting the nametable address or
+ read; the next packet byte). If I just write "lo" (second to last
+ phase) bits, there's very good fidelity within the circle, but it's
+ red, which is palette entry 2 (hi bit set, lo bit not) on this screen.
+ So lo bits become hi, and hi becomes nametable.
+
+ Optimizing:
+
+ DEGLITCH_READ is well-optimized. Two in a row is just
+
+        ldr     r1, [lr, #52]
+        ldr     r2, [lr, #52]
+        orr     r0, r2, r1
+        orr     r4, r0, r4
+        and     r4, r4, r3
+
+ and three is
+
+        ldr     r4, [lr, #52]
+        ldr     r1, [lr, #52]
+        ldr     r2, [lr, #52]
+        orr     r0, r2, r1
+        orr     r3, r0, r3
+        and     r3, r3, r4
+
+ We might want to interleave the reads more, since spreading
+ out in time is the goal, not simply to do a lot of reads. This
+ would probably need some inline asm. Anyway. It's generating
+ fast code.
+
+ Address decoding is crummy though. It's like 26 instructions.
+ We could make this faster by:
+   - hand-optimizing (some shifts can be done together)
+   - using tables
+   - rewiring (putting the bits in more correct order on the
+     pins will help)
+
+ even though they're all mixed around, pins 2-27 are all
+ available on the board.
+
+ so we could reserve 2-3-4-5-6-7-8-9 for data out
+ and then use the next 10 for address in,
+ and the address decoding would just be like 2 or 3 instructions.
+
+ - getbyte looks reasonable, although there's like if-else for
+   the packet. Could instead compute a base address and offset.
+   (did it)

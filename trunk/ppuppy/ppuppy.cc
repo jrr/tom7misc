@@ -262,12 +262,15 @@ int main(int argc, char **argv) {
     DEGLITCH_READ;
     DEGLITCH_READ;
     DEGLITCH_READ;
+
+#if 0
     asm volatile("@ deglitch end " : : :);
     addr = DecodeAddress(inputs);
     asm volatile("@ addr decode end " : : :);
     
     // Now check address bits. A13 tells us whether this was in
     // the first or second half of the packet.
+
     if (inputs & (1 << PIN_A13)) {
       // "VRAM": nametable or attribute. We only decoded the low 10
       // bits, so this ignores mirroring.
@@ -312,6 +315,14 @@ int main(int argc, char **argv) {
     
     output_word = GetEncodedByte(scanline, col, packetbyte);
     asm volatile("@ getbyte end " : : :);
+#else
+    if (inputs & (1 << PIN_A13)) {
+      output_word = 0;
+    } else {
+      output_word = 0xFFFFFFFF;
+    }
+#endif
+
     /*
     if (false && !DISABLE_INTERRUPTS && frames == TRACE_FRAME) {
       uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
