@@ -29,10 +29,15 @@ static constexpr int ON_TICKS = 4;
 BouncingBalls bouncing;
 EncodedScreen encoded_screen;
 
-uint32 GetEncodedByte(int scanline, int col, int b) {
+inline uint32 GetEncodedByte(int scanline, int col, int b) {
+  static constexpr int WORDS = NUM_SCANLINES * NUM_COLS;
   const int idx = scanline * NUM_COLS + col;
-  if (idx >= NUM_SCANLINES * NUM_COLS) return 0;
-  
+  if (idx >= WORDS) return 0;
+  // PERF could skip this by just zero padding.
+  if (!b) return 0;
+  uint32 *addr = ((uint32*)&encoded_screen) + (WORDS * (b - 1)) + idx;
+  return *addr;
+  /*
   switch (b) {
     default:
     case 0: return 0;
@@ -41,6 +46,7 @@ uint32 GetEncodedByte(int scanline, int col, int b) {
     case 3: return encoded_screen.encoded_color_hi[idx];
     break;
   }
+  */
 }
 
 // Yield to OS (so that we can ctrl-c, process ethernet, etc.)
@@ -251,11 +257,15 @@ int main(int argc, char **argv) {
     // address lines become stable. This makes a huge difference.
     // (But the timing is very sensitive here. 2 is too early, 4 too
     // slow!)
+    // delayTicks(0);
+    asm volatile("@ deglitch start " : : :);
     DEGLITCH_READ;
     DEGLITCH_READ;
     DEGLITCH_READ;
+    asm volatile("@ deglitch end " : : :);
     addr = DecodeAddress(inputs);
-
+    asm volatile("@ addr decode end " : : :);
+    
     // Now check address bits. A13 tells us whether this was in
     // the first or second half of the packet.
     if (inputs & (1 << PIN_A13)) {
@@ -265,7 +275,7 @@ int main(int argc, char **argv) {
 	// nametable tile. we learn the coarse scanline.
 	// 32 tiles per row.
 	scanline = ((addr >> 5) << 3) | (scanline & 7);
-	// coarse_scanline = addr >> 5;
+
 	// and column.
 	// (XXX I think this fetch is actually like 2 tiles ahead of
 	// where we really are?)
@@ -286,7 +296,6 @@ int main(int argc, char **argv) {
       // that we didn't corrupt the tile fetched in packet 0.)
       // The low three bits are always supplied by the PPU so they
       // reliably indicate the scanline.
-      // fine_scanline = addr & 7;
       scanline = (scanline & ~7) | (addr & 7);
 
       // Was this the first fetch or second?
@@ -298,18 +307,24 @@ int main(int argc, char **argv) {
 	packetbyte = 3;
       }
     }
+
+    asm volatile("@ sync end " : : :);
     
     output_word = GetEncodedByte(scanline, col, packetbyte);
+    asm volatile("@ getbyte end " : : :);
+    /*
     if (false && !DISABLE_INTERRUPTS && frames == TRACE_FRAME) {
       uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
       trace.emplace_back(full, scanline, col,
 			 packetbyte, output_word);
     }
-
+    */
+    
     // Now we always write data. /OE pin controls whether/when the bus
     // transciever actually outputs it to bus.
     bcm2835_gpio_write_mask_nb(output_word, OUTPUT_MASK);
 
+    asm volatile("@ write end " : : :);
     // In case we were too fast, wait for RD to go low. (Necessary?)
     // (Note that this overwrites any address info we had.)
     UNTIL_RD_LOW;
