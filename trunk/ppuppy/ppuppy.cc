@@ -258,12 +258,16 @@ int main(int argc, char **argv) {
     // (But the timing is very sensitive here. 2 is too early, 4 too
     // slow!)
     // delayTicks(0);
+
+    asm volatile("@ early clear " : : :);
+    bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
     asm volatile("@ deglitch start " : : :);
     DEGLITCH_READ;
     DEGLITCH_READ;
-    DEGLITCH_READ;
+    // DEGLITCH_READ;
+    asm volatile("@ deglitch end " : : :);
 
-#if 0
+#if 1
     asm volatile("@ deglitch end " : : :);
     addr = DecodeAddress(inputs);
     asm volatile("@ addr decode end " : : :);
@@ -314,12 +318,14 @@ int main(int argc, char **argv) {
     asm volatile("@ sync end " : : :);
     
     output_word = GetEncodedByte(scanline, col, packetbyte);
+
     asm volatile("@ getbyte end " : : :);
+
 #else
     if (inputs & (1 << PIN_A13)) {
       output_word = 0;
     } else {
-      output_word = 0xFFFFFFFF;
+      output_word = OUTPUT_MASK;
     }
 #endif
 
@@ -333,7 +339,9 @@ int main(int argc, char **argv) {
     
     // Now we always write data. /OE pin controls whether/when the bus
     // transciever actually outputs it to bus.
-    bcm2835_gpio_write_mask_nb(output_word, OUTPUT_MASK);
+    // We previously set the whole output mask to 0, so we only need to
+    // worry about the 1 bits here (assumes output_word & ~OUTPUT_MASK = 0!)
+    bcm2835_gpio_set_multi_nb(output_word);
 
     asm volatile("@ write end " : : :);
     // In case we were too fast, wait for RD to go low. (Necessary?)
