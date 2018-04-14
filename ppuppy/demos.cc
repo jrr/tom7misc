@@ -23,10 +23,13 @@ void BouncingBalls::Draw() {
   ball2.Update();
 
   // Here, using palette 0 for the entire screen.
-  for (int i = 0; i < NUM_SCANLINES * NUM_COLS; i++) {
-    screen.attr[i] = 0;
-    screen.color_lo[i] = 0;
-    screen.color_hi[i] = 0;
+  for (int y = 0; y < NUM_SCANLINES; y++) {
+    for (int x = 0; x < NUM_COLS; x++) {
+      int idx = y * NUM_COLS + x;
+      screen.attr[idx] = 0; // (y & 1) ? 0xFF : 0x00;
+      screen.color_lo[idx] = 0;
+      screen.color_hi[idx] = 0;
+    }
   }
   
   // Compute the image a single pixel at a time. Assumes we have

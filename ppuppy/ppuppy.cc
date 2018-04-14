@@ -17,7 +17,7 @@
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
-static constexpr bool DISABLE_INTERRUPTS = false;
+static constexpr bool DISABLE_INTERRUPTS = true;
 
 static constexpr int TRACE_FRAME = -10;
 
