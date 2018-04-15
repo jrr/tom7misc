@@ -83,8 +83,9 @@ Screen ScreenFromFile(const string &filename) {
 
   // Two-bit color index within palette #pal that matches the
   // RGB color best.
-  auto ClosestColor = [](int pal, int r, int g, int b) {
-    // XXX TODO: use LAB DeltaE.
+  auto ClosestColor = [](int pal, int r, int g, int b) ->
+    std::tuple<int, int> {
+    // XXX TODO: use LAB DeltaE. But that is much more expensive...
     int best_sqerr = 65536 * 3 + 1;
     int best_i = 0;
     for (int i = 0; i < 4; i++) {
@@ -100,36 +101,46 @@ Screen ScreenFromFile(const string &filename) {
 	best_sqerr = sqerr;
       }
     }
-    // TODO: Also keep error to propagate?
-    return best_i;
+
+    // TODO: Also keep per-color error to propagate?
+    return {best_i, best_sqerr};
   };
   
   auto OneStrip = [&ClosestColor](
       // 8x3 bytes, rgb triplets
       const uint8 *rgb) -> std::tuple<uint8, uint8, uint8> {
 
-    // TODO: Select the best palette, by finding the
-    // one that minimizes the total loss.
-    const int pal = 0;
+    // Try all four palettes, to minimize this total error.
+    int best_totalerror = 0x7FFFFFFE;
+    std::tuple<uint8, uint8, uint8> best;
+    for (int pal = 0; pal < 4; pal++) {
+      int totalerror = 0;
+      uint8 lobits = 0, hibits = 0;
+      for (int x = 0; x < 8; x++) {
+	uint8 r = rgb[x * 3 + 0];
+	uint8 g = rgb[x * 3 + 1];
+	uint8 b = rgb[x * 3 + 2];
 
-    uint8 lobits = 0, hibits = 0;
-    for (int x = 0; x < 8; x++) {
-      uint8 r = rgb[x * 3 + 0];
-      uint8 g = rgb[x * 3 + 1];
-      uint8 b = rgb[x * 3 + 2];
+	// Each pixel must be one of the four selected colors.
+	// So compute the closest.
+	int p, err;
+	std::tie(p, err) = ClosestColor(pal, r, g, b);
+	totalerror += err;
+	
+	// TODO: Consider propagating some error, e.g.
+	// Floyd-Steinbeg.
 
-      // Each pixel must be one of the four selected colors.
-      // So compute the closest.
-      uint8 p = ClosestColor(pal, r, g, b);
+	lobits <<= 1; lobits |= (p & 1);
+	hibits <<= 1; hibits |= ((p >> 1) & 1);
+      }
 
-      // TODO: Consider propagating some error, e.g.
-      // Floyd-Steinbeg.
-
-      lobits <<= 1; lobits |= (p & 1);
-      hibits <<= 1; hibits |= ((p >> 1) & 1);
+      if (pal == 0 || totalerror < best_totalerror) {
+	best = {(uint8)pal, lobits, hibits};
+	best_totalerror = totalerror;
+      }
     }
-
-    return {(uint8)pal, lobits, hibits};
+      
+    return best;
   };
 
   for (int scanline = 0; scanline < 240; scanline++) {
