@@ -282,11 +282,18 @@ static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
       #endif
     }
 
-    // Only read up to one gigabyte at a time, since first of all,
-    // huge reads seem to be pretty slow, and on some platforms fread
-    // will just return 0 if the size is larger than 2^31 - 1 (or so).
+    // TODO: Tune this for various platforms to find a good
+    // compromise. Could even be platform dependent. For corretness,
+    // this should not be any larger than 2^31 - 1 (or so), since for
+    // example on mingw, fread just fails for such sizes. Huge reads
+    // seem to be pretty slow (perhaps preventing scheduling of other
+    // threads).
+    static constexpr int64 MAX_READ_SIZE = 1LL << 24;
+    static_assert(MAX_READ_SIZE < ((1LL << 31) - 1),
+		  "Must fit in signed 32-bit gamut.");
+    
     const int64 read_size =
-      std::min(size_guess - next_pos, 1LL << 30);
+      std::min(size_guess - next_pos, MAX_READ_SIZE);
     #if READFILE_DEBUG
     printf("Attempt to read %lld bytes\n", read_size);
     #endif
@@ -501,6 +508,7 @@ unsigned int Util::hash(string s) {
 
 string Util::lcase(const string &in) {
   string out;
+  out.reserve(in.size());
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'A' &&
 	in[i] <= 'Z') out += in[i]|32;
@@ -512,6 +520,7 @@ string Util::lcase(const string &in) {
 
 string Util::ucase(const string &in) {
   string out;
+  out.reserve(in.size());
   for (unsigned int i = 0; i < in.length(); i++) {
     if (in[i] >= 'a' &&
 	in[i] <= 'z') out += (in[i] & (~ 32));

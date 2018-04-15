@@ -37,6 +37,8 @@ static void TestReadFiles() {
   CHECK_EQ("", Util::ReadFileMagic("util_test_DOESNT_EXIST.cc", "/"));
   CHECK(Util::HasMagic("util_test.cc", "/* PLEASE KEEP THIS"));
   CHECK(!Util::HasMagic("util_test.cc", "* PLEASE KEEP"));
+  // Would be nice to test files larger than 2^31 and 2^32, since these
+  // have caused problems in the past.
 }
 
 static void TestWhitespace() {
