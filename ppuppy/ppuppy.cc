@@ -62,26 +62,21 @@ inline void Yield() {
 
 // mask for output word.
 static constexpr uint32 OUTPUT_MASK =
-  (1 << POUT_D0) | (1 << POUT_D1) | (1 << POUT_D2) | (1 << POUT_D3);
+  (1 << POUT_D0) | (1 << POUT_D1) |
+  (1 << POUT_D2) | (1 << POUT_D3) |
+  (1 << POUT_D4) | (1 << POUT_D5) |
+  (1 << POUT_D6) | (1 << POUT_D7);
 
 // Decode the low 10 bits of the address.
 inline uint16 DecodeAddress(uint32 inputs) {
-  // PERF probably can do this with tricks (e.g. a few lookup tables).
-  // PERF also could mask the bit with a constant and then shift it
-  // once (needs some more pin constants so that we know which way to
-  // shift and how much).
-  // PERF: Does this compute as uint32 but should be uint16?
-  return
-    (((inputs >> PIN_A0) & 1) << 0) |
-    (((inputs >> PIN_A1) & 1) << 1) |
-    (((inputs >> PIN_A2) & 1) << 2) |
-    (((inputs >> PIN_A3) & 1) << 3) |
-    (((inputs >> PIN_A4) & 1) << 4) |
-    (((inputs >> PIN_A5) & 1) << 5) |
-    (((inputs >> PIN_A6) & 1) << 6) |
-    (((inputs >> PIN_A7) & 1) << 7) |
-    (((inputs >> PIN_A8) & 1) << 8) |
-    (((inputs >> PIN_A9) & 1) << 9);
+  static_assert(PIN_A0 == 14, "hard-coded for speed");
+  // ... check these too ...
+  static_assert(PIN_A9 == 23, "hard-coded for speed");
+  // TODO: Also include A13 here? It's in the right position now.
+  static constexpr uint16 ADDR_MASK =
+    // 10 bits
+    ((1 << 10) - 1);
+  return (inputs >> PIN_A0) & ADDR_MASK;
 }
 
 // Maximum resolution timer; a spin-loop purely on the CPU.
@@ -154,7 +149,8 @@ int main(int argc, char **argv) {
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
-  for (uint8 p : {POUT_D0, POUT_D1, POUT_D2, POUT_D3}) {
+  for (uint8 p : {POUT_D0, POUT_D1, POUT_D2, POUT_D3,
+	POUT_D4, POUT_D5, POUT_D6, POUT_D7}) {
     bcm2835_gpio_fsel(p, BCM2835_GPIO_FSEL_OUTP);
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
