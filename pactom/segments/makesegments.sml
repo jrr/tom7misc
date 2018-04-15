@@ -554,10 +554,6 @@ struct
   (* Graph elevation vs time and mark the end point.
      TODO: Mark start and end points
      TODO: Start all of them at the same x coordinate
-     TODO: Absolute elevation seems to change a lot
-     from day to day (I guess because of prevailing
-     barometric pressure?). So maybe should just use
-     the deltas.
      *)
   fun elevgraph (Segment { name, ... }, crlist) =
     let
@@ -607,8 +603,7 @@ struct
                 val Pt { elev, time, ... } = Vector.sub (points, i)
                 val seconds = Time.toReal (Time.-(time, start_time))
 
-                (* Reverse elevation so that increasing Y is up.
-                   XXX do this a better way. *)
+                (* Reverse elevation so that increasing Y is up. *)
                 val relative_elev = elev - start_elev
               in
                 (seconds, 0.0 - relative_elev) :: go (i + 1)
