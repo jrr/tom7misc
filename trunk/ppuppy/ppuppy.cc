@@ -18,7 +18,7 @@
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
-static constexpr bool DISABLE_INTERRUPTS = true;
+static constexpr bool DISABLE_INTERRUPTS = false;
 
 static constexpr int TRACE_FRAME = -10;
 
@@ -30,7 +30,17 @@ static constexpr int ON_TICKS = 4;
 BouncingBalls bouncing;
 EncodedScreen encoded_screen;
 
-inline uint32 GetEncodedByte(int scanline, int col, int b) {
+inline uint32 GetEncodedByte(Screen *screen, int scanline, int col, int b) {
+  static constexpr int WORDS = NUM_SCANLINES * NUM_COLS;
+  const int idx = scanline * NUM_COLS + col;
+  if (idx >= WORDS) return 0;
+  // PERF could skip this by just zero padding.
+  if (!b) return 0;
+  uint8 *addr = ((uint8*)screen) + (WORDS * (b - 1)) + idx;
+  return ((uint32)*addr) << 2;
+}
+
+inline uint32 GetEncodedByte32(int scanline, int col, int b) {
   static constexpr int WORDS = NUM_SCANLINES * NUM_COLS;
   const int idx = scanline * NUM_COLS + col;
   if (idx >= WORDS) return 0;
@@ -240,7 +250,7 @@ int main(int argc, char **argv) {
 
     // bouncing.Draw();
     // EncodeScreen(bouncing.screen, &encoded_screen);
-    EncodeScreen(titlescreen, &encoded_screen);
+    // EncodeScreen(titlescreen, &encoded_screen);
 
     // Assume we are at the top-left.
     col = 0;
@@ -329,11 +339,11 @@ int main(int argc, char **argv) {
     // Get the output word for the NEXT cycle.
     {
       if (packetbyte < 3) {
-	output_word = GetEncodedByte(scanline, col, packetbyte + 1);
+	output_word = GetEncodedByte(&titlescreen, scanline, col, packetbyte + 1);
       } else {
 	// XXX this reads beyond the last column (and probably falis on the first).
 	// But we have to deal with sprites and crap out there anyway.
-	output_word = GetEncodedByte(scanline, col + 1, 0);
+	output_word = GetEncodedByte(&titlescreen, scanline, col + 1, 0);
       }
     }
 
