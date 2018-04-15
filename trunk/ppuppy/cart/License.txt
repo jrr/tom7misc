@@ -1,3 +1,12 @@
+
+The code in this directory was based on some simple examples by Doug
+Fraker ("nesdoug"), which he released under the MIT license below. For
+simplicity, everything in this directory is also released under the
+MIT license. Modifications (c) 2017 Tom Murphy VII.
+
+
+--------------------------------------------------
+
 The MIT License (MIT)
 Copyright (c) 2016 Doug Fraker
 www.nesdoug.com

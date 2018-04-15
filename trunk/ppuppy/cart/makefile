@@ -1,21 +1,27 @@
-default: lesson1.nes
+default: cart.nes
 
 CC65 = ../../../cc65/bin/cc65
 CA65 = ../../../cc65/bin/ca65
 LD65 = ../../../cc65/bin/ld65
 
-lesson1.nes: lesson1.o reset.o nes.cfg
-	$(LD65) -C nes.cfg -o lesson1.nes reset.o lesson1.o nes.lib
-	@echo lesson1.nes created
+cart.nes: cart.o reset.o nes.cfg
+	$(LD65) -C nes.cfg -o cart.nes reset.o cart.o nes.lib
+	@echo cart.nes created
 
 reset.o: reset.s
 	$(CA65) reset.s
 
-lesson1.o: lesson1.s
-	$(CA65) lesson1.s
+cart.o: cart.s
+	$(CA65) cart.s
 
-lesson1.s: lesson1.c
-	$(CC65) -Oi lesson1.c --add-source
+cart.s: cart.c
+	$(CC65) -Oi cart.c --add-source
+
+makeimage.exe : makeimage.c
+	$(CXX) makeimage.c -O -o $@
+
+cart.rom: cart.nes makeimage.exe
+	./makeimage.exe cart.nes $@
 
 clean:
-	rm -f lesson1.nes *.o lesson1.s
+	rm -f cart.nes *.o cart.s
