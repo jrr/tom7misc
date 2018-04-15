@@ -32,16 +32,20 @@ static constexpr uint8 POUT_D1 = 3;
 static constexpr uint8 POUT_D2 = 4;
 static constexpr uint8 POUT_D3 = 5;
 static constexpr uint8 POUT_D4 = 6;
-// Use 6 next, of course. But 7 is used on address side.
+static constexpr uint8 POUT_D5 = 7;
+static constexpr uint8 POUT_D6 = 8;
+static constexpr uint8 POUT_D7 = 9;
 
 inline uint32 Encode(uint8 byte) {
   static_assert(POUT_D0 == 2, "hard-coded for performance");
   static_assert(POUT_D1 == 3, "hard-coded for performance");
   static_assert(POUT_D2 == 4, "hard-coded for performance");
   static_assert(POUT_D3 == 5, "hard-coded for performance");
-  // Just four bits supported right now.
-  uint32 word = (uint32)(byte & 15) << 2;
-  return word;
+  static_assert(POUT_D4 == 6, "hard-coded for performance");
+  static_assert(POUT_D5 == 7, "hard-coded for performance");
+  static_assert(POUT_D6 == 8, "hard-coded for performance");
+  static_assert(POUT_D7 == 9, "hard-coded for performance");
+  return (uint32)(byte) << 2;
 }
 
 #endif

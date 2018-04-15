@@ -19,16 +19,17 @@ inline bool Contains(const BouncingBalls::Ball &ball, int x, int y) {
 }
 
 void BouncingBalls::Draw() {
-  ball1.Update();
-  ball2.Update();
+  frames++;
+  if (true || frames % 8 == 0) {
+    ball1.Update();
+    ball2.Update();
+  }
 
   // Here, using palette 0 for the entire screen.
   for (int y = 0; y < NUM_SCANLINES; y++) {
     for (int x = 0; x < NUM_COLS; x++) {
       int idx = y * NUM_COLS + x;
-      screen.attr[idx] = 0; // (y & 1) ? 0xFF : 0x00;
-      screen.color_lo[idx] = 0;
-      screen.color_hi[idx] = 0;
+      screen.attr[idx] = 0; // (frames & 1) ? 0xFF : 0x00;
     }
   }
   
@@ -41,7 +42,8 @@ void BouncingBalls::Draw() {
       // The bits are arranged from msb to lsb, like
       // you would want. (1 << 7) is the leftmost.
       const int bidx = 7 - (x & 7);
-      uint8 lobit = Contains(ball1, x, y) ? (1 << bidx) : 0;
+      const int b = (x ^ y) & 1;
+      uint8 lobit = Contains(ball1, x, y) ? (1 << bidx) : (b << bidx);
       uint8 hibit = Contains(ball2, x, y) ? (1 << bidx) : 0;
       // Keep all other bits the same.
       const uint8 keep_mask = ~(1 << bidx);

@@ -1099,3 +1099,41 @@ the next nametable read?
  - getbyte looks reasonable, although there's like if-else for
    the packet. Could instead compute a base address and offset.
    (did it)
+
+ addr decode before:
+ 	lsr	r3, r7, #14
+	mov	r4, r3
+	lsl	r5, r7, #17
+	and	r4, r4, #4
+	and	r3, r3, #2
+	orr	r3, r3, r4
+	lsr	r4, r7, #14
+	orr	r3, r3, r5, lsr #31
+	and	r4, r4, #8
+	lsr	r5, r7, #14
+	orr	r3, r3, r4
+	and	r5, r5, #16
+	lsr	r4, r7, #21
+	orr	r3, r3, r5
+	lsr	r5, r7, #14
+	and	r5, r5, #32
+	orr	r3, r3, r5
+	lsl	r4, r4, #7
+	lsr	r5, r7, #14
+	and	r5, r5, #64
+	orr	r3, r3, r5
+	uxtb	r4, r4
+	lsr	r5, r7, #14
+	orr	r3, r3, r4
+	and	r5, r5, #256
+	lsr	r4, r7, #14
+	orr	r3, r3, r5
+	and	r4, r4, #512
+	orr	r3, r3, r4
+
+  after:
+	lsr	r0, r7, #14
+	uxth	r0, r0
+
+  much better :)
+  

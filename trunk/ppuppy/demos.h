@@ -14,6 +14,7 @@ struct BouncingBalls {
 
   // Update frame and draw to screen.
   void Draw();
+  int frames;
   Screen screen;
 };
 
