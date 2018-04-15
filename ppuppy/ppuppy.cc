@@ -20,15 +20,7 @@
 // get back to linux.
 static constexpr bool DISABLE_INTERRUPTS = false;
 
-static constexpr int TRACE_FRAME = -10;
-
-static constexpr bool WRITE_NAMETABLE = false;
-static constexpr bool WRITE_ATTRIBUTE = false;
-
-static constexpr int ON_TICKS = 4;
-
 BouncingBalls bouncing;
-EncodedScreen encoded_screen;
 
 inline uint32 GetEncodedByte(Screen *screen, int scanline, int col, int b) {
   static constexpr int WORDS = NUM_SCANLINES * NUM_COLS;
@@ -38,26 +30,6 @@ inline uint32 GetEncodedByte(Screen *screen, int scanline, int col, int b) {
   if (!b) return 0;
   uint8 *addr = ((uint8*)screen) + (WORDS * (b - 1)) + idx;
   return ((uint32)*addr) << 2;
-}
-
-inline uint32 GetEncodedByte32(int scanline, int col, int b) {
-  static constexpr int WORDS = NUM_SCANLINES * NUM_COLS;
-  const int idx = scanline * NUM_COLS + col;
-  if (idx >= WORDS) return 0;
-  // PERF could skip this by just zero padding.
-  if (!b) return 0;
-  uint32 *addr = ((uint32*)&encoded_screen) + (WORDS * (b - 1)) + idx;
-  return *addr;
-  /*
-  switch (b) {
-    default:
-    case 0: return 0;
-    case 1: return encoded_screen.encoded_attr[idx];
-    case 2: return encoded_screen.encoded_color_lo[idx];
-    case 3: return encoded_screen.encoded_color_hi[idx];
-    break;
-  }
-  */
 }
 
 // Yield to OS (so that we can ctrl-c, process ethernet, etc.)
@@ -137,21 +109,6 @@ int main(int argc, char **argv) {
 #endif
 
   CHECK(bcm2835_init());
-
-  // Set input.
-  struct Trace {
-    Trace(uint16 addr, int sl, int col, int packetbyte,
-	  uint32 output_word)
-      : addr(addr), sl(sl),
-      col(col), packetbyte(packetbyte), output_word(output_word) {}
-    uint16 addr;
-    int sl;
-    int col;
-    int packetbyte;
-    uint32 output_word;
-  };
-  std::vector<Trace> trace;
-  trace.reserve(50000);
 
   for (uint8 p : { PIN_RD, PIN_A0, PIN_A1, PIN_A2, PIN_A3,
 	PIN_A4, PIN_A5, PIN_A6, PIN_A7, PIN_A8, PIN_A9,
@@ -245,13 +202,14 @@ int main(int argc, char **argv) {
     // What byte of the packet are we in? 0-3.
     int packetbyte = 0;
 
+    Screen *screen = nullptr;
+    
   next_frame:
     // In the steady state, this needs to complete during vsync.
 
     // bouncing.Draw();
-    // EncodeScreen(bouncing.screen, &encoded_screen);
-    // EncodeScreen(titlescreen, &encoded_screen);
-
+    screen = &titlescreen;
+    
     // Assume we are at the top-left.
     col = 0;
     scanline = 0;
@@ -339,25 +297,15 @@ int main(int argc, char **argv) {
     // Get the output word for the NEXT cycle.
     {
       if (packetbyte < 3) {
-	output_word = GetEncodedByte(&titlescreen, scanline, col, packetbyte + 1);
+	output_word = GetEncodedByte(screen, scanline, col, packetbyte + 1);
       } else {
 	// XXX this reads beyond the last column (and probably falis on the first).
 	// But we have to deal with sprites and crap out there anyway.
-	output_word = GetEncodedByte(&titlescreen, scanline, col + 1, 0);
+	output_word = GetEncodedByte(screen, scanline, col + 1, 0);
       }
     }
 
     asm volatile("@ getbyte end " : : :);
-
-
-    /*
-    if (false && !DISABLE_INTERRUPTS && frames == TRACE_FRAME) {
-      uint16 full = addr | (!!(inputs & (1 << PIN_A13)) << 13);
-      trace.emplace_back(full, scanline, col,
-			 packetbyte, output_word);
-    }
-    */
-    
 
     asm volatile("@ wait low loop " : : :);
     // In case we were too fast, wait for RD to go low. (Necessary?)
@@ -369,19 +317,6 @@ int main(int argc, char **argv) {
 
   vblank:
     frames++;
-    if (!DISABLE_INTERRUPTS && frames == TRACE_FRAME + 3) {
-      FILE *f = fopen("trace.txt", "wb");
-      for (const Trace &t : trace) {
-	fprintf(f,
-		"     %04x\n"
-		"[%c] write %08x sl: %d col: %d\n",
-		t.addr, 
-		"ABCD"[t.packetbyte], t.output_word,
-		t.sl, t.col);
-      }
-      fclose(f);
-      goto done;
-    }
 
     if (desync < min_desync) min_desync = desync;
     if (desync > max_desync) max_desync = desync;
@@ -402,7 +337,6 @@ int main(int argc, char **argv) {
     goto next_frame;
   }
 
- done:
   CHECK(bcm2835_close());
   printf("Clean exit\n");
   return 0;
