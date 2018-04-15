@@ -46,7 +46,8 @@ static constexpr uint8 cart_palettes[4 * 4] = {
 // Dense r-g-b triplets.
 // TODO: to cc-lib image.h?
 struct ImageRGB {
-  ImageRGB(const std::vector<uint8> &rgb, int width, int height);
+  ImageRGB(std::vector<uint8> rgb, int width, int height) :
+    width(width), height(height), rgb(std::move(rgb)) {}
   static ImageRGB *Load(const string &filename);
   const int width, height;
   // Size width * height * 3.

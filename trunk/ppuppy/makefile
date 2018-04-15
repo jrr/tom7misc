@@ -15,7 +15,7 @@ LFLAGS=
 # ../cc-lib/util.o  ../cc-lib/base/stringprintf.o ../cc-lib/arcfour.o
 CCLIB_OBJECTS= ../cc-lib/base/logging.o ../cc-lib/stb_image.o
 
-ppuppy.exe : ppuppy.o demos.o screen.o bcm2835.o $(CCLIB_OBJECTS)
+ppuppy.exe : ppuppy.o demos.o screen.o bcm2835.o convert.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 gpio.exe : gpio.o

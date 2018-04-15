@@ -42,7 +42,7 @@ void BouncingBalls::Draw() {
       // The bits are arranged from msb to lsb, like
       // you would want. (1 << 7) is the leftmost.
       const int bidx = 7 - (x & 7);
-      const int b = (x ^ y) & 1;
+      const int b = ((x & 7) == 2) | ((y & 7) == 3);
       uint8 lobit = Contains(ball1, x, y) ? (1 << bidx) : (b << bidx);
       uint8 hibit = Contains(ball2, x, y) ? (1 << bidx) : 0;
       // Keep all other bits the same.

@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
   }
 
   printf("LOAD.\n");
-  Screen titlescreen = ScreenFromFile("images/titletest.png");
+  Screen titlescreen = ScreenFromFile("images/self.jpg");
   
   printf("START.\n");
   fflush(stdout);
