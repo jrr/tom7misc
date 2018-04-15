@@ -33,6 +33,10 @@ inline ArcFour *Substream(ArcFour *rc, int n) {
 }
 
 // In [0, 1].
+// Note that this approach samples uniformly from
+// the interval, but loses precision. Consider using
+// RandDouble and then converting to float if precision
+// is important.
 inline float RandFloat(ArcFour *rc) {
   uint32 uu = 0U;
   uu = rc->Byte() | (uu << 8);

@@ -109,7 +109,8 @@ struct Util {
   static string fgetline(FILE * f);
 
   /* chop the first token (ignoring whitespace) off
-     of line, modifying line. */
+     of line, modifying line. eventually returns ""
+     and line becomes empty. */
   static string chop(string &line);
 
   /* number of entries (not . or ..) in dir d */
