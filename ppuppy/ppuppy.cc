@@ -14,6 +14,7 @@
 #include "ppuppy.h"
 #include "screen.h"
 #include "demos.h"
+#include "convert.h"
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
@@ -155,6 +156,9 @@ int main(int argc, char **argv) {
     bcm2835_gpio_set_pud(p, BCM2835_GPIO_PUD_OFF);
   }
 
+  printf("LOAD.\n");
+  Screen titlescreen = ScreenFromFile("images/titletest.png");
+  
   printf("START.\n");
   fflush(stdout);
   
@@ -233,8 +237,10 @@ int main(int argc, char **argv) {
 
   next_frame:
     // In the steady state, this needs to complete during vsync.
-    bouncing.Draw();
-    EncodeScreen(bouncing.screen, &encoded_screen);
+
+    // bouncing.Draw();
+    // EncodeScreen(bouncing.screen, &encoded_screen);
+    EncodeScreen(titlescreen, &encoded_screen);
 
     // Assume we are at the top-left.
     col = 0;
