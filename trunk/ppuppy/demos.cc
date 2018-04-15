@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "demos.h"
+#include "convert.h"
 
 void BouncingBalls::Ball::Update() {
   bx += bdx;
@@ -51,4 +52,17 @@ void BouncingBalls::Draw() {
       screen.color_hi[idx] = (screen.color_hi[idx] & keep_mask) | hibit;
     }
   }
+}
+
+Slideshow::Slideshow(const vector<string> &filenames) {
+  screens.reserve(filenames.size());
+  for (const string &f : filenames) {
+    screens.push_back(ScreenFromFile(f));
+  }
+}
+
+void Slideshow::Update() { frames++; }
+
+Screen *Slideshow::GetScreen() {
+  return &screens[(frames >> 8) % screens.size()];
 }

@@ -3,6 +3,8 @@
 
 #include "ppuppy.h"
 #include "screen.h"
+#include <vector>
+#include <string>
 
 struct BouncingBalls {
   struct Ball {
@@ -14,8 +16,17 @@ struct BouncingBalls {
 
   // Update frame and draw to screen.
   void Draw();
-  int frames;
+  int frames = 0;
   Screen screen;
+};
+
+struct Slideshow {
+  Slideshow(const vector<string> &filenames);
+  
+  void Update();
+  int frames = 0;
+  Screen *GetScreen();
+  std::vector<Screen> screens;
 };
 
 #endif
