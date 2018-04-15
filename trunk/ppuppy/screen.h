@@ -23,16 +23,4 @@ struct Screen {
   uint8 color_hi[NUM_SCANLINES * NUM_COLS];
 };
 
-// Same, but pre-encoded for the output pins.
-// PERF (?): Now encoding is just << 2, so probably can go
-// back to raw bytes.
-struct EncodedScreen {
-  // PERF: I can probably get away with uint16. Is it faster?
-  uint32 encoded_attr[NUM_SCANLINES * NUM_COLS];
-  uint32 encoded_color_lo[NUM_SCANLINES * NUM_COLS];
-  uint32 encoded_color_hi[NUM_SCANLINES * NUM_COLS];
-};
-
-void EncodeScreen(const Screen &screen, EncodedScreen *encoded);
-
 #endif
