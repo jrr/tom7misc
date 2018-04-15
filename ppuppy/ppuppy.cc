@@ -124,7 +124,10 @@ int main(int argc, char **argv) {
   }
 
   printf("LOAD.\n");
-  Screen titlescreen = ScreenFromFile("images/self.jpg");
+  Slideshow slideshow(vector<string>{"images/titletest.png",
+	"images/self.jpg",
+	"images/flower.png",
+	"images/robot.png"});
   
   printf("START.\n");
   fflush(stdout);
@@ -208,7 +211,7 @@ int main(int argc, char **argv) {
     // In the steady state, this needs to complete during vsync.
 
     // bouncing.Draw();
-    screen = &titlescreen;
+    screen = slideshow.GetScreen();
     
     // Assume we are at the top-left.
     col = 0;
@@ -334,6 +337,7 @@ int main(int argc, char **argv) {
     // Yield to OS. Does nothing if interrupts are disabled.
     Yield();
 
+    slideshow.Update();
     goto next_frame;
   }
 
