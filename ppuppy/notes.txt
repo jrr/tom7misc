@@ -1099,6 +1099,35 @@ the next nametable read?
  - getbyte looks reasonable, although there's like if-else for
    the packet. Could instead compute a base address and offset.
    (did it)
+<<<<<<< .mine
+
+ Tried a "best-case" timing experiment. Always write FF if A13
+ is low. Takes only about 8 instructions from the deglitch to
+ the write.
+  - Result: goes high 152ns out of 192ns window. Doesn't
+    turn off until the very end of the next window. Screen is
+    a mess.
+ Next, moved the output clear right after the RD loop; before
+ the deglitching reads. This goes low 248ns after the RD edge
+ goes high, which is 72ns after RD goes low (good enough to
+ make the window). But that is literally the first instruction
+ after exiting the RD loop.
+
+ So this tells me that I need to go back to that old approach
+ of computing the NEXT write byte.
+
+ OK so that kinda works! I get a circle that's clearly grey
+ (color 1 so low bits are working) and one that's magenta
+ (color 2 so high bits are working) and in the intersection,
+ orange (color 3 = both). There is significant noise in
+ the color columns, though.
+
+ at r3518 I have a pretty stable two-bouncing-balls demo. the top few
+ rows are unaffected (am I missing vsync? kinda looks like it because
+ if I turn off interrupts--which skips the call to Yield--it gets
+ better) and there are some columns with noise in my color bits. They
+ seem fairly regular so they are probably due to bad address inputs.
+ Also worked well to modify the palette.
 
  addr decode before:
  	lsr	r3, r7, #14
@@ -1137,3 +1166,37 @@ the next nametable read?
 
   much better :)
   
+ - remaining blinking:
+   every eight columns, there are two columns that don't work right.
+   I can't quite tell if this is the rightmost two? Actually just
+   naively counting, there is like - - - - - X O -
+   where X is the worst and O is also bad (it shows a sort of repeating
+   vertical structure as well.)
+
+   whenever the grey ball is on the top two instances of these, the glitching
+   areas become solid magenta or orange. The bottom instance is instead black
+   (inner part) or magenta (outer part). This kinda suggests a periodic
+   timing problem, but it's pretty weird to have a timing problem here,
+   since what is different about these columns (or anything other than the
+   edges?). And since these columns are pretty blinky, I think they are
+   likely caused by something more annoying, like electrically noisy 
+   address (??) lines. What do these locations have in common?
+   Could it just be as simple as I'm unable to set those palette entries to
+   0 because I don't have the data lines outputting?
+
+   I wired up the rest of the data lines, but the CHR pins are still wired
+   too. The overall image quality is quite good, with still some noise
+   lines (interrupts?) and now just two bad (but not disastrous) columns.
+   Could it be like jitter that just happens to catch up with us there?
+   If I could get rid of this, I'd be completely satisfied with the video
+   output.
+
+   I disabled the entire CHR chip: Its CE pin is usually wired to A13,
+   so that means it's /CE (active low). So I wired this directly to 5v,
+   which should leave it permanently disabled (might still have some
+   electrical effects on the address pins that are hooked up?)
+   
+   This did not work right -- it looks like it ruined the A0 pin somehow,
+   fixing it high or low (my own output looked doubled). Could have been
+   some other strange effect from electrical differences, I guess?
+   Disturbing how brittle it is.
