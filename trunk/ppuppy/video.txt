@@ -6,6 +6,16 @@ retro is not funny. the present already contains the past.
 anachronism is funny: it's wrong, a surprise, that something
 from the future exists in the past
 
+emotional rollercoaster
+ - First I'm going to tell you something that sounds impressive,
+   then you will be disappointed when you find out I "cheated",
+   then you will perhaps be impressed again when you find out
+   how hard it was even to cheat,
+   and then you will be disappointed with the actual results,
+   and then you might be happy again to discover that it's not
+   really "cheating"
+
+temperature dependent
 
 improper hierarchy
  - actually anachronism is an example
@@ -17,6 +27,9 @@ improper hierarchy
     - cd/tape adapter
     -
  - the cart has a schematic of itself inside its own ROM
+ - the signal being sent over the wires contains an image
+   of the oscilloscope sampling the signal over those wires
+    - could even be live??
 
 * who's in charge here?
  - so many different processors; which one is "in charge"?
