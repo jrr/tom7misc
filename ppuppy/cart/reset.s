@@ -134,4 +134,7 @@ irq:
 
 .segment "CHARS"
 
-    .incbin "Alpha.chr"
+				; .incbin "Alpha.chr"
+    .incbin "pinball.chr"
+
+  
