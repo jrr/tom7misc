@@ -8,7 +8,7 @@ cart.nes: cart.o reset.o nes.cfg
 	$(LD65) -C nes.cfg -o cart.nes reset.o cart.o nes.lib
 	@echo cart.nes created
 
-reset.o: reset.s
+reset.o: reset.s *.chr
 	$(CA65) reset.s
 
 cart.o: cart.s
@@ -18,10 +18,10 @@ cart.s: cart.c
 	$(CC65) -Oi cart.c --add-source
 
 makeimage.exe : makeimage.c
-	$(CXX) makeimage.c -O -o $@
+	$(CXX) makeimage.c -O2 -o $@
 
 cart.rom: cart.nes makeimage.exe
-	./makeimage.exe cart.nes $@
+	./makeimage.exe -prg cart.nes $@
 
 clean:
 	rm -f cart.nes *.o cart.s
