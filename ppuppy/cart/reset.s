@@ -2,7 +2,8 @@
 
     .import _main
     .export __STARTUP__:absolute=1
-
+    .import _client_nmi
+  
 ; Linker generated symbols
     .import __STACK_START__, __STACKSIZE__
     .include "zeropage.inc"
@@ -118,6 +119,8 @@ BlankName:              ;blanks screen
 
 
 nmi:
+  inc _client_nmi
+  ;;  fallthrough
 irq:
     rti
 
