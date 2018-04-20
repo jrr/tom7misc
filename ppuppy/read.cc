@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
       }
     }
     printf("%s", out.c_str());
-    sleep(1);
+    usleep(250 * 1000);
     Yield();
   }
     
