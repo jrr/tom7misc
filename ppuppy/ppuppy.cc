@@ -124,10 +124,12 @@ int main(int argc, char **argv) {
   }
 
   printf("LOAD.\n");
-  Slideshow slideshow(vector<string>{"images/titletest.png",
+  Slideshow slideshow(vector<string>{
+        "images/titletest.png",
 	"images/self.jpg",
 	"images/flower.png",
-	"images/robot.png"});
+	"images/robot.png",
+	"images/ppuppy-logo.png"});
   
   printf("START.\n");
   fflush(stdout);
@@ -302,7 +304,8 @@ int main(int argc, char **argv) {
       if (packetbyte < 3) {
 	output_word = GetEncodedByte(screen, scanline, col, packetbyte + 1);
       } else {
-	// XXX this reads beyond the last column (and probably falis on the first).
+	// XXX this reads beyond the last column (and probably fails on
+	// the first).
 	// But we have to deal with sprites and crap out there anyway.
 	output_word = GetEncodedByte(screen, scanline, col + 1, 0);
       }

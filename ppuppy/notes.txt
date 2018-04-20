@@ -1099,7 +1099,6 @@ the next nametable read?
  - getbyte looks reasonable, although there's like if-else for
    the packet. Could instead compute a base address and offset.
    (did it)
-<<<<<<< .mine
 
  Tried a "best-case" timing experiment. Always write FF if A13
  is low. Takes only about 8 instructions from the deglitch to
@@ -1130,42 +1129,42 @@ the next nametable read?
  Also worked well to modify the palette.
 
  addr decode before:
- 	lsr	r3, r7, #14
-	mov	r4, r3
-	lsl	r5, r7, #17
-	and	r4, r4, #4
-	and	r3, r3, #2
-	orr	r3, r3, r4
-	lsr	r4, r7, #14
-	orr	r3, r3, r5, lsr #31
-	and	r4, r4, #8
-	lsr	r5, r7, #14
-	orr	r3, r3, r4
-	and	r5, r5, #16
-	lsr	r4, r7, #21
-	orr	r3, r3, r5
-	lsr	r5, r7, #14
-	and	r5, r5, #32
-	orr	r3, r3, r5
-	lsl	r4, r4, #7
-	lsr	r5, r7, #14
-	and	r5, r5, #64
-	orr	r3, r3, r5
-	uxtb	r4, r4
-	lsr	r5, r7, #14
-	orr	r3, r3, r4
-	and	r5, r5, #256
-	lsr	r4, r7, #14
-	orr	r3, r3, r5
-	and	r4, r4, #512
-	orr	r3, r3, r4
+  lsr r3, r7, #14
+  mov r4, r3
+  lsl r5, r7, #17
+  and r4, r4, #4
+  and r3, r3, #2
+  orr r3, r3, r4
+  lsr r4, r7, #14
+  orr r3, r3, r5, lsr #31
+  and r4, r4, #8
+  lsr r5, r7, #14
+  orr r3, r3, r4
+  and r5, r5, #16
+  lsr r4, r7, #21
+  orr r3, r3, r5
+  lsr r5, r7, #14
+  and r5, r5, #32
+  orr r3, r3, r5
+  lsl r4, r4, #7
+  lsr r5, r7, #14
+  and r5, r5, #64
+  orr r3, r3, r5
+  uxtb  r4, r4
+  lsr r5, r7, #14
+  orr r3, r3, r4
+  and r5, r5, #256
+  lsr r4, r7, #14
+  orr r3, r3, r5
+  and r4, r4, #512
+  orr r3, r3, r4
 
   after:
-	lsr	r0, r7, #14
-	uxth	r0, r0
+  lsr r0, r7, #14
+  uxth  r0, r0
 
   much better :)
-  
+
  - remaining blinking:
    every eight columns, there are two columns that don't work right.
    I can't quite tell if this is the rightmost two? Actually just
@@ -1200,3 +1199,58 @@ the next nametable read?
    fixing it high or low (my own output looked doubled). Could have been
    some other strange effect from electrical differences, I guess?
    Disturbing how brittle it is.
+
+ -  Palettes and sprites  -
+
+  Where is palette ram exactly?
+  Supposedly 0x3F00-0x3F1F are the palette entries (16, first the
+  background palettes, then the sprites).
+  According to PPU memory map,
+   "$3F00-3FFF is not configurable, always mapped to the internal
+    palette control."
+  So I guess it's actually in the PPU chip? Makes sense since
+  disabling CIRAM and PRG still gives me the standard Ice Hockey
+  palettes.
+
+  Additionally, there's the OAM internal memory. This is not mapped
+  to any address.
+
+  Anyway, we'll make use of these. The only way to change palettes
+  is from the CPU, 
+
+ - PRG mapping -
+
+  With the example ROM, the program gets mapped at 0x8000 as well as
+  0xC000, which is probably some mirroring thing.
+
+  https://wiki.nesdev.com/w/index.php/CPU_memory_map
+
+  Short version: ROM is usually from 8000-FFFF.
+  You need to put interrupt vectors at the end of address space:
+   - 0xFFFA (16 bits): NMI
+   - 0xFFFC (16 bits): Reset
+   - 0xFFFE (16 bits): IRQ
+
+  So I guess that the "reset" vector actualy contains 0x8000.
+
+  Actually j/k it contains 0xC000, but we also know the program
+  is there. 0xC091 contains both the IRQ and NMI handler.
+
+  And indeed: reset.s contains the code for these, plus a segment
+  called VECTORS with their three addresses. nmi/irq just rti
+  (return from interrupt, I assume). The reset one does some
+  initialization and then calls main.
+
+  OK, so this totally makes sense.
+
+  8000-FFFF is 32k of address space, and since the PRG is only 16k,
+  this must be why we see it mirrored inside FCEUX. The ROM only
+  contains it twice, duh.
+
+ - Reading controllers -
+
+  There are memory-mapped registers for these:
+   $4016  JOY1  Joystick 1 data (R) and joystick strobe (W)
+   $4017  JOY2  Joystick 2 data (R) and frame counter control (W)
+  (Note that they don't just read a byte out -- you have to shift
+   out all 8 bits.)
