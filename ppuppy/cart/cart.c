@@ -9,6 +9,8 @@
 #define JOY1                    ((unsigned char*)0x4016U)
 #define JOY2                    ((unsigned char*)0x4017U)
 
+#define KNOCK_ADDR ((1U << 13) | 0x002AU)
+
 // Note, this is backwards from simplefm2.
 #define RIGHT    0x01
 #define LEFT     0x02
@@ -27,15 +29,18 @@
   } while (0)
 
 #pragma bss-name(push, "ZEROPAGE")
+unsigned char ignore;
 // Incremented whenever NMI happens.
 unsigned char client_nmi;
 
 unsigned char joy1;
 unsigned char joy2;
-// Would be nice for these two impl. details to just be
-// define in input.s
+// XXX Would be nice for these two implementation details to just be
+// defined in input.s...
 unsigned char joy1test;
 unsigned char joy2test;
+
+unsigned char scroll_x;
 #pragma bss-name(pop)
 
 // #pragma bss-name(push, "OAM")
@@ -49,6 +54,8 @@ unsigned char index;
 unsigned char counter;
 
 unsigned char old_joy1, old_joy2;
+
+unsigned char knock_ack;
 
 void GetInput();
 
@@ -80,28 +87,20 @@ const unsigned char PALETTE[] = {
   0x1f, 0x2a, 0x2b, 0x2c,
 };
 
-#if 0
-unsigned char ReadJoy(unsigned char *addr) {
-  unsigned char ret = 0;
-  *addr = 1U;
-  ret = *addr;
-  ret <<= 1;
-  ret |= *addr;
-  ret <<= 1;
-  ret |= *addr;
-  ret <<= 1;
-  ret |= *addr;
-  ret <<= 1;
-  ret |= *addr;
-  ret <<= 1;
-  ret |= *addr;
-  ret <<= 1;
-  ret |= *addr;
-  ret <<= 1;
-  ret |= *addr;
-  return ret;
-}
-#endif
+unsigned char fromppu[16] = {
+  0x00,  0x00,  0x00,  0x00,
+  0x00,  0x00,  0x00,  0x00,
+  0x00,  0x00,  0x00,  0x00,
+  0x00,  0x00,  0x00,  0x00,
+};
+
+// red palette to write when we didn't sync
+const unsigned char bad_sync[16] = {
+  0x1f,  0x07,  0x16,  0x25,
+  0x1f,  0x07,  0x16,  0x25,
+  0x1f,  0x07,  0x16,  0x25,
+  0x1f,  0x07,  0x16,  0x25,
+};
 
 void main() {
   // turn off the screen
@@ -114,6 +113,8 @@ void main() {
   old_joy2 = 0;
   joy1 = 0;
   joy2 = 0;
+
+  knock_ack = 0;
 
   // load the palette
   // set an address in the PPU of 0x3f00
@@ -156,13 +157,82 @@ void main() {
     // In this region we can access the PPU, but we only have
     // 1.6ms before it starts rendering again.
 
+    // Here: read PPU to get palette and fine scroll.
+    // Recall that ppuppy can't quite keep up with PPU reads
+    // (it's one behind). So we have to prime it. ppuppy
+    // decodes addr lines 0-9 (1k of address space) and A13
+    // Since fetches with A13 high are nametable fetches,
+    // these always happen in a predictable order. So we'll
+    // knock a sequence of reads that the PPU never does on
+    // its own:
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 3);
+    // This read is just garbage (whatever ppuppy wrote last).
+    ignore = *PPU_DATA;
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 2);
+    // ppuppy will return whatever is predicted by a normal
+    // read for knock_addr + 3 (so, some attribute byte).
+    ignore = *PPU_DATA;
+    SET_PPU_ADDRESS(KNOCK_ADDR + 1);
+    // but now since it saw two consecutive reads that can't
+    // happen in normal ppu operation, it's synced.
+    // TODO: could check that we get the expected byte here,
+    // and ignore the update (and do something visible, e.g.
+    // blank palette for debugging) if not.
+    knock_ack = *PPU_DATA;
+
+    // Simpler than sprite trick, just do some reads here to
+    // pass the joystick data.
+    // TODO: Getting the wrong joystick input is kinda bad, so
+    // it might make sense to include some redundancy here.
+    // (Could send twice; use checksum bits, etc.)
+    // But ppuppy can also just integrate across frames; we
+    // can give up some latency for sure.
+    // TODO: could be checking more knock_ack
+    *PPU_ADDRESS = 0x20;
+    *PPU_ADDRESS = joy1;
+    ignore = *PPU_DATA;
+    *PPU_ADDRESS = 0x20;
+    *PPU_ADDRESS = joy2;
+    ignore = *PPU_DATA;
+
+    // Now read 16 bytes from the knock addr
+    for (index = 0; index < 16; ++index) {
+      SET_PPU_ADDRESS(KNOCK_ADDR);
+      fromppu[index] = *PPU_DATA;
+    }
+
+    // If we got a correct knock, write the palette back
+    // into internal PPU memory.
+    if (knock_ack == 0x27) {
+      SET_PPU_ADDRESS(0x3f00U);
+      for (index = 0; index < 16; ++index) {
+        *PPU_DATA = fromppu[index];
+      }
+      // Since the 0th color is mirrored, we can use this
+      // slot after the first full palette (so, index 4) to
+      // pass more data. Here, the x scroll.
+      scroll_x = fromppu[4];
+    } else {
+      // Otherwise (for debugging), a visual indication that
+      // we did not.
+      SET_PPU_ADDRESS(0x3f00U);
+      for (index = 0; index < 16; ++index) {
+        *PPU_DATA = bad_sync[index];
+      }
+      // Assume scroll 0 if we're desynced.
+      scroll_x = 0;
+    }
+
+    // XXX demo stuff.
     SET_PPU_ADDRESS(screen_pos);
     *PPU_DATA = joy1; // counter++;
 
     // Seems like we always need to set the scroll position
     // at the end of our PPU work.
     SET_PPU_ADDRESS(0x0000U);
-    *SCROLL = 0;
+    *SCROLL = scroll_x;
     *SCROLL = 0;
 
     client_nmi = 0;
@@ -177,6 +247,7 @@ void main() {
 
     GetInput();
 
+    // XXX demo stuff.
     {
       unsigned char new1 = joy1 & (~old_joy1);
       if (new1 & UP) {
@@ -191,6 +262,7 @@ void main() {
         screen_pos ++;
       }
     }
+
   }
 };
 
