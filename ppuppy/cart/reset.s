@@ -2,7 +2,7 @@
 
     .import _main
     .export __STARTUP__:absolute=1
-    .import _client_nmi
+    .importzp _client_nmi
   
 ; Linker generated symbols
     .import __STACK_START__, __STACKSIZE__
