@@ -1,0 +1,54 @@
+
+ - interlace palettes by moving fine scroll 4 pixels each frame
+ -
+
+
+ Here's the master-plan for the two pi solution
+ PI1 is the uninterruptible one, connected to cart.
+ PI2 is the "linux" one.
+
+ initialization:
+   PPUCTRL:
+    - Need to wait about 30k cycles before writing.
+    - Set to 8x8 sprites so it's easier to think about.
+      (Or: maybe tall sprites are more robust because
+       the partially-redundant nametable reads are easier
+       to detect?)
+    - turn on vblank nmi
+   PPUMASK:
+    - enable background!
+    - Turn off sprites in leftmost 8 pixels?
+    - Or turn off sprites completely?
+    - These would be great, but we need the PPU to still
+      look up the tiles so that we have that communication
+      channel available! I believe it must still fetch them,
+      since it will still show a partial sprite in the left
+      column if it goes outside the first 8 pixels.
+
+   Clear scroll and other stuff.
+   
+
+ vblank:
+  This is the only time it's safe for the CPU to write to
+  PPU internal memory. It can also read/write to PI1 using
+  the PPU registers.
+
+    - NES CPU somehow reads palette and fine scroll from PI1
+      via PPU. TODO!
+
+    - NES CPU installs palette for the next frame
+    - NES CPU sets fine scroll for next frame, if we do that
+    - NES CPU reads controller(s) *
+    - NES CPU prepares sprite array for DMA *
+    - NES CPU/PPU performs OAMDMA.
+    - NES CPU waits until vblank is over
+
+  * These can happen during the frame; no need to wait for vblank
+
+    - PPU is mostly idle during vblank, except to respond to the
+      status writes and OAMDMA from the CPU.
+
+    - PI1 can spend most of its time communicating with PI2 in a
+      tight loop here. We get about 1.6ms.
+      
+      

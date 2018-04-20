@@ -7,7 +7,7 @@ The data sheet is almost identical:
 http://www.metatech.com.hk/datasheet/sst/standard_mem_pdf/304-29xE010-3-DS.pdf
 and this eeprom is supported by the cheap programmer on amazon, which I bought.
 (It does seem to work to program using the SST. At least I can read back what
-I wrote. But it's a bit flakey.)
+I wrote. But it's a bit flakey. Turn off CHIP ID check.)
 
 vishay 1k and 2k resistors, 1/3W, 1%, metal film
 
