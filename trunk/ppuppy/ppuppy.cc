@@ -18,7 +18,7 @@
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
-static constexpr bool DISABLE_INTERRUPTS = false;
+static constexpr bool DISABLE_INTERRUPTS = true;
 
 BouncingBalls bouncing;
 
@@ -226,28 +226,40 @@ int main(int argc, char **argv) {
     } while (inputs & (1 << PIN_RD));
     
   next_cycle:
-      
+
+    // TODO: Maybe this section should just be asm.
+    // It's very sensitive to timing!
+
     UNTIL_RD_HIGH;
+
+   
+    asm volatile("@ early clear/write " : : :);
+    // immediately output the output word
+    // PERF: Can move this around, but the bus transciever should be
+    // taking care of shutting off the outputs for us. For example,
+    // it seems to work before the UNTIL_RD_HIGH loop too.
+    bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
+    
+    // Now we always write data. /OE pin controls whether/when the bus
+    // transciever actually outputs it to bus.
+    // We previously set the whole output mask to 0, so we only need to
+    // worry about the 1 bits here (assumes output_word & ~OUTPUT_MASK = 0!)
+
+    bcm2835_gpio_set_multi_nb(output_word);
+    asm volatile("@ deglitch start " : : :);
+    asm volatile("nop" : : :);
+
     // Read a few more times, since RD seems to go high earlier than the
     // address lines become stable. This makes a huge difference.
     // (But the timing is very sensitive here. 2 is too early, 4 too
     // slow!)
     // delayTicks(0);
-
-    asm volatile("@ early clear/write " : : :);
-    // immediately output the output word
-    // PERF: Can move this around, but the bus transciever should be
-    // taking care of shutting off the outputs for us.
-    bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
-    // Now we always write data. /OE pin controls whether/when the bus
-    // transciever actually outputs it to bus.
-    // We previously set the whole output mask to 0, so we only need to
-    // worry about the 1 bits here (assumes output_word & ~OUTPUT_MASK = 0!)
-    bcm2835_gpio_set_multi_nb(output_word);
-    asm volatile("@ deglitch start " : : :);
     DEGLITCH_READ;
+    asm volatile("nop" : : :);
+    // Ugh, figure out a way to either tune this or make the timing more
+    // automatic?
+    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);
     DEGLITCH_READ;
-    // DEGLITCH_READ;
     asm volatile("@ deglitch end " : : :);
 
     asm volatile("@ addr decode start " : : :);
