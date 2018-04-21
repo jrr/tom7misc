@@ -1254,3 +1254,88 @@ the next nametable read?
    $4017  JOY2  Joystick 2 data (R) and frame counter control (W)
   (Note that they don't just read a byte out -- you have to shift
    out all 8 bits.)
+
+ -- it stopped working --
+
+   EEPROM stuff working well, although there's something weird about
+   the PPU side on this cart. Pushing on it--or even just putting my
+   finger on the CHR ROM--causes visible artifacts. Could be bad
+   contacts, or maybe I even broke the PPU? Zelda works fine, though.
+
+   I didn't use it for a few days (working on EEPROM) and now it
+   stopped working. It looks like I don't get the PPU RD signal,
+   because ppuppy.exe hangs, and the only way this would happen is if
+   PPU isn't toggling high and low. I also observed this on the scope.
+   It could be because this particular cart is now busted (?) but it
+   still renders Atari-style hockey before I start ppuppy, so that
+   sounds unlikely. Something happened to the resistors? Are they
+   dissipating too much power? Is there too much "fan-out" post
+   voltage dividing? Just a bad connection that suddenly failed, or
+   solder/wire piece causing a short downstream?
+
+   I verified that it still toggles on zelda cart.
+
+   Anyway I was going to switch to using the level shifters, so let's
+   just forge ahead on that (?).
+
+   I wired up just /RD. I can verify on the scope exactly 4ns delay on
+   the rising edge and 6ns on the falling edge. This should work fine
+   timing-wise. Annoyingly, the waves peak at like 3.66v (over 3v3 for
+   ~60ns), which is not supposed to happen -- I checked that vcc is
+   3.35 here. 3.66 is a little out of spec. It's only hooked up to /OE
+   on the bus transciever, so maybe it gets a little lower when hooked
+   up to the pi too. Let's just try it I guess.
+
+   Well, it boots and now shows a picture, although it's a bit jumbled
+   maybe because some other address bits are not working any more. Maybe
+   the same problem I had with RD happened to other addresses?
+
+   Tested reading pins with read.exe:
+
+.... .000 0000 0001 01.1 .... .... ....
+.... .100 1111 0000 10.1 .... .... ....
+.... .100 0010 1000 00.0 .... .... ....
+.... .100 0011 1110 11.0 .... .... ....
+.... .000 0000 0001 00.0 .... .... ....
+.... .000 1000 1101 10.1 .... .... ....
+.... .000 0000 0010 00.1 .... .... ....
+.... .000 1111 1100 11.0 .... .... ....
+
+    Of course pins 24 and 25 are always 0 (these are not hooked up
+    to anything). All the rest at least show the ability to toggle
+    high and low, so that rules out a pure disconnect problem. I
+    don't even see any adjacent pins that seem to always share the
+    same value or anything like that.
+
+    Continued wiring up to use the level shifter. Definitely still
+    seeing noise, but maybe it is getting better (or maybe the console
+    or air is just getting warmer / more humid / etc., ugh). Remember
+    that just because the on-screen noise is "high frequency", it
+    does not mean that errors are necessarily on the low bits of the 
+    address line--an error in high bits would just cause us to return
+    the wrong part of the screen. I'm not sure I can really characterize
+    this noise, though. Is it scanline, column, other?
+
+    With all the level shifters wired up, the noise is still there,
+    though it is tolerable. Just pushing on the cart a little can
+    cause various effects, so I'm thinking that some pins on the
+    connector might be busted (I mean, I know I bent some) or that
+    I've even damaged the ppu. Oh, well.
+
+    Looking at the scope, there are small notches on address lines
+    near (even shortly after) the rising edge of /RD; looks like some
+    temporary small voltage drop. This may be confusing our address
+    reading code, since that's about when we read it. Voltage drops to
+    like 2.2v on the 5v side, which is a logic 0! There may also be
+    spikes. Otherwise these look like you'd expect.
+
+    Let's just live with the noise for now. Maybe it just goes away
+    with a PCB or a new NES. It shouldn't get in the way of developing
+    and in fact forces the code to be more robust.
+
+ - with PRG -
+
+    It works as expected, but the frames toggle really quickly?
+    Does the PPU count many frames during vblank because it takes a
+    long time for us to do writes, maybe? Time to get the scope.
+
