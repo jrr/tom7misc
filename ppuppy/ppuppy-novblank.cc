@@ -18,15 +18,7 @@
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
-static constexpr bool DISABLE_INTERRUPTS = false;
-
-// Number of consecutive /RD high reads that cause us to assume vblank
-// has occurred. This has to be set high enough that the slow reads
-// during the CPU knocking procedure don't seem like frames
-// themselves. But if it's too high, we'll never actually detect
-// vblank (this may cause it to hang even if interrupts are enabled
-// because it never does any kernel calls outside of vblank).
-#define DETECT_VBLANK_CYCLES 2500
+static constexpr bool DISABLE_INTERRUPTS = true;
 
 BouncingBalls bouncing;
 
@@ -85,24 +77,6 @@ void __attribute__ ((noinline)) delayTicks(volatile uint32_t ticks) {
   asm volatile("@ delayTicks inline end" : : :"memory");
 }
 
-// This is the knocking pattern we expect to see when the CPU
-// communicates with us during vblank.
-// Note that KNOCK_ADDR is really like 0x202A, but we don't
-// decode A3 in the local addr var.
-#define KNOCK_ADDR 0x002AU
-#define KNOCK_REPLY 0x27
-
-// The four background palettes. Note: Color 0 from the first palette
-// is shared for all palettes, so we actually use color 0 from the
-// second palette to signal the fine scroll.
-static uint8 palette[16] = {
-  0x1f, 0x11, 0x21, 0x31,
-  0x00, 0x02, 0x12, 0x32,
-  0x00, 0x0b, 0x1b, 0x2b,
-  0x00, 0x0c, 0x1c, 0x2c,
-};
-
-static int knox[25] = {0};
 
 int main(int argc, char **argv) {
 
@@ -170,14 +144,12 @@ int main(int argc, char **argv) {
   // computes expressions that can be reused. So we prefer that version.
   // Here we explicitly reuse the value. PERF: Experiment with different
   // ways of doing this; compiler might be smarter than us.
-  // (Also, different deglitching formulas might be better. An earlier
-  // version of this had more bugs, but seemed to work better?)
   #define DEGLITCH_READ \
     inputs_2 = inputs_1;	 \
     inputs_1 = inputs_0; \
     inputs_0 = bcm2835_gpio_lev_multi_nb(); \
-    inputs_1and2 = inputs_0and1; \
-    inputs_0and1 = inputs_0 & inputs_1; \
+    inputs_0and1 = inputs_1and2;			\
+    inputs_1and2 = inputs_1 & inputs_2; \
     inputs = inputs_0and1 | inputs_1and2 | (inputs_0 & inputs_2);
 
   #define UNTIL_RD_HIGH \
@@ -186,17 +158,13 @@ int main(int argc, char **argv) {
   // Wait until RD goes (or is) low. If RD stays high for too many
   // cycles, then assume we are in vblank and transition directly
   // to that state.
-  // Before we begin looping, artificially set our read history for
-  // this pin to 1, so that we don't get confused (it may be that
-  // the previous two inputs already win the vote for it being low.)
   #define UNTIL_RD_LOW	   \
-    /* inputs_0 = inputs_1 = (1 << PIN_RD); */  \
     for (int hi_count = 0; \
          /* in loop */ ; \
 	 hi_count++) { \
       DEGLITCH_READ;				\
       if (! (inputs & (1 << PIN_RD))) break; \
-      if (hi_count > DETECT_VBLANK_CYCLES) goto vblank;		\
+      if (hi_count > 250) goto vblank;		\
     }
 
   if (DISABLE_INTERRUPTS) {
@@ -206,6 +174,12 @@ int main(int argc, char **argv) {
   {
     // Number of times we entered vsync.
     int frames = 0;
+
+    // Number of times we appeared to be desynchronized on
+    // this frame.
+    int desync = 0;
+    int min_desync = 0, max_desync = 0;
+    int complete_packets = 0;
     
     // This is the y tile index from 0 to 29.
     // Determined from the nametable read.
@@ -230,15 +204,9 @@ int main(int argc, char **argv) {
     // Decoded address read from input.
     uint16 addr = 0;
 
-    uint8 joy1 = 0, joy2 = 0;
-    
     // What byte of the packet are we in? 0-3.
     int packetbyte = 0;
 
-    // We can also be part of the knocking protocol during vblank.
-    // This is the index of the next knock we expect to see.
-    int next_knock = 0;
-    
     Screen *screen = nullptr;
     
   next_frame:
@@ -286,11 +254,11 @@ int main(int argc, char **argv) {
     // (But the timing is very sensitive here. 2 is too early, 4 too
     // slow!)
     // delayTicks(0);
-
-    // asm volatile("nop" : : :);
+    DEGLITCH_READ;
+    asm volatile("nop" : : :);
     // Ugh, figure out a way to either tune this or make the timing more
     // automatic?
-    // asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);
+    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);
     DEGLITCH_READ;
     asm volatile("@ deglitch end " : : :);
 
@@ -302,63 +270,6 @@ int main(int argc, char **argv) {
     // the first or second half of the packet.
 
     if (inputs & (1 << PIN_A13)) {
-      // All knocks happen with A13 high.
-      knox[next_knock]++;
-      switch (next_knock) {
-	// During the start sequence, we keep doing what we'd normally
-	// do, since a read of these addresses is possible during
-	// normal operation!
-      case 0:
-	if (addr == KNOCK_ADDR + 3)
-	  next_knock++;
-	break;
-      case 1:
-	if (addr == KNOCK_ADDR + 2) {
-	  next_knock++;
-	  // Two in a row means we've recognized the knock. Write the
-	  // acknowledgement byte.
-	  output_word = Encode(KNOCK_REPLY);
-	  goto wait_low;
-	} else {
-	  // Note that we don't support recovery (could go back to
-	  // state 1 if this was KNOCK_ADDR + 3), since normal
-	  // operation doesn't do this. The cost of simplicity is
-	  // that we're slightly less resistant to noise.
-	  next_knock = 0;
-	}
-	break;
-      case 2:
-	if (addr == KNOCK_ADDR + 1) {
-	  next_knock++;
-	  // (it should already be this, but for clarity...)
-	  output_word = Encode(KNOCK_REPLY);
-	  goto wait_low;
-	} else {
-	  // Well, we already returned a knock reply that was
-	  // apparently desynchronized. But go back to normal
-	  // operation.
-	  next_knock = 0;
-	}
-	break;
-      case 3:
-	// When in this state, we just trust that we are synchronized.
-	// The next two reads tell us the joystick state.
-	joy1 = addr & 255;
-	next_knock++;
-	output_word = Encode(KNOCK_REPLY);
-	goto wait_low;
-      case 4:
-	joy2 = addr & 255;
-	// FALLTHROUGH
-      default:
-	next_knock++;
-	output_word = Encode(palette[next_knock - 5]);
-	if (next_knock == 16 + 5) {
-	  next_knock = 0;
-	}
-	goto wait_low;
-      }
-
       // "VRAM": nametable or attribute. We only decoded the low 10
       // bits, so this ignores mirroring.
       if (addr < 960) {
@@ -377,9 +288,6 @@ int main(int argc, char **argv) {
 	packetbyte = 1;
       }
     } else {
-      // knock is canceled when A13 is low
-      next_knock = 0;
-
       // pattern table reads.
       // here the address tells us the fine scanline.
       // Every one of the 256 tiles is 16 bytes, and we first
@@ -418,8 +326,6 @@ int main(int argc, char **argv) {
     asm volatile("@ getbyte end " : : :);
 
     asm volatile("@ wait low loop " : : :);
-
-  wait_low:
     // In case we were too fast, wait for RD to go low. (Necessary?)
     // (Note that this overwrites any address info we had.)
     UNTIL_RD_LOW;
@@ -430,13 +336,18 @@ int main(int argc, char **argv) {
   vblank:
     frames++;
 
+    if (desync < min_desync) min_desync = desync;
+    if (desync > max_desync) max_desync = desync;
+
     if (!DISABLE_INTERRUPTS && frames % 60 == 0) {
-      printf("%d frames. joy: %02x / %02x\n  ", frames, joy1, joy2);
-      for (int i = 0; i < 25; i++) {
-	printf("%d ", knox[i]);
-      }
-      printf("\n");
+      printf("%d frames. %d comp. packets, %d desync (%d--%d)\n",
+	     frames, complete_packets,
+	     desync, min_desync, max_desync);
+      min_desync = 999999;
+      max_desync = -1;
     }
+    desync = 0;
+    complete_packets = 0;
     
     // Yield to OS. Does nothing if interrupts are disabled.
     Yield();
