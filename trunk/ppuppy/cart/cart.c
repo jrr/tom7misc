@@ -166,6 +166,12 @@ void main() {
     // knock a sequence of reads that the PPU never does on
     // its own:
 
+    // PERF: This stuff is actually pretty slow (takes about
+    // half of vblank today, 0.81ms). We can improve both
+    // the protocol (maybe don't need so much knocking; also the
+    // palette reads can be sequential) and its implementation
+    // (unroll loops, use asm).
+
     SET_PPU_ADDRESS(KNOCK_ADDR + 3);
     // This read is just garbage (whatever ppuppy wrote last).
     ignore = *PPU_DATA;
@@ -199,6 +205,10 @@ void main() {
 
     // Now read 16 bytes from the knock addr
     for (index = 0; index < 16; ++index) {
+      // XXX: Actually, don't use the knock address here?
+      // We don't even care what it is on the ppuppy side,
+      // but we don't want to confuse it for a knock if
+      // we're desynchronized?
       SET_PPU_ADDRESS(KNOCK_ADDR);
       fromppu[index] = *PPU_DATA;
     }
