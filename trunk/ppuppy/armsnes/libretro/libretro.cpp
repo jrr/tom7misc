@@ -123,17 +123,12 @@ unsigned retro_api_version(void)
    return RETRO_API_VERSION;
 }
 
-void retro_set_video_refresh(retro_video_refresh_t cb)
-{
-   video_cb = cb;
+void retro_set_video_refresh(retro_video_refresh_t cb) {
+  video_cb = cb;
 }
 
-void retro_set_audio_sample(retro_audio_sample_t cb)
-{}
-
-void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb)
-{
-   audio_batch_cb = cb;
+void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {
+  audio_batch_cb = cb;
 }
 
 void retro_set_input_poll(retro_input_poll_t cb)
@@ -153,8 +148,7 @@ void retro_set_environment(retro_environment_t cb)
    environ_cb = cb;
 }
 
-void retro_get_system_info(struct retro_system_info *info)
-{
+void retro_get_system_info(struct retro_system_info *info) {
    info->need_fullpath = false;
    info->valid_extensions = "smc|fig|sfc|gd3|gd7|dx2|bsx|swc|zip|SMC|FIG|SFC|BSX|GD3|GD7|DX2|SWC|ZIP";
    info->library_version = "7.2.0";
@@ -166,15 +160,13 @@ static int16 audio_buf[0x10000];
 static int avail;
 static int samplerate = 32000;
 
-void S9xGenerateSound()
-{
+void S9xGenerateSound() {
 }
 
-uint32 S9xReadJoypad(int which1)
-{
+uint32 S9xReadJoypad(int which1) {
     if (which1 > 4)
         return 0;
-	return joys[which1];
+    return joys[which1];
 }
 
 void retro_set_controller_port_device(unsigned in_port, unsigned device)
@@ -317,9 +309,11 @@ static void snes_init (void)
 
 void retro_init (void)
 {
-   if (!environ_cb(RETRO_ENVIRONMENT_GET_OVERSCAN, &use_overscan))
+  printf("Retro init %p..\n", environ_cb);
+  if (!environ_cb(RETRO_ENVIRONMENT_GET_OVERSCAN, &use_overscan))
 	   use_overscan = FALSE;
 
+  printf("SNES init..\n");
    snes_init();
 }
 
@@ -447,12 +441,21 @@ bool retro_load_game(const struct retro_game_info *game)
 {
    bool8 loaded;
 
+   // Dunno what this is about -- the error message doesn't match the
+   // test (environ_cb could just return 565?)  Anyway, I suspect I
+   // will need to dig deeper here for performance reasons, so just
+   // setting to something that will probably work. And then fmt is
+   // unused?
+   // enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
+   
+   /*
    enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_RGB565;
    if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
    {
       fprintf(stderr, "[libretro]: RGB565 is not supported.\n");
       return false;
    }
+   */
 
    /* Hack. S9x cannot do stuff from RAM. <_< */
    memstream_set_buffer((uint8_t*)game->data, game->size);
@@ -494,42 +497,37 @@ unsigned retro_get_region (void)
    return Settings.PAL ? RETRO_REGION_PAL : RETRO_REGION_NTSC; 
 }
 
-bool8 S9xDeinitUpdate(int width, int height, bool8 sixteen_bit)
-{
-	int y;
+// Called (after every frame?) from gfx.cc with sixteen_bit=1,
+// screen width/height from IPPU. Can't figure out what this
+// is about though? -tom7
+bool8 S9xDeinitUpdate(int width, int height, bool8 sixteen_bit) {
+  // printf("deinit %d %d\n", width, height);
+  
+  if (height == 448 || height == 478) {
+    /* Pitch 2048 -> 1024, only done once per res-change. */
+    if (GFX.Pitch == 2048) {
+      for (int y = 1; y < height; y++) {
+	uint8_t *src = GFX.Screen + y * 1024;
+	uint8_t *dst = GFX.Screen + y * 512;
+	memcpy(dst, src, width * sizeof(uint8_t) * 2);
+      }
+    }
+    GFX.Pitch = 1024;
+  } else {
+    /* Pitch 1024 -> 2048, only done once per res-change. */
+    if (GFX.Pitch == 1024) {
+      for (int y = height - 1; y >= 0; y--) {
+	uint8_t *src = GFX.Screen + y * 512;
+	uint8_t *dst = GFX.Screen + y * 1024;
+	memcpy(dst, src, width * sizeof(uint8_t) * 2);
+      }
+    }
+    GFX.Pitch = 2048;
+  }
 
-	if (height == 448 || height == 478)
-	{
-		/* Pitch 2048 -> 1024, only done once per res-change. */
-		if (GFX.Pitch == 2048)
-		{
-			for ( y = 1; y < height; y++)
-			{
-				uint8_t *src = GFX.Screen + y * 1024;
-				uint8_t *dst = GFX.Screen + y * 512;
-				memcpy(dst, src, width * sizeof(uint8_t) * 2);
-			}
-		}
-		GFX.Pitch = 1024;
-	}
-	else
-	{
-		/* Pitch 1024 -> 2048, only done once per res-change. */
-		if (GFX.Pitch == 1024)
-		{
-			for ( y = height - 1; y >= 0; y--)
-			{
-				uint8_t *src = GFX.Screen + y * 512;
-				uint8_t *dst = GFX.Screen + y * 1024;
-				memcpy(dst, src, width * sizeof(uint8_t) * 2);
-			}
-		}
-		GFX.Pitch = 2048;
-	}
-
-	video_cb(GFX.Screen, width, height, GFX_PITCH);
+  video_cb(GFX.Screen, width, height, GFX_PITCH);
 	
-	return TRUE;
+  return TRUE;
 }
 
 
