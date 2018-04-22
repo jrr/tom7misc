@@ -1,4 +1,4 @@
-update=4/5/2018 11:02:11 PM
+update=4/21/2018 11:35:02 AM
 version=1
 last_client=kicad
 [pcbnew]
@@ -64,3 +64,5 @@ LibName32=valves
 LibName33=D:/code/sf_svn/ppuppy/pcb/piheader
 LibName34=D:/code/sf_svn/ppuppy/pcb/gls29ee010
 LibName35=D:/code/sf_svn/ppuppy/pcb/nescic
+LibName36=D:/code/sf_svn/ppuppy/pcb/cd74fct245
+LibName37=D:/code/sf_svn/ppuppy/pcb/mc74vhct50a
