@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string>
 #include <cstdint>
-#include <time.h>
+#include <sys/time.h>
 
 #include "armsnes/libretro/libretro.h"
 #include "../cc-lib/util.h"
@@ -15,6 +15,12 @@ using uint8 = uint8_t;
 using uint16 = uint16_t;
 using uint32 = uint32_t;
 using int64 = int64_t;
+
+static int64 utime() {
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  return tv.tv_sec * 1000000LL + tv.tv_usec;
+}
 
 #if 0
 // TODO!
@@ -89,15 +95,15 @@ int main(int argc, char **argv) {
   retro_load_game(&mario);
   printf("Loaded.\n");
 
-  #define FRAMES 400
-  int64 start = time(nullptr);
+  #define FRAMES 5000
+  int64 start = utime();
   for (int i = 0; i < FRAMES; i++) {
     retro_run();
   }
-  int64 elapsed = time(nullptr) - start;
-  printf("%d frames in %lld sec = %.2f FPS = %.3f ms/frame\n",
-	 FRAMES, elapsed, FRAMES/(double)elapsed,
-	 ((double)elapsed / FRAMES) * 1000.0);
+  int64 elapsed = utime() - start;
+  printf("%d frames in %lld usec = %.4f FPS = %.4f ms/frame\n",
+	 FRAMES, elapsed, FRAMES/(double)(elapsed / 1000000.0),
+	 ((double)(elapsed / 1000.0) / FRAMES));
   
   retro_set_video_refresh([](const void *data, unsigned width, unsigned height, size_t pitch) {
       vector<uint8> rgbas;

@@ -39,25 +39,21 @@ static uint32 joys[5];
 bool8 ROMAPUEnabled = 0;
 memstream_t *s_stream;
 
-int s_open(const char *fname, const char *mode)
-{
-	s_stream = memstream_open();
-	return TRUE;
+int s_open(const char *fname, const char *mode) {
+  s_stream = memstream_open();
+  return TRUE;
 }
 
-int s_read(void *p, int l)
-{
-	return memstream_read(s_stream, p, l);
+int s_read(void *p, int l) {
+  return memstream_read(s_stream, p, l);
 }
 
-int s_write(void *p, int l)
-{
-	return memstream_write(s_stream, p, l);
+int s_write(void *p, int l) {
+  return memstream_write(s_stream, p, l);
 }
 
-void s_close()
-{
-	memstream_close(s_stream);
+void s_close() {
+  memstream_close(s_stream);
 }
 
 int  (*statef_open)(const char *fname, const char *mode) = s_open;
@@ -65,62 +61,55 @@ int  (*statef_read)(void *p, int l) = s_read;
 int  (*statef_write)(void *p, int l) = s_write;
 void (*statef_close)() = s_close;
 
+void *retro_get_memory_data(unsigned type) {
+  uint8_t* data;
 
+  switch(type) {
+  case RETRO_MEMORY_SAVE_RAM:
+    data = Memory.SRAM;
+    break;
+  case RETRO_MEMORY_SYSTEM_RAM:
+    data = Memory.RAM;
+    break;
+  case RETRO_MEMORY_VIDEO_RAM:
+    data = Memory.VRAM;
+    break;
+  default:
+    data = NULL;
+    break;
+  }
 
-void *retro_get_memory_data(unsigned type)
-{
-   uint8_t* data;
-
-   switch(type)
-   {
-      case RETRO_MEMORY_SAVE_RAM:
-         data = Memory.SRAM;
-         break;
-      case RETRO_MEMORY_SYSTEM_RAM:
-         data = Memory.RAM;
-         break;
-      case RETRO_MEMORY_VIDEO_RAM:
-         data = Memory.VRAM;
-         break;
-      default:
-         data = NULL;
-         break;
-   }
-
-   return data;
+  return data;
 }
 
-size_t retro_get_memory_size(unsigned type)
-{
-   unsigned size;
+size_t retro_get_memory_size(unsigned type) {
+  unsigned size;
 
-   switch(type)
-   {
-      case RETRO_MEMORY_SAVE_RAM:
-         size = (unsigned) (Memory.SRAMSize ? (1 << (Memory.SRAMSize + 3)) * 128 : 0);
-         if (size > 0x20000)
-            size = 0x20000;
-         break;
-      /*case RETRO_MEMORY_RTC:
-         size = (Settings.SRTC || Settings.SPC7110RTC)?20:0;
-         break;*/
-      case RETRO_MEMORY_SYSTEM_RAM:
-         size = 128 * 1024;
-         break;
-      case RETRO_MEMORY_VIDEO_RAM:
-         size = 64 * 1024;
-         break;
-      default:
-         size = 0;
-         break;
-   }
+  switch(type) {
+  case RETRO_MEMORY_SAVE_RAM:
+    size = (unsigned) (Memory.SRAMSize ? (1 << (Memory.SRAMSize + 3)) * 128 : 0);
+    if (size > 0x20000)
+      size = 0x20000;
+    break;
+    /*case RETRO_MEMORY_RTC:
+      size = (Settings.SRTC || Settings.SPC7110RTC)?20:0;
+      break;*/
+  case RETRO_MEMORY_SYSTEM_RAM:
+    size = 128 * 1024;
+    break;
+  case RETRO_MEMORY_VIDEO_RAM:
+    size = 64 * 1024;
+    break;
+  default:
+    size = 0;
+    break;
+  }
 
-   return size;
+  return size;
 }
 
-unsigned retro_api_version(void)
-{
-   return RETRO_API_VERSION;
+unsigned retro_api_version(void) {
+  return RETRO_API_VERSION;
 }
 
 void retro_set_video_refresh(retro_video_refresh_t cb) {
@@ -131,33 +120,30 @@ void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {
   audio_batch_cb = cb;
 }
 
-void retro_set_input_poll(retro_input_poll_t cb)
-{
-   poll_cb = cb;
+void retro_set_input_poll(retro_input_poll_t cb) {
+  poll_cb = cb;
 }
 
-void retro_set_input_state(retro_input_state_t cb)
-{
-   input_cb = cb;
+void retro_set_input_state(retro_input_state_t cb) {
+  input_cb = cb;
 }
 
 static bool use_overscan;
 
-void retro_set_environment(retro_environment_t cb)
-{
-   environ_cb = cb;
+void retro_set_environment(retro_environment_t cb) {
+  environ_cb = cb;
 }
 
 void retro_get_system_info(struct retro_system_info *info) {
-   info->need_fullpath = false;
-   info->valid_extensions = "smc|fig|sfc|gd3|gd7|dx2|bsx|swc|zip|SMC|FIG|SFC|BSX|GD3|GD7|DX2|SWC|ZIP";
-   info->library_version = "7.2.0";
-   info->library_name = "PocketSNES";
-   info->block_extract = false;
+  info->need_fullpath = false;
+  info->valid_extensions = "smc|fig|sfc|gd3|gd7|dx2|bsx|swc|zip|SMC|FIG|SFC|BSX|GD3|GD7|DX2|SWC|ZIP";
+  info->library_version = "7.2.0";
+  info->library_name = "PocketSNES";
+  info->block_extract = false;
 }
 
-static int16 audio_buf[0x10000];
-static int avail;
+// static int16 audio_buf[0x10000];
+// static int avail;
 static int samplerate = 32000;
 
 void S9xGenerateSound() {
@@ -358,8 +344,8 @@ void retro_run (void)
 {
    IPPU.RenderThisFrame = TRUE;
    S9xMainLoop();
-   S9xMixSamples(audio_buf, avail * 2);
-   audio_batch_cb((int16_t *) audio_buf, avail);
+   // S9xMixSamples(audio_buf, avail * 2);
+   // audio_batch_cb((int16_t *) audio_buf, avail);
 
    poll_cb();
 
@@ -468,17 +454,21 @@ bool retro_load_game(const struct retro_game_info *game)
    }
 
    S9xReset();
+
+   // SPC700 is a sound chip. Also APU is Audio Processing Unit.
+   // Maybe they are the same chip. Anyway, try to disable this
+   // for performance -tom7
    Settings.asmspc700 = true;
-   CPU.APU_APUExecuting = Settings.APUEnabled = TRUE;
-   Settings.SixteenBitSound = true;
+   CPU.APU_APUExecuting = Settings.APUEnabled = FALSE;
+   Settings.SixteenBitSound = false;
    so.stereo = Settings.Stereo;
    so.playback_rate = Settings.SoundPlaybackRate;
    S9xSetPlaybackRate(so.playback_rate);
-   S9xSetSoundMute(FALSE);
+   S9xSetSoundMute(TRUE);
 
-   avail = samplerate / (Settings.PAL ? 50 : 60);
+   // avail = samplerate / (Settings.PAL ? 50 : 60);
 
-   ZeroMemory(audio_buf, sizeof(audio_buf));
+   // ZeroMemory(audio_buf, sizeof(audio_buf));
 
    return true;
 }
@@ -577,11 +567,11 @@ END_EXTERN_C
 
 void S9xExit() { exit(1); }
 bool8 S9xOpenSoundDevice (int mode, bool8 stereo, int buffer_size) {
-	//so.sixteen_bit = 1;
-	so.stereo = TRUE;
-	//so.buffer_size = 534;
-	so.playback_rate = samplerate;
-	return TRUE;
+  //so.sixteen_bit = 1;
+  so.stereo = FALSE;
+  //so.buffer_size = 534;
+  so.playback_rate = samplerate;
+  return TRUE;
 }
 
 const char *emptyString = "";
@@ -589,8 +579,7 @@ const char *S9xBasename (const char *filename) { return emptyString; }
 bool8 S9xOpenSnapshotFile (const char *base, bool8 read_only, STREAM *file) { *file = OPEN_STREAM(0, 0); return TRUE; }
 void S9xCloseSnapshotFile (STREAM file) { CLOSE_STREAM(file); }
 
-void S9xMessage(int a, int b, const char* msg)
-{
-   fprintf(stderr, "%s\n", msg);
+void S9xMessage(int a, int b, const char* msg) {
+  fprintf(stderr, "%s\n", msg);
 }
 
