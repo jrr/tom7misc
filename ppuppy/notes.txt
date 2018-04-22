@@ -2,21 +2,28 @@ Stuff still to figure out / achieve:
 
  [X] Read a 5V output (e.g. ppu /rd)
  [X] Have data output depend on address read (low order bits)
- [ ] What are the PPU writes? Do I need to handle them at all?
- [ ] How often can I change sprite ram?
- [ ] Can I prevent linux from descheduling me, except in vblank?
+ [X] Can I prevent linux from descheduling me, except in vblank?
  [ ] Enough time to render SNES frame in vblank?
- [ ] Is it actually possible to do anything?
+ [X] Is it actually possible to do anything?
  [ ] Boot up without having to SSH into it. (Takes several seconds to boot...)
+ [X] Single board with CPU and PPU interfacing.
  [ ] Consider moving the bus transciever /OE to the 5v side, since this
      input should be 5v tolerant, and it will be slightly better synchronized
      with the actual bus (right?)
+ [ ] Make demo and a video of it, in case it breaks!
+ [ ] Flow for talk
+ [ ] Slides
+ [ ] Make backup offline versions of slides
 
 Backup plans:
  [ ] Second pi renders SNES frames, and just sends them to "video" pi
      during its vblank (wifi??)
  [ ] Kernel module
  [ ] Separate fast GPIO microprocessor renders the frame?
+
+Obsolete:
+ [ ] How often can I change sprite ram?
+ [X] What are the PPU writes? Do I need to handle them at all?
 
 This doc rules:
 https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf

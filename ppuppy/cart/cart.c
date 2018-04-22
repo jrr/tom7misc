@@ -123,7 +123,7 @@ void main() {
     *PPU_DATA = PALETTE[index];
   }
 
-  // Stick some arbitrary colors
+  // Stick some arbitrary colors in the attribute table.
   SET_PPU_ADDRESS(0x23d3);
   for (index = 0; index < 16; ++index) {
     counter += 0x37;
@@ -137,6 +137,10 @@ void main() {
   for (index = 0; index < sizeof(TEXT); ++index) {
     *PPU_DATA = TEXT[index];
   }
+
+  // TODO: we can arrange sprites to indicate that everything
+  // is ok; these still show up as colored blocks if we set
+  // the palettes appropriately.
 
   // Reset the scroll position.
   SET_PPU_ADDRESS(0x0000U);
@@ -172,20 +176,28 @@ void main() {
     // palette reads can be sequential) and its implementation
     // (unroll loops, use asm).
 
-    SET_PPU_ADDRESS(KNOCK_ADDR + 3);
+    // Note: I haven't figured out why, yet, but the data lags
+    // by TWO packets here. I should try to fix that, but for
+    // now, give a long lead-in so that ppuppy can sync.
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 5);
     // This read is just garbage (whatever ppuppy wrote last).
     ignore = *PPU_DATA;
 
-    SET_PPU_ADDRESS(KNOCK_ADDR + 2);
-    // ppuppy will return whatever is predicted by a normal
-    // read for knock_addr + 3 (so, some attribute byte).
+    SET_PPU_ADDRESS(KNOCK_ADDR + 4);
+    // Also garbage.
     ignore = *PPU_DATA;
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 3);
+    // Also garbage.
+    ignore = *PPU_DATA;
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 2);
+    // Also garbage.
+    ignore = *PPU_DATA;
+
     SET_PPU_ADDRESS(KNOCK_ADDR + 1);
-    // but now since it saw two consecutive reads that can't
-    // happen in normal ppu operation, it's synced.
-    // TODO: could check that we get the expected byte here,
-    // and ignore the update (and do something visible, e.g.
-    // blank palette for debugging) if not.
+    // Now, expect the ack byte.
     knock_ack = *PPU_DATA;
 
     // Simpler than sprite trick, just do some reads here to
@@ -195,7 +207,6 @@ void main() {
     // (Could send twice; use checksum bits, etc.)
     // But ppuppy can also just integrate across frames; we
     // can give up some latency for sure.
-    // TODO: could be checking more knock_ack
     *PPU_ADDRESS = 0x20;
     *PPU_ADDRESS = joy1;
     ignore = *PPU_DATA;
@@ -203,15 +214,19 @@ void main() {
     *PPU_ADDRESS = joy2;
     ignore = *PPU_DATA;
 
-    // Now read 16 bytes from the knock addr
+    // Now read 16 bytes. At this point ppuppy isn't even looking at
+    // the address (except A13), so just read somewhere else in the
+    // nametable (we don't want a read of e.g. KNOCK_ADDR + 5 here to
+    // be confused for the beginning of the knock sequence if we are
+    // desynchronized).
+    SET_PPU_ADDRESS(0x2100);
     for (index = 0; index < 16; ++index) {
-      // XXX: Actually, don't use the knock address here?
-      // We don't even care what it is on the ppuppy side,
-      // but we don't want to confuse it for a knock if
-      // we're desynchronized?
-      SET_PPU_ADDRESS(KNOCK_ADDR);
       fromppu[index] = *PPU_DATA;
     }
+
+    // Do a final read so that ppuppy can go back into its normal
+    // state. (XXX I think this can be eliminated.)
+    ignore = *PPU_DATA;
 
     // If we got a correct knock, write the palette back
     // into internal PPU memory.
@@ -235,12 +250,9 @@ void main() {
       scroll_x = 0;
     }
 
-    // XXX demo stuff.
-    SET_PPU_ADDRESS(screen_pos);
-    *PPU_DATA = joy1; // counter++;
 
-    // Seems like we always need to set the scroll position
-    // at the end of our PPU work.
+    // We always need to set the scroll position at the end of our PPU
+    // work. But anyway, we want to reflect the fine x scroll.
     SET_PPU_ADDRESS(0x0000U);
     *SCROLL = scroll_x;
     *SCROLL = 0;

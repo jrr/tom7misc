@@ -17,6 +17,8 @@ emotional rollercoaster
    and then you might be happy again to discover that it's not
    really "cheating"
 
+I figured out why it's called "hard"-ware
+
 temperature dependent
 
 improper hierarchy
@@ -56,3 +58,4 @@ slide this second. i mean when I was making the slides.
 and how do we measure latency? We use the ping command.
 
 does mod come up? use upside-down POW block.
+  (yes: mirroring)
