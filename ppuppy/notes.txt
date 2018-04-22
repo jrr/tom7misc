@@ -1416,3 +1416,33 @@ the next nametable read?
      in this phase are slow enough that we can completely avoid noise? that would be nice since
      errors here cause full-screen disruption)
 
+  - SNES -
+
+   armsnes is reasonable to use. Benchmarking SMW (intro movie) with snestest.cc, I get
+   7.8ms per frame by default on the Zero W, which is workable. At 60fps I have about 16ms
+   per frame, so this would be half of it (and it is not at all clear how I would interleave
+   this with ppuppy's basic operation--unless we got it reliably under 1.6ms so the whole
+   thing could run in vblank).
+
+     - If I could get this running on a separate core (e.g. Pi 3) and
+       just like communicate with shared memory, but also be able to
+       disable interrupts, I'd be done. (Does armsnes need interrupts to
+       run?) Alternately, some other way of preventing linux from
+       descheduling the ppuppy core would work, and perhaps be ideal.
+
+     - I can certainly optimize by turning off sound, and also
+       probably by making the video routines faster. (But don't forget
+       to account for time to convert raw colors into PPU colors. SNES
+       probably uses palettized rendering, so outputting this format
+       directly would save an intermediate step, plus speed up the
+       dominant/similar color code.) I could also overclock the ARM
+       (I think all the way to 1ghz is supposed to work) to squeeze
+       a bit more. But I'm off by like a factor of 8 here, and most
+       of the time is probably spent in the emulation core!
+
+     - Perhaps emulation can be manually interleaved, like, run a
+       single scanline while ppuppy is waiting on I/O. Since nametable
+       reads aren't used, we could perhaps execute the scanline instead
+       of bothering to write, multiple times per frame. There are also
+       many reads at the end of each NES scanline that we can ignore.
+     

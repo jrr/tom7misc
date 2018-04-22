@@ -4,19 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// Hack applied for MSVC when compiling in C89 mode as it isn't C99 compliant.
-#ifdef __cplusplus
-extern "C" {
-#else
-#if defined(_MSC_VER) && !defined(SN_TARGET_PS3) && !defined(__cplusplus)
-#define bool unsigned char
-#define true 1
-#define false 0
-#else
-#include <stdbool.h>
-#endif
-#endif
-
 // Used for checking API/ABI mismatches that can break libretro implementations.
 // It is not incremented for compatible changes.
 #define RETRO_API_VERSION         1
@@ -480,12 +467,8 @@ typedef bool (*retro_environment_t)(unsigned cmd, void *data);
 // Certain graphic APIs, such as OpenGL ES, do not like textures that are not packed in memory.
 typedef void (*retro_video_refresh_t)(const void *data, unsigned width, unsigned height, size_t pitch);
 
-// Renders a single audio frame. Should only be used if implementation generates a single sample at a time.
-// Format is signed 16-bit native endian.
-typedef void (*retro_audio_sample_t)(int16_t left, int16_t right);
 // Renders multiple audio frames in one go. One frame is defined as a sample of left and right channels, interleaved.
 // I.e. int16_t buf[4] = { l, r, l, r }; would be 2 frames.
-// Only one of the audio callbacks must ever be used.
 typedef size_t (*retro_audio_sample_batch_t)(const int16_t *data, size_t frames);
 
 // Polls input.
@@ -499,7 +482,6 @@ typedef int16_t (*retro_input_state_t)(unsigned port, unsigned device, unsigned 
 // The rest of the set_* functions are guaranteed to have been called before the first call to retro_run() is made.
 void retro_set_environment(retro_environment_t);
 void retro_set_video_refresh(retro_video_refresh_t);
-void retro_set_audio_sample(retro_audio_sample_t);
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t);
 void retro_set_input_poll(retro_input_poll_t);
 void retro_set_input_state(retro_input_state_t);
@@ -565,9 +547,5 @@ unsigned retro_get_region(void);
 // Gets region of memory.
 void *retro_get_memory_data(unsigned id);
 size_t retro_get_memory_size(unsigned id);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
