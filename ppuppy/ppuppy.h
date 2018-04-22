@@ -12,6 +12,16 @@ using uint64 = uint64_t;
 using int32 = int32_t;
 using int64 = int64_t;
 
+// NES controller bits
+#define RIGHT    0x01
+#define LEFT     0x02
+#define DOWN     0x04
+#define UP       0x08
+#define START    0x10
+#define SELECT   0x20
+#define B_BUTTON 0x40
+#define A_BUTTON 0x80
+
 // input pins, as wired on red solder board
 static constexpr uint8 PIN_RD = 12;
 static constexpr uint8 PIN_A0 = 14;

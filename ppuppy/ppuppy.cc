@@ -230,6 +230,7 @@ int main(int argc, char **argv) {
     // Decoded address read from input.
     uint16 addr = 0;
 
+    uint8 old_joy1 = 0, old_joy2 = 0;
     uint8 joy1 = 0, joy2 = 0;
     
     // What byte of the packet are we in? 0-3.
@@ -242,6 +243,7 @@ int main(int argc, char **argv) {
     Screen *screen = nullptr;
     
   next_frame:
+    next_knock = 0;
     // In the steady state, this needs to complete during vsync.
 
     // bouncing.Draw();
@@ -305,14 +307,37 @@ int main(int argc, char **argv) {
       // All knocks happen with A13 high.
       knox[next_knock]++;
       switch (next_knock) {
-	// During the start sequence, we keep doing what we'd normally
-	// do, since a read of these addresses is possible during
-	// normal operation!
       case 0:
-	if (addr == KNOCK_ADDR + 3)
+	if (addr == KNOCK_ADDR + 5) {
 	  next_knock++;
+	  // output_word = Encode(KNOCK_REPLY);
+	  // Although it's fine to output KNOCK_REPLY
+	  // here (it's a nametable read so we can
+	  // return anything we want), we do want to
+	  // update our position on the screen in the
+	  // routine below. So just fall through.
+	}
 	break;
       case 1:
+	if (addr == KNOCK_ADDR + 4) {
+	  next_knock++;
+	  output_word = Encode(KNOCK_REPLY);
+	  goto wait_low;
+	} else {
+	  next_knock = 0;
+	}
+	break;
+      case 2:
+	if (addr == KNOCK_ADDR + 3) {
+	  next_knock++;
+
+	  output_word = Encode(KNOCK_REPLY);
+	  goto wait_low;
+	} else {
+	  next_knock = 0;
+	}
+	break;
+      case 3:
 	if (addr == KNOCK_ADDR + 2) {
 	  next_knock++;
 	  // Two in a row means we've recognized the knock. Write the
@@ -327,11 +352,11 @@ int main(int argc, char **argv) {
 	  next_knock = 0;
 	}
 	break;
-      case 2:
+      case 4:
 	if (addr == KNOCK_ADDR + 1) {
 	  next_knock++;
 	  // (it should already be this, but for clarity...)
-	  output_word = Encode(KNOCK_REPLY);
+	  output_word = Encode(palette[0]);
 	  goto wait_low;
 	} else {
 	  // Well, we already returned a knock reply that was
@@ -340,20 +365,19 @@ int main(int argc, char **argv) {
 	  next_knock = 0;
 	}
 	break;
-      case 3:
+      case 5:
 	// When in this state, we just trust that we are synchronized.
 	// The next two reads tell us the joystick state.
 	joy1 = addr & 255;
-	next_knock++;
-	output_word = Encode(KNOCK_REPLY);
-	goto wait_low;
-      case 4:
+	goto writepal;
+      case 6:
 	joy2 = addr & 255;
-	// FALLTHROUGH
+	goto writepal;
       default:
+      writepal:
+	output_word = Encode(palette[next_knock - 4]);
 	next_knock++;
-	output_word = Encode(palette[next_knock - 5]);
-	if (next_knock == 16 + 5) {
+	if (next_knock == 15 + 5) {
 	  next_knock = 0;
 	}
 	goto wait_low;
@@ -405,6 +429,7 @@ int main(int argc, char **argv) {
 
     // Get the output word for the NEXT cycle.
     {
+      #if 1
       if (packetbyte < 3) {
 	output_word = GetEncodedByte(screen, scanline, col, packetbyte + 1);
       } else {
@@ -413,23 +438,45 @@ int main(int argc, char **argv) {
 	// But we have to deal with sprites and crap out there anyway.
 	output_word = GetEncodedByte(screen, scanline, col + 1, 0);
       }
+      #else
+      output_word = Encode(0x27);
+      #endif
     }
 
     asm volatile("@ getbyte end " : : :);
 
     asm volatile("@ wait low loop " : : :);
 
-  wait_low:
+
     // In case we were too fast, wait for RD to go low. (Necessary?)
     // (Note that this overwrites any address info we had.)
+    wait_low:
     UNTIL_RD_LOW;
     asm volatile("@ wait low loop end " : : :);
-    
+
     goto next_cycle;
 
+    /*
+  wait_low:
+    bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
+    bcm2835_gpio_set_multi_nb(output_word);
+    UNTIL_RD_LOW;
+    goto next_cycle;
+    */
+    
   vblank:
     frames++;
 
+    if (joy1 & RIGHT) palette[4]++;
+    if (joy1 & LEFT) palette[4]--;
+    if (joy1 & A_BUTTON && !(old_joy1 & A_BUTTON)) palette[1] += 0x01;
+    if (joy1 & B_BUTTON && !(old_joy1 & B_BUTTON)) palette[2] += 0x01;
+      
+    old_joy1 = joy1;
+    old_joy2 = joy2;
+
+    // palette[3]++;
+    
     if (!DISABLE_INTERRUPTS && frames % 60 == 0) {
       printf("%d frames. joy: %02x / %02x\n  ", frames, joy1, joy2);
       for (int i = 0; i < 25; i++) {
