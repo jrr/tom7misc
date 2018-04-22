@@ -66,6 +66,12 @@ ImageRGB *ImageRGB::Load(const string &filename) {
   return new ImageRGB(std::move(ret), width, height);
 }
 
+void MakePalette(const ImageRGB *img, Screen *screen) {
+  memcpy(&screen->palette, cart_palettes, 16);
+
+  screen->palette[4] = 0;
+}
+
 Screen ScreenFromFile(const string &filename) {
   Screen screen;
   ImageRGB *img = ImageRGB::Load(filename);
@@ -73,6 +79,8 @@ Screen ScreenFromFile(const string &filename) {
   CHECK_EQ(img->width, 256) << filename << ": " << img->width;
   CHECK_EQ(img->height, 240) << filename << ": " << img->height;
 
+  MakePalette(img, &screen);
+  
   // The main tricky thing about converting an image is
   // mapping image colors to NES colors. In this first pass,
   // we assume a fixed palette (4 different palettes, each
@@ -83,14 +91,14 @@ Screen ScreenFromFile(const string &filename) {
 
   // Two-bit color index within palette #pal that matches the
   // RGB color best.
-  auto ClosestColor = [](int pal, int r, int g, int b) ->
+  auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
     std::tuple<int, int> {
     // XXX TODO: use LAB DeltaE. But that is much more expensive...
     int best_sqerr = 65536 * 3 + 1;
     int best_i = 0;
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
-      int nes_color = cart_palettes[pal * 4 + i];
+      int nes_color = screen.palette[pal * 4 + i];
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];

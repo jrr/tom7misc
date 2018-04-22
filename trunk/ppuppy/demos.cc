@@ -26,6 +26,12 @@ void BouncingBalls::Draw() {
     ball2.Update();
   }
 
+  screen.palette[0] = 0x1d;
+  screen.palette[1] = 0x15;
+  screen.palette[2] = 0x27;
+  screen.palette[3] = 0x2a;
+  screen.palette[4] = 0x0;
+  
   // Here, using palette 0 for the entire screen.
   for (int y = 0; y < NUM_SCANLINES; y++) {
     for (int x = 0; x < NUM_COLS; x++) {

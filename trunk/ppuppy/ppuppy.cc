@@ -95,12 +95,14 @@ void __attribute__ ((noinline)) delayTicks(volatile uint32_t ticks) {
 // The four background palettes. Note: Color 0 from the first palette
 // is shared for all palettes, so we actually use color 0 from the
 // second palette to signal the fine scroll.
+#if 0
 static uint8 palette[16] = {
   0x1f, 0x11, 0x21, 0x31,
   0x00, 0x02, 0x12, 0x32,
   0x00, 0x0b, 0x1b, 0x2b,
   0x00, 0x0c, 0x1c, 0x2c,
 };
+#endif
 
 static int knox[25] = {0};
 
@@ -356,7 +358,7 @@ int main(int argc, char **argv) {
 	if (addr == KNOCK_ADDR + 1) {
 	  next_knock++;
 	  // (it should already be this, but for clarity...)
-	  output_word = Encode(palette[0]);
+	  output_word = Encode(screen->palette[0]);
 	  goto wait_low;
 	} else {
 	  // Well, we already returned a knock reply that was
@@ -375,7 +377,7 @@ int main(int argc, char **argv) {
 	goto writepal;
       default:
       writepal:
-	output_word = Encode(palette[next_knock - 4]);
+	output_word = Encode(screen->palette[next_knock - 4]);
 	next_knock++;
 	if (next_knock == 15 + 5) {
 	  next_knock = 0;
@@ -467,10 +469,10 @@ int main(int argc, char **argv) {
   vblank:
     frames++;
 
-    if (joy1 & RIGHT) palette[4]++;
-    if (joy1 & LEFT) palette[4]--;
-    if (joy1 & A_BUTTON && !(old_joy1 & A_BUTTON)) palette[1] += 0x01;
-    if (joy1 & B_BUTTON && !(old_joy1 & B_BUTTON)) palette[2] += 0x01;
+    if (joy1 & RIGHT) screen->palette[4]++;
+    if (joy1 & LEFT) screen->palette[4]--;
+    if (joy1 & A_BUTTON && !(old_joy1 & A_BUTTON)) screen->palette[1] += 0x01;
+    if (joy1 & B_BUTTON && !(old_joy1 & B_BUTTON)) screen->palette[2] += 0x01;
       
     old_joy1 = joy1;
     old_joy2 = joy2;
