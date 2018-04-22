@@ -1,0 +1,6 @@
+This subdirectory only:
+
+Contains code derived from Snes9x (specifically the "ARMSNES" fork from libretro). 
+Copyright (c) various authors. 
+
+Distributed under an open source but *non-commercial* license. See for example src/cpu.cpp for terms.
