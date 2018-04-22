@@ -2,6 +2,7 @@
 #include "convert.h"
 #include "stb_image.h"
 
+#include <algorithm>
 #include <utility>
 #include <tuple>
 #include <vector>
@@ -67,9 +68,93 @@ ImageRGB *ImageRGB::Load(const string &filename) {
 }
 
 void MakePalette(const ImageRGB *img, Screen *screen) {
-  memcpy(&screen->palette, cart_palettes, 16);
+  // memcpy(&screen->palette, cart_palettes, 16);
 
+  // TODO: This can be done much better, as a fancy optimization
+  // problem:
+  //  - Should not just be picking the most common colors, but
+  //    minimizing total error.
+  //  - Consider that it may still be useful to use a color
+  //    in more than one palette.
+  //  - Consider temporal dithering.
+
+  // Get the single closest NES color.
+  auto ClosestColor = [](int r, int g, int b) -> int {
+    // XXX TODO: use LAB DeltaE. But that is much more expensive...
+    int best_sqerr = 65536 * 3 + 1;
+    int best_i = 0;
+    for (int nes_color = 0; nes_color < 256; nes_color++) {
+      int rr = ntsc_palette[nes_color * 3 + 0];
+      int gg = ntsc_palette[nes_color * 3 + 1];
+      int bb = ntsc_palette[nes_color * 3 + 2];
+      int dr = r - rr, dg = g - gg, db = b - bb;
+      int sqerr = dr * dr + dg * dg + db * db;
+      if (sqerr < best_sqerr) {
+	best_i = nes_color;
+	best_sqerr = sqerr;
+      }
+    }
+
+    return best_i;
+  };
+
+  vector<int> was_best;
+  for (int i = 0; i < 256; i++) was_best.push_back(0);
+  for (int i = 0; i < img->width * img->height; i++) {
+    uint8 r = img->rgb[i * 3 + 0];
+    uint8 g = img->rgb[i * 3 + 1];
+    uint8 b = img->rgb[i * 3 + 2];
+    was_best[ClosestColor(r, g, b)]++;
+  }
+
+  // Now find the most common best colors.
+  // XXX faster ways to do this!
+  vector<pair<int, int>> color_count;
+  color_count.reserve(256);
+  for (int i = 0; i < 256; i++)
+    color_count.push_back(make_pair(i, was_best[i]));
+  std::sort(color_count.begin(),
+	    color_count.end(),
+	    [](const pair<int, int> &a,
+	       const pair<int, int> &b) {
+	      // Descending by count.
+	      return b.second < a.second;
+	    });
+  // Put the overall most common colors in separate
+  // palettes (is this a good idea??)
+
+  for (int i = 0; i < 256; i++) {
+    if (color_count[i].second) {
+      printf("%02x: %d\n", color_count[i].first, color_count[i].second);
+    }
+  }
+  printf("\n");
+
+  // XXX There are more cases like this, like when we only have 6 colors, etc.
+  if (color_count[4].second == 0) {
+    // If we have only 4 colors, make sure they're in the same palette!
+    for (int i = 0; i < 4; i++) {
+      screen->palette[i +  0] = color_count[i].first;
+      screen->palette[i +  4] = color_count[i].first;
+      screen->palette[i +  8] = color_count[i].first;
+      screen->palette[i + 12] = color_count[i].first;
+    }
+  } else {
+    int rank = 0;
+    // 0   1  2  3
+    // 4   5  6  7
+    // 8   9 10 11
+    // 12 13 14 15
+    for (int dest : { 0, 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1 }) {
+      screen->palette[dest] = color_count[rank].first;
+      rank++;
+    }
+  }
+  
   screen->palette[4] = 0;
+  // For cleanliness, initialize these...
+  screen->palette[8] = 0;
+  screen->palette[12] = 0;
 }
 
 Screen ScreenFromFile(const string &filename) {
@@ -78,7 +163,8 @@ Screen ScreenFromFile(const string &filename) {
   CHECK(img != nullptr) << filename;
   CHECK_EQ(img->width, 256) << filename << ": " << img->width;
   CHECK_EQ(img->height, 240) << filename << ": " << img->height;
-
+  printf("ScreenFromFile %s\n", filename.c_str());
+  
   MakePalette(img, &screen);
   
   // The main tricky thing about converting an image is
