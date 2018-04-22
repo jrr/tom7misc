@@ -21,6 +21,10 @@ struct Screen {
   uint8 attr[NUM_SCANLINES * NUM_COLS];
   uint8 color_lo[NUM_SCANLINES * NUM_COLS];
   uint8 color_hi[NUM_SCANLINES * NUM_COLS];
+
+  // Note: palette[4] is interpreted as scroll_x. Store 0
+  // here unless you're doing something fancy.
+  uint8 palette[16];
 };
 
 #endif
