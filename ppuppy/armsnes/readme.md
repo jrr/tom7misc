@@ -1,0 +1,2 @@
+#ARMSNES-Libretro
+This is a forked version of pocketsnes, focused on getting the most performance out of modern(ish) ARM systems as possible. Most of the changes have been about removing ancient cruft, but also some very minor performance tweaks and bug fixes.
