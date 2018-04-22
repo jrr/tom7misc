@@ -1446,3 +1446,7 @@ the next nametable read?
        of bothering to write, multiple times per frame. There are also
        many reads at the end of each NES scanline that we can ignore.
      
+   Turned off audio mixing in libretro: 7.02ms/f
+   Looking at strace, there don't appear to be any syscalls during emulation. Awesome.
+   APUEnabled = false, etc.: 6.5ms/f
+   
