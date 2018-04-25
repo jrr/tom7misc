@@ -1,1 +1,1 @@
-	.file	"sa1.cpp"
+	.file	"sa1.cc"

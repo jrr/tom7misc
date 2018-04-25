@@ -1466,3 +1466,8 @@ the next nametable read?
    Looking at strace, there don't appear to be any syscalls during
    emulation. Awesome. APUEnabled = false, etc.: 6.5ms/f
    
+   Same on Pi 3b+: 1.7724ms (this is very nearly in range of what we
+   could do in one vblank, if we improve the performance a little
+   and/or overclock! In fact we could probably just do this and be
+   a little late when rendering the top of the screen...)
+   With -O2: 1.7087

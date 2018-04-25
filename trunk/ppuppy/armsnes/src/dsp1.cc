@@ -94,7 +94,7 @@
 
 #include "dsp1emu.c"
 #include "dsp2emu.c"
-//#include "dsp3emu.cpp"
+//#include "dsp3emu.cc"
 
 void (*SetDSP)(uint8, uint16)=&DSP1SetByte;
 uint8 (*GetDSP)(uint16)=&DSP1GetByte;
@@ -945,7 +945,7 @@ uint8 DSP2GetByte(uint16 address)
 
 SDSP4 DSP4;
 
-//#include "dsp4emu.cpp"
+//#include "dsp4emu.cc"
 
 bool DSP4_init=FALSE;
 
