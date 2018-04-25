@@ -819,12 +819,6 @@ Wire Wire Line
 	9850 1900 9850 2350
 Wire Wire Line
 	5200 550  10250 550 
-Wire Wire Line
-	10250 550  10250 3600
-Wire Wire Line
-	10250 3600 9750 3600
-Wire Wire Line
-	9750 3600 9750 3250
 Text GLabel 9650 3250 3    60   Input ~ 0
 3vRD
 Text GLabel 9800 800  1    60   Input ~ 0
@@ -904,4 +898,148 @@ Text GLabel 4400 6050 3    60   Input ~ 0
 Connection ~ 5200 2650
 Text GLabel 5200 2650 2    60   Input ~ 0
 5v
+Text GLabel 4700 4700 1    60   Input ~ 0
+GND
+Text GLabel 5100 4700 1    60   Input ~ 0
+3v
+Text GLabel 8250 4550 3    60   Input ~ 0
+3vRD
+Wire Wire Line
+	10250 550  10250 3450
+Wire Wire Line
+	10250 3450 9750 3450
+Wire Wire Line
+	9750 3450 9750 3250
+Text Label 10250 800  0    60   ~ 0
+5vRD
+Text Label 1900 3300 0    60   ~ 0
+ROMSEL
+$Comp
+L Conn_01x01 J5
+U 1 1 5ADD43A7
+P 5200 6800
+F 0 "J5" H 5200 6900 50  0000 C CNN
+F 1 "BCM24" H 5200 6700 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm" H 5200 6800 50  0001 C CNN
+F 3 "" H 5200 6800 50  0001 C CNN
+	1    5200 6800
+	0    1    1    0   
+$EndComp
+$Comp
+L Conn_01x01 J4
+U 1 1 5ADD45DE
+P 4800 6800
+F 0 "J4" H 4800 6900 50  0000 C CNN
+F 1 "BCM25" H 4800 6700 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm" H 4800 6800 50  0001 C CNN
+F 3 "" H 4800 6800 50  0001 C CNN
+	1    4800 6800
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	4900 6050 4900 6500
+Wire Wire Line
+	4900 6500 4800 6500
+Wire Wire Line
+	4800 6500 4800 6600
+Wire Wire Line
+	5100 6050 5100 6500
+Wire Wire Line
+	5100 6500 5200 6500
+Wire Wire Line
+	5200 6500 5200 6600
+$Comp
+L Conn_01x01 J6
+U 1 1 5ADD4C20
+P 6350 4900
+F 0 "J6" H 6350 5000 50  0000 C CNN
+F 1 "BCM27" H 6350 4800 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm" H 6350 4900 50  0001 C CNN
+F 3 "" H 6350 4900 50  0001 C CNN
+	1    6350 4900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6150 4900 6150 4300
+Wire Wire Line
+	6150 4300 5300 4300
+Wire Wire Line
+	5300 4300 5300 4700
+$Comp
+L Conn_01x01 J7
+U 1 1 5ADD4DE4
+P 6450 5900
+F 0 "J7" H 6450 6000 50  0000 C CNN
+F 1 "3V" H 6450 5800 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm" H 6450 5900 50  0001 C CNN
+F 3 "" H 6450 5900 50  0001 C CNN
+	1    6450 5900
+	0    1    1    0   
+$EndComp
+$Comp
+L Conn_01x01 J8
+U 1 1 5ADD4E5F
+P 6850 5900
+F 0 "J8" H 6850 6000 50  0000 C CNN
+F 1 "GND" H 6850 5800 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm" H 6850 5900 50  0001 C CNN
+F 3 "" H 6850 5900 50  0001 C CNN
+	1    6850 5900
+	0    1    1    0   
+$EndComp
+Text GLabel 6850 5700 1    60   Input ~ 0
+GND
+Text GLabel 6450 5700 1    60   Input ~ 0
+3v
+$Comp
+L Conn_01x01 J11
+U 1 1 5ADD5E6F
+P 3650 4950
+F 0 "J11" H 3650 5050 50  0000 C CNN
+F 1 "BCM13" H 3650 4850 50  0000 C CNN
+F 2 "" H 3650 4950 50  0001 C CNN
+F 3 "" H 3650 4950 50  0001 C CNN
+	1    3650 4950
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	3650 4750 3650 4350
+Wire Wire Line
+	3650 4350 4300 4350
+Wire Wire Line
+	4300 4350 4300 4700
+$Comp
+L Conn_01x01 J9
+U 1 1 5ADD629E
+P 3150 4600
+F 0 "J9" H 3150 4700 50  0000 C CNN
+F 1 "BCM10" H 3150 4500 50  0000 C CNN
+F 2 "" H 3150 4600 50  0001 C CNN
+F 3 "" H 3150 4600 50  0001 C CNN
+	1    3150 4600
+	-1   0    0    1   
+$EndComp
+$Comp
+L Conn_01x01 J10
+U 1 1 5ADD6490
+P 3150 4950
+F 0 "J10" H 3150 5050 50  0000 C CNN
+F 1 "BCM11" H 3150 4850 50  0000 C CNN
+F 2 "" H 3150 4950 50  0001 C CNN
+F 3 "" H 3150 4950 50  0001 C CNN
+	1    3150 4950
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	3350 4950 3450 4950
+Wire Wire Line
+	3450 4950 3450 4300
+Wire Wire Line
+	3450 4300 4800 4300
+Wire Wire Line
+	4800 4300 4800 4700
+Wire Wire Line
+	3350 4600 5000 4600
+Wire Wire Line
+	5000 4600 5000 4700
 $EndSCHEMATC
