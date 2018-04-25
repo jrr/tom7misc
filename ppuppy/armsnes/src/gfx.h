@@ -48,7 +48,7 @@
 #define GFX_ZPITCH 320
 #define GFX_PPL 320
 
-struct SGFX{
+struct SGFX {
     // Initialize these variables
     uint8  *Screen;
     uint8  *SubScreen;

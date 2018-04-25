@@ -94,7 +94,7 @@
 #undef VAR_CYCLES
 #define SA1_OPCODES
 
-#include "cpuops.cpp"
+#include "cpuops.cc"
 
 void S9xSA1MainLoop ()
 {
