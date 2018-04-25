@@ -154,6 +154,11 @@ Screen ScreenFromFile(const string &filename) {
   printf("ScreenFromFile %s\n", filename.c_str());
   
   MakePalette(img, &screen);
+
+  vector<int> rgb;
+  rgb.reserve(img->rgb.size());
+  for (int i = 0; i < img->rgb.size(); i++)
+    rgb.push_back(img->rgb[i]);
   
   // The main tricky thing about converting an image is
   // mapping image colors to NES colors. In this first pass,
@@ -168,7 +173,7 @@ Screen ScreenFromFile(const string &filename) {
   auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
     std::tuple<int, int, int> {
     // XXX TODO: use LAB DeltaE. But that is much more expensive...
-    int best_sqerr = 65536 * 3 + 1;
+    int best_sqerr = 0x7FFFFFFE;
     int best_i = 0, best_nes = 0;
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
@@ -191,9 +196,9 @@ Screen ScreenFromFile(const string &filename) {
   
   auto OneStrip = [&ClosestColor](
       // 8x3 bytes, rgb triplets
-      const uint8 *rgb,
-      uint8 *rgb_right,
-      uint8 *rgb_down) -> std::tuple<uint8, uint8, uint8> {
+      const int *rgb,
+      int *rgb_right,
+      int *rgb_down) -> std::tuple<uint8, uint8, uint8> {
 
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
@@ -245,9 +250,9 @@ Screen ScreenFromFile(const string &filename) {
 	down_errs.g[x + 1] += (5 * dg) / 16;
 	down_errs.b[x + 1] += (5 * db) / 16;
 	// down-right
-	down_errs.r[x + 1] += dr / 16;
-	down_errs.g[x + 1] += dg / 16;
-	down_errs.b[x + 1] += db / 16;
+	down_errs.r[x + 2] += dr / 16;
+	down_errs.g[x + 2] += dg / 16;
+	down_errs.b[x + 2] += db / 16;
 	
 	lobits <<= 1; lobits |= (p & 1);
 	hibits <<= 1; hibits |= ((p >> 1) & 1);
@@ -267,33 +272,46 @@ Screen ScreenFromFile(const string &filename) {
     // Now, for the best one, propagate the final error right and down.
 
     // XXX maybe everything should just be ints
+    #if 0
     auto ClampMix = [](uint8 old, int err) -> uint8 {
       int n = (int)old + err;
       if (n < 0) return 0;
       if (n > 255) return 255;
       return (uint8)n;
     };
+    #else
+    auto ClampMix = [](int old, int err) -> int {
+      int n = old + err;
+      // if (n < 0) return 0;
+      // if (n > 255) return 255;
+      return n;
+    };
+    #endif
+
     rgb_right[0] = ClampMix(rgb_right[0], best_right_r);
     rgb_right[1] = ClampMix(rgb_right[1], best_right_g);
     rgb_right[2] = ClampMix(rgb_right[2], best_right_b);
 
+    #if 1
     for (int i = 0; i < 10; i++) {
       rgb_down[i * 3 + 0] = ClampMix(rgb_down[i * 3 + 0], best_down.r[i]);
       rgb_down[i * 3 + 1] = ClampMix(rgb_down[i * 3 + 1], best_down.g[i]);
       rgb_down[i * 3 + 2] = ClampMix(rgb_down[i * 3 + 2], best_down.b[i]);
     }
+    #endif
     
     return best;
   };
 
-  uint8 dummy1[8 * 3], dummy2[10 * 3];
+  // Different pointers for dummy1 and dummy2 in the hopes that the
+  // compiler can infer that these never alias.
+  int dummy1[3] = {}, dummy2[10 * 3] = {};
   for (int scanline = 0; scanline < 240; scanline++) {
+    printf("%d\n", scanline);
     for (int col = 0; col < 32; col++) {
       int idx = scanline * 32 + col;
-      const uint8 *strip = img->rgb.data() + idx * 8 * 3;
-      // Different pointers for dummy1 and dummy2 in the hopes that the
-      // compiler can infer that these never alias.
-      uint8 *right = col < 21 ? img->rgb.data() + (idx + 8) * 8 * 3 : &dummy1[0];
+      const int *strip = rgb.data() + idx * 8 * 3;
+      int *right = col < 21 ? rgb.data() + (idx + 8) * 8 * 3 : &dummy1[0];
       // 10 pixels, starting below the strip but one pixel to the left, and continuing
       // one pixel after its end.
       // [.][.][s][t][r][i][p][8][8][8][.][.]
@@ -301,7 +319,7 @@ Screen ScreenFromFile(const string &filename) {
       // Note that this runs off the left edge (back onto the previous scanline), but we
       // don't care about that. It also extends one pixel off the right edge of the screen,
       // which we should fix.
-      uint8 *down = scanline < 239 ? img->rgb.data() + ((idx + 32) * 8 - 1) * 3 : &dummy2[0];
+      int *down = scanline < 238 ? rgb.data() + ((idx + 32) * 8 - 1) * 3 : &dummy2[0];
       uint8 pal, lobits, hibits;
       std::tie(pal, lobits, hibits) = OneStrip(strip, right, down);
 
