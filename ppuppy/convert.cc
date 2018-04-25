@@ -34,16 +34,6 @@ static constexpr uint8 ntsc_palette[256 * 3] = {
   0x99,0xFF,0xFC, 0xDD,0xDD,0xDD, 0x11,0x11,0x11, 0x11,0x11,0x11,
 };
 
-// The four background palettes installed into PPU internal memory.
-// Currently fixed (from Ice Hockey) player select screen (and
-// this is a poor palette because it has many repeated colors).
-static constexpr uint8 cart_palettes[4 * 4] = {
-  0x0F, 0x00, 0x05, 0x27,
-  0x0F, 0x15, 0x05, 0x00,
-  0x0F, 0x25, 0x15, 0x20,
-  0x0F, 0x31, 0x30, 0x22,
-};
-
 // Dense r-g-b triplets.
 // TODO: to cc-lib image.h?
 struct ImageRGB {
@@ -68,8 +58,6 @@ ImageRGB *ImageRGB::Load(const string &filename) {
 }
 
 void MakePalette(const ImageRGB *img, Screen *screen) {
-  // memcpy(&screen->palette, cart_palettes, 16);
-
   // TODO: This can be done much better, as a fancy optimization
   // problem:
   //  - Should not just be picking the most common colors, but
@@ -178,10 +166,10 @@ Screen ScreenFromFile(const string &filename) {
   // Two-bit color index within palette #pal that matches the
   // RGB color best.
   auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
-    std::tuple<int, int> {
+    std::tuple<int, int, int> {
     // XXX TODO: use LAB DeltaE. But that is much more expensive...
     int best_sqerr = 65536 * 3 + 1;
-    int best_i = 0;
+    int best_i = 0, best_nes = 0;
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
       int nes_color = screen.palette[pal * 4 + i];
@@ -192,38 +180,75 @@ Screen ScreenFromFile(const string &filename) {
       int sqerr = dr * dr + dg * dg + db * db;
       if (sqerr < best_sqerr) {
 	best_i = i;
+	best_nes = nes_color;
 	best_sqerr = sqerr;
       }
     }
 
     // TODO: Also keep per-color error to propagate?
-    return {best_i, best_sqerr};
+    return {best_i, best_nes, best_sqerr};
   };
   
   auto OneStrip = [&ClosestColor](
       // 8x3 bytes, rgb triplets
-      const uint8 *rgb) -> std::tuple<uint8, uint8, uint8> {
+      const uint8 *rgb,
+      uint8 *rgb_right,
+      uint8 *rgb_down) -> std::tuple<uint8, uint8, uint8> {
 
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
     std::tuple<uint8, uint8, uint8> best;
+    struct DownErrs {
+      int r[10] = {}, g[10] = {}, b[10] = {};
+    };
+    DownErrs best_down;
+    int best_right_r = 0, best_right_g = 0, best_right_b = 0;
+    
     for (int pal = 0; pal < 4; pal++) {
       int totalerror = 0;
       uint8 lobits = 0, hibits = 0;
+      // rightward floyd-steinberg error
+      int dither_next_r = 0, dither_next_g = 0, dither_next_b = 0;
+      DownErrs down_errs;
       for (int x = 0; x < 8; x++) {
-	uint8 r = rgb[x * 3 + 0];
-	uint8 g = rgb[x * 3 + 1];
-	uint8 b = rgb[x * 3 + 2];
+	int r = (int)rgb[x * 3 + 0] + dither_next_r;
+	int g = (int)rgb[x * 3 + 1] + dither_next_g;
+	int b = (int)rgb[x * 3 + 2] + dither_next_b;
 
 	// Each pixel must be one of the four selected colors.
 	// So compute the closest.
-	int p, err;
-	std::tie(p, err) = ClosestColor(pal, r, g, b);
+	int p, nes_color, err;
+	std::tie(p, nes_color, err) = ClosestColor(pal, r, g, b);
 	totalerror += err;
-	
-	// TODO: Consider propagating some error, e.g.
-	// Floyd-Steinbeg.
 
+	int rr = ntsc_palette[nes_color * 3 + 0];
+	int gg = ntsc_palette[nes_color * 3 + 0];
+	int bb = ntsc_palette[nes_color * 3 + 0];
+
+	int dr = (r - rr);
+	int dg = (g - gg);
+	int db = (b - bb);
+	
+	dither_next_r = (7 * dr) / 16;
+	dither_next_g = (7 * dg) / 16;
+	dither_next_b = (7 * db) / 16;
+
+	// For performance and quality: Could divide these errors
+	// by 16 at the end, rather than eagerly?
+	
+	// down-left
+	down_errs.r[x] += (3 * dr) / 16;
+	down_errs.g[x] += (3 * dg) / 16;
+	down_errs.b[x] += (3 * db) / 16;
+	// down
+	down_errs.r[x + 1] += (5 * dr) / 16;
+	down_errs.g[x + 1] += (5 * dg) / 16;
+	down_errs.b[x + 1] += (5 * db) / 16;
+	// down-right
+	down_errs.r[x + 1] += dr / 16;
+	down_errs.g[x + 1] += dg / 16;
+	down_errs.b[x + 1] += db / 16;
+	
 	lobits <<= 1; lobits |= (p & 1);
 	hibits <<= 1; hibits |= ((p >> 1) & 1);
       }
@@ -231,18 +256,54 @@ Screen ScreenFromFile(const string &filename) {
       if (pal == 0 || totalerror < best_totalerror) {
 	best = {(uint8)pal, lobits, hibits};
 	best_totalerror = totalerror;
+	best_down = down_errs;
+	
+	best_right_r = dither_next_r;
+	best_right_g = dither_next_g;
+	best_right_b = dither_next_b;
       }
     }
-      
+
+    // Now, for the best one, propagate the final error right and down.
+
+    // XXX maybe everything should just be ints
+    auto ClampMix = [](uint8 old, int err) -> uint8 {
+      int n = (int)old + err;
+      if (n < 0) return 0;
+      if (n > 255) return 255;
+      return (uint8)n;
+    };
+    rgb_right[0] = ClampMix(rgb_right[0], best_right_r);
+    rgb_right[1] = ClampMix(rgb_right[1], best_right_g);
+    rgb_right[2] = ClampMix(rgb_right[2], best_right_b);
+
+    for (int i = 0; i < 10; i++) {
+      rgb_down[i * 3 + 0] = ClampMix(rgb_down[i * 3 + 0], best_down.r[i]);
+      rgb_down[i * 3 + 1] = ClampMix(rgb_down[i * 3 + 1], best_down.g[i]);
+      rgb_down[i * 3 + 2] = ClampMix(rgb_down[i * 3 + 2], best_down.b[i]);
+    }
+    
     return best;
   };
 
+  uint8 dummy1[8 * 3], dummy2[10 * 3];
   for (int scanline = 0; scanline < 240; scanline++) {
     for (int col = 0; col < 32; col++) {
       int idx = scanline * 32 + col;
       const uint8 *strip = img->rgb.data() + idx * 8 * 3;
+      // Different pointers for dummy1 and dummy2 in the hopes that the
+      // compiler can infer that these never alias.
+      uint8 *right = col < 21 ? img->rgb.data() + (idx + 8) * 8 * 3 : &dummy1[0];
+      // 10 pixels, starting below the strip but one pixel to the left, and continuing
+      // one pixel after its end.
+      // [.][.][s][t][r][i][p][8][8][8][.][.]
+      // [.][d][o][w][n][0][0][0][0][0][0][.]
+      // Note that this runs off the left edge (back onto the previous scanline), but we
+      // don't care about that. It also extends one pixel off the right edge of the screen,
+      // which we should fix.
+      uint8 *down = scanline < 239 ? img->rgb.data() + ((idx + 32) * 8 - 1) * 3 : &dummy2[0];
       uint8 pal, lobits, hibits;
-      std::tie(pal, lobits, hibits) = OneStrip(strip);
+      std::tie(pal, lobits, hibits) = OneStrip(strip, right, down);
 
       // The PPU will only read two bits out of this byte to determine
       // the palette selection. We could place the bits in the correct
