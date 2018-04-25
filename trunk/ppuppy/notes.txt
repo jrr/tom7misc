@@ -14,6 +14,8 @@ Stuff still to figure out / achieve:
  [ ] Flow for talk
  [ ] Slides
  [ ] Make backup offline versions of slides
+ [ ] Measure proper footprint/keepout of PCB
+ [ ] Order boards
 
 Backup plans:
  [ ] Second pi renders SNES frames, and just sends them to "video" pi
@@ -1384,45 +1386,59 @@ the next nametable read?
 
     Joystick reading (at least joy1) seems to be working, yay.
 
-    Of course once we get to the palette writes, we usually make it all the way through the knock. The fact
-    that we sometimes don't must be because we got desynced and then entered vblank?
-    Probably it's bad for the palette reads to happen in knock addresses, since they can then be confused
-    for the original knock sequence. 
+    Of course once we get to the palette writes, we usually make it
+    all the way through the knock. The fact that we sometimes don't
+    must be because we got desynced and then entered vblank? Probably
+    it's bad for the palette reads to happen in knock addresses, since
+    they can then be confused for the original knock sequence.
 
-    This is very hard to debug! It's hard to think about the sequencing of writes with the delays, and
-    the timing of the rising edge relative to the next real read is suuuper different in vblank.
+    This is very hard to debug! It's hard to think about the
+    sequencing of writes with the delays, and the timing of the rising
+    edge relative to the next real read is suuuper different in
+    vblank.
 
-    Note that if I change it to always write 0x27 during the normal sequence, it does accept the knock
-    sequence in cart, but also the palette is not all the same color (right?) so it's not a total
-    desync. It's like only the knock acknowledgement doesn't make it? Just a fallthrough bug?
+    Note that if I change it to always write 0x27 during the normal
+    sequence, it does accept the knock sequence in cart, but also the
+    palette is not all the same color (right?) so it's not a total
+    desync. It's like only the knock acknowledgement doesn't make it?
+    Just a fallthrough bug?
 
     Clues:
 
-     - It's really sending the palette, but it's not aligned. Incrementing index 4 doesn't change
-       fine scroll, but if I increment the entire palette, then I get dancing colors and scrolling.
+     - It's really sending the palette, but it's not aligned.
+       Incrementing index 4 doesn't change fine scroll, but if I
+       increment the entire palette, then I get dancing colors and
+       scrolling.
 
-     - OK, palette index 2 is being treated as the scroll byte, so that means I'm two bytes
-       where I think I should be. So weird. I guess it makes sense that I need to be sending the
-       ack all the time, so that the last byte read is actually a leftover from the normal frame.
+     - OK, palette index 2 is being treated as the scroll byte, so
+       that means I'm two bytes where I think I should be. So weird. I
+       guess it makes sense that I need to be sending the ack all the
+       time, so that the last byte read is actually a leftover from
+       the normal frame.
 
-    It would be smart to figure out what's going on here, since it's possible that I'm being dumber
-    (or luckier?!) than I think with the normal frame rendering. But for the sake of progress, I
-    think the simplest thing is to add an additional knock at the beginning of the cart sequence,
-    and always reply with KNOCK_ACK when in range (this is harmless because the knock address is
-    a nametable read, which is ignored). Then I can just manually account for the large delta.
+    It would be smart to figure out what's going on here, since it's
+    possible that I'm being dumber (or luckier?!) than I think with
+    the normal frame rendering. But for the sake of progress, I think
+    the simplest thing is to add an additional knock at the beginning
+    of the cart sequence, and always reply with KNOCK_ACK when in
+    range (this is harmless because the knock address is a nametable
+    read, which is ignored). Then I can just manually account for the
+    large delta.
     
 
-    (Interestingly: scrolling is completely smooth when interrupts are disabled. Maybe the reads
-     in this phase are slow enough that we can completely avoid noise? that would be nice since
-     errors here cause full-screen disruption)
+    (Interestingly: scrolling is completely smooth when interrupts are
+     disabled. Maybe the reads in this phase are slow enough that we
+     can completely avoid noise? that would be nice since errors here
+     cause full-screen disruption)
 
   - SNES -
 
-   armsnes is reasonable to use. Benchmarking SMW (intro movie) with snestest.cc, I get
-   7.8ms per frame by default on the Zero W, which is workable. At 60fps I have about 16ms
-   per frame, so this would be half of it (and it is not at all clear how I would interleave
-   this with ppuppy's basic operation--unless we got it reliably under 1.6ms so the whole
-   thing could run in vblank).
+   armsnes is reasonable to use. Benchmarking SMW (intro movie) with
+   snestest.cc, I get 7.8ms per frame by default on the Zero W, which
+   is workable. At 60fps I have about 16ms per frame, so this would be
+   half of it (and it is not at all clear how I would interleave this
+   with ppuppy's basic operation--unless we got it reliably under
+   1.6ms so the whole thing could run in vblank).
 
      - If I could get this running on a separate core (e.g. Pi 3) and
        just like communicate with shared memory, but also be able to
@@ -1447,6 +1463,6 @@ the next nametable read?
        many reads at the end of each NES scanline that we can ignore.
      
    Turned off audio mixing in libretro: 7.02ms/f
-   Looking at strace, there don't appear to be any syscalls during emulation. Awesome.
-   APUEnabled = false, etc.: 6.5ms/f
+   Looking at strace, there don't appear to be any syscalls during
+   emulation. Awesome. APUEnabled = false, etc.: 6.5ms/f
    
