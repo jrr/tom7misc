@@ -512,14 +512,16 @@ Screen ScreenFromFile(const string &filename) {
 vector<Screen> MultiScreenFromFile(const string &filename) {
   std::unique_ptr<ImageRGB> original_img = Load(filename);
   ArcFour rc("msff");
+  vector<Screen> screens;
+  screens.reserve(8);
   for (int i = 0; i < 8; i++) {
     Screen screen;
     std::unique_ptr<ImageRGB> img(original_img->Clone());
     MakePalette(PaletteMethod::MOST_COMMON_SHUFFLED, img.get(), &rc, &screen);
     FillScreenSelective(img.get(), &screen);
+    screens.push_back(screen);
   }
 
-  // XXX
-  return {};
+  return screens;
 }
 
