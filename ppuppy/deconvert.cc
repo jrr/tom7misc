@@ -6,6 +6,7 @@
 #include "ppuppy.h"
 #include "screen.h"
 #include "convert.h"
+#include "base/stringprintf.h"
 
 using namespace std;
 
@@ -102,13 +103,16 @@ ImageRGBA Deconvert(const Screen &screen) {
 
 
 int main(int argc, char **argv) {
-  CHECK(argc == 3) << "./deconvert inputgraphic.ext output.png";
+  CHECK(argc == 2) << "./deconvert inputgraphic.ext";
   string infile = argv[1];
-  string outfile = argv[2];
 
-  Screen screen = ScreenFromFile(infile);
-  ImageRGBA img = Deconvert(screen);
-  img.Save(outfile);
-  fprintf(stderr, "Wrote %s\n", outfile.c_str());
+  vector<Screen> screens = MultiScreenFromFile(infile);
+  for (int i = 0; i < screens.size(); i++) {
+    const Screen &screen = screens[i];
+    const string outfile = StringPrintf("deconverted-%d.png", i);
+    ImageRGBA img = Deconvert(screen);
+    img.Save(outfile);
+    fprintf(stderr, "Wrote %s\n", outfile.c_str());
+  }
   return 0;
 }
