@@ -4,6 +4,7 @@
 
 #include "screen.h"
 #include <string>
+#include <vector>
 
 // Convert images to Screen format.
 

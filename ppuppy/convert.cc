@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <memory>
 
 #include "arcfour.h"
 #include "base/logging.h"
@@ -51,6 +52,9 @@ struct ImageRGB {
   ImageRGB(std::vector<uint8> rgb, int width, int height) :
     width(width), height(height), rgb(std::move(rgb)) {}
   static ImageRGB *Load(const string &filename);
+  ImageRGB *Clone() const {
+    return new ImageRGB(rgb, width, height);
+  }
   const int width, height;
   // Size width * height * 3.
   std::vector<uint8> rgb;
@@ -68,18 +72,21 @@ ImageRGB *ImageRGB::Load(const string &filename) {
   return new ImageRGB(std::move(ret), width, height);
 }
 
-void MakePalette(const ImageRGB *img, Screen *screen) {
-  // XXX
-  memcpy(&screen->palette, cart_palettes, 16);
-  return;
+enum class PaletteMethod {
+  // TODO: fixed, etc.
+  MOST_COMMON,
+  MOST_COMMON_SHUFFLED,
+};
 
-  // TODO: This can be done much better, as a fancy optimization
-  // problem:
-  //  - Should not just be picking the most common colors, but
-  //    minimizing total error.
-  //  - Consider that it may still be useful to use a color
-  //    in more than one palette.
-  //  - Consider temporal dithering.
+// TODO: This can be done much better, as a fancy optimization
+// problem:
+//  - Should not just be picking the most common colors, but
+//    minimizing total error.
+//  - Consider that it may still be useful to use a color
+//    in more than one palette.
+//  - Consider temporal dithering.
+void MakePalette(PaletteMethod method, const ImageRGB *img,
+		 ArcFour *rc, Screen *screen) {
 
   // Get the single closest NES color.
   auto ClosestColor = [](int r, int g, int b) -> int {
@@ -101,75 +108,96 @@ void MakePalette(const ImageRGB *img, Screen *screen) {
     return best_i;
   };
 
-  vector<int> was_best;
-  for (int i = 0; i < 256; i++) was_best.push_back(0);
-  for (int i = 0; i < img->width * img->height; i++) {
-    uint8 r = img->rgb[i * 3 + 0];
-    uint8 g = img->rgb[i * 3 + 1];
-    uint8 b = img->rgb[i * 3 + 2];
-    was_best[ClosestColor(r, g, b)]++;
-  }
-
-  // Now find the most common best colors.
-  // XXX faster ways to do this!
-  vector<pair<int, int>> color_count;
-  color_count.reserve(256);
-  for (int i = 0; i < 256; i++)
-    color_count.push_back(make_pair(i, was_best[i]));
-  std::sort(color_count.begin(),
-	    color_count.end(),
-	    [](const pair<int, int> &a,
-	       const pair<int, int> &b) {
-	      // Descending by count.
-	      return b.second < a.second;
-	    });
-  // Put the overall most common colors in separate
-  // palettes (is this a good idea??)
-
-  for (int i = 0; i < 256; i++) {
-    if (color_count[i].second) {
-      printf("%02x: %d\n", color_count[i].first, color_count[i].second);
+  auto ColorCount = [img, &ClosestColor]() ->
+    vector<pair<int, int>> {
+    vector<int> was_best;
+    for (int i = 0; i < 256; i++) was_best.push_back(0);
+    for (int i = 0; i < img->width * img->height; i++) {
+      uint8 r = img->rgb[i * 3 + 0];
+      uint8 g = img->rgb[i * 3 + 1];
+      uint8 b = img->rgb[i * 3 + 2];
+      was_best[ClosestColor(r, g, b)]++;
     }
-  }
-  printf("\n");
 
-  // XXX There are more cases like this, like when we only have 6 colors, etc.
-  if (color_count[4].second == 0) {
-    // If we have only 4 colors, make sure they're in the same palette!
-    for (int i = 0; i < 4; i++) {
-      screen->palette[i +  0] = color_count[i].first;
-      screen->palette[i +  4] = color_count[i].first;
-      screen->palette[i +  8] = color_count[i].first;
-      screen->palette[i + 12] = color_count[i].first;
+    // Now find the most common best colors.
+    // XXX faster ways to do this!
+    vector<pair<int, int>> color_count;
+    color_count.reserve(256);
+    for (int i = 0; i < 256; i++)
+      color_count.push_back(make_pair(i, was_best[i]));
+    std::sort(color_count.begin(),
+	      color_count.end(),
+	      [](const pair<int, int> &a,
+		 const pair<int, int> &b) {
+		// Descending by count.
+		return b.second < a.second;
+	      });
+    return color_count;
+  };
+  
+  switch (method) {
+  case PaletteMethod::MOST_COMMON: {
+    vector<pair<int, int>> color_count = ColorCount();
+    // Put the overall most common colors in separate
+    // palettes (is this a good idea??)
+
+    for (int i = 0; i < 256; i++) {
+      if (color_count[i].second) {
+	printf("%02x: %d\n", color_count[i].first, color_count[i].second);
+      }
     }
-  } else {
+    printf("\n");
+
+    // XXX There are more cases like this, like when we only have 6 colors, etc.
+    if (color_count[4].second == 0) {
+      // If we have only 4 colors, make sure they're in the same palette!
+      for (int i = 0; i < 4; i++) {
+	screen->palette[i +  0] = color_count[i].first;
+	screen->palette[i +  4] = color_count[i].first;
+	screen->palette[i +  8] = color_count[i].first;
+	screen->palette[i + 12] = color_count[i].first;
+      }
+    } else {
+      int rank = 0;
+      // 0   1  2  3
+      // 4   5  6  7
+      // 8   9 10 11
+      // 12 13 14 15
+      for (int dest : { 0, 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1 }) {
+	screen->palette[dest] = color_count[rank].first;
+	rank++;
+      }
+    }
+    break;
+  }
+  case PaletteMethod::MOST_COMMON_SHUFFLED: {
+    vector<pair<int, int>> color_count = ColorCount();
+    // Assign colors to slots at random.
+    vector<int> slots = { 0, 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1 };
+    Shuffle(rc, &slots);
     int rank = 0;
-    // 0   1  2  3
-    // 4   5  6  7
-    // 8   9 10 11
-    // 12 13 14 15
-    for (int dest : { 0, 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1 }) {
+    for (int dest : slots) {
       screen->palette[dest] = color_count[rank].first;
       rank++;
+      // Loop around if we didn't have enough colors to fill the
+      // palette, though.
+      if (rank >= color_count.size() ||
+	  color_count[rank].second == 0) rank = 0;
     }
+    break;
+  }  
+  default:
+    LOG(FATAL) << "unknown method?";
   }
   
+  // For cleanliness, always initialize these...
   screen->palette[4] = 0;
-  // For cleanliness, initialize these...
   screen->palette[8] = 0;
   screen->palette[12] = 0;
 }
 
-Screen ScreenFromFileDithered(const string &filename) {
-  Screen screen;
-  ImageRGB *img = ImageRGB::Load(filename);
-  CHECK(img != nullptr) << filename;
-  CHECK_EQ(img->width, 256) << filename << ": " << img->width;
-  CHECK_EQ(img->height, 240) << filename << ": " << img->height;
-  printf("ScreenFromFile %s\n", filename.c_str());
-  
-  MakePalette(img, &screen);
-
+// Screen already has palette; fill in with image
+static void FillScreenDithered(ImageRGB *img, Screen *screen) {
   // Each pixel stored as sixteenths.
   vector<int> rgb;
   rgb.reserve(img->rgb.size());
@@ -193,8 +221,8 @@ Screen ScreenFromFileDithered(const string &filename) {
     int best_i = 0, best_nes = 0;
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
-      int nes_color = i == 0 ? screen.palette[0] :
-	screen.palette[pal * 4 + i];
+      int nes_color = i == 0 ? screen->palette[0] :
+	screen->palette[pal * 4 + i];
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];
@@ -304,8 +332,10 @@ Screen ScreenFromFileDithered(const string &filename) {
     #else
     auto ClampMix = [](int old, int err) -> int {
       int n = old + err;
-      if (n < -64) return -64;
-      if (n > 255 * 16) return 255 * 16;
+      // if (n < -64) return -64;
+      // if (n > 255 * 16) return 255 * 16;
+      // if (n < 0) return 0;
+      // if (n > 255 * 16) return 255 * 16;
       return n;
     };
     #endif
@@ -351,24 +381,14 @@ Screen ScreenFromFileDithered(const string &filename) {
       uint8 attr = pal | (pal << 2);
       attr = attr | (attr << 4);
 
-      screen.attr[idx] = attr;
-      screen.color_lo[idx] = lobits;
-      screen.color_hi[idx] = hibits;
+      screen->attr[idx] = attr;
+      screen->color_lo[idx] = lobits;
+      screen->color_hi[idx] = hibits;
     }
   }
-  return screen;
 }
 
-
-Screen ScreenFromFile(const string &filename) {
-  Screen screen;
-  ImageRGB *img = ImageRGB::Load(filename);
-  CHECK(img != nullptr) << filename;
-  CHECK_EQ(img->width, 256) << filename << ": " << img->width;
-  CHECK_EQ(img->height, 240) << filename << ": " << img->height;
-  printf("ScreenFromFile %s\n", filename.c_str());
-  
-  MakePalette(img, &screen);
+void FillScreenSelective(ImageRGB *img, Screen *screen) {
   
   // The main tricky thing about converting an image is
   // mapping image colors to NES colors. In this first pass,
@@ -387,7 +407,7 @@ Screen ScreenFromFile(const string &filename) {
     int best_i = 0;
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
-      int nes_color = screen.palette[pal * 4 + i];
+      int nes_color = screen->palette[pal * 4 + i];
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];
@@ -454,21 +474,52 @@ Screen ScreenFromFile(const string &filename) {
       uint8 attr = pal | (pal << 2);
       attr = attr | (attr << 4);
 
-      screen.attr[idx] = attr;
-      screen.color_lo[idx] = lobits;
-      screen.color_hi[idx] = hibits;
+      screen->attr[idx] = attr;
+      screen->color_lo[idx] = lobits;
+      screen->color_hi[idx] = hibits;
     }
   }
-  return screen;
 }
 
-Screen ScreenFromFile(const string &filename) {
-  Screen screen;
-  ImageRGB *img = ImageRGB::Load(filename);
+static std::unique_ptr<ImageRGB> Load(const string &filename) {
+  std::unique_ptr<ImageRGB> img(ImageRGB::Load(filename));
   CHECK(img != nullptr) << filename;
   CHECK_EQ(img->width, 256) << filename << ": " << img->width;
   CHECK_EQ(img->height, 240) << filename << ": " << img->height;
-
-  
-
+  printf("ScreenFromFile %s\n", filename.c_str());
+  return std::move(img);
 }
+
+Screen ScreenFromFileDithered(const string &filename) {
+  std::unique_ptr<ImageRGB> img = Load(filename);
+  Screen screen;
+  ArcFour rc("sffd");
+  MakePalette(PaletteMethod::MOST_COMMON_SHUFFLED, img.get(), &rc, &screen);
+  FillScreenDithered(img.get(), &screen);
+  return screen;
+}
+
+
+Screen ScreenFromFile(const string &filename) {
+  std::unique_ptr<ImageRGB> img = Load(filename);
+  Screen screen;
+  ArcFour rc("sff");
+  MakePalette(PaletteMethod::MOST_COMMON, img.get(), &rc, &screen);
+  FillScreenSelective(img.get(), &screen);
+  return screen;
+}
+
+vector<Screen> MultiScreenFromFile(const string &filename) {
+  std::unique_ptr<ImageRGB> original_img = Load(filename);
+  ArcFour rc("msff");
+  for (int i = 0; i < 8; i++) {
+    Screen screen;
+    std::unique_ptr<ImageRGB> img(original_img->Clone());
+    MakePalette(PaletteMethod::MOST_COMMON_SHUFFLED, img.get(), &rc, &screen);
+    FillScreenSelective(img.get(), &screen);
+  }
+
+  // XXX
+  return {};
+}
+

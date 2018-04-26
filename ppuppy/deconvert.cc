@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
   string infile = argv[1];
   string outfile = argv[2];
 
-  Screen screen = ScreenFromFileDithered(infile);
+  Screen screen = ScreenFromFile(infile);
   ImageRGBA img = Deconvert(screen);
   img.Save(outfile);
   fprintf(stderr, "Wrote %s\n", outfile.c_str());
