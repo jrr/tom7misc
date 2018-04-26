@@ -16,7 +16,7 @@ LFLAGS=-static
 
 # ../cc-lib/util.o  ../cc-lib/base/stringprintf.o ../cc-lib/arcfour.o
 CCLIB_OBJECTS= ../cc-lib/base/logging.o ../cc-lib/stb_image.o
-ALL_CCLIB_OBJECTS=$(CCLIB_OBJECTS) ../cc-lib/stb_image_write.o ../cc-lib/image.o ../cc-lib/util.o
+ALL_CCLIB_OBJECTS=$(CCLIB_OBJECTS) ../cc-lib/stb_image_write.o ../cc-lib/image.o ../cc-lib/util.o ../cc-lib/arcfour.o
 
 ppuppy.exe : ppuppy.o demos.o screen.o bcm2835.o convert.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
