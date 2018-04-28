@@ -1,4 +1,24 @@
 
+
+Overall arc:
+  Introduction
+   -> get weird
+   -> photosensitivity warning
+   -> credentials
+   -> emotional rollercoaster?
+   -> software/hardware, funny, connections
+   -> this funny concept of "improper hierarchy"
+  Technical stuff
+   -> describe the NES, just enough to explain
+      the technical contribution
+   -> bicameral mind
+   -> 
+  Demonstration
+
+  Big ideas
+
+
+
 "in fact this behavior is required by law" (show sticker on the
 back of game/console)
 
@@ -7,6 +27,10 @@ self-reference is not itself funny. "Hi, my name is Tom."
 retro is not funny. the present already contains the past.
 anachronism is funny: it's wrong, a surprise, that something
 from the future exists in the past
+
+mario eating a boot is not funny
+mario eating tide pods
+or better yet,  samus eating tide pods
 
 emotional rollercoaster
  - First I'm going to tell you something that sounds impressive,
@@ -17,11 +41,15 @@ emotional rollercoaster
    and then you might be happy again to discover that it's not
    really "cheating"
 
-I figured out why it's called "hard"-ware
 
-temperature dependent
+* hardware
+ - I figured out why it's called "hard"-ware
+ - temperature dependent
+ - logic families
+ - schottky transistors
+ - "put 0 on the wire"
 
-improper hierarchy
+* improper hierarchy
  - actually anachronism is an example
  - the extreme example of this is a "loop" (maybe even a "strange loop")
  - but improper hierarchy is a more general case.
@@ -76,6 +104,6 @@ does mod come up? use upside-down POW block.
 
 * brainterfaces
  - How TVs work: connected to neural interfaces, and 
- - Persistence of vision
+ - Persistence of vision = bus capacitance
  - remember the ABCs but it's something else
  - mother brain

@@ -8,6 +8,7 @@
 #include <string>
 #include <cstring>
 #include <memory>
+#include <unordered_map>
 
 #include "arcfour.h"
 #include "base/logging.h"
@@ -85,6 +86,16 @@ enum class PaletteMethod {
 //  - Consider that it may still be useful to use a color
 //    in more than one palette.
 //  - Consider temporal dithering.
+//
+// Better way to do this is to collect 8-pixel strips (perhaps
+// quantize and count them somehow) and then do k-means etc.
+// in order to solve for the least lossy global palette. We
+// fail to put a common color in multiple palettes too often,
+// which creates more error than we need to.
+// We also suffer from using two colors that are actually
+// quite close to one another (slight difference in greys),
+// because this "most popular color" code treats all distinct
+// nes colors as equally important.
 void MakePalette(PaletteMethod method, const ImageRGB *img,
 		 ArcFour *rc, Screen *screen) {
 
@@ -134,7 +145,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
 	      });
     return color_count;
   };
-  
+
   switch (method) {
   case PaletteMethod::MOST_COMMON: {
     vector<pair<int, int>> color_count = ColorCount();
@@ -151,11 +162,24 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     // XXX There are more cases like this, like when we only have 6 colors, etc.
     if (color_count[4].second == 0) {
       // If we have only 4 colors, make sure they're in the same palette!
+      // Then we just repeat that same palette 4 times. (No need for this, but
+      // it gives us a little robustness against noise when transmitting attribute
+      // bits, at least.)
       for (int i = 0; i < 4; i++) {
 	screen->palette[i +  0] = color_count[i].first;
 	screen->palette[i +  4] = color_count[i].first;
 	screen->palette[i +  8] = color_count[i].first;
 	screen->palette[i + 12] = color_count[i].first;
+      }
+    } else if (color_count[7].second == 0) {
+      // With 7 or fewer colors, fill two palettes, and then repeat but shuffled.
+      int dst = 0;
+      for (int src : {0, 1, 2, 3,
+	    /* 0 */      4, 5, 6,
+	    /* 0 */      4, 2, 3,
+	    /* 0 */      1, 5, 6}) {
+	screen->palette[dst] = color_count[src].first;
+	dst++;
       }
     } else {
       int rank = 0;
@@ -186,11 +210,11 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
 	  color_count[rank].second == 0) rank = 0;
     }
     break;
-  }  
+  }
   default:
     LOG(FATAL) << "unknown method?";
   }
-  
+
   // For cleanliness, always initialize these...
   screen->palette[4] = 0;
   screen->palette[8] = 0;
@@ -199,12 +223,13 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
 
 // Screen already has palette; fill in with image
 static void FillScreenDithered(ImageRGB *img, Screen *screen) {
+  printf("Dithered mode!\n");
   // Each pixel stored as sixteenths.
   vector<int> rgb;
   rgb.reserve(img->rgb.size());
   for (int i = 0; i < img->rgb.size(); i++)
     rgb.push_back(img->rgb[i] * 16);
-  
+
   // The main tricky thing about converting an image is
   // mapping image colors to NES colors. In this first pass,
   // we assume a fixed palette (4 different palettes, each
@@ -239,7 +264,7 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
     // TODO: Also keep per-color error to propagate?
     return {best_i, best_nes, best_sqerr};
   };
-  
+
   auto OneStrip = [&ClosestColor](
       // 8x3 bytes, rgb triplets
       const int *rgb,
@@ -257,7 +282,7 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
     auto Squared = [](const Errors &e) {
       return e.r * e.r + e.g * e.g + e.b * e.b;
     };
-    
+
     for (int pal = 0; pal < 4; pal++) {
       int totalerror = 0;
       uint8 lobits = 0, hibits = 0;
@@ -282,14 +307,14 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
 	int dr = ((r / 16) - rr);
 	int dg = ((g / 16) - gg);
 	int db = ((b / 16) - bb);
-	
+
 	right.r = (7 * dr);
 	right.g = (7 * dg);
 	right.b = (7 * db);
 
 	// For performance and quality: Could divide these errors
 	// by 16 at the end, rather than eagerly?
-	
+
 	// down-left
 	down[x].r += (3 * dr);
 	down[x].g += (3 * dg);
@@ -302,14 +327,14 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
 	down[x + 2].r += dr;
 	down[x + 2].g += dg;
 	down[x + 2].b += db;
-	
+
 	lobits <<= 1; lobits |= (p & 1);
 	hibits <<= 1; hibits |= ((p >> 1) & 1);
       }
       totalerror = Squared(right);
       for (const Errors &e : down)
 	totalerror += Squared(e);
-      
+
       if (pal == 0 || totalerror < best_totalerror) {
 	best = {(uint8)pal, lobits, hibits};
 	best_totalerror = totalerror;
@@ -352,7 +377,7 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
       rgb_down[i * 3 + 2] = ClampMix(rgb_down[i * 3 + 2], best_down[i].b);
     }
     #endif
-    
+
     return best;
   };
 
@@ -390,7 +415,7 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
 }
 
 void FillScreenSelective(ImageRGB *img, Screen *screen) {
-  
+
   // The main tricky thing about converting an image is
   // mapping image colors to NES colors. In this first pass,
   // we assume a fixed palette (4 different palettes, each
@@ -409,6 +434,8 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
       int nes_color = screen->palette[pal * 4 + i];
+      // int nes_color = i == 0 ? screen->palette[0] :
+      // screen->palette[pal * 4 + i];
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];
@@ -423,11 +450,13 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
     // TODO: Also keep per-color error to propagate?
     return {best_i, best_sqerr};
   };
+
+  std::unordered_map<string, std::tuple<uint8, uint8, uint8>> memo;
   
-  auto OneStrip = [&ClosestColor](
+  auto OneStrip = [&ClosestColor, &memo](
       // 8x3 bytes, rgb triplets
       const uint8 *rgb) -> std::tuple<uint8, uint8, uint8> {
-
+    
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
     std::tuple<uint8, uint8, uint8> best;
@@ -444,9 +473,6 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
 	int p, err;
 	std::tie(p, err) = ClosestColor(pal, r, g, b);
 	totalerror += err;
-	
-	// TODO: Consider propagating some error, e.g.
-	// Floyd-Steinbeg.
 
 	lobits <<= 1; lobits |= (p & 1);
 	hibits <<= 1; hibits |= ((p >> 1) & 1);
@@ -457,10 +483,32 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
 	best_totalerror = totalerror;
       }
     }
-      
+
+    string key{(const char *)rgb, 8 * 3};
+    auto it = memo.find(key);
+    if (it != memo.end()) {
+      if (best != it->second) {
+	printf("Inconsistent!\n"
+	       "RGB: %s\n"
+	       "Old result: %02x, %02x, %02x\n"
+	       "New result: %02x, %02x, %02x\n",
+	       "??",
+	       std::get<0>(it->second),
+	       std::get<1>(it->second),
+	       std::get<2>(it->second),
+	       std::get<0>(best),
+	       std::get<1>(best),
+	       std::get<2>(best));
+      }
+    } else {
+      memo[key] = best;
+    }
+    
     return best;
   };
 
+  
+  
   for (int scanline = 0; scanline < 240; scanline++) {
     for (int col = 0; col < 32; col++) {
       int idx = scanline * 32 + col;
