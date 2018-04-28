@@ -41,7 +41,7 @@ deconverted/%.png : images/%.png deconvert.exe
 deconverted/%.png : images/%.jpg deconvert.exe
 	./deconvert.exe $< $@
 
-deconverted: deconverted/self.png deconverted/motherboard.png deconverted/motherboard-cpu.png deconverted/motherboard-ppu.png deconverted/nes2cart.png deconverted/motherboard-cic-troll.png deconverted/motherboard-cic.png
+deconverted: deconverted/self.png deconverted/motherboard.png deconverted/motherboard-cpu.png deconverted/motherboard-ppu.png deconverted/nes2cart.png deconverted/motherboard-cic-troll.png deconverted/motherboard-cic.png deconverted/arst-arsw.png deconverted/nes-motherboard-caps.png deconverted/abc.png
 
 
 # XXX integrate armsnes/Makefile
