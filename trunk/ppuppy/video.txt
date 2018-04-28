@@ -45,8 +45,12 @@ improper hierarchy
  - possible to display a quine? (screen image that displays
    its own description (i.e., hex nametable/attribute table?)
 
+* timing
+ - Can't make the conference deadline? Just submit so late that
+   it arrives in time for next year's.
+
 * who's in charge here?
- - so many different processors; which one is "in charge"?
+- so many different processors; which one is "in charge"?
    does it matter?
 
 * reverse emulation
@@ -69,3 +73,9 @@ and how do we measure latency? We use the ping command.
 
 does mod come up? use upside-down POW block.
   (yes: mirroring)
+
+* brainterfaces
+ - How TVs work: connected to neural interfaces, and 
+ - Persistence of vision
+ - remember the ABCs but it's something else
+ - mother brain

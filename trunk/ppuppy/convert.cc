@@ -163,7 +163,8 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
       // 4   5  6  7
       // 8   9 10 11
       // 12 13 14 15
-      for (int dest : { 0, 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1 }) {
+      // for (int dest : { 0, 15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1 }) {
+      for (int dest : { 0, 1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15 }) {
 	screen->palette[dest] = color_count[rank].first;
 	rank++;
       }
