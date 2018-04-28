@@ -35,6 +35,16 @@ improper hierarchy
    of the oscilloscope sampling the signal over those wires
     - could even be live??
 
+!! DANGER!!
+ we're gonna do some dangerous things
+
+* circuit board
+ - these little goombas are capacitors
+
+* describing how the ppu works
+ - possible to display a quine? (screen image that displays
+   its own description (i.e., hex nametable/attribute table?)
+
 * who's in charge here?
  - so many different processors; which one is "in charge"?
    does it matter?

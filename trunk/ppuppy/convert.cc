@@ -19,7 +19,7 @@ using namespace std;
 // The NES NTSC palette, as RGB triplets.
 // This is what FCEUX uses, but it's notoriously not that
 // accurate (colors are too saturated).
-static constexpr uint8 ntsc_palette[256 * 3] = {
+static constexpr uint8 ntsc_palette[16 * 4 * 3] = {
   0x80,0x80,0x80, 0x00,0x3D,0xA6, 0x00,0x12,0xB0, 0x44,0x00,0x96,
   0xA1,0x00,0x5E, 0xC7,0x00,0x28, 0xBA,0x06,0x00, 0x8C,0x17,0x00,
   0x5C,0x2F,0x00, 0x10,0x45,0x00, 0x05,0x4A,0x00, 0x00,0x47,0x2E,
@@ -93,7 +93,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     // XXX TODO: use LAB DeltaE. But that is much more expensive...
     int best_sqerr = 65536 * 3 + 1;
     int best_i = 0;
-    for (int nes_color = 0; nes_color < 256; nes_color++) {
+    for (int nes_color = 0; nes_color < 64; nes_color++) {
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];
@@ -111,7 +111,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
   auto ColorCount = [img, &ClosestColor]() ->
     vector<pair<int, int>> {
     vector<int> was_best;
-    for (int i = 0; i < 256; i++) was_best.push_back(0);
+    for (int i = 0; i < 64; i++) was_best.push_back(0);
     for (int i = 0; i < img->width * img->height; i++) {
       uint8 r = img->rgb[i * 3 + 0];
       uint8 g = img->rgb[i * 3 + 1];
@@ -122,8 +122,8 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     // Now find the most common best colors.
     // XXX faster ways to do this!
     vector<pair<int, int>> color_count;
-    color_count.reserve(256);
-    for (int i = 0; i < 256; i++)
+    color_count.reserve(64);
+    for (int i = 0; i < 64; i++)
       color_count.push_back(make_pair(i, was_best[i]));
     std::sort(color_count.begin(),
 	      color_count.end(),
@@ -141,7 +141,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     // Put the overall most common colors in separate
     // palettes (is this a good idea??)
 
-    for (int i = 0; i < 256; i++) {
+    for (int i = 0; i < 64; i++) {
       if (color_count[i].second) {
 	printf("%02x: %d\n", color_count[i].first, color_count[i].second);
       }
