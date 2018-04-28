@@ -13,7 +13,7 @@ using namespace std;
 // The NES NTSC palette, as RGB triplets.
 // This is what FCEUX uses, but it's notoriously not that
 // accurate (colors are too saturated).
-static constexpr uint8 ntsc_palette[256 * 3] = {
+static constexpr uint8 ntsc_palette[16 * 4 * 3] = {
   0x80,0x80,0x80, 0x00,0x3D,0xA6, 0x00,0x12,0xB0, 0x44,0x00,0x96,
   0xA1,0x00,0x5E, 0xC7,0x00,0x28, 0xBA,0x06,0x00, 0x8C,0x17,0x00,
   0x5C,0x2F,0x00, 0x10,0x45,0x00, 0x05,0x4A,0x00, 0x00,0x47,0x2E,
@@ -101,16 +101,40 @@ ImageRGBA Deconvert(const Screen &screen) {
   return ImageRGBA(std::move(rgba), 256, 256);
 }
 
+// Generate palette swatches image.
+ImageRGBA Swatches() {
+  vector<uint8> rgba;
+  rgba.resize(256 * 256 * 4);
+  for (int y = 0; y < 4 * 16; y++) {
+    int yy = y >> 4;
+    for (int x = 0; x < 256; x++) {
+      int xx = x >> 4;
+      int nes_color = yy * 16 + xx;
+      uint8 r = ntsc_palette[nes_color * 3 + 0];
+      uint8 g = ntsc_palette[nes_color * 3 + 1];
+      uint8 b = ntsc_palette[nes_color * 3 + 2];
+      int idx = (y * 256 + x) * 4;
+      rgba[idx + 0] = r;
+      rgba[idx + 1] = g;
+      rgba[idx + 2] = b;
+      rgba[idx + 3] = 0xFF;
+    }
+  }
+  return ImageRGBA(std::move(rgba), 256, 256);
+}
+
 
 int main(int argc, char **argv) {
   CHECK(argc == 2) << "./deconvert inputgraphic.ext";
   string infile = argv[1];
 
-  vector<Screen> screens = MultiScreenFromFile(infile);
+  vector<Screen> screens = {ScreenFromFileDithered(infile)};
   for (int i = 0; i < screens.size(); i++) {
     const Screen &screen = screens[i];
     const string outfile = StringPrintf("deconverted-%d.png", i);
     ImageRGBA img = Deconvert(screen);
+    // ImageRGBA img = Swatches();
+
     img.Save(outfile);
     fprintf(stderr, "Wrote %s\n", outfile.c_str());
   }
