@@ -45,7 +45,6 @@
 #include "cpuexec.h"
 #include "ppu.h"
 #include "display.h"
-#include "cheats.h"
 #include "apu.h"
 #include "sa1.h"
 #include "srtc.h"
@@ -585,10 +584,6 @@ again:
 	}
     FreeSDD1Data ();
     InitROM (Tales);
-	
-    S9xLoadCheatFile (S9xGetFilename(".cht"));
-    S9xInitCheatData ();
-    S9xApplyCheats ();
 
     S9xReset ();
 

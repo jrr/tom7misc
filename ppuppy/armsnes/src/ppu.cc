@@ -67,6 +67,10 @@ EXTERN_C uint8 S9xSuperFXReadReg (uint32);
 #endif
 extern uint8 *HDMAMemPointers [8];
 
+#ifdef DEBUGGER
+# error debugger should be disabled for this build -tom7
+#endif
+
 void S9xUpdateHTimer ()
 {
     if (PPU.HTimerEnabled)
@@ -238,7 +242,8 @@ void S9xSetCPU(uint8 byte, uint16 Address)
 					PPU.HTimerPosition = Settings.H_Max + 1;
 				}
 
-#ifndef RC_OPTIMIZED
+// was ifndef RC_OPTIMIZED -tom7
+#if 0
 				if (!Settings.DaffyDuck)
 					CLEAR_IRQ_SOURCE(PPU_V_BEAM_IRQ_SOURCE | PPU_H_BEAM_IRQ_SOURCE);
 

@@ -49,7 +49,6 @@
 #ifdef USE_SA1
 #include "sa1.h"
 #endif
-//#include "cheats.h"
 #include "srtc.h"
 #include "sdd1.h"
 //#include "spc7110.h"
