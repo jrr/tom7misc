@@ -8,6 +8,7 @@ Overall arc:
    -> emotional rollercoaster?
    -> software/hardware, funny, connections
    -> this funny concept of "improper hierarchy"
+
   Technical stuff
    -> describe the NES, just enough to explain
       the technical contribution
@@ -18,9 +19,6 @@ Overall arc:
   Big ideas
 
 
-
-"in fact this behavior is required by law" (show sticker on the
-back of game/console)
 
 self-reference is not itself funny. "Hi, my name is Tom."
 
@@ -52,6 +50,8 @@ emotional rollercoaster
 * improper hierarchy
  - actually anachronism is an example
  - the extreme example of this is a "loop" (maybe even a "strange loop")
+ - e.g. a quine,
+ - Y combinator
  - but improper hierarchy is a more general case.
  - many examples (these need fleshing out!)
     - compiler
@@ -76,14 +76,20 @@ emotional rollercoaster
 * timing
  - Can't make the conference deadline? Just submit so late that
    it arrives in time for next year's.
+ - and how do we measure latency? We use the ping command.
+
 
 * who's in charge here?
 - so many different processors; which one is "in charge"?
    does it matter?
 
 * reverse emulation
+- "in fact this behavior is required by law" (show sticker on the
+  back of game/console)
 
-* video ideas
+
+
+* miscellaneous
 
 "wrongness in computer science"
 
@@ -96,8 +102,6 @@ obviously I didn't like just think of this and make the
 slide this second. i mean when I was making the slides.
  - one transistor bug
  - DLL signature knocking
-
-and how do we measure latency? We use the ping command.
 
 does mod come up? use upside-down POW block.
   (yes: mirroring)
