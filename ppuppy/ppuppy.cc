@@ -46,7 +46,8 @@ inline void Yield() {
     struct timespec t;
     t.tv_sec = 0;
     // 150 microseconds. Tune this?
-    t.tv_nsec = 150 * 1000;
+    // t.tv_nsec = 150 * 1000;
+    t.tv_nsec = 1;
     nanosleep(&t, nullptr);
   }
 }
@@ -157,7 +158,18 @@ int main(int argc, char **argv) {
 	"images/self.jpg",
 	"images/flower.png",
 	"images/robot.png",
+	  "images/abc.png",
+	  "images/arst-arsw.png",
+	  "images/motherboard.png",
+	  "images/nes-motherboard-caps.png",
+	  "images/motherboard-cpu.png",
+	  "images/motherboard-ppu.png",
+	  "images/motherboard-cic.png",
+	  "images/motherboard-cic-troll.png",
+	  "images/nes2cart.png",
 	"images/ppuppy-logo.png"});
+
+  SNES snes("super-mario-world.smc");
   
   printf("START.\n");
   fflush(stdout);
@@ -249,7 +261,8 @@ int main(int argc, char **argv) {
     // In the steady state, this needs to complete during vsync.
 
     // bouncing.Draw();
-    screen = slideshow.GetScreen();
+    // screen = slideshow.GetScreen();
+    screen = snes.GetScreen();
     
     // Assume we are at the top-left.
     col = 0;
@@ -490,7 +503,8 @@ int main(int argc, char **argv) {
     // Yield to OS. Does nothing if interrupts are disabled.
     Yield();
 
-    slideshow.Update();
+    // slideshow.Update(joy1, joy2);
+    snes.Update(joy1, joy2);
     goto next_frame;
   }
 

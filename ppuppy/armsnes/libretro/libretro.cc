@@ -29,11 +29,10 @@
 #define BTN_POINTER (RETRO_DEVICE_ID_JOYPAD_R + 1)
 #define BTN_POINTER2 (BTN_POINTER + 1)
 
-static retro_video_refresh_t video_cb = NULL;
-static retro_input_poll_t poll_cb = NULL;
-static retro_input_state_t input_cb = NULL;
-static retro_audio_sample_batch_t audio_batch_cb = NULL;
-static retro_environment_t environ_cb = NULL;
+static retro_video_refresh_t video_cb = nullptr;
+static retro_get_inputs_t get_inputs_cb = nullptr;
+static retro_audio_sample_batch_t audio_batch_cb = nullptr;
+static retro_environment_t environ_cb = nullptr;
 static uint32 joys[5];
 bool8 ROMAPUEnabled = 0;
 memstream_t *s_stream;
@@ -74,7 +73,7 @@ void *retro_get_memory_data(unsigned type) {
     data = Memory.VRAM;
     break;
   default:
-    data = NULL;
+    data = nullptr;
     break;
   }
 
@@ -111,6 +110,10 @@ unsigned retro_api_version(void) {
   return RETRO_API_VERSION;
 }
 
+void retro_set_get_inputs(retro_get_inputs_t cb) {
+  get_inputs_cb = cb;
+}
+
 void retro_set_video_refresh(retro_video_refresh_t cb) {
   video_cb = cb;
 }
@@ -119,13 +122,13 @@ void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) {
   audio_batch_cb = cb;
 }
 
-void retro_set_input_poll(retro_input_poll_t cb) {
-  poll_cb = cb;
-}
+// void retro_set_input_poll(retro_input_poll_t cb) {
+//   poll_cb = cb;
+// }
 
-void retro_set_input_state(retro_input_state_t cb) {
-  input_cb = cb;
-}
+// void retro_set_input_state(retro_input_state_t cb) {
+//   input_cb = cb;
+// }
 
 static bool use_overscan;
 
@@ -324,6 +327,7 @@ void retro_reset (void)
 //static int16_t retro_justifier_state[2][2] = {{0}, {0}};
 void S9xSetButton(int i, uint16 b, bool pressed);
 
+#if 0
 static void report_buttons (void)
 {
 	int i, j;
@@ -338,21 +342,21 @@ static void report_buttons (void)
 		}
 	}
 }
+#endif
 
-void retro_run (void)
-{
+void retro_run() {
    IPPU.RenderThisFrame = TRUE;
    S9xMainLoop();
    // S9xMixSamples(audio_buf, avail * 2);
    // audio_batch_cb((int16_t *) audio_buf, avail);
 
-   poll_cb();
+   // poll_cb();
 
-   report_buttons();
+   // report_buttons();
+   joys[0] = (*get_inputs_cb)();
 }
 
-size_t retro_serialize_size (void)
-{
+size_t retro_serialize_size (void) {
    uint8_t *tmpbuf;
 
    tmpbuf = (uint8_t*)malloc(5000000);
@@ -487,10 +491,10 @@ bool8 S9xDeinitUpdate(int width, int height, bool8 sixteen_bit) {
 /* Dummy functions that should probably be implemented correctly later. */
 const char* S9xGetFilename(const char* in) { return in; }
 const char* S9xGetFilenameInc(const char* in) { return in; }
-const char *S9xGetHomeDirectory() { return NULL; }
-const char *S9xGetSnapshotDirectory() { return NULL; }
-const char *S9xGetROMDirectory() { return NULL; }
-const char* S9xChooseFilename(bool8 a) { return NULL; }
+const char *S9xGetHomeDirectory() { return nullptr; }
+const char *S9xGetSnapshotDirectory() { return nullptr; }
+const char *S9xGetROMDirectory() { return nullptr; }
+const char* S9xChooseFilename(bool8 a) { return nullptr; }
 bool8 S9xInitUpdate() { return TRUE; }
 bool8 S9xContinueUpdate(int width, int height) { return TRUE; }
 void S9xSetPalette() {}
@@ -511,12 +515,12 @@ void S9xMovieFreeze() {}
 void S9xMovieUnfreeze() {}
 int S9xMovieCreate (const char* filename, uint8 controllers_mask, uint8 opts, const wchar_t* metadata, int metadata_length) { return FALSE; }
 void S9xMovieStop (bool8 suppress_message) {}
-const char *S9xChooseMovieFilename(bool8 read_only) { return NULL; }
+const char *S9xChooseMovieFilename(bool8 read_only) { return nullptr; }
 void S9xMovieUpdate(bool addFrame) {}
 void S9xMovieUpdateOnReset() {}
 int S9xMovieOpen(const char* filename, bool8 read_only) { return FALSE; }
 uint32 S9xMovieGetFrameCounter() { return 0; }
-const char *S9xStringInput(const char *message) { return NULL; }
+const char *S9xStringInput(const char *message) { return nullptr; }
 
 END_EXTERN_C
 
