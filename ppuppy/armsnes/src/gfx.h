@@ -94,6 +94,7 @@ struct SGFX {
     int    VPositions [129];
 
 #ifdef GFX_MULTI_FORMAT
+#error GFX_MULTI_FORMAT should be disabled in this release -tom7
     uint32 PixelFormat;
     uint32 (*BuildPixel) (uint32 R, uint32 G, uint32 B);
     uint32 (*BuildPixel2) (uint32 R, uint32 G, uint32 B);

@@ -218,7 +218,7 @@ extern uint32 HIGH_BITS_SHIFTED_TWO_MASK;
 #define CONCAT(X,Y) X##Y
 
 // C pre-processor needs a two stage macro define to enable it to concat
-// to macro names together to form the name of another macro.
+// two macro names together to form the name of another macro.
 #define BUILD_PIXEL_D(F,R,G,B) CONCAT(BUILD_PIXEL_,F) (R,G,B)
 #define BUILD_PIXEL2_D(F,R,G,B) CONCAT(BUILD_PIXEL2_,F) (R,G,B)
 #define DECOMPOSE_PIXEL_D(F,PIX,R,G,B) CONCAT(DECOMPOSE_PIXEL_,F) (PIX,R,G,B)
