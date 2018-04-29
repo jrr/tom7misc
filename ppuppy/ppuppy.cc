@@ -20,6 +20,8 @@
 // get back to linux.
 static constexpr bool DISABLE_INTERRUPTS = false;
 
+static constexpr bool SNES_DEMO = false;
+
 // Number of consecutive /RD high reads that cause us to assume vblank
 // has occurred. This has to be set high enough that the slow reads
 // during the CPU knocking procedure don't seem like frames
@@ -46,8 +48,8 @@ inline void Yield() {
     struct timespec t;
     t.tv_sec = 0;
     // 150 microseconds. Tune this?
-    // t.tv_nsec = 150 * 1000;
-    t.tv_nsec = 1;
+    t.tv_nsec = 150 * 1000;
+    // t.tv_nsec = 1;
     nanosleep(&t, nullptr);
   }
 }
@@ -261,8 +263,11 @@ int main(int argc, char **argv) {
     // In the steady state, this needs to complete during vsync.
 
     // bouncing.Draw();
-    // screen = slideshow.GetScreen();
-    screen = snes.GetScreen();
+    if (SNES_DEMO) {
+      screen = snes.GetScreen();
+    } else {
+      screen = slideshow.GetScreen();
+    }
     
     // Assume we are at the top-left.
     col = 0;
@@ -308,6 +313,7 @@ int main(int argc, char **argv) {
     // Ugh, figure out a way to either tune this or make the timing more
     // automatic?
     // asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);
+    DEGLITCH_READ;
     DEGLITCH_READ;
     asm volatile("@ deglitch end " : : :);
 
@@ -503,8 +509,12 @@ int main(int argc, char **argv) {
     // Yield to OS. Does nothing if interrupts are disabled.
     Yield();
 
-    // slideshow.Update(joy1, joy2);
-    snes.Update(joy1, joy2);
+    if (SNES_DEMO) {
+      snes.Update(joy1, joy2);
+    } else {
+      slideshow.Update(joy1, joy2);
+    }
+
     goto next_frame;
   }
 

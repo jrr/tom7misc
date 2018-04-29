@@ -140,7 +140,7 @@ static int snes_frames = 0;
 void SNES::Update(uint8 joy1, uint8 joy2) {
   snes_joy = joy1;
   snes_frames++;
-  if (snes_frames % 4 == 0) {
+  if (snes_frames % 2 == 0) {
     retro_run();
     MakePalette(PaletteMethod::MOST_COMMON, &snes_img, &rc, &screen);
     FillScreenSelective(&snes_img, &screen);
