@@ -5,17 +5,23 @@ Stuff still to figure out / achieve:
  [X] Can I prevent linux from descheduling me, except in vblank?
  [ ] Enough time to render SNES frame in vblank?
  [X] Is it actually possible to do anything?
+ [ ] Add GPIO switch to enable boot directly to ppuppy
  [ ] Boot up without having to SSH into it. (Takes several seconds to boot...)
  [X] Single board with CPU and PPU interfacing.
  [ ] Consider moving the bus transciever /OE to the 5v side, since this
      input should be 5v tolerant, and it will be slightly better synchronized
      with the actual bus (right?)
- [ ] Make demo and a video of it, in case it breaks!
  [ ] Flow for talk
  [ ] Slides
+ [x] Measure proper footprint/keepout of PCB
+ [x] Order boards
+ [ ] Clear sprites once we get any knock
+ [ ] Use sprites (or bg color cycle?) or something pre-knock
+     to indicate that pi is booting
+ [ ] Assemble and test a board
+ [ ] Version of PCB with keepout/drill for center screw?
  [ ] Make backup offline versions of slides
- [ ] Measure proper footprint/keepout of PCB
- [ ] Order boards
+ [ ] Make demo and a video of it, in case it breaks!
 
 Backup plans:
  [ ] Second pi renders SNES frames, and just sends them to "video" pi
@@ -1431,6 +1437,12 @@ the next nametable read?
      can completely avoid noise? that would be nice since errors here
      cause full-screen disruption)
 
+    OK, now cart knocks two more times. I was able to get it to synchronize by just offsetting
+    the writes until they're in the right slot. Please come back to this and figure out why it's
+    delayed so much!
+
+    Joystick reading is good; pretty stable actually.
+
   - SNES -
 
    armsnes is reasonable to use. Benchmarking SMW (intro movie) with
@@ -1471,3 +1483,43 @@ the next nametable read?
    and/or overclock! In fact we could probably just do this and be
    a little late when rendering the top of the screen...)
    With -O2: 1.7087
+
+ - pi3 on nes -
+
+   Ugh! 80 wire ATA ribbon cables are NOT suitable for this! They
+   connect a bunch of pins together because they are ground wires
+   in ATA/IDE, and also one of the pins is cut for master/slave.
+
+   40-pin IDE should work, though, if I can find one of those. The
+   key pin is GND on a pi header (and not the one that I connect to),
+   so it's okay to just cut this pin away (blocked pin should be on
+   the OUTER edge of the board).
+
+   Powering the pi 3 from the NES 5V rail seems to work fine once
+   I'm not shorting 5v and ground [shocked/embarrased face emoji].
+   It may have some trouble under load, but like at least make -j 12
+   and snestest.exe run fine (and we don't need to use any
+   peripherals anyway).
+
+   isolcpus might be the right way to get a dedicated CPU or two.
+   also take a look at: man 2 sched_setaffinity
+
+   Shout-out to william for a 40-pin IDE cable from his server farm.
+   Works great. Palette was a little flashy when it started up, but
+   once it got "warm", I think it works better out of the box than
+   the zero did. This is a bit reassuring that I haven't just
+   overfit to the timing on that thing.
+
+   I think that there are a bunch of sprites still on the screen,
+   in the left column and one near the right. Should clear these
+   in CPU code.
+
+  - snes on pi3 -
+
+   It works! I'm definitely not hitting the deadlines, so if I try
+   to emulate during vblank it basically doesn't work. But if I only
+   do it once every 4 frames, then I can see that it's obviously
+   emulating, taking input, and converting. It actually looks fairly
+   decent... if I could get rid of the flashing maybe it'd be in an
+   acceptable state from the start.
+
