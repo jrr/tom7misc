@@ -15,13 +15,17 @@ Stuff still to figure out / achieve:
  [ ] Slides
  [x] Measure proper footprint/keepout of PCB
  [x] Order boards
- [ ] Clear sprites once we get any knock
- [ ] Use sprites (or bg color cycle?) or something pre-knock
+ [x] Clear sprites once we get any knock
+ [x] Use sprites (or bg color cycle?) or something pre-knock
      to indicate that pi is booting
  [ ] Assemble and test a board
- [ ] Version of PCB with keepout/drill for center screw?
  [ ] Make backup offline versions of slides
  [ ] Make demo and a video of it, in case it breaks!
+
+Icing:
+ [ ] Version of PCB with keepout/drill for center screw?
+ [ ] "fine tune" controls for timing, accessible from controller?
+ [ ] on-screen laser pointer during slideshow mode (sprite?)
 
 Backup plans:
  [ ] Second pi renders SNES frames, and just sends them to "video" pi
@@ -29,13 +33,15 @@ Backup plans:
  [ ] Kernel module
  [ ] Separate fast GPIO microprocessor renders the frame?
 
-Obsolete:
- [ ] How often can I change sprite ram?
- [X] What are the PPU writes? Do I need to handle them at all?
-
 This doc rules:
 https://www.raspberrypi.org/app/uploads/2012/02/BCM2835-ARM-Peripherals.pdf
 addendum: https://matt.ucc.asn.au/mirror/electron/GPIO-Pads-Control2.pdf
+
+Obsolete "todos":
+Obsolete:
+ How often can I change sprite ram?
+ What are the PPU writes? Do I need to handle them at all?
+
 
  -- timing -- 
 
@@ -433,8 +439,8 @@ Note: bcm library falls back to /dev/gpiomem if /dev/mem is unavailable
 
 ppuppy w/ gpiomem: latency is ~200ns
 ppuppy (root) w/ /dev/mem: latency is ~154ns. better!
-Note that we also can't realtime scheduling without root. So we should
-really always run this way.
+Note that we also can't enable realtime scheduling without root. So we
+should really always run this way.
 
  - accurate timing on pi -
 
@@ -1437,8 +1443,9 @@ the next nametable read?
      can completely avoid noise? that would be nice since errors here
      cause full-screen disruption)
 
-    OK, now cart knocks two more times. I was able to get it to synchronize by just offsetting
-    the writes until they're in the right slot. Please come back to this and figure out why it's
+    OK, now cart knocks two more times. I was able to get it to
+    synchronize by just offsetting the writes until they're in the
+    right slot. Please come back to this and figure out why it's
     delayed so much!
 
     Joystick reading is good; pretty stable actually.
@@ -1521,5 +1528,26 @@ the next nametable read?
    do it once every 4 frames, then I can see that it's obviously
    emulating, taking input, and converting. It actually looks fairly
    decent... if I could get rid of the flashing maybe it'd be in an
-   acceptable state from the start.
+   acceptable state without any new Convert code.
 
+
+  - noise! -
+
+   With the pi3, adjusting the timing definitely affects noise, but I
+   was unable to get it down to where it's been before. On the other
+   hand, there is clearly nose even as the thing boots, with just the
+   pre-connection animation playing. This could easily just be
+   electrical noise on top of a perfectly-timed ppuppy. PCB may help
+   this with short traces and fewer dead-end antennas (also I think
+   some of the chr rom pins are still connected, and that I never
+   successfully disabled that chip?)
+
+   Danger: Another thing it could be is memory reordering problems
+   because I'm not using memory barriers in my code any more, and
+   now that it's multicore, this might actually create problems
+   (if true, though, disabling interrupts would help a lot, because
+   no other code should be accessing peripherals if that happens?
+   I guess some other app/kernel code could be running code, even
+   waiting for an interrupt to happen while it spinlocks using
+   a peripheral, at the moment that I disable interrupts, which
+   would be bad.

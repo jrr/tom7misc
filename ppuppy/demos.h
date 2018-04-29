@@ -5,6 +5,8 @@
 #include "screen.h"
 #include <vector>
 #include <string>
+#include <thread>
+#include <memory>
 #include "arcfour.h"
 
 struct BouncingBalls {
@@ -35,10 +37,12 @@ struct SNES {
   SNES(const string &cart);
 
   void Update(uint8 joy1, uint8 joy2);
-  Screen *GetScreen() { return &screen; }
+  Screen *GetScreen();
   Screen screen;
  private:
+  void Run();
   ArcFour rc;
+  std::unique_ptr<std::thread> th;
 };
 
 #endif

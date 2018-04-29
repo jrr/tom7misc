@@ -438,6 +438,14 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
   auto OneStrip = [&ClosestColor, &memo](
       // 8x3 bytes, rgb triplets
       const uint8 *rgb) -> std::tuple<uint8, uint8, uint8> {
+
+    /*
+    string key{(const char *)rgb, 8 * 3};
+    auto it = memo.find(key);
+    if (it != memo.end()) {
+      return it->second;
+    }
+    */
     
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
@@ -466,6 +474,8 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
       }
     }
 
+    // memo[key] = best;
+    
     /*
     string key{(const char *)rgb, 8 * 3};
     auto it = memo.find(key);
@@ -487,6 +497,7 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
       memo[key] = best;
     }
     */
+
     return best;
   };
 
