@@ -117,7 +117,6 @@ BlankName:              ;blanks screen
         bne BlankName
         rts
 
-
 nmi:
   inc _client_nmi
   ;;  fallthrough
