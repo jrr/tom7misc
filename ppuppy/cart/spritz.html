@@ -1,0 +1,106 @@
+<!doctype html>
+
+<!-- simple one-off for making sprite positions -->
+
+<script>
+ var sprites = {
+   
+ };
+
+ function makesinetable() {
+   let sx = 'const int sinetable[64] = {';
+   let sy = 'const int costable[64] = {';
+
+   for (let i = 0; i < 64; i++) {
+     const t = (i / 64) * (2 * 3.141592653589);
+     let x = Math.sin(t) * 10;
+     let y = Math.cos(t) * 10;
+     sx += Math.round(x) + ', ';
+     sy += Math.round(y) + ', ';
+   }
+   
+   sx += '};\n';
+   sy += '};\n';
+   return sx + '\n' + sy;
+ }
+
+ function spritestring() {
+   let sx = 'const unsigned char spr_x[64] = {';
+   let sy = 'const unsigned char spr_y[64] = {';
+   let n = 0;
+   for (var o in sprites) {
+     if (sprites[o]) {
+       var a = o.split(',');
+       var x = a[0]|0;
+       var y = a[1]|0;
+       // XXX +4 +6 are hack
+       sx += ((x + 4) << 3) + ', ';
+       sy += ((y + 4) << 3) + ', ';
+       n++;
+     }
+   }
+
+   while (n < 64) {
+     sx += '0, ';
+     sy += '0, ';
+     n++;
+   }
+
+   sx += "};\n";
+   sy += "};\n";
+   return sx + '\n' + sy;
+ }
+ 
+ function draw() {
+   let s = '';
+   for (let y = 0; y < 30; y++) {
+     for (let x = 0; x < 32; x++) {
+       const cursor = (x == xx && y == yy);
+       const sprite = sprites[x + ',' + y];
+       if (sprite && cursor) {
+	 s += '>#';
+       } else if (sprite) {
+	 s += '##';
+       } else if (cursor) {
+	 s += '><';
+       } else {
+	 s += '--';
+       }
+     }
+     s += '\n';
+   }
+   let elt = document.getElementById('data');
+   elt.innerText = s;
+ }
+
+ let xx = 3, yy = 3;
+ document.onkeydown = function(e) {
+   e = e || window.event;
+   if (e.ctrlKey) return true;
+   
+   switch (e.keyCode) {
+     case 37: // LEFT
+       xx--;
+       break;
+     case 38: // UP
+       yy--;
+       break;
+     case 39: // RIGHT
+       xx++;
+       break;
+     case 40: // DOWN
+       yy++;
+       break;
+     case 32: // SPACE
+       sprites[xx + ',' + yy] = !sprites[xx + ',' + yy];
+       break;
+   } 
+   draw();
+   return false;
+ }
+
+</script>
+
+<pre id="data" style="font-size:12px;font-weight:bold;">
+
+</pre>

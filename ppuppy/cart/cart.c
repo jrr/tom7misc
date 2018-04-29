@@ -6,6 +6,9 @@
 #define PPU_ADDRESS             ((unsigned char*)0x2006U)
 #define PPU_DATA                ((unsigned char*)0x2007U)
 
+#define OAM_ADDRESS             ((unsigned char*)0x2003U)
+#define OAM_DMA                 ((unsigned char*)0x4014U)
+
 #define JOY1                    ((unsigned char*)0x4016U)
 #define JOY2                    ((unsigned char*)0x4017U)
 
@@ -43,12 +46,14 @@ unsigned char joy2test;
 unsigned char scroll_x;
 #pragma bss-name(pop)
 
-// #pragma bss-name(push, "OAM")
-// unsigned char SPRITES[256];
+#pragma bss-name(push, "OAM")
+unsigned char SPRITES[256];
 // OAM equals ram addresses 200-2ff
+#pragma bss-name(pop)
 
 // Globals
 unsigned char index;
+unsigned char sindex = 0;
 
 // Counter for demo
 unsigned char counter;
@@ -57,7 +62,10 @@ unsigned char old_joy1, old_joy2;
 
 unsigned char knock_ack;
 
+// input.s
 void GetInput();
+// dma.s
+void DoDMA();
 
 unsigned int screen_pos;
 
@@ -101,6 +109,18 @@ const unsigned char bad_sync[16] = {
   0x1f,  0x07,  0x16,  0x25,
   0x1f,  0x07,  0x16,  0x25,
 };
+
+// spritz.html
+
+const int sinetable[64] = {0, 1, 2, 3, 4, 5, 6, 6, 7, 8, 8, 9, 9, 10, 10, 10, 10, 10, 10, 10, 9, 9, 8, 8, 7, 6, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -6, -7, -8, -8, -9, -9, -10, -10, -10, -10, -10, -10, -10, -9, -9, -8, -8, -7, -6, -6, -5, -4, -3, -2, -1, };
+
+const int costable[64] = {10, 10, 10, 10, 9, 9, 8, 8, 7, 6, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6, -6, -7, -8, -8, -9, -9, -10, -10, -10, -10, -10, -10, -10, -9, -9, -8, -8, -7, -6, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 6, 7, 8, 8, 9, 9, 10, 10, 10, };
+
+const unsigned char spr_x[64] = {56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 64, 72, 80, 88, 96, 96, 96, 96, 96, 96, 176, 176, 176, 176, 176, 176, 176, 168, 176, 168, 168, 168, 168, 168, 168, 168, 104, 104, 104, 104, 104, 104, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 96, 0, 0, 0, 0, 0, };
+
+const unsigned char spr_y[64] = {64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 120, 112, 112, 112, 120, 128, 136, 144, 152, 160, 160, 152, 144, 136, 128, 120, 96, 96, 88, 88, 120, 128, 136, 144, 152, 160, 160, 152, 144, 136, 128, 120, 160, 152, 144, 136, 128, 120, 112, 104, 96, 88, 80, 72, 64, 112, 0, 0, 0, 0, 0, };
+
+unsigned char jiggleframe = 0;
 
 void main() {
   // turn off the screen
@@ -152,6 +172,93 @@ void main() {
   *PPU_MASK = 0x1e;
 
   screen_pos = 0x21caU;
+
+  // Put sprites.
+  for (index = 0; index < 64; index++) {
+    SPRITES[index * 4 + 0] = spr_y[index];
+    SPRITES[index * 4 + 1] = 0x7A;
+    SPRITES[index * 4 + 2] = index & 3;
+    SPRITES[index * 4 + 3] = spr_x[index];
+  }
+
+  // Wait for ppuppy loop.
+  for (;;) {
+    // Sync to NMI flag (set in interrupt handler in reset.s)
+    while (!client_nmi) {}
+    DoDMA();
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 5);
+    // This read is just garbage (whatever ppuppy wrote last).
+    ignore = *PPU_DATA;
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 4);
+    // Also garbage.
+    ignore = *PPU_DATA;
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 3);
+    // Also garbage.
+    ignore = *PPU_DATA;
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 2);
+    // Also garbage.
+    ignore = *PPU_DATA;
+
+    SET_PPU_ADDRESS(KNOCK_ADDR + 1);
+    // Now, expect the ack byte.
+    knock_ack = *PPU_DATA;
+
+    SET_PPU_ADDRESS(0x0000U);
+    *SCROLL = jiggleframe;
+    *SCROLL = 0;
+
+    client_nmi = 0;
+
+    // assuming now out of vblank. do what we gotta do.
+
+    // Jiggle sprites a little. It's actually too slow (!) to do all the sprites
+    // in one frame, so we split them in half for this.
+    if (jiggleframe & 1) {
+      sindex = 32;
+      index = 32 * 4;
+      while (sindex < 64 - 5) {
+        SPRITES[index] = spr_y[sindex] + sinetable[(jiggleframe + sindex) & 63];
+        index += 3;
+        SPRITES[index] = spr_x[sindex] + costable[(jiggleframe + sindex) & 63];
+        index++;
+        sindex++;
+      }
+    } else {
+      sindex = 0;
+      index = 0;
+
+      while (sindex < 32) {
+        SPRITES[index] = spr_y[sindex] + sinetable[(jiggleframe + sindex) & 63];
+        index += 3;
+        SPRITES[index] = spr_x[sindex] + costable[(jiggleframe + sindex) & 63];
+        index++;
+        sindex++;
+      }
+    }
+
+    jiggleframe++;
+    jiggleframe &= 63;
+
+    GetInput();
+
+    if (/* jiggleframe > 250 || */ knock_ack == 0x27)
+      break;
+  }
+
+  // Turn off sprites!
+  // BGRs bMmG
+  // 0000 1010 <- what we set = 10
+  // BGR are NTSC emphasis
+  // s: enable sprites
+  // b: enable background
+  // Mm: show sprites/background in leftmost column
+  // G: Greyscale
+  *PPU_MASK = 10;
+
   // Game loop. This can be interrupted at any moment by NMI
   for (;;) {
     // Sync to NMI flag (set in interrupt handler in reset.s)
