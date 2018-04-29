@@ -196,6 +196,7 @@ SNES::SNES(const string &cart) : rc("snes") {
       }
     }
   });
+  snes_mutex.unlock();
 }
 
 void SNES::Update(uint8 joy1, uint8 joy2) {
