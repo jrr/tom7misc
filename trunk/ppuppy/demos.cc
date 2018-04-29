@@ -1,8 +1,12 @@
 
 #include <stdio.h>
+#include <string.h>
 
 #include "demos.h"
 #include "convert.h"
+
+#include "armsnes/libretro/libretro.h"
+#include "util.h"
 
 void BouncingBalls::Ball::Update() {
   bx += bdx;
@@ -67,8 +71,78 @@ Slideshow::Slideshow(const vector<string> &filenames) {
   }
 }
 
-void Slideshow::Update() { frames++; }
+void Slideshow::Update(uint8 joy1, uint8 joy2) { frames++; }
 
 Screen *Slideshow::GetScreen() {
   return &screens[(frames >> 8) % screens.size()];
+}
+
+// Note that due to all the global variables, two of these cannot
+// coexist!
+//
+// That's actually sort of bad because we can't show multiple
+// games within a session (once we lose access to linux).
+// But it'll suffice for the talk. (Could always reboot, too.)
+// Last joystick value
+static uint8 snes_joy = 0;
+// PERF store directly as 565?
+ImageRGB snes_img{256, 240};
+
+SNES::SNES(const string &cart) : rc("snes") {
+  retro_set_environment([](unsigned cmd, void *data) {
+    return false;
+  });
+  retro_init();
+  retro_set_audio_sample_batch([](const int16_t *data,
+                                  size_t frames) -> size_t {
+      return 0;
+   });
+
+  retro_set_get_inputs([]() -> uint32 {
+    // XXX need to expand this correctly (and probably use both
+    // joysticks)
+    return snes_joy |
+      (snes_joy << 8) |
+      (snes_joy << 16) |
+      (snes_joy << 24);
+  });
+
+  retro_game_info gameinfo;
+  gameinfo.path = strdup(cart.c_str());
+  string game = Util::ReadFile(gameinfo.path);
+  gameinfo.data = game.data();
+  gameinfo.size = game.size();
+  gameinfo.meta = "";
+
+  printf("Load %s ...\n", cart.c_str());
+  retro_load_game(&gameinfo);
+  printf("Loaded.\n");
+
+  retro_set_video_refresh([](const void *data,
+                          unsigned width, unsigned height, size_t pitch) {
+    int idx = 0;
+    for (int y = 0; y < height; y++) {
+      uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
+      for (int x = 0; x < width; x++) {
+	uint16 packed = line[x];
+	uint8 b = (packed & 31) << 3;
+	uint8 g = ((packed >> 5) & 63) << 2;
+	uint8 r = ((packed >> 11) & 31) << 3;
+	snes_img.rgb[idx++] = r;
+	snes_img.rgb[idx++] = g;
+	snes_img.rgb[idx++] = b;
+      }
+    }
+  });
+}
+
+static int snes_frames = 0;
+void SNES::Update(uint8 joy1, uint8 joy2) {
+  snes_joy = joy1;
+  snes_frames++;
+  if (snes_frames % 4 == 0) {
+    retro_run();
+    MakePalette(PaletteMethod::MOST_COMMON, &snes_img, &rc, &screen);
+    FillScreenSelective(&snes_img, &screen);
+  }
 }

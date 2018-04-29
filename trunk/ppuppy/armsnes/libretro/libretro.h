@@ -472,19 +472,20 @@ typedef void (*retro_video_refresh_t)(const void *data, unsigned width, unsigned
 typedef size_t (*retro_audio_sample_batch_t)(const int16_t *data, size_t frames);
 
 // Polls input.
-typedef void (*retro_input_poll_t)(void);
+// typedef void (*retro_input_poll_t)(void);
+typedef uint32_t (*retro_get_inputs_t)();
+
 // Queries for input for player 'port'. device will be masked with RETRO_DEVICE_MASK.
 // Specialization of devices such as RETRO_DEVICE_JOYPAD_MULTITAP that have been set with retro_set_controller_port_device()
 // will still use the higher level RETRO_DEVICE_JOYPAD to request input.
-typedef int16_t (*retro_input_state_t)(unsigned port, unsigned device, unsigned index, unsigned id);
+// typedef int16_t (*retro_input_state_t)(unsigned port, unsigned device, unsigned index, unsigned id);
 
 // Sets callbacks. retro_set_environment() is guaranteed to be called before retro_init().
 // The rest of the set_* functions are guaranteed to have been called before the first call to retro_run() is made.
 void retro_set_environment(retro_environment_t);
 void retro_set_video_refresh(retro_video_refresh_t);
 void retro_set_audio_sample_batch(retro_audio_sample_batch_t);
-void retro_set_input_poll(retro_input_poll_t);
-void retro_set_input_state(retro_input_state_t);
+void retro_set_get_inputs(retro_get_inputs_t);
 
 // Library global initialization/deinitialization.
 void retro_init(void);

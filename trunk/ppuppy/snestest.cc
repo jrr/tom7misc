@@ -76,13 +76,9 @@ int main(int argc, char **argv) {
       return 0; // n.b. return value is ignored in libretro.cpp
    });
 
-  // XXX: Where are we supposed to store the input?
-  retro_set_input_poll([](){ });
-
-  retro_set_input_state([](unsigned port, unsigned device, unsigned index, unsigned id) -> int16_t {
-      // printf("input_state %d %d %d %d\n", port, device, index, id);
-      return 0;
-    });
+  retro_set_get_inputs([]() -> uint32 {
+    return 0;
+  });
   
   retro_game_info mario;
   mario.path = "super-mario-world.smc";
@@ -105,8 +101,10 @@ int main(int argc, char **argv) {
 	 FRAMES, elapsed, FRAMES/(double)(elapsed / 1000000.0),
 	 ((double)(elapsed / 1000.0) / FRAMES));
   
-  retro_set_video_refresh([](const void *data, unsigned width, unsigned height, size_t pitch) {
+  retro_set_video_refresh([](const void *data,
+                             unsigned width, unsigned height, size_t pitch) {
       vector<uint8> rgbas;
+      rgbas.reserve(width * height * 4);
       for (int y = 0; y < height; y++) {
 	uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
 	for (int x = 0; x < width; x++) {

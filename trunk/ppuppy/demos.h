@@ -5,6 +5,7 @@
 #include "screen.h"
 #include <vector>
 #include <string>
+#include "arcfour.h"
 
 struct BouncingBalls {
   struct Ball {
@@ -15,6 +16,7 @@ struct BouncingBalls {
   Ball ball2{-3, 1, 120, 180, 74 * 74};
 
   // Update frame and draw to screen.
+  // XXX make this conform to common interface
   void Draw();
   int frames = 0;
   Screen screen;
@@ -23,10 +25,20 @@ struct BouncingBalls {
 struct Slideshow {
   Slideshow(const vector<string> &filenames);
   
-  void Update();
+  void Update(uint8 joy1, uint8 joy2);
   int frames = 0;
   Screen *GetScreen();
   std::vector<Screen> screens;
+};
+
+struct SNES {
+  SNES(const string &cart);
+
+  void Update(uint8 joy1, uint8 joy2);
+  Screen *GetScreen() { return &screen; }
+  Screen screen;
+ private:
+  ArcFour rc;
 };
 
 #endif

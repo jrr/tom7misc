@@ -41,24 +41,9 @@ static constexpr uint8 ntsc_palette[16 * 4 * 3] = {
 
 static constexpr uint8 cart_palettes[4 * 4] = {
   0x1d, 0x16, 0x27, 0x06,
-  // 0x00, 0x2d, 0x10, 0x20,
   0x00, 0x26, 0x36, 0x20,
   0x00, 0x06, 0x17, 0x26,
   0x00, 0x08, 0x07, 0x17,
-};
-
-// Dense r-g-b triplets.
-// TODO: to cc-lib image.h?
-struct ImageRGB {
-  ImageRGB(std::vector<uint8> rgb, int width, int height) :
-    width(width), height(height), rgb(std::move(rgb)) {}
-  static ImageRGB *Load(const string &filename);
-  ImageRGB *Clone() const {
-    return new ImageRGB(rgb, width, height);
-  }
-  const int width, height;
-  // Size width * height * 3.
-  std::vector<uint8> rgb;
 };
 
 ImageRGB *ImageRGB::Load(const string &filename) {
@@ -72,12 +57,6 @@ ImageRGB *ImageRGB::Load(const string &filename) {
   memcpy(ret.data(), stb_rgb, bytes);
   return new ImageRGB(std::move(ret), width, height);
 }
-
-enum class PaletteMethod {
-  // TODO: fixed, etc.
-  MOST_COMMON,
-  MOST_COMMON_SHUFFLED,
-};
 
 // TODO: This can be done much better, as a fancy optimization
 // problem:
@@ -152,14 +131,17 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     // Put the overall most common colors in separate
     // palettes (is this a good idea??)
 
+    #if 0
     for (int i = 0; i < 64; i++) {
       if (color_count[i].second) {
 	printf("%02x: %d\n", color_count[i].first, color_count[i].second);
       }
     }
     printf("\n");
+    #endif
 
-    // XXX There are more cases like this, like when we only have 6 colors, etc.
+    // XXX There are more cases like this, like when we only have 6
+    // colors, etc.
     if (color_count[4].second == 0) {
       // If we have only 4 colors, make sure they're in the same palette!
       // Then we just repeat that same palette 4 times. (No need for this, but
@@ -484,6 +466,7 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
       }
     }
 
+    /*
     string key{(const char *)rgb, 8 * 3};
     auto it = memo.find(key);
     if (it != memo.end()) {
@@ -503,7 +486,7 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
     } else {
       memo[key] = best;
     }
-    
+    */
     return best;
   };
 
