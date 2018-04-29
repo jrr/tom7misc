@@ -56,7 +56,8 @@ uint32 TileBlank;
 //#define __DEBUG__
 
 #ifdef __DEBUG__
-	#define DBG(b) printf(b)
+#error __DEBUG__ should be off for this build -tom7
+        #define DBG(b) printf(b)
 #else
 	#define DBG(b)
 #endif
@@ -3406,10 +3407,6 @@ _BUILD_PIXEL(RGB5551)
 
 bool8_32 S9xSetRenderPixelFormat (int format)
 {
-    extern uint32 current_graphic_format;
-
-    current_graphic_format = format;
-
     switch (format)
     {
     case RGB565:

@@ -166,7 +166,6 @@ uint32 FIRST_THIRD_COLOR_MASK = 0;
 uint32 TWO_LOW_BITS_MASK = 0;
 uint32 HIGH_BITS_SHIFTED_TWO_MASK = 0;
 
-uint32 current_graphic_format = RGB565;
 #endif
 
 uint8 GetBank = 0;
