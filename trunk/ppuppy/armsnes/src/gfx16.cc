@@ -46,7 +46,6 @@
 #include "display.h"
 #include "gfx.h"
 #include "apu.h"
-#include "cheats.h"
 #include <stdint.h>
 #include "asmmemfuncs.h"
 #include "mode7.h"
@@ -651,9 +650,6 @@ void S9xEndScreenRefresh()
 	S9xDeinitUpdate (IPPU.RenderedScreenWidth, IPPU.RenderedScreenHeight,
 			 1);
     }
-#ifndef RC_OPTIMIZED
-    S9xApplyCheats ();
-#endif
 
 
 #ifdef DEBUGGER

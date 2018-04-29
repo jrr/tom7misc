@@ -51,7 +51,6 @@
 #include "fxemu.h"
 #include "gfx.h"
 #include "soundux.h"
-#include "cheats.h"
 #include "sa1.h"
 #ifndef _SNESPPC
 //#include "netplay.h"
@@ -171,7 +170,6 @@ uint32 current_graphic_format = RGB565;
 #endif
 
 uint8 GetBank = 0;
-struct SCheatData Cheat;
 
 SoundStatus so;
 SSoundData SoundData;

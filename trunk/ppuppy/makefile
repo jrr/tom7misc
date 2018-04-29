@@ -1,7 +1,7 @@
 all : ppuppy.exe
 
-# CXX=g++
-CXX=x86_64-w64-mingw32-g++
+CXX=g++
+# CXX=x86_64-w64-mingw32-g++
 # consider O2 for releases...
 CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../cc-lib
 # XXX for windows
@@ -46,7 +46,7 @@ deconverted: deconverted/self.png deconverted/motherboard.png deconverted/mother
 
 # XXX integrate armsnes/Makefile
 # basically just need to compile with g++ -I. -Os -DHAVE_STRINGS_H -DHAVE_STDINT_H -DHAVE_INTTYPES_H -DUSE_SA1 -c -o
-ARMSNES_OBJECTS=armsnes/src/apu.o armsnes/src/apuaux.o armsnes/src/c4.o armsnes/src/c4emu.o armsnes/src/cheats.o armsnes/src/cheats2.o armsnes/src/clip.o armsnes/src/data.o armsnes/src/dsp1.o armsnes/src/fxemu.o armsnes/src/fxinst.o armsnes/src/globals.o armsnes/src/ppu.o armsnes/src/dma.o armsnes/src/memmap.o armsnes/src/cpu.o armsnes/src/cpuexec.o armsnes/src/cpuops.o armsnes/src/sa1.o armsnes/src/sa1cpu.o armsnes/src/sdd1.o armsnes/src/sdd1emu.o armsnes/src/snapshot.o armsnes/src/soundux.o armsnes/src/spc700.o armsnes/src/spc700a.o armsnes/src/srtc.o armsnes/src/spc_decode.o armsnes/src/tile16.o armsnes/src/tile16add.o armsnes/src/tile16add1_2.o armsnes/src/tile16fadd1_2.o armsnes/src/tile16sub.o armsnes/src/tile16sub1_2.o armsnes/src/tile16fsub1_2.o armsnes/src/mode7new.o armsnes/src/mode7.o armsnes/src/mode7add.o armsnes/src/mode7add1_2.o armsnes/src/mode7sub.o armsnes/src/mode7sub1_2.o armsnes/src/mode7prio.o armsnes/src/mode7addprio.o armsnes/src/mode7add1_2prio.o armsnes/src/mode7subprio.o armsnes/src/mode7sub1_2prio.o armsnes/src/gfx16.o armsnes/src/rops.o armsnes/libretro/libretro.o armsnes/libretro/memstream.o
+ARMSNES_OBJECTS=armsnes/src/apu.o armsnes/src/apuaux.o armsnes/src/c4.o armsnes/src/c4emu.o armsnes/src/clip.o armsnes/src/data.o armsnes/src/dsp1.o armsnes/src/fxemu.o armsnes/src/fxinst.o armsnes/src/globals.o armsnes/src/ppu.o armsnes/src/dma.o armsnes/src/memmap.o armsnes/src/cpu.o armsnes/src/cpuexec.o armsnes/src/cpuops.o armsnes/src/sa1.o armsnes/src/sa1cpu.o armsnes/src/sdd1.o armsnes/src/sdd1emu.o armsnes/src/snapshot.o armsnes/src/soundux.o armsnes/src/spc700.o armsnes/src/spc700a.o armsnes/src/srtc.o armsnes/src/spc_decode.o armsnes/src/tile16.o armsnes/src/tile16add.o armsnes/src/tile16add1_2.o armsnes/src/tile16fadd1_2.o armsnes/src/tile16sub.o armsnes/src/tile16sub1_2.o armsnes/src/tile16fsub1_2.o armsnes/src/mode7new.o armsnes/src/mode7.o armsnes/src/mode7add.o armsnes/src/mode7add1_2.o armsnes/src/mode7sub.o armsnes/src/mode7sub1_2.o armsnes/src/mode7prio.o armsnes/src/mode7addprio.o armsnes/src/mode7add1_2prio.o armsnes/src/mode7subprio.o armsnes/src/mode7sub1_2prio.o armsnes/src/gfx16.o armsnes/src/rops.o armsnes/libretro/libretro.o armsnes/libretro/memstream.o
 
 snestest.exe : snestest.o $(ARMSNES_OBJECTS) $(ALL_CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS) -lm
