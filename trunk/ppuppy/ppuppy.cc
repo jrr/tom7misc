@@ -18,9 +18,9 @@
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
-static constexpr bool DISABLE_INTERRUPTS = false;
+static constexpr bool DISABLE_INTERRUPTS = true;
 
-static constexpr bool SNES_DEMO = false;
+static constexpr bool SNES_DEMO = true;
 
 // Number of consecutive /RD high reads that cause us to assume vblank
 // has occurred. This has to be set high enough that the slow reads

@@ -5,7 +5,7 @@ CXX=g++
 # consider O2 for releases...
 CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../cc-lib
 # XXX for windows
-LFLAGS=-static
+LFLAGS=-static -lpthread
 
 %.o : %.cc *.h
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
