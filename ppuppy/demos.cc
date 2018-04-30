@@ -1,12 +1,15 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <thread>
 #include <mutex>
 
 #include "demos.h"
 #include "convert.h"
 
+#include "schedule.h"
 #include "armsnes/libretro/libretro.h"
 #include "threadutil.h"
 #include "util.h"
@@ -103,6 +106,8 @@ static int double_buffer = 0;
 
 // TODO: Should be some way to exit this thread, too
 void SNES::Run() {
+  ScheduleHighPriority(2);
+  printf("SNES thread at pid %d\n", getpid());
   // Thread. We don't want to run out of control, so we are locked to
   // ppuppy's vblank detection. The way we do this is to block on a
   // mutex, which is released by Update.
@@ -200,12 +205,17 @@ SNES::SNES(const string &cart) : rc("snes") {
 }
 
 void SNES::Update(uint8 joy1, uint8 joy2) {
-  MutexLock ml(&snes_mutex);
-  // Pass joystick, signal that frame is ready
-  snes_joy = joy1;
-  snes_do_frame = true;
-  double_buffer ^= 1;
-  snes_frames++;
+  {
+    MutexLock ml(&snes_mutex);
+    // Pass joystick, signal that frame is ready
+    snes_joy = joy1;
+    snes_do_frame = true;
+    double_buffer ^= 1;
+    snes_frames++;
+  }
+  if (snes_frames % 60 == 0) {
+    printf("SNES frame %d\n", snes_frames);
+  }
 }
 
 Screen *SNES::GetScreen() {
