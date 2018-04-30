@@ -36,6 +36,7 @@ struct ImageRGB {
 
 enum class PaletteMethod {
   // TODO: fixed, etc.
+  GREYSCALE,
   MOST_COMMON,
   MOST_COMMON_SHUFFLED,
 };

@@ -94,19 +94,7 @@ void __attribute__ ((noinline)) delayTicks(volatile uint32_t ticks) {
 #define KNOCK_ADDR 0x002AU
 #define KNOCK_REPLY 0x27
 
-// The four background palettes. Note: Color 0 from the first palette
-// is shared for all palettes, so we actually use color 0 from the
-// second palette to signal the fine scroll.
-#if 0
-static uint8 palette[16] = {
-  0x1f, 0x11, 0x21, 0x31,
-  0x00, 0x02, 0x12, 0x32,
-  0x00, 0x0b, 0x1b, 0x2b,
-  0x00, 0x0c, 0x1c, 0x2c,
-};
-#endif
-
-static int knox[25] = {0};
+// static int knox[25] = {0};
 
 int main(int argc, char **argv) {
 
@@ -313,7 +301,7 @@ int main(int argc, char **argv) {
 
     if (inputs & (1 << PIN_A13)) {
       // All knocks happen with A13 high.
-      knox[next_knock]++;
+      // knox[next_knock]++;
       switch (next_knock) {
       case 0:
 	if (addr == KNOCK_ADDR + 5) {
@@ -487,20 +475,21 @@ int main(int argc, char **argv) {
     
     if (!DISABLE_INTERRUPTS && frames % 60 == 0) {
       printf("%d frames. joy: %02x / %02x\n  ", frames, joy1, joy2);
-      for (int i = 0; i < 25; i++) {
-	printf("%d ", knox[i]);
-      }
+      // for (int i = 0; i < 25; i++) {
+      // printf("%d ", knox[i]);
+      // }
       printf("\n");
     }
     
     // Yield to OS. Does nothing if interrupts are disabled.
-    Yield();
 
     if (SNES_DEMO) {
       snes.Update(joy1, joy2);
     } else {
       slideshow.Update(joy1, joy2);
     }
+
+    Yield();
 
     goto next_frame;
   }

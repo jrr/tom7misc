@@ -46,6 +46,14 @@ static constexpr uint8 cart_palettes[4 * 4] = {
   0x00, 0x08, 0x07, 0x17,
 };
 
+// XXX optimize this
+static constexpr uint8 greyscale_palettes[4 * 4] = {
+  0x1d, 0x00, 0x2d, 0x30,
+  0x00, 0x10, 0x2d, 0x3d,
+  0x00, 0x00, 0x10, 0x3d,
+  0x00, 0x2d, 0x3d, 0x30,
+};
+
 ImageRGB *ImageRGB::Load(const string &filename) {
   vector<uint8> ret;
   int width, height, bpp_unused;
@@ -126,6 +134,10 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
   };
 
   switch (method) {
+  case PaletteMethod::GREYSCALE: {
+    memcpy(screen->palette, greyscale_palettes, 4 * 4);
+    break;
+  }
   case PaletteMethod::MOST_COMMON: {
     vector<pair<int, int>> color_count = ColorCount();
     // Put the overall most common colors in separate
@@ -143,10 +155,10 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     // XXX There are more cases like this, like when we only have 6
     // colors, etc.
     if (color_count[4].second == 0) {
-      // If we have only 4 colors, make sure they're in the same palette!
-      // Then we just repeat that same palette 4 times. (No need for this, but
-      // it gives us a little robustness against noise when transmitting attribute
-      // bits, at least.)
+      // If we have only 4 colors, make sure they're in the same
+      // palette! Then we just repeat that same palette 4 times. (No
+      // need for this, but it gives us a little robustness against
+      // noise when transmitting attribute bits, at least.)
       for (int i = 0; i < 4; i++) {
 	screen->palette[i +  0] = color_count[i].first;
 	screen->palette[i +  4] = color_count[i].first;
