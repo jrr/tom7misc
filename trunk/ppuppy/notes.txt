@@ -1530,6 +1530,10 @@ the next nametable read?
    decent... if I could get rid of the flashing maybe it'd be in an
    acceptable state without any new Convert code.
 
+    - Actually I think I am getting a lot of dropouts because the
+      Convert code is too slow. Even switching MakePalette to use
+      constant greyscale palette gave a noticeable speedup (still
+      plenty of jank).
 
   - noise! -
 

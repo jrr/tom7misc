@@ -98,6 +98,7 @@ static uint8 snes_joy = 0;
 // PERF store directly as 565?
 static ImageRGB snes_img{256, 240};
 static int snes_frames = 0;
+static int snes_client_frames = 0;
 static Screen screens[2];
 // Is 0 or 1. screens[double_buffer] is owned by the thread, and
 // screens[double_buffer ^ 1] is owned by ppuppy. Only the main
@@ -119,6 +120,7 @@ void SNES::Run() {
       if (snes_do_frame) {
 	// Consume the frame with the lock held.
 	snes_do_frame = false;
+	snes_client_frames++;
 	buffer_target = double_buffer;
 	break;
       }
@@ -137,7 +139,8 @@ void SNES::Run() {
     // cache the buffer target above with the lock held, because
     // if it doesn't have the value 0 or 1, we get much worse (crashy)
     // behavior here.
-    MakePalette(PaletteMethod::MOST_COMMON, &snes_img, &rc, &screens[buffer_target]);
+    MakePalette(PaletteMethod::GREYSCALE,
+		&snes_img, &rc, &screens[buffer_target]);
     FillScreenSelective(&snes_img, &screens[buffer_target]);
   }
 }
