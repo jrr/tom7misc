@@ -1533,7 +1533,14 @@ the next nametable read?
     - Actually I think I am getting a lot of dropouts because the
       Convert code is too slow. Even switching MakePalette to use
       constant greyscale palette gave a noticeable speedup (still
-      plenty of jank).
+      plenty of jank).       
+
+    - Disabling palette search (always use palette 0) made it play
+      apparently realtime. So I guess we wanna make convert much
+      faster (probably direct from 565, maybe using a table for
+      closest-color lookup?) when in SNES mode. Seems doable.
+
+    - There's still something fishy here though..
 
   - noise! -
 
@@ -1555,3 +1562,4 @@ the next nametable read?
    waiting for an interrupt to happen while it spinlocks using
    a peripheral, at the moment that I disable interrupts, which
    would be bad.
+
