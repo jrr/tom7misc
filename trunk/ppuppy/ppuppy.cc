@@ -1,5 +1,3 @@
-#include <sched.h>
-#include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
@@ -12,13 +10,14 @@
 #include "base/logging.h"
 
 #include "ppuppy.h"
+#include "schedule.h"
 #include "screen.h"
 #include "demos.h"
 #include "convert.h"
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
-static constexpr bool DISABLE_INTERRUPTS = true;
+static constexpr bool DISABLE_INTERRUPTS = false;
 
 static constexpr bool SNES_DEMO = true;
 
@@ -28,7 +27,7 @@ static constexpr bool SNES_DEMO = true;
 // themselves. But if it's too high, we'll never actually detect
 // vblank (this may cause it to hang even if interrupts are enabled
 // because it never does any kernel calls outside of vblank).
-#define DETECT_VBLANK_CYCLES 2500
+#define DETECT_VBLANK_CYCLES 4000
 
 BouncingBalls bouncing;
 
@@ -124,20 +123,8 @@ int main(int argc, char **argv) {
       return -1;
     }
   }
-  
-#if 1
-  // This magic locks our memory so that it doesn't get
-  // swapped out, which improves our scheduling latency.
-  struct sched_param sp;
-  memset(&sp, 0, sizeof(sp));
-  sp.sched_priority = sched_get_priority_max(SCHED_FIFO);
-  if (0 != sched_setscheduler(0, SCHED_FIFO, &sp)) {
-    printf("Failed to set scheduling priority...\n");
-    perror("setup: ");
-  }
-  mlockall(MCL_CURRENT | MCL_FUTURE);
-  printf("NOLOCK.\n");
-#endif
+
+  ScheduleHighPriority(3);
 
   CHECK(bcm2835_init());
 
