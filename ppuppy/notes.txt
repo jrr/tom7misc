@@ -1530,6 +1530,27 @@ the next nametable read?
    decent... if I could get rid of the flashing maybe it'd be in an
    acceptable state without any new Convert code.
 
+   I ran it in another thread. It "worked", but:
+     - It's clearly running slower than real-time. Was my benchmark
+       inaccurate because it was the opening of the game, which
+       is very graphically simple? Hmm
+     - We get a lot of glitches, I think more than for static
+       images (although it's a bit hard to distinguish it from Convert
+       noise).
+     - Sometimes the screen gets totally messed up, and all red
+       (so probably we are not responding to knocks correctly and
+       the CPU is telling us this.
+     - It does run (once at least) with disable_interrupts, which is
+       "good", although still very noisy in that condition.
+     - possibly the sched/mlock stuff is hurting us here?
+     - After playing for a while, it'll sometimes drop the ethernet
+       connection, which I think happens when interrupts are enabled
+       but ppuppy never yields to the OS (I guess it is always
+       schedulable with highest priority so it starves all other
+       tasks, including sshd?). This seems to corroborate the previous.
+     - Aha, in fact: Since these two processes share a mutex, it's
+       possible that priority inversion is happening.
+     
     - Actually I think I am getting a lot of dropouts because the
       Convert code is too slow. Even switching MakePalette to use
       constant greyscale palette gave a noticeable speedup (still
@@ -1541,6 +1562,11 @@ the next nametable read?
       closest-color lookup?) when in SNES mode. Seems doable.
 
     - There's still something fishy here though..
+
+   to do: Check that it's actually utilizing multiple cores?
+    - mlock/fifo on the snes thread (didn't make noticeable difference)
+    - set processor affinity (same)
+    - isolcpu on the CPUs we're using. (only tried #3)
 
   - noise! -
 

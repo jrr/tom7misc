@@ -85,3 +85,13 @@ http://www.onsemi.com/pub/Collateral/MC74VHCT50A-D.PDF
  - I got the SOIC-14 and some adapters for prototyping.
  https://www.mouser.com/datasheet/2/73/PA0004-981457.pdf
 
+
+cart edge:
+finger plus gap is maybe .1 inches
+
+3.3430in / 34 = 0.09832
+3.3390in / 34 = 
+84.82mm / 34 = 2.4947
+85.00mm / 34 = 2.5mm
+wide ones: 3mm trace, 
+
