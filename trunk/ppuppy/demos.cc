@@ -148,7 +148,8 @@ void SNES::Run() {
 SNES::SNES(const string &cart) : rc("snes") {
   // Thread blocks until Update allows it to run.
   snes_mutex.lock();
-
+  snes_do_frame = false;
+  
   // OK to create this thread now.
   th.reset(new std::thread(&SNES::Run, this));
   

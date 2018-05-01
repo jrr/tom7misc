@@ -1,0 +1,30 @@
+<!doctype html>
+<script>
+
+ // mm
+ const SMALLPAD_PITCH = 2.5;
+ const GAP = 0.5; 
+ const SMALLPAD_COPPER = SMALLPAD_PITCH - GAP;
+ const BIGPAD_COPPER = 3.0;
+ const LEFTMARGIN = 1.2;
+ 
+ function makepads() {
+   let top = '';
+   let bot = '';
+
+   let next_x = LEFTMARGIN;
+   for (let i = 0; i < 36; i++) {
+     let w = (i == 0 || i == 35) ? BIGPAD_COPPER : SMALLPAD_COPPER;
+     // next_x gives the left edge, but we need the center.
+     let cx = next_x + (w / 2);
+     top += '  (pad ' + (i + 1) + ' connect rect ' +
+	    '(at ' + cx.toFixed(3) + ' -6.35) (size ' + w.toFixed(3) + ' 12.7) (layers F.Cu F.Mask Eco1.User))\n'
+     bot += '  (pad ' + (i + 37) + ' connect rect ' +
+	    '(at ' + cx.toFixed(3) + ' -6.35) (size ' + w.toFixed(3) + ' 12.7) (layers B.Cu B.Mask Eco2.User))\n'
+     next_x += w + GAP;
+   }
+
+   return top + bot;
+ }
+ 
+</script>
