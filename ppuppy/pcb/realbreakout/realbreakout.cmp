@@ -1,0 +1,155 @@
+Cmp-Mod V01 Created by PcbNew   date = 5/1/2018 12:34:07 AM
+
+BeginCmp
+TimeStamp = 5AC19927
+Path = /5AC25968
+Reference = J2;
+ValeurCmp = Conn_01x36;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x36_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADB6177
+Path = /5ADB7F2F
+Reference = U6;
+ValeurCmp = MC74VHCT50A;
+IdModule  = Housings_SOIC:SOIC-14_3.9x8.7mm_Pitch1.27mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5AC6E5B4
+Path = /5AC6E39D
+Reference = U3;
+ValeurCmp = nescic;
+IdModule  = Housings_DIP:DIP-16_W7.62mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5AC198FF
+Path = /5AC258A5
+Reference = J1;
+ValeurCmp = Conn_01x36;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x36_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5AC1994F
+Path = /5AC254CB
+Reference = J3;
+ValeurCmp = Conn_01x36;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x36_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5AC1A3FF
+Path = /5AC26215
+Reference = U2;
+ValeurCmp = piheader;
+IdModule  = Pin_Headers:Pin_Header_Straight_2x20_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5AC43E5C
+Path = /5AC43D48
+Reference = E1;
+ValeurCmp = GLS29EE010;
+IdModule  = Housings_DIP:DIP-32_W15.24mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADA8722
+Path = /5ADA99F5
+Reference = U4;
+ValeurCmp = CD74FCT245;
+IdModule  = Housings_DIP:DIP-20_W7.62mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADA886B
+Path = 
+Reference = G***;
+ValeurCmp = LOGO;
+IdModule  = footprints:logo;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADB6165
+Path = /5ADB7FE0
+Reference = U5;
+ValeurCmp = MC74VHCT50A;
+IdModule  = Housings_SOIC:SOIC-14_3.9x8.7mm_Pitch1.27mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD4556
+Path = /5ADD45DE
+Reference = J4;
+ValeurCmp = BCM25;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD455B
+Path = /5ADD43A7
+Reference = J5;
+ValeurCmp = BCM24;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD4560
+Path = /5ADD4C20
+Reference = J6;
+ValeurCmp = BCM27;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD4565
+Path = /5ADD4DE4
+Reference = J7;
+ValeurCmp = 3V;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD456A
+Path = /5ADD4E5F
+Reference = J8;
+ValeurCmp = GND;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5AC1999B
+Path = /5AC25423
+Reference = U1;
+ValeurCmp = nescartheader;
+IdModule  = footprints:cartedge;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD5708
+Path = /5ADD629E
+Reference = J9;
+ValeurCmp = BCM10;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD570D
+Path = /5ADD6490
+Reference = J10;
+ValeurCmp = BCM11;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+BeginCmp
+TimeStamp = 5ADD5712
+Path = /5ADD5E6F
+Reference = J11;
+ValeurCmp = BCM13;
+IdModule  = Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm;
+EndCmp
+
+EndListe

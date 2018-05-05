@@ -12,6 +12,7 @@ Stuff still to figure out / achieve:
      input should be 5v tolerant, and it will be slightly better synchronized
      with the actual bus (right?)
  [ ] Flow for talk
+ [x] wing-it dry run
  [ ] Slides
  [x] Measure proper footprint/keepout of PCB
  [x] Order boards
@@ -21,11 +22,17 @@ Stuff still to figure out / achieve:
  [ ] Assemble and test a board
  [ ] Make backup offline versions of slides
  [ ] Make demo and a video of it, in case it breaks!
-
+ [ ] try filter capacitors
+ [ ] scan converter working
+ [ ] 
+ [ ] slide metadata / parser
+ [ ] non-hostile version of cart.nes (doesn't make screen red etc.)
+ 
 Icing:
- [ ] Version of PCB with keepout/drill for center screw?
+ [x] Version of PCB with keepout/drill for center screw?
  [ ] "fine tune" controls for timing, accessible from controller?
  [ ] on-screen laser pointer during slideshow mode (sprite?)
+ [ ] music??
 
 Backup plans:
  [ ] Second pi renders SNES frames, and just sends them to "video" pi
