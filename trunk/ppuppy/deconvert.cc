@@ -75,7 +75,25 @@ ImageRGBA Deconvert(const Screen &screen) {
     }
   }
 
-  // Show palettes
+  auto IsBlack = [](int nes_color) {
+    switch (nes_color) {
+    case 0x0d:
+    case 0x1d:
+    case 0x0e:
+    case 0x1e:
+    case 0x2e:
+    case 0x3e:
+    case 0x0f:
+    case 0x1f:
+    case 0x2f:
+    case 0x3f:
+      return true;
+    default:
+      return false;
+    }
+  };
+  
+  // Show palettes at the bottom.
   for (int p = 0; p < 4; p ++) {
     const int yy = 256 - 14;
     for (int i = 0; i < 4; i++) {
@@ -83,19 +101,31 @@ ImageRGBA Deconvert(const Screen &screen) {
 	i == 0 ?
 	screen.palette[0] :
 	screen.palette[p * 4 + i];
+      bool is_black = IsBlack(nes_color);
       uint8 r = ntsc_palette[nes_color * 3 + 0];
       uint8 g = ntsc_palette[nes_color * 3 + 1];
       uint8 b = ntsc_palette[nes_color * 3 + 2];
 
       const int xx = 2 + p * 67 + i * 13;
+
       for (int y = 0; y < 12; y++) {
 	for (int x = 0; x < 12; x++) {
 	  int idx = ((yy + y) * 256 + xx + x) * 4;
-	  rgba[idx + 0] = r;
-	  rgba[idx + 1] = g;
-	  rgba[idx + 2] = b;
+	  if (is_black && (y == 0 || x == 0 || y == 11 || x == 11)) {
+	    rgba[idx + 0] = 0xFF;
+	    rgba[idx + 1] = 0xFF;
+	    rgba[idx + 2] = 0xFF;
+	  } else {
+	    rgba[idx + 0] = r;
+	    rgba[idx + 1] = g;
+	    rgba[idx + 2] = b;
+	  }
 	}
       }
+
+      // If the color is very dark, draw a border
+      // around it
+      
     }
   }
 

@@ -46,4 +46,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
 
 void FillScreenSelective(ImageRGB *img, Screen *screen);
 
+// for SNES demo. PERF: Use 565 as input!
+void FillScreenFast(ImageRGB *img, Screen *screen);
+
 #endif

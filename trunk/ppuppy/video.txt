@@ -1,11 +1,28 @@
 
+Slides TODO:
+ [ ] title slide
+ [ ] photosensitivity warning
+ [ ] learnfun/playfun
+ [x] arst arsw
+ [x] abc.exe
+ [ ] entire screen?
+ [ ] 
+
+ [x] motherboard
+    ...
+ [x] cart closed
+ [ ] cart showing prg/chr roms
+
+ [ ] thanks / @tom7
+
 
 Overall arc:
   Introduction
    -> get weird
    -> photosensitivity warning
-   -> credentials
+   -> credentials / where I'm coming from
    -> emotional rollercoaster?
+   
    -> software/hardware, funny, connections
    -> this funny concept of "improper hierarchy"
 
@@ -13,11 +30,22 @@ Overall arc:
    -> describe the NES, just enough to explain
       the technical contribution
    -> bicameral mind
-   -> 
+   -> emulation.
+   -> in addition to being literally "retro", emulation
+      is like the joke of "retro"
   Demonstration
 
+  Future work
+   -> sound
+   -> reverse emulating the CPU
   Big ideas
-
+   -> so this is a nice way to honor hardware that I have
+      some nostalgia for. It's not really that useful,
+      which I completely admit. But I think in addition
+      to being this idea that you might see elsewhere,
+      like security, it could tell us something about
+   -> so I just wanna leave you with a "big idea" about
+      how this 
 
 
 self-reference is not itself funny. "Hi, my name is Tom."
@@ -30,7 +58,7 @@ mario eating a boot is not funny
 mario eating tide pods
 or better yet,  samus eating tide pods
 
-emotional rollercoaster
+emotional rollercoaster / meta spoilers
  - First I'm going to tell you something that sounds impressive,
    then you will be disappointed when you find out I "cheated",
    then you will perhaps be impressed again when you find out
@@ -49,10 +77,17 @@ emotional rollercoaster
 
 * improper hierarchy
  - actually anachronism is an example
- - the extreme example of this is a "loop" (maybe even a "strange loop")
+ - the extreme example of this is a "loop" (hofstadter calls
+   this a "strange loop")
  - e.g. a quine,
  - Y combinator
  - but improper hierarchy is a more general case.
+ - venn diagram
+      - (is this a hierarchy itself that we could violate?)
+      - also self-promotion pro-tip: Look how I can now just
+        put my name next to these geniuses and draw an implicit
+        parallel!
+      - also look how big my venn blob is?!
  - many examples (these need fleshing out!)
     - compiler
     - 64-bit windows 7 running on VirtualBox on windows 2000.
@@ -111,3 +146,12 @@ does mod come up? use upside-down POW block.
  - Persistence of vision = bus capacitance
  - remember the ABCs but it's something else
  - mother brain
+
+
+First "wing it" version:
+ - intro: 22m09s
+ - how nes works: 19m10s
+ - reverse emulating it: 30m31s
+ - getting inputs, security, conclusion: 38m40s
+
+cool so only 110 minutes, 4.4x the requested length (:

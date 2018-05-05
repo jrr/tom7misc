@@ -39,13 +39,6 @@ static constexpr uint8 ntsc_palette[16 * 4 * 3] = {
   0x99,0xFF,0xFC, 0xDD,0xDD,0xDD, 0x11,0x11,0x11, 0x11,0x11,0x11,
 };
 
-static constexpr uint8 cart_palettes[4 * 4] = {
-  0x1d, 0x16, 0x27, 0x06,
-  0x00, 0x26, 0x36, 0x20,
-  0x00, 0x06, 0x17, 0x26,
-  0x00, 0x08, 0x07, 0x17,
-};
-
 // XXX optimize this
 static constexpr uint8 greyscale_palettes[4 * 4] = {
   0x1d, 0x00, 0x2d, 0x30,
@@ -445,9 +438,9 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
     return {best_i, best_sqerr};
   };
 
-  std::unordered_map<string, std::tuple<uint8, uint8, uint8>> memo;
+  // std::unordered_map<string, std::tuple<uint8, uint8, uint8>> memo;
   
-  auto OneStrip = [&ClosestColor, &memo](
+  auto OneStrip = [&ClosestColor /* , &memo */](
       // 8x3 bytes, rgb triplets
       const uint8 *rgb) -> std::tuple<uint8, uint8, uint8> {
 
@@ -536,6 +529,88 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
   }
 }
 
+// This version is for real-time mapping of screen images, e.g.
+// from the SNES emulator.
+void FillScreenFast(ImageRGB *img, Screen *screen) {
+  // Two-bit color index within palette #pal that matches the
+  // RGB color best.
+  auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
+    std::tuple<int, int> {
+    int best_sqerr = 65536 * 3 + 1;
+    int best_i = 0;
+    for (int i = 0; i < 4; i++) {
+      // Index within the nes color gamut.
+      int nes_color = screen->palette[pal * 4 + i];
+      // int nes_color = i == 0 ? screen->palette[0] :
+      // screen->palette[pal * 4 + i];
+      int rr = ntsc_palette[nes_color * 3 + 0];
+      int gg = ntsc_palette[nes_color * 3 + 1];
+      int bb = ntsc_palette[nes_color * 3 + 2];
+      int dr = r - rr, dg = g - gg, db = b - bb;
+      int sqerr = dr * dr + dg * dg + db * db;
+      if (sqerr < best_sqerr) {
+	best_i = i;
+	best_sqerr = sqerr;
+      }
+    }
+
+    // TODO: Also keep per-color error to propagate?
+    return {best_i, best_sqerr};
+  };
+
+  // Any way to avoid searching all four palettes?
+  auto OneStrip = [&ClosestColor](
+      // 8x3 bytes, rgb triplets
+      const uint8 *rgb) -> std::tuple<uint8, uint8, uint8> {
+    
+    // Try all four palettes, to minimize this total error.
+    int best_totalerror = 0x7FFFFFFE;
+    std::tuple<uint8, uint8, uint8> best;
+    for (int pal = 0; pal < 4; pal++) {
+      int totalerror = 0;
+      uint8 lobits = 0, hibits = 0;
+      for (int x = 0; x < 8; x++) {
+	uint8 r = rgb[x * 3 + 0];
+	uint8 g = rgb[x * 3 + 1];
+	uint8 b = rgb[x * 3 + 2];
+
+	// Each pixel must be one of the four selected colors.
+	// So compute the closest.
+	int p, err;
+	std::tie(p, err) = ClosestColor(pal, r, g, b);
+	totalerror += err;
+
+	lobits <<= 1; lobits |= (p & 1);
+	hibits <<= 1; hibits |= ((p >> 1) & 1);
+      }
+
+      if (pal == 0 || totalerror < best_totalerror) {
+	best = {(uint8)pal, lobits, hibits};
+	best_totalerror = totalerror;
+      }
+    }
+
+    return best;
+  };
+
+  for (int scanline = 0; scanline < 240; scanline++) {
+    for (int col = 0; col < 32; col++) {
+      int idx = scanline * 32 + col;
+      const uint8 *strip = img->rgb.data() + idx * 8 * 3;
+      uint8 pal, lobits, hibits;
+      std::tie(pal, lobits, hibits) = OneStrip(strip);
+
+      uint8 attr = pal | (pal << 2);
+      attr = attr | (attr << 4);
+
+      screen->attr[idx] = attr;
+      screen->color_lo[idx] = lobits;
+      screen->color_hi[idx] = hibits;
+    }
+  }
+}
+
+
 static std::unique_ptr<ImageRGB> Load(const string &filename) {
   std::unique_ptr<ImageRGB> img(ImageRGB::Load(filename));
   CHECK(img != nullptr) << filename;
@@ -553,7 +628,6 @@ Screen ScreenFromFileDithered(const string &filename) {
   FillScreenDithered(img.get(), &screen);
   return screen;
 }
-
 
 Screen ScreenFromFile(const string &filename) {
   std::unique_ptr<ImageRGB> img = Load(filename);
