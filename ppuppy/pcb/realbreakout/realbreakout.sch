@@ -175,9 +175,9 @@ F 3 "" H 6950 4100 60  0001 C CNN
 	1    6950 4100
 	0    1    1    0   
 $EndComp
-Text GLabel 7450 3700 1    60   Input ~ 0
+Text GLabel 7450 3600 1    60   Input ~ 0
 GND
-Text GLabel 8350 4550 3    60   Input ~ 0
+Text GLabel 8350 4650 3    60   Input ~ 0
 5v
 Text GLabel 2150 1550 1    60   Input ~ 0
 GND
@@ -213,13 +213,13 @@ F 3 "" H 8900 2800 60  0001 C CNN
 	1    8900 2800
 	0    1    1    0   
 $EndComp
-Text GLabel 9900 1700 3    60   Input ~ 0
+Text GLabel 9900 1800 3    60   Input ~ 0
 3v
-Text GLabel 9850 3250 3    60   Input ~ 0
+Text GLabel 9850 3350 3    60   Input ~ 0
 3v
-Text GLabel 9250 2350 1    60   Input ~ 0
+Text GLabel 9250 2250 1    60   Input ~ 0
 GND
-Text GLabel 9300 800  1    60   Input ~ 0
+Text GLabel 9150 800  0    60   Input ~ 0
 GND
 Wire Wire Line
 	3200 2550 3200 4000
@@ -902,7 +902,7 @@ Text GLabel 4700 4700 1    60   Input ~ 0
 GND
 Text GLabel 5100 4700 1    60   Input ~ 0
 3v
-Text GLabel 8250 4550 3    60   Input ~ 0
+Text GLabel 8250 5400 3    60   Input ~ 0
 3vRD
 Wire Wire Line
 	10250 550  10250 3450
@@ -910,7 +910,7 @@ Wire Wire Line
 	10250 3450 9750 3450
 Wire Wire Line
 	9750 3450 9750 3250
-Text Label 10250 800  0    60   ~ 0
+Text Label 10250 2050 0    60   ~ 0
 5vRD
 Text Label 1900 3300 0    60   ~ 0
 ROMSEL
@@ -1042,4 +1042,97 @@ Wire Wire Line
 	3350 4600 5000 4600
 Wire Wire Line
 	5000 4600 5000 4700
+$Comp
+L C .1uf2
+U 1 1 5AE8FA00
+P 10350 2800
+F 0 ".1uf2" H 10375 2900 50  0000 L CNN
+F 1 "C" H 10375 2700 50  0000 L CNN
+F 2 "Capacitors_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" H 10388 2650 50  0001 C CNN
+F 3 "" H 10350 2800 50  0001 C CNN
+	1    10350 2800
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	9850 3350 9850 3250
+Connection ~ 9850 3300
+Wire Wire Line
+	9850 3300 10350 3300
+Wire Wire Line
+	10350 3300 10350 2950
+Wire Wire Line
+	9250 2250 9250 2350
+Connection ~ 9250 2300
+Wire Wire Line
+	9250 2300 10350 2300
+Wire Wire Line
+	10350 2300 10350 2650
+Wire Wire Line
+	9150 800  9300 800 
+Connection ~ 9200 800 
+$Comp
+L C .1uf3
+U 1 1 5AE9096D
+P 10450 1000
+F 0 ".1uf3" H 10475 1100 50  0000 L CNN
+F 1 "C" H 10475 900 50  0000 L CNN
+F 2 "Capacitors_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" H 10488 850 50  0001 C CNN
+F 3 "" H 10450 1000 50  0001 C CNN
+	1    10450 1000
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	9900 1800 9900 1700
+Connection ~ 9900 1750
+Wire Wire Line
+	9900 1750 10450 1750
+Wire Wire Line
+	10450 1750 10450 1150
+Wire Wire Line
+	10450 850  10450 750 
+Wire Wire Line
+	10450 750  9200 750 
+Wire Wire Line
+	9200 750  9200 800 
+Wire Wire Line
+	8350 4650 8350 4550
+Wire Wire Line
+	7450 3700 7450 3600
+Connection ~ 7450 3650
+Connection ~ 8350 4600
+$Comp
+L C .1uf1
+U 1 1 5AE9161B
+P 8950 4100
+F 0 ".1uf1" H 8975 4200 50  0000 L CNN
+F 1 "C" H 8975 4000 50  0000 L CNN
+F 2 "Capacitors_THT:C_Disc_D5.0mm_W2.5mm_P5.00mm" H 8988 3950 50  0001 C CNN
+F 3 "" H 8950 4100 50  0001 C CNN
+	1    8950 4100
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	7450 3650 8950 3650
+Wire Wire Line
+	8950 3650 8950 3950
+Wire Wire Line
+	8350 4600 8950 4600
+Wire Wire Line
+	8950 4600 8950 4250
+$Comp
+L Conn_01x01 J12
+U 1 1 5AE92E68
+P 8500 5050
+F 0 "J12" H 8500 5150 50  0000 C CNN
+F 1 "/OE" H 8500 4950 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x01_Pitch2.54mm" H 8500 5050 50  0001 C CNN
+F 3 "" H 8500 5050 50  0001 C CNN
+	1    8500 5050
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	8250 4550 8250 5400
+Wire Wire Line
+	8300 5050 8250 5050
+Connection ~ 8250 5050
 $EndSCHEMATC
