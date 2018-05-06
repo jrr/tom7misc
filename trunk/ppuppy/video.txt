@@ -7,12 +7,43 @@ Slides TODO:
  [x] abc.exe
  [ ] entire screen?
  [ ] 
+     what is funny?
+ [x] retro mario boot
+ [x] anachronism samus
+ [ ]
+
+ [ ] improper hierarchy venn
 
  [x] motherboard
     ...
  [x] cart closed
- [ ] cart showing prg/chr roms
+ [x] cart showing prg/chr roms
+ [x] cart showing bicameral
+ [x] cart showing freespace
 
+ [x] emulation
+ [x] reverse emulation
+
+ [x] pi zero w
+
+ [ ] fantasy schematic
+ [ ] this behavior is required by law!
+
+ [ ]
+
+ [ ] security hax 1: hdd controller
+ [ ] security hax 2: one trace
+
+ [ ] demonstration
+ [ ] future work:
+ [ ]  sound
+ [ ]  reverse emulating the CPU
+
+ [ ] big ideas
+ [ ] mother brain neural implant
+  [ ] this behavior is required by law!
+    [ ] galactic federal law [-:
+ [ ] ABCs
  [ ] thanks / @tom7
 
 
@@ -67,6 +98,9 @@ emotional rollercoaster / meta spoilers
    and then you might be happy again to discover that it's not
    really "cheating"
 
+
+I'm pretty old. Like I think of subversion as the new good
+version of CVS.
 
 * hardware
  - I figured out why it's called "hard"-ware

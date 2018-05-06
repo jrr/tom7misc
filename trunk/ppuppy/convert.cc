@@ -15,7 +15,11 @@
 #include "randutil.h"
 #include "stb_image.h"
 
+#include "color-util.h"
+
 using namespace std;
+
+#define DEBUG_CONVERT false
 
 // The NES NTSC palette, as RGB triplets.
 // This is what FCEUX uses, but it's notoriously not that
@@ -39,6 +43,73 @@ static constexpr uint8 ntsc_palette[16 * 4 * 3] = {
   0x99,0xFF,0xFC, 0xDD,0xDD,0xDD, 0x11,0x11,0x11, 0x11,0x11,0x11,
 };
 
+static constexpr float ntsc_lab[16 * 4 * 3] = {
+  53.585022, -5.036026, -3.45214605,
+  29.6371155, 23.5529995, -64.6291656,
+  22.1817055, 51.3155174, -83.1460953,
+  21.6919403, 51.9620781, -67.5401611,
+  34.7772865, 56.5841637, -9.21894932,
+  41.6881104, 61.8053665, 36.4953918,
+  38.8516502, 57.5118523, 51.9031296,
+  29.8871269, 42.671814, 42.0424538,
+  24.6677055, 14.0535984, 34.0312424,
+  24.8467712, -33.0162354, 31.6361389,
+  26.5329819, -36.912693, 32.9891815,
+  25.8723679, -29.6362038, 7.73772001,
+  25.9787941, -5.94152498, -29.6009541,
+  0, 0, 0,
+  1.3708744, -0.292673707, -0.209954381,
+  1.3708744, -0.292673707, -0.209954381,
+  80.242836, -6.96530914, -4.77465391,
+  52.2979355, 19.0739632, -80.3804016,
+  44.2866783, 41.6147118, -93.452034,
+  44.7721748, 64.4654007, -89.550148,
+  55.1095657, 72.6896515, -31.6253185,
+  55.5146027, 70.555954, 31.0264759,
+  54.4606781, 70.1910553, 66.0955734,
+  47.7291031, 55.7880402, 58.6518517,
+  52.3695831, 29.0082703, 59.2190552,
+  47.2285843, -46.9250374, 49.4496765,
+  51.4687653, -59.6319427, 52.325016,
+  50.4893646, -49.0196342, 16.9233494,
+  59.1028366, -20.5771923, -40.2964363,
+  12.7400093, -2.07997847, -1.42580569,
+  2.46757317, -0.526808202, -0.37792027,
+  2.46757317, -0.526808202, -0.37792027,
+  100, -8.39516544, -5.75482845,
+  79.5664062, -35.8837852, -37.3016472,
+  66.5662918, 2.38218904, -57.3839912,
+  67.0186462, 46.5845757, -56.1123734,
+  63.3363342, 78.6822739, -54.7360306,
+  63.0771408, 56.4725418, 5.66347837,
+  68.833313, 32.8926735, 60.0371552,
+  72.9486847, 21.8501987, 73.0660019,
+  79.8405075, 3.08528543, 74.9064636,
+  83.0937271, -53.1411476, 77.272377,
+  83.487999, -84.017128, 68.1383362,
+  84.5216599, -71.0992203, 19.2921867,
+  89.9704437, -53.1529198, -21.5552559,
+  39.9040565, -4.04590368, -2.77342796,
+  3.63551331, -0.776149333, -0.556796789,
+  3.63551331, -0.776149333, -0.556796789,
+  100, -8.39516544, -5.75482845,
+  93.8587341, -32.5998077, -15.3859377,
+  90.2255249, -21.1581593, -20.7108269,
+  76.0879745, 21.1688271, -30.7985191,
+  79.6751785, 36.4523811, -32.7660217,
+  78.2541122, 24.4877644, 4.16406393,
+  87.2370834, 3.41114402, 18.3364506,
+  94.2046661, -12.8216152, 32.9156532,
+  96.0729752, -17.9438, 40.4084816,
+  89.0784988, -25.8738098, 34.4339981,
+  87.8568878, -41.1373062, 18.6791782,
+  89.9726181, -36.701889, -1.31937265,
+  94.0189896, -37.879406, -13.6184578,
+  88.115448, -7.53507042, -5.16521931,
+  5.0633297, -1.08097494, -0.77547431,
+  5.0633297, -1.08097494, -0.77547431,
+};
+
 // XXX optimize this
 static constexpr uint8 greyscale_palettes[4 * 4] = {
   0x1d, 0x00, 0x2d, 0x30,
@@ -57,6 +128,11 @@ ImageRGB *ImageRGB::Load(const string &filename) {
   ret.resize(bytes);
   memcpy(ret.data(), stb_rgb, bytes);
   return new ImageRGB(std::move(ret), width, height);
+}
+
+static constexpr inline float ByteFloat(uint8 ch) {
+  constexpr float inv255 = 1.0f / 255.0f;
+  return ch * inv255;
 }
 
 // TODO: This can be done much better, as a fancy optimization
@@ -79,12 +155,54 @@ ImageRGB *ImageRGB::Load(const string &filename) {
 void MakePalette(PaletteMethod method, const ImageRGB *img,
 		 ArcFour *rc, Screen *screen) {
 
+  // Initialize the table. XXX just make this constexpr.
+#if 0
+  float ntsc_lab[16 * 4 * 3];
+  for (int nes_color = 0; nes_color < 16 * 4; nes_color++) {
+    int rr = ntsc_palette[nes_color * 3 + 0];
+    int gg = ntsc_palette[nes_color * 3 + 1];
+    int bb = ntsc_palette[nes_color * 3 + 2];
+    float il, ia, ib;
+    ColorUtil::RGBToLAB(ByteFloat(rr), ByteFloat(gg), ByteFloat(bb),
+			&il, &ia, &ib);
+    ntsc_lab[nes_color * 3 + 0] = il;
+    ntsc_lab[nes_color * 3 + 1] = ia;
+    ntsc_lab[nes_color * 3 + 2] = ib;
+  }
+
+  for (int nes_color = 0; nes_color < 16 * 4; nes_color++) {
+    printf("%.9g, %.9g, %.9g,  \n",
+	   ntsc_lab[nes_color * 3 + 0],
+	   ntsc_lab[nes_color * 3 + 1],
+	   ntsc_lab[nes_color * 3 + 2]);
+  }
+#endif
+  
   // Get the single closest NES color.
-  auto ClosestColor = [](int r, int g, int b) -> int {
-    // XXX TODO: use LAB DeltaE. But that is much more expensive...
-    int best_sqerr = 65536 * 3 + 1;
+  auto ClosestColor = [](int r, int g, int b) -> uint8 {
+    float sl, sa, sb;
+    ColorUtil::RGBToLAB(ByteFloat(r), ByteFloat(g), ByteFloat(b),
+			&sl, &sa, &sb);
+    // int best_sqerr = 65536 * 3 + 1;
+    float best_delta_e = 65536.0;
     int best_i = 0;
     for (int nes_color = 0; nes_color < 64; nes_color++) {
+      // Don't even consider 1d, 0e, 1e, 2e, 3e, 0f, 1f, 2f, 3f,
+      // since these are all black (we use 0d for that).
+      const int cm = nes_color & 0x0f;
+      if (cm == 0x0e || cm == 0x0f || nes_color == 0x1d)
+	continue;
+
+      float nl = ntsc_lab[nes_color * 3 + 0];
+      float na = ntsc_lab[nes_color * 3 + 1];
+      float nb = ntsc_lab[nes_color * 3 + 2];
+      float delta_e = ColorUtil::DeltaE(sl, sa, sb, nl, na, nb);
+      if (delta_e < best_delta_e) {
+	best_i = nes_color;
+	best_delta_e = delta_e;
+      }
+      
+      /*
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];
@@ -94,6 +212,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
 	best_i = nes_color;
 	best_sqerr = sqerr;
       }
+      */
     }
 
     return best_i;
@@ -102,6 +221,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
   auto ColorCount = [img, &ClosestColor]() ->
     vector<pair<int, int>> {
     vector<int> was_best;
+    was_best.reserve(64);
     for (int i = 0; i < 64; i++) was_best.push_back(0);
     for (int i = 0; i < img->width * img->height; i++) {
       uint8 r = img->rgb[i * 3 + 0];
@@ -126,9 +246,251 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     return color_count;
   };
 
+  // XXX: But imagine that we have rainbow strips with 8 distinct
+  // colors, repeated often. These will overtake our bigram count, but
+  // there's no point in putting all the colors in our palette (unless
+  // maybe doing dithering), since we can use at most four at a time.
+  // Perhaps better is to just make palettes of 3 or 4 (most occurring
+  // or least-loss colors for a strip), and count those.
+  CHECK(img->width % 8 == 0);
+  auto BigramCount = [img, &ClosestColor]() ->
+    // Most common bigrams, in descending order by frequency.
+    // Key is pair of colors (c1, c2) cooccurring in an
+    // 8x1 strip (not necessarily adjacent!), with c1 <= c2.
+    vector<pair<pair<uint8, uint8>, int>> {
+    auto Key = [](uint8 c1, uint8 c2) -> int {
+      if (c1 <= c2) {
+	return c1 * 64 + c2;
+      } else {
+	return c2 * 64 + c1;
+      }
+    };
+    auto UnKey = [](int i) -> pair<uint8, uint8> {
+      return make_pair(i / 64, i % 64);
+    };
+
+    vector<int> was_best;
+    was_best.reserve(64 * 64);
+    for (int i = 0; i < 64 * 64; i++) was_best.push_back(0);
+    
+    for (int strip = 0; strip < img->width * img->height; strip += 8) {
+      // Closest color for a pixel in the strip.
+      auto CC = [strip, img, &ClosestColor](int i) -> uint8 {
+	const uint8 r = img->rgb[(strip + i) * 3 + 0];
+	const uint8 g = img->rgb[(strip + i) * 3 + 1];
+	const uint8 b = img->rgb[(strip + i) * 3 + 2];
+	return ClosestColor(r, g, b);
+      };
+
+      uint8 cs[8];
+      for (int i = 0; i < 8; i++)
+	cs[i] = CC(i);
+
+      // Now, insert all pairs.
+      for (int i = 0; i < 7; i++) {
+	for (int j = i + 1; j < 8; j++) {
+	  was_best[Key(cs[i], cs[j])]++;
+	}
+      }
+    }
+
+    // Now find the most common bigrams.
+    // PERF faster ways to do this!
+    vector<pair<pair<uint8, uint8>, int>> color_count;
+    color_count.reserve(64);
+    for (int i = 0; i < was_best.size(); i++)
+      color_count.push_back(make_pair(UnKey(i), was_best[i]));
+    std::sort(color_count.begin(),
+	      color_count.end(),
+	      [](const pair<pair<uint8, uint8>, int> &a,
+		 const pair<pair<uint8, uint8>, int> &b) {
+		// Descending by count.
+		return b.second < a.second;
+	      });
+    return color_count;
+  };
+
+  
+  
   switch (method) {
   case PaletteMethod::GREYSCALE: {
     memcpy(screen->palette, greyscale_palettes, 4 * 4);
+    break;
+  }
+  case PaletteMethod::GREEDY_BIGRAMS: {
+    vector<pair<pair<uint8, uint8>, int>> bigram_count = BigramCount();
+
+    // Get the overall most common color, which should be the background
+    // color. (This is not always optimal, but a good policy..)
+    int was_best[64] = {0};
+    for (const pair<pair<uint8, uint8>, int> &p : bigram_count) {
+      was_best[p.first.first] += p.second;
+      was_best[p.first.second] += p.second;
+    }
+
+    // Find the single best with a linear scan;
+    int best_count = was_best[0];
+    int besti = 0;
+    for (int i = 1; i < 64; i++) {
+      if (was_best[i] > best_count) {
+	best_count = was_best[i];
+	besti = i;
+      }
+    }
+      
+    #if 0
+    for (int i = 0; i < bigram_count.size(); i++) {
+      if (bigram_count[i].second) {
+	printf("%02x/%02x: %d\n", bigram_count[i].first.first,
+	       bigram_count[i].first.second, bigram_count[i].second);
+      }
+    }
+    printf("Overall most common: %02x\n", besti);
+    printf("\n");
+    #endif
+
+    // For each color index, in which palettes does it already appear?
+    vector<vector<int>> palettes;
+    palettes.resize(64);
+    
+    // Initialize each palette to contain just the background color.
+    const int bg = besti;
+    screen->palette[0] = bg;
+    screen->palette[4] = bg;
+    screen->palette[8] = bg;
+    screen->palette[12] = bg;
+
+    palettes[bg] = {0, 1, 2, 3};
+    
+    // Loop until we've used up all our slots.
+    int colors_left = 4 * 3;
+    // Next free index in each palette.
+    int nextp[4] = {1, 1, 1, 1};
+    
+    // Now populate the palette. For each bigram, if there's space in
+    // a palette that already has one of the two colors, add it there.
+    // Otherwise, insert both colors in a palette with space.
+    for (int row_idx = 0; row_idx < bigram_count.size(); row_idx++) {
+      #if 0
+      for (int p = 0; p < 4; p++) {
+	CHECK(nextp[p] <= 4);
+	CHECK(nextp[p] >= 0);
+	for (int i = 0; i < 4; i++) {
+	  if (i < nextp[p])
+	    printf("%02x ", screen->palette[p * 4 + i]);
+	  else
+	    printf("_ ");
+	}
+	printf(" | ");
+      }
+      printf("\n");
+      #endif
+
+      const auto &row = bigram_count[row_idx];
+      if (row.second == 0) {
+	printf("*** All bigrams done.\n");
+	break;
+      }
+      if (colors_left == 0) {
+	#if 0
+	printf("\n*** Bigrams left:\n");
+	for (int i = row_idx; i < bigram_count.size(); i++) {
+	  if (bigram_count[i].second) {
+	    printf("* %02x/%02x: %d\n", bigram_count[i].first.first,
+		   bigram_count[i].first.second, bigram_count[i].second);
+	  }
+	}
+	#endif
+	break;
+      }
+      
+      auto PlaceSingleton = [screen, &nextp, &palettes, &colors_left](
+	  uint8 c) {
+	for (int p = 0; p < 4; p++) {
+	  if (nextp[p] != 4) {
+	    screen->palette[p * 4 + nextp[p]] = c;
+	    nextp[p]++;
+	    palettes[c].push_back(p);
+	    if (DEBUG_CONVERT) printf("Placed singleton %02x in %d\n", c, p);
+	    colors_left--;
+	    return true;
+	  }
+	}
+	return false;
+      };
+	
+      // We don't care about the count any more, just the colors.
+      const uint8 c1 = row.first.first;
+      const uint8 c2 = row.first.second;
+      if (DEBUG_CONVERT) printf("Next: %02x %02x\n", c1, c2);
+      if (c1 == c2) {
+	// Here we're just inserting a single color.
+	if (!palettes[c1].empty()) {
+	  // Already present.
+	  goto next_bigram;
+	}
+
+	// XXX would be a little better to allocate singletons at the
+	// end (but reserve space for them), since we might later see
+	// a bigram that involves that singleton (and prefer to place
+	// them together).
+	// Otherwise, put it in some palette.
+	// Will succeed since colors_left > 0.
+	(void)PlaceSingleton(c1);
+	
+      } else {
+	// Otherwise, prefer to place one color in a palette that already
+	// contains the other.
+	auto CanFriend = [screen, &nextp, &palettes, &colors_left](
+	    uint8 c1, uint8 c2) -> bool {
+	  for (int p : palettes[c1]) {
+	    if (nextp[p] != 4) {
+	      screen->palette[p * 4 + nextp[p]] = c2;
+	      nextp[p]++;
+	      palettes[c2].push_back(p);
+	      colors_left--;
+	      if (DEBUG_CONVERT) printf("Friended %02x to %02x in %d\n", c2, c1, p);
+	      return true;
+	    }
+	  }
+	  return false;
+	};
+
+	auto Friends = [&palettes](uint8 c1, uint8 c2) {
+	  for (int p1 : palettes[c1])
+	    for (int p2 : palettes[c2])
+	      if (p1 == p2) return true;
+	  return false;
+	};
+	
+	// XXX they may already be in the same palette. if so, we're done.
+	if (Friends(c1, c2)) goto next_bigram;
+	
+	if (CanFriend(c1, c2)) goto next_bigram;
+	if (CanFriend(c2, c1)) goto next_bigram;
+
+	// Otherwise, try to place both in the same palette.
+	for (int p = 0; p < 4; p++) {
+	  if (nextp[p] < 3) {
+	    screen->palette[p * 4 + nextp[p]] = c1;
+	    nextp[p]++;
+	    palettes[c1].push_back(p);
+	    screen->palette[p * 4 + nextp[p]] = c2;
+	    nextp[p]++;
+	    palettes[c2].push_back(p);
+	    colors_left -= 2;
+	    if (DEBUG_CONVERT) printf("Placed new pair %02x and %02x in %d\n", c1, c2, p);
+	    goto next_bigram;
+	  }
+	}
+
+	// Finally, place as singletons.
+	if (PlaceSingleton(c1))
+	  PlaceSingleton(c2);
+      }
+
+    next_bigram:;
+    }
     break;
   }
   case PaletteMethod::MOST_COMMON: {
@@ -420,9 +782,8 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
     int best_i = 0;
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
-      int nes_color = screen->palette[pal * 4 + i];
-      // int nes_color = i == 0 ? screen->palette[0] :
-      // screen->palette[pal * 4 + i];
+      int nes_color = i == 0 ? screen->palette[0] :
+	screen->palette[pal * 4 + i];
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];
@@ -540,9 +901,8 @@ void FillScreenFast(ImageRGB *img, Screen *screen) {
     int best_i = 0;
     for (int i = 0; i < 4; i++) {
       // Index within the nes color gamut.
-      int nes_color = screen->palette[pal * 4 + i];
-      // int nes_color = i == 0 ? screen->palette[0] :
-      // screen->palette[pal * 4 + i];
+      int nes_color = i == 0 ? screen->palette[0] :
+	screen->palette[pal * 4 + i];
       int rr = ntsc_palette[nes_color * 3 + 0];
       int gg = ntsc_palette[nes_color * 3 + 1];
       int bb = ntsc_palette[nes_color * 3 + 2];
@@ -633,7 +993,7 @@ Screen ScreenFromFile(const string &filename) {
   std::unique_ptr<ImageRGB> img = Load(filename);
   Screen screen;
   ArcFour rc("sff");
-  MakePalette(PaletteMethod::MOST_COMMON, img.get(), &rc, &screen);
+  MakePalette(PaletteMethod::GREEDY_BIGRAMS, img.get(), &rc, &screen);
   FillScreenSelective(img.get(), &screen);
   return screen;
 }

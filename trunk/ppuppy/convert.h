@@ -39,6 +39,7 @@ enum class PaletteMethod {
   GREYSCALE,
   MOST_COMMON,
   MOST_COMMON_SHUFFLED,
+  GREEDY_BIGRAMS,
 };
 
 void MakePalette(PaletteMethod method, const ImageRGB *img,

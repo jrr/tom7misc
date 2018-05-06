@@ -14,7 +14,7 @@ LFLAGS=-static -lpthread
 %.s : %.cc
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -S -c -o $@ $<
 
-CCLIB_OBJECTS= ../cc-lib/base/logging.o ../cc-lib/stb_image.o  ../cc-lib/arcfour.o ../cc-lib/util.o
+CCLIB_OBJECTS= ../cc-lib/base/logging.o ../cc-lib/stb_image.o  ../cc-lib/arcfour.o ../cc-lib/util.o ../cc-lib/color-util.o
 ALL_CCLIB_OBJECTS=$(CCLIB_OBJECTS) ../cc-lib/stb_image_write.o ../cc-lib/image.o ../cc-lib/base/stringprintf.o
 
 # XXX integrate armsnes/Makefile
@@ -45,7 +45,7 @@ deconverted/%.png : images/%.png deconvert.exe
 deconverted/%.png : images/%.jpg deconvert.exe
 	./deconvert.exe $< $@
 
-deconverted: deconverted/self.png deconverted/motherboard.png deconverted/motherboard-cpu.png deconverted/motherboard-ppu.png deconverted/nes2cart.png deconverted/motherboard-cic-troll.png deconverted/motherboard-cic.png deconverted/arst-arsw.png deconverted/nes-motherboard-caps.png deconverted/abc.png deconverted/venn1.png deconverted/venn2.png deconverted/venn3.png deconverted/venn4.png deconverted/samus.png deconverted/marioboot.png deconverted/cartclosed.png
+deconverted: deconverted/ppuppy-logo.png deconverted/self.png deconverted/motherboard.png deconverted/motherboard-cpu.png deconverted/motherboard-ppu.png deconverted/nes2cart.png deconverted/motherboard-cic-troll.png deconverted/motherboard-cic.png deconverted/arst-arsw.png deconverted/nes-motherboard-caps.png deconverted/abc.png deconverted/venn1.png deconverted/venn2.png deconverted/venn3.png deconverted/venn4.png deconverted/samus.png deconverted/marioboot.png deconverted/cartclosed.png deconverted/cartinside.png deconverted/cartinside-labeled.png deconverted/cartinside-bicameral.png deconverted/emulation-intro.png deconverted/emulation.png deconverted/emulation-reverse.png deconverted/zero-w.png
 
 snestest.exe : snestest.o $(ARMSNES_OBJECTS) $(ALL_CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS) -lm
