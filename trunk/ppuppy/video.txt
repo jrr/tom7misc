@@ -6,13 +6,14 @@ Slides TODO:
  [x] arst arsw
  [x] abc.exe
  [ ] entire screen?
+ [ ] themes: nintendo. doing it wrong. humor
  [ ] 
      what is funny?
  [x] retro mario boot
  [x] anachronism samus
- [ ]
+ [ ] 
 
- [ ] improper hierarchy venn
+ [x] improper hierarchy venn
 
  [x] motherboard
     ...
@@ -29,10 +30,32 @@ Slides TODO:
  [ ] fantasy schematic
  [ ] this behavior is required by law!
 
- [ ]
+ - here, affirm that it is NES -
 
- [ ] security hax 1: hdd controller
- [ ] security hax 2: one trace
+ [ ] j/k hardware is hard
+  [ ] hardware lessons
+  [ ] waveforms
+  [ ] power, etc.
+  [ ] quiz: what is this component?
+  [ ] optimization, swizzling, deglitching
+  [ ] timing: be late
+ [ ] ppuppy board
+  [ ] making things physically fit
+  [ ] desolder the CIC
+
+ [ ] cpu side: show eeprom, program
+ [ ] memory knocking
+  [ ] security hax 1: hdd controller
+  [ ] security hax 2: one trace
+    [ ] nsa principle
+  [ ] port knocking? (this took me a long time
+      to explain in video
+  [ ] first responds with whatever's actually in mem,
+      but count!
+  [ ] then it starts the protocol, sends palette, scroll, gets controllers
+  [ ] writes palette, scroll
+  [ ] .. filling vblank .. (show waveforms?)
+  [ ] running out of time..
 
  [ ] demonstration
  [ ] future work:
@@ -40,7 +63,7 @@ Slides TODO:
  [ ]  reverse emulating the CPU
 
  [ ] big ideas
- [ ] mother brain neural implant
+ [x] mother brain neural implant
   [ ] this behavior is required by law!
     [ ] galactic federal law [-:
  [ ] ABCs
