@@ -289,6 +289,8 @@ void main() {
 
     SET_PPU_ADDRESS(KNOCK_ADDR + 5);
     // This read is just garbage (whatever ppuppy wrote last).
+    // PERF: cc65 still stores to the variable "ignore"
+    // even though the stores are dead. Consider (void)?
     ignore = *PPU_DATA;
 
     SET_PPU_ADDRESS(KNOCK_ADDR + 4);
@@ -313,7 +315,7 @@ void main() {
     // it might make sense to include some redundancy here.
     // (Could send twice; use checksum bits, etc.)
     // But ppuppy can also just integrate across frames; we
-    // can give up some latency for sure.
+    // can give up some controller latency for sure.
     *PPU_ADDRESS = 0x20;
     *PPU_ADDRESS = joy1;
     ignore = *PPU_DATA;

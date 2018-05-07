@@ -119,7 +119,7 @@ typedef struct {
 	uint8 dummy1;
     // Just incase they are needed in the future, for snapshot compatibility.
     uint32 dummy [7];
-	//I'll use Fatl's recovery on savestates.
+	// I'll use Fatl's recovery on savestates.
 	short gaussian[8];
 	int   g_index;
 	unsigned short last_valid_header;

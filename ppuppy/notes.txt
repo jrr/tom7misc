@@ -27,7 +27,8 @@ Stuff still to figure out / achieve:
  [ ] 
  [ ] slide metadata / parser
  [ ] non-hostile version of cart.nes (doesn't make screen red etc.)
- 
+  [ ] for example, knock sequence can disable this?
+
 Icing:
  [x] Version of PCB with keepout/drill for center screw?
  [ ] "fine tune" controls for timing, accessible from controller?
