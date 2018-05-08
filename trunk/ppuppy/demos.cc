@@ -78,10 +78,20 @@ Slideshow::Slideshow(const vector<string> &filenames) {
   }
 }
 
-void Slideshow::Update(uint8 joy1, uint8 joy2) { frames++; }
+void Slideshow::Update(uint8 joy1, uint8 joy2) {
+  if ((joy1 & ~old_joy1) & RIGHT) {
+    frames++;
+    frames %= screens.size();
+  } else if ((joy1 & ~old_joy1) & LEFT) {
+    frames--;
+    if (frames < 0) frames = screens.size() - 1;
+  }
+
+  old_joy1 = joy1;
+}
 
 Screen *Slideshow::GetScreen() {
-  return &screens[(frames >> 8) % screens.size()];
+  return &screens[frames];
 }
 
 // Note that due to all the global variables in armsnes, two instances
@@ -125,7 +135,7 @@ void SNES::Run() {
 	break;
       }
     }
-    
+
     retro_run();
 
     // Note: It's possible for a race (gotta be pretty unlucky since
@@ -146,7 +156,12 @@ void SNES::Run() {
 }
 
 SNES::SNES(const string &cart) : rc("snes") {
+  // XXX replace with 'never initialized' 
+  screens[0] = ScreenFromFile("images/nes-motherboard-caps.png");
+  screens[1] = ScreenFromFile("images/motherboard-cic-troll.png");
+
   // Thread blocks until Update allows it to run.
+  snes_do_frame = false;
   snes_mutex.lock();
   snes_do_frame = false;
   
