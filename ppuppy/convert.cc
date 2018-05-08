@@ -650,8 +650,8 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
 	// totalerror += err;
 
 	int rr = ntsc_palette[nes_color * 3 + 0];
-	int gg = ntsc_palette[nes_color * 3 + 0];
-	int bb = ntsc_palette[nes_color * 3 + 0];
+	int gg = ntsc_palette[nes_color * 3 + 1];
+	int bb = ntsc_palette[nes_color * 3 + 2];
 
 	int dr = ((r / 16) - rr);
 	int dg = ((g / 16) - gg);
@@ -816,7 +816,7 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
     std::tuple<uint8, uint8, uint8> best;
-    for (int pal = 0; pal < 4; pal++) {
+    for (int pal = 0; pal < 1 /* XXX */; pal++) {
       int totalerror = 0;
       uint8 lobits = 0, hibits = 0;
       for (int x = 0; x < 8; x++) {

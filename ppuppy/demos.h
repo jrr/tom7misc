@@ -31,6 +31,7 @@ struct Slideshow {
   int frames = 0;
   Screen *GetScreen();
   std::vector<Screen> screens;
+  uint8 old_joy1 = 0;
 };
 
 struct SNES {

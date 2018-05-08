@@ -27,7 +27,7 @@ static constexpr bool SNES_DEMO = true;
 // themselves. But if it's too high, we'll never actually detect
 // vblank (this may cause it to hang even if interrupts are enabled
 // because it never does any kernel calls outside of vblank).
-#define DETECT_VBLANK_CYCLES 4000
+#define DETECT_VBLANK_CYCLES 8000
 
 BouncingBalls bouncing;
 
@@ -134,7 +134,11 @@ int main(int argc, char **argv) {
         "images/titletest.png",
 	"images/self.jpg",
 	"images/flower.png",
+        "images/zero-w.png",
+        "images/onetrickpony.png",
+        "images/trick-capacitor.png",
 	"images/robot.png",
+        "images/flower.png",
 	  "images/abc.png",
 	  "images/arst-arsw.png",
 	  "images/motherboard.png",
@@ -146,7 +150,10 @@ int main(int argc, char **argv) {
 	  "images/nes2cart.png",
 	"images/ppuppy-logo.png"});
 
-  SNES snes("super-mario-world.smc");
+  std::unique_ptr<SNES> snes;
+  if (SNES_DEMO) {
+    snes.reset(new SNES("super-mario-world.smc"));
+  }
   
   printf("START.\n");
   fflush(stdout);
@@ -239,7 +246,7 @@ int main(int argc, char **argv) {
 
     // bouncing.Draw();
     if (SNES_DEMO) {
-      screen = snes.GetScreen();
+      screen = snes->GetScreen();
     } else {
       screen = slideshow.GetScreen();
     }
@@ -484,7 +491,7 @@ int main(int argc, char **argv) {
     // Yield to OS. Does nothing if interrupts are disabled.
 
     if (SNES_DEMO) {
-      snes.Update(joy1, joy2);
+      snes->Update(joy1, joy2);
     } else {
       slideshow.Update(joy1, joy2);
     }
