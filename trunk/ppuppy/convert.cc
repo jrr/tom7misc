@@ -816,7 +816,7 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
     std::tuple<uint8, uint8, uint8> best;
-    for (int pal = 0; pal < 1 /* XXX */; pal++) {
+    for (int pal = 0; pal < 4 /* XXX */; pal++) {
       int totalerror = 0;
       uint8 lobits = 0, hibits = 0;
       for (int x = 0; x < 8; x++) {

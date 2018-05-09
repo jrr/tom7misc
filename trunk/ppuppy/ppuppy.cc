@@ -148,6 +148,7 @@ int main(int argc, char **argv) {
 	  "images/motherboard-cic.png",
 	  "images/motherboard-cic-troll.png",
 	  "images/nes2cart.png",
+	  "images/motherbrain.png",
 	"images/ppuppy-logo.png"});
 
   std::unique_ptr<SNES> snes;

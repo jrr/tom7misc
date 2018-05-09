@@ -6,6 +6,9 @@ Slides TODO:
  [x] arst arsw
  [x] abc.exe
  [ ] entire screen?
+ [x] 3D NES
+   XXX much better to animate this one (dinosaurc? mario first person?)
+ [x] one trick pony
  [ ] themes: nintendo. doing it wrong. humor
  [ ] 
      what is funny?
@@ -69,6 +72,10 @@ Slides TODO:
  [ ] ABCs
  [ ] thanks / @tom7
 
+
+free jokes etc:
+ eeprom is like kirby
+ lolol = lolo
 
 Overall arc:
   Introduction
