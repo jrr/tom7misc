@@ -12,6 +12,17 @@
 #define JOY1                    ((unsigned char*)0x4016U)
 #define JOY2                    ((unsigned char*)0x4017U)
 
+#define APU_STATUS              ((unsigned char*)0x4015U)
+#define APU_PULSE1_ENV          ((unsigned char*)0x4000U)
+#define APU_PULSE1_SWEEP        ((unsigned char*)0x4001U)
+#define APU_PULSE1_TIMER        ((unsigned char*)0x4002U)
+#define APU_PULSE1_LEN          ((unsigned char*)0x4003U)
+#define APU_PULSE2_ENV          ((unsigned char*)0x4004U)
+#define APU_PULSE2_SWEEP        ((unsigned char*)0x4005U)
+#define APU_PULSE2_TIMER        ((unsigned char*)0x4006U)
+#define APU_PULSE2_LEN          ((unsigned char*)0x4007U)
+// TODO TRIANGLE/NOISE/DMC
+
 #define KNOCK_ADDR ((1U << 13) | 0x002AU)
 
 // Note, this is backwards from simplefm2.
@@ -136,6 +147,10 @@ void main() {
 
   knock_ack = 0;
 
+  *APU_STATUS = 0x0f;
+  *APU_PULSE1_ENV = 0x0f;
+  *APU_PULSE1_LEN = 0x01;
+
   // load the palette
   // set an address in the PPU of 0x3f00
   SET_PPU_ADDRESS(0x3f00U);
@@ -174,6 +189,7 @@ void main() {
   screen_pos = 0x21caU;
 
   // Put sprites.
+  // XXX there are some sprites at 0,0. fix this...
   for (index = 0; index < 64; index++) {
     SPRITES[index * 4 + 0] = spr_y[index];
     SPRITES[index * 4 + 1] = 0x7A;
@@ -240,6 +256,17 @@ void main() {
       }
     }
 
+    if ((jiggleframe & 15) == 0) {
+      *APU_STATUS = 0x0f;
+      *APU_PULSE1_ENV = 0x0f;
+      *APU_PULSE1_TIMER = jiggleframe;
+      *APU_PULSE1_LEN = 0x01;
+
+      *APU_PULSE2_ENV = 0x0f;
+      *APU_PULSE2_TIMER = (joy1 + 1);
+      *APU_PULSE2_LEN = 0x01;
+    }
+
     jiggleframe++;
     jiggleframe &= 63;
 
@@ -258,6 +285,9 @@ void main() {
   // Mm: show sprites/background in leftmost column
   // G: Greyscale
   *PPU_MASK = 10;
+
+  // Turn off sound!
+  *APU_STATUS = 0x00;
 
   // Game loop. This can be interrupted at any moment by NMI
   for (;;) {

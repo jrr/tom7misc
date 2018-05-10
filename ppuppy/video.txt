@@ -76,6 +76,7 @@ Slides TODO:
 free jokes etc:
  eeprom is like kirby
  lolol = lolo
+ refer to cartridges as "tapes"
 
 Overall arc:
   Introduction

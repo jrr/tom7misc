@@ -1669,3 +1669,22 @@ the next nametable read?
    a peripheral, at the moment that I disable interrupts, which
    would be bad.
 
+ - ppuppy v2 board! -
+
+   Tried with just CIC and EEPROM. It doesn't work. There's no reset
+   blinking so I think the CIC chip is OK (and could test this by
+   running another board with no CIC?). Looks like it's maybe just
+   not finding the program. Did I mess something up with "mirroring"?
+   15 bits (A0-A14) are wired, which would be 32768 addressable bytes.
+   That's the rom size I made (manual mirroring), but wasn't exactly
+   what I was running on the breadboards.
+
+   Once again solved with the multimeter!
+   I had wired /WE on the EEPROM to GND. This is wrong. It needs to
+   be connected to 5V, because the sense is "enable write when low."
+   This can be fixed on the ppuppy v2 board by cutting the trace
+   coming off this (when looking at the back side of the board, the
+   pin next to the top right pin connects to the ground plane, just
+   downward. Cut that away, and wire it to the top right pin (which
+   is VDD so already hooked to 5v).
+

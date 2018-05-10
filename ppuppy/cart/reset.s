@@ -30,8 +30,11 @@
 start:
         sei
         cld
+
+        ;; turn off frame counter IRQ.
         ldx #$40
         stx $4017
+   
         ldx #$ff
         txs
         inx
