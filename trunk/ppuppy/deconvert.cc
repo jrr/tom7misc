@@ -163,6 +163,7 @@ static void Save(const ImageRGBA &img,
 
 
 int main(int argc, char **argv) {
+  // fprintf(stderr, "Byte size of screen: %d\n", (int)sizeof(Screen));
   const char *USAGE = "./deconvert [-multi] input.ext out.png\n";
   CHECK(argc >= 2) << USAGE;
   bool multi = false;
