@@ -134,7 +134,7 @@ $EndComp
 Text GLabel 750  1550 1    60   Input ~ 0
 GND
 Text GLabel 2250 2500 2    60   Input ~ 0
-5V
+5v
 $Comp
 L nescic U3
 U 1 1 5AC6E39D
@@ -155,7 +155,7 @@ GND
 Text GLabel 10750 5050 2    60   Input ~ 0
 GND
 Text GLabel 10750 4750 2    60   Input ~ 0
-5V
+5v
 Text GLabel 10750 5200 2    60   Input ~ 0
 GND
 Text GLabel 10750 4900 2    60   Input ~ 0
@@ -182,8 +182,6 @@ Text GLabel 8350 4650 3    60   Input ~ 0
 Text GLabel 2150 1550 1    60   Input ~ 0
 GND
 Text GLabel 2050 1550 1    60   Input ~ 0
-GND
-Text GLabel 2150 2500 3    60   Input ~ 0
 GND
 Text GLabel 1250 2500 3    60   Input ~ 0
 GND
@@ -1135,4 +1133,6 @@ Wire Wire Line
 Wire Wire Line
 	8300 5050 8250 5050
 Connection ~ 8250 5050
+Text GLabel 2150 2500 3    60   Input ~ 0
+5v
 $EndSCHEMATC
