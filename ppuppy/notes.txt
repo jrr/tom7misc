@@ -1576,6 +1576,78 @@ the next nametable read?
     - set processor affinity (same)
     - isolcpu on the CPUs we're using. (only tried #3)
 
+ - it's crapping out again -
+
+   I get a gibberish screen, noisy, plus all red/pink because we're
+   not responding to knocking correctly. Occasionally, it syncs and
+   looks fine.
+
+   One obvious clue is that the red light on the pi blinks: It comes
+   on when the image is OK, and goes off when it's bad. This is
+   the power light, and blinking is supposedly when the 5v supply is
+   under voltage (<4.6v). 
+
+   By default it looks like the pi is set to "ondemand" scaling
+   between 600mhz and 1.4ghz.
+   cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq
+   cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq
+   cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq
+
+   echo powersave > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+   echo performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+   (or powersave ondemand conservative)
+
+   Turn off hdmi:
+   tvservice -o
+
+   I turned off bluetooth (and uart I guess?):
+
+   In boot.cfg:
+   dtoverlay=pi3-disable-bt
+
+   sudo systemctl disable hciuart.service
+   sudo systemctl disable bluealsa.service
+   sudo systemctl disable bluetooth.service
+
+   And actually you can just uninstall it:
+   sudo apt-get purge bluez -y
+   sudo apt-get autoremove -y
+
+   The voltage is definitely lower on the pi side than it is straight off
+   the cart. I think maybe the ribbon cable is actually not able to keep
+   up with the current requirements of the pi (!). 
+
+   OMG I think that was really it. switching back to the old cable works
+   much better. I also think the additional current draw when emulating
+   explains why the snes demo look so bad sometimes.
+
+   It may be important to fix the CPU clock rate, btw. This may be why
+   we see periods where it seems to be great and others where it's
+   terrible.
+
+   Hmm ok, well I soldered in both 5V wires in the ide cable and three
+   grounds (now I have superstitions about ground loops though), and
+   measured on the pi with the scope, and the voltage looks very stable
+   around 4.88v when ppuppy is running (noint). 
+   
+   cpu freq scaling = powersave:
+
+   SNES demo (w/ interrupts)! voltage is stable 4.82, light is solid
+   red.
+
+   (Secret sauce: Use william's cable. set frequency scaling to powersave.
+    
+   during make -j 4, I do see power sag on pi to like 4.68v.
+   then SNES demo with performance: 4.8, solid red, weird
+
+   also now working fine with ondemand...
+   well hmm, it's working now. but why? 
+
+   (I got a 5A power supply. This seems to have done it, at least on
+   the breadboard -- light stays red even when running SNES demo. I
+   also got a very short IDE cable ($11 ugh), which should reduce the
+   voltage drop, but haven't tested that yet.
+
   - noise! -
 
    With the pi3, adjusting the timing definitely affects noise, but I
