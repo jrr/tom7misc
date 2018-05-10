@@ -19,7 +19,7 @@
 // get back to linux.
 static constexpr bool DISABLE_INTERRUPTS = false;
 
-static constexpr bool SNES_DEMO = true;
+static constexpr bool SNES_DEMO = false;
 
 // Number of consecutive /RD high reads that cause us to assume vblank
 // has occurred. This has to be set high enough that the slow reads
@@ -31,14 +31,14 @@ static constexpr bool SNES_DEMO = true;
 
 BouncingBalls bouncing;
 
-inline uint32 GetEncodedByte(Screen *screen, int scanline, int col, int b) {
+static inline uint32 GetEncodedByte(Screen *screen, int scanline, int col, int b) {
   static constexpr int WORDS = NUM_SCANLINES * NUM_COLS;
   const int idx = scanline * NUM_COLS + col;
   if (idx >= WORDS) return 0;
   // PERF could skip this by just zero padding.
   if (!b) return 0;
   uint8 *addr = ((uint8*)screen) + (WORDS * (b - 1)) + idx;
-  return ((uint32)*addr) << 2;
+  return Encode(*addr);
 }
 
 // Yield to OS (so that we can ctrl-c, process ethernet, etc.)
@@ -479,14 +479,6 @@ int main(int argc, char **argv) {
 
     goto next_cycle;
 
-    /*
-  wait_low:
-    bcm2835_gpio_clr_multi_nb(OUTPUT_MASK);
-    bcm2835_gpio_set_multi_nb(output_word);
-    UNTIL_RD_LOW;
-    goto next_cycle;
-    */
-    
   vblank:
     frames++;
 
