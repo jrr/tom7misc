@@ -78,8 +78,6 @@ void GetInput();
 // dma.s
 void DoDMA();
 
-unsigned int screen_pos;
-
 const unsigned char TEXT[] = {
   "\x31\x31\x19\x15\x12\x0a\x1c\x12\x31\x1c\x1d\x0a\x1b\x1d\x31\x31"
 };
@@ -129,9 +127,10 @@ const int costable[64] = {10, 10, 10, 10, 9, 9, 8, 8, 7, 6, 6, 5, 4, 3, 2, 1, 0,
 
 const unsigned char spr_x[64] = {56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 64, 72, 80, 88, 96, 96, 96, 96, 96, 96, 176, 176, 176, 176, 176, 176, 176, 168, 176, 168, 168, 168, 168, 168, 168, 168, 104, 104, 104, 104, 104, 104, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 96, 0, 0, 0, 0, 0, };
 
-const unsigned char spr_y[64] = {64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 120, 112, 112, 112, 120, 128, 136, 144, 152, 160, 160, 152, 144, 136, 128, 120, 96, 96, 88, 88, 120, 128, 136, 144, 152, 160, 160, 152, 144, 136, 128, 120, 160, 152, 144, 136, 128, 120, 112, 104, 96, 88, 80, 72, 64, 112, 0, 0, 0, 0, 0, };
+const unsigned char spr_y[64] = {64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 120, 112, 112, 112, 120, 128, 136, 144, 152, 160, 160, 152, 144, 136, 128, 120, 96, 96, 88, 88, 120, 128, 136, 144, 152, 160, 160, 152, 144, 136, 128, 120, 160, 152, 144, 136, 128, 120, 112, 104, 96, 88, 80, 72, 64, 112, 251, 251, 251, 251, 251, };
 
-unsigned char jiggleframe = 0;
+unsigned char jiggleframe;
+unsigned char debug_red_mode;
 
 void main() {
   // turn off the screen
@@ -144,6 +143,9 @@ void main() {
   old_joy2 = 0;
   joy1 = 0;
   joy2 = 0;
+  jiggleframe = 0;
+  // This starts enabled.
+  debug_red_mode = 1;
 
   knock_ack = 0;
 
@@ -173,10 +175,6 @@ void main() {
     *PPU_DATA = TEXT[index];
   }
 
-  // TODO: we can arrange sprites to indicate that everything
-  // is ok; these still show up as colored blocks if we set
-  // the palettes appropriately.
-
   // Reset the scroll position.
   SET_PPU_ADDRESS(0x0000U);
   *SCROLL = 0;
@@ -186,10 +184,8 @@ void main() {
   *PPU_CTRL = 0x90;      // screen is on, NMI on
   *PPU_MASK = 0x1e;
 
-  screen_pos = 0x21caU;
-
-  // Put sprites.
-  // XXX there are some sprites at 0,0. fix this...
+  // Put sprites in their initial positions. The loop
+  // below also does this dynamically.
   for (index = 0; index < 64; index++) {
     SPRITES[index * 4 + 0] = spr_y[index];
     SPRITES[index * 4 + 1] = 0x7A;
@@ -256,6 +252,8 @@ void main() {
       }
     }
 
+    // Play sounds to assist in diagnosing problems if the
+    // video isn't working.
     if ((jiggleframe & 15) == 0) {
       *APU_STATUS = 0x0f;
       *APU_PULSE1_ENV = 0x0f;
@@ -263,6 +261,7 @@ void main() {
       *APU_PULSE1_LEN = 0x01;
 
       *APU_PULSE2_ENV = 0x0f;
+      // One tone depends on the controller input.
       *APU_PULSE2_TIMER = (joy1 + 1);
       *APU_PULSE2_LEN = 0x01;
     }
@@ -272,7 +271,7 @@ void main() {
 
     GetInput();
 
-    if (/* jiggleframe > 250 || */ knock_ack == 0x27)
+    if (knock_ack == 0x27)
       break;
   }
 
@@ -378,13 +377,23 @@ void main() {
       // slot after the first full palette (so, index 4) to
       // pass more data. Here, the x scroll.
       scroll_x = fromppu[4];
-    } else {
-      // Otherwise (for debugging), a visual indication that
-      // we did not.
-      SET_PPU_ADDRESS(0x3f00U);
-      for (index = 0; index < 16; ++index) {
-        *PPU_DATA = bad_sync[index];
+      if (fromppu[8] == 0x2A &&
+          fromppu[12] == 0xA7) {
+        debug_red_mode = 0;
       }
+    } else {
+      // Didn't get the expected pattern, so we are desynchronized
+      // or disconnected.
+      if (debug_red_mode) {
+        // Unless we disabled this by a previous code, show a
+        // red palette to indicate the desynchronization.
+        SET_PPU_ADDRESS(0x3f00U);
+        for (index = 0; index < 16; ++index) {
+          *PPU_DATA = bad_sync[index];
+        }
+      }
+      // (otherwise, we leave the palette as it is.)
+
       // Assume scroll 0 if we're desynced.
       scroll_x = 0;
     }
@@ -407,23 +416,6 @@ void main() {
     old_joy2 = joy2;
 
     GetInput();
-
-    // XXX demo stuff.
-    {
-      unsigned char new1 = joy1 & (~old_joy1);
-      if (new1 & UP) {
-        screen_pos -= 32;
-      } else if (new1 & DOWN) {
-        screen_pos += 32;
-      }
-
-      if (new1 & LEFT) {
-        screen_pos --;
-      } else if (new1 & RIGHT) {
-        screen_pos ++;
-      }
-    }
-
   }
 };
 
