@@ -31,7 +31,9 @@ Slides TODO:
  [x] pi zero w
 
  [ ] fantasy schematic
- [ ] this behavior is required by law!
+     cheating?!
+ [x] underbelly
+ [x] this behavior is required by law!
 
  - here, affirm that it is NES -
 
@@ -50,9 +52,9 @@ Slides TODO:
  [ ] memory knocking
   [ ] security hax 1: hdd controller
   [ ] security hax 2: one trace
-    [ ] nsa principle
+    [ ] nsa principle?
   [ ] port knocking? (this took me a long time
-      to explain in video
+      to explain in video; maybe skip)
   [ ] first responds with whatever's actually in mem,
       but count!
   [ ] then it starts the protocol, sends palette, scroll, gets controllers
@@ -77,6 +79,7 @@ free jokes etc:
  eeprom is like kirby
  lolol = lolo
  refer to cartridges as "tapes"
+ let's take a look at the NES's soft, vulnerable underbelly
 
 Overall arc:
   Introduction
