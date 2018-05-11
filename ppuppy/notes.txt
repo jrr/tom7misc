@@ -1700,3 +1700,44 @@ the next nametable read?
    downward. Cut that away, and wire it to the top right pin (which
    is VDD so already hooked to 5v).
 
+   Ugh, the 40 pin header with cable actually doesn't physically fit
+   under the silver crossbar thing. Should move the header up on
+   future versions where I want to use ribbon cable. Also, should
+   check before solding a pi there directly (maybe better to go under
+   cart).
+
+   Anyway, now it boots and sorta (?) works. It is clearly sending
+   data but doesn't handshake.
+
+   I tried just always sending 0x27. Doesn't see it as handshake.
+
+   Tried sending all values. 0xE7 works.
+
+   E4 binary:    1110 0100
+   27 binary:    0010 0111
+
+   so uh, somehow I got the bits all wired up exactly backwards?
+
+   Wow, omg, they're just wired up backwards on the schematic. Check your work!
+
+   OK, fixed. :)
+
+ - "talk" cart -
+
+   SysRq: The board / NES is somehow managing to send "break" on the serial port,
+   which causes linux to go crazy (even corrupted the SD card). Make sure this
+   is disabled (raspi-config)!
+
+   I got reasonable output with:
+    - this is pi zero w
+    - two calls to DEGLITCH_READ with a for (..deglitches..) NOP in between
+    - cpu scaling governor is "performance"! 1 GHz! This was noticeably the
+      right choice for the zero w.
+    - disable_interrupts was false
+
+   It's definitely the case that increasing the interstitial loop yields more
+   noise. On this platform, setting it to zero (but note that there's still the
+   loop overhead, plus it may inhibit optimizations between the two deglitches)
+   seems to be best. Also works well with disable_interrupts. Assuming that 
+   this doesn't have other randomly-occurring problems I don't know about, 
+   this is good enough for talk, and stop messing with it! r3586.
