@@ -2,10 +2,10 @@
 Slides TODO:
  [ ] title slide
  [ ] photosensitivity warning
- [ ] learnfun/playfun
+ [x] learnfun/playfun
  [x] arst arsw
  [x] abc.exe
- [ ] entire screen?
+ --- entire screen?
  [x] 3D NES
    XXX much better to animate this one (dinosaurc? mario first person?)
  [x] one trick pony
@@ -30,7 +30,8 @@ Slides TODO:
 
  [x] pi zero w
 
- [ ] fantasy schematic
+ [x] fantasy schematic
+  [x] not totally naive!
      cheating?!
  [x] underbelly
  [x] this behavior is required by law!

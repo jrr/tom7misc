@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
     "venn3.png",
     "venn4.png",
     "zero-w.png",
-});
+  });
 
   std::unique_ptr<SNES> snes;
   if (SNES_DEMO) {

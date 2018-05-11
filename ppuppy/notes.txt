@@ -11,7 +11,7 @@ Stuff still to figure out / achieve:
  [ ] Consider moving the bus transciever /OE to the 5v side, since this
      input should be 5v tolerant, and it will be slightly better synchronized
      with the actual bus (right?)
- [ ] Flow for talk
+ [x] Flow for talk
  [x] wing-it dry run
  [ ] Slides
  [x] Measure proper footprint/keepout of PCB
@@ -23,11 +23,11 @@ Stuff still to figure out / achieve:
  [ ] Make backup offline versions of slides
  [ ] Make demo and a video of it, in case it breaks!
  [ ] try filter capacitors
- [ ] scan converter working
+ [x] scan converter working
  [ ] 
  [ ] slide metadata / parser
- [ ] non-hostile version of cart.nes (doesn't make screen red etc.)
-  [ ] for example, knock sequence can disable this?
+ [x] non-hostile version of cart.nes (doesn't make screen red etc.)
+  [x] for example, knock sequence can disable this?
 
 Icing:
  [x] Version of PCB with keepout/drill for center screw?
