@@ -176,30 +176,61 @@ slide
 slide
   images/fcc.png
 
+# XXX: Affirm that it is NES.
+# Drawing of self on stage?
 
 # ##############################
 # Part II. How it really works
 # ##############################
 
-
-# ##############################
-# Part III. Demonstration
-# ##############################
- 
-
-# future work here?
-
-# ##############################
-# Part IV. Big Ideas
-# ##############################
-
+# How the PPU works
 
 slide
-  images/motherbrain.png
+  images/tables.png
 
-# 
-#  - here, affirm that it is NES -
-# 
+# So this allows us to put together a whole
+# screen, like so:
+slide
+  images/mario-bw-grid.png
+# So far it's just a single color.
+# (Actually note mario is in color, and also
+# not aligned to the grid. This is because he's
+# actually a sprite. There are a million other
+# topics like this, which we won't discuss.)
+slide
+  images/mario-bw.png
+# To add color to the scene...
+# XXX EXPLAIN!
+# slide
+#   images/tables-color.png
+slide
+  dur 24
+  array 1 5 images/palette%.png
+slide
+  images/mario-color-grid.png
+# Leading to this amazing fact...
+slide
+  images/mario-color-same.png
+slide
+  images/mario-color-same-zoom.png
+
+# To connect this back to what we saw before,
+# the table on the left is usually stored in
+# RAM, and the character graphics themselves
+# are usually stored in ROM.
+slide
+  images/tables-usually.png
+slide
+  images/motherboard-ppu-ram.png
+slide
+  images/cartclosed-ppu-rom.png
+
+
+
+# limitations that we can work around
+#  - SLOW UPDATES.
+#  - COLOR RESOLUTION.
+
 #  [ ] j/k hardware is hard
 #   [ ] hardware lessons
 #   [ ] waveforms
@@ -224,11 +255,32 @@ slide
 #   [ ] writes palette, scroll
 #   [ ] .. filling vblank .. (show waveforms?)
 #   [ ] running out of time..
+# [ ] upgrade to bigger computer
+
+
+# ##############################
+# Part III. Demonstration
+# ##############################
+
+# swap cartz
+
+# future work here?
+
+# ##############################
+# Part IV. Big Ideas
+# ##############################
+
+
+slide
+  images/motherbrain.png
+
 # 
 #  [ ] demonstration
 #  [ ] future work:
 #  [ ]  sound
 #  [ ]  reverse emulating the CPU
+#      - defeating color palette limitations
+#  [ ] nes emulator in NES
 # 
 #  [ ] big ideas
 #  emulating the brain vs reverse-emulating the brain
