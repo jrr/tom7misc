@@ -4,6 +4,7 @@
 #include <utility>
 #include <string>
 #include <vector>
+#include <string.h>
 
 #include "screen.h"
 #include "util.h"
@@ -99,7 +100,9 @@ void Talk::Save(const string &meta_file,
     string outdata;
     int bytes = screens.size() * sizeof (Screen);
     outdata.resize(bytes);
-    memcpy(&outdata[0], screens.data(), bytes);
+    for (int i = 0; i < screens.size(); i++) {
+      memcpy(&outdata[i * sizeof (Screen)], &screens[i], sizeof (Screen));
+    }
     Util::WriteFile(slide_data_file, outdata);
     fprintf(stderr, "Wrote %d bytes to %s\n", bytes, slide_data_file.c_str());
     fprintf(stderr, "sizeof (Screen) = %d\n", (int)sizeof (Screen));
@@ -123,15 +126,15 @@ CompiledTalk::CompiledTalk(const string &meta_file,
   vector<string> meta = Util::ReadFileToLines(meta_file);
   string data = Util::ReadFile(slide_data_file);
 
-  CHECK(data.size() % sizeof (Screen)) << slide_data_file <<
+  CHECK((data.size() % sizeof (Screen)) == 0) << slide_data_file <<
     ": Expected multiple of " << (int)sizeof (Screen) << " but got " <<
     (int)data.size();
 
   int num_screens = data.size() / sizeof (Screen);
   screen_data.resize(num_screens);
   for (int i = 0; i < num_screens; i++) {
-    memcpy(&slides[i],
-	   data.data() + (i % sizeof (Screen)), sizeof (Screen));
+    memcpy(&screen_data[i],
+	   data.data() + (i * sizeof (Screen)), sizeof (Screen));
   }
 
   slides.reserve(meta.size());
@@ -146,6 +149,8 @@ CompiledTalk::CompiledTalk(const string &meta_file,
       CHECK(dur > 0) << durs << "\nin\n" << line;
       slide.screens.emplace_back(idx, dur);
     }
+    printf("Slide with %d frames.\n", (int)slide.screens.size());
+    slides.push_back(std::move(slide));
   }
 }
 

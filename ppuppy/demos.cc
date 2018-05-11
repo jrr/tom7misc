@@ -101,7 +101,7 @@ void Slideshow::Update(uint8 joy1, uint8 joy2) {
     count++;
     if (count > slide->screens[anim_idx].second) {
       anim_idx ++;
-      if (anim_idx > slide->screens.size()) anim_idx = 0;
+      if (anim_idx >= slide->screens.size()) anim_idx = 0;
       count = 0;
     }
   }
@@ -112,7 +112,8 @@ void Slideshow::Update(uint8 joy1, uint8 joy2) {
 Screen *Slideshow::GetScreen() {
   CHECK(slide_idx >= 0 && slide_idx < talk.NumSlides());
   CompiledTalk::Slide *slide = talk.GetSlide(slide_idx);
-  CHECK(anim_idx >= 0 && anim_idx < slide->screens.size());
+  CHECK(anim_idx >= 0 && anim_idx < slide->screens.size())
+    << anim_idx << " " << slide->screens.size();
   int screen_idx = slide->screens[anim_idx].first;
   CHECK(screen_idx >= 0 && screen_idx < talk.NumScreens());
   return talk.GetScreen(screen_idx);

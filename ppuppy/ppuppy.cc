@@ -17,7 +17,7 @@
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
-static constexpr bool DISABLE_INTERRUPTS = true;
+static constexpr bool DISABLE_INTERRUPTS = false;
 
 static constexpr bool SNES_DEMO = false;
 
@@ -132,50 +132,9 @@ int main(int argc, char **argv) {
   }
 
   printf("LOAD.\n");
-  Slideshow slideshow(vector<string>{
-    "images/titletest.png",
-    "images/abc.png",
-    "images/arst-arsw.png",
-
-    "images/cartclosed.png",
-    "images/cartinside-bicameral.png",
-    "images/cartinside-free.png",
-    "images/cartinside-labeled.png",
-    "images/cartinside.png",
-    "images/eating-boot.png",
-    "images/emulation-intro.png",
-    "images/emulation-reverse.png",
-    "images/emulation.png",
-    "images/flower.png",
-    "images/glend.png",
-    "images/goldfingers-mismatch.png",
-    "images/marioboot.png",
-    "images/motherboard-cic-troll.png",
-    "images/motherboard-cic.png",
-    "images/motherboard-cpu.png",
-    "images/motherboard-ppu.png",
-    "images/motherboard.png",
-    "images/nes-motherboard-caps.png",
-    "images/nes2cart.png",
-    "images/onetrickpony.png",
-    "images/ppuppy-board.png",
-    "images/ppuppy-logo.png",
-    "images/real-schematic.png",
-    "images/robot.png",
-    "images/samus.png",
-    "images/self.jpg",
-    "images/trick-capacitor.png",
-    "images/venn1.png",
-    "images/venn2.png",
-    "images/venn3.png",
-    "images/venn4.png",
-    "images/zero-w.png",
-
-    "images/motherbrain.png",
-    "images/fantasy.png",
-    "images/fantasy2.png",
-  });
-
+  Slideshow slideshow("deconstruct.ctalk",
+		      "deconstruct.screens");
+  
   std::unique_ptr<SNES> snes;
   if (SNES_DEMO) {
     snes.reset(new SNES("super-mario-world.smc"));
