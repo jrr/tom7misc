@@ -40,3 +40,6 @@ sudo apt-get autoremove -y
 
 sudo systemctl enable ssh
 sudo systemctl start ssh
+
+# XXX: Figure out how to do this from commandline.
+echo "ALSO NEED TO DISABLE SERIAL IN raspi-config"
