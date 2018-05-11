@@ -1,9 +1,13 @@
-# Lines starting with # are comments.
 
+# ########################
+# Part I. Introduction
+# ########################
 
-# Normal slide is a single-frame animation.
 slide
+  # XXX
   images/titletest.png
+
+# TODO: photosensitivity warning
 
 slide
   images/learnfun1.png
@@ -18,88 +22,220 @@ slide
 slide
   images/abc.png
 
-# A slide can also be an animation.
-# (Actually all slides are animations. They are
-# just usually one frame.)
 slide
   dur 2
-  images/dinosaurc/dinosaurc0000.png
-  images/dinosaurc/dinosaurc0001.png
-  images/dinosaurc/dinosaurc0002.png
-  images/dinosaurc/dinosaurc0003.png
-  images/dinosaurc/dinosaurc0004.png
-  images/dinosaurc/dinosaurc0005.png
-  images/dinosaurc/dinosaurc0006.png
-  images/dinosaurc/dinosaurc0007.png
-  images/dinosaurc/dinosaurc0008.png
-  images/dinosaurc/dinosaurc0009.png
-  images/dinosaurc/dinosaurc0010.png
-  images/dinosaurc/dinosaurc0011.png
-  images/dinosaurc/dinosaurc0012.png
-  images/dinosaurc/dinosaurc0013.png
-  images/dinosaurc/dinosaurc0014.png
-  images/dinosaurc/dinosaurc0015.png
-  images/dinosaurc/dinosaurc0016.png
-  images/dinosaurc/dinosaurc0017.png
-  images/dinosaurc/dinosaurc0018.png
-  images/dinosaurc/dinosaurc0019.png
-  images/dinosaurc/dinosaurc0020.png
-  images/dinosaurc/dinosaurc0021.png
-  images/dinosaurc/dinosaurc0022.png
-  images/dinosaurc/dinosaurc0023.png
-  images/dinosaurc/dinosaurc0024.png
-  images/dinosaurc/dinosaurc0025.png
-  images/dinosaurc/dinosaurc0026.png
-  images/dinosaurc/dinosaurc0027.png
-  images/dinosaurc/dinosaurc0028.png
-  images/dinosaurc/dinosaurc0029.png
-  images/dinosaurc/dinosaurc0030.png
-  images/dinosaurc/dinosaurc0031.png
-  images/dinosaurc/dinosaurc0032.png
-  images/dinosaurc/dinosaurc0033.png
-  images/dinosaurc/dinosaurc0034.png
-  images/dinosaurc/dinosaurc0035.png
-  images/dinosaurc/dinosaurc0036.png
-  images/dinosaurc/dinosaurc0037.png
-  images/dinosaurc/dinosaurc0038.png
-  images/dinosaurc/dinosaurc0039.png
-  images/dinosaurc/dinosaurc0040.png
-  images/dinosaurc/dinosaurc0041.png
-  images/dinosaurc/dinosaurc0042.png
-  images/dinosaurc/dinosaurc0043.png
-  images/dinosaurc/dinosaurc0044.png
-  images/dinosaurc/dinosaurc0045.png
-  images/dinosaurc/dinosaurc0046.png
-  images/dinosaurc/dinosaurc0047.png
-  images/dinosaurc/dinosaurc0048.png
-  images/dinosaurc/dinosaurc0049.png
-  images/dinosaurc/dinosaurc0050.png
-  images/dinosaurc/dinosaurc0051.png
-  images/dinosaurc/dinosaurc0052.png
-  images/dinosaurc/dinosaurc0053.png
-  images/dinosaurc/dinosaurc0054.png
-  images/dinosaurc/dinosaurc0055.png
-  images/dinosaurc/dinosaurc0056.png
-  images/dinosaurc/dinosaurc0057.png
-  images/dinosaurc/dinosaurc0058.png
-  images/dinosaurc/dinosaurc0059.png
-  images/dinosaurc/dinosaurc0060.png
-  images/dinosaurc/dinosaurc0061.png
-  images/dinosaurc/dinosaurc0062.png
-  images/dinosaurc/dinosaurc0063.png
-  images/dinosaurc/dinosaurc0064.png
-  images/dinosaurc/dinosaurc0065.png
-  images/dinosaurc/dinosaurc0066.png
-  images/dinosaurc/dinosaurc0067.png
-  images/dinosaurc/dinosaurc0068.png
+  array 0  9  images/dinosaurc/dinosaurc000%.png
+  array 10 68 images/dinosaurc/dinosaurc00%.png
 
+# 
+#
+#  [ ] themes: nintendo. doing it wrong. humor
+
+# (Another thing I like is when there's a lot
+# of technical effort that goes into making the joke.)
+
+# I know what you're thinking. There's a simple
+# formula to this. Take something nostalgic and
+# throw some modern software at it. Do it wrong.
+# Humor.
+slide
+  images/iknowwhat.png
 slide
   images/onetrickpony.png
 
+# But this time it's a little different. And I
+# only mean a little. For example you can see
+# that my screen is blinking in an annoying way,
+# something I would not normally tolerate.
+# Actually I barely got this project working.
+# The whole time I had a back-up plan, which was
+# instead to do a talk like this,
+#   JOKE SCHEMAS IN COMPUTER SCIENCE
+
+
+# and I don't mean like DTD even though that is
+# indeed a joke.
+slide
+  images/dtd.png
+slide
+  dur 24
+  array 1 4 images/dtd%.png
+  images/dtd.png
+  images/dtd4.png
+  images/dtd.png
+  images/dtd4.png
+  images/dtd.png
+  images/dtd4.png
+  
+
+# I mean like, what do good "CS jokes"
+# look like? It's a good talk idea because you
+# don't have to actually do any of the jokes, just
+# hyperanalyze them. You can make up some new
+# categories of joke and nobody can say you're wrong
+# because jokes are just like, your opinion man,
+# and plus I can recycle old material, like those
+# lazy episode of MacGyver that consisted 90% of
+# flashbacks.
+
+#  [ ] 
+#      what is funny?
+
+# Of course many other pretentious people have desiccated
+# humor into prune dust by studying it. I couldn't find
+# an attribution for this one, but it stuck with me; a
+# definition of humor: 
+# "A movie of a man eating a boot with a look of disgust on
+# his face.  That's not funny."
+
+slide
+  images/boot-disgusted.png
+
+# "But a man eating a boot, with a normal expression on
+# his face.  That's funny!"
+slide
+  images/boot-neutral.png
+
+# ?? IS IT? Well I think it's at least meta-funny that in the
+# old days, eating a boot could be considered funny. But of
+# course the point, which I agree with, is that humor is
+# about defying expectations.
+
+# Let's consider another NOT FUNNY / FUNNY pair.
+
+slide
+  images/marioboot.png
+slide
+  images/samus.png
+
+#  [x] improper hierarchy venn
+
+# TODO: Lesson [meta]: Draw specious parallels
+
+# So, we're going to do a joke about Improper Hierarchy.
+# But first we need to look inside the NES.
+
+slide
+  images/motherboard.png
+slide
+  images/motherboard-cpu.png
+# Here, talk about the PPU as an inversion of the
+# normal hierarchy? "who's in charge?"
+slide
+  images/motherboard-ppu.png
+slide
+  images/motherboard-cic.png
+slide
+  images/motherboard-cic-troll.png
+slide
+  images/motherboard-caps.png
+slide
+  images/motherboard-tocart.png
+# Also one other thing to mention is that the CPU and
+# PPU can communicate via a pretty slow mechanism.
+slide
+  images/motherboard-mmregs.png
+
+slide
+  images/cartclosed.png
+slide
+  images/cartinside.png
+slide
+  images/cartinside-bicameral.png
+slide
+  images/cartinside-labeled.png
+slide
+  images/cartinside-free.png
+
+# Speaking of "who's in charge here?"
+
+# OK, so this gives me an idea...
+
+slide
+  images/emulation-intro.png
+slide
+  images/emulation.png
+slide
+  images/emulation-reverse.png
+
+slide
+  images/zero-w.png
+
+slide
+  images/fantasy.png
+slide
+  images/fantasy2.png
+
+# TODO: Something about cheating
+#   [x] not totally naive!
+#      cheating?!
+
+# In fact, this behavior is required by law...
 slide
   images/underbelly.png
 slide
   images/fcc.png
 
+
+# ##############################
+# Part II. How it really works
+# ##############################
+
+
+# ##############################
+# Part III. Demonstration
+# ##############################
+ 
+
+# future work here?
+
+# ##############################
+# Part IV. Big Ideas
+# ##############################
+
+
 slide
   images/motherbrain.png
+
+# 
+#  - here, affirm that it is NES -
+# 
+#  [ ] j/k hardware is hard
+#   [ ] hardware lessons
+#   [ ] waveforms
+#   [ ] power, etc.
+#   [ ] quiz: what is this component?
+#   [ ] optimization, swizzling, deglitching
+#   [ ] timing: be late
+#  [ ] ppuppy board
+#   [ ] making things physically fit
+#   [ ] desolder the CIC
+# 
+#  [ ] cpu side: show eeprom, program
+#  [ ] memory knocking
+#   [ ] security hax 1: hdd controller
+#   [ ] security hax 2: one trace
+#     [ ] nsa principle?
+#   [ ] port knocking? (this took me a long time
+#       to explain in video; maybe skip)
+#   [ ] first responds with whatever's actually in mem,
+#       but count!
+#   [ ] then it starts the protocol, sends palette, scroll, gets controllers
+#   [ ] writes palette, scroll
+#   [ ] .. filling vblank .. (show waveforms?)
+#   [ ] running out of time..
+# 
+#  [ ] demonstration
+#  [ ] future work:
+#  [ ]  sound
+#  [ ]  reverse emulating the CPU
+# 
+#  [ ] big ideas
+#  emulating the brain vs reverse-emulating the brain
+#  neural implant = persistence of vision (aka bus capacitance)
+#    vs. "replacing my software/roms with something faster"
+#  [x] mother brain neural implant
+#   [ ] this behavior is required by law!
+#     [ ] galactic federal law [-:
+#  [ ] ABCs
+#  [ ] thanks / @tom7

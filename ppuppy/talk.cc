@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "arcfour.h"
 #include "convert.h"
+#include "base/stringprintf.h"
 
 Talk Talk::Load(const string &src_filename) {
   vector<string> src = Util::ReadFileToLines(src_filename);
@@ -28,6 +29,14 @@ Talk Talk::Load(const string &src_filename) {
     if (cmd == "#" || cmd == "")
       continue;
 
+    auto AddFile = [&slide, &multi, &duration](const string &f) {
+      slide->anim.emplace_back();
+      Frame *frame = &slide->anim.back();
+      frame->multi = multi;
+      frame->filename = f;
+      frame->duration = duration;
+    };
+    
     if (cmd == "slide") {
       talk.slides.emplace_back();
       slide = &talk.slides.back();
@@ -44,14 +53,21 @@ Talk Talk::Load(const string &src_filename) {
     } else if (cmd == "single") {
       CHECK(slide != nullptr) << "start slide first";
       multi = false;
+    } else if (cmd == "array") {
+      CHECK(slide != nullptr) << "start slide first";
+      string los = Util::chop(line);
+      string his = Util::chop(line);
+      string f = Util::chop(line);
+      CHECK(!f.empty() && f.find("%") != string::npos) << "array: " << f;
+      int lo = atoi(los.c_str());
+      int hi = atoi(his.c_str());
+      for (int x = lo; x <= hi; x++) {
+	AddFile(Util::Replace(f, "%", StringPrintf("%d", x)));
+      }
     } else {
       // Command must be a file that we can open.
       CHECK(slide != nullptr) << "start slide first (" << cmd << ")";
-      slide->anim.emplace_back();
-      Frame *frame = &slide->anim.back();
-      frame->multi = multi;
-      frame->filename = cmd;
-      frame->duration = duration;
+      AddFile(cmd);
     }
   }
 
