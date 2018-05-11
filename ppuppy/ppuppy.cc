@@ -355,7 +355,7 @@ int main(int argc, char **argv) {
 	if (addr == KNOCK_ADDR + 1) {
 	  next_knock++;
 	  // (it should already be this, but for clarity...)
-	  output_word = Encode(screen->palette[0]);
+	  output_word = Encode(next_screen->palette[0]);
 	  goto wait_low;
 	} else {
 	  // Well, we already returned a knock reply that was
@@ -374,7 +374,7 @@ int main(int argc, char **argv) {
 	goto writepal;
       default:
       writepal:
-	output_word = Encode(screen->palette[next_knock - 4]);
+	output_word = Encode(next_screen->palette[next_knock - 4]);
 	next_knock++;
 	if (next_knock == 15 + 5) {
 	  next_knock = 0;

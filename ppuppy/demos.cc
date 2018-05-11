@@ -127,7 +127,7 @@ Screen *Slideshow::GetNextScreen() {
   int ai = anim_idx;
   if (tct > slide->screens[ai].second) {
     ai ++;
-    if (ai > slide->screens.size()) ai = 0;
+    if (ai >= slide->screens.size()) ai = 0;
     tct = 0;
   }
   int screen_idx = slide->screens[ai].first;
