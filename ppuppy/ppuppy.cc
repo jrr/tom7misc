@@ -21,6 +21,8 @@ static constexpr bool DISABLE_INTERRUPTS = true;
 
 static constexpr bool SNES_DEMO = false;
 
+static int deglitches = 1;
+
 // Number of consecutive /RD high reads that cause us to assume vblank
 // has occurred. This has to be set high enough that the slow reads
 // during the CPU knocking procedure don't seem like frames
@@ -134,6 +136,7 @@ int main(int argc, char **argv) {
     "images/titletest.png",
     "images/abc.png",
     "images/arst-arsw.png",
+
     "images/cartclosed.png",
     "images/cartinside-bicameral.png",
     "images/cartinside-free.png",
@@ -152,7 +155,6 @@ int main(int argc, char **argv) {
     "images/motherboard-cpu.png",
     "images/motherboard-ppu.png",
     "images/motherboard.png",
-    "images/motherbrain.png",
     "images/nes-motherboard-caps.png",
     "images/nes2cart.png",
     "images/onetrickpony.png",
@@ -168,6 +170,10 @@ int main(int argc, char **argv) {
     "images/venn3.png",
     "images/venn4.png",
     "images/zero-w.png",
+
+    "images/motherbrain.png",
+    "images/fantasy.png",
+    "images/fantasy2.png",
   });
 
   std::unique_ptr<SNES> snes;
@@ -303,7 +309,7 @@ int main(int argc, char **argv) {
 
     bcm2835_gpio_set_multi_nb(output_word);
     asm volatile("@ deglitch start " : : :);
-    asm volatile("nop" : : :);
+    // asm volatile("nop" : : :);
 
     // Read a few more times, since RD seems to go high earlier than the
     // address lines become stable. This makes a huge difference.
@@ -315,7 +321,10 @@ int main(int argc, char **argv) {
     // Ugh, figure out a way to either tune this or make the timing more
     // automatic?
     // asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);    asm volatile("nop" : : :);
-    DEGLITCH_READ;
+      DEGLITCH_READ;
+    for (int i = 0; i < deglitches; i++) {
+      asm volatile("nop" : : :);
+    }
     DEGLITCH_READ;
     asm volatile("@ deglitch end " : : :);
 
@@ -482,11 +491,25 @@ int main(int argc, char **argv) {
   vblank:
     frames++;
 
+    // Maybe do this on like controller 2?
+    /*
     if (joy1 & RIGHT) screen->palette[4]++;
     if (joy1 & LEFT) screen->palette[4]--;
     if (joy1 & A_BUTTON && !(old_joy1 & A_BUTTON)) screen->palette[1] += 0x01;
     if (joy1 & B_BUTTON && !(old_joy1 & B_BUTTON)) screen->palette[2] += 0x01;
-      
+    */
+
+    if (joy1 & UP && !(old_joy1 & UP)) {
+      deglitches += (joy1 & A_BUTTON) ? 10 : 1;
+      printf("%d deglitches\n", deglitches);
+    }
+
+    if (joy1 & DOWN && !(old_joy1 & DOWN)) {
+      deglitches -= (joy1 & A_BUTTON) ? 10 : 1;
+      if (deglitches < 0) deglitches = 0;
+      printf("%d deglitches\n", deglitches);
+    }
+
     old_joy1 = joy1;
     old_joy2 = joy2;
 
