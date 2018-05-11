@@ -1,0 +1,105 @@
+# Lines starting with # are comments.
+
+
+# Normal slide is a single-frame animation.
+slide
+  images/titletest.png
+
+slide
+  images/learnfun1.png
+slide
+  images/learnfun2.png
+slide
+  images/learnfun3.png
+
+slide
+  images/arst-arsw.png
+
+slide
+  images/abc.exe
+
+# A slide can also be an animation.
+# (Actually all slides are animations. They are
+# just usually one frame.)
+slide
+  dur 2
+  images/dinosaurc/dinosaurc0000.png
+  images/dinosaurc/dinosaurc0001.png
+  images/dinosaurc/dinosaurc0002.png
+  images/dinosaurc/dinosaurc0003.png
+  images/dinosaurc/dinosaurc0004.png
+  images/dinosaurc/dinosaurc0005.png
+  images/dinosaurc/dinosaurc0006.png
+  images/dinosaurc/dinosaurc0007.png
+  images/dinosaurc/dinosaurc0008.png
+  images/dinosaurc/dinosaurc0009.png
+  images/dinosaurc/dinosaurc0010.png
+  images/dinosaurc/dinosaurc0011.png
+  images/dinosaurc/dinosaurc0012.png
+  images/dinosaurc/dinosaurc0013.png
+  images/dinosaurc/dinosaurc0014.png
+  images/dinosaurc/dinosaurc0015.png
+  images/dinosaurc/dinosaurc0016.png
+  images/dinosaurc/dinosaurc0017.png
+  images/dinosaurc/dinosaurc0018.png
+  images/dinosaurc/dinosaurc0019.png
+  images/dinosaurc/dinosaurc0020.png
+  images/dinosaurc/dinosaurc0021.png
+  images/dinosaurc/dinosaurc0022.png
+  images/dinosaurc/dinosaurc0023.png
+  images/dinosaurc/dinosaurc0024.png
+  images/dinosaurc/dinosaurc0025.png
+  images/dinosaurc/dinosaurc0026.png
+  images/dinosaurc/dinosaurc0027.png
+  images/dinosaurc/dinosaurc0028.png
+  images/dinosaurc/dinosaurc0029.png
+  images/dinosaurc/dinosaurc0030.png
+  images/dinosaurc/dinosaurc0031.png
+  images/dinosaurc/dinosaurc0032.png
+  images/dinosaurc/dinosaurc0033.png
+  images/dinosaurc/dinosaurc0034.png
+  images/dinosaurc/dinosaurc0035.png
+  images/dinosaurc/dinosaurc0036.png
+  images/dinosaurc/dinosaurc0037.png
+  images/dinosaurc/dinosaurc0038.png
+  images/dinosaurc/dinosaurc0039.png
+  images/dinosaurc/dinosaurc0040.png
+  images/dinosaurc/dinosaurc0041.png
+  images/dinosaurc/dinosaurc0042.png
+  images/dinosaurc/dinosaurc0043.png
+  images/dinosaurc/dinosaurc0044.png
+  images/dinosaurc/dinosaurc0045.png
+  images/dinosaurc/dinosaurc0046.png
+  images/dinosaurc/dinosaurc0047.png
+  images/dinosaurc/dinosaurc0048.png
+  images/dinosaurc/dinosaurc0049.png
+  images/dinosaurc/dinosaurc0050.png
+  images/dinosaurc/dinosaurc0051.png
+  images/dinosaurc/dinosaurc0052.png
+  images/dinosaurc/dinosaurc0053.png
+  images/dinosaurc/dinosaurc0054.png
+  images/dinosaurc/dinosaurc0055.png
+  images/dinosaurc/dinosaurc0056.png
+  images/dinosaurc/dinosaurc0057.png
+  images/dinosaurc/dinosaurc0058.png
+  images/dinosaurc/dinosaurc0059.png
+  images/dinosaurc/dinosaurc0060.png
+  images/dinosaurc/dinosaurc0061.png
+  images/dinosaurc/dinosaurc0062.png
+  images/dinosaurc/dinosaurc0063.png
+  images/dinosaurc/dinosaurc0064.png
+  images/dinosaurc/dinosaurc0065.png
+  images/dinosaurc/dinosaurc0066.png
+  images/dinosaurc/dinosaurc0067.png
+  images/dinosaurc/dinosaurc0068.png
+
+slide
+  images/onetrickpony.png
+
+slide
+  images/underbelly.png
+slide
+  images/fcc.png
+
+slide
+  images/motherbrain.png

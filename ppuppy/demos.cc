@@ -13,7 +13,8 @@
 #include "armsnes/libretro/libretro.h"
 #include "threadutil.h"
 #include "util.h"
-
+#include "talk.h"
+#include "base/logging.h"
 
 void BouncingBalls::Ball::Update() {
   bx += bdx;
@@ -71,27 +72,65 @@ void BouncingBalls::Draw() {
   }
 }
 
-Slideshow::Slideshow(const vector<string> &filenames) {
-  screens.reserve(filenames.size());
-  for (const string &f : filenames) {
-    screens.push_back(ScreenFromFile(f));
-  }
+Slideshow::Slideshow(const string &meta_file,
+		     const string &slide_data_file) :
+  talk(meta_file, slide_data_file) {
+  fprintf(stderr, "Loaded %d slides and %d screens from %s.\n",
+	  talk.NumSlides(),
+	  talk.NumScreens(),
+	  meta_file.c_str());
+  CHECK(talk.NumSlides() > 0) << "No slides?";
 }
 
 void Slideshow::Update(uint8 joy1, uint8 joy2) {
   if ((joy1 & ~old_joy1) & RIGHT) {
-    frames++;
-    frames %= screens.size();
+    slide_idx ++;
+    if (slide_idx >= talk.NumSlides()) slide_idx = 0;
+    anim_idx = 0;
+    count = 0;
   } else if ((joy1 & ~old_joy1) & LEFT) {
-    frames--;
-    if (frames < 0) frames = screens.size() - 1;
+    slide_idx --;
+    if (slide_idx < 0) slide_idx = talk.NumSlides() - 1;
+    anim_idx = 0;
+    count = 0;
+  } else {
+    // XXX advance anim
+    CHECK(slide_idx >= 0 && slide_idx < talk.NumSlides());
+    CompiledTalk::Slide *slide = talk.GetSlide(slide_idx);
+    CHECK(anim_idx >= 0 && anim_idx < slide->screens.size());
+    count++;
+    if (count > slide->screens[anim_idx].second) {
+      anim_idx ++;
+      if (anim_idx > slide->screens.size()) anim_idx = 0;
+      count = 0;
+    }
   }
-
+    
   old_joy1 = joy1;
 }
 
 Screen *Slideshow::GetScreen() {
-  return &screens[frames];
+  CHECK(slide_idx >= 0 && slide_idx < talk.NumSlides());
+  CompiledTalk::Slide *slide = talk.GetSlide(slide_idx);
+  CHECK(anim_idx >= 0 && anim_idx < slide->screens.size());
+  int screen_idx = slide->screens[anim_idx].first;
+  CHECK(screen_idx >= 0 && screen_idx < talk.NumScreens());
+  return talk.GetScreen(screen_idx);
+}
+
+Screen *Slideshow::GetNextScreen() {
+  // Always predict that we'll be on the same slide.
+  CompiledTalk::Slide *slide = talk.GetSlide(slide_idx);
+
+  int tct = count + 1;
+  int ai = anim_idx;
+  if (tct > slide->screens[ai].second) {
+    ai ++;
+    if (ai > slide->screens.size()) ai = 0;
+    tct = 0;
+  }
+  int screen_idx = slide->screens[ai].first;
+  return talk.GetScreen(screen_idx);
 }
 
 // Note that due to all the global variables in armsnes, two instances
