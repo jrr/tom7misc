@@ -388,7 +388,9 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
 
       const auto &row = bigram_count[row_idx];
       if (row.second == 0) {
+	#if 0
 	printf("*** All bigrams done.\n");
+	#endif
 	break;
       }
       if (colors_left == 0) {

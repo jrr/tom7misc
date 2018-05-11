@@ -263,10 +263,8 @@ int main(int argc, char **argv) {
     // We can also be part of the knocking protocol during vblank.
     // This is the index of the next knock we expect to see.
     int next_knock = 0;
-
-    // XXX during the knock, we want to send the palette for the
-    // NEXT screen. Predict what this will be, if we can.
-    Screen *screen = nullptr, *next_screen = nullptr;
+    
+    Screen *screen = nullptr;
     
   next_frame:
     next_knock = 0;
@@ -275,14 +273,8 @@ int main(int argc, char **argv) {
     // bouncing.Draw();
     if (SNES_DEMO) {
       screen = snes->GetScreen();
-      // If we keep a constant palette and scroll, then this doesn't
-      // matter. Otherwise, we can triple buffer, or base MakePalette
-      // on the previous frame?
-      // XXX
-      next_screen = screen;
     } else {
       screen = slideshow.GetScreen();
-      next_screen = slideshow.GetNextScreen();
     }
     
     // Assume we are at the top-left.

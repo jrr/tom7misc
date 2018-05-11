@@ -8,6 +8,7 @@
 #include <thread>
 #include <memory>
 #include "arcfour.h"
+#include "talk.h"
 
 struct BouncingBalls {
   struct Ball {
@@ -25,12 +26,22 @@ struct BouncingBalls {
 };
 
 struct Slideshow {
-  Slideshow(const vector<string> &filenames);
+  Slideshow(const string &meta_file,
+	    const string &slide_data_file);
   
   void Update(uint8 joy1, uint8 joy2);
   int frames = 0;
   Screen *GetScreen();
-  std::vector<Screen> screens;
+  // Predicted next screen, which will be right unless
+  // switching slides.
+  Screen *GetNextScreen();
+  CompiledTalk talk;
+  
+  // Indicates which screen from Talk we're looking at.
+  int slide_idx = 0;
+  int anim_idx = 0;
+  int count = 0;
+  
   uint8 old_joy1 = 0;
 };
 
