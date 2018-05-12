@@ -348,6 +348,33 @@ slide
 # -> leads into deglitching / logic families
 # -> leads into 3v3 vs 5v
 
+# 3v3 5v. so use transistor
+slide
+  images/3v5v1.png
+slide
+  images/3v5v2.png
+slide
+  images/3v5v3.png
+slide
+  images/3v5v4.png
+
+# but this is wrong. the bus is shared. tri-state
+slide
+  dur 4
+  array 1 4 images/tristate10-%.png
+slide
+  dur 4
+  array 1 4 images/tristate01-%.png
+slide
+  images/tristate00.png
+
+# but this is wrong. the transistors are too slow.
+slide
+  images/slowsistor.png
+
+
+# LSTTL 
+
 # To cover:
 #  - schottky transistor, logic families
 #   -> leads into copying off NES boards
@@ -361,7 +388,6 @@ slide
 # bus capacitance, buses
 
 #  [ ] j/k hardware is hard
-#   [ ] hardware lessons
 #   [ ] power, etc.
 #   [ ] quiz: what is this component?
 #   [ ] optimization, swizzling, deglitching
