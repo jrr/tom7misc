@@ -36,7 +36,7 @@ struct Talk {
   
   void Save(const string &meta_file,
 	    const string &slide_data_file);
-
+  
   vector<Slide> slides;
 };
 
@@ -64,7 +64,7 @@ struct CompiledTalk {
   
   CompiledTalk(const string &meta_file,
 	       const string &slide_data_file);
-
+  
 private:
   vector<Screen> screen_data;
   vector<Slide> slides;

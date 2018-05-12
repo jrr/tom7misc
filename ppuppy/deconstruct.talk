@@ -102,7 +102,6 @@ slide
 # about defying expectations.
 
 # Let's consider another NOT FUNNY / FUNNY pair.
-
 slide
   images/marioboot.png
 slide
@@ -115,6 +114,9 @@ slide
   images/strange-loops.png
 slide
   images/quine.png
+
+# But I contend
+# XXX slide introducing Improper Hierarchy
 
 # actually anachronism is an example of this
 slide
@@ -222,10 +224,10 @@ slide
 # topics like this, which we won't discuss.)
 slide
   images/mario-bw.png
-# To add color to the scene...
-# XXX EXPLAIN!
-# slide
-#   images/tables-color.png
+slide
+  # XXX: make a "palette" command that forces a selection
+  # of the specific palette that's in this slide.
+  images/tables-color.png
 slide
   dur 24
   array 1 5 images/palette%.png
@@ -251,8 +253,13 @@ slide
 
 
 # limitations that we can work around
-#  - SLOW UPDATES.
 #  - COLOR RESOLUTION.
+#  - SLOW UPDATES. - vblank
+# (both of these lead naturally into
+# talking about the timing of the scanline)
+
+# try to get through the signal timing stuff quickly.
+# don't be pedantic!
 
 #  [ ] j/k hardware is hard
 #   [ ] hardware lessons

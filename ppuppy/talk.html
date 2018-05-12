@@ -1,0 +1,81 @@
+<!doctype html>
+
+<!-- This is not for direct use; you gotta build and then detalk
+     a talk (which copies this into the destination directory). -->
+
+<script src="slides.js"></script>
+<script>
+
+ let slide_idx = 0;
+ let anim_idx = 0;
+ let count = 0;
+
+ function Draw() {
+   let slide = slides[slide_idx];
+   let f = slide[anim_idx];
+   let screen = f.i;
+   let elt = document.getElementById('proj');
+   elt.src = f.i + ".png";
+ }
+
+ document.onkeydown = function(e) {
+   e = e || window.event;
+   if (e.ctrlKey) return true;
+   
+   switch (e.keyCode) {
+     case 37: // LEFT
+       slide_idx--;
+       anim_idx = 0;
+       count = 0;
+       if (slide_idx < 0) slide_idx = slides.length - 1;
+       break;
+     case 38: // UP
+       break;
+     case 39: // RIGHT
+       slide_idx++;
+       anim_idx = 0;
+       count = 0;
+       if (slide_idx >= slides.length) slide_idx = 0;
+       break;
+     case 40: // DOWN
+       break;
+     case 32: // SPACE
+       break;
+   } 
+   Draw();
+   return false;
+ }
+
+ function Frame() {
+   // advance animation
+   let slide = slides[slide_idx];
+   count++;
+   if (count > slide[anim_idx].d) {
+     anim_idx++;
+     if (anim_idx >= slide.length) anim_idx = 0;
+     count = 0;
+   }
+
+   Draw();
+   window.requestAnimationFrame(Frame);
+ }
+
+ function Start() {
+   window.requestAnimationFrame(Frame);
+ }
+ 
+</script>
+<style>
+    .screen {
+    width: 768px;
+    height: 768px;
+    image-rendering: auto;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    }
+</style>
+    
+<body onload="Start()">
+    <img id="proj" class="screen">
+</body>
+
