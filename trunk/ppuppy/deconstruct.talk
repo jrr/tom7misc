@@ -108,7 +108,30 @@ slide
 slide
   images/samus.png
 
-#  [x] improper hierarchy venn
+# funny / not funny
+slide
+  images/self-reference.png
+slide
+  images/strange-loops.png
+slide
+  images/quine.png
+
+# actually anachronism is an example of this
+slide
+  images/pastpresentfuture.png
+slide
+  images/pastpresentfuture-anachronism.png
+
+
+slide
+  images/venn1.png
+slide
+  images/venn2.png
+slide
+  images/venn3.png
+slide
+  images/venn4.png
+
 
 # TODO: Lesson [meta]: Draw specious parallels
 
