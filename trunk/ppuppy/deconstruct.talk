@@ -24,8 +24,10 @@ slide
 
 slide
   dur 2
-  array 0  9  images/dinosaurc/dinosaurc000%.png
-  array 10 68 images/dinosaurc/dinosaurc00%.png
+  # XXX
+  images/dinosaurc/dinosaurc0000.png
+  # array 0  9  images/dinosaurc/dinosaurc000%.png
+  # array 10 68 images/dinosaurc/dinosaurc00%.png
 
 # 
 #
@@ -251,26 +253,106 @@ slide
   images/cartclosed-ppu-rom.png
 
 
-
 # limitations that we can work around
 #  - COLOR RESOLUTION.
 #  - SLOW UPDATES. - vblank
 # (both of these lead naturally into
 # talking about the timing of the scanline)
 
+# (This is an important topic because it drive home
+# the point of how reverse emulation unlocks
+# functionality in a device that was inaccessible
+# within its intended operation.)
+
+# Two serious limitations.
+slide
+  images/limitations.png
+slide
+  images/limitations-update.png
+slide
+  dur 6
+  array 1 13 images/scanline%.png
+slide
+  images/motherboard-mmregs.png
+slide
+  images/mario-strip.png
+slide
+  # XXX make this slide better, perhaps
+  # by forcing palette selection to follow
+  # NES rules.
+  images/limitations-color.png
+
+
+slide
+  images/8pixels.png
+
+
 # try to get through the signal timing stuff quickly.
 # don't be pedantic!
 
+# ##############################
+# Part III. PPUppy
+# ##############################
+
+
+# OK, so my fantasy schematic was pretty far from
+# reality. I can't go through the whole process here.
+# Also I am bad at electronics.
+
+# Certain budget for "OMG it hard" without actually
+# conveying lessons.
+#  - bus capacitance (fwd reference persistence of vision?)
+#  - 
+
+# So here is a capture of three channels from this actual NES using a
+# digital logic probe; basically an oscilloscope. I think it's very
+# weird that this super low-level electrical signal is now an image
+# inside the cartridge's memory, being rendered over the same wires
+# that it was measuring. It's certainly an example of improper
+# hierarchy.
+slide
+  images/scope-timing.png
+# This top channel is the PPU's "/RD" line. It signals when it wants
+# to read from ROM or RAM by going low.
+slide
+  images/scope-timing-ns.png
+# This forward references bus capacitance.
+slide
+  images/scope-timing-inout.png
+# The first thing I did was measure how fast I could output bits on
+# the raspberry pi. I measured that I could do pulses at about 80ns.
+slide
+  images/scope-timing-pi.png
+# XXX: "this is fine" drawing
+
+# Later I learned that 
+
+# Of course, waveforms are not really digital
+slide
+  images/scope-analog.png
+# -> leads into deglitching / logic families
+# -> leads into 3v v 5v
+
+# To cover:
+#  - schottky transistor, logic families
+
+
+# bus capacitance, buses
+
 #  [ ] j/k hardware is hard
 #   [ ] hardware lessons
-#   [ ] waveforms
 #   [ ] power, etc.
 #   [ ] quiz: what is this component?
 #   [ ] optimization, swizzling, deglitching
+#   [ ] disable interrupts
 #   [ ] timing: be late
 #  [ ] ppuppy board
 #   [ ] making things physically fit
 #   [ ] desolder the CIC
+#    making these boards is kind of expensive, because
+#    NES games are expensive now. I need to harvest their
+#    CIC chips. Annoyingly, they're more expensive than
+#    the cheapest SNES games [hint]
 # 
 #  [ ] cpu side: show eeprom, program
 #  [ ] memory knocking
@@ -289,7 +371,7 @@ slide
 
 
 # ##############################
-# Part III. Demonstration
+# Part IV. Demonstration
 # ##############################
 
 # swap cartz
@@ -297,11 +379,12 @@ slide
 # future work here?
 
 # ##############################
-# Part IV. Big Ideas
+# Part V. Big Ideas
 # ##############################
 
 
 slide
+  # XXX animate
   images/motherbrain.png
 
 # 
