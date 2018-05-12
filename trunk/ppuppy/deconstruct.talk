@@ -325,17 +325,38 @@ slide
   images/scope-timing-pi.png
 # XXX: "this is fine" drawing
 
-# Later I learned that 
+# I knew this was cutting it a bit close, but it was
+# much worse than I thought.
+# First of all, you have to do a read from some pins to react to
+# the addresses that come in. Worse, although the *bandwidth* is
+# reasonable here, the *latency* is pretty bad (about an additional
+# 100ns).
+slide
+  images/scope-timing-late.png
+# So if I can't get my paper done in time for the deadline, the
+# best thing to do is submit to NEXT YEAR's deadline...
+slide
+  images/scope-timing-ontime.png
+# Here I write before I read the address, which means I always
+# must be prepared with the next byte I plan to write. This is
+# possible because the PPU's behavior is predictable.
 
-# Of course, waveforms are not really digital
+# Another reason you see the screen is a bit janky...
+# It's harder than that, though. Waveforms are not really digital,
 slide
   images/scope-analog.png
 # -> leads into deglitching / logic families
-# -> leads into 3v v 5v
+# -> leads into 3v3 vs 5v
 
 # To cover:
 #  - schottky transistor, logic families
+#   -> leads into copying off NES boards
+#      quiz: what is this component?
+#  - buses
+#  - tri-state logic
 
+slide
+  images/trick-capacitor.png
 
 # bus capacitance, buses
 
@@ -345,7 +366,6 @@ slide
 #   [ ] quiz: what is this component?
 #   [ ] optimization, swizzling, deglitching
 #   [ ] disable interrupts
-#   [ ] timing: be late
 #  [ ] ppuppy board
 #   [ ] making things physically fit
 #   [ ] desolder the CIC
