@@ -94,7 +94,7 @@ void Slideshow::Update(uint8 joy1, uint8 joy2) {
     anim_idx = 0;
     count = 0;
   } else {
-    // XXX advance anim
+    // advance anim
     CHECK(slide_idx >= 0 && slide_idx < talk.NumSlides());
     CompiledTalk::Slide *slide = talk.GetSlide(slide_idx);
     CHECK(anim_idx >= 0 && anim_idx < slide->screens.size());
