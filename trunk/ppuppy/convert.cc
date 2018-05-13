@@ -896,7 +896,8 @@ void FillScreenSelective(ImageRGB *img, Screen *screen) {
 // from the SNES emulator.
 void FillScreenFast(ImageRGB *img, Screen *screen) {
   // Two-bit color index within palette #pal that matches the
-  // RGB color best.
+  // RGB color best. We avoid LAB here since that is much
+  // slower.
   auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
     std::tuple<int, int> {
     int best_sqerr = 65536 * 3 + 1;
@@ -916,7 +917,6 @@ void FillScreenFast(ImageRGB *img, Screen *screen) {
       }
     }
 
-    // TODO: Also keep per-color error to propagate?
     return {best_i, best_sqerr};
   };
 
@@ -928,7 +928,7 @@ void FillScreenFast(ImageRGB *img, Screen *screen) {
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
     std::tuple<uint8, uint8, uint8> best;
-    for (int pal = 0; pal < 4; pal++) {
+    for (int pal = 0; pal < 1 /* XXX */; pal++) {
       int totalerror = 0;
       uint8 lobits = 0, hibits = 0;
       for (int x = 0; x < 8; x++) {

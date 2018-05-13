@@ -239,7 +239,7 @@ int main(int argc, char **argv) {
       // matter. Otherwise, we can triple buffer, or base MakePalette
       // on the previous frame?
       // XXX
-      next_screen = screen;
+      next_screen = snes->GetNextScreen();
     } else {
       screen = slideshow.GetScreen();
       next_screen = slideshow.GetNextScreen();
