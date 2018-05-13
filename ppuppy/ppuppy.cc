@@ -13,13 +13,14 @@
 #include "schedule.h"
 #include "screen.h"
 #include "demos.h"
+#include "snesdemo.h"
 #include "convert.h"
 
 // Gives good timing, but requires a hard restart to
 // get back to linux.
 static constexpr bool DISABLE_INTERRUPTS = false;
 
-static constexpr bool SNES_DEMO = false;
+static constexpr bool SNES_DEMO = true;
 
 static int deglitches = 1;
 

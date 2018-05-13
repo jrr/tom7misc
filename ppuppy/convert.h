@@ -44,6 +44,12 @@ enum class PaletteMethod {
 
 void MakePalette(PaletteMethod method, const ImageRGB *img,
 		 ArcFour *rc, Screen *screen);
+// Put the magic bytes in unused palette slots that tell
+// ppuppy to turn off debugging.
+inline void NoDebugPalette(Screen *screen) {
+  screen->palette[8] = 0x2A;
+  screen->palette[12] = 0xA7;
+}
 
 void FillScreenSelective(ImageRGB *img, Screen *screen);
 

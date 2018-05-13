@@ -5,7 +5,6 @@
 #include "screen.h"
 #include <vector>
 #include <string>
-#include <thread>
 #include <memory>
 #include "arcfour.h"
 #include "talk.h"
@@ -43,18 +42,6 @@ struct Slideshow {
   int count = 0;
   
   uint8 old_joy1 = 0;
-};
-
-struct SNES {
-  SNES(const string &cart);
-
-  void Update(uint8 joy1, uint8 joy2);
-  Screen *GetScreen();
-  Screen screen;
- private:
-  void Run();
-  ArcFour rc;
-  std::unique_ptr<std::thread> th;
 };
 
 #endif
