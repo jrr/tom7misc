@@ -349,6 +349,8 @@ slide
 # -> leads into 3v3 vs 5v
 
 # 3v3 5v. so use transistor
+# these are different "logic families"
+# actually CMOS vs TTL
 slide
   images/3v5v1.png
 slide
@@ -359,6 +361,8 @@ slide
   images/3v5v4.png
 
 # but this is wrong. the bus is shared. tri-state
+# If I don't cover it elsewhere, can mention that
+# the bus is even shared between address and data lines
 slide
   dur 4
   array 1 4 images/tristate10-%.png
@@ -371,35 +375,61 @@ slide
 # but this is wrong. the transistors are too slow.
 slide
   images/slowsistor.png
+slide
+  images/schottky.png
 
+# XXX should say something about "logic families"
+# before this point
 
-# LSTTL 
+slide
+  images/logic-families.png
+slide
+  images/logic-families-invention.png
 
-# To cover:
-#  - schottky transistor, logic families
-#   -> leads into copying off NES boards
-#      quiz: what is this component?
-#  - buses
-#  - tri-state logic
-
+# Wait, these letters MEAN SOMETHING?!
+slide
+  images/74ls373n.png
+# So this led me to think that maybe the NES designers
+# knew what they were doing, and that it made sense to
+# just copy off their boards. But this comes with some
+# perils. For example, what is this component, electronics
+# geniuses?
 slide
   images/trick-capacitor.png
 
-# bus capacitance, buses
-
-#  [ ] j/k hardware is hard
-#   [ ] power, etc.
-#   [ ] quiz: what is this component?
-#   [ ] optimization, swizzling, deglitching
-#   [ ] disable interrupts
-#  [ ] ppuppy board
-#   [ ] making things physically fit
-#   [ ] desolder the CIC
+# So anyway, my final design was more complicated
+# than my fantasy, and still doesn't work that great
+slide
+  images/ppuppy-board.png
+slide
+  images/assembled.png
 #    making these boards is kind of expensive, because
 #    NES games are expensive now. I need to harvest their
 #    CIC chips. Annoyingly, they're more expensive than
 #    the cheapest SNES games [hint]
-# 
+slide
+  images/assembled-cic.png
+
+# CPU side...
+slide
+  images/assembled-cpu.png
+
+# bonus topics
+#  [ ] j/k hardware is hard
+#   [ ] power, etc.
+#   [ ] optimization, swizzling, deglitching
+#   [ ] disable interrupts
+
+
+slide
+  images/cpusjob.png
+
+slide
+  images/normal-reads.png
+slide
+  images/knocking.png
+
+
 #  [ ] cpu side: show eeprom, program
 #  [ ] memory knocking
 #   [ ] security hax 1: hdd controller
