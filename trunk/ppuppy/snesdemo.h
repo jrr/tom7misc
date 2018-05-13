@@ -19,7 +19,6 @@ struct SNES {
   Screen screen;
  private:
   void Run();
-  ArcFour rc;
   std::unique_ptr<std::thread> th;
 };
 

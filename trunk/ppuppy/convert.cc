@@ -189,8 +189,9 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     for (int nes_color = 0; nes_color < 64; nes_color++) {
       // Don't even consider 1d, 0e, 1e, 2e, 3e, 0f, 1f, 2f, 3f,
       // since these are all black (we use 0d for that).
+      // Also, 20 and 30 are basically identical whites.
       const int cm = nes_color & 0x0f;
-      if (cm == 0x0e || cm == 0x0f || nes_color == 0x1d)
+      if (cm == 0x0e || cm == 0x0f || nes_color == 0x1d || nes_color == 0x30)
 	continue;
 
       float nl = ntsc_lab[nes_color * 3 + 0];
