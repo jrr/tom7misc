@@ -53,12 +53,14 @@ slide
 # The whole time I had a back-up plan, which was
 # instead to do a talk like this,
 #   JOKE SCHEMAS IN COMPUTER SCIENCE
-
+slide
+  dur 48
+  array 1 2 images/jokeschemas%.png
 
 # and I don't mean like DTD even though that is
 # indeed a joke.
-slide
-  images/dtd.png
+# slide
+#  images/dtd.png
 slide
   dur 24
   array 1 4 images/dtd%.png
@@ -79,6 +81,8 @@ slide
 # and plus I can recycle old material, like those
 # lazy episode of MacGyver that consisted 90% of
 # flashbacks.
+
+# XXX slide here
 
 #  [ ] 
 #      what is funny?
@@ -107,7 +111,16 @@ slide
 slide
   images/marioboot.png
 slide
-  images/samus.png
+  dur 48
+  images/samus1.png
+  dur 8
+  images/samus2.png
+  dur 4
+  images/samus1.png
+  dur 16
+  images/samus3.png
+  dur 16
+  images/samus2.png
 
 # funny / not funny
 slide
@@ -423,26 +436,51 @@ slide
 
 slide
   images/cpusjob.png
-
+slide
+  images/cpusjob2.png
 slide
   images/normal-reads.png
 slide
   images/knocking.png
 
+slide
+  images/knocking-protocol1.png
+slide
+  images/knocking-protocol2.png
+slide
+  images/knocking-protocol3.png
+slide
+  images/knocking-protocol4.png
 
-#  [ ] cpu side: show eeprom, program
-#  [ ] memory knocking
+# XXX By the way, this reminds me...
+# of SECURITY HAX
 #   [ ] security hax 1: hdd controller
 #   [ ] security hax 2: one trace
 #     [ ] nsa principle?
-#   [ ] port knocking? (this took me a long time
-#       to explain in video; maybe skip)
-#   [ ] first responds with whatever's actually in mem,
-#       but count!
-#   [ ] then it starts the protocol, sends palette, scroll, gets controllers
-#   [ ] writes palette, scroll
+#   [ ] port knocking? 
+#    * probably just skip this *
+
+slide
+  dur 10
+  array 0 3 images/accomplished%.png
+  dur 65535
+  images/accomplished4.png
+slide
+  images/knocking-protocol-joy.png
+
+slide
+  images/vblank-used.png
+
+# can talk about this while I eject the
+# cart and prep the demonstration. no
+# slides needed
+
 #   [ ] .. filling vblank .. (show waveforms?)
 #   [ ] running out of time..
+#        (in fact, in order to get my timing good,
+#        I've destroyed the linux kernel by turning
+#        off interrupts, so there's no possibility
+#        for multitasking)
 # [ ] upgrade to bigger computer
 
 
