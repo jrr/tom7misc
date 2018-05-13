@@ -8,6 +8,7 @@
 
 #include "snesdemo.h"
 #include "convert.h"
+#include "convert565.h"
 
 #include "schedule.h"
 #include "armsnes/libretro/libretro.h"
@@ -28,7 +29,7 @@ static std::mutex snes_mutex;
 static bool snes_do_frame = false;
 static uint8 snes_joy = 0;
 // PERF store directly as 565?
-static ImageRGB snes_img{256, 240};
+// static ImageRGB snes_img{256, 240};
 static int snes_frames = 0;
 static int snes_client_frames = 0;
 // Triple buffered. Treated modularly, screens[buf] is the one
@@ -45,6 +46,11 @@ static uint8 palette_cache[16] = {
   0x00, 0x00, 0x10, 0x3d,
   0x00, 0x2d, 0x3d, 0x30,
 };
+
+// Used only by thread.
+static ArcFour rc("snes");
+
+static Screen *retro_screen_target = &screens[0];
 
 // TODO: Should be some way to exit this thread, too
 void SNES::Run() {
@@ -69,8 +75,6 @@ void SNES::Run() {
       }
     }
 
-    retro_run();
-
     // Note: It's possible for a race (gotta be pretty unlucky since
     // it only takes about 2ms to render an SNES frame but we have
     // ~16ms) here. It happens when buf has already switched
@@ -82,24 +86,35 @@ void SNES::Run() {
     // cache the buffer target above with the lock held, because
     // if it doesn't have an in-bound value, we get much worse (crashy)
     // behavior here.
+    retro_screen_target = &screens[buffer_target];
+    // The video callback herein populates the screen
+    // natively from the 565 format.
+    retro_run();
+    NoDebugPalette(retro_screen_target); 
+    
+    /*
     MakePalette(PaletteMethod::GREYSCALE,
 		&snes_img, &rc, &screens[buffer_target]);
     FillScreenSelective(&snes_img, &screens[buffer_target]);
-    NoDebugPalette(&screens[buffer_target]);
+    NoDebugPalette(&screens[buffer_target]); 
+    */
   }
 }
 
-SNES::SNES(const string &cart) : rc("snes") {
+SNES::SNES(const string &cart) {
   // XXX replace with 'never initialized' 
   screens[0] = ScreenFromFile("images/marioboot.png");
   memcpy(&screens[1], &screens[0], sizeof (Screen));
   memcpy(&screens[2], &screens[0], sizeof (Screen));
 
+  // Fill in tables before any convert565 routines.
+  InitClosestColors565();
+  
   // Thread blocks until Update allows it to run.
   snes_do_frame = false;
   snes_mutex.lock();
   snes_do_frame = false;
-  
+
   // OK to create this thread now.
   th.reset(new std::thread(&SNES::Run, this));
   
@@ -141,6 +156,11 @@ SNES::SNES(const string &cart) : rc("snes") {
 
   retro_set_video_refresh([](const void *data,
                              unsigned width, unsigned height, size_t pitch) {
+    MakePalette565(data, width, height, pitch, palette_cache, &rc,
+		   retro_screen_target);
+    FillScreenFast565(data, width, height, pitch, retro_screen_target);
+    
+#if 0
     int idx = 0;
     for (int y = 0; y < height; y++) {
       uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
@@ -154,6 +174,7 @@ SNES::SNES(const string &cart) : rc("snes") {
 	snes_img.rgb[idx++] = b;
       }
     }
+#endif
   });
   snes_mutex.unlock();
 }
