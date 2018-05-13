@@ -1015,4 +1015,3 @@ vector<Screen> MultiScreenFromFile(const string &filename) {
 
   return screens;
 }
-
