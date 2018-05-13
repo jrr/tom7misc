@@ -31,11 +31,20 @@ static uint8 snes_joy = 0;
 static ImageRGB snes_img{256, 240};
 static int snes_frames = 0;
 static int snes_client_frames = 0;
-static Screen screens[2];
-// Is 0 or 1. screens[double_buffer] is owned by the thread, and
-// screens[double_buffer ^ 1] is owned by ppuppy. Only the main
-// thread writes this, in Update.
-static int double_buffer = 0;
+// Triple buffered. Treated modularly, screens[buf] is the one
+// currently being displayed. [buf+1] is the next frame. [buf+2] is
+// being written by the SNES thread.
+static Screen screens[3];
+static int buf = 0;
+
+// For speed, we only update part of the palette each frame.
+// This is only accessed by the SNES thread.
+static uint8 palette_cache[16] = {
+  0x1d, 0x00, 0x2d, 0x30,
+  0x00, 0x10, 0x2d, 0x3d,
+  0x00, 0x00, 0x10, 0x3d,
+  0x00, 0x2d, 0x3d, 0x30,
+};
 
 // TODO: Should be some way to exit this thread, too
 void SNES::Run() {
@@ -48,12 +57,14 @@ void SNES::Run() {
   for (;;) {
     int buffer_target = 0;
     for (;;) {
+      // PERF better to use a spin-lock? We should have the whole
+      // CPU to ourselves.
       MutexLock ml(&snes_mutex);
       if (snes_do_frame) {
 	// Consume the frame with the lock held.
 	snes_do_frame = false;
 	snes_client_frames++;
-	buffer_target = double_buffer;
+	buffer_target = (buf + 2) % 3;
 	break;
       }
     }
@@ -62,26 +73,27 @@ void SNES::Run() {
 
     // Note: It's possible for a race (gotta be pretty unlucky since
     // it only takes about 2ms to render an SNES frame but we have
-    // ~16ms) here. It happens when double_buffer has already switched
-    // to the other value, and so we're writing to the screen that
+    // ~16ms) here. It happens when buf has already switched
+    // to the next value, and so we're writing to the screen that
     // ppuppy is currently reading from. Assuming that the undefined
     // behavior is limited to returning garbage in the data race
     // region, which is probably better than blocking on a mutex
     // (which would flash the whole screen from missing deadlines). I
     // cache the buffer target above with the lock held, because
-    // if it doesn't have the value 0 or 1, we get much worse (crashy)
+    // if it doesn't have an in-bound value, we get much worse (crashy)
     // behavior here.
     MakePalette(PaletteMethod::GREYSCALE,
 		&snes_img, &rc, &screens[buffer_target]);
-    NoDebugPalette(&screens[buffer_target]);
     FillScreenSelective(&snes_img, &screens[buffer_target]);
+    NoDebugPalette(&screens[buffer_target]);
   }
 }
 
 SNES::SNES(const string &cart) : rc("snes") {
   // XXX replace with 'never initialized' 
   screens[0] = ScreenFromFile("images/marioboot.png");
-  screens[1] = ScreenFromFile("images/learnfun1.png");
+  memcpy(&screens[1], &screens[0], sizeof (Screen));
+  memcpy(&screens[2], &screens[0], sizeof (Screen));
 
   // Thread blocks until Update allows it to run.
   snes_do_frame = false;
@@ -152,7 +164,8 @@ void SNES::Update(uint8 joy1, uint8 joy2) {
     // Pass joystick, signal that frame is ready
     snes_joy = joy1;
     snes_do_frame = true;
-    double_buffer ^= 1;
+    // Set next buffer target, round robin.
+    buf++; buf %= 3;
     snes_frames++;
   }
   if (snes_frames % 60 == 0) {
@@ -161,5 +174,9 @@ void SNES::Update(uint8 joy1, uint8 joy2) {
 }
 
 Screen *SNES::GetScreen() {
-  return &screens[double_buffer ^ 1];
+  return &screens[buf];
+}
+
+Screen *SNES::GetNextScreen() {
+  return &screens[(buf + 1) % 3];
 }
