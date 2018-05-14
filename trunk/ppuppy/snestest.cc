@@ -8,6 +8,9 @@
 #include "../cc-lib/util.h"
 #include "../cc-lib/stb_image_write.h"
 #include "../cc-lib/image.h"
+#include "screen.h"
+#include "convert565.h"
+#include "../cc-lib/arcfour.h"
 
 using namespace std;
 
@@ -22,40 +25,16 @@ static int64 utime() {
   return tv.tv_sec * 1000000LL + tv.tv_usec;
 }
 
-#if 0
-// TODO!
-// Sets callbacks. retro_set_environment() is guaranteed to be called before retro_init().
-// The rest of the set_* functions are guaranteed to have been called before the first call to retro_run() is made.
-typedef bool (*retro_environment_t)(unsigned cmd, void *data);
-void retro_set_environment(retro_environment_t);
+static ArcFour rc("test");
 
-// Render a frame. Pixel format is 15-bit 0RGB1555 native endian unless changed (see RETRO_ENVIRONMENT_SET_PIXEL_FORMAT).
-// Width and height specify dimensions of buffer.
-// Pitch specifices length in bytes between two lines in buffer.
-// For performance reasons, it is highly recommended to have a frame that is packed in memory, i.e. pitch == width * byte_per_pixel.
-// Certain graphic APIs, such as OpenGL ES, do not like textures that are not packed in memory.
-typedef void (*retro_video_refresh_t)(const void *data, unsigned width, unsigned height, size_t pitch);
-void retro_set_video_refresh(retro_video_refresh_t);
-
-// Renders multiple audio frames in one go. One frame is defined as a sample of left and right channels, interleaved.
-// I.e. int16_t buf[4] = { l, r, l, r }; would be 2 frames.
-// Only one of the audio callbacks must ever be used.
-typedef size_t (*retro_audio_sample_batch_t)(const int16_t *data, size_t frames);
-void retro_set_audio_sample_batch(retro_audio_sample_batch_t);
-
-// Polls input.
-typedef void (*retro_input_poll_t)(void);
-void retro_set_input_poll(retro_input_poll_t);
-
-// Queries for input for player 'port'. device will be masked with RETRO_DEVICE_MASK.
-// Specialization of devices such as RETRO_DEVICE_JOYPAD_MULTITAP that have been set with retro_set_controller_port_device()
-// will still use the higher level RETRO_DEVICE_JOYPAD to request input.
-typedef int16_t (*retro_input_state_t)(unsigned port, unsigned device, unsigned index, unsigned id);
-void retro_set_input_state(retro_input_state_t);
-#endif
-
+int dummy = 0;
+int64 paltime = 0, screentime = 0;
+Screen screen;
+uint8 palette_cache[16] = {};
 int main(int argc, char **argv) {
 
+  InitClosestColors565();
+  
   // The environment callback is required before initialization.
   retro_set_environment([](unsigned cmd, void *data) {
 	printf("environ %d\n", cmd);
@@ -91,15 +70,46 @@ int main(int argc, char **argv) {
   retro_load_game(&mario);
   printf("Loaded.\n");
 
-  #define FRAMES 5000
-  int64 start = utime();
-  for (int i = 0; i < FRAMES; i++) {
+  // The opening is "easy" and distorts benchmarks.
+  printf("Preroll...");
+  #define PREROLL 1000
+  for (int i = 0; i < PREROLL; i++) {
+    if (i % 100 == 0) printf("%d/%d\n", i, PREROLL);
     retro_run();
   }
+
+  retro_set_video_refresh([](const void *data,
+                             unsigned width, unsigned height, size_t pitch) {
+    int64 svr = utime();
+    MakePalette565(data, width, height, pitch, palette_cache, &rc,
+		   &screen);
+    int64 pal = utime();
+    FillScreenFast565(data, width, height, pitch, &screen);
+    int64 done = utime();
+    paltime += (pal - svr);
+    screentime += (done - pal);
+    // Make sure screen isn't optimized out
+    dummy += screen.attr[rc.Byte()];
+    dummy += screen.color_hi[rc.Byte()];
+    dummy += screen.color_lo[rc.Byte()];
+  });
+
+ 
+  printf("With conversion...\n");
+  #define FRAMES 2000
+  int64 start = utime();
+  for (int i = 0; i < FRAMES; i++) {
+    if (i % 100 == 0) printf("%d/%d\n", i, FRAMES);
+    retro_run();
+  }
+
   int64 elapsed = utime() - start;
-  printf("%d frames in %lld usec = %.4f FPS = %.4f ms/frame\n",
+  printf("%d frames in %lld usec = %.4f FPS = %.4f ms/frame\n"
+	 "%.4f ms/frame palette, %.4f ms/frame screen\n",
 	 FRAMES, elapsed, FRAMES/(double)(elapsed / 1000000.0),
-	 ((double)(elapsed / 1000.0) / FRAMES));
+	 ((double)(elapsed / 1000.0) / FRAMES),
+	 ((double)(paltime / 1000.0) / FRAMES),
+	 ((double)(screentime / 1000.0) / FRAMES));
   
   retro_set_video_refresh([](const void *data,
                              unsigned width, unsigned height, size_t pitch) {

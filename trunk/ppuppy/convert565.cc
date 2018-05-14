@@ -14,7 +14,7 @@
 #include "base/logging.h"
 #include "randutil.h"
 #include "stb_image.h"
-
+#include "gtl/top_n.h"
 #include "color-util.h"
 
 using namespace std;
@@ -143,6 +143,8 @@ static uint8 ClosestColorRGB(int r, int g, int b) {
   return best_i;
 };
 
+// nes_delta_e[src * 64 + dst] = DeltaE(lab(src), lab(dst));
+uint8 nes_delta_e[64 * 64] = {};
 
 // In 565 color space, there are only 2^16 colors.
 // We can just use a table lookup
@@ -155,6 +157,27 @@ void InitClosestColors565() {
     uint8 r = ((packed >> 11) & 31) << 3;
     closest_color565[c] = ClosestColorRGB(r, g, b);
   }
+
+  // DeltaE for NTSC palette and itself.
+  float max = 0;
+  for (int s = 0; s < 64; s++) {
+    float sl = ntsc_lab[s * 3 + 0];
+    float sa = ntsc_lab[s * 3 + 1];
+    float sb = ntsc_lab[s * 3 + 2];
+    for (int d = 0; d < 64; d++) {
+      float dl = ntsc_lab[d * 3 + 0];
+      float da = ntsc_lab[d * 3 + 1];
+      float db = ntsc_lab[d * 3 + 2];
+      // Stretched to [0,255].
+      float delta_e8 =
+	ColorUtil::DeltaE(sl, sa, sb,
+			  dl, da, db) * 1.8;
+      if (delta_e8 > max) max = delta_e8;
+      // printf("0x%02x, ", (uint8)delta_e8);
+      nes_delta_e[s * 64 + d] = (uint8)delta_e8;
+    }
+  }
+  // printf("Max was %.4f\n", max);
 }
 
 void MakePalette565(const void *data,
@@ -205,6 +228,9 @@ void MakePalette565(const void *data,
   
   // Now find the most common bigrams.
   // PERF faster ways to do this!
+  // (like for example TopN. We could never use more than
+  // 13^2 bigrams, so we need only look at that many. The
+  // actual bound is probably lower than that, even.)
   vector<pair<pair<uint8, uint8>, int>> bigram_count;
   bigram_count.reserve(64);
   for (int i = 0; i < was_best_bigram.size(); i++)
@@ -355,85 +381,164 @@ void MakePalette565(const void *data,
   screen->palette[12] = 0;
 }
 
-  void FillScreenFast565(const void *data,
-			 int width, int height, int pitch,
-			 Screen *screen) {
-    // Two-bit color index within palette #pal that matches the
-    // RGB color best. We avoid LAB here since that is much
-    // slower.
-    auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
-      std::tuple<int, int> {
-      int best_sqerr = 65536 * 3 + 1;
-      int best_i = 0;
-      for (int i = 0; i < 4; i++) {
-	// Index within the nes color gamut.
-	int nes_color = i == 0 ? screen->palette[0] :
-	  screen->palette[pal * 4 + i];
-	int rr = ntsc_palette[nes_color * 3 + 0];
-	int gg = ntsc_palette[nes_color * 3 + 1];
-	int bb = ntsc_palette[nes_color * 3 + 2];
-	int dr = r - rr, dg = g - gg, db = b - bb;
-	int sqerr = dr * dr + dg * dg + db * db;
-	if (sqerr < best_sqerr) {
-	  best_i = i;
-	  best_sqerr = sqerr;
-	}
-      }
-
-      return {best_i, best_sqerr};
-    };
-
-    // Any way to avoid searching all four palettes?
-    auto OneStrip = [&ClosestColor](
-	// Eight 16-bit pixels RGB 565 format
-	const uint16 *rgb565) -> std::tuple<uint8, uint8, uint8> {
-    
-      // Try all four palettes, to minimize this total error.
-      int best_totalerror = 0x7FFFFFFE;
-      std::tuple<uint8, uint8, uint8> best;
-      for (int pal = 0; pal < 4 /* XXX */; pal++) {
-	int totalerror = 0;
-	uint8 lobits = 0, hibits = 0;
-	for (int x = 0; x < 8; x++) {
-	  uint16 packed = rgb565[x];
-	  uint8 b = (packed & 31) << 3;
-	  uint8 g = ((packed >> 5) & 63) << 2;
-	  uint8 r = ((packed >> 11) & 31) << 3;
-
-	  // Each pixel must be one of the four selected colors.
-	  // So compute the closest.
-	  int p, err;
-	  std::tie(p, err) = ClosestColor(pal, r, g, b);
-	  totalerror += err;
-
-	  lobits <<= 1; lobits |= (p & 1);
-	  hibits <<= 1; hibits |= ((p >> 1) & 1);
-	}
-
-	if (pal == 0 || totalerror < best_totalerror) {
-	  best = {(uint8)pal, lobits, hibits};
-	  best_totalerror = totalerror;
-	}
-      }
-
-      return best;
-    };
-
-    for (int scanline = 0; scanline < 240; scanline++) {
-      uint16 *line = (uint16*)&((uint8 *)data)[scanline * pitch];
-      for (int col = 0; col < 32; col++) {
-	int idx = scanline * 32 + col;
-	const uint16 *strip = &line[col * 8];
-      
-	uint8 pal, lobits, hibits;
-	std::tie(pal, lobits, hibits) = OneStrip(strip);
-
-	uint8 attr = pal | (pal << 2);
-	attr = attr | (attr << 4);
-
-	screen->attr[idx] = attr;
-	screen->color_lo[idx] = lobits;
-	screen->color_hi[idx] = hibits;
+void FillScreenFast565Old(const void *data,
+			  int width, int height, int pitch,
+			  Screen *screen) {
+  // Two-bit color index within palette #pal that matches the
+  // RGB color best. We avoid LAB here since that is much
+  // slower.
+  auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
+    std::tuple<int, int> {
+    int best_sqerr = 65536 * 3 + 1;
+    int best_i = 0;
+    for (int i = 0; i < 4; i++) {
+      // Index within the nes color gamut.
+      int nes_color = i == 0 ? screen->palette[0] :
+	screen->palette[pal * 4 + i];
+      int rr = ntsc_palette[nes_color * 3 + 0];
+      int gg = ntsc_palette[nes_color * 3 + 1];
+      int bb = ntsc_palette[nes_color * 3 + 2];
+      int dr = r - rr, dg = g - gg, db = b - bb;
+      int sqerr = dr * dr + dg * dg + db * db;
+      if (sqerr < best_sqerr) {
+	best_i = i;
+	best_sqerr = sqerr;
       }
     }
+
+    return {best_i, best_sqerr};
+  };
+
+  // Any way to avoid searching all four palettes?
+  auto OneStrip = [&ClosestColor](
+      // Eight 16-bit pixels RGB 565 format
+      const uint16 *rgb565) -> std::tuple<uint8, uint8, uint8> {
+    
+    // Try all four palettes, to minimize this total error.
+    int best_totalerror = 0x7FFFFFFE;
+    std::tuple<uint8, uint8, uint8> best;
+    for (int pal = 0; pal < 4 /* XXX */; pal++) {
+      int totalerror = 0;
+      uint8 lobits = 0, hibits = 0;
+      for (int x = 0; x < 8; x++) {
+	uint16 packed = rgb565[x];
+	uint8 b = (packed & 31) << 3;
+	uint8 g = ((packed >> 5) & 63) << 2;
+	uint8 r = ((packed >> 11) & 31) << 3;
+	
+	// Each pixel must be one of the four selected colors.
+	// So compute the closest.
+	int p, err;
+	std::tie(p, err) = ClosestColor(pal, r, g, b);
+	totalerror += err;
+
+	lobits <<= 1; lobits |= (p & 1);
+	hibits <<= 1; hibits |= ((p >> 1) & 1);
+      }
+
+      if (pal == 0 || totalerror < best_totalerror) {
+	best = {(uint8)pal, lobits, hibits};
+	best_totalerror = totalerror;
+      }
+    }
+
+    return best;
+  };
+
+  for (int scanline = 0; scanline < 240; scanline++) {
+    uint16 *line = (uint16*)&((uint8 *)data)[scanline * pitch];
+    for (int col = 0; col < 32; col++) {
+      int idx = scanline * 32 + col;
+      const uint16 *strip = &line[col * 8];
+      
+      uint8 pal, lobits, hibits;
+      std::tie(pal, lobits, hibits) = OneStrip(strip);
+
+      uint8 attr = pal | (pal << 2);
+      attr = attr | (attr << 4);
+
+      screen->attr[idx] = attr;
+      screen->color_lo[idx] = lobits;
+      screen->color_hi[idx] = hibits;
+    }
   }
+}
+
+void FillScreenFast565(const void *data,
+		       int width, int height, int pitch,
+		       Screen *screen) {
+  // Given a palette index and a NES color, return the best
+  // entry in that palette for it, along with the 8-bit
+  // delta-e error.
+  auto ClosestColor = [&screen](int pal, int best_nes) ->
+    std::tuple<int, int> {
+    uint8 best_err = 255;
+    int best_i = 0;
+    for (int i = 0; i < 4; i++) {
+      // Index within the nes color gamut.
+      int nes_color = i == 0 ? screen->palette[0] :
+	screen->palette[pal * 4 + i];
+      uint8 err = nes_delta_e[best_nes * 64 + nes_color];
+      if (err < best_err) {
+	best_i = i;
+	best_err = err;
+      }
+    }
+
+    return {best_i, (int)best_err};
+  };
+
+  auto OneStrip = [&ClosestColor](
+      // Eight 16-bit pixels RGB 565 format
+      const uint16 *rgb565) -> std::tuple<uint8, uint8, uint8> {
+    
+    // Try all four palettes, to minimize this total error.
+    // Worst error for a single pixel is 255, so...
+    int best_totalerror = 256 * 8;
+    std::tuple<uint8, uint8, uint8> best;
+    for (int pal = 0; pal < 4; pal++) {
+      int totalerror = 0;
+      uint8 lobits = 0, hibits = 0;
+      for (int x = 0; x < 8; x++) {
+	uint16 packed = rgb565[x];
+	// As a simplification, look up the closest NES color,
+	// and use that as our source for error.
+	int best_nes = closest_color565[packed];
+
+	// Each pixel must be one of the four selected colors.
+	// So compute the closest.
+	int p, err;
+	std::tie(p, err) = ClosestColor(pal, best_nes);
+	totalerror += err;
+
+	lobits <<= 1; lobits |= (p & 1);
+	hibits <<= 1; hibits |= ((p >> 1) & 1);
+      }
+
+      if (pal == 0 || totalerror < best_totalerror) {
+	best = {(uint8)pal, lobits, hibits};
+	best_totalerror = totalerror;
+      }
+    }
+
+    return best;
+  };
+
+  for (int scanline = 0; scanline < 240; scanline++) {
+    uint16 *line = (uint16*)&((uint8 *)data)[scanline * pitch];
+    for (int col = 0; col < 32; col++) {
+      int idx = scanline * 32 + col;
+      const uint16 *strip = &line[col * 8];
+      
+      uint8 pal, lobits, hibits;
+      std::tie(pal, lobits, hibits) = OneStrip(strip);
+
+      uint8 attr = pal | (pal << 2);
+      attr = attr | (attr << 4);
+
+      screen->attr[idx] = attr;
+      screen->color_lo[idx] = lobits;
+      screen->color_hi[idx] = hibits;
+    }
+  }
+}
