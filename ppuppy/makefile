@@ -3,8 +3,8 @@ all : ppuppy.exe
 talk : deconstruct.ctalk
 jstalk : jstalk/slides.js
 
-CXX=g++
-# CXX=x86_64-w64-mingw32-g++
+# CXX=g++
+CXX=x86_64-w64-mingw32-g++
 # consider O2 for releases...
 CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../cc-lib
 # XXX for windows

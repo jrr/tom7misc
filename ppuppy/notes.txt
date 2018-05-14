@@ -19,13 +19,13 @@ Stuff still to figure out / achieve:
  [x] Clear sprites once we get any knock
  [x] Use sprites (or bg color cycle?) or something pre-knock
      to indicate that pi is booting
- [ ] Assemble and test a board
+ [x] Assemble and test a board
  [ ] Make backup offline versions of slides
  [ ] Make demo and a video of it, in case it breaks!
- [ ] try filter capacitors
+ [x] try filter capacitors
  [x] scan converter working
  [ ] 
- [ ] slide metadata / parser
+ [x] slide metadata / parser
  [x] non-hostile version of cart.nes (doesn't make screen red etc.)
   [x] for example, knock sequence can disable this?
 
