@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <thread>
-// #include <mutex>
+#include <mutex>
 #include <atomic>
 
 #include "snesdemo.h"
@@ -26,6 +26,8 @@
 // But it'll suffice for the talk. (Could always reboot, too.)
 // Last joystick value
 
+// Mutexes seem to work better.
+#if 0
 // static std::mutex snes_mutex;
 // We use spinlocks -- the critical sections should be short, we have
 // nothing else to do, and each thread gets its own CPU core.
@@ -34,6 +36,12 @@ std::atomic_flag snes_lock = ATOMIC_FLAG_INIT;
   while (snes_lock.test_and_set(std::memory_order_acquire)) {}
 #define CRITICAL_END \
   snes_lock.clear(std::memory_order_release)
+#else
+// Use mutexes like normal people.
+std::mutex snes_mutex;
+#define CRITICAL_BEGIN snes_mutex.lock()
+#define CRITICAL_END snes_mutex.unlock()
+#endif
 
 static bool snes_do_frame = false;
 static bool snes_frame_done = false;
@@ -71,7 +79,6 @@ void SNES::Run() {
   // mutex, which is released by Update.
 
   for (;;) {
-    int buffer_target = 0;
     for (;;) {
       // PERF better to use a spin-lock? We should have the whole
       // CPU to ourselves.
@@ -80,12 +87,16 @@ void SNES::Run() {
 	// Consume the frame with the lock held.
 	snes_do_frame = false;
 	snes_client_frames++;
-	buffer_target = (buf + 2) % 3;
+	int buffer_target = (buf + 2) % 3;
+	retro_screen_target = &screens[buffer_target];
+	CRITICAL_END;
 	break;
       }
       CRITICAL_END;
     }
 
+    // printf("client: %d\n", snes_client_frames);
+    
     // Note: It's possible for a race (gotta be pretty unlucky since
     // it only takes about 2ms to render an SNES frame but we have
     // ~16ms) here. It happens when buf has already switched
@@ -97,11 +108,12 @@ void SNES::Run() {
     // cache the buffer target above with the lock held, because
     // if it doesn't have an in-bound value, we get much worse (crashy)
     // behavior here.
-    retro_screen_target = &screens[buffer_target];
+
     // The video callback herein populates the screen
     // natively from the 565 format.
     retro_run();
     NoDebugPalette(retro_screen_target);
+
     CRITICAL_BEGIN;
     snes_frame_done = true;
     CRITICAL_END;
@@ -117,11 +129,6 @@ SNES::SNES(const string &cart) {
   // Fill in tables before any convert565 routines.
   InitClosestColors565();
   
-  // Thread spinlock-loops until Update allows it to run.
-  snes_do_frame = false;
-  // snes_mutex.lock();
-  // snes_do_frame = false;
-
   // Initialize armsnes.
   // These callbacks all happen within the SNES thread,
   // even though we're running as the main thread right now
@@ -182,9 +189,14 @@ SNES::SNES(const string &cart) {
   });
 
   // OK to create this thread now.
+  // Start in the state where we request a frame but
+  // (of course) haven't computed one yet.
+  snes_frame_done = false;
+  snes_do_frame = true;
   th.reset(new std::thread(&SNES::Run, this));
 }
 
+static int update_calls = 0;
 static int snes_frames_not_done = 0;
 void SNES::Update(uint8 joy1, uint8 joy2) {
   {
@@ -210,7 +222,8 @@ void SNES::Update(uint8 joy1, uint8 joy2) {
     
     CRITICAL_END;
   }
-  if (snes_frames % 60 == 0) {
+  update_calls++;
+  if (update_calls % 60 == 0) {
     printf("SNES frame %d [lag %d]\n",
 	   snes_frames,
 	   snes_frames_not_done);
