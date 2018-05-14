@@ -128,8 +128,7 @@ slide
 slide
   images/quine.png
 
-# But I contend
-# XXX slide introducing Improper Hierarchy
+# But I contend ...
 slide
   images/improper-hierarchy.png
 
@@ -153,6 +152,9 @@ slide
 # TODO: Lesson [meta]: Draw specious parallels
 
 # So, we're going to do a joke about Improper Hierarchy.
+# There will be serval examples in this talk for you to
+# look for!
+#
 # But first we need to look inside the NES.
 
 slide
@@ -416,6 +418,8 @@ slide
 slide
   images/ppuppy-board.png
 slide
+  images/ppuppy-logo.png
+slide
   images/assembled.png
 #    making these boards is kind of expensive, because
 #    NES games are expensive now. I need to harvest their
@@ -566,7 +570,10 @@ slide
 
 # So could I maybe interface with such a thing? Like maybe
 # would just feel like recalling a vey familiar fact? 
-# For example I could recite to myself the ABCs...
+# For example I could recite to myself the ABCs. What if
+# the alphabet was, to you, instead of a boring static fact,
+# a dynamic fact that reorganized itself to suit the context?
+
 
 # A B C D E F G  4 7 2 8 6 6 0 2 9...
 
