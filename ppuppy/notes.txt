@@ -1741,3 +1741,32 @@ the next nametable read?
    seems to be best. Also works well with disable_interrupts. Assuming that 
    this doesn't have other randomly-occurring problems I don't know about, 
    this is good enough for talk, and stop messing with it! r3586.
+
+ - make fast snes -
+
+   SNES is running about half speed with 565-native greedy bigrams. This is
+   good enough for a demo, but I think I could probably get 60.
+
+   first try snestest.exe:
+     2000 frames in 48379448 usec = 41.3399 FPS = 24.1897 ms/frame
+     2.4268 ms/frame palette, 19.9059 ms/frame screen
+   with initialized palette, just in case:
+     2000 frames in 48437436 usec = 41.2904 FPS = 24.2187 ms/frame
+     2.4241 ms/frame palette, 19.9461 ms/frame screen
+
+   So, palette generation is reasonable, but screen is terrible.
+
+   rewrote fillscreen code to first pick closest NES color, then
+   use precompted delta-e:
+     2000 frames in 34585855 usec = 57.8271 FPS = 17.2929 ms/frame
+     2.4952 ms/frame palette, 12.9231 ms/frame screen
+   this is ALMOST at the 16ms target!
+
+   ClosestEntry from auto -> inlinable.
+   2000 frames in 33486617 usec = 59.7254 FPS = 16.7433 ms/frame
+   2.5030 ms/frame palette, 12.3849 ms/frame screen
+
+   Move invariant stuff out of palette/pixel loop:
+   2000 frames in 28535429 usec = 70.0883 FPS = 14.2677 ms/frame
+   2.4680 ms/frame palette, 9.9667 ms/frame screen
+    [NICE] emoji
