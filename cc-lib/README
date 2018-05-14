@@ -18,6 +18,7 @@ Some of what's here is google "base" libraries, since those are quite
 useful and I know them well. They have been released multiple times
 under open-source licenses; particularly the Apache 2.0 license, which
 is in APACHE20. Googletest is the "new BSD" license, in gtest/LICENSE.
+The Google Template Library in gtl/ is APACHE20.
 
 Sean Barrett's excellently simple stb_* libraries are in the public
 domain; see the notices at the tops of those files. I've made some
@@ -75,4 +76,5 @@ md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
                 probably avoid it for new applications.
 bounds        - Simple bounding box implementation, typically used for
                 generating plots of data
-
+gtl           - Bits of the Google Template Library that have been released
+                as open source (usually Apache 2.0).
