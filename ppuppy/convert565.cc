@@ -464,31 +464,32 @@ void FillScreenFast565Old(const void *data,
   }
 }
 
+// Given a palette index and a NES color, return the best
+// entry in that palette for it, along with the 8-bit
+// delta-e error.
+std::tuple<int, int> ClosestEntry(const uint8 *palette,
+				  uint8 bg_err,
+				  int pal, uint8 best_nes) {
+  uint8 best_err = bg_err;
+  int best_i = 0;
+  for (int i = 1; i < 4; i++) {
+    // Index within the nes color gamut.
+    int nes_color = palette[pal * 4 + i];
+    uint8 err = nes_delta_e[best_nes * 64 + nes_color];
+    if (err < best_err) {
+      best_i = i;
+      best_err = err;
+    }
+  }
+
+  return {best_i, (int)best_err};
+}
+
 void FillScreenFast565(const void *data,
 		       int width, int height, int pitch,
 		       Screen *screen) {
-  // Given a palette index and a NES color, return the best
-  // entry in that palette for it, along with the 8-bit
-  // delta-e error.
-  auto ClosestColor = [&screen](int pal, int best_nes) ->
-    std::tuple<int, int> {
-    uint8 best_err = 255;
-    int best_i = 0;
-    for (int i = 0; i < 4; i++) {
-      // Index within the nes color gamut.
-      int nes_color = i == 0 ? screen->palette[0] :
-	screen->palette[pal * 4 + i];
-      uint8 err = nes_delta_e[best_nes * 64 + nes_color];
-      if (err < best_err) {
-	best_i = i;
-	best_err = err;
-      }
-    }
 
-    return {best_i, (int)best_err};
-  };
-
-  auto OneStrip = [&ClosestColor](
+  auto OneStrip = [screen](
       // Eight 16-bit pixels RGB 565 format
       const uint16 *rgb565) -> std::tuple<uint8, uint8, uint8> {
     
@@ -496,19 +497,33 @@ void FillScreenFast565(const void *data,
     // Worst error for a single pixel is 255, so...
     int best_totalerror = 256 * 8;
     std::tuple<uint8, uint8, uint8> best;
+    uint8 bg_err[8];
+    uint8 best_nes[8];
+    const uint8 bgcolor = screen->palette[0];
+    for (int x = 0; x < 8; x++) {
+      uint16 packed = rgb565[x];
+      // As a simplification, look up the closest NES color,
+      // and use that as our source for error.
+      uint8 best = closest_color565[packed];
+      best_nes[x] = best;
+      bg_err[x] = nes_delta_e[64 * best + bgcolor];
+    }
+    
     for (int pal = 0; pal < 4; pal++) {
       int totalerror = 0;
       uint8 lobits = 0, hibits = 0;
       for (int x = 0; x < 8; x++) {
-	uint16 packed = rgb565[x];
+	// uint16 packed = rgb565[x];
 	// As a simplification, look up the closest NES color,
 	// and use that as our source for error.
-	int best_nes = closest_color565[packed];
+	// int best_nes = closest_color565[packed];
+	uint8 best = best_nes[x];
 
 	// Each pixel must be one of the four selected colors.
 	// So compute the closest.
 	int p, err;
-	std::tie(p, err) = ClosestColor(pal, best_nes);
+	std::tie(p, err) = ClosestEntry(screen->palette,
+					bg_err[x], pal, best);
 	totalerror += err;
 
 	lobits <<= 1; lobits |= (p & 1);
