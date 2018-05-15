@@ -539,6 +539,9 @@ slide
 # So this is a good way to revisit hardware for which
 # we have nostalgia. Like NES. Maybe the TI-82 calculator.
 
+slide
+  images/nostalgic-hardware.png
+
 # I think about AI sometimes. It seems clear to me that
 # it's at least logically possible, if not inevitable.
 # And I worry about that, not just because it could destroy
@@ -584,7 +587,7 @@ slide
 slide
   images/abcd-factor.png
 
-
+# XXX This joke is weak, even if you know metroid
 slide
   dur 48
   images/police1.png

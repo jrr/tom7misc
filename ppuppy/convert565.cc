@@ -14,7 +14,7 @@
 #include "base/logging.h"
 #include "randutil.h"
 #include "stb_image.h"
-#include "gtl/top_n.h"
+// #include "gtl/top_n.h"
 #include "color-util.h"
 
 using namespace std;
@@ -146,6 +146,21 @@ static uint8 ClosestColorRGB(int r, int g, int b) {
 // nes_delta_e[src * 64 + dst] = DeltaE(lab(src), lab(dst));
 uint8 nes_delta_e[64 * 64] = {};
 
+// The closest NES color for a given NES color. This is almost
+// the identity, except that we normalize colors that are
+// equal: ?e and ?f and 1d become 0d (perfect blacks)
+// and 30 becomes 20 (perfect whites).
+static uint8 closest_color_nes[64] = {
+  0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+  0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0D, 0x0D,
+  0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+  0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x0D, 0x0D, 0x0D,
+  0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+  0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x0D, 0x0D,
+  0x20, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+  0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x0D, 0x0D,
+};
+
 // In 565 color space, there are only 2^16 colors.
 // We can just use a table lookup
 static uint8 closest_color565[65536] = {0};
@@ -179,53 +194,21 @@ void InitClosestColors565() {
   }
   // printf("Max was %.4f\n", max);
 }
-
-void MakePalette565(const void *data,
-		    int width, int height, int pitch,
-		    uint8 *palette_cache,
-		    ArcFour *rc, Screen *screen) {
-
-  // The bigrams approach is high quality, but takes a
-  // long time (?). Actually let's just try it...
-
-  // Most common bigrams, in descending order by frequency.
-  // Key is pair of colors (c1, c2) cooccurring in an
-  // 8x1 strip (not necessarily adjacent!), with c1 <= c2.
-  auto Key = [](uint8 c1, uint8 c2) -> int {
-    if (c1 <= c2) {
-      return c1 * 64 + c2;
-    } else {
-      return c2 * 64 + c1;
-    }
-  };
-  auto UnKey = [](int i) -> pair<uint8, uint8> {
-    return make_pair(i / 64, i % 64);
-  };
   
-  vector<int> was_best_bigram;
-  was_best_bigram.reserve(64 * 64);
-  for (int i = 0; i < 64 * 64; i++) was_best_bigram.push_back(0);
-
-  for (int y = 0; y < height; y ++) {
-    uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
-    for (int x = 0; x < width; x += 8) {
-      // Closest color for a pixel in the strip.
-
-      uint8 cs[8];
-      for (int i = 0; i < 8; i++) {
-	uint16 packed = line[x];
-	cs[i] = closest_color565[packed];
-      }
-
-      // Now, insert all pairs.
-      for (int i = 0; i < 7; i++) {
-	for (int j = i + 1; j < 8; j++) {
-	  was_best_bigram[Key(cs[i], cs[j])]++;
-	}
-      }
-    }
+static inline int BigramKey(uint8 c1, uint8 c2) {
+  if (c1 <= c2) {
+    return c1 * 64 + c2;
+  } else {
+    return c2 * 64 + c1;
   }
-  
+}
+
+static inline pair<uint8, uint8> UnBigramKey(int i) {
+  return make_pair(i / 64, i % 64);
+}
+
+void MakePaletteFromBigrams(const vector<int> &was_best_bigram,
+			    Screen *screen) {
   // Now find the most common bigrams.
   // PERF faster ways to do this!
   // (like for example TopN. We could never use more than
@@ -234,7 +217,8 @@ void MakePalette565(const void *data,
   vector<pair<pair<uint8, uint8>, int>> bigram_count;
   bigram_count.reserve(64);
   for (int i = 0; i < was_best_bigram.size(); i++)
-    bigram_count.push_back(make_pair(UnKey(i), was_best_bigram[i]));
+    bigram_count.push_back(make_pair(UnBigramKey(i),
+				     was_best_bigram[i]));
   std::sort(bigram_count.begin(),
 	    bigram_count.end(),
 	    [](const pair<pair<uint8, uint8>, int> &a,
@@ -381,87 +365,71 @@ void MakePalette565(const void *data,
   screen->palette[12] = 0;
 }
 
-void FillScreenFast565Old(const void *data,
-			  int width, int height, int pitch,
-			  Screen *screen) {
-  // Two-bit color index within palette #pal that matches the
-  // RGB color best. We avoid LAB here since that is much
-  // slower.
-  auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
-    std::tuple<int, int> {
-    int best_sqerr = 65536 * 3 + 1;
-    int best_i = 0;
-    for (int i = 0; i < 4; i++) {
-      // Index within the nes color gamut.
-      int nes_color = i == 0 ? screen->palette[0] :
-	screen->palette[pal * 4 + i];
-      int rr = ntsc_palette[nes_color * 3 + 0];
-      int gg = ntsc_palette[nes_color * 3 + 1];
-      int bb = ntsc_palette[nes_color * 3 + 2];
-      int dr = r - rr, dg = g - gg, db = b - bb;
-      int sqerr = dr * dr + dg * dg + db * db;
-      if (sqerr < best_sqerr) {
-	best_i = i;
-	best_sqerr = sqerr;
-      }
-    }
+void MakePalette565(const void *data,
+		    int width, int height, int pitch,
+		    ArcFour *rc, Screen *screen) {
 
-    return {best_i, best_sqerr};
-  };
+  // The bigrams approach is high quality, and not too
+  // slow if the screen already consists of a low number
+  // of colors (typical on SNES).
 
-  // Any way to avoid searching all four palettes?
-  auto OneStrip = [&ClosestColor](
-      // Eight 16-bit pixels RGB 565 format
-      const uint16 *rgb565) -> std::tuple<uint8, uint8, uint8> {
-    
-    // Try all four palettes, to minimize this total error.
-    int best_totalerror = 0x7FFFFFFE;
-    std::tuple<uint8, uint8, uint8> best;
-    for (int pal = 0; pal < 4 /* XXX */; pal++) {
-      int totalerror = 0;
-      uint8 lobits = 0, hibits = 0;
-      for (int x = 0; x < 8; x++) {
-	uint16 packed = rgb565[x];
-	uint8 b = (packed & 31) << 3;
-	uint8 g = ((packed >> 5) & 63) << 2;
-	uint8 r = ((packed >> 11) & 31) << 3;
-	
-	// Each pixel must be one of the four selected colors.
-	// So compute the closest.
-	int p, err;
-	std::tie(p, err) = ClosestColor(pal, r, g, b);
-	totalerror += err;
+  // Most common bigrams, in descending order by frequency.
+  // Key is pair of colors (c1, c2) cooccurring in an
+  // 8x1 strip (not necessarily adjacent!), with c1 <= c2.  
+  vector<int> was_best_bigram;
+  was_best_bigram.reserve(64 * 64);
+  for (int i = 0; i < 64 * 64; i++) was_best_bigram.push_back(0);
 
-	lobits <<= 1; lobits |= (p & 1);
-	hibits <<= 1; hibits |= ((p >> 1) & 1);
+  for (int y = 0; y < height; y ++) {
+    uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
+    for (int x = 0; x < width; x += 8) {
+      // Closest color for a pixel in the strip.
+
+      uint8 cs[8];
+      for (int i = 0; i < 8; i++) {
+	uint16 packed = line[x];
+	cs[i] = closest_color565[packed];
       }
 
-      if (pal == 0 || totalerror < best_totalerror) {
-	best = {(uint8)pal, lobits, hibits};
-	best_totalerror = totalerror;
+      // Now, insert all pairs.
+      for (int i = 0; i < 7; i++) {
+	for (int j = i + 1; j < 8; j++) {
+	  was_best_bigram[BigramKey(cs[i], cs[j])]++;
+	}
       }
-    }
-
-    return best;
-  };
-
-  for (int scanline = 0; scanline < 240; scanline++) {
-    uint16 *line = (uint16*)&((uint8 *)data)[scanline * pitch];
-    for (int col = 0; col < 32; col++) {
-      int idx = scanline * 32 + col;
-      const uint16 *strip = &line[col * 8];
-      
-      uint8 pal, lobits, hibits;
-      std::tie(pal, lobits, hibits) = OneStrip(strip);
-
-      uint8 attr = pal | (pal << 2);
-      attr = attr | (attr << 4);
-
-      screen->attr[idx] = attr;
-      screen->color_lo[idx] = lobits;
-      screen->color_hi[idx] = hibits;
     }
   }
+
+  MakePaletteFromBigrams(was_best_bigram, screen);
+}
+
+
+// As above, but this is even easier because we know the best NES
+// color entry is just the color itself (after normalization).
+void MakePaletteNES(const uint8 *data, Screen *screen) {
+  vector<int> was_best_bigram;
+  was_best_bigram.reserve(64 * 64);
+  for (int i = 0; i < 64 * 64; i++) was_best_bigram.push_back(0);
+	 
+  for (int y = 0; y < 240; y++) {
+    const int yy = y * 256;
+    for (int x = 0; x < 256; x += 8) {
+      uint8 cs[8];
+      for (int i = 0; i < 8; i++) {
+	uint8 color = data[yy + x + i] & 63;
+	cs[i] = closest_color_nes[color];
+      }
+      
+      // Now, insert all pairs.
+      for (int i = 0; i < 7; i++) {
+	for (int j = i + 1; j < 8; j++) {
+	  was_best_bigram[BigramKey(cs[i], cs[j])]++;
+	}
+      }
+    }
+  }
+
+  MakePaletteFromBigrams(was_best_bigram, screen);
 }
 
 // Given a palette index and a NES color, return the best
@@ -544,6 +512,72 @@ void FillScreenFast565(const void *data,
     for (int col = 0; col < 32; col++) {
       int idx = scanline * 32 + col;
       const uint16 *strip = &line[col * 8];
+      
+      uint8 pal, lobits, hibits;
+      std::tie(pal, lobits, hibits) = OneStrip(strip);
+
+      uint8 attr = pal | (pal << 2);
+      attr = attr | (attr << 4);
+
+      screen->attr[idx] = attr;
+      screen->color_lo[idx] = lobits;
+      screen->color_hi[idx] = hibits;
+    }
+  }
+}
+
+void FillScreenFastNES(const uint8 *data,
+		       Screen *screen) {
+  auto OneStrip = [screen](
+      // Eight 8-bit pixels, as NES colors (must be masked & 63)
+      const uint8 *nespixels) -> std::tuple<uint8, uint8, uint8> {
+    
+    // Try all four palettes, to minimize this total error.
+    // Worst error for a single pixel is 255, so...
+    int best_totalerror = 256 * 8;
+    std::tuple<uint8, uint8, uint8> best;
+    uint8 bg_err[8];
+    uint8 best_nes[8];
+    const uint8 bgcolor = screen->palette[0];
+    for (int x = 0; x < 8; x++) {
+      // Here we don't need to normalize with closest_color_nes,
+      // since nes_delta_e will give us 0 for all variants.
+      uint8 best = nespixels[x] & 63;
+      best_nes[x] = best;
+      bg_err[x] = nes_delta_e[64 * best + bgcolor];
+    }
+    
+    for (int pal = 0; pal < 4; pal++) {
+      int totalerror = 0;
+      uint8 lobits = 0, hibits = 0;
+      for (int x = 0; x < 8; x++) {
+	uint8 best = best_nes[x];
+
+	// Each pixel must be one of the four selected colors.
+	// So compute the closest.
+	int p, err;
+	std::tie(p, err) = ClosestEntry(screen->palette,
+					bg_err[x], pal, best);
+	totalerror += err;
+
+	lobits <<= 1; lobits |= (p & 1);
+	hibits <<= 1; hibits |= ((p >> 1) & 1);
+      }
+
+      if (pal == 0 || totalerror < best_totalerror) {
+	best = {(uint8)pal, lobits, hibits};
+	best_totalerror = totalerror;
+      }
+    }
+
+    return best;
+  };
+
+  for (int scanline = 0; scanline < 240; scanline++) {
+    int yy = scanline * 256;
+    for (int col = 0; col < 32; col++) {
+      int idx = scanline * 32 + col;
+      const uint8 *strip = &data[yy + col * 8];
       
       uint8 pal, lobits, hibits;
       std::tie(pal, lobits, hibits) = OneStrip(strip);
