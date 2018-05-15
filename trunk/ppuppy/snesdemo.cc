@@ -56,15 +56,6 @@ static int snes_client_frames = 0;
 static Screen screens[3];
 static int buf = 0;
 
-// For speed, we only update part of the palette each frame.
-// This is only accessed by the SNES thread.
-static uint8 palette_cache[16] = {
-  0x1d, 0x00, 0x2d, 0x30,
-  0x00, 0x10, 0x2d, 0x3d,
-  0x00, 0x00, 0x10, 0x3d,
-  0x00, 0x2d, 0x3d, 0x30,
-};
-
 // Used only by thread.
 static ArcFour rc("snes");
 
@@ -167,25 +158,8 @@ SNES::SNES(const string &cart) {
 
   retro_set_video_refresh([](const void *data,
                              unsigned width, unsigned height, size_t pitch) {
-    MakePalette565(data, width, height, pitch, palette_cache, &rc,
-		   retro_screen_target);
+    MakePalette565(data, width, height, pitch, &rc, retro_screen_target);
     FillScreenFast565(data, width, height, pitch, retro_screen_target);
-    
-#if 0
-    int idx = 0;
-    for (int y = 0; y < height; y++) {
-      uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
-      for (int x = 0; x < width; x++) {
-	uint16 packed = line[x];
-	uint8 b = (packed & 31) << 3;
-	uint8 g = ((packed >> 5) & 63) << 2;
-	uint8 r = ((packed >> 11) & 31) << 3;
-	snes_img.rgb[idx++] = r;
-	snes_img.rgb[idx++] = g;
-	snes_img.rgb[idx++] = b;
-      }
-    }
-#endif
   });
 
   // OK to create this thread now.
