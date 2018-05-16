@@ -4,10 +4,11 @@
 # ########################
 
 slide
-  # XXX
-  images/titletest.png
+  # XXX make good obviously
+  images/title.png
 
-# TODO: photosensitivity warning
+slide
+  images/photosensitivity.png
 
 slide
   images/learnfun1.png
@@ -201,6 +202,9 @@ slide
   images/emulation-reverse.png
 
 slide
+  images/titletest.png
+
+slide
   images/zero-w.png
 
 slide
@@ -281,8 +285,18 @@ slide
 # within its intended operation.)
 
 # Two serious limitations.
+# slide
+#   images/limitations.png
+slide 
+# XXX make this slide better, perhaps
+# by forcing palette selection to follow
+# NES rules.
+  images/limitations-color.png
 slide
-  images/limitations.png
+  # XXX this is a confusing slide.
+  # just make it explicitly about how
+  # we could change colors every 8x1 strip.
+  images/8pixels.png
 slide
   images/limitations-update.png
 slide
@@ -292,15 +306,8 @@ slide
   images/motherboard-mmregs.png
 slide
   images/mario-strip.png
-slide
-  # XXX make this slide better, perhaps
-  # by forcing palette selection to follow
-  # NES rules.
-  images/limitations-color.png
+# slide
 
-
-slide
-  images/8pixels.png
 
 
 # try to get through the signal timing stuff quickly.
