@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
+#include "demos.h"
 
 // Note that due to all the global variables in armsnes, two instances
 // of this cannot coexist!
@@ -48,6 +49,7 @@ enum DemoState {
   STATE_STARTSCREEN,
   STATE_SNES,
   STATE_NES,
+  STATE_END,
 };
 
 static DemoState demo_state = STATE_STARTSCREEN;
@@ -66,6 +68,7 @@ static Screen screens[3];
 static int buf = 0;
 
 static Emulator *nes = nullptr;
+static Slideshow *slideshow = nullptr;
 
 // Used only by thread.
 static ArcFour rc("snes");
@@ -124,6 +127,8 @@ void SNES::Run() {
       break;
     case STATE_STARTSCREEN:
       // Should not get here, but if so, nothing to do.
+    case STATE_END:
+      // At this point we are wasting a core, but who cares?
       break;
     } 
 
@@ -134,7 +139,7 @@ void SNES::Run() {
 }
 
 SNES::SNES(const string &cart) {
-  start_screen = ScreenFromFile("images/titletest.png");
+  start_screen = ScreenFromFile("images/janky-demos.png");
   // XXX replace with 'never initialized' 
   screens[0] = ScreenFromFile("images/marioboot.png");
   memcpy(&screens[1], &screens[0], sizeof (Screen));
@@ -190,6 +195,11 @@ SNES::SNES(const string &cart) {
   if (nes == nullptr) {
     printf("Failed to load NES?!\n");
   }
+
+  slideshow = new Slideshow("end.talk", "end.screens");
+  if (slideshow == nullptr) {
+    printf("Failed to load Slides!\n");
+  }
   
   // OK to create this thread now.
   // Start in the state where we request a frame but
@@ -209,10 +219,18 @@ void SNES::Update(uint8 joy1, uint8 joy2) {
       return;
     }
     break;
+  case STATE_END:
+    if (slideshow != nullptr) {
+      slideshow->Update(joy1, joy2);
+    }
+    break;
   case STATE_NES:
   case STATE_SNES:
   {
-    if ((joy1 & (SELECT | B_BUTTON)) == (SELECT | B_BUTTON)) {
+    static constexpr uint8 combo = SELECT | B_BUTTON;
+    if ((joy1 & combo) == combo &&
+	// Stands in for "old joy" since we haven't set it yet
+	(snes_joy & combo) != combo) {
       CRITICAL_BEGIN;
       if (demo_state == STATE_NES)
 	demo_state = STATE_SNES;
@@ -222,6 +240,15 @@ void SNES::Update(uint8 joy1, uint8 joy2) {
       break;
     }
 
+    static constexpr uint8 talk_combo = SELECT | START;
+    if ((joy1 & talk_combo) == talk_combo &&
+	(snes_joy & talk_combo) != talk_combo) {
+      CRITICAL_BEGIN;
+      demo_state = STATE_END;
+      CRITICAL_END;
+      break;
+    }
+    
     CRITICAL_BEGIN;
 
     // Always use latest joystick info.
@@ -258,6 +285,10 @@ Screen *SNES::GetScreen() {
   case STATE_NES:
   case STATE_SNES:
   return &screens[buf];
+  case STATE_END:
+    if (slideshow != nullptr)
+      return slideshow->GetScreen();
+    // FALLTHROUGH
   default:
   case STATE_STARTSCREEN:
     return &start_screen;
@@ -269,6 +300,10 @@ Screen *SNES::GetNextScreen() {
   case STATE_NES:
   case STATE_SNES:
   return &screens[(buf + 1) % 3];
+  case STATE_END:
+    if (slideshow != nullptr)
+      return slideshow->GetNextScreen();
+    // FALLTHROUGH
   default:
   case STATE_STARTSCREEN:
     return &start_screen;
