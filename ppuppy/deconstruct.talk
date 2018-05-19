@@ -26,9 +26,9 @@ slide
 slide
   dur 2
   # XXX
-  images/dinosaurc/dinosaurc0000.png
-  # array 0  9  images/dinosaurc/dinosaurc000%.png
-  # array 10 68 images/dinosaurc/dinosaurc00%.png
+  # images/dinosaurc/dinosaurc0000.png
+  array 0  9  images/dinosaurc/dinosaurc000%.png
+  array 10 68 images/dinosaurc/dinosaurc00%.png
 
 # 
 #

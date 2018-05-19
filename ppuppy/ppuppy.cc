@@ -12,10 +12,10 @@
 #include "ppuppy.h"
 #include "schedule.h"
 #include "screen.h"
+#include "demos.h"
 #ifdef DEMO
-#  include "demos.h"
+#  include "snesdemo.h"
 #endif
-#include "snesdemo.h"
 #include "convert.h"
 
 // Gives good timing, but requires a hard restart to
@@ -31,8 +31,6 @@ static int deglitches = 0;
 // vblank (this may cause it to hang even if interrupts are enabled
 // because it never does any kernel calls outside of vblank).
 #define DETECT_VBLANK_CYCLES 8000
-
-BouncingBalls bouncing;
 
 static inline uint32 GetEncodedByte(Screen *screen, int scanline, int col, int b) {
   static constexpr int WORDS = NUM_SCANLINES * NUM_COLS;
@@ -234,7 +232,6 @@ int main(int argc, char **argv) {
     next_knock = 0;
     // In the steady state, this needs to complete during vsync.
 
-    // bouncing.Draw();
     #ifdef DEMO
     screen = snes->GetScreen();
     next_screen = snes->GetNextScreen();
