@@ -383,7 +383,7 @@ void MakePalette565(const void *data,
   const int off = offset ? 4 : 0;
   for (int y = 0; y < height; y ++) {
     uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
-    for (int x = offset; x < width; x += 8) {
+    for (int x = off; x < width; x += 8) {
       // Closest color for a pixel in the strip.
 
       uint8 cs[8];

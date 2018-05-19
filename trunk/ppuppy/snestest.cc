@@ -3,6 +3,7 @@
 #include <string>
 #include <cstdint>
 #include <sys/time.h>
+#include <atomic>
 
 #include "armsnes/libretro/libretro.h"
 #include "../cc-lib/util.h"
@@ -24,6 +25,12 @@ static int64 utime() {
   gettimeofday(&tv, nullptr);
   return tv.tv_sec * 1000000LL + tv.tv_usec;
 }
+
+std::atomic_flag snes_lock = ATOMIC_FLAG_INIT;
+#define CRITICAL_BEGIN \
+  while (snes_lock.test_and_set(std::memory_order_acquire)) {}
+#define CRITICAL_END \
+  snes_lock.clear(std::memory_order_release)
 
 static ArcFour rc("test");
 
@@ -81,10 +88,9 @@ int main(int argc, char **argv) {
   retro_set_video_refresh([](const void *data,
                              unsigned width, unsigned height, size_t pitch) {
     int64 svr = utime();
-    MakePalette565(data, width, height, pitch, palette_cache, &rc,
-		   &screen);
+    MakePalette565(data, width, height, pitch, false, &screen);
     int64 pal = utime();
-    FillScreenFast565(data, width, height, pitch, &screen);
+    FillScreenFast565(data, width, height, pitch, false, &screen);
     int64 done = utime();
     paltime += (pal - svr);
     screentime += (done - pal);
@@ -98,11 +104,16 @@ int main(int argc, char **argv) {
   printf("With conversion...\n");
   #define FRAMES 2000
   int64 start = utime();
+  int inc = 0;
   for (int i = 0; i < FRAMES; i++) {
     if (i % 100 == 0) printf("%d/%d\n", i, FRAMES);
+    CRITICAL_BEGIN;
+    inc++;
+    CRITICAL_END;
     retro_run();
   }
-
+  printf("inc\n");
+  
   int64 elapsed = utime() - start;
   printf("%d frames in %lld usec = %.4f FPS = %.4f ms/frame\n"
 	 "%.4f ms/frame palette, %.4f ms/frame screen\n",
