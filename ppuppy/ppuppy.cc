@@ -12,7 +12,9 @@
 #include "ppuppy.h"
 #include "schedule.h"
 #include "screen.h"
-#include "demos.h"
+#ifdef DEMO
+#  include "demos.h"
+#endif
 #include "snesdemo.h"
 #include "convert.h"
 
@@ -20,9 +22,7 @@
 // get back to linux.
 static constexpr bool DISABLE_INTERRUPTS = false;
 
-static constexpr bool SNES_DEMO = true;
-
-static int deglitches = 1;
+static int deglitches = 0;
 
 // Number of consecutive /RD high reads that cause us to assume vblank
 // has occurred. This has to be set high enough that the slow reads
@@ -133,13 +133,14 @@ int main(int argc, char **argv) {
   }
 
   printf("LOAD.\n");
+
+  #ifdef DEMO
+  std::unique_ptr<SNES> snes;
+  snes.reset(new SNES("super-mario-world.smc"));
+  #else
   Slideshow slideshow("deconstruct.ctalk",
 		      "deconstruct.screens");
-  
-  std::unique_ptr<SNES> snes;
-  if (SNES_DEMO) {
-    snes.reset(new SNES("super-mario-world.smc"));
-  }
+  #endif
   
   printf("START.\n");
   fflush(stdout);
@@ -215,6 +216,7 @@ int main(int argc, char **argv) {
     uint16 addr = 0;
 
     uint8 old_joy1 = 0, old_joy2 = 0;
+    (void)old_joy2;
     uint8 joy1 = 0, joy2 = 0;
     
     // What byte of the packet are we in? 0-3.
@@ -233,17 +235,13 @@ int main(int argc, char **argv) {
     // In the steady state, this needs to complete during vsync.
 
     // bouncing.Draw();
-    if (SNES_DEMO) {
-      screen = snes->GetScreen();
-      // If we keep a constant palette and scroll, then this doesn't
-      // matter. Otherwise, we can triple buffer, or base MakePalette
-      // on the previous frame?
-      // XXX
-      next_screen = snes->GetNextScreen();
-    } else {
-      screen = slideshow.GetScreen();
-      next_screen = slideshow.GetNextScreen();
-    }
+    #ifdef DEMO
+    screen = snes->GetScreen();
+    next_screen = snes->GetNextScreen();
+    #else
+    screen = slideshow.GetScreen();
+    next_screen = slideshow.GetNextScreen();
+    #endif
     
     // Assume we are at the top-left.
     col = 0;
@@ -493,11 +491,11 @@ int main(int argc, char **argv) {
     
     // Yield to OS. Does nothing if interrupts are disabled.
 
-    if (SNES_DEMO) {
+    #ifdef DEMO
       snes->Update(joy1, joy2);
-    } else {
+    #else
       slideshow.Update(joy1, joy2);
-    }
+    #endif
 
     Yield();
 
