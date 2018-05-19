@@ -10,7 +10,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "arcfour.h"
+// #include "arcfour.h"
 #include "base/logging.h"
 #include "randutil.h"
 #include "stb_image.h"
@@ -367,7 +367,7 @@ void MakePaletteFromBigrams(const vector<int> &was_best_bigram,
 
 void MakePalette565(const void *data,
 		    int width, int height, int pitch,
-		    ArcFour *rc, Screen *screen) {
+		    bool offset, Screen *screen) {
 
   // The bigrams approach is high quality, and not too
   // slow if the screen already consists of a low number
@@ -380,9 +380,10 @@ void MakePalette565(const void *data,
   was_best_bigram.reserve(64 * 64);
   for (int i = 0; i < 64 * 64; i++) was_best_bigram.push_back(0);
 
+  const int off = offset ? 4 : 0;
   for (int y = 0; y < height; y ++) {
     uint16 *line = (uint16*)&((uint8 *)data)[y * pitch];
-    for (int x = 0; x < width; x += 8) {
+    for (int x = offset; x < width; x += 8) {
       // Closest color for a pixel in the strip.
 
       uint8 cs[8];
@@ -455,7 +456,7 @@ std::tuple<int, int> ClosestEntry(const uint8 *palette,
 
 void FillScreenFast565(const void *data,
 		       int width, int height, int pitch,
-		       Screen *screen) {
+		       bool offset, Screen *screen) {
 
   auto OneStrip = [screen](
       // Eight 16-bit pixels RGB 565 format
@@ -507,11 +508,12 @@ void FillScreenFast565(const void *data,
     return best;
   };
 
+  const int off = offset ? 4 : 0;
   for (int scanline = 0; scanline < 240; scanline++) {
     uint16 *line = (uint16*)&((uint8 *)data)[scanline * pitch];
     for (int col = 0; col < 32; col++) {
       int idx = scanline * 32 + col;
-      const uint16 *strip = &line[col * 8];
+      const uint16 *strip = &line[col * 8 - off];
       
       uint8 pal, lobits, hibits;
       std::tie(pal, lobits, hibits) = OneStrip(strip);
@@ -524,6 +526,8 @@ void FillScreenFast565(const void *data,
       screen->color_hi[idx] = hibits;
     }
   }
+
+  screen->palette[4] = off;
 }
 
 void FillScreenFastNES(const uint8 *data,

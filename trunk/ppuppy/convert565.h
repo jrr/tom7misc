@@ -16,11 +16,11 @@ void InitClosestColors565();
 
 void MakePalette565(const void *data,
 		    int width, int height, int pitch,
-		    ArcFour *rc, Screen *screen);
+		    bool offset, Screen *screen);
 
 void FillScreenFast565(const void *data,
 		       int width, int height, int pitch,
-		       Screen *screen);
+		       bool offset, Screen *screen);
 
 // data is flat array of 256x240 pixels, each of whose
 // low 6 bits are an NTSC NES palette index.

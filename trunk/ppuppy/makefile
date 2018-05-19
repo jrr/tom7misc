@@ -82,7 +82,7 @@ snestest.exe : snestest.o convert565.o screen.o $(ARMSNES_OBJECTS) $(ALL_CCLIB_O
 	$(CXX) $^ -o $@ $(LFLAGS) -lm
 
 clean :
-	rm -f *.o *.exe core $(ALL_CCLIB_OBJECTS)
+	rm -f *.o *.exe core $(ALL_CCLIB_OBJECTS) $(ARMSNES_OBJECTS) $(FCEULIB_OBJECTS)
 
 veryclean : clean
 	rm -f *~

@@ -53,11 +53,10 @@ enum DemoState {
 
 static DemoState demo_state = STATE_STARTSCREEN;
 
+static bool even_frame = true;
 static bool snes_do_frame = false;
 static bool snes_frame_done = false;
 static uint8 snes_joy = 0;
-// PERF store directly as 565?
-// static ImageRGB snes_img{256, 240};
 static int snes_frames = 0;
 static int snes_client_frames = 0;
 static Screen start_screen;
@@ -183,8 +182,9 @@ SNES::SNES(const string &cart) {
 
   retro_set_video_refresh([](const void *data,
                              unsigned width, unsigned height, size_t pitch) {
-    MakePalette565(data, width, height, pitch, &rc, retro_screen_target);
-    FillScreenFast565(data, width, height, pitch, retro_screen_target);
+    even_frame = !even_frame;
+    MakePalette565(data, width, height, pitch, even_frame, retro_screen_target);
+    FillScreenFast565(data, width, height, pitch, even_frame, retro_screen_target);
   });
 
   nes = Emulator::Create("mario.nes");
