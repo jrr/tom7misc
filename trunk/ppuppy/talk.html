@@ -18,24 +18,32 @@
    elt.src = f.i + ".png";
  }
 
+ function Left() {
+   slide_idx--;
+   anim_idx = 0;
+   count = 0;
+   if (slide_idx < 0) slide_idx = slides.length - 1;
+ }
+
+ function Right() {
+   slide_idx++;
+   anim_idx = 0;
+   count = 0;
+   if (slide_idx >= slides.length) slide_idx = 0;
+ }
+ 
  document.onkeydown = function(e) {
    e = e || window.event;
    if (e.ctrlKey) return true;
    
    switch (e.keyCode) {
      case 37: // LEFT
-       slide_idx--;
-       anim_idx = 0;
-       count = 0;
-       if (slide_idx < 0) slide_idx = slides.length - 1;
+       Left();
        break;
      case 38: // UP
        break;
      case 39: // RIGHT
-       slide_idx++;
-       anim_idx = 0;
-       count = 0;
-       if (slide_idx >= slides.length) slide_idx = 0;
+       Right();
        break;
      case 40: // DOWN
        break;
@@ -72,10 +80,26 @@
     image-rendering: auto;
     image-rendering: crisp-edges;
     image-rendering: pixelated;
-    }
+    -webkit-user-select: none;
+ }
+ .click {
+   cursor: pointer;
+   font-size: 80px;
+   padding: 20px;
+   border: 2px solid #fff;
+   margin-right: 518px;
+   border-radius: 4px;
+   width: 80px;
+   color: #fff;
+   float: left;
+   -webkit-user-select: none
+ }
 </style>
     
 <body bgcolor="#000" onload="Start()">
     <img id="proj" class="screen">
+    <br/>
+    <div class="click" onclick="Left()">&nbsp;&lt;</div>
+    <div class="click" onclick="Right()">&nbsp;&gt;</div>
 </body>
 

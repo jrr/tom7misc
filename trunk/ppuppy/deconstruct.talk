@@ -8,7 +8,21 @@ slide
   images/title.png
 
 slide
-  images/photosensitivity.png
+  dur 48
+  images/photosensitivity1.png
+  dur 1
+  array 2 4 images/photosensitivity%.png
+  dur 37
+  images/photosensitivity5.png
+  dur 2
+  array 1 8 images/photosensitivity%.png
+  dur 29
+  images/photosensitivity4.png
+  dur 50
+  images/photosensitivity1.png
+
+slide
+  images/what-deal.png
 
 slide
   images/learnfun1.png
@@ -25,8 +39,6 @@ slide
 
 slide
   dur 2
-  # XXX
-  # images/dinosaurc/dinosaurc0000.png
   array 0  9  images/dinosaurc/dinosaurc000%.png
   array 10 68 images/dinosaurc/dinosaurc00%.png
 
@@ -202,7 +214,7 @@ slide
   images/emulation-reverse.png
 
 slide
-  images/titletest.png
+  images/reverse-emulation.png
 
 slide
   images/zero-w.png
@@ -265,12 +277,12 @@ slide
 # the table on the left is usually stored in
 # RAM, and the character graphics themselves
 # are usually stored in ROM.
-slide
-  images/tables-usually.png
-slide
-  images/motherboard-ppu-ram.png
-slide
-  images/cartclosed-ppu-rom.png
+#  slide
+#    images/tables-usually.png
+#  slide
+#    images/motherboard-ppu-ram.png
+#  slide
+#    images/cartclosed-ppu-rom.png
 
 
 # limitations that we can work around
@@ -448,8 +460,8 @@ slide
 
 slide
   images/cpusjob.png
-slide
-  images/cpusjob2.png
+# slide
+#   images/cpusjob2.png
 slide
   images/normal-reads.png
 slide

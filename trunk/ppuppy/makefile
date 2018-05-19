@@ -3,8 +3,8 @@ all : ppuppy.exe
 talk : deconstruct.ctalk
 jstalk : jstalk/slides.js
 
-CXX=g++
-# CXX=x86_64-w64-mingw32-g++
+# CXX=g++
+CXX=x86_64-w64-mingw32-g++
 # consider O2 for releases...
 CXXFLAGS=-Wall -Wno-sign-compare -Wno-deprecated-declarations -O2 --std=c++14 -I ../cc-lib  -DPSS_STYLE=1
 # XXX for windows
@@ -69,13 +69,16 @@ maketalk.exe : maketalk.o talk.o screen.o convert.o $(ALL_CCLIB_OBJECTS)
 deconstruct.ctalk : images/*.png maketalk.exe deconstruct.talk
 	./maketalk.exe deconstruct.talk deconstruct.ctalk deconstruct.screens
 
+end.ctalk : images/*.png maketalk.exe end.talk
+	./maketalk.exe end.talk end.ctalk end.screens
+
 deconverted/%.png : images/%.png deconvert.exe
 	./deconvert.exe $< $@
 
 deconverted/%.png : images/%.jpg deconvert.exe
 	./deconvert.exe $< $@
 
-deconverted: deconverted/ppuppy-logo.png deconverted/self.png deconverted/motherboard.png deconverted/motherboard-cpu.png deconverted/motherboard-ppu.png deconverted/nes2cart.png deconverted/motherboard-cic-troll.png deconverted/motherboard-cic.png deconverted/arst-arsw.png deconverted/motherboard-caps.png deconverted/abc.png deconverted/venn1.png deconverted/venn2.png deconverted/venn3.png deconverted/venn4.png deconverted/samus.png deconverted/marioboot.png deconverted/cartclosed.png deconverted/cartinside.png deconverted/cartinside-labeled.png deconverted/cartinside-bicameral.png deconverted/emulation-intro.png deconverted/emulation.png deconverted/emulation-reverse.png deconverted/zero-w.png deconverted/motherbrain.png deconverted/trick-capacitor.png deconverted/goldfingers-mismatch.png deconverted/onetrickpony.png deconverted/titletest.png deconverted/real-schematic.png deconverted/ppuppy-board.png deconverted/underbelly.png deconverted/fcc.png deconverted/fantasy.png deconverted/fantasy2.png deconverted/learnfun1.png deconverted/learnfun2.png deconverted/learnfun3.png deconverted/dtd4.png deconverted/boot-disgusted.png deconverted/boot-neutral.png deconverted/quine.png deconverted/tables.png deconverted/tables-color.png
+deconverted: deconverted/ppuppy-logo.png deconverted/self.png deconverted/motherboard.png deconverted/motherboard-cpu.png deconverted/motherboard-ppu.png deconverted/nes2cart.png deconverted/motherboard-cic-troll.png deconverted/motherboard-cic.png deconverted/arst-arsw.png deconverted/motherboard-caps.png deconverted/abc.png deconverted/venn1.png deconverted/venn2.png deconverted/venn3.png deconverted/venn4.png deconverted/samus.png deconverted/marioboot.png deconverted/cartclosed.png deconverted/cartinside.png deconverted/cartinside-labeled.png deconverted/cartinside-bicameral.png deconverted/emulation-intro.png deconverted/emulation.png deconverted/emulation-reverse.png deconverted/zero-w.png deconverted/motherbrain.png deconverted/trick-capacitor.png deconverted/goldfingers-mismatch.png deconverted/onetrickpony.png deconverted/reverse-emulation.png deconverted/real-schematic.png deconverted/ppuppy-board.png deconverted/underbelly.png deconverted/fcc.png deconverted/fantasy.png deconverted/fantasy2.png deconverted/learnfun1.png deconverted/learnfun2.png deconverted/learnfun3.png deconverted/dtd4.png deconverted/boot-disgusted.png deconverted/boot-neutral.png deconverted/quine.png deconverted/tables.png deconverted/tables-color.png
 
 
 snestest.exe : snestest.o convert565.o screen.o $(ARMSNES_OBJECTS) $(ALL_CCLIB_OBJECTS)
