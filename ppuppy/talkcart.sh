@@ -14,7 +14,7 @@ echo performance > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 # If the hardware switch isn't set, then do not do any more automatically.
 /home/pi/tom7misc/ppuppy/getbit.exe 24 || exit 0
 # Also, if this file exists, don't automatically boot ppuppy.
-[ -e cat /boot/debug.txt ] && exit 0
+[ -e /boot/debug.txt ] && exit 0
 # Turn off HDMI to save power.
 tvservice -o
 /home/pi/tom7misc/ppuppy/clear.exe 5
