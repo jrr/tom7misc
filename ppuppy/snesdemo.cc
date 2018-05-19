@@ -30,8 +30,7 @@
 
 // Mutexes seem to work better.
 #if 0
-// static std::mutex snes_mutex;
-// We use spinlocks -- the critical sections should be short, we have
+// Use spinlocks -- the critical sections should be short, we have
 // nothing else to do, and each thread gets its own CPU core.
 std::atomic_flag snes_lock = ATOMIC_FLAG_INIT;
 #define CRITICAL_BEGIN \
@@ -246,7 +245,7 @@ void SNES::Update(uint8 joy1, uint8 joy2) {
     CRITICAL_END;
   }
   update_calls++;
-  if (update_calls % 60 == 0) {
+  if (false && update_calls % 60 == 0) {
     printf("SNES frame %d [lag %d]\n",
 	   snes_frames,
 	   snes_frames_not_done);

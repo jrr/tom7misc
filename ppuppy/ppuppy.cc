@@ -482,11 +482,8 @@ int main(int argc, char **argv) {
     // palette[3]++;
     
     if (!DISABLE_INTERRUPTS && frames % 60 == 0) {
-      printf("%d frames. joy: %02x / %02x\n  ", frames, joy1, joy2);
-      // for (int i = 0; i < 25; i++) {
-      // printf("%d ", knox[i]);
-      // }
-      printf("\n");
+      // printf("%d frames. joy: %02x / %02x\n  ", frames, joy1, joy2);
+      // printf("\n");
     }
     
     // Yield to OS. Does nothing if interrupts are disabled.
