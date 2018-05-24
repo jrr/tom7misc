@@ -12,7 +12,9 @@ it's kind of complicated, you know?
 I'm pretty much on C++11 everywhere now, so these libraries may assume
 C++11 features and semantics. It's worth it. GCC 4.8 and later have
 pretty complete support. As of 2016 I've started using C++14 too. On
-Windows, I'm using TDM-GCC. On linux, just get the newest GCC.
+Windows, I'm using TDM-GCC, although this unfortunately appears to be
+abandoned, so maybe it's back to x86_64-w64-mingw32-g++. On linux,
+just get the newest GCC.
 
 Some of what's here is google "base" libraries, since those are quite
 useful and I know them well. They have been released multiple times
@@ -36,9 +38,10 @@ as well.
 The re2 subdirectory comes from Google and community contributors; see
 re2/LICENSE for its permissive license.
 
-Currently, everything else is licensed under the GPL, which can be
-found in COPYING.
+My own fresh code is licensed under the GPL, which can be found in
+COPYING.
 
+These are more-or-less verbatim imports of other libraries:
 base/        Google "base" library. APACHE20 license.
 strings/     Google "strings" library. APACHE20 license.
 sdl/         Utilities for my habits in SDL. Includes bitmap font rendering.
@@ -46,8 +49,9 @@ jdksmidi/    Baroque but thorough MIDI library, GPL.
 city/        The excellent CityHash hash algorithm.
 gtest/       Google testing library. New BSD license.
 re2/         Local copy of a good, free Regular Expression library.
-taojson/     Local copy of a free STL-like JSON parser. See json_test for
-             example usage (header-only library, C++11).
+rapidjson/   Good fast JSON parser. See json_test for example. MIT license.
+gtl/         Bits of the Google Template Library that have been released
+             as open source (usually Apache 2.0).
 
 wavesave      - Saves an array of audio samples as a WAV file. Limited input
                 formats, though it is not hard to add more.
@@ -76,5 +80,3 @@ md5           - Simple interface to MD5 hash algorithm. Note that MD5 should
                 probably avoid it for new applications.
 bounds        - Simple bounding box implementation, typically used for
                 generating plots of data
-gtl           - Bits of the Google Template Library that have been released
-                as open source (usually Apache 2.0).
