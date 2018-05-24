@@ -1,3 +1,11 @@
+For cc-lib, this code is licensed entirely under the MIT license
+(below). This is because I removed the msinttypes code (VS Studio 2013
+support) and jsonchecker (JSON license).
+
+ - Tom 7, 23 May 2018
+
+---------- Original license.txt follows: ---------------------------
+
 Tencent is pleased to support the open source community by making RapidJSON available. 
  
 Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip.  All rights reserved.
