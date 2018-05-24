@@ -59,7 +59,7 @@ struct WorkThread;
 //
 // In addition to this tree of nodes, the "tree" also contains
 // a queue of nodes for explicit exploration. It also contains
-// several heaps for prioritizing the next nodes to expand.
+// a heap for prioritizing the next nodes to expand.
 struct Tree {
   using State = Problem::State;
   using Seq = vector<Problem::Input>;
