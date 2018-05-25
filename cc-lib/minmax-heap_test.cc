@@ -103,66 +103,101 @@ void FindCounterexample() {
   }
 }
 
-int main() {
-  TestIsMin();
-  TestParentChild();
-  TestTypes();
-
-  // FindCounterexample();
-
+vector<TestValue> GetValues(ArcFour *rc) {
   static constexpr int kNumValues = 1000;
-  IntHeap heap;
-  heap.CheckInvariants(Ptos);
-  
-
   vector<TestValue> values;
   for (int i = 0; i < kNumValues; i++) {
-    values.push_back(TestValue(CrapHash(i)));
+    uint64 u = Rand64(rc);
+    values.push_back(TestValue(u));
   }
+  return values;
+}
 
+void TestMin(ArcFour *rc) {
+  IntHeap heap;
+  heap.CheckInvariants(Ptos);
+  vector<TestValue> values = GetValues(rc);
+  
   for (int i = 0; i < values.size(); i++) {
     heap.Insert(values[i].i, &values[i]);
     heap.CheckInvariants(Ptos);
   }
 
-  printf("PopMinimumValue:\n");
+  // printf("PopMinimumValue:\n");
   TestValue *last = heap.PopMinimumValue();
   heap.CheckInvariants(Ptos);
-  printf("Pop all values (min):\n");
+  // printf("Pop all values (min):\n");
   while (!heap.Empty()) {
     TestValue *now = heap.PopMinimumValue();
     heap.CheckInvariants(Ptos);
-    fprintf(stderr, "%llu %llu\n", last->i, now->i);
-    if (now->i < last->i) {
-      printf("FAIL: %llu %llu\n", last->i, now->i);
-      return -1;
-    }
+    // fprintf(stderr, "%llu %llu\n", last->i, now->i);
+    CHECK_GE(now->i, last->i) <<
+      StringPrintf("FAIL: %llu %llu\n", last->i, now->i);
     last = now;
   }
 
   for (int i = 0; i < values.size(); i++) {
-    if (values[i].location != -1) {
-      printf("FAIL! %d still in heap at %d\n", i, values[i].location);
-      return -1;
-    }
+    CHECK(values[i].location == -1) <<
+      StringPrintf("FAIL! %d still in heap at %d\n", i, values[i].location);
   }
+}
+
+void TestMax(ArcFour *rc) {
+  IntHeap heap;
+  heap.CheckInvariants(Ptos);
+  vector<TestValue> values = GetValues(rc);
   
+  for (int i = 0; i < values.size(); i++) {
+    heap.Insert(values[i].i, &values[i]);
+    heap.CheckInvariants(Ptos);
+  }
+
+  // printf("PopMaximumValue:\n");
+  TestValue *last = heap.PopMaximumValue();
+  heap.CheckInvariants(Ptos);
+  // printf("Pop all values (max):\n");
+  while (!heap.Empty()) {
+    TestValue *now = heap.PopMaximumValue();
+    heap.CheckInvariants(Ptos);
+    CHECK_LE(now->i, last->i) <<
+      StringPrintf("FAIL: %llu %llu\n", last->i, now->i);
+    last = now;
+  }
+
+  for (int i = 0; i < values.size(); i++) {
+    CHECK(values[i].location == -1) <<
+      StringPrintf("FAIL! %d still in heap at %d\n", i, values[i].location);
+  }
+}
+
+void TestClear(ArcFour *rc) {
+  vector<TestValue> values = GetValues(rc);
+  IntHeap heap;
   for (int i = 0; i < values.size() / 2; i++) {
     heap.Insert(values[i].i, &values[i]);
   }
 
   heap.Clear();
-  if (!heap.Empty()) {
-    printf("FAIL: Heap not empty after clear?\n");
-    return -1;
-  }
+  CHECK(heap.Empty()) << "FAIL: Heap not empty after clear?\n";
 
   for (int i = 0; i < values.size() / 2; i++) {
-    if (values[i].location != -1) {
-      printf("FAIL (B)! %d still in heap at %d\n", i, values[i].location);
-      return -1;
-    }
+    CHECK_EQ(values[i].location, -1) <<
+      StringPrintf("FAIL (B)! %d still in heap at %d\n", i, values[i].location);
   }
+}
+
+int main() {
+  ArcFour rc("minmax-heap-test");
+  TestIsMin();
+  TestParentChild();
+  TestTypes();
+
+  printf("Test min...\n");
+  for (int i = 0; i < 100; i++)
+    TestMin(&rc);
+  printf("Test max...\n");
+  TestMax(&rc);
+  TestClear(&rc);
   
   printf("OK\n");
   return 0;
