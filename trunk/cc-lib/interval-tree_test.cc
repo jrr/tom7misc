@@ -28,6 +28,8 @@ struct Insertable {
 };
 
 int main(int argc, char *argv[]) {
+  ArcFour rc("interval-tree-test");
+
   // Check that it compiles to use both int and double.
   { IntervalTree<int, Unit> unused; }
   { IntervalTree<double, Unit> unused; }
@@ -116,7 +118,7 @@ int main(int argc, char *argv[]) {
     CHECK(tree.LowerBound() == 0.0);
     CHECK(tree.UpperBound() == 0.9);
 
-    Shuffle(&data);
+    Shuffle(&rc, &data);
   }
 
   printf("IntervalTree tests OK.\n");

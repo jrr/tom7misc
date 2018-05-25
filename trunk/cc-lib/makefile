@@ -25,7 +25,7 @@ heap_test.exe : heap_test.o
 minmax-heap_test.o : minmax-heap_test.cc minmax-heap.h
 	$(CXX) $(CXXFLAGS) $< -o $@ -c
 
-minmax-heap_test.exe : minmax-heap_test.o $(BASE)
+minmax-heap_test.exe : minmax-heap_test.o arcfour.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 rle_test.o : rle_test.cc rle.h
@@ -50,7 +50,7 @@ image_test.exe : image_test.o arcfour.o image.o stb_image.o stb_image_write.o $(
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 util_test.exe : util_test.o util.o $(BASE)
-	$(CXX) $(CXXFLAGS) $^ -o $@ -static
+	$(CXX) $(CXXFLAGS) $^ -o $@
 
 randutil_test.exe : randutil.h randutil_test.o arcfour.o $(BASE)
 	$(CXX) $(CXXFLAGS) randutil_test.o arcfour.o $(BASE) -o $@

@@ -11,6 +11,9 @@
    the root is smaller than all descendants. In odd layers,
    the root is larger. The complete binary tree is stored
    in a dense array, like min heaps.
+
+   Implementation is based on this paper:
+   http://cglab.ca/~morin/teaching/5408/refs/minmax.pdf
 */
 
 #ifndef __CCLIB_MINMAX_HEAP_H
@@ -55,7 +58,7 @@ class MinMaxHeap {
     v->location = cells.size() - 1;
 
     // No children, so invariant violations are always upward.
-    PercolateUp(cells.size() - 1);
+    BubbleUp(cells.size() - 1);
   }
   
   // Given a cell index, return true if it is a min layer (even)
@@ -102,8 +105,10 @@ class MinMaxHeap {
 
     // Write the replacement over the deleted element.
     SetElem(i, replacement);
+    CHECK_EQ(cells[i].value->location, i);
 
-    Percolate(pold, i);
+    // Percolate(pold, i);
+    TrickleDown(i);
   }
 
   // Restore invariants for the cell index idx, given the old
@@ -111,21 +116,22 @@ class MinMaxHeap {
   // were satisfied).
   // XXX private
   void Percolate(Priority pold, int idx) {
-    // XXX maybe we have PercolateUpMin, etc.?
+    #if 0
     const Priority pnew = cells[idx].priority;
     if (IsMinLayer(idx)) {
       if (pnew < pold) {
-        PercolateUp(idx);
+        PercolateUpMin(idx);
       } else if (pold < pnew) {
-        PercolateDown(idx);
+        PercolateDownMin(idx);
       }
     } else {
       if (pnew < pold) {
-        PercolateDown(idx);
+        PercolateDownMax(idx);
       } else if (pold < pnew) {
-        PercolateUp(idx);
+        PercolateUpMax(idx);
       }
     }
+#endif
   }
 
   bool Empty() const {
@@ -159,7 +165,7 @@ class MinMaxHeap {
 
   // Get the index of the maximum element.
   // XXX should be private
-  Cell GetMaximumIndex() const {
+  int GetMaximumIndex() const {
     CHECK(!cells.empty());
     // As a special case, if there's just one element, it's also the
     // maximum.
@@ -169,9 +175,9 @@ class MinMaxHeap {
     // Maximum has to be at index 1 or 2.
     if (cells.size() == 2 ||
         cells[1].priority < cells[2].priority) {
-      return cells[1];
+      return 1;
     } else {
-      return cells[2];
+      return 2;
     }
   }
   
@@ -238,7 +244,9 @@ class MinMaxHeap {
   void CheckInvariants(F Ptos) const {
     for (int i = 0; i < cells.size(); i++) {
       CHECK_EQ(cells[i].value->location, i) << "Each cell in the heap should "
-        "have its actual index in its location field.";
+        "have its actual index in its location field (got " <<
+	cells[i].value->location << " for index=" << i << ")\nHeap:\n" <<
+	DebugString(Ptos);
       if (IsMinLayer(i)) {
         // (Maybe consider a slower but simpler alternative: Check
         // that all of the elements within its subtree have higher priority).
@@ -248,10 +256,10 @@ class MinMaxHeap {
         // the next min layer).
         const int c1 = LeftChild(i);
         const int c2 = RightChild(i);
-        const int gc1 = LeftChild(LeftChild(i));
-        const int gc2 = RightChild(LeftChild(i));
-        const int gc3 = LeftChild(RightChild(i));
-        const int gc4 = RightChild(RightChild(i));
+        const int gc1 = LeftChild(c1);
+        const int gc2 = RightChild(c1);
+        const int gc3 = LeftChild(c2);
+        const int gc4 = RightChild(c2);
         auto CheckLe = [this, &Ptos, i](const char *which, int j) {
           if (j < cells.size()) {
             CHECK(!(cells[j].priority < cells[i].priority)) <<
@@ -272,10 +280,10 @@ class MinMaxHeap {
         // For max layers, the symmetric case.
         const int c1 = LeftChild(i);
         const int c2 = RightChild(i);
-        const int gc1 = LeftChild(LeftChild(i));
-        const int gc2 = RightChild(LeftChild(i));
-        const int gc3 = LeftChild(RightChild(i));
-        const int gc4 = RightChild(RightChild(i));
+        const int gc1 = LeftChild(c1);
+        const int gc2 = RightChild(c1);
+        const int gc3 = LeftChild(c2);
+        const int gc4 = RightChild(c2);
         auto CheckGe = [this, &Ptos, i](const char *which, int j) {
           if (j < cells.size()) {
             CHECK(!(cells[i].priority < cells[j].priority)) <<
@@ -302,7 +310,8 @@ class MinMaxHeap {
 
     for (int i = 0; i < cells.size(); i++) {
       const char *shape = IsMinLayer(i) ? " shape=box" : "";
-      ret += StringPrintf(" n%d [label=\"%s\"%s]\n", i,
+      ret += StringPrintf(" n%d=%d [label=\"%s\"%s]\n", i,
+			  cells[i].value->location,
                           Ptos(cells[i].priority).c_str(), shape);
     }
 
@@ -323,9 +332,11 @@ class MinMaxHeap {
     return ret;
   }
 
- private:
+  // XXX private
+  inline static int Parent(int idx) { return (idx - 1) >> 1; }
   inline static int LeftChild(int idx) { return idx * 2 + 1; }
   inline static int RightChild(int idx) { return idx * 2 + 2; }
+private:
 
   // Requires that the heap be nonempty.
   // Note: Doesn't update the value's location.
@@ -347,19 +358,191 @@ class MinMaxHeap {
     c.value->location = i;
   }
 
-  // Note copy of cells, since they are modified.
-  inline void SwapPercDown(int i, const Cell me, int childi, const Cell child) {
-    SetElem(childi, me);
-    SetElem(i, child);
-    PercolateDown(childi);
+  // Get a grandchild with the lowest priority. Returns -1 if there are none.
+  int GetMinGrandchild(int i) {
+    const int c1 = LeftChild(i);
+    const int gc1 = LeftChild(c1);
+    if (gc1 >= cells.size()) {
+      // There are no grandchildren.
+      return -1;
+    }
+    const int gc2 = RightChild(c1);
+
+    const int c2 = RightChild(i);
+    const int gc3 = LeftChild(c2);
+    const int gc4 = RightChild(c2);
+
+    int besti = gc1;
+    Priority bestp = cells[gc1].priority;
+    for (int gc : { gc2, gc3, gc4 }) {
+      if (gc >= cells.size())
+	break;
+      if (cells[gc].priority < bestp) {
+	besti = gc;
+	bestp = cells[gc].priority;
+      }
+    }
+    return besti;
+  }
+  
+  // Get the min or max of the children and grandchildren, or return
+  // -1 if there are none.
+  template<bool (*cmp)(Priority a, Priority b)>
+  int GetOutstandingRelativeC(int i) {
+    // Comments as though cmp is <.
+    const int c1 = LeftChild(i);
+    if (c1 >= cells.size()) {
+      // No children, so no minimum
+      return -1;
+    }
+
+    const int c2 = RightChild(i);
+    const int gc1 = LeftChild(c1);
+    const int gc2 = RightChild(c1);
+    const int gc3 = LeftChild(c2);
+    const int gc4 = RightChild(c2);
+
+    int besti = c1;
+    Priority bestp = cells[c1].priority;
+    for (int d : { c2, gc1, gc2, gc3, gc4 }) {
+      if (d >= cells.size())
+	break;
+      if (cmp(cells[d].priority, bestp)) {
+	besti = d;
+	bestp = cells[d].priority;
+      }
+    }
+    return besti;
   }
 
-  /* the element i may violate the order invariant by being too high.
-     swap it with children until it doesn't. */
-  void PercolateDown(int i) {
-    // If we're at the end of the heap, nothing to do. */
-    if (2 * i + 1 >= cells.size()) return;
+  template<bool (*cmp)(Priority a, Priority b)>
+  void TrickleDownC(int i) {
+    // Comments/variable names as though cmp is <.
+    const int minc = GetOutstandingRelativeC<cmp>(i);
+    if (minc == -1) {
+      // No children; nothing to do.
+      return;
+    }
 
+    if (cmp(cells[minc].priority, cells[i].priority)) {
+      // Swap with this minimal relative.
+      Cell ic = cells[i];
+      Cell mc = cells[minc];
+      SetElem(i, mc);
+      SetElem(minc, ic);
+
+      if (minc == LeftChild(i) ||
+	  minc == RightChild(i)) {
+	// Immediate child. Done.
+	return;
+      } else {
+	// It's a grandchild.
+	int pminc = Parent(minc);
+	if (cmp(cells[pminc].priority, cells[minc].priority)) {
+	  Cell pc = cells[pminc];
+	  // (Careful: the cell at minc changed when we swapped above.)
+	  Cell mc = cells[minc];
+	  SetElem(pminc, mc);
+	  SetElem(minc, pc);
+	}
+	TrickleDownC<cmp>(minc);
+      }
+    }
+  }
+
+  static bool Less(Priority a, Priority b) { return a < b; }
+  static bool Greater(Priority a, Priority b) { return b < a; }
+
+  void TrickleDown(int i) {
+    if (IsMinLayer(i)) {
+      TrickleDownC<Less>(i);
+    } else {
+      TrickleDownC<Greater>(i);
+    }
+  }
+
+  template<bool (*cmp)(Priority a, Priority b)>
+  void BubbleUpC(int i) {
+    if (i == 0)
+      return;
+    const int p = Parent(i);
+    if (p == 0)
+      return;
+    const int g = Parent(p);
+    
+    if (cmp(cells[i].priority, cells[g].priority)) {
+      Cell ci = cells[i];
+      Cell cg = cells[g];
+      SetElem(i, cg);
+      SetElem(g, ci);
+      BubbleUpC<cmp>(g);
+    }
+  }
+
+  // For a newly inserted element (leaf), swap upward into either min
+  // or max layers until the invariant is reestablished.
+  void BubbleUp(int i) {
+    // If leaf and root, then the invariants are trivially satisfied.
+    if (i == 0) return;
+    const int p = Parent(i);
+
+    if (IsMinLayer(i)) {
+      if (cells[p].priority < cells[i].priority) {
+	// Swap with parent.
+	Cell ci = cells[i];
+	Cell cp = cells[p];
+	SetElem(p, ci);
+	SetElem(i, cp);
+	BubbleUpC<Greater>(p);
+      } else {
+	BubbleUpC<Less>(i);
+      }
+    } else {
+      // max layer
+      if (cells[i].priority < cells[p].priority) {
+	// Swap with parent.
+	Cell ci = cells[i];
+	Cell cp = cells[p];
+	SetElem(p, ci);
+	SetElem(i, cp);
+	BubbleUpC<Less>(p);
+      } else {
+	BubbleUpC<Greater>(i);
+      }
+    }
+  }
+
+  /* The element i, which resides on a min layer, may violate the
+     order invariant by being too high. Move it downward as
+     necessary. */
+  void PercolateDownMin(int i) {
+    // Here we have a situation like
+    //          8       MIN
+    //         / \
+    //        71  ...   MAX
+    //       /  \
+    //     [31+] 10     MIN
+    //     / \  / \
+    //   46 51 31 21    MAX
+    //   /\
+    //  33 37           MIN
+    // 
+    // where 31+ was just replaced with something larger than was
+    // there before. It needs to be smaller than everything in
+    // its subtree. First thing to do is look at its grandchildren
+    // (also a min layer).
+
+    // Minimal grandchild.
+    const int gc = GetMinGrandchild(i);
+    if (gc == -1) {
+      // At the end of the heap, so the invariant is trivially
+      // satisfied and there's nothing to do.
+      return;
+    }
+
+    // If the grandchild is lower than us, swap with it.
+    // XXX actually it is more complex than this, huh?
+    #if 0
     const Cell &me = cells[i];
     // Left and right children.
     const int li = 2 * i + 1;
@@ -393,53 +576,7 @@ class MinMaxHeap {
         }
       }
     }
-  }
-
-  // Same but for percolating up; again note copy.
-  inline void SwapPercUp(int i, const Cell me, int parenti, const Cell parent) {
-    SetElem(parenti, me);
-    SetElem(i, parent);
-    PercolateUp(parenti);
-  }
-
-  /* the element i may also violate the order invariant by being too
-     low. swap it with its parent until it doesn't.
-
-
-          a
-        /   \
-       b     c
-      / \   / \
-     d   e f   g
-
-     suppose i is the index of c
-     we know b<d,e, a<b, c<f,g, a<f,g
-     but it may not be the case that a<c, which violates
-     the invt.
-
-
-          c
-        /   \
-       b     a
-      / \   / \
-     d   e f   g
-
-     if we swap a and c, we fix this (perhaps introducing
-     the same problem now with i=indexof(a)).
-
-     c < b because c < a < b.
-     */
-
-  void PercolateUp(int i) {
-    // Root? Done.
-    if (i == 0) return;
-    const Cell &me = cells[i];
-
-    int pi = (i - 1) >> 1;
-    const Cell &parent = cells[pi];
-    if (me.priority < parent.priority) {
-      SwapPercUp(i, me, pi, parent);
-    }
+    #endif
   }
 
   std::vector<Cell> cells;
