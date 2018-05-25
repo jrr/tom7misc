@@ -7,6 +7,8 @@
 #include "minmax-heap.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
+#include "randutil.h"
+#include "arcfour.h"
 
 using namespace std;
 
@@ -30,6 +32,13 @@ static uint64 CrapHash(int a) {
 }
 
 using IntHeap = MinMaxHeap<uint64, TestValue>;
+void TestParentChild() {
+  for (int i = 0; i < 100; i++) {
+    CHECK_EQ(IntHeap::Parent(IntHeap::LeftChild(i)), i);
+    CHECK_EQ(IntHeap::Parent(IntHeap::RightChild(i)), i);
+  }
+}
+
 void TestIsMin() {
   CHECK(IntHeap::IsMinLayer(0));
   CHECK(!IntHeap::IsMinLayer(1));
@@ -52,8 +61,54 @@ string Ptos(uint64 u) {
   return StringPrintf("%llu", u);
 }
 
-int main () {
+static void TestTypes() {
+  using StringHeap = MinMaxHeap<string, TestValue>;
+  StringHeap heap;
+  auto Stos = [](const string &s) { return s; };
+  heap.CheckInvariants(Stos);
+  TestValue a(15), b(22);
+  heap.Insert("hello", &a);
+  heap.Insert("world", &b);
+  heap.CheckInvariants(Stos);
+}
+
+void FindCounterexample() {
+  static constexpr int kNumValues = 6;
+  // static constexpr bool DEBUG = false;
+  #define DEBUG (seed == 4)
+  for (int seed = 0; seed < 0x7FFFFFFE; seed++) {
+    ArcFour rc(StringPrintf("%d", seed));
+    printf("Seed: %d\n", seed);
+    IntHeap heap;
+    vector<TestValue> values;
+    values.reserve(kNumValues);
+    if (DEBUG) printf("---\n");
+    for (int i = 0; i < kNumValues; i++) {
+      int p = RandTo32(&rc, 25);
+      values.push_back(TestValue(CrapHash(p)));
+      heap.Insert(p, &values[i]);
+      if (DEBUG) printf("Insert: %d\n", p);
+    }
+    if (DEBUG) 
+      printf("Before: %s\n", heap.DebugString(Ptos).c_str());
+    IntHeap::Cell c = heap.PopMinimum();
+    printf("Min priority: %llu\n", c.priority);
+    heap.CheckInvariants(Ptos);
+    if (DEBUG) 
+      printf("Pop min: %s\n", heap.DebugString(Ptos).c_str());
+    while (!heap.Empty()) {
+      heap.PopMinimumValue();
+      heap.CheckInvariants(Ptos);
+    }
+  }
+}
+
+int main() {
   TestIsMin();
+  TestParentChild();
+  TestTypes();
+
+  // FindCounterexample();
 
   static constexpr int kNumValues = 1000;
   IntHeap heap;
@@ -70,10 +125,13 @@ int main () {
     heap.CheckInvariants(Ptos);
   }
 
-#if 0
+  printf("PopMinimumValue:\n");
   TestValue *last = heap.PopMinimumValue();
+  heap.CheckInvariants(Ptos);
+  printf("Pop all values (min):\n");
   while (!heap.Empty()) {
     TestValue *now = heap.PopMinimumValue();
+    heap.CheckInvariants(Ptos);
     fprintf(stderr, "%llu %llu\n", last->i, now->i);
     if (now->i < last->i) {
       printf("FAIL: %llu %llu\n", last->i, now->i);
@@ -108,5 +166,4 @@ int main () {
   
   printf("OK\n");
   return 0;
-#endif
 }
