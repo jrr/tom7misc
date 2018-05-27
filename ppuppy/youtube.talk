@@ -1,0 +1,593 @@
+
+# ########################
+# Part I. Introduction
+# ########################
+
+slide
+ images/reverse-emulation.png
+
+# slide
+#   dur 48
+#   images/photosensitivity1.png
+#   dur 1
+#   array 2 4 images/photosensitivity%.png
+#   dur 37
+#   images/photosensitivity5.png
+#   dur 2
+#   array 1 8 images/photosensitivity%.png
+#   dur 29
+#   images/photosensitivity4.png
+#   dur 50
+#   images/photosensitivity1.png
+
+# If you've been following my channel, you know that
+# I like to do sort of aggressively useless projects,
+# that are technically challenging but funny.
+
+# 
+# 
+# slide
+#   images/what-deal.png
+# 
+# slide
+#   images/learnfun1.png
+# slide
+#   images/learnfun2.png
+# slide
+#   images/learnfun3.png
+# 
+# slide
+#   images/arst-arsw.png
+# 
+# slide
+#   images/abc.png
+# 
+# slide
+#   dur 2
+#   array 0  9  images/dinosaurc/dinosaurc000%.png
+#   array 10 68 images/dinosaurc/dinosaurc00%.png
+
+
+# XXX maybe could flash this up quick?
+# slide
+#  images/onetrickpony.png
+
+# Today I want to tell you such a joke, but I think
+# the joke works best if we do it inside-out.
+
+
+# Like first, what even IS humor?
+
+slide
+  images/what-is-funny.png
+
+# Of course many other pretentious people have desiccated
+# humor into prune dust by studying it. I couldn't find
+# an attribution for this one, but it stuck with me; a
+# definition of humor: 
+# "A movie of a man eating a boot with a look of disgust on
+# his face.  That's not funny."
+
+slide
+  images/boot-disgusted.png
+
+# "But a man eating a boot, with a neutral expression on
+# his face.  That's funny!"
+slide
+  images/boot-neutral.png
+
+# ?? IS IT? Well I think it's at least meta-funny that in the
+# old days, eating a boot could be considered funny. But of
+# course the point, which I agree with, is that humor is
+# about defying expectations.
+
+# Let's consider another NOT FUNNY / FUNNY pair.
+# Remember to laugh only on slides labeled "FUNNY."
+slide
+  images/marioboot.png
+slide
+  dur 48
+  images/samus1.png
+  dur 8
+  images/samus2.png
+  dur 4
+  images/samus1.png
+  dur 16
+  images/samus3.png
+  dur 16
+  images/samus2.png
+
+# funny / not funny
+slide
+  images/self-reference.png
+slide
+  images/strange-loops.png
+slide
+  images/quine.png
+
+# But I contend ...
+slide
+  images/improper-hierarchy.png
+
+# actually anachronism is an example of this
+slide
+  images/pastpresentfuture.png
+slide
+  images/pastpresentfuture-anachronism.png
+
+
+slide
+  images/venn1.png
+slide
+  images/venn2.png
+slide
+  images/venn3.png
+slide
+  images/venn4.png
+
+
+# TODO: Lesson [meta]: Draw specious parallels
+
+# So, we're going to do a joke about Improper Hierarchy.
+# There will be serval examples in this talk for you to
+# look for!
+#
+# But first we need to look inside the NES.
+
+slide
+  images/motherboard.png
+slide
+  images/motherboard-cpu.png
+# Here, talk about the PPU as an inversion of the
+# normal hierarchy? "who's in charge?"
+slide
+  images/motherboard-ppu.png
+slide
+  images/motherboard-cic.png
+slide
+  images/motherboard-cic-troll.png
+
+# XXX could skip? or move to exegesis
+slide
+  images/motherboard-caps.png
+
+slide
+  images/motherboard-tocart.png
+# Also one other thing to mention is that the CPU and
+# PPU can communicate via a pretty slow mechanism.
+slide
+  images/motherboard-mmregs.png
+
+slide
+  images/cartclosed.png
+slide
+  images/cartinside.png
+slide
+  images/cartinside-bicameral.png
+slide
+  images/cartinside-labeled.png
+slide
+  images/cartinside-free.png
+
+# Speaking of "who's in charge here?"
+
+# OK, so this gives me an idea...
+
+slide
+  images/emulation-intro.png
+slide
+  images/emulation.png
+slide
+  images/emulation-reverse.png
+
+slide
+  images/zero-w.png
+
+slide
+  images/fantasy.png
+slide
+  images/fantasy2.png
+
+# TODO: Something about cheating
+#   [x] not totally naive!
+#      cheating?!
+
+# In fact, this behavior is required by law...
+slide
+  images/underbelly.png
+slide
+  images/fcc.png
+
+# XXX: Affirm that it is NES.
+# Pull back to show the NES with cartridge in it.
+
+
+# ##############################
+# Part II. Super Powers!
+# ##############################
+
+# How the PPU works
+
+slide
+  images/tables.png
+
+# So this allows us to put together a whole
+# screen, like so:
+slide
+  images/mario-bw-grid.png
+# So far it's just a single color.
+# (Actually note mario is in color, and also
+# not aligned to the grid. This is because he's
+# actually a sprite. There are a million other
+# topics like this, which we won't discuss.)
+slide
+  images/mario-bw.png
+slide
+  # XXX: make a "palette" command that forces a selection
+  # of the specific palette that's in this slide.
+  images/tables-color.png
+slide
+  dur 24
+  array 1 5 images/palette%.png
+slide
+  images/mario-color-grid.png
+# As we saw in a previous video...
+slide
+  images/mario-color-same.png
+slide
+  images/mario-color-same-zoom.png
+
+# limitations that we can work around
+#  - COLOR RESOLUTION.
+#  - SLOW UPDATES. - vblank
+# (both of these lead naturally into
+# talking about the timing of the scanline)
+
+# (This is an important topic because it drive home
+# the point of how reverse emulation unlocks
+# functionality in a device that was inaccessible
+# within its intended operation.)
+
+# Two serious limitations.
+# slide
+#   images/limitations.png
+slide 
+# XXX make this slide better, perhaps
+# by forcing palette selection to follow
+# NES rules.
+  images/limitations-color.png
+slide
+  images/color16x16.png
+slide
+  # only flash this up briefly
+  images/8pixels.png
+
+slide
+  images/limitations-update.png
+slide
+  dur 6
+  array 1 13 images/scanline%.png
+slide
+  images/motherboard-mmregs.png
+slide
+  images/mario-strip.png
+# slide
+
+slide
+  forced 0x25 0x15 0x05 0x05 0x07 0x0d 0x2d 0x00 0x0d
+  multi
+  dur 4
+  array 0 9 images/rr/rr000%.png
+  array 10 26 images/rr/rr00%.png
+
+# try to get through the signal timing stuff quickly.
+# don't be pedantic!
+
+# ##############################
+# Part III. PPUppy
+# ##############################
+
+
+# OK, so my fantasy schematic was pretty far from
+# reality. I can't go through the whole process here.
+# Also I am bad at electronics.
+
+# Certain budget for "OMG it hard" without actually
+# conveying lessons.
+#  - bus capacitance (fwd reference persistence of vision?)
+#  - 
+
+# So here is a capture of three channels from this actual NES using a
+# digital logic probe; basically an oscilloscope. I think it's very
+# weird that this super low-level electrical signal is now an image
+# inside the cartridge's memory, being rendered over the same wires
+# that it was measuring. It's certainly an example of improper
+# hierarchy.
+slide
+  images/scope-timing.png
+# This top channel is the PPU's "/RD" line. It signals when it wants
+# to read from ROM or RAM by going low.
+slide
+  images/scope-timing-ns.png
+# This forward references bus capacitance.
+slide
+  images/scope-timing-inout.png
+# The first thing I did was measure how fast I could output bits on
+# the raspberry pi. I measured that I could do pulses at about 80ns.
+slide
+  images/scope-timing-pi.png
+# XXX: "this is fine" drawing
+
+# I knew this was cutting it a bit close, but it was
+# much worse than I thought.
+# First of all, you have to do a read from some pins to react to
+# the addresses that come in. Worse, although the *bandwidth* is
+# reasonable here, the *latency* is pretty bad (about an additional
+# 100ns).
+slide
+  images/scope-timing-late.png
+# So if I can't get my paper done in time for the deadline, the
+# best thing to do is submit to NEXT YEAR's deadline...
+slide
+  images/scope-timing-ontime.png
+# Here I write before I read the address, which means I always
+# must be prepared with the next byte I plan to write. This is
+# possible because the PPU's behavior is predictable.
+
+# Another reason you see the screen is a bit janky...
+# It's harder than that, though. Waveforms are not really digital,
+slide
+  images/scope-analog.png
+# -> leads into deglitching / logic families
+# -> leads into 3v3 vs 5v
+
+# 3v3 5v. so use transistor
+# these are different "logic families"
+# actually CMOS vs TTL
+slide
+  images/3v5v1.png
+slide
+  images/3v5v2.png
+slide
+  images/3v5v3.png
+slide
+  images/3v5v4.png
+
+# but this is wrong. the bus is shared. tri-state
+# If I don't cover it elsewhere, can mention that
+# the bus is even shared between address and data lines
+slide
+  dur 4
+  array 1 4 images/tristate10-%.png
+slide
+  dur 4
+  array 1 4 images/tristate01-%.png
+slide
+  images/tristate00.png
+
+# but this is wrong. the transistors are too slow.
+slide
+  images/slowsistor.png
+slide
+  images/schottky.png
+
+# XXX should say something about "logic families"
+# before this point
+
+slide
+  images/logic-families.png
+slide
+  images/logic-families-invention.png
+
+# Wait, these letters MEAN SOMETHING?!
+slide
+  images/74ls373n.png
+# So this led me to think that maybe the NES designers
+# knew what they were doing, and that it made sense to
+# just copy off their boards. But this comes with some
+# perils. For example, what is this component, electronics
+# geniuses?
+slide
+  images/trick-capacitor.png
+
+# So anyway, my final design was more complicated
+# than my fantasy, and still doesn't work that great
+slide
+  images/ppuppy-board.png
+slide
+  images/ppuppy-logo.png
+slide
+  images/assembled.png
+#    making these boards is kind of expensive, because
+#    NES games are expensive now. I need to harvest their
+#    CIC chips. Annoyingly, they're more expensive than
+#    the cheapest SNES games [hint]
+slide
+  images/assembled-cic.png
+
+# CPU side...
+slide
+  images/assembled-cpu.png
+
+# bonus topics
+#  [ ] j/k hardware is hard
+#   [ ] power, etc.
+#   [ ] optimization, swizzling, deglitching
+#   [ ] disable interrupts
+
+
+slide
+  images/cpusjob.png
+# slide
+#   images/cpusjob2.png
+slide
+  images/normal-reads.png
+slide
+  images/knocking.png
+
+slide
+  images/knocking-protocol1.png
+slide
+  images/knocking-protocol2.png
+slide
+  images/knocking-protocol3.png
+slide
+  images/knocking-protocol4.png
+
+# XXX By the way, this reminds me...
+# of SECURITY HAX
+#   [ ] security hax 1: hdd controller
+#   [ ] security hax 2: one trace
+#     [ ] nsa principle?
+#   [ ] port knocking? 
+#    * probably just skip this *
+
+slide
+  dur 10
+  array 0 3 images/accomplished%.png
+  dur 65535
+  images/accomplished4.png
+slide
+  images/knocking-protocol-joy.png
+
+slide
+  images/vblank-used.png
+
+# can talk about this while I eject the
+# cart and prep the demonstration. no
+# slides needed
+
+#   [ ] .. filling vblank .. (show waveforms?)
+#   [ ] running out of time..
+#        (in fact, in order to get my timing good,
+#        I've destroyed the linux kernel by turning
+#        off interrupts, so there's no possibility
+#        for multitasking)
+# [ ] upgrade to bigger computer
+
+
+# ##############################
+# Part IV. Demonstration
+# ##############################
+
+# swap cartz
+slide
+  images/disc2.png
+
+# future work here?
+
+#  [ ] nes emulator in NES
+# 
+
+# I used up all the pins on the pi reverse emulating
+# the PPU. The EEPROM is basically using the CPU the
+# normal way. What if we reverse emulated it too?
+slide
+  images/reverse-cpu.png
+slide
+  images/reverse-cpu-normal.png
+
+# We could feed it instructions directly, which could
+# simplify/eliminate the knocking. But it would also make
+# it possible to have it execute supernaturally fast.
+# Most programs have to read and write from variables
+# (i.e. memory locations), but it's faster to operate
+# on constants. We could make the CPU only operate on
+# constants by streaming it such instructions (of course
+# the constants are dynamically generated by ppuppy).
+# With this, we could probably manage high-resolution
+# sound. Or maybe change the palette every scanline.
+# Or mine bitcoins.
+slide
+  dur 24
+  array 1 4 images/reverse-cpu-streaming%.png
+
+
+# ##############################
+# Part V. Big Ideas
+# ##############################
+
+
+# Big ideas.
+
+slide
+  images/big-ideas.png
+
+# So this is a good way to revisit hardware for which
+# we have nostalgia. Like NES. Maybe the TI-82 calculator.
+
+slide
+  images/nostalgic-hardware.png
+
+# I think about AI sometimes. It seems clear to me that
+# it's at least logically possible, if not inevitable.
+# And I worry about that, not just because it could destroy
+# us, but just like, the feeling of being left behind?
+# # Computers can already make chess moves that we can't
+# # really understand.
+# I have understandable nostalgia for the human brain.
+
+# So one thing we could do is upload our mind into the
+# cloud or whatever. This is the equivalent of "emulation."
+# But maybe that's scary and we want to keep the hardware.
+# Also it raises many ethical issues, like now you gotta
+# keep N+1 redundancy and use ECC memory.
+
+# So another approach would be to reverse-emulate the
+# brain. For example, maybe you could replace your "memory"
+# with advanced hardware that works much much faster
+# than brains. Of course reverse emulating the NES tells
+# nothing about how to do that. But it tells me a little
+# about what it might feel like. What if I didn't want it
+# to be so intrusive? For example, how might
+# I interact with such a thing?
+
+# Let's say I wanted to know something, like as a boring
+# example, the prime factors of 
+#    455276324879769941?
+
+# 472866029 x 962801929 = 455276324879769941
+
+# So could I maybe interface with such a thing? Like maybe
+# would just feel like recalling a vey familiar fact? 
+# For example I could recite to myself the ABCs. What if
+# the alphabet was, to you, instead of a boring static fact,
+# a dynamic fact that reorganized itself to suit the context?
+
+
+# A B C D E F G  4 7 2 8 6 6 0 2 9...
+
+slide
+  images/prime-factors.png
+slide
+  images/abcd.png
+slide
+  images/abcd-factor.png
+
+# XXX This joke is weak, even if you know metroid
+slide
+  dur 48
+  images/police1.png
+  dur 8
+  images/police2.png
+  dur 4
+  images/police1.png
+  dur 16
+  images/police3.png
+  dur 16
+  images/police2.png
+
+slide
+  # XXX animate
+  # XXX add metroid in background?
+  images/motherbrain.png
+
+#  [ ] big ideas
+#  emulating the brain vs reverse-emulating the brain
+#  neural implant = persistence of vision (aka bus capacitance)
+#    vs. "replacing my software/roms with something faster"
+#  [x] mother brain neural implant
+#   [ ] this behavior is required by law!
+#     [ ] galactic federal law [-:
+#  [ ] ABCs
+#  [ ] thanks / @tom7
