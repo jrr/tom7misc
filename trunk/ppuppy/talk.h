@@ -26,6 +26,8 @@ struct Talk {
     // Source image.
     string filename;
     int duration = 1;
+    // Forced palette prefix.
+    vector<int> forced;
   };
 
   struct Slide {

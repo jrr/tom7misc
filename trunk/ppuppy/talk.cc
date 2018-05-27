@@ -24,17 +24,19 @@ Talk Talk::Load(const string &src_filename) {
   static constexpr bool DEFAULT_MULTI = false;
   int duration = DEFAULT_DURATION;
   bool multi = DEFAULT_MULTI;
+  vector<int> forced;
   for (string line : src) {
     string cmd = Util::chop(line);
     if (cmd == "#" || cmd == "")
       continue;
 
-    auto AddFile = [&slide, &multi, &duration](const string &f) {
+    auto AddFile = [&slide, &multi, &duration, &forced](const string &f) {
       slide->anim.emplace_back();
       Frame *frame = &slide->anim.back();
       frame->multi = multi;
       frame->filename = f;
       frame->duration = duration;
+      frame->forced = forced;
     };
     
     if (cmd == "slide") {
@@ -42,6 +44,7 @@ Talk Talk::Load(const string &src_filename) {
       slide = &talk.slides.back();
       duration = DEFAULT_DURATION;
       multi = DEFAULT_MULTI;
+      forced = {};
     } else if (cmd == "dur") {
       string d = Util::chop(line);
       CHECK(slide != nullptr) << "start slide first";
@@ -53,6 +56,14 @@ Talk Talk::Load(const string &src_filename) {
     } else if (cmd == "single") {
       CHECK(slide != nullptr) << "start slide first";
       multi = false;
+    } else if (cmd == "forced") {
+      CHECK(slide != nullptr) << "start slide first";
+      forced.clear();
+      while (!line.empty()) {
+	string ps = Util::chop(line);
+	int p = strtol(ps.c_str(), nullptr, 16);
+	forced.push_back(p);
+      }
     } else if (cmd == "array") {
       CHECK(slide != nullptr) << "start slide first";
       string los = Util::chop(line);
@@ -99,13 +110,27 @@ void Talk::Save(const string &meta_file,
       CHECK(img.get()) << frame.filename;
       fprintf(stderr, "%s\n", frame.filename.c_str());
       if (frame.multi) {
-	CHECK(false) << "frame.multi unimplemented";
+	CHECK((frame.duration & 1) == 0) << "multi frames must have "
+	  "a duration that's a multiple of two; got " << frame.duration;
+	Screen screen0, screen1;
+	MakePalette(PaletteMethod::GREEDY_BIGRAMS,
+		    img.get(), &rc, false, frame.forced, &screen0);
+	MakePalette(PaletteMethod::GREEDY_BIGRAMS,
+		    img.get(), &rc, true, frame.forced, &screen1);
+	FillScreenSelective(img.get(), false, &screen0);
+	FillScreenSelective(img.get(), true, &screen1);
+	const int idx0 = AddScreen(screen0);
+	const int idx1 = AddScreen(screen1);
+	for (int i = 0; i < frame.duration >> 1; i++) {
+	  cslide.screens.emplace_back(idx0, 1);
+	  cslide.screens.emplace_back(idx1, 1);
+	}
       } else {
 	Screen screen;
 	MakePalette(PaletteMethod::GREEDY_BIGRAMS,
-		    img.get(), &rc, &screen);
-	FillScreenSelective(img.get(), &screen);
-	int idx = AddScreen(screen);
+		    img.get(), &rc, false, frame.forced, &screen);
+	FillScreenSelective(img.get(), false, &screen);
+	const int idx = AddScreen(screen);
 	cslide.screens.emplace_back(idx, frame.duration);
       }
     }

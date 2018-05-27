@@ -43,7 +43,9 @@ enum class PaletteMethod {
 };
 
 void MakePalette(PaletteMethod method, const ImageRGB *img,
-		 ArcFour *rc, Screen *screen);
+		 ArcFour *rc, bool offset,
+		 const vector<int> &forced,
+		 Screen *screen);
 
 // Put the magic bytes in unused palette slots that tell
 // ppuppy to turn off debugging.
@@ -52,9 +54,7 @@ inline void NoDebugPalette(Screen *screen) {
   screen->palette[12] = 0xA7;
 }
 
-void FillScreenSelective(ImageRGB *img, Screen *screen);
-
-// for SNES demo. PERF: Use 565 as input!
-void FillScreenFast(ImageRGB *img, Screen *screen);
+void FillScreenSelective(ImageRGB *img, bool offset,
+			 Screen *screen);
 
 #endif

@@ -60,17 +60,23 @@ deconvert.exe : deconvert.o deconversion.o screen.o convert.o $(ALL_CCLIB_OBJECT
 detalk.exe : detalk.o deconversion.o talk.o screen.o convert.o $(ALL_CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-jstalk/slides.js : detalk.exe deconstruct.ctalk
-	./detalk.exe deconstruct.ctalk deconstruct.screens jstalk
+# jstalk/slides.js : detalk.exe deconstruct.ctalk
+# 	./detalk.exe deconstruct.ctalk deconstruct.screens jstalk
+
+jstalk/slides.js : detalk.exe youtube.ctalk
+	./detalk.exe youtube.ctalk youtube.screens jstalk
 
 maketalk.exe : maketalk.o talk.o screen.o convert.o $(ALL_CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-deconstruct.ctalk : images/*.png maketalk.exe deconstruct.talk
+deconstruct.ctalk : images/*.png images/dinosaurc/*.png maketalk.exe deconstruct.talk
 	./maketalk.exe deconstruct.talk deconstruct.ctalk deconstruct.screens
 
 end.ctalk : images/*.png maketalk.exe end.talk
 	./maketalk.exe end.talk end.ctalk end.screens
+
+youtube.ctalk : images/*.png images/rr/*.png maketalk.exe youtube.talk
+	./maketalk.exe youtube.talk youtube.ctalk youtube.screens
 
 deconverted/%.png : images/%.png deconvert.exe
 	./deconvert.exe $< $@
