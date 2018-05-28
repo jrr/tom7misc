@@ -190,7 +190,7 @@ void MakePalette(PaletteMethod method, const ImageRGB *img,
     for (int nes_color = 0; nes_color < 64; nes_color++) {
       // Don't even consider 1d, 0e, 1e, 2e, 3e, 0f, 1f, 2f, 3f,
       // since these are all black (we use 0d for that).
-      // Also, 20 and 30 are basically identical whites.
+      // Also, 20 and 30 are basically identical whites. Use 0x20.
       const int cm = nes_color & 0x0f;
       if (cm == 0x0e || cm == 0x0f || nes_color == 0x1d || nes_color == 0x30)
 	continue;
@@ -767,7 +767,6 @@ static void FillScreenDithered(ImageRGB *img, Screen *screen) {
 }
 
 void FillScreenSelective(ImageRGB *img, bool offset, Screen *screen) {
-
   // The main tricky thing about converting an image is
   // mapping image colors to NES colors. In this first pass,
   // we assume a fixed palette (4 different palettes, each
@@ -780,7 +779,6 @@ void FillScreenSelective(ImageRGB *img, bool offset, Screen *screen) {
   // RGB color best.
   auto ClosestColor = [&screen](int pal, int r, int g, int b) ->
     std::tuple<int, float> {
-#if 1
     float sl, sa, sb;
     ColorUtil::RGBToLAB(ByteFloat(r), ByteFloat(g), ByteFloat(b),
 			&sl, &sa, &sb);
@@ -800,29 +798,6 @@ void FillScreenSelective(ImageRGB *img, bool offset, Screen *screen) {
       }
     }
     return {best_i, best_delta_e};
-      
-#else
-    // XXX TODO: use LAB DeltaE. But that is much more expensive...
-    int best_sqerr = 65536 * 3 + 1;
-    int best_i = 0;
-    for (int i = 0; i < 4; i++) {
-      // Index within the nes color gamut.
-      int nes_color = i == 0 ? screen->palette[0] :
-	screen->palette[pal * 4 + i];
-      int rr = ntsc_palette[nes_color * 3 + 0];
-      int gg = ntsc_palette[nes_color * 3 + 1];
-      int bb = ntsc_palette[nes_color * 3 + 2];
-      int dr = r - rr, dg = g - gg, db = b - bb;
-      int sqerr = dr * dr + dg * dg + db * db;
-      if (sqerr < best_sqerr) {
-	best_i = i;
-	best_sqerr = sqerr;
-      }
-    }
-
-    // TODO: Also keep per-color error to propagate?
-    return {best_i, (float)best_sqerr};
-#endif
   };
 
   // std::unordered_map<string, std::tuple<uint8, uint8, uint8>> memo;
@@ -834,7 +809,7 @@ void FillScreenSelective(ImageRGB *img, bool offset, Screen *screen) {
     // Try all four palettes, to minimize this total error.
     int best_totalerror = 0x7FFFFFFE;
     std::tuple<uint8, uint8, uint8> best;
-    for (int pal = 0; pal < 4 /* XXX */; pal++) {
+    for (int pal = 0; pal < 4; pal++) {
       float totalerror = 0.0f;
       uint8 lobits = 0, hibits = 0;
       for (int x = 0; x < 8; x++) {

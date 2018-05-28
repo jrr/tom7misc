@@ -1,0 +1,74 @@
+
+This is a supplement to my video, "Reverse emulating NES to give it
+super powers!" A few people asked me for more explanations of how I
+did this, so here I'm going to try to explain some of the more
+interesting parts of it. The production values will be low, sorry!
+
+First of all, where did this idea even come from? A few years ago I
+was reading the NES hardware documentation, and saw that there's a
+curious bit of functionality, which is that the PPU is capable of
+rendering the background color from a pin on the expansion slot
+connector. So it gave a way to add external hardware to the NES to
+supercharge it. I thought maybe this could be used for something
+interesting, so I wrote it down in my ideas file. When I had some
+talks coming up, I was looking for a project to do, and started
+looking into that one. In doing so, I realized that the phenomena
+I wanted ("impossible" NES graphics) was achievable through the
+more pedestrian--and restrictive--route of modifying a cart only.
+That seemed more elegant, so I did that project. It's a good thing
+that I was doing this for a deadline I had already committed to,
+because it was pretty hard. I almost gave up several times.
+
+The way I started--and I think this is good advice for any such
+project--was to spend a day trying to prove it was impossible. I
+disassembled a NES game (Zelda) and cut one of the ROM pins, and
+manually toggled it
+
+  (graphics)
+
+by connecting it to ground or +5V. I saw that this produced the
+"expected" behavior, meaning I was able to make some columns of the
+screen change (the low-order bit of the 8x1 strips) by doing this. The
+other thing I did was check the timing. (If not in the other video,
+explain how I'm used to the timing being several orders of magnitude
+faster..) It looked like the pi was just barely fast enough to make it
+work. I made a mistake in not measuring latency, here. That means not
+just: How fast can I toggle the wire? But: How long does it take the
+wire to actually reflect the change?
+
+I'm not as good at electronics as I am at software. So, pretty bad. So
+what most of the time I was working on this project, I was using an
+actual NES Game (I picked Ice Hockey, because Zelda has pretty
+complicated on-board circuitry) which I was sort of interfering with.
+Basically, I didn't want to get myself into a situation where it was
+broken and I wasn't able to observe anything happening, because I
+don't have the skills or tools to debug that. So for a long time, I
+was just overriding 4 bits of the graphics rom on Ice Hockey, which
+let me see that I was making something happen, but also that the game
+itself was still alive. I should also mention that I managed to bend
+the pins on this NES pretty good. I inserted one of these breadboards
+to see whether it would fit (!?) and some pins got stuck in one of
+these holes. That was.. unwise. You can also see that I'm holding
+my board down here with a stick. Normally the cartridge case itself
+provides some pressure, but this thing won't fit in a cartridge. So
+when something wasn't working, it was often because I wasn't getting
+good contact with the pins. I had to take the board out constantly
+to solder stuff on it. So it was really helpful to see the corrupted
+ice hockey guys skating around, and playing that lovely music, so
+that I knew there was still life inside.
+
+Before I built out all the bits, I was testing different circuits for
+interfacing between the pi and NES. There are two sides to this, the
+input side and output side. Output (from the pi) is harder for several
+reasons. It turns out "wires" are really expensive, so the NES does a
+dirty trick, which is common, of sharing the same wires for multiple
+purposes. This is called a "bus." In particular, the PPU ROM and RAM
+are on the same bus, and astonishingly, some of the address wires
+(input) are also shared with the data wires (output). This last thing
+leads to a weird effect where, just due to the capacitance of the bus
+(capacitance means the ability for the wire to stay charged, like
+the tiniest battery), if you don't have anything hooked up, then when
+you read address X, you usually get back data X (well, the lowest 8
+bits of X). 
+
+OK J/K let's just wing it!

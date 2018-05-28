@@ -1,0 +1,26 @@
+
+    PPUppy                                  Tom7,    28 May 2018
+
+This is software, content, and hardware schematics for my project
+called "PPUppy," which I used to give a few talks in 2018 and a
+Youtube video called something like "Reverse emulating the NES to
+give it SUPER POWERS!" (also, a long "Making Of" exegesis).
+
+There's a hodgepodge of different licenses in here.
+
+In images/ there are some items for which I don't own the copyright,
+but which I believe are covered by fair use. (In particular, the
+size of the excerpt is very small):
+
+  - A few sprites and screenshots from NES games (Super Mario Bros.,
+    Metroid, Legend of Zelda)
+  - 26 frames from "Never Gonna Give You Up" by Rick Astley; heavily
+    down-sampled
+  - An excerpt from the cover of the complete Season 3 DVD of "Charles
+    in Charge," also heavily down-sampled.
+  - A still from the movie "STAR WARS", also rendered at very low
+    resolution
+
+For my own standalone tools, these are licensed under GPL. See
+COPYING. Other software incorporating 3rd-party open source software
+contains licensing details therein.
