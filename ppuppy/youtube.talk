@@ -4,7 +4,7 @@
 # ########################
 
 slide
- images/reverse-emulation.png
+  images/reverse-emulation.png
 
 # slide
 #   dur 48
@@ -24,28 +24,24 @@ slide
 # I like to do sort of aggressively useless projects,
 # that are technically challenging but funny.
 
-# 
-# 
-# slide
-#   images/what-deal.png
-# 
+slide
+  dur 4
+  array 0 13 images/suckerpinch/sp%.png
+
 # slide
 #   images/learnfun1.png
-# slide
-#   images/learnfun2.png
-# slide
-#   images/learnfun3.png
-# 
-# slide
-#   images/arst-arsw.png
-# 
-# slide
-#   images/abc.png
-# 
-# slide
-#   dur 2
-#   array 0  9  images/dinosaurc/dinosaurc000%.png
-#   array 10 68 images/dinosaurc/dinosaurc00%.png
+slide
+  images/learnfun2.png
+slide
+  images/learnfun3.png
+
+slide
+  images/arst-arsw.png
+
+slide
+  dur 2
+  array 0  9  images/dinosaurc/dinosaurc000%.png
+  array 10 68 images/dinosaurc/dinosaurc00%.png
 
 
 # XXX maybe could flash this up quick?
@@ -148,15 +144,15 @@ slide
   images/motherboard-cic-troll.png
 
 # XXX could skip? or move to exegesis
-slide
-  images/motherboard-caps.png
+#  slide
+#    images/motherboard-caps.png
 
 slide
   images/motherboard-tocart.png
 # Also one other thing to mention is that the CPU and
 # PPU can communicate via a pretty slow mechanism.
-slide
-  images/motherboard-mmregs.png
+#  slide
+#    images/motherboard-mmregs.png
 
 slide
   images/cartclosed.png
@@ -201,6 +197,8 @@ slide
 # XXX: Affirm that it is NES.
 # Pull back to show the NES with cartridge in it.
 
+slide
+  images/nintendo-power.png
 
 # ##############################
 # Part II. Super Powers!
@@ -233,8 +231,10 @@ slide
   images/mario-color-grid.png
 # As we saw in a previous video...
 slide
+  forced 0x22 0x0d 0x20 0x2c 0x29 0x19 0x0d
   images/mario-color-same.png
 slide
+  forced 0x22 0x0d 0x20 0x2c 0x29 0x19 0x0d
   images/mario-color-same-zoom.png
 
 # limitations that we can work around
@@ -249,8 +249,8 @@ slide
 # within its intended operation.)
 
 # Two serious limitations.
-# slide
-#   images/limitations.png
+slide
+  images/limitations.png
 slide 
 # XXX make this slide better, perhaps
 # by forcing palette selection to follow
@@ -261,6 +261,10 @@ slide
 slide
   # only flash this up briefly
   images/8pixels.png
+slide
+  images/color16x16b.png
+slide
+  images/color16x16c.png
 
 slide
   images/limitations-update.png
@@ -271,7 +275,6 @@ slide
   images/motherboard-mmregs.png
 slide
   images/mario-strip.png
-# slide
 
 slide
   forced 0x25 0x15 0x05 0x05 0x07 0x0d 0x2d 0x00 0x0d
@@ -340,56 +343,56 @@ slide
   images/scope-analog.png
 # -> leads into deglitching / logic families
 # -> leads into 3v3 vs 5v
-
-# 3v3 5v. so use transistor
-# these are different "logic families"
-# actually CMOS vs TTL
-slide
-  images/3v5v1.png
-slide
-  images/3v5v2.png
-slide
-  images/3v5v3.png
-slide
-  images/3v5v4.png
-
-# but this is wrong. the bus is shared. tri-state
-# If I don't cover it elsewhere, can mention that
-# the bus is even shared between address and data lines
-slide
-  dur 4
-  array 1 4 images/tristate10-%.png
-slide
-  dur 4
-  array 1 4 images/tristate01-%.png
-slide
-  images/tristate00.png
-
-# but this is wrong. the transistors are too slow.
-slide
-  images/slowsistor.png
-slide
-  images/schottky.png
-
-# XXX should say something about "logic families"
-# before this point
-
-slide
-  images/logic-families.png
-slide
-  images/logic-families-invention.png
-
-# Wait, these letters MEAN SOMETHING?!
-slide
-  images/74ls373n.png
-# So this led me to think that maybe the NES designers
-# knew what they were doing, and that it made sense to
-# just copy off their boards. But this comes with some
-# perils. For example, what is this component, electronics
-# geniuses?
-slide
-  images/trick-capacitor.png
-
+# 
+#   # 3v3 5v. so use transistor
+#   # these are different "logic families"
+#   # actually CMOS vs TTL
+#   slide
+#     images/3v5v1.png
+#   slide
+#     images/3v5v2.png
+#   slide
+#     images/3v5v3.png
+#   slide
+#     images/3v5v4.png
+# 
+#   # but this is wrong. the bus is shared. tri-state
+#   # If I don't cover it elsewhere, can mention that
+#   # the bus is even shared between address and data lines
+#   slide
+#     dur 4
+#     array 1 4 images/tristate10-%.png
+#   slide
+#     dur 4
+#     array 1 4 images/tristate01-%.png
+#   slide
+#     images/tristate00.png
+# 
+#   # but this is wrong. the transistors are too slow.
+#   slide
+#     images/slowsistor.png
+#   slide
+#     images/schottky.png
+# 
+#   # XXX should say something about "logic families"
+#   # before this point
+# 
+#   slide
+#     images/logic-families.png
+#   slide
+#     images/logic-families-invention.png
+# 
+#   # Wait, these letters MEAN SOMETHING?!
+#   slide
+#     images/74ls373n.png
+#   # So this led me to think that maybe the NES designers
+#   # knew what they were doing, and that it made sense to
+#   # just copy off their boards. But this comes with some
+#   # perils. For example, what is this component, electronics
+#   # geniuses?
+#   slide
+#     images/trick-capacitor.png
+# 
 # So anyway, my final design was more complicated
 # than my fantasy, and still doesn't work that great
 slide
@@ -482,10 +485,11 @@ slide
 # I used up all the pins on the pi reverse emulating
 # the PPU. The EEPROM is basically using the CPU the
 # normal way. What if we reverse emulated it too?
-slide
-  images/reverse-cpu.png
-slide
-  images/reverse-cpu-normal.png
+# slide
+#   images/reverse-cpu.png
+# slide
+#   images/reverse-cpu-normal.png
+#
 
 # We could feed it instructions directly, which could
 # simplify/eliminate the knocking. But it would also make
@@ -498,10 +502,10 @@ slide
 # With this, we could probably manage high-resolution
 # sound. Or maybe change the palette every scanline.
 # Or mine bitcoins.
-slide
-  dur 24
-  array 1 4 images/reverse-cpu-streaming%.png
-
+#  slide
+#    dur 24
+#    array 1 4 images/reverse-cpu-streaming%.png
+#  
 
 # ##############################
 # Part V. Big Ideas
@@ -564,18 +568,21 @@ slide
 slide
   images/abcd-factor.png
 
-# XXX This joke is weak, even if you know metroid
 slide
-  dur 48
-  images/police1.png
-  dur 8
-  images/police2.png
-  dur 4
-  images/police1.png
-  dur 16
-  images/police3.png
-  dur 16
-  images/police2.png
+  images/charles.png
+
+# XXX This joke is weak, even if you know metroid
+#  slide
+#    dur 48
+#    images/police1.png
+#    dur 8
+#    images/police2.png
+#    dur 4
+#    images/police1.png
+#    dur 16
+#    images/police3.png
+#    dur 16
+#    images/police2.png
 
 slide
   # XXX animate

@@ -38,8 +38,11 @@ Talk Talk::Load(const string &src_filename) {
       frame->duration = duration;
       frame->forced = forced;
     };
-    
-    if (cmd == "slide") {
+
+    if (cmd == "end") {
+      printf("Ending early!\n");
+      break;
+    } else if (cmd == "slide") {
       talk.slides.emplace_back();
       slide = &talk.slides.back();
       duration = DEFAULT_DURATION;
