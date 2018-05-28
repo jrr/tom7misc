@@ -159,6 +159,7 @@ void TestMax(ArcFour *rc) {
   while (!heap.Empty()) {
     TestValue *now = heap.PopMaximumValue();
     heap.CheckInvariants(Ptos);
+    printf("%llu %llu\n", last->i, now->i);
     CHECK_LE(now->i, last->i) <<
       StringPrintf("FAIL: %llu %llu\n", last->i, now->i);
     last = now;
