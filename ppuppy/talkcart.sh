@@ -20,6 +20,8 @@ tvservice -o
 /home/pi/tom7misc/ppuppy/clear.exe 5
 # And, run ppuppy (never coming back).
 /home/pi/tom7misc/ppuppy/prod.exe noint
+# in case I forgot to compile it or something
+/home/pi/tom7misc/ppuppy/ppuppy.exe noint
 # But if we do come back (binary doesn't exist, etc.), then try to make this evident
 /home/pi/tom7misc/ppuppy/clear.exe 6 7 8 9
 echo "should not get here"
