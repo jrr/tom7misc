@@ -358,6 +358,13 @@ private:
     c.value->location = i;
   }
 
+  void SwapElem(int i, int j) {
+    Cell ci = cells[i];
+    Cell cj = cells[j];
+    SetElem(i, cj);
+    SetElem(j, ci);
+  }
+
   // Get a grandchild with the lowest priority. Returns -1 if there are none.
   int GetMinGrandchild(int i) {
     const int c1 = LeftChild(i);
@@ -426,10 +433,7 @@ private:
 
     if (cmp(cells[minc].priority, cells[i].priority)) {
       // Swap with this minimal relative.
-      Cell ic = cells[i];
-      Cell mc = cells[minc];
-      SetElem(i, mc);
-      SetElem(minc, ic);
+      SwapElem(i, minc);
 
       if (minc == LeftChild(i) ||
 	  minc == RightChild(i)) {
@@ -439,11 +443,8 @@ private:
 	// It's a grandchild.
 	int pminc = Parent(minc);
 	if (cmp(cells[pminc].priority, cells[minc].priority)) {
-	  Cell pc = cells[pminc];
 	  // (Careful: the cell at minc changed when we swapped above.)
-	  Cell mc = cells[minc];
-	  SetElem(pminc, mc);
-	  SetElem(minc, pc);
+	  SwapElem(pminc, minc);
 	}
 	TrickleDownC<cmp>(minc);
       }
