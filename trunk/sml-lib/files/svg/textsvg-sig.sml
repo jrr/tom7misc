@@ -26,6 +26,11 @@ sig
   val svgheader : { x : int, y : int,
                     width : int, height : int,
                     generator : string } -> string
+  val svgheaderex : { x : real, y : real,
+                      width : real, height : real,
+                      (* e.g. "px", "in" *)
+                      units : string,
+                      generator : string } -> string
   val svgfooter : unit -> string
 
 

@@ -243,10 +243,6 @@ struct
         loop ()
       end
 
-  fun util_for lo hi f =
-    if lo > hi then ()
-    else (ignore (f lo); util_for (lo + 1) hi f)
-
   fun shuffle mt arr =
     let
       val radix = Array.length arr
@@ -257,9 +253,26 @@ struct
           Array.update(arr, i, Array.sub(arr, j));
           Array.update(arr, j, t)
         end
+
+      fun fordown 0 = ()
+        | fordown i =
+        let val j = random_nat mt (i + 1)
+        in
+          if i <> j
+          then swap (i, j)
+          else ();
+          fordown (i - 1)
+        end
     in
-      util_for 0 (radix - 1)
-      (fn i =>
-       swap (i, random_nat mt radix))
+      fordown (radix - 1)
+    end
+
+  (* PERF: Is there a way to do this without copying to
+     an array first? Perhaps List.tabulate at least? *)
+  fun shuffle_list mt l =
+    let val a = Array.fromList l
+    in
+      shuffle mt a;
+      Array.foldr op:: nil a
     end
 end
