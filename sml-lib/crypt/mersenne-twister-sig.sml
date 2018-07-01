@@ -42,7 +42,8 @@ sig
   (* Produce a random boolean with equal probability. *)
   val random_bool : mt -> bool
 
-  (* Shuffle an array. After calling, the array has
+  (* Shuffle an array, list, etc.. After calling, the container has
      the same elements but in random order. *)
   val shuffle : mt -> 'a Array.array -> unit
+  val shuffle_list : mt -> 'a list -> 'a list
 end
