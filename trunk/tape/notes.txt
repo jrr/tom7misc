@@ -1,0 +1,25 @@
+
+ - the dots in the corners seem to always be present?
+
+ - mm seems wrong, although it is close. measuring
+   corner dot to corner dot I get 1.500 inch, which
+   is 15 grid cells wide. so 0.1 inch grid. Close to 2.5mm,
+   which I tried before and it crashed shaper (:
+
+ - there ARE repeated patterns even on a single roll of
+   tape. I just happened to see
+
+   * * * *   *   *
+   * * *         *
+
+   oh just kidding, the other one is this same but mirrored
+   along the short axis. So, not really the same.
+
+ - Not all the hand-made "random" markers worked. All of the scanned
+   ones have even parity (white dot = 1 bit), and all but one of the
+   unscanned ones have odd. So I think they are supposed to have even
+   parity, and maybe some other property like a maximum number of dots.
+
+ - If the corners are always on, then we have 12 bits of entropy, but
+   minus one so that we have parity. That's only 2^11 = 2048 different
+   markers, not even counting rotational symmetry!
