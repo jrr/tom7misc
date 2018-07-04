@@ -23,3 +23,30 @@
  - If the corners are always on, then we have 12 bits of entropy, but
    minus one so that we have parity. That's only 2^11 = 2048 different
    markers, not even counting rotational symmetry!
+
+ - On my first sheet, it scanned this marker
+
+     * * * *   * * *
+     *   * * * * * *
+
+   but NOT this one:
+
+     * * * * * *   *
+     * * *   * * * *
+
+   Note that they are the same under rotation. How is this possible?
+   Does it reject the second one it sees in the same scan? It can't
+   possibly care about rotation, right?
+
+ - It's not the case that parity is preserved for top or bottom row.
+
+ - It's not the case that any bits but the corners are always set,
+   unless perhaps some orientation canonicalization is done. Binary
+   AND of the scanned list is 0x8181, the corners.
+
+ - It's so simple! popcount = 6. I think sometimes a marker with more
+   dots will scan, because it does "contain" a valid marker after all.
+
+ - Ah, also: Rotationally symmetric markers are rejected, which does
+   make sense.
+   
