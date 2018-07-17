@@ -98,11 +98,6 @@ struct
        then ""
        else "<!-- Generator: " ^ generator ^ " -->\n") ^
 
-      "<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\" " ^
-      "\"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\" [\n" ^
-
-      "<!ENTITY ns_flows \"http://ns.adobe.com/Flows/1.0/\">\n]>\n" ^
-
       "<svg version=\"1.1\"\n" ^
       " xmlns=\"http://www.w3.org/2000/svg\"" ^
       " xmlns:xlink=\"http://www.w3.org/1999/xlink\"\n" ^
