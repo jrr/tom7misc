@@ -327,6 +327,8 @@
 (autoload 'aaph-mode "aaph" "Major mode for editing aphasia 2 source." t)
 (autoload 'glsl-mode "glsl-mode" nil t)
 
+(require 'web-mode)
+
 (setq auto-mode-alist
       (append '(("\\.a$" . aphasia-mode)
                 ("\\.db$" . aphasia-mode)
@@ -334,6 +336,7 @@
                 ("\\.as$" . c-mode) ;; close enough...
                 ("\\.cl$" . c-mode) ;; close enough...
                 ("\\.fsh$" . glsl-mode)
+		("\\.s?html$" . web-mode)
                 ("\\.vsh$" . glsl-mode)
                 ("\\.sml$" . sml-mode)
                 ("\\.sig$" . sml-mode)
@@ -374,19 +377,24 @@
   (c-set-offset 'innamespace [0]))
 (add-hook 'c++-mode-hook 'tom7-c-setup)
 
+;; added this to suppress "free variable" warning at startup in 26.1.
+;; not sure if it's the right way -tom7 28 Jul 2018
+(setq langelem nil)
+
 (defadvice c-lineup-arglist (around my activate)
   "Improve indentation of continued C++11 lambda function opened as argument."
   (setq ad-return-value
-        (if (and (equal major-mode 'c++-mode)
-                 (ignore-errors
-                   (save-excursion
-                     (goto-char (c-langelem-pos langelem))
-                     ;; Detect "[...](" or "[...]{". preceded by "," or "(",
-                     ;;   and with unclosed brace.
-                     (looking-at ".*[(,][ \t]*\\[[^]]*\\][ \t]*[({][^}]*$"))))
-            0                           ; no additional indent
-          ad-do-it)))                   ; default behavior
+	(if (and (equal major-mode 'c++-mode)
+		 (ignore-errors
+		   (save-excursion
+		     (goto-char (c-langelem-pos langelem))
+		     ;; Detect "[...](" or "[...]{". preceded by "," or "(",
+		     ;;   and with unclosed brace.
+		     (looking-at ".*[(,][ \t]*\\[[^]]*\\][ \t]*[({][^}]*$"))))
+	    0                           ; no additional indent
+	  ad-do-it)))                   ; default behavior
 
+  
 (defun delete-whitespace-right ()
 "Deletes whitespace to the right of point, until the end of 
  line or a non-whitespace character."
