@@ -3,6 +3,7 @@
 #include "pftwo.h"
 
 #include <math.h>
+#include <functional>
 #include <unordered_set>
 #include <mutex>
 #include <atomic>
@@ -211,7 +212,11 @@ AutoCamera::~AutoCamera() {
 }
 
 AutoCamera::XSprites AutoCamera::GetXSprites(
-    const vector<uint8> &start) { 
+    const vector<uint8> &start,
+    std::function<void(int, int,
+		       Emulator *,
+		       Emulator *,
+		       Emulator *)> DebugCallback) { 
 
   Emulator *lemu = emus[0], *nemu = emus[1], *remu = emus[2];
 
@@ -247,6 +252,7 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
     StepFullPlayer(lemu, first_player, INPUT_L);
     StepFullPlayer(nemu, first_player, 0);
     StepFullPlayer(remu, first_player, INPUT_R);
+    
     vector<uint8> loam = OAM(lemu);
     vector<uint8> noam = OAM(nemu);
     vector<uint8> roam = OAM(remu);
@@ -289,6 +295,8 @@ AutoCamera::XSprites AutoCamera::GetXSprites(
 	     lmem == rmem ? "l=r " : "l!=r ");
     }
 
+    DebugCallback(frames, total_displacement, lemu, nemu, remu);
+    
     for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
       // absolute_s is, in effect, the sprite id at the start frame.
       const int s = (absolute_s + total_displacement) % 64;

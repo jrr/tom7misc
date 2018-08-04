@@ -12,6 +12,7 @@
 #undef ARRAYSIZE
 #endif
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -239,6 +240,28 @@ struct UIThread {
     PAUSE,
   };
   Mode mode = Mode::PLAY;
+
+  void DrawEmulatorAt(Emulator *e, int rot, int startx, int starty) {
+    const vector<uint8> rgba = emu->GetImage();
+    const vector<uint8> spritesheet = GetSpriteSheet(emu.get(), rot);
+    const vector<uint8> oam = AutoCamera::OAM(emu.get());
+
+    BlitRGBA2x(rgba, 256, 256, startx, starty, screen);
+    BlitRGBA(spritesheet, 512, 16, startx, starty + 512 + 8, screen);
+
+    font->draw(startx, 4, StringPrintf("%d^2/^<%d",
+				       frameidx, (int)movie.size()));
+
+    // And sprites.
+    for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
+      int s = (absolute_s + rot) % 64;
+      int sx = oam[s * 4 + 3];
+      int sy = oam[s * 4 + 0];
+
+      fontsmall->draw(startx + 2 * sx, starty + 2 * sy,
+		      StringPrintf("%d", s));
+    }
+  }
   
   void Loop() {
     SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
@@ -256,12 +279,8 @@ struct UIThread {
 	  return;
 	case SDL_KEYDOWN:
 	  switch (event.key.keysym.sym) {
-
 	  case SDLK_ESCAPE:
 	    return;
-
-	  case SDLK_RIGHT:
-	    break;
 
 	  case SDLK_SPACE:
 	    switch (mode) {
@@ -276,10 +295,49 @@ struct UIThread {
 
 	  case SDLK_c: {
 	    AutoCamera autocamera{game};
-	    using XYSprite = AutoCamera::XYSprite;
+	    bool exited = false;
+	    auto Callback = [this, &exited](int depth,
+					    int total_displacement,
+					    Emulator *lemu,
+					    Emulator *nemu,
+					    Emulator *remu) {
+	      sdlutil::clearsurface(screen, 0x44000044);
+
+	      DrawEmulatorAt(lemu, total_displacement, 0, 0);
+	      DrawEmulatorAt(nemu, total_displacement, 512 + 4, 0);
+	      DrawEmulatorAt(remu, total_displacement, 1024 + 8, 0);
+
+	      SDL_Flip(screen);
+	      
+	      if (exited) return;
+	      for (;;) {
+		SDL_Event event;
+		if (SDL_PollEvent(&event)) {
+		  switch (event.type) {
+		  case SDL_QUIT:
+		    exited = true;
+		    return;
+		  case SDL_KEYDOWN:
+		    switch (event.key.keysym.sym) {
+		    case SDLK_ESCAPE:
+		      exited = true;
+		      return;
+		    case SDLK_SPACE:
+		      return;
+		    default:
+		      break;
+		    }
+		    break;
+		  default:
+		    break;
+		  }
+		}
+	      }
+	    };
+	    // using XYSprite = AutoCamera::XYSprite;
 	    using XSprites = AutoCamera::XSprites;
 	    const vector<uint8> save = emu->SaveUncompressed();
-	    const XSprites xcand = autocamera.GetXSprites(save);
+	    const XSprites xcand = autocamera.GetXSprites(save, Callback);
 	    printf("-----\n");
 	    mode = Mode::PAUSE;
 	  }
@@ -327,35 +385,9 @@ struct UIThread {
 	}
       }
 
-      const vector<uint8> rgba = emu->GetImage();
       const int rot = (frameidx * rotate) % 64;
-      const vector<uint8> spritesheet = GetSpriteSheet(emu.get(), rot);
-      const vector<uint8> oam = AutoCamera::OAM(emu.get());
-	      
-      static constexpr int XOFF = 0;
-      static constexpr int YOFF = 0;
-      // Now draw/play.
-      BlitRGBA2x(rgba, 256, 256, XOFF, YOFF, screen);
-
-      // Draw spritesheets into future!
-      {
-	static constexpr int YSTART = YOFF + 512 + 8;
-	BlitRGBA(spritesheet, 512, 16, 0, YSTART, screen);
-      }
-
-      font->draw(0, 4, StringPrintf("%d^2/^<%d",
-				    frameidx, (int)movie.size()));
-
-      // And sprites.
-      for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
-	int s = (absolute_s + rotate) % 64;
-	int sx = oam[s * 4 + 3];
-	int sy = oam[s * 4 + 0];
-
-	fontsmall->draw(XOFF + 2 * sx, YOFF + 2 * sy,
-			StringPrintf("%d", s));
-      }
-
+      DrawEmulatorAt(emu.get(), rot, 0, 0);
+	
       // Draw 
       if (mode == Mode::PLAY) {
 	font->draw(0, HEIGHT - FONTHEIGHT, "^2PLAY");
@@ -418,13 +450,17 @@ struct UIThread {
 // The main loop for SDL.
 int main(int argc, char *argv[]) {
   (void)Rtos;
-  
+
+  string game, movie;
   if (argc < 3) {
     fprintf(stderr, "debug-autocamera.exe game.nes movie.fm2\n");
-    return -1;
+    // return -1;
+    game = "contra.nes";
+    movie = "contra2pwaterfall.fm2";
+  } else {
+    game = argv[1];
+    movie = argv[2];
   }
-  string game = argv[1];
-  string movie = argv[2];
   
   if (game != "contra.nes") {
     fprintf(stderr, "Sorry, contra.nes is hardcoded because of AOT.\n");

@@ -286,7 +286,13 @@ static void TryAutoCameras(const string &game,
   vector<XYSprite> votes;
 
   for (const vector<uint8> &save : saves) {
-    const XSprites xcand = autocamera.GetXSprites(save);
+    auto Callback = [](int depth,
+		       int total_displacement,
+		       Emulator *lemu,
+		       Emulator *nemu,
+		       Emulator *remu) {};
+    
+    const XSprites xcand = autocamera.GetXSprites(save, Callback);
 
     #if 0
     vector<int> player_sprites;
