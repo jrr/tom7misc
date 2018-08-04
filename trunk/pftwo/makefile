@@ -3,9 +3,16 @@ default: pftwo.exe
 
 all: testui.exe pftwo.exe
 
-CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I SDL/include
+CXXFLAGS=--std=c++14 -Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I SDL/include
 OPT=-O2
 SYMBOLS=-g
+
+# Tried switching back to mingw/w64...
+# CXX=g++
+# CC=gcc
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-gcc
+
 
 # Tom, on Windows you may need to do this:
 # export PATH=/c/TDM-GCC-64/bin:${PATH}
@@ -31,9 +38,6 @@ PLATFORMLINK=-mthreads libz.a -Wl,--subsystem,console -lwinpthread -L. -static
 
 endif
 endif
-
-CXX=g++
-CC=gcc
 
 # PROFILE=-pg
 PROFILE=

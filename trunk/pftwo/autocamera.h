@@ -10,6 +10,7 @@
 
 #include "pftwo.h"
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -110,7 +111,12 @@ struct AutoCamera {
 
   // Returns a vector of sprite indices that meet the criteria. Only
   // xmems will be filled in.
-  XSprites GetXSprites(const vector<uint8> &uncompressed_state);
+  XSprites GetXSprites(const vector<uint8> &uncompressed_state,
+		       std::function<void(int depth,
+					  int total_displacement,
+					  Emulator *lemu,
+					  Emulator *nemu,
+					  Emulator *remu)> DebugCallback);
 
   // Upgrade a set of sprites with only x coordinates to ones with
   // both x and y coordinates. 
@@ -124,12 +130,13 @@ struct AutoCamera {
 
   // Must have x and y coordinates filled in, i.e. after FindYCoordinates.
   //
-  // Filter memory locations for consequentiality. Some memory locations
-  // are derived from others, perhaps without even reading their values.
-  // This coarse check tries modifying the values at the addresses to
-  // see if that even does anything. If resulting sprite data and memories
-  // are the same as if we didn't modify them, then these can't be the
-  // "real" representation of the player's location.
+  // Filter memory locations for consequentiality. Some memory
+  // locations are derived from others, perhaps without even involving
+  // their previous values. This coarse check tries modifying the
+  // values at the addresses to see if that even does anything. If
+  // resulting sprite data and memories are the same as if we didn't
+  // modify them, then these can't be the "real" representation of the
+  // player's location.
   //
   // Returns only sprites that still have both x and y memory candidates.
   // This can remove all sprites if we failed to find consequential
