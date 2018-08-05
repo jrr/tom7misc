@@ -95,13 +95,24 @@ void AutoCamera2::FindLinkages(const vector<uint8> &save) {
   StepEmu(emu.get());
   OAM orig_oam{emu.get()};
 
+  const uint32 orig_xscroll = emu->GetXScroll();
+  
   // First, create a set of coordinates that could correspond to
   // a sprite. x and y separate. This allows us to quickly filter
   // memory locations.
   EightSet xset, yset;
   for (int i = 0; i < NUM_SPRITES; i++) {
     xset.InsertRegion(orig_oam.X(i), LINKAGE_MARGIN);
+    // Some games (Contra) store the actual screen coordinate but
+    // others (Mario) store the value in absolute level coordinates
+    // (i.e., prior to scrolling). If the sprite's location is the
+    // memory location offset by the PPU scroll position, also accept
+    // this as a potential linkage. (TODO: We should report this
+    // back in the interface, so that uses of the location can
+    // also compensate.)
+    xset.InsertRegion(orig_oam.X(i) - orig_xscroll, LINKAGE_MARGIN);
     yset.InsertRegion(orig_oam.Y(i), LINKAGE_MARGIN);
+    // TODO: Also allow compensation for y scrolling.
   }
 
   // Any memory location whose value is close to a sprite's coordinate.
