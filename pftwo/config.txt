@@ -30,8 +30,10 @@ view-type side
 
 # Unsigned, screen coordinates, y=0 is up. Verified these
 # in FCEUX.
+# dec: 820,794
 x1 0x0334
 y1 0x031A
 
+# dec: 821,795
 x2 0x0335
 y2 0x031B

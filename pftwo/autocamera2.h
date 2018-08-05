@@ -173,8 +173,9 @@ struct AutoCamera2 {
   };
 #endif
   
-  // For one save state sample, find linkages between pair of memory
-  // locations and a nonempty cluster of sprites on-screen.
+  // For one uncompressed save state sample, find linkages between
+  // pair of memory locations and a nonempty cluster of sprites
+  // on-screen.
   void FindLinkages(const vector<uint8> &save);
 
 private:

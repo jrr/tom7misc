@@ -154,7 +154,7 @@ vector<uint8> AutoCamera::OAM(Emulator *emu) {
   oam.resize(256);
   memcpy(oam.data(), ppu->SPRAM, 256);
   return oam;
-};
+}
 
 namespace {
 struct InputGenerator {
