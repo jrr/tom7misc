@@ -23,6 +23,8 @@ static_assert(MIN_RANDOM_DISTANCE > (LINKAGE_MARGIN >> 1),
 // the sprite's vector to differ by up to this amount in each component.
 static constexpr int DELTA_SLOP = 3;
 
+using Linkage = AutoCamera2::Linkage;
+
 namespace {
 struct OAM {
   // Copies from emu, so emu can be modified after construction.
@@ -65,6 +67,26 @@ private:
   vector<bool> bits;
 };
 
+struct BetterLinkage {
+  bool operator() (const Linkage &a, const Linkage &b) const {
+    return a.score > b.score;
+  }
+};
+}
+
+using ScoredLocationMap = 
+  std::unordered_map<pair<int, int>, float,
+		     Hashing<pair<int, int>>>;
+
+
+static vector<Linkage> GetBestLinkages(
+    const ScoredLocationMap &scores) {
+  gtl::TopN<Linkage, BetterLinkage> topn(16);
+  for (const auto &p : scores) {
+    topn.push(Linkage(p.first.first, p.first.second, p.second));
+  }
+  std::unique_ptr<vector<Linkage>> best(topn.Extract());
+  return std::move(*best);
 }
 
 AutoCamera2::AutoCamera2(const string &game) {
@@ -82,7 +104,8 @@ static void StepEmu(Emulator *emu) {
   emu->StepFull(0U, 0U);
 }
 
-void AutoCamera2::FindLinkages(const vector<uint8> &save) {
+vector<Linkage> AutoCamera2::FindLinkages(
+    const vector<uint8> &save) {
   // This is parallelizable, but probably simpler to organize the
   // parallelism across samples rather than within one.
   // (But should we take emu as an argument, then?)
@@ -185,8 +208,7 @@ void AutoCamera2::FindLinkages(const vector<uint8> &save) {
   printf("[filtered] %lld x potential locations and %lld y\n",
 	 xcand.size(), ycand.size());
 
-  std::unordered_map<pair<int, int>, float,
-		     Hashing<pair<int, int>>> scores;
+  ScoredLocationMap scores;
 
   int tried = 0, rejected_all_equal = 0;
   for (int xc : xcand) {
@@ -228,25 +250,31 @@ void AutoCamera2::FindLinkages(const vector<uint8> &save) {
     }
   }
 
-  using P = pair<pair<int, int>, float>;
-  
-  struct BetterPair {
-    bool operator() (const P &a, const P &b) const {
-      return a.second > b.second;
-    }
-  };
-
   const int working_pairs = (int)scores.size();
-  gtl::TopN<P, BetterPair> topn(16);
-  for (const auto &p : scores) {
-    topn.push(make_pair(p.first, p.second));
-  }
-  std::unique_ptr<vector<P>> best(topn.Extract());
+
+  vector<Linkage> best = GetBestLinkages(scores);
+
+  (void)tried;
+  (void)filtered;
+  (void)rejected_all_equal;
+  (void)working_pairs;
   
+#if 0
   printf("%d filtered, %d pairs tried, %d all equal, "
 	 "%d nonzero score\nBest:\n",
 	 filtered, tried, rejected_all_equal, working_pairs);
-  for (const P &p : *best) {
-    printf("  %.1f:  %d,%d\n", p.second, p.first.first, p.first.second);
+  for (const P &p : best) {
+    printf("  %.1f:  %d,%d\n", p.score, p.xloc, p.yloc);
   }
+#endif
+  return best;
+}
+
+vector<Linkage> AutoCamera2::MergeLinkages(
+    const vector<vector<Linkage>> &samples) {
+  ScoredLocationMap scores;
+  for (const vector<Linkage> &linkages : samples)
+    for (const Linkage &linkage : linkages)
+      scores[make_pair(linkage.xloc, linkage.yloc)] += linkage.score;
+  return GetBestLinkages(scores);
 }

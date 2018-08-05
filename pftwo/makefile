@@ -1,7 +1,7 @@
 
-default: pftwo.exe
+default: pftwo.exe eval-autocamera.exe
 
-all: testui.exe pftwo.exe
+all: testui.exe pftwo.exe eval-autocamera.exe debug-autocamera.exe
 
 CXXFLAGS=--std=c++14 -Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I SDL/include
 OPT=-O2
@@ -97,6 +97,9 @@ playback.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB
 
 debug-autocamera.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) debug-autocamera.o graphics.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS) $(LINKSDL)
+
+eval-autocamera.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) eval-autocamera.o
+	$(CXX) $^ -o $@ $(LFLAGS)
 
 progress.exe : $(FCEULIB_GAME_OBJECTS) $(FCEULIB_OBJECTS) $(CCLIB_OBJECTS) $(PFTWO_OBJECTS) progress.o
 	$(CXX) $^ -o $@ $(LFLAGS)
