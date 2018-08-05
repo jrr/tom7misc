@@ -34,7 +34,7 @@ struct ArcFour {
   // strongly recommended that new uses of
   // arcfour discard at least 1024 bytes after
   // initialization, to prevent against the
-  // 2001 attach by Fluhrer, Mantin, and Shamir.
+  // 2001 attack by Fluhrer, Mantin, and Shamir.
   void Discard(int n);
 
  private:
