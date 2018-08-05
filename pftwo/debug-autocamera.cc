@@ -50,6 +50,10 @@ static string Rtos(double d) {
   return string{o};
 }
 
+// Super Mario Bros, from wiki
+static constexpr int XLOC = 0x0086;  // dec 134
+static constexpr int YLOC = 0x00CE;  // dec 206
+
 // TODO: To emulator utilities?
 // Because of (e.g.) tall sprite stuff, it's not often directly
 // useful outside of diagnostics like this.
@@ -294,6 +298,23 @@ struct UIThread {
 	    }
 	    break;
 
+	    // Numpad cardinal directions modify the value at XLOC,YLOC.
+	  case SDLK_KP6:
+	  case SDLK_KP4: {
+	    uint8 *ram = emu->GetFC()->fceu->RAM;
+	    ram[XLOC] += event.key.keysym.sym == SDLK_KP6 ? 5 : -5;
+	    printf("now %d,%d\n", ram[XLOC], ram[YLOC]);
+	    break;
+	  }
+
+	  case SDLK_KP8:
+	  case SDLK_KP2: {
+	    uint8 *ram = emu->GetFC()->fceu->RAM;
+	    ram[YLOC] += event.key.keysym.sym == SDLK_KP2 ? 5 : -5;
+	    printf("now %d,%d\n", ram[XLOC], ram[YLOC]);
+	    break;
+	  }
+
 	  case SDLK_2: {
 	    AutoCamera2 ac{game};
 	    ac.FindLinkages(emu->SaveUncompressed());
@@ -402,6 +423,15 @@ struct UIThread {
 	font->draw(0, HEIGHT - FONTHEIGHT, "PAUSED");
       }
 
+      {
+	uint8 *ram = emu->GetFC()->fceu->RAM;
+	sdlutil::drawbox(screen, ram[XLOC] * 2, ram[YLOC] * 2, 16, 16,
+			 0xFF, 0x00, 0x00);
+	sdlutil::drawbox(screen, ram[XLOC] * 2 + 1, ram[YLOC] * 2 + 1, 14, 14,
+			 0xFF, 0x00, 0x00);
+
+      }
+	
       SDL_Flip(screen);
     }
 
@@ -468,12 +498,14 @@ int main(int argc, char *argv[]) {
     game = argv[1];
     movie = argv[2];
   }
-  
+
+  #ifdef ENABLE_AOT
   if (game != "contra.nes") {
     fprintf(stderr, "Sorry, contra.nes is hardcoded because of AOT.\n");
     return -1;
   }
-
+  #endif
+  
   fprintf(stderr, "Init SDL\n");  
   
   /* Initialize SDL, video, and audio. */
