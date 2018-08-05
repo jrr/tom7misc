@@ -11,11 +11,6 @@
 #include "../cc-lib/hashing.h"
 #include "../cc-lib/gtl/top_n.h"
 
-// TODO:
-// With this version (single StepFull between memory read and oam read),
-// it seems to just find the 64 sprites in the OAMDMA region. xloc-yloc
-// is 3 for each. I think we actually need two calls to StepFull?
-
 static constexpr int NUM_SPRITES = 64;
 // Absolute difference allowed between memory location and sprite
 // location along one dimension. 0 would mean exact match, 1 means
@@ -26,7 +21,7 @@ static_assert(MIN_RANDOM_DISTANCE > (LINKAGE_MARGIN >> 1),
 	      "precondition");
 // When moving a sprite by changing its memory location, we allow
 // the sprite's vector to differ by up to this amount in each component.
-static constexpr int DELTA_SLOP = 1;
+static constexpr int DELTA_SLOP = 3;
 
 namespace {
 struct OAM {
@@ -79,6 +74,13 @@ AutoCamera2::AutoCamera2(const string &game) {
 
 AutoCamera2::~AutoCamera2() {}
 
+// Looks like we generally need two frames between modifying memory
+// and seeing it reflected in OAM. (With one frame, we generally just
+// find the OAMDMA region in RAM.)
+static void StepEmu(Emulator *emu) {
+  emu->StepFull(0U, 0U);
+  emu->StepFull(0U, 0U);
+}
 
 void AutoCamera2::FindLinkages(const vector<uint8> &save) {
   // This is parallelizable, but probably simpler to organize the
@@ -90,9 +92,7 @@ void AutoCamera2::FindLinkages(const vector<uint8> &save) {
   ArcFour rc{save};
   
   vector<uint8> orig_mem = emu->GetMemory();
-  // The x/y memory locations are typically reflected on the NEXT
-  // frame. So first execute a frame and get the original sprites.
-  emu->StepFull(0U, 0U);
+  StepEmu(emu.get());
   OAM orig_oam{emu.get()};
 
   // First, create a set of coordinates that could correspond to
@@ -147,7 +147,7 @@ void AutoCamera2::FindLinkages(const vector<uint8> &save) {
 
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	ram[loc] = newv;
-	emu->StepFull(0U, 0U);
+	StepEmu(emu.get());
 	OAM new_oam{emu.get()};
 	const bool no_effect = new_oam.Equals(orig_oam);
 	coord_memo[loc] = no_effect;
@@ -199,15 +199,8 @@ void AutoCamera2::FindLinkages(const vector<uint8> &save) {
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	ram[xc] = newx;
 	ram[yc] = newy;
-	emu->StepFull(0U, 0U);
+	StepEmu(emu.get());
 	OAM new_oam{emu.get()};
-
-	// Maybe this filtering step should be done before the all-pairs
-	// loop.
-	if (new_oam.Equals(orig_oam)) {
-	  rejected_all_equal++;
-	  goto next_pair;
-	}
 
 	const int dx = (int)newx - (int)oldx, dy = (int)newy - (int)oldy;
 	// Otherwise, for each changed sprite, compute the delta.
@@ -221,7 +214,6 @@ void AutoCamera2::FindLinkages(const vector<uint8> &save) {
 	  }
 	}
       }
-    next_pair:;
     }
   }
 
