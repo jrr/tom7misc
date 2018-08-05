@@ -51,8 +51,10 @@ static string Rtos(double d) {
 }
 
 // Super Mario Bros, from wiki
-static constexpr int XLOC = 0x0086;  // dec 134
-static constexpr int YLOC = 0x00CE;  // dec 206
+// static constexpr int XLOC = 0x0086;  // dec 134
+// static constexpr int YLOC = 0x00CE;  // dec 206
+static constexpr int XLOC = 0x030e;
+static constexpr int YLOC = 0x030d;
 
 // TODO: To emulator utilities?
 // Because of (e.g.) tall sprite stuff, it's not often directly

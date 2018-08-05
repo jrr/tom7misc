@@ -172,12 +172,28 @@ struct AutoCamera2 {
     vector<FrameEvidence> frames;
   };
 #endif
+
+  struct Linkage {
+    int xloc = 0, yloc = 0;
+    // Larger is better.
+    float score = 0.0f;
+    Linkage(int xloc, int yloc, float score) :
+      xloc(xloc), yloc(yloc), score(score) {}
+  };
   
   // For one uncompressed save state sample, find linkages between
   // pair of memory locations and a nonempty cluster of sprites
   // on-screen.
-  void FindLinkages(const vector<uint8> &save);
+  //
+  // Linkages are output in order by descending score; only the
+  // best linkages are returned.
+  vector<Linkage> FindLinkages(const vector<uint8> &save);
 
+  // Take the results of several calls to FindLinkages and merge them
+  // by summing the scores.
+  static vector<Linkage> MergeLinkages(
+      const vector<vector<Linkage>> &samples);
+  
 private:
   std::unique_ptr<Emulator> emu;
 };
