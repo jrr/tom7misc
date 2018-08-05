@@ -28,6 +28,7 @@
 #include "../cc-lib/sdl/font.h"
 #include "../cc-lib/re2/re2.h"
 #include "autocamera.h"
+#include "autocamera2.h"
 
 #include "SDL.h"
 #include "graphics.h"
@@ -293,6 +294,12 @@ struct UIThread {
 	    }
 	    break;
 
+	  case SDLK_2: {
+	    AutoCamera2 ac{game};
+	    ac.FindLinkages(emu->SaveUncompressed());
+	    break;
+	  }
+	    
 	  case SDLK_c: {
 	    AutoCamera autocamera{game};
 	    bool exited = false;
