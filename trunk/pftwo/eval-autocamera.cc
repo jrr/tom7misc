@@ -73,9 +73,20 @@ static vector<Game> Games() {
 	  // From wiki.
 	  Game{"megaman2.nes", "megaman2.fm2", {{0x460, 0x4A0}}},
 	  // From wiki.
+	  // This works but is VERY SLOW.
 	  Game{"lolo.nes", "lolo.fm2", {{0x6D, 0x6F}}},
 	  // Verified. (wiki says 0x51,0x52 which is not right?)
 	  Game{"metroid.nes", "metroid.fm2", {{0x30E, 0x30D}}},
+	  // From glEnd.
+	  Game{"zelda.nes", "zelda.fm2", {{0x70, 0x84}}},
+	  // TODO: These need expected positions
+	  Game{"littlemermaid.nes", "littlemermaid.fm2", {}},
+	  Game{"gyromite.nes", "gyromite.fm2", {}},
+	  Game{"faxanadu.nes", "faxanadu.fm2", {}},
+	  Game{"rivercity.nes", "rivercity.fm2", {}},
+	  // Had trouble figuring this one out in emulator.
+	  // x: 0x40c? 433? 440?
+	  Game{"rocketeer.nes", "rocketeer.fm2", {}},
 	  };
 }
 
@@ -166,6 +177,12 @@ static Game EvalOne(const Game &game) {
 int main(int argc, char *argv[]) {
   (void)Rtos;
 
+  #ifdef __MINGW32__
+  if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
+    LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
+  }
+  #endif
+  
   vector<Game> games = Games();
   // PERF threaded, or make autocamera threaded!
   vector<Game> results = ParallelMap(games, EvalOne, 11);
