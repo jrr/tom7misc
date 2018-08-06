@@ -79,14 +79,18 @@ static vector<Game> Games() {
 	  Game{"metroid.nes", "metroid.fm2", {{0x30E, 0x30D}}},
 	  // From glEnd.
 	  Game{"zelda.nes", "zelda.fm2", {{0x70, 0x84}}},
-	  // TODO: These need expected positions
-	  Game{"littlemermaid.nes", "littlemermaid.fm2", {}},
-	  Game{"gyromite.nes", "gyromite.fm2", {}},
+	  // Verified. Warping definitely moves the sprite, though
+	  // it also causes physics to get desynced.
+	  Game{"rocketeer.nes", "rocketeer.fm2", {{0x40c,0x419}}},
+	  // Verified. Screen coordinates. Warping works great!
+	  Game{"gyromite.nes", "gyromite.fm2", {{0x609, 0x608}}},
+	  // Verified. Prescroll coordinates. Warping can cause
+	  // glitches/locks.
+	  Game{"littlemermaid.nes", "littlemermaid.fm2", {{0x330, 0x360}}},
+	  // TODO: These need expected positions. autocamera2 does
+	  // not succeed!
 	  Game{"faxanadu.nes", "faxanadu.fm2", {}},
 	  Game{"rivercity.nes", "rivercity.fm2", {}},
-	  // Had trouble figuring this one out in emulator.
-	  // x: 0x40c? 433? 440?
-	  Game{"rocketeer.nes", "rocketeer.fm2", {}},
 	  };
 }
 

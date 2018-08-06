@@ -1,5 +1,5 @@
 
-default: pftwo.exe eval-autocamera.exe
+default: pftwo.exe eval-autocamera.exe debug-autocamera.exe
 
 all: testui.exe pftwo.exe eval-autocamera.exe debug-autocamera.exe
 
