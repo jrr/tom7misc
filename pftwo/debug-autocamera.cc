@@ -53,8 +53,8 @@ static string Rtos(double d) {
 // Super Mario Bros, from wiki
 // static constexpr int XLOC = 0x0086;  // dec 134
 // static constexpr int YLOC = 0x00CE;  // dec 206
-static constexpr int XLOC = 0x030e;
-static constexpr int YLOC = 0x030d;
+static int XLOC = 0x030e;
+static int YLOC = 0x030d;
 
 // TODO: To emulator utilities?
 // Because of (e.g.) tall sprite stuff, it's not often directly
@@ -319,7 +319,15 @@ struct UIThread {
 
 	  case SDLK_2: {
 	    AutoCamera2 ac{game};
-	    ac.FindLinkages(emu->SaveUncompressed());
+	    vector<AutoCamera2::Linkage> links =
+	      ac.FindLinkages(emu->SaveUncompressed());
+	    if (!links.empty()) {
+	      AutoCamera2::Linkage best = links[0];
+	      printf("Set loc to %d,%d = 0x%2x,0x%2x (score %.2f)\n",
+		     best.xloc, best.yloc,
+		     best.xloc, best.yloc,
+		     best.score);
+	    }
 	    break;
 	  }
 	    
