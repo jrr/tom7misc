@@ -1,0 +1,14 @@
+
+HTML5Game TODO:
+
+ - Controller support!
+
+ - Drums in MIDI support!
+
+ - Would be nice if we could build resources directly into
+   javascript, like as encoded base64 (or even some fancier
+   compression). Then we could build the game with some
+   makefile and not need a web server.
+
+ - Box2d integration / example?!
+ 
