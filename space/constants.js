@@ -25,12 +25,17 @@ var FACEY = 11;
 var INVW = 8;
 var INVH = 3;
 
-var INVX = 10;
+const INVICON = {x:3, y:174, w:52, h:24};
+
+var INVX = 13;
 var INVY = 34;
 var INVTITLEX = 18;
 var INVTITLEY = 35;
 
-var INVCONTENTSX = 13;
+var INVCONTENTSX = INVX + 3;
 var INVCONTENTSY = 50;
 var INVITEMSIZE = 36;
+
+var INVRECT = {x: INVX, y: INVY, w: 293, h: 127};
+var INVCLOSE = {x: 293, y:37, w: 10, h:10};
 

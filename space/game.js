@@ -24,6 +24,9 @@ const resources = new Resources(
    'inventory.png',
    'inv-used.png',
 
+   'id.png',
+   'airlocktool.png',
+   
    'invid.png',
    'invairlocktool.png',
    'invegg.png',
@@ -74,14 +77,21 @@ function Init() {
 }
 
 // Item that can go in inventory.
-function Item(invframes, mask) {
+function Item(invframes, worldframes, mask) {
   // Frames when in inventory
   this.invframes = EzFrames(invframes);
+  this.worldframes = EzFrames(worldframes);
   this.mask = mask;
 
   // Position of top-left in inventory, or null if detached
   this.invx = null;
   this.invy = null;
+
+  // Position in world (global coordinates, not screen), or null.
+  // Can't have both world position and inventory position,
+  // but an unspawned item could have both be null.
+  this.worldx = null;
+  this.worldx = null;
   
   // TODO: state it goes back to if dropped?
   
@@ -108,22 +118,34 @@ function InitGame() {
   const MASK2x2 = ['**',
 		   '**'];
   const MASK1x1 = ['*'];
+
+  window.inventoryopen = false;
   
   window.items = {};
-  window.items.egg1 = new Item(['invegg', 1], MASK2x2);
-  window.items.egg2 = new Item(['invegg', 1], MASK2x2);
-  window.items.egg3 = new Item(['invegg', 1], MASK2x2);
-  window.items.egg4 = new Item(['invegg', 1], MASK2x2);
+  window.items.egg1 = new Item(['invegg', 1], ['invegg', 1], MASK2x2);
+  window.items.egg2 = new Item(['invegg', 1], ['invegg', 1], MASK2x2);
+  window.items.egg3 = new Item(['invegg', 1], ['invegg', 1], MASK2x2);
+  window.items.egg4 = new Item(['invegg', 1], ['invegg', 1], MASK2x2);
 
   // XXX?
   window.items.egg1.invx = 1;
   window.items.egg1.invy = 0;
   
   window.items.airlocktool = new Item(['invairlocktool', 1],
+				      ['airlocktool', 1],
 				      [' **',
 				       ' * ',
 				       '** ']);
-  window.items.id = new Item(['invid', 1], MASK1x1);
+
+  window.items.airlocktool.worldx = 80;
+  window.items.airlocktool.worldy = 48;
+  
+  window.items.id = new Item(['invid', 1],
+			     ['id', 1],
+			     MASK1x1);
+
+  window.items.id.worldx = 16;
+  window.items.id.worldy = 80;
   
   console.log('initialized game');
 }
@@ -134,12 +156,13 @@ function Ent() {
   return this;
 }
 
+// Returns null if nothing, otherwise, the item.
 function InvUsed(x, y) {
   for (let i in items) {
     let item = items[i];
     if (item.invx != null) {
       if (item.MaskAt(x - item.invx, y - item.invy))
-	return true;
+	return item;
     }
   }
   return false;
@@ -151,7 +174,7 @@ function DrawGame() {
 
   // draw inventory icon
   // TODO: hover/open state?
-  DrawFrame(window.inv_icon, 3, 174);
+  DrawFrame(window.inv_icon, INVICON.x, INVICON.y);
 
   // TODO: hover/active states
   spacefont.Draw(ctx, 64, 180, "GRAB");
@@ -159,6 +182,17 @@ function DrawGame() {
   hispacefont.Draw(ctx, 158, 180, "OVOPOSIT");
   spacefont.Draw(ctx, 238, 180, "USE");
   spacefont.Draw(ctx, 277, 180, "DROP");
+
+  // Draw items in the world. XXX need scrollin'
+  // TODO: may need to handle upper/lower deck
+  for (let o in items) {
+    let item = items[o];
+    if (item.worldx != null) {
+      DrawFrame(item.worldframes,
+		item.worldx,
+		item.worldy);
+    }
+  }
   
   // Draw the scene. TODO: two layers for upper and lower decks
   
@@ -177,31 +211,33 @@ function DrawGame() {
 
   // DrawFrame(invegg, playerx + 100, playery);
 
-  // Above everything: Inventory
-  DrawFrame(window.inventory, INVX, INVY);
-  for (let y = 0; y < INVH; y++) {
-    for (let x = 0; x < INVW; x++) {
-      if (InvUsed(x, y)) {
-	DrawFrame(invused, 
-		  INVCONTENTSX + INVITEMSIZE * x,
-		  INVCONTENTSY + INVITEMSIZE * y);
+  if (window.inventoryopen) {
+    // Above everything: Inventory
+    DrawFrame(window.inventory, INVX, INVY);
+    for (let y = 0; y < INVH; y++) {
+      for (let x = 0; x < INVW; x++) {
+	if (InvUsed(x, y) != null) {
+	  DrawFrame(invused, 
+		    INVCONTENTSX + INVITEMSIZE * x,
+		    INVCONTENTSY + INVITEMSIZE * y);
+	}
       }
     }
-  }
 
-  for (let o in items) {
-    let item = items[o];
-    if (item.invx != null) {
-      DrawFrame(item.invframes,
-		INVCONTENTSX + INVITEMSIZE * item.invx,
-		INVCONTENTSY + INVITEMSIZE * item.invy);
+    for (let o in items) {
+      let item = items[o];
+      if (item.invx != null) {
+	DrawFrame(item.invframes,
+		  INVCONTENTSX + INVITEMSIZE * item.invx,
+		  INVCONTENTSY + INVITEMSIZE * item.invy);
+      }
     }
+
+    // TODO: could highlight filled inventory slots.
+
+    spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
   }
-  
-  // TODO: could highlight filled inventory slots.
-  
-  spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
-  
+    
   // Unmute button?
   
 }
@@ -297,55 +333,125 @@ function Step(time) {
   window.requestAnimationFrame(Step);
 }
 
-function GamepadConnected() {
-  console.log('gamepad connected!');
-}
-
-
 function Start() {
   Init();
   InitGame();
 
-  // window.phase = PHASE_TITLE;
-  // StartSong(song_theme_maj);
+  window.phase = PHASE_TITLE;
+  StartSong(song_theme_maj);
 
   // straight to game to start
-  window.phase = PHASE_GAME;
+  // window.phase = PHASE_GAME;
 
   // For mouse control.
-  // bigcanvas.canvas.onmousemove = CanvasMove;
-  // bigcanvas.canvas.onmousedown = CanvasMousedown;
-  // bigcanvas.canvas.onmouseup = CanvasMouseup;
-
-  window.addEventListener("gamepadconnected", 
-			  GamepadConnected);
+  bigcanvas.canvas.onmousemove = CanvasMove;
+  bigcanvas.canvas.onmousedown = CanvasMousedown;
+  bigcanvas.canvas.onmouseup = CanvasMouseup;
   
   start_time = (new Date()).getTime();
   window.requestAnimationFrame(Step);
 }
 
-document.onkeyup = function(event) {
-  event = event || window.event;
-  if (event.ctrlKey) return true;
+function InRect(x, y, r) {
+  return x >= r.x && x < r.x + r.w &&
+      y >= r.y && y < r.y + r.h;
+}
 
-  // console.log('key: ' + event.keyCode);
+/*
+function InRect(x, y, x0, y0, w, h) {
+  return x >= x0 && x < x + w &&
+      y >= y0 && y < y + h;
+}
+*/
 
-  switch (event.keyCode) {
-  case 32:  // SPACE
-    break;
-  case 37:  // LEFT
-    holding_left = false;
-    break;
-  case 39:  // RIGHT
-    holding_right = false;
-    break;
-  case 38:  // UP
-  case 40:  // DOWN
-  case 90:  // z
-  case 88:  // x
+function CanvasMousedownGame(x, y) {
+  console.log('click ', x, y);
+  if (window.inventoryopen) {
+    // TODO: First check action clicks, since these are the
+    // only thing outside the inventory itself that don't close it
+    
+    if (InRect(x, y, INVCLOSE) ||
+	!InRect(x, y, INVRECT)) {
+      window.inventoryopen = false;
+    }
+
+    // TODO:
+    // click ITEM to snag it
+    // (nice to have) drag item?
+    // click USE, then ITEM
+    // click to close inventory
+    
+  } else {
+    // inventory closed:
+
+    if (InRect(x, y, INVICON)) {
+      inventoryopen = true;
+      return;
+    }
+	
+    // TODO:
+    // click to walk
+    // click to form sentence
+    // click GET ITEM, open inventory...
   }
 }
 
+function CanvasMouseupGame(x, y) {
+
+}
+
+function CanvasMousedown(event) {
+  event = event || window.event;
+  var bcx = bigcanvas.canvas.offsetLeft;
+  var bcy = bigcanvas.canvas.offsetTop;
+  var x = Math.floor((event.pageX - bcx) / PX);
+  var y = Math.floor((event.pageY - bcy) / PX);
+
+  switch (window.phase) {
+    case PHASE_GAME:
+    return CanvasMousedownGame(x, y);
+    break;
+    case PHASE_TITLE:
+    ClearSong();
+    window.phase = PHASE_GAME;
+    break;
+  }
+}
+
+function CanvasMouseup(event) {
+  event = event || window.event;
+  var bcx = bigcanvas.canvas.offsetLeft;
+  var bcy = bigcanvas.canvas.offsetTop;
+  var x = Math.floor((event.pageX - bcx) / PX);
+  var y = Math.floor((event.pageY - bcy) / PX);
+
+  switch (window.phase) {
+    case PHASE_GAME:
+    return CanvasMouseupGame(x, y);
+    break;
+    case PHASE_TITLE:
+    // ignored
+    break;
+  }
+}
+
+function CanvasMove(event) {
+  event = event || window.event;
+  var bcx = bigcanvas.canvas.offsetLeft;
+  var bcy = bigcanvas.canvas.offsetTop;
+  var x = Math.floor((event.pageX - bcx) / PX);
+  var y = Math.floor((event.pageY - bcy) / PX);
+  window.mousex = x;
+  window.mousey = y;
+
+  // If we use movement anywhere else (unlikely!) then
+  // do the switch thing.
+  if (window.phase != PHASE_GAME) return;
+
+  // If dragging, etc.
+}
+
+// XXX remove "cheat" keys
 document.onkeydown = function(event) {
   event = event || window.event;
   if (event.ctrlKey) return true;
@@ -357,6 +463,8 @@ document.onkeydown = function(event) {
     if (window.phase == PHASE_TITLE) {
       ClearSong();
       window.phase = PHASE_GAME;
+    } else if (window.phase == PHASE_GAME) {
+      window.inventoryopen = ! window.inventoryopen;
     }
     break;
   case 37:  // LEFT
@@ -370,7 +478,6 @@ document.onkeydown = function(event) {
   case 90:  // z
   case 88:  // x
     break;
-    // TODO: gamepads
     
     /*
     case 49: window.phase = PHASE_PUZZLE; Level1(); break;
