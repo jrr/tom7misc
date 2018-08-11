@@ -36,14 +36,14 @@ function Init() {
 			   'face-right', 68,
 			   'face-right-blink', 2]);
   window.facel = FlipFramesHoriz(window.facer);
-  window.playerr_run = EzFrames(['player1', 3,
+  window.playerr_run = EzFrames(['player1', 9,
 				'player2', 2,
-				'player3', 3,
+				'player3', 6,
 			        'player2', 2]);
-  window.playerr = window.playerr_run;
+  window.playerr = EzFrames(['player1', 1]);
       
   window.playerl_run = FlipFramesHoriz(window.playerr_run);
-  window.playerl = window.playerl_run;
+  window.playerl = FlipFramesHoriz(window.playerr);
   // window.playerr = FlipFramesHoriz(window.playerl);
   // window.playerr_run = FlipFramesHoriz(window.playerl_run);
   
@@ -72,6 +72,15 @@ function DrawGame() {
   // ClearScreen();
   DrawFrame(window.background, 0, 0);
 
+  // draw inventory icon
+  spacefont.Draw(ctx, 64, 180, "GRAB");
+  spacefont.Draw(ctx, 110, 180, "TALK");
+  spacefont.Draw(ctx, 158, 180, "OVOPOSIT");
+  spacefont.Draw(ctx, 238, 180, "USE");
+  spacefont.Draw(ctx, 277, 180, "DROP");
+  
+		 
+  
   const running = Math.abs(window.playerdx) > 1;
   if (window.facingleft) {
     DrawFrame(running ? window.playerl_run : window.playerl,

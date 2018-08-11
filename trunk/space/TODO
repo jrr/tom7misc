@@ -2,8 +2,6 @@
 For space game
 
 before bed
- - player character
- - finish title screen music
 
 assets
  - player character
@@ -18,6 +16,7 @@ assets
  - ovopositor
  - self-destruct
  - end / credits
+ - frown face (for like rejecting action)
 
 must have
  - name for game
@@ -29,6 +28,7 @@ must have
  - some way to limit dropping inventory?
  - draw split-level
  - script autonomous / asynchronous npc actions
+ - color font (for mouseover effect)
 
 nice
  - lowercase space font?
@@ -36,8 +36,12 @@ nice
  - maybe have "major" version of title theme, where
    title theme is actually the end music?
  - (MUTE) state instead of SILENCED
+ - slow parallax stars for background always
+ - title theme could be improved
 
 polish
  - font colors
  - font emphasis (vibrating letters)
-
+ - scanline animation for inventory icon / actual
+ - clean up and shade main character arms
+ 
