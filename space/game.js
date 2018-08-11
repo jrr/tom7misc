@@ -22,6 +22,11 @@ const resources = new Resources(
 
    'inv-icon.png',
    'inventory.png',
+   'inv-used.png',
+
+   'invid.png',
+   'invairlocktool.png',
+   'invegg.png',
   ],
   [], null);
 
@@ -53,11 +58,11 @@ function Init() {
   window.playerl_run = FlipFramesHoriz(window.playerr_run);
   window.playerl = FlipFramesHoriz(window.playerr);
 
-
   // UI elements
   window.inv_icon = EzFrames(['inv-icon', 1]);
   window.inventory = EzFrames(['inventory', 1]);
-
+  window.invused = EzFrames(['inv-used', 1]);
+  
   // window.playerr = FlipFramesHoriz(window.playerl);
   // window.playerr_run = FlipFramesHoriz(window.playerl_run);
   
@@ -68,6 +73,27 @@ function Init() {
   // song_menu[0].volume = 0.65;
 }
 
+// Item that can go in inventory.
+function Item(invframes, mask) {
+  // Frames when in inventory
+  this.invframes = EzFrames(invframes);
+  this.mask = mask;
+
+  // Position of top-left in inventory, or null if detached
+  this.invx = null;
+  this.invy = null;
+  
+  // TODO: state it goes back to if dropped?
+  
+  return this;
+}
+
+Item.prototype.MaskAt = function(x, y) {
+  if (x < 0 || y < 0) return false;
+  let row = this.mask[y] || '';
+  let cell = row[x] || ' ';
+  return cell != ' ';
+};
 
 function InitGame() {
 
@@ -78,8 +104,45 @@ function InitGame() {
   window.facingleft = true;
 
   window.phase = PHASE_GAME;
+
+  const MASK2x2 = ['**',
+		   '**'];
+  const MASK1x1 = ['*'];
+  
+  window.items = {};
+  window.items.egg1 = new Item(['invegg', 1], MASK2x2);
+  window.items.egg2 = new Item(['invegg', 1], MASK2x2);
+  window.items.egg3 = new Item(['invegg', 1], MASK2x2);
+  window.items.egg4 = new Item(['invegg', 1], MASK2x2);
+
+  // XXX?
+  window.items.egg1.invx = 1;
+  window.items.egg1.invy = 0;
+  
+  window.items.airlocktool = new Item(['invairlocktool', 1],
+				      [' **',
+				       ' * ',
+				       '** ']);
+  window.items.id = new Item(['invid', 1], MASK1x1);
   
   console.log('initialized game');
+}
+
+// Entity in game that can walk around, speak, etc.
+// Includes the player character.
+function Ent() {
+  return this;
+}
+
+function InvUsed(x, y) {
+  for (let i in items) {
+    let item = items[i];
+    if (item.invx != null) {
+      if (item.MaskAt(x - item.invx, y - item.invy))
+	return true;
+    }
+  }
+  return false;
 }
 
 function DrawGame() {
@@ -112,10 +175,33 @@ function DrawGame() {
 	      window.playerx + FACEX, window.playery + FACEY);
   }
 
+  // DrawFrame(invegg, playerx + 100, playery);
+
   // Above everything: Inventory
-  // DrawFrame(window.inventory, INVX, INVY);
-  // spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
-    
+  DrawFrame(window.inventory, INVX, INVY);
+  for (let y = 0; y < INVH; y++) {
+    for (let x = 0; x < INVW; x++) {
+      if (InvUsed(x, y)) {
+	DrawFrame(invused, 
+		  INVCONTENTSX + INVITEMSIZE * x,
+		  INVCONTENTSY + INVITEMSIZE * y);
+      }
+    }
+  }
+
+  for (let o in items) {
+    let item = items[o];
+    if (item.invx != null) {
+      DrawFrame(item.invframes,
+		INVCONTENTSX + INVITEMSIZE * item.invx,
+		INVCONTENTSY + INVITEMSIZE * item.invy);
+    }
+  }
+  
+  // TODO: could highlight filled inventory slots.
+  
+  spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
+  
   // Unmute button?
   
 }
@@ -221,7 +307,7 @@ function Start() {
   InitGame();
 
   // window.phase = PHASE_TITLE;
-  // StartSong(song_theme);
+  // StartSong(song_theme_maj);
 
   // straight to game to start
   window.phase = PHASE_GAME;
