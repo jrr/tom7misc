@@ -4,8 +4,6 @@
 let counter = 0, skipped = 0;
 let start_time = (new Date()).getTime();
 
-var song_theme = [];
-
 // Number of elapsed frames in the current scene.
 let frames = 0;
 
@@ -13,6 +11,7 @@ let holding_left = false, holding_right = false;
 
 const resources = new Resources(
   ['font.png',
+   'spacefont.png',
    'title.png',
    'background.png',
    'player1.png',
@@ -29,6 +28,8 @@ function XY(x, y) { return '(' + x + ',' + y + ')'; }
 function Init() {
   window.font = new Font(resources.Get('font.png'),
                          FONTW, FONTH, FONTOVERLAP, FONTCHARS);
+  window.spacefont = new Font(resources.Get('spacefont.png'),
+                              FONTW, FONTH, FONTOVERLAP, FONTCHARS);
   window.titleframes = Static('title.png');
   window.background = Static('background.png');
   window.playerl = EzFrames(['player1', 1])
@@ -75,10 +76,16 @@ function DrawGame() {
   }
 }
 
+function DrawTitle() {
+  DrawFrame(window.titleframes, 0, 0);
+  spacefont.Draw(ctx, WIDTH * 0.35, HEIGHT * 0.5,
+		 "SPACE GAME TITLE TBD");
+}
+
 function Draw() {
   switch (window.phase) {
     case PHASE_TITLE:
-    DrawFrame(window.titleframes, 0, 0);
+    DrawTitle();
     break;
     // case PHASE_CUTSCENE:
     // DrawCutscene();
@@ -138,7 +145,7 @@ function Step(time) {
     window.facingleft = false;
   
   
-  // UpdateSong();
+  UpdateSong();
 
   Draw();
 
