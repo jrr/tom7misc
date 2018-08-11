@@ -77,6 +77,59 @@ function EzFrames(l) {
   return new Frames(ll);
 }
 
+function Ez1x1(color) {
+  var c = NewCanvas(1, 1);
+  var ctx = c.getContext('2d');
+  var id = ctx.createImageData(1, 1);
+  var buf = new ArrayBuffer(id.data.length);
+  var buf8 = new Uint8ClampedArray(buf);
+  var buf32 = new Uint32Array(buf);
+  buf32[0] = color;
+
+  id.data.set(buf8);
+  ctx.putImageData(id, 0, 0);
+  return c;
+}
+
+// Color without alpha component
+function EzStar(color) {
+  let ll = [];
+  const num = 0| ((Math.random() * 6) + 1);
+  for (let i = 0; i < num; i++) {
+    let a = 128 | (Math.random() * 255);
+    let d = 0| ((Math.random() * 30) + 1);
+    ll.push({f: Ez1x1((a << 24) | color), d: d});
+  }
+  return new Frames(ll);
+}
+
+// Crop the image in the y dimension. Takes the y start coordinate
+// and height.
+function EzCropY(img, starty, height) {
+  if (typeof img == 'string') img = resources.Get(img + '.png');
+
+  var i32 = Buf32FromImage(img);
+  var c = NewCanvas(img.width, img.height);
+  var ctx = c.getContext('2d');
+  var id = ctx.createImageData(img.width, height);
+  var buf = new ArrayBuffer(id.data.length);
+  // Make two aliases of the data, the second allowing us
+  // to write 32-bit pixels.
+  var buf8 = new Uint8ClampedArray(buf);
+  var buf32 = new Uint32Array(buf);
+
+  for (var y = 0; y < height; y++) {
+    for (var x = 0; x < img.width; x++) {
+      buf32[y * img.width + x] =
+	  i32[(y + starty) * img.width + x];
+    }
+  }
+
+  id.data.set(buf8);
+  ctx.putImageData(id, 0, 0);
+  return c;
+}
+
 // Returns a canvas of the same size with the pixels flipped horizontally
 function EzFlipHoriz(img) {
   if (typeof img == 'string') img = resources.Get(img + '.png');

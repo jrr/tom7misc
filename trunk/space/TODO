@@ -2,12 +2,10 @@
 For space game
 
 saturday morning:
- - inventory graphics
  - full spaceship sketch
- - mouse inputs
- - "person" object (inc. player, robots)
+ - scroll map
+ - inventory working
  - click to walk to point
- - draw one human
 
 saturday
  - game basically working
@@ -18,6 +16,15 @@ saturday
       - one solution is that "GET" automatically opens
         the inventory and makes your cursor that object?
       - need to think the mechanics through here.
+
+ - path planning. Make a set of rectangular areas. When clicking
+   to move, can plan a path between adjacent areas (walk to closest point on
+   shared edge, for example). Can enable/disable areas as game progresses.
+    (areas could each specify a scroll position for the map?)
+       - maybe edit these in-game?
+
+
+ - Ent "Talk" method
 
 assets
  - teleport entrance anim
