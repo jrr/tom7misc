@@ -1,52 +1,28 @@
 
-HTML5Game TODO:
+For space game
 
- - Drums in MIDI support!
+assets
+ - player character
+ - title screen music
+ - main game atmospheric music
+ - grate guy
+   - grate guy death anim
 
- - Would be nice if we could build resources directly into
-   javascript, like as encoded base64 (or even some fancier
-   compression). Then we could build the game with some
-   makefile and not need a web server.
+must have
+ - name for game
+ - come up with efficient art "look"
+ - title screen with name on it
+ - way to define walkable area
+ - click to walk to spot (or use arrow keys?!)
+ - inventory can open/close
+ - some way to limit dropping inventory?
+ - 
 
- - Box2d integration / example?!
+nice
+ - lowercase space font?
+ - intro scene, warping to ship
 
- - cutscene support
+polish
+ - font colors
+ - font emphasis (vibrating letters)
 
- - fix audio policy:
-   https://developers.google.com/web/updates/2017/09/autoplay-policy-changes#webaudio
-
-
-==  Controller support!  ==
-
-Loop through gamepads to find one with mapping = "standard"
-button mapping here:
-https://w3c.github.io/gamepad/
-
-buttons[0]	Bottom button in right cluster
-buttons[1]	Right button in right cluster
-buttons[2]	Left button in right cluster
-buttons[3]	Top button in right cluster
-buttons[4]	Top left front button
-buttons[5]	Top right front button
-buttons[6]	Bottom left front button
-buttons[7]	Bottom right front button
-buttons[8]	Left button in center cluster
-buttons[9]	Right button in center cluster
-buttons[10]	Left stick pressed button
-buttons[11]	Right stick pressed button
-buttons[12]	Top button in left cluster
-buttons[13]	Bottom button in left cluster
-buttons[14]	Right button in left cluster
-buttons[15]	Left button in left cluster
-axes[0]	Horizontal axis for left stick (negative left/positive right)
-axes[1]	Vertical axis for left stick (negative up/positive down)
-axes[2]	Horizontal axis for right stick (negative left/positive right)
-axes[3]	Vertical axis for right stick (negative up/positive down)
-
- - currently need to poll, so just do this in each animation frame
-   to see if state has changed; then dispatch to key commands.
-
- - how to rumble in chrome (experimental):
- gamepad.vibrationActuator.playEffect("dual-rumble",
-  {duration: 500, strongMagnitude: 1.0, weakMagnitude: 1.0});
- 
