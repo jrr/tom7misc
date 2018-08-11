@@ -19,6 +19,9 @@ const resources = new Resources(
    'player1.png',
    'player2.png',
    'player3.png',
+
+   'inv-icon.png',
+   'inventory.png',
   ],
   [], null);
 
@@ -44,6 +47,12 @@ function Init() {
       
   window.playerl_run = FlipFramesHoriz(window.playerr_run);
   window.playerl = FlipFramesHoriz(window.playerr);
+
+
+  // UI elements
+  window.inv_icon = EzFrames(['inv-icon', 1]);
+  window.inventory = EzFrames(['inventory', 1]);
+
   // window.playerr = FlipFramesHoriz(window.playerl);
   // window.playerr_run = FlipFramesHoriz(window.playerl_run);
   
@@ -73,13 +82,17 @@ function DrawGame() {
   DrawFrame(window.background, 0, 0);
 
   // draw inventory icon
+  // TODO: hover/open state?
+  DrawFrame(window.inv_icon, 3, 174);
+
+  // TODO: hover/active states
   spacefont.Draw(ctx, 64, 180, "GRAB");
   spacefont.Draw(ctx, 110, 180, "TALK");
   spacefont.Draw(ctx, 158, 180, "OVOPOSIT");
   spacefont.Draw(ctx, 238, 180, "USE");
   spacefont.Draw(ctx, 277, 180, "DROP");
   
-		 
+  // Draw the scene. TODO: two layers for upper and lower decks
   
   const running = Math.abs(window.playerdx) > 1;
   if (window.facingleft) {
@@ -93,6 +106,13 @@ function DrawGame() {
     DrawFrame(window.facer,
 	      window.playerx + FACEX, window.playery + FACEY);
   }
+
+  // Above everything: Inventory
+  DrawFrame(window.inventory, INVX, INVY);
+  spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
+    
+  // Unmute button?
+  
 }
 
 function DrawTitle() {
@@ -195,8 +215,11 @@ function Start() {
   Init();
   InitGame();
 
-  window.phase = PHASE_TITLE;
-  StartSong(song_theme);
+  // window.phase = PHASE_TITLE;
+  // StartSong(song_theme);
+
+  // straight to game to start
+  window.phase = PHASE_GAME;
 
   // For mouse control.
   // bigcanvas.canvas.onmousemove = CanvasMove;

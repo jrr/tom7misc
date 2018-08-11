@@ -22,3 +22,7 @@ var LFACEX = 26;
 var FACEX = 31;
 var FACEY = 11;
 
+var INVX = 10;
+var INVY = 34;
+var INVTITLEX = 18;
+var INVTITLEY = 35;

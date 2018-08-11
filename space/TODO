@@ -1,7 +1,18 @@
 
 For space game
 
-before bed
+saturday morning:
+ - inventory graphics
+ - full spaceship sketch
+ - mouse inputs
+ - "person" object (inc. player, robots)
+ - click to walk to point
+ - draw one human
+
+saturday
+ - game basically working
+ - start to finish playable?
+ - are all music channels playing?
 
 assets
  - player character
@@ -29,7 +40,8 @@ must have
  - draw split-level
  - script autonomous / asynchronous npc actions
  - color font (for mouseover effect)
-
+ - slow down title theme a little
+ 
 nice
  - lowercase space font?
  - intro scene, warping to ship
@@ -44,4 +56,5 @@ polish
  - font emphasis (vibrating letters)
  - scanline animation for inventory icon / actual
  - clean up and shade main character arms
+ - fix clicking in title theme
  
