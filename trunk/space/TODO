@@ -40,7 +40,7 @@ must have
  - come up with efficient art "look"
  - title screen with name on it
  - way to define walkable area
- - click to walk to spot (or use arrow keys?!)
+ - click to walk to spot
  - inventory can open/close
  - some way to limit dropping inventory?
  - draw split-level
@@ -55,7 +55,8 @@ nice
  - slow parallax stars for background always
  - title theme could be improved
  - slow down title theme a little
- 
+ - make it work with touch events 
+
 polish
  - font colors
  - font emphasis (vibrating letters)
