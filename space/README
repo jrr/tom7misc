@@ -1,0 +1,20 @@
+
+   HTML5Game                          Tom 7      8 Aug 2018
+
+
+When I make games for competitions like Ludum Dare, I like to just
+copy a recent game, rip out its guts, and work from there. I'll often
+make improvements to the core code that can be reused later, but
+I'll also often make shortcut 11th-hour hacks that are gross even
+in the game, let alone a shared codebase. The idea of this directory
+is to maintain a very simple example game that I can use as a starting
+point for others, and a target for merging good stuff back into when
+a fork wraps up.
+
+What's here today is a fork of "Connector World", which was my last
+html5 compo game that had music and animation.
+
+Currently, you need to run a webserver (mongoose is a fine choice)
+because it wants to be able to fetch files from a server (and browsers
+will not let javascript open local files this way).
+
