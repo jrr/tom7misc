@@ -13,6 +13,11 @@ saturday
  - game basically working
  - start to finish playable?
  - are all music channels playing?
+ - inventory management: When I try to pick something up,
+   how do I show that there's no space for it?
+      - one solution is that "GET" automatically opens
+        the inventory and makes your cursor that object?
+      - need to think the mechanics through here.
 
 assets
  - player character
@@ -24,6 +29,7 @@ assets
  - airlock guy
    - airlock guy death
  - guy uselessly shooting you
+ - captai lady
  - ovopositor
  - self-destruct
  - end / credits
@@ -40,21 +46,41 @@ must have
  - draw split-level
  - script autonomous / asynchronous npc actions
  - color font (for mouseover effect)
- - slow down title theme a little
- 
+ - incorporate "normal" (dissonant) title theme (at end?)
+
 nice
- - lowercase space font?
+ - animate egg
  - intro scene, warping to ship
- - maybe have "major" version of title theme, where
-   title theme is actually the end music?
  - (MUTE) state instead of SILENCED
  - slow parallax stars for background always
  - title theme could be improved
-
+ - slow down title theme a little
+ 
 polish
  - font colors
  - font emphasis (vibrating letters)
  - scanline animation for inventory icon / actual
  - clean up and shade main character arms
- - fix clicking in title theme
+ - fix click sound in title theme
+ - lowercase space font?
+
+ideas / notes:
+ - maybe you start with a bunch of eggs in inventory, and this
+   gates your progress, because you refuse to put them down
+   except by ovopositing them in a dead body?
+
+how many humans? 4 eggs in inventory would fit, but no more (if 2x2)
+could also be non-human enemies (e.g. cyborg crewmate)
+ - grate guy
+ - airlock guy (but doesn't the body get sucked out into space?)
+ - guy uselessly shooting
+ - captain lady
  
+this is probably the minimum that would work, so let's go for it.
+can always add non-humans.
+
+For each death, you should have to solve an inventory-packing puzzle.
+
+- maybe it's impossible to drop things? this would allow the puzzles
+  to get harder over time
+  
