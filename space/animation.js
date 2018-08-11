@@ -103,8 +103,65 @@ function EzFlipHoriz(img) {
   return c;
 }
 
-// XXX Good reference, but specific to "You Owe"
-function EzColor(img, shirt, pants, hair) {
+// 32-bit pixels are like AABBGGRR. I think this is guaranteed
+// by the spec (though it might depend on host endianness?)
+function EzOutline(img) {
+  if (typeof img == 'string') img = resources.Get(img + '.png');
+
+  let i32 = Buf32FromImage(img);
+  let c = NewCanvas(img.width, img.height);
+  let ctx = c.getContext('2d');
+  let id = ctx.createImageData(img.width, img.height);
+  let buf = new ArrayBuffer(id.data.length);
+  // Make two aliases of the data, the second allowing us
+  // to write 32-bit pixels.
+  let buf8 = new Uint8ClampedArray(buf);
+  let buf32 = new Uint32Array(buf);
+
+  for (let y = 0; y < img.height; y++) {
+    for (let x = 0; x < img.width; x++) {
+      let p = i32[y * img.width + x];
+      let a = (p & 0xFF000000) >>> 24;
+      if (a < 0xFF) {
+	// pixel with transparency.
+	var denom = 0;
+	var max_alpha = a;
+	for (let yy = -1; yy <= 1; yy++) {
+	  if (y + yy >= 0 && y + yy < img.height) {
+	    for (let xx = -1; xx <= 1; xx++) {
+	      if (x + xx >= 0 && x + xx < img.width) {
+		let pp = i32[(y + yy) * img.width + (x + xx)];
+		let aa = (pp & 0xFF000000) >>> 24
+		max_alpha = Math.max(max_alpha, aa);
+		denom++;
+	      }
+	    }
+	  }
+	}
+	// TODO: mix with existing component
+	p = (max_alpha << 24) | 0x00FF0000;
+	// p = 0x7FFF0000;
+      }
+      buf32[y * img.width + x] = p;
+    }
+  }
+
+  id.data.set(buf8);
+  ctx.putImageData(id, 0, 0);
+  return c;
+}
+
+function OutlineFrames(fr) {
+  var f = fr.frames;
+  var ff = [];
+  for (var i = 0; i < f.length; i++) {
+    ff.push({f: EzOutline(f[i].f), d: f[i].d});
+  }
+  return new Frames(ff);
+}
+
+
+function EzRecolor(img, src, dst) {
   if (typeof img == 'string') img = resources.Get(img + '.png');
 
   var i32 = Buf32FromImage(img);
@@ -120,12 +177,8 @@ function EzColor(img, shirt, pants, hair) {
   for (var y = 0; y < img.height; y++) {
     for (var x = 0; x < img.width; x++) {
       var p = i32[y * img.width + x];
-      if (p == 0xFFFF00EA) {
-	p = shirt;
-      } else if (p == 0xFFF0FF00) {
-	p = pants;
-      } else if (p == 0xFF00FFFF) {
-	p = hair;
+      if (p == src) {
+	p = dst;
       }
       buf32[y * img.width + x] = p;
     }

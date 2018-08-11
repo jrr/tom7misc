@@ -32,6 +32,10 @@ function Init() {
                          FONTW, FONTH, FONTOVERLAP, FONTCHARS);
   window.spacefont = new Font(resources.Get('spacefont.png'),
                               FONTW, FONTH, FONTOVERLAP, FONTCHARS);
+  window.hispacefont = new Font(
+    EzRecolor(resources.Get('spacefont.png'), 0xFFFFFFFF, 0xFF00FFFF),
+    FONTW, FONTH, FONTOVERLAP, FONTCHARS);
+  
   window.titleframes = Static('title.png');
   window.background = Static('background.png');
   window.facer = EzFrames(['face-right', 280,
@@ -39,10 +43,11 @@ function Init() {
 			   'face-right', 68,
 			   'face-right-blink', 2]);
   window.facel = FlipFramesHoriz(window.facer);
-  window.playerr_run = EzFrames(['player1', 9,
-				'player2', 2,
-				'player3', 6,
-			        'player2', 2]);
+  window.playerr_run =
+	EzFrames(['player1', 9,
+		  'player2', 2,
+		  'player3', 6,
+		  'player2', 2]);
   window.playerr = EzFrames(['player1', 1]);
       
   window.playerl_run = FlipFramesHoriz(window.playerr_run);
@@ -87,8 +92,8 @@ function DrawGame() {
 
   // TODO: hover/active states
   spacefont.Draw(ctx, 64, 180, "GRAB");
-  spacefont.Draw(ctx, 110, 180, "TALK");
-  spacefont.Draw(ctx, 158, 180, "OVOPOSIT");
+  hispacefont.Draw(ctx, 110, 180, "TALK");
+  hispacefont.Draw(ctx, 158, 180, "OVOPOSIT");
   spacefont.Draw(ctx, 238, 180, "USE");
   spacefont.Draw(ctx, 277, 180, "DROP");
   
@@ -108,8 +113,8 @@ function DrawGame() {
   }
 
   // Above everything: Inventory
-  DrawFrame(window.inventory, INVX, INVY);
-  spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
+  // DrawFrame(window.inventory, INVX, INVY);
+  // spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
     
   // Unmute button?
   
