@@ -1,12 +1,23 @@
 
 For space game
 
+before bed
+ - player character
+ - finish title screen music
+
 assets
  - player character
  - title screen music
+     - [FINISH]
  - main game atmospheric music
  - grate guy
    - grate guy death anim
+ - airlock guy
+   - airlock guy death
+ - guy uselessly shooting you
+ - ovopositor
+ - self-destruct
+ - end / credits
 
 must have
  - name for game
@@ -16,11 +27,15 @@ must have
  - click to walk to spot (or use arrow keys?!)
  - inventory can open/close
  - some way to limit dropping inventory?
- - 
+ - draw split-level
+ - script autonomous / asynchronous npc actions
 
 nice
  - lowercase space font?
  - intro scene, warping to ship
+ - maybe have "major" version of title theme, where
+   title theme is actually the end music?
+ - (MUTE) state instead of SILENCED
 
 polish
  - font colors

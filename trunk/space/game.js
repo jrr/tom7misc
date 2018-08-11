@@ -14,12 +14,11 @@ const resources = new Resources(
    'spacefont.png',
    'title.png',
    'background.png',
+   'face-right.png',
+   'face-right-blink.png',
    'player1.png',
    'player2.png',
    'player3.png',
-   'player4.png',
-   'player5.png',
-   'player6.png',
   ],
   [], null);
 
@@ -32,14 +31,21 @@ function Init() {
                               FONTW, FONTH, FONTOVERLAP, FONTCHARS);
   window.titleframes = Static('title.png');
   window.background = Static('background.png');
-  window.playerl = EzFrames(['player1', 1])
-  window.playerl_run = EzFrames(['player1', 2,
-				 'player2', 2,
-				 'player3', 2,
-				 'player4', 2,
-				 'player5', 2]);
-  window.playerr = FlipFramesHoriz(window.playerl);
-  window.playerr_run = FlipFramesHoriz(window.playerl_run);
+  window.facer = EzFrames(['face-right', 280,
+			   'face-right-blink', 2,
+			   'face-right', 68,
+			   'face-right-blink', 2]);
+  window.facel = FlipFramesHoriz(window.facer);
+  window.playerr_run = EzFrames(['player1', 3,
+				'player2', 2,
+				'player3', 3,
+			        'player2', 2]);
+  window.playerr = window.playerr_run;
+      
+  window.playerl_run = FlipFramesHoriz(window.playerr_run);
+  window.playerl = window.playerl_run;
+  // window.playerr = FlipFramesHoriz(window.playerl);
+  // window.playerr_run = FlipFramesHoriz(window.playerl_run);
   
   // Audio tweaks.
   // song_theme.multiply = 1.5;
@@ -70,9 +76,13 @@ function DrawGame() {
   if (window.facingleft) {
     DrawFrame(running ? window.playerl_run : window.playerl,
 	      window.playerx, window.playery);
+    DrawFrame(window.facel,
+	      window.playerx + LFACEX, window.playery + FACEY);
   } else {
     DrawFrame(running ? window.playerr_run : window.playerr,
 	      window.playerx, window.playery);
+    DrawFrame(window.facer,
+	      window.playerx + FACEX, window.playery + FACEY);
   }
 }
 
@@ -133,8 +143,8 @@ function Step(time) {
   if (window.playerx < 6) window.playerx = 6;
   if (window.playerx > 300) window.playerx = 300;
   if (window.playery < 6) window.playery = 6;
-  if (window.playery > 175) {
-    window.playery = 175;
+  if (window.playery > 111) {
+    window.playery = 111;
     window.playerdy *= -0.5;
   }
   window.playerdy += 0.05;
@@ -221,8 +231,10 @@ document.onkeydown = function(event) {
 
   switch (event.keyCode) {
   case 32:  // SPACE
-    if (window.phase == PHASE_TITLE)
+    if (window.phase == PHASE_TITLE) {
+      ClearSong();
       window.phase = PHASE_GAME;
+    }
     break;
   case 37:  // LEFT
     holding_left = true;
