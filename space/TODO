@@ -20,17 +20,15 @@ saturday
       - need to think the mechanics through here.
 
 assets
- - player character
- - title screen music
-     - [FINISH]
+ - teleport entrance anim
  - main game atmospheric music
  - grate guy
    - grate guy death anim
  - airlock guy
    - airlock guy death
  - guy uselessly shooting you
- - captai lady
- - ovopositor
+ - captain lady
+ - ovoposit animation
  - self-destruct
  - end / credits
  - frown face (for like rejecting action)
@@ -41,7 +39,6 @@ must have
  - title screen with name on it
  - way to define walkable area
  - click to walk to spot
- - inventory can open/close
  - some way to limit dropping inventory?
  - draw split-level
  - script autonomous / asynchronous npc actions
@@ -49,6 +46,9 @@ must have
  - incorporate "normal" (dissonant) title theme (at end?)
 
 nice
+ - animate grate guy while he's standing there. whistle (notes)
+   tap toe, look left and right
+
  - animate egg
  - intro scene, warping to ship
  - (MUTE) state instead of SILENCED
@@ -84,4 +84,63 @@ For each death, you should have to solve an inventory-packing puzzle.
 
 - maybe it's impossible to drop things? this would allow the puzzles
   to get harder over time
-  
+
+ideas:
+ - "TALK" action is mostly humor, but necessary to scare one human
+   into the airlock? 
+
+== INTRO
+
+ - teach inventory system, require at least picking up an item
+   and using it to breach a wall or something?
+ - should happen underneath 
+
+
+== GRATE GUY
+
+ - death before they even know you are aboard.
+ - should not be a threatening character. maybe scientist etc.
+ - pull him down into cargo hold
+ - can get something to open the grate
+
+== AIRLOCK GUY
+
+ - when you encounter these two, they first nervously like, try
+   to talk to you
+   
+ - talking to either one of them makes airlock guy run to airlock,
+   militant guy hide behind crates
+
+ - somehow they should block you from progressing here until you talk?
+   (portashield?)
+   or else there should just be nothing
+
+ - airlock "emergency" tool to kill
+ - requires figuring out that you can ovoposit egg in crate guy's face,
+   to free space (key discovery)
+ - doesn't the body get sucked out into space?
+ - maybe you then need to solve an intermediate puzzle to go out there
+   and find the body to ovoposit it
+   (eggs in space? maybe it's fine. the alien can just go out in space
+   with no issues I guess?)
+
+== USELESSLY SHOOTING GUY
+
+ - I like this guy just waging war on you for most of the game, so
+   he should maybe be second-to-last.
+ - shoots at you (does nothing), maybe lobs grenades
+ - takes cover in some crates
+ - kill how? (Need something big... portoshield?)
+
+== CAPTAIN LADY
+
+ - should die with dignity
+ - barricades herself in the bridge. should not be out of cowardice but
+   out of duty (why?). She could carry on a dialog with fleet command,
+   asking for backup or something.
+ - goal is to break into the bridge (what items)?
+   this one should be last so you should have to collect a lot of items
+   and arrange them in inventory
+
+ - when you get in there she should keep calmly talking
+

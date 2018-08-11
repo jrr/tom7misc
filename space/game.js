@@ -7,19 +7,20 @@ let start_time = (new Date()).getTime();
 // Number of elapsed frames in the current scene.
 let frames = 0;
 
-let holding_left = false, holding_right = false;
-
 const resources = new Resources(
   ['font.png',
    'spacefont.png',
    'title.png',
    'background.png',
+
    'face-right.png',
    'face-right-blink.png',
    'player1.png',
    'player2.png',
    'player3.png',
 
+   'grateguy.png',
+   
    'inv-icon.png',
    'inventory.png',
    'inv-used.png',
@@ -46,20 +47,6 @@ function Init() {
   
   window.titleframes = Static('title.png');
   window.background = Static('background.png');
-  window.facer = EzFrames(['face-right', 280,
-			   'face-right-blink', 2,
-			   'face-right', 68,
-			   'face-right-blink', 2]);
-  window.facel = FlipFramesHoriz(window.facer);
-  window.playerr_run =
-	EzFrames(['player1', 9,
-		  'player2', 2,
-		  'player3', 6,
-		  'player2', 2]);
-  window.playerr = EzFrames(['player1', 1]);
-      
-  window.playerl_run = FlipFramesHoriz(window.playerr_run);
-  window.playerl = FlipFramesHoriz(window.playerr);
 
   // UI elements
   window.inv_icon = EzFrames(['inv-icon', 1]);
@@ -82,7 +69,7 @@ function Item(invframes, worldframes, mask) {
   this.invframes = EzFrames(invframes);
   this.worldframes = EzFrames(worldframes);
   this.mask = mask;
-
+  
   // Position of top-left in inventory, or null if detached
   this.invx = null;
   this.invy = null;
@@ -115,12 +102,44 @@ function InitGame() {
 
   window.phase = PHASE_GAME;
 
+  window.ents = {};
+  window.ents.grateguy = new Ent(['grateguy', 1],
+				 // no moving anim
+				 ['grateguy', 1],
+				 30, 65);
+  window.ents.grateguy.worldx = 169;
+  window.ents.grateguy.worldy = 24;
+
+  window.player = new Ent(['player1', 1],
+			  ['player1', 9,
+			   'player2', 2,
+			   'player3', 6,
+			   'player2', 2],
+			  68,
+			  46);
+  player.worldx = 79;
+  player.worldy = 164;
+  player.facer = EzFrames(['face-right', 280,
+			   'face-right-blink', 2,
+			   'face-right', 68,
+			   'face-right-blink', 2]);
+  player.facel = FlipFramesHoriz(player.facer);
+  player.Draw = function(x, y) {
+    this.SuperDraw(x, y);
+    DrawFrame(this.facingleft ? this.facel : this.facer,
+	      x + FACEX, y + FACEY);
+  };
+		       
+  window.ents.player = window.player;
+		       
+  // XXX ent for player
+  
   const MASK2x2 = ['**',
 		   '**'];
   const MASK1x1 = ['*'];
 
   window.inventoryopen = false;
-  
+
   window.items = {};
   window.items.egg1 = new Item(['invegg', 1], ['invegg', 1], MASK2x2);
   window.items.egg2 = new Item(['invegg', 1], ['invegg', 1], MASK2x2);
@@ -152,10 +171,53 @@ function InitGame() {
 
 // Entity in game that can walk around, speak, etc.
 // Includes the player character.
-function Ent() {
+function Ent(stand, move, wd, ht) {
+  this.halfwidth = wd >>> 1;
+  this.height = ht;
+
+  this.xspeed = 2;
+  this.yspeed = 1;
+  
+  // If non-null, location in the world.
+  this.worldx = null;
+  this.worldy = null;
+
+  // If non-null, we're walking to this target spot.
+  this.targetx = null;
+  this.targety = null;
+
+  // Current frames.
+  this.standr = EzFrames(stand);
+  this.standl = FlipFramesHoriz(this.standr);
+
+  this.mover = EzFrames(move);
+  this.movel = FlipFramesHoriz(this.mover);
+
+  this.facingleft = false;
+  
   return this;
 }
 
+Ent.prototype.GetFrames = function() {
+  const moving = this.targetx != null &&
+	(this.worldx != this.targetx ||
+	 this.worldy != this.targety);
+  
+  if (this.facingleft)
+    return moving ? this.movel : this.standl;
+  else
+    return moving ? this.mover : this.standr;
+}
+  
+Ent.prototype.SuperDraw = function(x, y) {
+  DrawFrame(this.GetFrames(), x, y);
+}
+
+// passed top-left corner (y - height).
+Ent.prototype.Draw = function(x, y) {
+  this.SuperDraw(this.worldx, this.worldy);
+}
+  
 // Returns null if nothing, otherwise, the item.
 function InvUsed(x, y) {
   for (let i in items) {
@@ -193,23 +255,15 @@ function DrawGame() {
 		item.worldy);
     }
   }
-  
-  // Draw the scene. TODO: two layers for upper and lower decks
-  
-  const running = Math.abs(window.playerdx) > 1;
-  if (window.facingleft) {
-    DrawFrame(running ? window.playerl_run : window.playerl,
-	      window.playerx, window.playery);
-    DrawFrame(window.facel,
-	      window.playerx + LFACEX, window.playery + FACEY);
-  } else {
-    DrawFrame(running ? window.playerr_run : window.playerr,
-	      window.playerx, window.playery);
-    DrawFrame(window.facer,
-	      window.playerx + FACEX, window.playery + FACEY);
-  }
 
-  // DrawFrame(invegg, playerx + 100, playery);
+  // XXX scrolling
+  for (let o in ents) {
+    let ent = ents[o];
+    if (ent.worldx != null) {
+      ent.Draw(ent.worldx - ent.halfwidth, ent.worldy - ent.height);
+    }
+  }
+  // Draw the scene. TODO: two layers for upper and lower decks
 
   if (window.inventoryopen) {
     // Above everything: Inventory
@@ -284,13 +338,7 @@ function Step(time) {
   frames++;
   if (frames > 1000000) frames = 0;
 
-  if (holding_right)
-    window.playerdx += 0.1;
-  else if (holding_left)
-    window.playerdx -= 0.1;
-  else
-    window.playerdx *= 0.9;
-  
+  /*
   if (window.playerdx > 2.0) window.playerdx = 2.0;
   else if (window.playerdx < -2.0) window.playerdx = -2.0;
   
@@ -309,6 +357,40 @@ function Step(time) {
     window.facingleft = true;
   else if (window.playerdx > 0.5)
     window.facingleft = false;
+  */
+
+  for (var o in ents) {
+    let ent = ents[o];
+    if (ent.targetx != null) {
+      const dx = ent.targetx - ent.worldx
+      const dy = ent.targety - ent.worldy;
+      // At target?
+      if (Math.abs(dx) <= ent.xspeed &&
+	  Math.abs(dy) <= ent.yspeed) {
+	ent.worldx = ent.targetx;
+	ent.worldy = ent.targety;
+	ent.targetx = null;
+	ent.targety = null;
+	continue;
+      }
+
+      // XXX use bresenham
+      // XXX avoid obstacles if non-convex?
+      if (Math.abs(dx) <= ent.xspeed) {
+	ent.worldx = ent.targetx;
+      } else {
+	ent.worldx += dx < 0 ? -ent.xspeed : ent.xspeed;
+	if (dx < 0) ent.facingleft = true;
+	else if (dx > 0) ent.facingleft = false;
+      }
+      
+      if (Math.abs(dy) <= ent.yspeed) {
+	ent.worldy = ent.targety;
+      } else {
+	ent.worldy += dy < 0 ? -ent.yspeed : ent.yspeed;
+      }
+    }
+  }
   
   
   UpdateSong();
@@ -337,11 +419,11 @@ function Start() {
   Init();
   InitGame();
 
-  window.phase = PHASE_TITLE;
-  StartSong(song_theme_maj);
+  // window.phase = PHASE_TITLE;
+  // StartSong(song_theme_maj);
 
   // straight to game to start
-  // window.phase = PHASE_GAME;
+  window.phase = PHASE_GAME;
 
   // For mouse control.
   bigcanvas.canvas.onmousemove = CanvasMove;
@@ -388,7 +470,12 @@ function CanvasMousedownGame(x, y) {
       inventoryopen = true;
       return;
     }
-	
+
+    // XXX test that it's in bounds, not item, etc.
+    // (double-click to walk?!)
+    player.targetx = x;
+    player.targety = y;
+    
     // TODO:
     // click to walk
     // click to form sentence
@@ -466,12 +553,6 @@ document.onkeydown = function(event) {
     } else if (window.phase == PHASE_GAME) {
       window.inventoryopen = ! window.inventoryopen;
     }
-    break;
-  case 37:  // LEFT
-    holding_left = true;
-    break;
-  case 39:  // RIGHT
-    holding_right = true;
     break;
   case 38:  // UP
   case 40:  // DOWN
