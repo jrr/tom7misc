@@ -39,3 +39,11 @@ var INVITEMSIZE = 36;
 var INVRECT = {x: INVX, y: INVY, w: 293, h: 127};
 var INVCLOSE = {x: 293, y:37, w: 10, h:10};
 
+// Height of top deck; ship is drawn in two parts.
+const TOPDECKH = 108;
+
+const MAXSTARS = 50;
+
+const GAMEWIDTH = 6 * WIDTH;
+
+const SCROLLMARGIN = 120;

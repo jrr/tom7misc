@@ -4,6 +4,9 @@
 let counter = 0, skipped = 0;
 let start_time = (new Date()).getTime();
 
+// no y-scrolling.
+let scrollx = 400;
+
 // Number of elapsed frames in the current scene.
 let frames = 0;
 
@@ -13,6 +16,8 @@ const resources = new Resources(
    'title.png',
    'background.png',
 
+   'ship.png',
+   
    'face-right.png',
    'face-right-blink.png',
    'player1.png',
@@ -36,6 +41,16 @@ const resources = new Resources(
 
 function XY(x, y) { return '(' + x + ',' + y + ')'; }
 
+const STARCOLORS = [
+  // B G R
+  0xFFFFFF,
+  0x00FFFF,
+  0xFFFF00,
+  0xFF0000,
+  0xFFAAAA,
+  0xAAFFFF
+];
+
 function Init() {
   window.font = new Font(resources.Get('font.png'),
                          FONTW, FONTH, FONTOVERLAP, FONTCHARS);
@@ -47,7 +62,15 @@ function Init() {
   
   window.titleframes = Static('title.png');
   window.background = Static('background.png');
+  let ship = resources.Get('ship.png');
+  window.topdeckbg = new Frames(EzCropY(ship, 0, TOPDECKH));
+  window.botdeckbg = new Frames(EzCropY(ship, TOPDECKH, 200 - TOPDECKH));
 
+  window.starframes = [];
+  for (let i = 0; i < 16; i++) {
+    window.starframes.push(new EzStar(STARCOLORS[i % STARCOLORS.length]));
+  }
+  
   // UI elements
   window.inv_icon = EzFrames(['inv-icon', 1]);
   window.inventory = EzFrames(['inventory', 1]);
@@ -94,12 +117,6 @@ Item.prototype.MaskAt = function(x, y) {
 
 function InitGame() {
 
-  window.playerx = 18;
-  window.playery = 34;
-  window.playerdx = 0;
-  window.playerdy = 0;
-  window.facingleft = true;
-
   window.phase = PHASE_GAME;
 
   window.ents = {};
@@ -117,8 +134,8 @@ function InitGame() {
 			   'player2', 2],
 			  68,
 			  46);
-  player.worldx = 79;
-  player.worldy = 164;
+  player.worldx = WIDTH * 5 + 122;
+  player.worldy = 160;
   player.facer = EzFrames(['face-right', 280,
 			   'face-right-blink', 2,
 			   'face-right', 68,
@@ -127,13 +144,11 @@ function InitGame() {
   player.Draw = function(x, y) {
     this.SuperDraw(x, y);
     DrawFrame(this.facingleft ? this.facel : this.facer,
-	      x + FACEX, y + FACEY);
+	      x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
   };
 		       
   window.ents.player = window.player;
 		       
-  // XXX ent for player
-  
   const MASK2x2 = ['**',
 		   '**'];
   const MASK1x1 = ['*'];
@@ -230,9 +245,52 @@ function InvUsed(x, y) {
   return false;
 }
 
+let stars = [];
+
+function SpawnStar() {
+  return {x: GAMEWIDTH, y : 0 | (Math.random() * (HEIGHT - 1)),
+	  // Not integral
+	  dx: 0.1 + (Math.random() * -4.0) };
+}
+
+function DrawStars() {
+  for (let i = 0; i < stars.length; i++) {
+    let star = stars[i];
+    if (star) {
+      let x = (0 | star.x) - scrollx;
+      if (x >= 0 && x < WIDTH) {
+	DrawFrame(window.starframes[i % window.starframes.length],
+		  0 | star.x, star.y);
+      }
+    }
+  }
+}
+function UpdateStars() {
+  for (let i = 0; i < stars.length; i++) {
+    if (stars[i] == null) {
+      stars[i] = SpawnStar();
+    } else {
+      let star = stars[i];
+      star.x += star.dx;
+      if (star.x < 0)
+	stars[i] = null;
+    }
+  }
+}
+
+function InitStars() {
+  for (let i = 0; i < MAXSTARS; i++) {
+    let star = SpawnStar();
+    star.x = Math.random() * GAMEWIDTH;
+    stars.push(star);
+  }
+}
+
 function DrawGame() {
-  // ClearScreen();
-  DrawFrame(window.background, 0, 0);
+  ClearScreen();
+  DrawStars();
+  // DrawFrame(window.background, 0, 0);
+  DrawFrame(window.botdeckbg, -scrollx, TOPDECKH);
 
   // draw inventory icon
   // TODO: hover/open state?
@@ -245,13 +303,15 @@ function DrawGame() {
   spacefont.Draw(ctx, 238, 180, "USE");
   spacefont.Draw(ctx, 277, 180, "DROP");
 
+  font.Draw(ctx, 1, 1, "USE ID WITH CARD READER");
+  
   // Draw items in the world. XXX need scrollin'
   // TODO: may need to handle upper/lower deck
   for (let o in items) {
     let item = items[o];
     if (item.worldx != null) {
       DrawFrame(item.worldframes,
-		item.worldx,
+		item.worldx - scrollx,
 		item.worldy);
     }
   }
@@ -260,11 +320,14 @@ function DrawGame() {
   for (let o in ents) {
     let ent = ents[o];
     if (ent.worldx != null) {
-      ent.Draw(ent.worldx - ent.halfwidth, ent.worldy - ent.height);
+      ent.Draw(ent.worldx - ent.halfwidth - scrollx,
+	       ent.worldy - ent.height);
     }
   }
   // Draw the scene. TODO: two layers for upper and lower decks
 
+  DrawFrame(window.topdeckbg, -scrollx, 0);
+  
   if (window.inventoryopen) {
     // Above everything: Inventory
     DrawFrame(window.inventory, INVX, INVY);
@@ -337,28 +400,9 @@ function Step(time) {
 
   frames++;
   if (frames > 1000000) frames = 0;
-
-  /*
-  if (window.playerdx > 2.0) window.playerdx = 2.0;
-  else if (window.playerdx < -2.0) window.playerdx = -2.0;
+    
+  UpdateStars();
   
-  window.playerx += window.playerdx;
-  window.playery += window.playerdy;
-  if (window.playerx < 6) window.playerx = 6;
-  if (window.playerx > 300) window.playerx = 300;
-  if (window.playery < 6) window.playery = 6;
-  if (window.playery > 111) {
-    window.playery = 111;
-    window.playerdy *= -0.5;
-  }
-  window.playerdy += 0.05;
-
-  if (window.playerdx < -0.5)
-    window.facingleft = true;
-  else if (window.playerdx > 0.5)
-    window.facingleft = false;
-  */
-
   for (var o in ents) {
     let ent = ents[o];
     if (ent.targetx != null) {
@@ -391,7 +435,18 @@ function Step(time) {
       }
     }
   }
-  
+
+
+  // Update here or in Draw?
+  if (player.worldx - SCROLLMARGIN < scrollx) {
+    let target = player.worldx - SCROLLMARGIN;
+    scrollx = Math.round(((scrollx * 7) + target) * 0.125);
+    // scrollx--;
+  } else if (player.worldx + SCROLLMARGIN > scrollx + WIDTH) {
+    let target = player.worldx + SCROLLMARGIN - WIDTH;
+    // scrollx++;
+    scrollx = Math.round(((scrollx * 7) + target) * 0.125);
+  }
   
   UpdateSong();
 
@@ -418,7 +473,8 @@ function Step(time) {
 function Start() {
   Init();
   InitGame();
-
+  InitStars();
+  
   // window.phase = PHASE_TITLE;
   // StartSong(song_theme_maj);
 
@@ -473,7 +529,7 @@ function CanvasMousedownGame(x, y) {
 
     // XXX test that it's in bounds, not item, etc.
     // (double-click to walk?!)
-    player.targetx = x;
+    player.targetx = scrollx + x;
     player.targety = y;
     
     // TODO:
