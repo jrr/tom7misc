@@ -17,3 +17,8 @@ var FONTOVERLAP = 1;
 var FONTCHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
     "abcdefghijklmnopqrstuvwxyz0123456789`-=" +
     "[]\\;',./~!@#$%^&*()_+{}|:\"<>?";
+
+var LFACEX = 26;
+var FACEX = 31;
+var FACEY = 11;
+
