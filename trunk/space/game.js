@@ -124,8 +124,8 @@ function InitGame() {
 				 // no moving anim
 				 ['grateguy', 1],
 				 30, 65);
-  window.ents.grateguy.worldx = 169;
-  window.ents.grateguy.worldy = 24;
+  window.ents.grateguy.worldx = 1140;
+  window.ents.grateguy.worldy = 91;
 
   window.player = new Ent(['player1', 1],
 			  ['player1', 9,
@@ -222,16 +222,17 @@ Ent.prototype.GetFrames = function() {
     return moving ? this.movel : this.standl;
   else
     return moving ? this.mover : this.standr;
-}
+};
   
 Ent.prototype.SuperDraw = function(x, y) {
-  DrawFrame(this.GetFrames(), x, y);
-}
+  const f = this.GetFrames();
+  DrawFrame(f, x, y);
+};
 
 // passed top-left corner (y - height).
 Ent.prototype.Draw = function(x, y) {
-  this.SuperDraw(this.worldx, this.worldy);
-}
+  this.SuperDraw(x, y);
+};
   
 // Returns null if nothing, otherwise, the item.
 function InvUsed(x, y) {
@@ -250,7 +251,7 @@ let stars = [];
 function SpawnStar() {
   return {x: GAMEWIDTH, y : 0 | (Math.random() * (HEIGHT - 1)),
 	  // Not integral
-	  dx: 0.1 + (Math.random() * -4.0) };
+	  dx: -0.1 + (Math.random() * -4.0) };
 }
 
 function DrawStars() {
@@ -260,7 +261,7 @@ function DrawStars() {
       let x = (0 | star.x) - scrollx;
       if (x >= 0 && x < WIDTH) {
 	DrawFrame(window.starframes[i % window.starframes.length],
-		  0 | star.x, star.y);
+		  x, star.y);
       }
     }
   }
@@ -282,14 +283,37 @@ function InitStars() {
   for (let i = 0; i < MAXSTARS; i++) {
     let star = SpawnStar();
     star.x = Math.random() * GAMEWIDTH;
+    star.dx = -0.1 + (Math.random() * -4.0);
     stars.push(star);
+  }
+}
+
+function DrawItemsWhen(cond) {
+  // Draw items in the world.
+  for (let o in items) {
+    let item = items[o];
+    if (item.worldx != null && cond(item)) {
+      DrawFrame(item.worldframes,
+		item.worldx - scrollx,
+		item.worldy);
+    }
+  }
+}
+
+function DrawEntsWhen(cond) {
+  for (let o in ents) {
+    let ent = ents[o];
+    if (ent.worldx != null && cond(ent)) {
+      ent.Draw(ent.worldx - ent.halfwidth - scrollx,
+	       ent.worldy - ent.height);
+    }
   }
 }
 
 function DrawGame() {
   ClearScreen();
   DrawStars();
-  // DrawFrame(window.background, 0, 0);
+
   DrawFrame(window.botdeckbg, -scrollx, TOPDECKH);
 
   // draw inventory icon
@@ -304,29 +328,16 @@ function DrawGame() {
   spacefont.Draw(ctx, 277, 180, "DROP");
 
   font.Draw(ctx, 1, 1, "USE ID WITH CARD READER");
-  
-  // Draw items in the world. XXX need scrollin'
-  // TODO: may need to handle upper/lower deck
-  for (let o in items) {
-    let item = items[o];
-    if (item.worldx != null) {
-      DrawFrame(item.worldframes,
-		item.worldx - scrollx,
-		item.worldy);
-    }
-  }
 
-  // XXX scrolling
-  for (let o in ents) {
-    let ent = ents[o];
-    if (ent.worldx != null) {
-      ent.Draw(ent.worldx - ent.halfwidth - scrollx,
-	       ent.worldy - ent.height);
-    }
-  }
-  // Draw the scene. TODO: two layers for upper and lower decks
+  // Objects need to be clipped by the top deck, so only
+  // draw lower deck items first...
+  DrawItemsWhen((item) => item.worldy > TOPDECKH);
+  DrawEntsWhen((ent) => ent.worldy > TOPDECKH);
 
   DrawFrame(window.topdeckbg, -scrollx, 0);
+  
+  DrawItemsWhen((item) => item.worldy <= TOPDECKH);
+  DrawEntsWhen((ent) => ent.worldy <= TOPDECKH);
   
   if (window.inventoryopen) {
     // Above everything: Inventory
@@ -503,7 +514,7 @@ function InRect(x, y, x0, y0, w, h) {
 */
 
 function CanvasMousedownGame(x, y) {
-  console.log('click ', x, y);
+  console.log('click ', x, y, " = global ", scrollx + x, y);
   if (window.inventoryopen) {
     // TODO: First check action clicks, since these are the
     // only thing outside the inventory itself that don't close it
@@ -601,7 +612,8 @@ document.onkeydown = function(event) {
 
   // console.log('key: ' + event.keyCode);
 
-  switch (event.keyCode) {
+  const kc = event.keyCode;
+  switch (kc) {
   case 32:  // SPACE
     if (window.phase == PHASE_TITLE) {
       ClearSong();
@@ -616,14 +628,15 @@ document.onkeydown = function(event) {
   case 88:  // x
     break;
     
+  case 49: 
+  case 50:
+  case 51:
+  case 52:
+  case 53:
+  case 54:
+    player.worldx = WIDTH * (kc - 49 + 0.5); break;
     /*
-    case 49: window.phase = PHASE_PUZZLE; Level1(); break;
-    case 50: window.phase = PHASE_PUZZLE; Level2(); break;
-    case 51: window.phase = PHASE_PUZZLE; Level3(); break;
-    case 52: window.phase = PHASE_PUZZLE; Level4(); break;
-    case 53: window.phase = PHASE_PUZZLE; Level5(); break;
-    case 54: window.phase = PHASE_PUZZLE; Level6(); break;
-    case 55: window.phase = PHASE_PUZZLE; Level7(); break;
+  case 55: window.phase = PHASE_PUZZLE; Level7(); break;
     case 9:
     if (window.cutscene) {
       var cuts = window.cutscenes[window.cutscene];
