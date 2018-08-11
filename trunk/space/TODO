@@ -2,10 +2,7 @@
 For space game
 
 saturday morning:
- - full spaceship sketch
- - scroll map
  - inventory working
- - click to walk to point
 
 saturday
  - game basically working
@@ -22,7 +19,6 @@ saturday
    shared edge, for example). Can enable/disable areas as game progresses.
     (areas could each specify a scroll position for the map?)
        - maybe edit these in-game?
-
 
  - Ent "Talk" method
 
@@ -45,21 +41,20 @@ must have
  - come up with efficient art "look"
  - title screen with name on it
  - way to define walkable area
- - click to walk to spot
  - some way to limit dropping inventory?
- - draw split-level
  - script autonomous / asynchronous npc actions
  - color font (for mouseover effect)
  - incorporate "normal" (dissonant) title theme (at end?)
 
 nice
- - animate grate guy while he's standing there. whistle (notes)
+ - slow smooth space background (nebulae etc.). Helps highlight
+    the font and ship outline, looks better
+ - animate grate guy while he's standing there. whistle (notes) (sfx?)
    tap toe, look left and right
 
  - animate egg
  - intro scene, warping to ship
  - (MUTE) state instead of SILENCED
- - slow parallax stars for background always
  - title theme could be improved
  - slow down title theme a little
  - make it work with touch events 
