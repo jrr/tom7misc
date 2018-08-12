@@ -1655,94 +1655,96 @@ function Step(time) {
   frames++;
   if (frames > 1000000) frames = 0;
 
-  if (fadeout) {
-    fadeframes--;
-    if (fadeframes == Math.round(MAXFADEFRAMES / 2)) {
-      StartSong(song_theme);
-    }
-  }
-
-  if (dropscene == false && player.worldx < 1200) {
-    dropscene = true;
-    script = [
-      new ScriptSay(ents.grateguy, "Ugh..."),
-      new ScriptDelay(60),
-      new ScriptSay(ents.grateguy, "I can't believe I dropped my ID card"),
-      new ScriptSay(ents.grateguy, "down the vent again..."),
-    ];
-  }
-  
-  UpdateStars();
-
-  DoSentence();
-
-  DoScript();
-  
-  // Update entities.
-  for (var o in ents) {
-    let ent = ents[o];
-    // Timeout text
-    if (ent.msgq.length > 0) {
-      if (ent.msgtime == 0) {
-        ent.msgq.shift(1);
-        if (ent.msgq.length > 0) {
-          ent.msgtime = MSGTIME;
-        }
-      } else {
-        ent.msgtime--;
+  if (window.phase == PHASE_GAME) {
+    if (fadeout) {
+      fadeframes--;
+      if (fadeframes == Math.round(MAXFADEFRAMES / 2)) {
+	StartSong(song_theme);
       }
     }
+
+    if (dropscene == false && player.worldx < 1200) {
+      dropscene = true;
+      script = [
+	new ScriptSay(ents.grateguy, "Ugh..."),
+	new ScriptDelay(60),
+	new ScriptSay(ents.grateguy, "I can't believe I dropped my ID card"),
+	new ScriptSay(ents.grateguy, "down the vent again..."),
+      ];
+    }
+
+    UpdateStars();
+
+    DoSentence();
+
+    DoScript();
+
+    // Update entities.
+    for (var o in ents) {
+      let ent = ents[o];
+      // Timeout text
+      if (ent.msgq.length > 0) {
+	if (ent.msgtime == 0) {
+	  ent.msgq.shift(1);
+	  if (ent.msgq.length > 0) {
+	    ent.msgtime = MSGTIME;
+	  }
+	} else {
+	  ent.msgtime--;
+	}
+      }
+
+      // Move towards targets
+      if (ent.route.length > 0) {
+	let targetx = ent.route[0].x;
+	let targety = ent.route[0].y;
+
+	const dx = targetx - ent.worldx
+	const dy = targety - ent.worldy;
+	// At target?
+	if (Math.abs(dx) <= ent.xspeed &&
+	    Math.abs(dy) <= ent.yspeed) {
+	  ent.worldx = targetx;
+	  ent.worldy = targety;
+	  ent.route.shift(1);
+	  continue;
+	}
+
+	// XXX use bresenham
+	// XXX avoid obstacles if non-convex?
+	if (Math.abs(dx) <= ent.xspeed) {
+	  ent.worldx = targetx;
+	} else {
+	  ent.worldx += dx < 0 ? -ent.xspeed : ent.xspeed;
+	  if (dx < 0) ent.facingleft = true;
+	  else if (dx > 0) ent.facingleft = false;
+	}
+
+	if (Math.abs(dy) <= ent.yspeed) {
+	  ent.worldy = targety;
+	} else {
+	  ent.worldy += dy < 0 ? -ent.yspeed : ent.yspeed;
+	}
+      }
+    }
+
+
+    // XXX also when on bridge
+    // Update here or in Draw?
+    let smleft = player.worldx < 655 ? 230 : SCROLLMARGIN;
+    let smright = player.worldx < 655 ? 80 : SCROLLMARGIN;
+    if (player.worldx - smleft < scrollx) {
+      let target = player.worldx - smleft;
+      scrollx = Math.round(((scrollx * 7) + target) * 0.125);
+      // scrollx--;
+    } else if (player.worldx + smright > scrollx + WIDTH) {
+      let target = player.worldx + smright - WIDTH;
+      // scrollx++;
+      scrollx = Math.round(((scrollx * 7) + target) * 0.125);
+    }
+    if (scrollx < 0) scrollx = 0;
+  }
     
-    // Move towards targets
-    if (ent.route.length > 0) {
-      let targetx = ent.route[0].x;
-      let targety = ent.route[0].y;
-      
-      const dx = targetx - ent.worldx
-      const dy = targety - ent.worldy;
-      // At target?
-      if (Math.abs(dx) <= ent.xspeed &&
-          Math.abs(dy) <= ent.yspeed) {
-        ent.worldx = targetx;
-        ent.worldy = targety;
-	ent.route.shift(1);
-        continue;
-      }
-
-      // XXX use bresenham
-      // XXX avoid obstacles if non-convex?
-      if (Math.abs(dx) <= ent.xspeed) {
-        ent.worldx = targetx;
-      } else {
-        ent.worldx += dx < 0 ? -ent.xspeed : ent.xspeed;
-        if (dx < 0) ent.facingleft = true;
-        else if (dx > 0) ent.facingleft = false;
-      }
-      
-      if (Math.abs(dy) <= ent.yspeed) {
-        ent.worldy = targety;
-      } else {
-        ent.worldy += dy < 0 ? -ent.yspeed : ent.yspeed;
-      }
-    }
-  }
-
-
-  // XXX also when on bridge
-  // Update here or in Draw?
-  let smleft = player.worldx < 655 ? 230 : SCROLLMARGIN;
-  let smright = player.worldx < 655 ? 80 : SCROLLMARGIN;
-  if (player.worldx - smleft < scrollx) {
-    let target = player.worldx - smleft;
-    scrollx = Math.round(((scrollx * 7) + target) * 0.125);
-    // scrollx--;
-  } else if (player.worldx + smright > scrollx + WIDTH) {
-    let target = player.worldx + smright - WIDTH;
-    // scrollx++;
-    scrollx = Math.round(((scrollx * 7) + target) * 0.125);
-  }
-  if (scrollx < 0) scrollx = 0;
-  
   UpdateSong();
 
   Draw();
