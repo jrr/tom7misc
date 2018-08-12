@@ -6,7 +6,6 @@ sunday
  - but the "engine" is almost working
 
 10 things:
- - grate guy death
  - shooting guy puzzle
  - airlock puzzle
  - captain puzzle
@@ -45,15 +44,9 @@ assets
  - mouth moving face for talking out loud
 
 must have
- - ability to enable/disable areas (doors)
- - ability to move between top and bottom decks
  - name for game
  - come up with efficient art "look"
  - title screen with name on it
- - way to define walkable area
- - some way to limit dropping inventory?
- - script autonomous / asynchronous npc actions
- - color font (for mouseover effect)
  - incorporate "normal" (dissonant) title theme (at end?)
 
 nice
