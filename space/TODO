@@ -1,28 +1,13 @@
 
 For space game
 
-saturday morning:
- - actually dropping things in inventory
- - moving things in inventory
- - inventory working
-
 saturday
  - game basically working
  - start to finish playable?
  - are all music channels playing?
- - inventory management: When I try to pick something up,
-   how do I show that there's no space for it?
-      - one solution is that "GET" automatically opens
-        the inventory and makes your cursor that object?
-      - need to think the mechanics through here.
-
- - path planning. Make a set of rectangular areas. When clicking
-   to move, can plan a path between adjacent areas (walk to closest point on
-   shared edge, for example). Can enable/disable areas as game progresses.
-    (areas could each specify a scroll position for the map?)
-       - maybe edit these in-game?
 
 assets
+ - set up areas for whole game
  - teleport entrance anim
  - main game atmospheric music
  - grate guy
@@ -38,6 +23,8 @@ assets
  - mouth moving face for talking out loud
 
 must have
+ - ability to enable/disable areas (doors)
+ - ability to move between top and bottom decks
  - name for game
  - come up with efficient art "look"
  - title screen with name on it
@@ -48,6 +35,7 @@ must have
  - incorporate "normal" (dissonant) title theme (at end?)
 
 nice
+ - improve path planning if areas have cycles...
  - slow smooth space background (nebulae etc.). Helps highlight
     the font and ship outline, looks better
  - animate grate guy while he's standing there. whistle (notes) (sfx?)
@@ -67,11 +55,6 @@ polish
  - clean up and shade main character arms
  - fix click sound in title theme
  - lowercase space font?
-
-ideas / notes:
- - maybe you start with a bunch of eggs in inventory, and this
-   gates your progress, because you refuse to put them down
-   except by ovopositing them in a dead body?
 
 how many humans? 4 eggs in inventory would fit, but no more (if 2x2)
 could also be non-human enemies (e.g. cyborg crewmate)

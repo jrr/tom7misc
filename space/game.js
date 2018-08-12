@@ -1,4 +1,4 @@
-
+Area
 let counter = 0, skipped = 0;
 let start_time = (new Date()).getTime();
 
@@ -29,6 +29,8 @@ let sentence = null;
 //   worldx, worldy: coordinates item will return to if canceled (or null)
 //   invx, invy: same, for inventory}
 let grabitem = null;
+
+let areas = [];
 
 const resources = new Resources(
   ['font.png',
@@ -72,6 +74,74 @@ const STARCOLORS = [
   0xFFAAAA,
   0xAAFFFF
 ];
+
+// Rectangular region of "ground" where the player can walk.
+// Connected to adjacent areas, to allow for rudimentary planning
+// between them.
+// x2,y2 not included in the area.
+function Area(x, y, x2, y2) {
+  this.x = x;
+  this.y = y;
+  this.x2 = x2;
+  this.y2 = y2;
+  this.w = x2 - x;
+  this.h = y2 - y;
+  this.e = [];
+  this.idx = null;
+  return this;
+}
+
+function AreaFor(x, y) {
+  // PERF need not be linear.
+  for (let a of areas) {
+    if (x >= a.x && x < a.x2 &&
+	y >= a.y && y < a.y2)
+      return a;
+  }
+  return null;
+}
+
+// For an entity at srcx/srcy, plan a route to dstx/dsty.
+// The route will consist of a series of waypoints which lie
+// on the edges of areas, except for maybe the final point.
+// null if no path.
+function Route(srcx, srcy, dstx, dsty) {
+  let srca = AreaFor(srcx, srcy);
+  if (!srca) return null;
+  let dsta = AreaFor(dstx, dsty);
+  if (!dsta) return null;
+
+  if (srca == dsta) {
+    // console.log('same-area route');
+    return [{x:dstx, y: dsty}];
+  }
+ 
+  // XXX Should do a shortest path thing here.
+  // In the presence of cycles, this can do
+  // dumb stuff like walk around an obstacle to
+  // get to a place I'm right next to.
+  let visited = {};
+
+  let RouteRec = (ar) => {
+    if (visited[ar.idx]) return null;
+    visited[ar.idx] = true;
+    if (ar == dsta) return [];
+    for (let e of ar.e) {
+      let r = RouteRec(e.other);
+      if (r != null) {
+	r.push({x: e.x, y: e.y});
+	return r;
+      }
+    }
+    return null;
+  };
+
+  let path = RouteRec(srca);
+  if (path == null) return null;
+  path.reverse();
+  path.push({x: dstx, y: dsty});
+  return path;
+}
 
 function Init() {
   window.font = new Font(resources.Get('font.png'),
@@ -138,8 +208,6 @@ function GrabitemInv() {
   let x = mousex - (INVITEMSIZE * grabitem.item.cellsw) / 2;
   let y = mousey - (INVITEMSIZE * grabitem.item.cellsh) / 2;
 
-  // DrawFrame(starframes[0], x, y);
-  
   let invx = Math.round((x - INVCONTENTSX) / INVITEMSIZE);
   let invy = Math.round((y - INVCONTENTSY) / INVITEMSIZE);
   if (invx >= 0 && invy >= 0 &&
@@ -338,9 +406,9 @@ function Ent(name, stand, move, wd, ht) {
   this.worldx = null;
   this.worldy = null;
 
-  // If non-null, we're walking to this target spot.
-  this.targetx = null;
-  this.targety = null;
+  // If non-empty, we're walking to this series of
+  // target spots, from front to back.
+  this.route = [];
 
   // Current frames.
   this.standr = EzFrames(stand);
@@ -372,9 +440,7 @@ Ent.prototype.LookString = function() {
 };
 
 Ent.prototype.GetFrames = function() {
-  const moving = this.targetx != null &&
-        (this.worldx != this.targetx ||
-         this.worldy != this.targety);
+  const moving = this.route.length > 0;
   
   if (this.facingleft)
     return moving ? this.movel : this.standl;
@@ -505,13 +571,10 @@ function GetSentenceAt(x, y) {
   if (grabitem != null)
     return;
   
-  // If we have no sentence, we can always pick a verb
-  // (XXX: NOT if we've grabbed an item and need to put it in
-  // inventory, though)
+  // If we have no sentence and no grabitem, we can always pick a verb
   if (sentence == null && y > ACTY) {
     for (let act of ACTIONS) {
       if (InRect(mousex, mousey, act)) {
-        console.log('start sentence ', VerbString(act.verb));
         return { verb: act.verb, obj1: null, obj2: null };
         return;
       }
@@ -627,6 +690,20 @@ function DrawGame() {
   
   DrawItemsWhen((item) => item.worldy <= TOPDECKH);
   DrawEntsWhen((ent) => ent.worldy <= TOPDECKH);
+
+  // XXX debugging.
+  for (let area of areas) {
+    ctx.fillStyle = 'rgba(200,200,0,0.25)';
+    ctx.strokeStyle = '#00F';
+    ctx.fillRect(area.x - scrollx, area.y, area.w, area.h);
+    ctx.strokeRect(area.x - scrollx, area.y, area.w, area.h);
+
+    for (e of area.e) {
+      // console.log('edge to ', e.other, e.x, e.y);
+      ctx.fillStyle = '#F00';
+      ctx.fillRect(e.x - scrollx, e.y, 1, 1);
+    }
+  }
   
   if (window.inventoryopen) {
     // Above game stuff: Inventory
@@ -728,8 +805,10 @@ function DoSentence() {
   // Every verb needs a first object, at least.
   if (sentence.obj1 == null)
     return;
-  
+
   // Any special casing should go here.
+
+
   
   switch (sentence.verb) {
   case VERB_GRAB: {
@@ -791,6 +870,12 @@ function DoSentence() {
     
     break;
   case VERB_USE:
+    if (sentence.obj1.invx == null) {
+      player.Say("I NEED TO *GRAB* IT FIRST.");
+      sentence = null;
+      break;
+    }
+
     if (sentence.obj2 == null)
       return;
 
@@ -846,23 +931,25 @@ function Step(time) {
     }
     
     // Move towards targets
-    if (ent.targetx != null) {
-      const dx = ent.targetx - ent.worldx
-      const dy = ent.targety - ent.worldy;
+    if (ent.route.length > 0) {
+      let targetx = ent.route[0].x;
+      let targety = ent.route[0].y;
+      
+      const dx = targetx - ent.worldx
+      const dy = targety - ent.worldy;
       // At target?
       if (Math.abs(dx) <= ent.xspeed &&
           Math.abs(dy) <= ent.yspeed) {
-        ent.worldx = ent.targetx;
-        ent.worldy = ent.targety;
-        ent.targetx = null;
-        ent.targety = null;
+        ent.worldx = targetx;
+        ent.worldy = targety;
+	ent.route.shift(1);
         continue;
       }
 
       // XXX use bresenham
       // XXX avoid obstacles if non-convex?
       if (Math.abs(dx) <= ent.xspeed) {
-        ent.worldx = ent.targetx;
+        ent.worldx = targetx;
       } else {
         ent.worldx += dx < 0 ? -ent.xspeed : ent.xspeed;
         if (dx < 0) ent.facingleft = true;
@@ -870,7 +957,7 @@ function Step(time) {
       }
       
       if (Math.abs(dy) <= ent.yspeed) {
-        ent.worldy = ent.targety;
+        ent.worldy = targety;
       } else {
         ent.worldy += dy < 0 ? -ent.yspeed : ent.yspeed;
       }
@@ -911,8 +998,77 @@ function Step(time) {
   window.requestAnimationFrame(Step);
 }
 
+function InitAreas() {
+  areas = [
+    // Test
+    new Area(553, 73, 657, 102),
+    new Area(657, 79, 689, 102),
+    new Area(689, 73, 977, 102),
+
+    // Bottom floor
+    new Area(744, 139, 821, 146),
+    new Area(744, 160, 821, 169),
+    // these two could be merged?
+    new Area(821, 139, 1599, 169),
+    new Area(1599, 139, 1821, 169),    
+
+    new Area(608, 139, 744, 169)
+  ];
+
+  let Midpoint = (ap, bp, ap2, bp2) => {
+    let ip = Math.max(ap, bp);
+    let ip2 = Math.min(ap2, bp2);
+    if (ip >= ip2)
+      return null;
+    return Math.round((ip + ip2) / 2);
+  };
+
+  let AddEdge = (a1, a2, x, y) => {
+    a1.e.push({other: a2, x: x, y: y});
+    a2.e.push({other: a1, x: x, y: y});
+  };
+  
+  
+  for (let i = 0; i < areas.length; i++)
+    areas[i].idx = i;
+  
+  // PERF: Obviously, need not be quadratic. Fine for this game.
+  for (let i = 0; i < areas.length - 1; i++) {
+    let a = areas[i];
+    for (let j = i + 1; j < areas.length; j++) {
+      let b = areas[j];
+      // Check for touching edges. It has to be the case that
+      // the left edge touches the right edge of the other (or
+      // symmetric cases) -- left edge can't touch left edge.
+      if (a.x == b.x2) {
+	let y = Midpoint(a.y, b.y, a.y2, b.y2);
+	if (y != null) {
+	  AddEdge(a, b, a.x, y);
+	}
+      } else if (a.x2 == b.x) {
+	let y = Midpoint(a.y, b.y, a.y2, b.y2);
+	if (y != null) {
+	  AddEdge(b, a, b.x, y);
+	}
+      } else if (a.y == b.y2) {
+	let x = Midpoint(a.x, b.x, a.x2, b.x2);
+	if (x != null) {
+	  AddEdge(a, b, x, a.y);
+	}
+      } else if (a.y2 == b.y) {
+	let x = Midpoint(a.x, b.x, a.x2, b.x2);
+	if (x != null) {
+	  AddEdge(b, a, x, a.y2);
+	}
+      }
+    }
+  }
+  
+}
+
 function Start() {
   Init();
+  InitAreas();
   InitGame();
   InitStars();
   
@@ -950,8 +1106,7 @@ function CanvasMousedownGame(x, y) {
     sentence = sent;
     // Stop moving, since executing the sentence may give us
     // a new target.
-    player.targetx = null;
-    player.targety = null;
+    player.route = [];
     // XXX execute it...
     return;
   } 
@@ -1019,8 +1174,14 @@ function CanvasMousedownGame(x, y) {
     // XXX test that it's in bounds, not item, etc.
     // (double-click to walk?!)
     sentence = null;
-    player.targetx = globalx;
-    player.targety = y;
+    let route = Route(player.worldx, player.worldy,
+		      globalx, y);
+    if (route == null) {
+      // or just be quiet?
+      player.Say("I CAN'T GO THERE");
+      return;
+    }
+    player.route = route;
     
     // TODO:
     // click GET ITEM, open inventory...
