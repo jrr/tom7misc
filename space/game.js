@@ -52,7 +52,8 @@ const resources = new Resources(
    'player1.png',
    'player2.png',
    'player3.png',
-
+   'playerreachup.png',
+   
    'humanshadow.png',
    'humanback.png',
    'humanlegs.png',
@@ -68,6 +69,12 @@ const resources = new Resources(
    'fire2.png',
    'fire3.png',
    'fire4.png',
+   
+   'grate.png',
+   'grateguydeath1.png',
+   'grateguydeath2.png',
+   'grateguydeath3.png',
+   'grateguybody.png',
    
    'inv-icon.png',
    'inventory.png',
@@ -349,7 +356,7 @@ function ScriptDo(fn) {
 function ScriptDelay(fr) {
   this.fr = fr;
   this.Done = function () {
-    this.fr--;
+    this.fr = this.fr - 1;
     if (this.fr <= 0) return true;
   };
   return this;
@@ -413,7 +420,13 @@ function InitGame() {
   ents.grateguy = Human();
   ents.grateguy.worldx = 1724;
   ents.grateguy.worldy = 90;
-
+  ents.grateguy.grabbable = true;
+  ents.grateguy.actionx = 1100;
+  ents.grateguy.actiony = 146;
+  ents.grateguy.deathanim = EzFrames(['grateguydeath1', 20,
+				      'grateguydeath2', 30,
+				      'grateguydeath3', 500]);
+  
   ents.captain = Human();
   ents.captain.worldx = 1800;
   ents.captain.worldy = 94;
@@ -423,6 +436,7 @@ function InitGame() {
   player.worldy = 160;
 
   script = [
+/*
     new ScriptDelay(110),
     new ScriptGoto(ents.captain, 1812, 92),
     new ScriptSay(ents.captain, "What's that on radar?"),
@@ -433,7 +447,7 @@ function InitGame() {
     new ScriptDo(() => { ents.captain.facingleft = false; }),
     new ScriptSay(ents.captain, "It could be an alien race."),
     // TODO: more "story" here
-    
+*/    
     // go to grate.
     new ScriptGoto(ents.grateguy, 1139, 91),
     // drop card...?
@@ -487,8 +501,8 @@ function InitGame() {
                       MASK1x1);
 
   items.id.lookstring = "PLASTIC IN GOLDEN RATIO ASPECT";
-  items.id.worldx = 1125;
-  items.id.worldy = 140;
+  items.id.worldx = 1110;
+  items.id.worldy = 136;
   // XXX actionx
   
   items.extinguisher = new Item('CYLINDER',
@@ -515,6 +529,24 @@ function InitGame() {
   items.fire.actionx = 1662;
   items.fire.actiony = 158;
 
+  items.grate = new Item('GRATE',
+			 ['bug', 1],
+			 ['grate', 1],
+			 []);
+  items.grate.worldx = 1102;
+  items.grate.worldy = 77;
+  items.grate.grabbable = false;
+  items.grate.actionx = 1102;
+  items.grate.actiony = 146;
+  
+  items.grateguybody = new Item('BODY',
+				['bug', 1],
+				['grateguybody', 1],
+				[]);
+  items.grateguybody.worldx = null;
+  items.grateguybody.worldy = null;
+  items.grateguybody.grabbable = false;
+  
   console.log('initialized game');
 }
 
@@ -537,6 +569,12 @@ function Ent(name, wd, ht) {
   // target spots, from front to back.
   this.route = [];
 
+  // Just the grate guy.
+  this.grabbable = false;
+
+  this.actionx = null;
+  this.actiony = null;
+  
   this.facingleft = false;
 
   this.lookstring = null;
@@ -580,20 +618,27 @@ function Player() {
   let p = new Ent('ME', 68, 46);
   p.stand = EzRL(['player1', 1]);
   p.move = EzRL(['player1', 9,
-                    'player2', 2,
-                    'player3', 6,
-                    'player2', 2]);
+                 'player2', 2,
+                 'player3', 6,
+                 'player2', 2]);
   p.face = EzRL(['face-right', 280,
-                    'face-right-blink', 2,
-                    'face-right', 68,
-                    'face-right-blink', 2]);
+                 'face-right-blink', 2,
+                 'face-right', 68,
+                 'face-right-blink', 2]);
+  p.reachingupframes = EzRL(['playerreachup', 1]);
   p.sayfont = window.spacefont;
   p.lookstring = "IT ME :-)";
+  p.reachingup = false;
   p.Draw = function(x, y) {
     const moving = this.route.length > 0;
 
     let baseframes = moving ? this.move : this.stand;
-    this.DrawFacing(baseframes, x, y);
+    if (this.reachingup) {
+      // Just during grate anim.
+      this.DrawFacing(this.reachingupframes, x, y);
+    } else {
+      this.DrawFacing(baseframes, x, y);
+    }
     DrawFrame(this.facingleft ? this.face.l : this.face.r,
 	      x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
   };
@@ -615,15 +660,20 @@ function Human() {
   human.front = EzRL(['humanfront', 1]);
 
   human.lookstring = "LOOKS WARM";
-
+  human.dying = false;
+  
   human.Draw = function(x, y) {
-    const moving = this.route.length > 0;
+    if (this.dying) {
+      DrawFrame(this.deathanim, x, y);
+    } else {
+      const moving = this.route.length > 0;
 
-    let stack = [this.shadow, this.backarm,
-		 moving ? this.walklegs : this.legs,
-		 this.head, this.front];
-    for (let f of stack) {
-      this.DrawFacing(f, x, y);
+      let stack = [this.shadow, this.backarm,
+		   moving ? this.walklegs : this.legs,
+		   this.head, this.front];
+      for (let f of stack) {
+	this.DrawFacing(f, x, y);
+      }
     }
   };
   return human;
@@ -1035,7 +1085,42 @@ function DoSentence() {
     }
 
     // XXX handle grabbing grate guy
-    
+    if (obj == ents.grateguy) {
+      player.facingleft = false;
+      // should arrange for this to be false, but..
+      ents.grateguy.facingleft = false;
+      // XXX might be possible to do this before he gets
+      // to grate..?
+      script = [
+	new ScriptDo(() => {
+	  // Put player in reach-up state.
+	  player.reachingup = true;
+	  // XXX play grate anim.
+	}),
+	new ScriptDelay(10),
+	new ScriptDo(() => {
+	  // Wow hax, but otherwise this can start in the middle
+	  // of the animation...
+	  frames = 0;
+	  ents.grateguy.dying = true;
+	}),
+	new ScriptDelay(60),
+	new ScriptDo(() => {
+	  player.reachingup = false;
+	  // Despawn grate guy.
+	  ents.grateguy.worldx = null;
+	  // Spawn grate guy body.
+	  items.grateguybody.worldx = 1120;
+	  items.grateguybody.worldy = 138;
+	  items.grateguybody.actionx = 1138;
+	  items.grateguybody.actiony = 146;
+	  // Spawn screwdriver.
+	}),
+	new ScriptSay(player, "DIE!"),
+      ];
+      
+      sentence = null;
+    }
     break;
   }
   case VERB_LOOK: {
@@ -1543,6 +1628,10 @@ document.onkeydown = function(event) {
   case 52:
   case 53:
   case 54:
+    if (kc == 52) {
+      ents.grateguy.worldx = 1229;
+      ents.grateguy.worldy = 86;
+    }
     player.worldx = WIDTH * (kc - 49 + 0.5); break;
     /*
   case 55: window.phase = PHASE_PUZZLE; Level7(); break;
