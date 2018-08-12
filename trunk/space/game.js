@@ -51,6 +51,11 @@ const resources = new Resources(
    'humanlegs.png',
    'humanhead.png',
    'humanfront.png',   
+
+   'humanwalk1.png',
+   'humanwalk2.png',
+   'humanwalk3.png',
+   'humanwalk4.png',
    
    'inv-icon.png',
    'inventory.png',
@@ -461,6 +466,10 @@ function Human() {
   human.shadow = EzRL(['humanshadow', 1]);
   human.backarm = EzRL(['humanback', 1]);
   human.legs = EzRL(['humanlegs', 1]);
+  human.walklegs = EzRL(['humanwalk1', 6,
+			 'humanwalk2', 6,
+			 'humanwalk3', 6,
+			 'humanwalk4', 6]);
   human.head = EzRL(['humanhead', 1]);
   human.front = EzRL(['humanfront', 1]);
 
@@ -469,7 +478,9 @@ function Human() {
   human.Draw = function(x, y) {
     const moving = this.route.length > 0;
 
-    let stack = [this.shadow, this.backarm, this.legs, this.head, this.front];
+    let stack = [this.shadow, this.backarm,
+		 moving ? this.walklegs : this.legs,
+		 this.head, this.front];
     for (let f of stack) {
       this.DrawFacing(f, x, y);
     }
@@ -1010,7 +1021,10 @@ function InitAreas() {
     new Area(553, 73, 657, 102),
     new Area(657, 79, 689, 102),
     new Area(689, 73, 977, 102),
-
+    new Area(977, 77, 1010, 102),
+    // B full
+    new Area(1010, 73, 1297, 102),
+    
     // Bottom floor
     new Area(744, 139, 821, 146),
     new Area(744, 160, 821, 169),
@@ -1185,9 +1199,16 @@ function CanvasMousedownGame(x, y) {
     if (route == null) {
       // or just be quiet?
       player.Say("I CAN'T GO THERE");
-      return;
+    } else {
+      player.route = route;
     }
-    player.route = route;
+
+    // XXX
+    let r2 = Route(ents.grateguy.worldx,
+		   ents.grateguy.worldy,
+		   globalx, y);
+    if (r2 != null)
+      ents.grateguy.route = r2;
     
     // TODO:
     // click GET ITEM, open inventory...
