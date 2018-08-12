@@ -14,6 +14,12 @@ sunday
  - atmospheric music/sound
 
 
+ - don't need ID to enter airlock
+ - unexplained why both doors are closed at first
+
+bugs:
+ - if you ovoposit into space body when in airlock,
+   it fails to plan path?
 
 get extinguisher,
 put out fire,

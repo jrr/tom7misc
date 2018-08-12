@@ -88,6 +88,9 @@ const resources = new Resources(
    'inv-conflict.png',
    'inv-ok.png',
 
+   'energy.png',
+   'invenergy.png',
+   
    'screwdriver.png',
    'invscrewdriver.png',
    
@@ -111,10 +114,13 @@ const resources = new Resources(
    'nervous2.png',
    'airdying.png',
    'airbody.png',
+   'airbody2.png',
 
    'airlockclosed1.png',
    'airlockclosed2.png',
    'airlockclosed3.png',
+   'airlockopen1.png',
+   'airlockopen2.png',
    
    'invextinguisher.png',
    'extinguisher.png',
@@ -473,6 +479,14 @@ function InitGame() {
   ents.airguy.deathanim = EzFrames(['airdying', 2]);
   ents.airguy.worldx = 494;
   ents.airguy.worldy = 89;
+
+  ents.airguy2 = Human();
+  ents.airguy2.nervousframes = EzRL(['nervous2', 2,
+				     'nervous1', 3]);
+  ents.airguy2.deathanim = EzFrames(['airdying', 2]);
+  ents.airguy2.worldx = 481;
+  ents.airguy2.worldy = 92;
+
   // ents.airguy.nervous = true;
   
   ents.captain = Human();
@@ -612,6 +626,20 @@ function InitGame() {
   // items.airlocktool.worldx = 1180;
   // items.airlocktool.worldy = 70;
 
+  items.airlock = new Item('AIRLOCK',
+			   ['bug', 1],
+			   ['airlockclosed1', 3,
+			    'airlockclosed2', 3,
+			    'airlockclosed3', 5,
+			    'airlockclosed2', 3],
+			   []);
+  items.airlock.worldx = 377;
+  items.airlock.worldy = 28;
+  items.airlock.open = false;
+  items.airlock.openframes = EzFrames(['airlockopen1', 6,
+				       'airlockopen2', 6]);
+  items.airlock.grabbable = false;
+  
   // Outside airlock
   items.release1 = new Item('PORT',
 			   ['bug', 1],
@@ -635,7 +663,7 @@ function InitGame() {
   items.release2.worldy = 36;
   items.release2.grabbable = false;
   items.release2.open = false;
-  items.release2.actionx = 432;
+  items.release2.actionx = 482;
   items.release2.actiony = 77;
 
   items.airbody = new Item('BODY',
@@ -646,6 +674,14 @@ function InitGame() {
   items.airbody.haseggs = false;
   items.airbody.worldx = null;
 
+  items.airbody2 = new Item('BODY',
+			    ['bug', 1],
+			    ['airbody2', 1],
+			    []);
+  items.airbody2.grabbable = false;
+  items.airbody2.haseggs = false;
+  items.airbody2.worldx = null;
+  
   items.airlockdoor = new Item('DOOR',
 			       ['bug', 1],
 			       ['airlockdoor', 1],
@@ -655,6 +691,17 @@ function InitGame() {
   items.airlockdoor.worldx = 533;
   items.airlockdoor.worldy = 37;
   items.airlockdoor.open = false;
+  
+  items.energy = new Item('NRG WEAPON',
+			  ['invenergy', 1],
+			  ['energy', 1],
+			  ['****',
+			   '  **',
+			   ' ***']);
+  items.energy.worldx = 529;
+  items.energy.worldy = 113;
+  items.energy.actionx = 541;
+  items.energy.actiony = 147;
   
   console.log('initialized game');
 }
@@ -1273,6 +1320,7 @@ function DoSentence() {
 	  // Better if this happened when you see him / talk to
 	  // him, but, ...
 	  ents.airguy.nervous = true;
+	  ents.airguy2.nervous = true;
 	}),
 	new ScriptSay(player, "DIE!"),
       ];
@@ -1400,11 +1448,13 @@ function DoSentence() {
 	airlockarea.enabled = true;
 	airlockdoorarea.enabled = false;
 	items.airlockdoor.open = false;
+	items.airlock.open = true;
       } else {
 	// Door to ship is open
 	airlockarea.enabled = false;
 	airlockdoorarea.enabled = true;
 	items.airlockdoor.open = true;
+	items.airlock.open = false;
       }
 	
       // If this is the first time, launch the human out
@@ -1415,21 +1465,29 @@ function DoSentence() {
 	  new ScriptSay(ents.airguy, "Wh..."),
 	  new ScriptDo(() => {
 	    ents.airguy.dying = true;
+	    ents.airguy2.dying = true;
 	  }),
 	  new ScriptAny(() => {
 	    ents.airguy.msgq = ['Noooo...'];
 	    ents.airguy.msgtime = 5;
 	    ents.airguy.worldx -= 3;
+	    ents.airguy2.worldx -= 4;
 	    if (ents.airguy.worldx < 250) {
 	      // despawn
 	      ents.airguy.worldx = null;
+	      ents.airguy2.worldx = null;	      
 	      // spawn body
 	      items.airbody.worldx = 200;
 	      items.airbody.worldy = 110;
 	      items.airbody.actionx = 213;
 	      items.airbody.actiony = 155;
 
-	      // spawn second ID
+	      items.airbody2.worldx = 120;
+	      items.airbody2.worldy = 80;
+	      items.airbody2.actionx = 120;
+	      items.airbody2.actiony = 110;
+	      
+	      // item out here?
 	      
 	      return true;
 	    }
@@ -1762,6 +1820,12 @@ function CanvasMousedownGame(x, y) {
       window.inventoryopen = true;
     }
 
+    if (sentence.verb == VERB_USE &&
+	sentence.obj1 != null &&
+	sentence.obj2 == null) {
+      window.inventoryopen = false;
+    }
+    
     // Help you figure this one out...
     if (sentence.verb == VERB_OVO &&
 	sentence.obj1 != null &&
