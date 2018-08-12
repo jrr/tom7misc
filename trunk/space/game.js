@@ -93,9 +93,28 @@ const resources = new Resources(
    
    'id.png',
    'invid.png',
-   
+
+   'bulge.png',
+   'bulgeopen.png',
+
    'airlocktool.png',
    'invairlocktool.png',
+
+   'airlockdoorfg.png',
+   'airlockdoor.png',
+   'airlockdooropen.png',
+   
+   'release.png',
+   'releaseopen.png',
+   
+   'nervous1.png',
+   'nervous2.png',
+   'airdying.png',
+   'airbody.png',
+
+   'airlockclosed1.png',
+   'airlockclosed2.png',
+   'airlockclosed3.png',
    
    'invextinguisher.png',
    'extinguisher.png',
@@ -379,7 +398,7 @@ function ScriptDelay(fr) {
 }
 
 // Wait until function returns true
-function ScriptWait(fn) {
+function ScriptAny(fn) {
   this.Done = fn;
   return this;
 }
@@ -431,6 +450,11 @@ function InitGame() {
   
   window.phase = PHASE_GAME;
 
+  window.fgs = [];
+  let fgs = window.fgs;
+  fgs.push({f: EzFrames(['airlockdoorfg', 1]),
+	    x: 523, y: 15});
+  
   window.ents = {};
   let ents = window.ents;
   ents.grateguy = Human();
@@ -442,6 +466,14 @@ function InitGame() {
   ents.grateguy.deathanim = EzFrames(['grateguydeath1', 20,
 				      'grateguydeath2', 30,
 				      'grateguydeath3', 500]);
+
+  ents.airguy = Human();
+  ents.airguy.nervousframes = EzRL(['nervous1', 3,
+				    'nervous2', 3]);
+  ents.airguy.deathanim = EzFrames(['airdying', 2]);
+  ents.airguy.worldx = 494;
+  ents.airguy.worldy = 89;
+  // ents.airguy.nervous = true;
   
   ents.captain = Human();
   ents.captain.worldx = 1800;
@@ -499,18 +531,7 @@ function InitGame() {
   items.egg3.invy = 0;
   items.egg4.invx = 6;
   items.egg4.invy = 0;
-  
-  items.airlocktool = new Item('TOOL',
-                               ['invairlocktool', 1],
-                               ['airlocktool', 1],
-                               [' **',
-                                ' * ',
-                                '** ']);
-  items.airlocktool.lookstring = "WIGGLY METAL";
-  items.airlocktool.worldx = 1180;
-  items.airlocktool.worldy = 70;
-  // XXX actionx
-  
+    
   items.id = new Item('CARD',
                       ['invid', 1],
                       ['id', 1],
@@ -569,6 +590,72 @@ function InitGame() {
 			       ['screwdriver', 1],
 			       ['***']);
 
+  items.bulge = new Item('BULGE',
+			 ['bug', 1],
+			 ['bulge', 1],
+			 []);
+  items.bulge.worldx = 1333;
+  items.bulge.worldy = 55;
+  items.bulge.actionx = 1336;
+  items.bulge.actiony = 82;
+  items.bulge.openframes = EzFrames(['bulgeopen', 1]);
+  items.bulge.open = false;
+  items.bulge.grabbable = false;
+  
+  items.airlocktool = new Item('TOOL',
+                               ['invairlocktool', 1],
+                               ['airlocktool', 1],
+                               [' **',
+                                ' * ',
+                                '** ']);
+  items.airlocktool.lookstring = "WIGGLY METAL";
+  // items.airlocktool.worldx = 1180;
+  // items.airlocktool.worldy = 70;
+
+  // Outside airlock
+  items.release1 = new Item('PORT',
+			   ['bug', 1],
+			   ['release', 1],
+			    []);
+  items.release1.openframes = EzFrames(['releaseopen', 1]);
+  items.release1.worldx = 562;
+  items.release1.worldy = 36;
+  items.release1.grabbable = false;
+  items.release1.open = false;
+  items.release1.actionx = 599;
+  items.release1.actiony = 75;
+
+  // Inside airlock
+  items.release2 = new Item('PORT',
+			   ['bug', 1],
+			   ['release', 1],
+			   []);
+  items.release2.openframes = EzFrames(['releaseopen', 1]);
+  items.release2.worldx = 490;
+  items.release2.worldy = 36;
+  items.release2.grabbable = false;
+  items.release2.open = false;
+  items.release2.actionx = 432;
+  items.release2.actiony = 77;
+
+  items.airbody = new Item('BODY',
+			   ['bug', 1],
+			   ['airbody', 1],
+			   []);
+  items.airbody.grabbable = false;
+  items.airbody.haseggs = false;
+  items.airbody.worldx = null;
+
+  items.airlockdoor = new Item('DOOR',
+			       ['bug', 1],
+			       ['airlockdoor', 1],
+			       []);
+  items.airlockdoor.openframes = EzFrames(['airlockdooropen', 1]);
+  items.airlockdoor.grabbable = false;
+  items.airlockdoor.worldx = 533;
+  items.airlockdoor.worldy = 37;
+  items.airlockdoor.open = false;
+  
   console.log('initialized game');
 }
 
@@ -698,6 +785,8 @@ function Human() {
   human.Draw = function(x, y) {
     if (this.dying) {
       DrawFrame(this.deathanim, x, y);
+    } else if (this.nervous) {
+      this.DrawFacing(this.nervousframes, x, y);
     } else {
       const moving = this.route.length > 0;
 
@@ -953,6 +1042,10 @@ function DrawGame() {
   DrawItemsWhen((item) => item.worldy <= TOPDECKH);
   DrawEntsWhen((ent) => ent.worldy <= TOPDECKH);
 
+  for (let f of window.fgs) {
+    DrawFrame(f.f, f.x - scrollx, f.y);
+  }
+  
   if (show_areas) {
     for (let area of areas) {
       ctx.fillStyle =
@@ -968,7 +1061,9 @@ function DrawGame() {
       }
     }
   }
-    
+
+ 
+  
   if (window.inventoryopen) {
     // Above game stuff: Inventory
     let pos = GrabitemInv();
@@ -1072,6 +1167,13 @@ function DoSentence() {
 
   // Any special casing should go here.
 
+  // Make it easier to just click this thing to see it.
+  if (sentence.verb == VERB_LOOK &&
+      sentence.obj == items.bulge &&
+      !items.bulge.open) {
+    sentence.verb = VERB_GRAB;
+  }
+  
   // Returns true if we're there and can proceed.
   let Goto = (obj) => {
     // Can do from anywhere.
@@ -1117,6 +1219,14 @@ function DoSentence() {
 	obj.worldx = null;
 	obj.worldy = null;
 	sentence = null;
+      } else if (obj == items.bulge && !items.bulge.open) {
+	items.bulge.open = true;
+	// spawn tool
+	items.airlocktool.worldx = 1346;
+	items.airlocktool.worldy = 68;
+	items.airlocktool.actionx = 1353;
+	items.airlocktool.actiony = 94;
+
       } else {
 	player.Say("I CAN'T PICK IT UP");
 	sentence = null;
@@ -1136,7 +1246,6 @@ function DoSentence() {
 	new ScriptDo(() => {
 	  // Put player in reach-up state.
 	  player.reachingup = true;
-	  // XXX play grate anim.
 	}),
 	new ScriptDelay(10),
 	new ScriptDo(() => {
@@ -1160,6 +1269,10 @@ function DoSentence() {
 	  items.screwdriver.worldy = 144;
 	  items.screwdriver.actionx = 1194;
 	  items.screwdriver.actiony = 144;
+
+	  // Better if this happened when you see him / talk to
+	  // him, but, ...
+	  ents.airguy.nervous = true;
 	}),
 	new ScriptSay(player, "DIE!"),
       ];
@@ -1254,7 +1367,8 @@ function DoSentence() {
     }
 
     if (sentence.obj1 == items.screwdriver &&
-	sentence.obj2 == items.grate) {
+	sentence.obj2 == items.grate &&
+	!items.grate.open) {
       synchronous = true;
       player.reachingup = true;
       player.facingleft = false;
@@ -1269,6 +1383,74 @@ function DoSentence() {
       return;
     }
 
+    // Both releases operate in tandem.
+    if (sentence.obj1 == items.airlocktool &&
+	(sentence.obj2 == items.release1 ||
+	 sentence.obj2 == items.release2)) {
+
+      // New open state.
+      let open = !items.release1.open;
+      // Flip together.
+      items.release1.open = open;
+      items.release2.open = open;
+
+      // Enable airlock door area, and airlock area
+      if (open) {
+	// Airlock is open
+	airlockarea.enabled = true;
+	airlockdoorarea.enabled = false;
+	items.airlockdoor.open = false;
+      } else {
+	// Door to ship is open
+	airlockarea.enabled = false;
+	airlockdoorarea.enabled = true;
+	items.airlockdoor.open = true;
+      }
+	
+      // If this is the first time, launch the human out
+      if (ents.airguy.worldx != null) {
+	synchronous = true;
+	player.facingleft = true;
+	script = [
+	  new ScriptSay(ents.airguy, "Wh..."),
+	  new ScriptDo(() => {
+	    ents.airguy.dying = true;
+	  }),
+	  new ScriptAny(() => {
+	    ents.airguy.msgq = ['Noooo...'];
+	    ents.airguy.msgtime = 5;
+	    ents.airguy.worldx -= 3;
+	    if (ents.airguy.worldx < 250) {
+	      // despawn
+	      ents.airguy.worldx = null;
+	      // spawn body
+	      items.airbody.worldx = 200;
+	      items.airbody.worldy = 110;
+	      items.airbody.actionx = 213;
+	      items.airbody.actiony = 155;
+
+	      // spawn second ID
+	      
+	      return true;
+	    }
+	    return false;
+	  })
+	];
+      }
+	
+      /*
+      synchronous = true;
+      player.facingleft = true;
+      script = [
+	new ScriptDo(() => {
+	});
+	];
+      */
+      
+      sentence = null;
+      return;
+    }
+    
     
     player.Say("I DON'T KNOW HOW TO DO THAT");
     sentence = null;
@@ -1365,15 +1547,18 @@ function Step(time) {
 
 
   // Update here or in Draw?
-  if (player.worldx - SCROLLMARGIN < scrollx) {
-    let target = player.worldx - SCROLLMARGIN;
+  let smleft = player.worldx < 655 ? 230 : SCROLLMARGIN;
+  let smright = player.worldx < 655 ? 80 : SCROLLMARGIN;
+  if (player.worldx - smleft < scrollx) {
+    let target = player.worldx - smleft;
     scrollx = Math.round(((scrollx * 7) + target) * 0.125);
     // scrollx--;
-  } else if (player.worldx + SCROLLMARGIN > scrollx + WIDTH) {
-    let target = player.worldx + SCROLLMARGIN - WIDTH;
+  } else if (player.worldx + smright > scrollx + WIDTH) {
+    let target = player.worldx + smright - WIDTH;
     // scrollx++;
     scrollx = Math.round(((scrollx * 7) + target) * 0.125);
   }
+  if (scrollx < 0) scrollx = 0;
   
   UpdateSong();
 
@@ -1400,7 +1585,25 @@ function Step(time) {
 function InitAreas() {
   areas = [];
 
+  areas.push(
+    // Space (open)
+    new Area(19, 41, 297, 180),
+    // Space (above engine)
+    new Area(297, 41, 347, 102));
+
+  window.airlockarea = new Area(347, 73, 393, 102);
+  window.airlockarea.enabled = false;
   
+  areas.push(
+    airlockarea,
+    // Airlock chamber
+    new Area(393, 73, 530, 102)
+  );
+  
+  window.airlockdoorarea = new Area(530, 72, 553, 95);
+  airlockdoorarea.enabled = false;
+  areas.push(airlockdoorarea);
+
   areas.push(
     // Upper deck near airlock
     new Area(553, 73, 657, 102),
@@ -1553,7 +1756,8 @@ function CanvasMousedownGame(x, y) {
     // Special case for USE...
     // (could also do for OVO but I think this should be a little
     // puzzle?)
-    if (sentence.verb == VERB_USE &&
+    if ((sentence.verb == VERB_USE ||
+	 sentence.verb == VERB_OVO) &&
 	sentence.obj1 == null) {
       window.inventoryopen = true;
     }
@@ -1732,9 +1936,17 @@ document.onkeydown = function(event) {
   case 52:
   case 53:
   case 54:
+    player.worldy = 153;
     if (kc == 52) {
       ents.grateguy.worldx = 1229;
       ents.grateguy.worldy = 86;
+    } else if (kc == 51) {
+      player.worldy = 87;
+      items.airlocktool.invx = null;
+      items.airlocktool.worldx = 737;
+      items.airlocktool.worldy = 66;
+      items.egg1.invx = null;
+      items.egg2.invx = null;
     }
     player.worldx = WIDTH * (kc - 49 + 0.5); break;
     /*
