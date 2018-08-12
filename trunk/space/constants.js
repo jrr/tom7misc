@@ -42,7 +42,7 @@ var INVCLOSE = {x: 293, y:37, w: 10, h:10};
 // Height of top deck; ship is drawn in two parts.
 const TOPDECKH = 108;
 
-const MAXSTARS = 50;
+const MAXSTARS = 500;
 
 const GAMEWIDTH = 6 * WIDTH;
 
@@ -84,3 +84,5 @@ const USEACT = new Action(238, "USE", VERB_USE);
 const DROPACT = new Action(277, "DROP", VERB_DROP);
 const ACTIONS = [GRABACT, TALKACT, OVOACT, USEACT];
 
+// Could probably be a function of text length...
+const MSGTIME = 80;
