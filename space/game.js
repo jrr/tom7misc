@@ -25,6 +25,8 @@ let sentence = null;
 
 // Script that asynchronously runs
 let script = [];
+// If true, script blocks player inputs etc.
+let synchronous = false;
 
 // To support the inventory management constraints, when you pick
 // up an object you have to place it into inventory. If this is
@@ -53,6 +55,9 @@ const resources = new Resources(
    'player2.png',
    'player3.png',
    'playerreachup.png',
+   'ovoposit1.png',
+   'ovoposit2.png',
+   'ovoposit3.png',
    
    'humanshadow.png',
    'humanback.png',
@@ -320,6 +325,8 @@ function Item(name, invframes, worldframes, mask) {
   this.lookstring = null;
 
   this.grabbable = true;
+
+  this.haseggs = false;
   
   // Compute inventory cell bounding box, using mask.
   let maxw = 0;
@@ -352,6 +359,7 @@ function ScriptDo(fn) {
   return this;
 }
 
+// Delay keeps firing? Did you set sentence = null??
 // In frames
 function ScriptDelay(fr) {
   this.fr = fr;
@@ -434,7 +442,7 @@ function InitGame() {
   window.player = Player();
   player.worldx = 1765;
   player.worldy = 160;
-
+  
   script = [
 /*
     new ScriptDelay(110),
@@ -626,21 +634,32 @@ function Player() {
                  'face-right', 68,
                  'face-right-blink', 2]);
   p.reachingupframes = EzRL(['playerreachup', 1]);
+  p.ovoframes = EzRL(['ovoposit1', 6,
+		      'ovoposit2', 6,
+		      'ovoposit3', 8,
+		      'ovoposit2', 6,
+		      'ovoposit1', 600]);
   p.sayfont = window.spacefont;
   p.lookstring = "IT ME :-)";
   p.reachingup = false;
+  p.ovopositing = false;
   p.Draw = function(x, y) {
     const moving = this.route.length > 0;
 
     let baseframes = moving ? this.move : this.stand;
-    if (this.reachingup) {
+    if (this.ovopositing) {
+      // No face.
+      this.DrawFacing(this.ovoframes, x, y);
+    } else if (this.reachingup) {
       // Just during grate anim.
       this.DrawFacing(this.reachingupframes, x, y);
     } else {
       this.DrawFacing(baseframes, x, y);
     }
-    DrawFrame(this.facingleft ? this.face.l : this.face.r,
-	      x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
+    if (!this.ovopositing) {
+      DrawFrame(this.facingleft ? this.face.l : this.face.r,
+		x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
+    }
   };
   return p;
 }
@@ -898,7 +917,8 @@ function DrawGame() {
     
   // font.Draw(ctx, 1, 1, "USE ID WITH CARD READER");
   let nsent = GetSentenceAt(mousex, mousey);
-  if (nsent != null)
+  // Show the current sentence if executing a synchronous script though.
+  if (!synchronous && nsent != null)
     DrawSentence(nsent);
   else
     DrawSentence(sentence);
@@ -1091,6 +1111,7 @@ function DoSentence() {
       ents.grateguy.facingleft = false;
       // XXX might be possible to do this before he gets
       // to grate..?
+      synchronous = true;
       script = [
 	new ScriptDo(() => {
 	  // Put player in reach-up state.
@@ -1113,7 +1134,7 @@ function DoSentence() {
 	  items.grateguybody.worldx = 1120;
 	  items.grateguybody.worldy = 138;
 	  items.grateguybody.actionx = 1138;
-	  items.grateguybody.actiony = 146;
+	  items.grateguybody.actiony = 150;
 	  // Spawn screwdriver.
 	}),
 	new ScriptSay(player, "DIE!"),
@@ -1149,13 +1170,37 @@ function DoSentence() {
       return;
     }
 
-    if (sentence.obj2.name != "ALIEN") {
-      player.Say("MUST OVOPOSIT AN EGG INTO AN *ALIEN*");
+    if (sentence.obj2.name != "BODY") {
+      player.Say("MUST OVOPOSIT AN EGG INTO A *BODY*");
       sentence = null;
       return;
     }
 
-    // XXX do ovoposit if the human is dead, etc.
+    if (sentence.obj2.haseggs) {
+      player.Say("THIS BODY ALREADY HAS EGGS.");
+      sentence = null;
+      return;
+    }
+
+    synchronous = true;
+    let oldegg = sentence.obj1;
+    let body = sentence.obj2;
+    script = [
+      new ScriptDo(() => {
+	frames = 0;
+	player.ovopositing = true;
+      }),
+      new ScriptDelay(40),
+      new ScriptDo(() => {
+	player.ovopositing = false;
+	// Despawn egg from inventory
+	oldegg.invx = null;
+	oldegg.invy = null;
+	// Don't let this happen again
+	body.haseggs = true;
+	// XXX walk away from body
+      })];
+    sentence = null;
     
     break;
   case VERB_USE:
@@ -1192,6 +1237,10 @@ function DoSentence() {
 function DoScript() {
   while (script.length > 0 && script[0].Done()) {
     script.shift(1);
+  }
+
+  if (script.length == 0) {
+    synchronous = false;
   }
 }
 
@@ -1440,6 +1489,12 @@ function CanvasMousedownGame(x, y) {
   let globalx = scrollx + x;
   console.log('click ', x, y, " = global ", globalx, y);
 
+  if (synchronous) {
+    // failsafe
+    if (script.length == 0) synchronous = false;
+    return;
+  }
+  
   let sent = GetSentenceAt(x, y);
   if (sent != null) {
     sentence = sent;
@@ -1458,6 +1513,8 @@ function CanvasMousedownGame(x, y) {
 
     // Help you figure this one out...
     if (sentence.verb == VERB_OVO &&
+	sentence.obj1 != null &&
+	sentence.obj2 == null &&
 	sentence.obj1.name == "EGG") {
       window.inventoryopen = false;
     }
