@@ -76,6 +76,7 @@ const resources = new Resources(
    'fire4.png',
    
    'grate.png',
+   'grateopen.png',
    'grateguydeath1.png',
    'grateguydeath2.png',
    'grateguydeath3.png',
@@ -303,7 +304,11 @@ function Item(name, invframes, worldframes, mask) {
   // Frames when in inventory
   this.invframes = EzFrames(invframes);
   this.worldframes = EzFrames(worldframes);
+  this.openframes = null;
   this.mask = mask;
+
+  // General purpose alternative "open" state.
+  this.open = false;
   
   // Position of top-left in inventory, or null if detached
   this.invx = null;
@@ -545,10 +550,11 @@ function InitGame() {
 			 ['grate', 1],
 			 []);
   items.grate.worldx = 1102;
-  items.grate.worldy = 77;
+  items.grate.worldy = 86;
   items.grate.grabbable = false;
   items.grate.actionx = 1102;
   items.grate.actiony = 146;
+  items.grate.openframes = EzFrames(['grateopen', 1]);
   
   items.grateguybody = new Item('BODY',
 				['bug', 1],
@@ -765,9 +771,15 @@ function DrawItemsWhen(cond) {
   for (let o in items) {
     let item = items[o];
     if (item.worldx != null && cond(item)) {
-      DrawFrame(item.worldframes,
-                item.worldx - scrollx,
-                item.worldy);
+      if (item.open && item.openframes) {
+	DrawFrame(item.openframes,
+                  item.worldx - scrollx,
+                  item.worldy);
+      } else {
+	DrawFrame(item.worldframes,
+                  item.worldx - scrollx,
+                  item.worldy);
+      }
     }
   }
 }
@@ -1238,7 +1250,25 @@ function DoSentence() {
       items.fire.worldy = null;
       window.firearea.enabled = true;
       sentence = null;
+      return;
     }
+
+    if (sentence.obj1 == items.screwdriver &&
+	sentence.obj2 == items.grate) {
+      synchronous = true;
+      player.reachingup = true;
+      player.facingleft = false;
+      script = [
+	new ScriptDelay(30),
+	new ScriptDo(() => {
+	  player.reachingup = false;
+	  items.grate.open = true;
+	  window.gratearea.enabled = true;
+	})];
+      sentence = null;
+      return;
+    }
+
     
     player.Say("I DON'T KNOW HOW TO DO THAT");
     sentence = null;
@@ -1382,7 +1412,11 @@ function InitAreas() {
 
     // A full (all box depth)
     new Area(1297, 77, 1669, 102));
-  
+
+  // XXX looks terrible when going up here...
+  window.gratearea = new Area(1109, 102, 1132, 139);
+  gratearea.enabled = false;
+  areas.push(gratearea);
 
   // Door to bridge. This one should
   // require items etc.?
@@ -1397,9 +1431,11 @@ function InitAreas() {
     new Area(1754, 98, 1786, 102),
     new Area(1786, 80, 1818, 102));
   
-
   // Bottom floor
   areas.push(
+    new Area(398, 158, 438, 169),
+    new Area(438, 139, 608, 169),
+    new Area(608, 139, 744, 169),
     new Area(744, 139, 821, 146),
     new Area(744, 160, 821, 169),
     new Area(821, 139, 1599, 169));
@@ -1412,8 +1448,7 @@ function InitAreas() {
   
   // start space in cargo hold
   areas.push(
-    new Area(1657, 139, 1821, 169),    
-    new Area(608, 139, 744, 169));
+    new Area(1657, 139, 1821, 169));
 
   let Midpoint = (ap, bp, ap2, bp2) => {
     let ip = Math.max(ap, bp);
