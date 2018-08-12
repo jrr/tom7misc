@@ -41,6 +41,8 @@ const resources = new Resources(
    'title.png',
    'background.png',
 
+   'bug.png',
+   
    'ship.png',
    
    'face-right.png',
@@ -59,6 +61,11 @@ const resources = new Resources(
    'humanwalk2.png',
    'humanwalk3.png',
    'humanwalk4.png',
+
+   'fire1.png',
+   'fire2.png',
+   'fire3.png',
+   'fire4.png',
    
    'inv-icon.png',
    'inventory.png',
@@ -67,10 +74,14 @@ const resources = new Resources(
    'inv-ok.png',
    
    'id.png',
-   'airlocktool.png',
-   
    'invid.png',
+   
+   'airlocktool.png',
    'invairlocktool.png',
+   
+   'invextinguisher.png',
+   'extinguisher.png',
+   
    'invegg.png',
   ],
   [], null);
@@ -100,6 +111,8 @@ function Area(x, y, x2, y2) {
   this.h = y2 - y;
   this.e = [];
   this.idx = null;
+  // enabled by default, but some turn themselves off at start
+  this.enabled = true;
   return this;
 }
 
@@ -123,6 +136,8 @@ function Route(srcx, srcy, dstx, dsty) {
   let dsta = AreaFor(dstx, dsty);
   if (!dsta) return null;
 
+  if (!dsta.enabled) return null;
+  
   if (srca == dsta) {
     // console.log('same-area route');
     return [{x:dstx, y: dsty}];
@@ -137,6 +152,7 @@ function Route(srcx, srcy, dstx, dsty) {
   let RouteRec = (ar) => {
     if (visited[ar.idx]) return null;
     visited[ar.idx] = true;
+    if (!ar.enabled) return null;
     if (ar == dsta) return [];
     for (let e of ar.e) {
       let r = RouteRec(e.other);
@@ -289,6 +305,8 @@ function Item(name, invframes, worldframes, mask) {
   
   this.lookstring = null;
 
+  this.grabbable = true;
+  
   // Compute inventory cell bounding box, using mask.
   let maxw = 0;
   for (let row of mask) maxw = Math.max(row.length, maxw);
@@ -394,8 +412,7 @@ function InitGame() {
   ents.captain.worldy = 94;
   
   window.player = Player();
-  player.worldx = WIDTH * 5 + 122;
-  // player.worldx = 1182;
+  player.worldx = 1765;
   player.worldy = 160;
 
   script = [
@@ -462,8 +479,28 @@ function InitGame() {
                       MASK1x1);
 
   items.id.lookstring = "PLASTIC IN GOLDEN RATIO ASPECT";
-  items.id.worldx = WIDTH * 5 + 30;
+  items.id.worldx = 1125;
   items.id.worldy = 140;
+
+  items.extinguisher = new Item('CYLINDER',
+				['invextinguisher', 1],
+				['extinguisher', 1],
+				['**']);
+
+  items.extinguisher.lookstring = "PERHAPS A WEAPON";
+  items.extinguisher.worldx = 1693;
+  items.extinguisher.worldy = 121;
+
+  items.fire = new Item('FIRE',
+			['bug', 1],
+			['fire1', 3,
+			 'fire2', 3,
+			 'fire3', 4,
+			 'fire4', 3],
+			[]);
+  items.fire.worldx = 1604;
+  items.fire.worldy = 132;
+  items.fire.grabbable = false;
   
   console.log('initialized game');
 }
@@ -690,7 +727,21 @@ function GetSentenceAt(x, y) {
   }
 
   if (window.inventoryopen) {
-    // XXX Allow extending with inventory item...
+
+    if (sentence != null &&
+	(sentence.verb == VERB_USE ||
+	 sentence.verb == VERB_OVO ||
+	 sentence.verb == VERB_LOOK)) {
+      let invx = Math.floor((mousex - INVCONTENTSX) / INVITEMSIZE);
+      let invy = Math.floor((mousey - INVCONTENTSY) / INVITEMSIZE);
+      if (invx >= 0 && invy >= 0 &&
+          invx < INVW && invy < INVH) {
+	let item = InvUsed(invx, invy);
+	if (item != null)
+	  return ExtendSentence(item);
+      }
+      return null;
+    }
     
   } else {
     // In an item?
@@ -801,7 +852,8 @@ function DrawGame() {
 
   // XXX debugging.
   for (let area of areas) {
-    ctx.fillStyle = 'rgba(200,200,0,0.25)';
+    ctx.fillStyle =
+	area.enabled ? 'rgba(0,200,0,.25)' : 'rgba(200,0,0,.25)';
     ctx.strokeStyle = '#00F';
     ctx.fillRect(area.x - scrollx, area.y, area.w, area.h);
     ctx.strokeRect(area.x - scrollx, area.y, area.w, area.h);
@@ -929,14 +981,19 @@ function DoSentence() {
         sentence = null;
         return;
       }
-      
-      window.inventoryopen = true;
-      grabitem = { item: obj,
-                   worldx : obj.worldx,
-                   worldy : obj.worldy };
-      obj.worldx = null;
-      obj.worldy = null;
-      sentence = null;
+
+      if (obj.grabbable) {
+	window.inventoryopen = true;
+	grabitem = { item: obj,
+                     worldx : obj.worldx,
+                     worldy : obj.worldy };
+	obj.worldx = null;
+	obj.worldy = null;
+	sentence = null;
+      } else {
+	player.Say("I CAN'T PICK IT UP");
+	sentence = null;
+      }
       return;
     }
 
@@ -990,6 +1047,15 @@ function DoSentence() {
     // XXX go to obj2 first
     
     // Handle combinations that make sense here.
+    if (sentence.obj1 == items.extinguisher &&
+	sentence.obj2 == items.fire) {
+      // animate...
+      player.Say("SAFETY FIRST!");
+      items.fire.worldx = null;
+      items.fire.worldy = null;
+      window.firearea.enabled = true;
+      sentence = null;
+    }
     
     player.Say("I DON'T KNOW HOW TO DO THAT");
     sentence = null;
@@ -1115,8 +1181,11 @@ function Step(time) {
 }
 
 function InitAreas() {
-  areas = [
-    // Test
+  areas = [];
+
+  
+  areas.push(
+    // Upper deck near airlock
     new Area(553, 73, 657, 102),
     new Area(657, 79, 689, 102),
     new Area(689, 73, 977, 102),
@@ -1125,27 +1194,39 @@ function InitAreas() {
     new Area(1010, 73, 1297, 102),
 
     // A full (all box depth)
-    new Area(1297, 77, 1669, 102),
-    
-    // Door to bridge. This one should
-    // require items etc.?
-    new Area(1669, 83, 1688, 96),
-    
+    new Area(1297, 77, 1669, 102));
+  
+
+  // Door to bridge. This one should
+  // require items etc.?
+  window.bridgedoorarea =
+      new Area(1669, 83, 1688, 96);
+  areas.push(bridgedoorarea);
+
+  areas.push(
     // Bridge
     new Area(1688, 78, 1754, 102),
     // under chair
     new Area(1754, 98, 1786, 102),
-    new Area(1786, 80, 1818, 102),
-    
-    // Bottom floor
+    new Area(1786, 80, 1818, 102));
+  
+
+  // Bottom floor
+  areas.push(
     new Area(744, 139, 821, 146),
     new Area(744, 160, 821, 169),
-    // these two could be merged?
-    new Area(821, 139, 1599, 169),
-    new Area(1599, 139, 1821, 169),    
+    new Area(821, 139, 1599, 169));
 
-    new Area(608, 139, 744, 169)
-  ];
+  // Fire. Require items
+  window.firearea = 
+      new Area(1599, 139, 1657, 169);
+  areas.push(firearea);
+  firearea.enabled = false;
+  
+  // start space in cargo hold
+  areas.push(
+    new Area(1657, 139, 1821, 169),    
+    new Area(608, 139, 744, 169));
 
   let Midpoint = (ap, bp, ap2, bp2) => {
     let ip = Math.max(ap, bp);
