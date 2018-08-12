@@ -1,6 +1,8 @@
-Area
+
 let counter = 0, skipped = 0;
 let start_time = (new Date()).getTime();
+
+let show_areas = false;
 
 // Last place we saw the mouse. Scaled to the 320x200 screen that
 // is the canvas.
@@ -299,6 +301,11 @@ function Item(name, invframes, worldframes, mask) {
   this.worldx = null;
   this.worldx = null;
 
+  // If non-null, the player needs to go to this exact coordinate
+  // before interacting with the item (except LOOK / TALK).
+  this.actionx = null;
+  this.actiony = null;
+  
   // width/height in world. derived from first frame.
   this.worldw = this.worldframes.width;
   this.worldh = this.worldframes.height;
@@ -472,6 +479,7 @@ function InitGame() {
   items.airlocktool.lookstring = "WIGGLY METAL";
   items.airlocktool.worldx = 1180;
   items.airlocktool.worldy = 70;
+  // XXX actionx
   
   items.id = new Item('CARD',
                       ['invid', 1],
@@ -481,7 +489,8 @@ function InitGame() {
   items.id.lookstring = "PLASTIC IN GOLDEN RATIO ASPECT";
   items.id.worldx = 1125;
   items.id.worldy = 140;
-
+  // XXX actionx
+  
   items.extinguisher = new Item('CYLINDER',
 				['invextinguisher', 1],
 				['extinguisher', 1],
@@ -490,7 +499,9 @@ function InitGame() {
   items.extinguisher.lookstring = "PERHAPS A WEAPON";
   items.extinguisher.worldx = 1693;
   items.extinguisher.worldy = 121;
-
+  items.extinguisher.actionx = 1724;
+  items.extinguisher.actiony = 148;
+  
   items.fire = new Item('FIRE',
 			['bug', 1],
 			['fire1', 3,
@@ -501,7 +512,9 @@ function InitGame() {
   items.fire.worldx = 1604;
   items.fire.worldy = 132;
   items.fire.grabbable = false;
-  
+  items.fire.actionx = 1662;
+  items.fire.actiony = 158;
+
   console.log('initialized game');
 }
 
@@ -850,21 +863,22 @@ function DrawGame() {
   DrawItemsWhen((item) => item.worldy <= TOPDECKH);
   DrawEntsWhen((ent) => ent.worldy <= TOPDECKH);
 
-  // XXX debugging.
-  for (let area of areas) {
-    ctx.fillStyle =
-	area.enabled ? 'rgba(0,200,0,.25)' : 'rgba(200,0,0,.25)';
-    ctx.strokeStyle = '#00F';
-    ctx.fillRect(area.x - scrollx, area.y, area.w, area.h);
-    ctx.strokeRect(area.x - scrollx, area.y, area.w, area.h);
+  if (show_areas) {
+    for (let area of areas) {
+      ctx.fillStyle =
+	  area.enabled ? 'rgba(0,200,0,.25)' : 'rgba(200,0,0,.25)';
+      ctx.strokeStyle = '#00F';
+      ctx.fillRect(area.x - scrollx, area.y, area.w, area.h);
+      ctx.strokeRect(area.x - scrollx, area.y, area.w, area.h);
 
-    for (e of area.e) {
-      // console.log('edge to ', e.other, e.x, e.y);
-      ctx.fillStyle = '#F00';
-      ctx.fillRect(e.x - scrollx, e.y, 1, 1);
+      for (e of area.e) {
+	// console.log('edge to ', e.other, e.x, e.y);
+	ctx.fillStyle = '#F00';
+	ctx.fillRect(e.x - scrollx, e.y, 1, 1);
+      }
     }
   }
-  
+    
   if (window.inventoryopen) {
     // Above game stuff: Inventory
     let pos = GrabitemInv();
@@ -968,14 +982,37 @@ function DoSentence() {
 
   // Any special casing should go here.
 
-
+  // Returns true if we're there and can proceed.
+  let Goto = (obj) => {
+    // Can do from anywhere.
+    if (obj.actionx == null)
+      return true;
+    
+    // Are we already at the spot?
+    if (player.worldx == obj.actionx &&
+	player.worldy == obj.actiony) {
+      return true;
+    } else {
+      let r = Route(player.worldx, player.worldy,
+		    obj.actionx, obj.actiony);
+      if (r == null) {
+	player.Say("I CAN'T GO THERE :-(");
+	sentence = null;
+	return false;
+      }
+      player.route = r;
+      return false;
+    }
+  };
   
   switch (sentence.verb) {
   case VERB_GRAB: {
     let obj = sentence.obj1;
-    // XXX go to obj1 first
+
+    if (!Goto(obj))
+      return;
+    
     if (obj instanceof Item) {
-      // XXX test if it's possible to get this item.
       if (obj.worldx == null) {
         player.Say("HOW...?");
         sentence = null;
@@ -1017,8 +1054,10 @@ function DoSentence() {
     if (sentence.obj2 == null)
       return;
 
-    // XXX go to obj2 first
-    
+    // Go to object 2 first
+    if (!Goto(sentence.obj2))
+      return;
+
     if (sentence.obj1.name != "EGG") {
       player.Say("CAN ONLY OVOPOSIT AN *EGG*");
       sentence = null;
@@ -1026,7 +1065,7 @@ function DoSentence() {
     }
 
     if (sentence.obj2.name != "ALIEN") {
-      player.Say("CAN ONLY OVOPOSIT AN EGG INTO AN *ALIEN*");
+      player.Say("MUST OVOPOSIT AN EGG INTO AN *ALIEN*");
       sentence = null;
       return;
     }
@@ -1040,11 +1079,13 @@ function DoSentence() {
       sentence = null;
       break;
     }
-
+    
     if (sentence.obj2 == null)
       return;
 
-    // XXX go to obj2 first
+    // Go to object 2 first
+    if (!Goto(sentence.obj2))
+      return;
     
     // Handle combinations that make sense here.
     if (sentence.obj1 == items.extinguisher &&
@@ -1321,6 +1362,21 @@ function CanvasMousedownGame(x, y) {
     // a new target.
     player.route = [];
     // XXX execute it...
+
+    // Special case for USE...
+    // (could also do for OVO but I think this should be a little
+    // puzzle?)
+    if (sentence.verb == VERB_USE &&
+	sentence.obj1 == null) {
+      window.inventoryopen = true;
+    }
+
+    // Help you figure this one out...
+    if (sentence.verb == VERB_OVO &&
+	sentence.obj1.name == "EGG") {
+      window.inventoryopen = false;
+    }
+    
     return;
   } 
   
@@ -1475,8 +1531,10 @@ document.onkeydown = function(event) {
     break;
   case 38:  // UP
   case 40:  // DOWN
-  case 90:  // z
   case 88:  // x
+    break;
+  case 90:  // z
+    show_areas = !show_areas
     break;
     
   case 49: 
