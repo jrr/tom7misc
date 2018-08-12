@@ -46,7 +46,11 @@ const resources = new Resources(
    'player2.png',
    'player3.png',
 
-   'grateguy.png',
+   'humanshadow.png',
+   'humanback.png',
+   'humanlegs.png',
+   'humanhead.png',
+   'humanfront.png',   
    
    'inv-icon.png',
    'inventory.png',
@@ -306,37 +310,14 @@ function InitGame() {
 
   window.ents = {};
   let ents = window.ents;
-  ents.grateguy = new Ent('ALIEN',
-                          ['grateguy', 1],
-                          // no moving anim
-                          ['grateguy', 1],
-                          30, 65);
-  ents.grateguy.lookstring = "LOOKS WARM";
+  ents.grateguy = Human();
   ents.grateguy.worldx = 1140;
   ents.grateguy.worldy = 91;
 
-  window.player = new Ent('ME',
-                          ['player1', 1],
-                          ['player1', 9,
-                           'player2', 2,
-                           'player3', 6,
-                           'player2', 2],
-                          68,
-                          46);
-  player.sayfont = window.spacefont;
-  player.lookstring = "IT ME :-)";
-  player.worldx = WIDTH * 5 + 122;
+  window.player = Player();
+  // player.worldx = WIDTH * 5 + 122;
+  player.worldx = 1182;
   player.worldy = 160;
-  player.facer = EzFrames(['face-right', 280,
-                           'face-right-blink', 2,
-                           'face-right', 68,
-                           'face-right-blink', 2]);
-  player.facel = FlipFramesHoriz(player.facer);
-  player.Draw = function(x, y) {
-    this.SuperDraw(x, y);
-    DrawFrame(this.facingleft ? this.facel : this.facer,
-              x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
-  };
                        
   ents.player = window.player;
                        
@@ -393,7 +374,7 @@ function InitGame() {
 
 // Entity in game that can walk around, speak, etc.
 // Includes the player character.
-function Ent(name, stand, move, wd, ht) {
+function Ent(name, wd, ht) {
   this.name = name;
   
   this.halfwidth = wd >>> 1;
@@ -409,13 +390,6 @@ function Ent(name, stand, move, wd, ht) {
   // If non-empty, we're walking to this series of
   // target spots, from front to back.
   this.route = [];
-
-  // Current frames.
-  this.standr = EzFrames(stand);
-  this.standl = FlipFramesHoriz(this.standr);
-
-  this.mover = EzFrames(move);
-  this.movel = FlipFramesHoriz(this.mover);
 
   this.facingleft = false;
 
@@ -439,15 +413,6 @@ Ent.prototype.LookString = function() {
   return "AN ALIEN?";
 };
 
-Ent.prototype.GetFrames = function() {
-  const moving = this.route.length > 0;
-  
-  if (this.facingleft)
-    return moving ? this.movel : this.standl;
-  else
-    return moving ? this.mover : this.standr;
-};
-
 // Separate because it should be above everything.
 // Coordinates are the top center of the entity.
 Ent.prototype.DrawText = function(x, y) {
@@ -461,16 +426,57 @@ Ent.prototype.DrawText = function(x, y) {
   }
 }
   
-Ent.prototype.SuperDraw = function(x, y) {
-  const f = this.GetFrames();
-  DrawFrame(f, x, y);
-};
-
-// passed top-left corner (y - height).
-Ent.prototype.Draw = function(x, y) {
-  this.SuperDraw(x, y);
-};
+Ent.prototype.DrawFacing = function(fr, x, y) {
+  DrawFrame(this.facingleft ? fr.l : fr.r, x, y);
+}
   
+function Player() {
+  let p = new Ent('ME', 68, 46);
+  p.stand = EzRL(['player1', 1]);
+  p.move = EzRL(['player1', 9,
+                    'player2', 2,
+                    'player3', 6,
+                    'player2', 2]);
+  p.face = EzRL(['face-right', 280,
+                    'face-right-blink', 2,
+                    'face-right', 68,
+                    'face-right-blink', 2]);
+  p.sayfont = window.spacefont;
+  p.lookstring = "IT ME :-)";
+  p.Draw = function(x, y) {
+    const moving = this.route.length > 0;
+
+    let baseframes = moving ? this.move : this.stand;
+    this.DrawFacing(baseframes, x, y);
+    DrawFrame(this.facingleft ? this.face.l : this.face.r,
+	      x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
+  };
+  return p;
+}
+
+// Regular function, not constructor.
+function Human() {
+  let human = new Ent('ALIEN', HUMANW, HUMANTALL);
+
+  human.shadow = EzRL(['humanshadow', 1]);
+  human.backarm = EzRL(['humanback', 1]);
+  human.legs = EzRL(['humanlegs', 1]);
+  human.head = EzRL(['humanhead', 1]);
+  human.front = EzRL(['humanfront', 1]);
+
+  human.lookstring = "LOOKS WARM";
+
+  human.Draw = function(x, y) {
+    const moving = this.route.length > 0;
+
+    let stack = [this.shadow, this.backarm, this.legs, this.head, this.front];
+    for (let f of stack) {
+      this.DrawFacing(f, x, y);
+    }
+  };
+  return human;
+}
+
 // Returns null if nothing, otherwise, the item.
 function InvUsed(x, y) {
   for (let i in items) {

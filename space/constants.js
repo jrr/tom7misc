@@ -86,3 +86,9 @@ const ACTIONS = [GRABACT, TALKACT, OVOACT, USEACT];
 
 // Could probably be a function of text length...
 const MSGTIME = 80;
+
+// Dimensions of all human parts (graphic itself)
+const HUMANW = 42;
+const HUMANH = 80;
+// from feet to top of image
+const HUMANTALL = 74;

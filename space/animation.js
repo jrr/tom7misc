@@ -18,6 +18,13 @@ function RotateFramesCCW(fr) {
   return new Frames(ff);
 }
 
+// Give "right"-facing (as to EzFrames); also flips everything
+// and gives {l, r};
+function EzRL(arg) {
+  let r = EzFrames(arg);
+  return {l: FlipFramesHoriz(r), r: r};
+}
+
 // The 'f' field must be something that you can ctx.drawImage on,
 // so an Image or Canvas.
 function Frames(arg) {
