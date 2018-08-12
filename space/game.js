@@ -1,4 +1,6 @@
 
+let CHEATS = false;
+
 let counter = 0, skipped = 0;
 let start_time = (new Date()).getTime();
 
@@ -38,6 +40,10 @@ let synchronous = false;
 let grabitem = null;
 
 let areas = [];
+
+// Finale
+let fadeout = false;
+let fadeframes = MAXFADEFRAMES;
 
 const resources = new Resources(
   ['font.png',
@@ -102,7 +108,7 @@ const resources = new Resources(
 
    'airlocktool.png',
    'invairlocktool.png',
-
+  
    'airlockdoorfg.png',
    'airlockdoor.png',
    'airlockdooropen.png',
@@ -126,6 +132,19 @@ const resources = new Resources(
    'extinguisher.png',
    
    'invegg.png',
+
+   'bridgedoorfg.png',
+
+   'captaindeath1.png',
+   'captaindeath2.png',
+   'captaindeath3.png',
+   'captaindeath4.png',
+   'captaindeath5.png',
+
+   'captainbody1.png',
+   'captainbody2.png',
+   'captainbody3.png',
+   
   ],
   [], null);
 
@@ -453,6 +472,8 @@ function ScriptSay(ent, s) {
 function InitGame() {
 
   scrollx = 5 * WIDTH;
+
+  window.dropscene = false;
   
   window.phase = PHASE_GAME;
 
@@ -460,6 +481,8 @@ function InitGame() {
   let fgs = window.fgs;
   fgs.push({f: EzFrames(['airlockdoorfg', 1]),
 	    x: 523, y: 15});
+  fgs.push({f: EzFrames(['bridgedoorfg', 1]),
+	    x : 1685, y: 16});
   
   window.ents = {};
   let ents = window.ents;
@@ -484,21 +507,27 @@ function InitGame() {
   ents.airguy2.nervousframes = EzRL(['nervous2', 2,
 				     'nervous1', 3]);
   ents.airguy2.deathanim = EzFrames(['airdying', 2]);
-  ents.airguy2.worldx = 481;
-  ents.airguy2.worldy = 92;
+  ents.airguy2.worldx = 471;
+  ents.airguy2.worldy = 94;
 
   // ents.airguy.nervous = true;
   
   ents.captain = Human();
-  ents.captain.worldx = 1800;
+  ents.captain.worldx = 1810;
   ents.captain.worldy = 94;
+  ents.captain.actionx = 1740;
+  ents.captain.actiony = 90;
+  ents.captain.deathanim = EzFrames(['captaindeath1', 6,
+				     'captaindeath2', 6,
+				     'captaindeath3', 6,
+				     'captaindeath4', 6,
+				     'captaindeath5', 500]);
   
   window.player = Player();
   player.worldx = 1765;
   player.worldy = 160;
   
   script = [
-/*
     new ScriptDelay(110),
     new ScriptGoto(ents.captain, 1812, 92),
     new ScriptSay(ents.captain, "What's that on radar?"),
@@ -508,8 +537,14 @@ function InitGame() {
     new ScriptDelay(58),
     new ScriptDo(() => { ents.captain.facingleft = false; }),
     new ScriptSay(ents.captain, "It could be an alien race."),
-    // TODO: more "story" here
-*/    
+    new ScriptDelay(16),
+    new ScriptSay(ents.grateguy, "Should we raise shields?"),
+    new ScriptDo(() => { ents.captain.facingleft = true; }),
+    new ScriptDelay(58),
+    new ScriptDo(() => { ents.captain.facingleft = false; }),
+    new ScriptSay(ents.captain, "No, remember Rule Zero:"),
+    new ScriptSay(ents.captain, "We must not interfere..."),
+    new ScriptDelay(30),
     // go to grate.
     new ScriptGoto(ents.grateguy, 1139, 91),
     // drop card...?
@@ -702,6 +737,16 @@ function InitGame() {
   items.energy.worldy = 113;
   items.energy.actionx = 541;
   items.energy.actiony = 147;
+
+  items.captainbody = new Item('BODY',
+			       ['bug', 1],
+			       ['captainbody1', 6,
+				'captainbody2', 6,
+				'captainbody3', 6],
+			       []);
+  items.captainbody.worldx = null;
+  items.captainbody.worldy = null;
+  items.captainbody.grabbable = false;
   
   console.log('initialized game');
 }
@@ -1048,7 +1093,7 @@ function DrawSentence(s) {
   let x = 1;
   for (let i = 0; i < ll.length; i++) {
     let ph = ll[i];
-    ((i % 0 == 1) ? hifont : font).Draw(ctx, x, 1, ph);
+    ((i % 2 == 1) ? hispacefont : spacefont).Draw(ctx, x, 1, ph);
     x += (ph.length + 1) * (FONTW - FONTOVERLAP);
   }
 }
@@ -1175,13 +1220,27 @@ function DrawGame() {
   }
     
   // Unmute button?
-  
+
+  if (fadeout) {
+    let f = Math.max(fadeframes, 0);
+    let a = (1.0 - (f / MAXFADEFRAMES)).toFixed(2);
+    ctx.fillStyle = 'rgba(0,0,0,' + a +')';
+    ctx.fillRect(0, 0, WIDTH + 1, HEIGHT + 1);
+
+    if (f == 0) {
+      spacefont.Draw(ctx, WIDTH * 0.15, HEIGHT * 0.3,
+		     "RUNNING OUT OF SPACE");
+
+      spacefont.Draw(ctx, WIDTH * 0.4, HEIGHT * 0.6,
+		     "TOM 7   2018");
+    }
+  }
 }
 
 function DrawTitle() {
   DrawFrame(window.titleframes, 0, 0);
   spacefont.Draw(ctx, WIDTH * 0.35, HEIGHT * 0.5,
-                 "SPACE GAME TITLE TBD");
+                 "RUNNING OUT OF SPACE");
 }
 
 function Draw() {
@@ -1281,7 +1340,6 @@ function DoSentence() {
       return;
     }
 
-    // XXX handle grabbing grate guy
     if (obj == ents.grateguy) {
       player.facingleft = false;
       // should arrange for this to be false, but..
@@ -1336,7 +1394,23 @@ function DoSentence() {
     break;
   }
   case VERB_TALK: {
-    // XXX handle talking to humans
+
+    if (sentence.obj1 == ents.captain) {
+      if (!Goto(sentence.obj1))
+	return;
+
+      player.facingleft = false;
+      ents.captain.facingleft = true;
+      script = [
+	new ScriptSay(player, "HI"),
+	new ScriptSay(ents.captain, "You are welcome aboard our ship!"),
+	new ScriptSay(ents.captain, "Please make yourself at home!"),
+      ];
+      sentence = null;
+      return;
+    }
+
+    
     player.Say("HI " + sentence.obj1.name + "! :-)");
     sentence = null;
     break;
@@ -1384,7 +1458,16 @@ function DoSentence() {
 	// Don't let this happen again
 	body.haseggs = true;
 	// XXX walk away from body
-      })];
+
+	if (items.egg1.invx == null &&
+	    items.egg2.invx == null &&
+	    items.egg3.invx == null &&
+	    items.egg4.invx == null) {
+	  fadeout = true;
+	  fadeframes = MAXFADEFRAMES;
+	}
+      }),
+    ];
     sentence = null;
     
     break;
@@ -1431,6 +1514,30 @@ function DoSentence() {
       return;
     }
 
+    if (sentence.obj1 == items.energy &&
+	sentence.obj2 == ents.captain) {
+      synchronous = true;
+      player.facingleft = false;
+      ents.captain.facingleft = true;
+      script = [
+	new ScriptDo(() => {
+	  frames = 0;
+	  ents.captain.dying = true;
+	  // XXXX nice to have player firing anim
+	}),
+	new ScriptDelay(40),
+	new ScriptDo(() => {
+	  ents.captain.worldx = null;
+	  items.captainbody.worldx = 1796;
+	  items.captainbody.worldy = 67;
+	  items.captainbody.actionx = 1804;
+	  items.captainbody.actiony = 92;
+	})
+      ];
+      sentence = null;
+      return;
+    }
+    
     // Both releases operate in tandem.
     if (sentence.obj1 == items.airlocktool &&
 	(sentence.obj2 == items.release1 ||
@@ -1547,7 +1654,24 @@ function Step(time) {
 
   frames++;
   if (frames > 1000000) frames = 0;
-    
+
+  if (fadeout) {
+    fadeframes--;
+    if (fadeframes == Math.round(MAXFADEFRAMES / 2)) {
+      StartSong(song_theme);
+    }
+  }
+
+  if (dropscene == false && player.worldx < 1200) {
+    dropscene = true;
+    script = [
+      new ScriptSay(ents.grateguy, "Ugh..."),
+      new ScriptDelay(60),
+      new ScriptSay(ents.grateguy, "I can't believe I dropped my ID card"),
+      new ScriptSay(ents.grateguy, "down the vent again..."),
+    ];
+  }
+  
   UpdateStars();
 
   DoSentence();
@@ -1604,6 +1728,7 @@ function Step(time) {
   }
 
 
+  // XXX also when on bridge
   // Update here or in Draw?
   let smleft = player.worldx < 655 ? 230 : SCROLLMARGIN;
   let smright = player.worldx < 655 ? 80 : SCROLLMARGIN;
@@ -1690,7 +1815,7 @@ function InitAreas() {
     new Area(1688, 78, 1754, 102),
     // under chair
     new Area(1754, 98, 1786, 102),
-    new Area(1786, 80, 1818, 102));
+    new Area(1786, 80, 1830, 102));
   
   // Bottom floor
   areas.push(
@@ -1768,11 +1893,11 @@ function Start() {
   InitGame();
   InitStars();
   
-  // window.phase = PHASE_TITLE;
-  // StartSong(song_theme_maj);
+  window.phase = PHASE_TITLE;
+  StartSong(song_theme_maj);
 
   // straight to game to start
-  window.phase = PHASE_GAME;
+  // window.phase = PHASE_GAME;
 
   // For mouse control.
   bigcanvas.canvas.onmousemove = CanvasMove;
@@ -1797,6 +1922,19 @@ function CanvasMousedownGame(x, y) {
   let globalx = scrollx + x;
   console.log('click ', x, y, " = global ", globalx, y);
 
+  if (fadeout && fadeframes < 0) {
+    ClearSong();
+    Init();
+    InitAreas();
+    InitGame();
+    
+    fadeout = false;
+    fadeframes = MAXFADEFRAMES;
+    window.phase = PHASE_TITLE;
+    StartSong(song_theme_maj);
+    return;
+  }
+  
   if (synchronous) {
     // failsafe
     if (script.length == 0) synchronous = false;
@@ -1976,7 +2114,19 @@ document.onkeydown = function(event) {
 
   // console.log('key: ' + event.keyCode);
 
+  
   const kc = event.keyCode;
+  if (kc == 27) {
+    ClearSong();
+    document.body.innerHTML =
+        '<b style="color:#fff;font-size:40px">(SILENCED. ' +
+        'RELOAD TO PLAY)</b>';
+    Step = function() { };
+    return;
+  }
+
+  if (!CHEATS) return;
+  
   switch (kc) {
   case 32:  // SPACE
     if (window.phase == PHASE_TITLE) {
@@ -1989,6 +2139,15 @@ document.onkeydown = function(event) {
   case 38:  // UP
   case 40:  // DOWN
   case 88:  // x
+    for (var o in items) {
+      items[o].invx = null;
+    }
+    items.energy.invx = 2;
+    items.energy.invy = 0;
+    items.egg1.invx = 0;
+    items.egg1.invy = 0;
+    player.worldx = 1617;
+    player.worldy = 89;
     break;
   case 90:  // z
     show_areas = !show_areas
@@ -2013,27 +2172,6 @@ document.onkeydown = function(event) {
       items.egg2.invx = null;
     }
     player.worldx = WIDTH * (kc - 49 + 0.5); break;
-    /*
-  case 55: window.phase = PHASE_PUZZLE; Level7(); break;
-    case 9:
-    if (window.cutscene) {
-      var cuts = window.cutscenes[window.cutscene];
-      if (cuts) {
-        window.cutscene = null;
-        cuts.cont();
-      }
-    }
-    break;
-    */
-    case 27: // ESC
-    if (true || DEBUG) {
-      ClearSong();
-      document.body.innerHTML =
-          '<b style="color:#fff;font-size:40px">(SILENCED. ' +
-          'RELOAD TO PLAY)</b>';
-      Step = function() { };
-      // n.b. javascript keeps running...
-    }
     break;
   }
 };
