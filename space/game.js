@@ -21,6 +21,9 @@ let frames = 0;
 // obj can be Ent or Item, or ...
 let sentence = null;
 
+// Script that asynchronously runs
+let script = [];
+
 // To support the inventory management constraints, when you pick
 // up an object you have to place it into inventory. If this is
 // non-null, we are currently trying to pick up an item.
@@ -307,6 +310,73 @@ Item.prototype.MaskAt = function(x, y) {
   return cell != ' ';
 };
 
+// Do the action and be done immediately.
+function ScriptDo(fn) {
+  this.fn = fn;
+  this.Done = function () {
+    this.fn();
+    return true;
+  };
+  return this;
+}
+
+// In frames
+function ScriptDelay(fr) {
+  this.fr = fr;
+  this.Done = function () {
+    this.fr--;
+    if (this.fr <= 0) return true;
+  };
+  return this;
+}
+
+// Wait until function returns true
+function ScriptWait(fn) {
+  this.Done = fn;
+  return this;
+}
+
+function ScriptGoto(ent, x, y) {
+  this.ent = ent;
+  this.x = x;
+  this.y = y;
+  this.init = false;
+  this.Done = function () {
+    // First time we're called, initialize
+    if (!this.init) {
+      let r = Route(this.ent.worldx, this.ent.worldy, this.x, this.y);
+      if (r == null) {
+	console.log('emergency warp!');
+	this.ent.route = [];
+	this.ent.worldx = this.x;
+	this.ent.worldy = this.y;
+      } else {
+	this.ent.route = r;
+      }
+      this.init = true;
+    }
+
+    // Assume done when route is empty
+    return this.ent.route.length == 0;
+  };
+  return this;
+}
+
+function ScriptSay(ent, s) {
+  this.ent = ent;
+  this.s = s;
+  this.init = false;
+  this.Done = function () {
+    if (!this.init) {
+      ent.Say(s);
+      this.init = true;
+    }
+
+    return this.ent.msgq.length == 0;
+  }
+  return this;
+}
+
 function InitGame() {
 
   scrollx = 5 * WIDTH;
@@ -316,14 +386,35 @@ function InitGame() {
   window.ents = {};
   let ents = window.ents;
   ents.grateguy = Human();
-  ents.grateguy.worldx = 1140;
-  ents.grateguy.worldy = 91;
+  ents.grateguy.worldx = 1724;
+  ents.grateguy.worldy = 90;
 
+  ents.captain = Human();
+  ents.captain.worldx = 1800;
+  ents.captain.worldy = 94;
+  
   window.player = Player();
-  // player.worldx = WIDTH * 5 + 122;
-  player.worldx = 1182;
+  player.worldx = WIDTH * 5 + 122;
+  // player.worldx = 1182;
   player.worldy = 160;
-                       
+
+  script = [
+    new ScriptDelay(110),
+    new ScriptGoto(ents.captain, 1812, 92),
+    new ScriptSay(ents.captain, "What's that on radar?"),
+    new ScriptGoto(ents.grateguy, 1741, 96),
+    new ScriptSay(ents.grateguy, "A ship...?"),
+    new ScriptDo(() => { ents.captain.facingleft = true; }),
+    new ScriptDelay(58),
+    new ScriptDo(() => { ents.captain.facingleft = false; }),
+    new ScriptSay(ents.captain, "It could be an alien race."),
+    // TODO: more "story" here
+    
+    // go to grate.
+    new ScriptGoto(ents.grateguy, 1139, 91),
+    // drop card...?
+  ];
+  
   ents.player = window.player;
                        
   const MASK2x2 = ['**',
@@ -362,8 +453,8 @@ function InitGame() {
                                 ' * ',
                                 '** ']);
   items.airlocktool.lookstring = "WIGGLY METAL";
-  items.airlocktool.worldx = 1780;
-  items.airlocktool.worldy = 48;
+  items.airlocktool.worldx = 1180;
+  items.airlocktool.worldy = 70;
   
   items.id = new Item('CARD',
                       ['invid', 1],
@@ -906,6 +997,12 @@ function DoSentence() {
   }
 }
 
+function DoScript() {
+  while (script.length > 0 && script[0].Done()) {
+    script.shift(1);
+  }
+}
+
 let last = 0;
 function Step(time) {
   // Throttle to 30 fps or something we
@@ -932,6 +1029,8 @@ function Step(time) {
 
   DoSentence();
 
+  DoScript();
+  
   // Update entities.
   for (var o in ents) {
     let ent = ents[o];
@@ -1024,6 +1123,19 @@ function InitAreas() {
     new Area(977, 77, 1010, 102),
     // B full
     new Area(1010, 73, 1297, 102),
+
+    // A full (all box depth)
+    new Area(1297, 77, 1669, 102),
+    
+    // Door to bridge. This one should
+    // require items etc.?
+    new Area(1669, 83, 1688, 96),
+    
+    // Bridge
+    new Area(1688, 78, 1754, 102),
+    // under chair
+    new Area(1754, 98, 1786, 102),
+    new Area(1786, 80, 1818, 102),
     
     // Bottom floor
     new Area(744, 139, 821, 146),
@@ -1202,13 +1314,6 @@ function CanvasMousedownGame(x, y) {
     } else {
       player.route = route;
     }
-
-    // XXX
-    let r2 = Route(ents.grateguy.worldx,
-		   ents.grateguy.worldy,
-		   globalx, y);
-    if (r2 != null)
-      ents.grateguy.route = r2;
     
     // TODO:
     // click GET ITEM, open inventory...
