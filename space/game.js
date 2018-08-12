@@ -86,6 +86,9 @@ const resources = new Resources(
    'inv-used.png',
    'inv-conflict.png',
    'inv-ok.png',
+
+   'screwdriver.png',
+   'invscrewdriver.png',
    
    'id.png',
    'invid.png',
@@ -555,6 +558,11 @@ function InitGame() {
   items.grateguybody.worldy = null;
   items.grateguybody.grabbable = false;
   
+  items.screwdriver = new Item('SCREWDRIVER',
+			       ['invscrewdriver', 1],
+			       ['screwdriver', 1],
+			       ['***']);
+
   console.log('initialized game');
 }
 
@@ -1136,6 +1144,10 @@ function DoSentence() {
 	  items.grateguybody.actionx = 1138;
 	  items.grateguybody.actiony = 150;
 	  // Spawn screwdriver.
+	  items.screwdriver.worldx = 1194;
+	  items.screwdriver.worldy = 144;
+	  items.screwdriver.actionx = 1194;
+	  items.screwdriver.actiony = 144;
 	}),
 	new ScriptSay(player, "DIE!"),
       ];
