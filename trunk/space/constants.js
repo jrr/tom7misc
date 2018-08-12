@@ -92,3 +92,5 @@ const HUMANW = 42;
 const HUMANH = 80;
 // from feet to top of image
 const HUMANTALL = 74;
+
+const MAXFADEFRAMES = 180;
