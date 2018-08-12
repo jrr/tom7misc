@@ -156,7 +156,7 @@ function GrabitemCells(invx, invy) {
   for (var y = 0; y < item.cellsh && y + invy < INVH; y++) {
     for (var x = 0; x < item.cellsw && x + invx < INVW; x++) {
       if (item.MaskAt(x, y)) {
-	cs.push({x: x + invx, y: y + invy});
+        cs.push({x: x + invx, y: y + invy});
       }
     }
   }
@@ -175,8 +175,8 @@ function GrabitemOK(invx, invy) {
   for (var y = 0; y < item.cellsh && y + invy < INVH; y++) {
     for (var x = 0; x < item.cellsw && x + invx < INVW; x++) {
       if (item.MaskAt(x, y) && InvUsed(invx + x, invy + y) != null) {
-	console.log('conflict at ', x, y);
-	return false;
+        console.log('conflict at ', x, y);
+        return false;
       }
     }
   }
@@ -239,41 +239,41 @@ function InitGame() {
   window.ents = {};
   let ents = window.ents;
   ents.grateguy = new Ent('ALIEN',
-			  ['grateguy', 1],
-			  // no moving anim
-			  ['grateguy', 1],
-			  30, 65);
+                          ['grateguy', 1],
+                          // no moving anim
+                          ['grateguy', 1],
+                          30, 65);
   ents.grateguy.lookstring = "LOOKS WARM";
   ents.grateguy.worldx = 1140;
   ents.grateguy.worldy = 91;
 
   window.player = new Ent('ME',
-			  ['player1', 1],
-			  ['player1', 9,
-			   'player2', 2,
-			   'player3', 6,
-			   'player2', 2],
-			  68,
-			  46);
+                          ['player1', 1],
+                          ['player1', 9,
+                           'player2', 2,
+                           'player3', 6,
+                           'player2', 2],
+                          68,
+                          46);
   player.sayfont = window.spacefont;
   player.lookstring = "IT ME :-)";
   player.worldx = WIDTH * 5 + 122;
   player.worldy = 160;
   player.facer = EzFrames(['face-right', 280,
-			   'face-right-blink', 2,
-			   'face-right', 68,
-			   'face-right-blink', 2]);
+                           'face-right-blink', 2,
+                           'face-right', 68,
+                           'face-right-blink', 2]);
   player.facel = FlipFramesHoriz(player.facer);
   player.Draw = function(x, y) {
     this.SuperDraw(x, y);
     DrawFrame(this.facingleft ? this.facel : this.facer,
-	      x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
+              x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
   };
-		       
+                       
   ents.player = window.player;
-		       
+                       
   const MASK2x2 = ['**',
-		   '**'];
+                   '**'];
   const MASK1x1 = ['*'];
 
   window.inventoryopen = false;
@@ -285,9 +285,9 @@ function InitGame() {
   items.egg3 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
   items.egg4 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
   for (let egg of [items.egg1,
-		   items.egg2,
-		   items.egg3,
-		   items.egg4]) {
+                   items.egg2,
+                   items.egg3,
+                   items.egg4]) {
     egg.lookstring = "A PRECIOUS BABY.";
   }
   
@@ -298,23 +298,23 @@ function InitGame() {
   items.egg2.invy = 0;
   items.egg3.invx = 4;
   items.egg3.invy = 0;
-  // items.egg4.invx = 6;
-  // items.egg4.invy = 0;
+  items.egg4.invx = 6;
+  items.egg4.invy = 0;
   
   items.airlocktool = new Item('TOOL',
-			       ['invairlocktool', 1],
-			       ['airlocktool', 1],
-			       [' **',
-				' * ',
-				'** ']);
+                               ['invairlocktool', 1],
+                               ['airlocktool', 1],
+                               [' **',
+                                ' * ',
+                                '** ']);
   items.airlocktool.lookstring = "WIGGLY METAL";
   items.airlocktool.worldx = 1780;
   items.airlocktool.worldy = 48;
   
   items.id = new Item('CARD',
-		      ['invid', 1],
-		      ['id', 1],
-		      MASK1x1);
+                      ['invid', 1],
+                      ['id', 1],
+                      MASK1x1);
 
   items.id.lookstring = "PLASTIC IN GOLDEN RATIO ASPECT";
   items.id.worldx = WIDTH * 5 + 30;
@@ -373,8 +373,8 @@ Ent.prototype.LookString = function() {
 
 Ent.prototype.GetFrames = function() {
   const moving = this.targetx != null &&
-	(this.worldx != this.targetx ||
-	 this.worldy != this.targety);
+        (this.worldx != this.targetx ||
+         this.worldy != this.targety);
   
   if (this.facingleft)
     return moving ? this.movel : this.standl;
@@ -411,7 +411,7 @@ function InvUsed(x, y) {
     let item = items[i];
     if (item.invx != null) {
       if (item.MaskAt(x - item.invx, y - item.invy))
-	return item;
+        return item;
     }
   }
   return null;
@@ -421,8 +421,8 @@ let stars = [];
 
 function SpawnStar() {
   return {x: GAMEWIDTH, y : 0 | (Math.random() * (HEIGHT - 1)),
-	  // Not integral
-	  dx: -0.1 + (Math.random() * -4.0) };
+          // Not integral
+          dx: -0.1 + (Math.random() * -4.0) };
 }
 
 function DrawStars() {
@@ -431,8 +431,8 @@ function DrawStars() {
     if (star) {
       let x = (0 | star.x) - scrollx;
       if (x >= 0 && x < WIDTH) {
-	DrawFrame(window.starframes[i % window.starframes.length],
-		  x, star.y);
+        DrawFrame(window.starframes[i % window.starframes.length],
+                  x, star.y);
       }
     }
   }
@@ -445,7 +445,7 @@ function UpdateStars() {
       let star = stars[i];
       star.x += star.dx;
       if (star.x < 0)
-	stars[i] = null;
+        stars[i] = null;
     }
   }
 }
@@ -465,8 +465,8 @@ function DrawItemsWhen(cond) {
     let item = items[o];
     if (item.worldx != null && cond(item)) {
       DrawFrame(item.worldframes,
-		item.worldx - scrollx,
-		item.worldy);
+                item.worldx - scrollx,
+                item.worldy);
     }
   }
 }
@@ -476,7 +476,7 @@ function DrawEntsWhen(cond) {
     let ent = ents[o];
     if (ent.worldx != null && cond(ent)) {
       ent.Draw(ent.worldx - ent.halfwidth - scrollx,
-	       ent.worldy - ent.height);
+               ent.worldy - ent.height);
     }
   }
 }
@@ -489,7 +489,7 @@ function ExtendSentence(noun) {
     return { verb: sentence.verb, obj1 : noun, obj2 : null };
   } else {
     if (sentence.verb == VERB_OVO ||
-	sentence.verb == VERB_USE && sentence.obj2 == null) {
+        sentence.verb == VERB_USE && sentence.obj2 == null) {
       return { verb: sentence.verb, obj1 : sentence.obj1, obj2 : noun };
     }
   }
@@ -511,9 +511,9 @@ function GetSentenceAt(x, y) {
   if (sentence == null && y > ACTY) {
     for (let act of ACTIONS) {
       if (InRect(mousex, mousey, act)) {
-	console.log('start sentence ', VerbString(act.verb));
-	return { verb: act.verb, obj1: null, obj2: null };
-	return;
+        console.log('start sentence ', VerbString(act.verb));
+        return { verb: act.verb, obj1: null, obj2: null };
+        return;
       }
     }
   }
@@ -526,12 +526,12 @@ function GetSentenceAt(x, y) {
     for (let o in items) {
       let item = items[o];
       if (item.worldx != null &&
-	  InCoords(globalx, y,
-		   item.worldx, item.worldy,
-		   item.worldw, item.worldh)) {
-	// see if we can add to sentence
-	let sent = ExtendSentence(item);
-	if (sent != null) return sent;
+          InCoords(globalx, y,
+                   item.worldx, item.worldy,
+                   item.worldw, item.worldh)) {
+        // see if we can add to sentence
+        let sent = ExtendSentence(item);
+        if (sent != null) return sent;
       }
     }
 
@@ -539,13 +539,13 @@ function GetSentenceAt(x, y) {
     for (let o in ents) {
       let ent = ents[o];
       if (ent.worldx != null &&
-	  InCoords(globalx, y,
-		   ent.worldx - ent.halfwidth,
-		   ent.worldy - ent.height,
-		   ent.halfwidth * 2,
-		   ent.height)) {
-	let sent = ExtendSentence(ent);
-	if (sent != null) return sent;
+          InCoords(globalx, y,
+                   ent.worldx - ent.halfwidth,
+                   ent.worldy - ent.height,
+                   ent.halfwidth * 2,
+                   ent.height)) {
+        let sent = ExtendSentence(ent);
+        if (sent != null) return sent;
       }
     }
   }
@@ -607,7 +607,7 @@ function DrawGame() {
     // XXX conditions for highlighting? are they always clickable?
     let canhighlight = sentence == null && grabitem == null;
     let f = (canhighlight && InRect(mousex, mousey, act)) ?
-	hispacefont : spacefont;
+        hispacefont : spacefont;
     f.Draw(ctx, act.x, act.y, act.text);
   }
     
@@ -632,39 +632,39 @@ function DrawGame() {
     // Above game stuff: Inventory
     let pos = GrabitemInv();
     let grabcells = pos == null ?
-	[] : GrabitemCells(pos.invx, pos.invy);
+        [] : GrabitemCells(pos.invx, pos.invy);
     let IsGrabCell = (x, y) => {
       for (let c of grabcells)
-	if (c.x == x && c.y == y)
-	  return true;
+        if (c.x == x && c.y == y)
+          return true;
       return false;
     };
     
     DrawFrame(window.inventory, INVX, INVY);
     for (let y = 0; y < INVH; y++) {
       for (let x = 0; x < INVW; x++) {
-	let gc = IsGrabCell(x, y);
-	if (InvUsed(x, y) != null) {
-	  let iframe = gc ? invconflict : invused;
-	  DrawFrame(iframe, 
-		    INVCONTENTSX + INVITEMSIZE * x,
-		    INVCONTENTSY + INVITEMSIZE * y);
-	} else {
-	  if (gc) {
-	    DrawFrame(window.invok,
-		      INVCONTENTSX + INVITEMSIZE * x,
-		      INVCONTENTSY + INVITEMSIZE * y);
-	  }
-	}
+        let gc = IsGrabCell(x, y);
+        if (InvUsed(x, y) != null) {
+          let iframe = gc ? invconflict : invused;
+          DrawFrame(iframe, 
+                    INVCONTENTSX + INVITEMSIZE * x,
+                    INVCONTENTSY + INVITEMSIZE * y);
+        } else {
+          if (gc) {
+            DrawFrame(window.invok,
+                      INVCONTENTSX + INVITEMSIZE * x,
+                      INVCONTENTSY + INVITEMSIZE * y);
+          }
+        }
       }
     }
 
     for (let o in items) {
       let item = items[o];
       if (item.invx != null) {
-	DrawFrame(item.invframes,
-		  INVCONTENTSX + INVITEMSIZE * item.invx,
-		  INVCONTENTSY + INVITEMSIZE * item.invy);
+        DrawFrame(item.invframes,
+                  INVCONTENTSX + INVITEMSIZE * item.invx,
+                  INVCONTENTSY + INVITEMSIZE * item.invy);
       }
     }
 
@@ -679,7 +679,7 @@ function DrawGame() {
     let ent = ents[o];
     if (ent.worldx != null && ent.msgq.length > 0) {
       ent.DrawText(ent.worldx - scrollx,
-		   ent.worldy - ent.height);
+                   ent.worldy - ent.height);
     }
   }
 
@@ -687,8 +687,8 @@ function DrawGame() {
   // so it's always on top.
   if (grabitem) {
     DrawFrame(grabitem.item.invframes,
-	      mousex - (INVITEMSIZE * grabitem.item.cellsw) / 2,
-	      mousey - (INVITEMSIZE * grabitem.item.cellsh) / 2);
+              mousex - (INVITEMSIZE * grabitem.item.cellsw) / 2,
+              mousey - (INVITEMSIZE * grabitem.item.cellsh) / 2);
   }
     
   // Unmute button?
@@ -698,7 +698,7 @@ function DrawGame() {
 function DrawTitle() {
   DrawFrame(window.titleframes, 0, 0);
   spacefont.Draw(ctx, WIDTH * 0.35, HEIGHT * 0.5,
-		 "SPACE GAME TITLE TBD");
+                 "SPACE GAME TITLE TBD");
 }
 
 function Draw() {
@@ -738,15 +738,15 @@ function DoSentence() {
     if (obj instanceof Item) {
       // XXX test if it's possible to get this item.
       if (obj.worldx == null) {
-	player.Say("HOW...?");
-	sentence = null;
-	return;
+        player.Say("HOW...?");
+        sentence = null;
+        return;
       }
       
       window.inventoryopen = true;
       grabitem = { item: obj,
-		   worldx : obj.worldx,
-		   worldy : obj.worldy };
+                   worldx : obj.worldx,
+                   worldy : obj.worldy };
       obj.worldx = null;
       obj.worldy = null;
       sentence = null;
@@ -836,12 +836,12 @@ function Step(time) {
     // Timeout text
     if (ent.msgq.length > 0) {
       if (ent.msgtime == 0) {
-	ent.msgq.shift(1);
-	if (ent.msgq.length > 0) {
-	  ent.msgtime = MSGTIME;
-	}
+        ent.msgq.shift(1);
+        if (ent.msgq.length > 0) {
+          ent.msgtime = MSGTIME;
+        }
       } else {
-	ent.msgtime--;
+        ent.msgtime--;
       }
     }
     
@@ -851,28 +851,28 @@ function Step(time) {
       const dy = ent.targety - ent.worldy;
       // At target?
       if (Math.abs(dx) <= ent.xspeed &&
-	  Math.abs(dy) <= ent.yspeed) {
-	ent.worldx = ent.targetx;
-	ent.worldy = ent.targety;
-	ent.targetx = null;
-	ent.targety = null;
-	continue;
+          Math.abs(dy) <= ent.yspeed) {
+        ent.worldx = ent.targetx;
+        ent.worldy = ent.targety;
+        ent.targetx = null;
+        ent.targety = null;
+        continue;
       }
 
       // XXX use bresenham
       // XXX avoid obstacles if non-convex?
       if (Math.abs(dx) <= ent.xspeed) {
-	ent.worldx = ent.targetx;
+        ent.worldx = ent.targetx;
       } else {
-	ent.worldx += dx < 0 ? -ent.xspeed : ent.xspeed;
-	if (dx < 0) ent.facingleft = true;
-	else if (dx > 0) ent.facingleft = false;
+        ent.worldx += dx < 0 ? -ent.xspeed : ent.xspeed;
+        if (dx < 0) ent.facingleft = true;
+        else if (dx > 0) ent.facingleft = false;
       }
       
       if (Math.abs(dy) <= ent.yspeed) {
-	ent.worldy = ent.targety;
+        ent.worldy = ent.targety;
       } else {
-	ent.worldy += dy < 0 ? -ent.yspeed : ent.yspeed;
+        ent.worldy += dy < 0 ? -ent.yspeed : ent.yspeed;
       }
     }
   }
@@ -961,30 +961,30 @@ function CanvasMousedownGame(x, y) {
     // only thing outside the inventory itself that don't close it
     
     if (InRect(x, y, INVCLOSE) ||
-	!InRect(x, y, INVRECT)) {
+        !InRect(x, y, INVRECT)) {
       window.inventoryopen = false;
       if (grabitem != null)
-	ResetGrabitem();
+        ResetGrabitem();
       return;
     }
 
     if (grabitem != null) {
       let pos = GrabitemInv();
       if (pos == null) {
-	// play sound?
-	console.log("!pos");
-	return;
+        // play sound?
+        console.log("!pos");
+        return;
       }
       if (GrabitemOK(pos.invx, pos.invy)) {
-	// Put it in inventory!
-	grabitem.item.invx = pos.invx;
-	grabitem.item.invy = pos.invy;
-	grabitem = null;
-	return;
+        // Put it in inventory!
+        grabitem.item.invx = pos.invx;
+        grabitem.item.invy = pos.invy;
+        grabitem = null;
+        return;
       } else {
-	console.log("!GrabitemOK");
-	// play sound?
-	return;
+        console.log("!GrabitemOK");
+        // play sound?
+        return;
       }
     }
 
@@ -992,14 +992,14 @@ function CanvasMousedownGame(x, y) {
       let invx = Math.floor((mousex - INVCONTENTSX) / INVITEMSIZE);
       let invy = Math.floor((mousey - INVCONTENTSY) / INVITEMSIZE);
       if (invx >= 0 && invy >= 0 &&
-	  invx < INVW && invy < INVH) {
-	let item = InvUsed(invx, invy);
-	if (item != null) {
-	  grabitem = { item: item, invx: item.invx, invy: item.invy };
-	  item.invx = null;
-	  item.invy = null;
-	  return;
-	}
+          invx < INVW && invy < INVH) {
+        let item = InvUsed(invx, invy);
+        if (item != null) {
+          grabitem = { item: item, invx: item.invx, invy: item.invy };
+          item.invx = null;
+          item.invy = null;
+          return;
+        }
       }
     }
       
@@ -1015,7 +1015,7 @@ function CanvasMousedownGame(x, y) {
       inventoryopen = true;
       return;
     }
-	 
+         
     // XXX test that it's in bounds, not item, etc.
     // (double-click to walk?!)
     sentence = null;
@@ -1118,8 +1118,8 @@ document.onkeydown = function(event) {
     if (window.cutscene) {
       var cuts = window.cutscenes[window.cutscene];
       if (cuts) {
-	window.cutscene = null;
-	cuts.cont();
+        window.cutscene = null;
+        cuts.cont();
       }
     }
     break;
@@ -1128,7 +1128,7 @@ document.onkeydown = function(event) {
     if (true || DEBUG) {
       ClearSong();
       document.body.innerHTML =
-	  '<b style="color:#fff;font-size:40px">(SILENCED. ' +
+          '<b style="color:#fff;font-size:40px">(SILENCED. ' +
           'RELOAD TO PLAY)</b>';
       Step = function() { };
       // n.b. javascript keeps running...
