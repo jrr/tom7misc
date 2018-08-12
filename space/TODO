@@ -2,6 +2,8 @@
 For space game
 
 saturday morning:
+ - actually dropping things in inventory
+ - moving things in inventory
  - inventory working
 
 saturday
@@ -20,8 +22,6 @@ saturday
     (areas could each specify a scroll position for the map?)
        - maybe edit these in-game?
 
- - Ent "Talk" method
-
 assets
  - teleport entrance anim
  - main game atmospheric music
@@ -35,6 +35,7 @@ assets
  - self-destruct
  - end / credits
  - frown face (for like rejecting action)
+ - mouth moving face for talking out loud
 
 must have
  - name for game
@@ -97,6 +98,8 @@ ideas:
    and using it to breach a wall or something?
  - should happen underneath 
 
+ - ship is obviously moving fast, so alien ship needs to be
+   tracking it
 
 == GRATE GUY
 

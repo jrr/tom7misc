@@ -2,6 +2,8 @@
 let counter = 0, skipped = 0;
 let start_time = (new Date()).getTime();
 
+// Last place we saw the mouse. Scaled to the 320x200 screen that
+// is the canvas.
 let mousex = 0;
 let mousey = 0;
 
@@ -17,8 +19,16 @@ let frames = 0;
 //    obj1: (use OBJ1 with OBJ2)
 //    obj2: (if necessary) }
 // obj can be Ent or Item, or ...
-
 let sentence = null;
+
+// To support the inventory management constraints, when you pick
+// up an object you have to place it into inventory. If this is
+// non-null, we are currently trying to pick up an item.
+// The item either came from the world (worldx,y) or inventory (invx,y).
+// { item: the item being picked up. it is detached from the world / inv.
+//   worldx, worldy: coordinates item will return to if canceled (or null)
+//   invx, invy: same, for inventory}
+let grabitem = null;
 
 const resources = new Resources(
   ['font.png',
@@ -39,7 +49,9 @@ const resources = new Resources(
    'inv-icon.png',
    'inventory.png',
    'inv-used.png',
-
+   'inv-conflict.png',
+   'inv-ok.png',
+   
    'id.png',
    'airlocktool.png',
    
@@ -89,6 +101,9 @@ function Init() {
   window.inv_icon = EzFrames(['inv-icon', 1]);
   window.inventory = EzFrames(['inventory', 1]);
   window.invused = EzFrames(['inv-used', 1]);
+  // TODO: Could strobe
+  window.invconflict = EzFrames(['inv-conflict', 1]);
+  window.invok = EzFrames(['inv-ok', 1]);
   
   // window.playerr = FlipFramesHoriz(window.playerl);
   // window.playerr_run = FlipFramesHoriz(window.playerl_run);
@@ -100,7 +115,76 @@ function Init() {
   // song_menu[0].volume = 0.65;
 }
 
+// Cancel the attempt to deposit an item in inventory. It's returned
+// to the world or where it used to be in inventory.
+function ResetGrabitem() {
+  if (grabitem == null)
+    return;
+
+  if (grabitem.worldx != null) {
+    grabitem.item.worldx = grabitem.worldx;
+    grabitem.item.worldy = grabitem.worldy;
+  } else {
+    grabitem.item.invx = grabitem.invx;
+    grabitem.item.invy = grabitem.invy;
+  }
+  
+  grabitem = null;
+}
+
+function GrabitemInv() {
+  if (grabitem == null) return null;
+  // Cursor goes in the center of the object.
+  let x = mousex - (INVITEMSIZE * grabitem.item.cellsw) / 2;
+  let y = mousey - (INVITEMSIZE * grabitem.item.cellsh) / 2;
+
+  // DrawFrame(starframes[0], x, y);
+  
+  let invx = Math.round((x - INVCONTENTSX) / INVITEMSIZE);
+  let invy = Math.round((y - INVCONTENTSY) / INVITEMSIZE);
+  if (invx >= 0 && invy >= 0 &&
+      invx < INVW && invy < INVH)
+    return {invx: invx, invy: invy};
+  return null;
+}
+
+// Return list of cells (absolute inventory cells like {x:0, y:0})
+// that the grabitem would use if placed at invx,invy.
+function GrabitemCells(invx, invy) {
+  let item = grabitem.item;
+  let cs = [];
+  for (var y = 0; y < item.cellsh && y + invy < INVH; y++) {
+    for (var x = 0; x < item.cellsw && x + invx < INVW; x++) {
+      if (item.MaskAt(x, y)) {
+	cs.push({x: x + invx, y: y + invy});
+      }
+    }
+  }
+  return cs;
+}
+
+// Can we actually place the grabitem at this position?
+function GrabitemOK(invx, invy) {
+  let item = grabitem.item;
+  // Off map
+  if (invx < 0 || invy < 0) return false;
+  if (invy + item.cellsh > INVH) return false;
+  if (invx + item.cellsw > INVW) return false;
+
+  // Conflicts with existing.
+  for (var y = 0; y < item.cellsh && y + invy < INVH; y++) {
+    for (var x = 0; x < item.cellsw && x + invx < INVW; x++) {
+      if (item.MaskAt(x, y) && InvUsed(invx + x, invy + y) != null) {
+	console.log('conflict at ', x, y);
+	return false;
+      }
+    }
+  }
+  return true;
+}
+
 // Item that can go in inventory.
+// mask is assumed to be minimal (no blank outer rows/colums)
 function Item(name, invframes, worldframes, mask) {
   this.name = name;
   // Frames when in inventory
@@ -123,9 +207,20 @@ function Item(name, invframes, worldframes, mask) {
   this.worldw = this.worldframes.width;
   this.worldh = this.worldframes.height;
   
-  // TODO: state it goes back to if dropped?
-  
+  this.lookstring = null;
+
+  // Compute inventory cell bounding box, using mask.
+  let maxw = 0;
+  for (let row of mask) maxw = Math.max(row.length, maxw);
+  this.cellsw = maxw;
+  this.cellsh = mask.length;
+      
   return this;
+}
+
+Item.prototype.LookString = function() {
+  if (this.lookstring) return this.lookstring;
+  return "SOME ALIEN TECHNOLOGY?";
 }
 
 Item.prototype.MaskAt = function(x, y) {
@@ -142,13 +237,15 @@ function InitGame() {
   window.phase = PHASE_GAME;
 
   window.ents = {};
-  window.ents.grateguy = new Ent('ALIEN',
-				 ['grateguy', 1],
-				 // no moving anim
-				 ['grateguy', 1],
-				 30, 65);
-  window.ents.grateguy.worldx = 1140;
-  window.ents.grateguy.worldy = 91;
+  let ents = window.ents;
+  ents.grateguy = new Ent('ALIEN',
+			  ['grateguy', 1],
+			  // no moving anim
+			  ['grateguy', 1],
+			  30, 65);
+  ents.grateguy.lookstring = "LOOKS WARM";
+  ents.grateguy.worldx = 1140;
+  ents.grateguy.worldy = 91;
 
   window.player = new Ent('ME',
 			  ['player1', 1],
@@ -158,6 +255,8 @@ function InitGame() {
 			   'player2', 2],
 			  68,
 			  46);
+  player.sayfont = window.spacefont;
+  player.lookstring = "IT ME :-)";
   player.worldx = WIDTH * 5 + 122;
   player.worldy = 160;
   player.facer = EzFrames(['face-right', 280,
@@ -171,7 +270,7 @@ function InitGame() {
 	      x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
   };
 		       
-  window.ents.player = window.player;
+  ents.player = window.player;
 		       
   const MASK2x2 = ['**',
 		   '**'];
@@ -180,38 +279,46 @@ function InitGame() {
   window.inventoryopen = false;
 
   window.items = {};
-  window.items.egg1 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
-  window.items.egg2 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
-  window.items.egg3 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
-  window.items.egg4 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
-
-  // Start with four eggs
-  window.items.egg1.invx = 0;
-  window.items.egg1.invy = 0;
-  window.items.egg2.invx = 2;
-  window.items.egg2.invy = 0;
-  window.items.egg3.invx = 4;
-  window.items.egg3.invy = 0;
-  window.items.egg4.invx = 6;
-  window.items.egg4.invy = 0;
+  let items = window.items;
+  items.egg1 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
+  items.egg2 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
+  items.egg3 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
+  items.egg4 = new Item('EGG', ['invegg', 1], ['invegg', 1], MASK2x2);
+  for (let egg of [items.egg1,
+		   items.egg2,
+		   items.egg3,
+		   items.egg4]) {
+    egg.lookstring = "A PRECIOUS BABY.";
+  }
   
-  window.items.airlocktool = new Item('TOOL',
-				      ['invairlocktool', 1],
-				      ['airlocktool', 1],
-				      [' **',
-				       ' * ',
-				       '** ']);
-
-  window.items.airlocktool.worldx = 80;
-  window.items.airlocktool.worldy = 48;
+  // Start with four eggs in inventory.
+  items.egg1.invx = 0;
+  items.egg1.invy = 0;
+  items.egg2.invx = 2;
+  items.egg2.invy = 0;
+  items.egg3.invx = 4;
+  items.egg3.invy = 0;
+  // items.egg4.invx = 6;
+  // items.egg4.invy = 0;
   
-  window.items.id = new Item('CARD',
-			     ['invid', 1],
-			     ['id', 1],
-			     MASK1x1);
+  items.airlocktool = new Item('TOOL',
+			       ['invairlocktool', 1],
+			       ['airlocktool', 1],
+			       [' **',
+				' * ',
+				'** ']);
+  items.airlocktool.lookstring = "WIGGLY METAL";
+  items.airlocktool.worldx = 1780;
+  items.airlocktool.worldy = 48;
+  
+  items.id = new Item('CARD',
+		      ['invid', 1],
+		      ['id', 1],
+		      MASK1x1);
 
-  window.items.id.worldx = WIDTH * 5 + 30;
-  window.items.id.worldy = 140;
+  items.id.lookstring = "PLASTIC IN GOLDEN RATIO ASPECT";
+  items.id.worldx = WIDTH * 5 + 30;
+  items.id.worldy = 140;
   
   console.log('initialized game');
 }
@@ -243,9 +350,26 @@ function Ent(name, stand, move, wd, ht) {
   this.movel = FlipFramesHoriz(this.mover);
 
   this.facingleft = false;
+
+  this.lookstring = null;
+
+  this.sayfont = font;
+  this.msgq = [];
+  this.msgtime = 0;
   
   return this;
 }
+
+Ent.prototype.Say = function(s) {
+  console.log(s);
+  this.msgq.push(s);
+  this.msgtime = MSGTIME;
+};
+
+Ent.prototype.LookString = function() {
+  if (this.lookstring) return this.lookstring;
+  return "AN ALIEN?";
+};
 
 Ent.prototype.GetFrames = function() {
   const moving = this.targetx != null &&
@@ -257,6 +381,19 @@ Ent.prototype.GetFrames = function() {
   else
     return moving ? this.mover : this.standr;
 };
+
+// Separate because it should be above everything.
+// Coordinates are the top center of the entity.
+Ent.prototype.DrawText = function(x, y) {
+  if (this.msgq.length > 0) {
+    let str = this.msgq[0];
+    // Need to support multiline messages I think...
+    let strw = str.length * (FONTW - FONTOVERLAP);
+    let fx = x - (strw >>> 1);
+    if (fx < 0) fx = 0;
+    this.sayfont.Draw(ctx, fx, y - FONTH - 4, str);
+  }
+}
   
 Ent.prototype.SuperDraw = function(x, y) {
   const f = this.GetFrames();
@@ -277,7 +414,7 @@ function InvUsed(x, y) {
 	return item;
     }
   }
-  return false;
+  return null;
 }
 
 let stars = [];
@@ -344,6 +481,7 @@ function DrawEntsWhen(cond) {
   }
 }
 
+// Try extending the current sentence with a noun (entity or item)
 function ExtendSentence(noun) {
   if (sentence == null) {
     return { verb: VERB_LOOK, obj1 : noun, obj2 : null };
@@ -355,6 +493,64 @@ function ExtendSentence(noun) {
       return { verb: sentence.verb, obj1 : sentence.obj1, obj2 : noun };
     }
   }
+  return null;
+}
+
+// Get the sentence we would construct with a click at screen
+// coordinates x,y.
+function GetSentenceAt(x, y) {
+  let globalx = x + scrollx;
+
+  // No way to form sentences while grabbing.
+  if (grabitem != null)
+    return;
+  
+  // If we have no sentence, we can always pick a verb
+  // (XXX: NOT if we've grabbed an item and need to put it in
+  // inventory, though)
+  if (sentence == null && y > ACTY) {
+    for (let act of ACTIONS) {
+      if (InRect(mousex, mousey, act)) {
+	console.log('start sentence ', VerbString(act.verb));
+	return { verb: act.verb, obj1: null, obj2: null };
+	return;
+      }
+    }
+  }
+
+  if (window.inventoryopen) {
+    // XXX Allow extending with inventory item...
+    
+  } else {
+    // In an item?
+    for (let o in items) {
+      let item = items[o];
+      if (item.worldx != null &&
+	  InCoords(globalx, y,
+		   item.worldx, item.worldy,
+		   item.worldw, item.worldh)) {
+	// see if we can add to sentence
+	let sent = ExtendSentence(item);
+	if (sent != null) return sent;
+      }
+    }
+
+    // How about an entity?
+    for (let o in ents) {
+      let ent = ents[o];
+      if (ent.worldx != null &&
+	  InCoords(globalx, y,
+		   ent.worldx - ent.halfwidth,
+		   ent.worldy - ent.height,
+		   ent.halfwidth * 2,
+		   ent.height)) {
+	let sent = ExtendSentence(ent);
+	if (sent != null) return sent;
+      }
+    }
+  }
+    
+  return null;
 }
 
 // Draw the sentence (argument) at the top of the screen.
@@ -409,14 +605,18 @@ function DrawGame() {
 
   for (let act of ACTIONS) {
     // XXX conditions for highlighting? are they always clickable?
-    let canhighlight = sentence == null;
+    let canhighlight = sentence == null && grabitem == null;
     let f = (canhighlight && InRect(mousex, mousey, act)) ?
 	hispacefont : spacefont;
     f.Draw(ctx, act.x, act.y, act.text);
   }
     
   // font.Draw(ctx, 1, 1, "USE ID WITH CARD READER");
-  DrawSentence(sentence);
+  let nsent = GetSentenceAt(mousex, mousey);
+  if (nsent != null)
+    DrawSentence(nsent);
+  else
+    DrawSentence(sentence);
 
   // Objects need to be clipped by the top deck, so only
   // draw lower deck items first...
@@ -429,14 +629,32 @@ function DrawGame() {
   DrawEntsWhen((ent) => ent.worldy <= TOPDECKH);
   
   if (window.inventoryopen) {
-    // Above everything: Inventory
+    // Above game stuff: Inventory
+    let pos = GrabitemInv();
+    let grabcells = pos == null ?
+	[] : GrabitemCells(pos.invx, pos.invy);
+    let IsGrabCell = (x, y) => {
+      for (let c of grabcells)
+	if (c.x == x && c.y == y)
+	  return true;
+      return false;
+    };
+    
     DrawFrame(window.inventory, INVX, INVY);
     for (let y = 0; y < INVH; y++) {
       for (let x = 0; x < INVW; x++) {
+	let gc = IsGrabCell(x, y);
 	if (InvUsed(x, y) != null) {
-	  DrawFrame(invused, 
+	  let iframe = gc ? invconflict : invused;
+	  DrawFrame(iframe, 
 		    INVCONTENTSX + INVITEMSIZE * x,
 		    INVCONTENTSY + INVITEMSIZE * y);
+	} else {
+	  if (gc) {
+	    DrawFrame(window.invok,
+		      INVCONTENTSX + INVITEMSIZE * x,
+		      INVCONTENTSY + INVITEMSIZE * y);
+	  }
 	}
       }
     }
@@ -453,6 +671,24 @@ function DrawGame() {
     // TODO: could highlight filled inventory slots.
 
     spacefont.Draw(ctx, INVTITLEX, INVTITLEY, "INVENTORY");
+  }
+
+  // (XXX only player text should go above inventory...)
+  // (XXX or close inventory when we speak?)
+  for (let o in ents) {
+    let ent = ents[o];
+    if (ent.worldx != null && ent.msgq.length > 0) {
+      ent.DrawText(ent.worldx - scrollx,
+		   ent.worldy - ent.height);
+    }
+  }
+
+  // Item currently being grabbed is like part of the mouse cursor,
+  // so it's always on top.
+  if (grabitem) {
+    DrawFrame(grabitem.item.invframes,
+	      mousex - (INVITEMSIZE * grabitem.item.cellsw) / 2,
+	      mousey - (INVITEMSIZE * grabitem.item.cellsh) / 2);
   }
     
   // Unmute button?
@@ -475,6 +711,95 @@ function Draw() {
     break;
     case PHASE_GAME:
     DrawGame();
+    break;
+  }
+}
+
+// Act on the current sentence. It has to be complete.
+// Some sentences (LOOK AT ME) can always be executed
+// instantly, but many require the player to get close
+// to the object in question.
+//
+// In this case, we keep the sentence around, but set
+// a target for the player entity if possible.
+function DoSentence() {
+  if (sentence == null)
+    return;
+  // Every verb needs a first object, at least.
+  if (sentence.obj1 == null)
+    return;
+  
+  // Any special casing should go here.
+  
+  switch (sentence.verb) {
+  case VERB_GRAB: {
+    let obj = sentence.obj1;
+    // XXX go to obj1 first
+    if (obj instanceof Item) {
+      // XXX test if it's possible to get this item.
+      if (obj.worldx == null) {
+	player.Say("HOW...?");
+	sentence = null;
+	return;
+      }
+      
+      window.inventoryopen = true;
+      grabitem = { item: obj,
+		   worldx : obj.worldx,
+		   worldy : obj.worldy };
+      obj.worldx = null;
+      obj.worldy = null;
+      sentence = null;
+      return;
+    }
+
+    // XXX handle grabbing grate guy
+    
+    break;
+  }
+  case VERB_LOOK: {
+    let desc = sentence.obj1.LookString();
+    player.Say(desc || "DOESN'T LOOK LIKE ANYTHING TO ME");
+    sentence = null;
+    break;
+  }
+  case VERB_TALK: {
+    // XXX handle talking to humans
+    player.Say("HI " + sentence.obj1.name + "! :-)");
+    sentence = null;
+    break;
+  }
+  case VERB_OVO:
+    if (sentence.obj2 == null)
+      return;
+
+    // XXX go to obj2 first
+    
+    if (sentence.obj1.name != "EGG") {
+      player.Say("CAN ONLY OVOPOSIT AN *EGG*");
+      sentence = null;
+      return;
+    }
+
+    if (sentence.obj2.name != "ALIEN") {
+      player.Say("CAN ONLY OVOPOSIT AN EGG INTO AN *ALIEN*");
+      sentence = null;
+      return;
+    }
+
+    // XXX do ovoposit if the human is dead, etc.
+    
+    break;
+  case VERB_USE:
+    if (sentence.obj2 == null)
+      return;
+
+    // XXX go to obj2 first
+    
+    // Handle combinations that make sense here.
+    
+    player.Say("I DON'T KNOW HOW TO DO THAT");
+    sentence = null;
     break;
   }
 }
@@ -502,9 +827,25 @@ function Step(time) {
   if (frames > 1000000) frames = 0;
     
   UpdateStars();
-  
+
+  DoSentence();
+
+  // Update entities.
   for (var o in ents) {
     let ent = ents[o];
+    // Timeout text
+    if (ent.msgq.length > 0) {
+      if (ent.msgtime == 0) {
+	ent.msgq.shift(1);
+	if (ent.msgq.length > 0) {
+	  ent.msgtime = MSGTIME;
+	}
+      } else {
+	ent.msgtime--;
+      }
+    }
+    
+    // Move towards targets
     if (ent.targetx != null) {
       const dx = ent.targetx - ent.worldx
       const dy = ent.targety - ent.worldy;
@@ -604,19 +945,17 @@ function CanvasMousedownGame(x, y) {
   let globalx = scrollx + x;
   console.log('click ', x, y, " = global ", globalx, y);
 
-  // If we have no sentence, we can always pick a verb
-  // (XXX: NOT if we've grabbed an item and need to put it in
-  // inventory, though)
-  if (sentence == null && y > ACTY) {
-    for (let act of ACTIONS) {
-      if (InRect(mousex, mousey, act)) {
-	console.log('start sentence ', VerbString(act.verb));
-	sentence = { verb: act.verb, obj1: null, obj2: null };
-	return;
-      }
-    }
-  }
-
+  let sent = GetSentenceAt(x, y);
+  if (sent != null) {
+    sentence = sent;
+    // Stop moving, since executing the sentence may give us
+    // a new target.
+    player.targetx = null;
+    player.targety = null;
+    // XXX execute it...
+    return;
+  } 
+  
   if (window.inventoryopen) {
     // TODO: First check action clicks, since these are the
     // only thing outside the inventory itself that don't close it
@@ -624,10 +963,47 @@ function CanvasMousedownGame(x, y) {
     if (InRect(x, y, INVCLOSE) ||
 	!InRect(x, y, INVRECT)) {
       window.inventoryopen = false;
+      if (grabitem != null)
+	ResetGrabitem();
+      return;
     }
 
+    if (grabitem != null) {
+      let pos = GrabitemInv();
+      if (pos == null) {
+	// play sound?
+	console.log("!pos");
+	return;
+      }
+      if (GrabitemOK(pos.invx, pos.invy)) {
+	// Put it in inventory!
+	grabitem.item.invx = pos.invx;
+	grabitem.item.invy = pos.invy;
+	grabitem = null;
+	return;
+      } else {
+	console.log("!GrabitemOK");
+	// play sound?
+	return;
+      }
+    }
+
+    if (grabitem == null) {
+      let invx = Math.floor((mousex - INVCONTENTSX) / INVITEMSIZE);
+      let invy = Math.floor((mousey - INVCONTENTSY) / INVITEMSIZE);
+      if (invx >= 0 && invy >= 0 &&
+	  invx < INVW && invy < INVH) {
+	let item = InvUsed(invx, invy);
+	if (item != null) {
+	  grabitem = { item: item, invx: item.invx, invy: item.invy };
+	  item.invx = null;
+	  item.invy = null;
+	  return;
+	}
+      }
+    }
+      
     // TODO:
-    // click ITEM to snag it
     // (nice to have) drag item?
     // click USE, then ITEM
     // click to close inventory
@@ -639,27 +1015,14 @@ function CanvasMousedownGame(x, y) {
       inventoryopen = true;
       return;
     }
-
-    // In an item?
-    for (let o in items) {
-      let item = items[o];
-      if (item.worldx != null &&
-	  InCoords(globalx, y,
-		   item.worldx, item.worldy,
-		   item.worldw, item.worldh)) {
-	// see if we can add to sentence
-	sentence = ExtendSentence(item);
-      }
-    }
 	 
     // XXX test that it's in bounds, not item, etc.
     // (double-click to walk?!)
+    sentence = null;
     player.targetx = globalx;
     player.targety = y;
     
     // TODO:
-    // click to walk
-    // click to form sentence
     // click GET ITEM, open inventory...
   }
 }
