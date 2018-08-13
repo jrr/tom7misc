@@ -1058,11 +1058,7 @@ function GetSentenceAt(x, y) {
   return null;
 }
 
-// Draw the sentence (argument) at the top of the screen.
-// Note this is also used when hovering, which happens before
-// the sentence is actually saved.
-function DrawSentence(s) {
-  if (s == null) return;
+function GetSentence(s) {
   // Nice to show this with colors since it's in space language :)
   let ll = [];
   let OneObject = (v) => {
@@ -1089,12 +1085,28 @@ function DrawSentence(s) {
   case VERB_USE: ll = TwoObjects("USE", "WITH"); break;
   case VERB_DROP: ll = OneObject("DROP"); break;
   }
+  return ll;
+}
 
+// Draw the sentence (argument) at the top of the screen.
+// Note this is also used when hovering, which happens before
+// the sentence is actually saved.
+let lastsentencestring = '';
+function DrawSentence(s) {
+  if (s == null) return;
+  
+  let ll = GetSentence(s);
   let x = 1;
+  let str = '';
   for (let i = 0; i < ll.length; i++) {
     let ph = ll[i];
+    str += ph + ' ';
     ((i % 2 == 1) ? hispacefont : spacefont).Draw(ctx, x, 1, ph);
     x += (ph.length + 1) * (FONTW - FONTOVERLAP);
+  }
+  if (str != lastsentencestring) {
+    console.log(str);
+    lastsentencestring = str;
   }
 }
 
@@ -1922,7 +1934,7 @@ function InCoords(x, y, x0, y0, w, h) {
 
 function CanvasMousedownGame(x, y) {
   let globalx = scrollx + x;
-  console.log('click ', x, y, " = global ", globalx, y);
+  // console.log('click ', x, y, " = global ", globalx, y);
 
   if (fadeout && fadeframes < 0) {
     ClearSong();
