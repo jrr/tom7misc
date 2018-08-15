@@ -18,7 +18,7 @@ sunday
  - unexplained why both doors are closed at first
 
 bugs:
- - if you ovoposit into space body when in airlock,
+ - if you oviposit into space body when in airlock,
    it fails to plan path?
 
 get extinguisher,
@@ -43,7 +43,7 @@ assets
    - airlock guy death
  - guy uselessly shooting you
  - captain lady
- - ovoposit animation
+ - oviposit animation
  - self-destruct
  - end / credits
  - frown face (for like rejecting action)
@@ -125,11 +125,11 @@ ideas:
    or else there should just be nothing
 
  - airlock "emergency" tool to kill
- - requires figuring out that you can ovoposit egg in crate guy's face,
+ - requires figuring out that you can oviposit egg in crate guy's face,
    to free space (key discovery)
  - doesn't the body get sucked out into space?
  - maybe you then need to solve an intermediate puzzle to go out there
-   and find the body to ovoposit it
+   and find the body to oviposit it
    (eggs in space? maybe it's fine. the alien can just go out in space
    with no issues I guess?)
 

@@ -61,9 +61,9 @@ const resources = new Resources(
    'player2.png',
    'player3.png',
    'playerreachup.png',
-   'ovoposit1.png',
-   'ovoposit2.png',
-   'ovoposit3.png',
+   'oviposit1.png',
+   'oviposit2.png',
+   'oviposit3.png',
    
    'humanshadow.png',
    'humanback.png',
@@ -827,29 +827,29 @@ function Player() {
                  'face-right', 68,
                  'face-right-blink', 2]);
   p.reachingupframes = EzRL(['playerreachup', 1]);
-  p.ovoframes = EzRL(['ovoposit1', 6,
-		      'ovoposit2', 6,
-		      'ovoposit3', 8,
-		      'ovoposit2', 6,
-		      'ovoposit1', 600]);
+  p.oviframes = EzRL(['oviposit1', 6,
+		      'oviposit2', 6,
+		      'oviposit3', 8,
+		      'oviposit2', 6,
+		      'oviposit1', 600]);
   p.sayfont = window.spacefont;
   p.lookstring = "IT ME :-)";
   p.reachingup = false;
-  p.ovopositing = false;
+  p.ovipositing = false;
   p.Draw = function(x, y) {
     const moving = this.route.length > 0;
 
     let baseframes = moving ? this.move : this.stand;
-    if (this.ovopositing) {
+    if (this.ovipositing) {
       // No face.
-      this.DrawFacing(this.ovoframes, x, y);
+      this.DrawFacing(this.oviframes, x, y);
     } else if (this.reachingup) {
       // Just during grate anim.
       this.DrawFacing(this.reachingupframes, x, y);
     } else {
       this.DrawFacing(baseframes, x, y);
     }
-    if (!this.ovopositing) {
+    if (!this.ovipositing) {
       DrawFrame(this.facingleft ? this.face.l : this.face.r,
 		x + (this.facingleft ? LFACEX : FACEX), y + FACEY);
     }
@@ -982,7 +982,7 @@ function ExtendSentence(noun) {
   } else if (sentence.obj1 == null) {
     return { verb: sentence.verb, obj1 : noun, obj2 : null };
   } else {
-    if (sentence.verb == VERB_OVO ||
+    if (sentence.verb == VERB_OVI ||
         sentence.verb == VERB_USE && sentence.obj2 == null) {
       return { verb: sentence.verb, obj1 : sentence.obj1, obj2 : noun };
     }
@@ -1013,7 +1013,7 @@ function GetSentenceAt(x, y) {
 
     if (sentence != null &&
 	(sentence.verb == VERB_USE ||
-	 sentence.verb == VERB_OVO ||
+	 sentence.verb == VERB_OVI ||
 	 sentence.verb == VERB_LOOK)) {
       let invx = Math.floor((mousex - INVCONTENTSX) / INVITEMSIZE);
       let invy = Math.floor((mousey - INVCONTENTSY) / INVITEMSIZE);
@@ -1081,7 +1081,7 @@ function GetSentence(s) {
   case VERB_LOOK: ll = OneObject("LOOK AT"); break;
   case VERB_GRAB: ll = OneObject("GRAB"); break;
   case VERB_TALK: ll = OneObject("TALK TO"); break;
-  case VERB_OVO: ll = TwoObjects("OVOPOSIT", "INTO"); break;
+  case VERB_OVI: ll = TwoObjects("OVIPOSIT", "INTO"); break;
   case VERB_USE: ll = TwoObjects("USE", "WITH"); break;
   case VERB_DROP: ll = OneObject("DROP"); break;
   }
@@ -1427,7 +1427,7 @@ function DoSentence() {
     sentence = null;
     break;
   }
-  case VERB_OVO:
+  case VERB_OVI:
     if (sentence.obj2 == null)
       return;
 
@@ -1436,13 +1436,13 @@ function DoSentence() {
       return;
 
     if (sentence.obj1.name != "EGG") {
-      player.Say("CAN ONLY OVOPOSIT AN *EGG*");
+      player.Say("CAN ONLY OVIPOSIT AN *EGG*");
       sentence = null;
       return;
     }
 
     if (sentence.obj2.name != "BODY") {
-      player.Say("MUST OVOPOSIT AN EGG INTO A *BODY*");
+      player.Say("MUST OVIPOSIT AN EGG INTO A *BODY*");
       sentence = null;
       return;
     }
@@ -1459,11 +1459,11 @@ function DoSentence() {
     script = [
       new ScriptDo(() => {
 	frames = 0;
-	player.ovopositing = true;
+	player.ovipositing = true;
       }),
       new ScriptDelay(40),
       new ScriptDo(() => {
-	player.ovopositing = false;
+	player.ovipositing = false;
 	// Despawn egg from inventory
 	oldegg.invx = null;
 	oldegg.invy = null;
@@ -1964,10 +1964,10 @@ function CanvasMousedownGame(x, y) {
     // XXX execute it...
 
     // Special case for USE...
-    // (could also do for OVO but I think this should be a little
+    // (could also do for OVI but I think this should be a little
     // puzzle?)
     if ((sentence.verb == VERB_USE ||
-	 sentence.verb == VERB_OVO) &&
+	 sentence.verb == VERB_OVI) &&
 	sentence.obj1 == null) {
       window.inventoryopen = true;
     }
@@ -1979,7 +1979,7 @@ function CanvasMousedownGame(x, y) {
     }
     
     // Help you figure this one out...
-    if (sentence.verb == VERB_OVO &&
+    if (sentence.verb == VERB_OVI &&
 	sentence.obj1 != null &&
 	sentence.obj2 == null &&
 	sentence.obj1.name == "EGG") {
