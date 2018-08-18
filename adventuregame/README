@@ -3,11 +3,15 @@
 
 This is a test of infrastructure for building (sierra/lucasarts-style)
 adventure games in Flash. Unfortunately, one cannot run or edit this
-software without the Flash editor.
+software without the Flash editor. Ultimately I abandoned it because
+of some weird bugs with Flash and its worldwide deprecation. I wrote
+a more complete and working javascript-based engine for Ludum Dare
+in 2018; see the directory ../space/.
 
 Status: Some very basic things work (doors between rooms, scaling of
 player, messages). Some other critical features are not yet in place,
-such as working inventory.
+such as working inventory. If Flash still works for you and you want
+to play it, try the compiled versions at: http://spacebar.org/flash/
 
 All code and data are licensed under the GNU public license. See the 
 file COPYING for more information.
