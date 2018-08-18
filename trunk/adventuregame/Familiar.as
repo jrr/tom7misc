@@ -8,7 +8,7 @@ class Familiar extends Depthable {
 
   public function onLoad() {
     /* position all sayboxes appropriately */
-    
+
     var xx = this["saybox"]._x;
     var yy = this["saybox"]._y;
 
@@ -35,7 +35,7 @@ class Familiar extends Depthable {
   }
 
   public function relocate() {
-    
+
     /* XXX need to..
        - place appropriately so it doesn't seem to change
          distance from player when walking up/down
@@ -51,8 +51,8 @@ class Familiar extends Depthable {
     if (_root["player"]._x < (this["saybox"]._width / 2))
       xx = 8;
 
-    
-    /* XXX determine this programatically... 
+
+    /* XXX determine this programatically...
        _root._width is way too huge; huh??
     */
     var rootwidth = 550;
@@ -76,8 +76,8 @@ class Familiar extends Depthable {
     if (speakframesleft > 0) {
       speakframesleft --;
       if (speakframesleft == 0) {
-	/* PERF make invisible too? */
-	spoken = "";
+        /* PERF make invisible too? */
+        spoken = "";
       }
     }
   }
