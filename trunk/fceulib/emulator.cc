@@ -26,8 +26,7 @@ void Emulator::GetMemory(vector<uint8> *mem) {
 }
 
 vector<uint8> Emulator::GetMemory() {
-  vector<uint8> mem(RAM_BYTE_SIZE);
-  memcpy(mem.data(), fc->fceu->RAM, RAM_BYTE_SIZE);
+  vector<uint8> mem(fc->fceu->RAM, fc->fceu->RAM + RAM_BYTE_SIZE);
   return mem;
 }
 
@@ -360,6 +359,23 @@ uint32 Emulator::GetXScroll() const {
 
   // Combine coarse and fine x scroll
   return (xtable_select << 8) | ((tmp & 31) << 3) | xoffset;
+}
+
+uint32 Emulator::GetYScroll() const {
+  const PPU *ppu = fc->ppu;
+  const uint8 ppu_ctrl = ppu->PPU_values[0];
+  const uint32 tmp = ppu->GetTempAddr();
+
+  // These bits are stored in weird places. Shifted all the way
+  // down here for clarity.
+  const uint8 fine_y = (tmp >> 12) & 7;
+  // 0x3E0 = 1111100000
+  const uint8 coarse_y = (tmp & 0x03E0) >> 5;
+  const uint8 yoffset = (coarse_y << 3) | fine_y;
+
+  const bool ytable_select = (ppu_ctrl & 2) ? 240 : 0;
+  
+  return ytable_select + (uint32)yoffset;
 }
 
 

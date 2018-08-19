@@ -20,7 +20,7 @@ vector<pair<uint8, uint8>> SimpleFM2::ReadInputsEx(
   vector<string> contents = Util::ReadFileToLines(filename);
   vector<pair<uint8, uint8>> out;
   for (int i = 0; i < contents.size(); i++) {
-    const string &line = contents[i];
+    string line = contents[i];
     if (subtitles != nullptr &&
 	Util::startswith(line, "subtitle ")) {
       string rest = line.substr(9, string::npos);
@@ -51,6 +51,17 @@ vector<pair<uint8, uint8>> SimpleFM2::ReadInputsEx(
       |0|....T...|........||
     */
 
+    // For one-player FM2 files, sometimes the second player inputs
+    // are just blank. If so, expand.
+    if (line.size() > 3 &&
+	line[line.size() - 1] == '|' &&
+	line[line.size() - 2] == '|' &&
+	line[line.size() - 3] == '|') {
+      line.resize(line.size() - 2);
+      line.reserve(line.size() + 10);
+      line += "........||";
+    }
+    
     const string player1 = line.substr(3, 8);
     const string player2 = line.substr(12, 8);
     auto Command = [](const string &s) -> uint8 {
@@ -72,7 +83,7 @@ vector<pair<uint8, uint8>> SimpleFM2::ReadInputs2P(const string &filename) {
   return ReadInputsEx(filename, nullptr);
 }
 
-static vector<pair<uint8, uint8>> Dummy2P(const vector<uint8> &inputs) {
+vector<pair<uint8, uint8>> SimpleFM2::ExpandTo2P(const vector<uint8> &inputs) {
   vector<pair<uint8, uint8>> out;
   out.reserve(inputs.size());
   for (uint8 i : inputs) {
@@ -86,7 +97,7 @@ void SimpleFM2::WriteInputs(const string &outputfile,
                             const string &romchecksum,
                             const vector<uint8> &inputs) {
   WriteInputsWithSubtitles2P(outputfile, romfilename, romchecksum,
-                             Dummy2P(inputs), {});
+                             ExpandTo2P(inputs), {});
 }
 
 void SimpleFM2::WriteInputs2P(const string &outputfile,
@@ -104,7 +115,7 @@ void SimpleFM2::WriteInputsWithSubtitles(
     const vector<uint8> &inputs,
     const vector<pair<int, string>> &subtitles) {
   return WriteInputsWithSubtitles2P(outputfile, romfilename, romchecksum,
-                                    Dummy2P(inputs), subtitles);
+                                    ExpandTo2P(inputs), subtitles);
 }
 
 void SimpleFM2::WriteInputsWithSubtitles2P(

@@ -1,12 +1,11 @@
 # Makefile made by tom7.
 default: bench.exe emulator_test.exe difftrace.exe aot.exe
 
-all: emulator_test.exe bench.exe fm2tocc.exe difftrace.exe dumptrace.exe make-comprehensive-history.exe
+all: emulator_test.exe bench.exe fm2tofm7.exe difftrace.exe dumptrace.exe make-comprehensive-history.exe
 
 # -fno-strict-aliasing
 # -Wstrict-overflow=3
 # -std=c++11
-# XXXXXXX disable sound should not be on by default.
 # -DDISABLE_SOUND=1 -DDISABLE_VIDEO=1
 CXXFLAGS=-Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include 
 # XXX -O2
@@ -27,13 +26,8 @@ CC=gcc
 PLATFORMLINK=-lpthread -static
 else
 # for 64 bits on windows
-# CXX=x86_64-w64-mingw32-g++
-# CC=x86_64-w64-mingw32-g++
-
-# to use TDM:
-# export PATH=/c/TDM-GCC-64/bin:$PATH
-CXX=g++
-CC=g++
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-gcc
 
 # PLATFORMCFLAGS= -D__MINGW32__ -D_GLIBCXX_HAS_GTHREADS -mthreads
 PLATFORMCFLAGS=
@@ -122,7 +116,7 @@ LFLAGS= $(ARCH) $(PLATFORMLINK) $(LINKNETWORKING) -lz $(OPT) $(FLTO) $(PROFILE) 
 results-%.txt : make-comprehensive-history.exe
 	./make-comprehensive-history.exe --rev $*
 
-fm2tocc.exe : $(OBJECTS) fm2tocc.o simplefm2.o
+fm2tofm7.exe : $(CCLIBOBJECTS) fm2tofm7.o simplefm2.o simplefm7.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 difftrace.exe : stringprintf.o trace.o difftrace.o

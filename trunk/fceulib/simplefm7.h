@@ -1,9 +1,14 @@
-/* Simplified FM2 reader. Only supports one gamepad.
-   Assumes that the movie starts with hard power-on
-   in the first frame. Ignores everything else. */
+/* "FM7" format reader and writer.
+   Like SimpleFM2, assumes a sequence of inputs from hard power-on;
+   no metadata. No subtitle support. The only advantage over FM2 is
+   that the files are much, much smaller.
 
-#ifndef __SIMPLEFM2_H
-#define __SIMPLEFM2_H
+   The runtime representation is compatible with SimpleFM2, so it's
+   easy to use the two together.
+ */
+
+#ifndef __SIMPLEFM7_H
+#define __SIMPLEFM7_H
 
 #include <vector>
 #include <string>
@@ -11,57 +16,18 @@
 
 #include "types.h"
 
-#define INPUT_R (1<<7)
-#define INPUT_L (1<<6)
-#define INPUT_D (1<<5)
-#define INPUT_U (1<<4)
-#define INPUT_T (1<<3)
-#define INPUT_S (1<<2)
-#define INPUT_B (1<<1)
-#define INPUT_A (1   )
-
 using namespace std;
 
-struct SimpleFM2 {
-  static vector<uint8> ReadInputs(const string &filename);
+struct SimpleFM7 {
   static vector<pair<uint8, uint8>> ReadInputs2P(const string &filename);
-  static vector<pair<uint8, uint8>> ReadInputsEx(
-      const string &filename,
-      vector<pair<int, string>> *subtitles);
-  
-  static void WriteInputs(const string &outputfile,
-                          const string &romfilename,
-                          const string &romchecksum,
-                          const vector<uint8> &inputs);
+  // Same, but discards the second player.
+  static vector<uint8> ReadInputs(const string &filename);
 
   static void WriteInputs2P(const string &outputfile,
-                            const string &romfilename,
-                            const string &romchecksum,
                             const vector<pair<uint8, uint8>> &inputs);
-
-  // Subtitles are given as a pair (frame num, string).
-  static void WriteInputsWithSubtitles(
-      const string &outputfile,
-      const string &romfilename,
-      const string &romchecksum,
-      const vector<uint8> &inputs,
-      const vector<pair<int, string>> &subtitles);
-
-  static void WriteInputsWithSubtitles2P(
-      const string &outputfile,
-      const string &romfilename,
-      const string &romchecksum,
-      const vector<pair<uint8, uint8>> &inputs,
-      const vector<pair<int, string>> &subtitles);
-
-  // Convert a dense array of subtitles (one for each frame)
-  // into a sparse representation suitable for the above.
-  // Handles repeated subtitles efficiently.
-  static vector<pair<int, string>> MakeSparseSubtitles(
-      const vector<string> &dense_subtitles);
-  
-  static string InputToString(uint8 input);
-  static string InputToColorString(uint8 input);
+  // Second player always 0.
+  static void WriteInputs(const string &outputfile,
+                          const vector<uint8> &inputs);
 };
 
 #endif

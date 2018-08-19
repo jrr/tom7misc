@@ -455,22 +455,22 @@ void PPU::B2006_Direct(DECLFW_ARGS) {
   // 2006 is 'PPUADDR', which gives the memory address that
   // reads/writes to PPUDATA (2007) shall be directed to.
   // Since this is a 16-bit address, two consecutive writes
-  // are to set the upper byte and then lower byte. (vtoggle
-  // keeps track of this state).
+  // are used to set the upper byte and then lower byte.
+  // (vtoggle keeps track of this state).
   //
   // Note that both 2005 and 2006 modify the TempAddr; they
   // just map the inputs differently.
   LineUpdate();
 
-  PPUGenLatch=V;
+  PPUGenLatch = V;
   if (!vtoggle) {
-    TempAddr&=0x00FF;
-    TempAddr|=(V&0x3f)<<8;
+    TempAddr &= 0x00FF;
+    TempAddr |= (V & 0x3f) << 8;
   } else {
-    TempAddr&=0xFF00;
-    TempAddr|=V;
+    TempAddr &= 0xFF00;
+    TempAddr |= V;
 
-    RefreshAddr=TempAddr;
+    RefreshAddr = TempAddr;
     if (PPU_hook)
       PPU_hook(fc, RefreshAddr);
     // printf("%d, %04x\n",scanline,RefreshAddr);
@@ -482,9 +482,11 @@ void PPU::B2006_Direct(DECLFW_ARGS) {
 static DECLFW(B2007) {
   fc->ppu->B2007_Direct(DECLFW_FORWARD);
 }
+
 // static
 void PPU::B2007_Direct(DECLFW_ARGS) {
-  const uint32 tmp=RefreshAddr&0x3FFF;
+  // This is the PPUDATA register.
+  const uint32 tmp = RefreshAddr & 0x3FFF;
 
   PPUGenLatch=V;
   if (tmp>=0x3F00) {
@@ -510,13 +512,15 @@ static DECLFW(B4014) {
 }
 // static
 void PPU::B4014_Direct(DECLFW_ARGS) {
-  const uint32 t = V << 8;
+  // This is the OAMDMA register. Writing here initiates a copy of
+  // 256 bytes to the PPU OAM (sprite) memory.
+  const uint32 src_address = V << 8;
   // n.b. according to NESDEV, there is one or two (if we are on an
   // odd cpu cycle) idle cycles (so we should do ADDCYC or the
   // equivalent) before this DMA loop. -tom7
   // http://wiki.nesdev.com/w/index.php/PPU_OAM#DMA
   for (int x = 0; x < 256; x++) {
-    fc->X->DMW(0x2004, fc->X->DMR(t + x));
+    fc->X->DMW(0x2004, fc->X->DMR(src_address + x));
   }
 }
 

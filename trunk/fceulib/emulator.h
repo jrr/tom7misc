@@ -1,9 +1,8 @@
 /*
   Library interface to FCEUX. This is an attempt to proper encapsulation
   of the emulator so that there can be multiple instances at once and
-  they can run in separate threads, but I haven't succeded at that yet;
-  if you create multiple instances of this object they will trample on
-  each other and cause undefined behavior.
+  they can run in separate threads. Should work, although I can't promise
+  comprehensive thread safety!
 */
 
 #ifndef __EMULATOR_H
@@ -38,8 +37,7 @@ struct Emulator {
   // Bits from MSB to LSB are
   //    RLDUTSBA (Right, Left, Down, Up, sTart, Select, B, A)
   //
-  // Consider StepFull if you want video or CachingStep if you
-  // are doing search and might execute this same step again.
+  // Consider StepFull if you want video or sound.
   void Step(uint8 controller1, uint8 controller2);
 
   // Copy the 0x800 bytes of RAM.
@@ -109,6 +107,9 @@ struct Emulator {
   // scrolling or that do something funny like change the scroll position
   // during scanlines.
   uint32 GetXScroll() const;
+
+  // Same for y scroll. This one was only lightly tested. -tom7 2018
+  uint32 GetYScroll() const;
 
   // Access a 256*256 (row-major) array containing the current color
   // indices. For performance sake, this does not copy, so the caller
