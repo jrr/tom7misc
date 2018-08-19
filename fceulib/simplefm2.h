@@ -59,6 +59,8 @@ struct SimpleFM2 {
   // Handles repeated subtitles efficiently.
   static vector<pair<int, string>> MakeSparseSubtitles(
       const vector<string> &dense_subtitles);
+
+  static vector<pair<uint8, uint8>> ExpandTo2P(const vector<uint8> &inputs);
   
   static string InputToString(uint8 input);
   static string InputToColorString(uint8 input);

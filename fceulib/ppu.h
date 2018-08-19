@@ -145,7 +145,11 @@ struct PPU {
   int ppudead = 1;
   int cycle_parity = 0;
 
-  uint8 VRAMBuffer = 0, PPUGenLatch = 0;
+  uint8 VRAMBuffer = 0;
+  // The bus used to communicate with the CPU has significant bus
+  // capacitance, so it retains the last value written to it for
+  // a frame or two. This stores that value.
+  uint8 PPUGenLatch = 0;
 
   // Color deemphasis emulation.
   uint8 deemp = 0;
