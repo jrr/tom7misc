@@ -1,3 +1,10 @@
+// TODO: Many split-scrolling games can't be detected because after
+// the frame, the scroll doesn't reflect the game area scroll
+// (especially bottom-status games). Could keep a history of
+// scroll positions paired with their scanlines. Makes the most sense
+// to treat a sprite relative to the scroll position on the scanline(s)
+// on which it was rendered, right?
+
 #include "autocamera2.h"
 
 #include <vector>
@@ -10,6 +17,46 @@
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/hashing.h"
 #include "../cc-lib/gtl/top_n.h"
+
+/*
+before allowing yscroll too:
+game.nes                recall  rank loss
+mario.nes               1.00    0
+contra.nes              1.00    0
+megaman2.nes            1.00    3
+lolo.nes                1.00    0
+metroid.nes             1.00    0
+zelda.nes               1.00    0
+rocketeer.nes           1.00    0
+gyromite.nes            1.00    1
+littlemermaid.nes               1.00    1
+backtothefuture.nes             0.00    0
+cliffhanger.nes         0.00    0
+ducktales.nes           0.00    0
+
+.. note that I hadn't confirmed back to the future's pos, but
+   this version did successfully find it.
+
+With vertical scrolling:
+game.nes                recall  rank loss
+mario.nes               1.00    0
+contra.nes              1.00    0
+megaman2.nes            1.00    3
+lolo.nes                1.00    0
+metroid.nes             1.00    0
+zelda.nes               1.00    0
+rocketeer.nes           1.00    0
+gyromite.nes            1.00    1
+littlemermaid.nes               1.00    1
+backtothefuture.nes             1.00    0
+cliffhanger.nes         0.00    0
+ducktales.nes           0.00    0
+faxanadu.nes            0.00    0
+rivercity.nes           0.00    0
+
+(exactly the same)
+
+*/
 
 static constexpr int NUM_SPRITES = 64;
 // Absolute difference allowed between memory location and sprite
@@ -119,6 +166,7 @@ vector<Linkage> AutoCamera2::FindLinkages(
   OAM orig_oam{emu.get()};
 
   const uint32 orig_xscroll = emu->GetXScroll();
+  const uint32 orig_yscroll = emu->GetYScroll();
   
   // First, create a set of coordinates that could correspond to
   // a sprite. x and y separate. This allows us to quickly filter
@@ -126,6 +174,7 @@ vector<Linkage> AutoCamera2::FindLinkages(
   EightSet xset, yset;
   for (int i = 0; i < NUM_SPRITES; i++) {
     xset.InsertRegion(orig_oam.X(i), LINKAGE_MARGIN);
+    yset.InsertRegion(orig_oam.Y(i), LINKAGE_MARGIN);
     // Some games (Contra) store the actual screen coordinate but
     // others (Mario) store the value in absolute level coordinates
     // (i.e., prior to scrolling). If the sprite's location is the
@@ -134,8 +183,7 @@ vector<Linkage> AutoCamera2::FindLinkages(
     // back in the interface, so that uses of the location can
     // also compensate.)
     xset.InsertRegion(orig_oam.X(i) - orig_xscroll, LINKAGE_MARGIN);
-    yset.InsertRegion(orig_oam.Y(i), LINKAGE_MARGIN);
-    // TODO: Also allow compensation for y scrolling.
+    yset.InsertRegion(orig_oam.Y(i) - orig_yscroll, LINKAGE_MARGIN);
   }
 
   // Any memory location whose value is close to a sprite's coordinate.

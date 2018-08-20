@@ -20,6 +20,7 @@
 
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
+#include "../fceulib/simplefm7.h"
 #include "../fceulib/cart.h"
 #include "../fceulib/ppu.h"
 #include "../cc-lib/re2/re2.h"
@@ -66,31 +67,65 @@ struct Game {
 static vector<Game> Games() {
   return {
 	  // Verified.
-	  Game{"mario.nes", "mario.fm2", {{0x86, 0xCE}}},
+	  Game{"mario.nes", "mario.fm7", {{0x86, 0xCE}}},
 	  // Verified.
-	  Game{"contra.nes", "contra2p.fm2", {{0x334, 0x31A},
+	  Game{"contra.nes", "contra2p.fm7", {{0x334, 0x31A},
 					      {0x335, 0x31B}}},
 	  // From wiki.
-	  Game{"megaman2.nes", "megaman2.fm2", {{0x460, 0x4A0}}},
+	  Game{"megaman2.nes", "megaman2.fm7", {{0x460, 0x4A0}}},
 	  // From wiki.
 	  // This works but is VERY SLOW.
-	  Game{"lolo.nes", "lolo.fm2", {{0x6D, 0x6F}}},
+	  Game{"lolo.nes", "lolo.fm7", {{0x6D, 0x6F}}},
+	  // Has horizontal and vertical scrolling.
 	  // Verified. (wiki says 0x51,0x52 which is not right?)
-	  Game{"metroid.nes", "metroid.fm2", {{0x30E, 0x30D}}},
+	  Game{"metroid.nes", "metroid.fm7", {{0x30E, 0x30D}}},
 	  // From glEnd.
-	  Game{"zelda.nes", "zelda.fm2", {{0x70, 0x84}}},
+	  Game{"zelda.nes", "zelda.fm7", {{0x70, 0x84}}},
 	  // Verified. Warping definitely moves the sprite, though
 	  // it also causes physics to get desynced.
-	  Game{"rocketeer.nes", "rocketeer.fm2", {{0x40c,0x419}}},
+	  Game{"rocketeer.nes", "rocketeer.fm7", {{0x40c,0x419}}},
 	  // Verified. Screen coordinates. Warping works great!
-	  Game{"gyromite.nes", "gyromite.fm2", {{0x609, 0x608}}},
+	  Game{"gyromite.nes", "gyromite.fm7", {{0x609, 0x608}}},
+	  // Has horizontal and vertical scrolling.
 	  // Verified. Prescroll coordinates. Warping can cause
 	  // glitches/locks.
-	  Game{"littlemermaid.nes", "littlemermaid.fm2", {{0x330, 0x360}}},
+	  Game{"littlemermaid.nes", "littlemermaid.fm7", {{0x330, 0x360}}},
+	  // Verified. Warping works great. This game does split
+	  // scrolling for a bottom menu, so it always appears to be
+	  // (close to) 0,0.
+	  Game{"backtothefuture.nes", "backtothefuture.fm7", {{0x3a2, 0x3a7}}},
+	  // 2p. Warping works great. Lots of enemy sprite locations are
+	  // detected too.
+	  Game{"bubblebobble.nes", "bubblebobble2p.fm7", {{0x203,0x200},
+							  {0x20b,0x208}}},
+
+	  // 2P. There are lots of locations that track the components
+	  // of the monster sprites. But these two mostly allow
+	  // warping.
+	  Game{"rampage.nes", "rampage2p.fm7", {{0x102, 0x103},
+						{0x12e, 0x12f}}},
+
+	  // TODO.
+	  Game{"strider.nes", "strider.fm7", {}},
+	  Game{"kidicarus.nes", "kidicarus.fm7", {}},
+
 	  // TODO: These need expected positions. autocamera2 does
-	  // not succeed!
-	  Game{"faxanadu.nes", "faxanadu.fm2", {}},
-	  Game{"rivercity.nes", "rivercity.fm2", {}},
+	  // not seem to succeed today!
+	  Game{"cliffhanger.nes", "cliffhanger.fm7", {}},
+	  // autocamera doesn't seem to work :/ may need vertical scrolling
+	  // support?
+	  Game{"ducktales.nes", "ducktales.fm7", {}},
+
+	  // Doesn't work. split scrolling.
+	  Game{"baddudes.nes", "baddudes.fm7", {}},
+	  
+	  // Doesn't work. Note that in normal levels the xscroll is
+	  // always reported as 256, probably because of
+	  // split-scrolling. Not true in bonus level though.
+	  Game{"jackiechan.nes", "jackiechan.fm7", {}},
+
+	  Game{"faxanadu.nes", "faxanadu.fm7", {}},
+	  Game{"rivercity.nes", "rivercity2p.fm7", {}},
 	  };
 }
 
@@ -99,7 +134,7 @@ static Game EvalOne(const Game &game) {
   const int SAMPLE_EVERY = 500;
   const string &romfile = game.romfile;
   vector<pair<uint8, uint8>> movie =
-    SimpleFM2::ReadInputs2P(game.moviefile);
+    SimpleFM7::ReadInputs2P(game.moviefile);
   CHECK(!movie.empty()) << "Couldn't read movie: " << game.moviefile;
   CHECK(movie.size() > WARMUP_FRAMES + (SAMPLE_EVERY * NUM_SAMPLES)) <<
     game.moviefile << " not long enough!";

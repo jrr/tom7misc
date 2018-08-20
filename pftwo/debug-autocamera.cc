@@ -55,7 +55,8 @@ static string Rtos(double d) {
 // static constexpr int YLOC = 0x00CE;  // dec 206
 // static int XLOC = 0x030e;
 // static int YLOC = 0x030d;
-static int XLOC = 0x330, YLOC = 0x360;
+// static int XLOC = 0x330, YLOC = 0x360;
+static int XLOC = 0x14b, YLOC = 0x148;
 /*
 mermaid:
   355.00: 831/879 = 0x033f,0x036f (physics object?)
@@ -290,6 +291,11 @@ struct UIThread {
     font->draw(startx, 4, StringPrintf("%d^2/^<%d",
 				       frameidx, (int)movie.size()));
 
+    const uint32 xscroll = e->GetXScroll();
+    const uint32 yscroll = e->GetYScroll();
+    font->draw(startx + 128, 4,
+	       StringPrintf("^2scroll: ^1%d^2,^<%d",
+			    (int)xscroll, (int)yscroll));
     // And sprites.
     for (int absolute_s = 0; absolute_s < 64; absolute_s++) {
       int s = (absolute_s + rot) % 64;
@@ -331,6 +337,18 @@ struct UIThread {
 	    }
 	    break;
 
+	  case SDLK_MINUS:
+	    XLOC--;
+	    YLOC--;
+	    printf("%d,%d = %04x,%04x\n", XLOC, YLOC, XLOC, YLOC);
+	    break;
+	  case SDLK_EQUALS:
+	  case SDLK_PLUS:
+	    XLOC++;
+	    YLOC++;
+	    printf("%d,%d = %04x,%04x\n", XLOC, YLOC, XLOC, YLOC);
+	    break;
+	    
 	    // Numpad cardinal directions modify the value at XLOC,YLOC.
 	  case SDLK_KP6:
 	  case SDLK_KP4: {
@@ -468,11 +486,21 @@ struct UIThread {
 
       {
 	uint8 *ram = emu->GetFC()->fceu->RAM;
-	sdlutil::drawbox(screen, ram[XLOC] * 2, ram[YLOC] * 2, 16, 16,
-			 0xFF, 0x00, 0x00);
-	sdlutil::drawbox(screen, ram[XLOC] * 2 + 1, ram[YLOC] * 2 + 1, 14, 14,
-			 0xFF, 0x00, 0x00);
+	const uint32 xscroll = emu->GetXScroll();
+	const uint32 yscroll = emu->GetYScroll();
 
+	const uint8 xx = ram[XLOC], yy = ram[YLOC];
+	auto DrawBox =
+	  [this](int x, int y, uint8 r, uint8 g, uint8 b) {
+	    // shadow first
+	    sdlutil::drawbox(screen, x * 2 + 2, y * 2 + 2, 15, 15, 0, 0, 0);
+	    sdlutil::drawbox(screen, x * 2, y * 2, 16, 16, r, g, b);
+	    sdlutil::drawbox(screen, x * 2 + 1, y * 2 + 1, 14, 14, r, g, b);
+	  };
+	// RED is unmodified coordinates.
+	DrawBox(xx, yy, 0xFF, 0, 0);
+	// GREEN is offset by scroll.
+	DrawBox((uint8)(xx - xscroll), (uint8)(yy - yscroll), 0, 0xFF, 0);
       }
 	
       SDL_Flip(screen);
@@ -542,6 +570,11 @@ int main(int argc, char *argv[]) {
     movie = argv[2];
   }
 
+  if (argc >= 5) {
+    XLOC = atoi(argv[3]);
+    YLOC = atoi(argv[4]);
+  }
+  
   #ifdef ENABLE_AOT
   if (game != "contra.nes") {
     fprintf(stderr, "Sorry, contra.nes is hardcoded because of AOT.\n");
