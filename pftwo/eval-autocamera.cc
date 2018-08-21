@@ -66,6 +66,7 @@ struct Game {
 
 static vector<Game> Games() {
   return {
+#if 0
 	  // Verified.
 	  Game{"mario.nes", "mario.fm7", {{0x86, 0xCE}}},
 	  // Verified.
@@ -105,16 +106,33 @@ static vector<Game> Games() {
 	  Game{"rampage.nes", "rampage2p.fm7", {{0x102, 0x103},
 						{0x12e, 0x12f}}},
 
-	  // TODO.
-	  Game{"strider.nes", "strider.fm7", {}},
-	  Game{"kidicarus.nes", "kidicarus.fm7", {}},
+#endif
 
+#if 0
+
+	  // Verified. Warping works well.
+	  Game{"kidicarus.nes", "kidicarus.fm7", {0x723,0x720}},
+	  // Verified. Warping works well. I think it has a sprite
+	  // to do split-scrolling like mario (0x203,0x200)
+	  Game{"ninjagaiden.nes", "ninjagaiden.fm7", {0x086,0x08a}},
+
+	  // 0x370,0x330 is the cue ball. Lots of balls detected, but
+	  // not the cursor?
+	  Game{"lunarpool.nes", "lunarpool.fm7", {}},
+
+	  // Doesn't work... or every sprite has its own memory loc
+	  // and the right address is too deep?
+	  Game{"bomberman.nes", "bomberman.fm7", {}},
+	  
 	  // TODO: These need expected positions. autocamera2 does
 	  // not seem to succeed today!
 	  Game{"cliffhanger.nes", "cliffhanger.fm7", {}},
 	  // autocamera doesn't seem to work :/ may need vertical scrolling
 	  // support?
 	  Game{"ducktales.nes", "ducktales.fm7", {}},
+	  
+	  // doesn't work.
+	  Game{"strider.nes", "strider.fm7", {}},
 
 	  // Doesn't work. split scrolling.
 	  Game{"baddudes.nes", "baddudes.fm7", {}},
@@ -126,7 +144,8 @@ static vector<Game> Games() {
 
 	  Game{"faxanadu.nes", "faxanadu.fm7", {}},
 	  Game{"rivercity.nes", "rivercity2p.fm7", {}},
-	  };
+#endif
+  };
 }
 
 static Game EvalOne(const Game &game) {
