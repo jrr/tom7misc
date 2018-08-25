@@ -107,9 +107,10 @@ static vector<Game> Games() {
 						{0x12e, 0x12f}}},
 
 #endif
-
+	  
 #if 0
-
+	  // Verified. Warping works.
+	  Game{"adventureisland.nes", "adventureisland.fm7", {{0x584,0x5d3}}},
 	  // Verified. Warping works well.
 	  Game{"kidicarus.nes", "kidicarus.fm7", {0x723,0x720}},
 	  // Verified. Warping works well. I think it has a sprite
@@ -130,7 +131,10 @@ static vector<Game> Games() {
 	  // autocamera doesn't seem to work :/ may need vertical scrolling
 	  // support?
 	  Game{"ducktales.nes", "ducktales.fm7", {}},
-	  
+
+	  // Doesn't work. has split scrolling...
+	  Game{"gauntlet2.nes", "gauntlet2.fm7", {}},
+
 	  // doesn't work.
 	  Game{"strider.nes", "strider.fm7", {}},
 
