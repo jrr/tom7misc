@@ -431,7 +431,6 @@ void PPU::B2005_Direct(DECLFW_ARGS) {
     tmp |= V >> 3;
     // XOffset is the x position within a tile.
     XOffset = V & 7;
-    last_x_scroll = V;
   } else {
     // y scroll offset
     tmp &= 0x8C1F;
@@ -439,7 +438,6 @@ void PPU::B2005_Direct(DECLFW_ARGS) {
     // Weirdly, the y position within a tile (0-7) is
     // stored as the top bits
     tmp |= (V & 7) << 12;
-    last_y_scroll = V;
   }
   TempAddr = tmp;
   vtoggle ^= 1;

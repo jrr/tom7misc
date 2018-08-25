@@ -22,6 +22,7 @@ int main(int argc, char **argv) {
 
   SimpleFM7::WriteInputs2P(argv[2], inputs);
 
+  // PERF: Don't need to do this once we're confident FM7 is robust.
   vector<pair<uint8, uint8>> readback = SimpleFM7::ReadInputs2P(argv[2]);
 
   CHECK(inputs.size() == readback.size()) << inputs.size() << " vs "
