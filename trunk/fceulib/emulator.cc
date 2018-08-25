@@ -373,7 +373,7 @@ uint32 Emulator::GetYScroll() const {
   const uint8 coarse_y = (tmp & 0x03E0) >> 5;
   const uint8 yoffset = (coarse_y << 3) | fine_y;
 
-  const bool ytable_select = (ppu_ctrl & 2) ? 240 : 0;
+  const uint8 ytable_select = (ppu_ctrl & 2) ? 240 : 0;
   
   return ytable_select + (uint32)yoffset;
 }
