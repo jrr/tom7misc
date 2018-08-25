@@ -20,6 +20,7 @@
 
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
+#include "../fceulib/simplefm7.h"
 #include "../fceulib/cart.h"
 #include "../fceulib/ppu.h"
 #include "../cc-lib/sdl/sdlutil.h"
@@ -257,10 +258,13 @@ struct UIThread {
   int frameidx = 0;
 
   UIThread(const string &game,
-	   const string &fm2) : game(game) {
+	   const string &moviefile) : game(game) {
     vector<pair<int, string>> subs;
-    movie = SimpleFM2::ReadInputsEx(fm2, &subs);
-    CHECK(!movie.empty()) << "Couldn't read movie: " << fm2;
+    movie = Util::endswith(moviefile, ".fm2") ?
+      SimpleFM2::ReadInputsEx(moviefile, &subs) :
+      SimpleFM7::ReadInputs2P(moviefile);
+    
+    CHECK(!movie.empty()) << "Couldn't read movie: " << moviefile;
     for (const auto &p : subs)
       subtitles[p.first] = p.second;
 
