@@ -162,11 +162,6 @@ struct PPU {
   // stored in TempAddr.
   uint8 XOffset = 0;
 
-  // XXX: Saving scroll position so that it can be accessed by
-  // clients. This is not needed for emulation.
-  // XXX note, also not saved in state.
-  uint8 last_x_scroll = 0, last_y_scroll = 0;
-
   // Current scroll position and PPU memory location for read/write.
   // See: http://wiki.nesdev.com/w/index.php/PPU_scrolling
   //
