@@ -38,4 +38,8 @@ void BlitRGBA2x(const vector<uint8> &rgba, int w, int h,
 void BlitRGBA(const vector<uint8> &rgba, int w, int h,
 	      int x, int y, SDL_Surface *surface);
 
+// Implied alpha=0xFF.
+void SetPixelRGB(int x, int y, uint8 r, uint8 g, uint8 b,
+		 SDL_Surface *surface);
+
 #endif

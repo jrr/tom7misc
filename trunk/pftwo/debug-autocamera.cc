@@ -58,36 +58,6 @@ static string Rtos(double d) {
 // static int YLOC = 0x030d;
 // static int XLOC = 0x330, YLOC = 0x360;
 static int XLOC = 0x14b, YLOC = 0x148;
-/*
-mermaid:
-  355.00: 831/879 = 0x033f,0x036f (physics object?)
-  217.00: 816/864 = 0x0330,0x0360 yes!
-  76.00: 830/878 = 0x033e,0x036e
-  48.00: 828/876 = 0x033c,0x036c
-  43.00: 912/864 = 0x0390,0x0360
-  24.00: 829/877 = 0x033d,0x036d
-  12.00: 638/864 = 0x027e,0x0360
-  12.00: 619/864 = 0x026b,0x0360
-
-
-gyromite:
-  174.00: 1593/1592 = 0x0639,0x0638 (dynamite)
-  172.00: 1545/1544 = 0x0609,0x0608 yes!
-  152.00: 1673/1672 = 0x0689,0x0688 (monster)
-  147.00: 1657/1656 = 0x0679,0x0678
-  109.00: 1609/1608 = 0x0649,0x0648
-  87.00: 1625/1624 = 0x0659,0x0658 (dyn)
-  86.00: 1561/1560 = 0x0619,0x0618
-  84.00: 1641/1640 = 0x0669,0x0668 (dyn)
-  80.00: 1577/1576 = 0x0629,0x0628
-  54.00: 635/632 = 0x027b,0x0278 (offscreen)
-  54.00: 631/628 = 0x0277,0x0274
-  54.00: 643/640 = 0x0283,0x0280
-  54.00: 639/636 = 0x027f,0x027c
-  54.00: 647/644 = 0x0287,0x0284
-  20.00: 1737/1736 = 0x06c9,0x06c8
-  18.00: 1544/1545 = 0x0608,0x0609
-*/
 
 // TODO: To emulator utilities?
 // Because of (e.g.) tall sprite stuff, it's not often directly
@@ -281,6 +251,8 @@ struct UIThread {
   enum class Mode {
     PLAY,
     PAUSE,
+    ADVANCE,
+    FFWD,
   };
   Mode mode = Mode::PLAY;
 
@@ -309,6 +281,27 @@ struct UIThread {
       fontsmall->draw(startx + 2 * sx, starty + 2 * sy,
 		      StringPrintf("%d", s));
     }
+
+    const PPU *ppu = emu->GetFC()->ppu;
+    for (int sl = 0; sl < 256; sl++) {
+      uint8 xs = ppu->interframe_x[sl];
+      uint8 ys = ppu->interframe_y[sl];
+      // Given x,y as NES screen coordinates
+      auto DrawPixel =
+	[this, startx, starty](int x, int y,
+			       uint8 r, uint8 g, uint8 b) {
+	  SetPixelRGB(startx + x * 2, starty + y * 2,
+		      r, g, b, screen);
+	  SetPixelRGB(startx + x * 2 + 1, starty + y * 2,
+		      r, g, b, screen);
+	  SetPixelRGB(startx + x * 2, starty + y * 2 + 1,
+		      r, g, b, screen);
+	  SetPixelRGB(startx + x * 2 + 1, starty + y * 2 + 1,
+		      r, g, b, screen);
+	};
+      DrawPixel(ys, sl, 0, 0xFF, 0);
+      DrawPixel(xs, sl, 0xFF, 0, 0);
+    }
   }
   
   void Loop() {
@@ -332,6 +325,7 @@ struct UIThread {
 
 	  case SDLK_SPACE:
 	    switch (mode) {
+	    case Mode::ADVANCE:
 	    case Mode::PAUSE:
 	      mode = Mode::PLAY;
 	      break;
@@ -341,19 +335,25 @@ struct UIThread {
 	    }
 	    break;
 
+	  case SDLK_PERIOD:
+	    mode = Mode::ADVANCE;
+	    break;
+	    
 	  case SDLK_MINUS:
-	    XLOC--;
+	    // XLOC--;
 	    YLOC--;
 	    printf("%d,%d = %04x,%04x\n", XLOC, YLOC, XLOC, YLOC);
 	    break;
 	  case SDLK_EQUALS:
 	  case SDLK_PLUS:
-	    XLOC++;
+	    // XLOC++;
 	    YLOC++;
 	    printf("%d,%d = %04x,%04x\n", XLOC, YLOC, XLOC, YLOC);
 	    break;
 	    
-	    // Numpad cardinal directions modify the value at XLOC,YLOC.
+	  // Numpad cardinal directions modify the value at XLOC,YLOC.
+	  // XXX: Should probably discard snapshots when this
+	  // happens?
 	  case SDLK_KP6:
 	  case SDLK_KP4: {
 	    uint8 *ram = emu->GetFC()->fceu->RAM;
@@ -448,7 +448,22 @@ struct UIThread {
 	    // to have something to show..
 	    break;
 	  }
-	    
+
+	  case SDLK_RIGHT: {
+	    auto it = snapshots.lower_bound(frameidx + 1);
+	    if (it == snapshots.end()) {
+	      mode = Mode::FFWD;
+	      break;
+	    } else {
+	      // Have snapshot; just seek.
+	      fprintf(stderr, "Seek to %lld\n", it->first);
+	      frameidx = it->first;
+	      emu->LoadUncompressed(it->second);
+
+	      mode = Mode::PAUSE;
+	      break;
+	    }
+	  }
 	  default:
 	    break;
 	  }
@@ -457,11 +472,9 @@ struct UIThread {
 	  break;
 	}
       }
-	
-      // PERF: Don't need to clear the game part.
-      sdlutil::clearsurface(screen, 0x00000000);
-      
-      if (mode == Mode::PLAY) {
+	      
+      if (mode == Mode::PLAY || mode == Mode::ADVANCE ||
+	  mode == Mode::FFWD) {
 	// Can we execute at least one frame?
 	if (frameidx >= movie.size()) {
 	  mode = Mode::PAUSE;
@@ -474,10 +487,23 @@ struct UIThread {
 
 	  if (0 == frameidx % SNAPSHOT_EVERY) {
 	    snapshots[frameidx] = emu->SaveUncompressed();
+	    if (mode == Mode::FFWD) {
+	      mode = Mode::PAUSE;
+	    }
 	  }
+	}
+
+	if (mode == Mode::ADVANCE) {
+	  mode = Mode::PAUSE;
 	}
       }
 
+      if (mode == Mode::FFWD)
+	continue;
+      
+      // PERF: Don't need to clear the game part.
+      sdlutil::clearsurface(screen, 0x00000000);
+      
       const int rot = (frameidx * rotate) % 64;
       DrawEmulatorAt(emu.get(), rot, 0, 0);
 	
@@ -490,9 +516,45 @@ struct UIThread {
 
       {
 	uint8 *ram = emu->GetFC()->fceu->RAM;
+	const PPU *ppu = emu->GetFC()->ppu;
+	
+	// end-of-frame scroll values.
 	const uint32 xscroll = emu->GetXScroll();
 	const uint32 yscroll = emu->GetYScroll();
 
+	// Find the single most-common scroll value across all
+	// scanlines; arg should be 256 bytes (like
+	// ppu->interframe_x).
+	auto GetMajorityScroll =
+	  [&](const uint8 *sls) {
+	    uint8 counts[256] = {};
+	    for (int i = 0; i < 240; i++) {
+	      counts[sls[i]]++;
+	    }
+	    // Find max...
+	    int maxi = 0, maxv = 0;
+	    for (int i = 0; i < 256; i++) {
+	      if (counts[i] > maxv) {
+		maxi = i;
+		maxv = counts[i];
+	      }
+	    }
+	    return maxi;
+	  };
+	
+	// TODO: get the appropriate offset based on the scanline.
+	// We could use ram[YLOC] to determine the scanline, but
+	// if yscroll isn't zero, then this isn't the scanline that
+	// the sprite is actually drawn on. Would we need to find
+	// a memory location that tells us the "game area" y scroll?
+	
+	//  ... so as a heuristic, use the most common scroll position
+	// on-screen. This assumes that more than half of the screen
+	// is the game area, which seems like a good assumption,
+	// except perhaps for in split-screen two-player.
+	const uint8 xmaj = GetMajorityScroll(ppu->interframe_x);
+	const uint8 ymaj = GetMajorityScroll(ppu->interframe_y);
+	
 	const uint8 xx = ram[XLOC], yy = ram[YLOC];
 	auto DrawBox =
 	  [this](int x, int y, uint8 r, uint8 g, uint8 b) {
@@ -505,6 +567,12 @@ struct UIThread {
 	DrawBox(xx, yy, 0xFF, 0, 0);
 	// GREEN is offset by scroll.
 	DrawBox((uint8)(xx - xscroll), (uint8)(yy - yscroll), 0, 0xFF, 0);
+	// BLUE is offset by majority scroll.
+	DrawBox((uint8)(xx - xmaj), (uint8)(yy - ymaj), 0x33, 0x33, 0xFF);
+
+	font->draw(400, 4,
+		   StringPrintf("^4maj: ^1%d^2,^<%d",
+				(int)xmaj, (int)ymaj));
       }
 	
       SDL_Flip(screen);

@@ -19,42 +19,6 @@
 #include "../cc-lib/gtl/top_n.h"
 
 /*
-before allowing yscroll too:
-game.nes                recall  rank loss
-mario.nes               1.00    0
-contra.nes              1.00    0
-megaman2.nes            1.00    3
-lolo.nes                1.00    0
-metroid.nes             1.00    0
-zelda.nes               1.00    0
-rocketeer.nes           1.00    0
-gyromite.nes            1.00    1
-littlemermaid.nes               1.00    1
-backtothefuture.nes             0.00    0
-cliffhanger.nes         0.00    0
-ducktales.nes           0.00    0
-
-.. note that I hadn't confirmed back to the future's pos, but
-   this version did successfully find it.
-
-With vertical scrolling:
-game.nes                recall  rank loss
-mario.nes               1.00    0
-contra.nes              1.00    0
-megaman2.nes            1.00    3
-lolo.nes                1.00    0
-metroid.nes             1.00    0
-zelda.nes               1.00    0
-rocketeer.nes           1.00    0
-gyromite.nes            1.00    1
-littlemermaid.nes               1.00    1
-backtothefuture.nes             1.00    0
-cliffhanger.nes         0.00    0
-ducktales.nes           0.00    0
-faxanadu.nes            0.00    0
-rivercity.nes           0.00    0
-
-(exactly the same)
 
 */
 
@@ -165,16 +129,21 @@ vector<Linkage> AutoCamera2::FindLinkages(
   StepEmu(emu.get());
   OAM orig_oam{emu.get()};
 
+  // This is the scroll at the end of the frame.
   const uint32 orig_xscroll = emu->GetXScroll();
   const uint32 orig_yscroll = emu->GetYScroll();
+  (void)orig_xscroll; (void)orig_yscroll;
+
+  const PPU *ppu = emu->GetFC()->ppu;
   
   // First, create a set of coordinates that could correspond to
   // a sprite. x and y separate. This allows us to quickly filter
   // memory locations.
   EightSet xset, yset;
   for (int i = 0; i < NUM_SPRITES; i++) {
+    const uint8 sprite_y = orig_oam.Y(i);
     xset.InsertRegion(orig_oam.X(i), LINKAGE_MARGIN);
-    yset.InsertRegion(orig_oam.Y(i), LINKAGE_MARGIN);
+    yset.InsertRegion(sprite_y, LINKAGE_MARGIN);
     // Some games (Contra) store the actual screen coordinate but
     // others (Mario) store the value in absolute level coordinates
     // (i.e., prior to scrolling). If the sprite's location is the
@@ -182,8 +151,16 @@ vector<Linkage> AutoCamera2::FindLinkages(
     // this as a potential linkage. (TODO: We should report this
     // back in the interface, so that uses of the location can
     // also compensate.)
-    xset.InsertRegion(orig_oam.X(i) - orig_xscroll, LINKAGE_MARGIN);
-    yset.InsertRegion(orig_oam.Y(i) - orig_yscroll, LINKAGE_MARGIN);
+
+    // Use the scroll position from the scanline that the sprite was
+    // rendered on.
+    uint8 xscroll = ppu->interframe_x[sprite_y];
+    uint8 yscroll = ppu->interframe_x[sprite_y];
+    
+    // xset.InsertRegion(orig_oam.X(i) - orig_xscroll, LINKAGE_MARGIN);
+    // yset.InsertRegion(orig_oam.Y(i) - orig_yscroll, LINKAGE_MARGIN);
+    xset.InsertRegion(orig_oam.X(i) - xscroll, LINKAGE_MARGIN);
+    yset.InsertRegion(orig_oam.Y(i) - yscroll, LINKAGE_MARGIN);
   }
 
   // Any memory location whose value is close to a sprite's coordinate.
@@ -200,6 +177,8 @@ vector<Linkage> AutoCamera2::FindLinkages(
   // get new x,y that are not close to oldx,oldy
   // XXX also newx should not be close to newy, and dx should not
   // be close to dy
+  // XXX also y should not be > 240, since this is offscreen.
+  // probably in general should avoid the very edges of the screen.
   auto GetNewCoord =
     [&rc](uint8 old) {
       for (;;) {
@@ -285,6 +264,9 @@ vector<Linkage> AutoCamera2::FindLinkages(
 
 	const int dx = (int)newx - (int)oldx, dy = (int)newy - (int)oldy;
 	// Otherwise, for each changed sprite, compute the delta.
+	// TODO: Since warping might update the scroll, we should
+	// be including changes to (scanline-specific) scroll positions
+	// here.
 	for (int s = 0; s < 64; s++) {
 	  const int dsx = (int)new_oam.X(s) - (int)orig_oam.X(s);
 	  const int dsy = (int)new_oam.Y(s) - (int)orig_oam.Y(s);

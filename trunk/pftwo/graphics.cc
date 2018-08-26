@@ -132,3 +132,11 @@ void BlitRGBA(const vector<uint8> &rgba, int w, int h,
     }
   }
 }
+
+void SetPixelRGB(int x, int y, uint8 r, uint8 g, uint8 b,
+		 SDL_Surface *surface) {
+  const SDL_PixelFormat *fmt = surface->format;
+  Uint32 *p = (Uint32 *)((Uint8 *)surface->pixels +
+			 4 * (surface->w * y + x));
+  *p = MakePixel(fmt, r, g, b, 0xFF);
+}
