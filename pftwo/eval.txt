@@ -1,0 +1,97 @@
+
+With interframe scrolling:
+game.nes                recall  rank loss
+mario.nes               1/1     0
+contra.nes              2/2     0
+megaman2.nes            1/1     3
+lolo.nes                1/1     0
+metroid.nes             1/1     0
+zelda.nes               1/1     0
+rocketeer.nes           1/1     0
+gyromite.nes            1/1     3
+littlemermaid.nes       1/1     1
+backtothefuture.nes     1/1     0
+bubblebobble.nes        2/2     6
+rampage.nes             1/2     9
+adventureisland.nes     0/1     0
+kidicarus.nes           1/1     0
+ninjagaiden.nes         1/1     1
+lunarpool.nes           0/0     0
+bomberman.nes           0/0     0
+cliffhanger.nes         0/0     0
+ducktales.nes           0/0     0
+gauntlet2.nes           0/0     0
+strider.nes             0/0     0
+baddudes.nes            0/0     0
+jackiechan.nes          0/0     0
+faxanadu.nes            0/0     0
+rivercity.nes           0/0     0
+
+(same)
+
+With y-scrolling bugfix, but no interframe scrolling:
+
+ == Summary ==
+game.nes                recall  rank loss
+mario.nes               1/1     0
+contra.nes              2/2     0
+megaman2.nes            1/1     3
+lolo.nes                1/1     0
+metroid.nes             1/1     0
+zelda.nes               1/1     0
+rocketeer.nes           1/1     0
+gyromite.nes            1/1     1
+littlemermaid.nes       1/1     1
+backtothefuture.nes     1/1     0
+bubblebobble.nes        2/2     5
+rampage.nes             1/2     9
+adventureisland.nes     0/1     0
+kidicarus.nes           1/1     0
+ninjagaiden.nes         1/1     2
+lunarpool.nes           0/0     0
+bomberman.nes           0/0     0
+cliffhanger.nes         0/0     0
+ducktales.nes           0/0     0
+gauntlet2.nes           0/0     0
+strider.nes             0/0     0
+baddudes.nes            0/0     0
+jackiechan.nes          0/0     0
+faxanadu.nes            0/0     0
+rivercity.nes           0/0     0
+
+With vertical scrolling:
+game.nes                recall  rank loss
+mario.nes               1.00    0
+contra.nes              1.00    0
+megaman2.nes            1.00    3
+lolo.nes                1.00    0
+metroid.nes             1.00    0
+zelda.nes               1.00    0
+rocketeer.nes           1.00    0
+gyromite.nes            1.00    1
+littlemermaid.nes               1.00    1
+backtothefuture.nes             1.00    0
+cliffhanger.nes         0.00    0
+ducktales.nes           0.00    0
+faxanadu.nes            0.00    0
+rivercity.nes           0.00    0
+
+(exactly the same)
+
+before allowing yscroll too:
+game.nes                recall  rank loss
+mario.nes               1.00    0
+contra.nes              1.00    0
+megaman2.nes            1.00    3
+lolo.nes                1.00    0
+metroid.nes             1.00    0
+zelda.nes               1.00    0
+rocketeer.nes           1.00    0
+gyromite.nes            1.00    1
+littlemermaid.nes               1.00    1
+backtothefuture.nes             0.00    0
+cliffhanger.nes         0.00    0
+ducktales.nes           0.00    0
+
+.. note that I hadn't confirmed back to the future's pos, but
+   this version did successfully find it.

@@ -58,7 +58,8 @@ struct Game {
     : romfile(rom), moviefile(movie), expected(exp) {}
   
   // Outputs.
-  float fraction_found = 0.0f;
+  // float fraction_found = 0.0f;
+  int found = 0;
   // How deep did we have to go in the ranked list to find the
   // expected ones? Ties are interpreted pessimistically.
   int rank_loss = 0;
@@ -66,7 +67,7 @@ struct Game {
 
 static vector<Game> Games() {
   return {
-#if 0
+#if 1
 	  // Verified.
 	  Game{"mario.nes", "mario.fm7", {{0x86, 0xCE}}},
 	  // Verified.
@@ -108,28 +109,45 @@ static vector<Game> Games() {
 
 #endif
 	  
-#if 0
+#if 1
 	  // Verified. Warping works.
 	  Game{"adventureisland.nes", "adventureisland.fm7", {{0x584,0x5d3}}},
 	  // Verified. Warping works well.
-	  Game{"kidicarus.nes", "kidicarus.fm7", {0x723,0x720}},
+	  Game{"kidicarus.nes", "kidicarus.fm7", {{0x723,0x720}}},
 	  // Verified. Warping works well. I think it has a sprite
 	  // to do split-scrolling like mario (0x203,0x200)
-	  Game{"ninjagaiden.nes", "ninjagaiden.fm7", {0x086,0x08a}},
+	  Game{"ninjagaiden.nes", "ninjagaiden.fm7", {{0x086,0x08a}}},
 
+	  // Found in FCEUX. Warping works.
+	  Game{"baddudes.nes", "baddudes.fm7", {{0x2a6, 0x2a4}}},
+	  
+	  // Found in FCEUX. Warping works.
+	  Game{"jackiechan.nes", "jackiechan.fm7", {{0x610, 0x620}}},
+	  
 	  // 0x370,0x330 is the cue ball. Lots of balls detected, but
 	  // not the cursor?
 	  Game{"lunarpool.nes", "lunarpool.fm7", {}},
 
 	  // Doesn't work... or every sprite has its own memory loc
 	  // and the right address is too deep?
+	  // Looks like while there are many sprites associated with
+	  // the player, the master location is stored as coarse/fine
+	  // (just guessing)... 0x028 is the x game-time number.
 	  Game{"bomberman.nes", "bomberman.fm7", {}},
 	  
 	  // TODO: These need expected positions. autocamera2 does
 	  // not seem to succeed today!
+
+	  // Several x addresses for sprites:
+	  // 0x243, 247, 24b, 343, 347, 34b
+	  //
+	  // 0x617 seems to be the player's x tile coordinate
+	  // This one is pretty tricky because the player's y
+	  // coordinate seems pinned to the center of the screen,
+	  // except like when you fall onto spikes
 	  Game{"cliffhanger.nes", "cliffhanger.fm7", {}},
-	  // autocamera doesn't seem to work :/ may need vertical scrolling
-	  // support?
+	  // autocamera doesn't work. Has split x-scrolling, but also
+	  // appears to use some mapper tricks to do vertical scrolling?
 	  Game{"ducktales.nes", "ducktales.fm7", {}},
 
 	  // Doesn't work. has split scrolling...
@@ -138,15 +156,14 @@ static vector<Game> Games() {
 	  // doesn't work.
 	  Game{"strider.nes", "strider.fm7", {}},
 
-	  // Doesn't work. split scrolling.
-	  Game{"baddudes.nes", "baddudes.fm7", {}},
-	  
-	  // Doesn't work. Note that in normal levels the xscroll is
-	  // always reported as 256, probably because of
-	  // split-scrolling. Not true in bonus level though.
-	  Game{"jackiechan.nes", "jackiechan.fm7", {}},
 
 	  Game{"faxanadu.nes", "faxanadu.fm7", {}},
+	  // Found in FCEUX and searching. These work with warping
+	  // too. But y is the y coord negated?
+	  // 1p x coord: 0x83 = 131.
+	  // 1p y coord, but negated (?): 158
+	  // 2p x coord = 132?
+	  // 2p y coord, negated: 159
 	  Game{"rivercity.nes", "rivercity2p.fm7", {}},
 #endif
   };
@@ -228,7 +245,8 @@ static Game EvalOne(const Game &game) {
 	}
       }
     }
-    game_copy.fraction_found = (float)found / (float)game.expected.size();
+    // game_copy.fraction_found = (float)found / (float)game.expected.size();
+    game_copy.found = found;
     game_copy.rank_loss = rank_loss;
   }
   
@@ -252,9 +270,9 @@ int main(int argc, char *argv[]) {
   printf(" == Summary ==\n");
   printf("game.nes\t\trecall\trank loss\n");
   for (const Game &g : results) {
-    printf("%s\t\t%.2f\t%d\n",
+    printf("%s\t\t%d/%d\t%d\n",
 	   g.romfile.c_str(),
-	   g.fraction_found,
+	   g.found, (int)g.expected.size(),
 	   g.rank_loss);
   }
   return 0;
