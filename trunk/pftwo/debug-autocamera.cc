@@ -325,6 +325,7 @@ struct UIThread {
 
 	  case SDLK_SPACE:
 	    switch (mode) {
+	    case Mode::FFWD:
 	    case Mode::ADVANCE:
 	    case Mode::PAUSE:
 	      mode = Mode::PLAY;
@@ -373,7 +374,10 @@ struct UIThread {
 	  case SDLK_2: {
 	    AutoCamera2 ac{game};
 	    vector<AutoCamera2::Linkage> links =
-	      ac.FindLinkages(emu->SaveUncompressed());
+	      ac.FindLinkages(emu->SaveUncompressed(),
+			      [](const string &s) {
+				printf("AC2: %s\n", s.c_str());
+			      });
 	    if (!links.empty()) {
 	      AutoCamera2::Linkage best = links[0];
 	      printf("Set loc to %d,%d = 0x%2x,0x%2x (score %.2f)\n",
