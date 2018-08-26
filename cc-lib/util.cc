@@ -380,6 +380,35 @@ map<string, string> Util::ReadFileToMap(const string &f) {
   return m;
 }
 
+static inline string PadWith(int n, string s, char c) {
+  if (n >= 0) {
+    if (s.length() < n) {
+      s.reserve(n);
+      while (s.length() < n)
+	s.push_back(c);
+    }
+    return s;
+  } else if (n < 0) {
+    // Pad left, but negate n so it's easier to think about.
+    n = -n;
+    if (s.length() < n) {
+      string ret(n - s.length(), c);
+      ret.append(s);
+      return ret;
+    } else {
+      return s;
+    }
+  }
+}
+
+string Util::Pad(int n, string s) {
+  return PadWith(n, std::move(s), ' ');
+}
+
+string Util::PadEx(int n, string s, char c) {
+  return PadWith(n, std::move(s), c);
+}
+
 // XXX use uint8.
 // PERF: ReadFile helper could be a template that works with
 // both vector and string.

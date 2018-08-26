@@ -59,9 +59,24 @@ static void TestWhitespace() {
   CHECK_EQ("", Util::NormalizeWhitespace(s));
 }
 
+static void TestPad() {
+  CHECK_EQ("", Util::Pad(0, ""));
+  CHECK_EQ("hello  ", Util::Pad(7, "hello"));
+  CHECK_EQ("  hello", Util::Pad(-7, "hello"));
+  CHECK_EQ("hello", Util::Pad(4, "hello"));
+  CHECK_EQ("hello", Util::Pad(-4, "hello"));
+
+  CHECK_EQ("", Util::PadEx(0, "", '_'));
+  CHECK_EQ("hello__", Util::PadEx(7, "hello", '_'));
+  CHECK_EQ("__hello", Util::PadEx(-7, "hello", '_'));
+  CHECK_EQ("hello", Util::PadEx(4, "hello", '_'));
+  CHECK_EQ("hello", Util::PadEx(-4, "hello", '_'));
+}
+
 int main(int argc, char **argv) {
   TestReadFiles();
   TestWhitespace();
+  TestPad();
   return 0;
 }
 
