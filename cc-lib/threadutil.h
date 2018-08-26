@@ -92,9 +92,7 @@ template<class T, class F>
 void ParallelApp(const std::vector<T> &vec, 
 		 const F &f,
 		 int max_concurrency) {
-  // XXX can just be lambda?
-  std::function<void(int, const T &)> ff =
-    [&f](int i_unused, const T &arg) { return f(arg); };
+  auto ff = [&f](int i_unused, const T &arg) { return f(arg); };
   ParallelAppi(vec, ff, max_concurrency);
 }
 
@@ -154,16 +152,16 @@ void UnParallelComp(int num, const F &f, int max_concurrency_ignored) {
   for (int i = 0; i < num; i++) (void)f(i);
 }
 
+// With f(index, value).
 // F needs to be callable (std::function or lambda) and thread safe.
 // It returns R, which must have a default constructor, and this will
 // only be efficient if it has move semantics as well.
 template<class T, class F>
-auto ParallelMap(const std::vector<T> &vec,
-		 const F &f,
-		 int max_concurrency) -> std::vector<decltype(f(vec.front()))> {
-  using R = decltype(f(vec.front()));
-  // Needed?
-  // std::mutex out_m;
+auto ParallelMapi(const std::vector<T> &vec,
+		  const F &f,
+		  int max_concurrency) ->
+      std::vector<decltype(f(0, vec.front()))> {
+  using R = decltype(f(0, vec.front()));
   std::vector<R> result;
   result.resize(vec.size());
 
@@ -171,13 +169,23 @@ auto ParallelMap(const std::vector<T> &vec,
   // vector::operator[], but if we have a data pointer then we can be
   // confident of having one writer to each slot.
   R *data = result.data();
-  // XXX can just be lambda?
-  std::function<void(int, const T &)> run_write =
-    [data, &f](int idx, const T &arg) -> void {
-    data[idx] = f(arg);
-  };
+  auto run_write = [data, &f](int idx, const T &arg) {
+		     data[idx] = f(idx, arg);
+		   };
   ParallelAppi(vec, run_write, max_concurrency);
   return result;
+}
+
+// With f(value).
+// F needs to be callable (std::function or lambda) and thread safe.
+// It returns R, which must have a default constructor, and this will
+// only be efficient if it has move semantics as well.
+template<class T, class F>
+auto ParallelMap(const std::vector<T> &vec,
+		 const F &f,
+		 int max_concurrency) -> std::vector<decltype(f(vec.front()))> {
+  auto ff = [&f](int idx, const T &arg) { return f(arg); };
+  return ParallelMapi(vec, ff, max_concurrency);
 }
 
 // Drop in replacement for testing, debugging, etc.
