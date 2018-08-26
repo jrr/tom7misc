@@ -16,18 +16,18 @@ rampage.nes             1/2     9
 adventureisland.nes     0/1     0
 kidicarus.nes           1/1     0
 ninjagaiden.nes         1/1     1
+baddudes.nes            0/1     0
+jackiechan.nes          1/1     1
 lunarpool.nes           0/0     0
 bomberman.nes           0/0     0
 cliffhanger.nes         0/0     0
 ducktales.nes           0/0     0
 gauntlet2.nes           0/0     0
 strider.nes             0/0     0
-baddudes.nes            0/0     0
-jackiechan.nes          0/0     0
 faxanadu.nes            0/0     0
 rivercity.nes           0/0     0
 
-(same)
+(same, though I added baddudes and jackiechan)
 
 With y-scrolling bugfix, but no interframe scrolling:
 

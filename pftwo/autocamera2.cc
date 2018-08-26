@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <utility>
+#include <functional>
 
 #include <string.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@ static_assert(MIN_RANDOM_DISTANCE > (LINKAGE_MARGIN >> 1),
 static constexpr int DELTA_SLOP = 3;
 
 using Linkage = AutoCamera2::Linkage;
+using XLoc = AutoCamera2::XLoc;
 
 namespace {
 struct OAM {
@@ -116,7 +118,8 @@ static void StepEmu(Emulator *emu) {
 }
 
 vector<Linkage> AutoCamera2::FindLinkages(
-    const vector<uint8> &save) {
+    const vector<uint8> &save,
+    const std::function<void(string)> &report) {
   // This is parallelizable, but probably simpler to organize the
   // parallelism across samples rather than within one.
   // (But should we take emu as an argument, then?)
@@ -171,26 +174,34 @@ vector<Linkage> AutoCamera2::FindLinkages(
     if (yset.Contains(val)) ycand.push_back(i);
   }
 
-  printf("%lld x potential locations and %lld y\n",
-	 xcand.size(), ycand.size());
+  if (report)
+    report(StringPrintf("%lld x potential locations and %lld y",
+			xcand.size(), ycand.size()));
 
   // get new x,y that are not close to oldx,oldy
   // XXX also newx should not be close to newy, and dx should not
   // be close to dy
-  // XXX also y should not be > 240, since this is offscreen.
-  // probably in general should avoid the very edges of the screen.
+  // The value must also be between low and high, inclusive. Make
+  // sure this interval is wide enough, or it may not terminate!
   auto GetNewCoord =
-    [&rc](uint8 old) {
+    [&rc](uint8 old, uint8 low, uint8 high) {
       for (;;) {
 	const uint8 z = rc.Byte();
-	if (z < old) {
-	  if (old - z >= MIN_RANDOM_DISTANCE) return z;
-	} else if (old < z) {
-	  if (z - old >= MIN_RANDOM_DISTANCE) return z;
+	if (z >= low && z <= high) {
+	  if (z < old) {
+	    if (old - z >= MIN_RANDOM_DISTANCE) return z;
+	  } else if (old < z) {
+	    if (z - old >= MIN_RANDOM_DISTANCE) return z;
+	  }
 	}
       }
     };
 
+  // Keep away from the edges of the screen. For y coordinate,
+  // don't draw outside the visible scanlines, either.
+  static constexpr int X_LOW = 9, X_HIGH = 247;
+  static constexpr int Y_LOW = 9, Y_HIGH = 232;
+  
   // Filter xcands and ycands that don't affect any sprite.
   int filtered = 0;
   {
@@ -198,13 +209,14 @@ vector<Linkage> AutoCamera2::FindLinkages(
     std::unordered_map<int, bool> coord_memo;
     vector<int> xcand_new, ycand_new;
     auto NoEffect =
-      [this, &coord_memo, &save, &orig_mem, &orig_oam, &GetNewCoord](int loc) {
+      [this, &coord_memo, &save, &orig_mem, &orig_oam, &GetNewCoord](
+	  int loc, uint8 low, uint8 high) {
 	auto it = coord_memo.find(loc);
 	if (it != coord_memo.end()) return it->second;
 	emu->LoadUncompressed(save);
 	// Mem is orig_mem at this point.
 	const uint8 oldv = orig_mem[loc];
-	const uint8 newv = GetNewCoord(oldv);
+	const uint8 newv = GetNewCoord(oldv, low, high);
 
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	ram[loc] = newv;
@@ -215,14 +227,14 @@ vector<Linkage> AutoCamera2::FindLinkages(
 	return no_effect;
       };
     for (int i : xcand) {
-      if (NoEffect(i)) {
+      if (NoEffect(i, X_LOW, X_HIGH)) {
 	filtered++;
       } else {
 	xcand_new.push_back(i);
       }
     }
     for (int i : ycand) {
-      if (NoEffect(i)) {
+      if (NoEffect(i, Y_LOW, Y_HIGH)) {
 	filtered++;
       } else {
 	ycand_new.push_back(i);
@@ -232,8 +244,10 @@ vector<Linkage> AutoCamera2::FindLinkages(
     ycand = std::move(ycand_new);
   }
 
-  printf("[filtered] %lld x potential locations and %lld y\n",
-	 xcand.size(), ycand.size());
+  if (report)
+    report(StringPrintf(
+	       "[filtered] %lld x potential locations and %lld y",
+	       xcand.size(), ycand.size()));
 
   ScoredLocationMap scores;
 
@@ -254,7 +268,8 @@ vector<Linkage> AutoCamera2::FindLinkages(
 	emu->LoadUncompressed(save);
 	// Mem is orig_mem at this point.
 	const uint8 oldx = orig_mem[xc], oldy = orig_mem[yc];
-	const uint8 newx = GetNewCoord(oldx), newy = GetNewCoord(oldy);
+	const uint8 newx = GetNewCoord(oldx, X_LOW, X_HIGH);
+	const uint8 newy = GetNewCoord(oldy, Y_LOW, Y_HIGH);
 
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	ram[xc] = newx;
@@ -289,14 +304,6 @@ vector<Linkage> AutoCamera2::FindLinkages(
   (void)rejected_all_equal;
   (void)working_pairs;
   
-#if 0
-  printf("%d filtered, %d pairs tried, %d all equal, "
-	 "%d nonzero score\nBest:\n",
-	 filtered, tried, rejected_all_equal, working_pairs);
-  for (const P &p : best) {
-    printf("  %.1f:  %d,%d\n", p.score, p.xloc, p.yloc);
-  }
-#endif
   return best;
 }
 
@@ -307,4 +314,13 @@ vector<Linkage> AutoCamera2::MergeLinkages(
     for (const Linkage &linkage : linkages)
       scores[make_pair(linkage.xloc, linkage.yloc)] += linkage.score;
   return GetBestLinkages(scores);
+}
+
+// 
+vector<XLoc> AutoCamera2::FindXLocs(
+    const vector<uint8> &save,
+    bool player_two,
+    const std::function<void(string)> &report) {
+  // XXX!
+  return {};
 }

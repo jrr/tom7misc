@@ -137,6 +137,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "../fceulib/emulator.h"
 
@@ -145,33 +146,6 @@ struct AutoCamera2 {
   // Creates some private emulator instances that it can reuse.
   explicit AutoCamera2(const string &game);
   ~AutoCamera2();
-
-#if 0
-  struct SpriteEvidence {
-    // Sprite idx.
-    int sidx = 0;
-    // Offset of the sprite from the value in the memory location.
-    int xoff = 0, yoff = 0;
-  };
-  
-  // Frame of evidence.
-  struct FrameEvidence {
-    int framenum = 0;
-    vector<SpriteEvidence> cluster;
-  };
-  
-  // Controlled cluster. This is a complex of 1+ sprites whose
-  // positions can be controlled by setting the given memory
-  // location on this frame, then executing a frame (and reading
-  // the sprite from OAM on that subsequent frame).
-  struct Cluster {
-    // The distinct memory locations that contain the x
-    // and y coordinate, respectively.
-    int xloc = 0, yloc = 0;
-    // Sample of frames on which this memory location was good.
-    vector<FrameEvidence> frames;
-  };
-#endif
 
   struct Linkage {
     int xloc = 0, yloc = 0;
@@ -187,13 +161,36 @@ struct AutoCamera2 {
   //
   // Linkages are output in order by descending score; only the
   // best linkages are returned.
-  vector<Linkage> FindLinkages(const vector<uint8> &save);
+  //
+  // If report is non-empty (e.g. default ctor) then it is called
+  // periodically with progress.
+  vector<Linkage> FindLinkages(const vector<uint8> &save,
+			       const std::function<void(string)> &report);
 
   // Take the results of several calls to FindLinkages and merge them
   // by summing the scores.
   static vector<Linkage> MergeLinkages(
       const vector<vector<Linkage>> &samples);
-  
+
+  // Find memory locations that may be an x coordinate controlled by
+  // the player. We assume that the player moves left and right with
+  // the corresponding buttons on the controller.
+  // In many situations the player will not be in control (e.g. while
+  // taking damage; cutscenes, etc.). This routine does not attempt
+  // to explicitly detect or avoid this case; it should just be called
+  // for many different save states.
+  struct XLoc {
+    int xloc = 0;
+    float score = 0.0f;
+    XLoc(int xloc, float score) : xloc(xloc), score(score) {}
+  };
+  vector<XLoc> FindXLocs(const vector<uint8> &save,
+			 bool player_two,
+			 const std::function<void(string)> &report);
+
+  // Merge the output of several calls of FindXLocs by summing scores.
+  static vector<XLoc> MergeXLocs(const vector<vector<XLoc>> &samples);
+
 private:
   std::unique_ptr<Emulator> emu;
 };

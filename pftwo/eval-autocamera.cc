@@ -35,7 +35,24 @@
 
 #define WARMUP_FRAMES 800
 
+// Cursor to beginning of previous line
+#define ANSI_PREVLINE "\x1B[F"
+#define ANSI_CLEARLINE "\x1B[2K"
+#define ANSI_CLEARTOEOL "\x1B[0K"
+
+#define ANSI_RED "\x1B[1;31;40m"
+#define ANSI_GREY "\x1B[1;30;40m"
+#define ANSI_BLUE "\x1B[1;34;40m"
+#define ANSI_CYAN "\x1B[1;36;40m"
+#define ANSI_YELLOW "\x1B[1;33;40m"
+#define ANSI_GREEN "\x1B[1;32;40m"
+#define ANSI_WHITE "\x1B[1;37;40m"
+#define ANSI_PURPLE "\x1B[1;35;40m"
+#define ANSI_RESET "\x1B[m"
+
+
 using Linkage = AutoCamera2::Linkage;
+using XLoc = AutoCamera2::XLoc;
 
 static string Rtos(double d) {
   if (std::isnan(d)) return "NaN";
@@ -169,7 +186,7 @@ static vector<Game> Games() {
   };
 }
 
-static Game EvalOne(const Game &game) {
+static Game EvalOne(const Game &game, std::function<void(string)> report) {
   const int NUM_SAMPLES = 10;
   const int SAMPLE_EVERY = 500;
   const string &romfile = game.romfile;
@@ -189,7 +206,7 @@ static Game EvalOne(const Game &game) {
     emu->StepFull(movie[frameidx].first, movie[frameidx].second);
     frameidx++;
   }
-  printf("[%s] warmed up\n", romfile.c_str());
+  report("warmed up");
 
   vector<vector<uint8>> samples;
   samples.reserve(NUM_SAMPLES);
@@ -207,9 +224,9 @@ static Game EvalOne(const Game &game) {
   vector<vector<Linkage>> links;
   links.reserve(samples.size());
   for (const vector<uint8> &save : samples) {
-    links.push_back(ac.FindLinkages(save));
-    printf("[%s] %d/%d\n", romfile.c_str(),
-	   (int)links.size(), (int)samples.size());
+    links.push_back(ac.FindLinkages(save, report));
+    // printf("[%s] %d/%d\n", romfile.c_str(),
+    // (int)links.size(), (int)samples.size());
   }
 
   std::set<pair<int, int>> expset;
@@ -217,6 +234,8 @@ static Game EvalOne(const Game &game) {
   
   vector<Linkage> merged = AutoCamera2::MergeLinkages(links);
   // Now compute stats.
+#if 0
+  // XXX this should go elsewhere, like at end?
   printf("[%s]: Merged:\n", romfile.c_str());
   for (const Linkage &l : merged) {
     printf("  %.2f: %d/%d = 0x%04x,0x%04x%s\n",
@@ -224,6 +243,7 @@ static Game EvalOne(const Game &game) {
 	   l.xloc, l.yloc,
 	   ContainsKey(expset, make_pair(l.xloc, l.yloc)) ? " <-" : "");
   }
+#endif
   Game game_copy = game;
   
   if (!game.expected.empty()) {
@@ -248,24 +268,79 @@ static Game EvalOne(const Game &game) {
     // game_copy.fraction_found = (float)found / (float)game.expected.size();
     game_copy.found = found;
     game_copy.rank_loss = rank_loss;
+
+    report(StringPrintf("Found %d/%d. Rank loss %d",
+			found, (int)game_copy.expected.size(),
+			rank_loss));
   }
   
   return game_copy;
 }
-  
-// The main loop for SDL.
-int main(int argc, char *argv[]) {
-  (void)Rtos;
 
-  #ifdef __MINGW32__
-  if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
-    LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
-  }
-  #endif
-  
+static void EvalAll() {
   vector<Game> games = Games();
-  // PERF threaded, or make autocamera threaded!
-  vector<Game> results = ParallelMap(games, EvalOne, 11);
+
+  enum State {
+    WAITING = 0,
+    RUNNING,
+    DONE,
+  };
+  
+  std::mutex status_m;
+  vector<State> states;
+  for (int i = 0; i < games.size(); i++) states.push_back(WAITING);
+  vector<string> status;
+  status.resize(games.size());
+  // Should hold mutex.
+  auto ShowTable =
+    [&games, &states, &status]() {
+      for (int i = 0; i < games.size() + 2; i++) {
+	printf("%s", ANSI_PREVLINE);
+	// #define ANSI_PREVLINE "\x1B[F"
+      }
+      printf("\n---------------------------------\n");
+      for (int i = 0; i < games.size(); i++) {
+	auto StateChar =
+	  [](State s) {
+	    switch(s) {
+	    case WAITING: return " ";
+	    case RUNNING: return ANSI_BLUE "*" ANSI_RESET;
+	    case DONE: return ANSI_GREEN "-" ANSI_RESET;
+	    default: return "?";
+	    }
+	  };
+	
+	printf("[%s] " ANSI_WHITE "%s" ANSI_RESET ": %s" ANSI_CLEARTOEOL "\n",
+	       StateChar(states[i]),
+	       games[i].romfile.c_str(),
+	       status[i].c_str());
+      }
+    };
+
+  auto EvalWithProgress =
+    [&games, &status_m, &states, &status, &ShowTable](
+	int idx, const Game &game) {
+      {
+	MutexLock ml(&status_m);
+	states[idx] = RUNNING;
+	status[idx] = "Start";
+	// ShowTable();
+      }
+      auto Report = [idx, &status_m, &status, &ShowTable](const string &s) {
+		      MutexLock ml(&status_m);
+		      status[idx] = s;
+		      ShowTable();
+		    };
+      Game res = EvalOne(game, Report);
+      {
+	MutexLock ml(&status_m);
+	states[idx] = DONE;
+	ShowTable();
+      }
+      return res;
+    };
+
+  vector<Game> results = ParallelMapi(games, EvalWithProgress, 11);
   (void)results;
   printf(" == Summary ==\n");
   printf("game.nes\t\trecall\trank loss\n");
@@ -275,5 +350,17 @@ int main(int argc, char *argv[]) {
 	   g.found, (int)g.expected.size(),
 	   g.rank_loss);
   }
+}
+
+int main(int argc, char *argv[]) {
+  (void)Rtos;
+
+  #ifdef __MINGW32__
+  if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
+    LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
+  }
+  #endif
+  
+  EvalAll();
   return 0;
 }
