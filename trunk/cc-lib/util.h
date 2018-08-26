@@ -137,6 +137,13 @@ struct Util {
   static string losewhitel(const string &s);
   // Remove trailing whitespace.
   static string LoseWhiteR(string s);
+
+  // Pads the string to n characters by appending spaces if
+  // it is shorter. (Longer strings are unmodified.) If n is
+  // negative, adds space on the left instead.
+  static string Pad(int n, string s);
+  // Same, with the given character instead of ' '.
+  static string PadEx(int n, string s, char c);
   
   // All whitespace becomes a single space. Leading and trailing
   // whitespace is dropped.
