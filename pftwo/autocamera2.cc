@@ -1,9 +1,6 @@
-// TODO: Many split-scrolling games can't be detected because after
-// the frame, the scroll doesn't reflect the game area scroll
-// (especially bottom-status games). Could keep a history of
-// scroll positions paired with their scanlines. Makes the most sense
-// to treat a sprite relative to the scroll position on the scanline(s)
-// on which it was rendered, right?
+// TODO: Give higher scores to linkages when the x/y memory locations
+// are close together.
+// TODO: Penalize linkages in the typical OAMDMA src region.
 
 #include "autocamera2.h"
 
@@ -18,10 +15,7 @@
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/hashing.h"
 #include "../cc-lib/gtl/top_n.h"
-
-/*
-
-*/
+#include "../fceulib/simplefm2.h"
 
 static constexpr int NUM_SPRITES = 64;
 // Absolute difference allowed between memory location and sprite
@@ -34,6 +28,8 @@ static_assert(MIN_RANDOM_DISTANCE > (LINKAGE_MARGIN >> 1),
 // When moving a sprite by changing its memory location, we allow
 // the sprite's vector to differ by up to this amount in each component.
 static constexpr int DELTA_SLOP = 3;
+
+static constexpr int NUM_LINKAGES = 32;
 
 using Linkage = AutoCamera2::Linkage;
 using XLoc = AutoCamera2::XLoc;
@@ -85,6 +81,12 @@ struct BetterLinkage {
     return a.score > b.score;
   }
 };
+
+struct BetterXLoc {
+  bool operator() (const XLoc &a, const XLoc &b) const {
+    return a.score > b.score;
+  }
+};
 }
 
 using ScoredLocationMap = 
@@ -94,7 +96,7 @@ using ScoredLocationMap =
 
 static vector<Linkage> GetBestLinkages(
     const ScoredLocationMap &scores) {
-  gtl::TopN<Linkage, BetterLinkage> topn(16);
+  gtl::TopN<Linkage, BetterLinkage> topn(NUM_LINKAGES);
   for (const auto &p : scores) {
     topn.push(Linkage(p.first.first, p.first.second, p.second));
   }
@@ -102,9 +104,13 @@ static vector<Linkage> GetBestLinkages(
   return std::move(*best);
 }
 
-AutoCamera2::AutoCamera2(const string &game) {
+AutoCamera2::AutoCamera2(const string &game) : rc(game) {
   emu.reset(Emulator::Create(game));
+  lemu.reset(Emulator::Create(game));
+  remu.reset(Emulator::Create(game));
   CHECK(emu.get() != nullptr) << game;
+  CHECK(lemu.get() != nullptr) << game;
+  CHECK(remu.get() != nullptr) << game;
 }
 
 AutoCamera2::~AutoCamera2() {}
@@ -125,9 +131,6 @@ vector<Linkage> AutoCamera2::FindLinkages(
   // (But should we take emu as an argument, then?)
   emu->LoadUncompressed(save);
 
-  // Generate a different random stream for each sample.
-  ArcFour rc{save};
-  
   vector<uint8> orig_mem = emu->GetMemory();
   StepEmu(emu.get());
   OAM orig_oam{emu.get()};
@@ -184,7 +187,7 @@ vector<Linkage> AutoCamera2::FindLinkages(
   // The value must also be between low and high, inclusive. Make
   // sure this interval is wide enough, or it may not terminate!
   auto GetNewCoord =
-    [&rc](uint8 old, uint8 low, uint8 high) {
+    [this](uint8 old, uint8 low, uint8 high) {
       for (;;) {
 	const uint8 z = rc.Byte();
 	if (z >= low && z <= high) {
@@ -282,6 +285,9 @@ vector<Linkage> AutoCamera2::FindLinkages(
 	// TODO: Since warping might update the scroll, we should
 	// be including changes to (scanline-specific) scroll positions
 	// here.
+	// TODO: Consider wraparound (unsigned distance?) here, since
+	// x usually will overflow from 255 to 0, for example. This
+	// can be mid-screen when scroll is nonzero.
 	for (int s = 0; s < 64; s++) {
 	  const int dsx = (int)new_oam.X(s) - (int)orig_oam.X(s);
 	  const int dsy = (int)new_oam.Y(s) - (int)orig_oam.Y(s);
@@ -316,11 +322,132 @@ vector<Linkage> AutoCamera2::MergeLinkages(
   return GetBestLinkages(scores);
 }
 
-// 
+
+// Wait this many frames pressing nothing in order to remove velocity.
+static constexpr int COOLDOWN_FRAMES = 6;
+static constexpr int TEST_FRAMES = 20;
+// Might want to also update the switch below in ModularLess.
+static constexpr int MAX_DIST_PER_FRAME = 5;
+
+// True if the value 'now' is strictly lower than 'prev'. Writes a
+// score in [0, 1] to the score argument. Lower is treated modularly,
+// and must be no more than the supplied maximum distance.
+static bool ModularLess(uint8 maxdist, uint8 prev, uint8 now,
+			float *score) {
+  *score = 0.0f;
+  auto D =
+    [maxdist, score](int d) {
+      if (d < maxdist) {
+	switch (d) {
+	case 1: *score = 1.0f; break;
+	case 2: *score = 0.8f; break;
+	case 3: *score = 0.5f; break;
+	case 4: *score = 0.25f; break;
+	default:
+	  *score = 0.10f;
+	  break;
+	}
+	return true;
+      } else {
+	return false;
+      }
+    };
+  if (now == prev) return false;
+  else if (now < prev) {
+    // Normal.
+    return D(prev - now);
+  } else {
+    // For example (now = 254, prev = 1).
+    return D((int)prev + 256 - now);
+  }
+}
+
+static inline bool ModularGreater(uint8 maxdist, uint8 prev, uint8 now,
+				  float *score) {
+  return ModularLess(maxdist, now, prev, score);
+}
+
+
+static vector<XLoc> GetBestXLocs(const vector<float> &scores) {
+  gtl::TopN<XLoc, BetterXLoc> topn(16);
+  for (int idx = 0; idx < 2048; idx++) {
+    if (scores[idx] > 0.0f) {
+      topn.push(XLoc(idx, scores[idx]));
+    }
+  }
+  std::unique_ptr<vector<XLoc>> best(topn.Extract());
+  return std::move(*best);
+}
+
+vector<XLoc> AutoCamera2::MergeXLocs(const vector<vector<XLoc>> &xlocs) {
+  vector<float> scores(2048, 0.0f);
+  for (const vector<XLoc> &v : xlocs)
+    for (const XLoc &x : v)
+      scores[x.xloc] += x.score;
+  return GetBestXLocs(scores);
+}
+
 vector<XLoc> AutoCamera2::FindXLocs(
     const vector<uint8> &save,
     bool player_two,
     const std::function<void(string)> &report) {
-  // XXX!
-  return {};
+
+  // Basically follows the autocamera approach of splitting the world
+  // into hold-left, hold-nothing, and hold-right. But:
+  //  - We look for memory locations, not sprites
+  //  - We specifically look for small per-frame increments
+  //  - We treat coordinates modularly, so that e.g. 1 is considered
+  //    slightly to the right of 255.
+
+  // Original position.
+  emu->LoadUncompressed(save);
+  for (int i = 0; i < COOLDOWN_FRAMES; i++) {
+    emu->StepFull(0, 0);
+  }
+
+  vector<uint8> cooled = emu->SaveUncompressed();
+  lemu->LoadUncompressed(cooled);
+  remu->LoadUncompressed(cooled);
+  
+  vector<uint8> orig_mem = emu->GetMemory();
+  vector<uint8> lmem = orig_mem;
+  vector<uint8> rmem = orig_mem;
+
+  vector<float> scores(2048, 0.0f);
+
+  for (int i = 0; i < TEST_FRAMES; i++) {
+    emu->StepFull(0, 0);
+
+    if (player_two) lemu->StepFull(0, INPUT_L);
+    else lemu->StepFull(INPUT_L, 0);
+
+    if (player_two) remu->StepFull(0, INPUT_R);
+    else remu->StepFull(INPUT_R, 0);
+
+    vector<uint8> now_nmem = emu->GetMemory();
+    vector<uint8> now_lmem = lemu->GetMemory();
+    vector<uint8> now_rmem = remu->GetMemory();
+    for (int idx = 0; idx < 2048; idx++) {
+      // Only consider the memory location if it didn't change in the
+      // original.
+      if (now_nmem[idx] == orig_mem[idx]) {
+	float lscore = 0.0f, rscore = 0.0f;
+	bool lok = ModularLess(MAX_DIST_PER_FRAME, lmem[idx], now_lmem[idx],
+			       &lscore);
+	bool rok = ModularGreater(MAX_DIST_PER_FRAME,
+				  rmem[idx], now_rmem[idx],
+				  &rscore);
+	float score = lscore + rscore;
+	// Penalize if we didn't see both move.
+	if (!lok || !rok) score *= 0.5f;
+	scores[idx] += score;
+      }
+    }
+    // Shift memories. No need to shift nmem, since we always test
+    // equality on it.
+    lmem.swap(now_lmem);
+    rmem.swap(now_rmem);
+  }
+  
+  return GetBestXLocs(scores);
 }

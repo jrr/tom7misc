@@ -226,7 +226,9 @@ struct UIThread {
   std::map<int64, string> subtitles;
   unique_ptr<Emulator> emu;
   int frameidx = 0;
-
+  int loop_left = 0, loop_right = 0;
+  vector<uint8> loop_left_save;
+  
   UIThread(const string &game,
 	   const string &moviefile) : game(game) {
     vector<pair<int, string>> subs;
@@ -235,12 +237,15 @@ struct UIThread {
       SimpleFM7::ReadInputs2P(moviefile);
     
     CHECK(!movie.empty()) << "Couldn't read movie: " << moviefile;
+    loop_right = movie.size() + 1;
     for (const auto &p : subs)
       subtitles[p.first] = p.second;
 
     emu.reset(Emulator::Create(game));
     CHECK(emu.get() != nullptr) << game;
 
+    loop_left_save = emu->SaveUncompressed();
+    
     for (int i = 0; i < WARMUP_FRAMES; i++) {
       emu->StepFull(movie[i].first, movie[i].second);
       frameidx++;
@@ -351,6 +356,17 @@ struct UIThread {
 	    YLOC++;
 	    printf("%d,%d = %04x,%04x\n", XLOC, YLOC, XLOC, YLOC);
 	    break;
+
+	  case SDLK_LEFTBRACKET:
+	    loop_left = frameidx;
+	    loop_left_save = emu->SaveUncompressed();
+	    if (loop_left >= loop_right) loop_left = 0;
+	    break;
+	    
+	  case SDLK_RIGHTBRACKET:
+	    loop_right = frameidx;
+	    if (loop_right <= loop_left) loop_left = 0;
+	    break;
 	    
 	  // Numpad cardinal directions modify the value at XLOC,YLOC.
 	  // XXX: Should probably discard snapshots when this
@@ -373,12 +389,32 @@ struct UIThread {
 
 	  case SDLK_2: {
 	    AutoCamera2 ac{game};
+	    vector<uint8> save = emu->SaveUncompressed();
+	    auto Report = [](const string &s) {
+			    printf("AC2: %s\n", s.c_str());
+			  };
 	    vector<AutoCamera2::Linkage> links =
-	      ac.FindLinkages(emu->SaveUncompressed(),
-			      [](const string &s) {
-				printf("AC2: %s\n", s.c_str());
-			      });
-	    if (!links.empty()) {
+	      ac.FindLinkages(save, Report);
+
+	    for (const AutoCamera2::Linkage &l : links) {
+	      printf("  %.2f: %d/%d = 0x%04x,0x%04x\n",
+		     l.score, l.xloc, l.yloc,
+		     l.xloc, l.yloc);
+	    }
+
+	    // XXX 2p
+	    vector<AutoCamera2::XLoc> xlocs =
+	      ac.FindXLocs(save, false, Report);
+
+	    printf("AC2: %d xlocs:\n", (int)xlocs.size());
+	    for (const AutoCamera2::XLoc &x : xlocs) {
+	      printf("  %.2f: %d = 0x%04x\n",
+		     x.score, x.xloc, x.xloc);
+	    }
+
+	    // XXX merge scores
+	    
+	    if (links.empty()) {
 	      AutoCamera2::Linkage best = links[0];
 	      printf("Set loc to %d,%d = 0x%2x,0x%2x (score %.2f)\n",
 		     best.xloc, best.yloc,
@@ -476,9 +512,15 @@ struct UIThread {
 	  break;
 	}
       }
-	      
+      
       if (mode == Mode::PLAY || mode == Mode::ADVANCE ||
 	  mode == Mode::FFWD) {
+
+	if (frameidx == loop_right) {
+	  frameidx = loop_left;
+	  emu->LoadUncompressed(loop_left_save);
+	}
+	
 	// Can we execute at least one frame?
 	if (frameidx >= movie.size()) {
 	  mode = Mode::PAUSE;
@@ -490,6 +532,7 @@ struct UIThread {
 	  emu->StepFull(p1, p2);
 
 	  if (0 == frameidx % SNAPSHOT_EVERY) {
+	    // XX only do this the first time..?
 	    snapshots[frameidx] = emu->SaveUncompressed();
 	    if (mode == Mode::FFWD) {
 	      mode = Mode::PAUSE;
@@ -572,7 +615,7 @@ struct UIThread {
 	// GREEN is offset by scroll.
 	DrawBox((uint8)(xx - xscroll), (uint8)(yy - yscroll), 0, 0xFF, 0);
 	// BLUE is offset by majority scroll.
-	DrawBox((uint8)(xx - xmaj), (uint8)(yy - ymaj), 0x33, 0x33, 0xFF);
+	DrawBox((uint8)(xx - xmaj), (uint8)(yy - ymaj), 0x77, 0x77, 0xFF);
 
 	font->draw(400, 4,
 		   StringPrintf("^4maj: ^1%d^2,^<%d",
