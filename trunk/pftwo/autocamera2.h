@@ -140,6 +140,7 @@
 #include <functional>
 
 #include "../fceulib/emulator.h"
+#include "../cc-lib/arcfour.h"
 
 // Focus is on quality and debuggability, not performance.
 struct AutoCamera2 {
@@ -192,7 +193,8 @@ struct AutoCamera2 {
   static vector<XLoc> MergeXLocs(const vector<vector<XLoc>> &samples);
 
 private:
-  std::unique_ptr<Emulator> emu;
+  ArcFour rc;
+  std::unique_ptr<Emulator> emu, lemu, remu;
 };
   
 #endif

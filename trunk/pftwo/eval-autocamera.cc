@@ -23,7 +23,8 @@
 #include "../fceulib/simplefm7.h"
 #include "../fceulib/cart.h"
 #include "../fceulib/ppu.h"
-#include "../cc-lib/re2/re2.h"
+// #include "../cc-lib/re2/re2.h"
+#include "../cc-lib/util.h"
 #include "autocamera.h"
 #include "autocamera2.h"
 
@@ -73,7 +74,7 @@ struct Game {
   Game() {}
   Game(string rom, string movie, vector<pair<int, int>> exp)
     : romfile(rom), moviefile(movie), expected(exp) {}
-  
+
   // Outputs.
   // float fraction_found = 0.0f;
   int found = 0;
@@ -84,6 +85,14 @@ struct Game {
 
 static vector<Game> Games() {
   return {
+
+	  Game{"werewolf.nes", "werewolf.fm7", {}},
+	  // Verified. Warping just moves the feet, but the head will
+	  // reattach when switching rooms. The head is also
+	  // separately warpable (0x0707,0x0704), but doesn't seem to
+	  // be the "master" location.
+	  Game{"deadlytowers.nes", "deadlytowers.fm7", {{0x0703,0x0700}}},
+
 #if 1
 	  // Verified.
 	  Game{"mario.nes", "mario.fm7", {{0x86, 0xCE}}},
@@ -124,9 +133,6 @@ static vector<Game> Games() {
 	  Game{"rampage.nes", "rampage2p.fm7", {{0x102, 0x103},
 						{0x12e, 0x12f}}},
 
-#endif
-	  
-#if 1
 	  // Verified. Warping works.
 	  Game{"adventureisland.nes", "adventureisland.fm7", {{0x584,0x5d3}}},
 	  // Verified. Warping works well.
@@ -137,10 +143,10 @@ static vector<Game> Games() {
 
 	  // Found in FCEUX. Warping works.
 	  Game{"baddudes.nes", "baddudes.fm7", {{0x2a6, 0x2a4}}},
-	  
+
 	  // Found in FCEUX. Warping works.
 	  Game{"jackiechan.nes", "jackiechan.fm7", {{0x610, 0x620}}},
-	  
+
 	  // 0x370,0x330 is the cue ball. Lots of balls detected, but
 	  // not the cursor?
 	  Game{"lunarpool.nes", "lunarpool.fm7", {}},
@@ -151,9 +157,6 @@ static vector<Game> Games() {
 	  // the player, the master location is stored as coarse/fine
 	  // (just guessing)... 0x028 is the x game-time number.
 	  Game{"bomberman.nes", "bomberman.fm7", {}},
-	  
-	  // TODO: These need expected positions. autocamera2 does
-	  // not seem to succeed today!
 
 	  // Several x addresses for sprites:
 	  // 0x243, 247, 24b, 343, 347, 34b
@@ -163,28 +166,40 @@ static vector<Game> Games() {
 	  // coordinate seems pinned to the center of the screen,
 	  // except like when you fall onto spikes
 	  Game{"cliffhanger.nes", "cliffhanger.fm7", {}},
-	  // autocamera doesn't work. Has split x-scrolling, but also
-	  // appears to use some mapper tricks to do vertical scrolling?
-	  Game{"ducktales.nes", "ducktales.fm7", {}},
+	  // Has split x-scrolling, but also appears to use some
+	  // mapper tricks to do vertical scrolling?
+	  // Despite these having weirdly distant locations, it
+	  // does check out, and warping works.
+	  Game{"ducktales.nes", "ducktales.fm7", {{0x720, 0x640}}},
 
-	  // Doesn't work. has split scrolling...
+	  // Doesn't work. has split scrolling. Difficult game.
 	  Game{"gauntlet2.nes", "gauntlet2.fm7", {}},
 
-	  // doesn't work.
-	  Game{"strider.nes", "strider.fm7", {}},
+	  // autocamera finds this now. verified with warping.
+	  Game{"strider.nes", "strider.fm7", {{0x508, 0x50b}}},
 
+	  // Verified. xlocs finds 0x09e, which is good. The y
+	  // coordinate's value weirdly remaind like 24 pixels above
+	  // the player, but warping works great, so I guess it's just
+	  // a weird one...
+	  Game{"faxanadu.nes", "faxanadu.fm7", {{0x09e, 0x0a1}}},
 
-	  Game{"faxanadu.nes", "faxanadu.fm7", {}},
 	  // Found in FCEUX and searching. These work with warping
-	  // too. But y is the y coord negated?
-	  // 1p x coord: 0x83 = 131.
-	  // 1p y coord, but negated (?): 158
-	  // 2p x coord = 132?
-	  // 2p y coord, negated: 159
-	  Game{"rivercity.nes", "rivercity2p.fm7", {}},
+	  // too. But y is the y coord negated! (Maybe it's using
+	  // cartesian axes?) We don't expect autocamera to find this,
+	  // but it appears to be the best answer for this game.
+	  // 
+	  // 1p: 0x08e, 0x09e (negated)
+	  // 2p: 0x084, 0x09f (negated)
+	  Game{"rivercity.nes", "rivercity2p.fm7", {{0x08e, 0x09e},
+						    {0x084, 0x09f}}},
 #endif
   };
 }
+
+// xxx ugh
+std::mutex file_mutex;
+FILE *outfile = nullptr;
 
 static Game EvalOne(const Game &game, std::function<void(string)> report) {
   const int NUM_SAMPLES = 10;
@@ -195,11 +210,11 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
   CHECK(!movie.empty()) << "Couldn't read movie: " << game.moviefile;
   CHECK(movie.size() > WARMUP_FRAMES + (SAMPLE_EVERY * NUM_SAMPLES)) <<
     game.moviefile << " not long enough!";
-  
+
   unique_ptr<Emulator> emu;
   emu.reset(Emulator::Create(romfile));
   CHECK(emu.get() != nullptr) << romfile;
-  
+
   // Warm up.
   int frameidx = 0;
   for (int i = WARMUP_FRAMES; i--;) {
@@ -215,51 +230,95 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
     if (frameidx % SAMPLE_EVERY == 0) {
       samples.push_back(emu->SaveUncompressed());
     }
-    emu->StepFull(movie[frameidx].first, movie[frameidx].second);    
+    emu->StepFull(movie[frameidx].first, movie[frameidx].second);
     frameidx++;
   }
 
   AutoCamera2 ac{romfile};
 
   vector<vector<Linkage>> links;
+  vector<vector<XLoc>> xlocs1, xlocs2;
   links.reserve(samples.size());
+  xlocs1.reserve(samples.size());
+  xlocs2.reserve(samples.size());
   for (const vector<uint8> &save : samples) {
-    links.push_back(ac.FindLinkages(save, report));
-    // printf("[%s] %d/%d\n", romfile.c_str(),
-    // (int)links.size(), (int)samples.size());
+    auto one_report = [&report, &samples, &xlocs1, &xlocs2](const string &s) {
+			report(StringPrintf("[%d/%d] %s",
+					    (int)xlocs2.size(),
+					    (int)samples.size(),
+					    s.c_str()));
+		      };
+    links.push_back(ac.FindLinkages(save, one_report));
+    xlocs1.push_back(ac.FindXLocs(save, false, one_report));
+    xlocs2.push_back(ac.FindXLocs(save, true, one_report));
   }
 
   std::set<pair<int, int>> expset;
   for (const auto &p : game.expected) expset.insert(p);
-  
+
   vector<Linkage> merged = AutoCamera2::MergeLinkages(links);
+  vector<XLoc> xmerged1 = AutoCamera2::MergeXLocs(xlocs1);
+  vector<XLoc> xmerged2 = AutoCamera2::MergeXLocs(xlocs2);
+
+  std::unordered_map<int, float> xscores1, xscores2;
+  for (const XLoc &x : xmerged1) xscores1[x.xloc] = x.score;
+  for (const XLoc &x : xmerged2) xscores2[x.xloc] = x.score;
+
   // Now compute stats.
-#if 0
-  // XXX this should go elsewhere, like at end?
-  printf("[%s]: Merged:\n", romfile.c_str());
-  for (const Linkage &l : merged) {
-    printf("  %.2f: %d/%d = 0x%04x,0x%04x%s\n",
-	   l.score, l.xloc, l.yloc,
-	   l.xloc, l.yloc,
-	   ContainsKey(expset, make_pair(l.xloc, l.yloc)) ? " <-" : "");
+  {
+    MutexLock ml(&file_mutex);
+    if (outfile) {
+      fprintf(outfile, "[%s]: Merged linkages:\n", romfile.c_str());
+      for (const Linkage &l : merged) {
+	string xs1 = ContainsKey(xscores1, l.xloc) ?
+	  StringPrintf(" [1p: %.2f] ", xscores1[l.xloc]) : "";
+	string xs2 = ContainsKey(xscores2, l.xloc) ?
+	  StringPrintf(" [2p: %.2f] ", xscores2[l.xloc]) : "";
+
+	fprintf(outfile,
+		"  %.2f: %d/%d = 0x%04x,0x%04x%s%s%s\n",
+		l.score, l.xloc, l.yloc,
+		l.xloc, l.yloc,
+		xs1.c_str(), xs2.c_str(),
+		ContainsKey(expset, make_pair(l.xloc, l.yloc)) ? " <-" : "");
+      }
+      fprintf(outfile, "  -- Merged xlocs 1p --\n");
+      for (const XLoc &x : xmerged1) {
+	fprintf(outfile, "  %.2f: %d = 0x%04x\n", x.score, x.xloc, x.xloc);
+      }
+      fprintf(outfile, "  -- Merged xlocs 2p --\n");
+      for (const XLoc &x : xmerged2) {
+	fprintf(outfile, "  %.2f: %d = 0x%04x\n", x.score, x.xloc, x.xloc);
+      }
+      
+      fflush(outfile);
+    }
   }
-#endif
-  Game game_copy = game;
+
+  // Rescore linkages with xlocs for both players.
+  vector<Linkage> rescored = merged;
+  for (Linkage &l : rescored) {
+    l.score *= (1.0f + xscores1[l.xloc] + xscores2[l.xloc]);
+  }
+  // Easy way to sort them again.
+  rescored = AutoCamera2::MergeLinkages({rescored});
   
+  Game game_copy = game;
+
   if (!game.expected.empty()) {
     int found = 0;
     int rank_loss = 0;
-    for (const Linkage &l : merged) {
+    for (const Linkage &l : rescored) {
       if (ContainsKey(expset, make_pair(l.xloc, l.yloc))) {
 	// Found one of the expected pairs.
 	found++;
 	const float found_score = l.score;
 	// Compute its rank loss, which is the number of pairs with
 	// this score or less that are NOT in our set.
-	for (const Linkage &ll : merged) {
+	for (const Linkage &ll : rescored) {
 	  if (ll.score < found_score)
 	    break;
-	  
+
 	  if (!ContainsKey(expset, make_pair(ll.xloc, ll.yloc)))
 	    rank_loss++;
 	}
@@ -273,11 +332,14 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
 			found, (int)game_copy.expected.size(),
 			rank_loss));
   }
-  
+
   return game_copy;
 }
 
 static void EvalAll() {
+  outfile = fopen("results.txt", "w");
+  CHECK(outfile) << "results.txt";
+
   vector<Game> games = Games();
 
   enum State {
@@ -285,7 +347,7 @@ static void EvalAll() {
     RUNNING,
     DONE,
   };
-  
+
   std::mutex status_m;
   vector<State> states;
   for (int i = 0; i < games.size(); i++) states.push_back(WAITING);
@@ -309,7 +371,7 @@ static void EvalAll() {
 	    default: return "?";
 	    }
 	  };
-	
+
 	printf("[%s] " ANSI_WHITE "%s" ANSI_RESET ": %s" ANSI_CLEARTOEOL "\n",
 	       StateChar(states[i]),
 	       games[i].romfile.c_str(),
@@ -343,13 +405,16 @@ static void EvalAll() {
   vector<Game> results = ParallelMapi(games, EvalWithProgress, 11);
   (void)results;
   printf(" == Summary ==\n");
-  printf("game.nes\t\trecall\trank loss\n");
+  string col1h = Util::Pad(24, "game.nes");
+  printf("%srecall\trank loss\n", col1h.c_str());
   for (const Game &g : results) {
     printf("%s\t\t%d/%d\t%d\n",
-	   g.romfile.c_str(),
+	   Util::Pad(24, g.romfile).c_str(),
 	   g.found, (int)g.expected.size(),
 	   g.rank_loss);
   }
+
+  fclose(outfile);
 }
 
 int main(int argc, char *argv[]) {
@@ -360,7 +425,7 @@ int main(int argc, char *argv[]) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
   }
   #endif
-  
+
   EvalAll();
   return 0;
 }
