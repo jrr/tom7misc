@@ -1,4 +1,37 @@
 
+Use xloc detection to rerank:
+game.nes                recall  rank loss
+werewolf.nes            0/0     0
+deadlytowers.nes        1/1     0
+mario.nes               1/1     0
+contra.nes              2/2     0
+megaman2.nes            1/1     0
+lolo.nes                1/1     0
+metroid.nes             1/1     0
+zelda.nes               1/1     0
+rocketeer.nes           1/1     2
+gyromite.nes            1/1     0
+littlemermaid.nes       1/1     0
+backtothefuture.nes     1/1     0
+bubblebobble.nes        2/2     0
+rampage.nes             1/2     0
+adventureisland.nes     0/1     0
+kidicarus.nes           1/1     0
+ninjagaiden.nes         1/1     1
+baddudes.nes            0/1     0
+jackiechan.nes          1/1     0
+lunarpool.nes           0/0     0
+bomberman.nes           0/0     0
+cliffhanger.nes         0/0     0
+ducktales.nes           1/1     0
+gauntlet2.nes           0/0     0
+strider.nes             1/1     0
+faxanadu.nes            0/1     0
+rivercity.nes           0/2     0
+
+... works quite well.
+faxanadu and rivercity are known weird.
+
 New random seed. Avoid edges of screen when generating coordinates:
 game.nes                recall  rank loss
 mario.nes               1/1     0
