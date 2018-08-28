@@ -86,6 +86,42 @@ struct Game {
 static vector<Game> Games() {
   return {
 
+	  // 423 comes from xloc, 425 found by guessing (!) since
+	  // the other sprite pairs were separated by two bytes. Seems
+	  // to be a lot of sprite pairs in ram, so maybe just need
+	  // to have a higher limit here.
+	  Game{"swordmaster.nes", "swordmaster.fm7", {0x423, 0x425}},
+	  
+  #if 0
+	  // With 0x04fb,0x04f9, warping has effect (within some small
+	  // region at least), but y location is not on the player. So
+	  // I think this does not qualify as working. x looks good.
+	  // TODO: Search for a working y, or is there something weird
+	  // with scroll?
+	  Game{"festersquest.nes", "festersquest.fm7", {}},
+	  // Tracks player sprite, but no warping.
+	  //
+	  // 0x031 (xloc) does seem to control some aspect
+	  // of the player position (allowing some warping),
+	  // but this game is pretty weird (isometric).
+	  Game{"solstice.nes", "solstice.fm7", {{0x728, 0x72c}}},
+
+	  // Verified, with warping. Found manually...
+	  // There are lots of high-scoring linkages, so maybe
+	  // we just need to search deeper? 0x788 is the top
+	  // xloc.
+	  Game{"athena.nes", "athena.fm7", {{0x788, 0x75a}}},
+
+	  // 0x04d9,0x051b works but no warping. there may be
+	  // better pairs in there; didn't check a lot.
+	  Game{"diehard.nes", "diehard.fm7", {{0x04d9,0x051b}}},
+
+	  // Verified. Warping works.
+	  Game{"gradius.nes", "gradius.fm7", {{0x360,0x320}}},
+
+	  // Verified. Warping works.
+	  Game{"kage.nes", "kage.fm7", {{0x053,0x054}}},
+
 	  Game{"werewolf.nes", "werewolf.fm7", {}},
 	  // Verified. Warping just moves the feet, but the head will
 	  // reattach when switching rooms. The head is also
@@ -93,7 +129,6 @@ static vector<Game> Games() {
 	  // be the "master" location.
 	  Game{"deadlytowers.nes", "deadlytowers.fm7", {{0x0703,0x0700}}},
 
-#if 1
 	  // Verified.
 	  Game{"mario.nes", "mario.fm7", {{0x86, 0xCE}}},
 	  // Verified.
@@ -328,9 +363,11 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
     game_copy.found = found;
     game_copy.rank_loss = rank_loss;
 
-    report(StringPrintf("Found %d/%d. Rank loss %d",
+    report(StringPrintf("Done. Found %d/%d. Rank loss %d",
 			found, (int)game_copy.expected.size(),
 			rank_loss));
+  } else {
+    report("Done.");
   }
 
   return game_copy;
@@ -408,8 +445,9 @@ static void EvalAll() {
   string col1h = Util::Pad(24, "game.nes");
   printf("%srecall\trank loss\n", col1h.c_str());
   for (const Game &g : results) {
-    printf("%s\t\t%d/%d\t%d\n",
+    printf("%s%s%d/%d" ANSI_RESET "\t%d\n",
 	   Util::Pad(24, g.romfile).c_str(),
+	   (g.found == g.expected.size()) ? "" : ANSI_RED,
 	   g.found, (int)g.expected.size(),
 	   g.rank_loss);
   }
