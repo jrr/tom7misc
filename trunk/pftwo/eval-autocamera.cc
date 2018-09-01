@@ -90,7 +90,7 @@ static vector<Game> Games() {
 	  // the other sprite pairs were separated by two bytes. Seems
 	  // to be a lot of sprite pairs in ram, so maybe just need
 	  // to have a higher limit here.
-	  Game{"swordmaster.nes", "swordmaster.fm7", {0x423, 0x425}},
+	  Game{"swordmaster.nes", "swordmaster.fm7", {{0x423, 0x425}}},
 	  
   #if 0
 	  // With 0x04fb,0x04f9, warping has effect (within some small
