@@ -23,13 +23,16 @@
 #include "../fceulib/simplefm7.h"
 #include "../fceulib/cart.h"
 #include "../fceulib/ppu.h"
+#include "../fceulib/x6502.h"
 #include "../cc-lib/sdl/sdlutil.h"
 #include "../cc-lib/util.h"
 #include "../cc-lib/sdl/chars.h"
 #include "../cc-lib/sdl/font.h"
 #include "../cc-lib/re2/re2.h"
+#include "../cc-lib/lastn-buffer.h"
 #include "autocamera.h"
 #include "autocamera2.h"
+#include "autolives.h"
 
 #include "SDL.h"
 #include "graphics.h"
@@ -38,7 +41,9 @@
 #define WIDTH 1920
 #define HEIGHT 1080
 
-#define WARMUP_FRAMES 800
+#define WARMUP_FRAMES 500
+// Turned off so that we can get PC histogram for intro too
+// #define WARMUP_FRAMES 0
 
 #define SNAPSHOT_EVERY 1000
 
@@ -225,9 +230,13 @@ struct UIThread {
   std::map<int64, vector<uint8>> snapshots;
   std::map<int64, string> subtitles;
   unique_ptr<Emulator> emu;
+  unique_ptr<AutoLives> autolives;
   int frameidx = 0;
   int loop_left = 0, loop_right = 0;
   vector<uint8> loop_left_save;
+
+  // The last values of reg_PC at the end of the frame.
+  LastNBuffer<uint64> last_pcs{100, 0ULL};
   
   UIThread(const string &game,
 	   const string &moviefile) : game(game) {
@@ -243,7 +252,8 @@ struct UIThread {
 
     emu.reset(Emulator::Create(game));
     CHECK(emu.get() != nullptr) << game;
-
+    autolives.reset(new AutoLives(game));
+    
     loop_left_save = emu->SaveUncompressed();
     
     for (int i = 0; i < WARMUP_FRAMES; i++) {
@@ -315,6 +325,8 @@ struct UIThread {
 
     // XXX contra
     const int rotate = 45;
+
+    
     
     for (;;) {
       SDL_Event event;
@@ -530,7 +542,9 @@ struct UIThread {
 	  std::tie(p1, p2) = movie[frameidx];
 	  frameidx++;
 	  emu->StepFull(p1, p2);
-
+	  // GetFC()->X->reg_PC
+	  last_pcs.push_back(emu->Registers());
+  
 	  if (0 == frameidx % SNAPSHOT_EVERY) {
 	    // XX only do this the first time..?
 	    snapshots[frameidx] = emu->SaveUncompressed();
@@ -553,7 +567,49 @@ struct UIThread {
       
       const int rot = (frameidx * rotate) % 64;
       DrawEmulatorAt(emu.get(), rot, 0, 0);
-	
+
+      {
+	vector<uint8> save = emu->SaveUncompressed();
+	float controlf = autolives->IsInControl(save, XLOC, YLOC, false);
+	font->draw(16, 500,
+		   StringPrintf("%sCONTROL: %.2f",
+				controlf > 0.3f ? "^5" : "^2", controlf));
+      }
+      
+      {
+	std::unordered_map<uint64, int> reg_counts;
+	last_pcs.App([&reg_counts](uint64 reg) {
+		       reg_counts[reg]++;
+		     });
+	vector<std::pair<int, uint64>> counted;
+	for (const auto &p : reg_counts)
+	  counted.emplace_back(p.second, p.first);
+	std::sort(counted.begin(), counted.end(),
+		  [](const std::pair<int, uint64> &a,
+		     const std::pair<int, uint64> &b) {
+		    return a.second > b.second;
+		  });
+
+	int xx = 2;
+	int yy = 600;
+	for (const auto &row : counted) {
+	  uint16 pc = row.second >> (5 * 8) & 65535;
+	  uint8 a = (row.second >> (4 * 8)) & 255;
+	  uint8 x = (row.second >> (3 * 8)) & 255;
+	  uint8 y = (row.second >> (2 * 8)) & 255;
+	  uint8 s = (row.second >> (1 * 8)) & 255;
+	  uint8 p = row.second & 255;
+	  font->draw(xx, yy,
+		     StringPrintf("%5d  ^1%04x^2%02x^3%02x^4%02x^5%02x^6%02x",
+				  row.first, pc, a, x, y, s, p));
+	  yy += FONTHEIGHT;
+	  if (yy > HEIGHT - FONTHEIGHT) {
+	    yy = 600;
+	    xx += 150;
+	  }
+	}
+      }
+      
       // Draw 
       if (mode == Mode::PLAY) {
 	font->draw(0, HEIGHT - FONTHEIGHT, "^2PLAY");

@@ -1,4 +1,79 @@
 
+1 Sep 2018
+
+ Thinking about detecting "I've returned to the main menu"
+ by signatures of the program counter / register file.
+
+ A memory location storing lives should have the following
+ properties:
+   - On most frames it doesn't change.
+   - When we have a frame where it does decrement, setting the
+     value to one (or zero?) before executing the frame should
+     cause (shortly thereafter) a traumatic event, whereas
+     with a higher value, nothing major happens. That is, the
+     value should behave very differently at zero (negative?)
+     than at other values.
+   - Random play should "frequently" decrement this value.
+
+ We could probably include other heuristics, like that its
+ value be expected to have a certain range (in most games
+ you typically have 0-10 lives, not 250).
+
+ The notion of traumatic event is hard to define, of course.
+ One obvious thing is to use the objective function, but then
+ this depends on having a good objective function.
+ We could also measure whether the player is in control of
+ their character:
+    - This requires working autocamera, but that does work for
+      most games. (And we could fall back on "does the game
+      state depend on my inputs at all? Some games seed an
+      RNG with player inputs even if they're ignoring it, but
+      otherwise this would be a decent fallback?)
+    - Worse, "boss health" might be prohibitive here. The game
+      often goes into some kind of cutscene after the boss dies,
+      which would look just like health?
+    - Could "fast forward" until we have control again. Distinguishing
+      the next level from "start over" would seem to require either
+      objective functions or some PC analysis (see below).
+
+ Another thing we could do is look at the program counter. We expect
+ that upon death, the program counter resets to a place it's been
+ before (title screen) but only early in the execution.
+    - Might be tricky; frame boundaries are timed by PPU, not
+      CPU.
+    - Keeping a trace of program counter locations is relatively
+      expensive, though we do it for AOT instrumentation. Could also
+      just look at the actual value of the PC on the frame boundary?
+    - Some games (Mario?) might not really have a different loop for
+      the menu; it's probably more like a global flag for "you are
+      currently dead."
+    - "Continue?" screens won't meet this criterion. They just look
+      like cutscenes.
+
+ Contra is mostly at 4 different PCs (between frames): c05d, 5b, 59,
+ 57, including on the menus. There do appear to be brief periods where
+ other PCs are touched; these happen as the menus draw, beginnings
+ of levels, and if there's enough sprites on the screen to cause
+ lag (I think?). Unknown whether the signatures are recognizable.
+ When looking at the whole register file, it's all over the map
+ regardless of the frame.
+
+ Mario is always at PC 8057, except one frame in between levels
+ (lag frame?). 90e1, 90de touched briefly when entering title
+ after death, including 90de on boot (but also a bunch of other
+ addresses touched at this point).
+
+ Music probably resets upon death.
+
+ Could also just look at video, although this is less elegant. We
+ also have to worry about common screens like all-black.
+
+ Many training sequences don't include player deaths, so we
+ need to find this incrementally.
+
+
+
+
 13 Jan 2018
  - The explicit exploration and grid stuff does seem to help.
  TODO:
