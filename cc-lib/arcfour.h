@@ -11,9 +11,6 @@
    some small biases in its output statistics.
 */
 
-// Note: I ported this from my SML version and
-// never tested it. -tom7
-
 #ifndef __CCLIB_ARCFOUR_H
 #define __CCLIB_ARCFOUR_H
 
