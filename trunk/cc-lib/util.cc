@@ -388,8 +388,8 @@ static inline string PadWith(int n, string s, char c) {
 	s.push_back(c);
     }
     return s;
-  } else if (n < 0) {
-    // Pad left, but negate n so it's easier to think about.
+  } else {
+    // n < 0. Pad left, but negate n so it's easier to think about.
     n = -n;
     if (s.length() < n) {
       string ret(n - s.length(), c);
