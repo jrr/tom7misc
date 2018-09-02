@@ -38,7 +38,7 @@ uint8 NMarkovController::RandomNext(History cur, ArcFour *rc) const {
   if (it == matrix.end()) {
     // The way we use this, it should be impossible, right?
     // XXX We can't just return history_in_domain because it is potentially
-    // many sybmols. What we should do is emit symbols that get us back
+    // many symbols. What we should do is emit symbols that get us back
     // into the history_in_domain state.
     // CHECK(false) << "History " << cur << " is not represented:\n" <<
     // HistoryString(n, cur);

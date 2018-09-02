@@ -392,6 +392,10 @@ vector<XLoc> AutoCamera2::FindXLocs(
     bool player_two,
     const std::function<void(string)> &report) {
 
+  auto MakePlayer = [player_two](uint8 inputs) {
+    return player_two ? ((uint16)inputs << 8) : (uint16)inputs;
+  };
+  
   // Basically follows the autocamera approach of splitting the world
   // into hold-left, hold-nothing, and hold-right. But:
   //  - We look for memory locations, not sprites
@@ -416,13 +420,9 @@ vector<XLoc> AutoCamera2::FindXLocs(
   vector<float> scores(2048, 0.0f);
 
   for (int i = 0; i < TEST_FRAMES; i++) {
-    emu->StepFull(0, 0);
-
-    if (player_two) lemu->StepFull(0, INPUT_L);
-    else lemu->StepFull(INPUT_L, 0);
-
-    if (player_two) remu->StepFull(0, INPUT_R);
-    else remu->StepFull(INPUT_R, 0);
+    emu->StepFull16(0U);
+    lemu->StepFull16(MakePlayer(INPUT_L));
+    remu->StepFull16(MakePlayer(INPUT_R));
 
     vector<uint8> now_nmem = emu->GetMemory();
     vector<uint8> now_lmem = lemu->GetMemory();
