@@ -8,6 +8,8 @@
 #include "fceu.h"
 #include "fc.h"
 
+#define TRACK_INTERFRAME_SCROLL 1
+
 struct PPU {
  public:
   PPU(FC *fc);
@@ -44,6 +46,26 @@ struct PPU {
 
   uint32 GetTempAddr() const { return TempAddr; }
 
+  // Get the x scroll value within the selected nametable.
+  uint8 GetXScroll8() const {
+    // Combine coarse and fine positions.
+    return ((TempAddr & 31) << 3) | XOffset;
+  }
+
+  uint8 GetYScroll8() const {
+    // These bits are stored in weird places. Shifted all the way
+    // down here for clarity.
+    const uint8 fine_y = (TempAddr >> 12) & 7;
+    // 0x3E0 = 1111100000
+    const uint8 coarse_y = (TempAddr & 0x03E0) >> 5;
+
+    // XXXX
+    //    const uint8 ppu_ctrl = ppu->PPU_values[0];
+    // const uint8 ytable_select = (ppu_ctrl & 2) ? 240 : 0;
+
+    return (coarse_y << 3) | fine_y;
+  }
+  
   // PPU values are:
   //  [0] 0x2000  PPU Control Register #1  (PPUCTRL)
   //  [1] 0x2001  PPU Control Register #2  (PPUMASK)
@@ -71,6 +93,14 @@ struct PPU {
   int scanline = 0;
   int g_rasterpos = 0;
 
+  #ifdef TRACK_INTERFRAME_SCROLL
+  // Contains the x and y scroll positions (not taking into account
+  // table select) the last time each scanline was rendered. Since
+  // this doesn't affect the behavior of the emulator, it is NOT SAVED
+  // in savestates.
+  uint8 interframe_x[256] = {};
+  uint8 interframe_y[256] = {};
+  #endif
 
   // TODO: Kill these.
   // XXX do they need to be exposed, btw? that might have been

@@ -31,6 +31,11 @@
 // RLE (a la cc-lib) usually benefits from "anti-runs" as well. Here
 // that is not useful because the variable-length encoding of inputs
 // requires a delimiter, anyway, and we have many characters to spare.
+//
+// TODO: It's really common to alternate back and forth between two
+// inputs. Wouldn't be hard to keep a two-state buffer and also make
+// it possible to refer to the input that was two moves back (perhaps
+// exactly or with +- kinda stuff).
 
 #include "simplefm7.h"
 

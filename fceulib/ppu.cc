@@ -527,11 +527,11 @@ void PPU::ResetRL(uint8 *target) {
   fc->input->InputScanlineHook(0, 0, 0, 0);
   Plinef = target;
   Pline = target;
-  firsttile=0;
+  firsttile = 0;
   linestartts = fc->X->timestamp * 48 + fc->X->count;
   tofix = 0;
   LineUpdate();
-  tofix=1;
+  tofix = 1;
 }
 
 void PPU::LineUpdate() {
@@ -904,7 +904,7 @@ void PPU::Fixit2() {
 
 void PPU::Fixit1() {
   if (ScreenON || SpriteON) {
-    uint32 rad=RefreshAddr;
+    uint32 rad = RefreshAddr;
 
     if ((rad & 0x7000) == 0x7000) {
       rad ^= 0x7000;
@@ -922,6 +922,13 @@ void PPU::Fixit1() {
 }
 
 void PPU::DoLine() {
+  #ifdef TRACK_INTERFRAME_SCROLL
+  {
+    interframe_x[scanline] = GetXScroll8();
+    interframe_y[scanline] = GetYScroll8();
+  }
+  #endif
+
   uint8 *target = fc->fceu->XBuf + (scanline << 8);
 
   if (MMC5Hack && (ScreenON || SpriteON)) {
@@ -1464,6 +1471,12 @@ void PPU::FCEUPPU_Reset() {
   // always initializes to 0 at creation time. -tom7
   pshift[0] = pshift[1] = 0;
   XOffset = 0;
+
+  #ifdef TRACK_INTERFRAME_SCROLL
+  for (int i = 0; i < 256; i++) {
+    interframe_x[i] = interframe_y[i] = 0;
+  }
+  #endif
 }
 
 void PPU::FCEUPPU_Power() {

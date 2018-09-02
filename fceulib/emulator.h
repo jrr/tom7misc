@@ -39,7 +39,9 @@ struct Emulator {
   //
   // Consider StepFull if you want video or sound.
   void Step(uint8 controller1, uint8 controller2);
-
+  // High 8 bits are controller1, low are controller2.
+  void Step16(uint16 controllers);
+  
   // Copy the 0x800 bytes of RAM.
   void GetMemory(vector<uint8> *mem);
   vector<uint8> GetMemory();
@@ -49,7 +51,8 @@ struct Emulator {
   // Same, but run the video and sound code as well. This is slower,
   // but allows calling GetImage and GetSound.
   void StepFull(uint8 controller1, uint8 controller2);
-
+  void StepFull16(uint16 controllers);
+  
   // Get image. StepFull must have been called to produce this frame,
   // or else who knows what's in there? (Note that restoring a state
   // will not necessarily restore the image.) Size is 256 x 256 pixels,
@@ -122,6 +125,11 @@ struct Emulator {
   // Creates a new 256x240 (row-major) vector containing pre-masked
   // NES palette indices in [0, 63].
   vector<uint8> IndexedImage() const;
+
+  // Returns the X6502 register file packed into uint64, as
+  // 0 PC (16 bit) A X Y S P
+  // P is flags. The high 8 bits are always 0.
+  uint64 Registers() const;
   
   // XXXXX debugging only.
   FC *GetFC() { return fc; }
