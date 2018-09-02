@@ -63,6 +63,18 @@ uint64 Emulator::ImageChecksum() {
 #endif
 }
 
+uint64 Emulator::Registers() const {
+  const X6502 *x = fc->X;
+  uint64 ret = 0LL;
+  ret <<= 16; ret |= x->reg_PC;
+  ret <<= 8; ret |= x->reg_A;
+  ret <<= 8; ret |= x->reg_X;
+  ret <<= 8; ret |= x->reg_Y;
+  ret <<= 8; ret |= x->reg_S;
+  ret <<= 8; ret |= x->reg_P;
+  return ret;
+}
+
 uint64 Emulator::CPUStateChecksum() {
   md5_context ctx;
   md5_starts(&ctx);
@@ -90,7 +102,7 @@ uint64 Emulator::CPUStateChecksum() {
   //
   // This is observable through roundabout means (sprite 0 hit,
   // putting 8+ sprites on a scanline), but also can be read using
-  // OAMDATA.
+  // OAMDATA (wait, can it? I thought it was write-only -tom7 2018).
   md5_update(&ctx, fc->ppu->SPRAM, 0x100);
   
   uint8 digest[16];
@@ -210,6 +222,13 @@ Emulator *Emulator::Create(const string &romfile) {
   return emu;
 }
 
+enum Skip : int {
+  // Compute the screen pixels, audio
+  DO_VIDEO_AND_SOUND = 0,
+  // Limited ability to skip video and sound.
+  SKIP_VIDEO_AND_SOUND = 2,
+};
+
 // Make one emulator step with the given input.
 // Bits from MSB to LSB are
 //    RLDUTSBA (Right, Left, Down, Up, sTart, Select, B, A)
@@ -217,20 +236,26 @@ void Emulator::Step(uint8 controller1, uint8 controller2) {
   // The least significant byte is player 0 and
   // the bits are in the same order as in the fm2 file.
   joydata = ((uint32)controller2 << 8) | controller1;
+  // Emulate a single frame.
+  fc->fceu->FCEUI_Emulate(SKIP_VIDEO_AND_SOUND);
+}
 
-  // Limited ability to skip video and sound.
-  static constexpr int SKIP_VIDEO_AND_SOUND = 2;
-
+void Emulator::Step16(uint16 controllers) {
+  // The least significant byte is player 0 and
+  // the bits are in the same order as in the fm2 file.
+  joydata = (uint32)controllers;
   // Emulate a single frame.
   fc->fceu->FCEUI_Emulate(SKIP_VIDEO_AND_SOUND);
 }
 
 void Emulator::StepFull(uint8 controller1, uint8 controller2) {
   joydata = ((uint32)controller2 << 8) | controller1;
+  // Emulate a single frame.
+  fc->fceu->FCEUI_Emulate(DO_VIDEO_AND_SOUND);
+}
 
-  // Run the video and sound as well.
-  static constexpr int DO_VIDEO_AND_SOUND = 0;
-
+void Emulator::StepFull16(uint16 controllers) {
+  joydata = (uint32)controllers;
   // Emulate a single frame.
   fc->fceu->FCEUI_Emulate(DO_VIDEO_AND_SOUND);
 }
@@ -353,31 +378,21 @@ void Emulator::Load(const vector<uint8> &state) {
 uint32 Emulator::GetXScroll() const {
   const PPU *ppu = fc->ppu;
   const uint8 ppu_ctrl = ppu->PPU_values[0];
-  const uint32 tmp = ppu->GetTempAddr();
-  const uint8 xoffset = ppu->GetXOffset();
+  // Nametable select.
   const uint8 xtable_select = !!(ppu_ctrl & 1);
+  const uint8 xpos = ppu->GetXScroll8();
 
-  // Combine coarse and fine x scroll
-  return (xtable_select << 8) | ((tmp & 31) << 3) | xoffset;
+  return (xtable_select << 8) | xpos;
 }
 
 uint32 Emulator::GetYScroll() const {
   const PPU *ppu = fc->ppu;
   const uint8 ppu_ctrl = ppu->PPU_values[0];
-  const uint32 tmp = ppu->GetTempAddr();
-
-  // These bits are stored in weird places. Shifted all the way
-  // down here for clarity.
-  const uint8 fine_y = (tmp >> 12) & 7;
-  // 0x3E0 = 1111100000
-  const uint8 coarse_y = (tmp & 0x03E0) >> 5;
-  const uint8 yoffset = (coarse_y << 3) | fine_y;
-
   const uint8 ytable_select = (ppu_ctrl & 2) ? 240 : 0;
+  const uint8 ypos = ppu->GetYScroll8();
   
-  return ytable_select + (uint32)yoffset;
+  return ytable_select + (uint32)ypos;
 }
-
 
 // Compression yields 2x slowdown, but states go from ~80kb to 1.4kb
 // Without screenshot, ~1.3kb and only 40% slowdown
