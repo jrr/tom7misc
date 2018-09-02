@@ -33,6 +33,7 @@
 #include "autocamera.h"
 #include "autocamera2.h"
 #include "autolives.h"
+#include "n-markov-controller.h"
 
 #include "SDL.h"
 #include "graphics.h"
@@ -231,6 +232,7 @@ struct UIThread {
   std::map<int64, string> subtitles;
   unique_ptr<Emulator> emu;
   unique_ptr<AutoLives> autolives;
+  bool show_control = false;
   int frameidx = 0;
   int loop_left = 0, loop_right = 0;
   vector<uint8> loop_left_save;
@@ -244,6 +246,10 @@ struct UIThread {
     movie = Util::endswith(moviefile, ".fm2") ?
       SimpleFM2::ReadInputsEx(moviefile, &subs) :
       SimpleFM7::ReadInputs2P(moviefile);
+
+    vector<uint8> p1;
+    for (const auto &p : movie) p1.push_back(p.first);
+    NMarkovController nmarkov(p1, 3);
     
     CHECK(!movie.empty()) << "Couldn't read movie: " << moviefile;
     loop_right = movie.size() + 1;
@@ -252,7 +258,7 @@ struct UIThread {
 
     emu.reset(Emulator::Create(game));
     CHECK(emu.get() != nullptr) << game;
-    autolives.reset(new AutoLives(game));
+    autolives.reset(new AutoLives(game, nmarkov));
     
     loop_left_save = emu->SaveUncompressed();
     
@@ -353,6 +359,16 @@ struct UIThread {
 	    }
 	    break;
 
+	  case SDLK_l: {
+	    autolives->FindLives(emu->SaveUncompressed(),
+				 false);
+	    break;
+	  }
+	    
+	  case SDLK_i:
+	    show_control = !show_control;
+	    break;
+	    
 	  case SDLK_PERIOD:
 	    mode = Mode::ADVANCE;
 	    break;
@@ -568,7 +584,7 @@ struct UIThread {
       const int rot = (frameidx * rotate) % 64;
       DrawEmulatorAt(emu.get(), rot, 0, 0);
 
-      {
+      if (show_control) {
 	vector<uint8> save = emu->SaveUncompressed();
 	float controlf = autolives->IsInControl(save, XLOC, YLOC, false);
 	font->draw(16, 500,
