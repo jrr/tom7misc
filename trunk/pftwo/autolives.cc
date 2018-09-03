@@ -1,6 +1,7 @@
 
 #include "autolives.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -11,11 +12,13 @@
 #include "../fceulib/fceu.h"
 
 // How to set?
-static constexpr int TEST_CONTROL_FRAMES = 180;
+static constexpr int TEST_CONTROL_FRAMES = 3 * 60;
 
-static constexpr int TRY_TO_DIE_FRAMES = 360;
+static constexpr int TRY_TO_DIE_FRAMES = 6 * 60;
 
 static constexpr int FINDLIVES_NUM_EXPERIMENTS = 10;
+
+static constexpr bool VERBOSE = false;
 
 // ? Probably better with game-specific markov model?
 namespace {
@@ -188,10 +191,18 @@ static bool Decremented(uint8 maxdist, uint8 prev, uint8 now) {
 
 static constexpr int MAX_DECREMENT = 1;
 
+template<class T>
+auto EraseIt(T &ty, typename T::iterator &it) -> typename T::iterator {
+  auto next = it; ++next;
+  ty.erase(it);
+  return next;
+}
+
 // PERF: Allow passing a whitelist or blacklist of locations
 // to consider.
-void AutoLives::FindLives(const vector<uint8> &save,
-			  bool player_two) {
+vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
+						 int xloc, int yloc,
+						 bool player_two) {
 
   auto MakePlayer = [player_two](uint8 inputs) {
     return player_two ? ((uint16)inputs << 8) : (uint16)inputs;
@@ -214,8 +225,9 @@ void AutoLives::FindLives(const vector<uint8> &save,
     // Start back at the beginning.
     emu->LoadUncompressed(save);
 
-    printf("[%d/%d] Starting experiment with %d locs left.\n",
-	   expt, FINDLIVES_NUM_EXPERIMENTS, (int)locs.size());
+    if (VERBOSE)
+      printf("[%d/%d] Starting experiment with %d locs left.\n",
+	     expt, FINDLIVES_NUM_EXPERIMENTS, (int)locs.size());
     
     vector<uint8> mem_prev = emu->GetMemory();
     for (int f = 0; f < TRY_TO_DIE_FRAMES; f++) {
@@ -223,6 +235,7 @@ void AutoLives::FindLives(const vector<uint8> &save,
       if (locs.empty())
 	break;
 
+      vector<uint8> save_before_inputs = emu->SaveUncompressed();
       
       const uint8 input = nmarkov.RandomNext(nhist, &rc);
       nhist = nmarkov.Push(nhist, input);
@@ -241,18 +254,17 @@ void AutoLives::FindLives(const vector<uint8> &save,
 	} else if (Decremented(MAX_DECREMENT, prev, now)) {
 	  info->decremented++;
 	  info->decremented_saves.emplace_back(input16,
-					       emu->SaveUncompressed());
+					       save_before_inputs);
 	} else if (Decremented(MAX_DECREMENT, now, prev)) {
 	  info->incremented++;
 	} else {
 	  // Change is too big. Eliminate it.
-	  auto next = it; ++next;
-	  locs.erase(it);
-	  printf("[%d/%d] Disqualified %04x whose value was "
-		 "%02x -> %02x. (%d left)\n",
-		 expt, FINDLIVES_NUM_EXPERIMENTS,
-		 loc, prev, now, (int)locs.size());
-	  it = next;
+	  if (VERBOSE)
+	    printf("[%d/%d] Disqualified %04x whose value was "
+		   "%02x -> %02x. (%d left)\n",
+		   expt, FINDLIVES_NUM_EXPERIMENTS,
+		   loc, prev, now, (int)locs.size());
+	  it = EraseIt(locs, it);
 	  continue;
 	}
 	++it;
@@ -262,23 +274,185 @@ void AutoLives::FindLives(const vector<uint8> &save,
     }
   }
 
-  printf("After experiments, %d locations remain. These are all the same:\n",
-	 (int)locs.size());
+  if (VERBOSE)
+    printf("After experiments, %d locations remain. These never changed:\n",
+	   (int)locs.size());
   for (auto it = locs.begin(); it != locs.end(); /* in loop */) {
     const Info &info = it->second;
     if (info.incremented == 0 && info.decremented == 0) {
-      printf("%04x, ", it->first);
-      auto next = it; ++next;
-      locs.erase(it);
-      it = next;
+      if (VERBOSE)
+	printf("%04x, ", it->first);
+      it = EraseIt(locs, it);
       continue;
     }
     ++it;
   }
-  printf("\nAnd the rest (%d):\n", (int)locs.size());
+
+  // Filter out anything that incremented/decremented too often.
+  // Note that for something like health, this is probably much
+  // too conservative.
+  // (At this point we could probably be scoring these, rather
+  // than filtering...)
+  static constexpr int MAX_INCDEC = 2 * FINDLIVES_NUM_EXPERIMENTS;
+  if (VERBOSE)
+    printf("%d remain. Filtered because they changed too often:\n",
+	   (int)locs.size());
+  for (auto it = locs.begin(); it != locs.end(); /* in loop */) {
+    const Info &info = it->second;
+    if (info.incremented > MAX_INCDEC ||
+	info.decremented > MAX_INCDEC) {
+      if (VERBOSE)
+	printf("%04x %d= %d+ %d-\n", it->first,
+	       info.same, info.incremented, info.decremented);
+      it = EraseIt(locs, it);
+      continue;
+    }
+    ++it;
+  }
+
+  if (VERBOSE)
+    printf("\nAnd the rest are candidates (%d):\n", (int)locs.size());
   for (auto it = locs.begin(); it != locs.end(); ++it) {
     const Info &info = it->second;
-    printf("%04x %d= %d+ %d-\n", it->first,
-	   info.same, info.incremented, info.decremented);
+    if (VERBOSE)
+      printf("%04x %d= %d+ %d-\n", it->first,
+	     info.same, info.incremented, info.decremented);
   }
+
+  // Now, replay candidate "death" frames. When the "lives" location
+  // is set to 1 or 0, we should see much worse "In Control" score.
+
+  vector<LivesLoc> results;
+  for (auto it = locs.begin(); it != locs.end(); ++it) {
+    const int loc = it->first;
+    const Info &info = it->second;
+
+    if (VERBOSE) printf("%04x:\n", loc);
+    int tests_with_zero = 0, tests_with_one = 0;
+    float score_with_zero = 0.0f, score_with_one = 0.0f;
+    for (const Frame &frame : info.decremented_saves) {
+      emu->LoadUncompressed(frame.save);
+      uint8 *ram = emu->GetFC()->fceu->RAM;
+      // If it already contains 0, we won't do any tests.
+      uint8 base_value_before = ram[loc];
+      if (base_value_before == 0)
+	continue;
+      // Execute the inputs with the normal number of lives.
+      emu->Step16(frame.inputs);
+      ram = emu->GetFC()->fceu->RAM;
+      const uint8 base_value_after = ram[loc];
+      const float base_control = IsInControl(emu->SaveUncompressed(),
+					     xloc, yloc,
+					     player_two);
+      
+      // XXX skip if not enough control in base?
+      
+      // Test with the lives value set to set_to, if applicable.
+      auto Test =
+	[this, xloc, yloc, player_two, loc, &frame,
+	 base_control, base_value_before, base_value_after](
+	    uint8 set_to, int *tests, float *score) {
+	  emu->LoadUncompressed(frame.save);
+	  uint8 *ram = emu->GetFC()->fceu->RAM;
+	  const uint8 expt_value_before = ram[loc];
+	  CHECK(expt_value_before == base_value_before);
+	  if (VERBOSE)
+	    printf(" ram[%04x] base [%02x->%02x] ctl %.3f  [%02x->",
+		   loc, base_value_before, base_value_after,
+		   base_control, set_to);
+	  if (expt_value_before > set_to) {
+	    // Modify memory.
+	    ram[loc] = set_to;
+	    emu->Step16(frame.inputs);
+	    ram = emu->GetFC()->fceu->RAM;
+	    const uint8 expt_value_after = ram[loc];
+	    const float expt_control = IsInControl(emu->SaveUncompressed(),
+						   xloc, yloc, player_two);
+	    if (VERBOSE)
+	      printf("%02x] ctl %.3f",
+		     expt_value_after,
+		     expt_control);
+	    // XXX we expect the value to decrement as before, though
+	    // it's also reasonable for the death routine to be like
+	    // void Die() {
+	    //   if (lives == 0) goto GameOver();
+	    //   lives--;
+	    // }
+	    // ... but we can penalize the location for doing something
+	    // nonsensical here.
+	    
+	    // Increase score when base_control > expt_control
+	    // (that is, we have less control now).
+	    ++*tests;
+	    *score += (base_control - expt_control);
+	  } else {
+	    if (VERBOSE) printf("X]");
+	  }
+	  if (VERBOSE) printf("\n");
+	};
+      
+      Test(0, &tests_with_zero, &score_with_zero);
+      Test(1, &tests_with_one, &score_with_one);
+    }
+    // Use median maybe? We do expect this to be rather consistent.
+    float score = -1.0f;
+    if (tests_with_zero > 0 && tests_with_one > 0) {
+      score = std::max(score_with_zero / (float)tests_with_zero,
+		       score_with_one / (float)tests_with_one);
+    } else if (tests_with_zero > 0) {
+      score = score_with_zero / (float)tests_with_zero;
+    } else if (tests_with_one > 0) {
+      score = score_with_one / (float)tests_with_one;
+    }
+    if (VERBOSE)
+      printf("%04x, %d fs Score %.4f: wz %.2f/%d, wo %.2f/%d\n",
+	     loc,
+	     (int)info.decremented_saves.size(),
+	     score, score_with_zero, tests_with_zero,
+	     score_with_one, tests_with_one);
+
+    results.emplace_back(loc, score);
+  }
+  if (VERBOSE)
+    printf("\n");
+  
+  std::sort(results.begin(), results.end(),
+	    [](const LivesLoc &a, const LivesLoc &b) {
+	      return a.score > b.score;
+	    });
+
+  if (VERBOSE) {
+    printf("\n%d final candidates:\n", (int)results.size());
+    for (const LivesLoc &ll : results) {
+      printf("%04x %.6f\n", ll.loc, ll.score);
+    }
+  }
+
+  return results;
+}
+
+// static
+vector<AutoLives::LivesLoc> AutoLives::MergeLives(
+    const vector<vector<LivesLoc>> &lv) {
+  std::unordered_map<int, LivesLoc> sums;
+  for (const auto &vec : lv) {
+    for (const LivesLoc &l : vec) {
+      LivesLoc *s = &sums[l.loc];
+      s->loc = l.loc;
+      s->score += l.score;
+    }
+  }
+
+  // XXX topn?
+  vector<LivesLoc> results;
+  results.reserve(sums.size());
+  for (const auto &p : sums)
+    results.push_back(p.second);
+
+  std::sort(results.begin(), results.end(),
+	    [](const LivesLoc &a, const LivesLoc &b) {
+	      return a.score > b.score;
+	    });
+
+  return results;
 }

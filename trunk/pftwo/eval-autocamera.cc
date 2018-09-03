@@ -27,6 +27,8 @@
 #include "../cc-lib/util.h"
 #include "autocamera.h"
 #include "autocamera2.h"
+#include "n-markov-controller.h"
+#include "autolives.h"
 
 #include "../cc-lib/threadutil.h"
 
@@ -85,14 +87,13 @@ struct Game {
 
 static vector<Game> Games() {
   return {
-
+  #if 1
 	  // 423 comes from xloc, 425 found by guessing (!) since
 	  // the other sprite pairs were separated by two bytes. Seems
 	  // to be a lot of sprite pairs in ram, so maybe just need
 	  // to have a higher limit here.
 	  Game{"swordmaster.nes", "swordmaster.fm7", {{0x423, 0x425}}},
 	  
-  #if 0
 	  // With 0x04fb,0x04f9, warping has effect (within some small
 	  // region at least), but y location is not on the player. So
 	  // I think this does not qualify as working. x looks good.
@@ -131,6 +132,7 @@ static vector<Game> Games() {
 
 	  // Verified.
 	  Game{"mario.nes", "mario.fm7", {{0x86, 0xCE}}},
+
 	  // Verified.
 	  Game{"contra.nes", "contra2p.fm7", {{0x334, 0x31A},
 					      {0x335, 0x31B}}},
@@ -246,6 +248,10 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
   CHECK(movie.size() > WARMUP_FRAMES + (SAMPLE_EVERY * NUM_SAMPLES)) <<
     game.moviefile << " not long enough!";
 
+  vector<uint8> p1inputs;
+  for (const auto &p : movie) p1inputs.push_back(p.first);
+  NMarkovController nmarkov(p1inputs, 3);
+  
   unique_ptr<Emulator> emu;
   emu.reset(Emulator::Create(romfile));
   CHECK(emu.get() != nullptr) << romfile;
@@ -268,7 +274,8 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
     emu->StepFull(movie[frameidx].first, movie[frameidx].second);
     frameidx++;
   }
-
+  report("got samples");
+  
   AutoCamera2 ac{romfile};
 
   vector<vector<Linkage>> links;
@@ -331,12 +338,49 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
   }
 
   // Rescore linkages with xlocs for both players.
+  // XXX should be separating these into 1p and 2p locs.
   vector<Linkage> rescored = merged;
   for (Linkage &l : rescored) {
     l.score *= (1.0f + xscores1[l.xloc] + xscores2[l.xloc]);
   }
   // Easy way to sort them again.
   rescored = AutoCamera2::MergeLinkages({rescored});
+
+  int best_lives = -1;
+  if (rescored.size() > 0) {
+    // XXX 2p support
+    const int xloc = rescored[0].xloc, yloc = rescored[0].yloc;
+    report(StringPrintf("Autolives with player loc %d/%d", xloc, yloc));
+    AutoLives autolives{romfile, nmarkov};
+    vector<vector<AutoLives::LivesLoc>> lives_samples;
+    lives_samples.reserve(samples.size());
+    for (const vector<uint8> &save : samples) {
+      lives_samples.push_back(
+	  autolives.FindLives(save, xloc, yloc, false));
+      report(StringPrintf("Autolives [%d/%d]",
+			  (int)lives_samples.size(), (int)samples.size()));
+    }
+    vector<AutoLives::LivesLoc> lives_merged =
+      AutoLives::MergeLives(lives_samples);
+
+    if (lives_merged.size() > 0) {
+      best_lives = lives_merged[0].loc;
+    }
+    
+    {
+      MutexLock ml(&file_mutex);
+      if (outfile) {
+	fprintf(outfile, "[%s]: Merged lives (using [%d,%d]):\n",
+		romfile.c_str(), xloc, yloc);
+	for (const AutoLives::LivesLoc &l : lives_merged) {
+	  fprintf(outfile,
+		  "  %.3f: %d = %04x\n",
+		  l.score, l.loc, l.loc);
+	}
+	fflush(outfile);
+      }
+    }
+  }
   
   Game game_copy = game;
 
@@ -363,9 +407,9 @@ static Game EvalOne(const Game &game, std::function<void(string)> report) {
     game_copy.found = found;
     game_copy.rank_loss = rank_loss;
 
-    report(StringPrintf("Done. Found %d/%d. Rank loss %d",
+    report(StringPrintf("Done. Found %d/%d. Rank loss %d. Best lives @%d=%04x",
 			found, (int)game_copy.expected.size(),
-			rank_loss));
+			rank_loss, best_lives, best_lives));
   } else {
     report("Done.");
   }
