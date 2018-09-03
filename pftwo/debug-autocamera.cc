@@ -1,4 +1,4 @@
-// This is a one-off (presumably) for developing/debugging autocamera.
+/ This is a one-off (presumably) for developing/debugging autocamera.
 
 #include <algorithm>
 #include <vector>
@@ -275,7 +275,7 @@ struct UIThread {
     ADVANCE,
     FFWD,
   };
-  Mode mode = Mode::PLAY;
+  Mode mode = Mode::PAUSE;
 
   void DrawEmulatorAt(Emulator *e, int rot, int startx, int starty) {
     const vector<uint8> rgba = emu->GetImage();
@@ -360,8 +360,10 @@ struct UIThread {
 	    break;
 
 	  case SDLK_l: {
-	    autolives->FindLives(emu->SaveUncompressed(),
-				 false);
+	    vector<LivesLoc> lives =
+	      autolives->FindLives(emu->SaveUncompressed(),
+				   XLOC, YLOC,
+				   false);
 	    break;
 	  }
 	    

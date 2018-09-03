@@ -52,13 +52,23 @@ struct AutoLives {
 		    int xloc, int yloc,
 		    bool player_two);
 
+  struct LivesLoc {
+    int loc = 0;
+    float score = 0.0f;
+    LivesLoc() {}
+    LivesLoc(int loc, float score) : loc(loc), score(score) {}
+  };
+  
   // Find and score memory locations that might be lives, starting
   // from the given state. This is expensive since among other things,
   // it needs to play randomly in order to find inputs that "kill" the
   // player.
-  // XXX return type
-  void FindLives(const vector<uint8> &save,
-		 bool player_two);
+  vector<LivesLoc> FindLives(const vector<uint8> &save,
+			     int xloc, int yloc,
+			     bool player_two);
+
+  // Merge and sort by summing scores.
+  static vector<LivesLoc> MergeLives(const vector<vector<LivesLoc>> &lv);
   
 private:
   ArcFour rc;
