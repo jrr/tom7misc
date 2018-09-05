@@ -1,4 +1,4 @@
-/ This is a one-off (presumably) for developing/debugging autocamera.
+// This is a one-off (presumably) for developing/debugging autocamera.
 
 #include <algorithm>
 #include <vector>
@@ -48,6 +48,8 @@
 
 #define SNAPSHOT_EVERY 1000
 
+using LivesLoc = AutoLives::LivesLoc;
+
 static string Rtos(double d) {
   if (std::isnan(d)) return "NaN";
   char out[16];
@@ -64,6 +66,7 @@ static string Rtos(double d) {
 // static int YLOC = 0x030d;
 // static int XLOC = 0x330, YLOC = 0x360;
 static int XLOC = 0x14b, YLOC = 0x148;
+static int LIVES = 0;
 
 // TODO: To emulator utilities?
 // Because of (e.g.) tall sprite stuff, it's not often directly
@@ -398,7 +401,15 @@ struct UIThread {
 	    if (loop_right <= loop_left) loop_left = 0;
 	    break;
 	    
-	  // Numpad cardinal directions modify the value at XLOC,YLOC.
+
+	  case SDLK_KP_MINUS:
+	  case SDLK_KP_PLUS: {
+	    uint8 *ram = emu->GetFC()->fceu->RAM;
+	    ram[LIVES] += event.key.keysym.sym == SDLK_KP_PLUS ? 1 : -1;
+	    break;
+	  }
+
+	    // Numpad cardinal directions modify the value at XLOC,YLOC.
 	  // XXX: Should probably discard snapshots when this
 	  // happens?
 	  case SDLK_KP6:
@@ -585,7 +596,7 @@ struct UIThread {
       
       const int rot = (frameidx * rotate) % 64;
       DrawEmulatorAt(emu.get(), rot, 0, 0);
-
+      
       if (show_control) {
 	vector<uint8> save = emu->SaveUncompressed();
 	float controlf = autolives->IsInControl(save, XLOC, YLOC, false);
@@ -635,6 +646,12 @@ struct UIThread {
 	font->draw(0, HEIGHT - FONTHEIGHT, "PAUSED");
       }
 
+      {
+	uint8 *ram = emu->GetFC()->fceu->RAM;
+	uint8 lives = ram[LIVES];
+	font->draw(16, 516, StringPrintf("Lives: ^4%d", lives));
+      }
+      
       {
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	const PPU *ppu = emu->GetFC()->ppu;
@@ -767,6 +784,11 @@ int main(int argc, char *argv[]) {
     XLOC = atoi(argv[3]);
     YLOC = atoi(argv[4]);
   }
+
+  if (argc >= 6) {
+    LIVES = atoi(argv[5]);
+  }
+  
   
   #ifdef ENABLE_AOT
   if (game != "contra.nes") {

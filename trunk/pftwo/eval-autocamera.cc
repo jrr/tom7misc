@@ -279,7 +279,8 @@ static EvalGame EvalOne(const Game &game,
 
   setstate(RUNNING_AL);
   vector<LivesLoc> lives1 = DoLives(rescored1, false);
-  vector<LivesLoc> lives2 = DoLives(rescored2, true);
+  vector<LivesLoc> lives2 = game.is_two_player ? DoLives(rescored2, true) :
+    vector<LivesLoc>{};
 
   if (!lives1.empty() || !lives2.empty()) {
     MutexLock ml(&file_mutex);
@@ -332,7 +333,7 @@ static EvalGame EvalOne(const Game &game,
 	      if (ll.score < found_score)
 		break;
 
-	      if (l.xloc != player.xloc || l.yloc != player.yloc)
+	      if (ll.xloc != player.xloc || ll.yloc != player.yloc)
 		rank_loss++;
 	    }
 	  }

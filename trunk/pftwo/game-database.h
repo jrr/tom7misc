@@ -42,6 +42,8 @@ struct Game {
     int xloc = -1, yloc = -1;
     // Integral; when it goes to zero (or negative) 
     int lives = -1;
+
+    int health = -1;
     // TODO:
     // record whether warping works?
     // location of 'health'
@@ -57,7 +59,10 @@ struct Game {
   // yet; it must go negative. If false, then 0 means game
   // over.
   OBool allow_zero_lives = OBool::UNKNOWN;
-
+  // Same for health. Surprisingly, there are many games that
+  // have different rules for these two.
+  OBool allow_zero_health = OBool::UNKNOWN;
+  
   // TODO: Good objective function?
   // TODO: Vaguer hints like "protect these memory locations"
   // or "related to player position"?

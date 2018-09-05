@@ -1,3 +1,15 @@
+// Ideas:
+// - Contra finds the same top value 0xFF for both players; this
+//   should result in discounting it.
+// - We should be able to safely set the value to 2, 3, 4, ...
+//   it should only kill us at 1 or 0. Some locations need to contain
+//   some small set of values (contra 0xFF is an example) and just
+//   lock up the game if they have the wrong thing in 'em.
+// - Could detect and eliminate timers (which act a lot like "lives")
+//   explicitly. Periodically counting down is one thing. Not being
+//   sensitive to inputs is another. There's nothing wrong with
+//   wanting the timer to be high, but it's bad if we won't make any
+//   moves as the first second expires!
 
 #include "autolives.h"
 
