@@ -1,0 +1,111 @@
+<!doctype html>
+
+
+<script>
+
+ let database = [];
+ 
+ // Database entry.
+ class Entry {
+   constructor(dict) {
+     this.dict = dict;
+   }
+ };
+
+ // Parse a single record in text format.
+ function ParseOneTXT(rec) {
+   // Strip whitespace on either side.
+   rec = rec.replace(/^\s+|\s+$/g, '');
+   database.push(rec);
+   let dict = {};
+
+   // let field_re = /^([^:]+):\s*
+   
+ }
+ 
+ function ParseTXT(s) {
+   // First, normalize newlines.
+   s = s.replace(/\r/g, '');
+
+   let start = 0;
+   for (;;) {
+     let next = s.indexOf('\n\n', start);
+     if (next == -1) {
+       ParseOneTXT(s);
+       break;
+     }
+     let rec = s.substring(start, next);
+     ParseOneTXT(rec);
+     start = next;
+     // Advance past marker.
+     while (s[start] == '\n') start++;
+   }
+   
+   // let rec_re = /^(.*)\n\n\n/m;
+   
+ }
+ 
+ function Loaded(s) {
+   ParseTXT(s);
+
+   UpdateStats();
+   /*
+      document.getElementById('res').innerHTML = 'Capital O: ' + n;
+
+      // How to download something...
+      let b = new Blob([out], {type: 'text/plain;charset=utf-8'});
+      let u = URL.createObjectURL(b);
+
+      let a = window.document.createElement("a");
+      a.href = window.URL.createObjectURL(b);
+      a.download = "filename.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    */
+ }
+
+ function UpdateStats() {
+   let records = database.length;
+   let selt = document.getElementById('stats');
+   selt.innerHTML = 'Total records: ' + records;
+ }
+ 
+ function ReadFiles(){
+   let x = document.getElementById("fileinput");
+   if ('files' in x && x.files.length > 0) {
+     for (let i = 0; i < x.files.length; i++) {
+       let file = x.files[i];
+
+       let fr = new FileReader(file);
+
+       msg = file.name + ': ' + file.size + ' bytes';
+       console.log(msg);
+
+       // XXX a better progress indicator please.
+       fr.onload = () => Loaded(fr.result);
+       fr.onprogress = (data) => {
+	 if (data.lengthComputable) {                                                      var progress = parseInt( ((data.loaded / data.total) * 100), 10 );
+	   console.log(progress);
+	 }
+       };
+       fr.readAsText(file);
+     }
+     document.getElementById("message").innerText = msg;
+     
+   } else {
+     document.getElementById("message").innerHTML = 'Select files.';
+   }
+
+ }
+</script>
+
+<body>
+<input type="file" id="fileinput" multiple onchange="ReadFiles()">
+
+<p id="message"></p>
+
+<p id="stats"></p>
+
+</body>
+
