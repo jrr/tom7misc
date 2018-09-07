@@ -1,0 +1,337 @@
+<!doctype html>
+
+
+<script>
+
+ // This is insert-only per instance, so that we can use indices
+ // as global identifiers for a record.
+ let database = [];
+
+ // Then, three sets. The unsorted set is where everything starts.
+ // Canonical are accepted papers, dupes are rejected.
+ let unsorted = [];
+ let canonical = [];
+ let dupes = [];
+ 
+ // Database entry.
+ class Entry {
+   constructor(dict) {
+     this.dict = dict;
+   }
+ };
+
+ // Parse a single record in text format.
+ // XXX implement!
+ function ParseOneTXT(rec) {
+   // Strip whitespace on either side.
+   rec = rec.replace(/^\s+|\s+$/g, '');
+   database.push(rec);
+   let dict = {};
+
+   // let field_re = /^([^:]+):\s*
+   
+ }
+ 
+ function ParseTXT(s) {
+   // First, normalize newlines.
+   s = s.replace(/\r/g, '');
+
+   let start = 0;
+   for (;;) {
+     let next = s.indexOf('\n\n', start);
+     if (next == -1) {
+       ParseOneTXT(s);
+       break;
+     }
+     let rec = s.substring(start, next);
+     ParseOneTXT(rec);
+     start = next;
+     // Advance past marker.
+     while (s[start] == '\n') start++;
+   }
+   
+   // let rec_re = /^(.*)\n\n\n/m;
+   
+ }
+
+ function ParseOneRIS(rec) {
+   // Strip whitespace on either side.
+   rec = rec.replace(/^\s+|\s+$/g, '');
+   let dict = {};
+
+   // Formally, the field should always be like
+   // ^([A-Z][A-Z])  - (.*)\r\n
+   // but endnote is happy to put \r\n inside keyword lists,
+   // and probably other stuff like abstracts. This is pretty
+   // bogus since if there were a keyword like "ER  - ", it
+   // would be indistinguishable from the beginning of a new
+   // field. Oh, well. We'll just treat ^([A-Z][A-Z])  -  as
+   // starting a new field, and allow newlines inside the
+   // values.
+
+   // The strategy here is to capture the shortest (*?) text
+   // that runs up against the start of a new record. We also
+   // capture the whole field so that we can skip over it.
+   // Now you have two problems!
+   let field_re = /^(([A-Z][A-Z0-9])  - ((?:.|\r|\n)*?)\r\n)[A-Z][A-Z0-9]  - /;
+   // let next_field_re = /^[A-Z][A-Z]  - /;
+   
+   for (;;) {
+     let match = field_re.exec(rec);
+     if (!match) break;
+     let field_size = match[1].length;
+     let key = match[2];
+     let value = match[3];
+     // Consume the match.
+     rec = rec.substring(field_size);
+
+     // Maybe better solution for repeated keys?
+     if (!dict[key])
+       dict[key] = [];
+     dict[key].push(value);
+   }
+
+   // XXX check minimal set of fields?
+   let id = database.length;
+   database.push(dict);
+   return id;
+ }
+ 
+ function ParseRIS(s) {
+   let start = 0;
+   for (;;) {
+     // Some nonstandard exports include blank lines
+     // in between records.
+     while (s[start] == '\n' || s[start] == '\r') start++;
+     
+     let next = s.indexOf('\r\nER  - ', start);
+     if (next == -1) {
+       // Here, we only accept a record if it
+       // ends with the "ER  - " marker. So
+       // no EOF-terminated record.
+       break;
+     }
+     // Include ER marker.
+     next += '\r\nER  - '.length;
+     let rec = s.substring(start, next);
+     unsorted.push(ParseOneRIS(rec));
+     start = next;
+   }
+ }
+
+ function GetOne(l) {
+   if (l == null || l.length == 0) return '';
+   return l[0];
+ }
+ 
+ // Similarity between two citations.
+ function Similarity(a, b) {
+   let atitle = GetOne(a['TI']), btitle = GetOne(b['TI']);
+   // The maximum edit distance of two strings with length A and B
+   // is just the max of the two lengths (modify all the characters
+   // in the shorter one to match; insert the remainder).
+   let max_dist = Math.max(atitle.length, btitle.length);
+   let dist = EditDistance(atitle, btitle);
+   if (max_dist > 0) return dist / max_dist
+   else return max_dist;
+ }
+
+ // XXX terrible
+ function ArticleHTML(a) {
+   let h = '<div><b>' + GetOne(a['TI']) + '</b>';
+   for (let o in a) {
+     h += '<br><span>' + o + ': ' + a[o].join('|') + '</span>';
+   }
+   return h + '</div>';
+ }
+ 
+ function ProposeDuplicates() {
+   for (;;) {
+     if (unsorted.length == 0) return;
+     
+     let src = unsorted.pop();
+     let srcarticle = database[src];
+
+     let cand = [];
+     for (let dst = 0; dst < unsorted.length; dst++) {
+       if (src != dst) {
+	 let dstarticle = database[dst];
+	 let dist = Similarity(srcarticle, dstarticle);
+	 if (dist < 0.05) {
+	   cand.push(dst);
+	 }
+       }
+     }
+
+     if (cand.length > 0) {
+       let str = '';
+       str = 'Source:';
+       str += ArticleHTML(srcarticle);
+       for (var c = 0; c < cand.length; c++) {
+	 str += 'Dupe ' + c + '?';
+	 str += ArticleHTML(database[cand[c]]);
+       }
+       return str;
+     }
+
+     // Otherwise, just add to no dupes.
+     canonical.push(src);
+   }
+ }
+ 
+ function Loaded(s) {
+   // XXX: Determine the file type by extension or heuristic.
+   // Allow at least TXT and RIS.
+   ParseRIS(s);
+
+   // Find duplicates...
+   let str = ProposeDuplicates();
+   let e = document.getElementById('dupes');
+   e.innerHTML = str;
+   
+   UpdateStats();
+   
+   /*
+      document.getElementById('res').innerHTML = 'Capital O: ' + n;
+      
+      // How to download something...
+      let b = new Blob([out], {type: 'text/plain;charset=utf-8'});
+      let u = URL.createObjectURL(b);
+      
+      let a = window.document.createElement("a");
+      a.href = window.URL.createObjectURL(b);
+      a.download = "filename.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    */
+ }
+
+ function UpdateStats() {
+   let records = database.length;
+   let selt = document.getElementById('stats');
+   selt.innerHTML = 'Total records: ' + records +
+		    ' | Unsorted: ' + unsorted.length +
+		    ' | Canonical: ' + canonical.length +
+		    ' | Rejected: ' + dupes.length;
+ }
+ 
+ function ReadFiles(){
+   let x = document.getElementById("fileinput");
+   if ('files' in x && x.files.length > 0) {
+     for (let i = 0; i < x.files.length; i++) {
+       let file = x.files[i];
+       
+       let fr = new FileReader(file);
+       
+       msg = file.name + ': ' + file.size + ' bytes';
+       console.log(msg);
+       
+       // XXX a better progress indicator please.
+       fr.onload = () => Loaded(fr.result);
+       fr.onprogress = (data) => {
+	 if (data.lengthComputable) {
+	   var progress = parseInt( ((data.loaded / data.total) * 100), 10 );
+	   console.log(progress);
+	 }
+       };
+       fr.readAsText(file);
+     }
+     document.getElementById("message").innerText = msg;
+     
+   } else {
+     document.getElementById("message").innerHTML = 'Select files.';
+   }
+   
+ }
+
+ /* The following function (classic dynamic programming edit-distance)
+    was based on "fast-levenshtein", which has the following license:
+
+    (MIT License)
+
+    Copyright (c) 2013 Ramesh Nair
+
+    Permission is hereby granted, free of charge, to any person obtaining
+    a copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice
+    shall be included in all copies or substantial portions
+    of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+    BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+    ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE. */
+ function EditDistance(a, b) {
+   let prevRow = [];
+
+   const alen = a.length;
+   const blen = b.length;
+
+   // In the case that one is empty, we can only do insertions (deletions).
+   if (alen === 0) return blen;
+   if (blen === 0) return alen;
+   
+   // two rows
+   let nextCol;
+
+   // initialise previous row
+   for (let i = 0; i <= blen; i++) {
+     prevRow[i] = i;
+   }
+
+   // calculate current row distance from previous row
+   for (let i = 0; i < alen; ++i) {
+     nextCol = i + 1;
+     for (let j = 0; j < blen; ++j) {
+       let curCol = nextCol;
+
+       // modification
+       const modcost = (a.charCodeAt(i) === b.charCodeAt(j)) ? 0 : 1;
+       nextCol = prevRow[j] + modcost;
+
+       // insertion
+       const inscost = curCol + 1;
+       if (nextCol > inscost) {
+         nextCol = inscost;
+       }
+
+       // deletion
+       const delcost = prevRow[j + 1] + 1;
+       if (nextCol > delcost) {
+         nextCol = delcost;
+       }
+
+       // copy current col value into previous (in preparation for next iteration)
+       prevRow[j] = curCol;
+     }
+
+     // copy last col value into previous (in preparation for next iteration)
+     prevRow[blen] = nextCol;
+   }
+   return nextCol;
+ }
+
+</script>
+
+<body>
+<input type="file" id="fileinput" multiple onchange="ReadFiles()">
+
+<p id="message"></p>
+
+<p id="stats"></p>
+
+<div id="dupes"></div>
+
+</body>
+
