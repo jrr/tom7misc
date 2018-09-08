@@ -5,11 +5,15 @@
 //   it should only kill us at 1 or 0. Some locations need to contain
 //   some small set of values (contra 0xFF is an example) and just
 //   lock up the game if they have the wrong thing in 'em.
+//    +1 this is an issue on jackiechan.
 // - Could detect and eliminate timers (which act a lot like "lives")
 //   explicitly. Periodically counting down is one thing. Not being
 //   sensitive to inputs is another. There's nothing wrong with
 //   wanting the timer to be high, but it's bad if we won't make any
 //   moves as the first second expires!
+// - Prefer stuff that decrements by 1.
+// - Prefer locations with values in normal "lives" range. Greater
+//   than 127 is pretty odd, for example.
 
 #include "autolives.h"
 
