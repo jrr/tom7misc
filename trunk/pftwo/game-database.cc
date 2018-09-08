@@ -39,21 +39,39 @@ GameDB::GameDB() {
   // the other sprite pairs were separated by two bytes. Seems
   // to be a lot of sprite pairs in ram, so maybe just need
   // to have a higher limit here.
-  Insert1P("swordmaster", 0x423, 0x425, -1);
+  {
+    // There are not "lives", but there are continue credits.
+    // Should these count?
+    Game *sword = Insert1P("swordmaster", 0x423, 0x425, -1);
+    // Modyfing this reflects it immediately.
+    sword->p1.health = 0x042f;
+    // Health displays as 1+value.
+    sword->allow_zero_health = OBool::TRUE;
+  }
 
   // With 0x04fb,0x04f9, warping has effect (within some small
   // region at least), but y location is not on the player. So
   // I think this does not qualify as working. x looks good.
   // TODO: Search for a working y, or is there something weird
   // with scroll?
-  Insert1P("festersquest", 0x04fb, -1, -1);
+  {
+    // No lives in this game, at least as far as I got...
+    Game *fester = Insert1P("festersquest", 0x04fb, -1, -1);
+    // Autolives finds it. Modifying works.
+    fester->p1.health = 0x4e9;
+    fester->allow_zero_health = OBool::FALSE;
+  }
 
   // Tracks player sprite, but no warping.
   //
   // 0x031 (xloc) does seem to control some aspect
   // of the player position (allowing some warping),
   // but this game is pretty weird (isometric).
-  Insert1P("solstice", 0x728, 0x72c, -1);
+  {
+    // Found in autolives. Modifying works.
+    Game *solstice = Insert1P("solstice", 0x728, 0x72c, 0x789);
+    solstice->allow_zero_lives = OBool::TRUE;
+  }
 
   // Verified, with warping. Found manually...
   // There are lots of high-scoring linkages, so maybe
@@ -78,7 +96,10 @@ GameDB::GameDB() {
   }
 
   // Verified. Warping works.
-  Insert1P("gradius", 0x360, 0x320, -1);
+  {
+    Game *gradius = Insert1P("gradius", 0x360, 0x320, 0x0020);
+    gradius->allow_zero_lives = OBool::TRUE;
+  }
 
   // Verified. Warping works.
   {
@@ -89,7 +110,13 @@ GameDB::GameDB() {
     // this game (you change color).
   }
 
-  Insert1P("werewolf", -1, -1, -1);
+  {
+    // Game does not have "lives."
+    Game *were = Insert1P("werewolf", -1, -1, -1);
+    // Found in FCEUX, also autolives. Modifying works.
+    were->p1.health = 0x00BC;
+    were->allow_zero_health = OBool::FALSE;
+  }
 
   // Verified. Warping just moves the feet, but the head will
   // reattach when switching rooms. The head is also
@@ -105,26 +132,67 @@ GameDB::GameDB() {
     dead->allow_zero_health = OBool::FALSE;
   }
 
-  // Verified.
-  Insert1P("mario", 0x86, 0xCE, -1);
+  // Verified positions.
+  {
+    // Modifying lives works, although it's treated as signed,
+    // so a value like 0x90 is game over on the next death.
+    Game *mario = Insert1P("mario", 0x86, 0xCE, 0x075a);
+    mario->allow_zero_lives = OBool::TRUE;
+  }
 
   // From wiki.
-  Insert1P("megaman2", 0x460, 0x4A0, -1);
-
+  {
+    Game *mega = Insert1P("megaman2", 0x460, 0x4A0, 0x00A8);
+    mega->p1.health = 0x06c0;
+    // can set this to zero and it is reflected in the UI
+    // with zero bars, but if health drops to zero normally,
+    // you die.
+    mega->allow_zero_health = OBool::FALSE;
+    mega->allow_zero_lives = OBool::FALSE;
+  }
+  
   // From wiki.
   // Autocamera works but is VERY SLOW.
-  Insert1P("lolo", 0x6D, 0x6F, -1);
+  {
+    // Autocamera finds this (among others); modifying works.
+    Game *lolo = Insert1P("lolo", 0x6D, 0x6F, 0x0057);
+    lolo->allow_zero_lives = OBool::FALSE;
+  }
   
   // Has horizontal and vertical scrolling.
   // Verified. (wiki says 0x51,0x52 which is not right?)
-  Insert1P("metroid", 0x30E, 0x30D, -1);
+  {
+    // No "lives" in this game.
+    Insert1P("metroid", 0x30E, 0x30D, -1);
+    // Health is stored in two different bytes using a weird
+    // BCD-like encoding. What's displayed on screen as 83
+    // is stored at 0x106 and 0x107 as: 30 08 (?).
+    // Would make sense to protect both of these values, but
+    // weird to think of either one alone as "health." :/
+  }
 
   // From glEnd.
-  Insert1P("zelda", 0x70, 0x84, -1);
+  {
+    // No "lives" in this game.
+    Insert1P("zelda", 0x70, 0x84, -1);
+    // Health is complicated. The low nybble is the current number of
+    // full hearts. High nibble holds the number of heart containers.
+    // 670 holds half-hearts (0-ff gamut, weirdly).
+    // Seems wrong to consider this "health" in the normal sense,
+    // without some masking. Autolives does find this.
+    // zelda->p1.health = 0x066F;
+  }
 
   // Verified. Warping definitely moves the sprite, though
   // it also causes physics to get desynced.
-  Insert1P("rocketeer", 0x40c, 0x419, -1);
+  {
+    // No "lives" in this game?
+    Game *rocket = Insert1P("rocketeer", 0x40c, 0x419, -1);
+    // Found in fceux. Modifying works and is reflected immediately.
+    // Set to 0x7e for lulz
+    rocket->p1.health = 0x5c5;
+    rocket->allow_zero_health = OBool::TRUE;
+  }
 
   // Verified. Screen coordinates. Warping works great!
   {
@@ -152,7 +220,15 @@ GameDB::GameDB() {
   // Verified. Warping works great. This game does split
   // scrolling for a bottom menu, so it always appears to be
   // (close to) 0,0.
-  Insert1P("backtothefuture", 0x3a2, 0x3a7, -1);
+  {
+    // Found in FCEUX. Modifying works.
+    Game *back = Insert1P("backtothefuture", 0x3a2, 0x3a7, 0x0393);
+    back->allow_zero_lives = OBool::FALSE;
+    // In this game there's the photograph which fades when you don't
+    // collect clocks. This could be considered "health." But there
+    // doesn't seem to be a single simple memory location associated
+    // with it.
+  }
 
   // Verified. Warping works.
   {
@@ -178,7 +254,15 @@ GameDB::GameDB() {
 
   // Verified. Warping works well. I think it has a sprite
   // to do split-scrolling like mario (0x203,0x200).
-  Insert1P("ninjagaiden", 0x086, 0x08a, -1);
+  {
+    // Lives found in FCEUX. Modying lives works (takes effect immediately).
+    Game *ninja = Insert1P("ninjagaiden", 0x086, 0x08a, 0x0076);
+    // Modifying this works. Can set to 0, but you die if it goes
+    // to zero organically.
+    ninja->p1.health = 0x0065;
+    ninja->allow_zero_health = OBool::FALSE;
+    ninja->allow_zero_lives = OBool::TRUE;
+  }
 
   // Found in FCEUX. Warping works.
   {
@@ -192,7 +276,13 @@ GameDB::GameDB() {
   }
 
   // Found manually in FCEUX. Warping works.
-  Insert1P("jackiechan", 0x610, 0x620, -1);
+  {
+    // There are continues in this game, but not "lives"?
+    Game *jackie = Insert1P("jackiechan", 0x610, 0x620, -1);
+    jackie->allow_zero_health = OBool::FALSE;
+    // Autolives finds. Modifying works.
+    jackie->p1.health = 0x702;
+  }
 
   // 0x370,0x330 is the cue ball. Lots of balls detected, but
   // not the cursor? Would not be surprised if some weird polar
@@ -202,7 +292,7 @@ GameDB::GameDB() {
     Game *lunar = Insert1P("lunarpool", -1, -1, 0x01C3);
     // Found by autolives. Shot counter is like lives;
     // after three without sinking a ball, you lose a ball.
-    lunar->p1->health = 0x01c5;
+    lunar->p1.health = 0x01c5;
     lunar->allow_zero_health = OBool::FALSE;
     lunar->allow_zero_lives = OBool::TRUE;
   }
@@ -253,7 +343,13 @@ GameDB::GameDB() {
   Insert1P("gauntlet2", -1, -1, -1);
 
   // autocamera finds this now. verified with warping.
-  Insert1P("strider", 0x508, 0x50b, -1);
+  {
+    // No 'lives' in this game.
+    Game *strider = Insert1P("strider", 0x508, 0x50b, -1);
+    // Autolives finds this. Modifying works.
+    strider->p1.health = 0x0569;
+    strider->allow_zero_health = OBool::FALSE;
+  }
 
   // Verified. xlocs finds 0x09e, which is good. The y
   // coordinate's value weirdly remaind like 24 pixels above
@@ -277,6 +373,7 @@ GameDB::GameDB() {
       Insert2P("contra",
 	       Player{0x334, 0x31A, 0x0032},
 	       Player{0x335, 0x31B, 0x0033});
+    (void)contra;
     // XXX set allowed-zero to the correct value
   }
 
@@ -287,9 +384,17 @@ GameDB::GameDB() {
   // 
   // 1p: 0x08e, 0x09e (negated)
   // 2p: 0x084, 0x09f (negated)
-  Insert2P("rivercity",
-	   Player{0x08e, 0x09e, -1},
-	   Player{0x084, 0x09f, -1});
+  {
+    // No "lives"
+    Game *rivercity = Insert2P("rivercity",
+			       Player{0x08e, 0x09e, -1},
+			       Player{0x084, 0x09f, -1});
+    rivercity->p1.health = 0x04bf;
+    rivercity->p2.health = 0x04c0;
+    // Another weird thing: In this game you can have zero health,
+    // but you don't die unless you are knocked down.
+    rivercity->allow_zero_health = OBool::TRUE;
+  }
   
   // 2p. Warping works great. Lots of enemy sprite locations are
   // detected too.
@@ -308,10 +413,17 @@ GameDB::GameDB() {
   // 2P. There are lots of locations that track the components
   // of the monster sprites. But these two mostly allow
   // warping.
-  Insert2P("rampage",
-	   Player{0x102, 0x103, -1},
-	   Player{0x12e, 0x12f, -1});
-
+  {
+    // No "lives" in this game I think.
+    Game *rampage =
+      Insert2P("rampage",
+	       Player{0x102, 0x103, -1},
+	       Player{0x12e, 0x12f, -1});
+    rampage->p1.health = 0x012b;
+    rampage->p2.health = 0x0157;
+    // Setting to zero health immediately kills the player.
+    rampage->allow_zero_health = OBool::FALSE;
+  }
 }
 
 vector<Game> GameDB::GetAll() const {
