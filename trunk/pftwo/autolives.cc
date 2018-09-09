@@ -11,9 +11,6 @@
 //   sensitive to inputs is another. There's nothing wrong with
 //   wanting the timer to be high, but it's bad if we won't make any
 //   moves as the first second expires!
-// - Prefer stuff that decrements by 1.
-// - Prefer locations with values in normal "lives" range. Greater
-//   than 127 is pretty odd, for example.
 
 #include "autolives.h"
 
@@ -174,8 +171,11 @@ struct Frame {
   int offset = 0;
   uint16 inputs = 0;
   std::vector<uint8> save;
-  Frame(int offset, uint16 inputs, vector<uint8> save) :
-    offset(offset), inputs(inputs), save(std::move(save)) {}
+  uint8 value_before = 0, value_after = 0;
+  Frame(int offset, uint16 inputs, vector<uint8> save,
+	uint8 value_before, uint8 value_after) :
+    offset(offset), inputs(inputs), save(std::move(save)),
+    value_before(value_before), value_after(value_after) {}
 };
 
 // Information about a memory location from random play, below.
@@ -214,6 +214,65 @@ auto EraseIt(T &ty, typename T::iterator &it) -> typename T::iterator {
   auto next = it; ++next;
   ty.erase(it);
   return next;
+}
+
+static float ScoreOneBeforeValue(uint8 v) {
+  // Many games allow zero lives, but many others kill you when reaching
+  // zero. Also, this is a very common value for other stuff.
+  if (v == 0) return 0.75f;
+    
+  // These are the most canonical number of lives, and we should never
+  // be dead with this number of lives.
+  if (v >= 1 && v <= 3) return 1.0f;
+  // Reasonable lives, common health.
+  if (v <= 10) return 0.8f;
+  // Rare but possible lives, reasonable health.
+  if (v <= 32) return 0.7f;
+  // Sometimes health.
+  if (v <= 64) return 0.5f;
+  // Many games test death by seeing if the value is negative, and if
+  // it's treated as unsigned then this is an absurd number of lives.
+  if (v <= 127) return 0.0f;
+  return 0.0f;
+}
+
+// Score the location based on the values it has at each point of
+// decrement.
+static float ScoreValues(const vector<Frame> &frames) {
+  // Minimum "before" value. Just one observation with a crazy
+  // value should downweight a lot, so we take the minimum over
+  // all decrements.
+  float minbefore = 1.0f;
+  for (const Frame &f : frames) {
+    const float scorebefore = ScoreOneBeforeValue(f.value_before);
+    if (minbefore < scorebefore) minbefore = scorebefore;
+  }
+
+  // Next, decrements of exactly 1 are considered better.
+  // Everything in here is between 1 and MAX_DECREMENT, so
+  // that's all we look for.
+  bool decrementone = true;
+  for (const Frame &f : frames) {
+    if (!Decremented(1, f.value_before, f.value_after)) {
+      decrementone = false;
+      break;
+    }
+  }
+
+  // Usually we want to see 3 -> 2 -> 1, or like 15 -> 13 -> 12.
+  // This is currently covered by the IncrementsPenalty below.
+
+  if (decrementone) return minbefore;
+  else return minbefore * 0.5f;
+}
+
+// Gaining extra lives or health is certainly possible, but
+// should be less common than dying or taking damage in random
+// play.
+static float IncrementsPenalty(int increments, int decrements) {
+  if (increments == 0) return 1.0f;
+  if (increments > decrements) return 0.25f;
+  else return 0.5f;
 }
 
 // PERF: Allow passing a whitelist or blacklist of locations
@@ -273,7 +332,8 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 	  info->decremented++;
 	  info->decremented_saves.emplace_back(f,
 					       input16,
-					       save_before_inputs);
+					       save_before_inputs,
+					       prev, now);
 	} else if (Decremented(MAX_DECREMENT, now, prev)) {
 	  info->incremented++;
 	} else {
@@ -392,7 +452,7 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
       emu->LoadUncompressed(frame.save);
       uint8 *ram = emu->GetFC()->fceu->RAM;
       // If it already contains 0, we won't do any tests.
-      uint8 base_value_before = ram[loc];
+      const uint8 base_value_before = ram[loc];
       if (base_value_before == 0)
 	continue;
       // Execute the inputs with the normal number of lives.
@@ -459,24 +519,44 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
       Test(0, &tests_with_zero, &score_with_zero);
       Test(1, &tests_with_one, &score_with_one);
     }
+
+    // Inspect the actual values that the memory location takes on.
+    const float valuescore = ScoreValues(info.decremented_saves);
+    // Discount the score if we saw increments.
+    const float incpenalty = IncrementsPenalty(info.incremented,
+					       info.decremented);
+    
     // Use median maybe? We do expect this to be rather consistent.
-    float score = -1.0f;
-    if (tests_with_zero > 0 && tests_with_one > 0) {
-      score = std::max(score_with_zero / (float)tests_with_zero,
-		       score_with_one / (float)tests_with_one);
-    } else if (tests_with_zero > 0) {
-      score = score_with_zero / (float)tests_with_zero;
-    } else if (tests_with_one > 0) {
-      score = score_with_one / (float)tests_with_one;
-    }
+    const float controlscore =
+      [&]() {
+	if (tests_with_zero > 0 && tests_with_one > 0) {
+	  return std::max(score_with_zero / (float)tests_with_zero,
+			  score_with_one / (float)tests_with_one);
+	} else if (tests_with_zero > 0) {
+	  return score_with_zero / (float)tests_with_zero;
+	} else if (tests_with_one > 0) {
+	  return score_with_one / (float)tests_with_one;
+	} else {
+	  return -1.0f;
+	}
+      }();
+
+    // Should probably just filter anything with negative combined score...
+    const float combinedscore =
+      controlscore <= 0.0f ? controlscore :
+      (controlscore * incpenalty) + valuescore;
+    
     if (VERBOSE)
-      printf("%04x, %d fs Score %.4f: wz %.2f/%d, wo %.2f/%d\n",
+      printf("%04x, %d fs ctl %.4f: wz %.2f/%d, wo %.2f/%d, value %.2f inc %.2f = %.4f\n",
 	     loc,
 	     (int)info.decremented_saves.size(),
-	     score, score_with_zero, tests_with_zero,
-	     score_with_one, tests_with_one);
+	     controlscore,
+	     score_with_zero, tests_with_zero,
+	     score_with_one, tests_with_one,
+	     valuescore, incpenalty,
+	     combinedscore);
 
-    results.emplace_back(loc, score);
+    results.emplace_back(loc, combinedscore);
   }
   if (VERBOSE)
     printf("\n");
