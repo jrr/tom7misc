@@ -79,7 +79,10 @@ struct EvalGame {
   // expected ones? Ties are interpreted pessimistically.
   int locs_rank_loss = 0;
 
-  // XXX stuff for expected lives
+  // This counts both "lives" and "health" locations for each player.
+  int lives_known = 0;
+  int lives_found = 0;
+  int lives_rank_loss = 0;
 };
 }
 
@@ -189,28 +192,35 @@ static EvalGame EvalOne(const Game &game,
 
   // Rescored1 and Rescored2 are the best guesses for each player.
   
+  // Stringify an address, marking it if there's something known
+  // about that spot.
+  auto AddrInfo =
+    [&game](int loc) -> const char * {
+      // Prevent this from accidentally matching an "unknown" loc.
+      if (loc == -1) return "";
+      if (loc == game.p1.xloc) return "p1 x";
+      else if (loc == game.p1.yloc) return "p1 y";
+      else if (loc == game.p1.lives) return "p1 l";
+      else if (loc == game.p1.health) return "p1 h";
+      else if (loc == game.p2.xloc) return "p2 x";
+      else if (loc == game.p2.yloc) return "p2 y";
+      else if (loc == game.p2.lives) return "p2 l";
+      else if (loc == game.p2.health) return "p2 h";
+      else return "";
+    };
+
   // Now compute stats.
   {
-    // Stringify an address, marking it if there's something known
-    // about that spot.
+
     auto MarkAddr =
-      [&game](int loc) -> string {
-	// Prevent this from accidentally matching an "unknown" loc.
+      [&AddrInfo](int loc) -> string {
 	if (loc == -1) return "-1";
-	if (loc == game.p1.xloc)
-	  return StringPrintf("[p1 x %04x]", loc);
-	else if (loc == game.p1.yloc)
-	  return StringPrintf("[p1 y %04x]", loc);
-	else if (loc == game.p1.lives)
-	  return StringPrintf("[p1 l %04x]", loc);
-	else if (loc == game.p2.xloc)
-	  return StringPrintf("[p2 x %04x]", loc);
-	else if (loc == game.p2.yloc)
-	  return StringPrintf("[p2 y %04x]", loc);
-	else if (loc == game.p2.lives)
-	  return StringPrintf("[p2 l %04x]", loc);
-	else
+	const char *info = AddrInfo(loc);
+	if (info[0] == '\0') {
 	  return StringPrintf("%04x", loc);
+	} else {
+	  return StringPrintf("[%s %04x]", info, loc);
+	}
       };
     
     MutexLock ml(&file_mutex);
@@ -288,13 +298,13 @@ static EvalGame EvalOne(const Game &game,
       fprintf(outfile, "[%s]: Merged lives:\n", romfile.c_str());
 
       auto PLives =
-	[](const Player &player,
-	   const vector<LivesLoc> &lives) {
+	[&AddrInfo](const Player &player,
+		    const vector<LivesLoc> &lives) {
 	  for (const LivesLoc &l : lives) {
 	    // XXX annotate if correct for player
 	    fprintf(outfile,
-		    "  %.3f: %d = %04x\n",
-		    l.score, l.loc, l.loc);
+		    "  %.3f: %d = %04x  %s\n",
+		    l.score, l.loc, l.loc, AddrInfo(l.loc));
 	  }
 	};
 
@@ -316,7 +326,9 @@ static EvalGame EvalOne(const Game &game,
   eval_game.game = game;
 
   auto StatsPlayer =
-    [&eval_game](const Player &player, const vector<Linkage> &rescored) {
+    [&eval_game](const Player &player,
+		 const vector<Linkage> &rescored,
+		 const vector<LivesLoc> &lives) {
       if (player.xloc != -1 &&
 	  player.yloc != -1) {
 	eval_game.locs_known++;
@@ -342,10 +354,37 @@ static EvalGame EvalOne(const Game &game,
 	eval_game.locs_found += found;
 	eval_game.locs_rank_loss += rank_loss;
       }
+
+      if (player.health != -1 ||
+	  player.lives != -1) {
+
+	if (player.health != -1)
+	  eval_game.lives_known++;
+	if (player.lives != -1)
+	  eval_game.lives_known++;
+
+	int found = 0, rank_loss = 0;
+	for (const LivesLoc &l : lives) {
+	  if (l.loc == player.health || l.loc == player.lives) {
+	    found++;
+	    const float found_score = l.score;
+	    for (const LivesLoc &ll : lives) {
+	      if (ll.score < found_score)
+		break;
+
+	      if (ll.loc != player.lives && ll.loc != player.health)
+		rank_loss++;
+	    }
+	  }
+	}
+
+	eval_game.lives_found += found;
+	eval_game.lives_rank_loss += rank_loss;
+      }
     };
 
-  StatsPlayer(eval_game.game.p1, rescored1);
-  StatsPlayer(eval_game.game.p2, rescored2);
+  StatsPlayer(eval_game.game.p1, rescored1, lives1);
+  StatsPlayer(eval_game.game.p2, rescored2, lives2);
   
   report(StringPrintf("Done. Found %d/%d. Rank loss %d.",
 		      eval_game.locs_found,
@@ -374,7 +413,6 @@ static void EvalAll() {
     [&games, &states, &status]() {
       for (int i = 0; i < games.size() + 2; i++) {
 	printf("%s", ANSI_PREVLINE);
-	// #define ANSI_PREVLINE "\x1B[F"
       }
       printf("\n---------------------------------\n");
       for (int i = 0; i < games.size(); i++) {
@@ -414,17 +452,38 @@ static void EvalAll() {
       return res;
     };
 
+  auto Color3 =
+    [](int found, int known, int loss) -> const char * {
+      if (known == 0) return "";
+      else if (found == known) {
+	if (loss == 0)
+	  return ANSI_GREEN;
+	else
+	  return ANSI_YELLOW;
+      } else {
+	return ANSI_RED;
+      }
+    };
+  
   vector<EvalGame> results = ParallelMapi(games, EvalWithProgress, 11);
   (void)results;
   printf(" == Summary ==\n");
   string col1h = Util::Pad(24, "game.nes");
-  printf("%srecall\trank loss\n", col1h.c_str());
+  printf("%sp recall\tp rank loss\tl recall\t rank loss\n", col1h.c_str());
   for (const EvalGame &g : results) {
-    printf("%s%s%d/%d" ANSI_RESET "\t%d\n",
+    printf("%s"
+	   // positions
+	   "%s%d/%d" ANSI_RESET "\t%d\t"
+	   // lives
+	   "%s%d/%d" ANSI_RESET "\t%d\n",
 	   Util::Pad(24, g.game.romfile).c_str(),
-	   (g.locs_found == g.locs_known) ? "" : ANSI_RED,
+	   Color3(g.locs_found, g.locs_known, g.locs_rank_loss),
 	   g.locs_found, g.locs_known,
-	   g.locs_rank_loss);
+	   g.locs_rank_loss,
+
+	   Color3(g.lives_found, g.lives_known, g.lives_rank_loss),
+	   g.lives_found, g.lives_known,
+	   g.lives_rank_loss);
   }
 
   fclose(outfile);

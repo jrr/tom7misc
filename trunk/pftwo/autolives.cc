@@ -170,10 +170,12 @@ namespace {
 // Example frame right before a memory location is decremented,
 // paired with the inputs so that we can repeat exactly.
 struct Frame {
+  // Number of frames from base frame.
+  int offset = 0;
   uint16 inputs = 0;
   std::vector<uint8> save;
-  Frame(uint16 inputs, vector<uint8> save) : inputs(inputs),
-					     save(std::move(save)) {}
+  Frame(int offset, uint16 inputs, vector<uint8> save) :
+    offset(offset), inputs(inputs), save(std::move(save)) {}
 };
 
 // Information about a memory location from random play, below.
@@ -269,7 +271,8 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 	  info->same++;
 	} else if (Decremented(MAX_DECREMENT, prev, now)) {
 	  info->decremented++;
-	  info->decremented_saves.emplace_back(input16,
+	  info->decremented_saves.emplace_back(f,
+					       input16,
 					       save_before_inputs);
 	} else if (Decremented(MAX_DECREMENT, now, prev)) {
 	  info->incremented++;
@@ -303,7 +306,7 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
     }
     ++it;
   }
-
+   
   // Filter out anything that incremented/decremented too often.
   // Note that for something like health, this is probably much
   // too conservative.
@@ -326,6 +329,45 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
     ++it;
   }
 
+  // Filter out timers here. Timers just decrement at regular or
+  // nearly-regular intervals, and never increment.
+  //
+  // Note that if this value is 2 exactly, then any loc that's
+  // that's decremented exactly twice is filtered out, since the
+  // interval agrees with itself by definition. So the first
+  // reasonable value is 3.
+  static constexpr int MIN_COUNTER_REPETITIONS = 3;
+  static_assert(MIN_COUNTER_REPETITIONS >= 3,
+		"need 2 to find an interval!");
+  if (VERBOSE)
+    printf("%d remain. Filter out potential counters:\n", (int)locs.size());
+  for (auto it = locs.begin(); it != locs.end(); /* in loop */) {
+    const Info &info = it->second;
+    if (info.incremented == 0 &&
+	info.decremented_saves.size() >= MIN_COUNTER_REPETITIONS) {
+      const int ival = info.decremented_saves[1].offset -
+	info.decremented_saves[0].offset;
+      auto AllInterval =
+	[&info](int ival) {
+	  for (int s = 1; s < info.decremented_saves.size() - 1; s++) {
+	    const int ival2 = info.decremented_saves[s + 1].offset -
+	      info.decremented_saves[s].offset;
+	    if (ival != ival2)
+	      return false;
+	  }
+	  return true;
+	};
+
+      if (AllInterval(ival)) {
+	printf("%04x decremented %d times with consistent ival of %d frames\n",
+	       it->first, (int)info.decremented_saves.size(), ival);
+	it = EraseIt(locs, it);
+	continue;
+      }
+    }
+    ++it;
+  }
+  
   if (VERBOSE)
     printf("\nAnd the rest are candidates (%d):\n", (int)locs.size());
   for (auto it = locs.begin(); it != locs.end(); ++it) {
@@ -360,6 +402,13 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
       const float base_control = IsInControl(emu->SaveUncompressed(),
 					     xloc, yloc,
 					     player_two);
+
+      // TODO: Also get base_control values for other small integers
+      // (distinct from its actual value). This is a good lives
+      // candidate if control is consistently higher for these values,
+      // but bad when the value is 1 or 0. (Idea is to filter out
+      // important values like a bank selector that hang the game if
+      // they are set to many values.)
       
       // XXX skip if not enough control in base?
       
