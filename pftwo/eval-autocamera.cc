@@ -36,6 +36,9 @@
 # error eval-autocamera can not use AOT (needs to load multiple games)
 #endif
 
+// Usually pointless to run autocamera on start screens and intro.
+// AutoLives is particularly useless (harmful?) because lives and
+// health may not be initialized yet.
 #define WARMUP_FRAMES 800
 
 // Cursor to beginning of previous line

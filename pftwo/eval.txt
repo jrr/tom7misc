@@ -1,5 +1,50 @@
 
-New version, with autolives (r3691):
+
+
+Try to filter detected timers (r3691):
+adventureisland.nes     0/1     0       2/2     5
+athena.nes              0/1     0       1/2     43
+backtothefuture.nes     1/1     0       0/1     0
+baddudes.nes            0/1     0       2/2     10
+bomberman.nes           0/0     0       1/1     31
+bubblebobble.nes        2/2     0       2/2     0
+cliffhanger.nes         0/0     0       2/2     2
+contra.nes              2/2     0       2/2     2
+deadlytowers.nes        1/1     0       0/1     0
+diehard.nes             1/1     0       0/1     0
+ducktales.nes           1/1     0       1/1     65
+faxanadu.nes            0/1     0       0/1     0
+festersquest.nes        0/0     0       1/1     0
+gauntlet2.nes           0/0     0       0/0     0
+gradius.nes             1/1     0       1/1     0
+gyromite.nes            1/1     0       1/1     20
+jackiechan.nes          1/1     0       1/1     1
+kage.nes                1/1     0       1/1     0
+kidicarus.nes           1/1     0       0/0     0
+littlemermaid.nes       1/1     0       2/2     3
+lolo.nes                1/1     0       1/1     1
+lunarpool.nes           0/0     0       2/2     68
+mario.nes               1/1     0       1/1     1
+megaman2.nes            1/1     0       1/2     35
+metroid.nes             1/1     0       0/0     0
+ninjagaiden.nes         1/1     1       1/2     38
+rampage.nes             1/2     0       0/2     0
+rivercity.nes           0/2     0       0/2     0
+rocketeer.nes           1/1     2       1/1     0
+solstice.nes            1/1     0       1/1     0
+strider.nes             1/1     0       1/1     0
+swordmaster.nes         0/1     0       1/1     0
+werewolf.nes            0/0     0       1/1     0
+zelda.nes               1/1     0       0/0     0
+
+This improves the rank loss for several, although mostly
+where it was very bad to begin with. Notably: diehard
+no longer finds it at all, and littlemermaid loses one
+(but now the other is in 0th place, which is probably
+a good trade).
+
+
+New version, with autolives (r3690?):
 adventureisland.nes     0/1     0       2/2     5
 athena.nes              0/1     0       1/2     47
 backtothefuture.nes     1/1     0       0/1     0
