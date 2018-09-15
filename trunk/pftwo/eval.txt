@@ -1,4 +1,176 @@
 
+New version rewrote "alt" stuff since it had some
+other dumb bugs in it. Also turned off timer
+detection since that is known to be wrong, too.
+
+...
+adventureisland.nes     0/1     0       2/2     0
+athena.nes              0/1     0       1/2     3
+backtothefuture.nes     1/1     0       0/1     0
+baddudes.nes            0/1     0       0/2     0
+bomberman.nes           0/0     0       1/1     0
+bubblebobble.nes        2/2     0       2/2     0
+cliffhanger.nes         0/0     0       2/2     0
+contra.nes              2/2     0       2/2     0
+deadlytowers.nes        1/1     0       0/1     0
+diehard.nes             1/1     0       1/1     1
+ducktales.nes           1/1     0       1/1     11
+faxanadu.nes            0/1     0       0/1     0
+festersquest.nes        0/0     0       1/1     0
+gauntlet2.nes           0/0     0       0/0     0
+gradius.nes             1/1     0       1/1     0
+gyromite.nes            1/1     0       1/1     1
+jackiechan.nes          1/1     0       1/1     0
+kage.nes                1/1     0       1/1     0
+kidicarus.nes           1/1     0       0/0     0
+littlemermaid.nes       1/1     0       2/2     0
+lolo.nes                1/1     0       1/1     1
+lunarpool.nes           0/0     0       2/2     0
+mario.nes               1/1     0       1/1     2
+megaman2.nes            1/1     0       1/2     6
+metroid.nes             1/1     0       0/0     0
+ninjagaiden.nes         1/1     1       1/2     9
+rampage.nes             1/2     0       2/2     2
+rivercity.nes           0/2     0       0/2     0
+rocketeer.nes           1/1     2       1/1     0
+solstice.nes            1/1     0       1/1     0
+strider.nes             1/1     0       1/1     0
+swordmaster.nes         0/1     0       1/1     2
+werewolf.nes            0/0     0       1/1     0
+zelda.nes               1/1     0       0/0     0
+
+real    81m4.708s
+Nice... in addition to being faster, almost everything
+is an improvement. 15 perfect games now.
+
+
+Bug "fixed" but now it's just garbage:
+adventureisland.nes     0/1     0       0/2     0
+athena.nes              0/1     0       0/2     0
+backtothefuture.nes     1/1     0       0/1     0
+baddudes.nes            0/1     0       0/2     0
+bomberman.nes           0/0     0       1/1     24
+bubblebobble.nes        2/2     0       1/2     145
+cliffhanger.nes         0/0     0       0/2     0
+contra.nes              2/2     0       0/2     0
+deadlytowers.nes        1/1     0       0/1     0
+diehard.nes             1/1     0       1/1     19
+ducktales.nes           1/1     0       0/1     0
+faxanadu.nes            0/1     0       0/1     0
+festersquest.nes        0/0     0       0/1     0
+gauntlet2.nes           0/0     0       0/0     0
+gradius.nes             1/1     0       0/1     0
+gyromite.nes            1/1     0       0/1     0
+jackiechan.nes          1/1     0       0/1     0
+kage.nes                1/1     0       0/1     0
+kidicarus.nes           1/1     0       0/0     0
+littlemermaid.nes       1/1     0       0/2     0
+lolo.nes                1/1     0       0/1     0
+lunarpool.nes           0/0     0       1/2     31
+mario.nes               1/1     0       0/1     0
+megaman2.nes            1/1     0       0/2     0
+metroid.nes             1/1     0       0/0     0
+ninjagaiden.nes         1/1     1       0/2     0
+rampage.nes             1/2     0       0/2     0
+rivercity.nes           0/2     0       0/2     0
+rocketeer.nes           1/1     2       0/1     0
+solstice.nes            1/1     0       0/1     0
+strider.nes             1/1     0       0/1     0
+swordmaster.nes         0/1     0       0/1     0
+werewolf.nes            0/0     0       0/1     0
+zelda.nes               1/1     0       0/0     0
+
+70m13.905s
+
+Filter cases where we could not successfully modify it,
+or we didn't have control with 2 lives:
+adventureisland.nes     0/1     0       2/2     1
+athena.nes              0/1     0       0/2     0
+backtothefuture.nes     1/1     0       0/1     0
+baddudes.nes            0/1     0       0/2     0
+bomberman.nes           0/0     0       1/1     42
+bubblebobble.nes        2/2     0       2/2     0
+cliffhanger.nes         0/0     0       2/2     0
+contra.nes              2/2     0       2/2     0
+deadlytowers.nes        1/1     0       0/1     0
+diehard.nes             1/1     0       1/1     23
+ducktales.nes           1/1     0       0/1     0
+faxanadu.nes            0/1     0       0/1     0
+festersquest.nes        0/0     0       0/1     0
+gauntlet2.nes           0/0     0       0/0     0
+gradius.nes             1/1     0       1/1     0
+gyromite.nes            1/1     0       1/1     7
+jackiechan.nes          1/1     0       1/1     0
+kage.nes                1/1     0       0/1     0
+kidicarus.nes           1/1     0       0/0     0
+littlemermaid.nes       1/1     0       1/2     0
+lolo.nes                1/1     0       1/1     0
+lunarpool.nes           0/0     0       2/2     0
+mario.nes               1/1     0       0/1     0
+megaman2.nes            1/1     0       1/2     13
+metroid.nes             1/1     0       0/0     0
+ninjagaiden.nes         1/1     1       1/2     27
+rampage.nes             1/2     0       0/2     0
+rivercity.nes           0/2     0       0/2     0
+rocketeer.nes           1/1     2       1/1     0
+solstice.nes            1/1     0       1/1     0
+strider.nes             1/1     0       1/1     0
+swordmaster.nes         0/1     0       0/1     0
+werewolf.nes            0/0     0       1/1     0
+zelda.nes               1/1     0       0/0     0
+
+well, it has a few improvements, but I think this
+is worse.
+major loss for festersquest...
+and mario, ugh
+and swordmaster
+(at least it is a lot faster..)
+
+Fortunately, there was a bug!
+(reversed the sense of "successful" ... surprised
+ that ANYTHING worked!)
+
+real    91m16.023s
+
+Rescore based on their values:
+adventureisland.nes     0/1     0       2/2     10
+athena.nes              0/1     0       1/2     44
+backtothefuture.nes     1/1     0       0/1     0
+baddudes.nes            0/1     0       2/2     15
+bomberman.nes           0/0     0       1/1     22
+bubblebobble.nes        2/2     0       2/2     0
+cliffhanger.nes         0/0     0       2/2     0
+contra.nes              2/2     0       2/2     0
+deadlytowers.nes        1/1     0       0/1     0
+diehard.nes             1/1     0       0/1     0
+ducktales.nes           1/1     0       1/1     68
+faxanadu.nes            0/1     0       0/1     0
+festersquest.nes        0/0     0       1/1     0
+gauntlet2.nes           0/0     0       0/0     0
+gradius.nes             1/1     0       1/1     0
+gyromite.nes            1/1     0       1/1     21
+jackiechan.nes          1/1     0       1/1     3
+kage.nes                1/1     0       1/1     0
+kidicarus.nes           1/1     0       0/0     0
+littlemermaid.nes       1/1     0       2/2     7
+lolo.nes                1/1     0       1/1     2
+lunarpool.nes           0/0     0       2/2     70
+mario.nes               1/1     0       1/1     4
+megaman2.nes            1/1     0       1/2     43
+metroid.nes             1/1     0       0/0     0
+ninjagaiden.nes         1/1     1       1/2     38
+rampage.nes             1/2     0       0/2     0
+rivercity.nes           0/2     0       0/2     0
+rocketeer.nes           1/1     2       1/1     0
+solstice.nes            1/1     0       1/1     0
+strider.nes             1/1     0       1/1     0
+swordmaster.nes         0/1     0       1/1     0
+werewolf.nes            0/0     0       1/1     0
+zelda.nes               1/1     0       0/0     0
+
+real    133m27.692s
+
+.. not really clear this helped?
 
 
 Try to filter detected timers (r3691):

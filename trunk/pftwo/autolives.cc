@@ -14,6 +14,7 @@
 
 #include "autolives.h"
 
+#include <math.h>
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -31,7 +32,7 @@ static constexpr int TRY_TO_DIE_FRAMES = 6 * 60;
 
 static constexpr int FINDLIVES_NUM_EXPERIMENTS = 10;
 
-static constexpr bool VERBOSE = false;
+static constexpr bool VERBOSE = true;
 
 // ? Probably better with game-specific markov model?
 namespace {
@@ -266,6 +267,18 @@ static float ScoreValues(const vector<Frame> &frames) {
   else return minbefore * 0.5f;
 }
 
+// Pick a different value of cur that should not be "special".
+// The idea is that lives/health should allow most small
+// integral values other than 1/0. Value will be different
+// from cur.
+static uint8 SafeAlternateValue(uint8 cur) {
+  // XXX actually, don't pick something so low, because for
+  // health we often take more than one unit of damage at
+  // a time. Take the before and after values...
+  if (cur == 2) return 3;
+  else return 2;
+}
+
 // Gaining extra lives or health is certainly possible, but
 // should be less common than dying or taking damage in random
 // play.
@@ -389,6 +402,12 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
     ++it;
   }
 
+  // XXX Bugz: I wrote this thinking that all of the decrement_saves
+  // are sequential within the same experiment. This is not what
+  // happens -- we run many different experiments and put all the
+  // saves into one set.
+  #if 0
+  //
   // Filter out timers here. Timers just decrement at regular or
   // nearly-regular intervals, and never increment.
   //
@@ -419,14 +438,16 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 	};
 
       if (AllInterval(ival)) {
-	printf("%04x decremented %d times with consistent ival of %d frames\n",
-	       it->first, (int)info.decremented_saves.size(), ival);
+	if (VERBOSE)
+	  printf("%04x decremented %d times with consistent ival of %d frames\n",
+		 it->first, (int)info.decremented_saves.size(), ival);
 	it = EraseIt(locs, it);
 	continue;
       }
     }
     ++it;
   }
+  #endif
   
   if (VERBOSE)
     printf("\nAnd the rest are candidates (%d):\n", (int)locs.size());
@@ -448,78 +469,129 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
     if (VERBOSE) printf("%04x:\n", loc);
     int tests_with_zero = 0, tests_with_one = 0;
     float score_with_zero = 0.0f, score_with_one = 0.0f;
-    for (const Frame &frame : info.decremented_saves) {
-      emu->LoadUncompressed(frame.save);
-      uint8 *ram = emu->GetFC()->fceu->RAM;
-      // If it already contains 0, we won't do any tests.
-      const uint8 base_value_before = ram[loc];
-      if (base_value_before == 0)
-	continue;
-      // Execute the inputs with the normal number of lives.
-      emu->Step16(frame.inputs);
-      ram = emu->GetFC()->fceu->RAM;
-      const uint8 base_value_after = ram[loc];
-      const float base_control = IsInControl(emu->SaveUncompressed(),
-					     xloc, yloc,
-					     player_two);
 
-      // TODO: Also get base_control values for other small integers
-      // (distinct from its actual value). This is a good lives
-      // candidate if control is consistently higher for these values,
-      // but bad when the value is 1 or 0. (Idea is to filter out
-      // important values like a bank selector that hang the game if
-      // they are set to many values.)
-      
-      // XXX skip if not enough control in base?
-      
-      // Test with the lives value set to set_to, if applicable.
-      auto Test =
-	[this, xloc, yloc, player_two, loc, &frame,
-	 base_control, base_value_before, base_value_after](
-	    uint8 set_to, int *tests, float *score) {
+    auto AnalyzeFrames =
+      [& /* XXX */]() {
+	for (const Frame &frame : info.decremented_saves) {
+
+	  // Re-execute the base frame (whatever happened before)
+	  // to get the base "in control" fraction.
 	  emu->LoadUncompressed(frame.save);
-	  uint8 *ram = emu->GetFC()->fceu->RAM;
-	  const uint8 expt_value_before = ram[loc];
-	  CHECK(expt_value_before == base_value_before);
-	  if (VERBOSE)
-	    printf(" ram[%04x] base [%02x->%02x] ctl %.3f  [%02x->",
-		   loc, base_value_before, base_value_after,
-		   base_control, set_to);
-	  if (expt_value_before > set_to) {
-	    // Modify memory.
-	    ram[loc] = set_to;
-	    emu->Step16(frame.inputs);
-	    ram = emu->GetFC()->fceu->RAM;
-	    const uint8 expt_value_after = ram[loc];
-	    const float expt_control = IsInControl(emu->SaveUncompressed(),
-						   xloc, yloc, player_two);
-	    if (VERBOSE)
-	      printf("%02x] ctl %.3f",
-		     expt_value_after,
-		     expt_control);
-	    // XXX we expect the value to decrement as before, though
-	    // it's also reasonable for the death routine to be like
-	    // void Die() {
-	    //   if (lives == 0) goto GameOver();
-	    //   lives--;
-	    // }
-	    // ... but we can penalize the location for doing something
-	    // nonsensical here.
-	    
-	    // Increase score when base_control > expt_control
-	    // (that is, we have less control now).
-	    ++*tests;
-	    *score += (base_control - expt_control);
-	  } else {
-	    if (VERBOSE) printf("X]");
-	  }
-	  if (VERBOSE) printf("\n");
-	};
-      
-      Test(0, &tests_with_zero, &score_with_zero);
-      Test(1, &tests_with_one, &score_with_one);
-    }
+	  const uint8 base_value_before = emu->ReadRAM(loc);
+	  // If it already contains 0, we won't do any tests. So save
+	  // us from doing the expensive IsInControl call for base.
+	  if (base_value_before == 0)
+	    continue;
+	  // Execute the inputs with the normal number of lives.
+	  emu->Step16(frame.inputs);
+	  const uint8 base_value_after = emu->ReadRAM(loc);
+	  const float base_control = IsInControl(emu->SaveUncompressed(),
+						 xloc, yloc,
+						 player_two);
 
+	  // TODO: We could increase our confidence by doing this for
+	  // many more values.
+	  
+	  // Now, do the same for some other small but different value.
+	  // We expect that our value is decremented the same amount,
+	  // and that we retain control.
+	  const uint8 alt_value_before = base_value_before + 1;
+	  emu->LoadUncompressed(frame.save);
+	  emu->SetRAM(loc, alt_value_before);
+	  emu->Step16(frame.inputs);
+	  const uint8 alt_value_after = emu->ReadRAM(loc);
+	  const uint8 dbase = base_value_before - base_value_after;
+	  const uint8 dalt = alt_value_before - alt_value_after;
+	  // We expect to decrement by the same amount.
+	  // Two cases where this may be too strict:
+	  //   - this frame is actually our last life. In this case,
+	  //     though, we can't conduct the experiment anyway.
+	  //     (but would be better if we 'continue;')
+	  //   - We are trying to increment health or something past
+	  //     its maximum, and somehow there's a check for that
+	  //     before the player takes damage. I think this is
+	  //     probably very rare?
+	  if (dbase != dalt) {
+	    if (VERBOSE)
+	      printf("%04x failed alt test: base %d->%d alt %d->%d\n",
+		     loc, base_value_before, base_value_after,
+		     alt_value_before, alt_value_after);
+	    return false;
+	  }
+	  const float alt_control = IsInControl(emu->SaveUncompressed(),
+						xloc, yloc,
+						player_two);
+	  
+	  // If we aren't able to set this to some other "alive"
+	  // value and retain control, something is wrong.
+	  if (fabs(base_control - alt_control) > 0.05) {
+	    if (VERBOSE)
+	      printf("%04x inconsistent control:\n"
+		     "     base %d->%d (ctl %.4f) vs alt %d->%d (ctl %.4f)\n",
+		     loc, base_value_before, base_value_after, base_control,
+		     alt_value_before, alt_value_after, alt_control);
+	    return false;
+	  }
+
+	  // XXX skip if not enough control in base (absolute threshold)?
+	  
+	  // Test with the lives value set to set_to, if applicable.
+	  auto Test =
+	    [this, xloc, yloc, player_two, loc, &frame,
+	     base_control, base_value_before, base_value_after](
+		 uint8 set_to, int *tests, float *score) {
+	      emu->LoadUncompressed(frame.save);
+	      uint8 *ram = emu->GetFC()->fceu->RAM;
+	      const uint8 expt_value_before = ram[loc];
+	      CHECK(expt_value_before == base_value_before);
+	      if (VERBOSE)
+		printf(" test ram[%04x] base (%02x->%02x) ctl %.3f  expt (%02x->",
+		       loc, base_value_before, base_value_after,
+		       base_control, set_to);
+	      if (expt_value_before > set_to) {
+		// Modify memory.
+		ram[loc] = set_to;
+		emu->Step16(frame.inputs);
+		ram = emu->GetFC()->fceu->RAM;
+		const uint8 expt_value_after = ram[loc];
+		const float expt_control = IsInControl(emu->SaveUncompressed(),
+						       xloc, yloc, player_two);
+		if (VERBOSE)
+		  printf("%02x) ctl %.3f",
+			 expt_value_after,
+			 expt_control);
+
+		// XXX we expect the value to decrement as before, though
+		// it's also reasonable for the death routine to be like
+		// void Die() {
+		//   if (lives == 0) goto GameOver();
+		//   lives--;
+		// }
+		// But we could penalize the location for doing something
+		// nonsensical here.
+		
+		// Increase score when base_control > expt_control
+		// (that is, we have less control now).
+		++*tests;
+		*score += (base_control - expt_control);
+	      } else {
+		if (VERBOSE) printf("skip)");
+	      }
+	      if (VERBOSE) printf("\n");
+	    };
+
+	  Test(0, &tests_with_zero, &score_with_zero);
+	  Test(1, &tests_with_one, &score_with_one);
+	}
+	return true;
+      };
+
+    // If we're unable to change the value of the memory location
+    // (to some small value that's not 1 or 0), then we just filter
+    // it out.
+    if (!AnalyzeFrames())
+      continue;
+      
     // Inspect the actual values that the memory location takes on.
     const float valuescore = ScoreValues(info.decremented_saves);
     // Discount the score if we saw increments.
