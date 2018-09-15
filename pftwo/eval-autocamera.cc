@@ -468,7 +468,7 @@ static void EvalAll() {
       }
     };
   
-  vector<EvalGame> results = ParallelMapi(games, EvalWithProgress, 11);
+  vector<EvalGame> results = ParallelMapi(games, EvalWithProgress, 60);
   (void)results;
   printf(" == Summary ==\n");
   string col1h = Util::Pad(24, "game.nes");
@@ -499,7 +499,17 @@ int main(int argc, char *argv[]) {
   if (!SetPriorityClass(GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)) {
     LOG(FATAL) << "Unable to go to BELOW_NORMAL priority.\n";
   }
-  #endif
+
+  // Turn on ANSI support in Windows 10+. (Otherwise, use ANSICON etc.)
+  // https://docs.microsoft.com/en-us/windows/console/setconsolemode
+  HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+  // mingw may not know about this new flag
+  static constexpr int kVirtualTerminalProcessing = 0x0004;
+  DWORD old_mode = 0;
+  GetConsoleMode(hStdOut, &old_mode);
+  // printf("%lld\n", old_mode);
+  SetConsoleMode(hStdOut, old_mode | kVirtualTerminalProcessing);
+#endif
 
   EvalAll();
   return 0;
