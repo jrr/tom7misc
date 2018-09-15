@@ -30,6 +30,14 @@ vector<uint8> Emulator::GetMemory() {
   return mem;
 }
 
+uint8 Emulator::ReadRAM(int idx) const {
+  return fc->fceu->RAM[idx];
+}
+
+void Emulator::SetRAM(int idx, uint8 value) {
+  fc->fceu->RAM[idx] = value;
+}
+
 static inline uint64 MD5ToChecksum(const uint8 digest[16]) {
   uint64 res = 0ULL;
   for (int i = 0; i < 8; i++) {
