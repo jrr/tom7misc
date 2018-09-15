@@ -130,6 +130,10 @@ struct Emulator {
   // 0 PC (16 bit) A X Y S P
   // P is flags. The high 8 bits are always 0.
   uint64 Registers() const;
+
+  // No bounds checking; idx must be in [0, 2047].
+  uint8 ReadRAM(int idx) const;
+  void SetRAM(int idx, uint8 value);
   
   // XXXXX debugging only.
   FC *GetFC() { return fc; }
