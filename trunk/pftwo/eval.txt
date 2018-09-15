@@ -1,4 +1,15 @@
 
+On threadripper 2990wx:
+real    48m8.259s
+user    0m0.015s
+sys     0m0.015s
+
+... note that this runs out of parallelism. Several
+straggler jobs. Lots of stuff is parallelizable in
+autolives, so we could probably speed this up way
+more, but it's probably not really important for
+pftwo itself, since it just needs to run once (?)
+
 New version rewrote "alt" stuff since it had some
 other dumb bugs in it. Also turned off timer
 detection since that is known to be wrong, too.
