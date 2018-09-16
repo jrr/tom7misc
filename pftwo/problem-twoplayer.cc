@@ -356,6 +356,7 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
 	 x1_loc, y1_loc, x2_loc, y2_loc);
 
   // XXX use autocamera2, which works much better (or a blend?)
+  (void)TryAutoCameras;
   #if 0
   TryAutoCameras(game, original_inputs,
 		 &x1_loc, &y1_loc, &x2_loc, &y2_loc);

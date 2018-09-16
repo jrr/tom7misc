@@ -141,6 +141,8 @@
 
 #include "../fceulib/emulator.h"
 #include "../cc-lib/arcfour.h"
+#include "random-pool.h"
+#include "emulator-pool.h"
 
 // Focus is on quality and debuggability, not performance.
 struct AutoCamera2 {
@@ -193,8 +195,8 @@ struct AutoCamera2 {
   static vector<XLoc> MergeXLocs(const vector<vector<XLoc>> &samples);
 
 private:
-  ArcFour rc;
-  std::unique_ptr<Emulator> emu, lemu, remu;
+  RandomPool random_pool;
+  EmulatorPool emu_pool;
 };
   
 #endif

@@ -242,7 +242,7 @@ struct Testui {
 };
 
 /**
- * The main loop for the SDL.
+ * The main loop for SDL.
  */
 int main(int argc, char *argv[]) {
   fprintf(stderr, "Init SDL\n");

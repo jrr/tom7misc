@@ -17,6 +17,9 @@
 #include "../cc-lib/gtl/top_n.h"
 #include "../fceulib/simplefm2.h"
 
+#include "random-pool.h"
+#include "emulator-pool.h"
+
 static constexpr int NUM_SPRITES = 64;
 // Absolute difference allowed between memory location and sprite
 // location along one dimension. 0 would mean exact match, 1 means
@@ -104,13 +107,8 @@ static vector<Linkage> GetBestLinkages(
   return std::move(*best);
 }
 
-AutoCamera2::AutoCamera2(const string &game) : rc(game) {
-  emu.reset(Emulator::Create(game));
-  lemu.reset(Emulator::Create(game));
-  remu.reset(Emulator::Create(game));
-  CHECK(emu.get() != nullptr) << game;
-  CHECK(lemu.get() != nullptr) << game;
-  CHECK(remu.get() != nullptr) << game;
+AutoCamera2::AutoCamera2(const string &game) : random_pool(game, 1),
+					       emu_pool(game, 3) {
 }
 
 AutoCamera2::~AutoCamera2() {}
@@ -128,12 +126,13 @@ vector<Linkage> AutoCamera2::FindLinkages(
     const std::function<void(string)> &report) {
   // This is parallelizable, but probably simpler to organize the
   // parallelism across samples rather than within one.
-  // (But should we take emu as an argument, then?)
+  ArcFour *rc = random_pool.Acquire();
+  Emulator *emu = emu_pool.Acquire();
   emu->LoadUncompressed(save);
-
+  
   vector<uint8> orig_mem = emu->GetMemory();
-  StepEmu(emu.get());
-  OAM orig_oam{emu.get()};
+  StepEmu(emu);
+  OAM orig_oam{emu};
 
   // This is the scroll at the end of the frame.
   const uint32 orig_xscroll = emu->GetXScroll();
@@ -187,9 +186,9 @@ vector<Linkage> AutoCamera2::FindLinkages(
   // The value must also be between low and high, inclusive. Make
   // sure this interval is wide enough, or it may not terminate!
   auto GetNewCoord =
-    [this](uint8 old, uint8 low, uint8 high) {
+    [rc](uint8 old, uint8 low, uint8 high) {
       for (;;) {
-	const uint8 z = rc.Byte();
+	const uint8 z = rc->Byte();
 	if (z >= low && z <= high) {
 	  if (z < old) {
 	    if (old - z >= MIN_RANDOM_DISTANCE) return z;
@@ -212,7 +211,7 @@ vector<Linkage> AutoCamera2::FindLinkages(
     std::unordered_map<int, bool> coord_memo;
     vector<int> xcand_new, ycand_new;
     auto NoEffect =
-      [this, &coord_memo, &save, &orig_mem, &orig_oam, &GetNewCoord](
+      [emu, &coord_memo, &save, &orig_mem, &orig_oam, &GetNewCoord](
 	  int loc, uint8 low, uint8 high) {
 	auto it = coord_memo.find(loc);
 	if (it != coord_memo.end()) return it->second;
@@ -223,8 +222,8 @@ vector<Linkage> AutoCamera2::FindLinkages(
 
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	ram[loc] = newv;
-	StepEmu(emu.get());
-	OAM new_oam{emu.get()};
+	StepEmu(emu);
+	OAM new_oam{emu};
 	const bool no_effect = new_oam.Equals(orig_oam);
 	coord_memo[loc] = no_effect;
 	return no_effect;
@@ -277,8 +276,8 @@ vector<Linkage> AutoCamera2::FindLinkages(
 	uint8 *ram = emu->GetFC()->fceu->RAM;
 	ram[xc] = newx;
 	ram[yc] = newy;
-	StepEmu(emu.get());
-	OAM new_oam{emu.get()};
+	StepEmu(emu);
+	OAM new_oam{emu};
 
 	const int dx = (int)newx - (int)oldx, dy = (int)newy - (int)oldy;
 	// Otherwise, for each changed sprite, compute the delta.
@@ -309,7 +308,9 @@ vector<Linkage> AutoCamera2::FindLinkages(
   (void)filtered;
   (void)rejected_all_equal;
   (void)working_pairs;
-  
+
+  emu_pool.Release(emu);
+  random_pool.Release(rc);
   return best;
 }
 
@@ -403,6 +404,10 @@ vector<XLoc> AutoCamera2::FindXLocs(
   //  - We treat coordinates modularly, so that e.g. 1 is considered
   //    slightly to the right of 255.
 
+  Emulator *emu = emu_pool.Acquire();
+  Emulator *lemu = emu_pool.Acquire();
+  Emulator *remu = emu_pool.Acquire();
+  
   // Original position.
   emu->LoadUncompressed(save);
   for (int i = 0; i < COOLDOWN_FRAMES; i++) {
@@ -448,6 +453,9 @@ vector<XLoc> AutoCamera2::FindXLocs(
     lmem.swap(now_lmem);
     rmem.swap(now_rmem);
   }
-  
+
+  emu_pool.Release(emu);
+  emu_pool.Release(lemu);
+  emu_pool.Release(remu);
   return GetBestXLocs(scores);
 }
