@@ -34,6 +34,9 @@
 #include "../cc-lib/arcfour.h"
 #include "n-markov-controller.h"
 
+#include "random-pool.h"
+#include "emulator-pool.h"
+
 // As with autocamera, focus is on quality and debuggability, not
 // performance.
 struct AutoLives {
@@ -71,9 +74,9 @@ struct AutoLives {
   static vector<LivesLoc> MergeLives(const vector<vector<LivesLoc>> &lv);
   
 private:
-  ArcFour rc;
-  NMarkovController nmarkov;
-  std::unique_ptr<Emulator> emu, lemu, remu, memu;
+  RandomPool random_pool;
+  EmulatorPool emulator_pool;
+  const NMarkovController nmarkov;
 };
 
 #endif
