@@ -3,7 +3,7 @@
    Then, compute a minimal spanning tree comprising all points.
    Output to KML or SVG. *)
 
-structure Radial = 
+structure Radial =
 struct
   structure G = PacTom.G
 
@@ -21,9 +21,9 @@ struct
               raise e
           end
 
-  val () = msg ("There are " ^ Int.toString (Vector.length (PacTom.paths pt)) ^ 
+  val () = msg ("There are " ^ Int.toString (Vector.length (PacTom.paths pt)) ^
                 " paths\n" ^
-                "      and " ^ Int.toString (Vector.length (PacTom.overlays pt)) ^ 
+                "      and " ^ Int.toString (Vector.length (PacTom.overlays pt)) ^
                 " overlays")
 
   val { graph, promote } = PacTom.spanning_graph pt PacTom.home
@@ -59,10 +59,10 @@ struct
                   in
                       case LatLon.angle (pos, ppos) of
                           NONE => msg "no angle!"
-                        | SOME r => 
+                        | SOME r =>
                               let val b = radians_to_bin r
                               in
-                                  Array.update 
+                                  Array.update
                                   (color_bins, b,
                                    (pos, ppos) :: Array.sub (color_bins, b))
                               end
@@ -81,7 +81,7 @@ struct
       end
 
   fun writebinkml write (idx, segments) =
-      let 
+      let
           val color = anglecolor (real idx / real (Array.length color_bins))
           fun writept (pos, ppos) =
               write("<LineString><coordinates>" ^
@@ -97,7 +97,7 @@ struct
           app writept segments;
           write "</MultiGeometry></Placemark>\n"
       end
-  
+
   fun writekml "" = msg "Skipping KML."
     | writekml fname =
       let val f = TextIO.openOut fname
@@ -116,7 +116,7 @@ struct
 
         write  "</Folder>\n";
         write  "</kml>\n";
-        
+
         TextIO.closeOut f
       end
 
@@ -125,9 +125,9 @@ struct
       let
           val f = TextIO.openOut fname
           fun write s = TextIO.output(f, s)
-          fun projection p = 
+          fun projection p =
               let val (x, y) = LatLon.gnomonic PacTom.home p
-              in 
+              in
                   (* Scale up massively, and invert Y axis. *)
                   (240000.0 * x, ~240000.0 * y)
               end
@@ -143,13 +143,13 @@ struct
                               app (fn (a, b) => (addpt a; addpt b)) segments) color_bins
 
 
-          fun writept (x : real, y : real) = 
-              write (PacTom.rtos (Bounds.offsetx bounds x) ^ " " ^ 
+          fun writept (x : real, y : real) =
+              write (PacTom.rtos (Bounds.offsetx bounds x) ^ " " ^
                      PacTom.rtos (Bounds.offsety bounds y))
 
 
           fun writebin (idx, segments) =
-              let 
+              let
                   val color = anglecolor (real idx / real (Array.length color_bins))
                   fun writeseg (pos : LatLon.pos, ppos : LatLon.pos) =
                       let in
@@ -165,11 +165,19 @@ struct
                   app writeseg segments;
                   write "\"/>\n"
               end
+
+          val width = Real.trunc (Bounds.width bounds)
+          val height = Real.trunc (Bounds.height bounds)
       in
-          write (TextSVG.svgheader { x = 0, y = 0, 
-                                     width = Real.trunc (Bounds.width bounds), 
-                                     height = Real.trunc (Bounds.height bounds),
+          write (TextSVG.svgheader { x = 0, y = 0,
+                                     width = width,
+                                     height = height,
                                      generator = "shortestpaths.sml" });
+          (* dark background *)
+          write ("<rect x=\"-10\" y=\"-10\" width=\"" ^
+                 Int.toString (width + 20) ^ "\" height=\"" ^
+                 Int.toString (height + 20) ^ "\" " ^
+                 "style=\"fill:rgb(20,20,32)\" />\n");
           Array.appi writebin color_bins;
           write (TextSVG.svgfooter ())
       end
@@ -179,12 +187,12 @@ struct
           writekml (!kmlout);
           writesvg (!svgout)
       end
-      
 
-  val () = 
-      Params.main0 
+
+  val () =
+      Params.main0
       ("Takes no arguments and reads KML files in the " ^
        "current directory. Should specify at least one output " ^
        "format, or nothing will happen.") main
-      
+
 end
