@@ -267,18 +267,6 @@ static float ScoreValues(const vector<Frame> &frames) {
   else return minbefore * 0.5f;
 }
 
-// Pick a different value of cur that should not be "special".
-// The idea is that lives/health should allow most small
-// integral values other than 1/0. Value will be different
-// from cur.
-static uint8 SafeAlternateValue(uint8 cur) {
-  // XXX actually, don't pick something so low, because for
-  // health we often take more than one unit of damage at
-  // a time. Take the before and after values...
-  if (cur == 2) return 3;
-  else return 2;
-}
-
 // Gaining extra lives or health is certainly possible, but
 // should be less common than dying or taking damage in random
 // play.
@@ -545,7 +533,8 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 	      const uint8 expt_value_before = ram[loc];
 	      CHECK(expt_value_before == base_value_before);
 	      if (VERBOSE)
-		printf(" test ram[%04x] base (%02x->%02x) ctl %.3f  expt (%02x->",
+		printf(" test ram[%04x] base (%02x->%02x) ctl %.3f  "
+		       "expt (%02x->",
 		       loc, base_value_before, base_value_after,
 		       base_control, set_to);
 	      if (expt_value_before > set_to) {

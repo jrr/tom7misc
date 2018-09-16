@@ -402,9 +402,9 @@ static void EvalAll() {
   CHECK(outfile) << "results.txt";
 
   // or getmatching...
-  vector<Game> games = GameDB().GetAll();
-  // vector<Game> games = GameDB().GetMatching(
-  // {"mario", "contra", "rocketeer", "werewolf"});
+  // vector<Game> games = GameDB().GetAll();
+  vector<Game> games = GameDB().GetMatching(
+   {"mario", "contra", "rocketeer", "werewolf"});
   
   std::mutex status_m;
   vector<RunState> states;
@@ -455,6 +455,9 @@ static void EvalAll() {
       return res;
     };
 
+  vector<EvalGame> results = ParallelMapi(games, EvalWithProgress, 60);
+  (void)results;
+  
   auto Color3 =
     [](int found, int known, int loss) -> const char * {
       if (known == 0) return "";
@@ -468,8 +471,29 @@ static void EvalAll() {
       }
     };
   
-  vector<EvalGame> results = ParallelMapi(games, EvalWithProgress, 60);
-  (void)results;
+  struct EvalStats {
+    int has_data = 0;
+    int perfect = 0;
+    int any = 0;
+    int total_loss = 0;
+  };
+    
+  auto Stats3 =
+    [](int found, int known, int loss, EvalStats *stats) {
+      if (known > 0) {
+	stats->has_data++;
+	if (found == known) stats->perfect++;
+	if (found > 0) stats->any++;
+	stats->total_loss += loss;
+      }
+    };
+
+  EvalStats locs_stats, lives_stats;
+  for (const EvalGame &g : results) {
+    Stats3(g.locs_found, g.locs_known, g.locs_rank_loss, &locs_stats);
+    Stats3(g.lives_found, g.lives_known, g.lives_rank_loss, &lives_stats);
+  }
+  
   printf(" == Summary ==\n");
   string col1h = Util::Pad(24, "game.nes");
   printf("%sp recall\tp rank loss\tl recall\t rank loss\n", col1h.c_str());
@@ -489,6 +513,14 @@ static void EvalAll() {
 	   g.lives_rank_loss);
   }
 
+  printf("\n"
+	 "  Locs: %d/%d perfect. %d any. %d total loss\n"
+	 " Lives: %d/%d perfect. %d any. %d total loss\n",
+	 locs_stats.perfect, locs_stats.has_data,
+	 locs_stats.any, locs_stats.total_loss,
+	 lives_stats.perfect, lives_stats.has_data,
+	 lives_stats.any, lives_stats.total_loss);
+  
   fclose(outfile);
 }
 
@@ -502,14 +534,17 @@ int main(int argc, char *argv[]) {
 
   // Turn on ANSI support in Windows 10+. (Otherwise, use ANSICON etc.)
   // https://docs.microsoft.com/en-us/windows/console/setconsolemode
+  //
+  // TODO: This works but seems to subsequently break control keys
+  // and stuff like that in cygwin bash?
   HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
-  // mingw may not know about this new flag
+  // mingw headers may not know about this new flag
   static constexpr int kVirtualTerminalProcessing = 0x0004;
   DWORD old_mode = 0;
   GetConsoleMode(hStdOut, &old_mode);
   // printf("%lld\n", old_mode);
   SetConsoleMode(hStdOut, old_mode | kVirtualTerminalProcessing);
-#endif
+  #endif
 
   EvalAll();
   return 0;
