@@ -1,7 +1,7 @@
 game contra.nes
-movie contra2pwaterfall.fm2
+movie contra2p.fm7
 # workers 11
-workers 11
+workers 60
 
 warmup 800
 # fastforward 7700

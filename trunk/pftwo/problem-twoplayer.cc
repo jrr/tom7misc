@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "../fceulib/simplefm2.h"
+#include "../fceulib/simplefm7.h"
 #include "n-markov-controller.h"
 #include "weighted-objectives.h"
 #include "learnfun.h"
@@ -331,7 +332,10 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   printf("Create TPP for %s...\n", game.c_str());
   const string movie = GetDefault(config, "movie", "");
   printf("Read inputs for %s\n", movie.c_str());
-  original_inputs = SimpleFM2::ReadInputs2P(movie);
+  original_inputs = Util::endswith(movie, ".fm2") ?
+      SimpleFM2::ReadInputs2P(movie) :
+      SimpleFM7::ReadInputs2P(movie);
+
   CHECK(!original_inputs.empty()) << "No inputs in " << movie;
 
   string protect = GetDefault(config, "protect", "");
@@ -343,7 +347,6 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
     }
   }
 
-  #if 0
   // Hardcoded cheatin' version.
   x1_loc = AtoiHex(GetDefault(config, "x1", "-1"));
   y1_loc = AtoiHex(GetDefault(config, "y1", "-1"));
@@ -351,8 +354,9 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   y2_loc = AtoiHex(GetDefault(config, "y2", "-1"));
   printf("[CHEATIN'] Players at %d,%d and %d,%d\n",
 	 x1_loc, y1_loc, x2_loc, y2_loc);
-  #endif
 
+  // XXX use autocamera2, which works much better (or a blend?)
+  #if 0
   TryAutoCameras(game, original_inputs,
 		 &x1_loc, &y1_loc, &x2_loc, &y2_loc);
   // XXX these should not be fatal! Just disable the goal-seeking stuff.
@@ -360,6 +364,7 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   CHECK(x2_loc >= 0 && y2_loc >= 0) << "Autocamera failed for player 2";
   printf("Autocamera results: P1 %d,%d   P2 %d,%d\n",
 	 x1_loc, y1_loc, x2_loc, y2_loc);
+  #endif
   
   warmup_frames = AtoiHex(GetDefault(config, "warmup", "-1"));
   // XXX: Deduce this from input.

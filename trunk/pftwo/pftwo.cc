@@ -120,7 +120,8 @@
 
 // Screen dimensions.
 #define WIDTH 1920
-#define HEIGHT 1080
+// #define HEIGHT 1080
+#define HEIGHT 880
 
 // XXX move to library?
 static std::mutex print_mutex;
@@ -338,7 +339,7 @@ struct UIThread {
       }
 
       CHECK_EQ(texts.size(), screenshots.size());
-      for (int i = 0; i < texts.size(); i++) {
+      for (int i = 0; i < texts.size() && i < 12 /* XXX */; i++) {
 	int x = i % 12;
 	int y = i / 12;
 	BlitARGBHalf(screenshots[i], 256, 256,
