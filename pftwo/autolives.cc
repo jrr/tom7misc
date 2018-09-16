@@ -89,16 +89,9 @@ struct InputGenerator {
 
 AutoLives::AutoLives(
     const string &game,
-    NMarkovController nmarkov) : rc(game),
+    NMarkovController nmarkov) : random_pool(game),
+				 emulator_pool(game, 4),
 				 nmarkov(std::move(nmarkov)) {
-  emu.reset(Emulator::Create(game));
-  lemu.reset(Emulator::Create(game));
-  remu.reset(Emulator::Create(game));
-  memu.reset(Emulator::Create(game));
-  CHECK(emu.get() != nullptr) << game;
-  CHECK(lemu.get() != nullptr) << game;
-  CHECK(remu.get() != nullptr) << game;
-  CHECK(memu.get() != nullptr) << game;
 }
 
 AutoLives::~AutoLives() {}
@@ -110,6 +103,12 @@ float AutoLives::IsInControl(const vector<uint8> &save,
 			     int xloc, int yloc,
 			     bool player_two) {
 
+  Emulator *emu = emulator_pool.Acquire();
+  Emulator *lemu = emulator_pool.Acquire();
+  Emulator *remu = emulator_pool.Acquire();
+  Emulator *memu = emulator_pool.Acquire();
+  ArcFour *rc = random_pool.Acquire();
+  
   // Initialize them all to the same state.
   emu->LoadUncompressed(save);
   lemu->LoadUncompressed(save);
@@ -130,7 +129,7 @@ float AutoLives::IsInControl(const vector<uint8> &save,
     // remu holds right,
     remu->Step16(MakePlayer(INPUT_R));
     // mash emu gets random inputs
-    const uint8 input = gen.Next(&rc);
+    const uint8 input = gen.Next(rc);
     memu->Step16(MakePlayer(input));
     // XXX use nmarkov now that we have it?
     
@@ -161,6 +160,11 @@ float AutoLives::IsInControl(const vector<uint8> &save,
     }
   }
 
+  random_pool.Release(rc);
+  emulator_pool.Release(emu);
+  emulator_pool.Release(lemu);
+  emulator_pool.Release(remu);
+  emulator_pool.Release(memu);
   return success / (float)TEST_CONTROL_FRAMES;
 }
 
@@ -282,6 +286,9 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 						 int xloc, int yloc,
 						 bool player_two) {
 
+  Emulator *emu = emulator_pool.Acquire();
+  ArcFour *rc = random_pool.Acquire();
+  
   auto MakePlayer = [player_two](uint8 inputs) {
     return player_two ? ((uint16)inputs << 8) : (uint16)inputs;
   };
@@ -315,7 +322,7 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 
       vector<uint8> save_before_inputs = emu->SaveUncompressed();
       
-      const uint8 input = nmarkov.RandomNext(nhist, &rc);
+      const uint8 input = nmarkov.RandomNext(nhist, rc);
       nhist = nmarkov.Push(nhist, input);
       const uint16 input16 = MakePlayer(input);
       emu->Step16(input16);
@@ -427,7 +434,8 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 
       if (AllInterval(ival)) {
 	if (VERBOSE)
-	  printf("%04x decremented %d times with consistent ival of %d frames\n",
+	  printf("%04x decremented %d times with "
+		 "consistent ival of %d frames\n",
 		 it->first, (int)info.decremented_saves.size(), ival);
 	it = EraseIt(locs, it);
 	continue;
@@ -525,7 +533,7 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 	  
 	  // Test with the lives value set to set_to, if applicable.
 	  auto Test =
-	    [this, xloc, yloc, player_two, loc, &frame,
+	    [this, emu, rc, xloc, yloc, player_two, loc, &frame,
 	     base_control, base_value_before, base_value_after](
 		 uint8 set_to, int *tests, float *score) {
 	      emu->LoadUncompressed(frame.save);
@@ -634,6 +642,9 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
     }
   }
 
+  random_pool.Release(rc);
+  emulator_pool.Release(emu);
+  
   return results;
 }
 
