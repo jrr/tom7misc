@@ -102,9 +102,9 @@ static const char *StateChar(RunState s) {
   switch(s) {
   case RunState::WAITING: return " ";
   case RunState::START: return ANSI_YELLOW ">" ANSI_RESET;
-  case RunState::RUNNING_AC: return ANSI_BLUE "C" ANSI_RESET;
+  case RunState::RUNNING_AC: return ANSI_CYAN "C" ANSI_RESET;
   case RunState::RUNNING_AL: return ANSI_PURPLE "L" ANSI_RESET;
-  case RunState::STATS: return ANSI_CYAN "S" ANSI_RESET;
+  case RunState::STATS: return ANSI_BLUE "S" ANSI_RESET;
   case RunState::DONE: return ANSI_GREEN "-" ANSI_RESET;
   default: return "?";
   }
@@ -464,6 +464,7 @@ struct Evaluation {
 	    one->progress[sample]++;
 	  }
 
+	  ShowTable();
 	}, MAX_CONCURRENCY);
 
     ShowTable();
@@ -582,6 +583,8 @@ struct Evaluation {
 	StatsPlayer(one->game.p2, one->rescored_locs2, one->lives2);
 
 	}, MAX_CONCURRENCY);
+
+    ShowTable();
   }
   
   // xxx ugh
