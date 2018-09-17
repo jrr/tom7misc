@@ -39,6 +39,8 @@
 
 // As with autocamera, focus is on quality and debuggability, not
 // performance.
+//
+// Thread safe.
 struct AutoLives {
   // Creates some private emulator instances that it can reuse.
   // Wants a markov model for generating inputs.
