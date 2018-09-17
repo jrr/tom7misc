@@ -31,6 +31,7 @@
 #include "autolives.h"
 #include "game-database.h"
 
+static constexpr int MAX_CONCURRENCY = 12;
 
 #ifdef ENABLE_AOT
 # error eval-autocamera can not use AOT (needs to load multiple games)
@@ -72,9 +73,7 @@ static string Rtos(double d) {
 }
 
 namespace {
-struct EvalGame {
-  Game game;
-
+struct Stats {
   // Outputs.
   int locs_found = 0;
   int locs_known = 0;
@@ -90,374 +89,524 @@ struct EvalGame {
 }
 
 
-enum RunState {
+enum class RunState {
   WAITING = 0,
   START,
   RUNNING_AC,
   RUNNING_AL,
+  STATS,
   DONE,
 };
 
 static const char *StateChar(RunState s) {
   switch(s) {
-  case WAITING: return " ";
-  case START: return ANSI_YELLOW ">" ANSI_RESET;
-  case RUNNING_AC: return ANSI_BLUE "C" ANSI_RESET;
-  case RUNNING_AL: return ANSI_PURPLE "L" ANSI_RESET;
-  case DONE: return ANSI_GREEN "-" ANSI_RESET;
+  case RunState::WAITING: return " ";
+  case RunState::START: return ANSI_YELLOW ">" ANSI_RESET;
+  case RunState::RUNNING_AC: return ANSI_BLUE "C" ANSI_RESET;
+  case RunState::RUNNING_AL: return ANSI_PURPLE "L" ANSI_RESET;
+  case RunState::STATS: return ANSI_CYAN "S" ANSI_RESET;
+  case RunState::DONE: return ANSI_GREEN "-" ANSI_RESET;
   default: return "?";
   }
 };
 
-// xxx ugh
-static std::mutex file_mutex;
-static FILE *outfile = nullptr;
-
-static EvalGame EvalOne(const Game &game,
-			std::function<void(RunState)> setstate,
-			std::function<void(string)> report) {
-  const int NUM_SAMPLES = 10;
-  const int SAMPLE_EVERY = 500;
-  const string &romfile = game.romfile;
-  vector<pair<uint8, uint8>> movie =
-    SimpleFM7::ReadInputs2P(game.moviefile);
-  CHECK(!movie.empty()) << "Couldn't read movie: " << game.moviefile;
-  CHECK(movie.size() > WARMUP_FRAMES + (SAMPLE_EVERY * NUM_SAMPLES)) <<
-    game.moviefile << " not long enough!";
-
-  vector<uint8> p1inputs;
-  for (const auto &p : movie) p1inputs.push_back(p.first);
-  NMarkovController nmarkov(p1inputs, 3);
-  
-  unique_ptr<Emulator> emu;
-  emu.reset(Emulator::Create(romfile));
-  CHECK(emu.get() != nullptr) << romfile;
-
-  // Warm up.
-  int frameidx = 0;
-  for (int i = WARMUP_FRAMES; i--;) {
-    emu->StepFull(movie[frameidx].first, movie[frameidx].second);
-    frameidx++;
-  }
-  report("warmed up");
-
-  vector<vector<uint8>> samples;
-  samples.reserve(NUM_SAMPLES);
-  while (frameidx < movie.size() &&
-	 samples.size() < NUM_SAMPLES) {
-    if (frameidx % SAMPLE_EVERY == 0) {
-      samples.push_back(emu->SaveUncompressed());
-    }
-    emu->StepFull(movie[frameidx].first, movie[frameidx].second);
-    frameidx++;
-  }
-  report("got samples");
-  
-  setstate(RUNNING_AC);
-  AutoCamera2 ac{romfile};
-
-  vector<vector<Linkage>> links;
-  vector<vector<XLoc>> xlocs1, xlocs2;
-  links.reserve(samples.size());
-  xlocs1.reserve(samples.size());
-  xlocs2.reserve(samples.size());
-  for (const vector<uint8> &save : samples) {
-    auto one_report = [&report, &samples, &xlocs1, &xlocs2](const string &s) {
-			report(StringPrintf("[%d/%d] %s",
-					    (int)xlocs1.size(),
-					    (int)samples.size(),
-					    s.c_str()));
-		      };
-    links.push_back(ac.FindLinkages(save, one_report));
-    xlocs1.push_back(ac.FindXLocs(save, false, one_report));
-
-    // Should be no harm in running this when the game isn't actually
-    // two-player, but it's a waste of time.
-    if (game.is_two_player)
-      xlocs2.push_back(ac.FindXLocs(save, true, one_report));
-  }
-
-  vector<Linkage> merged = AutoCamera2::MergeLinkages(links);
-  vector<XLoc> xmerged1 = AutoCamera2::MergeXLocs(xlocs1);
-  vector<XLoc> xmerged2 = AutoCamera2::MergeXLocs(xlocs2);
-
-  std::unordered_map<int, float> xscores1, xscores2;
-  for (const XLoc &x : xmerged1) xscores1[x.xloc] = x.score;
-  for (const XLoc &x : xmerged2) xscores2[x.xloc] = x.score;
-
-  // Now rescore using xlocs for each player.
-  vector<Linkage> rescored1 = merged, rescored2 = merged;
-  for (Linkage &l : rescored1) l.score *= (1.0f + xscores1[l.xloc]);
-  for (Linkage &l : rescored2) l.score *= (1.0f + xscores2[l.xloc]);
-  // Easy way to sort them again.
-  rescored1 = AutoCamera2::MergeLinkages({rescored1});
-  rescored2 = AutoCamera2::MergeLinkages({rescored2});
-
-  // Rescored1 and Rescored2 are the best guesses for each player.
-  
-  // Stringify an address, marking it if there's something known
-  // about that spot.
-  auto AddrInfo =
-    [&game](int loc) -> const char * {
-      // Prevent this from accidentally matching an "unknown" loc.
-      if (loc == -1) return "";
-      if (loc == game.p1.xloc) return "p1 x";
-      else if (loc == game.p1.yloc) return "p1 y";
-      else if (loc == game.p1.lives) return "p1 l";
-      else if (loc == game.p1.health) return "p1 h";
-      else if (loc == game.p2.xloc) return "p2 x";
-      else if (loc == game.p2.yloc) return "p2 y";
-      else if (loc == game.p2.lives) return "p2 l";
-      else if (loc == game.p2.health) return "p2 h";
-      else return "";
-    };
-
-  // Now compute stats.
-  {
-
-    auto MarkAddr =
-      [&AddrInfo](int loc) -> string {
-	if (loc == -1) return "-1";
-	const char *info = AddrInfo(loc);
-	if (info[0] == '\0') {
-	  return StringPrintf("%04x", loc);
-	} else {
-	  return StringPrintf("[%s %04x]", info, loc);
-	}
-      };
-    
-    MutexLock ml(&file_mutex);
-    if (outfile) {
-      fprintf(outfile, "[%s]: Rescored linkages:\n", romfile.c_str());
-      
-      auto PrintPlayer =
-	[&xscores1, &xscores2, &MarkAddr](
-	    const vector<Linkage> &rescored) {
-	  for (const Linkage &l : rescored) {
-	    string xs1 = ContainsKey(xscores1, l.xloc) &&
-	      xscores1[l.xloc] > 0.0f ?
-	      StringPrintf(" [1p: %.2f] ", xscores1[l.xloc]) : "";
-	    string xs2 = ContainsKey(xscores2, l.xloc) &&
-	      xscores2[l.xloc] > 0.0f ?
-	      StringPrintf(" [2p: %.2f] ", xscores2[l.xloc]) : "";
-
-	    fprintf(outfile,
-		    "  %.2f: %d/%d = %s,%s%s%s\n",
-		    l.score, l.xloc, l.yloc,
-		    MarkAddr(l.xloc).c_str(), MarkAddr(l.yloc).c_str(),
-		    xs1.c_str(), xs2.c_str());
-	  }
-	};
-
-      if (game.is_two_player) {
-	fprintf(outfile, " == 1P ==\n");
-	PrintPlayer(rescored1);
-	fprintf(outfile, " == 2P ==\n");
-	PrintPlayer(rescored2);
-      } else {
-	PrintPlayer(rescored1);
-      }
-      
-      fflush(outfile);
-    }
-  }
-
-
-  // Now, autolives for each player.
-  auto DoLives =
-    [&report, &romfile, &nmarkov, &samples](const vector<Linkage> &rescored,
-					    bool player_two) ->
-    vector<LivesLoc> {
-      if (rescored.empty())
-	return {};
-      const char *pstr = player_two ? "P2" : "P1";
-      const int xloc = rescored[0].xloc, yloc = rescored[0].yloc;
-      report(StringPrintf("Autolives %s with player loc %d/%d",
-			  pstr, xloc, yloc));
-
-      AutoLives autolives{romfile, nmarkov};
-      vector<vector<AutoLives::LivesLoc>> lives_samples;
-      lives_samples.reserve(samples.size());
-      for (const vector<uint8> &save : samples) {
-	lives_samples.push_back(
-	    autolives.FindLives(save, xloc, yloc, player_two));
-	report(StringPrintf("Autolives %s [%d/%d]", pstr,
-			    (int)lives_samples.size(), (int)samples.size()));
-      }
-      vector<AutoLives::LivesLoc> lives_merged =
-	AutoLives::MergeLives(lives_samples);
-
-      return lives_merged;
-    };
-
-  setstate(RUNNING_AL);
-  vector<LivesLoc> lives1 = DoLives(rescored1, false);
-  vector<LivesLoc> lives2 = game.is_two_player ? DoLives(rescored2, true) :
-    vector<LivesLoc>{};
-
-  if (!lives1.empty() || !lives2.empty()) {
-    MutexLock ml(&file_mutex);
-    if (outfile) {
-      fprintf(outfile, "[%s]: Merged lives:\n", romfile.c_str());
-
-      auto PLives =
-	[&AddrInfo](const Player &player,
-		    const vector<LivesLoc> &lives) {
-	  for (const LivesLoc &l : lives) {
-	    // XXX annotate if correct for player
-	    fprintf(outfile,
-		    "  %.3f: %d = %04x  %s\n",
-		    l.score, l.loc, l.loc, AddrInfo(l.loc));
-	  }
-	};
-
-      if (game.is_two_player) {
-	fprintf(outfile, "  == P1 ==\n");
-	PLives(game.p1, lives1);
-	fprintf(outfile, "  == P2 ==\n");
-	PLives(game.p2, lives2);
-      } else {
-	PLives(game.p1, lives1);
-      }
-      
-      fflush(outfile);
-    }
-  }
-
-  
-  EvalGame eval_game;
-  eval_game.game = game;
-
-  auto StatsPlayer =
-    [&eval_game](const Player &player,
-		 const vector<Linkage> &rescored,
-		 const vector<LivesLoc> &lives) {
-      if (player.xloc != -1 &&
-	  player.yloc != -1) {
-	eval_game.locs_known++;
-
-	int found = 0, rank_loss = 0;
-	for (const Linkage &l : rescored) {
-	  if (l.xloc == player.xloc && l.yloc == player.yloc) {
-	    // Found one of the expected pairs.
-	    found++;
-	    const float found_score = l.score;
-	    // Compute its rank loss, which is the number of pairs with
-	    // this score or less that are NOT in our set.
-	    for (const Linkage &ll : rescored) {
-	      if (ll.score < found_score)
-		break;
-
-	      if (ll.xloc != player.xloc || ll.yloc != player.yloc)
-		rank_loss++;
-	    }
-	  }
-	}
-
-	eval_game.locs_found += found;
-	eval_game.locs_rank_loss += rank_loss;
-      }
-
-      if (player.health != -1 ||
-	  player.lives != -1) {
-
-	if (player.health != -1)
-	  eval_game.lives_known++;
-	if (player.lives != -1)
-	  eval_game.lives_known++;
-
-	int found = 0, rank_loss = 0;
-	for (const LivesLoc &l : lives) {
-	  if (l.loc == player.health || l.loc == player.lives) {
-	    found++;
-	    const float found_score = l.score;
-	    for (const LivesLoc &ll : lives) {
-	      if (ll.score < found_score)
-		break;
-
-	      if (ll.loc != player.lives && ll.loc != player.health)
-		rank_loss++;
-	    }
-	  }
-	}
-
-	eval_game.lives_found += found;
-	eval_game.lives_rank_loss += rank_loss;
-      }
-    };
-
-  StatsPlayer(eval_game.game.p1, rescored1, lives1);
-  StatsPlayer(eval_game.game.p2, rescored2, lives2);
-  
-  report(StringPrintf("Done. Found %d/%d. Rank loss %d.",
-		      eval_game.locs_found,
-		      eval_game.locs_known,
-		      eval_game.locs_rank_loss));
-
-  return eval_game;
+static vector<uint8> Inputs1P(const vector<pair<uint8, uint8>> &inputs2p) {
+  vector<uint8> ret;
+  ret.reserve(inputs2p.size());
+  for (const auto &p : inputs2p) ret.push_back(p.first);
+  return ret;
 }
 
-static void EvalAll() {
-  outfile = fopen("results.txt", "w");
-  CHECK(outfile) << "results.txt";
-
-  // or getmatching...
-  // vector<Game> games = GameDB().GetAll();
-  vector<Game> games = GameDB().GetMatching(
-   {"mario", "contra", "rocketeer", "werewolf"});
+static constexpr int NUM_SAMPLES = 10;
+static constexpr int SAMPLE_EVERY = 500;
+struct Evaluation {
+  Evaluation() {
+    outfile = fopen("results.txt", "w");
+    CHECK(outfile) << "results.txt";
+  }
   
-  std::mutex status_m;
-  vector<RunState> states;
-  for (int i = 0; i < games.size(); i++) states.push_back(WAITING);
-  vector<string> status;
-  status.resize(games.size());
-  // Should hold mutex.
-  auto ShowTable =
-    [&games, &states, &status]() {
-      for (int i = 0; i < games.size() + 2; i++) {
-	printf("%s", ANSI_PREVLINE);
-      }
-      printf("\n---------------------------------\n");
-      for (int i = 0; i < games.size(); i++) {
+  struct One {
+    const Game game;
+    // Summary of the results.
+    Stats stats;
+    // Sampled 
+    vector<vector<uint8>> samples;
+    const vector<pair<uint8, uint8>> movie;
+    const NMarkovController nmarkov;
+    AutoCamera2 autocamera;
+    AutoLives autolives;
 
-	printf("[%s] " ANSI_WHITE "%s" ANSI_RESET ": %s" ANSI_CLEARTOEOL "\n",
-	       StateChar(states[i]),
-	       games[i].romfile.c_str(),
-	       status[i].c_str());
-      }
-    };
+    // Filled (in parallel) during phase 2.
+    // Same size as samples.
+    vector<vector<Linkage>> links;
+    vector<vector<XLoc>> xlocs1, xlocs2;
+    // Merged versions of the above, filled in phase 2.
+    // These are the best guesses at the player location(s).
+    vector<Linkage> rescored_locs1, rescored_locs2;
 
-  auto EvalWithProgress =
-    [&games, &status_m, &states, &status, &ShowTable](
-	int idx, const Game &game) {
-      {
-	MutexLock ml(&status_m);
-	states[idx] = START;
-	status[idx] = "Start";
-	// ShowTable();
-      }
-      auto Report = [idx, &status_m, &status, &ShowTable](const string &s) {
-		      MutexLock ml(&status_m);
-		      status[idx] = s;
-		      ShowTable();
-		    };
-      auto SetState = [idx, &status_m, &states](RunState s) {
-			MutexLock ml(&status_m);
-			states[idx] = s;
-		      };
+    // Filled during phase 3.
+    vector<vector<LivesLoc>> llocs1, llocs2;
+    // Final rescored guesses for player lives/health.
+    vector<LivesLoc> lives1, lives2;
+    
+    One(const Game &game,
+	const vector<pair<uint8, uint8>> &movie) :
+      game(game),
+      movie(movie),
+      nmarkov(Inputs1P(movie), 3),
+      autocamera(game.romfile),
+      autolives(game.romfile, nmarkov) {
       
-      EvalGame res = EvalOne(game, SetState, Report);
-      {
-	MutexLock ml(&status_m);
-	states[idx] = DONE;
-	ShowTable();
-      }
-      return res;
-    };
+      links.resize(NUM_SAMPLES);
+      xlocs1.resize(NUM_SAMPLES);
+      xlocs2.resize(NUM_SAMPLES);
 
-  vector<EvalGame> results = ParallelMapi(games, EvalWithProgress, 60);
-  (void)results;
+      llocs1.resize(NUM_SAMPLES);
+      llocs2.resize(NUM_SAMPLES);
+    }
+
+    // Protects just the status stuff so that the
+    // progress indicator can be rendered in another
+    // thread.
+    void SetStatus(RunState st, const char *msg) {
+      MutexLock ml(&status_m);
+      state = st;
+      message = msg;
+    }
+
+    std::mutex status_m;
+    // Number of players complete for each sample.
+    vector<int> progress;
+    const char *message = "init";
+    RunState state = RunState::WAITING;
+  };
+  vector<One *> games;
+
+  std::mutex table_m;
+  void ShowTable() {
+    MutexLock ml(&table_m);
+    for (int i = 0; i < games.size() + 2; i++) {
+      printf("%s", ANSI_PREVLINE);
+    }
+    printf("\n---------------------------------\n");
+    for (int i = 0; i < games.size(); i++) {
+      One *one = games[i];
+      MutexLock gml(&one->status_m);
+      printf("[%s] ", StateChar(one->state));
+      switch (one->state) {
+      case RunState::RUNNING_AC:
+      case RunState::RUNNING_AL:
+	printf("[");
+	for (int s = 0; s < one->progress.size(); s++) {
+	  char c = '?';
+	  switch (one->progress[s]) {
+	  default: break;
+	  case -1: c = ' '; break;
+	  case 0:  c = '_'; break;
+	  case 1:  c = '.'; break;
+	  case 2:  c = ':'; break;
+	  }
+	  printf("%c", c);
+	}
+	printf("] ");
+	break;
+      default:;
+      }
+      printf(ANSI_WHITE "%s" ANSI_RESET ": %s" ANSI_CLEARTOEOL "\n",
+	     one->game.romfile.c_str(),
+	     one->message);
+    }
+  }
+
+  // Stringify an address, marking it if there's something known
+  // about that spot.
+  static const char * AddrInfo(const One *one, int loc) {
+    // Prevent this from accidentally matching an "unknown" loc.
+    if (loc == -1) return "";
+    if (loc == one->game.p1.xloc) return "p1 x";
+    else if (loc == one->game.p1.yloc) return "p1 y";
+    else if (loc == one->game.p1.lives) return "p1 l";
+    else if (loc == one->game.p1.health) return "p1 h";
+    else if (loc == one->game.p2.xloc) return "p2 x";
+    else if (loc == one->game.p2.yloc) return "p2 y";
+    else if (loc == one->game.p2.lives) return "p2 l";
+    else if (loc == one->game.p2.health) return "p2 h";
+    else return "";
+  }
   
+  // Phase one: Initialize and get the samples so that
+  // we can run over them in parallel.
+  void StartGames(const vector<Game> &game) {
+    games = ParallelMap
+      (game,
+       [this](const Game &game) {
+	 vector<pair<uint8, uint8>> movie =
+	   SimpleFM7::ReadInputs2P(game.moviefile);
+	 CHECK(!movie.empty()) << game.romfile;
+	 One *one = new One{game, movie};
+
+	 CHECK(one->movie.size() >
+	       WARMUP_FRAMES + (SAMPLE_EVERY * NUM_SAMPLES)) <<
+	   game.moviefile << " not long enough!";
+
+	 unique_ptr<Emulator> emu;
+	 emu.reset(Emulator::Create(game.romfile));
+	 CHECK(emu.get() != nullptr) << game.romfile;
+
+	 one->SetStatus(RunState::START, "Warming up");
+	 int frameidx = 0;
+	 for (int i = WARMUP_FRAMES; i--;) {
+	   emu->Step(one->movie[frameidx].first,
+		     one->movie[frameidx].second);
+	   frameidx++;
+	 }
+
+	 one->SetStatus(RunState::START, "Get samples");
+	 one->samples.reserve(NUM_SAMPLES);
+	 while (frameidx < one->movie.size() &&
+		one->samples.size() < NUM_SAMPLES) {
+	   if (frameidx % SAMPLE_EVERY == 0) {
+	     one->samples.push_back(emu->SaveUncompressed());
+	   }
+	   emu->StepFull(one->movie[frameidx].first,
+			 one->movie[frameidx].second);
+	   frameidx++;
+	 }
+
+	 one->SetStatus(RunState::START, "Initialized");
+	 return one;
+       }, MAX_CONCURRENCY);
+  }
+
+  void DoAutoCamera() {
+    for (One *one : games) {
+      one->SetStatus(RunState::RUNNING_AC, "AutoCamera");
+      {
+	MutexLock ml(&one->status_m);
+	one->progress.resize(NUM_SAMPLES);
+	for (int &j : one->progress) j = -1;
+      };
+    }
+    
+    ShowTable();
+    
+    ParallelComp3D(
+	games.size(),
+	NUM_SAMPLES,
+	// Players
+	2,
+	[this](int game, int sample, int player) {
+	  One *one = games[game];
+	  // Just skip if it's a one-player game.
+	  if (player == 1 && !one->game.is_two_player)
+	    return;
+
+	  {
+	    MutexLock ml(&one->status_m);
+	    if (one->progress[sample] == -1)
+	      one->progress[sample] = 0;
+	  }
+	  
+	  const vector<uint8> &save = one->samples[sample];
+	  // PERF: All three of these can be done in parallel, actually.
+	  if (player == 0) {
+	    one->links[sample] =
+	      one->autocamera.FindLinkages(save, nullptr);
+	    one->xlocs1[sample] =
+	      one->autocamera.FindXLocs(save, false, nullptr);
+	  } else {
+	    one->xlocs2[sample] =
+	      one->autocamera.FindXLocs(save, true, nullptr);
+	  }
+
+	  {
+	    MutexLock ml(&one->status_m);
+	    one->progress[sample]++;
+	  }
+	  ShowTable();
+	}, MAX_CONCURRENCY);
+
+    // Merge and rescore.
+    ParallelComp(
+	games.size(),
+	[this](int game) {
+	  One *one = games[game];
+	  one->SetStatus(RunState::RUNNING_AC, "Merge");
+	  vector<Linkage> merged = AutoCamera2::MergeLinkages(one->links);
+	  vector<XLoc> xmerged1 = AutoCamera2::MergeXLocs(one->xlocs1);
+	  vector<XLoc> xmerged2 = AutoCamera2::MergeXLocs(one->xlocs2);
+
+	  std::unordered_map<int, float> xscores1, xscores2;
+	  for (const XLoc &x : xmerged1) xscores1[x.xloc] = x.score;
+	  for (const XLoc &x : xmerged2) xscores2[x.xloc] = x.score;
+
+	  // Now rescore using xlocs for each player.
+	  vector<Linkage> rescored1 = merged, rescored2 = merged;
+	  for (Linkage &l : rescored1) l.score *= (1.0f + xscores1[l.xloc]);
+	  for (Linkage &l : rescored2) l.score *= (1.0f + xscores2[l.xloc]);
+	  // Easy way to sort them again.
+	  one->rescored_locs1 = AutoCamera2::MergeLinkages({rescored1});
+	  one->rescored_locs2 = AutoCamera2::MergeLinkages({rescored2});
+
+	  one->SetStatus(RunState::RUNNING_AC, "Write results");
+	  
+	  auto MarkAddr =
+	    [one](int loc) -> string {
+	      if (loc == -1) return "-1";
+	      const char *info = AddrInfo(one, loc);
+	      if (info[0] == '\0') {
+		return StringPrintf("%04x", loc);
+	      } else {
+		return StringPrintf("[%s %04x]", info, loc);
+	      }
+	    };
+	  
+	  // Now compute stats.
+	  {   
+	    // Perhaps pretty silly to have all the games
+	    // trying to simultaneously write to the file...
+	    MutexLock ml(&file_mutex);
+	    if (outfile) {
+	      fprintf(outfile, "[%s]: Rescored linkages:\n",
+		      one->game.romfile.c_str());
+      
+	      auto PrintPlayer =
+		[this, &xscores1, &xscores2, &MarkAddr](
+		    const vector<Linkage> &rescored) {
+		  for (const Linkage &l : rescored) {
+		    string xs1 = ContainsKey(xscores1, l.xloc) &&
+		      xscores1[l.xloc] > 0.0f ?
+		      StringPrintf(" [1p: %.2f] ", xscores1[l.xloc]) : "";
+		    string xs2 = ContainsKey(xscores2, l.xloc) &&
+		      xscores2[l.xloc] > 0.0f ?
+		      StringPrintf(" [2p: %.2f] ", xscores2[l.xloc]) : "";
+		    
+		    fprintf(outfile,
+			    "  %.2f: %d/%d = %s,%s%s%s\n",
+			    l.score, l.xloc, l.yloc,
+			    MarkAddr(l.xloc).c_str(),
+			    MarkAddr(l.yloc).c_str(),
+			    xs1.c_str(),
+			    xs2.c_str());
+		  }
+		};
+
+	      if (one->game.is_two_player) {
+		fprintf(outfile, " == 1P ==\n");
+		PrintPlayer(rescored1);
+		fprintf(outfile, " == 2P ==\n");
+		PrintPlayer(rescored2);
+	      } else {
+		PrintPlayer(rescored1);
+	      }
+      
+	      fflush(outfile);
+	    }
+	  }
+
+	  one->SetStatus(RunState::RUNNING_AC, "AutoCamera done");
+	  
+	  ShowTable();
+	}, std::min(4, MAX_CONCURRENCY));
+  }
+
+  void DoAutoLives() {
+    for (One *one : games) {
+      one->SetStatus(RunState::RUNNING_AL, "AutoLives");
+      {
+	MutexLock ml(&one->status_m);
+	one->progress.resize(NUM_SAMPLES);
+	for (int &j : one->progress) j = -1;
+      };
+    }
+    
+    ShowTable();
+    
+    ParallelComp3D(
+	games.size(),
+	NUM_SAMPLES,
+	// Players
+	2,
+	[this](int game, int sample, int player) {
+	  One *one = games[game];
+	  // Just skip if it's a one-player game.
+	  if (player == 1 && !one->game.is_two_player)
+	    return;
+
+	  {
+	    MutexLock ml(&one->status_m);
+	    if (one->progress[sample] == -1)
+	      one->progress[sample] = 0;
+	  }
+	  
+	  // Now, autolives for each player.
+	  auto DoLives =
+	    [one, sample](const vector<Linkage> &rescored,
+			  bool player_two,
+			  vector<LivesLoc> *out) {
+	      if (rescored.empty())
+		return;
+
+	      const vector<uint8> &save = one->samples[sample];
+	      const int xloc = rescored[0].xloc, yloc = rescored[0].yloc;
+
+	      *out = one->autolives.FindLives(save, xloc, yloc, player_two);
+	    };
+
+	  if (player == 0) {
+	    DoLives(one->rescored_locs1, false, &one->llocs1[sample]);
+	  } else {
+	    DoLives(one->rescored_locs2, false, &one->llocs2[sample]);
+	  }
+
+	  {
+	    MutexLock ml(&one->status_m);
+	    one->progress[sample]++;
+	  }
+
+	}, MAX_CONCURRENCY);
+
+    ShowTable();
+
+    ParallelComp(
+	games.size(),
+	[this](int game) {
+	  One *one = games[game];
+	  const Game &g = one->game;
+	  one->SetStatus(RunState::RUNNING_AL, "Merging");
+	  one->lives1 = AutoLives::MergeLives(one->llocs1);
+	  one->lives2 = AutoLives::MergeLives(one->llocs2);
+
+	  if (!one->lives1.empty() || !one->lives2.empty()) {
+	    one->SetStatus(RunState::RUNNING_AL, "Writing");
+	    MutexLock ml(&file_mutex);
+	    if (outfile) {
+	      fprintf(outfile, "[%s]: Merged lives:\n",
+		      g.romfile.c_str());
+	      
+	      auto PLives =
+		[this, one](const Player &player,
+				  const vector<LivesLoc> &lives) {
+		  for (const LivesLoc &l : lives) {
+		    // XXX annotate if correct for player
+		    fprintf(outfile,
+			    "  %.3f: %d = %04x  %s\n",
+			    l.score, l.loc, l.loc, AddrInfo(one, l.loc));
+		  }
+		};
+	      
+	      if (g.is_two_player) {
+		fprintf(outfile, "  == P1 ==\n");
+		PLives(g.p1, one->lives1);
+		fprintf(outfile, "  == P2 ==\n");
+		PLives(g.p2, one->lives2);
+	      } else {
+		PLives(g.p1, one->lives1);
+	      }
+	      
+	      fflush(outfile);
+	    }
+	  }
+
+	  one->SetStatus(RunState::RUNNING_AL, "AutoLives done");
+	}, std::min(4, MAX_CONCURRENCY));
+  }
+
+  void ComputeStats() {
+    ParallelComp(
+	games.size(),
+	[this](int game) {
+	  One *one = games[game];
+	  one->SetStatus(RunState::STATS, "Computing stats");
+    
+	  auto StatsPlayer =
+	  [one](const Player &player,
+		const vector<Linkage> &rescored,
+		const vector<LivesLoc> &lives) {
+	    Stats *stats = &one->stats;
+	    if (player.xloc != -1 &&
+		player.yloc != -1) {
+	      stats->locs_known++;
+
+	      int found = 0, rank_loss = 0;
+	      for (const Linkage &l : rescored) {
+		if (l.xloc == player.xloc && l.yloc == player.yloc) {
+		  // Found one of the expected pairs.
+		  found++;
+		  const float found_score = l.score;
+		  // Compute its rank loss, which is the number of pairs with
+		  // this score or less that are NOT in our set.
+		  for (const Linkage &ll : rescored) {
+		    if (ll.score < found_score)
+		      break;
+
+		    if (ll.xloc != player.xloc || ll.yloc != player.yloc)
+		      rank_loss++;
+		  }
+		}
+	      }
+
+	      stats->locs_found += found;
+	      stats->locs_rank_loss += rank_loss;
+	    }
+
+	    if (player.health != -1 ||
+		player.lives != -1) {
+
+	      if (player.health != -1)
+		stats->lives_known++;
+	      if (player.lives != -1)
+		stats->lives_known++;
+
+	      int found = 0, rank_loss = 0;
+	      for (const LivesLoc &l : lives) {
+		if (l.loc == player.health || l.loc == player.lives) {
+		  found++;
+		  const float found_score = l.score;
+		  for (const LivesLoc &ll : lives) {
+		    if (ll.score < found_score)
+		      break;
+
+		    if (ll.loc != player.lives && ll.loc != player.health)
+		      rank_loss++;
+		  }
+		}
+	      }
+
+	      stats->lives_found += found;
+	      stats->lives_rank_loss += rank_loss;
+	    }
+	  };
+
+	StatsPlayer(one->game.p1, one->rescored_locs1, one->lives1);
+	StatsPlayer(one->game.p2, one->rescored_locs2, one->lives2);
+
+	}, MAX_CONCURRENCY);
+  }
+  
+  // xxx ugh
+  std::mutex file_mutex;
+  FILE *outfile = nullptr;
+
+  ~Evaluation() {
+    fclose(outfile);
+    for (One *one : games) delete one;
+  }
+};
+
+static void EvalAll() {
+  // or getmatching...
+  vector<Game> games = GameDB().GetAll();
+  // vector<Game> games = GameDB().GetMatching(
+  // {"mario", "contra", "werewolf"});
+
+
+  Evaluation evaluation;
+  evaluation.StartGames(games);
+  evaluation.DoAutoCamera();
+  evaluation.DoAutoLives();
+  evaluation.ComputeStats();
+
   auto Color3 =
     [](int found, int known, int loss) -> const char * {
       if (known == 0) return "";
@@ -489,28 +638,30 @@ static void EvalAll() {
     };
 
   EvalStats locs_stats, lives_stats;
-  for (const EvalGame &g : results) {
-    Stats3(g.locs_found, g.locs_known, g.locs_rank_loss, &locs_stats);
-    Stats3(g.lives_found, g.lives_known, g.lives_rank_loss, &lives_stats);
+  for (const Evaluation::One *g : evaluation.games) {
+    const Stats &s = g->stats;
+    Stats3(s.locs_found, s.locs_known, s.locs_rank_loss, &locs_stats);
+    Stats3(s.lives_found, s.lives_known, s.lives_rank_loss, &lives_stats);
   }
   
   printf(" == Summary ==\n");
   string col1h = Util::Pad(24, "game.nes");
   printf("%sp recall\tp rank loss\tl recall\t rank loss\n", col1h.c_str());
-  for (const EvalGame &g : results) {
+  for (const Evaluation::One *g : evaluation.games) {
+    const Stats &s = g->stats;
     printf("%s"
 	   // positions
 	   "%s%d/%d" ANSI_RESET "\t%d\t"
 	   // lives
 	   "%s%d/%d" ANSI_RESET "\t%d\n",
-	   Util::Pad(24, g.game.romfile).c_str(),
-	   Color3(g.locs_found, g.locs_known, g.locs_rank_loss),
-	   g.locs_found, g.locs_known,
-	   g.locs_rank_loss,
+	   Util::Pad(24, g->game.romfile).c_str(),
+	   Color3(s.locs_found, s.locs_known, s.locs_rank_loss),
+	   s.locs_found, s.locs_known,
+	   s.locs_rank_loss,
 
-	   Color3(g.lives_found, g.lives_known, g.lives_rank_loss),
-	   g.lives_found, g.lives_known,
-	   g.lives_rank_loss);
+	   Color3(s.lives_found, s.lives_known, s.lives_rank_loss),
+	   s.lives_found, s.lives_known,
+	   s.lives_rank_loss);
   }
 
   printf("\n"
@@ -520,8 +671,6 @@ static void EvalAll() {
 	 locs_stats.any, locs_stats.total_loss,
 	 lives_stats.perfect, lives_stats.has_data,
 	 lives_stats.any, lives_stats.total_loss);
-  
-  fclose(outfile);
 }
 
 int main(int argc, char *argv[]) {
