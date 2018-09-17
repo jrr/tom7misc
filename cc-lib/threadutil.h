@@ -213,6 +213,36 @@ struct ThreadJoiner {
   std::thread *t;
 };
 
+template<class F>
+void ParallelComp2D(int num1, int num2,
+		    const F &f,
+		    int max_concurrency) {
+  const int total_num = num1 * num2;
+  ParallelComp(total_num,
+	       [&f, num2](int x) {
+		 const int x2 = x % num2;
+		 const int x1 = x / num2;
+		 f(x1, x2);
+	       },
+	       max_concurrency);
+}
+
+template<class F>
+void ParallelComp3D(int num1, int num2, int num3,
+		    const F &f,
+		    int max_concurrency) {
+  const int total_num = num1 * num2 * num3;
+  ParallelComp(total_num,
+	       [&f, num2, num3](int x) {
+		 const int x3 = x % num3;
+		 const int xx = x / num3;
+		 const int x2 = xx % num2;
+		 const int x1 = xx / num2;
+		 f(x1, x2, x3);
+	       },
+	       max_concurrency);
+}
+
 // Manages running up to X asynchronous tasks in separate threads. This
 // is intended for use in situations like compressing and writing a
 // bunch of frames of a movie out to disk. There's substantial parallelism
