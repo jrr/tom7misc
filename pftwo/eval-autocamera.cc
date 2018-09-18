@@ -31,7 +31,7 @@
 #include "autolives.h"
 #include "game-database.h"
 
-static constexpr int MAX_CONCURRENCY = 12;
+static constexpr int MAX_CONCURRENCY = 60;
 
 #ifdef ENABLE_AOT
 # error eval-autocamera can not use AOT (needs to load multiple games)
