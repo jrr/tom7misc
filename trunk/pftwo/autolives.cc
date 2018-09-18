@@ -34,59 +34,6 @@ static constexpr int FINDLIVES_NUM_EXPERIMENTS = 10;
 
 static constexpr bool VERBOSE = false;
 
-// ? Probably better with game-specific markov model?
-namespace {
-// Random inputs intended to demonstrate that the player
-// has control, so they are fairly "jiggly."
-struct InputGenerator {
-  uint8 Next(ArcFour *rc) {
-    uint8 b = rc->Byte();
-
-    auto Randomize =
-      [this, &b](int L, int R) {
-	// Switch 1/4 of the time.
-	const bool do_switch = (b & 3) == 0;
-	b >>= 2;
-	if (do_switch) {
-	  if (last & (L | R)) {
-	    // Currently going. Either swap or stop.
-	    if (b & 1) {
-	      if (last & L) {
-		last &= ~L;
-		last |= R;
-	      } else {
-		last &= ~R;
-		last |= L;
-	      }
-	    } else {
-	      last &= ~(L | R);
-	    }
-	    b >>= 1;
-	  } else {
-	    // Not going. Go one way or the other.
-	    last |= (b & 1) ? L : R;
-	    b >>= 1;
-	  }
-	}
-      };
-
-    Randomize(INPUT_L, INPUT_R);
-    Randomize(INPUT_U, INPUT_D);
-
-    if ((b & 3) == 0) last ^= INPUT_A;
-    b >>= 2;
-    if ((b & 3) == 0) last ^= INPUT_B;
-    b >>= 2;
-
-    // Never generate select or start, since these often have
-    // special meaning.
-    return last;
-  }
- private:
-  uint8 last = INPUT_A;
-};
-}
-
 AutoLives::AutoLives(
     const string &game,
     NMarkovController nmarkov) : random_pool(game),
@@ -118,8 +65,10 @@ float AutoLives::IsInControl(const vector<uint8> &save,
   auto MakePlayer = [player_two](uint8 inputs) {
     return player_two ? ((uint16)inputs << 8) : (uint16)inputs;
   };
-  
-  InputGenerator gen;
+
+  // XXX: Maybe should discard inputs for a while?
+  // (And again below?)
+  NMarkovController::History nhist = nmarkov.HistoryInDomain();
   int success = 0;
   for (int i = 0; i < TEST_CONTROL_FRAMES; i++) {
     // emu gets no inputs
@@ -129,9 +78,9 @@ float AutoLives::IsInControl(const vector<uint8> &save,
     // remu holds right,
     remu->Step16(MakePlayer(INPUT_R));
     // mash emu gets random inputs
-    const uint8 input = gen.Next(rc);
+    const uint8 input = nmarkov.RandomNext(nhist, rc);
+    nhist = nmarkov.Push(nhist, input);
     memu->Step16(MakePlayer(input));
-    // XXX use nmarkov now that we have it?
     
     // Now, has xloc changed? We're not looking for change relative to
     // the start state (the player may be moving while a death
