@@ -1,11 +1,6 @@
 // Ideas:
 // - Contra finds the same top value 0xFF for both players; this
 //   should result in discounting it.
-// - We should be able to safely set the value to 2, 3, 4, ...
-//   it should only kill us at 1 or 0. Some locations need to contain
-//   some small set of values (contra 0xFF is an example) and just
-//   lock up the game if they have the wrong thing in 'em.
-//    +1 this is an issue on jackiechan.
 // - Could detect and eliminate timers (which act a lot like "lives")
 //   explicitly. Periodically counting down is one thing. Not being
 //   sensitive to inputs is another. There's nothing wrong with
@@ -32,7 +27,7 @@ static constexpr int TRY_TO_DIE_FRAMES = 6 * 60;
 
 static constexpr int FINDLIVES_NUM_EXPERIMENTS = 10;
 
-static constexpr bool VERBOSE = false;
+static constexpr bool VERBOSE = true;
 
 AutoLives::AutoLives(
     const string &game,
@@ -121,14 +116,12 @@ namespace {
 // Example frame right before a memory location is decremented,
 // paired with the inputs so that we can repeat exactly.
 struct Frame {
-  // Number of frames from base frame.
-  int offset = 0;
   uint16 inputs = 0;
   std::vector<uint8> save;
   uint8 value_before = 0, value_after = 0;
-  Frame(int offset, uint16 inputs, vector<uint8> save,
+  Frame(uint16 inputs, vector<uint8> save,
 	uint8 value_before, uint8 value_after) :
-    offset(offset), inputs(inputs), save(std::move(save)),
+    inputs(inputs), save(std::move(save)),
     value_before(value_before), value_after(value_after) {}
 };
 
@@ -145,6 +138,11 @@ struct Info {
 
   // Example frames (save states) that cause decrements.
   vector<Frame> decremented_saves;
+
+  // Collection of experiments, each of which contains the (ascending
+  // order) frame offsets (from the initial save) when decrements
+  // happened. Used for timer detection.
+  vector<vector<int>> offsets;
 };
 }
 
@@ -253,6 +251,8 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
   // (for changing too often) and, especially, to find
   // a frame where we die.
 
+  
+  
   // Share this across experiments to increase entropy.
   NMarkovController::History nhist = nmarkov.HistoryInDomain();
   for (int expt = 0; expt < FINDLIVES_NUM_EXPERIMENTS; expt++) {
@@ -287,10 +287,15 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
 	  info->same++;
 	} else if (Decremented(MAX_DECREMENT, prev, now)) {
 	  info->decremented++;
-	  info->decremented_saves.emplace_back(f,
-					       input16,
+	  info->decremented_saves.emplace_back(input16,
 					       save_before_inputs,
 					       prev, now);
+	  if (info->offsets.empty()) {
+	    info->offsets.resize(FINDLIVES_NUM_EXPERIMENTS);
+	  }
+	  CHECK(expt < FINDLIVES_NUM_EXPERIMENTS);
+	  info->offsets[expt].push_back(f);
+
 	} else if (Decremented(MAX_DECREMENT, now, prev)) {
 	  info->incremented++;
 	} else {
@@ -323,12 +328,15 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
     }
     ++it;
   }
-   
+  if (VERBOSE) printf("\n");
+  
   // Filter out anything that incremented/decremented too often.
   // Note that for something like health, this is probably much
   // too conservative.
   // (At this point we could probably be scoring these, rather
   // than filtering...)
+
+#if 0 // XXXX
   static constexpr int MAX_INCDEC = 2 * FINDLIVES_NUM_EXPERIMENTS;
   if (VERBOSE)
     printf("%d remain. Filtered because they changed too often:\n",
@@ -345,47 +353,90 @@ vector<AutoLives::LivesLoc> AutoLives::FindLives(const vector<uint8> &save,
     }
     ++it;
   }
-
+#endif
+  
   // XXX Bugz: I wrote this thinking that all of the decrement_saves
   // are sequential within the same experiment. This is not what
   // happens -- we run many different experiments and put all the
   // saves into one set.
-  #if 0
-  //
+  #if 1
   // Filter out timers here. Timers just decrement at regular or
   // nearly-regular intervals, and never increment.
-  //
-  // Note that if this value is 2 exactly, then any loc that's
-  // that's decremented exactly twice is filtered out, since the
-  // interval agrees with itself by definition. So the first
-  // reasonable value is 3.
-  static constexpr int MIN_COUNTER_REPETITIONS = 3;
-  static_assert(MIN_COUNTER_REPETITIONS >= 3,
+  static constexpr int MIN_COUNTER_REPETITIONS = 2;
+  static_assert(MIN_COUNTER_REPETITIONS >= 2,
 		"need 2 to find an interval!");
   if (VERBOSE)
     printf("%d remain. Filter out potential counters:\n", (int)locs.size());
   for (auto it = locs.begin(); it != locs.end(); /* in loop */) {
     const Info &info = it->second;
-    if (info.incremented == 0 &&
-	info.decremented_saves.size() >= MIN_COUNTER_REPETITIONS) {
-      const int ival = info.decremented_saves[1].offset -
-	info.decremented_saves[0].offset;
-      auto AllInterval =
-	[&info](int ival) {
-	  for (int s = 1; s < info.decremented_saves.size() - 1; s++) {
-	    const int ival2 = info.decremented_saves[s + 1].offset -
-	      info.decremented_saves[s].offset;
-	    if (ival != ival2)
-	      return false;
+    if (info.incremented == 0) {
+      if (VERBOSE) printf("%04x: ", it->first);
+      // Returns the number of reps that are consistently repeating,
+      // or -1 if it is actually inconsistent.
+      auto GetConsistentDelta =
+	[](const vector<int> &offsets, int *delta) -> int {
+	  // Obviously, no consistent decrement if it's empty. But we
+	  // could be anywhere in the period when we start
+	  // experimenting, so we also can't do anything if we only
+	  // have a single decrement.
+	  if (offsets.size() < 2) return 0;
+	  const int d = offsets[1] - offsets[0];
+	  *delta = d;
+	  int count = 1;
+	  for (int s = 1; s < offsets.size() - 1; s++) {
+	    const int d2 = offsets[s + 1] - offsets[s];
+	    // Inconsistent.
+	    // TODO: This can easily have false negatives because
+	    // of lag frames. This may be happening in ninja gaiden.
+	    // Allow for some slop?
+	    if (d != d2)
+	      return -1;
+	    count++;
 	  }
-	  return true;
+	  return count;
 	};
 
-      if (AllInterval(ival)) {
+
+      // Make sure all the deltas are the same. -1 means no delta
+      // yet.
+      int same_delta = -1;
+      // Count of experiments that were inconsistent.
+      int inconsistent = 0;
+      // Total number of reps that were consistent.
+      int consistent = 0;
+      for (const vector<int> &offsets : info.offsets) {
+	int delta = 0;
+	const int reps = GetConsistentDelta(offsets, &delta);
+	if (reps == -1) {
+	  inconsistent++;
+	  if (VERBOSE) printf(" i");
+	} else if (reps >= MIN_COUNTER_REPETITIONS) {
+	  if (VERBOSE) printf(" %dx%d", delta, reps);
+	  consistent += reps;
+	  if (same_delta == -1) same_delta = delta;
+	  if (delta != same_delta) {
+	    // Exit early, but also make sure we don't accept
+	    // it somehow.
+	    if (VERBOSE) printf(" %d != %d <exit>", delta, same_delta);
+	    same_delta = -2;
+	    break;
+	  }
+	} else {
+	  if (VERBOSE) printf(" (%d)", reps);
+	}
+      }
+
+      if (VERBOSE) printf("\n");
+      
+      if (same_delta > 0 &&
+	  inconsistent < (0.10f * FINDLIVES_NUM_EXPERIMENTS) &&
+	  consistent > (0.50f * FINDLIVES_NUM_EXPERIMENTS)) {
+
 	if (VERBOSE)
-	  printf("%04x decremented %d times with "
-		 "consistent ival of %d frames\n",
-		 it->first, (int)info.decremented_saves.size(), ival);
+	  printf("%04x is probably timer; delta %d, inconsistent %d times\n"
+		 "     and consistent reps %d\n",
+		 it->first, same_delta, inconsistent, consistent);
+
 	it = EraseIt(locs, it);
 	continue;
       }

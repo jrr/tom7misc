@@ -47,6 +47,8 @@ GameDB::GameDB() {
     sword->p1.health = 0x042f;
     // Health displays as 1+value.
     sword->allow_zero_health = OBool::TRUE;
+
+    // No visible timer.
   }
 
   // With 0x04fb,0x04f9, warping has effect (within some small
@@ -83,6 +85,8 @@ GameDB::GameDB() {
     athena->p1.health = 0x0095;
     // Zero health?
     athena->allow_zero_lives = OBool::TRUE;
+
+    // Timer is multibyte BCD: 0x91, 0x92 = 0M:SS
   }
     
   // 0x04d9,0x051b works but no warping. there may be
@@ -116,6 +120,9 @@ GameDB::GameDB() {
     // Found in FCEUX, also autolives. Modifying works.
     were->p1.health = 0x00BC;
     were->allow_zero_health = OBool::FALSE;
+
+    // Death when it reaches 0. Unsigned.
+    were->timer = 0x00BF;
   }
 
   // Verified. Warping just moves the feet, but the head will
@@ -138,6 +145,9 @@ GameDB::GameDB() {
     // so a value like 0x90 is game over on the next death.
     Game *mario = Insert1P("mario", 0x86, 0xCE, 0x075a);
     mario->allow_zero_lives = OBool::TRUE;
+
+    // Timer is a multibyte quantity in BCD:
+    // 0x7F8, 0x7F9, 0x7FA = 0S 0S 0S
   }
 
   // From wiki.
@@ -157,6 +167,7 @@ GameDB::GameDB() {
     // Autocamera finds this (among others); modifying works.
     Game *lolo = Insert1P("lolo", 0x6D, 0x6F, 0x0057);
     lolo->allow_zero_lives = OBool::FALSE;
+    // No visible timer.
   }
   
   // Has horizontal and vertical scrolling.
@@ -181,6 +192,8 @@ GameDB::GameDB() {
     // Seems wrong to consider this "health" in the normal sense,
     // without some masking. Autolives does find this.
     // zelda->p1.health = 0x066F;
+
+    // No visible timer.
   }
 
   // Verified. Warping definitely moves the sprite, though
@@ -202,6 +215,8 @@ GameDB::GameDB() {
     // Lives found in FCEUX. Modifying works.
     Game *gyro = Insert1P("gyromite", 0x609, 0x608, 0x0039);
     gyro->allow_zero_lives = OBool::FALSE;
+
+    // Timer is multibyte BCD, 0x5E 0x5D = 0S SS
   }
     
   // Has horizontal and vertical scrolling.
@@ -215,6 +230,7 @@ GameDB::GameDB() {
     little->p1.health = 0xB1;
     little->allow_zero_health = OBool::FALSE;
     little->allow_zero_lives = OBool::TRUE;
+    // No visible timer.
   }
 
   // Verified. Warping works great. This game does split
@@ -242,6 +258,9 @@ GameDB::GameDB() {
     // Death with 0x3f=1 is game over.
     // Weirdly, if you have 3f=0 when you die, it's fine.
     adv->allow_zero_lives = OBool::FALSE;
+
+    // No visible timer, though life does count down on its own
+    // if you're not moving (or something?)
   }
     
   // Verified. Warping works well.
@@ -262,6 +281,11 @@ GameDB::GameDB() {
     ninja->p1.health = 0x0065;
     ninja->allow_zero_health = OBool::FALSE;
     ninja->allow_zero_lives = OBool::TRUE;
+
+    ninja->timer = 0x0063;
+    // Autolives detects 0x06a4 as a timer sometimes; it appears
+    // to be part of the music playback (synchronized with some drum
+    // beats).
   }
 
   // Found in FCEUX. Warping works.
@@ -273,6 +297,8 @@ GameDB::GameDB() {
     // Found by autolives. Modifying works.
     bad->p1.health = 0x02ab;
     bad->allow_zero_health = OBool::FALSE;
+
+    bad->timer = 0x0204;
   }
 
   // Found manually in FCEUX. Warping works.
@@ -307,6 +333,8 @@ GameDB::GameDB() {
   {
     Game *bomb = Insert1P("bomberman", -1, -1, 0x0068);
     bomb->allow_zero_lives = OBool::TRUE;
+
+    bomb->timer = 0x0093;
   }
 
   // Several x addresses for sprites:
@@ -408,6 +436,11 @@ GameDB::GameDB() {
 	       Player{0x203, 0x200, 0x002e},
 	       Player{0x20b, 0x208, 0x0042});
     bubble->allow_zero_lives = OBool::FALSE;
+
+    // Counts down to zero, then "Hurry!" and the monster comes.
+    // Not sure if this really fits the model of timer, though,
+    // since it doesn't kill you.
+    // bubble->timer = 0x40D;
   }
 
   // 2P. There are lots of locations that track the components
