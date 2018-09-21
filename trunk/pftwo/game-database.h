@@ -62,6 +62,10 @@ struct Game {
   // Same for health. Surprisingly, there are many games that
   // have different rules for these two.
   OBool allow_zero_health = OBool::UNKNOWN;
+
+  // Single-byte countdown timer; typically the player dies if this
+  // goes to zero.
+  int timer = -1;
   
   // TODO: Good objective function?
   // TODO: Vaguer hints like "protect these memory locations"
