@@ -85,7 +85,7 @@ FCEULIB_GAME_OBJECTS= $(FCEULIB)/contra_49296.o $(FCEULIB)/contra_49280.o $(FCEU
 FCEULIB_GAME_OBJECTS=
 
 
-PFTWO_OBJECTS=motifs.o weighted-objectives.o problem-twoplayer.o n-markov-controller.o learnfun.o objective-enumerator.o headless-graphics.o treesearch.o dumptree.o autocamera.o emulator-pool.o random-pool.o autocamera2.o autolives.o game-database.o
+PFTWO_OBJECTS=motifs.o weighted-objectives.o problem-twoplayer.o n-markov-controller.o learnfun.o objective-enumerator.o headless-graphics.o treesearch.o dumptree.o autocamera.o emulator-pool.o random-pool.o autocamera2.o autotimer.o autolives.o game-database.o
 
 testui.exe : $(FCEULIB_OBJECTS) $(SDL_OBJECTS) $(CCLIB_OBJECTS) $(CCLIB_SDL_OBJECTS) $(PFTWO_OBJECTS) testui.o graphics.o sdl-win32-main.o
 	$(CXX) $^ -o $@ $(LFLAGS) $(LINKSDL)

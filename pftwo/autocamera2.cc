@@ -97,6 +97,7 @@ using ScoredLocationMap =
 		     Hashing<pair<int, int>>>;
 
 
+// TODO: Use autoutil.h ?
 static vector<Linkage> GetBestLinkages(
     const ScoredLocationMap &scores) {
   gtl::TopN<Linkage, BetterLinkage> topn(NUM_LINKAGES);

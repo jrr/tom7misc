@@ -26,12 +26,14 @@
 #include "../fceulib/cart.h"
 #include "../fceulib/ppu.h"
 // #include "autocamera.h"
-#include "autocamera2.h"
 #include "n-markov-controller.h"
+#include "autocamera2.h"
+#include "autotimer.h"
 #include "autolives.h"
 #include "game-database.h"
 
-static constexpr int MAX_CONCURRENCY = 60;
+// XXX get from config.txt?
+static constexpr int MAX_CONCURRENCY = 11;
 
 #ifdef ENABLE_AOT
 # error eval-autocamera can not use AOT (needs to load multiple games)
@@ -61,6 +63,7 @@ static constexpr int MAX_CONCURRENCY = 60;
 using Linkage = AutoCamera2::Linkage;
 using XLoc = AutoCamera2::XLoc;
 using LivesLoc = AutoLives::LivesLoc;
+using TimerLoc = AutoTimer::TimerLoc;
 using Player = Game::Player;
 
 static string Rtos(double d) {
@@ -92,6 +95,7 @@ struct Stats {
 enum class RunState {
   WAITING = 0,
   START,
+  RUNNING_AT,
   RUNNING_AC,
   RUNNING_AL,
   STATS,
@@ -102,9 +106,10 @@ static const char *StateChar(RunState s) {
   switch(s) {
   case RunState::WAITING: return " ";
   case RunState::START: return ANSI_YELLOW ">" ANSI_RESET;
+  case RunState::RUNNING_AT: return ANSI_BLUE "T" ANSI_RESET;
   case RunState::RUNNING_AC: return ANSI_CYAN "C" ANSI_RESET;
   case RunState::RUNNING_AL: return ANSI_PURPLE "L" ANSI_RESET;
-  case RunState::STATS: return ANSI_BLUE "S" ANSI_RESET;
+  case RunState::STATS: return ANSI_WHITE "S" ANSI_RESET;
   case RunState::DONE: return ANSI_GREEN "-" ANSI_RESET;
   default: return "?";
   }
@@ -133,18 +138,23 @@ struct Evaluation {
     vector<vector<uint8>> samples;
     const vector<pair<uint8, uint8>> movie;
     const NMarkovController nmarkov;
+    AutoTimer autotimer;
     AutoCamera2 autocamera;
     AutoLives autolives;
 
     // Filled (in parallel) during phase 2.
+    vector<vector<TimerLoc>> timerlocs;
+    vector<TimerLoc> timers;
+    
+    // Filled during phase 3.
     // Same size as samples.
     vector<vector<Linkage>> links;
     vector<vector<XLoc>> xlocs1, xlocs2;
-    // Merged versions of the above, filled in phase 2.
+    // Merged versions of the above, filled in phase 3.
     // These are the best guesses at the player location(s).
     vector<Linkage> rescored_locs1, rescored_locs2;
 
-    // Filled during phase 3.
+    // Filled during phase 4.
     vector<vector<LivesLoc>> llocs1, llocs2;
     // Final rescored guesses for player lives/health.
     vector<LivesLoc> lives1, lives2;
@@ -154,8 +164,11 @@ struct Evaluation {
       game(game),
       movie(movie),
       nmarkov(Inputs1P(movie), 3),
+      autotimer(game.romfile, nmarkov),
       autocamera(game.romfile),
       autolives(game.romfile, nmarkov) {
+
+      timerlocs.resize(NUM_SAMPLES);
       
       links.resize(NUM_SAMPLES);
       xlocs1.resize(NUM_SAMPLES);
@@ -194,6 +207,7 @@ struct Evaluation {
       MutexLock gml(&one->status_m);
       printf("[%s] ", StateChar(one->state));
       switch (one->state) {
+      case RunState::RUNNING_AT:
       case RunState::RUNNING_AC:
       case RunState::RUNNING_AL:
 	printf("[");
@@ -220,7 +234,7 @@ struct Evaluation {
 
   // Stringify an address, marking it if there's something known
   // about that spot.
-  static const char * AddrInfo(const One *one, int loc) {
+  static const char *AddrInfo(const One *one, int loc) {
     // Prevent this from accidentally matching an "unknown" loc.
     if (loc == -1) return "";
     if (loc == one->game.p1.xloc) return "p1 x";
@@ -278,6 +292,89 @@ struct Evaluation {
        }, MAX_CONCURRENCY);
   }
 
+  void DoAutoTimer() {
+    for (One *one : games) {
+      one->SetStatus(RunState::RUNNING_AT, "AutoTimer");
+      {
+	MutexLock ml(&one->status_m);
+	one->progress.resize(NUM_SAMPLES);
+	for (int &j : one->progress) j = -1;
+      };
+    }
+    
+    ShowTable();
+    
+    ParallelComp2D(
+	games.size(),
+	NUM_SAMPLES,
+	[this](int game, int sample) {
+	  One *one = games[game];
+
+	  {
+	    MutexLock ml(&one->status_m);
+	    if (one->progress[sample] == -1)
+	      one->progress[sample] = 0;
+	  }
+	  
+	  const vector<uint8> &save = one->samples[sample];
+	  one->timerlocs[sample] = one->autotimer.FindTimers(save);
+
+	  {
+	    MutexLock ml(&one->status_m);
+	    one->progress[sample]++;
+	  }
+	  ShowTable();
+	}, MAX_CONCURRENCY);
+
+    // Merge and rescore.
+    ParallelComp(
+	games.size(),
+	[this](int game) {
+	  One *one = games[game];
+	  one->SetStatus(RunState::RUNNING_AT, "Merge");
+	  one->timers = AutoTimer::MergeTimers(one->timerlocs);
+
+	  one->SetStatus(RunState::RUNNING_AT, "Write results");
+	  
+	  auto MarkAddr =
+	    [one](int loc) -> string {
+	      if (loc == -1) return "-1";
+	      const char *info = AddrInfo(one, loc);
+	      if (info[0] == '\0') {
+		return StringPrintf("%04x", loc);
+	      } else {
+		return StringPrintf("[%s %04x]", info, loc);
+	      }
+	    };
+	  
+
+	  {
+	    MutexLock ml(&file_mutex);
+	    if (outfile) {
+	      fprintf(outfile, "[%s]: Timers:\n",
+		      one->game.romfile.c_str());
+      
+	      for (const TimerLoc &l : one->timers) {
+		string xs = one->game.timer == l.loc ? " TIMER" : "";
+
+		fprintf(outfile,
+			"  %.2f: %d %s @%.2f = %s%s\n",
+			l.score, l.loc, l.incrementing ? "++" : "--",
+			l.period,
+			MarkAddr(l.loc).c_str(),
+			xs.c_str());
+	      }
+	    
+	      fflush(outfile);
+	    }
+	  }
+
+	  one->SetStatus(RunState::RUNNING_AT, "AutoTimer done");
+	  
+	  ShowTable();
+	}, std::min(4, MAX_CONCURRENCY));
+  }
+  
   void DoAutoCamera() {
     for (One *one : games) {
       one->SetStatus(RunState::RUNNING_AC, "AutoCamera");
@@ -606,6 +703,7 @@ static void EvalAll() {
 
   Evaluation evaluation;
   evaluation.StartGames(games);
+  evaluation.DoAutoTimer();
   evaluation.DoAutoCamera();
   evaluation.DoAutoLives();
   evaluation.ComputeStats();

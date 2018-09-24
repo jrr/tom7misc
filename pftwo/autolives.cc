@@ -1,11 +1,7 @@
 // Ideas:
 // - Contra finds the same top value 0xFF for both players; this
 //   should result in discounting it.
-// - Could detect and eliminate timers (which act a lot like "lives")
-//   explicitly. Periodically counting down is one thing. Not being
-//   sensitive to inputs is another. There's nothing wrong with
-//   wanting the timer to be high, but it's bad if we won't make any
-//   moves as the first second expires!
+// - TODO: Filter out locations detected by autotimer.
 
 #include "autolives.h"
 
@@ -184,6 +180,7 @@ static float ScoreOneBeforeValue(uint8 v) {
   if (v <= 64) return 0.5f;
   // Many games test death by seeing if the value is negative, and if
   // it's treated as unsigned then this is an absurd number of lives.
+  // (XXX wait this should be slightly nonzero right?)
   if (v <= 127) return 0.0f;
   return 0.0f;
 }
