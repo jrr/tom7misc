@@ -7,59 +7,53 @@
 #include "../cc-lib/gtl/top_n.h"
 
 // Utilities for AutoLives, AutoCamera, etc.
+// T must have fields called 'loc' (int) and 'score' (float).
 // T must have a default constructor that zeroes the score field.
-template<typename T, typename GetScore, typename GetLoc>
+template<typename T, typename GetLoc>
 std::vector<T> MergeAndBest(const std::vector<std::vector<T>> &vv,
 			    GetLoc getloc,
-			    GetScore getscore,
 			    float min_score,
 			    int n_best);
 
 // Template implementations follow.
 
 namespace internal {
-template<typename T, typename GetScore>
+template<typename T>
 struct BetterScore {
-  BetterScore(const GetScore &getscore) : getscore(getscore) {}
   bool operator() (const T *a, const T *b) const {
-    return getscore(*a) > getscore(*b);
+    return a->score > b->score;
   }
-  const GetScore &getscore;
 };
 }
 
-template<typename T, typename ScoreField, typename LocField>
+template<typename T>
 std::vector<T> MergeAndBest(const std::vector<std::vector<T>> &vv,
-			    LocField loc_field,
-			    ScoreField score_field,
 			    float min_score,
 			    int n_best) {
   std::unordered_map<int, T> merged;
   for (const auto &v : vv) {
     for (const T &l : v) {
-      const int loc = loc_field(l);
+      const int loc = l.loc;
       T *t = &merged[loc];
-      loc_field(*t) = loc;
-      score_field(*t) += score_field(l);
+      t->loc = loc;
+      t->score += l.score;
     }
   }
 
-  using BS = typename internal::BetterScore<T, ScoreField>;
-  BS better_score{score_field};
+  using BS = typename internal::BetterScore<T>;
+  BS better_score;
   gtl::TopN<const T *, BS> topn(n_best, better_score);
   for (const auto &p : merged) {
-    if (score_field(p) >= min_score) {
+    if (p.second.score >= min_score) {
       topn.push(&p.second);
     }
   }
 
   std::unique_ptr<std::vector<const T *>> best(topn.Extract());
   std::vector<T> res;
-  res.reserve(best.size());
+  res.reserve(best->size());
   for (const T *t : *best) res.push_back(*t);
   return res;
 }
-  
-
 
 #endif
