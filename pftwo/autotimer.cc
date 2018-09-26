@@ -12,6 +12,8 @@
 #include "../fceulib/fceu.h"
 #include "autoutil.h"
 
+static constexpr bool VERBOSE = false;
+
 AutoTimer::AutoTimer(
     const string &game,
     NMarkovController nmarkov) : random_pool(game),
@@ -87,6 +89,10 @@ vector<AutoTimer::TimerLoc> AutoTimer::FindTimers(const vector<uint8> &save) {
 	TimerInfo *info = &candidates[i];
 	if (info->disqualified) continue;
 
+	if (VERBOSE)
+	  printf("%04x @%d %02x -> %02x",
+		 i, f, mem_prev[i], mem_now[i]);
+	
 	bool incrementing = false;
 	if (Decremented(1, mem_prev[i], mem_now[i])) {
 	  incrementing = false;
@@ -94,6 +100,8 @@ vector<AutoTimer::TimerLoc> AutoTimer::FindTimers(const vector<uint8> &save) {
 	  incrementing = true;
 	} else {
 	  info->disqualified = true;
+	  if (VERBOSE)
+	    printf("  not inc/dec. DQ.\n");
 	  continue;
 	}
 
@@ -101,11 +109,19 @@ vector<AutoTimer::TimerLoc> AutoTimer::FindTimers(const vector<uint8> &save) {
 	if (info->last_change == -1) {
 	  info->last_change = f;
 	  info->incrementing = incrementing;
+
+	  if (VERBOSE)
+	    printf("  ok first %c\n",
+		   incrementing ? '+' : '-');
 	  continue;
 	} else {
 	  if (info->incrementing != incrementing) {
 	    // Change in direction not allowed.
 	    info->disqualified = true;
+	    if (VERBOSE)
+	      printf("  was %c now %c. DQ.\n",
+		     info->incrementing ? '+' : '-',
+		     incrementing ? '+' : '-');
 	    continue;
 	  }
 	  
@@ -115,6 +131,10 @@ vector<AutoTimer::TimerLoc> AutoTimer::FindTimers(const vector<uint8> &save) {
 	  if (info->num_deltas == 0) {
 	    info->num_deltas = 1;
 	    info->average_delta = (float)delta;
+	    if (VERBOSE)
+	      printf("  ok %c delta %d.\n",
+		     incrementing ? '+' : '-',
+		     delta);
 	    continue;
 	  } else {
 	    if (delta < info->average_delta - 1.01f ||
@@ -122,12 +142,19 @@ vector<AutoTimer::TimerLoc> AutoTimer::FindTimers(const vector<uint8> &save) {
 	      // We allow one frame of jitter, but here the delta was
 	      // not within that range.
 	      info->disqualified = true;
+	      if (VERBOSE)
+		printf("  delta %.3f now %d. DQ\n",
+		       info->average_delta,
+		       delta);
 	      continue;
 	    } else {
 	      info->average_delta =
 		((info->average_delta * info->num_deltas) + (float)delta) /
 		(info->num_deltas + 1);
 	      info->num_deltas++;
+	      if (VERBOSE)
+		printf(" ok x %d now %.3f\n", info->num_deltas,
+		       info->average_delta);
 	    }
 	  }
 	}
@@ -146,11 +173,16 @@ vector<AutoTimer::TimerLoc> AutoTimer::FindTimers(const vector<uint8> &save) {
       // We eliminate it, although note that it could just be a
       // really slow counter.
       info->disqualified = true;
+      if (VERBOSE)
+	printf("%04x  not enough changes. DQ\n", p.first);
       continue;
     }
     const int last_delta = EXPERIMENT_FRAMES - info->last_change;
     if (last_delta > info->average_delta + 2.01f) {
       info->disqualified = true;
+      if (VERBOSE)
+	printf("%04x  last delta %d (want %.3f). DQ\n", p.first,
+	       last_delta, info->average_delta);
       continue;
     }
   }
@@ -183,11 +215,19 @@ vector<AutoTimer::TimerLoc> AutoTimer::FindTimers(const vector<uint8> &save) {
 
     // Since very fast timers get lots of repetitions, we shouldn't
     // let that affect the score that much.
-    timer.score = std::max(info->num_deltas, 3) * 0.5f + fpart;
+    timer.score = std::min(info->num_deltas, 3) * 0.5f + fpart;
     
     timers.push_back(timer);
   }
 
+  if (VERBOSE) {
+    printf("%d Remaining:\n", (int)timers.size());
+    for (const TimerLoc &t : timers) {
+      printf("%04x %c @%.3f: %.3f\n",
+	     t.loc, (t.incrementing ? '+' : '-'), t.period, t.score);
+    }
+  }
+  
   emulator_pool.Release(emu);
   return timers;
 }
