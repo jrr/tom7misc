@@ -34,9 +34,17 @@ std::vector<T> MergeAndBest(const std::vector<std::vector<T>> &vv,
   for (const auto &v : vv) {
     for (const T &l : v) {
       const int loc = l.loc;
-      T *t = &merged[loc];
-      t->loc = loc;
-      t->score += l.score;
+      auto it = merged.find(loc);
+      if (it == merged.end()) {
+	// PERF two lookups
+	merged[loc] = l;
+      } else {
+	it->second.score += l.score;
+	// XXX actually we should be passing some merge
+	// function here. For example in autotimer, we want
+	// to average the two periods, and reject the result
+	// item if it has inconsistent direction.
+      }
     }
   }
 

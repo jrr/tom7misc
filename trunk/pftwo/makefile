@@ -3,7 +3,7 @@ default: pftwo.exe eval-autocamera.exe debug-autocamera.exe
 
 all: testui.exe pftwo.exe eval-autocamera.exe debug-autocamera.exe
 
-CXXFLAGS=--std=c++14 -Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I SDL/include
+CXXFLAGS=--std=c++17 -Wall -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I SDL/include
 OPT=-O2
 SYMBOLS=-g
 

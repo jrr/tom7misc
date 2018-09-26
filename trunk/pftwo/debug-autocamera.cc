@@ -33,6 +33,7 @@
 #include "autocamera.h"
 #include "autocamera2.h"
 #include "autolives.h"
+#include "autotimer.h"
 #include "n-markov-controller.h"
 
 #include "SDL.h"
@@ -49,6 +50,7 @@
 #define SNAPSHOT_EVERY 1000
 
 using LivesLoc = AutoLives::LivesLoc;
+using TimerLoc = AutoTimer::TimerLoc;
 
 static string Rtos(double d) {
   if (std::isnan(d)) return "NaN";
@@ -235,6 +237,7 @@ struct UIThread {
   std::map<int64, string> subtitles;
   unique_ptr<Emulator> emu;
   unique_ptr<AutoLives> autolives;
+  unique_ptr<AutoTimer> autotimer;
   bool show_control = false;
   int frameidx = 0;
   int loop_left = 0, loop_right = 0;
@@ -262,6 +265,7 @@ struct UIThread {
     emu.reset(Emulator::Create(game));
     CHECK(emu.get() != nullptr) << game;
     autolives.reset(new AutoLives(game, nmarkov));
+    autotimer.reset(new AutoTimer(game, nmarkov));
     
     loop_left_save = emu->SaveUncompressed();
     
@@ -362,11 +366,20 @@ struct UIThread {
 	    }
 	    break;
 
+	  case SDLK_t: {
+	    // (expects verbose printout...)
+	    vector<TimerLoc> timers =
+	      autotimer->FindTimers(emu->SaveUncompressed());
+	    (void)timers;
+	    break;
+	  }
+	    
 	  case SDLK_l: {
 	    vector<LivesLoc> lives =
 	      autolives->FindLives(emu->SaveUncompressed(),
 				   XLOC, YLOC,
 				   false);
+	    (void)lives;
 	    break;
 	  }
 	    
@@ -605,7 +618,7 @@ struct UIThread {
 				controlf > 0.3f ? "^5" : "^2", controlf));
       }
       
-      {
+      if (false) {
 	std::unordered_map<uint64, int> reg_counts;
 	last_pcs.App([&reg_counts](uint64 reg) {
 		       reg_counts[reg]++;

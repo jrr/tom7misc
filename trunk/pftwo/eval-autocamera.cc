@@ -358,8 +358,9 @@ struct Evaluation {
 		string xs = one->game.timer == l.loc ? " TIMER" : "";
 
 		fprintf(outfile,
-			"  %.2f: %d %s @%.2f = %s%s\n",
-			l.score, l.loc, l.incrementing ? "++" : "--",
+			"  %.2f: %04x %s @%.2f = %s%s\n",
+			l.score, l.loc,
+			(l.incrementing ? "++" : "--"),
 			l.period,
 			MarkAddr(l.loc).c_str(),
 			xs.c_str());
