@@ -168,8 +168,29 @@ string operator ""_sss() {
   return Parse<Cs...>::Ret();
 }
 
+// Allowed in C++20 maybe?
+// (Looks like it actually passes the string itself as a template
+// parameter, which seems to require <=> support.
+template<char... Cs>
+int operator "" _b() {
+  return 123;
+}
+
+// I tried this based on the error that g++ 6.4.0 gives.
+// Why is this permitted? It doesn't really make sense to me.
+template<typename CharT, CharT...>
+int operator "" _z() {
+  return 456;
+}
+
+
 int main(int argc, char **argv) {
 
+  operator "" _b<'a', 'b'>();
+  
+  // Try in C++20?
+  int z = "fooo"_z;
+  
   // int x = Get<'4', '3', '2', '1'>::Ret();
   // This demonstrates that the result of the user-defined
   // literal is constexpr.
@@ -178,5 +199,5 @@ int main(int argc, char **argv) {
   // auto s = 0x696e'7420'6628'696e'7420'7929'7b0a'2020'7265'7475'726e'2079'202b'2031'3b0a'7d0a_sss;
   // auto s = 0x696e74_sss;
   auto s = 0x696e74206628696e742079297b0a202072657475726e2079202b20313b0a7d0a_sss;
-  printf("What you got was: %d, %d, %s\n", x, y, s.c_str());
+  printf("What you got was: %d, %d, %d, %s\n", z, x, y, s.c_str());
 }
