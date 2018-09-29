@@ -245,6 +245,7 @@ struct Evaluation {
     else if (loc == one->game.p2.yloc) return "p2 y";
     else if (loc == one->game.p2.lives) return "p2 l";
     else if (loc == one->game.p2.health) return "p2 h";
+    else if (loc == one->game.timer) return "timer";
     else return "";
   }
   
@@ -355,15 +356,12 @@ struct Evaluation {
 		      one->game.romfile.c_str());
       
 	      for (const TimerLoc &l : one->timers) {
-		string xs = one->game.timer == l.loc ? " TIMER" : "";
-
 		fprintf(outfile,
-			"  %.2f: %04x %s @%.2f = %s%s\n",
+			"  %.2f: %d %s @%.2f = %s\n",
 			l.score, l.loc,
 			(l.incrementing ? "++" : "--"),
 			l.period,
-			MarkAddr(l.loc).c_str(),
-			xs.c_str());
+			MarkAddr(l.loc).c_str());
 	      }
 	    
 	      fflush(outfile);
@@ -438,14 +436,16 @@ struct Evaluation {
 	  for (const XLoc &x : xmerged1) xscores1[x.xloc] = x.score;
 	  for (const XLoc &x : xmerged2) xscores2[x.xloc] = x.score;
 
-	  // Now rescore using xlocs for each player.
-	  vector<Linkage> rescored1 = merged, rescored2 = merged;
-	  for (Linkage &l : rescored1) l.score *= (1.0f + xscores1[l.xloc]);
-	  for (Linkage &l : rescored2) l.score *= (1.0f + xscores2[l.xloc]);
-	  // Easy way to sort them again.
-	  one->rescored_locs1 = AutoCamera2::MergeLinkages({rescored1});
-	  one->rescored_locs2 = AutoCamera2::MergeLinkages({rescored2});
-
+	  {
+	    // Now rescore using xlocs for each player.
+	    vector<Linkage> rescored1 = merged, rescored2 = merged;
+	    for (Linkage &l : rescored1) l.score *= (1.0f + xscores1[l.xloc]);
+	    for (Linkage &l : rescored2) l.score *= (1.0f + xscores2[l.xloc]);
+	    // Easy way to sort them again.
+	    one->rescored_locs1 = AutoCamera2::MergeLinkages({rescored1});
+	    one->rescored_locs2 = AutoCamera2::MergeLinkages({rescored2});
+	  }
+	    
 	  one->SetStatus(RunState::RUNNING_AC, "Write results");
 	  
 	  auto MarkAddr =
@@ -491,11 +491,11 @@ struct Evaluation {
 
 	      if (one->game.is_two_player) {
 		fprintf(outfile, " == 1P ==\n");
-		PrintPlayer(rescored1);
+		PrintPlayer(one->rescored_locs1);
 		fprintf(outfile, " == 2P ==\n");
-		PrintPlayer(rescored2);
+		PrintPlayer(one->rescored_locs2);
 	      } else {
-		PrintPlayer(rescored1);
+		PrintPlayer(one->rescored_locs1);
 	      }
       
 	      fflush(outfile);
@@ -554,7 +554,7 @@ struct Evaluation {
 	  if (player == 0) {
 	    DoLives(one->rescored_locs1, false, &one->llocs1[sample]);
 	  } else {
-	    DoLives(one->rescored_locs2, false, &one->llocs2[sample]);
+	    DoLives(one->rescored_locs2, true, &one->llocs2[sample]);
 	  }
 
 	  {
@@ -697,10 +697,9 @@ struct Evaluation {
 
 static void EvalAll() {
   // or getmatching...
-  vector<Game> games = GameDB().GetAll();
-  // vector<Game> games = GameDB().GetMatching(
-  // {"mario", "contra", "werewolf"});
-
+  // vector<Game> games = GameDB().GetAll();
+  vector<Game> games = GameDB().GetMatching(
+      {"mario", "contra"});
 
   Evaluation evaluation;
   evaluation.StartGames(games);

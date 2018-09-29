@@ -148,6 +148,8 @@ GameDB::GameDB() {
 
     // Timer is a multibyte quantity in BCD:
     // 0x7F8, 0x7F9, 0x7FA = 0S 0S 0S
+    // Note that autolives gives a pretty high score to 7f8,
+    // the highest digit here.
   }
 
   // From wiki.
