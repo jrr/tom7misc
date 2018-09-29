@@ -16,6 +16,8 @@
 #include "weighted-objectives.h"
 #include "../cc-lib/randutil.h"
 
+struct EmulatorPool;
+
 struct TwoPlayerProblem {
   // Player 1 and Player 2 controllers.
 
@@ -226,6 +228,12 @@ struct TwoPlayerProblem {
   // something like lives lost when going from old_state to new, so that
   // we avoid exploration play that actually kills the player.
   // Could also just be based on the objectives.
+  //
+  // Note that currently, exactly 1.0 is distinguished from any value
+  // < 1.0 during the "explore" process (In an attempt to avoid
+  // killing the player while exploring). So it is currently best to
+  // treat very small penalties as 1.0.
+  //
   // XXX: Need to determine protect_loc automatically, like during training.
   double EdgePenalty(const State &old_state, const State &new_state) const {
     double res = 1.0;
@@ -330,10 +338,14 @@ struct TwoPlayerProblem {
   explicit TwoPlayerProblem(const map<string, string> &config);
 
  private:
+  void InitCameras(const map<string, string> &config,
+		   EmulatorPool *pool,
+		   const vector<uint8> &start);
   
   string game;
   int warmup_frames = -1;
   int fastforward = -1;
+  int init_threads = 6;
   
   // (Hypothesized) memory locations corresponding to the two
   // player's screen coordinates. If -1, unknown.

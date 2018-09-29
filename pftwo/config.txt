@@ -1,39 +1,35 @@
 game contra.nes
 movie contra2p.fm7
-# workers 11
-workers 60
+# workers 60
+workers 11
+init-threads 11
 
 warmup 800
 # fastforward 7700
 # to waterfall level:
 # fastforward 11800
 
-# These are cheater hints! Playfun should deduce these
-# automatically (using new techniques).
+# These are cheater hints! Playfun can deduce these automatically
+# using new techiques.
 
 # p1 and p2 lives, respectively.
 protect 0x0032 0x0033
 
-# These are cheater hints! Playfun should deduce these
-# automatically during search using the techniques from
-# glEnd of zelda (which do work!). They're hard-coded
-# for now to experiment with the usage of them assuming
-# they're correct, with the goal that these would be
-# replaced with auto stuff later.
-
-# Note that there is this "3D" mode as well. It's basically
-# just 2D. But there is a memory location that describes
-# which mode we're in, too:
+# For contra note that there is this "3D" mode as well. It's basically
+# just 2D. But there is a memory location that describes which mode
+# we're in, too:
 #   (0040 - Perspective (00 - 2D, 01 - 3D))
 
+# not used in pftwo.
 view-type side
+
 
 # Unsigned, screen coordinates, y=0 is up. Verified these
 # in FCEUX.
 # dec: 820,794
-x1 0x0334
-y1 0x031A
+# x1 0x0334
+# y1 0x031A
 
 # dec: 821,795
-x2 0x0335
-y2 0x031B
+# x2 0x0335
+# y2 0x031B
