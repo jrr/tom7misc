@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <map>
 #include <unordered_set>
+#include <iostream>
+#include <sstream>
 
 #include "../fceulib/simplefm2.h"
 #include "../fceulib/simplefm7.h"
@@ -12,13 +14,17 @@
 #include "../cc-lib/util.h"
 #include "../cc-lib/lines.h"
 #include "headless-graphics.h"
-#include "autocamera.h"
+#include "autocamera2.h"
+#include "emulator-pool.h"
 
 // Note NMarkovController::Stats; making this large will often
 // make the matrix very sparse.
 static constexpr int MARKOV_N = 3;
-
 static_assert(MARKOV_N >= 0 && MARKOV_N <= 8, "allowed range");
+
+// Allows manual specification of protect locations, camera etc.
+// in config file.
+static constexpr bool ALLOW_CHEATS = false;
 
 using TPP = TwoPlayerProblem;
 using Worker = TPP::Worker;
@@ -183,147 +189,164 @@ static int AtoiHex(const string &s) {
     return atoi(c);
 }
 
+// Get n sample states from the movie.
+static vector<vector<uint8>> GetSamples(
+    EmulatorPool *pool,
+    const vector<pair<uint8, uint8>> &inputs,
+    // Start state after 
+    const vector<uint8> &start,
+    // First input to execute. Same as warmup_frames.
+    int start_idx,
+    // Number of samples to get.
+    int n) {
+  Emulator *emu = pool->Acquire();
+  emu->LoadUncompressed(start);
+  vector<vector<uint8>> samples;
+  samples.reserve(n);
+
+  const int usable_length = (int)inputs.size() - start_idx;
+  const int span = usable_length / n;
+  CHECK(span > 1) << "Not enough frames in the movie to get "
+		  << n << " state samples! start_idx "
+		  << start_idx << ", length " << inputs.size();
+  int until_next_span = 0;
+  for (int i = start_idx; samples.size() < n && i < inputs.size(); i++) {
+    if (until_next_span == 0) {
+      samples.push_back(emu->SaveUncompressed());
+      until_next_span = span - 1;
+    } else {
+      until_next_span--;
+    }
+    emu->Step(inputs[i].first, inputs[i].second);
+  }
+  CHECK(samples.size() == n) << "Maybe an off-by-one style error here";
+  pool->Release(emu);
+  return samples;
+}
+					
 // For now, try to determine the player locations at startup, using
 // the training movie. We run autocamera periodically during the
 // input movie, and let the results of that vote to determine x/y
 // locations for the two players that we then use for the rest of
 // time.
+//
+// Since this can be fairly slow, we cache the results in a file.
+void TPP::InitCameras(const map<string, string> &config,
+		      EmulatorPool *pool,
+		      const vector<uint8> &start) {
+  using XLoc = AutoCamera2::XLoc;
+  using Linkage = AutoCamera2::Linkage;
 
-// TODO: It's probably better to run this procedure during search,
-// since there might be multiple different phases in a game (a
-// simple example would be an overworld map like in Super Mario 3?).
-// It also gives us some hope of recovering if we mess it up.
-// On the other hand, it creates a host of complexities we have to
-// deal with.
-static void TryAutoCameras(const string &game,
-			   const vector<pair<uint8, uint8>> &inputs,
-			   int *x1_loc, int *y1_loc,
-			   int *x2_loc, int *y2_loc) {
-  vector<vector<uint8>> saves;
-  {
-    // Assumed this is much smaller than the input movie, or we
-    // will waste work.
-    static constexpr int NUM_AUTOCAMERAS = 10;
-    std::unordered_set<int> framenums;
-    // Don't try anything at frame 0, which is almost certainly going
-    // to be useless because it's before any initialization code!
-    for (int i = 1; i <= NUM_AUTOCAMERAS; i++) {
-      double f = i / (double)NUM_AUTOCAMERAS;
-      int framenum = f * inputs.size();
-      framenums.insert(framenum);
+  CHECK(!game.empty()) << "Not initialized";
+  CHECK(warmup_frames >= 0) << "Not initialized";
+
+  const string cachefile = StringPrintf("%s.camera", game.c_str());
+
+  string cache_contents = Util::ReadFile(cachefile);
+  if (!cache_contents.empty()) {
+    stringstream ss(cache_contents, stringstream::in);
+    CHECK(!ss.eof()) << "Malformed " << cachefile;
+    ss >> x1_loc;
+    CHECK(!ss.eof()) << "Malformed " << cachefile;
+    ss >> y1_loc;
+    CHECK(!ss.eof()) << "Malformed " << cachefile;
+    ss >> x2_loc;
+    CHECK(!ss.eof()) << "Malformed " << cachefile;
+    ss >> y2_loc;
+
+    printf("Read cached cameras from %s: %d %d %d %d\n",
+	   cachefile.c_str(),
+	   x1_loc, y1_loc, x2_loc, y2_loc);
+  } else {
+
+    // Never tuned this. More is probably better!
+    static constexpr int NUM_SAMPLES = 10;
+    vector<vector<uint8>> samples = GetSamples(pool, original_inputs,
+					       start, warmup_frames,
+					       NUM_SAMPLES);
+
+    vector<vector<Linkage>> linkages;
+    linkages.resize(samples.size());
+    vector<vector<XLoc>> xlocs1, xlocs2;
+    xlocs1.resize(samples.size());
+    xlocs2.resize(samples.size());
+
+    // PERF could create from pool...
+    AutoCamera2 autocamera(game);
+
+    printf("Running AutoCamera...\n");
+    ParallelComp2D(
+	samples.size(),
+	// 2 players, 1 linkages
+	3,
+	[pool, &samples, &linkages, &xlocs1, &xlocs2, &autocamera](
+	    int sample, int channel) {
+	  const vector<uint8> &save = samples[sample];
+
+	  switch (channel) {
+	  case 0:
+	    linkages[sample] = autocamera.FindLinkages(save, nullptr);
+	    printf("L");
+	    break;
+	  case 1:
+	    xlocs1[sample] = autocamera.FindXLocs(save, false, nullptr);
+	    printf("1");
+	    break;
+	  case 2:
+	    xlocs2[sample] = autocamera.FindXLocs(save, true, nullptr);
+	    printf("2");
+	    break;
+	  }
+
+	}, init_threads);
+
+    printf("\nMerging AutoCamera results...\n");
+    vector<Linkage> merged = AutoCamera2::MergeLinkages(linkages);
+    vector<XLoc> xmerged1 = AutoCamera2::MergeXLocs(xlocs1);
+    vector<XLoc> xmerged2 = AutoCamera2::MergeXLocs(xlocs2);
+
+    std::unordered_map<int, float> xscores1, xscores2;
+    for (const XLoc &x : xmerged1) xscores1[x.xloc] = x.score;
+    for (const XLoc &x : xmerged2) xscores2[x.xloc] = x.score;
+
+    // Now rescore using xlocs for each player.
+    vector<Linkage> rescored1 = merged, rescored2 = merged;
+    for (Linkage &l : rescored1)
+      l.score *= (1.0f + xscores1[l.xloc]);
+    for (Linkage &l : rescored2)
+      l.score *= (1.0f + xscores2[l.xloc]);
+    // Easy way to sort them again.
+    rescored1 = AutoCamera2::MergeLinkages({rescored1});
+    rescored2 = AutoCamera2::MergeLinkages({rescored2});
+
+    if (!rescored1.empty()) {
+      x1_loc = rescored1.front().xloc;
+      y1_loc = rescored1.front().yloc;
+      printf("AutoCamera2 set p1 loc to %d,%d (score %.3f).\n",
+	     x1_loc, y1_loc, rescored1.front().score);
     }
 
-    {
-      // PERF: Get rid of stuff for debugging autocamera displacement.
-      unique_ptr<Emulator> emu(Emulator::Create(game));
-      CHECK(emu.get()) << "(autocamera) " << game;
-      vector<uint8> old_oam = AutoCamera::OAM(emu.get());
-      for (int i = 0; i < inputs.size(); i++) {
-	emu->Step(inputs[i].first, inputs[i].second);
-	vector<uint8> new_oam = AutoCamera::OAM(emu.get());
-	int disp = AutoCamera::BestDisplacement(old_oam, new_oam);
-	(void)disp;
-	if (ContainsKey(framenums, i)) {
-	  printf("Try autocamera at frame %d:\n", i);
-	  saves.push_back(emu->SaveUncompressed());
-	}
-	old_oam = std::move(new_oam);
-      }
+    if (!rescored2.empty()) {
+      x2_loc = rescored2.front().xloc;
+      y2_loc = rescored2.front().yloc;
+      printf("AutoCamera2 set p2 loc to %d,%d (score %.3f).\n",
+	     x2_loc, y2_loc, rescored2.front().score);
     }
+
+    string contents = StringPrintf("%d %d %d %d\n",
+				   x1_loc, y1_loc, x2_loc, y2_loc);
+    Util::WriteFile(cachefile, contents);
+    printf("Wrote to %s\n", cachefile.c_str());
   }
 
-  // TODO: This doesn't work for contra because it does seem to
-  // use the trick of rotating the starting sprite during DMA
-  // in order to get flicker instead of dropped sprites when
-  // there are more than 8 on a scanline.
-  //   - in GetXSprites, could also be solving for a modular
-  //     offset (e.g. idx = (frame * off) % 64). It's probably
-  //     a consistent rotation, but possibly this fails because
-  //     of lag frames?
-  //   - Maybe could fall back to something that just tries to
-  //     find memory locations for which SOME sprite matches
-  //     the criteria? e.g. expand XYSprite to have a wildcard?
-  //   - Since the player is often multiple sprites, we could
-  //     cast a more narrow net by looking for groups (indices
-  //     are fixed modular distance from one another) of sprites
-  //     that move together and are related to a memory address?
-  //   - Hard: Could maybe be inspecting writes to DMA region
-  //     directly?
-  //
-  // Favorite idea so far: Solve for an alignment (on each pair
-  // of frames), based on minimum cost:
-  //   - like do sprite[i] and sprite[(i + alignment) % 64] have
-  //     - similar x,y coordinates
-  //     - similar oam data, attributes, palette, etc.?
-  //   - is alignment similar to the previous pair of frames?
-  // I think this will probably work quite well...
-  //
-  // Well, on Contra, the sprites are shuffled in a pretty
-  // complex pattern, it seems. There are at least a couple of
-  // things going on:
-  //   - On every frame it appears to rotate the starting sprite
-  //     index by +45. (On the start screen, everything keeps a
-  //     constant index.
-  //   - Also when playing, the number-of-lives indicators have
-  //     stable indices most of the time -- but when the bridge
-  //     explodes, for example, everything shuffles. (lag frames?)
-  //   - The player's pose affects the sprites used to draw
-  //     it, and their indices (?)
-  //   - When the player is shooting, sometimes bullets take
-  //     slots from the player sprite. Maybe the idea is that
-  //     bullets would often conflict with the player (same
-  //     scanline), so this is prophylactic
-  // What to do?
-  //   - Maybe a much simpler version of this where we just look
-  //     for memory locations that go down when we press left,
-  //     up when we press right? But we do need to determine
-  //     y coordinate, which we don't control so easily...
-  //
-  // (AutoCamera::BestDisplacement seems to work ok for contra.)
-  
-  using XYSprite = AutoCamera::XYSprite;
-  using XSprites = AutoCamera::XSprites;
-  AutoCamera autocamera{game};
-  vector<XYSprite> votes;
-
-  for (const vector<uint8> &save : saves) {
-    auto Callback = [](int depth,
-		       int total_displacement,
-		       Emulator *lemu,
-		       Emulator *nemu,
-		       Emulator *remu) {};
-    
-    const XSprites xcand = autocamera.GetXSprites(save, Callback);
-
-    #if 0
-    vector<int> player_sprites;
-    const vector<XYSprite> xycand =
-      autocamera.FindYCoordinates(save, xcand, &player_sprites);
-
-    
-    const vector<XYSprite> ccand = xycand;
-    /*
-      XXX need to update this to use displacement
-      autocamera.FilterForConsequentiality(save, x_num_frames,
-					   xycand);
-    */
-    // XXX Could do DetectViewType and/or DetectCameraAngle,
-    // and increase votes if it succeeds
-    // (suggests that we got good sprites?)
-    printf("***************************\n");
-    printf("*** %d final candidates:\n", (int)ccand.size());
-    for (const XYSprite &sprite : ccand) {
-      printf(" Sprite %d%s: x:", sprite.sprite_idx,
-	     sprite.oldmem ? " (lag)" : "");
-      for (const pair<uint16, int> mem : sprite.xmems)
-	printf(" %s", AutoCamera::AddrOffset(mem).c_str());
-      printf("  y:");
-      for (const pair<uint16, int> mem : sprite.ymems)
-	printf(" %s", AutoCamera::AddrOffset(mem).c_str());
-      printf("\n");
-    }
-    printf("***************************\n");
-    #endif
+  // Override from config file if present, and allowed.
+  if (ALLOW_CHEATS) {
+    x1_loc = AtoiHex(GetDefault(config, "x1", "-1"));
+    y1_loc = AtoiHex(GetDefault(config, "y1", "-1"));
+    x2_loc = AtoiHex(GetDefault(config, "x2", "-1"));
+    y2_loc = AtoiHex(GetDefault(config, "y2", "-1"));
+    printf("[CHEATIN'] Players at %d,%d and %d,%d\n",
+	   x1_loc, y1_loc, x2_loc, y2_loc);
   }
 }
 
@@ -333,39 +356,17 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   const string movie = GetDefault(config, "movie", "");
   printf("Read inputs for %s\n", movie.c_str());
   original_inputs = Util::endswith(movie, ".fm2") ?
-      SimpleFM2::ReadInputs2P(movie) :
-      SimpleFM7::ReadInputs2P(movie);
+    SimpleFM2::ReadInputs2P(movie) :
+    SimpleFM7::ReadInputs2P(movie);
 
   CHECK(!original_inputs.empty()) << "No inputs in " << movie;
 
-  string protect = GetDefault(config, "protect", "");
-  while (!protect.empty()) {
-    string tok = Util::chop(protect);
-    if (!tok.empty()) {
-      protect_loc.push_back(AtoiHex(tok));
-      printf("[CHEATIN'] Protect %d\n", protect_loc.back());
-    }
+  if (ContainsKey(config, "init-threads")) {
+    init_threads = AtoiHex(GetDefault(config, "init-threads", "6"));
+  } else if (ContainsKey(config, "workers")) {
+    init_threads = AtoiHex(GetDefault(config, "workers", "6"));
   }
 
-  // Hardcoded cheatin' version.
-  x1_loc = AtoiHex(GetDefault(config, "x1", "-1"));
-  y1_loc = AtoiHex(GetDefault(config, "y1", "-1"));
-  x2_loc = AtoiHex(GetDefault(config, "x2", "-1"));
-  y2_loc = AtoiHex(GetDefault(config, "y2", "-1"));
-  printf("[CHEATIN'] Players at %d,%d and %d,%d\n",
-	 x1_loc, y1_loc, x2_loc, y2_loc);
-
-  // XXX use autocamera2, which works much better (or a blend?)
-  (void)TryAutoCameras;
-  #if 0
-  TryAutoCameras(game, original_inputs,
-		 &x1_loc, &y1_loc, &x2_loc, &y2_loc);
-  // XXX these should not be fatal! Just disable the goal-seeking stuff.
-  CHECK(x1_loc >= 0 && y1_loc >= 0) << "Autocamera failed for player 1";
-  CHECK(x2_loc >= 0 && y2_loc >= 0) << "Autocamera failed for player 2";
-  printf("Autocamera results: P1 %d,%d   P2 %d,%d\n",
-	 x1_loc, y1_loc, x2_loc, y2_loc);
-  #endif
   
   warmup_frames = AtoiHex(GetDefault(config, "warmup", "-1"));
   // XXX: Deduce this from input.
@@ -398,9 +399,12 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   markov1->Stats();
   markov2->Stats();
 
+  // Temporary pool for initialization.
+  EmulatorPool pool(game, 3);
+  
   // Throwaway emulator instance for warmup, training.
   printf("Warmup.\n");
-  unique_ptr<Emulator> emu(Emulator::Create(game));
+  Emulator *emu = pool.Acquire();
   for (int i = 0; i < warmup_frames; i++) {
     emu->Step(original_inputs[i].first, original_inputs[i].second);
   }
@@ -408,6 +412,8 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   // Save start state for each worker.
   vector<uint8> save_after_warmup = emu->SaveUncompressed();
 
+  InitCameras(config, &pool, save_after_warmup);
+  
   // See if we have cached learnfun results, since it takes some
   // time to run.
 
@@ -449,6 +455,19 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
      0,
      markov1->HistoryInDomain(),
      markov2->HistoryInDomain()};
+
+  if (ALLOW_CHEATS) {
+    string protect = GetDefault(config, "protect", "");
+    while (!protect.empty()) {
+      string tok = Util::chop(protect);
+      if (!tok.empty()) {
+	protect_loc.push_back(AtoiHex(tok));
+	printf("[CHEATIN'] Protect %d\n", protect_loc.back());
+      }
+    }
+  }
+
+  pool.Release(emu);
 }
 
 Worker *TPP::CreateWorker() {
