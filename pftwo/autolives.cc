@@ -23,7 +23,7 @@ static constexpr int TRY_TO_DIE_FRAMES = 6 * 60;
 
 static constexpr int FINDLIVES_NUM_EXPERIMENTS = 10;
 
-static constexpr bool VERBOSE = true;
+static constexpr bool VERBOSE = false;
 
 AutoLives::AutoLives(
     const string &game,

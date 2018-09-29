@@ -15,6 +15,7 @@
 #include "../fceulib/emulator.h"
 #include "weighted-objectives.h"
 #include "../cc-lib/randutil.h"
+#include "autotimer.h"
 
 struct EmulatorPool;
 
@@ -338,15 +339,22 @@ struct TwoPlayerProblem {
   explicit TwoPlayerProblem(const map<string, string> &config);
 
  private:
+  void InitTimers(const map<string, string> &config,
+		  EmulatorPool *pool,
+		  const vector<uint8> &start);
   void InitCameras(const map<string, string> &config,
 		   EmulatorPool *pool,
 		   const vector<uint8> &start);
+  void InitLives(const map<string, string> &config,
+		 EmulatorPool *pool,
+		 const vector<uint8> &start);
   
   string game;
   int warmup_frames = -1;
   int fastforward = -1;
   int init_threads = 6;
   
+  vector<AutoTimer::TimerLoc> timers;
   // (Hypothesized) memory locations corresponding to the two
   // player's screen coordinates. If -1, unknown.
   // These are currently just read from the config file. In
