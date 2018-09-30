@@ -243,27 +243,25 @@ void TPP::InitTimers(const map<string, string> &config,
   string cache_contents = Util::ReadFile(cachefile);
   if (!cache_contents.empty()) {
 
-    while (cache_contents.empty()) {
-      vector<string> lines = Util::SplitToLines(cache_contents);
-      for (const string &line_orig : lines) {
-	string line = Util::losewhitel(line_orig);
-	if (line.empty() || line[0] == '#') continue;
-	const string loc = Util::chop(line);
-	const string score = Util::chop(line);
-	const string period = Util::chop(line);
-	const string incrementing = Util::chop(line);
-	if (!incrementing.empty()) {
-	  TimerLoc tl;
-	  tl.loc = AtoiHex(loc);
-	  tl.score = atof(score.c_str());
-	  tl.period = atof(score.c_str());
-	  tl.incrementing = AtoiHex(incrementing) > 0;
-	  timers.push_back(tl);
-	}
+    for (const string &line_orig :
+	   Util::SplitToLines(cache_contents)) {
+      string line = Util::losewhitel(line_orig);
+      if (line.empty() || line[0] == '#') continue;
+      const string loc = Util::chop(line);
+      const string score = Util::chop(line);
+      const string period = Util::chop(line);
+      const string incrementing = Util::chop(line);
+      if (!incrementing.empty()) {
+	TimerLoc tl;
+	tl.loc = AtoiHex(loc);
+	tl.score = atof(score.c_str());
+	tl.period = atof(score.c_str());
+	tl.incrementing = AtoiHex(incrementing) > 0;
+	timers.push_back(tl);
       }
     }
 
-    printf("Read %d cached timers from %s",
+    printf("Read %d cached timer(s) from %s\n",
 	   (int)timers.size(),
 	   cachefile.c_str());
     
@@ -304,7 +302,7 @@ void TPP::InitTimers(const map<string, string> &config,
     for (const TimerLoc &tl : timers)
       contents += StringPrintf("0x%04x %.6f %.6f %c\n",
 			       tl.loc, tl.score, tl.period,
-			       tl.incrementing ? "1" : "0");
+			       tl.incrementing ? '1' : '0');
     Util::WriteFile(cachefile, contents);
     printf("Wrote to %s\n", cachefile.c_str());
   }
@@ -452,23 +450,20 @@ void TPP::InitLives(const map<string, string> &config,
 
   string cache_contents = Util::ReadFile(cachefile);
   if (!cache_contents.empty()) {
-
-    while (cache_contents.empty()) {
+    while (!cache_contents.empty()) {
       const string tok = Util::chop(cache_contents);
       if (!tok.empty()) {
 	protect_loc.push_back(AtoiHex(tok));
       }
     }
 
-    printf("Read cached lives from %s:",
-	   cachefile.c_str());
+    printf("Read cached lives from %s:", cachefile.c_str());
     for (int loc : protect_loc) printf(" %d", loc);
     printf("\n");
     
   } else {
 
     // Never tuned this. More is probably better!
-    printf("Autolives...\n");
     static constexpr int NUM_SAMPLES = 10;
     vector<vector<uint8>> samples = GetSamples(pool, original_inputs,
 					       start, warmup_frames,
@@ -477,9 +472,16 @@ void TPP::InitLives(const map<string, string> &config,
     llocs1.resize(samples.size());
     llocs2.resize(samples.size());
 
+    // PERF should share the emulator pool.
     AutoLives autolives1(game, *markov1);
     AutoLives autolives2(game, *markov2);
 
+    printf("Running autolives on 2 players, %d samples. This will\n"
+	   "likely take several minutes; the bar below must be "
+	   "completed:\n",
+	   (int)samples.size());
+    for (int i = 0; i < NUM_SAMPLES * 2; i++) printf("-");
+    printf("\n");
     ParallelComp2D(
 	NUM_SAMPLES,
 	// Players
