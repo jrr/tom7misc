@@ -247,6 +247,8 @@ struct TreeSearch {
   // No lock needed to update these.
   void SetApproximateSeconds(int64 seconds_since_start);
   void SetApproximateNesFrames(int64 nes_frames);
+
+  void PrintPerfCounters();
   
   struct Stats {
     // Generated the same exact move sequence for a node
