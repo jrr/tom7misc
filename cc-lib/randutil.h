@@ -163,6 +163,7 @@ inline uint32 RandTo32(ArcFour *rc, uint32 n) {
 
 template<class T>
 static void Shuffle(ArcFour *rc, std::vector<T> *v) {
+  if (v->size() <= 1) return;
   for (uint64 i = v->size() - 1; i >= 1; i--) {
     uint64 j = RandTo(rc, i + 1);
     if (i != j) {
