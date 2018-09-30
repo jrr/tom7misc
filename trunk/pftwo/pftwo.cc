@@ -135,11 +135,7 @@ struct UIThread {
   explicit UIThread(TreeSearch *search) : search(search) {}
 
   void Loop() {
-    SDL_Surface *surf = sdlutil::makesurface(256, 256, true);
-    SDL_Surface *surfhalf = sdlutil::makesurface(128, 128, true);
     (void)frame;
-    (void)surf;
-    (void)surfhalf;
 
     const int num_workers = [&]() {
       MutexLock ml(&search->tree_m);
@@ -150,6 +146,7 @@ struct UIThread {
     for (auto &v : screenshots) v.resize(256 * 256 * 4);
 
     const int64 start = time(nullptr);
+    int64 last_saved = start;
     
     for (;;) {
       frame++;
@@ -177,20 +174,23 @@ struct UIThread {
 	}
       }
 	
-      SDL_Delay(1000.0 / 30.0);
+      // SDL_Delay(1000.0 / 30.0);
+      SDL_Delay(1000.0);
 
       const int64 now = time(nullptr);
       search->SetApproximateSeconds(now - start);
-      
-      // Every ten thousand frames, write FM2 file.
+
+      const int64 elapsed_since_save = now - last_saved;
+      // Every half hour, write the best movie.
       // TODO: Superimpose all of the trees at once.
-      if (frame % 10000 == 0) {
+      if (elapsed_since_save > 1800) {
 	string filename_part = StringPrintf("frame-%lld", frame);
 	string filename = search->SaveBestMovie(filename_part);
 	(void)Util::remove("latest.fm2");
 	if (!Util::copy(filename, "latest.fm2")) {
 	  printf("Couldn't copy to latest.fm2?\n");
 	}
+	last_saved = now;
       }
 
       sdlutil::clearsurface(screen, 0x11111111);
