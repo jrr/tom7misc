@@ -175,7 +175,7 @@ struct UIThread {
       }
 	
       // SDL_Delay(1000.0 / 30.0);
-      SDL_Delay(1000.0);
+      SDL_Delay(1000);
 
       const int64 now = time(nullptr);
       search->SetApproximateSeconds(now - start);
@@ -193,6 +193,10 @@ struct UIThread {
 	last_saved = now;
       }
 
+      if (frame % 10 == 0) {
+	search->PrintPerfCounters();
+      }
+      
       sdlutil::clearsurface(screen, 0x11111111);
 
       const int64 tree_size =

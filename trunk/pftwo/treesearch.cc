@@ -53,7 +53,54 @@ static std::mutex print_mutex;
     printf(fmt, ##__VA_ARGS__);			\
   } while (0)
 
+// All events that we count.
+enum PerfEvent {
+  PE_FIND_NODE_TO_EXTEND,
+  PE_EXTEND_NODE,
+  PE_UPDATE_TREE_A,
+  PE_UPDATE_TREE_B,
+  PE_UPDATE_TREE_C,
+  PE_UPDATE_TREE_D,
+  PE_PROCESS_EXPLORE_QUEUE_A,
+  PE_PROCESS_EXPLORE_QUEUE_B,
+  PE_PROCESS_EXPLORE_QUEUE_C,
+  PE_PROCESS_EXPLORE_QUEUE_D,
+  PE_SHOULD_DIE_EQ,
+  PE_SHOULD_DIE_N,
+  NUM_PERFEVENTS,
+};
+
+static const char *PerfEventString(PerfEvent pe) {
+#define CASE(c) case PE_ ## c: return # c;
+  switch (pe) {
+    CASE(FIND_NODE_TO_EXTEND);
+    CASE(EXTEND_NODE);
+    CASE(UPDATE_TREE_A);
+    CASE(UPDATE_TREE_B);
+    CASE(UPDATE_TREE_C);
+    CASE(UPDATE_TREE_D);
+    CASE(PROCESS_EXPLORE_QUEUE_A);
+    CASE(PROCESS_EXPLORE_QUEUE_B);
+    CASE(PROCESS_EXPLORE_QUEUE_C);
+    CASE(PROCESS_EXPLORE_QUEUE_D);
+    CASE(SHOULD_DIE_EQ);
+    CASE(SHOULD_DIE_N);
+  default: return "?";
+  }
+#undef CASE
+}
+
+static_assert(sizeof (uint64) == sizeof (LARGE_INTEGER), "win64");
+#define PERF_MUTEX_LOCK(pe, mut)				\
+  uint64 perf_ml_start, perf_ml_end;				\
+  QueryPerformanceCounter((LARGE_INTEGER*)&perf_ml_start);	\
+  MutexLock perf_ml(mut);					\
+  QueryPerformanceCounter((LARGE_INTEGER*)&perf_ml_end);	\
+  perf_counters[pe] += (perf_ml_end - perf_ml_start)
+
 struct WorkThread {
+  uint64 perf_counters[NUM_PERFEVENTS] = {};
+  
   using Node = Tree::Node;
   WorkThread(TreeSearch *search, int id) :
     search(search), id(id),
@@ -159,7 +206,8 @@ struct WorkThread {
   // n is the current node, which may be discarded; this function
   // also maintains correct reference counts.
   Node *FindNodeToExtend(Node *n) {
-    MutexLock ml(&search->tree_m);
+    PERF_MUTEX_LOCK(PE_FIND_NODE_TO_EXTEND, &search->tree_m);
+    // MutexLock ml(&search->tree_m);
 
     CHECK(n->num_workers_using > 0);
 
@@ -253,7 +301,9 @@ struct WorkThread {
 		   Problem::State newstate,
 		   double newscore) {
     Node *child = NewNode(std::move(newstate), n);
-    MutexLock ml(&search->tree_m);
+
+    PERF_MUTEX_LOCK(PE_EXTEND_NODE, &search->tree_m);
+    // MutexLock ml(&search->tree_m);
 
     // XXX This should probably be done in the caller, because
     // if NUM_NEXTS isn't 1, we have more fine-grained evidence
@@ -314,7 +364,8 @@ struct WorkThread {
   void MaybeUpdateTree() {
     Tree *tree = search->tree;
     {
-      MutexLock ml(&search->tree_m);
+      PERF_MUTEX_LOCK(PE_UPDATE_TREE_A, &search->tree_m);
+      // MutexLock ml(&search->tree_m);
       // No use in decrementing update counter -- when we
       // finish we reset it to the max value.
       if (tree->update_in_progress)
@@ -349,7 +400,8 @@ struct WorkThread {
     {
       worker->SetStatus("Tree: Reheap");
       {
-	MutexLock ml(&search->tree_m);
+	// MutexLock ml(&search->tree_m);
+	PERF_MUTEX_LOCK(PE_UPDATE_TREE_B, &search->tree_m);
 
 	printf("Clear grid ...");
 	// First, just clear the grid since every node has a chance to
@@ -387,7 +439,8 @@ struct WorkThread {
     }
     
     {
-      MutexLock ml(&search->tree_m);
+      // MutexLock ml(&search->tree_m);
+      PERF_MUTEX_LOCK(PE_UPDATE_TREE_C, &search->tree_m);
       const int64 MAX_NODES = search->tree->MaxNodes();
       if (tree->num_nodes > MAX_NODES) {
 	printf("Trim tree (have %llu, max: %llu)...\n",
@@ -610,7 +663,8 @@ struct WorkThread {
 
 
     {
-      MutexLock ml(&search->tree_m);
+      // MutexLock ml(&search->tree_m);
+      PERF_MUTEX_LOCK(PE_UPDATE_TREE_D, &search->tree_m);
       tree->update_in_progress = false;
     }
   }
@@ -646,7 +700,8 @@ struct WorkThread {
     Problem::State start_state;
     double start_dist = -1.0;
     {
-      MutexLock ml(&search->tree_m);
+      // MutexLock ml(&search->tree_m);
+      PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
       en = GetExploreNodeWithMutex();
       if (en == nullptr) return false;
       // I should have a lock.
@@ -725,7 +780,9 @@ struct WorkThread {
 	// At some point, we got closer to the goal. Put this in
 	// the ExploreNode if it is still an improvement (might have
 	// lost a race).
-	MutexLock ml(&search->tree_m);
+	// MutexLock ml(&search->tree_m);
+	PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_B, &search->tree_m);
+	
 	if (best_distance < en->distance) {
 	  en->distance = best_distance;
 	  en->closest_state = closest_state;
@@ -757,7 +814,8 @@ struct WorkThread {
 	Problem::State newstate = worker->Save();
 	double score = search->problem->Score(newstate);
 	{
-	  MutexLock ml(&search->tree_m);
+	  // MutexLock ml(&search->tree_m);
+	  PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_C, &search->tree_m);
 	  Node *child =
 	    ExtendNodeWithLock(en->source, full_seq,
 			       std::move(newstate), score);
@@ -771,7 +829,8 @@ struct WorkThread {
     // Finally, reduce the iteration count, and maybe clean up the
     // ExploreNode.
     {
-      MutexLock ml(&search->tree_m);
+      // MutexLock ml(&search->tree_m);
+      PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
       CHECK(en->iterations_in_progress > 0);
       en->iterations_in_progress--;
       en->bad += num_bad;
@@ -834,10 +893,19 @@ struct WorkThread {
       while (ProcessExploreQueue()) {
 	// OK to ignore the rest of this loop, but we should die if
 	// requested.
+	{
+	  PERF_MUTEX_LOCK(PE_SHOULD_DIE_EQ, &search->should_die_m);
+	  if (search->should_die) {
+	    worker->SetStatus("Die");
+	    return;
+	  }
+	}
+	/*
 	if (ReadWithLock(&search->should_die_m, &search->should_die)) {
 	  worker->SetStatus("Die");
 	  return;
 	}
+	*/
       }
 
       // Starting this loop, the worker is in some problem state that
@@ -935,10 +1003,19 @@ struct WorkThread {
       MaybeUpdateTree();
 
       worker->SetStatus("Check for death");
+      {
+	PERF_MUTEX_LOCK(PE_SHOULD_DIE_N, &search->should_die_m);
+	if (search->should_die) {
+	  worker->SetStatus("Die");
+	  return;
+	}
+      }
+      /*
       if (ReadWithLock(&search->should_die_m, &search->should_die)) {
 	worker->SetStatus("Die");
 	return;
       }
+      */
     }
   }
 
@@ -1076,3 +1153,30 @@ string TreeSearch::SaveBestMovie(const string &filename) {
 			       subtitles,
 			       "generated by pftwo");
 }
+
+void TreeSearch::PrintPerfCounters() {
+  vector<int64> totals;
+  for (int i = 0; i < NUM_PERFEVENTS; i++)
+    totals.push_back(0);
+
+  uint64 freq;
+  QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
+  
+  {
+    MutexLock ml(&tree_m);
+    for (WorkThread *w : workers)
+      for (int i = 0; i < NUM_PERFEVENTS; i++)
+	totals[i] += w->perf_counters[i];
+  }
+
+  
+  
+  printf("Perf counters:\n");
+  for (int i = 0; i < NUM_PERFEVENTS; i++)
+    printf("%llu\t%.6fs\t%s\n", totals[i],
+	   (double)totals[i] / (double)freq,
+	   
+	   PerfEventString((PerfEvent)i));
+  printf("\n");
+}
+
