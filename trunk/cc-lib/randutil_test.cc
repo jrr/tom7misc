@@ -8,10 +8,25 @@
 
 using namespace std;
 
+// Regression: Shuffling an empty vector used to hang because
+// it used unsigned integers.
+static void TestShuffleCornerCases() {
+  ArcFour rc("corner");
+  vector<int> v;
+  Shuffle(&rc, &v);
+  CHECK(v.empty());
+
+  v.push_back(7);
+  Shuffle(&rc, &v);
+  CHECK(v.size() == 1);
+  CHECK(v[0] == 7);
+}
+
 // Test that Shuffle produces each permutation with even
 // probability. It's pretty easy to get this wrong!
-void TestShuffle(int n, double absolute_error) {
+static void TestShuffle(int n, double absolute_error) {
   ArcFour rc(StringPrintf("test_%d", n));
+
   unordered_map<string, int64> counts;
   static constexpr int ITERS = 10000000;
   for (int iter = ITERS; --iter;) {
