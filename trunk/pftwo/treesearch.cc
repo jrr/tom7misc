@@ -70,7 +70,7 @@ struct WorkThread {
   // Populates the vector with eligible grid indices.
   void EligibleGridNodesWithMutex(vector<int> *eligible) {
     // XXX This stuff is a hack. Improve it!
-    double bestscore = -search->tree->heap.GetMinimum().priority;
+    const double bestscore = -search->tree->heap.GetMinimum().priority;
     const double gminscore = GRID_BESTSCORE_FRAC * bestscore;
     // The interval from gminscore to bestscore is size (1.0 -
     // grid_bestscore_frac). When the cell's score falls in this
@@ -79,7 +79,7 @@ struct WorkThread {
     // value is what we multiply the distance by to get a value
     // from (nominally) 0 to 1.
     constexpr double ival_norm = 1.0 / (1.0 - GRID_BESTSCORE_FRAC);
-    
+
     for (int idx = 0; idx < search->tree->grid.size(); idx++) {
       const Tree::GridCell &gc = search->tree->grid[idx];
       if (gc.node != nullptr && gc.score >= gminscore) {
@@ -411,9 +411,10 @@ struct WorkThread {
 	// the best value we've ever seen, so it's typical for the
 	// best score to be 1.0. But in some cases, we might Observe a
 	// good-looking state but not insert it into the tree. For
-	// example, we might be a level but with one of the players dead.
-	// In this case, Score()s might be forever small. So here we
-	// normalize against the single best score when computing AUC.
+	// example, we might beat a level but with one of the players
+	// dead. In this case, Score()s might be forever small. So
+	// here we normalize against the single best score when
+	// computing AUC.
 	const double best_score = -tree->heap.GetMinimum().priority;
 	// Predivided normalization factor, and negated because priorities
 	// are negative scores.
@@ -550,6 +551,7 @@ struct WorkThread {
 	  // Do these in a random order in case there are so many
 	  // eligible expansions that we exhaust the list.
 	  Shuffle(&rc, &goodcells);
+	  printf("  ... with %d goodcells ...\n", (int)goodcells.size());
 	  while (!goodcells.empty() && num_explore > 0) {
 	    // For any eligible cell, consider its adjacent neighbors.
 	    int cell = goodcells.back();
@@ -575,6 +577,10 @@ struct WorkThread {
 	    }
 	  }
 
+	  if (num_explore > 0) {
+	    printf("  ... pad with %d random goals ...\n", num_explore);
+	  }
+	  
 	  // If we have leftover quota, just do random goals.
 	  // TODO: Rather than choosing random goals, choose goals that aren't
 	  // already represented in the grid, and perhaps choose ones that are

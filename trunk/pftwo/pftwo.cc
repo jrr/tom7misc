@@ -64,8 +64,6 @@
 // states would be actually worse than the original breakthrough
 // (lower score).
 //
-// TODO: Make headless version for running in CLOUDS.
-//
 // TODO: When stuck, I notice a lot of the grid cells have the player
 // dead(?) or at least almost dead. These have very high "BAD" scores,
 // and sometimes "seq 0" (meaning I guess that it couldn't make any
@@ -220,9 +218,10 @@ struct UIThread {
 
       int64 total_steps = 0LL;
       {
+	// XXX This needs to work better when there are like 60 threads
 	MutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
-	for (int i = 0; i < workers.size(); i++) {
+	for (int i = 0; i < workers.size() && i < 10; i++) {
 	  const Worker *w = workers[i];
 	  int numer = w->numer.load(std::memory_order_relaxed);
 	  font->draw(256 * 6 + 10, 40 + FONTHEIGHT * i,
@@ -324,12 +323,19 @@ struct UIThread {
       }
       
       // Draw workers workin'.
+      // XXX: This should be better designed for the case that
+      // we have 60 threads. Perhaps we start with all the
+      // thumbnails at top (maybe extra-small) and then only
+      // show viztext for the last row?
+      const int max_screenshots = queue_mode ? 11 : 11 * 6;
+
       vector<vector<string>> texts;
       {
 	MutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	texts.resize(workers.size());
-	for (int i = 0; i < workers.size(); i++) {
+	for (int i = 0; i < workers.size() && max_screenshots; i++) {
+	  CHECK(i < workers.size());
 	  Worker *w = workers[i];
 	  // XXX if workers change size, then we won't
 	  // necessarily have room for a screenshot
@@ -339,13 +345,13 @@ struct UIThread {
       }
 
       CHECK_EQ(texts.size(), screenshots.size());
-      for (int i = 0; i < texts.size() && i < 12 /* XXX */; i++) {
-	int x = i % 12;
-	int y = i / 12;
+      for (int i = 0; i < texts.size() && i < max_screenshots; i++) {
+	int x = i % 11;
+	int y = i / 11;
 	BlitARGBHalf(screenshots[i], 256, 256,
 		     x * 128, y * 128 + 20, screen);
 
-	if (!queue_mode) {
+	if (!queue_mode && texts.size() < 12) {
 	  for (int t = 0; t < texts[i].size(); t++) {
 	    font->draw(x * 128,
 		       (y + 1) * 128 + 20 + t * FONTHEIGHT,
@@ -449,11 +455,11 @@ struct UIThread {
 	int yy = 230;
 	for (int i = 0; i < levels.size(); i++) {
 	  if (i < prefix || i >= suffix) {
-	    string w;
-	    if (levels[i].workers) {
-	      for (int j = 0; j < levels[i].workers; j++)
-		w += '*';
-	    }
+	    // Would be nice to do a visual bar graph, but it has to
+	    // work when we have like 60 threads!
+	    const string w = 
+	      levels[i].workers ? 
+	      StringPrintf("%d", levels[i].workers) : "";
 
 	    smallfont->draw(256 * 6 + 10, yy,
 			    StringPrintf("^4%2d^<: ^3%d^< n %lld c %d mc, "
@@ -521,8 +527,8 @@ struct UIThread {
       }
       sdlutil::sulock(screen);
 
-      maxfont->draw(
-	  10, HEIGHT - HISTO_HEIGHT / 2 - MAXFONTHEIGHT / 2,
+      hugefont->draw(
+	  10, HEIGHT - HISTO_HEIGHT / 2 - HUGEFONTHEIGHT / 2,
 	  StringPrintf("^2%.2f%%", search->tree->stuckness));
       
       SDL_Flip(screen);
@@ -554,11 +560,11 @@ struct UIThread {
 			     FONTSTYLES, 0, 3);
     CHECK(smallfont != nullptr) << "Couldn't load smallfont.";
 
-    maxfont = Font::create(screen,
-			   "fontmax.png",
-			   FONTCHARS,
-			   MAXFONTWIDTH, MAXFONTHEIGHT, FONTSTYLES, 4, 3);
-    CHECK(maxfont != nullptr) << "Couldn't load maxfont.";
+    hugefont = Font::create(screen,
+			    "fonthuge.png",
+			    FONTCHARS,
+			    HUGEFONTWIDTH, HUGEFONTHEIGHT, FONTSTYLES, 4, 3);
+    CHECK(hugefont != nullptr) << "Couldn't load hugefont.";
     
     Loop();
     Printf("UI shutdown.\n");
@@ -568,7 +574,7 @@ struct UIThread {
     // XXX free screen
     delete font;
     delete smallfont;
-    delete maxfont;
+    delete hugefont;
   }
 
  private:
@@ -576,10 +582,10 @@ struct UIThread {
   static constexpr int FONTHEIGHT = 16;
   static constexpr int SMALLFONTWIDTH = 6;
   static constexpr int SMALLFONTHEIGHT = 6;
-  static constexpr int MAXFONTHEIGHT = 48 * 2;
-  static constexpr int MAXFONTWIDTH = 27 * 2;
+  static constexpr int HUGEFONTHEIGHT = 48;
+  static constexpr int HUGEFONTWIDTH = 27;
 
-  Font *font = nullptr, *smallfont = nullptr, *maxfont = nullptr;
+  Font *font = nullptr, *smallfont = nullptr, *hugefont = nullptr;
 
   ArcFour rc{"ui_thread"};
   TreeSearch *search = nullptr;

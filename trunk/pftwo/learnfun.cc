@@ -30,8 +30,8 @@ void Learnfun::PrintAndSave(const vector<int> &ordering) {
   objectives.push_back(ordering);
 }
 
-  // With e.g. an divisor of 3, generate slices covering
-  // the first third, middle third, and last third.
+// With e.g. an divisor of 3, generate slices covering
+// the first third, middle third, and last third.
 void Learnfun::GenerateNthSlices(int divisor, int num, 
 				 ObjectiveEnumerator *oe) {
   const int onenth = memories.size() / divisor;
@@ -83,7 +83,7 @@ void Learnfun::MakeObjectives(const vector<vector<uint8>> &memories) {
   // TODO: In Mario, all 50 appear to be effectively the same
   // when graphed. Are they all equivalent, and should we be
   // accounting for that e.g. in weighting or deduplication?
-  for (int i = 0; i < 50; i++) {  // was 10
+  for (int i = 0; i < 50; i++) {
     oe.EnumerateFullAll([this](const vector<int> &ordering) {
       PrintAndSave(ordering);
     }, 1, i);
@@ -102,7 +102,6 @@ void Learnfun::MakeObjectives(const vector<vector<uint8>> &memories) {
   // whole movie.
   // This one looks great.
   GenerateOccasional(100, 10, 10, &oe);
-  // was 5,2
 
   GenerateOccasional(250, 10, 10, &oe);
 
