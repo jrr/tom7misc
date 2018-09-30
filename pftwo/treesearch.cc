@@ -22,6 +22,7 @@
 #include "../cc-lib/textsvg.h"
 #include "../cc-lib/heap.h"
 #include "../cc-lib/randutil.h"
+#include "../cc-lib/list-util.h"
 
 #include "atom7ic.h"
 
@@ -41,6 +42,10 @@
 // We consider exploring from the grid if the score is
 // at least GRID_BESTSCORE_FRAC * best_score_in_heap.
 #define GRID_BESTSCORE_FRAC 0.90
+
+// Number of loops a single thread does when expanding the explore
+// queue.
+#define LOOPS_PER_EXPLORE_ITER 10
 
 static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
@@ -524,7 +529,9 @@ struct WorkThread {
 	  // to the source node's reference count.
 	  auto AddExploreNode = [this, tree](
 	      Node *source, Problem::Goal goal) {
-	    static constexpr int NUM_EXPLORE_ITERATIONS = 500;
+  	    // Note that each "iteration" does LOOPS_PER_EXPLORE_ITER
+            // loops.
+	    static constexpr int NUM_EXPLORE_ITERATIONS = 50;
 	    source->num_workers_using++;
 	    Tree::ExploreNode en;
 	    en.source = source;
@@ -614,9 +621,6 @@ struct WorkThread {
   // since the reference count is nonzero. Returns nullptr if none
   // can be found.
   Tree::ExploreNode *GetExploreNodeWithMutex() {
-    // PERF We'd get better lock contention and not have to go through
-    // the list as much if we had workers working on different nodes,
-    // right? Could move the node we select to the back in constant time.
     std::list<Tree::ExploreNode> *explore_queue = &search->tree->explore_queue;
     for (std::list<Tree::ExploreNode>::iterator it = explore_queue->begin();
 	 it != explore_queue->end(); ++it) {
@@ -624,6 +628,10 @@ struct WorkThread {
       if (en->iterations_left > 0) {
 	en->iterations_left--;
 	en->iterations_in_progress++;
+	// Move it to the back, which may hurt with locality, but
+	// should help with lock contention. This does not invalidate
+	// any pointers nor iterators.
+	ListMoveToBack(explore_queue, it);
 	return en;
       }
     }
@@ -647,118 +655,126 @@ struct WorkThread {
       start_state = en->closest_state;
       start_dist = en->distance;
     }
-    
-    // Load source state.
-    worker->SetStatus("Exploring");
-    worker->Restore(start_state);
 
-    worker->SetStatus("Explore inputs");
+    int num_bad = 0;
+    // To avoid wasting time waiting for locks, each "iteration"
+    // is several loops of the same thing.
+    for (int loop = 0; loop <= LOOPS_PER_EXPLORE_ITER; loop++) {
+      // Load source state.
+      worker->SetStatus("Exploring");
+      worker->Restore(start_state);
 
-    // Generate a random sequence.
-    // XXX tune these
-    constexpr double MEAN = 180.0;
-    constexpr double STDDEV = 60.0;
+      worker->SetStatus("Explore inputs");
 
-    int num_frames = gauss.Next() * STDDEV + MEAN;
-    if (num_frames < 1) num_frames = 1;
+      // Generate a random sequence.
+      // XXX tune these
+      constexpr double MEAN = 180.0;
+      constexpr double STDDEV = 60.0;
 
-    // Generate inputs with knowledge of the goal.
-    Problem::InputGenerator gen =
-      worker->Generator(&rc, &en->goal);
+      int num_frames = gauss.Next() * STDDEV + MEAN;
+      if (num_frames < 1) num_frames = 1;
 
-    // XXX maybe would be cleaner to populate the full
-    // sequence starting with start_seq, but then only
-    // execute the new suffix. Both places below we need
-    // to concatenate these.
-    Tree::Seq seq;
-    seq.reserve(num_frames);
-    for (int frames_left = num_frames; frames_left--;) {
-      seq.push_back(gen.RandomInput(&rc));
-    }
+      // Generate inputs with knowledge of the goal.
+      Problem::InputGenerator gen =
+	worker->Generator(&rc, &en->goal);
 
-    // Now, execute it. Keep track of the closest that we got
-    // to our goal, since we'll use that to update the explore
-    // node.
-    double best_distance = start_dist;
-    Problem::State closest_state;
-    // Excuting up to and including this index.
-    int best_prefix = -1;
-    bool bad = false;
-    worker->SetStatus("Explore exec");
-    for (int i = 0; i < seq.size(); i++) {
-      const Problem::Input input = seq[i];
-      worker->Exec(input);
-      Problem::State after = worker->Save();
-      double penalty = search->problem->EdgePenalty(start_state, after);
-      // If we die, don't use this sequence at all.
-      // XXX checking exactly 1.0 here is bad. But how?
-      if (penalty < 1.0) {
-	bad = true;
-	break;
+      // XXX maybe would be cleaner to populate the full
+      // sequence starting with start_seq, but then only
+      // execute the new suffix. Both places below we need
+      // to concatenate these.
+      Tree::Seq seq;
+      seq.reserve(num_frames);
+      for (int frames_left = num_frames; frames_left--;) {
+	seq.push_back(gen.RandomInput(&rc));
       }
 
-      // PERF could avoid saving every iteration if we computed this
-      // from the worker state
-      double dist = search->problem->GoalDistance(en->goal, after);
+      // Now, execute it. Keep track of the closest that we got
+      // to our goal, since we'll use that to update the explore
+      // node.
+      double best_distance = start_dist;
+      Problem::State closest_state;
+      // Excuting up to and including this index.
+      int best_prefix = -1;
+      bool bad = false;
+      worker->SetStatus("Explore exec");
+      for (int i = 0; i < seq.size(); i++) {
+	const Problem::Input input = seq[i];
+	worker->Exec(input);
+	Problem::State after = worker->Save();
+	double penalty = search->problem->EdgePenalty(start_state, after);
+	// If we die, don't use this sequence at all.
+	// XXX checking exactly 1.0 here is bad. But how?
+	if (penalty < 1.0) {
+	  bad = true;
+	  break;
+	}
 
-      if (dist < best_distance) {
-	best_prefix = i;
-	closest_state = after;
-	best_distance = dist;
+	// PERF could avoid saving every iteration if we computed this
+	// from the worker state
+	double dist = search->problem->GoalDistance(en->goal, after);
+
+	if (dist < best_distance) {
+	  best_prefix = i;
+	  closest_state = after;
+	  best_distance = dist;
+	}
       }
-    }
 
-    worker->SetStatus("Explore post");
-    if (!bad && best_prefix >= 0) {
-      // At some point, we got closer to the goal. Put this in
-      // the ExploreNode if it is still an improvement (might have
-      // lost a race).
-      MutexLock ml(&search->tree_m);
-      if (best_distance < en->distance) {
-	en->distance = best_distance;
-	en->closest_state = closest_state;
-	// The sequence is actually the start sequence plus
-	// our prefix.
-	en->closest_seq = start_seq;
-	// Note that the prefix is inclusive of the endpoint; see above.
-	for (int i = 0; i <= best_prefix; i++) {
-	  en->closest_seq.push_back(seq[i]);
+      worker->SetStatus("Explore post");
+      if (!bad && best_prefix >= 0) {
+	// At some point, we got closer to the goal. Put this in
+	// the ExploreNode if it is still an improvement (might have
+	// lost a race).
+	MutexLock ml(&search->tree_m);
+	if (best_distance < en->distance) {
+	  en->distance = best_distance;
+	  en->closest_state = closest_state;
+	  // The sequence is actually the start sequence plus
+	  // our prefix.
+	  en->closest_seq = start_seq;
+	  // Note that the prefix is inclusive of the endpoint; see above.
+	  for (int i = 0; i <= best_prefix; i++) {
+	    en->closest_seq.push_back(seq[i]);
+	  }
+	}
+      }
+
+      // Now, add the node to our tree, using that source.
+      // We don't increment the expansion/failure counts because it's
+      // not fair to penalize this state just because we used it for
+      // exploration (e.g. our goal might be right in the lava!)
+
+      if (!bad) {
+	worker->SetStatus("Explore extend");
+	Tree::Seq full_seq = start_seq;
+	for (const Problem::Input input : seq) {
+	  full_seq.push_back(input);
+	}
+
+	// PERF could avoid saving again here (using the last save from
+	// the loop above), but better would be to fix the fact that we
+	// keep saving in that loop...
+	Problem::State newstate = worker->Save();
+	double score = search->problem->Score(newstate);
+	{
+	  MutexLock ml(&search->tree_m);
+	  Node *child =
+	    ExtendNodeWithLock(en->source, full_seq,
+			       std::move(newstate), score);
+	  // XXX: This is TPP specific.
+	  child->goalx = en->goal.goalx;
+	  child->goaly = en->goal.goaly;
 	}
       }
     }
-
-    // Now, add the node to our tree, using that source.
-    // We don't increment the expansion/failure counts because it's
-    // not fair to penalize this state just because we used it for
-    // exploration (e.g. our goal might be right in the lava!)
-
-    if (!bad) {
-      worker->SetStatus("Explore extend");
-      MutexLock ml(&search->tree_m);
-      Tree::Seq full_seq = start_seq;
-      for (const Problem::Input input : seq) {
-	full_seq.push_back(input);
-      }
-
-      // PERF could avoid saving again here (using the last save from
-      // the loop above), but better would be to fix the fact that we
-      // keep saving in that loop...
-      Problem::State newstate = worker->Save();
-      double score = search->problem->Score(newstate);
-      Node *child =
-	ExtendNodeWithLock(en->source, full_seq, std::move(newstate), score);
-      // XXX: This is TPP specific.
-      child->goalx = en->goal.goalx;
-      child->goaly = en->goal.goaly;
-    }
-
+    
     // Finally, reduce the iteration count, and maybe clean up the
     // ExploreNode.
     {
       MutexLock ml(&search->tree_m);
       CHECK(en->iterations_in_progress > 0);
       en->iterations_in_progress--;
-      if (bad) en->bad++;
+      en->bad += num_bad;
       if (en->iterations_left == 0 &&
 	  en->iterations_in_progress == 0) {
 	worker->SetStatus("Cleanup ExploreNode");
@@ -787,11 +803,9 @@ struct WorkThread {
     }
 
     // Reflect this work in stats.
-    search->stats.explore_iters.Increment();
-    if (bad) {
-      search->stats.explore_deaths.Increment();
-    }
-
+    search->stats.explore_iters.IncrementBy(LOOPS_PER_EXPLORE_ITER);
+    search->stats.explore_deaths.IncrementBy(num_bad);
+    
     // And keep working on queue.
     return true;
   }
