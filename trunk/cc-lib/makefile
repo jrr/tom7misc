@@ -1,5 +1,5 @@
 
-default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe json_test.exe arcfour_test.exe lastn-buffer_test.exe $(TESTCOMPILE)
+default : heap_test.exe minmax-heap_test.exe rle_test.exe interval-tree_test.exe threadutil_test.exe color-util_test.exe lines_test.exe image_test.exe util_test.exe randutil_test.exe json_test.exe arcfour_test.exe lastn-buffer_test.exe list-util_test.exe $(TESTCOMPILE)
 
 TESTCOMPILE=stb_image_write.o stb_image.o dr_wav.o bounds.o
 
@@ -26,6 +26,12 @@ minmax-heap_test.o : minmax-heap_test.cc minmax-heap.h
 	$(CXX) $(CXXFLAGS) $< -o $@ -c
 
 minmax-heap_test.exe : minmax-heap_test.o arcfour.o $(BASE)
+	$(CXX) $(CXXFLAGS) $^ -o $@
+
+list-util_test.o : list-util_test.cc list-util.h
+	$(CXX) $(CXXFLAGS) $< -o $@ -c
+
+list-util_test.exe : list-util_test.o $(BASE)
 	$(CXX) $(CXXFLAGS) $^ -o $@
 
 rle_test.o : rle_test.cc rle.h
