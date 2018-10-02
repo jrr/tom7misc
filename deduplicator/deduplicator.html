@@ -1,8 +1,17 @@
 <!doctype html>
-
+<style>
+ body { font: 11px Verdana,helvetica,sans-serif }
+</style>
 
 <script>
 
+ // Order of favorites:
+ // Pubmed
+ // Ovid medline
+ // Embase
+ // Cochran
+ // (anything else)
+ 
  // This is insert-only per instance, so that we can use indices
  // as global identifiers for a record.
  let database = [];
@@ -74,7 +83,6 @@
    // capture the whole field so that we can skip over it.
    // Now you have two problems!
    let field_re = /^(([A-Z][A-Z0-9])  - ((?:.|\r|\n)*?)\r\n)[A-Z][A-Z0-9]  - /;
-   // let next_field_re = /^[A-Z][A-Z]  - /;
    
    for (;;) {
      let match = field_re.exec(rec);
@@ -86,6 +94,7 @@
      rec = rec.substring(field_size);
 
      // Maybe better solution for repeated keys?
+     // (Or rather, for keys that aren't typically repeated...)
      if (!dict[key])
        dict[key] = [];
      dict[key].push(value);
@@ -125,7 +134,11 @@
  }
  
  // Similarity between two citations.
+ // The function should be symmetric or else some (minor) oddities
+ // could arise, like the final result differing (despite consistent
+ // answers to questions) for different ordering of the input.
  function Similarity(a, b) {
+   // XXX: lowercase first
    let atitle = GetOne(a['TI']), btitle = GetOne(b['TI']);
    // The maximum edit distance of two strings with length A and B
    // is just the max of the two lengths (modify all the characters
@@ -144,38 +157,83 @@
    }
    return h + '</div>';
  }
- 
- function ProposeDuplicates() {
-   for (;;) {
-     if (unsorted.length == 0) return;
-     
-     let src = unsorted.pop();
-     let srcarticle = database[src];
+
+
+ // Process some articles in the unsorted set. Since this is
+ // potentially slow, it's an open loop. Possible return values:
+ // null - Didn't find any duplicates within the quantum (perhaps
+ //   because we're done; check to see if unsorted still has
+ //   articles in it.)
+ // { main: int, cand: int array } - These are indices into the
+ //   database array. The candidates (non-empty) are all similar
+ //   to the main article. The main article will have been removed
+ //   from unsorted, so the caller had better not drop it.
+ function Process() {
+   // ?
+   // It should depend on the size of the unsorted
+   // set. Or we could be checking the actual time.
+   const QUANTUM = 10;
+   
+   for (let i = 0; i < QUANTUM; i++) {
+     if (unsorted.length == 0) return null;
+
+     let main = unsorted.pop();
+     let mainarticle = database[main];
 
      let cand = [];
-     for (let dst = 0; dst < unsorted.length; dst++) {
-       if (src != dst) {
-	 let dstarticle = database[dst];
-	 let dist = Similarity(srcarticle, dstarticle);
+     for (let other = 0; other < unsorted.length; other++) {
+       if (main != other) {
+	 let otherarticle = database[other];
+	 let dist = Similarity(mainarticle, otherarticle);
 	 if (dist < 0.05) {
-	   cand.push(dst);
+	   cand.push(other);
 	 }
        }
      }
 
      if (cand.length > 0) {
-       let str = '';
-       str = 'Source:';
-       str += ArticleHTML(srcarticle);
-       for (var c = 0; c < cand.length; c++) {
-	 str += 'Dupe ' + c + '?';
-	 str += ArticleHTML(database[cand[c]]);
-       }
-       return str;
+       return { main, cand };
      }
 
-     // Otherwise, just add to no dupes.
-     canonical.push(src);
+     // Since it has no dupes, add it to the canonical set and
+     // be done with it.
+     canonical.push(main);
+   }
+   // Quantum expired.
+   return null;
+ }
+
+ function RepeatedlyProcess() {
+   let work = Process();
+   UpdateStats();
+   if (work == null) {
+     if (unsorted.length > 0) {
+       window.setTimeout(RepeatedlyProcess, 0);
+     } else {
+       Message("done");
+     }
+   } else {
+     let e = document.getElementById('dupes');
+
+     let str = '';
+     str = 'Source:';
+     str += ArticleHTML(database[work.main]);
+     for (var c = 0; c < work.cand.length; c++) {
+       str += 'Dupe ' + c + '?';
+       str += ArticleHTML(database[work.cand[c]]);
+     }
+
+     e.innerHTML = str;
+     
+     let button = document.createElement('div');
+     button.innerHTML = 'NEXT';
+     button.onclick = () => {
+       // XXX this would be like "accept main article"
+       canonical.push(work.cand);
+       // XXX but you'd remove the others...
+       RepeatedlyProcess();
+     }
+     e.appendChild(button);
    }
  }
  
@@ -185,11 +243,7 @@
    ParseRIS(s);
 
    // Find duplicates...
-   let str = ProposeDuplicates();
-   let e = document.getElementById('dupes');
-   e.innerHTML = str;
-   
-   UpdateStats();
+   RepeatedlyProcess();
    
    /*
       document.getElementById('res').innerHTML = 'Capital O: ' + n;
@@ -215,8 +269,12 @@
 		    ' | Canonical: ' + canonical.length +
 		    ' | Rejected: ' + dupes.length;
  }
+
+ function Message(s) {
+   document.getElementById("message").innerText = msg;   
+ }
  
- function ReadFiles(){
+ function ReadFiles() {
    let x = document.getElementById("fileinput");
    if ('files' in x && x.files.length > 0) {
      for (let i = 0; i < x.files.length; i++) {
@@ -237,12 +295,11 @@
        };
        fr.readAsText(file);
      }
-     document.getElementById("message").innerText = msg;
+     Message(msg);
      
    } else {
-     document.getElementById("message").innerHTML = 'Select files.';
+     Message('Select files.');
    }
-   
  }
 
  /* The following function (classic dynamic programming edit-distance)
