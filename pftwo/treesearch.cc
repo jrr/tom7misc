@@ -110,8 +110,8 @@ struct InternalPerfCounterScoped {
     const uint64 end = PerfCounterNow();
     *dst += (end - start);
   }
-  const uint64 start = 0ULL;
   uint64 *dst = nullptr;
+  const uint64 start = 0ULL;
 };
 }
 
@@ -1223,5 +1223,6 @@ void TreeSearch::PrintPerfCounters() {
 	   (100.0 * totals[i]) / (double)total_denom,
 	   PerfEventString((PerfEvent)i));
   printf("\n");
+  fflush(stdout);
 }
 

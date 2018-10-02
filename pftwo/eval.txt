@@ -1,4 +1,46 @@
 
+Fixed dumb bug where I wasn't using player 2 controls
+to test for player 2 lives.
+
+adventureisland.nes     0/1     0       2/2     0
+athena.nes              0/1     0       2/2     5
+backtothefuture.nes     1/1     0       0/1     0
+baddudes.nes            0/1     0       1/2     5
+bomberman.nes           0/0     0       1/1     27
+bubblebobble.nes        2/2     0       2/2     0
+cliffhanger.nes         0/0     0       2/2     20
+contra.nes              2/2     0       2/2     0
+deadlytowers.nes        1/1     0       0/1     0
+diehard.nes             0/1     0       1/1     32
+ducktales.nes           1/1     0       1/1     10
+faxanadu.nes            0/1     0       0/1     0
+festersquest.nes        0/0     0       1/1     0
+gauntlet2.nes           0/0     0       0/0     0
+gradius.nes             1/1     0       1/1     0
+gyromite.nes            1/1     0       1/1     4
+jackiechan.nes          1/1     0       1/1     0
+kage.nes                1/1     0       1/1     0
+kidicarus.nes           1/1     0       0/0     0
+littlemermaid.nes       1/1     0       2/2     1
+lolo.nes                1/1     0       1/1     0
+lunarpool.nes           0/0     0       2/2     32
+mario.nes               1/1     0       1/1     0
+megaman2.nes            1/1     0       2/2     62
+metroid.nes             1/1     0       0/0     0
+ninjagaiden.nes         1/1     1       1/2     11
+rampage.nes             1/2     0       0/2     0
+rivercity.nes           0/2     0       0/2     0
+rocketeer.nes           1/1     0       1/1     0
+solstice.nes            1/1     0       1/1     0
+strider.nes             1/1     0       1/1     0
+swordmaster.nes         0/1     0       1/1     0
+werewolf.nes            0/0     0       1/1     0
+zelda.nes               1/1     0       0/0     0
+
+  Locs: 20/28 perfect. 21 any. 1 total loss
+ Lives: 23/30 perfect. 25 any. 209 total loss
+
+
 Removed custom move generator, used nmarkov.
 
 adventureisland.nes     0/1     0       2/2     1
@@ -41,6 +83,7 @@ zelda.nes               1/1     0       0/0     0
 (picks up an additional game: baddudes at 0. but
 lunar pool slips way back. It's worth the
 simplification anyway.)
+
 
 Rewrote to allow for more parallelism:
 

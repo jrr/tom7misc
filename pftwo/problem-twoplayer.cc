@@ -382,7 +382,7 @@ void TPP::InitCameras(const map<string, string> &config,
 	    printf("2");
 	    break;
 	  }
-
+	  fflush(stdout);
 	}, init_threads);
 
     printf("\nMerging AutoCamera results...\n");
@@ -503,6 +503,7 @@ void TPP::InitLives(const map<string, string> &config,
 	    printf("2");
 	    break;
 	  }
+	  fflush(stdout);
 	}, init_threads);
 
     // XXX
