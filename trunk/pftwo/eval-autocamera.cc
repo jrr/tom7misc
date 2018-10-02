@@ -33,7 +33,7 @@
 #include "game-database.h"
 
 // XXX get from config.txt?
-static constexpr int MAX_CONCURRENCY = 11;
+static constexpr int MAX_CONCURRENCY = 60;
 
 #ifdef ENABLE_AOT
 # error eval-autocamera can not use AOT (needs to load multiple games)
@@ -697,9 +697,8 @@ struct Evaluation {
 
 static void EvalAll() {
   // or getmatching...
-  // vector<Game> games = GameDB().GetAll();
-  vector<Game> games = GameDB().GetMatching(
-      {"mario", "contra"});
+  vector<Game> games = GameDB().GetAll();
+  // vector<Game> games = GameDB().GetMatching({"mario", "contra"});
 
   Evaluation evaluation;
   evaluation.StartGames(games);
