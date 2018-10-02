@@ -8,7 +8,8 @@
 #include <vector>
 
 template<class A, class F>
-static auto Map(const std::vector<A> &vec, const F &f) -> std::vector<decltype(f(vec[0]))> {
+static auto Map(const std::vector<A> &vec, const F &f) ->
+  std::vector<decltype(f(vec[0]))> {
   using B = decltype(f(vec[0]));
   std::vector<B> ret;
   ret.resize(vec.size());
