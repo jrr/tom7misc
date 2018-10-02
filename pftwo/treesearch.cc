@@ -55,50 +55,81 @@ static std::mutex print_mutex;
 
 // All events that we count.
 enum PerfEvent {
-  PE_FIND_NODE_TO_EXTEND,
-  PE_EXTEND_NODE,
-  PE_UPDATE_TREE_A,
-  PE_UPDATE_TREE_B,
-  PE_UPDATE_TREE_C,
-  PE_UPDATE_TREE_D,
-  PE_PROCESS_EXPLORE_QUEUE_A,
-  PE_PROCESS_EXPLORE_QUEUE_B,
-  PE_PROCESS_EXPLORE_QUEUE_C,
-  PE_PROCESS_EXPLORE_QUEUE_D,
-  PE_SHOULD_DIE_EQ,
-  PE_SHOULD_DIE_N,
+  // Locks
+  PE_L_FIND_NODE_TO_EXTEND,
+  PE_L_EXTEND_NODE,
+  PE_L_UPDATE_TREE_A,
+  PE_L_UPDATE_TREE_B,
+  PE_L_UPDATE_TREE_C,
+  PE_L_UPDATE_TREE_D,
+  PE_L_PROCESS_EXPLORE_QUEUE_A,
+  PE_L_PROCESS_EXPLORE_QUEUE_B,
+  PE_L_PROCESS_EXPLORE_QUEUE_C,
+  PE_L_PROCESS_EXPLORE_QUEUE_D,
+  PE_L_SHOULD_DIE_EQ,
+  PE_L_SHOULD_DIE_N,
+  // Work
+  PE_EXEC,
+  // Meta
   NUM_PERFEVENTS,
 };
 
 static const char *PerfEventString(PerfEvent pe) {
 #define CASE(c) case PE_ ## c: return # c;
   switch (pe) {
-    CASE(FIND_NODE_TO_EXTEND);
-    CASE(EXTEND_NODE);
-    CASE(UPDATE_TREE_A);
-    CASE(UPDATE_TREE_B);
-    CASE(UPDATE_TREE_C);
-    CASE(UPDATE_TREE_D);
-    CASE(PROCESS_EXPLORE_QUEUE_A);
-    CASE(PROCESS_EXPLORE_QUEUE_B);
-    CASE(PROCESS_EXPLORE_QUEUE_C);
-    CASE(PROCESS_EXPLORE_QUEUE_D);
-    CASE(SHOULD_DIE_EQ);
-    CASE(SHOULD_DIE_N);
+    CASE(L_FIND_NODE_TO_EXTEND);
+    CASE(L_EXTEND_NODE);
+    CASE(L_UPDATE_TREE_A);
+    CASE(L_UPDATE_TREE_B);
+    CASE(L_UPDATE_TREE_C);
+    CASE(L_UPDATE_TREE_D);
+    CASE(L_PROCESS_EXPLORE_QUEUE_A);
+    CASE(L_PROCESS_EXPLORE_QUEUE_B);
+    CASE(L_PROCESS_EXPLORE_QUEUE_C);
+    CASE(L_PROCESS_EXPLORE_QUEUE_D);
+    CASE(L_SHOULD_DIE_EQ);
+    CASE(L_SHOULD_DIE_N);
+    CASE(EXEC);
   default: return "?";
   }
 #undef CASE
 }
 
+static inline uint64 PerfCounterNow() {
+  uint64 ret;
+  QueryPerformanceCounter((LARGE_INTEGER*)&ret);
+  return ret;
+}
+
+namespace {
+struct InternalPerfCounterScoped {
+  InternalPerfCounterScoped(uint64 *dst) :
+    dst(dst),
+    start(PerfCounterNow()) {}
+  ~InternalPerfCounterScoped() {
+    const uint64 end = PerfCounterNow();
+    *dst += (end - start);
+  }
+  const uint64 start = 0ULL;
+  uint64 *dst = nullptr;
+};
+}
+
 static_assert(sizeof (uint64) == sizeof (LARGE_INTEGER), "win64");
 #define PERF_MUTEX_LOCK(pe, mut)				\
-  uint64 perf_ml_start, perf_ml_end;				\
-  QueryPerformanceCounter((LARGE_INTEGER*)&perf_ml_start);	\
+  const uint64 perf_ml_start = PerfCounterNow();		\
   MutexLock perf_ml(mut);					\
-  QueryPerformanceCounter((LARGE_INTEGER*)&perf_ml_end);	\
+  const uint64 perf_ml_end = PerfCounterNow();			\
   perf_counters[pe] += (perf_ml_end - perf_ml_start)
 
+// This deliberately does not generate a distinct name to prevent
+// unintentially instantiating it multiple times in the same scope.
+// Use {} to delimit the scope explicitly.
+#define PERF_SCOPED(pe) \
+  InternalPerfCounterScoped perf_scoped(&perf_counters[pe])
+
 struct WorkThread {
+  uint64 perf_counter_start = 0LL;
   uint64 perf_counters[NUM_PERFEVENTS] = {};
   
   using Node = Tree::Node;
@@ -108,8 +139,14 @@ struct WorkThread {
     gauss(&rc),
     opt(search->opt),
     worker(search->problem->CreateWorker()),
-    th{&WorkThread::Run, this} {}
+    th{&WorkThread::Run, this} {
+    perf_counter_start = PerfCounterNow();
+  }
 
+  uint64 PerfGetTotal() const {
+    return PerfCounterNow() - perf_counter_start;
+  }
+  
   // Get the root node of the tree and associated state (which must be
   // present). Used during initialization.
   Node *GetRoot() {
@@ -206,7 +243,7 @@ struct WorkThread {
   // n is the current node, which may be discarded; this function
   // also maintains correct reference counts.
   Node *FindNodeToExtend(Node *n) {
-    PERF_MUTEX_LOCK(PE_FIND_NODE_TO_EXTEND, &search->tree_m);
+    PERF_MUTEX_LOCK(PE_L_FIND_NODE_TO_EXTEND, &search->tree_m);
     // MutexLock ml(&search->tree_m);
 
     CHECK(n->num_workers_using > 0);
@@ -302,7 +339,7 @@ struct WorkThread {
 		   double newscore) {
     Node *child = NewNode(std::move(newstate), n);
 
-    PERF_MUTEX_LOCK(PE_EXTEND_NODE, &search->tree_m);
+    PERF_MUTEX_LOCK(PE_L_EXTEND_NODE, &search->tree_m);
     // MutexLock ml(&search->tree_m);
 
     // XXX This should probably be done in the caller, because
@@ -364,7 +401,7 @@ struct WorkThread {
   void MaybeUpdateTree() {
     Tree *tree = search->tree;
     {
-      PERF_MUTEX_LOCK(PE_UPDATE_TREE_A, &search->tree_m);
+      PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_A, &search->tree_m);
       // MutexLock ml(&search->tree_m);
       // No use in decrementing update counter -- when we
       // finish we reset it to the max value.
@@ -401,7 +438,7 @@ struct WorkThread {
       worker->SetStatus("Tree: Reheap");
       {
 	// MutexLock ml(&search->tree_m);
-	PERF_MUTEX_LOCK(PE_UPDATE_TREE_B, &search->tree_m);
+	PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_B, &search->tree_m);
 
 	printf("Clear grid ...");
 	// First, just clear the grid since every node has a chance to
@@ -440,7 +477,7 @@ struct WorkThread {
     
     {
       // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_UPDATE_TREE_C, &search->tree_m);
+      PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_C, &search->tree_m);
       const int64 MAX_NODES = search->tree->MaxNodes();
       if (tree->num_nodes > MAX_NODES) {
 	printf("Trim tree (have %llu, max: %llu)...\n",
@@ -664,7 +701,7 @@ struct WorkThread {
 
     {
       // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_UPDATE_TREE_D, &search->tree_m);
+      PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_D, &search->tree_m);
       tree->update_in_progress = false;
     }
   }
@@ -701,7 +738,7 @@ struct WorkThread {
     double start_dist = -1.0;
     {
       // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
+      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
       en = GetExploreNodeWithMutex();
       if (en == nullptr) return false;
       // I should have a lock.
@@ -754,7 +791,10 @@ struct WorkThread {
       worker->SetStatus("Explore exec");
       for (int i = 0; i < seq.size(); i++) {
 	const Problem::Input input = seq[i];
-	worker->Exec(input);
+	{
+	  PERF_SCOPED(PE_EXEC);
+	  worker->Exec(input);
+	}
 	Problem::State after = worker->Save();
 	double penalty = search->problem->EdgePenalty(start_state, after);
 	// If we die, don't use this sequence at all.
@@ -781,7 +821,7 @@ struct WorkThread {
 	// the ExploreNode if it is still an improvement (might have
 	// lost a race).
 	// MutexLock ml(&search->tree_m);
-	PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_B, &search->tree_m);
+	PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_B, &search->tree_m);
 	
 	if (best_distance < en->distance) {
 	  en->distance = best_distance;
@@ -815,7 +855,7 @@ struct WorkThread {
 	double score = search->problem->Score(newstate);
 	{
 	  // MutexLock ml(&search->tree_m);
-	  PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_C, &search->tree_m);
+	  PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_C, &search->tree_m);
 	  Node *child =
 	    ExtendNodeWithLock(en->source, full_seq,
 			       std::move(newstate), score);
@@ -830,7 +870,7 @@ struct WorkThread {
     // ExploreNode.
     {
       // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
+      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
       CHECK(en->iterations_in_progress > 0);
       en->iterations_in_progress--;
       en->bad += num_bad;
@@ -894,7 +934,7 @@ struct WorkThread {
 	// OK to ignore the rest of this loop, but we should die if
 	// requested.
 	{
-	  PERF_MUTEX_LOCK(PE_SHOULD_DIE_EQ, &search->should_die_m);
+	  PERF_MUTEX_LOCK(PE_L_SHOULD_DIE_EQ, &search->should_die_m);
 	  if (search->should_die) {
 	    worker->SetStatus("Die");
 	    return;
@@ -976,8 +1016,11 @@ struct WorkThread {
 	worker->SetStatus("Execute");
 	worker->SetNumer(i);
 	const vector<Problem::Input> &step = nexts[i];
-	for (const Problem::Input &input : step) {
-	  worker->Exec(input);
+	{
+	  PERF_SCOPED(PE_EXEC);
+	  for (const Problem::Input &input : step) {
+	    worker->Exec(input);
+	  }
 	}
 
 	worker->SetStatus("Observe");
@@ -1004,7 +1047,7 @@ struct WorkThread {
 
       worker->SetStatus("Check for death");
       {
-	PERF_MUTEX_LOCK(PE_SHOULD_DIE_N, &search->should_die_m);
+	PERF_MUTEX_LOCK(PE_L_SHOULD_DIE_N, &search->should_die_m);
 	if (search->should_die) {
 	  worker->SetStatus("Die");
 	  return;
@@ -1156,6 +1199,7 @@ string TreeSearch::SaveBestMovie(const string &filename) {
 
 void TreeSearch::PrintPerfCounters() {
   vector<int64> totals;
+  int64 total_denom = 0LL;
   for (int i = 0; i < NUM_PERFEVENTS; i++)
     totals.push_back(0);
 
@@ -1164,18 +1208,19 @@ void TreeSearch::PrintPerfCounters() {
   
   {
     MutexLock ml(&tree_m);
-    for (WorkThread *w : workers)
-      for (int i = 0; i < NUM_PERFEVENTS; i++)
+    for (WorkThread *w : workers) {
+      total_denom += w->PerfGetTotal();
+      for (int i = 0; i < NUM_PERFEVENTS; i++) {
 	totals[i] += w->perf_counters[i];
+      }
+    }
   }
-
-  
   
   printf("Perf counters:\n");
   for (int i = 0; i < NUM_PERFEVENTS; i++)
-    printf("%llu\t%.6fs\t%s\n", totals[i],
+    printf("%llu\t%.6fs\t%.6f%%\t%s\n", totals[i],
 	   (double)totals[i] / (double)freq,
-	   
+	   (100.0 * totals[i]) / (double)total_denom,
 	   PerfEventString((PerfEvent)i));
   printf("\n");
 }
