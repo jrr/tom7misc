@@ -4,6 +4,7 @@
 #include <set>
 #include <memory>
 #include <list>
+#include <unordered_set>
 
 #ifdef __MINGW32__
 #include <windows.h>
@@ -47,6 +48,10 @@
 // queue.
 #define LOOPS_PER_EXPLORE_ITER 10
 
+// Number of nodes to check out at a time during the normal tree
+// search procedure.
+#define NODE_BATCH_SIZE 100
+
 static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
     MutexLock Printf_ml(&print_mutex);		\
@@ -56,8 +61,8 @@ static std::mutex print_mutex;
 // All events that we count.
 enum PerfEvent {
   // Locks
-  PE_L_FIND_NODE_TO_EXTEND,
-  PE_L_EXTEND_NODE,
+  PE_L_COMMIT_QUEUE,
+  PE_L_GET_NODES_TO_EXTEND,
   PE_L_UPDATE_TREE_A,
   PE_L_UPDATE_TREE_B,
   PE_L_UPDATE_TREE_C,
@@ -70,6 +75,8 @@ enum PerfEvent {
   PE_L_SHOULD_DIE_N,
   // Work
   PE_EXEC,
+  PE_OBSERVE,
+  PE_COMMIT,
   // Meta
   NUM_PERFEVENTS,
 };
@@ -77,8 +84,8 @@ enum PerfEvent {
 static const char *PerfEventString(PerfEvent pe) {
 #define CASE(c) case PE_ ## c: return # c;
   switch (pe) {
-    CASE(L_FIND_NODE_TO_EXTEND);
-    CASE(L_EXTEND_NODE);
+    CASE(L_COMMIT_QUEUE);
+    CASE(L_GET_NODES_TO_EXTEND);
     CASE(L_UPDATE_TREE_A);
     CASE(L_UPDATE_TREE_B);
     CASE(L_UPDATE_TREE_C);
@@ -90,6 +97,8 @@ static const char *PerfEventString(PerfEvent pe) {
     CASE(L_SHOULD_DIE_EQ);
     CASE(L_SHOULD_DIE_N);
     CASE(EXEC);
+    CASE(OBSERVE);
+    CASE(COMMIT);
   default: return "?";
   }
 #undef CASE
@@ -239,33 +248,23 @@ struct WorkThread {
     return ret;
   }
     
-  // Pick the next node to explore. Must increment the chosen field.
-  // n is the current node, which may be discarded; this function
-  // also maintains correct reference counts.
-  Node *FindNodeToExtend(Node *n) {
-    PERF_MUTEX_LOCK(PE_L_FIND_NODE_TO_EXTEND, &search->tree_m);
-    // MutexLock ml(&search->tree_m);
-
-    CHECK(n->num_workers_using > 0);
-
-    // Simple policy: 50% chance of switching to some good node using
-    // the heap/grid; 50% chance of staying with the current node.
-    if (rc.Byte() < 128) {
-      Node *ret = FindGoodNodeWithMutex();
-      
-      // Giving up on n.
-      n->num_workers_using--;
-      ret->num_workers_using++;
-
-      ret->chosen++;
-      return ret;
-    } else {
+  // Get a batch of nodes for the main search procedure. Each node
+  // has its workers_using counter incremented on behalf of the
+  // caller (who must eventually decrement it).
+  vector<Node *> GetNodesToExtend() {
+    PERF_MUTEX_LOCK(PE_L_GET_NODES_TO_EXTEND, &search->tree_m);
+    vector<Node *> ret;
+    ret.reserve(NODE_BATCH_SIZE);
+    for (int i = 0; i < NODE_BATCH_SIZE; i++) {
+      Node *n = FindGoodNodeWithMutex();
+      n->num_workers_using++;
       n->chosen++;
-      // Keep reference count.
-      return n;
+      ret.push_back(n);
     }
+    return ret;
   }
 
+  
   Node *NewNode(Problem::State newstate, Node *parent) {
     CHECK(parent != nullptr);
     Node *child = new Node(std::move(newstate), parent);
@@ -322,69 +321,91 @@ struct WorkThread {
       }
     }
   }
+
   
-  // XXX a lot of this function duplicates the above (which is used
-  // directly during exploration). We should figure out how to merge
-  // them.
-  // 
-  // Extend a node with some sequence that we already ran, and
-  // that results in the newstate with newscore.
-  //
-  // When calling, must be holding n. Modifies it and returns the new
-  // child; drops the reference to n and acquires a reference to the
-  // new child.
-  Node *ExtendNode(Node *n,
-		   const Tree::Seq &seq,
-		   Problem::State newstate,
-		   double newscore) {
-    Node *child = NewNode(std::move(newstate), n);
+  struct QueuedUpdate {
+    // The starting node. Note that this may not actually yet
+    // be in the main tree, because it may be part of a contiguous
+    // branch that's part of the queued upate. Reference count will
+    // be nonzero.
+    Node *src = nullptr;
+    // The sequence that brings us to the new child node.
+    Tree::Seq seq;
+    // The child node, which is already allocated, but not
+    // yet linked into the tree.
+    Node *dst = nullptr;
+    double newscore = 0.0;
+    QueuedUpdate(Node *src, Tree::Seq seq, Node *dst, double newscore) :
+      src(src), seq(std::move(seq)), dst(dst), newscore(newscore) {}
+  };
+  vector<QueuedUpdate> local_queue;
+  
+  void CommitQueue() {
+    std::unordered_set<Node *> blacklist;
+    
+    {
+      PERF_MUTEX_LOCK(PE_L_COMMIT_QUEUE, &search->tree_m);
+      for (QueuedUpdate &q : local_queue) {
 
-    PERF_MUTEX_LOCK(PE_L_EXTEND_NODE, &search->tree_m);
-    // MutexLock ml(&search->tree_m);
+	if (ContainsKey(blacklist, q.src)) {
+	  // We had to delete the parent node because of a collision,
+	  // so this node also needs to be deleted.
+	  blacklist.insert(q.dst);
+	  delete q.dst;
+	  continue;
+	}
 
-    // XXX This should probably be done in the caller, because
-    // if NUM_NEXTS isn't 1, we have more fine-grained evidence
-    // that we could collect. (Right now it's like, "the probability
-    // that randomly expanding the node NUM_NEXTS times and picking
-    // the best one will actually make things worse") which is maybe
-    // harder to think about, and certainly converges more slowly.
-    const double oldscore = search->problem->Score(n->state);
-    if (oldscore > newscore) {
-      n->was_loss++;
+	// XXX This should probably be done in the caller, because
+	// if NUM_NEXTS isn't 1, we have more fine-grained evidence
+	// that we could collect. (Right now it's like, "the probability
+	// that randomly expanding the node NUM_NEXTS times and picking
+	// the best one will actually make things worse") which is maybe
+	// harder to think about, and certainly converges more slowly.
+	const double oldscore = search->problem->Score(q.src->state);
+	if (oldscore > q.newscore) {
+	  q.src->was_loss++;
+	}
+
+	auto res = q.src->children.insert({std::move(q.seq), q.dst});
+
+	CHECK(q.src->num_workers_using > 0);
+	q.src->num_workers_using--;
+
+	if (!res.second) {
+	  // By dumb luck (this might not be that rare if the markov
+	  // model is sparse), we already have a node with this
+	  // exact path. We don't allow replacing it.
+	  search->stats.same_expansion.Increment();
+
+	  // Now, this is fairly annoying since we may have expanded
+	  // from the child already. If so, they can only appear later
+	  // in the local queue. 
+	  blacklist.insert(q.dst);
+	  delete q.dst;
+
+	} else {
+	  search->tree->num_nodes++;
+	  search->tree->heap.Insert(-q.newscore, q.dst);
+	  CHECK(q.dst->location != -1);
+
+	  AddToGridWithLock(q.dst, q.newscore);
+	}
+      }
     }
-
-    auto res = n->children.insert({seq, child});
-
-    CHECK(n->num_workers_using > 0);
-    n->num_workers_using--;
-
-    if (!res.second) {
-      // By dumb luck (this might not be that rare if the markov
-      // model is sparse), we already have a node with this
-      // exact path. We don't allow replacing it.
-      search->stats.same_expansion.Increment();
-
-      delete child;
-      // Maintain the invariant that the worker is at the
-      // state of the returned node.
-      Node *ch = res.first->second;
-
-      CHECK(ch != nullptr);
-      worker->Restore(ch->state);
-      ch->num_workers_using++;
-      return ch;
-
-    } else {
-      search->tree->num_nodes++;
-      search->tree->heap.Insert(-newscore, child);
-      CHECK(child->location != -1);
-
-      child->num_workers_using++;
-      AddToGridWithLock(child, newscore);
-      return child;
-    }
+    
+    local_queue.clear();
   }
-
+  
+  // Save the best expansion of the node n to be added to the local
+  // queue and committed later in a batch.
+  Node *EnqueueExpansionResult(Node *n, Tree::Seq seq,
+			       std::unique_ptr<Problem::State> newstate,
+			       double newscore) {
+    Node *child = NewNode(std::move(*newstate), n);
+    local_queue.emplace_back(n, std::move(seq), child, newscore);
+    return child;
+  }
+  
   // At startup, ensure that the tree contains at least a root node.
   // Only does it in one thread, but doesn't return until this is the
   // case.
@@ -927,6 +948,10 @@ struct WorkThread {
     }
 
     for (;;) {
+      // In this top-level loop, we get a batch of work (depending
+      // on the current mode and globally-committed state) and
+      // execute it, then commit it back to the global state.
+      
       // If the exploration queue isn't empty, we work on it instead
       // of continuing our work on other nodes.
       worker->SetStatus("Explore Queue");
@@ -948,111 +973,129 @@ struct WorkThread {
 	*/
       }
 
-      // Starting this loop, the worker is in some problem state that
-      // corresponds to the node 'last' in the tree. We'll extend this
-      // node or find a different one.
-      worker->SetStatus("Find start node");
-      Node *expand_me = FindNodeToExtend(last);
+     
+      vector<Node *> nodes_to_expand = GetNodesToExtend();
+      // XXX HERE
 
-      // PERF Can sometimes skip this load if expand_me == last. But
-      // we have to worry about the case that we did some intermezzo
-      // exploration in this worker. Anyway, loading is pretty cheap.
-      worker->SetStatus("Load");
-      CHECK(expand_me != nullptr);
-      worker->Restore(expand_me->state);
-
-      worker->SetStatus("Gen inputs");
-      // constexpr double MEAN = 300.0;
-      // constexpr double STDDEV = 150.0;
-
-      // All the expansions will have the same length; this makes it
-      // more sensible to compare the objectives in order to choose
-      // the best.
-      int num_frames = gauss.Next() * opt.frames_stddev + opt.frames_mean;
-      if (num_frames < 1) num_frames = 1;
-
-      // Allow for fractional num_nexts (flip a coin to move between
-      // the two adjacent integers).
-      int num_nexts = (int)opt.num_nexts;
-      {
-	const double leftover = opt.num_nexts - (double)num_nexts;
-	if (RandDouble(&rc) < leftover) num_nexts++;
-      }
+      // Now we process this batch of nodes without touching
+      // global state.
+      for (Node *expand_me : nodes_to_expand) {
       
-      vector<vector<Problem::Input>> nexts;
-      nexts.reserve(num_nexts);
-      for (int num_left = num_nexts; num_left--;) {
-	// With no explicit goal.
-	Problem::InputGenerator gen =
-	  worker->Generator(&rc, nullptr);
-	vector<Problem::Input> step;
-	step.reserve(num_frames);
-	for (int frames_left = num_frames; frames_left--;) {
-	  step.push_back(gen.RandomInput(&rc));
-	}
-	nexts.push_back(std::move(step));
-      }
+	worker->SetStatus("Load");
+	CHECK(expand_me != nullptr);
+	worker->Restore(expand_me->state);
 
-      // PERF: Should drop duplicates and drop sequences that
-      // are already in the node. Collisions do happen!
+	worker->SetStatus("Gen inputs");
+	// constexpr double MEAN = 300.0;
+	// constexpr double STDDEV = 150.0;
 
-      worker->SetDenom(nexts.size());
-      double best_score = -1.0;
-      std::unique_ptr<Problem::State> best;
-      int best_step_idx = -1;
-      for (int i = 0; i < nexts.size(); i++) {
-	search->stats.sequences_tried.Increment();
-	worker->SetStatus("Re-restore");
-	// If this is the first one, no need to restore
-	// because we're already in that state.
-	if (i != 0) {
-	  worker->Restore(expand_me->state);
-	  // Since a sequence can only "improve" if it's
-	  // not the first one, we store this denominator
-	  // separately from sequences_tried.
-	  search->stats.sequences_improved_denom.Increment();
-	}
+	// All the expansions will have the same length; this makes it
+	// more sensible to compare the objectives in order to choose
+	// the best.
+	int num_frames = gauss.Next() * opt.frames_stddev + opt.frames_mean;
+	if (num_frames < 1) num_frames = 1;
 
-	worker->SetStatus("Execute");
-	worker->SetNumer(i);
-	const vector<Problem::Input> &step = nexts[i];
+	// Allow for fractional num_nexts (flip a coin to move between
+	// the two adjacent integers).
+	int num_nexts = (int)opt.num_nexts;
 	{
-	  PERF_SCOPED(PE_EXEC);
-	  for (const Problem::Input &input : step) {
-	    worker->Exec(input);
+	  const double leftover = opt.num_nexts - (double)num_nexts;
+	  if (RandDouble(&rc) < leftover) num_nexts++;
+	}
+      
+	vector<vector<Problem::Input>> nexts;
+	nexts.reserve(num_nexts);
+	for (int num_left = num_nexts; num_left--;) {
+	  // With no explicit goal.
+	  Problem::InputGenerator gen =
+	    worker->Generator(&rc, nullptr);
+	  vector<Problem::Input> step;
+	  step.reserve(num_frames);
+	  for (int frames_left = num_frames; frames_left--;) {
+	    step.push_back(gen.RandomInput(&rc));
+	  }
+	  nexts.push_back(std::move(step));
+	}
+
+	// PERF: Could drop duplicates and drop sequences that
+	// are already in the node. Collisions do happen because
+	// of sparse nmarkov!
+
+	worker->SetDenom(nexts.size());
+	double best_score = -1.0;
+	std::unique_ptr<Problem::State> best;
+	int best_step_idx = -1;
+	for (int i = 0; i < nexts.size(); i++) {
+	  search->stats.sequences_tried.Increment();
+	  worker->SetStatus("Re-restore");
+	  // If this is the first one, no need to restore
+	  // because we're already in that state.
+	  if (i != 0) {
+	    worker->Restore(expand_me->state);
+	    // Since a sequence can only "improve" if it's
+	    // not the first one, we store this denominator
+	    // separately from sequences_tried.
+	    search->stats.sequences_improved_denom.Increment();
+	  }
+
+	  worker->SetStatus("Execute");
+	  worker->SetNumer(i);
+	  const vector<Problem::Input> &step = nexts[i];
+	  {
+	    PERF_SCOPED(PE_EXEC);
+	    for (const Problem::Input &input : step) {
+	      worker->Exec(input);
+	    }
+	  }
+
+	  {
+	    PERF_SCOPED(PE_OBSERVE);
+	    // PERF: This hits a global mutex in TwoPlayerProblem.
+	    // Should probably batch these too?
+	    worker->SetStatus("Observe");
+	    worker->Observe();
+	  }
+	    
+	  Problem::State state = worker->Save();
+	  const double score = search->problem->Score(state);
+	  if (best.get() == nullptr || score > best_score) {
+	    if (best.get() != nullptr) {
+	      search->stats.sequences_improved.Increment();
+	    }
+	    best.reset(new Problem::State(std::move(state)));
+	    best_step_idx = i;
+	    best_score = score;
 	  }
 	}
 
-	worker->SetStatus("Observe");
-	worker->Observe();
+	worker->SetStatus("Extend tree");
 
-	Problem::State state = worker->Save();
-	const double score = search->problem->Score(state);
-	if (best.get() == nullptr || score > best_score) {
-	  if (best.get() != nullptr) {
-	    search->stats.sequences_improved.Increment();
+	// TODO: Consider inserting nodes other than the best one?
+	Node *child = EnqueueExpansionResult(
+	    expand_me, nexts[best_step_idx], std::move(best), best_score);
+	best.reset();
+
+	// TODO: Sometimes work on the child node, matching the older
+	// algorithm!
+	(void)child;
+	
+	worker->SetStatus("Check for death");
+	{
+	  PERF_MUTEX_LOCK(PE_L_SHOULD_DIE_N, &search->should_die_m);
+	  if (search->should_die) {
+	    worker->SetStatus("Die");
+	    return;
 	  }
-	  best.reset(new Problem::State(std::move(state)));
-	  best_step_idx = i;
-	  best_score = score;
 	}
+
       }
 
-      worker->SetStatus("Extend tree");
-      // TODO: Consider inserting nodes other than the best one?
-      // PERF move best?
-      last = ExtendNode(expand_me, nexts[best_step_idx], *best, best_score);
-
-      MaybeUpdateTree();
-
-      worker->SetStatus("Check for death");
+      // Commit queue to global state.
       {
-	PERF_MUTEX_LOCK(PE_L_SHOULD_DIE_N, &search->should_die_m);
-	if (search->should_die) {
-	  worker->SetStatus("Die");
-	  return;
-	}
+	PERF_SCOPED(PE_COMMIT);
+	CommitQueue();
       }
+      MaybeUpdateTree();
       /*
       if (ReadWithLock(&search->should_die_m, &search->should_die)) {
 	worker->SetStatus("Die");

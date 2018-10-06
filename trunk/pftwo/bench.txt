@@ -58,3 +58,47 @@ Perf counters:
 ... so we seem to be spending a lot of time somewhere else,
 which doesn't happen on rivercity. Still good to reduce the
 lock contention here anyway...
+
+
+Now batch updates:
+
+Perf counters:
+23759653131     8125.211172s    17.761734%      L_COMMIT_QUEUE
+11777   0.004027s       0.000009%       L_GET_NODES_TO_EXTEND
+2604    0.000891s       0.000002%       L_UPDATE_TREE_A
+2       0.000001s       0.000000%       L_UPDATE_TREE_B
+2       0.000001s       0.000000%       L_UPDATE_TREE_C
+0       0.000000s       0.000000%       L_UPDATE_TREE_D
+908131  0.310558s       0.000679%       L_PROCESS_EXPLORE_QUEUE_A
+603137325       206.257983s     0.450881%       L_PROCESS_EXPLORE_QUEUE_B
+2346602475      802.479756s     1.754223%       L_PROCESS_EXPLORE_QUEUE_C
+146842919       50.216631s      0.109774%       L_PROCESS_EXPLORE_QUEUE_D
+7244    0.002477s       0.000005%       L_SHOULD_DIE_EQ
+15677   0.005361s       0.000012%       L_SHOULD_DIE_N
+101730605547    34789.340069s   76.049593%      EXEC
+1961203 0.670683s       0.001466%       OBSERVE
+23760336342     8125.444813s    17.762245%      COMMIT
+
+note that we wait even longer for the commit lock, which is pretty
+weird. We spend most of this time waiting for the lock?
+
+With batch size of 100 nodes:
+Perf counters:
+2302204857      787.296873s     2.549002%       L_COMMIT_QUEUE
+115     0.000039s       0.000000%       L_GET_NODES_TO_EXTEND
+29412   0.010058s       0.000033%       L_UPDATE_TREE_A
+1       0.000000s       0.000000%       L_UPDATE_TREE_B
+1       0.000000s       0.000000%       L_UPDATE_TREE_C
+0       0.000000s       0.000000%       L_UPDATE_TREE_D
+2398153 0.820109s       0.002655%       L_PROCESS_EXPLORE_QUEUE_A
+1199396963      410.163968s     1.327973%       L_PROCESS_EXPLORE_QUEUE_B
+4260717475      1457.059539s    4.717468%       L_PROCESS_EXPLORE_QUEUE_C
+278075729       95.094992s      0.307886%       L_PROCESS_EXPLORE_QUEUE_D
+1986    0.000679s       0.000002%       L_SHOULD_DIE_EQ
+15380   0.005260s       0.000017%       L_SHOULD_DIE_N
+81895531774     28006.237550s   90.674769%      EXEC
+1676343 0.573268s       0.001856%       OBSERVE
+2302580911      787.425475s     2.549419%       COMMIT
+
+... much better. Also, fixed NES frame counter, and we actually get
+about 100k frames after it warms up.

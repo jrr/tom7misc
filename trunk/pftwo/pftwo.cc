@@ -225,17 +225,20 @@ struct UIThread {
 	// XXX This needs to work better when there are like 60 threads
 	MutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
-	for (int i = 0; i < workers.size() && i < 10; i++) {
+	for (int i = 0; i < workers.size(); i++) {
 	  const Worker *w = workers[i];
 	  int numer = w->numer.load(std::memory_order_relaxed);
-	  font->draw(256 * 6 + 10, 40 + FONTHEIGHT * i,
-		     StringPrintf("[%d] %d/%d %s",
-				  i,
-				  numer,
-				  w->denom.load(std::memory_order_relaxed),
-				  w->status.load(std::memory_order_relaxed)));
+	  if (i < 10) {
+	    font->draw(256 * 6 + 10, 40 + FONTHEIGHT * i,
+		       StringPrintf("[%d] %d/%d %s",
+				    i,
+				    numer,
+				    w->denom.load(std::memory_order_relaxed),
+				    w->status.load(std::memory_order_relaxed)));
+	  }
 	  total_steps += w->nes_frames.load(std::memory_order_relaxed);
 	}
+
       }
 	
       // Save the sum to a single value for benchmarking.
