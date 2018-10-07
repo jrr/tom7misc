@@ -259,21 +259,22 @@ struct UIThread {
 				  search->tree->explore_queue.size()));
 
 	  int ypos = STARTY + FONTHEIGHT + 2;;
-	  for (const Tree::ExploreNode &en : search->tree->explore_queue) {
+	  for (Tree::ExploreNode *en : search->tree->explore_queue) {
 	    if (ypos > HEIGHT - FONTHEIGHT - 1) break;
+	    MutexLock mln(&en->node_m);
 	    font->draw(30, ypos,
 		       StringPrintf("Goal ^3%d^<,^3%d^<  "
 				    "distance ^4%.2f^<  "
 				    "seq ^5%d^<   ^1%d^<|^4%d^<  "
 				    "bad ^2%d^<",
 				    // XXX hard-coded TPP
-				    en.goal.goalx,
-				    en.goal.goaly,
-				    en.distance,
-				    (int)en.closest_seq.size(),
-				    en.iterations_left,
-				    en.iterations_in_progress,
-				    en.bad));
+				    en->goal.goalx,
+				    en->goal.goaly,
+				    en->distance,
+				    (int)en->closest_seq.size(),
+				    en->iterations_left,
+				    en->iterations_in_progress,
+				    en->bad));
 	    ypos += FONTHEIGHT;
 	  }
 
