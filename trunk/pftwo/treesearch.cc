@@ -48,10 +48,6 @@
 // queue.
 #define LOOPS_PER_EXPLORE_ITER 10
 
-// Number of nodes to check out at a time during the normal tree
-// search procedure.
-#define NODE_BATCH_SIZE 100
-
 static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
     MutexLock Printf_ml(&print_mutex);		\
@@ -63,14 +59,20 @@ enum PerfEvent {
   // Locks
   PE_L_COMMIT_QUEUE,
   PE_L_GET_NODES_TO_EXTEND,
+  PE_L_GET_EXPLORE_NODE_E,
   PE_L_UPDATE_TREE_A,
   PE_L_UPDATE_TREE_B,
   PE_L_UPDATE_TREE_C,
   PE_L_UPDATE_TREE_D,
   PE_L_PROCESS_EXPLORE_QUEUE_A,
+  PE_L_PROCESS_EXPLORE_QUEUE_ES,
   PE_L_PROCESS_EXPLORE_QUEUE_B,
+  PE_L_PROCESS_EXPLORE_QUEUE_EB,
   PE_L_PROCESS_EXPLORE_QUEUE_C,
   PE_L_PROCESS_EXPLORE_QUEUE_D,
+  PE_L_PROCESS_EXPLORE_QUEUE_EZ,
+  PE_L_PROCESS_EXPLORE_QUEUE_ED,
+  PE_L_PROCESS_EXPLORE_QUEUE_R,
   PE_L_SHOULD_DIE_EQ,
   PE_L_SHOULD_DIE_N,
   // Work
@@ -86,14 +88,20 @@ static const char *PerfEventString(PerfEvent pe) {
   switch (pe) {
     CASE(L_COMMIT_QUEUE);
     CASE(L_GET_NODES_TO_EXTEND);
+    CASE(L_GET_EXPLORE_NODE_E);
     CASE(L_UPDATE_TREE_A);
     CASE(L_UPDATE_TREE_B);
     CASE(L_UPDATE_TREE_C);
     CASE(L_UPDATE_TREE_D);
     CASE(L_PROCESS_EXPLORE_QUEUE_A);
+    CASE(L_PROCESS_EXPLORE_QUEUE_ES);
     CASE(L_PROCESS_EXPLORE_QUEUE_B);
+    CASE(L_PROCESS_EXPLORE_QUEUE_EB);
     CASE(L_PROCESS_EXPLORE_QUEUE_C);
     CASE(L_PROCESS_EXPLORE_QUEUE_D);
+    CASE(L_PROCESS_EXPLORE_QUEUE_EZ);
+    CASE(L_PROCESS_EXPLORE_QUEUE_ED);
+    CASE(L_PROCESS_EXPLORE_QUEUE_R);
     CASE(L_SHOULD_DIE_EQ);
     CASE(L_SHOULD_DIE_N);
     CASE(EXEC);
@@ -275,6 +283,7 @@ struct WorkThread {
     return child;
   }
 
+  #if 0
   // Add a new child to the node (unless it's a duplicate).
   // Returns the new node or existing child. Doesn't change
   // reference counts. Must hold the tree lock.
@@ -303,7 +312,8 @@ struct WorkThread {
       return child;
     }
   }
-
+  #endif
+  
   // Add to the grid if it qualifies. Called from within
   // ExtendNodeWithLock once we're sure the node is new.
   void AddToGridWithLock(Node *newnode, double newscore) {
@@ -339,10 +349,14 @@ struct WorkThread {
       src(src), seq(std::move(seq)), dst(dst), newscore(newscore) {}
   };
   vector<QueuedUpdate> local_queue;
-  
+
+  // Flush the local queue to global state.
   void CommitQueue() {
+    if (local_queue.empty())
+      return;
+
     std::unordered_set<Node *> blacklist;
-    
+        
     {
       PERF_MUTEX_LOCK(PE_L_COMMIT_QUEUE, &search->tree_m);
       for (QueuedUpdate &q : local_queue) {
@@ -392,12 +406,13 @@ struct WorkThread {
 	}
       }
     }
-    
     local_queue.clear();
   }
   
   // Save the best expansion of the node n to be added to the local
-  // queue and committed later in a batch.
+  // queue and committed later in a batch. The source node must have a
+  // corresponding refcount, which this decrements when it is
+  // committed.
   Node *EnqueueExpansionResult(Node *n, Tree::Seq seq,
 			       std::unique_ptr<Problem::State> newstate,
 			       double newscore) {
@@ -643,16 +658,17 @@ struct WorkThread {
   	    // Note that each "iteration" does LOOPS_PER_EXPLORE_ITER
             // loops.
 	    static constexpr int NUM_EXPLORE_ITERATIONS = 50;
-	    source->num_workers_using++;
-	    Tree::ExploreNode en;
-	    en.source = source;
-	    en.goal = goal;
-	    en.closest_state = source->state;
-	    en.distance =
+	    source->num_workers_using += LOOPS_PER_EXPLORE_ITER *
+	      NUM_EXPLORE_ITERATIONS;
+	    Tree::ExploreNode *en = new Tree::ExploreNode;
+	    en->source = source;
+	    en->goal = goal;
+	    en->closest_state = source->state;
+	    en->distance =
 	      search->problem->GoalDistance(goal, source->state);
-	    en.iterations_left = NUM_EXPLORE_ITERATIONS;
-	    en.iterations_in_progress = 0;
-	    tree->explore_queue.push_back(std::move(en));
+	    en->iterations_left = NUM_EXPLORE_ITERATIONS;
+	    en->iterations_in_progress = 0;
+	    tree->explore_queue.push_back(en);
 	  };
 
 	  // More stuck = more exploration.
@@ -733,11 +749,14 @@ struct WorkThread {
   // since the reference count is nonzero. Returns nullptr if none
   // can be found.
   Tree::ExploreNode *GetExploreNodeWithMutex() {
-    std::list<Tree::ExploreNode> *explore_queue = &search->tree->explore_queue;
-    for (std::list<Tree::ExploreNode>::iterator it = explore_queue->begin();
+    std::list<Tree::ExploreNode *> *explore_queue =
+      &search->tree->explore_queue;
+    for (std::list<Tree::ExploreNode *>::iterator it = explore_queue->begin();
 	 it != explore_queue->end(); ++it) {
-      Tree::ExploreNode *en = &*it;
+      Tree::ExploreNode *en = *it;
+      PERF_MUTEX_LOCK(PE_L_GET_EXPLORE_NODE_E, &en->node_m);
       if (en->iterations_left > 0) {
+	CHECK(en->source->num_workers_using > 0);
 	en->iterations_left--;
 	en->iterations_in_progress++;
 	// Move it to the back, which may hurt with locality, but
@@ -761,7 +780,13 @@ struct WorkThread {
       // MutexLock ml(&search->tree_m);
       PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
       en = GetExploreNodeWithMutex();
-      if (en == nullptr) return false;
+      if (en == nullptr) return false;      
+      // I'm going to decrement it exactly this many times.
+      CHECK(en->source->num_workers_using >= LOOPS_PER_EXPLORE_ITER);
+    }
+
+    {
+      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_ES, &en->node_m);
       // I should have a lock.
       CHECK(en->iterations_in_progress > 0);
       start_seq = en->closest_seq;
@@ -770,9 +795,12 @@ struct WorkThread {
     }
 
     int num_bad = 0;
+    // Number of times we had a bad result and so didn't enqueue
+    // any node; used to batch-decrement the refcount.
+    int bad_iters = 0;
     // To avoid wasting time waiting for locks, each "iteration"
     // is several loops of the same thing.
-    for (int loop = 0; loop <= LOOPS_PER_EXPLORE_ITER; loop++) {
+    for (int loop = 0; loop < LOOPS_PER_EXPLORE_ITER; loop++) {
       // Load source state.
       worker->SetStatus("Exploring");
       worker->Restore(start_state);
@@ -817,7 +845,8 @@ struct WorkThread {
 	  worker->Exec(input);
 	}
 	Problem::State after = worker->Save();
-	double penalty = search->problem->EdgePenalty(start_state, after);
+	const double penalty =
+	  search->problem->EdgePenalty(start_state, after);
 	// If we die, don't use this sequence at all.
 	// XXX checking exactly 1.0 here is bad. But how?
 	if (penalty < 1.0) {
@@ -827,7 +856,8 @@ struct WorkThread {
 
 	// PERF could avoid saving every iteration if we computed this
 	// from the worker state
-	double dist = search->problem->GoalDistance(en->goal, after);
+	const double dist =
+	  search->problem->GoalDistance(en->goal, after);
 
 	if (dist < best_distance) {
 	  best_prefix = i;
@@ -840,9 +870,11 @@ struct WorkThread {
       if (!bad && best_prefix >= 0) {
 	// At some point, we got closer to the goal. Put this in
 	// the ExploreNode if it is still an improvement (might have
-	// lost a race).
-	// MutexLock ml(&search->tree_m);
-	PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_B, &search->tree_m);
+	// lost a race). We use fine-grained locking for this, since
+	// in good cases, different threads are processing different
+	// explore nodes. (So DO NOT take the tree mutex after the
+	// node mutex is taken below!)
+	PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_EB, &en->node_m);
 	
 	if (best_distance < en->distance) {
 	  en->distance = best_distance;
@@ -862,7 +894,15 @@ struct WorkThread {
       // not fair to penalize this state just because we used it for
       // exploration (e.g. our goal might be right in the lava!)
 
-      if (!bad) {
+      if (bad) {
+	// No update on this iteration, but we need to reduce the
+	// source reference count.
+	bad_iters++;
+	
+      } else {
+	// Otherwise, enqueue it to be added to the tree. This takes
+	// care of decrementing the refcount.
+	
 	worker->SetStatus("Explore extend");
 	Tree::Seq full_seq = start_seq;
 	for (const Problem::Input input : seq) {
@@ -872,54 +912,81 @@ struct WorkThread {
 	// PERF could avoid saving again here (using the last save from
 	// the loop above), but better would be to fix the fact that we
 	// keep saving in that loop...
-	Problem::State newstate = worker->Save();
-	double score = search->problem->Score(newstate);
-	{
-	  // MutexLock ml(&search->tree_m);
-	  PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_C, &search->tree_m);
-	  Node *child =
-	    ExtendNodeWithLock(en->source, full_seq,
-			       std::move(newstate), score);
-	  // XXX: This is TPP specific.
-	  child->goalx = en->goal.goalx;
-	  child->goaly = en->goal.goaly;
-	}
+	std::unique_ptr<Problem::State> newstate =
+	  std::make_unique<Problem::State>(worker->Save());
+	const double newscore = search->problem->Score(*newstate);
+
+	// OK to read source field without node lock since we have
+	// ref count.
+	Node *child =
+	  EnqueueExpansionResult(en->source, std::move(full_seq),
+				 std::move(newstate),
+				 newscore);
+	
+	// XXX: This debugging stuff is TPP-specific.
+	child->goalx = en->goal.goalx;
+	child->goaly = en->goal.goaly;
       }
+    }
+
+    // We batched these up instead of decrementing the refcount in
+    // the loop.
+    if (bad_iters > 0) {
+      // do it outside the loop...
+      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_R, &search->tree_m);
+      CHECK(en->source->num_workers_using >= bad_iters);
+      en->source->num_workers_using -= bad_iters;
     }
     
     // Finally, reduce the iteration count, and maybe clean up the
     // ExploreNode.
+    bool remove_node = false;
     {
-      // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
+      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_EZ, &en->node_m);
       CHECK(en->iterations_in_progress > 0);
       en->iterations_in_progress--;
       en->bad += num_bad;
       if (en->iterations_left == 0 &&
 	  en->iterations_in_progress == 0) {
-	worker->SetStatus("Cleanup ExploreNode");
-
-	CHECK(en->source->num_workers_using > 0) << "Existence in the "
-	  "explore queue is supposed to imply a reference to the source "
-	  "node.";
-	en->source->num_workers_using--;
-
-	// XXX cleaner if we retained this iterator, but this
-	// is correct since pointers in the list are guaranteed
-	// to be stable.
-	std::list<Tree::ExploreNode> *explore_queue =
-	  &search->tree->explore_queue;
-	for (std::list<Tree::ExploreNode>::iterator it = explore_queue->begin();
-	     it != explore_queue->end(); ++it) {
-	  if (en == &*it) {
-	    explore_queue->erase(it);
-	    goto done;
-	  }
-	}
-	CHECK(false) << "Didn't find ExploreNode in queue when "
-	  "trying to delete it!";
-        done:;
+	// Exactly one worker will encounter this situation.
+	remove_node = true;
       }
+    }
+
+    // To remove it, we'll get exclusive access to the whole explore
+    // queue. Some other threads may have considered the node, but
+    // they cannot take it when it has zero count.
+    if (remove_node) {
+      worker->SetStatus("Cleanup ExploreNode");
+      // MutexLock ml(&search->tree_m);
+      {
+	PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
+	{
+	  PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_ED, &en->node_m);
+	  CHECK(en->iterations_left == 0);
+	  CHECK(en->iterations_in_progress == 0);
+	
+	  // PERF would be nice to avoid linear search, e.g. by retaining
+	  // the iterator.
+	  std::list<Tree::ExploreNode *> *explore_queue =
+	    &search->tree->explore_queue;
+	  for (std::list<Tree::ExploreNode *>::iterator it =
+		 explore_queue->begin();
+	       it != explore_queue->end(); ++it) {
+	    if (en == *it) {
+	      explore_queue->erase(it);
+	      goto done;
+	    }
+	  }
+	  CHECK(false) << "Didn't find ExploreNode in queue when "
+	    "trying to delete it!";
+	done:;
+	}
+      }
+      
+      // It's detached and we have exclusive access.
+      delete en;
+      en = nullptr;
     }
 
     // Reflect this work in stats.
@@ -965,14 +1032,9 @@ struct WorkThread {
 	    return;
 	  }
 	}
-	/*
-	if (ReadWithLock(&search->should_die_m, &search->should_die)) {
-	  worker->SetStatus("Die");
-	  return;
-	}
-	*/
       }
-
+      // Explore queue enqueues commits.
+      CommitQueue();
      
       vector<Node *> nodes_to_expand = GetNodesToExtend();
       // XXX HERE
@@ -1261,7 +1323,7 @@ void TreeSearch::PrintPerfCounters() {
   
   printf("Perf counters:\n");
   for (int i = 0; i < NUM_PERFEVENTS; i++)
-    printf("%llu\t%.6fs\t%.6f%%\t%s\n", totals[i],
+    printf("%16llu  %.6fs\t%.6f%%\t%s\n", totals[i],
 	   (double)totals[i] / (double)freq,
 	   (100.0 * totals[i]) / (double)total_denom,
 	   PerfEventString((PerfEvent)i));

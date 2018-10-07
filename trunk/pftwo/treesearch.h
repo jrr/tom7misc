@@ -45,6 +45,10 @@
 // at least GRID_BESTSCORE_FRAC * best_score_in_heap.
 #define GRID_BESTSCORE_FRAC 0.90
 
+// Number of nodes to check out at a time during the normal tree
+// search procedure.
+#define NODE_BATCH_SIZE 100
+
 // "Functor"
 using Problem = TwoPlayerProblem;
 using Worker = Problem::Worker;
@@ -63,11 +67,13 @@ struct WorkThread;
 struct Tree {
   using State = Problem::State;
   using Seq = vector<Problem::Input>;
-  static constexpr int UPDATE_FREQUENCY = 1000;
+  static constexpr int UPDATE_FREQUENCY = 1000 / NODE_BATCH_SIZE;
+  static_assert(UPDATE_FREQUENCY > 0, "configuration range");
   // Want to do a commit shortly after starting, because
   // until then, scores are frequently >1 (we don't have
   // an accurate maximum to normalize against).
-  static constexpr int STEPS_TO_FIRST_UPDATE = 100;
+  static constexpr int STEPS_TO_FIRST_UPDATE = 100 / NODE_BATCH_SIZE;
+  static_assert(STEPS_TO_FIRST_UPDATE > 0, "configuration range");
 
   struct Node {
     Node(State state, Node *parent) :
@@ -115,7 +121,9 @@ struct Tree {
 
     // Reference count. This also includes outstanding explore nodes
     // sourced from this node. When zero (and the lock not held), the
-    // node can be garbage collected.
+    // node can be garbage collected. (XXX This is no longer really
+    // "workers using", since the same worker can have many oustanding
+    // references.)
     int num_workers_using = 0;
 
     // Number of references from the grid, which also keeps nodes
@@ -137,6 +145,9 @@ struct Tree {
     // The exploration goal (i.e., a screen position).
     Problem::Goal goal;
 
+    // Mutex protects the below.
+    std::mutex node_m;
+    
     // The sequence that brings us closest to the goal.
     Seq closest_seq;
     // And the state that results from that sequence.
@@ -192,7 +203,7 @@ struct Tree {
   vector<GridCell> grid;
   
   // If this has anything in it, we're in exploration mode.
-  std::list<ExploreNode> explore_queue;
+  std::list<ExploreNode *> explore_queue;
   // Stuckness estimate from the last reheap.
   double stuckness = 0.0;
   // The maximum depth of the tree.

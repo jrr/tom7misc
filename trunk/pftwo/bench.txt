@@ -102,3 +102,87 @@ Perf counters:
 
 ... much better. Also, fixed NES frame counter, and we actually get
 about 100k frames after it warms up.
+
+Finer-grained locking in explore queue. EQ is not being exercised
+much because update frequency was accidentally made very rare by
+batching:
+
+
+Perf counters:
+8173913584      2795.275403s    4.080070%       L_COMMIT_QUEUE
+13469   0.004606s       0.000007%       L_GET_NODES_TO_EXTEND
+4003    0.001369s       0.000002%       L_GET_EXPLORE_NODE_E
+29596   0.010121s       0.000015%       L_UPDATE_TREE_A
+0       0.000000s       0.000000%       L_UPDATE_TREE_B
+1       0.000000s       0.000000%       L_UPDATE_TREE_C
+0       0.000000s       0.000000%       L_UPDATE_TREE_D
+988624  0.338085s       0.000493%       L_PROCESS_EXPLORE_QUEUE_A
+331     0.000113s       0.000000%       L_PROCESS_EXPLORE_QUEUE_ES
+0       0.000000s       0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+400     0.000137s       0.000000%       L_PROCESS_EXPLORE_QUEUE_EB
+8132070843      2780.966224s    4.059184%       L_PROCESS_EXPLORE_QUEUE_C
+293771491       100.462553s     0.146638%       L_PROCESS_EXPLORE_QUEUE_D
+2117    0.000724s       0.000001%       L_PROCESS_EXPLORE_QUEUE_ED
+2007    0.000686s       0.000001%       L_SHOULD_DIE_EQ
+37780   0.012920s       0.000019%       L_SHOULD_DIE_N
+183230136712    62660.155247s   91.460700%      EXEC
+3657398 1.250739s       0.001826%       OBSERVE
+8174992049      2795.644211s    4.080609%       COMMIT
+
+
+Explore queue executed more often now. We end up spending a lot
+of time waiting on the tree lock. The one we stall on jumps around:
+
+
+      1865884960  638.086307s   2.063399%       L_COMMIT_QUEUE
+           13769  0.004709s     0.000015%       L_GET_NODES_TO_EXTEND
+            8102  0.002771s     0.000009%       L_GET_EXPLORE_NODE_E
+              40  0.000014s     0.000000%       L_UPDATE_TREE_A
+               0  0.000000s     0.000000%       L_UPDATE_TREE_B
+               1  0.000000s     0.000000%       L_UPDATE_TREE_C
+               1  0.000000s     0.000000%       L_UPDATE_TREE_D
+     20576794528  7036.752593s  22.754961%      L_PROCESS_EXPLORE_QUEUE_A
+             753  0.000258s     0.000001%       L_PROCESS_EXPLORE_QUEUE_ES
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+             783  0.000268s     0.000001%       L_PROCESS_EXPLORE_QUEUE_EB
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_C
+       488869454  167.181210s   0.540619%       L_PROCESS_EXPLORE_QUEUE_D
+            3485  0.001192s     0.000004%       L_PROCESS_EXPLORE_QUEUE_EZ
+              43  0.000015s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ED
+      1617583889  553.173509s   1.788814%       L_PROCESS_EXPLORE_QUEUE_R
+            3478  0.001189s     0.000004%       L_SHOULD_DIE_EQ
+            8894  0.003042s     0.000010%       L_SHOULD_DIE_N
+     59407485464  20315.884323s 65.696092%      EXEC
+          870907  0.297829s     0.000963%       OBSERVE
+      1866132165  638.170845s   2.063672%       COMMIT
+
+
+Now batch decrements of the reference count in the "bad" case, which
+is the other place we were frequently taking tree_m:
+
+      1513235490  517.488948s   1.351099%       L_COMMIT_QUEUE
+           12381  0.004234s     0.000011%       L_GET_NODES_TO_EXTEND
+           13545  0.004632s     0.000012%       L_GET_EXPLORE_NODE_E
+              47  0.000016s     0.000000%       L_UPDATE_TREE_A
+               0  0.000000s     0.000000%       L_UPDATE_TREE_B
+               1  0.000000s     0.000000%       L_UPDATE_TREE_C
+               3  0.000001s     0.000000%       L_UPDATE_TREE_D
+     13474835922  4608.059165s  12.031070%      L_PROCESS_EXPLORE_QUEUE_A
+            1289  0.000441s     0.000001%       L_PROCESS_EXPLORE_QUEUE_ES
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+            1301  0.000445s     0.000001%       L_PROCESS_EXPLORE_QUEUE_EB
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_C
+       444841248  152.124657s   0.397179%       L_PROCESS_EXPLORE_QUEUE_D
+            6757  0.002311s     0.000006%       L_PROCESS_EXPLORE_QUEUE_EZ
+              90  0.000031s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ED
+      3392836289  1160.265731s  3.029310%       L_PROCESS_EXPLORE_QUEUE_R
+            5614  0.001920s     0.000005%       L_SHOULD_DIE_EQ
+           12465  0.004263s     0.000011%       L_SHOULD_DIE_N
+     83950847213  28709.104375s 74.955903%      EXEC
+         1489637  0.509419s     0.001330%       OBSERVE
+      1513332405  517.522091s   1.351186%       COMMIT
+
+
+Unclear why this lock is still so contentious. UI thread maybe?
+Or perhaps all of the workers are doing the same amount of work and so
+they tend to sync up? Hidden use of tree mutex?
