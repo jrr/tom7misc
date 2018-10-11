@@ -46,7 +46,7 @@
 
 // Number of loops a single thread does when expanding the explore
 // queue.
-#define LOOPS_PER_EXPLORE_ITER 10
+#define LOOPS_PER_EXPLORE_ITER 50
 
 static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
@@ -133,25 +133,17 @@ struct InternalPerfCounterScoped {
 }
 
 static_assert(sizeof (uint64) == sizeof (LARGE_INTEGER), "win64");
-#define PERF_MUTEX_LOCK(pe, mut)			\
+#define PERF_MUTEX_LOCK_INTERNAL(pe, mut, C)			\
   const uint64 perf_ml_start = PerfCounterNow();		\
-  MutexLock perf_ml(mut);					\
+  C perf_ml(mut);						\
   const uint64 perf_ml_end = PerfCounterNow();			\
   perf_counters[pe] += (perf_ml_end - perf_ml_start)
 
-namespace {
-struct SharedMutexLock {
-  explicit SharedMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
-  ~SharedMutexLock() { m->unlock(); }
-  std::shared_mutex *m;
-};
-}
+#define PERF_READ_MUTEX_LOCK(pe, mut)				\
+  PERF_MUTEX_LOCK_INTERNAL(pe, mut, ReadMutexLock)
 
-#define PERF_MUTEX_LOCK_SHARED(pe, mut)				\
-  const uint64 perf_ml_start = PerfCounterNow();		\
-  SharedMutexLock perf_ml(mut);					\
-  const uint64 perf_ml_end = PerfCounterNow();			\
-  perf_counters[pe] += (perf_ml_end - perf_ml_start)
+#define PERF_WRITE_MUTEX_LOCK(pe, mut)				\
+  PERF_MUTEX_LOCK_INTERNAL(pe, mut, WriteMutexLock)
 
 // This deliberately does not generate a distinct name to prevent
 // unintentially instantiating it multiple times in the same scope.
@@ -181,7 +173,7 @@ struct WorkThread {
   // Get the root node of the tree and associated state (which must be
   // present). Used during initialization.
   Node *GetRoot() {
-    MutexLock ml(&search->tree_m);
+    WriteMutexLock ml(&search->tree_m);
     Node *n = search->tree->root;
     n->num_workers_using++;
     return n;
@@ -274,7 +266,7 @@ struct WorkThread {
   // has its workers_using counter incremented on behalf of the
   // caller (who must eventually decrement it).
   vector<Node *> GetNodesToExtend() {
-    PERF_MUTEX_LOCK(PE_L_GET_NODES_TO_EXTEND, &search->tree_m);
+    PERF_WRITE_MUTEX_LOCK(PE_L_GET_NODES_TO_EXTEND, &search->tree_m);
     vector<Node *> ret;
     ret.reserve(NODE_BATCH_SIZE);
     for (int i = 0; i < NODE_BATCH_SIZE; i++) {
@@ -341,7 +333,7 @@ struct WorkThread {
     std::unordered_set<Node *> blacklist;
         
     {
-      PERF_MUTEX_LOCK(PE_L_COMMIT_QUEUE, &search->tree_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_COMMIT_QUEUE, &search->tree_m);
       for (QueuedUpdate &q : local_queue) {
 
 	if (ContainsKey(blacklist, q.src)) {
@@ -408,7 +400,7 @@ struct WorkThread {
   // Only does it in one thread, but doesn't return until this is the
   // case.
   void InitializeTree() {
-    MutexLock ml(&search->tree_m);
+    WriteMutexLock ml(&search->tree_m);
     if (search->tree == nullptr) {
       // I won the race!
       printf("Initialize tree...\n");
@@ -420,8 +412,8 @@ struct WorkThread {
   void MaybeUpdateTree() {
     Tree *tree = search->tree;
     {
-      PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_A, &search->tree_m);
-      // MutexLock ml(&search->tree_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_UPDATE_TREE_A, &search->tree_m);
+
       // No use in decrementing update counter -- when we
       // finish we reset it to the max value.
       if (tree->update_in_progress)
@@ -456,8 +448,7 @@ struct WorkThread {
     {
       worker->SetStatus("Tree: Reheap");
       {
-	// MutexLock ml(&search->tree_m);
-	PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_B, &search->tree_m);
+	PERF_WRITE_MUTEX_LOCK(PE_L_UPDATE_TREE_B, &search->tree_m);
 
 	printf("Clear grid ...");
 	// First, just clear the grid since every node has a chance to
@@ -495,8 +486,7 @@ struct WorkThread {
     }
     
     {
-      // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_C, &search->tree_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_UPDATE_TREE_C, &search->tree_m);
       const int64 MAX_NODES = search->tree->MaxNodes();
       if (tree->num_nodes > MAX_NODES) {
 	printf("Trim tree (have %llu, max: %llu)...\n",
@@ -640,7 +630,7 @@ struct WorkThread {
 	      Node *source, Problem::Goal goal) {
   	    // Note that each "iteration" does LOOPS_PER_EXPLORE_ITER
             // loops.
-	    static constexpr int NUM_EXPLORE_ITERATIONS = 50;
+	    static constexpr int NUM_EXPLORE_ITERATIONS = 10;
 	    source->num_workers_using += LOOPS_PER_EXPLORE_ITER *
 	      NUM_EXPLORE_ITERATIONS;
 	    Tree::ExploreNode *en = new Tree::ExploreNode;
@@ -720,8 +710,7 @@ struct WorkThread {
 
 
     {
-      // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_L_UPDATE_TREE_D, &search->tree_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_UPDATE_TREE_D, &search->tree_m);
       tree->update_in_progress = false;
     }
   }
@@ -737,7 +726,7 @@ struct WorkThread {
     for (std::list<Tree::ExploreNode *>::iterator it = explore_queue->begin();
 	 it != explore_queue->end(); ++it) {
       Tree::ExploreNode *en = *it;
-      PERF_MUTEX_LOCK(PE_L_GET_EXPLORE_NODE_E, &en->node_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_GET_EXPLORE_NODE_E, &en->node_m);
       if (en->iterations_left > 0) {
 	CHECK(en->source->num_workers_using > 0);
 	en->iterations_left--;
@@ -760,8 +749,7 @@ struct WorkThread {
     Problem::State start_state;
     double start_dist = -1.0;
     {
-      // MutexLock ml(&search->tree_m);
-      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
       en = GetExploreNodeWithMutex();
       if (en == nullptr) return false;      
       // I'm going to decrement it exactly this many times.
@@ -769,7 +757,7 @@ struct WorkThread {
     }
 
     {
-      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_ES, &en->node_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_ES, &en->node_m);
       // I should have a lock.
       CHECK(en->iterations_in_progress > 0);
       start_seq = en->closest_seq;
@@ -857,7 +845,7 @@ struct WorkThread {
 	// in good cases, different threads are processing different
 	// explore nodes. (So DO NOT take the tree mutex after the
 	// node mutex is taken below!)
-	PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_EB, &en->node_m);
+	PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_EB, &en->node_m);
 	
 	if (best_distance < en->distance) {
 	  en->distance = best_distance;
@@ -916,7 +904,7 @@ struct WorkThread {
     // the loop.
     if (bad_iters > 0) {
       // do it outside the loop...
-      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_R, &search->tree_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_R, &search->tree_m);
       CHECK(en->source->num_workers_using >= bad_iters);
       en->source->num_workers_using -= bad_iters;
     }
@@ -925,7 +913,7 @@ struct WorkThread {
     // ExploreNode.
     bool remove_node = false;
     {
-      PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_EZ, &en->node_m);
+      PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_EZ, &en->node_m);
       CHECK(en->iterations_in_progress > 0);
       en->iterations_in_progress--;
       en->bad += num_bad;
@@ -941,11 +929,10 @@ struct WorkThread {
     // they cannot take it when it has zero count.
     if (remove_node) {
       worker->SetStatus("Cleanup ExploreNode");
-      // MutexLock ml(&search->tree_m);
       {
-	PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
+	PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
 	{
-	  PERF_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_ED, &en->node_m);
+	  PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_ED, &en->node_m);
 	  CHECK(en->iterations_left == 0);
 	  CHECK(en->iterations_in_progress == 0);
 	
@@ -1009,7 +996,7 @@ struct WorkThread {
 	// OK to ignore the rest of this loop, but we should die if
 	// requested.
 	{
-	  PERF_MUTEX_LOCK_SHARED(PE_L_SHOULD_DIE_EQ, &search->should_die_m);
+	  PERF_READ_MUTEX_LOCK(PE_L_SHOULD_DIE_EQ, &search->should_die_m);
 	  if (search->should_die) {
 	    worker->SetStatus("Die");
 	    return;
@@ -1126,7 +1113,7 @@ struct WorkThread {
 
 	  worker->SetStatus("Check for death");
 	  {
-	    PERF_MUTEX_LOCK_SHARED(PE_L_SHOULD_DIE_N, &search->should_die_m);
+	    PERF_READ_MUTEX_LOCK(PE_L_SHOULD_DIE_N, &search->should_die_m);
 	    if (search->should_die) {
 	      worker->SetStatus("Die");
 	      return;
@@ -1153,12 +1140,6 @@ struct WorkThread {
 	CommitQueue();
       }
       MaybeUpdateTree();
-      /*
-      if (ReadWithLock(&search->should_die_m, &search->should_die)) {
-	worker->SetStatus("Die");
-	return;
-      }
-      */
     }
   }
 
@@ -1212,7 +1193,7 @@ vector<Worker *> TreeSearch::WorkersWithLock() const {
 
 void TreeSearch::StartThreads() {
   // Maybe this should be locked separately?
-  MutexLock ml(&tree_m);
+  WriteMutexLock ml(&tree_m);
   CHECK(workers.empty());
   CHECK(num_workers > 0);
   workers.reserve(num_workers);
@@ -1223,11 +1204,8 @@ void TreeSearch::StartThreads() {
 
 void TreeSearch::DestroyThreads() {
   {
-    // MutexLock ml(&should_die_m);
-    // TODO: Nice to have ReadMutexLock, WriteMutexLock perhaps.
-    should_die_m.lock();
+    WriteMutexLock ml(&should_die_m);
     should_die = true;
-    should_die_m.unlock();
   }
   // The destructor blocks on the thread join.
   for (WorkThread *wt : workers)
@@ -1245,55 +1223,58 @@ void TreeSearch::SetApproximateNesFrames(int64 nes_frames) {
 
 string TreeSearch::SaveBestMovie(const string &filename) {
   Printf("Saving best.\n");
-  MutexLock ml(&tree_m);
-  auto best = tree->heap.GetByIndex(0);
 
-  // Each segment of the solution, along with a subtitle for
-  // the sequence.
-  std::list<pair<string, Tree::Seq>> path;
-
-  const Tree::Node *n = best.value;
-  while (n->parent != nullptr) {
-    const Tree::Node *parent = n->parent;
-
-    auto GetKey = [n, parent]() -> const Tree::Seq * {
-      // Find among my siblings.
-      for (const auto &p : parent->children) {
-	if (p.second == n) {
-	  return &p.first;
-	}
-      };
-      return nullptr;
-    };
-
-    const Tree::Seq *seq = GetKey();
-    CHECK(seq != nullptr) << "Oops, when saving, I couldn't find "
-      "the path to this node; it must have been misparented!";
-
-    string subtitle =
-      StringPrintf("f %lld s %lld g %d,%d",
-		   n->nes_frames / 1024,
-		   n->walltime_seconds,
-		   n->goalx, n->goaly);
-			 
-    path.emplace_front(subtitle, *seq);
-    n = parent;
-  }
-
-  // Create subtitle vector.
   vector<pair<int, string>> subtitles;
   vector<Problem::Input> all_inputs;
-  int node_num = 0;
-  for (const pair<string, Tree::Seq> &p : path) {
-    // Could put more info from the node here...
-    subtitles.emplace_back((int)all_inputs.size(),
-			   StringPrintf("%d. %s", node_num,
-					p.first.c_str()));
-    for (const Problem::Input input : p.second)
-      all_inputs.push_back(input);
-    node_num++;
-  }
+  {
+    ReadMutexLock ml(&tree_m);
+    auto best = tree->heap.GetByIndex(0);
 
+    // Each segment of the solution, along with a subtitle for
+    // the sequence.
+    std::list<pair<string, Tree::Seq>> path;
+
+    const Tree::Node *n = best.value;
+    while (n->parent != nullptr) {
+      const Tree::Node *parent = n->parent;
+
+      auto GetKey = [n, parent]() -> const Tree::Seq * {
+	// Find among my siblings.
+	for (const auto &p : parent->children) {
+	  if (p.second == n) {
+	    return &p.first;
+	  }
+	};
+	return nullptr;
+      };
+
+      const Tree::Seq *seq = GetKey();
+      CHECK(seq != nullptr) << "Oops, when saving, I couldn't find "
+	"the path to this node; it must have been misparented!";
+
+      string subtitle =
+	StringPrintf("f %lld s %lld g %d,%d",
+		     n->nes_frames / 1024,
+		     n->walltime_seconds,
+		     n->goalx, n->goaly);
+
+      path.emplace_front(subtitle, *seq);
+      n = parent;
+    }
+
+    // Create subtitle vector.
+    int node_num = 0;
+    for (const pair<string, Tree::Seq> &p : path) {
+      // Could put more info from the node here...
+      subtitles.emplace_back((int)all_inputs.size(),
+			     StringPrintf("%d. %s", node_num,
+					  p.first.c_str()));
+      for (const Problem::Input input : p.second)
+	all_inputs.push_back(input);
+      node_num++;
+    }
+  }
+    
   return problem->SaveSolution(filename,
 			       all_inputs,
 			       subtitles,
@@ -1310,7 +1291,7 @@ void TreeSearch::PrintPerfCounters() {
   QueryPerformanceFrequency((LARGE_INTEGER*)&freq);
   
   {
-    MutexLock ml(&tree_m);
+    ReadMutexLock ml(&tree_m);
     for (WorkThread *w : workers) {
       total_denom += w->PerfGetTotal();
       for (int i = 0; i < NUM_PERFEVENTS; i++) {

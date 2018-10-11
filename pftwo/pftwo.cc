@@ -9,10 +9,6 @@
 //
 // TODO: Serialization of tree state and restarting
 //
-// TODO: Find values we don't want to go down by setting them to 1 or
-// zero as they go down (or something), and testing whether that is
-// really bad.
-//
 // TODO: Be scientific! Build an ground truth dataset (e.g.
 // hand-written objectives that are trustworthy) and an offline
 // pipeline that can measure performance on that set, for tuning
@@ -20,7 +16,7 @@
 //
 // TODO: Players love moving to the right because the x coordinate
 // is part of the objective function. We could perhaps eliminate
-// this by detecting bytes that appear to be the player's coordinates?
+// this by removing autocamera coordinates from objective functions?
 // Or subtracting the x coordinate from such bytes during the
 // exploration phase?
 //
@@ -48,6 +44,8 @@
 // just survive some screen, or many contra bosses where you have
 // to deal a bunch of damage but it doesn't know it's making
 // progress...)
+// TODO: aka "Marathon" strategy where we just try to stay alive as
+// long as we can?
 //
 // TODO: When on the ice pillars level, regular tree search is
 // sometimes backing up all the way to the waterfall climb -- this
@@ -72,9 +70,6 @@
 //
 // TODO: More generally, when stuck: Prune nodes for which we've only
 // ever expanded to deaths?
-//
-// TODO: "Marathon" strategy where we just try to stay alive as
-// long as we can?
 
 #include <algorithm>
 #include <vector>
@@ -138,7 +133,7 @@ struct UIThread {
     (void)frame;
 
     const int num_workers = [&]() {
-      MutexLock ml(&search->tree_m);
+      ReadMutexLock ml(&search->tree_m);
       return search->WorkersWithLock().size();
     }();
     vector<vector<uint8>> screenshots;
@@ -200,7 +195,7 @@ struct UIThread {
       sdlutil::clearsurface(screen, 0x11111111);
 
       const int64 tree_size =
-	ReadWithLock(&search->tree_m, &search->tree->num_nodes);
+	SharedReadWithLock(&search->tree_m, &search->tree->num_nodes);
 
       const double improvement_pct =
 	(search->stats.sequences_improved.Get() * 100.0) /
@@ -223,7 +218,7 @@ struct UIThread {
       int64 total_steps = 0LL;
       {
 	// XXX This needs to work better when there are like 60 threads
-	MutexLock ml(&search->tree_m);
+	WriteMutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	for (int i = 0; i < workers.size(); i++) {
 	  const Worker *w = workers[i];
@@ -246,7 +241,7 @@ struct UIThread {
       
       bool queue_mode = false;
       {
-	MutexLock ml(&search->tree_m);
+	WriteMutexLock ml(&search->tree_m);
 	// Update all screenshots.
 	if (!search->tree->explore_queue.empty()) {
 	  queue_mode = true;
@@ -261,7 +256,7 @@ struct UIThread {
 	  int ypos = STARTY + FONTHEIGHT + 2;;
 	  for (Tree::ExploreNode *en : search->tree->explore_queue) {
 	    if (ypos > HEIGHT - FONTHEIGHT - 1) break;
-	    MutexLock mln(&en->node_m);
+	    ReadMutexLock mln(&en->node_m);
 	    font->draw(30, ypos,
 		       StringPrintf("Goal ^3%d^<,^3%d^<  "
 				    "distance ^4%.2f^<  "
@@ -282,7 +277,7 @@ struct UIThread {
       }
 
       {
-	MutexLock ml(&search->tree_m);
+	WriteMutexLock ml(&search->tree_m);
 	static constexpr int GRIDX = 768;
 	static constexpr int GRIDY = 450;
 	static constexpr int CELLPX = 16;
@@ -339,7 +334,7 @@ struct UIThread {
 
       vector<vector<string>> texts;
       {
-	MutexLock ml(&search->tree_m);
+	WriteMutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	texts.resize(workers.size());
 	for (int i = 0; i < workers.size() && max_screenshots; i++) {
@@ -426,7 +421,7 @@ struct UIThread {
 
       int max_nodes = 0, max_depth = 0;
       {
-	MutexLock ml(&search->tree_m);
+	WriteMutexLock ml(&search->tree_m);
 	GetLevelStats(0, search->tree->root);
 
 	max_depth = search->tree->max_depth;

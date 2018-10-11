@@ -218,3 +218,54 @@ Also, this version of the code seemed pretty bad: We only got to the
 beginning of the second level after running for 90 minutes...
 It may now just take too long for a good node to make its way into
 the tree and get picked up by other workers. :/
+
+Using shared_mutex for should_die, before switching to shared_mutex for
+everything:
+
+      1633717930  558.689612s   0.679719%       L_COMMIT_QUEUE
+            8426  0.002881s     0.000004%       L_GET_NODES_TO_EXTEND
+           17805  0.006089s     0.000007%       L_GET_EXPLORE_NODE_E
+              43  0.000015s     0.000000%       L_UPDATE_TREE_A
+            5878  0.002010s     0.000002%       L_UPDATE_TREE_B
+               2  0.000001s     0.000000%       L_UPDATE_TREE_C
+               0  0.000000s     0.000000%       L_UPDATE_TREE_D
+     25585903925  8749.722633s  10.645175%      L_PROCESS_EXPLORE_QUEUE_A
+            1676  0.000573s     0.000001%       L_PROCESS_EXPLORE_QUEUE_ES
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+            1999  0.000684s     0.000001%       L_PROCESS_EXPLORE_QUEUE_EB
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_C
+       743088803  254.117304s   0.309167%       L_PROCESS_EXPLORE_QUEUE_D
+            8774  0.003000s     0.000004%       L_PROCESS_EXPLORE_QUEUE_EZ
+             195  0.000067s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ED
+      2506264081  857.078007s   1.042747%       L_PROCESS_EXPLORE_QUEUE_R
+           22850  0.007814s     0.000010%       L_SHOULD_DIE_EQ
+          123299  0.042165s     0.000051%       L_SHOULD_DIE_N
+    201335983309  68851.740208s 83.767090%      EXEC
+         4015155  1.373080s     0.001671%       OBSERVE
+      1634314604  558.893660s   0.679967%       COMMIT
+
+Increased the explore queue batch size and now utilization is good:
+
+      1164939060  398.379267s   0.507237%       L_COMMIT_QUEUE
+          131256  0.044886s     0.000057%       L_GET_NODES_TO_EXTEND
+            9562  0.003270s     0.000004%       L_GET_EXPLORE_NODE_E
+           25237  0.008630s     0.000011%       L_UPDATE_TREE_A
+               0  0.000000s     0.000000%       L_UPDATE_TREE_B
+               3  0.000001s     0.000000%       L_UPDATE_TREE_C
+               2  0.000001s     0.000000%       L_UPDATE_TREE_D
+      3572417289  1221.675048s  1.555501%       L_PROCESS_EXPLORE_QUEUE_A
+             533  0.000182s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ES
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+           25774  0.008814s     0.000011%       L_PROCESS_EXPLORE_QUEUE_EB
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_C
+       906923675  310.144626s   0.394892%       L_PROCESS_EXPLORE_QUEUE_D
+            5692  0.001947s     0.000002%       L_PROCESS_EXPLORE_QUEUE_EZ
+             362  0.000124s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ED
+      1112620152  380.487543s   0.484457%       L_PROCESS_EXPLORE_QUEUE_R
+            3295  0.001127s     0.000001%       L_SHOULD_DIE_EQ
+          113099  0.038677s     0.000049%       L_SHOULD_DIE_N
+    208888700723  71434.575768s 90.954243%      EXEC
+         5442099  1.861058s     0.002370%       OBSERVE
+      1165209193  398.471646s   0.507355%       COMMIT
+
+... note that 10% is being spent somewhere that's not accounted for!

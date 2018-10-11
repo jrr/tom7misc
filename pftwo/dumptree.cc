@@ -43,7 +43,7 @@ static string Rtos(double d) {
 }
 
 void TreeDumping::DumpTree(TreeSearch *search) {
-  MutexLock ml(&search->tree_m);
+  WriteMutexLock ml(&search->tree_m);  // PERF probably can be read?
   Printf("Dumping tree.");
   Util::MakeDir("tree");
 
