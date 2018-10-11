@@ -248,7 +248,7 @@ struct TreeSearch {
 
     // Tune me!
     double p_stay_on_node = 0.50;
-    int node_batch_size = 100;
+    int node_batch_size = 10;
 
     int UpdateFrequency() const {
       return 1000 / (node_batch_size * (1.0 / p_stay_on_node));

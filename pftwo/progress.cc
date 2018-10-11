@@ -6,6 +6,7 @@
 #include <memory>
 #include <list>
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
