@@ -150,7 +150,7 @@ struct Tree {
     Problem::Goal goal;
 
     // Mutex protects the below.
-    std::mutex node_m;
+    std::shared_mutex node_m;
     
     // The sequence that brings us closest to the goal.
     Seq closest_seq;
@@ -255,7 +255,7 @@ struct TreeSearch {
   // state.
   Tree *tree = nullptr;
   // Coarse locking.
-  std::mutex tree_m;
+  std::shared_mutex tree_m;
 
   // The UI thread must periodically call these for the benchmark
   // metrics to be correct in the output FM2s.
@@ -302,9 +302,8 @@ struct TreeSearch {
   vector<WorkThread *> workers;
   int num_workers = 0;
 
-  // TODO(twm): use shared_mutex when available
   bool should_die = false;
-  shared_mutex should_die_m;
+  std::shared_mutex should_die_m;
 };
 
 #endif

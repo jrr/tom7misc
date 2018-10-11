@@ -12,6 +12,7 @@
 
 #include <thread>
 #include <mutex>
+#include <shared_mutex>
 
 // using namespace std;
 using std::string;
@@ -24,33 +25,27 @@ using std::unordered_map;
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/threadutil.h"
 
-#if 0
-
-#ifdef __GNUC__
-#include <ext/hash_map>
-#include <ext/hash_set>
-#else
-#include <hash_map>
-#include <hash_set>
-#endif
-
-#ifdef __GNUC__
-namespace std {
-using namespace __gnu_cxx;
-}
-
-// Needed on cygwin, at least. Maybe not all gnuc?
-namespace __gnu_cxx {
-template<>
-struct hash<unsigned long long> {
-  size_t operator ()(const unsigned long long &x) const {
-    return x;
-  }
+// TODO: To threadutil, but note that this is C++17.
+struct ReadMutexLock {
+  explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
+  ~ReadMutexLock() { m->unlock_shared(); }
+  std::shared_mutex *m;
 };
-}
-#endif
+// Possible to template this over shared_mutex and mutex without
+// requiring an argument?
+struct WriteMutexLock {
+  explicit WriteMutexLock(std::shared_mutex *m) : m(m) { m->lock(); }
+  ~WriteMutexLock() { m->unlock(); }
+  std::shared_mutex *m;
+};
 
-#endif
+// Read with the mutex that protects it. T must be copyable,
+// obviously!
+template<class T>
+T SharedReadWithLock(std::shared_mutex *m, const T *t) {
+  ReadMutexLock ml(m);
+  return *t;
+}
 
 // e.g. with C = map<int, string>. Third argument is the default.
 // Returns "string", not "const string &", to avoid surprises
