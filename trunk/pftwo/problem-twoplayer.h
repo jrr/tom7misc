@@ -184,11 +184,11 @@ struct TwoPlayerProblem {
 
     // Status and counters just used for the UI.
     void ClearStatus() {
-      SetStatus(nullptr);
+      SetStatus(STATUS_UNKNOWN);
       SetNumer(0);
       SetDenom(0);
     }
-    inline void SetStatus(const char *s) {
+    inline void SetStatus(WorkerStatus s) {
       status.store(s, std::memory_order_relaxed);
     }
     inline void SetNumer(int n) {
@@ -201,9 +201,8 @@ struct TwoPlayerProblem {
       nes_frames.fetch_add(d, std::memory_order_relaxed);
     }
     
-    // Current operation. Should point to a string literal;
-    // other code may hang on to references.
-    std::atomic<const char *> status{nullptr};
+    // Current operation. See pftwo.h.
+    std::atomic<WorkerStatus> status{STATUS_UNKNOWN};
     // Fraction complete.
     std::atomic<int> numer{0}, denom{0};
     // For benchmarking, the total number of NES frames (or

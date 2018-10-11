@@ -51,7 +51,8 @@
 // search procedure. Note that for each one, we have a 50% chance
 // of expanding a second time, and then a 25% chance of a third,
 // etc., for an expected 2 * NODE_BATCH_SIZE expansions.
-#define NODE_BATCH_SIZE 100
+// Now a configuration parameter
+// #define NODE_BATCH_SIZE 100
 
 // "Functor"
 using Problem = TwoPlayerProblem;
@@ -71,8 +72,9 @@ struct WorkThread;
 struct Tree {
   using State = Problem::State;
   using Seq = vector<Problem::Input>;
-  static constexpr int UPDATE_FREQUENCY = 1000 / (NODE_BATCH_SIZE * 2);
-  static_assert(UPDATE_FREQUENCY > 0, "configuration range");
+  // static constexpr int UPDATE_FREQUENCY = 1000 / (NODE_BATCH_SIZE * 2);
+  // static_assert(UPDATE_FREQUENCY > 0, "configuration range");
+  
   // Want to do a commit shortly after starting, because
   // until then, scores are frequently >1 (we don't have
   // an accurate maximum to normalize against).
@@ -244,6 +246,14 @@ struct TreeSearch {
     // Tuned.
     double frames_mean = 290.0;
 
+    // Tune me!
+    double p_stay_on_node = 0.50;
+    int node_batch_size = 100;
+
+    int UpdateFrequency() const {
+      return 1000 / (node_batch_size * (1.0 / p_stay_on_node));
+    }
+    
     // Due to threading, the process is inherently random.
     // But this explicitly seeds it to get better randomness.
     int random_seed = 0;
@@ -261,8 +271,11 @@ struct TreeSearch {
   // metrics to be correct in the output FM2s.
   // No lock needed to update these.
   void SetApproximateSeconds(int64 seconds_since_start);
-  void SetApproximateNesFrames(int64 nes_frames);
 
+  // Periodically call this to update the number of frames that have
+  // been executed across all workers. Also returns the updated value.
+  int64 UpdateApproximateNesFrames();
+  
   void PrintPerfCounters();
   
   struct Stats {
@@ -295,7 +308,8 @@ struct TreeSearch {
   const Options opt;
   // Updated by the UI thread.
   std::atomic<int64> approx_sec{0LL};
-  std::atomic<int64> approx_nes_frames{0LL};
+
+  std::atomic<int64> approx_total_nes_frames{0LL};
 
   // Approximately one per logical CPU. Created at startup and lives
   // until should_die becomes true. Pointers owned by TreeSearch.

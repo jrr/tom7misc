@@ -25,6 +25,16 @@ using std::unordered_map;
 #include "../cc-lib/base/logging.h"
 #include "../cc-lib/threadutil.h"
 
+// Status of a worker. This is basically stuff that the UI can
+// display.
+enum WorkerStatus : int {
+  STATUS_UNKNOWN,
+  STATUS_SEARCH,
+  STATUS_EXPLORE,
+  STATUS_DIE,
+  STATUS_TREE,
+};
+
 // TODO: To threadutil, but note that this is C++17.
 struct ReadMutexLock {
   explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }

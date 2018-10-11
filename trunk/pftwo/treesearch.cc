@@ -268,8 +268,8 @@ struct WorkThread {
   vector<Node *> GetNodesToExtend() {
     PERF_WRITE_MUTEX_LOCK(PE_L_GET_NODES_TO_EXTEND, &search->tree_m);
     vector<Node *> ret;
-    ret.reserve(NODE_BATCH_SIZE);
-    for (int i = 0; i < NODE_BATCH_SIZE; i++) {
+    ret.reserve(opt.node_batch_size);
+    for (int i = 0; i < opt.node_batch_size; i++) {
       Node *n = FindGoodNodeWithMutex();
       n->num_workers_using++;
       n->chosen++;
@@ -282,7 +282,7 @@ struct WorkThread {
   Node *NewNode(Problem::State newstate, Node *parent) {
     CHECK(parent != nullptr);
     Node *child = new Node(std::move(newstate), parent);
-    child->nes_frames = search->approx_nes_frames.load(
+    child->nes_frames = search->approx_total_nes_frames.load(
 	std::memory_order_relaxed);
     child->walltime_seconds = search->approx_sec.load(
     	std::memory_order_relaxed);
@@ -425,7 +425,7 @@ struct WorkThread {
 	return;
       
       if (tree->steps_until_update == 0) {
-	tree->steps_until_update = Tree::UPDATE_FREQUENCY;
+	tree->steps_until_update = opt.UpdateFrequency();
 	tree->update_in_progress = true;
 	// Enter fixup below.
       } else {
@@ -434,19 +434,20 @@ struct WorkThread {
       }
     }
 
-    // This is run every UPDATE_FREQUENCY calls, in some
+    // This is run every UpdateFrequency() calls, in some
     // arbitrary worker thread. We don't hold any locks right
     // now, but only one thread will enter this section at
     // a time because of the update_in_progress flag.
-    worker->SetStatus("Tree: Commit observations");
-
+    // worker->SetStatus("Tree: Commit observations");
+    worker->SetStatus(STATUS_TREE);
+    
     search->problem->Commit();
     
     // Re-build heap. We do this by recalculating the score for
     // each node in place; most of the time this won't change the
     // shape of the heap much.
     {
-      worker->SetStatus("Tree: Reheap");
+      // worker->SetStatus("Tree: Reheap");
       {
 	PERF_WRITE_MUTEX_LOCK(PE_L_UPDATE_TREE_B, &search->tree_m);
 
@@ -771,12 +772,14 @@ struct WorkThread {
     int bad_iters = 0;
     // To avoid wasting time waiting for locks, each "iteration"
     // is several loops of the same thing.
+    worker->SetDenom(LOOPS_PER_EXPLORE_ITER);
     for (int loop = 0; loop < LOOPS_PER_EXPLORE_ITER; loop++) {
+      worker->SetNumer(loop);
       // Load source state.
-      worker->SetStatus("Exploring");
+      // worker->SetStatus("Exploring");
       worker->Restore(start_state);
 
-      worker->SetStatus("Explore inputs");
+      // worker->SetStatus("Explore inputs");
 
       // Generate a random sequence.
       // XXX tune these
@@ -808,7 +811,7 @@ struct WorkThread {
       // Excuting up to and including this index.
       int best_prefix = -1;
       bool bad = false;
-      worker->SetStatus("Explore exec");
+      // worker->SetStatus("Explore exec");
       for (int i = 0; i < seq.size(); i++) {
 	const Problem::Input input = seq[i];
 	{
@@ -837,7 +840,7 @@ struct WorkThread {
 	}
       }
 
-      worker->SetStatus("Explore post");
+      // worker->SetStatus("Explore post");
       if (!bad && best_prefix >= 0) {
 	// At some point, we got closer to the goal. Put this in
 	// the ExploreNode if it is still an improvement (might have
@@ -874,7 +877,7 @@ struct WorkThread {
 	// Otherwise, enqueue it to be added to the tree. This takes
 	// care of decrementing the refcount.
 	
-	worker->SetStatus("Explore extend");
+	// worker->SetStatus("Explore extend");
 	Tree::Seq full_seq = start_seq;
 	for (const Problem::Input input : seq) {
 	  full_seq.push_back(input);
@@ -928,7 +931,7 @@ struct WorkThread {
     // queue. Some other threads may have considered the node, but
     // they cannot take it when it has zero count.
     if (remove_node) {
-      worker->SetStatus("Cleanup ExploreNode");
+      // worker->SetStatus("Cleanup ExploreNode");
       {
 	PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_D, &search->tree_m);
 	{
@@ -978,7 +981,7 @@ struct WorkThread {
     // With the current setup it should already be in this state, but
     // it's inexpensive to explicitly establish the invariant.
     {
-      worker->SetStatus("Load root");
+      // worker->SetStatus("Load root");
       last = GetRoot();
       CHECK(last != nullptr);
       worker->Restore(last->state);
@@ -991,37 +994,42 @@ struct WorkThread {
       
       // If the exploration queue isn't empty, we work on it instead
       // of continuing our work on other nodes.
-      worker->SetStatus("Explore Queue");
+      worker->SetStatus(STATUS_EXPLORE);
       while (ProcessExploreQueue()) {
 	// OK to ignore the rest of this loop, but we should die if
 	// requested.
 	{
 	  PERF_READ_MUTEX_LOCK(PE_L_SHOULD_DIE_EQ, &search->should_die_m);
 	  if (search->should_die) {
-	    worker->SetStatus("Die");
+	    worker->SetStatus(STATUS_DIE);
 	    return;
 	  }
 	}
       }
       // Explore queue enqueues commits.
       CommitQueue();
-     
+
+      worker->SetStatus(STATUS_UNKNOWN);
       vector<Node *> nodes_to_expand = GetNodesToExtend();
 
       // Now we process this batch of nodes without touching
       // global state.
-      for (Node *expand_me : nodes_to_expand) {
-
+      worker->SetStatus(STATUS_SEARCH);
+      worker->SetDenom(nodes_to_expand.size());
+      for (int node_idx = 0; node_idx < nodes_to_expand.size(); node_idx++) {
+	Node *expand_me = nodes_to_expand[node_idx];
+	worker->SetNumer(node_idx);
+	
 	// Entering the loop, expand_me must point to a node to
 	// expand, with a reference count that's consumed by
 	// the loop below. When we extend the node, we move
 	// to the child node some of the time.
 	for (;;) {
-	  worker->SetStatus("Load");
+	  // worker->SetStatus("Load");
 	  CHECK(expand_me != nullptr);
 	  worker->Restore(expand_me->state);
 
-	  worker->SetStatus("Gen inputs");
+	  // worker->SetStatus("Gen inputs");
 	  // constexpr double MEAN = 300.0;
 	  // constexpr double STDDEV = 150.0;
 
@@ -1057,13 +1065,12 @@ struct WorkThread {
 	  // are already in the node. Collisions do happen because
 	  // of sparse nmarkov!
 
-	  worker->SetDenom(nexts.size());
 	  double best_score = -1.0;
 	  std::unique_ptr<Problem::State> best;
 	  int best_step_idx = -1;
 	  for (int i = 0; i < nexts.size(); i++) {
 	    search->stats.sequences_tried.Increment();
-	    worker->SetStatus("Re-restore");
+	    // worker->SetStatus("Re-restore");
 	    // If this is the first one, no need to restore
 	    // because we're already in that state.
 	    if (i != 0) {
@@ -1074,8 +1081,7 @@ struct WorkThread {
 	      search->stats.sequences_improved_denom.Increment();
 	    }
 
-	    worker->SetStatus("Execute");
-	    worker->SetNumer(i);
+	    // worker->SetStatus("Execute");
 	    const vector<Problem::Input> &step = nexts[i];
 	    {
 	      PERF_SCOPED(PE_EXEC);
@@ -1088,7 +1094,7 @@ struct WorkThread {
 	      PERF_SCOPED(PE_OBSERVE);
 	      // PERF: This hits a global mutex in TwoPlayerProblem.
 	      // Should probably batch these too?
-	      worker->SetStatus("Observe");
+	      // worker->SetStatus("Observe");
 	      worker->Observe();
 	    }
 
@@ -1104,23 +1110,23 @@ struct WorkThread {
 	    }
 	  }
 
-	  worker->SetStatus("Extend tree");
+	  // worker->SetStatus("Extend tree");
 
 	  // TODO: Consider inserting nodes other than the best one?
 	  Node *child = EnqueueExpansionResult(
 	      expand_me, nexts[best_step_idx], std::move(best), best_score);
 	  best.reset();
 
-	  worker->SetStatus("Check for death");
+	  // worker->SetStatus("Check for death");
 	  {
 	    PERF_READ_MUTEX_LOCK(PE_L_SHOULD_DIE_N, &search->should_die_m);
 	    if (search->should_die) {
-	      worker->SetStatus("Die");
+	      worker->SetStatus(STATUS_DIE);
 	      return;
 	    }
 	  }
 
-	  if (rc.Byte() < 128) {
+	  if (RandFloat(&rc) < opt.p_stay_on_node) {
 	    // No need to lock, since this is only reachable from
 	    // the current thread (it's in local_queue).
 	    expand_me = child;
@@ -1134,6 +1140,9 @@ struct WorkThread {
       next_node:;
       }
 
+
+      worker->SetStatus(STATUS_UNKNOWN);
+      
       // Commit queue to global state.
       {
 	PERF_SCOPED(PE_COMMIT);
@@ -1217,8 +1226,17 @@ void TreeSearch::SetApproximateSeconds(int64 sec) {
   approx_sec.store(sec, std::memory_order_relaxed);
 }
 
-void TreeSearch::SetApproximateNesFrames(int64 nes_frames) {
-  approx_nes_frames.store(nes_frames, std::memory_order_relaxed);
+int64 TreeSearch::UpdateApproximateNesFrames() {
+  int total = 0LL;
+  {
+    ReadMutexLock ml(&tree_m);
+    for (const WorkThread *w : workers) {
+      total += w->GetWorker()->nes_frames.load(std::memory_order_relaxed);
+    }
+  }
+  approx_total_nes_frames.store(total, std::memory_order_relaxed);
+    
+  return total;
 }
 
 string TreeSearch::SaveBestMovie(const string &filename) {
