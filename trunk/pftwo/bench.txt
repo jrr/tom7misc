@@ -300,3 +300,31 @@ better:
        198968158  68.042005s    0.156196%       COMMIT
 
 
+with the batch size set to just 10, some interesting things happen...
+in explore node phase, things go much faster. This is probably because
+when ALL workers are doing explore, the UI can update much more often
+(doesn't get blocked in like Visualize), and updating the UI is actually
+using a lot of CPU:
+
+       407564524  139.376610s   0.812241%       L_COMMIT_QUEUE
+           21196  0.007248s     0.000042%       L_GET_NODES_TO_EXTEND
+            6359  0.002175s     0.000013%       L_GET_EXPLORE_NODE_E
+             296  0.000101s     0.000001%       L_UPDATE_TREE_A
+               4  0.000001s     0.000000%       L_UPDATE_TREE_B
+               3  0.000001s     0.000000%       L_UPDATE_TREE_C
+               2  0.000001s     0.000000%       L_UPDATE_TREE_D
+       127050845  43.448129s    0.253201%       L_PROCESS_EXPLORE_QUEUE_A
+             356  0.000122s     0.000001%       L_PROCESS_EXPLORE_QUEUE_ES
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+           16917  0.005785s     0.000034%       L_PROCESS_EXPLORE_QUEUE_EB
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_C
+        54395281  18.601790s    0.108405%       L_PROCESS_EXPLORE_QUEUE_D
+            3192  0.001092s     0.000006%       L_PROCESS_EXPLORE_QUEUE_EZ
+             167  0.000057s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ED
+       118911630  40.664726s    0.236981%       L_PROCESS_EXPLORE_QUEUE_R
+            1669  0.000571s     0.000003%       L_SHOULD_DIE_EQ
+           14007  0.004790s     0.000028%       L_SHOULD_DIE_N
+     33770813556  11548.751710s 67.302342%      EXEC
+          831986  0.284518s     0.001658%       OBSERVE
+       407530934  139.365123s   0.812174%       COMMIT
+

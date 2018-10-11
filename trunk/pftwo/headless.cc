@@ -78,11 +78,19 @@ struct ConsoleThread {
 	  StringPrintf(" [%s]", experiment_file.c_str());
 
 	search->PrintPerfCounters();
-	printf("%02d:%02d:%02d  %lld NES Frames; %.2fKframes/sec%s\n",
+	string pct;
+	if (max_nes_frames > 0LL) {
+	  pct = StringPrintf(" (%.1f%%)",
+			     (100.0 * total_nes_frames) /
+			     max_nes_frames);
+	}
+	printf("%02d:%02d:%02d  %lld NES Frames%s; %.2fKframes/sec%s\n",
 	       (int)hours, (int)min, (int)sec,
 	       total_nes_frames,
+	       pct.c_str(),
 	       (double)total_nes_frames / ((double)elapsed * 1000.0),
 	       es.c_str());
+	fflush(stdout);
       }
 
       if (max_nes_frames > 0LL && total_nes_frames > max_nes_frames) {
