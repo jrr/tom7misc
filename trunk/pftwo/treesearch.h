@@ -7,6 +7,8 @@
 #include <set>
 #include <memory>
 #include <list>
+#include <shared_mutex>
+#include <mutex>
 
 #ifdef __MINGW32__
 #include <windows.h>
@@ -46,7 +48,9 @@
 #define GRID_BESTSCORE_FRAC 0.90
 
 // Number of nodes to check out at a time during the normal tree
-// search procedure.
+// search procedure. Note that for each one, we have a 50% chance
+// of expanding a second time, and then a 25% chance of a third,
+// etc., for an expected 2 * NODE_BATCH_SIZE expansions.
 #define NODE_BATCH_SIZE 100
 
 // "Functor"
@@ -67,12 +71,12 @@ struct WorkThread;
 struct Tree {
   using State = Problem::State;
   using Seq = vector<Problem::Input>;
-  static constexpr int UPDATE_FREQUENCY = 1000 / NODE_BATCH_SIZE;
+  static constexpr int UPDATE_FREQUENCY = 1000 / (NODE_BATCH_SIZE * 2);
   static_assert(UPDATE_FREQUENCY > 0, "configuration range");
   // Want to do a commit shortly after starting, because
   // until then, scores are frequently >1 (we don't have
   // an accurate maximum to normalize against).
-  static constexpr int STEPS_TO_FIRST_UPDATE = 100 / NODE_BATCH_SIZE;
+  static constexpr int STEPS_TO_FIRST_UPDATE = 1;
   static_assert(STEPS_TO_FIRST_UPDATE > 0, "configuration range");
 
   struct Node {
@@ -300,7 +304,7 @@ struct TreeSearch {
 
   // TODO(twm): use shared_mutex when available
   bool should_die = false;
-  mutex should_die_m;
+  shared_mutex should_die_m;
 };
 
 #endif

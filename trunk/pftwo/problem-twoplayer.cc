@@ -604,6 +604,7 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   
   // Throwaway emulator instance for warmup, training.
   printf("Warmup.\n");
+  fflush(stdout);
   Emulator *emu = pool.Acquire();
   for (int i = 0; i < warmup_frames; i++) {
     emu->Step(original_inputs[i].first, original_inputs[i].second);
@@ -645,7 +646,8 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
   }
   CHECK(objectives.get());
   observations.reset(Observations::MixedBaseObservations(*objectives));
-
+  fflush(stdout);
+  
   emu->LoadUncompressed(save_after_warmup);
   printf("Fastforward to %d\n", fastforward);
   for (int i = warmup_frames; i < fastforward; i++)
