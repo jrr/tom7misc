@@ -186,3 +186,35 @@ is the other place we were frequently taking tree_m:
 Unclear why this lock is still so contentious. UI thread maybe?
 Or perhaps all of the workers are doing the same amount of work and so
 they tend to sync up? Hidden use of tree mutex?
+
+From a long run (only difference here was to randomly stick with a node
+during regular search):
+
+Perf counters:
+     10661407535  3645.936543s  0.904135%       L_COMMIT_QUEUE
+          111789  0.038229s     0.000009%       L_GET_NODES_TO_EXTEND
+          175245  0.059929s     0.000015%       L_GET_EXPLORE_NODE_E
+           24964  0.008537s     0.000002%       L_UPDATE_TREE_A
+               4  0.000001s     0.000000%       L_UPDATE_TREE_B
+              10  0.000003s     0.000000%       L_UPDATE_TREE_C
+               5  0.000002s     0.000000%       L_UPDATE_TREE_D
+     97279232527  33267.081070s 8.249718%       L_PROCESS_EXPLORE_QUEUE_A
+            9086  0.003107s     0.000001%       L_PROCESS_EXPLORE_QUEUE_ES
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+            6015  0.002057s     0.000001%       L_PROCESS_EXPLORE_QUEUE_EB
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_C
+      2319571778  793.235929s   0.196710%       L_PROCESS_EXPLORE_QUEUE_D
+           50777  0.017364s     0.000004%       L_PROCESS_EXPLORE_QUEUE_EZ
+             891  0.000305s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ED
+     78772343974  26938.184903s 6.680250%       L_PROCESS_EXPLORE_QUEUE_R
+           45319  0.015498s     0.000004%       L_SHOULD_DIE_EQ
+          149454  0.051110s     0.000013%       L_SHOULD_DIE_N
+    947903076540  324159.305893s        80.386459%      EXEC
+        13764775  4.707211s     0.001167%       OBSERVE
+     10664200222  3646.891573s  0.904372%       COMMIT
+
+
+Also, this version of the code seemed pretty bad: We only got to the
+beginning of the second level after running for 90 minutes...
+It may now just take too long for a good node to make its way into
+the tree and get picked up by other workers. :/

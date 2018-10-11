@@ -133,9 +133,23 @@ struct InternalPerfCounterScoped {
 }
 
 static_assert(sizeof (uint64) == sizeof (LARGE_INTEGER), "win64");
-#define PERF_MUTEX_LOCK(pe, mut)				\
+#define PERF_MUTEX_LOCK(pe, mut)			\
   const uint64 perf_ml_start = PerfCounterNow();		\
   MutexLock perf_ml(mut);					\
+  const uint64 perf_ml_end = PerfCounterNow();			\
+  perf_counters[pe] += (perf_ml_end - perf_ml_start)
+
+namespace {
+struct SharedMutexLock {
+  explicit SharedMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
+  ~SharedMutexLock() { m->unlock(); }
+  std::shared_mutex *m;
+};
+}
+
+#define PERF_MUTEX_LOCK_SHARED(pe, mut)				\
+  const uint64 perf_ml_start = PerfCounterNow();		\
+  SharedMutexLock perf_ml(mut);					\
   const uint64 perf_ml_end = PerfCounterNow();			\
   perf_counters[pe] += (perf_ml_end - perf_ml_start)
 
@@ -282,37 +296,6 @@ struct WorkThread {
     	std::memory_order_relaxed);
     return child;
   }
-
-  #if 0
-  // Add a new child to the node (unless it's a duplicate).
-  // Returns the new node or existing child. Doesn't change
-  // reference counts. Must hold the tree lock.
-  Node *ExtendNodeWithLock(Node *n,
-			   const Tree::Seq &seq,
-			   Problem::State newstate,
-			   double newscore) {
-    CHECK(n != nullptr);
-    Node *child = NewNode(std::move(newstate), n);
-    auto res = n->children.insert({seq, child});
-    if (!res.second) {
-      // By dumb luck (this might not be that rare if the markov
-      // model is sparse), we already have a node with this
-      // exact path. We don't allow replacing it.
-      search->stats.same_expansion.Increment();
-
-      delete child;
-      return res.first->second;
-    } else {
-      search->tree->num_nodes++;
-      search->tree->heap.Insert(-newscore, child);
-      CHECK(child->location != -1);
-
-      AddToGridWithLock(child, newscore);
-      
-      return child;
-    }
-  }
-  #endif
   
   // Add to the grid if it qualifies. Called from within
   // ExtendNodeWithLock once we're sure the node is new.
@@ -1026,7 +1009,7 @@ struct WorkThread {
 	// OK to ignore the rest of this loop, but we should die if
 	// requested.
 	{
-	  PERF_MUTEX_LOCK(PE_L_SHOULD_DIE_EQ, &search->should_die_m);
+	  PERF_MUTEX_LOCK_SHARED(PE_L_SHOULD_DIE_EQ, &search->should_die_m);
 	  if (search->should_die) {
 	    worker->SetStatus("Die");
 	    return;
@@ -1037,119 +1020,131 @@ struct WorkThread {
       CommitQueue();
      
       vector<Node *> nodes_to_expand = GetNodesToExtend();
-      // XXX HERE
 
       // Now we process this batch of nodes without touching
       // global state.
       for (Node *expand_me : nodes_to_expand) {
-      
-	worker->SetStatus("Load");
-	CHECK(expand_me != nullptr);
-	worker->Restore(expand_me->state);
 
-	worker->SetStatus("Gen inputs");
-	// constexpr double MEAN = 300.0;
-	// constexpr double STDDEV = 150.0;
+	// Entering the loop, expand_me must point to a node to
+	// expand, with a reference count that's consumed by
+	// the loop below. When we extend the node, we move
+	// to the child node some of the time.
+	for (;;) {
+	  worker->SetStatus("Load");
+	  CHECK(expand_me != nullptr);
+	  worker->Restore(expand_me->state);
 
-	// All the expansions will have the same length; this makes it
-	// more sensible to compare the objectives in order to choose
-	// the best.
-	int num_frames = gauss.Next() * opt.frames_stddev + opt.frames_mean;
-	if (num_frames < 1) num_frames = 1;
+	  worker->SetStatus("Gen inputs");
+	  // constexpr double MEAN = 300.0;
+	  // constexpr double STDDEV = 150.0;
 
-	// Allow for fractional num_nexts (flip a coin to move between
-	// the two adjacent integers).
-	int num_nexts = (int)opt.num_nexts;
-	{
-	  const double leftover = opt.num_nexts - (double)num_nexts;
-	  if (RandDouble(&rc) < leftover) num_nexts++;
-	}
-      
-	vector<vector<Problem::Input>> nexts;
-	nexts.reserve(num_nexts);
-	for (int num_left = num_nexts; num_left--;) {
-	  // With no explicit goal.
-	  Problem::InputGenerator gen =
-	    worker->Generator(&rc, nullptr);
-	  vector<Problem::Input> step;
-	  step.reserve(num_frames);
-	  for (int frames_left = num_frames; frames_left--;) {
-	    step.push_back(gen.RandomInput(&rc));
-	  }
-	  nexts.push_back(std::move(step));
-	}
+	  // All the expansions will have the same length; this makes it
+	  // more sensible to compare the objectives in order to choose
+	  // the best.
+	  int num_frames = gauss.Next() * opt.frames_stddev + opt.frames_mean;
+	  if (num_frames < 1) num_frames = 1;
 
-	// PERF: Could drop duplicates and drop sequences that
-	// are already in the node. Collisions do happen because
-	// of sparse nmarkov!
-
-	worker->SetDenom(nexts.size());
-	double best_score = -1.0;
-	std::unique_ptr<Problem::State> best;
-	int best_step_idx = -1;
-	for (int i = 0; i < nexts.size(); i++) {
-	  search->stats.sequences_tried.Increment();
-	  worker->SetStatus("Re-restore");
-	  // If this is the first one, no need to restore
-	  // because we're already in that state.
-	  if (i != 0) {
-	    worker->Restore(expand_me->state);
-	    // Since a sequence can only "improve" if it's
-	    // not the first one, we store this denominator
-	    // separately from sequences_tried.
-	    search->stats.sequences_improved_denom.Increment();
-	  }
-
-	  worker->SetStatus("Execute");
-	  worker->SetNumer(i);
-	  const vector<Problem::Input> &step = nexts[i];
+	  // Allow for fractional num_nexts (flip a coin to move between
+	  // the two adjacent integers).
+	  int num_nexts = (int)opt.num_nexts;
 	  {
-	    PERF_SCOPED(PE_EXEC);
-	    for (const Problem::Input &input : step) {
-	      worker->Exec(input);
+	    const double leftover = opt.num_nexts - (double)num_nexts;
+	    if (RandDouble(&rc) < leftover) num_nexts++;
+	  }
+
+	  vector<vector<Problem::Input>> nexts;
+	  nexts.reserve(num_nexts);
+	  for (int num_left = num_nexts; num_left--;) {
+	    // With no explicit goal.
+	    Problem::InputGenerator gen =
+	      worker->Generator(&rc, nullptr);
+	    vector<Problem::Input> step;
+	    step.reserve(num_frames);
+	    for (int frames_left = num_frames; frames_left--;) {
+	      step.push_back(gen.RandomInput(&rc));
+	    }
+	    nexts.push_back(std::move(step));
+	  }
+
+	  // PERF: Could drop duplicates and drop sequences that
+	  // are already in the node. Collisions do happen because
+	  // of sparse nmarkov!
+
+	  worker->SetDenom(nexts.size());
+	  double best_score = -1.0;
+	  std::unique_ptr<Problem::State> best;
+	  int best_step_idx = -1;
+	  for (int i = 0; i < nexts.size(); i++) {
+	    search->stats.sequences_tried.Increment();
+	    worker->SetStatus("Re-restore");
+	    // If this is the first one, no need to restore
+	    // because we're already in that state.
+	    if (i != 0) {
+	      worker->Restore(expand_me->state);
+	      // Since a sequence can only "improve" if it's
+	      // not the first one, we store this denominator
+	      // separately from sequences_tried.
+	      search->stats.sequences_improved_denom.Increment();
+	    }
+
+	    worker->SetStatus("Execute");
+	    worker->SetNumer(i);
+	    const vector<Problem::Input> &step = nexts[i];
+	    {
+	      PERF_SCOPED(PE_EXEC);
+	      for (const Problem::Input &input : step) {
+		worker->Exec(input);
+	      }
+	    }
+
+	    {
+	      PERF_SCOPED(PE_OBSERVE);
+	      // PERF: This hits a global mutex in TwoPlayerProblem.
+	      // Should probably batch these too?
+	      worker->SetStatus("Observe");
+	      worker->Observe();
+	    }
+
+	    Problem::State state = worker->Save();
+	    const double score = search->problem->Score(state);
+	    if (best.get() == nullptr || score > best_score) {
+	      if (best.get() != nullptr) {
+		search->stats.sequences_improved.Increment();
+	      }
+	      best.reset(new Problem::State(std::move(state)));
+	      best_step_idx = i;
+	      best_score = score;
 	    }
 	  }
 
+	  worker->SetStatus("Extend tree");
+
+	  // TODO: Consider inserting nodes other than the best one?
+	  Node *child = EnqueueExpansionResult(
+	      expand_me, nexts[best_step_idx], std::move(best), best_score);
+	  best.reset();
+
+	  worker->SetStatus("Check for death");
 	  {
-	    PERF_SCOPED(PE_OBSERVE);
-	    // PERF: This hits a global mutex in TwoPlayerProblem.
-	    // Should probably batch these too?
-	    worker->SetStatus("Observe");
-	    worker->Observe();
-	  }
-	    
-	  Problem::State state = worker->Save();
-	  const double score = search->problem->Score(state);
-	  if (best.get() == nullptr || score > best_score) {
-	    if (best.get() != nullptr) {
-	      search->stats.sequences_improved.Increment();
+	    PERF_MUTEX_LOCK_SHARED(PE_L_SHOULD_DIE_N, &search->should_die_m);
+	    if (search->should_die) {
+	      worker->SetStatus("Die");
+	      return;
 	    }
-	    best.reset(new Problem::State(std::move(state)));
-	    best_step_idx = i;
-	    best_score = score;
+	  }
+
+	  if (rc.Byte() < 128) {
+	    // No need to lock, since this is only reachable from
+	    // the current thread (it's in local_queue).
+	    expand_me = child;
+	    expand_me->num_workers_using++;
+	    expand_me->chosen++;
+	  } else {
+	    goto next_node;
 	  }
 	}
 
-	worker->SetStatus("Extend tree");
-
-	// TODO: Consider inserting nodes other than the best one?
-	Node *child = EnqueueExpansionResult(
-	    expand_me, nexts[best_step_idx], std::move(best), best_score);
-	best.reset();
-
-	// TODO: Sometimes work on the child node, matching the older
-	// algorithm!
-	(void)child;
-	
-	worker->SetStatus("Check for death");
-	{
-	  PERF_MUTEX_LOCK(PE_L_SHOULD_DIE_N, &search->should_die_m);
-	  if (search->should_die) {
-	    worker->SetStatus("Die");
-	    return;
-	  }
-	}
-
+      next_node:;
       }
 
       // Commit queue to global state.
@@ -1228,8 +1223,11 @@ void TreeSearch::StartThreads() {
 
 void TreeSearch::DestroyThreads() {
   {
-    MutexLock ml(&should_die_m);
+    // MutexLock ml(&should_die_m);
+    // TODO: Nice to have ReadMutexLock, WriteMutexLock perhaps.
+    should_die_m.lock();
     should_die = true;
+    should_die_m.unlock();
   }
   // The destructor blocks on the thread join.
   for (WorkThread *wt : workers)
