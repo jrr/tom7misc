@@ -123,6 +123,29 @@ static std::mutex print_mutex;
     printf(fmt, ##__VA_ARGS__);			\
   } while (0)
 
+namespace {
+struct Periodically {
+  explicit Periodically(int every_seconds) :
+    start(time(nullptr)),
+    every_seconds(every_seconds) {
+    last_done = start;
+  }
+
+  bool ShouldDo(int64 now) {
+    const int64 elapsed = now - last_done;
+    if (elapsed > every_seconds) {
+      last_done = now;
+      return true;
+    }
+    return false;
+  }
+  
+  const int64 start = 0LL;
+  const int every_seconds = 0;
+  int64 last_done = 0LL;
+};
+}
+
 // Note: This is not actually a std::thread -- it's really the main
 // thread. SDL really doesn't like being called outside the main
 // thread, even if it's exclusive.
@@ -140,8 +163,9 @@ struct UIThread {
     screenshots.resize(num_workers);
     for (auto &v : screenshots) v.resize(256 * 256 * 4);
 
+    Periodically save_movie(1800);
+    Periodically show_perf_counters(10);
     const int64 start = time(nullptr);
-    int64 last_saved = start;
     
     for (;;) {
       frame++;
@@ -170,25 +194,24 @@ struct UIThread {
       }
 	
       // SDL_Delay(1000.0 / 30.0);
-      SDL_Delay(1000);
+      SDL_Delay(1);
 
       const int64 now = time(nullptr);
       search->SetApproximateSeconds(now - start);
-
-      const int64 elapsed_since_save = now - last_saved;
+      int64 total_nes_frames = search->UpdateApproximateNesFrames();
+      
       // Every half hour, write the best movie.
       // TODO: Superimpose all of the trees at once.
-      if (elapsed_since_save > 1800) {
+      if (save_movie.ShouldDo(now)) {
 	string filename_part = StringPrintf("frame-%lld", frame);
 	string filename = search->SaveBestMovie(filename_part);
 	(void)Util::remove("latest.fm2");
 	if (!Util::copy(filename, "latest.fm2")) {
 	  printf("Couldn't copy to latest.fm2?\n");
 	}
-	last_saved = now;
       }
 
-      if (frame % 10 == 0) {
+      if (show_perf_counters.ShouldDo(now)) {
 	search->PrintPerfCounters();
       }
       
@@ -215,34 +238,68 @@ struct UIThread {
 	      search->stats.explore_deaths.Get(),
 	      search->stats.explore_iters.Get()));
 
-      int64 total_steps = 0LL;
+
       {
-	// XXX This needs to work better when there are like 60 threads
-	WriteMutexLock ml(&search->tree_m);
+	int xx = 256 * 6 + 10;
+	int yy = 40;
+	smallfont->draw(xx, yy - SMALLFONTHEIGHT, "Worker progress");
+	
+	ReadMutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
+	// XXX dynamically size bar so the threads fit in the allocated
+	// height.
+	const int BAR_HEIGHT = 2;
+	static constexpr int BAR_WIDTH = 160;
 	for (int i = 0; i < workers.size(); i++) {
 	  const Worker *w = workers[i];
-	  int numer = w->numer.load(std::memory_order_relaxed);
-	  if (i < 10) {
-	    font->draw(256 * 6 + 10, 40 + FONTHEIGHT * i,
-		       StringPrintf("[%d] %d/%d %s",
-				    i,
-				    numer,
-				    w->denom.load(std::memory_order_relaxed),
-				    w->status.load(std::memory_order_relaxed)));
-	  }
-	  total_steps += w->nes_frames.load(std::memory_order_relaxed);
-	}
+	  const WorkerStatus status = w->status.load(std::memory_order_relaxed);
 
+	  switch (status) {
+	  case STATUS_SEARCH:
+	  case STATUS_EXPLORE: {
+
+	    uint8 rr = 0x10, gg = 0xFF, bb = 0x10;
+	    if (status == STATUS_EXPLORE) {
+	      bb = 0xFF;
+	      gg = 0x10;
+	    }
+	    
+	    const int numer = w->numer.load(std::memory_order_relaxed);
+	    const int denom = w->denom.load(std::memory_order_relaxed);
+	    const float f = ((float)numer / denom);
+	    const int bar_on = f * BAR_WIDTH;
+
+	    sdlutil::drawbox(screen, xx, yy, bar_on, BAR_HEIGHT,
+			     rr, gg, bb);
+	    sdlutil::drawbox(screen, xx + bar_on, yy,
+			     BAR_WIDTH - bar_on, BAR_HEIGHT,
+			     rr >> 1, gg >> 1, bb >> 1);
+	    break;
+	  }
+	  case STATUS_DIE:
+	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT, 
+			     0xA0, 0x00, 0x00);
+	    break;
+	  case STATUS_UNKNOWN:
+	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT, 
+			      0x60, 0x60, 0x00);
+	    break;
+	  case STATUS_TREE:
+	    sdlutil::drawbox(screen, xx, yy, BAR_WIDTH, BAR_HEIGHT, 
+			      0xA0, 0xA0, 0xA0);
+	    break;
+	  }
+	  
+	  yy += BAR_HEIGHT;
+	}
+	// XXX include a key for the colors.
       }
 	
-      // Save the sum to a single value for benchmarking.
-      search->SetApproximateNesFrames(total_steps);
       
       bool queue_mode = false;
       {
 	WriteMutexLock ml(&search->tree_m);
-	// Update all screenshots.
+	// In queue mode, show the status of each outstanding ExploreNode.
 	if (!search->tree->explore_queue.empty()) {
 	  queue_mode = true;
 	  static constexpr int STARTY = 128 + FONTHEIGHT + FONTHEIGHT;
@@ -293,7 +350,7 @@ struct UIThread {
 	  bestscore > 0.0 ? 1.0 / bestscore : 0.0;
 	
 	// Draw grid.
-	// XXX this specific to the current TwoPlayerProblem
+	// XXX this is specific to the current TwoPlayerProblem
 	// TODO! Save little pictures for each grid cell; it'd
 	// look awesome!
 	for (int cy = 0; cy < Problem::GRID_CELLS_H; cy++) {
@@ -330,20 +387,21 @@ struct UIThread {
       // we have 60 threads. Perhaps we start with all the
       // thumbnails at top (maybe extra-small) and then only
       // show viztext for the last row?
-      const int max_screenshots = queue_mode ? 11 : 11 * 6;
+      const int max_screenshots = 11; // queue_mode ? 11 : 11 * 6;
 
       vector<vector<string>> texts;
       {
 	WriteMutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	texts.resize(workers.size());
-	for (int i = 0; i < workers.size() && max_screenshots; i++) {
+	for (int i = 0; i < workers.size() && i < max_screenshots; i++) {
 	  CHECK(i < workers.size());
 	  Worker *w = workers[i];
 	  // XXX if workers change size, then we won't
 	  // necessarily have room for a screenshot
-	  w->Visualize(nullptr, &screenshots[i]);
-	  w->VizText(nullptr, &texts[i]);
+	  if (i < screenshots.size())
+	    w->Visualize(nullptr, &screenshots[i]);
+	  // w->VizText(nullptr, &texts[i]);
 	}
       }
 
@@ -492,12 +550,13 @@ struct UIThread {
 	min %= 60;
 
 	font->draw(10, HEIGHT - FONTHEIGHT,
-		   StringPrintf("%.2f NES Mframes in %d^2:^<%02d^2:^<%02d "
-				"= %.2f NES kFPS "
-				"%.2f UI FPS",
-				total_steps / 1000000.0, hrs, min, sec,
-				(total_steps / (double)total_sec) / 1000.0,
-				frame / (double)total_sec));
+		   StringPrintf(
+		       "%.2f NES Mframes in %d^2:^<%02d^2:^<%02d "
+		       "= %.2f NES kFPS "
+		       "%.2f UI FPS",
+		       total_nes_frames / 1000000.0, hrs, min, sec,
+		       (total_nes_frames / (double)total_sec) / 1000.0,
+		       frame / (double)total_sec));
       }
       
       // XXX maybe show the grid cells in the histo

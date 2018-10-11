@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
   (void)Rtos;
   
   if (argc < 3) {
-    fprintf(stderr, "playback.exe game.nes movie1.fm2 movie2.fmt ...\n");
+    fprintf(stderr, "progress.exe game.nes movie1.fm2 movie2.fm2 ...\n");
     return -1;
   }
   string game = argv[1];

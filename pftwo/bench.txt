@@ -244,7 +244,7 @@ everything:
          4015155  1.373080s     0.001671%       OBSERVE
       1634314604  558.893660s   0.679967%       COMMIT
 
-Increased the explore queue batch size and now utilization is good:
+Increased the explore queue batch size:
 
       1164939060  398.379267s   0.507237%       L_COMMIT_QUEUE
           131256  0.044886s     0.000057%       L_GET_NODES_TO_EXTEND
@@ -268,4 +268,35 @@ Increased the explore queue batch size and now utilization is good:
          5442099  1.861058s     0.002370%       OBSERVE
       1165209193  398.471646s   0.507355%       COMMIT
 
-... note that 10% is being spent somewhere that's not accounted for!
+now we don't spend time waiting on locks, but we may be running out of
+work for threads to do (?) since CPU utilization declines a lot during
+this phase.
+
+Reduced the number of SetStatus calls (maybe atomic is creating too
+many memory barriers?) and improved UI display of workers; don't
+generate so many screenshots and don't call viztext. Seems much
+better:
+
+       198945539  68.034270s    0.156178%       L_COMMIT_QUEUE
+          120801  0.041311s     0.000095%       L_GET_NODES_TO_EXTEND
+            4593  0.001571s     0.000004%       L_GET_EXPLORE_NODE_E
+             139  0.000048s     0.000000%       L_UPDATE_TREE_A
+            3193  0.001092s     0.000003%       L_UPDATE_TREE_B
+               5  0.000002s     0.000000%       L_UPDATE_TREE_C
+               2  0.000001s     0.000000%       L_UPDATE_TREE_D
+       531660413  181.814219s   0.417369%       L_PROCESS_EXPLORE_QUEUE_A
+             417  0.000143s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ES
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_B
+           13335  0.004560s     0.000010%       L_PROCESS_EXPLORE_QUEUE_EB
+               0  0.000000s     0.000000%       L_PROCESS_EXPLORE_QUEUE_C
+       109692976  37.512183s    0.086112%       L_PROCESS_EXPLORE_QUEUE_D
+            2861  0.000978s     0.000002%       L_PROCESS_EXPLORE_QUEUE_EZ
+             165  0.000056s     0.000000%       L_PROCESS_EXPLORE_QUEUE_ED
+       246909382  84.436673s    0.193831%       L_PROCESS_EXPLORE_QUEUE_R
+            1545  0.000528s     0.000001%       L_SHOULD_DIE_EQ
+           76516  0.026167s     0.000060%       L_SHOULD_DIE_N
+    123939088542  42383.988126s 97.295700%      EXEC
+         3151776  1.077827s     0.002474%       OBSERVE
+       198968158  68.042005s    0.156196%       COMMIT
+
+

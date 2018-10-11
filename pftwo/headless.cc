@@ -65,17 +65,9 @@ struct ConsoleThread {
 	last_wrote = elapsed;
       }
 
-      int64 total_nes_frames = 0LL;
-      {
-	MutexLock ml(&search->tree_m);
-	vector<Worker *> workers = search->WorkersWithLock();
-	for (const Worker *w : workers) {
-	  total_nes_frames += w->nes_frames.load(std::memory_order_relaxed);
-	}
-      }
-	
-      // Save the sum to a single value for benchmarking.
-      search->SetApproximateNesFrames(total_nes_frames);
+      const int64 total_nes_frames =
+	search->UpdateApproximateNesFrames();
+
       int64 minutes = elapsed / 60LL;
       int64 hours = minutes / 60LL;
       if (minutes != last_minute) {
@@ -84,6 +76,8 @@ struct ConsoleThread {
 	const int64 min = minutes % 60LL;
 	string es = experiment_file.empty() ? "" :
 	  StringPrintf(" [%s]", experiment_file.c_str());
+
+	search->PrintPerfCounters();
 	printf("%02d:%02d:%02d  %lld NES Frames; %.2fKframes/sec%s\n",
 	       (int)hours, (int)min, (int)sec,
 	       total_nes_frames,
@@ -125,7 +119,8 @@ int main(int argc, char *argv[]) {
   if (argc >= 2) {
     double d = std::stod((string)argv[1]);
     printf("\n***\nStarting experiment with value %.4f\n***\n\n", d);
-    options.frames_stddev = d;
+    // options.frames_stddev = d;
+    options.node_batch_size = (int)d;
     options.random_seed = (int)(d * 100002.0);
     experiment = StringPrintf("expt-%s", argv[1]);
   }
