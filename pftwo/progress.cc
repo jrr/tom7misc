@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
     ParallelMap(movies,
 		[&game, &shared_prefix](const string &moviename) {
 		  return OneMovie(game, moviename, shared_prefix);
-		}, 10);
+		}, 30);
 
   // Now collate and write plots.
   DrawPlots(plotses, 1024, 1024, "depth-pos.svg",

@@ -10,7 +10,10 @@
 # ./headless.exe 400
 # ./headless.exe 750
 
+./headless.exe 2
 ./headless.exe 3
+./headless.exe 4
+./headless.exe 75
 ./headless.exe 8
 ./headless.exe 12
 ./headless.exe 15

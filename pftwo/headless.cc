@@ -128,7 +128,8 @@ int main(int argc, char *argv[]) {
     double d = std::stod((string)argv[1]);
     printf("\n***\nStarting experiment with value %.4f\n***\n\n", d);
     // options.frames_stddev = d;
-    options.node_batch_size = (int)d;
+    // options.node_batch_size = (int)d;
+    options.p_stay_on_node = d;
     options.random_seed = (int)(d * 100002.0);
     experiment = StringPrintf("expt-%s", argv[1]);
   }
