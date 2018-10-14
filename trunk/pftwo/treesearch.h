@@ -246,12 +246,14 @@ struct TreeSearch {
     // Tuned.
     double frames_mean = 290.0;
 
-    // Tune me!
-    double p_stay_on_node = 0.50;
+    // Tuned.
+    double p_stay_on_node = 0.325;
+    // Tuned for headless benchmark, but some evidence that
+    // batching is hurting performance overall?
     int node_batch_size = 10;
 
     int UpdateFrequency() const {
-      return 1000 / (node_batch_size * (1.0 / p_stay_on_node));
+      return 1000 / (node_batch_size * (1.0 / (1.0 - p_stay_on_node)));
     }
     
     // Due to threading, the process is inherently random.
