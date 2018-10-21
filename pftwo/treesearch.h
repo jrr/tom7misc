@@ -20,14 +20,8 @@
 
 #include "pftwo.h"
 
-// XXX trim
-#include "../fceulib/emulator.h"
-#include "../fceulib/simplefm2.h"
 #include "../cc-lib/util.h"
-#include "../cc-lib/arcfour.h"
-#include "../cc-lib/textsvg.h"
 #include "../cc-lib/heap.h"
-#include "../cc-lib/randutil.h"
 
 #include "atom7ic.h"
 
@@ -82,10 +76,11 @@ struct Tree {
   static_assert(STEPS_TO_FIRST_UPDATE > 0, "configuration range");
 
   struct Node {
-    Node(State state, Node *parent) :
+    Node(State state, Node *parent, int steps) :
       state(std::move(state)),
       parent(parent),
-      depth((parent != nullptr) ? (parent->depth + 1) : 0) {}
+      depth((parent != nullptr) ? (parent->depth + 1) : 0),
+      steps(steps) {}
     // Note that this can be recreated by replaying the moves from the
     // root. It once was optional and could be made that way again, at
     // the cost of many complications.
@@ -93,7 +88,10 @@ struct Tree {
 
     // Only null for the root.
     Node *const parent = nullptr;
+    // Depth in the tree.
     const int depth = 0;
+    // Length of the sequence that gets us here.
+    const int steps = 0;
     
     // Child nodes. Currently, no guarantee that these don't
     // share prefixes, but there cannot be duplicates.
@@ -135,6 +133,9 @@ struct Tree {
     // Number of references from the grid, which also keeps nodes
     // alive.
     int used_in_grid = 0;
+
+    // Same, but for marathon cell(s).
+    int used_in_marathon = 0;
     
     // Should only be used inside the tree cleanup procedure. Marks
     // nodes that should not be garbage collected because they are
@@ -142,7 +143,8 @@ struct Tree {
     bool keep = false;
   };
 
-  // Everything in ExploreNode also protected by the tree mutex.
+  // Everything in ExploreNode also protected by the tree mutex,
+  // except where noted.
   struct ExploreNode {
     // Points to the tree Node that this exploration began from.
     // Sequences continue from that node, for example.
@@ -171,9 +173,9 @@ struct Tree {
     // Explorations that were bad (e.g., death). Just for display.
     int bad = 0;
   };
-
+  
   Tree(double score, State state) {
-    root = new Node(std::move(state), nullptr);
+    root = new Node(std::move(state), nullptr, 0);
     heap.Insert(-score, root);
 
     for (int i = 0; i < Problem::num_grid_cells; i++) {
@@ -197,16 +199,33 @@ struct Tree {
   // objective function) for a grid of screen coordinates. In
   // principle this could be generalized to include stuff like graphics
   // on the screen, the values in arbitrary memory locations, etc.
-  //
-  // For now this is 
   struct GridCell {
     // Actual (normalized) score, not negated.
     double score = 0.0;
     Node *node = nullptr;
     GridCell(double score, Node *node) : score(score), node(node) {}
   };
+  
+  // Experimental: Keep around a node that has a high score (relative
+  // to the best-scoring node in the heap), where the players are in
+  // control, and which has a high depth. 
+  //
+  // The struct is identical to gridcell; should consider merging them
+  // if this sticks around.
+  struct MarathonCell {
+    double score = 0.0;
+    Node *node = nullptr;
+    MarathonCell(double score, Node *node) : score(score), node(node) {}
+    MarathonCell() {}
+  };
 
   vector<GridCell> grid;
+
+  // Note: Normal for node to be nullptr.
+  // If there is something in here, it must be IsInControl.
+  // Given that, we prioritize first by normalized score,
+  // then by depth.
+  MarathonCell marathon;
   
   // If this has anything in it, we're in exploration mode.
   std::list<ExploreNode *> explore_queue;
@@ -255,6 +274,10 @@ struct TreeSearch {
     int UpdateFrequency() const {
       return 1000 / (node_batch_size * (1.0 / (1.0 - p_stay_on_node)));
     }
+
+    // Tune me!
+    // Maximum chance of expanding the marathon node when it's eligible.
+    double p_expand_marathon = 0.10;
     
     // Due to threading, the process is inherently random.
     // But this explicitly seeds it to get better randomness.

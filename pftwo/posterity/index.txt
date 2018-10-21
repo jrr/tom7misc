@@ -90,10 +90,10 @@ contra.nes.waterfallboss-2900000
 
 contra.nes-waterfallboss2-3860000
  - Improved the grid code so that we judge against the best current
-   node in the heap, not 1.0 (which might be and impossible glimpse
+   node in the heap, not 1.0 (which might be an impossible glimpse
    of the future because of deaths).
  - Got to waterfall boss by 1.3B frames, which I think is faster than
-   before. Significant 'green' coveage of grid while it's stuck, which
+   before. Significant 'green' coverage of grid while it's stuck, which
    seems working as intended.
  - Score is going up a little? So is depth? Depth ~429000.
    Might have killed one of the arms. Score is changing a little.
