@@ -131,6 +131,10 @@ struct Periodically {
     last_done = start;
   }
 
+  void Force() {
+    last_done = 0LL;
+  }
+  
   bool ShouldDo(int64 now) {
     const int64 elapsed = now - last_done;
     if (elapsed > every_seconds) {
@@ -177,13 +181,18 @@ struct UIThread {
 	  return;
 	case SDL_KEYDOWN:
 	  switch (event.key.keysym.sym) {
-
+    
 	  case SDLK_ESCAPE:
 	    return;
 
 	  case SDLK_t:
 	    TreeDumping::DumpTree(search);
 	    break;
+
+	  case SDLK_s:
+	    save_movie.Force();
+	    break;
+	    
 	  default:
 	    break;
 	  }
@@ -194,7 +203,7 @@ struct UIThread {
       }
 	
       // SDL_Delay(1000.0 / 30.0);
-      SDL_Delay(1);
+      SDL_Delay(2000);
 
       const int64 now = time(nullptr);
       search->SetApproximateSeconds(now - start);
@@ -256,14 +265,17 @@ struct UIThread {
 
 	  switch (status) {
 	  case STATUS_SEARCH:
+	  case STATUS_MARATHON:
 	  case STATUS_EXPLORE: {
 
 	    uint8 rr = 0x10, gg = 0xFF, bb = 0x10;
 	    if (status == STATUS_EXPLORE) {
 	      bb = 0xFF;
 	      gg = 0x10;
+	    } else if (status == STATUS_MARATHON) {
+	      rr = 0xFF;
 	    }
-	    
+
 	    const int numer = w->numer.load(std::memory_order_relaxed);
 	    const int denom = w->denom.load(std::memory_order_relaxed);
 	    const float f = ((float)numer / denom);
@@ -486,6 +498,22 @@ struct UIThread {
 	max_nodes = search->tree->MaxNodes();
       }
 
+      double marathon_score = 0.0;
+      int marathon_depth = -1;
+      {
+	ReadMutexLock ml(&search->tree_m);
+	if (search->tree->marathon.node != nullptr) {
+	  marathon_score = search->tree->marathon.score;
+	  marathon_depth = search->tree->marathon.node->depth;
+	}
+      }
+
+      if (marathon_depth > 0) {
+	smallfont->draw(256 * 6 + 10, 200,
+			StringPrintf("Marathon score ^3%.4f^<, depth ^3%d",
+				     marathon_score, marathon_depth));
+      }
+      
       // Average state size:
       // treestats.statebytes / (1024.0 * treestats.nodes)
       smallfont->draw(256 * 6 + 10, 220,
@@ -607,13 +635,6 @@ struct UIThread {
 			FONTCHARS,
 			FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
     CHECK(font != nullptr) << "Couldn't load font.";
-
-    smallfont = Font::create(screen,
-			     "fontsmall.png",
-			     FONTCHARS,
-			     SMALLFONTWIDTH, SMALLFONTHEIGHT,
-			     FONTSTYLES, 0, 3);
-    CHECK(smallfont != nullptr) << "Couldn't load smallfont.";
 
     smallfont = Font::create(screen,
 			     "fontsmall.png",

@@ -44,6 +44,10 @@
 // at least GRID_BESTSCORE_FRAC * best_score_in_heap.
 #define GRID_BESTSCORE_FRAC 0.90
 
+// We consider exploring from a marathon node if its
+// score is at least MARATHON_BESTSCORE_FRAC * best_score_in_heap.
+#define MARATHON_BESTSCORE_FRAC 0.95
+
 // Number of loops a single thread does when expanding the explore
 // queue.
 #define LOOPS_PER_EXPLORE_ITER 50
@@ -73,12 +77,15 @@ enum PerfEvent {
   PE_L_PROCESS_EXPLORE_QUEUE_EZ,
   PE_L_PROCESS_EXPLORE_QUEUE_ED,
   PE_L_PROCESS_EXPLORE_QUEUE_R,
+  PE_L_MARATHON_START,
+  PE_L_MARATHON_FAILED,
   PE_L_SHOULD_DIE_EQ,
   PE_L_SHOULD_DIE_N,
   // Work
   PE_EXEC,
   PE_OBSERVE,
   PE_COMMIT,
+  PE_IN_CONTROL,
   // Meta
   NUM_PERFEVENTS,
 };
@@ -102,11 +109,14 @@ static const char *PerfEventString(PerfEvent pe) {
     CASE(L_PROCESS_EXPLORE_QUEUE_EZ);
     CASE(L_PROCESS_EXPLORE_QUEUE_ED);
     CASE(L_PROCESS_EXPLORE_QUEUE_R);
+    CASE(L_MARATHON_START);
+    CASE(L_MARATHON_FAILED);
     CASE(L_SHOULD_DIE_EQ);
     CASE(L_SHOULD_DIE_N);
     CASE(EXEC);
     CASE(OBSERVE);
     CASE(COMMIT);
+    CASE(IN_CONTROL);
   default: return "?";
   }
 #undef CASE
@@ -208,6 +218,8 @@ struct WorkThread {
   Node *FindGoodNodeWithMutex() {
     const int size = search->tree->heap.Size();
     CHECK(size > 0) << "Heap should always have root, at least.";
+
+    Tree *tree = search->tree;
     
     vector<int> eligible_grid;
     EligibleGridNodesWithMutex(&eligible_grid);
@@ -226,7 +238,26 @@ struct WorkThread {
 	// Fraction of the grid that was eligible
 	(eligible_grid.size() / (double)Problem::num_grid_cells)) {
       const int idx = eligible_grid[RandTo(&rc, eligible_grid.size())];
-      ret = search->tree->grid[idx].node;
+      ret = tree->grid[idx].node;
+    }
+
+    // Consider expanding the marathon node if we have one and we are
+    // stuck enough. We have to at least sometimes expand this node
+    // normally, since when doing the marathon strategy we refuse to
+    // expand if we lose control. That may put us in a situation where
+    // we randomly chip away at a boss, but then never actually beat
+    // the level (which often involves losing control).
+    if (ret == nullptr &&
+	tree->stuckness > 0.75 && tree->marathon.node != nullptr) {
+      const double bestscore = -tree->heap.GetMinimum().priority;
+      const double mminscore = MARATHON_BESTSCORE_FRAC * bestscore;
+
+      if (tree->marathon.score >= mminscore &&
+	  RandDouble(&rc) <
+	  // Reach p_expand_marathon probability when stuckness is 1.0.
+	  opt.p_expand_marathon * ((tree->stuckness - 0.75) * 4.0)) {
+	ret = tree->marathon.node;
+      }
     }
     
     if (ret == nullptr) {
@@ -237,7 +268,7 @@ struct WorkThread {
       const int g = (int)(gauss.Next() * (size * 0.05));
       const int idx = (g <= 0 || g >= size) ? 0 : g;
 
-      Heap<double, Node>::Cell cell = search->tree->heap.GetByIndex(idx);
+      Heap<double, Node>::Cell cell = tree->heap.GetByIndex(idx);
       ret = cell.value;
     }
     
@@ -278,10 +309,12 @@ struct WorkThread {
     return ret;
   }
 
-  
-  Node *NewNode(Problem::State newstate, Node *parent) {
+  // Construct a new node. 
+  Node *NewNode(Problem::State newstate, Node *parent, int seq_length) {
     CHECK(parent != nullptr);
-    Node *child = new Node(std::move(newstate), parent);
+    // XXX constructor actually reads parent depth without lock?
+    Node *child = new Node(std::move(newstate), parent,
+			   parent->steps + seq_length);
     child->nes_frames = search->approx_total_nes_frames.load(
 	std::memory_order_relaxed);
     child->walltime_seconds = search->approx_sec.load(
@@ -307,6 +340,20 @@ struct WorkThread {
     }
   }
 
+  // Set this to the marathon node if it's a new best. Caller
+  // must ensure that IsInControl for this node.
+  void AddToMarathonWithLock(Node *newnode, double newscore) {
+    Tree *tree = search->tree;
+    if (tree->marathon.node == nullptr ||
+	(newscore >= tree->marathon.score &&
+	 newnode->steps > tree->marathon.node->steps)) {
+      if (tree->marathon.node != nullptr)
+	tree->marathon.node->used_in_marathon--;
+      newnode->used_in_marathon++;
+      tree->marathon.score = newscore;
+      tree->marathon.node = newnode;
+    }
+  }
   
   struct QueuedUpdate {
     // The starting node. Note that this may not actually yet
@@ -320,8 +367,14 @@ struct WorkThread {
     // yet linked into the tree.
     Node *dst = nullptr;
     double newscore = 0.0;
-    QueuedUpdate(Node *src, Tree::Seq seq, Node *dst, double newscore) :
-      src(src), seq(std::move(seq)), dst(dst), newscore(newscore) {}
+    // True if we thought there was a good chance that we'd update
+    // the marathon node with this, so we did the expensive check
+    // for IsInControl, and it was true.
+    bool checked_in_control = false;
+    QueuedUpdate(Node *src, Tree::Seq seq, Node *dst, double newscore,
+		 bool checked_in_control) :
+      src(src), seq(std::move(seq)), dst(dst), newscore(newscore),
+      checked_in_control(checked_in_control) {}
   };
   vector<QueuedUpdate> local_queue;
 
@@ -378,6 +431,8 @@ struct WorkThread {
 	  CHECK(q.dst->location != -1);
 
 	  AddToGridWithLock(q.dst, q.newscore);
+	  if (q.checked_in_control)
+	    AddToMarathonWithLock(q.dst, q.newscore);
 	}
       }
     }
@@ -390,9 +445,11 @@ struct WorkThread {
   // committed.
   Node *EnqueueExpansionResult(Node *n, Tree::Seq seq,
 			       std::unique_ptr<Problem::State> newstate,
-			       double newscore) {
-    Node *child = NewNode(std::move(*newstate), n);
-    local_queue.emplace_back(n, std::move(seq), child, newscore);
+			       double newscore,
+			       bool checked_in_control) {
+    Node *child = NewNode(std::move(*newstate), n, seq.size());
+    local_queue.emplace_back(n, std::move(seq), child, newscore,
+			     checked_in_control);
     return child;
   }
   
@@ -483,6 +540,13 @@ struct WorkThread {
 	  }
 	};
 	ReHeapRec(tree->root);
+
+	// We cleared the grid so its scores are vacuously accurate,
+	// but we need to make sure the marathon node at least has
+	// the right normalized score.
+	if (tree->marathon.node != nullptr)
+	  tree->marathon.score =
+	    search->problem->Score(tree->marathon.node->state);
       }
     }
     
@@ -548,12 +612,13 @@ struct WorkThread {
 	int max_depth = 0;
 	uint64 deleted_nodes = 0ULL;
 	uint64 kept_score = 0ULL, kept_worker = 0ULL, kept_parent = 0ULL,
-	  kept_grid = 0ULL;
+	  kept_grid = 0ULL, kept_marathon = 0LL;
 	std::function<bool(Node *)> CleanRec =
 	  // Returns true if we should keep this node; otherwise,
 	  // the node is deleted.
 	  [this, tree, &max_depth, &deleted_nodes,
 	   &kept_score, &kept_worker, &kept_parent, &kept_grid,
+	   &kept_marathon,
 	   &CleanRec](Node *n) -> bool {
 	  if (n->keep)
 	    kept_score++;
@@ -561,10 +626,13 @@ struct WorkThread {
 	    kept_worker++;
 	  if (n->used_in_grid)
 	    kept_grid++;
+	  if (n->used_in_marathon)
+	    kept_marathon++;
 	  
 	  bool keep = n->keep ||
 	      n->num_workers_using > 0 ||
-	      n->used_in_grid > 0;
+	      n->used_in_grid > 0 ||
+	      n->used_in_marathon > 0;
 
 	  map<Tree::Seq, Node *> new_children;
 	  bool child_keep = false;
@@ -611,8 +679,10 @@ struct WorkThread {
 	       "     score is good: %llu\n"
 	       "     worker using: %llu\n"
 	       "     in grid: %llu\n"
+	       "     in marathon: %llu\n"
 	       "     child is kept: %llu\n",
-	       kept_score, kept_worker, kept_grid, kept_parent);
+	       kept_score, kept_worker, kept_grid, kept_marathon,
+	       kept_parent);
 
 	printf(" ... Deleted %llu; now the tree is size %llu.\n"
 	       " ... Max depth is %d.\n",
@@ -742,6 +812,88 @@ struct WorkThread {
     // Didn't find any.
     return nullptr;
   }
+
+  // Run marathon if applicable, and enqueue update.
+  void RunMarathon() {
+    Node *src = nullptr;
+    {
+      PERF_WRITE_MUTEX_LOCK(PE_L_MARATHON_START, &search->tree_m);
+      Tree *tree = search->tree;
+      if (tree->marathon.node == nullptr)
+	return;
+
+      // Marathon node has to be good enough to consider expanding it.
+      // Otherwise we should spend our time trying to do normal
+      // exploration.
+      const double bestscore = -tree->heap.GetMinimum().priority;
+      const double mminscore = MARATHON_BESTSCORE_FRAC * bestscore;
+
+      if (tree->marathon.score < mminscore)
+	return;
+
+      src = tree->marathon.node;
+      src->num_workers_using++;
+    }
+
+    // Invariant: The sequence we generate always leaves us in a
+    // state that IsInControl. This is satisfied for the empty
+    // sequence because the marathon node has the same invariant.
+    Tree::Seq seq;
+    
+    constexpr int MARATHON_LAPS = 100;
+    constexpr int MARATHON_LAP_LENGTH = 30;
+    worker->SetStatus(STATUS_MARATHON);
+    worker->SetDenom(MARATHON_LAPS);
+    worker->Restore(src->state);
+    for (int lap = 0; lap < MARATHON_LAPS; lap++) {
+      worker->SetNumer(lap);
+      Problem::State undo = worker->Save();
+
+      // With no explicit goal.
+      Problem::InputGenerator gen =
+	worker->Generator(&rc, nullptr);
+      vector<Problem::Input> step;
+      step.reserve(MARATHON_LAP_LENGTH);
+      for (int frames_left = MARATHON_LAP_LENGTH; frames_left--;) {
+	step.push_back(gen.RandomInput(&rc));
+      }
+
+      {
+	PERF_SCOPED(PE_EXEC);
+	for (const Problem::Input &input : step)
+	  worker->Exec(input);
+      }
+
+      // Accept?
+      bool in_control = false;
+      {
+	PERF_SCOPED(PE_IN_CONTROL);
+	in_control = worker->IsInControl();
+      }
+	
+      if (in_control) {
+	for (const Problem::Input &input : step)
+	  seq.push_back(input);
+      } else {
+	worker->Restore(undo);
+      }
+    }
+
+    if (!seq.empty()) {
+      std::unique_ptr<Problem::State> newstate =
+	std::make_unique<Problem::State>(worker->Save());
+      const double newscore = search->problem->Score(*newstate);
+
+      (void)EnqueueExpansionResult(
+	  src, std::move(seq),
+	  std::move(newstate),
+	  newscore, true);
+    } else {
+      // Eagerly reduce the refcount, alas...
+      PERF_WRITE_MUTEX_LOCK(PE_L_MARATHON_FAILED, &search->tree_m);
+      src->num_workers_using--;
+    }
+  }
   
   // Returns true if we should continue processing the queue.
   bool ProcessExploreQueue() {
@@ -749,12 +901,22 @@ struct WorkThread {
     Tree::Seq start_seq;
     Problem::State start_state;
     double start_dist = -1.0;
+
+    // Save the marathon score/depth up front. If we have at least this
+    // score, then we'll do the expensive IsInControl test to consider
+    // using it to replace the marathon node later.
+    double marathon_score = 0.0;
+    int marathon_steps = 0;
     {
       PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
       en = GetExploreNodeWithMutex();
       if (en == nullptr) return false;      
       // I'm going to decrement it exactly this many times.
       CHECK(en->source->num_workers_using >= LOOPS_PER_EXPLORE_ITER);
+      if (search->tree->marathon.node != nullptr) {
+	marathon_score = search->tree->marathon.score;
+	marathon_steps = search->tree->marathon.node->steps;
+      }
     }
 
     {
@@ -890,12 +1052,23 @@ struct WorkThread {
 	  std::make_unique<Problem::State>(worker->Save());
 	const double newscore = search->problem->Score(*newstate);
 
+	// Only perform this expensive test if we have a good chance
+	// of replacing the marathon node.
+	const int steps = en->source->steps + full_seq.size();
+	bool checked_in_control = false;
+	{
+	  PERF_SCOPED(PE_IN_CONTROL);
+	  checked_in_control = newscore >= marathon_score &&
+	    steps > marathon_steps &&
+	    worker->IsInControl();
+	}
+	
 	// OK to read source field without node lock since we have
 	// ref count.
 	Node *child =
 	  EnqueueExpansionResult(en->source, std::move(full_seq),
 				 std::move(newstate),
-				 newscore);
+				 newscore, checked_in_control);
 	
 	// XXX: This debugging stuff is TPP-specific.
 	child->goalx = en->goal.goalx;
@@ -1009,6 +1182,11 @@ struct WorkThread {
       // Explore queue enqueues commits.
       CommitQueue();
 
+      // Always do marathon if applicable.
+      RunMarathon();
+      CommitQueue();
+      
+      
       worker->SetStatus(STATUS_UNKNOWN);
       vector<Node *> nodes_to_expand = GetNodesToExtend();
 
@@ -1114,7 +1292,8 @@ struct WorkThread {
 
 	  // TODO: Consider inserting nodes other than the best one?
 	  Node *child = EnqueueExpansionResult(
-	      expand_me, nexts[best_step_idx], std::move(best), best_score);
+	      expand_me, nexts[best_step_idx], std::move(best),
+	      best_score, false /* XXX checked_in_control */);
 	  best.reset();
 
 	  // worker->SetStatus("Check for death");
@@ -1227,7 +1406,7 @@ void TreeSearch::SetApproximateSeconds(int64 sec) {
 }
 
 int64 TreeSearch::UpdateApproximateNesFrames() {
-  int total = 0LL;
+  int64 total = 0LL;
   {
     ReadMutexLock ml(&tree_m);
     for (const WorkThread *w : workers) {

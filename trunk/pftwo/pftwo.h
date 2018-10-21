@@ -33,6 +33,7 @@ enum WorkerStatus : int {
   STATUS_EXPLORE,
   STATUS_DIE,
   STATUS_TREE,
+  STATUS_MARATHON,
 };
 
 // TODO: To threadutil, but note that this is C++17.

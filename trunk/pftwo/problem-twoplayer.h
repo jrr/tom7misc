@@ -16,6 +16,7 @@
 #include "weighted-objectives.h"
 #include "../cc-lib/randutil.h"
 #include "autotimer.h"
+#include "autolives.h"
 
 struct EmulatorPool;
 
@@ -120,7 +121,10 @@ struct TwoPlayerProblem {
   // An individual instance of the emulator that can be used to
   // execute steps. We create one of these per thread.
   struct Worker {
-    explicit Worker(TwoPlayerProblem *parent) : tpp(parent) {}
+    explicit Worker(TwoPlayerProblem *parent) :
+      tpp(parent),
+      autolives1(parent->game, *parent->markov1),
+      autolives2(parent->game, *parent->markov2) {}
     // Every worker loads the same game.
     unique_ptr<Emulator> emu;
     int depth = 0;
@@ -167,6 +171,26 @@ struct TwoPlayerProblem {
       previous2 = tpp->markov2->Push(previous2, input2);
     }
 
+    // Return true if we are known to have control of the players
+    // at the current moment. Always fails if the player locations
+    // are not known...
+    bool IsInControl() {
+      MutexLock ml(&mutex);
+
+      const int x1_loc = tpp->x1_loc, y1_loc = tpp->y1_loc;
+      const int x2_loc = tpp->x2_loc, y2_loc = tpp->y2_loc;
+      
+      // XXX, we could at least test if inputs have some effect
+      // on memory, etc.
+      if (x1_loc < 0 || y1_loc < 0 ||
+	  x2_loc < 0 || y2_loc < 0) return false;
+      
+      vector<uint8> save = emu->SaveUncompressed();
+      // XXX how to set this threshold?
+      return autolives1.IsInControl(save, x1_loc, y1_loc, false) >= 0.8 &&
+	     autolives2.IsInControl(save, x2_loc, y2_loc, true) >= 0.8;
+    }
+    
     // After executing some inputs, observe the current state.
     // We use this to keep track of high water marks for the
     // objectives, which are used to place objectives along
@@ -215,6 +239,8 @@ struct TwoPlayerProblem {
 
     // Coarse lock for all non-atomic members.
     std::mutex mutex;
+
+    AutoLives autolives1, autolives2;
   };
 
   // Commits observations.
@@ -233,8 +259,6 @@ struct TwoPlayerProblem {
   // < 1.0 during the "explore" process (In an attempt to avoid
   // killing the player while exploring). So it is currently best to
   // treat very small penalties as 1.0.
-  //
-  // XXX: Need to determine protect_loc automatically, like during training.
   double EdgePenalty(const State &old_state, const State &new_state) const {
     double res = 1.0;
     for (int loc : protect_loc)
@@ -355,16 +379,11 @@ struct TwoPlayerProblem {
   
   vector<AutoTimer::TimerLoc> timers;
   // (Hypothesized) memory locations corresponding to the two
-  // player's screen coordinates. If -1, unknown.
-  // These are currently just read from the config file. In
-  // a non-cheating version, the worker would deduce these
-  // itself, so this is like XXX temporary. (Or maybe it would
-  // be a product of training? Seems somewhat better to do it
-  // online since then we can handle changes as the game
-  // progresses...?)
+  // player's screen coordinates. If -1, unknown. These are
+  // determined using autocamera2.
   int x1_loc = -1, y1_loc = -1, x2_loc = -1, y2_loc = -1;
   // Locations where we want to protect the value from going
-  // down. XXX determine these automatically too.
+  // down. Determined using autolives.
   vector<int> protect_loc;
   
   vector<pair<uint8, uint8>> original_inputs;

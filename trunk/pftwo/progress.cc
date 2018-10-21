@@ -23,6 +23,7 @@ static std::mutex print_mutex;
 #define Printf(fmt, ...) do {			\
     MutexLock Printf_ml(&print_mutex);		\
     printf(fmt, ##__VA_ARGS__);			\
+    fflush(stdout);				\
   } while (0)
 
 static string Rtos(double d) {

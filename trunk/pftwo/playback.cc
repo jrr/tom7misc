@@ -16,6 +16,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
 
 #include "pftwo.h"
 
@@ -606,12 +607,6 @@ struct UIThread {
 			     SMALLFONTWIDTH, SMALLFONTHEIGHT,
 			     FONTSTYLES, 0, 3);
     CHECK(fontsmall != nullptr) << "Couldn't load smallfont.";
-
-    fontmax = Font::create(screen,
-			   "fontmax.png",
-			   FONTCHARS,
-			   MAXFONTWIDTH, MAXFONTHEIGHT, FONTSTYLES, 4, 3);
-    CHECK(fontmax != nullptr) << "Couldn't load fontmax.";
     
     Loop();
     Printf("UI shutdown.\n");
@@ -623,7 +618,6 @@ struct UIThread {
     // XXX free screen
     delete font;
     delete fontsmall;
-    delete fontmax;
   }
 
  private:
@@ -631,10 +625,8 @@ struct UIThread {
   static constexpr int FONTHEIGHT = 16;
   static constexpr int SMALLFONTWIDTH = 6;
   static constexpr int SMALLFONTHEIGHT = 6;
-  static constexpr int MAXFONTHEIGHT = 48 * 2;
-  static constexpr int MAXFONTWIDTH = 27 * 2;
 
-  Font *font = nullptr, *fontsmall = nullptr, *fontmax = nullptr;
+  Font *font = nullptr, *fontsmall = nullptr;
 
   SDL_Surface *screen = nullptr;
 };

@@ -1,0 +1,28 @@
+handwritten-batch-oct18.fm2
+
+  After tuning stuff for the threadripper 2. It got decently far
+  ("ghost face and angels" boss after the second 3D level) and
+  just spends years and years shooting angels.
+  Died from BSOD. Uses contra.manual.objectives.
+
+  NOTE: mframes in the subtitle is messed up here due to a bug
+  (now fixed) where it was being stored in an int.
+
+original-learnfun-oct21.fm2
+
+  Using original learnfun-generated objectives. It's a little bit
+  slower (probably spends significant time evaluating the objective
+  function) but its per-mframe performance is terrible; overnight
+  it only gets to the first "3D" level and struggles there even.
+
+handwritten-position-oct21.fm2
+
+  Back to the handwritten objectives, but only use the pure
+  positional objective (level, screen, position). Gets stuck on
+  the boss after the first 3D level, bleh. I think without a
+  little hint of "score" it may have no incentive to do anything
+  on these screens where progress is not apparent.
+  
+  So this is a good situation to try the marathon strategy.
+  (Why do we think it'd be any better than score gradient?)
+
