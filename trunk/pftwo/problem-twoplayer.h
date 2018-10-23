@@ -186,6 +186,7 @@ struct TwoPlayerProblem {
 	  x2_loc < 0 || y2_loc < 0) return false;
       
       vector<uint8> save = emu->SaveUncompressed();
+      // XXX this should count towards IncrementNESFrames
       // XXX how to set this threshold?
       return autolives1.IsInControl(save, x1_loc, y1_loc, false) >= 0.8 &&
 	     autolives2.IsInControl(save, x2_loc, y2_loc, true) >= 0.8;

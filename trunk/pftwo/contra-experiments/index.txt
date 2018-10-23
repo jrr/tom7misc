@@ -26,3 +26,19 @@ handwritten-position-oct21.fm2
   So this is a good situation to try the marathon strategy.
   (Why do we think it'd be any better than score gradient?)
 
+marathon-oct22.fm2
+
+  First try with marathon node and strategy.
+  Gets stuck on boss after first 3D level too.
+  The marathon node didn't get any longer overnight, so it must
+  be above the IsInControl threshold but nonetheless dead?
+
+(next)
+
+  Changes:
+    - Marathon node doesn't maximize score, just wants the deepest
+      node over some score threshold (want to prevent hugging
+      the RHS.) [But, maybe would be better to explicitly ignore
+      player position for this? Or even just remove it from the
+      objective funciton?!)
+

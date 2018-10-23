@@ -498,20 +498,24 @@ struct UIThread {
 	max_nodes = search->tree->MaxNodes();
       }
 
-      double marathon_score = 0.0;
-      int marathon_depth = -1;
+      double marathon_score = 0.0, best_score = 0.0;
+      int64 marathon_seqlength = -1;
       {
 	ReadMutexLock ml(&search->tree_m);
+	best_score = -search->tree->heap.GetMinimum().priority;
 	if (search->tree->marathon.node != nullptr) {
 	  marathon_score = search->tree->marathon.score;
-	  marathon_depth = search->tree->marathon.node->depth;
+	  marathon_seqlength = search->tree->marathon.node->seqlength;
 	}
       }
 
-      if (marathon_depth > 0) {
-	smallfont->draw(256 * 6 + 10, 200,
-			StringPrintf("Marathon score ^3%.4f^<, depth ^3%d",
-				     marathon_score, marathon_depth));
+      if (marathon_seqlength > 0) {
+	smallfont->draw(
+	    256 * 6 + 10, 200,
+	    StringPrintf(
+		"Marathon score ^3%.4f^</^2%.4f^<, seq ^3%lld^<   (f ^2%lld^<)",
+		marathon_score, best_score, marathon_seqlength,
+		search->stats.failed_marathon.Get()));
       }
       
       // Average state size:

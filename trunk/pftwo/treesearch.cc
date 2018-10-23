@@ -314,7 +314,7 @@ struct WorkThread {
     CHECK(parent != nullptr);
     // XXX constructor actually reads parent depth without lock?
     Node *child = new Node(std::move(newstate), parent,
-			   parent->steps + seq_length);
+			   parent->seqlength + seq_length);
     child->nes_frames = search->approx_total_nes_frames.load(
 	std::memory_order_relaxed);
     child->walltime_seconds = search->approx_sec.load(
@@ -344,9 +344,13 @@ struct WorkThread {
   // must ensure that IsInControl for this node.
   void AddToMarathonWithLock(Node *newnode, double newscore) {
     Tree *tree = search->tree;
+    // We try to maximize depth (steps) but not 
+    const double bestscore = -tree->heap.GetMinimum().priority;
+    const double mminscore = MARATHON_BESTSCORE_FRAC * bestscore;
+
     if (tree->marathon.node == nullptr ||
-	(newscore >= tree->marathon.score &&
-	 newnode->steps > tree->marathon.node->steps)) {
+	(newscore >= mminscore &&
+	 newnode->seqlength > tree->marathon.node->seqlength)) {
       if (tree->marathon.node != nullptr)
 	tree->marathon.node->used_in_marathon--;
       newnode->used_in_marathon++;
@@ -816,6 +820,7 @@ struct WorkThread {
   // Run marathon if applicable, and enqueue update.
   void RunMarathon() {
     Node *src = nullptr;
+    double mminscore = 0.0;
     {
       PERF_WRITE_MUTEX_LOCK(PE_L_MARATHON_START, &search->tree_m);
       Tree *tree = search->tree;
@@ -826,7 +831,7 @@ struct WorkThread {
       // Otherwise we should spend our time trying to do normal
       // exploration.
       const double bestscore = -tree->heap.GetMinimum().priority;
-      const double mminscore = MARATHON_BESTSCORE_FRAC * bestscore;
+      mminscore = MARATHON_BESTSCORE_FRAC * bestscore;
 
       if (tree->marathon.score < mminscore)
 	return;
@@ -889,9 +894,42 @@ struct WorkThread {
 	  std::move(newstate),
 	  newscore, true);
     } else {
-      // Eagerly reduce the refcount, alas...
+      // This was a disaster! After 100 tries, we failed to make
+      // ANY moves without losing control. Remove the marathon
+      // node if this happens.
+      search->stats.failed_marathon.Increment();
+
       PERF_WRITE_MUTEX_LOCK(PE_L_MARATHON_FAILED, &search->tree_m);
+      // Release refcount in any case.
       src->num_workers_using--;
+
+      Tree *tree = search->tree;
+      
+      // Make sure nobody changed the marathon node while we were
+      // working. If they did, we can just do nothing.
+      if (src == tree->marathon.node) {
+	tree->marathon.node->used_in_marathon--;
+
+	// Reset it in case we fail below.
+	tree->marathon.node = nullptr;
+	tree->marathon.score = 0.0;
+
+	if (src->parent == nullptr)
+	  return;
+
+	// Could just return in this case, but something is wrong
+	// if the parent is not in the heap.
+	CHECK(src->parent->location != -1);
+	auto cell = tree->heap.GetCell(src->parent);
+
+	const double pscore = -cell.priority;
+	
+	if (pscore >= mminscore) {
+	  src->parent->used_in_marathon++;
+	  tree->marathon.node = src->parent;
+	  tree->marathon.score = pscore;
+	}
+      }
     }
   }
   
@@ -902,20 +940,23 @@ struct WorkThread {
     Problem::State start_state;
     double start_dist = -1.0;
 
-    // Save the marathon score/depth up front. If we have at least this
-    // score, then we'll do the expensive IsInControl test to consider
-    // using it to replace the marathon node later.
-    double marathon_score = 0.0;
-    int marathon_steps = 0;
+    // Save the marathon score/seqlength target up front. If we have
+    // at least this score, then we'll do the expensive IsInControl
+    // test to consider using it to replace the marathon node later.
+    double marathon_minscore = 0.0;
+    int64 marathon_seqlength = 0;
     {
       PERF_WRITE_MUTEX_LOCK(PE_L_PROCESS_EXPLORE_QUEUE_A, &search->tree_m);
+      Tree *tree = search->tree;
+      
       en = GetExploreNodeWithMutex();
       if (en == nullptr) return false;      
       // I'm going to decrement it exactly this many times.
       CHECK(en->source->num_workers_using >= LOOPS_PER_EXPLORE_ITER);
-      if (search->tree->marathon.node != nullptr) {
-	marathon_score = search->tree->marathon.score;
-	marathon_steps = search->tree->marathon.node->steps;
+      if (tree->marathon.node != nullptr) {
+	const double bestscore = -tree->heap.GetMinimum().priority;
+	marathon_minscore = MARATHON_BESTSCORE_FRAC * bestscore;
+	marathon_seqlength = tree->marathon.node->seqlength;
       }
     }
 
@@ -1054,12 +1095,12 @@ struct WorkThread {
 
 	// Only perform this expensive test if we have a good chance
 	// of replacing the marathon node.
-	const int steps = en->source->steps + full_seq.size();
+	const int64 seqlength = en->source->seqlength + full_seq.size();
 	bool checked_in_control = false;
 	{
 	  PERF_SCOPED(PE_IN_CONTROL);
-	  checked_in_control = newscore >= marathon_score &&
-	    steps > marathon_steps &&
+	  checked_in_control = newscore >= marathon_minscore &&
+	    seqlength > marathon_seqlength &&
 	    worker->IsInControl();
 	}
 	
