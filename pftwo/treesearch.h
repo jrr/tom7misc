@@ -76,11 +76,11 @@ struct Tree {
   static_assert(STEPS_TO_FIRST_UPDATE > 0, "configuration range");
 
   struct Node {
-    Node(State state, Node *parent, int steps) :
+    Node(State state, Node *parent, int64 seqlength) :
       state(std::move(state)),
       parent(parent),
       depth((parent != nullptr) ? (parent->depth + 1) : 0),
-      steps(steps) {}
+      seqlength(seqlength) {}
     // Note that this can be recreated by replaying the moves from the
     // root. It once was optional and could be made that way again, at
     // the cost of many complications.
@@ -91,7 +91,7 @@ struct Tree {
     // Depth in the tree.
     const int depth = 0;
     // Length of the sequence that gets us here.
-    const int steps = 0;
+    const int64 seqlength = 0LL;
     
     // Child nodes. Currently, no guarantee that these don't
     // share prefixes, but there cannot be duplicates.
@@ -208,7 +208,7 @@ struct Tree {
   
   // Experimental: Keep around a node that has a high score (relative
   // to the best-scoring node in the heap), where the players are in
-  // control, and which has a high depth. 
+  // control, and which has a high depth.
   //
   // The struct is identical to gridcell; should consider merging them
   // if this sticks around.
@@ -223,8 +223,11 @@ struct Tree {
 
   // Note: Normal for node to be nullptr.
   // If there is something in here, it must be IsInControl.
-  // Given that, we prioritize first by normalized score,
-  // then by depth.
+  // Given that, it must also have a score that's close to the
+  // best score. (We don't actually *maximize* score since this
+  // will press us against the right-hand side of the screen if
+  // position is part of the objective function.)
+  // We then try to find the highest depth.
   MarathonCell marathon;
   
   // If this has anything in it, we're in exploration mode.
@@ -313,6 +316,8 @@ struct TreeSearch {
 
     Counter explore_iters;
     Counter explore_deaths;
+
+    Counter failed_marathon;
   };
   Stats stats;
 
