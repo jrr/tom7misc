@@ -27,6 +27,7 @@
 
 #include "atom7ic.h"
 
+#include "options.h"
 #include "weighted-objectives.h"
 #include "treesearch.h"
 #include "problem-twoplayer.h"
@@ -1388,7 +1389,7 @@ private:
   ArcFour rc;
   // Private gaussian stream, aliasing rc.
   RandomGaussian gauss;
-  const TreeSearch::Options opt;
+  const Options opt;
   Problem::Worker *worker = nullptr;
   std::thread th;
 };
@@ -1408,7 +1409,7 @@ TreeSearch::TreeSearch(Options opt) : opt(opt) {
     num_workers = 1;
   }
 
-  problem.reset(new Problem(config));
+  problem.reset(new Problem(config, opt));
 }
 
 vector<Worker *> TreeSearch::WorkersWithLock() const {
