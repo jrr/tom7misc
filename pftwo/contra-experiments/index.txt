@@ -33,7 +33,7 @@ marathon-oct22.fm2
   The marathon node didn't get any longer overnight, so it must
   be above the IsInControl threshold but nonetheless dead?
 
-(next)
+marathon-backup-oct23.fm2
 
   Changes:
     - Marathon node doesn't maximize score, just wants the deepest
@@ -41,4 +41,31 @@ marathon-oct22.fm2
       the RHS.) [But, maybe would be better to explicitly ignore
       player position for this? Or even just remove it from the
       objective funciton?!)
+
+    - Possibility of popping the marathon node if we fail to
+      extend it too many times.
+
+  Gets stuck on the waterfall boss (arms). So, a bit of an
+  improvement, but what's so hard about this boss?
+
+marathon-flat-oct24.fm2
+
+  Here, removed player position from objective function.
+  Let this run almost 24h. Some extremely long stretches where it
+  makes no progress: In these cases it's also hugging the right
+  side of the screen. I guess this is happening not because
+  we take position into account too much, but because random
+  walks in the markov model are too likely to produce rightward
+  movement.
+
+  I guess it makes sense to say that we have a prior that most
+  games are symmetric, and so we insert the reflection of the
+  input sequence into the model as well?
+
+marathon-flat-symmetric-oct25.fm2
+
+  Same as previous but did make the model symmetric (P(L) = P(R)).
+  It's easy to see that this is "working" because the players meander
+  more, and this does help on some screens. But it gets stuck
+  on the arms boss at the top of the waterfall.
 

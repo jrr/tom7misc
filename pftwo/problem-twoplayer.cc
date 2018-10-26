@@ -550,7 +550,8 @@ void TPP::InitLives(const map<string, string> &config,
 }
 
 
-TPP::TwoPlayerProblem(const map<string, string> &config) {
+TPP::TwoPlayerProblem(const map<string, string> &config,
+		      const Options &opt) : opt(opt) {
   game = GetDefault(config, "game", "");
   printf("Create TPP for %s...\n", game.c_str());
   const string movie = GetDefault(config, "movie", "");
@@ -592,6 +593,23 @@ TPP::TwoPlayerProblem(const map<string, string> &config) {
     player1.push_back(p.first);
     player2.push_back(p.second);
   }
+
+  if (opt.symmetric_markov) {
+    auto Reflect =
+      [](uint8 input) {
+	uint8 out = input & ~(INPUT_L | INPUT_R);
+	if (input & INPUT_L) out |= INPUT_R;
+	if (input & INPUT_R) out |= INPUT_L;
+	return out;
+      };
+
+    for (int i = warmup_frames; i < original_inputs.size(); i++) {
+      const auto &p = original_inputs[i];
+      player1.push_back(Reflect(p.first));
+      player2.push_back(Reflect(p.second));
+    }
+  }
+
   printf("Build markov controllers.\n");
   markov1.reset(new NMarkovController(player1, MARKOV_N));
   markov2.reset(new NMarkovController(player2, MARKOV_N));

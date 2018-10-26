@@ -17,6 +17,7 @@
 #include "../cc-lib/randutil.h"
 #include "autotimer.h"
 #include "autolives.h"
+#include "options.h"
 
 struct EmulatorPool;
 
@@ -360,7 +361,8 @@ struct TwoPlayerProblem {
   // Must be thread safe and leave Worker in a valid state.
   Worker *CreateWorker();
 
-  explicit TwoPlayerProblem(const map<string, string> &config);
+  explicit TwoPlayerProblem(const map<string, string> &config,
+			    const Options &opt);
 
  private:
   void InitTimers(const map<string, string> &config,
@@ -372,6 +374,8 @@ struct TwoPlayerProblem {
   void InitLives(const map<string, string> &config,
 		 EmulatorPool *pool,
 		 const vector<uint8> &start);
+
+  const Options opt;
   
   string game;
   int warmup_frames = -1;

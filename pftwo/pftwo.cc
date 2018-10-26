@@ -700,7 +700,7 @@ int main(int argc, char *argv[]) {
   }
   
   {
-    TreeSearch::Options options;
+    Options options;
     TreeSearch search{options};
     search.StartThreads();
     {
