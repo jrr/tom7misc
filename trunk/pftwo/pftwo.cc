@@ -112,8 +112,11 @@
 #include "dumptree.h"
 
 // Screen dimensions.
-#define WIDTH 1920
+// #define WIDTH 1920
 // #define HEIGHT 1080
+// #define HEIGHT 880
+
+#define WIDTH 1920
 #define HEIGHT 880
 
 // XXX move to library?
@@ -346,10 +349,10 @@ struct UIThread {
       }
 
       {
-	WriteMutexLock ml(&search->tree_m);
-	static constexpr int GRIDX = 768;
-	static constexpr int GRIDY = 450;
-	static constexpr int CELLPX = 16;
+	ReadMutexLock ml(&search->tree_m);
+	static constexpr int GRIDX = 1740;
+	static constexpr int GRIDY = 40;
+	static constexpr int CELLPX = 13;
 	
 	// Get best score in grid so that we can normalize
 	// colors against it.
@@ -392,6 +395,30 @@ struct UIThread {
 			StringPrintf("best ^3%.4f^< / ^2%.4f",
 				     bestscore,
 				     cutoff_bestscore));
+
+	// And the memory grid...
+	// PERF!
+	// also, try to make this fit in 1920x1080?
+	static constexpr int MEMX = 0;
+	static constexpr int MEMY = 240;
+	for (int cy = 0; cy < 256; cy++) {
+	  for (int cx = 0; cx < 2048 && cx < WIDTH; cx++) {
+	    int c = Problem::MemCell(cx, cy);
+
+	    const Tree::GridCell &gc = search->tree->grid[c];
+	    if (gc.node == nullptr) {
+	      sdlutil::drawpixel(screen, MEMX + cx, MEMY + cy,
+				 0x20, 0x00, 0x00);
+	    } else {
+	      uint8 rr = gc.score >= cutoff_bestscore ? 0 : 1;
+	      int gg = 0x20 +
+		(0xFF - 0x20) * (gc.score * one_over_bestscore);
+	      if (gg > 0xFF) gg = 0xff;
+	      sdlutil::drawpixel(screen, MEMX + cx, MEMY + cy,
+				 rr * gg, (uint8)gg, 0x00);
+	    }
+	  }
+	}
       }
       
       // Draw workers workin'.

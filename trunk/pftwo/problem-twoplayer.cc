@@ -118,6 +118,9 @@ TPP::Input TPP::InputGenerator::RandomInput(ArcFour *rc) {
 }
 
 vector<int> TPP::AdjacentCells(int cell) {
+  if (cell >= num_spatial_cells)
+    return {};
+
   auto C = [](int xx, int yy) {
     return yy * GRID_CELLS_W + xx;
   };
