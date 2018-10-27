@@ -30,6 +30,8 @@ struct Options {
   // If true, markov model will be symmetric along the vertical axis
   // P(left) = P(right).
   bool symmetric_markov = true;
+
+  bool use_marathon = false;
   
   // Tune me!
   // Maximum chance of expanding the marathon node when it's eligible.

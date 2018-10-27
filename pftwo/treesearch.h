@@ -134,7 +134,7 @@ struct Tree {
     // Number of references from the grid, which also keeps nodes
     // alive.
     int used_in_grid = 0;
-
+    
     // Same, but for marathon cell(s).
     int used_in_marathon = 0;
     

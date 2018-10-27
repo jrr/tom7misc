@@ -108,7 +108,14 @@ struct TwoPlayerProblem {
     return goal;
   }
 
+  // TODO: We only need this for cells that can be returned
+  // by AdjacentCells, so maybe we should roll those two
+  // together.
   Goal RandomGoalInCell(ArcFour *rc, int cell) const {
+    // Not a spatial cell.
+    if (cell >= num_spatial_cells)
+      return RandomGoal(rc);
+
     // Top-left corner of cell.
     const int y = cell / GRID_CELLS_W;
     const int x = cell % GRID_CELLS_W;
@@ -329,9 +336,26 @@ struct TwoPlayerProblem {
   static constexpr int GRID_CELLS_H = 1 << GRID_DIVISIONS;
 
   // Part of the problem interface.
-  static constexpr int num_grid_cells = GRID_CELLS_W * GRID_CELLS_H;
-  // A state can be in 0 or 1 grid cells.
-  bool GetGridCell(const State &state, int *cell) const {
+  static constexpr int num_spatial_cells = GRID_CELLS_W * GRID_CELLS_H;
+  static constexpr int num_grid_cells = num_spatial_cells + 256 * 2048;
+  static int MemCell(int loc, uint8 val) {
+    return num_spatial_cells + loc * 256 + val;
+  }
+  
+  // A state may be in multiple grid cells, or none! This code iterates
+  // over all of those.
+  template<class F>
+  void ApplyToGridCells(const State &state, const F &f) const {
+    int spatial_cell;
+    if (GetSpatialGridCell(state, &spatial_cell)) f(spatial_cell);
+
+    // Always one cell per value at each of the 2408 memory locations.
+    for (int i = 0; i < 2048; i++) {
+      f(MemCell(i, state.mem[i]));
+    }
+  }
+
+  bool GetSpatialGridCell(const State &state, int *cell) const {
     if (x1_loc == -1 || y1_loc == -1 ||
 	x2_loc == -1 || y2_loc == -1) return false;
 

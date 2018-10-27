@@ -87,6 +87,7 @@ enum PerfEvent {
   PE_OBSERVE,
   PE_COMMIT,
   PE_IN_CONTROL,
+  PE_ELIGIBLE,
   // Meta
   NUM_PERFEVENTS,
 };
@@ -118,6 +119,7 @@ static const char *PerfEventString(PerfEvent pe) {
     CASE(OBSERVE);
     CASE(COMMIT);
     CASE(IN_CONTROL);
+    CASE(ELIGIBLE);
   default: return "?";
   }
 #undef CASE
@@ -192,6 +194,7 @@ struct WorkThread {
 
   // Populates the vector with eligible grid indices.
   void EligibleGridNodesWithMutex(vector<int> *eligible) {
+    PERF_SCOPED(PE_ELIGIBLE);
     // XXX This stuff is a hack. Improve it!
     const double bestscore = -search->tree->heap.GetMinimum().priority;
     const double gminscore = GRID_BESTSCORE_FRAC * bestscore;
@@ -249,6 +252,7 @@ struct WorkThread {
     // we randomly chip away at a boss, but then never actually beat
     // the level (which often involves losing control).
     if (ret == nullptr &&
+	opt.use_marathon &&
 	tree->stuckness > 0.75 && tree->marathon.node != nullptr) {
       const double bestscore = -tree->heap.GetMinimum().priority;
       const double mminscore = MARATHON_BESTSCORE_FRAC * bestscore;
@@ -326,8 +330,9 @@ struct WorkThread {
   // Add to the grid if it qualifies. Called from within
   // ExtendNodeWithLock once we're sure the node is new.
   void AddToGridWithLock(Node *newnode, double newscore) {
-    int cell = 0;
-    if (search->problem->GetGridCell(newnode->state, &cell)) {
+    search->problem->ApplyToGridCells(
+	newnode->state,
+	[&](int cell) {
       CHECK(cell >= 0 && cell < search->tree->grid.size()) <<
 	cell << " vs " << search->tree->grid.size();
       Tree::GridCell *gc = &search->tree->grid[cell];
@@ -338,12 +343,15 @@ struct WorkThread {
 	gc->score = newscore;
 	gc->node = newnode;
       }
-    }
+	});
   }
 
   // Set this to the marathon node if it's a new best. Caller
   // must ensure that IsInControl for this node.
   void AddToMarathonWithLock(Node *newnode, double newscore) {
+    if (!opt.use_marathon)
+      return;
+    
     Tree *tree = search->tree;
     // We try to maximize depth (steps) but not 
     const double bestscore = -tree->heap.GetMinimum().priority;
@@ -728,7 +736,7 @@ struct WorkThread {
 	  // Prioritize using existing cells if we have them.
 	  vector<int> goodcells;
 	  EligibleGridNodesWithMutex(&goodcells);
-	  set<int> isgood;
+	  std::unordered_set<int> isgood;
 	  for (int c : goodcells) isgood.insert(c);
 
 	  // Do these in a random order in case there are so many
@@ -820,6 +828,9 @@ struct WorkThread {
 
   // Run marathon if applicable, and enqueue update.
   void RunMarathon() {
+    if (!opt.use_marathon)
+      return;
+    
     Node *src = nullptr;
     double mminscore = 0.0;
     {
@@ -954,7 +965,7 @@ struct WorkThread {
       if (en == nullptr) return false;      
       // I'm going to decrement it exactly this many times.
       CHECK(en->source->num_workers_using >= LOOPS_PER_EXPLORE_ITER);
-      if (tree->marathon.node != nullptr) {
+      if (opt.use_marathon && tree->marathon.node != nullptr) {
 	const double bestscore = -tree->heap.GetMinimum().priority;
 	marathon_minscore = MARATHON_BESTSCORE_FRAC * bestscore;
 	marathon_seqlength = tree->marathon.node->seqlength;
@@ -1098,7 +1109,7 @@ struct WorkThread {
 	// of replacing the marathon node.
 	const int64 seqlength = en->source->seqlength + full_seq.size();
 	bool checked_in_control = false;
-	{
+	if (opt.use_marathon) {
 	  PERF_SCOPED(PE_IN_CONTROL);
 	  checked_in_control = newscore >= marathon_minscore &&
 	    seqlength > marathon_seqlength &&
