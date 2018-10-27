@@ -196,6 +196,14 @@ void SimpleFM7::WriteInputs(const string &outputfile,
   WriteInputs2P(outputfile, SimpleFM2::ExpandTo2P(inputs));
 }
 
+vector<uint8> SimpleFM7::ReadInputs(const string &filename) {
+  vector<pair<uint8, uint8>> p2 = ReadInputs2P(filename);
+  vector<uint8> ret;
+  ret.reserve(p2.size());
+  for (const auto &p : p2) ret.push_back(p.first);
+  return ret;
+}
+
 vector<pair<uint8, uint8>> SimpleFM7::ReadInputs2P(const string &filename) {
   string contents = Util::ReadFile(filename);
   CHECK(!contents.empty()) << filename;
