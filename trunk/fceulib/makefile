@@ -131,7 +131,7 @@ emulator_test.exe : $(OBJECTS) test-util.o emulator_test.o simplefm2.o
 fm2wav.exe : $(OBJECTS) $(CCLIBOBJECTS) fm2wav.o simplefm2.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
-bench.exe : $(OBJECTS) test-util.o bench.o simplefm2.o
+bench.exe : $(OBJECTS) test-util.o bench.o simplefm2.o simplefm7.o
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 aot.exe : $(OBJECTS_NO_GAMES) ppu-noaot.o aot.o test-util.o

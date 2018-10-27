@@ -1,3 +1,22 @@
+--------------------------------------------------
+threadripper machine plus misc changes in the
+last year or whatever  (27 Oct 2018)
+--------------------------------------------------
+mario-long, no AOT here.
+Interesting?ly, the utilized CPU moves between
+NUMA nodes maybe every 45 seconds. The nodes
+have significantly different performance (14.08,
+13.63, 13.82, 13.84). It could be speed scaling
+(I think it does this dynamically based on the
+thermal performance) or could be NUMA memory
+overhead...
+
+Startup time: 0.0020s
+Exec time:    13.9034s
+
+It's nice that this is at least faster than the
+old machine (even AOT) single-threaded too.
+
 
 --------------------------------------------------
 aot optimization

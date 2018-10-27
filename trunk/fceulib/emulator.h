@@ -3,6 +3,16 @@
   of the emulator so that there can be multiple instances at once and
   they can run in separate threads. Should work, although I can't promise
   comprehensive thread safety!
+
+  TODO PERF: At some point I changed emulator so that it is rendering
+  the frame regardless of whether Step or StepFull. Although the PPU
+  code is pretty complicated and can't just be skipped, it seems like
+  we could save a lot of work with a mode (e.g. template parameter)
+  that didn't update the screen buffer. There could also be an
+  approximate version of GetImage that renders the screen purely from
+  the PPU state; I have written this several times. (It would not
+  support e.g. intraframe scrolling, but in something like pftwo we
+  only care about it for diagnostic output.)
 */
 
 #ifndef __EMULATOR_H

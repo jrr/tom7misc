@@ -1,6 +1,7 @@
 
 #include "emulator.h"
 
+#include <cmath>
 #include <string>
 #include <vector>
 #include <memory>
@@ -14,6 +15,7 @@
 #include "arcfour.h"
 #include "rle.h"
 #include "simplefm2.h"
+#include "simplefm7.h"
 #include "base/stringprintf.h"
 #include "stb_image_write.h"
 
@@ -73,11 +75,13 @@ int main(int argc, char **argv) {
   Timer startup_timer;
   // TODO: This is not really fair since it counts all the IO.
   std::unique_ptr<Emulator> emu(Emulator::Create("mario.nes"));
+  CHECK(emu.get() != nullptr);
   startup_seconds = startup_timer.GetSeconds();
   vector<uint8> start = emu->SaveUncompressed();
   
-  vector<uint8> movie = SimpleFM2::ReadInputs("mario-long.fm2");
-
+  vector<uint8> movie = SimpleFM7::ReadInputs("mario-long.fm7");
+  CHECK(!movie.empty());
+  
   double exec_seconds = -1.0;
   
   int executions = 0;
@@ -107,6 +111,7 @@ int main(int argc, char **argv) {
     }
     last_means.push_back(mtrunc);
     printf("Round %4d in %.4f, mean %.4f\n", executions, sec, mean);
+    fflush(stdout);
   }
   
   uint64 ram_checksum = emu->RamChecksum();
