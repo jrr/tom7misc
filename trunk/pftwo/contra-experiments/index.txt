@@ -69,3 +69,17 @@ marathon-flat-symmetric-oct25.fm2
   more, and this does help on some screens. But it gets stuck
   on the arms boss at the top of the waterfall.
 
+memory-incontrol-oct28.fm2
+
+  With memory grid. Actually there was a first memory grid experiment
+  too, but it was stuck on first 3D boss and it seems I didn't save
+  it. This one gets stuck on waterfall boss (arms) after 22h. Took a
+  long time on the first 3D boss, as usual (although the output movie
+  is pretty efficient). Waterfall section is fairly reasonable too.
+
+  I think that the waterfall boss maybe substantially benefits from
+  having a score gradient, since this used to not be a hard case with
+  the old objective function. You would think the memory grid could
+  help here?
+
+NEXT: prioritize recent insertions into memory grid.

@@ -443,7 +443,9 @@ struct WorkThread {
 	  search->tree->heap.Insert(-q.newscore, q.dst);
 	  CHECK(q.dst->location != -1);
 
-	  AddToGridWithLock(q.dst, q.newscore);
+	  if (q.checked_in_control) // XXX experimental
+	    AddToGridWithLock(q.dst, q.newscore);
+
 	  if (q.checked_in_control)
 	    AddToMarathonWithLock(q.dst, q.newscore);
 	}
@@ -461,6 +463,7 @@ struct WorkThread {
 			       double newscore,
 			       bool checked_in_control) {
     Node *child = NewNode(std::move(*newstate), n, seq.size());
+    child->checked_in_control = checked_in_control;
     local_queue.emplace_back(n, std::move(seq), child, newscore,
 			     checked_in_control);
     return child;
@@ -546,7 +549,8 @@ struct WorkThread {
 	    // are more minimum for the heap ordering.
 	    tree->heap.AdjustPriority(n, -new_score);
 	    CHECK(n->location != -1);
-	    AddToGridWithLock(n, new_score);
+	    if (n->checked_in_control)  // XXX experimental
+	      AddToGridWithLock(n, new_score);
 	  }
 	  for (pair<const Tree::Seq, Node *> &child : n->children) {
 	    ReHeapRec(child.second);
@@ -1109,7 +1113,7 @@ struct WorkThread {
 	// of replacing the marathon node.
 	const int64 seqlength = en->source->seqlength + full_seq.size();
 	bool checked_in_control = false;
-	if (opt.use_marathon) {
+	if (true /* XXX experimental */ || opt.use_marathon) {
 	  PERF_SCOPED(PE_IN_CONTROL);
 	  checked_in_control = newscore >= marathon_minscore &&
 	    seqlength > marathon_seqlength &&
@@ -1343,10 +1347,13 @@ struct WorkThread {
 
 	  // worker->SetStatus("Extend tree");
 
+	  // TODO: Sometimes test for control so that it's
+	  // eligible for marathon, grid?
+	  const bool checked_in_control = false;
 	  // TODO: Consider inserting nodes other than the best one?
 	  Node *child = EnqueueExpansionResult(
 	      expand_me, nexts[best_step_idx], std::move(best),
-	      best_score, false /* XXX checked_in_control */);
+	      best_score, checked_in_control);
 	  best.reset();
 
 	  // worker->SetStatus("Check for death");

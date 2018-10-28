@@ -108,6 +108,10 @@ struct Tree {
     int64 walltime_seconds = 0LL;
     // If not <0, the goal used to produce the node.
     int goalx = -1, goaly = -1;
+
+    // If true, then we did the "in control check" and it returned
+    // true.
+    bool checked_in_control = false;
     
     // Total number of times chosen for expansion. This will
     // be related to the number of children, but can be more

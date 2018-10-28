@@ -37,16 +37,6 @@
 // damage, and would be easier than trying to fuzz all of ram
 // I bet the bosses that are most stuck are actually BG graphics.
 //
-// TODO: Just some way to ensure that the highest-scoring node
-// continually gets random play in parallel with the other search?
-// This might result in worse (long) movies, but sometimes that's
-// the right way for it to beat some spot (like e.g. you have to
-// just survive some screen, or many contra bosses where you have
-// to deal a bunch of damage but it doesn't know it's making
-// progress...)
-// TODO: aka "Marathon" strategy where we just try to stay alive as
-// long as we can?
-//
 // TODO: When on the ice pillars level, regular tree search is
 // sometimes backing up all the way to the waterfall climb -- this
 // seems nuts (it's like almost 200k depth away). We may be able to
@@ -67,9 +57,22 @@
 // and sometimes "seq 0" (meaning I guess that it couldn't make any
 // moves before dying). When a grid cell is dead (all expansions
 // die?), consider popping to a previous--like, store a heap in here.
+// (Alternatively, require IsInControl)
 //
 // TODO: More generally, when stuck: Prune nodes for which we've only
 // ever expanded to deaths?
+//
+// TODO: Prioritize grid exploration (particularly the memory grid)
+// by newness. We should spend more time exploring a state we've
+// never been in before.
+//
+// TODO: Along those lines: When we're stuck, how many actually new
+// states are we exploring? Could we keep memory hashes so that we
+// ensure exploration of new states? In the presence of two player
+// scores, PRNG state, music, I guess it could be intractably high
+// maybe we could detect and mod out by "highly variable" locations?
+// (Of course, the PRNG might really matter, since perhaps we are
+// waiting for some random event to happen?)
 
 #include <algorithm>
 #include <vector>
@@ -401,7 +404,9 @@ struct UIThread {
 	// also, try to make this fit in 1920x1080?
 	static constexpr int MEMX = 0;
 	static constexpr int MEMY = 240;
-	for (int cy = 0; cy < 256; cy++) {
+	// for (int cy = 0; cy < 256; cy++) {
+	{
+	  int cy = frame % 256;
 	  for (int cx = 0; cx < 2048 && cx < WIDTH; cx++) {
 	    int c = Problem::MemCell(cx, cy);
 
@@ -430,10 +435,15 @@ struct UIThread {
 
       vector<vector<string>> texts;
       {
+	// PERF: As long as we know the worker doesn't get deleted,
+	// we can do this without locking the whole tree. Some evidence
+	// that 
 	WriteMutexLock ml(&search->tree_m);
 	vector<Worker *> workers = search->WorkersWithLock();
 	texts.resize(workers.size());
-	for (int i = 0; i < workers.size() && i < max_screenshots; i++) {
+	// for (int i = 0; i < workers.size() && i < max_screenshots; i++) {
+	// XXX do round-robin more explicitly.
+	{ int i = frame % std::min((int)workers.size(), max_screenshots);
 	  CHECK(i < workers.size());
 	  Worker *w = workers[i];
 	  // XXX if workers change size, then we won't
@@ -639,11 +649,11 @@ struct UIThread {
 	uint8 leftover = 255.0 * (heightf - height);
 	for (int h = 0; h < height; h++) {
 	  int y = BOTTOM - h;
-	  sdlutil::drawclippixel(screen, x, y,
-				 0xFF, 0xFF, over ? 0xFF : 0x00);
+	  sdlutil::drawpixel(screen, x, y,
+			     0xFF, 0xFF, over ? 0xFF : 0x00);
 	}
-	sdlutil::drawclippixel(screen, x, BOTTOM - height,
-			       leftover, leftover, 0x00);
+	sdlutil::drawpixel(screen, x, BOTTOM - height,
+			   leftover, leftover, 0x00);
 
       }
       sdlutil::sulock(screen);
