@@ -3,6 +3,7 @@
 #define __CHESS_H
 
 #include <cstdint>
+#include <initializer_list>
 
 using uint8 = std::uint8_t;
 using uint32 = std::uint32_t;
@@ -31,10 +32,13 @@ struct Position {
     C_ROOK = 7,
   };
 
+  static constexpr uint8 EMPTY = 0U;
+  
   static constexpr uint8 BLACK = 0b1000U;
   static constexpr uint8 WHITE = 0b0000U;
   // Maybe we should distinguish between type and piece?
-  static constexpr uint8 PIECE_ONLY = 0b0111U;
+  static constexpr uint8 TYPE_MASK = 0b0111U;
+  static constexpr uint8 COLOR_MASK = 0b1000U;
   
   // Row 0 is the top row of the board, black's back
   // rank, aka. rank 8. We try to use "row" to mean
@@ -85,14 +89,18 @@ struct Position {
   //  - Any piece can be overqualified (Bf1g2 = Bfg2 = B1g2 = Bg2)
   //    but cannot be ambiguous. This routine may return an arbitrary
   //    legal move if the move string is ambiguous.
+  //  - If the move is not valid (e.g. it asks to move Ra1a2 but
+  //    there is no rook on a1) then this routine may return an
+  //    arbitrary legal move (e.g. moving the queen on a1 to a2).
+  //    For valid and legal moves, it returns the correct move.
   //  - Returns false if the move is not understood. Otherwise,
   //    returns true and sets the arguments to give the source
   //    and destination of the move.
   //  - The move string may be terminated by \0 or whitespace.
-  bool ParseMove(const char *m, Move *move) const {
+  bool ParseMove(const char *m, Move *move) {
     const bool blackmove = !!(bits & BLACK_MOVE);
     const uint8 my_mask = blackmove ? BLACK : WHITE;
-    const uint8 your_mask = blackmove ? WHITE : BLACK;
+    // const uint8 your_mask = blackmove ? WHITE : BLACK;
 
     if (m[0] == 'O' && m[1] == '-' && m[2] == 'O') {
       // Castling move. The king must be on its home square for
@@ -213,47 +221,46 @@ struct Position {
 
     // Rare in the wild, but if the move is fully disambiguated,
     // then we can just test its legality and be done.
+    // (Note that this doesn't test whether the piece in the
+    // source position actually matches. It's a little tricky
+    // because of C_ROOK as usual. However, if the move is
+    // well-formed, we will always do the right thing.)
     if (src_row != 255 && src_col != 255) {
       move->src_row = src_row;
       move->src_col = src_col;
       return IsLegal(*move);
     }
 
-    // A queen is a bishop plus a rook, so factor these loops out.
-    // This is the general case; we check all possible source
-    // squares that are consistent with the disambiguation.
-    // XXX! This actually checks that the piece IS A ROOK.
-    auto RookLoop =
-      [&]() {
-	// Vertical.
-	for (int r = 0; r < 8; r++) {
-	  if (r != move->dst_row && (src_row == 255 || src_row == r)) {
-	    int c = move->dst_col;
-	    const uint8 p = PieceAt(r, c);
-	    if (p == (my_mask | ROOK) || p == (my_mask | C_ROOK)) {
-	      move->src_col = c;
-	      move->src_row = r;
-	      if (IsLegal(*move))
-		return true;
+    // Whenever there's ambiguity (so in all the cases below), we
+    // need to check that the source square actually contains the
+    // indicated piece. Otherwise, we could be proposing a legal
+    // move to IsLegal, but it's only legal because the piece there
+    // is something else.
+    
+    // Checks the diagonals that can attack dst_row, dst_col, as a
+    // bishop or queen does.
+    auto Diagonal =
+      [&](uint8 expected_type) {
+	for (const int dr : { -1, 1 }) {
+	  for (const int dc : { -1, 1 }) {
+	    for (int r = (int)move->dst_row + dr,
+		     c = (int)move->dst_col + dc;
+		 r >= 0 && c >= 0 && r < 8 && c < 8;
+		 r += dr, c += dc) {
+	      if (src_row == 255 || src_row == r) {
+		if (src_col == 255 || src_col == c) {
+		  if (PieceAt(r, c) == (my_mask | expected_type)) {
+		    move->src_row = r;
+		    move->src_col = c;
+		    if (IsLegal(*move)) {
+		      return true;
+		    }
+		  }
+		}
+	      }
 	    }
 	  }
 	}
-	
-	// Horizontal.
-	for (int c = 0; c < 8; c++) {
-	  if (c != move->dst_col && (src_col == 255 || src_col == c)) {
-	    int r = move->dst_row;
-	    const uint8 p = PieceAt(r, c);
-	    if (p == (my_mask | ROOK) || p == (my_mask | C_ROOK)) {
-	      move->src_col = c;
-	      move->src_row = r;
-	      if (IsLegal(*move))
-		return true;
-	    }
-	  }
-	}
-
-	return false;
       };
     
     // Otherwise, we need to search for the piece making the move.
@@ -261,9 +268,80 @@ struct Position {
     switch (src_type) {
     case PAWN:
       // Pawn is definitely the trickiest, because there are
-      // several strange cases.
-      // TODO
-      break;
+      // several strange cases. But much of the real work is in IsLegal.
+      // Note that promotion (if any) was already parsed into the move.
+      
+      // The capturing case is actually easier...
+      if (capturing) {
+	// PGN requires specifying the source column for a pawn capturing
+	// move.
+	if (src_col == 255)
+	  return false;
+
+	// Although there is a lot of complexity to this capturing move,
+	// we actually have all the information we need to propose it
+	// to IsLegal (so the complexity is implemented there). The pawn
+	// always captures one square diagonally, even en passant.
+
+	move->src_col = src_col;
+	if (blackmove) {
+	  if (move->dst_row < 2)
+	    return false;
+	  
+	  move->src_row = move->dst_row - 1;
+	  return IsLegal(*move);
+	} else {
+	  if (move->dst_row >= 6)
+	    return false;
+
+	  move->src_row = move->dst_row + 1;
+	  return IsLegal(*move);
+	}
+	
+      } else {
+	// Not capturing.
+	
+	// A move like "h4" is allowed with pawns on both h2 and h3,
+	// or as a double-move with pawn just on h2. We have to check
+	// that the move is legal anyway, so here we just check the two
+	// trailing squares, in order.
+	if (blackmove) {
+	  if (move->dst_row < 2)
+	    return false;
+
+	  move->src_col = move->dst_col;
+	  if (PieceAt(move->dst_row - 1, move->dst_col) == (my_mask | PAWN)) {
+	    move->src_row = move->dst_row - 1;
+	    return IsLegal(*move);
+	  }
+
+	  if (PieceAt(move->dst_row - 2, move->dst_col) == (my_mask | PAWN)) {
+	    move->src_row = move->dst_row - 2;
+	    return IsLegal(*move);
+	  }
+
+	  return false;
+	} else {
+	  if (move->dst_row >= 6)
+	    return false;
+
+	  move->src_col = move->dst_col;
+	  if (PieceAt(move->dst_row + 1, move->dst_col) == (my_mask | PAWN)) {
+	    move->src_row = move->dst_row + 1;
+	    return IsLegal(*move);
+	  }
+
+	  if (PieceAt(move->dst_row + 2, move->dst_col) == (my_mask | PAWN)) {
+	    move->src_row = move->dst_row + 2;
+	    return IsLegal(*move);
+	  }
+
+	  return false;
+	}
+      }
+      
+      return false;
+
     case KING:
       // This is the easiest. There can only be one king, and
       // castling was already handled. So we just need to find
@@ -289,15 +367,49 @@ struct Position {
 
     case QUEEN:
 
-      break;
+      if (Diagonal(QUEEN))
+	return true;
+
+      // Vertical.
+      for (int r = 0; r < 8; r++) {
+	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
+	  int c = move->dst_col;
+	  const uint8 p = PieceAt(r, c);
+	  if (p == (my_mask | QUEEN)) {
+	    move->src_col = c;
+	    move->src_row = r;
+	    if (IsLegal(*move))
+	      return true;
+	  }
+	}
+      }
+
+      // Horizontal.
+      for (int c = 0; c < 8; c++) {
+	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
+	  int r = move->dst_row;
+	  const uint8 p = PieceAt(r, c);
+	  if (p == (my_mask | QUEEN)) {
+	    move->src_col = c;
+	    move->src_row = r;
+	    if (IsLegal(*move))
+	      return true;
+	  }
+	}
+      }
+
+      return false;
 
     case C_ROOK:
     case ROOK:
       // Castling rook is a representation trick; for this purpose
       // they move exactly the same way.
 
-      // Disambiguation usually tells us exactly the source square.
-      // Note however that this logic does not work for queens!
+      // There is some temptation to reuse the rook logic in queens.
+      // But note: Disambiguation sometimes leaves us with a single
+      // choice for the rook source, but this logic doesn't work for
+      // queens! Also note that the loop below has to check for
+      // both ROOK and C_ROOK.
       
       // If the rook is changing columns, then it is moving
       // horizontally along the dst row, and the source is
@@ -315,26 +427,239 @@ struct Position {
 	return IsLegal(*move);
       }
 
-      return RookLoop();
+      // General case:
+      
+      // Vertical.
+      // PERF: Possibly a cheaper way to do this sort of loop is to
+      // start at dst_row + 1, then check 7 rows, and loop mod 8?
+      for (int r = 0; r < 8; r++) {
+	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
+	  int c = move->dst_col;
+	  const uint8 p = PieceAt(r, c);
+	  if (p == (my_mask | ROOK) || p == (my_mask | C_ROOK)) {
+	    move->src_col = c;
+	    move->src_row = r;
+	    if (IsLegal(*move))
+	      return true;
+	  }
+	}
+      }
 
-    case KNIGHT:
+      // Horizontal.
+      for (int c = 0; c < 8; c++) {
+	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
+	  int r = move->dst_row;
+	  const uint8 p = PieceAt(r, c);
+	  if (p == (my_mask | ROOK) || p == (my_mask | C_ROOK)) {
+	    move->src_col = c;
+	    move->src_row = r;
+	    if (IsLegal(*move))
+	      return true;
+	  }
+	}
+      }
 
-      break;
+      return false;
+
+    case KNIGHT: {
+
+      auto KnightMove =
+	[&](int dr, int dc) {
+	  const int r = (int)move->dst_row + dr;
+	  if (r < 0 || r >= 8) return false;
+	  if (src_row != 255 && src_row != r) return false;
+	  const int c = (int)move->dst_col + dc;
+	  if (c < 0 || c >= 8) return false;
+	  if (src_col != 255 && src_col != c) return false;
+	  move->src_col = c;
+	  move->src_row = r;
+	  return IsLegal(*move);
+	};
+      
+      for (const int udr : { -1, 1 }) {
+	for (const int udc : { -1, 1 }) {
+	  // (1,2) then (2,1).
+	  if (KnightMove(udr, 2 * udc))
+	    return true;
+	  if (KnightMove(2 * udr, udc))
+	    return true;
+	}
+      }
+
+      return false;
+    }
     case BISHOP:
 
-      break;
+      // PERF: Some optimizations when we have disambiguation
+      // are possible, but we still need to check multiple cells
+      // in that case. Here we just do the two diagonal loops.
+
+      return Diagonal(BISHOP);
+
     default:;
     }
     // Bug!
     return false;
   }
-    
 
-  bool IsLegal(Move m) const {
-    // TODO
+  // XXX distinguish "IsAllowed" from "IsLegal"?
+  // Actually the in-check condition is faster if we just implement
+  // it directly; it's not that hard.
+  
+  // Is the move legal in this current board state? The move must be
+  // well-formed (positions within the board).
+  bool IsLegal(Move m) {
+    const bool blackmove = !!(bits & BLACK_MOVE);
+    const uint8 my_mask = blackmove ? BLACK : WHITE;
+    const uint8 your_mask = blackmove ? WHITE : BLACK;
+
+    // XXX assert bounds for debugging at least?
+    
+    // TODO: Perhaps this gets established in each case below?
+    if (m.src_row == m.dst_row &&
+	m.src_col == m.dst_col) return false;
+
+    const uint8 src_piece = PieceAt(m.src_row, m.src_col);
+    const uint8 src_type = src_piece & TYPE_MASK;
+    // Can only move my pieces.
+    if ((src_piece & COLOR_MASK) != my_mask)
+      return false;
+
+    // If capturing, it must be an opponent piece!
+    const uint8 dst_piece = PieceAt(m.dst_row, m.dst_col);
+    const uint8 dst_type = dst_piece & TYPE_MASK;
+    if (dst_type != EMPTY &&
+	(dst_piece & COLOR_MASK) != your_mask)
+      return false;
+
+    // It is never actually legal to capture the opponent's
+    // king, and this helps avoid complexity when testing whether
+    // we're in check.
+    if (dst_type == KING)
+      return false;
+
+    // When we are in check, only some moves are legal. We test this
+    // by checking whether the move leaves us in check, since we also
+    // need to check whether we move into check anyway. Failing to
+    // "get out of check" can equivalently be thought of as "making a
+    // move that leaves the king in check."
+    
+    switch (src_type) {
+    case PAWN:
+    case BISHOP:
+    case KNIGHT:
+    case ROOK:
+    case QUEEN: {
+      break;
+    }
+    case KING: {
+      const int dr = (int)m.dst_row - (int)m.src_row;
+      const int dc = (int)m.dst_col - (int)m.src_col;
+      if (dr == 0 && dc == 0) return false;
+      if (dr >= -1 && dr <= 1 &&
+	  dc >= -1 && dc <= 1) {
+	return NotIntoCheck(m);
+      } else if (dr == 0 && dc == -2) {
+	if (m.src_col != 4)
+	  return false;
+
+	// No castling out of check.
+	if (Attacked(m.src_row, m.src_col))
+	  return false;
+	
+	if (blackmove) {
+	  // black queenside
+	  if (m.src_row != 0)
+	    return false;
+
+	  if (PieceAt(0, 0) != (BLACK | C_ROOK))
+	    return false;
+
+	  if (PieceAt(0, 1) != EMPTY ||
+	      PieceAt(0, 2) != EMPTY ||
+	      PieceAt(0, 3) != EMPTY)
+	    return false;
+
+	  // Can't move "through" or "into" check.
+	  //
+	  // Note that we don't need to remove the king (or move the
+	  // rook) to do these tests. For "through": If an attack
+	  // passes through the king's square (e.g. by a rook on the
+	  // back rank) then the king is also in check. For "into": If
+	  // the rook blocks the check on the back rank (after
+	  // castling) then castling was illegal to begin with because
+	  // the king started in check.
+	  if (Attacked(0, 2) ||
+	      Attacked(0, 3))
+	    return false;
+
+	  return true;
+	  
+	  /*
+	  SetExcursion(
+	      0, 0, EMPTY,
+	      [&]() {
+		SetExcursion(
+		    0, 4, EMPTY,
+		    [&]() {
+		      SetExcursion(
+			  0, 2, BLACK | KING,
+			  [&]() {
+			    SetExcursion(
+				0, 3, BLACK | ROOK,
+				// No need to un-C-rook the other rook
+				// (if applicable) nor unset en passant
+				// flags because they cannot affect
+				// whether this square is attacked.
+				)})})});
+				*/
+		      
+			 
+
+	} else {
+	  // white queenside
+	  if (m.src_row != 7)
+	    return false;
+
+	  if (PieceAt(7, 0) != (WHITE | C_ROOK))
+	    return false;
+
+	  if (PieceAt(7, 1) != EMPTY ||
+	      PieceAt(7, 2) != EMPTY ||
+	      PieceAt(7, 3) != EMPTY)
+	    return false;
+	  // TODO
+	}
+
+	  
+      } else if (dr == 0 && dc == 2) {
+	if (m.src_col != 4)
+	  return false;
+	// TODO...
+      }
+      return false;
+    }
+      
+    default:
+    case EMPTY: return false;
+    }
+    
     return false;
   }
+
+  // XXX TODO?!
+  bool NotIntoCheck(Move m) const { return false; }
+  bool Attacked(int r, int c) const { return false; }
   
+  template<class F>
+  auto SetExcursion(int r, int c, uint8 piece, const F &f) -> decltype(f()) {
+    const uint8 old = PieceAt(r, c);
+    SetPiece(r, c, piece);
+    auto ret = f();
+    SetPiece(r, c, old);
+    return ret;
+  }
+    
   // Apply the move to the current board, modifying it in place.
   // IsLegal(move) must be true or the result is undefined.
   void ApplyMove(Move m) {
@@ -343,7 +668,11 @@ struct Position {
 
   // Apply the move to the current board state, and execute the
   // function with that state applied. Return the return value
-  // of the function after undoing the applied move.
+  // of the function after undoing the applied move. As above,
+  // the move must be legal.
+  // (Privately, this function is also used to test if a move
+  // is legal, by provisionally executing it and looking for
+  // checks against the king.)
   template<class F>
   auto MoveExcursion(Move m, const F &f) -> decltype(f()) {
     // TODO
