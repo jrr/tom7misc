@@ -42,6 +42,11 @@
 // Save state periodically so that rewind is fast.
 #define SNAPSHOT_EVERY 1000
 
+// Show the rotated spritesheet, which is mostly useful
+// for debugging sprite tracking stuff from autocamera
+// v1, which we no longer use.
+static constexpr bool DRAW_SPRITESHEET false;
+
 static bool should_die = false;
 static mutex should_die_m;
 
@@ -507,7 +512,7 @@ struct UIThread {
 	  BlitRGBA2x(f->rgba, 256, 256, XOFF, YOFF, screen);
 
 	  // Draw spritesheets into future!
-	  {
+	  if (DRAW_SPRITESHEET) {
 	    static constexpr int NUM_SPRITESHEETS = 8;
 	    static constexpr int YSTART = YOFF + 512 + 8;
 	    auto fit = frames.begin();

@@ -696,6 +696,8 @@ Worker *TPP::CreateWorker() {
 void Worker::Visualize(const Goal *goal, vector<uint8> *argb) {
   MutexLock ml(&mutex);
   CHECK(argb->size() == 4 * 256 * 256);
+  // XXX PERF: How is this working if we only call ->Step?
+  // Are we wasting a lot of time rendering the screen?
   emu->GetImageARGB(argb);
   vector<uint8> mem = emu->GetMemory();
 
