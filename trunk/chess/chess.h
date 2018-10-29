@@ -4,6 +4,8 @@
 
 #include <cstdint>
 #include <initializer_list>
+#include <utility>
+#include <tuple>
 
 using uint8 = std::uint8_t;
 using uint32 = std::uint32_t;
@@ -64,8 +66,7 @@ struct Position {
 
   void SetPiece(int row, int col, uint8 p) {
     uint32 &r = rows[row];
-    uint32 mask = 0b1111'0000'0000'0000'0000'0000'0000'0000 >>
-      (col * 4);
+    uint32 mask = 0xF0000000 >> (col * 4);
     uint32 shift = p << (4 * (7 - col));
     r = (r & ~mask) | shift;
   }
@@ -99,14 +100,14 @@ struct Position {
   //  - The move string may be terminated by \0 or whitespace.
   bool ParseMove(const char *m, Move *move) {
     const bool blackmove = !!(bits & BLACK_MOVE);
-    const uint8 my_mask = blackmove ? BLACK : WHITE;
-    // const uint8 your_mask = blackmove ? WHITE : BLACK;
+    const uint8 my_color = blackmove ? BLACK : WHITE;
+    // const uint8 your_color = blackmove ? WHITE : BLACK;
 
     if (m[0] == 'O' && m[1] == '-' && m[2] == 'O') {
       // Castling move. The king must be on its home square for
       // this to possibly be legal.
       const int row = blackmove ? 0 : 7;
-      if (PieceAt(row, 4) != (my_mask | KING))
+      if (PieceAt(row, 4) != (my_color | KING))
 	return false;
       
       move->src_row = row;
@@ -165,10 +166,10 @@ struct Position {
     // Also parse promotion string if it's there.
     if (m[len] == '=') {
       switch (m[len + 1]) {
-      case 'Q': move->promote_to = QUEEN | my_mask; break;
-      case 'N': move->promote_to = KNIGHT | my_mask; break;
-      case 'R': move->promote_to = ROOK | my_mask; break;
-      case 'B': move->promote_to = BISHOP | my_mask; break;
+      case 'Q': move->promote_to = QUEEN | my_color; break;
+      case 'N': move->promote_to = KNIGHT | my_color; break;
+      case 'R': move->promote_to = ROOK | my_color; break;
+      case 'B': move->promote_to = BISHOP | my_color; break;
       default:
 	return false;
       }
@@ -249,7 +250,8 @@ struct Position {
 		 r += dr, c += dc) {
 	      if (src_row == 255 || src_row == r) {
 		if (src_col == 255 || src_col == c) {
-		  if (PieceAt(r, c) == (my_mask | expected_type)) {
+		  // PERF could exit early if the square is not empty?
+		  if (PieceAt(r, c) == (my_color | expected_type)) {
 		    move->src_row = r;
 		    move->src_col = c;
 		    if (IsLegal(*move)) {
@@ -310,12 +312,12 @@ struct Position {
 	    return false;
 
 	  move->src_col = move->dst_col;
-	  if (PieceAt(move->dst_row - 1, move->dst_col) == (my_mask | PAWN)) {
+	  if (PieceAt(move->dst_row - 1, move->dst_col) == (my_color | PAWN)) {
 	    move->src_row = move->dst_row - 1;
 	    return IsLegal(*move);
 	  }
 
-	  if (PieceAt(move->dst_row - 2, move->dst_col) == (my_mask | PAWN)) {
+	  if (PieceAt(move->dst_row - 2, move->dst_col) == (my_color | PAWN)) {
 	    move->src_row = move->dst_row - 2;
 	    return IsLegal(*move);
 	  }
@@ -326,12 +328,12 @@ struct Position {
 	    return false;
 
 	  move->src_col = move->dst_col;
-	  if (PieceAt(move->dst_row + 1, move->dst_col) == (my_mask | PAWN)) {
+	  if (PieceAt(move->dst_row + 1, move->dst_col) == (my_color | PAWN)) {
 	    move->src_row = move->dst_row + 1;
 	    return IsLegal(*move);
 	  }
 
-	  if (PieceAt(move->dst_row + 2, move->dst_col) == (my_mask | PAWN)) {
+	  if (PieceAt(move->dst_row + 2, move->dst_col) == (my_color | PAWN)) {
 	    move->src_row = move->dst_row + 2;
 	    return IsLegal(*move);
 	  }
@@ -351,7 +353,7 @@ struct Position {
 	  for (int c = (int)move->dst_col - 1; c <= move->dst_col + 1; c++) {
 	    if (c >= 0 && c < 8) {
 	      if (r != move->dst_row || c != move->dst_col) {
-		if (PieceAt(r, c) == (my_mask | KING)) {
+		if (PieceAt(r, c) == (my_color | KING)) {
 		  move->src_row = r;
 		  move->src_col = c;
 		  return IsLegal(*move);
@@ -375,7 +377,7 @@ struct Position {
 	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
 	  int c = move->dst_col;
 	  const uint8 p = PieceAt(r, c);
-	  if (p == (my_mask | QUEEN)) {
+	  if (p == (my_color | QUEEN)) {
 	    move->src_col = c;
 	    move->src_row = r;
 	    if (IsLegal(*move))
@@ -389,7 +391,7 @@ struct Position {
 	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
 	  int r = move->dst_row;
 	  const uint8 p = PieceAt(r, c);
-	  if (p == (my_mask | QUEEN)) {
+	  if (p == (my_color | QUEEN)) {
 	    move->src_col = c;
 	    move->src_row = r;
 	    if (IsLegal(*move))
@@ -436,7 +438,7 @@ struct Position {
 	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
 	  int c = move->dst_col;
 	  const uint8 p = PieceAt(r, c);
-	  if (p == (my_mask | ROOK) || p == (my_mask | C_ROOK)) {
+	  if (p == (my_color | ROOK) || p == (my_color | C_ROOK)) {
 	    move->src_col = c;
 	    move->src_row = r;
 	    if (IsLegal(*move))
@@ -450,7 +452,7 @@ struct Position {
 	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
 	  int r = move->dst_row;
 	  const uint8 p = PieceAt(r, c);
-	  if (p == (my_mask | ROOK) || p == (my_mask | C_ROOK)) {
+	  if (p == (my_color | ROOK) || p == (my_color | C_ROOK)) {
 	    move->src_col = c;
 	    move->src_row = r;
 	    if (IsLegal(*move))
@@ -510,26 +512,26 @@ struct Position {
   // well-formed (positions within the board).
   bool IsLegal(Move m) {
     const bool blackmove = !!(bits & BLACK_MOVE);
-    const uint8 my_mask = blackmove ? BLACK : WHITE;
-    const uint8 your_mask = blackmove ? WHITE : BLACK;
+    const uint8 my_color = blackmove ? BLACK : WHITE;
+    const uint8 your_color = blackmove ? WHITE : BLACK;
 
     // XXX assert bounds for debugging at least?
     
-    // TODO: Perhaps this gets established in each case below?
+    // Below we assume no self-moves.
     if (m.src_row == m.dst_row &&
 	m.src_col == m.dst_col) return false;
 
     const uint8 src_piece = PieceAt(m.src_row, m.src_col);
     const uint8 src_type = src_piece & TYPE_MASK;
     // Can only move my pieces.
-    if ((src_piece & COLOR_MASK) != my_mask)
+    if ((src_piece & COLOR_MASK) != my_color)
       return false;
 
     // If capturing, it must be an opponent piece!
     const uint8 dst_piece = PieceAt(m.dst_row, m.dst_col);
     const uint8 dst_type = dst_piece & TYPE_MASK;
     if (dst_type != EMPTY &&
-	(dst_piece & COLOR_MASK) != your_mask)
+	(dst_piece & COLOR_MASK) != your_color)
       return false;
 
     // It is never actually legal to capture the opponent's
@@ -543,15 +545,174 @@ struct Position {
     // need to check whether we move into check anyway. Failing to
     // "get out of check" can equivalently be thought of as "making a
     // move that leaves the king in check."
+
+    auto GetDir =
+      [](uint8 src, uint8 dst) {
+	// assert src != dst
+	return src < dst ? 1 : -1;
+      };
+
+    auto BishopMove =
+      [&]() {
+	const int vr = (int)m.dst_row - (int)m.src_row;
+	const int vc = (int)m.dst_col - (int)m.src_col;
+
+	// Need to move the same number of spaces along one of the
+	// four diagonals.
+	int dist = abs(vr);
+	if (dist != abs(vc))
+	  return false;
+
+	// assert vr != 0 && vc != 0
+
+	// PERF: Since we know everything is in bounds, we can do
+	// these loops faster by using raw indices (i.e. 0--63) and a
+	// single delta.
+
+	int dr = GetDir(m.src_row, m.dst_row);
+	int dc = GetDir(m.src_col, m.dst_col);
+
+	for (int r = (int)m.src_row + dr, c = (int)m.src_col + dc;
+	     --dist;
+	     r += dr, c += dc) {
+	  if (PieceAt(r, c) != EMPTY) {
+	    return false;
+	  }
+	}
+
+	return true;
+      };
+    
+    auto RookMove =
+      [&]() {
+	if (m.src_row == m.dst_row &&
+	    m.src_col != m.dst_col) {
+	  // Moving horizontally.
+	  const int d = GetDir(m.src_col, m.dst_col);
+	  for (int c = (int)m.src_col + d; c != m.dst_col - d; c += d)
+	    if (PieceAt(m.src_row, c) != EMPTY)
+	      return false;
+	  return true;
+	    
+	} else if (m.src_row != m.dst_row &&
+		   m.src_col == m.dst_col) {
+	  // Moving vertically.
+	  const int d = GetDir(m.src_row, m.dst_row);
+	  for (int r = (int)m.src_row + d; r != m.dst_row - d; r += d)
+	    if (PieceAt(r, m.src_col) != EMPTY)
+	      return false;
+
+	  return true;
+	}
+	return false;
+      };
+
+    // Only pawn can promote.
+    if (m.promote_to != 0 && src_type != PAWN)
+      return false;
+
+    auto LegalPromotion =
+      [](uint8 type) {
+	switch (type) {
+	case QUEEN:
+	case ROOK:
+	case BISHOP:
+	case KNIGHT:
+	  return true;
+	default:
+	  return false;
+	}
+      };
     
     switch (src_type) {
     case PAWN:
-    case BISHOP:
-    case KNIGHT:
-    case ROOK:
-    case QUEEN: {
+
+      // Ensure promotion is legal.
+      if (blackmove) {
+	if (m.dst_row == 0) {
+	  return (m.promote_to & COLOR_MASK) == BLACK &&
+	    LegalPromotion(m.promote_to & TYPE_MASK);
+	} else {
+	  if (m.promote_to != 0)
+	    return false;
+	}
+      } else {
+	if (m.dst_row == 7) {
+	  return (m.promote_to & COLOR_MASK) == WHITE &&
+	    LegalPromotion(m.promote_to & TYPE_MASK);
+	} else {
+	  if (m.promote_to != 0)
+	    return false;
+	}
+      }
+      
+      if (m.src_col == m.dst_col) {
+	// Normal non-capturing move. Destination
+	// must be empty.
+	if (PieceAt(m.dst_row, m.dst_col) != EMPTY)
+	  return false;
+
+	int dr = (int)m.dst_row - (int)m.src_row;
+	if (blackmove) {
+	  if (dr == 1)
+	    return NotIntoCheck(m);
+
+	  if (dr == 2) {
+	    if (m.src_row != 1)
+	      return false;
+
+	    if (PieceAt(2, m.dst_col) != EMPTY)
+	      return false;
+
+	    return NotIntoCheck(m);
+	  }
+	  
+	  return false;
+	} else {
+	  if (dr == -1)
+	    return NotIntoCheck(m);
+
+	  if (dr == -2) {
+	    if (m.src_row != 6)
+	      return false;
+
+	    if (PieceAt(5, m.dst_col) != EMPTY)
+	      return false;
+
+	    return NotIntoCheck(m);
+	  }
+	  
+	  return false;
+	}
+	
+      } else {
+	// Capturing move.
+
+	// TODO! (Remember we can't use NotIntoCheck for e.p.)
+      }
       break;
+
+    case KNIGHT: {
+      // This is super easy because there isn't any need to check for
+      // pieces "in the way."
+      const int adr = abs((int)m.src_row - (int)m.dst_row);
+      const int adc = abs((int)m.src_col - (int)m.src_col);
+
+      return ((adr == 1 && adc == 2) ||
+	      (adr == 2 && adc == 1)) &&
+	NotIntoCheck(m);
     }
+      
+    case BISHOP:
+      return BishopMove() && NotIntoCheck(m);
+
+    case C_ROOK:
+    case ROOK:
+      return RookMove() && NotIntoCheck(m);
+      
+    case QUEEN:
+      return (RookMove() || BishopMove()) && NotIntoCheck(m);
+
     case KING: {
       const int dr = (int)m.dst_row - (int)m.src_row;
       const int dc = (int)m.dst_col - (int)m.src_col;
@@ -559,83 +720,69 @@ struct Position {
       if (dr >= -1 && dr <= 1 &&
 	  dc >= -1 && dc <= 1) {
 	return NotIntoCheck(m);
+
       } else if (dr == 0 && dc == -2) {
+	// Queenside castling.
 	if (m.src_col != 4)
 	  return false;
 
 	// No castling out of check.
 	if (Attacked(m.src_row, m.src_col))
 	  return false;
-	
-	if (blackmove) {
-	  // black queenside
-	  if (m.src_row != 0)
-	    return false;
 
-	  if (PieceAt(0, 0) != (BLACK | C_ROOK))
-	    return false;
+	// Appropriate back rank for the color.
+	const int row = blackmove ? 0 : 7;
 
-	  if (PieceAt(0, 1) != EMPTY ||
-	      PieceAt(0, 2) != EMPTY ||
-	      PieceAt(0, 3) != EMPTY)
-	    return false;
+	if (m.src_row != row)
+	  return false;
 
-	  // Can't move "through" or "into" check.
-	  //
-	  // Note that we don't need to remove the king (or move the
-	  // rook) to do these tests. For "through": If an attack
-	  // passes through the king's square (e.g. by a rook on the
-	  // back rank) then the king is also in check. For "into": If
-	  // the rook blocks the check on the back rank (after
-	  // castling) then castling was illegal to begin with because
-	  // the king started in check.
-	  if (Attacked(0, 2) ||
-	      Attacked(0, 3))
-	    return false;
+	if (PieceAt(row, 0) != (my_color | C_ROOK))
+	  return false;
 
-	  return true;
-	  
-	  /*
-	  SetExcursion(
-	      0, 0, EMPTY,
-	      [&]() {
-		SetExcursion(
-		    0, 4, EMPTY,
-		    [&]() {
-		      SetExcursion(
-			  0, 2, BLACK | KING,
-			  [&]() {
-			    SetExcursion(
-				0, 3, BLACK | ROOK,
-				// No need to un-C-rook the other rook
-				// (if applicable) nor unset en passant
-				// flags because they cannot affect
-				// whether this square is attacked.
-				)})})});
-				*/
-		      
-			 
+	if (PieceAt(row, 1) != EMPTY ||
+	    PieceAt(row, 2) != EMPTY ||
+	    PieceAt(row, 3) != EMPTY)
+	  return false;
 
-	} else {
-	  // white queenside
-	  if (m.src_row != 7)
-	    return false;
+	// Can't move "through" or "into" check.
+	//
+	// Note that we don't need to remove the king (or move the
+	// rook) to do these tests, because we already tested that
+	// the king is not in check in its home square. Only a
+	// back-rank check (like from a white rook on f8) would
+	// be relevant (discovered by removing the king from its
+	// home square, or blocked by moving the rook to its
+	// destination square), but this type of attack is excluded
+	// because the king is not currently in check.
+	if (Attacked(row, 2) ||
+	    Attacked(row, 3))
+	  return false;
 
-	  if (PieceAt(7, 0) != (WHITE | C_ROOK))
-	    return false;
-
-	  if (PieceAt(7, 1) != EMPTY ||
-	      PieceAt(7, 2) != EMPTY ||
-	      PieceAt(7, 3) != EMPTY)
-	    return false;
-	  // TODO
-	}
-
+	return true;
 	  
       } else if (dr == 0 && dc == 2) {
+	// Kingside. Mimics the logic above.
+	
 	if (m.src_col != 4)
 	  return false;
-	// TODO...
+
+	if (Attacked(m.src_row, m.src_col))
+	  return false;
+
+	const int row = blackmove ? 0 : 7;
+
+	if (PieceAt(row, 7) != (my_color | C_ROOK))
+	  return false;
+
+	if (PieceAt(row, 6) != EMPTY ||
+	    PieceAt(row, 5) != EMPTY)
+	  return false;
+
+	if (Attacked(row, 6) ||
+	    Attacked(row, 5))
+	  return false;
+
+	return true;
       }
       return false;
     }
@@ -647,9 +794,115 @@ struct Position {
     return false;
   }
 
-  // XXX TODO?!
-  bool NotIntoCheck(Move m) const { return false; }
-  bool Attacked(int r, int c) const { return false; }
+  // Get the row, col with the current player's king.
+  std::pair<int, int> GetKing() const {
+    const bool blackmove = !!(bits & BLACK_MOVE);
+    const uint8 my_color = blackmove ? BLACK : WHITE;
+
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	if (PieceAt(r, c) == (my_color | KING))
+	  return {r, c};
+      }
+    }
+
+    // Invalid board -- could assert here.
+    return {0, 0};
+  }
+
+  // Returns true if the indicated square is attacked (by the other
+  // player) in the current position. "Attacked" here means an otherwise
+  // unrestricted piece would be able to move in its fashion to capture
+  // on that square, not considering check. Does not include en passant.
+  // The square is typically unoccupied.
+  bool Attacked(int r, int c) const {
+    const bool blackmove = !!(bits & BLACK_MOVE);
+    const uint8 attacker_color = blackmove ? WHITE : BLACK;
+
+    // TODO this logic can move into the vector search below.
+    // Check the pawn attacks since these are not symmetric.
+    if (blackmove) {
+      if (r < 7) {
+	if (c > 0 && PieceAt(r + 1, c - 1) == (attacker_color | PAWN))
+	  return true;
+	if (c < 7 && PieceAt(r + 1, c + 1) == (attacker_color | PAWN))
+	  return true;
+      }
+    } else {
+      if (r > 0) {
+	if (c > 0 && PieceAt(r - 1, c - 1) == (attacker_color | PAWN))
+	  return true;
+	if (c < 7 && PieceAt(r - 1, c + 1) == (attacker_color | PAWN))
+	  return true;
+      }
+    }
+
+    // Now knight moves.
+    auto HasKnight =
+      [&](int r, int c) {
+	if (r < 0 || r >= 8) return false;
+	if (c < 0 || c >= 8) return false;
+	return PieceAt(r, c) == (attacker_color | KNIGHT);
+      };
+
+    for (const int udr : { -1, 1 }) {
+      for (const int udc : { -1, 1 }) {
+	// (1,2) then (2,1).
+	if (HasKnight(r + udr, c + 2 * udc))
+	  return true;
+	if (HasKnight(r + 2 * udr, c + udc))
+	  return true;
+      }
+    }
+
+    // Now check queen moves for pieces that can make those moves.
+    // Note that for this purpose, king is equivalently a queen that
+    // can only move 1 square!
+    for (const int dr : { -1, 0, 1 }) {
+      for (const int dc : { -1, 0, 1 }) {
+	// Skip the degenerate vector.
+	if (dr == 0 && dc == 0) continue;
+
+	// Along any dimension, we 
+	for (int rr = r + dr, cc = c + dc;
+	     rr >= 0 && cc >= 0 && rr < 8 && cc < 8;
+	     rr += dr, cc += dc) {
+	  const uint8 p = PieceAt(rr, cc);
+	  if ((p & COLOR_MASK) == attacker_color) {
+	    switch (p & TYPE_MASK) {
+	    case PAWN:
+	      // XXX TODO: actually this is quite easy to just do here.
+	      // Move the special-case logic from above here.
+	      break;
+	    case KING:
+	      if (abs(dr) <= 1 && abs(dc) <= 1)
+		return true;
+	      break;
+	    case QUEEN:
+	      return true;
+	    case ROOK:
+	    case C_ROOK:
+	      return dc == 0 || dr == 0;
+	    case BISHOP:
+	      return dc != 0 && dr != 0;
+	    case KNIGHT:
+	      // Knights don't attack on these vectors. We already
+	      // checked them above.
+	      break;
+	    }
+	  }
+	    
+	  // Any other contents would block a potential attack.
+	  // Move on to the next vector.
+	  if (p != EMPTY)
+	    break;
+	}
+      }
+    }
+      
+    return false;
+  }
+    
   
   template<class F>
   auto SetExcursion(int r, int c, uint8 piece, const F &f) -> decltype(f()) {
@@ -679,14 +932,26 @@ struct Position {
     return f();
   }
   
-  #if 0
-  // Never returns C_ROOK.
-  uint8 SimplePieceAt(int row, int col) const {
-    uint8 p = PieceAt(row, col);
-    // XXX no, because it also has color bits for example
-    return p == C_ROOK ? ROOK : p;
+ private:
+  // XXX document
+  // Note: does not work for castling, e.p., other weird stuff?
+  bool NotIntoCheck(Move m) {
+    const uint8 p = PieceAt(m.src_row, m.src_col);
+    return
+      SetExcursion(
+	  m.src_row, m.src_col, EMPTY,
+	  [&]() {
+	    return
+	      SetExcursion(
+		  m.dst_row, m.dst_col, p,
+		  [&]() {
+		    int r, c;
+		    std::tie(r, c) = GetKing();
+		    return Attacked(r, c);
+		  });
+	  });
   }
-  #endif
+
   
   // Whose move?
   static constexpr uint8 BLACK_MOVE = 0b10000000U;
