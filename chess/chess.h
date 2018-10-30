@@ -181,6 +181,8 @@ struct Position {
   //    and destination of the move.
   //  - The move string may be terminated by \0 or whitespace.
   bool ParseMove(const char *m, Move *move) {
+    printf("\n== %s ==\n", m);
+
     const bool blackmove = !!(bits & BLACK_MOVE);
     const uint8 my_color = blackmove ? BLACK : WHITE;
     // const uint8 your_color = blackmove ? WHITE : BLACK;
@@ -203,11 +205,7 @@ struct Position {
 	move->dst_col = 6;
       }
 
-      if (IsLegal(*move)) {
-	return true;
-      } else {
-	return false;
-      }
+      return IsLegal(*move);
     }
 
     // Need to find the end of the move string up front.
@@ -237,6 +235,8 @@ struct Position {
     if (len < 2)
       return false;
 
+    printf("len: %d (%c %c)\n", len, m[len - 2], m[len - 1]);
+    
     // The move must end with the destination square.
     char dr = m[len - 1];
     char dc = m[len - 2];
@@ -275,6 +275,8 @@ struct Position {
       }
     }
 
+    printf("[%d] src_type: %d\n", idx, src_type);
+    
     // Now between idx and len - 2, we have:
     //  optional disambiguation
     //  'x' if a capturing move
@@ -287,7 +289,7 @@ struct Position {
     uint8 src_row = 255;
     uint8 src_col = 255;
 
-    bool capturing = true;
+    bool capturing = false;
     for (; idx < len - 2; idx++) {
       char c = m[idx];
       if (c >= 'a' && c <= 'h') {
@@ -302,6 +304,9 @@ struct Position {
       }
     }
 
+    printf("src row/col %d/%d%s\n", src_row, src_col,
+	   capturing ? " (capt)" : "");
+    
     // Rare in the wild, but if the move is fully disambiguated,
     // then we can just test its legality and be done.
     // (Note that this doesn't test whether the piece in the
@@ -384,6 +389,8 @@ struct Position {
 	
       } else {
 	// Not capturing.
+	printf("Non-capturing pawn %d,%d -> %d,%d\n",
+	       src_row, src_col,  move->dst_row, move->dst_col);
 	
 	// A move like "h4" is allowed with pawns on both h2 and h3,
 	// or as a double-move with pawn just on h2. We have to check
@@ -585,10 +592,6 @@ struct Position {
     // Bug!
     return false;
   }
-
-  // XXX distinguish "IsAllowed" from "IsLegal"?
-  // Actually the in-check condition is faster if we just implement
-  // it directly; it's not that hard.
   
   // Is the move legal in this current board state? The move must be
   // well-formed (positions within the board).
@@ -597,6 +600,11 @@ struct Position {
     const uint8 my_color = blackmove ? BLACK : WHITE;
     const uint8 your_color = blackmove ? WHITE : BLACK;
 
+    printf("IsLegal? %d,%d -> %d,%d =%d\n",
+	   m.src_row, m.src_col,
+	   m.dst_row, m.dst_col,
+	   m.promote_to);
+    
     // XXX assert bounds for debugging at least?
     
     // Below we assume no self-moves.
@@ -709,6 +717,7 @@ struct Position {
     switch (src_type) {
     case PAWN:
 
+      printf("IsLegal Pawn\n");
       // Promotion can apply with both capturing and non-capturing
       // moves, so make sure it is legal first.
       if (blackmove) {
@@ -730,6 +739,7 @@ struct Position {
       }
       
       if (m.src_col == m.dst_col) {
+	printf("IsLegal: Non-capturing pawn.\n");
 	// Normal non-capturing move. Destination
 	// must be empty.
 	if (PieceAt(m.dst_row, m.dst_col) != EMPTY)
@@ -752,6 +762,7 @@ struct Position {
 	  
 	  return false;
 	} else {
+	  printf("IsLegal: white %d\n", dr);
 	  if (dr == -1)
 	    return NotIntoCheck(m);
 
@@ -777,18 +788,25 @@ struct Position {
 	int dr = (int)m.dst_row - (int)m.src_row;
 	if (dr != (blackmove ? 1 : -1))
 	  return false;
+
+	printf("Pawn capture dr=%d, dc=%d %s%d\n", dr, dc,
+	       (bits & DOUBLE) ? "double " : "",
+	       (bits & PAWN_COL));
 	
 	// En passant captures.
 	if (PieceAt(m.dst_row, m.dst_col) == EMPTY) {
 	  if ((bits & DOUBLE) &&
 	      m.dst_col == (bits & PAWN_COL) &&
 	      m.dst_row == (blackmove ? 5 : 2) &&
-	      // In principle this could be an assertion..
-	      PieceAt(m.dst_row + dr, m.dst_col) == (your_color | PAWN)) {
+	      // In principle this could be an assertion.
+	      // The captured piece is actually on the source row,
+	      // which is the same as dst_row - dr.
+	      PieceAt(m.dst_row - dr, m.dst_col) == (your_color | PAWN)) {
+	    printf("en passant capture..\n");
 	    // NotIntoCheck moves the capturing pawn to the destination
 	    // square, but we also need to remove the captured pawn.
-	    SetExcursion(m.dst_row + dr, m.dst_col, EMPTY,
-			 [&]() { return NotIntoCheck(m); });
+	    return SetExcursion(m.dst_row - dr, m.dst_col, EMPTY,
+				[&]() { return NotIntoCheck(m); });
 	  } else {
 	    return false;
 	  }
@@ -805,11 +823,13 @@ struct Position {
       break;
 
     case KNIGHT: {
+
       // This is super easy because there isn't any need to check for
       // pieces "in the way."
       const int adr = abs((int)m.src_row - (int)m.dst_row);
-      const int adc = abs((int)m.src_col - (int)m.src_col);
-
+      const int adc = abs((int)m.src_col - (int)m.dst_col);
+      printf("IsLegal Knight: %d %d\n", adr, adc);
+      
       return ((adr == 1 && adc == 2) ||
 	      (adr == 2 && adc == 1)) &&
 	NotIntoCheck(m);
@@ -911,12 +931,10 @@ struct Position {
     const bool blackmove = !!(bits & BLACK_MOVE);
     const uint8 my_color = blackmove ? BLACK : WHITE;
 
-    for (int r = 0; r < 8; r++) {
-      for (int c = 0; c < 8; c++) {
+    for (int r = 0; r < 8; r++)
+      for (int c = 0; c < 8; c++)
 	if (PieceAt(r, c) == (my_color | KING))
 	  return {r, c};
-      }
-    }
 
     // Invalid board -- could assert here.
     return {0, 0};
@@ -974,12 +992,14 @@ struct Position {
       for (const int dc : { -1, 0, 1 }) {
 	// Skip the degenerate vector.
 	if (dr == 0 && dc == 0) continue;
-
+	
 	// Along any dimension, we 
 	for (int rr = r + dr, cc = c + dc;
 	     rr >= 0 && cc >= 0 && rr < 8 && cc < 8;
 	     rr += dr, cc += dc) {
 	  const uint8 p = PieceAt(rr, cc);
+	  printf("v %d,%d = %d,%d (%d)\n", dr, dc, rr, cc, p);
+
 	  if ((p & COLOR_MASK) == attacker_color) {
 	    switch (p & TYPE_MASK) {
 	    case PAWN:
@@ -1014,7 +1034,7 @@ struct Position {
       
     return false;
   }
-    
+
   
   template<class F>
   auto SetExcursion(int r, int c, uint8 piece, const F &f) -> decltype(f()) {
@@ -1131,7 +1151,11 @@ struct Position {
 		  [&]() {
 		    int r, c;
 		    std::tie(r, c) = GetKing();
-		    return Attacked(r, c);
+		    printf("King at %d,%d\n", r, c);
+		    bool attacked = Attacked(r, c);
+		    printf("King is %s\n",
+			   attacked ? "attacked" : "not attacked");
+		    return !attacked;
 		  });
 	  });
   }

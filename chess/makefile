@@ -1,5 +1,5 @@
 
-default: chess.exe
+default: chess_test.exe
 
 CXXFLAGS=--std=c++17 -Wall -Wno-deprecated -Wno-sign-compare
 OPT=-O2
@@ -23,5 +23,12 @@ CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/stringprintf.o
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
+../cc-lib/%.o : ../cc-lib/%.cc
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
+	@bash -c "echo -n '_'"
+
 chess_test.exe : chess_test.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
+
+clean :
+	rm -f *.o *.exe $(CCLIB_OBJECTS)
