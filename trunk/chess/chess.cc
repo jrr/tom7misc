@@ -1,9 +1,5 @@
 
-
 #include "chess.h"
 
-int main(int argc, char **argv) {
-  Position pos;
-  
-  return 0;
-}
+// TODO: Move some functions (that should not be inlined) into this cc
+// file.

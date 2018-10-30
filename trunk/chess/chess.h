@@ -56,7 +56,7 @@ struct Position {
   //   MSB of 0 = white
   //   MSB of 1 = black
   //   lowest 3 bits from the piece enum.
-  uint32 rows[8] = { 0 };
+  uint32 rows[8] = { };
 
   uint8 PieceAt(int row, int col) const {
     const uint32 r = rows[row];
@@ -79,7 +79,89 @@ struct Position {
     // zero unless a pawn promotion. contains the white/black mask.
     uint8 promote_to = 0;
   };
-  
+
+  // TODO: Parse FEN.
+  // e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+  static bool ParseFEN(const char *fen, Position *pos) {
+    int idx = 0;
+    
+    // First part fills in the pieces.
+    auto InitBoard =
+      [fen, pos, &idx]() {
+	int row = 0, col = 0;
+	for (;; idx++) {
+	  const char c = fen[idx];
+	  if (c == 0) return false;
+
+	  if (col == 8) {
+	    if (row == 7) {
+	      // This is the only successful termination.
+	      idx++;
+	      return c == ' ';
+	    } else {
+	      if (c != '/')
+		return false;
+
+	      col = 0;
+	      row++;
+	    }
+	  } else {
+	    if (c >= '1' && c <= '8') {
+	      int n = c - '0';
+	      while (n--) {
+		if (col > 7)
+		  return false;
+		pos->SetPiece(row, col, EMPTY);
+		col++;
+	      }
+	    } else {
+	      uint8 p = 0;
+	      switch (c) {
+	      case 'R': p = WHITE | ROOK; break;
+	      case 'r': p = BLACK | ROOK; break;
+	      case 'N': p = WHITE | KNIGHT; break;
+	      case 'n': p = BLACK | KNIGHT; break;
+	      case 'B': p = WHITE | BISHOP; break;
+	      case 'b': p = BLACK | BISHOP; break;
+	      case 'Q': p = WHITE | QUEEN; break;
+	      case 'q': p = BLACK | QUEEN; break;
+	      case 'K': p = WHITE | KING; break;
+	      case 'k': p = BLACK | KING; break;
+	      case 'P': p = WHITE | PAWN; break;
+	      case 'p': p = BLACK | PAWN; break;
+	      default: return false;
+	      }
+	      pos->SetPiece(row, col, p);
+	      col++;
+	    }
+	  }
+	}
+      };
+
+    auto InitMeta =
+      [fen, pos, &idx]() {
+	const char whose_move = fen[idx++];
+	switch (whose_move) {
+	case 'w':
+	  pos->bits = 0u;
+	  break;
+	case 'b':
+	  pos->bits = BLACK_MOVE;
+	  break;
+	default:
+	  return false;
+	}
+
+	// TODO: Castling flags
+	// TODO: en passant state
+	// (ignoring move counts here.)
+	
+	return true;
+      };
+    
+    return InitBoard() && InitMeta();
+  }
+
   // Parse a PGN-style move m in the current board state.
   // A move is the "Nc3!?" part of PGN. Move numbers, evaluations,
   // etc. should not be included. Does not do syntactic validation
@@ -627,7 +709,8 @@ struct Position {
     switch (src_type) {
     case PAWN:
 
-      // Ensure promotion is legal.
+      // Promotion can apply with both capturing and non-capturing
+      // moves, so make sure it is legal first.
       if (blackmove) {
 	if (m.dst_row == 0) {
 	  return (m.promote_to & COLOR_MASK) == BLACK &&
@@ -687,8 +770,37 @@ struct Position {
 	
       } else {
 	// Capturing move.
+	int dc = (int)m.dst_col - (int)m.src_col;
+	// Capturing is always one square diagonally, even en passant.
+	if (abs(dc) != 1)
+	  return false;
+	int dr = (int)m.dst_row - (int)m.src_row;
+	if (dr != (blackmove ? 1 : -1))
+	  return false;
+	
+	// En passant captures.
+	if (PieceAt(m.dst_row, m.dst_col) == EMPTY) {
+	  if ((bits & DOUBLE) &&
+	      m.dst_col == (bits & PAWN_COL) &&
+	      m.dst_row == (blackmove ? 5 : 2) &&
+	      // In principle this could be an assertion..
+	      PieceAt(m.dst_row + dr, m.dst_col) == (your_color | PAWN)) {
+	    // NotIntoCheck moves the capturing pawn to the destination
+	    // square, but we also need to remove the captured pawn.
+	    SetExcursion(m.dst_row + dr, m.dst_col, EMPTY,
+			 [&]() { return NotIntoCheck(m); });
+	  } else {
+	    return false;
+	  }
+	}
 
-	// TODO! (Remember we can't use NotIntoCheck for e.p.)
+	// Otherwise, a normal capture. There must be a piece to
+	// capture (we already tested above that if there is a piece
+	// on the destination square, it has the opponent color).
+	if (PieceAt(m.dst_row, m.dst_col) == EMPTY)
+	  return false;
+
+	return NotIntoCheck(m);
       }
       break;
 
@@ -916,16 +1028,87 @@ struct Position {
   // Apply the move to the current board, modifying it in place.
   // IsLegal(move) must be true or the result is undefined.
   void ApplyMove(Move m) {
-    // TODO
+    // Here we can assume the move is legal, so it simplifies our
+    // lives somewhat. But there are still a few special cases,
+    // and more bookkeeping.
+
+    // To start, clear en passant state, since any move invalidates
+    // it.
+    bits &= ~(DOUBLE | PAWN_COL);
+
+    uint8 source_piece = PieceAt(m.src_row, m.src_col);
+    // If moving the king (this includes castling), remove the ability
+    // to castle.
+    if ((source_piece & TYPE_MASK) == KING) {
+      const bool blackmove = !!(bits & BLACK_MOVE);
+      if (blackmove) {
+	if (PieceAt(0, 0) == (BLACK | C_ROOK))
+	  SetPiece(0, 0, BLACK | ROOK);
+	if (PieceAt(0, 7) == (BLACK | C_ROOK))
+	  SetPiece(0, 7, BLACK | ROOK);
+      } else {
+	if (PieceAt(7, 0) == (WHITE | C_ROOK))
+	  SetPiece(7, 0, WHITE | ROOK);
+	if (PieceAt(7, 7) == (WHITE | C_ROOK))
+	  SetPiece(7, 7, WHITE | ROOK);
+      }
+    }
+
+    // If moving a castleable rook, it becomes a regular rook.
+    if ((source_piece & TYPE_MASK) == C_ROOK)
+      source_piece = (COLOR_MASK & source_piece) | ROOK;
+
+    
+    // And speaking of which, test for the strange en passant
+    // case first.
+    if ((source_piece & TYPE_MASK) == PAWN &&
+	m.src_col != m.dst_col &&
+	PieceAt(m.dst_row, m.dst_col) == EMPTY) {
+      // Pawn move, not vertical, and into empty space. If it is
+      // legal then it is en passant.
+      int dr = (int)m.dst_row - (int)m.src_row;
+      SetPiece(m.dst_row + dr, m.dst_col, EMPTY);
+
+      // If a double pawn move, set the en passant state...
+    } else if ((source_piece & TYPE_MASK) == PAWN &&
+	       ((m.src_row == 1 && m.dst_row == 3) ||
+		(m.src_row == 6 && m.dst_row == 4))) {
+
+      bits |= (DOUBLE | m.dst_col);
+      
+      // And then for castling...
+    } else if ((source_piece & TYPE_MASK) == KING &&
+	       m.src_col == 4 &&
+	       (m.dst_col == 6 || m.dst_col == 2)) {
+      // ... move the rook as well.
+      if (m.dst_col == 6) {
+	// Queen-side.
+	SetPiece(m.dst_row, 0, EMPTY);
+	SetPiece(m.dst_row, 3, ROOK | (COLOR_MASK & source_piece));
+      } else {
+	// King-side.
+	SetPiece(m.dst_row, 7, EMPTY);
+	SetPiece(m.dst_row, 5, ROOK | (COLOR_MASK & source_piece));
+      }
+    }
+    
+    if (m.promote_to != 0) {
+      // This has the color already present.
+      source_piece = m.promote_to;
+    }
+
+    // All moves clear the source square and populate the destination.
+    SetPiece(m.src_row, m.src_col, EMPTY);
+    SetPiece(m.dst_row, m.dst_col, source_piece);
+
+    // And pass to the other player.
+    bits ^= BLACK_MOVE;
   }
 
   // Apply the move to the current board state, and execute the
   // function with that state applied. Return the return value
   // of the function after undoing the applied move. As above,
   // the move must be legal.
-  // (Privately, this function is also used to test if a move
-  // is legal, by provisionally executing it and looking for
-  // checks against the king.)
   template<class F>
   auto MoveExcursion(Move m, const F &f) -> decltype(f()) {
     // TODO
@@ -936,6 +1119,7 @@ struct Position {
   // XXX document
   // Note: does not work for castling, e.p., other weird stuff?
   bool NotIntoCheck(Move m) {
+    // For the sake of testing for check, we can ignore promotion.
     const uint8 p = PieceAt(m.src_row, m.src_col);
     return
       SetExcursion(
@@ -959,32 +1143,10 @@ struct Position {
   static constexpr uint8 DOUBLE =     0b00001000U;
   // Then, the column number of the pawn's double move
   // (or zero otherwise). The pawn always moves into
-  // the 4th or 5th row as appropriate for the side.
+  // the 4th or 5th rank as appropriate for the side.
   static constexpr uint8 PAWN_COL =   0b00000111U;
 
   uint8 bits = 0;
 };
-
-#if 0
-struct PiecePosition {
-  enum Type : uint8 {
-    EMPTY = 0,
-    PAWN = 1,
-    KNIGHT = 2,
-    BISHOP = 3,
-    ROOK = 4,
-    QUEEN = 5,
-    KING = 6,
-  };
-  struct Piece {
-    // 6 bits stores exactly the 64 board indices.
-    uint8 pos : 6;
-    uint8 type : 3;
-  };
-
-  Piece 
-  
-};
-#endif
 
 #endif

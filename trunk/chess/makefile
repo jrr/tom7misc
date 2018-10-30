@@ -11,14 +11,17 @@ SYMBOLS=-g
 CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-gcc
 
-CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_GLIBCXX_HAS_GTHREADS -mthreads
+INCLUDES=-I "../cc-lib" -I "../cc-lib/re2" -I ../fceulib
+CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_GLIBCXX_HAS_GTHREADS -mthreads $(INCLUDES)
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS=-m64 -mthreads -lwinpthread -L. -static
+
+CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o $(RE2_OBJECTS)
 
 %.o : %.cc *.h
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
-chess.exe : chess.o
+chess_test.exe : chess_test.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
