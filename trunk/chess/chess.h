@@ -848,6 +848,7 @@ struct Position {
     case KING: {
       const int dr = (int)m.dst_row - (int)m.src_row;
       const int dc = (int)m.dst_col - (int)m.src_col;
+      printf("King move dr/dc %d %d\n", dr, dc);
       if (dr == 0 && dc == 0) return false;
       if (dr >= -1 && dr <= 1 &&
 	  dc >= -1 && dc <= 1) {
