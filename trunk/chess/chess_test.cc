@@ -1,13 +1,25 @@
 
 #include "chess.h"
+
+#include <string>
+
 #include "base/logging.h"
+
+using namespace std;
 
 using Move = Position::Move;
 
+
 static void ApplyMove(Position *pos, const char *pgn) {
   Move m;
+  // XXX Better if this tries to capture the full board state.
+  const string old_board = pos->BoardString();
   CHECK(pos->ParseMove(pgn, &m)) << pgn;
+  CHECK(old_board == pos->BoardString()) << "ParseMove modified board "
+    "state!";
   CHECK(pos->IsLegal(m)) << pgn;
+  CHECK(old_board == pos->BoardString()) << "IsLegal modified board "
+    "state!";
   pos->ApplyMove(m);
 }
 
@@ -29,6 +41,7 @@ static void Simple() {
   "Rh8+", "Bh7", "Rxh7+", "Kxh7", "Be4+", "Kg7", "Bxb1", "f5",
   "Bxf5", "Bd4", "h4", "Kh6" }) {
     ApplyMove(&pos, m);
+    printf("%s\n", pos.BoardString().c_str());
   }
   
 }

@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <utility>
 #include <tuple>
+#include <string>
 
 using uint8 = std::uint8_t;
 using uint32 = std::uint32_t;
@@ -24,7 +25,7 @@ using uint32 = std::uint32_t;
 
 // Packed representation; 33 bytes.
 struct Position {
-  enum Piece : uint8 {
+  enum Type : uint8 {
     PAWN = 1,
     KNIGHT = 2,
     BISHOP = 3,
@@ -80,88 +81,17 @@ struct Position {
     uint8 promote_to = 0;
   };
 
+  // Show a 2D ASCII board.
+  std::string BoardString() const;
+  // Using capital letters for white, lowercase for black. Empty is space.
+  static char HumanPieceChar(uint8 piece);
+  // Same but returns C or c for a castleable rook and - for empty.
+  static char DebugPieceChar(uint8 piece);
+  
   // TODO: Parse FEN.
   // e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
-  static bool ParseFEN(const char *fen, Position *pos) {
-    int idx = 0;
-    
-    // First part fills in the pieces.
-    auto InitBoard =
-      [fen, pos, &idx]() {
-	int row = 0, col = 0;
-	for (;; idx++) {
-	  const char c = fen[idx];
-	  if (c == 0) return false;
-
-	  if (col == 8) {
-	    if (row == 7) {
-	      // This is the only successful termination.
-	      idx++;
-	      return c == ' ';
-	    } else {
-	      if (c != '/')
-		return false;
-
-	      col = 0;
-	      row++;
-	    }
-	  } else {
-	    if (c >= '1' && c <= '8') {
-	      int n = c - '0';
-	      while (n--) {
-		if (col > 7)
-		  return false;
-		pos->SetPiece(row, col, EMPTY);
-		col++;
-	      }
-	    } else {
-	      uint8 p = 0;
-	      switch (c) {
-	      case 'R': p = WHITE | ROOK; break;
-	      case 'r': p = BLACK | ROOK; break;
-	      case 'N': p = WHITE | KNIGHT; break;
-	      case 'n': p = BLACK | KNIGHT; break;
-	      case 'B': p = WHITE | BISHOP; break;
-	      case 'b': p = BLACK | BISHOP; break;
-	      case 'Q': p = WHITE | QUEEN; break;
-	      case 'q': p = BLACK | QUEEN; break;
-	      case 'K': p = WHITE | KING; break;
-	      case 'k': p = BLACK | KING; break;
-	      case 'P': p = WHITE | PAWN; break;
-	      case 'p': p = BLACK | PAWN; break;
-	      default: return false;
-	      }
-	      pos->SetPiece(row, col, p);
-	      col++;
-	    }
-	  }
-	}
-      };
-
-    auto InitMeta =
-      [fen, pos, &idx]() {
-	const char whose_move = fen[idx++];
-	switch (whose_move) {
-	case 'w':
-	  pos->bits = 0u;
-	  break;
-	case 'b':
-	  pos->bits = BLACK_MOVE;
-	  break;
-	default:
-	  return false;
-	}
-
-	// TODO: Castling flags
-	// TODO: en passant state
-	// (ignoring move counts here.)
-	
-	return true;
-      };
-    
-    return InitBoard() && InitMeta();
-  }
-
+  static bool ParseFEN(const char *fen, Position *pos);
+  
   // Parse a PGN-style move m in the current board state.
   // A move is the "Nc3!?" part of PGN. Move numbers, evaluations,
   // etc. should not be included. Does not do syntactic validation
@@ -335,6 +265,8 @@ struct Position {
 		     c = (int)move->dst_col + dc;
 		 r >= 0 && c >= 0 && r < 8 && c < 8;
 		 r += dr, c += dc) {
+	      printf("Diag drdc %d %d, r c %d %d\n",
+		     dr, dc, r, c);
 	      if (src_row == 255 || src_row == r) {
 		if (src_col == 255 || src_col == c) {
 		  // PERF could exit early if the square is not empty?
@@ -350,6 +282,7 @@ struct Position {
 	    }
 	  }
 	}
+	return false;
       };
     
     // Otherwise, we need to search for the piece making the move.
@@ -458,11 +391,14 @@ struct Position {
 
     case QUEEN:
 
-      if (Diagonal(QUEEN))
+      if (Diagonal(QUEEN)) {
+	printf("Q diagonal OK.\n");
 	return true;
+      }
 
       // Vertical.
       for (int r = 0; r < 8; r++) {
+	printf("Q vert %d", r);
 	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
 	  int c = move->dst_col;
 	  const uint8 p = PieceAt(r, c);
@@ -477,6 +413,7 @@ struct Position {
 
       // Horizontal.
       for (int c = 0; c < 8; c++) {
+	printf("Q horiz %d", c);
 	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
 	  int r = move->dst_row;
 	  const uint8 p = PieceAt(r, c);
@@ -518,6 +455,7 @@ struct Position {
 	return IsLegal(*move);
       }
 
+      printf("Rook generic to %d %d\n", move->dst_row, move->dst_col);
       // General case:
       
       // Vertical.
@@ -527,6 +465,7 @@ struct Position {
 	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
 	  int c = move->dst_col;
 	  const uint8 p = PieceAt(r, c);
+	  printf(" v @ %d %d is %d\n", r, c, p);
 	  if (p == (my_color | ROOK) || p == (my_color | C_ROOK)) {
 	    move->src_col = c;
 	    move->src_row = r;
@@ -541,6 +480,7 @@ struct Position {
 	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
 	  int r = move->dst_row;
 	  const uint8 p = PieceAt(r, c);
+	  printf(" h @ %d %d is %d\n", r, c, p);
 	  if (p == (my_color | ROOK) || p == (my_color | C_ROOK)) {
 	    move->src_col = c;
 	    move->src_row = r;
@@ -600,10 +540,12 @@ struct Position {
     const uint8 my_color = blackmove ? BLACK : WHITE;
     const uint8 your_color = blackmove ? WHITE : BLACK;
 
-    printf("IsLegal? %d,%d -> %d,%d =%d\n",
+    printf("IsLegal? %d,%d -> %d,%d",
 	   m.src_row, m.src_col,
-	   m.dst_row, m.dst_col,
-	   m.promote_to);
+	   m.dst_row, m.dst_col);
+    if (m.promote_to)
+      printf(" =%d", m.promote_to);
+    printf("\n");
     
     // XXX assert bounds for debugging at least?
     
@@ -679,7 +621,8 @@ struct Position {
 	    m.src_col != m.dst_col) {
 	  // Moving horizontally.
 	  const int d = GetDir(m.src_col, m.dst_col);
-	  for (int c = (int)m.src_col + d; c != m.dst_col - d; c += d)
+	  printf("Horiz %d 'rook' in row %d\n", d, m.src_row);
+	  for (int c = (int)m.src_col + d; c != (int)m.dst_col; c += d)
 	    if (PieceAt(m.src_row, c) != EMPTY)
 	      return false;
 	  return true;
@@ -688,7 +631,8 @@ struct Position {
 		   m.src_col == m.dst_col) {
 	  // Moving vertically.
 	  const int d = GetDir(m.src_row, m.dst_row);
-	  for (int r = (int)m.src_row + d; r != m.dst_row - d; r += d)
+	  printf("Vert %d 'rook' in col %d\n", d, m.src_col);
+	  for (int r = (int)m.src_row + d; r != (int)m.dst_row; r += d)
 	    if (PieceAt(r, m.src_col) != EMPTY)
 	      return false;
 
@@ -721,7 +665,7 @@ struct Position {
       // Promotion can apply with both capturing and non-capturing
       // moves, so make sure it is legal first.
       if (blackmove) {
-	if (m.dst_row == 0) {
+	if (m.dst_row == 7) {
 	  return (m.promote_to & COLOR_MASK) == BLACK &&
 	    LegalPromotion(m.promote_to & TYPE_MASK);
 	} else {
@@ -729,7 +673,7 @@ struct Position {
 	    return false;
 	}
       } else {
-	if (m.dst_row == 7) {
+	if (m.dst_row == 0) {
 	  return (m.promote_to & COLOR_MASK) == WHITE &&
 	    LegalPromotion(m.promote_to & TYPE_MASK);
 	} else {
@@ -895,12 +839,13 @@ struct Position {
 	  
       } else if (dr == 0 && dc == 2) {
 	// Kingside. Mimics the logic above.
-	
+
 	if (m.src_col != 4)
 	  return false;
 
-	if (Attacked(m.src_row, m.src_col))
+	if (Attacked(m.src_row, m.src_col)) {
 	  return false;
+	}
 
 	const int row = blackmove ? 0 : 7;
 
@@ -999,7 +944,7 @@ struct Position {
 	     rr >= 0 && cc >= 0 && rr < 8 && cc < 8;
 	     rr += dr, cc += dc) {
 	  const uint8 p = PieceAt(rr, cc);
-	  printf("v %d,%d = %d,%d (%d)\n", dr, dc, rr, cc, p);
+	  printf("v %d,%d = %d,%d (%c)\n", dr, dc, rr, cc, DebugPieceChar(p));
 
 	  if ((p & COLOR_MASK) == attacker_color) {
 	    switch (p & TYPE_MASK) {
@@ -1008,7 +953,7 @@ struct Position {
 	      // Move the special-case logic from above here.
 	      break;
 	    case KING:
-	      if (abs(dr) <= 1 && abs(dc) <= 1)
+	      if (abs(rr - r) <= 1 && abs(cc - c) <= 1)
 		return true;
 	      break;
 	    case QUEEN:
@@ -1087,8 +1032,9 @@ struct Position {
 	PieceAt(m.dst_row, m.dst_col) == EMPTY) {
       // Pawn move, not vertical, and into empty space. If it is
       // legal then it is en passant.
-      int dr = (int)m.dst_row - (int)m.src_row;
-      SetPiece(m.dst_row + dr, m.dst_col, EMPTY);
+      // Here the source row is where the captured piece resided
+      // (next to the capturing pawn, in the destination column).
+      SetPiece(m.src_row, m.dst_col, EMPTY);
 
       // If a double pawn move, set the en passant state...
     } else if ((source_piece & TYPE_MASK) == PAWN &&
@@ -1103,13 +1049,13 @@ struct Position {
 	       (m.dst_col == 6 || m.dst_col == 2)) {
       // ... move the rook as well.
       if (m.dst_col == 6) {
-	// Queen-side.
-	SetPiece(m.dst_row, 0, EMPTY);
-	SetPiece(m.dst_row, 3, ROOK | (COLOR_MASK & source_piece));
-      } else {
 	// King-side.
 	SetPiece(m.dst_row, 7, EMPTY);
 	SetPiece(m.dst_row, 5, ROOK | (COLOR_MASK & source_piece));
+      } else {
+	// Queen-side.
+	SetPiece(m.dst_row, 0, EMPTY);
+	SetPiece(m.dst_row, 3, ROOK | (COLOR_MASK & source_piece));
       }
     }
     
