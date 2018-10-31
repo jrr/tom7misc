@@ -4,9 +4,9 @@
 
 #include <cstdint>
 #include <initializer_list>
-#include <utility>
-#include <tuple>
 #include <string>
+#include <tuple>
+#include <utility>
 
 using uint8 = std::uint8_t;
 using uint32 = std::uint32_t;
@@ -23,7 +23,13 @@ using uint32 = std::uint32_t;
 
 // For PGN spec, see https://www.chessclub.com/help/PGN-spec
 
+// XXX TODO: Delete all this debugging printing.
+#define IFDEBUG if (true) {} else
+// #define IFDEBUG 
+
 // Packed representation; 33 bytes.
+// TODO: Probably should separate out some of these static
+// methods into just like a "Chess" class or namespace.
 struct Position {
   enum Type : uint8 {
     PAWN = 1,
@@ -111,7 +117,7 @@ struct Position {
   //    and destination of the move.
   //  - The move string may be terminated by \0 or whitespace.
   bool ParseMove(const char *m, Move *move) {
-    printf("\n== %s ==\n", m);
+    IFDEBUG printf("\n== %s ==\n", m);
 
     const bool blackmove = !!(bits & BLACK_MOVE);
     const uint8 my_color = blackmove ? BLACK : WHITE;
@@ -165,7 +171,7 @@ struct Position {
     if (len < 2)
       return false;
 
-    printf("len: %d (%c %c)\n", len, m[len - 2], m[len - 1]);
+    IFDEBUG printf("len: %d (%c %c)\n", len, m[len - 2], m[len - 1]);
     
     // The move must end with the destination square.
     char dr = m[len - 1];
@@ -205,7 +211,7 @@ struct Position {
       }
     }
 
-    printf("[%d] src_type: %d\n", idx, src_type);
+    IFDEBUG printf("[%d] src_type: %d\n", idx, src_type);
     
     // Now between idx and len - 2, we have:
     //  optional disambiguation
@@ -234,8 +240,8 @@ struct Position {
       }
     }
 
-    printf("src row/col %d/%d%s\n", src_row, src_col,
-	   capturing ? " (capt)" : "");
+    IFDEBUG printf("src row/col %d/%d%s\n", src_row, src_col,
+		   capturing ? " (capt)" : "");
     
     // Rare in the wild, but if the move is fully disambiguated,
     // then we can just test its legality and be done.
@@ -265,8 +271,8 @@ struct Position {
 		     c = (int)move->dst_col + dc;
 		 r >= 0 && c >= 0 && r < 8 && c < 8;
 		 r += dr, c += dc) {
-	      printf("Diag drdc %d %d, r c %d %d\n",
-		     dr, dc, r, c);
+	      IFDEBUG printf("Diag drdc %d %d, r c %d %d\n",
+			     dr, dc, r, c);
 	      if (src_row == 255 || src_row == r) {
 		if (src_col == 255 || src_col == c) {
 		  // PERF could exit early if the square is not empty?
@@ -322,8 +328,8 @@ struct Position {
 	
       } else {
 	// Not capturing.
-	printf("Non-capturing pawn %d,%d -> %d,%d\n",
-	       src_row, src_col,  move->dst_row, move->dst_col);
+	IFDEBUG printf("Non-capturing pawn %d,%d -> %d,%d\n",
+		       src_row, src_col,  move->dst_row, move->dst_col);
 	
 	// A move like "h4" is allowed with pawns on both h2 and h3,
 	// or as a double-move with pawn just on h2. We have to check
@@ -392,13 +398,13 @@ struct Position {
     case QUEEN:
 
       if (Diagonal(QUEEN)) {
-	printf("Q diagonal OK.\n");
+	IFDEBUG printf("Q diagonal OK.\n");
 	return true;
       }
 
       // Vertical.
       for (int r = 0; r < 8; r++) {
-	printf("Q vert %d", r);
+	IFDEBUG printf("Q vert %d", r);
 	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
 	  int c = move->dst_col;
 	  const uint8 p = PieceAt(r, c);
@@ -413,7 +419,7 @@ struct Position {
 
       // Horizontal.
       for (int c = 0; c < 8; c++) {
-	printf("Q horiz %d", c);
+	IFDEBUG printf("Q horiz %d", c);
 	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
 	  int r = move->dst_row;
 	  const uint8 p = PieceAt(r, c);
@@ -455,7 +461,8 @@ struct Position {
 	return IsLegal(*move);
       }
 
-      printf("Rook generic to %d %d\n", move->dst_row, move->dst_col);
+      IFDEBUG printf("Rook generic to %d %d\n",
+		     move->dst_row, move->dst_col);
       // General case:
       
       // Vertical.
@@ -465,7 +472,7 @@ struct Position {
 	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
 	  int c = move->dst_col;
 	  const uint8 p = PieceAt(r, c);
-	  printf(" v @ %d %d is %d\n", r, c, p);
+	  IFDEBUG printf(" v @ %d %d is %d\n", r, c, p);
 	  if (p == (my_color | ROOK) || p == (my_color | C_ROOK)) {
 	    move->src_col = c;
 	    move->src_row = r;
@@ -480,7 +487,7 @@ struct Position {
 	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
 	  int r = move->dst_row;
 	  const uint8 p = PieceAt(r, c);
-	  printf(" h @ %d %d is %d\n", r, c, p);
+	  IFDEBUG printf(" h @ %d %d is %d\n", r, c, p);
 	  if (p == (my_color | ROOK) || p == (my_color | C_ROOK)) {
 	    move->src_col = c;
 	    move->src_row = r;
@@ -540,12 +547,11 @@ struct Position {
     const uint8 my_color = blackmove ? BLACK : WHITE;
     const uint8 your_color = blackmove ? WHITE : BLACK;
 
-    printf("IsLegal? %d,%d -> %d,%d",
-	   m.src_row, m.src_col,
-	   m.dst_row, m.dst_col);
-    if (m.promote_to)
-      printf(" =%d", m.promote_to);
-    printf("\n");
+    IFDEBUG printf("IsLegal? %d,%d -> %d,%d",
+		   m.src_row, m.src_col,
+		   m.dst_row, m.dst_col);
+    IFDEBUG if (m.promote_to) printf(" =%d", m.promote_to);
+    IFDEBUG printf("\n");
     
     // XXX assert bounds for debugging at least?
     
@@ -621,7 +627,7 @@ struct Position {
 	    m.src_col != m.dst_col) {
 	  // Moving horizontally.
 	  const int d = GetDir(m.src_col, m.dst_col);
-	  printf("Horiz %d 'rook' in row %d\n", d, m.src_row);
+	  IFDEBUG printf("Horiz %d 'rook' in row %d\n", d, m.src_row);
 	  for (int c = (int)m.src_col + d; c != (int)m.dst_col; c += d)
 	    if (PieceAt(m.src_row, c) != EMPTY)
 	      return false;
@@ -631,7 +637,7 @@ struct Position {
 		   m.src_col == m.dst_col) {
 	  // Moving vertically.
 	  const int d = GetDir(m.src_row, m.dst_row);
-	  printf("Vert %d 'rook' in col %d\n", d, m.src_col);
+	  IFDEBUG printf("Vert %d 'rook' in col %d\n", d, m.src_col);
 	  for (int r = (int)m.src_row + d; r != (int)m.dst_row; r += d)
 	    if (PieceAt(r, m.src_col) != EMPTY)
 	      return false;
@@ -661,7 +667,7 @@ struct Position {
     switch (src_type) {
     case PAWN:
 
-      printf("IsLegal Pawn\n");
+      IFDEBUG printf("IsLegal Pawn\n");
       // Promotion can apply with both capturing and non-capturing
       // moves, so make sure it is legal first.
       if (blackmove) {
@@ -683,7 +689,7 @@ struct Position {
       }
       
       if (m.src_col == m.dst_col) {
-	printf("IsLegal: Non-capturing pawn.\n");
+	IFDEBUG printf("IsLegal: Non-capturing pawn.\n");
 	// Normal non-capturing move. Destination
 	// must be empty.
 	if (PieceAt(m.dst_row, m.dst_col) != EMPTY)
@@ -706,7 +712,7 @@ struct Position {
 	  
 	  return false;
 	} else {
-	  printf("IsLegal: white %d\n", dr);
+	  IFDEBUG printf("IsLegal: white %d\n", dr);
 	  if (dr == -1)
 	    return NotIntoCheck(m);
 
@@ -733,9 +739,9 @@ struct Position {
 	if (dr != (blackmove ? 1 : -1))
 	  return false;
 
-	printf("Pawn capture dr=%d, dc=%d %s%d\n", dr, dc,
-	       (bits & DOUBLE) ? "double " : "",
-	       (bits & PAWN_COL));
+	IFDEBUG printf("Pawn capture dr=%d, dc=%d %s%d\n", dr, dc,
+		       (bits & DOUBLE) ? "double " : "",
+		       (bits & PAWN_COL));
 	
 	// En passant captures.
 	if (PieceAt(m.dst_row, m.dst_col) == EMPTY) {
@@ -746,7 +752,7 @@ struct Position {
 	      // The captured piece is actually on the source row,
 	      // which is the same as dst_row - dr.
 	      PieceAt(m.dst_row - dr, m.dst_col) == (your_color | PAWN)) {
-	    printf("en passant capture..\n");
+	    IFDEBUG printf("en passant capture..\n");
 	    // NotIntoCheck moves the capturing pawn to the destination
 	    // square, but we also need to remove the captured pawn.
 	    return SetExcursion(m.dst_row - dr, m.dst_col, EMPTY,
@@ -772,7 +778,7 @@ struct Position {
       // pieces "in the way."
       const int adr = abs((int)m.src_row - (int)m.dst_row);
       const int adc = abs((int)m.src_col - (int)m.dst_col);
-      printf("IsLegal Knight: %d %d\n", adr, adc);
+      IFDEBUG printf("IsLegal Knight: %d %d\n", adr, adc);
       
       return ((adr == 1 && adc == 2) ||
 	      (adr == 2 && adc == 1)) &&
@@ -792,7 +798,7 @@ struct Position {
     case KING: {
       const int dr = (int)m.dst_row - (int)m.src_row;
       const int dc = (int)m.dst_col - (int)m.src_col;
-      printf("King move dr/dc %d %d\n", dr, dc);
+      IFDEBUG printf("King move dr/dc %d %d\n", dr, dc);
       if (dr == 0 && dc == 0) return false;
       if (dr >= -1 && dr <= 1 &&
 	  dc >= -1 && dc <= 1) {
@@ -944,7 +950,8 @@ struct Position {
 	     rr >= 0 && cc >= 0 && rr < 8 && cc < 8;
 	     rr += dr, cc += dc) {
 	  const uint8 p = PieceAt(rr, cc);
-	  printf("v %d,%d = %d,%d (%c)\n", dr, dc, rr, cc, DebugPieceChar(p));
+	  IFDEBUG printf("v %d,%d = %d,%d (%c)\n",
+			 dr, dc, rr, cc, DebugPieceChar(p));
 
 	  if ((p & COLOR_MASK) == attacker_color) {
 	    switch (p & TYPE_MASK) {
@@ -1098,10 +1105,10 @@ struct Position {
 		  [&]() {
 		    int r, c;
 		    std::tie(r, c) = GetKing();
-		    printf("King at %d,%d\n", r, c);
+		    IFDEBUG printf("King at %d,%d\n", r, c);
 		    bool attacked = Attacked(r, c);
-		    printf("King is %s\n",
-			   attacked ? "attacked" : "not attacked");
+		    IFDEBUG printf("King is %s\n",
+				   attacked ? "attacked" : "not attacked");
 		    return !attacked;
 		  });
 	  });
