@@ -111,6 +111,10 @@ bool Position::ParseFEN(const char *fen, Position *pos) {
 	  pos->SetPiece(0, 0, BLACK | C_ROOK);
 	  break;
 
+	case '-':
+	  // Used when the field is blank.
+	  break;
+	  
 	case ' ':
 	  break;
 	}
