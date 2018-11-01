@@ -403,35 +403,38 @@ struct Position {
       }
 
       // Vertical.
-      for (int r = 0; r < 8; r++) {
-	IFDEBUG printf("Q vert %d", r);
-	if (r != move->dst_row && (src_row == 255 || src_row == r)) {
-	  int c = move->dst_col;
-	  const uint8 p = PieceAt(r, c);
-	  if (p == (my_color | QUEEN)) {
-	    move->src_col = c;
-	    move->src_row = r;
-	    if (IsLegal(*move))
-	      return true;
+      if (src_col == 255 || src_col == move->dst_col) {
+	for (int r = 0; r < 8; r++) {
+	  IFDEBUG printf("Q vert %d\n", r);
+	  if (r != move->dst_row && (src_row == 255 || src_row == r)) {
+	    int c = move->dst_col;
+	    const uint8 p = PieceAt(r, c);
+	    if (p == (my_color | QUEEN)) {
+	      move->src_col = c;
+	      move->src_row = r;
+	      if (IsLegal(*move))
+		return true;
+	    }
 	  }
 	}
       }
 
       // Horizontal.
-      for (int c = 0; c < 8; c++) {
-	IFDEBUG printf("Q horiz %d", c);
-	if (c != move->dst_col && (src_col == 255 || src_col == c)) {
-	  int r = move->dst_row;
-	  const uint8 p = PieceAt(r, c);
-	  if (p == (my_color | QUEEN)) {
-	    move->src_col = c;
-	    move->src_row = r;
-	    if (IsLegal(*move))
-	      return true;
+      if (src_row == 255 || src_row == move->dst_row) {
+	for (int c = 0; c < 8; c++) {
+	  IFDEBUG printf("Q horiz %d\n", c);
+	  if (c != move->dst_col && (src_col == 255 || src_col == c)) {
+	    int r = move->dst_row;
+	    const uint8 p = PieceAt(r, c);
+	    if (p == (my_color | QUEEN)) {
+	      move->src_col = c;
+	      move->src_row = r;
+	      if (IsLegal(*move))
+		return true;
+	    }
 	  }
 	}
       }
-
       return false;
 
     case C_ROOK:

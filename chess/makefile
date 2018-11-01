@@ -1,5 +1,5 @@
 
-default: chess_test.exe
+default: chess_test.exe rungames.exe
 
 CXXFLAGS=--std=c++17 -Wall -Wno-deprecated -Wno-sign-compare
 OPT=-O2
@@ -32,5 +32,9 @@ CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/stringprintf.o
 chess_test.exe : chess_test.o chess.o pgn.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+rungames.exe : rungames.o chess.o pgn.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 clean :
 	rm -f *.o *.exe $(CCLIB_OBJECTS)
+
