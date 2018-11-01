@@ -89,6 +89,31 @@ static void ReadPGN() {
 )_";
       
   CHECK(PGN::Parse(kGame, &pgn));
+  
+  Position pos;
+  CHECK(Position::ParseFEN(START_FEN, &pos));
+
+  for (const PGN::Move &m : pgn.moves) {
+    ApplyMove(&pos, m.move.c_str());
+    printf("%s\n", pos.BoardString().c_str());
+  }
+}
+
+static void Regression1() {
+  Position pos;
+  CHECK(Position::ParseFEN(
+	    "3K4/5p2/6q1/8/4q3/8/6k1/8 b - - 9 60"
+	    , &pos));
+  printf("---- Regression 1 -----\n");
+  printf("Start board:\n%s\n", pos.BoardString().c_str());
+  Move move;
+  CHECK(pos.ParseMove("Qge6", &move));
+  CHECK(pos.IsLegal(move));
+  printf("%d %d -> %d %d\n", move.src_row, move.src_col,
+	 move.dst_row, move.dst_col);
+  pos.ApplyMove(move);
+  CHECK(move.src_row == 2 && move.src_col == 6);
+  printf("Resulting board:\n%s\n", pos.BoardString().c_str());
 }
 
 int main(int argc, char **argv) {
@@ -96,6 +121,8 @@ int main(int argc, char **argv) {
   PlayGame(kGame2);
 
   ReadPGN();
+  
+  Regression1();
   return 0;
 }
 
