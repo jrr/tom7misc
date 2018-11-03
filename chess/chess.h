@@ -48,7 +48,7 @@ struct Position {
   // Maybe we should distinguish between type and piece?
   static constexpr uint8 TYPE_MASK = 0b0111U;
   static constexpr uint8 COLOR_MASK = 0b1000U;
-  
+
   // Row 0 is the top row of the board, black's back
   // rank, aka. rank 8. We try to use "row" to mean
   // this zero-based top-to-bottom notion and "rank"
@@ -63,7 +63,6 @@ struct Position {
   //   MSB of 0 = white
   //   MSB of 1 = black
   //   lowest 3 bits from the piece enum.
-  uint32 rows[8] = { };
 
   uint8 PieceAt(int row, int col) const {
     const uint32 r = rows[row];
@@ -97,7 +96,7 @@ struct Position {
   // TODO: Parse FEN.
   // e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
   static bool ParseFEN(const char *fen, Position *pos);
-  
+
   // Parse a PGN-style move m in the current board state.
   // A move is the "Nc3!?" part of PGN. Move numbers, evaluations,
   // etc. should not be included. Does not do syntactic validation
@@ -904,6 +903,9 @@ struct Position {
     const bool blackmove = !!(bits & BLACK_MOVE);
     const uint8 attacker_color = blackmove ? WHITE : BLACK;
 
+    IFDEBUG printf("Attacked %d,%d? With board:\n%s\n",
+		   r, c, BoardString().c_str());
+    
     // TODO this logic can move into the vector search below.
     // Check the pawn attacks since these are not symmetric.
     if (blackmove) {
@@ -970,9 +972,13 @@ struct Position {
 	      return true;
 	    case ROOK:
 	    case C_ROOK:
-	      return dc == 0 || dr == 0;
+	      if (dc == 0 || dr == 0)
+		return true;
+	      break;
 	    case BISHOP:
-	      return dc != 0 && dr != 0;
+	      if (dc != 0 && dr != 0)
+		return true;
+	      break;
 	    case KNIGHT:
 	      // Knights don't attack on these vectors. We already
 	      // checked them above.
@@ -1127,7 +1133,49 @@ struct Position {
   // the 4th or 5th rank as appropriate for the side.
   static constexpr uint8 PAWN_COL =   0b00000111U;
 
-  uint8 bits = 0;
+  // Starting position.
+  uint32 rows[8] = {
+       (uint32(BLACK | C_ROOK) << 28) |
+       (uint32(BLACK | KNIGHT) << 24) |
+       (uint32(BLACK | BISHOP) << 20) |
+       (uint32(BLACK | QUEEN)  << 16) |
+       (uint32(BLACK | KING)   << 12) |
+       (uint32(BLACK | BISHOP) <<  8) |
+       (uint32(BLACK | KNIGHT) <<  4) |
+       (uint32(BLACK | C_ROOK) <<  0),
+
+       (uint32(BLACK | PAWN) << 28) |
+       (uint32(BLACK | PAWN) << 24) |
+       (uint32(BLACK | PAWN) << 20) |
+       (uint32(BLACK | PAWN) << 16) |
+       (uint32(BLACK | PAWN) << 12) |
+       (uint32(BLACK | PAWN) <<  8) |
+       (uint32(BLACK | PAWN) <<  4) |
+       (uint32(BLACK | PAWN) <<  0),
+
+       0u, 0u, 0u, 0u,
+
+       (uint32(WHITE | PAWN) << 28) |
+       (uint32(WHITE | PAWN) << 24) |
+       (uint32(WHITE | PAWN) << 20) |
+       (uint32(WHITE | PAWN) << 16) |
+       (uint32(WHITE | PAWN) << 12) |
+       (uint32(WHITE | PAWN) <<  8) |
+       (uint32(WHITE | PAWN) <<  4) |
+       (uint32(WHITE | PAWN) <<  0),
+
+       (uint32(WHITE | C_ROOK) << 28) |
+       (uint32(WHITE | KNIGHT) << 24) |
+       (uint32(WHITE | BISHOP) << 20) |
+       (uint32(WHITE | QUEEN)  << 16) |
+       (uint32(WHITE | KING)   << 12) |
+       (uint32(WHITE | BISHOP) <<  8) |
+       (uint32(WHITE | KNIGHT) <<  4) |
+       (uint32(WHITE | C_ROOK) <<  0),
+  };
+
+  // Starting position. White's move, no en passant capture available.
+  uint8 bits = 0u;
 };
 
 #endif

@@ -53,12 +53,19 @@ static std::initializer_list<const char *> kGame2 = {
   "Be6", "Kd6", "Bd7", "Kxd7", "Kf7", "h4", "Kg6", "h5+", "Kxh5",
 };
 
-static const char *START_FEN =
-  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+static void CheckInit() {
+  Position pos;
+  const string init_pos = pos.BoardString();
+
+  static const char *START_FEN =
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  CHECK(Position::ParseFEN(START_FEN, &pos));
+  const string fen_pos = pos.BoardString();
+  CHECK(init_pos == fen_pos) << init_pos << "\n\n" << fen_pos;
+}
 
 static void PlayGame(std::initializer_list<const char *> game) {
   Position pos;
-  CHECK(Position::ParseFEN(START_FEN, &pos));
 
   for (const char *m : game) {
     ApplyMove(&pos, m);
@@ -89,15 +96,66 @@ static void ReadPGN() {
 )_";
       
   CHECK(PGN::Parse(kGame, &pgn));
+  CHECK(pgn.result == PGN::WHITE_WINS);
   
   Position pos;
-  CHECK(Position::ParseFEN(START_FEN, &pos));
 
   for (const PGN::Move &m : pgn.moves) {
     ApplyMove(&pos, m.move.c_str());
     printf("%s\n", pos.BoardString().c_str());
   }
 }
+
+static void ReadPGNUnterminated() {
+  PGN pgn;
+  const char *kGame =
+      R"_([Event "Rated Correspondence game"]
+[Site "https://lichess.org/9R8Q3Kkb"]
+[White "delfinacasanova"]
+[Black "Adrimm"]
+[Result "*"]
+[UTCDate "2017.06.30"]
+[UTCTime "22:00:05"]
+[WhiteElo "1290"]
+[BlackElo "1372"]
+[ECO "A03"]
+[Opening "Bird Opening: Dutch Variation"]
+[TimeControl "-"]
+[Termination "Unterminated"]
+
+1. f4 d5 2. Nf3 f6 3. Nh4 Nc6 4. b4 Nxb4 5. Ba3 Nc6 6. e3 b5 7. Bxb5 Rb8 8. Bd3 e6 9. Rf1 Nh6 10. Rf3 Ra8 11. Rg3 a5 12. Bb5 Ra6 13. Ba4 Qd7 14. Nc3 Bxa3 15. Rxg7 Qxg7 16. Rc1 *
+)_";
+  CHECK(PGN::Parse(kGame, &pgn));
+  CHECK(pgn.result == PGN::OTHER);
+}
+
+static void Regression2Game() {
+  PGN pgn;
+  const char *kGame =
+      R"_([Event "Test"]
+
+1. e4 e5 2. Nf3 d5 3. d3 Bg4 4. h3 Bh5
+5. g4 dxe4 6. dxe4 Qxd1+ 7. Kxd1 Bg6 8. Bd3 Nf6
+9. h4 Nxe4 10. Rf1 h5 11. Nxe5 Nc5 12. Re1 Nxd3
+13. cxd3 Be7 14. Bg5 f6 15. Bxf6 gxf6 16. Nxg6 Rh7
+17. gxh5 Nc6 18. h6 Rxh6 19. Nxe7 Nxe7 20. Nc3 Rxh4
+21. Nd5 O-O-O 22. Nxe7+ Kd7 23. Nf5 Rf4 24. Re7+ Kc8
+25. Rc1 c6 26. Ne3 Rxf2 27. b4 Rxd3+ 28. Ke1 Rdd2
+29. Re8+ Kd7 30. Rd1 Re2+ 31. Kf1 Rxd1+ 32. Kxe2 Ra1
+33. Re7+ Kxe7 34. Nf5+ Ke6 35. b5 cxb5 36. a4 Ra2+
+)_";
+      
+  CHECK(PGN::Parse(kGame, &pgn));
+  
+  Position pos;
+
+  for (const PGN::Move &m : pgn.moves) {
+    printf("== %s ==\n", m.move.c_str());
+    ApplyMove(&pos, m.move.c_str());
+    printf("%s\n", pos.BoardString().c_str());
+  }
+}
+
 
 static void Regression1() {
   Position pos;
@@ -116,13 +174,36 @@ static void Regression1() {
   printf("Resulting board:\n%s\n", pos.BoardString().c_str());
 }
 
+static void Regression2() {
+  Position pos;
+  CHECK(Position::ParseFEN(
+	    "4R3/pp1k4/2p2p2/8/1P6/4N3/P2r1r2/3RK3 b - - 5 30",
+	    &pos));
+  printf("---- Regression 2 -----\n");
+  printf("Start board:\n%s\n", pos.BoardString().c_str());
+  Move move;
+  CHECK(pos.ParseMove("Re2+", &move));
+  CHECK(pos.IsLegal(move));
+  printf("%d %d -> %d %d\n", move.src_row, move.src_col,
+	 move.dst_row, move.dst_col);
+  pos.ApplyMove(move);
+  CHECK(move.src_row == 6 && move.src_col == 5);
+  printf("Resulting board:\n%s\n", pos.BoardString().c_str());
+}
+
 int main(int argc, char **argv) {
+  CheckInit();
+
   PlayGame(kGame1);
   PlayGame(kGame2);
 
   ReadPGN();
+  ReadPGNUnterminated();
   
   Regression1();
+  Regression2();
+
+  Regression2Game();
   return 0;
 }
 
