@@ -29,6 +29,22 @@ td.dk {
     overflow: hidden;
 }
 
+td.blt {
+    border: 2px solid #AAA;
+    width: 84px;
+    height: 42px;
+    text-align: center;
+    overflow: hidden;
+}
+
+td.bdk {
+    border: 2px solid #000;
+    width: 84px;
+    height: 42px;
+    text-align: center;
+    overflow: hidden;
+}
+
 .piece {
     font-size: 48px;
     zzfont-weight: bold;
@@ -50,4 +66,12 @@ td.dk {
 .white {
     color: #fff;
     text-shadow: 1px 1px rgba(0,0,0,.5);
+}
+
+.died {
+    color: #700;
+}
+
+.surv {
+    color: #070;
 }

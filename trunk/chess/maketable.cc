@@ -13,6 +13,7 @@
 #include <vector>
 #include <utility>
 
+#include "base/stringprintf.h"
 #include "base/logging.h"
 #include "pgn.h"
 #include "util.h"
@@ -260,7 +261,95 @@ void GenReport(Stats *stat_buckets) {
       fprintf(f, "</tr>\n");
     }
     fprintf(f, "</table>");
+
+
+    fprintf(f, "<h1>Fate per piece</h1>\n");
+    for (int p = 0; p < 32; p++) {
+      Ratio died_on[64] = {}, survived_on[64] = {};
+
+      vector<double> dranks, sranks;
       
+      for (int b = 0; b < NUM_BUCKETS; b++) {
+	const Stats &stats = stat_buckets[b];
+	for (int i = 0; i < 64; i++) {
+	  died_on[i].denom[b] = stats.num_games;
+	  survived_on[i].denom[b] = stats.num_games;
+
+	  died_on[i].numer[b] = stats.pieces[p].died_on[i];
+	  survived_on[i].numer[b] = stats.pieces[p].survived_on[i];
+
+	  dranks.push_back(died_on[i].Mean());
+	  sranks.push_back(survived_on[i].Mean());
+	}
+      }
+
+      std::sort(dranks.begin(), dranks.end());
+      std::sort(sranks.begin(), sranks.end());
+      auto GetRank =
+	[](const vector<double> &ranks, double value) {
+	  // PERF can be done with binary search, obv...
+	  for (int i = 0; i < ranks.size(); i++) {
+	    if (value <= ranks[i]) return i / (double)ranks.size();
+	  }
+	  return 1.0;
+	};
+
+      const bool black = p < 16;
+      const int pidx = black ? p : 48 + (p - 16);
+      const int prow = pidx / 8;
+      const int pcol = pidx % 8;
+      const Position startpos;
+      const char *ent = Position::HTMLEntity(startpos.PieceAt(prow, pcol));
+      
+      fprintf(f, "<h2>%s (%s)</h2>\n", ent, PIECE_NAME[p]);
+
+      fprintf(f, "<table class=board>\n");
+      for (int r = 0; r < 8; r++) {
+
+	auto HalfRow =
+	  [f, &GetRank, r](const Ratio *fate_on, const char *fateclass,
+			   const char *borderno,
+			   const vector<double> &ranks,
+			   std::function<string(double)> MakeBG) {
+	    fprintf(f, "<tr>");
+	    for (int c = 0; c < 8; c++) {
+	      const int idx = r * 8 + c;
+	      const bool light = ((r + c) & 1) == 0;
+	      const Ratio &fate = fate_on[idx];
+	      const double rank = GetRank(ranks, fate.Mean());
+	      string bg = MakeBG(rank);
+	      fprintf(f, " <td style=\"border-%s:0;background:%s\" class=%s>",
+		      borderno,
+		      bg.c_str(),
+		      light ? "blt" : "bdk");
+	      fprintf(f,
+		      "<span class=\"%s bigp\">%.2f%%</span><br>"
+		      "<span class=\"%s smallp\">%.2f&ndash;%.2f%%</span>",
+		      fateclass, 
+		      fate.Mean() * 100.0,
+		      fateclass,
+		      fate.Min() * 100.0,
+		      fate.Max() * 100.0);
+	      fprintf(f, "</td>\n");
+	    }
+	    fprintf(f, "</tr>\n");
+	  };
+
+	HalfRow(died_on, "died", "bottom", dranks,
+		[](double r) {
+		  return StringPrintf("rgb(255.0,%.2f,%.2f)",
+				      255.0 * (1.0 - r),
+				      255.0 * (1.0 - r));
+		});
+	HalfRow(survived_on, "surv", "top", sranks,
+		[](double r) {
+		  return StringPrintf("rgb(%.2f,255.0,%.2f)",
+				      255.0 * (1.0 - r),
+				      255.0 * (1.0 - r));
+		});
+      }
+      fprintf(f, "</table>\n");
+    }
     fclose(f);
   }
 }
