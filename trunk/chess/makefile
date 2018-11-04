@@ -1,7 +1,8 @@
 
 default: chess_test.exe rungames.exe
 
-allstats : stats-2017-04.txt stats-2017-05.txt stats-2017-06.txt stats-2017-07.txt stats-2017-08.txt stats-2017-09.txt stats-2017-10.txt stats-2017-11.txt stats-2017-12.txt
+allstats : stats-2017-04.txt stats-2017-05.txt stats-2017-06.txt stats-2017-07.txt stats-2017-08.txt stats-2017-09.txt stats-2017-10.txt stats-2017-11.txt stats-2017-12.txt stats-2018-01.txt stats-2018-02.txt stats-2018-03.txt stats-2018-04.txt stats-2018-05.txt stats-2018-06.txt
+
 
 CXXFLAGS=--std=c++17 -Wall -Wno-deprecated -Wno-sign-compare
 OPT=-O2
@@ -35,6 +36,9 @@ chess_test.exe : chess_test.o chess.o pgn.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 rungames.exe : rungames.o chess.o pgn.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
+maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
 clean :

@@ -1,0 +1,53 @@
+
+body {
+    font: 12px verdana,helvetica,sans-serif;
+}
+
+h1 {
+
+}
+
+table.board {
+    cellspacing: 0;
+    cellpadding: 2px;
+    border-spacing: 0;
+}
+
+td.lt {
+    background: #ced09d;
+    width: 84px;
+    height: 84px;
+    text-align: center;
+    overflow: hidden;
+}
+
+td.dk {
+    background: #65965b;
+    width: 84px;
+    height: 84px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.piece {
+    font-size: 48px;
+    zzfont-weight: bold;
+    line-height: 42px;
+}
+
+.bigp {
+    font-weight: bold;
+}
+
+.smallp {
+    font-size: 8px;
+}
+
+.black {
+    color: #000;
+}
+
+.white {
+    color: #fff;
+    text-shadow: 1px 1px rgba(0,0,0,.5);
+}

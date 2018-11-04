@@ -92,6 +92,8 @@ struct Position {
   static char HumanPieceChar(uint8 piece);
   // Same but returns C or c for a castleable rook and - for empty.
   static char DebugPieceChar(uint8 piece);
+  // Distinguishes black and white pieces. Space for empty.
+  static const char *HTMLEntity(uint8 piece);
   
   // TODO: Parse FEN.
   // e.g. rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1

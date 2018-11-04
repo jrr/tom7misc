@@ -162,6 +162,35 @@ char Position::DebugPieceChar(uint8 p) {
   }
 }
 
+// static
+const char *Position::HTMLEntity(uint8 p) {
+  if (p & BLACK) {
+    switch (p & TYPE_MASK) {
+    case PAWN: return "&#9823;";
+    case KNIGHT: return "&#9822;";
+    case BISHOP: return "&#9821;";
+    case C_ROOK:
+    case ROOK: return "&#9820;";
+    case QUEEN: return "&#9819;";
+    case KING: return "&#9818;";
+    case EMPTY: return " ";
+    default: return "?";
+    }
+  } else {
+    switch (p & TYPE_MASK) {
+    case PAWN: return "&#9817;";
+    case KNIGHT: return "&#9816;";
+    case BISHOP: return "&#9815;";
+    case C_ROOK: 
+    case ROOK: return "&#9814;";
+    case QUEEN: return "&#9813;";
+    case KING: return "&#9812;";
+    case EMPTY: return " ";
+    default: return "?";
+    }
+  }
+}
+
 std::string Position::BoardString() const {
   string ret;
   for (int r = 0; r < 8; r++) {
