@@ -1,8 +1,11 @@
 default: list.js
 
 CXX=g++
-CXXFLAGS=-O2 -Wall -I ../cc-lib/ -Wno-deprecated -Wno-sign-compare
+CXXFLAGS=--std=c++17 -O2 -Wall -I ../cc-lib/ -Wno-deprecated -Wno-sign-compare
 
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-gcc
+LFLAGS=-static
 
 list.js : list-data.js list-process.js
 	cat list-data.js list-process.js > list.js
@@ -19,11 +22,15 @@ list10-data.js : makedata.exe ten-hundred
 verify : list.js
 	node verifier.js wordlist.asc list.js && ls -al list.js >> bench.txt
 
-CCLIB_OBJECTS=../cc-lib/util.o
+CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/stringprintf.o
 
 %.o : %.cc *.h
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
 	@bash -c "echo -n '.'"
 
 makedata.exe : makedata.o $(CCLIB_OBJECTS)
-	g++ $^ -o $@
+	${CXX} $^ -o $@ ${LFLAGS}
+
+clean:
+	rm -f *.exe *.o $(CCLIB_OBJECTS)
+
