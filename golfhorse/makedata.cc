@@ -135,7 +135,7 @@ int main (int argc, char **argv) {
 
   printf("s='");
   printf("%s", data.c_str());
-  printf("0'\n");
+  printf("'\n");
   // Need to do the replacements in backwards order.
   printf("r=[");
   for (int i = reps.size() - 1; i >= 0; i--) {
