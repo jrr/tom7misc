@@ -32,6 +32,7 @@ static int Occurrences(const string &data,
 }
 
 static int Occurrences(const string &data, const string &subs) {
+  if (subs.size() == 0) return 0;
   return Occurrences(data, subs.c_str(), subs.size());
 }
 
@@ -79,32 +80,37 @@ static inline bool TerminatedUnicode(const char *s, int len) {
 
 // Returns the best substring (best = maximum value of (size *
 // occurrences)) and the score.
-static constexpr int LONGEST_EXTENSION = 3;
+static constexpr int LONGEST_EXTENSION = 6;
 static pair<string, int> BestReplacement(
-    int min_length,
+    int source_length,
     int offset, int stride, const string &s) {
-  int best_mass = 0;
+  int best_value = 0;
   int best_idx = 0;
   int best_len = 0;
+  const int min_length = source_length + 1;
   for (int i = offset; i < s.size(); i += stride) {
     for (int len = min_length;
 	 len <= (min_length + LONGEST_EXTENSION) && i + len < s.size();
 	 len++) {
       if (TerminatedUnicode(s.c_str() + i, len)) {
 	const int occ = Occurrences(s, s.c_str() + i, (size_t)len);
-	if (occ * len > best_mass) {
-	  // XXX use the savings-based formula. It
-	  // is not the same as this!
-	  best_mass = (occ - 1) * len;
-	  best_idx = i;
-	  best_len = len;
+	if (occ > 1) {
+	  int cost = 1 + source_length + len;
+	  int savings = occ * (len - source_length);
+	  int value = savings - cost;
+
+	  if (value > best_value) {
+	    best_value = value;
+	    best_idx = i;
+	    best_len = len;
+	  }
 	}
       }
     }
   }
 
   // If none, then the empty string.
-  return make_pair(s.substr(best_idx, best_len), best_mass);
+  return make_pair(s.substr(best_idx, best_len), best_value);
 }
 
 static string Encode(const string &s) {
@@ -223,7 +229,7 @@ int main (int argc, char **argv) {
   */
   
 
-  static constexpr int BEST_PER_ROUND = 2;
+  static constexpr int BEST_PER_ROUND = 1;
   // TODO: Periodically write file?
   static constexpr int MAX_SECONDS = 2 * 3600;
   
@@ -243,13 +249,13 @@ int main (int argc, char **argv) {
       fprintf(stderr, "No more sources (up)...\n");
       goto nomore;
     }
-    int min_length = sources.back().size() + 1;
+    int source_length = sources.back().size();
 
     ParallelComp(NUM_THREADS,
-		 [&m, &results, &data, min_length](int idx) {
+		 [&m, &results, &data, source_length](int idx) {
 
 		   auto res =
-		     BestReplacement(min_length, idx, NUM_THREADS, data);
+		     BestReplacement(source_length, idx, NUM_THREADS, data);
 		   
 		   {
 		     MutexLock ml(&m);
