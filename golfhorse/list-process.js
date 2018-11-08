@@ -1,1 +1,1 @@
-w='';for(i=0;i<s.length;){c=s[i++];if(+c+1){console.log(w);w=w.substr(0,+c);}else w+=c}
+w='';for(c of s)+c+1?w=console.log(w)||w.substr(0,+c):w+=c

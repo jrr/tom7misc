@@ -37,7 +37,7 @@ static int Occurrences(const string &data, const string &subs) {
 
 // This assumes that we have at most two-byte utf-8 encodings
 // and that the string s is all valid.
-static inline TerminatedUnicode(const char *s, int len) {
+static inline bool TerminatedUnicode(const char *s, int len) {
   if (len == 0) return true;
 
   // First byte can't be a multibyte continuation.
@@ -244,6 +244,7 @@ int main (int argc, char **argv) {
       goto nomore;
     }
     int min_length = sources.back().size() + 1;
+
     ParallelComp(NUM_THREADS,
 		 [&m, &results, &data, min_length](int idx) {
 
@@ -313,7 +314,8 @@ int main (int argc, char **argv) {
 	sources.pop_back();
 	reps.push_back(std::make_pair(src, dst));
 	data = Util::Replace(data, dst, src);
-	fprintf(stderr, "Size now %lld. %d source(s) left\n", data.size(),
+	fprintf(stderr, "Size now %d. %d source(s) left\n",
+		(int)data.size(),
 		(int)sources.size());
 	made_progress = true;
       }
@@ -349,13 +351,31 @@ int main (int argc, char **argv) {
 
   char sep = 0;
   for (char c :
+	 // Prefer a numeric separator, since we don't
+	 // need to quote these.
+	 "0123456789"
 	 "qwertyuiopasdfghjklzxcvbnm"
 	 "QWERTYUIOPASDFGHJKLZXCVBNM"
-	 "0123456789"
 	 "!@#$%^&*()_+[]{}|:;<>?,./ ") {
     if (!InReps(c)) { sep = c; break; }
   }
 
+  // TODO: Even better encoding here would be like a number (digit? but
+  // then the maximum length would be 9, or I guess we could assume
+  // the replacement is at least 2, so 11) that gives the length of the
+  // replacement, then the single source codepoint (this would preclude
+  // using two-codepoint ascii sources, which does give us 9025 useful
+  // sources...), then the n characters. so the separator would contain
+  // information. parsing would be a little trickier, but not that bad.
+  // So like 7*destina3zfoo would mean replace * with destina and
+  // z with foo. Actually that is no cheaper than just using a single
+  // character as the separator anyway. Better is like
+  // *7destinaz3foo, with the advantage here being that we don't have
+  // to assume a single codepoint for the source strings, as long as
+  // they can't contain a digit (easy to arrange; we use the digits
+  // for a special purpose anyway). And of course we have a maximum
+  // replacement size if we do that.
+  
   if (all_onecodepoint_source && sep != 0) {
     fprintf(out, "for(o of'");
     for (int i = reps.size() - 1; i >= 0; i--) {
@@ -363,7 +383,11 @@ int main (int argc, char **argv) {
       fprintf(out, "%s%s",
 	      reps[i].first.c_str(), reps[i].second.c_str());
     }
-    fprintf(out, "'.split('%c'))s=s.split(o[0]).join(o.slice(1))\n", sep);
+    string sep_js = (sep >= '0' && sep <= '9') ?
+      StringPrintf("%c", sep) :
+      StringPrintf("'%c'", sep);
+    fprintf(out, "'.split(%s))s=s.split(o[0]).join(o.slice(1))\n",
+	    sep_js.c_str());
   } else if (all_onecodepoint_source) {
     fprintf(out, "for(o of[");
     for (int i = reps.size() - 1; i >= 0; i--) {
