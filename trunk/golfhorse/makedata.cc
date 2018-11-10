@@ -24,7 +24,7 @@ static constexpr int INNER_THREADS = 56;
 // 3 - Print the replacements we actually make
 // 4 - Print the replacements we try
 // 5 - Print the strings found by each inner thread
-static constexpr int VERBOSE = 3;
+static constexpr int VERBOSE = 0;
 
 static int SharedPrefix(const string &a, const string &b) {
   int i = 0;
@@ -310,18 +310,7 @@ static void WriteFile(const char *filename,
   fclose(out);
 }
 
-
-int main (int argc, char **argv) {
-  if (argc < 3) {
-    fprintf(stderr, "makedata wordlist out-data.js\n");
-    return -1;
-  }
-  vector<string> words = Util::ReadFileToLines(argv[1]);
-  if (words.empty()) {
-    fprintf(stderr, "Couldn't open %s\n", argv[1]);
-    return -2;
-  }
-
+static string PrefixEncode(const vector<string> &words) {
   string data;
   {
     string lastword = "";
@@ -339,13 +328,23 @@ int main (int argc, char **argv) {
     }
   }
   data += "0";
+  return data;
+}
 
-  vector<pair<string, string>> reps;
+static vector<string> GetSources() {
   vector<string> sources;
-  // There are many three-character strings, so having two-byte utf-8
-  // sequences is still useful. It doesn't complicate our dense
-  // encoding either, since javascript works in units of codepoints,
-  // not characters.
+  // According to ES6, anything can appear literally except:
+  // closing quote code points, U+005C (REVERSE SOLIDUS),
+  // U+000D (CARRIAGE RETURN), U+2028 (LINE SEPARATOR),
+  // U+2029 (PARAGRAPH SEPARATOR), and U+000A (LINE FEED). 
+  //
+  // So good news is we can probably add some low-ascii here, but bad news
+  // is that we need to filter out a couple high unicode codepoints too.
+
+  // There are many three-character strings in long wordlists, so
+  // having two-byte utf-8 sequences is quite useful. It doesn't
+  // complicate our dense encoding either, since javascript works in
+  // units of codepoints, not characters.
   for (int i = 128; i < 2048; i++) {
     uint8 b1 = 0b110'00000;
     uint8 b2 = 0b10'000000;
@@ -359,18 +358,9 @@ int main (int argc, char **argv) {
   // Single-character codes come last, since these will be used for
   // more common matches in the greedy algorithm below.
 
-  // XXX can include the two-byte \\ and \' as well as some control
-  // characters like \r \n \t. They are at least as good as utf-16,
-  // though maybe tricky to handle in some ways (and we have to be
-  // careful about splitting them, like with multibyte utf)
-
-  // According to ES6, anything can appear literally except:
-  // closing quote code points, U+005C (REVERSE SOLIDUS),
-  // U+000D (CARRIAGE RETURN), U+2028 (LINE SEPARATOR),
-  // U+2029 (PARAGRAPH SEPARATOR), and U+000A (LINE FEED). 
-  // (Does this really include U+0000?! crazy)
-  // So good news is we can probably add some low-ascii here, but bad news
-  // is that we need to filter out a couple high unicode codepoints too.
+  // TODO PERF can include the two-byte \\ and \'. They are at least
+  // as good as utf-16, though tricky to handle in some ways (and we
+  // have to be careful about splitting them, like with multibyte utf)
   string sourcechars =
     " \"ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_-=+[]{}|;:<>?,./~`";
   for (char c : sourcechars) {
@@ -381,17 +371,26 @@ int main (int argc, char **argv) {
 
   // And low ASCII.
   for (uint8 c = 0; c < 32; c++) {
+    // Only carriage return and newline are disallowed here.
     if (c != 0x0A && c != 0x0D) {
       string ch = " ";
       ch[0] = c;
       sources.push_back(ch);
     }
   }
+  return sources;
+}
 
+
+static pair<string, vector<pair<string, string>>> Optimize(
+    string data,
+    vector<string> sources) {
   static constexpr int BEST_PER_ROUND = 1;
   // TODO: Periodically write file?
   static constexpr int MAX_SECONDS = 6 * 3600;
 
+  vector<pair<string, string>> reps;
+  
   vector<vector<int>> table;
   table.resize(256);
 
@@ -525,10 +524,34 @@ int main (int argc, char **argv) {
     }
   }
   nomore:;
-  fflush(stderr);
+  if (VERBOSE > 0)
+    fflush(stderr);
   #ifdef WRITE_LOG
   fclose(log);
   #endif
+  return {data, reps};
+}
+
+
+int main (int argc, char **argv) {
+  if (argc < 3) {
+    fprintf(stderr, "makedata wordlist out-data.js\n");
+    return -1;
+  }
+  vector<string> words = Util::ReadFileToLines(argv[1]);
+  if (words.empty()) {
+    fprintf(stderr, "Couldn't open %s\n", argv[1]);
+    return -2;
+  }
+
+  const string start_data = PrefixEncode(words);  
+  const vector<string> start_sources = GetSources();
+
+  string data;
+  vector<pair<string, string>> reps;
+
+  std::tie(data, reps) = Optimize(start_data, start_sources);
+  
 
   WriteFile(argv[2], data, reps);
   return 0;
