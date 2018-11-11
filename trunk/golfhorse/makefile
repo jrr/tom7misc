@@ -1,7 +1,7 @@
 default: list.js
 
 CXX=g++
-CXXFLAGS=--std=c++17 -O2 -Wall -I ../cc-lib/ -Wno-deprecated -Wno-sign-compare
+CXXFLAGS=--std=c++17 -g -O2 -Wall -I ../cc-lib/ -Wno-deprecated -Wno-sign-compare
 
 CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-gcc
