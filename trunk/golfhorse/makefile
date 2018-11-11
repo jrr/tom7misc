@@ -16,7 +16,7 @@ list10.js : makedata.exe ten-hundred
 verify : list.js
 	node verifier.js wordlist.asc list.js && ls -al list.js >> bench.txt
 
-CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o
+CCLIB_OBJECTS=../cc-lib/util.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o ../cc-lib/arcfour.o
 
 %.o : %.cc *.h
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c -o $@ $<
