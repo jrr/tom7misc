@@ -3,11 +3,15 @@
 #include <stdio.h>
 #include <algorithm>
 #include <unordered_set>
+#include <shared_mutex>
 
 #include "util.h"
 #include "../cc-lib/threadutil.h"
+#include "../cc-lib/arcfour.h"
+#include "../cc-lib/randutil.h"
 #include "base/stringprintf.h"
 #include "base/logging.h"
+#include "../cc-lib/gtl/top_n.h"
 
 using namespace std;
 
@@ -16,15 +20,80 @@ static constexpr bool all_onecodepoint_source = true;
 
 #undef WRITE_LOG
 
-// static constexpr int OUTER_THREADS = 1;
-static constexpr int INNER_THREADS = 56;
+// TODO: To threadutil, but note that this is C++17.
+struct ReadMutexLock {
+  explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }
+  ~ReadMutexLock() { m->unlock_shared(); }
+  std::shared_mutex *m;
+};
+// Possible to template this over shared_mutex and mutex without
+// requiring an argument?
+struct WriteMutexLock {
+  explicit WriteMutexLock(std::shared_mutex *m) : m(m) { m->lock(); }
+  ~WriteMutexLock() { m->unlock(); }
+  std::shared_mutex *m;
+};
+
+struct Periodically {
+  explicit Periodically(int every_seconds) :
+    start(time(nullptr)),
+    every_seconds(every_seconds) {
+    last_done = start;
+  }
+
+  void Force() {
+    last_done = 0LL;
+  }
+  
+  bool ShouldDo(int64 now) {
+    const int64 elapsed = now - last_done;
+    if (elapsed > every_seconds) {
+      last_done = now;
+      return true;
+    }
+    return false;
+  }
+  
+  const int64 start = 0LL;
+  const int every_seconds = 0;
+  int64 last_done = 0LL;
+};
+
+/*
+static constexpr int NUM_PASSES = 1000;
+static constexpr int OUTER_THREADS = 2;
+static constexpr int INNER_THREADS = 30;
+static constexpr int LOCAL_CANDIDATES = 10;
+static constexpr int GLOBAL_CANDIDATES = 16;
+static constexpr int BEST_PER_ROUND = 2;
+*/
+static constexpr int NUM_PASSES = 1;
+static constexpr int OUTER_THREADS = 1;
+static constexpr int INNER_THREADS = 58;
+static constexpr int LOCAL_CANDIDATES = 10;
+static constexpr int GLOBAL_CANDIDATES = 16;
+static constexpr int BEST_PER_ROUND = 1;
+static constexpr int DETERMINISTIC = true;
 
 // 0 - Silent
 // 1 - Print e.g. termination reason
 // 3 - Print the replacements we actually make
 // 4 - Print the replacements we try
 // 5 - Print the strings found by each inner thread
-static constexpr int VERBOSE = 0;
+static constexpr int VERBOSE = 3;
+
+static ArcFour *rcpool[OUTER_THREADS];
+static void InitRandom(const string &seed) {
+  ArcFour rc(seed);
+  rc.Discard(1024);
+  for (int i = 0; i < OUTER_THREADS; i++) {
+    std::vector<uint8> subseed;
+    subseed.reserve(16);
+    for (int x = 0; x < 16; x++) subseed.push_back(rc.Byte());
+    rcpool[i] = new ArcFour(subseed);
+    rcpool[i]->Discard(512);
+  }
+}
 
 static int SharedPrefix(const string &a, const string &b) {
   int i = 0;
@@ -96,6 +165,29 @@ static inline bool TerminatedUnicode(const char *s, int len) {
   return true;
 }
 
+struct Candidates {
+  struct Compare {
+    bool operator ()(const pair<string, int> &a,
+		     const pair<string, int> &b) {
+      return a.second > b.second;
+    }
+  };
+
+  Candidates(int num) : topn(num, Compare()) {}
+  
+  inline bool Has(const string &s) {
+    return already.find(s) != already.end();
+  }
+  
+  inline void Add(const string &s, int value) {
+    topn.push(make_pair(s, value));
+    already.insert(s);
+  }
+  
+  std::unordered_set<string> already;
+  gtl::TopN<std::pair<string, int>, Compare> topn;
+};
+
 // PERF: Early on, we tend to keep finding the same high-value string
 // in every thread! Could perhaps protect against this by having a
 // different set of starting characters that are considered by each
@@ -126,30 +218,30 @@ static inline bool TerminatedUnicode(const char *s, int len) {
 // Returns the best substring (best = maximum value of (size *
 // occurrences)) and the score.
 static constexpr int LONGEST_EXTENSION = 11;
-static pair<string, int> BestReplacement(
+static std::unique_ptr<Candidates> BestReplacement(
     const vector<vector<int>> &table,
     int source_length,
-    int offset, int stride, const string &s) {
-  int best_value = 0;
-  int best_idx = 0;
-  int best_len = 0;
+    int offset, int stride,
+    const string &s) {
+
+  auto local_candidates = std::make_unique<Candidates>(LOCAL_CANDIDATES);
+
   const int min_length = source_length + 1;
   for (int i = offset; i < s.size(); i += stride) {
     for (int len = min_length;
 	 len <= (min_length + LONGEST_EXTENSION) && i + len < s.size();
 	 len++) {
       if (TerminatedUnicode(s.c_str() + i, len)) {
-	const int occ =
-	  TabledOccurrences(table, s, s.c_str() + i, (size_t)len);
-	if (occ > 1) {
-	  int cost = 1 + source_length + len;
-	  int savings = occ * (len - source_length);
-	  int value = savings - cost;
+	const string cand = string(s.c_str() + i, (size_t)len);
+	if (!local_candidates->Has(cand)) {
+	  const int occ =
+	    TabledOccurrences(table, s, s.c_str() + i, (size_t)len);
+	  if (occ > 1) {
+	    int cost = 1 + source_length + len;
+	    int savings = occ * (len - source_length);
+	    int value = savings - cost;
 
-	  if (value > best_value) {
-	    best_value = value;
-	    best_idx = i;
-	    best_len = len;
+	    local_candidates->Add(cand, value);
 	  }
 	}
       }
@@ -157,12 +249,13 @@ static pair<string, int> BestReplacement(
   }
 
   // If none, then the empty string.
-  return make_pair(s.substr(best_idx, best_len), best_value);
+  return local_candidates;
+  // return make_pair(s.substr(best_idx, best_len), best_value);
 }
 
 // v must be length 256. v[c] contains a vector of all the positions
 // in s, in ascending sorted order, where the character c is.
-void MakeTable(const string &s, vector<vector<int>> *v) {
+static void MakeTable(const string &s, vector<vector<int>> *v) {
   for (vector<int> &vv : *v) vv.clear();
   for (int i = 0; i < s.size(); i++) {
     uint8 c = s[i];
@@ -383,12 +476,10 @@ static vector<string> GetSources() {
 
 
 static pair<string, vector<pair<string, string>>> Optimize(
+    // Exclusive access.
+    ArcFour *rc,
     string data,
     vector<string> sources) {
-  static constexpr int BEST_PER_ROUND = 1;
-  // TODO: Periodically write file?
-  static constexpr int MAX_SECONDS = 6 * 3600;
-
   vector<pair<string, string>> reps;
   
   vector<vector<int>> table;
@@ -398,18 +489,11 @@ static pair<string, vector<pair<string, string>>> Optimize(
   FILE *log = fopen("log.txt", "w");
   #endif
   
-  int64 start_time = time(nullptr);
-  for (;;) {
-    int64 time_now = time(nullptr);
-    if (time_now - start_time > MAX_SECONDS) {
-      if (VERBOSE >= 1)
-	fprintf(stderr, "Ran out of time.\n");
-      break;
-    }
-    
-    std::mutex m;
-    vector<pair<string, int>> results;
 
+  for (int round = 0; true; round++) {
+    // vector<pair<string, int>> results;
+    // results.reserve(INNER_THREADS);
+    
     if (sources.empty()) {
       if (VERBOSE >= 1)
 	fprintf(stderr, "No more sources (up)...\n");
@@ -418,37 +502,51 @@ static pair<string, vector<pair<string, string>>> Optimize(
     int source_length = sources.back().size();
 
     MakeTable(data, &table);
-    
-    ParallelComp(INNER_THREADS,
-		 [&m, &results, &data, &table, source_length](int idx) {
 
-		   auto res =
-		     BestReplacement(table, source_length, idx,
-				     INNER_THREADS, data);
+    std::unique_ptr<vector<pair<string, int>>> results;
+    // Often it is better to use outer parallelism, to the point that
+    // we might as well be single-threaded here to avoid thread
+    // overhead. So special case when inner threads is 1.
+    if (INNER_THREADS == 1) {
+      auto res =
+	BestReplacement(table, source_length, 0, 1, data);
+      results.reset(res->topn.Extract());
+    } else {
+      std::mutex m;
+      Candidates candidates(GLOBAL_CANDIDATES);
+      ParallelComp(INNER_THREADS,
+		   [&m, &candidates, &data, &table, source_length](int idx) {
+
+		     auto res =
+		       BestReplacement(table, source_length, idx,
+				       INNER_THREADS, data);
 		   
-		   {
-		     MutexLock ml(&m);
-		     results.push_back(std::move(res));
-		   }
-		 },
-		 INNER_THREADS);
-
-    if (VERBOSE >= 5) {
-      fprintf(stderr, ".\n");
-      fflush(stderr);
+		     {
+		       MutexLock ml(&m);
+		       for (auto it = res->topn.unsorted_begin();
+			    it != res->topn.unsorted_end();
+			    ++it) {
+			 if (!candidates.Has(it->first)) {
+			   candidates.Add(it->first, it->second);
+			 }
+		       }
+		     }
+		   },
+		   INNER_THREADS);
+      if (VERBOSE >= 5) {
+	fprintf(stderr, ".\n");
+	fflush(stderr);
+      }
+      results.reset(candidates.topn.Extract());
     }
     
-    // Sort descending.
-    // PERF: Should sort by savings here. Common to see cases where
-    // a later string has better savings.
-    std::sort(results.begin(), results.end(),
-	      [](const pair<string, int> &a,
-		 const pair<string, int> &b) {
-		return a.second > b.second;
-	      });
+    // Early on, significant chance of just doing them in random order.
+    if (!DETERMINISTIC && round < 2 && rc->Byte() < 100) {
+      Shuffle(rc, results.get());
+    }
 
     if (VERBOSE >= 5) {
-      for (const auto &p : results) {
+      for (const auto &p : *results) {
 	fprintf(stderr, " [%s]x%d\n", p.first.c_str(), p.second);
       }
       fflush(stderr);
@@ -456,14 +554,15 @@ static pair<string, vector<pair<string, string>>> Optimize(
     
     // Take the overall best (or all of them?)
     bool made_progress = false;
-    std::unordered_set<string> already;
     int tried = 0;
-    for (int rr = 0; rr < results.size(); rr++) {
-      const string &dst = results[rr].first;
-      // Don't reconsider a string we just substituted!
-      if (already.find(dst) != already.end())
+    const bool skip_allowed = !DETERMINISTIC && (rc->Byte() < 30);
+    for (int rr = 0; rr < results->size(); rr++) {
+      if (!DETERMINISTIC && skip_allowed && rc->Byte() < 64) {
+	// Don't want to cause this random skip to exit!
+	made_progress = true;
 	continue;
-      already.insert(dst);
+      }
+      const string &dst = (*results)[rr].first;
 
       if (tried > BEST_PER_ROUND)
 	break;
@@ -532,6 +631,15 @@ static pair<string, vector<pair<string, string>>> Optimize(
   return {data, reps};
 }
 
+int Metric(const string &data,
+	   const vector<pair<string, string>> &reps) {
+  // Optimistic encoding of n reps is n separators plus the
+  // length of the contents.
+  int rep_data_size = 0;
+  for (const auto &p : reps)
+    rep_data_size += p.first.size() + p.second.size();
+  return data.size() + reps.size() + rep_data_size;
+}
 
 int main (int argc, char **argv) {
   if (argc < 3) {
@@ -547,12 +655,64 @@ int main (int argc, char **argv) {
   const string start_data = PrefixEncode(words);  
   const vector<string> start_sources = GetSources();
 
-  string data;
-  vector<pair<string, string>> reps;
+  const int64 time_start = time(nullptr);
 
-  std::tie(data, reps) = Optimize(start_data, start_sources);
-  
+  InitRandom(StringPrintf("%lld", time_start));
 
-  WriteFile(argv[2], data, reps);
+  std::mutex m;
+  int best_metric = -1;
+  string best_data;
+  vector<pair<string, string>> best_reps;
+  Periodically progress(5);
+
+  bool dirty = false;
+  int passes = 0;
+  while (passes < NUM_PASSES) {
+    ParallelComp(OUTER_THREADS,
+		 [&start_data, &start_sources,
+		  &m, &best_metric, &best_data, &best_reps, &dirty](int x) {
+
+		   string data;
+		   vector<pair<string, string>> reps;
+		   std::tie(data, reps) =
+		     Optimize(rcpool[x], start_data, start_sources);
+		   const int metric = Metric(data, reps);
+		   {
+		     MutexLock ml(&m);
+		     if (best_metric < 0 ||
+			 metric < best_metric) {
+		       best_metric = metric;
+		       best_data = std::move(data);
+		       best_reps = std::move(reps);
+		       dirty = true;
+		       fprintf(stderr, "New best: %d\n", metric);
+		     }
+		   }
+		 },
+		 OUTER_THREADS);
+
+    passes += OUTER_THREADS;
+    
+    if (progress.ShouldDo(time(nullptr))) {
+      fprintf(stderr, "... %d done best %d\n", passes, best_metric);
+      if (dirty) {
+	dirty = false;
+	WriteFile(argv[2], best_data, best_reps);
+	fprintf(stderr, "Wrote %s\n", argv[2]);
+      }
+      fflush(stderr);
+    }
+  }
+		  
+#if 0  
+  int64 time_now = time(nullptr);
+  if (time_now - start_time > MAX_SECONDS) {
+    if (VERBOSE >= 1)
+      fprintf(stderr, "Ran out of time.\n");
+    break;
+  }
+#endif    
+
+  WriteFile(argv[2], best_data, best_reps);
   return 0;
 }
