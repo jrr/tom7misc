@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <shared_mutex>
+#include <unordered_map>
 
 #include "util.h"
 #include "../cc-lib/threadutil.h"
@@ -80,7 +81,7 @@ static constexpr int DETERMINISTIC = true;
 // 3 - Print the replacements we actually make
 // 4 - Print the replacements we try
 // 5 - Print the strings found by each inner thread
-static constexpr int VERBOSE = 3;
+static constexpr int VERBOSE = 4;
 
 static ArcFour *rcpool[OUTER_THREADS];
 static void InitRandom(const string &seed) {
@@ -149,6 +150,54 @@ inline static int TabledOccurrences(const vector<vector<int>> &table,
   return occ;
 }
 
+// In multibyte UTF-8 encodings, bytes after the first one all have
+// this mask (and exactly six meaningful bits).
+static inline bool IsUtf8ContinuationByte(uint8 c) {
+  return (c & 0b11'000000) == 0b10'000000;
+}
+
+// If 0, then this is regular ASCII, a continuation byte, or invalid.
+// Does not return 1.
+// Returns 2, 3, or 4 for valid 2-, 3-, or 4-byte prefix.
+static inline uint8 IsUtf8MultibytePrefix(uint8 c) {
+  // ASCII
+  if ((c & 0b1'0000000) == 0)
+    return 0;
+  if ((c & 0b111'00000) == 0b110'00000)
+    return 2;
+  if ((c & 0b1111'0000) == 0b1110'0000)
+    return 3;
+  if ((c & 0b11111'000) == 0b11110'000)
+    return 4;
+  // Invalid
+  return 0;
+}
+
+// Assumes a valid utf-8 string, not pointing inside a multibyte
+// encoding. Returns decoded 32-bit codepoint and length (1, 2, 3, 4).
+static inline std::pair<uint32, uint8> GetUtf8(const char *s) {
+  switch (IsUtf8MultibytePrefix(*s)) {
+  default:
+  case 0: return make_pair(*s, 1);
+  case 2: {
+    const uint32 c1 = s[1] & 0b00111111;
+    return make_pair(uint32((*s & 0b00011111) << 6) | c1, 2);
+  }
+  case 3: {
+    const uint32 c1 = s[1] & 0b00111111;
+    const uint32 c2 = s[2] & 0b00111111;
+    return make_pair((((uint32(*s & 0b00001111) << 6) | c1) << 6) | c2,
+		     3);
+  }
+  case 4: {
+    const uint32 c1 = s[1] & 0b00111111;
+    const uint32 c2 = s[2] & 0b00111111;
+    const uint32 c3 = s[3] & 0b00111111;    
+    return make_pair((((((uint32(*s & 0b00000111) << 6) | c1) << 6) |
+		       c2) << 6) | c3, 4);
+  }
+  }
+}
 
 // This assumes that we have at most two-byte utf-8 encodings
 // and that the string s is all valid.
@@ -156,12 +205,15 @@ static inline bool TerminatedUnicode(const char *s, int len) {
   if (len == 0) return true;
 
   // First byte can't be a multibyte continuation.
-  if ((s[0] & 0b11'000000) == 0b10'000000)
+  if (IsUtf8ContinuationByte(s[0]))
     return false;
-  // Last byte of the substring can't be the first byte in a multibyte
-  // encoding.
-  if ((s[len - 1] & 0b111'00000) == 0b110'00000)
+  
+  if (IsUtf8MultibytePrefix(s[len - 1]))
     return false;
+
+  // TODO: To handle 3- and 4-byte encodings, first check if the last
+  // byte is a continuation byte, and if so, work backwards until
+  // we find a prefix byte of the correct magnitude.
   return true;
 }
 
@@ -252,6 +304,146 @@ static std::unique_ptr<Candidates> BestReplacement(
   return local_candidates;
   // return make_pair(s.substr(best_idx, best_len), best_value);
 }
+
+// Use the table to find the best repeated strings from the given
+// row.
+static std::unique_ptr<Candidates> NewBestReplacement(
+    const vector<vector<int>> &table,
+    int source_length,
+    uint8 row,
+    const string &s) {
+
+  // There can't be any candidates of value without at least two
+  // occurrences of the character.
+  if (table[row].size() <= 1)
+    return {nullptr};
+
+  // Also, the character cannot be in the middle of a multibyte
+  // encoding.
+  // PERF: Could just avoid collecting these?
+  if (IsUtf8ContinuationByte(row))
+    return {nullptr};
+
+  auto local_candidates = std::make_unique<Candidates>(LOCAL_CANDIDATES);
+
+  const int min_length = source_length + 1;
+
+  // Each entry in this row of the table is a potential starting point
+  // for a candidate. Focusing on a given index, this gives us a
+  // stream of characters. As we extend the length of that stream, we
+  // have some set of the indices that also match, and as we extend
+  // the stream, this set tends to get smaller. At any time, we can
+  // compute the value of that set and insert it as a candidate (PS:
+  // need to think about overlap). When the set becomes a singleton
+  // (i.e., it is just the focal index) then no more extension will
+  // ever be useful, and we stop.
+
+  // So, recursively, we take a set of indices into the string. These
+  // indices are all known to indicate the same character.
+  //
+  //  - If the set is empty or a singleton, we are done.
+  //  - Otherwise, for each index, get the character that follows it.
+  //  - Invert this so that we have the set of distinct extending
+  //    characters associated with the indices that continue that way.
+  //  - Now, recurse over each of those continuations.
+
+  auto Consider =
+    [&](int i, int len) {
+      // This should enumerate distinct strings, so this block
+      // should not be necessary!
+
+      /*
+      CHECK(i + len < s.size());
+      CHECK(TerminatedUnicode(s.c_str() + i, len));
+      */
+
+      /*
+      CHECK(!local_candidates->Has(cand));
+      */
+      // PERF: In principle we could compute this as we go, although
+      // overlaps are tricky.
+      const int occ =
+	TabledOccurrences(table, s, s.c_str() + i, (size_t)len);
+      if (occ > 1) {
+	int cost = 1 + source_length + len;
+	int savings = occ * (len - source_length);
+	int value = savings - cost;
+
+	// PERF: Don't even insert it into hash set for local
+	// candidates.
+	const string cand = string(s.c_str() + i, (size_t)len);
+	local_candidates->Add(cand, value);
+      }
+    };
+
+  // Each index in the vector is one of the starting indices.
+  // We keep the starting indices so that we can extract the
+  // actual string at the end!
+  std::function<void(int, const vector<int> &)> Rec =
+      // Each index has the same string for at least len bytes.
+      [&s, &local_candidates, &min_length, &Consider, &Rec](
+	  int len, const vector<int> &indices){
+	// Nothing to do for singletons.
+	if (indices.size() <= 1)
+	  return;
+
+	// Precondition.
+	// PERF DEBUG!
+	/*
+	string str = s.substr(indices[0], len);
+	for (int i : indices) {
+	  CHECK(str == s.substr(i, len));
+	}
+	*/
+	
+	// Possible continuations, grouped by 32-bit codepoint.
+	// Each continuation has the encoded length of the codepoint
+	// and the vector of next indices.
+	std::unordered_map<uint32, std::pair<uint8, vector<int>>> conts;
+
+	// Try continuing each string. Each extension may produce
+	// a different length due to multi-byte encodings.
+	for (int idx : indices) {
+	  int next = idx + len;
+	  // Just ignore it if we fall outside the string.
+	  if (next >= s.size())
+	    continue;
+	  uint32 cp; uint8 cp_len;
+	  std::tie(cp, cp_len) = GetUtf8(s.data() + next);
+	  auto &p = conts[cp];
+	  p.first = cp_len;
+	  p.second.push_back(idx);
+	}
+
+	if (len >= min_length && conts.size() != 1) {
+	  // If the string has multiple different continuations,
+	  // then we need to consider the current string, because
+	  // this may be a global best for (length * number of
+	  // occurrences). (Or put another way, if there is just
+	  // one way the string continues, then this string is
+	  // strictly worse than its continuation.)
+	  //
+	  // (XXX: This looks incorrect when one of the indices
+	  // is excluded above because it ends the string...)
+
+	  // We can use any index because they're all the same.
+	  Consider(indices[0], len);
+	}
+
+	// In any case, recurse on all continuations.
+	for (const auto &p : conts) {
+	  const int cont_len = len + p.second.first;
+	  Rec(cont_len, p.second.second);
+	}
+      };
+	
+
+  // Everything shares a zero-length prefix.
+  Rec(0, table[row]);
+
+  return local_candidates;
+}
+
 
 // v must be length 256. v[c] contains a vector of all the positions
 // in s, in ascending sorted order, where the character c is.
@@ -503,42 +695,33 @@ static pair<string, vector<pair<string, string>>> Optimize(
 
     MakeTable(data, &table);
 
-    std::unique_ptr<vector<pair<string, int>>> results;
-    // Often it is better to use outer parallelism, to the point that
-    // we might as well be single-threaded here to avoid thread
-    // overhead. So special case when inner threads is 1.
-    if (INNER_THREADS == 1) {
-      auto res =
-	BestReplacement(table, source_length, 0, 1, data);
-      results.reset(res->topn.Extract());
-    } else {
-      std::mutex m;
-      Candidates candidates(GLOBAL_CANDIDATES);
-      ParallelComp(INNER_THREADS,
-		   [&m, &candidates, &data, &table, source_length](int idx) {
+    std::mutex m;
+    Candidates candidates(GLOBAL_CANDIDATES);
+    ParallelComp(table.size(),
+		 [&m, &candidates, &data, &table, source_length](int row) {
+		   auto res =
+		     NewBestReplacement(table, source_length, row, data);
 
-		     auto res =
-		       BestReplacement(table, source_length, idx,
-				       INNER_THREADS, data);
-		   
-		     {
-		       MutexLock ml(&m);
-		       for (auto it = res->topn.unsorted_begin();
-			    it != res->topn.unsorted_end();
-			    ++it) {
-			 if (!candidates.Has(it->first)) {
-			   candidates.Add(it->first, it->second);
-			 }
+		   // This often returns null for trivial cases (e.g.
+		   // zero or one occurrence of the character).
+		   if (res.get() != nullptr) {
+		     MutexLock ml(&m);
+		     for (auto it = res->topn.unsorted_begin();
+			  it != res->topn.unsorted_end();
+			  ++it) {
+		       if (!candidates.Has(it->first)) {
+			 candidates.Add(it->first, it->second);
 		       }
 		     }
-		   },
-		   INNER_THREADS);
-      if (VERBOSE >= 5) {
-	fprintf(stderr, ".\n");
-	fflush(stderr);
-      }
-      results.reset(candidates.topn.Extract());
+		   }
+		 },
+		 INNER_THREADS);
+    if (VERBOSE >= 5) {
+      fprintf(stderr, ".\n");
+      fflush(stderr);
     }
+    std::unique_ptr<vector<pair<string, int>>> results;
+    results.reset(candidates.topn.Extract());
     
     // Early on, significant chance of just doing them in random order.
     if (!DETERMINISTIC && round < 2 && rc->Byte() < 100) {
