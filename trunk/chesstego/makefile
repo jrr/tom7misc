@@ -6,7 +6,7 @@ chesstego.exe : chesstego.sml chesstego.cm
 chessycrush.exe : chessycrush.sml chessycrush.cm
 	mlton -output $@ chessycrush.cm
 
-paper.pdf : paper.tex king2.tex paper.bib
+paper.pdf : paper.tex paper.bib
 	pdflatex paper
 	bibtex paper
 	pdflatex paper
