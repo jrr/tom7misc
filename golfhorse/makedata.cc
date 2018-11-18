@@ -19,6 +19,23 @@ using namespace std;
 // This is currently assumed.
 static constexpr bool all_onecodepoint_source = true;
 
+// The following parameters need to be tuned manually:
+
+// Only use the digits 0-9 for the prefix encoding.
+// Results in a shorter decoder if we don't need
+static constexpr bool MAX_PREFIX_9 = false;
+// Force a separator character to be reserved for the reps,
+// so it can't be used in sources. This makes the encoding
+// of reps much smaller ('a','bc', -> abc0) at the cost of
+// a small amount of coding efficiency. (In many cases,
+// there will be some character that we can use by coincidence.)
+static constexpr bool FORCE_SEP = true;
+
+
+// Can turn off this phase, mainly for debugging.
+static constexpr bool USE_REPS = true;
+
+
 #undef WRITE_LOG
 
 // TODO: To threadutil, but note that this is C++17.
@@ -60,14 +77,23 @@ struct Periodically {
   int64 last_done = 0LL;
 };
 
-/*
+// Verbosity:
+// 0 - Silent
+// 1 - Print e.g. termination reason
+// 3 - Print the replacements we actually make
+// 4 - Print the replacements we try
+// 5 - Print the strings found by each inner thread
+
+#if 1
 static constexpr int NUM_PASSES = 1000;
-static constexpr int OUTER_THREADS = 2;
-static constexpr int INNER_THREADS = 30;
+static constexpr int OUTER_THREADS = 5;
+static constexpr int INNER_THREADS = 12;
 static constexpr int LOCAL_CANDIDATES = 10;
 static constexpr int GLOBAL_CANDIDATES = 16;
-static constexpr int BEST_PER_ROUND = 2;
-*/
+static constexpr int BEST_PER_ROUND = 1;
+static constexpr int DETERMINISTIC = false;
+static constexpr int VERBOSE = 0;
+#else
 static constexpr int NUM_PASSES = 1;
 static constexpr int OUTER_THREADS = 1;
 static constexpr int INNER_THREADS = 58;
@@ -75,13 +101,9 @@ static constexpr int LOCAL_CANDIDATES = 10;
 static constexpr int GLOBAL_CANDIDATES = 16;
 static constexpr int BEST_PER_ROUND = 1;
 static constexpr int DETERMINISTIC = true;
+static constexpr int VERBOSE = 3;
+#endif
 
-// 0 - Silent
-// 1 - Print e.g. termination reason
-// 3 - Print the replacements we actually make
-// 4 - Print the replacements we try
-// 5 - Print the strings found by each inner thread
-static constexpr int VERBOSE = 4;
 
 static ArcFour *rcpool[OUTER_THREADS];
 static void InitRandom(const string &seed) {
@@ -154,6 +176,11 @@ inline static int TabledOccurrences(const vector<vector<int>> &table,
 // this mask (and exactly six meaningful bits).
 static inline bool IsUtf8ContinuationByte(uint8 c) {
   return (c & 0b11'000000) == 0b10'000000;
+}
+
+// Single ASCII characters that we allow inside our JS literals.
+static inline bool IsSafeASCII(uint8 c) {
+  return c < 128 && c != 0x0a && c != 0x0d && c != '\\' && c != '\'';
 }
 
 // If 0, then this is regular ASCII, a continuation byte, or invalid.
@@ -240,25 +267,7 @@ struct Candidates {
   gtl::TopN<std::pair<string, int>, Compare> topn;
 };
 
-// PERF: Early on, we tend to keep finding the same high-value string
-// in every thread! Could perhaps protect against this by having a
-// different set of starting characters that are considered by each
-// thread, instead of using strides?
-// Better would be to build an index by the first byte, and then
-// split that up. This also helps us find matches much more
-// efficiently, because you can just iterate over all the places
-// where the occurrence might start. Dealing with self-overlap is a
-// little tricky, although it could just be a post-processing
-// step since we could generate the actual occurrence locations.
-// (Or like if they are sorted, then we can keep track of
-// the "next index where a valid occurrence could start" pretty
-// easily. And why wouldn't we just generate them in sorted order?)
-
-// TODO: Ideally we would allow longest extension to grow if we
-// can't find anything within the horizon. Even just two
-// occurrences of a very long string would be worth a lot.
-//
-// ALSO: Couldn't we just invent new sources? We can safely use
+// PERF: Couldn't we just invent new sources? We can safely use
 // any string that doesn't appear in the input, and that wouldn't
 // induce any accidental occurrences (e.g. due to overlap) when
 // reverse-replaced. This might open us up to a large number of
@@ -269,41 +278,6 @@ struct Candidates {
 
 // Returns the best substring (best = maximum value of (size *
 // occurrences)) and the score.
-static constexpr int LONGEST_EXTENSION = 11;
-static std::unique_ptr<Candidates> BestReplacement(
-    const vector<vector<int>> &table,
-    int source_length,
-    int offset, int stride,
-    const string &s) {
-
-  auto local_candidates = std::make_unique<Candidates>(LOCAL_CANDIDATES);
-
-  const int min_length = source_length + 1;
-  for (int i = offset; i < s.size(); i += stride) {
-    for (int len = min_length;
-	 len <= (min_length + LONGEST_EXTENSION) && i + len < s.size();
-	 len++) {
-      if (TerminatedUnicode(s.c_str() + i, len)) {
-	const string cand = string(s.c_str() + i, (size_t)len);
-	if (!local_candidates->Has(cand)) {
-	  const int occ =
-	    TabledOccurrences(table, s, s.c_str() + i, (size_t)len);
-	  if (occ > 1) {
-	    int cost = 1 + source_length + len;
-	    int savings = occ * (len - source_length);
-	    int value = savings - cost;
-
-	    local_candidates->Add(cand, value);
-	  }
-	}
-      }
-    }
-  }
-
-  // If none, then the empty string.
-  return local_candidates;
-  // return make_pair(s.substr(best_idx, best_len), best_value);
-}
 
 // Use the table to find the best repeated strings from the given
 // row.
@@ -447,14 +421,19 @@ static std::unique_ptr<Candidates> NewBestReplacement(
 
 // v must be length 256. v[c] contains a vector of all the positions
 // in s, in ascending sorted order, where the character c is.
+// Note: Doesn't bother collecting utf-8 continuation bytes, since
+// these can never start a valid candidate.
 static void MakeTable(const string &s, vector<vector<int>> *v) {
   for (vector<int> &vv : *v) vv.clear();
   for (int i = 0; i < s.size(); i++) {
     uint8 c = s[i];
-    (*v)[c].push_back(i);
+    if (!IsUtf8ContinuationByte(c)) {
+      (*v)[c].push_back(i);
+    }
   }
 }
 
+// XXX need to support beyond two-byte encodings!
 static string Encode(const string &s) {
   const bool all_ascii =
     [&s](){
@@ -529,6 +508,8 @@ static void WriteFile(const char *filename,
 	 "qwertyuiopasdfghjklzxcvbnm"
 	 "QWERTYUIOPASDFGHJKLZXCVBNM"
 	 "!@#$%^&*()_+[]{}|:;<>?,./ ") {
+    // PERF: Consider low ascii too. It just needs to be a single
+    // byte.
     if (!InReps(c)) { sep = c; break; }
   }
 
@@ -550,7 +531,11 @@ static void WriteFile(const char *filename,
 
   // Note the use of fwrite below instead of fprintf with %s, since
   // the strings may include 0.
-  if (all_onecodepoint_source && sep != 0) {
+  if (!USE_REPS) {
+    // Skip the reps step. This is mostly for debugging.
+    // s already contains the desired string.
+
+  } else if (all_onecodepoint_source && sep != 0) {
     fprintf(out, "for(o of'");
     for (int i = reps.size() - 1; i >= 0; i--) {
       if (i != reps.size() - 1) fprintf(out,"%c",sep);
@@ -589,30 +574,59 @@ static void WriteFile(const char *filename,
 	    (int)reps.size());
   }
 
-  fprintf(out,
-	  "w='';for(c of s)+c+1?w=console.log(w)||w.substr(0,+c):w+=c");
+  fprintf(out, "w='';");
+  if (MAX_PREFIX_9) {
+    fprintf(out,
+	    "for(c of s)+c+1?w=console.log(w)||w.substr(0,+c):w+=c");
+  } else {
+    fprintf(out,
+	    "e=/(\\D+)(\\d+)/g;"
+	    "while(a=e.exec(s))console.log(w=w.substr(0,a[1])+a[2])");
+  }
   
   fclose(out);
 }
 
 static string PrefixEncode(const vector<string> &words) {
   string data;
-  {
+
+  if (MAX_PREFIX_9) {
+    int64 wasted = 0LL;
     string lastword = "";
     for (int i = 0; i < words.size(); i++) {
       const string &word = words[i];
       if (i == 0) {
 	data += word;
       } else {
-	int pfx = std::min(SharedPrefix(lastword, word), 9);
+	int real_pfx = SharedPrefix(lastword, word);
+	if (real_pfx > 9) wasted += (real_pfx - 9);
+	int pfx = std::min(real_pfx, 9);
 	data +=
 	  StringPrintf("%d%s", pfx,
 		       word.substr(pfx, string::npos).c_str());
       }
       lastword = word;
     }
+    
+    data += "0";
+    fprintf(stderr, "Prefix encoding wasted %lld by only having 0-9\n",
+	    wasted);
+  } else {
+
+    // Almost the same, but here the order is
+    //    [newsuffix][length of prefix shared with prev]
+    string lastword = "";
+    for (int i = 0; i < words.size(); i++) {
+      const string &word = words[i];
+      int pfx = SharedPrefix(lastword, word);
+      data +=
+	StringPrintf("%s%d",
+		     word.substr(pfx, string::npos).c_str(),
+		     pfx);
+      lastword = word;
+    }
   }
-  data += "0";
+  
   return data;
 }
 
@@ -626,6 +640,20 @@ static vector<string> GetSources() {
   // So good news is we can probably add some low-ascii here, but bad news
   // is that we need to filter out a couple high unicode codepoints too.
 
+  // For long wordslists, three-byte utf-8 is even useful.
+  for (int i = 0x800; i < 0x10000; i++) {
+    if (i != 0x2028 && i != 0x2029) {
+      uint8 b1 = 0b1110'0000;
+      uint8 b2 = 0b10'000000;
+      uint8 b3 = 0b10'000000;
+      b1 |= (i >> 12) & 0b1111;
+      b2 |= (i >> 6) & 0b111111;
+      b3 |= i & 0b111111;
+      string s = StringPrintf("%c%c%c", b1, b2, b3);
+      sources.push_back(s);
+    }
+  }
+    
   // There are many three-character strings in long wordlists, so
   // having two-byte utf-8 sequences is quite useful. It doesn't
   // complicate our dense encoding either, since javascript works in
@@ -647,13 +675,17 @@ static vector<string> GetSources() {
   // as good as utf-16, though tricky to handle in some ways (and we
   // have to be careful about splitting them, like with multibyte utf)
   string sourcechars =
-    " \"ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_-=+[]{}|;:<>?,./~`";
+    "\"ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_-=+[]{}|;:<>?,./~`";
   for (char c : sourcechars) {
     string ch = " ";
     ch[0] = c;
     sources.push_back(ch);
   }
 
+  // Space is excluded from the above, so that we can reserve it as
+  // a separator if forced to do so.
+  if (!FORCE_SEP) sources.push_back(" ");
+  
   // And low ASCII.
   for (uint8 c = 0; c < 32; c++) {
     // Only carriage return and newline are disallowed here.
@@ -673,6 +705,9 @@ static pair<string, vector<pair<string, string>>> Optimize(
     string data,
     vector<string> sources) {
   vector<pair<string, string>> reps;
+
+  if (!USE_REPS)
+    return {data, {}};
   
   vector<vector<int>> table;
   table.resize(256);
@@ -693,6 +728,72 @@ static pair<string, vector<pair<string, string>>> Optimize(
     }
     int source_length = sources.back().size();
 
+
+
+    // This is disabled because it can't work yet (see below).
+    // Looks like it can save about 1.5k on wordlist.asc.
+    if (false && source_length > 2) {
+      vector<bool> exists(128 * 128, false);
+      uint8 b1 = data[0];
+      for (int i = 1; i < data.size(); i++) {
+	uint8 b2 = data[i];
+	// We only care about two consecutive safe ascii characters,
+	// so this is simpler than trying to skip over multibyte
+	// encodings explicitly.
+	if (IsSafeASCII(b1) && IsSafeASCII(b2)) {
+	  exists[b1 * 128 + b2] = true;
+	}
+	b1 = b2;
+      }
+      
+      int num_codes = 0;
+      string examples;
+      for (uint8 b1 = 0; b1 < 128; b1++) {
+	if (!IsSafeASCII(b1))
+	  continue;
+
+	for (uint8 b2 = 0; b2 < 128; b2++) {
+	  if (!IsSafeASCII(b2))
+	    continue;
+
+	  // Skip numerals so that they can be used in the encoding
+	  // of the replacements string.
+	  if ((b1 >= '0' && b1 <= '9') ||
+	      (b2 >= '0' && b2 <= '9'))
+	    continue;
+	  
+	  if (!exists[b1 * 128 + b2]) {
+	    num_codes ++;
+	    if (num_codes < 10) {
+	      auto EncodeChar =
+		[](uint8 c) {
+		  if (c < 32) return StringPrintf("[%02x]", (int)c);
+		  else return StringPrintf("%c", c);
+		};
+	      examples += " " + EncodeChar(b1) + EncodeChar(b2) + ", ";
+	    }
+	    // XXX This can't work yet; we need:
+	    //  - to support decoding with multi-codepoint source
+	    //  - to check that when we do the reverse substitution,
+	    //    we don't generate any false occurences of the
+	    //    code. For example, if we find that "AA" never
+	    //    appears in the string, so we want to replace
+	    //    XYZ<-AA, we actually can't do it if an occurrence
+	    //    of XYZ is actually AXYZA, because the resulting
+	    //    string would be AAAA, which would decode to
+	    //    XYZXYZ, not AXYZA as expected. (Is this possible
+	    //    if the two bytes are different? No?)
+	    //  - can't just add them to the sources list, because
+	    //    as soon as we do a substitution they may become
+	    //    invalid.
+	    sources.push_back(StringPrintf("%c%c", b1, b2));
+	  }
+	}
+      }
+      fprintf(stderr, "%d unused codes, like %s ...\n",
+	      num_codes, examples.c_str());
+    }
+    
     MakeTable(data, &table);
 
     std::mutex m;
@@ -740,10 +841,16 @@ static pair<string, vector<pair<string, string>>> Optimize(
     int tried = 0;
     const bool skip_allowed = !DETERMINISTIC && (rc->Byte() < 30);
     for (int rr = 0; rr < results->size(); rr++) {
-      if (!DETERMINISTIC && skip_allowed && rc->Byte() < 64) {
-	// Don't want to cause this random skip to exit!
-	made_progress = true;
-	continue;
+      if (!DETERMINISTIC && skip_allowed && rr < results->size() - 1) {
+	double v1 = (*results)[rr].second;
+	double v2 = (*results)[rr + 1].second;
+	// Higher chance of staying if v1 is much larger than v2.
+	double p = v1 / (v1 + v2);
+	if (RandDouble(rc) < p) {
+	  // Don't want to cause this random skip to exit!
+	  made_progress = true;
+	  continue;
+	}
       }
       const string &dst = (*results)[rr].first;
 
