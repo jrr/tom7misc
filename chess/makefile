@@ -1,7 +1,19 @@
 
 default: chess_test.exe rungames.exe
 
-allstats : stats-2017-04.txt stats-2017-05.txt stats-2017-06.txt stats-2017-07.txt stats-2017-08.txt stats-2017-09.txt stats-2017-10.txt stats-2017-11.txt stats-2017-12.txt stats-2018-01.txt stats-2018-02.txt stats-2018-03.txt stats-2018-04.txt stats-2018-05.txt stats-2018-06.txt stats-2018-07.txt stats-2018-08.txt
+STATS2013= stats-2013-01.txt stats-2013-02.txt stats-2013-03.txt stats-2013-04.txt stats-2013-05.txt stats-2013-06.txt stats-2013-07.txt stats-2013-08.txt stats-2013-09.txt stats-2013-10.txt stats-2013-11.txt stats-2013-12.txt
+
+STATS2014= stats-2014-01.txt stats-2014-02.txt stats-2014-03.txt stats-2014-04.txt stats-2014-05.txt stats-2014-06.txt stats-2014-07.txt stats-2014-08.txt stats-2014-09.txt stats-2014-10.txt stats-2014-11.txt stats-2014-12.txt
+
+STATS2015= stats-2015-01.txt stats-2015-02.txt stats-2015-03.txt stats-2015-04.txt stats-2015-05.txt stats-2015-06.txt stats-2015-07.txt stats-2015-08.txt stats-2015-09.txt stats-2015-10.txt stats-2015-11.txt stats-2015-12.txt
+
+STATS2016= stats-2016-01.txt stats-2016-02.txt stats-2016-03.txt stats-2016-04.txt stats-2016-05.txt stats-2016-06.txt stats-2016-07.txt stats-2016-08.txt stats-2016-09.txt stats-2016-10.txt stats-2016-11.txt stats-2016-12.txt
+
+STATS2017= stats-2017-01.txt stats-2017-02.txt stats-2017-03.txt stats-2017-04.txt stats-2017-05.txt stats-2017-06.txt stats-2017-07.txt stats-2017-08.txt stats-2017-09.txt stats-2017-10.txt stats-2017-11.txt stats-2017-12.txt
+
+STATS2018= stats-2018-01.txt stats-2018-02.txt stats-2018-03.txt stats-2018-04.txt stats-2018-05.txt stats-2018-06.txt stats-2018-07.txt stats-2018-08.txt stats-2018-09.txt stats-2018-10.txt
+
+allstats : $(STATS2013) $(STATS2014) $(STATS2015) $(STATS2016) $(STATS2017) $(STATS2018)
 
 
 CXXFLAGS=--std=c++17 -Wall -Wno-deprecated -Wno-sign-compare

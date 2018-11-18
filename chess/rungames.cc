@@ -190,12 +190,15 @@ static void ReadLargePGN(const char *filename) {
   CHECK(f != nullptr);
   
   int64 num_read = 0LL;
-
+  std::shared_mutex bad_games_m;
+  int64 bad_games = 0LL;
+  
   Stats stat_buckets[NUM_BUCKETS];
   
   PGNParser parser;
   auto DoWork = 
-    [&stat_buckets, &parser](const string &pgn_text) {
+    [&bad_games_m, &bad_games,
+     &stat_buckets, &parser](const string &pgn_text) {
       PGN pgn;
       CHECK(parser.Parse(pgn_text, &pgn));
 
@@ -222,7 +225,10 @@ static void ReadLargePGN(const char *filename) {
 	const string old_board = pos.BoardString();
 	#endif
 	Move move;
-	CHECK(pos.ParseMove(m.move.c_str(), &move))
+	const bool move_ok = pos.ParseMove(m.move.c_str(), &move);
+
+	#ifdef SELF_CHECK
+	CHECK(move_ok)
 	  << "Could not parse move: "
 	  << ((i % 2 == 0) ? "(white) " : "(black) ") << (i >> 1) << ". "
 	  << m.move
@@ -232,6 +238,18 @@ static void ReadLargePGN(const char *filename) {
 #endif
 	  << "\nFrom full PGN:\n"
 	  << pgn_text;
+	#endif
+	if (!move_ok) {
+	  fprintf(stderr, "Bad move %s from full PGN:\n%s",
+		  m.move.c_str(), pgn_text.c_str());
+	  // There are a few messed up games in 2016 and earlier.
+	  // Return early if we find such a game.
+	  {
+	    WriteMutexLock ml(&bad_games_m);
+	    bad_games++;
+	  }
+	  return;
+	}
 	
 	#ifdef SELF_CHECK
 	CHECK(old_board == pos.BoardString()) << "ParseMove modified board "
@@ -427,6 +445,9 @@ static void ReadLargePGN(const char *filename) {
 	printf(" %lld", p.survived_on[d]);
       printf("\n");
     }
+  }
+  if (bad_games) {
+    fprintf(stderr, "Note: %lld bad games\n", bad_games);
   }
 }
 
