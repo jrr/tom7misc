@@ -1,7 +1,55 @@
+\documentclass[twocolumn]{article}
+\usepackage[top=1.1in, left=0.85in, right=0.85in]{geometry}
 
-\begin{document}
+\usepackage{url}
+% \usepackage{code}
+% \usepackage{cite}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{chessboard}
 
-Survival in Chessland
+\pagestyle{empty}
+
+\usepackage{ulem}
+% go back to italics for emphasis, though
+\normalem
+
+\usepackage{natbib}
+
+% \newcommand\comment[1]{}
+\newcommand\sfrac[2]{\!{}\,^{#1}\!/{}\!_{#2}}
+
+\begin{document} 
+
+\title{Survival in chessland}
+\author{Dr.~Tom~Murphy~VII~Ph.D.\thanks{
+Copyright \copyright\ 2018 the Regents of the Wikiplia
+Foundation. Appears in SIGBOVIK 2018 with the threefold
+repetition of the Association for Computational Heresy; 
+{\em IEEEEEE!} press, Verlag-Verlag volume no.~0x40-2A.
+53 Centipawns} }
+
+\setchessboard{showmover=false}
+
+\newcommand\checkmate{\hspace{-.05em}\raisebox{.4ex}{\tiny\bf ++}}
+
+\renewcommand\th{\ensuremath{{}^{\textrm{th}}}}
+\newcommand\st{\ensuremath{{}^{\textrm{st}}}}
+\newcommand\rd{\ensuremath{{}^{\textrm{rd}}}}
+\newcommand\nd{\ensuremath{{}^{\textrm{nd}}}}
+\newcommand\at{\ensuremath{\scriptstyle @}}
+
+\date{1 April 2018}
+
+\maketitle \thispagestyle{empty}
+
+\begin{abstract}
+CHESSMATE.
+\end{abstract}
+
+\section*{Introduction}
+
 
 If you are forced to play chess to the death, you are in trouble,
 because most people are not good at chess (for example, the author)
@@ -70,7 +118,10 @@ and yet want to live.\footnote{It is easy for two players to
 But what if you are forced to {\it be one of the chess pieces} to the
 death? That is, your little soul inhabits one of the 32 pieces or
 pawns and your soul is vanquished if that piece is eliminated. Now it
-doesn't matter whether you're good or bad at chess, but
+doesn't matter whether you're good or bad at chess, because you don't
+get to pick what happens in the game. What matters is that your piece
+lives to the end of the game, when all surviving pieces are set free.
+Which piece should you want to be?
 
 In formal chess, the king can never be captured: The game ends when
 the king is attacked but cannot move, and it is illegal to make a move
@@ -92,8 +143,18 @@ with both kings surviving. So the survival chances of a king are
 clearly greater than 50\%---pretty decent odds. Is it possible that
 any other piece has even better chances?
 
+\section{Hypotheses}
 
-Here are my guesses:
+Like all good scientific research, I clearly laid out my hypothesis
+and wrote down the motivation before performing the study. This helps
+prevent presentation bias where the results appear more satisfactory
+because they are framed as a natural conclusion from the idea that
+motivated the research in the first place (when in fact, of course,
+if you write the motivation after witnessing the results, ..). 
+It is also much more exciting. I literally don't know the answer
+as I'm writing this, nor whether it is interesting in any way!
+
+Here are my guesses.
 
 \begin{itemize}
 \item Black and white are probably not significantly different. That
@@ -130,29 +191,205 @@ Here are my guesses:
   lost to this fate.
 \end{itemize}
 
-This leaves my final ranking, from least surviving to most surviving,
-as:
+This leaves my final ranking, from most surviving to most dead:
 
-16. d2,
-15. e2,
-14. b1 knight,
-13. g1 knight,
-12. c1 bishop,
-11. f1 bishop,
-10. queen,
-9. king,
-8. a1 rook,
-7. h1 rook,
-6. b2,
-5. h2
-4. a2
-3. g2
-2. c2
-1. f2
+\begin{enumerate}
+\item  f2
+\item  c2
+\item  g2
+\item  a2
+\item  h2
+\item  b2,
+\item  h1 rook,
+\item  a1 rook,
+\item  king,
+\item  queen,
+\item  f1 bishop,
+\item  c1 bishop,
+\item  g1 knight,
+\item  b1 knight,
+\item  e2,
+\item  d2,
+\end{enumerate}
 
-% Ben, David, Jim also wagered guesses
+As already copped to, while the author is an aficionado and also knows
+how to spell the difficult word aficionado without spell-check, he is
+not good at chess. A few drinking buddies with varying chessperience were
+also consulted for their wagers.
+
+\subsection{Ben}
+
+edge pawns almost never played til endgame let alone traded off
+
+ph
+pa
+
+not quite sure where these should go (pb more likely to see play in
+queenside minority attacks in k-side castle games?)
+
+pf
+pg
+pb
+
+rook play more likely to be active on q side than on k side (also the
+classic Nxc7 fork in low rank play), but overall more likely to stay
+tucked away compared to q
+
+Rh
+Ra
+
+i think IQP positions are more likely than not saccing e in e4 openings
+but on the other hand d is often traded off in e4 openings while vice
+versa is not as true
+
+pe
+pd
+
+q probably involved in many checkmates (low ranked play) or resignations
+before traded off (high ranked play)
+
+Q
+
+just randomly guessing k dies in about 1/3 of games, times 1/2 for 2
+sides
+
+K
+
+this pawn is a super goner (sicilian, QGA, ...)
+
+pc
+
+most doomed seem to be the minor pieces as i'd guess at least half of
+them get traded off on c/f/3/6 or e/d/4/5 in near every game so
+
+Bc
+Bf
+Nb
+Ng
+
+\subsection{Jim}
+
+Most-to-least-survival hero tier list for chess (patch 1.0):
+
+1.: King
+ -- If I estimate that about 2/3rds of all regular pieces are captured in an average game, and the probability of any non-king piece being captured is uniform, then the king is clearly the most likely to survive. (I'm going to break symmetry here and rank black king less likely to survive than white king.)
+
+2. Both Rooks
+ -- Kept in reserve for castling purposes.
+
+3. The A, B, G, and H pawns
+ -- maybe people will forget to move them because they are far from the center.
+
+4. Both Knights
+ -- They are slippery, but they often get deep into enemy territory quickly.
+
+5. The C,D,E, F pawns
+ -- Moved forward to release various more important pieces => more likely to die.
+
+6. Both Bishops
+ -- https://www.youtube.com/watch?v=gDnE-5lD7w8
+
+7. The Queen
+ -- A high-value target, seems unlikely to survive.
+
+This list was assembled for chess.report by ix, who only barely understands the rules of chess and rarely plays. This is probably why the justifications get increasingly nonsensical.
+
+\subsection{David}
+
+Here's my ranking, along with the probabilities of survival that I guess for each piece:
+
+white g-pawn: 0.72
+black g-pawn: 0.72
+white b-pawn: 0.69
+black a-pawn: 0.66
+black b-pawn: 0.65
+white king: 0.65
+white a-pawn: 0.64
+black king: 0.55
+black f-pawn: 0.54
+white f-pawn: 0.54
+black h-pawn: 0.53
+white h-pawn: 0.53
+white kingside rook: 0.52
+black kingside rook: 0.52
+white queenside rook: 0.51
+black queenside rook: 0.51
+white c-pawn: 0.49
+black c-pawn: 0.44
+white light-squared bishop: 0.33
+black light-squared bishop: 0.33
+white dark-squared bishop: 0.32
+black dark-squared bishop: 0.32
+white queen: 0.31
+black queen: 0.30
+white kingside knight: 0.29
+black kingside knight: 0.29
+white queenside knight: 0.28
+black queenside knight: 0.28
+white e-pawn: 0.19
+black d-pawn: 0.18
+white d-pawn: 0.17
+black e-pawn: 0.16
+
+\subsection{William}
+
+Okay, this is pretty much off the cuff, but let’s say, just for white, from most to least likely to survive:
+
+Queenside Rook
+B Pawn
+A Pawn
+Kingside Bishop
+C Pawn
+Queen
+King
+H Pawn
+Queenside Bishop
+F Pawn
+G Pawn
+Queenside Knight
+Kingside Rook
+Kingside Knight
+D Pawn
+E Pawn
+
+Some motivated reasoning:
+
+I figure the king has got to be somewhere near the middle of the pack since he dies in half of games featuring a winner — but with slightly higher-than-even odds of surviving, since some games end in a draw.  I’m probably mixing up means and medians here somehow..
+
+...
+King
+...
+
+I’m gonna assume castling happens more often on the King’s side, so let’s give Kingside Rook and F, G, and H Pawns a better shot than their fellows on the left.  But maybe it should actually be worse, since if they die, it’s because they failed to protect the king.  Plus, having heard the tip about C Pawn loud and clear, I’m gonna assume that bad boy most often becomes a new Queen, which means he gets more survival points than the real Queen herself. 
+
+...
+C Pawn
+Queen
+A Pawn
+B Pawn
+Queenside Rook
+King
+F Pawn
+G Pawn
+H Pawn
+Kingside Rook
+...
+
+D and E Pawn are nothing but pawns, and they mostly sacrifice themselves to the cause.
+
+...
+D Pawn
+E Pawn
+
+Randomizing within these constraints gives us our starting point.  Then the wildcard Bishops and Knights get randomly distributed through what remains to come up with this final answer shown above.
+
 
 % Battle chess
 % Feminist game 
+
+\nocite{chesstego}
+
+\bibliography{chess}{}
+\bibliographystyle{plain}
 
 \end{document}
