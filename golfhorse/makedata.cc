@@ -16,13 +16,19 @@
 
 using namespace std;
 
-// This is currently assumed.
-// static constexpr bool all_onecodepoint_source = true;
+static constexpr bool ONLY_ONECODEPOINT_SOURCES = false;
+
+// Don't allow digits in sources if we are using the multi-codepoint
+// encoding, which needs digits for the encoding.
+static constexpr bool ALLOW_DIGIT_IN_SOURCE =
+  ONLY_ONECODEPOINT_SOURCES;
 
 // The following parameters need to be tuned manually:
 
-// Only use the digits 0-9 for the prefix encoding.
-// Results in a shorter decoder if we don't need
+// Only use prefixes up to length 9, so that we only
+// use a single digit 0-9 for the prefix encoding, allowing us to use
+// a shorter decoder. Not worth it unless the input basically does not
+// have long shared prefixes.
 static constexpr bool MAX_PREFIX_9 = false;
 // Force a separator character to be reserved for the reps,
 // so it can't be used in sources. This makes the encoding
@@ -30,11 +36,12 @@ static constexpr bool MAX_PREFIX_9 = false;
 // a small amount of coding efficiency. (In many cases,
 // there will be some character that we can use by coincidence.)
 static constexpr bool FORCE_SEP = false;
-// (
 
-// Currently, this must be less than 10 for the encoding we
-// use when all_onecodepoint_sources is false...
-static constexpr int MAX_DEST_LENGTH = 9;
+// Measured in codepoints. Currently, this must be less than 10 for
+// the encoding we use when all_onecodepoint_sources is false...
+static constexpr int MAX_DEST_CODEPOINTS = 9;
+static_assert(ONLY_ONECODEPOINT_SOURCES ||
+	      MAX_DEST_CODEPOINTS <= 9);
 
 // Can turn off this phase, mainly for debugging.
 static constexpr bool USE_REPS = true;
@@ -231,6 +238,17 @@ static inline std::pair<uint32, uint8> GetUtf8(const char *s) {
   }
 }
 
+static inline int Utf8Codepoints(const string &str) {
+  int cps = 0;
+  const char *s = str.data();
+  while (*s != '\0') {
+    auto p = GetUtf8(s);
+    cps++;
+    s += p.second;
+  }
+  return cps;
+}
+
 // This assumes that we have at most two-byte utf-8 encodings
 // and that the string s is all valid.
 static inline bool TerminatedUnicode(const char *s, int len) {
@@ -358,10 +376,10 @@ static std::unique_ptr<Candidates> NewBestReplacement(
   // Each index in the vector is one of the starting indices.
   // We keep the starting indices so that we can extract the
   // actual string at the end!
-  std::function<void(int, const vector<int> &)> Rec =
+  std::function<void(int, int, const vector<int> &)> Rec =
       // Each index has the same string for at least len bytes.
     [&s, &local_candidates, &min_length, &Consider, &Rec](
-	int len, const vector<int> &indices){
+	int len, int num_cps, const vector<int> &indices){
 	// Nothing to do for singletons.
 	if (indices.size() <= 1)
 	  return;
@@ -395,7 +413,7 @@ static std::unique_ptr<Candidates> NewBestReplacement(
 	}
 
 	if (len >= min_length &&
-	    (conts.size() != 1 || len == MAX_DEST_LENGTH - 1)) {
+	    (conts.size() != 1 || num_cps == MAX_DEST_CODEPOINTS - 1)) {
 	  // If the string has multiple different continuations,
 	  // then we need to consider the current string, because
 	  // this may be a global best for (length * number of
@@ -414,17 +432,18 @@ static std::unique_ptr<Candidates> NewBestReplacement(
 	}
 
 	// In any case, recurse on all continuations.
-	if (len < MAX_DEST_LENGTH - 1) {
+	if (num_cps < MAX_DEST_CODEPOINTS - 1) {
 	  for (const auto &p : conts) {
 	    const int cont_len = len + p.second.first;
-	    Rec(cont_len, p.second.second);
+	    Rec(cont_len, num_cps + 1, p.second.second);
 	  }
 	}
       };
 	
 
-  // Everything shares a zero-length prefix.
-  Rec(0, table[row]);
+  // Everything shares a zero-length prefix (which is also 0
+  // codepoints).
+  Rec(0, 0, table[row]);
 
   return local_candidates;
 }
@@ -515,6 +534,7 @@ static void WriteFile(const char *filename,
   for (char c :
 	 // Prefer a numeric separator, since we don't
 	 // need to quote these.
+	 (string)
 	 "0123456789"
 	 "qwertyuiopasdfghjklzxcvbnm"
 	 "QWERTYUIOPASDFGHJKLZXCVBNM"
@@ -525,11 +545,13 @@ static void WriteFile(const char *filename,
   }
 
   bool no_digit_in_source = true;
-  int max_dest_size = 0;
+  int max_dest_cps = 0;
   for (const auto &p : reps) {
-    max_dest_size = std::max(max_dest_size, (int)p.second.length());
-    for (char c : "0123456789") {
+    max_dest_cps = std::max(max_dest_cps, Utf8Codepoints(p.second));
+    for (char c : (string)"0123456789") {
       if (p.first.find(c) != string::npos) {
+	fprintf(stderr, "Source with digit: [%s] = %02x\n",
+		Encode(p.first).c_str(), (int)c);
 	no_digit_in_source = false;
       }
     }
@@ -537,7 +559,7 @@ static void WriteFile(const char *filename,
 
   // PERF should compute this, because we have a simpler and smaller
   // decoder if this is the case.
-  bool all_onecodepoint_source = false;
+  bool all_onecodepoint_source = ONLY_ONECODEPOINT_SOURCES;
   
   if (VERBOSE >= 1) {
     fprintf(stderr,
@@ -548,7 +570,7 @@ static void WriteFile(const char *filename,
 	    sep,
 	    all_onecodepoint_source ? "true" : "false",
 	    no_digit_in_source ? "true" : "false",
-	    max_dest_size);
+	    max_dest_cps);
   }
   
   // TODO: Even better encoding here would be like a number (digit? but
@@ -575,14 +597,15 @@ static void WriteFile(const char *filename,
     
   } else if (!all_onecodepoint_source &&
 	     no_digit_in_source &&
-	     max_dest_size < 10) {
+	     max_dest_cps < 10) {
     // Can't assume that o[0] is the source.
     // Instead we use a digit to separate. 
     fprintf(out, "z=/(\\D+)(\\d)(.*)/;"
 	    "r='");
     for (int i = reps.size() - 1; i >= 0; i--) {
       CHECK(1 == fwrite(reps[i].first.data(), reps[i].first.size(), 1, out));
-      fprintf(out, "%d", (int)reps[i].second.size());
+      // Must be *codepoints*, not bytes.
+      fprintf(out, "%d", Utf8Codepoints(reps[i].second));
       CHECK(1 == fwrite(reps[i].second.data(), reps[i].second.size(), 1, out));
     }
     fprintf(out, "';"
@@ -788,7 +811,8 @@ static pair<string, vector<pair<string, string>>> Optimize(
     // results.reserve(INNER_THREADS);
         
     vector<string> tmp_sources;
-    if (sources.empty() || sources.back().size() > 2) {
+    if (!ONLY_ONECODEPOINT_SOURCES &&
+	(sources.empty() || sources.back().size() > 2)) {
       vector<bool> exists(128 * 128, false);
       uint8 b1 = data[0];
       for (int i = 1; i < data.size(); i++) {
@@ -808,14 +832,16 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	if (!IsSafeASCII(b1))
 	  continue;
 
+	// Numerals aren't allowed in these sources, since we'll
+	// need them for the encoding of the replacements string.
+	if (b1 >= '0' && b1 <= '9')
+	  continue;
+	
 	for (uint8 b2 = 0; b2 < 128; b2++) {
 	  if (!IsSafeASCII(b2))
 	    continue;
 
-	  // Skip numerals so that they can be used in the encoding
-	  // of the replacements string.
-	  if ((b1 >= '0' && b1 <= '9') ||
-	      (b2 >= '0' && b2 <= '9'))
+	  if (b2 >= '0' && b2 <= '9')
 	    continue;
 
 	  // And don't use the forced separator, if enabled.
