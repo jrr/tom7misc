@@ -17,7 +17,7 @@
 using namespace std;
 
 // This is currently assumed.
-static constexpr bool all_onecodepoint_source = true;
+// static constexpr bool all_onecodepoint_source = true;
 
 // The following parameters need to be tuned manually:
 
@@ -29,12 +29,17 @@ static constexpr bool MAX_PREFIX_9 = false;
 // of reps much smaller ('a','bc', -> abc0) at the cost of
 // a small amount of coding efficiency. (In many cases,
 // there will be some character that we can use by coincidence.)
-static constexpr bool FORCE_SEP = true;
+static constexpr bool FORCE_SEP = false;
+// (
 
+// Currently, this must be less than 10 for the encoding we
+// use when all_onecodepoint_sources is false...
+static constexpr int MAX_DEST_LENGTH = 9;
 
 // Can turn off this phase, mainly for debugging.
 static constexpr bool USE_REPS = true;
-
+// Same; makes it easier to debug by only using ascii.
+static constexpr bool ONLY_ASCII = false;
 
 #undef WRITE_LOG
 
@@ -84,7 +89,7 @@ struct Periodically {
 // 4 - Print the replacements we try
 // 5 - Print the strings found by each inner thread
 
-#if 1
+#if 0
 static constexpr int NUM_PASSES = 1000;
 static constexpr int OUTER_THREADS = 5;
 static constexpr int INNER_THREADS = 12;
@@ -355,8 +360,8 @@ static std::unique_ptr<Candidates> NewBestReplacement(
   // actual string at the end!
   std::function<void(int, const vector<int> &)> Rec =
       // Each index has the same string for at least len bytes.
-      [&s, &local_candidates, &min_length, &Consider, &Rec](
-	  int len, const vector<int> &indices){
+    [&s, &local_candidates, &min_length, &Consider, &Rec](
+	int len, const vector<int> &indices){
 	// Nothing to do for singletons.
 	if (indices.size() <= 1)
 	  return;
@@ -389,7 +394,8 @@ static std::unique_ptr<Candidates> NewBestReplacement(
 	  p.second.push_back(idx);
 	}
 
-	if (len >= min_length && conts.size() != 1) {
+	if (len >= min_length &&
+	    (conts.size() != 1 || len == MAX_DEST_LENGTH - 1)) {
 	  // If the string has multiple different continuations,
 	  // then we need to consider the current string, because
 	  // this may be a global best for (length * number of
@@ -399,15 +405,20 @@ static std::unique_ptr<Candidates> NewBestReplacement(
 	  //
 	  // (XXX: This looks incorrect when one of the indices
 	  // is excluded above because it ends the string...)
-
+	  //
+	  // If we've reached the max dest length, also consider
+	  // the string, because we won't go any deeper.
+	  
 	  // We can use any index because they're all the same.
 	  Consider(indices[0], len);
 	}
 
 	// In any case, recurse on all continuations.
-	for (const auto &p : conts) {
-	  const int cont_len = len + p.second.first;
-	  Rec(cont_len, p.second.second);
+	if (len < MAX_DEST_LENGTH - 1) {
+	  for (const auto &p : conts) {
+	    const int cont_len = len + p.second.first;
+	    Rec(cont_len, p.second.second);
+	  }
 	}
       };
 	
@@ -513,6 +524,33 @@ static void WriteFile(const char *filename,
     if (!InReps(c)) { sep = c; break; }
   }
 
+  bool no_digit_in_source = true;
+  int max_dest_size = 0;
+  for (const auto &p : reps) {
+    max_dest_size = std::max(max_dest_size, (int)p.second.length());
+    for (char c : "0123456789") {
+      if (p.first.find(c) != string::npos) {
+	no_digit_in_source = false;
+      }
+    }
+  }
+
+  // PERF should compute this, because we have a simpler and smaller
+  // decoder if this is the case.
+  bool all_onecodepoint_source = false;
+  
+  if (VERBOSE >= 1) {
+    fprintf(stderr,
+	    "Sep: 0x%02x\n"
+	    "all one codepoint: %s\n"
+	    "no digit in source: %s\n"
+	    "max dest size: %d\n",
+	    sep,
+	    all_onecodepoint_source ? "true" : "false",
+	    no_digit_in_source ? "true" : "false",
+	    max_dest_size);
+  }
+  
   // TODO: Even better encoding here would be like a number (digit? but
   // then the maximum length would be 9, or I guess we could assume
   // the replacement is at least 2, so 11) that gives the length of the
@@ -531,9 +569,30 @@ static void WriteFile(const char *filename,
 
   // Note the use of fwrite below instead of fprintf with %s, since
   // the strings may include 0.
-  if (!USE_REPS) {
-    // Skip the reps step. This is mostly for debugging.
+  if (reps.empty()) {
     // s already contains the desired string.
+    // This mainly happens with USE_REPS is false, like for debugging.
+    
+  } else if (!all_onecodepoint_source &&
+	     no_digit_in_source &&
+	     max_dest_size < 10) {
+    // Can't assume that o[0] is the source.
+    // Instead we use a digit to separate. 
+    fprintf(out, "z=/(\\D+)(\\d)(.*)/;"
+	    "r='");
+    for (int i = reps.size() - 1; i >= 0; i--) {
+      CHECK(1 == fwrite(reps[i].first.data(), reps[i].first.size(), 1, out));
+      fprintf(out, "%d", (int)reps[i].second.size());
+      CHECK(1 == fwrite(reps[i].second.data(), reps[i].second.size(), 1, out));
+    }
+    fprintf(out, "';"
+	    "while(a=z.exec(r)){"
+	    "c=a[1];" // source
+	    "r=a[3];" // rest of string, starting with dest
+	    "d=r.substr(0,n=a[2]);" // dest. n is length
+	    "r=r.slice(n);" // update for next pass
+	    "s=s.split(c).join(d)"
+	    "}");
 
   } else if (all_onecodepoint_source && sep != 0) {
     fprintf(out, "for(o of'");
@@ -547,6 +606,7 @@ static void WriteFile(const char *filename,
       StringPrintf("'%c'", sep);
     fprintf(out, "'.split(%s))s=s.split(o[0]).join(o.slice(1))\n",
 	    sep_js.c_str());
+    
   } else if (all_onecodepoint_source) {
     fprintf(out, "for(o of[");
     for (int i = reps.size() - 1; i >= 0; i--) {
@@ -558,7 +618,9 @@ static void WriteFile(const char *filename,
       fprintf(out, "'");
     }
     fprintf(out, "])s=s.split(o[0]).join(o.slice(1))\n");
+    
   } else {
+    // This general case is basically a fallback.
     fprintf(out, "r=[");
     for (int i = reps.size() - 1; i >= 0; i--) {
       if (i != reps.size() - 1) fprintf(out,",");
@@ -581,7 +643,7 @@ static void WriteFile(const char *filename,
   } else {
     fprintf(out,
 	    "e=/(\\D+)(\\d+)/g;"
-	    "while(a=e.exec(s))console.log(w=w.substr(0,a[1])+a[2])");
+	    "while(a=e.exec(s))console.log(w=w.substr(0,a[2])+a[1])");
   }
   
   fclose(out);
@@ -641,31 +703,33 @@ static vector<string> GetSources() {
   // is that we need to filter out a couple high unicode codepoints too.
 
   // For long wordslists, three-byte utf-8 is even useful.
-  for (int i = 0x800; i < 0x10000; i++) {
-    if (i != 0x2028 && i != 0x2029) {
-      uint8 b1 = 0b1110'0000;
+  if (!ONLY_ASCII) {
+    for (int i = 0x800; i < 0x10000; i++) {
+      if (i != 0x2028 && i != 0x2029) {
+	uint8 b1 = 0b1110'0000;
+	uint8 b2 = 0b10'000000;
+	uint8 b3 = 0b10'000000;
+	b1 |= (i >> 12) & 0b1111;
+	b2 |= (i >> 6) & 0b111111;
+	b3 |= i & 0b111111;
+	string s = StringPrintf("%c%c%c", b1, b2, b3);
+	sources.push_back(s);
+      }
+    }
+    
+    // There are many three-character strings in long wordlists, so
+    // having two-byte utf-8 sequences is quite useful. It doesn't
+    // complicate our dense encoding either, since javascript works in
+    // units of codepoints, not characters.
+    for (int i = 128; i < 2048; i++) {
+      uint8 b1 = 0b110'00000;
       uint8 b2 = 0b10'000000;
-      uint8 b3 = 0b10'000000;
-      b1 |= (i >> 12) & 0b1111;
-      b2 |= (i >> 6) & 0b111111;
-      b3 |= i & 0b111111;
-      string s = StringPrintf("%c%c%c", b1, b2, b3);
+
+      b1 |= (i >> 6) & 0b11111;
+      b2 |= i & 0b111111;
+      string s = StringPrintf("%c%c", b1, b2);
       sources.push_back(s);
     }
-  }
-    
-  // There are many three-character strings in long wordlists, so
-  // having two-byte utf-8 sequences is quite useful. It doesn't
-  // complicate our dense encoding either, since javascript works in
-  // units of codepoints, not characters.
-  for (int i = 128; i < 2048; i++) {
-    uint8 b1 = 0b110'00000;
-    uint8 b2 = 0b10'000000;
-
-    b1 |= (i >> 6) & 0b11111;
-    b2 |= i & 0b111111;
-    string s = StringPrintf("%c%c", b1, b2);
-    sources.push_back(s);
   }
   
   // Single-character codes come last, since these will be used for
@@ -687,12 +751,14 @@ static vector<string> GetSources() {
   if (!FORCE_SEP) sources.push_back(" ");
   
   // And low ASCII.
-  for (uint8 c = 0; c < 32; c++) {
-    // Only carriage return and newline are disallowed here.
-    if (c != 0x0A && c != 0x0D) {
-      string ch = " ";
-      ch[0] = c;
-      sources.push_back(ch);
+  if (!ONLY_ASCII) {
+    for (uint8 c = 0; c < 32; c++) {
+      // Only carriage return and newline are disallowed here.
+      if (c != 0x0A && c != 0x0D) {
+	string ch = " ";
+	ch[0] = c;
+	sources.push_back(ch);
+      }
     }
   }
   return sources;
@@ -720,19 +786,9 @@ static pair<string, vector<pair<string, string>>> Optimize(
   for (int round = 0; true; round++) {
     // vector<pair<string, int>> results;
     // results.reserve(INNER_THREADS);
-    
-    if (sources.empty()) {
-      if (VERBOSE >= 1)
-	fprintf(stderr, "No more sources (up)...\n");
-      goto nomore;
-    }
-    int source_length = sources.back().size();
-
-
-
-    // This is disabled because it can't work yet (see below).
-    // Looks like it can save about 1.5k on wordlist.asc.
-    if (false && source_length > 2) {
+        
+    vector<string> tmp_sources;
+    if (sources.empty() || sources.back().size() > 2) {
       vector<bool> exists(128 * 128, false);
       uint8 b1 = data[0];
       for (int i = 1; i < data.size(); i++) {
@@ -761,10 +817,25 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	  if ((b1 >= '0' && b1 <= '9') ||
 	      (b2 >= '0' && b2 <= '9'))
 	    continue;
+
+	  // And don't use the forced separator, if enabled.
+	  if (FORCE_SEP && (b1 == ' ' || b2 == ' '))
+	    continue;
+
+	  // PERF: This case is currently disallowed, because if the
+	  // source is e.g. AA and we'd like to do the reverse
+	  // substitution XYZ<-AA, we actually can't do it if an
+	  // occurrence of XYZ is actually AXYZA, because the
+	  // resulting string would be AAAA, which would decode to
+	  // XYZXYZ, not AXYZA as expected. Note this is not possible
+	  // if the two code characters are different. We could add
+	  // some codes here by handling this case.
+	  if (b1 == b2)
+	    continue;
 	  
 	  if (!exists[b1 * 128 + b2]) {
-	    num_codes ++;
-	    if (num_codes < 10) {
+	    num_codes++;
+	    if (VERBOSE > 3 && num_codes < 10) {
 	      auto EncodeChar =
 		[](uint8 c) {
 		  if (c < 32) return StringPrintf("[%02x]", (int)c);
@@ -772,36 +843,44 @@ static pair<string, vector<pair<string, string>>> Optimize(
 		};
 	      examples += " " + EncodeChar(b1) + EncodeChar(b2) + ", ";
 	    }
-	    // XXX This can't work yet; we need:
-	    //  - to support decoding with multi-codepoint source
-	    //  - to check that when we do the reverse substitution,
-	    //    we don't generate any false occurences of the
-	    //    code. For example, if we find that "AA" never
-	    //    appears in the string, so we want to replace
-	    //    XYZ<-AA, we actually can't do it if an occurrence
-	    //    of XYZ is actually AXYZA, because the resulting
-	    //    string would be AAAA, which would decode to
-	    //    XYZXYZ, not AXYZA as expected. (Is this possible
-	    //    if the two bytes are different? No?)
-	    //  - can't just add them to the sources list, because
-	    //    as soon as we do a substitution they may become
-	    //    invalid.
-	    sources.push_back(StringPrintf("%c%c", b1, b2));
+	    // Can't just add these to sources list, because
+	    // they may be invalidated as soon as data changes.
+	    // (Note: No good reason to store ALL of these...)
+	    tmp_sources.push_back(StringPrintf("%c%c", b1, b2));
+	    // We'll never use more than this many.
+	    if (tmp_sources.size() > BEST_PER_ROUND + 1)
+	      goto enough_sources;
 	  }
 	}
       }
-      fprintf(stderr, "%d unused codes, like %s ...\n",
-	      num_codes, examples.c_str());
+
+      enough_sources:;	
+      if (VERBOSE > 3 && num_codes > 0) {
+	fprintf(stderr, "%d unused codes, like %s ...\n",
+		num_codes, examples.c_str());
+      }
     }
+
+    if (sources.empty() && tmp_sources.empty()) {
+      if (VERBOSE >= 1)
+	fprintf(stderr, "No more sources / tmp sources (up)...\n");
+      goto nomore;
+    }
+    // Length of the next source. Might get improved with a tmp_source
+    // below.
+    const int next_source_length =
+      tmp_sources.empty() ? 
+      sources.back().size() :
+      tmp_sources.back().size();
     
     MakeTable(data, &table);
 
     std::mutex m;
     Candidates candidates(GLOBAL_CANDIDATES);
     ParallelComp(table.size(),
-		 [&m, &candidates, &data, &table, source_length](int row) {
+		 [&m, &candidates, &data, &table, next_source_length](int row) {
 		   auto res =
-		     NewBestReplacement(table, source_length, row, data);
+		     NewBestReplacement(table, next_source_length, row, data);
 
 		   // This often returns null for trivial cases (e.g.
 		   // zero or one occurrence of the character).
@@ -859,12 +938,12 @@ static pair<string, vector<pair<string, string>>> Optimize(
       
       tried++;
       
-      if (sources.empty()) {
+      if (tmp_sources.empty() && sources.empty()) {
 	if (VERBOSE >= 1)
-	  fprintf(stderr, "No more sources...\n");
+	  fprintf(stderr, "No more sources / tmp sources (down)...\n");
 	goto nomore;
       }
-	
+
       // Recompute this because if we've done any replacements, in this
       // loop, the number of occurrences can easily change (for one
       // simple reason, two threads may find the same best replacement!)
@@ -872,18 +951,33 @@ static pair<string, vector<pair<string, string>>> Optimize(
       // four quote chars (source and dest), two commas, source and
       // dest strings.
       // int cost = 4 + 2 + sources.back().size() + dst.size();
-      // Assumes we can find a separator.
-      static_assert(all_onecodepoint_source, "precondition");
-      int cost = 1 + sources.back().size() + dst.size();
-      int savings = occ * (dst.size() - sources.back().size());
+      // Assumes we can find a separator and that no replacement
+      // is longer than 10 chars. (The encoding has one byte of overhead
+      // regardless of whether we use the all_onecodepoint_source encodings
+      // or not.)
+      string src;
+      bool used_tmp = false;
+      if (!tmp_sources.empty()) {
+	src = tmp_sources.back();
+	tmp_sources.pop_back();
+	used_tmp = true;
+      } else {
+	src = sources.back();
+	sources.pop_back();
+	used_tmp = false;
+      }
+      
+      int cost = 1 + src.size() + dst.size();
+      int savings = occ * (dst.size() - src.size());
+      
       if (VERBOSE >= 4 || (VERBOSE >= 3 && savings > cost)) {
-	fprintf(stderr, "%s<-%s has %d real occurrences cost %d savings %d.\n",
+	fprintf(stderr,
+		"%s<-%s%s has %d real occurrences cost %d savings %d.\n",
 		Encode(dst).c_str(),
-		Encode(sources.back()).c_str(), occ, cost, savings);
+		Encode(src).c_str(), used_tmp ? " (TMP)" : "",
+		occ, cost, savings);
       }
       if (savings > cost) {
-	string src = sources.back();
-	sources.pop_back();
 	reps.push_back(std::make_pair(src, dst));
 	data = Util::Replace(data, dst, src);
 	if (VERBOSE >= 3) {
@@ -896,10 +990,12 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	made_progress = true;
 
 	#ifdef WRITE_LOG
-	fprintf(log, "'%s' <- '%s' has %d real occurrences,"
+	fprintf(log, "'%s' <- '%s'%s has %d real occurrences,"
 		"cost %d savings %d (now %d)\n",
 		Encode(dst).c_str(),
-		Encode(src).c_str(), occ, cost, savings,
+		Encode(src).c_str(),
+		used_tmp ? " (TMP)" : "",
+		occ, cost, savings,
 		(int)data.size());
 	fflush(log);
 	#endif
