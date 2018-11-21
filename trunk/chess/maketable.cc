@@ -18,6 +18,7 @@
 #include "pgn.h"
 #include "util.h"
 #include "city.h"
+#include "textsvg.h"
 
 #include "gamestats.h"
 
@@ -48,6 +49,15 @@ static constexpr const char *const PIECE_NAME[32] = {
   "g1 knight",
   "h1 rook", };
 
+// Take a piece number 0-31 and return its Position-style piece.
+static uint8 PiecePiece(int p) {
+  static const Position startpos;
+  const bool black = p < 16;
+  const int pidx = black ? p : 48 + (p - 16);
+  const int prow = pidx / 8;
+  const int pcol = pidx % 8;
+  return startpos.PieceAt(prow, pcol);
+}
 
 void ReadStats(const string &filename, Stats *stat_buckets) {
   ifstream s;
@@ -160,7 +170,9 @@ void GenReport(Stats *stat_buckets) {
     }
   }
 #endif
-    
+
+  const Position startpos;
+  
   Sum games;
   // For the 32 pieces.
   Ratio survived[32] = {};
@@ -194,6 +206,49 @@ void GenReport(Stats *stat_buckets) {
 	   survived[p].Max());
   }
 
+
+  {
+    constexpr double WIDTH = 800.0, HEIGHT = 1280.0;
+    constexpr double MARGIN = 10.0;
+    FILE *f = fopen("survival.svg", "wb");
+    fprintf(f, "%s", TextSVG::Header(WIDTH, HEIGHT).c_str());
+
+    
+    
+    for (int i = 0; i < pieces.size(); i++) {
+      const int p = pieces[i];
+      const double x = MARGIN + i * ((WIDTH - MARGIN * 2.0) /
+				     (pieces.size() + 1.0));
+      auto PtoY = [](double p) { return p * HEIGHT; };
+      fprintf(f, "<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
+	      "stroke=\"black\" />\n",
+	      x, PtoY(survived[p].Min()),
+	      x, PtoY(survived[p].Max()));
+      double cy = PtoY(survived[p].Mean());
+      fprintf(f, "<circle cx=\"%.2f\" cy=\"%.2f\" r=\"1.5\" />\n",
+	      x, cy);
+
+      fprintf(f, "%s\n",
+	      TextSVG::Text(x + 6.0, cy + 3.2, "sans-serif",
+			    11.0, {{"#000",
+				    Position::HTMLEntity(PiecePiece(p))
+				    }}).c_str());
+      
+      #if 0
+      // TODO: Compute "confidence interval" here.
+      printf("%d (%s). %lld/%lld %.3f (%.3f--%.3f)\n",
+	     p, PIECE_NAME[p],
+	     survived[p].Numer(), survived[p].Denom(),
+	     survived[p].Mean(),
+	     survived[p].Min(),
+	     survived[p].Max());
+      #endif
+    }
+
+    fprintf(f, "%s", TextSVG::Footer().c_str());
+    fclose(f);
+  }
+  
   // One idea for drawing chess pieces in HTML is to use
   // a "black" king drawn in white behind a white king (in black or
   // grey) to provide the outline. It looks better than the hollow
@@ -203,7 +258,7 @@ void GenReport(Stats *stat_buckets) {
   
   
   {
-    FILE *f = fopen("report.html", "w");
+    FILE *f = fopen("report.html", "wb");
 
     fprintf(f, "<!doctype html>\n"
 	    "<link href=\"report.css\" rel=\"stylesheet\" type=\"text/css\">\n");
@@ -228,7 +283,6 @@ void GenReport(Stats *stat_buckets) {
     fprintf(f, "<h1>Survival board</h1>\n");
 
     fprintf(f, "<table class=board>\n");
-    const Position startpos;
     for (int r = 0; r < 8; r++) {
       fprintf(f, "<tr>");
       for (int c = 0; c < 8; c++) {
@@ -294,6 +348,7 @@ void GenReport(Stats *stat_buckets) {
 	  return 1.0;
 	};
 
+      // XXX PiecePiece?
       const bool black = p < 16;
       const int pidx = black ? p : 48 + (p - 16);
       const int prow = pidx / 8;
