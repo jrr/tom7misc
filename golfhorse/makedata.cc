@@ -7,11 +7,11 @@
 #include <unordered_map>
 
 #include "util.h"
+#include "base/stringprintf.h"
+#include "base/logging.h"
 #include "../cc-lib/threadutil.h"
 #include "../cc-lib/arcfour.h"
 #include "../cc-lib/randutil.h"
-#include "base/stringprintf.h"
-#include "base/logging.h"
 #include "../cc-lib/gtl/top_n.h"
 
 using namespace std;
@@ -22,6 +22,10 @@ static constexpr bool ONLY_ONECODEPOINT_SOURCES = false;
 // encoding, which needs digits for the encoding.
 static constexpr bool ALLOW_DIGIT_IN_SOURCE =
   ONLY_ONECODEPOINT_SOURCES;
+
+
+// For debugging, stop when this many reps are reached.
+static constexpr int MAX_REPS = -1;
 
 // The following parameters need to be tuned manually:
 
@@ -46,7 +50,11 @@ static_assert(ONLY_ONECODEPOINT_SOURCES ||
 // Can turn off this phase, mainly for debugging.
 static constexpr bool USE_REPS = true;
 // Same; makes it easier to debug by only using ascii.
-static constexpr bool ONLY_ASCII = false;
+static constexpr bool ONLY_ASCII = true;
+static constexpr bool ONLY_PRINTABLE = false;
+static_assert(!ONLY_PRINTABLE || ONLY_ASCII);
+
+static constexpr bool SELF_CHECK = true;
 
 #undef WRITE_LOG
 
@@ -271,7 +279,16 @@ struct Candidates {
   struct Compare {
     bool operator ()(const pair<string, int> &a,
 		     const pair<string, int> &b) {
-      return a.second > b.second;
+      // In deterministic mode, make sure this is a total order.
+      if (DETERMINISTIC) {
+	if (a.second == b.second) {
+	  return a.first < b.first;
+	} else {
+	  return a.second > b.second;
+	}
+      } else {
+	return a.second > b.second;
+      }
     }
   };
 
@@ -289,15 +306,6 @@ struct Candidates {
   std::unordered_set<string> already;
   gtl::TopN<std::pair<string, int>, Compare> topn;
 };
-
-// PERF: Couldn't we just invent new sources? We can safely use
-// any string that doesn't appear in the input, and that wouldn't
-// induce any accidental occurrences (e.g. due to overlap) when
-// reverse-replaced. This might open us up to a large number of
-// short codes. (OTOH we can't use the very compact representation
-// of the substitutions in the decoder. Would be ok to have
-// two substitution phases, though, or a special separator character
-// that when absent means just use the first codepoint).
 
 // Returns the best substring (best = maximum value of (size *
 // occurrences)) and the score.
@@ -509,6 +517,22 @@ static string Encode(const string &s) {
 static void WriteFile(const char *filename,
 		      const string &data,
 		      const vector<pair<string, string>> &reps) {
+  // Self-checks
+  if (ONLY_PRINTABLE) {
+    auto PrintableStr =
+      [&](const char *where, const string &s) {
+	for (int i = 0; i < s.size(); i++) {
+	  CHECK(s[i] >= ' ' && s[i] <= '~') << where << ": " << (int)s[i];
+	}
+      };
+
+    PrintableStr("data", data);
+    for (const pair<string, string> &p : reps) {
+      PrintableStr("rep src", p.first);
+      PrintableStr("rep dst", p.second);
+    }
+  }
+
   // Note "binary" is important on windows to avoid converting
   // \n to \r\n.
   FILE *out = fopen(filename, "wb");
@@ -546,7 +570,10 @@ static void WriteFile(const char *filename,
 
   bool no_digit_in_source = true;
   int max_dest_cps = 0;
+  int64 src_bytes = 0LL, dst_bytes = 0LL;
   for (const auto &p : reps) {
+    src_bytes += p.first.size();
+    dst_bytes += p.second.size();
     max_dest_cps = std::max(max_dest_cps, Utf8Codepoints(p.second));
     for (char c : (string)"0123456789") {
       if (p.first.find(c) != string::npos) {
@@ -566,10 +593,13 @@ static void WriteFile(const char *filename,
 	    "Sep: 0x%02x\n"
 	    "all one codepoint: %s\n"
 	    "no digit in source: %s\n"
+	    "bytes used for sources: %lld\n"
+	    "bytes used for dests: %lld\n"
 	    "max dest size: %d\n",
 	    sep,
 	    all_onecodepoint_source ? "true" : "false",
 	    no_digit_in_source ? "true" : "false",
+	    src_bytes, dst_bytes,
 	    max_dest_cps);
   }
   
@@ -764,6 +794,7 @@ static vector<string> GetSources() {
   string sourcechars =
     "\"ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_-=+[]{}|;:<>?,./~`";
   for (char c : sourcechars) {
+    CHECK(c != 0);
     string ch = " ";
     ch[0] = c;
     sources.push_back(ch);
@@ -774,7 +805,7 @@ static vector<string> GetSources() {
   if (!FORCE_SEP) sources.push_back(" ");
   
   // And low ASCII.
-  if (!ONLY_ASCII) {
+  if (!ONLY_PRINTABLE) {
     for (uint8 c = 0; c < 32; c++) {
       // Only carriage return and newline are disallowed here.
       if (c != 0x0A && c != 0x0D) {
@@ -807,6 +838,9 @@ static pair<string, vector<pair<string, string>>> Optimize(
   
 
   for (int round = 0; true; round++) {
+    if (MAX_REPS >= 0 && reps.size() > MAX_REPS)
+      break;
+    
     // vector<pair<string, int>> results;
     // results.reserve(INNER_THREADS);
         
@@ -836,6 +870,9 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	// need them for the encoding of the replacements string.
 	if (b1 >= '0' && b1 <= '9')
 	  continue;
+
+	if (ONLY_PRINTABLE && (b1 < ' ' || b1 > '~'))
+	  continue;
 	
 	for (uint8 b2 = 0; b2 < 128; b2++) {
 	  if (!IsSafeASCII(b2))
@@ -844,6 +881,9 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	  if (b2 >= '0' && b2 <= '9')
 	    continue;
 
+	  if (ONLY_PRINTABLE && (b2 < ' ' || b2 > '~'))
+	    continue;
+	  
 	  // And don't use the forced separator, if enabled.
 	  if (FORCE_SEP && (b1 == ' ' || b2 == ' '))
 	    continue;
@@ -881,7 +921,7 @@ static pair<string, vector<pair<string, string>>> Optimize(
       }
 
       enough_sources:;	
-      if (VERBOSE > 3 && num_codes > 0) {
+      if (VERBOSE > 2 && num_codes > 0) {
 	fprintf(stderr, "%d unused codes, like %s ...\n",
 		num_codes, examples.c_str());
       }
@@ -892,8 +932,7 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	fprintf(stderr, "No more sources / tmp sources (up)...\n");
       goto nomore;
     }
-    // Length of the next source. Might get improved with a tmp_source
-    // below.
+
     const int next_source_length =
       tmp_sources.empty() ? 
       sources.back().size() :
@@ -964,11 +1003,8 @@ static pair<string, vector<pair<string, string>>> Optimize(
       
       tried++;
       
-      if (tmp_sources.empty() && sources.empty()) {
-	if (VERBOSE >= 1)
-	  fprintf(stderr, "No more sources / tmp sources (down)...\n");
-	goto nomore;
-      }
+      if (tmp_sources.empty() && sources.empty())
+	break;
 
       // Recompute this because if we've done any replacements, in this
       // loop, the number of occurrences can easily change (for one
@@ -1004,8 +1040,22 @@ static pair<string, vector<pair<string, string>>> Optimize(
 		occ, cost, savings);
       }
       if (savings > cost) {
+	if (SELF_CHECK) {
+	  CHECK(data.find(src) == string::npos) << Encode(src)
+						<< " already present!";
+	}
+	  
 	reps.push_back(std::make_pair(src, dst));
-	data = Util::Replace(data, dst, src);
+
+	if (SELF_CHECK) {
+	  string old_data = data;
+	  data = Util::Replace(data, dst, src);
+	  CHECK(Util::Replace(data, src, dst) == old_data)
+	    << Encode(dst) << "<-" << Encode(dst)
+	    << " failed forward check.";
+	} else {
+	  data = Util::Replace(data, dst, src);
+	}
 	if (VERBOSE >= 3) {
 	  int source_size = sources.empty() ? 0 : (int)sources.back().size();
 	  fprintf(stderr, "Size now %d. %d source(s) left [size %d]\n",
