@@ -24,9 +24,6 @@ static constexpr bool ALLOW_DIGIT_IN_SOURCE =
   ONLY_ONECODEPOINT_SOURCES;
 
 
-// For debugging, stop when this many reps are reached.
-static constexpr int MAX_REPS = -1;
-
 // The following parameters need to be tuned manually:
 
 // Only use prefixes up to length 9, so that we only
@@ -50,11 +47,20 @@ static_assert(ONLY_ONECODEPOINT_SOURCES ||
 // Can turn off this phase, mainly for debugging.
 static constexpr bool USE_REPS = true;
 // Same; makes it easier to debug by only using ascii.
-static constexpr bool ONLY_ASCII = true;
+static constexpr bool ONLY_ASCII = false;
 static constexpr bool ONLY_PRINTABLE = false;
 static_assert(!ONLY_PRINTABLE || ONLY_ASCII);
 
 static constexpr bool SELF_CHECK = true;
+
+// Debugging...
+static constexpr int MIN_ASCII = 0;
+// For debugging, stop when this many reps are reached.
+// If negative, no limit.
+static constexpr int MAX_REPS = -1;
+
+// Bugging
+static constexpr bool ONLY_USE_0 = true;
 
 #undef WRITE_LOG
 
@@ -249,7 +255,9 @@ static inline std::pair<uint32, uint8> GetUtf8(const char *s) {
 static inline int Utf8Codepoints(const string &str) {
   int cps = 0;
   const char *s = str.data();
-  while (*s != '\0') {
+  // Allow for U+0000 in the string.
+  const char *s_end = s + str.length();
+  while (s != s_end) {
     auto p = GetUtf8(s);
     cps++;
     s += p.second;
@@ -815,7 +823,14 @@ static vector<string> GetSources() {
       }
     }
   }
-  return sources;
+
+  if (ONLY_USE_0) {
+    string ch = " ";
+    ch[0] = 0;
+    return { ch };
+  } else {
+    return sources;
+  }
 }
 
 
@@ -873,6 +888,9 @@ static pair<string, vector<pair<string, string>>> Optimize(
 
 	if (ONLY_PRINTABLE && (b1 < ' ' || b1 > '~'))
 	  continue;
+
+	if (b1 < MIN_ASCII)
+	  continue;
 	
 	for (uint8 b2 = 0; b2 < 128; b2++) {
 	  if (!IsSafeASCII(b2))
@@ -888,6 +906,18 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	  if (FORCE_SEP && (b1 == ' ' || b2 == ' '))
 	    continue;
 
+	  if (b2 < MIN_ASCII)
+	    continue;
+
+	  if (ONLY_USE_0) {
+	    if (b2 != 0)
+	      continue;
+
+	    if (b1 < 'a' || b1 > 'z')
+	      continue;
+	  }
+	
+	  
 	  // PERF: This case is currently disallowed, because if the
 	  // source is e.g. AA and we'd like to do the reverse
 	  // substitution XYZ<-AA, we actually can't do it if an
