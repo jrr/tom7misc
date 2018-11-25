@@ -18,6 +18,7 @@ using namespace std;
 
 static constexpr bool ONLY_ONECODEPOINT_SOURCES = false;
 
+
 // Don't allow digits in sources if we are using the multi-codepoint
 // encoding, which needs digits for the encoding.
 static constexpr bool ALLOW_DIGIT_IN_SOURCE =
@@ -25,6 +26,9 @@ static constexpr bool ALLOW_DIGIT_IN_SOURCE =
 
 
 // The following parameters need to be tuned manually:
+
+
+// static constexpr bool SUFFIX_ENCODING = true;
 
 // Only use prefixes up to length 9, so that we only
 // use a single digit 0-9 for the prefix encoding, allowing us to use
@@ -38,11 +42,13 @@ static constexpr bool MAX_PREFIX_9 = false;
 // there will be some character that we can use by coincidence.)
 static constexpr bool FORCE_SEP = false;
 
-// Measured in codepoints. Currently, this must be less than 10 for
-// the encoding we use when all_onecodepoint_sources is false...
-static constexpr int MAX_DEST_CODEPOINTS = 9;
-static_assert(ONLY_ONECODEPOINT_SOURCES ||
-	      MAX_DEST_CODEPOINTS <= 9);
+// Measured in codepoints. We need that the max codepoint size minus
+// the min codepoint size is a single digit. Setting this to 9 will
+// certainly ensure that, but there should also never be any reason
+// to use 0- or 1-length, and 2 is pointless for some inputs as well.
+static constexpr int MAX_DEST_CODEPOINTS = 11;
+// static_assert(ONLY_ONECODEPOINT_SOURCES ||
+//    	         MAX_DEST_CODEPOINTS <= 9);
 
 // Can turn off this phase, mainly for debugging.
 static constexpr bool USE_REPS = true;
@@ -51,16 +57,19 @@ static constexpr bool ONLY_ASCII = false;
 static constexpr bool ONLY_PRINTABLE = false;
 static_assert(!ONLY_PRINTABLE || ONLY_ASCII);
 
-static constexpr bool SELF_CHECK = true;
+// Turn this on and cross your fingers that we don't have phantom
+// occurrences when using sources like AA (see the code below). Self
+// check will just abort.
+static constexpr bool DUP_TMP_SOURCE_YOLO = false;
 
-// Debugging...
+// Do moderately expensive tests with each substitution, for tracking
+// down bugs.
+static constexpr bool SELF_CHECK = DUP_TMP_SOURCE_YOLO || true;
+// Minimum allowed ascii character.
 static constexpr int MIN_ASCII = 0;
 // For debugging, stop when this many reps are reached.
 // If negative, no limit.
 static constexpr int MAX_REPS = -1;
-
-// Bugging
-static constexpr bool ONLY_USE_0 = true;
 
 #undef WRITE_LOG
 
@@ -119,6 +128,7 @@ static constexpr int GLOBAL_CANDIDATES = 16;
 static constexpr int BEST_PER_ROUND = 1;
 static constexpr int DETERMINISTIC = false;
 static constexpr int VERBOSE = 0;
+static_assert(SELF_CHECK == false);
 #else
 static constexpr int NUM_PASSES = 1;
 static constexpr int OUTER_THREADS = 1;
@@ -578,11 +588,15 @@ static void WriteFile(const char *filename,
 
   bool no_digit_in_source = true;
   int max_dest_cps = 0;
+  int min_dest_cps = -1;
   int64 src_bytes = 0LL, dst_bytes = 0LL;
   for (const auto &p : reps) {
     src_bytes += p.first.size();
     dst_bytes += p.second.size();
-    max_dest_cps = std::max(max_dest_cps, Utf8Codepoints(p.second));
+    const int cps = Utf8Codepoints(p.second);
+    max_dest_cps = std::max(max_dest_cps, cps);
+    if (min_dest_cps < 0) min_dest_cps = cps;
+    else min_dest_cps = std::min(min_dest_cps, cps);
     for (char c : (string)"0123456789") {
       if (p.first.find(c) != string::npos) {
 	fprintf(stderr, "Source with digit: [%s] = %02x\n",
@@ -595,7 +609,8 @@ static void WriteFile(const char *filename,
   // PERF should compute this, because we have a simpler and smaller
   // decoder if this is the case.
   bool all_onecodepoint_source = ONLY_ONECODEPOINT_SOURCES;
-  
+  int cp_span = max_dest_cps - min_dest_cps;
+
   if (VERBOSE >= 1) {
     fprintf(stderr,
 	    "Sep: 0x%02x\n"
@@ -603,39 +618,39 @@ static void WriteFile(const char *filename,
 	    "no digit in source: %s\n"
 	    "bytes used for sources: %lld\n"
 	    "bytes used for dests: %lld\n"
-	    "max dest size: %d\n",
+	    "dest cp span: max %d - min %d = %d\n",
 	    sep,
 	    all_onecodepoint_source ? "true" : "false",
 	    no_digit_in_source ? "true" : "false",
 	    src_bytes, dst_bytes,
-	    max_dest_cps);
+	    max_dest_cps,
+	    min_dest_cps,
+	    cp_span);
   }
-  
-  // TODO: Even better encoding here would be like a number (digit? but
-  // then the maximum length would be 9, or I guess we could assume
-  // the replacement is at least 2, so 11) that gives the length of the
-  // replacement, then the single source codepoint (this would preclude
-  // using two-codepoint ascii sources, which does give us 9025 useful
-  // sources...), then the n characters. so the separator would contain
-  // information. parsing would be a little trickier, but not that bad.
-  // So like 7*destina3zfoo would mean replace * with destina and
-  // z with foo. Actually that is no cheaper than just using a single
-  // character as the separator anyway. Better is like
-  // *7destinaz3foo, with the advantage here being that we don't have
-  // to assume a single codepoint for the source strings, as long as
-  // they can't contain a digit (easy to arrange; we use the digits
-  // for a special purpose anyway). And of course we have a maximum
-  // replacement size if we do that.
 
+  
+  // For the prefix phase of decoding, need some variable that
+  // is the empty string. Some reps phases create such a string, so
+  // store the variable here if so. Otherwise, make a new one.
+  string empty_string_var;
+  
   // Note the use of fwrite below instead of fprintf with %s, since
   // the strings may include 0.
   if (reps.empty()) {
     // s already contains the desired string.
     // This mainly happens with USE_REPS is false, like for debugging.
+
+    empty_string_var = "w";
+    fprintf(out, "w='';");
     
   } else if (!all_onecodepoint_source &&
 	     no_digit_in_source &&
-	     max_dest_cps < 10) {
+	     cp_span < 10) {
+
+    // PERF can save the +2 etc. if there's no need to offset!
+    int base_cp_length = min_dest_cps;
+    CHECK(max_dest_cps - base_cp_length < 10);
+    
     // Can't assume that o[0] is the source.
     // Instead we use a digit to separate. 
     fprintf(out, "z=/(\\D+)(\\d)(.*)/;"
@@ -643,17 +658,29 @@ static void WriteFile(const char *filename,
     for (int i = reps.size() - 1; i >= 0; i--) {
       CHECK(1 == fwrite(reps[i].first.data(), reps[i].first.size(), 1, out));
       // Must be *codepoints*, not bytes.
-      fprintf(out, "%d", Utf8Codepoints(reps[i].second));
+      fprintf(out, "%d", Utf8Codepoints(reps[i].second) - base_cp_length);
       CHECK(1 == fwrite(reps[i].second.data(), reps[i].second.size(), 1, out));
     }
+
+    // expression like +2 to modify the length. Also need to explicitly
+    // coerce the string to a number in this case, since '1'+2 is annoyingly,
+    // "12" and not 3. (But +'1'+2 is ok)
+    string plus_min_pre, plus_min;
+    if (base_cp_length > 0) {
+      plus_min_pre = "+";
+      plus_min = StringPrintf("+%d", base_cp_length);
+    }
+    
     fprintf(out, "';"
-	    "while(a=z.exec(r)){"
-	    "c=a[1];" // source
-	    "r=a[3];" // rest of string, starting with dest
-	    "d=r.substr(0,n=a[2]);" // dest. n is length
-	    "r=r.slice(n);" // update for next pass
-	    "s=s.split(c).join(d)"
-	    "}");
+	    "while(a=z.exec(r))"
+	    // a[1] is source
+	    // a[3] is rest of string, starting with dest
+	    // n is length
+	    "s=s.split(a[1]).join(a[3].substr(0,n=%sa[2]%s)),"
+	    "r=a[3].slice(n);", // update for next pass
+	    plus_min_pre.c_str(),
+	    plus_min.c_str());
+    empty_string_var = "r";
 
   } else if (all_onecodepoint_source && sep != 0) {
     fprintf(out, "for(o of'");
@@ -667,6 +694,9 @@ static void WriteFile(const char *filename,
       StringPrintf("'%c'", sep);
     fprintf(out, "'.split(%s))s=s.split(o[0]).join(o.slice(1))\n",
 	    sep_js.c_str());
+
+    empty_string_var = "w";
+    fprintf(out, "w='';");
     
   } else if (all_onecodepoint_source) {
     fprintf(out, "for(o of[");
@@ -679,7 +709,10 @@ static void WriteFile(const char *filename,
       fprintf(out, "'");
     }
     fprintf(out, "])s=s.split(o[0]).join(o.slice(1))\n");
-    
+
+    empty_string_var = "w";
+    fprintf(out, "w='';");
+
   } else {
     // This general case is basically a fallback.
     fprintf(out, "r=[");
@@ -695,16 +728,24 @@ static void WriteFile(const char *filename,
     fprintf(out,
 	    "for(i=0;i<%d;i+=2)s=s.split(r[i]).join(r[i+1])\n",
 	    (int)reps.size());
+
+    empty_string_var = "w";
+    fprintf(out, "w='';");
   }
 
-  fprintf(out, "w='';");
   if (MAX_PREFIX_9) {
     fprintf(out,
-	    "for(c of s)+c+1?w=console.log(w)||w.substr(0,+c):w+=c");
+	    "for(c of s)+c+1?%s=console.log(%s)||%s.substr(0,+c):%s+=c",
+	    empty_string_var.c_str(),
+	    empty_string_var.c_str(),
+	    empty_string_var.c_str(),
+	    empty_string_var.c_str());
   } else {
     fprintf(out,
 	    "e=/(\\D+)(\\d+)/g;"
-	    "while(a=e.exec(s))console.log(w=w.substr(0,a[2])+a[1])");
+	    "while(a=e.exec(s))console.log(%s=%s.substr(0,a[2])+a[1])",
+	    empty_string_var.c_str(),
+	    empty_string_var.c_str());
   }
   
   fclose(out);
@@ -824,13 +865,7 @@ static vector<string> GetSources() {
     }
   }
 
-  if (ONLY_USE_0) {
-    string ch = " ";
-    ch[0] = 0;
-    return { ch };
-  } else {
-    return sources;
-  }
+  return sources;
 }
 
 
@@ -908,15 +943,6 @@ static pair<string, vector<pair<string, string>>> Optimize(
 
 	  if (b2 < MIN_ASCII)
 	    continue;
-
-	  if (ONLY_USE_0) {
-	    if (b2 != 0)
-	      continue;
-
-	    if (b1 < 'a' || b1 > 'z')
-	      continue;
-	  }
-	
 	  
 	  // PERF: This case is currently disallowed, because if the
 	  // source is e.g. AA and we'd like to do the reverse
@@ -926,23 +952,31 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	  // XYZXYZ, not AXYZA as expected. Note this is not possible
 	  // if the two code characters are different. We could add
 	  // some codes here by handling this case.
-	  if (b1 == b2)
+	  if (!DUP_TMP_SOURCE_YOLO && b1 == b2)
 	    continue;
 	  
 	  if (!exists[b1 * 128 + b2]) {
+	    const string s = StringPrintf("%c%c", b1, b2);
+	    
+	    auto EncodeChar =
+	      [](uint8 c) {
+		if (c < 32) return StringPrintf("[%02x]", (int)c);
+		else return StringPrintf("%c", c);
+	      };
+	    
+	    if (SELF_CHECK) {
+	      CHECK(data.find(s) == string::npos)
+		<< EncodeChar(b1) << EncodeChar(b2) << " already present! ";
+	    }
+
 	    num_codes++;
 	    if (VERBOSE > 3 && num_codes < 10) {
-	      auto EncodeChar =
-		[](uint8 c) {
-		  if (c < 32) return StringPrintf("[%02x]", (int)c);
-		  else return StringPrintf("%c", c);
-		};
 	      examples += " " + EncodeChar(b1) + EncodeChar(b2) + ", ";
 	    }
 	    // Can't just add these to sources list, because
 	    // they may be invalidated as soon as data changes.
 	    // (Note: No good reason to store ALL of these...)
-	    tmp_sources.push_back(StringPrintf("%c%c", b1, b2));
+	    tmp_sources.push_back(s);
 	    // We'll never use more than this many.
 	    if (tmp_sources.size() > BEST_PER_ROUND + 1)
 	      goto enough_sources;
@@ -1028,7 +1062,7 @@ static pair<string, vector<pair<string, string>>> Optimize(
       }
       const string &dst = (*results)[rr].first;
 
-      if (tried > BEST_PER_ROUND)
+      if (tried >= BEST_PER_ROUND)
 	break;
       
       tried++;
@@ -1096,13 +1130,17 @@ static pair<string, vector<pair<string, string>>> Optimize(
 	made_progress = true;
 
 	#ifdef WRITE_LOG
-	fprintf(log, "'%s' <- '%s'%s has %d real occurrences,"
+	/*
+	fprintf(log, "'%s' <- '%s'%s has %d real occurrences, "
 		"cost %d savings %d (now %d)\n",
 		Encode(dst).c_str(),
 		Encode(src).c_str(),
 		used_tmp ? " (TMP)" : "",
 		occ, cost, savings,
 		(int)data.size());
+	*/
+	fprintf(log, "%s %d %s\n", src.c_str(),
+		Utf8Codepoints(dst) - 2, dst.c_str());
 	fflush(log);
 	#endif
       }
