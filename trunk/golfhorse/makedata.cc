@@ -27,8 +27,12 @@ static constexpr bool ALLOW_DIGIT_IN_SOURCE =
 
 // The following parameters need to be tuned manually:
 
-
-// static constexpr bool SUFFIX_ENCODING = true;
+// Instead of encoding the length of the shared prefix, encode the
+// amount of the previous word to be discarded. Idea is that common
+// suffix families are therefore encoded as the same sequence,
+// regardless of how long the root word is. This is indeed much
+// better for wordlist.asc (173427 -> 162089 bytes).
+static constexpr bool SUFFIX_ENCODING = true;
 
 // Only use prefixes up to length 9, so that we only
 // use a single digit 0-9 for the prefix encoding, allowing us to use
@@ -50,8 +54,12 @@ static constexpr int MAX_DEST_CODEPOINTS = 11;
 // static_assert(ONLY_ONECODEPOINT_SOURCES ||
 //    	         MAX_DEST_CODEPOINTS <= 9);
 
+// Use prefix/suffix encoding.
+static constexpr bool USE_PREFIX = false;
 // Can turn off this phase, mainly for debugging.
 static constexpr bool USE_REPS = true;
+static constexpr bool USE_DELTA = true;
+static_assert(!(USE_DELTA && USE_PREFIX));
 // Same; makes it easier to debug by only using ascii.
 static constexpr bool ONLY_ASCII = false;
 static constexpr bool ONLY_PRINTABLE = false;
@@ -64,7 +72,7 @@ static constexpr bool DUP_TMP_SOURCE_YOLO = false;
 
 // Do moderately expensive tests with each substitution, for tracking
 // down bugs.
-static constexpr bool SELF_CHECK = DUP_TMP_SOURCE_YOLO || true;
+static constexpr bool SELF_CHECK = DUP_TMP_SOURCE_YOLO || false;
 // Minimum allowed ascii character.
 static constexpr int MIN_ASCII = 0;
 // For debugging, stop when this many reps are reached.
@@ -727,34 +735,101 @@ static void WriteFile(const char *filename,
     fprintf(out, "]\n");
     fprintf(out,
 	    "for(i=0;i<%d;i+=2)s=s.split(r[i]).join(r[i+1])\n",
-	    (int)reps.size());
+	    2 * (int)reps.size());
 
     empty_string_var = "w";
     fprintf(out, "w='';");
   }
 
-  if (MAX_PREFIX_9) {
-    fprintf(out,
-	    "for(c of s)+c+1?%s=console.log(%s)||%s.substr(0,+c):%s+=c",
-	    empty_string_var.c_str(),
-	    empty_string_var.c_str(),
-	    empty_string_var.c_str(),
-	    empty_string_var.c_str());
+  if (USE_PREFIX) {
+    if (MAX_PREFIX_9 && !SUFFIX_ENCODING) {
+      fprintf(out,
+	      "for(c of s)+c+1?%s=console.log(%s)||%s.substr(0,+c):%s+=c",
+	      empty_string_var.c_str(),
+	      empty_string_var.c_str(),
+	      empty_string_var.c_str(),
+	      empty_string_var.c_str());
+    } else {
+
+      if (SUFFIX_ENCODING) {
+	fprintf(out,
+		"e=/(\\D+)(\\d+)/g;"
+		// Unfortunately can't use negative second argument here
+		// because -0 is not distinct from 0, bleh
+		"while(a=e.exec(s))console.log(%s=%s.substr(0,%s.length-a[2])+a[1])",
+		empty_string_var.c_str(),
+		empty_string_var.c_str(),
+		empty_string_var.c_str());
+      } else {
+	fprintf(out,
+		"e=/(\\D+)(\\d+)/g;"
+		"while(a=e.exec(s))console.log(%s=%s.substr(0,a[2])+a[1])",
+		empty_string_var.c_str(),
+		empty_string_var.c_str());
+      }
+    }
   } else {
-    fprintf(out,
-	    "e=/(\\D+)(\\d+)/g;"
-	    "while(a=e.exec(s))console.log(%s=%s.substr(0,a[2])+a[1])",
-	    empty_string_var.c_str(),
-	    empty_string_var.c_str());
+    if (USE_DELTA) {
+      fprintf(out,
+	      // PERF this can be tightened up obviously
+	      "p='';"
+	      "for(o of s.split(',')){"
+	      "n='';"
+	      "for(x=0;x<o.length;x++)"
+	      "n+=(x<p.length)?"
+	      "String.fromCharCode(97+(((p.charCodeAt(x)-97)+(o.charCodeAt(x)-97))%%26))"
+	      ":o[x];"
+	      "console.log(p=n)"
+	      "}");
+    } else {
+      // Otherwise, expect a comma-separated wordlist in s.
+      fprintf(out, "console.log(s.replace(/,/g,'\\n'))");
+    }
   }
-  
+    
   fclose(out);
+}
+
+// Encode the word as a delta from the previous word.
+// If the previous word is "boughs"
+// then                    "bought"
+// can be encoded as       "AAAAAB"
+// where A means "character above +0" and B means "character above +1"
+// all mod 26 of course.
+// There are a number of options when the word is longer than the
+// previous one (which is typical). We can just treat the previous
+// word as being padded with a, which means that "run" -> "running"
+// is encoded as "AAANING".
+// And actually since encoding this way just uses A-Z, let's actually
+// just use lowercase.
+static vector<string> DeltaEncode(const vector<string> &words) {
+  vector<string> out;
+  out.reserve(words.size());
+  string prev_word = "";
+  for (const string &word : words) {
+    string new_word = word;
+    // Only the overlapping region needs to change.
+    for (int i = 0; i < std::min(word.size(), prev_word.size()); i++) {
+      int prev_char = prev_word[i];
+      int new_char = new_word[i];
+      int delta = new_char - prev_char;
+      int code = (delta + 26) % 26;
+      CHECK(code >= 0 && code < 26) << prev_word << " "
+				    << word << " " <<  i;
+      new_word[i] = ('a' + code);
+    }
+    out.push_back(std::move(new_word));
+    prev_word = word;
+  }
+  return out;
 }
 
 static string PrefixEncode(const vector<string> &words) {
   string data;
 
   if (MAX_PREFIX_9) {
+    CHECK(!SUFFIX_ENCODING) << "unsupported";
+    
     int64 wasted = 0LL;
     string lastword = "";
     for (int i = 0; i < words.size(); i++) {
@@ -783,15 +858,24 @@ static string PrefixEncode(const vector<string> &words) {
     for (int i = 0; i < words.size(); i++) {
       const string &word = words[i];
       int pfx = SharedPrefix(lastword, word);
+
+      int num = SUFFIX_ENCODING ? lastword.size() - pfx : pfx;
+      
       data +=
 	StringPrintf("%s%d",
 		     word.substr(pfx, string::npos).c_str(),
-		     pfx);
+		     num);
       lastword = word;
     }
   }
   
   return data;
+}
+
+string CharString(char c) {
+  string ch = " ";
+  ch[0] = c;
+  return ch;
 }
 
 static vector<string> GetSources() {
@@ -806,6 +890,8 @@ static vector<string> GetSources() {
 
   // For long wordslists, three-byte utf-8 is even useful.
   if (!ONLY_ASCII) {
+    // PERF: We never run out of sources even on the long wordlist,
+    // so probably should just limit this for efficiency.
     for (int i = 0x800; i < 0x10000; i++) {
       if (i != 0x2028 && i != 0x2029) {
 	uint8 b1 = 0b1110'0000;
@@ -840,13 +926,13 @@ static vector<string> GetSources() {
   // TODO PERF can include the two-byte \\ and \'. They are at least
   // as good as utf-16, though tricky to handle in some ways (and we
   // have to be careful about splitting them, like with multibyte utf)
+  //
+  // , and space are left out here; added below if applicable.
   string sourcechars =
-    "\"ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_-=+[]{}|;:<>?,./~`";
+    "\"ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_-=+[]{}|;:<>?./~`";
   for (char c : sourcechars) {
     CHECK(c != 0);
-    string ch = " ";
-    ch[0] = c;
-    sources.push_back(ch);
+    sources.push_back(CharString(c));
   }
 
   // Space is excluded from the above, so that we can reserve it as
@@ -858,26 +944,91 @@ static vector<string> GetSources() {
     for (uint8 c = 0; c < 32; c++) {
       // Only carriage return and newline are disallowed here.
       if (c != 0x0A && c != 0x0D) {
-	string ch = " ";
-	ch[0] = c;
-	sources.push_back(ch);
+	sources.push_back(CharString(c));
       }
     }
   }
 
+  if (USE_PREFIX) {
+    sources.push_back(",");
+  } else {
+    // XXX reps encoding is very inefficient if sources can include
+    // digits.
+    /*
+    for (char c : (string)"0123456789") {
+      CHECK(c != 0);
+      sources.push_back(CharString(c));
+    }
+    */
+  }
+  
   return sources;
 }
 
+template<class T>
+void Reverse(vector<T> *v) {
+  vector<string> tmp;
+  tmp.reserve(v->size());
+  for (int i = v->size() - 1; i >= 0; i--)
+    tmp.push_back(std::move((*v)[i]));
+  *v = std::move(tmp);
+}
 
 static pair<string, vector<pair<string, string>>> Optimize(
     // Exclusive access.
     ArcFour *rc,
     string data,
     vector<string> sources) {
-  vector<pair<string, string>> reps;
 
   if (!USE_REPS)
     return {data, {}};
+
+  vector<pair<string, string>> reps;
+  
+  if (!DETERMINISTIC) {
+    vector<string> sources3;
+    vector<string> sources2;
+    vector<string> sources1;
+    for (int i = 0; i < sources.size(); i++) {
+      switch (sources[i].size()) {
+      case 3:
+	sources3.push_back(std::move(sources[i]));
+	break;
+      case 2:
+	sources2.push_back(std::move(sources[i]));
+	break;
+      case 1:
+	sources1.push_back(std::move(sources[i]));
+	break;
+      default:
+	LOG(FATAL) << sources[i];
+      }
+    }
+    sources.clear();
+    
+    if (rc->Byte() & 1) {
+      Shuffle(rc, &sources3);
+      Shuffle(rc, &sources2);
+      Shuffle(rc, &sources1);
+    } else {
+      if (rc->Byte() < 64) Reverse(&sources3);
+      if (rc->Byte() < 64) Reverse(&sources2);
+      if (rc->Byte() < 64) Reverse(&sources1);
+    }
+
+    // XXX code below assumes these are mostly in descending order.
+    // allow some way of scheduling length-1 ones later.
+    auto PushAll =
+      [&sources](vector<string> *dst) {
+	for (string &s : *dst) {
+	  sources.push_back(std::move(s));
+	}
+      };
+    PushAll(&sources3);
+    PushAll(&sources2);
+    PushAll(&sources1);
+  }
+  
   
   vector<vector<int>> table;
   table.resize(256);
@@ -1182,7 +1333,19 @@ int main (int argc, char **argv) {
     return -2;
   }
 
-  const string start_data = PrefixEncode(words);  
+  #if 0
+  const vector<string> delta = DeltaEncode(words);
+  for (const string &s : delta) {
+    printf("  %s\n", s.c_str());
+  }
+  return 0;
+  #endif
+  
+  const string start_data =
+    USE_PREFIX ? PrefixEncode(words) :
+    USE_DELTA ? Util::Join(DeltaEncode(words), ",") :
+    Util::Join(words, ",");
+  
   const vector<string> start_sources = GetSources();
 
   const int64 time_start = time(nullptr);
