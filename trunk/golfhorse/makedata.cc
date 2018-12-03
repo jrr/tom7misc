@@ -54,14 +54,18 @@ static constexpr int MAX_DEST_CODEPOINTS = 11;
 // static_assert(ONLY_ONECODEPOINT_SOURCES ||
 //    	         MAX_DEST_CODEPOINTS <= 9);
 
+// Reverse each word and re-sort before encoding.
+// (Note, this doesn't work that well so there is no decoder!)
+static constexpr bool REVERSE_WORDS = false;
+
 // Use prefix/suffix encoding.
-static constexpr bool USE_PREFIX = false;
+static constexpr bool USE_PREFIX = true;
 // Can turn off this phase, mainly for debugging.
 static constexpr bool USE_REPS = true;
-static constexpr bool USE_DELTA = true;
+static constexpr bool USE_DELTA = false;
 static_assert(!(USE_DELTA && USE_PREFIX));
 // Same; makes it easier to debug by only using ascii.
-static constexpr bool ONLY_ASCII = false;
+static constexpr bool ONLY_ASCII = true;
 static constexpr bool ONLY_PRINTABLE = false;
 static_assert(!ONLY_PRINTABLE || ONLY_ASCII);
 
@@ -161,6 +165,103 @@ static void InitRandom(const string &seed) {
     rcpool[i]->Discard(512);
   }
 }
+
+// Compute a Huffman tree.
+struct Huffman {
+  Huffman() {};
+  struct Node {
+    Node(Node *l, Node *r) : left(l), right(r) {}
+    explicit Node(int s) : sym(s) {}
+    // Always both present (internal) or absent (leaf).
+    Node *left = nullptr, *right = nullptr;
+    // Symbol
+    int sym = -1;
+  };
+
+  // Symbol must be nonnegative.
+  void AddSymbol(int sym, int freq) {
+    CHECK(sym >= 0);
+    nodes.insert(make_pair(freq, new Node(sym)));
+    max_sym = std::max(max_sym, sym);
+  }
+
+  void MakeTree() {
+    while (nodes.size() > 1) {
+      int af, bf;
+      Node *a, *b;
+      std::tie(af, a) = PopFront();
+      std::tie(bf, b) = PopFront();
+      nodes.insert(make_pair(af + bf, new Node(a, b)));
+    }
+  }
+
+  // Outputs the codes. Empty vector means no code assigned.
+  // Assumes the input symbols are dense enough for this to
+  // be a reasonable representation.
+  vector<vector<bool>> MakeCodes() {
+    vector<vector<bool>> out;
+    out.resize(max_sym + 1);
+    vector<bool> code;
+    MakeCodesRec(&out, &code, nodes.begin()->second);
+    return out;
+  }
+  
+  void PrintCodes() {
+    CHECK(nodes.size() == 1);
+    PrintCodesRec("", nodes.begin()->second);
+  }
+
+  void PrintTree() {
+    for (const auto &p : nodes) {
+      printf("[Freq %d]\n", p.first);
+      PrintTreeRec(2, p.second);
+    }
+  }
+  
+private:
+  void MakeCodesRec(vector<vector<bool>> *out,
+		    vector<bool> *code,
+		    Node *n) {
+    if (n->left == nullptr) {
+      (*out)[n->sym] = *code;
+    } else {
+      code->push_back(false);
+      MakeCodesRec(out, code, n->left);
+      code->pop_back();
+      code->push_back(true);
+      MakeCodesRec(out, code, n->right);
+      code->pop_back();
+    }
+  }
+
+  void PrintCodesRec(string code, Node *n) {
+    if (n->left == nullptr) {
+      printf("%s '%c'\n", code.c_str(), n->sym);
+    } else {
+      PrintCodesRec(code + "0", n->left);
+      PrintCodesRec(code + "1", n->right);
+    }
+  }
+
+  void PrintTreeRec(int depth, Node *n) {
+    for (int i = 0; i < depth; i++) printf(" ");
+    if (n->left == nullptr) {
+      printf("'%c'\n", n->sym);
+    } else {
+      PrintTreeRec(depth + 2, n->left);
+      PrintTreeRec(depth + 2, n->right);
+    }
+  }
+  
+  std::pair<int, Node *> PopFront() {
+    CHECK(!nodes.empty());
+    auto ret = *nodes.begin();
+    nodes.erase(nodes.begin());
+    return ret;
+  }
+  std::multimap<int, Node *> nodes;
+  int max_sym = 0;
+};
 
 static int SharedPrefix(const string &a, const string &b) {
   int i = 0;
@@ -1322,6 +1423,34 @@ int Metric(const string &data,
   return data.size() + reps.size() + rep_data_size;
 }
 
+static void HuffmanStats(const string &start_data) {
+  Huffman huff;
+  int freqs[256] = {};
+  for (int i = 0; i < start_data.size(); i++)
+    freqs[(uint8)start_data[i]]++;
+  for (int i = 0; i < 256; i++)
+    if (freqs[i] > 0)
+      huff.AddSymbol(i, freqs[i]);
+  if (VERBOSE >= 2)
+    huff.PrintTree();
+  huff.MakeTree();
+  if (VERBOSE >= 2)
+    huff.PrintCodes();
+  vector<vector<bool>> codes = huff.MakeCodes();
+  int64 total_bits = 0LL;
+  for (int i = 0; i < start_data.size(); i++) {
+    uint8 c = start_data[i];
+    CHECK(c < codes.size());
+    const vector<bool> &code = codes[c];
+    CHECK(!code.empty()) << (int)c << " = " << (char)c;
+    total_bits += code.size();
+  }
+  if (VERBOSE >= 1)
+    fprintf(stderr, "Total huffman bits: %lld = %lld bytes (vs %d)\n",
+	    total_bits, (total_bits >> 3) + 1,
+	    (int)start_data.size());
+}
+
 int main (int argc, char **argv) {
   if (argc < 3) {
     fprintf(stderr, "makedata wordlist out-data.js\n");
@@ -1340,11 +1469,31 @@ int main (int argc, char **argv) {
   }
   return 0;
   #endif
+
+  if (REVERSE_WORDS) {
+    vector<string> reversed;
+    reversed.reserve(words.size());
+    for (const string &w : words) {
+      string r;
+      r.resize(w.size());
+      for (int i = 0; i < r.size(); i++) {
+	r[i] = w[w.size() - i - 1];
+      }
+      reversed.push_back(std::move(r));
+    }
+    std::sort(reversed.begin(), reversed.end());
+    words = std::move(reversed);
+  }
   
   const string start_data =
     USE_PREFIX ? PrefixEncode(words) :
     USE_DELTA ? Util::Join(DeltaEncode(words), ",") :
     Util::Join(words, ",");
+
+  if (VERBOSE >= 1)
+    fprintf(stderr, "Encoded data size: %d\n", (int)start_data.size());
+  if (VERBOSE >= 1)
+    HuffmanStats(start_data);
   
   const vector<string> start_sources = GetSources();
 
@@ -1406,6 +1555,8 @@ int main (int argc, char **argv) {
   }
 #endif    
 
+  HuffmanStats(best_data);
+  
   WriteFile(argv[2], best_data, best_reps);
   return 0;
 }
