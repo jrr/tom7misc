@@ -59,6 +59,10 @@ static uint8 PiecePiece(int p) {
   return startpos.PieceAt(prow, pcol);
 }
 
+static string PieceCol(int p) {
+  return StringPrintf("%c", 'a' + (p % 8));
+}
+
 void ReadStats(const string &filename, Stats *stat_buckets) {
   ifstream s;
   s.open(filename);
@@ -213,9 +217,27 @@ void GenReport(Stats *stat_buckets) {
     FILE *f = fopen("survival.svg", "wb");
     fprintf(f, "%s", TextSVG::Header(WIDTH, HEIGHT).c_str());
 
-    
+
+    // Just keep a set of used rectangles. Place the piece at
+    // "the first" x position such that it does not overlap any
+    // existing rectangle. This has bad asymptotic complexity,
+    // but there are only 32 pieces!
     
     for (int i = 0; i < pieces.size(); i++) {
+      auto PieceName =
+	[](int x) {
+	  const int p = PiecePiece(x);
+	  const string ent = Position::HTMLEntity(p);
+	  const string col = PieceCol(x);
+	  switch (p & Position::TYPE_MASK) {
+	  case Position::QUEEN:
+	  case Position::KING:
+	    return ent;
+	  default:
+	    return ent + col;
+	  }
+	};
+
       const int p = pieces[i];
       const double x = MARGIN + i * ((WIDTH - MARGIN * 2.0) /
 				     (pieces.size() + 1.0));
@@ -230,9 +252,7 @@ void GenReport(Stats *stat_buckets) {
 
       fprintf(f, "%s\n",
 	      TextSVG::Text(x + 6.0, cy + 3.2, "sans-serif",
-			    11.0, {{"#000",
-				    Position::HTMLEntity(PiecePiece(p))
-				    }}).c_str());
+			    11.0, {{"#000", PieceName(p)}}).c_str());
       
       #if 0
       // TODO: Compute "confidence interval" here.
@@ -261,7 +281,8 @@ void GenReport(Stats *stat_buckets) {
     FILE *f = fopen("report.html", "wb");
 
     fprintf(f, "<!doctype html>\n"
-	    "<link href=\"report.css\" rel=\"stylesheet\" type=\"text/css\">\n");
+	    "<link href=\"report.css\" rel=\"stylesheet\" "
+	    "type=\"text/css\">\n");
 
     fprintf(f, "<h1>Overall chances survival (%lld games)</h1>\n"
 	    "<table>"

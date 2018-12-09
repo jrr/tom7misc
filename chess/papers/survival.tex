@@ -9,6 +9,9 @@
 \usepackage{graphicx}
 \usepackage{chessboard}
 
+% lets me explicitly set a. or 1. etc. as enum label
+\usepackage{enumitem}
+
 \pagestyle{empty}
 
 \usepackage{ulem}
@@ -16,6 +19,8 @@
 \normalem
 
 \usepackage{natbib}
+
+\setlength{\footnotesep}{2em}
 
 % \newcommand\comment[1]{}
 \newcommand\sfrac[2]{\!{}\,^{#1}\!/{}\!_{#2}}
@@ -69,39 +74,42 @@ and yet want to live.\footnote{It is easy for two players to
   that this is both player's desire. Since the rules of
   chess-to-the-death can't forbid us from colluding at this moment, I
   hereby declare that the following is the correct approach: 
-%
-  1. Nf3. This is a reasonable opening move for white (``Zukertort opening'')
-  which can transpose into several common systems (e.g. King's
-  Indian). Since the knight can move back to g1 on the next move,
-  knight moves are the fastest route to a draw by repetition. This
-  has a good chance of signaling to a wise player that a draw is
-  desired. The player should make this move after pondering carefully
-  for some time, and then looking meaningfully into the other player's
-  eyes. 
-  1. ... Nf6. This is both a strong response for black in a real game,
-  and simultaneously a signal that a draw is desired. The other
-  advantage is that very weak players may simply copy what white does.
-  In doing so, they will also play this move. 
-  2. Ng1?!. This is a terrible move for white, but clearly signals
-  the intention to draw.
-  2. ... Ng8!. ``Fool's Draw Accepted.'' The starting position is reached
-  for a second time.
-  3. Nf3 Nf6. At this point the game should clearly continue repeating
-  the sequence, although since we are in the start position, white has
-  any number of strong opening moves available. Signaling the draw line
-  and then 3. d4!? may be pyschologically devastating.
-  4. Ng1 Ng8 1/2-1/2. The starting position is reached for the third
-  time, which by rule is a draw.
+\begin{enumerate}[label=\arabic*.]
+  \item[1.] Nf3. This is a reasonable opening move for white (begins the R\'eti)
+    which can transpose into several common systems (e.g. King's
+    Indian). Since the knight can move back to g1 on the next move,
+    knight moves are the fastest route to a draw by repetition. This
+    has a good chance of signaling to a wise player that a draw is
+    desired. The player should make this move after pondering carefully
+    for some time, and then looking meaningfully into the other player's
+    eyes. 
+  \item[1.] ... Nf6. This is both a strong response for black in a real game,
+    and simultaneously a signal that a draw is desired. The other
+    advantage is that very weak players may simply copy what white does.
+    In doing so, they will also play this move. 
+  \item[2.] Ng1?!. White moves the knight back to its starting square.
+    This is a terrible move for white, but clearly signals the intention to
+    draw.
+  \item[2.] ... Ng8!. ``Fool's Draw Accepted.'' The starting position is reached
+    for a second time.
+  \item[3.] Nf3 Nf6. At this point the game should clearly continue repeating
+    the sequence, although since we are in the start position, white has
+    any number of strong opening moves available. Signaling the draw line
+    and then 3. d4!? may be pyschologically devastating.
+  \item[4.] Ng1 Ng8 1/2-1/2. The starting position is reached for the third
+    time, which by rule\footnotemark\ is a draw.
+\end{enumerate}
 
   Since this is one of the shortest possible routes to a draw, I hereby
   dub this line the ``Fool's Draw,'' by analogy with the Fool's Mate.
 
   If 1. ... Nc6 or another Knight's move, white can also consider
-  continuing in the obvious way. However after 1. ... d5, black
-  has refused or not noticed the draw. Fortunately, white is still
-  in a good position to play the game normally. White can try
-  to be more obvious with 2. Ng1, but if black is choosing to just
-  play normally, white takes a distinct handicap by doing so.
+  continuing in the obvious way. However after 1. ... d5, black has
+  refused or not noticed the draw. Fortunately, white is still in a
+  good position to play the game normally (this is the main line of
+  the R\'eti opening, followed by 2. c4). White can try to be more
+  obvious with 2. Ng1, but if black is choosing to just play normally,
+  white takes a distinct handicap by doing so.
 
   The biggest risk for white is that black does not play 2. ... Ng8
   but rather a normal move like 2. ... g6 (``Fool's Draw Betrayed'').
@@ -113,7 +121,57 @@ and yet want to live.\footnote{It is easy for two players to
   Of course, this all relies on the assumption that if
   chess-to-the-death ends in a draw, the players are spared or allowed
   to repeat indefinitely. If both players are actually executed, then
-  this line is truly a Fool's Draw! }
+  this line is truly a Fool's Draw!
+}
+%
+\footnotetext{
+  But is it? The lichess implementation (although known
+  to be buggy\cite{kingme}) does not permit a threefold repetition
+  claim in this situation, which got me thinking that maybe there is
+  some subtlety here. Is the starting position special somehow, not
+  counting as having occurred? The relevant statute, from the FIDE
+  Laws of Chess\cite{fiderules}:
+  \begin{quote}
+    {\bf 9.2}.\quad The game is drawn, upon a correct claim by a
+    player having the move, when the same position for at least the
+    third time (not necessarily by a repetition of moves):
+    \begin{enumerate}[label=\alph*.]
+    \item is about to appear, if he first writes his move, which
+      cannot be changed, on his scoresheet and declares to the arbiter
+      his intention to make this move, or
+    \item has just appeared, and the player claiming the draw has the
+      move.
+  \end{enumerate}
+
+  Positions are considered the same if and only if the same player has
+  the move, pieces of the same kind and colour occupy the same squares
+  and the possible moves of all the pieces of both players are the
+  same. Thus positions are not the same if:
+  \begin{enumerate}[label=\arabic*.]
+  \item at the start of the sequence a pawn could have been captured
+    en passant.
+  \item a king or rook had castling rights, but forfeited these after
+    moving. The castling rights are lost only after the king or rook
+    is moved.
+  \end{enumerate}
+  \end{quote}
+  
+  So the question is, has the starting position ``appeared'' before
+  white's first move? The rules are not totally clear on this point.
+  Note that ``positions are considered the same'' only when the
+  same player ``has the move.'' FIDE defines ``have the move'' as
+  \begin{quote}
+    1.3.\quad A player is said to 'have the move' when his opponent's
+    move has been 'made'.
+  \end{quote}
+  A strong case can therefore be made that white does not 'have the
+  move' in the formal sense at the beginning of the game, since black
+  has not made a move!
+  
+  Nonetheless, it does seem clear that white can claim a draw by
+  9.2.a, by committing the move 5. Nf3 and declaring to the arbiter
+  that the position is now {\it about to appear} for the third time.
+  This seems unambiguously legal. }
 %
 But what if you are forced to {\it be one of the chess pieces} to the
 death? That is, your little soul inhabits one of the 32 pieces or
@@ -149,10 +207,10 @@ Like all good scientific research, I clearly laid out my hypothesis
 and wrote down the motivation before performing the study. This helps
 prevent presentation bias where the results appear more satisfactory
 because they are framed as a natural conclusion from the idea that
-motivated the research in the first place (when in fact, of course,
-if you write the motivation after witnessing the results, ..). 
-It is also much more exciting. I literally don't know the answer
-as I'm writing this, nor whether it is interesting in any way!
+motivated the research in the first place (when in fact, of course, if
+you write the motivation after witnessing the results, backflow is
+inevitable). It is also much more exciting. I literally don't know the
+answer as I'm writing this, nor whether it is interesting in any way!
 
 Here are my guesses.
 
@@ -217,7 +275,7 @@ how to spell the difficult word aficionado without spell-check, he is
 not good at chess. A few drinking buddies with varying chessperience were
 also consulted for their wagers.
 
-\subsection{Ben}
+\subsection{Ben}\footnote{Ben does not prefer to use the shift key.}
 
 edge pawns almost never played til endgame let alone traded off
 
@@ -283,16 +341,18 @@ Most-to-least-survival hero tier list for chess (patch 1.0):
 4. Both Knights
  -- They are slippery, but they often get deep into enemy territory quickly.
 
-5. The C,D,E, F pawns
- -- Moved forward to release various more important pieces => more likely to die.
+5. The C,D,E,F pawns
+ -- Moved forward to release various more important pieces $\Rightarrow$ more likely to die.
 
 6. Both Bishops
- -- https://www.youtube.com/watch?v=gDnE-5lD7w8
+ -- https://youtu.be/gDnE-5lD7w8
 
 7. The Queen
  -- A high-value target, seems unlikely to survive.
 
-This list was assembled for chess.report by ix, who only barely understands the rules of chess and rarely plays. This is probably why the justifications get increasingly nonsensical.
+This list was assembled for chess.report by ix, who only barely
+understands the rules of chess and rarely plays. This is probably why
+the justifications get increasingly nonsensical.
 
 \subsection{David}
 
@@ -333,7 +393,8 @@ black e-pawn: 0.16
 
 \subsection{William}
 
-Okay, this is pretty much off the cuff, but let’s say, just for white, from most to least likely to survive:
+Okay, this is pretty much off the cuff, but let’s say, just for white,
+from most to least likely to survive:
 
 Queenside Rook
 B Pawn
@@ -354,13 +415,22 @@ E Pawn
 
 Some motivated reasoning:
 
-I figure the king has got to be somewhere near the middle of the pack since he dies in half of games featuring a winner — but with slightly higher-than-even odds of surviving, since some games end in a draw.  I’m probably mixing up means and medians here somehow..
+I figure the king has got to be somewhere near the middle of the pack
+since he dies in half of games featuring a winner — but with slightly
+higher-than-even odds of surviving, since some games end in a draw.
+I’m probably mixing up means and medians here somehow..
 
 ...
 King
 ...
 
-I’m gonna assume castling happens more often on the King’s side, so let’s give Kingside Rook and F, G, and H Pawns a better shot than their fellows on the left.  But maybe it should actually be worse, since if they die, it’s because they failed to protect the king.  Plus, having heard the tip about C Pawn loud and clear, I’m gonna assume that bad boy most often becomes a new Queen, which means he gets more survival points than the real Queen herself. 
+I’m gonna assume castling happens more often on the King’s side, so
+let’s give Kingside Rook and F, G, and H Pawns a better shot than
+their fellows on the left. But maybe it should actually be worse,
+since if they die, it’s because they failed to protect the king. Plus,
+having heard the tip about C Pawn loud and clear, I’m gonna assume
+that bad boy most often becomes a new Queen, which means he gets more
+survival points than the real Queen herself.
 
 ...
 C Pawn
@@ -375,13 +445,20 @@ H Pawn
 Kingside Rook
 ...
 
-D and E Pawn are nothing but pawns, and they mostly sacrifice themselves to the cause.
+D and E Pawn are nothing but pawns, and they mostly sacrifice
+themselves to the cause.
 
 ...
 D Pawn
 E Pawn
 
-Randomizing within these constraints gives us our starting point.  Then the wildcard Bishops and Knights get randomly distributed through what remains to come up with this final answer shown above.
+Randomizing within these constraints gives us our starting point. Then
+the wildcard Bishops and Knights get randomly distributed through what
+remains to come up with this final answer shown above.
+
+\section{Methodology}
+
+To compute the chances for survival, I legally acquired 
 
 
 % Battle chess
