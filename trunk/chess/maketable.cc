@@ -92,13 +92,13 @@ struct Sum {
     for (int i = 0; i < NUM_BUCKETS; i++) ret += values[i];
     return ret;
   }
-  
+
   int64 Min() const {
     int64 ret = values[0];
     for (int i = 1; i < NUM_BUCKETS; i++) ret = std::min(ret, values[i]);
     return ret;
   }
-  
+
   int64 Max() const {
     int64 ret = values[0];
     for (int i = 1; i < NUM_BUCKETS; i++) ret = std::max(ret, values[i]);
@@ -158,6 +158,55 @@ struct Ratio {
 
 };
 
+// Collection of rectangles.
+struct RectSet {
+  struct Rect {
+    int x0 = 0, y0 = 0;
+    // Note: This code is not careful about whether the right/bottom
+    // edge is included in the rectangle.
+    int x1 = 0, y1 = 0;
+  };
+
+  void Add(const Rect &a) {
+    rects.push_back(a);
+  }
+
+  static bool Overlap(const Rect &a, const Rect &b) {
+    if (a.x0 > b.x1 || a.x1 < b.x0)
+      return false;
+    if (a.y0 > b.y1 || a.y1 < b.y0)
+      return false;
+    return true;
+  }
+
+  // Find an x position for the rectangle that doesn't
+  // overlap anything in the set.
+  Rect PlaceHoriz(int y, int w, int h) const {
+    // PERF could of course do some sort of search.
+    Rect r;
+    r.y0 = y;
+    r.y1 = y + h;
+    for (int x = 0; /* returns in loop */; x++) {
+      r.x0 = x;
+      r.x1 = x + w;
+      fprintf(stderr, "Try %d,%d-%d,%d\n", r.x0, r.y0, r.x1, r.y1);
+      if (!AnyOverlap(r))
+	return r;
+    }
+  }
+
+  bool AnyOverlap(const Rect &r) const {
+    for (const Rect &other : rects)
+      if (Overlap(r, other))
+	return true;
+    return false;
+  }
+
+  // PERF: Could of course use a sorted data structure! But for
+  // uses here we're talking about like 32-64 rectangles.
+  vector<Rect> rects;
+};
+
 void GenReport(Stats *stat_buckets) {
 #if 0
   for (int bucket = 0; bucket < NUM_BUCKETS; bucket++) {
@@ -176,11 +225,11 @@ void GenReport(Stats *stat_buckets) {
 #endif
 
   const Position startpos;
-  
+
   Sum games;
   // For the 32 pieces.
   Ratio survived[32] = {};
-  
+
   for (int b = 0; b < NUM_BUCKETS; b++) {
     const Stats &stats = stat_buckets[b];
     games.values[b] += stats.num_games;
@@ -199,7 +248,7 @@ void GenReport(Stats *stat_buckets) {
 	    [&survived](int a, int b) {
 	      return survived[a].Mean() < survived[b].Mean();
 	    });
-  
+
   for (int p : pieces) {
     // TODO: Compute "confidence interval" here.
     printf("%d (%s). %lld/%lld %.3f (%.3f--%.3f)\n",
@@ -211,6 +260,8 @@ void GenReport(Stats *stat_buckets) {
   }
 
 
+  fprintf(stderr, "survival.svg...\n");
+  fflush(stderr);
   {
     constexpr double WIDTH = 800.0, HEIGHT = 1280.0;
     constexpr double MARGIN = 10.0;
@@ -222,26 +273,50 @@ void GenReport(Stats *stat_buckets) {
     // "the first" x position such that it does not overlap any
     // existing rectangle. This has bad asymptotic complexity,
     // but there are only 32 pieces!
-    
+    RectSet used;
+
     for (int i = 0; i < pieces.size(); i++) {
-      auto PieceName =
+      auto UseCol =
 	[](int x) {
 	  const int p = PiecePiece(x);
-	  const string ent = Position::HTMLEntity(p);
-	  const string col = PieceCol(x);
 	  switch (p & Position::TYPE_MASK) {
 	  case Position::QUEEN:
 	  case Position::KING:
-	    return ent;
+	    return false;
 	  default:
+	    return true;
+	  }
+	};
+      auto PieceName =
+	[&UseCol](int x) {
+	  const int p = PiecePiece(x);
+	  const string ent = Position::HTMLEntity(p);
+	  const string col = PieceCol(x);
+	  if (UseCol(x)) {
 	    return ent + col;
+	  } else {
+	    return ent;
 	  }
 	};
 
       const int p = pieces[i];
-      const double x = MARGIN + i * ((WIDTH - MARGIN * 2.0) /
-				     (pieces.size() + 1.0));
+
       auto PtoY = [](double p) { return p * HEIGHT; };
+
+      // XXX should take into account the Min/Max!
+      const int h = 18;
+      // XXX should differ based on whether we output the col
+      const int w = UseCol(p) ? 40 : 30;
+      const int y = PtoY(survived[p].Min()) - 6;
+
+      RectSet::Rect pos = used.PlaceHoriz(y, w, h);
+      used.Add(pos);
+      double x = MARGIN + pos.x0 + 3.0;
+      /*
+      fprintf(f, "<rect fill=\"none\" stroke=\"#000\" x=\"%d\" y=\"%d\" width=\"%d\" height=\"%d\" />\n",
+	      pos.x0 + MARGIN, pos.y0, w, h);
+      */
+
       fprintf(f, "<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" "
 	      "stroke=\"black\" />\n",
 	      x, PtoY(survived[p].Min()),
@@ -251,9 +326,9 @@ void GenReport(Stats *stat_buckets) {
 	      x, cy);
 
       fprintf(f, "%s\n",
-	      TextSVG::Text(x + 6.0, cy + 3.2, "sans-serif",
-			    11.0, {{"#000", PieceName(p)}}).c_str());
-      
+	      TextSVG::Text(x + 5.0, cy + 3.2, "sans-serif",
+			    18.0, {{"#000", PieceName(p)}}).c_str());
+
       #if 0
       // TODO: Compute "confidence interval" here.
       printf("%d (%s). %lld/%lld %.3f (%.3f--%.3f)\n",
@@ -268,15 +343,15 @@ void GenReport(Stats *stat_buckets) {
     fprintf(f, "%s", TextSVG::Footer().c_str());
     fclose(f);
   }
-  
+
   // One idea for drawing chess pieces in HTML is to use
   // a "black" king drawn in white behind a white king (in black or
   // grey) to provide the outline. It looks better than the hollow
   // "white" pieces on a colored background.
   // <span style="position:absolute; color:#fff" class="white piece">&#9818;</span>
   // <span style="position:absolute; color:#333" class="white piece">&#9812;</span>
-  
-  
+
+
   {
     FILE *f = fopen("report.html", "wb");
 
@@ -294,7 +369,7 @@ void GenReport(Stats *stat_buckets) {
 	      "<td>%d</td> <td>%s</td> <td>%lld</td> "
 	      "<td>%.4f</td> <td>%.4f</td> <td>%.4f</td></tr>\n",
 	      p, PIECE_NAME[p],
-	      survived[p].Numer(), 
+	      survived[p].Numer(),
 	      survived[p].Mean(),
 	      survived[p].Min(),
 	      survived[p].Max());
@@ -343,7 +418,7 @@ void GenReport(Stats *stat_buckets) {
       Ratio died_on[64] = {}, survived_on[64] = {};
 
       vector<double> dranks, sranks;
-      
+
       for (int b = 0; b < NUM_BUCKETS; b++) {
 	const Stats &stats = stat_buckets[b];
 	for (int i = 0; i < 64; i++) {
@@ -376,7 +451,7 @@ void GenReport(Stats *stat_buckets) {
       const int pcol = pidx % 8;
       const Position startpos;
       const char *ent = Position::HTMLEntity(startpos.PieceAt(prow, pcol));
-      
+
       fprintf(f, "<h2>%s (%s)</h2>\n", ent, PIECE_NAME[p]);
 
       fprintf(f, "<table class=board>\n");
@@ -401,7 +476,7 @@ void GenReport(Stats *stat_buckets) {
 	      fprintf(f,
 		      "<span class=\"%s bigp\">%.2f%%</span><br>"
 		      "<span class=\"%s smallp\">%.2f&ndash;%.2f%%</span>",
-		      fateclass, 
+		      fateclass,
 		      fate.Mean() * 100.0,
 		      fateclass,
 		      fate.Min() * 100.0,
@@ -437,7 +512,7 @@ int main(int argc, char **argv) {
   }
 
   Stats stats[NUM_BUCKETS] = {};
-  
+
   for (int i = 1; i < argc; i++) {
     fprintf(stderr, "Reading %s...\n", argv[i]);
     ReadStats(argv[i], stats);
