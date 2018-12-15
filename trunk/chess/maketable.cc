@@ -22,6 +22,8 @@
 
 #include "gamestats.h"
 
+#include <type_traits>
+
 using namespace std;
 using int64 = int64_t;
 using uint64 = uint64_t;
@@ -260,12 +262,12 @@ void GenReport(Stats *stat_buckets) {
   }
 
 
-  fprintf(stderr, "survival.svg...\n");
+  fprintf(stderr, "piece-survival.svg...\n");
   fflush(stderr);
   {
     constexpr double WIDTH = 800.0, HEIGHT = 1280.0;
     constexpr double MARGIN = 10.0;
-    FILE *f = fopen("survival.svg", "wb");
+    FILE *f = fopen("piece-survival.svg", "wb");
     fprintf(f, "%s", TextSVG::Header(WIDTH, HEIGHT).c_str());
 
 
@@ -301,12 +303,13 @@ void GenReport(Stats *stat_buckets) {
 
       const int p = pieces[i];
 
-      auto PtoY = [](double p) { return p * HEIGHT; };
+      auto PtoY = [](double p) { return (1.0 - p) * HEIGHT; };
 
       // XXX should take into account the Min/Max!
       const int h = 18;
-      // XXX should differ based on whether we output the col
-      const int w = UseCol(p) ? 40 : 30;
+      const int pct_width = 50;
+      const int label_width = UseCol(p) ? 35 : 25;
+      const int w = pct_width + label_width;
       const int y = PtoY(survived[p].Min()) - 6;
 
       RectSet::Rect pos = used.PlaceHoriz(y, w, h);
@@ -321,13 +324,23 @@ void GenReport(Stats *stat_buckets) {
 	      "stroke=\"black\" />\n",
 	      x, PtoY(survived[p].Min()),
 	      x, PtoY(survived[p].Max()));
-      double cy = PtoY(survived[p].Mean());
+      double pmean = survived[p].Mean();
+      double cy = PtoY(pmean);
       fprintf(f, "<circle cx=\"%.2f\" cy=\"%.2f\" r=\"1.5\" />\n",
 	      x, cy);
 
+      double FUDGE_X = 5.0;
+      double FUDGE_Y = 3.2;
+      
       fprintf(f, "%s\n",
 	      TextSVG::Text(x + 5.0, cy + 3.2, "sans-serif",
 			    18.0, {{"#000", PieceName(p)}}).c_str());
+
+      fprintf(f, "%s\n",
+	      TextSVG::Text(x + label_width, cy + 3.2, "sans-serif",
+			    9.0, {{"#777",
+				   StringPrintf("%.1f%%", pmean * 100.0)
+				   }}).c_str());
 
       #if 0
       // TODO: Compute "confidence interval" here.

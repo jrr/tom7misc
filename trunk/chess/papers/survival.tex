@@ -9,6 +9,31 @@
 \usepackage{graphicx}
 \usepackage{chessboard}
 
+
+
+% \usepackage{chessfs}
+\usepackage{adjustbox}
+
+% Define black versions of pieces for inline use. Gross, but it works.
+\newcommand{\Pawn}[1][1.3ex]{%
+\adjustbox{Trim=4.3pt 2.6pt 4.3pt 0pt,width=#1,margin=0.2ex 0ex 0.2ex 0ex}{\BlackPawnOnWhite}%
+}%
+\newcommand{\Rook}[1][1.58ex]{%
+\adjustbox{Trim=3.2pt 2.2pt 3.2pt 0pt,width=#1,raise=0ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackRookOnWhite}%
+}%
+\newcommand{\Knight}[1][1.85ex]{%
+\adjustbox{Trim=2.3pt 2.35pt 2.5pt 0pt,width=#1,raise=-0.03ex,margin=0.14ex 0ex 0.14ex 0ex}{\BlackKnightOnWhite}%
+}%
+\newcommand{\Bishop}[1][1.79ex]{%
+\adjustbox{Trim=2.3pt 2pt 2.3pt 0pt,width=#1,raise=-0.12ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackBishopOnWhite}%
+}%
+\newcommand{\Queen}[1][2.05ex]{%
+\adjustbox{Trim=1.2pt 2.2pt 1.2pt 0pt,width=#1,raise=-0.08ex,margin=0.1ex 0ex 0.1ex 0ex}{\BlackQueenOnWhite}%
+}%
+\newcommand{\King}[1][1.95ex]{%
+\adjustbox{Trim=2pt 2pt 2pt 0pt,width=#1,raise=-0.06ex,margin=0.13ex 0ex 0.13ex 0ex}{\BlackKingOnWhite}%
+}%
+
 % lets me explicitly set a. or 1. etc. as enum label
 \usepackage{enumitem}
 
@@ -458,7 +483,67 @@ remains to come up with this final answer shown above.
 
 \section{Methodology}
 
-To compute the chances for survival, I legally acquired 
+To compute the chances for survival, I legally acquired 506,000,416
+chess games from lichess.org. This is all of the standard variant,
+rated games from Jan 2013 to November 2018, in any time format. Only
+games that are completed and valid are included (about 200,000 games
+did not meet this criteria). The total data size is 875 gigabytes, so
+processing these took some care for efficiency and parallelism.
+
+Other than that, I simply parsed and simulated each game. For each
+of the 32 pieces in the starting position, I tracked its current
+location, and whether it is alive; multiple dead pieces could
+occupy the same square. At the end of the game, one of the kings is
+killed if his side has lost.
+
+For a piece, there is a single factual survival rate in these games,
+given just by $\frac{\mathrm{num~survived}}{\mathrm{num~games}}$. What
+we're really interested in, however, is estimating the underlying true
+survival probability for each piece. In order to do this with
+reasonable efficency, we divide the games into 32 separate buckets,
+and count statistics separately for each. From these samples we can
+then estimate variance, for example. The games are bucketized by a
+deterministic hash of the White player's username. This way, if there
+exist some players who are highly unusual (perhaps automated
+accounts), their games are grouped together and pessimistically
+represented in the variance estimate. This also helps account for
+different opening preferences; the chosen opening certainly affects
+the survival chances.
+
+The basic survival chances appear in Figure~\ref{fig:piece-survival}.
+Indeed, many pieces are more likely to survive than the kings. Even as
+black, the extremal pawns (\pawn a and \pawn h) have over a 70\%
+survival rate. Across the board, the survival chances for a white
+piece and its black twin are similar, usually with a small edge to
+white. Notable exceptions are the \knight g (the overall most doomed
+piece), and both white bishops, which die more than their black
+counterparts. The \pawn e is vastly more dead than \Pawn e. Note
+somewhat satisfyingly that the \pawn c has the highest variance; this
+was the most controversial among the drinking buddies
+(Section~\ref{sec:XXXbuddies}). Note that \pawn c is the sacrificed pawn
+  in the popular Queen's Gambit (1. d4 d5 2. c4); variance may come
+  from individual players having a strong preference to accept or
+  decline.\footnote{XXX actually this can't be true because we group
+    by the white player, but the black player chooses what to do.}
+
+% XXX
+
+\begin{figure}[htb]
+  \begin{center}
+    % To generate this pdf, I ran maketable to make
+    % piece-survival.svg, then printed to PDF using Chrome, then
+    % cropped it in Illustrator. Illustrator can open the SVG but
+    % doesn't have the unicode chess pieces in any font I could find.
+    \includegraphics[width=0.95 \linewidth]{piece-survival-export}
+  \end{center}\vspace{-0.1in}
+  \caption{Survival probabilities for each of the 32 pieces in standard
+    chess, in 500 million games. The number is the mean survival rate
+    across all samples. The vertical position of the dot is this mean
+    rate, with a line drawing the span between the smallest and largest
+    sample bucket (this is usually a very tiny range).
+    Horizontal position is purely presentational, to avoid overlap.}
+  \label{fig:piece-survival}
+\end{figure}
 
 
 % Battle chess

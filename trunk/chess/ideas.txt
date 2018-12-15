@@ -1,0 +1,6 @@
+Search for really interesting games in the lichess database
+e.g. largest comeback game
+longest king walk
+piece ends up on rare square
+most queens on the board
+long forced mates (missed?)

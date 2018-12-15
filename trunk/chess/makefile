@@ -21,16 +21,16 @@ OPT=-O2
 SYMBOLS=-g
 
 # Tried switching back to mingw/w64...
-CXX=g++
-CC=gcc
-# CXX=x86_64-w64-mingw32-g++
-# CC=x86_64-w64-mingw32-gcc
+# CXX=g++
+# CC=gcc
+CXX=x86_64-w64-mingw32-g++
+CC=x86_64-w64-mingw32-gcc
 
 INCLUDES=-I "../cc-lib" -I "../cc-lib/city" -I "../cc-lib/re2" -I ../fceulib
-CPPFLAGS=-m64 -DHAVE_ALLOCA -D_GLIBCXX_HAS_GTHREADS $(INCLUDES)
+CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_GLIBCXX_HAS_GTHREADS -mthreads $(INCLUDES)
 
 # without static, can't find lz or lstdcxx maybe?
-# LFLAGS=-m64 -mthreads -lpthread -L. -static
+LFLAGS=-m64 -mthreads -lwinpthread -L. -static
 
 RE2_OBJECTS=../cc-lib/re2/bitstate.o ../cc-lib/re2/compile.o ../cc-lib/re2/dfa.o ../cc-lib/re2/filtered_re2.o ../cc-lib/re2/mimics_pcre.o ../cc-lib/re2/nfa.o ../cc-lib/re2/onepass.o ../cc-lib/re2/parse.o ../cc-lib/re2/perl_groups.o ../cc-lib/re2/prefilter.o ../cc-lib/re2/prefilter_tree.o ../cc-lib/re2/prog.o ../cc-lib/re2/re2.o ../cc-lib/re2/regexp.o ../cc-lib/re2/set.o ../cc-lib/re2/simplify.o ../cc-lib/re2/stringpiece.o ../cc-lib/re2/tostring.o ../cc-lib/re2/unicode_casefold.o ../cc-lib/re2/unicode_groups.o ../cc-lib/re2/util/rune.o ../cc-lib/re2/util/strutil.o
 
@@ -58,6 +58,6 @@ clean :
 
 
 # This depends on rungames.exe, but not including it because I don't want to recompute stats every single time.
-# stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
-# 	nice -n 19 ./rungames.exe $< > $@
+stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+	nice -n 19 ./rungames.exe $< > $@
 
