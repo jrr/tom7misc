@@ -199,6 +199,7 @@ static void ReadLargePGN(const char *filename) {
   auto DoWork = 
     [&bad_games_m, &bad_games,
      &stat_buckets, &parser](const string &pgn_text) {
+      printf("DoWork[%s]\n", pgn_text.c_str());
       PGN pgn;
       CHECK(parser.Parse(pgn_text, &pgn));
 
@@ -337,7 +338,7 @@ static void ReadLargePGN(const char *filename) {
       }
 
       const int bucket = bucket_hash & NUM_BUCKETS_MASK;
-      if (false) {
+      if (true) {
 	fprintf(stderr, "Fates:\n");
 	for (int i = 0; i < 32; i++) {
 	  fprintf(stderr, "%d (%s). %s on %c%c.\n",
@@ -381,40 +382,41 @@ static void ReadLargePGN(const char *filename) {
     };
   
   string game;
-  int c = 0;
   int blank_lines = 0;
   int lastc = 0;
-  while ( EOF != (c = BigGetC()) ) {
-    game += c;
-    if (c == '\n' && lastc == '\n') {
+  int c = 0;
+  do {
+    c = BigGetC();
+    if (c == '\n' && lastc == '\n')
       blank_lines++;
-      if (blank_lines == 2) {
-	work_queue->Add(std::move(game));
-	game.clear();
-	game.reserve(1024);
-	num_read++;
-	if (num_read % 20000LL == 0) {
-	  int64 done, in_progress, pending;
-	  work_queue->Stats(&done, &in_progress, &pending);
-	  fprintf(stderr,
-		  "[Still reading; %lld games at %.1f/sec] %lld %lld %lld\n",
-		  num_read,
-		  num_read / (double)(time(nullptr) - start),
-		  done, in_progress, pending);
-	  fflush(stderr);
-	}
 
-	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
-	  break;
-	
-	blank_lines = 0;
-	lastc = 0;
-	continue;
+    // Don't require double blank lines at end of file.
+    if (blank_lines == 2 || c == EOF) {
+      work_queue->Add(std::move(game));
+      game.clear();
+      game.reserve(1024);
+      num_read++;
+      if (num_read % 20000LL == 0) {
+	int64 done, in_progress, pending;
+	work_queue->Stats(&done, &in_progress, &pending);
+	fprintf(stderr,
+		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld\n",
+		num_read,
+		num_read / (double)(time(nullptr) - start),
+		done, in_progress, pending);
+	fflush(stderr);
       }
-    }
 
-    lastc = c;
-  }
+      if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
+	break;
+	
+      blank_lines = 0;
+      lastc = 0;
+    } else {
+      game += c;
+      lastc = c;
+    }
+  } while (c != EOF);
   
   fclose(f);
 

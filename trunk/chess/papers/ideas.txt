@@ -1,6 +1,7 @@
 find interesting games
  - quadrupled pawns or more
  - lots of pieces, all advanced off the back rank(s)
+ - one pawn captures the most number of pieces
 
 find positions that are reached in two games but after long divergence
 (and have a minimum number of pieces or whatever)
