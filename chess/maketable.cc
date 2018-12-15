@@ -191,7 +191,7 @@ struct RectSet {
     for (int x = 0; /* returns in loop */; x++) {
       r.x0 = x;
       r.x1 = x + w;
-      fprintf(stderr, "Try %d,%d-%d,%d\n", r.x0, r.y0, r.x1, r.y1);
+      // fprintf(stderr, "Try %d,%d-%d,%d\n", r.x0, r.y0, r.x1, r.y1);
       if (!AnyOverlap(r))
 	return r;
     }
@@ -208,6 +208,116 @@ struct RectSet {
   // uses here we're talking about like 32-64 rectangles.
   vector<Rect> rects;
 };
+
+
+// SVG version. This one shows the total rate of a piece ending
+// on each square, as well as its survival odds (given that it's
+// there).
+void GenFateMap(Stats *stat_buckets) {
+  for (int p = 0; p < 32; p++) {
+    FILE *f = fopen(StringPrintf("piece%d.svg", p).c_str(), "wb");
+    Ratio ended_on[64] = {}, died_on[64] = {}, survived_on[64] = {};
+
+    // For each square index, its rank in terms of the
+    // overall probability of the piece's fate ending there.
+    vector<double> ranks;
+
+    for (int b = 0; b < NUM_BUCKETS; b++) {
+      const Stats &stats = stat_buckets[b];
+      for (int i = 0; i < 64; i++) {
+	died_on[i].denom[b] = stats.num_games;
+	survived_on[i].denom[b] = stats.num_games;
+	ended_on[i].denom[b] = stats.num_games;
+	
+	died_on[i].numer[b] = stats.pieces[p].died_on[i];
+	survived_on[i].numer[b] = stats.pieces[p].survived_on[i];
+	ended_on[i].numer[b] = stats.pieces[p].died_on[i] +
+	  stats.pieces[p].survived_on[i];
+
+	ranks.push_back(ended_on[i].Mean());
+      }
+    }
+
+    std::sort(ranks.begin(), ranks.end());
+
+    auto GetRank =
+      [](const vector<double> &ranks, double value) {
+	// PERF can be done with binary search, obv...
+	for (int i = 0; i < ranks.size(); i++) {
+	  if (value <= ranks[i]) return i / (double)ranks.size();
+	}
+	return 1.0;
+      };
+
+    // XXX PiecePiece?
+    const bool black = p < 16;
+    const int pidx = black ? p : 48 + (p - 16);
+    const int prow = pidx / 8;
+    const int pcol = pidx % 8;
+    const Position startpos;
+    const uint8 piece = startpos.PieceAt(prow, pcol);
+    const char *ent = Position::HTMLEntity(piece);
+
+    constexpr double WIDTH = 800.0, HEIGHT = 800.0;
+    constexpr double MARGIN = 10.0;
+    constexpr double SQUARE = (WIDTH - (MARGIN * 2.0)) / 8.0;
+    fprintf(f, "%s", TextSVG::Header(WIDTH, HEIGHT).c_str());
+    
+    // fprintf(f, "<h2>%s (%s)</h2>\n", ent, PIECE_NAME[p]);
+
+    for (int r = 0; r < 8; r++) {
+      for (int c = 0; c < 8; c++) {
+	const int idx = r * 8 + c;
+	const bool light = ((r + c) & 1) == 0;
+	const Ratio &fate = ended_on[idx];
+	const double rank = GetRank(ranks, fate.Mean());
+	const bool zero = fate.Mean() < 0.0001;
+
+	const string fill = StringPrintf("#%02x%02x%02x",
+					 (int)((1.0 - rank) * 255),
+					 (int)((1.0 - rank) * 255),
+					 (int)((1.0 - rank) * 255));
+	
+	fprintf(f, "<rect x=\"%.2f\" y=\"%.2f\" "
+		"width=\"%.2f\" height=\"%.2f\" fill=\"%s\" />\n",
+		MARGIN + c * SQUARE,
+		MARGIN + r * SQUARE,
+		SQUARE, SQUARE,
+		fill.c_str());
+
+	if (fate.Numer() > 0) {
+	  // Survival rate is number of survivals over number of
+	  // times it ended there.
+	  double survival_rate = survived_on[idx].Numer() /
+	    (double)fate.Numer();
+	  string color = rank > 0.5 ? "#fff" : "#000";
+
+	  const int permil = (int)(survival_rate * 1000.0);
+	  const int fpart = permil % 10;
+	  const int ipart = permil / 10;
+
+	  const double single_fudge = ipart < 10 ? 24 : 0;
+	  
+	  fprintf(f, "%s%s\n",
+		  TextSVG::Text(
+		      MARGIN + c * SQUARE + (SQUARE * 0.15) + single_fudge,
+		      MARGIN + r * SQUARE + (SQUARE * 0.65),
+		      "sans-serif",
+		      // Would be nice to center a single digit
+		      44.0, {{color, StringPrintf("%d", ipart)}}).c_str(),
+		  TextSVG::Text(
+		      MARGIN + c * SQUARE + (SQUARE * 0.15) + 48,
+		      MARGIN + r * SQUARE + (SQUARE * 0.65) - 18,
+		      "sans-serif",
+		      20.0, {{color, StringPrintf(".%d", fpart)}}).c_str());
+	}
+      }
+    }
+    fprintf(f, "%s", TextSVG::Footer().c_str());
+    fclose(f);
+  }
+  fprintf(stderr, "Wrote 32 SVG files.\n");
+}
 
 void GenReport(Stats *stat_buckets) {
 #if 0
@@ -329,9 +439,6 @@ void GenReport(Stats *stat_buckets) {
       fprintf(f, "<circle cx=\"%.2f\" cy=\"%.2f\" r=\"1.5\" />\n",
 	      x, cy);
 
-      double FUDGE_X = 5.0;
-      double FUDGE_Y = 3.2;
-      
       fprintf(f, "%s\n",
 	      TextSVG::Text(x + 5.0, cy + 3.2, "sans-serif",
 			    18.0, {{"#000", PieceName(p)}}).c_str());
@@ -357,6 +464,8 @@ void GenReport(Stats *stat_buckets) {
     fclose(f);
   }
 
+  GenFateMap(stat_buckets);
+  
   // One idea for drawing chess pieces in HTML is to use
   // a "black" king drawn in white behind a white king (in black or
   // grey) to provide the outline. It looks better than the hollow
@@ -426,6 +535,8 @@ void GenReport(Stats *stat_buckets) {
     fprintf(f, "</table>");
 
 
+    int64 min_all = 9999999999;
+    int64 min_not_pawn = 999999999;
     fprintf(f, "<h1>Fate per piece</h1>\n");
     for (int p = 0; p < 32; p++) {
       Ratio died_on[64] = {}, survived_on[64] = {};
@@ -463,7 +574,8 @@ void GenReport(Stats *stat_buckets) {
       const int prow = pidx / 8;
       const int pcol = pidx % 8;
       const Position startpos;
-      const char *ent = Position::HTMLEntity(startpos.PieceAt(prow, pcol));
+      const uint8 piece = startpos.PieceAt(prow, pcol);
+      const char *ent = Position::HTMLEntity(piece);
 
       fprintf(f, "<h2>%s (%s)</h2>\n", ent, PIECE_NAME[p]);
 
@@ -471,26 +583,42 @@ void GenReport(Stats *stat_buckets) {
       for (int r = 0; r < 8; r++) {
 
 	auto HalfRow =
-	  [f, &GetRank, r](const Ratio *fate_on, const char *fateclass,
-			   const char *borderno,
-			   const vector<double> &ranks,
-			   std::function<string(double)> MakeBG) {
+	  [f, &min_all, &min_not_pawn, piece, &GetRank, r](
+	      const Ratio *fate_on, const char *fateclass,
+	      const char *borderno,
+	      const vector<double> &ranks,
+	      std::function<string(double)> MakeBG) {
 	    fprintf(f, "<tr>");
 	    for (int c = 0; c < 8; c++) {
 	      const int idx = r * 8 + c;
 	      const bool light = ((r + c) & 1) == 0;
 	      const Ratio &fate = fate_on[idx];
 	      const double rank = GetRank(ranks, fate.Mean());
-	      string bg = MakeBG(rank);
+	      const string bg = MakeBG(rank);
+	      const bool zero = fate.Mean() < 0.0001;
+
+	      if (fate.Numer() != 0) {
+		min_all = std::min(min_all, fate.Numer());
+		if ((piece & Position::TYPE_MASK) != Position::PAWN) {
+		  min_not_pawn = std::min(min_not_pawn, fate.Numer());
+		}
+	      }
+	      
+	      string big = zero ? StringPrintf("%lld%s", fate.Numer(),
+					       fate.Numer() < 2000 ?
+					       "###" : ""
+					       ) :
+		StringPrintf("%.2f%%", fate.Mean() * 100.0);
+					      
 	      fprintf(f, " <td style=\"border-%s:0;background:%s\" class=%s>",
 		      borderno,
 		      bg.c_str(),
 		      light ? "blt" : "bdk");
 	      fprintf(f,
-		      "<span class=\"%s bigp\">%.2f%%</span><br>"
+		      "<span class=\"%s bigp\">%s</span><br>"
 		      "<span class=\"%s smallp\">%.2f&ndash;%.2f%%</span>",
 		      fateclass,
-		      fate.Mean() * 100.0,
+		      big.c_str(),
 		      fateclass,
 		      fate.Min() * 100.0,
 		      fate.Max() * 100.0);
@@ -514,6 +642,8 @@ void GenReport(Stats *stat_buckets) {
       }
       fprintf(f, "</table>\n");
     }
+    fprintf(stderr, "Rarest nonzero: %lld\nNot pawn: %lld", min_all,
+	    min_not_pawn);
     fclose(f);
   }
 }

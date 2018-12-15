@@ -1,5 +1,5 @@
 \documentclass[twocolumn]{article}
-\usepackage[top=1.1in, left=0.85in, right=0.85in]{geometry}
+\usepackage[top=0.5in, left=0.45in, right=0.45in, bottom=0.5in]{geometry}
 
 \usepackage{url}
 % \usepackage{code}
@@ -510,24 +510,6 @@ represented in the variance estimate. This also helps account for
 different opening preferences; the chosen opening certainly affects
 the survival chances.
 
-The basic survival chances appear in Figure~\ref{fig:piece-survival}.
-Indeed, many pieces are more likely to survive than the kings. Even as
-black, the extremal pawns (\pawn a and \pawn h) have over a 70\%
-survival rate. Across the board, the survival chances for a white
-piece and its black twin are similar, usually with a small edge to
-white. Notable exceptions are the \knight g (the overall most doomed
-piece), and both white bishops, which die more than their black
-counterparts. The \pawn e is vastly more dead than \Pawn e. Note
-somewhat satisfyingly that the \pawn c has the highest variance; this
-was the most controversial among the drinking buddies
-(Section~\ref{sec:XXXbuddies}). Note that \pawn c is the sacrificed pawn
-  in the popular Queen's Gambit (1. d4 d5 2. c4); variance may come
-  from individual players having a strong preference to accept or
-  decline.\footnote{XXX actually this can't be true because we group
-    by the white player, but the black player chooses what to do.}
-
-% XXX
-
 \begin{figure}[htb]
   \begin{center}
     % To generate this pdf, I ran maketable to make
@@ -545,9 +527,102 @@ was the most controversial among the drinking buddies
   \label{fig:piece-survival}
 \end{figure}
 
+The basic survival chances appear in Figure~\ref{fig:piece-survival}.
+Indeed, many pieces are more likely to survive than the kings. Even as
+black, the extremal pawns (\pawn a and \pawn h) have over a 70\%
+survival rate. Across the board, the survival chances for a white
+piece and its black twin are similar, usually with a small edge to
+white. Notable exceptions are the \knight g (the overall most doomed
+piece), and both white bishops, which die more than their black
+counterparts. The \pawn e is vastly more dead than \Pawn e. Note
+somewhat satisfyingly that the \pawn c has the highest variance; this
+was the most controversial among the drinking buddies
+(Section~\ref{sec:XXXbuddies}). Note that \pawn c is the sacrificed pawn
+in the popular Queen's Gambit (1. d4 d5 2. c4); this may be a good
+example of a piece that has very different survival rates in different
+opening preferences. Since the variance is otherwise very low, I did
+not attempt to 
+
+Despite my impression that many games end in a draw, ties are actually
+rare in the lichess database. In January 2018, only 3.8\% of games
+were drawn;
+% (8922275 white, 8329221 black, 682042 draw)
+as a result, the survival chances for the kings are both close to
+50\%.
+
+\section{Safest spaces}
+
+The fate of each piece is to either survive or die, and it does so on
+one of the 64 squares. With the same replay of the 500 million games
+I also kept statistics on the fates of each piece. If being a chess
+piece to the death, and possessing some influence over the 
 
 % Battle chess
 % Feminist game 
+
+Other than the bishops---which have no legal way to reach half of the
+squares---every piece reaches every square in at least a thousand
+games. So we have enough samples to have reasonable confidence in our
+statistics, even for the most unlikely odysseys. The least mobile
+pieces are the pawns, who can technically reach any square by
+promoting, but are usually confined to cones emanating from their
+start squares. The overall rarest fate is for \pawn f2 to die on the
+a7 square, which only happened 1,244 times (however, it survived on
+this square 31,438 times). This square is actually reachable without
+promoting, but it would need to capture 5 times in order to get
+there, which seems quite unlikely! There may even be a hidden
+achievement for reaching this square this way!
+% TODO: Perhaps could find a game where this happened?!
+Aside from pawns, the weirdest fate is for \knight g to die on h1,
+which happened 47,307 times. Corners are of course fairly garbage for
+the knight, although it is twice as likely to survive on this square.
+
+% There may even be hidden achievements for reaching these squares!
+
+That said, there are characteristic patterns for each of the pieces,
+which make sense given their starting positions and patterns of
+movement. You could probably guess the piece just by looking at one of
+the heat maps below, although---spoiler alert---the piece is just
+listed right there and they are in order. In each map, the background
+color gives the 
+
+\newcommand{\chessmap}[2]{\begin{center} \includegraphics[width=0.65 \linewidth]{#1} {#2} \end{center}\vspace{-0.1in}}
+
+\chessmap{piece0}{\Rook a8}
+\chessmap{piece1}{\Knight b8}
+\chessmap{piece2}{\Bishop c8}
+\chessmap{piece3}{\Queen}
+\chessmap{piece4}{\King}
+\chessmap{piece5}{\Bishop f8}
+\chessmap{piece6}{\Knight g8}
+\chessmap{piece7}{\Rook h8}
+
+\chessmap{piece8}{\Pawn a7}
+\chessmap{piece9}{\Pawn b7}
+\chessmap{piece10}{\Pawn c7}
+\chessmap{piece11}{\Pawn d7}
+\chessmap{piece12}{\Pawn e7}
+\chessmap{piece13}{\Pawn f7}
+\chessmap{piece14}{\Pawn g7}
+\chessmap{piece15}{\Pawn h7}
+
+\chessmap{piece16}{\pawn a2}
+\chessmap{piece17}{\pawn b2}
+\chessmap{piece18}{\pawn c2}
+\chessmap{piece19}{\pawn d2}
+\chessmap{piece20}{\pawn e2}
+\chessmap{piece21}{\pawn f2}
+\chessmap{piece22}{\pawn g2}
+\chessmap{piece23}{\pawn h2}
+
+\chessmap{piece24}{\rook a1}
+\chessmap{piece25}{\knight b1}
+\chessmap{piece26}{\bishop c1}
+\chessmap{piece27}{\queen}
+\chessmap{piece28}{\king}
+\chessmap{piece29}{\bishop f1}
+\chessmap{piece30}{\knight g1}
+\chessmap{piece31}{\rook h1}
 
 \nocite{chesstego}
 

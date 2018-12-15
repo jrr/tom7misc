@@ -1,0 +1,14 @@
+[Event "Casual Correspondence game"]
+[Date "2018.10.03"]
+[Round "-"]
+[White "testy"]
+[Black "lichess AI level 5"]
+[Result "0-1"]
+[Variant "Standard"]
+[Termination "Normal"]
+
+1. e4 d5 2. e5 f5 3. exf6 c5 4. f7+ Kd7
+5. g3 c4 6. d4 cxd3 7. fxg8=Q Qa5+ 8. Nc3 dxc2
+9. Bh3+ Kc6 10. Nf3 Kc5 11. O-O cxd1=Q 12. Nxd5 Qae1
+13. Bxc8 Qxf1#  0-1
+
