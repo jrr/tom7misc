@@ -4,3 +4,9 @@ longest king walk
 piece ends up on rare square
 most queens on the board
 long forced mates (missed?)
+solid clumps of pieces
+
+
+- bad chess engines: just use the probability maps
+  from the previous to try to move pieces to squares where
+  they are likely to survive.
