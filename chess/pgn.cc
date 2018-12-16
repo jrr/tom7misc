@@ -86,3 +86,9 @@ bool PGN::Parse(const string &s, PGN *pgn) {
   PGNParser parser;
   return parser.Parse(s, pgn);
 }
+
+int PGN::MetaInt(const string &key, int default_value) const {
+  auto it = meta.find(key);
+  if (it == meta.end()) return default_value;
+  return atoi(it->second.c_str());
+}

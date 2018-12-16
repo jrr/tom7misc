@@ -9,6 +9,7 @@
 #include <utility>
 #include <unistd.h>
 
+#include "gtl/top_n.h"
 #include "base/logging.h"
 #include "util.h"
 #include "city.h"
@@ -17,6 +18,7 @@
 #include "gamestats.h"
 #include "bigchess.h"
 
+constexpr int MAX_PARALLELISM = 3;
 
 using namespace std;
 using int64 = int64_t;
@@ -31,14 +33,58 @@ static constexpr int64 MAX_GAMES = 0LL;
 #undef SELF_CHECK
 
 struct Processor {
+  Processor() : topn(10) {}
+
+  // If false, we don't even look at the game.
+  bool Eligible(const PGN &pgn) {
+    // Ignore games that don't finish.
+    if (pgn.result == PGN::OTHER)
+      return false;
+
+    // TODO: time format? Ignore bullet?
+    // TODO: titled players only?
+    
+    int min_elo = std::min(pgn.MetaInt("WhiteElo", 0),
+			   pgn.MetaInt("BlackElo", 0));
+    if (min_elo < 1800)
+      return false;
+
+    return true;
+  }
+
+  // A score of 0 is not saved. Otherwise, looking for the
+  // highest score.
+  int64 ScorePosition(const Position &pos) {
+    int most_white_pawns = 0, most_black_pawns = 0;
+    // Find quadrupled (or more) pawns by either player.
+    for (int c = 0; c < 8; c++) {
+      int white_pawns = 0, black_pawns = 0;
+      for (int r = 0; r < 8; r++) {
+	uint8 p = pos.PieceAt(r, c);
+	if ((p & Position::TYPE_MASK) == Position::PAWN) {
+	  if ((p & Position::COLOR_MASK) == Position::WHITE)
+	    white_pawns++;
+	  else
+	    black_pawns++;
+	}
+      }
+      most_white_pawns = std::max(most_white_pawns, white_pawns);
+      most_black_pawns = std::max(most_black_pawns, black_pawns);
+    }
+
+    int64 res = 0;
+    if (most_white_pawns >= 4) res += most_white_pawns;
+    if (most_black_pawns >= 4) res += most_black_pawns;
+    return res;
+  }
 
   void DoWork(const string &pgn_text) {
     PGN pgn;
     CHECK(parser.Parse(pgn_text, &pgn));
 
-    // Ignore games that don't finish.
-    if (pgn.result == PGN::OTHER)
-      return;
+    if (!Eligible(pgn)) return;
+
+    int64 max_position_score = 0LL;
 
     Position pos;
     GameStats gs;
@@ -60,9 +106,38 @@ struct Processor {
       }
 
       pos.ApplyMove(move);
+
+      max_position_score = 
+	std::max(max_position_score, ScorePosition(pos));
     }
 
+    if (max_position_score > 0LL) {
+      int64 game_score = max_position_score * 100000LL;
+      // XXX add minimum rating of two players.
+
+      // If the game has an interesting position, then output it.
+      // PERF: We could do a read-only check of TopN without taking
+      // the write mutex.
+      WriteMutexLock ml(&topn_m);
+      ScoredGame sg;
+      sg.score = game_score;
+      sg.pgn_text = pgn_text;
+      topn.push(std::move(sg));
+    }
   }
+
+  struct ScoredGame {
+    int64 score;
+    string pgn_text;
+  };
+  struct ScoredGameCmp {
+    bool operator()(const ScoredGame &a, const ScoredGame &b) {
+      return a.score > b.score;
+    };
+  };
+
+  std::shared_mutex topn_m;
+  gtl::TopN<ScoredGame, ScoredGameCmp> topn;
 
   std::shared_mutex bad_games_m;
   int64 bad_games = 0LL;
@@ -77,7 +152,7 @@ static void ReadLargePGN(const char *filename) {
 
   // TODO: How to get this to deduce second argument at least?
   auto work_queue =
-    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork, 30);
+    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork, MAX_PARALLELISM);
 
   const int64 start = time(nullptr);
 
@@ -125,6 +200,13 @@ static void ReadLargePGN(const char *filename) {
   if (processor.bad_games) {
     fprintf(stderr, "Note: %lld bad games\n", processor.bad_games);
   }
+
+  printf("There are %lld scored games\n", (int64)processor.topn.size());
+  auto top = processor.topn.Extract();
+  for (const auto &p : *top) {
+    printf("[Score %lld]\n%s\n", p.score, p.pgn_text.c_str());
+  }
+  delete top;
 }
 
 int main(int argc, char **argv) {

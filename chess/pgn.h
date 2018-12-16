@@ -22,6 +22,7 @@ struct PGN {
   static bool Parse(const std::string &s, PGN *pgn);
   
   std::unordered_map<std::string, std::string> meta;
+  int MetaInt(const std::string &key, int default_value = 0) const;
   struct Move {
     Move(std::string m) : move(std::move(m)) {}
     // The actual move, like "Nxh4".
