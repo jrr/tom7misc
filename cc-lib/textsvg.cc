@@ -36,7 +36,6 @@ string TextSVG::Rtos(double d) {
   // This is probably wrong for svg--but what?
   if (std::isnan(d)) return "NaN";
 
-  printf("Called on %.9f\n", d);
   // Handle minus sign ourselves. Note subtlety about negative
   // zero; testing e.g. (d < 0) fails because c++ treats
   // -0 as == 0, but printf still prints the minus sign.
@@ -46,7 +45,7 @@ string TextSVG::Rtos(double d) {
   char out[16];
   // Make sure there is always room for a minus sign.
   sprintf(out + 1, "%.5f", d);
-  printf("Orig [%s]\n", out + 1);
+
   // Strip leading zeroes. We always have a nonzero character
   // (even the terminating \0) so this loop terminates.
   char *o = out + 1;
