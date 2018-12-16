@@ -32,13 +32,59 @@ string TextSVG::Footer() {
   return "</svg>\n";
 }
 
-static string Rtos(double d) {
+string TextSVG::Rtos(double d) {
   // This is probably wrong for svg--but what?
   if (std::isnan(d)) return "NaN";
+
+  printf("Called on %.9f\n", d);
+  // Handle minus sign ourselves. Note subtlety about negative
+  // zero; testing e.g. (d < 0) fails because c++ treats
+  // -0 as == 0, but printf still prints the minus sign.
+  const bool negative = std::signbit(d);
+  if (negative) d = abs(d);
+  
   char out[16];
-  sprintf(out, "%.5f", d);
-  char *o = out;
+  // Make sure there is always room for a minus sign.
+  sprintf(out + 1, "%.5f", d);
+  printf("Orig [%s]\n", out + 1);
+  // Strip leading zeroes. We always have a nonzero character
+  // (even the terminating \0) so this loop terminates.
+  char *o = out + 1;
   while (*o == '0') o++;
+
+  // Now strip trailing zeroes. e is where we will truncate
+  // the string (place a \0) if we reach the end, or nullptr
+  // if we are not looking at a run of zeroes.
+  char *e = nullptr, *f = o;
+  while (*f != '\0') {
+    if (e != nullptr) {
+      // Have a run of zeroes. Extend?
+      if (*f != '0')
+	e = nullptr;
+    } else {
+      // No run. Start?
+      if (*f == '0')
+	e = f;
+    }
+    f++;
+  }
+
+  if (e != nullptr) *e = '\0';
+
+  // If we stripped all the leading and trailing zeroes, only
+  // leaving the decimal point, then return zero. We do this
+  // rather than testing for zero up front because numbers
+  // very close to zero still get rounded.
+  if (o[0] == '.' && o[1] == '\0')
+    return "0";
+  
+  if (negative) {
+    // Okay even if we didn't strip zeroes, since we wrote to
+    // out + 1 above.
+    o--;
+    *o = '-';
+  }
+  
   return string{o};
 }
 

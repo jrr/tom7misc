@@ -195,6 +195,17 @@ string Util::ptos(void *p) {
   return (string)s;
 }
 
+string Util::Join(const vector<string> &v, const string &sep) {
+  if (v.empty()) return "";
+  // PERF can pre-allocate the output string, for one thing.
+  string out = v[0];
+  for (int i = 1; i < v.size(); i++) {
+    out += sep;
+    out += v[i];
+  }
+  return out;
+}
+
 // Internal helper used by ReadFile, ReadFileMagic.
 static string ReadAndCloseFile(FILE *f, const string *magic_opt) {
   #define READFILE_DEBUG 0
