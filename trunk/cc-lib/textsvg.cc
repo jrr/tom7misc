@@ -22,9 +22,9 @@ string TextSVG::Header(double width, double height) {
 	  " xmlns=\"http://www.w3.org/2000/svg\""
 	  " xmlns:xlink=\"http://www.w3.org/1999/xlink\""
 	  " xmlns:a=\"http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/\""
-	  " x=\"0px\" y=\"0px\" width=\"%fpx\" height=\"%fpx\""
+	  " x=\"0px\" y=\"0px\" width=\"%spx\" height=\"%spx\""
 	  " xml:space=\"preserve\">\n",
-	  width, height);
+	  Rtos(width).c_str(), Rtos(height).c_str());
   return (string)out;
 }
 
@@ -54,18 +54,28 @@ string TextSVG::Rtos(double d) {
   // Now strip trailing zeroes and periods. e is where we will
   // truncate the string (place a \0) if we reach the end, or nullptr
   // if we are not looking at a run of zeroes.
-  char *e = nullptr, *f = o;
-  while (*f != '\0') {
-    if (e != nullptr) {
-      // Have a run of zeroes. Extend?
-      if (*f != '0' && *f != '.')
-	e = nullptr;
-    } else {
-      // No run. Start?
-      if (*f == '0' || *f == '.')
-	e = f;
+  char *e = nullptr;
+  bool truncating = false;
+  for (char *f = o; *f != '\0'; f++) {
+    // Don't do any truncation until we see the period.
+    if (*f == '.') {
+      truncating = true;
+      // Truncate away the decimal point as well.
+      e = f;
+      continue;
     }
-    f++;
+    
+    if (truncating) {
+      if (e != nullptr) {
+	// Have a run of zeroes. Stop?
+	if (*f != '0')
+	  e = nullptr;
+      } else {
+	// No run. Start?
+	if (*f == '0')
+	  e = f;
+      }
+    }
   }
 
   if (e != nullptr) *e = '\0';
