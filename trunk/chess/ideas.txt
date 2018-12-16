@@ -6,6 +6,22 @@ most queens on the board
 long forced mates (missed?)
 solid clumps of pieces
 
+find interesting games
+ - quadrupled pawns or more
+ - lots of pieces, all advanced off the back rank(s)
+ - one pawn captures the most number of pieces
+ - naked castling
+ - castling to mate!
+ - en passant to mate!
+
+find positions that are reached in two games but after long divergence
+(and have a minimum number of pieces or whatever)
+- like generally, build a thing that lets you "score" games/positions
+   or sets of games, and then it finds the best with that quality, a la
+   mapreduce
+
+find powerful patterns; arrangements of pieces (e.g. alekhine's gun) that
+tend to lead to wins
 
 - bad chess engines: just use the probability maps
   from the previous to try to move pieces to squares where
