@@ -50,6 +50,9 @@ chess_test.exe : chess_test.o chess.o pgn.o $(CCLIB_OBJECTS)
 rungames.exe : rungames.o chess.o pgn.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
+chessreduce.exe : chessreduce.o chess.o pgn.o $(CCLIB_OBJECTS)
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 maketable.exe : maketable.o chess.o $(CCLIB_OBJECTS)
 	$(CXX) $^ -o $@ $(LFLAGS)
 
