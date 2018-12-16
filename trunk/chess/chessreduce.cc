@@ -17,6 +17,7 @@
 #include "gamestats.h"
 #include "bigchess.h"
 
+
 using namespace std;
 using int64 = int64_t;
 using uint64 = uint64_t;
@@ -28,31 +29,6 @@ static constexpr int64 MAX_GAMES = 0LL;
 
 // #define SELF_CHECK true
 #undef SELF_CHECK
-
-
-static constexpr const char *const PIECE_NAME[32] = {
-  "a8 rook",
-  "b8 knight",
-  "c8 bishop",
-  "d8 queen",
-  "e8 king",
-  "f8 bishop",
-  "g8 knight",
-  "h8 rook",
-  "a7 pawn", "b7 pawn", "c7 pawn", "d7 pawn",
-  "e7 pawn", "f7 pawn", "g7 pawn", "h7 pawn",
-  // white
-  "a2 pawn", "b2 pawn", "c2 pawn", "d2 pawn",
-  "e2 pawn", "f2 pawn", "g2 pawn", "h2 pawn",
-  "a1 rook",
-  "b1 knight",
-  "c1 bishop",
-  "d1 queen",
-  "e1 king",
-  "f1 bishop",
-  "g1 knight",
-  "h1 rook", };
-
 
 static void ReadLargePGN(const char *filename) {
   std::shared_mutex bad_games_m;
@@ -203,16 +179,6 @@ static void ReadLargePGN(const char *filename) {
       }
 
       const int bucket = bucket_hash & NUM_BUCKETS_MASK;
-      if (true) {
-	fprintf(stderr, "Fates:\n");
-	for (int i = 0; i < 32; i++) {
-	  fprintf(stderr, "%d (%s). %s on %c%c.\n",
-		  i, PIECE_NAME[i],
-		  (GameStats::DIED & gs.fates[i]) ? "DIED" : "Survived",
-		  'a' + (gs.fates[i] & 7),
-		  '1' + (7 - ((gs.fates[i] & GameStats::POS_MASK) >> 3)));
-	}
-      }
       stat_buckets[bucket].AddGame(gs);
     };
 
@@ -260,32 +226,16 @@ static void ReadLargePGN(const char *filename) {
 
   fprintf(stderr, "Done! Join threads...\n");
   work_queue.reset(nullptr);
-
-  for (int bucket = 0; bucket < NUM_BUCKETS; bucket++) {
-    const Stats &s = stat_buckets[bucket];
-    printf("%lld\n", s.num_games);
-    for (int i = 0; i < 32; i++) {
-      const PieceStats &p = s.pieces[i];
-      for (int d = 0; d < 64; d++)
-	printf(" %lld", p.died_on[d]);
-      printf("\n ");
-      for (int d = 0; d < 64; d++)
-	printf(" %lld", p.survived_on[d]);
-      printf("\n");
-    }
-  }
-  if (bad_games) {
-    fprintf(stderr, "Note: %lld bad games\n", bad_games);
-  }
 }
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    fprintf(stderr, "rungames.exe input.pgn ...\n");
+    fprintf(stderr, "chessreduce.exe input.pgn ...\n");
     return -1;
   }
+  // FYI, usually much better to run this in parallel, like
+  // with make -j 4.
   for (int i = 1; i < argc; i++) {
-    //     "d:\\chess\\lichess_db_standard_rated_2017-04.pgn";
     fprintf(stderr, "Reading %s...\n", argv[i]);
     ReadLargePGN(argv[i]);
   }
