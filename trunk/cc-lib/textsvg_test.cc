@@ -35,9 +35,11 @@ int main(int argc, char **argv) {
   EXPECT_EQ(TextSVG::Rtos(0.5), ".5");
   EXPECT_EQ(TextSVG::Rtos(-0.5), "-.5");
 
-
   EXPECT_EQ(TextSVG::Rtos(10001.2002), "10001.2002");
   EXPECT_EQ(TextSVG::Rtos(-10001.2002), "-10001.2002");
+
+  EXPECT_EQ(TextSVG::Rtos(25.0), "25");
+  EXPECT_EQ(TextSVG::Rtos(-25.0), "-25");
   
   return 0;
 }
