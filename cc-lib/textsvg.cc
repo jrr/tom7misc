@@ -51,18 +51,18 @@ string TextSVG::Rtos(double d) {
   char *o = out + 1;
   while (*o == '0') o++;
 
-  // Now strip trailing zeroes. e is where we will truncate
-  // the string (place a \0) if we reach the end, or nullptr
+  // Now strip trailing zeroes and periods. e is where we will
+  // truncate the string (place a \0) if we reach the end, or nullptr
   // if we are not looking at a run of zeroes.
   char *e = nullptr, *f = o;
   while (*f != '\0') {
     if (e != nullptr) {
       // Have a run of zeroes. Extend?
-      if (*f != '0')
+      if (*f != '0' && *f != '.')
 	e = nullptr;
     } else {
       // No run. Start?
-      if (*f == '0')
+      if (*f == '0' || *f == '.')
 	e = f;
     }
     f++;
@@ -70,11 +70,11 @@ string TextSVG::Rtos(double d) {
 
   if (e != nullptr) *e = '\0';
 
-  // If we stripped all the leading and trailing zeroes, only
-  // leaving the decimal point, then return zero. We do this
-  // rather than testing for zero up front because numbers
-  // very close to zero still get rounded.
-  if (o[0] == '.' && o[1] == '\0')
+  // If we stripped all the leading and trailing zeroes and the
+  // decimal point, then the input was rounded to zero. We do this
+  // rather than testing for zero up front because numbers very close
+  // to zero still get rounded.
+  if (*o == '\0')
     return "0";
   
   if (negative) {
