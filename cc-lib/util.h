@@ -49,6 +49,9 @@ struct Util {
 
   static vector<string> ListFiles(const string &dir);
 
+  // For v = ["a", "b", "cde"] and sep = "YY", returns "aYYbYYcde".
+  static string Join(const std::vector<string> &v, const string &sep);
+  
   // XXX terrible names
   static int shout(int, string, unsigned int &);
   static string shint(int b, int i);

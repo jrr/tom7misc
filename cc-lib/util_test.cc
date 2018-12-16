@@ -73,10 +73,17 @@ static void TestPad() {
   CHECK_EQ("hello", Util::PadEx(-4, "hello", '_'));
 }
 
+static void TestJoin() {
+  CHECK_EQ("", Util::Join({}, "X"));
+  CHECK_EQ("aYYbYYcde", Util::Join({"a", "b", "cde"}, "YY"));
+  CHECK_EQ("abcde", Util::Join({"a", "b", "cde"}, ""));
+}
+
 int main(int argc, char **argv) {
   TestReadFiles();
   TestWhitespace();
   TestPad();
+  TestJoin();
   return 0;
 }
 
