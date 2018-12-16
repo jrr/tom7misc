@@ -5,6 +5,8 @@ piece ends up on rare square
 most queens on the board
 long forced mates (missed?)
 solid clumps of pieces
+just plain "weird" positions based on their total probability
+  using heatmaps
 
 find interesting games
  - quadrupled pawns or more
