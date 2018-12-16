@@ -9,8 +9,6 @@
 \usepackage{graphicx}
 \usepackage{chessboard}
 
-
-
 % \usepackage{chessfs}
 \usepackage{adjustbox}
 
@@ -34,6 +32,8 @@
 \adjustbox{Trim=2pt 2pt 2pt 0pt,width=#1,raise=-0.06ex,margin=0.13ex 0ex 0.13ex 0ex}{\BlackKingOnWhite}%
 }%
 
+\interfootnotelinepenalty=0
+
 % lets me explicitly set a. or 1. etc. as enum label
 \usepackage{enumitem}
 
@@ -53,7 +53,7 @@
 \begin{document} 
 
 \title{Survival in chessland}
-\author{Dr.~Tom~Murphy~VII~Ph.D.\thanks{
+\author{Dr.~Tom~Murphy~VII~Ph.D.\footnote{
 Copyright \copyright\ 2018 the Regents of the Wikiplia
 Foundation. Appears in SIGBOVIK 2018 with the threefold
 repetition of the Association for Computational Heresy; 
@@ -148,7 +148,36 @@ and yet want to live.\footnote{It is easy for two players to
   to repeat indefinitely. If both players are actually executed, then
   this line is truly a Fool's Draw!
 }
-%
+
+But what if you are forced to {\it be one of the chess pieces} to the
+death? That is, your little soul inhabits one of the 32 pieces or
+pawns and your soul is vanquished if that piece is eliminated. Now it
+doesn't matter whether you're good or bad at chess, because you don't
+get to pick what happens in the game. What matters is that your piece
+lives to the end of the game, when all surviving pieces are set free.
+Which piece should you want to be?
+
+In formal chess, the king can never be captured: The game ends when
+the king is attacked but cannot move, and it is illegal to make a move
+that leaves the king attacked. The king's death is implied, of course,
+but it is seen as more poetic to end the game prior to this point.
+
+For the sake of this question, we'll consider the the white king to
+``die'' if white loses (i.e., is checkmated), and likewise for black.
+Otherwise, of course, the best chances of survival would trivially be
+with the two kings, since they always survive. Loss includes
+resignation, since most high-level games actually end once the
+defeated player agrees that loss is inevitable. We can think of this
+common case like king seppuku. Many games also end in time forfeit,
+which is like the king's poor diet and lifestyle choices leading to
+a death by natural causes.
+
+Neither side has a decisive advantage, and many games end in a draw,
+with both kings surviving. So the survival chances of a king are
+clearly greater than 50\%---pretty decent odds. Is it possible that
+any other piece has even better chances?
+
+
 \footnotetext{
   But is it? The lichess implementation (although known
   to be buggy\cite{kingme}) does not permit a threefold repetition
@@ -185,10 +214,10 @@ and yet want to live.\footnote{It is easy for two players to
   white's first move? The rules are not totally clear on this point.
   Note that ``positions are considered the same'' only when the
   same player ``has the move.'' FIDE defines ``have the move'' as
-  \begin{quote}
-    1.3.\quad A player is said to 'have the move' when his opponent's
+  \begin{enumerate}[label=\arabic*.3.] % hack to get 1.3.
+    \item A player is said to 'have the move' when his opponent's
     move has been 'made'.
-  \end{quote}
+  \end{enumerate}
   A strong case can therefore be made that white does not 'have the
   move' in the formal sense at the beginning of the game, since black
   has not made a move!
@@ -197,34 +226,6 @@ and yet want to live.\footnote{It is easy for two players to
   9.2.a, by committing the move 5. Nf3 and declaring to the arbiter
   that the position is now {\it about to appear} for the third time.
   This seems unambiguously legal. }
-%
-But what if you are forced to {\it be one of the chess pieces} to the
-death? That is, your little soul inhabits one of the 32 pieces or
-pawns and your soul is vanquished if that piece is eliminated. Now it
-doesn't matter whether you're good or bad at chess, because you don't
-get to pick what happens in the game. What matters is that your piece
-lives to the end of the game, when all surviving pieces are set free.
-Which piece should you want to be?
-
-In formal chess, the king can never be captured: The game ends when
-the king is attacked but cannot move, and it is illegal to make a move
-that leaves the king attacked. The king's death is implied, of course,
-but it is seen as more poetic to end the game prior to this point.
-
-For the sake of this question, we'll consider the the white king to
-``die'' if white loses (i.e., is checkmated), and likewise for black.
-Otherwise, of course, the best chances of survival would trivially be
-with the two kings, since they always survive. Loss includes
-resignation, since most high-level games actually end once the
-defeated player agrees that loss is inevitable. We can think of this
-common case like king seppuku. Many games also end in time forfeit,
-which is like the king's poor diet and lifestyle choices leading to
-a death by natural causes.
-
-Neither side has a decisive advantage, and many games end in a draw,
-with both kings surviving. So the survival chances of a king are
-clearly greater than 50\%---pretty decent odds. Is it possible that
-any other piece has even better chances?
 
 \section{Hypotheses}
 
@@ -236,6 +237,8 @@ motivated the research in the first place (when in fact, of course, if
 you write the motivation after witnessing the results, backflow is
 inevitable). It is also much more exciting. I literally don't know the
 answer as I'm writing this, nor whether it is interesting in any way!
+
+% XXX: Move this stuff to the appendix.
 
 Here are my guesses.
 
@@ -533,15 +536,15 @@ black, the extremal pawns (\pawn a and \pawn h) have over a 70\%
 survival rate. Across the board, the survival chances for a white
 piece and its black twin are similar, usually with a small edge to
 white. Notable exceptions are the \knight g (the overall most doomed
-piece), and both white bishops, which die more than their black
-counterparts. The \pawn e is vastly more dead than \Pawn e. Note
-somewhat satisfyingly that the \pawn c has the highest variance; this
-was the most controversial among the drinking buddies
-(Section~\ref{sec:XXXbuddies}). Note that \pawn c is the sacrificed pawn
-in the popular Queen's Gambit (1. d4 d5 2. c4); this may be a good
-example of a piece that has very different survival rates in different
-opening preferences. Since the variance is otherwise very low, I did
-not attempt to 
+piece), and both white bishops, which die more than their
+Schwarzdoppelgangers. The \pawn e is vastly more dead than \Pawn e.
+Note somewhat satisfyingly that the \pawn c has the highest variance;
+this was the most controversial among the drinking buddies
+(Section~\ref{sec:XXXbuddies}). Note that \pawn c is the sacrificed
+pawn in the popular Queen's Gambit (1. d4 d5 2. c4); this may be a
+good example of a piece that has very different survival rates in
+different opening preferences. Since the variance is otherwise very
+low, I did not attempt to
 
 Despite my impression that many games end in a draw, ties are actually
 rare in the lichess database. In January 2018, only 3.8\% of games
@@ -555,10 +558,9 @@ as a result, the survival chances for the kings are both close to
 The fate of each piece is to either survive or die, and it does so on
 one of the 64 squares. With the same replay of the 500 million games
 I also kept statistics on the fates of each piece. If being a chess
-piece to the death, and possessing some influence over the 
-
-% Battle chess
-% Feminist game 
+piece to the death, and possessing some influence over where your piece
+moves, it may be helpful to know where to go. Even without influence,
+such knowledge could help calibrate your anxiety.
 
 Other than the bishops---which have no legal way to reach half of the
 squares---every piece reaches every square in at least a thousand
@@ -583,16 +585,25 @@ That said, there are characteristic patterns for each of the pieces,
 which make sense given their starting positions and patterns of
 movement. You could probably guess the piece just by looking at one of
 the heat maps below, although---spoiler alert---the piece is just
-listed right there and they are in order. In each map, the background
-color gives the 
+listed right there and they are in order. Two independent things are
+communicated in these graphics: The chance that the piece ends the
+game on some square (alive or dead), and its survival chances there.
+In each map, a darker background color indicates that the piece ends
+on that square more often. The shade is based on the rank (64/64 black
+is most common, 63/64 black is next most common, etc.) rather than the
+absolute probability, since otherwise the graphic looks boring. The
+number on the square is the percentage survival of the piece when it
+is last seen (either being captured or surviving to the end of the
+game) on that square. The four squares with the highest survival rates
+are underlined for your convenience.
 
 \newcommand{\chessmap}[2]{\begin{center} \includegraphics[width=0.65 \linewidth]{#1} {#2} \end{center}\vspace{-0.1in}}
 
 \chessmap{piece0}{\Rook a8}
 \chessmap{piece1}{\Knight b8}
 \chessmap{piece2}{\Bishop c8}
-\chessmap{piece3}{\Queen}
-\chessmap{piece4}{\King}
+\chessmap{piece3}{\Queen d8}
+\chessmap{piece4}{\King e8}
 \chessmap{piece5}{\Bishop f8}
 \chessmap{piece6}{\Knight g8}
 \chessmap{piece7}{\Rook h8}
@@ -618,11 +629,14 @@ color gives the
 \chessmap{piece24}{\rook a1}
 \chessmap{piece25}{\knight b1}
 \chessmap{piece26}{\bishop c1}
-\chessmap{piece27}{\queen}
-\chessmap{piece28}{\king}
+\chessmap{piece27}{\queen d1}
+\chessmap{piece28}{\king e1}
 \chessmap{piece29}{\bishop f1}
 \chessmap{piece30}{\knight g1}
 \chessmap{piece31}{\rook h1}
+
+% Battle chess
+% Feminist game 
 
 \nocite{chesstego}
 

@@ -1,6 +1,7 @@
 
 #include "chess.h"
 
+#include <cmath>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -220,8 +221,12 @@ void GenFateMap(Stats *stat_buckets) {
 
     // For each square index, its rank in terms of the
     // overall probability of the piece's fate ending there.
-    vector<double> ranks;
-
+    vector<double> ranks, sranks;
+    for (int i = 0; i < 64; i++) {
+      ranks.push_back(0.0);
+      sranks.push_back(0.0);
+    }
+    
     for (int b = 0; b < NUM_BUCKETS; b++) {
       const Stats &stats = stat_buckets[b];
       for (int i = 0; i < 64; i++) {
@@ -233,30 +238,38 @@ void GenFateMap(Stats *stat_buckets) {
 	survived_on[i].numer[b] = stats.pieces[p].survived_on[i];
 	ended_on[i].numer[b] = stats.pieces[p].died_on[i] +
 	  stats.pieces[p].survived_on[i];
-
-	ranks.push_back(ended_on[i].Mean());
       }
     }
 
+    for (int i = 0; i < 64; i++) {
+      ranks[i] = ended_on[i].Numer();
+      if (ended_on[i].Numer() > 0) {
+	sranks[i] = survived_on[i].Numer() /
+	  (double)ended_on[i].Numer();
+      }
+    }
+    
     std::sort(ranks.begin(), ranks.end());
-
+    std::sort(sranks.begin(), sranks.end());
+    printf("Num sranks: %d\n", (int)sranks.size());
+    
+    // PERF: These can be done with binary search, obviously
+    auto GetRankRevIdx = 
+      [](const vector<double> &ranks, double value) {
+	int rank = 0;
+	for (int i = ranks.size() - 1; i >= 0; i--) {
+	  if (value >= ranks[i]) return rank;
+	  rank++;
+	}
+	return rank;
+      };
+    
     auto GetRank =
       [](const vector<double> &ranks, double value) {
-	// PERF can be done with binary search, obv...
-	for (int i = 0; i < ranks.size(); i++) {
+	for (int i = 0; i < ranks.size(); i++)
 	  if (value <= ranks[i]) return i / (double)ranks.size();
-	}
 	return 1.0;
       };
-
-    // XXX PiecePiece?
-    const bool black = p < 16;
-    const int pidx = black ? p : 48 + (p - 16);
-    const int prow = pidx / 8;
-    const int pcol = pidx % 8;
-    const Position startpos;
-    const uint8 piece = startpos.PieceAt(prow, pcol);
-    const char *ent = Position::HTMLEntity(piece);
 
     constexpr double WIDTH = 800.0, HEIGHT = 800.0;
     constexpr double MARGIN = 10.0;
@@ -268,30 +281,35 @@ void GenFateMap(Stats *stat_buckets) {
     for (int r = 0; r < 8; r++) {
       for (int c = 0; c < 8; c++) {
 	const int idx = r * 8 + c;
-	const bool light = ((r + c) & 1) == 0;
 	const Ratio &fate = ended_on[idx];
-	const double rank = GetRank(ranks, fate.Mean());
-	const bool zero = fate.Mean() < 0.0001;
+	// sqrt(sqrt(fate.Mean())) looks okay, but I think rank is most
+	// interesting-looking.
+	const double rank = GetRank(ranks, fate.Numer());
 
 	const string fill = StringPrintf("#%02x%02x%02x",
 					 (int)((1.0 - rank) * 255),
 					 (int)((1.0 - rank) * 255),
 					 (int)((1.0 - rank) * 255));
 	
-	fprintf(f, "<rect x=\"%.2f\" y=\"%.2f\" "
-		"width=\"%.2f\" height=\"%.2f\" fill=\"%s\" />\n",
-		MARGIN + c * SQUARE,
-		MARGIN + r * SQUARE,
-		SQUARE, SQUARE,
+	fprintf(f, "<rect x=\"%s\" y=\"%s\" "
+		"width=\"%s\" height=\"%s\" fill=\"%s\" />\n",
+		TextSVG::Rtos(MARGIN + c * SQUARE).c_str(),
+		TextSVG::Rtos(MARGIN + r * SQUARE).c_str(),
+		TextSVG::Rtos(SQUARE).c_str(), TextSVG::Rtos(SQUARE).c_str(),
 		fill.c_str());
 
 	if (fate.Numer() > 0) {
 	  // Survival rate is number of survivals over number of
 	  // times it ended there.
-	  double survival_rate = survived_on[idx].Numer() /
+	  const double survival_rate = survived_on[idx].Numer() /
 	    (double)fate.Numer();
-	  string color = rank > 0.5 ? "#fff" : "#000";
+	  const string color = rank > 0.5 ? "#fff" : "#000";
 
+	  // const bool near_best = survival_rate > 0.5;
+	  int survival_rank = GetRankRevIdx(sranks, survival_rate);
+	  printf("Survival rank: %d\n", survival_rank);
+	  const bool near_best = survival_rank < 4;
+	  
 	  const int permil = (int)(survival_rate * 1000.0);
 	  const int fpart = permil % 10;
 	  const int ipart = permil / 10;
@@ -310,6 +328,17 @@ void GenFateMap(Stats *stat_buckets) {
 		      MARGIN + r * SQUARE + (SQUARE * 0.65) - 18,
 		      "sans-serif",
 		      20.0, {{color, StringPrintf(".%d", fpart)}}).c_str());
+
+	  if (near_best) {
+	    fprintf(
+		f, "<line x1=\"%s\" y1=\"%s\" "
+		"x2=\"%s\" y2=\"%s\" stroke-width=\"3\" stroke=\"%s\" />\n",
+		TextSVG::Rtos(MARGIN + c * SQUARE + (SQUARE * 0.15)).c_str(),
+		TextSVG::Rtos(MARGIN + r * SQUARE + (SQUARE * 0.85)).c_str(),
+		TextSVG::Rtos(MARGIN + c * SQUARE + (SQUARE * 0.85)).c_str(),
+		TextSVG::Rtos(MARGIN + r * SQUARE + (SQUARE * 0.85)).c_str(),
+		color.c_str());
+	  }
 	}
       }
     }
