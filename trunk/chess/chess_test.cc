@@ -89,14 +89,16 @@ static void ReadPGN() {
 [BlackRatingDiff "-14"]
 [ECO "B02"]
 [Opening "Testing \"quoted\" strings c:\\chess\\chess.exe"]
-[TimeControl "300+0"]
+[TimeControl "300+1"]
 [Termination "Time forfeit"]
 
 1. e4 { [%clk 0:05:00] } Nf6 { [%clk 0:05:00] } 2. e5 { [%clk 0:04:55] } Nd5 { [%clk 0:04:58] } 3. c4 { [%clk 0:04:53] } Nb6 { [%clk 0:04:56] } 4. a4 { [%clk 0:04:49] } a5 { [%clk 0:04:53] } 5. Qf3 { [%clk 0:04:42] } d6 { [%clk 0:04:47] } 6. d4 { [%clk 0:04:25] } dxe5 { [%clk 0:04:38] } 7. dxe5 { [%clk 0:04:22] } Nc6 { [%clk 0:04:32] } 8. c5 { [%clk 0:04:17] } Nxe5 { [%clk 0:04:21] } 9. Qe4 { [%clk 0:04:03] } Nbd7 { [%clk 0:04:08] } 10. Bb5 { [%clk 0:03:57] } c6 { [%clk 0:03:56] } 11. Be2 { [%clk 0:03:51] } g6 { [%clk 0:03:39] } 12. Bf4 { [%clk 0:03:46] } Bg7 { [%clk 0:03:37] } 13. Nc3 { [%clk 0:03:32] } O-O { [%clk 0:03:31] } 14. Nf3 { [%clk 0:03:14] } Nxf3+ { [%clk 0:03:28] } 15. Bxf3 { [%clk 0:03:11] } Nf6 { [%clk 0:03:22] } 16. Qe3 { [%clk 0:03:04] } Ng4 { [%clk 0:03:13] } 17. Bxg4 { [%clk 0:03:00] } Bxg4 { [%clk 0:03:10] } 18. Bh6 { [%clk 0:02:58] } Re8 { [%clk 0:02:49] } 19. Bxg7 { [%clk 0:02:53] } Kxg7 { [%clk 0:02:48] } 20. O-O { [%clk 0:02:50] } e5 { [%clk 0:02:41] } 21. Rad1 { [%clk 0:02:41] } Qc7 { [%clk 0:02:32] } 22. Rd6 { [%clk 0:02:36] } Rad8 { [%clk 0:02:25] } 23. Ne4 { [%clk 0:02:12] } Bf5 { [%clk 0:02:11] } 24. Qg5 { [%clk 0:01:59] } Bxe4 { [%clk 0:02:06] } 25. Qf6+ { [%clk 0:01:54] } Kg8 { [%clk 0:02:01] } 26. Rfd1 { [%clk 0:01:49] } Bd5 { [%clk 0:01:48] } 27. Rd3 { [%clk 0:01:16] } e4 { [%clk 0:01:45] } 28. Rd4 { [%clk 0:00:58] } Re6 { [%clk 0:01:34] } 29. Rxd8+ { [%clk 0:00:50] } Qxd8 { [%clk 0:01:09] } 30. Qxd8+ { [%clk 0:00:50] } Kg7 { [%clk 0:01:07] } 31. Qd7 { [%clk 0:00:38] } e3 { [%clk 0:00:57] } 32. fxe3 { [%clk 0:00:36] } Rxe3 { [%clk 0:00:56] } 33. Qxb7 { [%clk 0:00:33] } Rb3 { [%clk 0:00:48] } 34. Qe7 { [%clk 0:00:30] } Rxb2 { [%clk 0:00:43] } 35. Rf4 { [%clk 0:00:27] } Rb1+ { [%clk 0:00:38] } 36. Kf2 { [%clk 0:00:26] } Rb2+ { [%clk 0:00:35] } 37. Ke3 { [%clk 0:00:22] } Rxg2 { [%clk 0:00:29] } 38. Qf6+ { [%clk 0:00:21] } Kg8 { [%clk 0:00:26] } 39. Rh4 { [%clk 0:00:17] } h5 { [%clk 0:00:21] } 40. Re4 { [%clk 0:00:14] } Bxe4 { [%clk 0:00:15] } 41. Kxe4 { [%clk 0:00:13] } Re2+ { [%clk 0:00:12] } 42. Kd3 { [%clk 0:00:12] } Rxh2 { [%clk 0:00:09] } 43. Qxc6 { [%clk 0:00:10] } Kg7 { [%clk 0:00:06] } 44. Qe8 { [%clk 0:00:07] } Rh3+ { [%clk 0:00:04] } 45. Ke2 { [%clk 0:00:04] } Rh2+ { [%clk 0:00:02] } 46. Kf3 { [%clk 0:00:03] } Rh3+ { [%clk 0:00:01] } 47. Kg2 { [%clk 0:00:03] } 1-0
 )_";
       
   CHECK(PGN::Parse(kGame, &pgn));
-  CHECK(pgn.result == PGN::WHITE_WINS);
+  CHECK(pgn.result == PGN::Result::WHITE_WINS);
+  CHECK(pgn.GetTimeControl() == std::make_pair(300, 1));
+  CHECK(pgn.GetTermination() == PGN::Termination::TIME_FORFEIT);
   
   Position pos;
 
@@ -126,7 +128,9 @@ static void ReadPGNUnterminated() {
 1. f4 d5 2. Nf3 f6 3. Nh4 Nc6 4. b4 Nxb4 5. Ba3 Nc6 6. e3 b5 7. Bxb5 Rb8 8. Bd3 e6 9. Rf1 Nh6 10. Rf3 Ra8 11. Rg3 a5 12. Bb5 Ra6 13. Ba4 Qd7 14. Nc3 Bxa3 15. Rxg7 Qxg7 16. Rc1 *
 )_";
   CHECK(PGN::Parse(kGame, &pgn));
-  CHECK(pgn.result == PGN::OTHER);
+  CHECK(pgn.result == PGN::Result::OTHER);
+  CHECK(pgn.GetTermination() == PGN::Termination::OTHER);
+  CHECK(pgn.GetTimeControl() == std::make_pair(0, 0));
 }
 
 static void Regression2Game() {
@@ -191,6 +195,67 @@ static void Regression2() {
   printf("Resulting board:\n%s\n", pos.BoardString().c_str());
 }
 
+static void ValidMoves1() {
+  const char *kGame = R"_([Event "Test"]
+  1. e4 e5 2. f4 f5 3. Bb5 g6 4. Nf3 g5
+5. Qe2 g4 6. b3 g3 7. Bb2 h5 8. Na3 c5
+9. c4 a6 10. Bxa6 b5 11. cxb5 Nc6 12. b6 Na5
+13. b7 h4 14. fxe5 d5
+)_";
+
+  PGN pgn;
+  CHECK(PGN::Parse(kGame, &pgn));
+  
+  Position pos;
+
+  for (const PGN::Move &m : pgn.moves) {
+    CHECK(pos.HasLegalMoves(nullptr));
+    ApplyMove(&pos, m.move.c_str());
+  }
+  printf("%s\n", pos.BoardString().c_str());
+
+  CHECK(!pos.IsMated());
+  vector<Position::Move> moves;
+  CHECK(pos.HasLegalMoves(&moves));
+  // TODO: Could check for the specific expected moves here.
+  CHECK(moves.size() == 51);
+  /*
+  for (Position::Move move : moves) {
+    printf("  %c%d -> %c%d = %c\n",
+	   'a' + move.src_col, 8 - move.src_row,
+	   'a' + move.dst_col, 8 - move.dst_row,
+	   Position::HumanPieceChar(move.promote_to));
+  }
+  */
+}
+
+
+static void ValidMoves2() {
+  const char *kGame = R"_([Event "Test"]
+1. e4 e5 2. f4 f5 3. Bb5 g6 4. Nf3 g5
+5. Qe2 g4 6. b3 g3 7. Bb2 h5 8. Na3 c5
+9. c4 a6 10. Bxa6 b5 11. cxb5 Nc6 12. b6 Na5
+13. b7 h4 14. fxe5 d5 15. Bb5+ Qd7 16. bxa8=Q Nf6
+17. exf6 Rh5 18. Bxd7+ Kd8 19. f7 Bh6 20. f8=R+ Kc7
+21. Qc6+ Kb8 22. Qxc8+ Ka7 23. Nb5+ Kb6 24. Rf6+ Nc6
+25. Rxc6+ Ka5 26. b4+ Ka4 27. Qa8+ Kxb4 28. Qa3#
+)_";
+
+  PGN pgn;
+  CHECK(PGN::Parse(kGame, &pgn));
+  
+  Position pos;
+
+  for (const PGN::Move &m : pgn.moves) {
+    CHECK(pos.HasLegalMoves(nullptr));
+    ApplyMove(&pos, m.move.c_str());
+  }
+  printf("%s\n", pos.BoardString().c_str());
+  CHECK(pos.IsMated());
+  CHECK(!pos.HasLegalMoves(nullptr));
+}
+
+
 int main(int argc, char **argv) {
   CheckInit();
 
@@ -204,6 +269,9 @@ int main(int argc, char **argv) {
   Regression2();
 
   Regression2Game();
+
+  ValidMoves1();
+  ValidMoves2();
   return 0;
 }
 

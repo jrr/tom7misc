@@ -60,7 +60,7 @@ struct Processor {
     CHECK(parser.Parse(pgn_text, &pgn));
 
     // Ignore games that don't finish.
-    if (pgn.result == PGN::OTHER)
+    if (pgn.result == PGN::Result::OTHER)
       return;
       
     auto wit = pgn.meta.find("White");
@@ -180,10 +180,10 @@ struct Processor {
 
     // Need to kill the king if checkmated.
     switch (pgn.result) {
-    case PGN::WHITE_WINS:
+    case PGN::Result::WHITE_WINS:
       gs.fates[4] |= GameStats::DIED;
       break;
-    case PGN::BLACK_WINS:
+    case PGN::Result::BLACK_WINS:
       gs.fates[28] |= GameStats::DIED;
       break;
     default:
