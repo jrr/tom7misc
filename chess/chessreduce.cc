@@ -18,7 +18,7 @@
 #include "gamestats.h"
 #include "bigchess.h"
 
-constexpr int MAX_PARALLELISM = 3;
+constexpr int MAX_PARALLELISM = 30;
 
 using namespace std;
 using int64 = int64_t;
@@ -38,14 +38,19 @@ struct Processor {
   // If false, we don't even look at the game.
   bool Eligible(const PGN &pgn) {
     // Ignore games that don't finish.
-    if (pgn.result == PGN::OTHER)
+    if (pgn.result == PGN::Result::OTHER)
+      return false;
+
+    if (pgn.GetTermination() != PGN::Termination::NORMAL)
       return false;
 
     // TODO: time format? Ignore bullet?
     // TODO: titled players only?
+    // [WhiteTitle "IM"]
+    // [BlackTitle "CM"]
     
-    int min_elo = std::min(pgn.MetaInt("WhiteElo", 0),
-			   pgn.MetaInt("BlackElo", 0));
+    const int min_elo = std::min(pgn.MetaInt("WhiteElo", 0),
+				 pgn.MetaInt("BlackElo", 0));
     if (min_elo < 1800)
       return false;
 
@@ -114,7 +119,20 @@ struct Processor {
     if (max_position_score > 0LL) {
       int64 game_score = max_position_score * 100000LL;
       // XXX add minimum rating of two players.
+      game_score += 
+	std::min(pgn.MetaInt("WhiteElo", 0),
+		 pgn.MetaInt("BlackElo", 0));      
 
+      if (ContainsKey(pgn.meta, "WhiteTitle"))
+	game_score += 10000;
+      if (ContainsKey(pgn.meta, "BlackTitle"))
+	game_score += 10000;
+
+      int base, increment;
+      std::tie(base, increment) = pgn.GetTimeControl();
+      if (base == 0 && increment == 0) game_score += 2000;
+      else game_score += base + increment;
+      
       // If the game has an interesting position, then output it.
       // PERF: We could do a read-only check of TopN without taking
       // the write mutex.
@@ -152,7 +170,8 @@ static void ReadLargePGN(const char *filename) {
 
   // TODO: How to get this to deduce second argument at least?
   auto work_queue =
-    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork, MAX_PARALLELISM);
+    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork,
+							     MAX_PARALLELISM);
 
   const int64 start = time(nullptr);
 
@@ -186,10 +205,11 @@ static void ReadLargePGN(const char *filename) {
   while (work_queue->StillRunning()) {
     int64 done, in_progress, pending;
     work_queue->Stats(&done, &in_progress, &pending);
-    fprintf(stderr, "[Done reading] %lld %lld %lld\n",
-	    done, in_progress, pending);
+    fprintf(stderr, "[Done reading] %lld %lld %lld %.2f%%\n",
+	    done, in_progress, pending,
+	    (100.0 * (double)done) / (in_progress + done + pending));
     fflush(stderr);
-    sleep(3);
+    sleep(10);
   }
 
   fprintf(stderr, "Done! Join threads...\n");
@@ -201,7 +221,8 @@ static void ReadLargePGN(const char *filename) {
     fprintf(stderr, "Note: %lld bad games\n", processor.bad_games);
   }
 
-  printf("There are %lld scored games\n", (int64)processor.topn.size());
+  fprintf(stderr,
+	  "There are %lld scored games\n", (int64)processor.topn.size());
   auto top = processor.topn.Extract();
   for (const auto &p : *top) {
     printf("[Score %lld]\n%s\n", p.score, p.pgn_text.c_str());

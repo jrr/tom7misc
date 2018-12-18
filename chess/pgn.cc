@@ -45,7 +45,7 @@ bool PGNParser::Parse(const string &s, PGN *pgn) const {
 
   // If text ends without termination marker, treat this
   // as OTHER.
-  pgn->result = PGN::OTHER;
+  pgn->result = PGN::Result::OTHER;
   
   while (RE2::Consume(&input, meta_line_re, &key, &value)) {
     // TODO: Actually need to unquote " and \ in value.
@@ -62,16 +62,16 @@ bool PGNParser::Parse(const string &s, PGN *pgn) const {
     // printf("[%s] + [%s]\n", move.c_str(), post.c_str());
 
     if (move == "1-0") {
-      pgn->result = PGN::WHITE_WINS;
+      pgn->result = PGN::Result::WHITE_WINS;
       return true;
     } else if (move == "1/2-1/2") {
-      pgn->result = PGN::DRAW;
+      pgn->result = PGN::Result::DRAW;
       return true;
     } else if (move == "0-1") {
-      pgn->result = PGN::BLACK_WINS;
+      pgn->result = PGN::Result::BLACK_WINS;
       return true;
     } else if (move == "*") {
-      pgn->result = PGN::OTHER;
+      pgn->result = PGN::Result::OTHER;
       return true;
     }
       
@@ -91,4 +91,29 @@ int PGN::MetaInt(const string &key, int default_value) const {
   auto it = meta.find(key);
   if (it == meta.end()) return default_value;
   return atoi(it->second.c_str());
+}
+
+PGN::Termination PGN::GetTermination() const {
+  auto it = meta.find("Termination");
+  if (it == meta.end()) return PGN::Termination::OTHER;
+
+  const string &term = it->second;
+  if (term == "Normal") return PGN::Termination::NORMAL;
+  else if (term == "Time forfeit") return PGN::Termination::TIME_FORFEIT;
+  else if (term == "Abandoned") return PGN::Termination::ABANDONED;
+
+  return PGN::Termination::OTHER;
+}
+
+std::pair<int, int> PGN::GetTimeControl() const {
+  auto it = meta.find("TimeControl");
+  if (it == meta.end()) return {0, 0};
+
+  const string &ctl = it->second;
+  if (ctl == "-") return {0, 0};
+
+  size_t plus = ctl.find('+');
+  if (plus == string::npos) return {0, 0};
+  return std::make_pair(atoi(ctl.substr(0, plus).c_str()),
+			atoi(ctl.substr(plus + 1, string::npos).c_str()));
 }

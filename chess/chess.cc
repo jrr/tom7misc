@@ -640,8 +640,11 @@ bool Position::IsLegal(Move m) {
   IFDEBUG if (m.promote_to) printf(" =%d", m.promote_to);
   IFDEBUG printf("\n");
 
-  // XXX assert bounds for debugging at least?
-
+  if (m.src_row >= 8) return false;
+  if (m.src_col >= 8) return false;
+  if (m.dst_row >= 8) return false;
+  if (m.dst_col >= 8) return false;
+  
   // Below we assume no self-moves.
   if (m.src_row == m.dst_row &&
       m.src_col == m.dst_col) return false;
@@ -1163,4 +1166,135 @@ bool Position::NotIntoCheck(Move m) {
 		  return !attacked;
 		});
 	});
+}
+
+bool Position::IsMated() {
+  int kingr, kingc;
+  std::tie(kingr, kingc) = GetKing();
+  // King must be in check.
+  if (!Attacked(kingr, kingc))
+    return false;
+  return !HasLegalMoves(nullptr);
+}
+
+bool Position::HasLegalMoves(std::vector<Move> *moves) {
+  const bool blackmove = !!(bits & BLACK_MOVE);
+  const uint8 my_color = blackmove ? BLACK : WHITE;
+  // const uint8 your_color = blackmove ? WHITE : BLACK;
+  bool success = false;
+  
+#define TRY_MOVE(move) do {		 \
+    if (IsLegal(m)) {			 \
+      if (moves == nullptr) return true; \
+      moves->push_back(m);		 \
+      success = true;			 \
+    }					 \
+  } while(0)
+  
+  for (int srcr = 0; srcr < 8; srcr++) {
+    for (int srcc = 0; srcc < 8; srcc++) {
+      const uint8 p = PieceAt(srcr, srcc);
+      if ((p & COLOR_MASK) == my_color) {
+	Move m;
+	m.src_row = srcr;
+	m.src_col = srcc;
+	
+	switch (p & TYPE_MASK) {
+	case EMPTY:
+	  break;
+
+	case PAWN: {
+	  int dr = blackmove ? 1 : -1;
+	  
+	  if (srcr == (blackmove ? 1 : 6)) {
+	    // Try double moves.
+	    m.dst_col = srcc;
+	    m.dst_row = srcr + dr + dr;
+	    TRY_MOVE(m);
+	  }
+
+	  // Covers regular advancement, capture, promotion.
+	  for (int dc = -1; dc <= 1; dc++) {
+	    m.dst_col = srcc + dc;
+	    m.dst_row = srcr + dr;
+	    if (m.dst_row == (blackmove ? 7 : 0)) {
+	      m.promote_to = my_color | KNIGHT;
+	      TRY_MOVE(m);
+	      m.promote_to = my_color | BISHOP;
+	      TRY_MOVE(m);
+	      m.promote_to = my_color | ROOK;
+	      TRY_MOVE(m);
+	      m.promote_to = my_color | QUEEN;
+	      TRY_MOVE(m);
+	      m.promote_to = 0;
+	    } else {
+	      TRY_MOVE(m);
+	    }
+	  }
+	  break;
+	}
+
+	case KNIGHT:
+	  for (const int udr : { -1, 1 }) {
+	    for (const int udc : { -1, 1 }) {
+	      // (1,2) then (2,1).
+	      m.dst_col = srcc + 2 * udc;
+	      m.dst_row = srcr + udr;
+	      TRY_MOVE(m);
+
+	      m.dst_col = srcc + udc;
+	      m.dst_row = srcr + 2* udr;
+	      TRY_MOVE(m);
+	    }
+	  }
+	  break;
+	  
+	case BISHOP:
+
+	case C_ROOK:
+	case ROOK:
+
+	case QUEEN:
+	  // PERF this just checks every possible move!
+	  // Need to write move enumerators for these
+	  // three.
+	  for (int dstr = 0; dstr < 8; dstr++) {
+	    for (int dstc = 0; dstc < 8; dstc++) {
+	      m.dst_col = dstc;
+	      m.dst_row = dstr;
+	      TRY_MOVE(m);
+	    }
+	  }
+
+	  break;
+	  
+	case KING:
+	  if (srcr == (blackmove ? 0 : 7) &&
+	      srcc == 4) {
+	    // Try castling too.
+	    m.dst_col = 2;
+	    m.dst_row = srcr;
+	    TRY_MOVE(m);
+
+	    m.dst_col = 6;
+	    m.dst_row = srcr;
+	    TRY_MOVE(m);
+	  }
+	    
+	  for (int dc = -1; dc <= 1; dc++) {
+	    for (int dr = -1; dr <= 1; dr++) {
+	      if (dc != 0 || dr != 0) {
+		m.dst_col = srcc + dc;
+		m.dst_row = srcr + dr;
+		TRY_MOVE(m);
+	      }
+	    }
+	  }
+	  break;
+	}
+      }
+    }
+  }
+
+  return success;
 }

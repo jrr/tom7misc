@@ -10,19 +10,32 @@
 
 struct PGN {
 
-  enum Result {
+  enum class Result {
     WHITE_WINS,
     BLACK_WINS,
     DRAW,
     OTHER,
   };
 
+  enum class Termination {
+    NORMAL,
+    TIME_FORFEIT,
+    ABANDONED,
+    OTHER,
+  };
+  
   // If you are parsing a large number of PGNs, it is slightly
   // faster to make a PGNParser instance and reuse it.
   static bool Parse(const std::string &s, PGN *pgn);
   
   std::unordered_map<std::string, std::string> meta;
   int MetaInt(const std::string &key, int default_value = 0) const;
+  Termination GetTermination() const;
+
+  // Returns {0, 0} if not specified; also used for correspondence
+  // games ([TimeControl "-"]).
+  std::pair<int, int> GetTimeControl() const;
+  
   struct Move {
     Move(std::string m) : move(std::move(m)) {}
     // The actual move, like "Nxh4".

@@ -8,6 +8,11 @@
 
 using int64 = int64_t;
 
+template<class K, class C>
+inline bool ContainsKey(const C &container, const K &key) {
+  return container.find(key) != container.end();
+}
+
 // TODO: To threadutil, but note that this is C++17.
 struct ReadMutexLock {
   explicit ReadMutexLock(std::shared_mutex *m) : m(m) { m->lock_shared(); }

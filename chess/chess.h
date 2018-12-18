@@ -7,6 +7,7 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 using uint8 = std::uint8_t;
 using uint32 = std::uint32_t;
@@ -137,6 +138,14 @@ struct Position {
     return {0, 0};
   }
 
+  // True if the current player is checkmated.
+  bool IsMated();
+
+  // Return true if there are any legal moves. If moves is non-null,
+  // populate it with all the legal moves. (This function is more
+  // efficient if the argument is null.)
+  bool HasLegalMoves(std::vector<Move> *moves);
+  
   // Returns true if the indicated square is attacked (by the other
   // player) in the current position. "Attacked" here means an otherwise
   // unrestricted piece would be able to move in its fashion to capture
