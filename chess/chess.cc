@@ -145,6 +145,12 @@ char Position::HumanPieceChar(uint8 p) {
   }
 }
 
+string Position::HumanPieceString(uint8 p) {
+  string s = " ";
+  s[0] = HumanPieceChar(p);
+  return s;
+}
+
 char Position::DebugPieceChar(uint8 p) {
   const char lower = (p & BLACK) ? 32 : 0;
   switch (p & TYPE_MASK) {
@@ -1297,4 +1303,58 @@ bool Position::HasLegalMoves(std::vector<Move> *moves) {
   }
 
   return success;
+}
+
+bool Position::IsCastling(Move m) const {
+  if (m.src_col != 4)
+    return false;
+  if (m.dst_col != 6 &&
+      m.dst_col != 2)
+    return false;
+
+  if (m.src_row != 0 &&
+      m.src_row != 7)
+    return false;
+
+  return (PieceAt(m.src_row, m.src_col) & TYPE_MASK) == KING;
+}
+
+bool Position::IsEnPassant(Move m) const {
+  // Must be capturing.
+  if (m.src_col == m.dst_col) return false;
+
+  // Must be a pawn moving.
+  const uint8 p = PieceAt(m.src_row, m.src_col);
+  if ((p & TYPE_MASK) != PAWN) return false;
+
+  // And the destination square must be empty.
+  const uint8 d = PieceAt(m.dst_row, m.dst_col);
+  return d == EMPTY;
+}
+
+string Position::LongMoveString(Move m) const {
+  if (IsCastling(m)) {
+    return m.dst_col < m.src_col ? "O-O-O" : "O-O";
+  }
+
+  const bool capture = IsEnPassant(m) ||
+    PieceAt(m.dst_row, m.dst_col) != EMPTY;
+
+  const uint8 p = PieceAt(m.src_row, m.src_col) & TYPE_MASK;
+  const string piece = p == PAWN ? "" : HumanPieceString(p);
+
+  const string promote =
+    m.promote_to ? "=" + HumanPieceString(m.promote_to) : "";
+
+  char buf[16] = {};
+  sprintf(buf,
+	  "%s%c%c%s%c%c%s",
+	  piece.c_str(),
+	  'a' + m.src_col,
+	  '1' + (7 - m.src_row),
+	  capture ? "x" : "",
+	  'a' + m.dst_col,
+	  '1' + (7 - m.dst_row),
+	  promote.c_str());
+  return (string)buf;
 }

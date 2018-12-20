@@ -38,11 +38,19 @@ struct Processor {
   // If false, we don't even look at the game.
   bool Eligible(const PGN &pgn) {
     // Ignore games that don't finish.
-    if (pgn.result == PGN::Result::OTHER)
+    if (pgn.result == PGN::Result::OTHER) {
       return false;
+    }
 
-    if (pgn.GetTermination() != PGN::Termination::NORMAL)
+    // We're looking for mate here, so require one side to win.
+    if (pgn.result != PGN::Result::WHITE_WINS &&
+	pgn.result != PGN::Result::BLACK_WINS) {
       return false;
+    }
+    
+    if (pgn.GetTermination() != PGN::Termination::NORMAL) {
+      return false;
+    }
 
     // TODO: time format? Ignore bullet?
     // TODO: titled players only?
@@ -110,12 +118,44 @@ struct Processor {
 	return;
       }
 
+      // const bool castling_move = pos.IsCastling(move);
+      const bool enpassant_move = pos.IsEnPassant(move);
       pos.ApplyMove(move);
 
+      if (enpassant_move) {
+	if (pos.IsMated()) {
+	  int64 game_score =
+	    std::min(pgn.MetaInt("WhiteElo", 0),
+		     pgn.MetaInt("BlackElo", 0));      
+
+	  if (ContainsKey(pgn.meta, "WhiteTitle"))
+	    game_score += 10000;
+	  if (ContainsKey(pgn.meta, "BlackTitle"))
+	    game_score += 10000;
+
+	  int base, increment;
+	  std::tie(base, increment) = pgn.GetTimeControl();
+	  if (base == 0 && increment == 0) game_score += 2000;
+	  else game_score += base + increment;
+
+	  // If the game has an interesting position, then output it.
+	  // PERF: We could do a read-only check of TopN without taking
+	  // the write mutex.
+	  WriteMutexLock ml(&topn_m);
+	  ScoredGame sg;
+	  sg.score = game_score;
+	  sg.pgn_text = pgn_text;
+	  topn.push(std::move(sg));
+	}
+      }
+
+      #if 0
       max_position_score = 
 	std::max(max_position_score, ScorePosition(pos));
+      #endif
     }
 
+    #if 0
     if (max_position_score > 0LL) {
       int64 game_score = max_position_score * 100000LL;
       // XXX add minimum rating of two players.
@@ -142,6 +182,7 @@ struct Processor {
       sg.pgn_text = pgn_text;
       topn.push(std::move(sg));
     }
+    #endif
   }
 
   struct ScoredGame {

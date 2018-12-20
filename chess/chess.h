@@ -82,11 +82,22 @@ struct Position {
     // zero unless a pawn promotion. contains the white/black mask.
     uint8 promote_to = 0;
   };
+  inline static bool MoveEq(const Move &a, const Move &b) {
+    return a.src_row == b.src_row && a.src_col == b.src_col &&
+      a.dst_row == b.dst_row && a.dst_col == b.dst_col &&
+      a.promote_to == b.promote_to;
+  }
 
+  // Assumes the move is legal. Doesn't attempt to do any
+  // disambiguation; returns stuff like Qd3d5 and e2e4.
+  // Does not annotate with check or checkmate marks.
+  std::string LongMoveString(Move m) const;
+  
   // Show a 2D ASCII board.
   std::string BoardString() const;
   // Using capital letters for white, lowercase for black. Empty is space.
   static char HumanPieceChar(uint8 piece);
+  static std::string HumanPieceString(uint8 piece);
   // Same but returns C or c for a castleable rook and - for empty.
   static char DebugPieceChar(uint8 piece);
   // Distinguishes black and white pieces. Space for empty.
@@ -115,6 +126,12 @@ struct Position {
   //    and destination of the move.
   //  - The move string may be terminated by \0 or whitespace.
   bool ParseMove(const char *m, Move *move);
+
+  // Assuming the move is legal, is it a castling move?
+  bool IsCastling(Move m) const;
+
+  // Assuming the move is legal, is it an en passant capture?
+  bool IsEnPassant(Move m) const;
   
   // Is the move legal in this current board state? The move must be
   // well-formed (positions within the board).
