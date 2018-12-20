@@ -29,6 +29,35 @@ PAWNS2018= pawns-2018-01.txt pawns-2018-02.txt pawns-2018-03.txt pawns-2018-04.t
 
 allpawns : $(PAWNS2013) $(PAWNS2014) $(PAWNS2015) $(PAWNS2018) $(PAWNS2016) $(PAWNS2017) 
 
+CASTLEMATE2013= castlemate-2013-01.txt castlemate-2013-02.txt castlemate-2013-03.txt castlemate-2013-04.txt castlemate-2013-05.txt castlemate-2013-06.txt castlemate-2013-07.txt castlemate-2013-08.txt castlemate-2013-09.txt castlemate-2013-10.txt castlemate-2013-11.txt castlemate-2013-12.txt
+
+CASTLEMATE2014= castlemate-2014-01.txt castlemate-2014-02.txt castlemate-2014-03.txt castlemate-2014-04.txt castlemate-2014-05.txt castlemate-2014-06.txt castlemate-2014-07.txt castlemate-2014-08.txt castlemate-2014-09.txt castlemate-2014-10.txt castlemate-2014-11.txt castlemate-2014-12.txt
+
+CASTLEMATE2015= castlemate-2015-01.txt castlemate-2015-02.txt castlemate-2015-03.txt castlemate-2015-04.txt castlemate-2015-05.txt castlemate-2015-06.txt castlemate-2015-07.txt castlemate-2015-08.txt castlemate-2015-09.txt castlemate-2015-10.txt castlemate-2015-11.txt castlemate-2015-12.txt
+
+CASTLEMATE2016= castlemate-2016-01.txt castlemate-2016-02.txt castlemate-2016-03.txt castlemate-2016-04.txt castlemate-2016-05.txt castlemate-2016-06.txt castlemate-2016-07.txt castlemate-2016-08.txt castlemate-2016-09.txt castlemate-2016-10.txt castlemate-2016-11.txt castlemate-2016-12.txt
+
+CASTLEMATE2017= castlemate-2017-01.txt castlemate-2017-02.txt castlemate-2017-03.txt castlemate-2017-04.txt castlemate-2017-05.txt castlemate-2017-06.txt castlemate-2017-07.txt castlemate-2017-08.txt castlemate-2017-09.txt castlemate-2017-10.txt castlemate-2017-11.txt castlemate-2017-12.txt
+
+CASTLEMATE2018= castlemate-2018-01.txt castlemate-2018-02.txt castlemate-2018-03.txt castlemate-2018-04.txt castlemate-2018-05.txt castlemate-2018-06.txt castlemate-2018-07.txt castlemate-2018-08.txt castlemate-2018-09.txt castlemate-2018-10.txt castlemate-2018-11.txt
+
+allcastlemate : $(CASTLEMATE2013) $(CASTLEMATE2014) $(CASTLEMATE2015) $(CASTLEMATE2018) $(CASTLEMATE2016) $(CASTLEMATE2017) 
+
+EPMATE2013= epmate-2013-01.txt epmate-2013-02.txt epmate-2013-03.txt epmate-2013-04.txt epmate-2013-05.txt epmate-2013-06.txt epmate-2013-07.txt epmate-2013-08.txt epmate-2013-09.txt epmate-2013-10.txt epmate-2013-11.txt epmate-2013-12.txt
+
+EPMATE2014= epmate-2014-01.txt epmate-2014-02.txt epmate-2014-03.txt epmate-2014-04.txt epmate-2014-05.txt epmate-2014-06.txt epmate-2014-07.txt epmate-2014-08.txt epmate-2014-09.txt epmate-2014-10.txt epmate-2014-11.txt epmate-2014-12.txt
+
+EPMATE2015= epmate-2015-01.txt epmate-2015-02.txt epmate-2015-03.txt epmate-2015-04.txt epmate-2015-05.txt epmate-2015-06.txt epmate-2015-07.txt epmate-2015-08.txt epmate-2015-09.txt epmate-2015-10.txt epmate-2015-11.txt epmate-2015-12.txt
+
+EPMATE2016= epmate-2016-01.txt epmate-2016-02.txt epmate-2016-03.txt epmate-2016-04.txt epmate-2016-05.txt epmate-2016-06.txt epmate-2016-07.txt epmate-2016-08.txt epmate-2016-09.txt epmate-2016-10.txt epmate-2016-11.txt epmate-2016-12.txt
+
+EPMATE2017= epmate-2017-01.txt epmate-2017-02.txt epmate-2017-03.txt epmate-2017-04.txt epmate-2017-05.txt epmate-2017-06.txt epmate-2017-07.txt epmate-2017-08.txt epmate-2017-09.txt epmate-2017-10.txt epmate-2017-11.txt epmate-2017-12.txt
+
+EPMATE2018= epmate-2018-01.txt epmate-2018-02.txt epmate-2018-03.txt epmate-2018-04.txt epmate-2018-05.txt epmate-2018-06.txt epmate-2018-07.txt epmate-2018-08.txt epmate-2018-09.txt epmate-2018-10.txt epmate-2018-11.txt
+
+allepmate : $(EPMATE2015) $(EPMATE2014) $(EPMATE2013)  $(EPMATE2015) $(EPMATE2016) $(EPMATE2017) # $(EPMATE2018)
+
+
 CXXFLAGS=--std=c++17 -Wall -Wno-deprecated -Wno-sign-compare
 OPT=-O2
 SYMBOLS=-g
@@ -78,4 +107,10 @@ stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./rungames.exe $< > $@
 
 pawns-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+	nice -n 19 ./chessreduce.exe $< > $@
+
+castlemate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+	nice -n 19 ./chessreduce.exe $< > $@
+
+epmate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./chessreduce.exe $< > $@

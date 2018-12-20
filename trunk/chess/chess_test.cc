@@ -64,6 +64,16 @@ static void CheckInit() {
   CHECK(init_pos == fen_pos) << init_pos << "\n\n" << fen_pos;
 }
 
+static Position MakePos(const string &s) {
+  PGN pgn;
+  CHECK(PGN::Parse(s.c_str(), &pgn));
+  Position pos;
+  for (const PGN::Move &m : pgn.moves) {
+    ApplyMove(&pos, m.move.c_str());
+  }
+  return pos;
+}
+
 static void PlayGame(std::initializer_list<const char *> game) {
   Position pos;
 
@@ -246,8 +256,54 @@ static void ValidMoves2() {
   
   Position pos;
 
+  auto IsInVector =
+    [](const std::vector<Move> &vec,
+       Move m) {
+      for (const Move &mm : vec) {
+	if (Position::MoveEq(m, mm)) return true;
+      }
+      return false;
+    };
+
+  auto LegalMoveStr =
+    [](const Position &pos, const std::vector<Move> &vec) {
+      string ret;
+      for (Move m : vec) {
+	if (!ret.empty()) ret += ", ";
+	ret += pos.LongMoveString(m);
+      }
+      return ret;
+    };
+
+  auto NoDupes =
+    [](const std::vector<Move> &vec) {
+      for (int i = 0; i < vec.size(); i++) {
+	for (int j = 0; j < vec.size(); j++) {
+	  if (i != j &&
+	      Position::MoveEq(vec[i], vec[j]))
+	    return false;
+	}
+      }
+      return true;
+    };
+  
   for (const PGN::Move &m : pgn.moves) {
     CHECK(pos.HasLegalMoves(nullptr));
+    std::vector<Move> legal_moves;
+    CHECK(pos.HasLegalMoves(&legal_moves));
+	
+    Move move;
+    CHECK(pos.ParseMove(m.move.c_str(), &move));
+    CHECK(pos.IsLegal(move));
+    CHECK(NoDupes(legal_moves)) << LegalMoveStr(pos, legal_moves);
+    CHECK(IsInVector(legal_moves, move))
+      << "In this position:\n" << pos.BoardString()
+      << "\nExpected '" << m.move << "' to be among legal moves:\n"
+      << LegalMoveStr(pos, legal_moves);
+
+    // None of these in the above game.
+    CHECK(!pos.IsCastling(move));
+    CHECK(!pos.IsEnPassant(move));
     ApplyMove(&pos, m.move.c_str());
   }
   printf("%s\n", pos.BoardString().c_str());
@@ -255,6 +311,17 @@ static void ValidMoves2() {
   CHECK(!pos.HasLegalMoves(nullptr));
 }
 
+static void TestEp() {
+  const char *kGame = R"_([Event "Test"]
+1. e4 e5 2. Ke2 Ke7 3. f4 exf4 4. g4 
+)_";
+  Position pos = MakePos(kGame);
+  CHECK(!pos.IsMated());
+  Move ep;
+  CHECK(pos.ParseMove("fxg3", &ep));
+  CHECK(pos.IsEnPassant(ep));
+  CHECK(pos.IsLegal(ep));
+}
 
 int main(int argc, char **argv) {
   CheckInit();
@@ -272,6 +339,8 @@ int main(int argc, char **argv) {
 
   ValidMoves1();
   ValidMoves2();
+
+  TestEp();
   return 0;
 }
 
