@@ -219,16 +219,18 @@ static void ValidMoves1() {
   Position pos;
 
   for (const PGN::Move &m : pgn.moves) {
-    CHECK(pos.HasLegalMoves(nullptr));
+    CHECK(pos.HasLegalMoves());
+    CHECK(!pos.GetLegalMoves().empty());
     ApplyMove(&pos, m.move.c_str());
   }
   printf("%s\n", pos.BoardString().c_str());
 
   CHECK(!pos.IsMated());
-  vector<Position::Move> moves;
-  CHECK(pos.HasLegalMoves(&moves));
+  CHECK(pos.HasLegalMoves());
+  vector<Position::Move> moves = pos.GetLegalMoves();
   // TODO: Could check for the specific expected moves here.
   CHECK(moves.size() == 51);
+  
   /*
   for (Position::Move move : moves) {
     printf("  %c%d -> %c%d = %c\n",
@@ -288,9 +290,8 @@ static void ValidMoves2() {
     };
   
   for (const PGN::Move &m : pgn.moves) {
-    CHECK(pos.HasLegalMoves(nullptr));
-    std::vector<Move> legal_moves;
-    CHECK(pos.HasLegalMoves(&legal_moves));
+    CHECK(pos.HasLegalMoves());
+    std::vector<Move> legal_moves = pos.GetLegalMoves();
 	
     Move move;
     CHECK(pos.ParseMove(m.move.c_str(), &move));
@@ -308,7 +309,11 @@ static void ValidMoves2() {
   }
   printf("%s\n", pos.BoardString().c_str());
   CHECK(pos.IsMated());
-  CHECK(!pos.HasLegalMoves(nullptr));
+  CHECK(!pos.HasLegalMoves());
+
+  int kingrow, kingcol;
+  std::tie(kingrow, kingcol) = pos.GetKing();
+  CHECK(kingrow == 4 && kingcol == 1) << kingrow << ", " << kingcol;
 }
 
 static void TestEp() {
@@ -321,6 +326,10 @@ static void TestEp() {
   CHECK(pos.ParseMove("fxg3", &ep));
   CHECK(pos.IsEnPassant(ep));
   CHECK(pos.IsLegal(ep));
+  CHECK(pos.HasLegalMoves());
+  int kingrow, kingcol;
+  std::tie(kingrow, kingcol) = pos.GetKing();
+  CHECK(kingrow == 1 && kingcol == 4) << kingrow << ", " << kingcol;
 }
 
 int main(int argc, char **argv) {

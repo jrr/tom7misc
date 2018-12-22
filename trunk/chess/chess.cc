@@ -6,6 +6,8 @@
 
 using namespace std;
 
+using Move = Position::Move;
+
 // XXX TODO: Delete all this debugging printing.
 #define IFDEBUG if (true) {} else
 // #define IFDEBUG 
@@ -1145,6 +1147,8 @@ void Position::ApplyMove(Move m) {
 
   // All moves clear the source square and populate the destination.
   SetPiece(m.src_row, m.src_col, EMPTY);
+  // Note: This updates the position of the king if source_piece is
+  // one of the two kings.
   SetPiece(m.dst_row, m.dst_col, source_piece);
 
   // And pass to the other player.
@@ -1155,6 +1159,9 @@ void Position::ApplyMove(Move m) {
 bool Position::NotIntoCheck(Move m) {
   // For the sake of testing for check, we can ignore promotion.
   const uint8 p = PieceAt(m.src_row, m.src_col);
+  // If we are moving the king, the inner SetPiece manages to modify
+  // the location of the king on the way into the Attacked test, and
+  // the outer one restores it on the way out.
   return
     SetExcursion(
 	m.src_row, m.src_col, EMPTY,
@@ -1180,129 +1187,7 @@ bool Position::IsMated() {
   // King must be in check.
   if (!Attacked(kingr, kingc))
     return false;
-  return !HasLegalMoves(nullptr);
-}
-
-bool Position::HasLegalMoves(std::vector<Move> *moves) {
-  const bool blackmove = !!(bits & BLACK_MOVE);
-  const uint8 my_color = blackmove ? BLACK : WHITE;
-  // const uint8 your_color = blackmove ? WHITE : BLACK;
-  bool success = false;
-  
-#define TRY_MOVE(move) do {		 \
-    if (IsLegal(m)) {			 \
-      if (moves == nullptr) return true; \
-      moves->push_back(m);		 \
-      success = true;			 \
-    }					 \
-  } while(0)
-  
-  for (int srcr = 0; srcr < 8; srcr++) {
-    for (int srcc = 0; srcc < 8; srcc++) {
-      const uint8 p = PieceAt(srcr, srcc);
-      if ((p & COLOR_MASK) == my_color) {
-	Move m;
-	m.src_row = srcr;
-	m.src_col = srcc;
-	
-	switch (p & TYPE_MASK) {
-	case EMPTY:
-	  break;
-
-	case PAWN: {
-	  int dr = blackmove ? 1 : -1;
-	  
-	  if (srcr == (blackmove ? 1 : 6)) {
-	    // Try double moves.
-	    m.dst_col = srcc;
-	    m.dst_row = srcr + dr + dr;
-	    TRY_MOVE(m);
-	  }
-
-	  // Covers regular advancement, capture, promotion.
-	  for (int dc = -1; dc <= 1; dc++) {
-	    m.dst_col = srcc + dc;
-	    m.dst_row = srcr + dr;
-	    if (m.dst_row == (blackmove ? 7 : 0)) {
-	      m.promote_to = my_color | KNIGHT;
-	      TRY_MOVE(m);
-	      m.promote_to = my_color | BISHOP;
-	      TRY_MOVE(m);
-	      m.promote_to = my_color | ROOK;
-	      TRY_MOVE(m);
-	      m.promote_to = my_color | QUEEN;
-	      TRY_MOVE(m);
-	      m.promote_to = 0;
-	    } else {
-	      TRY_MOVE(m);
-	    }
-	  }
-	  break;
-	}
-
-	case KNIGHT:
-	  for (const int udr : { -1, 1 }) {
-	    for (const int udc : { -1, 1 }) {
-	      // (1,2) then (2,1).
-	      m.dst_col = srcc + 2 * udc;
-	      m.dst_row = srcr + udr;
-	      TRY_MOVE(m);
-
-	      m.dst_col = srcc + udc;
-	      m.dst_row = srcr + 2* udr;
-	      TRY_MOVE(m);
-	    }
-	  }
-	  break;
-	  
-	case BISHOP:
-
-	case C_ROOK:
-	case ROOK:
-
-	case QUEEN:
-	  // PERF this just checks every possible move!
-	  // Need to write move enumerators for these
-	  // three.
-	  for (int dstr = 0; dstr < 8; dstr++) {
-	    for (int dstc = 0; dstc < 8; dstc++) {
-	      m.dst_col = dstc;
-	      m.dst_row = dstr;
-	      TRY_MOVE(m);
-	    }
-	  }
-
-	  break;
-	  
-	case KING:
-	  if (srcr == (blackmove ? 0 : 7) &&
-	      srcc == 4) {
-	    // Try castling too.
-	    m.dst_col = 2;
-	    m.dst_row = srcr;
-	    TRY_MOVE(m);
-
-	    m.dst_col = 6;
-	    m.dst_row = srcr;
-	    TRY_MOVE(m);
-	  }
-	    
-	  for (int dc = -1; dc <= 1; dc++) {
-	    for (int dr = -1; dr <= 1; dr++) {
-	      if (dc != 0 || dr != 0) {
-		m.dst_col = srcc + dc;
-		m.dst_row = srcr + dr;
-		TRY_MOVE(m);
-	      }
-	    }
-	  }
-	  break;
-	}
-      }
-    }
-  }
-
-  return success;
+  return !HasLegalMoves();
 }
 
 bool Position::IsCastling(Move m) const {
@@ -1357,4 +1242,172 @@ string Position::LongMoveString(Move m) const {
 	  '1' + (7 - m.dst_row),
 	  promote.c_str());
   return (string)buf;
+}
+
+namespace {
+// Various ways of collecting moves, used in the template below.
+// If Push returns true, we should stop collecting.
+
+struct VectorMC {
+  VectorMC(std::vector<Move> *moves) : moves(moves) {}
+  bool Push(Move m) {
+    moves->push_back(m);
+    return false;
+  }
+  std::vector<Move> *moves = nullptr;
+};
+
+struct AnyMC {
+  bool Push(Move m) {
+    any = true;
+    return true;
+  }
+  bool any = false;
+};
+
+struct OneMC {
+  bool Push(Move m) {
+    count++;
+    // Once we reach two, we know the answer will be false, so stop.
+    return count > 1;
+  }
+  int count = 0;
+};
+
+template<class MoveCollector>
+static void CollectLegalMoves(Position &pos, MoveCollector &mc) {
+  const bool blackmove = pos.BlackMove();
+  const uint8 my_color = blackmove ? Position::BLACK : Position::WHITE;
+  
+#define TRY_MOVE(move) do {		 \
+    if (pos.IsLegal(m)) {		 \
+      if (mc.Push(m)) return;            \
+    }					 \
+  } while(0)
+  
+  for (int srcr = 0; srcr < 8; srcr++) {
+    for (int srcc = 0; srcc < 8; srcc++) {
+      const uint8 p = pos.PieceAt(srcr, srcc);
+      if ((p & Position::COLOR_MASK) == my_color) {
+	Move m;
+	m.src_row = srcr;
+	m.src_col = srcc;
+	
+	switch (p & Position::TYPE_MASK) {
+	case Position::EMPTY:
+	  break;
+
+	case Position::PAWN: {
+	  int dr = blackmove ? 1 : -1;
+	  
+	  if (srcr == (blackmove ? 1 : 6)) {
+	    // Try double moves.
+	    m.dst_col = srcc;
+	    m.dst_row = srcr + dr + dr;
+	    TRY_MOVE(m);
+	  }
+
+	  // Covers regular advancement, capture, promotion.
+	  for (int dc = -1; dc <= 1; dc++) {
+	    m.dst_col = srcc + dc;
+	    m.dst_row = srcr + dr;
+	    if (m.dst_row == (blackmove ? 7 : 0)) {
+	      m.promote_to = my_color | Position::KNIGHT;
+	      TRY_MOVE(m);
+	      m.promote_to = my_color | Position::BISHOP;
+	      TRY_MOVE(m);
+	      m.promote_to = my_color | Position::ROOK;
+	      TRY_MOVE(m);
+	      m.promote_to = my_color | Position::QUEEN;
+	      TRY_MOVE(m);
+	      m.promote_to = 0;
+	    } else {
+	      TRY_MOVE(m);
+	    }
+	  }
+	  break;
+	}
+
+	case Position::KNIGHT:
+	  for (const int udr : { -1, 1 }) {
+	    for (const int udc : { -1, 1 }) {
+	      // (1,2) then (2,1).
+	      m.dst_col = srcc + 2 * udc;
+	      m.dst_row = srcr + udr;
+	      TRY_MOVE(m);
+
+	      m.dst_col = srcc + udc;
+	      m.dst_row = srcr + 2* udr;
+	      TRY_MOVE(m);
+	    }
+	  }
+	  break;
+	  
+	case Position::BISHOP:
+
+	case Position::C_ROOK:
+	case Position::ROOK:
+
+	case Position::QUEEN:
+	  // PERF this just checks every possible move!
+	  // Need to write move enumerators for these
+	  // three.
+	  for (int dstr = 0; dstr < 8; dstr++) {
+	    for (int dstc = 0; dstc < 8; dstc++) {
+	      m.dst_col = dstc;
+	      m.dst_row = dstr;
+	      TRY_MOVE(m);
+	    }
+	  }
+
+	  break;
+	  
+	case Position::KING:
+	  if (srcr == (blackmove ? 0 : 7) &&
+	      srcc == 4) {
+	    // Try castling too.
+	    m.dst_col = 2;
+	    m.dst_row = srcr;
+	    TRY_MOVE(m);
+
+	    m.dst_col = 6;
+	    m.dst_row = srcr;
+	    TRY_MOVE(m);
+	  }
+	    
+	  for (int dc = -1; dc <= 1; dc++) {
+	    for (int dr = -1; dr <= 1; dr++) {
+	      if (dc != 0 || dr != 0) {
+		m.dst_col = srcc + dc;
+		m.dst_row = srcr + dr;
+		TRY_MOVE(m);
+	      }
+	    }
+	  }
+	  break;
+	}
+      }
+    }
+  }
+}
+
+}  // namespace
+
+std::vector<Move> Position::GetLegalMoves() {
+  std::vector<Move> moves;
+  VectorMC vmc{&moves};
+  CollectLegalMoves(*this, vmc);
+  return moves;
+}
+
+bool Position::HasLegalMoves() {
+  AnyMC amc;
+  CollectLegalMoves(*this, amc);
+  return amc.any;
+}
+
+int Position::ExactlyOneLegalMove() {
+  OneMC omc;
+  CollectLegalMoves(*this, omc);
+  return omc.count;
 }

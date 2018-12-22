@@ -17,6 +17,9 @@ find interesting games
  - en passant to mate!
  - most queens
  - promotion not to queen
+ - highest number of king moves with queens still on the board
+ - longest consecutive series of checks
+ - longest forced sequence (with literally just one legal move)
 
 find positions that are reached in two games but after long divergence
 (and have a minimum number of pieces or whatever)

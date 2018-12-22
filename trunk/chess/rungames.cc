@@ -115,65 +115,7 @@ struct Processor {
 #endif
 
       // Use the move to update the fates of pieces.
-      const uint8 src_pos = move.src_row * 8 + move.src_col;
-      const uint8 dst_pos = move.dst_row * 8 + move.dst_col;
-      for (int i = 0; i < 32; i++) {
-	// Move the living piece.
-	if (gs.fates[i] == src_pos) {
-	  gs.fates[i] = dst_pos;
-	} else if (gs.fates[i] == dst_pos) {
-	  // Kill piece in the destination square, if any.
-	  gs.fates[i] |= GameStats::DIED;
-	}
-      }
-	
-      // Also handle castling. We can assume the move is legal,
-      // so if it's a king moving two spaces, we know where the
-      // rooks are and where they're going.
-      if (src_pos == 4 && pos.PieceAt(0, 4) ==
-	  (Position::BLACK | Position::KING)) {
-	if (dst_pos == 2) {
-	  gs.fates[0] = 3;
-	} else if (dst_pos == 6) {
-	  gs.fates[7] = 5;
-	}
-      } else if (src_pos == 60 && pos.PieceAt(7, 4) ==
-		 (Position::WHITE | Position::KING)) {
-	if (dst_pos == 58) {
-	  gs.fates[24] = 59;
-	} else if (dst_pos == 62) {
-	  gs.fates[31] = 61;
-	}
-      }
-
-      // If it was an en passant capture, need to kill the captured
-      // pawn. The loop above did not 
-      if (((move.src_row == 3 && move.dst_row == 2) ||
-	   (move.src_row == 4 && move.dst_row == 5)) &&
-	  move.src_col != move.dst_col &&
-	  pos.PieceAt(move.dst_row, move.dst_col) == Position::EMPTY &&
-	  (pos.PieceAt(move.src_row, move.src_col) & Position::TYPE_MASK) ==
-	  Position::PAWN) {
-	// en passant capture.
-	// If row 3, then white is capturing black, which is on the row
-	// below the dst pos. Otherwise, the row above.
-	const uint8 cap_pos =
-	  (move.src_row == 3) ? dst_pos + 8 : dst_pos - 8;
-	for (int i = 0; i < 32; i++) {
-	  if (gs.fates[i] == cap_pos) {
-	    gs.fates[i] |= GameStats::DIED;
-	    goto success;
-	  }
-	}
-	CHECK(false) << "Apparent en passant capture, but no piece "
-	  "was at " << cap_pos << " to be captured.\n" <<
-	  pos.BoardString() << "\nwith move: " << m.move <<
-	  "\nwhich is: " <<
-	  move.src_row << " " << move.src_col << " -> " <<
-	  move.dst_row << " " << move.dst_col;
-	  
-      success:;
-      }
+      gs.Update(pos, move);
 	  
       pos.ApplyMove(move);
     }
