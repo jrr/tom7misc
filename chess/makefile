@@ -55,7 +55,22 @@ EPMATE2017= epmate-2017-01.txt epmate-2017-02.txt epmate-2017-03.txt epmate-2017
 
 EPMATE2018= epmate-2018-01.txt epmate-2018-02.txt epmate-2018-03.txt epmate-2018-04.txt epmate-2018-05.txt epmate-2018-06.txt epmate-2018-07.txt epmate-2018-08.txt epmate-2018-09.txt epmate-2018-10.txt epmate-2018-11.txt
 
-allepmate : $(EPMATE2015) $(EPMATE2014) $(EPMATE2013)  $(EPMATE2015) $(EPMATE2016) $(EPMATE2017) # $(EPMATE2018)
+allepmate : $(EPMATE2014) # $(EPMATE2015) $(EPMATE2013)  $(EPMATE2015) $(EPMATE2016) $(EPMATE2017) $(EPMATE2018)
+
+
+FORCED2013= forced-2013-01.txt forced-2013-02.txt forced-2013-03.txt forced-2013-04.txt forced-2013-05.txt forced-2013-06.txt forced-2013-07.txt forced-2013-08.txt forced-2013-09.txt forced-2013-10.txt forced-2013-11.txt forced-2013-12.txt
+
+FORCED2014= forced-2014-01.txt forced-2014-02.txt forced-2014-03.txt forced-2014-04.txt forced-2014-05.txt forced-2014-06.txt forced-2014-07.txt forced-2014-08.txt forced-2014-09.txt forced-2014-10.txt forced-2014-11.txt forced-2014-12.txt
+
+FORCED2015= forced-2015-01.txt forced-2015-02.txt forced-2015-03.txt forced-2015-04.txt forced-2015-05.txt forced-2015-06.txt forced-2015-07.txt forced-2015-08.txt forced-2015-09.txt forced-2015-10.txt forced-2015-11.txt forced-2015-12.txt
+
+FORCED2016= forced-2016-01.txt forced-2016-02.txt forced-2016-03.txt forced-2016-04.txt forced-2016-05.txt forced-2016-06.txt forced-2016-07.txt forced-2016-08.txt forced-2016-09.txt forced-2016-10.txt forced-2016-11.txt forced-2016-12.txt
+
+FORCED2017= forced-2017-01.txt forced-2017-02.txt forced-2017-03.txt forced-2017-04.txt forced-2017-05.txt forced-2017-06.txt forced-2017-07.txt forced-2017-08.txt forced-2017-09.txt forced-2017-10.txt forced-2017-11.txt forced-2017-12.txt
+
+FORCED2018= forced-2018-01.txt forced-2018-02.txt forced-2018-03.txt forced-2018-04.txt forced-2018-05.txt forced-2018-06.txt forced-2018-07.txt forced-2018-08.txt forced-2018-09.txt forced-2018-10.txt forced-2018-11.txt
+
+allforced : $(FORCED2015) $(FORCED2014) $(FORCED2013)  $(FORCED2015) $(FORCED2016) $(FORCED2017) $(FORCED2018)
 
 
 CXXFLAGS=--std=c++17 -Wall -Wno-deprecated -Wno-sign-compare
@@ -69,10 +84,10 @@ CXX=x86_64-w64-mingw32-g++
 CC=x86_64-w64-mingw32-gcc
 
 INCLUDES=-I "../cc-lib" -I "../cc-lib/city" -I "../cc-lib/re2" -I ../fceulib
-CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_GLIBCXX_HAS_GTHREADS -mthreads $(INCLUDES)
+CPPFLAGS=-m64 -D__MINGW32__ -DHAVE_ALLOCA -D_WIN32_WINNT=0x0602 -D_GLIBCXX_HAS_GTHREADS -mthreads $(INCLUDES)
 
 # without static, can't find lz or lstdcxx maybe?
-LFLAGS=-m64 -mthreads -lwinpthread -L. -static
+LFLAGS=-m64 -mthreads -lwinpthread -lpsapi -L. -static
 
 RE2_OBJECTS=../cc-lib/re2/bitstate.o ../cc-lib/re2/compile.o ../cc-lib/re2/dfa.o ../cc-lib/re2/filtered_re2.o ../cc-lib/re2/mimics_pcre.o ../cc-lib/re2/nfa.o ../cc-lib/re2/onepass.o ../cc-lib/re2/parse.o ../cc-lib/re2/perl_groups.o ../cc-lib/re2/prefilter.o ../cc-lib/re2/prefilter_tree.o ../cc-lib/re2/prog.o ../cc-lib/re2/re2.o ../cc-lib/re2/regexp.o ../cc-lib/re2/set.o ../cc-lib/re2/simplify.o ../cc-lib/re2/stringpiece.o ../cc-lib/re2/tostring.o ../cc-lib/re2/unicode_casefold.o ../cc-lib/re2/unicode_groups.o ../cc-lib/re2/util/rune.o ../cc-lib/re2/util/strutil.o
 
@@ -102,6 +117,9 @@ clean :
 	rm -f *.o *.exe $(CCLIB_OBJECTS)
 
 
+numa.exe : numa.o
+	$(CXX) $^ -o $@ $(LFLAGS)
+
 # This depends on rungames.exe, but not including it because I don't want to recompute stats every single time.
 stats-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./rungames.exe $< > $@
@@ -113,4 +131,7 @@ castlemate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./chessreduce.exe $< > $@
 
 epmate-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
+	nice -n 19 ./chessreduce.exe $< > $@
+
+forced-%.txt : d:\\chess\\lichess_db_standard_rated_%.pgn
 	nice -n 19 ./chessreduce.exe $< > $@

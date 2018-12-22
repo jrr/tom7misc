@@ -18,7 +18,10 @@
 #include "gamestats.h"
 #include "bigchess.h"
 
-constexpr int MAX_PARALLELISM = 30;
+#include <windows.h> // XXX
+#include <psapi.h> // XXX
+
+constexpr int MAX_PARALLELISM = 8;
 
 using namespace std;
 using int64 = int64_t;
@@ -43,10 +46,12 @@ struct Processor {
     }
 
     // We're looking for mate here, so require one side to win.
+    /*
     if (pgn.result != PGN::Result::WHITE_WINS &&
 	pgn.result != PGN::Result::BLACK_WINS) {
       return false;
     }
+    */
     
     if (pgn.GetTermination() != PGN::Termination::NORMAL) {
       return false;
@@ -59,7 +64,7 @@ struct Processor {
     
     const int min_elo = std::min(pgn.MetaInt("WhiteElo", 0),
 				 pgn.MetaInt("BlackElo", 0));
-    if (min_elo < 1800)
+    if (min_elo < 1900)
       return false;
 
     return true;
@@ -97,8 +102,10 @@ struct Processor {
 
     if (!Eligible(pgn)) return;
 
-    int64 max_position_score = 0LL;
+    int max_position_score = 0;
 
+    int black_consec_forced = 0, white_consec_forced = 0;
+    
     Position pos;
     GameStats gs;
     for (int i = 0; i < pgn.moves.size(); i++) {
@@ -118,10 +125,31 @@ struct Processor {
 	return;
       }
 
+      // If either queen is dead, consider this the endgame, and
+      // stop counting forced moves.
+      if (!!(gs.fates[GameStats::BLACK_QUEEN] & GameStats::DIED) ||
+	  !!(gs.fates[GameStats::WHITE_QUEEN] & GameStats::DIED))
+	break;
+      
+      const bool blackmove = pos.BlackMove();
+      const bool forced = 1 == pos.ExactlyOneLegalMove();
+
+      if (blackmove)
+	black_consec_forced = forced ? black_consec_forced + 1 : 0;
+      else
+	white_consec_forced = forced ? white_consec_forced + 1 : 0;
+
+      max_position_score = std::max(max_position_score,
+				    std::max(black_consec_forced,
+					     white_consec_forced));
+      
       // const bool castling_move = pos.IsCastling(move);
-      const bool enpassant_move = pos.IsEnPassant(move);
+      // const bool enpassant_move = pos.IsEnPassant(move);
       pos.ApplyMove(move);
 
+      gs.Update(pos, move);
+      
+      #if 0
       if (enpassant_move) {
 	if (pos.IsMated()) {
 	  int64 game_score =
@@ -148,17 +176,17 @@ struct Processor {
 	  topn.push(std::move(sg));
 	}
       }
-
+      #endif
+      
       #if 0
       max_position_score = 
 	std::max(max_position_score, ScorePosition(pos));
       #endif
+
     }
 
-    #if 0
-    if (max_position_score > 0LL) {
+    if (max_position_score > 5) {
       int64 game_score = max_position_score * 100000LL;
-      // XXX add minimum rating of two players.
       game_score += 
 	std::min(pgn.MetaInt("WhiteElo", 0),
 		 pgn.MetaInt("BlackElo", 0));      
@@ -182,7 +210,6 @@ struct Processor {
       sg.pgn_text = pgn_text;
       topn.push(std::move(sg));
     }
-    #endif
   }
 
   struct ScoredGame {
@@ -227,21 +254,60 @@ static void ReadLargePGN(const char *filename) {
       if (num_read % 20000LL == 0) {
 	int64 done, in_progress, pending;
 	work_queue->Stats(&done, &in_progress, &pending);
+	const bool should_pause = pending > 5000000;
+	const char *pausing = should_pause ? " (PAUSE READING)" : "";
 	fprintf(stderr,
-		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld\n",
+		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld %s\n",
 		num_read,
 		num_read / (double)(time(nullptr) - start),
-		done, in_progress, pending);
+		done, in_progress, pending, pausing);
 	fflush(stderr);
-
 	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
 	  break;
+
+	if (should_pause)
+	  sleep(60);
       }
     }
   }
   
   work_queue->SetNoMoreWork();
-  
+
+  #if 0
+  {
+    // XXX DEBUG
+    PSAPI_WORKING_SET_EX_INFORMATION workingset[16384];
+    CHECK(QueryWorkingSetEx(GetCurrentProcess(),
+			    workingset,
+			    16384 * sizeof (PSAPI_WORKING_SET_INFORMATION)));
+    for (int i = 0; i < 16384; i++) {
+      const PSAPI_WORKING_SET_EX_INFORMATION *wsi = &workingset[i];
+      /*
+      if (wsi->VirtualAddress == 0) {
+	fprintf(stderr, "(null)\n");
+      }
+      */
+      const PSAPI_WORKING_SET_EX_BLOCK *wsb = &wsi->VirtualAttributes;
+      fprintf(stderr, "%p: ", wsi->VirtualAddress);
+      if (wsb->Valid) {
+	fprintf(stderr,
+		" v shc %d prot %d sh %d node %d lock %d large %d",
+		(int)wsb->ShareCount,
+		(int)wsb->Win32Protection,
+		(int)wsb->Shared,
+		(int)wsb->Node,
+		(int)wsb->Locked,
+		(int)wsb->LargePage
+		/* , (int)wsb->Reserved */);
+      } else {
+	fprintf(stderr, " INVALID");
+      }
+      fprintf(stderr, "\n");
+      fflush(stderr);
+    }
+  }
+  #endif
+
   // Show status until all games have been run.
   while (work_queue->StillRunning()) {
     int64 done, in_progress, pending;

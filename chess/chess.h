@@ -24,7 +24,7 @@ using uint32 = std::uint32_t;
 
 // For PGN spec, see https://www.chessclub.com/help/PGN-spec
 
-// Packed representation; 33 bytes.
+// Packed representation; 35 bytes.
 // TODO: Probably should separate out some of these static
 // methods into just like a "Chess" class or namespace.
 struct Position {
@@ -67,7 +67,14 @@ struct Position {
     return p & 0b1111;
   }
 
-  void SetPiece(int row, int col, uint8 p) {
+  inline void SetPiece(int row, int col, uint8 p) {
+    /*
+    if (p == (BLACK | KING)) {
+      black_king = (row << 3) | col;
+    } else if (p == (WHITE | KING)) {
+      white_king = (row << 3) | col;
+    }
+    */
     uint32 &r = rows[row];
     uint32 mask = 0xF0000000 >> (col * 4);
     uint32 shift = p << (4 * (7 - col));
@@ -142,8 +149,13 @@ struct Position {
   void ApplyMove(Move m);
   
   // Get the row, col with the current player's king.
-  std::pair<int, int> GetKing() const {
+  inline std::pair<int, int> GetKing() const {
     const bool blackmove = !!(bits & BLACK_MOVE);
+    /*
+    const uint8 pos = KING_POS_MASK & (blackmove ? black_king : white_king);
+    return std::pair<int, int>(pos >> 3, pos & 7);
+    */
+
     const uint8 my_color = blackmove ? BLACK : WHITE;
 
     for (int r = 0; r < 8; r++)
@@ -158,10 +170,14 @@ struct Position {
   // True if the current player is checkmated.
   bool IsMated();
 
-  // Return true if there are any legal moves. If moves is non-null,
-  // populate it with all the legal moves. (This function is more
-  // efficient if the argument is null.)
-  bool HasLegalMoves(std::vector<Move> *moves);
+  // Return true if there are any legal moves. This is faster than
+  // enumerating them all.
+  bool HasLegalMoves();
+  // Get all the legal moves.
+  std::vector<Move> GetLegalMoves();
+
+  // Returns 0 if mated, 1 if exactly one, 2 if 2 or more.
+  int ExactlyOneLegalMove();
   
   // Returns true if the indicated square is attacked (by the other
   // player) in the current position. "Attacked" here means an otherwise
@@ -179,6 +195,7 @@ struct Position {
     return ret;
   }
 
+  #if 0
   // Apply the move to the current board state, and execute the
   // function with that state applied. Return the return value
   // of the function after undoing the applied move. As above,
@@ -187,6 +204,11 @@ struct Position {
   auto MoveExcursion(Move m, const F &f) -> decltype(f()) {
     // TODO
     return f();
+  }
+  #endif
+
+  bool BlackMove() const {
+    return !!(bits & BLACK_MOVE);
   }
   
  private:
@@ -246,6 +268,10 @@ struct Position {
 
   // Starting position. White's move, no en passant capture available.
   uint8 bits = 0u;
+
+  // TODO: can use the last two bits here for castling status...
+  // static constexpr uint8 KING_POS_MASK = 0b00111111;
+  // uint8 white_king = 60u, black_king = 4u;
 };
 
 #endif

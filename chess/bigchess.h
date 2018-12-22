@@ -150,7 +150,7 @@ private:
 struct PGNTextStream {
   PGNTextStream(const char *filename) {
     f = fopen(filename, "r");
-    CHECK(f != nullptr);
+    CHECK(f != nullptr) << filename;
   }
 
   bool NextPGN(string *pgn_text) {
