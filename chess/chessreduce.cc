@@ -9,6 +9,7 @@
 #include <utility>
 #include <unistd.h>
 
+#include "base/stringprintf.h"
 #include "gtl/top_n.h"
 #include "base/logging.h"
 #include "util.h"
@@ -17,6 +18,7 @@
 #include "pgn.h"
 #include "gamestats.h"
 #include "bigchess.h"
+#include "fate-data.h"
 
 #include <windows.h> // XXX
 #include <psapi.h> // XXX
@@ -34,6 +36,26 @@ static constexpr int64 MAX_GAMES = 0LL;
 
 // #define SELF_CHECK true
 #undef SELF_CHECK
+
+// How likely are these fates for the pieces? A number between
+// 0 and 1, with 1 meaning most likely.
+static double FateScore(const GameStats &result) {
+  // Product would probably be more justifiable (like this would
+  // be the joint probability of the final state), but that
+  // results in extremely small values. TODO: Maybe could add logs,
+  // or whatever...
+  double sum = 0.0;
+  for (int i = 0; i < 32; i++) {
+    const int square = result.fates[i] & GameStats::POS_MASK;
+    if (result.fates[i] & GameStats::DIED) {
+      sum += fate_data[i][square].died;
+    } else {
+      sum += fate_data[i][square].lived;
+    }
+  }
+  
+  return sum / 32.0;
+}
 
 struct Processor {
   Processor() : topn(10) {}
@@ -57,6 +79,11 @@ struct Processor {
       return false;
     }
 
+    auto it = pgn.meta.find("Event");
+    if (it == pgn.meta.end() ||
+	string::npos != it->second.find("Bullet"))
+      return false;
+    
     // TODO: time format? Ignore bullet?
     // TODO: titled players only?
     // [WhiteTitle "IM"]
@@ -64,9 +91,11 @@ struct Processor {
     
     const int min_elo = std::min(pgn.MetaInt("WhiteElo", 0),
 				 pgn.MetaInt("BlackElo", 0));
-    if (min_elo < 1900)
+    if (min_elo < 2300 &&
+	(!ContainsKey(pgn.meta, "WhiteTitle") ||
+	 !ContainsKey(pgn.meta, "BlackTitle"))) {
       return false;
-
+    }
     return true;
   }
 
@@ -125,12 +154,13 @@ struct Processor {
 	return;
       }
 
+      /*
       // If either queen is dead, consider this the endgame, and
       // stop counting forced moves.
       if (!!(gs.fates[GameStats::BLACK_QUEEN] & GameStats::DIED) ||
 	  !!(gs.fates[GameStats::WHITE_QUEEN] & GameStats::DIED))
 	break;
-      
+
       const bool blackmove = pos.BlackMove();
       const bool forced = 1 == pos.ExactlyOneLegalMove();
 
@@ -142,6 +172,7 @@ struct Processor {
       max_position_score = std::max(max_position_score,
 				    std::max(black_consec_forced,
 					     white_consec_forced));
+      */
       
       // const bool castling_move = pos.IsCastling(move);
       // const bool enpassant_move = pos.IsEnPassant(move);
@@ -182,11 +213,16 @@ struct Processor {
       max_position_score = 
 	std::max(max_position_score, ScorePosition(pos));
       #endif
-
     }
 
-    if (max_position_score > 5) {
-      int64 game_score = max_position_score * 100000LL;
+    // End of the game. How weird is the final position?
+    // weirdnesss .979933 to .973182 in top 10,
+    // but go down to almost .800 in bottom.
+    double weirdness = 1.0 - FateScore(gs);
+    int64 game_score = weirdness * 1000000LL;    
+    if (game_score > 950000LL) {
+
+      /*
       game_score += 
 	std::min(pgn.MetaInt("WhiteElo", 0),
 		 pgn.MetaInt("BlackElo", 0));      
@@ -200,7 +236,7 @@ struct Processor {
       std::tie(base, increment) = pgn.GetTimeControl();
       if (base == 0 && increment == 0) game_score += 2000;
       else game_score += base + increment;
-      
+      */      
       // If the game has an interesting position, then output it.
       // PERF: We could do a read-only check of TopN without taking
       // the write mutex.
@@ -222,6 +258,12 @@ struct Processor {
     };
   };
 
+  string Status() {
+    ReadMutexLock ml(&topn_m);
+    size_t s = topn.size();
+    return s > 0 ? StringPrintf(" (found %d)", (int)s) : "";
+  }
+  
   std::shared_mutex topn_m;
   gtl::TopN<ScoredGame, ScoredGameCmp> topn;
 
@@ -257,10 +299,11 @@ static void ReadLargePGN(const char *filename) {
 	const bool should_pause = pending > 5000000;
 	const char *pausing = should_pause ? " (PAUSE READING)" : "";
 	fprintf(stderr,
-		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld %s\n",
+		"[Still reading; %lld games at %.1f/sec] %lld %lld %lld %s%s\n",
 		num_read,
 		num_read / (double)(time(nullptr) - start),
-		done, in_progress, pending, pausing);
+		done, in_progress, pending, pausing,
+		processor.Status().c_str());
 	fflush(stderr);
 	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
 	  break;
@@ -312,9 +355,10 @@ static void ReadLargePGN(const char *filename) {
   while (work_queue->StillRunning()) {
     int64 done, in_progress, pending;
     work_queue->Stats(&done, &in_progress, &pending);
-    fprintf(stderr, "[Done reading] %lld %lld %lld %.2f%%\n",
+    fprintf(stderr, "[Done reading] %lld %lld %lld %.2f%% %s\n",
 	    done, in_progress, pending,
-	    (100.0 * (double)done) / (in_progress + done + pending));
+	    (100.0 * (double)done) / (in_progress + done + pending),
+	    processor.Status().c_str());
     fflush(stderr);
     sleep(10);
   }
