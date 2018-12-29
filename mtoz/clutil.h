@@ -25,12 +25,17 @@ struct CL {
 
   static const char *ErrorString(cl_int err);
 
+  /*
   cl_command_queue NewCommandQueue(bool out_of_order = true) {
-    return clCreateCommandQueue(context, devices[0],
-				out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0,
-				nullptr);
+    cl_queue_properties props =
+      out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0;
+    return clCreateCommandQueueWithProperties(
+	context, devices[0],
+	&props,
+	nullptr);
   }
-
+  */
+  
   pair<cl_program, cl_kernel> BuildOneKernel(const string &kernel_src,
 					     const string &function_name);
 

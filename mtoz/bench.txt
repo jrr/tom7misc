@@ -33,3 +33,41 @@ unparallelcomp in training:
 
 ... very long term training (100k+ rounds): 0.9018
 
+
+
+--------------------------------------------------
+on ThreadRipper 2, Windows 10, 1080:
+
+Time per round: 5.3s.
+We spent 9.3ms in setup (0.2%),
+6.0ms in stimulation init (0.1%),
+15.7ms in eval (main thread; amortized) (0.3%),
+654.3ms in forward layer (12.4%),
+0.0ms in fc init (0.0%),
+648.3ms in forward layer kernel (at most; 12.2%).
+0.0ms in bc init (0.0%),
+1241.8ms in backwards pass (23.5%),
+13.5ms in error for output layer (0.3%),
+0.0ms in error history diagnostics (0.0%),
+3315.2ms in updating weights (62.6%),
+0.0ms in writing images (0.0%),
+
+made the UnParallelComps parallel:
+
+Total so far 261.2s.
+Time per round: 5.1s.
+We spent 17.2ms in setup (0.3%),
+11.4ms in stimulation init (0.2%),
+16.5ms in eval (main thread; amortized) (0.3%),
+683.9ms in forward layer (13.4%),
+0.0ms in fc init (0.0%),
+677.9ms in forward layer kernel (at most; 13.2%).
+0.0ms in bc init (0.0%),
+1219.2ms in backwards pass (23.8%),
+17.8ms in error for output layer (0.3%),
+0.0ms in error history diagnostics (0.0%),
+3095.6ms in updating weights (60.4%),
+0.0ms in writing images (0.0%),
+
+windows performance monitor shows both CPU and GPU with very low
+utilization :/
