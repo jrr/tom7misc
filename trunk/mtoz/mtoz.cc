@@ -39,6 +39,7 @@
 
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
+#include "../fceulib/simplefm7.h"
 
 #include "clutil.h"
 #include "timer.h"
@@ -1686,7 +1687,7 @@ static void TrainThread() {
 
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
-  vector<uint8> train_movie = SimpleFM2::ReadInputs(train_moviefile);
+  vector<uint8> train_movie = SimpleFM7::ReadInputs(train_moviefile);
   // If unused, truncate training data to make startup faster.
   if (EVAL_ONLY) train_movie.resize(std::min((size_t)100, train_movie.size()));
   struct Snapshot {
@@ -1718,7 +1719,7 @@ static void TrainThread() {
 
   std::unique_ptr<Emulator> eval_emu{Emulator::Create(eval_romfile)};
   CHECK(eval_emu.get() != nullptr) << eval_romfile;
-  const vector<uint8> eval_movie = SimpleFM2::ReadInputs(eval_moviefile);
+  const vector<uint8> eval_movie = SimpleFM7::ReadInputs(eval_moviefile);
   CHECK(!eval_movie.empty()) << eval_moviefile;
   const vector<uint8> eval_start_state = eval_emu->SaveUncompressed();
   auto ShouldEmitEvalFrame = [](int round_num) {

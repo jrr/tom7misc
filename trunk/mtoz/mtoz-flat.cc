@@ -43,6 +43,7 @@
 
 #include "../fceulib/emulator.h"
 #include "../fceulib/simplefm2.h"
+#include "../fceulib/simplefm7.h"
 
 #include "clutil.h"
 #include "timer.h"
@@ -1475,14 +1476,14 @@ static void TrainThread() {
   // will be taken into account.
   static constexpr int EVAL_MOVIE_START = 0; // = 3533;  // For mario, End of world 1-1.
   // const string eval_romfile = "mario.nes";
-  // const string eval_moviefile = "mario-long-again.fm2";
+  // const string eval_moviefile = "mario-long-again.fm7";
   // static constexpr int EVAL_MOVIE_START = 0;
   const string eval_romfile = "metroid.nes";
-  const string eval_moviefile = "metroid2.fm2";
+  const string eval_moviefile = "metroid2.fm7";
 
   // Source game for training.
   const string train_romfile = "mario.nes";
-  const string train_moviefile = "mario-long-three.fm2";
+  const string train_moviefile = "mario-long-three.fm7";
 
   // To generate training examples, we sample randomly from the input movie and
   // then perturb the state a little. Snapshots every few frames allow us to
@@ -1559,7 +1560,7 @@ static void TrainThread() {
 
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
-  vector<uint8> train_movie = SimpleFM2::ReadInputs(train_moviefile);
+  vector<uint8> train_movie = SimpleFM7::ReadInputs(train_moviefile);
   // If unused, truncate training data to make startup faster.
   if (EVAL_ONLY) train_movie.resize(std::min((size_t)100, train_movie.size()));
   struct Snapshot {
@@ -1591,7 +1592,7 @@ static void TrainThread() {
 
   std::unique_ptr<Emulator> eval_emu{Emulator::Create(eval_romfile)};
   CHECK(eval_emu.get() != nullptr) << eval_romfile;
-  const vector<uint8> eval_movie = SimpleFM2::ReadInputs(eval_moviefile);
+  const vector<uint8> eval_movie = SimpleFM7::ReadInputs(eval_moviefile);
   CHECK(!eval_movie.empty()) << eval_moviefile;
   const vector<uint8> eval_start_state = eval_emu->SaveUncompressed();
   auto ShouldEmitEvalFrame = [](int round_num) {
@@ -1874,10 +1875,10 @@ static void TrainThread() {
     Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
     CHECK_EQ(examples.size(), training.size());
-    UnParallelComp(examples.size(),
-		   [&examples, &training](int i) {
-		     training[i]->LoadInput(examples[i].indices);
-		   }, 16);
+    ParallelComp(examples.size(),
+		 [&examples, &training](int i) {
+		   training[i]->LoadInput(examples[i].indices);
+		 }, 16);
     stimulation_init_ms += stimulation_init_timer.MS();
 
     if (ShouldDie()) return;
@@ -1892,9 +1893,9 @@ static void TrainThread() {
       // too many simultaneous value src/dst buffers.
       Timer forward_timer;
       Printf("Parallelcomp...\n");
-      UnParallelComp(examples.size(),
-		     [&net, rounds_executed, num_examples = examples.size(),
-		      &fc, &training](int example_idx) {
+      ParallelComp(examples.size(),
+		   [&net, rounds_executed, num_examples = examples.size(),
+		    &fc, &training](int example_idx) {
 		     fc.Forward(training[example_idx]);
 		     if (example_idx % 10 == 0) {
 		       Printf("[%d/%d] (%.2f%%) ", example_idx, num_examples,
@@ -1909,7 +1910,7 @@ static void TrainThread() {
 		       // Copy to screen.
 		       ExportStimulusToVideo(example_idx, stim);
 		     }
-		   }, 12);
+		   }, 16);
       forward_ms += forward_timer.MS();
       kernel_ms += fc.kernel_ms;
       Printf("\n");
@@ -1922,13 +1923,13 @@ static void TrainThread() {
     if (ShouldDie()) return;
     Printf("Error calc.\n");
     Timer output_error_timer;
-    UnParallelComp(num_examples,
-		   [&setoutputerror, &net_gpu, &training, &expected](int example) {
-		     training[example]->LoadExpected(expected[example]);
-		     SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
-		     sc.SetOutputError(training[example]);
-		     Printf(".");
-		   }, 12);
+    ParallelComp(num_examples,
+		 [&setoutputerror, &net_gpu, &training, &expected](int example) {
+		   training[example]->LoadExpected(expected[example]);
+		   SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
+		   sc.SetOutputError(training[example]);
+		   Printf(".");
+		 }, 16);
     output_error_ms += output_error_timer.MS();
     Printf("\n");
 
@@ -1944,14 +1945,14 @@ static void TrainThread() {
       BackwardLayerCL::Context bc{&backwardlayer, &net_gpu, dst};
       bc_init_ms += bc_init_timer.MS();
 
-      UnParallelComp(num_examples,
-		     [num_examples, &training, &bc](int example) {
-		       bc.Backward(training[example]);
-		       if (example % 10 == 0) {
-			 Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
-				100.0 * example / num_examples);
-		       }
-		     }, 12);
+      ParallelComp(num_examples,
+		   [num_examples, &training, &bc](int example) {
+		     bc.Backward(training[example]);
+		     if (example % 10 == 0) {
+		       Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
+			      100.0 * example / num_examples);
+		     }
+		   }, 16);
       Printf("\n");
     }
     backward_ms += backward_timer.MS();

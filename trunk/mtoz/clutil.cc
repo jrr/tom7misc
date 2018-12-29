@@ -79,7 +79,16 @@ CL::CL() {
 				     num_devices, devices, nullptr));
 
   context = clCreateContext(nullptr, 1, devices, nullptr, nullptr, nullptr);
-  queue = clCreateCommandQueue(context, devices[0], 0, nullptr);
+
+  
+  const bool out_of_order = true;
+  // TODO: Try device queue?
+  const cl_queue_properties props =
+    out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0;
+  queue = clCreateCommandQueueWithProperties(
+      context, devices[0],
+      &props,
+      nullptr);
 }
 
 
