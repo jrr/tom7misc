@@ -27,6 +27,22 @@ struct WriteMutexLock {
   std::shared_mutex *m;
 };
 
+// Read with the mutex that protects it. T must be copyable,
+// obviously!
+template<class T>
+T SharedReadWithLock(std::shared_mutex *m, const T *t) {
+  ReadMutexLock ml(m);
+  return *t;
+}
+
+// Write with the mutex that protects it. T must be copyable.
+template<class T>
+void SharedWriteWithLock(std::shared_mutex *m, T *t, const T &val) {
+  WriteMutexLock ml(m);
+  *t = val;
+}
+
+
 // TODO: This does not parallelize enough. Only one of the numa nodes
 // succeeds in getting significant work scheduled. (Maybe actually
 // what happens is the N threads are all scheduled onto the numa node
@@ -131,6 +147,17 @@ struct WorkQueue {
     *done = this->done;
     *in_progress = this->in_progress;
     *pending = this->pending;
+  }
+
+  // Abandon pending work (if possible). Normally the destructor
+  // waits for all threads to exit, and a thread only exits if
+  // there is no more work for it. Also implies that no more work
+  // will be added (a la SetNoMoreWork).
+  void Abandon() {
+    WriteMutexLock ml(&m);
+    todo.clear();
+    pending = 0LL;
+    no_more_work = true;
   }
   
 private:
