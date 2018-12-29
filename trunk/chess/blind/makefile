@@ -4,7 +4,7 @@ default: unblind.exe
 all: unblind.exe
 
 # -fno-strict-aliasing
-CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -std=c++14
+CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -I../../cc-lib/re2 -std=c++17
 OPT=-O2
 
 # for 64 bits on windows
@@ -40,9 +40,11 @@ LINKSDL=  -lm -mthreads -luser32 -lgdi32 -lwinmm -ldxguid
 CLINCLUDES="-I$(AMDSDK)/include"
 CLLIBS='-L${AMDSDK}/lib/${AMD_ARCH}'
 
-UTIL_OBJECTS=../cc-lib/util.o ../cc-lib/arcfour.o ../cc-lib/base/stringprintf.o ../cc-lib/base/logging.o ../cc-lib/stb_image.o ../cc-lib/stb_image_write.o ../cc-lib/stb_truetype.o ../cc-lib/color-util.o ../cc-lib/image.o
+RE2_OBJECTS=../../cc-lib/re2/bitstate.o ../../cc-lib/re2/compile.o ../../cc-lib/re2/dfa.o ../../cc-lib/re2/filtered_re2.o ../../cc-lib/re2/mimics_pcre.o ../../cc-lib/re2/nfa.o ../../cc-lib/re2/onepass.o ../../cc-lib/re2/parse.o ../../cc-lib/re2/perl_groups.o ../../cc-lib/re2/prefilter.o ../../cc-lib/re2/prefilter_tree.o ../../cc-lib/re2/prog.o ../../cc-lib/re2/re2.o ../../cc-lib/re2/regexp.o ../../cc-lib/re2/set.o ../../cc-lib/re2/simplify.o ../../cc-lib/re2/stringpiece.o ../../cc-lib/re2/tostring.o ../../cc-lib/re2/unicode_casefold.o ../../cc-lib/re2/unicode_groups.o ../../cc-lib/re2/util/rune.o ../../cc-lib/re2/util/strutil.o
 
-CHESS_OBJECTS=../cc-lib/pgn.o ../cc-lib/chess.o ../cc-lib/bigchess.o
+UTIL_OBJECTS=../../cc-lib/util.o ../../cc-lib/arcfour.o ../../cc-lib/base/stringprintf.o ../../cc-lib/base/logging.o ../../cc-lib/stb_image.o ../../cc-lib/stb_image_write.o ../../cc-lib/stb_truetype.o ../../cc-lib/color-util.o ../../cc-lib/image.o
+
+CHESS_OBJECTS=../pgn.o ../chess.o
 
 CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-strings -m64 $(OPT) -D__MINGW32__ -DHAVE_ALLOCA -DNOWINSTUFF $(SDLINCLUDES) $(PROFILE) $(FLTO) $(CLINCLUDES) -I ../cc-lib/ --std=c++14
 
@@ -50,7 +52,7 @@ CPPFLAGS= -DDISABLE_SOUND=1 -DPSS_STYLE=1 -DDUMMY_UI -DHAVE_ASPRINTF -Wno-write-
 	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 	@echo -n "."
 
-OBJECTS=$(UTIL_OBJECTS)
+OBJECTS=$(UTIL_OBJECTS) $(CHESS_OBJECTS) $(RE2_OBJECTS)
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
@@ -60,4 +62,4 @@ unblind.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o unblind.o
 	@echo -n "!"
 
 clean :
-	rm -f *.o $(UTILOBJECTS) $(FCEULIBOBJECTS) *.exe
+	rm -f *.o $(UTIL_OBJECTS) $(CHESS_OBJECTS) $(RE2_OBJECTS) *.exe

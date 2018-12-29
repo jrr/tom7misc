@@ -9,7 +9,6 @@
 #include "SDL.h"
 #include "SDL_main.h"
 #include "../cc-lib/sdl/sdlutil.h"
-#include "../cc-lib/sdl/chars.h"
 #include "../cc-lib/sdl/font.h"
 
 #include <CL/cl.h>
@@ -28,6 +27,7 @@
 #include <map>
 #include <unordered_set>
 #include <deque>
+#include <shared_mutex>
 
 #include "../cc-lib/base/stringprintf.h"
 #include "../cc-lib/base/logging.h"
@@ -42,9 +42,16 @@
 #include "../cc-lib/color-util.h"
 #include "../cc-lib/image.h"
 
+#include "../chess.h"
+#include "../pgn.h"
+#include "../bigchess.h"
+
 #include "clutil.h"
 #include "timer.h"
 #include "constants.h"
+
+#define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
+#define FONTSTYLES 7
 
 using namespace std;
 
@@ -54,6 +61,8 @@ using uchar = uint8_t;
 
 using uint32 = uint32_t;
 using uint64 = uint64_t;
+
+using Move = Position::Move;
 
 // For checks in performance-critical code that should be skipped when
 // we're confident the code is working and want speed.
@@ -81,13 +90,19 @@ static Font *font = nullptr;
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
 
+static constexpr int MAX_GAMES = 1'000'000;
+// XXX can be much bigger; position is only 33 bytes.
+static constexpr int MAX_POSITIONS = 100'000;
+static constexpr int MAX_PGN_PARALLELISM = 8;
+
 // Thread-safe, so shared between train and ui threads.
 static CL *global_cl = nullptr;
 
-std::mutex print_mutex;
-#define Printf(fmt, ...) do {		\
-  MutexLock Printf_ml(&print_mutex);		\
-  printf(fmt, ##__VA_ARGS__);			\
+std::shared_mutex print_mutex;
+#define Printf(fmt, ...) do {				\
+    WriteMutexLock Printf_ml(&print_mutex);		\
+    printf(fmt, ##__VA_ARGS__);				\
+    fflush(stdout);					\
   } while (0);
 
 template<class C>
@@ -100,9 +115,9 @@ static void DeleteElements(C *cont) {
 
 // Communication between threads.
 static bool train_should_die = false;
-std::mutex train_should_die_m;
+std::shared_mutex train_should_die_m;
 static bool train_done = false;
-std::mutex train_done_m;
+std::shared_mutex train_done_m;
 
 static uint8 FloatByte(float f) {
   if (f <= 0.0f) return 0;
@@ -114,10 +129,27 @@ static constexpr float ByteFloat(uint8 b) {
   return (b / 255.0);
 }
 
+
+// The input is a 64-bit number, represented as an 8x8 matrix of
+// floats.
+//
+// In the output, there are several ways we could do it. One very
+// simple thing would be to have 64 floats and then discretize so that
+// [0, 1/7) is empty, [1/7, 2/7) is pawn, [2/7, 3/7) is knight, etc.
+// The main problem with this is the desire for continuity; is a pawn
+// really "almost" a knight in any way? So instead, each output is 15
+// different floats (7 per color + 1 neutral empty); only the correct
+// one (e.g. EMPTY) gets filled with 1.0 and the remainder are zeroes.
+//
+// In addition to the 64 * 7 floats in the output layer, we also have
+// a single float representing the current turn (0 = white, 1 = black)
+// four floats for the four castling states (1 = allowed, 0 = not).
+// Ignoring en passant for now.
+
 #define NEIGHBORHOOD 1
 struct NetworkConfiguration {
  
-  const int num_layers = 5;
+  const int num_layers = 11;
   // Note that these must have num_layers + 1 entries.
   // The number of nodes in each layer is width * height * channels.
   // Channels tells us how many nodes there are per logical pixel;
@@ -126,15 +158,21 @@ struct NetworkConfiguration {
   // node indices during initialization. (And of course in the
   // input and output layers, it's expected that the channels will
   // be initialized/read in some meaningful way.)
-  const vector<int> width =   { 256, 128, 64, 128, 256, 256, };
-  const vector<int> height =  { 240, 120, 60, 120, 240, 240, };
-  const vector<int> channels = { 1,   1,   1,  2,   3,   3, };
-  // For 1 gigabyte layer sizes:
-  // 2^30 = 1GB        = 1073741824
-  //   / 4-byte floats = 268435456
-  //   / 256 / 240     = 4396
-  // const vector<int> indices_per_node = { 1024, 1024, 1024, 1024, };
-  const vector<int> indices_per_channel = { 16, 16, 16, 32, 32, };
+  static constexpr int OUTPUT_SIZE =
+    // For each square, one probability for each of the 15 possible pieces.
+    15 * 64 +
+    // Four castling probabilities.
+    4 +
+    // Current turn.
+    1;
+
+  // Note that the last layer is given as a flat vector, which makes spatial heuristics for
+  // index assignment fail; this layer needs to be highly connected.
+  const vector<int> width =    { 8,  16, 32, 32, 32, 32, 32, 32, 32, 32, 8,  OUTPUT_SIZE, };
+  const vector<int> height =   { 8,  16, 32, 32, 32, 32, 32, 32, 32, 32, 9,  1, };
+  const vector<int> channels = { 1,   1,  1,  2,  3,  7,  7,  8,  8,  7,  7, 1, };
+  const vector<int> indices_per_channel = { 64, 256, 256, 64, 64, 64, 64, 64, 64, 64,
+					    8 * 9 * 7, };
   // num_nodes = width * height * channels
   // indices_per_node = indices_per_channel * channels
   vector<int> num_nodes;
@@ -144,9 +182,13 @@ struct NetworkConfiguration {
     CHECK_EQ(num_layers + 1, height.size());
     CHECK_EQ(num_layers, indices_per_channel.size());
     for (int i = 0; i < num_layers + 1; i++) {
+      CHECK(width[i] >= 1);
+      CHECK(height[i] >= 1);
+      CHECK(channels[i] >= 1);
       num_nodes.push_back(width[i] * height[i] * channels[i]);
     }
     for (int i = 0; i < indices_per_channel.size(); i++) {
+      CHECK(indices_per_channel[i] >= 1);
       indices_per_node.push_back(channels[i + 1] * indices_per_channel[i]);
     }
   }
@@ -664,7 +706,7 @@ struct TrainingRoundGPU {
 
   CL *cl;
   const Network *net;
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(TrainingRoundGPU);
 };
 
@@ -700,7 +742,7 @@ struct ForwardLayerCL {
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
-	MutexLock ml(&parent->m);
+	WriteMutexLock ml(&parent->m);
 
 	cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
 	CHECK_SUCCESS(
@@ -760,7 +802,7 @@ struct ForwardLayerCL {
   cl_program program;
   cl_kernel kernel;
 
-  std::mutex m;
+  std::shared_mutex m;
 };
 
 // Set the error values; this is almost just a memcpy so don't bother doing it
@@ -788,7 +830,7 @@ struct SetOutputErrorCL {
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
-	MutexLock ml(&parent->m);
+	WriteMutexLock ml(&parent->m);
 
 	CHECK_SUCCESS(
 	    clSetKernelArg(parent->kernel, 0, sizeof (cl_mem), (void *)&actual_outputs));
@@ -829,7 +871,7 @@ struct SetOutputErrorCL {
   cl_program program;
   cl_kernel kernel;
 
-  std::mutex m;
+  std::shared_mutex m;
 
   DISALLOW_COPY_AND_ASSIGN(SetOutputErrorCL);
 };
@@ -876,7 +918,7 @@ struct BackwardLayerCL {
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
-	MutexLock ml(&parent->m);
+	WriteMutexLock ml(&parent->m);
 
 	cl_int dst_indices_per_node = net_gpu->net->layers[dst_layer].indices_per_node;
 	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_int),
@@ -932,7 +974,7 @@ struct BackwardLayerCL {
   cl_program program;
   cl_kernel kernel;
 
-  std::mutex m;
+  std::shared_mutex m;
 };
 
 struct UpdateWeightsCL {
@@ -957,7 +999,7 @@ struct UpdateWeightsCL {
       CL *cl = parent->cl;
 
       // Really can't run these in parallel because of concurrent writes to net.
-      MutexLock ml(&parent->m);
+      WriteMutexLock ml(&parent->m);
 
       cl_mem layer_error = train->errors[layer];
       cl_mem layer_values = train->stimulations[layer];
@@ -1019,9 +1061,17 @@ struct UpdateWeightsCL {
   cl_program program;
   cl_kernel kernel;
 
-  std::mutex m;
+  std::shared_mutex m;
 };
 
+// TODO: Allow specifying a strategy for index assignment. For chess,
+// taking full rows, columns, and diagonals is probably better than
+// random gaussians!
+//
+// TODO: If the number of indices requested is close to the number
+// available (or equal to it), then this approach is super inefficient.
+// Could instead randomly delete indices.
+//
 // Make indices. This assumes that nodes are 2D "pixel" data, where on
 // each layer we have width[l] * height[l] pixels, with channels[l]
 // nodes per pixel. Row-major order.
@@ -1038,7 +1088,6 @@ static void MakeIndices(const vector<int> &width,
 			ArcFour *rc, Network *net) {
   CHECK_EQ(width.size(), net->num_layers + 1);
   CHECK_EQ(channels.size(), net->num_layers + 1);  
-  // static constexpr int NEIGHBORHOOD = 5;
 
   static_assert(NEIGHBORHOOD >= 0, "must include the pixel itself.");
   auto OneNode = [](ArcFour *rc, RandomGaussian *gauss,
@@ -1225,7 +1274,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 7;
 static constexpr int EXPORT_EVERY = 10;
-std::mutex video_export_m;
+std::shared_mutex video_export_m;
 int current_round = 0;
 double rounds_per_second = 0.0;
 vector<Stimulation> current_stimulations;
@@ -1234,7 +1283,7 @@ static bool allow_updates = true;
 static bool dirty = true;
 
 static void ExportRound(int r) {
-  MutexLock ml(&video_export_m);
+  WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
     current_round = r;
     // dirty = true;
@@ -1242,7 +1291,7 @@ static void ExportRound(int r) {
 }
 
 static void ExportRoundsPerSec(double rps) {
-  MutexLock ml(&video_export_m);
+  WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
     rounds_per_second = rps;
     // dirty = true;
@@ -1250,7 +1299,7 @@ static void ExportRoundsPerSec(double rps) {
 }
 
 static void ExportNetworkToVideo(const Network &net) {
-  MutexLock ml(&video_export_m);
+  WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
     CHECK(current_network != nullptr);
     current_network->CopyFrom(net);
@@ -1259,7 +1308,7 @@ static void ExportNetworkToVideo(const Network &net) {
 }
 
 static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
-  MutexLock ml(&video_export_m);
+  WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
     CHECK_GE(example_id, 0);
     CHECK_LT(example_id, current_stimulations.size());
@@ -1273,9 +1322,9 @@ static void UIThread() {
   int mousex = 0, mousey = 0;
   (void)mousex; (void)mousey;
   for (;;) {
-    // int round = ReadWithLock(&video_export_m, &current_round);
+    // int round = SharedReadWithLock(&video_export_m, &current_round);
     {
-      MutexLock ml(&video_export_m);
+      WriteMutexLock ml(&video_export_m);
       if (dirty) {
 	sdlutil::clearsurface(screen, 0x0);
 	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 rps",
@@ -1291,10 +1340,13 @@ static void UIThread() {
 	      for (int x = 0; x < config.width[l]; x++) {
 		int yy = ystart + y;
 		if (yy >= SCREENH) break;
-		
+
 		// XXX allow other sizes -- find the max width!
 		int xx = 4 + s * 260 + x;
 		int cidx = y * config.width[l] * config.channels[l] + x * config.channels[l];
+
+		// XXX! Need to support more than 3 channels for chess. Color is dubious
+		// anyway?
 		switch (config.channels[l]) {
 		case 0: break;
 		case 1: {
@@ -1331,7 +1383,7 @@ static void UIThread() {
       }
     }
 
-    if (ReadWithLock(&train_done_m, &train_done)) {
+    if (SharedReadWithLock(&train_done_m, &train_done)) {
       Printf("UI thread saw that training finished.\n");
       return;
     }
@@ -1363,41 +1415,166 @@ static void UIThread() {
   }
 }
 
+static std::shared_mutex training_positions_m;
+static std::vector<Position> training_positions;
+
+struct GameProcessor {
+  GameProcessor() {}
+
+  // If false, we don't even look at the game.
+  bool Eligible(const PGN &pgn) {
+    // Ignore games that don't finish.
+    if (pgn.result == PGN::Result::OTHER) {
+      return false;
+    }
+    
+    if (pgn.GetTermination() != PGN::Termination::NORMAL) {
+      return false;
+    }
+
+    return true;
+  }
+
+  void DoWork(const string &pgn_text) {
+    PGN pgn;
+    CHECK(parser.Parse(pgn_text, &pgn));
+
+    if (!Eligible(pgn)) return;
+
+    Position pos;
+    for (int i = 0; i < pgn.moves.size(); i++) {
+      const PGN::Move &m = pgn.moves[i];
+      Move move;
+      const bool move_ok = pos.ParseMove(m.move.c_str(), &move);
+
+      if (!move_ok) {
+	fprintf(stderr, "Bad move %s from full PGN:\n%s",
+		m.move.c_str(), pgn_text.c_str());
+	// There are a few messed up games in 2016 and earlier.
+	// Return early if we find such a game.
+	{
+	  WriteMutexLock ml(&bad_games_m);
+	  bad_games++;
+	}
+	return;
+      }
+
+      pos.ApplyMove(move);
+
+      // XXX don't just add every position!
+      {
+	WriteMutexLock ml(&training_positions_m);
+	if (training_positions.size() >= MAX_POSITIONS)
+	  return;
+	
+	training_positions.push_back(pos);
+      }
+    }
+  }
+
+  string Status() {
+    return "";
+    /*
+    ReadMutexLock ml(&topn_m);
+    size_t s = topn.size();
+    return s > 0 ? StringPrintf(" (found %d)", (int)s) : "";
+    */
+  }
+  
+  std::shared_mutex bad_games_m;
+  int64 bad_games = 0LL;
+  PGNParser parser;
+};
+
+
+// In parallel, load a bunch of games (into RAM) as training data (into
+// training_positions).
+static void LoadGamesThread() {
+  const string games_file = "d:/chess/lichess_db_standard_rated_2017-02.pgn";
+  {
+    WriteMutexLock ml(&training_positions_m);
+    training_positions.reserve(MAX_POSITIONS);
+  }
+  
+  GameProcessor processor;
+
+  auto DoWork = [&processor](const string &s) { processor.DoWork(s); };
+
+  // TODO: How to get this to deduce second argument at least?
+  auto work_queue =
+    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork,
+							     MAX_PGN_PARALLELISM);
+
+  const int64 start = time(nullptr);
+
+  {
+    PGNTextStream stream(games_file.c_str());
+    string game;
+    while (stream.NextPGN(&game)) {
+      work_queue->Add(std::move(game));
+      game.clear();
+
+      const int64 num_read = stream.NumRead();
+      if (num_read % 20000LL == 0) {
+	int64 done, in_progress, pending, positions;
+	work_queue->Stats(&done, &in_progress, &pending);
+	const bool should_pause = pending > 5000000;
+	const char *pausing = should_pause ? " (PAUSE READING)" : "";
+
+	{
+	  ReadMutexLock ml(&training_positions_m);
+	  positions = training_positions.size();
+	}
+
+	Printf("[Still reading; %lld games at %.1f/sec] %lld %lld %lld [%lld pos] %s%s\n",
+	       num_read,
+	       num_read / (double)(time(nullptr) - start),
+	       done, in_progress, pending,
+	       positions,
+	       pausing,
+	       processor.Status().c_str());
+	fflush(stderr);
+	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
+	  break;
+
+	{
+	  ReadMutexLock ml(&train_should_die_m);
+	  if (train_should_die) {
+	    work_queue->Abandon();
+	    return;
+	  }
+	}
+	
+	if (positions >= MAX_POSITIONS) {
+	  Printf("Enough positions!\n");
+	  work_queue->Abandon();
+	  return;
+	}
+	
+	if (should_pause)
+	  std::this_thread::sleep_for(60s);
+      }
+    }
+  }
+  work_queue->SetNoMoreWork();
+
+  while (work_queue->StillRunning()) {
+    int64 done, in_progress, pending;
+    work_queue->Stats(&done, &in_progress, &pending);
+    Printf("[Done reading] %lld %lld %lld %.2f%% %s\n",
+	   done, in_progress, pending,
+	   (100.0 * (double)done) / (in_progress + done + pending),
+	   processor.Status().c_str());
+    fflush(stderr);
+    std::this_thread::sleep_for(10s);
+  }
+
+  Printf("Done! Join threads...\n");
+  work_queue.reset(nullptr);
+}
 
 static void TrainThread() {
-  Timer setup_timer;
-
-  // "Eval" here means generating frames of a movie to make a video.
-  // If EVAL_ONLY is true, we skip training, and write a frame on every round
-  // (since that's all that the round does).
-  static constexpr bool EVAL_ONLY = false;
-  // Should be the index of the next eval-%d.png to write, for
-  // multi-session training (XXX get this from a checkpoint file or something).
-  const int FRAMES_ALREADY_DONE = []() {
-    string nextframe = Util::ReadFile("eval/nextframe.txt");
-    return atoi(nextframe.c_str());
-  }();
-  printf("Next eval frame: %d\n", FRAMES_ALREADY_DONE);
-  
-  // Should be the movie index (can be anything within bounds) that this segment
-  // of the movie starts at, for example to show two different models consecutively
-  // without having to show the same eval gameplay over and over. FRAMES_ALREADY_DONE
-  // will be taken into account.
-  static constexpr int EVAL_MOVIE_START = 0; // = 3533;  // For mario, End of world 1-1.
-  // const string eval_romfile = "mario.nes";
-  // const string eval_moviefile = "mario-long-again.fm7";
-  // static constexpr int EVAL_MOVIE_START = 0;
-  const string eval_romfile = "metroid.nes";
-  const string eval_moviefile = "metroid2.fm7";
-
-  // Source game for training.
-  const string train_romfile = "mario.nes";
-  const string train_moviefile = "mario-long-three.fm7";
-
-  // To generate training examples, we sample randomly from the input movie and
-  // then perturb the state a little. Snapshots every few frames allow us to
-  // quickly seek within the movie, but use more RAM and make startup slower.
-  static constexpr int SNAPSHOT_EVERY = 20;
+  Timer setup_timer; 
 
   // Number of training examples per round of training.
   static constexpr int EXAMPLES_PER_ROUND = 48;
@@ -1405,11 +1582,7 @@ static void TrainThread() {
   // other stuff to disk.
   static constexpr int VERBOSE_ROUND_EVERY = 250;
 
-  int eval_frame_num = FRAMES_ALREADY_DONE;
-  int eval_movie_idx = eval_frame_num + EVAL_MOVIE_START;
-
-
-  string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(NULL));
+  string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(nullptr));
   Printf("Start seed: [%s]\n", start_seed.c_str());
   ArcFour rc(start_seed);
   rc.Discard(2000);
@@ -1437,19 +1610,23 @@ static void TrainThread() {
     CheckInvertedIndices(*net);
 
     Printf("Writing network so we don't have to do that again...\n");
-    if (!EVAL_ONLY) SaveNetworkBinary(*net, "net.val");
+    SaveNetworkBinary(*net, "net.val");
   }
 
   Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
 
   NetworkGPU net_gpu{global_cl, net.get()};
 
-  if (ReadWithLock(&train_should_die_m, &train_should_die))
+  if (SharedReadWithLock(&train_should_die_m, &train_should_die))
     return;
 
   Printf("Network uses %.2fMB of storage (without overhead).\n",
 	 net->Bytes() / (1024.0 * 1024.0));
 
+
+  // FIXME
+  return;
+#if 0
   // We use the same structures to hold all the stimulations and errors
   // now, on the GPU.
   vector<TrainingRoundGPU *> training;
@@ -1457,19 +1634,19 @@ static void TrainThread() {
     training.push_back(new TrainingRoundGPU{global_cl, *net});
 
   auto ShouldDie = [&net, &eval_frame_num]() {
-    bool should_die = ReadWithLock(&train_should_die_m, &train_should_die);
+    bool should_die = SharedReadWithLock(&train_should_die_m, &train_should_die);
     if (should_die) {
       Printf("Train thread signaled death.\n");
       Printf("Saving to net.val...\n");
-      if (!EVAL_ONLY) SaveNetworkBinary(*net, "net.val");
-      Util::WriteFile("eval/nextframe.txt", StringPrintf("%d\n", eval_frame_num));
+      SaveNetworkBinary(*net, "net.val");
+      // Util::WriteFile("eval/nextframe.txt", StringPrintf("%d\n", eval_frame_num));
     }
     return should_die;
   };
 
   // Prepare corpus.
   printf("Generating corpus from ROM and movie...\n");
-  vector<uint8> train_movie = SimpleFM7::ReadInputs(train_moviefile);
+
   // If unused, truncate training data to make startup faster.
   if (EVAL_ONLY) train_movie.resize(std::min((size_t)100, train_movie.size()));
   struct Snapshot {
@@ -1527,7 +1704,7 @@ static void TrainThread() {
   };
   // Training examples don't depend on the learning process, so are produced
   // in a separate thread. This mutex protects the deque (only).
-  std::mutex training_examples_m;
+  std::shared_mutex training_examples_m;
   // XXX could just be vector, actually?
   deque<TrainingExample> training_examples;
 
@@ -1558,7 +1735,7 @@ static void TrainThread() {
     std::unique_ptr<Emulator> emu{Emulator::Create(train_romfile)};
 
     for (;;) {
-      if (ReadWithLock(&train_should_die_m, &train_should_die)) {
+      if (SharedReadWithLock(&train_should_die_m, &train_should_die)) {
 	return;
       }
 
@@ -1596,7 +1773,7 @@ static void TrainThread() {
 	PopulateExampleFromEmu(*emu, &example);
 
 	{
-	  MutexLock ml(&training_examples_m);
+	  WriteMutexLock ml(&training_examples_m);
 	  training_examples.push_back(std::move(example));
 	}
       } else {
@@ -1757,7 +1934,7 @@ static void TrainThread() {
 	Printf("Blocked grabbing examples (still need %d)...\n",
 	       EXAMPLES_PER_ROUND - examples.size());
       }
-      MutexLock ml{&training_examples_m};
+      WriteMutexLock ml{&training_examples_m};
       while (examples.size() < EXAMPLES_PER_ROUND &&
 	     !training_examples.empty()) {
 	examples.push_back(std::move(training_examples.front()));
@@ -1937,7 +2114,9 @@ static void TrainThread() {
 
   Printf(" ** Done. **");
 
-  WriteWithLock(&train_done_m, &train_done, true);
+  SharedWriteWithLock(&train_done_m, &train_done, true);
+
+#endif
 }
 
 
@@ -1972,14 +2151,10 @@ int SDL_main(int argc, char **argv) {
 
   global_cl = new CL;
 
-  Printf("Initializing NES NTSC palette map.\n");
-  palette_map = new PaletteMap;
-  Printf("Done.\n");
-
   {
     // XXX Maybe UIThread should be an object, then...
     printf("Allocating video network/stimulations/data...");
-    MutexLock ml(&video_export_m);
+    WriteMutexLock ml(&video_export_m);
     NetworkConfiguration nc;
     current_network = new Network{nc.num_nodes, nc.indices_per_node};
     for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
@@ -1988,12 +2163,15 @@ int SDL_main(int argc, char **argv) {
     printf("OK.\n");
   }
 
+  std::thread load_games_thread(&LoadGamesThread);
+  
   std::thread train_thread(&TrainThread);
 
   UIThread();
 
   Printf("Killing train thread (might need to wait for round to finish)...\n");
-  WriteWithLock(&train_should_die_m, &train_should_die, true);
+  SharedWriteWithLock(&train_should_die_m, &train_should_die, true);
+  load_games_thread.join();
   train_thread.join();
 
   Printf("Train is dead; now UI exiting.\n");
@@ -2001,3 +2179,4 @@ int SDL_main(int argc, char **argv) {
   SDL_Quit();
   return 0;
 }
+
