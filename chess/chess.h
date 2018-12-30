@@ -167,6 +167,18 @@ struct Position {
     return {0, 0};
   }
 
+  // True if castling is still allowed. This is just the state of
+  // whether the king and appropriate rook have moved; it doesn't
+  // matter whose turn it is nor whether castling would actually be
+  // legal (check, pieces in the way, etc.).
+  bool CanStillCastle(bool white, bool king_side) const {
+    if (white) {
+      return (WHITE | C_ROOK) == PieceAt(7, king_side ? 7 : 0);
+    } else {
+      return (BLACK | C_ROOK) == PieceAt(0, king_side ? 7 : 0);
+    }
+  }
+  
   // True if the current player is checkmated.
   bool IsMated();
 

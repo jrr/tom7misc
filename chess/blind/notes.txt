@@ -1,0 +1,45 @@
+Initializing the network and learning rate is a dark art!
+For several of my initial attempts, the network would just predict the same
+thing apparently forever.
+
+
+-- for these, weights and biases were initialized to .000025 * (rand() - 0.5f). --
+
+I got it to do something useful with a single intermediate layer,
+16x16, fully connected. Examples per round was a paltry 12, so it was
+doing like 30+ rounds per second (and GPU utilization was only like
+50%). The learning rate ended up being 0.95 (!) and it still takes 3k
+rounds to get somewhere. The symptom is that the intermediate layer is
+all very close to 0.5f activation, so I guess that starting with
+really small random weights means that these nodes are not very
+differentiated.
+
+
+Increasing it to 3 channels on the intermediate layer, it was stuck
+even after 30k rounds. Then I let the learning rate go up to 2.82, and
+it still stayed in the grey zone. After 50k rounds it was still stuck.
+
+
+Back to 1 channel, but unlimited learning rate; got stuck in 15k.
+
+1 channel, 0.95 (same as first success): After 6k rounds it is doing
+something.
+
+With 10x10 intermediate layer (still fully connected), it's "working"
+pretty much right away (100 rounds).
+
+With 32x32 intermediate layer, still stuck after 14k rounds.
+
+With 32x32 intermediate layer, but only 100 connections for the last
+layer, immediately starts to do something.
+
+So maybe what happens is that we sum so many inpute edges that the
+sigmoids are totally saturated, so the derivative is nearly flat and
+error propagation does very little even if the learning rate is high.
+(This sounds like it's a common problem: See wikipedia on the "Vanishing gradient problem".)
+
+Then I did 6 internal layers, each 32x32 with 64 incoming edges.
+This took a lot longer to fire up (top two layers were grey for a
+while) but by 30k rounds it is at least not grey on each layer.
+But at 40k rounds it was stuck predicting the same thing always.
+

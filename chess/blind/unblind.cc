@@ -53,6 +53,8 @@
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
 
+static constexpr int VERBOSE = 1;
+
 using namespace std;
 
 using uint8 = uint8_t;
@@ -63,6 +65,30 @@ using uint32 = uint32_t;
 using uint64 = uint64_t;
 
 using Move = Position::Move;
+
+#define NUM_CONTENTS 13
+static constexpr int kPieceToContents[16] = {
+  // 0 = empty in both representations.
+  0,
+  // White first (MSB not set).
+  1, // PAWN = 1,
+  2, // KNIGHT = 2,
+  3, // BISHOP = 3,
+  4, // ROOK = 4,
+  5, // QUEEN = 5,
+  6, // KING = 6,
+  4, // C_ROOK = 7,
+  // black empty is invalid, but we can just
+  // treat it as empty.
+  0,
+  7, // PAWN = 1,
+  8, // KNIGHT = 2,
+  9, // BISHOP = 3,
+  10, // ROOK = 4,
+  11, // QUEEN = 5,
+  12, // KING = 6,
+  10, // C_ROOK = 7,
+};
 
 // For checks in performance-critical code that should be skipped when
 // we're confident the code is working and want speed.
@@ -90,9 +116,9 @@ static Font *font = nullptr;
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
 
-static constexpr int MAX_GAMES = 1'000'000;
+static constexpr int MAX_GAMES = 2'000'000;
 // XXX can be much bigger; position is only 33 bytes.
-static constexpr int MAX_POSITIONS = 100'000;
+static constexpr int MAX_POSITIONS = 1'000'000;
 static constexpr int MAX_PGN_PARALLELISM = 8;
 
 // Thread-safe, so shared between train and ui threads.
@@ -126,7 +152,7 @@ static uint8 FloatByte(float f) {
 }
 
 static constexpr float ByteFloat(uint8 b) {
-  return (b / 255.0);
+  return b * (1.0 / 255.0f);
 }
 
 
@@ -137,8 +163,8 @@ static constexpr float ByteFloat(uint8 b) {
 // simple thing would be to have 64 floats and then discretize so that
 // [0, 1/7) is empty, [1/7, 2/7) is pawn, [2/7, 3/7) is knight, etc.
 // The main problem with this is the desire for continuity; is a pawn
-// really "almost" a knight in any way? So instead, each output is 15
-// different floats (7 per color + 1 neutral empty); only the correct
+// really "almost" a knight in any way? So instead, each output is 13
+// different floats (6 per color + 1 neutral empty); only the correct
 // one (e.g. EMPTY) gets filled with 1.0 and the remainder are zeroes.
 //
 // In addition to the 64 * 7 floats in the output layer, we also have
@@ -146,10 +172,25 @@ static constexpr float ByteFloat(uint8 b) {
 // four floats for the four castling states (1 = allowed, 0 = not).
 // Ignoring en passant for now.
 
+static constexpr int OUTPUT_LAYER_SIZE =
+  // For each square, one probability for each of the 13 possible contents.
+  13 * 64 +
+  // Four castling probabilities.
+  4 +
+  // Current turn.
+  1;
+
+enum class RenderStyle {
+  RGB,
+  FLAT,
+  CHESSBITS,
+  CHESSBOARD,
+};
+
+
 #define NEIGHBORHOOD 1
-struct NetworkConfiguration {
- 
-  const int num_layers = 11;
+struct NetworkConfiguration { 
+
   // Note that these must have num_layers + 1 entries.
   // The number of nodes in each layer is width * height * channels.
   // Channels tells us how many nodes there are per logical pixel;
@@ -158,39 +199,70 @@ struct NetworkConfiguration {
   // node indices during initialization. (And of course in the
   // input and output layers, it's expected that the channels will
   // be initialized/read in some meaningful way.)
-  static constexpr int OUTPUT_SIZE =
-    // For each square, one probability for each of the 15 possible pieces.
-    15 * 64 +
-    // Four castling probabilities.
-    4 +
-    // Current turn.
-    1;
 
   // Note that the last layer is given as a flat vector, which makes spatial heuristics for
   // index assignment fail; this layer needs to be highly connected.
-  const vector<int> width =    { 8,  16, 32, 32, 32, 32, 32, 32, 32, 32, 8,  OUTPUT_SIZE, };
-  const vector<int> height =   { 8,  16, 32, 32, 32, 32, 32, 32, 32, 32, 9,  1, };
-  const vector<int> channels = { 1,   1,  1,  2,  3,  7,  7,  8,  8,  7,  7, 1, };
-  const vector<int> indices_per_channel = { 64, 256, 256, 64, 64, 64, 64, 64, 64, 64,
-					    8 * 9 * 7, };
+
+  /*
+  const int num_layers = 11;
+  const vector<int> width =    { 8,  16, 32, 32, 32, 32, 32, 32, 32,  32,   8,
+				 OUTPUT_LAYER_SIZE, };
+  const vector<int> height =   { 8,  16, 32, 32, 32, 32, 32, 32, 32,  32,   9,  1, };
+  const vector<int> channels = { 1,   1,  1,  2,  3,  7,  7,  8,  8,  10,  13,  1, };
+  const vector<int> indices_per_channel = { 64, 256, 256, 256, 256, 256, 64, 64, 64, 64,
+					    8 * 9 * 13, };
+
+  const vector<RenderStyle> style =
+    { RenderStyle::CHESSBITS,
+      RenderStyle::FLAT,
+      RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT,
+      RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT, RenderStyle::FLAT,
+      RenderStyle::FLAT,
+      RenderStyle::CHESSBOARD, };
+  */
+
+  const int num_layers = 7;
+  const vector<int> width =    { 8,  32,  32, 32, 32,  32, 32,/*    9, */ OUTPUT_LAYER_SIZE, };
+  const vector<int> height =   { 8,  32,  32, 32, 32,  32, 32,/*   9, */ 1, };
+  const vector<int> channels = { 1,   1,   1,  1,  1,   1,  1,/*     7, */ 1, };
+  const vector<int> indices_per_node =
+    {     64, 64, 64, 64, 64, 64, /* 256,  9 * 9 * 7, */ 100 };
+
+  const vector<RenderStyle> style =
+    { RenderStyle::CHESSBITS,
+      RenderStyle::RGB,
+      RenderStyle::RGB,
+      RenderStyle::RGB,
+      RenderStyle::RGB,
+      RenderStyle::RGB,
+      RenderStyle::RGB,
+      // RenderStyle::RGB,
+      // RenderStyle::FLAT,
+      // RenderStyle::FLAT,
+      RenderStyle::CHESSBOARD, };
+
+  
   // num_nodes = width * height * channels
-  // indices_per_node = indices_per_channel * channels
+  // //  indices_per_node = indices_per_channel * channels
+  // //  vector<int> indices_per_node;
   vector<int> num_nodes;
-  vector<int> indices_per_node;
   NetworkConfiguration() {
     CHECK_EQ(width.size(), height.size());
+    CHECK_EQ(width.size(), style.size());
     CHECK_EQ(num_layers + 1, height.size());
-    CHECK_EQ(num_layers, indices_per_channel.size());
+    CHECK_EQ(num_layers, indices_per_node.size());
     for (int i = 0; i < num_layers + 1; i++) {
       CHECK(width[i] >= 1);
       CHECK(height[i] >= 1);
       CHECK(channels[i] >= 1);
       num_nodes.push_back(width[i] * height[i] * channels[i]);
     }
+    /*
     for (int i = 0; i < indices_per_channel.size(); i++) {
       CHECK(indices_per_channel[i] >= 1);
       indices_per_node.push_back(channels[i + 1] * indices_per_channel[i]);
     }
+    */
   }
 };
 
@@ -805,8 +877,7 @@ struct ForwardLayerCL {
   std::shared_mutex m;
 };
 
-// Set the error values; this is almost just a memcpy so don't bother doing it
-// on GPU.
+// Set the error values; this is almost just a memcpy.
 struct SetOutputErrorCL {
   explicit SetOutputErrorCL(CL *cl) : cl(cl) {
     const string kernel_src =
@@ -1066,7 +1137,8 @@ struct UpdateWeightsCL {
 
 // TODO: Allow specifying a strategy for index assignment. For chess,
 // taking full rows, columns, and diagonals is probably better than
-// random gaussians!
+// random gaussians! Make it easy to specify a fully-connected layer,
+// at least.
 //
 // TODO: If the number of indices requested is close to the number
 // available (or equal to it), then this approach is super inefficient.
@@ -1097,6 +1169,11 @@ static void MakeIndices(const vector<int> &width,
 		    int dst_width, int dst_height, int dst_channels,
 		    int idx) -> vector<uint32> {
 
+    CHECK(indices_per_node <= src_width * src_height * src_channels) <<
+    "Can't get " << indices_per_node << " distinct indices from a layer with " <<
+    src_width << " x " << src_height << " x " << src_channels <<
+    " = " << (src_width * src_height * src_channels) << " sources";
+						
     // Whenever we read the neighborhood, we include all source channels.
     CHECK((NEIGHBORHOOD * 2 + 1) * (NEIGHBORHOOD * 2 + 1) *
 	  src_channels <= indices_per_node) << "neighborhood doesn't fit in indices!";
@@ -1262,9 +1339,15 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
   // But now we can do all layers in parallel.
   ParallelComp(net->num_layers, [rcs, &RandomizeFloats, &net](int layer) {
     // XXX such hacks. How to best initialize?
-    RandomizeFloats(powf(0.025f, layer + 1.0), rcs[layer], &net->layers[layer].biases);
-    RandomizeFloats(1.0f / (net->layers[layer].indices_per_node * (layer + 5)),
+
+    /*
+    RandomizeFloats(powf(0.025f, (layer / 3.0f) + 1.0), rcs[layer], &net->layers[layer].biases);
+    RandomizeFloats(1.0f / (net->layers[layer].indices_per_node * ((layer / 3.0f) + 5)),
 		    rcs[layer], &net->layers[layer].weights);
+    */
+
+    RandomizeFloats(0.000025f, rcs[layer], &net->layers[layer].biases);
+    RandomizeFloats(0.000025f, rcs[layer], &net->layers[layer].weights);
   }, 12);
 
   DeleteElements(&rcs);
@@ -1272,15 +1355,16 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
 
 // These must be initialized before starting the UI thread!
-static constexpr int NUM_VIDEO_STIMULATIONS = 7;
-static constexpr int EXPORT_EVERY = 10;
-std::shared_mutex video_export_m;
-int current_round = 0;
-double rounds_per_second = 0.0;
-vector<Stimulation> current_stimulations;
-Network *current_network = nullptr;
+static constexpr int NUM_VIDEO_STIMULATIONS = 6;
+static constexpr int EXPORT_EVERY = 2;
+static std::shared_mutex video_export_m;
+static int current_round = 0;
+static double rounds_per_second = 0.0;
+static vector<Stimulation> current_stimulations;
+static Network *current_network = nullptr;
 static bool allow_updates = true;
 static bool dirty = true;
+static double current_learning_rate = 0.0;
 
 static void ExportRound(int r) {
   WriteMutexLock ml(&video_export_m);
@@ -1294,6 +1378,14 @@ static void ExportRoundsPerSec(double rps) {
   WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
     rounds_per_second = rps;
+    // dirty = true;
+  }
+}
+
+static void ExportLearningRate(double rl) {
+  WriteMutexLock ml(&video_export_m);
+  if (allow_updates) {
+    current_learning_rate = rl;
     // dirty = true;
   }
 }
@@ -1317,63 +1409,213 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
   }
 }
 
+static std::pair<int, int> PixelSize(const NetworkConfiguration &config, int layer) {
+  switch (config.style[layer]) {
+  default:
+  case RenderStyle::RGB:
+    // Could do a hybrid where we use 3 channels per pixel, but still show them all
+    return make_pair(config.width[layer], config.height[layer]);    
+  case RenderStyle::FLAT:
+    return make_pair(config.width[layer] * config.channels[layer], config.height[layer]);
+  case RenderStyle::CHESSBITS:
+    return {48, 48};
+  case RenderStyle::CHESSBOARD:
+    return {256, 286};
+  }
+}
+
 static void UIThread() {
   const NetworkConfiguration config;
   int mousex = 0, mousey = 0;
   (void)mousex; (void)mousey;
+  int vlayer = 0;
+  
   for (;;) {
     // int round = SharedReadWithLock(&video_export_m, &current_round);
     {
-      WriteMutexLock ml(&video_export_m);
+      ReadMutexLock ml(&video_export_m);
       if (dirty) {
 	sdlutil::clearsurface(screen, 0x0);
-	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 rps",
+	const char *paused_msg = allow_updates ? "" : " [^2VIDEO PAUSED]";
+	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 rps    ^1%.6f learning rate%s",
 				   current_round,
-				   rounds_per_second);
+				   rounds_per_second,
+				   current_learning_rate,
+				   paused_msg);
+
+	int max_width = 0;
+	for (int l = 0; l < config.num_layers + 1; l++) {
+	  max_width = std::max(PixelSize(config, l).first, max_width);
+	}
+	max_width += 4;
+	
 
 	for (int s = 0; s < NUM_VIDEO_STIMULATIONS; s++) {
 	  const Stimulation &stim = current_stimulations[s];
 	  CHECK(stim.values.size() == config.num_layers + 1);
-	  int ystart = 4;
+	  CHECK(stim.values.size() == config.style.size());
+
+	  const int xstart = 4 + s * max_width;
+	  int ystart = 24;
 	  for (int l = 0; l < stim.values.size(); l++) {
-	    for (int y = 0; y < config.height[l]; y++) {
-	      for (int x = 0; x < config.width[l]; x++) {
+
+	    switch (config.style[l]) {
+	    case RenderStyle::CHESSBITS: {
+	      for (int r = 0; r < 8; r++) {
+		int yy = ystart + r * 6;
+		for (int c = 0; c < 8; c++) {
+		  int xx = xstart + c * 6;
+		  
+		  bool has = stim.values[l][r * 8 + c] > 0.5f;
+		  bool black = (r + c) & 1;
+		  // uint8 rr = black ? 134 : 255;
+		  // uint8 gg = black ? 166 : 255;
+		  // uint8 bb = black ? 102 : 221;
+		  uint8 rr = black ? 194 : 255;
+		  uint8 gg = black ? 226 : 255;
+		  uint8 bb = black ? 162 : 231;
+
+		  for (int y = 0; y < 6; y++) {
+		    for (int x = 0; x < 6; x++) {
+		      if (has && x > 0 && y > 0 && x < 5 && y < 5) {
+			sdlutil::drawpixel(screen, xx + x, yy + y, 22, 22, 22);
+		      } else {
+			sdlutil::drawpixel(screen, xx + x, yy + y, rr, gg, bb);
+		      }
+		    }
+		  }
+		}
+	      }
+	      break;
+	    }
+
+	    case RenderStyle::CHESSBOARD: {
+	      for (int r = 0; r < 8; r++) {
+		int yy = ystart + r * 32;
+		for (int c = 0; c < 8; c++) {
+		  int xx = xstart + c * 32;
+
+		  // Find the contents with the highest score.
+		  int cidx = (r * 8 + c) * NUM_CONTENTS;
+		  int maxi = 0;
+		  float maxp = stim.values[l][cidx];
+		  for (int i = 1; i < NUM_CONTENTS; i++) {
+		    if (stim.values[l][cidx + i] > maxp) {
+		      maxi = i;
+		      maxp = stim.values[l][cidx + i];
+		    }
+		  }
+		  
+		  bool black = (r + c) & 1;
+		  // Background
+		  uint8 rr = black ? 134 : 255;
+		  uint8 gg = black ? 166 : 255;
+		  uint8 bb = black ? 102 : 221;
+
+		  sdlutil::FillRectRGB(screen, xx, yy, 32, 32, rr, gg, bb);
+		  string str = " ";
+		  str[0] = " PKBRQKpkbrqk"[maxi];
+		  font->draw(xx + 10, yy, str);
+		  for (int i = 0; i < NUM_CONTENTS; i++) {
+		    const uint8 v = FloatByte(stim.values[l][cidx + i]);
+		    int x = xx + 2 + i * 2;
+		    sdlutil::drawpixel(screen, x,     yy + 28,     v, v, v);
+		    sdlutil::drawpixel(screen, x + 1, yy + 28,     v, v, v);
+		    sdlutil::drawpixel(screen, x,     yy + 28 + 1, v, v, v);
+		    sdlutil::drawpixel(screen, x + 1, yy + 28 + 1, v, v, v);
+		  }
+		}
+	      }
+
+	      // TODO: Castling
+
+	      for (int c = 0; c < 4; c++) {
+		const uint8 v = FloatByte(stim.values[l][64 * NUM_CONTENTS + c]);
+		sdlutil::FillRectRGB(screen, xstart + c * 32 + (c >= 2 ? 128 : 0),
+				     ystart + 32 * 8 + 8, 30, 8, v, v, v);
+		if (v < 127)
+		  sdlutil::drawbox(screen, xstart + c * 32 + (c >= 2 ? 128 : 0),
+				   ystart + 32 * 8 + 8, 30, 8, v, v, v);
+		
+	      }
+	      
+	      // Whose move is it? 1.0 means black, so subtract from 255.
+	      const uint8 v = 255 - FloatByte(stim.values[l][64 * NUM_CONTENTS + 4]);
+	      sdlutil::FillRectRGB(screen, xstart, ystart + 32 * 8 + 8, 32 * 8, 8, v, v, v);
+	      
+	      break;
+	    }
+	      
+	    case RenderStyle::RGB:
+	      for (int y = 0; y < config.height[l]; y++) {
 		int yy = ystart + y;
 		if (yy >= SCREENH) break;
 
-		// XXX allow other sizes -- find the max width!
-		int xx = 4 + s * 260 + x;
-		int cidx = y * config.width[l] * config.channels[l] + x * config.channels[l];
+		for (int x = 0; x < config.width[l]; x++) {
+		  
+		  int xx = xstart + x;
+		  if (x >= SCREENW) break;
+		
+		  int cidx = y * config.width[l] * config.channels[l] + x * config.channels[l];
 
-		// XXX! Need to support more than 3 channels for chess. Color is dubious
-		// anyway?
-		switch (config.channels[l]) {
-		case 0: break;
-		case 1: {
-		  const uint8 v = FloatByte(stim.values[l][cidx]);
-		  sdlutil::drawpixel(screen, xx, yy, v, v, v);
-		  break;
-		}
-		case 2: {
-		  const uint8 r = FloatByte(stim.values[l][cidx + 0]);
-		  const uint8 g = FloatByte(stim.values[l][cidx + 1]);
-		  sdlutil::drawpixel(screen, xx, yy, r, g, 0);
-		  break;
-		}
-		default:
-		  // If more than 3, later ones are just ignored.
-		case 3: {
-		  const uint8 r = FloatByte(stim.values[l][cidx + 0]);
-		  const uint8 g = FloatByte(stim.values[l][cidx + 1]);
-		  const uint8 b = FloatByte(stim.values[l][cidx + 2]);
-		  sdlutil::drawpixel(screen, xx, yy, r, g, b);
-		  break;
-		}
+		  // XXX! Need to support more than 3 channels for chess. Color is dubious
+		  // anyway?
+		  switch (config.channels[l]) {
+		  case 0: break;
+		  case 1: {
+		    const uint8 v = FloatByte(stim.values[l][cidx]);
+		    sdlutil::drawpixel(screen, xx, yy, v, v, v);
+		    break;
+		  }
+		  case 2: {
+		    const uint8 r = FloatByte(stim.values[l][cidx + 0]);
+		    const uint8 g = FloatByte(stim.values[l][cidx + 1]);
+		    sdlutil::drawpixel(screen, xx, yy, r, g, 0);
+		    break;
+		  }
+		  default:
+		    // If more than 3, later ones are just ignored.
+		  case 3: {
+		    const uint8 r = FloatByte(stim.values[l][cidx + 0]);
+		    const uint8 g = FloatByte(stim.values[l][cidx + 1]);
+		    const uint8 b = FloatByte(stim.values[l][cidx + 2]);
+		    sdlutil::drawpixel(screen, xx, yy, r, g, b);
+		    break;
+		  }
+		  }
 		}
 	      }
+	      break;
+
+	    case RenderStyle::FLAT:
+	      for (int y = 0; y < config.height[l]; y++) {
+		const int yy = ystart + y;
+		for (int x = 0; x < config.width[l] * config.channels[l]; x++) {
+		  const int xx = xstart + x;
+		  if (x >= SCREENW) break;
+		  const int cidx = y * config.width[l] * config.channels[l] + x;
+		  const uint8 v = FloatByte(stim.values[l][cidx]);
+		  sdlutil::drawpixel(screen, xx, yy, v, v, v);
+		}
+	      }
+	      break;
 	    }
-	    ystart += config.height[l];
-	    ystart += 4;
+		
+	    ystart += PixelSize(config, l).second + 4;
+	  }
+
+
+	  if (vlayer >= 0) {
+	    double tot = 0.0;
+	    int yz = ystart + 4;
+	    for (int i = 0; i < stim.values[vlayer].size(); i++) {
+	      tot += stim.values[vlayer][i];
+	      if (i < 32) {
+		font->draw(xstart, yz, StringPrintf("^1%.9f", stim.values[vlayer][i]));
+		yz += FONTHEIGHT;
+	      }
+	    }
+	    font->draw(xstart, yz, StringPrintf("[%d] tot: %.9f", vlayer, tot));
 	  }
 	}
 
@@ -1406,6 +1648,28 @@ static void UIThread() {
 	case SDLK_ESCAPE:
 	  Printf("ESCAPE.\n");
 	  return;
+	case SDLK_SPACE:
+	  {
+	    WriteMutexLock ml(&video_export_m);
+	    allow_updates = !allow_updates;
+	  }
+	  break;
+	  
+	case SDLK_v:
+	  vlayer++;
+	  {
+	    ReadMutexLock ml(&video_export_m);
+	    // Allow vlayer to go to -1 (off), but wrap around
+	    // below that.
+	    if (vlayer < -1) {
+	      // There are actually num_layers + 1 stimulations.
+	      vlayer = config.num_layers;
+	    } else if (vlayer > config.num_layers) {
+	      vlayer = -1;
+	    }
+	    dirty = true;
+	  }
+	  break;
 	default:;
 	}
       }
@@ -1533,7 +1797,6 @@ static void LoadGamesThread() {
 	       positions,
 	       pausing,
 	       processor.Status().c_str());
-	fflush(stderr);
 	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
 	  break;
 
@@ -1559,25 +1822,39 @@ static void LoadGamesThread() {
   work_queue->SetNoMoreWork();
 
   while (work_queue->StillRunning()) {
-    int64 done, in_progress, pending;
+    int64 done, in_progress, pending, positions;
     work_queue->Stats(&done, &in_progress, &pending);
-    Printf("[Done reading] %lld %lld %lld %.2f%% %s\n",
+
+    {
+      ReadMutexLock ml(&training_positions_m);
+      positions = training_positions.size();
+    }
+
+    Printf("[Done reading] %lld %lld %lld %.2f%% [%lld pos] %s\n",
 	   done, in_progress, pending,
 	   (100.0 * (double)done) / (in_progress + done + pending),
+	   positions,
 	   processor.Status().c_str());
-    fflush(stderr);
+    if (positions >= MAX_POSITIONS) {
+      work_queue->Abandon();
+      break;
+    }
     std::this_thread::sleep_for(10s);
   }
 
-  Printf("Done! Join threads...\n");
+  Printf("Work queue finalizing...\n");
   work_queue.reset(nullptr);
+  Printf("Done loading training examples.\n");
 }
 
 static void TrainThread() {
   Timer setup_timer; 
 
   // Number of training examples per round of training.
-  static constexpr int EXAMPLES_PER_ROUND = 48;
+  // XXX This is probably still way too low. These are very small for chess (a
+  // stimulation just needs the node activation values, so it's much smaller than
+  // the network itself, which has to store weights for each incoming edge).
+  static constexpr int EXAMPLES_PER_ROUND = 12; // 4096;
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk.
   static constexpr int VERBOSE_ROUND_EVERY = 250;
@@ -1622,18 +1899,21 @@ static void TrainThread() {
 
   Printf("Network uses %.2fMB of storage (without overhead).\n",
 	 net->Bytes() / (1024.0 * 1024.0));
+  {
+    Stimulation tmp(*net);
+    int64 stim_bytes = tmp.Bytes();
+    Printf("A stimulation is %.2fMB, so for %d examples we need %.2fMB\n",
+	   stim_bytes / (1024.0 * 1024.0), EXAMPLES_PER_ROUND,
+	   (stim_bytes * EXAMPLES_PER_ROUND) / (1024.0 * 1024.0));
+  }
 
-
-  // FIXME
-  return;
-#if 0
   // We use the same structures to hold all the stimulations and errors
   // now, on the GPU.
   vector<TrainingRoundGPU *> training;
   for (int i = 0; i < EXAMPLES_PER_ROUND; i++)
     training.push_back(new TrainingRoundGPU{global_cl, *net});
 
-  auto ShouldDie = [&net, &eval_frame_num]() {
+  auto ShouldDie = [&net]() {
     bool should_die = SharedReadWithLock(&train_should_die_m, &train_should_die);
     if (should_die) {
       Printf("Train thread signaled death.\n");
@@ -1644,63 +1924,14 @@ static void TrainThread() {
     return should_die;
   };
 
-  // Prepare corpus.
-  printf("Generating corpus from ROM and movie...\n");
-
-  // If unused, truncate training data to make startup faster.
-  if (EVAL_ONLY) train_movie.resize(std::min((size_t)100, train_movie.size()));
-  struct Snapshot {
-    int movie_idx;
-    vector<uint8> save;
-  };
-
-  vector<Snapshot> snapshots;
-  snapshots.reserve(1 + train_movie.size() / SNAPSHOT_EVERY);
-
-  Printf("Populating snapshots every %d frames...\n", SNAPSHOT_EVERY);
-  {
-    std::unique_ptr<Emulator> emu{Emulator::Create(train_romfile)};
-    CHECK(emu.get() != nullptr);
-    uint64 snapshot_bytes = 0ULL;
-    for (int i = 0; i < train_movie.size(); i++) {
-      if (i % SNAPSHOT_EVERY == 0) {
-	snapshots.resize(snapshots.size() + 1);
-	Snapshot *snapshot = &snapshots.back();
-	snapshot->movie_idx = i;
-	snapshot->save = emu->SaveUncompressed();
-	snapshot_bytes += snapshot->save.size();
-      }
-      emu->StepFull(train_movie[i], 0);
-    }
-    Printf("Using %.2fMB for snapshots (save states).\n",
-	   snapshot_bytes / (1024.0 * 1024.0));
-  }
-
-  std::unique_ptr<Emulator> eval_emu{Emulator::Create(eval_romfile)};
-  CHECK(eval_emu.get() != nullptr) << eval_romfile;
-  const vector<uint8> eval_movie = SimpleFM7::ReadInputs(eval_moviefile);
-  CHECK(!eval_movie.empty()) << eval_moviefile;
-  const vector<uint8> eval_start_state = eval_emu->SaveUncompressed();
-  auto ShouldEmitEvalFrame = [](int round_num) {
-    if (EVAL_ONLY) return true;
-    if (round_num < 2000) return true;
-    else if (round_num < 4000) return (round_num % 10) == 0;
-    else if (round_num < 8000) return (round_num % 100) == 0;
-    else return (round_num % 200) == 0;
-  };
-
   // Number of threads to allow for simultaneous writing of frames.
-  Asynchronously write_frames{EVAL_ONLY ? 2 : 8};
-
-  if (eval_movie_idx > 0) Printf("Fast forwarding eval movie...\n");
-  for (int i = 0; i < eval_movie_idx; i++) eval_emu->StepFull(eval_movie[i], 0);
+  // Asynchronously write_frames{EVAL_ONLY ? 2 : 8};
 
   if (ShouldDie()) return;
-
+  
   struct TrainingExample {
-    // XXX memory, etc.
-    vector<float> indices;
-    vector<float> vals;
+    vector<float> input;
+    vector<float> output;
   };
   // Training examples don't depend on the learning process, so are produced
   // in a separate thread. This mutex protects the deque (only).
@@ -1708,74 +1939,72 @@ static void TrainThread() {
   // XXX could just be vector, actually?
   deque<TrainingExample> training_examples;
 
-  auto PopulateExampleFromEmu = [](const Emulator &emu,
-				   TrainingExample *example) {
-    // XXX memory, etc.
-    const uint8 *indices = emu.RawIndexedImage();
-    example->vals.reserve(256 * 240 * 3);
-    for (int i = 0; i < 256 * 240; i++) {
-      const int idx = indices[i] & Emulator::INDEX_MASK;
-      static constexpr float idx_denom = 1.0f / 63.0f;
-      static constexpr float rgb_denom = 1.0f / 255.0f;
-      // XXX reorder based on clustering, luminance, anything?
-      example->indices.push_back((float)idx * idx_denom);
-      uint8 r, g, b;
-      std::tie(r, g, b) = NTSC::Get(idx);
-      example->vals.push_back((float)r * rgb_denom);
-      example->vals.push_back((float)g * rgb_denom);
-      example->vals.push_back((float)b * rgb_denom);
-    }
-  };
+  auto PopulateExampleFromPos =
+    [](const Position &pos, TrainingExample *example) {
+      example->input.resize(64);
+      for (int r = 0; r < 8; r++) {
+	for (int c = 0; c < 8; c++) {
+	  example->input[r * 8 + c] = pos.PieceAt(r, c) != Position::EMPTY ? 1.0f : 0.0f;
+	}
+      }
 
-  auto MakeTrainingExamplesThread = [train_romfile, &train_movie, &snapshots,
-				     &training_examples_m, &training_examples,
-				     &PopulateExampleFromEmu](int idx) {
-    Printf("Training thread %d startup.\n", idx);
-    ArcFour rc{StringPrintf("make_examples %d", idx)};
-    std::unique_ptr<Emulator> emu{Emulator::Create(train_romfile)};
+      example->output.resize(OUTPUT_LAYER_SIZE);
+      for (int i = 0; i < OUTPUT_LAYER_SIZE; i++) example->output[i] = 0.0f;
+      for (int r = 0; r < 8; r++) {
+	for (int c = 0; c < 8; c++) {
+	  const int cont = kPieceToContents[pos.PieceAt(r, c)];
+	  example->output[(r * 8 + c) * NUM_CONTENTS + cont] = 1.0f;
+	}
+      }
 
+      // Four castling flags.
+      example->output[64 * NUM_CONTENTS + 0] = pos.CanStillCastle(false, false) ? 1.0f : 0.0f;
+      example->output[64 * NUM_CONTENTS + 1] = pos.CanStillCastle(false, true)  ? 1.0f : 0.0f;
+      example->output[64 * NUM_CONTENTS + 2] = pos.CanStillCastle(true,  false) ? 1.0f : 0.0f;
+      example->output[64 * NUM_CONTENTS + 3] = pos.CanStillCastle(true,  true)  ? 1.0f : 0.0f;
+
+      // And the current player's move.
+      example->output[64 * NUM_CONTENTS + 4] = pos.BlackMove() ? 1.0f : 0.0f;
+    };
+
+  auto MakeTrainingExamplesThread = [&training_examples_m, &training_examples,
+				     &PopulateExampleFromPos]() {
+    Printf("Training example thread startup.\n");
+    ArcFour rc("make examples");
+    
     for (;;) {
+      
       if (SharedReadWithLock(&train_should_die_m, &train_should_die)) {
 	return;
       }
-
+      
       training_examples_m.lock();
       // Make sure we have plenty of examples so that learning doesn't stall.
       if (training_examples.size() < EXAMPLES_PER_ROUND * 2) {
 	training_examples_m.unlock();
 
-	// Choose a movie frame to seek to. We have to emulate one frame in order
-	// to see an image, so here we're actually picking the frame before the
-	// one that will be the training example. Therefore it can't be the last one.
-	const int frame_num = RandTo(&rc, train_movie.size() - 1);
-	const int snapshot_num = frame_num / SNAPSHOT_EVERY;
-	const Snapshot &snapshot = snapshots[snapshot_num];
-	emu->LoadUncompressed(snapshot.save);
-	// Run until we reach the chosen frame, and then one more.
-	CHECK_EQ(snapshot.movie_idx, snapshot_num * SNAPSHOT_EVERY);
-	const int runframes = 1 + (frame_num % SNAPSHOT_EVERY);
-	CHECK_LT(snapshot.movie_idx + runframes, train_movie.size());
-	for (int j = snapshot.movie_idx; j < snapshot.movie_idx + runframes; j++) {
-	  emu->StepFull(train_movie[j], 0);
-	}
+	TrainingExample example;
 
-	// To get a bit more entropy in the training set, maybe run a
-	// few random buttons from the movie, which may perturb the
-	// state a little without producing unrealistic inputs.
-	for (int randomactions = RandTo(&rc, 3) * 2; randomactions--;) {
-	  const uint8 input = train_movie[RandTo(&rc, train_movie.size())];
-	  for (int steps = 1 + RandTo(&rc, 12); steps--;) {
-	    emu->StepFull(input, 0);
+	{
+	  training_positions_m.lock_shared();
+	  
+	  if (training_positions.size() < (MAX_POSITIONS / 10)) {
+	    training_positions_m.unlock_shared();
+	    Printf("Not enough training data loaded yet!\n");
+	    std::this_thread::sleep_for(1s);
+	    continue;
+	  } else {
+	    const int idx = RandTo(&rc, training_positions.size());
+	    PopulateExampleFromPos(training_positions[idx], &example);
+	    training_positions_m.unlock_shared();
+
+	    {
+	      WriteMutexLock ml(&training_examples_m);
+	      training_examples.push_back(std::move(example));
+	    }
 	  }
 	}
 
-	TrainingExample example;
-	PopulateExampleFromEmu(*emu, &example);
-
-	{
-	  WriteMutexLock ml(&training_examples_m);
-	  training_examples.push_back(std::move(example));
-	}
       } else {
 	training_examples_m.unlock();
 	std::this_thread::sleep_for(10ms);
@@ -1784,11 +2013,8 @@ static void TrainThread() {
     Printf("Training example generator exiting.\n");
   };
 
-  // PERF could skip in eval_only mode, but it's harmless
-  std::thread emu_thread_1{MakeTrainingExamplesThread, 1};
-  std::thread emu_thread_2{MakeTrainingExamplesThread, 2};
-  ThreadJoiner join_emu_thread_1{&emu_thread_1};
-  ThreadJoiner join_emu_thread_2{&emu_thread_2};
+  std::thread examples_thread{MakeTrainingExamplesThread};
+  ThreadJoiner join_examples_thread{&examples_thread};
 
   if (ShouldDie()) return;
 
@@ -1803,112 +2029,18 @@ static void TrainThread() {
     Printf("\n\n ** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
 
     // When starting from a fresh network, consider this:
-    //   // std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (round_number + 1)/3.0)));
-
+    
     const float round_learning_rate =
-      std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
+      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 10000.0 + 1)/3.0)));
+
+    //     const float round_learning_rate =
+    // std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
+
     // const float round_learning_rate = 0.0025;
 
-    Printf("Learning rate: %.4f\n", round_learning_rate);
-
-    // This is pretty slow, but starts running less and less
-    // frequently as the round increases.
-    if (ShouldEmitEvalFrame(net->rounds)) {
-      Timer eval_timer;
-      Printf("Generating eval frame.\n");
-      // Loop if we need to.
-      if (eval_movie_idx == eval_movie.size()) {
-	if (EVAL_ONLY) {
-	  Printf("Exhausted movie in eval-only mode.\n");
-	  return;
-	}
-	eval_movie_idx = 0;
-	eval_emu->LoadUncompressed(eval_start_state);
-      }
-
-      eval_emu->StepFull(eval_movie[eval_movie_idx++], 0);
-      TrainingExample example;
-      PopulateExampleFromEmu(*eval_emu, &example);
-      // Allocate on heap so it can be deleted asynchronously.
-      TrainingRoundGPU *train = new TrainingRoundGPU{global_cl, *net};
-      // Initialize input layer of stimulation.
-      train->LoadInput(example.indices);
-      for (int src = 0; src < net->num_layers; src++) {
-	ForwardLayerCL::ForwardContext fc(&forwardlayer, &net_gpu, src);
-	fc.Forward(train);
-      }
-      // Now write to image:
-      write_frames.Run([&net, train, round_number = net->rounds,
-                        eval_frame_num, round_learning_rate]() {
-	Stimulation stim{*net};
-	train->ExportStimulation(&stim);
-	delete train;
-	// Figure out how big the graphic needs to be.
-	NetworkConfiguration config;
-	CHECK_EQ(config.width.size(), stim.values.size());
-	int width = 64;
-	int height = font->height + 2;
-	for (int i = 0; i < stim.values.size(); i++) {
-	  height += config.height[i] + 4;
-	  width = max(width, config.width[i] + 8);
-	}
-
-	// Hmm, can I safely do this outside the UI thread?
-	SDL_Surface *surf = sdlutil::makesurface(width, height, true);
-	sdlutil::clearsurface(surf, 0xFF000000);
-	// Draw each stimulation into it...
-	// XXX: Shared code with UIThread; make it a function...
-	int ystart = font->height + 2;
-	for (int l = 0; l < stim.values.size(); l++) {
-	  for (int y = 0; y < config.height[l]; y++) {
-	    for (int x = 0; x < config.width[l]; x++) {
-	      int yy = ystart + y;
-	      int xx = 4 + x;
-
-	      int cidx = y * config.width[l] * config.channels[l] + x * config.channels[l];
-	      switch (config.channels[l]) {
-	      case 0: break;
-	      case 1: {
-		const uint8 v = FloatByte(stim.values[l][cidx]);
-		sdlutil::drawpixel(surf, xx, yy, v, v, v);
-		break;
-	      }
-	      case 2: {
-		const uint8 r = FloatByte(stim.values[l][cidx + 0]);
-		const uint8 g = FloatByte(stim.values[l][cidx + 1]);
-		sdlutil::drawpixel(surf, xx, yy, r, g, 0);
-		break;
-	      }
-	      default:
-		// If more than 3, later ones are just ignored.
-	      case 3: {
-		const uint8 r = FloatByte(stim.values[l][cidx + 0]);
-		const uint8 g = FloatByte(stim.values[l][cidx + 1]);
-		const uint8 b = FloatByte(stim.values[l][cidx + 2]);
-		sdlutil::drawpixel(surf, xx, yy, r, g, b);
-		break;
-	      }
-	      }
-	    }
-	  }
-	  ystart += config.height[l];
-	  ystart += 4;
-	}
-	font->drawto(surf, 4, 0,
-		     // XXX training time, etc.
-		     StringPrintf("Round ^3%d^<, rate ^3%.3f^<",
-				  round_number, round_learning_rate));
-	CHECK(sdlutil::SavePNG(StringPrintf("eval/eval-%d.png", eval_frame_num), surf));
-	SDL_FreeSurface(surf);
-      });
-      eval_frame_num++;
-      eval_ms += eval_timer.MS();
-    }
+    if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
 
     if (ShouldDie()) return;
-    // Everything after this is training, so skip.
-    if (EVAL_ONLY) continue;
-
 
     bool is_verbose_round = 0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
     if (is_verbose_round) {
@@ -1917,22 +2049,24 @@ static void TrainThread() {
       SaveNetworkBinary(*net, "network-checkpoint.bin");
     }
 
-    Printf("Export network:\n");
+    if (VERBOSE > 2) Printf("Export network:\n");
     ExportRound(net->rounds);
+    ExportLearningRate(round_learning_rate);
     if (rounds_executed % EXPORT_EVERY == 0) {
       net_gpu.ReadFromGPU();
       ExportNetworkToVideo(*net);
     }
 
     Timer setup_timer;
-    Printf("Setting up batch:\n");
+    if (VERBOSE > 2) Printf("Setting up batch:\n");
 
     vector<TrainingExample> examples;
     examples.reserve(EXAMPLES_PER_ROUND);
     do {
       if (!examples.empty()) {
-	Printf("Blocked grabbing examples (still need %d)...\n",
-	       EXAMPLES_PER_ROUND - examples.size());
+	if (VERBOSE > 0) Printf("Blocked grabbing examples (still need %d)...\n",
+				EXAMPLES_PER_ROUND - examples.size());
+	std::this_thread::sleep_for(100ms);
       }
       WriteMutexLock ml{&training_examples_m};
       while (examples.size() < EXAMPLES_PER_ROUND &&
@@ -1942,9 +2076,9 @@ static void TrainThread() {
       }
     } while (examples.size() < EXAMPLES_PER_ROUND);
 
-    Printf("Setting up expected:\n");
+    if (VERBOSE > 2) Printf("Setting up expected:\n");
     vector<vector<float>> expected = Map(examples, [](const TrainingExample &te) {
-      return te.vals;
+      return te.output;
     });
 
     setup_ms += setup_timer.MS();
@@ -1955,22 +2089,22 @@ static void TrainThread() {
     // CPU/GPU duties?
 
     // Run a batch of images all the way through. (Each layer requires significant setup.)
-    Printf("Creating stimulations...\n");
+    if (VERBOSE > 2) Printf("Creating stimulations...\n");
     Timer stimulation_init_timer;
 
-    Printf("Setting input layer of Stimulations...\n");
+    if (VERBOSE > 2) Printf("Setting input layer of Stimulations...\n");
     // These are just memory copies; easy to do in parallel.
     CHECK_EQ(examples.size(), training.size());
     ParallelComp(examples.size(),
 		 [&examples, &training](int i) {
-		   training[i]->LoadInput(examples[i].indices);
+		   training[i]->LoadInput(examples[i].input);
 		 }, 16);
     stimulation_init_ms += stimulation_init_timer.MS();
 
     if (ShouldDie()) return;
     // The loop over layers must be in serial.
     for (int src = 0; src < net->num_layers; src++) {
-      Printf("FWD Layer %d: ", src);
+      if (VERBOSE > 2) Printf("FWD Layer %d: ", src);
       Timer fc_init_timer;
       ForwardLayerCL::ForwardContext fc(&forwardlayer, &net_gpu, src);
       fc_init_ms += fc_init_timer.MS();
@@ -1978,15 +2112,17 @@ static void TrainThread() {
       // PERF could be parallel, but watch out about loading the GPU with
       // too many simultaneous value src/dst buffers.
       Timer forward_timer;
-      Printf("Parallelcomp...\n");
+      if (VERBOSE > 3) Printf("Parallelcomp...\n");
       ParallelComp(examples.size(),
 		   [&net, rounds_executed, num_examples = examples.size(),
 		    &fc, &training](int example_idx) {
 		     fc.Forward(training[example_idx]);
+		     /*
 		     if (example_idx % 10 == 0) {
 		       Printf("[%d/%d] (%.2f%%) ", example_idx, num_examples,
 			      100.0 * example_idx / num_examples);
 		     }
+		     */
 
 		     if (rounds_executed % EXPORT_EVERY == 0 &&
 			 example_idx < NUM_VIDEO_STIMULATIONS) {
@@ -1999,7 +2135,7 @@ static void TrainThread() {
 		   }, 16);
       forward_ms += forward_timer.MS();
       kernel_ms += fc.kernel_ms;
-      Printf("\n");
+      if (VERBOSE > 2) Printf("\n");
     }
 
     const int num_examples = examples.size();
@@ -2007,25 +2143,25 @@ static void TrainThread() {
     examples.clear();
 
     if (ShouldDie()) return;
-    Printf("Error calc.\n");
+    if (VERBOSE > 2) Printf("Error calc.\n");
     Timer output_error_timer;
     ParallelComp(num_examples,
 		 [&setoutputerror, &net_gpu, &training, &expected](int example) {
 		   training[example]->LoadExpected(expected[example]);
 		   SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
 		   sc.SetOutputError(training[example]);
-		   Printf(".");
+		   /* Printf("."); */
 		 }, 16);
     output_error_ms += output_error_timer.MS();
-    Printf("\n");
+    if (VERBOSE > 2) Printf("\n");
 
     if (ShouldDie()) return;
-    Printf("Backwards:\n");
+    if (VERBOSE > 2) Printf("Backwards:\n");
     // Also serial, but in reverse.
     Timer backward_timer;
     // We do NOT propagate errors to the input layer, so dst is strictly greater than 0.
     for (int dst = net->num_layers - 1; dst > 0; dst--) {
-      Printf("BWD Layer %d: ", dst);
+      if (VERBOSE > 2) Printf("BWD Layer %d: ", dst);
 
       Timer bc_init_timer;
       BackwardLayerCL::Context bc{&backwardlayer, &net_gpu, dst};
@@ -2034,18 +2170,20 @@ static void TrainThread() {
       ParallelComp(num_examples,
 		   [num_examples, &training, &bc](int example) {
 		     bc.Backward(training[example]);
+		     /*
 		     if (example % 10 == 0) {
 		       Printf("[%d/%d] (%.2f%%) ", example, (int)num_examples,
 			      100.0 * example / num_examples);
 		     }
+		     */
 		   }, 16);
-      Printf("\n");
+      if (VERBOSE > 2) Printf("\n");
     }
     backward_ms += backward_timer.MS();
 
 
     if (ShouldDie()) return;
-    Printf("Update weights:\n");
+    if (VERBOSE > 2) Printf("Update weights:\n");
     Timer update_timer;
 
     // Don't parallelize! These are all writing to the same network weights. Each
@@ -2069,10 +2207,12 @@ static void TrainThread() {
       // be out of date. But flush the command queue. (why? I guess make sure that we're
       // totally done writing since other parts of the code assume concurrent reads are ok?)
       uc.Finish();
+      /*
       Printf("[%d/%d] = (%.2f%%) ", layer, net->num_layers, layer * 100.0 / net->num_layers);
+      */
     }
     update_ms += update_timer.MS();
-    Printf("\n");
+    if (VERBOSE > 2) Printf("\n");
 
     if (ShouldDie()) return;
 
@@ -2082,41 +2222,40 @@ static void TrainThread() {
     auto Pct = [total_ms](double d) { return (100.0 * d) / total_ms; };
     double denom = rounds_executed + 1;
     ExportRoundsPerSec(denom / (total_ms / 1000.0));
-    Printf("Total so far %.1fs.\n"
-	   "Time per round: %.1fs.\n"
-	   "We spent %.1fms in setup (%.1f%%),\n"
-	   "%.1fms in stimulation init (%.1f%%),\n"
-	   "%.1fms in eval (main thread; amortized) (%.1f%%),\n"
-	   "%.1fms in forward layer (%.1f%%),\n"
-	   "%.1fms in fc init (%.1f%%),\n"
-	   "%.1fms in forward layer kernel (at most; %.1f%%).\n"
-	   "%.1fms in bc init (%.1f%%),\n"
-	   "%.1fms in backwards pass (%.1f%%),\n"
-	   "%.1fms in error for output layer (%.1f%%),\n"
-	   "%.1fms in error history diagnostics (%.1f%%),\n"
-	   "%.1fms in updating weights (%.1f%%),\n"
-	   "%.1fms in writing images (%.1f%%),\n",
-	   total_ms / 1000.0,
-	   (total_ms / 1000.0) / denom,
-	   setup_ms / denom, Pct(setup_ms),
-	   stimulation_init_ms / denom, Pct(stimulation_init_ms),
-	   eval_ms / denom, Pct(eval_ms),
-	   forward_ms / denom, Pct(forward_ms),
-	   fc_init_ms / denom, Pct(fc_init_ms),
-	   kernel_ms / denom, Pct(kernel_ms),
-	   bc_init_ms / denom, Pct(bc_init_ms),
-	   backward_ms / denom, Pct(backward_ms),
-	   output_error_ms / denom, Pct(output_error_ms),
-	   error_history_ms / denom, Pct(error_history_ms),
-	   update_ms / denom, Pct(update_ms),
-	   writing_ms / denom, Pct(writing_ms));
+    if (VERBOSE > 1)
+      Printf("Total so far %.1fs.\n"
+	     "Time per round: %.1fs.\n"
+	     "We spent %.1fms in setup (%.1f%%),\n"
+	     "%.1fms in stimulation init (%.1f%%),\n"
+	     "%.1fms in eval (main thread; amortized) (%.1f%%),\n"
+	     "%.1fms in forward layer (%.1f%%),\n"
+	     "%.1fms in fc init (%.1f%%),\n"
+	     "%.1fms in forward layer kernel (at most; %.1f%%).\n"
+	     "%.1fms in bc init (%.1f%%),\n"
+	     "%.1fms in backwards pass (%.1f%%),\n"
+	     "%.1fms in error for output layer (%.1f%%),\n"
+	     "%.1fms in error history diagnostics (%.1f%%),\n"
+	     "%.1fms in updating weights (%.1f%%),\n"
+	     "%.1fms in writing images (%.1f%%),\n",
+	     total_ms / 1000.0,
+	     (total_ms / 1000.0) / denom,
+	     setup_ms / denom, Pct(setup_ms),
+	     stimulation_init_ms / denom, Pct(stimulation_init_ms),
+	     eval_ms / denom, Pct(eval_ms),
+	     forward_ms / denom, Pct(forward_ms),
+	     fc_init_ms / denom, Pct(fc_init_ms),
+	     kernel_ms / denom, Pct(kernel_ms),
+	     bc_init_ms / denom, Pct(bc_init_ms),
+	     backward_ms / denom, Pct(backward_ms),
+	     output_error_ms / denom, Pct(output_error_ms),
+	     error_history_ms / denom, Pct(error_history_ms),
+	     update_ms / denom, Pct(update_ms),
+	     writing_ms / denom, Pct(writing_ms));
   }
 
   Printf(" ** Done. **");
 
   SharedWriteWithLock(&train_done_m, &train_done, true);
-
-#endif
 }
 
 
