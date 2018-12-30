@@ -48,7 +48,6 @@
 
 #include "clutil.h"
 #include "timer.h"
-#include "constants.h"
 
 #define FONTCHARS " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./~!@#$%^&*()_+{}|:\"<>?" /* removed icons */
 #define FONTSTYLES 7
@@ -65,6 +64,27 @@ using uint32 = uint32_t;
 using uint64 = uint64_t;
 
 using Move = Position::Move;
+
+// Use a different compiled kernel depending on the layer's
+// transfer function (these are in the inner loops, so we want
+// to avoid overhead). The implementation of the transfer
+// function is straightforward. The derivative is given in
+// terms of the *output* of the transfer function, because
+// this is the most natural/efficient for the sigmoid, and
+// can be done (a bit less naturally) for ReLU.
+static const char *SIGMOID_FN = 
+  "#define FORWARD(potential) (1.0f / (1.0f + exp(-potential)))\n"
+  // This wants to be given the actual output value f(potential).
+  "#define DERIVATIVE(fx) (fx * (1.0f - fx))\n";
+
+static const char *RELU_FN =
+  "#define FORWARD(potential) (potential < 0.0f ? 0.0f : potential)\n"
+  // This is normally designed as x < 0 ? 0 : 1, but note that f(x)
+  // tells us which side of 0 the input is on (retaining the
+  // not-very-important ambiguity at exactly 0), anyway. So we define
+  // it in terms of f(x) to maintain the same interface we use for
+  // sigmoid.
+  "#define DERIVATIVE(fx) (fx < 0.0f ? 0.0f : 1.0f)\n";
 
 #define NUM_CONTENTS 13
 static constexpr int kPieceToContents[16] = {
@@ -187,6 +207,12 @@ enum class RenderStyle {
   CHESSBOARD,
 };
 
+enum TransferFunction {
+  SIGMOID = 0,
+  RELU,
+
+  NUM_TRANSFER_FUNCTIONS,
+};
 
 #define NEIGHBORHOOD 1
 struct NetworkConfiguration { 
@@ -228,18 +254,29 @@ struct NetworkConfiguration {
   const vector<int> indices_per_node =
     {     64, 64, 64, 64, 64, 64, /* 256,  9 * 9 * 7, */ 100 };
 
-  const vector<RenderStyle> style =
-    { RenderStyle::CHESSBITS,
-      RenderStyle::RGB,
-      RenderStyle::RGB,
-      RenderStyle::RGB,
-      RenderStyle::RGB,
-      RenderStyle::RGB,
-      RenderStyle::RGB,
-      // RenderStyle::RGB,
-      // RenderStyle::FLAT,
-      // RenderStyle::FLAT,
-      RenderStyle::CHESSBOARD, };
+  // XXX: We compile kernels for each transfer function, but we behave as though
+  // every layer is SIGMOID.
+  // Use SIGMOID for output layer, since we want probabilities in the ouptut.
+  const vector<int> transfer = { 
+    RELU, 
+    RELU, 
+    RELU, 
+    RELU, 
+    RELU, 
+    RELU, 
+    SIGMOID,
+  };
+
+  const vector<RenderStyle> style = {
+    RenderStyle::CHESSBITS,
+    RenderStyle::RGB,
+    RenderStyle::RGB,
+    RenderStyle::RGB,
+    RenderStyle::RGB,
+    RenderStyle::RGB,
+    RenderStyle::RGB,
+    RenderStyle::CHESSBOARD, 
+  };
 
   
   // num_nodes = width * height * channels
@@ -782,13 +819,32 @@ struct TrainingRoundGPU {
   DISALLOW_COPY_AND_ASSIGN(TrainingRoundGPU);
 };
 
+static std::pair<std::vector<cl_program>, std::vector<cl_kernel>> 
+  MakeTransferKernels(CL *cl, const char *base_file, const char *function_name) {
+  std::vector<cl_program> programs;
+  std::vector<cl_kernel> kernels;
+  string base_src = Util::ReadFile(base_file);
+  for (int tf = 0; tf < NUM_TRANSFER_FUNCTIONS; tf++) {
+    cl_program program;
+    cl_kernel kernel;
+    string kernel_src;
+    switch (tf) {
+    case SIGMOID: kernel_src += SIGMOID_FN; break;
+    case RELU: kernel_src += RELU_FN; break;
+    default:
+      CHECK(false) << "Invalid transfer function " << tf;
+    }
+    kernel_src += base_src;
+    std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, function_name);
+    programs.push_back(program);
+    kernels.push_back(kernel);
+  }
+  return make_pair(programs, kernels);
+}
+
 struct ForwardLayerCL {
   explicit ForwardLayerCL(CL *cl) : cl(cl) {
-    const string kernel_src =
-      Util::ReadFile("constants.h") + "\n" +
-      Util::ReadFile("forwardlayer.cl");
-
-    std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "ForwardLayer");
+    std::tie(programs, kernels) = MakeTransferKernels(cl, "forwardlayer.cl", "ForwardLayer");
   }
 
   struct ForwardContext {
@@ -812,29 +868,31 @@ struct ForwardLayerCL {
 
       // Printf("Setup kernel..\n");
 
+      cl_kernel kernel = parent->kernels[SIGMOID];
+
       // Can't have multiple threads setting a kernel's argument at one time.
       {
 	WriteMutexLock ml(&parent->m);
 
 	cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 0, sizeof (cl_int), (void *)&indices_per_node));
+	    clSetKernelArg(kernel, 0, sizeof (cl_int), (void *)&indices_per_node));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&src_values));
+	    clSetKernelArg(kernel, 1, sizeof (cl_mem), (void *)&src_values));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&indices));
+	    clSetKernelArg(kernel, 2, sizeof (cl_mem), (void *)&indices));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&weights));
+	    clSetKernelArg(kernel, 3, sizeof (cl_mem), (void *)&weights));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&biases));
+	    clSetKernelArg(kernel, 4, sizeof (cl_mem), (void *)&biases));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&dst_values));
+	    clSetKernelArg(kernel, 5, sizeof (cl_mem), (void *)&dst_values));
 
 	size_t global_work_offset[] = { 0 };
         size_t global_work_size[] = { (size_t)(net_gpu->net->num_nodes[layer + 1]) };
 	// Printf("Run FL Kernel.\n");
 	Timer kernel_timer;
-	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel,
+	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, kernel,
 					     // work dimensions
 					     1,
 					     // global work offset
@@ -865,14 +923,16 @@ struct ForwardLayerCL {
   };
 
   ~ForwardLayerCL() {
-    CHECK_SUCCESS(clReleaseKernel(kernel));
-    CHECK_SUCCESS(clReleaseProgram(program));
+    for (auto &k : kernels)
+      CHECK_SUCCESS(clReleaseKernel(k));
+    for (auto &p : programs)
+      CHECK_SUCCESS(clReleaseProgram(p));
   }
 
   CL *cl = nullptr;
   // Owned:
-  cl_program program;
-  cl_kernel kernel;
+  std::vector<cl_program> programs;
+  std::vector<cl_kernel> kernels;
 
   std::shared_mutex m;
 };
@@ -880,10 +940,7 @@ struct ForwardLayerCL {
 // Set the error values; this is almost just a memcpy.
 struct SetOutputErrorCL {
   explicit SetOutputErrorCL(CL *cl) : cl(cl) {
-    const string kernel_src =
-      Util::ReadFile("constants.h") + "\n" +
-      Util::ReadFile("setoutputerror.cl");
-    std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "SetOutputError");
+    std::tie(programs, kernels) = MakeTransferKernels(cl, "setoutputerror.cl", "SetOutputError");
   }
 
   struct Context {
@@ -892,6 +949,8 @@ struct SetOutputErrorCL {
 
     void SetOutputError(TrainingRoundGPU *train) {
       CL *cl = parent->cl;
+
+      cl_kernel kernel = parent->kernels[SIGMOID];
 
       // All three memories here have num_nodes floats.
       int num_nodes = net_gpu->net->num_nodes[net_gpu->net->num_layers];
@@ -904,16 +963,16 @@ struct SetOutputErrorCL {
 	WriteMutexLock ml(&parent->m);
 
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 0, sizeof (cl_mem), (void *)&actual_outputs));
+	    clSetKernelArg(kernel, 0, sizeof (cl_mem), (void *)&actual_outputs));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&expected));
+	    clSetKernelArg(kernel, 1, sizeof (cl_mem), (void *)&expected));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&output_error));
+	    clSetKernelArg(kernel, 2, sizeof (cl_mem), (void *)&output_error));
 
 	size_t global_work_offset[] = { 0 };
         size_t global_work_size[] = { (size_t)(num_nodes) };
 
-	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel,
+	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, kernel,
 					     // work dimensions
 					     1,
 					     // global work offset
@@ -935,12 +994,18 @@ struct SetOutputErrorCL {
     NetworkGPU *net_gpu = nullptr;
   };
 
+  ~SetOutputErrorCL() {
+    for (auto &k : kernels)
+      CHECK_SUCCESS(clReleaseKernel(k));
+    for (auto &p : programs)
+      CHECK_SUCCESS(clReleaseProgram(p));
+  }
 
  private:
   CL *cl = nullptr;
   // Owned:
-  cl_program program;
-  cl_kernel kernel;
+  std::vector<cl_program> programs;
+  std::vector<cl_kernel> kernels;
 
   std::shared_mutex m;
 
@@ -950,11 +1015,7 @@ struct SetOutputErrorCL {
 
 struct BackwardLayerCL {
   explicit BackwardLayerCL(CL *cl) : cl(cl) {
-    const string kernel_src =
-      Util::ReadFile("constants.h") + "\n" +
-      Util::ReadFile("backwardlayer.cl");
-
-    std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "BackwardLayer");
+    std::tie(programs, kernels) = MakeTransferKernels(cl, "backwardlayer.cl", "BackwardLayer");
   }
 
   struct Context {
@@ -977,6 +1038,8 @@ struct BackwardLayerCL {
       const int gap = dst_layer;
       const int src_layer = dst_layer - 1;
 
+      cl_kernel kernel = parent->kernels[SIGMOID];
+
       cl_mem src_output = train->stimulations[src_layer + 1];
       cl_mem dst_error = train->errors[dst_layer];
 
@@ -992,23 +1055,23 @@ struct BackwardLayerCL {
 	WriteMutexLock ml(&parent->m);
 
 	cl_int dst_indices_per_node = net_gpu->net->layers[dst_layer].indices_per_node;
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 0, sizeof (cl_int),
+	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_int),
 				     (void *)&dst_indices_per_node));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 1, sizeof (cl_mem), (void *)&starts));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&lengths));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem), (void *)&starts));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 2, sizeof (cl_mem), (void *)&lengths));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&inverted_index));
+	    clSetKernelArg(kernel, 3, sizeof (cl_mem), (void *)&inverted_index));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&dst_weights));
+	    clSetKernelArg(kernel, 4, sizeof (cl_mem), (void *)&dst_weights));
 	CHECK_SUCCESS(
-	    clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&src_output));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 6, sizeof (cl_mem), (void *)&dst_error));
-	CHECK_SUCCESS(clSetKernelArg(parent->kernel, 7, sizeof (cl_mem), (void *)&src_error));
+	    clSetKernelArg(kernel, 5, sizeof (cl_mem), (void *)&src_output));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 6, sizeof (cl_mem), (void *)&dst_error));
+	CHECK_SUCCESS(clSetKernelArg(kernel, 7, sizeof (cl_mem), (void *)&src_error));
 
 	size_t global_work_offset[] = { 0 };
 	size_t global_work_size[] = { (size_t)src_num_nodes };
 	Timer kernel_timer;
-	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, parent->kernel,
+	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, kernel,
 					     // work dimensions
 					     1,
 					     // global work offset
@@ -1036,14 +1099,16 @@ struct BackwardLayerCL {
   };
 
   ~BackwardLayerCL() {
-    CHECK_SUCCESS(clReleaseKernel(kernel));
-    CHECK_SUCCESS(clReleaseProgram(program));
+    for (auto &k : kernels)
+      CHECK_SUCCESS(clReleaseKernel(k));
+    for (auto &p : programs)
+      CHECK_SUCCESS(clReleaseProgram(p));
   }
 
   CL *cl = nullptr;
   // Owned:
-  cl_program program;
-  cl_kernel kernel;
+  std::vector<cl_program> programs;
+  std::vector<cl_kernel> kernels;
 
   std::shared_mutex m;
 };
@@ -1051,9 +1116,8 @@ struct BackwardLayerCL {
 struct UpdateWeightsCL {
   explicit UpdateWeightsCL(CL *cl) : cl(cl) {
     const string kernel_src =
-      Util::ReadFile("constants.h") + "\n" +
       Util::ReadFile("updateweights.cl");
-
+    // Note that this one doesn't depend on the transfer function/derivative.
     std::tie(program, kernel) = cl->BuildOneKernel(kernel_src, "UpdateWeights");
   }
 
