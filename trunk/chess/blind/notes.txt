@@ -36,7 +36,10 @@ layer, immediately starts to do something.
 So maybe what happens is that we sum so many inpute edges that the
 sigmoids are totally saturated, so the derivative is nearly flat and
 error propagation does very little even if the learning rate is high.
-(This sounds like it's a common problem: See wikipedia on the "Vanishing gradient problem".)
+(This sounds like it's a common problem: See wikipedia on the
+"Vanishing gradient problem".) According to one rando on the internet,
+"there is no vanishing gradient problem for biases. they can be
+safely initialized to 0."
 
 Then I did 6 internal layers, each 32x32 with 64 incoming edges.
 This took a lot longer to fire up (top two layers were grey for a
