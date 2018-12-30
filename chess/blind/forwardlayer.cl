@@ -35,5 +35,5 @@ __kernel void ForwardLayer(int indices_per_node,
     const float v = previous_layer_outputs[my_indices[i]];
     potential += w * v;
   }
-  output_values[node_idx] = 1.0 / (1.0 + exp(-potential));
+  output_values[node_idx] = FORWARD(potential);
 }

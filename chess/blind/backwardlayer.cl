@@ -32,5 +32,5 @@ __kernel void BackwardLayer(int dst_indices_per_node,
     weighted_error_sum += dst_weights[gidx] * dst_error[dst_node_idx];
   }
 
-  src_error[h] = out_h * (1.0f - out_h) * weighted_error_sum;
+  src_error[h] = DERIVATIVE(out_h) * weighted_error_sum;
 }
