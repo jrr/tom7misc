@@ -28,6 +28,7 @@ __kernel void BackwardLayer(int dst_indices_per_node,
   for (int i = start; i < start + length; i++) {
     const int gidx = inverted_indices[i];
     // Compute from the index which destination node it belongs to.
+    // PERF: Would be nice to avoid this integer division somehow.
     const int dst_node_idx = gidx / dst_indices_per_node;
     weighted_error_sum += dst_weights[gidx] * dst_error[dst_node_idx];
   }
