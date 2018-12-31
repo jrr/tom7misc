@@ -46,3 +46,6 @@ This took a lot longer to fire up (top two layers were grey for a
 while) but by 30k rounds it is at least not grey on each layer.
 But at 40k rounds it was stuck predicting the same thing always.
 
+
+ok, same network, but using leaky_relu for all but the last layer.
+after 30k rounds (64 examples per round) it just seems stuck...

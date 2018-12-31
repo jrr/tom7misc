@@ -65,7 +65,7 @@ using uint64 = uint64_t;
 
 using Move = Position::Move;
 
-// Use a different compiled kernel depending on the layer's
+// We use a different compiled kernel depending on the layer's
 // transfer function (these are in the inner loops, so we want
 // to avoid overhead). The implementation of the transfer
 // function is straightforward. The derivative is given in
@@ -79,12 +79,18 @@ static const char *SIGMOID_FN =
 
 static const char *RELU_FN =
   "#define FORWARD(potential) (potential < 0.0f ? 0.0f : potential)\n"
-  // This is normally designed as x < 0 ? 0 : 1, but note that f(x)
+  // This is normally given as x < 0 ? 0 : 1, but note that f(x)
   // tells us which side of 0 the input is on (retaining the
   // not-very-important ambiguity at exactly 0), anyway. So we define
   // it in terms of f(x) to maintain the same interface we use for
   // sigmoid.
   "#define DERIVATIVE(fx) (fx < 0.0f ? 0.0f : 1.0f)\n";
+
+// Like RELU but slight slope in the "zero" region.
+static const char *LEAKY_RELU_FN =
+  "#define FORWARD(potential) (potential < 0.0f ? potential * 0.01f : potential)\n"
+  // See note above.
+  "#define DERIVATIVE(fx) (fx < 0.0f ? 0.01f : 1.0f)\n";
 
 #define NUM_CONTENTS 13
 static constexpr int kPieceToContents[16] = {
@@ -175,7 +181,6 @@ static constexpr float ByteFloat(uint8 b) {
   return b * (1.0 / 255.0f);
 }
 
-
 // The input is a 64-bit number, represented as an 8x8 matrix of
 // floats.
 //
@@ -210,9 +215,18 @@ enum class RenderStyle {
 enum TransferFunction {
   SIGMOID = 0,
   RELU,
-
+  LEAKY_RELU,
   NUM_TRANSFER_FUNCTIONS,
 };
+
+static const char *TransferFunctionName(TransferFunction tf) {
+  switch (tf) {
+  case SIGMOID: return "SIGMOID";
+  case RELU: return "RELU";
+  case LEAKY_RELU: return "LEAKY_RELU";
+  default: return "??INVALID??";
+  }
+}
 
 #define NEIGHBORHOOD 1
 struct NetworkConfiguration { 
@@ -247,34 +261,24 @@ struct NetworkConfiguration {
       RenderStyle::CHESSBOARD, };
   */
 
-  const int num_layers = 7;
-  const vector<int> width =    { 8,  32,  32, 32, 32,  32, 32,/*    9, */ OUTPUT_LAYER_SIZE, };
-  const vector<int> height =   { 8,  32,  32, 32, 32,  32, 32,/*   9, */ 1, };
-  const vector<int> channels = { 1,   1,   1,  1,  1,   1,  1,/*     7, */ 1, };
+  const int num_layers = 3;
+  const vector<int> width =    { 8,  32,  9, OUTPUT_LAYER_SIZE, };
+  const vector<int> height =   { 8,  32,  9, 1, };
+  const vector<int> channels = { 1,   1,  7, 1, };
   const vector<int> indices_per_node =
-    {     64, 64, 64, 64, 64, 64, /* 256,  9 * 9 * 7, */ 100 };
+    {     64, 1024, 9 * 9 * 7, };
 
-  // XXX: We compile kernels for each transfer function, but we behave as though
-  // every layer is SIGMOID.
-  // Use SIGMOID for output layer, since we want probabilities in the ouptut.
-  const vector<int> transfer = { 
-    RELU, 
-    RELU, 
-    RELU, 
-    RELU, 
-    RELU, 
-    RELU, 
+  const vector<TransferFunction> transfer_functions = { 
+    SIGMOID, 
+    SIGMOID, 
+    // Use SIGMOID for output layer, since we want probabilities in the ouptut.
     SIGMOID,
   };
 
   const vector<RenderStyle> style = {
     RenderStyle::CHESSBITS,
     RenderStyle::RGB,
-    RenderStyle::RGB,
-    RenderStyle::RGB,
-    RenderStyle::RGB,
-    RenderStyle::RGB,
-    RenderStyle::RGB,
+    RenderStyle::FLAT,
     RenderStyle::CHESSBOARD, 
   };
 
@@ -306,15 +310,19 @@ struct NetworkConfiguration {
 struct Network {
   // Creates arrays of the appropriate size, but all zeroes. Note that this uninitialized
   // network is invalid, since the inverted indices are not correct.
-  Network(vector<int> num_nodes, vector<int> indices_per_node) :
+  Network(vector<int> num_nodes,
+	  vector<int> indices_per_node,
+	  vector<TransferFunction> transfer_functions) :
       num_layers(num_nodes.size() - 1),
       num_nodes(num_nodes) {
     CHECK(num_nodes.size() >= 1) << "Must include input layer.";
     CHECK_EQ(num_layers, indices_per_node.size());
+    CHECK_EQ(num_layers, transfer_functions.size());
     layers.resize(num_layers);
     for (int i = 0; i < num_layers; i++) {
       Layer &layer = layers[i];
       layer.indices_per_node = indices_per_node[i];
+      layer.transfer_function = transfer_functions[i];
       layer.indices.resize(indices_per_node[i] * num_nodes[i + 1], 0);
       layer.weights.resize(indices_per_node[i] * num_nodes[i + 1], 0.0);
       layer.biases.resize(num_nodes[i + 1], 0.0);
@@ -359,7 +367,7 @@ struct Network {
 
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
-  static constexpr uint32 FORMAT_ID = 0x2700072BU;
+  static constexpr uint32 FORMAT_ID = 0x2700072CU;
 
   // The number of "real" layers, that is, not counting the input.
   const int num_layers;
@@ -367,8 +375,13 @@ struct Network {
   // num_layers + 1. num_nodes[0] is the size of the input layer.
   vector<int> num_nodes;
 
+  // "Real" layer; none for the input.
   struct Layer {
+    // Same number of input indices for each node.
     int indices_per_node;
+    // The transfer function used to compute the output from the
+    // input indices.
+    TransferFunction transfer_function;
     // indices_per_node * num_nodes[l + 1], flat, node-major
     vector<uint32> indices;
     // indices_per_node * num_nodes[l + 1]; Parallel to indices.
@@ -551,16 +564,22 @@ static Network *ReadNetworkBinary(const string &filename) {
     num_nodes[i] = Read32();
     printf("%d ", num_nodes[i]);
   }
-  printf("\n%s: indices per node: ", filename.c_str());
+  printf("\n%s: indices per node/fns: ", filename.c_str());
 
   vector<int> indices_per_node(file_num_layers, 0);
+  vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
   for (int i = 0; i < file_num_layers; i++) {
     indices_per_node[i] = Read32();
-    printf("%d ", indices_per_node[i]);
+    TransferFunction tf = (TransferFunction)Read32();
+    CHECK(tf >= 0 && tf < NUM_TRANSFER_FUNCTIONS) << tf;
+    transfer_functions[i] = tf;
+    printf("%d %s ",
+	   indices_per_node[i],
+	   TransferFunctionName(tf));
   }
   printf("\n");
 
-  std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node}};
+  std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node, transfer_functions}};
   net->rounds = round;
 
   // Read Layer structs.
@@ -606,7 +625,10 @@ static void SaveNetworkBinary(const Network &net, const string &filename) {
   Write64(net.rounds);
   Write32(net.num_layers);
   for (const int i : net.num_nodes) Write32(i);
-  for (const Network::Layer &layer : net.layers) Write32(layer.indices_per_node);
+  for (const Network::Layer &layer : net.layers) {
+    Write32(layer.indices_per_node);
+    Write32(layer.transfer_function);
+  }
 
   for (const Network::Layer &layer : net.layers) {
     for (const uint32 idx : layer.indices) Write32(idx);
@@ -788,7 +810,6 @@ struct TrainingRoundGPU {
     CopyBufferToGPU(cl->queue, values, expected);
   }
 
-  // Way to export Errors?
   void ExportStimulation(Stimulation *stim) {
     CHECK_EQ(stim->values.size(), stimulations.size());
     for (int i = 0; i < stim->values.size(); i++) {
@@ -796,6 +817,17 @@ struct TrainingRoundGPU {
     }
   }
 
+  void ExportErrors(Errors *err) {
+    CHECK_EQ(err->error.size(), errors.size());
+    for (int i = 0; i < err->error.size(); i++) {
+      CopyBufferFromGPUTo(cl->queue, errors[i], &err->error[i]);
+    }
+  }
+
+  void ExportOutput(vector<float> *out) {
+    CopyBufferFromGPUTo(cl->queue, stimulations.back(), out);
+  }
+  
   // num_nodes + 1 layers. 0th is input, final is the output.
   vector<cl_mem> stimulations;
   // num_nodes layers.
@@ -831,6 +863,7 @@ static std::pair<std::vector<cl_program>, std::vector<cl_kernel>>
     switch (tf) {
     case SIGMOID: kernel_src += SIGMOID_FN; break;
     case RELU: kernel_src += RELU_FN; break;
+    case LEAKY_RELU: kernel_src += LEAKY_RELU_FN; break;
     default:
       CHECK(false) << "Invalid transfer function " << tf;
     }
@@ -868,7 +901,9 @@ struct ForwardLayerCL {
 
       // Printf("Setup kernel..\n");
 
-      cl_kernel kernel = parent->kernels[SIGMOID];
+      const TransferFunction transfer_function =
+	net_gpu->net->layers[layer].transfer_function;
+      cl_kernel kernel = parent->kernels[transfer_function];
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
@@ -950,10 +985,14 @@ struct SetOutputErrorCL {
     void SetOutputError(TrainingRoundGPU *train) {
       CL *cl = parent->cl;
 
-      cl_kernel kernel = parent->kernels[SIGMOID];
+      const Network *net = net_gpu->net;
+      // Errors are always computed for the output layer, which is the last one.
+      const TransferFunction transfer_function = net->layers.back().transfer_function;
+      
+      cl_kernel kernel = parent->kernels[transfer_function];
 
       // All three memories here have num_nodes floats.
-      int num_nodes = net_gpu->net->num_nodes[net_gpu->net->num_layers];
+      int num_nodes = net->num_nodes[net->num_layers];
       cl_mem actual_outputs = train->stimulations.back();
       cl_mem expected = train->expected;
       cl_mem output_error = train->errors.back();
@@ -1012,7 +1051,7 @@ struct SetOutputErrorCL {
   DISALLOW_COPY_AND_ASSIGN(SetOutputErrorCL);
 };
 
-
+// Propagate errors backwards. Note that errors flow from "dst" to "src".
 struct BackwardLayerCL {
   explicit BackwardLayerCL(CL *cl) : cl(cl) {
     std::tie(programs, kernels) = MakeTransferKernels(cl, "backwardlayer.cl", "BackwardLayer");
@@ -1034,27 +1073,29 @@ struct BackwardLayerCL {
 
     void Backward(TrainingRoundGPU *train) {
       CL *cl = parent->cl;
-
+      const Network *net = net_gpu->net;
       const int gap = dst_layer;
       const int src_layer = dst_layer - 1;
 
-      cl_kernel kernel = parent->kernels[SIGMOID];
+      const TransferFunction transfer_function = net->layers[src_layer].transfer_function;
+      
+      cl_kernel kernel = parent->kernels[transfer_function];
 
       cl_mem src_output = train->stimulations[src_layer + 1];
       cl_mem dst_error = train->errors[dst_layer];
 
       // This is the source layer, but num_nodes is offset by one since it includes
       // the size of the input layer as element 0.
-      int src_num_nodes = net_gpu->net->num_nodes[src_layer + 1];
+      int src_num_nodes = net->num_nodes[src_layer + 1];
       cl_mem src_error = train->errors[src_layer];
 
-      CHECK_EQ(src_num_nodes, net_gpu->net->inverted_indices[gap].start.size());
+      CHECK_EQ(src_num_nodes, net->inverted_indices[gap].start.size());
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
 	WriteMutexLock ml(&parent->m);
 
-	cl_int dst_indices_per_node = net_gpu->net->layers[dst_layer].indices_per_node;
+	cl_int dst_indices_per_node = net->layers[dst_layer].indices_per_node;
 	CHECK_SUCCESS(clSetKernelArg(kernel, 0, sizeof (cl_int),
 				     (void *)&dst_indices_per_node));
 	CHECK_SUCCESS(clSetKernelArg(kernel, 1, sizeof (cl_mem), (void *)&starts));
@@ -1391,8 +1432,9 @@ static void MakeIndices(const vector<int> &width,
 // Randomize the weights in a network. Doesn't do anything to indices.
 static void RandomizeNetwork(ArcFour *rc, Network *net) {
   auto RandomizeFloats = [](float mag, ArcFour *rc, vector<float> *vec) {
+    RandomGaussian gauss{rc};
     for (int i = 0; i < vec->size(); i++) {
-      (*vec)[i] = mag * (RandFloat(rc) - 0.5f);
+      (*vec)[i] = mag * gauss.Next();
     }
   };
 
@@ -1410,8 +1452,9 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 		    rcs[layer], &net->layers[layer].weights);
     */
 
-    RandomizeFloats(0.000025f, rcs[layer], &net->layers[layer].biases);
-    RandomizeFloats(0.000025f, rcs[layer], &net->layers[layer].weights);
+    for (float &f : net->layers[layer].biases) f = 0.0f;
+    // RandomizeFloats(0.000025f, rcs[layer], &net->layers[layer].biases);
+    RandomizeFloats(0.025f, rcs[layer], &net->layers[layer].weights);
   }, 12);
 
   DeleteElements(&rcs);
@@ -1420,7 +1463,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 6;
-static constexpr int EXPORT_EVERY = 2;
+static constexpr int EXPORT_EVERY = 16;
 static std::shared_mutex video_export_m;
 static int current_round = 0;
 static double rounds_per_second = 0.0;
@@ -1429,6 +1472,7 @@ static Network *current_network = nullptr;
 static bool allow_updates = true;
 static bool dirty = true;
 static double current_learning_rate = 0.0;
+static double current_total_error = 0.0;
 
 static void ExportRound(int r) {
   WriteMutexLock ml(&video_export_m);
@@ -1473,6 +1517,13 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
   }
 }
 
+static void ExportTotalErrorToVideo(double t) {
+  WriteMutexLock ml(&video_export_m);
+  if (allow_updates) {
+    current_total_error = t;
+  }
+}
+
 static std::pair<int, int> PixelSize(const NetworkConfiguration &config, int layer) {
   switch (config.style[layer]) {
   default:
@@ -1481,6 +1532,7 @@ static std::pair<int, int> PixelSize(const NetworkConfiguration &config, int lay
     return make_pair(config.width[layer], config.height[layer]);    
   case RenderStyle::FLAT:
     return make_pair(config.width[layer] * config.channels[layer], config.height[layer]);
+
   case RenderStyle::CHESSBITS:
     return {48, 48};
   case RenderStyle::CHESSBOARD:
@@ -1501,10 +1553,12 @@ static void UIThread() {
       if (dirty) {
 	sdlutil::clearsurface(screen, 0x0);
 	const char *paused_msg = allow_updates ? "" : " [^2VIDEO PAUSED]";
-	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 rps    ^1%.6f learning rate%s",
+	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 rps    "
+				   "^1%.6f^< learning rate   ^1%.6f^< total err%s",
 				   current_round,
 				   rounds_per_second,
 				   current_learning_rate,
+				   current_total_error,
 				   paused_msg);
 
 	int max_width = 0;
@@ -1918,9 +1972,11 @@ static void TrainThread() {
   // XXX This is probably still way too low. These are very small for chess (a
   // stimulation just needs the node activation values, so it's much smaller than
   // the network itself, which has to store weights for each incoming edge).
-  static constexpr int EXAMPLES_PER_ROUND = 12; // 4096;
+  static constexpr int EXAMPLES_PER_ROUND = 128; // 4096;
+  static constexpr int EXAMPLE_QUEUE_TARGET = std::max(EXAMPLES_PER_ROUND * 2, 1024);
   // On a verbose round, we write a network checkpoint and maybe some
-  // other stuff to disk.
+  // other stuff to disk. XXX: Do this based on time, since rounds speed can vary
+  // a lot based on other parameters!
   static constexpr int VERBOSE_ROUND_EVERY = 250;
 
   string start_seed = StringPrintf("%d  %lld", getpid(), (int64)time(nullptr));
@@ -1941,7 +1997,7 @@ static void TrainThread() {
   if (net.get() == nullptr) {
     Printf("Initializing new network...\n");
     NetworkConfiguration nc;
-    net.reset(new Network(nc.num_nodes, nc.indices_per_node));
+    net.reset(new Network(nc.num_nodes, nc.indices_per_node, nc.transfer_functions));
     Printf("Randomize weights:\n");
     RandomizeNetwork(&rc, net.get());
     Printf("Gen indices:\n");
@@ -2031,21 +2087,21 @@ static void TrainThread() {
       example->output[64 * NUM_CONTENTS + 4] = pos.BlackMove() ? 1.0f : 0.0f;
     };
 
-  auto MakeTrainingExamplesThread = [&training_examples_m, &training_examples,
+  auto MakeTrainingExamplesThread = [&training_examples_m,
+				     &training_examples,
 				     &PopulateExampleFromPos]() {
     Printf("Training example thread startup.\n");
     ArcFour rc("make examples");
     
     for (;;) {
-      
       if (SharedReadWithLock(&train_should_die_m, &train_should_die)) {
 	return;
       }
       
-      training_examples_m.lock();
+      training_examples_m.lock_shared();
       // Make sure we have plenty of examples so that learning doesn't stall.
-      if (training_examples.size() < EXAMPLES_PER_ROUND * 2) {
-	training_examples_m.unlock();
+      if (training_examples.size() < EXAMPLE_QUEUE_TARGET) {
+	training_examples_m.unlock_shared();
 
 	TrainingExample example;
 
@@ -2070,7 +2126,7 @@ static void TrainThread() {
 	}
 
       } else {
-	training_examples_m.unlock();
+	training_examples_m.unlock_shared();
 	std::this_thread::sleep_for(10ms);
       }
     }
@@ -2090,15 +2146,19 @@ static void TrainThread() {
   Timer total_timer;
   for (int rounds_executed = 0; ; rounds_executed++) {
     if (ShouldDie()) return;
-    Printf("\n\n ** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
+    if (VERBOSE > 2) Printf("\n\n");
+    Printf("** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
 
     // When starting from a fresh network, consider this:
     
     const float round_learning_rate =
-      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 10000.0 + 1)/3.0)));
+      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
 
-    //     const float round_learning_rate =
-    // std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
+    // const float round_learning_rate =
+    //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
+
+    // const float round_learning_rate =
+    // std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds / 1000.0 + 1)/3.0)));
 
     // const float round_learning_rate = 0.0025;
 
@@ -2149,7 +2209,7 @@ static void TrainThread() {
 
     CHECK_EQ(examples.size(), expected.size());
 
-    // TODO: may make sense to parallelize this loop somehow, so that we can parallelize
+    // TODO: may make sense to pipeline this loop somehow, so that we can parallelize
     // CPU/GPU duties?
 
     // Run a batch of images all the way through. (Each layer requires significant setup.)
@@ -2202,6 +2262,26 @@ static void TrainThread() {
       if (VERBOSE > 2) Printf("\n");
     }
 
+    // Compute total error.
+    if (rounds_executed % EXPORT_EVERY == 0) {
+      CHECK_EQ(examples.size(), training.size());
+      // We don't use the stimulus, because we want the total over all
+      // examples (but we only export enough for the video above), and
+      // only need the final output values, not internal layers.
+      double total_error = 0.0;
+      vector<float> values;
+      values.resize(net->num_nodes[net->num_layers]);
+      CHECK(values.size() == OUTPUT_LAYER_SIZE) << "Chess-specific check; ok to delete";
+      for (int i = 0; i < examples.size(); i++) {
+	training[i]->ExportOutput(&values);
+	CHECK(examples[i].output.size() == values.size());
+	for (int j = 0; j < values.size(); j++) {
+	  total_error += fabs(examples[i].output[j] - values[j]);
+	}
+      }
+      ExportTotalErrorToVideo(total_error / (double)examples.size());
+    }
+    
     const int num_examples = examples.size();
     // But, don't need to keep this allocated.
     examples.clear();
@@ -2211,6 +2291,7 @@ static void TrainThread() {
     Timer output_error_timer;
     ParallelComp(num_examples,
 		 [&setoutputerror, &net_gpu, &training, &expected](int example) {
+		   // PERF could pipeline this copy earlier
 		   training[example]->LoadExpected(expected[example]);
 		   SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
 		   sc.SetOutputError(training[example]);
@@ -2245,7 +2326,12 @@ static void TrainThread() {
     }
     backward_ms += backward_timer.MS();
 
-
+    if (rounds_executed % EXPORT_EVERY == 0) {
+      for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
+	// TODO: Export errors.
+      }
+    }
+    
     if (ShouldDie()) return;
     if (VERBOSE > 2) Printf("Update weights:\n");
     Timer update_timer;
@@ -2359,7 +2445,7 @@ int SDL_main(int argc, char **argv) {
     printf("Allocating video network/stimulations/data...");
     WriteMutexLock ml(&video_export_m);
     NetworkConfiguration nc;
-    current_network = new Network{nc.num_nodes, nc.indices_per_node};
+    current_network = new Network{nc.num_nodes, nc.indices_per_node, nc.transfer_functions};
     for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
       current_stimulations.emplace_back(*current_network);
     }
