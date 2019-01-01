@@ -78,19 +78,19 @@ static const char *SIGMOID_FN =
   "#define DERIVATIVE(fx) (fx * (1.0f - fx))\n";
 
 static const char *RELU_FN =
-  "#define FORWARD(potential) (potential < 0.0f ? 0.0f : potential)\n"
+  "#define FORWARD(potential) ((potential < 0.0f) ? 0.0f : potential)\n"
   // This is normally given as x < 0 ? 0 : 1, but note that f(x)
   // tells us which side of 0 the input is on (retaining the
   // not-very-important ambiguity at exactly 0), anyway. So we define
   // it in terms of f(x) to maintain the same interface we use for
   // sigmoid.
-  "#define DERIVATIVE(fx) (fx < 0.0f ? 0.0f : 1.0f)\n";
+  "#define DERIVATIVE(fx) ((fx < 0.0f) ? 0.0f : 1.0f)\n";
 
 // Like RELU but slight slope in the "zero" region.
 static const char *LEAKY_RELU_FN =
-  "#define FORWARD(potential) (potential < 0.0f ? potential * 0.01f : potential)\n"
+  "#define FORWARD(potential) ((potential < 0.0f) ? potential * 0.01f : potential)\n"
   // See note above.
-  "#define DERIVATIVE(fx) (fx < 0.0f ? 0.01f : 1.0f)\n";
+  "#define DERIVATIVE(fx) ((fx < 0.0f) ? 0.01f : 1.0f)\n";
 
 #define NUM_CONTENTS 13
 static constexpr int kPieceToContents[16] = {
@@ -269,10 +269,15 @@ struct NetworkConfiguration {
     {     64, 1024, 9 * 9 * 7, };
 
   const vector<TransferFunction> transfer_functions = { 
-    SIGMOID, 
+#if 0
+						       SIGMOID, 
     SIGMOID, 
     // Use SIGMOID for output layer, since we want probabilities in the ouptut.
     SIGMOID,
+#endif
+						       LEAKY_RELU,
+						       LEAKY_RELU,
+						       LEAKY_RELU,
   };
 
   const vector<RenderStyle> style = {
@@ -365,6 +370,28 @@ struct Network {
     this->inverted_indices = other.inverted_indices;
   }
 
+  void NaNCheck() const {
+    bool has_nans = false;
+    vector<std::pair<int, int>> layer_nans;
+    for (const Layer &layer : layers) {
+      int w = 0, b = 0;
+      for (float f : layer.weights) if (std::isnan(f)) w++;
+      for (float f : layer.biases) if (std::isnan(f)) b++;
+      layer_nans.emplace_back(w, b);
+      if (w > 0 || b > 0) has_nans = true;
+    }
+    if (has_nans) {
+      string err;
+      for (int i = 0; i < layer_nans.size(); i++) {
+	err += StringPrintf("(real) layer %d. %d/%d weights, %d/%d biases\n",
+			    i,
+			    layer_nans[i].first, layers[i].weights.size(),
+			    layer_nans[i].second, layers[i].biases.size());
+      }
+      CHECK(false) << "The network has NaNs :-(\n" << err;
+    }
+  }
+  
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
   static constexpr uint32 FORMAT_ID = 0x2700072CU;
@@ -700,6 +727,15 @@ struct Errors {
     return ret;
   }
 
+  void CopyFrom(const Errors &other) {
+    CHECK_EQ(this->num_layers, other.num_layers);
+    CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
+    for (int i = 0; i < this->num_nodes.size(); i++) {
+      CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
+    }
+    this->error = other.error;
+  }
+  
   // These are the delta terms in Mitchell. We have num_layers of
   // them, where the error[0] is the first real layer (we don't
   // compute errors for the input) and error[num_layers] is the error
@@ -1463,11 +1499,13 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 6;
-static constexpr int EXPORT_EVERY = 16;
+// static constexpr int EXPORT_EVERY = 16;
+static constexpr int EXPORT_EVERY = 1;
 static std::shared_mutex video_export_m;
 static int current_round = 0;
 static double rounds_per_second = 0.0;
 static vector<Stimulation> current_stimulations;
+static vector<Errors> current_errors;
 static Network *current_network = nullptr;
 static bool allow_updates = true;
 static bool dirty = true;
@@ -1517,6 +1555,16 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
   }
 }
 
+static void ExportErrorsToVideo(int example_id, const Errors &err) {
+  WriteMutexLock ml(&video_export_m);
+  if (allow_updates) {
+    CHECK_GE(example_id, 0);
+    CHECK_LT(example_id, current_errors.size());
+    current_errors[example_id].CopyFrom(err);
+    dirty = true;
+  }
+}
+
 static void ExportTotalErrorToVideo(double t) {
   WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
@@ -1532,13 +1580,64 @@ static std::pair<int, int> PixelSize(const NetworkConfiguration &config, int lay
     return make_pair(config.width[layer], config.height[layer]);    
   case RenderStyle::FLAT:
     return make_pair(config.width[layer] * config.channels[layer], config.height[layer]);
-
   case RenderStyle::CHESSBITS:
     return {48, 48};
   case RenderStyle::CHESSBOARD:
     return {256, 286};
   }
 }
+
+static int ErrorWidth(const NetworkConfiguration &config, int layer) {
+  switch (config.style[layer]) {
+  case RenderStyle::CHESSBOARD:
+    return 8;
+  default:
+    return config.width[layer];
+  }
+}
+
+static constexpr bool DRAW_ERRORS = true;
+
+// Draw error pixels to the screen.
+template<int SCALE>
+static void Error2D(const vector<float> &errs,
+		    // Screen coordinates.
+		    int xpos, int ypos,
+		    // Unscaled width/height.
+		    int width, int height) {
+  static_assert(SCALE >= 1);
+  for (int y = 0; y < height; y++) {
+    const int ystart = ypos + y * SCALE;
+    for (int x = 0; x < width; x++) {
+      const int idx = y * width + x;
+      const int xstart = xpos + x * SCALE;
+      // Allow this to not be rectangular, e.g. chessboard.
+      uint8 r = ((x + y) & 1) ? 0xFF : 0x00, g = 0x00, b = ((x + y) & 1) ? 0xFF : 0x00;
+      if (idx < errs.size()) {
+	const float f = errs[idx];
+	// Use different colors for negative/positive. 
+	// XXX: Show errors greater than magnitude 1!
+	if (f < 0.0f) {
+	  r = FloatByte(-f);
+	  g = 0;
+	  b = 0;
+	} else {
+	  r = 0;
+	  g = FloatByte(f);
+	  b = 0;
+	}
+      }
+	
+      // Hopefully this gets unrolled.
+      for (int yy = 0; yy < SCALE; yy++) {
+	for (int xx = 0; xx < SCALE; xx++) {
+	  sdlutil::drawpixel(screen, xstart + xx, ystart + yy, r, g, b);
+	}
+      }
+    }
+  }
+};
+
 
 static void UIThread() {
   const NetworkConfiguration config;
@@ -1562,18 +1661,26 @@ static void UIThread() {
 				   paused_msg);
 
 	int max_width = 0;
-	for (int l = 0; l < config.num_layers + 1; l++) {
-	  max_width = std::max(PixelSize(config, l).first, max_width);
+	for (int layer = 0; layer < config.num_layers + 1; layer++) {
+	  int w = PixelSize(config, layer).first;
+	  if (DRAW_ERRORS)
+	    w += ErrorWidth(config, layer) * 2 + 2;
+	  max_width = std::max(w, max_width);
 	}
 	max_width += 4;
 	
-
 	for (int s = 0; s < NUM_VIDEO_STIMULATIONS; s++) {
 	  const Stimulation &stim = current_stimulations[s];
+	  const Errors &err = current_errors[s];
 	  CHECK(stim.values.size() == config.num_layers + 1);
 	  CHECK(stim.values.size() == config.style.size());
-
+	  CHECK(err.error.size() == config.num_layers);
+	  
 	  const int xstart = 4 + s * max_width;
+	  if (xstart >= SCREENW)
+	    break;
+
+	  
 	  int ystart = 24;
 	  for (int l = 0; l < stim.values.size(); l++) {
 
@@ -1645,21 +1752,23 @@ static void UIThread() {
 		}
 	      }
 
-	      // TODO: Castling
-
+	      // Castling flags.
 	      for (int c = 0; c < 4; c++) {
 		const uint8 v = FloatByte(stim.values[l][64 * NUM_CONTENTS + c]);
-		sdlutil::FillRectRGB(screen, xstart + c * 32 + (c >= 2 ? 128 : 0),
-				     ystart + 32 * 8 + 8, 30, 8, v, v, v);
+		sdlutil::FillRectRGB(screen, xstart + c * 32 + (c >= 2 ? 130 : 0),
+				     ystart + 32 * 8, 30, 8, v, v, v);
 		if (v < 127)
-		  sdlutil::drawbox(screen, xstart + c * 32 + (c >= 2 ? 128 : 0),
-				   ystart + 32 * 8 + 8, 30, 8, v, v, v);
+		  sdlutil::drawbox(screen, xstart + c * 32 + (c >= 2 ? 130 : 0),
+				   ystart + 32 * 8, 30, 8, 0xFF, 0xFF, 0xFF);
 		
 	      }
 	      
 	      // Whose move is it? 1.0 means black, so subtract from 255.
 	      const uint8 v = 255 - FloatByte(stim.values[l][64 * NUM_CONTENTS + 4]);
 	      sdlutil::FillRectRGB(screen, xstart, ystart + 32 * 8 + 8, 32 * 8, 8, v, v, v);
+	      if (v < 127)
+		sdlutil::drawbox(screen, xstart, ystart + 32 * 8 + 8, 32 * 8, 8,
+				 0xFF, 0xFF, 0xFF);
 	      
 	      break;
 	    }
@@ -1718,7 +1827,27 @@ static void UIThread() {
 	      }
 	      break;
 	    }
-		
+
+	    // Now errors.
+	    if (DRAW_ERRORS && l > 0) {
+	      const int exstart = xstart + PixelSize(config, l).first;
+	      const vector<float> &errs = err.error[l - 1];
+	      switch (config.style[l]) {
+	      case RenderStyle::CHESSBITS:
+		Error2D<4>(errs, exstart, ystart, 8, 8);
+		break;
+	      case RenderStyle::FLAT:
+	      case RenderStyle::RGB:
+		Error2D<2>(errs, exstart, ystart,
+			   config.width[l] * config.channels[l],
+			   config.height[l]);
+	      case RenderStyle::CHESSBOARD:
+		Error2D<2>(errs, exstart, ystart,
+			   // Note: height extends beyond the array.
+			   8 * 13, 9);
+	      }
+	    }
+
 	    ystart += PixelSize(config, l).second + 4;
 	  }
 
@@ -1726,10 +1855,18 @@ static void UIThread() {
 	  if (vlayer >= 0) {
 	    double tot = 0.0;
 	    int yz = ystart + 4;
-	    for (int i = 0; i < stim.values[vlayer].size(); i++) {
-	      tot += stim.values[vlayer][i];
+	    const vector<float> &vals = stim.values[vlayer];
+	    for (int i = 0; i < vals.size(); i++) {
+	      tot += vals[i];
 	      if (i < 32) {
-		font->draw(xstart, yz, StringPrintf("^1%.9f", stim.values[vlayer][i]));
+		if (vlayer > 0) {
+		  const float e = vlayer > 0 ? err.error[vlayer - 1][i] : 0.0;
+		  // Font color.
+		  const int sign = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
+		  font->draw(xstart, yz, StringPrintf("^1%.9f ^%d%.12f", vals[i], sign, e));
+		} else {
+		  font->draw(xstart, yz, StringPrintf("^1%.9f", vals[i]));
+		}
 		yz += FONTHEIGHT;
 	      }
 	    }
@@ -2151,8 +2288,11 @@ static void TrainThread() {
 
     // When starting from a fresh network, consider this:
     
+    //    const float round_learning_rate =
+    //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
+
     const float round_learning_rate =
-      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
+      std::min(0.10, std::max(0.002, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
 
     // const float round_learning_rate =
     //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
@@ -2178,6 +2318,7 @@ static void TrainThread() {
     ExportLearningRate(round_learning_rate);
     if (rounds_executed % EXPORT_EVERY == 0) {
       net_gpu.ReadFromGPU();
+      net->NaNCheck();
       ExportNetworkToVideo(*net);
     }
 
@@ -2327,8 +2468,10 @@ static void TrainThread() {
     backward_ms += backward_timer.MS();
 
     if (rounds_executed % EXPORT_EVERY == 0) {
-      for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
-	// TODO: Export errors.
+      for (int example_idx = 0; example_idx < NUM_VIDEO_STIMULATIONS; example_idx++) {
+	Errors err{*net};
+	training[example_idx]->ExportErrors(&err);
+	ExportErrorsToVideo(example_idx, err);
       }
     }
     
@@ -2448,6 +2591,7 @@ int SDL_main(int argc, char **argv) {
     current_network = new Network{nc.num_nodes, nc.indices_per_node, nc.transfer_functions};
     for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
       current_stimulations.emplace_back(*current_network);
+      current_errors.emplace_back(*current_network);
     }
     printf("OK.\n");
   }
