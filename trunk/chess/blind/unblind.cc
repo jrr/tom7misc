@@ -838,11 +838,13 @@ struct TrainingRoundGPU {
 
   void LoadInput(const vector<float> &inputs) {
     CHECK_EQ(inputs.size(), net->num_nodes[0]);
+    if (CHECK_NANS) for (float f : inputs) CHECK(!std::isnan(f));
     CopyBufferToGPU(cl->queue, inputs, stimulations[0]);
   }
 
   void LoadExpected(const vector<float> &values) {
     CHECK_EQ(values.size(), net->num_nodes[net->num_layers]);
+    if (CHECK_NANS) for (float f : values) CHECK(!std::isnan(f));
     CopyBufferToGPU(cl->queue, values, expected);
   }
 
