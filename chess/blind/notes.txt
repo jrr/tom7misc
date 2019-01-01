@@ -33,7 +33,7 @@ With 32x32 intermediate layer, still stuck after 14k rounds.
 With 32x32 intermediate layer, but only 100 connections for the last
 layer, immediately starts to do something.
 
-So maybe what happens is that we sum so many inpute edges that the
+So maybe what happens is that we sum so many input edges that the
 sigmoids are totally saturated, so the derivative is nearly flat and
 error propagation does very little even if the learning rate is high.
 (This sounds like it's a common problem: See wikipedia on the
