@@ -18,7 +18,24 @@ __kernel void UpdateWeights(float learning_rate,
     const int src_idx = layer_indices[gidx];
     const float x_ji = layer_values[src_idx];
 
+    #if 0
+    // PERF: fma()?
     layer_weights[gidx] += learning_rate_times_delta_j * x_ji;
+    #else
+    // Clipping
+    const float update =
+      fmax(-1.0f,
+           fmin(1.0f, learning_rate_times_delta_j * x_ji));
+    layer_weights[gidx] += update;
+    #endif
   }
+
+  #if 0
   layer_biases[node_idx] += learning_rate_times_delta_j;
+  #else
+  const float bupdate =
+    fmax(-1.0f,
+         fmin(1.0f, learning_rate_times_delta_j));
+  layer_biases[node_idx] += bupdate;
+  #endif
 }

@@ -49,3 +49,36 @@ But at 40k rounds it was stuck predicting the same thing always.
 
 ok, same network, but using leaky_relu for all but the last layer.
 after 30k rounds (64 examples per round) it just seems stuck...
+
+
+Started drawing/printing the updates ("errors" = error * derivative).
+They are indeed extremely close to zero, even after a few rounds.
+
+Temporarily switched to leaky_relu everywhere. This yielded a different
+problem, which was NaNs after just 3 rounds. What was happening was
+that the biases (also weights) were getting crazy big ("gradient
+explosion"?); I guess the updates can compound exponentially per layer
+if there are lots of large ones. I did two things to fix:
+  1. cap the update to be in [-1, 1] within updateweights.cl
+  2. Set the learning rate to depend on the number of examples per
+     round. Without this, the errors can easily be very large
+     (e.g. if there are 100 examples, then it is common to have
+     an error of 100!). 
+(1) didn't help on its own, so maybe it should just be removed; it
+makes the slowest step slower!
+(2) Did make a huge difference; with just that change a two-hidden-layer
+fully connected network of just leaky_relu is producing reasonable
+outputs. (After 1200 rounds, total error = 18)
+
+Phew!
+
+ with 3 hidden relu layers, after 1300 rounds (64 ex per round), ~18 error
+ at 2800 rounds, ~15.3 error
+
+Good writeup with some actual parameters used (although for a pretty different
+problem):
+https://engineering.flipboard.com/2015/05/scaling-convnets
+
+TODO:
+ - might want historic graph of total error over time?
+
