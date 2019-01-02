@@ -81,7 +81,7 @@ CL::CL() {
   context = clCreateContext(nullptr, 1, devices, nullptr, nullptr, nullptr);
 
   
-  const bool out_of_order = true;
+  const bool out_of_order = false;
   // TODO: Try device queue?
   const cl_queue_properties props =
     out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0;

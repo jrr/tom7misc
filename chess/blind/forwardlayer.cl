@@ -33,6 +33,7 @@ __kernel void ForwardLayer(int indices_per_node,
   for (int i = 0; i < indices_per_node; i++) {
     const float w = my_weights[i];
     const float v = previous_layer_outputs[my_indices[i]];
+    // PERF: fma()?
     potential += w * v;
   }
   output_values[node_idx] = FORWARD(potential);

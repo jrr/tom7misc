@@ -53,6 +53,9 @@
 #define FONTSTYLES 7
 
 static constexpr int VERBOSE = 1;
+// Perform somewhat expensive sanity checking for NaNs.
+// (Beware: Also enables some other really expensive diagnostics.)
+static constexpr bool CHECK_NANS = false;
 
 using namespace std;
 
@@ -142,10 +145,10 @@ static Font *font = nullptr;
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
 
-static constexpr int MAX_GAMES = 2'000'000;
+static constexpr int MAX_GAMES = 3'000'000;
 // XXX can be much bigger; position is only 33 bytes.
-static constexpr int MAX_POSITIONS = 1'000'000;
-static constexpr int MAX_PGN_PARALLELISM = 8;
+static constexpr int MAX_POSITIONS = 100'000'000;
+static constexpr int MAX_PGN_PARALLELISM = 12;
 
 // Thread-safe, so shared between train and ui threads.
 static CL *global_cl = nullptr;
@@ -261,12 +264,12 @@ struct NetworkConfiguration {
       RenderStyle::CHESSBOARD, };
   */
 
-  const int num_layers = 3;
-  const vector<int> width =    { 8,  32,  9, OUTPUT_LAYER_SIZE, };
-  const vector<int> height =   { 8,  32,  9, 1, };
-  const vector<int> channels = { 1,   1,  7, 1, };
+  const int num_layers = 4;
+  const vector<int> width =    { 8,  32,  64, 9, OUTPUT_LAYER_SIZE, };
+  const vector<int> height =   { 8,  32,  64, 9, 1, };
+  const vector<int> channels = { 1,   1,   3, 7, 1, };
   const vector<int> indices_per_node =
-    {     64, 1024, 9 * 9 * 7, };
+    {     64, 1024, 12288, 9 * 9 * 7, };
 
   const vector<TransferFunction> transfer_functions = { 
 #if 0
@@ -278,10 +281,12 @@ struct NetworkConfiguration {
 						       LEAKY_RELU,
 						       LEAKY_RELU,
 						       LEAKY_RELU,
+						       LEAKY_RELU,
   };
 
   const vector<RenderStyle> style = {
     RenderStyle::CHESSBITS,
+    RenderStyle::RGB,
     RenderStyle::RGB,
     RenderStyle::FLAT,
     RenderStyle::CHESSBOARD, 
@@ -370,7 +375,7 @@ struct Network {
     this->inverted_indices = other.inverted_indices;
   }
 
-  void NaNCheck() const {
+  void NaNCheck(const char *message) const {
     bool has_nans = false;
     vector<std::pair<int, int>> layer_nans;
     for (const Layer &layer : layers) {
@@ -388,7 +393,7 @@ struct Network {
 			    layer_nans[i].first, layers[i].weights.size(),
 			    layer_nans[i].second, layers[i].biases.size());
       }
-      CHECK(false) << "The network has NaNs :-(\n" << err;
+      CHECK(false) << "[" << message << "] The network has NaNs :-(\n" << err;
     }
   }
   
@@ -705,6 +710,26 @@ struct Stimulation {
     }
     this->values = other.values;
   }
+
+  void NaNCheck(const char *message) const {
+    bool has_nans = false;
+    vector<int> layer_nans;
+    for (const vector<float> &layer : values) {
+      int v = 0;
+      for (float f : layer) if (std::isnan(f)) v++;
+      layer_nans.push_back(v);
+      if (v > 0) has_nans = true;
+    }
+    if (has_nans) {
+      string err;
+      for (int i = 0; i < layer_nans.size(); i++) {
+	err += StringPrintf("stim layer %d. %d/%d values\n",
+			    i,
+			    layer_nans[i], values[i].size());
+      }
+      CHECK(false) << "[" << message << "] The stimulation has NaNs :-(\n" << err;
+    }
+  }
 };
 
 struct Errors {
@@ -838,13 +863,13 @@ struct TrainingRoundGPU {
 
   void LoadInput(const vector<float> &inputs) {
     CHECK_EQ(inputs.size(), net->num_nodes[0]);
-    if (CHECK_NANS) for (float f : inputs) CHECK(!std::isnan(f));
+    if (CHECK_NANS) { for (float f : inputs) CHECK(!std::isnan(f)); }
     CopyBufferToGPU(cl->queue, inputs, stimulations[0]);
   }
 
   void LoadExpected(const vector<float> &values) {
     CHECK_EQ(values.size(), net->num_nodes[net->num_layers]);
-    if (CHECK_NANS) for (float f : values) CHECK(!std::isnan(f));
+    if (CHECK_NANS) { for (float f : values) CHECK(!std::isnan(f)); }
     CopyBufferToGPU(cl->queue, values, expected);
   }
 
@@ -937,17 +962,19 @@ struct ForwardLayerCL {
       cl_mem src_values = train->stimulations[layer];
       cl_mem dst_values = train->stimulations[layer + 1];
 
+      Network *net = net_gpu->net;
+      
       // Printf("Setup kernel..\n");
 
       const TransferFunction transfer_function =
-	net_gpu->net->layers[layer].transfer_function;
+	net->layers[layer].transfer_function;
       cl_kernel kernel = parent->kernels[transfer_function];
 
       // Can't have multiple threads setting a kernel's argument at one time.
       {
 	WriteMutexLock ml(&parent->m);
 
-	cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
+	cl_int indices_per_node = net->layers[layer].indices_per_node;
 	CHECK_SUCCESS(
 	    clSetKernelArg(kernel, 0, sizeof (cl_int), (void *)&indices_per_node));
 	CHECK_SUCCESS(
@@ -962,7 +989,7 @@ struct ForwardLayerCL {
 	    clSetKernelArg(kernel, 5, sizeof (cl_mem), (void *)&dst_values));
 
 	size_t global_work_offset[] = { 0 };
-        size_t global_work_size[] = { (size_t)(net_gpu->net->num_nodes[layer + 1]) };
+        size_t global_work_size[] = { (size_t)(net->num_nodes[layer + 1]) };
 	// Printf("Run FL Kernel.\n");
 	Timer kernel_timer;
 	CHECK_SUCCESS(clEnqueueNDRangeKernel(cl->queue, kernel,
@@ -1481,6 +1508,7 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
   for (int i = 0; i < net->num_layers; i++) rcs.push_back(Substream(rc, i));
 
   // But now we can do all layers in parallel.
+  CHECK_EQ(net->num_layers, net->layers.size());
   ParallelComp(net->num_layers, [rcs, &RandomizeFloats, &net](int layer) {
     // XXX such hacks. How to best initialize?
 
@@ -1501,11 +1529,11 @@ static void RandomizeNetwork(ArcFour *rc, Network *net) {
 
 // These must be initialized before starting the UI thread!
 static constexpr int NUM_VIDEO_STIMULATIONS = 6;
-// static constexpr int EXPORT_EVERY = 16;
-static constexpr int EXPORT_EVERY = 1;
+static constexpr int EXPORT_EVERY = 16;
+// static constexpr int EXPORT_EVERY = 1;
 static std::shared_mutex video_export_m;
 static int current_round = 0;
-static double rounds_per_second = 0.0;
+static double examples_per_second = 0.0;
 static vector<Stimulation> current_stimulations;
 static vector<Errors> current_errors;
 static Network *current_network = nullptr;
@@ -1522,10 +1550,10 @@ static void ExportRound(int r) {
   }
 }
 
-static void ExportRoundsPerSec(double rps) {
+static void ExportExamplesPerSec(double eps) {
   WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
-    rounds_per_second = rps;
+    examples_per_second = eps;
     // dirty = true;
   }
 }
@@ -1654,10 +1682,10 @@ static void UIThread() {
       if (dirty) {
 	sdlutil::clearsurface(screen, 0x0);
 	const char *paused_msg = allow_updates ? "" : " [^2VIDEO PAUSED]";
-	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 rps    "
+	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 eps    "
 				   "^1%.6f^< learning rate   ^1%.6f^< total err%s",
 				   current_round,
-				   rounds_per_second,
+				   examples_per_second,
 				   current_learning_rate,
 				   current_total_error,
 				   paused_msg);
@@ -2111,7 +2139,7 @@ static void TrainThread() {
   // XXX This is probably still way too low. These are very small for chess (a
   // stimulation just needs the node activation values, so it's much smaller than
   // the network itself, which has to store weights for each incoming edge).
-  static constexpr int EXAMPLES_PER_ROUND = 128; // 4096;
+  static constexpr int EXAMPLES_PER_ROUND = 64; // 4096;
   static constexpr int EXAMPLE_QUEUE_TARGET = std::max(EXAMPLES_PER_ROUND * 2, 1024);
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since rounds speed can vary
@@ -2224,6 +2252,11 @@ static void TrainThread() {
 
       // And the current player's move.
       example->output[64 * NUM_CONTENTS + 4] = pos.BlackMove() ? 1.0f : 0.0f;
+
+      if (CHECK_NANS) {
+	for (float f : example->input) { CHECK(!std::isnan(f)); }
+	for (float f : example->output) { CHECK(!std::isnan(f)); }
+      }
     };
 
   auto MakeTrainingExamplesThread = [&training_examples_m,
@@ -2289,6 +2322,12 @@ static void TrainThread() {
     Printf("** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
 
     // When starting from a fresh network, consider this:
+
+    // XXX: I think the learning rate should maybe depend on the number of examples
+    // per round, since we integrate over lots of them. We could end up having a
+    // total error for a single node of like +EXAMPLES_PER_ROUND or -EXAMPLES_PER_ROUND,
+    // which could yield an unrecoverable-sized update.
+    // (Alternatively, we could cap or norm the error values.)
     
     //    const float round_learning_rate =
     //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
@@ -2304,8 +2343,11 @@ static void TrainThread() {
 
     // const float round_learning_rate = 0.0025;
 
+    CHECK(!std::isnan(round_learning_rate));
     if (VERBOSE > 2) Printf("Learning rate: %.4f\n", round_learning_rate);
 
+    const float example_learning_rate = round_learning_rate / (double)EXAMPLES_PER_ROUND;
+    
     if (ShouldDie()) return;
 
     bool is_verbose_round = 0 == ((rounds_executed /* + 1 */) % VERBOSE_ROUND_EVERY);
@@ -2320,10 +2362,14 @@ static void TrainThread() {
     ExportLearningRate(round_learning_rate);
     if (rounds_executed % EXPORT_EVERY == 0) {
       net_gpu.ReadFromGPU();
-      net->NaNCheck();
       ExportNetworkToVideo(*net);
     }
 
+    if (CHECK_NANS) {
+      net_gpu.ReadFromGPU();
+      net->NaNCheck("round start");
+    }
+    
     Timer setup_timer;
     if (VERBOSE > 2) Printf("Setting up batch:\n");
 
@@ -2352,6 +2398,69 @@ static void TrainThread() {
 
     CHECK_EQ(examples.size(), expected.size());
 
+    if (false && CHECK_NANS /* && net->rounds == 3 */) {
+      // Actually run the forward pass on CPU, trying to find the computation that
+      // results in nan...
+      net_gpu.ReadFromGPU(); // should already be here, but...
+      UnParallelComp(examples.size(),
+		   [&net, &examples](int example_idx) {
+		     // XXX only run on one example...
+		     if (example_idx != 0) return;
+		     
+		     Stimulation stim{*net};
+		     for (int src = 0; src < net->num_layers; src++) {
+		       // XXX hard coded to leaky_relu
+		       auto Forward =
+			 [](double potential) -> float {
+			   return ((potential < 0.0f) ? potential * 0.01f : potential);
+			 };
+
+		       const vector<float> &src_values = stim.values[src];
+		       vector<float> *dst_values = &stim.values[src + 1];
+		       const vector<float> &biases = net->layers[src].biases;
+		       const vector<float> &weights = net->layers[src].weights;
+		       const vector<uint32> &indices = net->layers[src].indices;
+		       const int indices_per_node = net->layers[src].indices_per_node;
+		       const int num_nodes = net->num_nodes[src + 1];
+		       for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
+
+			 // Start with bias.
+			 double potential = biases[node_idx];
+			 printf("%d|L %d n %d. bias: %f\n",
+				net->rounds, src, node_idx, potential);
+			 CHECK(!std::isnan(potential)) << node_idx;
+			 const int my_weights = node_idx * indices_per_node;
+			 const int my_indices = node_idx * indices_per_node;
+
+			 for (int i = 0; i < indices_per_node; i++) {
+			   const float w = weights[my_weights + i];
+			   int srci = indices[my_indices + i];
+			   // XXX check dupes
+			   CHECK(srci >= 0 && srci < src_values.size()) << srci;
+			   const float v = src_values[srci];
+			   // PERF: fma()?
+			   CHECK(!std::isnan(w) &&
+				 !std::isnan(v) &&
+				 !std::isnan(potential)) << 
+			     StringPrintf("L %d, n %d. [%d=%d] %f * %f + %f\n",
+					  src,
+					  node_idx,
+					  i, srci, w, v, potential);
+			   potential += w * v;
+			 }
+			 CHECK(!std::isnan(potential));
+				 
+			 CHECK(node_idx >= 0 && node_idx < dst_values->size());
+			 float out = Forward(potential);
+			 printf("    %f -> %f\n", potential, out);
+			 CHECK(!std::isnan(out)) << potential;
+			 (*dst_values)[node_idx] = out;
+		       }
+		     }
+		   },
+		   16);
+    }
+    
     // TODO: may make sense to pipeline this loop somehow, so that we can parallelize
     // CPU/GPU duties?
 
@@ -2405,6 +2514,15 @@ static void TrainThread() {
       if (VERBOSE > 2) Printf("\n");
     }
 
+    if (CHECK_NANS) {
+      for (int example_idx = 0; example_idx < training.size(); example_idx++) {
+	Stimulation stim{*net};
+	training[example_idx]->ExportStimulation(&stim);
+	stim.NaNCheck("forward pass");
+      }
+    }
+
+    
     // Compute total error.
     if (rounds_executed % EXPORT_EVERY == 0) {
       CHECK_EQ(examples.size(), training.size());
@@ -2419,7 +2537,12 @@ static void TrainThread() {
 	training[i]->ExportOutput(&values);
 	CHECK(examples[i].output.size() == values.size());
 	for (int j = 0; j < values.size(); j++) {
-	  total_error += fabs(examples[i].output[j] - values[j]);
+	  float d = values[j] - examples[i].output[j];
+	  /*
+	  if (i == 0) printf("%d. %f want %f = %f\n",
+			     j, values[j], examples[i].output[j], d);
+	  */
+	  total_error += fabs(d);
 	}
       }
       ExportTotalErrorToVideo(total_error / (double)examples.size());
@@ -2486,16 +2609,10 @@ static void TrainThread() {
     for (int layer = 0; layer < net->num_layers; layer++) {
       UpdateWeightsCL::Context uc{&updateweights, &net_gpu, layer};
 
-      // XXX trying making this dynamic -- more nodes means slower learning?
-      // (never actually ran this)
-      // Maybe an off by one error here on the indices_per_node to use?
-      // float layer_learning_rate = (round_learning_rate * 20f) /
-      // net->layer[layer].indices_per_node;
-
       // PERF Faster to try to run these in parallel (maybe parallelizing memory traffic
       // with kernel execution -- but we can't run the kernels at the same time).
       for (int example = 0; example < num_examples; example++) {
-	uc.Update(round_learning_rate, training[example], layer);
+	uc.Update(example_learning_rate, training[example], layer);
       }
 
       // Now we leave the network on the GPU, and the version in the Network object will
@@ -2509,6 +2626,11 @@ static void TrainThread() {
     update_ms += update_timer.MS();
     if (VERBOSE > 2) Printf("\n");
 
+    if (CHECK_NANS) {
+      net_gpu.ReadFromGPU();
+      net->NaNCheck("updated weights");
+    }
+    
     if (ShouldDie()) return;
 
     net->rounds++;
@@ -2516,7 +2638,7 @@ static void TrainThread() {
     double total_ms = total_timer.MS();
     auto Pct = [total_ms](double d) { return (100.0 * d) / total_ms; };
     double denom = rounds_executed + 1;
-    ExportRoundsPerSec(denom / (total_ms / 1000.0));
+    ExportExamplesPerSec((EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0));
     if (VERBOSE > 1)
       Printf("Total so far %.1fs.\n"
 	     "Time per round: %.1fs.\n"
