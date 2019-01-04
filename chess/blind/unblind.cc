@@ -6,6 +6,23 @@
 // 'blinded' version. This representation is of course ambiguous, so
 // the result can only be probabilistic.
 
+// TODO: Output error history during training. Could just concatenate
+// it to a file. Would be nice to get it over a large number of examples
+// (more than the batch size) to reduce variance.
+
+// TODO: Fix error display.
+
+// TODO: 2x/3x for RGB/FLAT.
+
+// TODO: Hover over a square on the chessboard to show those output values?
+
+// TODO: Show timer breakdown in GUI.
+
+// TODO: Little chess piece font!
+
+// TODO: Debug interface that lets you interactively set bits (or even set
+// a position) and it shows you what it thinks it is.
+
 #include "SDL.h"
 #include "SDL_main.h"
 #include "../cc-lib/sdl/sdlutil.h"
@@ -140,7 +157,7 @@ static constexpr int kPieceToContents[16] = {
 // Graphics.
 #define FONTWIDTH 9
 #define FONTHEIGHT 16
-static Font *font = nullptr;
+static Font *font = nullptr, *chessfont = nullptr;
 #define SCREENW 1920
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
@@ -1769,8 +1786,8 @@ static void UIThread() {
 
 		  sdlutil::FillRectRGB(screen, xx, yy, 32, 32, rr, gg, bb);
 		  string str = " ";
-		  str[0] = " PKBRQKpkbrqk"[maxi];
-		  font->draw(xx + 10, yy, str);
+		  str[0] = " PNBRQKpnbrqk"[maxi];
+		  chessfont->draw(xx, yy, str);
 		  for (int i = 0; i < NUM_CONTENTS; i++) {
 		    const uint8 v = FloatByte(stim.values[l][cidx + i]);
 		    int x = xx + 2 + i * 2;
@@ -1889,13 +1906,15 @@ static void UIThread() {
 	    for (int i = 0; i < vals.size(); i++) {
 	      tot += vals[i];
 	      if (i < 32) {
+		// Font color.
+		const int c = vals[i] > 0.5f ? 0 : 1;
 		if (vlayer > 0) {
 		  const float e = vlayer > 0 ? err.error[vlayer - 1][i] : 0.0;
 		  // Font color.
 		  const int sign = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
-		  font->draw(xstart, yz, StringPrintf("^1%.9f ^%d%.12f", vals[i], sign, e));
+		  font->draw(xstart, yz, StringPrintf("^%d%.9f ^%d%.12f", c, vals[i], sign, e));
 		} else {
-		  font->draw(xstart, yz, StringPrintf("^1%.9f", vals[i]));
+		  font->draw(xstart, yz, StringPrintf("^%d%.9f", c, vals[i]));
 		}
 		yz += FONTHEIGHT;
 	      }
@@ -2263,7 +2282,9 @@ static void TrainThread() {
 				     &training_examples,
 				     &PopulateExampleFromPos]() {
     Printf("Training example thread startup.\n");
-    ArcFour rc("make examples");
+    string seed = StringPrintf("make ex %lld", (int64)time(nullptr));
+    ArcFour rc(seed);
+    rc.Discard(2000);
     
     for (;;) {
       if (SharedReadWithLock(&train_should_die_m, &train_should_die)) {
@@ -2332,9 +2353,19 @@ static void TrainThread() {
     //    const float round_learning_rate =
     //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
 
-    const float round_learning_rate =
-      std::min(0.10, std::max(0.002, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
-
+    // This one worked well to get chess started, but drops off too soon I think.
+    // const float round_learning_rate =
+    // std::min(0.10, std::max(0.002, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
+    auto Linear =
+      [](double start, double end, double round_target, double input) {
+	if (input < 0.0) return start;
+	if (input > round_target) return end;
+	double height = end - start;
+	double f = input / round_target;
+	return start + f * height;
+      };
+      const float round_learning_rate = Linear(0.10, 0.002, 200000.0, net->rounds);
+      
     // const float round_learning_rate =
     //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));
 
@@ -2703,6 +2734,12 @@ int SDL_main(int argc, char **argv) {
 		      "font.png",
 		      FONTCHARS,
 		      FONTWIDTH, FONTHEIGHT, FONTSTYLES, 1, 3);
+  CHECK(font != nullptr) << "Couldn't load font.";
+
+  chessfont = Font::create(screen,
+			   "chessfont.png",
+			   " PNBRQKpnbrqk",
+			   32, 32, 1, 0, 1);
   CHECK(font != nullptr) << "Couldn't load font.";
 
   global_cl = new CL;

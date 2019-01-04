@@ -74,6 +74,12 @@ Phew!
 
  with 3 hidden relu layers, after 1300 rounds (64 ex per round), ~18 error
  at 2800 rounds, ~15.3 error
+ at 17k rounds, ~13 error (note learning rate has dropped to 0.0020)
+ so at 17900 I switched to a linear decline from 0.1 to 0.002 with a target
+ of 200,000 rounds.
+ at 31164 rounds, 13.74 error
+ 50k rounds, 13-14 error
+ 64k rounds, 12 error
 
 Good writeup with some actual parameters used (although for a pretty different
 problem):
@@ -81,4 +87,21 @@ https://engineering.flipboard.com/2015/05/scaling-convnets
 
 TODO:
  - might want historic graph of total error over time?
+
+
+After 64k rounds, it does seem to be making slow progress still, but
+it has some common mistakes, like it loves putting multiple kings on
+the board. Is it possible that
+
+ haha omg, it's just that I was printing both knights and kings as K. :)
+
+ wow much better.
+
+Still, there are cases where it does silly stuff like more than 8
+pawns of one color, or two same-color bishops. I don't see rampant
+multiple kings any more but nothing prevents it. Actually it does seem
+fairly common for there to be no kings, or for one side to be missing
+a king. Could we help it produce the right features by structuring the
+error more? Like we could ask it to produce the single position for
+each king, or the locations of each of the 32 pieces, or something?
 
