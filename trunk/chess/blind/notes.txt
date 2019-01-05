@@ -80,6 +80,8 @@ Phew!
  at 31164 rounds, 13.74 error
  50k rounds, 13-14 error
  64k rounds, 12 error
+ 82k rounds, 12 error
+ 96k rounds, 11.5-13 error
 
 Good writeup with some actual parameters used (although for a pretty different
 problem):
