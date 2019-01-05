@@ -18,7 +18,8 @@
 
 // TODO: Show timer breakdown in GUI.
 
-// TODO: Little chess piece font!
+// TODO: Now we pass stuff to the video thread at multiple different moments,
+// so they can be desynchronized. Should do something to synchronize this?
 
 // TODO: Debug interface that lets you interactively set bits (or even set
 // a position) and it shows you what it thinks it is.
@@ -1553,6 +1554,7 @@ static int current_round = 0;
 static double examples_per_second = 0.0;
 static vector<Stimulation> current_stimulations;
 static vector<Errors> current_errors;
+static vector<vector<float>> current_expected;
 static Network *current_network = nullptr;
 static bool allow_updates = true;
 static bool dirty = true;
@@ -1598,6 +1600,17 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
     CHECK_GE(example_id, 0);
     CHECK_LT(example_id, current_stimulations.size());
     current_stimulations[example_id].CopyFrom(stim);
+    dirty = true;
+  }
+}
+
+static void ExportExpectedToVideo(int example_id,
+				  const vector<float> &expected) {
+  WriteMutexLock ml(&video_export_m);
+  if (allow_updates) {
+    CHECK_GE(example_id, 0);
+    CHECK_LT(example_id, current_expected.size());
+    current_expected[example_id] = expected;
     dirty = true;
   }
 }
@@ -1767,16 +1780,28 @@ static void UIThread() {
 		for (int c = 0; c < 8; c++) {
 		  int xx = xstart + c * 32;
 
+		  auto MostLikelyPiece =
+		    [](const vector<float> &vals, int start_idx) {
+		      int maxi = 0;
+		      float maxp = vals[start_idx];
+		      for (int i = 1; i < NUM_CONTENTS; i++) {
+			if (vals[start_idx + i] > maxp) {
+			  maxi = i;
+			  maxp = vals[start_idx + i];
+			}
+		      }
+		      return maxi;
+		    };
+		  
 		  // Find the contents with the highest score.
 		  int cidx = (r * 8 + c) * NUM_CONTENTS;
-		  int maxi = 0;
-		  float maxp = stim.values[l][cidx];
-		  for (int i = 1; i < NUM_CONTENTS; i++) {
-		    if (stim.values[l][cidx + i] > maxp) {
-		      maxi = i;
-		      maxp = stim.values[l][cidx + i];
-		    }
-		  }
+		  const int maxi = MostLikelyPiece(stim.values[l], cidx);
+		  // HAX!
+		  const vector<float> &expected = current_expected[s];
+		  const int expi =
+		    expected.size() >= 64 * NUM_CONTENTS ?
+		    MostLikelyPiece(expected, cidx) :
+		    0;
 		  
 		  bool black = (r + c) & 1;
 		  // Background
@@ -1788,6 +1813,13 @@ static void UIThread() {
 		  string str = " ";
 		  str[0] = " PNBRQKpnbrqk"[maxi];
 		  chessfont->draw(xx, yy, str);
+		  if (maxi != expi) {
+		    string es = StringPrintf("^%d%c^2!",
+					     expi >= 7 ? 1 : 0,
+					     " PNBRQKpnbrqk"[expi]);
+		    font->draw(xx + 12, yy + 12, es);
+		  }
+		  
 		  for (int i = 0; i < NUM_CONTENTS; i++) {
 		    const uint8 v = FloatByte(stim.values[l][cidx + i]);
 		    int x = xx + 2 + i * 2;
@@ -2587,11 +2619,18 @@ static void TrainThread() {
     if (VERBOSE > 2) Printf("Error calc.\n");
     Timer output_error_timer;
     ParallelComp(num_examples,
-		 [&setoutputerror, &net_gpu, &training, &expected](int example) {
+		 [rounds_executed,
+		  &setoutputerror, &net_gpu, &training, &expected](int example_idx) {
+		   if (rounds_executed % EXPORT_EVERY == 0 &&
+		       example_idx < NUM_VIDEO_STIMULATIONS) {
+		     // Copy to screen.
+		     ExportExpectedToVideo(example_idx, expected[example_idx]);
+		   }
+
 		   // PERF could pipeline this copy earlier
-		   training[example]->LoadExpected(expected[example]);
+		   training[example_idx]->LoadExpected(expected[example_idx]);
 		   SetOutputErrorCL::Context sc{&setoutputerror, &net_gpu};
-		   sc.SetOutputError(training[example]);
+		   sc.SetOutputError(training[example_idx]);
 		   /* Printf("."); */
 		 }, 16);
     output_error_ms += output_error_timer.MS();
@@ -2754,6 +2793,7 @@ int SDL_main(int argc, char **argv) {
       current_stimulations.emplace_back(*current_network);
       current_errors.emplace_back(*current_network);
     }
+    current_expected.resize(NUM_VIDEO_STIMULATIONS);
     printf("OK.\n");
   }
 
