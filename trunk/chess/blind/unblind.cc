@@ -24,6 +24,19 @@
 // TODO: Debug interface that lets you interactively set bits (or even set
 // a position) and it shows you what it thinks it is.
 
+// TODO: Define a notion of the "chess error" for comparison between approaches.
+// For example if we add a redundant representation of the board to help
+// it understand that there can't be two kings, then that will necessarily
+// magnify the total error. The chess error could just be the number of discrete
+// mistakes averaged over a sample of boards.
+
+// TODO: Softmax or other more formal multinomial?
+
+// TODO: In preparation for having multiple models that we care about,
+// would be good to have the network configuration completely stored within
+// the serialized format, so that we can mix and match models (at least
+// multiple ones in the same process, if not spread out over code versions).
+
 #include "SDL.h"
 #include "SDL_main.h"
 #include "../cc-lib/sdl/sdlutil.h"
@@ -36,6 +49,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <cmath>
 #include <chrono>
 #include <algorithm>
 #include <tuple>
@@ -163,9 +177,9 @@ static Font *font = nullptr, *chessfont = nullptr;
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
 
-static constexpr int MAX_GAMES = 3'000'000;
+static constexpr int MAX_GAMES = 2'000'000;
 // XXX can be much bigger; position is only 33 bytes.
-static constexpr int MAX_POSITIONS = 100'000'000;
+static constexpr int MAX_POSITIONS = 10'000'000;
 static constexpr int MAX_PGN_PARALLELISM = 12;
 
 // Thread-safe, so shared between train and ui threads.
@@ -1632,18 +1646,28 @@ static void ExportTotalErrorToVideo(double t) {
   }
 }
 
-static std::pair<int, int> PixelSize(const NetworkConfiguration &config, int layer) {
+// Returns unscaled width, height, and scale (= number of screen pixels per layer pixel)
+static std::tuple<int, int, int> PixelSize(const NetworkConfiguration &config, int layer) {
+  auto MakeScale =
+    [](int w, int h) {
+      int d = std::max(w, h);
+      return (d <= 16) ? 3 : (d <= 128) ? 2 : 1;
+    };
   switch (config.style[layer]) {
   default:
-  case RenderStyle::RGB:
+  case RenderStyle::RGB: {
     // Could do a hybrid where we use 3 channels per pixel, but still show them all
-    return make_pair(config.width[layer], config.height[layer]);    
-  case RenderStyle::FLAT:
-    return make_pair(config.width[layer] * config.channels[layer], config.height[layer]);
+    int w = config.width[layer], h = config.height[layer];
+    return {w, h, MakeScale(w, h)};
+  }
+  case RenderStyle::FLAT: {
+    int w = config.width[layer] * config.channels[layer], h = config.height[layer];
+    return {w, h, MakeScale(w, h)};
+  }
   case RenderStyle::CHESSBITS:
-    return {48, 48};
+    return {48, 48, 1};
   case RenderStyle::CHESSBOARD:
-    return {256, 286};
+    return {256, 286, 1};
   }
 }
 
@@ -1722,7 +1746,7 @@ static void UIThread() {
 
 	int max_width = 0;
 	for (int layer = 0; layer < config.num_layers + 1; layer++) {
-	  int w = PixelSize(config, layer).first;
+	  int w = std::get<0>(PixelSize(config, layer));
 	  if (DRAW_ERRORS)
 	    w += ErrorWidth(config, layer) * 2 + 2;
 	  max_width = std::max(w, max_width);
@@ -1909,7 +1933,7 @@ static void UIThread() {
 
 	    // Now errors.
 	    if (DRAW_ERRORS && l > 0) {
-	      const int exstart = xstart + PixelSize(config, l).first;
+	      const int exstart = xstart + std::get<0>(PixelSize(config, l));
 	      const vector<float> &errs = err.error[l - 1];
 	      switch (config.style[l]) {
 	      case RenderStyle::CHESSBITS:
@@ -1927,7 +1951,7 @@ static void UIThread() {
 	      }
 	    }
 
-	    ystart += PixelSize(config, l).second + 4;
+	    ystart += std::get<1>(PixelSize(config, l)) + 4;
 	  }
 
 
