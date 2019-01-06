@@ -384,8 +384,8 @@ struct Network {
   int64 Bytes() const {
     int64 ret = sizeof *this;
     ret += sizeof num_nodes[0] * num_nodes.size();
-    ret += sizeof widths[0] * widths.size();
-    ret += sizeof heights[0] * heights.size();
+    ret += sizeof width[0] * width.size();
+    ret += sizeof height[0] * height.size();
     ret += sizeof channels[0] * channels.size();
     // Layer structs.
     for (int i = 0; i < num_layers; i++) {
@@ -629,7 +629,9 @@ static Network *ReadNetworkBinary(const string &filename) {
     }
   };
 
-  CHECK(Read32() == Network::FORMAT_ID) << "Wrong magic number!";
+  // XXXX
+  CHECK(Read32() == Network::FORMAT_ID - 1) << "Wrong magic number!";
+
   int64 round = Read64();
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
@@ -657,6 +659,10 @@ static Network *ReadNetworkBinary(const string &filename) {
   for (int i = 0; i < file_num_layers + 1; i++)
     channels.push_back(Read32());
   */
+  CHECK(num_nodes.size() == width.size());
+  CHECK(num_nodes.size() == height.size());
+  CHECK(num_nodes.size() == channels.size());
+
   printf("\n%s: indices per node/fns: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
@@ -672,6 +678,10 @@ static Network *ReadNetworkBinary(const string &filename) {
   printf("\n");
 
   std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node, transfer_functions}};
+  net->width = width;
+  net->height = height;
+  net->channels = channels;
+  
   net->rounds = round;
   net->examples = round * 64;  // XXXXXXX
   
@@ -2607,7 +2617,8 @@ static void TrainThread() {
     if (ShouldDie()) return;
 
     net->rounds++;
-
+    net->examples += EXAMPLES_PER_ROUND;
+    
     double total_ms = total_timer.MS();
     auto Pct = [total_ms](double d) { return (100.0 * d) / total_ms; };
     double denom = rounds_executed + 1;
