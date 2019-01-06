@@ -126,7 +126,7 @@ static const char *TransferFunctionName(TransferFunction tf) {
   }
 }
 
-#define NEIGHBORHOOD 1
+#if 0
 struct NetworkConfiguration { 
 
   // Note that these must have num_layers + 1 entries.
@@ -181,6 +181,7 @@ struct NetworkConfiguration {
     }
   }
 };
+#endif
 
 struct Network {
   // Creates arrays of the appropriate size, but all zeroes. Note that this uninitialized

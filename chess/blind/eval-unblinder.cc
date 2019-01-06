@@ -181,7 +181,7 @@ int main(int argc, char **argv) {
       }
     };
 
-  ParallelApp(positions, AppMe, 40);
+  ParallelApp(positions, AppMe, 30);
   fprintf(stderr, "Ran eval in %.2fs\n", eval_timer.MS() / 1000.0);
   fflush(stderr);
   

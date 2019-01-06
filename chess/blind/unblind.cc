@@ -384,6 +384,9 @@ struct Network {
   int64 Bytes() const {
     int64 ret = sizeof *this;
     ret += sizeof num_nodes[0] * num_nodes.size();
+    ret += sizeof widths[0] * widths.size();
+    ret += sizeof heights[0] * heights.size();
+    ret += sizeof channels[0] * channels.size();
     // Layer structs.
     for (int i = 0; i < num_layers; i++) {
       ret += sizeof layers[i] + sizeof layers[i].indices[0] * layers[i].indices.size() +
@@ -405,6 +408,9 @@ struct Network {
   void CopyFrom(const Network &other) {
     CHECK_EQ(this->num_layers, other.num_layers);
     this->num_nodes = other.num_nodes;
+    this->width = other.width;
+    this->height = other.height;
+    this->channels = other.channels;
     this->layers = other.layers;
     this->inverted_indices = other.inverted_indices;
   }
@@ -433,14 +439,17 @@ struct Network {
   
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
-  static constexpr uint32 FORMAT_ID = 0x2700072CU;
+  static constexpr uint32 FORMAT_ID = 0x2700072DU;
 
   // The number of "real" layers, that is, not counting the input.
   const int num_layers;
 
   // num_layers + 1. num_nodes[0] is the size of the input layer.
   vector<int> num_nodes;
-
+  // Parallel to num_nodes. These don't affect the network's behavior,
+  // just its rendering. num_nodes[i] == width[i] * height[i] * channels[i].
+  vector<int> width, height, channels;
+  
   // "Real" layer; none for the input.
   struct Layer {
     // Same number of input indices for each node.
@@ -496,6 +505,8 @@ struct Network {
   // Rounds trained. This matters when restarting from disk, because
   // for example the learning rate depends on the round.
   int64 rounds = 0;
+  // Total number of training examples processed.
+  int64 examples = 0;
 };
 
 static void CheckInvertedIndices(const Network &net) {
@@ -630,8 +641,23 @@ static Network *ReadNetworkBinary(const string &filename) {
     num_nodes[i] = Read32();
     printf("%d ", num_nodes[i]);
   }
+  vector<int> width, height, channels;
+  {
+    NetworkConfiguration config;
+    width = config.width;
+    height = config.height;
+    channels = config.channels;
+  }
+  // XXXXX
+  /*
+  for (int i = 0; i < file_num_layers + 1; i++)
+    width.push_back(Read32());
+  for (int i = 0; i < file_num_layers + 1; i++)
+    height.push_back(Read32());
+  for (int i = 0; i < file_num_layers + 1; i++)
+    channels.push_back(Read32());
+  */
   printf("\n%s: indices per node/fns: ", filename.c_str());
-
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
   for (int i = 0; i < file_num_layers; i++) {
@@ -647,7 +673,8 @@ static Network *ReadNetworkBinary(const string &filename) {
 
   std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node, transfer_functions}};
   net->rounds = round;
-
+  net->examples = round * 64;  // XXXXXXX
+  
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
     for (int j = 0; j < net->layers[i].indices.size(); j++) {
@@ -689,8 +716,13 @@ static void SaveNetworkBinary(const Network &net, const string &filename) {
 
   Write32(Network::FORMAT_ID);
   Write64(net.rounds);
+  Write64(net.examples);
   Write32(net.num_layers);
   for (const int i : net.num_nodes) Write32(i);
+  for (const int w : net.width) Write32(w);
+  for (const int h : net.height) Write32(h);
+  for (const int c : net.channels) Write32(c);
+  
   for (const Network::Layer &layer : net.layers) {
     Write32(layer.indices_per_node);
     Write32(layer.transfer_function);
@@ -1282,19 +1314,26 @@ struct UpdateWeightsCL {
       const int num_nodes = net_gpu->net->num_nodes[layer + 1];
       cl_int indices_per_node = net_gpu->net->layers[layer].indices_per_node;
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 0, sizeof (cl_float), (void *)&learning_rate));
+	  clSetKernelArg(parent->kernel, 0, sizeof (cl_float),
+			 (void *)&learning_rate));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 1, sizeof (cl_int), (void *)&indices_per_node));
+	  clSetKernelArg(parent->kernel, 1, sizeof (cl_int),
+			 (void *)&indices_per_node));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 2, sizeof (cl_mem), (void *)&layer_error));
+	  clSetKernelArg(parent->kernel, 2, sizeof (cl_mem),
+			 (void *)&layer_error));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 3, sizeof (cl_mem), (void *)&layer_indices));
+	  clSetKernelArg(parent->kernel, 3, sizeof (cl_mem),
+			 (void *)&layer_indices));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 4, sizeof (cl_mem), (void *)&layer_values));
+	  clSetKernelArg(parent->kernel, 4, sizeof (cl_mem),
+			 (void *)&layer_values));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 5, sizeof (cl_mem), (void *)&layer_weights));
+	  clSetKernelArg(parent->kernel, 5, sizeof (cl_mem),
+			 (void *)&layer_weights));
       CHECK_SUCCESS(
-	  clSetKernelArg(parent->kernel, 6, sizeof (cl_mem), (void *)&layer_biases));
+	  clSetKernelArg(parent->kernel, 6, sizeof (cl_mem),
+			 (void *)&layer_biases));
 
       size_t global_work_offset[] = { 0 };
       size_t global_work_size[] = { (size_t)num_nodes };
@@ -2630,6 +2669,11 @@ int SDL_main(int argc, char **argv) {
 
   SDL_EnableUNICODE(1);
 
+  SDL_Surface *icon = SDL_LoadBMP("unblind-icon.bmp");
+  if (icon != nullptr) {
+    SDL_WM_SetIcon(icon, nullptr);
+  }
+  
   screen = sdlutil::makescreen(SCREENW, SCREENH);
   CHECK(screen);
 
