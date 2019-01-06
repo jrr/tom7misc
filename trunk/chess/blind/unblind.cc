@@ -36,6 +36,8 @@
 // would be good to have the network configuration completely stored within
 // the serialized format, so that we can mix and match models (at least
 // multiple ones in the same process, if not spread out over code versions).
+//   - TODO: Network now stores width/height/channels; restructure so
+//     that rendering uses these.
 
 #include "SDL.h"
 #include "SDL_main.h"
@@ -79,6 +81,7 @@
 #include "../bigchess.h"
 
 #include "loadpositions.h"
+#include "network.h"
 
 #include "clutil.h"
 #include "timer.h"
@@ -249,22 +252,6 @@ enum class RenderStyle {
   CHESSBOARD,
 };
 
-enum TransferFunction {
-  SIGMOID = 0,
-  RELU,
-  LEAKY_RELU,
-  NUM_TRANSFER_FUNCTIONS,
-};
-
-static const char *TransferFunctionName(TransferFunction tf) {
-  switch (tf) {
-  case SIGMOID: return "SIGMOID";
-  case RELU: return "RELU";
-  case LEAKY_RELU: return "LEAKY_RELU";
-  default: return "??INVALID??";
-  }
-}
-
 // XXX: In the middle of migrating this to be intrinsic properties
 // of the network, with configuration only used to set up the network
 // in the first place. For now, the NetworkConfiguration must actually
@@ -354,396 +341,6 @@ struct NetworkConfiguration {
     */
   }
 };
-
-struct Network {
-  // Creates arrays of the appropriate size, but all zeroes. Note that this uninitialized
-  // network is invalid, since the inverted indices are not correct.
-  Network(vector<int> num_nodes,
-	  vector<int> indices_per_node,
-	  vector<TransferFunction> transfer_functions) :
-      num_layers(num_nodes.size() - 1),
-      num_nodes(num_nodes) {
-    CHECK(num_nodes.size() >= 1) << "Must include input layer.";
-    CHECK_EQ(num_layers, indices_per_node.size());
-    CHECK_EQ(num_layers, transfer_functions.size());
-    layers.resize(num_layers);
-    for (int i = 0; i < num_layers; i++) {
-      Layer &layer = layers[i];
-      layer.indices_per_node = indices_per_node[i];
-      layer.transfer_function = transfer_functions[i];
-      layer.indices.resize(indices_per_node[i] * num_nodes[i + 1], 0);
-      layer.weights.resize(indices_per_node[i] * num_nodes[i + 1], 0.0);
-      layer.biases.resize(num_nodes[i + 1], 0.0);
-    }
-
-    inverted_indices.resize(num_layers);
-    for (int i = 0; i < num_layers; i++) {
-      InvertedIndices &ii = inverted_indices[i];
-      ii.start.resize(num_nodes[i], 0);
-      ii.length.resize(num_nodes[i], 0);
-      ii.output_indices.resize(indices_per_node[i] * num_nodes[i + 1], 0);
-    }
-  }
-
-  int64 Bytes() const {
-    int64 ret = sizeof *this;
-    ret += sizeof num_nodes[0] * num_nodes.size();
-    ret += sizeof width[0] * width.size();
-    ret += sizeof height[0] * height.size();
-    ret += sizeof channels[0] * channels.size();
-    // Layer structs.
-    for (int i = 0; i < num_layers; i++) {
-      ret += sizeof layers[i] + sizeof layers[i].indices[0] * layers[i].indices.size() +
-	sizeof layers[i].weights[0] * layers[i].weights.size() +
-	sizeof layers[i].biases[0] * layers[i].biases.size();
-    }
-    // Inverted index structs.
-    for (int i = 0; i < num_layers; i++) {
-      ret += sizeof inverted_indices[i] +
-	sizeof inverted_indices[i].start[0] * inverted_indices[i].start.size() +
-	sizeof inverted_indices[i].length[0] * inverted_indices[i].length.size() +
-	sizeof inverted_indices[i].output_indices[0] *
-	    inverted_indices[i].output_indices.size();
-    }
-
-    return ret;
-  }
-
-  void CopyFrom(const Network &other) {
-    CHECK_EQ(this->num_layers, other.num_layers);
-    this->num_nodes = other.num_nodes;
-    this->width = other.width;
-    this->height = other.height;
-    this->channels = other.channels;
-    this->layers = other.layers;
-    this->inverted_indices = other.inverted_indices;
-  }
-
-  void NaNCheck(const char *message) const {
-    bool has_nans = false;
-    vector<std::pair<int, int>> layer_nans;
-    for (const Layer &layer : layers) {
-      int w = 0, b = 0;
-      for (float f : layer.weights) if (std::isnan(f)) w++;
-      for (float f : layer.biases) if (std::isnan(f)) b++;
-      layer_nans.emplace_back(w, b);
-      if (w > 0 || b > 0) has_nans = true;
-    }
-    if (has_nans) {
-      string err;
-      for (int i = 0; i < layer_nans.size(); i++) {
-	err += StringPrintf("(real) layer %d. %d/%d weights, %d/%d biases\n",
-			    i,
-			    layer_nans[i].first, layers[i].weights.size(),
-			    layer_nans[i].second, layers[i].biases.size());
-      }
-      CHECK(false) << "[" << message << "] The network has NaNs :-(\n" << err;
-    }
-  }
-  
-  // Just used for serialization. Whenever changing the interpretation
-  // of the data in an incomplete way, please change.
-  static constexpr uint32 FORMAT_ID = 0x2700072DU;
-
-  // The number of "real" layers, that is, not counting the input.
-  const int num_layers;
-
-  // num_layers + 1. num_nodes[0] is the size of the input layer.
-  vector<int> num_nodes;
-  // Parallel to num_nodes. These don't affect the network's behavior,
-  // just its rendering. num_nodes[i] == width[i] * height[i] * channels[i].
-  vector<int> width, height, channels;
-  
-  // "Real" layer; none for the input.
-  struct Layer {
-    // Same number of input indices for each node.
-    int indices_per_node;
-    // The transfer function used to compute the output from the
-    // input indices.
-    TransferFunction transfer_function;
-    // indices_per_node * num_nodes[l + 1], flat, node-major
-    vector<uint32> indices;
-    // indices_per_node * num_nodes[l + 1]; Parallel to indices.
-    vector<float> weights;
-    // num_nodes[l + 1]. One per node.
-    vector<float> biases;
-  };
-
-  struct InvertedIndices {
-    // For a given node, where do I output to in the next layer?
-    // Note that nodes don't all have the same number of outputs.
-    // This is a packed structure to facilitate GPU operations.
-    //
-    // For a given node, where do my output indices start in
-    // the indices array, and how many are there?
-    // num_nodes[i]
-    vector<uint32> start;
-    vector<uint32> length;
-
-    // Packed array of indices. Since every node on the next layer has
-    // exactly layers[l].indices_per_node inputs, this will be of size
-    // layers[l].indices_per_node * num_nodes[l + 1]. However, any
-    // given node on this layer may be used more or fewer times.
-    //
-    // The value here gives the index into the indices/weights vectors
-    // for the next layer. If for each index i within the span (defined
-    // by inverted_indices[layer].start[z]) for node id z
-    // let gidx = inverted_indices[layer].output_indices[i]
-    // and then layers[layer].indices[gidx] == z. (The same for the weight
-    // vector gives us the weight, which is the point, and dividing
-    // by INDICES_PER_NODE gives us the output node.) As such, this is
-    // a permutation of 0..(num_nodes[ii] * layers[ii].indices_per_node - 1).
-    vector<uint32> output_indices;
-  };
-
-  // num_layers
-  vector<Layer> layers;
-  // There are also num_layers of these, but be careful about the
-  // offset. The 0th inverted index is about the gap between the input
-  // layer (otherwise not represented in the network, except for its
-  // size in num_nodes[0]) and the first hidden layer. The last one is
-  // about the last gap, not the output layer, since the output layer
-  // is not indexed by anything.
-  vector<InvertedIndices> inverted_indices;
-
-  // Rounds trained. This matters when restarting from disk, because
-  // for example the learning rate depends on the round.
-  int64 rounds = 0;
-  // Total number of training examples processed.
-  int64 examples = 0;
-};
-
-static void CheckInvertedIndices(const Network &net) {
-  for (int layer = 0; layer < net.num_layers; layer++) {
-    const vector<uint32> &indices = net.layers[layer].indices;
-    const Network::InvertedIndices &inv = net.inverted_indices[layer];
-    CHECK_EQ(net.num_nodes[layer + 1] * net.layers[layer].indices_per_node,
-	     indices.size());
-    // Need one start/length pair for every node in the source layer.
-    CHECK_EQ(net.num_nodes[layer], inv.start.size());
-    CHECK_EQ(net.num_nodes[layer], inv.length.size());
-    // But the output size is determined by the next layer.
-    CHECK_EQ(net.num_nodes[layer + 1] * net.layers[layer].indices_per_node,
-	     inv.output_indices.size());
-    // z is a node id from the src layer.
-    for (int z = 0; z < inv.start.size(); z++) {
-      // i is the index within the compacted inverted index.
-      for (int i = inv.start[z]; i < inv.start[z] + inv.length[z]; i++) {
-	// Global index into 'indices'.
-	CHECK(i >= 0);
-	CHECK(i < inv.output_indices.size());
-	const int gidx = inv.output_indices[i];
-	CHECK(gidx >= 0);
-	CHECK(gidx < indices.size());
-	// This should map back to our current node id.
-	CHECK_EQ(indices[gidx], z);
-      }
-    }
-  }
-}
-
-static void ComputeInvertedIndices(Network *net) {
-  // Computes the values for inverted_indices[layer]. Note that
-  // although we use the [layer] offset throughout, this is really
-  // talking about the gap between layers, with the 0th element's
-  // index being the way the first hidden layer uses the inputs, and
-  // the 0th element's inverted index being about the way the inputs map
-  // to the first hidden layer.
-  auto OneLayer = [net](int layer) {
-    const int src_num_nodes = net->num_nodes[layer];
-    const int dst_num_nodes = net->num_nodes[layer + 1];
-    CHECK_LT(layer, net->num_layers);
-    CHECK_LT(layer, net->inverted_indices.size());
-    vector<uint32> *start = &net->inverted_indices[layer].start;
-    vector<uint32> *length = &net->inverted_indices[layer].length;
-    // Number of nodes depends on size of source layer.
-    CHECK_EQ(src_num_nodes, start->size());
-    CHECK_EQ(src_num_nodes, length->size());
-    vector<uint32> *inverted = &net->inverted_indices[layer].output_indices;
-    // But this has to account for all the nodes on the destination layer.
-    CHECK_EQ(net->layers[layer].indices_per_node * dst_num_nodes, inverted->size());
-
-    // Indexed by node id in the source layer.
-    vector<vector<uint32>> occurrences;
-    occurrences.resize(net->num_nodes[layer]);
-    for (int dst_indices_idx = 0;
-	 dst_indices_idx < net->layers[layer].indices_per_node * dst_num_nodes;
-	 dst_indices_idx++) {
-      // This index gets put into exactly one place in occurrences.
-      const int src_nodes_idx = net->layers[layer].indices[dst_indices_idx];
-      occurrences[src_nodes_idx].push_back(dst_indices_idx);
-    }
-
-    // These can be in arbitrary order, but sort each subvector, for
-    // locality of access and better compression.
-    for (vector<uint32> &v : occurrences) {
-      std::sort(v.begin(), v.end());
-    }
-
-    // Now flatten.
-    int flat_size = 0;
-    for (int src_nodes_idx = 0;
-	 src_nodes_idx < src_num_nodes;
-	 src_nodes_idx++) {
-      (*start)[src_nodes_idx] = flat_size;
-      (*length)[src_nodes_idx] = occurrences[src_nodes_idx].size();
-
-      for (const int val : occurrences[src_nodes_idx]) {
-	(*inverted)[flat_size] = val;
-	flat_size++;
-      }
-    }
-    CHECK_EQ(dst_num_nodes * net->layers[layer].indices_per_node, flat_size);
-  };
-
-  ParallelComp(net->num_layers, OneLayer, 12);
-}
-
-// Caller owns new-ly allocated Network object.
-static Network *ReadNetworkBinary(const string &filename) {
-  Printf("Reading [%s]\n", filename.c_str());
-  FILE *file = fopen(filename.c_str(), "rb");
-  if (file == nullptr) {
-    printf("  ... failed. If it's present, there may be a "
-	   "permissions problem?\n");
-    return nullptr;
-  }
-
-  auto Read64 = [file]() {
-    int64_t i;
-    CHECK(!feof(file));
-    CHECK(1 == fread(&i, 8, 1, file));
-    return i;
-  };
-  auto Read32 = [file]() {
-    int32_t i;
-    CHECK(!feof(file));
-    CHECK(1 == fread(&i, 4, 1, file));
-    return i;
-  };
-  auto ReadFloat = [file]() {
-    float value;
-    CHECK(!feof(file));
-    CHECK(1 == fread(&value, 4, 1, file));
-    return value;
-  };
-  auto ReadFloats = [&ReadFloat](vector<float> *vec) {
-    for (int i = 0; i < vec->size(); i++) {
-      (*vec)[i] = ReadFloat();
-    }
-  };
-
-  CHECK(Read32() == Network::FORMAT_ID) << "Wrong magic number!";
-
-  int64 round = Read64();
-  int64 examples = Read64();
-  // These values determine the size of the network vectors.
-  int file_num_layers = Read32();
-  CHECK_GE(file_num_layers, 0);
-  printf("%s: %d layers.\n", filename.c_str(), file_num_layers);
-  vector<int> num_nodes(file_num_layers + 1, 0);
-  printf("%s: num nodes: ", filename.c_str());
-  for (int i = 0; i < file_num_layers + 1; i++) {
-    num_nodes[i] = Read32();
-    printf("%d ", num_nodes[i]);
-  }
-
-  vector<int> width, height, channels;
-  for (int i = 0; i < file_num_layers + 1; i++)
-    width.push_back(Read32());
-  for (int i = 0; i < file_num_layers + 1; i++)
-    height.push_back(Read32());
-  for (int i = 0; i < file_num_layers + 1; i++)
-    channels.push_back(Read32());
-  CHECK(num_nodes.size() == width.size());
-  CHECK(num_nodes.size() == height.size());
-  CHECK(num_nodes.size() == channels.size());
-
-  printf("\n%s: indices per node/fns: ", filename.c_str());
-  vector<int> indices_per_node(file_num_layers, 0);
-  vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
-  for (int i = 0; i < file_num_layers; i++) {
-    indices_per_node[i] = Read32();
-    TransferFunction tf = (TransferFunction)Read32();
-    CHECK(tf >= 0 && tf < NUM_TRANSFER_FUNCTIONS) << tf;
-    transfer_functions[i] = tf;
-    printf("%d %s ",
-	   indices_per_node[i],
-	   TransferFunctionName(tf));
-  }
-  printf("\n");
-
-  std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node, transfer_functions}};
-  net->width = width;
-  net->height = height;
-  net->channels = channels;
-  
-  net->rounds = round;
-  net->examples = examples;
-  
-  // Read Layer structs.
-  for (int i = 0; i < file_num_layers; i++) {
-    for (int j = 0; j < net->layers[i].indices.size(); j++) {
-      net->layers[i].indices[j] = Read32();
-    }
-    ReadFloats(&net->layers[i].weights);
-    ReadFloats(&net->layers[i].biases);
-  }
-
-  fclose(file);
-  Printf("Read from %s.\n", filename.c_str());
-
-  // Now, fill in the inverted indices. These are not stored in the file.
-
-  printf("Invert index:\n");
-  ComputeInvertedIndices(net.get());
-  printf("Check it:\n");
-  CheckInvertedIndices(*net);
-
-  return net.release();
-}
-
-static void SaveNetworkBinary(const Network &net, const string &filename) {
-  // Not portable, obviously.
-  FILE *file = fopen(filename.c_str(), "wb");
-  auto Write64 = [file](int64_t i) {
-    CHECK(1 == fwrite(&i, 8, 1, file));
-  };
-  auto Write32 = [file](int32_t i) {
-    CHECK(1 == fwrite(&i, 4, 1, file));
-  };
-  auto WriteFloat = [file](float value) {
-    CHECK(1 == fwrite(&value, 4, 1, file));
-  };
-  auto WriteFloats = [&WriteFloat](const vector<float> &vec) {
-    for (float f : vec)
-      WriteFloat(f);
-  };
-
-  Write32(Network::FORMAT_ID);
-  Write64(net.rounds);
-  Write64(net.examples);
-  Write32(net.num_layers);
-  for (const int i : net.num_nodes) Write32(i);
-  for (const int w : net.width) Write32(w);
-  for (const int h : net.height) Write32(h);
-  for (const int c : net.channels) Write32(c);
-  
-  for (const Network::Layer &layer : net.layers) {
-    Write32(layer.indices_per_node);
-    Write32(layer.transfer_function);
-  }
-
-  for (const Network::Layer &layer : net.layers) {
-    for (const uint32 idx : layer.indices) Write32(idx);
-    WriteFloats(layer.weights);
-    WriteFloats(layer.biases);
-  }
-
-  // Inverted indices are not written.
-  Printf("Wrote %s.\n", filename.c_str());
-  fclose(file);
-}
 
 // A stimulation is an evaluation (perhaps an in-progress one) of a
 // network on a particular input; when it's complete we have the
@@ -2119,7 +1716,7 @@ static void TrainThread() {
 
   // Load the existing network from disk or create the initial one.
   Timer initialize_network_timer;
-  std::unique_ptr<Network> net{ReadNetworkBinary("net.val")};
+  std::unique_ptr<Network> net{Network::ReadNetworkBinary("net.val")};
 
   if (net.get() == nullptr) {
     Printf("Initializing new network...\n");
@@ -2130,11 +1727,11 @@ static void TrainThread() {
     Printf("Gen indices:\n");
     MakeIndices(nc.width, nc.channels, &rc, net.get());
     Printf("Invert indices:\n");
-    ComputeInvertedIndices(net.get());
-    CheckInvertedIndices(*net);
+    Network::ComputeInvertedIndices(net.get());
+    Network::CheckInvertedIndices(*net);
 
     Printf("Writing network so we don't have to do that again...\n");
-    SaveNetworkBinary(*net, "net.val");
+    Network::SaveNetworkBinary(*net, "net.val");
   }
 
   Printf("Initialized network in %.1fms.\n", initialize_network_timer.MS());
@@ -2165,7 +1762,7 @@ static void TrainThread() {
     if (should_die) {
       Printf("Train thread signaled death.\n");
       Printf("Saving to net.val...\n");
-      SaveNetworkBinary(*net, "net.val");
+      Network::SaveNetworkBinary(*net, "net.val");
       // Util::WriteFile("eval/nextframe.txt", StringPrintf("%d\n", eval_frame_num));
     }
     return should_die;
@@ -2326,7 +1923,7 @@ static void TrainThread() {
     if (is_verbose_round) {
       Printf("Writing network:\n");
       net_gpu.ReadFromGPU();
-      SaveNetworkBinary(*net, "network-checkpoint.bin");
+      Network::SaveNetworkBinary(*net, "network-checkpoint.bin");
     }
 
     if (VERBOSE > 2) Printf("Export network:\n");
