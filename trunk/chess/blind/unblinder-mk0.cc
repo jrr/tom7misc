@@ -216,6 +216,9 @@ struct Network {
   int64 Bytes() const {
     int64 ret = sizeof *this;
     ret += sizeof num_nodes[0] * num_nodes.size();
+    ret += sizeof width[0] * width.size();
+    ret += sizeof height[0] * height.size();
+    ret += sizeof channels[0] * channels.size();
     // Layer structs.
     for (int i = 0; i < num_layers; i++) {
       ret += sizeof layers[i] + sizeof layers[i].indices[0] * layers[i].indices.size() +
@@ -237,6 +240,9 @@ struct Network {
   void CopyFrom(const Network &other) {
     CHECK_EQ(this->num_layers, other.num_layers);
     this->num_nodes = other.num_nodes;
+    this->width = other.width;
+    this->height = other.height;
+    this->channels = other.channels;
     this->layers = other.layers;
     this->inverted_indices = other.inverted_indices;
   }
@@ -265,14 +271,17 @@ struct Network {
   
   // Just used for serialization. Whenever changing the interpretation
   // of the data in an incomplete way, please change.
-  static constexpr uint32 FORMAT_ID = 0x2700072CU;
+  static constexpr uint32 FORMAT_ID = 0x2700072DU;
 
   // The number of "real" layers, that is, not counting the input.
   const int num_layers;
 
   // num_layers + 1. num_nodes[0] is the size of the input layer.
   vector<int> num_nodes;
-
+  // Parallel to num_nodes. These don't affect the network's behavior,
+  // just its rendering. num_nodes[i] == width[i] * height[i] * channels[i].
+  vector<int> width, height, channels;
+  
   // "Real" layer; none for the input.
   struct Layer {
     // Same number of input indices for each node.
@@ -328,6 +337,8 @@ struct Network {
   // Rounds trained. This matters when restarting from disk, because
   // for example the learning rate depends on the round.
   int64 rounds = 0;
+  // Total number of training examples processed.
+  int64 examples = 0;
 };
 
 static void CheckInvertedIndices(const Network &net) {
@@ -418,6 +429,7 @@ static void ComputeInvertedIndices(Network *net) {
 
 // Caller owns new-ly allocated Network object.
 static Network *ReadNetworkBinary(const string &filename) {
+  printf("Reading [%s]\n", filename.c_str());
   FILE *file = fopen(filename.c_str(), "rb");
   if (file == nullptr) {
     printf("  ... failed. If it's present, there may be a "
@@ -450,7 +462,9 @@ static Network *ReadNetworkBinary(const string &filename) {
   };
 
   CHECK(Read32() == Network::FORMAT_ID) << "Wrong magic number!";
+
   int64 round = Read64();
+  int64 examples = Read64();
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
@@ -461,8 +475,19 @@ static Network *ReadNetworkBinary(const string &filename) {
     num_nodes[i] = Read32();
     printf("%d ", num_nodes[i]);
   }
-  printf("\n%s: indices per node/fns: ", filename.c_str());
 
+  vector<int> width, height, channels;
+  for (int i = 0; i < file_num_layers + 1; i++)
+    width.push_back(Read32());
+  for (int i = 0; i < file_num_layers + 1; i++)
+    height.push_back(Read32());
+  for (int i = 0; i < file_num_layers + 1; i++)
+    channels.push_back(Read32());
+  CHECK(num_nodes.size() == width.size());
+  CHECK(num_nodes.size() == height.size());
+  CHECK(num_nodes.size() == channels.size());
+
+  printf("\n%s: indices per node/fns: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
   for (int i = 0; i < file_num_layers; i++) {
@@ -477,8 +502,13 @@ static Network *ReadNetworkBinary(const string &filename) {
   printf("\n");
 
   std::unique_ptr<Network> net{new Network{num_nodes, indices_per_node, transfer_functions}};
+  net->width = width;
+  net->height = height;
+  net->channels = channels;
+  
   net->rounds = round;
-
+  net->examples = examples;
+  
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
     for (int j = 0; j < net->layers[i].indices.size(); j++) {
@@ -501,7 +531,6 @@ static Network *ReadNetworkBinary(const string &filename) {
   return net.release();
 }
 
-// XXX maybe not necessary?
 static void SaveNetworkBinary(const Network &net, const string &filename) {
   // Not portable, obviously.
   FILE *file = fopen(filename.c_str(), "wb");
@@ -521,8 +550,13 @@ static void SaveNetworkBinary(const Network &net, const string &filename) {
 
   Write32(Network::FORMAT_ID);
   Write64(net.rounds);
+  Write64(net.examples);
   Write32(net.num_layers);
   for (const int i : net.num_nodes) Write32(i);
+  for (const int w : net.width) Write32(w);
+  for (const int h : net.height) Write32(h);
+  for (const int c : net.channels) Write32(c);
+  
   for (const Network::Layer &layer : net.layers) {
     Write32(layer.indices_per_node);
     Write32(layer.transfer_function);
