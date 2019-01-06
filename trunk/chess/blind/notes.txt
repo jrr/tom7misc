@@ -83,7 +83,8 @@ Phew!
  82k rounds, 12 error
  96k rounds, 11.5-13 error
  118k rounds, 10.9-12.5 error
-
+ 141k rounds, 10.6-12.8
+ 
 Good writeup with some actual parameters used (although for a pretty different
 problem):
 https://engineering.flipboard.com/2015/05/scaling-convnets
@@ -133,3 +134,19 @@ In 50000 positions:
   1552 castling mistakes (0.03/pos)
   18623 move mistakes (0.37/pos)
   177162 total mistakes (3.54/pos)
+
+141k rounds:
+In 50000 positions:
+  10579 exactly correct (21.16%)
+  156156 piece mistakes (3.12/pos)
+  1544 castling mistakes (0.03/pos)
+  18606 move mistakes (0.37/pos)
+  176306 total mistakes (3.53/pos)
+
+...
+In 50000 positions:
+  10377 exactly correct (20.75%)
+  156376 piece mistakes (3.13/pos)
+  1556 castling mistakes (0.03/pos)
+  19242 move mistakes (0.38/pos)
+  177174 total mistakes (3.54/pos)
