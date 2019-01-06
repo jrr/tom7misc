@@ -82,6 +82,7 @@ Phew!
  64k rounds, 12 error
  82k rounds, 12 error
  96k rounds, 11.5-13 error
+ 118k rounds, 10.9-12.5 error
 
 Good writeup with some actual parameters used (although for a pretty different
 problem):
@@ -106,4 +107,22 @@ fairly common for there to be no kings, or for one side to be missing
 a king. Could we help it produce the right features by structuring the
 error more? Like we could ask it to produce the single position for
 each king, or the locations of each of the 32 pieces, or something?
+32 * 65 bits (one for "dead") is 2080, which is reasonable. Note that
+this does not supersede the current board represenation, since it would
+not be able to tell us about promotions without additional data.
+
+Some hard constraints:
+ - If all of one side's pawns are on the board,
+    - No more than 2 rooks, 2 bishops (different colors), 2 knights, 1 queen
+ - Exactly one king on each side
+ - If check, then this determines the move
+ - Both sides can't both be in check
+ - No pawns in the extremal rows
+
+There are many soft heuristics, too. Three knights in the early game
+is just exceptionally rare, even if technically possible through promotion.
+
+It also seems pretty reluctant to put white pieces in the black ranks and
+vice versa. Makes sense, but this will be a weakness when used to play!
+
 
