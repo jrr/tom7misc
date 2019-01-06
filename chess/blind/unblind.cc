@@ -78,6 +78,8 @@
 #include "../pgn.h"
 #include "../bigchess.h"
 
+#include "loadpositions.h"
+
 #include "clutil.h"
 #include "timer.h"
 
@@ -177,9 +179,9 @@ static Font *font = nullptr, *chessfont = nullptr;
 #define SCREENH 1280
 static SDL_Surface *screen = nullptr;
 
-static constexpr int MAX_GAMES = 2'000'000;
+static constexpr int MAX_GAMES = 3'000'000;
 // XXX can be much bigger; position is only 33 bytes.
-static constexpr int MAX_POSITIONS = 10'000'000;
+static constexpr int MAX_POSITIONS = 100'000'000;
 static constexpr int MAX_PGN_PARALLELISM = 12;
 
 // Thread-safe, so shared between train and ui threads.
@@ -2039,173 +2041,11 @@ static void UIThread() {
   }
 }
 
-static std::shared_mutex training_positions_m;
-static std::vector<Position> training_positions;
-
-struct GameProcessor {
-  GameProcessor() {}
-
-  // If false, we don't even look at the game.
-  bool Eligible(const PGN &pgn) {
-    // Ignore games that don't finish.
-    if (pgn.result == PGN::Result::OTHER) {
-      return false;
-    }
-    
-    if (pgn.GetTermination() != PGN::Termination::NORMAL) {
-      return false;
-    }
-
-    return true;
-  }
-
-  void DoWork(const string &pgn_text) {
-    PGN pgn;
-    CHECK(parser.Parse(pgn_text, &pgn));
-
-    if (!Eligible(pgn)) return;
-
-    Position pos;
-    for (int i = 0; i < pgn.moves.size(); i++) {
-      const PGN::Move &m = pgn.moves[i];
-      Move move;
-      const bool move_ok = pos.ParseMove(m.move.c_str(), &move);
-
-      if (!move_ok) {
-	fprintf(stderr, "Bad move %s from full PGN:\n%s",
-		m.move.c_str(), pgn_text.c_str());
-	// There are a few messed up games in 2016 and earlier.
-	// Return early if we find such a game.
-	{
-	  WriteMutexLock ml(&bad_games_m);
-	  bad_games++;
-	}
-	return;
-      }
-
-      pos.ApplyMove(move);
-
-      // XXX don't just add every position!
-      {
-	WriteMutexLock ml(&training_positions_m);
-	if (training_positions.size() >= MAX_POSITIONS)
-	  return;
-	
-	training_positions.push_back(pos);
-      }
-    }
-  }
-
-  string Status() {
-    return "";
-    /*
-    ReadMutexLock ml(&topn_m);
-    size_t s = topn.size();
-    return s > 0 ? StringPrintf(" (found %d)", (int)s) : "";
-    */
-  }
-  
-  std::shared_mutex bad_games_m;
-  int64 bad_games = 0LL;
-  PGNParser parser;
-};
-
-
-// In parallel, load a bunch of games (into RAM) as training data (into
-// training_positions).
-static void LoadGamesThread() {
-  const string games_file = "d:/chess/lichess_db_standard_rated_2017-02.pgn";
-  {
-    WriteMutexLock ml(&training_positions_m);
-    training_positions.reserve(MAX_POSITIONS);
-  }
-  
-  GameProcessor processor;
-
-  auto DoWork = [&processor](const string &s) { processor.DoWork(s); };
-
-  // TODO: How to get this to deduce second argument at least?
-  auto work_queue =
-    std::make_unique<WorkQueue<string, decltype(DoWork), 1>>(DoWork,
-							     MAX_PGN_PARALLELISM);
-
-  const int64 start = time(nullptr);
-
-  {
-    PGNTextStream stream(games_file.c_str());
-    string game;
-    while (stream.NextPGN(&game)) {
-      work_queue->Add(std::move(game));
-      game.clear();
-
-      const int64 num_read = stream.NumRead();
-      if (num_read % 20000LL == 0) {
-	int64 done, in_progress, pending, positions;
-	work_queue->Stats(&done, &in_progress, &pending);
-	const bool should_pause = pending > 5000000;
-	const char *pausing = should_pause ? " (PAUSE READING)" : "";
-
-	{
-	  ReadMutexLock ml(&training_positions_m);
-	  positions = training_positions.size();
-	}
-
-	Printf("[Still reading; %lld games at %.1f/sec] %lld %lld %lld [%lld pos] %s%s\n",
-	       num_read,
-	       num_read / (double)(time(nullptr) - start),
-	       done, in_progress, pending,
-	       positions,
-	       pausing,
-	       processor.Status().c_str());
-	if (MAX_GAMES > 0 && num_read >= MAX_GAMES)
-	  break;
-
-	{
-	  ReadMutexLock ml(&train_should_die_m);
-	  if (train_should_die) {
-	    work_queue->Abandon();
-	    return;
-	  }
-	}
-	
-	if (positions >= MAX_POSITIONS) {
-	  Printf("Enough positions!\n");
-	  work_queue->Abandon();
-	  return;
-	}
-	
-	if (should_pause)
-	  std::this_thread::sleep_for(60s);
-      }
-    }
-  }
-  work_queue->SetNoMoreWork();
-
-  while (work_queue->StillRunning()) {
-    int64 done, in_progress, pending, positions;
-    work_queue->Stats(&done, &in_progress, &pending);
-
-    {
-      ReadMutexLock ml(&training_positions_m);
-      positions = training_positions.size();
-    }
-
-    Printf("[Done reading] %lld %lld %lld %.2f%% [%lld pos] %s\n",
-	   done, in_progress, pending,
-	   (100.0 * (double)done) / (in_progress + done + pending),
-	   positions,
-	   processor.Status().c_str());
-    if (positions >= MAX_POSITIONS) {
-      work_queue->Abandon();
-      break;
-    }
-    std::this_thread::sleep_for(10s);
-  }
-
-  Printf("Work queue finalizing...\n");
-  work_queue.reset(nullptr);
-  Printf("Done loading training examples.\n");
-}
+LoadPositions load_positions(
+    []() { return SharedReadWithLock(&train_should_die_m, &train_should_die); },
+    MAX_PGN_PARALLELISM,
+    MAX_GAMES,
+    MAX_POSITIONS);
 
 static void TrainThread() {
   Timer setup_timer; 
@@ -2355,17 +2195,17 @@ static void TrainThread() {
 	TrainingExample example;
 
 	{
-	  training_positions_m.lock_shared();
+	  load_positions.positions_m.lock_shared();
 	  
-	  if (training_positions.size() < (MAX_POSITIONS / 10)) {
-	    training_positions_m.unlock_shared();
+	  if (load_positions.positions.size() < (MAX_POSITIONS / 10)) {
+	    load_positions.positions_m.unlock_shared();
 	    Printf("Not enough training data loaded yet!\n");
 	    std::this_thread::sleep_for(1s);
 	    continue;
 	  } else {
-	    const int idx = RandTo(&rc, training_positions.size());
-	    PopulateExampleFromPos(training_positions[idx], &example);
-	    training_positions_m.unlock_shared();
+	    const int idx = RandTo(&rc, load_positions.positions.size());
+	    PopulateExampleFromPos(load_positions.positions[idx], &example);
+	    load_positions.positions_m.unlock_shared();
 
 	    {
 	      WriteMutexLock ml(&training_examples_m);
@@ -2821,7 +2661,10 @@ int SDL_main(int argc, char **argv) {
     printf("OK.\n");
   }
 
-  std::thread load_games_thread(&LoadGamesThread);
+  std::thread load_games_thread(
+      []() {
+	load_positions.Load("d:/chess/lichess_db_standard_rated_2017-02.pgn");
+      });
   
   std::thread train_thread(&TrainThread);
 
