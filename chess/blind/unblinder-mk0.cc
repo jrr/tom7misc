@@ -1,6 +1,12 @@
-// This is a checkpoint of the unblinder model that I ran for 100k
+// This is a checkpoint of the unblinder model that I ran for 140k+
 // rounds. It can load from disk and run purely on the CPU, so is
 // fairly simple, and matches the Unblinder interface.
+
+// Note that as of r3805 (6 Jan 2019) it actually matches the Network
+// struct from network.h; it could just be using that or a tag of it.
+// Not clear whether it's better to have it sealed within this interface,
+// shared with head (and keep it working) or have network-mk0.cc, or
+// what.
 
 #include <string.h>
 #include <stdio.h>
