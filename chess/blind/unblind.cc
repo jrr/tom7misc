@@ -265,6 +265,10 @@ static const char *TransferFunctionName(TransferFunction tf) {
   }
 }
 
+// XXX: In the middle of migrating this to be intrinsic properties
+// of the network, with configuration only used to set up the network
+// in the first place. For now, the NetworkConfiguration must actually
+// match what is on disk or things go awry!
 #define NEIGHBORHOOD 1
 struct NetworkConfiguration { 
 
@@ -629,10 +633,10 @@ static Network *ReadNetworkBinary(const string &filename) {
     }
   };
 
-  // XXXX
-  CHECK(Read32() == Network::FORMAT_ID - 1) << "Wrong magic number!";
+  CHECK(Read32() == Network::FORMAT_ID) << "Wrong magic number!";
 
   int64 round = Read64();
+  int64 examples = Read64();
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
@@ -643,22 +647,14 @@ static Network *ReadNetworkBinary(const string &filename) {
     num_nodes[i] = Read32();
     printf("%d ", num_nodes[i]);
   }
+
   vector<int> width, height, channels;
-  {
-    NetworkConfiguration config;
-    width = config.width;
-    height = config.height;
-    channels = config.channels;
-  }
-  // XXXXX
-  /*
   for (int i = 0; i < file_num_layers + 1; i++)
     width.push_back(Read32());
   for (int i = 0; i < file_num_layers + 1; i++)
     height.push_back(Read32());
   for (int i = 0; i < file_num_layers + 1; i++)
     channels.push_back(Read32());
-  */
   CHECK(num_nodes.size() == width.size());
   CHECK(num_nodes.size() == height.size());
   CHECK(num_nodes.size() == channels.size());
@@ -683,7 +679,7 @@ static Network *ReadNetworkBinary(const string &filename) {
   net->channels = channels;
   
   net->rounds = round;
-  net->examples = round * 64;  // XXXXXXX
+  net->examples = examples;
   
   // Read Layer structs.
   for (int i = 0; i < file_num_layers; i++) {
