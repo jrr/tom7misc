@@ -1,7 +1,7 @@
 
-default: unblind.exe eval.exe
+default: unblind.exe eval-unblinder.exe
 
-all: unblind.exe eval.exe
+all: unblind.exe eval-unblinder.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -I../../cc-lib/re2 -std=c++17
@@ -56,6 +56,10 @@ OBJECTS=$(UTIL_OBJECTS) $(CHESS_OBJECTS) $(RE2_OBJECTS) unblinder.o unblinder-mk
 
 # without static, can't find lz or lstdcxx maybe?
 LFLAGS= -L. $(LINKSDL) -m64 -Wl,--subsystem,console $(CLLIBS) -lz -lOpenCL $(OPT) $(FLTO) $(PROFILE) -static
+
+eval-unblinder.exe : $(OBJECTS) eval-unblinder.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
 
 unblind.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o unblind.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
