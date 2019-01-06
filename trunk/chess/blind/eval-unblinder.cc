@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
   vector<Position> positions = 
     LoadPositions(
 	"d:/chess/lichess_db_standard_rated_2018-02.pgn",
-	10000,
+	50000,
 	0.01f,
 	"eval");
   fprintf(stderr, "Loaded %lld positions in %.2fs\n",
@@ -127,6 +127,7 @@ int main(int argc, char **argv) {
      &piece_mistakes, &castling_mistakes, &move_mistakes](
 	const Position &pos) {
       uint64 bits = Unblinder::Blind(pos);
+
       // XXX something is wrong! Error rate is almost as high (27.24 vs 27.61)
       // as just guessing a totally empty board, which we definitely do better
       // than. I guess maybe it's not being simulated correctly?
@@ -158,6 +159,20 @@ int main(int argc, char **argv) {
       const int tot = piecem + castlem + movem;
       {
 	WriteMutexLock ml(&counters_m);
+
+	/*
+	string bitstring;
+	for (int x = 0; x < 64; x++) {
+	  if ((x & 7) == 0) bitstring = "\n" + bitstring;
+	  bitstring = ((string)((bits & 1) ? "1" : "0")) + bitstring;
+	  bits >>= 1;
+	}
+	printf("\n===================\nActual:\n%sBits:\n%sGuess:\n%s\n",
+	       pos.BoardString().c_str(),
+	       bitstring.c_str(),
+	       guess.BoardString().c_str());
+	*/
+	
 	total_positions++;
 	if (tot == 0) exactly_correct++;
 	piece_mistakes += piecem;
