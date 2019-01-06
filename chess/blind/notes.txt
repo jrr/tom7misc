@@ -126,3 +126,10 @@ It also seems pretty reluctant to put white pieces in the black ranks and
 vice versa. Makes sense, but this will be a weakness when used to play!
 
 
+New offline bench, 126k rounds:
+In 50000 positions:
+  10482 exactly correct (20.96%)
+  156987 piece mistakes (3.14/pos)
+  1552 castling mistakes (0.03/pos)
+  18623 move mistakes (0.37/pos)
+  177162 total mistakes (3.54/pos)

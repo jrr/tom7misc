@@ -24,7 +24,7 @@ uint64 Unblinder::Blind(const Position &pos) {
 
 void Unblinder::Layer64(uint64 pos, vector<float> *out) {
   out->resize(64);
-  for (int i = 64; i >= 0; i--) {
+  for (int i = 63; i >= 0; i--) {
     (*out)[i] = (pos & 1) ? 1.0f : 0.0f;
     pos >>= 1;
   }
