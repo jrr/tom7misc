@@ -1,7 +1,7 @@
 
 default: unblind.exe eval-unblinder.exe
 
-all: unblind.exe eval-unblinder.exe
+all: unblind.exe eval-unblinder.exe vacuum.exe
 
 # -fno-strict-aliasing
 CXXFLAGS=-Wall -Wno-format -Wno-unused-function -Wno-deprecated -Wno-sign-compare -I/usr/local/include -I/usr/include -ISDL/include -I. -I../../cc-lib -I../../cc-lib/re2 -std=c++17
@@ -62,6 +62,10 @@ eval-unblinder.exe : $(OBJECTS) eval-unblinder.o
 	@echo -n "!"
 
 unblind.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o unblind.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
+vacuum.exe : $(OBJECTS) vacuum.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 

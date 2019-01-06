@@ -150,3 +150,7 @@ In 50000 positions:
   1556 castling mistakes (0.03/pos)
   19242 move mistakes (0.38/pos)
   177174 total mistakes (3.54/pos)
+
+
+-- vacuuming --
+Training speed before: 27.6725 eps
