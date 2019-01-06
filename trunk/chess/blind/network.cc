@@ -55,6 +55,9 @@ Network::Network(vector<int> num_nodes,
   }
 }
 
+Network *Network::Clone(const Network &other) {
+  return new Network(other);
+}
 
 int64 Network::Bytes() const {
   int64 ret = sizeof *this;
@@ -141,6 +144,8 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
   // the 0th element's inverted index being about the way the inputs map
   // to the first hidden layer.
   auto OneLayer = [net](int layer) {
+    CHECK_GE(layer, 0);
+    CHECK_LT(layer, net->layers.size());
     const int src_num_nodes = net->num_nodes[layer];
     const int dst_num_nodes = net->num_nodes[layer + 1];
     CHECK_LT(layer, net->num_layers);
@@ -155,6 +160,9 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
     CHECK_EQ(net->layers[layer].indices_per_node * dst_num_nodes,
 	     inverted->size());
 
+    printf("ComputeInvertedIndices layer %d...\n", layer);
+    fflush(stdout);
+    
     // Indexed by node id in the source layer.
     vector<vector<uint32>> occurrences;
     occurrences.resize(net->num_nodes[layer]);
@@ -162,15 +170,25 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
 	 dst_indices_idx < net->layers[layer].indices_per_node * dst_num_nodes;
 	 dst_indices_idx++) {
       // This index gets put into exactly one place in occurrences.
+      CHECK(dst_indices_idx < net->layers[layer].indices.size());
       const int src_nodes_idx = net->layers[layer].indices[dst_indices_idx];
+      CHECK(src_nodes_idx >= 0) << src_nodes_idx;
+      CHECK(src_nodes_idx < occurrences.size()) << src_nodes_idx << " vs "
+						<< occurrences.size();
       occurrences[src_nodes_idx].push_back(dst_indices_idx);
     }
+
+    printf("Sort layer %d...\n", layer);
+    fflush(stdout);
 
     // These can be in arbitrary order, but sort each subvector, for
     // locality of access and better compression.
     for (vector<uint32> &v : occurrences) {
       std::sort(v.begin(), v.end());
     }
+
+    printf("Flatten layer %d...\n", layer);
+    fflush(stdout);
 
     // Now flatten.
     int flat_size = 0;
@@ -188,7 +206,7 @@ void Network::ComputeInvertedIndices(Network *net, int max_parallelism) {
     CHECK_EQ(dst_num_nodes * net->layers[layer].indices_per_node, flat_size);
   };
 
-  ParallelComp(net->num_layers, OneLayer, max_parallelism);
+  UnParallelComp(net->num_layers, OneLayer, max_parallelism);
 }
 
 // Caller owns new-ly allocated Network object.

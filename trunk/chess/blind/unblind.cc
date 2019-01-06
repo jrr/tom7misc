@@ -38,6 +38,9 @@
 // multiple ones in the same process, if not spread out over code versions).
 //   - TODO: Network now stores width/height/channels; restructure so
 //     that rendering uses these.
+//   - TODO: Had to get rid of const field in Stimulation and Errors,
+//     because we copy assign them to video. Maybe better to heap
+//     allocate; it's fine to use the copy constructor.
 
 #include "SDL.h"
 #include "SDL_main.h"
@@ -352,6 +355,12 @@ struct Stimulation {
     for (int i = 0; i < values.size(); i++)
       values[i].resize(num_nodes[i], 0.0f);
   }
+  
+  // Empty, useless stimulation, but can be used to initialize
+  // vectors, etc.
+  Stimulation() : num_layers(0) {}
+  Stimulation(const Stimulation &other) = default;
+  
   int64 Bytes() const {
     int64 ret = sizeof *this;
     for (int i = 0; i < values.size(); i++) {
@@ -360,10 +369,12 @@ struct Stimulation {
     return ret;
   }
 
+  // TODO: would be nice for these to be const, but then we can't have an
+  // assignment operator.
   // Same as in Network.
-  const int num_layers;
+  int num_layers;
   // num_layers + 1
-  const vector<int> num_nodes;
+  vector<int> num_nodes;
 
   // Keep track of what's actually been computed?
 
@@ -396,7 +407,8 @@ struct Stimulation {
 			    i,
 			    layer_nans[i], values[i].size());
       }
-      CHECK(false) << "[" << message << "] The stimulation has NaNs :-(\n" << err;
+      CHECK(false) << "[" << message
+		   << "] The stimulation has NaNs :-(\n" << err;
     }
   }
 };
@@ -409,11 +421,17 @@ struct Errors {
       error[i].resize(num_nodes[i + 1], 0.0f);
     }
   }
-  const int num_layers;
+  // Empty, useless errors, but can be used to initialize vectors etc.
+  Errors() : num_layers(0) {}
+  Errors(const Errors &other) = default;
+
+  // Would be nice for these to be const, but then we can't have an
+  // assignment operator.
+  int num_layers;
   // The first entry here is unused (it's the size of the input layer,
   // which doesn't get errors), but we keep it like this to be
   // consistent with Network and Stimulation.
-  const vector<int> num_nodes;
+  vector<int> num_nodes;
   int64 Bytes() const {
     int64 ret = sizeof *this;
     for (int i = 0; i < error.size(); i++)
@@ -1246,8 +1264,11 @@ static void ExportLearningRate(double rl) {
 static void ExportNetworkToVideo(const Network &net) {
   WriteMutexLock ml(&video_export_m);
   if (allow_updates) {
-    CHECK(current_network != nullptr);
-    current_network->CopyFrom(net);
+    if (current_network == nullptr) {
+      current_network = Network::Clone(net);
+    } else {
+      current_network->CopyFrom(net);
+    }
     dirty = true;
   }
 }
@@ -1257,7 +1278,7 @@ static void ExportStimulusToVideo(int example_id, const Stimulation &stim) {
   if (allow_updates) {
     CHECK_GE(example_id, 0);
     CHECK_LT(example_id, current_stimulations.size());
-    current_stimulations[example_id].CopyFrom(stim);
+    current_stimulations[example_id] = stim;
     dirty = true;
   }
 }
@@ -1278,7 +1299,7 @@ static void ExportErrorsToVideo(int example_id, const Errors &err) {
   if (allow_updates) {
     CHECK_GE(example_id, 0);
     CHECK_LT(example_id, current_errors.size());
-    current_errors[example_id].CopyFrom(err);
+    current_errors[example_id] = err;
     dirty = true;
   }
 }
@@ -1368,6 +1389,7 @@ static void Error2D(const vector<float> &errs,
 
 
 static void UIThread() {
+  // TODO: Eliminate it, or make it like ui_configuration...
   const NetworkConfiguration config;
   int mousex = 0, mousey = 0;
   (void)mousex; (void)mousey;
@@ -1380,14 +1402,22 @@ static void UIThread() {
       if (dirty) {
 	sdlutil::clearsurface(screen, 0x0);
 	const char *paused_msg = allow_updates ? "" : " [^2VIDEO PAUSED]";
-	string menu = StringPrintf("  round ^3%d ^1|  ^3%0.4f^0 eps    "
-				   "^1%.6f^< learning rate   ^1%.6f^< total err%s",
-				   current_round,
-				   examples_per_second,
-				   current_learning_rate,
-				   current_total_error,
-				   paused_msg);
-
+	string menu = StringPrintf(
+	    "  round ^3%d ^1|  ^3%0.4f^0 eps    "
+	    "^1%.6f^< learning rate   ^1%.6f^< total err%s",
+	    current_round,
+	    examples_per_second,
+	    current_learning_rate,
+	    current_total_error,
+	    paused_msg);
+	font->draw(2, 2, menu);
+	
+	if (current_network == nullptr) {
+	  font->draw(50, 50, "[ ^2No network yet^< ]");
+	  SDL_Flip(screen);
+	  continue;
+	}
+	
 	int max_width = 0;
 	for (int layer = 0; layer < config.num_layers + 1; layer++) {
 	  int w = std::get<0>(PixelSize(config, layer));
@@ -1396,10 +1426,20 @@ static void UIThread() {
 	  max_width = std::max(w, max_width);
 	}
 	max_width += 4;
-	
+
+	CHECK(current_stimulations.size() == NUM_VIDEO_STIMULATIONS);
+	CHECK(current_errors.size() == NUM_VIDEO_STIMULATIONS);
 	for (int s = 0; s < NUM_VIDEO_STIMULATIONS; s++) {
 	  const Stimulation &stim = current_stimulations[s];
 	  const Errors &err = current_errors[s];
+
+	  // Skip if not yet set. These get initialized to empty
+	  // sentinels and then updated by the training thread
+	  // periodically.
+	  if (stim.num_layers == 0 ||
+	      err.num_layers == 0)
+	    continue;
+	  
 	  CHECK(stim.values.size() == config.num_layers + 1);
 	  CHECK(stim.values.size() == config.style.size());
 	  CHECK(err.error.size() == config.num_layers);
@@ -1464,7 +1504,10 @@ static void UIThread() {
 		  // Find the contents with the highest score.
 		  int cidx = (r * 8 + c) * NUM_CONTENTS;
 		  const int maxi = MostLikelyPiece(stim.values[l], cidx);
-		  // HAX!
+		  // HAX! Note that while current_expected must have
+		  // the right size, each expected vector inside may
+		  // still be empty.
+		  CHECK(current_expected.size() == NUM_VIDEO_STIMULATIONS);
 		  const vector<float> &expected = current_expected[s];
 		  const int expi =
 		    expected.size() >= 64 * NUM_CONTENTS ?
@@ -1612,9 +1655,12 @@ static void UIThread() {
 		  const float e = vlayer > 0 ? err.error[vlayer - 1][i] : 0.0;
 		  // Font color.
 		  const int sign = (e == 0.0) ? 4 : (e < 0.0f) ? 2 : 5;
-		  font->draw(xstart, yz, StringPrintf("^%d%.9f ^%d%.12f", c, vals[i], sign, e));
+		  font->draw(xstart, yz,
+			     StringPrintf("^%d%.9f ^%d%.12f",
+					  c, vals[i], sign, e));
 		} else {
-		  font->draw(xstart, yz, StringPrintf("^%d%.9f", c, vals[i]));
+		  font->draw(xstart, yz,
+			     StringPrintf("^%d%.9f", c, vals[i]));
 		}
 		yz += FONTHEIGHT;
 	      }
@@ -1623,7 +1669,6 @@ static void UIThread() {
 	  }
 	}
 
-	font->draw(2, 2, menu);
 	SDL_Flip(screen);
 	dirty = false;
       }
@@ -1788,7 +1833,8 @@ static void TrainThread() {
       example->input.resize(64);
       for (int r = 0; r < 8; r++) {
 	for (int c = 0; c < 8; c++) {
-	  example->input[r * 8 + c] = pos.PieceAt(r, c) != Position::EMPTY ? 1.0f : 0.0f;
+	  example->input[r * 8 + c] =
+	    pos.PieceAt(r, c) != Position::EMPTY ? 1.0f : 0.0f;
 	}
       }
 
@@ -1802,10 +1848,14 @@ static void TrainThread() {
       }
 
       // Four castling flags.
-      example->output[64 * NUM_CONTENTS + 0] = pos.CanStillCastle(false, false) ? 1.0f : 0.0f;
-      example->output[64 * NUM_CONTENTS + 1] = pos.CanStillCastle(false, true)  ? 1.0f : 0.0f;
-      example->output[64 * NUM_CONTENTS + 2] = pos.CanStillCastle(true,  false) ? 1.0f : 0.0f;
-      example->output[64 * NUM_CONTENTS + 3] = pos.CanStillCastle(true,  true)  ? 1.0f : 0.0f;
+      example->output[64 * NUM_CONTENTS + 0] =
+	pos.CanStillCastle(false, false) ? 1.0f : 0.0f;
+      example->output[64 * NUM_CONTENTS + 1] =
+	pos.CanStillCastle(false, true)  ? 1.0f : 0.0f;
+      example->output[64 * NUM_CONTENTS + 2] =
+	pos.CanStillCastle(true,  false) ? 1.0f : 0.0f;
+      example->output[64 * NUM_CONTENTS + 3] =
+	pos.CanStillCastle(true,  true)  ? 1.0f : 0.0f;
 
       // And the current player's move.
       example->output[64 * NUM_CONTENTS + 4] = pos.BlackMove() ? 1.0f : 0.0f;
@@ -1872,21 +1922,25 @@ static void TrainThread() {
   // Training round: Loop over all images in random order.
   double setup_ms = 0.0, stimulation_init_ms = 0.0, forward_ms = 0.0,
     fc_init_ms = 0.0, bc_init_ms = 0.0, kernel_ms = 0.0, backward_ms = 0.0,
-    output_error_ms = 0.0, update_ms = 0.0, writing_ms = 0.0, error_history_ms = 0.0,
-    eval_ms = 0.0;
+    output_error_ms = 0.0, update_ms = 0.0, writing_ms = 0.0,
+    error_history_ms = 0.0, eval_ms = 0.0;
   Timer total_timer;
   for (int rounds_executed = 0; ; rounds_executed++) {
+    Timer round_timer;
+    
     if (ShouldDie()) return;
     if (VERBOSE > 2) Printf("\n\n");
     Printf("** NET ROUND %d (%d in this process) **\n", net->rounds, rounds_executed);
 
     // When starting from a fresh network, consider this:
 
-    // XXX: I think the learning rate should maybe depend on the number of examples
-    // per round, since we integrate over lots of them. We could end up having a
-    // total error for a single node of like +EXAMPLES_PER_ROUND or -EXAMPLES_PER_ROUND,
-    // which could yield an unrecoverable-sized update.
-    // (Alternatively, we could cap or norm the error values.)
+    // XXX: I think the learning rate should maybe depend on the
+    // number of examples per round, since we integrate over lots of
+    // them. We could end up having a total error for a single node of
+    // like +EXAMPLES_PER_ROUND or -EXAMPLES_PER_ROUND, which could
+    // yield an unrecoverable-sized update. (Alternatively, we could
+    // cap or norm the error values.) We now divide the round learning
+    // rate to an example learning rate, below.
     
     //    const float round_learning_rate =
     //      std::min(0.95, std::max(0.10, 4 * exp(-0.2275 * (net->rounds / 100.0 + 1)/3.0)));
@@ -2215,7 +2269,11 @@ static void TrainThread() {
     double total_ms = total_timer.MS();
     auto Pct = [total_ms](double d) { return (100.0 * d) / total_ms; };
     double denom = rounds_executed + 1;
-    ExportExamplesPerSec((EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0));
+
+    // TODO: Would be nice to average this over the last few rounds.
+    double round_eps = EXAMPLES_PER_ROUND / (round_timer.MS() / 1000.0);
+    // (EXAMPLES_PER_ROUND * denom) / (total_ms / 1000.0)
+    ExportExamplesPerSec(round_eps);
     if (VERBOSE > 1)
       Printf("Total so far %.1fs.\n"
 	     "Time per round: %.1fs.\n"
@@ -2297,16 +2355,12 @@ int SDL_main(int argc, char **argv) {
 
   {
     // XXX Maybe UIThread should be an object, then...
-    printf("Allocating video network/stimulations/data...");
+    // printf("Allocating video network/stimulations/data...");
     WriteMutexLock ml(&video_export_m);
-    NetworkConfiguration nc;
-    current_network = new Network{nc.num_nodes, nc.indices_per_node, nc.transfer_functions};
-    for (int i = 0; i < NUM_VIDEO_STIMULATIONS; i++) {
-      current_stimulations.emplace_back(*current_network);
-      current_errors.emplace_back(*current_network);
-    }
+    current_stimulations.resize(NUM_VIDEO_STIMULATIONS);
+    current_errors.resize(NUM_VIDEO_STIMULATIONS);
     current_expected.resize(NUM_VIDEO_STIMULATIONS);
-    printf("OK.\n");
+    // printf("OK.\n");
   }
 
   std::thread load_games_thread(

@@ -43,7 +43,8 @@ struct Network {
 
   void NaNCheck(const char *message) const;
 
-
+  static Network *Clone(const Network &other);
+  
   static Network *ReadNetworkBinary(const string &filename);
   static void SaveNetworkBinary(const Network &net, const string &filename);
 
@@ -121,6 +122,10 @@ struct Network {
   int64_t rounds = 0;
   // Total number of training examples processed.
   int64_t examples = 0;
+
+private:
+  // Value type, but require calling Clone explicitly.
+  Network(const Network &other) = default;
 };
 
 #endif
