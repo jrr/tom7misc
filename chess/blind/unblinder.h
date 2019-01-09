@@ -2,6 +2,8 @@
 #define __UNBLINDER_H
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 #include "../chess.h"
 
@@ -13,8 +15,10 @@ struct Unblinder {
   
   // Note that the resulting position may be invalid (e.g. multiple
   // black kings).
-  virtual Position Unblind(uint64_t pos) const;
+  virtual Position Unblind(uint64_t pos) const = 0;
 
+  virtual std::string ModelInfo() const = 0;
+  
   // TODO: Nice to have:
   //   - Visualize state to SDL surface or rgba array even.
   //   - Soft version of output (i.e. probabilities)
