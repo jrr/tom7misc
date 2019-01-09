@@ -20,8 +20,15 @@ using namespace std;
 
 using int64 = int64_t;
 
-// NOTE: This is pretty aggressive!
-static constexpr float THRESHOLD = 0.01f;
+// Using an absolute threshold doesn't make that much
+// sense, since downstream weights could be huge!
+// Probably we should be doing some kind of flow to
+// see how much it could be contributing. Or just
+// throw away a constant fraction of each layer?
+
+// NOTE: This is VERY aggressive!
+// 0.01f worked fine for my network, btw
+static constexpr float THRESHOLD = 0.1f;
 
 static void VacuumLayer(Network *net, int layer_idx) {
   CHECK(layer_idx >= 0);

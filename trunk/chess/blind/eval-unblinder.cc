@@ -187,12 +187,14 @@ int main(int argc, char **argv) {
   
   int64 total_mistakes = piece_mistakes + castling_mistakes + move_mistakes;
   
-  printf("In %lld positions:\n"
+  printf("ModelInfo [%s]\n"
+         "Over %lld positions:\n"
 	 "  %lld exactly correct (%.2f%%)\n"
 	 "  %lld piece mistakes (%.2f/pos)\n"
 	 "  %lld castling mistakes (%.2f/pos)\n"
 	 "  %lld move mistakes (%.2f/pos)\n"
 	 "  %lld total mistakes (%.2f/pos)\n",
+	 unblinder->ModelInfo().c_str(),
 	 total_positions,
 	 exactly_correct, (exactly_correct * 100.0) / total_positions,
 	 piece_mistakes, (piece_mistakes / (double)total_positions),

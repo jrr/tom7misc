@@ -639,6 +639,12 @@ struct Stimulation {
 };
 
 struct UnblinderMk0Impl : public Unblinder {
+  string ModelInfo() const override {
+    return StringPrintf("%lld rounds, %lld examples",
+			net->rounds,
+			net->examples);
+  }
+
   Position Unblind(uint64 bits) const override {
     Stimulation stim{*net};
     // Initialize input layer.

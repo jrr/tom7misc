@@ -61,6 +61,10 @@ eval-unblinder.exe : $(OBJECTS) eval-unblinder.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"
 
+ui-unblinder.exe : $(OBJECTS) $(SDLOBJECTS) ui-unblinder.o
+	@$(CXX) $^ -o $@ $(LFLAGS)
+	@echo -n "!"
+
 unblind.exe : $(OBJECTS) $(SDLOBJECTS) clutil.o unblind.o
 	@$(CXX) $^ -o $@ $(LFLAGS)
 	@echo -n "!"

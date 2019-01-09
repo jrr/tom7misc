@@ -1741,7 +1741,7 @@ static void TrainThread() {
   // XXX This is probably still way too low. These are very small for chess (a
   // stimulation just needs the node activation values, so it's much smaller than
   // the network itself, which has to store weights for each incoming edge).
-  static constexpr int EXAMPLES_PER_ROUND = 64; // 4096;
+  static constexpr int EXAMPLES_PER_ROUND = 2048; // 4096;
   static constexpr int EXAMPLE_QUEUE_TARGET = std::max(EXAMPLES_PER_ROUND * 2, 1024);
   // On a verbose round, we write a network checkpoint and maybe some
   // other stuff to disk. XXX: Do this based on time, since rounds speed can vary
@@ -1956,7 +1956,7 @@ static void TrainThread() {
 	double f = input / round_target;
 	return start + f * height;
       };
-      const float round_learning_rate = Linear(0.10, 0.002, 200000.0, net->rounds);
+      const float round_learning_rate = Linear(0.10, 0.002, 500000.0, net->rounds);
       
     // const float round_learning_rate =
     //     std::min(0.125, std::max(0.002, 2 * exp(-0.2275 * (net->rounds + 1)/3.0)));

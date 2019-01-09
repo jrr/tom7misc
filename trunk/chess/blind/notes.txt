@@ -153,4 +153,135 @@ In 50000 positions:
 
 
 -- vacuuming --
-Training speed before: 27.6725 eps
+Training speed before: ~27.6 eps
+Very aggressive threshold of 0.01f.
+Model size on disk:  160781584
+After:  122444104
+
+Layer 0: Unpack 1024 nodes / 64 indices per node
+Layer 0: Truncate to threshold 0.010000.
+Layer 0: Node 22 has a weight of -0.010150 in column 63; done.
+Layer 0: Dropping 0 of 64 indices.
+Layer 1: Unpack 12288 nodes / 1024 indices per node
+Layer 1: Truncate to threshold 0.010000.
+Layer 1: Node 4122 has a weight of -0.010077 in column 786; done.
+Layer 1: Dropping 237 of 1024 indices.
+Layer 2: Unpack 567 nodes / 12288 indices per node
+Layer 2: Truncate to threshold 0.010000.
+Layer 2: Node 530 has a weight of 0.010002 in column 9091; done.
+Layer 2: Dropping 3196 of 12288 indices.
+Layer 3: Unpack 837 nodes / 567 indices per node
+Layer 3: Truncate to threshold 0.010000.
+Layer 3: Node 655 has a weight of -0.010260 in column 485; done.
+Layer 3: Dropping 81 of 567 indices.
+
+
+Before In 50000 positions:
+  10601 exactly correct (21.20%)
+  156052 piece mistakes (3.12/pos)
+  1542 castling mistakes (0.03/pos)
+  18818 move mistakes (0.38/pos)
+  176412 total mistakes (3.53/pos)
+
+real    3m56.358s
+
+After In 50000 positions:
+  10555 exactly correct (21.11%)
+  156213 piece mistakes (3.12/pos)
+  1545 castling mistakes (0.03/pos)
+  18892 move mistakes (0.38/pos)
+  176650 total mistakes (3.53/pos)
+
+real    3m53.845s
+user    0m0.000s
+sys     0m0.000s
+
+This is very slightly worse... tolerable!
+
+eps after: 27.52 (actually slightly slower?! how?)
+Maybe the big layers are not actually the bottleneck
+because we get lots of parallelism?
+
+
+with a threshold of 0.1 (really aggressive!)
+network is only 5mb now, so that's something...
+475 eps!
+but the performance is so bad :(
+
+ - it got somewhat better after running a while
+ 
+In 50000 positions:
+  8239 exactly correct (16.48%)
+  167477 piece mistakes (3.35/pos)
+  1666 castling mistakes (0.03/pos)
+  19713 move mistakes (0.39/pos)
+  188856 total mistakes (3.78/pos)
+
+24s runtime
+
+ - increased learning rate and examples per round a lot:
+
+with a higher ex/round, 527 eps!
+... error is already down to 12
+then overnight,
+
+ModelInfo [237767 rounds, 31777088 examples]
+Over 50000 positions:
+  8834 exactly correct (17.67%)
+  164732 piece mistakes (3.29/pos)
+  1649 castling mistakes (0.03/pos)
+  19391 move mistakes (0.39/pos)
+  185772 total mistakes (3.72/pos)
+
+and through the day,
+ModelInfo [253767 rounds, 48161088 examples]
+Over 50000 positions:
+  9118 exactly correct (18.24%)
+  163616 piece mistakes (3.27/pos)
+  1643 castling mistakes (0.03/pos)
+  19254 move mistakes (0.39/pos)
+  184513 total mistakes (3.69/pos)
+
+... so it's still improving substantially.
+
+
+also, gpu-z reports pretty low GPU usage with this setup. Probably
+worth looking into this. Maybe we could run multiple training examples
+with the same kernel invocation. (At least, check out the timers..)
+
+another evening:
+ModelInfo [267022 rounds, 74000704 examples]
+Over 50000 positions:
+  9231 exactly correct (18.46%)
+  162890 piece mistakes (3.26/pos)
+  1630 castling mistakes (0.03/pos)
+  19166 move mistakes (0.38/pos)
+  183686 total mistakes (3.67/pos)
+
+ModelInfo [276522 rounds, 93456704 examples]
+Over 50000 positions:
+  9316 exactly correct (18.63%)
+  162603 piece mistakes (3.25/pos)
+  1635 castling mistakes (0.03/pos)
+  19141 move mistakes (0.38/pos)
+  183379 total mistakes (3.67/pos)
+
+Still improvin':
+
+ModelInfo [287754 rounds, 116459840 examples]
+Over 50000 positions:
+  9406 exactly correct (18.81%)
+  162111 piece mistakes (3.24/pos)
+  1623 castling mistakes (0.03/pos)
+  19079 move mistakes (0.38/pos)
+  182813 total mistakes (3.66/pos)
+
+ModelInfo [295504 rounds, 132331840 examples]
+Over 50000 positions:
+  9419 exactly correct (18.84%)
+  162002 piece mistakes (3.24/pos)
+  1631 castling mistakes (0.03/pos)
+  19049 move mistakes (0.38/pos)
+  182682 total mistakes (3.65/pos)
+
+so, getting slightly better, but maybe has plateaued?
