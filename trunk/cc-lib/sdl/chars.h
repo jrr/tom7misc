@@ -1,4 +1,7 @@
 
+// TODO: Should make these optional, since the color macros can easily cause
+// conflicts (e.g. with chess libs, ansi codes). But we need FONTCHARS to load
+// a font.
 #define WHITE "^0"
 #define BLUE "^1"
 #define RED "^2"
