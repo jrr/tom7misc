@@ -128,4 +128,87 @@ private:
   Network(const Network &other) = default;
 };
 
+// TODO: Move this stuff at least into .cc, if not their own headers?
+
+// A stimulation is an evaluation (perhaps an in-progress one) of a
+// network on a particular input; when it's complete we have the
+// activation value of each node on each layer, plus the input itself.
+struct Stimulation {
+  explicit Stimulation(const Network &net) : num_layers(net.num_layers),
+					     num_nodes(net.num_nodes) {
+    values.resize(num_layers + 1);
+    for (int i = 0; i < values.size(); i++)
+      values[i].resize(num_nodes[i], 0.0f);
+  }
+  
+  // Empty, useless stimulation, but can be used to initialize
+  // vectors, etc.
+  Stimulation() : num_layers(0) {}
+  Stimulation(const Stimulation &other) = default;
+  
+  int64_t Bytes() const {
+    int64_t ret = sizeof *this;
+    for (int i = 0; i < values.size(); i++) {
+      ret += sizeof values[i] + sizeof values[i][0] * values[i].size();
+    }
+    return ret;
+  }
+
+  // TODO: would be nice for these to be const, but then we can't have an
+  // assignment operator.
+  // Same as in Network.
+  int num_layers;
+  // num_layers + 1
+  std::vector<int> num_nodes;
+
+  // Keep track of what's actually been computed?
+
+  // Here the outer vector has size num_layers + 1; first is the input.
+  // Inner vector has size num_nodes[i], and just contains their output values.
+  std::vector<std::vector<float>> values;
+
+  void CopyFrom(const Stimulation &other);
+  void NaNCheck(const char *message) const;
+};
+
+struct Errors {
+  explicit Errors(const Network &net) : num_layers(net.num_layers),
+					num_nodes(net.num_nodes) {
+    error.resize(num_layers);
+    for (int i = 0; i < error.size(); i++) {
+      error[i].resize(num_nodes[i + 1], 0.0f);
+    }
+  }
+  // Empty, useless errors, but can be used to initialize vectors etc.
+  Errors() : num_layers(0) {}
+  Errors(const Errors &other) = default;
+
+  // Would be nice for these to be const, but then we can't have an
+  // assignment operator.
+  int num_layers;
+  // The first entry here is unused (it's the size of the input layer,
+  // which doesn't get errors), but we keep it like this to be
+  // consistent with Network and Stimulation.
+  std::vector<int> num_nodes;
+  int64_t Bytes() const {
+    int64_t ret = sizeof *this;
+    for (int i = 0; i < error.size(); i++)
+      ret += sizeof error[i] + sizeof error[i][0] * error[i].size();
+    return ret;
+  }
+
+  void CopyFrom(const Errors &other);
+  
+  // These are the delta terms in Mitchell. We have num_layers of
+  // them, where the error[0] is the first real layer (we don't
+  // compute errors for the input) and error[num_layers] is the error
+  // for the output.
+  std::vector<std::vector<float>> error;
+};
+
+// The stimulation must match the network, and its input layer must be
+// filled. Run the network forward, populating the rest of the
+// stimulation in place.
+extern void ForwardStimulation(const Network &net, Stimulation *stim);
+
 #endif

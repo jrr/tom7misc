@@ -216,6 +216,7 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   if (file == nullptr) {
     printf("  ... failed. If it's present, there may be a "
 	   "permissions problem?\n");
+    fflush(stdout);
     return nullptr;
   }
 
@@ -250,14 +251,16 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   // These values determine the size of the network vectors.
   int file_num_layers = Read32();
   CHECK_GE(file_num_layers, 0);
-  printf("%s: %d layers.\n", filename.c_str(), file_num_layers);
+  printf("%s: %lld rounds, %lld examples, %d layers.\n",
+	 filename.c_str(), round, examples, file_num_layers);
   vector<int> num_nodes(file_num_layers + 1, 0);
   printf("%s: num nodes: ", filename.c_str());
   for (int i = 0; i < file_num_layers + 1; i++) {
     num_nodes[i] = Read32();
     printf("%d ", num_nodes[i]);
   }
-
+  printf("\n");
+  
   vector<int> width, height, channels;
   for (int i = 0; i < file_num_layers + 1; i++)
     width.push_back(Read32());
@@ -269,6 +272,10 @@ Network *Network::ReadNetworkBinary(const string &filename) {
   CHECK(num_nodes.size() == height.size());
   CHECK(num_nodes.size() == channels.size());
 
+  for (int i = 0; i < file_num_layers + 1; i++) {
+    printf("Layer %d: %d x %d x %d\n", i - 1, width[i], height[i], channels[i]);
+  }
+  
   printf("\n%s: indices per node/fns: ", filename.c_str());
   vector<int> indices_per_node(file_num_layers, 0);
   vector<TransferFunction> transfer_functions(file_num_layers, SIGMOID);
@@ -335,6 +342,10 @@ void Network::SaveNetworkBinary(const Network &net,
   Write64(net.rounds);
   Write64(net.examples);
   Write32(net.num_layers);
+  CHECK(net.num_nodes.size() == net.num_layers + 1);
+  CHECK(net.width.size() == net.num_layers + 1) << net.width.size();
+  CHECK(net.height.size() == net.num_layers + 1);
+  CHECK(net.channels.size() == net.num_layers + 1);
   for (const int i : net.num_nodes) Write32(i);
   for (const int w : net.width) Write32(w);
   for (const int h : net.height) Write32(h);
@@ -354,4 +365,82 @@ void Network::SaveNetworkBinary(const Network &net,
   // Inverted indices are not written.
   printf("Wrote %s.\n", filename.c_str());
   fclose(file);
+}
+
+void Stimulation::CopyFrom(const Stimulation &other) {
+  CHECK_EQ(this->num_layers, other.num_layers);
+  CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
+  for (int i = 0; i < this->num_nodes.size(); i++) {
+    CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
+  }
+  this->values = other.values;
+}
+
+
+void Stimulation::NaNCheck(const char *message) const {
+  bool has_nans = false;
+  vector<int> layer_nans;
+  for (const vector<float> &layer : values) {
+    int v = 0;
+    for (float f : layer) if (std::isnan(f)) v++;
+    layer_nans.push_back(v);
+    if (v > 0) has_nans = true;
+  }
+  if (has_nans) {
+    string err;
+    for (int i = 0; i < layer_nans.size(); i++) {
+      err += StringPrintf("stim layer %d. %d/%d values\n",
+			  i,
+			  layer_nans[i], values[i].size());
+    }
+    CHECK(false) << "[" << message
+		 << "] The stimulation has NaNs :-(\n" << err;
+  }
+}
+
+void Errors::CopyFrom(const Errors &other) {
+  CHECK_EQ(this->num_layers, other.num_layers);
+  CHECK_EQ(this->num_nodes.size(), other.num_nodes.size());
+  for (int i = 0; i < this->num_nodes.size(); i++) {
+    CHECK_EQ(this->num_nodes[i], other.num_nodes[i]);
+  }
+  this->error = other.error;
+}
+
+void ForwardStimulation(const Network &net, Stimulation *stim) {
+  // PERF: Parallelism for large networks?
+  // If this is a performance bottleneck, should really be using GPU...
+  for (int src = 0; src < net.num_layers; src++) {
+    // XXX: Support other transfer functions!
+    CHECK(net.layers[src].transfer_function == TransferFunction::LEAKY_RELU);
+    auto Forward =
+      [](double potential) -> float {
+	return (potential < 0.0f) ? potential * 0.01f : potential;
+      };
+
+    const vector<float> &src_values = stim->values[src];
+    vector<float> *dst_values = &stim->values[src + 1];
+    const vector<float> &biases = net.layers[src].biases;
+    const vector<float> &weights = net.layers[src].weights;
+    const vector<uint32> &indices = net.layers[src].indices;
+    const int indices_per_node = net.layers[src].indices_per_node;
+    const int num_nodes = net.num_nodes[src + 1];
+    for (int node_idx = 0; node_idx < num_nodes; node_idx++) {
+      // Start with bias.
+      double potential = biases[node_idx];
+      const int my_weights = node_idx * indices_per_node;
+      const int my_indices = node_idx * indices_per_node;
+
+      for (int i = 0; i < indices_per_node; i++) {
+	const float w = weights[my_weights + i];
+	const int srci = indices[my_indices + i];
+	const float v = src_values[srci];
+	potential += w * v;
+      }
+      const float out = Forward(potential);
+      (*dst_values)[node_idx] = out;
+    }
+  }
+
+  // Now the final layer in the stimulation reflects our prediction.
 }
